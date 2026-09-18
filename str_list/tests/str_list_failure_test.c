@@ -49,13 +49,13 @@ list_equals(str_list_t list, const char *const *items, size_t count)
 static bool
 test_append_failures(void)
 {
-	for (size_t failure = 0; failure < 2; failure++) {
+	for (size_t failure = 0; failure < 3; failure++) {
 		str_list_t list = make_list(NULL, 0);
 		bool succeeded;
 
 		str_list_test_fail_after(failure);
 		succeeded = str_list_append(&list, "one");
-		if (failure < 1) {
+		if (failure < 2) {
 			CHECK(!succeeded);
 			CHECK(str_list_count(list) == 0 && list == NULL);
 		} else {
@@ -66,6 +66,28 @@ test_append_failures(void)
 		str_list_free(&list);
 		CHECK(str_list_test_outstanding() == 0);
 	}
+	return true;
+}
+
+static bool
+test_growth_failure(void)
+{
+	static const char *const items[] = {"one", "two", "three", "four"};
+	str_list_t list = make_list(items, 4);
+	str_list_t original = list;
+	size_t outstanding = str_list_test_outstanding();
+
+	CHECK(list != NULL);
+	/* The copy succeeds; growing the pointer array fails. */
+	str_list_test_fail_after(1);
+	CHECK(!str_list_append(&list, list[0]));
+	CHECK(list == original && list_equals(list, items, 4));
+	CHECK(str_list_test_outstanding() == outstanding);
+	str_list_test_disable_failure();
+	CHECK(str_list_append(&list, list[0]));
+	CHECK(str_list_count(list) == 5 && strcmp(list[4], "one") == 0);
+	str_list_free(&list);
+	CHECK(str_list_test_outstanding() == 0);
 	return true;
 }
 
@@ -187,6 +209,7 @@ int
 main(void)
 {
 	if (!test_append_failures()
+	    || !test_growth_failure()
 	    || !test_append_list_failures()
 	    || !test_clone_failures()
 	    || !test_split_failures()

@@ -52,14 +52,16 @@ if(BUILD_TESTING)
 	add_executable(str_list_failure_test
 		str_list.c
 		tests/str_list_failure_test.c
+		tests/str_list_test_array.c
 		tests/str_list_test_allocator.c)
 	target_include_directories(str_list_failure_test PRIVATE
 		${CMAKE_CURRENT_SOURCE_DIR}
+		${CMAKE_CURRENT_SOURCE_DIR}/../array_list
 		${CMAKE_CURRENT_SOURCE_DIR}/tests)
 	target_compile_definitions(str_list_failure_test PRIVATE
 		STR_LIST_TEST_ALLOCATOR=1)
 	target_link_libraries(str_list_failure_test PRIVATE
-		syncterm_array_list syncterm_string_compat)
+		syncterm_string_compat)
 	set_target_properties(str_list_failure_test PROPERTIES
 		C_STANDARD 17
 		C_STANDARD_REQUIRED YES
