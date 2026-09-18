@@ -69,5 +69,25 @@ main(void)
 	CHECK(!st_hex_encode(encoded, sizeof(encoded), NULL, sizeof(known)));
 	CHECK(!st_hex_decode(NULL, 0, "00", 2));
 	CHECK(!st_hex_decode(decoded, sizeof(decoded), NULL, 2));
+	/* All non-hex byte values, including embedded NUL and high bytes,
+	 * must reject the whole input without publishing a decoded prefix. */
+	for (unsigned int i = 0; i <= 255; ++i) {
+		bool valid = (i >= '0' && i <= '9') || (i >= 'a' && i <= 'f')
+		    || (i >= 'A' && i <= 'F');
+		digit = 0xff;
+		CHECK(st_hex_digit_value((unsigned char)i, &digit) == valid);
+		if (valid)
+			continue;
+		CHECK(digit == 0xff);
+		for (size_t offset = 0; offset < 4; ++offset) {
+			unsigned char input[] = {'0', '1', 'a', 'b'};
+			unsigned char output[] = {0xa5, 0xa5, 0xa5};
+			input[offset] = (unsigned char)i;
+			CHECK(!st_hex_decode(output, 2, (const char *)input, 4));
+			CHECK(output[0] == 0xa5 && output[1] == 0xa5 && output[2] == 0xa5);
+		}
+	}
+	CHECK(!st_hex_encode(empty, 0, "", 0));
+	CHECK(st_hex_decode(&byte, 0, "", 0) && byte == 0xa5);
 	return 0;
 }
