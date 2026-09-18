@@ -38,6 +38,10 @@ test_duplication(void)
 	free(long_copy);
 	free(short_copy);
 	free(copy);
+	const char bounded[] = {'a', 'b', 'c'};
+	copy = strndup(bounded, sizeof(bounded));
+	CHECK(copy != NULL && strcmp(copy, "abc") == 0);
+	free(copy);
 	return true;
 }
 
@@ -53,6 +57,8 @@ test_copy(void)
 	CHECK(strcmp(destination, "one") == 0);
 	CHECK(strlcpy(&unchanged, "value", 0) == 5);
 	CHECK(unchanged == 'x');
+	CHECK(strlcpy(&unchanged, "value", 1) == 5);
+	CHECK(unchanged == '\0');
 	return true;
 }
 
@@ -68,6 +74,8 @@ test_append(void)
 	CHECK(strlcat(truncated, "three", sizeof(truncated)) == 8);
 	CHECK(strcmp(truncated, "oneth") == 0);
 	CHECK(strlcat(unterminated, "x", sizeof(unterminated)) == 4);
+	CHECK(memcmp(unterminated, "abc", sizeof(unterminated)) == 0);
+	CHECK(strlcat(unterminated, "xy", 0) == 2);
 	CHECK(memcmp(unterminated, "abc", sizeof(unterminated)) == 0);
 	return true;
 }

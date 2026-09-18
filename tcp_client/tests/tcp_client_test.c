@@ -82,6 +82,24 @@ main(void)
 	CHECK(connected == listener);
 
 	CHECK(socket_close(listener) == 0);
+	/* Reserve a local port without listening, so refusal cannot be confused
+	 * with another process reusing a just-closed listener's port. */
+	listener = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	CHECK(socket_handle_is_valid(listener));
+	address.sin_port = 0;
+	CHECK(bind(listener, (const struct sockaddr *)&address,
+	    (test_socklen_t)sizeof(address)) == 0);
+	CHECK(getsockname(listener, (struct sockaddr *)&address, &address_size) == 0);
+	connected = SOCKET_HANDLE_INVALID;
+	family = TCP_CLIENT_ADDRESS_ANY;
+	options.timeout_ms = 2000;
+	int refused = tcp_client_connect(&connected, &family, "127.0.0.1",
+	    ntohs(address.sin_port), &options);
+	CHECK(socket_close(listener) == 0);
+	if (refused == 0)
+		(void)socket_close(connected);
+	CHECK(refused == IO_ERROR_CONNECTION_REFUSED);
+	CHECK(connected == SOCKET_HANDLE_INVALID && family == TCP_CLIENT_ADDRESS_ANY);
 	CHECK(socket_runtime_cleanup() == 0);
 	return 0;
 }

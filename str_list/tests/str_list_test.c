@@ -44,6 +44,9 @@ test_append_and_clone(void)
 	CHECK(strcmp(clone[0], "first") == 0);
 	CHECK(str_list_clone(&clone, NULL));
 	CHECK(clone == NULL);
+	CHECK(str_list_clone(&list, list));
+	CHECK(str_list_count(list) == 20);
+	CHECK(strcmp(list[0], "First") == 0 && list[20] == NULL);
 
 	str_list_free(&clone);
 	str_list_free(&list);
@@ -151,6 +154,10 @@ test_split_and_join(void)
 	CHECK(joined != NULL && strcmp(joined, "") == 0);
 	str_list_free_item(joined);
 	CHECK(str_list_join(list, NULL) == NULL);
+	/* Replacement must finish reading inputs borrowed from the old list. */
+	CHECK(str_list_split(&list, list[0], "n"));
+	CHECK(str_list_count(list) == 2);
+	CHECK(strcmp(list[0], "o") == 0 && strcmp(list[1], "e") == 0);
 
 	str_list_free(&undivided);
 	str_list_free(&empty);

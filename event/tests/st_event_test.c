@@ -258,12 +258,37 @@ test_errors(void)
 	return true;
 }
 
+static bool
+test_expired_deadline(void)
+{
+	const struct timespec expired = {0, 0};
+	st_event_t *event = NULL;
+
+	CHECK(st_event_create(&event, ST_EVENT_AUTO_RESET, true)
+	    == ST_THREAD_SUCCESS);
+	CHECK(st_event_timedwait(event, &expired) == ST_THREAD_SUCCESS);
+	CHECK(st_event_timedwait(event, &expired) == ST_THREAD_TIMED_OUT);
+	CHECK(st_event_reset(event) == ST_THREAD_SUCCESS);
+	CHECK(st_event_set(event) == ST_THREAD_SUCCESS);
+	CHECK(st_event_timedwait(event, NULL) == ST_THREAD_ERROR);
+	CHECK(st_event_trywait(event) == ST_THREAD_SUCCESS);
+	st_event_destroy(event);
+	CHECK(st_event_create(&event, ST_EVENT_MANUAL_RESET, true)
+	    == ST_THREAD_SUCCESS);
+	CHECK(st_event_timedwait(event, &expired) == ST_THREAD_SUCCESS);
+	CHECK(st_event_timedwait(event, &expired) == ST_THREAD_SUCCESS);
+	CHECK(st_event_reset(event) == ST_THREAD_SUCCESS);
+	CHECK(st_event_timedwait(event, &expired) == ST_THREAD_TIMED_OUT);
+	st_event_destroy(event);
+	return true;
+}
+
 int
 main(void)
 {
 	if (!test_initial_and_reset() || !test_auto_reset_waiters()
 	    || !test_manual_reset_waiters() || !test_handshake()
-	    || !test_errors())
+	    || !test_errors() || !test_expired_deadline())
 		return EXIT_FAILURE;
 	return EXIT_SUCCESS;
 }

@@ -94,6 +94,8 @@ main(void)
 		CHECK(fseek(stream, 3, SEEK_SET) == 0);
 		CHECK(fs_stream_size(stream) == (int64_t)strlen("source contents"));
 		CHECK(ftell(stream) == 3);
+		CHECK(fs_stream_truncate(stream, UINT64_MAX) == IO_ERROR_OUT_OF_RANGE);
+		CHECK(fs_stream_size(stream) == (int64_t)strlen("source contents"));
 		CHECK(fs_stream_truncate(stream, UINT64_C(5) * 1024 * 1024 * 1024 + 7) == 0);
 		CHECK(fs_stream_size(stream) == INT64_C(5368709127));
 		CHECK(ftell(stream) == 3);
@@ -118,6 +120,15 @@ main(void)
 	CHECK((native.st_mode & 0777) == 0751);
 #endif
 	CHECK(fs_copy_file(source, source) == IO_ERROR_INVALID_ARGUMENT);
+#ifndef _WIN32
+	char hardlink[512];
+	make_path(hardlink, sizeof(hardlink), directory, "source-hardlink");
+	CHECK(link(source, hardlink) == 0);
+	CHECK(fs_copy_file(source, hardlink) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(fs_get_info(&info, source) == 0);
+	CHECK(info.size == strlen("source contents"));
+	CHECK(fs_remove_file(hardlink) == 0);
+#endif
 
 	write_text(replacement, "replacement");
 	CHECK(fs_rename(replacement, destination) == 0);

@@ -6,6 +6,7 @@
 #include "st_semaphore.h"
 
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -242,11 +243,35 @@ test_errors(void)
 	return true;
 }
 
+static bool
+test_boundaries(void)
+{
+	const struct timespec expired = {0, 0};
+	st_semaphore_t *semaphore = NULL;
+
+	CHECK(st_semaphore_create(&semaphore, 1, 1) == ST_THREAD_SUCCESS);
+	CHECK(st_semaphore_timedwait(semaphore, NULL) == ST_THREAD_ERROR);
+	CHECK(st_semaphore_timedwait(semaphore, &expired) == ST_THREAD_SUCCESS);
+	CHECK(st_semaphore_timedwait(semaphore, &expired) == ST_THREAD_TIMED_OUT);
+	CHECK(st_semaphore_post(semaphore) == ST_THREAD_SUCCESS);
+	CHECK(st_semaphore_trywait(semaphore) == ST_THREAD_SUCCESS);
+	CHECK(st_semaphore_trywait(semaphore) == ST_THREAD_BUSY);
+	st_semaphore_destroy(semaphore);
+	CHECK(st_semaphore_create(&semaphore, SIZE_MAX, SIZE_MAX)
+	    == ST_THREAD_SUCCESS);
+	CHECK(st_semaphore_post(semaphore) == ST_THREAD_ERROR);
+	CHECK(st_semaphore_trywait(semaphore) == ST_THREAD_SUCCESS);
+	CHECK(st_semaphore_post(semaphore) == ST_THREAD_SUCCESS);
+	CHECK(st_semaphore_post(semaphore) == ST_THREAD_ERROR);
+	st_semaphore_destroy(semaphore);
+	return true;
+}
+
 int
 main(void)
 {
 	if (!test_counts_and_limit() || !test_one_waiter_per_post()
-	    || !test_resource_pool() || !test_errors())
+	    || !test_resource_pool() || !test_errors() || !test_boundaries())
 		return EXIT_FAILURE;
 	return EXIT_SUCCESS;
 }

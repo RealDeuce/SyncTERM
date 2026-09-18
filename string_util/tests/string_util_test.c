@@ -31,5 +31,25 @@ main(void)
 	CHECK(begin == 2 && end == 5);
 	CHECK(string_span_is_printable_ascii("A~", 2));
 	CHECK(!string_span_is_printable_ascii("\x80", 1));
+	for (unsigned int byte = 0; byte < 256; ++byte) {
+		bool space = byte == 32 || (byte >= 9 && byte <= 13);
+		unsigned int lower = byte >= 65 && byte <= 90 ? byte + 32 : byte;
+		char span[] = {' ', (char)byte, '\t'};
+		CHECK(ascii_is_space((unsigned char)byte) == space);
+		CHECK(ascii_is_printable((unsigned char)byte)
+		    == (byte >= 32 && byte <= 126));
+		CHECK(ascii_to_lower((unsigned char)byte) == lower);
+		string_ascii_trim_span(span, sizeof(span), &begin, &end);
+		CHECK(begin == (space ? 3U : 1U));
+		CHECK(end == (space ? 3U : 2U));
+	}
+	string_ascii_trim_span("", 0, &begin, &end);
+	CHECK(begin == 0 && end == 0);
+	CHECK(ascii_case_starts_with("", ""));
+	CHECK(!ascii_case_starts_with(NULL, ""));
+	CHECK(!ascii_case_span_equal("a\0b", 3, "a"));
+	CHECK(ascii_case_ncompare("a", "b", 0) == 0);
+	CHECK(ascii_case_compare("\xff", "z") > 0);
+	CHECK(string_trim_ascii(NULL) == NULL);
 	return EXIT_SUCCESS;
 }

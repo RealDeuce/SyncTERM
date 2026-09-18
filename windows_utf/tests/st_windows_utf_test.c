@@ -26,6 +26,8 @@ main(void)
 
 	CHECK(st_windows_utf8_to_utf16(&wide, text) == 0);
 	CHECK(wide != NULL);
+	CHECK(wide[0] == L'A' && wide[1] == 0x20ac
+	    && wide[2] == 0xd83d && wide[3] == 0xde00 && wide[4] == 0);
 	CHECK(st_windows_utf16_to_utf8(&roundtrip, wide) == 0);
 	CHECK(strcmp(roundtrip, text) == 0);
 	free(roundtrip);
@@ -36,5 +38,17 @@ main(void)
 	CHECK(st_windows_utf16_to_utf8(&text_sentinel, invalid_wide)
 	    == IO_ERROR_INVALID_ENCODING);
 	CHECK(text_sentinel == (char *)(uintptr_t)1);
+	const wchar_t lone_low[] = {0xdc00, 0};
+	CHECK(st_windows_utf16_to_utf8(&text_sentinel, lone_low)
+	    == IO_ERROR_INVALID_ENCODING);
+	CHECK(text_sentinel == (char *)(uintptr_t)1);
+	CHECK(st_windows_utf8_to_utf16(&wide_sentinel, NULL)
+	    == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(wide_sentinel == (wchar_t *)(uintptr_t)1);
+	CHECK(st_windows_utf16_to_utf8(NULL, L"") == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_windows_utf8_to_utf16(&wide, "") == 0 && wide[0] == 0);
+	CHECK(st_windows_utf16_to_utf8(&roundtrip, L"") == 0 && roundtrip[0] == 0);
+	free(wide);
+	free(roundtrip);
 	return EXIT_SUCCESS;
 }

@@ -34,6 +34,16 @@ check_output(ptrdiff_t (*function)(char *, size_t, const char *),
 	CHECK(function(small, sizeof(small), input) == required);
 	if ((size_t)required >= sizeof(small))
 		CHECK(strcmp(small, "old") == 0);
+	/* Required-size queries exclude NUL; exactly that capacity cannot fit. */
+	memset(output, 0x5a, sizeof(output));
+	CHECK(function(output, (size_t)required, input) == required);
+	for (size_t i = 0; i < sizeof(output); ++i)
+		CHECK(output[i] == 0x5a);
+	if (strlen(input) < sizeof(output)) {
+		memcpy(output, input, strlen(input) + 1);
+		CHECK(function(output, sizeof(output), output) == required);
+		CHECK(strcmp(output, expected) == 0);
+	}
 }
 
 int
@@ -102,6 +112,9 @@ main(void)
 	CHECK(absolute[0] == '/');
 	CHECK(strcmp(path_basename(absolute), "two") == 0);
 	check_output(path_make_absolute, "/one/..", "/");
+	check_output(path_make_absolute, "/../../one/./two/../three//", "/one/three");
+	check_output(path_parent, "/one///", "/");
+	check_output(path_parent, "/", "/");
 	const char *home = getenv("HOME");
 	if (home == NULL || *home == '\0')
 		CHECK(path_expand_user(NULL, 0, "~/one") == IO_ERROR_NOT_FOUND);

@@ -23,6 +23,7 @@ static int64_t fake_start_times[TCP_CLIENT_FAKE_MAX_ADDRESSES];
 static size_t fake_starts;
 static int64_t fake_time;
 static size_t fake_closes;
+static bool fake_error_consumed[TCP_CLIENT_FAKE_MAX_ADDRESSES];
 
 void
 tcp_client_fake_reset(const struct tcp_client_fake_address *addresses,
@@ -35,6 +36,7 @@ tcp_client_fake_reset(const struct tcp_client_fake_address *addresses,
 	fake_starts = 0;
 	fake_time = 0;
 	fake_closes = 0;
+	memset(fake_error_consumed, 0, sizeof(fake_error_consumed));
 }
 
 size_t
@@ -154,6 +156,11 @@ socket_internal_wait_many(struct socket_wait_item *items, size_t count,
 		if (fake_addresses[address].behavior != TCP_CLIENT_FAKE_NEVER &&
 		    fake_addresses[address].ready_at <= fake_time) {
 			items[index].events = SOCKET_WAIT_WRITABLE;
+			if (fake_addresses[address].behavior == TCP_CLIENT_FAKE_PENDING_FAILURE) {
+				items[index].events |= SOCKET_WAIT_ERROR;
+				items[index].error = fake_addresses[address].error;
+				fake_error_consumed[address] = true;
+			}
 			ready = true;
 		}
 	}
@@ -165,6 +172,8 @@ socket_internal_connect_result(socket_handle_t socket)
 {
 	size_t address = (size_t)socket - TCP_CLIENT_FAKE_HANDLE_BASE;
 
+	if (fake_error_consumed[address])
+		return 0;
 	if (fake_addresses[address].behavior == TCP_CLIENT_FAKE_PENDING_SUCCESS)
 		return 0;
 	return fake_addresses[address].error;

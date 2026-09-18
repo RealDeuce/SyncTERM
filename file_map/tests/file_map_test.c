@@ -72,6 +72,19 @@ test_stream_mapping(const char *path, const unsigned char *contents,
 	CHECK(file_map_close(map) == 0);
 	CHECK(fgetc(stream) == 'S');
 	CHECK(fclose(stream) == 0);
+
+	/* The mapping must own its lifetime independently of the borrowed stream. */
+	map = NULL;
+	CHECK(fs_open(&stream, path, "rb") == 0);
+	if (stream == NULL)
+		return;
+	CHECK(file_map_open_stream(&map, stream) == 0);
+	CHECK(fclose(stream) == 0);
+	CHECK(file_map_size(map) == size);
+	CHECK(file_map_data(map) != NULL);
+	if (file_map_data(map) != NULL)
+		CHECK(memcmp(file_map_data(map), contents, size) == 0);
+	CHECK(file_map_close(map) == 0);
 }
 
 static void
