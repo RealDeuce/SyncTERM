@@ -222,7 +222,7 @@ clear_cell_pair(WrenVM *vm, struct foreign_cell *foreign)
 	blank.codepoint = ' ';
 	blank.flags &= ~(ST_CONSOLE_CELL_CONTINUATION
 	    | ST_CONSOLE_CELL_EXPLICIT_GLYPH | ST_CONSOLE_CELL_FALLBACK_FONT);
-	(void)st_console_font_lookup(st_wren_host_from_vm(vm)->config.console,
+	(void)st_console_font_lookup(st_wren_context_from_vm(vm)->console,
 	    blank.font, ' ', &glyph_font, &glyph, &columns);
 	blank.glyph = glyph;
 	if (glyph_font != blank.font)
@@ -254,7 +254,7 @@ set_cell_codepoint(WrenVM *vm, struct foreign_cell *foreign,
 	if (raw)
 		value.flags |= ST_CONSOLE_CELL_EXPLICIT_GLYPH;
 	else if (st_console_font_lookup(
-	    st_wren_host_from_vm(vm)->config.console, value.font, codepoint,
+	    st_wren_context_from_vm(vm)->console, value.font, codepoint,
 	    &glyph_font, &glyph, &columns) != 0) {
 		glyph = '?';
 		glyph_font = value.font;
@@ -279,7 +279,7 @@ resolved_cell_columns(WrenVM *vm, const struct st_console_cell *cell)
 
 	if ((cell->flags & ST_CONSOLE_CELL_EXPLICIT_GLYPH) != 0) {
 		(void)st_console_font_glyph_columns(
-		    st_wren_host_from_vm(vm)->config.console,
+		    st_wren_context_from_vm(vm)->console,
 		    (cell->flags & ST_CONSOLE_CELL_FALLBACK_FONT) != 0
 		    ? 0 : cell->font,
 		    cell->glyph, &columns);
@@ -289,7 +289,7 @@ resolved_cell_columns(WrenVM *vm, const struct st_console_cell *cell)
 		uint32_t glyph;
 
 		(void)st_console_font_lookup(
-		    st_wren_host_from_vm(vm)->config.console, cell->font,
+		    st_wren_context_from_vm(vm)->console, cell->font,
 		    cell->codepoint, &glyph_font, &glyph, &columns);
 	}
 	return columns;
@@ -307,14 +307,13 @@ allocate_generic(WrenVM *vm)
 static void
 allocate_cell(WrenVM *vm)
 {
-	struct st_wren_host *host = st_wren_host_from_vm(vm);
 	struct st_console_style style;
 	struct foreign_cell *cell = wrenSetSlotNewForeign(vm, 0, 0,
 	    sizeof(*cell));
 
 	memset(cell, 0, sizeof(*cell));
 	cell->header.kind = FOREIGN_CELL;
-	if (st_console_get_style(host->config.console, &style) != 0)
+	if (st_console_get_style(st_wren_context_from_vm(vm)->console, &style) != 0)
 		style = (struct st_console_style){.foreground = 7};
 	cell->storage = storage_create(1, 1, &style);
 	if (cell->storage == NULL)
@@ -324,7 +323,6 @@ allocate_cell(WrenVM *vm)
 static void
 allocate_surface(WrenVM *vm)
 {
-	struct st_wren_host *host = st_wren_host_from_vm(vm);
 	struct st_console_style style;
 	struct foreign_surface *surface;
 	int64_t width;
@@ -336,7 +334,7 @@ allocate_surface(WrenVM *vm)
 	surface = wrenSetSlotNewForeign(vm, 0, 0, sizeof(*surface));
 	memset(surface, 0, sizeof(*surface));
 	surface->header.kind = FOREIGN_SURFACE;
-	if (st_console_get_style(host->config.console, &style) != 0)
+	if (st_console_get_style(st_wren_context_from_vm(vm)->console, &style) != 0)
 		style = (struct st_console_style){.foreground = 7};
 	surface->storage = storage_create((uint32_t)width, (uint32_t)height,
 	    &style);
@@ -502,12 +500,11 @@ allocate_mouse_event(WrenVM *vm)
 static void
 allocate_cursor(WrenVM *vm)
 {
-	struct st_wren_host *host = st_wren_host_from_vm(vm);
 	struct foreign_cursor *cursor = wrenSetSlotNewForeign(vm, 0, 0,
 	    sizeof(*cursor));
 
 	cursor->header.kind = FOREIGN_CURSOR;
-	if (st_console_get_custom_cursor(host->config.console, &cursor->cursor)
+	if (st_console_get_custom_cursor(st_wren_context_from_vm(vm)->console, &cursor->cursor)
 	    != 0) {
 		cursor->cursor = (struct st_console_custom_cursor){
 			.start = 6, .end = 7, .range = 8, .visible = true,
@@ -558,7 +555,6 @@ static void
 make_mouse_event(WrenVM *vm, const struct st_console_event *source,
 	int event_code)
 {
-	struct st_wren_host *host = st_wren_host_from_vm(vm);
 	uint32_t cell_width = 0;
 	uint32_t cell_height = 0;
 
@@ -574,7 +570,7 @@ make_mouse_event(WrenVM *vm, const struct st_console_event *source,
 	event->start_y = source->data.mouse.y + 1;
 	event->end_x = event->start_x;
 	event->end_y = event->start_y;
-	if (st_console_cell_pixel_size(host->config.console, &cell_width,
+	if (st_console_cell_pixel_size(st_wren_context_from_vm(vm)->console, &cell_width,
 	    &cell_height) == 0) {
 		event->start_pixel_x = source->data.mouse.x * (int32_t)cell_width;
 		event->start_pixel_y = source->data.mouse.y * (int32_t)cell_height;
@@ -584,13 +580,13 @@ make_mouse_event(WrenVM *vm, const struct st_console_event *source,
 }
 
 static int
-button_event(struct st_wren_host *host, const struct st_console_event *event)
+button_event(struct st_wren_context *context, const struct st_console_event *event)
 {
-	uint32_t changed = host->mouse_buttons ^ event->data.mouse.buttons;
+	uint32_t changed = context->mouse_buttons ^ event->data.mouse.buttons;
 	uint32_t pressed = changed & event->data.mouse.buttons;
 	int result = 0;
 
-	host->mouse_buttons = event->data.mouse.buttons;
+	context->mouse_buttons = event->data.mouse.buttons;
 	if ((changed & ST_CONSOLE_MOUSE_BUTTON_LEFT) != 0)
 		result = pressed & ST_CONSOLE_MOUSE_BUTTON_LEFT ? 1 : 3;
 	else if ((changed & ST_CONSOLE_MOUSE_BUTTON_MIDDLE) != 0)
@@ -609,15 +605,15 @@ next_input_event(WrenVM *vm, bool wait, int64_t timeout_ms, bool at_exit)
 
 	for (;;) {
 		if (!wait)
-			status = st_console_event_try(host->config.console, &event);
+			status = st_console_event_try(st_wren_context_from_vm(vm)->console, &event);
 		else if (timeout_ms < 0)
-			status = st_console_event_wait(host->config.console, &event);
+			status = st_console_event_wait(st_wren_context_from_vm(vm)->console, &event);
 		else {
 			struct timespec deadline;
 
 			status = st_time_utc_deadline_after_ms(&deadline, timeout_ms);
 			if (status == 0)
-				status = st_console_event_timedwait(host->config.console,
+				status = st_console_event_timedwait(st_wren_context_from_vm(vm)->console,
 				    &event, &deadline);
 		}
 		if (status == IO_ERROR_WOULD_BLOCK || status == IO_ERROR_TIMED_OUT) {
@@ -670,7 +666,7 @@ next_input_event(WrenVM *vm, bool wait, int64_t timeout_ms, bool at_exit)
 			else if (event.data.mouse.action == ST_CONSOLE_MOUSE_WHEEL)
 				code = event.data.mouse.wheel_y > 0 ? 28 : 37;
 			else
-				code = button_event(host, &event);
+				code = button_event(st_wren_context_from_vm(vm), &event);
 			if (event.data.mouse.action == ST_CONSOLE_MOUSE_BUTTON
 			    && code == 0)
 				continue;
@@ -725,7 +721,7 @@ static void
 fn_input_mouse_events(WrenVM *vm)
 {
 	wrenSetSlotDouble(vm, 0,
-	    (double)st_wren_host_from_vm(vm)->mouse_events);
+	    (double)st_wren_context_from_vm(vm)->mouse_events);
 }
 
 static void
@@ -734,7 +730,7 @@ fn_input_mouse_events_set(WrenVM *vm)
 	int64_t value;
 
 	if (slot_integer(vm, 1, 0, UINT32_MAX, &value))
-		st_wren_host_from_vm(vm)->mouse_events = (uint32_t)value;
+		st_wren_context_from_vm(vm)->mouse_events = (uint32_t)value;
 }
 
 static void
@@ -743,7 +739,7 @@ fn_input_mouse_event_enable(WrenVM *vm)
 	int64_t value;
 
 	if (slot_integer(vm, 1, 0, 63, &value))
-		st_wren_host_from_vm(vm)->mouse_events |= UINT32_C(1) << value;
+		st_wren_context_from_vm(vm)->mouse_events |= UINT32_C(1) << value;
 }
 
 static void
@@ -752,7 +748,7 @@ fn_input_mouse_event_disable(WrenVM *vm)
 	int64_t value;
 
 	if (slot_integer(vm, 1, 0, 63, &value))
-		st_wren_host_from_vm(vm)->mouse_events &= ~(UINT32_C(1) << value);
+		st_wren_context_from_vm(vm)->mouse_events &= ~(UINT32_C(1) << value);
 }
 
 static void
@@ -763,7 +759,7 @@ fn_input_mouse_visible_set(WrenVM *vm)
 		return;
 	}
 	(void)st_console_set_pointer_visible(
-	    st_wren_host_from_vm(vm)->config.console, wrenGetSlotBool(vm, 1));
+	    st_wren_context_from_vm(vm)->console, wrenGetSlotBool(vm, 1));
 }
 
 static void
@@ -891,7 +887,7 @@ fn_screen_size(WrenVM *vm)
 	uint32_t width;
 	uint32_t height;
 
-	if (st_console_size(st_wren_host_from_vm(vm)->config.console, &width,
+	if (st_console_size(st_wren_context_from_vm(vm)->console, &width,
 	    &height) != 0) {
 		st_wren_abort(vm, "Screen.size failed");
 		return;
@@ -907,7 +903,6 @@ fn_screen_size(WrenVM *vm)
 static void
 fn_screen_save(WrenVM *vm)
 {
-	struct st_wren_host *host = st_wren_host_from_vm(vm);
 	st_console_snapshot_t *snapshot = NULL;
 
 	wrenEnsureSlots(vm, 2);
@@ -916,7 +911,7 @@ fn_screen_save(WrenVM *vm)
 	    sizeof(*foreign));
 	foreign->header.kind = FOREIGN_SNAPSHOT;
 	foreign->snapshot = NULL;
-	if (st_console_snapshot_create(&snapshot, host->config.console) != 0) {
+	if (st_console_snapshot_create(&snapshot, st_wren_context_from_vm(vm)->console) != 0) {
 		st_wren_abort(vm, "Screen.save failed");
 		return;
 	}
@@ -930,7 +925,7 @@ fn_screen_restore(WrenVM *vm)
 	    vm, 1, FOREIGN_SNAPSHOT);
 
 	if (snapshot != NULL && snapshot->snapshot != NULL
-	    && st_console_snapshot_restore(st_wren_host_from_vm(vm)->config.console,
+	    && st_console_snapshot_restore(st_wren_context_from_vm(vm)->console,
 	    snapshot->snapshot) != 0)
 		st_wren_abort(vm, "Screen.restore failed");
 }
@@ -939,9 +934,8 @@ static struct foreign_surface *
 new_surface(WrenVM *vm, int destination, uint32_t width, uint32_t height)
 {
 	struct st_console_style style;
-	struct st_wren_host *host = st_wren_host_from_vm(vm);
 
-	if (st_console_get_style(host->config.console, &style) != 0)
+	if (st_console_get_style(st_wren_context_from_vm(vm)->console, &style) != 0)
 		style = (struct st_console_style){.foreground = 7};
 	wrenEnsureSlots(vm, destination + 2);
 	wrenGetVariable(vm, "syncterm", "Surface", destination + 1);
@@ -986,7 +980,7 @@ fn_screen_read_rect(WrenVM *vm)
 		return;
 	surface = new_surface(vm, 0, rect.width, rect.height);
 	if (surface != NULL
-	    && st_console_read_cells(st_wren_host_from_vm(vm)->config.console,
+	    && st_console_read_cells(st_wren_context_from_vm(vm)->console,
 	    &rect, surface->storage->cells, rect.width) != 0)
 		st_wren_abort(vm, "Screen.readRect failed");
 }
@@ -1048,14 +1042,13 @@ screen_put_rect(WrenVM *vm, bool partial)
 {
 	struct foreign_surface *surface = (struct foreign_surface *)foreign_kind(
 	    vm, 1, FOREIGN_SURFACE);
-	struct st_wren_host *host = st_wren_host_from_vm(vm);
 	struct st_console_rect source_rect;
 	struct st_console_rect destination;
 	uint32_t screen_width;
 	uint32_t screen_height;
 	int64_t values[6];
 
-	if (surface == NULL || st_console_size(host->config.console, &screen_width,
+	if (surface == NULL || st_console_size(st_wren_context_from_vm(vm)->console, &screen_width,
 	    &screen_height) != 0)
 		return;
 	if (partial) {
@@ -1078,7 +1071,7 @@ screen_put_rect(WrenVM *vm, bool partial)
 	    values[3], values[4] - 1, values[5] - 1, screen_width,
 	    screen_height, &source_rect, &destination))
 		return;
-	if (st_console_write_complete_cells(host->config.console, &destination,
+	if (st_console_write_complete_cells(st_wren_context_from_vm(vm)->console, &destination,
 	    &surface->storage->cells[(size_t)source_rect.y
 	    * surface->storage->width + source_rect.x], surface->storage->width)
 	    != 0)
@@ -1093,7 +1086,7 @@ fn_screen_attr(WrenVM *vm)
 {
 	struct st_console_style style;
 
-	if (st_console_get_style(st_wren_host_from_vm(vm)->config.console, &style)
+	if (st_console_get_style(st_wren_context_from_vm(vm)->console, &style)
 	    != 0) {
 		st_wren_abort(vm, "Screen.attr failed");
 		return;
@@ -1112,7 +1105,7 @@ fn_screen_attr_set(WrenVM *vm)
 	int64_t value;
 
 	if (!slot_integer(vm, 1, 0, 255, &value)
-	    || st_console_get_style(st_wren_host_from_vm(vm)->config.console,
+	    || st_console_get_style(st_wren_context_from_vm(vm)->console,
 	    &style) != 0)
 		return;
 	style.foreground = (uint32_t)value & 0x0f;
@@ -1121,7 +1114,7 @@ fn_screen_attr_set(WrenVM *vm)
 		style.flags |= ST_CONSOLE_CELL_BLINK;
 	else
 		style.flags &= ~ST_CONSOLE_CELL_BLINK;
-	(void)st_console_set_style(st_wren_host_from_vm(vm)->config.console,
+	(void)st_console_set_style(st_wren_context_from_vm(vm)->console,
 	    &style);
 }
 
@@ -1131,7 +1124,7 @@ fn_screen_window_position(WrenVM *vm)
 	uint32_t x;
 	uint32_t y;
 
-	if (st_console_get_position(st_wren_host_from_vm(vm)->config.console,
+	if (st_console_get_position(st_wren_context_from_vm(vm)->console,
 	    &x, &y) != 0)
 		return;
 	wrenEnsureSlots(vm, 2);
@@ -1160,7 +1153,7 @@ fn_screen_window_position_set(WrenVM *vm)
 	wrenGetListElement(vm, 1, 1, 2);
 	if (!slot_integer(vm, 2, 1, UINT32_MAX, &y))
 		return;
-	(void)st_console_set_position(st_wren_host_from_vm(vm)->config.console,
+	(void)st_console_set_position(st_wren_context_from_vm(vm)->console,
 	    (uint32_t)x - 1, (uint32_t)y - 1);
 }
 
@@ -1169,7 +1162,7 @@ fn_screen_window_bounds(WrenVM *vm)
 {
 	struct st_console_rect window;
 
-	if (st_console_get_window(st_wren_host_from_vm(vm)->config.console,
+	if (st_console_get_window(st_wren_context_from_vm(vm)->console,
 	    &window) != 0)
 		return;
 	wrenEnsureSlots(vm, 2);
@@ -1204,41 +1197,41 @@ fn_screen_window_bounds_set(WrenVM *vm)
 	window = (struct st_console_rect){(uint32_t)values[0] - 1,
 	    (uint32_t)values[1] - 1, (uint32_t)(values[2] - values[0] + 1),
 	    (uint32_t)(values[3] - values[1] + 1)};
-	(void)st_console_set_window(st_wren_host_from_vm(vm)->config.console,
+	(void)st_console_set_window(st_wren_context_from_vm(vm)->console,
 	    &window);
 }
 
 static void
 fn_screen_window_clear(WrenVM *vm)
 {
-	(void)st_console_clear_window(st_wren_host_from_vm(vm)->config.console,
+	(void)st_console_clear_window(st_wren_context_from_vm(vm)->console,
 	    ' ');
 }
 
 static void
 fn_screen_window_clear_line(WrenVM *vm)
 {
-	(void)st_console_clear_line(st_wren_host_from_vm(vm)->config.console, ' ');
+	(void)st_console_clear_line(st_wren_context_from_vm(vm)->console, ' ');
 }
 
 static void
 fn_screen_window_delete_line(WrenVM *vm)
 {
-	(void)st_console_delete_lines(st_wren_host_from_vm(vm)->config.console, 1,
+	(void)st_console_delete_lines(st_wren_context_from_vm(vm)->console, 1,
 	    ' ');
 }
 
 static void
 fn_screen_window_insert_line(WrenVM *vm)
 {
-	(void)st_console_insert_lines(st_wren_host_from_vm(vm)->config.console, 1,
+	(void)st_console_insert_lines(st_wren_context_from_vm(vm)->console, 1,
 	    ' ');
 }
 
 static void
 fn_screen_window_scroll(WrenVM *vm)
 {
-	(void)st_console_scroll(st_wren_host_from_vm(vm)->config.console, 1, ' ');
+	(void)st_console_scroll(st_wren_context_from_vm(vm)->console, 1, ' ');
 }
 
 static void
@@ -1248,7 +1241,7 @@ fn_screen_window_put_char(WrenVM *vm)
 
 	if (slot_integer(vm, 1, 0, UINT32_MAX, &value))
 		(void)st_console_put_codepoint(
-		    st_wren_host_from_vm(vm)->config.console, (uint32_t)value);
+		    st_wren_context_from_vm(vm)->console, (uint32_t)value);
 }
 
 static void
@@ -1262,7 +1255,7 @@ fn_screen_window_print(WrenVM *vm)
 		return;
 	}
 	text = wrenGetSlotBytes(vm, 1, &length);
-	(void)st_console_write_utf8(st_wren_host_from_vm(vm)->config.console,
+	(void)st_console_write_utf8(st_wren_context_from_vm(vm)->console,
 	    text, (size_t)length);
 }
 
@@ -1272,7 +1265,7 @@ fn_screen_cell_pixel_size(WrenVM *vm)
 	uint32_t width;
 	uint32_t height;
 
-	if (st_console_cell_pixel_size(st_wren_host_from_vm(vm)->config.console,
+	if (st_console_cell_pixel_size(st_wren_context_from_vm(vm)->console,
 	    &width, &height) != 0) {
 		wrenSetSlotNull(vm, 0);
 		return;
@@ -1291,7 +1284,7 @@ fn_screen_pixel_size(WrenVM *vm)
 	uint32_t width;
 	uint32_t height;
 
-	if (st_console_pixel_size(st_wren_host_from_vm(vm)->config.console,
+	if (st_console_pixel_size(st_wren_context_from_vm(vm)->console,
 	    &width, &height) != 0) {
 		wrenSetSlotNull(vm, 0);
 		return;
@@ -1307,7 +1300,6 @@ fn_screen_pixel_size(WrenVM *vm)
 static void
 fn_screen_text_width(WrenVM *vm)
 {
-	struct st_wren_host *host = st_wren_host_from_vm(vm);
 	const unsigned char *text;
 	int length;
 	int64_t selector;
@@ -1320,7 +1312,7 @@ fn_screen_text_width(WrenVM *vm)
 		st_wren_abort(vm, "Screen.textWidth expects a String and font");
 		return;
 	}
-	if (!st_wren_font_identifier(host, (uint16_t)selector, &identifier)) {
+	if (!st_wren_font_identifier(st_wren_context_from_vm(vm), (uint16_t)selector, &identifier)) {
 		st_wren_abort(vm, "font is not available");
 		return;
 	}
@@ -1337,7 +1329,7 @@ fn_screen_text_width(WrenVM *vm)
 			st_wren_abort(vm, "text is not valid UTF-8");
 			return;
 		}
-		(void)st_console_font_lookup(host->config.console, identifier,
+		(void)st_console_font_lookup(st_wren_context_from_vm(vm)->console, identifier,
 		    codepoint, &glyph_font, &glyph, &columns);
 		width += columns;
 		offset += consumed;
@@ -1350,7 +1342,7 @@ capabilities(WrenVM *vm)
 {
 	uint32_t result = 0;
 
-	(void)st_console_capabilities(st_wren_host_from_vm(vm)->config.console,
+	(void)st_console_capabilities(st_wren_context_from_vm(vm)->console,
 	    &result);
 	return result;
 }
@@ -1381,7 +1373,7 @@ fn_screen_font_get(WrenVM *vm)
 
 	if (slot_integer(vm, 1, 0, 4, &slot))
 		wrenSetSlotDouble(vm, 0,
-		    st_wren_host_from_vm(vm)->fonts->slots[slot]);
+		    st_wren_context_from_vm(vm)->fonts.slots[slot]);
 }
 
 static void
@@ -1392,7 +1384,7 @@ fn_screen_font_set(WrenVM *vm)
 
 	if (slot_integer(vm, 1, 0, 4, &slot)
 	    && slot_integer(vm, 2, 0, UINT16_MAX, &font))
-		st_wren_host_from_vm(vm)->fonts->slots[slot] = (uint16_t)font;
+		st_wren_context_from_vm(vm)->fonts.slots[slot] = (uint16_t)font;
 }
 
 static void
@@ -1403,7 +1395,7 @@ fn_palette_get(WrenVM *vm)
 
 	if (!slot_integer(vm, 1, 0, 255, &index))
 		return;
-	if (st_console_get_palette(st_wren_host_from_vm(vm)->config.console,
+	if (st_console_get_palette(st_wren_context_from_vm(vm)->console,
 	    (uint16_t)index, &colour, 1) != 0)
 		return;
 	wrenSetSlotDouble(vm, 0, colour);
@@ -1420,7 +1412,7 @@ fn_palette_set(WrenVM *vm)
 	    || !slot_integer(vm, 2, 0, 0xffffff, &colour))
 		return;
 	value = (uint32_t)colour;
-	(void)st_console_set_palette(st_wren_host_from_vm(vm)->config.console,
+	(void)st_console_set_palette(st_wren_context_from_vm(vm)->console,
 	    (uint16_t)index, &value, 1);
 }
 
@@ -1761,7 +1753,7 @@ fn_cell_font(WrenVM *vm)
 
 	if (cell != NULL)
 		wrenSetSlotDouble(vm, 0, st_wren_font_selector(
-		    st_wren_host_from_vm(vm), cell->font));
+		    st_wren_context_from_vm(vm), cell->font));
 }
 
 static void
@@ -1772,7 +1764,7 @@ fn_cell_font_set(WrenVM *vm)
 	uint16_t identifier;
 
 	if (foreign != NULL && slot_integer(vm, 1, 0, UINT8_MAX, &value)) {
-		if (!st_wren_font_identifier(st_wren_host_from_vm(vm),
+		if (!st_wren_font_identifier(st_wren_context_from_vm(vm),
 		    (uint16_t)value, &identifier)) {
 			st_wren_abort(vm, "font is not available");
 			return;
@@ -2053,7 +2045,7 @@ fn_clipboard_get(WrenVM *vm)
 	char *text = NULL;
 
 	if (st_console_get_clipboard_text(
-	    st_wren_host_from_vm(vm)->config.console, &text) != 0) {
+	    st_wren_context_from_vm(vm)->console, &text) != 0) {
 		wrenSetSlotNull(vm, 0);
 		return;
 	}
@@ -2069,13 +2061,12 @@ fn_clipboard_set(WrenVM *vm)
 		return;
 	}
 	(void)st_console_set_clipboard_text(
-	    st_wren_host_from_vm(vm)->config.console, wrenGetSlotString(vm, 1));
+	    st_wren_context_from_vm(vm)->console, wrenGetSlotString(vm, 1));
 }
 
 static void
 fn_cursor_preset(WrenVM *vm)
 {
-	struct st_wren_host *host = st_wren_host_from_vm(vm);
 	int64_t preset;
 
 	if (!slot_integer(vm, 1, 0, 2, &preset))
@@ -2085,7 +2076,7 @@ fn_cursor_preset(WrenVM *vm)
 	struct foreign_cursor *cursor = wrenSetSlotNewForeign(vm, 0, 2,
 	    sizeof(*cursor));
 	cursor->header.kind = FOREIGN_CURSOR;
-	if (st_console_get_default_cursor(host->config.console, &cursor->cursor)
+	if (st_console_get_default_cursor(st_wren_context_from_vm(vm)->console, &cursor->cursor)
 	    != 0) {
 		cursor->cursor = (struct st_console_custom_cursor){
 			.start = 6, .end = 7, .range = 8, .visible = true,
@@ -2151,7 +2142,7 @@ fn_cursor_apply(WrenVM *vm)
 
 	if (cursor != NULL)
 		(void)st_console_set_custom_cursor(
-		    st_wren_host_from_vm(vm)->config.console, &cursor->cursor);
+		    st_wren_context_from_vm(vm)->console, &cursor->cursor);
 }
 
 static void

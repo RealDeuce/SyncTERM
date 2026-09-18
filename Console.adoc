@@ -22,12 +22,38 @@ An application may attach multiple logical consoles to one
 terminal, presentation worker, and physical-key state.  Each `st_console_t`
 retains its own cells, pixels, palette, fonts, cursor, dimensions, title,
 pointer preference, update state, and ordered input queue.  Exactly one console
-is active on a display at a time.
+is active on a nonempty display at a time.
+
+`st_console_display_config` holds backend selection, text-terminal encoding
+and I/O, and initial window size/scaling.  `st_console_config` holds only the
+logical console's cell/raster geometry and rendering policy.  The convenience
+constructor is `st_console_create(result, display_config, console_config)`;
+applications sharing one output instead create a display and attach logical
+consoles with `st_console_create_on_display()`.  Initial window settings apply
+when the first console opens the backend, not when another console attaches
+or becomes active.  Switching consoles preserves the current display scale.
 
 `st_console_display_activate()` synchronously applies the selected console's
 retained mode and state and completes a full presentation.  Inactive consoles
 can be updated and rasterized without invoking backend callbacks.  Events stay
 queued on whichever console was active when they arrived.
+
+Input routing changes only after successful activation.  A failed activation
+restores the previous console's dimensions, palette, title, pointer preference,
+and presentation.  If that restoration also fails, the previous console remains
+selected but backend operations return `IO_ERROR_IO` until an explicit
+activation succeeds.  The application may continue using retained logical
+state; it must not assume the physical output is current while suspended.
+
+Attachment, activation, and destruction are serialized per display.  Destroying
+the selected console selects a remaining peer and drains library-owned input
+and presentation references before freeing memory.  If presenting that peer
+fails, it remains selected with physical output suspended until a successful
+activation.  Destroying the last console shuts down the physical backend; the
+display object itself can subsequently accept a new first console.
+If a failed backend cannot detach from a removed console, its storage remains
+internally retained until successful activation or backend shutdown.  The
+removed handle is invalid to callers regardless of this deferred release.
 
 Public operations on a live instance may be called concurrently.  Read-only
 state queries share a reader lock; mutations, presentation, and backend
@@ -315,6 +341,11 @@ the final-raster planes and mark those cells as pixel graphics.  A later
 character-content change regenerates the cell.  Text backends reject pixel
 mutations rather than claiming success for invisible output.
 
+If requested external scaling is unavailable (for example, X11 without
+XRender or Wayland without viewport support), the same backend uses software
+scaling.  Startup and console switching remain available, and neither the
+console's requested mode nor the saved settings are changed by this fallback.
+
 Internal scaling composes the final-size image in software; external scaling
 hands a native-size retained frame to a capable host.  Aspect correction is
 applied before the requested window scale, and creation never scales below
@@ -352,24 +383,40 @@ scaling state, but never dirty flags.  It can only be restored to its
 originating console with identical dimensions.  Font registrations are
 instance resources and are not copied.
 
+For libretro, `st_console_display_libretro_frame_size()` queries the physical
+display's last completed frame and `st_console_display_libretro_frame_copy()`
+copies it.  The size can change between those calls, including on console
+activation.  Copy therefore takes both the destination stride and its row
+capacity; an undersized destination is rejected without writing to it.
+
 == Input Events
 
 Each logical console has one ordered event queue.  Translated keys, physical keys,
 committed text, DoorWay scan codes, mouse actions, resize, focus, and close are
 distinct event types.  Backends post only semantics they actually receive.
 
+`st_console_display_post_event()` delivers host input to the console active
+when delivery is serialized.  `st_console_post_event()` explicitly targets the
+given console's queue, including an inactive console.  Switching does not move
+already queued events between consoles.
+
 Normalized non-text keys use `ST_CONSOLE_KEY_*`; ASCII controls retain their
 byte values.  Physical events carry evdev-style identity, modifiers,
 press/release, and repeat state.  Held physical-key state belongs to the
-display.  Focus loss queues releases on the active console before the focus
-event and clears the display's held set.  Clearing queued events does not alter
-held state.
+display, including physical events submitted through the explicit-console
+entry point.  Focus loss queues releases on the event's target console before
+the focus event and clears the display's held set.  Clearing queued events does
+not alter held state.
 
 X11 committed text comes from its UTF-8 input context, preserving layouts,
 dead keys, compose processing, and external input methods.  Wayland uses
 xkbcommon.  SDL and Windows also separate physical identity from committed
 Unicode.  ANSI and ncurses decode only what the enclosing terminal supplies;
 they do not invent physical identities or key-release events.
+
+ANSI and ncurses host-terminal resizing schedules an independent repaint of
+the retained screen, even while the application is idle.  A resize event
+reports the new host dimensions; it does not resize the logical console.
 
 Mouse coordinates are in the logical console pixel grid, independent of final
 window scaling.  Button state, action, coordinates, and wheel deltas remain

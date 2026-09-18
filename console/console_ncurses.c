@@ -470,7 +470,7 @@ read_terminal_colours(struct curses_state *state)
 static void
 rebuild_colour_maps(st_console_t *console)
 {
-	struct curses_state *state = console->backend_state;
+	struct curses_state *state = console->display->backend_state;
 
 	memset(state->rgb_cache, 0, sizeof(state->rgb_cache));
 	state->next_rgb_cache = 0;
@@ -853,21 +853,25 @@ mouse_event(struct curses_state *state, struct st_console_event *event)
 static int
 curses_present(st_console_t *console)
 {
-	struct curses_state *state = console->backend_state;
+	struct curses_state *state = console->display->backend_state;
 	uint32_t x;
 	uint32_t y;
 	int cursor;
+	bool resized = atomic_exchange_explicit(&state->host_resized, false,
+	    memory_order_acq_rel);
 	uint32_t visible_columns = atomic_load_explicit(&state->host_columns,
 	    memory_order_acquire);
 	uint32_t visible_rows = atomic_load_explicit(&state->host_rows,
 	    memory_order_acquire);
 	int status;
 
-	if (atomic_exchange_explicit(&state->host_resized, false,
-	    memory_order_acq_rel)) {
+	if (resized) {
 		status = replace_window(state, visible_columns, visible_rows);
-		if (status != 0)
+		if (status != 0) {
+			atomic_store_explicit(&state->host_resized, true,
+			    memory_order_release);
 			return status;
+		}
 		memset(state->drawn, 0, (size_t)console->columns * console->rows
 		    * sizeof(*state->drawn));
 	}
@@ -1019,6 +1023,7 @@ curses_input(void *argument)
 				    memory_order_release);
 				atomic_store_explicit(&state->host_resized, true,
 				    memory_order_release);
+				st_console_display_request_repaint(display);
 			}
 		}
 		if (resize) {
@@ -1041,9 +1046,9 @@ curses_input(void *argument)
 }
 
 static void
-curses_destroy(st_console_t *console)
+curses_destroy(st_console_display_t *display)
 {
-	struct curses_state *state = console->backend_state;
+	struct curses_state *state = display->backend_state;
 
 	if (state == NULL)
 		return;
@@ -1087,7 +1092,7 @@ curses_destroy(st_console_t *console)
 static int
 curses_palette_changed(st_console_t *console, uint16_t first, uint16_t count)
 {
-	struct curses_state *state = console->backend_state;
+	struct curses_state *state = console->display->backend_state;
 
 	if (state->palette_mutable) {
 		for (uint16_t offset = 0; offset < count; ++offset) {
@@ -1130,7 +1135,7 @@ curses_palette_changed(st_console_t *console, uint16_t first, uint16_t count)
 static int
 curses_resize(st_console_t *console, uint32_t columns, uint32_t rows)
 {
-	struct curses_state *state = console->backend_state;
+	struct curses_state *state = console->display->backend_state;
 	struct st_console_cell *drawn;
 	size_t count;
 	uint32_t host_columns;
@@ -1161,7 +1166,10 @@ curses_resize(st_console_t *console, uint32_t columns, uint32_t rows)
 	return 0;
 }
 
+static int curses_attach(st_console_t *console);
+
 static const struct st_console_backend_ops curses_ops = {
+	.attach = curses_attach,
 	.deferred_present = true,
 	.present = curses_present,
 	.resize = curses_resize,
@@ -1303,9 +1311,11 @@ colorterm_direct_colour(void)
 	    || ascii_equal_case_insensitive(value, "24bit"));
 }
 
-static void
-disable_pixel_surfaces(st_console_t *console)
+static int
+curses_attach(st_console_t *console)
 {
+	if (console->columns > INT_MAX || console->rows > INT_MAX)
+		return IO_ERROR_OUT_OF_RANGE;
 	st_pixel_buffer_destroy(console->pixels);
 	free(console->raster_rows);
 	free(console->rasterized);
@@ -1317,6 +1327,7 @@ disable_pixel_surfaces(st_console_t *console)
 	console->pixel_extra_width = 0;
 	console->pixel_extra_height = 0;
 	console->pixel_top = 0;
+	return 0;
 }
 
 int
@@ -1344,7 +1355,7 @@ st_console_ncurses_init(st_console_t *console)
 	atomic_init(&state->host_rows, 0);
 	atomic_init(&state->host_resized, false);
 	state->display = console->display;
-	state->presentation = console->text_presentation;
+	state->presentation = console->display->config.text_presentation;
 	result = dynamic_library_open(&state->library, names,
 	    sizeof(names) / sizeof(names[0]), 10, DYNAMIC_LIBRARY_LOCAL);
 	if (result != 0 || !load_required_api(state)) {
@@ -1445,13 +1456,13 @@ st_console_ncurses_init(st_console_t *console)
 	if (state->presentation == ST_CONSOLE_TEXT_UNICODE && !state->wide
 	    && !state->sgr_direct)
 		state->presentation = ST_CONSOLE_TEXT_ASCII;
-	console->backend_state = state;
-	console->backend_ops = &curses_ops;
+	console->display->backend_state = state;
+	console->display->backend_ops = &curses_ops;
 	result = curses_palette_changed(console, 0, 256);
 	if (result != 0) {
-		curses_destroy(console);
-		console->backend_state = NULL;
-		console->backend_ops = NULL;
+		curses_destroy(console->display);
+		console->display->backend_state = NULL;
+		console->display->backend_ops = NULL;
 		return result;
 	}
 #ifdef KEY_MOUSE
@@ -1491,22 +1502,22 @@ st_console_ncurses_init(st_console_t *console)
 			(void)state->api.call_mouseinterval(0);
 	}
 #endif
-	disable_pixel_surfaces(console);
+	(void)curses_attach(console);
 	if (terminal_columns != console->columns
 	    || terminal_rows != console->rows) {
 		result = st_console_resize(console, terminal_columns, terminal_rows);
 		if (result != 0) {
-			curses_destroy(console);
-			console->backend_state = NULL;
-			console->backend_ops = NULL;
+			curses_destroy(console->display);
+			console->display->backend_state = NULL;
+			console->display->backend_ops = NULL;
 			return result;
 		}
 	}
 	result = st_thread_create(&state->input_thread, curses_input, state);
 	if (result != ST_THREAD_SUCCESS) {
-		curses_destroy(console);
-		console->backend_state = NULL;
-		console->backend_ops = NULL;
+		curses_destroy(console->display);
+		console->display->backend_state = NULL;
+		console->display->backend_ops = NULL;
 		return IO_ERROR_IO;
 	}
 	state->input_started = true;

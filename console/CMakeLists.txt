@@ -509,7 +509,7 @@ if(BUILD_TESTING)
 			${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}
 			${ST_CONSOLE_X11_INCLUDE_DIRS})
 		target_link_libraries(st_console_x11_test PRIVATE st_console
-			X11::X11)
+			X11::X11 syncterm_array_list)
 		if(ST_CONSOLE_HAVE_XRANDR)
 			target_link_libraries(st_console_x11_test PRIVATE X11::Xrandr)
 		endif()

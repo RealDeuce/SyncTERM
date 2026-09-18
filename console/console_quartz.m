@@ -40,7 +40,10 @@ struct quartz_state;
 @end
 
 struct quartz_state {
-	_Atomic(st_console_t *) console;
+	/* Only the backend thread changes or dereferences this pointer. */
+	st_console_t *console;
+	st_console_display_t *console_display;
+	struct st_console_bitmap_geometry window_geometry;
 	NSWindow *window;
 	STConsoleQuartzView *view;
 	STConsoleQuartzDelegate *delegate;
@@ -62,18 +65,12 @@ struct quartz_state {
 	struct quartz_state *next;
 };
 
-static void
-quartz_activate(st_console_t *console)
-{
-	struct quartz_state *state = console->backend_state;
-
-	state->console = console;
-}
 
 enum quartz_command_type {
 	QUARTZ_COMMAND_CREATE,
 	QUARTZ_COMMAND_DESTROY,
 	QUARTZ_COMMAND_PRESENT,
+	QUARTZ_COMMAND_ACTIVATE,
 	QUARTZ_COMMAND_RESIZE,
 	QUARTZ_COMMAND_TITLE,
 	QUARTZ_COMMAND_CLIPBOARD_SET,
@@ -87,6 +84,7 @@ struct quartz_command {
 	enum quartz_command_type type;
 	struct quartz_state *state;
 	union {
+		st_console_t *console;
 		struct {
 			uint32_t width;
 			uint32_t height;
@@ -264,7 +262,7 @@ post_physical(struct quartz_state *state, NSEvent *source, bool pressed)
 			.repeat = pressed && source.isARepeat,
 		},
 	};
-	(void)st_console_post_event(state->console, &event);
+	(void)st_console_display_post_event(state->console_display, &event);
 }
 
 static void
@@ -289,7 +287,7 @@ post_text(struct quartz_state *state, NSString *text,
 			continue;
 		if (codepoint < 0x20 || codepoint == 0x7f)
 			continue;
-		(void)st_console_post_event(state->console,
+		(void)st_console_display_post_event(state->console_display,
 		    &(struct st_console_event){
 			.type = ST_CONSOLE_EVENT_TEXT,
 			.data.text = {
@@ -344,7 +342,7 @@ snap_window(struct quartz_state *state, bool larger)
 			maximum_height = (uint32_t)(available.size.height * scale);
 		}
 	}
-	if (st_console_snap_window_size(state->console,
+	if (st_console_snap_geometry_size(&state->window_geometry,
 	    (uint32_t)(current.width * scale),
 	    (uint32_t)(current.height * scale), larger, maximum_width,
 	    maximum_height, &width, &height) != 0
@@ -410,7 +408,7 @@ post_mouse(struct quartz_state *state, NSEvent *source,
 			event.data.mouse.wheel_y = -event.data.mouse.wheel_y;
 		}
 	}
-	(void)st_console_post_event(state->console, &event);
+	(void)st_console_display_post_event(state->console_display, &event);
 }
 
 @implementation STConsoleQuartzView
@@ -494,13 +492,13 @@ post_mouse(struct quartz_state *state, NSEvent *source,
 
 	if (command && !control && !option
 	    && (character == 'q' || character == 'Q')) {
-		(void)st_console_post_event(consoleState->console,
+		(void)st_console_display_post_event(consoleState->console_display,
 		    &(struct st_console_event){.type = ST_CONSOLE_EVENT_CLOSE});
 		return;
 	}
 	if (command && !control && !option
 	    && (character == 'v' || character == 'V')) {
-		(void)st_console_post_event(consoleState->console,
+		(void)st_console_display_post_event(consoleState->console_display,
 		    &(struct st_console_event){
 			.type = ST_CONSOLE_EVENT_KEY_CODE,
 			.data.key = {
@@ -548,7 +546,7 @@ post_mouse(struct quartz_state *state, NSEvent *source,
 	}
 	key = translated_key(event.keyCode);
 	if (key != 0)
-		(void)st_console_post_event(consoleState->console,
+		(void)st_console_display_post_event(consoleState->console_display,
 		    &(struct st_console_event){
 			.type = ST_CONSOLE_EVENT_KEY_CODE,
 			.data.key = {
@@ -641,7 +639,7 @@ post_mouse(struct quartz_state *state, NSEvent *source,
 - (BOOL)windowShouldClose:(NSWindow *)sender
 {
 	(void)sender;
-	(void)st_console_post_event(consoleState->console,
+	(void)st_console_display_post_event(consoleState->console_display,
 	    &(struct st_console_event){.type = ST_CONSOLE_EVENT_CLOSE});
 	return NO;
 }
@@ -685,7 +683,7 @@ post_mouse(struct quartz_state *state, NSEvent *source,
 - (void)windowDidBecomeKey:(NSNotification *)notification
 {
 	(void)notification;
-	(void)st_console_post_event(consoleState->console,
+	(void)st_console_display_post_event(consoleState->console_display,
 	    &(struct st_console_event){
 		.type = ST_CONSOLE_EVENT_FOCUS,
 		.data.focus.focused = true,
@@ -697,7 +695,7 @@ post_mouse(struct quartz_state *state, NSEvent *source,
 	(void)notification;
 	memset(consoleState->modifier_down, 0,
 	    sizeof(consoleState->modifier_down));
-	(void)st_console_post_event(consoleState->console,
+	(void)st_console_display_post_event(consoleState->console_display,
 	    &(struct st_console_event){
 		.type = ST_CONSOLE_EVENT_FOCUS,
 		.data.focus.focused = false,
@@ -974,9 +972,15 @@ process_command(struct quartz_command *command)
 	case QUARTZ_COMMAND_DESTROY:
 		destroy_state(state);
 		return 0;
+	case QUARTZ_COMMAND_ACTIVATE:
+		state->console = command->data.console;
+		return 0;
 	case QUARTZ_COMMAND_PRESENT:
 		return render(state, state->console, false);
 	case QUARTZ_COMMAND_RESIZE: {
+		struct st_console_bitmap_geometry next = {
+			command->data.size.width, command->data.size.height,
+			state->console->aspect_width, state->console->aspect_height};
 		CGFloat scale = state->window.backingScaleFactor;
 		uint32_t width;
 		uint32_t height;
@@ -990,14 +994,14 @@ process_command(struct quartz_command *command)
 		    : (uint32_t)(current.width * scale);
 		current_height = state->fullscreen ? state->windowed_pixel_height
 		    : (uint32_t)(current.height * scale);
-		if (st_console_preserve_window_scale(state->console,
-		    command->data.size.width, command->data.size.height,
+		if (st_console_preserve_geometry_scale(&state->window_geometry, &next,
 		    current_width, current_height, &width, &height,
 		    &state->minimum_pixel_width,
 		    &state->minimum_pixel_height) != 0)
 			return IO_ERROR_OUT_OF_RANGE;
 		state->windowed_pixel_width = width;
 		state->windowed_pixel_height = height;
+		state->window_geometry = next;
 		state->window.contentMinSize = NSMakeSize(
 		    state->minimum_pixel_width / scale,
 		    state->minimum_pixel_height / scale);
@@ -1170,11 +1174,21 @@ st_console_quartz_run_application(int argc, char **argv,
 }
 
 static int
+quartz_activate(st_console_t *console)
+{
+	return submit_command(&(struct quartz_command){
+		.type = QUARTZ_COMMAND_ACTIVATE,
+		.state = console->display->backend_state,
+		.data.console = console,
+	});
+}
+
+static int
 quartz_present(st_console_t *console)
 {
 	return submit_command(&(struct quartz_command){
 		.type = QUARTZ_COMMAND_PRESENT,
-		.state = console->backend_state,
+		.state = console->display->backend_state,
 	});
 }
 
@@ -1189,7 +1203,7 @@ quartz_resize(st_console_t *console, uint32_t columns, uint32_t rows)
 		return IO_ERROR_OUT_OF_RANGE;
 	return submit_command(&(struct quartz_command){
 		.type = QUARTZ_COMMAND_RESIZE,
-		.state = console->backend_state,
+		.state = console->display->backend_state,
 		.data.size = {
 			columns * console->cell_width + console->pixel_extra_width,
 			rows * console->cell_height + console->pixel_extra_height,
@@ -1198,69 +1212,69 @@ quartz_resize(st_console_t *console, uint32_t columns, uint32_t rows)
 }
 
 static int
-quartz_set_title(st_console_t *console, const char *title)
+quartz_set_title(st_console_display_t *display, const char *title)
 {
 	return submit_command(&(struct quartz_command){
 		.type = QUARTZ_COMMAND_TITLE,
-		.state = console->backend_state,
+		.state = display->backend_state,
 		.data.text = title,
 	});
 }
 
 static int
-quartz_set_clipboard(st_console_t *console, const char *text)
+quartz_set_clipboard(st_console_display_t *display, const char *text)
 {
 	return submit_command(&(struct quartz_command){
 		.type = QUARTZ_COMMAND_CLIPBOARD_SET,
-		.state = console->backend_state,
+		.state = display->backend_state,
 		.data.text = text,
 	});
 }
 
 static int
-quartz_get_clipboard(st_console_t *console, char **result)
+quartz_get_clipboard(st_console_display_t *display, char **result)
 {
 	return submit_command(&(struct quartz_command){
 		.type = QUARTZ_COMMAND_CLIPBOARD_GET,
-		.state = console->backend_state,
+		.state = display->backend_state,
 		.data.text_result = result,
 	});
 }
 
 static int
-quartz_open_url(st_console_t *console, const char *url)
+quartz_open_url(st_console_display_t *display, const char *url)
 {
 	return submit_command(&(struct quartz_command){
 		.type = QUARTZ_COMMAND_OPEN_URL,
-		.state = console->backend_state,
+		.state = display->backend_state,
 		.data.text = url,
 	});
 }
 
 static int
-quartz_set_pointer(st_console_t *console, bool visible)
+quartz_set_pointer(st_console_display_t *display, bool visible)
 {
 	return submit_command(&(struct quartz_command){
 		.type = QUARTZ_COMMAND_POINTER,
-		.state = console->backend_state,
+		.state = display->backend_state,
 		.data.enabled = visible,
 	});
 }
 
 static int
-quartz_set_fullscreen(st_console_t *console, bool fullscreen)
+quartz_set_fullscreen(st_console_display_t *display, bool fullscreen)
 {
 	return submit_command(&(struct quartz_command){
 		.type = QUARTZ_COMMAND_FULLSCREEN,
-		.state = console->backend_state,
+		.state = display->backend_state,
 		.data.enabled = fullscreen,
 	});
 }
 
 static void
-quartz_destroy(st_console_t *console)
+quartz_destroy(st_console_display_t *display)
 {
-	struct quartz_state *state = console->backend_state;
+	struct quartz_state *state = display->backend_state;
 
 	(void)submit_command(&(struct quartz_command){
 		.type = QUARTZ_COMMAND_DESTROY,
@@ -1269,7 +1283,7 @@ quartz_destroy(st_console_t *console)
 	st_console_bitmap_presenter_destroy(state->presenter);
 	free(state->pixels);
 	free(state);
-	console->backend_state = NULL;
+	display->backend_state = NULL;
 }
 
 static const struct st_console_backend_ops quartz_ops = {
@@ -1306,7 +1320,11 @@ st_console_quartz_init(st_console_t *console)
 	if (state == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	state->console = console;
+	state->window_geometry = (struct st_console_bitmap_geometry){
+		console->pixels->width, console->pixels->height,
+		console->aspect_width, console->aspect_height};
 	state->pointer_visible = true;
+	state->console_display = console->display;
 	status = st_console_bitmap_presenter_create(&state->presenter, console);
 	if (status != 0) {
 		free(state);
@@ -1316,8 +1334,8 @@ st_console_quartz_init(st_console_t *console)
 		.type = QUARTZ_COMMAND_CREATE,
 		.state = state,
 		.data.size = {
-			.width = console->initial_window_width,
-			.height = console->initial_window_height,
+			.width = console->display->initial_window_width,
+			.height = console->display->initial_window_height,
 			.minimum_width = minimum_width,
 			.minimum_height = minimum_height,
 		},
@@ -1328,7 +1346,7 @@ st_console_quartz_init(st_console_t *console)
 		free(state);
 		return status;
 	}
-	console->backend_state = state;
-	console->backend_ops = &quartz_ops;
+	console->display->backend_state = state;
+	console->display->backend_ops = &quartz_ops;
 	return 0;
 }

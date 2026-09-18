@@ -500,12 +500,14 @@ main(void)
 	char font[sizeof(ST_WREN_TEST_DIRECTORY) + 32];
 	char settings_contents[sizeof(font) + 192];
 	struct st_app_paths paths = {0};
+	struct st_console_display_config console_config_display = {
+		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	};
 	struct st_console_config console_config = {
 		.columns = 80,
 		.rows = 25,
 		.cell_width = 8,
 		.cell_height = 16,
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
 		.wrap = true,
 	};
 	const struct st_console_ansi_io ansi_io = {
@@ -591,7 +593,7 @@ main(void)
 	paths.themes_directory = ST_WREN_TEST_DIRECTORY;
 	paths.keys_file = settings;
 	CHECK(st_settings_load(&paths) == 0);
-	CHECK(st_console_create(&console, &console_config) == 0);
+	CHECK(st_console_create(&console, &console_config_display, &console_config) == 0);
 	CHECK(st_console_register_static_font(console, &default_font,
 	    &default_identifier) == 0);
 	CHECK(default_identifier == 0);
@@ -627,15 +629,15 @@ main(void)
 	    "Fiber.abort(\"Ctrl+grave conversion failed\")\n")
 	    == WREN_RESULT_SUCCESS);
 	for (uint16_t selector = 0; selector < 45; ++selector)
-		CHECK(st_wren_font_identifier((struct st_wren_host *)host,
+		CHECK(st_wren_font_identifier(&((struct st_wren_host *)host)->menu,
 		    selector, &configured_identifier));
-	CHECK(!st_wren_font_identifier((struct st_wren_host *)host, 45,
+	CHECK(!st_wren_font_identifier(&((struct st_wren_host *)host)->menu, 45,
 	    &configured_identifier));
 	CHECK(exercise_unicode_fallback_contract(host) == 0);
 	CHECK(exercise_surface_cell_retarget_contract(host) == 0);
 	CHECK(exercise_web_refresh_overlay(host, console) == 0);
 	CHECK(exercise_cursor_contract(host) == 0);
-	CHECK(st_wren_font_identifier((struct st_wren_host *)host, 46,
+	CHECK(st_wren_font_identifier(&((struct st_wren_host *)host)->menu, 46,
 	    &configured_identifier));
 	CHECK(st_console_font_registered(console, configured_identifier,
 	    &font_registered) == 0);
@@ -651,7 +653,7 @@ main(void)
 	CHECK(exercise_menu_contract(host) == 0);
 	CHECK(exercise_build_options_contract(host) == 0);
 	CHECK(exercise_configuration_collections(host) == 0);
-	CHECK(st_wren_font_identifier((struct st_wren_host *)host, 46,
+	CHECK(st_wren_font_identifier(&((struct st_wren_host *)host)->menu, 46,
 	    &configured_identifier));
 	CHECK(st_console_font_registered(console, configured_identifier,
 	    &font_registered) == 0);
@@ -704,9 +706,9 @@ main(void)
 
 	console = NULL;
 	host = NULL;
-	console_config.backend = ST_CONSOLE_BACKEND_ANSI;
-	console_config.ansi_io = &ansi_io;
-	CHECK(st_console_create(&console, &console_config) == 0);
+	console_config_display.backend = ST_CONSOLE_BACKEND_ANSI;
+	console_config_display.ansi_io = &ansi_io;
+	CHECK(st_console_create(&console, &console_config_display, &console_config) == 0);
 	uint32_t text_capabilities;
 	CHECK(st_console_capabilities(console, &text_capabilities) == 0);
 	CHECK((text_capabilities & ST_CONSOLE_CAP_TEXT_TERMINAL) != 0);

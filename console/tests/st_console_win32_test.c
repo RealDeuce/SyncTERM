@@ -25,10 +25,12 @@
 int
 main(void)
 {
+	const struct st_console_display_config config_display = {
+		.backend = ST_CONSOLE_BACKEND_WIN32,
+	};
 	const struct st_console_config config = {
 		.columns = 80,
 		.rows = 25,
-		.backend = ST_CONSOLE_BACKEND_WIN32,
 		.wrap = true,
 	};
 	st_console_t *console = NULL;
@@ -43,7 +45,7 @@ main(void)
 	    && original_output != NULL
 	    && GetConsoleCursorInfo(original_output, &cursor_before)
 	    && GetConsoleScreenBufferInfo(original_output, &screen_before);
-	int status = st_console_create(&console, &config);
+	int status = st_console_create(&console, &config_display, &config);
 
 	if (status == IO_ERROR_NOT_FOUND || status == IO_ERROR_NOT_SUPPORTED)
 		return 77;
@@ -51,7 +53,7 @@ main(void)
 	CHECK(st_console_capabilities(console, &capabilities) == 0);
 	CHECK((capabilities & ST_CONSOLE_CAP_TEXT_TERMINAL) != 0);
 	CHECK((capabilities & ST_CONSOLE_CAP_LOCAL_CONTROL_KEYS) == 0);
-	CHECK(st_console_create(&second, &config) == IO_ERROR_BUSY);
+	CHECK(st_console_create(&second, &config_display, &config) == IO_ERROR_BUSY);
 	CHECK(second == NULL);
 	CHECK(st_console_set_title(console, "st_console native Windows test")
 	    == 0);

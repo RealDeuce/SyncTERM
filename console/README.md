@@ -22,8 +22,12 @@ when it arrived.  Inactive consoles remain fully mutable, and an explicit
 present drains their raster work without calling the physical backend.  Font
 identifiers and least-recently-used eviction remain per console.
 
-The ordinary `st_console_create()` remains the single-console convenience
-constructor.  Multi-console applications create a display explicitly and use
+The `st_console_create(result, display_config, console_config)` convenience
+constructor owns a display for a single console.  Backend selection, terminal
+encoding/I/O, and initial window size/scaling belong to `display_config`.
+The logical `console_config` specifies the cell/raster geometry and rendering
+policy; it has no physical-output fields that an attachment would ignore.
+Multi-console applications create a display explicitly and use
 `st_console_create_on_display()` for each logical console.  The display must
 outlive its attached consoles.  The owner must prevent new calls and allow
 active calls to return before destroying either object.
@@ -80,11 +84,13 @@ console display-mode operations.  Direct RGB is approximated by the console's
 bitmap fonts and pixel planes require GDI or another bitmap backend.
 
 Libretro presentation is deliberately pull-based.  The application thread
-never calls a frontend video callback: `st_console_libretro_frame_size` and
-`st_console_libretro_frame_copy` provide a locked copy of the last completed
+never calls a frontend video callback: `st_console_display_libretro_frame_size` and
+`st_console_display_libretro_frame_copy` provide a locked copy of the last completed
 XRGB frame to the enclosing libretro run callback.  Frontend input adapters use
-the ordinary `st_console_post_event` interface, so libretro ABI ownership stays
-outside this component.
+`st_console_display_post_event`, so libretro ABI ownership stays outside this
+component.  The frame-copy call takes both destination stride and row capacity:
+a switch after a size query can make the destination too small, in which case
+copy fails without writing to it.
 
 Automatic selection prefers the native desktop bitmap backend (GDI on Windows
 and Quartz on macOS), then Wayland, X11, and SDL where built and usable.  A

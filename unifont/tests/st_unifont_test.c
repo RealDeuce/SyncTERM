@@ -31,10 +31,12 @@ glyph_bitmap(const struct st_console_font *font, uint32_t glyph)
 int
 main(void)
 {
+	const struct st_console_display_config config_display = {
+		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	};
 	const struct st_console_config config = {
 		.columns = 2,
 		.rows = 1,
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};
 	st_console_t *console = NULL;
 	uint16_t unscii;
@@ -44,7 +46,7 @@ main(void)
 	uint32_t composite_glyph;
 	uint8_t columns;
 
-	CHECK(st_console_create(&console, &config) == 0);
+	CHECK(st_console_create(&console, &config_display, &config) == 0);
 	CHECK(st_console_register_static_font(console, &st_unifont_font,
 	    &composite) == 0);
 	CHECK(st_console_register_static_font(console, &st_unscii_16_font,

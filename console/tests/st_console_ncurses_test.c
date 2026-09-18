@@ -85,11 +85,14 @@ child_test(int report)
 	struct st_console_config config = {
 		.columns = 8,
 		.rows = 3,
-		.backend = ST_CONSOLE_BACKEND_NCURSES,
-		.text_presentation = ST_CONSOLE_TEXT_UNICODE,
 		.wrap = true,
 	};
 	st_console_t *console = NULL;
+	st_console_t *peer = NULL;
+	st_console_display_t *display = NULL;
+	const struct st_console_display_config display_config = {
+		.backend = ST_CONSOLE_BACKEND_NCURSES,
+	};
 	struct st_console_event event;
 	const struct st_console_rect cells_rect = {0, 0, 3, 1};
 	struct st_console_cell cells[3] = {
@@ -106,7 +109,9 @@ child_test(int report)
 	uint32_t capabilities;
 	int status;
 
-	status = st_console_create(&console, &config);
+	status = st_console_display_create(&display, &display_config);
+	if (status == 0)
+		status = st_console_create_on_display(&console, display, &config);
 	if (status == IO_ERROR_NOT_FOUND || status == IO_ERROR_NOT_SUPPORTED) {
 		child_result(report, 'S');
 		_exit(77);
@@ -128,6 +133,17 @@ child_test(int report)
 		st_console_destroy(console);
 		_exit(1);
 	}
+	config.cell_width = 8;
+	config.cell_height = 16;
+	if (st_console_create_on_display(&peer, display, &config) != 0
+	    || st_console_capabilities(peer, &capabilities) != 0
+	    || (capabilities & ST_CONSOLE_CAP_PIXELS) != 0
+	    || st_console_cell_pixel_size(peer, &columns, &rows) != 0
+	    || columns != 0 || rows != 0) {
+		child_result(report, 'A');
+		_exit(1);
+	}
+	st_console_destroy(peer);
 	child_result(report, 'R');
 	deadline_after(&deadline, 5);
 	status = st_console_event_timedwait(console, &event, &deadline);
@@ -138,6 +154,18 @@ child_test(int report)
 		_exit(1);
 	}
 	child_result(report, 'E');
+	{
+		const char text[] = "REPAINT";
+		const struct st_console_rect rectangle = {0, 1, 7, 1};
+		struct st_console_cell marker[7] = {0};
+
+		for (size_t i = 0; i < 7; ++i) {
+			marker[i].codepoint = (uint32_t)text[i];
+			marker[i].foreground = 7;
+		}
+		if (st_console_write_cells(console, &rectangle, marker, 7) != 0)
+			_exit(1);
+	}
 	if (st_console_write_cells(console, &cells_rect, cells, 3) != 0
 	    || st_console_present(console) != 0) {
 		child_result(report, 'P');
@@ -160,7 +188,16 @@ child_test(int report)
 		_exit(1);
 	}
 	child_result(report, 'Z');
+	/* No drawing calls: the backend must repaint the idle screen itself. */
+	deadline_after(&deadline, 5);
+	do {
+		status = st_console_event_timedwait(console, &event, &deadline);
+	} while (status == 0 && event.type != ST_CONSOLE_EVENT_KEY_CODE);
+	if (status != 0 || event.data.key.code != 13)
+		_exit(1);
 	st_console_destroy(console);
+	st_console_display_destroy(display);
+	child_result(report, 'F');
 	_exit(0);
 }
 
@@ -283,8 +320,23 @@ main(void)
 	}
 	size.ws_row = 43;
 	size.ws_col = 101;
+	terminal_output_size = 0;
 	if (ioctl(master, TIOCSWINSZ, &size) != 0 || kill(child, SIGWINCH) != 0
 	    || wait_report(report[0], master, 'Z') != 0)
+		goto failed;
+	for (unsigned int attempt = 0; attempt < 100
+	    && !output_contains("REPAINT"); ++attempt) {
+		struct pollfd output = {.fd = master, .events = POLLIN};
+		unsigned char bytes[4096];
+
+		if (poll(&output, 1, 50) > 0 && (output.revents & POLLIN) != 0) {
+			ssize_t count = read(master, bytes, sizeof(bytes));
+			if (count > 0)
+				save_output(bytes, (size_t)count);
+		}
+	}
+	if (!output_contains("REPAINT") || write(master, "\r", 1) != 1
+	    || wait_report(report[0], master, 'F') != 0)
 		goto failed;
 	(void)close(report[0]);
 	if (!wait_child(child, master, &child_status)

@@ -23,14 +23,17 @@
 int
 main(void)
 {
+	const struct st_console_display_config config_display = {
+		.backend = ST_CONSOLE_BACKEND_QUARTZ,
+	};
 	const struct st_console_config config = {
 		.columns = 8,
 		.rows = 4,
 		.cell_width = 8,
 		.cell_height = 16,
-		.backend = ST_CONSOLE_BACKEND_QUARTZ,
 		.wrap = true,
 	};
+	struct st_console_display_config automatic_display = config_display;
 	struct st_console_config automatic = config;
 	st_console_t *first = NULL;
 	st_console_t *second = NULL;
@@ -38,12 +41,12 @@ main(void)
 	uint32_t height;
 	int status;
 
-	status = st_console_create(&first, &config);
+	status = st_console_create(&first, &config_display, &config);
 	if (status == IO_ERROR_NOT_FOUND || status == IO_ERROR_NOT_SUPPORTED)
 		return 77;
 	CHECK(status == 0);
-	automatic.backend = ST_CONSOLE_BACKEND_AUTO;
-	CHECK(st_console_create(&second, &automatic) == 0);
+	automatic_display.backend = ST_CONSOLE_BACKEND_AUTO;
+	CHECK(st_console_create(&second, &automatic_display, &automatic) == 0);
 	CHECK(st_console_set_title(first, "st_console Quartz one") == 0);
 	CHECK(st_console_set_title(second, "st_console Quartz two") == 0);
 	CHECK(st_console_set_pointer_visible(first, false) == 0);

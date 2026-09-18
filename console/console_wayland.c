@@ -31,6 +31,7 @@
 
 enum command_type {
 	CMD_PRESENT,
+	CMD_ACTIVATE,
 	CMD_RESIZE,
 	CMD_TITLE,
 	CMD_POINTER,
@@ -43,6 +44,7 @@ enum command_type {
 struct command {
 	enum command_type type;
 	union {
+		st_console_t *console;
 		struct {
 			uint32_t width, height;
 		} size;
@@ -117,7 +119,10 @@ struct xkb_api {
 };
 
 struct state {
-	_Atomic(st_console_t *) console;
+	/* Only the backend thread changes or dereferences this pointer. */
+	st_console_t *console;
+	st_console_display_t *console_display;
+	struct st_console_bitmap_geometry window_geometry;
 	st_thread_t thread;
 	st_mutex_t mutex;
 	st_condition_t changed;
@@ -168,12 +173,6 @@ struct state {
 	struct xkb_state *xkb_state;
 };
 
-static void activate(st_console_t *c)
-{
-	struct state *s = c->backend_state;
-
-	s->console = c;
-}
 
 static atomic_uint shm_sequence;
 
@@ -603,7 +602,7 @@ static void keyboard_enter(void *data,
 	(void)surface;
 	(void)keys;
 	state->input_serial = serial;
-	(void)st_console_post_event(state->console, &event);
+	(void)st_console_display_post_event(state->console_display, &event);
 }
 
 static void keyboard_leave(void *data,
@@ -620,7 +619,7 @@ static void keyboard_leave(void *data,
 	(void)serial;
 	(void)surface;
 	state->repeat_key = 0;
-	(void)st_console_post_event(state->console, &event);
+	(void)st_console_display_post_event(state->console_display, &event);
 }
 
 static void
@@ -640,7 +639,7 @@ emit_key(struct state *state, uint32_t key, bool pressed, bool repeat)
 		return;
 	mods = state->xkb_state == NULL ? 0 : modifiers(state);
 	event.data.physical_key.modifiers = mods;
-	(void)st_console_post_event(state->console, &event);
+	(void)st_console_display_post_event(state->console_display, &event);
 	if (!pressed || state->xkb_state == NULL)
 		return;
 	sym = state->xkb.state_key_get_one_sym(state->xkb_state, code);
@@ -667,7 +666,7 @@ emit_key(struct state *state, uint32_t key, bool pressed, bool repeat)
 		uint32_t height;
 		bool larger = sym == XKB_KEY_Right || sym == XKB_KEY_KP_Right;
 
-		if (st_console_snap_window_size(state->console,
+		if (st_console_snap_geometry_size(&state->window_geometry,
 		    state->window_width, state->window_height, larger,
 		    state->bounds_width, state->bounds_height,
 		    &width, &height) == 0
@@ -688,7 +687,7 @@ emit_key(struct state *state, uint32_t key, bool pressed, bool repeat)
 					      .data.key = {
 						      .code = translated,
 						      .modifiers = mods}};
-		(void)st_console_post_event(state->console, &event);
+		(void)st_console_display_post_event(state->console_display, &event);
 	}
 	if (translated == 0
 	    && (mods & (ST_CONSOLE_MODIFIER_CONTROL | ST_CONSOLE_MODIFIER_ALT))
@@ -700,7 +699,7 @@ emit_key(struct state *state, uint32_t key, bool pressed, bool repeat)
 			    .data.text = {
 				    .codepoint = text,
 				    .modifiers = mods}};
-			(void)st_console_post_event(state->console, &event);
+			(void)st_console_display_post_event(state->console_display, &event);
 		}
 	}
 }
@@ -758,6 +757,8 @@ static const struct wl_keyboard_listener keyboard_listener = {
     .repeat_info = keyboard_repeat,
 };
 
+static int set_pointer(struct state *s, bool visible);
+
 static void pointer_enter(void *data,
 			  struct wl_pointer *pointer,
 			  uint32_t serial,
@@ -772,11 +773,13 @@ static void pointer_enter(void *data,
 	(void)y;
 	state->pointer_serial = serial;
 	state->input_serial = serial;
+	(void)set_pointer(state, state->pointer_visible);
 }
 static void
 pointer_leave(void *d, struct wl_pointer *p, uint32_t s, struct wl_surface *w)
 {
-	(void)d;
+	struct state *state = d;
+	state->pointer_serial = 0;
 	(void)p;
 	(void)s;
 	(void)w;
@@ -819,7 +822,7 @@ static void pointer_motion(void *data,
 	state->pointer_x = x;
 	state->pointer_y = y;
 	mouse_position(state, x, y, &event.data.mouse.x, &event.data.mouse.y);
-	(void)st_console_post_event(state->console, &event);
+	(void)st_console_display_post_event(state->console_display, &event);
 }
 
 static void pointer_button(void *data,
@@ -859,7 +862,7 @@ static void pointer_button(void *data,
 			       state->pointer_y,
 			       &event.data.mouse.x,
 			       &event.data.mouse.y);
-	(void)st_console_post_event(state->console, &event);
+	(void)st_console_display_post_event(state->console_display, &event);
 }
 
 static void pointer_axis(void *data,
@@ -884,7 +887,7 @@ static void pointer_axis(void *data,
 		event.data.mouse.wheel_y = amount;
 	else
 		event.data.mouse.wheel_x = amount;
-	(void)st_console_post_event(state->console, &event);
+	(void)st_console_display_post_event(state->console_display, &event);
 }
 static void pointer_frame(void *d, struct wl_pointer *p)
 {
@@ -1316,7 +1319,7 @@ static void top_close(void *data, struct xdg_toplevel *top)
 	struct state *s = data;
 	const struct st_console_event e = {.type = ST_CONSOLE_EVENT_CLOSE};
 	(void)top;
-	(void)st_console_post_event(s->console, &e);
+	(void)st_console_display_post_event(s->console_display, &e);
 }
 static void top_bounds(void *d, struct xdg_toplevel *t, int32_t w, int32_t h)
 {
@@ -1489,14 +1492,13 @@ static int objects_create(struct state *s)
 	if (s->viewporter)
 		s->viewport =
 		    wp_viewporter_get_viewport(s->viewporter, s->video_surface);
-	if (s->console->scaling_mode == ST_CONSOLE_SCALING_EXTERNAL &&
-	    !s->viewport)
-		return IO_ERROR_NOT_SUPPORTED;
+	st_console_bitmap_presenter_set_external_scaling_available(
+	    s->presenter, s->viewport != NULL);
 	uint32_t minimum_width;
 	uint32_t minimum_height;
 
-	s->window_width = s->console->initial_window_width;
-	s->window_height = s->console->initial_window_height;
+	s->window_width = s->console->display->initial_window_width;
+	s->window_height = s->console->display->initial_window_height;
 	s->windowed_width = s->window_width;
 	s->windowed_height = s->window_height;
 	if (st_console_aspect_correct_size(s->console->pixels->width,
@@ -1516,8 +1518,10 @@ static int objects_create(struct state *s)
 
 static int set_pointer(struct state *s, bool visible)
 {
+	/* A cursor request only applies while the pointer is over our surface. */
+	s->pointer_visible = visible;
 	if (!s->pointer || s->pointer_serial == 0)
-		return IO_ERROR_NOT_SUPPORTED;
+		return 0;
 	if (!visible)
 		wl_pointer_set_cursor(
 		    s->pointer, s->pointer_serial, NULL, 0, 0);
@@ -1552,10 +1556,16 @@ static int set_pointer(struct state *s, bool visible)
 static int process(struct state *s, struct command *c)
 {
 	switch (c->type) {
+	case CMD_ACTIVATE:
+		s->console = c->data.console;
+		return 0;
 	case CMD_PRESENT:
 		return draw(s, s->console, false);
 	case CMD_RESIZE:
 		{
+		struct st_console_bitmap_geometry next = {
+			c->data.size.width, c->data.size.height,
+			s->console->aspect_width, s->console->aspect_height};
 		uint32_t width;
 		uint32_t height;
 		uint32_t minimum_width;
@@ -1567,14 +1577,15 @@ static int process(struct state *s, struct command *c)
 		    || s->maximized
 		    ? s->windowed_height : s->window_height;
 
-		if (st_console_preserve_window_scale(s->console,
-		    c->data.size.width, c->data.size.height, current_width,
+		if (st_console_preserve_geometry_scale(&s->window_geometry, &next,
+		    current_width,
 		    current_height, &width, &height,
 		    &minimum_width, &minimum_height) != 0
 		    || width > INT32_MAX || height > INT32_MAX)
 			return IO_ERROR_OUT_OF_RANGE;
 		s->windowed_width = width;
 		s->windowed_height = height;
+		s->window_geometry = next;
 		if (!s->fullscreen && !s->fullscreen_requested && !s->maximized) {
 			s->window_width = width;
 			s->window_height = height;
@@ -1717,9 +1728,18 @@ static int submit(struct state *s, struct command *c)
 	return status;
 }
 
+static int
+activate(st_console_t *console)
+{
+	return submit(console->display->backend_state, &(struct command){
+		.type = CMD_ACTIVATE,
+		.data.console = console,
+	});
+}
+
 static int present(st_console_t *c)
 {
-	return submit(c->backend_state, &(struct command){.type = CMD_PRESENT});
+	return submit(c->display->backend_state, &(struct command){.type = CMD_PRESENT});
 }
 static int resize(st_console_t *c, uint32_t cols, uint32_t rows)
 {
@@ -1734,43 +1754,43 @@ static int resize(st_console_t *c, uint32_t cols, uint32_t rows)
 	if (width > INT32_MAX || height > INT32_MAX)
 		return IO_ERROR_OUT_OF_RANGE;
 	return submit(
-	    c->backend_state,
+	    c->display->backend_state,
 	    &(struct command){
 		.type = CMD_RESIZE,
 		.data.size = {width, height}});
 }
-static int title(st_console_t *c, const char *t)
+static int title(st_console_display_t *display, const char *t)
 {
-	return submit(c->backend_state,
+	return submit(display->backend_state,
 		      &(struct command){.type = CMD_TITLE, .data.text = t});
 }
-static int pointer(st_console_t *c, bool v)
+static int pointer(st_console_display_t *display, bool v)
 {
 	return submit(
-	    c->backend_state,
+	    display->backend_state,
 	    &(struct command){.type = CMD_POINTER, .data.enabled = v});
 }
-static int fullscreen(st_console_t *c, bool v)
+static int fullscreen(st_console_display_t *display, bool v)
 {
 	return submit(
-	    c->backend_state,
+	    display->backend_state,
 	    &(struct command){.type = CMD_FULLSCREEN, .data.enabled = v});
 }
-static int clipboard_set(st_console_t *c, const char *t)
+static int clipboard_set(st_console_display_t *display, const char *t)
 {
 	return submit(
-	    c->backend_state,
+	    display->backend_state,
 	    &(struct command){.type = CMD_SET_CLIPBOARD, .data.text = t});
 }
-static int clipboard_get(st_console_t *c, char **r)
+static int clipboard_get(st_console_display_t *display, char **r)
 {
-	return submit(c->backend_state,
+	return submit(display->backend_state,
 		      &(struct command){.type = CMD_GET_CLIPBOARD,
 					.data.text_result = r});
 }
-static void destroy(st_console_t *c)
+static void destroy(st_console_display_t *display)
 {
-	struct state *s = c->backend_state;
+	struct state *s = display->backend_state;
 	(void)submit(s, &(struct command){.type = CMD_DESTROY});
 	(void)st_thread_join(s->thread, NULL);
 	st_console_bitmap_presenter_destroy(s->presenter);
@@ -1779,9 +1799,15 @@ static void destroy(st_console_t *c)
 	st_condition_destroy(&s->changed);
 	st_mutex_destroy(&s->mutex);
 	free(s);
-	c->backend_state = NULL;
+	display->backend_state = NULL;
 }
+static int attach(st_console_t *console)
+{
+	return st_console_bitmap_validate_geometry(console, INT32_MAX);
+}
+
 static const struct st_console_backend_ops ops = {
+	.attach = attach,
     .presents_pixels = true,
     .deferred_present = true,
     .present = present,
@@ -1798,10 +1824,9 @@ int st_console_wayland_init(st_console_t *c)
 {
 	struct state *s;
 	int status;
-	if (!c->pixels)
-		return IO_ERROR_NOT_SUPPORTED;
-	if (c->pixels->width > INT32_MAX || c->pixels->height > INT32_MAX)
-		return IO_ERROR_OUT_OF_RANGE;
+	status = st_console_bitmap_validate_geometry(c, INT32_MAX);
+	if (status != 0)
+		return status;
 	status = st_wayland_loader_init();
 	if (status)
 		return status;
@@ -1809,7 +1834,11 @@ int st_console_wayland_init(st_console_t *c)
 	if (!s)
 		return IO_ERROR_OUT_OF_MEMORY;
 	s->console = c;
+	s->window_geometry = (struct st_console_bitmap_geometry){
+		c->pixels->width, c->pixels->height,
+		c->aspect_width, c->aspect_height};
 	s->wake[0] = s->wake[1] = -1;
+	s->console_display = c->display;
 	s->pointer_visible = true;
 	for (size_t i = 0; i < 2; ++i) {
 		s->buffers[i].state = s;
@@ -1850,7 +1879,7 @@ int st_console_wayland_init(st_console_t *c)
 		free(s);
 		return status;
 	}
-	c->backend_state = s;
-	c->backend_ops = &ops;
+	c->display->backend_state = s;
+	c->display->backend_ops = &ops;
 	return 0;
 }

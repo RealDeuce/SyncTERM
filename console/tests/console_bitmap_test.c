@@ -4,6 +4,7 @@
  */
 
 #include "console_internal.h"
+#include "io_error.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -48,6 +49,9 @@ fill_planes(st_console_t *console, uint32_t primary, uint32_t alternate)
 static void
 test_circular_text_raster(void)
 {
+	struct st_console_display_config config_display = {
+		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	};
 	struct st_console_config config = {
 		.columns = 1,
 		.rows = 2,
@@ -55,7 +59,6 @@ test_circular_text_raster(void)
 		.cell_height = 1,
 		.pixel_width = 1,
 		.pixel_height = 3,
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
 		.scaling_mode = ST_CONSOLE_SCALING_EXTERNAL,
 	};
 	struct st_console_bitmap_presenter *presenter = NULL;
@@ -67,7 +70,7 @@ test_circular_text_raster(void)
 	const uint32_t green = UINT32_C(0x00ff00);
 	const uint32_t yellow = UINT32_C(0xffff00);
 
-	CHECK(st_console_create(&console, &config) == 0);
+	CHECK(st_console_create(&console, &config_display, &config) == 0);
 	CHECK(st_console_set_pixel(console, 0, 0, red) == 0);
 	CHECK(st_console_set_pixel(console, 0, 1, blue) == 0);
 	CHECK(st_console_set_pixel(console, 0, 2, green) == 0);
@@ -105,54 +108,81 @@ test_circular_text_raster(void)
 static void
 test_initial_window_geometry(void)
 {
+	const struct st_console_bitmap_geometry geometry = {640, 400, 4, 3};
+	struct st_console_display_config config_display = {
+		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+		.initial_scaling = 2.0,
+	};
 	struct st_console_config config = {
 		.columns = 80,
 		.rows = 25,
 		.cell_width = 8,
 		.cell_height = 16,
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
 		.aspect_width = 4,
 		.aspect_height = 3,
-		.initial_scaling = 2.0,
 	};
 	st_console_t *console = NULL;
 	uint32_t width;
 	uint32_t height;
 
-	CHECK(st_console_create(&console, &config) == 0);
-	CHECK(console->initial_window_width == 1280);
-	CHECK(console->initial_window_height == 960);
-	CHECK(st_console_snap_window_size(console, 1280, 960, false, 0, 0,
+	{
+		struct st_console_display_config invalid = config_display;
+		st_console_display_t *display = NULL;
+
+		invalid.initial_window_width = 700;
+		CHECK(st_console_display_create(&display, &invalid)
+		    == IO_ERROR_INVALID_ARGUMENT);
+		CHECK(display == NULL);
+	}
+
+	CHECK(st_console_create(&console, &config_display, &config) == 0);
+	CHECK(console->display->initial_window_width == 1280);
+	CHECK(console->display->initial_window_height == 960);
+	{
+		st_console_t *peer = NULL;
+		struct st_console_config smaller = config;
+
+		smaller.columns /= 2;
+		smaller.rows /= 2;
+		CHECK(st_console_create_on_display(&peer, console->display,
+		    &smaller) == 0);
+		CHECK(console->display->initial_window_width == 1280);
+		CHECK(console->display->initial_window_height == 960);
+		st_console_destroy(peer);
+	}
+	CHECK(st_console_snap_geometry_size(&geometry, 1280, 960, false, 0, 0,
 	    &width, &height) == 0);
 	CHECK(width == 640 && height == 480);
-	CHECK(st_console_snap_window_size(console, 700, 525, false, 0, 0,
+	CHECK(st_console_snap_geometry_size(&geometry, 700, 525, false, 0, 0,
 	    &width, &height) == 0);
 	CHECK(width == 640 && height == 480);
-	CHECK(st_console_snap_window_size(console, 700, 525, true, 0, 0,
+	CHECK(st_console_snap_geometry_size(&geometry, 700, 525, true, 0, 0,
 	    &width, &height) == 0);
 	CHECK(width == 1280 && height == 960);
-	CHECK(st_console_snap_window_size(console, 1280, 960, true, 1500, 1000,
+	CHECK(st_console_snap_geometry_size(&geometry, 1280, 960, true, 1500, 1000,
 	    &width, &height) == 0);
 	CHECK(width == 1280 && height == 960);
 	st_console_destroy(console);
-	config.initial_scaling = 0;
-	config.initial_window_width = 700;
-	config.initial_window_height = 450;
-	CHECK(st_console_create(&console, &config) == 0);
-	CHECK(console->initial_window_width == 700);
-	CHECK(console->initial_window_height == 480);
+	config_display.initial_scaling = 0;
+	config_display.initial_window_width = 700;
+	config_display.initial_window_height = 450;
+	CHECK(st_console_create(&console, &config_display, &config) == 0);
+	CHECK(console->display->initial_window_width == 700);
+	CHECK(console->display->initial_window_height == 480);
 	st_console_destroy(console);
 }
 
 static void
 test_default_cursor_scanlines(void)
 {
+	struct st_console_display_config config_display = {
+		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	};
 	struct st_console_config config = {
 		.columns = 1,
 		.rows = 1,
 		.cell_width = 8,
 		.cell_height = 14,
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
 		.scaling_mode = ST_CONSOLE_SCALING_EXTERNAL,
 		.default_cursor = {
 			.start = 12, .end = 13, .range = 14,
@@ -165,7 +195,7 @@ test_default_cursor_scanlines(void)
 	st_console_t *console = NULL;
 	const uint32_t cursor_colour = UINT32_C(0xaaaaaa);
 
-	CHECK(st_console_create(&console, &config) == 0);
+	CHECK(st_console_create(&console, &config_display, &config) == 0);
 	CHECK(st_console_bitmap_presenter_create(&presenter, console) == 0);
 	CHECK(st_console_bitmap_presenter_frame(presenter, console, 8, 14,
 	    0, record_upload, &log, &frame) == 0);
@@ -179,12 +209,14 @@ test_default_cursor_scanlines(void)
 int
 main(void)
 {
+	struct st_console_display_config config_display = {
+		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	};
 	struct st_console_config config = {
 		.columns = 2,
 		.rows = 1,
 		.cell_width = 2,
 		.cell_height = 4,
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
 		.blink_mode = ST_CONSOLE_BLINK_PC,
 		.scaling_mode = ST_CONSOLE_SCALING_EXTERNAL,
 		.aspect_width = 4,
@@ -222,12 +254,42 @@ main(void)
 	    &width, &height) == 0);
 	CHECK(width == 640 && height == 480);
 
-	CHECK(st_console_create(&console, &config) == 0);
+	{
+		struct st_console_bitmap_geometry previous = {640, 400, 4, 3};
+		struct st_console_bitmap_geometry next = {320, 200, 4, 3};
+		uint32_t minimum_width, minimum_height;
+
+		CHECK(st_console_preserve_geometry_scale(&previous, &next,
+		    1280, 960, &width, &height, &minimum_width,
+		    &minimum_height) == 0);
+		CHECK(width == 640 && height == 480);
+		CHECK(minimum_width == 320 && minimum_height == 240);
+		/* The old aspect establishes scale; the new aspect shapes output. */
+		next.aspect_width = 0;
+		next.aspect_height = 0;
+		CHECK(st_console_preserve_geometry_scale(&previous, &next,
+		    1280, 960, &width, &height, &minimum_width,
+		    &minimum_height) == 0);
+		CHECK(width == 640 && height == 400);
+		CHECK(minimum_width == 320 && minimum_height == 200);
+		CHECK(st_console_preserve_geometry_scale(&next, &previous,
+		    width, height, &width, &height, &minimum_width,
+		    &minimum_height) == 0);
+		CHECK(width == 1280 && height == 960);
+	}
+
+	CHECK(st_console_create(&console, &config_display, &config) == 0);
 	{
 		uint32_t minimum_width;
 		uint32_t minimum_height;
 
-		CHECK(st_console_preserve_window_scale(console, 8, 8, 10, 8,
+		const struct st_console_bitmap_geometry previous = {
+			console->pixels->width, console->pixels->height,
+			console->aspect_width, console->aspect_height};
+		const struct st_console_bitmap_geometry next = {
+			8, 8, console->aspect_width, console->aspect_height};
+
+		CHECK(st_console_preserve_geometry_scale(&previous, &next, 10, 8,
 		    &width, &height, &minimum_width, &minimum_height) == 0);
 		CHECK(minimum_width == 11 && minimum_height == 8);
 		CHECK(width == 21 && height == 16);
@@ -301,6 +363,19 @@ main(void)
 	CHECK(log.rectangle.width < frame.pixels->width);
 	CHECK(log.rectangle.height == frame.pixels->height);
 
+	st_console_bitmap_presenter_destroy(presenter);
+	console->scaling_mode = ST_CONSOLE_SCALING_EXTERNAL;
+	CHECK(st_console_bitmap_presenter_create(&presenter, console) == 0);
+	st_console_bitmap_presenter_set_external_scaling_available(presenter, false);
+	CHECK(st_console_bitmap_presenter_frame(presenter, console, 10, 10,
+	    1266, record_upload, &log, &frame) == 0);
+	CHECK(frame.scaling_mode == ST_CONSOLE_SCALING_INTERNAL);
+	CHECK(frame.pixels->width == 10 && frame.pixels->height == 8);
+	CHECK(console->scaling_mode == ST_CONSOLE_SCALING_EXTERNAL);
+	/* Timer-only frames retain the effective mode, not the unavailable request. */
+	CHECK(st_console_bitmap_presenter_frame(presenter, NULL, 10, 10,
+	    1266, record_upload, &log, &frame) == 0);
+	CHECK(!frame.changed);
 	st_console_bitmap_presenter_destroy(presenter);
 	st_console_destroy(console);
 	test_circular_text_raster();

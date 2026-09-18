@@ -133,11 +133,7 @@ main(int argc, char **argv)
 		fprintf(stderr, "SyncTERM: invalid console settings (%d)\n", status);
 		goto finished;
 	}
-	display_config = (struct st_console_display_config){
-		.backend = startup.config.backend,
-		.text_presentation = startup.config.text_presentation,
-		.ansi_io = startup.config.ansi_io,
-	};
+	display_config = startup.display_config;
 	status = st_console_display_create(&display, &display_config);
 	if (status == 0)
 		status = st_console_create_on_display(&console, display,

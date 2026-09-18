@@ -940,7 +940,13 @@ host_pick_file(WrenVM *vm, const char *title)
 		.mask = mask,
 		.options = options,
 	};
-	if (!st_wren_picker_host_run(host, &call) || call.path_count == 0
+	if (!st_wren_picker_host_run(host, &call)) {
+		st_wren_abort(vm, host->last_error[0] == '\0'
+		    ? "The file picker is unavailable." : host->last_error);
+		st_wren_picker_call_dispose(&call);
+		return;
+	}
+	if (call.path_count == 0
 	    || !push_file(vm, 0, call.paths[0], call.disposition))
 		wrenSetSlotNull(vm, 0);
 	st_wren_picker_call_dispose(&call);
@@ -993,7 +999,13 @@ fn_host_pick_files(WrenVM *vm)
 		.mask = mask,
 		.options = options,
 	};
-	if (!st_wren_picker_host_run(host, &call) || call.path_count == 0) {
+	if (!st_wren_picker_host_run(host, &call)) {
+		st_wren_abort(vm, host->last_error[0] == '\0'
+		    ? "The file picker is unavailable." : host->last_error);
+		st_wren_picker_call_dispose(&call);
+		return;
+	}
+	if (call.path_count == 0) {
 		wrenSetSlotNull(vm, 0);
 		st_wren_picker_call_dispose(&call);
 		return;
@@ -1032,7 +1044,13 @@ host_pick_save(WrenVM *vm, int options)
 		.options = ST_WREN_PICKER_ALLOW_ENTRY
 		    | ST_WREN_PICKER_CONFIRM_OVERWRITE | options,
 	};
-	if (!st_wren_picker_host_run(host, &call) || call.path_count == 0
+	if (!st_wren_picker_host_run(host, &call)) {
+		st_wren_abort(vm, host->last_error[0] == '\0'
+		    ? "The file picker is unavailable." : host->last_error);
+		st_wren_picker_call_dispose(&call);
+		return;
+	}
+	if (call.path_count == 0
 	    || !push_file(vm, 0, call.paths[0], call.disposition))
 		wrenSetSlotNull(vm, 0);
 	st_wren_picker_call_dispose(&call);
@@ -1136,26 +1154,25 @@ st_wren_picker_host_run(struct st_wren_host *host,
 	st_console_snapshot_t *snapshot = NULL;
 	st_console_t *previous_console;
 	bool switched = false;
+	int restore_status;
 	WrenInterpretResult result;
 
 	if (host == NULL || call == NULL || host->picker_vm == NULL
 	    || host->picker_bootstrap == NULL || host->picker_class == NULL
 	    || host->picker_run == NULL || host->picker_recover == NULL)
 		return false;
-	previous_console = host->config.console;
+	host->last_error[0] = '\0';
+	previous_console = host->menu.console;
 	if (host->config.display != NULL && host->config.picker_console != NULL
 	    && host->config.picker_console != previous_console) {
 		if (st_console_display_activate(host->config.display,
 		    host->config.picker_console) != 0)
 			return false;
-		host->config.console = host->config.picker_console;
-		st_wren_select_picker_font_state(host, true);
 		switched = true;
 	}
 	else if (st_console_snapshot_create(&snapshot,
 	    host->config.console) != 0)
 		return false;
-	host->last_error[0] = '\0';
 	wrenEnsureSlots(host->picker_vm, 3);
 	wrenSetSlotHandle(host->picker_vm, 0, host->picker_bootstrap);
 	wrenSetSlotHandle(host->picker_vm, 1, host->picker_class);
@@ -1182,13 +1199,17 @@ st_wren_picker_host_run(struct st_wren_host *host,
 	if (call->quit_application)
 		host->exit_requested = true;
 	if (switched) {
-		st_wren_select_picker_font_state(host, false);
-		host->config.console = previous_console;
-		(void)st_console_display_activate(host->config.display,
+		restore_status = st_console_display_activate(host->config.display,
 		    previous_console);
 	}
 	else
-		(void)st_console_snapshot_restore(host->config.console, snapshot);
+		restore_status = st_console_snapshot_restore(host->config.console, snapshot);
 	st_console_snapshot_destroy(snapshot);
+	if (restore_status != 0) {
+		(void)snprintf(host->last_error, sizeof(host->last_error),
+		    "Cannot restore the menu console after the file picker (%d)",
+		    restore_status);
+		return false;
+	}
 	return result == WREN_RESULT_SUCCESS;
 }

@@ -56,6 +56,22 @@ deadline_after(struct timespec *deadline)
 }
 
 static bool
+wait_text(int master, const char *text)
+{
+	for (unsigned int i = 0; i < 100 && !output_contains(text); ++i) {
+		struct pollfd output = {.fd = master, .events = POLLIN};
+		unsigned char bytes[4096];
+
+		if (poll(&output, 1, 50) > 0 && (output.revents & POLLIN) != 0) {
+			ssize_t count = read(master, bytes, sizeof(bytes));
+			if (count > 0)
+				save_output(bytes, (size_t)count);
+		}
+	}
+	return output_contains(text);
+}
+
+static bool
 next_event(st_console_t *console, struct st_console_event *event)
 {
 	struct timespec deadline;
@@ -73,11 +89,13 @@ report(int descriptor, unsigned char value)
 static void
 child_test(int descriptor)
 {
+	const struct st_console_display_config config_display = {
+		.backend = ST_CONSOLE_BACKEND_ANSI,
+		.text_presentation = ST_CONSOLE_TEXT_UNICODE,
+	};
 	const struct st_console_config config = {
 		.columns = 8,
 		.rows = 3,
-		.backend = ST_CONSOLE_BACKEND_ANSI,
-		.text_presentation = ST_CONSOLE_TEXT_UNICODE,
 		.wrap = true,
 	};
 	st_console_t *console = NULL;
@@ -86,7 +104,7 @@ child_test(int descriptor)
 	uint32_t rows;
 	uint32_t capabilities;
 
-	if (st_console_create(&console, &config) != 0
+	if (st_console_create(&console, &config_display, &config) != 0
 	    || st_console_size(console, &columns, &rows) != 0
 	    || columns != 91 || rows != 37
 	    || st_console_capabilities(console, &capabilities) != 0
@@ -138,7 +156,29 @@ child_test(int descriptor)
 		report(descriptor, 'E');
 		goto failed;
 	}
+	{
+		const char text[] = "REPAINT";
+		const struct st_console_rect rectangle = {0, 20, 7, 1};
+		const struct st_console_rect top = {0, 1, 6, 1};
+		struct st_console_cell marker[7] = {0};
+
+		for (size_t i = 0; i < 7; ++i) {
+			marker[i].codepoint = (uint32_t)text[i];
+			marker[i].foreground = 7;
+		}
+		if (st_console_write_cells(console, &rectangle, marker, 7) != 0)
+			goto failed;
+		for (size_t i = 0; i < 6; ++i)
+			marker[i].codepoint = (uint32_t)"SHRINK"[i];
+		if (st_console_write_cells(console, &top, marker, 6) != 0
+		    || st_console_present(console) != 0)
+			goto failed;
+	}
 	report(descriptor, 'E');
+	if (!next_event(console, &event) || event.type != ST_CONSOLE_EVENT_RESIZE
+	    || event.data.resize.columns != 40 || event.data.resize.rows != 10)
+		goto failed;
+	report(descriptor, 'H');
 	if (!next_event(console, &event) || event.type != ST_CONSOLE_EVENT_RESIZE
 	    || event.data.resize.columns != 101 || event.data.resize.rows != 43
 	    || st_console_size(console, &columns, &rows) != 0
@@ -147,6 +187,10 @@ child_test(int descriptor)
 		goto failed;
 	}
 	report(descriptor, 'Z');
+	/* Stay idle until the parent observes a backend-driven repaint. */
+	if (!next_event(console, &event) || event.type != ST_CONSOLE_EVENT_KEY_CODE
+	    || event.data.key.code != 13)
+		goto failed;
 	st_console_destroy(console);
 	report(descriptor, 'X');
 	_exit(0);
@@ -221,10 +265,22 @@ main(void)
 	    || write(master, "\000\340\034", 3) != 3
 	    || wait_report(reports[0], master, 'E') != 0)
 		goto failed;
+	if (!wait_text(master, "REPAINT"))
+		goto failed;
+	terminal_output_size = 0;
+	size.ws_row = 10;
+	size.ws_col = 40;
+	if (ioctl(master, TIOCSWINSZ, &size) != 0
+	    || wait_report(reports[0], master, 'H') != 0
+	    || !wait_text(master, "SHRINK") || output_contains("REPAINT"))
+		goto failed;
+	terminal_output_size = 0;
 	size.ws_row = 43;
 	size.ws_col = 101;
 	if (ioctl(master, TIOCSWINSZ, &size) != 0
 	    || wait_report(reports[0], master, 'Z') != 0
+	    || !wait_text(master, "REPAINT")
+	    || write(master, "\r", 1) != 1
 	    || wait_report(reports[0], master, 'X') != 0)
 		goto failed;
 	(void)close(reports[0]);

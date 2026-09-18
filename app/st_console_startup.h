@@ -17,6 +17,7 @@ struct st_settings;
 
 struct st_console_startup {
 	struct st_console_config config;
+	struct st_console_display_config display_config;
 	bool fullscreen;
 };
 

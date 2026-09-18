@@ -62,14 +62,17 @@ write_pixels(void *argument)
 int
 main(int argc, char **argv)
 {
+	const struct st_console_display_config config_display = {
+		.backend = ST_CONSOLE_BACKEND_SDL,
+	};
 	const struct st_console_config config = {
 		.columns = 8,
 		.rows = 4,
 		.cell_width = 8,
 		.cell_height = 16,
-		.backend = ST_CONSOLE_BACKEND_SDL,
 		.wrap = true,
 	};
+	struct st_console_display_config automatic_display = config_display;
 	struct st_console_config automatic = config;
 	st_console_t *first = NULL;
 	st_console_t *second = NULL;
@@ -87,12 +90,12 @@ main(int argc, char **argv)
 	(void)argc;
 	(void)argv;
 
-	status = st_console_create(&first, &config);
+	status = st_console_create(&first, &config_display, &config);
 	if (status == IO_ERROR_NOT_FOUND || status == IO_ERROR_NOT_SUPPORTED)
 		return 77;
 	CHECK(status == 0);
-	automatic.backend = ST_CONSOLE_BACKEND_AUTO;
-	CHECK(st_console_create(&second, &automatic) == 0);
+	automatic_display.backend = ST_CONSOLE_BACKEND_AUTO;
+	CHECK(st_console_create(&second, &automatic_display, &automatic) == 0);
 	CHECK(st_console_pixel_size(first, &width, &height) == 0);
 	CHECK(width == 64 && height == 64);
 	CHECK(st_console_set_pixel(first, 4, 5,
@@ -131,5 +134,41 @@ main(int argc, char **argv)
 	CHECK(dynamic_library_close(library) == 0);
 	st_console_destroy(first);
 	st_console_destroy(second);
+	{
+		const struct st_console_display_config display_config = {
+			.backend = ST_CONSOLE_BACKEND_SDL,
+		};
+		st_console_display_t *display = NULL;
+		st_console_t *active = NULL;
+
+		CHECK(st_console_display_create(&display, &display_config) == 0);
+		CHECK(st_console_create_on_display(&first, display, &config) == 0);
+		{
+			struct st_console_config invalid = config;
+			st_console_t *unchanged = first;
+
+			invalid.columns = invalid.rows = 1;
+			invalid.cell_width = invalid.cell_height = 1;
+			invalid.aspect_width = UINT32_MAX;
+			invalid.aspect_height = 1;
+			CHECK(st_console_create_on_display(&unchanged, display, &invalid)
+			    == IO_ERROR_OUT_OF_RANGE);
+			CHECK(unchanged == first);
+			CHECK(st_console_display_active(display, &active) == 0);
+			CHECK(active == first);
+		}
+		for (unsigned int i = 0; i < 20; ++i) {
+			CHECK(st_console_create_on_display(&second, display, &config) == 0);
+			CHECK(st_console_display_activate(display, second) == 0);
+			CHECK(st_console_set_pixel(second, 4, 5, i) == 0);
+			CHECK(st_console_present(second) == 0);
+			st_console_destroy(second);
+			CHECK(st_console_display_active(display, &active) == 0);
+			CHECK(active == first);
+			CHECK(st_console_present(first) == 0);
+		}
+		st_console_destroy(first);
+		st_console_display_destroy(display);
+	}
 	return 0;
 }

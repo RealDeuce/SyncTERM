@@ -68,6 +68,9 @@ main(void)
 	};
 	struct st_console_cell *screen;
 	struct st_console_cell line[COLUMNS];
+	struct st_console_display_config config_display = {
+		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	};
 	struct st_console_config config = {
 		.columns = COLUMNS,
 		.rows = ROWS,
@@ -75,7 +78,6 @@ main(void)
 		.cell_height = FONT_HEIGHT,
 		.pixel_width = COLUMNS * 8U,
 		.pixel_height = ROWS * FONT_HEIGHT + 6U,
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};
 	struct st_console_font font = {
 		.bitmap = bitmap,
@@ -132,7 +134,7 @@ main(void)
 			.font = 1,
 		};
 	}
-	status = st_console_create(&console, &config);
+	status = st_console_create(&console, &config_display, &config);
 	if (status != 0)
 		fail("st_console_create", status);
 	status = st_console_register_static_font(console, &font,

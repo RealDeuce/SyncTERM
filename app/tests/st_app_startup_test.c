@@ -111,27 +111,27 @@ test_console_startup(void)
 	    && startup.config.pixel_height == 392);
 	CHECK(startup.config.aspect_width == 4
 	    && startup.config.aspect_height == 3);
-	CHECK(startup.config.backend == ST_CONSOLE_BACKEND_SDL);
+	CHECK(startup.display_config.backend == ST_CONSOLE_BACKEND_SDL);
 	CHECK(startup.fullscreen);
 	CHECK(startup.config.scaling_policy == ST_PIXEL_SCALING_BLOCKY);
-	CHECK(startup.config.initial_scaling == 2.0);
+	CHECK(startup.display_config.initial_scaling == 2.0);
 	settings.window_width = 800;
 	settings.window_height = 600;
 	CHECK(st_console_startup_configure(&startup, &settings, &command) == 0);
-	CHECK(startup.config.initial_window_width == 800);
-	CHECK(startup.config.initial_window_height == 600);
+	CHECK(startup.display_config.initial_window_width == 800);
+	CHECK(startup.display_config.initial_window_height == 600);
 	settings.window_width = 0;
 	settings.window_height = 0;
 	settings.output_mode = 1;
 	CHECK(st_console_startup_configure(&startup, &settings, &command) == 0);
-	CHECK(startup.config.backend == ST_CONSOLE_BACKEND_NCURSES
-	    && startup.config.text_presentation == ST_CONSOLE_TEXT_UNICODE);
+	CHECK(startup.display_config.backend == ST_CONSOLE_BACKEND_NCURSES
+	    && startup.display_config.text_presentation == ST_CONSOLE_TEXT_UNICODE);
 	settings.output_mode = 2;
 	CHECK(st_console_startup_configure(&startup, &settings, &command) == 0);
-	CHECK(startup.config.text_presentation == ST_CONSOLE_TEXT_CP437);
+	CHECK(startup.display_config.text_presentation == ST_CONSOLE_TEXT_CP437);
 	settings.output_mode = 3;
 	CHECK(st_console_startup_configure(&startup, &settings, &command) == 0);
-	CHECK(startup.config.text_presentation == ST_CONSOLE_TEXT_ASCII);
+	CHECK(startup.display_config.text_presentation == ST_CONSOLE_TEXT_ASCII);
 	settings.output_mode = 10;
 
 	command.backend_set = true;
@@ -139,7 +139,7 @@ test_console_startup(void)
 	command.rows_set = true;
 	command.rows = 60;
 	CHECK(st_console_startup_configure(&startup, &settings, &command) == 0);
-	CHECK(startup.config.backend == ST_CONSOLE_BACKEND_ANSI);
+	CHECK(startup.display_config.backend == ST_CONSOLE_BACKEND_ANSI);
 	CHECK(!startup.fullscreen && startup.config.columns == 80
 	    && startup.config.rows == 60);
 	CHECK(startup.config.cell_width == 8 && startup.config.cell_height == 8);

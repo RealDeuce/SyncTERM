@@ -612,8 +612,8 @@ pixel_rect_valid(const st_console_t *console,
 static bool
 pixel_changes_supported(const st_console_t *console)
 {
-	return console->backend_ops == NULL
-	    || console->backend_ops->presents_pixels;
+	return console->display->backend_ops == NULL
+	    || console->display->backend_ops->presents_pixels;
 }
 
 int

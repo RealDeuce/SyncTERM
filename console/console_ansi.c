@@ -26,6 +26,7 @@ struct ansi_state {
 	atomic_bool stop;
 	atomic_uint host_columns;
 	atomic_uint host_rows;
+	atomic_bool host_resized;
 	uint32_t columns;
 	uint32_t rows;
 	unsigned int indexed_colours;
@@ -434,19 +435,27 @@ scroll_up_one(struct ansi_writer *writer, st_console_t *console,
 static int
 ansi_present(st_console_t *console)
 {
-	struct ansi_state *state = console->backend_state;
+	struct ansi_state *state = console->display->backend_state;
 	struct ansi_writer writer = {.state = state};
 	struct st_console_cell current_style = {0};
 	bool style_known = false;
 	bool position_known = false;
-	bool initializing = !state->initialized;
+	bool initializing;
 	uint32_t output_x = 0;
 	uint32_t output_y = 0;
+	bool resized = atomic_exchange_explicit(&state->host_resized, false,
+	    memory_order_acq_rel);
 	uint32_t visible_columns = atomic_load_explicit(&state->host_columns,
 	    memory_order_acquire);
 	uint32_t visible_rows = atomic_load_explicit(&state->host_rows,
 	    memory_order_acquire);
 
+	if (resized) {
+		state->initialized = false;
+		memset(state->drawn, 0, (size_t)state->columns * state->rows
+		    * sizeof(*state->drawn));
+	}
+	initializing = !state->initialized;
 	if (visible_columns == 0 || visible_columns > console->columns)
 		visible_columns = console->columns;
 	if (visible_rows == 0 || visible_rows > console->rows)
@@ -818,6 +827,9 @@ ansi_input(void *argument)
 			    memory_order_release);
 			atomic_store_explicit(&state->host_rows, rows,
 			    memory_order_release);
+			atomic_store_explicit(&state->host_resized, true,
+			    memory_order_release);
+			st_console_display_request_repaint(display);
 			(void)st_console_display_post_event(display, &event);
 		}
 	}
@@ -827,7 +839,7 @@ ansi_input(void *argument)
 static int
 ansi_resize(st_console_t *console, uint32_t columns, uint32_t rows)
 {
-	struct ansi_state *state = console->backend_state;
+	struct ansi_state *state = console->display->backend_state;
 	struct st_console_cell *drawn;
 
 	if (rows == 0 || (size_t)columns > SIZE_MAX / rows)
@@ -850,9 +862,9 @@ ansi_resize(st_console_t *console, uint32_t columns, uint32_t rows)
 }
 
 static void
-ansi_destroy(st_console_t *console)
+ansi_destroy(st_console_display_t *display)
 {
-	struct ansi_state *state = console->backend_state;
+	struct ansi_state *state = display->backend_state;
 	static const char restore[] = "\033[r\033[0m\033[?25h\033[0 q";
 	static const char disable_doorway[] = "\033[=255l";
 
@@ -902,8 +914,9 @@ st_console_ansi_init(st_console_t *console,
 	atomic_init(&state->stop, false);
 	atomic_init(&state->host_columns, 0);
 	atomic_init(&state->host_rows, 0);
+	atomic_init(&state->host_resized, false);
 	state->display = console->display;
-	state->presentation = console->text_presentation;
+	state->presentation = console->display->config.text_presentation;
 	if (io != NULL) {
 		state->io = *io;
 		state->indexed_colours = io->indexed_colours == 0 ? 16
@@ -938,8 +951,8 @@ st_console_ansi_init(st_console_t *console,
 			state->doorway_enabled = true;
 		}
 	}
-	console->backend_ops = io == NULL ? &ansi_deferred_ops : &ansi_ops;
-	console->backend_state = state;
+	console->display->backend_ops = io == NULL ? &ansi_deferred_ops : &ansi_ops;
+	console->display->backend_state = state;
 	result = ansi_resize(console, console->columns, console->rows);
 	if (result == 0 && state->system != NULL
 	    && st_console_ansi_system_size(state->system, &columns, &rows)
@@ -958,9 +971,9 @@ st_console_ansi_init(st_console_t *console,
 			result = IO_ERROR_IO;
 	}
 	if (result != 0) {
-		ansi_destroy(console);
-		console->backend_ops = NULL;
-		console->backend_state = NULL;
+		ansi_destroy(console->display);
+		console->display->backend_ops = NULL;
+		console->display->backend_state = NULL;
 	}
 	return result;
 }

@@ -73,6 +73,15 @@ struct st_wren_font_state {
 	uint16_t slots[5];
 };
 
+/* VM lifetime state, shared by that VM's UI and REPL. */
+struct st_wren_context {
+	struct st_wren_host *host;
+	st_console_t *console;
+	struct st_wren_font_state fonts;
+	uint32_t mouse_events;
+	uint32_t mouse_buttons;
+};
+
 struct st_wren_picker_entry {
 	char *name;
 	bool directory;
@@ -115,17 +124,15 @@ struct st_wren_host {
 	bool web_lists_dirty;
 	bool fonts_dirty;
 	uint64_t font_generation;
-	struct st_wren_font_state menu_fonts;
-	struct st_wren_font_state picker_fonts;
-	struct st_wren_font_state *fonts;
+	struct st_wren_context menu;
+	struct st_wren_context picker;
 	struct st_profile selected;
-	uint32_t mouse_events;
-	uint32_t mouse_buttons;
 	struct st_theme_manager *themes;
 	char last_error[512];
 };
 
 struct st_wren_host *st_wren_host_from_vm(WrenVM *vm);
+struct st_wren_context *st_wren_context_from_vm(WrenVM *vm);
 void st_wren_abort(WrenVM *vm, const char *message);
 
 WrenForeignMethodFn st_wren_core_bind_method(const char *class_name,
@@ -155,10 +162,9 @@ void st_wren_picker_entries_dispose(struct st_wren_picker_entries *entries);
 void st_wren_unsupported(WrenVM *vm);
 void st_wren_push_theme_data(WrenVM *vm, const struct st_theme *theme);
 int st_wren_reload_custom_fonts(struct st_wren_host *host);
-bool st_wren_font_identifier(struct st_wren_host *host, uint16_t selector,
+bool st_wren_font_identifier(struct st_wren_context *context, uint16_t selector,
 	uint16_t *identifier);
-uint16_t st_wren_font_selector(struct st_wren_host *host,
+uint16_t st_wren_font_selector(struct st_wren_context *context,
 	uint16_t identifier);
-void st_wren_select_picker_font_state(struct st_wren_host *host, bool picker);
 
 #endif

@@ -187,7 +187,7 @@ write_run(struct win32_state *state, const st_console_t *console,
 static int
 win32_present(st_console_t *console)
 {
-	struct win32_state *state = console->backend_state;
+	struct win32_state *state = console->display->backend_state;
 	CONSOLE_CURSOR_INFO cursor;
 	COORD position;
 	int status;
@@ -272,7 +272,7 @@ set_screen_size(struct win32_state *state, uint32_t columns, uint32_t rows)
 static int
 win32_resize(st_console_t *console, uint32_t columns, uint32_t rows)
 {
-	return set_screen_size(console->backend_state, columns, rows);
+	return set_screen_size(console->display->backend_state, columns, rows);
 }
 
 static uint32_t
@@ -504,7 +504,7 @@ input_worker(void *argument)
 static int
 win32_palette_changed(st_console_t *console, uint16_t first, uint16_t count)
 {
-	struct win32_state *state = console->backend_state;
+	struct win32_state *state = console->display->backend_state;
 	CONSOLE_SCREEN_BUFFER_INFOEX information = {
 		.cbSize = sizeof(information),
 	};
@@ -525,12 +525,12 @@ win32_palette_changed(st_console_t *console, uint16_t first, uint16_t count)
 }
 
 static int
-win32_set_title(st_console_t *console, const char *title)
+win32_set_title(st_console_display_t *display, const char *title)
 {
 	wchar_t *wide = utf8_to_utf16(title);
 	int status;
 
-	(void)console;
+	(void)display;
 	if (wide == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	status = SetConsoleTitleW(wide) ? 0 : IO_ERROR_IO;
@@ -539,14 +539,14 @@ win32_set_title(st_console_t *console, const char *title)
 }
 
 static int
-win32_set_clipboard(st_console_t *console, const char *text)
+win32_set_clipboard(st_console_display_t *display, const char *text)
 {
 	wchar_t *wide = utf8_to_utf16(text);
 	HGLOBAL memory;
 	wchar_t *target;
 	size_t bytes;
 
-	(void)console;
+	(void)display;
 	if (wide == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	bytes = (wcslen(wide) + 1) * sizeof(*wide);
@@ -578,7 +578,7 @@ win32_set_clipboard(st_console_t *console, const char *text)
 }
 
 static int
-win32_get_clipboard(st_console_t *console, char **result)
+win32_get_clipboard(st_console_display_t *display, char **result)
 {
 	HANDLE memory;
 	const wchar_t *wide;
@@ -586,7 +586,7 @@ win32_get_clipboard(st_console_t *console, char **result)
 	size_t count;
 	size_t length;
 
-	(void)console;
+	(void)display;
 	if (!OpenClipboard(NULL))
 		return IO_ERROR_IO;
 	memory = GetClipboardData(CF_UNICODETEXT);
@@ -612,12 +612,12 @@ win32_get_clipboard(st_console_t *console, char **result)
 }
 
 static int
-win32_open_url(st_console_t *console, const char *url)
+win32_open_url(st_console_display_t *display, const char *url)
 {
 	wchar_t *wide = utf8_to_utf16(url);
 	int status;
 
-	(void)console;
+	(void)display;
 	if (wide == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	status = (INT_PTR)ShellExecuteW(NULL, L"open", wide, NULL, NULL,
@@ -627,9 +627,9 @@ win32_open_url(st_console_t *console, const char *url)
 }
 
 static int
-win32_set_fullscreen(st_console_t *console, bool fullscreen)
+win32_set_fullscreen(st_console_display_t *display, bool fullscreen)
 {
-	struct win32_state *state = console->backend_state;
+	struct win32_state *state = display->backend_state;
 	COORD dimensions;
 	DWORD mode = fullscreen ? CONSOLE_FULLSCREEN_MODE : CONSOLE_WINDOWED_MODE;
 
@@ -642,9 +642,9 @@ win32_set_fullscreen(st_console_t *console, bool fullscreen)
 }
 
 static void
-win32_destroy(st_console_t *console)
+win32_destroy(st_console_display_t *display)
 {
-	struct win32_state *state = console->backend_state;
+	struct win32_state *state = display->backend_state;
 
 	if (state == NULL)
 		return;
@@ -670,11 +670,22 @@ win32_destroy(st_console_t *console)
 		(void)CloseHandle(state->stop_event);
 	free(state->drawn);
 	free(state);
-	console->backend_state = NULL;
+	display->backend_state = NULL;
 	atomic_flag_clear_explicit(&win32_in_use, memory_order_release);
 }
 
+static int
+win32_attach(st_console_t *console)
+{
+	if (console->pixels != NULL)
+		return IO_ERROR_NOT_SUPPORTED;
+	if (console->columns > SHRT_MAX || console->rows > SHRT_MAX)
+		return IO_ERROR_OUT_OF_RANGE;
+	return 0;
+}
+
 static const struct st_console_backend_ops win32_ops = {
+	.attach = win32_attach,
 	.present = win32_present,
 	.resize = win32_resize,
 	.palette_changed = win32_palette_changed,
@@ -693,8 +704,9 @@ st_console_win32_init(st_console_t *console)
 	DWORD input_mode;
 	int status;
 
-	if (console->pixels != NULL)
-		return IO_ERROR_NOT_SUPPORTED;
+	status = win32_attach(console);
+	if (status != 0)
+		return status;
 	if (atomic_flag_test_and_set_explicit(&win32_in_use,
 	    memory_order_acquire))
 		return IO_ERROR_BUSY;
@@ -738,8 +750,8 @@ st_console_win32_init(st_console_t *console)
 	status = set_screen_size(state, console->columns, console->rows);
 	if (status != 0)
 		goto fail;
-	console->backend_state = state;
-	console->backend_ops = &win32_ops;
+	console->display->backend_state = state;
+	console->display->backend_ops = &win32_ops;
 	if (st_thread_create(&state->input_thread, input_worker, state)
 	    != ST_THREAD_SUCCESS) {
 		status = IO_ERROR_IO;
@@ -748,14 +760,14 @@ st_console_win32_init(st_console_t *console)
 	state->input_started = true;
 	status = win32_present(console);
 	if (status != 0) {
-		win32_destroy(console);
-		console->backend_ops = NULL;
+		win32_destroy(console->display);
+		console->display->backend_ops = NULL;
 	}
 	return status;
 
 fail_attached:
-	console->backend_state = NULL;
-	console->backend_ops = NULL;
+	console->display->backend_state = NULL;
+	console->display->backend_ops = NULL;
 fail:
 	if (state->input_mode_changed)
 		(void)SetConsoleMode(state->input, state->original_input_mode);

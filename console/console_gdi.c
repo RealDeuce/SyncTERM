@@ -29,6 +29,7 @@
 
 enum command_type {
 	COMMAND_PRESENT,
+	COMMAND_ACTIVATE,
 	COMMAND_RESIZE,
 	COMMAND_TITLE,
 	COMMAND_CLIPBOARD_SET,
@@ -42,6 +43,7 @@ enum command_type {
 struct command {
 	enum command_type type;
 	union {
+		st_console_t *console;
 		const char *text;
 		char **text_result;
 		struct {
@@ -54,7 +56,10 @@ struct command {
 };
 
 struct gdi_state {
-	_Atomic(st_console_t *) console;
+	/* Only the backend thread changes or dereferences this pointer. */
+	st_console_t *console;
+	st_console_display_t *console_display;
+	struct st_console_bitmap_geometry window_geometry;
 	st_thread_t thread;
 	st_mutex_t mutex;
 	st_condition_t changed;
@@ -83,13 +88,6 @@ struct gdi_state {
 	wchar_t pending_high_surrogate;
 };
 
-static void
-gdi_activate(st_console_t *console)
-{
-	struct gdi_state *state = console->backend_state;
-
-	state->console = console;
-}
 
 static st_once_flag_t class_once = ST_ONCE_FLAG_INIT;
 static ATOM window_class;
@@ -364,7 +362,7 @@ post_mouse(struct gdi_state *state, enum st_console_mouse_action action,
 		event.data.mouse.y = (int32_t)((int64_t)y
 		    * state->frame.pixels->height / state->frame.destination.height);
 	}
-	(void)st_console_post_event(state->console, &event);
+	(void)st_console_display_post_event(state->console_display, &event);
 }
 
 static int
@@ -521,7 +519,7 @@ snap_window(struct gdi_state *state, bool larger)
 		if (available_height > 0)
 			maximum_height = (uint32_t)available_height;
 	}
-	if (st_console_snap_window_size(state->console, state->client_width,
+	if (st_console_snap_geometry_size(&state->window_geometry, state->client_width,
 	    state->client_height, larger, maximum_width, maximum_height,
 	    &width, &height) != 0
 	    || (width == state->client_width && height == state->client_height)
@@ -581,7 +579,7 @@ post_character(struct gdi_state *state, uint32_t codepoint)
 	state->pending_high_surrogate = 0;
 	if (codepoint >= 0x20 && codepoint != 0x7f
 	    && codepoint <= UINT32_C(0x10ffff))
-		(void)st_console_post_event(state->console,
+		(void)st_console_display_post_event(state->console_display,
 		    &(struct st_console_event){
 			.type = ST_CONSOLE_EVENT_TEXT,
 			.data.text = {
@@ -600,7 +598,7 @@ post_key(struct gdi_state *state, UINT message, WPARAM key, LPARAM detail)
 	uint32_t key_modifiers = modifiers();
 
 	if (physical != 0)
-		(void)st_console_post_event(state->console,
+		(void)st_console_display_post_event(state->console_display,
 		    &(struct st_console_event){
 			.type = ST_CONSOLE_EVENT_PHYSICAL_KEY,
 			.data.physical_key = {
@@ -629,7 +627,7 @@ post_key(struct gdi_state *state, UINT message, WPARAM key, LPARAM detail)
 			return;
 		}
 		if (key == VK_F4) {
-			(void)st_console_post_event(state->console,
+			(void)st_console_display_post_event(state->console_display,
 			    &(struct st_console_event){
 				.type = ST_CONSOLE_EVENT_CLOSE,
 			    });
@@ -637,7 +635,7 @@ post_key(struct gdi_state *state, UINT message, WPARAM key, LPARAM detail)
 		}
 	}
 	if (down && translated != 0)
-		(void)st_console_post_event(state->console,
+		(void)st_console_display_post_event(state->console_display,
 		    &(struct st_console_event){
 			.type = ST_CONSOLE_EVENT_KEY_CODE,
 			.data.key = {
@@ -673,8 +671,8 @@ constrain_sizing(struct gdi_state *state, WPARAM edge, RECT *rectangle)
 	    - frame_width);
 	proposed_height = (uint32_t)(rectangle->bottom - rectangle->top
 	    - frame_height);
-	if (st_console_preserve_window_scale(state->console,
-	    state->console->pixels->width, state->console->pixels->height,
+	if (st_console_preserve_geometry_scale(&state->window_geometry,
+	    &state->window_geometry,
 	    proposed_width, proposed_height, &width, &height, &minimum_width,
 	    &minimum_height) != 0)
 		return FALSE;
@@ -700,11 +698,18 @@ process_command(struct gdi_state *state, struct command *command)
 	wchar_t *wide;
 
 	switch (command->type) {
+	case COMMAND_ACTIVATE:
+		state->console = command->data.console;
+		command->result = 0;
+		break;
 	case COMMAND_PRESENT:
 		command->result = render(state, state->console, false);
 		break;
 	case COMMAND_RESIZE:
 		{
+		struct st_console_bitmap_geometry next = {
+			command->data.size.width, command->data.size.height,
+			state->console->aspect_width, state->console->aspect_height};
 		uint32_t width;
 		uint32_t height;
 		uint32_t current_width = state->fullscreen || state->maximized
@@ -712,8 +717,7 @@ process_command(struct gdi_state *state, struct command *command)
 		uint32_t current_height = state->fullscreen || state->maximized
 		    ? state->windowed_client_height : state->client_height;
 
-		if (st_console_preserve_window_scale(state->console,
-		    command->data.size.width, command->data.size.height,
+		if (st_console_preserve_geometry_scale(&state->window_geometry, &next,
 		    current_width, current_height, &width, &height,
 		    &state->minimum_client_width,
 		    &state->minimum_client_height) != 0
@@ -759,6 +763,8 @@ process_command(struct gdi_state *state, struct command *command)
 			    rectangle.right - rectangle.left,
 			    rectangle.bottom - rectangle.top,
 			    SWP_NOMOVE | SWP_NOZORDER) ? 0 : IO_ERROR_IO;
+		if (command->result == 0)
+			state->window_geometry = next;
 		break;
 		}
 	case COMMAND_TITLE:
@@ -870,14 +876,14 @@ window_proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
 		return 0;
 	case WM_SETFOCUS:
 	case WM_KILLFOCUS:
-		(void)st_console_post_event(state->console,
+		(void)st_console_display_post_event(state->console_display,
 		    &(struct st_console_event){
 			.type = ST_CONSOLE_EVENT_FOCUS,
 			.data.focus.focused = message == WM_SETFOCUS,
 		    });
 		return 0;
 	case WM_CLOSE:
-		(void)st_console_post_event(state->console,
+		(void)st_console_display_post_event(state->console_display,
 		    &(struct st_console_event){.type = ST_CONSOLE_EVENT_CLOSE});
 		return 0;
 	case WM_KEYDOWN:
@@ -968,8 +974,8 @@ worker(void *argument)
 	RECT rectangle;
 	uint32_t minimum_width;
 	uint32_t minimum_height;
-	uint32_t width = state->console->initial_window_width;
-	uint32_t height = state->console->initial_window_height;
+	uint32_t width = state->console->display->initial_window_width;
+	uint32_t height = state->console->display->initial_window_height;
 
 	if (st_console_aspect_correct_size(state->console->pixels->width,
 	    state->console->pixels->height, state->console->aspect_width,
@@ -1020,9 +1026,18 @@ send_command(struct gdi_state *state, struct command *command)
 }
 
 static int
+gdi_activate(st_console_t *console)
+{
+	return send_command(console->display->backend_state, &(struct command){
+		.type = COMMAND_ACTIVATE,
+		.data.console = console,
+	});
+}
+
+static int
 gdi_present(st_console_t *console)
 {
-	return send_command(console->backend_state,
+	return send_command(console->display->backend_state,
 	    &(struct command){.type = COMMAND_PRESENT});
 }
 
@@ -1041,70 +1056,70 @@ gdi_resize(st_console_t *console, uint32_t columns, uint32_t rows)
 	height = rows * console->cell_height + console->pixel_extra_height;
 	if (width > LONG_MAX || height > LONG_MAX)
 		return IO_ERROR_OUT_OF_RANGE;
-	return send_command(console->backend_state, &(struct command){
+	return send_command(console->display->backend_state, &(struct command){
 		.type = COMMAND_RESIZE,
 		.data.size = {width, height},
 	});
 }
 
 static int
-gdi_set_title(st_console_t *console, const char *title)
+gdi_set_title(st_console_display_t *display, const char *title)
 {
-	return send_command(console->backend_state, &(struct command){
+	return send_command(display->backend_state, &(struct command){
 		.type = COMMAND_TITLE,
 		.data.text = title,
 	});
 }
 
 static int
-gdi_set_clipboard(st_console_t *console, const char *text)
+gdi_set_clipboard(st_console_display_t *display, const char *text)
 {
-	return send_command(console->backend_state, &(struct command){
+	return send_command(display->backend_state, &(struct command){
 		.type = COMMAND_CLIPBOARD_SET,
 		.data.text = text,
 	});
 }
 
 static int
-gdi_get_clipboard(st_console_t *console, char **result)
+gdi_get_clipboard(st_console_display_t *display, char **result)
 {
-	return send_command(console->backend_state, &(struct command){
+	return send_command(display->backend_state, &(struct command){
 		.type = COMMAND_CLIPBOARD_GET,
 		.data.text_result = result,
 	});
 }
 
 static int
-gdi_open_url(st_console_t *console, const char *url)
+gdi_open_url(st_console_display_t *display, const char *url)
 {
-	return send_command(console->backend_state, &(struct command){
+	return send_command(display->backend_state, &(struct command){
 		.type = COMMAND_OPEN_URL,
 		.data.text = url,
 	});
 }
 
 static int
-gdi_set_pointer(st_console_t *console, bool visible)
+gdi_set_pointer(st_console_display_t *display, bool visible)
 {
-	return send_command(console->backend_state, &(struct command){
+	return send_command(display->backend_state, &(struct command){
 		.type = COMMAND_POINTER,
 		.data.enabled = visible,
 	});
 }
 
 static int
-gdi_set_fullscreen(st_console_t *console, bool fullscreen)
+gdi_set_fullscreen(st_console_display_t *display, bool fullscreen)
 {
-	return send_command(console->backend_state, &(struct command){
+	return send_command(display->backend_state, &(struct command){
 		.type = COMMAND_FULLSCREEN,
 		.data.enabled = fullscreen,
 	});
 }
 
 static void
-gdi_destroy(st_console_t *console)
+gdi_destroy(st_console_display_t *display)
 {
-	struct gdi_state *state = console->backend_state;
+	struct gdi_state *state = display->backend_state;
 
 	(void)send_command(state, &(struct command){
 		.type = COMMAND_DESTROY,
@@ -1115,10 +1130,17 @@ gdi_destroy(st_console_t *console)
 	st_condition_destroy(&state->changed);
 	st_mutex_destroy(&state->mutex);
 	free(state);
-	console->backend_state = NULL;
+	display->backend_state = NULL;
+}
+
+static int
+gdi_attach(st_console_t *console)
+{
+	return st_console_bitmap_validate_geometry(console, LONG_MAX);
 }
 
 static const struct st_console_backend_ops gdi_ops = {
+	.attach = gdi_attach,
 	.presents_pixels = true,
 	.deferred_present = true,
 	.present = gdi_present,
@@ -1139,16 +1161,18 @@ st_console_gdi_init(st_console_t *console)
 	struct gdi_state *state;
 	int status;
 
-	if (console->pixels == NULL)
-		return IO_ERROR_NOT_SUPPORTED;
-	if (console->pixels->width > LONG_MAX
-	    || console->pixels->height > LONG_MAX)
-		return IO_ERROR_OUT_OF_RANGE;
+	status = st_console_bitmap_validate_geometry(console, LONG_MAX);
+	if (status != 0)
+		return status;
 	state = calloc(1, sizeof(*state));
 	if (state == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	state->console = console;
+	state->window_geometry = (struct st_console_bitmap_geometry){
+		console->pixels->width, console->pixels->height,
+		console->aspect_width, console->aspect_height};
 	state->pointer_visible = true;
+	state->console_display = console->display;
 	if (st_mutex_init(&state->mutex, ST_MUTEX_PLAIN) != ST_THREAD_SUCCESS) {
 		free(state);
 		return IO_ERROR_IO;
@@ -1178,12 +1202,12 @@ st_console_gdi_init(st_console_t *console)
 		free(state);
 		return status;
 	}
-	console->backend_state = state;
-	console->backend_ops = &gdi_ops;
+	console->display->backend_state = state;
+	console->display->backend_ops = &gdi_ops;
 	status = gdi_present(console);
 	if (status != 0) {
-		gdi_destroy(console);
-		console->backend_ops = NULL;
+		gdi_destroy(console->display);
+		console->display->backend_ops = NULL;
 	}
 	return status;
 }

@@ -118,7 +118,12 @@ struct sdl_api {
 };
 
 struct sdl_state {
-	_Atomic(st_console_t *) console;
+	/* One in-flight command per display, serialized by the console core. */
+	st_condition_t completed;
+	/* Only the backend thread changes or dereferences this pointer. */
+	st_console_t *console;
+	st_console_display_t *console_display;
+	struct st_console_bitmap_geometry window_geometry;
 	SDL_Window *window;
 	SDL_Renderer *renderer;
 	SDL_Texture *texture;
@@ -143,18 +148,12 @@ struct sdl_state {
 	struct sdl_state *next;
 };
 
-static void
-sdl_activate(st_console_t *console)
-{
-	struct sdl_state *state = console->backend_state;
-
-	state->console = console;
-}
 
 enum sdl_command_type {
 	SDL_COMMAND_CREATE,
 	SDL_COMMAND_DESTROY,
 	SDL_COMMAND_PRESENT,
+	SDL_COMMAND_ACTIVATE,
 	SDL_COMMAND_RESIZE,
 	SDL_COMMAND_SET_TITLE,
 	SDL_COMMAND_SET_CLIPBOARD,
@@ -168,6 +167,7 @@ struct sdl_command {
 	enum sdl_command_type type;
 	struct sdl_state *state;
 	union {
+		st_console_t *console;
 		struct {
 			uint32_t width;
 			uint32_t height;
@@ -182,7 +182,6 @@ struct sdl_command {
 	} data;
 	int result;
 	bool done;
-	st_condition_t completed;
 	struct sdl_command *next;
 };
 
@@ -508,7 +507,7 @@ snap_window(struct sdl_state *state, bool larger)
 	    || current_width <= 0 || current_height <= 0)
 		return;
 	display_pixel_bounds(state, &maximum_width, &maximum_height, NULL);
-	if (st_console_snap_window_size(state->console,
+	if (st_console_snap_geometry_size(&state->window_geometry,
 	    (uint32_t)current_width, (uint32_t)current_height, larger,
 	    maximum_width, maximum_height,
 	    &width, &height) != 0
@@ -935,7 +934,7 @@ dispatch_event(const SDL_Event *source)
 	if (source->type == SDL_QUIT) {
 		for (state = manager.states; state != NULL; state = state->next) {
 			event.type = ST_CONSOLE_EVENT_CLOSE;
-			(void)st_console_post_event(state->console, &event);
+			(void)st_console_display_post_event(state->console_display, &event);
 		}
 		return;
 	}
@@ -960,11 +959,11 @@ dispatch_event(const SDL_Event *source)
 				    ? SDL_ENABLE : SDL_DISABLE);
 			event.type = ST_CONSOLE_EVENT_FOCUS;
 			event.data.focus.focused = state->focused;
-			(void)st_console_post_event(state->console, &event);
+			(void)st_console_display_post_event(state->console_display, &event);
 		}
 		else if (source->window.event == SDL_WINDOWEVENT_CLOSE) {
 			event.type = ST_CONSOLE_EVENT_CLOSE;
-			(void)st_console_post_event(state->console, &event);
+			(void)st_console_display_post_event(state->console_display, &event);
 		}
 		else if (source->window.event == SDL_WINDOWEVENT_EXPOSED)
 			(void)draw_state(state, NULL, manager.api.get_ticks(), true);
@@ -995,7 +994,7 @@ dispatch_event(const SDL_Event *source)
 			event.data.physical_key.modifiers = state->key_modifiers;
 			event.data.physical_key.pressed = source->type == SDL_KEYDOWN;
 			event.data.physical_key.repeat = source->key.repeat != 0;
-			(void)st_console_post_event(state->console, &event);
+			(void)st_console_display_post_event(state->console_display, &event);
 		}
 		if (source->type == SDL_KEYDOWN
 		    && (state->key_modifiers & ST_CONSOLE_MODIFIER_ALT) != 0) {
@@ -1037,7 +1036,7 @@ dispatch_event(const SDL_Event *source)
 					.modifiers = state->key_modifiers,
 				},
 			};
-			(void)st_console_post_event(state->console, &event);
+			(void)st_console_display_post_event(state->console_display, &event);
 		}
 		break;
 	}
@@ -1056,7 +1055,7 @@ dispatch_event(const SDL_Event *source)
 					.modifiers = state->key_modifiers,
 				},
 			};
-			(void)st_console_post_event(state->console, &event);
+			(void)st_console_display_post_event(state->console_display, &event);
 		}
 		break;
 	}
@@ -1067,7 +1066,7 @@ dispatch_event(const SDL_Event *source)
 		    &event.data.mouse.x, &event.data.mouse.y);
 		state->mouse_buttons = mouse_buttons(source->motion.state);
 		event.data.mouse.buttons = state->mouse_buttons;
-		(void)st_console_post_event(state->console, &event);
+		(void)st_console_display_post_event(state->console_display, &event);
 		break;
 	case SDL_MOUSEBUTTONDOWN:
 	case SDL_MOUSEBUTTONUP: {
@@ -1082,7 +1081,7 @@ dispatch_event(const SDL_Event *source)
 		logical_mouse(state, source->button.x, source->button.y,
 		    &event.data.mouse.x, &event.data.mouse.y);
 		event.data.mouse.buttons = state->mouse_buttons;
-		(void)st_console_post_event(state->console, &event);
+		(void)st_console_display_post_event(state->console_display, &event);
 		break;
 	}
 	case SDL_MOUSEWHEEL:
@@ -1093,7 +1092,7 @@ dispatch_event(const SDL_Event *source)
 		event.data.mouse.wheel_y = source->wheel.direction
 		    == SDL_MOUSEWHEEL_FLIPPED ? -source->wheel.y : source->wheel.y;
 		event.data.mouse.buttons = state->mouse_buttons;
-		(void)st_console_post_event(state->console, &event);
+		(void)st_console_display_post_event(state->console_display, &event);
 		break;
 	default:
 		break;
@@ -1133,11 +1132,18 @@ process_command(struct sdl_command *command)
 	case SDL_COMMAND_DESTROY:
 		destroy_state(state);
 		return 0;
+	case SDL_COMMAND_ACTIVATE:
+		state->console = command->data.console;
+		return 0;
 	case SDL_COMMAND_PRESENT:
 		return draw_state(state, state->console, manager.api.get_ticks(),
 		    false);
 	case SDL_COMMAND_RESIZE:
 		{
+		int status;
+		struct st_console_bitmap_geometry next = {
+			command->data.size.source_width, command->data.size.source_height,
+			state->console->aspect_width, state->console->aspect_height};
 		int output_width;
 		int output_height;
 		uint32_t width;
@@ -1153,9 +1159,8 @@ process_command(struct sdl_command *command)
 		    &output_width, &output_height) != 0 || output_width <= 0
 		    || output_height <= 0)
 			return IO_ERROR_IO;
-		if (st_console_preserve_window_scale(state->console,
-		    command->data.size.source_width,
-		    command->data.size.source_height, (uint32_t)output_width,
+		if (st_console_preserve_geometry_scale(&state->window_geometry, &next,
+		    (uint32_t)output_width,
 		    (uint32_t)output_height, &width, &height, &minimum_width,
 		    &minimum_height) != 0)
 			return IO_ERROR_OUT_OF_RANGE;
@@ -1165,9 +1170,12 @@ process_command(struct sdl_command *command)
 		state->windowed_height = height;
 		state->minimum_width = minimum_width;
 		state->minimum_height = minimum_height;
-		return set_window_pixel_geometry(state, width, height,
+		status = set_window_pixel_geometry(state, width, height,
 		    minimum_width, minimum_height,
 		    !state->fullscreen && !state->maximized);
+		if (status == 0)
+			state->window_geometry = next;
+		return status;
 		}
 	case SDL_COMMAND_SET_TITLE:
 		manager.api.set_window_title(state->window, command->data.text);
@@ -1199,19 +1207,14 @@ submit_command(struct sdl_command *command)
 {
 	int status;
 
-	status = st_condition_init(&command->completed);
-	if (status != ST_THREAD_SUCCESS)
-		return IO_ERROR_IO;
 	command->done = false;
 	command->next = NULL;
 	status = st_mutex_lock(&manager.mutex);
 	if (status != ST_THREAD_SUCCESS) {
-		st_condition_destroy(&command->completed);
 		return IO_ERROR_IO;
 	}
 	if (!manager.active) {
 		(void)st_mutex_unlock(&manager.mutex);
-		st_condition_destroy(&command->completed);
 		return IO_ERROR_NOT_SUPPORTED;
 	}
 	if (manager.commands_tail == NULL)
@@ -1220,14 +1223,11 @@ submit_command(struct sdl_command *command)
 		manager.commands_tail->next = command;
 	manager.commands_tail = command;
 	(void)st_condition_signal(&manager.changed);
-	while (!command->done) {
-		status = st_condition_wait(&command->completed, &manager.mutex);
-		if (status != ST_THREAD_SUCCESS)
-			break;
-	}
-	status = status == ST_THREAD_SUCCESS ? command->result : IO_ERROR_IO;
+	/* The queued command borrows the caller's stack until completion. */
+	while (!command->done)
+		(void)st_condition_wait(&command->state->completed, &manager.mutex);
+	status = command->result;
 	(void)st_mutex_unlock(&manager.mutex);
-	st_condition_destroy(&command->completed);
 	return status;
 }
 
@@ -1259,7 +1259,7 @@ complete_command(struct sdl_command *command, int result)
 	(void)st_mutex_lock(&manager.mutex);
 	command->result = result;
 	command->done = true;
-	(void)st_condition_signal(&command->completed);
+	(void)st_condition_signal(&command->state->completed);
 	(void)st_mutex_unlock(&manager.mutex);
 }
 
@@ -1356,11 +1356,21 @@ st_console_sdl_run_application(int argc, char **argv,
 }
 
 static int
+sdl_activate(st_console_t *console)
+{
+	return submit_command(&(struct sdl_command){
+		.type = SDL_COMMAND_ACTIVATE,
+		.state = console->display->backend_state,
+		.data.console = console,
+	});
+}
+
+static int
 sdl_present(st_console_t *console)
 {
 	return submit_command(&(struct sdl_command){
 		.type = SDL_COMMAND_PRESENT,
-		.state = console->backend_state,
+		.state = console->display->backend_state,
 	});
 }
 
@@ -1381,74 +1391,82 @@ sdl_resize(st_console_t *console, uint32_t columns, uint32_t rows)
 		return IO_ERROR_OUT_OF_RANGE;
 	return submit_command(&(struct sdl_command){
 		.type = SDL_COMMAND_RESIZE,
-		.state = console->backend_state,
+		.state = console->display->backend_state,
 		.data.size = {.source_width = width, .source_height = height},
 	});
 }
 
 static int
-sdl_set_title(st_console_t *console, const char *title)
+sdl_set_title(st_console_display_t *display, const char *title)
 {
 	return submit_command(&(struct sdl_command){SDL_COMMAND_SET_TITLE,
-	    console->backend_state, {.text = title}, .result = 0,
+	    display->backend_state, {.text = title}, .result = 0,
 	    .done = false, .next = NULL});
 }
 
 static int
-sdl_set_clipboard(st_console_t *console, const char *text)
+sdl_set_clipboard(st_console_display_t *display, const char *text)
 {
 	return submit_command(&(struct sdl_command){SDL_COMMAND_SET_CLIPBOARD,
-	    console->backend_state, {.text = text}, .result = 0,
+	    display->backend_state, {.text = text}, .result = 0,
 	    .done = false, .next = NULL});
 }
 
 static int
-sdl_get_clipboard(st_console_t *console, char **result)
+sdl_get_clipboard(st_console_display_t *display, char **result)
 {
 	return submit_command(&(struct sdl_command){SDL_COMMAND_GET_CLIPBOARD,
-	    console->backend_state, {.text_result = result}, .result = 0,
+	    display->backend_state, {.text_result = result}, .result = 0,
 	    .done = false, .next = NULL});
 }
 
 static int
-sdl_open_url(st_console_t *console, const char *url)
+sdl_open_url(st_console_display_t *display, const char *url)
 {
 	return submit_command(&(struct sdl_command){SDL_COMMAND_OPEN_URL,
-	    console->backend_state, {.text = url}, .result = 0,
+	    display->backend_state, {.text = url}, .result = 0,
 	    .done = false, .next = NULL});
 }
 
 static int
-sdl_set_pointer(st_console_t *console, bool visible)
+sdl_set_pointer(st_console_display_t *display, bool visible)
 {
 	return submit_command(&(struct sdl_command){SDL_COMMAND_SET_POINTER,
-	    console->backend_state, {.enabled = visible}, .result = 0,
+	    display->backend_state, {.enabled = visible}, .result = 0,
 	    .done = false, .next = NULL});
 }
 
 static int
-sdl_set_fullscreen(st_console_t *console, bool fullscreen)
+sdl_set_fullscreen(st_console_display_t *display, bool fullscreen)
 {
 	return submit_command(&(struct sdl_command){SDL_COMMAND_SET_FULLSCREEN,
-	    console->backend_state, {.enabled = fullscreen}, .result = 0,
+	    display->backend_state, {.enabled = fullscreen}, .result = 0,
 	    .done = false, .next = NULL});
 }
 
 static void
-sdl_destroy(st_console_t *console)
+sdl_destroy(st_console_display_t *display)
 {
-	struct sdl_state *state = console->backend_state;
+	struct sdl_state *state = display->backend_state;
 
 	(void)submit_command(&(struct sdl_command){
 		.type = SDL_COMMAND_DESTROY,
 		.state = state,
 	});
 	st_console_bitmap_presenter_destroy(state->presenter);
+	st_condition_destroy(&state->completed);
 	free(state);
-	console->backend_state = NULL;
+	display->backend_state = NULL;
+}
+
+static int
+sdl_attach(st_console_t *console)
+{
+	return st_console_bitmap_validate_geometry(console, INT_MAX);
 }
 
 static const struct st_console_backend_ops sdl_ops = {
+	.attach = sdl_attach,
 	.presents_pixels = true,
 	.deferred_present = true,
 	.present = sdl_present,
@@ -1469,8 +1487,9 @@ st_console_sdl_init(st_console_t *console)
 	struct sdl_state *state;
 	int status;
 
-	if (console->pixels == NULL)
-		return IO_ERROR_NOT_SUPPORTED;
+	status = st_console_bitmap_validate_geometry(console, INT_MAX);
+	if (status != 0)
+		return status;
 	st_call_once(&manager_once, initialize_manager);
 	if (!manager.synchronization_ready)
 		return IO_ERROR_IO;
@@ -1478,7 +1497,11 @@ st_console_sdl_init(st_console_t *console)
 	if (state == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	state->console = console;
+	state->window_geometry = (struct st_console_bitmap_geometry){
+		console->pixels->width, console->pixels->height,
+		console->aspect_width, console->aspect_height};
 	state->logical_width = console->pixels->width;
+	state->console_display = console->display;
 	state->logical_height = console->pixels->height;
 	uint32_t minimum_width;
 	uint32_t minimum_height;
@@ -1495,12 +1518,17 @@ st_console_sdl_init(st_console_t *console)
 		free(state);
 		return status;
 	}
+	if (st_condition_init(&state->completed) != ST_THREAD_SUCCESS) {
+		st_console_bitmap_presenter_destroy(state->presenter);
+		free(state);
+		return IO_ERROR_IO;
+	}
 	status = submit_command(&(struct sdl_command){
 		.type = SDL_COMMAND_CREATE,
 		.state = state,
 		.data.size = {
-			.width = console->initial_window_width,
-			.height = console->initial_window_height,
+			.width = console->display->initial_window_width,
+			.height = console->display->initial_window_height,
 			.source_width = console->pixels->width,
 			.source_height = console->pixels->height,
 			.minimum_width = minimum_width,
@@ -1509,10 +1537,11 @@ st_console_sdl_init(st_console_t *console)
 	});
 	if (status != 0) {
 		st_console_bitmap_presenter_destroy(state->presenter);
+		st_condition_destroy(&state->completed);
 		free(state);
 		return status;
 	}
-	console->backend_state = state;
-	console->backend_ops = &sdl_ops;
+	console->display->backend_state = state;
+	console->display->backend_ops = &sdl_ops;
 	return 0;
 }

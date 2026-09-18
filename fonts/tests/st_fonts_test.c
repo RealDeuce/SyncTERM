@@ -39,10 +39,12 @@ main(void)
 		{8, 8, 0x04},
 		{12, 20, 0x08},
 	};
+	const struct st_console_display_config config_display = {
+		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	};
 	const struct st_console_config config = {
 		.columns = 2,
 		.rows = 1,
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};
 	const struct st_console_rect screen = {
 		.x = 0,
@@ -62,7 +64,7 @@ main(void)
 	uint32_t glyph;
 	uint8_t columns;
 
-	CHECK(st_console_create(&console, &config) == 0);
+	CHECK(st_console_create(&console, &config_display, &config) == 0);
 	CHECK(st_console_register_static_font(console, &st_unscii_8_font,
 	    &font8) == 0);
 	CHECK(st_console_register_static_font(console, &st_unscii_16_font,

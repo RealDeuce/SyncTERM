@@ -38,6 +38,7 @@ struct st_console_bitmap_presenter {
 	enum st_console_cursor_shape cursor_shape;
 	enum st_console_blink_mode blink_mode;
 	enum st_console_scaling_mode scaling_mode;
+	bool software_scaling_only;
 	struct st_console_custom_cursor custom_cursor;
 	bool cursor_custom;
 	bool cursor_visible;
@@ -187,6 +188,24 @@ animation_state(enum st_console_blink_mode mode, uint32_t elapsed,
 }
 
 int
+st_console_bitmap_validate_geometry(const st_console_t *console,
+	uint32_t maximum_dimension)
+{
+	uint32_t width, height;
+	int status;
+
+	if (console->pixels == NULL)
+		return IO_ERROR_NOT_SUPPORTED;
+	status = st_console_aspect_correct_size(console->pixels->width,
+	    console->pixels->height, console->aspect_width, console->aspect_height,
+	    &width, &height);
+	if (status != 0)
+		return status;
+	return width > maximum_dimension || height > maximum_dimension
+	    ? IO_ERROR_OUT_OF_RANGE : 0;
+}
+
+int
 st_console_aspect_correct_size(uint32_t source_width,
 	uint32_t source_height, uint32_t aspect_width, uint32_t aspect_height,
 	uint32_t *width, uint32_t *height)
@@ -249,7 +268,7 @@ st_console_scaled_window_size(uint32_t source_width,
 }
 
 int
-st_console_snap_window_size(st_console_t *console,
+st_console_snap_geometry_size(const struct st_console_bitmap_geometry *geometry,
 	uint32_t current_width, uint32_t current_height, bool larger,
 	uint32_t maximum_width, uint32_t maximum_height,
 	uint32_t *width, uint32_t *height)
@@ -267,20 +286,13 @@ st_console_snap_window_size(st_console_t *console,
 	uint32_t aspect_height;
 	int status;
 
-	if (console == NULL || current_width == 0
+	if (geometry == NULL || current_width == 0
 	    || current_height == 0 || width == NULL || height == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (st_rwlock_read_lock(&console->state_lock) != ST_THREAD_SUCCESS)
-		return IO_ERROR_IO;
-	if (console->pixels == NULL) {
-		(void)st_rwlock_unlock(&console->state_lock);
-		return IO_ERROR_INVALID_ARGUMENT;
-	}
-	source_width = console->pixels->width;
-	source_height = console->pixels->height;
-	aspect_width = console->aspect_width;
-	aspect_height = console->aspect_height;
-	(void)st_rwlock_unlock(&console->state_lock);
+	source_width = geometry->width;
+	source_height = geometry->height;
+	aspect_width = geometry->aspect_width;
+	aspect_height = geometry->aspect_height;
 	status = st_console_aspect_correct_size(source_width, source_height,
 	    aspect_width, aspect_height, &minimum_width, &minimum_height);
 	if (status != 0)
@@ -323,9 +335,11 @@ st_console_snap_window_size(st_console_t *console,
 }
 
 int
-st_console_preserve_window_scale(const st_console_t *console,
-	uint32_t source_width, uint32_t source_height, uint32_t current_width,
-	uint32_t current_height, uint32_t *width, uint32_t *height,
+st_console_preserve_geometry_scale(
+	const struct st_console_bitmap_geometry *previous,
+	const struct st_console_bitmap_geometry *next,
+	uint32_t current_width, uint32_t current_height,
+	uint32_t *width, uint32_t *height,
 	uint32_t *minimum_width, uint32_t *minimum_height)
 {
 	uint32_t old_minimum_width;
@@ -339,15 +353,15 @@ st_console_preserve_window_scale(const st_console_t *console,
 	bool width_controls;
 	int status;
 
-	if (console == NULL || console->pixels == NULL || width == NULL
+	if (previous == NULL || next == NULL || width == NULL
 	    || height == NULL || minimum_width == NULL || minimum_height == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	status = st_console_aspect_correct_size(console->pixels->width,
-	    console->pixels->height, console->aspect_width,
-	    console->aspect_height, &old_minimum_width, &old_minimum_height);
+	status = st_console_aspect_correct_size(previous->width,
+	    previous->height, previous->aspect_width,
+	    previous->aspect_height, &old_minimum_width, &old_minimum_height);
 	if (status == 0)
-		status = st_console_aspect_correct_size(source_width, source_height,
-		    console->aspect_width, console->aspect_height, minimum_width,
+		status = st_console_aspect_correct_size(next->width, next->height,
+		    next->aspect_width, next->aspect_height, minimum_width,
 		    minimum_height);
 	if (status != 0)
 		return status;
@@ -357,14 +371,14 @@ st_console_preserve_window_scale(const st_console_t *console,
 		*height = *minimum_height;
 		return 0;
 	}
-	if (console->aspect_width == 0) {
+	if (previous->aspect_width == 0) {
 		fitted_width = current_width;
 		fitted_height = current_height;
 	}
 	else {
 		uint64_t width_from_height
-		    = ((uint64_t)current_height * console->aspect_width
-		    + console->aspect_height / 2U) / console->aspect_height;
+		    = ((uint64_t)current_height * previous->aspect_width
+		    + previous->aspect_height / 2U) / previous->aspect_height;
 
 		fitted_width = current_width;
 		fitted_height = current_height;
@@ -372,35 +386,35 @@ st_console_preserve_window_scale(const st_console_t *console,
 			fitted_width = (uint32_t)width_from_height;
 		else
 			fitted_height = (uint32_t)(((uint64_t)current_width
-			    * console->aspect_height + console->aspect_width / 2U)
-			    / console->aspect_width);
+			    * previous->aspect_height + previous->aspect_width / 2U)
+			    / previous->aspect_width);
 	}
-	width_controls = console->aspect_width == 0
-	    ? (uint64_t)fitted_width * console->pixels->height
-	    <= (uint64_t)fitted_height * console->pixels->width
-	    : ((uint64_t)console->pixels->height * console->aspect_width
-	    + console->aspect_height / 2U) / console->aspect_height
-	    <= console->pixels->width;
+	width_controls = previous->aspect_width == 0
+	    ? (uint64_t)fitted_width * previous->height
+	    <= (uint64_t)fitted_height * previous->width
+	    : ((uint64_t)previous->height * previous->aspect_width
+	    + previous->aspect_height / 2U) / previous->aspect_height
+	    <= previous->width;
 	if (width_controls) {
 		numerator = fitted_width;
-		denominator = console->pixels->width;
+		denominator = previous->width;
 	}
 	else {
 		numerator = fitted_height;
-		denominator = console->pixels->height;
+		denominator = previous->height;
 	}
 	if (numerator < denominator)
 		numerator = denominator;
-	scaled_source_width = ((uint64_t)source_width * numerator
+	scaled_source_width = ((uint64_t)next->width * numerator
 	    + denominator / 2U) / denominator;
-	scaled_source_height = ((uint64_t)source_height * numerator
+	scaled_source_height = ((uint64_t)next->height * numerator
 	    + denominator / 2U) / denominator;
 	if (scaled_source_width > UINT32_MAX
 	    || scaled_source_height > UINT32_MAX)
 		return IO_ERROR_OUT_OF_RANGE;
 	return st_console_aspect_correct_size((uint32_t)scaled_source_width,
-	    (uint32_t)scaled_source_height, console->aspect_width,
-	    console->aspect_height, width, height);
+	    (uint32_t)scaled_source_height, next->aspect_width,
+	    next->aspect_height, width, height);
 }
 
 static struct st_console_rect
@@ -514,10 +528,19 @@ st_console_bitmap_presenter_destroy(
 	free(presenter);
 }
 
+void
+st_console_bitmap_presenter_set_external_scaling_available(
+	struct st_console_bitmap_presenter *presenter, bool available)
+{
+	presenter->software_scaling_only = !available;
+}
+
 static bool
 cache_console_state(struct st_console_bitmap_presenter *presenter,
 	const st_console_t *console, uint32_t now)
 {
+	enum st_console_scaling_mode scaling_mode = presenter->software_scaling_only
+	    ? ST_CONSOLE_SCALING_INTERNAL : console->scaling_mode;
 	uint32_t cursor_colour = console->blink_mode == ST_CONSOLE_BLINK_PRESTEL
 	    ? UINT32_C(0xffffff)
 	    : colour_value(console, console->style.foreground);
@@ -534,7 +557,7 @@ cache_console_state(struct st_console_bitmap_presenter *presenter,
 	    &console->custom_cursor)
 	    || presenter->aspect_width != console->aspect_width
 	    || presenter->aspect_height != console->aspect_height
-	    || presenter->scaling_mode != console->scaling_mode;
+	    || presenter->scaling_mode != scaling_mode;
 	changed = changed
 	    || presenter->blocky_scaling != console->blocky_scaling;
 
@@ -551,7 +574,7 @@ cache_console_state(struct st_console_bitmap_presenter *presenter,
 	presenter->cursor_custom = console->cursor_custom;
 	presenter->custom_cursor = console->custom_cursor;
 	presenter->blink_mode = console->blink_mode;
-	presenter->scaling_mode = console->scaling_mode;
+	presenter->scaling_mode = scaling_mode;
 	presenter->blocky_scaling = console->blocky_scaling;
 	presenter->aspect_width = console->aspect_width;
 	presenter->aspect_height = console->aspect_height;

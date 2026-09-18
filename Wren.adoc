@@ -82,8 +82,8 @@ threads); whitespace-significant (newline terminates statements; no
 | `"got %(x)"`          | String interpolation: `%(expr)` evaluates `expr` and inserts its `toString`.  A bare `%` not followed by `(` is a *lex error* — see <<string-percent>>.
 | `[1, 2, 3]`           | List literal.
 | `{"a": 1, "b": 2}`    | Map literal.
-| `1..5`                | Half-open Range (1, 2, 3, 4 — excludes 5).
-| `1\...5`              | Closed Range (1, 2, 3, 4, 5 — includes 5).
+| `1..5`                | Closed Range (1, 2, 3, 4, 5 — includes 5).
+| `1\...5`              | Half-open Range (1, 2, 3, 4 — excludes 5).
 |===
 
 === Statement Termination
@@ -601,7 +601,7 @@ instance).  Iteration yields keys.
 
 === Range
 
-Created via the `..` (half-open) and `\...` (closed) operators on
+Created via the `..` (inclusive) and `\...` (exclusive-end) operators on
 Nums.  Lazy — values are produced on iteration.
 
 [cols="2m,3"]
@@ -609,7 +609,7 @@ Nums.  Lazy — values are produced on iteration.
 | `r.from`                | Lower bound.
 | `r.to`                  | Upper bound.
 | `r.min`, `r.max`        | Bounds normalised regardless of direction.
-| `r.isInclusive`         | True for `\...`, false for `..`.
+| `r.isInclusive`         | True for `..`, false for `\...`.
 | `r.count`               | Number of values.
 | `for (i in r) {}`       | Iterate.
 |===
@@ -4944,6 +4944,9 @@ pre-bound from these at module load.
 | User-consent escape hatch for "upload from anywhere": invokes the
   isolated picker VM and returns a `File` whose path is the absolute
   path the user picked, or `null` on cancel.
+  Picker startup/recovery failures, including failure to restore the menu
+  console, raise a runtime error rather than reporting user cancellation.
+  The same error contract applies to `pickFiles` and `pickSavePath`.
   `initialPath` may be a String path, a `Directory` foreign (uses
   its path; handles `Cache` lazy-resolve), or `null` (defaults
   to `BBS.ulDir`).  An existing file path opens its containing

@@ -25,19 +25,13 @@
 #define ST_WREN_MAX_MODULE_SIZE (4U * 1024U * 1024U)
 #define ST_WREN_FIRST_CUSTOM_FONT ST_BUILTIN_FONT_COUNT
 
-void
-st_wren_select_picker_font_state(struct st_wren_host *host, bool picker)
-{
-	host->fonts = picker ? &host->picker_fonts : &host->menu_fonts;
-}
-
 _Static_assert(ST_WREN_CUSTOM_FONT_MAX == ST_SETTINGS_CUSTOM_FONT_MAX,
 	"custom font limits must agree");
 _Static_assert(ST_BUILTIN_FONT_COUNT == 46U,
 	"Wren font selectors reserve 0 through 45 for built-ins");
 
 static int
-load_builtin_fonts(struct st_wren_host *host)
+load_builtin_fonts(struct st_wren_context *context)
 {
 	struct st_console_font font;
 	struct st_console_style style;
@@ -46,32 +40,32 @@ load_builtin_fonts(struct st_wren_host *host)
 	uint16_t identifier;
 	int status;
 
-	if (st_console_cell_pixel_size(host->config.console, &width, &height) != 0)
+	if (st_console_cell_pixel_size(context->console, &width, &height) != 0)
 		return IO_ERROR_INVALID_ARGUMENT;
 	for (size_t selector = 0; selector < st_builtin_font_count(); ++selector) {
-		host->fonts->catalog_valid[selector] = false;
+		context->fonts.catalog_valid[selector] = false;
 		if (!st_builtin_font_get(selector, width, height, &font))
 			continue;
-		status = st_console_register_static_font(host->config.console, &font,
+		status = st_console_register_static_font(context->console, &font,
 		    &identifier);
 		if (status != 0)
 			return status;
-		host->fonts->catalog[selector] = identifier;
-		host->fonts->catalog_valid[selector] = true;
-		host->fonts->selector_by_identifier[identifier]
+		context->fonts.catalog[selector] = identifier;
+		context->fonts.catalog_valid[selector] = true;
+		context->fonts.selector_by_identifier[identifier]
 		    = (uint16_t)selector;
 	}
-	if (!host->fonts->catalog_valid[0]) {
-		host->fonts->catalog[0] = 0;
-		host->fonts->catalog_valid[0] = true;
-		host->fonts->selector_by_identifier[0] = 0;
+	if (!context->fonts.catalog_valid[0]) {
+		context->fonts.catalog[0] = 0;
+		context->fonts.catalog_valid[0] = true;
+		context->fonts.selector_by_identifier[0] = 0;
 		return 0;
 	}
-	status = st_console_get_style(host->config.console, &style);
+	status = st_console_get_style(context->console, &style);
 	if (status != 0)
 		return status;
-	style.font = host->fonts->catalog[0];
-	return st_console_set_style(host->config.console, &style);
+	style.font = context->fonts.catalog[0];
+	return st_console_set_style(context->console, &style);
 }
 
 static bool
@@ -114,23 +108,23 @@ read_custom_font(const char *path, size_t size)
 }
 
 bool
-st_wren_font_identifier(struct st_wren_host *host, uint16_t selector,
+st_wren_font_identifier(struct st_wren_context *context, uint16_t selector,
 	uint16_t *identifier)
 {
-	if (selector > UINT8_MAX || !host->fonts->catalog_valid[selector])
+	if (selector > UINT8_MAX || !context->fonts.catalog_valid[selector])
 		return false;
-	*identifier = host->fonts->catalog[selector];
+	*identifier = context->fonts.catalog[selector];
 	return true;
 }
 
 uint16_t
-st_wren_font_selector(struct st_wren_host *host, uint16_t identifier)
+st_wren_font_selector(struct st_wren_context *context, uint16_t identifier)
 {
-	return host->fonts->selector_by_identifier[identifier];
+	return context->fonts.selector_by_identifier[identifier];
 }
 
 static int
-reload_custom_fonts_current(struct st_wren_host *host)
+reload_custom_fonts_current(struct st_wren_context *context)
 {
 	uint8_t *fresh[ST_WREN_CUSTOM_FONT_MAX] = {0};
 	uint16_t identifiers[ST_WREN_CUSTOM_FONT_MAX] = {0};
@@ -142,7 +136,7 @@ reload_custom_fonts_current(struct st_wren_host *host)
 	size_t count;
 	int status;
 
-	if (host == NULL || st_console_cell_pixel_size(host->config.console,
+	if (context == NULL || st_console_cell_pixel_size(context->console,
 	    &width, &height) < 0)
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (!custom_font_dimensions(width, height, &slot, &size))
@@ -173,7 +167,7 @@ reload_custom_fonts_current(struct st_wren_host *host)
 				.glyph_stride = (((size_t)width + 7) / 8) * height,
 			};
 
-			status = st_console_register_font_copy(host->config.console,
+			status = st_console_register_font_copy(context->console,
 			    &font, &identifiers[i]);
 			if (status == 0)
 				available[i] = true;
@@ -187,15 +181,15 @@ reload_custom_fonts_current(struct st_wren_host *host)
 	for (size_t i = 0; i < ST_WREN_CUSTOM_FONT_MAX; ++i) {
 		uint16_t selector = (uint16_t)(ST_WREN_FIRST_CUSTOM_FONT + i);
 
-		host->fonts->catalog_valid[selector] = i < count && available[i];
+		context->fonts.catalog_valid[selector] = i < count && available[i];
 		if (i < count && available[i]) {
-			host->fonts->catalog[selector] = identifiers[i];
-			host->fonts->selector_by_identifier[identifiers[i]] = selector;
+			context->fonts.catalog[selector] = identifiers[i];
+			context->fonts.selector_by_identifier[identifiers[i]] = selector;
 		}
 	}
 	for (size_t i = 0; i < count; ++i)
 		free(fresh[i]);
-	host->fonts->loaded_count = count;
+	context->fonts.loaded_count = count;
 	return 0;
 }
 
@@ -206,16 +200,16 @@ st_wren_reload_custom_fonts(struct st_wren_host *host)
 
 	if (host == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	status = reload_custom_fonts_current(host);
-	if (status == 0 && host->config.picker_console != NULL
-	    && host->config.picker_console != host->config.console) {
-		st_console_t *saved = host->config.console;
+	status = reload_custom_fonts_current(&host->menu);
+	if (status == 0 && host->picker.console != host->menu.console)
+		status = reload_custom_fonts_current(&host->picker);
+	else if (status == 0) {
+		uint16_t slots[5];
 
-		host->config.console = host->config.picker_console;
-		st_wren_select_picker_font_state(host, true);
-		status = reload_custom_fonts_current(host);
-		st_wren_select_picker_font_state(host, false);
-		host->config.console = saved;
+		/* The one-console host shares registrations, not VM font selectors. */
+		memcpy(slots, host->picker.fonts.slots, sizeof(slots));
+		host->picker.fonts = host->menu.fonts;
+		memcpy(host->picker.fonts.slots, slots, sizeof(slots));
 	}
 	return status;
 }
@@ -716,7 +710,7 @@ st_wren_picker_host_init(struct st_wren_host *host)
 	if (bootstrap == NULL || request == NULL)
 		return IO_ERROR_NOT_FOUND;
 	wrenInitConfiguration(&config);
-	config.userData = host;
+	config.userData = &host->picker;
 	config.writeFn = write_output;
 	config.errorFn = report_error;
 	config.loadModuleFn = load_module;
@@ -770,6 +764,12 @@ st_wren_picker_host_dispose(struct st_wren_host *host)
 struct st_wren_host *
 st_wren_host_from_vm(WrenVM *vm)
 {
+	return st_wren_context_from_vm(vm)->host;
+}
+
+struct st_wren_context *
+st_wren_context_from_vm(WrenVM *vm)
+{
 	return wrenGetUserData(vm);
 }
 
@@ -802,38 +802,26 @@ st_wren_host_create(st_wren_host_t **result,
 	if (host == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	host->config = *config;
-	st_wren_select_picker_font_state(host, false);
-	host->fonts->catalog[0] = 0;
-	host->fonts->catalog_valid[0] = true;
-	host->fonts->selector_by_identifier[0] = 0;
+	host->menu.host = host;
+	host->menu.console = config->console;
+	host->picker.host = host;
+	host->picker.console = config->picker_console != NULL
+	    ? config->picker_console : config->console;
 	host->font_generation = 1;
 	st_profile_init(&host->selected);
-	status = load_builtin_fonts(host);
-	if (status != 0) {
-		st_wren_host_destroy(host);
-		return status;
-	}
-	status = reload_custom_fonts_current(host);
-	if (status != 0) {
-		st_wren_host_destroy(host);
-		return status;
-	}
-	if (config->picker_console != NULL
-	    && config->picker_console != config->console) {
-		host->config.console = config->picker_console;
-		st_wren_select_picker_font_state(host, true);
-		host->fonts->catalog[0] = 0;
-		host->fonts->catalog_valid[0] = true;
-		host->fonts->selector_by_identifier[0] = 0;
-		status = load_builtin_fonts(host);
+	status = load_builtin_fonts(&host->menu);
+	if (status == 0)
+		status = reload_custom_fonts_current(&host->menu);
+	if (status == 0 && host->picker.console != host->menu.console) {
+		status = load_builtin_fonts(&host->picker);
 		if (status == 0)
-			status = reload_custom_fonts_current(host);
-		host->config.console = config->console;
-		st_wren_select_picker_font_state(host, false);
-		if (status != 0) {
-			st_wren_host_destroy(host);
-			return status;
-		}
+			status = reload_custom_fonts_current(&host->picker);
+	}
+	else if (status == 0)
+		host->picker.fonts = host->menu.fonts;
+	if (status != 0) {
+		st_wren_host_destroy(host);
+		return status;
 	}
 	status = st_theme_manager_create(&host->themes, config->paths,
 	    &st_settings, host->last_error, sizeof(host->last_error));
@@ -842,7 +830,7 @@ st_wren_host_create(st_wren_host_t **result,
 		return status;
 	}
 	wrenInitConfiguration(&wren_config);
-	wren_config.userData = host;
+	wren_config.userData = &host->menu;
 	wren_config.writeFn = write_output;
 	wren_config.errorFn = report_error;
 	wren_config.loadModuleFn = load_module;

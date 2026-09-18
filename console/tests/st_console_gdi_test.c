@@ -94,28 +94,31 @@ check_escape_event(st_console_t *console)
 int
 main(void)
 {
+	const struct st_console_display_config config_display = {
+		.backend = ST_CONSOLE_BACKEND_GDI,
+	};
 	const struct st_console_config config = {
 		.columns = 80,
 		.rows = 25,
 		.cell_width = 8,
 		.cell_height = 16,
-		.backend = ST_CONSOLE_BACKEND_GDI,
 		.wrap = true,
 		.aspect_width = 4,
 		.aspect_height = 3,
 	};
+	struct st_console_display_config scaled_display = config_display;
 	struct st_console_config scaled = config;
 	st_console_t *first = NULL;
 	st_console_t *second = NULL;
 	uint32_t width;
 	uint32_t height;
-	int status = st_console_create(&first, &config);
+	int status = st_console_create(&first, &config_display, &config);
 
 	if (status == IO_ERROR_NOT_FOUND || status == IO_ERROR_NOT_SUPPORTED)
 		return 77;
 	CHECK(status == 0);
-	scaled.initial_scaling = 1.25;
-	CHECK(st_console_create(&second, &scaled) == 0);
+	scaled_display.initial_scaling = 1.25;
+	CHECK(st_console_create(&second, &scaled_display, &scaled) == 0);
 	CHECK(st_console_set_title(first, "st_console GDI one") == 0);
 	CHECK(st_console_set_title(second, "st_console GDI two") == 0);
 	CHECK(check_client_size(L"st_console GDI one", 640, 480) == 0);

@@ -73,16 +73,18 @@ write_output(void *context, const void *data, size_t size)
 static st_console_t *
 create_headless(uint32_t columns, uint32_t rows)
 {
+	struct st_console_display_config config_display = {
+		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	};
 	struct st_console_config config = {
 		.columns = columns,
 		.rows = rows,
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
 		.wrap = true,
 	};
 	st_console_t *console = NULL;
 	enum st_console_backend backend;
 
-	CHECK(st_console_create(&console, &config) == 0);
+	CHECK(st_console_create(&console, &config_display, &config) == 0);
 	CHECK(console != NULL);
 	CHECK(st_console_get_backend(console, &backend) == 0);
 	CHECK(backend == ST_CONSOLE_BACKEND_HEADLESS);
@@ -102,12 +104,14 @@ register_static_font(st_console_t *console, const struct st_console_font *font)
 static void
 test_default_cursor_geometry(void)
 {
+	struct st_console_display_config config_display = {
+		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	};
 	struct st_console_config config = {
 		.columns = 1,
 		.rows = 1,
 		.cell_width = 8,
 		.cell_height = 14,
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
 		.default_cursor = {
 			.start = 12, .end = 13, .range = 14,
 			.visible = true, .blink = false,
@@ -118,7 +122,7 @@ test_default_cursor_geometry(void)
 	bool visible;
 	enum st_console_cursor_shape shape;
 
-	CHECK(st_console_create(&console, &config) == 0);
+	CHECK(st_console_create(&console, &config_display, &config) == 0);
 	CHECK(st_console_get_default_cursor(console, &cursor) == 0);
 	CHECK(cursor.start == 12 && cursor.end == 13 && cursor.range == 14
 	    && cursor.visible && !cursor.blink);
@@ -289,18 +293,20 @@ test_snapshot_drains(void)
 		.context = &output,
 		.indexed_colours = 256,
 	};
+	struct st_console_display_config config_display = {
+		.backend = ST_CONSOLE_BACKEND_ANSI,
+		.ansi_io = &io,
+	};
 	struct st_console_config config = {
 		.columns = 4,
 		.rows = 1,
-		.backend = ST_CONSOLE_BACKEND_ANSI,
 		.wrap = true,
-		.ansi_io = &io,
 	};
 	st_console_t *console = NULL;
 	st_console_snapshot_t *snapshot = NULL;
 	size_t writes;
 
-	CHECK(st_console_create(&console, &config) == 0);
+	CHECK(st_console_create(&console, &config_display, &config) == 0);
 	CHECK(st_console_begin_update(console) == 0);
 	CHECK(st_console_begin_update(console) == 0);
 	CHECK(st_console_write_utf8(console, "abc", 3) == 0);
@@ -468,11 +474,13 @@ static void
 test_resize_palette_and_errors(void)
 {
 	st_console_t *console = create_headless(2, 2);
+	struct st_console_display_config invalid_config_display = {
+		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	};
 	struct st_console_config invalid_config = {
 		.columns = 2,
 		.rows = 2,
 		.cell_width = 8,
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};
 	st_console_t *unchanged = console;
 	uint32_t set[2] = {0x123456, 0xfedcba};
@@ -494,7 +502,7 @@ test_resize_palette_and_errors(void)
 	uint32_t pixel_width = 17;
 	uint32_t pixel_height = 19;
 
-	CHECK(st_console_create(&unchanged, &invalid_config)
+	CHECK(st_console_create(&unchanged, &invalid_config_display, &invalid_config)
 	    == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(unchanged == console);
 	CHECK(st_console_pixel_size(console, &pixel_width, &pixel_height)
@@ -554,12 +562,14 @@ test_pixels_and_font_rendering(void)
 		.mapping = mapping,
 		.mapping_count = sizeof(mapping) / sizeof(mapping[0]),
 	};
+	struct st_console_display_config config_display = {
+		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	};
 	struct st_console_config config = {
 		.columns = 2,
 		.rows = 2,
 		.cell_width = 8,
 		.cell_height = 2,
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
 		.wrap = true,
 	};
 	struct st_console_cell cell = {
@@ -584,7 +594,7 @@ test_pixels_and_font_rendering(void)
 	const struct st_console_rect second_cell = {1, 0, 1, 1};
 	const struct st_console_rect second_pixels = {8, 0, 8, 2};
 
-	CHECK(st_console_create(&console, &config) == 0);
+	CHECK(st_console_create(&console, &config_display, &config) == 0);
 	CHECK(st_console_pixel_size(console, &width, &height) == 0);
 	CHECK(width == 16 && height == 4);
 	font_identifier = register_static_font(console, &font);
@@ -659,12 +669,14 @@ test_fast_font_attributes(void)
 		.mapping = mapping,
 		.mapping_count = sizeof(mapping) / sizeof(mapping[0]),
 	};
+	struct st_console_display_config config_display = {
+		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	};
 	struct st_console_config config = {
 		.columns = 5,
 		.rows = 1,
 		.cell_width = 8,
 		.cell_height = 2,
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};
 	const uint32_t red = UINT32_C(0xff0000);
 	const uint32_t green = UINT32_C(0x00ff00);
@@ -688,7 +700,7 @@ test_fast_font_attributes(void)
 	cells[2].hyperlink = 1;
 	cells[3].flags = ST_CONSOLE_CELL_REVERSE;
 	cells[4].flags = ST_CONSOLE_CELL_CONCEAL;
-	CHECK(st_console_create(&console, &config) == 0);
+	CHECK(st_console_create(&console, &config_display, &config) == 0);
 	font_identifier = register_static_font(console, &font);
 	for (size_t i = 0; i < 5; ++i)
 		cells[i].font = font_identifier;
@@ -730,6 +742,9 @@ test_raster_margin_and_scroll(void)
 		.mapping = mapping,
 		.mapping_count = sizeof(mapping) / sizeof(mapping[0]),
 	};
+	struct st_console_display_config config_display = {
+		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	};
 	struct st_console_config config = {
 		.columns = 2,
 		.rows = 3,
@@ -737,7 +752,6 @@ test_raster_margin_and_scroll(void)
 		.cell_height = 2,
 		.pixel_width = 5,
 		.pixel_height = 8,
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};
 	struct st_console_cell cells[6];
 	const struct st_console_rect grid = {0, 0, 2, 3};
@@ -774,7 +788,7 @@ test_raster_margin_and_scroll(void)
 			};
 		}
 	}
-	CHECK(st_console_create(&console, &config) == 0);
+	CHECK(st_console_create(&console, &config_display, &config) == 0);
 	CHECK(st_console_pixel_size(console, &width, &height) == 0);
 	CHECK(width == 5 && height == 8);
 	font_identifier = register_static_font(console, &font);
@@ -835,7 +849,7 @@ test_raster_margin_and_scroll(void)
 
 	console = NULL;
 	config.pixel_width = 0;
-	CHECK(st_console_create(&console, &config) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_console_create(&console, &config_display, &config) == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(console == NULL);
 }
 
@@ -858,12 +872,14 @@ test_saa5050_double_height_raster(void)
 		.mapping = mapping,
 		.mapping_count = sizeof(mapping) / sizeof(mapping[0]),
 	};
+	struct st_console_display_config config_display = {
+		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	};
 	struct st_console_config config = {
 		.columns = 1,
 		.rows = 2,
 		.cell_width = 8,
 		.cell_height = 2,
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};
 	struct st_console_cell cells[2] = {
 		{
@@ -891,7 +907,7 @@ test_saa5050_double_height_raster(void)
 	const uint32_t foreground = UINT32_C(0xaaaaaa);
 	uint16_t font_identifier;
 
-	CHECK(st_console_create(&console, &config) == 0);
+	CHECK(st_console_create(&console, &config_display, &config) == 0);
 	font_identifier = register_static_font(console, &font);
 	cells[0].font = font_identifier;
 	cells[1].font = font_identifier;
@@ -926,22 +942,24 @@ test_saa5050_double_height_raster(void)
 static void
 test_ncurses_when_available(void)
 {
+	struct st_console_display_config config_display = {
+		.backend = ST_CONSOLE_BACKEND_NCURSES,
+	};
 	struct st_console_config config = {
 		.columns = 8,
 		.rows = 3,
-		.backend = ST_CONSOLE_BACKEND_NCURSES,
 		.wrap = true,
 	};
 	st_console_t *console = NULL;
 	st_console_t *second = NULL;
 	st_console_snapshot_t *snapshot = NULL;
-	int result = st_console_create(&console, &config);
+	int result = st_console_create(&console, &config_display, &config);
 
 	if (result == IO_ERROR_NOT_FOUND || result == IO_ERROR_NOT_SUPPORTED
 	    || result == IO_ERROR_OUT_OF_RANGE)
 		return;
 	CHECK(result == 0);
-	CHECK(st_console_create(&second, &config) == IO_ERROR_BUSY);
+	CHECK(st_console_create(&second, &config_display, &config) == IO_ERROR_BUSY);
 	CHECK(second == NULL);
 	CHECK(st_console_begin_update(console) == 0);
 	CHECK(st_console_write_utf8(console, "curses", 6) == 0);
@@ -1014,7 +1032,7 @@ struct deferred_present_state {
 static int
 record_deferred_present(st_console_t *console)
 {
-	struct deferred_present_state *state = console->backend_state;
+	struct deferred_present_state *state = console->display->backend_state;
 
 	(void)st_mutex_lock(&state->mutex);
 	++state->calls;
@@ -1046,8 +1064,8 @@ test_deferred_presentation(void)
 	CHECK(st_mutex_init(&state.mutex, ST_MUTEX_PLAIN) == ST_THREAD_SUCCESS);
 	CHECK(st_condition_init(&state.changed) == ST_THREAD_SUCCESS);
 	state.calls = 0;
-	console->backend_ops = &deferred_present_ops;
-	console->backend_state = &state;
+	console->display->backend_ops = &deferred_present_ops;
+	console->display->backend_state = &state;
 	console->display->backend_ops = &deferred_present_ops;
 	console->display->backend_state = &state;
 	CHECK(st_console_start_presentation_worker(console) == 0);
@@ -1103,12 +1121,14 @@ test_unicode_wide_cells(void)
 		.mapping_count = sizeof(mapping) / sizeof(mapping[0]),
 		.fallback_glyph = 0,
 	};
+	const struct st_console_display_config config_display = {
+		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	};
 	const struct st_console_config config = {
 		.columns = 4,
 		.rows = 2,
 		.cell_width = 8,
 		.cell_height = 2,
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};
 	const struct st_console_rect row = {0, 0, 4, 1};
 	const struct st_console_rect single = {1, 0, 1, 1};
@@ -1120,7 +1140,7 @@ test_unicode_wide_cells(void)
 	uint32_t x;
 	uint32_t y;
 
-	CHECK(st_console_create(&console, &config) == 0);
+	CHECK(st_console_create(&console, &config_display, &config) == 0);
 	identifier = register_static_font(console, &font);
 	CHECK(identifier == 0);
 	CHECK(st_console_put_codepoint(console, UINT32_C(0x4e00)) == 0);
@@ -1191,11 +1211,13 @@ test_ansi_wide_cell_output(void)
 		.context = &output,
 		.indexed_colours = 256,
 	};
+	struct st_console_display_config config_display = {
+		.backend = ST_CONSOLE_BACKEND_ANSI,
+		.ansi_io = &io,
+	};
 	struct st_console_config config = {
 		.columns = 2,
 		.rows = 1,
-		.backend = ST_CONSOLE_BACKEND_ANSI,
-		.ansi_io = &io,
 	};
 	const struct st_console_rect row = {0, 0, 2, 1};
 	struct st_console_cell cells[2] = {
@@ -1206,7 +1228,7 @@ test_ansi_wide_cell_output(void)
 	st_console_t *console = NULL;
 	uint16_t identifier;
 
-	CHECK(st_console_create(&console, &config) == 0);
+	CHECK(st_console_create(&console, &config_display, &config) == 0);
 	identifier = register_static_font(console, &font);
 	cells[0].font = identifier;
 	cells[1].font = identifier;
@@ -1239,17 +1261,19 @@ test_ansi_output_modes(void)
 			.indexed_colours = indexed_colours[mode],
 			.direct_colour = direct_colour[mode],
 		};
+		struct st_console_display_config config_display = {
+			.backend = ST_CONSOLE_BACKEND_ANSI,
+			.ansi_io = &io,
+		};
 		struct st_console_config config = {
 			.columns = 3,
 			.rows = 3,
-			.backend = ST_CONSOLE_BACKEND_ANSI,
-			.ansi_io = &io,
 		};
 		struct st_console_cell cells[9];
 		const struct st_console_rect screen = {0, 0, 3, 3};
 		st_console_t *console = NULL;
 
-		CHECK(st_console_create(&console, &config) == 0);
+		CHECK(st_console_create(&console, &config_display, &config) == 0);
 		for (size_t i = 0; i < 9; ++i) {
 			cells[i] = (struct st_console_cell){
 				.codepoint = (uint32_t)('a' + i / 3),
@@ -1291,12 +1315,14 @@ test_ansi_cp437_output(void)
 		.context = &output,
 		.indexed_colours = 256,
 	};
-	struct st_console_config config = {
-		.columns = 1,
-		.rows = 1,
+	struct st_console_display_config config_display = {
 		.backend = ST_CONSOLE_BACKEND_ANSI,
 		.text_presentation = ST_CONSOLE_TEXT_CP437,
 		.ansi_io = &io,
+	};
+	struct st_console_config config = {
+		.columns = 1,
+		.rows = 1,
 	};
 	const struct st_console_rect cell_rect = {0, 0, 1, 1};
 	const struct st_console_cell cell = {
@@ -1306,7 +1332,7 @@ test_ansi_cp437_output(void)
 	};
 	st_console_t *console = NULL;
 
-	CHECK(st_console_create(&console, &config) == 0);
+	CHECK(st_console_create(&console, &config_display, &config) == 0);
 	CHECK(st_console_write_complete_cells(console, &cell_rect, &cell, 1)
 	    == 0);
 	CHECK(count_bytes(output.data, output.length, &expected, 1) == 1);
@@ -1363,12 +1389,14 @@ test_font_resolution_and_complete_cells(void)
 		.blink = 22,
 		.bright_blink = 23,
 	};
+	const struct st_console_display_config config_display = {
+		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	};
 	const struct st_console_config config = {
 		.columns = 2,
 		.rows = 1,
 		.cell_width = 8,
 		.cell_height = 1,
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};
 	const struct st_console_rect first = {0, 0, 1, 1};
 	struct st_console_cell cell = {.codepoint = 'A', .font = 1};
@@ -1380,7 +1408,7 @@ test_font_resolution_and_complete_cells(void)
 	uint32_t glyph;
 	uint8_t columns;
 
-	CHECK(st_console_create(&console, &config) == 0);
+	CHECK(st_console_create(&console, &config_display, &config) == 0);
 	fallback = register_static_font(console, &fallback_font);
 	CHECK(fallback == 0);
 	CHECK(st_console_register_font_copy(console, &selected_font, &selected)
@@ -1472,19 +1500,21 @@ test_deferred_font_resolution(void)
 		.mapping_count = sizeof(selected_mapping)
 		    / sizeof(selected_mapping[0]),
 	};
+	const struct st_console_display_config config_display = {
+		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	};
 	const struct st_console_config config = {
 		.columns = 1,
 		.rows = 1,
 		.cell_width = 8,
 		.cell_height = 1,
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};
 	const struct st_console_rect screen = {0, 0, 1, 1};
 	struct st_console_cell cell = {.codepoint = 'A'};
 	st_console_t *console = NULL;
 	uint16_t identifier;
 
-	CHECK(st_console_create(&console, &config) == 0);
+	CHECK(st_console_create(&console, &config_display, &config) == 0);
 	CHECK(st_console_write_cells(console, &screen, &cell, 1) == 0);
 	CHECK(read_cell(console, 0, 0).glyph == 0);
 	identifier = register_static_font(console, &font);
@@ -1560,6 +1590,7 @@ test_font_registry_lru_replacement(void)
 }
 
 struct multi_display_state {
+	st_console_t *bound;
 	st_console_t *presented;
 	unsigned int presents;
 	unsigned int resizes;
@@ -1568,68 +1599,156 @@ struct multi_display_state {
 	unsigned int pointers;
 	bool pointer_visible;
 	char title[16];
+	uint32_t columns;
+	uint32_t rows;
+	st_console_t *fail_console;
+	unsigned int fail_stage;
+	unsigned int failures_left;
+	bool inject_input;
 };
+
+static int
+multi_fail(struct multi_display_state *state, st_console_t *console,
+	unsigned int stage)
+{
+	if (state->failures_left != 0 && state->fail_stage == stage
+	    && (state->fail_console == NULL || state->fail_console == console)) {
+		--state->failures_left;
+		return IO_ERROR_IO;
+	}
+	return 0;
+}
+
+static int
+multi_activate(st_console_t *console)
+{
+	struct multi_display_state *state = console->display->backend_state;
+	int status = multi_fail(state, console, 6);
+
+	if (status == 0)
+		state->bound = console;
+	return status;
+}
+
+static void
+multi_destroy(st_console_display_t *display)
+{
+	struct multi_display_state *state = display->backend_state;
+
+	/* A backend's last retained console remains valid until shutdown joins. */
+	if (state->bound != NULL)
+		CHECK(state->bound->rows != 0);
+	state->bound = NULL;
+}
 
 static int
 multi_present(st_console_t *console)
 {
-	struct multi_display_state *state = console->backend_state;
+	struct multi_display_state *state = console->display->backend_state;
 
 	state->presented = console;
 	++state->presents;
-	return 0;
+	CHECK(state->columns == console->columns && state->rows == console->rows);
+	return multi_fail(state, console, 5);
 }
 
 static int
 multi_resize(st_console_t *console, uint32_t columns, uint32_t rows)
 {
-	struct multi_display_state *state = console->backend_state;
+	struct multi_display_state *state = console->display->backend_state;
 
-	(void)columns;
-	(void)rows;
+	state->columns = columns;
+	state->rows = rows;
 	++state->resizes;
-	return 0;
+	if (state->inject_input) {
+		const struct st_console_event input = {
+			.type = ST_CONSOLE_EVENT_KEY_CODE, .data.key.code = '?',
+		};
+
+		state->inject_input = false;
+		CHECK(st_console_display_post_event(console->display, &input) == 0);
+	}
+	return multi_fail(state, console, 1);
 }
 
 static int
 multi_palette(st_console_t *console, uint16_t first, uint16_t count)
 {
-	struct multi_display_state *state = console->backend_state;
+	struct multi_display_state *state = console->display->backend_state;
 
+	CHECK(atomic_load(&console->display->active) == console);
 	(void)first;
 	(void)count;
 	++state->palettes;
-	return 0;
+	return multi_fail(state, console, 2);
 }
 
 static int
-multi_title(st_console_t *console, const char *title)
+multi_title(st_console_display_t *display, const char *title)
 {
-	struct multi_display_state *state = console->backend_state;
+	struct multi_display_state *state = display->backend_state;
 
+	const char *expected = atomic_load(&display->active)->title;
+	CHECK(strcmp(expected == NULL ? "SyncTERM" : expected, title) == 0);
 	++state->titles;
 	(void)snprintf(state->title, sizeof(state->title), "%s", title);
-	return 0;
+	return multi_fail(state, atomic_load(&display->active), 3);
 }
 
 static int
-multi_pointer(st_console_t *console, bool visible)
+multi_pointer(st_console_display_t *display, bool visible)
 {
-	struct multi_display_state *state = console->backend_state;
+	struct multi_display_state *state = display->backend_state;
 
+	CHECK(atomic_load(&display->active)->pointer_visible == visible);
 	++state->pointers;
 	state->pointer_visible = visible;
-	return 0;
+	return multi_fail(state, atomic_load(&display->active), 4);
 }
 
 static const struct st_console_backend_ops multi_ops = {
 	.deferred_present = true,
+	.activate = multi_activate,
+	.destroy = multi_destroy,
 	.present = multi_present,
 	.resize = multi_resize,
 	.palette_changed = multi_palette,
 	.set_title = multi_title,
 	.set_pointer_visible = multi_pointer,
 };
+
+static int
+multi_metadata_writer(void *argument)
+{
+	st_console_t *console = argument;
+	st_console_snapshot_t *snapshot = NULL;
+
+	CHECK(st_console_snapshot_create(&snapshot, console) == 0);
+	for (unsigned int i = 0; i < 1000; ++i) {
+		CHECK(st_console_set_title(console, "Racing") == 0);
+		CHECK(st_console_set_pointer_visible(console, (i & 1) != 0) == 0);
+		CHECK(st_console_snapshot_restore(console, snapshot) == 0);
+	}
+	st_console_snapshot_destroy(snapshot);
+	return 0;
+}
+
+static int
+multi_destroy_console(void *argument)
+{
+	st_console_destroy(argument);
+	return 0;
+}
+
+static int
+multi_activate_loop(void *argument)
+{
+	st_console_t *console = argument;
+
+	for (unsigned int i = 0; i < 1000; ++i)
+		CHECK(st_console_display_activate(console->display, console) == 0);
+	return 0;
+}
 
 static void
 test_multiple_consoles_one_display(void)
@@ -1639,11 +1758,11 @@ test_multiple_consoles_one_display(void)
 		.text_presentation = ST_CONSOLE_TEXT_UNICODE,
 	};
 	const struct st_console_config first_config = {
-		.columns = 4, .rows = 2, .backend = ST_CONSOLE_BACKEND_HEADLESS,
+		.columns = 4, .rows = 2,
 		.wrap = true,
 	};
 	const struct st_console_config second_config = {
-		.columns = 7, .rows = 3, .backend = ST_CONSOLE_BACKEND_HEADLESS,
+		.columns = 7, .rows = 3,
 		.wrap = true,
 	};
 	const struct st_console_rect cell_rect = {0, 0, 1, 1};
@@ -1680,16 +1799,16 @@ test_multiple_consoles_one_display(void)
 	CHECK(!registered);
 	display->backend_ops = &multi_ops;
 	display->backend_state = &state;
-	first->backend_ops = &multi_ops;
-	first->backend_state = &state;
-	second->backend_ops = &multi_ops;
-	second->backend_state = &state;
 	CHECK(st_console_write_cells(second, &cell_rect, &cell, 1) == 0);
 	CHECK(st_console_set_title(second, "Second") == 0);
 	CHECK(st_console_set_pointer_visible(second, false) == 0);
 	CHECK(st_console_present(second) == 0);
 	CHECK(state.presents == 0 && state.resizes == 0 && state.palettes == 0
 	    && state.titles == 0 && state.pointers == 0);
+	CHECK(st_console_post_event(second, &second_event) == 0);
+	CHECK(st_console_event_try(first, &event) == IO_ERROR_WOULD_BLOCK);
+	CHECK(st_console_event_try(second, &event) == 0);
+	CHECK(event.data.key.code == 'B');
 	CHECK(st_console_display_post_event(display, &first_event) == 0);
 	CHECK(st_console_display_activate(display, second) == 0);
 	CHECK(state.presented == second && state.presents == 1);
@@ -1705,12 +1824,153 @@ test_multiple_consoles_one_display(void)
 	CHECK(st_console_event_try(second, &event) == IO_ERROR_WOULD_BLOCK);
 	CHECK(st_console_display_activate(display, first) == 0);
 	CHECK(state.presented == first && state.presents == 2);
-	CHECK(st_console_start_presentation_worker(first) == 0);
-	st_console_destroy(first);
+	{
+		st_thread_t switchers[2];
+		unsigned int before = state.presents;
+
+		CHECK(st_thread_create(&switchers[0], multi_activate_loop, first)
+		    == ST_THREAD_SUCCESS);
+		CHECK(st_thread_create(&switchers[1], multi_activate_loop, second)
+		    == ST_THREAD_SUCCESS);
+		CHECK(st_thread_join(switchers[0], NULL) == ST_THREAD_SUCCESS);
+		CHECK(st_thread_join(switchers[1], NULL) == ST_THREAD_SUCCESS);
+		/* Each successful switch includes its own completed presentation. */
+		CHECK(state.presents == before + 2000);
+	}
+	{
+		st_thread_t writer;
+
+		CHECK(st_thread_create(&writer, multi_metadata_writer, first)
+		    == ST_THREAD_SUCCESS);
+		for (unsigned int i = 0; i < 1000; ++i) {
+			CHECK(st_console_display_activate(display, second) == 0);
+			CHECK(st_console_display_activate(display, first) == 0);
+		}
+		CHECK(st_thread_join(writer, NULL) == ST_THREAD_SUCCESS);
+	}
+	for (unsigned int stage = 1; stage <= 5; ++stage) {
+		state.fail_console = second;
+		state.fail_stage = stage;
+		state.failures_left = 1;
+		state.inject_input = true;
+		CHECK(st_console_display_activate(display, second) == IO_ERROR_IO);
+		CHECK(st_console_event_try(first, &event) == 0);
+		CHECK(event.data.key.code == '?');
+		CHECK(st_console_event_try(second, &event) == IO_ERROR_WOULD_BLOCK);
+		CHECK(st_console_display_active(display, &active) == 0);
+		CHECK(active == first && !display->backend_failed);
+		CHECK(state.presented == first);
+		CHECK(state.columns == first_config.columns);
+		CHECK(state.rows == first_config.rows);
+		CHECK(st_console_present(first) == 0);
+	}
+	state.fail_console = NULL;
+	state.fail_stage = 1;
+	state.failures_left = 2;
+	CHECK(st_console_display_activate(display, second) == IO_ERROR_IO);
+	CHECK(display->backend_failed);
+	{
+		unsigned int before = state.presents;
+
+		CHECK(st_console_present(first) == IO_ERROR_IO);
+		CHECK(state.presents == before);
+	}
+	CHECK(st_console_display_activate(display, first) == 0);
+	CHECK(!display->backend_failed);
+	{
+		st_thread_t destroyer;
+		st_thread_t presenter;
+		const struct timespec pause = {.tv_nsec = 1000000};
+		bool pinned = false;
+
+		CHECK(st_rwlock_write_lock(&first->state_lock) == ST_THREAD_SUCCESS);
+		CHECK(st_console_start_presentation_worker(first) == 0);
+		presenter = display->presentation_thread;
+		for (unsigned int i = 0; i < 5000 && !pinned; ++i) {
+			CHECK(st_mutex_lock(&display->presentation_mutex)
+			    == ST_THREAD_SUCCESS);
+			pinned = display->presentation_active == first;
+			CHECK(st_mutex_unlock(&display->presentation_mutex)
+			    == ST_THREAD_SUCCESS);
+			if (!pinned)
+				(void)st_thread_sleep(&pause, NULL);
+		}
+		CHECK(pinned);
+		CHECK(st_thread_create(&destroyer, multi_destroy_console, first)
+		    == ST_THREAD_SUCCESS);
+		CHECK(st_rwlock_unlock(&first->state_lock) == ST_THREAD_SUCCESS);
+		CHECK(st_thread_join(destroyer, NULL) == ST_THREAD_SUCCESS);
+		CHECK(st_thread_equal(presenter, display->presentation_thread));
+	}
 	CHECK(st_console_display_active(display, &active) == 0);
 	CHECK(active == second);
 	CHECK(display->presentation_thread_started);
 	st_console_destroy(second);
+	st_console_display_destroy(display);
+}
+
+static void
+test_failed_detachment_lifetime(void)
+{
+	const struct st_console_display_config output = {
+		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	};
+	const struct st_console_config config = {.columns = 4, .rows = 2};
+
+	for (unsigned int recover = 0; recover < 2; ++recover) {
+		st_console_display_t *display = NULL;
+		st_console_t *first = NULL;
+		st_console_t *second = NULL;
+		st_console_t *selected = NULL;
+		struct multi_display_state state = {0};
+
+		CHECK(st_console_display_create(&display, &output) == 0);
+		CHECK(st_console_create_on_display(&first, display, &config) == 0);
+		CHECK(st_console_create_on_display(&second, display, &config) == 0);
+		display->backend_ops = &multi_ops;
+		display->backend_state = &state;
+		CHECK(st_console_display_activate(display, second) == 0);
+		CHECK(state.bound == second);
+		state.fail_stage = 6;
+		state.failures_left = 3;
+		st_console_destroy(second);
+		CHECK(display->console_count == 1);
+		CHECK(st_console_display_active(display, &selected) == 0);
+		CHECK(selected == first && display->backend_failed);
+		CHECK(display->retired_consoles == state.bound);
+		CHECK(state.bound->rows == config.rows);
+		if (recover) {
+			CHECK(st_console_display_activate(display, first) == 0);
+			CHECK(display->retired_consoles == NULL);
+			CHECK(state.bound == first);
+		}
+		st_console_destroy(first);
+		CHECK(state.bound == NULL);
+		CHECK(display->retired_consoles == NULL);
+		st_console_display_destroy(display);
+	}
+}
+
+static void
+test_display_copies_ansi_options(void)
+{
+	struct output output = {0};
+	struct st_console_ansi_io io = {.write = write_output, .context = &output};
+	const struct st_console_display_config config = {
+		.backend = ST_CONSOLE_BACKEND_ANSI, .ansi_io = &io,
+	};
+	const struct st_console_config logical = {.columns = 2, .rows = 1};
+	st_console_display_t *display = NULL;
+	st_console_t *console = NULL;
+
+	CHECK(st_console_display_create(&display, &config) == 0);
+	io.write = NULL;
+	for (unsigned int i = 0; i < 2; ++i) {
+		CHECK(st_console_create_on_display(&console, display, &logical) == 0);
+		CHECK(st_console_write_utf8(console, "x", 1) == 0);
+		CHECK(st_console_present(console) == 0);
+		st_console_destroy(console);
+	}
 	st_console_display_destroy(display);
 }
 
@@ -1740,6 +2000,8 @@ main(void)
 	test_deferred_font_resolution();
 	test_font_registry_lru_replacement();
 	test_multiple_consoles_one_display();
+	test_failed_detachment_lifetime();
+	test_display_copies_ansi_options();
 	test_ncurses_when_available();
 	return EXIT_SUCCESS;
 }

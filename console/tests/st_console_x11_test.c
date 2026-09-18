@@ -6,6 +6,7 @@
  */
 
 #include "st_console.h"
+#include "console_internal.h"
 #include "console_config.h"
 #include "console_x11_keys.h"
 
@@ -266,6 +267,8 @@ check_escape_event(st_console_t *console)
 	}
 	CHECK(marker);
 	CHECK(alt_b == 1);
+	/* Backend shortcuts must not wait on a caller's logical-state lock. */
+	CHECK(st_rwlock_write_lock(&console->state_lock) == ST_THREAD_SUCCESS);
 	CHECK(send_key_with_state(display, window, XK_Right, true, Mod1Mask)
 	    == 0);
 	CHECK(send_key_with_state(display, window, XK_Right, false, Mod1Mask)
@@ -280,6 +283,7 @@ check_escape_event(st_console_t *console)
 	(void)XFlush(display);
 	(void)nanosleep(&(struct timespec){0, 50000000}, NULL);
 	CHECK(check_window_size(title, 85, 64, 85, 64) == 0);
+	CHECK(st_rwlock_unlock(&console->state_lock) == ST_THREAD_SUCCESS);
 	CHECK(XMoveWindow(display, window, 0, 0) != 0);
 	(void)XSync(display, False);
 	CHECK(send_key_with_state(display, window, XK_Home, true, Mod1Mask)
@@ -342,16 +346,19 @@ check_escape_event(st_console_t *console)
 int
 main(void)
 {
+	const struct st_console_display_config config_display = {
+		.backend = ST_CONSOLE_BACKEND_X11,
+	};
 	const struct st_console_config config = {
 		.columns = 8,
 		.rows = 4,
 		.cell_width = 8,
 		.cell_height = 16,
-		.backend = ST_CONSOLE_BACKEND_X11,
 		.wrap = true,
 		.aspect_width = 4,
 		.aspect_height = 3,
 	};
+	struct st_console_display_config scaled_display = config_display;
 	struct st_console_config scaled = config;
 	st_console_t *first = NULL;
 	st_console_t *second = NULL;
@@ -362,12 +369,12 @@ main(void)
 
 	(void)setlocale(LC_CTYPE, "");
 	CHECK(check_keys() == 0);
-	status = st_console_create(&first, &config);
+	status = st_console_create(&first, &config_display, &config);
 	if (status == IO_ERROR_NOT_FOUND || status == IO_ERROR_NOT_SUPPORTED)
 		return 77;
 	CHECK(status == 0);
-	scaled.initial_scaling = 2.0;
-	CHECK(st_console_create(&second, &scaled) == 0);
+	scaled_display.initial_scaling = 2.0;
+	CHECK(st_console_create(&second, &scaled_display, &scaled) == 0);
 	CHECK(st_console_set_title(first, "st_console X11 test one") == 0);
 	CHECK(st_console_set_title(second, "st_console X11 test two") == 0);
 	CHECK(check_window_size("st_console X11 test two", 171, 128,
@@ -403,5 +410,85 @@ main(void)
 
 	st_console_destroy(second);
 	st_console_destroy(first);
+	{
+		const struct st_console_display_config display_config = {
+			.backend = ST_CONSOLE_BACKEND_X11,
+		};
+		st_console_display_t *display = NULL;
+		st_console_t *active = NULL;
+		struct st_console_config smaller = config;
+
+		scaled = config;
+		scaled_display.initial_scaling = 2.0;
+		smaller.columns /= 2;
+		smaller.rows /= 2;
+
+		CHECK(st_console_display_create(&display, &display_config) == 0);
+		CHECK(st_console_create_on_display(&first, display, &config) == 0);
+		{
+			struct st_console_config invalid = config;
+			st_console_t *unchanged = first;
+
+			/* Valid retained geometry, but not representable in XSizeHints. */
+			invalid.aspect_width = UINT32_MAX;
+			invalid.aspect_height = UINT32_MAX;
+			CHECK(st_console_create_on_display(&unchanged, display, &invalid)
+			    == IO_ERROR_OUT_OF_RANGE);
+			CHECK(unchanged == first);
+			CHECK(st_console_display_active(display, &active) == 0);
+			CHECK(active == first);
+		}
+		{
+			struct st_console_config external = config;
+			st_console_t *separate = NULL;
+			st_console_t *attached = NULL;
+			int separate_status;
+
+			external.scaling_mode = ST_CONSOLE_SCALING_EXTERNAL;
+			separate_status = st_console_create(&separate, &display_config,
+			    &external);
+			CHECK(separate_status == 0);
+			CHECK(st_console_create_on_display(&attached, display, &external)
+			    == separate_status);
+			CHECK(st_console_display_activate(display, attached) == 0);
+			CHECK(st_console_display_activate(display, first) == 0);
+			st_console_destroy(attached);
+			st_console_destroy(separate);
+		}
+		for (unsigned int i = 0; i < 4; ++i) {
+			CHECK(st_console_create_on_display(&second, display, &config) == 0);
+			CHECK(st_console_display_activate(display, second) == 0);
+			CHECK(check_escape_event(second) == 0);
+			st_console_destroy(second);
+			CHECK(st_console_display_active(display, &active) == 0);
+			CHECK(active == first);
+			CHECK(st_console_present(first) == 0);
+		}
+		st_console_destroy(first);
+		st_console_display_destroy(display);
+		CHECK(st_console_display_create(&display, &scaled_display) == 0);
+		CHECK(st_console_create_on_display(&first, display, &scaled) == 0);
+		CHECK(st_console_set_title(first, "st_console X11 large") == 0);
+		CHECK(st_console_create_on_display(&second, display, &smaller) == 0);
+		CHECK(st_console_set_title(second, "st_console X11 small") == 0);
+		for (unsigned int i = 0; i < 4; ++i) {
+			CHECK(st_console_display_activate(display, second) == 0);
+			CHECK(check_window_size("st_console X11 small", 85, 64,
+			    43, 32) == 0);
+			CHECK(st_console_display_activate(display, first) == 0);
+			CHECK(check_window_size("st_console X11 large", 171, 128,
+			    85, 64) == 0);
+		}
+		/* No host-size query or delay between these switches. */
+		for (unsigned int i = 0; i < 20; ++i) {
+			CHECK(st_console_display_activate(display, second) == 0);
+			CHECK(st_console_display_activate(display, first) == 0);
+		}
+		CHECK(check_window_size("st_console X11 large", 171, 128,
+		    85, 64) == 0);
+		st_console_destroy(second);
+		st_console_destroy(first);
+		st_console_display_destroy(display);
+	}
 	return 0;
 }

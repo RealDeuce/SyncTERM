@@ -257,18 +257,18 @@ st_console_startup_configure(struct st_console_startup *result,
 	    ? ST_CONSOLE_SCALING_EXTERNAL : ST_CONSOLE_SCALING_INTERNAL;
 	startup.config.scaling_policy = settings->blocky_scaling
 	    ? ST_PIXEL_SCALING_BLOCKY : ST_PIXEL_SCALING_POINTY;
-	startup.config.initial_scaling = settings->scaling_factor;
+	startup.display_config.initial_scaling = settings->scaling_factor;
 	if (settings->window_width > 0 && settings->window_height > 0) {
-		startup.config.initial_window_width
+		startup.display_config.initial_window_width
 		    = (uint32_t)settings->window_width;
-		startup.config.initial_window_height
+		startup.display_config.initial_window_height
 		    = (uint32_t)settings->window_height;
 	}
-	configured_backend(settings->output_mode, &startup.config.backend,
-	    &startup.config.text_presentation, &startup.fullscreen);
+	configured_backend(settings->output_mode, &startup.display_config.backend,
+	    &startup.display_config.text_presentation, &startup.fullscreen);
 	if (command->backend_set) {
-		startup.config.backend = command->backend;
-		startup.config.text_presentation = command->text_presentation;
+		startup.display_config.backend = command->backend;
+		startup.display_config.text_presentation = command->text_presentation;
 		startup.fullscreen = command->fullscreen;
 	}
 	if (command->rows_set) {

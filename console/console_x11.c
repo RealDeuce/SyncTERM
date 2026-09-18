@@ -236,6 +236,7 @@ struct x11_api {
 
 enum x11_command_type {
 	X11_COMMAND_PRESENT,
+	X11_COMMAND_ACTIVATE,
 	X11_COMMAND_RESIZE,
 	X11_COMMAND_SET_TITLE,
 	X11_COMMAND_SET_CLIPBOARD,
@@ -248,6 +249,7 @@ enum x11_command_type {
 struct x11_command {
 	enum x11_command_type type;
 	union {
+		st_console_t *console;
 		struct {
 			uint32_t width;
 			uint32_t height;
@@ -261,7 +263,10 @@ struct x11_command {
 };
 
 struct x11_state {
-	_Atomic(st_console_t *) console;
+	/* Only the backend thread changes or dereferences this pointer. */
+	st_console_t *console;
+	st_console_display_t *console_display;
+	struct st_console_bitmap_geometry window_geometry;
 	dynamic_library_t *library;
 #if ST_CONSOLE_HAVE_XRANDR
 	dynamic_library_t *xrandr_library;
@@ -343,13 +348,6 @@ struct x11_state {
 #endif
 };
 
-static void
-x11_activate(st_console_t *console)
-{
-	struct x11_state *state = console->backend_state;
-
-	state->console = console;
-}
 
 struct x11_manager {
 	st_mutex_t mutex;
@@ -649,7 +647,7 @@ snap_window(struct x11_state *state, bool larger)
 	if (maximum_width <= 0 || maximum_height <= 0
 	    || maximum_width > UINT32_MAX || maximum_height > UINT32_MAX)
 		return;
-	if (st_console_snap_window_size(state->console, state->windowed_width,
+	if (st_console_snap_geometry_size(&state->window_geometry, state->windowed_width,
 	    state->windowed_height, larger, (uint32_t)maximum_width,
 	    (uint32_t)maximum_height,
 	    &width, &height) != 0
@@ -911,9 +909,7 @@ ensure_image(struct x11_state *state, uint32_t width, uint32_t height)
 	if (state->image != NULL && state->image->width == (int)width
 	    && state->image->height == (int)height)
 		return 0;
-	if (width > INT_MAX || height > INT_MAX
-	    || state->console->aspect_width > INT_MAX
-	    || state->console->aspect_height > INT_MAX)
+	if (width > INT_MAX || height > INT_MAX)
 		return IO_ERROR_OUT_OF_RANGE;
 	destroy_image(state);
 #if ST_CONSOLE_HAVE_XRENDER
@@ -1401,7 +1397,7 @@ key_event(struct x11_state *state, XKeyEvent *source, bool pressed)
 			},
 		};
 
-		(void)st_console_post_event(state->console, &event);
+		(void)st_console_display_post_event(state->console_display, &event);
 	}
 	if (pressed && (source->state & Mod1Mask) != 0) {
 		if (!repeat && (physical_keysym == XK_Return
@@ -1461,7 +1457,7 @@ key_event(struct x11_state *state, XKeyEvent *source, bool pressed)
 				},
 			};
 
-			(void)st_console_post_event(state->console, &event);
+			(void)st_console_display_post_event(state->console_display, &event);
 		}
 		else if (text_length > 0
 		    && (lookup_status == XLookupChars
@@ -1490,7 +1486,7 @@ key_event(struct x11_state *state, XKeyEvent *source, bool pressed)
 					},
 				};
 
-				(void)st_console_post_event(state->console, &event);
+				(void)st_console_display_post_event(state->console_display, &event);
 			}
 		}
 		if (text != stack_text)
@@ -1630,12 +1626,12 @@ handle_event(struct x11_state *state, XEvent *event)
 		}
 		output.type = ST_CONSOLE_EVENT_FOCUS;
 		output.data.focus.focused = event->type == FocusIn;
-		(void)st_console_post_event(state->console, &output);
+		(void)st_console_display_post_event(state->console_display, &output);
 		break;
 	case ClientMessage:
 		if ((Atom)event->xclient.data.l[0] == state->wm_delete) {
 			output.type = ST_CONSOLE_EVENT_CLOSE;
-			(void)st_console_post_event(state->console, &output);
+			(void)st_console_display_post_event(state->console_display, &output);
 		}
 		else if ((Atom)event->xclient.data.l[0] == state->wm_ping) {
 			event->xclient.window = state->root;
@@ -1659,7 +1655,7 @@ handle_event(struct x11_state *state, XEvent *event)
 		mouse_position(state, event->xmotion.x, event->xmotion.y,
 		    &output.data.mouse.x, &output.data.mouse.y);
 		output.data.mouse.buttons = state->mouse_buttons;
-		(void)st_console_post_event(state->console, &output);
+		(void)st_console_display_post_event(state->console_display, &output);
 		break;
 	case ButtonPress:
 	case ButtonRelease: {
@@ -1684,7 +1680,7 @@ handle_event(struct x11_state *state, XEvent *event)
 			else
 				output.data.mouse.wheel_x = 1;
 			output.data.mouse.buttons = state->mouse_buttons;
-			(void)st_console_post_event(state->console, &output);
+			(void)st_console_display_post_event(state->console_display, &output);
 			break;
 		}
 		if (button == 0)
@@ -1698,7 +1694,7 @@ handle_event(struct x11_state *state, XEvent *event)
 		mouse_position(state, event->xbutton.x, event->xbutton.y,
 		    &output.data.mouse.x, &output.data.mouse.y);
 		output.data.mouse.buttons = state->mouse_buttons;
-		(void)st_console_post_event(state->console, &output);
+		(void)st_console_display_post_event(state->console_display, &output);
 		break;
 	}
 	case SelectionRequest:
@@ -1783,7 +1779,9 @@ set_size_hints(struct x11_state *state, uint32_t width, uint32_t height)
 		.min_height = (int)height,
 	};
 
-	if (width > INT_MAX || height > INT_MAX)
+	if (width > INT_MAX || height > INT_MAX
+	    || state->console->aspect_width > INT_MAX
+	    || state->console->aspect_height > INT_MAX)
 		return IO_ERROR_OUT_OF_RANGE;
 	if (state->console->aspect_width != 0) {
 		hints.flags |= PAspect;
@@ -1799,17 +1797,22 @@ static int
 process_command(struct x11_state *state, struct x11_command *command)
 {
 	switch (command->type) {
+	case X11_COMMAND_ACTIVATE:
+		state->console = command->data.console;
+		return 0;
 	case X11_COMMAND_PRESENT:
 		return draw_state(state, state->console, false);
 	case X11_COMMAND_RESIZE:
 		{
+		struct st_console_bitmap_geometry next = {
+			command->data.size.width, command->data.size.height,
+			state->console->aspect_width, state->console->aspect_height};
 		uint32_t width;
 		uint32_t height;
 		uint32_t minimum_width;
 		uint32_t minimum_height;
 
-		if (st_console_preserve_window_scale(state->console,
-		    command->data.size.width, command->data.size.height,
+		if (st_console_preserve_geometry_scale(&state->window_geometry, &next,
 		    state->fullscreen || state->maximized
 		    ? state->windowed_width : state->window_width,
 		    state->fullscreen || state->maximized ? state->windowed_height
@@ -1821,6 +1824,7 @@ process_command(struct x11_state *state, struct x11_command *command)
 			return IO_ERROR_OUT_OF_RANGE;
 		state->windowed_width = width;
 		state->windowed_height = height;
+		state->window_geometry = next;
 		if (!state->fullscreen && !state->maximized)
 			(void)state->api.resize_window(state->display, state->window,
 			    width, height);
@@ -1949,8 +1953,8 @@ create_x11_objects(struct x11_state *state)
 	uint32_t minimum_width;
 	uint32_t minimum_height;
 
-	state->window_width = state->console->initial_window_width;
-	state->window_height = state->console->initial_window_height;
+	state->window_width = state->console->display->initial_window_width;
+	state->window_height = state->console->display->initial_window_height;
 	state->windowed_width = state->window_width;
 	state->windowed_height = state->window_height;
 	if (st_console_aspect_correct_size(state->console->pixels->width,
@@ -2039,12 +2043,11 @@ create_x11_objects(struct x11_state *state)
 	build_keycode_map(state);
 #if ST_CONSOLE_HAVE_XRENDER
 	(void)load_xrender(state);
-	if (state->console->scaling_mode == ST_CONSOLE_SCALING_EXTERNAL
-	    && !state->render_available)
-		return IO_ERROR_NOT_SUPPORTED;
+	st_console_bitmap_presenter_set_external_scaling_available(
+	    state->presenter, state->render_available);
 #else
-	if (state->console->scaling_mode == ST_CONSOLE_SCALING_EXTERNAL)
-		return IO_ERROR_NOT_SUPPORTED;
+	st_console_bitmap_presenter_set_external_scaling_available(
+	    state->presenter, false);
 #endif
 	(void)state->api.map_window(state->display, state->window);
 	(void)state->api.sync(state->display, False);
@@ -2149,22 +2152,27 @@ submit_command(struct x11_state *state, struct x11_command *command)
 		(void)st_mutex_unlock(&state->mutex);
 		return status;
 	}
-	while (!command->done) {
-		status = st_condition_wait(&state->changed, &state->mutex);
-		if (status != ST_THREAD_SUCCESS) {
-			(void)st_mutex_unlock(&state->mutex);
-			return IO_ERROR_IO;
-		}
-	}
+	/* The queued command borrows the caller's stack until completion. */
+	while (!command->done)
+		(void)st_condition_wait(&state->changed, &state->mutex);
 	status = command->result;
 	(void)st_mutex_unlock(&state->mutex);
 	return status;
 }
 
 static int
+x11_activate(st_console_t *console)
+{
+	return submit_command(console->display->backend_state, &(struct x11_command){
+		.type = X11_COMMAND_ACTIVATE,
+		.data.console = console,
+	});
+}
+
+static int
 x11_present(st_console_t *console)
 {
-	return submit_command(console->backend_state, &(struct x11_command){
+	return submit_command(console->display->backend_state, &(struct x11_command){
 		.type = X11_COMMAND_PRESENT,
 	});
 }
@@ -2184,7 +2192,7 @@ x11_resize(st_console_t *console, uint32_t columns, uint32_t rows)
 	height = rows * console->cell_height + console->pixel_extra_height;
 	if (width > INT_MAX || height > INT_MAX)
 		return IO_ERROR_OUT_OF_RANGE;
-	return submit_command(console->backend_state, &(struct x11_command){
+	return submit_command(console->display->backend_state, &(struct x11_command){
 		.type = X11_COMMAND_RESIZE,
 		.data.size = {
 			.width = width,
@@ -2194,54 +2202,54 @@ x11_resize(st_console_t *console, uint32_t columns, uint32_t rows)
 }
 
 static int
-x11_set_title(st_console_t *console, const char *title)
+x11_set_title(st_console_display_t *display, const char *title)
 {
-	return submit_command(console->backend_state, &(struct x11_command){
+	return submit_command(display->backend_state, &(struct x11_command){
 		.type = X11_COMMAND_SET_TITLE,
 		.data.text = title,
 	});
 }
 
 static int
-x11_set_clipboard(st_console_t *console, const char *text)
+x11_set_clipboard(st_console_display_t *display, const char *text)
 {
-	return submit_command(console->backend_state, &(struct x11_command){
+	return submit_command(display->backend_state, &(struct x11_command){
 		.type = X11_COMMAND_SET_CLIPBOARD,
 		.data.text = text,
 	});
 }
 
 static int
-x11_get_clipboard(st_console_t *console, char **result)
+x11_get_clipboard(st_console_display_t *display, char **result)
 {
-	return submit_command(console->backend_state, &(struct x11_command){
+	return submit_command(display->backend_state, &(struct x11_command){
 		.type = X11_COMMAND_GET_CLIPBOARD,
 		.data.text_result = result,
 	});
 }
 
 static int
-x11_set_pointer(st_console_t *console, bool visible)
+x11_set_pointer(st_console_display_t *display, bool visible)
 {
-	return submit_command(console->backend_state, &(struct x11_command){
+	return submit_command(display->backend_state, &(struct x11_command){
 		.type = X11_COMMAND_SET_POINTER,
 		.data.enabled = visible,
 	});
 }
 
 static int
-x11_set_fullscreen(st_console_t *console, bool fullscreen)
+x11_set_fullscreen(st_console_display_t *display, bool fullscreen)
 {
-	return submit_command(console->backend_state, &(struct x11_command){
+	return submit_command(display->backend_state, &(struct x11_command){
 		.type = X11_COMMAND_SET_FULLSCREEN,
 		.data.enabled = fullscreen,
 	});
 }
 
 static void
-x11_destroy(st_console_t *console)
+x11_destroy(st_console_display_t *display)
 {
-	struct x11_state *state = console->backend_state;
+	struct x11_state *state = display->backend_state;
 
 	(void)submit_command(state, &(struct x11_command){
 		.type = X11_COMMAND_DESTROY,
@@ -2264,10 +2272,23 @@ x11_destroy(st_console_t *console)
 	st_condition_destroy(&state->changed);
 	st_mutex_destroy(&state->mutex);
 	free(state);
-	console->backend_state = NULL;
+	display->backend_state = NULL;
+}
+
+static int
+x11_attach(st_console_t *console)
+{
+	int status = st_console_bitmap_validate_geometry(console, INT_MAX);
+
+	if (status != 0)
+		return status;
+	if (console->aspect_width > INT_MAX || console->aspect_height > INT_MAX)
+		return IO_ERROR_OUT_OF_RANGE;
+	return 0;
 }
 
 static const struct st_console_backend_ops x11_ops = {
+	.attach = x11_attach,
 	.presents_pixels = true,
 	.deferred_present = true,
 	.present = x11_present,
@@ -2287,14 +2308,21 @@ st_console_x11_init(st_console_t *console)
 	struct x11_state *state;
 	int status;
 
-	if (console->pixels == NULL)
-		return IO_ERROR_NOT_SUPPORTED;
+	status = st_console_bitmap_validate_geometry(console, INT_MAX);
+	if (status != 0)
+		return status;
+	if (console->aspect_width > INT_MAX || console->aspect_height > INT_MAX)
+		return IO_ERROR_OUT_OF_RANGE;
 	state = calloc(1, sizeof(*state));
 	if (state == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	state->wake_pipe[0] = -1;
 	state->wake_pipe[1] = -1;
+	state->console_display = console->display;
 	state->console = console;
+	state->window_geometry = (struct st_console_bitmap_geometry){
+		console->pixels->width, console->pixels->height,
+		console->aspect_width, console->aspect_height};
 	status = load_xlib(state);
 	if (status == 0)
 		status = enable_xlib_threads(state);
@@ -2350,7 +2378,7 @@ st_console_x11_init(st_console_t *console)
 		free(state);
 		return status;
 	}
-	console->backend_state = state;
-	console->backend_ops = &x11_ops;
+	console->display->backend_state = state;
+	console->display->backend_ops = &x11_ops;
 	return 0;
 }

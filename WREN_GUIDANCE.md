@@ -22,7 +22,7 @@ details matter.
 - `&&` and `||` short-circuit and return operands rather than coerced Boolean
   values.
 - Bitwise operators work on truncated 32-bit integers.
-- `..` is a half-open range and `...` is a closed range.
+- `..` includes both endpoints; `...` excludes the ending value.
 - Ranges bind tighter than method calls; parenthesize a range before chaining.
 - Strings do not define ordering operators. Supply an explicit comparator.
 - Modulo follows the dividend sign. Use `((x % n) + n) % n` when a positive

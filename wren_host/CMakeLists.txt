@@ -115,7 +115,7 @@ if(BUILD_TESTING)
 
 	add_executable(st_wren_picker_test tests/st_wren_picker_test.c)
 	target_link_libraries(st_wren_picker_test PRIVATE st_wren_host
-		st_wren_vm syncterm_filesystem syncterm_path)
+		st_wren_vm syncterm_filesystem syncterm_path syncterm_array_list)
 	target_compile_definitions(st_wren_picker_test PRIVATE
 		ST_WREN_PICKER_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/picker-test")
 	set_target_properties(st_wren_picker_test PROPERTIES

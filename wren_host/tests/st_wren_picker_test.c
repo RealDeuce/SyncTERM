@@ -11,6 +11,8 @@
 #include "path.h"
 #include "st_app_paths.h"
 #include "st_console.h"
+#include "console_internal.h"
+#include "io_error.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,6 +31,12 @@
 } while (0)
 
 static int
+fail_menu_present(st_console_t *console)
+{
+	return console == console->display->backend_state ? IO_ERROR_IO : 0;
+}
+
+static int
 write_file(const char *path, const char *contents)
 {
 	FILE *stream = fopen(path, "wb");
@@ -43,6 +51,29 @@ write_file(const char *path, const char *contents)
 	return fclose(stream);
 }
 
+static int
+write_startup_probe(const char *path)
+{
+	for (const struct st_embedded_script *script = st_wren_embedded_scripts;
+	    script->name != NULL; ++script) {
+		if (strcmp(script->name, "file_picker") != 0)
+			continue;
+		FILE *stream = fopen(path, "wb");
+		int status;
+
+		if (stream == NULL)
+			return -1;
+		status = fputs(script->source, stream);
+		if (status >= 0)
+			status = fputs("\nScreen.window.position = [1, 1]\n"
+			    "Screen.window.print(\"S\")\n", stream);
+		if (fclose(stream) != 0)
+			return -1;
+		return status < 0 ? -1 : 0;
+	}
+	return -1;
+}
+
 int
 main(void)
 {
@@ -50,13 +81,13 @@ main(void)
 	char shared[sizeof(ST_WREN_PICKER_TEST_DIRECTORY) + 32];
 	char settings[sizeof(ST_WREN_PICKER_TEST_DIRECTORY) + 32];
 	char scripts[sizeof(ST_WREN_PICKER_TEST_DIRECTORY) + 32];
+	char startup[sizeof(ST_WREN_PICKER_TEST_DIRECTORY) + 64];
 	char picked[sizeof(ST_WREN_PICKER_TEST_DIRECTORY) + 32];
 	char *expected = NULL;
 	struct st_app_paths paths = {0};
 	struct st_console_config console_config = {
 		.columns = 80,
 		.rows = 25,
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
 		.wrap = true,
 	};
 	const struct st_console_display_config display_config = {
@@ -95,6 +126,9 @@ main(void)
 	    ST_WREN_PICKER_TEST_DIRECTORY);
 	(void)snprintf(picked, sizeof(picked), "%s/alpha.txt",
 	    ST_WREN_PICKER_TEST_DIRECTORY);
+	CHECK(fs_create_directories(scripts) == 0);
+	(void)snprintf(startup, sizeof(startup), "%s/file_picker.wren", scripts);
+	CHECK(write_startup_probe(startup) == 0);
 	CHECK(write_file(personal, "") == 0);
 	CHECK(write_file(shared, "") == 0);
 	CHECK(write_file(picked, "picked\n") == 0);
@@ -123,6 +157,49 @@ main(void)
 	CHECK(st_wren_host_create(&public_host, &host_config) == 0);
 	CHECK(st_console_write_cells(console, &marker_rect, &marker, 1) == 0);
 	host = public_host;
+	{
+		const struct st_console_rect origin = {0, 0, 1, 1};
+		struct st_console_cell cell;
+
+		CHECK(st_console_read_cells(picker_console, &origin, &cell, 1) == 0);
+		CHECK(cell.codepoint == 'S');
+		CHECK(st_console_read_cells(console, &origin, &cell, 1) == 0);
+		CHECK(cell.codepoint != 'S');
+	}
+	/* Both VMs keep their own context even when their console is inactive. */
+	CHECK(st_wren_context_from_vm(host->vm) == &host->menu);
+	CHECK(st_wren_context_from_vm(host->picker_vm) == &host->picker);
+	CHECK(wrenInterpret(host->picker_vm, "picker_context_probe",
+	    "import \"syncterm\" for Screen, ScreenFonts, Input\n"
+	    "Screen.window.position = [1, 1]\n"
+	    "Screen.window.print(\"P\")\n"
+	    "ScreenFonts[1] = 3\n"
+	    "Input.mouseEvents = 1\n") == WREN_RESULT_SUCCESS);
+	CHECK(host->picker.fonts.slots[1] == 3);
+	CHECK(host->menu.fonts.slots[1] != 3);
+	CHECK(host->picker.mouse_events == 1);
+	CHECK(host->menu.mouse_events == 0);
+	{
+		const struct st_console_rect origin = {0, 0, 1, 1};
+		struct st_console_cell cell;
+
+		CHECK(st_console_read_cells(picker_console, &origin, &cell, 1) == 0);
+		CHECK(cell.codepoint == 'P');
+		CHECK(st_console_read_cells(console, &origin, &cell, 1) == 0);
+		CHECK(cell.codepoint != 'P');
+	}
+	CHECK(st_console_display_activate(display, picker_console) == 0);
+	CHECK(wrenInterpret(host->vm, "menu_context_probe",
+	    "import \"syncterm\" for Screen, ScreenFonts, Input\n"
+	    "Screen.window.position = [1, 1]\n"
+	    "Screen.window.print(\"M\")\n"
+	    "ScreenFonts[1] = 4\n"
+	    "Input.mouseEvents = 2\n") == WREN_RESULT_SUCCESS);
+	CHECK(host->menu.fonts.slots[1] == 4);
+	CHECK(host->picker.fonts.slots[1] == 3);
+	CHECK(host->menu.mouse_events == 2);
+	CHECK(host->picker.mouse_events == 1);
+	CHECK(st_console_display_activate(display, console) == 0);
 	call = (struct st_wren_picker_call){
 		.mode = ST_WREN_PICKER_FILE,
 		.title = "Pick",
@@ -174,6 +251,37 @@ main(void)
 	CHECK(st_wren_picker_host_run(host, &call));
 	CHECK(call.path_count == 0 && call.completed);
 	st_wren_picker_call_dispose(&call);
+	{
+		const struct st_console_backend_ops failing = {
+			.present = fail_menu_present,
+		};
+		const struct st_console_backend_ops *saved_ops = display->backend_ops;
+		void *saved_state = display->backend_state;
+		st_console_t *active = NULL;
+
+		call = (struct st_wren_picker_call){
+			.mode = ST_WREN_PICKER_FILE,
+			.title = "Restore failure",
+			.initial_path = ST_WREN_PICKER_TEST_DIRECTORY,
+			.mask = "alpha.txt",
+		};
+		CHECK(st_console_post_event(picker_console, &escape) == 0);
+		display->backend_ops = &failing;
+		display->backend_state = console;
+		CHECK(!st_wren_picker_host_run(host, &call));
+		CHECK(strstr(host->last_error, "Cannot restore the menu console") != NULL);
+		CHECK(st_console_display_active(display, &active) == 0);
+		CHECK(active == picker_console);
+		st_wren_picker_call_dispose(&call);
+		CHECK(st_console_post_event(picker_console, &escape) == 0);
+		CHECK(wrenInterpret(host->vm, "picker_restore_error",
+		    "import \"syncterm\" for Host\n"
+		    "Host.pickFile(\".\", \"*\", 0)\n") == WREN_RESULT_RUNTIME_ERROR);
+		CHECK(strstr(host->last_error, "Cannot restore the menu console") != NULL);
+		display->backend_ops = saved_ops;
+		display->backend_state = saved_state;
+		CHECK(st_console_display_activate(display, console) == 0);
+	}
 	st_wren_host_destroy(public_host);
 	st_console_destroy(picker_console);
 	st_console_destroy(console);

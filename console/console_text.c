@@ -365,11 +365,12 @@ st_console_set_aspect_ratio(st_console_t *console, uint32_t width,
 		result = 0;
 		if (console->pixels != NULL
 		    && st_console_display_active_console(console) == console
-		    && console->backend_ops != NULL
-		    && console->backend_ops->resize != NULL) {
+		    && console->display->backend_ops != NULL
+		    && console->display->backend_ops->resize != NULL) {
 			(void)st_mutex_lock(&console->display->backend_mutex);
 			if (st_console_display_active_console(console) == console)
-				result = console->backend_ops->resize(console,
+				result = console->display->backend_failed ? IO_ERROR_IO
+				    : console->display->backend_ops->resize(console,
 				    console->columns, console->rows);
 			(void)st_mutex_unlock(&console->display->backend_mutex);
 		}

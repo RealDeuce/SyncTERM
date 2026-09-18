@@ -237,12 +237,7 @@ struct st_console_config {
 	uint32_t pixel_height;
 	/* A zero range selects the console's generic cell-height default. */
 	struct st_console_custom_cursor default_cursor;
-	/* Used by the single-console st_console_create() convenience path. */
-	enum st_console_backend backend;
-	/* Selects how a text-terminal backend represents cell characters. */
-	enum st_console_text_presentation text_presentation;
 	bool wrap;
-	const struct st_console_ansi_io *ansi_io;
 	enum st_console_blink_mode blink_mode;
 	enum st_console_scaling_mode scaling_mode;
 	/* Zero initialization selects SyncTERM's traditional blocky default. */
@@ -250,18 +245,20 @@ struct st_console_config {
 	/* Zero in either member selects the native bitmap aspect ratio. */
 	uint32_t aspect_width;
 	uint32_t aspect_height;
+};
+
+/* Physical output settings shared by every console on one display. */
+struct st_console_display_config {
+	enum st_console_backend backend;
+	/* Selects how a text-terminal backend represents cell characters. */
+	enum st_console_text_presentation text_presentation;
+	/* Copied at display creation; callback and context must outlive the display. */
+	const struct st_console_ansi_io *ansi_io;
 	/* Zero selects one-times display scaling.  Values below one are clamped. */
 	double initial_scaling;
 	/* Both nonzero override initial_scaling, in drawable pixel units. */
 	uint32_t initial_window_width;
 	uint32_t initial_window_height;
-};
-
-/* Physical backend selection shared by every console on one display. */
-struct st_console_display_config {
-	enum st_console_backend backend;
-	enum st_console_text_presentation text_presentation;
-	const struct st_console_ansi_io *ansi_io;
 };
 
 enum st_console_event_type {
@@ -373,8 +370,11 @@ struct st_console_event {
 #define ST_CONSOLE_CAP_OPEN_URL          (UINT32_C(1) << 10)
 #define ST_CONSOLE_CAP_LOCAL_CONTROL_KEYS (UINT32_C(1) << 11)
 
-/* result is unchanged on failure. */
+/* Single-console convenience constructor; owns its display.  result is
+ * unchanged on failure.  Use an explicit display for multiple consoles.
+ */
 int st_console_create(st_console_t **result,
+	const struct st_console_display_config *display_config,
 	const struct st_console_config *config);
 /*
  * Explicit multi-console lifecycle.  The display must outlive every console
@@ -385,11 +385,26 @@ int st_console_display_create(st_console_display_t **result,
 void st_console_display_destroy(st_console_display_t *display);
 int st_console_create_on_display(st_console_t **result,
 	st_console_display_t *display, const struct st_console_config *config);
+/* Activation includes full presentation.  Failure restores the previous
+ * console's backend state.  If restoration also fails, backend operations
+ * return IO_ERROR_IO until a later activation succeeds.  Input continues to
+ * target the previous selection until a switch succeeds.
+ */
 int st_console_display_activate(st_console_display_t *display,
 	st_console_t *console);
+/* Returns a borrowed selection, or NULL for an empty display.  The caller
+ * must coordinate destruction; this query does not extend console lifetime.
+ */
 int st_console_display_active(st_console_display_t *display,
 	st_console_t **console);
-/* The caller must prevent new operations and let active operations return. */
+/* The caller must prevent new operations on this console and let its active
+ * calls return.  The library drains its own presentation and input references.
+ * Removing the selected console selects a remaining peer; if that fails, the
+ * peer remains selected with backend operations suspended until activation.
+ * Display destruction requires all callers using that display to have stopped.
+ * Invalidates the caller's handle immediately.  If a failed backend cannot
+ * detach, storage is retained internally until recovery or backend shutdown.
+ */
 void st_console_destroy(st_console_t *console);
 
 int st_console_size(st_console_t *console, uint32_t *columns,
@@ -523,8 +538,12 @@ void st_console_snapshot_destroy(st_console_snapshot_t *snapshot);
  * text committed by the host input method, but not both for the same result.
  * One input-method commit may contain more than one text event.
  */
+/* Target this console's queue, even when inactive. */
 int st_console_post_event(st_console_t *console,
 	const struct st_console_event *event);
+/* Host input targets whichever console is active when delivery is locked.
+ * Physical-key state belongs to the display with either posting entry point.
+ */
 int st_console_display_post_event(st_console_display_t *display,
 	const struct st_console_event *event);
 int st_console_event_try(st_console_t *console,
@@ -557,10 +576,13 @@ int st_console_display_open_url(st_console_display_t *display,
 int st_console_display_set_fullscreen(st_console_display_t *display,
 	bool fullscreen);
 
-/* Libretro's run callback pulls a stable completed frame from its backend. */
-int st_console_libretro_frame_size(st_console_t *console, uint32_t *width,
-	uint32_t *height);
-int st_console_libretro_frame_copy(st_console_t *console,
-	uint32_t *destination, size_t destination_stride);
+/* Libretro pulls the display's last completed frame, not a logical console.
+ * Size is advisory: a switch may change it before copy.  Copy validates both
+ * destination dimensions and leaves the destination untouched if too small.
+ */
+int st_console_display_libretro_frame_size(st_console_display_t *display,
+	uint32_t *width, uint32_t *height);
+int st_console_display_libretro_frame_copy(st_console_display_t *display,
+	uint32_t *destination, size_t destination_stride, size_t destination_rows);
 
 #endif

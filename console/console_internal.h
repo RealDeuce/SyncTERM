@@ -23,37 +23,54 @@ struct st_console_font_registration {
 struct st_console_backend_ops {
 	bool presents_pixels;
 	bool deferred_present;
+	/* Per-console preparation; must not change the physical display. */
+	int (*attach)(st_console_t *console);
 	int (*present)(st_console_t *console);
 	int (*resize)(st_console_t *console, uint32_t columns, uint32_t rows);
 	int (*palette_changed)(st_console_t *console, uint16_t first,
 	    uint16_t count);
-	int (*set_title)(st_console_t *console, const char *title);
-	int (*set_clipboard_text)(st_console_t *console, const char *text);
-	int (*get_clipboard_text)(st_console_t *console, char **result);
-	int (*open_url)(st_console_t *console, const char *url);
-	int (*set_pointer_visible)(st_console_t *console, bool visible);
-	int (*set_fullscreen)(st_console_t *console, bool fullscreen);
-	void (*activate)(st_console_t *console);
-	void (*destroy)(st_console_t *console);
+	int (*set_title)(st_console_display_t *display, const char *title);
+	int (*set_clipboard_text)(st_console_display_t *display, const char *text);
+	int (*get_clipboard_text)(st_console_display_t *display, char **result);
+	int (*open_url)(st_console_display_t *display, const char *url);
+	int (*set_pointer_visible)(st_console_display_t *display, bool visible);
+	int (*set_fullscreen)(st_console_display_t *display, bool fullscreen);
+	/* Synchronously transfer the backend thread's retained console pointer. */
+	int (*activate)(st_console_t *console);
+	void (*destroy)(st_console_display_t *display);
 };
 
 struct st_console_display {
+	/* Serializes attachment, activation, and removal, before console locks. */
+	st_mutex_t lifecycle_mutex;
 	st_mutex_t backend_mutex;
 	st_mutex_t input_mutex;
 	st_mutex_t presentation_mutex;
 	st_condition_t presentation_ready;
 	st_thread_t presentation_thread;
+	/* Pinned by the worker under presentation_mutex until a frame finishes. */
+	st_console_t *presentation_active;
 	_Atomic(st_console_t *) active;
+	/* Published selection; unchanged until activation finishes successfully. */
+	_Atomic(st_console_t *) input_active;
 	st_console_t *consoles;
+	/* Removed consoles retained while a failed backend may still reference them. */
+	st_console_t *retired_consoles;
 	struct st_console_display_config config;
+	struct st_console_ansi_io ansi_io;
+	uint32_t initial_window_width;
+	uint32_t initial_window_height;
 	const struct st_console_backend_ops *backend_ops;
 	void *backend_state;
 	enum st_console_backend backend;
 	uint8_t physical_keys[(UINT16_MAX + 1U) / 8U];
 	size_t console_count;
 	bool backend_initialized;
+	/* Backend state could not be restored; only activation may recover it. */
+	bool backend_failed;
 	bool presentation_thread_started;
 	bool presentation_requested;
+	bool repaint_requested;
 	bool presentation_stop;
 };
 
@@ -116,18 +133,12 @@ struct st_console {
 	bool blocky_scaling;
 	uint32_t aspect_width;
 	uint32_t aspect_height;
-	uint32_t initial_window_width;
-	uint32_t initial_window_height;
 	bool changed;
 	bool pixel_surface_dirty;
 	struct st_console_event *events;
 	size_t event_capacity;
 	size_t event_head;
 	size_t event_count;
-	enum st_console_backend backend;
-	enum st_console_text_presentation text_presentation;
-	const struct st_console_backend_ops *backend_ops;
-	void *backend_state;
 	char *title;
 	bool pointer_visible;
 };
@@ -206,6 +217,7 @@ void st_console_quartz_pump(void);
 int st_console_present_locked(st_console_t *console, bool forced);
 st_console_t *st_console_display_active_console(st_console_t *console);
 int st_console_start_presentation_worker(st_console_t *console);
+void st_console_display_request_repaint(st_console_display_t *display);
 void st_console_mark_all_locked(st_console_t *console);
 bool st_console_rect_valid(const st_console_t *console,
 	const struct st_console_rect *rect);
@@ -249,21 +261,33 @@ typedef int (*st_console_bitmap_upload_t)(void *context,
 int st_console_aspect_correct_size(uint32_t source_width,
 	uint32_t source_height, uint32_t aspect_width, uint32_t aspect_height,
 	uint32_t *width, uint32_t *height);
+int st_console_bitmap_validate_geometry(const st_console_t *console,
+	uint32_t maximum_dimension);
 int st_console_scaled_window_size(uint32_t source_width,
 	uint32_t source_height, uint32_t aspect_width, uint32_t aspect_height,
 	double scaling, uint32_t *width, uint32_t *height);
-int st_console_snap_window_size(st_console_t *console,
+/* Geometry represented by the current window size, independent of selection. */
+struct st_console_bitmap_geometry {
+	uint32_t width, height;
+	uint32_t aspect_width, aspect_height;
+};
+int st_console_snap_geometry_size(const struct st_console_bitmap_geometry *geometry,
 	uint32_t current_width, uint32_t current_height, bool larger,
 	uint32_t maximum_width, uint32_t maximum_height,
 	uint32_t *width, uint32_t *height);
-int st_console_preserve_window_scale(const st_console_t *console,
-	uint32_t source_width, uint32_t source_height, uint32_t current_width,
-	uint32_t current_height, uint32_t *width, uint32_t *height,
+int st_console_preserve_geometry_scale(
+	const struct st_console_bitmap_geometry *previous,
+	const struct st_console_bitmap_geometry *next,
+	uint32_t current_width, uint32_t current_height,
+	uint32_t *width, uint32_t *height,
 	uint32_t *minimum_width, uint32_t *minimum_height);
 int st_console_bitmap_presenter_create(
 	struct st_console_bitmap_presenter **result, const st_console_t *console);
 void st_console_bitmap_presenter_destroy(
 	struct st_console_bitmap_presenter *presenter);
+/* Set before the first frame; unavailable acceleration uses software scaling. */
+void st_console_bitmap_presenter_set_external_scaling_available(
+	struct st_console_bitmap_presenter *presenter, bool available);
 /* console may be NULL for a timer tick or host-only resize. */
 int st_console_bitmap_presenter_frame(
 	struct st_console_bitmap_presenter *presenter,
