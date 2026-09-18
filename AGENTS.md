@@ -176,6 +176,13 @@ MSVC and MinGW, and POSIX builds clean with the supported GCC and Clang
 toolchains, while avoiding compiler-specific language extensions in portable
 C.
 
+## Version control
+
+When requested work is complete and its relevant verification has passed,
+commit the complete change without waiting for a separate request. Do not
+commit incomplete work merely as a checkpoint. Never push commits or otherwise
+publish changes unless explicitly requested.
+
 ## Source conventions
 
 When extracting legacy code, preserve its dominant style unless the same
