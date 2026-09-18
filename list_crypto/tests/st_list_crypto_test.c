@@ -434,6 +434,40 @@ test_legacy_decoders(void)
 	return true;
 }
 
+static bool
+test_counted_password(void)
+{
+	static const unsigned char password[] = {'a', 0, 'b'};
+	struct st_list_crypto_options options = ST_LIST_CRYPTO_OPTIONS_AES256;
+	ini_document_t *document = NULL;
+	ini_document_t *read = NULL;
+	FILE *stream = tmpfile();
+	int status;
+
+	CHECK(stream != NULL);
+	options.cost_log2 = 8;
+	CHECK(ini_document_create(&document) == 0);
+	status = st_list_crypto_write(stream, document, &options,
+	    password, sizeof(password));
+	if (status == IO_ERROR_NOT_SUPPORTED) {
+		ini_document_free(&document);
+		fclose(stream);
+		return true;
+	}
+	CHECK(status == 0);
+	CHECK(fflush(stream) == 0);
+	CHECK(st_list_crypto_read(&read, stream, password, 1, 0, NULL)
+	    == IO_ERROR_DECRYPTION_FAILED);
+	CHECK(read == NULL);
+	CHECK(st_list_crypto_read(&read, stream, password, sizeof(password),
+	    0, NULL) == 0);
+	CHECK(ini_section_get_bool(ini_document_root(read), "DecryptionCheck", false));
+	ini_document_free(&read);
+	ini_document_free(&document);
+	CHECK(fclose(stream) == 0);
+	return true;
+}
+
 int
 main(void)
 {
@@ -443,7 +477,8 @@ main(void)
 	    || !round_trip(ST_LIST_CIPHER_CHACHA20, 256)
 	    || !round_trip(ST_LIST_CIPHER_CHACHA20, 0)
 	    || !test_invalid() || !test_header_variants() || !test_known_files()
-	    || !test_v1_ciphers() || !test_legacy_decoders())
+	    || !test_v1_ciphers() || !test_legacy_decoders()
+	    || !test_counted_password())
 		return EXIT_FAILURE;
 	return EXIT_SUCCESS;
 }
