@@ -362,10 +362,17 @@ st_console_set_aspect_ratio(st_console_t *console, uint32_t width,
 		old_height = console->aspect_height;
 		console->aspect_width = width;
 		console->aspect_height = height;
-		result = console->pixels != NULL && console->backend_ops != NULL
-		    && console->backend_ops->resize != NULL
-		    ? console->backend_ops->resize(console, console->columns,
-		    console->rows) : 0;
+		result = 0;
+		if (console->pixels != NULL
+		    && st_console_display_active_console(console) == console
+		    && console->backend_ops != NULL
+		    && console->backend_ops->resize != NULL) {
+			(void)st_mutex_lock(&console->display->backend_mutex);
+			if (st_console_display_active_console(console) == console)
+				result = console->backend_ops->resize(console,
+				    console->columns, console->rows);
+			(void)st_mutex_unlock(&console->display->backend_mutex);
+		}
 		if (result != 0) {
 			console->aspect_width = old_width;
 			console->aspect_height = old_height;

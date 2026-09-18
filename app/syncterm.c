@@ -78,9 +78,13 @@ main(int argc, char **argv)
 	struct st_app_path_overrides overrides = {0};
 	struct st_app_paths paths = {0};
 	struct st_console_startup startup;
+	struct st_console_display_config display_config;
+	struct st_console_config picker_config;
 	struct st_wren_host_config host_config;
 	struct st_profile selected;
 	st_console_t *console = NULL;
+	st_console_t *picker_console = NULL;
+	st_console_display_t *display = NULL;
 	uint16_t default_font;
 	const struct st_console_font *application_font;
 	st_wren_host_t *host = NULL;
@@ -129,7 +133,15 @@ main(int argc, char **argv)
 		fprintf(stderr, "SyncTERM: invalid console settings (%d)\n", status);
 		goto finished;
 	}
-	status = st_console_create(&console, &startup.config);
+	display_config = (struct st_console_display_config){
+		.backend = startup.config.backend,
+		.text_presentation = startup.config.text_presentation,
+		.ansi_io = startup.config.ansi_io,
+	};
+	status = st_console_display_create(&display, &display_config);
+	if (status == 0)
+		status = st_console_create_on_display(&console, display,
+		    &startup.config);
 	if (status != 0) {
 		fprintf(stderr, "SyncTERM: cannot initialize the console (%d)\n",
 		    status);
@@ -153,7 +165,22 @@ main(int argc, char **argv)
 		fprintf(stderr, "SyncTERM: default font identifier conflict\n");
 		goto finished;
 	}
+	picker_config = startup.config;
+	status = st_console_size(console, &picker_config.columns,
+	    &picker_config.rows);
+	if (status == 0)
+		status = st_console_create_on_display(&picker_console, display,
+		    &picker_config);
+	if (status == 0)
+		status = st_console_register_static_font(picker_console,
+		    application_font, &default_font);
+	if (status != 0 || default_font != 0) {
+		fprintf(stderr, "SyncTERM: cannot initialize the picker console (%d)\n",
+		    status == 0 ? IO_ERROR_CONFLICT : status);
+		goto finished;
+	}
 	(void)st_console_set_title(console, application_title);
+	(void)st_console_set_title(picker_console, application_title);
 	if (startup.fullscreen) {
 		status = st_console_set_fullscreen(console, true);
 		if (status != 0) {
@@ -163,7 +190,9 @@ main(int argc, char **argv)
 		}
 	}
 	host_config = (struct st_wren_host_config){
+		.display = display,
 		.console = console,
+		.picker_console = picker_console,
 		.paths = &paths,
 		.application_title = application_title,
 		.launch_script = command.wren_script,
@@ -203,7 +232,9 @@ finished:
 	if (profile_initialized)
 		st_profile_dispose(&selected);
 	st_wren_host_destroy(host);
+	st_console_destroy(picker_console);
 	st_console_destroy(console);
+	st_console_display_destroy(display);
 	if (settings_loaded)
 		st_settings_shutdown();
 	st_app_paths_dispose(&paths);

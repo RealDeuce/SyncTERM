@@ -17,12 +17,17 @@ belong to a higher-level user-interface component.  Terminal parsing and
 emulation are also separate; CTerm consumes a connection's byte stream and
 writes the resulting cells and pixels through this interface.
 
-An application may create more than one console when the selected backends
-can provide independent displays.  Each instance has its own cells, palettes,
-fonts, event queue, cursor, update state, and backend resources.  The ncurses
-API and native Win32 text console use process-global facilities and therefore
-permit only one live instance.  This restriction does not make the public API
-a singleton.
+An application may attach multiple logical consoles to one
+`st_console_display_t`.  The display owns the physical backend, window or host
+terminal, presentation worker, and physical-key state.  Each `st_console_t`
+retains its own cells, pixels, palette, fonts, cursor, dimensions, title,
+pointer preference, update state, and ordered input queue.  Exactly one console
+is active on a display at a time.
+
+`st_console_display_activate()` synchronously applies the selected console's
+retained mode and state and completes a full presentation.  Inactive consoles
+can be updated and rasterized without invoking backend callbacks.  Events stay
+queued on whichever console was active when they arrived.
 
 Public operations on a live instance may be called concurrently.  Read-only
 state queries share a reader lock; mutations, presentation, and backend
@@ -336,7 +341,9 @@ than synchronously scaling and crossing into the window system each time.
 `st_console_begin_update()` and `st_console_end_update()` provide explicit,
 nestable batching.  The outermost end makes the batch eligible for normal
 presentation.  `st_console_present()` is a synchronous forced boundary even
-inside a batch.  Text backends remain synchronous so failures can be returned.
+inside a batch.  On an inactive console it drains only the retained off-screen
+state and does not invoke the display backend.  Text backends remain
+synchronous so failures can be returned.
 
 Snapshot creation is a drain boundary: pending changes are handed to the
 backend and live dirty flags are consumed before the copy.  A snapshot retains
@@ -347,15 +354,16 @@ instance resources and are not copied.
 
 == Input Events
 
-Each instance has one ordered event queue.  Translated keys, physical keys,
+Each logical console has one ordered event queue.  Translated keys, physical keys,
 committed text, DoorWay scan codes, mouse actions, resize, focus, and close are
 distinct event types.  Backends post only semantics they actually receive.
 
 Normalized non-text keys use `ST_CONSOLE_KEY_*`; ASCII controls retain their
 byte values.  Physical events carry evdev-style identity, modifiers,
-press/release, and repeat state.  Focus loss queues releases for every held
-key before the focus event and clears the held set.  Clearing queued events
-does not alter held state.
+press/release, and repeat state.  Held physical-key state belongs to the
+display.  Focus loss queues releases on the active console before the focus
+event and clears the display's held set.  Clearing queued events does not alter
+held state.
 
 X11 committed text comes from its UTF-8 input context, preserving layouts,
 dead keys, compose processing, and external input methods.  Wayland uses
@@ -377,10 +385,11 @@ maximization, and fullscreen.  Wayland also consumes Alt+left-drag for
 interactive movement.  These commands are not also delivered as application
 keys.
 
-Title, clipboard, URL, pointer visibility, and fullscreen are console methods
-because the instance represents the host display connection as well as its
-cell grid.  Each operation independently returns `IO_ERROR_NOT_SUPPORTED`
-when unavailable.  Backend-returned text is released with
+Title and pointer visibility are retained per console and restored on
+activation.  Clipboard, URL, and fullscreen operations belong to the physical
+display; the single-console convenience calls forward to that display.  Each
+operation independently returns `IO_ERROR_NOT_SUPPORTED` when unavailable.
+Backend-returned text is released with
 `st_console_free_text()` so allocation does not cross the library boundary.
 
 Unresolved host capability detection is documented in

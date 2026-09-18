@@ -65,6 +65,14 @@ struct st_wren_picker_call {
 	enum st_wren_picker_disposition disposition;
 };
 
+struct st_wren_font_state {
+	size_t loaded_count;
+	uint16_t catalog[UINT8_MAX + 1U];
+	bool catalog_valid[UINT8_MAX + 1U];
+	uint16_t selector_by_identifier[UINT16_MAX + 1U];
+	uint16_t slots[5];
+};
+
 struct st_wren_picker_entry {
 	char *name;
 	bool directory;
@@ -107,14 +115,12 @@ struct st_wren_host {
 	bool web_lists_dirty;
 	bool fonts_dirty;
 	uint64_t font_generation;
-	size_t loaded_font_count;
-	uint16_t font_catalog[UINT8_MAX + 1U];
-	bool font_catalog_valid[UINT8_MAX + 1U];
-	uint16_t font_selector_by_identifier[UINT16_MAX + 1U];
+	struct st_wren_font_state menu_fonts;
+	struct st_wren_font_state picker_fonts;
+	struct st_wren_font_state *fonts;
 	struct st_profile selected;
 	uint32_t mouse_events;
 	uint32_t mouse_buttons;
-	uint16_t font_slots[5];
 	struct st_theme_manager *themes;
 	char last_error[512];
 };
@@ -153,5 +159,6 @@ bool st_wren_font_identifier(struct st_wren_host *host, uint16_t selector,
 	uint16_t *identifier);
 uint16_t st_wren_font_selector(struct st_wren_host *host,
 	uint16_t identifier);
+void st_wren_select_picker_font_state(struct st_wren_host *host, bool picker);
 
 #endif

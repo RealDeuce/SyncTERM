@@ -16,6 +16,7 @@
 #include <SDL.h>
 #include <limits.h>
 #include <stdbool.h>
+#include <stdatomic.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -117,7 +118,7 @@ struct sdl_api {
 };
 
 struct sdl_state {
-	st_console_t *console;
+	_Atomic(st_console_t *) console;
 	SDL_Window *window;
 	SDL_Renderer *renderer;
 	SDL_Texture *texture;
@@ -141,6 +142,14 @@ struct sdl_state {
 	bool maximized;
 	struct sdl_state *next;
 };
+
+static void
+sdl_activate(st_console_t *console)
+{
+	struct sdl_state *state = console->backend_state;
+
+	state->console = console;
+}
 
 enum sdl_command_type {
 	SDL_COMMAND_CREATE,
@@ -1450,6 +1459,7 @@ static const struct st_console_backend_ops sdl_ops = {
 	.open_url = sdl_open_url,
 	.set_pointer_visible = sdl_set_pointer,
 	.set_fullscreen = sdl_set_fullscreen,
+	.activate = sdl_activate,
 	.destroy = sdl_destroy,
 };
 

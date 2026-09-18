@@ -10,6 +10,7 @@
 #include "st_time.h"
 #include "st_utf8.h"
 #include "st_unicode_width.h"
+#include "string_compat.h"
 
 #include <limits.h>
 #include <stdio.h>
@@ -124,37 +125,40 @@ initialize_cells(st_console_t *console, struct st_console_cell *cells,
 static int
 presentation_worker(void *argument)
 {
-	st_console_t *console = argument;
+	st_console_display_t *display = argument;
 
 	for (;;) {
 		struct timespec deadline;
+		st_console_t *console;
 		int status;
 
-		(void)st_mutex_lock(&console->presentation_mutex);
-		while (!console->presentation_requested
-		    && !console->presentation_stop)
-			(void)st_condition_wait(&console->presentation_ready,
-			    &console->presentation_mutex);
-		if (console->presentation_stop) {
-			(void)st_mutex_unlock(&console->presentation_mutex);
+		(void)st_mutex_lock(&display->presentation_mutex);
+		while (!display->presentation_requested
+		    && !display->presentation_stop)
+			(void)st_condition_wait(&display->presentation_ready,
+			    &display->presentation_mutex);
+		if (display->presentation_stop) {
+			(void)st_mutex_unlock(&display->presentation_mutex);
 			break;
 		}
 		if (st_time_utc_deadline_after_ms(&deadline, 10) == 0) {
 			do {
 				status = st_condition_timedwait(
-				    &console->presentation_ready,
-				    &console->presentation_mutex, &deadline);
-			} while (!console->presentation_stop
+				    &display->presentation_ready,
+				    &display->presentation_mutex, &deadline);
+			} while (!display->presentation_stop
 			    && status == ST_THREAD_SUCCESS);
 		}
-		if (console->presentation_stop) {
-			(void)st_mutex_unlock(&console->presentation_mutex);
+		if (display->presentation_stop) {
+			(void)st_mutex_unlock(&display->presentation_mutex);
 			break;
 		}
-		console->presentation_requested = false;
-		(void)st_mutex_unlock(&console->presentation_mutex);
+		display->presentation_requested = false;
+		(void)st_mutex_unlock(&display->presentation_mutex);
 
-		if (st_rwlock_write_lock(&console->state_lock)
+		console = atomic_load_explicit(&display->active,
+		    memory_order_acquire);
+		if (console != NULL && st_rwlock_write_lock(&console->state_lock)
 		    == ST_THREAD_SUCCESS) {
 			(void)st_console_present_locked(console, false);
 			(void)st_rwlock_unlock(&console->state_lock);
@@ -166,66 +170,73 @@ presentation_worker(void *argument)
 int
 st_console_start_presentation_worker(st_console_t *console)
 {
+	st_console_display_t *display = console->display;
 	int status;
 
-	if (console->backend_ops == NULL
-	    || !console->backend_ops->deferred_present)
+	if (display->backend_ops == NULL
+	    || !display->backend_ops->deferred_present)
 		return 0;
-	status = st_mutex_init(&console->presentation_mutex, ST_MUTEX_PLAIN);
+	status = st_mutex_init(&display->presentation_mutex, ST_MUTEX_PLAIN);
 	if (status != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
-	status = st_condition_init(&console->presentation_ready);
+	status = st_condition_init(&display->presentation_ready);
 	if (status != ST_THREAD_SUCCESS) {
-		st_mutex_destroy(&console->presentation_mutex);
+		st_mutex_destroy(&display->presentation_mutex);
 		return IO_ERROR_IO;
 	}
-	console->presentation_requested = true;
-	status = st_thread_create(&console->presentation_thread,
-	    presentation_worker, console);
+	display->presentation_stop = false;
+	display->presentation_requested = true;
+	status = st_thread_create(&display->presentation_thread,
+	    presentation_worker, display);
 	if (status != ST_THREAD_SUCCESS) {
-		st_condition_destroy(&console->presentation_ready);
-		st_mutex_destroy(&console->presentation_mutex);
+		st_condition_destroy(&display->presentation_ready);
+		st_mutex_destroy(&display->presentation_mutex);
 		return IO_ERROR_IO;
 	}
-	console->presentation_thread_started = true;
+	display->presentation_thread_started = true;
 	return 0;
 }
 
 static void
-stop_presentation_worker(st_console_t *console)
+stop_presentation_worker(st_console_display_t *display)
 {
-	if (!console->presentation_thread_started)
+	if (!display->presentation_thread_started)
 		return;
-	(void)st_mutex_lock(&console->presentation_mutex);
-	console->presentation_stop = true;
-	(void)st_condition_signal(&console->presentation_ready);
-	(void)st_mutex_unlock(&console->presentation_mutex);
-	(void)st_thread_join(console->presentation_thread, NULL);
-	st_condition_destroy(&console->presentation_ready);
-	st_mutex_destroy(&console->presentation_mutex);
-	console->presentation_thread_started = false;
+	(void)st_mutex_lock(&display->presentation_mutex);
+	display->presentation_stop = true;
+	(void)st_condition_signal(&display->presentation_ready);
+	(void)st_mutex_unlock(&display->presentation_mutex);
+	(void)st_thread_join(display->presentation_thread, NULL);
+	st_condition_destroy(&display->presentation_ready);
+	st_mutex_destroy(&display->presentation_mutex);
+	display->presentation_thread_started = false;
 }
 
 static int
 request_presentation_locked(st_console_t *console)
 {
+	st_console_display_t *display = console->display;
 	bool wake;
 
 	if (!console->changed || console->update_depth != 0)
 		return 0;
-	if (!console->presentation_thread_started)
+	if (atomic_load_explicit(&display->active, memory_order_acquire)
+	    != console)
+		return 0;
+	if (!display->presentation_thread_started)
 		return st_console_present_locked(console, false);
-	(void)st_mutex_lock(&console->presentation_mutex);
-	wake = !console->presentation_requested;
-	console->presentation_requested = true;
+	(void)st_mutex_lock(&display->presentation_mutex);
+	wake = !display->presentation_requested;
+	display->presentation_requested = true;
 	if (wake)
-		(void)st_condition_signal(&console->presentation_ready);
-	(void)st_mutex_unlock(&console->presentation_mutex);
+		(void)st_condition_signal(&display->presentation_ready);
+	(void)st_mutex_unlock(&display->presentation_mutex);
 	return 0;
 }
 
-int
-st_console_create(st_console_t **result, const struct st_console_config *config)
+static int
+create_console(st_console_t **result, st_console_display_t *display,
+	const struct st_console_config *config)
 {
 	st_console_t *console;
 	size_t count;
@@ -238,7 +249,9 @@ st_console_create(st_console_t **result, const struct st_console_config *config)
 	bool configured_default_cursor;
 	int status;
 
-	if (result == NULL || config == NULL
+	bool initialize_backend;
+
+	if (result == NULL || display == NULL || config == NULL
 	    || !cell_count(config->columns, config->rows, &count)
 	    || !pixel_dimensions(config->columns, config->rows,
 	    config->cell_width, config->cell_height, config->pixel_width,
@@ -248,8 +261,6 @@ st_console_create(st_console_t **result, const struct st_console_config *config)
 	    || config->blink_mode > ST_CONSOLE_BLINK_ATARI_ST
 	    || config->scaling_mode < ST_CONSOLE_SCALING_INTERNAL
 	    || config->scaling_mode > ST_CONSOLE_SCALING_EXTERNAL
-	    || config->text_presentation < ST_CONSOLE_TEXT_UNICODE
-	    || config->text_presentation > ST_CONSOLE_TEXT_ASCII
 	    || (config->scaling_policy != ST_PIXEL_SCALING_BLOCKY
 	    && config->scaling_policy != ST_PIXEL_SCALING_POINTY)
 	    || ((config->aspect_width == 0) != (config->aspect_height == 0))
@@ -291,6 +302,8 @@ st_console_create(st_console_t **result, const struct st_console_config *config)
 		return IO_ERROR_IO;
 	}
 	console->columns = config->columns;
+	console->display = display;
+	console->pointer_visible = true;
 	console->rows = config->rows;
 	console->cell_width = config->cell_width;
 	console->cell_height = config->cell_height;
@@ -359,8 +372,8 @@ st_console_create(st_console_t **result, const struct st_console_config *config)
 			}
 		}
 	}
-	console->backend = config->backend;
-	console->text_presentation = config->text_presentation;
+	console->backend = display->backend;
+	console->text_presentation = display->config.text_presentation;
 	console->changed = true;
 	initialize_palette(console->palette);
 	initialize_cells(console, console->cells, count);
@@ -385,7 +398,18 @@ st_console_create(st_console_t **result, const struct st_console_config *config)
 		}
 	}
 
-	if (config->backend == ST_CONSOLE_BACKEND_AUTO) {
+	initialize_backend = !display->backend_initialized;
+	if (!initialize_backend) {
+		console->backend_ops = display->backend_ops;
+		console->backend_state = display->backend_state;
+		console->next_display = display->consoles;
+		display->consoles = console;
+		++display->console_count;
+		*result = console;
+		return 0;
+	}
+	atomic_store_explicit(&display->active, console, memory_order_release);
+	if (display->config.backend == ST_CONSOLE_BACKEND_AUTO) {
 		status = IO_ERROR_NOT_SUPPORTED;
 #if ST_CONSOLE_HAVE_GDI
 		if (console->pixels != NULL) {
@@ -430,61 +454,68 @@ st_console_create(st_console_t **result, const struct st_console_config *config)
 		}
 		if (status != 0) {
 			console->backend = ST_CONSOLE_BACKEND_ANSI;
-			status = st_console_ansi_init(console, config->ansi_io);
+			status = st_console_ansi_init(console,
+			    display->config.ansi_io);
 		}
 	}
-	else if (config->backend == ST_CONSOLE_BACKEND_ANSI)
-		status = st_console_ansi_init(console, config->ansi_io);
-	else if (config->backend == ST_CONSOLE_BACKEND_NCURSES)
+	else if (display->config.backend == ST_CONSOLE_BACKEND_ANSI)
+		status = st_console_ansi_init(console, display->config.ansi_io);
+	else if (display->config.backend == ST_CONSOLE_BACKEND_NCURSES)
 		status = st_console_ncurses_init(console);
-	else if (config->backend == ST_CONSOLE_BACKEND_WIN32) {
+	else if (display->config.backend == ST_CONSOLE_BACKEND_WIN32) {
 #if ST_CONSOLE_HAVE_WIN32
 		status = st_console_win32_init(console);
 #else
 		status = IO_ERROR_NOT_SUPPORTED;
 #endif
 	}
-	else if (config->backend == ST_CONSOLE_BACKEND_SDL) {
+	else if (display->config.backend == ST_CONSOLE_BACKEND_SDL) {
 #if ST_CONSOLE_HAVE_SDL
 		status = st_console_sdl_init(console);
 #else
 		status = IO_ERROR_NOT_SUPPORTED;
 #endif
 	}
-	else if (config->backend == ST_CONSOLE_BACKEND_X11) {
+	else if (display->config.backend == ST_CONSOLE_BACKEND_X11) {
 #if ST_CONSOLE_HAVE_X11
 		status = st_console_x11_init(console);
 #else
 		status = IO_ERROR_NOT_SUPPORTED;
 #endif
 	}
-	else if (config->backend == ST_CONSOLE_BACKEND_WAYLAND) {
+	else if (display->config.backend == ST_CONSOLE_BACKEND_WAYLAND) {
 #if ST_CONSOLE_HAVE_WAYLAND
 		status = st_console_wayland_init(console);
 #else
 		status = IO_ERROR_NOT_SUPPORTED;
 #endif
 	}
-	else if (config->backend == ST_CONSOLE_BACKEND_GDI) {
+	else if (display->config.backend == ST_CONSOLE_BACKEND_GDI) {
 #if ST_CONSOLE_HAVE_GDI
 		status = st_console_gdi_init(console);
 #else
 		status = IO_ERROR_NOT_SUPPORTED;
 #endif
 	}
-	else if (config->backend == ST_CONSOLE_BACKEND_QUARTZ) {
+	else if (display->config.backend == ST_CONSOLE_BACKEND_QUARTZ) {
 #if ST_CONSOLE_HAVE_QUARTZ
 		status = st_console_quartz_init(console);
 #else
 		status = IO_ERROR_NOT_SUPPORTED;
 #endif
 	}
-	else if (config->backend == ST_CONSOLE_BACKEND_LIBRETRO)
+	else if (display->config.backend == ST_CONSOLE_BACKEND_LIBRETRO)
 		status = st_console_libretro_init(console);
-	else if (config->backend == ST_CONSOLE_BACKEND_HEADLESS)
+	else if (display->config.backend == ST_CONSOLE_BACKEND_HEADLESS)
 		status = 0;
 	else
 		status = IO_ERROR_NOT_SUPPORTED;
+	if (status == 0)
+		display->backend_ops = console->backend_ops;
+	if (status == 0)
+		display->backend_state = console->backend_state;
+	if (status == 0)
+		display->backend = console->backend;
 	if (status == 0)
 		status = st_console_start_presentation_worker(console);
 	if (status != 0) {
@@ -499,8 +530,95 @@ st_console_create(st_console_t **result, const struct st_console_config *config)
 		free(console->rasterized);
 		free(console->cells);
 		free(console);
+		atomic_store_explicit(&display->active, NULL,
+		    memory_order_release);
 		return status;
 	}
+	display->backend_initialized = true;
+	console->next_display = display->consoles;
+	display->consoles = console;
+	++display->console_count;
+	*result = console;
+	return 0;
+}
+
+int
+st_console_display_create(st_console_display_t **result,
+	const struct st_console_display_config *config)
+{
+	st_console_display_t *display;
+
+	if (result == NULL || config == NULL
+	    || config->backend < ST_CONSOLE_BACKEND_AUTO
+	    || config->backend > ST_CONSOLE_BACKEND_HEADLESS
+	    || config->text_presentation < ST_CONSOLE_TEXT_UNICODE
+	    || config->text_presentation > ST_CONSOLE_TEXT_ASCII)
+		return IO_ERROR_INVALID_ARGUMENT;
+	display = calloc(1, sizeof(*display));
+	if (display == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	if (st_mutex_init(&display->backend_mutex, ST_MUTEX_PLAIN)
+	    != ST_THREAD_SUCCESS) {
+		free(display);
+		return IO_ERROR_IO;
+	}
+	if (st_mutex_init(&display->input_mutex, ST_MUTEX_PLAIN)
+	    != ST_THREAD_SUCCESS) {
+		st_mutex_destroy(&display->backend_mutex);
+		free(display);
+		return IO_ERROR_IO;
+	}
+	display->config = *config;
+	display->backend = config->backend;
+	*result = display;
+	return 0;
+}
+
+void
+st_console_display_destroy(st_console_display_t *display)
+{
+	if (display == NULL)
+		return;
+	if (display->console_count != 0) {
+		fprintf(stderr, "st_console_display_destroy: consoles still attached\n");
+		return;
+	}
+	st_mutex_destroy(&display->input_mutex);
+	st_mutex_destroy(&display->backend_mutex);
+	free(display);
+}
+
+int
+st_console_create_on_display(st_console_t **result,
+	st_console_display_t *display, const struct st_console_config *config)
+{
+	return create_console(result, display, config);
+}
+
+int
+st_console_create(st_console_t **result, const struct st_console_config *config)
+{
+	struct st_console_display_config display_config;
+	st_console_display_t *display;
+	st_console_t *console;
+	int status;
+
+	if (result == NULL || config == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	display_config = (struct st_console_display_config){
+		.backend = config->backend,
+		.text_presentation = config->text_presentation,
+		.ansi_io = config->ansi_io,
+	};
+	status = st_console_display_create(&display, &display_config);
+	if (status != 0)
+		return status;
+	status = create_console(&console, display, config);
+	if (status != 0) {
+		st_console_display_destroy(display);
+		return status;
+	}
+	console->owns_display = true;
 	*result = console;
 	return 0;
 }
@@ -509,10 +627,72 @@ int
 st_console_get_backend(st_console_t *console,
 	enum st_console_backend *backend)
 {
-	if (console == NULL || backend == NULL)
+	return console == NULL ? IO_ERROR_INVALID_ARGUMENT
+	    : st_console_display_get_backend(console->display, backend);
+}
+
+int
+st_console_display_get_backend(st_console_display_t *display,
+	enum st_console_backend *backend)
+{
+	if (display == NULL || backend == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	*backend = console->backend;
+	*backend = display->backend;
 	return 0;
+}
+
+int
+st_console_display_activate(st_console_display_t *display,
+	st_console_t *console)
+{
+	st_console_t *previous;
+	int status = 0;
+
+	if (display == NULL || console == NULL || console->display != display
+	    || !display->backend_initialized)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (st_rwlock_write_lock(&console->state_lock) != ST_THREAD_SUCCESS)
+		return IO_ERROR_IO;
+	if (st_mutex_lock(&display->backend_mutex) != ST_THREAD_SUCCESS) {
+		(void)st_rwlock_unlock(&console->state_lock);
+		return IO_ERROR_IO;
+	}
+	previous = atomic_load_explicit(&display->active, memory_order_acquire);
+	console->backend_ops = display->backend_ops;
+	console->backend_state = display->backend_state;
+	if (display->backend_ops != NULL
+	    && display->backend_ops->activate != NULL)
+		display->backend_ops->activate(console);
+	atomic_store_explicit(&display->active, console, memory_order_release);
+	if (previous != console && display->backend_ops != NULL
+	    && display->backend_ops->resize != NULL)
+		status = display->backend_ops->resize(console, console->columns,
+		    console->rows);
+	if (status == 0 && previous != console && display->backend_ops != NULL
+	    && display->backend_ops->palette_changed != NULL)
+		status = display->backend_ops->palette_changed(console, 0, 256);
+	if (status == 0 && previous != console && display->backend_ops != NULL
+	    && console->title != NULL
+	    && display->backend_ops->set_title != NULL)
+		status = display->backend_ops->set_title(console, console->title);
+	if (status == 0 && previous != console && display->backend_ops != NULL
+	    && display->backend_ops->set_pointer_visible != NULL)
+		status = display->backend_ops->set_pointer_visible(console,
+		    console->pointer_visible);
+	if (status != 0) {
+		atomic_store_explicit(&display->active, previous,
+		    memory_order_release);
+		if (previous != NULL && display->backend_ops != NULL
+		    && display->backend_ops->activate != NULL)
+			display->backend_ops->activate(previous);
+	}
+	(void)st_mutex_unlock(&display->backend_mutex);
+	if (status == 0) {
+		st_console_mark_all_locked(console);
+		status = st_console_present_locked(console, true);
+	}
+	(void)st_rwlock_unlock(&console->state_lock);
+	return status;
 }
 
 const char *
@@ -579,11 +759,59 @@ st_console_build_features(void)
 void
 st_console_destroy(st_console_t *console)
 {
+	st_console_display_t *display;
+	st_console_t *replacement = NULL;
+	st_console_t **link;
+	bool destroy_display;
+
 	if (console == NULL)
 		return;
-	stop_presentation_worker(console);
-	if (console->backend_ops != NULL && console->backend_ops->destroy != NULL)
-		console->backend_ops->destroy(console);
+	display = console->display;
+	destroy_display = console->owns_display;
+	/*
+	 * The worker loads the active console before taking its state lock.  Join
+	 * it before changing the display list so it cannot retain this console
+	 * across the final free.
+	 */
+	stop_presentation_worker(display);
+	if (atomic_load_explicit(&display->active, memory_order_acquire)
+	    == console) {
+		replacement = display->consoles;
+
+		while (replacement == console)
+			replacement = replacement->next_display;
+		if (replacement != NULL) {
+			if (st_console_display_activate(display, replacement) != 0) {
+				(void)st_mutex_lock(&display->backend_mutex);
+				if (display->backend_ops != NULL
+				    && display->backend_ops->activate != NULL)
+					display->backend_ops->activate(replacement);
+				atomic_store_explicit(&display->active, replacement,
+				    memory_order_release);
+				(void)st_mutex_unlock(&display->backend_mutex);
+			}
+		}
+		else
+			atomic_store_explicit(&display->active, NULL,
+			    memory_order_release);
+	}
+	if (display->console_count == 1) {
+		if (display->backend_ops != NULL
+		    && display->backend_ops->destroy != NULL) {
+			console->backend_ops = display->backend_ops;
+			console->backend_state = display->backend_state;
+			display->backend_ops->destroy(console);
+		}
+		display->backend_ops = NULL;
+		display->backend_state = NULL;
+		display->backend_initialized = false;
+	}
+	link = &display->consoles;
+	while (*link != NULL && *link != console)
+		link = &(*link)->next_display;
+	if (*link == console)
+		*link = console->next_display;
+	--display->console_count;
 	st_condition_destroy(&console->event_ready);
 	st_mutex_destroy(&console->event_mutex);
 	(void)st_rwlock_destroy(&console->state_lock);
@@ -603,7 +831,34 @@ st_console_destroy(st_console_t *console)
 	free(console->raster_rows);
 	free(console->rasterized);
 	free(console->cells);
+	free(console->title);
 	free(console);
+	if (destroy_display)
+		st_console_display_destroy(display);
+	else if (display->console_count != 0) {
+		replacement = atomic_load_explicit(&display->active,
+		    memory_order_acquire);
+		if (replacement != NULL)
+			(void)st_console_start_presentation_worker(replacement);
+	}
+}
+
+st_console_t *
+st_console_display_active_console(st_console_t *console)
+{
+	return console == NULL || console->display == NULL ? NULL
+	    : atomic_load_explicit(&console->display->active,
+	    memory_order_acquire);
+}
+
+int
+st_console_display_active(st_console_display_t *display,
+	st_console_t **console)
+{
+	if (display == NULL || console == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	*console = atomic_load_explicit(&display->active, memory_order_acquire);
+	return 0;
 }
 
 bool
@@ -844,6 +1099,7 @@ st_console_mark_all_locked(st_console_t *console)
 int
 st_console_present_locked(st_console_t *console, bool forced)
 {
+	st_console_display_t *display = console->display;
 	size_t count;
 	size_t i;
 	int status = 0;
@@ -855,8 +1111,15 @@ st_console_present_locked(st_console_t *console, bool forced)
 	status = st_console_rasterize_locked(console, false);
 	if (status != 0)
 		return status;
-	if (console->backend_ops != NULL)
-		status = console->backend_ops->present(console);
+	if (atomic_load_explicit(&display->active, memory_order_acquire)
+	    == console && display->backend_ops != NULL) {
+		if (st_mutex_lock(&display->backend_mutex) != ST_THREAD_SUCCESS)
+			return IO_ERROR_IO;
+		if (atomic_load_explicit(&display->active, memory_order_acquire)
+		    == console)
+			status = display->backend_ops->present(console);
+		(void)st_mutex_unlock(&display->backend_mutex);
+	}
 	if (status != 0)
 		return status;
 	count = (size_t)console->columns * console->rows;
@@ -1008,8 +1271,14 @@ st_console_resize(st_console_t *console, uint32_t columns, uint32_t rows)
 		free(cells);
 		return IO_ERROR_IO;
 	}
-	if (console->backend_ops != NULL && console->backend_ops->resize != NULL) {
-		result = console->backend_ops->resize(console, columns, rows);
+	if (atomic_load_explicit(&console->display->active,
+	    memory_order_acquire) == console && console->backend_ops != NULL
+	    && console->backend_ops->resize != NULL) {
+		(void)st_mutex_lock(&console->display->backend_mutex);
+		result = atomic_load_explicit(&console->display->active,
+		    memory_order_acquire) == console
+		    ? console->backend_ops->resize(console, columns, rows) : 0;
+		(void)st_mutex_unlock(&console->display->backend_mutex);
 		if (result != 0) {
 			(void)st_rwlock_unlock(&console->state_lock);
 			st_pixel_buffer_destroy(pixels);
@@ -1298,15 +1567,24 @@ st_console_set_palette(st_console_t *console, uint16_t first,
 	    (size_t)count * sizeof(previous[0]));
 	for (uint16_t i = 0; i < count; ++i)
 		console->palette[first + i] = rgb[i] & UINT32_C(0xffffff);
-	if (console->backend_ops != NULL
+	if (atomic_load_explicit(&console->display->active,
+	    memory_order_acquire) == console && console->backend_ops != NULL
 	    && console->backend_ops->palette_changed != NULL) {
-		result = console->backend_ops->palette_changed(console, first, count);
+		(void)st_mutex_lock(&console->display->backend_mutex);
+		result = atomic_load_explicit(&console->display->active,
+		    memory_order_acquire) == console
+		    ? console->backend_ops->palette_changed(console, first, count) : 0;
+		(void)st_mutex_unlock(&console->display->backend_mutex);
 		if (result != 0) {
 			memcpy(&console->palette[first], previous,
 			    (size_t)count * sizeof(previous[0]));
 			/* Best effort restores any entries changed before the error. */
-			(void)console->backend_ops->palette_changed(console, first,
-			    count);
+			(void)st_mutex_lock(&console->display->backend_mutex);
+			if (atomic_load_explicit(&console->display->active,
+			    memory_order_acquire) == console)
+				(void)console->backend_ops->palette_changed(console,
+				    first, count);
+			(void)st_mutex_unlock(&console->display->backend_mutex);
 			(void)st_rwlock_unlock(&console->state_lock);
 			return result;
 		}
@@ -1862,13 +2140,18 @@ st_console_snapshot_restore(st_console_t *console,
 	count = (size_t)console->columns * console->rows;
 	memcpy(previous_palette, console->palette, sizeof(previous_palette));
 	memcpy(console->palette, snapshot->palette, sizeof(console->palette));
-	if (console->backend_ops != NULL
+	if (atomic_load_explicit(&console->display->active,
+	    memory_order_acquire) == console && console->backend_ops != NULL
 	    && console->backend_ops->palette_changed != NULL) {
+		(void)st_mutex_lock(&console->display->backend_mutex);
 		result = console->backend_ops->palette_changed(console, 0, 256);
+		(void)st_mutex_unlock(&console->display->backend_mutex);
 		if (result != 0) {
 			memcpy(console->palette, previous_palette,
 			    sizeof(console->palette));
+			(void)st_mutex_lock(&console->display->backend_mutex);
 			(void)console->backend_ops->palette_changed(console, 0, 256);
+			(void)st_mutex_unlock(&console->display->backend_mutex);
 			(void)st_rwlock_unlock(&console->state_lock);
 			return result;
 		}
@@ -1986,21 +2269,21 @@ append_event_locked(st_console_t *console,
 }
 
 static bool
-physical_key_down(const st_console_t *console, uint16_t evdev)
+physical_key_down(const st_console_display_t *display, uint16_t evdev)
 {
-	return (console->physical_keys[evdev / 8]
+	return (display->physical_keys[evdev / 8]
 	    & (uint8_t)(UINT8_C(1) << (evdev % 8))) != 0;
 }
 
 static void
-set_physical_key(st_console_t *console, uint16_t evdev, bool pressed)
+set_physical_key(st_console_display_t *display, uint16_t evdev, bool pressed)
 {
 	uint8_t mask = (uint8_t)(UINT8_C(1) << (evdev % 8));
 
 	if (pressed)
-		console->physical_keys[evdev / 8] |= mask;
+		display->physical_keys[evdev / 8] |= mask;
 	else
-		console->physical_keys[evdev / 8] &= (uint8_t)~mask;
+		display->physical_keys[evdev / 8] &= (uint8_t)~mask;
 }
 
 static bool
@@ -2029,9 +2312,10 @@ event_valid(const struct st_console_event *event)
 }
 
 int
-st_console_post_event(st_console_t *console,
+st_console_display_post_event(st_console_display_t *display,
 	const struct st_console_event *event)
 {
+	st_console_t *console;
 	struct st_console_event release = {
 		.type = ST_CONSOLE_EVENT_PHYSICAL_KEY,
 		.data.physical_key = {.pressed = false},
@@ -2040,56 +2324,88 @@ st_console_post_event(st_console_t *console,
 	size_t added = 1;
 	int result;
 
-	if (console == NULL || !event_valid(event))
+	if (display == NULL || !event_valid(event))
 		return IO_ERROR_INVALID_ARGUMENT;
-	result = st_mutex_lock(&console->event_mutex);
+	result = st_mutex_lock(&display->input_mutex);
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
+	console = atomic_load_explicit(&display->active, memory_order_acquire);
+	if (console == NULL) {
+		if (event->type == ST_CONSOLE_EVENT_PHYSICAL_KEY)
+			set_physical_key(display, event->data.physical_key.evdev,
+			    event->data.physical_key.pressed);
+		(void)st_mutex_unlock(&display->input_mutex);
+		return 0;
+	}
+	result = st_mutex_lock(&console->event_mutex);
+	if (result != ST_THREAD_SUCCESS) {
+		(void)st_mutex_unlock(&display->input_mutex);
+		return IO_ERROR_IO;
+	}
 	if (event->type == ST_CONSOLE_EVENT_FOCUS
 	    && !event->data.focus.focused) {
 		for (unsigned int key = 0; key <= UINT16_MAX; ++key)
-			if (physical_key_down(console, (uint16_t)key))
+			if (physical_key_down(display, (uint16_t)key))
 				++release_count;
 	}
 	result = reserve_events_locked(console, release_count + 1);
 	if (result != 0) {
 		(void)st_mutex_unlock(&console->event_mutex);
+		(void)st_mutex_unlock(&display->input_mutex);
 		return result;
 	}
 	if (release_count != 0) {
 		for (unsigned int key = 0; key <= UINT16_MAX; ++key) {
-			if (!physical_key_down(console, (uint16_t)key))
+			if (!physical_key_down(display, (uint16_t)key))
 				continue;
 			release.data.physical_key.evdev = (uint16_t)key;
 			append_event_locked(console, &release);
-			set_physical_key(console, (uint16_t)key, false);
+			set_physical_key(display, (uint16_t)key, false);
 		}
 		added += release_count;
 	}
 	if (event->type == ST_CONSOLE_EVENT_PHYSICAL_KEY)
-		set_physical_key(console, event->data.physical_key.evdev,
+		set_physical_key(display, event->data.physical_key.evdev,
 		    event->data.physical_key.pressed);
 	append_event_locked(console, event);
 	result = ST_THREAD_SUCCESS;
 	for (size_t i = 0; i < added && result == ST_THREAD_SUCCESS; ++i)
 		result = st_condition_signal(&console->event_ready);
 	(void)st_mutex_unlock(&console->event_mutex);
+	(void)st_mutex_unlock(&display->input_mutex);
 	return result == ST_THREAD_SUCCESS ? 0 : IO_ERROR_IO;
+}
+
+int
+st_console_post_event(st_console_t *console,
+	const struct st_console_event *event)
+{
+	return console == NULL ? IO_ERROR_INVALID_ARGUMENT
+	    : st_console_display_post_event(console->display, event);
 }
 
 int
 st_console_physical_key_state(st_console_t *console, uint16_t evdev,
 	bool *pressed)
 {
+	return console == NULL ? IO_ERROR_INVALID_ARGUMENT
+	    : st_console_display_physical_key_state(console->display, evdev,
+	    pressed);
+}
+
+int
+st_console_display_physical_key_state(st_console_display_t *display,
+	uint16_t evdev, bool *pressed)
+{
 	int result;
 
-	if (console == NULL || pressed == NULL)
+	if (display == NULL || pressed == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	result = st_mutex_lock(&console->event_mutex);
+	result = st_mutex_lock(&display->input_mutex);
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
-	*pressed = physical_key_down(console, evdev);
-	(void)st_mutex_unlock(&console->event_mutex);
+	*pressed = physical_key_down(display, evdev);
+	(void)st_mutex_unlock(&display->input_mutex);
 	return 0;
 }
 
@@ -2149,17 +2465,30 @@ st_console_events_clear(st_console_t *console)
 int
 st_console_set_title(st_console_t *console, const char *title)
 {
+	char *copy;
 	int result;
 
 	if (console == NULL || title == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
+	copy = strdup(title);
+	if (copy == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
 	result = st_rwlock_write_lock(&console->state_lock);
-	if (result != ST_THREAD_SUCCESS)
+	if (result != ST_THREAD_SUCCESS) {
+		free(copy);
 		return IO_ERROR_IO;
+	}
+	free(console->title);
+	console->title = copy;
 	result = console->backend_ops == NULL
 	    || console->backend_ops->set_title == NULL
-	    ? IO_ERROR_NOT_SUPPORTED
-	    : console->backend_ops->set_title(console, title);
+	    ? IO_ERROR_NOT_SUPPORTED : 0;
+	if (result == 0 && atomic_load_explicit(&console->display->active,
+	    memory_order_acquire) == console) {
+		(void)st_mutex_lock(&console->display->backend_mutex);
+		result = console->backend_ops->set_title(console, title);
+		(void)st_mutex_unlock(&console->display->backend_mutex);
+	}
 	(void)st_rwlock_unlock(&console->state_lock);
 	return result;
 }
@@ -2167,37 +2496,15 @@ st_console_set_title(st_console_t *console, const char *title)
 int
 st_console_set_clipboard_text(st_console_t *console, const char *text)
 {
-	int result;
-
-	if (console == NULL || text == NULL)
-		return IO_ERROR_INVALID_ARGUMENT;
-	result = st_rwlock_write_lock(&console->state_lock);
-	if (result != ST_THREAD_SUCCESS)
-		return IO_ERROR_IO;
-	result = console->backend_ops == NULL
-	    || console->backend_ops->set_clipboard_text == NULL
-	    ? IO_ERROR_NOT_SUPPORTED
-	    : console->backend_ops->set_clipboard_text(console, text);
-	(void)st_rwlock_unlock(&console->state_lock);
-	return result;
+	return console == NULL ? IO_ERROR_INVALID_ARGUMENT
+	    : st_console_display_set_clipboard_text(console->display, text);
 }
 
 int
 st_console_get_clipboard_text(st_console_t *console, char **result)
 {
-	int status;
-
-	if (console == NULL || result == NULL)
-		return IO_ERROR_INVALID_ARGUMENT;
-	status = st_rwlock_write_lock(&console->state_lock);
-	if (status != ST_THREAD_SUCCESS)
-		return IO_ERROR_IO;
-	status = console->backend_ops == NULL
-	    || console->backend_ops->get_clipboard_text == NULL
-	    ? IO_ERROR_NOT_SUPPORTED
-	    : console->backend_ops->get_clipboard_text(console, result);
-	(void)st_rwlock_unlock(&console->state_lock);
-	return status;
+	return console == NULL ? IO_ERROR_INVALID_ARGUMENT
+	    : st_console_display_get_clipboard_text(console->display, result);
 }
 
 void
@@ -2209,19 +2516,8 @@ st_console_free_text(char *text)
 int
 st_console_open_url(st_console_t *console, const char *url)
 {
-	int result;
-
-	if (console == NULL || url == NULL)
-		return IO_ERROR_INVALID_ARGUMENT;
-	result = st_rwlock_write_lock(&console->state_lock);
-	if (result != ST_THREAD_SUCCESS)
-		return IO_ERROR_IO;
-	result = console->backend_ops == NULL
-	    || console->backend_ops->open_url == NULL
-	    ? IO_ERROR_NOT_SUPPORTED
-	    : console->backend_ops->open_url(console, url);
-	(void)st_rwlock_unlock(&console->state_lock);
-	return result;
+	return console == NULL ? IO_ERROR_INVALID_ARGUMENT
+	    : st_console_display_open_url(console->display, url);
 }
 
 int
@@ -2234,10 +2530,16 @@ st_console_set_pointer_visible(st_console_t *console, bool visible)
 	result = st_rwlock_write_lock(&console->state_lock);
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
+	console->pointer_visible = visible;
 	result = console->backend_ops == NULL
 	    || console->backend_ops->set_pointer_visible == NULL
-	    ? IO_ERROR_NOT_SUPPORTED
-	    : console->backend_ops->set_pointer_visible(console, visible);
+	    ? IO_ERROR_NOT_SUPPORTED : 0;
+	if (result == 0 && atomic_load_explicit(&console->display->active,
+	    memory_order_acquire) == console) {
+		(void)st_mutex_lock(&console->display->backend_mutex);
+		result = console->backend_ops->set_pointer_visible(console, visible);
+		(void)st_mutex_unlock(&console->display->backend_mutex);
+	}
 	(void)st_rwlock_unlock(&console->state_lock);
 	return result;
 }
@@ -2245,17 +2547,70 @@ st_console_set_pointer_visible(st_console_t *console, bool visible)
 int
 st_console_set_fullscreen(st_console_t *console, bool fullscreen)
 {
+	return console == NULL ? IO_ERROR_INVALID_ARGUMENT
+	    : st_console_display_set_fullscreen(console->display, fullscreen);
+}
+
+static int
+display_host_call(st_console_display_t *display, const char *text,
+	bool enabled, int operation, char **text_result)
+{
+	st_console_t *console;
 	int result;
 
-	if (console == NULL)
+	if (display == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	result = st_rwlock_write_lock(&console->state_lock);
-	if (result != ST_THREAD_SUCCESS)
+	if (st_mutex_lock(&display->backend_mutex) != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
-	result = console->backend_ops == NULL
-	    || console->backend_ops->set_fullscreen == NULL
-	    ? IO_ERROR_NOT_SUPPORTED
-	    : console->backend_ops->set_fullscreen(console, fullscreen);
-	(void)st_rwlock_unlock(&console->state_lock);
+	console = atomic_load_explicit(&display->active, memory_order_acquire);
+	if (console == NULL || display->backend_ops == NULL)
+		result = IO_ERROR_NOT_SUPPORTED;
+	else if (operation == 0)
+		result = display->backend_ops->set_clipboard_text == NULL
+		    ? IO_ERROR_NOT_SUPPORTED
+		    : display->backend_ops->set_clipboard_text(console, text);
+	else if (operation == 1)
+		result = display->backend_ops->get_clipboard_text == NULL
+		    ? IO_ERROR_NOT_SUPPORTED
+		    : display->backend_ops->get_clipboard_text(console, text_result);
+	else if (operation == 2)
+		result = display->backend_ops->open_url == NULL
+		    ? IO_ERROR_NOT_SUPPORTED
+		    : display->backend_ops->open_url(console, text);
+	else
+		result = display->backend_ops->set_fullscreen == NULL
+		    ? IO_ERROR_NOT_SUPPORTED
+		    : display->backend_ops->set_fullscreen(console, enabled);
+	(void)st_mutex_unlock(&display->backend_mutex);
 	return result;
+}
+
+int
+st_console_display_set_clipboard_text(st_console_display_t *display,
+	const char *text)
+{
+	return text == NULL ? IO_ERROR_INVALID_ARGUMENT
+	    : display_host_call(display, text, false, 0, NULL);
+}
+
+int
+st_console_display_get_clipboard_text(st_console_display_t *display,
+	char **result)
+{
+	return result == NULL ? IO_ERROR_INVALID_ARGUMENT
+	    : display_host_call(display, NULL, false, 1, result);
+}
+
+int
+st_console_display_open_url(st_console_display_t *display, const char *url)
+{
+	return url == NULL ? IO_ERROR_INVALID_ARGUMENT
+	    : display_host_call(display, url, false, 2, NULL);
+}
+
+int
+st_console_display_set_fullscreen(st_console_display_t *display,
+	bool fullscreen)
+{
+	return display_host_call(display, NULL, fullscreen, 3, NULL);
 }

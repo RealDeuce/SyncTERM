@@ -1381,7 +1381,7 @@ fn_screen_font_get(WrenVM *vm)
 
 	if (slot_integer(vm, 1, 0, 4, &slot))
 		wrenSetSlotDouble(vm, 0,
-		    st_wren_host_from_vm(vm)->font_slots[slot]);
+		    st_wren_host_from_vm(vm)->fonts->slots[slot]);
 }
 
 static void
@@ -1392,7 +1392,7 @@ fn_screen_font_set(WrenVM *vm)
 
 	if (slot_integer(vm, 1, 0, 4, &slot)
 	    && slot_integer(vm, 2, 0, UINT16_MAX, &font))
-		st_wren_host_from_vm(vm)->font_slots[slot] = (uint16_t)font;
+		st_wren_host_from_vm(vm)->fonts->slots[slot] = (uint16_t)font;
 }
 
 static void

@@ -117,7 +117,7 @@ struct xkb_api {
 };
 
 struct state {
-	st_console_t *console;
+	_Atomic(st_console_t *) console;
 	st_thread_t thread;
 	st_mutex_t mutex;
 	st_condition_t changed;
@@ -167,6 +167,13 @@ struct state {
 	struct xkb_keymap *xkb_keymap;
 	struct xkb_state *xkb_state;
 };
+
+static void activate(st_console_t *c)
+{
+	struct state *s = c->backend_state;
+
+	s->console = c;
+}
 
 static atomic_uint shm_sequence;
 
@@ -1784,6 +1791,7 @@ static const struct st_console_backend_ops ops = {
     .get_clipboard_text = clipboard_get,
     .set_pointer_visible = pointer,
     .set_fullscreen = fullscreen,
+	.activate = activate,
     .destroy = destroy};
 
 int st_console_wayland_init(st_console_t *c)

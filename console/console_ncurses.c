@@ -32,6 +32,7 @@ struct curses_api {
 	int (*call_move)(WINDOW *, int, int);
 	int (*call_addch)(WINDOW *, const chtype);
 	int (*call_refresh)(WINDOW *);
+	int (*call_erase)(WINDOW *);
 	int (*call_cbreak)(void);
 	int (*call_raw)(void);
 	int (*call_noecho)(void);
@@ -77,6 +78,7 @@ typedef int (*curses_call_delwin_fn)(WINDOW *);
 typedef int (*curses_call_move_fn)(WINDOW *, int, int);
 typedef int (*curses_call_addch_fn)(WINDOW *, const chtype);
 typedef int (*curses_call_refresh_fn)(WINDOW *);
+typedef int (*curses_call_erase_fn)(WINDOW *);
 typedef int (*curses_call_cbreak_fn)(void);
 typedef int (*curses_call_raw_fn)(void);
 typedef int (*curses_call_noecho_fn)(void);
@@ -117,11 +119,15 @@ typedef int (*curses_call_get_wide_fn)(WINDOW *, wint_t *);
 struct curses_state {
 	dynamic_library_t *library;
 	struct curses_api api;
+	st_console_display_t *display;
 	SCREEN *screen;
 	WINDOW *window;
 	struct st_console_cell *drawn;
 	st_thread_t input_thread;
 	atomic_bool stop;
+	atomic_uint host_columns;
+	atomic_uint host_rows;
+	atomic_bool host_resized;
 	bool input_started;
 	bool colours;
 	bool wide;
@@ -156,6 +162,29 @@ struct curses_state {
 	bool original_colour_valid[256];
 	NCURSES_COLOR_T original_colours[256][3];
 };
+
+static int curses_resize(st_console_t *console, uint32_t columns,
+	uint32_t rows);
+
+static int
+replace_window(struct curses_state *state, uint32_t columns, uint32_t rows)
+{
+	WINDOW *window;
+
+	if (columns > INT_MAX || rows > INT_MAX)
+		return IO_ERROR_OUT_OF_RANGE;
+	window = state->api.call_newwin((int)rows, (int)columns, 0, 0);
+	if (window == NULL)
+		return IO_ERROR_OUT_OF_RANGE;
+	(void)state->api.call_keypad(window, true);
+	(void)state->api.call_nodelay(window, true);
+	(void)state->api.call_scrollok(window, false);
+	(void)state->api.call_erase(window);
+	(void)state->api.call_delwin(state->window);
+	state->window = window;
+	state->sgr_initialized = false;
+	return 0;
+}
 
 static atomic_flag curses_in_use = ATOMIC_FLAG_INIT;
 
@@ -592,6 +621,15 @@ sgr_present(st_console_t *console, struct curses_state *state)
 	bool initializing = !state->sgr_initialized;
 	uint32_t output_x = 0;
 	uint32_t output_y = 0;
+	uint32_t visible_columns = atomic_load_explicit(&state->host_columns,
+	    memory_order_acquire);
+	uint32_t visible_rows = atomic_load_explicit(&state->host_rows,
+	    memory_order_acquire);
+
+	if (visible_columns == 0 || visible_columns > console->columns)
+		visible_columns = console->columns;
+	if (visible_rows == 0 || visible_rows > console->rows)
+		visible_rows = console->rows;
 
 	if (initializing) {
 		const struct st_console_cell blank = {
@@ -609,8 +647,8 @@ sgr_present(st_console_t *console, struct curses_state *state)
 			state->drawn[index] = blank;
 		state->sgr_initialized = true;
 	}
-	for (uint32_t y = 0; y < console->rows; ++y) {
-		for (uint32_t x = 0; x < console->columns; ++x) {
+	for (uint32_t y = 0; y < visible_rows; ++y) {
+		for (uint32_t x = 0; x < visible_columns; ++x) {
 			size_t index = (size_t)y * console->columns + x;
 			const struct st_console_cell *cell = &console->cells[index];
 
@@ -636,16 +674,16 @@ sgr_present(st_console_t *console, struct curses_state *state)
 			    && (console->cells[index + 1].flags
 			    & ST_CONSOLE_CELL_CONTINUATION) != 0)
 				++output_x;
-			position_known = output_x < console->columns;
+			position_known = output_x < visible_columns;
 		}
 	}
-	sgr_format(&writer, "\033[%" PRIu32 ";%" PRIu32 "H",
-	    console->cursor_y + 1,
-	    console->cursor_x + 1, 0);
-	if (console->cursor_visible) {
+	if (console->cursor_visible && console->cursor_x < visible_columns
+	    && console->cursor_y < visible_rows) {
 		uint32_t shape = console->cursor_shape == ST_CONSOLE_CURSOR_BLOCK
 		    ? 2 : console->cursor_shape == ST_CONSOLE_CURSOR_UNDERLINE ? 4 : 6;
 
+		sgr_format(&writer, "\033[%" PRIu32 ";%" PRIu32 "H",
+		    console->cursor_y + 1, console->cursor_x + 1, 0);
 		sgr_format(&writer, "\033[%" PRIu32 " q", shape, 0, 0);
 		sgr_emit(&writer, "\033[0m\033[?25h", 10);
 	}
@@ -819,12 +857,31 @@ curses_present(st_console_t *console)
 	uint32_t x;
 	uint32_t y;
 	int cursor;
+	uint32_t visible_columns = atomic_load_explicit(&state->host_columns,
+	    memory_order_acquire);
+	uint32_t visible_rows = atomic_load_explicit(&state->host_rows,
+	    memory_order_acquire);
+	int status;
+
+	if (atomic_exchange_explicit(&state->host_resized, false,
+	    memory_order_acq_rel)) {
+		status = replace_window(state, visible_columns, visible_rows);
+		if (status != 0)
+			return status;
+		memset(state->drawn, 0, (size_t)console->columns * console->rows
+		    * sizeof(*state->drawn));
+	}
+
+	if (visible_columns == 0 || visible_columns > console->columns)
+		visible_columns = console->columns;
+	if (visible_rows == 0 || visible_rows > console->rows)
+		visible_rows = console->rows;
 
 	if (state->sgr_direct)
 		return sgr_present(console, state);
 
-	for (y = 0; y < console->rows; ++y) {
-		for (x = 0; x < console->columns; ++x) {
+	for (y = 0; y < visible_rows; ++y) {
+		for (x = 0; x < visible_columns; ++x) {
 			size_t index = (size_t)y * console->columns + x;
 			const struct st_console_cell *cell = &console->cells[index];
 			int pair;
@@ -846,17 +903,20 @@ curses_present(st_console_t *console)
 			    state->extended_pairs ? &pair : NULL) == ERR)
 				return IO_ERROR_IO;
 			write_result = write_cell(state, cell);
-			if (write_result == ERR && !(x + 1 == console->columns
-			    && y + 1 == console->rows))
+			if (write_result == ERR && !(x + 1 == visible_columns
+			    && y + 1 == visible_rows))
 				return IO_ERROR_IO;
 			state->drawn[index] = *cell;
 			state->drawn[index].flags &= ~ST_CONSOLE_CELL_DIRTY;
 		}
 	}
-	if (state->api.call_move(state->window, (int)console->cursor_y,
+	if (console->cursor_visible && console->cursor_x < visible_columns
+	    && console->cursor_y < visible_rows
+	    && state->api.call_move(state->window, (int)console->cursor_y,
 	    (int)console->cursor_x) == ERR)
 		return IO_ERROR_IO;
-	cursor = !console->cursor_visible ? 0
+	cursor = !console->cursor_visible || console->cursor_x >= visible_columns
+	    || console->cursor_y >= visible_rows ? 0
 	    : console->cursor_shape == ST_CONSOLE_CURSOR_BLOCK ? 2 : 1;
 	(void)state->api.call_cursor(cursor);
 	return state->api.call_refresh(state->window) == ERR
@@ -866,8 +926,8 @@ curses_present(st_console_t *console)
 static int
 curses_input(void *argument)
 {
-	st_console_t *console = argument;
-	struct curses_state *state = console->backend_state;
+	struct curses_state *state = argument;
+	st_console_display_t *display = state->display;
 	const struct timespec idle = {0, 10000000};
 
 	while (!atomic_load_explicit(&state->stop, memory_order_acquire)) {
@@ -882,7 +942,7 @@ curses_input(void *argument)
 		int key_value = 0;
 		int value;
 
-		if (st_rwlock_write_lock(&console->state_lock) != ST_THREAD_SUCCESS)
+		if (st_mutex_lock(&display->backend_mutex) != ST_THREAD_SUCCESS)
 			break;
 #if ST_CONSOLE_HAVE_CURSES_WIDE
 		if (state->wide) {
@@ -949,16 +1009,17 @@ curses_input(void *argument)
 				}
 			}
 		}
-		(void)st_rwlock_unlock(&console->state_lock);
+		(void)st_mutex_unlock(&display->backend_mutex);
 		if (resize) {
-			uint32_t current_columns;
-			uint32_t current_rows;
-
-			resize = st_console_size(console, &current_columns,
-			    &current_rows) == 0
-			    && (resize_columns != current_columns
-			    || resize_rows != current_rows)
-			    && st_console_resize(console, resize_columns, resize_rows) == 0;
+			resize = resize_columns != 0 && resize_rows != 0;
+			if (resize) {
+				atomic_store_explicit(&state->host_columns,
+				    resize_columns, memory_order_release);
+				atomic_store_explicit(&state->host_rows, resize_rows,
+				    memory_order_release);
+				atomic_store_explicit(&state->host_resized, true,
+				    memory_order_release);
+			}
 		}
 		if (resize) {
 			struct st_console_event resize_event = {
@@ -969,10 +1030,10 @@ curses_input(void *argument)
 				},
 			};
 
-			(void)st_console_post_event(console, &resize_event);
+			(void)st_console_display_post_event(display, &resize_event);
 		}
 		if (have_event)
-			(void)st_console_post_event(console, &event);
+			(void)st_console_display_post_event(display, &event);
 		else
 			(void)st_thread_sleep(&idle, NULL);
 	}
@@ -1071,8 +1132,9 @@ curses_resize(st_console_t *console, uint32_t columns, uint32_t rows)
 {
 	struct curses_state *state = console->backend_state;
 	struct st_console_cell *drawn;
-	WINDOW *window;
 	size_t count;
+	uint32_t host_columns;
+	uint32_t host_rows;
 
 	if (columns > INT_MAX || rows > INT_MAX)
 		return IO_ERROR_OUT_OF_RANGE;
@@ -1082,19 +1144,20 @@ curses_resize(st_console_t *console, uint32_t columns, uint32_t rows)
 	drawn = calloc(count, sizeof(*drawn));
 	if (drawn == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
-	window = state->api.call_newwin((int)rows, (int)columns, 0, 0);
-	if (window == NULL) {
+	host_columns = atomic_load_explicit(&state->host_columns,
+	    memory_order_acquire);
+	host_rows = atomic_load_explicit(&state->host_rows, memory_order_acquire);
+	if (host_columns == 0)
+		host_columns = columns;
+	if (host_rows == 0)
+		host_rows = rows;
+	if (replace_window(state, host_columns, host_rows) != 0) {
 		free(drawn);
 		return IO_ERROR_OUT_OF_RANGE;
 	}
-	(void)state->api.call_keypad(window, true);
-	(void)state->api.call_nodelay(window, true);
-	(void)state->api.call_scrollok(window, false);
-	(void)state->api.call_delwin(state->window);
 	free(state->drawn);
-	state->window = window;
 	state->drawn = drawn;
-	state->sgr_initialized = false;
+	atomic_store_explicit(&state->host_resized, false, memory_order_release);
 	return 0;
 }
 
@@ -1117,6 +1180,7 @@ load_required_api(struct curses_state *state)
 	    && LOAD_REQUIRED(state, call_move, "wmove")
 	    && LOAD_REQUIRED(state, call_addch, "waddch")
 	    && LOAD_REQUIRED(state, call_refresh, "wrefresh")
+	    && LOAD_REQUIRED(state, call_erase, "werase")
 	    && LOAD_REQUIRED(state, call_cbreak, "cbreak")
 	    && LOAD_REQUIRED(state, call_raw, "raw")
 	    && LOAD_REQUIRED(state, call_noecho, "noecho")
@@ -1276,6 +1340,10 @@ st_console_ncurses_init(st_console_t *console)
 		return IO_ERROR_OUT_OF_MEMORY;
 	}
 	atomic_init(&state->stop, false);
+	atomic_init(&state->host_columns, 0);
+	atomic_init(&state->host_rows, 0);
+	atomic_init(&state->host_resized, false);
+	state->display = console->display;
 	state->presentation = console->text_presentation;
 	result = dynamic_library_open(&state->library, names,
 	    sizeof(names) / sizeof(names[0]), 10, DYNAMIC_LIBRARY_LOCAL);
@@ -1312,6 +1380,10 @@ st_console_ncurses_init(st_console_t *console)
 		return IO_ERROR_OUT_OF_RANGE;
 	}
 	count = (size_t)terminal_columns * terminal_rows;
+	atomic_store_explicit(&state->host_columns, terminal_columns,
+	    memory_order_release);
+	atomic_store_explicit(&state->host_rows, terminal_rows,
+	    memory_order_release);
 	state->drawn = calloc(count, sizeof(*state->drawn));
 	if (state->drawn == NULL) {
 		(void)state->api.call_delwin(state->window);
@@ -1430,7 +1502,7 @@ st_console_ncurses_init(st_console_t *console)
 			return result;
 		}
 	}
-	result = st_thread_create(&state->input_thread, curses_input, console);
+	result = st_thread_create(&state->input_thread, curses_input, state);
 	if (result != ST_THREAD_SUCCESS) {
 		curses_destroy(console);
 		console->backend_state = NULL;

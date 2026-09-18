@@ -7,19 +7,26 @@ records the implementation contract and backend details.
 It is not a compatibility implementation of Borland `conio`, and terminal
 parsing (`cterm`) is not part of this component.
 
-## Instances and threads
+## Displays, consoles, and threads
 
-An `st_console_t` owns its cells, current text state, palettes, event queue,
-presentation state, and backend.  Public operations on a live instance may be
-called concurrently.  Read-only state queries share a reader lock; mutations,
-presentation, and backend operations are serialized by its writer lock.
-Destruction is the usual lifetime boundary: the owner must prevent new calls
-and allow active calls to return before calling `st_console_destroy`.
+An `st_console_display_t` owns one physical backend, window or host terminal,
+the presentation worker, physical-key state, and the currently active logical
+console.  An `st_console_t` owns cells, pixels, current text state, palette,
+font registry, cursor, event queue, and desired title and pointer state.  More
+than one logical console may be attached to a display, but exactly one receives
+new backend events and presentation callbacks at a time.
 
-Backends that can create independent displays may support multiple instances.
-The ncurses interface used here has process-global terminal state, so a second
-ncurses instance is rejected with `IO_ERROR_BUSY`.  This limitation does not
-turn the public API into a singleton.
+`st_console_display_activate()` is a synchronous switch.  Pending input is not
+transferred: each event remains in the queue belonging to the console active
+when it arrived.  Inactive consoles remain fully mutable, and an explicit
+present drains their raster work without calling the physical backend.  Font
+identifiers and least-recently-used eviction remain per console.
+
+The ordinary `st_console_create()` remains the single-console convenience
+constructor.  Multi-console applications create a display explicitly and use
+`st_console_create_on_display()` for each logical console.  The display must
+outlive its attached consoles.  The owner must prevent new calls and allow
+active calls to return before destroying either object.
 
 Desktop applications link the `st_console_main` target.  Its interface
 definition renames the application's `main(int, char **)`, while the target
@@ -27,14 +34,14 @@ supplies the real process entry point.  The real main thread owns SDL and
 AppKit initialization, windows, rendering, event dispatch, and shutdown;
 application logic runs on a joined secondary thread.  The same entry wrapper
 services both managers on macOS, so selecting SDL or Quartz requires no
-backend-specific setup in the caller.  Multiple SDL and Quartz console
-instances receive separate windows.  SDL headers are a build capability; the
+backend-specific setup in the caller.  Multiple SDL and Quartz displays
+receive separate windows.  SDL headers are a build capability; the
 optional SDL library and usable video driver are checked at runtime.  AppKit
 and Quartz are part of the macOS programming environment and are linked
 normally.
 
 The X11 backend owns one display connection, event thread, window, bitmap
-presenter, clipboard, and command queue per console instance.  Xlib is loaded
+presenter, clipboard, and command queue per display.  Xlib is loaded
 at runtime; its headers are only a build capability.  XRender supplies external
 final scaling when both its declarations and runtime are available, and
 selecting external scaling otherwise fails during console creation.  The
@@ -52,7 +59,7 @@ non-text keys.  Each instance owns its input context and selection and supports
 UTF8_STRING plus the ICCCM STRING fallback.
 
 The Wayland backend owns a display connection, worker, xdg toplevel, keyboard,
-pointer, clipboard objects, and shared-memory buffers per instance.  A black
+pointer, clipboard objects, and shared-memory buffers per display.  A black
 toplevel surface contains a positioned video subsurface, allowing viewporter
 scaling to preserve both the aspect-ratio offset and margins without composing
 a window-sized image in software.  Busy buffers retain their pending damage;
@@ -60,7 +67,7 @@ release copies only that damage from the presenter's current image.  Wayland
 and xkbcommon are loaded at runtime.  Generated core, xdg-shell, and viewporter
 stubs are build-tree products of `wayland-scanner`, not checked-in sources.
 
-The GDI backend owns a window and message thread per instance.  Presenter
+The GDI backend owns a window and message thread per display.  Presenter
 damage becomes a clipped invalidation, while retained XRGB pixels let normal
 paint/expose messages redraw without taking the console state lock.  Windows
 Unicode messages provide text and physical input is reported with evdev-style
@@ -250,12 +257,12 @@ copied into a snapshot.
 
 ## Input
 
-Each instance has one ordered event queue.  Translated 16-bit key codes and
+Each logical console has one ordered event queue.  Translated 16-bit key codes and
 physical evdev-style key records are distinct event types; neither is treated
 as a substitute for the other.  Text produced by an input method is another
 event type.  Backends post only information they actually receive.
 
-Physical presses and releases update per-instance held state.  Posting focus
+Physical presses and releases update display-wide held state.  Posting focus
 loss enqueues releases for every held physical key before the focus event and
 clears that state.  Clearing queued events does not alter held state.
 Non-text key codes use the backend-independent `ST_CONSOLE_KEY_*` values;

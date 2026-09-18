@@ -345,7 +345,7 @@ target_include_directories(st_console PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
 		${_st_wl_dir})
 target_link_libraries(st_console PUBLIC syncterm_io_error syncterm_threads
 	st_pixels PRIVATE syncterm_array_list syncterm_dynamic_library st_utf8
-	st_time st_unicode_width st_codepage)
+	st_time st_unicode_width st_codepage syncterm_string_compat)
 if(WIN32)
 	target_link_libraries(st_console PRIVATE st_windows_utf)
 endif()

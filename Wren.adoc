@@ -1213,6 +1213,14 @@ SyncTERM deliberately uses three Wren VMs.  They do not share Wren
 objects, handles, modules, globals, hooks, timers, result queues, or
 foreign objects.
 
+The persistent menu and picker VMs each own a logical console.  A VM's normal
+UI and its REPL share that console rather than copying the screen into a
+separate REPL console.  Their cells, fonts, palette, cursor, dimensions, and
+pending input remain independent while one physical display switches
+synchronously between them.  Work on the inactive console remains off-screen
+until it is selected.  The connected terminal still uses the existing
+screen-ownership path pending its migration to the same display model.
+
 * The *menu VM* is created once after conio and configuration are
   initialized.  It owns `scripts/auto/menu/`, survives connections,
   is parked while the connected screen is active, and is destroyed at

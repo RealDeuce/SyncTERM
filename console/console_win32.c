@@ -21,7 +21,7 @@
 #include <wchar.h>
 
 struct win32_state {
-	st_console_t *console;
+	st_console_display_t *display;
 	HANDLE input;
 	HANDLE original_output;
 	HANDLE output;
@@ -369,7 +369,7 @@ post_key(struct win32_state *state, const KEY_EVENT_RECORD *record)
 				    && record->wRepeatCount > 1,
 			},
 		};
-		(void)st_console_post_event(state->console, &event);
+		(void)st_console_display_post_event(state->display, &event);
 	}
 	if (!record->bKeyDown)
 		return;
@@ -381,7 +381,7 @@ post_key(struct win32_state *state, const KEY_EVENT_RECORD *record)
 				.modifiers = input_modifiers(record->dwControlKeyState),
 			},
 		};
-		(void)st_console_post_event(state->console, &event);
+		(void)st_console_display_post_event(state->display, &event);
 	}
 	if (codepoint >= UINT32_C(0xd800) && codepoint <= UINT32_C(0xdbff)) {
 		state->pending_high_surrogate = (wchar_t)codepoint;
@@ -405,7 +405,7 @@ post_key(struct win32_state *state, const KEY_EVENT_RECORD *record)
 				.modifiers = input_modifiers(record->dwControlKeyState),
 			},
 		};
-		(void)st_console_post_event(state->console, &event);
+		(void)st_console_display_post_event(state->display, &event);
 	}
 }
 
@@ -446,7 +446,7 @@ post_mouse(struct win32_state *state, const MOUSE_EVENT_RECORD *record)
 #endif
 	else if (record->dwEventFlags != 0)
 		return;
-	(void)st_console_post_event(state->console, &event);
+	(void)st_console_display_post_event(state->display, &event);
 }
 
 static int
@@ -482,7 +482,7 @@ input_worker(void *argument)
 				},
 			};
 
-			(void)st_console_post_event(state->console, &event);
+			(void)st_console_display_post_event(state->display, &event);
 			break;
 		}
 		case FOCUS_EVENT: {
@@ -491,7 +491,7 @@ input_worker(void *argument)
 				.data.focus.focused = record.Event.FocusEvent.bSetFocus != FALSE,
 			};
 
-			(void)st_console_post_event(state->console, &event);
+			(void)st_console_display_post_event(state->display, &event);
 			break;
 		}
 		default:
@@ -703,7 +703,7 @@ st_console_win32_init(st_console_t *console)
 		atomic_flag_clear_explicit(&win32_in_use, memory_order_release);
 		return IO_ERROR_OUT_OF_MEMORY;
 	}
-	state->console = console;
+	state->display = console->display;
 	state->input = GetStdHandle(STD_INPUT_HANDLE);
 	state->original_output = GetStdHandle(STD_OUTPUT_HANDLE);
 	state->display_mode_known = GetConsoleDisplayMode(

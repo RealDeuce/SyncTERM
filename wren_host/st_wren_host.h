@@ -12,12 +12,16 @@
 
 typedef struct st_wren_host st_wren_host_t;
 typedef struct st_console st_console_t;
+typedef struct st_console_display st_console_display_t;
 
 struct st_app_paths;
 struct st_profile;
 
 struct st_wren_host_config {
+	st_console_display_t *display;
 	st_console_t *console;
+	/* NULL retains the single-console compatibility path used by tests. */
+	st_console_t *picker_console;
 	const struct st_app_paths *paths;
 	const char *application_title;
 	const char *launch_script;

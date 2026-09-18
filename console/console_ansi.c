@@ -20,9 +20,12 @@
 struct ansi_state {
 	struct st_console_ansi_io io;
 	struct st_console_ansi_system *system;
+	st_console_display_t *display;
 	struct st_console_cell *drawn;
 	st_thread_t input_thread;
 	atomic_bool stop;
+	atomic_uint host_columns;
+	atomic_uint host_rows;
 	uint32_t columns;
 	uint32_t rows;
 	unsigned int indexed_colours;
@@ -394,10 +397,13 @@ scroll_up_one(struct ansi_writer *writer, st_console_t *console,
 	struct ansi_state *state)
 {
 	const struct st_console_rect *window = &console->window;
+	uint32_t host_rows = atomic_load_explicit(&state->host_rows,
+	    memory_order_acquire);
 	size_t row_size;
 
 	if (!state->initialized || window->x != 0
-	    || window->width != console->columns || window->height < 2)
+	    || window->width != console->columns || window->height < 2
+	    || (host_rows != 0 && window->y + window->height > host_rows))
 		return false;
 	row_size = (size_t)console->columns * sizeof(*state->drawn);
 	for (uint32_t y = 0; y + 1 < window->height; ++y) {
@@ -436,13 +442,22 @@ ansi_present(st_console_t *console)
 	bool initializing = !state->initialized;
 	uint32_t output_x = 0;
 	uint32_t output_y = 0;
+	uint32_t visible_columns = atomic_load_explicit(&state->host_columns,
+	    memory_order_acquire);
+	uint32_t visible_rows = atomic_load_explicit(&state->host_rows,
+	    memory_order_acquire);
+
+	if (visible_columns == 0 || visible_columns > console->columns)
+		visible_columns = console->columns;
+	if (visible_rows == 0 || visible_rows > console->rows)
+		visible_rows = console->rows;
 
 	if (initializing)
 		prepare_initial_screen(&writer, console, state);
 	else
 		(void)scroll_up_one(&writer, console, state);
-	for (uint32_t y = 0; y < console->rows; ++y) {
-		for (uint32_t x = 0; x < console->columns; ++x) {
+	for (uint32_t y = 0; y < visible_rows; ++y) {
+		for (uint32_t x = 0; x < visible_columns; ++x) {
 			size_t index = (size_t)y * console->columns + x;
 			const struct st_console_cell *cell = &console->cells[index];
 
@@ -468,12 +483,13 @@ ansi_present(st_console_t *console)
 			    && (console->cells[index + 1].flags
 			    & ST_CONSOLE_CELL_CONTINUATION) != 0)
 				++output_x;
-			position_known = output_x < console->columns;
+			position_known = output_x < visible_columns;
 		}
 	}
 	emit_format(&writer, "\033[%" PRIu32 ";%" PRIu32 "H",
 	    console->cursor_y + 1, console->cursor_x + 1, 0);
-	if (console->cursor_visible) {
+	if (console->cursor_visible && console->cursor_x < visible_columns
+	    && console->cursor_y < visible_rows) {
 		uint32_t shape = console->cursor_shape == ST_CONSOLE_CURSOR_BLOCK
 		    ? 2 : console->cursor_shape == ST_CONSOLE_CURSOR_UNDERLINE ? 4 : 6;
 
@@ -487,29 +503,30 @@ ansi_present(st_console_t *console)
 }
 
 static void
-post_key(st_console_t *console, uint16_t code, uint32_t modifiers)
+post_key(st_console_display_t *display, uint16_t code, uint32_t modifiers)
 {
 	const struct st_console_event event = {
 		.type = ST_CONSOLE_EVENT_KEY_CODE,
 		.data.key = {.code = code, .modifiers = modifiers},
 	};
 
-	(void)st_console_post_event(console, &event);
+	(void)st_console_display_post_event(display, &event);
 }
 
 static void
-post_text(st_console_t *console, uint32_t codepoint, uint32_t modifiers)
+post_text(st_console_display_t *display, uint32_t codepoint,
+	uint32_t modifiers)
 {
 	const struct st_console_event event = {
 		.type = ST_CONSOLE_EVENT_TEXT,
 		.data.text = {.codepoint = codepoint, .modifiers = modifiers},
 	};
 
-	(void)st_console_post_event(console, &event);
+	(void)st_console_display_post_event(display, &event);
 }
 
 static void
-post_doorway_key(st_console_t *console, unsigned char scan_code,
+post_doorway_key(st_console_display_t *display, unsigned char scan_code,
 	bool enhanced)
 {
 	const struct st_console_event event = {
@@ -520,18 +537,18 @@ post_doorway_key(st_console_t *console, unsigned char scan_code,
 		},
 	};
 
-	(void)st_console_post_event(console, &event);
+	(void)st_console_display_post_event(display, &event);
 }
 
 static void
-input_text_byte(st_console_t *console, struct ansi_state *state,
+input_text_byte(st_console_display_t *display, struct ansi_state *state,
 	unsigned char byte, uint32_t modifiers)
 {
 	uint32_t codepoint;
 	size_t consumed;
 
 	if (state->utf8_length != 0 && modifiers != state->utf8_modifiers) {
-		post_text(console, UINT32_C(0xfffd), state->utf8_modifiers);
+		post_text(display, UINT32_C(0xfffd), state->utf8_modifiers);
 		state->utf8_length = 0;
 	}
 	if (state->utf8_length == 0) {
@@ -544,36 +561,36 @@ input_text_byte(st_console_t *console, struct ansi_state *state,
 				return;
 			}
 			state->last_was_carriage_return = byte == '\r';
-			post_key(console, code, modifiers);
+			post_key(display, code, modifiers);
 			return;
 		}
 		state->last_was_carriage_return = false;
 		if (byte < 0x80) {
-			post_text(console, byte, modifiers);
+			post_text(display, byte, modifiers);
 			return;
 		}
 		if (state->presentation == ST_CONSOLE_TEXT_CP437) {
-			post_text(console, st_cp437_to_unicode(byte, false), modifiers);
+			post_text(display, st_cp437_to_unicode(byte, false), modifiers);
 			return;
 		}
 		if (state->presentation == ST_CONSOLE_TEXT_ASCII) {
-			post_text(console, UINT32_C(0xfffd), modifiers);
+			post_text(display, UINT32_C(0xfffd), modifiers);
 			return;
 		}
 		state->utf8_expected = byte >= 0xc2 && byte <= 0xdf ? 2
 		    : byte >= 0xe0 && byte <= 0xef ? 3
 		    : byte >= 0xf0 && byte <= 0xf4 ? 4 : 0;
 		if (state->utf8_expected == 0) {
-			post_text(console, UINT32_C(0xfffd), modifiers);
+			post_text(display, UINT32_C(0xfffd), modifiers);
 			return;
 		}
 		state->utf8_modifiers = modifiers;
 		state->utf8_idle = 0;
 	}
 	else if ((byte & 0xc0) != 0x80) {
-		post_text(console, UINT32_C(0xfffd), state->utf8_modifiers);
+		post_text(display, UINT32_C(0xfffd), state->utf8_modifiers);
 		state->utf8_length = 0;
-		input_text_byte(console, state, byte, modifiers);
+		input_text_byte(display, state, byte, modifiers);
 		return;
 	}
 	state->utf8[state->utf8_length++] = byte;
@@ -581,9 +598,9 @@ input_text_byte(st_console_t *console, struct ansi_state *state,
 		return;
 	if (st_utf8_decode_one(&codepoint, &consumed, state->utf8,
 	    state->utf8_length) == 0)
-		post_text(console, codepoint, modifiers);
+		post_text(display, codepoint, modifiers);
 	else
-		post_text(console, UINT32_C(0xfffd), modifiers);
+		post_text(display, UINT32_C(0xfffd), modifiers);
 	state->utf8_length = 0;
 	state->utf8_idle = 0;
 }
@@ -604,7 +621,7 @@ xterm_modifiers(unsigned int parameter)
 }
 
 static bool
-parse_escape(st_console_t *console, struct ansi_state *state)
+parse_escape(st_console_display_t *display, struct ansi_state *state)
 {
 	const unsigned char *sequence = state->escape;
 	size_t length = state->escape_length;
@@ -615,7 +632,8 @@ parse_escape(st_console_t *console, struct ansi_state *state)
 	unsigned char final;
 
 	if (length == 2 && sequence[1] != '[' && sequence[1] != 'O') {
-		input_text_byte(console, state, sequence[1], ST_CONSOLE_MODIFIER_ALT);
+		input_text_byte(display, state, sequence[1],
+		    ST_CONSOLE_MODIFIER_ALT);
 		return true;
 	}
 	if (length < 3)
@@ -694,17 +712,17 @@ parse_escape(st_console_t *console, struct ansi_state *state)
 		}
 	}
 	if (code != 0)
-		post_key(console, code, modifiers);
+		post_key(display, code, modifiers);
 	else {
-		post_key(console, 27, 0);
+		post_key(display, 27, 0);
 		for (size_t i = 1; i < length; ++i)
-			input_text_byte(console, state, sequence[i], 0);
+			input_text_byte(display, state, sequence[i], 0);
 	}
 	return true;
 }
 
 static void
-input_byte(st_console_t *console, struct ansi_state *state,
+input_byte(st_console_display_t *display, struct ansi_state *state,
 	unsigned char byte)
 {
 	if (state->doorway_phase != 0) {
@@ -712,26 +730,26 @@ input_byte(st_console_t *console, struct ansi_state *state,
 			state->doorway_phase = 2;
 			return;
 		}
-		post_doorway_key(console, byte, state->doorway_phase == 2);
+		post_doorway_key(display, byte, state->doorway_phase == 2);
 		state->doorway_phase = 0;
 		return;
 	}
 	if (byte == 0) {
 		if (state->utf8_length != 0) {
-			post_text(console, UINT32_C(0xfffd), state->utf8_modifiers);
+			post_text(display, UINT32_C(0xfffd), state->utf8_modifiers);
 			state->utf8_length = 0;
 		}
 		if (state->escape_length != 0) {
-			post_key(console, 27, 0);
+			post_key(display, 27, 0);
 			for (size_t i = 1; i < state->escape_length; ++i)
-				input_text_byte(console, state, state->escape[i], 0);
+				input_text_byte(display, state, state->escape[i], 0);
 			state->escape_length = 0;
 		}
 		state->doorway_phase = 1;
 		return;
 	}
 	if (state->utf8_length != 0) {
-		input_text_byte(console, state, byte, state->utf8_modifiers);
+		input_text_byte(display, state, byte, state->utf8_modifiers);
 		return;
 	}
 	if (state->escape_length == 0) {
@@ -741,29 +759,29 @@ input_byte(st_console_t *console, struct ansi_state *state,
 			state->escape_idle = 0;
 		}
 		else
-			input_text_byte(console, state, byte, 0);
+			input_text_byte(display, state, byte, 0);
 		return;
 	}
 	if (state->escape_length == sizeof(state->escape)) {
-		post_key(console, 27, 0);
+		post_key(display, 27, 0);
 		state->escape_length = 0;
-		input_byte(console, state, byte);
+		input_byte(display, state, byte);
 		return;
 	}
 	state->escape[state->escape_length++] = byte;
 	state->escape_idle = 0;
-	if (parse_escape(console, state))
+	if (parse_escape(display, state))
 		state->escape_length = 0;
 }
 
 static int
 ansi_input(void *argument)
 {
-	st_console_t *console = argument;
-	struct ansi_state *state = console->backend_state;
+	struct ansi_state *state = argument;
+	st_console_display_t *display = state->display;
 	unsigned char bytes[64];
-	uint32_t known_columns = console->columns;
-	uint32_t known_rows = console->rows;
+	uint32_t known_columns = state->columns;
+	uint32_t known_rows = state->rows;
 
 	while (!atomic_load_explicit(&state->stop, memory_order_acquire)) {
 		size_t received = 0;
@@ -773,23 +791,22 @@ ansi_input(void *argument)
 		(void)st_console_ansi_system_read(state->system, bytes,
 		    sizeof(bytes), &received, 25);
 		for (size_t i = 0; i < received; ++i)
-			input_byte(console, state, bytes[i]);
+			input_byte(display, state, bytes[i]);
 		if (received == 0 && state->escape_length != 0
 		    && ++state->escape_idle >= 2) {
-			post_key(console, 27, 0);
+			post_key(display, 27, 0);
 			for (size_t i = 1; i < state->escape_length; ++i)
-				input_text_byte(console, state, state->escape[i], 0);
+				input_text_byte(display, state, state->escape[i], 0);
 			state->escape_length = 0;
 		}
 		if (received == 0 && state->utf8_length != 0
 		    && ++state->utf8_idle >= 2) {
-			post_text(console, UINT32_C(0xfffd), state->utf8_modifiers);
+			post_text(display, UINT32_C(0xfffd), state->utf8_modifiers);
 			state->utf8_length = 0;
 			state->utf8_idle = 0;
 		}
 		if (st_console_ansi_system_size(state->system, &columns, &rows)
-		    && (columns != known_columns || rows != known_rows)
-		    && st_console_resize(console, columns, rows) == 0) {
+		    && (columns != known_columns || rows != known_rows)) {
 			const struct st_console_event event = {
 				.type = ST_CONSOLE_EVENT_RESIZE,
 				.data.resize = {.columns = columns, .rows = rows},
@@ -797,7 +814,11 @@ ansi_input(void *argument)
 
 			known_columns = columns;
 			known_rows = rows;
-			(void)st_console_post_event(console, &event);
+			atomic_store_explicit(&state->host_columns, columns,
+			    memory_order_release);
+			atomic_store_explicit(&state->host_rows, rows,
+			    memory_order_release);
+			(void)st_console_display_post_event(display, &event);
 		}
 	}
 	return 0;
@@ -818,6 +839,12 @@ ansi_resize(st_console_t *console, uint32_t columns, uint32_t rows)
 	state->drawn = drawn;
 	state->columns = columns;
 	state->rows = rows;
+	if (state->system == NULL) {
+		atomic_store_explicit(&state->host_columns, columns,
+		    memory_order_release);
+		atomic_store_explicit(&state->host_rows, rows,
+		    memory_order_release);
+	}
 	state->initialized = false;
 	return 0;
 }
@@ -873,6 +900,9 @@ st_console_ansi_init(st_console_t *console,
 	if (state == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	atomic_init(&state->stop, false);
+	atomic_init(&state->host_columns, 0);
+	atomic_init(&state->host_rows, 0);
+	state->display = console->display;
 	state->presentation = console->text_presentation;
 	if (io != NULL) {
 		state->io = *io;
@@ -913,10 +943,15 @@ st_console_ansi_init(st_console_t *console,
 	result = ansi_resize(console, console->columns, console->rows);
 	if (result == 0 && state->system != NULL
 	    && st_console_ansi_system_size(state->system, &columns, &rows)
-	    && (columns != console->columns || rows != console->rows))
+	    && (columns != console->columns || rows != console->rows)) {
+		atomic_store_explicit(&state->host_columns, columns,
+		    memory_order_release);
+		atomic_store_explicit(&state->host_rows, rows,
+		    memory_order_release);
 		result = st_console_resize(console, columns, rows);
+	}
 	if (result == 0 && input_available) {
-		result = st_thread_create(&state->input_thread, ansi_input, console);
+		result = st_thread_create(&state->input_thread, ansi_input, state);
 		if (result == ST_THREAD_SUCCESS)
 			state->input_started = true;
 		else

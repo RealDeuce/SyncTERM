@@ -142,7 +142,7 @@ child_test(int descriptor)
 	if (!next_event(console, &event) || event.type != ST_CONSOLE_EVENT_RESIZE
 	    || event.data.resize.columns != 101 || event.data.resize.rows != 43
 	    || st_console_size(console, &columns, &rows) != 0
-	    || columns != 101 || rows != 43) {
+	    || columns != 91 || rows != 37) {
 		report(descriptor, 'Z');
 		goto failed;
 	}

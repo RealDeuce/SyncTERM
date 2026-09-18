@@ -1048,6 +1048,8 @@ test_deferred_presentation(void)
 	state.calls = 0;
 	console->backend_ops = &deferred_present_ops;
 	console->backend_state = &state;
+	console->display->backend_ops = &deferred_present_ops;
+	console->display->backend_state = &state;
 	CHECK(st_console_start_presentation_worker(console) == 0);
 	for (unsigned int i = 0; i < 200; ++i) {
 		cell.codepoint = (i & 1U) == 0 ? 'a' : 'b';
@@ -1557,6 +1559,161 @@ test_font_registry_lru_replacement(void)
 	st_console_destroy(console);
 }
 
+struct multi_display_state {
+	st_console_t *presented;
+	unsigned int presents;
+	unsigned int resizes;
+	unsigned int palettes;
+	unsigned int titles;
+	unsigned int pointers;
+	bool pointer_visible;
+	char title[16];
+};
+
+static int
+multi_present(st_console_t *console)
+{
+	struct multi_display_state *state = console->backend_state;
+
+	state->presented = console;
+	++state->presents;
+	return 0;
+}
+
+static int
+multi_resize(st_console_t *console, uint32_t columns, uint32_t rows)
+{
+	struct multi_display_state *state = console->backend_state;
+
+	(void)columns;
+	(void)rows;
+	++state->resizes;
+	return 0;
+}
+
+static int
+multi_palette(st_console_t *console, uint16_t first, uint16_t count)
+{
+	struct multi_display_state *state = console->backend_state;
+
+	(void)first;
+	(void)count;
+	++state->palettes;
+	return 0;
+}
+
+static int
+multi_title(st_console_t *console, const char *title)
+{
+	struct multi_display_state *state = console->backend_state;
+
+	++state->titles;
+	(void)snprintf(state->title, sizeof(state->title), "%s", title);
+	return 0;
+}
+
+static int
+multi_pointer(st_console_t *console, bool visible)
+{
+	struct multi_display_state *state = console->backend_state;
+
+	++state->pointers;
+	state->pointer_visible = visible;
+	return 0;
+}
+
+static const struct st_console_backend_ops multi_ops = {
+	.deferred_present = true,
+	.present = multi_present,
+	.resize = multi_resize,
+	.palette_changed = multi_palette,
+	.set_title = multi_title,
+	.set_pointer_visible = multi_pointer,
+};
+
+static void
+test_multiple_consoles_one_display(void)
+{
+	const struct st_console_display_config display_config = {
+		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+		.text_presentation = ST_CONSOLE_TEXT_UNICODE,
+	};
+	const struct st_console_config first_config = {
+		.columns = 4, .rows = 2, .backend = ST_CONSOLE_BACKEND_HEADLESS,
+		.wrap = true,
+	};
+	const struct st_console_config second_config = {
+		.columns = 7, .rows = 3, .backend = ST_CONSOLE_BACKEND_HEADLESS,
+		.wrap = true,
+	};
+	const struct st_console_rect cell_rect = {0, 0, 1, 1};
+	const struct st_console_cell cell = {.codepoint = 'B'};
+	const struct st_console_event first_event = {
+		.type = ST_CONSOLE_EVENT_KEY_CODE, .data.key.code = 'A',
+	};
+	const struct st_console_event second_event = {
+		.type = ST_CONSOLE_EVENT_KEY_CODE, .data.key.code = 'B',
+	};
+	struct st_console_event event;
+	static const uint8_t bitmap[1] = {0};
+	static const struct st_console_font_mapping mapping[1] = {{' ', 0}};
+	static const struct st_console_font font = {
+		.bitmap = bitmap, .bitmap_size = sizeof(bitmap),
+		.width = 8, .height = 1, .glyph_count = 1,
+		.row_stride = 1, .glyph_stride = 1,
+		.mapping = mapping, .mapping_count = 1,
+	};
+	struct multi_display_state state = {0};
+	uint16_t identifier;
+	bool registered;
+	st_console_display_t *display = NULL;
+	st_console_t *first = NULL;
+	st_console_t *second = NULL;
+	st_console_t *active = NULL;
+
+	CHECK(st_console_display_create(&display, &display_config) == 0);
+	CHECK(st_console_create_on_display(&first, display, &first_config) == 0);
+	CHECK(st_console_create_on_display(&second, display, &second_config) == 0);
+	CHECK(st_console_register_static_font(first, &font, &identifier) == 0);
+	CHECK(identifier == 0);
+	CHECK(st_console_font_registered(second, identifier, &registered) == 0);
+	CHECK(!registered);
+	display->backend_ops = &multi_ops;
+	display->backend_state = &state;
+	first->backend_ops = &multi_ops;
+	first->backend_state = &state;
+	second->backend_ops = &multi_ops;
+	second->backend_state = &state;
+	CHECK(st_console_write_cells(second, &cell_rect, &cell, 1) == 0);
+	CHECK(st_console_set_title(second, "Second") == 0);
+	CHECK(st_console_set_pointer_visible(second, false) == 0);
+	CHECK(st_console_present(second) == 0);
+	CHECK(state.presents == 0 && state.resizes == 0 && state.palettes == 0
+	    && state.titles == 0 && state.pointers == 0);
+	CHECK(st_console_display_post_event(display, &first_event) == 0);
+	CHECK(st_console_display_activate(display, second) == 0);
+	CHECK(state.presented == second && state.presents == 1);
+	CHECK(state.resizes == 1 && state.palettes == 1);
+	CHECK(state.titles == 1 && strcmp(state.title, "Second") == 0);
+	CHECK(state.pointers == 1 && !state.pointer_visible);
+	CHECK(st_console_display_post_event(display, &second_event) == 0);
+	CHECK(st_console_event_try(first, &event) == 0);
+	CHECK(event.data.key.code == 'A');
+	CHECK(st_console_event_try(second, &event) == 0);
+	CHECK(event.data.key.code == 'B');
+	CHECK(st_console_event_try(first, &event) == IO_ERROR_WOULD_BLOCK);
+	CHECK(st_console_event_try(second, &event) == IO_ERROR_WOULD_BLOCK);
+	CHECK(st_console_display_activate(display, first) == 0);
+	CHECK(state.presented == first && state.presents == 2);
+	CHECK(st_console_start_presentation_worker(first) == 0);
+	st_console_destroy(first);
+	CHECK(st_console_display_active(display, &active) == 0);
+	CHECK(active == second);
+	CHECK(display->presentation_thread_started);
+	st_console_destroy(second);
+	st_console_display_destroy(display);
+}
+
 int
 main(void)
 {
@@ -1582,6 +1739,7 @@ main(void)
 	test_font_resolution_and_complete_cells();
 	test_deferred_font_resolution();
 	test_font_registry_lru_replacement();
+	test_multiple_consoles_one_display();
 	test_ncurses_when_available();
 	return EXIT_SUCCESS;
 }

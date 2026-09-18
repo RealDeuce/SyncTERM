@@ -16,6 +16,7 @@
 #include <time.h>
 
 typedef struct st_console st_console_t;
+typedef struct st_console_display st_console_display_t;
 typedef struct st_console_snapshot st_console_snapshot_t;
 
 /* Indexed colours use values 0 through 255. RGB colours have this tag. */
@@ -198,6 +199,8 @@ enum st_console_build_feature {
 /* Returns the active backend selected during console creation. */
 int st_console_get_backend(st_console_t *console,
 	enum st_console_backend *backend);
+int st_console_display_get_backend(st_console_display_t *display,
+	enum st_console_backend *backend);
 const char *st_console_backend_name(enum st_console_backend backend);
 /* Returns facilities compiled into the console library, not runtime presence. */
 uint32_t st_console_build_features(void);
@@ -234,6 +237,7 @@ struct st_console_config {
 	uint32_t pixel_height;
 	/* A zero range selects the console's generic cell-height default. */
 	struct st_console_custom_cursor default_cursor;
+	/* Used by the single-console st_console_create() convenience path. */
 	enum st_console_backend backend;
 	/* Selects how a text-terminal backend represents cell characters. */
 	enum st_console_text_presentation text_presentation;
@@ -251,6 +255,13 @@ struct st_console_config {
 	/* Both nonzero override initial_scaling, in drawable pixel units. */
 	uint32_t initial_window_width;
 	uint32_t initial_window_height;
+};
+
+/* Physical backend selection shared by every console on one display. */
+struct st_console_display_config {
+	enum st_console_backend backend;
+	enum st_console_text_presentation text_presentation;
+	const struct st_console_ansi_io *ansi_io;
 };
 
 enum st_console_event_type {
@@ -365,6 +376,19 @@ struct st_console_event {
 /* result is unchanged on failure. */
 int st_console_create(st_console_t **result,
 	const struct st_console_config *config);
+/*
+ * Explicit multi-console lifecycle.  The display must outlive every console
+ * created on it.  Its backend is opened when the first console is created.
+ */
+int st_console_display_create(st_console_display_t **result,
+	const struct st_console_display_config *config);
+void st_console_display_destroy(st_console_display_t *display);
+int st_console_create_on_display(st_console_t **result,
+	st_console_display_t *display, const struct st_console_config *config);
+int st_console_display_activate(st_console_display_t *display,
+	st_console_t *console);
+int st_console_display_active(st_console_display_t *display,
+	st_console_t **console);
 /* The caller must prevent new operations and let active operations return. */
 void st_console_destroy(st_console_t *console);
 
@@ -501,6 +525,8 @@ void st_console_snapshot_destroy(st_console_snapshot_t *snapshot);
  */
 int st_console_post_event(st_console_t *console,
 	const struct st_console_event *event);
+int st_console_display_post_event(st_console_display_t *display,
+	const struct st_console_event *event);
 int st_console_event_try(st_console_t *console,
 	struct st_console_event *event);
 int st_console_event_wait(st_console_t *console,
@@ -510,6 +536,8 @@ int st_console_event_timedwait(st_console_t *console,
 int st_console_events_clear(st_console_t *console);
 int st_console_physical_key_state(st_console_t *console, uint16_t evdev,
 	bool *pressed);
+int st_console_display_physical_key_state(st_console_display_t *display,
+	uint16_t evdev, bool *pressed);
 
 /* Desktop/host operations can be independently unsupported by a backend. */
 int st_console_set_title(st_console_t *console, const char *title);
@@ -520,6 +548,14 @@ void st_console_free_text(char *text);
 int st_console_open_url(st_console_t *console, const char *url);
 int st_console_set_pointer_visible(st_console_t *console, bool visible);
 int st_console_set_fullscreen(st_console_t *console, bool fullscreen);
+int st_console_display_set_clipboard_text(st_console_display_t *display,
+	const char *text);
+int st_console_display_get_clipboard_text(st_console_display_t *display,
+	char **result);
+int st_console_display_open_url(st_console_display_t *display,
+	const char *url);
+int st_console_display_set_fullscreen(st_console_display_t *display,
+	bool fullscreen);
 
 /* Libretro's run callback pulls a stable completed frame from its backend. */
 int st_console_libretro_frame_size(st_console_t *console, uint32_t *width,

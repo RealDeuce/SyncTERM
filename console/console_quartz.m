@@ -40,7 +40,7 @@ struct quartz_state;
 @end
 
 struct quartz_state {
-	st_console_t *console;
+	_Atomic(st_console_t *) console;
 	NSWindow *window;
 	STConsoleQuartzView *view;
 	STConsoleQuartzDelegate *delegate;
@@ -61,6 +61,14 @@ struct quartz_state {
 	bool modifier_down[256];
 	struct quartz_state *next;
 };
+
+static void
+quartz_activate(st_console_t *console)
+{
+	struct quartz_state *state = console->backend_state;
+
+	state->console = console;
+}
 
 enum quartz_command_type {
 	QUARTZ_COMMAND_CREATE,
@@ -1275,6 +1283,7 @@ static const struct st_console_backend_ops quartz_ops = {
 	.open_url = quartz_open_url,
 	.set_pointer_visible = quartz_set_pointer,
 	.set_fullscreen = quartz_set_fullscreen,
+	.activate = quartz_activate,
 	.destroy = quartz_destroy,
 };
 

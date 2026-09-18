@@ -33,6 +33,7 @@
 #include <limits.h>
 #include <poll.h>
 #include <stdbool.h>
+#include <stdatomic.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -260,7 +261,7 @@ struct x11_command {
 };
 
 struct x11_state {
-	st_console_t *console;
+	_Atomic(st_console_t *) console;
 	dynamic_library_t *library;
 #if ST_CONSOLE_HAVE_XRANDR
 	dynamic_library_t *xrandr_library;
@@ -341,6 +342,14 @@ struct x11_state {
 	uint32_t render_height;
 #endif
 };
+
+static void
+x11_activate(st_console_t *console)
+{
+	struct x11_state *state = console->backend_state;
+
+	state->console = console;
+}
 
 struct x11_manager {
 	st_mutex_t mutex;
@@ -2268,6 +2277,7 @@ static const struct st_console_backend_ops x11_ops = {
 	.get_clipboard_text = x11_get_clipboard,
 	.set_pointer_visible = x11_set_pointer,
 	.set_fullscreen = x11_set_fullscreen,
+	.activate = x11_activate,
 	.destroy = x11_destroy,
 };
 

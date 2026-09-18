@@ -59,6 +59,10 @@ main(void)
 		.backend = ST_CONSOLE_BACKEND_HEADLESS,
 		.wrap = true,
 	};
+	const struct st_console_display_config display_config = {
+		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+		.text_presentation = ST_CONSOLE_TEXT_UNICODE,
+	};
 	struct st_wren_host_config host_config;
 	struct st_console_event enter = {
 		.type = ST_CONSOLE_EVENT_KEY_CODE,
@@ -75,6 +79,8 @@ main(void)
 	struct st_console_cell restored = {0};
 	struct st_wren_picker_call call;
 	st_console_t *console = NULL;
+	st_console_t *picker_console = NULL;
+	st_console_display_t *display = NULL;
 	st_wren_host_t *public_host = NULL;
 	struct st_wren_host *host;
 
@@ -102,9 +108,15 @@ main(void)
 	paths.scripts_directory = scripts;
 	paths.themes_directory = ST_WREN_PICKER_TEST_DIRECTORY;
 	paths.keys_file = settings;
-	CHECK(st_console_create(&console, &console_config) == 0);
+	CHECK(st_console_display_create(&display, &display_config) == 0);
+	CHECK(st_console_create_on_display(&console, display,
+	    &console_config) == 0);
+	CHECK(st_console_create_on_display(&picker_console, display,
+	    &console_config) == 0);
 	host_config = (struct st_wren_host_config){
+		.display = display,
 		.console = console,
+		.picker_console = picker_console,
 		.paths = &paths,
 		.application_title = "SyncTERM picker test",
 	};
@@ -118,8 +130,24 @@ main(void)
 		.mask = "alpha.txt",
 		.options = ST_WREN_PICKER_MASK_LOCKED,
 	};
-	CHECK(st_console_post_event(console, &enter) == 0);
+	CHECK(st_console_display_activate(display, picker_console) == 0);
+	CHECK(st_console_post_event(picker_console, &enter) == 0);
+	CHECK(st_console_display_activate(display, console) == 0);
 	CHECK(st_wren_picker_host_run(host, &call));
+	{
+		struct st_console_cell cells[80 * 25];
+		const struct st_console_rect screen = {0, 0, 80, 25};
+		bool drawn = false;
+		st_console_t *active = NULL;
+
+		CHECK(st_console_display_active(display, &active) == 0);
+		CHECK(active == console);
+		CHECK(st_console_read_cells(picker_console, &screen, cells, 80) == 0);
+		for (size_t i = 0; i < sizeof(cells) / sizeof(cells[0]); ++i)
+			if (cells[i].codepoint != ' ' && cells[i].codepoint != 0)
+				drawn = true;
+		CHECK(drawn);
+	}
 	CHECK(call.path_count == 1);
 	CHECK(path_make_absolute(NULL, 0, picked) > 0);
 	ptrdiff_t length = path_make_absolute(NULL, 0, picked);
@@ -140,11 +168,15 @@ main(void)
 		.initial_path = ST_WREN_PICKER_TEST_DIRECTORY,
 		.mask = "alpha.txt",
 	};
-	CHECK(st_console_post_event(console, &escape) == 0);
+	CHECK(st_console_display_activate(display, picker_console) == 0);
+	CHECK(st_console_post_event(picker_console, &escape) == 0);
+	CHECK(st_console_display_activate(display, console) == 0);
 	CHECK(st_wren_picker_host_run(host, &call));
 	CHECK(call.path_count == 0 && call.completed);
 	st_wren_picker_call_dispose(&call);
 	st_wren_host_destroy(public_host);
+	st_console_destroy(picker_console);
 	st_console_destroy(console);
+	st_console_display_destroy(display);
 	return 0;
 }

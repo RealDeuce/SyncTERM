@@ -16,6 +16,7 @@
 #include "st_windows_utf.h"
 
 #include <limits.h>
+#include <stdatomic.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -53,7 +54,7 @@ struct command {
 };
 
 struct gdi_state {
-	st_console_t *console;
+	_Atomic(st_console_t *) console;
 	st_thread_t thread;
 	st_mutex_t mutex;
 	st_condition_t changed;
@@ -81,6 +82,14 @@ struct gdi_state {
 	DWORD style;
 	wchar_t pending_high_surrogate;
 };
+
+static void
+gdi_activate(st_console_t *console)
+{
+	struct gdi_state *state = console->backend_state;
+
+	state->console = console;
+}
 
 static st_once_flag_t class_once = ST_ONCE_FLAG_INIT;
 static ATOM window_class;
@@ -1120,6 +1129,7 @@ static const struct st_console_backend_ops gdi_ops = {
 	.open_url = gdi_open_url,
 	.set_pointer_visible = gdi_set_pointer,
 	.set_fullscreen = gdi_set_fullscreen,
+	.activate = gdi_activate,
 	.destroy = gdi_destroy,
 };
 

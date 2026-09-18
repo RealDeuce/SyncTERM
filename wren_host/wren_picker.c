@@ -1134,13 +1134,26 @@ st_wren_picker_host_run(struct st_wren_host *host,
 	struct st_wren_picker_call *call)
 {
 	st_console_snapshot_t *snapshot = NULL;
+	st_console_t *previous_console;
+	bool switched = false;
 	WrenInterpretResult result;
 
 	if (host == NULL || call == NULL || host->picker_vm == NULL
 	    || host->picker_bootstrap == NULL || host->picker_class == NULL
 	    || host->picker_run == NULL || host->picker_recover == NULL)
 		return false;
-	if (st_console_snapshot_create(&snapshot, host->config.console) != 0)
+	previous_console = host->config.console;
+	if (host->config.display != NULL && host->config.picker_console != NULL
+	    && host->config.picker_console != previous_console) {
+		if (st_console_display_activate(host->config.display,
+		    host->config.picker_console) != 0)
+			return false;
+		host->config.console = host->config.picker_console;
+		st_wren_select_picker_font_state(host, true);
+		switched = true;
+	}
+	else if (st_console_snapshot_create(&snapshot,
+	    host->config.console) != 0)
 		return false;
 	host->last_error[0] = '\0';
 	wrenEnsureSlots(host->picker_vm, 3);
@@ -1168,7 +1181,14 @@ st_wren_picker_host_run(struct st_wren_host *host,
 		call->completed = true;
 	if (call->quit_application)
 		host->exit_requested = true;
-	(void)st_console_snapshot_restore(host->config.console, snapshot);
+	if (switched) {
+		st_wren_select_picker_font_state(host, false);
+		host->config.console = previous_console;
+		(void)st_console_display_activate(host->config.display,
+		    previous_console);
+	}
+	else
+		(void)st_console_snapshot_restore(host->config.console, snapshot);
 	st_console_snapshot_destroy(snapshot);
 	return result == WREN_RESULT_SUCCESS;
 }

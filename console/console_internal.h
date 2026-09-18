@@ -33,7 +33,28 @@ struct st_console_backend_ops {
 	int (*open_url)(st_console_t *console, const char *url);
 	int (*set_pointer_visible)(st_console_t *console, bool visible);
 	int (*set_fullscreen)(st_console_t *console, bool fullscreen);
+	void (*activate)(st_console_t *console);
 	void (*destroy)(st_console_t *console);
+};
+
+struct st_console_display {
+	st_mutex_t backend_mutex;
+	st_mutex_t input_mutex;
+	st_mutex_t presentation_mutex;
+	st_condition_t presentation_ready;
+	st_thread_t presentation_thread;
+	_Atomic(st_console_t *) active;
+	st_console_t *consoles;
+	struct st_console_display_config config;
+	const struct st_console_backend_ops *backend_ops;
+	void *backend_state;
+	enum st_console_backend backend;
+	uint8_t physical_keys[(UINT16_MAX + 1U) / 8U];
+	size_t console_count;
+	bool backend_initialized;
+	bool presentation_thread_started;
+	bool presentation_requested;
+	bool presentation_stop;
 };
 
 struct st_console_snapshot {
@@ -61,9 +82,9 @@ struct st_console {
 	st_rwlock_t state_lock;
 	st_mutex_t event_mutex;
 	st_condition_t event_ready;
-	st_mutex_t presentation_mutex;
-	st_condition_t presentation_ready;
-	st_thread_t presentation_thread;
+	st_console_display_t *display;
+	st_console_t *next_display;
+	bool owns_display;
 	uint32_t columns;
 	uint32_t rows;
 	struct st_console_cell *cells;
@@ -99,18 +120,16 @@ struct st_console {
 	uint32_t initial_window_height;
 	bool changed;
 	bool pixel_surface_dirty;
-	bool presentation_thread_started;
-	bool presentation_requested;
-	bool presentation_stop;
 	struct st_console_event *events;
 	size_t event_capacity;
 	size_t event_head;
 	size_t event_count;
-	uint8_t physical_keys[(UINT16_MAX + 1U) / 8U];
 	enum st_console_backend backend;
 	enum st_console_text_presentation text_presentation;
 	const struct st_console_backend_ops *backend_ops;
 	void *backend_state;
+	char *title;
+	bool pointer_visible;
 };
 
 static inline bool
@@ -185,6 +204,7 @@ int st_console_quartz_run_application(int argc, char **argv,
 	int (*application_main)(int, char **));
 void st_console_quartz_pump(void);
 int st_console_present_locked(st_console_t *console, bool forced);
+st_console_t *st_console_display_active_console(st_console_t *console);
 int st_console_start_presentation_worker(st_console_t *console);
 void st_console_mark_all_locked(st_console_t *console);
 bool st_console_rect_valid(const st_console_t *console,
