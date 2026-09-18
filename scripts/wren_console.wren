@@ -124,6 +124,9 @@ class WrenConsole {
   static run(initialModule) {
     if (__history == null) __history = []
     var saved = Screen.save()
+    // The owning UI may leave an input field's cursor attribute active.
+    // Establish the console's colours; the snapshot restores the caller's.
+    Screen.attr = 0x07
     // The cterm's scroll window may be smaller than the full screen
     // (e.g. a BBS set DEC margins).  Force full-screen for the
     // console's lifetime; restore on exit.

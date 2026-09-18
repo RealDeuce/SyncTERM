@@ -516,6 +516,41 @@ queue_text(st_console_t *console, const char *text)
 	return 0;
 }
 
+static int
+exercise_repl_style(struct st_wren_host *host, st_console_t *console)
+{
+	static const char source[] =
+	    "import \"syncterm\" for Screen\n"
+	    "import \"wren_console\" for WrenConsole\n"
+	    "var saved = Screen.save()\n"
+	    "var correct = false\n"
+	    "WrenConsole.register(\"style-test\", \"test\", Fn.new {|args|\n"
+	    "  var size = Screen.size\n"
+	    "  var cells = Screen.readRect(1, 1, size[0], size[1])\n"
+	    "  correct = Screen.attr == 7 && cells.all {|c| c.fgPalette == 7 && c.bgPalette == 0 }\n"
+	    "})\n"
+	    "Screen.attr = 0x1f\n"
+	    "WrenConsole.run(\"syncterm\")\n"
+	    "if (Screen.attr != 0x1f) Fiber.abort(\"REPL did not restore caller attribute\")\n"
+	    "if (!correct) Fiber.abort(\"REPL inherited editor attribute\")\n"
+	    "Screen.restore(saved)\n"
+	    "WrenConsole.unregister(\"style-test\")\n";
+	struct st_console_event enter = {
+		.type = ST_CONSOLE_EVENT_TEXT,
+		.data.text.codepoint = '\r',
+	};
+	WrenVM *vms[] = {host->vm, host->picker_vm};
+
+	for (size_t i = 0; i < sizeof(vms) / sizeof(vms[0]); ++i) {
+		CHECK(queue_text(console, "/style-test") == 0);
+		CHECK(st_console_post_event(console, &enter) == 0);
+		CHECK(queue_text(console, "/quit") == 0);
+		CHECK(st_console_post_event(console, &enter) == 0);
+		CHECK(wrenInterpret(vms[i], "repl_style", source) == WREN_RESULT_SUCCESS);
+	}
+	return 0;
+}
+
 int
 main(void)
 {
@@ -657,6 +692,7 @@ main(void)
 	};
 	CHECK(st_wren_host_create(&host, &host_config) == 0);
 	CHECK(exercise_repl_contract(host) == 0);
+	CHECK(exercise_repl_style(host, console) == 0);
 	CHECK(wrenInterpret(((struct st_wren_host *)host)->vm,
 	    "headless_host_capabilities",
 	    "import \"syncterm\" for Host\n"
