@@ -64,6 +64,7 @@ add_custom_command(OUTPUT ${_st_wren_embedded}
 add_library(st_wren_host STATIC
 	wren_host.c
 	wren_bind_core.c
+	wren_repl.c
 	wren_bind_menu.c
 	wren_picker.c
 	${_st_wren_picker_fs}
@@ -71,6 +72,8 @@ add_library(st_wren_host STATIC
 target_include_directories(st_wren_host
 	PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
 	PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+target_include_directories(st_wren_host SYSTEM PRIVATE
+	${CMAKE_CURRENT_SOURCE_DIR}/../wren_vm/vm)
 target_link_libraries(st_wren_host
 	PUBLIC st_console st_app_paths st_profile
 	PRIVATE st_wren_vm st_codepage st_utf8 st_bbs_list st_audio

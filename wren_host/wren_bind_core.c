@@ -2252,12 +2252,6 @@ fn_host_null(WrenVM *vm)
 }
 
 static void
-fn_host_false(WrenVM *vm)
-{
-	wrenSetSlotBool(vm, 0, false);
-}
-
-static void
 fn_host_safe_mode(WrenVM *vm)
 {
 	wrenSetSlotBool(vm, 0, st_wren_host_from_vm(vm)->config.safe_mode);
@@ -2306,18 +2300,6 @@ fn_host_print(WrenVM *vm)
 	}
 	puts(wrenGetSlotString(vm, 1));
 	fflush(stdout);
-}
-
-static void
-fn_console_count(WrenVM *vm)
-{
-	wrenSetSlotDouble(vm, 0, 0);
-}
-
-static void
-fn_console_iterate(WrenVM *vm)
-{
-	wrenSetSlotBool(vm, 0, false);
 }
 
 static void
@@ -2518,14 +2500,6 @@ static const struct binding bindings[] = {
 	{"Host", true, "altKeyName", fn_host_alt_name},
 	{"Host", true, "altKeyShort", fn_host_alt_short},
 	{"Host", true, "print(_)", fn_host_print},
-	{"Host", true, "logUnread", fn_host_false},
-	{"Host", true, "logUnreadError", fn_host_false},
-	{"Console", true, "count", fn_console_count},
-	{"Console", true, "total", fn_console_count},
-	{"Console", true, "iterate(_)", fn_console_iterate},
-	{"Console", true, "iteratorValue(_)", fn_host_null},
-	{"Console", true, "markSeen()", fn_host_null},
-	{"Console", true, "clear()", fn_host_null},
 	{"Timer", true, "now", fn_timer_now},
 	{"Format", true, "bytes(_)", fn_format_bytes},
 	{"Format", true, "duration(_)", fn_format_duration},

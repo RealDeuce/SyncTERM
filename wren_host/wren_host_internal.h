@@ -73,6 +73,21 @@ struct st_wren_font_state {
 	uint16_t slots[5];
 };
 
+#define ST_WREN_LOG_CAPACITY 1024
+struct st_wren_log_entry {
+	char *text;
+	double timestamp;
+	int source;
+	WrenHandle *cached;
+};
+
+struct st_wren_log {
+	struct st_wren_log_entry entries[ST_WREN_LOG_CAPACITY];
+	uint64_t total;
+	uint64_t errors;
+	size_t count;
+};
+
 /* VM lifetime state, shared by that VM's UI and REPL. */
 struct st_wren_context {
 	struct st_wren_host *host;
@@ -80,6 +95,11 @@ struct st_wren_context {
 	struct st_wren_font_state fonts;
 	uint32_t mouse_events;
 	uint32_t mouse_buttons;
+	struct st_wren_log log;
+	struct st_wren_log capture;
+	bool capturing;
+	uint64_t seen_total;
+	uint64_t seen_errors;
 };
 
 struct st_wren_picker_entry {
@@ -134,6 +154,12 @@ struct st_wren_host {
 struct st_wren_host *st_wren_host_from_vm(WrenVM *vm);
 struct st_wren_context *st_wren_context_from_vm(WrenVM *vm);
 void st_wren_abort(WrenVM *vm, const char *message);
+void st_wren_log_append(WrenVM *vm, int source, const char *text);
+void st_wren_log_error(WrenVM *vm, WrenErrorType type, const char *module,
+	int line, const char *message);
+void st_wren_log_dispose(WrenVM *vm);
+WrenForeignMethodFn st_wren_repl_bind_method(const char *class_name,
+	bool is_static, const char *signature);
 
 WrenForeignMethodFn st_wren_core_bind_method(const char *class_name,
 	bool is_static, const char *signature);

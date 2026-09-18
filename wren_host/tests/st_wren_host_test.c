@@ -463,6 +463,59 @@ exercise_theme_menu_contract(st_wren_host_t *public_host)
 	return 0;
 }
 
+static int
+exercise_repl_contract(struct st_wren_host *host)
+{
+	static const char source[] =
+	    "import \"syncterm\" for Console, Host, REPL, LogSource\n"
+	    "Console.clear()\nConsole.markSeen()\n"
+	    "if (Host.logUnread || Host.logUnreadError) Fiber.abort(\"seen\")\n"
+	    "System.write(\"log marker\")\n"
+	    "var seq = Console.total - 1\n"
+	    "var entry = Console[seq]\n"
+	    "if (entry[1] != LogSource.print || entry[2] != \"log marker\" || !Host.logUnread || Host.logUnreadError) Fiber.abort(\"print log\")\n"
+	    "if (Console[seq] != entry) Fiber.abort(\"cached entry\")\n"
+	    "REPL.eval(\"repl_contract\", \"var replValue = 21\")\n"
+	    "if (REPL.eval(\"repl_contract\", \"replValue * 2\")[0] != 42) Fiber.abort(\"eval\")\n"
+	    "if (!REPL.hasModule(\"repl_contract\") || !REPL.modules.contains(\"repl_contract\")) Fiber.abort(\"modules\")\n"
+	    "REPL.eval(\"repl_contract\", \"pwd\")\n"
+	    "if (!Host.logUnreadError || Console.total <= seq + 1) Fiber.abort(\"compile diagnostics\")\n"
+	    "var failed = Fiber.new { REPL.eval(\"repl_contract\", \"Fiber.abort(\\\"caught repl error\\\")\") }\n"
+	    "failed.try()\n"
+	    "if (failed.error != \"caught repl error\") Fiber.abort(\"catch\")\n"
+	    "REPL.printTrace_(failed)\n"
+	    "if (REPL.eval(\"repl_contract\", \"replValue\")[0] != 21) Fiber.abort(\"recovery\")\n"
+	    "REPL.captureStart_()\n"
+	    "REPL.compile_(\"repl_contract\", \"unknownCapturedName\", true, true)\n"
+	    "if (!REPL.captureContains_(\"unknownCapturedName\")) Fiber.abort(\"capture\")\n"
+	    "REPL.captureClear_()\n"
+	    "for (i in 0...1100) System.write(\"wrap %(i)\")\n"
+	    "if (Console.count != 1024 || Console[seq] != null || Console[-1] != null || Console[0.5] != null) Fiber.abort(\"ring eviction\")\n"
+	    "if (entry[2] != \"log marker\" || Console.entries.toList.count != 1024) Fiber.abort(\"retained entry\")\n"
+	    "var total = Console.total\nConsole.clear()\n"
+	    "if (Console.total != total || Console.count != 0 || Console.iterate(null) != false) Fiber.abort(\"clear\")\n"
+	    "Console.markSeen()\n";
+
+	CHECK(wrenInterpret(host->vm, "repl_contract", source) == WREN_RESULT_SUCCESS);
+	uint64_t menu_total = host->menu.log.total;
+	CHECK(wrenInterpret(host->picker_vm, "repl_contract", source) == WREN_RESULT_SUCCESS);
+	CHECK(host->menu.log.total == menu_total);
+	return 0;
+}
+
+static int
+queue_text(st_console_t *console, const char *text)
+{
+	for (; *text != '\0'; ++text) {
+		struct st_console_event event = {
+			.type = ST_CONSOLE_EVENT_TEXT,
+			.data.text.codepoint = (unsigned char)*text,
+		};
+		CHECK(st_console_post_event(console, &event) == 0);
+	}
+	return 0;
+}
+
 int
 main(void)
 {
@@ -603,6 +656,7 @@ main(void)
 		.application_title = "SyncTERM test",
 	};
 	CHECK(st_wren_host_create(&host, &host_config) == 0);
+	CHECK(exercise_repl_contract(host) == 0);
 	CHECK(wrenInterpret(((struct st_wren_host *)host)->vm,
 	    "headless_host_capabilities",
 	    "import \"syncterm\" for Host\n"
@@ -663,7 +717,27 @@ main(void)
 	CHECK(exercise_theme_contract(host, true) == 0);
 	CHECK(exercise_theme_menu_contract(host) == 0);
 	CHECK(exercise_url_selection(host) == 0);
+	CHECK(wrenInterpret(((struct st_wren_host *)host)->vm, "repl_screen_probe",
+	    "import \"syncterm\" for Screen\n"
+	    "import \"wren_console\" for WrenConsole\n"
+	    "var observed = false\n"
+	    "WrenConsole.register(\"screen-probe\", \"test\", Fn.new {|args|\n"
+	    "  var size = Screen.size\n"
+	    "  var cells = Screen.readRect(1, 1, size[0], size[1])\n"
+	    "  var text = cells.map {|c| c.ch }.join()\n"
+	    "  observed = text.contains(\"42\") && text.contains(\"pwd\")\n"
+	    "})\n") == WREN_RESULT_SUCCESS);
 	CHECK(st_console_post_event(console, &wren_console_key) == 0);
+	CHECK(queue_text(console, "pwd") == 0);
+	CHECK(st_console_post_event(console, &enter) == 0);
+	CHECK(queue_text(console, "Fiber.abort(\"recoverable console error\")") == 0);
+	CHECK(st_console_post_event(console, &enter) == 0);
+	CHECK(queue_text(console, "var consoleAnswer = 6 * 7") == 0);
+	CHECK(st_console_post_event(console, &enter) == 0);
+	CHECK(queue_text(console, "consoleAnswer") == 0);
+	CHECK(st_console_post_event(console, &enter) == 0);
+	CHECK(queue_text(console, "/screen-probe") == 0);
+	CHECK(st_console_post_event(console, &enter) == 0);
 	CHECK(st_console_post_event(console, &ctrl_q) == 0);
 	CHECK(st_console_post_event(console, &ctrl_s) == 0);
 	CHECK(st_console_post_event(console, &wren_console_key) == 0);
@@ -671,6 +745,14 @@ main(void)
 	st_profile_init(&selected);
 	CHECK(st_wren_host_run_menu(host, &selected, &has_selection) == 0);
 	CHECK(has_selection);
+	CHECK(wrenInterpret(((struct st_wren_host *)host)->vm, "repl_ui_result",
+	    "import \"syncterm\" for Console, REPL\n"
+	    "if (REPL.eval(\"main_menu\", \"consoleAnswer\")[0] != 42) Fiber.abort(\"UI eval failed\")\n"
+	    "if (!Console.entries.any {|e| e[2] == \"42\" }) Fiber.abort(\"missing visible result\")\n")
+	    == WREN_RESULT_SUCCESS);
+	CHECK(wrenInterpret(((struct st_wren_host *)host)->vm, "repl_screen_probe",
+	    "if (!observed) Fiber.abort(\"REPL output was not painted\")\n")
+	    == WREN_RESULT_SUCCESS);
 	CHECK(console_has_text(console, 2, 0, "SyncTERM test - Headless"));
 	struct st_console_cell title_cell;
 	struct st_console_rect title_area = {2, 0, 1, 1};

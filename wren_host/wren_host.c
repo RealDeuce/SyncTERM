@@ -368,6 +368,8 @@ bind_method(WrenVM *vm, const char *module, const char *class_name,
 	method = st_wren_picker_bind_method(module, class_name, is_static,
 	    signature);
 	if (method == NULL && strcmp(module, "syncterm") == 0)
+		method = st_wren_repl_bind_method(class_name, is_static, signature);
+	if (method == NULL && strcmp(module, "syncterm") == 0)
 		method = st_wren_core_bind_method(class_name, is_static,
 		    signature);
 	else if (method == NULL && vm == host->vm
@@ -395,8 +397,7 @@ bind_class(WrenVM *vm, const char *module, const char *class_name)
 static void
 write_output(WrenVM *vm, const char *text)
 {
-	(void)vm;
-	fputs(text, stderr);
+	st_wren_log_append(vm, 0, text);
 }
 
 static void
@@ -406,6 +407,10 @@ report_error(WrenVM *vm, WrenErrorType type, const char *module, int line,
 	struct st_wren_host *host = st_wren_host_from_vm(vm);
 	const char *kind = type == WREN_ERROR_COMPILE ? "compile" :
 	    type == WREN_ERROR_RUNTIME ? "runtime" : "stack";
+
+	st_wren_log_error(vm, type, module, line, message);
+	if (st_wren_context_from_vm(vm)->capturing)
+		return;
 
 	if (type != WREN_ERROR_STACK_TRACE)
 		(void)snprintf(host->last_error, sizeof(host->last_error),
@@ -753,6 +758,7 @@ st_wren_picker_host_dispose(struct st_wren_host *host)
 		wrenReleaseHandle(host->picker_vm, host->picker_class);
 	if (host->picker_bootstrap != NULL)
 		wrenReleaseHandle(host->picker_vm, host->picker_bootstrap);
+	st_wren_log_dispose(host->picker_vm);
 	wrenFreeVM(host->picker_vm);
 	host->picker_vm = NULL;
 	host->picker_recover = NULL;
@@ -891,8 +897,10 @@ st_wren_host_destroy(st_wren_host_t *host)
 		wrenReleaseHandle(host->vm, host->run_menu);
 	if (host->vm != NULL && host->main_menu != NULL)
 		wrenReleaseHandle(host->vm, host->main_menu);
-	if (host->vm != NULL)
+	if (host->vm != NULL) {
+		st_wren_log_dispose(host->vm);
 		wrenFreeVM(host->vm);
+	}
 	st_bbs_list_close(host->bbs_list);
 	st_theme_manager_free(&host->themes);
 	st_profile_dispose(&host->selected);
