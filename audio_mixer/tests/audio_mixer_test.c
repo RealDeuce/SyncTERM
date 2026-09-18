@@ -12,6 +12,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 
 #define CHECK(expression) do { \
@@ -211,6 +212,41 @@ test_validation(void)
 	return 0;
 }
 
+static int
+test_crossfade_pull_partition(void)
+{
+	int16_t rendered[2][8];
+
+	for (size_t run = 0; run < 2; ++run) {
+		audio_mixer_t *mixer = NULL;
+		audio_mixer_stream_t *stream = NULL;
+		const int16_t first[] = {1000, 1000, 1000, 1000};
+		const int16_t second[] = {2000, 2000, 2000, 2000};
+		const int16_t third[] = {3000, 3000, 3000, 3000};
+		struct audio_mixer_buffer_options options = {0};
+
+		CHECK(audio_mixer_create(&mixer) == 0);
+		CHECK(audio_mixer_stream_create(&stream, mixer, 0, 0) == 0);
+		CHECK(audio_mixer_stream_append(stream, first, 2, NULL) == 0);
+		options.crossfade = true;
+		options.fade_in_frames = 1;
+		CHECK(audio_mixer_stream_append(stream, second, 2, &options) == 0);
+		CHECK(audio_mixer_stream_append(stream, third, 2, NULL) == 0);
+		if (run == 0)
+			(void)audio_mixer_pull(mixer, rendered[run], 4);
+		else {
+			for (size_t frame = 0; frame < 4; ++frame)
+				(void)audio_mixer_pull(mixer, rendered[run] + frame * 2, 1);
+		}
+		audio_mixer_destroy(mixer);
+	}
+	if (memcmp(rendered[0], rendered[1], sizeof(rendered[0])) != 0)
+		fprintf(stderr, "crossfade bulk/single-frame tails: %d,%d vs %d,%d\n",
+		    rendered[0][4], rendered[0][6], rendered[1][4], rendered[1][6]);
+	CHECK(memcmp(rendered[0], rendered[1], sizeof(rendered[0])) == 0);
+	return 0;
+}
+
 int
 main(void)
 {
@@ -219,5 +255,6 @@ main(void)
 	CHECK(test_drain_snapshot_and_clear() == 0);
 	CHECK(test_delivery_acknowledgement() == 0);
 	CHECK(test_validation() == 0);
+	CHECK(test_crossfade_pull_partition() == 0);
 	return 0;
 }

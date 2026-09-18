@@ -4,6 +4,7 @@
  */
 
 #include "st_connection.h"
+#include "connection_internal.h"
 
 #include "io_error.h"
 #include "socket.h"
@@ -352,11 +353,135 @@ test_shell(void)
 	return 0;
 }
 
+static int
+test_shell_line_discipline(void)
+{
+#if !SYNCTERM_PLATFORM_WINDOWS && ST_CONNECTION_TEST_HAVE_SHELL
+	struct st_profile profile;
+	struct st_screen_geometry geometry = {80, 25, 0, 0};
+	st_connection_t *connection = NULL;
+	char buffer[32];
+	size_t total = 0;
+
+	st_profile_init(&profile);
+	profile.connection_type = ST_CONNECTION_SHELL;
+	profile.screen_mode = ST_SCREEN_MODE_CURRENT;
+	strcpy(profile.address, "printf 'a\\nb\\n'");
+	CHECK(st_connection_connect_shell(&connection, &profile, &geometry,
+	    NULL, NULL) == 0);
+	while (total < sizeof(buffer)) {
+		ssize_t count = st_connection_receive(connection, buffer + total,
+		    sizeof(buffer) - total, 1000);
+		if (count <= 0)
+			break;
+		total += (size_t)count;
+	}
+	CHECK(st_connection_close(connection) == 0);
+	st_profile_dispose(&profile);
+	if (total != 6)
+		fprintf(stderr, "shell newline output: %zu bytes, expected 6 with CRLF\n",
+		    total);
+	CHECK(total == 6 && memcmp(buffer, "a\r\nb\r\n", 6) == 0);
+#endif
+	return 0;
+}
+
+struct partial_input_state {
+	atomic_uint reads;
+};
+
+static void
+partial_input_bind(void *state, st_connection_t *connection)
+{
+	(void)state;
+	/* Bind runs before the workers start. Leave one byte of queue space. */
+	memset(connection->input.data, 'a', ST_CONNECTION_BUFFER_SIZE - 1);
+	connection->input.count = ST_CONNECTION_BUFFER_SIZE - 1;
+}
+
+static ssize_t
+partial_input_read(void *context, void *data, size_t size, int64_t timeout_ms)
+{
+	struct partial_input_state *state = context;
+	const struct timespec pause = {0, 1000000};
+
+	(void)timeout_ms;
+	if (atomic_fetch_add(&state->reads, 1) == 0) {
+		if (size < 4)
+			return IO_ERROR_INVALID_ARGUMENT;
+		memcpy(data, "bcde", 4);
+		return 4;
+	}
+	(void)st_thread_sleep(&pause, NULL);
+	return IO_ERROR_TIMED_OUT;
+}
+
+static ssize_t
+partial_input_write(void *context, const void *data, size_t size,
+	int64_t timeout_ms)
+{
+	(void)context;
+	(void)data;
+	(void)timeout_ms;
+	return (ssize_t)size;
+}
+
+static void
+partial_input_destroy(void *context)
+{
+	(void)context;
+}
+
+static int
+test_partial_input_queue(void)
+{
+	static const struct st_connection_transport_ops operations = {
+		.bind = partial_input_bind,
+		.read = partial_input_read,
+		.write = partial_input_write,
+		.destroy = partial_input_destroy,
+	};
+	struct partial_input_state state;
+	st_connection_t *connection = NULL;
+	unsigned char received[ST_CONNECTION_BUFFER_SIZE + 3];
+	const struct timespec pause = {0, 1000000};
+	size_t total = 0;
+
+	atomic_init(&state.reads, 0);
+	CHECK(st_connection_start(&connection, &state, &operations, "audit",
+	    NULL, NULL, NULL) == 0);
+	/* Wait for the worker to fill the last queue byte before draining it.
+	 * A correct worker may block here retaining the other three bytes. */
+	for (unsigned int i = 0; i < 2000; ++i) {
+		if (st_connection_pending_raw(connection) == ST_CONNECTION_BUFFER_SIZE)
+			break;
+		(void)st_thread_sleep(&pause, NULL);
+	}
+	while (total < sizeof(received)) {
+		ssize_t count = st_connection_receive_raw(connection, received + total,
+		    sizeof(received) - total, 1000);
+		if (count <= 0)
+			break;
+		total += (size_t)count;
+	}
+	CHECK(st_connection_close(connection) == 0);
+	if (total != sizeof(received))
+		fprintf(stderr, "input queue retained %zu of %zu bytes\n",
+		    total, sizeof(received));
+	CHECK(total == sizeof(received));
+	for (size_t i = 0; i < ST_CONNECTION_BUFFER_SIZE - 1; ++i)
+		CHECK(received[i] == 'a');
+	CHECK(memcmp(received + ST_CONNECTION_BUFFER_SIZE - 1, "bcde", 4) == 0);
+	return 0;
+}
+
 int
 main(void)
 {
 	CHECK(test_raw() == 0);
 	CHECK(test_rlogin() == 0);
 	CHECK(test_shell() == 0);
-	return 0;
+	int failures = test_shell_line_discipline();
+	failures += test_partial_input_queue();
+	return failures != 0;
 }

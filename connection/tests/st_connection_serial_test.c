@@ -173,12 +173,51 @@ test_modem(void)
 	return 0;
 }
 
+static int
+test_profile_flow_mapping(void)
+{
+	static const struct {
+		int profile;
+		unsigned serial;
+	} cases[] = {
+		{ST_PROFILE_FLOW_RTS_CTS, SERIAL_FLOW_CONTROL_RTS_CTS},
+		{ST_PROFILE_FLOW_XON_XOFF, SERIAL_FLOW_CONTROL_XON_XOFF},
+		{ST_PROFILE_FLOW_RTS_CTS_XON_XOFF,
+		    SERIAL_FLOW_CONTROL_RTS_CTS | SERIAL_FLOW_CONTROL_XON_XOFF},
+		{ST_PROFILE_FLOW_NONE, SERIAL_FLOW_CONTROL_NONE},
+	};
+	int failures = 0;
+
+	for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
+		struct st_profile profile;
+		struct serial_config config;
+		st_connection_t *connection = NULL;
+
+		st_connection_serial_fake_reset(0);
+		st_profile_init(&profile);
+		profile.connection_type = ST_CONNECTION_SERIAL;
+		profile.flow_control = cases[i].profile;
+		strcpy(profile.address, "fake-serial");
+		CHECK(st_connection_connect_serial(&connection, &profile, NULL, NULL) == 0);
+		config = st_connection_serial_fake_config();
+		CHECK(st_connection_close(connection) == 0);
+		st_profile_dispose(&profile);
+		if (config.flow_control != cases[i].serial) {
+			fprintf(stderr, "profile flow %d: got serial flags %u, expected %u\n",
+			    cases[i].profile, config.flow_control, cases[i].serial);
+			++failures;
+		}
+	}
+	return failures != 0;
+}
+
 int
 main(void)
 {
 	CHECK(test_serial() == 0);
 	CHECK(test_three_wire() == 0);
 	CHECK(test_modem() == 0);
+	int failure = test_profile_flow_mapping();
 	st_connection_serial_fake_dispose();
-	return 0;
+	return failure;
 }

@@ -24,6 +24,34 @@ main(void)
 	double round_trip;
 	time_t timestamp;
 
+	/* Mathematical values, not arbitrary floating-point object bit patterns. */
+#if FLT_RADIX == 2 && DBL_MANT_DIG == 53
+	CHECK(value_parse_double(
+	    "1.00000000000000011102230246251565404236316680908203125", &value));
+	CHECK(value == 1.0);
+	CHECK(value_parse_double(
+	    "1.00000000000000011102230246251565404236316680908203126", &value));
+	CHECK(value == nextafter(1.0, 2.0));
+	CHECK(value_parse_double("9007199254740993", &value));
+	CHECK(value == 9007199254740992.0);
+	CHECK(value_parse_double("9007199254740995", &value));
+	CHECK(value == 9007199254740996.0);
+#endif
+	CHECK(value_parse_double("-0.000e99999", &value));
+	CHECK(value == 0.0 && signbit(value));
+	{
+		static const char *const invalid[] = {
+		    "", ".", "+", "1e", "1e+", "1.2.3", "nan", "inf", "0x1p0"
+		};
+		for (size_t i = 0; i < sizeof(invalid) / sizeof(invalid[0]); ++i) {
+			value = 42.0;
+			CHECK(!value_parse_double(invalid[i], &value));
+			CHECK(value == 42.0);
+		}
+	}
+	memcpy(buffer, "keep", 5);
+	CHECK(!value_format_double(buffer, 2, 1.25));
+	CHECK(strcmp(buffer, "keep") == 0);
 	CHECK(value_parse_int64(" -0x8000000000000000 ", &signed_value));
 	CHECK(signed_value == INT64_MIN);
 	CHECK(!value_parse_int64("12x", &signed_value));
@@ -73,6 +101,16 @@ main(void)
 			}
 		}
 		(void)setlocale(LC_NUMERIC, "C");
+	}
+	{
+		time_t compact;
+		time_t named;
+
+		CHECK(value_parse_datetime("20200102", &compact));
+		CHECK(value_parse_datetime("Jan  2 2020", &named));
+		if (compact != named)
+			fprintf(stderr, "compact date interpreted differently from named date\n");
+		CHECK(compact == named);
 	}
 	return EXIT_SUCCESS;
 }

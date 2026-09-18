@@ -527,6 +527,96 @@ test_clone(void)
 	return true;
 }
 
+static bool
+test_zero_bitfield(void)
+{
+	static const struct ini_bit_name bits[] = {{1, "Read"}, {4, "Write"}};
+	ini_document_t *document = NULL;
+	uint64_t value;
+
+	CHECK(ini_document_create(&document) == 0);
+	CHECK(ini_section_set_bitfield(ini_document_root(document), "Bits",
+	    bits, 2, 0, NULL) == 0);
+	value = ini_section_get_bitfield(ini_document_root(document), "Bits",
+	    bits, 2, 42);
+	ini_document_free(&document);
+	if (value != 0)
+		fprintf(stderr, "zero bitfield read as %llu\n", (unsigned long long)value);
+	CHECK(value == 0);
+	return true;
+}
+
+static bool
+test_accepted_key_round_trip(void)
+{
+	ini_document_t *document = NULL;
+	ini_document_t *parsed = NULL;
+	char *text = NULL;
+	size_t size = 0;
+	bool retained;
+
+	CHECK(ini_document_create(&document) == 0);
+	int status = ini_section_set_string(ini_document_root(document),
+	    "[Key]", "value", NULL);
+	if (status == IO_ERROR_INVALID_ARGUMENT) {
+		ini_document_free(&document);
+		return true;
+	}
+	CHECK(status == 0);
+	CHECK(ini_document_serialize(document, &text, &size) == 0);
+	CHECK(ini_document_parse(&parsed, text, size) == 0);
+	const char *value = ini_section_find(ini_document_root(parsed), "[Key]");
+	retained = value != NULL && strcmp(value, "value") == 0;
+	if (!retained)
+		fprintf(stderr, "accepted key lost after serialization: %s\n", text);
+	free(text);
+	ini_document_free(&parsed);
+	ini_document_free(&document);
+	CHECK(retained);
+	return true;
+}
+
+static bool
+test_append_after_unterminated_line(void)
+{
+	static const char *const inputs[] = {"First=one", "[Section]"};
+	bool passed = true;
+
+	for (size_t i = 0; i < sizeof(inputs) / sizeof(inputs[0]); ++i) {
+		ini_document_t *document = NULL;
+		ini_document_t *parsed = NULL;
+		ini_section_t *section;
+		char *text = NULL;
+		size_t size = 0;
+
+		CHECK(ini_document_parse(&document, inputs[i], strlen(inputs[i])) == 0);
+		section = i == 0 ? ini_document_root(document)
+		    : ini_document_find_section(document, "Section");
+		CHECK(ini_section_set_string(section, "Second", "two", NULL) == 0);
+		CHECK(ini_document_serialize(document, &text, &size) == 0);
+		CHECK(ini_document_parse(&parsed, text, size) == 0);
+		section = i == 0 ? ini_document_root(parsed)
+		    : ini_document_find_section(parsed, "Section");
+		const char *value = ini_section_find(section, "Second");
+		if (value == NULL || strcmp(value, "two") != 0) {
+			fprintf(stderr, "appended key lost after parsing serialized text: %s\n",
+			    text);
+			passed = false;
+		}
+		if (i == 0) {
+			value = ini_section_find(section, "First");
+			if (value == NULL || strcmp(value, "one") != 0) {
+				fprintf(stderr, "appending changed the preceding value\n");
+				passed = false;
+			}
+		}
+		free(text);
+		ini_document_free(&parsed);
+		ini_document_free(&document);
+	}
+	return passed;
+}
+
 int
 main(void)
 {
@@ -536,5 +626,8 @@ main(void)
 	    || !test_mutation()
 	    || !test_clone())
 		return EXIT_FAILURE;
-	return EXIT_SUCCESS;
+	bool passed = test_append_after_unterminated_line();
+	passed = test_accepted_key_round_trip() && passed;
+	passed = test_zero_bitfield() && passed;
+	return passed ? EXIT_SUCCESS : EXIT_FAILURE;
 }
