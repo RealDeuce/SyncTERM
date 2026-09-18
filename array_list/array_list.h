@@ -20,20 +20,53 @@ enum array_list_insert_result {
 	ARRAY_LIST_INSERTED = 1,
 };
 
-/* NULL is an empty list. The core owns only its pointer-array storage. */
+/*
+ * NULL is an empty list. Every non-NULL handle must come from this library;
+ * an ordinary NULL-terminated C array is not a list. The core owns only the
+ * pointer-array storage, never its items. Items must be non-NULL object
+ * pointers, and list[count] is a maintained NULL sentinel. Do not resize or
+ * free the array directly. Replacing an existing item slot with a non-NULL
+ * pointer is allowed; callers retain responsibility for item ownership and
+ * any sorted-order invariant.
+ *
+ * reserve/insert/append can relocate the array: copied handles and pointers
+ * to slots must not be retained across these calls. Item objects are not
+ * moved. There is no internal synchronization; callers coordinate mutation
+ * with every access to the same list.
+ */
 size_t array_list_count(array_list_t list);
+/* Reserve at least count item slots, without changing the item count.
+ * Reserving zero succeeds without allocating. A NULL handle address fails.
+ * All bool mutations leave the list unchanged on failure. */
 bool array_list_reserve(array_list_t *list, size_t count);
+/* Insert before index (0 through count inclusive); append inserts at count.
+ * NULL items, NULL handle addresses and out-of-range indices fail. */
 bool array_list_insert(array_list_t *list, size_t index, void *item);
 bool array_list_append(array_list_t *list, void *item);
+/* Remove and return the indexed item, or NULL for an invalid index.
+ * Compacts slots but does not reallocate storage or free the item. */
 void *array_list_take(array_list_t list, size_t index);
+/* Drop all items without freeing them; retain allocated storage for reuse. */
 void array_list_clear(array_list_t list);
+/* Free only the storage and set the handle to NULL. NULL arguments are OK. */
 void array_list_free(array_list_t *list);
 
-/* Search results use the first equal item and its insertion position. */
+/*
+ * Sorted operations require ascending order under compare. The comparator
+ * receives item/key pointers themselves, not addresses of pointer slots.
+ * It must return negative/zero/positive for less/equal/greater, consistently,
+ * and must not mutate the list. Search writes the first equal item's index
+ * or the insertion position before the first greater item when not found.
+ * NULL key/compare returns false and writes zero. index may be NULL.
+ */
 bool array_list_sorted_find(array_list_t list, const void *key,
     array_list_compare_fn compare, size_t *index);
+/* Insert after existing equal items, preserving their order. */
 bool array_list_sorted_insert(array_list_t *list, void *item,
     array_list_compare_fn compare);
+/* A duplicate leaves the list untouched and reports the first equal index;
+ * success reports the inserted index. Errors leave list and index unchanged.
+ * This never frees item, including on duplicate/error. index may be NULL. */
 enum array_list_insert_result array_list_sorted_insert_unique(
     array_list_t *list, void *item, array_list_compare_fn compare,
     size_t *index);

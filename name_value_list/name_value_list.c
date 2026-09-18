@@ -149,7 +149,7 @@ name_value_list_free(name_value_list_t *list)
 {
 	if (list == NULL)
 		return;
-	while (name_value_list_count(*list) > 0)
-		name_value_free_item(name_value_list_take(*list, 0));
+	for (size_t i = 0; i < name_value_list_count(*list); ++i)
+		name_value_free_item((*list)[i]);
 	name_value_array_free_storage(list);
 }

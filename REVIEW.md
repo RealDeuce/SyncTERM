@@ -35,8 +35,8 @@ been verified. A completed row must link findings and verification evidence.
 | app | Pending | Startup, CLI, menu/connection lifecycle. |
 | app_paths | Pending | Platform paths and override ownership. |
 | array_list | In progress | Header, implementation, CMake, existing test read; R001, R002. |
-| str_list | Pending | Owning strings, transactional mutation, allocation failures. |
-| name_value_list | Pending | Owning collections versus borrowed sorted indexes. |
+| str_list | In progress | Header, source, CMake and test implementations inspected; allocator coverage gap R004; typed storage concern R002. |
+| name_value_list | In progress | Header, source, CMake, tests and INI/settings uses inspected; ownership documented, R003; typed storage concern R002 and allocation-failure verification remain open. |
 | hex | Pending | Encoding bounds and malformed input. |
 | utf8 | Pending | Invalid sequences, bounds, caller contracts. |
 | unicode_width | Pending | Width policy, generated tables and updater. |
@@ -104,15 +104,52 @@ absence of a stale-pointer read; that is established by source inspection.
 
 ### R002 — Array-list public contract and typed adapters need further review
 
-Status: open review item; not yet a completed defect disposition.
+Status: contract documentation addressed; typed-adapter audit remains open.
 
-The public header does not currently spell out the allocation provenance
+The original public header did not spell out the allocation provenance
 requirement, NULL-item rejection, terminating sentinel, mutation invalidation,
 sorted-input requirement, duplicate placement, or output/failure behavior
-implemented by the source. Typed adapters also cast the caller's handle address
+implemented by the source. These contracts are now documented, together with
+comparator argument conventions, caller synchronization, item ownership,
+and permissible slot replacement. Added `test_contract()` exercises invalid
+arguments, unique insertion/duplicates, lower-bound misses, sentinel-preserving
+removal and index preservation on error. The name/value header now separates
+owning lists from borrowed indexes, specifies ASCII-only ordering and stable
+names, and documents copied inputs and take/free responsibilities.
+
+Typed adapters also cast the caller's handle address
 to `array_list_t *`; audit aliasing and representation assumptions against the
 approved typed-list design and all direct users before changing that boundary.
 Do not silently replace the user-approved macro-based interface.
+
+### R003 — Name/value-list destruction repeatedly shifts the whole tail
+
+Status: fixed; verification recorded below.
+
+`name_value_list_free()` previously took element zero until empty. Each take
+memmoves every remaining pointer, giving quadratic teardown for large INI
+sections or settings lists. It now frees each owned item in one traversal and
+then releases array storage. Public ownership and NULL behavior are unchanged.
+The borrowed index is still separately owned; INI already releases it before
+the owning entries in `section_release()`.
+
+Expanded tests cover copied input strings, value replacement aliasing the
+current value/name, invalid arguments, unchanged duplicate values, borrowed
+index visibility and independent storage disposal, empty removal, and freeing
+8,192 owned items. The tests verify behavior, not a wall-clock speed threshold;
+the linear complexity follows from the single traversal with no tail moves.
+
+### R004 — String-list allocation-failure tests omit pointer-array allocations
+
+Status: open test-coverage defect.
+
+The failure-test target recompiles `str_list.c` with `STR_LIST_TEST_ALLOCATOR`
+but links the ordinary `syncterm_array_list`. String copies and temporary
+arrays are injected; pointer-array malloc/realloc failures are not. The test
+allocator still contains an unused realloc hook. Exercise storage-allocation
+failure and verify preserved list contents/ownership before treating this
+component's transactional mutation coverage as complete. Name/value allocation
+failure paths also need direct coverage rather than successful-operation tests.
 
 ## Verification ledger
 
@@ -131,6 +168,12 @@ GUI checks must use an isolated virtual display, never the user's desktop.
   under Wine. New `test_growth()` exercises repeated growth to 257 items,
   explicit reservation to 1024 slots, rejected SIZE_MAX reservation without
   mutation, and growth/reuse of allocated-empty storage to 2048 slots.
+- R002 contract documentation / R003: full Clang, GCC and MinGW builds
+  succeeded. The same 12 native tests listed for R001 passed under both
+  compilers; updated `array_list_test.exe` and `name_value_list_test.exe`
+  passed under Wine. GCC's `-O2 -fstrict-aliasing -Wstrict-aliasing=2`
+  syntax check emitted no warnings for the typed-list test, but this does
+  not settle the open adapter aliasing question.
 - No area is marked complete yet. Native and cross-platform verification for
   the repository-wide review remains ongoing. These tests do not establish
   Windows native/MSVC, macOS, Haiku, or all other POSIX-platform coverage.
