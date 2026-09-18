@@ -49,17 +49,19 @@ array_list_reserve(array_list_t *list, size_t required)
 	size_t allocation_size;
 	size_t capacity;
 	size_t maximum;
+	bool new_list;
 
 	if (list == NULL)
 		return false;
 	if (required == 0)
 		return true;
+	new_list = *list == NULL;
 	maximum = (SIZE_MAX - offsetof(struct array_list_storage, items))
 	    / sizeof(void *);
 	if (maximum == 0 || required > maximum - 1)
 		return false;
 	maximum--;
-	if (*list == NULL)
+	if (new_list)
 		capacity = 4;
 	else {
 		storage = array_list_storage(*list);
@@ -76,13 +78,13 @@ array_list_reserve(array_list_t *list, size_t required)
 	}
 	if (!array_list_allocation_size(capacity, &allocation_size))
 		return false;
-	if (*list == NULL)
+	if (new_list)
 		storage = malloc(allocation_size);
 	else
 		storage = realloc(array_list_storage(*list), allocation_size);
 	if (storage == NULL)
 		return false;
-	if (*list == NULL) {
+	if (new_list) {
 		storage->count = 0;
 		storage->items[0] = NULL;
 	}

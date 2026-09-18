@@ -63,8 +63,44 @@ test_array_list(void)
 	return true;
 }
 
+static bool
+test_growth(void)
+{
+	struct number numbers[257];
+	number_list_t list = NULL;
+
+	CHECK(number_list_reserve(&list, 0));
+	CHECK(list == NULL);
+	for (size_t i = 0; i < sizeof(numbers) / sizeof(numbers[0]); ++i) {
+		numbers[i] = (struct number){(int)i, 0};
+		CHECK(number_list_append(&list, &numbers[i]));
+		CHECK(number_list_count(list) == i + 1);
+		CHECK(list[i + 1] == NULL);
+		for (size_t j = 0; j <= i; ++j)
+			CHECK(list[j] == &numbers[j]);
+	}
+	CHECK(number_list_reserve(&list, 1024));
+	CHECK(number_list_count(list) == 257 && list[257] == NULL);
+	number_list_t saved = list;
+	CHECK(!number_list_reserve(&list, SIZE_MAX));
+	CHECK(list == saved);
+	CHECK(number_list_count(list) == 257 && list[257] == NULL);
+	for (size_t i = 0; i < 257; ++i)
+		CHECK(list[i] == &numbers[i]);
+	number_list_clear(list);
+	CHECK(list == saved && list[0] == NULL);
+	CHECK(number_list_reserve(&list, 2048));
+	CHECK(number_list_count(list) == 0 && list[0] == NULL);
+	CHECK(number_list_append(&list, &numbers[0]));
+	CHECK(number_list_count(list) == 1 && list[0] == &numbers[0]);
+	CHECK(list[1] == NULL);
+	number_list_free_storage(&list);
+	CHECK(list == NULL);
+	return true;
+}
+
 int
 main(void)
 {
-	return test_array_list() ? EXIT_SUCCESS : EXIT_FAILURE;
+	return test_array_list() && test_growth() ? EXIT_SUCCESS : EXIT_FAILURE;
 }
