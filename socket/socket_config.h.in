@@ -1,0 +1,9 @@
+/* Generated socket capability configuration. */
+
+#ifndef SYNCTERM_SOCKET_CONFIG_H_
+#define SYNCTERM_SOCKET_CONFIG_H_
+
+#cmakedefine01 SYNCTERM_SOCKET_HAVE_MSG_NOSIGNAL
+#cmakedefine01 SYNCTERM_SOCKET_HAVE_SO_NOSIGPIPE
+
+#endif

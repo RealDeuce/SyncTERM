@@ -1,0 +1,14 @@
+/*
+ * Copyright (c) 2026 Stephen Hurd
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#ifndef ST_THREADS_CONFIG_H_
+#define ST_THREADS_CONFIG_H_
+
+#cmakedefine01 ST_THREADS_BACKEND_PTHREAD
+#cmakedefine01 ST_THREADS_BACKEND_WINDOWS
+#cmakedefine01 ST_THREADS_HAVE_PTHREAD_MUTEX_TIMEDLOCK
+#cmakedefine01 ST_THREADS_HAVE_PTHREAD_RWLOCK
+
+#endif

@@ -1,0 +1,36 @@
+/* Generated serial-port capability configuration. */
+
+/*
+ * Copyright (c) 2026 Stephen Hurd
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#ifndef ST_SERIAL_CONFIG_H_
+#define ST_SERIAL_CONFIG_H_
+
+#cmakedefine01 ST_SERIAL_HAVE_CRTSCTS
+#cmakedefine01 ST_SERIAL_HAVE_CCTS_OFLOW_CRTS_IFLOW
+#cmakedefine01 ST_SERIAL_HAVE_MODEM_CONTROL
+#cmakedefine01 ST_SERIAL_HAVE_MODEM_STATUS
+#cmakedefine01 ST_SERIAL_HAVE_TIOCM_CAR
+#cmakedefine01 ST_SERIAL_HAVE_TIOCM_CD
+#cmakedefine01 ST_SERIAL_HAVE_TIOCM_RNG
+#cmakedefine01 ST_SERIAL_HAVE_TIOCM_RI
+
+#cmakedefine01 ST_SERIAL_HAVE_B57600
+#cmakedefine01 ST_SERIAL_HAVE_B115200
+#cmakedefine01 ST_SERIAL_HAVE_B230400
+#cmakedefine01 ST_SERIAL_HAVE_B460800
+#cmakedefine01 ST_SERIAL_HAVE_B500000
+#cmakedefine01 ST_SERIAL_HAVE_B576000
+#cmakedefine01 ST_SERIAL_HAVE_B921600
+#cmakedefine01 ST_SERIAL_HAVE_B1000000
+#cmakedefine01 ST_SERIAL_HAVE_B1152000
+#cmakedefine01 ST_SERIAL_HAVE_B1500000
+#cmakedefine01 ST_SERIAL_HAVE_B2000000
+#cmakedefine01 ST_SERIAL_HAVE_B2500000
+#cmakedefine01 ST_SERIAL_HAVE_B3000000
+#cmakedefine01 ST_SERIAL_HAVE_B3500000
+#cmakedefine01 ST_SERIAL_HAVE_B4000000
+
+#endif

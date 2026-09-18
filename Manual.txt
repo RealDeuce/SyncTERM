@@ -1,0 +1,1489 @@
+// Copyright (c) 2026 Stephen Hurd
+// SPDX-License-Identifier: BSD-2-Clause
+
+:experimental:
+= SyncTERM v1.10a Manual
+Stephen Hurd <shurd@sasktel.net>
+:toc:
+
+SyncTERM is a terminal program written specifically for connecting to
+Bulleten Board Systems (BBSs). Despite the name, SyncTERM is in no way
+Synchronet specific, it just happens to share a large portion of code
+with the rest of the Synchronet project, and live in the same git
+repository.
+
+== Getting Support
+If you need help with SyncTERM, the best places are:
+
+IRC::
+Connect to irc.synchro.net and find Deuce in #Synchronet. Ask your
+question, then idle. I can take hours to respond. Do not give up,
+this is the quickest way to get a response.
+
+SourceForge::
+The official http://www.sf.net/projects/syncterm[SyncTERM project page]
+has a bug tracker and other features that will email me and provide
+tracking for issues that are filed.
+
+E-Mail::
+I am usually fairly responsive to emails sent to me at
+mailto:shurd@sasktel.net[shurd@sasktel.net]. Please describe your issue
+as clearly as possible.
+
+Dove-Net::
+While I no longer read Dove-Net regularly, many other users can often
+help with support issues. Ask questions in the Hardware/Software Help
+sub. If your local BBS does not carry Dove-Net, you can telnet to
+vert.synchro.net and leave messages there.
+
+Throughout this document, I will mention things which are not supported.
+These are things which I don't normally test, and are unlikely to work
+at any given time. If you ask for support on one of these issues, I may
+help out, or I may not. It doesn't bother me if you ask for help on
+these things, but if you continue to ask for help after I refuse, it will
+make it less likely I'll work on it in the future.
+
+== History
+I started writing SyncTERM in June of 2004. There weren't any good BBS
+clients available for FreeBSD at the time, so I started writing one.
+Initially, it was RLogin only and no file transfer support existed or
+was planned. since RLogin supports auto-login with user ID and password
+on Synchronet systems, and RLogin is a much simpler protocol than telnet,
+no telnet support was planned. Digital Man (authour of Synchronet) added
+telnet and ZModem support a year later, and SyncTERM became a generally
+usable BBS client. New features continued to be added slowly over the
+years.
+
+== Getting SyncTERM
+
+Releases of SyncTERM are available on the
+http://www.sf.net/projects/syncterm[SourceForge project page]. Nightly
+builds and source bundles are also available at
+http://syncterm.bbsdev.net/[the SyncTERM website] for the more adventurous.
+
+
+== Compiling SyncTERM from Source
+
+SyncTERM is a standalone CMake project.  It requires CMake 3.22 or later
+and a C17 compiler.  Windows builds support both MSVC and MinGW; POSIX
+builds include FreeBSD, Linux, macOS, Haiku, and other sufficiently capable
+POSIX-like systems.
+
+=== Dependencies
+
+https://github.com/libjxl/libjxl[libjxl] is an optional but strongly
+recommended dependency.  It provides JPEG XL graphics support; without it,
+the only generally available image-transfer representation is uncompressed
+PPM.  JPEG XL integration has not yet been reconnected in this standalone
+CMake tree, and the Build Options screen currently reports it as unavailable.
+That is an incomplete part of the modernization, not a decision to remove
+JPEG XL support.
+
+Encrypted BBS lists and TLS use either Botan 3.13 or newer or OpenSSL 3.0 or
+newer.  CMake prefers a usable Botan installation and then OpenSSL when
+`CRYPTO_BACKEND` is left unset.  A build without either provider is possible,
+but encryption and TLS-dependent features are unavailable.  The provider can
+be selected explicitly with `-DCRYPTO_BACKEND=Botan`,
+`-DCRYPTO_BACKEND=OpenSSL`, or `-DCRYPTO_BACKEND=none`.
+
+The graphical console uses the native backend where one is available: X11 or
+Wayland on POSIX desktops, Quartz on macOS, and GDI on Windows.  X11 requires
+the Xlib, Xutil, and XKB development interfaces; XRender, XRandR, and Xinerama
+are used when available.  Wayland requires the Wayland client and xkbcommon
+development interfaces, `wayland-scanner`, and the core, xdg-shell, and
+viewporter protocol descriptions.  SDL 2 remains an optional fallback and is
+particularly useful on Haiku, but is no longer the primary graphical backend
+on platforms with a native implementation.  ANSI, ncurses, and the native
+Windows console provide non-bitmap output modes.
+
+Audio output can use the native CoreAudio or WASAPI backend, or the optional
+PortAudio, PipeWire, PulseAudio, ALSA, OSS, and SDL backends.  CMake enables
+the usable choices it detects; most non-system backends are loaded at run
+time, but their development headers are required when building them.
+
+Configure and build out of the source tree, then run the tests:
+
+[source,sh]
+----
+cmake -S . -B build
+cmake --build build
+ctest --test-dir build --output-on-failure
+----
+
+With a single-configuration generator, the executable is
+`build/app/syncterm`.  Multi-configuration generators place it under the
+selected configuration directory.
+
+CMake detects the console, audio, cryptography, and other optional
+facilities available on the target.  Most optional backend controls use
+`AUTO`, `ON`, or `OFF`: `AUTO` enables a backend when its complete build
+requirements are present, `ON` requires it and makes configuration fail
+when it is unavailable, and `OFF` excludes it.  The principal controls are
+`ST_CONSOLE_X11`, `ST_CONSOLE_WAYLAND`, and `ST_CONSOLE_SDL` for graphical
+console backends, the `ST_AUDIO_*` family for audio backends, and
+`CRYPTO_BACKEND` (unset for automatic selection, or `Botan`, `OpenSSL`, or
+`none`) for cryptography.
+For example:
+
+[source,sh]
+----
+cmake -S . -B build -DST_CONSOLE_WAYLAND=ON -DST_CONSOLE_SDL=OFF
+----
+
+`SYNCTERM_ENABLE_UNIFONT` is enabled by default.  It includes the modified
+GNU Unifont-derived Unicode fallback raster data, which is licensed under
+GPL-2.0-or-later; an executable containing that data must be distributed
+under GPL-2.0-or-later terms.  Configure with
+`-DSYNCTERM_ENABLE_UNIFONT=OFF` to omit that data.  The original SyncTERM
+material in this source tree remains under the two-clause BSD license; see
+`LICENSE` and `unifont/UPSTREAM.md` for the complete notices.
+
+== Running SyncTERM
+
+SyncTERM supports command-line options to control behaviour.  Option letters
+are case-insensitive.  An option value may be attached to its letter (for
+example, `-isf`, `-l43`, or `-b/path/to/list`) or supplied as the next
+argument where applicable.
+
+-6::
+Specifying -6 forces SyncTERM to use IPv6 addresses when possible.
+
+-4::
+Specifying -4 forces SyncTERM to use IPv4 addresses when possible.
+
+-B/path/to/bbs/list.lst::
+Loads the user BBS list from the specified file instead of the default.
+
+-C::
+Changes the default to no status line.
+
+-H::
+Use SSH mode when connecting.
+
+-I(A[U|C]|C|F|I|G[W|F]|Q[W|F]|S[W|F]|W|X[W|F]|Y[W|F])::
+Selects the output mode. Not all modes are available in all builds or
+on all platforms. Legal values are:
++
+--
+	A or AU:::
+	UTF-8 ANSI output mode. This mode outputs ANSI control sequences
+	and UTF-8 text to stdout. `A` is an alias for `AU`.
+
+	AC:::
+	CP437 ANSI output mode. This emits CP437 bytes instead of UTF-8.
+
+	C:::
+	Curses output mode. For use in *nix terminals.
+
+	F:::
+	Curses with forced IBM character set.  Limited usefulness.
+
+	G[WF]:::
+	Windows GDI output mode. Uses the Win32 API directly, and is
+	the default for Windows. Additionally, a 'W' or 'F' can be
+	specified to force windowed or full-screen mode respectively.
+
+	I:::
+	Curses in ASCII mode.
+
+	S[WF]:::
+	SDL window output mode. Uses the SDL library for output. 
+	Additionally, a 'W' or 'F' can be specified to
+	force windowed or full-screen mode respectively.
+
+	W:::
+	Windows console mode. Windows only mode which uses the system
+	console APIs for output.
+
+	Q[WF]:::
+	Quartz output mode. macOS only mode which uses the native
+	AppKit/Core Graphics framework for drawing. The default on
+	macOS. Additionally, a 'W' or 'F' can be specified to force
+	windowed or full-screen mode respectively.
+
+	X[WF]:::
+	X11 output mode. UNIX only mode which directly uses the X11
+	libraries for drawing. Additionally, a 'W' or 'F' can be
+	specified to force windowed or full-screen mode respectively.
+
+	Y[WF]:::
+	Wayland output mode. UNIX only mode which uses the native
+	Wayland protocol for drawing. The default where supported.
+	Additionally, a 'W' or 'F' can be specified to force windowed
+	or full-screen mode respectively.
+--
++
+Refer to the <<_output_modes>> section for more details.
+
+-L##::
+Specifies the number of lines on the "screen". Supported values are:
+14, 21, 25 (default), 28, 30, 43, 50, and 60. An unsupported value is
+reported as a command-line error.
+
+-N/path/to/config.ini::
+Loads the configuration from the specified file instead of the default.
+
+-Q::
+Quiet mode, doesn't show popups by default.
+
+-R::
+Use RLogin mode when connecting.
+
+-T::
+Use Telnet mode when connecting.  If an upper-case -T is the only
+argument passed to SyncTERM however, SyncTERM will output a terminfo
+entry on stdout then exit.  See <<_installing_terminfo_entry>> for more
+details.
+
+-S::
+Use "safe" mode.  This mode attempts to restrict the ability of the user
+to modify the local drive contents.  This has not been exhaustively
+audited, and should therefore not be trusted.
+
+-v::
+This option is case-sensitive.  When it is the only argument, causes
+SyncTERM to output its version on stdout and exit.
+
+--help::
+Shows a concise command-line summary and exits.
+
+-W/path/to/script.wren::
+Loads the named Wren script in addition to the built-in and user
+auto-load scripts on every connect.  The script is interpreted as
+its own filename-derived module after all other scripts have loaded,
+so its `import` statements resolve against the full surface.
+Compile and runtime errors during the load are written to standard
+error.
+
+After the options, a full URI, hostname, or dialing directory entry may be
+specified.  Supported URI schemes are:
+rlogin://, ssh://, telnet://, raw://, and mqtts://.
+
+`mqtts://` connects to a Synchronet BBS's internal MQTT broker as a
+sysop-spy client.  It always uses TLS-PSK on port 8883 (no plaintext
+`mqtt://` form is accepted) — the user portion of the URL becomes the
+PSK identity, the password portion becomes the PSK secret, and a
+prompt for the system password appears at connect time if the matching
+dialing-directory entry doesn't carry one.  After authentication,
+SyncTERM auto-discovers the BBSID from a retained broker topic, lists
+the active nodes, and lets you pick which one to attach to.  See
+`SBBS MQTT Spy` under <<connection-types,Connection Types>>.
+
+If there is an entry matching the URI, hostname, or entry name, the
+settings will be loaded from the BBS list, then modified per the
+command-line arguments.
+
+== Advanced Keyboard Controls
+
+The console layer directly implements some advanced keyboard controls.
+While these are not available in all output modes, they are available
+everywhere and not just in the menus or in the connected state.
+
+Keyboard Controls::
+
+	kbd:[Alt+→]:::
+	Snap the window size to the next smaller integer zoom level
+
+	kbd:[Alt+←]:::
+	Snap the window size to the next larger smaller integer zoom
+	level
+
+	kbd:[Alt+Return]:::
+	Toggle fullscreen mode
+
+	kbd:[Alt+Home]:::
+	Centre window on the screen
+
+	kbd:[Alt]+drag:::
+	Hold kbd:[Alt] and drag the window with the left mouse button
+	to move it on the desktop. Available in the Wayland output
+	mode when the compositor does not provide server-side
+	decorations (i.e. there is no title bar to drag).
+
+In addition, you can directly enter characters either by their "codepage"
+value or their unicode value.  A "codepage" value is an 8-bit value that
+indicates a character in the current codepage (such as the default CP437).
+
+To enter a codepage value, ensure kbd:[NumLock] is on, and hold down an
+kbd:[Alt] key, then enter the decimal value on the numeric keypad. Do
+not enter leading zeros, as that would indicate a unicode value.  Once
+the value is entered, release the kbd:[Alt] key.
+
+A unicode value is the Unicode codepoint number. Only unicode values that
+map to the current codepage can be passed through, so the majority of
+values can't be entered in a given mode.
+
+To enter a unicode value, ensure kbd:[NumLock] is on, and hold down an
+kbd:[Alt] key, press the kbd:[0] key on the numeric keypad, then enter
+the decimal value on the numeric keypad. Once the value is entered,
+release the kbd:[Alt] key.
+
+== The User Interface
+
+The following is the general behaviour of SyncTERM menus.
+
+Mouse controls::
+
+	Right-click:::
+	Same as pressing ESC (ie: exit menu).
+
+	Left-click:::
+	Select an item in a menu.
++
+If there is a blank line at the end of the menu, you can select
+it to insert a new item.
++
+Menus have a standard set of mouse controls. If you click outside of a
+menu, that menu is usually closed, but in some cases, it may simply
+become inactive. At the top of each menu is a block which is used to
+close the menu. If there is help for the menu, there is also a ? button
+to bring up the help.
++
+If there are more options than fit in the window, there is a scrollbar
+on the right side.
+
+	Left-Drag:::
+	Select and copy a region (the copy is made when the button is
+	released).
+
+	Middle-click:::
+	Paste from PRIMARY selection or clipboard.
+
+Keyboard Controls::
+
+	kbd:[Return]:::
+	Select the currently highlighted option.  If there is a blank
+	line at the end of the menu, you can select it to insert a new
+	item.
+
+	kbd:[Escape]:::
+	Exit the current menu.
+
+	kbd:[Backspace]::: An alias for kbd:[Escape].
+
+	kbd:[Ctrl+C]::: An alias for kbd:[Escape].
+
+	kbd:[Home]:::
+	Jump to the beginning of the menu
+
+	kbd:[↑]:::
+	Move to the previous item in the list
+
+	kbd:[Page Up]:::
+	Jump up in the menu by one screen.
+
+	kbd:[Page Down]:::
+	Jump down in the menu by one screen.
+
+	kbd:[End]:::
+	Jump to the end of the menu
+
+	kbd:[↓]:::
+	Move to the next item in the list.
+
+	kbd:[F1]:::
+	Help
+
+	kbd:[F2]:::
+	Edit
+
+	kbd:[F5]:::
+	Copy
+
+	kbd:[Ctrl+Insert]:::
+	An alias for kbd:[F5]
+
+	kbd:[Shift+Delete]:::
+	Cut
+
+	kbd:[F6]:::
+	Paste
+
+	kbd:[Shift+Insert]:::
+	An alias for kbd:[F6]
+
+	kbd:[Insert]:::
+	Inserts a new item.
+
+	kbd:[+]:::
+	An alias for kbd:[Insert]
+
+	kbd:[Delete]:::
+	Delete item at current location
+
+	kbd:[-]:::
+	An alias for kbd:[Delete]
+
+	Any letter or number:::
+	Jumps to the next item that has that character
+	earliest in it's name.
+
+	kbd:[Ctrl+F]:::
+	Find text in options
+
+	kbd:[Ctrl+G]:::
+	Repeat last find
+
+
+=== The File Browser
+
+SyncTERM uses a shared file browser whenever a file or directory must
+be picked — for example when uploading a file (kbd:[Alt+U]), loading a
+font (kbd:[Alt+F]), or naming a capture file (kbd:[Alt+C]).
+
+The browser shows three rows of content inside its window:
+
+Directory and File panes::
+Two side-by-side lists.  The left pane contains subdirectories plus a
+`..` entry (except at the filesystem root), and the right pane contains
+files that match the current mask.  Directories are always listed
+regardless of the mask.
+
+Info pane::
+A two-line area below the lists.  The first line shows the full name of
+the item currently highlighted in whichever list has focus; the second
+line shows its size (or the word `directory`) and last-modified
+timestamp.  In the multi-file picker it also shows `[selected]` when
+the highlighted file is already tagged.
+
+Mask and Path fields::
+The mask filters the file list (for example `*.bin`).  The path field
+always shows the current location.  When the caller permits typing a
+path, e.g. Upload, it also lets you type a directory or filename
+directly.  Long paths are shown from the end so the deepest directory
+stays visible.
+
+The footer holds an `OK` (or `Select`) button and a `Cancel` button.
+In the multi-file picker there is also a `Review` button.
+
+Keyboard Controls::
+
+	kbd:[Tab] / kbd:[Shift+Tab]:::
+	Move focus forward or backward between the panes, Mask, the
+	editable Path field (when enabled), and the footer buttons.
+
+	kbd:[←] / kbd:[→]:::
+	Between the directory and file panes these move focus left or
+	right.  In the path and mask fields they move the edit cursor.
+	Between the footer buttons they move focus between buttons.
+
+	kbd:[↑] / kbd:[↓]:::
+	In the lists they move the highlight.  In the path and mask
+	fields they move focus to the previous or next field.
+
+	kbd:[Return]:::
+	In a list: open the directory, or commit the highlighted file
+	(or toggle its selection in multi-pick).  On a footer button:
+	activate that button.
+
+	kbd:[Space]:::
+	In the multi-file picker's file list, toggles the highlighted
+	file's selection.
+
+	kbd:[Ctrl+A]:::
+	Multi-file picker only — tags every file currently shown in
+	the file pane.  Does not descend into subdirectories.  Safe to
+	press repeatedly; files already tagged stay tagged.
+
+	kbd:[Ctrl+Return]:::
+	Activate `OK` / `Select` from anywhere in the dialog, regardless
+	of which field currently has focus.
+
+	kbd:[F2]:::
+	Multi-file picker only — opens the Review pop-up listing every
+	tagged file.  Inside the pop-up, kbd:[Delete] or kbd:[Return]
+	or a left click removes the highlighted or clicked item, and
+	kbd:[Escape] closes the pop-up.
+
+	kbd:[Escape]:::
+	Cancel the browser.
+
+Mouse Controls::
+Clicking a list item in the currently-focused pane commits it
+immediately (or toggles it in multi-pick).  Clicking a list item in an
+unfocused pane just moves focus and the highlight there — click again
+to commit.  Clicking in the mask or path field places the edit cursor
+at that position.  Clicking a footer button both focuses it and
+activates it.
+
+The multi-file picker's status line shows `F2 Review` while the dialog
+is open.  It returns the full path of every tagged file at once, so
+you can queue uploads from several directories in a single pass.
+
+
+== The Dialing Directory
+
+This is the default startup screen if no BBS is specified on the
+command-line. At the top is the program name and version, a build date,
+the current output mode, and the current date and time.
+
+With version numbers, trailing letters indicate pre-release versions. 'a'
+indicates an alpha build which will have known bugs and/or incomplete
+features. 'b' indicates a beta build which indicates there are expected
+to be no known bugs, but it has not received testing. "rcX" is a release
+candidate where X is a number.  These indicate that after some period
+(usually one to two weeks) of no newly reported bugs, a release will be
+made.
+
+The output mode is important to make note of when reporting issues,
+since many bugs only impact one or two output modes.  It's after the
+build date.
+
+The bottom-most line contains help on the current menu, indicating what
+options are available in the most recent menu.
+
+There are three areas the user can interact with in the dialing
+directory. The <<_the_directory,Directory>> menu, the <<_syncterm_settings,SyncTERM Settings>> menu, and the
+comment line.
+
+The comment line is directly above the help line at the bottom, and
+allows a per-BBS comment to be entered.
+
+
+=== The Directory
+
+This menu lists all the entries in the two dialing directory files.  If
+you move the bar over one and press <Enter>, it will connect you to the
+highlighted system as configured in the entry.
+
+In addition to the standard controls, this menu also has some extra
+keyboard shortcuts.
+
+kbd:[Ctrl+&#96;]::
+Open the Wren console in graphical and native-console output modes.
+
+kbd:[Ctrl+Q]::
+Open the Wren console in ANSI and Curses output modes.  This binding applies
+to the dialing directory; while connected, kbd:[Ctrl+Q] retains its
+disconnect function and the console is available from the kbd:[Ctrl+S]
+Online Menu.
+
+kbd:[Ctrl+D]::
+Quick-connect to a URL
+
+kbd:[Ctrl+E]::
+Edit the selected entry (Alias for kbd:[F2])
+
+kbd:[Ctrl+S]::
+<<_managing_sort_profiles,Manage sort profiles>>
+
+kbd:[<] / kbd:[>]::
+Cycle through sort profiles (previous / next).
+The current profile name is shown in the directory title bar.
+
+kbd:[Alt+B]::
+View the scrollback of the last session
+
+kbd:[Tab]::
+Move to the comment field for the current entry, or the settings
+menu if there is no current entry.
+
+kbd:[Back Tab] (kbd:[Shift+Tab])::
+Move to <<_syncterm_settings>>.
+
+To add a new entry, go to the bottom of the list (by pressing end) and
+select the blank entry at the bottom.  A window will pop up asking for
+the Name of the entry.  This name must not already exist in the personal
+dialing directory.
+
+Next you will be prompted for the protocol to use.  Options include:
+
+[[protocols]]
+RLogin::
+Uses the historic RFC1282 RLogin protocol without OOB data.  This
+is an obsolete, unencrypted protocol that can allow auto-login, and
+is 8-bit clean (unlike telnet).  It is very simple.  Instead of the
+local username, the users password is sent.
+
+RLogin Reversed::
+Some RLogin servers that support password auto-login have
+reversed the remote and local username fields.  This allows connecting
+to these servers.
+
+Telnet::
+Uses the historic and highly complex telnet protocol.  This is an
+obsolete, unencrypted protocol and is not 8-bit clean and predates
+TCP/IP.  It has been the source of many security vulnerabilities over
+the fifty years or so it has existed.  Historically, it has been the
+most common way to connect to a remote system as a terminal, so is
+widely supported.
+
+Raw::
+A raw 8-bit clean TCP connection.  This is often what retro BBSs
+actually support when they say they support telnet.
+
+SSH::
+The Secure Shell v2 protocol.  This is the modern replacement for both
+telnet and rlogin, and is widely supported.  This is encrypted and
+performs user and server authentication as part of the protocol instead
+of inline.  SyncTERM supports authenticating with both a password and
+a public key.
+
+SSH (no auth)::
+The SSH protocol, but will not send a password or public
+key.  Used for auto-login systems where the user name by itself is
+sufficient.
+
+Modem::
+SyncTERM can directly control a modem for making outgoing calls.
+
+Serial::
+Direct communication with a serial port.
+
+3-wire::
+Serial, but with only transmit and receive.  In this mode, there
+is no way to detect if the remote has hung up and there is no flow
+control, so bytes can easily be lost.  This is primarily used for
+communicating with embedded hardware, and not BBSs.
+
+Shell::
+Runs a shell in the terminal.
+
+MBBS GHost::
+The <<_mbbs_ghost,MajorBBS 'GHost' protocol>>.
+
+TelnetS::
+Telnet over TLS.  All the drawbacks of the telnet protocol, but
+at least it's encrypted.  By default, SyncTERM authenticates the server using
+the public Web PKI.  An entry can instead authenticate using one explicitly
+trusted certificate, or a TLS 1.3 or TLS 1.2 pre-shared key.  Web-PKI trust and
+the explicitly trusted certificate are alternatives; their trust stores are
+never combined.  After a certificate-authenticated connection, SyncTERM
+remembers the negotiated TLS version.  A later downgrade requires user
+approval before any Telnet data is exchanged.
+
+SBBS MQTT Spy::
+A sysop-spy connection to a Synchronet BBS's internal MQTT broker.
+Subscribes to a node's published terminal output, and (optionally)
+publishes locally typed keystrokes back as injected node input.
+Authentication is TLS-PSK on port 8883 — the entry's User and
+Password are the PSK identity and secret, and the System Password is
+the broker's MQTT-level password.  When connecting, the BBSID is
+auto-discovered from the broker's retained `sbbs/{BBSID}` topic and
+the node number is chosen from a list of currently-active nodes.
+SyncTERM's terminal emulator does not auto-respond to host
+queries (DSR, DECRQM, etc.) on this connection type so the real
+client driving the node still owns the query/response handshake.
+Also reachable from the command line as `mqtts://user:pass@host`.
+
+Finally, you will be promted for the "address".  This is the DNS addres,
+IP address, serial port, or command to connect to.  If the connection will
+be made over the network, and the name is a valid hostname, it will be
+auto-filled in this field.  To overwrite it, simply start typeing.
+
+Once these three pieces of information are entered, the entry is created
+and you are returned to the Directory.  To further modify the settings,
+you can press kbd:[F2] to enter the <<_edit_directory_entry>> menu.
+
+
+==== Edit Directory Entry
+
+In this menu, you can modify all the connection settings for an entry.
+The exact contents of this menu will vary a bit by connection type, but
+most of the options are the same or silimar.
+
+kbd:[Ctrl+S]::
+Edit the Explicit Sort Value.
+
+kbd:[[] / kbd:[\]]::
+Navigate to the previous/next entry in the directory without returning
+to the directory listing.  This also works in Font Management and
+Sort Profile field editors.
+
+Name::
+The name of the entry.
+
+Phone Number (Modem only):: The phone number to dial.
+
+Device Name (Serial and 3-wire only):: The device name to open.
+
+Command (Shell only)::
+The command to run (usually a shell such as /bin/sh)
+
+Address::
+IP address or host name
+
+Connection Type::
+Protocol to use.  See <<protocols>>.  When you change the protocol, the
+port number value will be updated as well.
+
+Flow Control (Modem, Serial, and 3-wire)::
+The type of flow control
+to use. RTS/CTS, XON/XOFF, Both, or None
+
+Stop Bits (Modem, Serial, and 3-wire)::
+The number of stop bits to use.
+
+Data Bits (Modem, Serial, and 3-wire)::
+The number of data bits to use.
+
+Parity (Modem, Serial, and 3-wire)::
+The parity setting to use.  Options are None, Even, Odd, Mark, and Space.
+
+TCP Port:: The TCP port to connect to.
+
+SSH Username (SSH no auth only)::
+The username to send for the SSH protocol.  Some BBSs have everyone log
+in to SSH with the same username, then log into the BBS with their
+name.  This allows setting the first username.
+
+BBS Username (SSH no auth only)::
+The username to send when kbd:[Alt+L] is entered.
+
+BBS Password (SSH no auth only)::
+The password to send on kbd:[Alt+L].
+
+Username::
+The user name to send.  Used by SSH, RLogin, and GHost.
+For other protocols, send when kbd:[Alt+L] is pressed.
+
+Password::
+The password to send.
+
+GHost Program (GHost)::
+The program name to send to the remote.
+
+System Password::
+An additional password that can be sent after the
+first kbd:[Alt+L] using successive kbd:[Alt+L]s.
+
+Binmode Broken (Telnet and TelnetS)::
+Telnet binary mode is broken on the remote system, do not enable it when
+connecting.  This option is to work around a bug in CTRL-C checking in
+older Synchronet versions.
+
+Defer Negotiate (Telnet and TelnetS)::
+Some systems have a mailer or other program running on the initial
+connection, and will either disconnect or just ignore telnet negotiations
+at the start of the session.  When this option is enabled, SyncTERM will
+wait until it receives a telnet command from the remote before starting
+telnet negotiation.
+
+Trust Web PKI (TelnetS only)::
+Verify the server name and certificate using the operating system's public
+CA roots.  This is enabled by default.  Enabling it clears the Trusted
+Certificate setting.  If certificate verification fails, SyncTERM allows the
+presented chain to be inspected.  Any certificate in that chain may be saved
+beside the SyncTERM configuration file and trusted for that connection only.
+Installed filenames are derived from the dialing-directory entry name; a
+numeric parenthesized suffix is added rather than replacing an existing file.
+
+Trusted Certificate (TelnetS only)::
+Select a PEM certificate to trust only for this connection.  It may be a CA
+certificate or the specific server certificate.  The server name is also
+verified.  Setting this disables Web-PKI trust; the two trust sources are
+not additive.  Press Delete on this menu item to clear the path.
+
+TLS Client Certificate / TLS Client Key (TelnetS only)::
+Select a PEM client certificate or chain and its matching unencrypted PEM
+private key.  Both fields must be set together.  A per-entry pair overrides
+the global pair; leave both empty to use the global client certificate.
+Press Delete on either menu item to clear that path.
+
+TLS PSK Identity / TLS PSK (Text) (TelnetS only)::
+The identity and literal text shared secret for PSK authentication.  SyncTERM
+does not decode the secret as hexadecimal or Base64; for example, `deadbeef`
+is sent as eight ASCII bytes.  Both fields must be set together.  PSK mode is
+certificate-free, so the server trust and client-certificate settings do not
+apply to that connection.  The secret is protected at rest only when
+dialing-directory encryption is enabled.
+
+TLS PSK Version (TelnetS only)::
+The exact TLS version used for PSK authentication.  TLS 1.3 is the default.
+TLS 1.2 must be selected explicitly for a compatible server and should use a
+separately provisioned secret.  SyncTERM does not retry the PSK using another
+TLS version.  TLS 1.3 PSKs use SHA-256 as their provisioned hash.  Both
+versions require an ephemeral PSK key exchange.
+
+Screen Mode::
+Selects the format of the window when connected.
+A mode specifies the number of columns, the number of rows,
+the aspect ratio, and the font size.  Some modes such as the
+Commodore, Atari, Prestel, and BBC Micro modes will also change the
+selected font.  If the current font is a mode-specific one (such as C64
+or Atari), Changing from that mode to a standard one will change the font
+to Codepage 437 English.  A few of the modes will result in different
+terminal emulation than the ANSI-BBS described in the CTerm documentation.
+These are:
+
++
+--
+C64, C128 (40col), and C128 (80col):::
+These modes use PETSCII controls and do not support ANSI-BBS.
+
+Atari, Atari XEP80:::
+These modes use ATASCII controls and do not support ANSI-BBS.
+
+Prestel, BBC Micro Mode 7:::
+These modes use Videotex controls.  There are subtle differences between
+them, but the most obvious differnces are the Prestel mode doesn't scroll
+and kbd:[Return] will send # instead of a carriage return.
+
+Atari ST 40x25, Atari ST 80x25, and Atari ST 80x25 Mono:::
+These modes use the Atari ST VT52 emulation and do not support ANSI-BBS.
+--
++
+
+See <<_current_screen_mode,Current Screen Mode>> and
+<<custom_screen_mode,Custom Screen Mode>> for additional information.
+
+Terminal Type::
+Sets the value send by protocols that support sending this as a string.
+Currently, Telnet, RLogin, SSH, and Shell.
+When this value is empty (displays as "<Automatic>"), it is chosen based
+on the screen mode as one of `syncterm`, `PETSCII`, `ATASCII`, `Prestel`,
+`Beeb7`, or `AtariST+VT52`.
+
+Hide Status Line::
+Indicates that the "status line" at the bottom of
+the window when connected should not be displayed.  This allows
+for an extra line of text from the remote to be shown.
+
+Download Path::
+The location to save downloaded files.
+
+Upload Path::
+The location to start at when browsing for files to upload.
+
+Log Configuration::
+This brings up a sub-menu to control a debug log.
+There are four options in this sub-menu:
+Log Filename:::
+	If this is not blank, specifies the file to write
+	the log data to.  When this is blank, disable logging.
+File Transfer Log Level:::
+	May be one of None, Alerts, Critical Errors,
+	Errors, Warnings, Notices, Normal, or Debug.
+Protocol Log Level:::
+	Chosen from the same list as above. Controls connection diagnostics for
+	all supported connection types, including native TLS-provider tracing for
+	TelnetS and MQTT. Logs contain protocol, setup, lifecycle, and error
+	metadata as appropriate, but not terminal traffic, credentials, phone
+	numbers, shell commands, MQTT topics, or message payloads. The global
+	default is Errors when neither the new ProtocolLogLevel nor legacy
+	TelnetLogLevel setting is present.
+Append Log File::: If set you Yes, the log file retains old information
+	and will keep growing.  If set to No, the log file is emptied
+	for each new connection.
+
+Comm Rate (Modem, Serial, and 3-wire)::
+Specifies the speed to open the serial port at.
+
+Fake Comm Rate (network connections)::
+Specifies the character pacing display speed for network connections.
+This controls the simulated baud rate shown in the status line and
+the character output pacing.
+
+ANSI Music::
+There are three options in this sub-menu.
+ESC [ | only:::
+	With this setting, ANSI music is fully compliant with
+	the standards (ECMA-48, ANSI, etc), but almost no software
+	works with this.
+BANSI Style:::
+	Supports both the SyncTERM (CSI |) and BananaCom (CSI N)
+	ANSI music styles.  Support is still very rare, but slightly
+	more common than the first.
+All ANSI Music Enabled:::
+	In addition to the previous two, also
+	supports CSI M for ANSI music.  This is by far the most common
+	sequence used by software that supports ANSI music.
+	Unfortunately, this prevents the ANSI Delete Line sequence from
+	working correctly.
+
+Address Family::
+Selected IP address family for network connections.
+As per DNS:::
+	Uses the first address returned by getaddrinfo()
+IPv4 only:::
+	Will only connect over an IPv4 address.  If none is
+	available, the connection will fail.
+IPv6 only:::
+	Will only connect over an IPv6 address.  If none is
+	available, the connection will fail.
+ 
+Font::
+Choses a font (and by implication, a codepage) for the connection.
+Custom fonts are also listed in this menu.
+
+Hide Popups::
+Do not show status and progress popups.
+
+RIP::
+Selects the version for Remote Imaging Protocol ("RIP").
+RIP allows graphics and mouse usage, and was used by doors and
+BBSs starting in the early 90s.  The RIP support in SyncTERM is
+not complete, and may not be compatible with other terminals.
+RIPv1 is the one most commonly used by old BBS software, and it
+requires that the Screen Mode be set to an EGA mode.  RIPv3
+is an updated version that is not backward compatible, but can
+be used in any mode.
+
+Force LCF Mode::
+This setting will force the DEC terminal
+"Last Column Flag" mode to always be enabled.  This mode is almost
+always used in modern terminal emulators, which are almost all
+VT-102 emulators at least.  LCF controls the wrapping behaviour
+when the cursor is on the last column of a line.  The specific
+rules used are complex and not implemented the same in all terminal
+emulators even today.
+
+Yellow is Yellow::
+By default, SyncTERM displays low-intensity yellow
+as brown.  This originated in the IBM CGA monitors, and was carried
+forward to EGA and even most VGA modes.  Some digital monitors that
+were CGA compatible did not have the brown hack.  While the vast
+majority of software will assume that low-intensity yellow should
+be brown, this allows strict standard compliance.
+
+SFTP Public Key::
+For SSH connections, SyncTERM can open another SSH
+channel and write the public key to .ssh/authorized_keys on the
+remote, which will enable authentication using the private key on
+at least OpenSSH and new versions of Synchronet.  This option
+requires SFTP support from the remote side, and may cause connection
+stability issues if SFTP is not available or does not work correctly.
+
+Edit Palette::
+This opens a menu allowing you to cusomize the palette for the entry. If
+the default palette has fewer than 16 colours, you can add additional
+palette entries. When you select a colour, you can enter the red, green,
+and blue values separately, and the resulting colour is shown when
+possible.
+
+If there are fewer than sixteen entries in the list, the list will be
+repeated to fill all 16 palette slots. This allows for example, the use
+16 colour Amiga VT-52 mode.
+
+
+==== Managing Sort Profiles
+
+SyncTERM supports named sort profiles that control the order entries
+appear in the Directory.  Press kbd:[<] or kbd:[>] in the directory
+listing to cycle through profiles.  The current profile name is shown
+in the title bar.
+
+Four default profiles are provided: Name, Last Connected, Most Called,
+and Date Added.  You can manage profiles by pressing kbd:[Ctrl+S] to
+open the Sort Profiles manager.
+
+In the Sort Profiles manager:
+
+kbd:[Enter]::
+Edit the sort fields for the selected profile.  In the sort field editor,
+press Insert to add a field, Delete to remove one, and Enter to toggle
+between normal and reversed order.
+
+kbd:[F2]::
+Rename the selected profile (max 19 characters, must be unique).
+
+kbd:[Insert]::
+Create a new profile.
+
+kbd:[Delete]::
+Delete the selected profile.  Deleting the last profile reloads the
+defaults.
+
+kbd:[F5] / kbd:[Ctrl+Insert]::
+Copy a profile to the clipboard.
+
+kbd:[Shift+Delete]::
+Cut a profile (remove and place on clipboard).
+
+kbd:[F6] / kbd:[Shift+Insert]::
+Paste the clipboard at the current position.  If the name already
+exists, you will be prompted for a new unique name.
+
+Sort profiles are stored in the `[SortProfiles]` section of the
+SyncTERM INI file.
+
+The Explicit Sort Value exists to manually control the position of entries
+in the list, and can be accessed using kbd:[Ctrl+S] in the Edit Directory
+Entry menu.
+
+
+==== Viewing the Scrollback
+
+When viewing the scrollback, the following keys are supported:
+
+kbd:[↑]::
+Move up one line
+
+kbd:[J]::
+Move up one line
+
+kbd:[↓]::
+Move down on line
+
+kbd:[K]::
+Move down one line
+
+kbd:[Page Up]::
+Move up one screen
+
+kbd:[H]::
+Move up one screen
+
+kbd:[Page Down]::
+Move down on screen
+
+kbd:[L]::
+Move down one screen
+
+kbd:[Escape]::
+Exit scrollback mode
+
+
+=== SyncTERM Settings
+
+The SyncTERM Settings menu has the following options:
+
+Web Lists::
+Add web lists which SyncTERM will synchronize with an http:// or https://
+URI at each program startup. Web lists are added as system lists, which
+means credentials and paths will come from the Default Connection
+Settings, and they will be copied into your personal list if you use or
+modify them. Note that the web client will only do GET requests, and only
+supports status codes of 200 (OK) and 304 (Not Modified). Specifically,
+it does not support any redirection.
+
+Default Connection Settings::
+Set the default values for a new directory
+entry.  See Edit Directory Entry for details on these options.
+
+Current Screen Mode::
+Changes the current screen mode.  For directory
+entries where the screen mode is "Current", will be used during the
+connection.  This setting is not saved across program restarts.
+To change the startup screen mode, see
+<<_syncterm_settings>> →
+<<_program_settings>> →
+Startup Screen Mode.
+
+Font Management::
+Allows setting up custom font files.
+
+Program Settings::
+Allows changing settings that are preserved across
+reboots.  Refer to the <<_program_settings>> section for details.
+
+Themes::
+Lists the built-in Classic Theme and `.ini` theme files from the user theme
+directory. Moving the highlight previews a valid theme. Enter selects and
+saves it; Escape restores the previously selected theme. Invalid files may be
+highlighted to display their error but cannot be selected. See `Themes.adoc`
+for the file format.
+
+File Locations::
+Shows the paths to the various files and directories
+that SyncTERM will access.
+
+Build Options::
+Shows which optional components SyncTERM was built to support, including the
+available console and audio backends.  It also reports whether the executable
+contains the GPL-2.0-or-later GNU Unifont-derived Unicode fallback data.
+
+List Encryption::
+Allows you to encrypt or decrypt the BBS list. Choose the encryption type
+you want or change the password, etc.
+
+==== Current Screen Mode
+
+This temporarily sets the screen mode.  A screen mode defines the number
+of rows and columns in the window, which font size to use (8x8, 8x14, or
+8x16), and the aspect ratio to scale pixels to.  The majority of these
+modes are based on historical analog hardware modes, so most of them do
+not use square pixels.  The main exceptions are LCD80x25, which is an
+80x25 mode that uses square pixels and the 8x16 font, and VGA80x25, which
+is an 80x25 mode that uses square pixels, the 8x16 font, and performs the
+VGA column expansion to use 9 pixel wide cells.  For further details,
+see <<_text_modes>> in the console-library chapter.
+
+
+==== Font Management
+
+The Font Management menu allows you to add and remove fonts.  Each font
+should have a unique name, and at least one file for 8x8, 8x14, or 8x16
+fonts.  The font format is the one used by "DOS fonts".  You can insert
+and delete items using the normal menu commands.
+
+
+==== Program Settings
+
+Confirm Program Exit::
+Asks if you are sure you want to quit when pressing
+ESC or right-clicking in the main SyncTERM screen.
+
+Prompt To Save::
+If enabled, when SyncTERM is started with a URI that is
+not in a dialing directory, asks if you want to add the entry to the
+directory.
+
+Startup Screen Mode::
+The screen mode that is used when SyncTERM starts.
+
+Video Output Mode::
+The method of displaying SyncTERM output.  The options
+will vary by OS, compile-time options, and installed libraries.  See
+the -I option to SyncTERM for details on the various modes.
+
+Default Cursor Style::
+The cursor style used by default.  Options are "Default (set by video
+mode)", "Blinking Underline", "Solid Underline", "Blinking Block", and
+"Solid Block".  The remote system may override this using DECSCUSR.
+
+Audio Output Mode::
+Allows disabling different output methods.  SyncTERM attempts to
+use them in the order listed in the menu, and the first one to
+succeed is used going forward.
+
+Scrollback Buffer Lines::
+The maximum number of lines to keep in the
+scrollback.  Once this number is reached, the oldest lines are
+removed to make room for new lines.
+
+Modem/Comm Device::
+The device name for the Modem device.  For UNIX-like
+systems, this will be something like "/dev/ttyd0".  For Windows, this
+will be "COM1" to "COM9".  If it's COM10 or higher, it needs to be
+specified as "\\.\COM10".
+
+Modem/Comm Rate::
+Specifies the speed to communicate with the modem at.
+If set to 0, the speed is not set by SyncTERM, and the default is
+used.
+
+Modem Init String::
+The string to send to the modem when the device is
+first opened to prepare it to be used.
+
+Modem Dial String::
+A string that is sent immediately before the phone
+number to cause the modem to dial.
+
+List Path::
+The path to load the personal dialing directory from.
+
+TERM For Shell::
+The value that the TERM variable is set to for shell
+type connections.
+
+TLS Client Certificate / TLS Client Key::
+Select the default PEM client certificate or chain and matching unencrypted
+PEM private key presented by TelnetS connections.  Both fields must be set
+together.  An entry with its own client-certificate pair overrides these
+global values.  Press Delete on either menu item to clear that path.
+
+Scaling::
+Select to cycle through the values "Blocky", "Pointy", and
+"External".  Blocky scales each pixel to a rectangle, and Pointy
+will use 45° angles.  External will use hardware scaling if possible.
+The quality of External scaling varies wildly based on OS, device
+drivers, and output mode.
+
+Invert Mouse Wheel::
+Toggles the direction the mouse wheel moves.
+
+Key Derivation Iterations::
+This specifies the number of iterations to derive a key from a password.
+The higher this value, the more difficult brute forcing is, but the longer
+it takes to read the BBS list.
+
+Classic Theme Colours::
+Allows changing the six colours used by the built-in Classic Theme. These
+settings apply to the menu, file picker, and connected Wren interfaces while
+Classic Theme is selected. File themes do not inherit these colour settings.
+
+[[custom_screen_mode]]
+Custom Screen Mode::
+Allows defining the Rows, Columns, Font Size, and
+Aspect Ratio of the "Custom" screen mode.
+
+
+== Connected State
+
+When you are connected to a system, there are a number of controls
+available that are not sent to the remote.
+
+=== Hyperlinks
+SyncTERM supports OSC 8 hyperlinks. When a BBS sends text with an
+embedded hyperlink, clicking on the linked text will open the URL
+in your default browser. When the BBS has mouse capture enabled,
+use kbd:[Ctrl+Click] instead. Hovering over a hyperlinked region
+displays the URL in the status bar.
+
+Even without OSC 8 markup, kbd:[Ctrl+Click] on plain-text URLs
+(starting with `http://`, `https://`, `ftp://`, `ftps://`, or
+`www.`) will detect and open the URL directly. This also works
+in the scrollback viewer.
+
+On platforms where opening a browser is not possible, the URL is
+copied to the clipboard instead.
+
+=== Selecting and Copying Text
+
+Left-drag across the terminal to select a region.  The copy is made
+when the button is released.  By default the selection is stream-
+shaped: it flows from the starting cell to the ending cell across
+line wraps, trailing spaces are trimmed on each row, and rows are
+separated by `\r\n` on Windows or `\n` on other platforms.
+
+Hold kbd:[Alt] when you press the left mouse button to select a
+rectangular region instead.  The kbd:[Alt] state is sampled once, at
+the start of the drag, and held for the duration of the drag;
+pressing or releasing kbd:[Alt] mid-drag does not change the
+selection shape.  Each row of the rectangle is copied as its own
+line, with trailing spaces trimmed.
+
+If the remote system has mouse capture enabled, use kbd:[Alt+O] to
+take the mouse back from the remote so that you can select text.
+
+For Curses and ANSI modes, only two controls are avilable, and they
+are not available in other modes.  This is because these two modes
+don't have access to keys that could not potentially be sent to the
+remote.  To help avoid conflict with remote systems, the XON (kbd:[Ctrl+Q])
+and XOFF (kbd:[Ctrl+S]) codes that are used for software flow control are
+used.
+
+kbd:[Ctrl+Q]::
+Disconnects from the current session.
+
+kbd:[Ctrl+S]::
+Brings up the Online Menu (see below)
+
+For all other modes, the ALT key is used for SyncTERM commands, and
+the following combinations are supported:
+
+kbd:[Shift+Insert]::
+Pastes the current PRIMARY selection or clipboard
+contents to the remote.
+
+kbd:[Alt+B]::
+View scrollback (See "Viewing The Scrollback")
+
+kbd:[Alt+C]::
+Capture Control.  Allows starting and stopping capturing the
+session to a file.  Useful for stealing ANSIs and debugging
+emulation issues.
+
+kbd:[Alt+D]::
+Begins a download from the remote system.
+
+kbd:[Alt+E]::
+Brings up the Dialing Directory
+
+kbd:[Alt+F]::
+Allows selecting a different font.  In some output modes, the
+selected font will change text that is already on the screen.
+In most modes however, only newly displayed text will be in the
+new font.
+
+kbd:[Alt+H]::
+Hangup and return to the main menu.
+
+kbd:[Alt+L]::
+Send auto-login information.  For protocols that allow auto-
+login, only the system password is sent.  For all others, the
+username is sent followed by a carriage return, then the password
+followed by a CR, then the system password followed by the CR.
+If any of these are not configured for the current entry, neither
+them, nor the CR are sent for that item.
+
+kbd:[Alt+M]::
+Changes the currently supported "ANSI" Music prefix.
+
+kbd:[Alt+O]::
+Toggles remote mouse support.  With the remote capturing mouse
+events, it can be difficult to select text to copy.  kbd:[Alt+O] allows
+taking the mouse away from the remote.
+
+kbd:[Alt+U]::
+Upload a file (or files) to the remote.  Prompts first for a
+protocol, then for the file(s) to send.  `ZMODEM` and `YMODEM`
+each offer a `Batch` variant that brings up the
+<<_the_file_browser,multi-file picker>> so you can queue files
+from several directories and transfer them in a single session.
+The other choices (`XMODEM-1K`, `XMODEM-128`, `ASCII`, `Raw`)
+transfer a single file.
+
+kbd:[Alt+X]::
+Disconnect and exit SyncTERM.  Does not return to the main
+menu.
+
+kbd:[Alt+Z]::
+Brings up the Online Menu (see below)
+
+kbd:[Alt+↑]::
+Selects the next fastest character pacing speed.  If the
+fastest speed is currently selected, disables character pacing.
+If pacing is currently disabled, selects the slowest pacing speed.
+
+kbd:[Alt+↓]::
+Selects the next slowest character pacing speed.  If
+the slowest speed is currently selected, disables character pacing.
+If pacing is currently disabled, selects the fastest pacing speed.
+
+
+=== Online Menu
+
+Allows menu-based selection of some of the above options, as well as
+some less-common operations that don't have a keyboard shortcut.
+
+Scrollback::
+Same as kbd:[Alt+B]
+
+Disconnect::
+Same as kbd:[Alt+H]
+
+Send Login::
+Same as kbd:[Alt+L]
+
+Upload::
+Same as kbd:[Alt+U]
+
+Download::
+Same as kbd:[Alt+D]
+
+Change Output Rate::
+Allows selecting a specific character pacing to use.
+
+Change Log Level::
+Temporarily changes the file transfer log level
+
+Capture Control::
+Same as kbd:[Alt+C]
+
+ANSI Music Control::
+Same as kbd:[Alt+M]
+
+Wren Console::
+Opens the Wren console.  In ANSI and Curses modes, both kbd:[Ctrl+Q] and
+kbd:[Ctrl+S] close the console and return to the connected session.
+
+Font Setup::
+Same as kbd:[Alt+F]
+
+Toggle Doorway Mode::
+Turns on or off Doorway mode without the host
+specifying it.  Can be used to recover from broken remote software.
+
+Toggle Remote Mouse::
+Same as kbd:[Alt+O]
+
+Toggle Operation Overkill ][ Mode::
+Turns on or off OO][ mode.
+Can be used to recover from broken remote software.
+
+Exit::
+Same as kbd:[Alt+X]
+
+Edit Dialing Directory::
+Same as kbd:[Alt+E]
+
+
+== Techical Details
+
+The following sections delve deeper into technical details, and should
+not be required for normal use.
+
+
+=== Persistant State
+
+SyncTERM will preserve a very small amount of state when exited normally
+and restore it when the program is restarted.  At present, this state
+is limited to the scaling factor applied to the window.  The scaling
+factor is a floating-point value that indicates the largest value which
+both the width and height can be multiplied by and still fit inside the
+current window size.  If you manually resize the window only making it
+wider for example, the additional width will not be saved as the height
+will control the size the next time SyncTERM is started.
+
+This state is only saved under two specific circumstances.  Either the
+current text mode at exit is the same as the configured Startup Screen
+Mode, or the Startup Screen Mode is "Current" and the current text mode
+is "80x25".  In all other cases (such as after the Current Screen Mode
+is changed), it will not be saved.  Also, it's only saved when the
+program exits normally.  In the case of a crash, the setting will not be
+updated.
+
+
+=== Installing Terminfo Entry
+
+When using *nix software through SyncTERM either locally via the shell
+protocol, or remotely via SSH or as a door on a BBS, it helps immensely
+if the remote has a terminfo entry for SyncTERM installed.  To install
+the terminfo entry, follow the following steps:
+
+1. Write the terminfo entry to a file +
+`syncterm -T > syncterm.terminfo`
+2. Compile the entry and install it +
+`tic -sx syncterm.terminfo` +
+By default, it is only installed for the current user.
+
+Once the terminfo entries are installed, you can use them by setting the
+`TERM` environment variable to `syncterm`.  In Bourne shells, this is
+usually accomplished with the command `export TERM=syncterm`.
+
+=== MBBS GHost
+
+"GHost" in SyncTERM refers to the "Galacticomm Host Program" (called Ghost)
+that was included in Major BBS and Worldgroup (MBBS/WG) that allowed a Sysop
+to connect another (DOS-based) PC to the BBS by use of a null modem cable.
+This was a way for a MBBS/WG Sysop to offer DOS doors, something that wasn't
+normally possible.
+
+The functions of the Ghost software itself are beyond the scope of SyncTERM,
+and you should consult the MBBS/WG Ghost documentation for operation details.
+However, broadly speaking, it worked like this:
+
+1) MBBS/WG would send a signal down the null modem cable to alert the DOS PC
+    (running Ghost) that it wanted to run a door.
+2) Using a simple protocol, MBBS/WG would transmit information required to
+    run the door (username, time remaining, whether ANSI-BBS graphics were
+    supported, etc) to Ghost.
+3) Ghost would then launch the door in DOS, using a batch file to call Ghost
+    back once the door exited to wait for the next request.
+
+While few people are connecting DOS-based PC's to anything by null modem
+cables anymore, the Ghost protocol (as offered in SyncTERM) is still useful
+because it's a way to run DOS doors inside a virtual machine and expose them
+outside of that virtual machine.  The idea being that the VM would configure
+a serial port as some kind of network passthrough, so when SyncTERM connects,
+it's passed through to the VM and then Ghost.
+
+One use case for this is to offer DOS doors in environments where it would
+normally be difficult or impossible.  For example, a UNIX user could run
+SyncTERM on a remote system in curses mode, where it would then connect to
+a VM and launch a DOS door via Ghost.  This would all be presented to the
+end UNIX user in a seamless way, so all they would see is the door startup.
+
+The Ghost protocol consists of a single line starting with 'MBBS:',
+terminated with \r\n, and contains five parameters:
+
+MBBS: PROGRAM PROTOCOL 'USER' TIME GR
+
+You don't need to worry about sending this since SyncTERM will format it
+for you based on the SyncTERM configuration options.  But it is helpful
+to understand how various SyncTERM options will translate to the Ghost
+protocol parameters:
+
+PROGRAM: The name of the DOS door/software to ask the Ghost side to run.
+Configured in SyncTERM in the 'GHost Program' field of a directory entry,
+or after the final slash in a ghost:// style URL.
+For example: ghost://user@203.0.113.64/program
+
+PROTOCOL: Always set to 2.  Not configurable in SyncTERM.
+
+USER: Username of the person connecting.  Configured in SyncTERM in the
+'username' field of a directory entry, or before the '@' in a ghost://
+style URL.  For example: ghost://user@203.0.113.64/program
+
+TIME: Amount of time the user has remaining.  Always set to 999.  Not
+configurable in SyncTERM.
+
+GR: Set to GR (for "GRaphics", meaning ANSI-BBS support) or NG
+(for "No Graphics").  Always set to GR.  Not configurable in SyncTERM.
+
+include::Wren.adoc[leveloffset=+2]
+include::cterm.adoc[leveloffset=+2]
+include::Console.adoc[leveloffset=+2]

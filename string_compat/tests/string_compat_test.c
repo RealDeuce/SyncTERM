@@ -1,0 +1,81 @@
+/*
+ * Copyright (c) 2026 Stephen Hurd
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "string_compat.h"
+
+#define CHECK(condition) do { \
+	if (!(condition)) { \
+		fprintf(stderr, "check failed at %s:%d: %s\n", \
+		    __FILE__, __LINE__, #condition); \
+		return false; \
+	} \
+} while (0)
+
+static bool
+test_duplication(void)
+{
+	char source[] = "string";
+	char *copy = strdup(source);
+	char *short_copy = strndup(source, 3);
+	char *long_copy = strndup(source, 20);
+	char *empty_copy = strndup(source, 0);
+
+	CHECK(copy != NULL && short_copy != NULL && long_copy != NULL
+	    && empty_copy != NULL);
+	source[0] = 'S';
+	CHECK(strcmp(copy, "string") == 0);
+	CHECK(strcmp(short_copy, "str") == 0);
+	CHECK(strcmp(long_copy, "string") == 0);
+	CHECK(strcmp(empty_copy, "") == 0);
+	free(empty_copy);
+	free(long_copy);
+	free(short_copy);
+	free(copy);
+	return true;
+}
+
+static bool
+test_copy(void)
+{
+	char destination[5];
+	char unchanged = 'x';
+
+	CHECK(strlcpy(destination, "string", sizeof(destination)) == 6);
+	CHECK(strcmp(destination, "stri") == 0);
+	CHECK(strlcpy(destination, "one", sizeof(destination)) == 3);
+	CHECK(strcmp(destination, "one") == 0);
+	CHECK(strlcpy(&unchanged, "value", 0) == 5);
+	CHECK(unchanged == 'x');
+	return true;
+}
+
+static bool
+test_append(void)
+{
+	char destination[8] = "one";
+	char truncated[6] = "one";
+	char unterminated[3] = {'a', 'b', 'c'};
+
+	CHECK(strlcat(destination, "two", sizeof(destination)) == 6);
+	CHECK(strcmp(destination, "onetwo") == 0);
+	CHECK(strlcat(truncated, "three", sizeof(truncated)) == 8);
+	CHECK(strcmp(truncated, "oneth") == 0);
+	CHECK(strlcat(unterminated, "x", sizeof(unterminated)) == 4);
+	CHECK(memcmp(unterminated, "abc", sizeof(unterminated)) == 0);
+	return true;
+}
+
+int
+main(void)
+{
+	if (!test_duplication() || !test_copy() || !test_append())
+		return EXIT_FAILURE;
+	return EXIT_SUCCESS;
+}

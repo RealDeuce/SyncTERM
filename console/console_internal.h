@@ -1,0 +1,255 @@
+/*
+ * Copyright (c) 2026 Stephen Hurd
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#ifndef ST_CONSOLE_INTERNAL_H_
+#define ST_CONSOLE_INTERNAL_H_
+
+#include "st_console.h"
+#include "st_threads.h"
+
+#include "array_list.h"
+
+#include <stdatomic.h>
+
+struct st_console_font_registration {
+	uint16_t identifier;
+	struct st_console_font font;
+	bool owned;
+	atomic_uint_fast64_t last_used;
+};
+
+struct st_console_backend_ops {
+	bool presents_pixels;
+	bool deferred_present;
+	int (*present)(st_console_t *console);
+	int (*resize)(st_console_t *console, uint32_t columns, uint32_t rows);
+	int (*palette_changed)(st_console_t *console, uint16_t first,
+	    uint16_t count);
+	int (*set_title)(st_console_t *console, const char *title);
+	int (*set_clipboard_text)(st_console_t *console, const char *text);
+	int (*get_clipboard_text)(st_console_t *console, char **result);
+	int (*open_url)(st_console_t *console, const char *url);
+	int (*set_pointer_visible)(st_console_t *console, bool visible);
+	int (*set_fullscreen)(st_console_t *console, bool fullscreen);
+	void (*destroy)(st_console_t *console);
+};
+
+struct st_console_snapshot {
+	const st_console_t *owner;
+	uint32_t columns;
+	uint32_t rows;
+	uint32_t palette[256];
+	struct st_console_style style;
+	struct st_console_rect window;
+	uint32_t cursor_x;
+	uint32_t cursor_y;
+	bool wrap;
+	bool cursor_visible;
+	enum st_console_cursor_shape cursor_shape;
+	bool cursor_custom;
+	struct st_console_custom_cursor custom_cursor;
+	enum st_console_blink_mode blink_mode;
+	bool blocky_scaling;
+	uint32_t pixel_top;
+	struct st_console_cell *cells;
+	struct st_pixel_buffer *pixels;
+};
+
+struct st_console {
+	st_rwlock_t state_lock;
+	st_mutex_t event_mutex;
+	st_condition_t event_ready;
+	st_mutex_t presentation_mutex;
+	st_condition_t presentation_ready;
+	st_thread_t presentation_thread;
+	uint32_t columns;
+	uint32_t rows;
+	struct st_console_cell *cells;
+	uint32_t cell_width;
+	uint32_t cell_height;
+	uint32_t pixel_extra_width;
+	uint32_t pixel_extra_height;
+	uint32_t pixel_top;
+	struct st_pixel_buffer *pixels;
+	struct st_console_cell *rasterized;
+	uint8_t *raster_rows;
+	uint32_t palette[256];
+	array_list_t fonts;
+	uint32_t next_font_identifier;
+	atomic_uint_fast64_t font_clock;
+	struct st_console_style style;
+	struct st_console_rect window;
+	uint32_t cursor_x;
+	uint32_t cursor_y;
+	uint32_t update_depth;
+	bool wrap;
+	bool cursor_visible;
+	enum st_console_cursor_shape cursor_shape;
+	bool cursor_custom;
+	struct st_console_custom_cursor default_cursor;
+	struct st_console_custom_cursor custom_cursor;
+	enum st_console_blink_mode blink_mode;
+	enum st_console_scaling_mode scaling_mode;
+	bool blocky_scaling;
+	uint32_t aspect_width;
+	uint32_t aspect_height;
+	uint32_t initial_window_width;
+	uint32_t initial_window_height;
+	bool changed;
+	bool pixel_surface_dirty;
+	bool presentation_thread_started;
+	bool presentation_requested;
+	bool presentation_stop;
+	struct st_console_event *events;
+	size_t event_capacity;
+	size_t event_head;
+	size_t event_count;
+	uint8_t physical_keys[(UINT16_MAX + 1U) / 8U];
+	enum st_console_backend backend;
+	enum st_console_text_presentation text_presentation;
+	const struct st_console_backend_ops *backend_ops;
+	void *backend_state;
+};
+
+static inline bool
+st_console_cells_equal(const struct st_console_cell *left,
+	const struct st_console_cell *right)
+{
+	return left->codepoint == right->codepoint
+	    && left->glyph == right->glyph
+	    && left->foreground == right->foreground
+	    && left->background == right->background
+	    && ((left->flags ^ right->flags) & ST_CONSOLE_CELL_PUBLIC_FLAGS) == 0
+	    && left->font == right->font
+	    && left->hyperlink == right->hyperlink;
+}
+
+static inline uint16_t
+st_console_cell_glyph_font(const struct st_console_cell *cell)
+{
+	return (cell->flags & ST_CONSOLE_CELL_FALLBACK_FONT) != 0
+	    ? 0 : cell->font;
+}
+
+static inline bool
+st_console_rects_equal(const struct st_console_rect *left,
+	const struct st_console_rect *right)
+{
+	return left->x == right->x && left->y == right->y
+	    && left->width == right->width && left->height == right->height;
+}
+
+static inline void
+st_console_rect_accumulate(struct st_console_rect *damage, bool *valid,
+	const struct st_console_rect *rectangle)
+{
+	uint32_t right = rectangle->x + rectangle->width;
+	uint32_t bottom = rectangle->y + rectangle->height;
+
+	if (!*valid) {
+		*damage = *rectangle;
+		*valid = true;
+		return;
+	}
+	if (rectangle->x < damage->x) {
+		damage->width += damage->x - rectangle->x;
+		damage->x = rectangle->x;
+	}
+	if (rectangle->y < damage->y) {
+		damage->height += damage->y - rectangle->y;
+		damage->y = rectangle->y;
+	}
+	if (right > damage->x + damage->width)
+		damage->width = right - damage->x;
+	if (bottom > damage->y + damage->height)
+		damage->height = bottom - damage->y;
+}
+
+int st_console_ansi_init(st_console_t *console,
+	const struct st_console_ansi_io *io);
+unsigned char st_console_ascii_character(const struct st_console_cell *cell,
+	bool *alternate);
+int st_console_ncurses_init(st_console_t *console);
+int st_console_sdl_init(st_console_t *console);
+int st_console_x11_init(st_console_t *console);
+int st_console_wayland_init(st_console_t *console);
+int st_console_win32_init(st_console_t *console);
+int st_console_gdi_init(st_console_t *console);
+int st_console_quartz_init(st_console_t *console);
+int st_console_libretro_init(st_console_t *console);
+int st_console_sdl_run_application(int argc, char **argv,
+	int (*application_main)(int, char **));
+int st_console_quartz_run_application(int argc, char **argv,
+	int (*application_main)(int, char **));
+void st_console_quartz_pump(void);
+int st_console_present_locked(st_console_t *console, bool forced);
+int st_console_start_presentation_worker(st_console_t *console);
+void st_console_mark_all_locked(st_console_t *console);
+bool st_console_rect_valid(const st_console_t *console,
+	const struct st_console_rect *rect);
+struct st_console_cell st_console_blank_locked(const st_console_t *console,
+	uint32_t codepoint);
+int st_console_finish_change_locked(st_console_t *console);
+void st_console_set_cell_locked(st_console_t *console, size_t index,
+	const struct st_console_cell *source);
+const struct st_console_font *st_console_font_locked(st_console_t *console,
+	uint16_t identifier);
+bool st_console_font_glyph_locked(st_console_t *console, uint16_t identifier,
+	uint32_t glyph, const uint8_t **bitmap, uint32_t *width,
+	size_t *row_stride);
+bool st_console_font_lookup_locked(st_console_t *console,
+	uint16_t identifier, uint32_t codepoint, uint16_t *glyph_font,
+	uint32_t *glyph, uint8_t *columns);
+int st_console_rasterize_locked(st_console_t *console, bool force);
+size_t st_console_pixel_position_locked(const st_console_t *console,
+	uint32_t x, uint32_t y);
+void st_console_copy_pixels_locked(const st_console_t *console,
+	uint32_t *destination, uint32_t destination_stride, bool alternate,
+	const struct st_console_rect *rectangle);
+int st_console_normalize_raster_locked(st_console_t *console);
+void st_console_move_raster_locked(st_console_t *console,
+	const struct st_console_rect *source, uint32_t destination_x,
+	uint32_t destination_y);
+
+struct st_console_bitmap_presenter;
+
+struct st_console_bitmap_frame {
+	const struct st_pixel_buffer *pixels;
+	struct st_console_rect destination;
+	enum st_console_scaling_mode scaling_mode;
+	bool changed;
+};
+
+typedef int (*st_console_bitmap_upload_t)(void *context,
+	const struct st_pixel_buffer *pixels,
+	const struct st_console_rect *rectangle);
+
+int st_console_aspect_correct_size(uint32_t source_width,
+	uint32_t source_height, uint32_t aspect_width, uint32_t aspect_height,
+	uint32_t *width, uint32_t *height);
+int st_console_scaled_window_size(uint32_t source_width,
+	uint32_t source_height, uint32_t aspect_width, uint32_t aspect_height,
+	double scaling, uint32_t *width, uint32_t *height);
+int st_console_snap_window_size(st_console_t *console,
+	uint32_t current_width, uint32_t current_height, bool larger,
+	uint32_t maximum_width, uint32_t maximum_height,
+	uint32_t *width, uint32_t *height);
+int st_console_preserve_window_scale(const st_console_t *console,
+	uint32_t source_width, uint32_t source_height, uint32_t current_width,
+	uint32_t current_height, uint32_t *width, uint32_t *height,
+	uint32_t *minimum_width, uint32_t *minimum_height);
+int st_console_bitmap_presenter_create(
+	struct st_console_bitmap_presenter **result, const st_console_t *console);
+void st_console_bitmap_presenter_destroy(
+	struct st_console_bitmap_presenter *presenter);
+/* console may be NULL for a timer tick or host-only resize. */
+int st_console_bitmap_presenter_frame(
+	struct st_console_bitmap_presenter *presenter,
+	const st_console_t *console, uint32_t output_width,
+	uint32_t output_height, uint32_t now,
+	st_console_bitmap_upload_t upload, void *context,
+	struct st_console_bitmap_frame *frame);
+
+#endif

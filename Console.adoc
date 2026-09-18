@@ -1,0 +1,388 @@
+// Copyright (c) 2026 Stephen Hurd
+// SPDX-License-Identifier: BSD-2-Clause
+
+= SyncTERM Console Library
+
+== Introduction
+
+The `st_console` library is SyncTERM's character-generator and host-console
+abstraction.  It owns a grid of character cells, optional software pixel
+planes, fonts, palettes, input events, presentation state, and one selected
+host backend.
+
+It is not a Borland `conio` compatibility library.  It does not expose global
+screen state, `putch`, `cprintf`, conio windows, or line editing.  Those
+operations are either explicit operations on an `st_console_t` instance or
+belong to a higher-level user-interface component.  Terminal parsing and
+emulation are also separate; CTerm consumes a connection's byte stream and
+writes the resulting cells and pixels through this interface.
+
+An application may create more than one console when the selected backends
+can provide independent displays.  Each instance has its own cells, palettes,
+fonts, event queue, cursor, update state, and backend resources.  The ncurses
+API and native Win32 text console use process-global facilities and therefore
+permit only one live instance.  This restriction does not make the public API
+a singleton.
+
+Public operations on a live instance may be called concurrently.  Read-only
+state queries share a reader lock; mutations, presentation, and backend
+operations are serialized.  The owner must prevent new calls and allow active
+calls to finish before calling `st_console_destroy()`.
+
+== Output Modes
+
+An output mode selects how the retained console state reaches the user.  It is
+separate from the screen mode, which defines the grid, character generator,
+raster, cursor, blink rules, and intended aspect ratio.
+
+[cols="1,1,4",options="header"]
+|===
+|Backend |Class |Description
+|ANSI |Text |Writes ANSI control sequences and either UTF-8 or CP437 text.
+The command-line forms are `-iA`/`-iAU` for UTF-8 and `-iAC` for CP437.
+|ncurses |Text |Uses the host's curses implementation and terminfo entry.
+Unicode, CP437, and ASCII presentation are selected with `-iC`, `-iF`, and
+`-iI`.
+|Win32 Console |Text |Uses the native Windows console screen-buffer and input
+APIs.  It restores the active buffer, input mode, and cursor when destroyed.
+|GDI |Bitmap |Native Windows graphical output.  Each instance owns its window
+and message thread.
+|Quartz |Bitmap |Native macOS graphical output using AppKit and Core Graphics.
+It supports multiple windows and Retina backing scales without requiring SDL.
+|Wayland |Bitmap |Native Wayland output using an xdg toplevel and positioned
+video subsurface.  Alt+left-drag requests an interactive move when server-side
+decorations are absent.
+|X11 |Bitmap |Native Xlib output.  XRender, XRandR, and Xinerama are used when
+present.
+|SDL |Bitmap |Portable graphical fallback, especially useful on Haiku.  Native
+window backends are preferred where available.
+|libretro |Bitmap host |Pull-based presentation for the enclosing libretro run
+callback.  Frontend input uses the ordinary console event interface.
+|Headless |Off-screen |Retains cells and optional pixel planes without opening
+a display.  Used by tests and other off-screen consumers.
+|===
+
+=== Automatic Selection
+
+The caller may request `ST_CONSOLE_BACKEND_AUTO`; it does not need to prepare
+backend-specific supporting state.  For a bitmap console, selection prefers
+the native GDI or Quartz implementation, then Wayland, X11, and SDL where they
+were built and are usable.  The fallback text path tries ncurses and then
+ANSI.  A text-only Windows configuration can select the native Win32 console.
+Failure to load an optional runtime library falls through to the next usable
+backend.
+
+`st_console_get_backend()` reports the selected backend.
+`st_console_build_features()` reports what was compiled into the library; it
+does not promise that an optional display server or runtime library is usable
+on the current host.
+
+=== Text Backends
+
+Text backends display retained cells but cannot display arbitrary pixel-plane
+changes or registered bitmap fonts.  ANSI Unicode mode and wide ncurses emit
+the retained Unicode scalar; CP437 modes emit the byte-sized glyph value.
+Continuation cells for wide glyphs are skipped.
+
+ANSI direct-colour support and indexed-colour count are separate
+capabilities.  The ordinary terminal path reads terminfo and also accepts
+`COLORTERM=truecolor` or `COLORTERM=24bit` when terminfo does not advertise
+RGB.  Indexed cells stay indexed even on a direct-colour terminal.
+
+ncurses uses its extended colour-pair interfaces when the required ncurses
+6.1 symbols are present, so colour and pair identifiers are not narrowed to
+signed 16-bit.  Palette entries changed through a mutable curses terminal are
+restored when the instance closes.
+
+`ST_CONSOLE_CAP_TEXT_TERMINAL` is set for ANSI, ncurses, and Win32 console.
+`ST_CONSOLE_CAP_LOCAL_CONTROL_KEYS` is currently set only for ANSI and
+ncurses, where SyncTERM reserves Ctrl+Q and Ctrl+S for local commands.  The
+native Win32 console is a text terminal but has independent keyboard events.
+
+=== Bitmap Backends
+
+Bitmap backends render the complete character-generator model, including
+registered fonts, direct RGB, indexed palette changes, blink planes, custom
+cursors, SAA5050 attributes, and pixel graphics.  The common bitmap presenter
+tracks regional damage through font rasterization and every scaling stage so
+small updates do not become full-frame uploads.
+
+Desktop applications link `st_console_main`.  Its entry wrapper keeps APIs
+which require the process main thread—currently SDL and AppKit/Quartz—on that
+thread while running the application on a joined secondary thread.  Selecting
+an automatic backend does not leak that requirement into application code.
+
+X11, Wayland, xkbcommon, and optional SDL are loaded at run time; their
+development declarations are build capabilities.  GDI and the Windows
+console are part of the Windows programming environment.  AppKit and Quartz
+are part of the macOS programming environment and are linked normally.
+
+== Text Modes
+
+A SyncTERM screen mode describes the emulated character generator, not how it
+is presented to the host.  It supplies the grid dimensions, cell dimensions,
+complete raster, aspect ratio, default cursor scanlines, and blink rules.
+Raster dimensions may include scanlines or columns outside the text image;
+these margins do not scroll.  For example, 80x43 uses 344 text scanlines in a
+350-line raster, leaving six stationary scanlines.
+
+[cols="2,1,1,1,1",options="header"]
+|===
+|Mode |Grid |Cell |Raster |Aspect
+|80x25 / Current |80x25 |8x16 |640x400 |4:3
+|LCD 80x25 |80x25 |8x16 |640x400 |8:5 (square pixels)
+|80x28 |80x28 |8x14 |640x392 |4:3
+|80x30 |80x30 |8x16 |640x480 |4:3
+|80x43 |80x43 |8x8 |640x350 |4:3
+|80x50 |80x50 |8x8 |640x400 |4:3
+|80x60 |80x60 |8x8 |640x480 |4:3
+|132x37 |132x37 |8x16 |1056x592 |16:9 (square pixels)
+|132x52 |132x52 |8x16 |1056x832 |5:4 (square pixels)
+|132x25 |132x25 |8x16 |1056x400 |4:3
+|132x28 |132x28 |8x14 |1056x392 |4:3
+|132x30 |132x30 |8x16 |1056x480 |4:3
+|132x34 |132x34 |8x14 |1056x476 |4:3
+|132x43 |132x43 |8x8 |1056x350 |4:3
+|132x50 |132x50 |8x8 |1056x400 |4:3
+|132x60 |132x60 |8x8 |1056x480 |4:3
+|C64 |40x25 |8x8 |320x200 |6:5
+|C128 40-column |40x25 |8x8 |320x200 |6:5
+|C128 80-column |80x25 |8x8 |640x200 |4:3
+|Atari |40x24 |8x8 |320x192 |4:3
+|Atari XEP80 |80x25 |8x16 |640x400 |4:3
+|EGA 80x25 |80x25 |8x14 |640x350 |4:3
+|VGA 80x25 |80x25 |9x16 |720x400 |4:3
+|Prestel |40x25 |12x20 |480x500 |3077:2400
+|BBC Micro |40x25 |12x20 |480x500 |3077:2400
+|Atari ST 40x25 |40x25 |8x8 |320x200 |4:3
+|Atari ST 80x25 |80x25 |8x8 |640x200 |4:3
+|Atari ST mono 80x25 |80x25 |8x16 |640x400 |4:3
+|===
+
+The Custom mode takes its grid, font height, and aspect ratio from settings.
+The library uses checked `uint32_t` dimensions and `size_t` allocation counts
+rather than the old conio limits; the backend and available memory still
+impose practical limits.
+
+== Cells and Coordinates
+
+Coordinates are zero-based.  Rectangles have nonzero width and height and
+must fit entirely inside the current grid.  Strides are cell counts expressed
+as `size_t`.
+
+`struct st_console_cell` is compact and contains no pointers or separate
+allocations.  It retains the Unicode scalar, resolved bitmap glyph, selected
+internal font identifier, indexed or direct-RGB colours, hyperlink identifier,
+and named flag masks.  SAA5050 control data is retained in flags separately
+from the displayed codepoint and glyph.
+
+The high colour bit selects direct RGB; otherwise the low eight bits are a
+palette index.  This distinction is retained through the library.  Pixel
+planes contain final packed `0x00RRGGBB`, never palette indices.
+
+`ST_CONSOLE_CELL_DIRTY` is private presentation state.  Writes ignore it from
+callers and reads do not return it.  Content changes mark cells in the
+low-bandwidth mutation path; the renderer consumes contiguous dirty runs.
+
+`st_console_write_cells()` is the Unicode edge: it resolves each codepoint
+through the selected font and fallback.  `st_console_write_complete_cells()`
+is the puttext-style bypass for callers which already possess a complete,
+resolved cell; it preserves the supplied font and glyph.
+
+== Fonts and Unicode
+
+Each font registration contains one-bit bitmap data and a sorted Unicode
+mapping.  There is no implicit codepoint-to-glyph identity map, even for a
+256-glyph legacy font.  A decoder first resolves legacy blink/bright font
+selectors with `st_console_font_for_flags()`, then looks up the resulting
+`(font, codepoint)` pair.
+
+Lookup checks the selected font first, then font zero's Unicode fallback.  If
+neither maps the scalar, font zero supplies a width-matched replacement.
+Mapped width comes from font data; missing-scalar width comes from generated
+Unicode East Asian Width and Emoji Presentation tables, never the process
+locale or `wcwidth()`.
+
+An eight-pixel glyph occupies one cell and a sixteen-pixel glyph occupies two.
+The second cell is marked `ST_CONSOLE_CELL_CONTINUATION`, and region mutations
+preserve complete pairs.  A wide glyph at the final column wraps before being
+written when wrapping is enabled.
+
+Static registration borrows immutable process-lifetime data.  Copy
+registration owns bitmap and mapping copies until console destruction, which
+supports downloaded fonts and server-supplied Unicode maps.  If all 65,536
+identifiers are occupied, a new registration replaces the least-recently-used
+font, succeeds, and reports the replacement on standard error.  Existing
+cells retain that identifier and are not dirtied merely by the replacement.
+
+SyncTERM retains all 46 legacy 256-glyph font families with explicit Unicode
+maps.  The Font Management screen filters them by the sizes actually present:
+
+[cols="3,2,^1,^1,^1,^1",options="header"]
+|===
+|Font |Character set |8x8 |8x14 |8x16 |12x20
+|Codepage 437 English |CP437 |✓ |✓ |✓ |✓
+|Codepage 1251 Cyrillic, (swiss) |CP1251 | | |✓ |
+|Russian koi8-r |KOI8-R |✓ |✓ |✓ |
+|ISO-8859-2 Central European |ISO-8859-2 |✓ |✓ |✓ |
+|ISO-8859-4 Baltic wide (VGA 9bit mapped) |ISO-8859-4 | | |✓ |
+|Codepage 866 (c) Russian |CP866M | | |✓ |
+|ISO-8859-9 Turkish |ISO-8859-9 | | |✓ |
+|haik8 codepage (use only with armscii8 screenmap) |HAIK8 |✓ |✓ |✓ |
+|ISO-8859-8 Hebrew |ISO-8859-8 |✓ |✓ |✓ |
+|Ukrainian font koi8-u |KOI8-U |✓ |✓ |✓ |
+|ISO-8859-15 West European, (thin) |ISO-8859-15 | | |✓ |
+|ISO-8859-4 Baltic (VGA 9bit mapped) |ISO-8859-4 |✓ |✓ |✓ |
+|Russian koi8-r (b) |KOI8-R | | |✓ |
+|ISO-8859-4 Baltic wide |ISO-8859-4 | | |✓ |
+|ISO-8859-5 Cyrillic |ISO-8859-5 |✓ |✓ |✓ |
+|ARMSCII-8 Character set |ARMSCII-8 |✓ |✓ |✓ |
+|ISO-8859-15 West European |ISO-8859-15 |✓ |✓ |✓ |
+|Codepage 850 Multilingual Latin I, (thin) |CP850 |✓ | |✓ |
+|Codepage 850 Multilingual Latin I |CP850 |✓ |✓ |✓ |
+|Codepage 865 Norwegian, (thin) |CP865 |✓ | |✓ |
+|Codepage 1251 Cyrillic |CP1251 |✓ |✓ |✓ |
+|ISO-8859-7 Greek |ISO-8859-7 |✓ |✓ |✓ |
+|Russian koi8-r (c) |KOI8-R | | |✓ |
+|ISO-8859-4 Baltic |ISO-8859-4 |✓ |✓ |✓ |
+|ISO-8859-1 West European |ISO-8859-1 |✓ |✓ |✓ |
+|Codepage 866 Russian |CP866M2 |✓ |✓ |✓ |
+|Codepage 437 English, (thin) |CP437 |✓ | |✓ |
+|Codepage 866 (b) Russian |CP866M2 | | |✓ |
+|Codepage 865 Norwegian |CP865 |✓ |✓ |✓ |
+|Ukrainian font cp866u |CP866U |✓ |✓ |✓ |
+|ISO-8859-1 West European, (thin) |ISO-8859-1 | | |✓ |
+|Codepage 1131 Belarusian, (swiss) |CP1131 | | |✓ |
+|Commodore 64 (UPPER) |PETSCII upper/graphics |✓ | |✓ |
+|Commodore 64 (Lower) |PETSCII lower/upper |✓ | |✓ |
+|Commodore 128 (UPPER) |PETSCII upper/graphics |✓ | |✓ |
+|Commodore 128 (Lower) |PETSCII lower/upper |✓ | |✓ |
+|Atari |ATASCII |✓ | |✓ |
+|P0T NOoDLE (Amiga) |ISO-8859-1 | |✓ |✓ |
+|mO'sOul (Amiga) |ISO-8859-1 |✓ | |✓ |
+|MicroKnight Plus (Amiga) |ISO-8859-1 | | |✓ |
+|Topaz Plus (Amiga) |ISO-8859-1 | | |✓ |
+|MicroKnight (Amiga) |ISO-8859-1 |✓ | |✓ |
+|Topaz (Amiga) |ISO-8859-1 | |✓ |✓ |
+|Prestel |SAA5050 | | |✓ |✓
+|Atari ST |Atari ST |✓ | |✓ |
+|RIPterm |CP437 |✓ |✓ | |
+|===
+
+For 8x8 modes, font zero is UNSCII 8x8.  For 8x16 modes, the default build
+uses GNU Unifont with UNSCII overlaid on matching glyphs; disabling
+`SYNCTERM_ENABLE_UNIFONT` uses UNSCII 8x16 alone.  Including the optional GNU
+Unifont-derived data makes the resulting executable GPL-2.0-or-later; see
+`LICENSE` and `unifont/UPSTREAM.md`.
+
+== Stateful Text Operations
+
+The current style, position, clipping/scroll window, wrapping, cursor, blink
+mode, palette, and scaling policy are per instance.  Changing the text window
+moves the position to its upper-left corner.
+
+Filling the final column wraps immediately when wrapping is enabled; at the
+bottom of the window that wrap immediately scrolls.  Carriage return moves to
+the window's left edge, line feed retains the column and advances or scrolls,
+tab writes spaces to the next eight-column stop, and backspace moves left and
+replaces that cell with a styled space.
+
+UTF-8 decoding is locale-independent.  A complete string is validated before
+any cells change; overlong encodings, surrogates, incomplete sequences, and
+values beyond U+10FFFF are rejected.  Formatted output is not part of this
+layer.
+
+Moves have snapshot source semantics when rectangles overlap.  Scrolling and
+line insertion/deletion move matching cached glyph rasters with the cells, so
+retained rows do not pass through the font renderer again.  A full-width
+top-of-grid scroll advances a circular text-raster origin instead of copying
+every pixel row.  Non-text raster margins never participate in the scroll.
+
+== Pixel Planes and Scaling
+
+Providing both cell dimensions creates software pixel planes; providing only
+one is invalid.  Explicit raster dimensions may add non-text margins but
+cannot be smaller than the text image.  Primary and alternate planes are the
+two blink states.
+
+Pixel writes first bring intersecting character rasters current, then modify
+the final-raster planes and mark those cells as pixel graphics.  A later
+character-content change regenerates the cell.  Text backends reject pixel
+mutations rather than claiming success for invisible output.
+
+Internal scaling composes the final-size image in software; external scaling
+hands a native-size retained frame to a capable host.  Aspect correction is
+applied before the requested window scale, and creation never scales below
+one displayed pixel per source pixel.
+
+Blocky is the default scaling policy.  Pointy is the optional traditional
+SyncTERM smoothing pipeline.  Integer multiplication, Pointy, xBR, and
+one-axis interpolation are stages selected for the actual dimensions, not
+three separate user-visible scalers.  The common case can expand one axis by
+an exact integer while interpolating only the other.
+
+Damage is transformed through each retained scaling stage.  Integer stages
+multiply the rectangle, filters expand it by their dependency radius, and
+interpolation uses precomputed inverse maps.  `st_scaler_benchmark` measures
+full-frame and regional scaling; `st_console_benchmark` measures rasterization
+and sustained scrolling.  They are comparison tools, not CTest thresholds.
+
+== Presentation and Snapshots
+
+Bitmap backends collect normal visible changes for up to 10 ms before
+presenting them.  Small parser writes therefore accumulate dirty cells rather
+than synchronously scaling and crossing into the window system each time.
+
+`st_console_begin_update()` and `st_console_end_update()` provide explicit,
+nestable batching.  The outermost end makes the batch eligible for normal
+presentation.  `st_console_present()` is a synchronous forced boundary even
+inside a batch.  Text backends remain synchronous so failures can be returned.
+
+Snapshot creation is a drain boundary: pending changes are handed to the
+backend and live dirty flags are consumed before the copy.  A snapshot retains
+cells, pixel planes, palette, style, window, position, cursor, wrapping, and
+scaling state, but never dirty flags.  It can only be restored to its
+originating console with identical dimensions.  Font registrations are
+instance resources and are not copied.
+
+== Input Events
+
+Each instance has one ordered event queue.  Translated keys, physical keys,
+committed text, DoorWay scan codes, mouse actions, resize, focus, and close are
+distinct event types.  Backends post only semantics they actually receive.
+
+Normalized non-text keys use `ST_CONSOLE_KEY_*`; ASCII controls retain their
+byte values.  Physical events carry evdev-style identity, modifiers,
+press/release, and repeat state.  Focus loss queues releases for every held
+key before the focus event and clears the held set.  Clearing queued events
+does not alter held state.
+
+X11 committed text comes from its UTF-8 input context, preserving layouts,
+dead keys, compose processing, and external input methods.  Wayland uses
+xkbcommon.  SDL and Windows also separate physical identity from committed
+Unicode.  ANSI and ncurses decode only what the enclosing terminal supplies;
+they do not invent physical identities or key-release events.
+
+Mouse coordinates are in the logical console pixel grid, independent of final
+window scaling.  Button state, action, coordinates, and wheel deltas remain
+separate fields.
+
+== Window and Host Operations
+
+Bitmap window backends consume Alt+Left and Alt+Right to snap to adjacent
+integer display scales, Alt+Home to centre the window where positioning is
+permitted, and Alt+Enter to toggle fullscreen.  The monitor containing the
+window—not the whole multi-monitor root desktop—controls centring, limits,
+maximization, and fullscreen.  Wayland also consumes Alt+left-drag for
+interactive movement.  These commands are not also delivered as application
+keys.
+
+Title, clipboard, URL, pointer visibility, and fullscreen are console methods
+because the instance represents the host display connection as well as its
+cell grid.  Each operation independently returns `IO_ERROR_NOT_SUPPORTED`
+when unavailable.  Backend-returned text is released with
+`st_console_free_text()` so allocation does not cross the library boundary.
+
+Unresolved host capability detection is documented in
+`console/CAPABILITY_GAPS.md`.  Missing implementation work is not a
+host-capability gap.
