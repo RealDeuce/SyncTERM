@@ -45,6 +45,8 @@ struct ansi_state {
 	bool input_started;
 	bool initialized;
 	bool last_was_carriage_return;
+	bool invalid_colour;
+	uint32_t invalid_colour_value;
 };
 
 struct ansi_writer {
@@ -170,24 +172,6 @@ terminal_colour_capabilities(void)
 	return result;
 }
 
-static uint32_t
-cell_rgb(const st_console_t *console, uint32_t colour)
-{
-	return ST_CONSOLE_COLOR_IS_RGB(colour)
-	    ? colour & UINT32_C(0xffffff)
-	    : console->palette[colour & UINT32_C(0xff)];
-}
-
-static unsigned int
-terminal_index(unsigned int colour)
-{
-	static const unsigned char dos_to_ansi[16] = {
-		0, 4, 2, 6, 1, 5, 3, 7, 8, 12, 10, 14, 9, 13, 11, 15,
-	};
-
-	return colour < 16 ? dos_to_ansi[colour] : colour;
-}
-
 static void
 xterm_colour(unsigned int colour, unsigned int colour_count,
 	unsigned int *red, unsigned int *green, unsigned int *blue)
@@ -284,16 +268,14 @@ static void
 emit_colour(struct ansi_writer *writer, const st_console_t *console,
 	uint32_t colour, bool background)
 {
-	bool indexed = !ST_CONSOLE_COLOR_IS_RGB(colour);
-	uint32_t rgb = cell_rgb(console, colour);
+	uint32_t rgb;
 
-	if (indexed && terminal_index(colour & UINT32_C(0xff))
-	    < writer->state->indexed_colours) {
-		unsigned int index = terminal_index(colour & UINT32_C(0xff));
-
-		emit_indexed_colour(writer, index, background);
+	if (!st_console_colour_rgb_locked(console, colour, &rgb)
+	    && !writer->state->invalid_colour) {
+		writer->state->invalid_colour = true;
+		writer->state->invalid_colour_value = colour;
 	}
-	else if (!indexed && writer->state->direct_colour) {
+	if (writer->state->direct_colour) {
 		emit_format(writer, background ? "\033[48;2;%" PRIu32
 		    ";%" PRIu32 ";%" PRIu32 "m" : "\033[38;2;%" PRIu32
 		    ";%" PRIu32 ";%" PRIu32 "m", (rgb >> 16) & 0xff,
@@ -452,6 +434,7 @@ ansi_present(st_console_t *console)
 	uint32_t visible_rows = atomic_load_explicit(&state->host_rows,
 	    memory_order_acquire);
 
+	state->invalid_colour = false;
 	if (resized) {
 		state->initialized = false;
 		memset(state->drawn, 0, (size_t)state->columns * state->rows
@@ -512,7 +495,31 @@ ansi_present(st_console_t *console)
 	else
 		emit(&writer, "\033[0m\033[?25l", 10);
 	flush(&writer);
+	if (state->invalid_colour)
+		fprintf(stderr, "Invalid colour value: %08" PRIx32 "\n",
+		    state->invalid_colour_value);
 	return writer.result;
+}
+
+static void
+ansi_palette_changed(st_console_t *console, uint16_t first,
+	const uint32_t *colours, uint32_t count)
+{
+	struct ansi_state *state = console->display->backend_state;
+
+	(void)first;
+	(void)colours;
+	(void)count;
+	state->initialized = false;
+}
+
+static uint32_t
+ansi_capabilities(const st_console_t *console)
+{
+	const struct ansi_state *state = console->display->backend_state;
+
+	return state->direct_colour ? ST_CONSOLE_CAP_PALETTE_CHANGE
+	    | ST_CONSOLE_CAP_EXTENDED_PALETTE : 0;
 }
 
 static void
@@ -890,6 +897,8 @@ ansi_destroy(st_console_display_t *display)
 static const struct st_console_backend_ops ansi_ops = {
 	.present = ansi_present,
 	.resize = ansi_resize,
+	.palette_changed = ansi_palette_changed,
+	.capabilities = ansi_capabilities,
 	.destroy = ansi_destroy,
 };
 
@@ -897,6 +906,8 @@ static const struct st_console_backend_ops ansi_deferred_ops = {
 	.deferred_present = true,
 	.present = ansi_present,
 	.resize = ansi_resize,
+	.palette_changed = ansi_palette_changed,
+	.capabilities = ansi_capabilities,
 	.destroy = ansi_destroy,
 };
 

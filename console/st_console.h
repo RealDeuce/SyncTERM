@@ -19,14 +19,12 @@ typedef struct st_console st_console_t;
 typedef struct st_console_display st_console_display_t;
 typedef struct st_console_snapshot st_console_snapshot_t;
 
-/* Indexed colours use values 0 through 255. RGB colours have this tag. */
-#define ST_CONSOLE_COLOR_RGB_TAG UINT32_C(0x80000000)
+/* Indexed colours use values 0 through 65535. RGB colours have this tag. */
+#define ST_CONSOLE_COLOR_RGB_TAG ST_PIXEL_COLOR_RGB_TAG
 #define ST_CONSOLE_COLOR_RGB_VALUE(red, green, blue) \
-	(ST_CONSOLE_COLOR_RGB_TAG | (((uint32_t)(red) & UINT32_C(0xff)) << 16) \
-	    | (((uint32_t)(green) & UINT32_C(0xff)) << 8) \
-	    | ((uint32_t)(blue) & UINT32_C(0xff)))
+	ST_PIXEL_COLOR_RGB_VALUE((red), (green), (blue))
 #define ST_CONSOLE_COLOR_IS_RGB(colour) \
-	(((colour) & ST_CONSOLE_COLOR_RGB_TAG) != 0)
+	ST_PIXEL_COLOR_IS_RGB(colour)
 
 /*
  * Cell flags are integer masks rather than C bit-fields so their layout is
@@ -503,10 +501,13 @@ int st_console_insert_lines(st_console_t *console, uint32_t count,
 int st_console_delete_lines(st_console_t *console, uint32_t count,
 	uint32_t codepoint);
 
+/* Palette entries are packed 0x00RRGGBB.  count may be 65,536 when first is
+ * zero; otherwise the range must end at or before entry 65,535.
+ */
 int st_console_set_palette(st_console_t *console, uint16_t first,
-	const uint32_t *rgb, uint16_t count);
+	const uint32_t *rgb, uint32_t count);
 int st_console_get_palette(st_console_t *console, uint16_t first,
-	uint32_t *rgb, uint16_t count);
+	uint32_t *rgb, uint32_t count);
 int st_console_register_static_font(st_console_t *console,
 	const struct st_console_font *font, uint16_t *identifier);
 int st_console_register_font_copy(st_console_t *console,
@@ -527,7 +528,7 @@ int st_console_font_glyph_columns(st_console_t *console,
 
 /*
  * Pixel coordinates are zero-based and independent of the text window.
- * Pixel colours and pixel-buffer planes are packed 0x00RRGGBB, never indexed.
+ * Pixel colours use the same indexed/direct representation as cell colours.
  */
 int st_console_pixel_size(st_console_t *console, uint32_t *width,
 	uint32_t *height);

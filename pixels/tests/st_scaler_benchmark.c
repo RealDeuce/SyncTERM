@@ -139,25 +139,27 @@ run_case(st_pixel_scaler_t *scaler, const struct st_pixel_buffer *source,
 	uint32_t width, uint32_t height, enum st_pixel_scaling_policy policy,
 	unsigned long iterations)
 {
-	const struct st_pixel_buffer *result = NULL;
+	const struct st_rgb_buffer input = {source->primary, source->width,
+	    source->height};
+	const struct st_rgb_buffer *result = NULL;
 	uint64_t start;
 	uint64_t finish;
 	uint64_t checksum = 0;
 	double elapsed;
 
-	if (st_pixel_scaler_scale(scaler, &result, source->primary,
-	    source->width, source->height, width, height, policy) != 0) {
+	if (st_pixel_scaler_scale(scaler, &result, &input, width, height,
+	    policy) != 0) {
 		fprintf(stderr, "scaler warmup failed\n");
 		exit(EXIT_FAILURE);
 	}
 	start = monotonic_ns();
 	for (unsigned long i = 0; i < iterations; ++i) {
-		if (st_pixel_scaler_scale(scaler, &result, source->primary,
-		    source->width, source->height, width, height, policy) != 0) {
+		if (st_pixel_scaler_scale(scaler, &result, &input, width, height,
+		    policy) != 0) {
 			fprintf(stderr, "scaler failed\n");
 			exit(EXIT_FAILURE);
 		}
-		checksum += result->primary[(size_t)(i % height) * width
+		checksum += result->pixels[(size_t)(i % height) * width
 		    + i % width];
 	}
 	finish = monotonic_ns();
@@ -167,34 +169,6 @@ run_case(st_pixel_scaler_t *scaler, const struct st_pixel_buffer *source,
 	    policy == ST_PIXEL_SCALING_BLOCKY ? "blocky" : "pointy",
 	    source->width, source->height, width, height,
 	    elapsed * 1000.0 / (double)iterations,
-	    (double)width * height * iterations / elapsed / 1000000.0,
-	    (unsigned long long)checksum);
-}
-
-static void
-run_allocated_case(const struct st_pixel_buffer *source, uint32_t width,
-	uint32_t height, unsigned long iterations)
-{
-	struct st_pixel_buffer *result = NULL;
-	uint64_t start;
-	uint64_t finish;
-	uint64_t checksum = 0;
-	double elapsed;
-
-	start = monotonic_ns();
-	for (unsigned long i = 0; i < iterations; ++i) {
-		if (st_pixel_buffer_scale(&result, source, width, height) != 0)
-			exit(EXIT_FAILURE);
-		checksum += result->primary[(size_t)(i % height) * width
-		    + i % width];
-		st_pixel_buffer_destroy(result);
-		result = NULL;
-	}
-	finish = monotonic_ns();
-	elapsed = seconds(start, finish);
-	printf("%-8s %ux%u -> %ux%u: %8.3f ms/frame, %8.1f Mpixel/s"
-	    "  checksum=%llu\n", "allocated", source->width, source->height,
-	    width, height, elapsed * 1000.0 / (double)iterations,
 	    (double)width * height * iterations / elapsed / 1000000.0,
 	    (unsigned long long)checksum);
 }
@@ -251,26 +225,27 @@ run_damage_case(st_pixel_scaler_t *scaler, struct st_pixel_buffer *source,
 	uint32_t width, uint32_t height, enum st_pixel_scaling_policy policy,
 	unsigned long iterations, const char *name, struct st_pixel_rect damage)
 {
-	const struct st_pixel_buffer *result = NULL;
+	const struct st_rgb_buffer input = {source->primary, source->width,
+	    source->height};
+	const struct st_rgb_buffer *result = NULL;
 	struct st_pixel_rect output_damage;
 	uint64_t start;
 	uint64_t finish;
 	uint64_t checksum = 0;
 	double elapsed;
 
-	if (st_pixel_scaler_scale(scaler, &result, source->primary,
-	    source->width, source->height, width, height, policy) != 0)
+	if (st_pixel_scaler_scale(scaler, &result, &input, width, height,
+	    policy) != 0)
 		exit(EXIT_FAILURE);
 	start = monotonic_ns();
 	for (unsigned long i = 0; i < iterations; ++i) {
 		size_t changed = (size_t)damage.y * source->width + damage.x;
 
 		source->primary[changed] ^= UINT32_C(0x00010101);
-		if (st_pixel_scaler_scale_region(scaler, &result,
-		    source->primary, source->width, source->height, &damage,
+		if (st_pixel_scaler_scale_region(scaler, &result, &input, &damage,
 		    &output_damage) != 0)
 			exit(EXIT_FAILURE);
-		checksum += result->primary[(size_t)output_damage.y * width
+		checksum += result->pixels[(size_t)output_damage.y * width
 		    + output_damage.x];
 	}
 	finish = monotonic_ns();
@@ -313,7 +288,6 @@ main(int argc, char **argv)
 	    ST_PIXEL_SCALING_BLOCKY,
 	    iterations);
 	run_legacy_case(source, output_width, output_height, false, iterations);
-	run_allocated_case(source, output_width, output_height, iterations);
 	run_case(scaler, source, output_width, output_height,
 	    ST_PIXEL_SCALING_POINTY,
 	    iterations);

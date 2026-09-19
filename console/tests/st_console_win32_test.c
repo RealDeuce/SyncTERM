@@ -53,6 +53,8 @@ main(void)
 	CHECK(st_console_capabilities(console, &capabilities) == 0);
 	CHECK((capabilities & ST_CONSOLE_CAP_TEXT_TERMINAL) != 0);
 	CHECK((capabilities & ST_CONSOLE_CAP_LOCAL_CONTROL_KEYS) == 0);
+	CHECK((capabilities & ST_CONSOLE_CAP_PALETTE_CHANGE) != 0);
+	CHECK((capabilities & ST_CONSOLE_CAP_EXTENDED_PALETTE) == 0);
 	CHECK(st_console_create(&second, &config_display, &config) == IO_ERROR_BUSY);
 	CHECK(second == NULL);
 	CHECK(st_console_set_title(console, "st_console native Windows test")

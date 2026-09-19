@@ -30,7 +30,7 @@ main(void)
 	struct st_pixel_buffer *source = NULL;
 	struct st_pixel_buffer *destination = NULL;
 	struct st_pixel_buffer *copy = NULL;
-	struct st_pixel_buffer *scaled = NULL;
+	struct st_rgb_buffer *rgb = NULL;
 	struct st_pixel_mask *mask = NULL;
 	struct st_pixel_blit blit = {
 		.source_x = 0,
@@ -48,6 +48,8 @@ main(void)
 	bool bit;
 
 	CHECK(st_pixel_buffer_create(&source, 2, 2, true) == 0);
+	CHECK(st_rgb_buffer_create(&rgb, 3, 2) == 0);
+	CHECK(rgb->width == 3 && rgb->height == 2 && rgb->pixels[5] == 0);
 	CHECK(st_pixel_buffer_create(&destination, 4, 4, false) == 0);
 	CHECK(st_pixel_mask_create(&mask, 2, 2) == 0);
 	for (size_t i = 0; i < 4; ++i) {
@@ -90,20 +92,12 @@ main(void)
 	CHECK(copy->alternate == NULL);
 	CHECK(st_pixel_buffer_ensure_alternate(copy) == 0);
 	CHECK(copy->alternate[0] == copy->primary[0]);
-	CHECK(st_pixel_buffer_scale(&scaled, source, 4, 6) == 0);
-	CHECK(scaled->width == 4 && scaled->height == 6);
-	CHECK(scaled->primary[position(scaled, 0, 0)] == 1);
-	CHECK(scaled->primary[position(scaled, 1, 0)] == 1);
-	CHECK(scaled->primary[position(scaled, 2, 0)] == 2);
-	CHECK(scaled->primary[position(scaled, 0, 5)] == 3);
-	CHECK(scaled->primary[position(scaled, 3, 5)] == 4);
-	CHECK(scaled->alternate[position(scaled, 3, 5)] == 14);
 	blit.width = 3;
 	CHECK(st_pixel_buffer_blit(destination, source, NULL, &blit)
 	    == IO_ERROR_OUT_OF_RANGE);
 
 	st_pixel_mask_destroy(mask);
-	st_pixel_buffer_destroy(scaled);
+	st_rgb_buffer_destroy(rgb);
 	st_pixel_buffer_destroy(copy);
 	st_pixel_buffer_destroy(destination);
 	st_pixel_buffer_destroy(source);

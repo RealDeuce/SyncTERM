@@ -14,8 +14,6 @@
 #include <string.h>
 
 #define pixel_count st_pixels_count
-#define blend_pixel st_pixels_blend
-
 int
 st_pixel_buffer_create(struct st_pixel_buffer **result, uint32_t width,
 	uint32_t height, bool alternate)
@@ -46,6 +44,39 @@ st_pixel_buffer_create(struct st_pixel_buffer **result, uint32_t width,
 	buffer->height = height;
 	*result = buffer;
 	return 0;
+}
+
+int
+st_rgb_buffer_create(struct st_rgb_buffer **result, uint32_t width,
+	uint32_t height)
+{
+	struct st_rgb_buffer *buffer;
+	size_t count;
+
+	if (result == NULL
+	    || !pixel_count(width, height, sizeof(uint32_t), &count))
+		return IO_ERROR_INVALID_ARGUMENT;
+	buffer = calloc(1, sizeof(*buffer));
+	if (buffer == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	buffer->pixels = calloc(count, sizeof(buffer->pixels[0]));
+	if (buffer->pixels == NULL) {
+		free(buffer);
+		return IO_ERROR_OUT_OF_MEMORY;
+	}
+	buffer->width = width;
+	buffer->height = height;
+	*result = buffer;
+	return 0;
+}
+
+void
+st_rgb_buffer_destroy(struct st_rgb_buffer *buffer)
+{
+	if (buffer == NULL)
+		return;
+	free(buffer->pixels);
+	free(buffer);
 }
 
 int
@@ -203,150 +234,6 @@ st_pixel_buffer_fill(struct st_pixel_buffer *buffer, uint32_t primary,
 	if (buffer->alternate != NULL)
 		for (size_t i = 0; i < count; ++i)
 			buffer->alternate[i] = alternate;
-	return 0;
-}
-
-static void
-expand_plane(const uint32_t *source, uint32_t source_width,
-	uint32_t source_height, uint32_t *destination, uint32_t x_repeat,
-	uint32_t y_repeat)
-{
-	uint32_t expanded_width = source_width * x_repeat;
-
-	for (uint32_t y = 0; y < source_height; ++y) {
-		uint32_t *row = &destination[(size_t)y * y_repeat * expanded_width];
-
-		for (uint32_t x = 0; x < source_width; ++x) {
-			for (uint32_t repeat = 0; repeat < x_repeat; ++repeat)
-				row[(size_t)x * x_repeat + repeat]
-				    = source[(size_t)y * source_width + x];
-		}
-		for (uint32_t repeat = 1; repeat < y_repeat; ++repeat)
-			memcpy(&row[(size_t)repeat * expanded_width], row,
-			    (size_t)expanded_width * sizeof(*row));
-	}
-}
-
-static void
-scale_height(const uint32_t *source, uint32_t width, uint32_t source_height,
-	uint32_t *destination, uint32_t height, uint32_t repeated_rows)
-{
-	uint64_t position = 0;
-	uint64_t increment = ((uint64_t)source_height << 16) / height;
-
-	for (uint32_t y = 0; y < height; ++y) {
-		uint32_t first = (uint32_t)(position >> 16);
-		uint32_t weight = (uint32_t)position & UINT32_C(0xffff);
-		uint32_t second = first + 1 < source_height ? first + 1 : first;
-		bool repeated = repeated_rows > 1
-		    && first / repeated_rows == second / repeated_rows;
-
-		for (uint32_t x = 0; x < width; ++x) {
-			uint32_t left = source[(size_t)first * width + x];
-			uint32_t right = source[(size_t)second * width + x];
-
-			destination[(size_t)y * width + x] = repeated
-			    ? left : blend_pixel(left, right, weight);
-		}
-		position += increment;
-	}
-}
-
-static void
-scale_width(const uint32_t *source, uint32_t source_width, uint32_t height,
-	uint32_t *destination, uint32_t width)
-{
-	uint64_t increment = ((uint64_t)source_width << 16) / width;
-
-	for (uint32_t y = 0; y < height; ++y) {
-		uint64_t position = 0;
-
-		for (uint32_t x = 0; x < width; ++x) {
-			uint32_t first = (uint32_t)(position >> 16);
-			uint32_t weight = (uint32_t)position & UINT32_C(0xffff);
-			uint32_t second = first + 1 < source_width
-			    ? first + 1 : first;
-			uint32_t left = source[(size_t)y * source_width + first];
-			uint32_t right = source[(size_t)y * source_width + second];
-
-			destination[(size_t)y * width + x]
-			    = blend_pixel(left, right, weight);
-			position += increment;
-		}
-	}
-}
-
-static int
-scale_plane(uint32_t *destination, uint32_t width, uint32_t height,
-	const uint32_t *source, uint32_t source_width, uint32_t source_height)
-{
-	uint32_t x_repeat = width >= source_width ? width / source_width : 1;
-	uint32_t y_repeat = height >= source_height ? height / source_height : 1;
-	uint32_t expanded_width = source_width * x_repeat;
-	uint32_t expanded_height = source_height * y_repeat;
-	uint32_t *first;
-	uint32_t *second;
-	size_t capacity;
-
-	if (expanded_width == width && expanded_height == height) {
-		expand_plane(source, source_width, source_height, destination,
-		    x_repeat, y_repeat);
-		return 0;
-	}
-	if (!pixel_count(width > expanded_width ? width : expanded_width,
-	    height > expanded_height ? height : expanded_height,
-	    sizeof(*first), &capacity))
-		return IO_ERROR_OUT_OF_RANGE;
-	first = malloc(capacity * sizeof(*first));
-	second = malloc(capacity * sizeof(*second));
-	if (first == NULL || second == NULL) {
-		free(second);
-		free(first);
-		return IO_ERROR_OUT_OF_MEMORY;
-	}
-	expand_plane(source, source_width, source_height, first, x_repeat,
-	    y_repeat);
-	if (expanded_height != height) {
-		scale_height(first, expanded_width, expanded_height, second, height,
-		    y_repeat);
-		if (expanded_width == width)
-			memcpy(destination, second,
-			    (size_t)width * height * sizeof(*destination));
-		else
-			scale_width(second, expanded_width, height, destination, width);
-	}
-	else
-		scale_width(first, expanded_width, height, destination, width);
-	free(second);
-	free(first);
-	return 0;
-}
-
-int
-st_pixel_buffer_scale(struct st_pixel_buffer **result,
-	const struct st_pixel_buffer *source, uint32_t width, uint32_t height)
-{
-	struct st_pixel_buffer *scaled;
-	int status;
-
-	if (result == NULL || source == NULL || source->primary == NULL
-	    || source->width == 0 || source->height == 0
-	    || width == 0 || height == 0)
-		return IO_ERROR_INVALID_ARGUMENT;
-	status = st_pixel_buffer_create(&scaled, width, height,
-	    source->alternate != NULL);
-	if (status != 0)
-		return status;
-	status = scale_plane(scaled->primary, width, height, source->primary,
-	    source->width, source->height);
-	if (status == 0 && source->alternate != NULL)
-		status = scale_plane(scaled->alternate, width, height,
-		    source->alternate, source->width, source->height);
-	if (status != 0) {
-		st_pixel_buffer_destroy(scaled);
-		return status;
-	}
-	*result = scaled;
 	return 0;
 }
 

@@ -51,7 +51,8 @@ main(void)
 	CHECK(st_console_set_title(second, "st_console Quartz two") == 0);
 	CHECK(st_console_set_pointer_visible(first, false) == 0);
 	CHECK(st_console_set_pointer_visible(first, true) == 0);
-	CHECK(st_console_set_pixel(first, 4, 5, UINT32_C(0x123456)) == 0);
+	CHECK(st_console_set_pixel(first, 4, 5,
+	    ST_CONSOLE_COLOR_RGB_VALUE(0x12, 0x34, 0x56)) == 0);
 	CHECK(st_console_present(first) == 0);
 	CHECK(st_console_present(second) == 0);
 	CHECK(st_console_resize(first, 10, 5) == 0);

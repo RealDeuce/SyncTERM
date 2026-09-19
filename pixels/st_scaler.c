@@ -21,7 +21,7 @@
 struct st_pixel_scaler {
 	uint32_t *work[2];
 	size_t capacity[2];
-	struct st_pixel_buffer output;
+	struct st_rgb_buffer output;
 	uint32_t source_width;
 	uint32_t source_height;
 	uint32_t width;
@@ -425,7 +425,7 @@ update_exact_blocky_damage(st_pixel_scaler_t *scaler,
 	uint32_t output_width = damage->width * scaler->exact_x_repeat;
 
 	for (uint32_t y = damage->y; y < source_end_y; ++y) {
-		uint32_t *first = &scaler->output.primary[(size_t)y
+		uint32_t *first = &scaler->output.pixels[(size_t)y
 		    * scaler->exact_y_repeat * scaler->width + output_x];
 		uint32_t *destination = first;
 
@@ -443,10 +443,12 @@ update_exact_blocky_damage(st_pixel_scaler_t *scaler,
 
 int
 st_pixel_scaler_scale(st_pixel_scaler_t *scaler,
-	const struct st_pixel_buffer **result, const uint32_t *source,
-	uint32_t source_width, uint32_t source_height, uint32_t width,
-	uint32_t height, enum st_pixel_scaling_policy policy)
+	const struct st_rgb_buffer **result, const struct st_rgb_buffer *source,
+	uint32_t width, uint32_t height, enum st_pixel_scaling_policy policy)
 {
+	const uint32_t *source_pixels;
+	uint32_t source_width;
+	uint32_t source_height;
 	uint32_t x_integer;
 	uint32_t y_integer;
 	uint32_t common;
@@ -455,19 +457,25 @@ st_pixel_scaler_scale(st_pixel_scaler_t *scaler,
 	unsigned int pointy_threes = 0;
 	unsigned int xbr_fours = 0;
 	unsigned int xbr_twos = 0;
-	uint32_t current_width = source_width;
-	uint32_t current_height = source_height;
+	uint32_t current_width;
+	uint32_t current_height;
 	uint32_t repeated_rows = 1;
 	size_t ignored_count;
 	size_t target_count;
 	int status;
 
 	if (scaler == NULL || result == NULL || source == NULL
+	    || source->pixels == NULL
 	    || (policy != ST_PIXEL_SCALING_BLOCKY
 	    && policy != ST_PIXEL_SCALING_POINTY)
-	    || !pixel_count(source_width, source_height, &ignored_count)
+	    || !pixel_count(source->width, source->height, &ignored_count)
 	    || !pixel_count(width, height, &target_count))
 		return IO_ERROR_INVALID_ARGUMENT;
+	source_pixels = source->pixels;
+	source_width = source->width;
+	source_height = source->height;
+	current_width = source_width;
+	current_height = source_height;
 	scaler->valid = false;
 	if (policy == ST_PIXEL_SCALING_BLOCKY) {
 		struct st_pixel_rect rectangle = {0, 0, width, height};
@@ -478,8 +486,8 @@ st_pixel_scaler_scale(st_pixel_scaler_t *scaler,
 		scaler->width = width;
 		scaler->height = height;
 		scaler->policy = policy;
-		scaler->output = (struct st_pixel_buffer){
-			.primary = scaler->work[0],
+		scaler->output = (struct st_rgb_buffer){
+			.pixels = scaler->work[0],
 			.width = width,
 			.height = height,
 		};
@@ -489,11 +497,11 @@ st_pixel_scaler_scale(st_pixel_scaler_t *scaler,
 			return status;
 		if (scaler->exact_x_repeat != 0
 		    && scaler->exact_y_repeat != 0)
-			multiply_scale(source, scaler->output.primary, source_width,
+			multiply_scale(source_pixels, scaler->output.pixels, source_width,
 			    source_height, scaler->exact_x_repeat,
 			    scaler->exact_y_repeat);
 		else
-			update_blocky_region(scaler, source, &rectangle);
+			update_blocky_region(scaler, source_pixels, &rectangle);
 		scaler->valid = true;
 		*result = &scaler->output;
 		return 0;
@@ -594,13 +602,13 @@ st_pixel_scaler_scale(st_pixel_scaler_t *scaler,
 			return status;
 	}
 	for (size_t i = 0; i < scaler->stage_count; ++i) {
-		const uint32_t *stage_source = i == 0 ? source
+		const uint32_t *stage_source = i == 0 ? source_pixels
 		    : scaler->stages[i - 1].pixels;
 
 		execute_stage_full(&scaler->stages[i], stage_source);
 	}
-	scaler->output = (struct st_pixel_buffer){
-		.primary = scaler->stages[scaler->stage_count - 1].pixels,
+	scaler->output = (struct st_rgb_buffer){
+		.pixels = scaler->stages[scaler->stage_count - 1].pixels,
 		.width = current_width,
 		.height = current_height,
 	};
@@ -812,7 +820,7 @@ update_blocky_region(st_pixel_scaler_t *scaler, const uint32_t *source,
 		    * scaler->source_width];
 		const uint32_t *bottom_row = &source[(size_t)vertical->second
 		    * scaler->source_width];
-		uint32_t *destination = &scaler->output.primary[(size_t)y
+		uint32_t *destination = &scaler->output.pixels[(size_t)y
 		    * scaler->width];
 
 		if (vertical->first == vertical->second
@@ -849,27 +857,29 @@ update_blocky_region(st_pixel_scaler_t *scaler, const uint32_t *source,
 
 int
 st_pixel_scaler_scale_region(st_pixel_scaler_t *scaler,
-	const struct st_pixel_buffer **result, const uint32_t *source,
-	uint32_t source_width, uint32_t source_height,
+	const struct st_rgb_buffer **result, const struct st_rgb_buffer *source,
 	const struct st_pixel_rect *damage, struct st_pixel_rect *output_damage)
 {
+	const uint32_t *source_pixels;
 	uint32_t right;
 	uint32_t bottom;
 	struct st_pixel_rect changed;
 
-	if (scaler == NULL || result == NULL || source == NULL || damage == NULL
+	if (scaler == NULL || result == NULL || source == NULL
+	    || source->pixels == NULL || damage == NULL
 	    || output_damage == NULL || !scaler->valid
-	    || source_width != scaler->source_width
-	    || source_height != scaler->source_height || damage->width == 0
-	    || damage->height == 0 || damage->x >= source_width
-	    || damage->y >= source_height
-	    || damage->width > source_width - damage->x
-	    || damage->height > source_height - damage->y)
+	    || source->width != scaler->source_width
+	    || source->height != scaler->source_height || damage->width == 0
+	    || damage->height == 0 || damage->x >= source->width
+	    || damage->y >= source->height
+	    || damage->width > source->width - damage->x
+	    || damage->height > source->height - damage->y)
 		return IO_ERROR_INVALID_ARGUMENT;
+	source_pixels = source->pixels;
 	if (scaler->policy != ST_PIXEL_SCALING_BLOCKY) {
 		changed = *damage;
 		for (size_t i = 0; i < scaler->stage_count; ++i) {
-			const uint32_t *stage_source = i == 0 ? source
+			const uint32_t *stage_source = i == 0 ? source_pixels
 			    : scaler->stages[i - 1].pixels;
 			struct st_pixel_rect stage_damage;
 
@@ -890,7 +900,7 @@ st_pixel_scaler_scale_region(st_pixel_scaler_t *scaler,
 			.width = damage->width * scaler->exact_x_repeat,
 			.height = damage->height * scaler->exact_y_repeat,
 		};
-		update_exact_blocky_damage(scaler, source, damage);
+		update_exact_blocky_damage(scaler, source_pixels, damage);
 		*result = &scaler->output;
 		*output_damage = changed;
 		return 0;
@@ -901,7 +911,7 @@ st_pixel_scaler_scale_region(st_pixel_scaler_t *scaler,
 	    &changed.y, &bottom);
 	changed.width = right - changed.x;
 	changed.height = bottom - changed.y;
-	update_blocky_region(scaler, source, &changed);
+	update_blocky_region(scaler, source_pixels, &changed);
 	*result = &scaler->output;
 	*output_damage = changed;
 	return 0;

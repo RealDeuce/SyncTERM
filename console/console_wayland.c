@@ -163,7 +163,7 @@ struct state {
 	struct buffer buffers[2], backgrounds[2], cursor_buffer;
 	struct st_console_bitmap_presenter *presenter;
 	struct st_console_bitmap_frame frame;
-	const struct st_pixel_buffer *latest_pixels;
+	const struct st_rgb_buffer *latest_pixels;
 	uint32_t window_width, window_height, buttons, pointer_serial;
 	uint32_t windowed_width, windowed_height;
 	uint32_t bounds_width, bounds_height;
@@ -252,14 +252,14 @@ static void buffer_release(void *data, struct wl_buffer *object)
 	if (buffer->pending_valid && buffer->state->latest_pixels != NULL &&
 	    buffer->width == buffer->state->latest_pixels->width &&
 	    buffer->height == buffer->state->latest_pixels->height) {
-		const struct st_pixel_buffer *pixels =
+		const struct st_rgb_buffer *pixels =
 		    buffer->state->latest_pixels;
 		for (uint32_t y = 0; y < buffer->pending.height; ++y) {
 			size_t offset =
 			    (size_t)(buffer->pending.y + y) * buffer->width +
 			    buffer->pending.x;
 			memcpy(&buffer->pixels[offset],
-			       &pixels->primary[offset],
+			       &pixels->pixels[offset],
 			       (size_t)buffer->pending.width *
 				   sizeof(*buffer->pixels));
 		}
@@ -430,7 +430,7 @@ static void add_pending(struct buffer *buffer,
 }
 
 static int update_buffers(void *context,
-			  const struct st_pixel_buffer *pixels,
+			  const struct st_rgb_buffer *pixels,
 			  const struct st_console_rect *rectangle)
 {
 	struct state *state = context;
@@ -448,7 +448,7 @@ static int update_buffers(void *context,
 				    (size_t)(rectangle->y + y) * pixels->width +
 				    rectangle->x;
 				memcpy(&buffer->pixels[offset],
-				       &pixels->primary[offset],
+				       &pixels->pixels[offset],
 				       (size_t)rectangle->width *
 					   sizeof(*buffer->pixels));
 			}
@@ -487,7 +487,7 @@ static int draw(struct state *state, const st_console_t *console, bool forced)
 	full = !buffer->valid;
 	if (full) {
 		memcpy(
-		    buffer->pixels, state->frame.pixels->primary, buffer->size);
+		    buffer->pixels, state->frame.pixels->pixels, buffer->size);
 		buffer->valid = true;
 		buffer->pending_valid = false;
 	}

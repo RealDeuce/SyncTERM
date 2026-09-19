@@ -33,7 +33,7 @@ milliseconds_now(void)
 }
 
 static int
-retain_pixels(void *context, const struct st_pixel_buffer *pixels,
+retain_pixels(void *context, const struct st_rgb_buffer *pixels,
 	const struct st_console_rect *rectangle)
 {
 	struct libretro_state *state = context;
@@ -54,7 +54,7 @@ retain_pixels(void *context, const struct st_pixel_buffer *pixels,
 		state->pixels = replacement;
 		state->width = pixels->width;
 		state->height = pixels->height;
-		memcpy(state->pixels, pixels->primary,
+		memcpy(state->pixels, pixels->pixels,
 		    count * sizeof(*state->pixels));
 		return 0;
 	}
@@ -62,7 +62,7 @@ retain_pixels(void *context, const struct st_pixel_buffer *pixels,
 		size_t offset = (size_t)(rectangle->y + y) * pixels->width
 		    + rectangle->x;
 
-		memcpy(&state->pixels[offset], &pixels->primary[offset],
+		memcpy(&state->pixels[offset], &pixels->pixels[offset],
 		    (size_t)rectangle->width * sizeof(*state->pixels));
 	}
 	return 0;

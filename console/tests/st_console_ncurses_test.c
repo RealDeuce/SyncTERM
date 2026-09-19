@@ -107,6 +107,10 @@ child_test(int report)
 	uint32_t columns;
 	uint32_t rows;
 	uint32_t capabilities;
+	const char *colorterm = getenv("COLORTERM");
+	bool expect_direct = colorterm != NULL
+	    && (strcmp(colorterm, "truecolor") == 0
+	    || strcmp(colorterm, "24bit") == 0);
 	int status;
 
 	status = st_console_display_create(&display, &display_config);
@@ -128,7 +132,10 @@ child_test(int report)
 	}
 	if (st_console_capabilities(console, &capabilities) != 0
 	    || (capabilities & ST_CONSOLE_CAP_TEXT_TERMINAL) == 0
-	    || (capabilities & ST_CONSOLE_CAP_LOCAL_CONTROL_KEYS) == 0) {
+	    || (capabilities & ST_CONSOLE_CAP_LOCAL_CONTROL_KEYS) == 0
+	    || (expect_direct
+	    && ((capabilities & ST_CONSOLE_CAP_PALETTE_CHANGE) == 0
+	    || (capabilities & ST_CONSOLE_CAP_EXTENDED_PALETTE) == 0))) {
 		child_result(report, 'T');
 		st_console_destroy(console);
 		_exit(1);
@@ -309,10 +316,10 @@ main(void)
 		goto failed;
 	if (wait_report(report[0], master, 'O') != 0)
 		goto failed;
-	if ((!direct_colour && (!output_contains("\033[38;5;12m")
+	if ((!direct_colour && (!output_contains("\033[38;5;203m")
 	    || !output_contains("\033[38;5;43m")))
 	    || (direct_colour
-	    && (!output_contains("\033[38;5;12m")
+	    && (!output_contains("\033[38;2;255;84;84m")
 	    || !output_contains("\033[38;2;0;215;175m")))
 	    || !output_contains("\033[1m")) {
 		fprintf(stderr, "ncurses emitted the wrong colour representation\n");

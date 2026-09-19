@@ -86,21 +86,40 @@ pixel_dimensions(uint32_t columns, uint32_t rows, uint32_t cell_width,
 }
 
 static void
-initialize_palette(uint32_t palette[256])
+initialize_palette(uint32_t palette[UINT16_MAX + 1U])
 {
-	static const uint32_t base[16] = {
-		0x000000, 0x0000aa, 0x00aa00, 0x00aaaa,
-		0xaa0000, 0xaa00aa, 0xaa5500, 0xaaaaaa,
-		0x555555, 0x5555ff, 0x55ff55, 0x55ffff,
-		0xff5555, 0xff55ff, 0xffff55, 0xffffff,
+	static const uint32_t system[16] = {
+		0x000000, 0xa80000, 0x00a800, 0xa85400,
+		0x0000a8, 0xa800a8, 0x00a8a8, 0xa8a8a8,
+		0x545454, 0xff5454, 0x54ff54, 0xffff54,
+		0x5454ff, 0xff54ff, 0x54ffff, 0xffffff,
 	};
-	unsigned int i;
+	static const uint8_t cube[6] = {0, 95, 135, 175, 215, 255};
+	static const uint32_t legacy_tail[] = {
+		0x000000, 0xffffff, 0x813338, 0x75cec8,
+		0x8e3c97, 0x56ac4d, 0x2e2c9b, 0xedf171,
+		0x8e5029, 0x553800, 0xc46c71, 0x4a4a4a,
+		0x7b7b7b, 0xa9ff9f, 0x706deb, 0xb2b2b2,
+		0x005181, 0x60b7e7,
+		0xb6b6b6, 0x6d6d6d, 0xff6d6d, 0x6dff6d,
+		0xffff6d, 0x6d6dff, 0xff6dff, 0x6dffff,
+	};
 
-	memcpy(palette, base, sizeof(base));
-	for (i = 16; i < 256; ++i) {
-		uint32_t component = (uint32_t)i;
-		palette[i] = (component << 16) | (component << 8) | component;
+	memset(palette, 0, (UINT16_MAX + 1U) * sizeof(palette[0]));
+	memcpy(palette, system, sizeof(system));
+	for (uint32_t index = 16; index < 232; ++index) {
+		uint32_t value = index - 16;
+
+		palette[index] = ((uint32_t)cube[value / 36] << 16)
+		    | ((uint32_t)cube[(value / 6) % 6] << 8)
+		    | cube[value % 6];
 	}
+	for (uint32_t index = 232; index < 256; ++index) {
+		uint32_t value = 8 + (index - 232) * 10;
+
+		palette[index] = (value << 16) | (value << 8) | value;
+	}
+	memcpy(&palette[256], legacy_tail, sizeof(legacy_tail));
 }
 
 static void
@@ -734,7 +753,8 @@ apply_console(st_console_display_t *display, st_console_t *console, bool setup)
 		    console->rows);
 	if (status == 0 && setup && display->backend_ops != NULL
 	    && display->backend_ops->palette_changed != NULL)
-		status = display->backend_ops->palette_changed(console, 0, 256);
+		display->backend_ops->palette_changed(console, 0, console->palette,
+		    UINT16_MAX + 1U);
 	if (status == 0 && setup && display->backend_ops != NULL
 	    && display->backend_ops->set_title != NULL)
 		status = display->backend_ops->set_title(display,
@@ -1301,6 +1321,7 @@ present_locked(st_console_t *console, bool forced, bool backend_locked)
 		console->cells[i].flags &= ~ST_CONSOLE_CELL_DIRTY;
 	console->changed = false;
 	console->pixel_surface_dirty = false;
+	console->palette_dirty = false;
 	return 0;
 }
 
@@ -1376,6 +1397,8 @@ st_console_capabilities(st_console_t *console, uint32_t *capabilities)
 	    || console->display->backend == ST_CONSOLE_BACKEND_NCURSES)
 		value |= ST_CONSOLE_CAP_LOCAL_CONTROL_KEYS;
 	if (console->display->backend_ops != NULL) {
+		if (console->display->backend_ops->capabilities != NULL)
+			value |= console->display->backend_ops->capabilities(console);
 		if (console->display->backend_ops->set_title != NULL)
 			value |= ST_CONSOLE_CAP_WINDOW_TITLE;
 		if (console->display->backend_ops->set_clipboard_text != NULL
@@ -1733,54 +1756,48 @@ st_console_present(st_console_t *console)
 
 int
 st_console_set_palette(st_console_t *console, uint16_t first,
-	const uint32_t *rgb, uint16_t count)
+	const uint32_t *rgb, uint32_t count)
 {
-	uint32_t previous[256];
+	uint32_t first_changed = count;
+	uint32_t last_changed = 0;
 	int result;
 
 	if (console == NULL || rgb == NULL || count == 0
-	    || count > 256U - (unsigned int)first)
+	    || count > UINT32_C(65536) - first)
 		return IO_ERROR_INVALID_ARGUMENT;
 	result = st_rwlock_write_lock(&console->state_lock);
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
-	memcpy(previous, &console->palette[first],
-	    (size_t)count * sizeof(previous[0]));
-	for (uint16_t i = 0; i < count; ++i)
-		console->palette[first + i] = rgb[i] & UINT32_C(0xffffff);
-	if (atomic_load_explicit(&console->display->active,
-	    memory_order_acquire) == console && console->display->backend_ops != NULL
-	    && console->display->backend_ops->palette_changed != NULL) {
-		(void)st_mutex_lock(&console->display->backend_mutex);
-		result = atomic_load_explicit(&console->display->active,
-		    memory_order_acquire) == console
-		    ? (console->display->backend_failed ? IO_ERROR_IO
-		    : console->display->backend_ops->palette_changed(console, first, count)) : 0;
-		(void)st_mutex_unlock(&console->display->backend_mutex);
-		if (result != 0) {
-			memcpy(&console->palette[first], previous,
-			    (size_t)count * sizeof(previous[0]));
-			/* Best effort restores any entries changed before the error. */
-			(void)st_mutex_lock(&console->display->backend_mutex);
-			if (!console->display->backend_failed
-			    && atomic_load_explicit(&console->display->active,
-			    memory_order_acquire) == console)
-				(void)console->display->backend_ops->palette_changed(console,
-				    first, count);
-			(void)st_mutex_unlock(&console->display->backend_mutex);
-			(void)st_rwlock_unlock(&console->state_lock);
-			return result;
-		}
-	}
-	if (console->rasterized != NULL) {
-		size_t cells = (size_t)console->columns * console->rows;
+	for (uint32_t i = 0; i < count; ++i) {
+		uint32_t value = rgb[i] & UINT32_C(0xffffff);
 
-		for (size_t i = 0; i < cells; ++i) {
-			if ((console->cells[i].flags
-			    & ST_CONSOLE_CELL_PIXEL_GRAPHICS) == 0)
-				console->rasterized[i].flags
-				    |= ST_CONSOLE_CELL_DIRTY;
-		}
+		if (console->palette[(uint32_t)first + i] == value)
+			continue;
+		console->palette[(uint32_t)first + i] = value;
+		if (first_changed == count)
+			first_changed = i;
+		last_changed = i;
+	}
+	if (first_changed == count) {
+		(void)st_rwlock_unlock(&console->state_lock);
+		return 0;
+	}
+	console->palette_dirty = true;
+	if (atomic_load_explicit(&console->display->active, memory_order_acquire)
+	    == console && console->display->backend_ops != NULL
+	    && console->display->backend_ops->palette_changed != NULL
+	    && !console->display->backend_failed) {
+		uint16_t changed_first = (uint16_t)((uint32_t)first + first_changed);
+		uint32_t changed_count = last_changed - first_changed + 1U;
+
+		(void)st_mutex_lock(&console->display->backend_mutex);
+		if (atomic_load_explicit(&console->display->active,
+		    memory_order_acquire) == console
+		    && !console->display->backend_failed)
+			console->display->backend_ops->palette_changed(console,
+			    changed_first, &console->palette[changed_first],
+			    changed_count);
+		(void)st_mutex_unlock(&console->display->backend_mutex);
 	}
 	st_console_mark_all_locked(console);
 	result = st_console_finish_change_locked(console);
@@ -1790,12 +1807,12 @@ st_console_set_palette(st_console_t *console, uint16_t first,
 
 int
 st_console_get_palette(st_console_t *console, uint16_t first,
-	uint32_t *rgb, uint16_t count)
+	uint32_t *rgb, uint32_t count)
 {
 	int result;
 
 	if (console == NULL || rgb == NULL || count == 0
-	    || count > 256U - (unsigned int)first)
+	    || count > UINT32_C(65536) - first)
 		return IO_ERROR_INVALID_ARGUMENT;
 	result = st_rwlock_read_lock(&console->state_lock);
 	if (result != ST_THREAD_SUCCESS)
@@ -2301,7 +2318,8 @@ int
 st_console_snapshot_restore(st_console_t *console,
 	const st_console_snapshot_t *snapshot)
 {
-	uint32_t previous_palette[256];
+	uint32_t first_changed = UINT32_MAX;
+	uint32_t last_changed = 0;
 	size_t count;
 	int result;
 
@@ -2321,25 +2339,26 @@ st_console_snapshot_restore(st_console_t *console,
 		return IO_ERROR_OUT_OF_RANGE;
 	}
 	count = (size_t)console->columns * console->rows;
-	memcpy(previous_palette, console->palette, sizeof(previous_palette));
+	for (uint32_t i = 0; i <= UINT16_MAX; ++i) {
+		if (console->palette[i] == snapshot->palette[i])
+			continue;
+		if (first_changed == UINT32_MAX)
+			first_changed = i;
+		last_changed = i;
+	}
 	memcpy(console->palette, snapshot->palette, sizeof(console->palette));
-	if (console->display->backend_ops != NULL
-	    && console->display->backend_ops->palette_changed != NULL) {
+	if (first_changed != UINT32_MAX)
+		console->palette_dirty = true;
+	if (first_changed != UINT32_MAX
+	    && console->display->backend_ops != NULL
+	    && console->display->backend_ops->palette_changed != NULL
+	    && !console->display->backend_failed) {
 		(void)st_mutex_lock(&console->display->backend_mutex);
-		result = 0;
 		if (atomic_load_explicit(&console->display->active,
 		    memory_order_acquire) == console)
-			result = console->display->backend_failed ? IO_ERROR_IO
-			    : console->display->backend_ops->palette_changed(console, 0, 256);
-		if (result != 0) {
-			memcpy(console->palette, previous_palette,
-			    sizeof(console->palette));
-			if (!console->display->backend_failed)
-				(void)console->display->backend_ops->palette_changed(console, 0, 256);
-			(void)st_mutex_unlock(&console->display->backend_mutex);
-			(void)st_rwlock_unlock(&console->state_lock);
-			return result;
-		}
+			console->display->backend_ops->palette_changed(console,
+			    (uint16_t)first_changed, &console->palette[first_changed],
+			    last_changed - first_changed + 1U);
 		(void)st_mutex_unlock(&console->display->backend_mutex);
 	}
 	console->style = snapshot->style;

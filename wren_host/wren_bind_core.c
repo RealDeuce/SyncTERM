@@ -1152,6 +1152,16 @@ screen_put_rect(WrenVM *vm, bool partial)
 static void fn_screen_put_rect(WrenVM *vm) { screen_put_rect(vm, false); }
 static void fn_screen_put_rect_partial(WrenVM *vm) { screen_put_rect(vm, true); }
 
+static uint32_t
+legacy_colour(uint32_t colour)
+{
+	static const uint8_t map[16] = {
+		0, 4, 2, 6, 1, 5, 3, 7, 8, 12, 10, 14, 9, 13, 11, 15,
+	};
+
+	return map[colour & 0x0f];
+}
+
 static void
 fn_screen_attr(WrenVM *vm)
 {
@@ -1162,8 +1172,8 @@ fn_screen_attr(WrenVM *vm)
 		st_wren_abort(vm, "Screen.attr failed");
 		return;
 	}
-	uint32_t value = (style.foreground & 0x0f)
-	    | ((style.background & 0x07) << 4);
+	uint32_t value = legacy_colour(style.foreground)
+	    | ((legacy_colour(style.background) & 0x07) << 4);
 	if ((style.flags & ST_CONSOLE_CELL_BLINK) != 0)
 		value |= 0x80;
 	wrenSetSlotDouble(vm, 0, value);
@@ -1179,8 +1189,8 @@ fn_screen_attr_set(WrenVM *vm)
 	    || st_console_get_style(st_wren_context_from_vm(vm)->console,
 	    &style) != 0)
 		return;
-	style.foreground = (uint32_t)value & 0x0f;
-	style.background = ((uint32_t)value >> 4) & 0x07;
+	style.foreground = legacy_colour((uint32_t)value);
+	style.background = legacy_colour((uint32_t)value >> 4) & 0x07;
 	if (((uint32_t)value & 0x80) != 0)
 		style.flags |= ST_CONSOLE_CELL_BLINK;
 	else
@@ -1948,8 +1958,8 @@ fn_cell_columns(WrenVM *vm)
 static uint8_t
 cell_legacy_attr(const struct st_console_cell *cell)
 {
-	uint8_t value = (uint8_t)((cell->foreground & 0x0f)
-	    | ((cell->background & 0x07) << 4));
+	uint8_t value = (uint8_t)(legacy_colour(cell->foreground)
+	    | ((legacy_colour(cell->background) & 0x07) << 4));
 
 	if ((cell->flags & ST_CONSOLE_CELL_BLINK) != 0)
 		value |= 0x80;
@@ -1973,8 +1983,8 @@ fn_cell_attr_set(WrenVM *vm)
 
 	if (cell == NULL || !slot_integer(vm, 1, 0, 255, &value))
 		return;
-	cell->foreground = (uint32_t)value & 0x0f;
-	cell->background = ((uint32_t)value >> 4) & 0x07;
+	cell->foreground = legacy_colour((uint32_t)value);
+	cell->background = legacy_colour((uint32_t)value >> 4) & 0x07;
 	if (((uint32_t)value & 0x80) != 0)
 		cell->flags |= ST_CONSOLE_CELL_BLINK;
 	else

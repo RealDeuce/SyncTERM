@@ -99,7 +99,7 @@ main(int argc, char **argv)
 	CHECK(st_console_pixel_size(first, &width, &height) == 0);
 	CHECK(width == 64 && height == 64);
 	CHECK(st_console_set_pixel(first, 4, 5,
-	    UINT32_C(0x010203)) == 0);
+	    ST_CONSOLE_COLOR_RGB_VALUE(1, 2, 3)) == 0);
 	CHECK(st_console_set_title(first, "st_console SDL test") == 0);
 	CHECK(st_console_set_pointer_visible(first, false) == 0);
 	CHECK(st_console_set_pointer_visible(first, true) == 0);
@@ -108,8 +108,10 @@ main(int argc, char **argv)
 	CHECK(width == 80 && height == 80);
 	CHECK(st_console_present(first) == 0);
 	CHECK(st_console_present(second) == 0);
-	writers[0] = (struct writer_context){first, UINT32_C(0x141e28), false};
-	writers[1] = (struct writer_context){second, UINT32_C(0x323c46), false};
+	writers[0] = (struct writer_context){first,
+	    ST_CONSOLE_COLOR_RGB_VALUE(0x14, 0x1e, 0x28), false};
+	writers[1] = (struct writer_context){second,
+	    ST_CONSOLE_COLOR_RGB_VALUE(0x32, 0x3c, 0x46), false};
 	CHECK(st_thread_create(&threads[0], write_pixels, &writers[0])
 	    == ST_THREAD_SUCCESS);
 	CHECK(st_thread_create(&threads[1], write_pixels, &writers[1])

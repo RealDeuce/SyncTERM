@@ -499,7 +499,8 @@ check_escape_event(st_console_t *console)
 	bool marker = false;
 
 	CHECK(st_console_set_title(console, title) == 0);
-	CHECK(st_console_set_pixel(console, 0, 0, UINT32_C(0x010203)) == 0);
+	CHECK(st_console_set_pixel(console, 0, 0,
+	    ST_CONSOLE_COLOR_RGB_VALUE(1, 2, 3)) == 0);
 	CHECK(st_console_present(console) == 0);
 	display = XOpenDisplay(NULL);
 	CHECK(display != NULL);
@@ -668,7 +669,8 @@ main(void)
 	    85, 64) == 0);
 	CHECK(st_console_set_pointer_visible(first, false) == 0);
 	CHECK(st_console_set_pointer_visible(first, true) == 0);
-	CHECK(st_console_set_pixel(first, 4, 5, UINT32_C(0x102030)) == 0);
+	CHECK(st_console_set_pixel(first, 4, 5,
+	    ST_CONSOLE_COLOR_RGB_VALUE(0x10, 0x20, 0x30)) == 0);
 	CHECK(st_console_present(first) == 0);
 	CHECK(check_escape_event(first) == 0);
 	CHECK(check_mouse_coordinates(first, "st_console X11 input test") == 0);

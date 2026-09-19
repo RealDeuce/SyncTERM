@@ -20,7 +20,7 @@ struct text_selection {
 	struct st_console_cell *original;
 	struct st_console_cell *displayed;
 	uint8_t *selected;
-	uint32_t palette[256];
+	uint32_t *palette;
 	uint32_t columns;
 	uint32_t rows;
 	int32_t start_x;
@@ -35,7 +35,7 @@ colour_value(const struct text_selection *selection, uint32_t colour)
 {
 	if (ST_CONSOLE_COLOR_IS_RGB(colour))
 		return colour & UINT32_C(0xffffff);
-	return selection->palette[colour & UINT32_C(0xff)];
+	return colour <= UINT16_MAX ? selection->palette[colour] : 0;
 }
 
 static uint8_t
@@ -82,7 +82,7 @@ highlight_cell(const struct text_selection *selection,
 		cell->flags &= ~ST_CONSOLE_CELL_REVERSE;
 	}
 	selected_background = nearest_legacy_colour(selection, background, 8)
-	    == 1 ? 6 : 1;
+	    == 4 ? 3 : 4;
 	if (nearest_legacy_colour(selection, foreground, 16)
 	    == selected_background)
 		foreground = selected_background | 8;
@@ -269,15 +269,23 @@ st_wren_mouse_drag_select(struct st_wren_context *context, bool rectangular)
 	    &selection.rows);
 	if (result != 0 || selection.columns == 0 || selection.rows == 0)
 		return result != 0 ? result : IO_ERROR_OUT_OF_RANGE;
+	selection.palette = malloc((UINT16_MAX + 1U)
+	    * sizeof(selection.palette[0]));
+	if (selection.palette == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
 	result = st_console_get_palette(context->console, 0, selection.palette,
-	    256);
+	    UINT16_MAX + 1U);
 	if (result != 0)
-		return result;
-	if (selection.columns > SIZE_MAX / selection.rows)
-		return IO_ERROR_OUT_OF_RANGE;
+		goto done;
+	if (selection.columns > SIZE_MAX / selection.rows) {
+		result = IO_ERROR_OUT_OF_RANGE;
+		goto done;
+	}
 	count = (size_t)selection.columns * selection.rows;
-	if (count > SIZE_MAX / sizeof(*selection.original))
-		return IO_ERROR_OUT_OF_RANGE;
+	if (count > SIZE_MAX / sizeof(*selection.original)) {
+		result = IO_ERROR_OUT_OF_RANGE;
+		goto done;
+	}
 	selection.original = malloc(count * sizeof(*selection.original));
 	selection.displayed = malloc(count * sizeof(*selection.displayed));
 	selection.selected = calloc(count, sizeof(*selection.selected));
@@ -339,6 +347,7 @@ st_wren_mouse_drag_select(struct st_wren_context *context, bool rectangular)
 		result = copy_selection(&selection);
 
 done:
+	free(selection.palette);
 	free(selection.selected);
 	free(selection.displayed);
 	free(selection.original);

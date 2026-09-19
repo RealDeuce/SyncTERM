@@ -1002,7 +1002,7 @@ store_native_pixel(XImage *image, uint32_t x, uint32_t y,
 }
 
 static int
-upload_pixels(void *context, const struct st_pixel_buffer *pixels,
+upload_pixels(void *context, const struct st_rgb_buffer *pixels,
 	const struct st_console_rect *rectangle)
 {
 	struct x11_state *state = context;
@@ -1011,7 +1011,7 @@ upload_pixels(void *context, const struct st_pixel_buffer *pixels,
 	if (status != 0)
 		return status;
 	for (uint32_t y = 0; y < rectangle->height; ++y) {
-		const uint32_t *source = &pixels->primary[
+		const uint32_t *source = &pixels->pixels[
 		    (size_t)(rectangle->y + y) * pixels->width + rectangle->x];
 
 		for (uint32_t x = 0; x < rectangle->width; ++x) {

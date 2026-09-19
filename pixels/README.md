@@ -3,10 +3,17 @@
 `st_pixels` owns the small, backend-independent pixel-buffer operations used
 by SyncTERM image decoding, scripting, and console rasterization.  A buffer
 always has a primary plane and may have an alternate plane for blink-state
-content.  Pixel values are packed `0x00RRGGBB`; palette indexes and tagged
-cell-colour representations are resolved before pixels reach this component.
+content.  `st_pixel_buffer` values use the console's native colour
+representation: `0..65535` are palette indexes and a value with
+`ST_PIXEL_COLOR_RGB_TAG` set contains direct RGB in its low 24 bits.  Fill,
+clone, and blit preserve that representation without resolving it.
 
-The public structure exposes the planes and dimensions because SyncTERM's
+`st_rgb_buffer` is the deliberately narrower packed-`0x00RRGGBB` type used at
+the scaler and host-upload boundary.  Palette resolution happens once in the
+bitmap presenter before scaling, so the scaler never receives palette indexes
+or tagged colours.
+
+The public structures expose their planes and dimensions because SyncTERM's
 image and drawing code performs substantial direct pixel access.  Buffers
 created by this library are nonempty, contiguous, row-major allocations.
 `st_pixel_buffer_ensure_alternate` initializes a new alternate plane from the
@@ -21,7 +28,8 @@ preserved; where it is absent, the primary source supplies both destination
 planes.  Self-blits behave as though the source were snapshotted before any
 destination writes.
 
-The persistent scaler implements the legacy scaling plan rather than exposing
+The persistent scaler accepts only `st_rgb_buffer` input and implements the
+legacy scaling plan rather than exposing
 its stages as independent filter choices.  Pointy scaling decomposes common
 integer factors into pointy and xBR stages, applies residual integer
 multiplication, and finishes with YCoCg interpolation where required.  Blocky

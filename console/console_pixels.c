@@ -115,14 +115,6 @@ st_console_normalize_raster_locked(st_console_t *console)
 	return 0;
 }
 
-static uint32_t
-pixel_colour(const st_console_t *console, uint32_t colour)
-{
-	if (ST_CONSOLE_COLOR_IS_RGB(colour))
-		return colour & UINT32_C(0xffffff);
-	return console->palette[colour & UINT32_C(0xff)];
-}
-
 struct font_cache {
 	const struct st_console_font *font;
 	uint16_t identifier;
@@ -163,8 +155,8 @@ prepare_fast_cell(st_console_t *console, const struct st_console_cell *cell,
 	const uint8_t *glyph;
 	uint32_t glyph_width;
 	size_t row_stride;
-	uint32_t foreground = pixel_colour(console, cell->foreground);
-	uint32_t background = pixel_colour(console, cell->background);
+	uint32_t foreground = cell->foreground;
+	uint32_t background = cell->background;
 
 	if (font == NULL || !st_console_font_glyph_locked(console,
 	    glyph_font, cell->glyph, &glyph, &glyph_width, &row_stride)
@@ -290,10 +282,8 @@ render_cell(st_console_t *console, uint32_t x, uint32_t y,
 	if (font != NULL && glyph_width == font->width * 2
 	    && (source->flags & ST_CONSOLE_CELL_CONTINUATION) != 0)
 		glyph_x = font->width;
-	foreground = source == NULL ? pixel_colour(console, cell->background)
-	    : pixel_colour(console, source->foreground);
-	background = source == NULL ? pixel_colour(console, cell->background)
-	    : pixel_colour(console, source->background);
+	foreground = source == NULL ? cell->background : source->foreground;
+	background = source == NULL ? cell->background : source->background;
 	if (source != NULL && (source->flags & ST_CONSOLE_CELL_REVERSE) != 0) {
 		uint32_t swap = foreground;
 
@@ -694,7 +684,7 @@ st_console_set_pixel(st_console_t *console, uint32_t x, uint32_t y,
 	size_t position;
 	int status;
 
-	if (console == NULL || (colour & UINT32_C(0xff000000)) != 0)
+	if (console == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	status = st_rwlock_write_lock(&console->state_lock);
 	if (status != ST_THREAD_SUCCESS)

@@ -202,8 +202,18 @@ int main(void)
 	return get_wide(window, &value) + add_wide(window, L"", 0);
 }
 ]=] ST_CONSOLE_HAVE_CURSES_WIDE)
+	check_c_source_compiles([=[
+#include <curses.h>
+int main(void)
+{
+	int (*content)(int, int *, int *, int *) = extended_color_content;
+	int (*initialize)(int, int, int, int) = init_extended_color;
+	return content(0, 0, 0, 0) + initialize(0, 0, 0, 0);
+}
+]=] ST_CONSOLE_HAVE_CURSES_EXTENDED_COLOR)
 else()
 	set(ST_CONSOLE_HAVE_CURSES_WIDE 0)
+	set(ST_CONSOLE_HAVE_CURSES_EXTENDED_COLOR 0)
 endif()
 set(CMAKE_TRY_COMPILE_TARGET_TYPE
 	${_st_console_saved_try_compile_target_type})

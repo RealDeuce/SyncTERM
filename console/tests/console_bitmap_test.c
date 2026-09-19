@@ -23,7 +23,7 @@ struct upload_log {
 };
 
 static int
-record_upload(void *context, const struct st_pixel_buffer *pixels,
+record_upload(void *context, const struct st_rgb_buffer *pixels,
 	const struct st_console_rect *rectangle)
 {
 	struct upload_log *log = context;
@@ -41,8 +41,8 @@ fill_planes(st_console_t *console, uint32_t primary, uint32_t alternate)
 	size_t count = (size_t)console->pixels->width * console->pixels->height;
 
 	for (size_t i = 0; i < count; ++i) {
-		console->pixels->primary[i] = primary;
-		console->pixels->alternate[i] = alternate;
+		console->pixels->primary[i] = ST_PIXEL_COLOR_RGB_TAG | primary;
+		console->pixels->alternate[i] = ST_PIXEL_COLOR_RGB_TAG | alternate;
 	}
 }
 
@@ -71,9 +71,12 @@ test_circular_text_raster(void)
 	const uint32_t yellow = UINT32_C(0xffff00);
 
 	CHECK(st_console_create(&console, &config_display, &config) == 0);
-	CHECK(st_console_set_pixel(console, 0, 0, red) == 0);
-	CHECK(st_console_set_pixel(console, 0, 1, blue) == 0);
-	CHECK(st_console_set_pixel(console, 0, 2, green) == 0);
+	CHECK(st_console_set_pixel(console, 0, 0,
+	    ST_PIXEL_COLOR_RGB_TAG | red) == 0);
+	CHECK(st_console_set_pixel(console, 0, 1,
+	    ST_PIXEL_COLOR_RGB_TAG | blue) == 0);
+	CHECK(st_console_set_pixel(console, 0, 2,
+	    ST_PIXEL_COLOR_RGB_TAG | green) == 0);
 	console->cursor_visible = false;
 	CHECK(st_console_bitmap_presenter_create(&presenter, console) == 0);
 	CHECK(st_console_bitmap_presenter_frame(presenter, console, 1, 3,
@@ -86,19 +89,63 @@ test_circular_text_raster(void)
 	CHECK(st_console_bitmap_presenter_frame(presenter, console, 1, 3,
 	    1000, record_upload, &log, &frame) == 0);
 	CHECK(log.calls == 2);
-	CHECK(frame.pixels->primary[0] == blue);
-	CHECK(frame.pixels->primary[1] == 0);
-	CHECK(frame.pixels->primary[2] == green);
+	CHECK(frame.pixels->pixels[0] == blue);
+	CHECK(frame.pixels->pixels[1] == 0);
+	CHECK(frame.pixels->pixels[2] == green);
 	CHECK(st_console_end_update(console) == 0);
 
 	CHECK(st_console_begin_update(console) == 0);
-	CHECK(st_console_set_pixel(console, 0, 2, yellow) == 0);
+	CHECK(st_console_set_pixel(console, 0, 2,
+	    ST_PIXEL_COLOR_RGB_TAG | yellow) == 0);
 	log.calls = 0;
 	CHECK(st_console_bitmap_presenter_frame(presenter, console, 1, 3,
 	    1000, record_upload, &log, &frame) == 0);
 	CHECK(log.calls == 1);
 	CHECK(log.rectangle.width == 1 && log.rectangle.height == 3);
-	CHECK(frame.pixels->primary[2] == yellow);
+	CHECK(frame.pixels->pixels[2] == yellow);
+	CHECK(st_console_end_update(console) == 0);
+
+	st_console_bitmap_presenter_destroy(presenter);
+	st_console_destroy(console);
+}
+
+static void
+test_indexed_pixel_palette_change(void)
+{
+	const struct st_console_display_config display = {
+		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	};
+	const struct st_console_config config = {
+		.columns = 1, .rows = 1,
+		.cell_width = 1, .cell_height = 1,
+		.scaling_mode = ST_CONSOLE_SCALING_EXTERNAL,
+	};
+	const uint32_t red = UINT32_C(0x123456);
+	const uint32_t blue = UINT32_C(0x654321);
+	struct st_console_bitmap_presenter *presenter = NULL;
+	struct st_console_bitmap_frame frame;
+	struct upload_log log = {0};
+	st_console_t *console = NULL;
+
+	CHECK(st_console_create(&console, &display, &config) == 0);
+	CHECK(st_console_begin_update(console) == 0);
+	CHECK(st_console_set_cursor(console, false, ST_CONSOLE_CURSOR_BLOCK) == 0);
+	CHECK(st_console_set_palette(console, 500, &red, 1) == 0);
+	CHECK(st_console_set_pixel(console, 0, 0, 500) == 0);
+	CHECK(st_console_bitmap_presenter_create(&presenter, console) == 0);
+	CHECK(st_console_bitmap_presenter_frame(presenter, console, 1, 1, 0,
+	    record_upload, &log, &frame) == 0);
+	CHECK(frame.pixels->pixels[0] == red);
+	CHECK(st_console_end_update(console) == 0);
+
+	CHECK(st_console_begin_update(console) == 0);
+	log.calls = 0;
+	CHECK(st_console_set_palette(console, 500, &blue, 1) == 0);
+	CHECK(st_console_bitmap_presenter_frame(presenter, console, 1, 1, 0,
+	    record_upload, &log, &frame) == 0);
+	CHECK(log.calls == 1 && log.rectangle.x == 0 && log.rectangle.y == 0
+	    && log.rectangle.width == 1 && log.rectangle.height == 1);
+	CHECK(frame.pixels->pixels[0] == blue);
 	CHECK(st_console_end_update(console) == 0);
 
 	st_console_bitmap_presenter_destroy(presenter);
@@ -217,15 +264,15 @@ test_default_cursor_scanlines(void)
 	struct st_console_bitmap_frame frame;
 	struct upload_log log = {0};
 	st_console_t *console = NULL;
-	const uint32_t cursor_colour = UINT32_C(0xaaaaaa);
+	const uint32_t cursor_colour = UINT32_C(0xa8a8a8);
 
 	CHECK(st_console_create(&console, &config_display, &config) == 0);
 	CHECK(st_console_bitmap_presenter_create(&presenter, console) == 0);
 	CHECK(st_console_bitmap_presenter_frame(presenter, console, 8, 14,
 	    0, record_upload, &log, &frame) == 0);
-	CHECK(frame.pixels->primary[11 * 8] != cursor_colour);
-	CHECK(frame.pixels->primary[12 * 8] == cursor_colour);
-	CHECK(frame.pixels->primary[13 * 8] == cursor_colour);
+	CHECK(frame.pixels->pixels[11 * 8] != cursor_colour);
+	CHECK(frame.pixels->pixels[12 * 8] == cursor_colour);
+	CHECK(frame.pixels->pixels[13 * 8] == cursor_colour);
 	st_console_bitmap_presenter_destroy(presenter);
 	st_console_destroy(console);
 }
@@ -287,16 +334,16 @@ test_wide_glyph_cursor(void)
 	CHECK(st_console_bitmap_presenter_frame(presenter, console, 6, 4,
 	    0, record_upload, &log, &frame) == 0);
 	for (size_t x = 0; x < 4; ++x)
-		CHECK(frame.pixels->primary[3 * 6 + x] == colour);
-	CHECK(frame.pixels->primary[3 * 6 + 4] != colour);
+		CHECK(frame.pixels->pixels[3 * 6 + x] == colour);
+	CHECK(frame.pixels->pixels[3 * 6 + 4] != colour);
 
 	/* A cursor placed on the continuation still covers the whole glyph. */
 	CHECK(st_console_set_position(console, 1, 0) == 0);
 	CHECK(st_console_bitmap_presenter_frame(presenter, console, 6, 4,
 	    0, record_upload, &log, &frame) == 0);
 	for (size_t x = 0; x < 4; ++x)
-		CHECK(frame.pixels->primary[3 * 6 + x] == colour);
-	CHECK(frame.pixels->primary[3 * 6 + 4] != colour);
+		CHECK(frame.pixels->pixels[3 * 6 + x] == colour);
+	CHECK(frame.pixels->pixels[3 * 6 + 4] != colour);
 
 	/* Replacing the glyph shrinks a stationary cursor back to one cell. */
 	CHECK(st_console_set_position(console, 0, 0) == 0);
@@ -304,9 +351,9 @@ test_wide_glyph_cursor(void)
 	CHECK(st_console_set_position(console, 0, 0) == 0);
 	CHECK(st_console_bitmap_presenter_frame(presenter, console, 6, 4,
 	    0, record_upload, &log, &frame) == 0);
-	CHECK(frame.pixels->primary[3 * 6] == colour);
-	CHECK(frame.pixels->primary[3 * 6 + 1] == colour);
-	CHECK(frame.pixels->primary[3 * 6 + 2] != colour);
+	CHECK(frame.pixels->pixels[3 * 6] == colour);
+	CHECK(frame.pixels->pixels[3 * 6 + 1] == colour);
+	CHECK(frame.pixels->pixels[3 * 6 + 2] != colour);
 
 	st_console_bitmap_presenter_destroy(presenter);
 	st_console_destroy(console);
@@ -410,7 +457,7 @@ main(void)
 	CHECK(log.rectangle.width == 4 && log.rectangle.height == 4);
 	CHECK(frame.destination.x == 0 && frame.destination.y == 12);
 	CHECK(frame.destination.width == 100 && frame.destination.height == 75);
-	CHECK(frame.pixels->primary[0] == red);
+	CHECK(frame.pixels->pixels[0] == red);
 
 	/* An undersized host clips; it never scales below the source raster. */
 	CHECK(st_console_bitmap_presenter_frame(presenter, console, 4, 4,
@@ -422,10 +469,10 @@ main(void)
 	CHECK(st_console_bitmap_presenter_frame(presenter, NULL, 100, 100,
 	    1266, record_upload, &log, &frame) == 0);
 	CHECK(log.calls == 1 && frame.changed);
-	CHECK(frame.pixels->primary[0] == blue);
+	CHECK(frame.pixels->pixels[0] == blue);
 
 	/* A one-cell change remains a one-cell upload with host scaling. */
-	console->pixels->primary[2] = UINT32_C(0x00ff00);
+	console->pixels->primary[2] = ST_PIXEL_COLOR_RGB_VALUE(0, 255, 0);
 	console->cells[0].flags &= ~ST_CONSOLE_CELL_DIRTY;
 	console->cells[1].flags |= ST_CONSOLE_CELL_DIRTY;
 	log.calls = 0;
@@ -444,10 +491,10 @@ main(void)
 	console->style.foreground = ST_CONSOLE_COLOR_RGB_VALUE(1, 2, 3);
 	CHECK(st_console_bitmap_presenter_frame(presenter, console, 100, 100,
 	    1266, record_upload, &log, &frame) == 0);
-	CHECK(frame.pixels->primary[2] != UINT32_C(0x010203));
-	CHECK(frame.pixels->primary[6] == UINT32_C(0x010203));
-	CHECK(frame.pixels->primary[10] == UINT32_C(0x010203));
-	CHECK(frame.pixels->primary[14] != UINT32_C(0x010203));
+	CHECK(frame.pixels->pixels[2] != UINT32_C(0x010203));
+	CHECK(frame.pixels->pixels[6] == UINT32_C(0x010203));
+	CHECK(frame.pixels->pixels[10] == UINT32_C(0x010203));
+	CHECK(frame.pixels->pixels[14] != UINT32_C(0x010203));
 
 	/* Software scaling produces the aspect-fitted final texture. */
 	console->scaling_mode = ST_CONSOLE_SCALING_INTERNAL;
@@ -460,7 +507,8 @@ main(void)
 	CHECK(frame.destination.width == 10 && frame.destination.height == 8);
 
 	/* Internal blocky scaling preserves a dirty cell as scaled damage. */
-	console->pixels->alternate[0] = UINT32_C(0x123456);
+	console->pixels->alternate[0] = ST_PIXEL_COLOR_RGB_VALUE(0x12, 0x34,
+	    0x56);
 	console->cells[0].flags |= ST_CONSOLE_CELL_DIRTY;
 	log.calls = 0;
 	CHECK(st_console_bitmap_presenter_frame(presenter, console, 10, 10,
@@ -485,6 +533,7 @@ main(void)
 	st_console_bitmap_presenter_destroy(presenter);
 	st_console_destroy(console);
 	test_circular_text_raster();
+	test_indexed_pixel_palette_change();
 	test_initial_window_geometry();
 	test_mouse_coordinates();
 	test_default_cursor_scanlines();

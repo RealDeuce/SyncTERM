@@ -9,17 +9,20 @@
 
 #include "io_error.h"
 
+#include <inttypes.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 struct st_console_bitmap_presenter {
 	struct st_pixel_buffer *source;
-	struct st_pixel_buffer *native;
+	struct st_rgb_buffer *resolved;
 	st_pixel_scaler_t *scaler;
-	const struct st_pixel_buffer *scaled;
+	const struct st_rgb_buffer *scaled;
 	uint8_t *blink_cells;
+	uint32_t palette[UINT16_MAX + 1U];
 	size_t blink_count;
 	size_t cell_count;
 	uint32_t cell_width;
@@ -49,20 +52,29 @@ struct st_console_bitmap_presenter {
 	bool blocky_scaling;
 	bool initialized;
 	bool force_upload;
+	bool invalid_colour;
+	uint32_t invalid_colour_value;
 };
 
 static uint32_t
-colour_value(const st_console_t *console, uint32_t colour)
+colour_value(struct st_console_bitmap_presenter *presenter,
+	uint32_t colour)
 {
 	if (ST_CONSOLE_COLOR_IS_RGB(colour))
 		return colour & UINT32_C(0xffffff);
-	return console->palette[colour & UINT32_C(0xff)];
+	if (colour <= UINT16_MAX)
+		return presenter->palette[colour];
+	if (!presenter->invalid_colour) {
+		presenter->invalid_colour = true;
+		presenter->invalid_colour_value = colour;
+	}
+	return 0;
 }
 
 static void
-copy_rectangle(struct st_pixel_buffer *destination,
-	const struct st_pixel_buffer *source, bool alternate,
-	const struct st_console_rect *rectangle)
+resolve_rectangle(struct st_console_bitmap_presenter *presenter,
+	struct st_rgb_buffer *destination, const struct st_pixel_buffer *source,
+	bool alternate, const struct st_console_rect *rectangle)
 {
 	const uint32_t *plane = alternate && source->alternate != NULL
 	    ? source->alternate : source->primary;
@@ -71,8 +83,9 @@ copy_rectangle(struct st_pixel_buffer *destination,
 		size_t offset = (size_t)(rectangle->y + y) * source->width
 		    + rectangle->x;
 
-		memcpy(&destination->primary[offset], &plane[offset],
-		    (size_t)rectangle->width * sizeof(plane[0]));
+		for (uint32_t x = 0; x < rectangle->width; ++x)
+			destination->pixels[offset + x] = colour_value(presenter,
+			    plane[offset + x]);
 	}
 }
 
@@ -91,11 +104,11 @@ copy_console_rectangle(struct st_pixel_buffer *destination,
 }
 
 static void
-fill_rectangle(struct st_pixel_buffer *buffer,
+fill_rectangle(struct st_rgb_buffer *buffer,
 	const struct st_console_rect *rectangle, uint32_t colour)
 {
 	for (uint32_t y = 0; y < rectangle->height; ++y) {
-		uint32_t *row = &buffer->primary[(size_t)(rectangle->y + y)
+		uint32_t *row = &buffer->pixels[(size_t)(rectangle->y + y)
 		    * buffer->width + rectangle->x];
 
 		for (uint32_t x = 0; x < rectangle->width; ++x)
@@ -458,21 +471,21 @@ replace_buffers(struct st_console_bitmap_presenter *presenter,
 	const struct st_pixel_buffer *pixels)
 {
 	struct st_pixel_buffer *source = NULL;
-	struct st_pixel_buffer *native = NULL;
+	struct st_rgb_buffer *resolved = NULL;
 	int status;
 
 	status = st_pixel_buffer_clone(&source, pixels);
 	if (status == 0)
-		status = st_pixel_buffer_create(&native, pixels->width,
-		    pixels->height, false);
+		status = st_rgb_buffer_create(&resolved, pixels->width,
+		    pixels->height);
 	if (status != 0) {
-		st_pixel_buffer_destroy(native);
+		st_rgb_buffer_destroy(resolved);
 		st_pixel_buffer_destroy(source);
 		return status;
 	}
-	st_pixel_buffer_destroy(presenter->native);
+	st_rgb_buffer_destroy(presenter->resolved);
 	st_pixel_buffer_destroy(presenter->source);
-	presenter->native = native;
+	presenter->resolved = resolved;
 	presenter->source = source;
 	presenter->force_upload = true;
 	return 0;
@@ -509,6 +522,7 @@ st_console_bitmap_presenter_create(
 		    & ST_CONSOLE_CELL_BLINK) != 0;
 		presenter->blink_count += presenter->blink_cells[i];
 	}
+	memcpy(presenter->palette, console->palette, sizeof(presenter->palette));
 	presenter->cell_width = console->cell_width;
 	presenter->cell_height = console->cell_height;
 	presenter->columns = console->columns;
@@ -524,7 +538,7 @@ st_console_bitmap_presenter_destroy(
 	if (presenter == NULL)
 		return;
 	st_pixel_scaler_destroy(presenter->scaler);
-	st_pixel_buffer_destroy(presenter->native);
+	st_rgb_buffer_destroy(presenter->resolved);
 	st_pixel_buffer_destroy(presenter->source);
 	free(presenter->blink_cells);
 	free(presenter);
@@ -544,8 +558,8 @@ cache_console_state(struct st_console_bitmap_presenter *presenter,
 	enum st_console_scaling_mode scaling_mode = presenter->software_scaling_only
 	    ? ST_CONSOLE_SCALING_INTERNAL : console->scaling_mode;
 	uint32_t cursor_colour = console->blink_mode == ST_CONSOLE_BLINK_PRESTEL
-	    ? UINT32_C(0xffffff)
-	    : colour_value(console, console->style.foreground);
+	    ? ST_CONSOLE_COLOR_RGB_VALUE(255, 255, 255)
+	    : console->style.foreground;
 	uint32_t cursor_draw_x;
 	uint32_t cursor_columns;
 	bool changed;
@@ -632,7 +646,7 @@ upload_rectangle(struct st_console_bitmap_presenter *presenter,
 	const struct st_console_rect *rectangle)
 {
 	int status = upload == NULL ? 0
-	    : upload(context, presenter->native, rectangle);
+	    : upload(context, presenter->resolved, rectangle);
 
 	if (status != 0)
 		presenter->force_upload = true;
@@ -646,7 +660,7 @@ struct scaled_upload {
 };
 
 static int
-upload_scaled_rectangle(void *context, const struct st_pixel_buffer *pixels,
+upload_scaled_rectangle(void *context, const struct st_rgb_buffer *pixels,
 	const struct st_console_rect *rectangle)
 {
 	struct scaled_upload *scaled_upload = context;
@@ -661,8 +675,7 @@ upload_scaled_rectangle(void *context, const struct st_pixel_buffer *pixels,
 	int status;
 
 	status = st_pixel_scaler_scale_region(scaled_upload->presenter->scaler,
-	    &scaled_upload->presenter->scaled, pixels->primary, pixels->width,
-	    pixels->height, &damage, &scaled_damage);
+	    &scaled_upload->presenter->scaled, pixels, &damage, &scaled_damage);
 	if (status != 0)
 		return status;
 	upload_rectangle = (struct st_console_rect){
@@ -686,11 +699,11 @@ compose_full(struct st_console_bitmap_presenter *presenter,
 	struct st_console_rect full = {0, 0, presenter->source->width,
 	    presenter->source->height};
 
-	copy_rectangle(presenter->native, presenter->source,
+	resolve_rectangle(presenter, presenter->resolved, presenter->source,
 	    presenter->alternate, &full);
 	if (draw_cursor)
-		fill_rectangle(presenter->native, &presenter->cursor_rectangle,
-		    presenter->cursor_colour);
+		fill_rectangle(presenter->resolved, &presenter->cursor_rectangle,
+		    colour_value(presenter, presenter->cursor_colour));
 	return upload_rectangle(presenter, upload, context, &full);
 }
 
@@ -743,12 +756,13 @@ sync_dirty_cells(struct st_console_bitmap_presenter *presenter,
 			if (presenter->source->alternate != NULL)
 				copy_console_rectangle(presenter->source, console, true,
 				    &rectangle);
-			copy_rectangle(presenter->native, presenter->source,
-			    presenter->alternate, &rectangle);
+			resolve_rectangle(presenter, presenter->resolved,
+			    presenter->source, presenter->alternate, &rectangle);
 			if (draw_cursor)
-				fill_rectangle(presenter->native,
+				fill_rectangle(presenter->resolved,
 				    &presenter->cursor_rectangle,
-				    presenter->cursor_colour);
+				    colour_value(presenter,
+				    presenter->cursor_colour));
 			status = upload_rectangle(presenter, upload, context,
 			    &rectangle);
 			*changed = true;
@@ -788,12 +802,13 @@ sync_blink_cells(struct st_console_bitmap_presenter *presenter,
 				.width = (x - first) * presenter->cell_width,
 				.height = presenter->cell_height,
 			};
-			copy_rectangle(presenter->native, presenter->source,
-			    presenter->alternate, &rectangle);
+			resolve_rectangle(presenter, presenter->resolved,
+			    presenter->source, presenter->alternate, &rectangle);
 			if (draw_cursor)
-				fill_rectangle(presenter->native,
+				fill_rectangle(presenter->resolved,
 				    &presenter->cursor_rectangle,
-				    presenter->cursor_colour);
+				    colour_value(presenter,
+				    presenter->cursor_colour));
 			status = upload_rectangle(presenter, upload, context,
 			    &rectangle);
 			*changed = true;
@@ -810,14 +825,14 @@ upload_cursor_change(struct st_console_bitmap_presenter *presenter,
 	int status = 0;
 
 	if (old_drawn && old_cursor.width != 0 && old_cursor.height != 0) {
-		copy_rectangle(presenter->native, presenter->source,
-		    presenter->alternate, &old_cursor);
+		resolve_rectangle(presenter, presenter->resolved,
+		    presenter->source, presenter->alternate, &old_cursor);
 		status = upload_rectangle(presenter, upload, context, &old_cursor);
 	}
 	if (status == 0 && draw_cursor && presenter->cursor_rectangle.width != 0
 	    && presenter->cursor_rectangle.height != 0) {
-		fill_rectangle(presenter->native, &presenter->cursor_rectangle,
-		    presenter->cursor_colour);
+		fill_rectangle(presenter->resolved, &presenter->cursor_rectangle,
+		    colour_value(presenter, presenter->cursor_colour));
 		status = upload_rectangle(presenter, upload, context,
 		    &presenter->cursor_rectangle);
 	}
@@ -849,6 +864,7 @@ st_console_bitmap_presenter_frame(
 	if (presenter == NULL || frame == NULL || output_width == 0
 	    || output_height == 0)
 		return IO_ERROR_INVALID_ARGUMENT;
+	presenter->invalid_colour = false;
 	old_cursor = presenter->cursor_rectangle;
 	old_cursor_drawn = presenter->cursor_drawn;
 	previous_scaling = presenter->scaling_mode;
@@ -871,6 +887,11 @@ st_console_bitmap_presenter_frame(
 				return status;
 		}
 		state_changed = cache_console_state(presenter, console, now);
+		if (console->palette_dirty) {
+			memcpy(presenter->palette, console->palette,
+			    sizeof(presenter->palette));
+			presenter->force_upload = true;
+		}
 		if (console->pixel_surface_dirty)
 			presenter->force_upload = true;
 		if (previous_scaling != presenter->scaling_mode)
@@ -938,7 +959,7 @@ st_console_bitmap_presenter_frame(
 		}
 		if (status == 0)
 			presenter->force_upload = false;
-		frame->pixels = presenter->native;
+		frame->pixels = presenter->resolved;
 	}
 	else {
 		struct scaled_upload scaled_upload = {
@@ -979,8 +1000,7 @@ st_console_bitmap_presenter_frame(
 			status = compose_full(presenter, draw_cursor, NULL, NULL);
 			if (status == 0)
 				status = st_pixel_scaler_scale(presenter->scaler,
-				    &presenter->scaled, presenter->native->primary,
-				    presenter->native->width, presenter->native->height,
+				    &presenter->scaled, presenter->resolved,
 				    destination.width, destination.height,
 				    presenter->blocky_scaling
 				    ? ST_PIXEL_SCALING_BLOCKY
@@ -1011,6 +1031,9 @@ st_console_bitmap_presenter_frame(
 	frame->cell_height = presenter->cell_height;
 	frame->scaling_mode = presenter->scaling_mode;
 	frame->changed = changed || layout_changed || state_changed;
+	if (presenter->invalid_colour)
+		fprintf(stderr, "Invalid colour value: %08" PRIx32 "\n",
+		    presenter->invalid_colour_value);
 	return status;
 }
 

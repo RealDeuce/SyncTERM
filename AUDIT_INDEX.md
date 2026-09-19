@@ -7,8 +7,9 @@ recommended remedies. Severity does not imply exploitability; source-confirmed
 risks and reproduced failures must be distinguished using those entries.
 No remediation is authorized by this report.
 
-The audit is complete, not the implementation: **114 findings** comprise
-17 high, 68 medium, 27 low and 2 unresolved design/performance concerns.
+The audit is complete, not the implementation: **111 outstanding findings**
+comprise 15 high, 67 medium, 27 low and 2 unresolved design/performance
+concerns.
 This is not a count of exploitable vulnerabilities or reproduced failures.
 All 47 tracked source directories and 12 root files are covered by the
 inventory and component/integration dispositions. Vendored internals were
@@ -16,9 +17,9 @@ reviewed only at the requested integration boundaries.
 
 Most urgent follow-up groups, subject to separate authorization:
 
-- Memory/resource safety: A027, A030, A034–A036, A039–A040 and A045.
+- Memory/resource safety: A027, A030, A034–A036, A039 and A045.
 - Authentication and write-policy correctness: A038 and A062.
-- Data preservation and required compatibility: A012, A014–A019, A041,
+- Data preservation and required compatibility: A012, A014–A019,
   A079 and the mode-specific rendering/persistence findings.
 
 Start with the detailed evidence and regression tests for each finding;
@@ -79,7 +80,7 @@ No new blanket GC, contention or scaling-performance diagnosis is made from
 source shape. The source and test inventory must retain those measurement
 limits in the final report.
 
-The current ledger contains 114 numbered findings. A007 and A011 are
+The current ledger contains 111 outstanding numbered findings. A007 and A011 are
 unresolved design/performance concerns, not confirmed runtime defects. Missing
 features and documentation errors are also explicitly distinguished from
 implementation failures in the detailed ledger.
@@ -125,13 +126,10 @@ implementation failures in the detailed ledger.
 | A037 | medium | Changing a download URL can reuse another resource's cache |
 | A038 | high | OpenSSL TLS 1.3 PSK mode accepts an unauthenticated certificate server |
 | A039 | high | Regional downscaling indexes past its sampling table for unsampled damage |
-| A040 | high | Palette range validation underflows above the current array size |
-| A041 | high | Console palette capacity was reduced from 65,536 entries to 256 |
 | A042 | medium | Prestel double-height lower-row raster stays stale after upper glyph changes |
 | A043 | medium | Shared bitmap presenter retains the previous console's cell geometry |
 | A044 | medium | Prestel suppressed lower cells use the wrong background |
 | A045 | high | ANSI CSI parser writes past its parameter array |
-| A046 | medium | Native curses RGB mode treats bright palette indices as packed RGB |
 | A047 | low | Standalone console build omits its string_compat dependency |
 | A048 | low | X11 runtime loader gives XkbFreeKeyboard the wrong function type |
 | A049 | medium | X11 external-scaling pixmap is not initialized on first scaled resize |
@@ -182,7 +180,7 @@ implementation failures in the detailed ledger.
 | A094 | medium | Deferred font registration resolves wide glyphs without forming pairs |
 | A095 | low | Distribution notice assembly is not implemented |
 | A096 | medium | BBS editor script discovery is an unconditional empty stub |
-| A097 | medium | Declared PixelColor construction is unavailable in the host |
+| A097 | medium | Declared pixel binding family is unavailable in the host |
 | A098 | low | Shipped UI demo imports an absent module |
 | A099 | medium | Menu screen-mode changes lose mode identity and use incomplete geometry |
 | A100 | medium | Rejected BBS palette/script assignments partially change the object |
@@ -207,7 +205,7 @@ implementation failures in the detailed ledger.
 
 `cmake --build build -j4` succeeds. The subsequent command
 `ctest --test-dir build -E '^st_console_(x11|wayland)$' --output-on-failure --timeout 30`
-executes 60 tests: **50 pass, 10 fail**, with no timeout or skip in that
+executes 60 tests: **51 pass, 9 fail**, with no timeout or skip in that
 selection. X11 and Wayland are deliberately excluded to avoid the real
 desktop; SDL uses its CMake-configured dummy video driver. This is native
 verification, not Windows/macOS execution or comprehensive backend coverage.
@@ -221,7 +219,6 @@ verification, not Windows/macOS execution or comprehensive backend coverage.
 | webget | A037 cache identity after URL change |
 | theme | A024–A026 catalog errors and edit persistence |
 | st_audio_mixer | A022 partition-dependent crossfade |
-| st_console | A040 palette range validation |
 | connection | A014–A015 queue data loss and shell newline handling |
 | connection_serial | A018 flow-control enum/flag mismatch |
 

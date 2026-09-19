@@ -57,7 +57,8 @@ main(void)
 	}
 	CHECK(st_console_display_libretro_frame_size(display, &width, &height) == 0);
 	CHECK(width == 4 && height == 4);
-	CHECK(st_console_set_pixel(console, 1, 2, UINT32_C(0x123456)) == 0);
+	CHECK(st_console_set_pixel(console, 1, 2,
+	    ST_CONSOLE_COLOR_RGB_VALUE(0x12, 0x34, 0x56)) == 0);
 	CHECK(st_console_display_libretro_frame_copy(display, pixels, 6, 8) == 0);
 	CHECK(pixels[2 * 6 + 1] == UINT32_C(0x123456));
 	CHECK(st_console_display_libretro_frame_copy(display, pixels, 3, 8)

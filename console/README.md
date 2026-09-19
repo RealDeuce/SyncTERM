@@ -142,9 +142,28 @@ registration of that identifier resolves only those deferred cells.  Reusing
 an occupied identifier during least-recently-used replacement does not rescan
 or dirty existing cells.
 
-The high bit of a color selects direct RGB.  Without that tag, the low eight
-bits are a palette index.  Palette identity is preserved through the console;
-a text backend does not silently convert indexed cells into RGB cells.
+The high bit of a colour selects direct RGB.  Without that tag, values from
+zero through 65,535 are palette indexes.  The same representation is used by
+cells and `st_pixel_buffer`, so palette identity survives text rasterization,
+pixel capture, snapshots, and blits.  Invalid untagged values above 65,535
+resolve to black at presentation and produce one diagnostic for that resolve
+operation.  A text backend resolves the logical RGB before selecting its
+terminal representation; it does not rewrite the stored cell colour.
+
+The default palette contains the RGB-bit-order system colours in entries
+0–15, the xterm 256-colour values in entries 16–255, and the legacy C64,
+Atari, and Atari ST mode colours in entries 256–281.  Remaining entries start
+black.  Palette setters accept any contiguous range through entry 65,535;
+the fourth argument can therefore be 65,536 when `first` is zero.
+
+`ST_CONSOLE_CAP_PALETTE_CHANGE` means changing a logical entry can affect
+already retained indexed content; `ST_CONSOLE_CAP_EXTENDED_PALETTE` means that
+guarantee covers the complete 16-bit index space.  Bitmap and direct-colour
+backends provide both.  A mutable 16-colour Win32 console provides palette
+change without the extended guarantee.  Ncurses treats packed direct colour,
+large indexed colour, and mutable terminal palettes as separate capabilities;
+an indexed terminal needs at least 65,536 colours plus the extended colour and
+pair APIs before it advertises the complete space.
 
 `ST_CONSOLE_CELL_DIRTY` belongs to the implementation.  Region writes ignore
 that bit from callers, and region reads do not return it.  Changed cells receive
@@ -186,10 +205,12 @@ video modes whose raster includes scanlines or columns outside the text image;
 both must be supplied and neither may be smaller than the text image.  Text
 scrolling leaves that non-text margin stationary.  The primary and alternate
 planes are
-the two blink-state rasters.  Indexed cell colors are resolved through the
-current palette during rasterization; direct RGB cell colors lose their
-representation tag and all pixel planes contain packed `0x00RRGGBB`.  Pixel
-writes first make intersecting character rasters current, then
+the two blink-state rasters.  Rasterization preserves indexed and direct cell
+colours in those native planes.  The bitmap presenter resolves a complete
+native frame into packed RGB before scaling or host upload.  A palette change
+therefore needs no text rerasterization and produces one full-frame resolve,
+scale, and upload for the batch.  Ordinary cell and pixel damage remains
+regional.  Pixel writes first make intersecting character rasters current, then
 modify those same final-raster planes and mark the cells `PIXEL_GRAPHICS`.
 Untouched pixels in a cell therefore remain intact.  A later cell-content
 change regenerates the cell, while a forced text readback deliberately

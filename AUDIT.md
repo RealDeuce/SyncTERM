@@ -37,7 +37,7 @@ repository-wide coverage. The legacy tree is read-only reference.
 
 The repository-wide audit is complete. This is not an implementation approval,
 release certification or claim that findings have been fixed. The consolidated
-API/design assessment, priority groups and all 114 finding summaries are in
+API/design assessment, priority groups and all 111 outstanding finding summaries are in
 AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 
 | Objective requirement | Authoritative evidence and disposition |
@@ -47,11 +47,11 @@ AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 | Correctness, ownership/lifetime and concurrency | Component lifecycle/error reviews, normal and injected tests, explicit GUI/host ownership closure; source and reproduced failures are qualified individually. A016, A023, A027/A035/A036, A106–A109 illustrate distinct lifetime/error risks. |
 | Portability and all platform backends | POSIX/Windows sources and every audio/console backend reviewed; native, MinGW compile-only and unavailable runtime evidence kept separate. Capability probes/standalone targets reviewed. No unsupported platform pass inferred. |
 | Performance | Scaler/renderer benchmark source and measured cases reviewed, including common mixed-axis scaling; A011/A023 and backend pacing risks distinguished from measured regressions. Reconstructed legacy benchmark limitations explicitly recorded. |
-| Required legacy behavior | Read-only comparisons cover fonts/catalog/maps, modes, palette capacity, Prestel versus Mode 7, command line, console/input and settings behavior; A015/A018/A032/A041–A044/A092 plus explicit parity limits. Frozen CTerm chapter cmp succeeds. |
+| Required legacy behavior | Read-only comparisons cover fonts/catalog/maps, modes, palette capacity, Prestel versus Mode 7, command line, console/input and settings behavior; A015/A018/A032/A042–A044/A092 plus explicit parity limits. Frozen CTerm chapter cmp succeeds. |
 | Wren scripts and bindings | Complete local source/signature/manual reviews; isolated shipped-script suites and host fixtures; host closure A100–A114. Connected/SFTP production integration missing from this application is reported, not invented or silently counted as working. |
 | Build logic, generators and documentation | Root/component CMake and generators reviewed; standalone/probe failures recorded; pinned Unicode/font regeneration and table comparisons documented; root manuals/license/development guidance covered. Wren VM vendored internals limited to integration boundaries as requested. |
-| Inventory and consolidated findings | 114 unique A001–A114 detailed headings, all matched exactly once in index; every finding has severity/qualification and recommended direction. 17 high, 68 medium, 27 low, 2 unresolved concerns; not all runtime reproductions. |
-| Relevant tests where practical | Fresh complete native build succeeds. Final selected CTest run: 60 executed, 50 pass, 10 fail, 4.86 seconds; failure matrix in index. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
+| Inventory and consolidated findings | 111 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 15 high, 67 medium, 27 low, 2 unresolved concerns; not all runtime reproductions. |
+| Relevant tests where practical | Fresh complete native build succeeds. Final selected CTest run: 60 executed, 51 pass, 9 fail, 5.12 seconds; failure matrix in index. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
 | Only tests/reports changed; no implementation remediation | Current status: 30 modified tracked tests, 23 untracked tests, 2 untracked reports; no staged files. Filtered worktree inspection finds no other changes. Baseline-to-current non-test difference is pre-existing str_list/CMakeLists.txt, unchanged since fdeab0d. No final-consolidation commits/push/reverts. |
 | Explicit uncertainty | Each component records unavailable platforms, unexecuted failure paths and measurement limits; A007/A011 unresolved. Source-level risks are not called verified crashes. These are audit outcomes, not claims of implementation correctness. |
 
@@ -77,7 +77,7 @@ have explicit dispositions below; final inventory/report verification is above.
 
 Latest native verification: the complete configured build succeeds with
 `cmake --build build -j4`. CTest excluding the real-display X11/Wayland tests
-executes 60 tests in 4.86 seconds: 50 pass and 10 fail, all at recorded
+executes 60 tests in 5.12 seconds: 51 pass and 9 fail, all at recorded
 regressions. No selected test times out or skips. AUDIT_INDEX.md contains the
 failure-to-finding matrix and command. SDL runs with its configured dummy
 driver; this is not real-window verification. The standalone audit cases are
@@ -103,7 +103,7 @@ not the absence of failing tests. New findings will receive stable A-numbers.
 | bbs_list/ | Reviewed | All local sources/header/tests/build read; A033 sanitizer reproduction, A034/A035 source findings; native list/web tests pass, MinGW compile only; integration/fault gaps below |
 | codepage/ | Reviewed | All local source/header/build/test read; exhaustive graphic roundtrip and expanded control/invalid-input tests pass native Clang/GCC; MinGW compile only |
 | connection/ | Reviewed | A014/A015/A018 reproduced; A016 Windows source race; A017 RFC mismatch; shutdown stress and platform runtime gaps documented |
-| console/ | Reviewed | All local implementation/backends, tests, benchmark, build and docs read; local integration dispositions A040–A052, A092–A094, A106–A109 and GUI closure notes; native/isolated tests and platform-only risks distinguished; remaining Wren consumer questions belong to wren_host |
+| console/ | Reviewed | All local implementation/backends, tests, benchmark, build and docs read; local integration dispositions A042–A045, A047–A052, A092–A094, A106–A109 and GUI closure notes; native/isolated tests and platform-only risks distinguished; remaining Wren consumer questions belong to wren_host |
 | dynamic_library/ | Reviewed | A005; native fixtures pass; Windows compiled, not executed |
 | event/ | Reviewed | A004; native repeated tests, MinGW compile; failure-injection limitations below |
 | file_lock/ | Reviewed | A006; native tests plus failing controlled error-path reproduction; Windows source/compile only |
@@ -667,18 +667,20 @@ module-discovery assertion failing (the other four editor helper cases pass).
 Recommend implementing the declared catalog/filtering contract and retaining
 tests for discovery, reserved names, duplicates and byte-length limits.
 
-### A097 — Declared PixelColor construction is unavailable in the host
+### A097 — Declared pixel binding family is unavailable in the host
 
 Severity: medium (confirmed binding/API availability gap). The current core
-binding table has no PixelColor methods; the generic binder in wren_host.c
-returns st_wren_unsupported for unresolved declarations. The shipped
-scripts/pixel_vm_test.wren aborts at line 18 on PixelColor.rgb(0x123456), before
-buffer allocation or any of its six checks. This was reproduced again in the
-headless auxiliary runner. Colour-word construction is not a physical-display
-capability test. Recommend reconciling and implementing the intended host API
-surface, with separate colour construction and actual pixel-operation tests;
-do not classify this abort as a headless/hardware limitation. No later pixel
-test coverage is implied by loading the module.
+binding table has no PixelColor, PixelBuffer, PixelMask, PixelBlit, or pixel
+Screen methods; the generic binder in wren_host.c returns st_wren_unsupported
+for unresolved declarations. The shipped scripts/pixel_vm_test.wren aborts at
+line 18 on PixelColor.rgb(0x123456), before buffer allocation or any of its six
+checks. This was reproduced again in the headless auxiliary runner.
+Colour-word construction is not a physical-display capability test. The
+console and `st_pixel_buffer` now retain the same indexed/direct colour words,
+so the storage prerequisite is complete; the declared Wren binding family and
+its per-host admission rules remain missing. Recommend implementing and
+testing that surface without classifying the abort as a headless/hardware
+limitation. No later pixel test coverage is implied by loading the module.
 
 ### A098 — Shipped UI demo imports an absent module
 
@@ -741,8 +743,7 @@ console_ansi.c:473's predicate therefore does not skip changed dirty cells,
 even though its private drawn cache already matches. Strengthened
 test_snapshot_drains to require the actual `abc` payload after its injected
 write failure and successful retry, not merely foreground/background escapes.
-The new assertion passes; st_console still later fails at the unchanged A040
-palette assertion. This rules out the simple all-or-nothing callback failure
+The new assertion passes. This rules out the simple all-or-nothing callback failure
 scenario as a new defect; it does not establish recovery after arbitrary
 partial escape-sequence writes, failed physical terminal clearing, or hangup.
 
@@ -1092,8 +1093,8 @@ documentation correction, not restoring obsolete transport restrictions).
 
 Other claims in this span map to already-recorded findings: the pixel API
 promises availability in all three VMs despite missing current bindings;
-65536 palette entries conflicts with A041; static cursor methods conflict
-with A068; Color helpers conflict with A079; transactional Menu.load conflicts
+static cursor methods conflict with A068; Color helpers conflict with A079;
+transactional Menu.load conflicts
 with A061. Do not count these repeated documentation promises as independent
 runtime defects. Font-slot terminology also needs reconciliation with the
 new registry/selector distinction. No connected runtime, GUI, network or
@@ -1945,51 +1946,6 @@ input. Check intermediate pointy-pipeline interpolation stages for the same
 empty-range assumption, and test both axes plus multi-stage propagation.
 Those related paths have not yet been reproduced.
 
-### A040 — Palette range validation underflows above the current array size
-
-Severity: high (memory safety). `console/console.c:1705` and `:1761`
-validate count against `256U - (unsigned int)first` without checking first.
-For first above 256 the subtraction wraps, permitting reads/writes outside
-the 256-element palette. The setter also copies count elements into its
-256-element local backup without an independent count bound.
-
-Added getter boundary checks to `console/tests/st_console_test.c`: first=256,
-count=1 is rejected, but first=257,count=1 incorrectly succeeds. Native Clang
-and GCC CTest `^st_console$` both fail that assertion. The original native
-Clang test passed immediately before the test addition. No invalid setter
-write was executed. No claim of external input reachability yet.
-
-Recommendation: validate the start before subtracting from the actual palette
-capacity, then validate count and backup storage. This must be reconciled with
-A041: the regression test captures the current documented 256-entry contract,
-not approval to preserve that reduced capacity.
-
-### A041 — Console palette capacity was reduced from 65,536 entries to 256
-
-Severity: high (required behavior/API compatibility). Legacy
-`/synchronet/src/sbbs/src/conio/bitmap_con.c:33` allocates 65,536 entries;
-`:2715` and `:2728` accept indices through 65,535, and `:575` resolves indexed
-cell colours against that full array. These are separate from direct RGB
-colours and the 16-entry mode-to-palette mapping.
-
-This is used, not merely spare legacy capacity: `conio/vidmodes.h:33` defines
-TOTAL_DAC_SIZE as 282, and `conio/cterm.c:1951` initializes its shadow palette
-at offsets 16 through 297. Even that initialization exceeds the new limit.
-
-The new `console/st_console.h:22` documents only indices 0..255; console and
-snapshot storage in console_internal.h both have 256 entries. Indexed colour
-resolution in `console/console_pixels.c:123` and `console/console_bitmap.c:57`
-masks to eight bits, so merely enlarging the array would still alias higher
-indices. ANSI and curses also contain eight-bit masks; full backend handling
-remains under review. Logical palette capacity must not be confused with the
-physical terminal's available indexed colours or its direct-RGB capability.
-
-Recommendation: restore the required logical indexed-colour range throughout
-storage, lookup, palette APIs, snapshots and backend translation, with tests
-covering higher entries and independent palette animation. A full-bank API
-operation also needs a count capable of representing 65,536; the current
-uint16_t count cannot. No production changes made.
-
 ### A042 — Prestel double-height lower-row raster stays stale after upper glyph changes
 
 Severity: medium (visible rendering correctness). Confirmed native Clang and
@@ -2084,31 +2040,6 @@ Recommendation: enforce the parameter bound on every store, including the
 trailing parameter, and define handling of excess parameters. Add boundary
 cases for empty/trailing parameters and oversized numeric fields (whose
 unsigned accumulation currently wraps).
-
-### A046 — Native curses RGB mode treats bright palette indices as packed RGB
-
-Severity: medium (display correctness). `console/console_ncurses.c`
-rebuild_colour_maps preserves terminal indices whenever they are below
-colour_count, including when direct_colour is true and colour_count is
-16,777,216. Thus logical bright white (15) becomes colour value 15, not RGB
-0xffffff. The official xterm+direct terminfo entry reserves 0..7 for ANSI
-colours but interprets the remaining values as packed RGB; 15 means #00000f.
-Primary reference: https://invisible-island.net/xterm/terminfo-contents.html
-(xterm+direct definition and its conditional setaf/setab).
-
-Standalone `console/tests/st_console_ncurses_rgb_test.c` includes the unchanged
-implementation and exercises its colour mapping without opening a terminal.
-Native Clang reports indexed white=00000f versus direct white=ffffff and exits
-1. This confirms the internal mapping, with terminal interpretation established
-from the official terminfo definition; no native-RGB terminal session tested.
-The initial exploratory test used grey index 7; that was an invalid oracle for
-xterm-direct because of the reserved ANSI range and was corrected to index 15.
-
-Recommendation: distinguish logical palette indices from native direct-RGB
-colour values, accounting for reserved ANSI values and the actual terminfo
-encoding. Test bright and higher logical colours separately from explicit RGB.
-Do not treat a large colour_count as an indexed palette. The COLORTERM raw-SGR
-fallback is a separate path and does not establish correctness of this one.
 
 ### A047 — Standalone console build omits its string_compat dependency
 
@@ -4085,8 +4016,9 @@ adding width/height, extending the filled interval rather than intersecting
 the original rectangle. It also directly overwrites cells without the pair
 repair used by other mutations. ScreenFonts setters only change context slot
 numbers, not console selection; how scripts consume those values must be
-traced before assigning a defect. Palette binding remains limited to 0..255,
-consistent with the production limitation already recorded in A041. Cell.ch
+traced before assigning a defect. Palette binding remains limited to 0..255
+despite the native console's 16-bit palette; its intended script boundary
+still needs reconciliation. Cell.ch
 decodes the first codepoint but does not reject trailing codepoints despite
 its error wording; inspect documented Cell semantics before classifying.
 
@@ -4327,16 +4259,13 @@ No script or binding has been modified, and no Wren coverage is claimed from
 this preparation. Audit-only authority prohibits editing the external skill
 notes or production guidance as part of this goal.
 
-Complete st_console_test.c and st_console_benchmark.c now read. Native
-st_console CTest still fails at A040's index-257 assertion. The separate
-st_console_audit_suffix_test.c includes the unchanged test file and runs its
-otherwise unreachable suffix, excluding the ambient-terminal optional curses
-case. Native Clang compile/run passes: font rendering, raster margins and
-scrolling, existing SAA5050 case, concurrent writers, deferred presentation,
-wide cells, ANSI colour/CP437 output, font fallback/copy/deferred registration,
-65,536-slot LRU replacement, concurrent activation/metadata, failed detachment
-and retained ANSI options. The original failing test is neither weakened nor
-removed. Isolated PTY tests supply the previously documented curses coverage.
+Complete st_console_test.c and st_console_benchmark.c now read. The main native
+Clang console test reaches and passes the former audit suffix: font rendering,
+raster margins and scrolling, existing SAA5050 case, concurrent writers,
+deferred presentation, wide cells, ANSI colour/CP437 output, font
+fallback/copy/deferred registration, 65,536-slot LRU replacement, concurrent
+activation/metadata, failed detachment and retained ANSI options. Isolated PTY
+tests supply the previously documented curses coverage.
 
 The existing SAA5050 case changes the DOUBLE_HEIGHT classification and does
 not cover A042's unchanged-classification source dependency; it therefore
@@ -4620,10 +4549,9 @@ findings. Generic move_cells allocates a cell rectangle and reuses semantic
 cell setters; whether pixel overlays and explicit glyph identity survive all
 move cases remains to be tested. No performance conclusions from source alone.
 
-Verification this pass: pre-regression native Clang st_console CTest passed;
-new A040 assertion fails native Clang/GCC. Standalone A042 test fails with both
-native libraries/toolchains. No Windows/macOS runtime or real terminal/window
-validation claimed. Tests/report only, no commits.
+Verification in that audit pass used native Clang and GCC. Standalone A042
+failed with both native libraries/toolchains. No Windows/macOS runtime or real
+terminal/window validation was claimed.
 
 Shared bitmap presenter, libretro backend, text-terminal character helper and
 main entry wrapper now also read in full, together with console_bitmap_test.c
@@ -4703,8 +4631,8 @@ part of final contract reconciliation.
 Native RGB bit-depth detection handles boolean/numeric/string RGB terminfo;
 COLORTERM truecolor/24bit selects raw SGR only when native RGB is unavailable.
 Extended pair allocation uses int pair values through wattr_set's opts pointer;
-fallback preallocates a reduced square pair set. A046 covers wrong logical
-indexed-colour mapping in native RGB. Remaining source concerns include
+fallback preallocates a reduced square pair set. Logical colours are now
+resolved before native direct-colour encoding. Remaining source concerns include
 extended key/modifier handling (only a fixed key set mapped), wide/control
 character output, raw-SGR coexistence with curses input refresh, and error-path
 drawn-cache consistency. Full ncurses tests, build probes, legacy comparison

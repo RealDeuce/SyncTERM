@@ -3155,7 +3155,9 @@ what storage that object refers to; it does not copy cell contents.
 
 | `legacyAttr`, `legacyAttr=(n)`
 | Legacy attribute byte (foreground in low nibble, background in
-  high nibble, plus bright/blink bits).
+  high nibble, plus bright/blink bits).  The binding translates the DOS
+  blue/green/red bit order to the console palette's red/green/blue bit order
+  when the value crosses the Wren boundary.
 
 | `bright`, `bright=(b)`
 | Bright bit.

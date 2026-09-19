@@ -264,7 +264,7 @@ add_damage(struct gdi_state *state,
 }
 
 static int
-upload(void *context, const struct st_pixel_buffer *pixels,
+upload(void *context, const struct st_rgb_buffer *pixels,
 	const struct st_console_rect *rectangle)
 {
 	struct gdi_state *state = context;
@@ -282,7 +282,7 @@ upload(void *context, const struct st_pixel_buffer *pixels,
 		replacement = malloc(count * sizeof(*replacement));
 		if (replacement == NULL)
 			return IO_ERROR_OUT_OF_MEMORY;
-		memcpy(replacement, pixels->primary,
+		memcpy(replacement, pixels->pixels,
 		    count * sizeof(*replacement));
 		free(state->pixels);
 		state->pixels = replacement;
@@ -305,7 +305,7 @@ upload(void *context, const struct st_pixel_buffer *pixels,
 		size_t offset = (size_t)(rectangle->y + y) * pixels->width
 		    + rectangle->x;
 
-		memcpy(&state->pixels[offset], &pixels->primary[offset],
+		memcpy(&state->pixels[offset], &pixels->pixels[offset],
 		    (size_t)rectangle->width * sizeof(state->pixels[0]));
 	}
 	add_damage(state, rectangle);

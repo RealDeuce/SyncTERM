@@ -17,14 +17,17 @@ main(void)
 	};
 	st_console_display_t display = {.backend_state = &state};
 	st_console_t console = {.display = &display};
+	int indexed_colours[UINT16_MAX + 1U];
 	int indexed;
 	int direct;
 
-	/* xterm-direct reserves 0..7 for ANSI colours, but not bright 8..15. */
+	state.indexed_colours = indexed_colours;
+	/* Both indexed and direct colours resolve through their logical RGB. */
 	console.palette[15] = UINT32_C(0xffffff);
 	rebuild_colour_maps(&console);
-	indexed = cell_colour(&state, 15);
-	direct = cell_colour(&state, ST_CONSOLE_COLOR_RGB_VALUE(255, 255, 255));
+	indexed = cell_colour(&console, &state, 15, 0);
+	direct = cell_colour(&console, &state,
+	    ST_CONSOLE_COLOR_RGB_VALUE(255, 255, 255), 0);
 	fprintf(stderr, "native RGB: indexed white=%06x, direct white=%06x\n",
 	    (unsigned int)indexed, (unsigned int)direct);
 	return indexed == 0xffffff && direct == 0xffffff

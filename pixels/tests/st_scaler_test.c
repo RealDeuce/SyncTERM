@@ -24,13 +24,13 @@ struct scale_case {
 };
 
 static uint64_t
-hash_pixels(const struct st_pixel_buffer *pixels)
+hash_pixels(const struct st_rgb_buffer *pixels)
 {
 	uint64_t hash = UINT64_C(1469598103934665603);
 	size_t count = (size_t)pixels->width * pixels->height;
 
 	for (size_t i = 0; i < count; ++i) {
-		uint32_t value = pixels->primary[i];
+		uint32_t value = pixels->pixels[i];
 
 		for (unsigned int byte = 0; byte < 4; ++byte) {
 			hash ^= value & UINT32_C(0xff);
@@ -62,28 +62,31 @@ check_pointy_damage(st_pixel_scaler_t *scaler,
 	st_pixel_scaler_t *reference_scaler, struct st_pixel_buffer *source,
 	uint32_t width, uint32_t height)
 {
-	const struct st_pixel_buffer *scaled;
-	const struct st_pixel_buffer *fresh;
+	struct st_rgb_buffer input = {
+		.pixels = source->primary,
+		.width = source->width,
+		.height = source->height,
+	};
+	const struct st_rgb_buffer *scaled;
+	const struct st_rgb_buffer *fresh;
 	struct st_pixel_rect damage = {5, 4, 4, 3};
 	struct st_pixel_rect output_damage;
 
 	fill_pattern(source);
-	CHECK(st_pixel_scaler_scale(scaler, &scaled, source->primary,
-	    source->width, source->height, width, height,
+	CHECK(st_pixel_scaler_scale(scaler, &scaled, &input, width, height,
 	    ST_PIXEL_SCALING_POINTY) == 0);
 	for (uint32_t y = damage.y; y < damage.y + damage.height; ++y)
 		for (uint32_t x = damage.x; x < damage.x + damage.width; ++x)
 			source->primary[(size_t)y * source->width + x]
 			    ^= UINT32_C(0xa55a3c);
-	CHECK(st_pixel_scaler_scale_region(scaler, &scaled, source->primary,
-	    source->width, source->height, &damage, &output_damage) == 0);
+	CHECK(st_pixel_scaler_scale_region(scaler, &scaled, &input, &damage,
+	    &output_damage) == 0);
 	CHECK(output_damage.width < width);
 	CHECK(output_damage.height < height);
-	CHECK(st_pixel_scaler_scale(reference_scaler, &fresh, source->primary,
-	    source->width, source->height, width, height,
+	CHECK(st_pixel_scaler_scale(reference_scaler, &fresh, &input, width, height,
 	    ST_PIXEL_SCALING_POINTY) == 0);
-	CHECK(memcmp(scaled->primary, fresh->primary,
-	    (size_t)width * height * sizeof(scaled->primary[0])) == 0);
+	CHECK(memcmp(scaled->pixels, fresh->pixels,
+	    (size_t)width * height * sizeof(scaled->pixels[0])) == 0);
 }
 
 static void
@@ -92,8 +95,9 @@ check_small_edge_damage(void)
 	st_pixel_scaler_t *incremental = NULL;
 	st_pixel_scaler_t *reference = NULL;
 	uint32_t source[16];
-	const struct st_pixel_buffer *updated;
-	const struct st_pixel_buffer *fresh;
+	struct st_rgb_buffer input = {.pixels = source};
+	const struct st_rgb_buffer *updated;
+	const struct st_rgb_buffer *fresh;
 
 	CHECK(st_pixel_scaler_create(&incremental) == 0);
 	CHECK(st_pixel_scaler_create(&reference) == 0);
@@ -103,23 +107,25 @@ check_small_edge_damage(void)
 				for (unsigned policy = 0; policy < 2; ++policy) {
 					uint32_t width = sw * multiplier;
 					uint32_t height = sh * multiplier + 1;
+					input.width = sw;
+					input.height = sh;
 					for (uint32_t i = 0; i < sw * sh; ++i)
 						source[i] = (i * UINT32_C(0x314159)) & UINT32_C(0xffffff);
-					CHECK(st_pixel_scaler_scale(incremental, &updated, source,
-					    sw, sh, width, height, (enum st_pixel_scaling_policy)policy) == 0);
+					CHECK(st_pixel_scaler_scale(incremental, &updated, &input,
+					    width, height, (enum st_pixel_scaling_policy)policy) == 0);
 					for (uint32_t y = 0; y < sh; ++y)
 						for (uint32_t x = 0; x < sw; ++x) {
 							struct st_pixel_rect damage = {x, y, 1, 1};
 							struct st_pixel_rect changed;
 							source[y * sw + x] ^= UINT32_C(0xa55a3c);
 							CHECK(st_pixel_scaler_scale_region(incremental,
-							    &updated, source, sw, sh, &damage, &changed) == 0);
+							    &updated, &input, &damage, &changed) == 0);
 							CHECK(changed.x <= width && changed.width <= width - changed.x);
 							CHECK(changed.y <= height && changed.height <= height - changed.y);
-							CHECK(st_pixel_scaler_scale(reference, &fresh, source,
-							    sw, sh, width, height,
+							CHECK(st_pixel_scaler_scale(reference, &fresh, &input,
+							    width, height,
 							    (enum st_pixel_scaling_policy)policy) == 0);
-							CHECK(memcmp(updated->primary, fresh->primary,
+							CHECK(memcmp(updated->pixels, fresh->pixels,
 							    (size_t)width * height * sizeof(uint32_t)) == 0);
 						}
 				}
@@ -143,15 +149,17 @@ main(int argc, char **argv)
 		{35, 15, UINT64_C(0xaa9c42e5cdb76f42)},
 	};
 	struct st_pixel_buffer *source = NULL;
-	struct st_pixel_buffer *allocated = NULL;
-	const struct st_pixel_buffer *scaled;
-	const struct st_pixel_buffer *fresh;
+	struct st_rgb_buffer input;
+	const struct st_rgb_buffer *scaled;
+	const struct st_rgb_buffer *fresh;
 	st_pixel_scaler_t *scaler = NULL;
 	st_pixel_scaler_t *reference_scaler = NULL;
 	bool generate = argc == 2 && strcmp(argv[1], "--generate") == 0;
 
 	check_small_edge_damage();
 	CHECK(st_pixel_buffer_create(&source, 7, 5, false) == 0);
+	input = (struct st_rgb_buffer){source->primary, source->width,
+	    source->height};
 	fill_pattern(source);
 	CHECK(st_pixel_scaler_create(&scaler) == 0);
 	CHECK(st_pixel_scaler_create(&reference_scaler) == 0);
@@ -160,36 +168,19 @@ main(int argc, char **argv)
 		struct st_pixel_rect output_damage;
 		uint64_t hash;
 
-		CHECK(st_pixel_scaler_scale(scaler, &scaled, source->primary,
-		    source->width, source->height, cases[i].width,
+		CHECK(st_pixel_scaler_scale(scaler, &scaled, &input, cases[i].width,
 		    cases[i].height, ST_PIXEL_SCALING_BLOCKY) == 0);
-		CHECK(st_pixel_buffer_scale(&allocated, source, cases[i].width,
-		    cases[i].height) == 0);
-		CHECK(memcmp(scaled->primary, allocated->primary,
-		    (size_t)scaled->width * scaled->height
-		    * sizeof(scaled->primary[0])) == 0);
-		st_pixel_buffer_destroy(allocated);
-		allocated = NULL;
 		for (uint32_t y = damage.y; y < damage.y + damage.height; ++y)
 			for (uint32_t x = damage.x; x < damage.x + damage.width; ++x)
 				source->primary[(size_t)y * source->width + x]
 				    ^= UINT32_C(0x0055aa);
-		CHECK(st_pixel_scaler_scale_region(scaler, &scaled,
-		    source->primary, source->width, source->height, &damage,
+		CHECK(st_pixel_scaler_scale_region(scaler, &scaled, &input, &damage,
 		    &output_damage) == 0);
 		CHECK(output_damage.width != 0 && output_damage.height != 0);
-		CHECK(st_pixel_buffer_scale(&allocated, source, cases[i].width,
-		    cases[i].height) == 0);
-		CHECK(memcmp(scaled->primary, allocated->primary,
-		    (size_t)scaled->width * scaled->height
-		    * sizeof(scaled->primary[0])) == 0);
-		st_pixel_buffer_destroy(allocated);
-		allocated = NULL;
 		/* Restore the reference input before testing the pointy path. */
 		fill_pattern(source);
 
-		CHECK(st_pixel_scaler_scale(scaler, &scaled, source->primary,
-		    source->width, source->height, cases[i].width,
+		CHECK(st_pixel_scaler_scale(scaler, &scaled, &input, cases[i].width,
 		    cases[i].height, ST_PIXEL_SCALING_POINTY) == 0);
 		hash = hash_pixels(scaled);
 		if (generate)
@@ -202,23 +193,23 @@ main(int argc, char **argv)
 			for (uint32_t x = damage.x; x < damage.x + damage.width; ++x)
 				source->primary[(size_t)y * source->width + x]
 				    ^= UINT32_C(0x0055aa);
-		CHECK(st_pixel_scaler_scale_region(scaler, &scaled,
-		    source->primary, source->width, source->height, &damage,
+		CHECK(st_pixel_scaler_scale_region(scaler, &scaled, &input, &damage,
 		    &output_damage) == 0);
-		CHECK(st_pixel_scaler_scale(reference_scaler, &fresh,
-		    source->primary, source->width, source->height, cases[i].width,
+		CHECK(st_pixel_scaler_scale(reference_scaler, &fresh, &input,
+		    cases[i].width,
 		    cases[i].height, ST_PIXEL_SCALING_POINTY) == 0);
-		CHECK(memcmp(scaled->primary, fresh->primary,
+		CHECK(memcmp(scaled->pixels, fresh->pixels,
 		    (size_t)scaled->width * scaled->height
-		    * sizeof(scaled->primary[0])) == 0);
+		    * sizeof(scaled->pixels[0])) == 0);
 		fill_pattern(source);
 	}
 	st_pixel_buffer_destroy(source);
 	source = NULL;
 	CHECK(st_pixel_buffer_create(&source, 64, 40, false) == 0);
+	input = (struct st_rgb_buffer){source->primary, source->width,
+	    source->height};
 	fill_pattern(source);
-	CHECK(st_pixel_scaler_scale(scaler, &scaled, source->primary,
-	    source->width, source->height, 128, 108,
+	CHECK(st_pixel_scaler_scale(scaler, &scaled, &input, 128, 108,
 	    ST_PIXEL_SCALING_POINTY) == 0);
 	{
 		struct st_pixel_rect damage = {24, 12, 8, 16};
@@ -228,17 +219,15 @@ main(int argc, char **argv)
 			for (uint32_t x = damage.x; x < damage.x + damage.width; ++x)
 				source->primary[(size_t)y * source->width + x]
 				    ^= UINT32_C(0x55aa33);
-		CHECK(st_pixel_scaler_scale_region(scaler, &scaled,
-		    source->primary, source->width, source->height, &damage,
+		CHECK(st_pixel_scaler_scale_region(scaler, &scaled, &input, &damage,
 		    &output_damage) == 0);
 		CHECK(output_damage.width < scaled->width);
 		CHECK(output_damage.height < scaled->height);
-		CHECK(st_pixel_scaler_scale(reference_scaler, &fresh,
-		    source->primary, source->width, source->height, 128, 108,
+		CHECK(st_pixel_scaler_scale(reference_scaler, &fresh, &input, 128, 108,
 		    ST_PIXEL_SCALING_POINTY) == 0);
-		CHECK(memcmp(scaled->primary, fresh->primary,
+		CHECK(memcmp(scaled->pixels, fresh->pixels,
 		    (size_t)scaled->width * scaled->height
-		    * sizeof(scaled->primary[0])) == 0);
+		    * sizeof(scaled->pixels[0])) == 0);
 	}
 	st_pixel_buffer_destroy(source);
 	source = NULL;

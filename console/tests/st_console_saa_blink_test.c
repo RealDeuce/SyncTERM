@@ -49,14 +49,14 @@ main(void)
 	CHECK(st_console_bitmap_presenter_create(&presenter, console) == 0);
 	CHECK(st_console_bitmap_presenter_frame(presenter, console, 8, 4,
 	    1000, NULL, NULL, &frame) == 0);
-	CHECK(frame.pixels->primary[0] == frame.pixels->primary[16]);
+	CHECK(frame.pixels->pixels[0] == frame.pixels->pixels[16]);
 	/* Timer-only frame: both halves must enter the same blink phase. */
 	CHECK(st_console_bitmap_presenter_frame(presenter, NULL, 8, 4,
 	    1400, NULL, NULL, &frame) == 0);
 	fprintf(stderr, "upper=%06x lower=%06x\n",
-	    (unsigned)frame.pixels->primary[0],
-	    (unsigned)frame.pixels->primary[16]);
-	bool equal = frame.pixels->primary[0] == frame.pixels->primary[16];
+	    (unsigned)frame.pixels->pixels[0],
+	    (unsigned)frame.pixels->pixels[16]);
+	bool equal = frame.pixels->pixels[0] == frame.pixels->pixels[16];
 	CHECK(st_console_end_update(console) == 0);
 	st_console_bitmap_presenter_destroy(presenter);
 	st_console_destroy(console);

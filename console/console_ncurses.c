@@ -50,6 +50,8 @@ struct curses_api {
 	    NCURSES_COLOR_T *, NCURSES_COLOR_T *);
 	int (*call_init_color)(NCURSES_COLOR_T, NCURSES_COLOR_T,
 	    NCURSES_COLOR_T, NCURSES_COLOR_T);
+	int (*call_extended_color_content)(int, int *, int *, int *);
+	int (*call_init_extended_color)(int, int, int, int);
 	int (*call_init_pair)(NCURSES_PAIRS_T, NCURSES_COLOR_T,
 	    NCURSES_COLOR_T);
 	int (*call_alloc_pair)(int, int);
@@ -98,6 +100,8 @@ typedef int (*curses_call_color_content_fn)(NCURSES_COLOR_T,
 	NCURSES_COLOR_T *, NCURSES_COLOR_T *, NCURSES_COLOR_T *);
 typedef int (*curses_call_init_color_fn)(NCURSES_COLOR_T, NCURSES_COLOR_T,
 	NCURSES_COLOR_T, NCURSES_COLOR_T);
+typedef int (*curses_call_extended_color_content_fn)(int, int *, int *, int *);
+typedef int (*curses_call_init_extended_color_fn)(int, int, int, int);
 typedef int (*curses_call_init_pair_fn)(NCURSES_PAIRS_T, NCURSES_COLOR_T,
 	NCURSES_COLOR_T);
 typedef int (*curses_call_alloc_pair_fn)(int, int);
@@ -127,6 +131,8 @@ struct curses_state {
 	SCREEN *screen;
 	WINDOW *window;
 	struct st_console_cell *drawn;
+	int *drawn_foreground;
+	int *drawn_background;
 	st_thread_t input_thread;
 	atomic_bool stop;
 	atomic_uint host_columns;
@@ -136,6 +142,7 @@ struct curses_state {
 	bool colours;
 	bool wide;
 	bool extended_pairs;
+	bool extended_colours;
 	bool direct_colour;
 	bool sgr_direct;
 	bool sgr_initialized;
@@ -146,13 +153,18 @@ struct curses_state {
 	int pair_count;
 	bool palette_mutable;
 	enum st_console_text_presentation presentation;
-	int indexed_colours[256];
+	int *indexed_colours;
 	struct {
 		int red;
 		int green;
 		int blue;
 		bool valid;
-	} terminal_colours[256];
+		bool original_valid;
+		int original_red;
+		int original_green;
+		int original_blue;
+	} *terminal_colours;
+	int terminal_colour_count;
 	struct {
 		uint32_t rgb;
 		int colour;
@@ -163,8 +175,8 @@ struct curses_state {
 	uint32_t mouse_buttons;
 	bool mouse_enabled;
 #endif
-	bool original_colour_valid[256];
-	NCURSES_COLOR_T original_colours[256][3];
+	bool invalid_colour;
+	uint32_t invalid_colour_value;
 };
 
 static int curses_resize(st_console_t *console, uint32_t columns,
@@ -293,7 +305,7 @@ nearest_colour(const struct curses_state *state, uint32_t rgb)
 	int blue = (int)(rgb & 0xff) * 1000 / 255;
 	uint64_t best_distance = UINT64_MAX;
 	int best = COLOR_WHITE;
-	int limit = state->colour_count < 256 ? state->colour_count : 256;
+	int limit = state->terminal_colour_count;
 
 	for (int i = 0; i < limit; ++i) {
 		int64_t red_difference;
@@ -317,8 +329,148 @@ nearest_colour(const struct curses_state *state, uint32_t rgb)
 	return best;
 }
 
+static uint32_t
+logical_rgb(st_console_t *console, struct curses_state *state, uint32_t colour)
+{
+	uint32_t rgb;
+
+	if (st_console_colour_rgb_locked(console, colour, &rgb))
+		return rgb;
+	if (!state->invalid_colour) {
+		state->invalid_colour = true;
+		state->invalid_colour_value = colour;
+	}
+	return 0;
+}
+
+static bool
+terminal_colour_conflicts(st_console_t *console, struct curses_state *state,
+	int colour, size_t ignored, uint32_t rgb)
+{
+	size_t count = (size_t)console->columns * console->rows;
+
+	for (size_t i = 0; i < count; ++i) {
+		if (i == ignored)
+			continue;
+		if (state->drawn_foreground[i] == colour
+		    && logical_rgb(console, state,
+		    state->drawn[i].foreground) != rgb)
+			return true;
+		if (state->drawn_background[i] == colour
+		    && logical_rgb(console, state,
+		    state->drawn[i].background) != rgb)
+			return true;
+	}
+	return false;
+}
+
+static void
+invalidate_terminal_colour(struct curses_state *state, int colour)
+{
+	for (uint32_t i = 0; i <= UINT16_MAX; ++i)
+		if (state->indexed_colours[i] == colour)
+			state->indexed_colours[i] = -1;
+	for (size_t i = 0; i < sizeof(state->rgb_cache)
+	    / sizeof(state->rgb_cache[0]); ++i)
+		if (state->rgb_cache[i].valid
+		    && state->rgb_cache[i].colour == colour)
+			state->rgb_cache[i].valid = false;
+}
+
 static int
-rgb_colour(struct curses_state *state, uint32_t rgb)
+read_terminal_colour(struct curses_state *state, int colour, int *red,
+	int *green, int *blue)
+{
+	if (state->extended_colours)
+		return state->api.call_extended_color_content(colour, red, green,
+		    blue);
+	if (colour <= SHRT_MAX) {
+		NCURSES_COLOR_T narrow_red;
+		NCURSES_COLOR_T narrow_green;
+		NCURSES_COLOR_T narrow_blue;
+		int result = state->api.call_color_content((NCURSES_COLOR_T)colour,
+		    &narrow_red, &narrow_green, &narrow_blue);
+
+		if (result == OK) {
+			*red = narrow_red;
+			*green = narrow_green;
+			*blue = narrow_blue;
+		}
+		return result;
+	}
+	return ERR;
+}
+
+static int
+write_terminal_colour(struct curses_state *state, int colour, int red,
+	int green, int blue)
+{
+	if (state->extended_colours)
+		return state->api.call_init_extended_color(colour, red, green, blue);
+	if (colour <= SHRT_MAX)
+		return state->api.call_init_color((NCURSES_COLOR_T)colour,
+		    (NCURSES_COLOR_T)red, (NCURSES_COLOR_T)green,
+		    (NCURSES_COLOR_T)blue);
+	return ERR;
+}
+
+static int
+mutable_colour(st_console_t *console, struct curses_state *state,
+	uint32_t rgb, int preferred, size_t cell_index)
+{
+	int red = (int)(((rgb >> 16) & 0xff) * 1000 + 127) / 255;
+	int green = (int)(((rgb >> 8) & 0xff) * 1000 + 127) / 255;
+	int blue = (int)((rgb & 0xff) * 1000 + 127) / 255;
+	int selected = -1;
+
+	for (int i = 0; i < state->terminal_colour_count; ++i) {
+		if (state->terminal_colours[i].valid
+		    && state->terminal_colours[i].red == red
+		    && state->terminal_colours[i].green == green
+		    && state->terminal_colours[i].blue == blue)
+			return i;
+	}
+	if (preferred >= 0 && preferred < state->terminal_colour_count
+	    && !terminal_colour_conflicts(console, state, preferred, cell_index,
+	    rgb))
+		selected = preferred;
+	if (selected < 0) {
+		for (int i = 0; i < state->terminal_colour_count; ++i) {
+			if (!terminal_colour_conflicts(console, state, i, cell_index,
+			    rgb)) {
+				selected = i;
+				break;
+			}
+		}
+	}
+	if (selected < 0)
+		return nearest_colour(state, rgb);
+	if (!state->terminal_colours[selected].original_valid) {
+		int original_red;
+		int original_green;
+		int original_blue;
+
+		if (read_terminal_colour(state, selected, &original_red,
+		    &original_green, &original_blue) == OK) {
+			state->terminal_colours[selected].original_red = original_red;
+			state->terminal_colours[selected].original_green = original_green;
+			state->terminal_colours[selected].original_blue = original_blue;
+			state->terminal_colours[selected].original_valid = true;
+		}
+	}
+	if (write_terminal_colour(state, selected, red, green, blue) == ERR)
+		return nearest_colour(state, rgb);
+	invalidate_terminal_colour(state, selected);
+	state->terminal_colours[selected].red = red;
+	state->terminal_colours[selected].green = green;
+	state->terminal_colours[selected].blue = blue;
+	state->terminal_colours[selected].valid = true;
+	return selected;
+}
+
+static int
+rgb_colour(st_console_t *console, struct curses_state *state, uint32_t rgb,
+	size_t cell_index)
 {
 	if (state->direct_colour)
 		return direct_colour(state, rgb);
@@ -330,17 +482,36 @@ rgb_colour(struct curses_state *state, uint32_t rgb)
 	unsigned int slot = state->next_rgb_cache++
 	    % (sizeof(state->rgb_cache) / sizeof(state->rgb_cache[0]));
 	state->rgb_cache[slot].rgb = rgb;
-	state->rgb_cache[slot].colour = nearest_colour(state, rgb);
+	state->rgb_cache[slot].colour = state->palette_mutable
+	    ? mutable_colour(console, state, rgb, -1, cell_index)
+	    : nearest_colour(state, rgb);
 	state->rgb_cache[slot].valid = true;
 	return state->rgb_cache[slot].colour;
 }
 
 static int
-cell_colour(struct curses_state *state, uint32_t colour)
+cell_colour(st_console_t *console, struct curses_state *state,
+	uint32_t colour, size_t cell_index)
 {
-	if (ST_CONSOLE_COLOR_IS_RGB(colour))
-		return rgb_colour(state, colour & UINT32_C(0xffffff));
-	return state->indexed_colours[colour & UINT32_C(0xff)];
+	uint32_t rgb = logical_rgb(console, state, colour);
+	int preferred;
+	int mapped;
+
+	if (ST_CONSOLE_COLOR_IS_RGB(colour) || colour > UINT16_MAX)
+		return rgb_colour(console, state, rgb, cell_index);
+	mapped = state->indexed_colours[colour];
+	if (mapped >= 0)
+		return mapped;
+	if (state->direct_colour)
+		mapped = direct_colour(state, rgb);
+	else if (state->palette_mutable) {
+		preferred = colour < 16 ? dos_colour(colour) : (int)colour;
+		mapped = mutable_colour(console, state, rgb, preferred, cell_index);
+	}
+	else
+		mapped = nearest_colour(state, rgb);
+	state->indexed_colours[colour] = mapped;
+	return mapped;
 }
 
 static attr_t
@@ -367,8 +538,9 @@ cell_attributes(const struct curses_state *state,
 }
 
 static int
-cell_pair(struct curses_state *state,
-	const struct st_console_cell *cell)
+cell_pair(st_console_t *console, struct curses_state *state,
+	const struct st_console_cell *cell, size_t cell_index,
+	int *foreground_result, int *background_result)
 {
 	int foreground;
 	int background;
@@ -376,8 +548,10 @@ cell_pair(struct curses_state *state,
 
 	if (!state->colours)
 		return 0;
-	foreground = cell_colour(state, cell->foreground);
-	background = cell_colour(state, cell->background);
+	foreground = cell_colour(console, state, cell->foreground, cell_index);
+	background = cell_colour(console, state, cell->background, cell_index);
+	*foreground_result = foreground;
+	*background_result = background;
 	if (state->extended_pairs) {
 		pair = state->api.call_find_pair(foreground, background);
 		if (pair == ERR)
@@ -439,15 +613,15 @@ xterm_terminal_colour(unsigned int colour, unsigned int colour_count,
 static void
 read_terminal_colours(struct curses_state *state)
 {
-	int limit = state->colour_count < 256 ? state->colour_count : 256;
+	int limit = state->terminal_colour_count;
 
 	for (int i = 0; i < limit; ++i) {
-		NCURSES_COLOR_T red;
-		NCURSES_COLOR_T green;
-		NCURSES_COLOR_T blue;
+		int red;
+		int green;
+		int blue;
 
 		if (!state->palette_mutable
-		    && (state->colour_count == 88 || state->colour_count >= 256)
+		    && (state->colour_count == 88 || state->colour_count == 256)
 		    && i >= 16) {
 			xterm_terminal_colour((unsigned int)i,
 			    (unsigned int)state->colour_count,
@@ -455,8 +629,7 @@ read_terminal_colours(struct curses_state *state)
 			    &state->terminal_colours[i].green,
 			    &state->terminal_colours[i].blue);
 		}
-		else if (state->api.call_color_content((NCURSES_COLOR_T)i, &red,
-		    &green, &blue) == OK) {
+		else if (read_terminal_colour(state, i, &red, &green, &blue) == OK) {
 			state->terminal_colours[i].red = red;
 			state->terminal_colours[i].green = green;
 			state->terminal_colours[i].blue = blue;
@@ -478,15 +651,8 @@ rebuild_colour_maps(st_console_t *console)
 
 	memset(state->rgb_cache, 0, sizeof(state->rgb_cache));
 	state->next_rgb_cache = 0;
-	for (unsigned int i = 0; i < 256; ++i) {
-		int terminal_index = i < 16 ? dos_colour(i) : (int)i;
-
-		if (terminal_index < state->colour_count)
-			state->indexed_colours[i] = terminal_index;
-		else
-			state->indexed_colours[i] = nearest_colour(state,
-			    console->palette[i]);
-	}
+	for (uint32_t i = 0; i <= UINT16_MAX; ++i)
+		state->indexed_colours[i] = -1;
 }
 
 static chtype
@@ -529,18 +695,10 @@ write_cell(struct curses_state *state, const struct st_console_cell *cell)
 }
 
 static void
-sgr_colour(struct sgr_writer *writer, uint32_t colour, bool background)
+sgr_colour(st_console_t *console, struct curses_state *state,
+	struct sgr_writer *writer, uint32_t colour, bool background)
 {
-	if (!ST_CONSOLE_COLOR_IS_RGB(colour)) {
-		uint32_t index = colour & UINT32_C(0xff);
-
-		if (index < 16)
-			index = (uint32_t)dos_colour(index);
-		sgr_format(writer, background ? "\033[48;5;%" PRIu32 "m"
-		    : "\033[38;5;%" PRIu32 "m", index, 0, 0);
-		return;
-	}
-	colour &= UINT32_C(0xffffff);
+	colour = logical_rgb(console, state, colour);
 	sgr_format(writer, background ? "\033[48;2;%" PRIu32
 	    ";%" PRIu32 ";%" PRIu32 "m" : "\033[38;2;%" PRIu32
 	    ";%" PRIu32 ";%" PRIu32 "m", (colour >> 16) & 0xff,
@@ -548,7 +706,8 @@ sgr_colour(struct sgr_writer *writer, uint32_t colour, bool background)
 }
 
 static void
-sgr_style(struct sgr_writer *writer, const struct st_console_cell *cell)
+sgr_style(st_console_t *console, struct curses_state *state,
+	struct sgr_writer *writer, const struct st_console_cell *cell)
 {
 
 	sgr_emit(writer, "\033[0m", 4);
@@ -562,8 +721,8 @@ sgr_style(struct sgr_writer *writer, const struct st_console_cell *cell)
 		sgr_emit(writer, "\033[7m", 4);
 	if ((cell->flags & ST_CONSOLE_CELL_CONCEAL) != 0)
 		sgr_emit(writer, "\033[8m", 4);
-	sgr_colour(writer, cell->foreground, false);
-	sgr_colour(writer, cell->background, true);
+	sgr_colour(console, state, writer, cell->foreground, false);
+	sgr_colour(console, state, writer, cell->background, true);
 }
 
 static void
@@ -615,6 +774,14 @@ sgr_styles_equal(const struct st_console_cell *left,
 	    && ((left->flags ^ right->flags) & style_flags) == 0;
 }
 
+static void
+report_invalid_colour(struct curses_state *state)
+{
+	if (state->invalid_colour)
+		fprintf(stderr, "ncurses: invalid colour value %08" PRIx32
+		    "; using black\n", state->invalid_colour_value);
+}
+
 static int
 sgr_present(st_console_t *console, struct curses_state *state)
 {
@@ -632,6 +799,8 @@ sgr_present(st_console_t *console, struct curses_state *state)
 	uint32_t visible_rows = atomic_load_explicit(&state->host_rows,
 	    memory_order_acquire);
 
+	state->invalid_colour = false;
+
 	if (visible_columns == 0 || visible_columns > console->columns)
 		visible_columns = console->columns;
 	if (visible_rows == 0 || visible_rows > console->rows)
@@ -648,7 +817,7 @@ sgr_present(st_console_t *console, struct curses_state *state)
 		};
 		static const char clear_and_hide[] = "\033[2J\033[?25l";
 
-		sgr_style(&writer, &blank);
+		sgr_style(console, state, &writer, &blank);
 		sgr_emit(&writer, clear_and_hide, sizeof(clear_and_hide) - 1);
 		for (size_t index = 0;
 		    index < (size_t)console->columns * console->rows; ++index)
@@ -671,7 +840,7 @@ sgr_present(st_console_t *console, struct curses_state *state)
 				sgr_format(&writer, "\033[%" PRIu32 ";%" PRIu32 "H",
 				    y + 1, x + 1, 0);
 			if (!style_known || !sgr_styles_equal(cell, &current_style)) {
-				sgr_style(&writer, cell);
+				sgr_style(console, state, &writer, cell);
 				current_style = *cell;
 				style_known = true;
 			}
@@ -700,6 +869,7 @@ sgr_present(st_console_t *console, struct curses_state *state)
 	sgr_flush(&writer);
 	if (writer.result == 0 && fflush(stdout) != 0)
 		writer.result = IO_ERROR_IO;
+	report_invalid_colour(state);
 	return writer.result;
 }
 
@@ -879,6 +1049,8 @@ curses_present(st_console_t *console)
 	    memory_order_acquire);
 	int status;
 
+	state->invalid_colour = false;
+
 	if (resized) {
 		status = replace_window(state, visible_columns, visible_rows);
 		if (status != 0) {
@@ -888,6 +1060,11 @@ curses_present(st_console_t *console)
 		}
 		memset(state->drawn, 0, (size_t)console->columns * console->rows
 		    * sizeof(*state->drawn));
+		for (size_t i = 0; i < (size_t)console->columns * console->rows;
+		    ++i) {
+			state->drawn_foreground[i] = -1;
+			state->drawn_background[i] = -1;
+		}
 	}
 
 	if (visible_columns == 0 || visible_columns > console->columns)
@@ -905,6 +1082,8 @@ curses_present(st_console_t *console)
 			size_t index = (size_t)y * console->columns + x;
 			const struct st_console_cell *cell = &console->cells[index];
 			int pair;
+			int foreground = -1;
+			int background = -1;
 			int write_result;
 
 			if ((cell->flags & ST_CONSOLE_CELL_DIRTY) == 0
@@ -913,9 +1092,12 @@ curses_present(st_console_t *console)
 			if ((cell->flags & ST_CONSOLE_CELL_CONTINUATION) != 0) {
 				state->drawn[index] = *cell;
 				state->drawn[index].flags &= ~ST_CONSOLE_CELL_DIRTY;
+				state->drawn_foreground[index] = -1;
+				state->drawn_background[index] = -1;
 				continue;
 			}
-			pair = cell_pair(state, cell);
+			pair = cell_pair(console, state, cell, index, &foreground,
+			    &background);
 			if (state->api.call_move(state->window, (int)y, (int)x) == ERR
 			    || state->api.call_attributes(state->window,
 				    cell_attributes(state, cell),
@@ -928,6 +1110,8 @@ curses_present(st_console_t *console)
 				return IO_ERROR_IO;
 			state->drawn[index] = *cell;
 			state->drawn[index].flags &= ~ST_CONSOLE_CELL_DIRTY;
+			state->drawn_foreground[index] = foreground;
+			state->drawn_background[index] = background;
 		}
 	}
 	if (console->cursor_visible && cursor_x < visible_columns
@@ -939,8 +1123,10 @@ curses_present(st_console_t *console)
 	    || console->cursor_y >= visible_rows ? 0
 	    : console->cursor_shape == ST_CONSOLE_CURSOR_BLOCK ? 2 : 1;
 	(void)state->api.call_cursor(cursor);
-	return state->api.call_refresh(state->window) == ERR
+	status = state->api.call_refresh(state->window) == ERR
 	    ? IO_ERROR_IO : 0;
+	report_invalid_colour(state);
+	return status;
 }
 
 static int
@@ -1072,12 +1258,12 @@ curses_destroy(st_console_display_t *display)
 	if (state->input_started)
 		(void)st_thread_join(state->input_thread, NULL);
 	if (state->palette_mutable) {
-		for (unsigned int i = 0; i < 256; ++i) {
-			if (state->original_colour_valid[i])
-				(void)state->api.call_init_color((NCURSES_COLOR_T)i,
-				    state->original_colours[i][0],
-				    state->original_colours[i][1],
-				    state->original_colours[i][2]);
+		for (int i = 0; i < state->terminal_colour_count; ++i) {
+			if (state->terminal_colours[i].original_valid)
+				(void)write_terminal_colour(state, i,
+				    state->terminal_colours[i].original_red,
+				    state->terminal_colours[i].original_green,
+				    state->terminal_colours[i].original_blue);
 		}
 	}
 	if (state->window != NULL)
@@ -1101,51 +1287,25 @@ curses_destroy(st_console_display_t *display)
 	}
 	(void)dynamic_library_close(state->library);
 	free(state->drawn);
+	free(state->drawn_foreground);
+	free(state->drawn_background);
+	free(state->indexed_colours);
+	free(state->terminal_colours);
 	free(state);
 	atomic_flag_clear_explicit(&curses_in_use, memory_order_release);
 }
 
-static int
-curses_palette_changed(st_console_t *console, uint16_t first, uint16_t count)
+static void
+curses_palette_changed(st_console_t *console, uint16_t first,
+	const uint32_t *colours, uint32_t count)
 {
 	struct curses_state *state = console->display->backend_state;
+	(void)colours;
 
-	if (state->palette_mutable) {
-		for (uint16_t offset = 0; offset < count; ++offset) {
-			unsigned int index = (unsigned int)first + offset;
-			unsigned int terminal_index = index < 16
-			    ? (unsigned int)dos_colour(index) : index;
-			uint32_t rgb;
-			NCURSES_COLOR_T red;
-			NCURSES_COLOR_T green;
-			NCURSES_COLOR_T blue;
-
-			if (terminal_index >= (unsigned int)state->colour_count
-			    || terminal_index >= 256)
-				continue;
-			if (!state->original_colour_valid[terminal_index]) {
-				if (state->api.call_color_content(
-				    (NCURSES_COLOR_T)terminal_index,
-				    &state->original_colours[terminal_index][0],
-				    &state->original_colours[terminal_index][1],
-				    &state->original_colours[terminal_index][2]) == ERR)
-					return IO_ERROR_IO;
-				state->original_colour_valid[terminal_index] = true;
-			}
-			rgb = console->palette[index];
-			red = (NCURSES_COLOR_T)((((rgb >> 16) & 0xff) * 1000 + 127)
-			    / 255);
-			green = (NCURSES_COLOR_T)((((rgb >> 8) & 0xff) * 1000 + 127)
-			    / 255);
-			blue = (NCURSES_COLOR_T)(((rgb & 0xff) * 1000 + 127) / 255);
-			if (state->api.call_init_color(
-			    (NCURSES_COLOR_T)terminal_index, red, green, blue) == ERR)
-				return IO_ERROR_IO;
-		}
-	}
-	read_terminal_colours(state);
-	rebuild_colour_maps(console);
-	return 0;
+	for (uint32_t offset = 0; offset < count; ++offset)
+		state->indexed_colours[(uint32_t)first + offset] = -1;
+	memset(state->rgb_cache, 0, sizeof(state->rgb_cache));
+	state->next_rgb_cache = 0;
 }
 
 static int
@@ -1153,6 +1313,8 @@ curses_resize(st_console_t *console, uint32_t columns, uint32_t rows)
 {
 	struct curses_state *state = console->display->backend_state;
 	struct st_console_cell *drawn;
+	int *drawn_foreground;
+	int *drawn_background;
 	size_t count;
 	uint32_t host_columns;
 	uint32_t host_rows;
@@ -1163,8 +1325,19 @@ curses_resize(st_console_t *console, uint32_t columns, uint32_t rows)
 		return IO_ERROR_OUT_OF_RANGE;
 	count = (size_t)columns * rows;
 	drawn = calloc(count, sizeof(*drawn));
-	if (drawn == NULL)
+	drawn_foreground = calloc(count, sizeof(*drawn_foreground));
+	drawn_background = calloc(count, sizeof(*drawn_background));
+	if (drawn == NULL || drawn_foreground == NULL
+	    || drawn_background == NULL) {
+		free(drawn);
+		free(drawn_foreground);
+		free(drawn_background);
 		return IO_ERROR_OUT_OF_MEMORY;
+	}
+	for (size_t i = 0; i < count; ++i) {
+		drawn_foreground[i] = -1;
+		drawn_background[i] = -1;
+	}
 	host_columns = atomic_load_explicit(&state->host_columns,
 	    memory_order_acquire);
 	host_rows = atomic_load_explicit(&state->host_rows, memory_order_acquire);
@@ -1174,12 +1347,37 @@ curses_resize(st_console_t *console, uint32_t columns, uint32_t rows)
 		host_rows = rows;
 	if (replace_window(state, host_columns, host_rows) != 0) {
 		free(drawn);
+		free(drawn_foreground);
+		free(drawn_background);
 		return IO_ERROR_OUT_OF_RANGE;
 	}
 	free(state->drawn);
+	free(state->drawn_foreground);
+	free(state->drawn_background);
 	state->drawn = drawn;
+	state->drawn_foreground = drawn_foreground;
+	state->drawn_background = drawn_background;
 	atomic_store_explicit(&state->host_resized, false, memory_order_release);
 	return 0;
+}
+
+static uint32_t
+curses_capabilities(const st_console_t *console)
+{
+	const struct curses_state *state = console->display->backend_state;
+	uint32_t result = 0;
+
+	if (state->direct_colour || state->sgr_direct)
+		result |= ST_CONSOLE_CAP_PALETTE_CHANGE
+		    | ST_CONSOLE_CAP_EXTENDED_PALETTE;
+	else {
+		if (state->palette_mutable)
+			result |= ST_CONSOLE_CAP_PALETTE_CHANGE;
+		if (state->colour_count >= 65536 && state->extended_colours
+		    && state->extended_pairs)
+			result |= ST_CONSOLE_CAP_EXTENDED_PALETTE;
+	}
+	return result;
 }
 
 static int curses_attach(st_console_t *console);
@@ -1190,6 +1388,7 @@ static const struct st_console_backend_ops curses_ops = {
 	.present = curses_present,
 	.resize = curses_resize,
 	.palette_changed = curses_palette_changed,
+	.capabilities = curses_capabilities,
 	.destroy = curses_destroy,
 };
 
@@ -1385,6 +1584,13 @@ st_console_ncurses_init(st_console_t *console)
 	if (LOAD_OPTIONAL(state, call_use_extended_names, "use_extended_names"))
 		(void)state->api.call_use_extended_names(true);
 	(void)LOAD_OPTIONAL(state, call_resizeterm, "resizeterm");
+#if ST_CONSOLE_HAVE_CURSES_EXTENDED_COLOR
+	state->extended_colours =
+	    LOAD_OPTIONAL(state, call_extended_color_content,
+	    "extended_color_content")
+	    && LOAD_OPTIONAL(state, call_init_extended_color,
+	    "init_extended_color");
+#endif
 #if ST_CONSOLE_HAVE_CURSES_WIDE
 	state->wide = LOAD_REQUIRED(state, call_add_wide, "waddnwstr")
 	    && LOAD_REQUIRED(state, call_get_wide, "wget_wch");
@@ -1414,14 +1620,26 @@ st_console_ncurses_init(st_console_t *console)
 	atomic_store_explicit(&state->host_rows, terminal_rows,
 	    memory_order_release);
 	state->drawn = calloc(count, sizeof(*state->drawn));
-	if (state->drawn == NULL) {
+	state->drawn_foreground = calloc(count,
+	    sizeof(*state->drawn_foreground));
+	state->drawn_background = calloc(count,
+	    sizeof(*state->drawn_background));
+	if (state->drawn == NULL || state->drawn_foreground == NULL
+	    || state->drawn_background == NULL) {
 		(void)state->api.call_delwin(state->window);
 		(void)state->api.call_endwin();
 		state->api.call_delscreen(state->screen);
 		(void)dynamic_library_close(state->library);
+		free(state->drawn);
+		free(state->drawn_foreground);
+		free(state->drawn_background);
 		free(state);
 		atomic_flag_clear_explicit(&curses_in_use, memory_order_release);
 		return IO_ERROR_OUT_OF_MEMORY;
+	}
+	for (size_t i = 0; i < count; ++i) {
+		state->drawn_foreground[i] = -1;
+		state->drawn_background[i] = -1;
 	}
 	if (state->api.call_cbreak() == ERR || state->api.call_raw() == ERR
 	    || state->api.call_noecho() == ERR || state->api.call_nonl() == ERR) {
@@ -1430,6 +1648,8 @@ st_console_ncurses_init(st_console_t *console)
 		state->api.call_delscreen(state->screen);
 		(void)dynamic_library_close(state->library);
 		free(state->drawn);
+		free(state->drawn_foreground);
+		free(state->drawn_background);
 		free(state);
 		atomic_flag_clear_explicit(&curses_in_use, memory_order_release);
 		return IO_ERROR_NOT_SUPPORTED;
@@ -1471,18 +1691,29 @@ st_console_ncurses_init(st_console_t *console)
 	    && colorterm_direct_colour();
 	if (state->sgr_direct)
 		state->palette_mutable = false;
+	state->terminal_colour_count = state->direct_colour || state->sgr_direct
+	    ? 0 : state->colour_count > 65536 ? 65536 : state->colour_count;
+	if (state->terminal_colour_count < 0)
+		state->terminal_colour_count = 0;
+	state->indexed_colours = malloc((UINT16_MAX + 1U)
+	    * sizeof(*state->indexed_colours));
+	if (state->terminal_colour_count != 0)
+		state->terminal_colours = calloc(
+		    (size_t)state->terminal_colour_count,
+		    sizeof(*state->terminal_colours));
+	if (state->indexed_colours == NULL
+	    || (state->terminal_colour_count != 0
+	    && state->terminal_colours == NULL)) {
+		curses_destroy(&(st_console_display_t){.backend_state = state});
+		return IO_ERROR_OUT_OF_MEMORY;
+	}
+	console->display->backend_state = state;
+	read_terminal_colours(state);
+	rebuild_colour_maps(console);
 	if (state->presentation == ST_CONSOLE_TEXT_UNICODE && !state->wide
 	    && !state->sgr_direct)
 		state->presentation = ST_CONSOLE_TEXT_ASCII;
-	console->display->backend_state = state;
 	console->display->backend_ops = &curses_ops;
-	result = curses_palette_changed(console, 0, 256);
-	if (result != 0) {
-		curses_destroy(console->display);
-		console->display->backend_state = NULL;
-		console->display->backend_ops = NULL;
-		return result;
-	}
 #ifdef KEY_MOUSE
 	state->api.call_mousemask = (curses_call_mousemask_fn)
 	    dynamic_library_symbol(state->library, "mousemask");

@@ -27,8 +27,9 @@ struct st_console_backend_ops {
 	int (*attach)(st_console_t *console);
 	int (*present)(st_console_t *console);
 	int (*resize)(st_console_t *console, uint32_t columns, uint32_t rows);
-	int (*palette_changed)(st_console_t *console, uint16_t first,
-	    uint16_t count);
+	void (*palette_changed)(st_console_t *console, uint16_t first,
+	    const uint32_t *colours, uint32_t count);
+	uint32_t (*capabilities)(const st_console_t *console);
 	int (*set_title)(st_console_display_t *display, const char *title);
 	int (*set_clipboard_text)(st_console_display_t *display, const char *text);
 	int (*get_clipboard_text)(st_console_display_t *display, char **result);
@@ -78,7 +79,7 @@ struct st_console_snapshot {
 	const st_console_t *owner;
 	uint32_t columns;
 	uint32_t rows;
-	uint32_t palette[256];
+	uint32_t palette[UINT16_MAX + 1U];
 	struct st_console_style style;
 	struct st_console_rect window;
 	uint32_t cursor_x;
@@ -113,7 +114,7 @@ struct st_console {
 	struct st_pixel_buffer *pixels;
 	struct st_console_cell *rasterized;
 	uint8_t *raster_rows;
-	uint32_t palette[256];
+	uint32_t palette[UINT16_MAX + 1U];
 	array_list_t fonts;
 	uint32_t next_font_identifier;
 	atomic_uint_fast64_t font_clock;
@@ -135,6 +136,7 @@ struct st_console {
 	uint32_t aspect_height;
 	bool changed;
 	bool pixel_surface_dirty;
+	bool palette_dirty;
 	struct st_console_event *events;
 	size_t event_capacity;
 	size_t event_head;
@@ -154,6 +156,22 @@ st_console_cells_equal(const struct st_console_cell *left,
 	    && ((left->flags ^ right->flags) & ST_CONSOLE_CELL_PUBLIC_FLAGS) == 0
 	    && left->font == right->font
 	    && left->hyperlink == right->hyperlink;
+}
+
+static inline bool
+st_console_colour_rgb_locked(const st_console_t *console, uint32_t colour,
+	uint32_t *rgb)
+{
+	if (ST_CONSOLE_COLOR_IS_RGB(colour)) {
+		*rgb = colour & UINT32_C(0xffffff);
+		return true;
+	}
+	if (colour <= UINT16_MAX) {
+		*rgb = console->palette[colour];
+		return true;
+	}
+	*rgb = 0;
+	return false;
 }
 
 static inline uint16_t
@@ -250,7 +268,7 @@ void st_console_move_raster_locked(st_console_t *console,
 struct st_console_bitmap_presenter;
 
 struct st_console_bitmap_frame {
-	const struct st_pixel_buffer *pixels;
+	const struct st_rgb_buffer *pixels;
 	struct st_console_rect destination;
 	uint32_t source_width;
 	uint32_t source_height;
@@ -261,7 +279,7 @@ struct st_console_bitmap_frame {
 };
 
 typedef int (*st_console_bitmap_upload_t)(void *context,
-	const struct st_pixel_buffer *pixels,
+	const struct st_rgb_buffer *pixels,
 	const struct st_console_rect *rectangle);
 
 int st_console_aspect_correct_size(uint32_t source_width,

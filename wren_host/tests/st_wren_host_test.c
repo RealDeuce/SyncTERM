@@ -547,7 +547,7 @@ static int
 exercise_repl_style(struct st_wren_host *host, st_console_t *console)
 {
 	static const char source[] =
-	    "import \"syncterm\" for Screen\n"
+	    "import \"syncterm\" for Cell, Screen\n"
 	    "import \"wren_console\" for WrenConsole\n"
 	    "var saved = Screen.save()\n"
 	    "var correct = false\n"
@@ -556,6 +556,9 @@ exercise_repl_style(struct st_wren_host *host, st_console_t *console)
 	    "  var cells = Screen.readRect(1, 1, size[0], size[1])\n"
 	    "  correct = Screen.attr == 7 && cells.all {|c| c.fgPalette == 7 && c.bgPalette == 0 }\n"
 	    "})\n"
+	    "var mapped = Cell.new()\n"
+	    "mapped.legacyAttr = 0x41\n"
+	    "if (mapped.fgPalette != 4 || mapped.bgPalette != 1 || mapped.legacyAttr != 0x41) Fiber.abort(\"legacy colour mapping failed\")\n"
 	    "Screen.attr = 0x1f\n"
 	    "WrenConsole.run(\"syncterm\")\n"
 	    "if (Screen.attr != 0x1f) Fiber.abort(\"REPL did not restore caller attribute\")\n"
@@ -589,7 +592,7 @@ static int
 observe_selection(void *argument)
 {
 	struct selection_observer *observer = argument;
-	static const uint32_t expected_backgrounds[6] = {6, 1, 6, 1, 1, 1};
+	static const uint32_t expected_backgrounds[6] = {3, 4, 4, 4, 4, 4};
 	const struct timespec interval = {0, 1000000};
 	int result = 1;
 
@@ -621,11 +624,12 @@ static int
 exercise_mouse_drag_selection(struct st_wren_host *host,
 	st_console_t *console)
 {
+	const uint32_t selection_blue = UINT32_C(0x0000a8);
 	const struct st_console_rect area = {1, 1, 3, 2};
 	struct st_console_cell cells[6] = {
 		{.codepoint = 'A',
 		    .foreground = ST_CONSOLE_COLOR_RGB_VALUE(255, 255, 255),
-		    .background = ST_CONSOLE_COLOR_RGB_VALUE(0, 0, 168)},
+		    .background = 500},
 		{.codepoint = UINT32_C(0x03a9),
 		    .foreground = ST_CONSOLE_COLOR_RGB_VALUE(0, 0, 168)},
 		{.codepoint = ' ', .foreground = 7, .background = 1},
@@ -680,6 +684,7 @@ exercise_mouse_drag_selection(struct st_wren_host *host,
 	    "if (!(drag is MouseEvent) || drag.event != Mouse.button1DragStart || drag.startX != 2 || drag.startY != 2 || drag.endX != 4 || drag.endY != 3 || drag.startPixelX != 8 || drag.startPixelY != 16 || drag.endPixelX != 24 || drag.endPixelY != 32) Fiber.abort(\"mouse drag\")\n"
 	    "Input.mousedrag(true)\n";
 
+	CHECK(st_console_set_palette(console, 500, &selection_blue, 1) == 0);
 	CHECK(st_console_write_cells(console, &area, cells, 3) == 0);
 	CHECK(st_console_present(console) == 0);
 	CHECK(st_console_read_cells(console, &area, before, 3) == 0);
@@ -699,10 +704,10 @@ exercise_mouse_drag_selection(struct st_wren_host *host,
 	CHECK(observer_result == 0);
 	CHECK(observer.highlighted[0].foreground
 	    == ST_CONSOLE_COLOR_RGB_VALUE(255, 255, 255));
-	CHECK(observer.highlighted[1].foreground == 9);
+	CHECK(observer.highlighted[1].foreground == 12);
 	CHECK(observer.highlighted[4].foreground == 7);
 	CHECK((observer.highlighted[4].flags & ST_CONSOLE_CELL_REVERSE) == 0);
-	CHECK(observer.highlighted[5].foreground == 9);
+	CHECK(observer.highlighted[5].foreground == 1);
 	CHECK(st_console_read_cells(console, &area, after, 3) == 0);
 	for (size_t index = 0; index < 6; ++index) {
 		CHECK(before[index].codepoint == after[index].codepoint);
@@ -859,9 +864,9 @@ main(void)
 		.application_title = "SyncTERM test",
 	};
 	CHECK(st_wren_host_create(&host, &host_config) == 0);
+	CHECK(exercise_repl_style(host, console) == 0);
 	CHECK(exercise_mouse_drag_selection(host, console) == 0);
 	CHECK(exercise_repl_contract(host) == 0);
-	CHECK(exercise_repl_style(host, console) == 0);
 	CHECK(wrenInterpret(((struct st_wren_host *)host)->vm,
 	    "headless_host_capabilities",
 	    "import \"syncterm\" for Host\n"

@@ -620,7 +620,7 @@ destroy_state(struct sdl_state *state)
 }
 
 static int
-upload_pixels(void *context, const struct st_pixel_buffer *pixels,
+upload_pixels(void *context, const struct st_rgb_buffer *pixels,
 	const struct st_console_rect *rectangle)
 {
 	struct sdl_state *state = context;
@@ -645,7 +645,7 @@ upload_pixels(void *context, const struct st_pixel_buffer *pixels,
 	    != 0)
 		return IO_ERROR_IO;
 	for (uint32_t y = 0; y < rectangle->height; ++y) {
-		const uint32_t *source = pixels->primary
+		const uint32_t *source = pixels->pixels
 		    + (size_t)(rectangle->y + y) * pixels->width + rectangle->x;
 		void *destination = (unsigned char *)locked
 		    + (size_t)y * (size_t)pitch;

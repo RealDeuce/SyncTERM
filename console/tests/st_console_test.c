@@ -319,7 +319,7 @@ test_snapshot_drains(void)
 	output.fail = false;
 	CHECK(st_console_snapshot_create(&snapshot, console) == 0);
 	CHECK(output.writes != 0);
-	CHECK(contains(output.data, output.length, "\033[38;5;7m"));
+	CHECK(contains(output.data, output.length, "\033[38;5;248m"));
 	CHECK(contains(output.data, output.length, "\033[48;5;0m"));
 	CHECK(contains(output.data, output.length, "abc"));
 	writes = output.writes;
@@ -486,6 +486,8 @@ test_resize_palette_and_errors(void)
 	st_console_t *unchanged = console;
 	uint32_t set[2] = {0x123456, 0xfedcba};
 	uint32_t get[2] = {0};
+	uint32_t *full_set;
+	uint32_t *full_get;
 	static const uint8_t glyphs[16] = {0};
 	const struct st_console_font font = {
 		.bitmap = glyphs,
@@ -509,6 +511,30 @@ test_resize_palette_and_errors(void)
 	CHECK(st_console_pixel_size(console, &pixel_width, &pixel_height)
 	    == IO_ERROR_NOT_SUPPORTED);
 	CHECK(pixel_width == 17 && pixel_height == 19);
+	{
+		static const struct {
+			uint16_t index;
+			uint32_t rgb;
+		} defaults[] = {
+			{1, UINT32_C(0xa80000)},
+			{16, UINT32_C(0x000000)},
+			{17, UINT32_C(0x00005f)},
+			{255, UINT32_C(0xeeeeee)},
+			{257, UINT32_C(0xffffff)},
+			{272, UINT32_C(0x005181)},
+			{274, UINT32_C(0xb6b6b6)},
+			{UINT16_MAX, 0},
+		};
+
+		for (size_t i = 0; i < sizeof(defaults) / sizeof(defaults[0]);
+		    ++i) {
+			uint32_t colour;
+
+			CHECK(st_console_get_palette(console, defaults[i].index,
+			    &colour, 1) == 0);
+			CHECK(colour == defaults[i].rgb);
+		}
+	}
 
 	CHECK(st_console_put_codepoint(console, 'x') == 0);
 	CHECK(st_console_resize(console, 3, 3) == 0);
@@ -517,13 +543,25 @@ test_resize_palette_and_errors(void)
 	CHECK(st_console_set_palette(console, 254, set, 2) == 0);
 	CHECK(st_console_get_palette(console, 254, get, 2) == 0);
 	CHECK(memcmp(set, get, sizeof(set)) == 0);
-	CHECK(st_console_set_palette(console, 255, set, 2)
+	CHECK(st_console_set_palette(console, 255, set, 2) == 0);
+	CHECK(st_console_get_palette(console, 255, get, 2) == 0);
+	CHECK(memcmp(set, get, sizeof(set)) == 0);
+	CHECK(st_console_set_palette(console, UINT16_MAX, set, 1) == 0);
+	CHECK(st_console_set_palette(console, UINT16_MAX, set, 2)
 	    == IO_ERROR_INVALID_ARGUMENT);
-	CHECK(st_console_get_palette(console, 256, get, 1)
-	    == IO_ERROR_INVALID_ARGUMENT);
-	/* A start beyond the palette must not wrap the remaining-count check. */
-	CHECK(st_console_get_palette(console, 257, get, 1)
-	    == IO_ERROR_INVALID_ARGUMENT);
+	full_set = malloc((UINT16_MAX + 1U) * sizeof(*full_set));
+	full_get = malloc((UINT16_MAX + 1U) * sizeof(*full_get));
+	CHECK(full_set != NULL && full_get != NULL);
+	for (uint32_t i = 0; i <= UINT16_MAX; ++i)
+		full_set[i] = (i * UINT32_C(0x010101)) & UINT32_C(0xffffff);
+	CHECK(st_console_set_palette(console, 0, full_set,
+	    UINT16_MAX + UINT32_C(1)) == 0);
+	CHECK(st_console_get_palette(console, 0, full_get,
+	    UINT16_MAX + UINT32_C(1)) == 0);
+	CHECK(memcmp(full_set, full_get,
+	    (UINT16_MAX + 1U) * sizeof(*full_set)) == 0);
+	free(full_get);
+	free(full_set);
 	identifier = register_static_font(console, &font);
 	CHECK(st_console_font_registered(console, identifier, &registered) == 0);
 	CHECK(registered);
@@ -593,9 +631,9 @@ test_pixels_and_font_rendering(void)
 	uint32_t width;
 	uint32_t height;
 	uint16_t font_identifier;
-	const uint32_t red = UINT32_C(0xff0000);
+	const uint32_t red = ST_PIXEL_COLOR_RGB_VALUE(255, 0, 0);
 	const uint32_t black = 0;
-	const uint32_t overlay = UINT32_C(0xabcdef);
+	const uint32_t overlay = ST_PIXEL_COLOR_RGB_VALUE(0xab, 0xcd, 0xef);
 	const uint32_t changed_palette = UINT32_C(0x010203);
 	const struct st_console_rect second_cell = {1, 0, 1, 1};
 	const struct st_console_rect second_pixels = {8, 0, 8, 2};
@@ -617,7 +655,7 @@ test_pixels_and_font_rendering(void)
 	CHECK(st_console_write_cells(console, &second_cell, &cell, 1) == 0);
 	CHECK(st_console_set_palette(console, 42, &changed_palette, 1) == 0);
 	CHECK(st_console_get_pixels(&pixels, console, &second_pixels, false) == 0);
-	CHECK(pixels->primary[0] == changed_palette);
+	CHECK(pixels->primary[0] == 42);
 	st_pixel_buffer_destroy(pixels);
 	pixels = NULL;
 
@@ -684,8 +722,8 @@ test_fast_font_attributes(void)
 		.cell_width = 8,
 		.cell_height = 2,
 	};
-	const uint32_t red = UINT32_C(0xff0000);
-	const uint32_t green = UINT32_C(0x00ff00);
+	const uint32_t red = ST_PIXEL_COLOR_RGB_VALUE(255, 0, 0);
+	const uint32_t green = ST_PIXEL_COLOR_RGB_VALUE(0, 255, 0);
 	struct st_console_cell cells[5];
 	const struct st_console_rect cells_rect = {0, 0, 5, 1};
 	const struct st_console_rect pixels_rect = {0, 0, 40, 2};
@@ -762,11 +800,15 @@ test_raster_margin_and_scroll(void)
 	struct st_console_cell cells[6];
 	const struct st_console_rect grid = {0, 0, 2, 3};
 	const struct st_console_rect raster = {0, 0, 5, 8};
-	const uint32_t overlay = UINT32_C(0x123456);
-	const uint32_t partial_overlay = UINT32_C(0x456789);
-	const uint32_t right_margin = UINT32_C(0x234567);
-	const uint32_t bottom_margin = UINT32_C(0x345678);
-	const uint32_t blit_colour = UINT32_C(0x56789a);
+	const uint32_t overlay = ST_PIXEL_COLOR_RGB_VALUE(0x12, 0x34, 0x56);
+	const uint32_t partial_overlay = ST_PIXEL_COLOR_RGB_VALUE(0x45, 0x67,
+	    0x89);
+	const uint32_t right_margin = ST_PIXEL_COLOR_RGB_VALUE(0x23, 0x45,
+	    0x67);
+	const uint32_t bottom_margin = ST_PIXEL_COLOR_RGB_VALUE(0x34, 0x56,
+	    0x78);
+	const uint32_t blit_colour = ST_PIXEL_COLOR_RGB_VALUE(0x56, 0x78,
+	    0x9a);
 	const struct st_console_rect partial_window = {0, 0, 1, 2};
 	st_console_t *console = NULL;
 	st_console_snapshot_t *snapshot = NULL;
@@ -910,7 +952,7 @@ test_saa5050_double_height_raster(void)
 	st_console_t *console = NULL;
 	struct st_pixel_buffer *pixels = NULL;
 	struct st_pixel_buffer *forced = NULL;
-	const uint32_t foreground = UINT32_C(0xaaaaaa);
+	const uint32_t foreground = 7;
 	uint16_t font_identifier;
 
 	CHECK(st_console_create(&console, &config_display, &config) == 0);
@@ -1248,7 +1290,8 @@ static void
 test_ansi_output_modes(void)
 {
 	static const char *const foregrounds[] = {
-		"\033[94m", "\033[38;5;12m", "\033[94m", "\033[38;5;12m",
+		"\033[91m", "\033[38;5;203m", "\033[38;2;255;84;84m",
+		"\033[38;2;255;84;84m",
 	};
 	static const char *const rgb_foregrounds[] = {
 		"\033[96m", "\033[38;5;43m", "\033[38;2;0;215;175m",
@@ -1278,8 +1321,14 @@ test_ansi_output_modes(void)
 		struct st_console_cell cells[9];
 		const struct st_console_rect screen = {0, 0, 3, 3};
 		st_console_t *console = NULL;
+		uint32_t capabilities;
 
 		CHECK(st_console_create(&console, &config_display, &config) == 0);
+		CHECK(st_console_capabilities(console, &capabilities) == 0);
+		CHECK(((capabilities & ST_CONSOLE_CAP_PALETTE_CHANGE) != 0)
+		    == direct_colour[mode]);
+		CHECK(((capabilities & ST_CONSOLE_CAP_EXTENDED_PALETTE) != 0)
+		    == direct_colour[mode]);
 		for (size_t i = 0; i < 9; ++i) {
 			cells[i] = (struct st_console_cell){
 				.codepoint = (uint32_t)('a' + i / 3),
@@ -1601,6 +1650,9 @@ struct multi_display_state {
 	unsigned int presents;
 	unsigned int resizes;
 	unsigned int palettes;
+	uint16_t palette_first;
+	uint32_t palette_count;
+	const uint32_t *palette_colours;
 	unsigned int titles;
 	unsigned int pointers;
 	bool pointer_visible;
@@ -1677,16 +1729,19 @@ multi_resize(st_console_t *console, uint32_t columns, uint32_t rows)
 	return multi_fail(state, console, 1);
 }
 
-static int
-multi_palette(st_console_t *console, uint16_t first, uint16_t count)
+static void
+multi_palette(st_console_t *console, uint16_t first,
+	const uint32_t *colours, uint32_t count)
 {
 	struct multi_display_state *state = console->display->backend_state;
 
 	CHECK(atomic_load(&console->display->active) == console);
-	(void)first;
-	(void)count;
+	CHECK(count != 0 && count <= UINT16_MAX + UINT32_C(1) - first);
+	CHECK(colours == &console->palette[first]);
+	state->palette_first = first;
+	state->palette_count = count;
+	state->palette_colours = colours;
 	++state->palettes;
-	return multi_fail(state, console, 2);
 }
 
 static int
@@ -1819,8 +1874,23 @@ test_multiple_consoles_one_display(void)
 	CHECK(st_console_display_activate(display, second) == 0);
 	CHECK(state.presented == second && state.presents == 1);
 	CHECK(state.resizes == 1 && state.palettes == 1);
+	CHECK(state.palette_first == 0
+	    && state.palette_count == UINT16_MAX + UINT32_C(1)
+	    && state.palette_colours == second->palette);
 	CHECK(state.titles == 1 && strcmp(state.title, "Second") == 0);
 	CHECK(state.pointers == 1 && !state.pointer_visible);
+	{
+		const uint32_t colours[3] = {1, 0, 2};
+		unsigned int before = state.palettes;
+
+		CHECK(st_console_begin_update(second) == 0);
+		CHECK(st_console_set_palette(second, 60000, colours, 3) == 0);
+		CHECK(state.palettes == before + 1);
+		CHECK(state.palette_first == 60000 && state.palette_count == 3);
+		CHECK(state.palette_colours == &second->palette[60000]);
+		CHECK(st_console_set_palette(second, 60000, colours, 3) == 0);
+		CHECK(state.palettes == before + 1);
+	}
 	CHECK(st_console_display_post_event(display, &second_event) == 0);
 	CHECK(st_console_event_try(first, &event) == 0);
 	CHECK(event.data.key.code == 'A');
@@ -1828,8 +1898,13 @@ test_multiple_consoles_one_display(void)
 	CHECK(event.data.key.code == 'B');
 	CHECK(st_console_event_try(first, &event) == IO_ERROR_WOULD_BLOCK);
 	CHECK(st_console_event_try(second, &event) == IO_ERROR_WOULD_BLOCK);
-	CHECK(st_console_display_activate(display, first) == 0);
-	CHECK(state.presented == first && state.presents == 2);
+	{
+		unsigned int before = state.presents;
+
+		CHECK(st_console_display_activate(display, first) == 0);
+		CHECK(state.presented == first && state.presents == before + 1);
+	}
+	CHECK(st_console_end_update(second) == 0);
 	{
 		st_thread_t switchers[2];
 		unsigned int before = state.presents;
@@ -1854,7 +1929,10 @@ test_multiple_consoles_one_display(void)
 		}
 		CHECK(st_thread_join(writer, NULL) == ST_THREAD_SUCCESS);
 	}
-	for (unsigned int stage = 1; stage <= 5; ++stage) {
+	static const unsigned int failing_stages[] = {1, 3, 4, 5};
+	for (size_t failure = 0; failure < sizeof(failing_stages)
+	    / sizeof(failing_stages[0]); ++failure) {
+		unsigned int stage = failing_stages[failure];
 		state.fail_console = second;
 		state.fail_stage = stage;
 		state.failures_left = 1;

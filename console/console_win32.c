@@ -13,9 +13,11 @@
 #include "io_error.h"
 #include "st_windows_utf.h"
 
+#include <inttypes.h>
 #include <limits.h>
 #include <stdatomic.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <wchar.h>
@@ -37,6 +39,8 @@ struct win32_state {
 	bool input_mode_changed;
 	bool output_activated;
 	bool display_mode_known;
+	bool invalid_colour;
+	uint32_t invalid_colour_value;
 };
 
 static atomic_flag win32_in_use = ATOMIC_FLAG_INIT;
@@ -58,23 +62,36 @@ utf16_to_utf8(const wchar_t *text)
 }
 
 static WORD
-console_colour(uint32_t colour, bool background)
+console_colour(const st_console_t *console, struct win32_state *state,
+	uint32_t colour, bool background)
 {
-	static const unsigned char rgb_order[8] = {0, 4, 2, 6, 1, 5, 3, 7};
-	unsigned int value;
+	uint32_t rgb;
+	uint32_t best_distance = UINT32_MAX;
+	unsigned int value = 0;
 
-	if (ST_CONSOLE_COLOR_IS_RGB(colour)) {
-		unsigned int red = (colour >> 16) & 0xff;
-		unsigned int green = (colour >> 8) & 0xff;
-		unsigned int blue = colour & 0xff;
-
-		value = rgb_order[(red >= 128 ? 1U : 0U)
-		    | (green >= 128 ? 2U : 0U) | (blue >= 128 ? 4U : 0U)];
-		if (red >= 192 || green >= 192 || blue >= 192)
-			value |= 8;
+	if (!st_console_colour_rgb_locked(console, colour, &rgb)) {
+		if (!state->invalid_colour) {
+			state->invalid_colour = true;
+			state->invalid_colour_value = colour;
+		}
+		rgb = 0;
 	}
-	else
-		value = (unsigned int)colour & 15U;
+	for (unsigned int i = 0; i < 16; ++i) {
+		uint32_t candidate = console->palette[i];
+		int32_t red = (int32_t)((rgb >> 16) & UINT32_C(0xff))
+		    - (int32_t)((candidate >> 16) & UINT32_C(0xff));
+		int32_t green = (int32_t)((rgb >> 8) & UINT32_C(0xff))
+		    - (int32_t)((candidate >> 8) & UINT32_C(0xff));
+		int32_t blue = (int32_t)(rgb & UINT32_C(0xff))
+		    - (int32_t)(candidate & UINT32_C(0xff));
+		uint32_t distance = (uint32_t)(red * red + green * green
+		    + blue * blue);
+
+		if (distance < best_distance) {
+			best_distance = distance;
+			value = i;
+		}
+	}
 	if (background)
 		return (WORD)(((value & 7U) << 4)
 		    | ((value & 8U) != 0 ? BACKGROUND_INTENSITY : 0));
@@ -83,7 +100,8 @@ console_colour(uint32_t colour, bool background)
 }
 
 static WORD
-cell_attributes(const struct st_console_cell *cell)
+cell_attributes(const st_console_t *console, struct win32_state *state,
+	const struct st_console_cell *cell)
 {
 	uint32_t foreground = cell->foreground;
 	uint32_t background = cell->background;
@@ -95,8 +113,8 @@ cell_attributes(const struct st_console_cell *cell)
 		foreground = background;
 		background = temporary;
 	}
-	result = console_colour(foreground, false)
-	    | console_colour(background, true);
+	result = console_colour(console, state, foreground, false)
+	    | console_colour(console, state, background, true);
 	if ((cell->flags & ST_CONSOLE_CELL_UNDERLINE) != 0)
 		result |= COMMON_LVB_UNDERSCORE;
 	return result;
@@ -160,7 +178,7 @@ write_run(struct win32_state *state, const st_console_t *console,
 			const struct st_console_cell *cell = &console->cells[index];
 
 			buffer[i].Char.UnicodeChar = cell_character(cell);
-			buffer[i].Attributes = cell_attributes(cell);
+			buffer[i].Attributes = cell_attributes(console, state, cell);
 			if ((cell->flags & ST_CONSOLE_CELL_CONTINUATION) != 0)
 				buffer[i].Attributes |= COMMON_LVB_TRAILING_BYTE;
 			else if (i + offset + first + 1 < console->columns
@@ -196,6 +214,7 @@ win32_present(st_console_t *console)
 
 	if (console->columns > SHRT_MAX || console->rows > SHRT_MAX)
 		return IO_ERROR_OUT_OF_RANGE;
+	state->invalid_colour = false;
 	if (state->columns != console->columns || state->rows != console->rows) {
 		status = allocate_drawn(state, console->columns, console->rows);
 		if (status != 0)
@@ -235,6 +254,9 @@ win32_present(st_console_t *console)
 			}
 		}
 	}
+	if (state->invalid_colour)
+		fprintf(stderr, "win32 console: invalid colour value %08" PRIx32
+		    "; using black\n", state->invalid_colour_value);
 	st_console_cursor_span_locked(console, &cursor_x, &cursor_columns);
 	(void)cursor_columns;
 	position.X = (SHORT)cursor_x;
@@ -507,27 +529,27 @@ input_worker(void *argument)
 	return 0;
 }
 
-static int
-win32_palette_changed(st_console_t *console, uint16_t first, uint16_t count)
+static void
+win32_palette_changed(st_console_t *console, uint16_t first,
+	const uint32_t *colours, uint32_t count)
 {
 	struct win32_state *state = console->display->backend_state;
 	CONSOLE_SCREEN_BUFFER_INFOEX information = {
 		.cbSize = sizeof(information),
 	};
-	uint16_t end = first + count;
+	uint32_t end = (uint32_t)first + count;
 
 	if (!GetConsoleScreenBufferInfoEx(state->output, &information))
-		return IO_ERROR_NOT_SUPPORTED;
+		return;
 	if (end > 16)
 		end = 16;
-	for (uint16_t i = first; i < end; ++i) {
-		uint32_t colour = console->palette[i];
+	for (uint32_t i = first; i < end; ++i) {
+		uint32_t colour = colours[i - first];
 
 		information.ColorTable[i] = RGB((colour >> 16) & 0xff,
 		    (colour >> 8) & 0xff, colour & 0xff);
 	}
-	return SetConsoleScreenBufferInfoEx(state->output, &information)
-	    ? 0 : IO_ERROR_IO;
+	(void)SetConsoleScreenBufferInfoEx(state->output, &information);
 }
 
 static int
@@ -690,11 +712,19 @@ win32_attach(st_console_t *console)
 	return 0;
 }
 
+static uint32_t
+win32_capabilities(const st_console_t *console)
+{
+	(void)console;
+	return ST_CONSOLE_CAP_PALETTE_CHANGE;
+}
+
 static const struct st_console_backend_ops win32_ops = {
 	.attach = win32_attach,
 	.present = win32_present,
 	.resize = win32_resize,
 	.palette_changed = win32_palette_changed,
+	.capabilities = win32_capabilities,
 	.set_title = win32_set_title,
 	.set_clipboard_text = win32_set_clipboard,
 	.get_clipboard_text = win32_get_clipboard,

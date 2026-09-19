@@ -1,4 +1,4 @@
-/* Owned pixel buffers, one-bit masks, and nearest-neighbour blits. */
+/* Owned native-colour buffers, RGB images, masks, and pixel scaling. */
 
 /*
  * Copyright (c) 2026 Stephen Hurd
@@ -12,12 +12,27 @@
 #include <stdint.h>
 
 struct st_pixel_buffer {
-	/* Pixel planes are packed 0x00RRGGBB; they never contain palette indexes. */
+	/* Values are palette indexes or ST_PIXEL_COLOR_RGB-tagged RGB. */
 	uint32_t *primary;
 	uint32_t *alternate;
 	uint32_t width;
 	uint32_t height;
 };
+
+struct st_rgb_buffer {
+	/* Pixels are packed 0x00RRGGBB with no tag or palette indexes. */
+	uint32_t *pixels;
+	uint32_t width;
+	uint32_t height;
+};
+
+#define ST_PIXEL_COLOR_RGB_TAG UINT32_C(0x80000000)
+#define ST_PIXEL_COLOR_RGB_VALUE(red, green, blue) \
+	(ST_PIXEL_COLOR_RGB_TAG | (((uint32_t)(red) & UINT32_C(0xff)) << 16) \
+	    | (((uint32_t)(green) & UINT32_C(0xff)) << 8) \
+	    | ((uint32_t)(blue) & UINT32_C(0xff)))
+#define ST_PIXEL_COLOR_IS_RGB(colour) \
+	(((colour) & ST_PIXEL_COLOR_RGB_TAG) != 0)
 
 struct st_pixel_mask {
 	uint8_t *bits;
@@ -64,6 +79,9 @@ int st_pixel_buffer_clone(struct st_pixel_buffer **result,
 int st_pixel_buffer_ensure_alternate(struct st_pixel_buffer *buffer);
 void st_pixel_buffer_remove_alternate(struct st_pixel_buffer *buffer);
 void st_pixel_buffer_destroy(struct st_pixel_buffer *buffer);
+int st_rgb_buffer_create(struct st_rgb_buffer **result, uint32_t width,
+	uint32_t height);
+void st_rgb_buffer_destroy(struct st_rgb_buffer *buffer);
 
 /* Mask rows are contiguous and bits are MSB-first. */
 int st_pixel_mask_create(struct st_pixel_mask **result, uint32_t width,
@@ -76,20 +94,16 @@ void st_pixel_mask_destroy(struct st_pixel_mask *mask);
 
 int st_pixel_buffer_fill(struct st_pixel_buffer *buffer, uint32_t primary,
 	uint32_t alternate);
-/* Compatibility allocator using the blocky scaling policy. */
-int st_pixel_buffer_scale(struct st_pixel_buffer **result,
-	const struct st_pixel_buffer *source, uint32_t width, uint32_t height);
 /* The returned plane is borrowed until the next scale call or destruction. */
 int st_pixel_scaler_create(st_pixel_scaler_t **result);
 void st_pixel_scaler_destroy(st_pixel_scaler_t *scaler);
 int st_pixel_scaler_scale(st_pixel_scaler_t *scaler,
-	const struct st_pixel_buffer **result, const uint32_t *source,
-	uint32_t source_width, uint32_t source_height, uint32_t width,
-	uint32_t height, enum st_pixel_scaling_policy policy);
+	const struct st_rgb_buffer **result, const struct st_rgb_buffer *source,
+	uint32_t width, uint32_t height,
+	enum st_pixel_scaling_policy policy);
 /* Updates a previously scaled result after the indicated source damage. */
 int st_pixel_scaler_scale_region(st_pixel_scaler_t *scaler,
-	const struct st_pixel_buffer **result, const uint32_t *source,
-	uint32_t source_width, uint32_t source_height,
+	const struct st_rgb_buffer **result, const struct st_rgb_buffer *source,
 	const struct st_pixel_rect *damage, struct st_pixel_rect *output_damage);
 /*
  * Blits clip against the destination. The mask, when present, addresses the
