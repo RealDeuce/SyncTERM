@@ -86,7 +86,8 @@ It supports multiple windows and Retina backing scales without requiring SDL.
 video subsurface.  Alt+left-drag requests an interactive move when server-side
 decorations are absent.
 |X11 |Bitmap |Native Xlib output.  XRender, XRandR, and Xinerama are used when
-present.
+present.  Copy and paste use the X11 primary selection, with the legacy
+clipboard fallback retained for ChromeOS Sommelier.
 |SDL |Bitmap |Portable graphical fallback, especially useful on Haiku.  Native
 window backends are preferred where available.
 |libretro |Bitmap host |Pull-based presentation for the enclosing libretro run

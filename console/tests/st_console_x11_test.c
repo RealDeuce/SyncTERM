@@ -245,6 +245,20 @@ check_window_metadata(const char *title)
 }
 
 static int
+check_primary_owner(const char *title)
+{
+	Display *display = XOpenDisplay(NULL);
+	Window window;
+
+	CHECK(display != NULL);
+	window = find_named_window(display, DefaultRootWindow(display), title);
+	CHECK(window != None);
+	CHECK(XGetSelectionOwner(display, XA_PRIMARY) == window);
+	(void)XCloseDisplay(display);
+	return 0;
+}
+
+static int
 window_position(Display *display, Window window, int *x, int *y)
 {
 	Window child;
@@ -598,12 +612,14 @@ main(void)
 	    107, 80) == 0);
 
 	CHECK(st_console_set_clipboard_text(first, "first: \xc2\xa3") == 0);
+	CHECK(check_primary_owner("st_console X11 input test") == 0);
 	CHECK(st_console_get_clipboard_text(first, &clipboard) == 0);
 	CHECK(strcmp(clipboard, "first: \xc2\xa3") == 0);
 	st_console_free_text(clipboard);
 	clipboard = NULL;
 	CHECK(st_console_set_clipboard_text(second, "second: \xf0\x9f\x99\x82")
 	    == 0);
+	CHECK(check_primary_owner("st_console X11 test two") == 0);
 	CHECK(st_console_get_clipboard_text(first, &clipboard) == 0);
 	CHECK(strcmp(clipboard, "second: \xf0\x9f\x99\x82") == 0);
 	st_console_free_text(clipboard);

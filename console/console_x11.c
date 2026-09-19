@@ -337,6 +337,7 @@ struct x11_state {
 	Atom net_wm_window_type_normal;
 	Atom utf8_string;
 	Atom clipboard_atom;
+	Atom selection_atom;
 	Atom targets_atom;
 	Atom clipboard_property;
 	Atom net_wm_state;
@@ -347,6 +348,7 @@ struct x11_state {
 	Atom net_wm_maximized_vertical;
 	Atom net_wm_maximized_horizontal;
 	char *clipboard;
+	bool sommelier;
 #if ST_CONSOLE_HAVE_XRENDER
 	bool render_available;
 	Pixmap render_pixmap;
@@ -1259,7 +1261,7 @@ static int
 get_clipboard(struct x11_state *state, char **result)
 {
 	Window owner = state->api.get_selection_owner(state->display,
-	    state->clipboard_atom);
+	    state->selection_atom);
 	struct pollfd descriptor;
 	uint32_t start;
 
@@ -1274,7 +1276,7 @@ get_clipboard(struct x11_state *state, char **result)
 	}
 	(void)state->api.delete_property(state->display, state->window,
 	    state->clipboard_property);
-	(void)state->api.convert_selection(state->display, state->clipboard_atom,
+	(void)state->api.convert_selection(state->display, state->selection_atom,
 	    state->utf8_string != None ? state->utf8_string : XA_STRING,
 	    state->clipboard_property, state->window, CurrentTime);
 	(void)state->api.flush(state->display);
@@ -1287,7 +1289,7 @@ get_clipboard(struct x11_state *state, char **result)
 
 			(void)state->api.next_event(state->display, &event);
 			if (event.type == SelectionNotify
-			    && event.xselection.selection == state->clipboard_atom) {
+			    && event.xselection.selection == state->selection_atom) {
 				if (event.xselection.property == None)
 					return IO_ERROR_NOT_SUPPORTED;
 				return clipboard_result(state, result);
@@ -1314,7 +1316,7 @@ selection_request(struct x11_state *state,
 	response.xselection.target = request->target;
 	response.xselection.time = request->time;
 	response.xselection.property = None;
-	if (request->selection == state->clipboard_atom
+	if (request->selection == state->selection_atom
 	    && state->clipboard != NULL) {
 		if (request->target == state->targets_atom) {
 			Atom targets[3] = {state->targets_atom, XA_STRING,
@@ -1606,6 +1608,24 @@ initialize_ewmh_atoms(struct x11_state *state)
 	    || !window_property(state, (Window)manager, check, XA_WINDOW,
 	    &manager_check) || manager_check != manager)
 		return;
+	{
+		Atom type = None;
+		int format = 0;
+		unsigned long count = 0;
+		unsigned long trailing = 0;
+		unsigned char *data = NULL;
+		Atom wm_name = state->api.intern_atom(state->display,
+		    "_NET_WM_NAME", False);
+
+		if (state->api.get_window_property(state->display, (Window)manager,
+		    wm_name, 0, 64, False, AnyPropertyType, &type, &format, &count,
+		    &trailing, &data) == Success && format == 8 && data != NULL
+		    && count == strlen("Sommelier")
+		    && memcmp(data, "Sommelier", count) == 0)
+			state->sommelier = true;
+		if (data != NULL)
+			(void)state->api.free_memory(data);
+	}
 	while (remaining != 0) {
 		Atom type = None;
 		int format = 0;
@@ -1942,7 +1962,7 @@ handle_event(struct x11_state *state, XEvent *event)
 		selection_request(state, &event->xselectionrequest);
 		break;
 	case SelectionClear:
-		if (event->xselectionclear.selection == state->clipboard_atom) {
+		if (event->xselectionclear.selection == state->selection_atom) {
 			free(state->clipboard);
 			state->clipboard = NULL;
 		}
@@ -2085,9 +2105,9 @@ process_command(struct x11_state *state, struct x11_command *command)
 		free(state->clipboard);
 		state->clipboard = copy;
 		(void)state->api.set_selection_owner(state->display,
-		    state->clipboard_atom, state->window, CurrentTime);
+		    state->selection_atom, state->window, CurrentTime);
 		return state->api.get_selection_owner(state->display,
-		    state->clipboard_atom) == state->window ? 0 : IO_ERROR_IO;
+		    state->selection_atom) == state->window ? 0 : IO_ERROR_IO;
 	}
 	case X11_COMMAND_GET_CLIPBOARD:
 		return get_clipboard(state, command->data.text_result);
@@ -2248,6 +2268,8 @@ create_x11_objects(struct x11_state *state)
 		    protocols, protocol_count);
 	state->clipboard_atom = state->api.intern_atom(state->display,
 	    "CLIPBOARD", False);
+	state->selection_atom = state->sommelier
+	    && state->clipboard_atom != None ? state->clipboard_atom : XA_PRIMARY;
 	state->targets_atom = state->api.intern_atom(state->display,
 	    "TARGETS", False);
 	state->clipboard_property = state->api.intern_atom(state->display,
