@@ -77,6 +77,7 @@ main(void)
 	st_console_t *console = NULL;
 	struct st_console_cell cells[2];
 	struct st_console_font builtin;
+	struct st_console_font cp437_builtin;
 	struct st_console_style style;
 	uint16_t font8;
 	uint16_t font16;
@@ -125,6 +126,12 @@ main(void)
 	CHECK(!st_builtin_font_get(0, 9, 16, &builtin));
 	CHECK(!st_builtin_font_get(ST_BUILTIN_FONT_COUNT, 8, 16, &builtin));
 	CHECK(!st_builtin_font_get(0, 8, 16, NULL));
+	CHECK(st_builtin_font_get(0, 8, 16, &cp437_builtin));
+	CHECK(st_builtin_font_get(14, 8, 16, &builtin));
+	CHECK(cp437_builtin.glyph_stride == builtin.glyph_stride);
+	CHECK(memcmp(cp437_builtin.bitmap + 'q' * cp437_builtin.glyph_stride,
+	    builtin.bitmap + 'q' * builtin.glyph_stride,
+	    builtin.glyph_stride) == 0);
 	CHECK(st_builtin_font_get(43, 8, 16, &builtin));
 	CHECK(st_console_register_static_font(console, &builtin,
 	    &prestel) == 0);
