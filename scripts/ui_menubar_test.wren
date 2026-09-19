@@ -26,6 +26,7 @@ class UiMenubarTest {
     testDrawShowsLabels_()
     testFocusedItemHasDifferentStyle_()
     testUnfocusedBarHasNoHighlightedItem_()
+    testPressAndClickActivateOnce_()
 
     var total = __pass + __fail
     System.print("=== ui_menubar: %(total) tests, %(__pass) pass, %(__fail) fail ===")
@@ -39,6 +40,16 @@ class UiMenubarTest {
       __fail = __fail + 1
       System.print("  FAIL %(label)")
     }
+  }
+
+  static testPressAndClickActivateOnce_() {
+    var activations = 0
+    var bar = makeBar_(Fn.new {|label| activations = activations + 1 })
+    // The host translates left-button down to Press and up to Click.
+    bar.handle(MouseEvent.new(Mouse.button1Press, 2, 1, 2, 1))
+    bar.handle(MouseEvent.new(Mouse.button1Click, 2, 1, 2, 1))
+    check_(activations == 1,
+           "MenuBar: one press/release gesture activates a resident command once")
   }
 
   static makeBar_(onFire) {

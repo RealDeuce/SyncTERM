@@ -43,8 +43,9 @@ class UiRadioTest {
 
   static testDefaults_() {
     var g = RadioGroup.new()
-    check_(g.count == 0 && g.selected == null && g.focusable == true,
-           "RadioGroup: empty, no selection, focusable")
+    check_(g.count == 0 && g.selected == null && g.cursor == null &&
+           g.focusable == true,
+           "RadioGroup: empty, no selection or cursor, focusable")
   }
 
   static testItemsSetsSelectionAndCursor_() {

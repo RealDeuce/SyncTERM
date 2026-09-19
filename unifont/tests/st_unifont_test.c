@@ -52,6 +52,19 @@ main(void)
 	CHECK(st_console_register_static_font(console, &st_unscii_16_font,
 	    &unscii) == 0);
 	CHECK(composite == 0 && unscii == 1);
+	/* Every overlay entry, including wide glyphs, must retain UNSCII's
+	 * exact bitmap and width in the composite.
+	 */
+	for (size_t i = 0; i < st_unscii_16_font.mapping_count; ++i) {
+		const struct st_console_font_mapping *entry = &st_unscii_16_font.mapping[i];
+		bool wide = entry->glyph >= st_unscii_16_font.glyph_count;
+		CHECK(st_console_font_lookup(console, composite, entry->codepoint,
+		    &glyph_font, &composite_glyph, &columns) == 0);
+		CHECK(glyph_font == composite);
+		CHECK(columns == (wide ? 2 : 1));
+		CHECK(memcmp(glyph_bitmap(&st_unscii_16_font, entry->glyph),
+		    glyph_bitmap(&st_unifont_font, composite_glyph), wide ? 32 : 16) == 0);
+	}
 	CHECK(st_console_font_lookup(console, unscii, UINT32_C(0x2592),
 	    &glyph_font, &unscii_glyph, &columns) == 0
 	    && glyph_font == unscii && columns == 1);

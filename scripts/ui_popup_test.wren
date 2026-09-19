@@ -7,15 +7,17 @@ import "ui_widget" for Rect, Container
 import "ui_popup"  for Alert, Confirm, Prompt, LinePrompt, Find, Popup,
                        PopStatus
 import "ui_help" for Help
+import "ui_style" for Theme
 import "menu_ui" for MenuUi, ModalPane, StandaloneChoice
 import "syncterm"  for KeyEvent, Key, Screen
 
 class FakeApp {
   construct new() {
     _stack = []
-    _theme = null
+    _theme = Theme.default
   }
   modalStack { _stack }
+  modalTop { _stack.count == 0 ? null : _stack[-1] }
   effectiveTheme { _theme }
   markDirty() {}
   pushModal(w) {
@@ -116,6 +118,11 @@ class UiPopupTest {
     testStandaloneChoiceKeepsActionsVisible_()
     testStandaloneChoiceScrollsMessage_()
     testModalPaneEscDismisses_()
+    testWrappingAscii_()
+    testWrappingUnicode_()
+    testBrowserAcceptAndCancel_()
+    testBrowserRejectedAccept_()
+    testBrowserCommandRestoresPreview_()
 
     var total = __pass + __fail
     System.print("=== ui_popup: %(total) tests, %(__pass) pass, %(__fail) fail ===")
@@ -129,6 +136,71 @@ class UiPopupTest {
       __fail = __fail + 1
       System.print("  FAIL %(label)")
     }
+  }
+
+  static testBrowserAcceptAndCancel_() {
+    var rows = [[10, "One"], [20, "Two"]]
+    var app = CommandFakeApp.new(Key.enter, 1)
+    var accepted = null
+    var canceled = 0
+    var result = MenuUi.browserChoice(app, "Browser", rows, 10,
+        Fn.new {|v| "Help" }, Fn.new {|v| null },
+        Fn.new {|v|
+          accepted = v
+          return true
+        }, Fn.new { canceled = canceled + 1 })
+    check_(result == 20 && accepted == 20 && canceled == 0 &&
+        app.modalStack.count == 0,
+        "browser acceptance returns mapped value without cancel callback")
+    app = EscapeFakeApp.new()
+    result = MenuUi.browserChoice(app, "Browser", rows, 10,
+        Fn.new {|v| "Help" }, Fn.new {|v| null }, Fn.new {|v| true },
+        Fn.new { canceled = canceled + 1 })
+    check_(result == null && canceled == 1 && app.modalStack.count == 0,
+        "browser Escape invokes cancellation once and removes pane")
+  }
+
+  static testBrowserRejectedAccept_() {
+    var app = CommandFakeApp.new(Key.enter, 0)
+    var canceled = false
+    var result = MenuUi.browserChoice(app, "Browser", [[10, "Info"]], 10,
+        Fn.new {|v| "Help" }, Fn.new {|v| null }, Fn.new {|v| false },
+        Fn.new { canceled = true })
+    check_(result == null && app.modalStack.count == 1 && !canceled,
+        "browser rejected acceptance leaves its pane open")
+    app.popModal()
+  }
+
+  static testBrowserCommandRestoresPreview_() {
+    var app = CommandFakeApp.new(Key.f2, 1)
+    var canceled = 0
+    var commands = {}
+    commands[Key.f2] = ["edit", false]
+    var result = MenuUi.browserCommandChoice(app, "Browser",
+        [[10, "One"], [20, "Two"]], 10, Fn.new {|v| "Help" },
+        Fn.new {|v| null }, Fn.new {|v| true },
+        Fn.new { canceled = canceled + 1 }, commands)
+    check_(result[0] == "edit" && result[1] == 20 && canceled == 1 &&
+        app.modalStack.count == 0,
+        "browser direct command restores preview and returns mapped command")
+  }
+
+  static testWrappingAscii_() {
+    var lines = Popup.wrap_("ab cd\r\nef\rg\n", 3)
+    check_(lines.count == 5 && lines[0] == "ab" && lines[1] == "cd" &&
+           lines[2] == "ef" && lines[3] == "g" && lines[4] == "",
+           "wrapping preserves hard breaks including a trailing empty line")
+  }
+
+  static testWrappingUnicode_() {
+    var lines = Popup.wrap_("\u00e9\u00e9", 1)
+    System.print("wrap audit: accented input -> %(lines.count) rows [%(lines.join("|"))]")
+    check_(lines.count == 2 && lines[0] == "\u00e9" && lines[1] == "\u00e9",
+           "one-cell wrapping keeps each CP437-representable Unicode glyph intact")
+    lines = Popup.wrap_("\u2500\u2500", 2)
+    System.print("wrap audit: box input -> %(lines.count) rows [%(lines.join("|"))]")
+    check_(lines.count == 1 && lines[0] == "\u2500\u2500",
+           "two box-drawing glyphs fit a two-cell line")
   }
 
   // ----- Alert ----------------------------------------------------

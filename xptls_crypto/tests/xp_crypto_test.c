@@ -111,6 +111,15 @@ test_aes(void)
 	    key, sizeof(key), iv, sizeof(iv), 0, encrypted, sizeof(encrypted),
 	    output, sizeof(output)) == XP_CRYPTO_OK);
 	CHECK(memcmp(output, plain, sizeof(plain)) == 0);
+	memcpy(output, plain, sizeof(output));
+	CHECK(xp_cipher_crypt(XP_CIPHER_AES, XP_CIPHER_ENCRYPT,
+	    key, sizeof(key), iv, sizeof(iv), 0, output, sizeof(output),
+	    output, sizeof(output)) == XP_CRYPTO_OK);
+	CHECK(memcmp(output, encrypted, sizeof(encrypted)) == 0);
+	CHECK(xp_cipher_crypt(XP_CIPHER_AES, XP_CIPHER_DECRYPT,
+	    key, sizeof(key), iv, sizeof(iv), 0, output, sizeof(output),
+	    output, sizeof(output)) == XP_CRYPTO_OK);
+	CHECK(memcmp(output, plain, sizeof(plain)) == 0);
 	CHECK(xp_cipher_crypt(XP_CIPHER_AES, XP_CIPHER_ENCRYPT,
 	    key, sizeof(key), iv, sizeof(iv), 0, NULL, 0, NULL, 0)
 	    == XP_CRYPTO_OK);
@@ -183,10 +192,44 @@ test_provider(void)
 	return test_digest() && test_kdf() && test_aes() && test_chacha20();
 }
 
+static bool
+test_digest_padding(void)
+{
+	static const unsigned char empty_expected[32] = {
+		0xe3,0xb0,0xc4,0x42,0x98,0xfc,0x1c,0x14,
+		0x9a,0xfb,0xf4,0xc8,0x99,0x6f,0xb9,0x24,
+		0x27,0xae,0x41,0xe4,0x64,0x9b,0x93,0x4c,
+		0xa4,0x95,0x99,0x1b,0x78,0x52,0xb8,0x55,
+	};
+	static const char boundary[] =
+	    "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq";
+	static const unsigned char boundary_expected[32] = {
+		0x24,0x8d,0x6a,0x61,0xd2,0x06,0x38,0xb8,
+		0xe5,0xc0,0x26,0x93,0x0c,0x3e,0x60,0x39,
+		0xa3,0x3c,0xe4,0x59,0x64,0xff,0x21,0x67,
+		0xf6,0xec,0xed,0xd4,0x19,0xdb,0x06,0xc1,
+	};
+	unsigned char digest[32];
+
+	CHECK(xp_digest(XP_DIGEST_SHA256, NULL, 0, digest, sizeof(digest))
+	    == XP_CRYPTO_OK);
+	CHECK(memcmp(digest, empty_expected, sizeof(digest)) == 0);
+	CHECK(sizeof(boundary) - 1 == 56);
+	CHECK(xp_digest(XP_DIGEST_SHA256, boundary, sizeof(boundary) - 1,
+	    digest, sizeof(digest)) == XP_CRYPTO_OK);
+	CHECK(memcmp(digest, boundary_expected, sizeof(digest)) == 0);
+	CHECK(xp_digest(XP_DIGEST_SHA256, NULL, 1, digest, sizeof(digest))
+	    == XP_CRYPTO_ERR_INVALID);
+	CHECK(xp_digest(XP_DIGEST_SHA256, boundary, sizeof(boundary) - 1,
+	    digest, sizeof(digest) - 1) == XP_CRYPTO_ERR_INVALID);
+	xp_crypto_clear(NULL, 0);
+	return true;
+}
+
 int
 main(void)
 {
-	if (!test_scrypt_parameters())
+	if (!test_scrypt_parameters() || !test_digest_padding())
 		return EXIT_FAILURE;
 	return test_provider() ? EXIT_SUCCESS : EXIT_FAILURE;
 }

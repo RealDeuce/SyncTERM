@@ -11,6 +11,18 @@ class FakeApp {
 }
 
 class MenuTest {
+  // Read-only subset for the isolated audit host, which has no list paths.
+  static runHelpers() {
+    __pass = 0
+    __fail = 0
+    testMoveCommit_()
+    testMoveCancel_()
+    testDelete_()
+    testEditorClear_()
+    testDiscovery_()
+    return [__pass, __fail]
+  }
+
   static run() {
     __pass = 0
     __fail = 0

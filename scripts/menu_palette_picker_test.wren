@@ -7,6 +7,32 @@ import "menu_palette_picker" for PaletteContrastPreview,
     PalettePickerContent, PalettePickerPane
 
 class MenuPalettePickerTest {
+  static runAudit() {
+    __pass = 0
+    __fail = 0
+    auditCase_("repetition", Fn.new { testShortPaletteRepetition_() })
+    auditCase_("contrast", Fn.new { testContrastDirections_() })
+    auditCase_("legacy attributes", Fn.new { testContrastLegacyAttributes_() })
+    auditCase_("sample click", Fn.new { testContrastClickSelectsSample_() })
+    auditCase_("commands", Fn.new { testPaneCommands_() })
+    auditCase_("layout", Fn.new { testCompactLayout_() })
+    auditCase_("padding", Fn.new { testContentPadding_() })
+    auditCase_("focus click", Fn.new { testRampClickPromotesFocus_() })
+    auditCase_("vertical navigation", Fn.new { testVerticalNavigationWrap_() })
+    auditCase_("Home End", Fn.new { testHomeEndNavigation_() })
+    auditCase_("child focus", Fn.new { testPickerChildFocusFollowsContainer_() })
+    return [__pass, __fail]
+  }
+
+  static auditCase_(label, test) {
+    var fiber = Fiber.new { test.call() }
+    fiber.try()
+    if (fiber.error != null) {
+      __fail = __fail + 1
+      System.print("  FAIL %(label): aborted: %(fiber.error)")
+    }
+  }
+
   static run() {
     __pass = 0
     __fail = 0

@@ -25,6 +25,8 @@ class UiProgressTest {
     testTallBarFillsAllRows_()
     testTinyBoundsTruncatesOverlay_()
     testTextRowsShareLeftEdge_()
+    testRepaintAfterDecrease_()
+    testTextRepaintAfterShrink_()
 
     var total = __pass + __fail
     System.print("=== ui_progress: %(total) tests, %(__pass) pass, %(__fail) fail ===")
@@ -38,6 +40,50 @@ class UiProgressTest {
       __fail = __fail + 1
       System.print("  FAIL %(label)")
     }
+  }
+
+  static testRepaintAfterDecrease_() {
+    var p = ProgressBar.new()
+    p.bounds = Rect.new(1, 1, 8, 2)
+    p.showPercent = false
+    p.set(8, 8)
+    p.draw()
+    p.current = 2
+    var sf = p.draw()
+    var ok = true
+    for (y in 0...2) {
+      for (x in 0...8) {
+        var expected = x < 2 ? 0xB1 : 0x20
+        if (sf.cellAt(x, y).chByte != expected) ok = false
+      }
+    }
+    check_(ok, "decreasing progress clears old fill on every row")
+    p.total = null
+    sf = p.draw()
+    ok = true
+    for (y in 0...2) {
+      for (x in 0...8) {
+        if (sf.cellAt(x, y).ch != " ") ok = false
+      }
+    }
+    check_(ok, "missing total clears previously filled bar")
+  }
+
+  static testTextRepaintAfterShrink_() {
+    var p = ProgressText.new()
+    p.bounds = Rect.new(1, 1, 8, 3)
+    p.lines = ["abcdef", "ghijkl", "mnopqr"]
+    p.draw()
+    p.lines = ["Z"]
+    var sf = p.draw()
+    var ok = true
+    for (y in 0...3) {
+      for (x in 0...8) {
+        var expected = x == 1 && y == 1 ? "Z" : " "
+        if (sf.cellAt(x, y).ch != expected) ok = false
+      }
+    }
+    check_(ok, "shortened progress text clears old rows and recenters")
   }
 
   static testDefaults_() {

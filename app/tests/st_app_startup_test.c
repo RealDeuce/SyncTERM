@@ -182,10 +182,79 @@ test_console_startup(void)
 	return 0;
 }
 
+static int
+test_legacy_mode_geometry(void)
+{
+	/* Expected geometry from legacy conio/vidmodes.c, not the new table.
+	 * CURRENT and CUSTOM are policies rather than fixed legacy modes.
+	 */
+	static const struct {
+		int mode;
+		uint32_t columns, rows, start, end, width, height;
+		uint32_t pixels_x, pixels_y, aspect_x, aspect_y;
+	} expected[] = {
+		{ST_SCREEN_MODE_80X25, 80, 25, 14, 15, 8, 16, 640, 400, 4, 3},
+		{ST_SCREEN_MODE_LCD_80X25, 80, 25, 14, 15, 8, 16, 640, 400, 8, 5},
+		{ST_SCREEN_MODE_132X37, 132, 37, 14, 15, 8, 16, 1056, 592, 16, 9},
+		{ST_SCREEN_MODE_132X52, 132, 52, 14, 15, 8, 16, 1056, 832, 5, 4},
+		{ST_SCREEN_MODE_C64, 40, 25, 0, 7, 8, 8, 320, 200, 6, 5},
+		{ST_SCREEN_MODE_C128_40, 40, 25, 0, 7, 8, 8, 320, 200, 6, 5},
+		{ST_SCREEN_MODE_C128_80, 80, 25, 0, 7, 8, 8, 640, 200, 4, 3},
+		{ST_SCREEN_MODE_ATARI, 40, 24, 0, 7, 8, 8, 320, 192, 4, 3},
+		{ST_SCREEN_MODE_ATARI_XEP80, 80, 25, 0, 15, 8, 16, 640, 400, 4, 3},
+		{ST_SCREEN_MODE_EGA_80X25, 80, 25, 12, 13, 8, 14, 640, 350, 4, 3},
+		{ST_SCREEN_MODE_VGA_80X25, 80, 25, 14, 15, 9, 16, 720, 400, 4, 3},
+		{ST_SCREEN_MODE_PRESTEL, 40, 25, 14, 15, 12, 20, 480, 500, 3077, 2400},
+		{ST_SCREEN_MODE_BEEB, 40, 25, 14, 15, 12, 20, 480, 500, 3077, 2400},
+		{ST_SCREEN_MODE_ATARIST_40X25, 40, 25, 0, 7, 8, 8, 320, 200, 4, 3},
+		{ST_SCREEN_MODE_ATARIST_80X25, 80, 25, 0, 7, 8, 8, 640, 200, 4, 3},
+		{ST_SCREEN_MODE_ATARIST_80X25_MONO, 80, 25, 0, 15, 8, 16, 640, 400, 4, 3},
+		{ST_SCREEN_MODE_80X28, 80, 28, 12, 13, 8, 14, 640, 392, 4, 3},
+		{ST_SCREEN_MODE_80X30, 80, 30, 14, 15, 8, 16, 640, 480, 4, 3},
+		{ST_SCREEN_MODE_80X43, 80, 43, 7, 7, 8, 8, 640, 350, 4, 3},
+		{ST_SCREEN_MODE_80X50, 80, 50, 7, 7, 8, 8, 640, 400, 4, 3},
+		{ST_SCREEN_MODE_80X60, 80, 60, 7, 7, 8, 8, 640, 480, 4, 3},
+		{ST_SCREEN_MODE_132X25, 132, 25, 14, 15, 8, 16, 1056, 400, 4, 3},
+		{ST_SCREEN_MODE_132X28, 132, 28, 12, 13, 8, 14, 1056, 392, 4, 3},
+		{ST_SCREEN_MODE_132X30, 132, 30, 14, 15, 8, 16, 1056, 480, 4, 3},
+		{ST_SCREEN_MODE_132X34, 132, 34, 12, 13, 8, 14, 1056, 476, 4, 3},
+		{ST_SCREEN_MODE_132X43, 132, 43, 7, 7, 8, 8, 1056, 350, 4, 3},
+		{ST_SCREEN_MODE_132X50, 132, 50, 7, 7, 8, 8, 1056, 400, 4, 3},
+		{ST_SCREEN_MODE_132X60, 132, 60, 7, 7, 8, 8, 1056, 480, 4, 3},
+	};
+	struct st_settings settings;
+	struct st_command_line command = {0};
+	struct st_console_startup startup;
+
+	st_settings_init(&settings);
+	settings.default_cursor = ST_CURSOR_DEFAULT;
+	settings.custom_columns = 80;
+	settings.custom_rows = 25;
+	settings.custom_font_height = 16;
+	for (size_t i = 0; i < sizeof(expected) / sizeof(expected[0]); ++i) {
+		settings.startup_mode = expected[i].mode;
+		CHECK(st_console_startup_configure(&startup, &settings, &command) == 0);
+		CHECK(startup.config.columns == expected[i].columns);
+		CHECK(startup.config.rows == expected[i].rows);
+		CHECK(startup.config.cell_width == expected[i].width);
+		CHECK(startup.config.cell_height == expected[i].height);
+		CHECK(startup.config.pixel_width == expected[i].pixels_x);
+		CHECK(startup.config.pixel_height == expected[i].pixels_y);
+		CHECK(startup.config.aspect_width == expected[i].aspect_x);
+		CHECK(startup.config.aspect_height == expected[i].aspect_y);
+		CHECK(startup.config.default_cursor.start == expected[i].start);
+		CHECK(startup.config.default_cursor.end == expected[i].end);
+	}
+	st_settings_dispose(&settings);
+	return 0;
+}
+
 int
 main(void)
 {
 	if (test_command_line() != 0)
+		return 1;
+	if (test_legacy_mode_geometry() != 0)
 		return 1;
 	return test_console_startup();
 }

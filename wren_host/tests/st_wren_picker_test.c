@@ -251,6 +251,50 @@ main(void)
 	CHECK(st_wren_picker_host_run(host, &call));
 	CHECK(call.path_count == 0 && call.completed);
 	st_wren_picker_call_dispose(&call);
+	/* Exercise the shipped script's other completion paths without opening
+	 * any selected file or driving a physical window. */
+	for (unsigned scenario = 0; scenario < 5; ++scenario) {
+		fprintf(stderr, "picker completion scenario %u\n", scenario);
+		struct st_console_event first = enter;
+		struct st_console_event second = enter;
+		bool multiple = scenario < 2;
+		bool cancel = scenario == 1;
+
+		call = (struct st_wren_picker_call){
+			.mode = multiple ? ST_WREN_PICKER_MULTIPLE
+			    : scenario == 2 ? ST_WREN_PICKER_DIRECTORY
+			    : ST_WREN_PICKER_SAVE,
+			.title = "Completion audit",
+			.initial_path = ST_WREN_PICKER_TEST_DIRECTORY,
+			.mask = "alpha.txt",
+			.options = scenario >= 3 ? ST_WREN_PICKER_ALLOW_APPEND : 0,
+		};
+		first.data.key.code = multiple ? 1 : scenario == 2 ? 10 : 13;
+		second.data.key.code = cancel ? 27 : multiple ? 10 : 'O';
+		if (scenario >= 3) {
+			second.type = ST_CONSOLE_EVENT_TEXT;
+			second.data.text.codepoint = scenario == 3 ? 'O' : 'A';
+		}
+		CHECK(st_console_display_activate(display, picker_console) == 0);
+		CHECK(st_console_post_event(picker_console, &first) == 0);
+		if (scenario != 2)
+			CHECK(st_console_post_event(picker_console, &second) == 0);
+		CHECK(st_console_display_activate(display, console) == 0);
+		CHECK(st_wren_picker_host_run(host, &call));
+		CHECK(call.completed && call.path_count == (cancel ? 0 : 1));
+		if (!cancel) {
+			CHECK(call.disposition == (scenario == 3
+			    ? ST_WREN_PICKER_DISPOSITION_OVERWRITE
+			    : scenario == 4 ? ST_WREN_PICKER_DISPOSITION_APPEND
+			    : ST_WREN_PICKER_DISPOSITION_READ));
+			struct fs_info info;
+
+			CHECK(fs_get_info(&info, call.paths[0]) == 0);
+			CHECK(info.kind == (scenario == 2
+			    ? FS_ENTRY_DIRECTORY : FS_ENTRY_FILE));
+		}
+		st_wren_picker_call_dispose(&call);
+	}
 	{
 		const struct st_console_backend_ops failing = {
 			.present = fail_menu_present,

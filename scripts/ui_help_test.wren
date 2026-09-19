@@ -3,7 +3,7 @@
 
 import "ui_widget"   for Rect
 import "ui_help"     for Help
-import "ui_markdown" for Markdown
+import "ui_markdown" for Markdown, MdRole
 import "syncterm"    for KeyEvent, MouseEvent, Key, Mouse
 
 class FakeApp {
@@ -59,6 +59,9 @@ class UiHelpTest {
     testOrdinaryClickDismisses_()
     testMiddleClickDismisses_()
     testDragFallsThrough_()
+    testSeparatorReflows_()
+    testCodeSpanKeepsLiteralMarkup_()
+    testBulletHardBreakKeepsIndent_()
 
     var total = __pass + __fail
     System.print("=== ui_help: %(total) tests, %(__pass) pass, %(__fail) fail ===")
@@ -72,6 +75,45 @@ class UiHelpTest {
       __fail = __fail + 1
       System.print("  FAIL %(label)")
     }
+  }
+
+  static testCodeSpanKeepsLiteralMarkup_() {
+    var runs = Markdown.parseInline_("`**literal**`", MdRole.text)
+    check_(runs.count == 1 && runs[0].text == "**literal**" &&
+           runs[0].role == MdRole.code,
+           "Markdown: bold delimiters inside a code span remain literal")
+  }
+
+  static testBulletHardBreakKeepsIndent_() {
+    var lines = Markdown.layout(Markdown.parse("- first  \nsecond"), 30)
+    var second = ""
+    if (lines.count > 1) {
+      for (run in lines[1].runs) second = second + run.text
+    }
+    check_(lines.count == 2 && second == "  second",
+           "Markdown: bullet hard-break continuation retains its hanging indent")
+    lines = Markdown.layout(Markdown.parse("first  \nsecond"), 30)
+    second = ""
+    if (lines.count > 1) {
+      for (run in lines[1].runs) second = second + run.text
+    }
+    check_(lines.count == 2 && second == "second",
+           "Markdown: paragraph hard break retains the next line")
+  }
+
+  static testSeparatorReflows_() {
+    var body = "aaaa bbbbb aaaa bbbbb aaaa bbbbb"
+    var changed = Help.new("Help", body)
+    changed.bounds = Rect.new(1, 1, 14, 6)
+    changed.handle(KeyEvent.new(Key.end))
+    changed.scrollbarSeparator = false
+    changed.handle(KeyEvent.new(Key.end))
+    var fresh = Help.new("Help", body)
+    fresh.bounds = Rect.new(1, 1, 14, 6)
+    fresh.scrollbarSeparator = false
+    fresh.handle(KeyEvent.new(Key.end))
+    check_(changed.scrollTop == fresh.scrollTop,
+           "Help: separator change reflows cached lines like initial layout")
   }
 
   // Build a help with `lineCount` rendered rows by emitting one bullet

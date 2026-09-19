@@ -125,6 +125,14 @@ validate_list(const char *path, void *context)
 	return strcmp(data, "Alpha\n") == 0 ? 0 : IO_ERROR_INVALID_FORMAT;
 }
 
+static bool
+cancel_network(const struct st_webget_progress *progress, void *context)
+{
+	(void)progress;
+	(void)context;
+	return false;
+}
+
 int
 main(void)
 {
@@ -195,6 +203,16 @@ main(void)
 	CHECK(st_webget(&result, &request) == 0);
 	CHECK(result.outcome == ST_WEBGET_FRESH_CACHE && result.size == 6);
 	CHECK(validations == 2);
+	/* The same named download may be configured with a different URL.
+	 * Cancel before connecting; the old resource must not be a fresh hit. */
+	(void)snprintf(url, sizeof(url), "http://127.0.0.1:%u/different",
+	    (unsigned)port);
+	request.progress = cancel_network;
+	int changed_url_status = st_webget(&result, &request);
+	int failure = changed_url_status != IO_ERROR_CANCELLED;
+	if (failure)
+		fprintf(stderr, "changed URL reused old cache: status %d, expected %d\n",
+		    changed_url_status, IO_ERROR_CANCELLED);
 	CHECK(socket_runtime_cleanup() == 0);
 
 	(void)snprintf(path, sizeof(path), "%s/list.lst",
@@ -216,5 +234,5 @@ main(void)
 	    ST_WEBGET_TEST_DIRECTORY);
 	(void)fs_remove_file(path);
 	(void)fs_remove_directory(ST_WEBGET_TEST_DIRECTORY);
-	return 0;
+	return failure;
 }

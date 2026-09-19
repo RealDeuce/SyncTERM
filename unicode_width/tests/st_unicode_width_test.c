@@ -45,5 +45,23 @@ main(void)
 	CHECK(st_unicode_columns(UINT32_C(0x10ffff)) == 1);
 	CHECK(st_unicode_columns(UINT32_C(0xd800)) == 0);
 	CHECK(st_unicode_columns(UINT32_C(0x110000)) == 0);
+	CHECK(st_unicode_columns(UINT32_MAX) == 0);
+	/* The width union and the independently stored property tables must
+	 * agree throughout the complete scalar space, not just at sample glyphs.
+	 */
+	for (uint32_t cp = 0; cp <= UINT32_C(0x10ffff); ++cp) {
+		enum st_unicode_east_asian_width eaw = st_unicode_east_asian_width(cp);
+		bool emoji = st_unicode_emoji_presentation(cp);
+		if (cp >= UINT32_C(0xd800) && cp <= UINT32_C(0xdfff)) {
+			CHECK(eaw == ST_UNICODE_EAW_INVALID);
+			CHECK(!emoji);
+			CHECK(st_unicode_columns(cp) == 0);
+		} else {
+			CHECK(eaw != ST_UNICODE_EAW_INVALID);
+			CHECK(st_unicode_columns(cp) == ((emoji
+			    || eaw == ST_UNICODE_EAW_WIDE
+			    || eaw == ST_UNICODE_EAW_FULLWIDTH) ? 2 : 1));
+		}
+	}
 	return EXIT_SUCCESS;
 }

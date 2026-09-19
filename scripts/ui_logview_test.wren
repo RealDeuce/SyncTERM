@@ -29,6 +29,8 @@ class UiLogviewTest {
     testNoScrollbarWhenContentFits_()
     testScrollbarAppearsWhenOverflowing_()
     testScrollbarWheelMovesPage_()
+    testWrappedScrollbarClick_()
+    testCapacityShrinkAnchor_()
 
     var total = __pass + __fail
     System.print("=== ui_logview: %(total) tests, %(__pass) pass, %(__fail) fail ===")
@@ -42,6 +44,27 @@ class UiLogviewTest {
       __fail = __fail + 1
       System.print("  FAIL %(label)")
     }
+  }
+
+  static testWrappedScrollbarClick_() {
+    var lv = LogView.new()
+    lv.bounds = Rect.new(1, 1, 7, 3)
+    lv.append(LogView.LEVEL_INFO, "abcdefghijklmnopqrst")
+    lv.handle(keyEvent_(Key.home))
+    var consumed = lv.handle(MouseEvent.new(Mouse.button1Press, 7, 3, 7, 3))
+    check_(consumed && lv.scrollTop == null,
+        "scrollbar down arrow reaches tail of one entry spanning four rows")
+  }
+
+  static testCapacityShrinkAnchor_() {
+    var lv = LogView.new()
+    lv.bounds = Rect.new(1, 1, 20, 2)
+    for (i in 0...10) lv.append(LogView.LEVEL_INFO, "line %(i)")
+    lv.handle(keyEvent_(Key.home))
+    lv.scrollBy(4)
+    lv.capacity = 8
+    check_(lv.scrollTop == 2,
+        "capacity shrink retains the anchored entry when it survives eviction")
   }
 
   // Construct a key event for handle() — use synthetic events since

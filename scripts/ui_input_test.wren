@@ -67,6 +67,7 @@ class UiInputTest {
     testDrawShowsValue_()
     testDrawMasksValue_()
     testDrawFocusedStyle_()
+    testMaskWidthUpdatesViewport_()
 
     var total = __pass + __fail
     System.print("=== ui_input: %(total) tests, %(__pass) pass, %(__fail) fail ===")
@@ -80,6 +81,17 @@ class UiInputTest {
       __fail = __fail + 1
       System.print("  FAIL %(label)")
     }
+  }
+
+  static testMaskWidthUpdatesViewport_() {
+    var t = TextInput.new()
+    t.bounds = Rect.new(1, 1, 4, 1)
+    t.value = "AAA"
+    t.mask = "\u4e00"
+    var sf = t.draw()
+    check_(t.scrollOff == 2 && t.cursorPos[0] == 3 &&
+           sf.cellAt(0, 0).ch == "\u4e00" && sf.cellAt(2, 0).ch == " ",
+           "wide mask keeps the insertion point visible after assignment")
   }
 
   // ----- Construction --------------------------------------------

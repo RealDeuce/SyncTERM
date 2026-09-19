@@ -49,5 +49,21 @@ main(void)
 	CHECK(!st_unicode_canonical_compose(UINT32_C(0x0308),
 	    UINT32_C(0x0301), &composition));
 	CHECK(!st_unicode_canonical_compose('A', 'B', NULL));
+	CHECK(st_unicode_canonical_decompose('A', NULL, 0) == 1);
+	CHECK(st_unicode_canonical_decompose(UINT32_C(0x01fa), NULL, 0) == 3);
+	CHECK(st_unicode_canonical_decompose('A', NULL, 1) == 0);
+	CHECK(st_unicode_canonical_decompose(UINT32_MAX, output, 4) == 0);
+	composition = 123;
+	CHECK(!st_unicode_canonical_compose(UINT32_MAX, 'A', &composition));
+	CHECK(composition == 123);
+	/* Every algorithmic Hangul syllable must decompose and recompose. */
+	for (uint32_t cp = UINT32_C(0xac00); cp < UINT32_C(0xd7a4); ++cp) {
+		size_t count = st_unicode_canonical_decompose(cp, output, 4);
+		CHECK(count == 2 || count == 3);
+		CHECK(st_unicode_canonical_compose(output[0], output[1], &composition));
+		if (count == 3)
+			CHECK(st_unicode_canonical_compose(composition, output[2], &composition));
+		CHECK(composition == cp);
+	}
 	return EXIT_SUCCESS;
 }

@@ -321,6 +321,7 @@ test_snapshot_drains(void)
 	CHECK(output.writes != 0);
 	CHECK(contains(output.data, output.length, "\033[38;5;7m"));
 	CHECK(contains(output.data, output.length, "\033[48;5;0m"));
+	CHECK(contains(output.data, output.length, "abc"));
 	writes = output.writes;
 	CHECK(st_console_end_update(console) == 0);
 	CHECK(output.writes == writes);
@@ -517,6 +518,11 @@ test_resize_palette_and_errors(void)
 	CHECK(st_console_get_palette(console, 254, get, 2) == 0);
 	CHECK(memcmp(set, get, sizeof(set)) == 0);
 	CHECK(st_console_set_palette(console, 255, set, 2)
+	    == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_console_get_palette(console, 256, get, 1)
+	    == IO_ERROR_INVALID_ARGUMENT);
+	/* A start beyond the palette must not wrap the remaining-count check. */
+	CHECK(st_console_get_palette(console, 257, get, 1)
 	    == IO_ERROR_INVALID_ARGUMENT);
 	identifier = register_static_font(console, &font);
 	CHECK(st_console_font_registered(console, identifier, &registered) == 0);

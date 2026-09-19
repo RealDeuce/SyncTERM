@@ -25,6 +25,9 @@ class UiDatePickerTest {
     testDoubleClickAccepts_()
     testDraw_()
     testOutsideMouseFallsThrough_()
+    testGregorianCycle_()
+    testNavigationLimits_()
+    testNegativeTimestamp_()
 
     var total = __pass + __fail
     System.print("=== ui_date_picker: %(total) tests, %(__pass) pass, " +
@@ -39,6 +42,41 @@ class UiDatePickerTest {
       __fail = __fail + 1
       System.print("  FAIL %(label)")
     }
+  }
+
+  static testGregorianCycle_() {
+    var serial = CalendarDate.daysFromCivil(1600, 1, 1)
+    var start = serial
+    var valid = true
+    for (year in 1600...2000) {
+      for (month in 1..12) {
+        for (day in 1..CalendarDate.daysInMonth(year, month)) {
+          var actual = CalendarDate.civilFromDays(serial)
+          if (actual[0] != year || actual[1] != month || actual[2] != day ||
+              CalendarDate.daysFromCivil(year, month, day) != serial) valid = false
+          serial = serial + 1
+        }
+      }
+    }
+    check_(valid && serial - start == 146097,
+        "CalendarDate: every day in a full Gregorian cycle matches sequential dates")
+  }
+
+  static testNavigationLimits_() {
+    var low = DatePicker.new(1, 1, 1)
+    low.moveDays(-1)
+    low.moveMonths(-1)
+    var high = DatePicker.new(9999, 12, 31)
+    high.moveDays(1)
+    high.moveMonths(1)
+    check_(low.value == "0001-01-01" && high.value == "9999-12-31",
+        "DatePicker: day and month navigation saturate at supported limits")
+  }
+
+  static testNegativeTimestamp_() {
+    check_(CalendarDate.isoFromTimestamp(-1) == "1969-12-31" &&
+        CalendarDate.isoFromTimestamp(-86401) == "1969-12-30",
+        "CalendarDate: negative timestamps floor to the preceding UTC day")
   }
 
   static testCalendarArithmetic_() {
@@ -197,6 +235,10 @@ class UiDatePickerTest {
         picker.style("list.item.disabled").legacyAttr
     var selectedStyle = surface.cellAt(24, 2).legacyAttr ==
         picker.style("list.item.focused").legacyAttr
+    if (!(title && weekdays && otherStyle && selectedStyle)) {
+      System.print("  FAIL drawing detail: title=%(title), weekdays=%(weekdays), neighbor=%(otherStyle), selection=%(selectedStyle)")
+      System.print("  FAIL selection attr: actual=%(surface.cellAt(24, 2).legacyAttr), expected=%(picker.style("list.item.focused").legacyAttr)")
+    }
     check_(title && weekdays && otherStyle && selectedStyle,
         "DatePicker.draw: month, weekdays, neighbor, and selection styles")
   }

@@ -182,6 +182,34 @@ class UiWidgetTest {
     return [__pass, __fail]
   }
 
+  // Audit entry point: exercise the tail independently when a prior
+  // capability failure aborts run(). This does not replace the full run.
+  static runAfterCursorAudit() {
+    __pass = 0
+    __fail = 0
+    testAppDispatchKeyToFocused_()
+    testAppDispatchKeyHitsKeymap_()
+    testAppDispatchKeyConsumedSkipsKeymap_()
+    testAppDispatchKeyModalBlocksRoot_()
+    testAppQuitUnwindsOneModal_()
+    testAppAtExitModalIgnoresQuit_()
+    testAppClaimsQuitWithoutFocus_()
+    testAppQuitUnwindsAfterHandlerError_()
+    testAppBackspaceAliasesEscape_()
+    testAppConsumedBackspaceDoesNotEscape_()
+    testAppSyncDispatchContainsError_()
+    testAppSyncErrorDiscardsPushedModal_()
+    testAppDispatchMouseHitsWidget_()
+    testAppDispatchMouseModalBlocksRoot_()
+    testAppUnhandledMouseReceivesHit_()
+    testAppUnhandledMouseSkippedForModal_()
+    testAppOutsideClickEscapesListModal_()
+    testAppDispatchMouseOutsideDrops_()
+    testAppRightClickAliasesEscape_()
+    testAppConsumedRightClickDoesNotEscape_()
+    return [__pass, __fail]
+  }
+
   static check_(ok, label) {
     if (ok) {
       __pass = __pass + 1

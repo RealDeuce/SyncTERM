@@ -26,6 +26,7 @@ class UiSpinboxTest {
     testMouseClickBetweenArrowsIgnored_()
     testWheelChangesValue_()
     testDrawShowsValueAndArrows_()
+    testMouseGestureSingleStep_()
 
     var total = __pass + __fail
     System.print("=== ui_spinbox: %(total) tests, %(__pass) pass, %(__fail) fail ===")
@@ -39,6 +40,18 @@ class UiSpinboxTest {
       __fail = __fail + 1
       System.print("  FAIL %(label)")
     }
+  }
+
+  static testMouseGestureSingleStep_() {
+    var s = SpinBox.new()
+    s.bounds = Rect.new(2, 5, 10, 1)
+    s.value = 5
+    var changes = 0
+    s.onChange = Fn.new {|v| changes = changes + 1 }
+    s.handle(MouseEvent.new(Mouse.button1Press, 9, 5, 9, 5))
+    s.handle(MouseEvent.new(Mouse.button1Click, 9, 5, 9, 5))
+    check_(s.value == 6 && changes == 1,
+           "SpinBox: one up-arrow press/release advances one step and notifies once")
   }
 
   static testDefaults_() {

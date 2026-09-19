@@ -18,6 +18,8 @@ class UiStatusbarTest {
     testSegmentsRightAlign_()
     testSegmentsCenterAlign_()
     testSegmentsTakePrecedenceOverText_()
+    testRepaintForms_()
+    testCrowdedSegments_()
 
     var total = __pass + __fail
     System.print("=== ui_statusbar: %(total) tests, %(__pass) pass, %(__fail) fail ===")
@@ -31,6 +33,40 @@ class UiStatusbarTest {
       __fail = __fail + 1
       System.print("  FAIL %(label)")
     }
+  }
+
+  static testRepaintForms_() {
+    var s = StatusBar.new()
+    s.bounds = Rect.new(1, 1, 8, 1)
+    s.segments = [["ABCDEFGH", "left"]]
+    s.draw()
+    s.text = "Z"
+    var sf = s.draw()
+    var ok = s.segments == null && sf.cellAt(0, 0).ch == "Z"
+    for (x in 1...8) {
+      if (sf.cellAt(x, 0).ch != " ") ok = false
+    }
+    check_(ok, "text assignment replaces segments and erases old content")
+    s.text = null
+    sf = s.draw()
+    ok = true
+    for (x in 0...8) {
+      if (sf.cellAt(x, 0).ch != " ") ok = false
+    }
+    check_(ok, "null text clears previously rendered text")
+  }
+
+  static testCrowdedSegments_() {
+    var s = StatusBar.new()
+    s.bounds = Rect.new(1, 1, 8, 1)
+    s.segments = [["LEFT", "left"], ["RIGHT", "right"], ["C", "center"]]
+    var sf = s.draw()
+    var expected = "LEFT  RI"
+    var ok = true
+    for (x in 0...8) {
+      if (sf.cellAt(x, 0).ch != expected[x]) ok = false
+    }
+    check_(ok, "crowded segments preserve left text and clip remaining right text")
   }
 
   static testDefaults_() {

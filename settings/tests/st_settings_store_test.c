@@ -48,6 +48,66 @@ rewrite_value(const char *path, const char *key, int value)
 	return status;
 }
 
+static int
+test_empty_font_name(void)
+{
+	size_t before = st_settings_font_count();
+	size_t after;
+	int status;
+
+	CHECK(st_settings_font_insert(before, "Audit font") == 0);
+	CHECK(st_settings_font_set_path(before, ST_SETTINGS_FONT_8X16,
+	    "/fonts/audit.f16") == 0);
+	status = st_settings_font_rename(before, "");
+	if (status != 0) {
+		CHECK(st_settings_font_remove(before) == 0);
+		return 0;
+	}
+	CHECK(st_settings_save() == 0);
+	CHECK(st_settings_reload() == 0);
+	after = st_settings_font_count();
+	if (after != before + 1)
+		fprintf(stderr, "accepted font rename lost on reload: %zu fonts, expected %zu\n",
+		    after, before + 1);
+	CHECK(after == before + 1);
+	return 0;
+}
+
+static int
+test_classic_color_bounds(const char *path)
+{
+	FILE *stream = NULL;
+	unsigned color;
+
+	CHECK(fs_open(&stream, path, "wb") == 0);
+	CHECK(fputs("[ClassicTheme]\nFrameColour=1000000\n", stream) >= 0);
+	CHECK(fclose(stream) == 0);
+	CHECK(st_settings_reload() == 0);
+	color = st_settings.theme_frame_color;
+	if (color > 16)
+		fprintf(stderr, "out-of-range classic color accepted: %u\n", color);
+	CHECK(color <= 16);
+	return 0;
+}
+
+static int
+test_classic_per_key_fallback(const char *path)
+{
+	FILE *stream = NULL;
+
+	CHECK(fs_open(&stream, path, "wb") == 0);
+	CHECK(fputs("[ClassicTheme]\nFrameColour=Blue\n"
+	    "[UIFC]\nTextColour=Red\n", stream) >= 0);
+	CHECK(fclose(stream) == 0);
+	CHECK(st_settings_reload() == 0);
+	CHECK(st_settings.theme_frame_color == 1);
+	if (st_settings.theme_text_color != 4)
+		fprintf(stderr, "legacy per-key color fallback lost: %u, expected 4\n",
+		    st_settings.theme_text_color);
+	CHECK(st_settings.theme_text_color == 4);
+	return 0;
+}
+
 int
 main(void)
 {
@@ -170,6 +230,9 @@ main(void)
 	CHECK(strcmp(st_settings.sort_order, "") == 0);
 	CHECK(st_settings_sort_profile_count() == 1);
 	CHECK(st_settings_active_sort_profile() == 0);
+	int failure = test_empty_font_name();
+	failure += test_classic_color_bounds(settings_path);
+	failure += test_classic_per_key_fallback(settings_path);
 	st_settings_shutdown();
 	(void)fs_remove_file(settings_path);
 	(void)fs_remove_file(list_path);
@@ -179,5 +242,5 @@ main(void)
 		(void)fs_remove_file(lock_path);
 	}
 	(void)fs_remove_directory(ST_SETTINGS_TEST_DIRECTORY);
-	return 0;
+	return failure;
 }

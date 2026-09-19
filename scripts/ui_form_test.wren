@@ -24,6 +24,9 @@ class UiFormTest {
     testButtonRowBelowLastField_()
     testClearFieldsRemovesChildren_()
     testLabelPaintedRightAligned_()
+    testCallbackAssignmentOrder_()
+    testFieldAddedAfterButtons_()
+    testButtonSetterIdempotence_()
 
     var total = __pass + __fail
     System.print("=== ui_form: %(total) tests, %(__pass) pass, %(__fail) fail ===")
@@ -37,6 +40,49 @@ class UiFormTest {
       __fail = __fail + 1
       System.print("  FAIL %(label)")
     }
+  }
+
+  static testCallbackAssignmentOrder_() {
+    var f = Form.new()
+    f.bounds = Rect.new(1, 1, 30, 10)
+    var input = TextInput.new()
+    f.addField("Name:", input)
+    f.onCancel = Fn.new {}
+    var cancel = f.children[-1]
+    f.onSubmit = Fn.new {}
+    var ok = f.children[-1]
+    f.focusedIndex = 0
+    f.handle(KeyEvent.new(Key.tab))
+    var nextIsOk = f.focusedChild == ok
+    f.handle(KeyEvent.new(Key.tab))
+    check_(nextIsOk && f.focusedChild == cancel,
+           "Form Tab order remains field, OK, Cancel when cancel is wired first")
+  }
+
+  static testFieldAddedAfterButtons_() {
+    var f = Form.new()
+    f.bounds = Rect.new(1, 1, 30, 10)
+    var first = TextInput.new()
+    f.addField("First:", first)
+    f.onSubmit = Fn.new {}
+    var second = TextInput.new()
+    f.addField("Second:", second)
+    f.focusedIndex = 0
+    f.handle(KeyEvent.new(Key.tab))
+    check_(f.focusedChild == second,
+           "Form Tab visits every field before buttons after adding a field")
+  }
+
+  static testButtonSetterIdempotence_() {
+    var f = Form.new()
+    f.bounds = Rect.new(1, 1, 30, 10)
+    var callback = Fn.new {}
+    f.onSubmit = callback
+    f.onSubmit = callback
+    var single = f.children.count == 1
+    f.onSubmit = null
+    check_(single && f.children.count == 0,
+           "Form callback setter is idempotent and null removes its button")
   }
 
   static testEmptyDefaults_() {

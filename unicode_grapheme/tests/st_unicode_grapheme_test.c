@@ -51,5 +51,17 @@ main(void)
 	    sizeof(keycap) / sizeof(keycap[0])) == 3);
 	CHECK(st_unicode_rgi_emoji_prefix(family, 0) == 0);
 	CHECK(st_unicode_rgi_emoji_prefix(NULL, 1) == 0);
+	CHECK(st_unicode_rgi_emoji_prefix(NULL, 0) == 0);
+	/* Truncating a longer match must preserve its longest complete prefix. */
+	CHECK(st_unicode_rgi_emoji_prefix(family, 1) == 1);
+	CHECK(st_unicode_rgi_emoji_prefix(family, 2) == 1);
+	CHECK(st_unicode_rgi_emoji_prefix(flag, 1) == 0);
+	CHECK(st_unicode_rgi_emoji_prefix(keycap, 1) == 0);
+	CHECK(st_unicode_rgi_emoji_prefix(keycap, 2) == 0);
+	{
+		const uint32_t invalid[] = {UINT32_MAX, UINT32_C(0x1f600)};
+		CHECK(st_unicode_rgi_emoji_prefix(invalid, 2) == 0);
+		CHECK(!st_unicode_extended_pictographic(UINT32_MAX));
+	}
 	return EXIT_SUCCESS;
 }

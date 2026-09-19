@@ -86,6 +86,47 @@ check_pointy_damage(st_pixel_scaler_t *scaler,
 	    (size_t)width * height * sizeof(scaled->primary[0])) == 0);
 }
 
+static void
+check_small_edge_damage(void)
+{
+	st_pixel_scaler_t *incremental = NULL;
+	st_pixel_scaler_t *reference = NULL;
+	uint32_t source[16];
+	const struct st_pixel_buffer *updated;
+	const struct st_pixel_buffer *fresh;
+
+	CHECK(st_pixel_scaler_create(&incremental) == 0);
+	CHECK(st_pixel_scaler_create(&reference) == 0);
+	for (uint32_t sw = 1; sw <= 4; ++sw)
+		for (uint32_t sh = 1; sh <= 4; ++sh)
+			for (uint32_t multiplier = 2; multiplier <= 7; ++multiplier)
+				for (unsigned policy = 0; policy < 2; ++policy) {
+					uint32_t width = sw * multiplier;
+					uint32_t height = sh * multiplier + 1;
+					for (uint32_t i = 0; i < sw * sh; ++i)
+						source[i] = (i * UINT32_C(0x314159)) & UINT32_C(0xffffff);
+					CHECK(st_pixel_scaler_scale(incremental, &updated, source,
+					    sw, sh, width, height, (enum st_pixel_scaling_policy)policy) == 0);
+					for (uint32_t y = 0; y < sh; ++y)
+						for (uint32_t x = 0; x < sw; ++x) {
+							struct st_pixel_rect damage = {x, y, 1, 1};
+							struct st_pixel_rect changed;
+							source[y * sw + x] ^= UINT32_C(0xa55a3c);
+							CHECK(st_pixel_scaler_scale_region(incremental,
+							    &updated, source, sw, sh, &damage, &changed) == 0);
+							CHECK(changed.x <= width && changed.width <= width - changed.x);
+							CHECK(changed.y <= height && changed.height <= height - changed.y);
+							CHECK(st_pixel_scaler_scale(reference, &fresh, source,
+							    sw, sh, width, height,
+							    (enum st_pixel_scaling_policy)policy) == 0);
+							CHECK(memcmp(updated->primary, fresh->primary,
+							    (size_t)width * height * sizeof(uint32_t)) == 0);
+						}
+				}
+	st_pixel_scaler_destroy(reference);
+	st_pixel_scaler_destroy(incremental);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -109,6 +150,7 @@ main(int argc, char **argv)
 	st_pixel_scaler_t *reference_scaler = NULL;
 	bool generate = argc == 2 && strcmp(argv[1], "--generate") == 0;
 
+	check_small_edge_damage();
 	CHECK(st_pixel_buffer_create(&source, 7, 5, false) == 0);
 	fill_pattern(source);
 	CHECK(st_pixel_scaler_create(&scaler) == 0);
