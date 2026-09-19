@@ -219,6 +219,8 @@ st_console_t *st_console_display_active_console(st_console_t *console);
 int st_console_start_presentation_worker(st_console_t *console);
 void st_console_display_request_repaint(st_console_display_t *display);
 void st_console_mark_all_locked(st_console_t *console);
+void st_console_cursor_span_locked(const st_console_t *console,
+	uint32_t *x, uint32_t *columns);
 bool st_console_rect_valid(const st_console_t *console,
 	const struct st_console_rect *rect);
 struct st_console_cell st_console_blank_locked(const st_console_t *console,

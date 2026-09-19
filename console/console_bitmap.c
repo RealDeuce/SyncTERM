@@ -28,6 +28,8 @@ struct st_console_bitmap_presenter {
 	uint32_t rows;
 	uint32_t cursor_x;
 	uint32_t cursor_y;
+	uint32_t cursor_draw_x;
+	uint32_t cursor_columns;
 	uint32_t cursor_colour;
 	uint32_t output_width;
 	uint32_t output_height;
@@ -114,9 +116,9 @@ static struct st_console_rect
 cursor_rectangle(const struct st_console_bitmap_presenter *presenter)
 {
 	struct st_console_rect result = {
-		.x = presenter->cursor_x * presenter->cell_width,
+		.x = presenter->cursor_draw_x * presenter->cell_width,
 		.y = presenter->cursor_y * presenter->cell_height,
-		.width = presenter->cell_width,
+		.width = presenter->cursor_columns * presenter->cell_width,
 		.height = presenter->cell_height,
 	};
 
@@ -544,11 +546,18 @@ cache_console_state(struct st_console_bitmap_presenter *presenter,
 	uint32_t cursor_colour = console->blink_mode == ST_CONSOLE_BLINK_PRESTEL
 	    ? UINT32_C(0xffffff)
 	    : colour_value(console, console->style.foreground);
-	bool changed = !presenter->initialized
+	uint32_t cursor_draw_x;
+	uint32_t cursor_columns;
+	bool changed;
+
+	st_console_cursor_span_locked(console, &cursor_draw_x, &cursor_columns);
+	changed = !presenter->initialized
 	    || presenter->columns != console->columns
 	    || presenter->rows != console->rows
 	    || presenter->cursor_x != console->cursor_x
 	    || presenter->cursor_y != console->cursor_y
+	    || presenter->cursor_draw_x != cursor_draw_x
+	    || presenter->cursor_columns != cursor_columns
 	    || presenter->cursor_colour != cursor_colour
 	    || presenter->cursor_visible != console->cursor_visible
 	    || presenter->cursor_shape != console->cursor_shape
@@ -568,6 +577,8 @@ cache_console_state(struct st_console_bitmap_presenter *presenter,
 	presenter->rows = console->rows;
 	presenter->cursor_x = console->cursor_x;
 	presenter->cursor_y = console->cursor_y;
+	presenter->cursor_draw_x = cursor_draw_x;
+	presenter->cursor_columns = cursor_columns;
 	presenter->cursor_colour = cursor_colour;
 	presenter->cursor_visible = console->cursor_visible;
 	presenter->cursor_shape = console->cursor_shape;

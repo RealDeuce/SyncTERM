@@ -443,6 +443,8 @@ ansi_present(st_console_t *console)
 	bool initializing;
 	uint32_t output_x = 0;
 	uint32_t output_y = 0;
+	uint32_t cursor_x;
+	uint32_t cursor_columns;
 	bool resized = atomic_exchange_explicit(&state->host_resized, false,
 	    memory_order_acq_rel);
 	uint32_t visible_columns = atomic_load_explicit(&state->host_columns,
@@ -460,6 +462,8 @@ ansi_present(st_console_t *console)
 		visible_columns = console->columns;
 	if (visible_rows == 0 || visible_rows > console->rows)
 		visible_rows = console->rows;
+	st_console_cursor_span_locked(console, &cursor_x, &cursor_columns);
+	(void)cursor_columns;
 
 	if (initializing)
 		prepare_initial_screen(&writer, console, state);
@@ -496,8 +500,8 @@ ansi_present(st_console_t *console)
 		}
 	}
 	emit_format(&writer, "\033[%" PRIu32 ";%" PRIu32 "H",
-	    console->cursor_y + 1, console->cursor_x + 1, 0);
-	if (console->cursor_visible && console->cursor_x < visible_columns
+	    console->cursor_y + 1, cursor_x + 1, 0);
+	if (console->cursor_visible && cursor_x < visible_columns
 	    && console->cursor_y < visible_rows) {
 		uint32_t shape = console->cursor_shape == ST_CONSOLE_CURSOR_BLOCK
 		    ? 2 : console->cursor_shape == ST_CONSOLE_CURSOR_UNDERLINE ? 4 : 6;

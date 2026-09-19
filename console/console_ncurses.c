@@ -625,6 +625,8 @@ sgr_present(st_console_t *console, struct curses_state *state)
 	bool initializing = !state->sgr_initialized;
 	uint32_t output_x = 0;
 	uint32_t output_y = 0;
+	uint32_t cursor_x;
+	uint32_t cursor_columns;
 	uint32_t visible_columns = atomic_load_explicit(&state->host_columns,
 	    memory_order_acquire);
 	uint32_t visible_rows = atomic_load_explicit(&state->host_rows,
@@ -634,6 +636,8 @@ sgr_present(st_console_t *console, struct curses_state *state)
 		visible_columns = console->columns;
 	if (visible_rows == 0 || visible_rows > console->rows)
 		visible_rows = console->rows;
+	st_console_cursor_span_locked(console, &cursor_x, &cursor_columns);
+	(void)cursor_columns;
 
 	if (initializing) {
 		const struct st_console_cell blank = {
@@ -681,13 +685,13 @@ sgr_present(st_console_t *console, struct curses_state *state)
 			position_known = output_x < visible_columns;
 		}
 	}
-	if (console->cursor_visible && console->cursor_x < visible_columns
+	if (console->cursor_visible && cursor_x < visible_columns
 	    && console->cursor_y < visible_rows) {
 		uint32_t shape = console->cursor_shape == ST_CONSOLE_CURSOR_BLOCK
 		    ? 2 : console->cursor_shape == ST_CONSOLE_CURSOR_UNDERLINE ? 4 : 6;
 
 		sgr_format(&writer, "\033[%" PRIu32 ";%" PRIu32 "H",
-		    console->cursor_y + 1, console->cursor_x + 1, 0);
+		    console->cursor_y + 1, cursor_x + 1, 0);
 		sgr_format(&writer, "\033[%" PRIu32 " q", shape, 0, 0);
 		sgr_emit(&writer, "\033[0m\033[?25h", 10);
 	}
@@ -864,6 +868,8 @@ curses_present(st_console_t *console)
 	struct curses_state *state = console->display->backend_state;
 	uint32_t x;
 	uint32_t y;
+	uint32_t cursor_x;
+	uint32_t cursor_columns;
 	int cursor;
 	bool resized = atomic_exchange_explicit(&state->host_resized, false,
 	    memory_order_acq_rel);
@@ -888,6 +894,8 @@ curses_present(st_console_t *console)
 		visible_columns = console->columns;
 	if (visible_rows == 0 || visible_rows > console->rows)
 		visible_rows = console->rows;
+	st_console_cursor_span_locked(console, &cursor_x, &cursor_columns);
+	(void)cursor_columns;
 
 	if (state->sgr_direct)
 		return sgr_present(console, state);
@@ -922,12 +930,12 @@ curses_present(st_console_t *console)
 			state->drawn[index].flags &= ~ST_CONSOLE_CELL_DIRTY;
 		}
 	}
-	if (console->cursor_visible && console->cursor_x < visible_columns
+	if (console->cursor_visible && cursor_x < visible_columns
 	    && console->cursor_y < visible_rows
 	    && state->api.call_move(state->window, (int)console->cursor_y,
-	    (int)console->cursor_x) == ERR)
+	    (int)cursor_x) == ERR)
 		return IO_ERROR_IO;
-	cursor = !console->cursor_visible || console->cursor_x >= visible_columns
+	cursor = !console->cursor_visible || cursor_x >= visible_columns
 	    || console->cursor_y >= visible_rows ? 0
 	    : console->cursor_shape == ST_CONSOLE_CURSOR_BLOCK ? 2 : 1;
 	(void)state->api.call_cursor(cursor);

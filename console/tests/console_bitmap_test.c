@@ -230,6 +230,88 @@ test_default_cursor_scanlines(void)
 	st_console_destroy(console);
 }
 
+static void
+test_wide_glyph_cursor(void)
+{
+	static const uint8_t bitmap[4] = {0};
+	static const uint8_t wide_bitmap[4] = {0};
+	static const struct st_console_font_mapping mapping[] = {
+		{UINT32_C(0x4e00), 1},
+	};
+	static const struct st_console_font font = {
+		.bitmap = bitmap,
+		.bitmap_size = sizeof(bitmap),
+		.width = 2,
+		.height = 4,
+		.glyph_count = 1,
+		.row_stride = 1,
+		.glyph_stride = 4,
+		.wide_bitmap = wide_bitmap,
+		.wide_bitmap_size = sizeof(wide_bitmap),
+		.wide_glyph_count = 1,
+		.wide_row_stride = 1,
+		.wide_glyph_stride = 4,
+		.mapping = mapping,
+		.mapping_count = sizeof(mapping) / sizeof(mapping[0]),
+		.fallback_glyph = 0,
+		.wide_fallback_glyph = 1,
+	};
+	const struct st_console_display_config display_config = {
+		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	};
+	const struct st_console_config config = {
+		.columns = 3,
+		.rows = 1,
+		.cell_width = 2,
+		.cell_height = 4,
+		.scaling_mode = ST_CONSOLE_SCALING_EXTERNAL,
+		.default_cursor = {
+			.start = 3, .end = 3, .range = 4,
+			.visible = true, .blink = false,
+		},
+	};
+	struct st_console_bitmap_presenter *presenter = NULL;
+	struct st_console_bitmap_frame frame;
+	struct upload_log log = {0};
+	st_console_t *console = NULL;
+	uint16_t identifier;
+	const uint32_t colour = UINT32_C(0x010203);
+
+	CHECK(st_console_create(&console, &display_config, &config) == 0);
+	CHECK(st_console_register_static_font(console, &font, &identifier) == 0);
+	CHECK(identifier == 0);
+	console->style.foreground = ST_CONSOLE_COLOR_RGB_VALUE(1, 2, 3);
+	CHECK(st_console_put_codepoint(console, UINT32_C(0x4e00)) == 0);
+	CHECK(st_console_set_position(console, 0, 0) == 0);
+	CHECK(st_console_bitmap_presenter_create(&presenter, console) == 0);
+	CHECK(st_console_bitmap_presenter_frame(presenter, console, 6, 4,
+	    0, record_upload, &log, &frame) == 0);
+	for (size_t x = 0; x < 4; ++x)
+		CHECK(frame.pixels->primary[3 * 6 + x] == colour);
+	CHECK(frame.pixels->primary[3 * 6 + 4] != colour);
+
+	/* A cursor placed on the continuation still covers the whole glyph. */
+	CHECK(st_console_set_position(console, 1, 0) == 0);
+	CHECK(st_console_bitmap_presenter_frame(presenter, console, 6, 4,
+	    0, record_upload, &log, &frame) == 0);
+	for (size_t x = 0; x < 4; ++x)
+		CHECK(frame.pixels->primary[3 * 6 + x] == colour);
+	CHECK(frame.pixels->primary[3 * 6 + 4] != colour);
+
+	/* Replacing the glyph shrinks a stationary cursor back to one cell. */
+	CHECK(st_console_set_position(console, 0, 0) == 0);
+	CHECK(st_console_put_codepoint(console, 'A') == 0);
+	CHECK(st_console_set_position(console, 0, 0) == 0);
+	CHECK(st_console_bitmap_presenter_frame(presenter, console, 6, 4,
+	    0, record_upload, &log, &frame) == 0);
+	CHECK(frame.pixels->primary[3 * 6] == colour);
+	CHECK(frame.pixels->primary[3 * 6 + 1] == colour);
+	CHECK(frame.pixels->primary[3 * 6 + 2] != colour);
+
+	st_console_bitmap_presenter_destroy(presenter);
+	st_console_destroy(console);
+}
+
 int
 main(void)
 {
@@ -406,5 +488,6 @@ main(void)
 	test_initial_window_geometry();
 	test_mouse_coordinates();
 	test_default_cursor_scanlines();
+	test_wide_glyph_cursor();
 	return 0;
 }

@@ -190,6 +190,8 @@ win32_present(st_console_t *console)
 	struct win32_state *state = console->display->backend_state;
 	CONSOLE_CURSOR_INFO cursor;
 	COORD position;
+	uint32_t cursor_x;
+	uint32_t cursor_columns;
 	int status;
 
 	if (console->columns > SHRT_MAX || console->rows > SHRT_MAX)
@@ -233,7 +235,9 @@ win32_present(st_console_t *console)
 			}
 		}
 	}
-	position.X = (SHORT)console->cursor_x;
+	st_console_cursor_span_locked(console, &cursor_x, &cursor_columns);
+	(void)cursor_columns;
+	position.X = (SHORT)cursor_x;
 	position.Y = (SHORT)console->cursor_y;
 	if (!SetConsoleCursorPosition(state->output, position))
 		return IO_ERROR_IO;

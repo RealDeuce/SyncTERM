@@ -1092,6 +1092,29 @@ pair_matches(const struct st_console_cell *leading,
 	    && (continuation->flags & ST_CONSOLE_CELL_CONTINUATION) != 0;
 }
 
+void
+st_console_cursor_span_locked(const st_console_t *console,
+	uint32_t *x, uint32_t *columns)
+{
+	size_t index;
+
+	*x = console->cursor_x;
+	*columns = 1;
+	if (console->cursor_x >= console->columns
+	    || console->cursor_y >= console->rows)
+		return;
+	index = (size_t)console->cursor_y * console->columns
+	    + console->cursor_x;
+	if (console->cursor_x > 0
+	    && pair_matches(&console->cells[index - 1], &console->cells[index])) {
+		--*x;
+		*columns = 2;
+	}
+	else if (console->cursor_x + 1 < console->columns
+	    && pair_matches(&console->cells[index], &console->cells[index + 1]))
+		*columns = 2;
+}
+
 static bool
 row_cells_valid_locked(st_console_t *console,
 	const struct st_console_cell *cells, uint32_t width)
