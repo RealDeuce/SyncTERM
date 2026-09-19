@@ -7,7 +7,7 @@ if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	project(STCodepage LANGUAGES C)
 endif()
 
-add_library(st_codepage STATIC st_cp437.c)
+add_library(st_codepage STATIC st_codepage.c)
 target_include_directories(st_codepage PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 set_target_properties(st_codepage PROPERTIES
 	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
@@ -20,15 +20,15 @@ else()
 endif()
 
 if(BUILD_TESTING)
-	add_executable(st_cp437_test tests/st_cp437_test.c)
-	target_link_libraries(st_cp437_test PRIVATE st_codepage)
-	set_target_properties(st_cp437_test PROPERTIES
+	add_executable(st_codepage_test tests/st_codepage_test.c)
+	target_link_libraries(st_codepage_test PRIVATE st_codepage)
+	set_target_properties(st_codepage_test PROPERTIES
 		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
-		target_compile_options(st_cp437_test PRIVATE /W4 /WX)
+		target_compile_options(st_codepage_test PRIVATE /W4 /WX)
 	else()
-		target_compile_options(st_cp437_test PRIVATE
+		target_compile_options(st_codepage_test PRIVATE
 			-Wall -Wextra -Wpedantic -Werror)
 	endif()
-	add_test(NAME cp437 COMMAND st_cp437_test)
+	add_test(NAME codepage COMMAND st_codepage_test)
 endif()

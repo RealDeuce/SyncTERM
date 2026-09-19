@@ -27,7 +27,7 @@ add_library(st_fonts STATIC
 	generated/st_unscii_8.c
 	generated/st_unscii_16.c)
 target_include_directories(st_fonts PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(st_fonts PUBLIC st_console)
+target_link_libraries(st_fonts PUBLIC st_codepage st_console)
 set_target_properties(st_fonts PROPERTIES
 	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 if(MSVC)

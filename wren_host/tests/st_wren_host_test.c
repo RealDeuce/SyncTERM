@@ -380,6 +380,31 @@ exercise_cursor_contract(st_wren_host_t *public_host)
 }
 
 static int
+exercise_codepage_contract(st_wren_host_t *public_host)
+{
+	struct st_wren_host *host = public_host;
+	static const char source[] =
+	    "import \"syncterm\" for Codepage, Font, Screen\n"
+	    "if (!Codepage.encodes_(\"A\") || Codepage.encodes_(\"🙂\")) Fiber.abort(\"codepage encoding\")\n"
+	    "if (Font.name(0) != \"Codepage 437 English\" || Font.name(43) != \"Prestel\" || Font.name(200) != \"\") Fiber.abort(\"font names\")\n"
+	    "if (Font.count != 47 || !Font.available(0) || Font.available(45)) Fiber.abort(\"font catalog\")\n"
+	    "Screen.font[0] = Font.commodore64Upper\n"
+	    "Screen.font[1] = Font.prestel\n"
+	    "Screen.font[2] = 46\n"
+	    "if (Font.codepage != Codepage.petsciiUpper || Font.codepageOf(1) != Codepage.prestel || Font.codepageOf(2) != Codepage.cp437) Fiber.abort(\"font codepages\")\n"
+	    "Screen.font[0] = 0\n"
+	    "Screen.font[1] = 0\n"
+	    "Screen.font[2] = 0\n";
+
+	if (wrenInterpret(host->vm, "codepage_contract", source)
+	    != WREN_RESULT_SUCCESS) {
+		fprintf(stderr, "codepage contract failed: %s\n", host->last_error);
+		return -1;
+	}
+	return 0;
+}
+
+static int
 exercise_configuration_collections(st_wren_host_t *public_host)
 {
 	struct st_wren_host *host = public_host;
@@ -727,6 +752,7 @@ main(void)
 	CHECK(exercise_surface_cell_retarget_contract(host) == 0);
 	CHECK(exercise_web_refresh_overlay(host, console) == 0);
 	CHECK(exercise_cursor_contract(host) == 0);
+	CHECK(exercise_codepage_contract(host) == 0);
 	CHECK(st_wren_font_identifier(&((struct st_wren_host *)host)->menu, 46,
 	    &configured_identifier));
 	CHECK(st_console_font_registered(console, configured_identifier,

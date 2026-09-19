@@ -3332,9 +3332,9 @@ A "font" in SyncTERM is one of 257 indexed slots, each a complete
 glyph table for a particular character set or display style.  Slots
 0–45 ship with built-in fonts, covering the codepages enumerated by
 <<codepage,`Codepage`>> plus several Amiga and 8-bit display styles.
-Slots 46+ are reserved for user-loaded fonts (uploaded via cterm
-escape sequences or RIP), but `Font.count` reports however many slots
-are actually populated at runtime.
+Slots 46+ hold configured or remotely supplied fonts.  `Font.count`
+reports the current catalog extent; use `Font.available(i)` to determine
+whether a catalog slot has a bitmap for the active cell dimensions.
 
 The `Font` class itself only exposes named constants for the most
 useful slots; every slot is reachable numerically through
@@ -3404,9 +3404,9 @@ distinguishes bundled font variants that use the same codepage encoding.
 | `Font.name(i)`    | Human-readable font name for slot `i`, e.g.
                      "Codepage 437 English".  Returns the empty
                      string for empty slots.
-| `Font.count`      | Total number of populated font slots.  Iteration
-                     bound — `0...Font.count` walks every available
-                     font.
+| `Font.count`      | Current catalog extent.  `0...Font.count` walks
+                     every built-in and configured slot; use
+                     `Font.available(i)` to skip unavailable bitmaps.
 | `Font.available(i)` | `true` if slot `i` has actually been loaded
                        (the user can configure SyncTERM to omit some
                        built-ins).
@@ -3416,6 +3416,8 @@ distinguishes bundled font variants that use the same codepage encoding.
 | `Font.codepageOf(i)` | The codepage value for slot `i`.  Several
                         slots can share a codepage (the Amiga slots
                         37–42 are all `iso8859_1`, for example).
+                        Custom slots use `cp437` until they carry an
+                        explicit Unicode mapping.
 |===
 
 === Hyperlinks [[hyperlinks]]

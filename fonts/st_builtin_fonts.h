@@ -8,6 +8,7 @@
 #ifndef ST_BUILTIN_FONTS_H_
 #define ST_BUILTIN_FONTS_H_
 
+#include "st_codepage.h"
 #include "st_console.h"
 
 #include <stdbool.h>
@@ -19,6 +20,7 @@
 size_t st_builtin_font_count(void);
 const char *st_builtin_font_name(size_t selector);
 bool st_builtin_font_broken_vertical(size_t selector);
+enum st_codepage st_builtin_font_codepage(size_t selector);
 
 /*
  * Returns a borrowed font matching the exact cell dimensions. Bitmap and

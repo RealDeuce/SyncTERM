@@ -9,8 +9,9 @@
 
 #include "io_error.h"
 #include "st_app_paths.h"
+#include "st_builtin_fonts.h"
 #include "st_console.h"
-#include "st_cp437.h"
+#include "st_codepage.h"
 #include "st_settings.h"
 #include "st_theme.h"
 #include "st_time.h"
@@ -441,7 +442,8 @@ allocate_key_event(WrenVM *vm)
 		return;
 	event->code = (uint16_t)code;
 	if ((event->code & 0xff00U) == 0) {
-		event->codepoint = st_cp437_to_unicode((uint8_t)event->code, false);
+		event->codepoint = st_codepage_to_unicode(ST_CODEPAGE_CP437,
+		    (uint8_t)event->code, false);
 		event->has_codepoint = true;
 	}
 }
@@ -631,8 +633,8 @@ next_input_event(WrenVM *vm, bool wait, int64_t timeout_ms, bool at_exit)
 			return true;
 		case ST_CONSOLE_EVENT_TEXT: {
 			uint8_t byte;
-			uint16_t code = st_cp437_from_unicode(&byte,
-			    event.data.text.codepoint) ? byte : '?';
+			uint16_t code = st_codepage_from_unicode(&byte,
+			    ST_CODEPAGE_CP437, event.data.text.codepoint) ? byte : '?';
 
 			make_key_event(vm, 0, code, event.data.text.codepoint, true);
 			return true;
@@ -1367,6 +1369,89 @@ SUPPORT_GETTER(external_scaling, ST_CONSOLE_CAP_EXTERNAL_SCALING)
 static void fn_support_false(WrenVM *vm) { wrenSetSlotBool(vm, 0, false); }
 
 static void
+fn_codepage_encodes(WrenVM *vm)
+{
+	const unsigned char *text;
+	uint32_t codepoint;
+	size_t consumed;
+	uint8_t encoded;
+	int length;
+
+	if (wrenGetSlotType(vm, 1) != WREN_TYPE_STRING) {
+		st_wren_abort(vm, "Codepage.encodes_ expects a String");
+		return;
+	}
+	text = (const unsigned char *)wrenGetSlotBytes(vm, 1, &length);
+	if (length <= 0 || st_utf8_decode_one(&codepoint, &consumed, text,
+	    (size_t)length) != 0) {
+		wrenSetSlotBool(vm, 0, false);
+		return;
+	}
+	wrenSetSlotBool(vm, 0, st_codepage_from_unicode(&encoded,
+	    ST_CODEPAGE_CP437, codepoint));
+}
+
+static enum st_codepage
+font_codepage(uint16_t selector)
+{
+	return selector < ST_BUILTIN_FONT_COUNT
+	    ? st_builtin_font_codepage(selector) : ST_CODEPAGE_CP437;
+}
+
+static void
+fn_font_name(WrenVM *vm)
+{
+	int64_t selector;
+	const char *name = NULL;
+
+	if (!slot_integer(vm, 1, 0, UINT8_MAX, &selector))
+		return;
+	if ((size_t)selector < ST_BUILTIN_FONT_COUNT)
+		name = st_builtin_font_name((size_t)selector);
+	else if ((size_t)selector - ST_BUILTIN_FONT_COUNT
+	    < st_settings_font_count())
+		name = st_settings_font_at((size_t)selector
+		    - ST_BUILTIN_FONT_COUNT)->name;
+	wrenSetSlotString(vm, 0, name == NULL ? "" : name);
+}
+
+static void
+fn_font_count(WrenVM *vm)
+{
+	wrenSetSlotDouble(vm, 0, (double)(ST_BUILTIN_FONT_COUNT
+	    + st_wren_context_from_vm(vm)->fonts.loaded_count));
+}
+
+static void
+fn_font_available(WrenVM *vm)
+{
+	int64_t selector;
+
+	if (slot_integer(vm, 1, 0, UINT8_MAX, &selector))
+		wrenSetSlotBool(vm, 0, st_wren_context_from_vm(vm)
+		    ->fonts.catalog_valid[selector]);
+}
+
+static void
+fn_font_codepage(WrenVM *vm)
+{
+	struct st_wren_context *context = st_wren_context_from_vm(vm);
+
+	wrenSetSlotDouble(vm, 0, font_codepage(context->fonts.slots[0]));
+}
+
+static void
+fn_font_codepage_of(WrenVM *vm)
+{
+	struct st_wren_context *context = st_wren_context_from_vm(vm);
+	int64_t slot;
+
+	if (slot_integer(vm, 1, 0, 4, &slot))
+		wrenSetSlotDouble(vm, 0,
+		    font_codepage(context->fonts.slots[slot]));
+}
+
+static void
 fn_screen_font_get(WrenVM *vm)
 {
 	int64_t slot;
@@ -1729,7 +1814,8 @@ fn_cell_byte(WrenVM *vm)
 
 	if (cell == NULL)
 		return;
-	if (!st_cp437_from_unicode(&value, cell->codepoint))
+	if (!st_codepage_from_unicode(&value, ST_CODEPAGE_CP437,
+	    cell->codepoint))
 		value = '?';
 	wrenSetSlotDouble(vm, 0, value);
 }
@@ -1742,7 +1828,8 @@ fn_cell_byte_set(WrenVM *vm)
 
 	if (foreign != NULL && slot_integer(vm, 1, 0, 255, &value))
 		set_cell_codepoint(vm, foreign,
-		    st_cp437_to_unicode((uint8_t)value, true), true,
+		    st_codepage_to_unicode(ST_CODEPAGE_CP437,
+		    (uint8_t)value, true), true,
 		    (uint8_t)value);
 }
 
@@ -2430,6 +2517,12 @@ static const struct binding bindings[] = {
 	{"ScreenSupports", true, "closeLock", fn_support_false},
 	{"ScreenFonts", true, "[_]", fn_screen_font_get},
 	{"ScreenFonts", true, "[_]=(_)", fn_screen_font_set},
+	{"Codepage", true, "encodes_(_)", fn_codepage_encodes},
+	{"Font", true, "name(_)", fn_font_name},
+	{"Font", true, "count", fn_font_count},
+	{"Font", true, "available(_)", fn_font_available},
+	{"Font", true, "codepage", fn_font_codepage},
+	{"Font", true, "codepageOf(_)", fn_font_codepage_of},
 	{"Palette", true, "[_]", fn_palette_get},
 	{"Palette", true, "[_]=(_)", fn_palette_set},
 	{"Surface", false, "count", fn_surface_count},

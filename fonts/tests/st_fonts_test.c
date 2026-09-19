@@ -21,6 +21,28 @@
 int
 main(void)
 {
+	static const enum st_codepage codepages[ST_BUILTIN_FONT_COUNT] = {
+		ST_CODEPAGE_CP437, ST_CODEPAGE_CP1251, ST_CODEPAGE_KOI8_R,
+		ST_CODEPAGE_ISO_8859_2, ST_CODEPAGE_ISO_8859_4,
+		ST_CODEPAGE_CP866M, ST_CODEPAGE_ISO_8859_9, ST_CODEPAGE_HAIK8,
+		ST_CODEPAGE_ISO_8859_8, ST_CODEPAGE_KOI8_U,
+		ST_CODEPAGE_ISO_8859_15, ST_CODEPAGE_ISO_8859_4,
+		ST_CODEPAGE_KOI8_R, ST_CODEPAGE_ISO_8859_4,
+		ST_CODEPAGE_ISO_8859_5, ST_CODEPAGE_ARMSCII8,
+		ST_CODEPAGE_ISO_8859_15, ST_CODEPAGE_CP850, ST_CODEPAGE_CP850,
+		ST_CODEPAGE_CP865, ST_CODEPAGE_CP1251, ST_CODEPAGE_ISO_8859_7,
+		ST_CODEPAGE_KOI8_R, ST_CODEPAGE_ISO_8859_4,
+		ST_CODEPAGE_ISO_8859_1, ST_CODEPAGE_CP866M2, ST_CODEPAGE_CP437,
+		ST_CODEPAGE_CP866M2, ST_CODEPAGE_CP865, ST_CODEPAGE_CP866U,
+		ST_CODEPAGE_ISO_8859_1, ST_CODEPAGE_CP1131,
+		ST_CODEPAGE_PETSCII_UPPER, ST_CODEPAGE_PETSCII_LOWER,
+		ST_CODEPAGE_PETSCII_UPPER, ST_CODEPAGE_PETSCII_LOWER,
+		ST_CODEPAGE_ATASCII, ST_CODEPAGE_ISO_8859_1,
+		ST_CODEPAGE_ISO_8859_1, ST_CODEPAGE_ISO_8859_1,
+		ST_CODEPAGE_ISO_8859_1, ST_CODEPAGE_ISO_8859_1,
+		ST_CODEPAGE_ISO_8859_1, ST_CODEPAGE_PRESTEL,
+		ST_CODEPAGE_ATARI_ST, ST_CODEPAGE_CP437,
+	};
 	static const unsigned availability[ST_BUILTIN_FONT_COUNT] = {
 		0x0f, 0x01, 0x07, 0x07, 0x01, 0x01, 0x01, 0x07,
 		0x07, 0x07, 0x01, 0x07, 0x01, 0x01, 0x07, 0x07,
@@ -79,6 +101,7 @@ main(void)
 	CHECK(!st_builtin_font_broken_vertical(1));
 	CHECK(!st_builtin_font_broken_vertical(ST_BUILTIN_FONT_COUNT));
 	for (size_t selector = 0; selector < ST_BUILTIN_FONT_COUNT; ++selector) {
+		CHECK(st_builtin_font_codepage(selector) == codepages[selector]);
 		for (size_t size = 0; size < sizeof(sizes) / sizeof(sizes[0]);
 		    ++size) {
 			bool present = st_builtin_font_get(selector,
@@ -97,6 +120,8 @@ main(void)
 			    &glyph_font) == 0);
 		}
 	}
+	CHECK(st_builtin_font_codepage(ST_BUILTIN_FONT_COUNT)
+	    == ST_CODEPAGE_COUNT);
 	CHECK(!st_builtin_font_get(0, 9, 16, &builtin));
 	CHECK(!st_builtin_font_get(ST_BUILTIN_FONT_COUNT, 8, 16, &builtin));
 	CHECK(!st_builtin_font_get(0, 8, 16, NULL));

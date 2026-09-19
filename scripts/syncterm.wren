@@ -713,6 +713,7 @@ class Codepage {
   static prestelSep   { 27 }
   static atariSt      { 28 }
 
+  foreign static encodes_(text)
 }
 class REPL {
   static eval(src) { eval("syncterm", src) }

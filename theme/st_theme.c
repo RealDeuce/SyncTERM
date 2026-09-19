@@ -12,7 +12,7 @@
 #include "io_error.h"
 #include "path.h"
 #include "st_app_paths.h"
-#include "st_cp437.h"
+#include "st_codepage.h"
 #include "st_settings.h"
 #include "st_utf8.h"
 #include "string_compat.h"
@@ -352,7 +352,8 @@ resolve_glyph(struct st_theme_glyph *glyph)
 		glyph->cp437 = glyph->ascii;
 	if ((glyph->present & (1u << ST_THEME_GLYPH_CODEPOINT)) != 0)
 		return st_unicode_scalar_valid(glyph->codepoint);
-	glyph->codepoint = st_cp437_to_unicode(glyph->cp437, true);
+	glyph->codepoint = st_codepage_to_unicode(ST_CODEPAGE_CP437,
+	    glyph->cp437, true);
 	return true;
 }
 

@@ -8,7 +8,7 @@
 
 #include "dynamic_library.h"
 #include "io_error.h"
-#include "st_cp437.h"
+#include "st_codepage.h"
 #include "st_utf8.h"
 
 #include <inttypes.h>
@@ -579,7 +579,8 @@ input_text_byte(st_console_display_t *display, struct ansi_state *state,
 			return;
 		}
 		if (state->presentation == ST_CONSOLE_TEXT_CP437) {
-			post_text(display, st_cp437_to_unicode(byte, false), modifiers);
+			post_text(display, st_codepage_to_unicode(ST_CODEPAGE_CP437,
+			    byte, false), modifiers);
 			return;
 		}
 		if (state->presentation == ST_CONSOLE_TEXT_ASCII) {

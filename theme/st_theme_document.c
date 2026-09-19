@@ -11,7 +11,7 @@
 #include "ini.h"
 #include "io_error.h"
 #include "path.h"
-#include "st_cp437.h"
+#include "st_codepage.h"
 #include "st_utf8.h"
 #include "string_compat.h"
 #include "string_util.h"
@@ -178,7 +178,7 @@ resolve_document_glyph(struct document_glyph *glyph)
 	if ((glyph->resolved_present & (1u << ST_THEME_GLYPH_CODEPOINT)) == 0) {
 		glyph->values[ST_THEME_GLYPH_CODEPOINT]
 		    = (glyph->resolved_present & (1u << ST_THEME_GLYPH_CP437)) != 0
-		    ? st_cp437_to_unicode(
+		    ? st_codepage_to_unicode(ST_CODEPAGE_CP437,
 		    (uint8_t)glyph->values[ST_THEME_GLYPH_CP437], true)
 		    : glyph->values[ST_THEME_GLYPH_ASCII];
 	}
