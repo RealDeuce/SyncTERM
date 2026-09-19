@@ -25,8 +25,10 @@ pointer preference, update state, and ordered input queue.  Exactly one console
 is active on a nonempty display at a time.
 
 `st_console_display_config` holds backend selection, text-terminal encoding
-and I/O, and initial window size/scaling.  `st_console_config` holds only the
-logical console's cell/raster geometry and rendering policy.  The convenience
+and I/O, an optional RGBA application icon, and initial window size/scaling.
+The icon storage remains owned by the caller for the display's lifetime and is
+ignored by non-window backends.  `st_console_config` holds only the logical
+console's cell/raster geometry and rendering policy.  The convenience
 constructor is `st_console_create(result, display_config, console_config)`;
 applications sharing one output instead create a display and attach logical
 consoles with `st_console_create_on_display()`.  Initial window settings apply

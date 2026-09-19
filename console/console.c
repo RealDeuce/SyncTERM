@@ -569,8 +569,21 @@ st_console_display_create(st_console_display_t **result,
 	const struct st_console_display_config *config)
 {
 	st_console_display_t *display;
+	const struct st_console_icon *icon;
+	size_t minimum_stride;
 
-	if (result == NULL || config == NULL
+	if (result == NULL || config == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	icon = config->icon;
+	if (icon != NULL && (icon->pixels == NULL || icon->width == 0
+	    || icon->height == 0))
+		return IO_ERROR_INVALID_ARGUMENT;
+	minimum_stride = icon == NULL ? 0 : icon->width;
+	if (minimum_stride > SIZE_MAX / 4)
+		return IO_ERROR_INVALID_ARGUMENT;
+	minimum_stride *= 4;
+	if ((icon != NULL && (icon->stride < minimum_stride
+	    || icon->height > SIZE_MAX / icon->stride))
 	    || config->backend < ST_CONSOLE_BACKEND_AUTO
 	    || config->backend > ST_CONSOLE_BACKEND_HEADLESS
 	    || config->text_presentation < ST_CONSOLE_TEXT_UNICODE

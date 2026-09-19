@@ -6,6 +6,7 @@
  */
 
 #include "console_internal.h"
+#include "console_config.h"
 #include "console_wayland_loader.h"
 
 #include "dynamic_library.h"
@@ -15,6 +16,9 @@
 #include "wayland-client.h"
 #include "xdg-shell-client.h"
 #include "viewporter-client.h"
+#if ST_CONSOLE_HAVE_WAYLAND_ICON
+#include "xdg-toplevel-icon-v1-client.h"
+#endif
 #include <xkbcommon/xkbcommon.h>
 
 #include <errno.h>
@@ -146,6 +150,9 @@ struct state {
 	struct wl_pointer *pointer;
 	struct xdg_wm_base *wm_base;
 	struct wp_viewporter *viewporter;
+#if ST_CONSOLE_HAVE_WAYLAND_ICON
+	struct xdg_toplevel_icon_manager_v1 *icon_manager;
+#endif
 	struct wl_surface *surface;
 	struct wl_surface *video_surface;
 	struct wl_surface *cursor_surface;
@@ -354,6 +361,48 @@ get_buffer(struct state *state, uint32_t width, uint32_t height)
 {
 	return get_buffer_from(
 	    state, state->buffers, width, height, WL_SHM_FORMAT_XRGB8888);
+}
+
+static void
+set_toplevel_icon(struct state *state)
+{
+#if ST_CONSOLE_HAVE_WAYLAND_ICON
+	const struct st_console_icon *source = state->console_display->config.icon;
+	struct xdg_toplevel_icon_v1 *icon;
+	struct buffer buffer = {.state = state};
+
+	if (source == NULL || source->width != source->height
+	    || state->icon_manager == NULL)
+		return;
+	if (buffer_create(state, &buffer, source->width, source->height,
+	    WL_SHM_FORMAT_ARGB8888) != 0)
+		return;
+	for (uint32_t y = 0; y < source->height; ++y) {
+		const unsigned char *row =
+		    &source->pixels[(size_t)y * source->stride];
+
+		for (uint32_t x = 0; x < source->width; ++x) {
+			const unsigned char *pixel = &row[(size_t)x * 4];
+			uint32_t alpha = pixel[3];
+			uint32_t red = ((uint32_t)pixel[0] * alpha + 127) / 255;
+			uint32_t green = ((uint32_t)pixel[1] * alpha + 127) / 255;
+			uint32_t blue = ((uint32_t)pixel[2] * alpha + 127) / 255;
+
+			buffer.pixels[(size_t)y * source->width + x]
+			    = (alpha << 24) | (red << 16) | (green << 8) | blue;
+		}
+	}
+	icon = xdg_toplevel_icon_manager_v1_create_icon(state->icon_manager);
+	if (icon != NULL) {
+		xdg_toplevel_icon_v1_add_buffer(icon, buffer.object, 1);
+		xdg_toplevel_icon_manager_v1_set_icon(state->icon_manager,
+		    state->toplevel, icon);
+		xdg_toplevel_icon_v1_destroy(icon);
+	}
+	buffer_destroy(&buffer);
+#else
+	(void)state;
+#endif
 }
 
 static void add_pending(struct buffer *buffer,
@@ -1350,6 +1399,11 @@ static void registry_global(void *data,
 		BIND(wm_base, xdg_wm_base, 6);
 	else if (strcmp(interface, wp_viewporter_interface.name) == 0)
 		BIND(viewporter, wp_viewporter, 1);
+#if ST_CONSOLE_HAVE_WAYLAND_ICON
+	else if (strcmp(interface,
+	    xdg_toplevel_icon_manager_v1_interface.name) == 0)
+		BIND(icon_manager, xdg_toplevel_icon_manager_v1, 1);
+#endif
 #undef BIND
 }
 static void registry_remove(void *d, struct wl_registry *r, uint32_t n)
@@ -1413,6 +1467,10 @@ static void objects_destroy(struct state *s)
 		wl_data_device_manager_destroy(s->data_manager);
 	if (s->viewporter)
 		wp_viewporter_destroy(s->viewporter);
+#if ST_CONSOLE_HAVE_WAYLAND_ICON
+	if (s->icon_manager)
+		xdg_toplevel_icon_manager_v1_destroy(s->icon_manager);
+#endif
 	if (s->wm_base)
 		xdg_wm_base_destroy(s->wm_base);
 	if (s->shm)
@@ -1471,6 +1529,8 @@ static int objects_create(struct state *s)
 	(void)xdg_surface_add_listener(s->xdg_surface, &surface_listener, s);
 	(void)xdg_toplevel_add_listener(s->toplevel, &top_listener, s);
 	xdg_toplevel_set_title(s->toplevel, "SyncTERM");
+	xdg_toplevel_set_app_id(s->toplevel, "syncterm");
+	set_toplevel_icon(s);
 	if (s->viewporter)
 		s->viewport =
 		    wp_viewporter_get_viewport(s->viewporter, s->video_surface);

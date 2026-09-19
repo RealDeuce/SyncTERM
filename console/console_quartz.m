@@ -839,6 +839,39 @@ make_invisible_cursor(void)
 	return cursor;
 }
 
+static void
+set_application_icon(struct quartz_state *state)
+{
+	const struct st_console_icon *icon = state->console_display->config.icon;
+	NSBitmapImageRep *representation;
+	NSImage *image;
+
+	if (icon == NULL)
+		return;
+	representation = [[NSBitmapImageRep alloc]
+	    initWithBitmapDataPlanes:NULL
+	    pixelsWide:(NSInteger)icon->width pixelsHigh:(NSInteger)icon->height
+	    bitsPerSample:8 samplesPerPixel:4 hasAlpha:YES isPlanar:NO
+	    colorSpaceName:NSDeviceRGBColorSpace
+	    bitmapFormat:NSBitmapFormatAlphaNonpremultiplied
+	    bytesPerRow:(NSInteger)icon->stride bitsPerPixel:32];
+	if (representation == nil)
+		return;
+	for (uint32_t y = 0; y < icon->height; ++y)
+		memcpy(&representation.bitmapData[(size_t)y * representation.bytesPerRow],
+		    &icon->pixels[(size_t)y * icon->stride],
+		    (size_t)icon->width * 4);
+	image = [[NSImage alloc] initWithSize:NSMakeSize(icon->width,
+	    icon->height)];
+	if (image != nil) {
+		[image addRepresentation:representation];
+		[NSApp setApplicationIconImage:image];
+		state->window.miniwindowImage = image;
+		[image release];
+	}
+	[representation release];
+}
+
 static void destroy_state(struct quartz_state *state);
 
 static int
@@ -879,6 +912,7 @@ create_state(struct quartz_state *state, uint32_t width, uint32_t height,
 	state->window.contentView = state->view;
 	state->window.delegate = state->delegate;
 	state->window.title = @"SyncTERM";
+	set_application_icon(state);
 	state->window.acceptsMouseMovedEvents = YES;
 	state->minimum_pixel_width = minimum_width;
 	state->minimum_pixel_height = minimum_height;

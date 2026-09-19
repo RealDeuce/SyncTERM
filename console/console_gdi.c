@@ -66,6 +66,7 @@ struct gdi_state {
 	bool started;
 	int start_status;
 	HWND window;
+	HICON icon;
 	struct st_console_bitmap_presenter *presenter;
 	struct st_console_bitmap_frame frame;
 	BITMAPINFO bitmap;
@@ -91,6 +92,68 @@ struct gdi_state {
 
 static st_once_flag_t class_once = ST_ONCE_FLAG_INIT;
 static ATOM window_class;
+
+static HICON
+create_icon(const struct st_console_icon *icon)
+{
+	BITMAPINFOHEADER *header;
+	unsigned char *resource;
+	uint32_t *colours;
+	unsigned char *mask;
+	size_t colour_size;
+	size_t mask_stride;
+	size_t mask_size;
+	size_t resource_size;
+	HICON result;
+
+	if (icon == NULL || icon->width > LONG_MAX
+	    || icon->height > LONG_MAX / 2)
+		return NULL;
+	colour_size = (size_t)icon->width * icon->height * sizeof(*colours);
+	mask_stride = ((size_t)icon->width + 31) / 32 * 4;
+	mask_size = mask_stride * icon->height;
+	if (colour_size > SIZE_MAX - sizeof(*header)
+	    || mask_size > SIZE_MAX - sizeof(*header) - colour_size)
+		return NULL;
+	resource_size = sizeof(*header) + colour_size + mask_size;
+	if (resource_size > UINT32_MAX)
+		return NULL;
+	resource = calloc(1, resource_size);
+	if (resource == NULL)
+		return NULL;
+	header = (BITMAPINFOHEADER *)resource;
+	colours = (uint32_t *)&resource[sizeof(*header)];
+	mask = &resource[sizeof(*header) + colour_size];
+	header->biSize = sizeof(*header);
+	header->biWidth = (LONG)icon->width;
+	header->biHeight = (LONG)(icon->height * 2);
+	header->biPlanes = 1;
+	header->biBitCount = 32;
+	header->biCompression = BI_RGB;
+	header->biSizeImage = (DWORD)colour_size;
+	for (uint32_t y = 0; y < icon->height; ++y) {
+		const unsigned char *source =
+		    &icon->pixels[(size_t)y * icon->stride];
+		uint32_t *destination = &colours[(size_t)(icon->height - y - 1)
+		    * icon->width];
+		unsigned char *mask_row = &mask[(size_t)(icon->height - y - 1)
+		    * mask_stride];
+
+		for (uint32_t x = 0; x < icon->width; ++x) {
+			const unsigned char *pixel = &source[(size_t)x * 4];
+
+			destination[x] = ((uint32_t)pixel[3] << 24)
+			    | ((uint32_t)pixel[0] << 16)
+			    | ((uint32_t)pixel[1] << 8) | pixel[2];
+			if (pixel[3] <= 127)
+				mask_row[x / 8] |= (unsigned char)(0x80U >> (x & 7));
+		}
+	}
+	result = CreateIconFromResourceEx(resource, (DWORD)resource_size, TRUE,
+	    0x00030000, (int)icon->width, (int)icon->height, LR_DEFAULTCOLOR);
+	free(resource);
+	return result;
+}
 
 static uint32_t
 now_ms(void)
@@ -986,6 +1049,15 @@ worker(void *argument)
 		    rectangle.bottom - rectangle.top, NULL, NULL,
 		    GetModuleHandleW(NULL), state);
 	}
+	if (state->window != NULL) {
+		state->icon = create_icon(state->console_display->config.icon);
+		if (state->icon != NULL) {
+			(void)SendMessageW(state->window, WM_SETICON, ICON_SMALL,
+			    (LPARAM)state->icon);
+			(void)SendMessageW(state->window, WM_SETICON, ICON_BIG,
+			    (LPARAM)state->icon);
+		}
+	}
 	(void)st_mutex_lock(&state->mutex);
 	state->start_status = state->window != NULL ? 0 : IO_ERROR_IO;
 	state->started = true;
@@ -998,6 +1070,8 @@ worker(void *argument)
 		(void)TranslateMessage(&message);
 		(void)DispatchMessageW(&message);
 	}
+	if (state->icon != NULL)
+		(void)DestroyIcon(state->icon);
 	return 0;
 }
 

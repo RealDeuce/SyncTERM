@@ -16,6 +16,7 @@
 #endif
 #include "st_profile.h"
 #include "st_settings.h"
+#include "st_syncterm_icon.h"
 #include "st_terminfo.h"
 #include "st_wren_host.h"
 
@@ -134,6 +135,7 @@ main(int argc, char **argv)
 		goto finished;
 	}
 	display_config = startup.display_config;
+	display_config.icon = &st_syncterm_icon;
 	status = st_console_display_create(&display, &display_config);
 	if (status == 0)
 		status = st_console_create_on_display(&console, display,

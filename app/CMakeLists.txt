@@ -16,7 +16,7 @@ target_link_libraries(st_app_startup PUBLIC st_console st_profile st_settings
 set_target_properties(st_app_startup PROPERTIES
 	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 
-add_executable(syncterm_app syncterm.c st_terminfo.c)
+add_executable(syncterm_app syncterm.c st_syncterm_icon.c st_terminfo.c)
 set_target_properties(syncterm_app PROPERTIES
 	OUTPUT_NAME syncterm
 	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)

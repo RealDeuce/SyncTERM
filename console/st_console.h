@@ -217,6 +217,14 @@ struct st_console_ansi_io {
 	bool direct_colour;
 };
 
+/* Rows are top-to-bottom, with four bytes per pixel in RGBA order. */
+struct st_console_icon {
+	const unsigned char *pixels;
+	size_t stride;
+	uint32_t width;
+	uint32_t height;
+};
+
 enum st_console_text_presentation {
 	ST_CONSOLE_TEXT_UNICODE,
 	ST_CONSOLE_TEXT_CP437,
@@ -254,6 +262,8 @@ struct st_console_display_config {
 	enum st_console_text_presentation text_presentation;
 	/* Copied at display creation; callback and context must outlive the display. */
 	const struct st_console_ansi_io *ansi_io;
+	/* Borrowed for the display lifetime; ignored by non-window backends. */
+	const struct st_console_icon *icon;
 	/* Zero selects one-times display scaling.  Values below one are clamped. */
 	double initial_scaling;
 	/* Both nonzero override initial_scaling, in drawable pixel units. */

@@ -91,6 +91,7 @@ typedef Bool (*x11_filter_event_fn)(XEvent *, Window);
 typedef KeyCode (*x11_keysym_to_keycode_fn)(Display *, KeySym);
 typedef Atom (*x11_intern_atom_fn)(Display *, const char *, Bool);
 typedef Status (*x11_set_wm_protocols_fn)(Display *, Window, Atom *, int);
+typedef int (*x11_set_wm_hints_fn)(Display *, Window, XWMHints *);
 typedef int (*x11_store_name_fn)(Display *, Window, const char *);
 typedef int (*x11_change_property_fn)(Display *, Window, Atom, Atom, int,
 	int, const unsigned char *, int);
@@ -194,6 +195,7 @@ struct x11_api {
 	KeyCode (*keysym_to_keycode)(Display *, KeySym);
 	Atom (*intern_atom)(Display *, const char *, Bool);
 	Status (*set_wm_protocols)(Display *, Window, Atom *, int);
+	int (*set_wm_hints)(Display *, Window, XWMHints *);
 	int (*store_name)(Display *, Window, const char *);
 	int (*change_property)(Display *, Window, Atom, Atom, int, int,
 	    const unsigned char *, int);
@@ -323,9 +325,16 @@ struct x11_state {
 	bool key_down[256];
 	uint16_t keycode_evdev[256];
 	Cursor hidden_cursor;
+	Pixmap icon_pixmap;
+	Pixmap icon_mask;
 	Atom wm_delete;
 	Atom wm_ping;
 	Atom net_wm_name;
+	Atom net_wm_icon_name;
+	Atom net_wm_icon;
+	Atom net_wm_pid;
+	Atom net_wm_window_type;
+	Atom net_wm_window_type_normal;
 	Atom utf8_string;
 	Atom clipboard_atom;
 	Atom targets_atom;
@@ -735,6 +744,7 @@ load_xlib(struct x11_state *state)
 	    || !LOAD_REQUIRED(state, keysym_to_keycode, "XKeysymToKeycode")
 	    || !LOAD_REQUIRED(state, intern_atom, "XInternAtom")
 	    || !LOAD_REQUIRED(state, set_wm_protocols, "XSetWMProtocols")
+	    || !LOAD_REQUIRED(state, set_wm_hints, "XSetWMHints")
 	    || !LOAD_REQUIRED(state, store_name, "XStoreName")
 	    || !LOAD_REQUIRED(state, change_property, "XChangeProperty")
 	    || !LOAD_REQUIRED(state, delete_property, "XDeleteProperty")
@@ -1526,6 +1536,251 @@ build_keycode_map(struct x11_state *state)
 	    XkbAllComponentsMask, True);
 }
 
+static bool
+window_property(struct x11_state *state, Window window, Atom property,
+	Atom expected_type, unsigned long *value)
+{
+	Atom type = None;
+	int format = 0;
+	unsigned long count = 0;
+	unsigned long remaining = 0;
+	unsigned char *data = NULL;
+	bool valid = false;
+
+	if (property != None
+	    && state->api.get_window_property(state->display, window, property,
+	    0, 1, False, expected_type, &type, &format, &count, &remaining,
+	    &data) == Success && type == expected_type && format == 32
+	    && count == 1 && data != NULL) {
+		*value = ((const unsigned long *)data)[0];
+		valid = true;
+	}
+	if (data != NULL)
+		(void)state->api.free_memory(data);
+	return valid;
+}
+
+static void
+initialize_ewmh_atoms(struct x11_state *state)
+{
+	struct atom_binding {
+		const char *name;
+		Atom atom;
+		Atom *destination;
+	};
+	struct atom_binding bindings[] = {
+		{"_NET_FRAME_EXTENTS", None, &state->net_frame_extents},
+		{"_NET_WM_DESKTOP", None, &state->net_wm_desktop},
+		{"_NET_WM_ICON", None, &state->net_wm_icon},
+		{"_NET_WM_ICON_NAME", None, &state->net_wm_icon_name},
+		{"_NET_WM_NAME", None, &state->net_wm_name},
+		{"_NET_WM_PID", None, &state->net_wm_pid},
+		{"_NET_WM_PING", None, &state->wm_ping},
+		{"_NET_WM_STATE", None, &state->net_wm_state},
+		{"_NET_WM_STATE_FULLSCREEN", None, &state->net_wm_fullscreen},
+		{"_NET_WM_STATE_MAXIMIZED_VERT", None,
+		    &state->net_wm_maximized_vertical},
+		{"_NET_WM_STATE_MAXIMIZED_HORZ", None,
+		    &state->net_wm_maximized_horizontal},
+		{"_NET_WM_WINDOW_TYPE", None, &state->net_wm_window_type},
+		{"_NET_WM_WINDOW_TYPE_NORMAL", None,
+		    &state->net_wm_window_type_normal},
+		{"_NET_WORKAREA", None, &state->net_workarea},
+	};
+	Atom supported = state->api.intern_atom(state->display,
+	    "_NET_SUPPORTED", False);
+	Atom check = state->api.intern_atom(state->display,
+	    "_NET_SUPPORTING_WM_CHECK", False);
+	unsigned long manager;
+	unsigned long manager_check;
+	long offset = 0;
+	unsigned long remaining = 1;
+
+	for (size_t i = 0; i < sizeof(bindings) / sizeof(bindings[0]); ++i) {
+		*bindings[i].destination = None;
+		bindings[i].atom = state->api.intern_atom(state->display,
+		    bindings[i].name, False);
+	}
+	if (!window_property(state, state->root, check, XA_WINDOW, &manager)
+	    || manager == None
+	    || !window_property(state, (Window)manager, check, XA_WINDOW,
+	    &manager_check) || manager_check != manager)
+		return;
+	while (remaining != 0) {
+		Atom type = None;
+		int format = 0;
+		unsigned long count = 0;
+		unsigned char *data = NULL;
+
+		if (state->api.get_window_property(state->display, state->root,
+		    supported, offset, 256, False, XA_ATOM, &type, &format, &count,
+		    &remaining, &data) != Success || type != XA_ATOM || format != 32
+		    || data == NULL) {
+			if (data != NULL)
+				(void)state->api.free_memory(data);
+			return;
+		}
+		for (unsigned long i = 0; i < count; ++i) {
+			Atom atom = (Atom)((const unsigned long *)data)[i];
+
+			for (size_t j = 0;
+			    j < sizeof(bindings) / sizeof(bindings[0]); ++j) {
+				if (bindings[j].atom == atom)
+					*bindings[j].destination = atom;
+			}
+		}
+		(void)state->api.free_memory(data);
+		if (count == 0)
+			break;
+		offset += (long)count;
+	}
+}
+
+static void
+set_window_icon_hints(struct x11_state *state)
+{
+	const struct st_console_icon *icon = state->console_display->config.icon;
+	uint32_t width;
+	uint32_t height;
+	XImage *image;
+	char *mask_data;
+	size_t mask_stride;
+	XWMHints hints = {
+		.flags = InputHint | StateHint,
+		.input = True,
+		.initial_state = NormalState,
+	};
+
+	if (icon == NULL)
+		goto set_hints;
+	width = icon->width > 32 ? 32 : icon->width;
+	height = icon->height > 32 ? 32 : icon->height;
+	image = state->api.create_image(state->display, state->visual,
+	    (unsigned int)state->depth, ZPixmap, 0, NULL, width, height, 32, 0);
+	if (image == NULL || image->bytes_per_line <= 0)
+		goto destroy_image;
+	if ((size_t)image->bytes_per_line > SIZE_MAX / height)
+		goto destroy_image;
+	image->data = calloc(height, (size_t)image->bytes_per_line);
+	if (image->data == NULL)
+		goto destroy_image;
+	mask_stride = ((size_t)width + 7) / 8;
+	mask_data = calloc(height, mask_stride);
+	if (mask_data == NULL)
+		goto destroy_image;
+	for (uint32_t y = 0; y < height; ++y) {
+		uint32_t source_y = (uint32_t)((uint64_t)y * icon->height / height);
+		const unsigned char *row = &icon->pixels[
+		    (size_t)source_y * icon->stride];
+
+		for (uint32_t x = 0; x < width; ++x) {
+			uint32_t source_x = (uint32_t)((uint64_t)x * icon->width / width);
+			const unsigned char *pixel = &row[(size_t)source_x * 4];
+			uint32_t rgb = (uint32_t)pixel[0] << 16
+			    | (uint32_t)pixel[1] << 8 | pixel[2];
+
+			(void)store_native_pixel(image, x, y,
+			    native_pixel(state, rgb));
+			if (pixel[3] != 0)
+				mask_data[(size_t)y * mask_stride + x / 8]
+				    |= (char)(1U << (x % 8));
+		}
+	}
+	state->icon_pixmap = state->api.create_pixmap(state->display,
+	    state->root, width, height, (unsigned int)state->depth);
+	state->icon_mask = state->api.create_bitmap_from_data(state->display,
+	    state->root, mask_data, width, height);
+	free(mask_data);
+	if (state->icon_pixmap == None || state->icon_mask == None)
+		goto destroy_image;
+	(void)state->api.put_image(state->display, state->icon_pixmap, state->gc,
+	    image, 0, 0, 0, 0, width, height);
+	hints.flags |= IconPixmapHint | IconMaskHint;
+	hints.icon_pixmap = state->icon_pixmap;
+	hints.icon_mask = state->icon_mask;
+
+destroy_image:
+	if (image != NULL)
+		XDestroyImage(image);
+set_hints:
+	(void)state->api.set_wm_hints(state->display, state->window, &hints);
+}
+
+static void
+set_window_icon(struct x11_state *state)
+{
+	const struct st_console_icon *icon = state->console_display->config.icon;
+	size_t pixels;
+	unsigned long *property;
+	Atom atom;
+
+	if (icon == NULL || icon->width > INT_MAX || icon->height > INT_MAX
+	    || icon->width > ((size_t)INT_MAX - 2) / icon->height)
+		return;
+	pixels = (size_t)icon->width * icon->height;
+	property = malloc((pixels + 2) * sizeof(*property));
+	if (property == NULL)
+		return;
+	property[0] = icon->width;
+	property[1] = icon->height;
+	for (uint32_t y = 0; y < icon->height; ++y) {
+		const unsigned char *row = &icon->pixels[(size_t)y * icon->stride];
+
+		for (uint32_t x = 0; x < icon->width; ++x) {
+			const unsigned char *pixel = &row[(size_t)x * 4];
+
+			property[2 + (size_t)y * icon->width + x]
+			    = ((unsigned long)pixel[3] << 24)
+			    | ((unsigned long)pixel[0] << 16)
+			    | ((unsigned long)pixel[1] << 8) | pixel[2];
+		}
+	}
+	atom = state->net_wm_icon;
+	if (atom != None)
+		(void)state->api.change_property(state->display, state->window,
+		    atom, XA_CARDINAL, 32, PropModeReplace,
+		    (const unsigned char *)property, (int)(pixels + 2));
+	free(property);
+}
+
+static void
+set_window_title(struct x11_state *state, const char *title)
+{
+	(void)state->api.store_name(state->display, state->window, title);
+	if (state->net_wm_name != None && state->utf8_string != None)
+		(void)state->api.change_property(state->display, state->window,
+		    state->net_wm_name, state->utf8_string, 8, PropModeReplace,
+		    (const unsigned char *)title, (int)strlen(title));
+}
+
+static void
+set_window_identity(struct x11_state *state)
+{
+	static const unsigned char wm_class[] = "syncterm\0SyncTERM";
+	static const unsigned char name[] = "SyncTERM";
+	unsigned long process = (unsigned long)getpid();
+	Atom type = state->net_wm_window_type_normal;
+
+	(void)state->api.change_property(state->display, state->window,
+	    XA_WM_CLASS, XA_STRING, 8, PropModeReplace, wm_class,
+	    (int)sizeof(wm_class));
+	(void)state->api.change_property(state->display, state->window,
+	    XA_WM_ICON_NAME, XA_STRING, 8, PropModeReplace, name,
+	    (int)(sizeof(name) - 1));
+	if (state->net_wm_icon_name != None && state->utf8_string != None)
+		(void)state->api.change_property(state->display, state->window,
+		    state->net_wm_icon_name, state->utf8_string, 8,
+		    PropModeReplace, name, (int)(sizeof(name) - 1));
+	if (state->net_wm_pid != None)
+		(void)state->api.change_property(state->display, state->window,
+		    state->net_wm_pid, XA_CARDINAL, 32, PropModeReplace,
+		    (const unsigned char *)&process, 1);
+	if (state->net_wm_window_type != None && type != None)
+		(void)state->api.change_property(state->display, state->window,
+		    state->net_wm_window_type, XA_ATOM, 32, PropModeReplace,
+		    (const unsigned char *)&type, 1);
+}
+
 static void
 update_window_state(struct x11_state *state)
 {
@@ -1818,14 +2073,7 @@ process_command(struct x11_state *state, struct x11_command *command)
 		return 0;
 		}
 	case X11_COMMAND_SET_TITLE:
-		(void)state->api.store_name(state->display, state->window,
-		    command->data.text);
-		if (state->net_wm_name != None && state->utf8_string != None)
-			(void)state->api.change_property(state->display, state->window,
-			    state->net_wm_name, state->utf8_string, 8,
-			    PropModeReplace,
-			    (const unsigned char *)command->data.text,
-			    (int)strlen(command->data.text));
+		set_window_title(state, command->data.text);
 		return 0;
 	case X11_COMMAND_SET_CLIPBOARD: {
 		char *copy = copy_bytes(
@@ -1898,12 +2146,18 @@ destroy_x11_objects(struct x11_state *state)
 		(void)state->api.free_gc(state->display, state->gc);
 	if (state->window != None)
 		(void)state->api.destroy_window(state->display, state->window);
+	if (state->icon_pixmap != None)
+		(void)state->api.free_pixmap(state->display, state->icon_pixmap);
+	if (state->icon_mask != None)
+		(void)state->api.free_pixmap(state->display, state->icon_mask);
 	if (state->display != NULL)
 		(void)state->api.close_display(state->display);
 	state->gc = NULL;
 	state->input_context = NULL;
 	state->input_method = NULL;
 	state->window = None;
+	state->icon_pixmap = None;
+	state->icon_mask = None;
 	state->display = NULL;
 }
 
@@ -1982,8 +2236,9 @@ create_x11_objects(struct x11_state *state)
 	    | ButtonReleaseMask | PropertyChangeMask);
 	state->wm_delete = state->api.intern_atom(state->display,
 	    "WM_DELETE_WINDOW", False);
-	state->wm_ping = state->api.intern_atom(state->display,
-	    "_NET_WM_PING", True);
+	state->utf8_string = state->api.intern_atom(state->display,
+	    "UTF8_STRING", False);
+	initialize_ewmh_atoms(state);
 	if (state->wm_delete != None)
 		protocols[protocol_count++] = state->wm_delete;
 	if (state->wm_ping != None)
@@ -1991,31 +2246,16 @@ create_x11_objects(struct x11_state *state)
 	if (protocol_count != 0)
 		(void)state->api.set_wm_protocols(state->display, state->window,
 		    protocols, protocol_count);
-	state->net_wm_name = state->api.intern_atom(state->display,
-	    "_NET_WM_NAME", False);
-	state->utf8_string = state->api.intern_atom(state->display,
-	    "UTF8_STRING", False);
 	state->clipboard_atom = state->api.intern_atom(state->display,
 	    "CLIPBOARD", False);
 	state->targets_atom = state->api.intern_atom(state->display,
 	    "TARGETS", False);
 	state->clipboard_property = state->api.intern_atom(state->display,
 	    "ST_CONSOLE_CLIPBOARD", False);
-	state->net_wm_state = state->api.intern_atom(state->display,
-	    "_NET_WM_STATE", True);
-	state->net_frame_extents = state->api.intern_atom(state->display,
-	    "_NET_FRAME_EXTENTS", True);
-	state->net_wm_desktop = state->api.intern_atom(state->display,
-	    "_NET_WM_DESKTOP", True);
-	state->net_workarea = state->api.intern_atom(state->display,
-	    "_NET_WORKAREA", True);
-	state->net_wm_fullscreen = state->api.intern_atom(state->display,
-	    "_NET_WM_STATE_FULLSCREEN", True);
-	state->net_wm_maximized_vertical = state->api.intern_atom(state->display,
-	    "_NET_WM_STATE_MAXIMIZED_VERT", True);
-	state->net_wm_maximized_horizontal = state->api.intern_atom(state->display,
-	    "_NET_WM_STATE_MAXIMIZED_HORZ", True);
-	(void)state->api.store_name(state->display, state->window, "SyncTERM");
+	set_window_title(state, "SyncTERM");
+	set_window_identity(state);
+	set_window_icon_hints(state);
+	set_window_icon(state);
 	escape = state->api.keysym_to_keycode(state->display, XK_Escape);
 	up = state->api.keysym_to_keycode(state->display, XK_Up);
 	insert = state->api.keysym_to_keycode(state->display, XK_Insert);

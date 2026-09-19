@@ -12,6 +12,7 @@
 
 #include "io_error.h"
 
+#include <X11/Xatom.h>
 #include <X11/keysym.h>
 #include <X11/Xutil.h>
 #if ST_CONSOLE_HAVE_XRANDR
@@ -24,6 +25,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 
 #define CHECK(expression) do { \
 	if (!(expression)) { \
@@ -32,6 +34,18 @@
 		return 1; \
 	} \
 } while (0)
+
+static const unsigned char icon_pixels[] = {
+	255, 0, 0, 255, 0, 255, 0, 128, 0, 0, 0, 0,
+	0, 0, 255, 64, 255, 255, 255, 0, 0, 0, 0, 0,
+};
+
+static const struct st_console_icon test_icon = {
+	.pixels = icon_pixels,
+	.stride = 12,
+	.width = 2,
+	.height = 2,
+};
 
 static int
 check_keys(void)
@@ -103,6 +117,129 @@ check_window_size(const char *title, int width, int height,
 	    && hints.min_height == minimum_height);
 	CHECK((hints.flags & PAspect) != 0);
 	CHECK(hints.min_aspect.x == 4 && hints.min_aspect.y == 3);
+	(void)XCloseDisplay(display);
+	return 0;
+}
+
+static int
+root_supports_atom(Display *display, Atom wanted)
+{
+	Atom supported = XInternAtom(display, "_NET_SUPPORTED", False);
+	Atom actual_type = None;
+	int actual_format = 0;
+	unsigned long count = 0;
+	unsigned long remaining = 0;
+	unsigned char *data = NULL;
+	int result = 0;
+
+	if (XGetWindowProperty(display, DefaultRootWindow(display), supported,
+	    0, 1024, False, XA_ATOM, &actual_type, &actual_format, &count,
+	    &remaining, &data) == Success && actual_type == XA_ATOM
+	    && actual_format == 32 && data != NULL) {
+		for (unsigned long i = 0; i < count; ++i) {
+			if ((Atom)((unsigned long *)data)[i] == wanted) {
+				result = 1;
+				break;
+			}
+		}
+	}
+	if (data != NULL)
+		(void)XFree(data);
+	return result;
+}
+
+static int
+check_window_metadata(const char *title)
+{
+	static const unsigned long expected[] = {
+		2, 2, 0xffff0000, 0x8000ff00, 0x400000ff, 0x00ffffff,
+	};
+	Display *display = XOpenDisplay(NULL);
+	Atom icon_atom;
+	Atom icon_name_atom;
+	Atom pid_atom;
+	Atom type_atom;
+	Atom normal_atom;
+	Atom actual_type = None;
+	int actual_format = 0;
+	unsigned long count = 0;
+	unsigned long remaining = 0;
+	unsigned char *data = NULL;
+	Window window;
+	XClassHint class_hint = {0};
+	XWMHints *wm_hints;
+	char *icon_name = NULL;
+
+	CHECK(display != NULL);
+	window = find_named_window(display, DefaultRootWindow(display), title);
+	CHECK(window != None);
+	CHECK(XGetClassHint(display, window, &class_hint) != 0);
+	CHECK(class_hint.res_name != NULL
+	    && strcmp(class_hint.res_name, "syncterm") == 0);
+	CHECK(class_hint.res_class != NULL
+	    && strcmp(class_hint.res_class, "SyncTERM") == 0);
+	(void)XFree(class_hint.res_name);
+	(void)XFree(class_hint.res_class);
+	CHECK(XGetIconName(display, window, &icon_name) != 0);
+	CHECK(icon_name != NULL && strcmp(icon_name, "SyncTERM") == 0);
+	(void)XFree(icon_name);
+	wm_hints = XGetWMHints(display, window);
+	CHECK(wm_hints != NULL);
+	CHECK((wm_hints->flags & (InputHint | StateHint | IconPixmapHint
+	    | IconMaskHint)) == (InputHint | StateHint | IconPixmapHint
+	    | IconMaskHint));
+	CHECK(wm_hints->input != 0 && wm_hints->initial_state == NormalState);
+	CHECK(wm_hints->icon_pixmap != None && wm_hints->icon_mask != None);
+	(void)XFree(wm_hints);
+	icon_atom = XInternAtom(display, "_NET_WM_ICON", False);
+	if (root_supports_atom(display, icon_atom)) {
+		CHECK(XGetWindowProperty(display, window, icon_atom, 0,
+		    sizeof(expected) / sizeof(expected[0]), False, XA_CARDINAL,
+		    &actual_type, &actual_format, &count, &remaining,
+		    &data) == Success);
+		CHECK(actual_type == XA_CARDINAL && actual_format == 32);
+		CHECK(count == sizeof(expected) / sizeof(expected[0]));
+		CHECK(remaining == 0 && data != NULL);
+		for (size_t i = 0; i < count; ++i)
+			CHECK((((unsigned long *)data)[i] & UINT32_MAX)
+			    == expected[i]);
+		(void)XFree(data);
+		data = NULL;
+	}
+	pid_atom = XInternAtom(display, "_NET_WM_PID", False);
+	if (root_supports_atom(display, pid_atom)) {
+		CHECK(XGetWindowProperty(display, window, pid_atom, 0, 1, False,
+		    XA_CARDINAL, &actual_type, &actual_format, &count, &remaining,
+		    &data) == Success);
+		CHECK(actual_type == XA_CARDINAL && actual_format == 32
+		    && count == 1 && data != NULL);
+		CHECK(((unsigned long *)data)[0] == (unsigned long)getpid());
+		(void)XFree(data);
+		data = NULL;
+	}
+	type_atom = XInternAtom(display, "_NET_WM_WINDOW_TYPE", False);
+	normal_atom = XInternAtom(display, "_NET_WM_WINDOW_TYPE_NORMAL", False);
+	if (root_supports_atom(display, type_atom)
+	    && root_supports_atom(display, normal_atom)) {
+		CHECK(XGetWindowProperty(display, window, type_atom, 0, 1, False,
+		    XA_ATOM, &actual_type, &actual_format, &count, &remaining,
+		    &data) == Success);
+		CHECK(actual_type == XA_ATOM && actual_format == 32 && count == 1
+		    && data != NULL);
+		CHECK((Atom)((unsigned long *)data)[0] == normal_atom);
+		(void)XFree(data);
+		data = NULL;
+	}
+	icon_name_atom = XInternAtom(display, "_NET_WM_ICON_NAME", False);
+	if (root_supports_atom(display, icon_name_atom)) {
+		CHECK(XGetWindowProperty(display, window, icon_name_atom, 0, 32,
+		    False, AnyPropertyType, &actual_type, &actual_format, &count,
+		    &remaining, &data) == Success);
+		CHECK(actual_format == 8 && count == strlen("SyncTERM")
+		    && data != NULL);
+		CHECK(memcmp(data, "SyncTERM", count) == 0);
+		(void)XFree(data);
+	}
 	(void)XCloseDisplay(display);
 	return 0;
 }
@@ -408,6 +545,7 @@ main(void)
 {
 	const struct st_console_display_config config_display = {
 		.backend = ST_CONSOLE_BACKEND_X11,
+		.icon = &test_icon,
 	};
 	const struct st_console_config config = {
 		.columns = 8,
@@ -437,6 +575,7 @@ main(void)
 	CHECK(st_console_create(&second, &scaled_display, &scaled) == 0);
 	CHECK(st_console_set_title(first, "st_console X11 test one") == 0);
 	CHECK(st_console_set_title(second, "st_console X11 test two") == 0);
+	CHECK(check_window_metadata("st_console X11 test one") == 0);
 	CHECK(check_window_size("st_console X11 test two", 171, 128,
 	    85, 64) == 0);
 	CHECK(st_console_set_pointer_visible(first, false) == 0);

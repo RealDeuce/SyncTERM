@@ -42,6 +42,10 @@ typedef void (SDLCALL *sdl_set_window_minimum_size_fn)(SDL_Window *, int,
 	int);
 typedef void (SDLCALL *sdl_restore_window_fn)(SDL_Window *);
 typedef int (SDLCALL *sdl_set_window_fullscreen_fn)(SDL_Window *, Uint32);
+typedef SDL_Surface *(SDLCALL *sdl_create_rgb_surface_from_fn)(void *, int,
+	int, int, int, Uint32, Uint32, Uint32, Uint32);
+typedef void (SDLCALL *sdl_free_surface_fn)(SDL_Surface *);
+typedef void (SDLCALL *sdl_set_window_icon_fn)(SDL_Window *, SDL_Surface *);
 typedef SDL_bool (SDLCALL *sdl_set_hint_fn)(const char *, const char *);
 typedef SDL_Renderer *(SDLCALL *sdl_create_renderer_fn)(SDL_Window *, int,
 	Uint32);
@@ -90,6 +94,10 @@ struct sdl_api {
 	void (SDLCALL *set_window_minimum_size)(SDL_Window *, int, int);
 	void (SDLCALL *restore_window)(SDL_Window *);
 	int (SDLCALL *set_window_fullscreen)(SDL_Window *, Uint32);
+	SDL_Surface *(SDLCALL *create_rgb_surface_from)(void *, int, int, int,
+	    int, Uint32, Uint32, Uint32, Uint32);
+	void (SDLCALL *free_surface)(SDL_Surface *);
+	void (SDLCALL *set_window_icon)(SDL_Window *, SDL_Surface *);
 	SDL_bool (SDLCALL *set_hint)(const char *, const char *);
 	SDL_Renderer *(SDLCALL *create_renderer)(SDL_Window *, int, Uint32);
 	void (SDLCALL *destroy_renderer)(SDL_Renderer *);
@@ -267,6 +275,12 @@ load_sdl(void)
 	    "SDL_RestoreWindow")
 	    || !LOAD_REQUIRED(&manager.api, manager.library, set_window_fullscreen,
 	    "SDL_SetWindowFullscreen")
+	    || !LOAD_REQUIRED(&manager.api, manager.library,
+	    create_rgb_surface_from, "SDL_CreateRGBSurfaceFrom")
+	    || !LOAD_REQUIRED(&manager.api, manager.library, free_surface,
+	    "SDL_FreeSurface")
+	    || !LOAD_REQUIRED(&manager.api, manager.library, set_window_icon,
+	    "SDL_SetWindowIcon")
 	    || !LOAD_REQUIRED(&manager.api, manager.library, set_hint,
 	    "SDL_SetHint")
 	    || !LOAD_REQUIRED(&manager.api, manager.library, create_renderer,
@@ -524,6 +538,7 @@ static int
 create_state(struct sdl_state *state, uint32_t width, uint32_t height,
 	uint32_t minimum_width, uint32_t minimum_height)
 {
+	const struct st_console_icon *icon = state->console_display->config.icon;
 	int status;
 
 	status = load_sdl();
@@ -536,6 +551,24 @@ create_state(struct sdl_state *state, uint32_t width, uint32_t height,
 	    (int)height, SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
 	if (state->window == NULL)
 		return IO_ERROR_NOT_SUPPORTED;
+	if (icon != NULL && icon->width <= INT_MAX && icon->height <= INT_MAX
+	    && icon->stride <= INT_MAX) {
+		SDL_Surface *surface = manager.api.create_rgb_surface_from(
+		    (void *)icon->pixels, (int)icon->width, (int)icon->height, 32,
+		    (int)icon->stride,
+#if SDL_BYTEORDER == SDL_BIG_ENDIAN
+		    UINT32_C(0xff000000), UINT32_C(0x00ff0000),
+		    UINT32_C(0x0000ff00), UINT32_C(0x000000ff));
+#else
+		    UINT32_C(0x000000ff), UINT32_C(0x0000ff00),
+		    UINT32_C(0x00ff0000), UINT32_C(0xff000000));
+#endif
+
+		if (surface != NULL) {
+			manager.api.set_window_icon(state->window, surface);
+			manager.api.free_surface(surface);
+		}
+	}
 	state->renderer = manager.api.create_renderer(state->window, -1,
 	    SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 	if (state->renderer == NULL)
