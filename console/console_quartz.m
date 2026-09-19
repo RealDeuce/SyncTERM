@@ -1205,8 +1205,10 @@ quartz_resize(st_console_t *console, uint32_t columns, uint32_t rows)
 		.type = QUARTZ_COMMAND_RESIZE,
 		.state = console->display->backend_state,
 		.data.size = {
-			columns * console->cell_width + console->pixel_extra_width,
-			rows * console->cell_height + console->pixel_extra_height,
+			.width = columns * console->cell_width
+			    + console->pixel_extra_width,
+			.height = rows * console->cell_height
+			    + console->pixel_extra_height,
 		},
 	});
 }

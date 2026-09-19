@@ -393,6 +393,7 @@ struct x11_geometry {
 	long height;
 };
 
+#if ST_CONSOLE_HAVE_XRANDR || ST_CONSOLE_HAVE_XINERAMA
 static unsigned long
 distance_from_rectangle(long x, long y,
 	const struct x11_geometry *rectangle)
@@ -419,11 +420,13 @@ distance_from_rectangle(long x, long y,
 		return ULONG_MAX;
 	return horizontal + vertical;
 }
+#endif
 
 static void
 current_monitor_geometry(struct x11_state *state,
 	struct x11_geometry *geometry)
 {
+#if ST_CONSOLE_HAVE_XRANDR || ST_CONSOLE_HAVE_XINERAMA
 	Window child;
 	int window_x = 0;
 	int window_y = 0;
@@ -431,17 +434,20 @@ current_monitor_geometry(struct x11_state *state,
 	long center_y;
 	unsigned long best_distance = ULONG_MAX;
 	bool found = false;
+#endif
 
 	*geometry = (struct x11_geometry){
 		.width = DisplayWidth(state->display, state->screen),
 		.height = DisplayHeight(state->display, state->screen),
 	};
+#if ST_CONSOLE_HAVE_XRANDR || ST_CONSOLE_HAVE_XINERAMA
 	if (state->window == None
 	    || state->api.translate_coordinates(state->display, state->window,
 	    state->root, 0, 0, &window_x, &window_y, &child) == 0)
 		return;
 	center_x = (long)window_x + (long)(state->window_width / 2);
 	center_y = (long)window_y + (long)(state->window_height / 2);
+#endif
 #if ST_CONSOLE_HAVE_XRANDR
 	if (state->xrr_get_monitors != NULL) {
 		int count = 0;
@@ -794,6 +800,7 @@ load_xrender(struct x11_state *state)
 static void
 load_monitor_apis(struct x11_state *state)
 {
+	(void)state;
 #if ST_CONSOLE_HAVE_XRANDR
 	static const char *const xrandr_names[] = {"Xrandr"};
 
