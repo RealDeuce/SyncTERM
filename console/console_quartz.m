@@ -62,7 +62,6 @@ struct quartz_state {
 	bool pointer_visible;
 	bool fullscreen;
 	bool modifier_down[256];
-	struct quartz_state *next;
 };
 
 
@@ -107,7 +106,6 @@ struct application_call {
 #endif
 
 static STConsoleQuartzCommandReceiver *command_receiver;
-static struct quartz_state *states;
 #if !ST_CONSOLE_HAVE_SDL
 static atomic_bool application_done;
 static atomic_int application_result;
@@ -735,10 +733,14 @@ add_damage(struct quartz_state *state,
 
 static int
 upload(void *context, const struct st_rgb_buffer *pixels,
-	const struct st_console_rect *rectangle)
+	const struct st_console_rect *rectangle, const void *image_identity,
+	uint64_t generation)
 {
 	struct quartz_state *state = context;
 	size_t count;
+
+	(void)image_identity;
+	(void)generation;
 
 	if (pixels->height != 0 && pixels->width > SIZE_MAX / pixels->height)
 		return IO_ERROR_OUT_OF_RANGE;
@@ -922,8 +924,6 @@ create_state(struct quartz_state *state, uint32_t width, uint32_t height,
 	    minimum_height / scale);
 	[state->window center];
 	[state->window makeKeyAndOrderFront:nil];
-	state->next = states;
-	states = state;
 	int status = render(state, state->console, true);
 
 	if (status != 0)
@@ -934,12 +934,6 @@ create_state(struct quartz_state *state, uint32_t width, uint32_t height,
 static void
 destroy_state(struct quartz_state *state)
 {
-	struct quartz_state **link = &states;
-
-	while (*link != NULL && *link != state)
-		link = &(*link)->next;
-	if (*link == state)
-		*link = state->next;
 	state->view->consoleState = NULL;
 	state->delegate->consoleState = NULL;
 	state->window.delegate = nil;
@@ -1119,9 +1113,6 @@ st_console_quartz_pump(void)
 			    inMode:NSDefaultRunLoopMode dequeue:YES];
 		}
 		[NSApp updateWindows];
-		for (struct quartz_state *state = states; state != NULL;
-		    state = state->next)
-			(void)render(state, NULL, false);
 	}
 }
 
@@ -1311,6 +1302,7 @@ quartz_destroy(st_console_display_t *display)
 static const struct st_console_backend_ops quartz_ops = {
 	.presents_pixels = true,
 	.deferred_present = true,
+	.animated_present = true,
 	.present = quartz_present,
 	.resize = quartz_resize,
 	.set_title = quartz_set_title,

@@ -146,54 +146,166 @@ initialize_cells(st_console_t *console, struct st_console_cell *cells,
 	console->style.hyperlink = 0;
 }
 
+static uint32_t
+animation_interval(enum st_console_blink_mode mode)
+{
+	switch (mode) {
+	case ST_CONSOLE_BLINK_PRESTEL:
+		return 314;
+	case ST_CONSOLE_BLINK_COMMODORE:
+		return 333;
+	case ST_CONSOLE_BLINK_ATARI_ST:
+		return 500;
+	case ST_CONSOLE_BLINK_ATARI:
+		return 0;
+	case ST_CONSOLE_BLINK_PC:
+	default:
+		return 133;
+	}
+}
+
+static void
+schedule_animation_locked(st_console_display_t *display,
+	enum st_console_blink_mode mode, uint64_t now)
+{
+	uint32_t interval = animation_interval(mode);
+	uint64_t elapsed;
+
+	if (!display->presentation_animation_initialized
+	    || display->presentation_blink_mode != mode) {
+		display->presentation_animation_initialized = true;
+		display->presentation_blink_mode = mode;
+		display->presentation_animation_epoch = now;
+	}
+	if (interval == 0) {
+		display->presentation_animation_deadline = UINT64_MAX;
+		return;
+	}
+	elapsed = now - display->presentation_animation_epoch;
+	display->presentation_animation_deadline
+	    = display->presentation_animation_epoch
+	    + (elapsed / interval + 1U) * interval;
+}
+
+void
+st_console_display_reset_animation(st_console_display_t *display,
+	enum st_console_blink_mode mode)
+{
+	uint64_t now;
+
+	if (display->backend_ops == NULL
+	    || !display->backend_ops->animated_present
+	    || st_time_monotonic_ms(&now) != 0)
+		return;
+	(void)st_mutex_lock(&display->presentation_mutex);
+	if (!display->presentation_animation_initialized
+	    || display->presentation_blink_mode != mode) {
+		display->presentation_animation_initialized = false;
+		schedule_animation_locked(display, mode, now);
+		(void)st_condition_signal(&display->presentation_ready);
+	}
+	(void)st_mutex_unlock(&display->presentation_mutex);
+}
+
 static int
 presentation_worker(void *argument)
 {
 	st_console_display_t *display = argument;
 
 	for (;;) {
-		struct timespec deadline;
 		st_console_t *console;
+		uint64_t now = 0;
+		uint64_t next;
+		bool animate;
+		bool animation_due;
+		bool content_due;
 		bool repaint;
+		int present_status = 0;
 		int status;
 
 		(void)st_mutex_lock(&display->presentation_mutex);
-		while (!display->presentation_requested
-		    && !display->presentation_stop)
-			(void)st_condition_wait(&display->presentation_ready,
-			    &display->presentation_mutex);
+		for (;;) {
+			struct timespec deadline;
+			int64_t delay;
+
+			if (display->presentation_stop)
+				break;
+			if (st_time_monotonic_ms(&now) != 0) {
+				content_due = display->presentation_requested;
+				animation_due = false;
+				if (content_due)
+					break;
+				if (st_time_utc_deadline_after_ms(&deadline, 10) == 0)
+					(void)st_condition_timedwait(
+					    &display->presentation_ready,
+					    &display->presentation_mutex, &deadline);
+				else
+					(void)st_condition_wait(
+					    &display->presentation_ready,
+					    &display->presentation_mutex);
+				continue;
+			}
+			animate = display->backend_ops->animated_present
+			    && display->presentation_animation_initialized;
+			animation_due = animate
+			    && now >= display->presentation_animation_deadline;
+			content_due = display->presentation_requested
+			    && now >= display->presentation_content_deadline;
+			if (animation_due || content_due)
+				break;
+			next = UINT64_MAX;
+			if (display->presentation_requested)
+				next = display->presentation_content_deadline;
+			if (animate && display->presentation_animation_deadline < next)
+				next = display->presentation_animation_deadline;
+			if (next == UINT64_MAX) {
+				(void)st_condition_wait(&display->presentation_ready,
+				    &display->presentation_mutex);
+				continue;
+			}
+			delay = next > now ? (int64_t)(next - now) : 0;
+			if (st_time_utc_deadline_after_ms(&deadline, delay) != 0)
+				continue;
+			status = st_condition_timedwait(&display->presentation_ready,
+			    &display->presentation_mutex, &deadline);
+			(void)status;
+		}
 		if (display->presentation_stop) {
 			(void)st_mutex_unlock(&display->presentation_mutex);
 			break;
 		}
-		if (st_time_utc_deadline_after_ms(&deadline, 10) == 0) {
-			do {
-				status = st_condition_timedwait(
-				    &display->presentation_ready,
-				    &display->presentation_mutex, &deadline);
-			} while (!display->presentation_stop
-			    && status == ST_THREAD_SUCCESS);
-		}
-		if (display->presentation_stop) {
-			(void)st_mutex_unlock(&display->presentation_mutex);
-			break;
-		}
-		display->presentation_requested = false;
-		repaint = display->repaint_requested;
-		display->repaint_requested = false;
+		if (content_due)
+			display->presentation_requested = false;
+		repaint = content_due && display->repaint_requested;
+		if (content_due)
+			display->repaint_requested = false;
 		console = atomic_load_explicit(&display->active,
 		    memory_order_acquire);
 		display->presentation_active = console;
 		(void)st_mutex_unlock(&display->presentation_mutex);
 		if (console != NULL && st_rwlock_write_lock(&console->state_lock)
 		    == ST_THREAD_SUCCESS) {
-			if (repaint)
+			if (st_time_monotonic_ms(&now) == 0) {
+				(void)st_mutex_lock(&display->presentation_mutex);
+				schedule_animation_locked(display, console->blink_mode, now);
+				(void)st_mutex_unlock(&display->presentation_mutex);
+			}
+			if (repaint) {
 				st_console_mark_all_locked(console);
-			(void)st_console_present_locked(console, repaint);
+				console->pixel_surface_dirty = true;
+			}
+			present_status = st_console_present_locked(console,
+			    repaint || animation_due);
 			(void)st_rwlock_unlock(&console->state_lock);
 		}
 		(void)st_mutex_lock(&display->presentation_mutex);
 		display->presentation_active = NULL;
+		if (present_status != 0 && !display->presentation_requested) {
+			if (st_time_monotonic_ms(&now) != 0)
+				now = 0;
+			display->presentation_requested = true;
+			display->presentation_content_deadline = now + 10;
+		}
 		(void)st_condition_broadcast(&display->presentation_ready);
 		(void)st_mutex_unlock(&display->presentation_mutex);
 	}
@@ -212,6 +324,8 @@ st_console_start_presentation_worker(st_console_t *console)
 	(void)st_mutex_lock(&display->presentation_mutex);
 	display->presentation_stop = false;
 	display->presentation_requested = true;
+	display->presentation_content_deadline = 0;
+	display->presentation_animation_initialized = false;
 	(void)st_mutex_unlock(&display->presentation_mutex);
 	status = st_thread_create(&display->presentation_thread,
 	    presentation_worker, display);
@@ -239,6 +353,12 @@ st_console_display_request_repaint(st_console_display_t *display)
 {
 	(void)st_mutex_lock(&display->presentation_mutex);
 	display->repaint_requested = true;
+	if (!display->presentation_requested) {
+		uint64_t now = 0;
+
+		(void)st_time_monotonic_ms(&now);
+		display->presentation_content_deadline = now + 10;
+	}
 	display->presentation_requested = true;
 	(void)st_condition_signal(&display->presentation_ready);
 	(void)st_mutex_unlock(&display->presentation_mutex);
@@ -259,6 +379,12 @@ request_presentation_locked(st_console_t *console)
 		return st_console_present_locked(console, false);
 	(void)st_mutex_lock(&display->presentation_mutex);
 	wake = !display->presentation_requested;
+	if (wake) {
+		uint64_t now = 0;
+
+		(void)st_time_monotonic_ms(&now);
+		display->presentation_content_deadline = now + 10;
+	}
 	display->presentation_requested = true;
 	if (wake)
 		(void)st_condition_signal(&display->presentation_ready);
@@ -405,17 +531,17 @@ create_console(st_console_t **result, st_console_display_t *display,
 	initialize_palette(console->palette);
 	initialize_cells(console, console->cells, count);
 	if (pixel_width != 0) {
-		console->rasterized = calloc(count, sizeof(console->rasterized[0]));
+		console->drawn_cells = calloc(count, sizeof(console->drawn_cells[0]));
 		console->raster_rows = calloc(config->rows,
 		    sizeof(console->raster_rows[0]));
-		if (console->rasterized == NULL || console->raster_rows == NULL)
+		if (console->drawn_cells == NULL || console->raster_rows == NULL)
 			status = IO_ERROR_OUT_OF_MEMORY;
 		else
 			status = st_pixel_buffer_create(&console->pixels, pixel_width,
 			    pixel_height, true);
 		if (status != 0) {
 			free(console->raster_rows);
-			free(console->rasterized);
+			free(console->drawn_cells);
 			st_condition_destroy(&console->event_ready);
 			st_mutex_destroy(&console->event_mutex);
 			(void)st_rwlock_destroy(&console->state_lock);
@@ -440,7 +566,7 @@ create_console(st_console_t **result, st_console_display_t *display,
 			(void)st_rwlock_destroy(&console->state_lock);
 			st_pixel_buffer_destroy(console->pixels);
 			free(console->raster_rows);
-			free(console->rasterized);
+			free(console->drawn_cells);
 			free(console->cells);
 			free(console);
 			return status;
@@ -567,7 +693,7 @@ create_console(st_console_t **result, st_console_display_t *display,
 		(void)st_rwlock_destroy(&console->state_lock);
 		st_pixel_buffer_destroy(console->pixels);
 		free(console->raster_rows);
-		free(console->rasterized);
+		free(console->drawn_cells);
 		free(console->cells);
 		free(console);
 		atomic_store_explicit(&display->active, NULL,
@@ -747,6 +873,8 @@ apply_console(st_console_display_t *display, st_console_t *console, bool setup)
 	if (status != 0)
 		return status;
 	atomic_store_explicit(&display->active, console, memory_order_release);
+	if (setup)
+		st_console_display_reset_animation(display, console->blink_mode);
 	if (setup && display->backend_ops != NULL
 	    && display->backend_ops->resize != NULL)
 		status = display->backend_ops->resize(console, console->columns,
@@ -993,7 +1121,7 @@ free_console(st_console_t *console)
 	array_list_free(&console->fonts);
 	st_pixel_buffer_destroy(console->pixels);
 	free(console->raster_rows);
-	free(console->rasterized);
+	free(console->drawn_cells);
 	free(console->cells);
 	free(console->title);
 	free(console);
@@ -1416,7 +1544,7 @@ int
 st_console_resize(st_console_t *console, uint32_t columns, uint32_t rows)
 {
 	struct st_console_cell *cells;
-	struct st_console_cell *rasterized = NULL;
+	struct st_console_cell *drawn_cells = NULL;
 	uint8_t *raster_rows = NULL;
 	struct st_pixel_buffer *pixels = NULL;
 	struct st_console_cell blank;
@@ -1449,11 +1577,11 @@ st_console_resize(st_console_t *console, uint32_t columns, uint32_t rows)
 	if (cells == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	if (pixel_width != 0) {
-		rasterized = calloc(count, sizeof(rasterized[0]));
+		drawn_cells = calloc(count, sizeof(drawn_cells[0]));
 		raster_rows = calloc(rows, sizeof(raster_rows[0]));
-		if (rasterized == NULL || raster_rows == NULL) {
+		if (drawn_cells == NULL || raster_rows == NULL) {
 			free(raster_rows);
-			free(rasterized);
+			free(drawn_cells);
 			free(cells);
 			return IO_ERROR_OUT_OF_MEMORY;
 		}
@@ -1461,7 +1589,7 @@ st_console_resize(st_console_t *console, uint32_t columns, uint32_t rows)
 		    true);
 		if (result != 0) {
 			free(raster_rows);
-			free(rasterized);
+			free(drawn_cells);
 			free(cells);
 			return result;
 		}
@@ -1470,7 +1598,7 @@ st_console_resize(st_console_t *console, uint32_t columns, uint32_t rows)
 	if (result != ST_THREAD_SUCCESS) {
 		st_pixel_buffer_destroy(pixels);
 		free(raster_rows);
-		free(rasterized);
+		free(drawn_cells);
 		free(cells);
 		return IO_ERROR_IO;
 	}
@@ -1487,7 +1615,7 @@ st_console_resize(st_console_t *console, uint32_t columns, uint32_t rows)
 			(void)st_rwlock_unlock(&console->state_lock);
 			st_pixel_buffer_destroy(pixels);
 			free(raster_rows);
-			free(rasterized);
+			free(drawn_cells);
 			free(cells);
 			return result;
 		}
@@ -1504,11 +1632,11 @@ st_console_resize(st_console_t *console, uint32_t columns, uint32_t rows)
 		    (size_t)copy_columns * sizeof(*cells));
 	free(console->cells);
 	free(console->raster_rows);
-	free(console->rasterized);
+	free(console->drawn_cells);
 	st_pixel_buffer_destroy(console->pixels);
 	console->cells = cells;
 	console->raster_rows = raster_rows;
-	console->rasterized = rasterized;
+	console->drawn_cells = drawn_cells;
 	console->pixels = pixels;
 	console->pixel_top = 0;
 	console->columns = columns;
@@ -2382,8 +2510,8 @@ st_console_snapshot_restore(st_console_t *console,
 		    pixels_count * sizeof(console->pixels->primary[0]));
 		memcpy(console->pixels->alternate, snapshot->pixels->alternate,
 		    pixels_count * sizeof(console->pixels->alternate[0]));
-		memcpy(console->rasterized, snapshot->cells,
-		    count * sizeof(console->rasterized[0]));
+		memcpy(console->drawn_cells, snapshot->cells,
+		    count * sizeof(console->drawn_cells[0]));
 		console->pixel_top = snapshot->pixel_top;
 		console->pixel_surface_dirty = true;
 	}

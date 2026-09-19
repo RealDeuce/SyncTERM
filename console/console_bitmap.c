@@ -17,14 +17,16 @@
 #include <string.h>
 
 struct st_console_bitmap_presenter {
-	struct st_pixel_buffer *source;
-	struct st_rgb_buffer *resolved;
-	st_pixel_scaler_t *scaler;
-	const struct st_rgb_buffer *scaled;
-	uint8_t *blink_cells;
+	struct st_rgb_buffer *images[4];
+	st_pixel_scaler_t *scalers[4];
+	const struct st_rgb_buffer *scaled[4];
+	uint64_t scaled_generation[4];
+	bool scaled_blocky[4];
 	uint32_t palette[UINT16_MAX + 1U];
-	size_t blink_count;
-	size_t cell_count;
+	uint64_t generation;
+	uint64_t uploaded_generation;
+	uint64_t damage_generation;
+	size_t plane_difference_count;
 	uint32_t cell_width;
 	uint32_t cell_height;
 	uint32_t columns;
@@ -39,6 +41,9 @@ struct st_console_bitmap_presenter {
 	uint32_t aspect_width;
 	uint32_t aspect_height;
 	uint32_t epoch;
+	uint8_t selected_image;
+	uint8_t uploaded_image;
+	struct st_console_rect damage;
 	struct st_console_rect cursor_rectangle;
 	enum st_console_cursor_shape cursor_shape;
 	enum st_console_blink_mode blink_mode;
@@ -47,11 +52,15 @@ struct st_console_bitmap_presenter {
 	struct st_console_custom_cursor custom_cursor;
 	bool cursor_custom;
 	bool cursor_visible;
-	bool cursor_drawn;
-	bool alternate;
+	bool cursor_composed;
+	bool planes_differ;
+	bool damage_valid;
+	bool damage_full;
 	bool blocky_scaling;
 	bool initialized;
-	bool force_upload;
+	bool upload_initialized;
+	bool upload_retry;
+	bool images_valid;
 	bool invalid_colour;
 	uint32_t invalid_colour_value;
 };
@@ -71,59 +80,78 @@ colour_value(struct st_console_bitmap_presenter *presenter,
 	return 0;
 }
 
-static void
+static bool
 resolve_rectangle(struct st_console_bitmap_presenter *presenter,
-	struct st_rgb_buffer *destination, const struct st_pixel_buffer *source,
+	struct st_rgb_buffer *destination, const st_console_t *console,
 	bool alternate, const struct st_console_rect *rectangle)
 {
-	const uint32_t *plane = alternate && source->alternate != NULL
-	    ? source->alternate : source->primary;
+	const uint32_t *plane = alternate && console->pixels->alternate != NULL
+	    ? console->pixels->alternate : console->pixels->primary;
+	bool changed = false;
 
 	for (uint32_t y = 0; y < rectangle->height; ++y) {
-		size_t offset = (size_t)(rectangle->y + y) * source->width
-		    + rectangle->x;
+		size_t destination_offset = (size_t)(rectangle->y + y)
+		    * destination->width + rectangle->x;
+		size_t source_offset = st_console_pixel_position_locked(console,
+		    rectangle->x, rectangle->y + y);
 
-		for (uint32_t x = 0; x < rectangle->width; ++x)
-			destination->pixels[offset + x] = colour_value(presenter,
-			    plane[offset + x]);
+		for (uint32_t x = 0; x < rectangle->width; ++x) {
+			uint32_t value = colour_value(presenter,
+			    plane[source_offset + x]);
+
+			changed = changed
+			    || destination->pixels[destination_offset + x] != value;
+			destination->pixels[destination_offset + x] = value;
+		}
 	}
+	return changed;
 }
 
-static void
-copy_console_rectangle(struct st_pixel_buffer *destination,
-	const st_console_t *console, bool alternate,
-	const struct st_console_rect *rectangle)
-{
-	uint32_t *plane = alternate && destination->alternate != NULL
-	    ? destination->alternate : destination->primary;
-	size_t offset = (size_t)rectangle->y * destination->width
-	    + rectangle->x;
-
-	st_console_copy_pixels_locked(console, &plane[offset],
-	    destination->width, alternate, rectangle);
-}
-
-static void
+static bool
 fill_rectangle(struct st_rgb_buffer *buffer,
 	const struct st_console_rect *rectangle, uint32_t colour)
 {
+	bool changed = false;
+
 	for (uint32_t y = 0; y < rectangle->height; ++y) {
 		uint32_t *row = &buffer->pixels[(size_t)(rectangle->y + y)
 		    * buffer->width + rectangle->x];
 
-		for (uint32_t x = 0; x < rectangle->width; ++x)
+		for (uint32_t x = 0; x < rectangle->width; ++x) {
+			changed = changed || row[x] != colour;
 			row[x] = colour;
+		}
 	}
+	return changed;
 }
 
 static bool
-same_custom_cursor(const struct st_console_custom_cursor *left,
-	const struct st_console_custom_cursor *right)
+copy_rgb_rectangle(struct st_rgb_buffer *destination,
+	const struct st_rgb_buffer *source,
+	const struct st_console_rect *rectangle)
 {
-	return left->start == right->start && left->end == right->end
-	    && left->range == right->range && left->visible == right->visible
-	    && left->blink == right->blink;
+	bool changed = false;
+
+	for (uint32_t y = 0; y < rectangle->height; ++y) {
+		size_t offset = (size_t)(rectangle->y + y) * source->width
+		    + rectangle->x;
+		size_t bytes = (size_t)rectangle->width
+		    * sizeof(source->pixels[0]);
+
+		changed = changed || memcmp(&destination->pixels[offset],
+		    &source->pixels[offset], bytes) != 0;
+		memcpy(&destination->pixels[offset], &source->pixels[offset], bytes);
+	}
+	return changed;
 }
+
+enum bitmap_image {
+	BITMAP_PRIMARY,
+	BITMAP_PRIMARY_CURSOR,
+	BITMAP_ALTERNATE,
+	BITMAP_ALTERNATE_CURSOR,
+	BITMAP_IMAGE_COUNT
+};
 
 static struct st_console_rect
 cursor_rectangle(const struct st_console_bitmap_presenter *presenter)
@@ -184,7 +212,7 @@ animation_state(enum st_console_blink_mode mode, uint32_t elapsed,
 	}
 	case ST_CONSOLE_BLINK_COMMODORE:
 		*alternate = ((elapsed / 333U) & 1U) == 0;
-		*cursor = !*alternate;
+		*cursor = *alternate;
 		break;
 	case ST_CONSOLE_BLINK_ATARI:
 		*alternate = false;
@@ -470,24 +498,25 @@ static int
 replace_buffers(struct st_console_bitmap_presenter *presenter,
 	const struct st_pixel_buffer *pixels)
 {
-	struct st_pixel_buffer *source = NULL;
-	struct st_rgb_buffer *resolved = NULL;
-	int status;
+	struct st_rgb_buffer *images[BITMAP_IMAGE_COUNT] = {0};
+	int status = 0;
 
-	status = st_pixel_buffer_clone(&source, pixels);
-	if (status == 0)
-		status = st_rgb_buffer_create(&resolved, pixels->width,
+	for (size_t i = 0; i < BITMAP_IMAGE_COUNT && status == 0; ++i)
+		status = st_rgb_buffer_create(&images[i], pixels->width,
 		    pixels->height);
 	if (status != 0) {
-		st_rgb_buffer_destroy(resolved);
-		st_pixel_buffer_destroy(source);
+		for (size_t i = 0; i < BITMAP_IMAGE_COUNT; ++i)
+			st_rgb_buffer_destroy(images[i]);
 		return status;
 	}
-	st_rgb_buffer_destroy(presenter->resolved);
-	st_pixel_buffer_destroy(presenter->source);
-	presenter->resolved = resolved;
-	presenter->source = source;
-	presenter->force_upload = true;
+	for (size_t i = 0; i < BITMAP_IMAGE_COUNT; ++i) {
+		st_rgb_buffer_destroy(presenter->images[i]);
+		presenter->images[i] = images[i];
+		presenter->scaled_generation[i] = 0;
+	}
+	presenter->images_valid = false;
+	presenter->damage_full = true;
+	presenter->upload_retry = true;
 	return 0;
 }
 
@@ -504,23 +533,11 @@ st_console_bitmap_presenter_create(
 	if (presenter == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	status = replace_buffers(presenter, console->pixels);
-	if (status == 0)
-		status = st_pixel_scaler_create(&presenter->scaler);
+	for (size_t i = 0; i < BITMAP_IMAGE_COUNT && status == 0; ++i)
+		status = st_pixel_scaler_create(&presenter->scalers[i]);
 	if (status != 0) {
 		st_console_bitmap_presenter_destroy(presenter);
 		return status;
-	}
-	presenter->cell_count = (size_t)console->columns * console->rows;
-	presenter->blink_cells = calloc(presenter->cell_count,
-	    sizeof(presenter->blink_cells[0]));
-	if (presenter->blink_cells == NULL) {
-		st_console_bitmap_presenter_destroy(presenter);
-		return IO_ERROR_OUT_OF_MEMORY;
-	}
-	for (size_t i = 0; i < presenter->cell_count; ++i) {
-		presenter->blink_cells[i] = (console->cells[i].flags
-		    & ST_CONSOLE_CELL_BLINK) != 0;
-		presenter->blink_count += presenter->blink_cells[i];
 	}
 	memcpy(presenter->palette, console->palette, sizeof(presenter->palette));
 	presenter->cell_width = console->cell_width;
@@ -537,10 +554,10 @@ st_console_bitmap_presenter_destroy(
 {
 	if (presenter == NULL)
 		return;
-	st_pixel_scaler_destroy(presenter->scaler);
-	st_rgb_buffer_destroy(presenter->resolved);
-	st_pixel_buffer_destroy(presenter->source);
-	free(presenter->blink_cells);
+	for (size_t i = 0; i < BITMAP_IMAGE_COUNT; ++i) {
+		st_pixel_scaler_destroy(presenter->scalers[i]);
+		st_rgb_buffer_destroy(presenter->images[i]);
+	}
 	free(presenter);
 }
 
@@ -553,7 +570,7 @@ st_console_bitmap_presenter_set_external_scaling_available(
 
 static bool
 cache_console_state(struct st_console_bitmap_presenter *presenter,
-	const st_console_t *console, uint32_t now)
+	const st_console_t *console, uint32_t now, bool *cursor_changed)
 {
 	enum st_console_scaling_mode scaling_mode = presenter->software_scaling_only
 	    ? ST_CONSOLE_SCALING_INTERNAL : console->scaling_mode;
@@ -563,32 +580,31 @@ cache_console_state(struct st_console_bitmap_presenter *presenter,
 	uint32_t cursor_draw_x;
 	uint32_t cursor_columns;
 	bool changed;
+	bool old_cursor_composed = presenter->cursor_composed;
+	struct st_console_rect old_cursor = presenter->cursor_rectangle;
+	uint32_t old_cursor_colour = presenter->cursor_colour;
 
 	st_console_cursor_span_locked(console, &cursor_draw_x, &cursor_columns);
 	changed = !presenter->initialized
-	    || presenter->columns != console->columns
-	    || presenter->rows != console->rows
-	    || presenter->cursor_x != console->cursor_x
-	    || presenter->cursor_y != console->cursor_y
-	    || presenter->cursor_draw_x != cursor_draw_x
-	    || presenter->cursor_columns != cursor_columns
-	    || presenter->cursor_colour != cursor_colour
-	    || presenter->cursor_visible != console->cursor_visible
-	    || presenter->cursor_shape != console->cursor_shape
-	    || presenter->cursor_custom != console->cursor_custom
-	    || !same_custom_cursor(&presenter->custom_cursor,
-	    &console->custom_cursor)
 	    || presenter->aspect_width != console->aspect_width
 	    || presenter->aspect_height != console->aspect_height
-	    || presenter->scaling_mode != scaling_mode;
-	changed = changed
+	    || presenter->scaling_mode != scaling_mode
 	    || presenter->blocky_scaling != console->blocky_scaling;
 
-	if (!presenter->initialized || presenter->blink_mode != console->blink_mode)
+	(void)st_mutex_lock(&console->display->presentation_mutex);
+	if (console->display->presentation_animation_initialized
+	    && console->display->presentation_blink_mode == console->blink_mode)
+		presenter->epoch
+		    = (uint32_t)console->display->presentation_animation_epoch;
+	else if (!presenter->initialized
+	    || presenter->blink_mode != console->blink_mode)
 		presenter->epoch = now;
+	(void)st_mutex_unlock(&console->display->presentation_mutex);
 	changed = changed || presenter->blink_mode != console->blink_mode;
 	presenter->columns = console->columns;
 	presenter->rows = console->rows;
+	presenter->cell_width = console->cell_width;
+	presenter->cell_height = console->cell_height;
 	presenter->cursor_x = console->cursor_x;
 	presenter->cursor_y = console->cursor_y;
 	presenter->cursor_draw_x = cursor_draw_x;
@@ -604,117 +620,40 @@ cache_console_state(struct st_console_bitmap_presenter *presenter,
 	presenter->aspect_width = console->aspect_width;
 	presenter->aspect_height = console->aspect_height;
 	presenter->initialized = true;
+	presenter->cursor_rectangle = cursor_rectangle(presenter);
+	presenter->cursor_composed = (presenter->cursor_custom
+	    ? presenter->custom_cursor.visible : presenter->cursor_visible)
+	    && presenter->cursor_x < presenter->columns
+	    && presenter->cursor_y < presenter->rows
+	    && presenter->cursor_rectangle.width != 0
+	    && presenter->cursor_rectangle.height != 0;
+	*cursor_changed = old_cursor_composed != presenter->cursor_composed
+	    || ((old_cursor_composed || presenter->cursor_composed)
+	    && (!st_console_rects_equal(&old_cursor,
+	    &presenter->cursor_rectangle)
+	    || old_cursor_colour != presenter->cursor_colour));
 	return changed;
 }
 
-static int
-reset_blink_cells(struct st_console_bitmap_presenter *presenter,
-	const st_console_t *console)
-{
-	size_t count = (size_t)console->columns * console->rows;
-	uint8_t *cells = calloc(count, sizeof(cells[0]));
-
-	if (cells == NULL)
-		return IO_ERROR_OUT_OF_MEMORY;
-	presenter->blink_count = 0;
-	for (size_t i = 0; i < count; ++i) {
-		cells[i] = (console->cells[i].flags
-		    & ST_CONSOLE_CELL_BLINK) != 0;
-		presenter->blink_count += cells[i];
-	}
-	free(presenter->blink_cells);
-	presenter->blink_cells = cells;
-	presenter->cell_count = count;
-	return 0;
-}
 
 static void
-refresh_blink_cells(struct st_console_bitmap_presenter *presenter,
+accumulate_full_damage(struct st_console_bitmap_presenter *presenter)
+{
+	presenter->damage = (struct st_console_rect){
+		0, 0, presenter->images[0]->width, presenter->images[0]->height,
+	};
+	presenter->damage_valid = true;
+	presenter->damage_full = true;
+}
+
+static bool
+collect_cell_damage(struct st_console_bitmap_presenter *presenter,
 	const st_console_t *console)
 {
-	presenter->blink_count = 0;
-	for (size_t i = 0; i < presenter->cell_count; ++i) {
-		presenter->blink_cells[i] = (console->cells[i].flags
-		    & ST_CONSOLE_CELL_BLINK) != 0;
-		presenter->blink_count += presenter->blink_cells[i];
-	}
-}
+	bool valid = false;
+	struct st_console_rect damage = {0};
 
-static int
-upload_rectangle(struct st_console_bitmap_presenter *presenter,
-	st_console_bitmap_upload_t upload, void *context,
-	const struct st_console_rect *rectangle)
-{
-	int status = upload == NULL ? 0
-	    : upload(context, presenter->resolved, rectangle);
-
-	if (status != 0)
-		presenter->force_upload = true;
-	return status;
-}
-
-struct scaled_upload {
-	struct st_console_bitmap_presenter *presenter;
-	st_console_bitmap_upload_t upload;
-	void *context;
-};
-
-static int
-upload_scaled_rectangle(void *context, const struct st_rgb_buffer *pixels,
-	const struct st_console_rect *rectangle)
-{
-	struct scaled_upload *scaled_upload = context;
-	struct st_pixel_rect damage = {
-		.x = rectangle->x,
-		.y = rectangle->y,
-		.width = rectangle->width,
-		.height = rectangle->height,
-	};
-	struct st_pixel_rect scaled_damage;
-	struct st_console_rect upload_rectangle;
-	int status;
-
-	status = st_pixel_scaler_scale_region(scaled_upload->presenter->scaler,
-	    &scaled_upload->presenter->scaled, pixels, &damage, &scaled_damage);
-	if (status != 0)
-		return status;
-	upload_rectangle = (struct st_console_rect){
-		.x = scaled_damage.x,
-		.y = scaled_damage.y,
-		.width = scaled_damage.width,
-		.height = scaled_damage.height,
-	};
-	status = scaled_upload->upload == NULL ? 0
-	    : scaled_upload->upload(scaled_upload->context,
-	    scaled_upload->presenter->scaled, &upload_rectangle);
-	if (status != 0)
-		scaled_upload->presenter->force_upload = true;
-	return status;
-}
-
-static int
-compose_full(struct st_console_bitmap_presenter *presenter,
-	bool draw_cursor, st_console_bitmap_upload_t upload, void *context)
-{
-	struct st_console_rect full = {0, 0, presenter->source->width,
-	    presenter->source->height};
-
-	resolve_rectangle(presenter, presenter->resolved, presenter->source,
-	    presenter->alternate, &full);
-	if (draw_cursor)
-		fill_rectangle(presenter->resolved, &presenter->cursor_rectangle,
-		    colour_value(presenter, presenter->cursor_colour));
-	return upload_rectangle(presenter, upload, context, &full);
-}
-
-static int
-sync_dirty_cells(struct st_console_bitmap_presenter *presenter,
-	const st_console_t *console, bool draw_cursor,
-	st_console_bitmap_upload_t upload, void *context, bool *changed)
-{
-	int status = 0;
-
-	for (uint32_t y = 0; y < console->rows && status == 0; ++y) {
+	for (uint32_t y = 0; y < console->rows; ++y) {
 		uint32_t x = 0;
 
 		while (x < console->columns) {
@@ -732,110 +671,82 @@ sync_dirty_cells(struct st_console_bitmap_presenter *presenter,
 				++x;
 			if (first == x)
 				continue;
-			for (uint32_t column = first; column < x; ++column) {
-				size_t index = (size_t)y * console->columns + column;
-				uint8_t blink = (console->cells[index].flags
-				    & ST_CONSOLE_CELL_BLINK) != 0;
-
-				if (blink != presenter->blink_cells[index]) {
-					if (blink)
-						++presenter->blink_count;
-					else
-						--presenter->blink_count;
-					presenter->blink_cells[index] = blink;
-				}
-			}
 			rectangle = (struct st_console_rect){
 				.x = first * presenter->cell_width,
 				.y = y * presenter->cell_height,
 				.width = (x - first) * presenter->cell_width,
 				.height = presenter->cell_height,
 			};
-			copy_console_rectangle(presenter->source, console, false,
-			    &rectangle);
-			if (presenter->source->alternate != NULL)
-				copy_console_rectangle(presenter->source, console, true,
-				    &rectangle);
-			resolve_rectangle(presenter, presenter->resolved,
-			    presenter->source, presenter->alternate, &rectangle);
-			if (draw_cursor)
-				fill_rectangle(presenter->resolved,
-				    &presenter->cursor_rectangle,
-				    colour_value(presenter,
-				    presenter->cursor_colour));
-			status = upload_rectangle(presenter, upload, context,
-			    &rectangle);
-			*changed = true;
+			st_console_rect_accumulate(&damage, &valid, &rectangle);
 		}
 	}
-	return status;
+	if (valid)
+		st_console_rect_accumulate(&presenter->damage,
+		    &presenter->damage_valid, &damage);
+	return valid;
+}
+
+static bool
+resolve_images(struct st_console_bitmap_presenter *presenter,
+	const st_console_t *console, const struct st_console_rect *rectangle)
+{
+	bool changed = resolve_rectangle(presenter,
+	    presenter->images[BITMAP_PRIMARY], console, false, rectangle);
+
+	changed = resolve_rectangle(presenter,
+	    presenter->images[BITMAP_ALTERNATE], console, true, rectangle)
+	    || changed;
+	changed = copy_rgb_rectangle(presenter->images[BITMAP_PRIMARY_CURSOR],
+	    presenter->images[BITMAP_PRIMARY], rectangle) || changed;
+	changed = copy_rgb_rectangle(presenter->images[BITMAP_ALTERNATE_CURSOR],
+	    presenter->images[BITMAP_ALTERNATE], rectangle) || changed;
+	if (presenter->cursor_composed) {
+		changed = fill_rectangle(presenter->images[BITMAP_PRIMARY_CURSOR],
+		    &presenter->cursor_rectangle,
+		    colour_value(presenter, presenter->cursor_colour)) || changed;
+		changed = fill_rectangle(presenter->images[BITMAP_ALTERNATE_CURSOR],
+		    &presenter->cursor_rectangle,
+		    colour_value(presenter, presenter->cursor_colour)) || changed;
+	}
+	return changed;
+}
+
+static size_t
+count_differences(const struct st_rgb_buffer *left,
+	const struct st_rgb_buffer *right,
+	const struct st_console_rect *rectangle)
+{
+	size_t count = 0;
+
+	for (uint32_t y = 0; y < rectangle->height; ++y) {
+		size_t offset = (size_t)(rectangle->y + y) * left->width
+		    + rectangle->x;
+
+		for (uint32_t x = 0; x < rectangle->width; ++x) {
+			if (left->pixels[offset + x] != right->pixels[offset + x])
+				++count;
+		}
+	}
+	return count;
 }
 
 static int
-sync_blink_cells(struct st_console_bitmap_presenter *presenter,
-	bool draw_cursor, st_console_bitmap_upload_t upload, void *context,
-	bool *changed)
+upload_image(struct st_console_bitmap_presenter *presenter,
+	uint8_t identity, const struct st_rgb_buffer *pixels,
+	const struct st_console_rect *rectangle, st_console_bitmap_upload_t upload,
+	void *context)
 {
-	int status = 0;
+	int status = upload == NULL ? 0 : upload(context, pixels, rectangle,
+	    &presenter->images[identity], presenter->generation);
 
-	for (uint32_t y = 0; y < presenter->rows && status == 0; ++y) {
-		uint32_t x = 0;
-
-		while (x < presenter->columns) {
-			uint32_t first;
-			struct st_console_rect rectangle;
-
-			while (x < presenter->columns
-			    && presenter->blink_cells[(size_t)y
-			    * presenter->columns + x] == 0)
-				++x;
-			first = x;
-			while (x < presenter->columns
-			    && presenter->blink_cells[(size_t)y
-			    * presenter->columns + x] != 0)
-				++x;
-			if (first == x)
-				continue;
-			rectangle = (struct st_console_rect){
-				.x = first * presenter->cell_width,
-				.y = y * presenter->cell_height,
-				.width = (x - first) * presenter->cell_width,
-				.height = presenter->cell_height,
-			};
-			resolve_rectangle(presenter, presenter->resolved,
-			    presenter->source, presenter->alternate, &rectangle);
-			if (draw_cursor)
-				fill_rectangle(presenter->resolved,
-				    &presenter->cursor_rectangle,
-				    colour_value(presenter,
-				    presenter->cursor_colour));
-			status = upload_rectangle(presenter, upload, context,
-			    &rectangle);
-			*changed = true;
-		}
+	if (status == 0) {
+		presenter->uploaded_image = identity;
+		presenter->uploaded_generation = presenter->generation;
+		presenter->upload_initialized = true;
+		presenter->upload_retry = false;
 	}
-	return status;
-}
-
-static int
-upload_cursor_change(struct st_console_bitmap_presenter *presenter,
-	struct st_console_rect old_cursor, bool old_drawn, bool draw_cursor,
-	st_console_bitmap_upload_t upload, void *context)
-{
-	int status = 0;
-
-	if (old_drawn && old_cursor.width != 0 && old_cursor.height != 0) {
-		resolve_rectangle(presenter, presenter->resolved,
-		    presenter->source, presenter->alternate, &old_cursor);
-		status = upload_rectangle(presenter, upload, context, &old_cursor);
-	}
-	if (status == 0 && draw_cursor && presenter->cursor_rectangle.width != 0
-	    && presenter->cursor_rectangle.height != 0) {
-		fill_rectangle(presenter->resolved, &presenter->cursor_rectangle,
-		    colour_value(presenter, presenter->cursor_colour));
-		status = upload_rectangle(presenter, upload, context,
-		    &presenter->cursor_rectangle);
-	}
+	else
+		presenter->upload_retry = true;
 	return status;
 }
 
@@ -848,17 +759,28 @@ st_console_bitmap_presenter_frame(
 	struct st_console_bitmap_frame *frame)
 {
 	struct st_console_rect old_cursor;
+	struct st_console_rect previous_damage;
 	struct st_console_rect destination;
-	bool old_cursor_drawn;
+	struct st_console_rect upload_damage;
+	const struct st_rgb_buffer *pixels;
+	enum st_console_scaling_mode previous_scaling;
+	bool cursor_changed = false;
+	bool content_changed = false;
+	bool images_were_valid;
+	bool state_changed = false;
+	bool layout_changed;
 	bool alternate;
 	bool cursor_phase;
-	bool draw_cursor;
-	bool state_changed = false;
-	bool phase_changed;
-	bool layout_changed;
-	bool changed = false;
-	enum st_console_scaling_mode previous_scaling;
-	bool previous_blocky;
+	bool use_cursor;
+	bool selection_changed;
+	bool full_upload;
+	bool force_backend_upload = false;
+	bool previous_damage_valid;
+	bool previous_damage_full;
+	uint64_t previous_damage_generation;
+	bool new_damage = false;
+	bool uploaded = false;
+	uint8_t identity;
 	int status = 0;
 
 	if (presenter == NULL || frame == NULL || output_width == 0
@@ -866,171 +788,191 @@ st_console_bitmap_presenter_frame(
 		return IO_ERROR_INVALID_ARGUMENT;
 	presenter->invalid_colour = false;
 	old_cursor = presenter->cursor_rectangle;
-	old_cursor_drawn = presenter->cursor_drawn;
+	previous_damage = presenter->damage;
+	previous_damage_valid = presenter->damage_valid;
+	previous_damage_full = presenter->damage_full;
+	previous_damage_generation = presenter->damage_generation;
 	previous_scaling = presenter->scaling_mode;
-	previous_blocky = presenter->blocky_scaling;
 	if (console != NULL) {
-		bool dimensions_changed = console->columns != presenter->columns
-		    || console->rows != presenter->rows;
-
+		presenter->damage_valid = false;
+		presenter->damage_full = false;
 		if (console->pixels == NULL)
 			return IO_ERROR_INVALID_ARGUMENT;
-		if (console->pixels->width != presenter->source->width
-		    || console->pixels->height != presenter->source->height) {
+		force_backend_upload = console->pixel_surface_dirty;
+		if (console->pixels->width != presenter->images[0]->width
+		    || console->pixels->height != presenter->images[0]->height) {
 			status = replace_buffers(presenter, console->pixels);
 			if (status != 0)
 				return status;
 		}
-		if (dimensions_changed) {
-			status = reset_blink_cells(presenter, console);
-			if (status != 0)
-				return status;
-		}
-		state_changed = cache_console_state(presenter, console, now);
+		state_changed = cache_console_state(presenter, console, now,
+		    &cursor_changed);
 		if (console->palette_dirty) {
 			memcpy(presenter->palette, console->palette,
 			    sizeof(presenter->palette));
-			presenter->force_upload = true;
+			accumulate_full_damage(presenter);
 		}
-		if (console->pixel_surface_dirty)
-			presenter->force_upload = true;
-		if (previous_scaling != presenter->scaling_mode)
-			presenter->force_upload = true;
-		if (presenter->force_upload) {
-			struct st_console_rect full = {0, 0,
-			    presenter->source->width, presenter->source->height};
-
-			copy_console_rectangle(presenter->source, console, false,
-			    &full);
-			if (presenter->source->alternate != NULL)
-				copy_console_rectangle(presenter->source, console, true,
-				    &full);
-			refresh_blink_cells(presenter, console);
+		if (!presenter->images_valid || console->pixel_surface_dirty)
+			accumulate_full_damage(presenter);
+		else {
+			(void)collect_cell_damage(presenter, console);
+			if (cursor_changed) {
+				if (old_cursor.width != 0 && old_cursor.height != 0)
+					st_console_rect_accumulate(&presenter->damage,
+					    &presenter->damage_valid, &old_cursor);
+				if (presenter->cursor_rectangle.width != 0
+				    && presenter->cursor_rectangle.height != 0)
+					st_console_rect_accumulate(&presenter->damage,
+					    &presenter->damage_valid,
+					    &presenter->cursor_rectangle);
+			}
+		}
+		if (presenter->damage_valid) {
+			images_were_valid = presenter->images_valid;
+			if (presenter->images_valid)
+				presenter->plane_difference_count -= count_differences(
+				    presenter->images[BITMAP_PRIMARY],
+				    presenter->images[BITMAP_ALTERNATE],
+				    &presenter->damage);
+			else
+				presenter->plane_difference_count = 0;
+			content_changed = resolve_images(presenter, console,
+			    &presenter->damage) || !images_were_valid || cursor_changed;
+			presenter->plane_difference_count += count_differences(
+			    presenter->images[BITMAP_PRIMARY],
+			    presenter->images[BITMAP_ALTERNATE],
+			    &presenter->damage);
+			presenter->planes_differ
+			    = presenter->plane_difference_count != 0;
+			presenter->images_valid = true;
+			if (content_changed) {
+				++presenter->generation;
+				if (presenter->generation == 0)
+					++presenter->generation;
+				presenter->damage_generation = presenter->generation;
+				new_damage = true;
+			}
+			else {
+				presenter->damage = previous_damage;
+				presenter->damage_valid = previous_damage_valid;
+				presenter->damage_full = previous_damage_full;
+				presenter->damage_generation
+				    = previous_damage_generation;
+			}
 		}
 	}
-	else if (!presenter->initialized)
+	else if (!presenter->initialized || !presenter->images_valid)
 		return IO_ERROR_INVALID_ARGUMENT;
+
 	animation_state(presenter->blink_mode, now - presenter->epoch,
 	    &alternate, &cursor_phase);
-	if (presenter->blink_count == 0)
+	if (!presenter->planes_differ)
 		alternate = false;
-	draw_cursor = presenter->cursor_custom
-	    ? presenter->custom_cursor.visible
-	    : presenter->cursor_visible;
-	if ((presenter->cursor_custom && presenter->custom_cursor.blink)
-	    || !presenter->cursor_custom)
-		draw_cursor = draw_cursor && cursor_phase;
-	presenter->cursor_rectangle = cursor_rectangle(presenter);
-	draw_cursor = draw_cursor && presenter->cursor_x < presenter->columns
-	    && presenter->cursor_y < presenter->rows
-	    && presenter->cursor_rectangle.width != 0
-	    && presenter->cursor_rectangle.height != 0;
-	phase_changed = alternate != presenter->alternate;
+	use_cursor = presenter->cursor_composed;
+	if (use_cursor && (!presenter->cursor_custom
+	    || presenter->custom_cursor.blink))
+		use_cursor = cursor_phase;
+	identity = (uint8_t)(alternate ? BITMAP_ALTERNATE : BITMAP_PRIMARY);
+	if (use_cursor)
+		++identity;
+	selection_changed = !presenter->upload_initialized
+	    || identity != presenter->selected_image;
+	presenter->selected_image = identity;
 	destination = fit_rectangle(output_width, output_height,
-	    presenter->source->width, presenter->source->height,
+	    presenter->images[0]->width, presenter->images[0]->height,
 	    presenter->aspect_width, presenter->aspect_height);
 	layout_changed = presenter->output_width != output_width
 	    || presenter->output_height != output_height;
 	presenter->output_width = output_width;
 	presenter->output_height = output_height;
-	presenter->alternate = alternate;
 
-	if (presenter->scaling_mode == ST_CONSOLE_SCALING_EXTERNAL) {
-		bool cursor_changed = old_cursor_drawn != draw_cursor
-		    || !st_console_rects_equal(&old_cursor,
-		    &presenter->cursor_rectangle)
-		    || state_changed;
+	pixels = presenter->images[identity];
+	upload_damage = presenter->damage;
+	full_upload = presenter->upload_retry || !presenter->upload_initialized
+	    || presenter->uploaded_image != identity
+	    || (presenter->uploaded_generation != presenter->generation
+	    && presenter->uploaded_generation + 1 != presenter->generation)
+	    || (new_damage && presenter->damage_full)
+	    || previous_scaling != presenter->scaling_mode
+	    || force_backend_upload;
+	if (presenter->scaling_mode == ST_CONSOLE_SCALING_INTERNAL) {
+		bool cache_current = presenter->scaled[identity] != NULL
+		    && presenter->scaled_generation[identity] == presenter->generation
+		    && presenter->scaled[identity]->width == destination.width
+		    && presenter->scaled[identity]->height == destination.height
+		    && presenter->scaled_blocky[identity]
+		    == presenter->blocky_scaling;
 
-		if (presenter->force_upload) {
-			status = compose_full(presenter, draw_cursor, upload, context);
-			changed = true;
-		}
-		else if (console != NULL)
-			status = sync_dirty_cells(presenter, console, draw_cursor,
-			    upload, context, &changed);
-		if (status == 0 && !presenter->force_upload && phase_changed)
-			status = sync_blink_cells(presenter, draw_cursor, upload,
-			    context, &changed);
-		if (status == 0 && !presenter->force_upload
-		    && cursor_changed) {
-			status = upload_cursor_change(presenter, old_cursor,
-			    old_cursor_drawn, draw_cursor, upload, context);
-			changed = true;
-		}
-		if (status == 0)
-			presenter->force_upload = false;
-		frame->pixels = presenter->resolved;
-	}
-	else {
-		struct scaled_upload scaled_upload = {
-			.presenter = presenter,
-			.upload = upload,
-			.context = context,
-		};
-		bool full = presenter->force_upload || previous_blocky
-		    != presenter->blocky_scaling || layout_changed
-		    || presenter->scaled == NULL
-		    || presenter->scaled->width != destination.width
-		    || presenter->scaled->height != destination.height;
-		bool cursor_changed = old_cursor_drawn != draw_cursor
-		    || !st_console_rects_equal(&old_cursor,
-		    &presenter->cursor_rectangle)
-		    || state_changed;
+		if (!cache_current) {
+			bool regional = presenter->scaled[identity] != NULL
+			    && presenter->scaled_generation[identity] + 1
+			    == presenter->generation && presenter->damage_valid
+			    && presenter->damage_generation == presenter->generation
+			    && !presenter->damage_full
+			    && presenter->scaled[identity]->width == destination.width
+			    && presenter->scaled[identity]->height == destination.height
+			    && presenter->scaled_blocky[identity]
+			    == presenter->blocky_scaling;
 
-		if (full) {
-			if (console != NULL && !presenter->force_upload)
-				status = sync_dirty_cells(presenter, console, false,
-				    NULL, NULL, &changed);
-			if (status != 0)
-				presenter->force_upload = true;
-		}
-		else if (console != NULL)
-			status = sync_dirty_cells(presenter, console, draw_cursor,
-			    upload_scaled_rectangle, &scaled_upload, &changed);
-		if (!full && status == 0 && phase_changed)
-			status = sync_blink_cells(presenter, draw_cursor,
-			    upload_scaled_rectangle, &scaled_upload, &changed);
-		if (!full && status == 0 && cursor_changed) {
-			status = upload_cursor_change(presenter, old_cursor,
-			    old_cursor_drawn, draw_cursor, upload_scaled_rectangle,
-			    &scaled_upload);
-			changed = true;
-		}
-		if (status == 0 && full) {
-			status = compose_full(presenter, draw_cursor, NULL, NULL);
-			if (status == 0)
-				status = st_pixel_scaler_scale(presenter->scaler,
-				    &presenter->scaled, presenter->resolved,
+			if (regional) {
+				struct st_pixel_rect source_damage = {
+					presenter->damage.x, presenter->damage.y,
+					presenter->damage.width, presenter->damage.height,
+				};
+				struct st_pixel_rect scaled_damage;
+
+				status = st_pixel_scaler_scale_region(
+				    presenter->scalers[identity],
+				    &presenter->scaled[identity], pixels,
+				    &source_damage, &scaled_damage);
+				upload_damage = (struct st_console_rect){
+					scaled_damage.x, scaled_damage.y,
+					scaled_damage.width, scaled_damage.height,
+				};
+			}
+			else {
+				status = st_pixel_scaler_scale(presenter->scalers[identity],
+				    &presenter->scaled[identity], pixels,
 				    destination.width, destination.height,
 				    presenter->blocky_scaling
 				    ? ST_PIXEL_SCALING_BLOCKY
 				    : ST_PIXEL_SCALING_POINTY);
-			if (status == 0) {
-				struct st_console_rect full = {0, 0,
-				    presenter->scaled->width,
-				    presenter->scaled->height};
-
-				status = upload == NULL ? 0
-				    : upload(context, presenter->scaled, &full);
-				if (status != 0)
-					presenter->force_upload = true;
+				full_upload = true;
 			}
-			changed = true;
+			if (status == 0)
+				presenter->scaled_generation[identity]
+				    = presenter->generation;
+			if (status == 0)
+				presenter->scaled_blocky[identity]
+				    = presenter->blocky_scaling;
 		}
-		if (status == 0)
-			presenter->force_upload = false;
-		else
-			presenter->force_upload = true;
-		frame->pixels = presenter->scaled;
+		pixels = presenter->scaled[identity];
 	}
-	presenter->cursor_drawn = draw_cursor;
+	else if (previous_scaling != presenter->scaling_mode)
+		full_upload = true;
+
+	if (status == 0 && (full_upload || new_damage
+	    || selection_changed)) {
+		if (full_upload || selection_changed) {
+			upload_damage = (struct st_console_rect){
+				0, 0, pixels->width, pixels->height,
+			};
+		}
+		status = upload_image(presenter, identity, pixels, &upload_damage,
+		    upload, context);
+		uploaded = status == 0;
+	}
+	frame->pixels = pixels;
+	frame->image_identity = &presenter->images[identity];
+	frame->generation = presenter->generation;
 	frame->destination = destination;
-	frame->source_width = presenter->source->width;
-	frame->source_height = presenter->source->height;
+	frame->source_width = presenter->images[0]->width;
+	frame->source_height = presenter->images[0]->height;
 	frame->cell_width = presenter->cell_width;
 	frame->cell_height = presenter->cell_height;
 	frame->scaling_mode = presenter->scaling_mode;
-	frame->changed = changed || layout_changed || state_changed;
+	frame->changed = layout_changed || state_changed || selection_changed
+	    || new_damage || uploaded;
 	if (presenter->invalid_colour)
 		fprintf(stderr, "Invalid colour value: %08" PRIx32 "\n",
 		    presenter->invalid_colour_value);

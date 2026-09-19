@@ -24,7 +24,6 @@
 #include <wchar.h>
 
 #define GDI_COMMAND (WM_APP + 1)
-#define GDI_TIMER 1
 #define GDI_CURSOR_ARROW 32512
 
 enum command_type {
@@ -265,10 +264,14 @@ add_damage(struct gdi_state *state,
 
 static int
 upload(void *context, const struct st_rgb_buffer *pixels,
-	const struct st_console_rect *rectangle)
+	const struct st_console_rect *rectangle, const void *image_identity,
+	uint64_t generation)
 {
 	struct gdi_state *state = context;
 	size_t count;
+
+	(void)image_identity;
+	(void)generation;
 
 	if (pixels->height != 0 && pixels->width > SIZE_MAX / pixels->height)
 		return IO_ERROR_OUT_OF_RANGE;
@@ -917,9 +920,6 @@ window_proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
 		}
 		(void)render(state, NULL, true);
 		return 0;
-	case WM_TIMER:
-		(void)render(state, NULL, false);
-		return 0;
 	case WM_SETFOCUS:
 	case WM_KILLFOCUS:
 		(void)st_console_display_post_event(state->console_display,
@@ -1065,7 +1065,6 @@ worker(void *argument)
 	(void)st_mutex_unlock(&state->mutex);
 	if (state->window == NULL)
 		return 1;
-	(void)SetTimer(state->window, GDI_TIMER, 20, NULL);
 	while (GetMessageW(&message, NULL, 0, 0) > 0) {
 		(void)TranslateMessage(&message);
 		(void)DispatchMessageW(&message);
@@ -1200,6 +1199,7 @@ static const struct st_console_backend_ops gdi_ops = {
 	.attach = gdi_attach,
 	.presents_pixels = true,
 	.deferred_present = true,
+	.animated_present = true,
 	.present = gdi_present,
 	.resize = gdi_resize,
 	.set_title = gdi_set_title,

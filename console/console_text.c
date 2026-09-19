@@ -242,6 +242,9 @@ st_console_set_blink_mode(st_console_t *console,
 	if (console->blink_mode != mode) {
 		console->blink_mode = mode;
 		console->changed = true;
+		if (atomic_load_explicit(&console->display->active,
+		    memory_order_acquire) == console)
+			st_console_display_reset_animation(console->display, mode);
 	}
 	result = st_console_finish_change_locked(console);
 	(void)st_rwlock_unlock(&console->state_lock);

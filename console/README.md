@@ -219,11 +219,25 @@ and off-screen use.  A text backend can provide character readback but rejects
 pixel mutations with `IO_ERROR_NOT_SUPPORTED`, since accepting an invisible
 draw would be a false success.
 
-Bitmap presentation retains each software-scaling stage.  Dirty cell runs,
-blink runs, and old/new cursor rectangles propagate through those stages and
-only the resulting damage is uploaded.  Integer stages multiply the rectangle,
-pointy and xBR stages expand it by their one- and two-pixel dependency radii,
-and interpolation stages use precomputed inverse coordinate maps.
+The cell metadata last represented in the pixel planes is retained in
+`drawn_cells`; it is not a second pixel raster.  Comparing it with the live
+cells identifies text which still needs rasterization.  Prestel lower halves
+also depend on the cell above, while Mode 7 lower halves remain independently
+sourced.
+
+Bitmap presentation retains four unscaled RGB images: primary and alternate
+text planes, each with and without the cursor.  A drained content batch updates
+all four in order and advances one generation.  Selecting a blink or cursor
+phase only selects an already composed image and does not advance that
+generation.  Each image has its own lazy software-scaling cache, so a warm
+phase change performs no scaling.  Damage in the immediately preceding
+generation makes all four caches stale but can update a selected cache
+regionally; skipped generations and
+geometry or scaling-policy changes cause a full rescale.  Integer stages
+multiply the rectangle, pointy and xBR stages expand it by their one- and
+two-pixel dependency radii, and interpolation stages use precomputed inverse
+coordinate maps.  The upload callback receives stable image identity and
+generation values so a backend may retain matching host resources.
 The zero-initialized and traditional SyncTERM policy is blocky scaling;
 `ST_PIXEL_SCALING_POINTY` explicitly selects the old Pointy pipeline.
 
@@ -267,6 +281,14 @@ Bitmap backends collect ordinary visible state changes for up to 10 ms before
 presenting them.  This replaces the legacy blinker thread's implicit batching:
 small terminal-parser writes accumulate dirty cells instead of synchronously
 rasterizing and crossing into the window system for every write.
+The first pending change establishes the deadline; later changes merge without
+postponing it.  The same presentation worker owns the legacy animation
+schedules for every window bitmap backend: PC cursor/text phases are 133/266
+ms, Prestel phases are 314 ms with its asymmetric text visibility, Commodore
+uses complementary 333 ms cursor/text phases, Atari leaves its cursor on, and
+Atari ST toggles only its cursor at 500 ms.  Missed phase deadlines are skipped
+rather than replayed.  Libretro instead selects the current retained image when
+the host requests a frame.
 `st_console_begin_update` and `st_console_end_update` nest and prevent a batch
 from being presented before its outermost end.  Explicit `st_console_present`
 is a synchronous forced presentation boundary.  Text backends remain

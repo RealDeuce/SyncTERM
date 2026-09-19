@@ -492,6 +492,23 @@ if(BUILD_TESTING)
 		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	st_console_warnings(st_console_bitmap_test)
 	add_test(NAME st_console_bitmap COMMAND st_console_bitmap_test)
+	foreach(test IN ITEMS animation scheduler saa_damage saa_modes saa_blink
+		switch_geometry)
+		add_executable(st_console_${test}_test
+			tests/st_console_${test}_test.c)
+		target_include_directories(st_console_${test}_test PRIVATE
+			${CMAKE_CURRENT_SOURCE_DIR})
+		target_link_libraries(st_console_${test}_test PRIVATE st_console
+			syncterm_array_list)
+		if(test STREQUAL "scheduler")
+			target_include_directories(st_console_${test}_test PRIVATE
+				${PROJECT_SOURCE_DIR}/time)
+		endif()
+		set_target_properties(st_console_${test}_test PROPERTIES
+			C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		st_console_warnings(st_console_${test}_test)
+		add_test(NAME st_console_${test} COMMAND st_console_${test}_test)
+	endforeach()
 	add_executable(st_console_libretro_test tests/st_console_libretro_test.c)
 	target_link_libraries(st_console_libretro_test PRIVATE st_console)
 	set_target_properties(st_console_libretro_test PROPERTIES

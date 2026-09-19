@@ -37,7 +37,7 @@ repository-wide coverage. The legacy tree is read-only reference.
 
 The repository-wide audit is complete. This is not an implementation approval,
 release certification or claim that findings have been fixed. The consolidated
-API/design assessment, priority groups and all 111 outstanding finding summaries are in
+API/design assessment, priority groups and all 107 outstanding finding summaries are in
 AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 
 | Objective requirement | Authoritative evidence and disposition |
@@ -47,10 +47,10 @@ AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 | Correctness, ownership/lifetime and concurrency | Component lifecycle/error reviews, normal and injected tests, explicit GUI/host ownership closure; source and reproduced failures are qualified individually. A016, A023, A027/A035/A036, A106–A109 illustrate distinct lifetime/error risks. |
 | Portability and all platform backends | POSIX/Windows sources and every audio/console backend reviewed; native, MinGW compile-only and unavailable runtime evidence kept separate. Capability probes/standalone targets reviewed. No unsupported platform pass inferred. |
 | Performance | Scaler/renderer benchmark source and measured cases reviewed, including common mixed-axis scaling; A011/A023 and backend pacing risks distinguished from measured regressions. Reconstructed legacy benchmark limitations explicitly recorded. |
-| Required legacy behavior | Read-only comparisons cover fonts/catalog/maps, modes, palette capacity, Prestel versus Mode 7, command line, console/input and settings behavior; A015/A018/A032/A042–A044/A092 plus explicit parity limits. Frozen CTerm chapter cmp succeeds. |
+| Required legacy behavior | Read-only comparisons cover fonts/catalog/maps, modes, palette capacity, Prestel versus Mode 7, command line, console/input and settings behavior; A015/A018/A032 plus explicit parity limits. Frozen CTerm chapter cmp succeeds. |
 | Wren scripts and bindings | Complete local source/signature/manual reviews; isolated shipped-script suites and host fixtures; host closure A100–A114. Connected/SFTP production integration missing from this application is reported, not invented or silently counted as working. |
 | Build logic, generators and documentation | Root/component CMake and generators reviewed; standalone/probe failures recorded; pinned Unicode/font regeneration and table comparisons documented; root manuals/license/development guidance covered. Wren VM vendored internals limited to integration boundaries as requested. |
-| Inventory and consolidated findings | 111 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 15 high, 67 medium, 27 low, 2 unresolved concerns; not all runtime reproductions. |
+| Inventory and consolidated findings | 107 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 15 high, 63 medium, 27 low, 2 unresolved concerns; not all runtime reproductions. |
 | Relevant tests where practical | Fresh complete native build succeeds. Final selected CTest run: 60 executed, 51 pass, 9 fail, 5.12 seconds; failure matrix in index. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
 | Only tests/reports changed; no implementation remediation | Current status: 30 modified tracked tests, 23 untracked tests, 2 untracked reports; no staged files. Filtered worktree inspection finds no other changes. Baseline-to-current non-test difference is pre-existing str_list/CMakeLists.txt, unchanged since fdeab0d. No final-consolidation commits/push/reverts. |
 | Explicit uncertainty | Each component records unavailable platforms, unexecuted failure paths and measurement limits; A007/A011 unresolved. Source-level risks are not called verified crashes. These are audit outcomes, not claims of implementation correctness. |
@@ -103,7 +103,7 @@ not the absence of failing tests. New findings will receive stable A-numbers.
 | bbs_list/ | Reviewed | All local sources/header/tests/build read; A033 sanitizer reproduction, A034/A035 source findings; native list/web tests pass, MinGW compile only; integration/fault gaps below |
 | codepage/ | Reviewed | All local source/header/build/test read; exhaustive graphic roundtrip and expanded control/invalid-input tests pass native Clang/GCC; MinGW compile only |
 | connection/ | Reviewed | A014/A015/A018 reproduced; A016 Windows source race; A017 RFC mismatch; shutdown stress and platform runtime gaps documented |
-| console/ | Reviewed | All local implementation/backends, tests, benchmark, build and docs read; local integration dispositions A042–A045, A047–A052, A092–A094, A106–A109 and GUI closure notes; native/isolated tests and platform-only risks distinguished; remaining Wren consumer questions belong to wren_host |
+| console/ | Reviewed | All local implementation/backends, tests, benchmark, build and docs read; local integration dispositions A045, A047–A052, A093–A094, A106–A109 and GUI closure notes; native/isolated tests and platform-only risks distinguished; remaining Wren consumer questions belong to wren_host |
 | dynamic_library/ | Reviewed | A005; native fixtures pass; Windows compiled, not executed |
 | event/ | Reviewed | A004; native repeated tests, MinGW compile; failure-injection limitations below |
 | file_lock/ | Reviewed | A006; native tests plus failing controlled error-path reproduction; Windows source/compile only |
@@ -339,8 +339,8 @@ superseded; unavailable runtime/fault/performance checks are limits, not passes.
   source-level compatibility risks; A050/A051 are isolated reproductions and
   A108/A109 are source findings. Compositor positioning restrictions are not
   substitutes for implementing supported behavior or lifecycle handling.
-- Libretro's presenter is reviewed separately from an application core. A043
-  covers console-switch geometry and A091 covers absent application ABI;
+- Libretro's presenter is reviewed separately from an application core. A091
+  covers the absent application ABI;
   emulator-driven cadence/blinking cannot be declared verified without that
   consumer. No new host was built during the audit.
 
@@ -890,33 +890,6 @@ other operations sharing this helper are source-level follow-up, not separately
 reproduced failures. Existing fill and move-clear APIs explicitly reject wide
 fill cells; their rejection is not this defect. Direct clear/scroll codepoint
 fill behavior and invalid scalar inputs remain contract-review questions.
-
-### A092 — Prestel lower halves miss timer-driven blink updates
-
-Severity: medium (confirmed visible rendering defect). The rasterizer selects
-the upper cell for a Prestel lower half, including its BLINK flag. However,
-console/console_bitmap.c:506, :597, :612 and :713 populate the presenter blink
-map from each cell's own flags. sync_blink_cells at :750 uploads only cells
-marked in that map. A non-blinking lower cell displaying the bottom half of a
-blinking upper glyph is therefore excluded from timer-driven phase changes.
-This is distinct from A042's stale raster after changing an upper glyph.
-
-New standalone console/tests/st_console_saa_blink_test.c creates a headless
-1x2 Prestel grid with an opaque 8x2 font. Only the upper cell has DOUBLE_HEIGHT
-and BLINK. It rasterizes and presents both halves at time 1000, then requests
-a timer-only frame at time 1400. Both initially match; afterward the upper
-pixel is 000000 and lower remains aaaaaa. Native Clang build with strict
-warnings succeeds; the final equality assertion fails as intended. The test
-uses the existing bitmap-test link dependencies without modifying CMake,
-holds the console update lock, and starts no GUI or physical terminal.
-
-Legacy bitmap_con.c:776–798 selects the upper cell's legacy attribute for
-Prestel lower-half blinking; Mode 7 retains its own cell. The new raster
-selection agrees with that distinction, but the presenter damage selection
-does not. Recommend tracking effective displayed blink dependencies, with
-independent Prestel and Mode 7 tests, both phase transitions and flag changes.
-Only the external-scaling presenter path and one phase transition were
-executed here; no claim of every backend's live-window behavior is made.
 
 ### Error translation coverage follow-up
 
@@ -1945,78 +1918,6 @@ empty output rectangle and skip work when no output depends on the changed
 input. Check intermediate pointy-pipeline interpolation stages for the same
 empty-range assumption, and test both axes plus multi-stage propagation.
 Those related paths have not yet been reproduced.
-
-### A042 — Prestel double-height lower-row raster stays stale after upper glyph changes
-
-Severity: medium (visible rendering correctness). Confirmed native Clang and
-GCC with `console/tests/st_console_saa_damage_test.c`. In
-`console/console_pixels.c:276`, ROW_SCALE_BOTTOM with TERMINAL_FONT renders
-from the preceding row's cell. However, the incremental cache check at :484
-and :490 considers only the current row mode and current cell. Changing the
-upper glyph without changing its DOUBLE_HEIGHT flag leaves the lower row's
-mode and cell unchanged, so that dependent raster is skipped.
-
-The standalone public-API test creates a headless 1x2 console with an 8x2
-font, renders a double-height glyph, changes only the top cell to a blank
-glyph, then compares incremental and forced pixel snapshots. Both primary
-and alternate planes should agree; the equality assertion fails on both
-native toolchains. No GUI, internal-state mutation or production change.
-Compile with console/pixels includes and the existing st_console_test link
-dependencies from the selected build tree; no CMake registration was added.
-
-Recommendation: include the source-row dependency in raster invalidation or
-cache comparison. Test glyph, colour, conceal/reveal and font changes while
-double-height row classification remains constant, plus scrolling of pairs.
-Only the upper-glyph change is reproduced here.
-
-Legacy comparison: `conio/cterm.c:956` sets PRESTEL_TERMINAL only for
-CTERM_EMULATION_PRESTEL, not CTERM_EMULATION_BEEB (Mode 7). Legacy
-`bitmap_con.c:776` selects the preceding row for Prestel and the current row
-for Mode 7. The new TERMINAL_FONT branch preserves that basic distinction.
-A042 specifically uses TERMINAL_FONT and must not be read as prescribing
-upper-row glyph selection for Mode 7. Legacy bitmap_con.c:314 also explicitly
-invalidates the next row when double-height content changes without a flag
-transition; that dependency is absent from the new cache check.
-
-### A043 — Shared bitmap presenter retains the previous console's cell geometry
-
-Severity: medium (confirmed display corruption; wider consequences untested).
-console_bitmap.c sets presenter cell_width/cell_height only during creation;
-cache_console_state updates columns/rows but not cell dimensions. Libretro
-reuses the presenter on activation. `st_console_switch_geometry_test.c` uses
-only public APIs to switch a 16x1 raster from four 4-pixel cells to two 8-pixel
-cells. A steady cursor at column 1 should occupy pixels 8..15; it instead
-occupies 4..7. Native Clang standalone regression fails with those exact pixel
-differences. No GUI or unsafe reverse-geometry test performed. Other backend
-activation/recreation paths remain to be inspected before extending scope.
-
-Recommendation: refresh all geometry-dependent presenter state on console
-changes and ensure dirty rectangles, cursor bounds and blink tables agree.
-Test equal raster sizes with unequal cell sizes, both switch directions.
-
-### A044 — Prestel suppressed lower cells use the wrong background
-
-Severity: medium (legacy rendering regression). Legacy
-`/synchronet/src/sbbs/src/conio/bitmap_con.c:776` selects the upper cell's
-foreground/background in Prestel terminal mode before deciding whether it
-is double-height. If not, it draws a space with that upper background. Mode 7
-uses the lower cell instead. In the new `console/console_pixels.c:280`, the
-non-double source is set to NULL; :293 and :295 then choose the current lower
-cell's background, losing Prestel's inherited background.
-
-Native Clang standalone `console/tests/st_console_saa_modes_test.c` verifies
-both modes through public headless APIs and forced rasterization. A mixed row
-contains one double-height cell and one normal-height cell with blue upper
-background and green lower background. Prestel's suppressed lower cell is
-green instead of blue. Mode 7's green result passes. Separate glyph-source
-checks pass for both modes, establishing that the basic upper-versus-lower
-selection was not entirely removed. This is independent of A042's incremental
-cache failure. No production changes or legacy binary execution.
-
-Recommendation: retain the selected source's colour/control state when
-substituting a blank glyph; test Prestel and Mode 7 independently rather than
-treating all SAA5050 lower rows alike. Per-row font, separated-mosaic, blink
-and conceal/reveal differences still require broader equivalence tests.
 
 ### A045 — ANSI CSI parser writes past its parameter array
 
@@ -4267,9 +4168,7 @@ fallback/copy/deferred registration, 65,536-slot LRU replacement, concurrent
 activation/metadata, failed detachment and retained ANSI options. Isolated PTY
 tests supply the previously documented curses coverage.
 
-The existing SAA5050 case changes the DOUBLE_HEIGHT classification and does
-not cover A042's unchanged-classification source dependency; it therefore
-does not contradict A042. Wide-cell tests cover four-column wrapping and
+Wide-cell tests cover four-column wrapping and
 single-cell overwrite, not one-column windows or partial-window scrolling
 across wide pairs. Invalid scalar put_codepoint is explicitly expected to
 succeed with UINT32_MAX in a no-font headless console; treat that as an API
@@ -4538,8 +4437,7 @@ destructive backspace. UTF-8 writes validate before mutation. INT32_MIN scroll
 negation widens first. Full-width vertical raster scrolling uses a circular
 text-area offset, with right/bottom pixel margins addressed independently;
 partial scrolling copies rows overlap-safely. Raster normalization allocates
-both full text planes before changing the circular offset. A042 demonstrates
-one missing cross-row dependency despite this otherwise separate row cache.
+both full text planes before changing the circular offset.
 
 Further targeted checks remain: one-column windows receiving wide glyphs,
 scrolling through wide-pair boundaries, wide fill codepoints, deferred font
@@ -4549,17 +4447,12 @@ findings. Generic move_cells allocates a cell rectangle and reuses semantic
 cell setters; whether pixel overlays and explicit glyph identity survive all
 move cases remains to be tested. No performance conclusions from source alone.
 
-Verification in that audit pass used native Clang and GCC. Standalone A042
-failed with both native libraries/toolchains. No Windows/macOS runtime or real
-terminal/window validation was claimed.
-
 Shared bitmap presenter, libretro backend, text-terminal character helper and
 main entry wrapper now also read in full, together with console_bitmap_test.c
 and st_console_libretro_test.c. Existing bitmap/libretro CTests pass native
 Clang and GCC. Those tests exercise aspect fitting, undersized-host clipping,
 scale preservation, cursor scanlines, external-scaling fallback, circular
-raster copying, dirty/blink uploads, and frame-copy destination bounds. They
-do not cover changing cell dimensions on activation; A043 adds that case.
+raster copying, dirty/blink uploads, and frame-copy destination bounds.
 
 Presenter fitting preserves at least the source raster dimensions and clips
 undersized hosts rather than downscaling. This does not establish a console

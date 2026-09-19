@@ -431,9 +431,12 @@ static void add_pending(struct buffer *buffer,
 
 static int update_buffers(void *context,
 			  const struct st_rgb_buffer *pixels,
-			  const struct st_console_rect *rectangle)
+			  const struct st_console_rect *rectangle,
+			  const void *image_identity, uint64_t generation)
 {
 	struct state *state = context;
+	(void)image_identity;
+	(void)generation;
 	state->latest_pixels = pixels;
 	for (size_t i = 0; i < 2; ++i) {
 		struct buffer *buffer = &state->buffers[i];
@@ -1344,6 +1347,7 @@ static void top_configure(void *data,
 		s->windowed_width = s->window_width;
 		s->windowed_height = s->window_height;
 	}
+	st_console_display_request_repaint(s->console_display);
 }
 static void top_close(void *data, struct xdg_toplevel *top)
 {
@@ -1709,7 +1713,6 @@ static int worker(void *argument)
 	fds[1] = (struct pollfd){.fd = s->wake[0], .events = POLLIN};
 	while (!s->stop) {
 		(void)wl_display_dispatch_pending(s->display);
-		(void)draw(s, NULL, false);
 		if (s->repeat_key && s->repeat_rate > 0 &&
 		    (int32_t)(now_ms() - s->repeat_next) >= 0) {
 			uint32_t interval = 1000U / (uint32_t)s->repeat_rate;
@@ -1852,6 +1855,7 @@ static const struct st_console_backend_ops ops = {
 	.attach = attach,
     .presents_pixels = true,
     .deferred_present = true,
+    .animated_present = true,
     .present = present,
     .resize = resize,
     .set_title = title,

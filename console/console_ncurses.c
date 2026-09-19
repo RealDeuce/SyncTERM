@@ -1535,10 +1535,10 @@ curses_attach(st_console_t *console)
 		return IO_ERROR_OUT_OF_RANGE;
 	st_pixel_buffer_destroy(console->pixels);
 	free(console->raster_rows);
-	free(console->rasterized);
+	free(console->drawn_cells);
 	console->pixels = NULL;
 	console->raster_rows = NULL;
-	console->rasterized = NULL;
+	console->drawn_cells = NULL;
 	console->cell_width = 0;
 	console->cell_height = 0;
 	console->pixel_extra_width = 0;

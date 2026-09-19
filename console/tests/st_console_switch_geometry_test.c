@@ -23,18 +23,23 @@ main(void)
 		.backend = ST_CONSOLE_BACKEND_LIBRETRO,
 	};
 	const struct st_console_config first_config = {
-		.columns = 4, .rows = 1, .cell_width = 4, .cell_height = 1,
+		.columns = 80, .rows = 25, .cell_width = 8, .cell_height = 16,
+		.scaling_mode = ST_CONSOLE_SCALING_EXTERNAL,
 	};
 	const struct st_console_config second_config = {
-		.columns = 2, .rows = 1, .cell_width = 8, .cell_height = 1,
+		.columns = 80, .rows = 50, .cell_width = 8, .cell_height = 8,
+		.scaling_mode = ST_CONSOLE_SCALING_EXTERNAL,
 	};
 	const struct st_console_custom_cursor cursor = {
-		.start = 0, .end = 0, .range = 1, .visible = true, .blink = false,
+		.start = 0, .end = 7, .range = 8, .visible = true, .blink = false,
+	};
+	const struct st_console_custom_cursor tall_cursor = {
+		.start = 0, .end = 15, .range = 16, .visible = true, .blink = false,
 	};
 	st_console_display_t *display = NULL;
 	st_console_t *first = NULL;
 	st_console_t *second = NULL;
-	uint32_t pixels[16];
+	uint32_t *pixels;
 	uint32_t width;
 	uint32_t height;
 	bool correct;
@@ -42,22 +47,35 @@ main(void)
 	CHECK(st_console_display_create(&display, &display_config) == 0);
 	CHECK(st_console_create_on_display(&first, display, &first_config) == 0);
 	CHECK(st_console_create_on_display(&second, display, &second_config) == 0);
-	CHECK(st_console_set_position(second, 1, 0) == 0);
+	pixels = malloc((size_t)640 * 400 * sizeof(*pixels));
+	CHECK(pixels != NULL);
+	CHECK(st_console_set_position(second, 79, 49) == 0);
 	CHECK(st_console_set_custom_cursor(second, &cursor) == 0);
 	CHECK(st_console_display_activate(display, second) == 0);
 	CHECK(st_console_display_libretro_frame_size(display, &width, &height) == 0);
-	CHECK(width == 16 && height == 1);
-	CHECK(st_console_display_libretro_frame_copy(display, pixels, 16, 1) == 0);
+	CHECK(width == 640 && height == 400);
+	CHECK(st_console_display_libretro_frame_copy(display, pixels, 640, 400)
+	    == 0);
 	correct = true;
-	for (size_t x = 0; x < 16; ++x) {
-		uint32_t expected = x < 8 ? 0 : UINT32_C(0xaaaaaa);
-
-		if (pixels[x] != expected) {
-			fprintf(stderr, "pixel %zu: got %06x, expected %06x\n",
-			    x, (unsigned int)pixels[x], (unsigned int)expected);
-			correct = false;
+	for (uint32_t y = 392; y < 400; ++y) {
+		for (uint32_t x = 632; x < 640; ++x) {
+			if (pixels[(size_t)y * 640 + x] != UINT32_C(0xa8a8a8)) {
+				fprintf(stderr, "pixel %u,%u: got %06x\n", x, y,
+				    (unsigned int)pixels[(size_t)y * 640 + x]);
+				correct = false;
+			}
 		}
 	}
+	CHECK(st_console_set_position(first, 79, 24) == 0);
+	CHECK(st_console_set_custom_cursor(first, &tall_cursor) == 0);
+	CHECK(st_console_display_activate(display, first) == 0);
+	CHECK(st_console_display_libretro_frame_copy(display, pixels, 640, 400)
+	    == 0);
+	for (uint32_t y = 384; y < 400; ++y) {
+		for (uint32_t x = 632; x < 640; ++x)
+			CHECK(pixels[(size_t)y * 640 + x] == UINT32_C(0xa8a8a8));
+	}
+	free(pixels);
 	st_console_destroy(second);
 	st_console_destroy(first);
 	st_console_display_destroy(display);

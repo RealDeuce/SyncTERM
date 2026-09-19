@@ -61,13 +61,15 @@ check_mode(bool prestel)
 	CHECK(st_console_get_pixels(&pixels, console, &raster, true) == 0);
 	/* Legacy Prestel borrows the upper glyph; Mode 7 uses the lower glyph. */
 	glyph_ok = pixels->primary[2 * 16 + 7]
-	    == (prestel ? UINT32_C(0xaaaaaa) : 0);
+	    == (prestel ? 7U : 0U);
 	/* A non-double upper cell still supplies Prestel's blank background. */
 	background_ok = pixels->primary[2 * 16 + 8]
-	    == (prestel ? UINT32_C(0x0000aa) : UINT32_C(0x00aa00));
-	fprintf(stderr, "%s: glyph source %s; blank background %s\n",
+	    == (prestel ? 1U : 2U);
+	fprintf(stderr, "%s: glyph source %s (%08x); blank background %s (%08x)\n",
 	    prestel ? "Prestel" : "Mode 7", glyph_ok ? "PASS" : "FAIL",
-	    background_ok ? "PASS" : "FAIL");
+	    (unsigned)pixels->primary[2 * 16 + 7],
+	    background_ok ? "PASS" : "FAIL",
+	    (unsigned)pixels->primary[2 * 16 + 8]);
 	st_pixel_buffer_destroy(pixels);
 	st_console_destroy(console);
 	return glyph_ok && background_ok;

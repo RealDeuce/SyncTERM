@@ -34,10 +34,14 @@ milliseconds_now(void)
 
 static int
 retain_pixels(void *context, const struct st_rgb_buffer *pixels,
-	const struct st_console_rect *rectangle)
+	const struct st_console_rect *rectangle, const void *image_identity,
+	uint64_t generation)
 {
 	struct libretro_state *state = context;
 	size_t count;
+
+	(void)image_identity;
+	(void)generation;
 
 	if (pixels->height != 0 && pixels->width > SIZE_MAX / pixels->height)
 		return IO_ERROR_OUT_OF_RANGE;
@@ -193,11 +197,14 @@ st_console_display_libretro_frame_copy(st_console_display_t *display,
 	status = libretro_state_lock(display, &state);
 	if (status != 0)
 		return status;
+	status = st_console_bitmap_presenter_frame(state->presenter, NULL,
+	    state->width, state->height, milliseconds_now(), retain_pixels, state,
+	    &state->frame);
 	if (destination_stride < state->width || destination_rows < state->height
 	    || (state->height != 0 && destination_stride
 	    > SIZE_MAX / sizeof(*destination) / state->height))
-		status = IO_ERROR_INVALID_ARGUMENT;
-	else {
+		status = status == 0 ? IO_ERROR_INVALID_ARGUMENT : status;
+	else if (status == 0) {
 		for (uint32_t y = 0; y < state->height; ++y)
 			memcpy(&destination[(size_t)y * destination_stride],
 			    &state->pixels[(size_t)y * state->width],

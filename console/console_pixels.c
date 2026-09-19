@@ -235,8 +235,8 @@ render_fast_cells(st_console_t *console, uint32_t x, uint32_t y,
 	for (size_t i = 0; i < prepared; ++i) {
 		size_t index = (size_t)y * console->columns + x + i;
 
-		console->rasterized[index] = console->cells[index];
-		console->rasterized[index].flags &= ~ST_CONSOLE_CELL_DIRTY;
+		console->drawn_cells[index] = console->cells[index];
+		console->drawn_cells[index].flags &= ~ST_CONSOLE_CELL_DIRTY;
 		console->cells[index].flags |= ST_CONSOLE_CELL_DIRTY;
 	}
 	return prepared;
@@ -262,6 +262,7 @@ render_cell(st_console_t *console, uint32_t x, uint32_t y,
 	size_t glyph_row_stride = 0;
 	uint32_t foreground;
 	uint32_t background;
+	bool draw_glyph = true;
 	bool hidden;
 	uint16_t glyph_font;
 
@@ -270,11 +271,10 @@ render_cell(st_console_t *console, uint32_t x, uint32_t y,
 			source = &console->cells[(size_t)(y - 1)
 			    * console->columns + x];
 		if ((source->flags & ST_CONSOLE_CELL_DOUBLE_HEIGHT) == 0)
-			source = NULL;
+			draw_glyph = false;
 	}
-	glyph_font = source == NULL ? 0 : st_console_cell_glyph_font(source);
-	font = source == NULL ? NULL : cached_font(console, font_cache,
-	    glyph_font);
+	glyph_font = st_console_cell_glyph_font(source);
+	font = draw_glyph ? cached_font(console, font_cache, glyph_font) : NULL;
 	if (font != NULL && !st_console_font_glyph_locked(console,
 	    glyph_font, source->glyph, &glyph, &glyph_width,
 	    &glyph_row_stride))
@@ -282,15 +282,15 @@ render_cell(st_console_t *console, uint32_t x, uint32_t y,
 	if (font != NULL && glyph_width == font->width * 2
 	    && (source->flags & ST_CONSOLE_CELL_CONTINUATION) != 0)
 		glyph_x = font->width;
-	foreground = source == NULL ? cell->background : source->foreground;
-	background = source == NULL ? cell->background : source->background;
-	if (source != NULL && (source->flags & ST_CONSOLE_CELL_REVERSE) != 0) {
+	foreground = source->foreground;
+	background = source->background;
+	if ((source->flags & ST_CONSOLE_CELL_REVERSE) != 0) {
 		uint32_t swap = foreground;
 
 		foreground = background;
 		background = swap;
 	}
-	hidden = source == NULL || ((source->flags & ST_CONSOLE_CELL_CONCEAL) != 0
+	hidden = !draw_glyph || ((source->flags & ST_CONSOLE_CELL_CONCEAL) != 0
 	    && (source->flags & ST_CONSOLE_CELL_REVEAL) == 0);
 	if (hidden) {
 		for (uint32_t py = 0; py < console->cell_height; ++py) {
@@ -436,8 +436,8 @@ render_cell(st_console_t *console, uint32_t x, uint32_t y,
 		}
 	}
 finished:
-	console->rasterized[index] = *cell;
-	console->rasterized[index].flags &= ~ST_CONSOLE_CELL_DIRTY;
+	console->drawn_cells[index] = *cell;
+	console->drawn_cells[index].flags &= ~ST_CONSOLE_CELL_DIRTY;
 }
 
 int
@@ -478,9 +478,9 @@ st_console_rasterize_locked(st_console_t *console, bool force)
 			uint32_t end;
 
 			if (!force && !row_changed
-			    && (console->rasterized[index].flags
+			    && (console->drawn_cells[index].flags
 			    & ST_CONSOLE_CELL_DIRTY) == 0
-			    && st_console_cells_equal(cell, &console->rasterized[index])) {
+			    && st_console_cells_equal(cell, &console->drawn_cells[index])) {
 				++x;
 				continue;
 			}
@@ -489,10 +489,10 @@ st_console_rasterize_locked(st_console_t *console, bool force)
 				index = (size_t)y * console->columns + end;
 				cell = &console->cells[index];
 				if (!force && !row_changed
-				    && (console->rasterized[index].flags
+				    && (console->drawn_cells[index].flags
 				    & ST_CONSOLE_CELL_DIRTY) == 0
 				    && st_console_cells_equal(cell,
-				    &console->rasterized[index]))
+				    &console->drawn_cells[index]))
 					break;
 				++end;
 			}
@@ -508,6 +508,15 @@ st_console_rasterize_locked(st_console_t *console, bool force)
 			render_cell(console, x, y, scale, &font_cache);
 			console->cells[(size_t)y * console->columns + x].flags
 			    |= ST_CONSOLE_CELL_DIRTY;
+			/* Prestel's lower half is derived from the upper cell. */
+			if (scale == ROW_SCALE_TOP && y + 1 < console->rows) {
+				size_t below = (size_t)(y + 1) * console->columns + x;
+
+				if ((console->cells[below].flags
+				    & ST_CONSOLE_CELL_TERMINAL_FONT) != 0)
+					console->drawn_cells[below].flags
+					    |= ST_CONSOLE_CELL_DIRTY;
+			}
 			++x;
 		}
 		console->raster_rows[y] = (uint8_t)scale;
@@ -530,7 +539,7 @@ st_console_move_raster_locked(st_console_t *console,
 	    || (source->x == destination_x && source->y == destination_y))
 		return;
 	backwards = destination_y > source->y;
-	cell_bytes = (size_t)source->width * sizeof(console->rasterized[0]);
+	cell_bytes = (size_t)source->width * sizeof(console->drawn_cells[0]);
 	pixel_bytes = (size_t)source->width * console->cell_width
 	    * sizeof(console->pixels->primary[0]);
 	full_scroll_up = source->x == 0 && destination_x == 0
@@ -565,8 +574,8 @@ st_console_move_raster_locked(st_console_t *console,
 		size_t target_cell = (size_t)target_y * console->columns
 		    + destination_x;
 
-		memmove(&console->rasterized[target_cell],
-		    &console->rasterized[source_cell], cell_bytes);
+		memmove(&console->drawn_cells[target_cell],
+		    &console->drawn_cells[source_cell], cell_bytes);
 		for (uint32_t py = 0; pixel_bytes != 0
 		    && py < console->cell_height; ++py) {
 			size_t source_pixel = st_console_pixel_position_locked(console,
@@ -670,7 +679,7 @@ mark_pixel_cells(st_console_t *console, int64_t left, int64_t top,
 
 			console->cells[index].flags |= ST_CONSOLE_CELL_PIXEL_GRAPHICS
 			    | ST_CONSOLE_CELL_DIRTY;
-			console->rasterized[index].flags
+			console->drawn_cells[index].flags
 			    |= ST_CONSOLE_CELL_PIXEL_GRAPHICS;
 		}
 	}

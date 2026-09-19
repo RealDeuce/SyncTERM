@@ -621,13 +621,17 @@ destroy_state(struct sdl_state *state)
 
 static int
 upload_pixels(void *context, const struct st_rgb_buffer *pixels,
-	const struct st_console_rect *rectangle)
+	const struct st_console_rect *rectangle, const void *image_identity,
+	uint64_t generation)
 {
 	struct sdl_state *state = context;
 	SDL_Rect target;
 	void *locked = NULL;
 	int pitch = 0;
 	int status;
+
+	(void)image_identity;
+	(void)generation;
 
 	if (state->texture == NULL || state->texture_width != pixels->width
 	    || state->texture_height != pixels->height) {
@@ -987,7 +991,7 @@ dispatch_event(const SDL_Event *source)
 			(void)st_console_display_post_event(state->console_display, &event);
 		}
 		else if (source->window.event == SDL_WINDOWEVENT_EXPOSED)
-			(void)draw_state(state, NULL, manager.api.get_ticks(), true);
+			st_console_display_request_repaint(state->console_display);
 		else if (source->window.event == SDL_WINDOWEVENT_RESIZED
 		    || source->window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
 			if (!state->fullscreen && !state->maximized) {
@@ -1000,7 +1004,7 @@ dispatch_event(const SDL_Event *source)
 					state->windowed_height = (uint32_t)height;
 				}
 			}
-			(void)draw_state(state, NULL, manager.api.get_ticks(), true);
+			st_console_display_request_repaint(state->console_display);
 		}
 		break;
 	case SDL_KEYDOWN:
@@ -1353,14 +1357,9 @@ st_console_sdl_run_application(int argc, char **argv,
 			complete_command(command, process_command(command));
 		if (manager.initialized) {
 			SDL_Event event;
-			uint32_t now;
 
 			while (manager.api.poll_event(&event) != 0)
 				dispatch_event(&event);
-			now = manager.api.get_ticks();
-			for (struct sdl_state *state = manager.states; state != NULL;
-			    state = state->next)
-				(void)draw_state(state, NULL, now, false);
 		}
 #if ST_CONSOLE_HAVE_QUARTZ
 		st_console_quartz_pump();
@@ -1491,6 +1490,7 @@ static const struct st_console_backend_ops sdl_ops = {
 	.attach = sdl_attach,
 	.presents_pixels = true,
 	.deferred_present = true,
+	.animated_present = true,
 	.present = sdl_present,
 	.resize = sdl_resize,
 	.set_title = sdl_set_title,

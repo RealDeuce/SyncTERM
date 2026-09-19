@@ -317,7 +317,6 @@ struct x11_state {
 	unsigned long blue_values[256];
 	bool damage_valid;
 	bool destination_valid;
-	bool repaint_pending;
 	bool pointer_visible;
 	bool fullscreen;
 	bool maximized;
@@ -1003,10 +1002,14 @@ store_native_pixel(XImage *image, uint32_t x, uint32_t y,
 
 static int
 upload_pixels(void *context, const struct st_rgb_buffer *pixels,
-	const struct st_console_rect *rectangle)
+	const struct st_console_rect *rectangle, const void *image_identity,
+	uint64_t generation)
 {
 	struct x11_state *state = context;
 	int status = ensure_image(state, pixels->width, pixels->height);
+
+	(void)image_identity;
+	(void)generation;
 
 	if (status != 0)
 		return status;
@@ -1093,7 +1096,8 @@ draw_state(struct x11_state *state, const st_console_t *console, bool repaint)
 	if (repaint && !state->damage_valid && state->image == NULL) {
 		full = (struct st_console_rect){0, 0, state->frame.pixels->width,
 		    state->frame.pixels->height};
-		status = upload_pixels(state, state->frame.pixels, &full);
+		status = upload_pixels(state, state->frame.pixels, &full,
+		    state->frame.image_identity, state->frame.generation);
 		if (status != 0)
 			return status;
 	}
@@ -1846,7 +1850,7 @@ handle_event(struct x11_state *state, XEvent *event)
 
 	switch (event->type) {
 	case Expose:
-		state->repaint_pending = true;
+		st_console_display_request_repaint(state->console_display);
 		break;
 	case ConfigureNotify:
 		if (event->xconfigure.width > 0 && event->xconfigure.height > 0) {
@@ -1861,6 +1865,8 @@ handle_event(struct x11_state *state, XEvent *event)
 					state->windowed_width = width;
 					state->windowed_height = height;
 				}
+				st_console_display_request_repaint(
+				    state->console_display);
 			}
 		}
 		break;
@@ -2089,7 +2095,12 @@ process_command(struct x11_state *state, struct x11_command *command)
 		if (!state->fullscreen && !state->maximized)
 			(void)state->api.resize_window(state->display, state->window,
 			    width, height);
-		(void)state->api.flush(state->display);
+		/*
+		 * Complete the resize before acknowledging the command.  Console
+		 * activation can immediately submit another resize, and its scale
+		 * calculation must see the resulting ConfigureNotify first.
+		 */
+		(void)state->api.sync(state->display, False);
 		return 0;
 		}
 	case X11_COMMAND_SET_TITLE:
@@ -2328,8 +2339,6 @@ x11_thread(void *argument)
 		.events = POLLIN,
 	};
 	while (!state->stop) {
-		bool repaint;
-
 		while (state->api.pending(state->display) != 0) {
 			XEvent event;
 
@@ -2337,9 +2346,6 @@ x11_thread(void *argument)
 			if (!state->api.filter_event(&event, state->window))
 				handle_event(state, &event);
 		}
-		repaint = state->repaint_pending;
-		state->repaint_pending = false;
-		(void)draw_state(state, NULL, repaint);
 		if (poll(descriptors, 2, 20) < 0 && errno != EINTR)
 			break;
 		if ((descriptors[1].revents & POLLIN) != 0)
@@ -2539,6 +2545,7 @@ static const struct st_console_backend_ops x11_ops = {
 	.attach = x11_attach,
 	.presents_pixels = true,
 	.deferred_present = true,
+	.animated_present = true,
 	.present = x11_present,
 	.resize = x11_resize,
 	.set_title = x11_set_title,

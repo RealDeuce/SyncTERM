@@ -667,6 +667,13 @@ test_pixels_and_font_rendering(void)
 	CHECK(pixels->primary[2] == overlay && pixels->alternate[2] == overlay);
 	st_pixel_buffer_destroy(pixels);
 	pixels = NULL;
+	/* Rewriting an identical cell must replace a newer pixel overlay. */
+	CHECK(st_console_write_cells(console, &cell_rect, &cell, 1) == 0);
+	CHECK(st_console_get_pixels(&pixels, console, &pixel_rect, false) == 0);
+	CHECK(pixels->primary[2] == black);
+	st_pixel_buffer_destroy(pixels);
+	pixels = NULL;
+	CHECK(st_console_snapshot_restore(console, snapshot) == 0);
 
 	cell.foreground = ST_CONSOLE_COLOR_RGB_VALUE(0, 255, 0);
 	cell.flags = 0;
@@ -969,7 +976,7 @@ test_saa5050_double_height_raster(void)
 	console->cells[0].flags &= ~ST_CONSOLE_CELL_DIRTY;
 	console->cells[1].flags &= ~ST_CONSOLE_CELL_DIRTY;
 	console->cells[0].flags &= ~ST_CONSOLE_CELL_DOUBLE_HEIGHT;
-	console->rasterized[0].flags |= ST_CONSOLE_CELL_DIRTY;
+	console->drawn_cells[0].flags |= ST_CONSOLE_CELL_DIRTY;
 	CHECK(st_console_rasterize_locked(console, false) == 0);
 	CHECK((console->cells[0].flags & ST_CONSOLE_CELL_DIRTY) != 0);
 	CHECK((console->cells[1].flags & ST_CONSOLE_CELL_DIRTY) != 0);

@@ -23,6 +23,7 @@ struct st_console_font_registration {
 struct st_console_backend_ops {
 	bool presents_pixels;
 	bool deferred_present;
+	bool animated_present;
 	/* Per-console preparation; must not change the physical display. */
 	int (*attach)(st_console_t *console);
 	int (*present)(st_console_t *console);
@@ -73,6 +74,11 @@ struct st_console_display {
 	bool presentation_requested;
 	bool repaint_requested;
 	bool presentation_stop;
+	bool presentation_animation_initialized;
+	enum st_console_blink_mode presentation_blink_mode;
+	uint64_t presentation_content_deadline;
+	uint64_t presentation_animation_epoch;
+	uint64_t presentation_animation_deadline;
 };
 
 struct st_console_snapshot {
@@ -112,7 +118,8 @@ struct st_console {
 	uint32_t pixel_extra_height;
 	uint32_t pixel_top;
 	struct st_pixel_buffer *pixels;
-	struct st_console_cell *rasterized;
+	/* Cell metadata represented by the current contents of pixels. */
+	struct st_console_cell *drawn_cells;
 	uint8_t *raster_rows;
 	uint32_t palette[UINT16_MAX + 1U];
 	array_list_t fonts;
@@ -236,6 +243,8 @@ int st_console_present_locked(st_console_t *console, bool forced);
 st_console_t *st_console_display_active_console(st_console_t *console);
 int st_console_start_presentation_worker(st_console_t *console);
 void st_console_display_request_repaint(st_console_display_t *display);
+void st_console_display_reset_animation(st_console_display_t *display,
+	enum st_console_blink_mode mode);
 void st_console_mark_all_locked(st_console_t *console);
 void st_console_cursor_span_locked(const st_console_t *console,
 	uint32_t *x, uint32_t *columns);
@@ -269,6 +278,8 @@ struct st_console_bitmap_presenter;
 
 struct st_console_bitmap_frame {
 	const struct st_rgb_buffer *pixels;
+	const void *image_identity;
+	uint64_t generation;
 	struct st_console_rect destination;
 	uint32_t source_width;
 	uint32_t source_height;
@@ -280,7 +291,8 @@ struct st_console_bitmap_frame {
 
 typedef int (*st_console_bitmap_upload_t)(void *context,
 	const struct st_rgb_buffer *pixels,
-	const struct st_console_rect *rectangle);
+	const struct st_console_rect *rectangle, const void *image_identity,
+	uint64_t generation);
 
 int st_console_aspect_correct_size(uint32_t source_width,
 	uint32_t source_height, uint32_t aspect_width, uint32_t aspect_height,
@@ -312,7 +324,11 @@ void st_console_bitmap_presenter_destroy(
 /* Set before the first frame; unavailable acceleration uses software scaling. */
 void st_console_bitmap_presenter_set_external_scaling_available(
 	struct st_console_bitmap_presenter *presenter, bool available);
-/* console may be NULL for a timer tick or host-only resize. */
+/*
+ * console may be NULL for a phase selection or host-only resize.  The image
+ * identity is stable for the presenter's lifetime; generations change only
+ * when composed image content changes.
+ */
 int st_console_bitmap_presenter_frame(
 	struct st_console_bitmap_presenter *presenter,
 	const st_console_t *console, uint32_t output_width,

@@ -7,8 +7,8 @@ recommended remedies. Severity does not imply exploitability; source-confirmed
 risks and reproduced failures must be distinguished using those entries.
 No remediation is authorized by this report.
 
-The audit is complete, not the implementation: **111 outstanding findings**
-comprise 15 high, 67 medium, 27 low and 2 unresolved design/performance
+The audit is complete, not the implementation: **107 outstanding findings**
+comprise 15 high, 63 medium, 27 low and 2 unresolved design/performance
 concerns.
 This is not a count of exploitable vulnerabilities or reproduced failures.
 All 47 tracked source directories and 12 root files are covered by the
@@ -40,7 +40,7 @@ consumer boundaries, not evidence that the entire decomposition is wrong.
 | --- | --- | --- |
 | Native I/O → portable result | A012 consumes connection errors twice; A018 casts unrelated flow-control enums; A006 loses errno during cleanup | Preserve error ownership and translate enum semantics explicitly |
 | Mutable model → persistence | A019–A020, A025–A032, A061–A065, A100–A102 show round-trip, failure-atomicity and handle-contract mismatches | Define when state changes become visible and when handles expire; test failure paths at the public boundary |
-| Console cells → cached raster → presenter | A042–A044, A092–A094 expose missing cross-row, geometry and width dependencies | State the effective rendering dependencies and verify optimized paths against forced/full results |
+| Console cells → cached raster → presenter | A093–A094 expose missing wide-pair dependencies | State the effective rendering dependencies and verify optimized paths against forced/full results |
 | Script declarations → bound implementation | A054–A055, A068, A079, A096–A099 show unavailable or approximated contracts | Keep capability scope explicit and test the shipped scripts against the actual host |
 | Public target → independent consumer | A002, A013, A047, A066 expose probe/dependency gaps | Probe the real declaration/link environment and test minimal consumers |
 | Source libraries → application distribution | A088, A091, A095 distinguish a functioning menu build from connected runtime, DLL/core packaging and notice assembly | Document and verify actual artifacts without representing planned integration as complete |
@@ -80,7 +80,7 @@ No new blanket GC, contention or scaling-performance diagnosis is made from
 source shape. The source and test inventory must retain those measurement
 limits in the final report.
 
-The current ledger contains 111 outstanding numbered findings. A007 and A011 are
+The current TODO documents contain 107 outstanding numbered findings. A007 and A011 are
 unresolved design/performance concerns, not confirmed runtime defects. Missing
 features and documentation errors are also explicitly distinguished from
 implementation failures in the detailed ledger.
@@ -126,9 +126,6 @@ implementation failures in the detailed ledger.
 | A037 | medium | Changing a download URL can reuse another resource's cache |
 | A038 | high | OpenSSL TLS 1.3 PSK mode accepts an unauthenticated certificate server |
 | A039 | high | Regional downscaling indexes past its sampling table for unsampled damage |
-| A042 | medium | Prestel double-height lower-row raster stays stale after upper glyph changes |
-| A043 | medium | Shared bitmap presenter retains the previous console's cell geometry |
-| A044 | medium | Prestel suppressed lower cells use the wrong background |
 | A045 | high | ANSI CSI parser writes past its parameter array |
 | A047 | low | Standalone console build omits its string_compat dependency |
 | A048 | low | X11 runtime loader gives XkbFreeKeyboard the wrong function type |
@@ -175,7 +172,6 @@ implementation failures in the detailed ledger.
 | A089 | low | Wren language reference gives incorrect standard-library contracts |
 | A090 | low | Wren examples and cell/input descriptions retain incompatible legacy assumptions |
 | A091 | medium | Required Windows DLL/launcher and libretro application packaging is absent |
-| A092 | medium | Prestel lower halves miss timer-driven blink updates |
 | A093 | medium | Partial-width scrolling leaves broken wide-character pairs |
 | A094 | medium | Deferred font registration resolves wide glyphs without forming pairs |
 | A095 | low | Distribution notice assembly is not implemented |
