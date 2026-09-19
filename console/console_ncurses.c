@@ -29,6 +29,8 @@ struct curses_api {
 	int (*call_endwin)(void);
 	WINDOW *(*call_newwin)(int, int, int, int);
 	int (*call_delwin)(WINDOW *);
+	int (*call_getmaxx)(WINDOW *);
+	int (*call_getmaxy)(WINDOW *);
 	int (*call_move)(WINDOW *, int, int);
 	int (*call_addch)(WINDOW *, const chtype);
 	int (*call_refresh)(WINDOW *);
@@ -75,6 +77,8 @@ typedef void (*curses_call_delscreen_fn)(SCREEN *);
 typedef int (*curses_call_endwin_fn)(void);
 typedef WINDOW *(*curses_call_newwin_fn)(int, int, int, int);
 typedef int (*curses_call_delwin_fn)(WINDOW *);
+typedef int (*curses_call_getmaxx_fn)(WINDOW *);
+typedef int (*curses_call_getmaxy_fn)(WINDOW *);
 typedef int (*curses_call_move_fn)(WINDOW *, int, int);
 typedef int (*curses_call_addch_fn)(WINDOW *, const chtype);
 typedef int (*curses_call_refresh_fn)(WINDOW *);
@@ -758,12 +762,14 @@ curses_key_code(int value)
 }
 
 static bool
-window_dimensions(WINDOW *window, uint32_t *columns, uint32_t *rows)
+window_dimensions(struct curses_state *state, WINDOW *window,
+	uint32_t *columns, uint32_t *rows)
 {
 	int terminal_columns;
 	int terminal_rows;
 
-	getmaxyx(window, terminal_rows, terminal_columns);
+	terminal_columns = state->api.call_getmaxx(window);
+	terminal_rows = state->api.call_getmaxy(window);
 	if (terminal_columns <= 0 || terminal_rows <= 0)
 		return false;
 	*columns = (uint32_t)terminal_columns;
@@ -783,7 +789,7 @@ terminal_dimensions(struct curses_state *state, uint32_t *columns,
 	probe = state->api.call_newwin(0, 0, 0, 0);
 	if (probe == NULL)
 		return false;
-	result = window_dimensions(probe, columns, rows);
+	result = window_dimensions(state, probe, columns, rows);
 	(void)state->api.call_delwin(probe);
 	return result;
 }
@@ -1185,6 +1191,8 @@ load_required_api(struct curses_state *state)
 	    && LOAD_REQUIRED(state, call_endwin, "endwin")
 	    && LOAD_REQUIRED(state, call_newwin, "newwin")
 	    && LOAD_REQUIRED(state, call_delwin, "delwin")
+	    && LOAD_REQUIRED(state, call_getmaxx, "getmaxx")
+	    && LOAD_REQUIRED(state, call_getmaxy, "getmaxy")
 	    && LOAD_REQUIRED(state, call_move, "wmove")
 	    && LOAD_REQUIRED(state, call_addch, "waddch")
 	    && LOAD_REQUIRED(state, call_refresh, "wrefresh")
@@ -1379,7 +1387,7 @@ st_console_ncurses_init(st_console_t *console)
 		return IO_ERROR_NOT_SUPPORTED;
 	}
 	state->window = state->api.call_newwin(0, 0, 0, 0);
-	if (state->window == NULL || !window_dimensions(state->window,
+	if (state->window == NULL || !window_dimensions(state, state->window,
 	    &terminal_columns, &terminal_rows)) {
 		if (state->window != NULL)
 			(void)state->api.call_delwin(state->window);
