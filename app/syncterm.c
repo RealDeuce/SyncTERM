@@ -24,7 +24,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-static const char application_title[] = "SyncTERM 1.10a"
+static const char application_title[] = "SyncTERM 2.0a"
 #ifdef ST_DEBUG_BUILD
 	" Debug (" __DATE__ ")"
 #endif

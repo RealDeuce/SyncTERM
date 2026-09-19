@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 
 :experimental:
-= SyncTERM v1.10a Manual
+= SyncTERM v2.0a Manual
 Stephen Hurd <shurd@sasktel.net>
 :toc:
 
