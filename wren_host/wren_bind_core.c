@@ -555,7 +555,7 @@ make_key_event(WrenVM *vm, int slot, uint16_t code, uint32_t codepoint,
 
 static void
 make_mouse_event(WrenVM *vm, const struct st_console_event *source,
-	int event_code)
+	int event_code, int32_t start_x, int32_t start_y)
 {
 	uint32_t cell_width = 0;
 	uint32_t cell_height = 0;
@@ -568,29 +568,69 @@ make_mouse_event(WrenVM *vm, const struct st_console_event *source,
 	event->header.kind = FOREIGN_MOUSE_EVENT;
 	event->event = event_code;
 	event->buttons = source->data.mouse.buttons;
-	event->start_x = source->data.mouse.x + 1;
-	event->start_y = source->data.mouse.y + 1;
-	event->end_x = event->start_x;
-	event->end_y = event->start_y;
+	event->start_x = start_x + 1;
+	event->start_y = start_y + 1;
+	event->end_x = source->data.mouse.x + 1;
+	event->end_y = source->data.mouse.y + 1;
 	if (st_console_cell_pixel_size(st_wren_context_from_vm(vm)->console, &cell_width,
 	    &cell_height) == 0) {
-		event->start_pixel_x = source->data.mouse.x * (int32_t)cell_width;
-		event->start_pixel_y = source->data.mouse.y * (int32_t)cell_height;
-		event->end_pixel_x = event->start_pixel_x;
-		event->end_pixel_y = event->start_pixel_y;
+		event->start_pixel_x = start_x * (int32_t)cell_width;
+		event->start_pixel_y = start_y * (int32_t)cell_height;
+		event->end_pixel_x = source->data.mouse.x * (int32_t)cell_width;
+		event->end_pixel_y = source->data.mouse.y * (int32_t)cell_height;
 	}
 }
 
 static int
-button_event(struct st_wren_context *context, const struct st_console_event *event)
+mouse_event_code(struct st_wren_context *context,
+	const struct st_console_event *event, int32_t *start_x, int32_t *start_y)
 {
 	uint32_t changed = context->mouse_buttons ^ event->data.mouse.buttons;
 	uint32_t pressed = changed & event->data.mouse.buttons;
 	int result = 0;
 
+	*start_x = event->data.mouse.x;
+	*start_y = event->data.mouse.y;
+	if (event->data.mouse.action == ST_CONSOLE_MOUSE_WHEEL)
+		return event->data.mouse.wheel_y > 0 ? 28 : 37;
+	if (event->data.mouse.action == ST_CONSOLE_MOUSE_MOVE) {
+		if (!context->mouse_left_pressed
+		    || (event->data.mouse.buttons
+		    & ST_CONSOLE_MOUSE_BUTTON_LEFT) == 0)
+			return 0;
+		context->mouse_drag_end_x = event->data.mouse.x;
+		context->mouse_drag_end_y = event->data.mouse.y;
+		if (!context->mouse_left_dragging
+		    && context->mouse_drag_end_x == context->mouse_drag_start_x
+		    && context->mouse_drag_end_y == context->mouse_drag_start_y)
+			return 0;
+		*start_x = context->mouse_drag_start_x;
+		*start_y = context->mouse_drag_start_y;
+		if (!context->mouse_left_dragging) {
+			context->mouse_left_dragging = true;
+			return 7;
+		}
+		return 8;
+	}
 	context->mouse_buttons = event->data.mouse.buttons;
-	if ((changed & ST_CONSOLE_MOUSE_BUTTON_LEFT) != 0)
-		result = pressed & ST_CONSOLE_MOUSE_BUTTON_LEFT ? 1 : 3;
+	if ((changed & ST_CONSOLE_MOUSE_BUTTON_LEFT) != 0) {
+		if ((pressed & ST_CONSOLE_MOUSE_BUTTON_LEFT) != 0) {
+			context->mouse_drag_start_x = event->data.mouse.x;
+			context->mouse_drag_start_y = event->data.mouse.y;
+			context->mouse_drag_end_x = event->data.mouse.x;
+			context->mouse_drag_end_y = event->data.mouse.y;
+			context->mouse_left_pressed = true;
+			context->mouse_left_dragging = false;
+			result = 1;
+		}
+		else {
+			*start_x = context->mouse_drag_start_x;
+			*start_y = context->mouse_drag_start_y;
+			result = context->mouse_left_dragging ? 9 : 3;
+			context->mouse_left_pressed = false;
+			context->mouse_left_dragging = false;
+		}
+	}
 	else if ((changed & ST_CONSOLE_MOUSE_BUTTON_MIDDLE) != 0)
 		result = pressed & ST_CONSOLE_MOUSE_BUTTON_MIDDLE ? 10 : 12;
 	else if ((changed & ST_CONSOLE_MOUSE_BUTTON_RIGHT) != 0)
@@ -661,18 +701,18 @@ next_input_event(WrenVM *vm, bool wait, int64_t timeout_ms, bool at_exit)
 			return true;
 		}
 		case ST_CONSOLE_EVENT_MOUSE: {
-			int code = 0;
+			struct st_wren_context *context = st_wren_context_from_vm(vm);
+			int32_t start_x;
+			int32_t start_y;
+			int code = mouse_event_code(context, &event, &start_x, &start_y);
 
-			if (event.data.mouse.action == ST_CONSOLE_MOUSE_MOVE)
-				code = 0;
-			else if (event.data.mouse.action == ST_CONSOLE_MOUSE_WHEEL)
-				code = event.data.mouse.wheel_y > 0 ? 28 : 37;
-			else
-				code = button_event(st_wren_context_from_vm(vm), &event);
 			if (event.data.mouse.action == ST_CONSOLE_MOUSE_BUTTON
 			    && code == 0)
 				continue;
-			make_mouse_event(vm, &event, code);
+			if (code < 64
+			    && (context->mouse_events & (UINT64_C(1) << code)) == 0)
+				continue;
+			make_mouse_event(vm, &event, code, start_x, start_y);
 			return true;
 		}
 		case ST_CONSOLE_EVENT_CLOSE:
@@ -731,8 +771,8 @@ fn_input_mouse_events_set(WrenVM *vm)
 {
 	int64_t value;
 
-	if (slot_integer(vm, 1, 0, UINT32_MAX, &value))
-		st_wren_context_from_vm(vm)->mouse_events = (uint32_t)value;
+	if (slot_integer(vm, 1, 0, INT64_MAX, &value))
+		st_wren_context_from_vm(vm)->mouse_events = (uint64_t)value;
 }
 
 static void
@@ -741,7 +781,7 @@ fn_input_mouse_event_enable(WrenVM *vm)
 	int64_t value;
 
 	if (slot_integer(vm, 1, 0, 63, &value))
-		st_wren_context_from_vm(vm)->mouse_events |= UINT32_C(1) << value;
+		st_wren_context_from_vm(vm)->mouse_events |= UINT64_C(1) << value;
 }
 
 static void
@@ -750,7 +790,7 @@ fn_input_mouse_event_disable(WrenVM *vm)
 	int64_t value;
 
 	if (slot_integer(vm, 1, 0, 63, &value))
-		st_wren_context_from_vm(vm)->mouse_events &= ~(UINT32_C(1) << value);
+		st_wren_context_from_vm(vm)->mouse_events &= ~(UINT64_C(1) << value);
 }
 
 static void
@@ -762,6 +802,27 @@ fn_input_mouse_visible_set(WrenVM *vm)
 	}
 	(void)st_console_set_pointer_visible(
 	    st_wren_context_from_vm(vm)->console, wrenGetSlotBool(vm, 1));
+}
+
+static void
+fn_input_mouse_drag(WrenVM *vm)
+{
+	bool rectangular = false;
+	int status;
+
+	if (wrenGetSlotCount(vm) > 1) {
+		if (wrenGetSlotType(vm, 1) != WREN_TYPE_BOOL) {
+			st_wren_abort(vm, "Input.mousedrag expects a Bool");
+			return;
+		}
+		rectangular = wrenGetSlotBool(vm, 1);
+	}
+	status = st_wren_mouse_drag_select(st_wren_context_from_vm(vm),
+	    rectangular);
+	if (status == IO_ERROR_OUT_OF_MEMORY)
+		st_wren_abort(vm, "out of memory selecting text");
+	else if (status != 0)
+		st_wren_abort(vm, "text selection failed");
 }
 
 static void
@@ -2460,6 +2521,8 @@ static const struct binding bindings[] = {
 	{"Input", true, "enableMouseEvent(_)", fn_input_mouse_event_enable},
 	{"Input", true, "disableMouseEvent(_)", fn_input_mouse_event_disable},
 	{"Input", true, "mouseVisible=(_)", fn_input_mouse_visible_set},
+	{"Input", true, "mousedrag()", fn_input_mouse_drag},
+	{"Input", true, "mousedrag(_)", fn_input_mouse_drag},
 	{"KeyEvent", false, "code", fn_key_code},
 	{"KeyEvent", false, "codepoint", fn_key_codepoint},
 	{"KeyEvent", false, "text", fn_key_text},

@@ -66,6 +66,7 @@ add_library(st_wren_host STATIC
 	wren_bind_core.c
 	wren_repl.c
 	wren_bind_menu.c
+	wren_selection.c
 	wren_picker.c
 	${_st_wren_picker_fs}
 	${_st_wren_embedded})

@@ -93,8 +93,14 @@ struct st_wren_context {
 	struct st_wren_host *host;
 	st_console_t *console;
 	struct st_wren_font_state fonts;
-	uint32_t mouse_events;
+	uint64_t mouse_events;
 	uint32_t mouse_buttons;
+	int32_t mouse_drag_start_x;
+	int32_t mouse_drag_start_y;
+	int32_t mouse_drag_end_x;
+	int32_t mouse_drag_end_y;
+	bool mouse_left_pressed;
+	bool mouse_left_dragging;
 	struct st_wren_log log;
 	struct st_wren_log capture;
 	bool capturing;
@@ -192,5 +198,7 @@ bool st_wren_font_identifier(struct st_wren_context *context, uint16_t selector,
 	uint16_t *identifier);
 uint16_t st_wren_font_selector(struct st_wren_context *context,
 	uint16_t identifier);
+int st_wren_mouse_drag_select(struct st_wren_context *context,
+	bool rectangular);
 
 #endif

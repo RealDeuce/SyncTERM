@@ -576,6 +576,79 @@ exercise_repl_style(struct st_wren_host *host, st_console_t *console)
 	return 0;
 }
 
+static int
+exercise_mouse_drag_selection(struct st_wren_host *host,
+	st_console_t *console)
+{
+	const struct st_console_rect area = {1, 1, 3, 2};
+	struct st_console_cell cells[6] = {
+		{.codepoint = 'A'}, {.codepoint = UINT32_C(0x03a9)},
+		{.codepoint = ' '}, {.codepoint = 'B'}, {.codepoint = 'C'},
+		{.codepoint = 'D'},
+	};
+	struct st_console_cell before[6];
+	struct st_console_cell after[6];
+	const struct st_console_event press = {
+		.type = ST_CONSOLE_EVENT_MOUSE,
+		.data.mouse = {
+			.x = 1, .y = 1,
+			.buttons = ST_CONSOLE_MOUSE_BUTTON_LEFT,
+			.action = ST_CONSOLE_MOUSE_BUTTON,
+		},
+	};
+	const struct st_console_event move = {
+		.type = ST_CONSOLE_EVENT_MOUSE,
+		.data.mouse = {
+			.x = 3, .y = 2,
+			.buttons = ST_CONSOLE_MOUSE_BUTTON_LEFT,
+			.action = ST_CONSOLE_MOUSE_MOVE,
+		},
+	};
+	const struct st_console_event release = {
+		.type = ST_CONSOLE_EVENT_MOUSE,
+		.data.mouse = {
+			.x = 3, .y = 2,
+			.action = ST_CONSOLE_MOUSE_BUTTON,
+		},
+	};
+	static const char source[] =
+	    "import \"syncterm\" for Input, Mouse, MouseEvent\n"
+	    "Input.mouseEvents = 0\n"
+	    "Input.enableMouseEvent(Mouse.wheelDownPress)\n"
+	    "if (Input.mouseEvents != 137438953472) Fiber.abort(\"wide mouse mask\")\n"
+	    "Input.disableMouseEvent(Mouse.wheelDownPress)\n"
+	    "Input.enableMouseEvent(Mouse.button1Press)\n"
+	    "Input.enableMouseEvent(Mouse.button1DragStart)\n"
+	    "var press = Input.next()\n"
+	    "if (!(press is MouseEvent) || press.event != Mouse.button1Press || press.startX != 2 || press.startY != 2) Fiber.abort(\"mouse press\")\n"
+	    "var drag = Input.next()\n"
+	    "if (!(drag is MouseEvent) || drag.event != Mouse.button1DragStart || drag.startX != 2 || drag.startY != 2 || drag.endX != 4 || drag.endY != 3) Fiber.abort(\"mouse drag\")\n"
+	    "Input.mousedrag(true)\n";
+
+	CHECK(st_console_write_cells(console, &area, cells, 3) == 0);
+	CHECK(st_console_present(console) == 0);
+	CHECK(st_console_read_cells(console, &area, before, 3) == 0);
+	CHECK(st_console_post_event(console, &press) == 0);
+	CHECK(st_console_post_event(console, &move) == 0);
+	CHECK(st_console_post_event(console, &release) == 0);
+	CHECK(wrenInterpret(host->vm, "mouse_drag_selection", source)
+	    == WREN_RESULT_SUCCESS);
+	CHECK(st_console_read_cells(console, &area, after, 3) == 0);
+	for (size_t index = 0; index < 6; ++index) {
+		CHECK(before[index].codepoint == after[index].codepoint);
+		CHECK(before[index].glyph == after[index].glyph);
+		CHECK(before[index].foreground == after[index].foreground);
+		CHECK(before[index].background == after[index].background);
+		CHECK((before[index].flags & ST_CONSOLE_CELL_PUBLIC_FLAGS)
+		    == (after[index].flags & ST_CONSOLE_CELL_PUBLIC_FLAGS));
+		CHECK(before[index].font == after[index].font);
+		CHECK(before[index].hyperlink == after[index].hyperlink);
+	}
+	CHECK(!host->menu.mouse_left_pressed);
+	CHECK(!host->menu.mouse_left_dragging);
+	return 0;
+}
+
 int
 main(void)
 {
@@ -716,6 +789,7 @@ main(void)
 		.application_title = "SyncTERM test",
 	};
 	CHECK(st_wren_host_create(&host, &host_config) == 0);
+	CHECK(exercise_mouse_drag_selection(host, console) == 0);
 	CHECK(exercise_repl_contract(host) == 0);
 	CHECK(exercise_repl_style(host, console) == 0);
 	CHECK(wrenInterpret(((struct st_wren_host *)host)->vm,
