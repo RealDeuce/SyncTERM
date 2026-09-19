@@ -15,9 +15,11 @@
 #include "st_profile.h"
 #include "st_settings.h"
 #include "st_theme.h"
+#include "st_threads.h"
 
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 #ifndef ST_WREN_TEST_DIRECTORY
 #error ST_WREN_TEST_DIRECTORY is required
@@ -576,18 +578,68 @@ exercise_repl_style(struct st_wren_host *host, st_console_t *console)
 	return 0;
 }
 
+struct selection_observer {
+	st_console_t *console;
+	struct st_console_rect area;
+	struct st_console_event release;
+	struct st_console_cell highlighted[6];
+};
+
+static int
+observe_selection(void *argument)
+{
+	struct selection_observer *observer = argument;
+	static const uint32_t expected_backgrounds[6] = {6, 1, 6, 1, 1, 1};
+	const struct timespec interval = {0, 1000000};
+	int result = 1;
+
+	for (unsigned int attempt = 0; attempt < 5000; ++attempt) {
+		bool highlighted = true;
+
+		if (st_console_read_cells(observer->console, &observer->area,
+		    observer->highlighted, observer->area.width) != 0)
+			break;
+		for (size_t index = 0; index < 6; ++index) {
+			if (observer->highlighted[index].background
+			    != expected_backgrounds[index]) {
+				highlighted = false;
+				break;
+			}
+		}
+		if (highlighted) {
+			result = 0;
+			break;
+		}
+		(void)st_thread_sleep(&interval, NULL);
+	}
+	if (st_console_post_event(observer->console, &observer->release) != 0)
+		result = 1;
+	return result;
+}
+
 static int
 exercise_mouse_drag_selection(struct st_wren_host *host,
 	st_console_t *console)
 {
 	const struct st_console_rect area = {1, 1, 3, 2};
 	struct st_console_cell cells[6] = {
-		{.codepoint = 'A'}, {.codepoint = UINT32_C(0x03a9)},
-		{.codepoint = ' '}, {.codepoint = 'B'}, {.codepoint = 'C'},
-		{.codepoint = 'D'},
+		{.codepoint = 'A',
+		    .foreground = ST_CONSOLE_COLOR_RGB_VALUE(255, 255, 255),
+		    .background = ST_CONSOLE_COLOR_RGB_VALUE(0, 0, 168)},
+		{.codepoint = UINT32_C(0x03a9),
+		    .foreground = ST_CONSOLE_COLOR_RGB_VALUE(0, 0, 168)},
+		{.codepoint = ' ', .foreground = 7, .background = 1},
+		{.codepoint = 'B', .foreground = 7},
+		{.codepoint = 'C', .foreground = 0, .background = 7,
+		    .flags = ST_CONSOLE_CELL_REVERSE},
+		{.codepoint = 'D', .foreground = 1},
 	};
 	struct st_console_cell before[6];
 	struct st_console_cell after[6];
+	struct selection_observer observer;
+	st_thread_t observer_thread;
+	int observer_result;
+	WrenInterpretResult interpret_result;
 	const struct st_console_event press = {
 		.type = ST_CONSOLE_EVENT_MOUSE,
 		.data.mouse = {
@@ -633,9 +685,24 @@ exercise_mouse_drag_selection(struct st_wren_host *host,
 	CHECK(st_console_read_cells(console, &area, before, 3) == 0);
 	CHECK(st_console_post_event(console, &press) == 0);
 	CHECK(st_console_post_event(console, &move) == 0);
-	CHECK(st_console_post_event(console, &release) == 0);
-	CHECK(wrenInterpret(host->vm, "mouse_drag_selection", source)
-	    == WREN_RESULT_SUCCESS);
+	observer = (struct selection_observer){
+		.console = console,
+		.area = area,
+		.release = release,
+	};
+	CHECK(st_thread_create(&observer_thread, observe_selection, &observer)
+	    == ST_THREAD_SUCCESS);
+	interpret_result = wrenInterpret(host->vm, "mouse_drag_selection", source);
+	CHECK(st_thread_join(observer_thread, &observer_result)
+	    == ST_THREAD_SUCCESS);
+	CHECK(interpret_result == WREN_RESULT_SUCCESS);
+	CHECK(observer_result == 0);
+	CHECK(observer.highlighted[0].foreground
+	    == ST_CONSOLE_COLOR_RGB_VALUE(255, 255, 255));
+	CHECK(observer.highlighted[1].foreground == 9);
+	CHECK(observer.highlighted[4].foreground == 7);
+	CHECK((observer.highlighted[4].flags & ST_CONSOLE_CELL_REVERSE) == 0);
+	CHECK(observer.highlighted[5].foreground == 9);
 	CHECK(st_console_read_cells(console, &area, after, 3) == 0);
 	for (size_t index = 0; index < 6; ++index) {
 		CHECK(before[index].codepoint == after[index].codepoint);

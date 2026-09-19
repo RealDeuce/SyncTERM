@@ -100,7 +100,8 @@ endif()
 if(BUILD_TESTING)
 	add_executable(st_wren_host_test tests/st_wren_host_test.c)
 	target_link_libraries(st_wren_host_test PRIVATE st_wren_host
-		st_wren_vm st_settings st_theme syncterm_filesystem)
+		st_wren_vm st_settings st_theme syncterm_filesystem
+		syncterm_threads)
 	target_compile_definitions(st_wren_host_test PRIVATE
 		ST_WREN_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/host-test")
 	if(SYNCTERM_ENABLE_UNIFONT)
