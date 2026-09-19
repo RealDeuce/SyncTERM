@@ -3,6 +3,15 @@
 
 cmake_minimum_required(VERSION 3.22)
 
+if(POLICY CMP0156)
+	cmake_policy(SET CMP0156 NEW)
+	set(CMAKE_POLICY_DEFAULT_CMP0156 NEW)
+endif()
+if(POLICY CMP0179)
+	cmake_policy(SET CMP0179 NEW)
+	set(CMAKE_POLICY_DEFAULT_CMP0179 NEW)
+endif()
+
 project(SyncTERM LANGUAGES C)
 
 option(SYNCTERM_ENABLE_UNIFONT
