@@ -245,7 +245,7 @@ check_window_metadata(const char *title)
 }
 
 static int
-check_primary_owner(const char *title)
+check_selection_owner(const char *title, Atom selection)
 {
 	Display *display = XOpenDisplay(NULL);
 	Window window;
@@ -253,7 +253,81 @@ check_primary_owner(const char *title)
 	CHECK(display != NULL);
 	window = find_named_window(display, DefaultRootWindow(display), title);
 	CHECK(window != None);
-	CHECK(XGetSelectionOwner(display, XA_PRIMARY) == window);
+	CHECK(XGetSelectionOwner(display, selection) == window);
+	(void)XCloseDisplay(display);
+	return 0;
+}
+
+static int
+check_sommelier_selection(void)
+{
+	static const char title[] = "st_console X11 Sommelier selection test";
+	const struct st_console_display_config display_config = {
+		.backend = ST_CONSOLE_BACKEND_X11,
+	};
+	const struct st_console_config config = {
+		.columns = 8,
+		.rows = 4,
+		.cell_width = 8,
+		.cell_height = 16,
+		.wrap = true,
+	};
+	Display *display = XOpenDisplay(NULL);
+	Window root;
+	Window manager;
+	Window window;
+	Atom check;
+	Atom supported;
+	Atom wm_name;
+	Atom utf8;
+	Atom clipboard;
+	Atom actual_type = None;
+	int actual_format = 0;
+	unsigned long count = 0;
+	unsigned long remaining = 0;
+	unsigned char *data = NULL;
+	st_console_t *console = NULL;
+
+	CHECK(display != NULL);
+	root = DefaultRootWindow(display);
+	check = XInternAtom(display, "_NET_SUPPORTING_WM_CHECK", False);
+	CHECK(XGetWindowProperty(display, root, check, 0, 1, False, XA_WINDOW,
+	    &actual_type, &actual_format, &count, &remaining, &data) == Success);
+	if (actual_type == XA_WINDOW && actual_format == 32 && count == 1) {
+		if (data != NULL)
+			(void)XFree(data);
+		(void)XCloseDisplay(display);
+		return 0;
+	}
+	if (data != NULL)
+		(void)XFree(data);
+	manager = XCreateSimpleWindow(display, root, 0, 0, 1, 1, 0, 0, 0);
+	CHECK(manager != None);
+	supported = XInternAtom(display, "_NET_SUPPORTED", False);
+	wm_name = XInternAtom(display, "_NET_WM_NAME", False);
+	utf8 = XInternAtom(display, "UTF8_STRING", False);
+	clipboard = XInternAtom(display, "CLIPBOARD", False);
+	CHECK(XChangeProperty(display, root, check, XA_WINDOW, 32,
+	    PropModeReplace, (const unsigned char *)&manager, 1) != 0);
+	CHECK(XChangeProperty(display, manager, check, XA_WINDOW, 32,
+	    PropModeReplace, (const unsigned char *)&manager, 1) != 0);
+	CHECK(XChangeProperty(display, manager, wm_name, utf8, 8,
+	    PropModeReplace, (const unsigned char *)"Sommelier", 9) != 0);
+	CHECK(XChangeProperty(display, root, supported, XA_ATOM, 32,
+	    PropModeReplace, (const unsigned char *)&wm_name, 1) != 0);
+	(void)XSync(display, False);
+	CHECK(st_console_create(&console, &display_config, &config) == 0);
+	CHECK(st_console_set_title(console, title) == 0);
+	CHECK(st_console_set_clipboard_text(console, "Sommelier") == 0);
+	CHECK(check_selection_owner(title, clipboard) == 0);
+	window = find_named_window(display, root, title);
+	CHECK(window != None);
+	CHECK(XGetSelectionOwner(display, XA_PRIMARY) != window);
+	st_console_destroy(console);
+	(void)XDeleteProperty(display, root, check);
+	(void)XDeleteProperty(display, root, supported);
+	(void)XDestroyWindow(display, manager);
+	(void)XSync(display, False);
 	(void)XCloseDisplay(display);
 	return 0;
 }
@@ -612,14 +686,15 @@ main(void)
 	    107, 80) == 0);
 
 	CHECK(st_console_set_clipboard_text(first, "first: \xc2\xa3") == 0);
-	CHECK(check_primary_owner("st_console X11 input test") == 0);
+	CHECK(check_selection_owner("st_console X11 input test", XA_PRIMARY)
+	    == 0);
 	CHECK(st_console_get_clipboard_text(first, &clipboard) == 0);
 	CHECK(strcmp(clipboard, "first: \xc2\xa3") == 0);
 	st_console_free_text(clipboard);
 	clipboard = NULL;
 	CHECK(st_console_set_clipboard_text(second, "second: \xf0\x9f\x99\x82")
 	    == 0);
-	CHECK(check_primary_owner("st_console X11 test two") == 0);
+	CHECK(check_selection_owner("st_console X11 test two", XA_PRIMARY) == 0);
 	CHECK(st_console_get_clipboard_text(first, &clipboard) == 0);
 	CHECK(strcmp(clipboard, "second: \xf0\x9f\x99\x82") == 0);
 	st_console_free_text(clipboard);
@@ -706,5 +781,6 @@ main(void)
 		st_console_destroy(first);
 		st_console_display_destroy(display);
 	}
+	CHECK(check_sommelier_selection() == 0);
 	return 0;
 }
