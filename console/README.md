@@ -273,9 +273,11 @@ loss enqueues releases for every held physical key before the focus event and
 clears that state.  Clearing queued events does not alter held state.
 Non-text key codes use the backend-independent `ST_CONSOLE_KEY_*` values;
 printable SDL input is delivered separately as decoded Unicode text.  Physical
-SDL input uses evdev key numbers and the `ST_CONSOLE_MODIFIER_*` masks.  SDL
-mouse coordinates are expressed in the console's logical pixel grid and its
-button state uses the `ST_CONSOLE_MOUSE_BUTTON_*` masks.
+SDL input uses evdev key numbers and the `ST_CONSOLE_MODIFIER_*` masks.  Mouse
+events carry zero-based cell coordinates in `x` and `y`.  Bitmap backends also
+provide zero-based internal-raster coordinates in `pixel_x` and `pixel_y`;
+text-only backends set those fields to `-1`.  Button state uses the
+`ST_CONSOLE_MOUSE_BUTTON_*` masks.
 
 Bitmap window backends consume Alt+Left and Alt+Right to snap the drawable to
 the previous or next integer display scale, Alt+Home centers the window where

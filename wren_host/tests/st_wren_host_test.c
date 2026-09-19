@@ -592,6 +592,7 @@ exercise_mouse_drag_selection(struct st_wren_host *host,
 		.type = ST_CONSOLE_EVENT_MOUSE,
 		.data.mouse = {
 			.x = 1, .y = 1,
+			.pixel_x = 8, .pixel_y = 16,
 			.buttons = ST_CONSOLE_MOUSE_BUTTON_LEFT,
 			.action = ST_CONSOLE_MOUSE_BUTTON,
 		},
@@ -600,6 +601,7 @@ exercise_mouse_drag_selection(struct st_wren_host *host,
 		.type = ST_CONSOLE_EVENT_MOUSE,
 		.data.mouse = {
 			.x = 3, .y = 2,
+			.pixel_x = 24, .pixel_y = 32,
 			.buttons = ST_CONSOLE_MOUSE_BUTTON_LEFT,
 			.action = ST_CONSOLE_MOUSE_MOVE,
 		},
@@ -608,6 +610,7 @@ exercise_mouse_drag_selection(struct st_wren_host *host,
 		.type = ST_CONSOLE_EVENT_MOUSE,
 		.data.mouse = {
 			.x = 3, .y = 2,
+			.pixel_x = 24, .pixel_y = 32,
 			.action = ST_CONSOLE_MOUSE_BUTTON,
 		},
 	};
@@ -620,9 +623,9 @@ exercise_mouse_drag_selection(struct st_wren_host *host,
 	    "Input.enableMouseEvent(Mouse.button1Press)\n"
 	    "Input.enableMouseEvent(Mouse.button1DragStart)\n"
 	    "var press = Input.next()\n"
-	    "if (!(press is MouseEvent) || press.event != Mouse.button1Press || press.startX != 2 || press.startY != 2) Fiber.abort(\"mouse press\")\n"
+	    "if (!(press is MouseEvent) || press.event != Mouse.button1Press || press.startX != 2 || press.startY != 2 || press.startPixelX != 8 || press.startPixelY != 16) Fiber.abort(\"mouse press\")\n"
 	    "var drag = Input.next()\n"
-	    "if (!(drag is MouseEvent) || drag.event != Mouse.button1DragStart || drag.startX != 2 || drag.startY != 2 || drag.endX != 4 || drag.endY != 3) Fiber.abort(\"mouse drag\")\n"
+	    "if (!(drag is MouseEvent) || drag.event != Mouse.button1DragStart || drag.startX != 2 || drag.startY != 2 || drag.endX != 4 || drag.endY != 3 || drag.startPixelX != 8 || drag.startPixelY != 16 || drag.endPixelX != 24 || drag.endPixelY != 32) Fiber.abort(\"mouse drag\")\n"
 	    "Input.mousedrag(true)\n";
 
 	CHECK(st_console_write_cells(console, &area, cells, 3) == 0);

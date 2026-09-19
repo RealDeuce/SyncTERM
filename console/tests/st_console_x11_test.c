@@ -201,6 +201,66 @@ send_key(Display *display, Window window, KeySym keysym, bool pressed)
 }
 
 static int
+send_mouse_button(Display *display, Window window, int x, int y, bool pressed)
+{
+	XEvent event = {0};
+
+	event.xbutton.type = pressed ? ButtonPress : ButtonRelease;
+	event.xbutton.display = display;
+	event.xbutton.window = window;
+	event.xbutton.root = DefaultRootWindow(display);
+	event.xbutton.time = CurrentTime;
+	event.xbutton.same_screen = True;
+	event.xbutton.x = x;
+	event.xbutton.y = y;
+	event.xbutton.button = Button1;
+	event.xbutton.state = pressed ? 0 : Button1Mask;
+	return XSendEvent(display, window, False,
+	    pressed ? ButtonPressMask : ButtonReleaseMask, &event) == 0;
+}
+
+static int
+check_mouse_coordinates(st_console_t *console, const char *title)
+{
+	struct st_console_event event;
+	struct timespec deadline;
+	Display *display = XOpenDisplay(NULL);
+	Window window;
+	unsigned int mouse_events = 0;
+	bool marker = false;
+
+	CHECK(display != NULL);
+	window = find_named_window(display, DefaultRootWindow(display), title);
+	CHECK(window != None);
+	CHECK(st_console_events_clear(console) == 0);
+	CHECK(send_mouse_button(display, window, 40, 24, true) == 0);
+	CHECK(send_mouse_button(display, window, 40, 24, false) == 0);
+	CHECK(send_key(display, window, XK_F1, true) == 0);
+	CHECK(send_key(display, window, XK_F1, false) == 0);
+	(void)XFlush(display);
+	CHECK(timespec_get(&deadline, TIME_UTC) == TIME_UTC);
+	++deadline.tv_sec;
+	while (!marker
+	    && st_console_event_timedwait(console, &event, &deadline) == 0) {
+		if (event.type == ST_CONSOLE_EVENT_MOUSE) {
+			CHECK(event.data.mouse.x == 3);
+			CHECK(event.data.mouse.y == 1);
+			CHECK(event.data.mouse.pixel_x == 30);
+			CHECK(event.data.mouse.pixel_y == 24);
+			++mouse_events;
+		}
+		else if (event.type == ST_CONSOLE_EVENT_KEY_CODE
+		    && event.data.key.code == ST_CONSOLE_KEY_F1)
+			marker = true;
+	}
+	CHECK(marker);
+	CHECK(mouse_events == 2);
+	CHECK(st_console_events_clear(console) == 0);
+	(void)XCloseDisplay(display);
+	return 0;
+}
+
+static int
 check_escape_event(st_console_t *console)
 {
 	static const char title[] = "st_console X11 input test";
@@ -384,6 +444,7 @@ main(void)
 	CHECK(st_console_set_pixel(first, 4, 5, UINT32_C(0x102030)) == 0);
 	CHECK(st_console_present(first) == 0);
 	CHECK(check_escape_event(first) == 0);
+	CHECK(check_mouse_coordinates(first, "st_console X11 input test") == 0);
 	CHECK(st_console_resize(first, 10, 5) == 0);
 	CHECK(st_console_pixel_size(first, &width, &height) == 0);
 	CHECK(width == 80 && height == 80);

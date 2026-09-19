@@ -785,25 +785,6 @@ pointer_leave(void *d, struct wl_pointer *p, uint32_t s, struct wl_surface *w)
 	(void)w;
 }
 
-static void mouse_position(
-    struct state *state, wl_fixed_t x, wl_fixed_t y, int32_t *rx, int32_t *ry)
-{
-	int64_t px = wl_fixed_to_int(x) - state->frame.destination.x;
-	int64_t py = wl_fixed_to_int(y) - state->frame.destination.y;
-	if (px < 0)
-		px = 0;
-	if (py < 0)
-		py = 0;
-	if ((uint64_t)px >= state->frame.destination.width)
-		px = state->frame.destination.width - 1;
-	if ((uint64_t)py >= state->frame.destination.height)
-		py = state->frame.destination.height - 1;
-	*rx = (int32_t)(px * state->frame.pixels->width /
-			state->frame.destination.width);
-	*ry = (int32_t)(py * state->frame.pixels->height /
-			state->frame.destination.height);
-}
-
 static void pointer_motion(void *data,
 			   struct wl_pointer *pointer,
 			   uint32_t time,
@@ -821,7 +802,8 @@ static void pointer_motion(void *data,
 		return;
 	state->pointer_x = x;
 	state->pointer_y = y;
-	mouse_position(state, x, y, &event.data.mouse.x, &event.data.mouse.y);
+	st_console_bitmap_mouse_position(&state->frame, wl_fixed_to_int(x),
+	    wl_fixed_to_int(y), &event);
 	(void)st_console_display_post_event(state->console_display, &event);
 }
 
@@ -856,12 +838,9 @@ static void pointer_button(void *data,
 	else
 		state->buttons &= ~mask;
 	event.data.mouse.buttons = state->buttons;
-	if (state->frame.destination.width != 0)
-		mouse_position(state,
-			       state->pointer_x,
-			       state->pointer_y,
-			       &event.data.mouse.x,
-			       &event.data.mouse.y);
+	st_console_bitmap_mouse_position(&state->frame,
+	    wl_fixed_to_int(state->pointer_x),
+	    wl_fixed_to_int(state->pointer_y), &event);
 	(void)st_console_display_post_event(state->console_display, &event);
 }
 
@@ -887,6 +866,9 @@ static void pointer_axis(void *data,
 		event.data.mouse.wheel_y = amount;
 	else
 		event.data.mouse.wheel_x = amount;
+	st_console_bitmap_mouse_position(&state->frame,
+	    wl_fixed_to_int(state->pointer_x), wl_fixed_to_int(state->pointer_y),
+	    &event);
 	(void)st_console_display_post_event(state->console_display, &event);
 }
 static void pointer_frame(void *d, struct wl_pointer *p)

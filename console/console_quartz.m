@@ -368,9 +368,8 @@ post_mouse(struct quartz_state *state, NSEvent *source,
 		.data.mouse.action = action,
 	};
 	struct st_console_bitmap_frame frame = state->frame;
-	double x = point.x * scale - frame.destination.x;
-	double y = (state->view.bounds.size.height - point.y) * scale
-	    - frame.destination.y;
+	double x = point.x * scale;
+	double y = (state->view.bounds.size.height - point.y) * scale;
 
 	if ((native_buttons & (1UL << 0)) != 0)
 		buttons |= ST_CONSOLE_MOUSE_BUTTON_LEFT;
@@ -383,21 +382,8 @@ post_mouse(struct quartz_state *state, NSEvent *source,
 	if ((native_buttons & (1UL << 4)) != 0)
 		buttons |= ST_CONSOLE_MOUSE_BUTTON_X2;
 	event.data.mouse.buttons = buttons;
-	if (frame.pixels != NULL && frame.destination.width != 0
-	    && frame.destination.height != 0) {
-		if (x < 0)
-			x = 0;
-		if (y < 0)
-			y = 0;
-		if (x >= frame.destination.width)
-			x = frame.destination.width - 1;
-		if (y >= frame.destination.height)
-			y = frame.destination.height - 1;
-		event.data.mouse.x = (int32_t)(x * frame.pixels->width
-		    / frame.destination.width);
-		event.data.mouse.y = (int32_t)(y * frame.pixels->height
-		    / frame.destination.height);
-	}
+	st_console_bitmap_mouse_position(&frame, (int64_t)x, (int64_t)y,
+	    &event);
 	if (action == ST_CONSOLE_MOUSE_WHEEL) {
 		event.data.mouse.wheel_x = source.scrollingDeltaX > 0 ? 1
 		    : source.scrollingDeltaX < 0 ? -1 : 0;

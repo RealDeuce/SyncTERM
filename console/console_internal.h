@@ -250,6 +250,10 @@ struct st_console_bitmap_presenter;
 struct st_console_bitmap_frame {
 	const struct st_pixel_buffer *pixels;
 	struct st_console_rect destination;
+	uint32_t source_width;
+	uint32_t source_height;
+	uint32_t cell_width;
+	uint32_t cell_height;
 	enum st_console_scaling_mode scaling_mode;
 	bool changed;
 };
@@ -295,5 +299,8 @@ int st_console_bitmap_presenter_frame(
 	uint32_t output_height, uint32_t now,
 	st_console_bitmap_upload_t upload, void *context,
 	struct st_console_bitmap_frame *frame);
+void st_console_bitmap_mouse_position(
+	const struct st_console_bitmap_frame *frame, int64_t x, int64_t y,
+	struct st_console_event *event);
 
 #endif

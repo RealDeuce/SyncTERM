@@ -173,6 +173,30 @@ test_initial_window_geometry(void)
 }
 
 static void
+test_mouse_coordinates(void)
+{
+	const struct st_console_bitmap_frame frame = {
+		.destination = {10, 20, 160, 96},
+		.source_width = 80,
+		.source_height = 48,
+		.cell_width = 8,
+		.cell_height = 16,
+	};
+	struct st_console_event event = {.type = ST_CONSOLE_EVENT_MOUSE};
+
+	st_console_bitmap_mouse_position(&frame, 90, 68, &event);
+	CHECK(event.data.mouse.pixel_x == 40);
+	CHECK(event.data.mouse.pixel_y == 24);
+	CHECK(event.data.mouse.x == 5);
+	CHECK(event.data.mouse.y == 1);
+	st_console_bitmap_mouse_position(&frame, -20, 500, &event);
+	CHECK(event.data.mouse.pixel_x == 0);
+	CHECK(event.data.mouse.pixel_y == 47);
+	CHECK(event.data.mouse.x == 0);
+	CHECK(event.data.mouse.y == 2);
+}
+
+static void
 test_default_cursor_scanlines(void)
 {
 	struct st_console_display_config config_display = {
@@ -380,6 +404,7 @@ main(void)
 	st_console_destroy(console);
 	test_circular_text_raster();
 	test_initial_window_geometry();
+	test_mouse_coordinates();
 	test_default_cursor_scanlines();
 	return 0;
 }

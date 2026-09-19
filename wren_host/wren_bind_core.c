@@ -555,11 +555,9 @@ make_key_event(WrenVM *vm, int slot, uint16_t code, uint32_t codepoint,
 
 static void
 make_mouse_event(WrenVM *vm, const struct st_console_event *source,
-	int event_code, int32_t start_x, int32_t start_y)
+	int event_code, int32_t start_x, int32_t start_y,
+	int32_t start_pixel_x, int32_t start_pixel_y)
 {
-	uint32_t cell_width = 0;
-	uint32_t cell_height = 0;
-
 	wrenEnsureSlots(vm, 2);
 	wrenGetVariable(vm, "syncterm", "MouseEvent", 1);
 	struct foreign_mouse_event *event = wrenSetSlotNewForeign(vm, 0, 1,
@@ -572,18 +570,16 @@ make_mouse_event(WrenVM *vm, const struct st_console_event *source,
 	event->start_y = start_y + 1;
 	event->end_x = source->data.mouse.x + 1;
 	event->end_y = source->data.mouse.y + 1;
-	if (st_console_cell_pixel_size(st_wren_context_from_vm(vm)->console, &cell_width,
-	    &cell_height) == 0) {
-		event->start_pixel_x = start_x * (int32_t)cell_width;
-		event->start_pixel_y = start_y * (int32_t)cell_height;
-		event->end_pixel_x = source->data.mouse.x * (int32_t)cell_width;
-		event->end_pixel_y = source->data.mouse.y * (int32_t)cell_height;
-	}
+	event->start_pixel_x = start_pixel_x;
+	event->start_pixel_y = start_pixel_y;
+	event->end_pixel_x = source->data.mouse.pixel_x;
+	event->end_pixel_y = source->data.mouse.pixel_y;
 }
 
 static int
 mouse_event_code(struct st_wren_context *context,
-	const struct st_console_event *event, int32_t *start_x, int32_t *start_y)
+	const struct st_console_event *event, int32_t *start_x, int32_t *start_y,
+	int32_t *start_pixel_x, int32_t *start_pixel_y)
 {
 	uint32_t changed = context->mouse_buttons ^ event->data.mouse.buttons;
 	uint32_t pressed = changed & event->data.mouse.buttons;
@@ -591,6 +587,8 @@ mouse_event_code(struct st_wren_context *context,
 
 	*start_x = event->data.mouse.x;
 	*start_y = event->data.mouse.y;
+	*start_pixel_x = event->data.mouse.pixel_x;
+	*start_pixel_y = event->data.mouse.pixel_y;
 	if (event->data.mouse.action == ST_CONSOLE_MOUSE_WHEEL)
 		return event->data.mouse.wheel_y > 0 ? 28 : 37;
 	if (event->data.mouse.action == ST_CONSOLE_MOUSE_MOVE) {
@@ -606,6 +604,8 @@ mouse_event_code(struct st_wren_context *context,
 			return 0;
 		*start_x = context->mouse_drag_start_x;
 		*start_y = context->mouse_drag_start_y;
+		*start_pixel_x = context->mouse_drag_start_pixel_x;
+		*start_pixel_y = context->mouse_drag_start_pixel_y;
 		if (!context->mouse_left_dragging) {
 			context->mouse_left_dragging = true;
 			return 7;
@@ -617,6 +617,8 @@ mouse_event_code(struct st_wren_context *context,
 		if ((pressed & ST_CONSOLE_MOUSE_BUTTON_LEFT) != 0) {
 			context->mouse_drag_start_x = event->data.mouse.x;
 			context->mouse_drag_start_y = event->data.mouse.y;
+			context->mouse_drag_start_pixel_x = event->data.mouse.pixel_x;
+			context->mouse_drag_start_pixel_y = event->data.mouse.pixel_y;
 			context->mouse_drag_end_x = event->data.mouse.x;
 			context->mouse_drag_end_y = event->data.mouse.y;
 			context->mouse_left_pressed = true;
@@ -626,6 +628,8 @@ mouse_event_code(struct st_wren_context *context,
 		else {
 			*start_x = context->mouse_drag_start_x;
 			*start_y = context->mouse_drag_start_y;
+			*start_pixel_x = context->mouse_drag_start_pixel_x;
+			*start_pixel_y = context->mouse_drag_start_pixel_y;
 			result = context->mouse_left_dragging ? 9 : 3;
 			context->mouse_left_pressed = false;
 			context->mouse_left_dragging = false;
@@ -704,7 +708,10 @@ next_input_event(WrenVM *vm, bool wait, int64_t timeout_ms, bool at_exit)
 			struct st_wren_context *context = st_wren_context_from_vm(vm);
 			int32_t start_x;
 			int32_t start_y;
-			int code = mouse_event_code(context, &event, &start_x, &start_y);
+			int32_t start_pixel_x;
+			int32_t start_pixel_y;
+			int code = mouse_event_code(context, &event, &start_x, &start_y,
+			    &start_pixel_x, &start_pixel_y);
 
 			if (event.data.mouse.action == ST_CONSOLE_MOUSE_BUTTON
 			    && code == 0)
@@ -712,7 +719,8 @@ next_input_event(WrenVM *vm, bool wait, int64_t timeout_ms, bool at_exit)
 			if (code < 64
 			    && (context->mouse_events & (UINT64_C(1) << code)) == 0)
 				continue;
-			make_mouse_event(vm, &event, code, start_x, start_y);
+			make_mouse_event(vm, &event, code, start_x, start_y,
+			    start_pixel_x, start_pixel_y);
 			return true;
 		}
 		case ST_CONSOLE_EVENT_CLOSE:

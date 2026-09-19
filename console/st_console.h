@@ -340,8 +340,12 @@ struct st_console_event {
 			bool enhanced;
 		} doorway_key;
 		struct {
+			/* Cell coordinates, zero-based. */
 			int32_t x;
 			int32_t y;
+			/* Internal-raster coordinates, or -1 when unavailable. */
+			int32_t pixel_x;
+			int32_t pixel_y;
 			int32_t wheel_x;
 			int32_t wheel_y;
 			uint32_t buttons;

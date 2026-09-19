@@ -97,6 +97,8 @@ struct st_wren_context {
 	uint32_t mouse_buttons;
 	int32_t mouse_drag_start_x;
 	int32_t mouse_drag_start_y;
+	int32_t mouse_drag_start_pixel_x;
+	int32_t mouse_drag_start_pixel_y;
 	int32_t mouse_drag_end_x;
 	int32_t mouse_drag_end_y;
 	bool mouse_left_pressed;

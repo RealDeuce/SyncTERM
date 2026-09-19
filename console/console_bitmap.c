@@ -994,7 +994,51 @@ st_console_bitmap_presenter_frame(
 	}
 	presenter->cursor_drawn = draw_cursor;
 	frame->destination = destination;
+	frame->source_width = presenter->source->width;
+	frame->source_height = presenter->source->height;
+	frame->cell_width = presenter->cell_width;
+	frame->cell_height = presenter->cell_height;
 	frame->scaling_mode = presenter->scaling_mode;
 	frame->changed = changed || layout_changed || state_changed;
 	return status;
+}
+
+void
+st_console_bitmap_mouse_position(const struct st_console_bitmap_frame *frame,
+	int64_t x, int64_t y, struct st_console_event *event)
+{
+	uint64_t pixel_x;
+	uint64_t pixel_y;
+
+	if (event == NULL)
+		return;
+	event->data.mouse.x = 0;
+	event->data.mouse.y = 0;
+	event->data.mouse.pixel_x = -1;
+	event->data.mouse.pixel_y = -1;
+	if (frame == NULL || frame->destination.width == 0
+	    || frame->destination.height == 0 || frame->source_width == 0
+	    || frame->source_height == 0 || frame->cell_width == 0
+	    || frame->cell_height == 0)
+		return;
+	x -= frame->destination.x;
+	y -= frame->destination.y;
+	if (x < 0)
+		x = 0;
+	if (y < 0)
+		y = 0;
+	if ((uint64_t)x >= frame->destination.width)
+		x = frame->destination.width - 1;
+	if ((uint64_t)y >= frame->destination.height)
+		y = frame->destination.height - 1;
+	pixel_x = (uint64_t)x * frame->source_width / frame->destination.width;
+	pixel_y = (uint64_t)y * frame->source_height / frame->destination.height;
+	if (pixel_x > INT32_MAX)
+		pixel_x = INT32_MAX;
+	if (pixel_y > INT32_MAX)
+		pixel_y = INT32_MAX;
+	event->data.mouse.pixel_x = (int32_t)pixel_x;
+	event->data.mouse.pixel_y = (int32_t)pixel_y;
+	event->data.mouse.x = (int32_t)(pixel_x / frame->cell_width);
+	event->data.mouse.y = (int32_t)(pixel_y / frame->cell_height);
 }

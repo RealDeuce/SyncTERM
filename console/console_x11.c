@@ -1527,29 +1527,6 @@ build_keycode_map(struct x11_state *state)
 }
 
 static void
-mouse_position(struct x11_state *state, int x, int y, int32_t *result_x,
-	int32_t *result_y)
-{
-	int64_t px = x;
-	int64_t py = y;
-
-	px -= state->frame.destination.x;
-	py -= state->frame.destination.y;
-	if (px < 0)
-		px = 0;
-	if (py < 0)
-		py = 0;
-	if ((uint64_t)px >= state->frame.destination.width)
-		px = state->frame.destination.width - 1;
-	if ((uint64_t)py >= state->frame.destination.height)
-		py = state->frame.destination.height - 1;
-	*result_x = (int32_t)(px * state->frame.pixels->width
-	    / state->frame.destination.width);
-	*result_y = (int32_t)(py * state->frame.pixels->height
-	    / state->frame.destination.height);
-}
-
-static void
 update_window_state(struct x11_state *state)
 {
 	Atom type = None;
@@ -1659,8 +1636,8 @@ handle_event(struct x11_state *state, XEvent *event)
 			break;
 		output.type = ST_CONSOLE_EVENT_MOUSE;
 		output.data.mouse.action = ST_CONSOLE_MOUSE_MOVE;
-		mouse_position(state, event->xmotion.x, event->xmotion.y,
-		    &output.data.mouse.x, &output.data.mouse.y);
+		st_console_bitmap_mouse_position(&state->frame, event->xmotion.x,
+		    event->xmotion.y, &output);
 		output.data.mouse.buttons = state->mouse_buttons;
 		(void)st_console_display_post_event(state->console_display, &output);
 		break;
@@ -1687,6 +1664,8 @@ handle_event(struct x11_state *state, XEvent *event)
 			else
 				output.data.mouse.wheel_x = 1;
 			output.data.mouse.buttons = state->mouse_buttons;
+			st_console_bitmap_mouse_position(&state->frame,
+			    event->xbutton.x, event->xbutton.y, &output);
 			(void)st_console_display_post_event(state->console_display, &output);
 			break;
 		}
@@ -1698,8 +1677,8 @@ handle_event(struct x11_state *state, XEvent *event)
 			state->mouse_buttons &= ~button;
 		output.type = ST_CONSOLE_EVENT_MOUSE;
 		output.data.mouse.action = ST_CONSOLE_MOUSE_BUTTON;
-		mouse_position(state, event->xbutton.x, event->xbutton.y,
-		    &output.data.mouse.x, &output.data.mouse.y);
+		st_console_bitmap_mouse_position(&state->frame, event->xbutton.x,
+		    event->xbutton.y, &output);
 		output.data.mouse.buttons = state->mouse_buttons;
 		(void)st_console_display_post_event(state->console_display, &output);
 		break;

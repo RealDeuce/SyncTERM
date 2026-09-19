@@ -132,13 +132,13 @@ struct sdl_state {
 	uint32_t window_id;
 	uint32_t texture_width;
 	uint32_t texture_height;
-	uint32_t logical_width;
-	uint32_t logical_height;
 	uint32_t minimum_width;
 	uint32_t minimum_height;
 	uint32_t windowed_width;
 	uint32_t windowed_height;
 	uint32_t mouse_buttons;
+	int mouse_x;
+	int mouse_y;
 	uint32_t key_modifiers;
 	bool texture_valid;
 	bool focused;
@@ -856,8 +856,8 @@ utf8_next(const unsigned char **current, uint32_t *result)
 }
 
 static void
-logical_mouse(struct sdl_state *state, int x, int y, int32_t *result_x,
-	int32_t *result_y)
+logical_mouse(struct sdl_state *state, int x, int y,
+	struct st_console_event *event)
 {
 	int window_width = 0;
 	int window_height = 0;
@@ -869,29 +869,17 @@ logical_mouse(struct sdl_state *state, int x, int y, int32_t *result_x,
 	manager.api.get_window_size(state->window, &window_width, &window_height);
 	if (manager.api.get_renderer_output_size(state->renderer, &output_width,
 	    &output_height) != 0 || window_width <= 0 || window_height <= 0
-	    || output_width <= 0 || output_height <= 0
-	    || state->frame.destination.width == 0
-	    || state->frame.destination.height == 0) {
-		*result_x = 0;
-		*result_y = 0;
+	    || output_width <= 0 || output_height <= 0) {
+		event->data.mouse.x = 0;
+		event->data.mouse.y = 0;
+		event->data.mouse.pixel_x = -1;
+		event->data.mouse.pixel_y = -1;
 		return;
 	}
 	output_x = (int64_t)x * output_width / window_width;
 	output_y = (int64_t)y * output_height / window_height;
-	output_x -= state->frame.destination.x;
-	output_y -= state->frame.destination.y;
-	if (output_x < 0)
-		output_x = 0;
-	if (output_y < 0)
-		output_y = 0;
-	if ((uint64_t)output_x >= state->frame.destination.width)
-		output_x = state->frame.destination.width - 1;
-	if ((uint64_t)output_y >= state->frame.destination.height)
-		output_y = state->frame.destination.height - 1;
-	*result_x = (int32_t)(output_x * state->logical_width
-	    / state->frame.destination.width);
-	*result_y = (int32_t)(output_y * state->logical_height
-	    / state->frame.destination.height);
+	st_console_bitmap_mouse_position(&state->frame, output_x, output_y,
+	    event);
 }
 
 static uint32_t
@@ -1062,8 +1050,9 @@ dispatch_event(const SDL_Event *source)
 	case SDL_MOUSEMOTION:
 		event.type = ST_CONSOLE_EVENT_MOUSE;
 		event.data.mouse.action = ST_CONSOLE_MOUSE_MOVE;
-		logical_mouse(state, source->motion.x, source->motion.y,
-		    &event.data.mouse.x, &event.data.mouse.y);
+		state->mouse_x = source->motion.x;
+		state->mouse_y = source->motion.y;
+		logical_mouse(state, state->mouse_x, state->mouse_y, &event);
 		state->mouse_buttons = mouse_buttons(source->motion.state);
 		event.data.mouse.buttons = state->mouse_buttons;
 		(void)st_console_display_post_event(state->console_display, &event);
@@ -1078,8 +1067,9 @@ dispatch_event(const SDL_Event *source)
 			state->mouse_buttons &= ~button;
 		event.type = ST_CONSOLE_EVENT_MOUSE;
 		event.data.mouse.action = ST_CONSOLE_MOUSE_BUTTON;
-		logical_mouse(state, source->button.x, source->button.y,
-		    &event.data.mouse.x, &event.data.mouse.y);
+		state->mouse_x = source->button.x;
+		state->mouse_y = source->button.y;
+		logical_mouse(state, state->mouse_x, state->mouse_y, &event);
 		event.data.mouse.buttons = state->mouse_buttons;
 		(void)st_console_display_post_event(state->console_display, &event);
 		break;
@@ -1092,6 +1082,7 @@ dispatch_event(const SDL_Event *source)
 		event.data.mouse.wheel_y = source->wheel.direction
 		    == SDL_MOUSEWHEEL_FLIPPED ? -source->wheel.y : source->wheel.y;
 		event.data.mouse.buttons = state->mouse_buttons;
+		logical_mouse(state, state->mouse_x, state->mouse_y, &event);
 		(void)st_console_display_post_event(state->console_display, &event);
 		break;
 	default:
@@ -1164,8 +1155,6 @@ process_command(struct sdl_command *command)
 		    (uint32_t)output_height, &width, &height, &minimum_width,
 		    &minimum_height) != 0)
 			return IO_ERROR_OUT_OF_RANGE;
-		state->logical_width = command->data.size.source_width;
-		state->logical_height = command->data.size.source_height;
 		state->windowed_width = width;
 		state->windowed_height = height;
 		state->minimum_width = minimum_width;
@@ -1500,9 +1489,7 @@ st_console_sdl_init(st_console_t *console)
 	state->window_geometry = (struct st_console_bitmap_geometry){
 		console->pixels->width, console->pixels->height,
 		console->aspect_width, console->aspect_height};
-	state->logical_width = console->pixels->width;
 	state->console_display = console->display;
-	state->logical_height = console->pixels->height;
 	uint32_t minimum_width;
 	uint32_t minimum_height;
 

@@ -835,6 +835,8 @@ mouse_event(struct curses_state *state, struct st_console_event *event)
 		.data.mouse = {
 			.x = mouse.x,
 			.y = mouse.y,
+			.pixel_x = -1,
+			.pixel_y = -1,
 			.buttons = state->mouse_buttons,
 			.action = previous == state->mouse_buttons
 			    ? ST_CONSOLE_MOUSE_MOVE : ST_CONSOLE_MOUSE_BUTTON,

@@ -344,24 +344,7 @@ post_mouse(struct gdi_state *state, enum st_console_mouse_action action,
 		event.data.mouse.buttons |= ST_CONSOLE_MOUSE_BUTTON_X1;
 	if ((GetKeyState(VK_XBUTTON2) & 0x8000) != 0)
 		event.data.mouse.buttons |= ST_CONSOLE_MOUSE_BUTTON_X2;
-	if (state->frame.destination.width != 0
-	    && state->frame.destination.height != 0
-	    && state->frame.pixels != NULL) {
-		x -= (int)state->frame.destination.x;
-		y -= (int)state->frame.destination.y;
-		if (x < 0)
-			x = 0;
-		if (y < 0)
-			y = 0;
-		if ((uint32_t)x >= state->frame.destination.width)
-			x = (int)state->frame.destination.width - 1;
-		if ((uint32_t)y >= state->frame.destination.height)
-			y = (int)state->frame.destination.height - 1;
-		event.data.mouse.x = (int32_t)((int64_t)x
-		    * state->frame.pixels->width / state->frame.destination.width);
-		event.data.mouse.y = (int32_t)((int64_t)y
-		    * state->frame.pixels->height / state->frame.destination.height);
-	}
+	st_console_bitmap_mouse_position(&state->frame, x, y, &event);
 	(void)st_console_display_post_event(state->console_display, &event);
 }
 
