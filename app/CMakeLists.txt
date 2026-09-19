@@ -47,7 +47,7 @@ if(BUILD_TESTING)
 		PASS_REGULAR_EXPRESSION "usage:.*syncterm.*options")
 	add_test(NAME syncterm_version COMMAND syncterm_app -v)
 	set_tests_properties(syncterm_version PROPERTIES
-		PASS_REGULAR_EXPRESSION "SyncTERM 1\\.10a")
+		PASS_REGULAR_EXPRESSION "SyncTERM 2\\.0a")
 	add_test(NAME syncterm_terminfo COMMAND syncterm_app -T)
 	set_tests_properties(syncterm_terminfo PROPERTIES
 		PASS_REGULAR_EXPRESSION "syncterm\\|SyncTERM")
