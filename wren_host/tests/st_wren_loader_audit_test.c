@@ -52,9 +52,7 @@ main(int argc, char **argv)
 	CHECK(argc == 3);
 	CHECK(strcmp(argv[2], "autoload") == 0
 	    || strcmp(argv[2], "recovery") == 0
-	    || strcmp(argv[2], "core-contracts") == 0
 	    || strcmp(argv[2], "physical-input") == 0
-	    || strcmp(argv[2], "cell") == 0
 	    || strcmp(argv[2], "reload") == 0
 	    || strcmp(argv[2], "settings-stale") == 0
 	    || strcmp(argv[2], "settings-save-failure") == 0
@@ -601,15 +599,6 @@ main(int argc, char **argv)
 		fprintf(stderr, "settings apply invalidates other snapshots: %s\n",
 		    passed ? "PASS" : "FAIL");
 	}
-	else if (strcmp(argv[2], "cell") == 0) {
-		CHECK(status == 0);
-		passed = wrenInterpret(host->vm, "cell_equality_audit",
-		    "import \"syncterm\" for Cell\n"
-		    "var c = Cell.new()\n"
-		    "if (c.eqContent(null) != false) Fiber.abort(\"non-Cell comparison must be false\")\n")
-		    == WREN_RESULT_SUCCESS;
-		fprintf(stderr, "non-Cell equality returns false: %s\n", passed ? "PASS" : "FAIL");
-	}
 	else if (strcmp(argv[2], "physical-input") == 0) {
 		CHECK(status == 0);
 		passed = true;
@@ -631,24 +620,6 @@ main(int argc, char **argv)
 			    == WREN_RESULT_SUCCESS;
 			fprintf(stderr, "physical %s: %s\n", i == 0 ? "press" : "release",
 			    ok ? "PASS" : "FAIL");
-			passed = passed && ok;
-		}
-	}
-	else if (strcmp(argv[2], "core-contracts") == 0) {
-		static const char *cases[] = {
-		    "import \"syncterm\" for Format\n"
-		    "if (Format.bytes(-1) != Format.bytes(0)) Fiber.abort(\"negative bytes not clamped\")\n",
-		    "import \"syncterm\" for Format\n"
-		    "if (Format.duration(-1) != Format.duration(0)) Fiber.abort(\"negative duration not clamped\")\n",
-		};
-		CHECK(status == 0);
-		passed = true;
-		for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
-			char module[64];
-			(void)snprintf(module, sizeof(module), "core_contract_%zu", i);
-			bool ok = wrenInterpret(host->vm, module, cases[i])
-			    == WREN_RESULT_SUCCESS;
-			fprintf(stderr, "core contract %zu: %s\n", i, ok ? "PASS" : "FAIL");
 			passed = passed && ok;
 		}
 	}

@@ -408,17 +408,130 @@ append_exponent(char *output, size_t capacity, size_t *length, int exponent)
 	return true;
 }
 
+static bool
+decimal_from_double(double value, struct decimal_integer *exact)
+{
+	double fraction;
+	uint64_t significand;
+	int binary_exponent;
+	int binary_shift;
+
+	fraction = frexp(value, &binary_exponent);
+	significand = (uint64_t)ldexp(fraction, DBL_MANT_DIG);
+	decimal_set_uint64(exact, significand);
+	binary_shift = binary_exponent - DBL_MANT_DIG;
+	if (binary_shift >= 0) {
+		for (int index = 0; index < binary_shift; index++) {
+			if (!decimal_multiply(exact, 2))
+				return false;
+		}
+	}
+	else {
+		for (int index = 0; index > binary_shift; index--) {
+			if (!decimal_multiply(exact, 5))
+				return false;
+			exact->exponent--;
+		}
+	}
+	decimal_normalize(exact);
+	return true;
+}
+
+bool
+decimal_format_fixed(char *buffer, size_t size, double value, unsigned places)
+{
+	struct decimal_integer exact;
+	char output[DBL_MAX_10_EXP + DBL_MANT_DIG + 16];
+	size_t length = 0;
+	bool negative;
+	int target_exponent;
+
+	if (buffer == NULL || places > (unsigned)DBL_MANT_DIG
+	    || !isfinite(value))
+		return false;
+	negative = signbit(value);
+	value = fabs(value);
+	if (!decimal_from_double(value, &exact))
+		return false;
+	target_exponent = -(int)places;
+	if (exact.exponent < target_exponent) {
+		size_t discarded = (size_t)(target_exponent - exact.exponent);
+		int first = discarded <= exact.length ?
+		    exact.digit[discarded - 1] : 0;
+		bool round_up = first > 5;
+
+		if (first == 5) {
+			int retained = discarded < exact.length ?
+			    exact.digit[discarded] : 0;
+
+			round_up = (retained & 1) != 0;
+			for (size_t index = 0;
+			    index + 1 < discarded && index < exact.length; index++) {
+				if (exact.digit[index] != 0) {
+					round_up = true;
+					break;
+				}
+			}
+		}
+		if (discarded < exact.length) {
+			memmove(exact.digit, exact.digit + discarded,
+			    exact.length - discarded);
+			exact.length -= discarded;
+		}
+		else
+			exact.length = 0;
+		exact.exponent = target_exponent;
+		if (round_up) {
+			size_t index = 0;
+
+			while (index < exact.length && exact.digit[index] == 9)
+				exact.digit[index++] = 0;
+			if (index == exact.length) {
+				if (exact.length == DECIMAL_DIGIT_CAPACITY)
+					return false;
+				exact.digit[exact.length++] = 1;
+			}
+			else
+				exact.digit[index]++;
+		}
+	}
+	if (negative && !append_character(output, sizeof(output), &length, '-'))
+		return false;
+	{
+		int top = exact.length == 0 ? 0 :
+		    (int)exact.length + exact.exponent - 1;
+
+		if (top < 0)
+			top = 0;
+		for (int position = top; position >= 0; position--) {
+			if (!append_character(output, sizeof(output), &length,
+			    (char)('0' + decimal_digit_at(&exact, position))))
+				return false;
+		}
+	}
+	if (places != 0) {
+		if (!append_character(output, sizeof(output), &length, '.'))
+			return false;
+		for (unsigned index = 1; index <= places; index++) {
+			if (!append_character(output, sizeof(output), &length,
+			    (char)('0' + decimal_digit_at(&exact, -(int)index))))
+				return false;
+		}
+	}
+	if (size <= length)
+		return false;
+	memcpy(buffer, output, length);
+	buffer[length] = '\0';
+	return true;
+}
+
 bool
 decimal_format_double(char *buffer, size_t size, double value, int precision)
 {
 	struct decimal_integer exact;
 	char digits[DBL_MANT_DIG + 1];
 	char output[DBL_MANT_DIG + 32];
-	double fraction;
-	uint64_t significand;
-	int binary_exponent;
 	int scientific_exponent;
-	int binary_shift;
 	size_t digit_count;
 	size_t length = 0;
 	bool negative;
@@ -438,24 +551,8 @@ decimal_format_double(char *buffer, size_t size, double value, int precision)
 		buffer[length] = '\0';
 		return true;
 	}
-	fraction = frexp(value, &binary_exponent);
-	significand = (uint64_t)ldexp(fraction, DBL_MANT_DIG);
-	decimal_set_uint64(&exact, significand);
-	binary_shift = binary_exponent - DBL_MANT_DIG;
-	if (binary_shift >= 0) {
-		for (int index = 0; index < binary_shift; index++) {
-			if (!decimal_multiply(&exact, 2))
-				return false;
-		}
-	}
-	else {
-		for (int index = 0; index > binary_shift; index--) {
-			if (!decimal_multiply(&exact, 5))
-				return false;
-			exact.exponent--;
-		}
-	}
-	decimal_normalize(&exact);
+	if (!decimal_from_double(value, &exact))
+		return false;
 	scientific_exponent = (int)exact.length + exact.exponent - 1;
 	digit_count = exact.length < (size_t)precision ?
 	    exact.length : (size_t)precision;

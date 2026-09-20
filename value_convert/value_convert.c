@@ -222,6 +222,109 @@ value_format_double(char *buffer, size_t size, double value)
 	    VALUE_DOUBLE_DECIMAL_DIG);
 }
 
+static bool
+append_suffix(char *buffer, size_t size, const char *number, char suffix)
+{
+	size_t length = strlen(number);
+
+	if (buffer == NULL || length + 2 > size)
+		return false;
+	memcpy(buffer, number, length);
+	buffer[length] = suffix;
+	buffer[length + 1] = '\0';
+	return true;
+}
+
+bool
+value_format_byte_estimate(char *buffer, size_t size, uint64_t bytes)
+{
+	static const struct {
+		uint64_t divisor;
+		char suffix;
+	} units[] = {
+		{UINT64_C(1) << 50, 'P'},
+		{UINT64_C(1) << 40, 'T'},
+		{UINT64_C(1) << 30, 'G'},
+		{UINT64_C(1) << 20, 'M'},
+		{UINT64_C(1) << 10, 'K'},
+	};
+	char number[32];
+
+	for (size_t index = 0; index < sizeof(units) / sizeof(units[0]); index++) {
+		uint64_t divisor = units[index].divisor;
+		uint64_t remainder;
+		uint64_t scaled_remainder;
+		uint64_t whole;
+		unsigned tenth;
+		size_t length;
+
+		if (bytes < divisor)
+			continue;
+		whole = bytes / divisor;
+		remainder = bytes % divisor;
+		scaled_remainder = remainder * 10;
+		tenth = (unsigned)(scaled_remainder / divisor);
+		remainder = scaled_remainder % divisor;
+		if (remainder > divisor / 2
+		    || (remainder == divisor / 2 && (tenth & 1) != 0)) {
+			if (++tenth == 10) {
+				tenth = 0;
+				whole++;
+			}
+		}
+		if (!value_format_uint64(number, sizeof(number), whole))
+			return false;
+		length = strlen(number);
+		if (length + 4 > sizeof(number))
+			return false;
+		number[length++] = '.';
+		number[length++] = (char)('0' + tenth);
+		number[length] = '\0';
+		return append_suffix(buffer, size, number, units[index].suffix);
+	}
+	return value_format_uint64(buffer, size, bytes);
+}
+
+bool
+value_format_duration_estimate(char *buffer, size_t size, double seconds)
+{
+	static const struct {
+		double divisor;
+		char suffix;
+	} units[] = {
+		{365.0 * 24.0 * 60.0 * 60.0, 'y'},
+		{24.0 * 60.0 * 60.0, 'd'},
+		{60.0 * 60.0, 'h'},
+		{60.0, 'm'},
+	};
+	char number[64];
+	char suffix = 's';
+	bool compact = true;
+
+	if (!(seconds >= 0.0))
+		seconds = 0.0;
+	if (isinf(seconds))
+		return copy_result(buffer, size, "infy", 4);
+	for (size_t index = 0; index < sizeof(units) / sizeof(units[0]); index++) {
+		if (seconds >= units[index].divisor) {
+			seconds /= units[index].divisor;
+			suffix = units[index].suffix;
+			compact = false;
+			break;
+		}
+	}
+	if (!decimal_format_fixed(number, sizeof(number), seconds, 1))
+		return false;
+	if (compact) {
+		size_t length = strlen(number);
+
+		if (length >= 2 && number[length - 2] == '.'
+		    && number[length - 1] == '0')
+			number[length - 2] = '\0';
+	}
+	return append_suffix(buffer, size, number, suffix);
+}
+
 bool
 value_parse_duration(const char *text, double *seconds)
 {

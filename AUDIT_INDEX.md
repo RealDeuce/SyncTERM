@@ -7,8 +7,8 @@ recommended remedies. Severity does not imply exploitability; source-confirmed
 risks and reproduced failures must be distinguished using those entries.
 No remediation is authorized by this report.
 
-The audit is complete, not the implementation: **97 outstanding findings**
-comprise 13 high, 55 medium, 27 low and 2 unresolved design/performance
+The audit is complete, not the implementation: **94 outstanding findings**
+comprise 13 high, 52 medium, 27 low and 2 unresolved design/performance
 concerns.
 This is not a count of exploitable vulnerabilities or reproduced failures.
 All 47 tracked source directories and 12 root files are covered by the
@@ -79,7 +79,7 @@ No new blanket GC, contention or scaling-performance diagnosis is made from
 source shape. The source and test inventory must retain those measurement
 limits in the final report.
 
-The current TODO documents contain 97 outstanding numbered findings. A007 and A011 are
+The current TODO documents contain 94 outstanding numbered findings. A007 and A011 are
 unresolved design/performance concerns, not confirmed runtime defects. Missing
 features and documentation errors are also explicitly distinguished from
 implementation failures in the detailed ledger.
@@ -133,9 +133,7 @@ implementation failures in the detailed ledger.
 | A054 | medium | Additional user event scripts are never auto-loaded |
 | A055 | medium | Picker load failure prevents application startup instead of recovery |
 | A056 | low | POSIX picker reports directory read errors as successful listings |
-| A057 | medium | Wren integer validation admits an out-of-range int64 conversion |
-| A058 | medium | Wren mouse-event mask shifts exceed the mask's width |
-| A060 | medium | Cell.eqContent aborts on a non-Cell instead of returning false |
+| A058 | medium | Wren cannot round-trip every 64-bit mouse-event mask |
 | A061 | medium | Failed Menu.load discards the existing model |
 | A062 | high | BBS.save writes the personal list in safe mode |
 | A063 | medium | Settings snapshots never become stale after another snapshot applies |
@@ -179,7 +177,6 @@ implementation failures in the detailed ledger.
 | A105 | medium | Custom-font bindings do not preserve their declared editing boundaries |
 | A108 | medium source-confirmed | Wayland buffer failure loses the mapped length |
 | A109 | medium source-confirmed | Wayland worker waits incompletely handle disconnection and shutdown |
-| A111 | medium | Format helpers omit documented argument validation/clamping |
 | A112 | medium reproduced | Wren input drops physical-key press/release edges |
 | A113 | low source-confirmed | Menu default ports disagree with URL parsing |
 | A114 | medium source-confirmed | Failed theme deletion can split persisted and live settings |
@@ -190,7 +187,7 @@ implementation failures in the detailed ledger.
 
 `cmake --build build -j4` succeeds. The subsequent command
 `ctest --test-dir build -E '^st_console_(x11|wayland)$' --output-on-failure --timeout 30`
-executes 60 tests: **51 pass, 9 fail**, with no timeout or skip in that
+executes 67 tests: **58 pass, 9 fail**, with no timeout or skip in that
 selection. X11 and Wayland are deliberately excluded to avoid the real
 desktop; SDL uses its CMake-configured dummy video driver. This is native
 verification, not Windows/macOS execution or comprehensive backend coverage.

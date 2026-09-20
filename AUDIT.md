@@ -37,7 +37,7 @@ repository-wide coverage. The legacy tree is read-only reference.
 
 The repository-wide audit is complete. This is not an implementation approval,
 release certification or claim that findings have been fixed. The consolidated
-API/design assessment, priority groups and all 97 outstanding finding summaries are in
+API/design assessment, priority groups and all 94 outstanding finding summaries are in
 AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 
 | Objective requirement | Authoritative evidence and disposition |
@@ -50,8 +50,8 @@ AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 | Required legacy behavior | Read-only comparisons cover fonts/catalog/maps, modes, palette capacity, Prestel versus Mode 7, command line, console/input and settings behavior; A015/A018/A032 plus explicit parity limits. Frozen CTerm chapter cmp succeeds. |
 | Wren scripts and bindings | Complete local source/signature/manual reviews; isolated shipped-script suites and host fixtures; host closure A100–A114. Connected/SFTP production integration missing from this application is reported, not invented or silently counted as working. |
 | Build logic, generators and documentation | Root/component CMake and generators reviewed; standalone/probe failures recorded; pinned Unicode/font regeneration and table comparisons documented; root manuals/license/development guidance covered. Wren VM vendored internals limited to integration boundaries as requested. |
-| Inventory and consolidated findings | 97 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 13 high, 55 medium, 27 low, 2 unresolved concerns; not all runtime reproductions. |
-| Relevant tests where practical | Fresh complete native build succeeds. Final selected CTest run: 60 executed, 51 pass, 9 fail, 5.12 seconds; failure matrix in index. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
+| Inventory and consolidated findings | 94 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 13 high, 52 medium, 27 low, 2 unresolved concerns; not all runtime reproductions. |
+| Relevant tests where practical | Fresh complete native build succeeds. Final selected CTest run: 67 executed, 58 pass, 9 fail, 5.71 seconds; failure matrix in index. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
 | Only tests/reports changed; no implementation remediation | Current status: 30 modified tracked tests, 23 untracked tests, 2 untracked reports; no staged files. Filtered worktree inspection finds no other changes. Baseline-to-current non-test difference is pre-existing str_list/CMakeLists.txt, unchanged since fdeab0d. No final-consolidation commits/push/reverts. |
 | Explicit uncertainty | Each component records unavailable platforms, unexecuted failure paths and measurement limits; A007/A011 unresolved. Source-level risks are not called verified crashes. These are audit outcomes, not claims of implementation correctness. |
 
@@ -77,11 +77,11 @@ have explicit dispositions below; final inventory/report verification is above.
 
 Latest native verification: the complete configured build succeeds with
 `cmake --build build -j4`. CTest excluding the real-display X11/Wayland tests
-executes 60 tests in 5.12 seconds: 51 pass and 9 fail, all at recorded
+executes 67 tests in 5.71 seconds: 58 pass and 9 fail, all at recorded
 regressions. No selected test times out or skips. AUDIT_INDEX.md contains the
 failure-to-finding matrix and command. SDL runs with its configured dummy
-driver; this is not real-window verification. The standalone audit cases are
-not registered in CMake and therefore are not counted among these 60 tests.
+driver; this is not real-window verification. Remaining standalone audit cases
+are not registered in CMake and therefore are not counted among these 67 tests.
 
 Each directory row includes all tracked sources, headers, backends, generators,
 tests, and local documentation. Cross-component callers are reviewed with the
@@ -138,7 +138,7 @@ not the absence of failing tests. New findings will receive stable A-numbers.
 | value_convert/ | Reviewed | A021 date precedence conflict; all local sources/tests/build read; native exact rounding checks pass; exotic formats and numeric performance unverified |
 | webget/ | Reviewed | All local source/header/test/build read; A036 source double-close, A037 URL/cache mismatch reproduced; protocol/TLS/fault gaps below |
 | windows_utf/ | Reviewed | Source and MinGW compile; Windows runtime not verified |
-| wren_host/ | Reviewed | All local implementation, public/internal headers, CMake/generator and integration tests read; isolated shipped-script and host-contract cases run; mutation/error/input/font/ownership integration dispositioned below, including A111–A114; runtime/fault limits explicit |
+| wren_host/ | Reviewed | All local implementation, public/internal headers, CMake/generator and integration tests read; isolated shipped-script and host-contract cases run; mutation/error/input/font/ownership integration dispositioned below, including A112–A114; runtime/fault limits explicit |
 | wren_vm/ | Reviewed at integration boundary | Full legacy diff, build/configuration, license, REPL private API coupling and minimal consumer link checked; upstream internals not exhaustively audited |
 | xptls/ | Reviewed | All five local source/header/build files read; A038 PSK authentication bypass reproduced against OpenSSL, rejected by Botan; broader TLS/platform coverage gaps below |
 | xptls_crypto/ | Reviewed | All local headers/providers/clear implementations/build/tests read; expanded tests pass OpenSSL, Botan and none; MinGW compile only; contract/resource gaps below |
@@ -224,32 +224,6 @@ evidence. All new fixtures use fresh temporary paths and a headless console.
 Remaining work is final repository-wide inventory/evidence reconciliation,
 not unseen host source or a requirement to implement these findings. Review
 completion does not imply that every documented API currently works.
-
-### A111 — Format helpers do not enforce their argument contract
-
-Severity: medium API/error-boundary defect. Wren.adoc:5874 documents clamping
-negative values to zero and throwing for non-Numbers. Both Format.bytes and
-Format.duration directly call wrenGetSlotDouble without checking the slot
-type, and format signed values without clamping. Native standalone
-`core-contracts` cases 0 and 1 reproduce the negative-value mismatch by
-comparing each helper's -1 and 0 results; both fail.
-
-The non-Number path is source-confirmed misuse of the VM slot API, whose
-wrenGetSlotDouble asserts numeric type; it was not executed here, and release
-build consequences are not claimed. The formatted strings also insert a space
-before the suffix, unlike the manual's examples. Recommendation: validate at
-the foreign boundary, apply the documented sign/format policy, and test wrong
-types through a catchable fiber error rather than a host assertion. These
-helpers use snprintf floating conversion; locale-independent output is not
-established by the C-locale test. Do not add system-locale dependencies as a
-remedy.
-
-Verification: rebuilt `wren_host/tests/st_wren_loader_audit_test.c` with the
-native picker target's includes/link dependencies and strict C17 warnings.
-Ran `core-contracts` in a fresh /tmp directory, safe mode, headless console:
-two cases executed, both failed as above. No personal data, display,
-network, production or build changes. The Wren skill/manual review guided the
-contract assertions; the legacy runner was not used to test this modern host.
 
 ### A108 — Wayland buffer failure loses the mapped length
 
@@ -1963,57 +1937,15 @@ errors continue but leave status set, so whether they ultimately fail the whole
 listing depends on whether a later entry overwrites status. That ordering
 problem is source-observed, not exercised by this read-error fixture.
 
-### A057 — Wren integer validation admits an out-of-range int64 conversion
+### A058 — Wren cannot round-trip every 64-bit mouse-event mask
 
-Severity: medium (undefined behavior from a script argument). Confirmed by
-native Clang UBSan. wren_bind_core.c:105 compares a double against integer
-bounds converted to double. Its Surface.iterate caller at :1481 supplies
-INT64_MAX-1; on this platform that rounds to 2^63. A Wren number equal to
-2^63 passes the finite/integral/range checks and reaches the invalid int64_t
-cast at :120. The intended maximum is not representable by that comparison.
-
-st_wren_numeric_audit_test.c includes the actual binding source and calls its
-validator with real Wren slots and exactly the Surface.iterate bounds. Built
-with -fsanitize=undefined,float-cast-overflow -fno-sanitize-recover=all, its
-`integer` mode exits 1 at the cast: 9.22337e+18 is outside the representable
-range of long. This directly tests the helper, not the entire script call.
-Recommendation: validate the conversion domain with an exclusive upper bound
-that cannot round upward into the invalid domain, then enforce the requested
-integer limit. Retain boundary tests below/at/above 2^63 and non-finite inputs.
-
-### A058 — Wren mouse-event mask shifts exceed the mask's width
-
-Severity: medium (undefined behavior for a normal event number). Confirmed by
-native Clang UBSan. wren_bind_core.c:741 and :750 accept event indexes 0..63,
-but shift UINT32_C(1) and store the result in uint32_t mouse_events. Wheel-down
-is event 37 in the same file. st_wren_numeric_audit_test.c `mouse` calls the
-actual enabling binding using Wren slot value 37 and fails at :742 with
-`shift exponent 37 is too large for 32-bit type 'unsigned int'`.
-Disabling uses the same invalid expression but was not separately executed.
-
-The Input contract documents enabling individual mouse events; merely narrowing
-the accepted range would lose currently named events. Recommendation: reconcile
-the complete event-number/mask contract with a sufficient representation and
-test every supported event. Separately, next_input_event does not consult the
-stored mouse_events mask before emitting mouse events; consumer behavior needs
-further verification before claiming the filtering contract is implemented.
-
-### A060 — Cell.eqContent aborts on a non-Cell instead of returning false
-
-Severity: medium (script behavior regression; can unwind the owning UI).
-Confirmed through the native headless Wren host. wren_bind_core.c:1975 uses
-cell_value for the argument, whose foreign_kind check aborts for null/nonforeign
-or wrong-kind values. Wren.adoc's Cell contract explicitly promises false with
-no fiber abort. Legacy wren_bind_screen.c:2288 checks the foreign type and
-returns false, preserving that contract.
-
-st_wren_loader_audit_test.c `cell` creates a Cell and evaluates eqContent(null),
-expecting false. It exits 1 with `expected a foreign value` at the script's
-comparison, not at its assertion. Compiled native Clang strict C17 with warnings
-as errors against the existing host archives. Remedy: validate the argument
-non-abortingly for this predicate and test null, primitive, wrong foreign type
-and genuine Cell values. Source also shows the explicit pixel-graphics rejection
-from the legacy predicate is missing; that path is not covered by this test.
+Severity: medium API representation limitation. The native mask is uint64_t,
+and the single-event helpers correctly support event numbers 0 through 63.
+`Input.mouseEvents`, however, crosses the Wren boundary as a Num, whose exact
+integer range ends at 2^53 - 1. Masks combining high and low bits can therefore
+lose low bits when read and restored, and the whole-mask setter cannot express
+bit 63. Define a lossless script representation or constrain and document the
+whole-mask contract without narrowing the single-event helpers.
 
 ### A061 — Failed Menu.load discards the existing model
 
@@ -3651,8 +3583,6 @@ still describes legacy layout. Font assignment reruns Unicode lookup and drops
 explicit raw-glyph state, which needs a raw-cell/font-order test before claiming
 preserved semantics. Attribute/blink/bright mutations do not rerun font/width
 resolution; alternate-font selector integration remains an open behavior check.
-The equality implementation compares public flags and glyph metadata but lacks
-legacy pixel-graphics short-circuit (A060's additional source-only observation).
 
 CustomCursor uses staged instances and applies through the console API; its
 setters accept zero range/inverted endpoints and apply discards validation
@@ -3665,11 +3595,6 @@ as documented, and is distinct from System.print's VM-local log.
 Theme serialization places lists/strings in Wren slots before later allocating
 objects. UTF-8 encoding assumes validated theme scalar values; producer validation
 was reviewed with theme but malformed in-memory inputs were not injected here.
-Format.bytes/duration call wrenGetSlotDouble without first checking slot type;
-wrong-type behavior depends on the VM's API assertions and remains untested.
-Their floating snprintf output follows numeric locale if another caller changes
-LC_NUMERIC; app only selects LC_CTYPE, so no application locale regression is
-established by this observation. These UI formatters are not INI serialization.
 
 The source-complete core pass is not complete cross-component verification:
 screen/Cell constructors, GC pressure, full-cell/wide glyph mutation, host error

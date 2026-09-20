@@ -5892,7 +5892,7 @@ decimal of precision; negative inputs are clamped to zero.
 
 | `Format.bytes(n)`
 | Format `n` bytes as a String with a `K` / `M` / `G` / `T` / `P`
-  suffix (e.g.  `"1.4M"`, `"100K"`, `"42"`).  Uses 1024-byte units.
+  suffix (e.g.  `"1.4M"`, `"100.0K"`, `"42"`).  Uses 1024-byte units.
   Throws if `n` is not a Number.
 
 | `Format.duration(seconds)`

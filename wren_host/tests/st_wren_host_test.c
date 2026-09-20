@@ -497,6 +497,61 @@ exercise_rectangle_contract(st_wren_host_t *public_host)
 }
 
 static int
+exercise_core_value_contracts(st_wren_host_t *public_host,
+	st_console_t *console)
+{
+	struct st_wren_host *host = public_host;
+	static const char source[] =
+	    "import \"syncterm\" for Cell, Format, Screen, Surface\n"
+	    "var left = Cell.new()\n"
+	    "var right = Cell.new()\n"
+	    "if (!left.eqContent(right)) Fiber.abort(\"equal cells\")\n"
+	    "if (left.eqContent(null) || left.eqContent(1) || left.eqContent(\"cell\") || left.eqContent(Surface.new(1, 1))) Fiber.abort(\"non-Cell equality\")\n"
+	    "right.ch = \"A\"\n"
+	    "if (left.eqContent(right)) Fiber.abort(\"unequal cells\")\n"
+	    "var pixel = Screen.readRect(1, 1, 1, 1).cellAt(0, 0)\n"
+	    "if (!pixel.pixelGraphics || pixel.eqContent(pixel) || left.eqContent(pixel)) Fiber.abort(\"pixel cell equality\")\n"
+	    "var surface = Surface.new(1, 1)\n"
+	    "var below = Fiber.new { surface.iterate(9223372036854774784) }\n"
+	    "var belowResult = below.try()\n"
+	    "if (below.error != null || belowResult != false) Fiber.abort(\"integer below 2^63\")\n"
+	    "var at = Fiber.new { surface.iterate(9223372036854775808) }\n"
+	    "at.try()\n"
+	    "if (at.error == null) Fiber.abort(\"integer at 2^63\")\n"
+	    "var above = Fiber.new { surface.iterate(18446744073709551616) }\n"
+	    "above.try()\n"
+	    "if (above.error == null) Fiber.abort(\"integer above 2^63\")\n"
+	    "var fractional = Fiber.new { surface.iterate(1.5) }\n"
+	    "fractional.try()\n"
+	    "if (fractional.error == null) Fiber.abort(\"fractional integer\")\n"
+	    "var nan = Fiber.new { surface.iterate(Num.nan) }\n"
+	    "nan.try()\n"
+	    "if (nan.error == null) Fiber.abort(\"NaN integer\")\n"
+	    "var infinity = Fiber.new { surface.iterate(Num.infinity) }\n"
+	    "infinity.try()\n"
+	    "if (infinity.error == null) Fiber.abort(\"infinite integer\")\n"
+	    "if (Format.bytes(-1) != \"0\" || Format.bytes(42) != \"42\" || Format.bytes(1536) != \"1.5K\" || Format.bytes(1023.9) != \"1023\") Fiber.abort(\"byte format\")\n"
+	    "if (Format.bytes(Num.nan) != \"0\" || Format.bytes(Num.infinity) != \"16384.0P\") Fiber.abort(\"non-finite byte format\")\n"
+	    "if (Format.duration(-1) != \"0s\" || Format.duration(8.25) != \"8.2s\" || Format.duration(90) != \"1.5m\" || Format.duration(10800) != \"3.0h\") Fiber.abort(\"duration format\")\n"
+	    "if (Format.duration(Num.nan) != \"0s\" || Format.duration(Num.infinity) != \"infy\") Fiber.abort(\"non-finite duration format\")\n"
+	    "var byteType = Fiber.new { Format.bytes(\"1\") }\n"
+	    "byteType.try()\n"
+	    "if (byteType.error == null) Fiber.abort(\"byte type\")\n"
+	    "var durationType = Fiber.new { Format.duration(null) }\n"
+	    "durationType.try()\n"
+	    "if (durationType.error == null) Fiber.abort(\"duration type\")\n";
+
+	CHECK(st_console_set_pixel(console, 0, 0,
+	    ST_PIXEL_COLOR_RGB_VALUE(0x12, 0x34, 0x56)) == 0);
+	if (wrenInterpret(host->vm, "core_value_contract", source)
+	    != WREN_RESULT_SUCCESS) {
+		fprintf(stderr, "core value contract failed: %s\n", host->last_error);
+		return -1;
+	}
+	return 0;
+}
+
+static int
 exercise_cursor_contract(st_wren_host_t *public_host)
 {
 	struct st_wren_host *host = public_host;
@@ -1034,6 +1089,7 @@ main(void)
 	CHECK(exercise_unicode_fallback_contract(host) == 0);
 	CHECK(exercise_surface_cell_retarget_contract(host) == 0);
 	CHECK(exercise_rectangle_contract(host) == 0);
+	CHECK(exercise_core_value_contracts(host, console) == 0);
 	CHECK(exercise_web_refresh_overlay(host, console) == 0);
 	CHECK(exercise_cursor_contract(host) == 0);
 	CHECK(exercise_codepage_contract(host) == 0);

@@ -95,4 +95,12 @@ if(BUILD_TESTING)
 	syncterm_value_convert_warnings(value_convert_test)
 	add_test(NAME value_convert COMMAND value_convert_test)
 	set_tests_properties(value_convert PROPERTIES TIMEOUT 30)
+
+	add_executable(value_estimate_test tests/value_estimate_test.c)
+	target_link_libraries(value_estimate_test PRIVATE syncterm_value_convert)
+	set_target_properties(value_estimate_test PROPERTIES
+		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	syncterm_value_convert_warnings(value_estimate_test)
+	add_test(NAME value_estimate COMMAND value_estimate_test)
+	set_tests_properties(value_estimate PROPERTIES TIMEOUT 30)
 endif()

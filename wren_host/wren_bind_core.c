@@ -16,6 +16,7 @@
 #include "st_theme.h"
 #include "st_time.h"
 #include "st_utf8.h"
+#include "value_convert.h"
 
 #include <limits.h>
 #include <math.h>
@@ -113,12 +114,16 @@ slot_integer(WrenVM *vm, int slot, int64_t minimum, int64_t maximum,
 		return false;
 	}
 	value = wrenGetSlotDouble(vm, slot);
-	if (!isfinite(value) || trunc(value) != value || value < (double)minimum
-	    || value > (double)maximum) {
+	if (!isfinite(value) || trunc(value) != value
+	    || value < -0x1p63 || value >= 0x1p63) {
 		st_wren_abort(vm, "integer is out of range");
 		return false;
 	}
 	*result = (int64_t)value;
+	if (*result < minimum || *result > maximum) {
+		st_wren_abort(vm, "integer is out of range");
+		return false;
+	}
 	return true;
 }
 
@@ -194,6 +199,23 @@ cell_value(WrenVM *vm, int slot)
 
 	if (cell == NULL || cell->storage == NULL
 	    || cell->index >= cell->storage->count)
+		return NULL;
+	return &cell->storage->cells[cell->index];
+}
+
+static struct st_console_cell *
+cell_value_if_present(WrenVM *vm, int slot)
+{
+	struct foreign_header *header;
+	struct foreign_cell *cell;
+
+	if (wrenGetSlotType(vm, slot) != WREN_TYPE_FOREIGN)
+		return NULL;
+	header = wrenGetSlotForeign(vm, slot);
+	if (header == NULL || header->kind != FOREIGN_CELL)
+		return NULL;
+	cell = (struct foreign_cell *)header;
+	if (cell->storage == NULL || cell->index >= cell->storage->count)
 		return NULL;
 	return &cell->storage->cells[cell->index];
 }
@@ -2204,10 +2226,17 @@ static void
 fn_cell_equal(WrenVM *vm)
 {
 	struct st_console_cell *left = cell_value(vm, 0);
-	struct st_console_cell *right = cell_value(vm, 1);
+	struct st_console_cell *right = cell_value_if_present(vm, 1);
 
-	if (left != NULL && right != NULL)
-		wrenSetSlotBool(vm, 0, left->codepoint == right->codepoint
+	if (left == NULL)
+		return;
+	if (right == NULL
+	    || ((left->flags | right->flags) & ST_CONSOLE_CELL_PIXEL_GRAPHICS)
+	    != 0) {
+		wrenSetSlotBool(vm, 0, false);
+		return;
+	}
+	wrenSetSlotBool(vm, 0, left->codepoint == right->codepoint
 		    && left->glyph == right->glyph
 		    && left->foreground == right->foreground
 		    && left->background == right->background
@@ -2547,44 +2576,43 @@ fn_timer_now(WrenVM *vm)
 static void
 fn_format_bytes(WrenVM *vm)
 {
-	double value = wrenGetSlotDouble(vm, 1);
-	static const char *const suffixes[] = {"B", "K", "M", "G", "T", "P"};
-	size_t suffix = 0;
+	double value;
+	uint64_t bytes;
 	char text[64];
 
-	while (fabs(value) >= 1024.0 && suffix + 1 < sizeof(suffixes) /
-	    sizeof(suffixes[0])) {
-		value /= 1024.0;
-		++suffix;
+	if (wrenGetSlotType(vm, 1) != WREN_TYPE_NUM) {
+		st_wren_abort(vm, "Format.bytes expects a Number");
+		return;
 	}
-	(void)snprintf(text, sizeof(text), "%.1f %s", value, suffixes[suffix]);
+	value = wrenGetSlotDouble(vm, 1);
+	if (!(value >= 0.0))
+		value = 0.0;
+	if (value >= 0x1p64)
+		bytes = UINT64_MAX;
+	else
+		bytes = (uint64_t)value;
+	if (!value_format_byte_estimate(text, sizeof(text), bytes)) {
+		st_wren_abort(vm, "Format.bytes value is out of range");
+		return;
+	}
 	wrenSetSlotString(vm, 0, text);
 }
 
 static void
 fn_format_duration(WrenVM *vm)
 {
-	double value = wrenGetSlotDouble(vm, 1);
-	const char *suffix = "s";
+	double value;
 	char text[64];
 
-	if (fabs(value) >= 31557600.0) {
-		value /= 31557600.0;
-		suffix = "y";
+	if (wrenGetSlotType(vm, 1) != WREN_TYPE_NUM) {
+		st_wren_abort(vm, "Format.duration expects a Number");
+		return;
 	}
-	else if (fabs(value) >= 86400.0) {
-		value /= 86400.0;
-		suffix = "d";
+	value = wrenGetSlotDouble(vm, 1);
+	if (!value_format_duration_estimate(text, sizeof(text), value)) {
+		st_wren_abort(vm, "Format.duration value is out of range");
+		return;
 	}
-	else if (fabs(value) >= 3600.0) {
-		value /= 3600.0;
-		suffix = "h";
-	}
-	else if (fabs(value) >= 60.0) {
-		value /= 60.0;
-		suffix = "m";
-	}
-	(void)snprintf(text, sizeof(text), "%.1f %s", value, suffix);
 	wrenSetSlotString(vm, 0, text);
 }
 
