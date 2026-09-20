@@ -187,6 +187,9 @@ if(BUILD_TESTING)
 		ST_CONNECTION_TEST_HAVE_SHELL=$<BOOL:${ST_CONNECTION_TEST_HAVE_SHELL}>)
 	add_test(NAME connection COMMAND st_connection_test)
 	set_tests_properties(connection PROPERTIES TIMEOUT 15)
+	add_test(NAME connection_partial_input
+		COMMAND st_connection_test --partial-input)
+	set_tests_properties(connection_partial_input PROPERTIES TIMEOUT 15)
 
 	add_executable(st_connection_serial_test
 		connection.c connection_serial.c

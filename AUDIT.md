@@ -102,7 +102,7 @@ not the absence of failing tests. New findings will receive stable A-numbers.
 | audio_mixer/ | Reviewed | All local sources/tests/build read; A022 crossfade gap reproduced; device integration assigned to audio; ramp/performance/lifetime gaps below |
 | bbs_list/ | Reviewed | All local sources/header/tests/build read; A033 sanitizer reproduction, A034/A035 source findings; native list/web tests pass, MinGW compile only; integration/fault gaps below |
 | codepage/ | Reviewed | All local source/header/build/test read; exhaustive graphic roundtrip and expanded control/invalid-input tests pass native Clang/GCC; MinGW compile only |
-| connection/ | Reviewed | A014/A015/A018 reproduced; A016 Windows source race; A017 RFC mismatch; shutdown stress and platform runtime gaps documented |
+| connection/ | Reviewed | A015/A018 reproduced; A016 Windows source race; A017 RFC mismatch; shutdown stress and platform runtime gaps documented |
 | console/ | Reviewed | All local implementation/backends, tests, benchmark, build and docs read; local integration dispositions A047–A051, A108/A109 and GUI closure notes; native/isolated tests and platform-only risks distinguished; remaining Wren consumer questions belong to wren_host |
 | dynamic_library/ | Reviewed | A005; native fixtures pass; Windows compiled, not executed |
 | event/ | Reviewed | A004; native repeated tests, MinGW compile; failure-injection limitations below |
@@ -1179,35 +1179,6 @@ on this host, establishing that the omitted coverage can run here.
 Recommendation: leave the probe result undefined on POSIX until the check, and
 explicitly report test skips. No CMake fix made under audit-only authority.
 
-### A014 — Connection input worker silently drops short queue writes
-
-Severity: high. Classification: confirmed data-loss defect, reproduced on
-native Clang and GCC against unchanged production code.
-
-`connection/connection.c:291` calls queue_write once per transport read and
-checks only for a negative return. queue_write deliberately returns a positive
-short count once it has made progress and encounters a full queue, even with
-an infinite timeout (line 91). The worker discards the unqueued suffix and
-reads the next transport chunk into the same buffer. This affects every
-transport using the common worker when the consumer falls behind and a read
-is larger than the remaining queue capacity. It can corrupt terminal output
-and file-transfer byte streams without a reported error.
-
-Reproduction: `test_partial_input_queue` in
-connection/tests/st_connection_test.c uses the internal transport bind hook,
-before workers start, to preload 16,383 bytes into the 16,384-byte input queue.
-The fake transport supplies four more bytes; the test waits until the queue
-is full, drains it, then waits for the remaining bytes. Both native builds
-report "input queue retained 16384 of 16387 bytes" and fail. Queue observations
-use the locked public pending/receive operations, with a bounded polling wait
-rather than assuming a fixed sleep establishes the state. That wait permits a corrected
-worker to block retaining the suffix until the test drains the queue.
-
-Recommendation: have the worker retain and enqueue each received chunk's
-entire suffix before reading again, with shutdown/error handling at each
-iteration. Preserve the public send API's documented short-write behavior;
-changing that contract is not necessary. No implementation change made.
-
 ### A015 — POSIX shell startup forces raw terminal settings
 
 Severity: high behavioral regression. Classification: confirmed source and
@@ -1227,8 +1198,8 @@ opens a shell connection running `printf 'a\nb\n'`. Both Clang and GCC native
 builds return four bytes rather than the expected six-byte `a\r\nb\r\n`.
 The test reads through the public connection API, closes/reaps the child, and
 fails after cleanup. The existing shell test's output contains no newline,
-so it did not detect this difference. This is separate from A014: only four
-bytes enter an otherwise empty input queue.
+so it did not detect this difference. Only four bytes enter an otherwise
+empty input queue, so queue capacity is not involved.
 
 Recommendation: initialize the slave terminal with the legacy interactive
 line-discipline policy and let child applications request raw mode. Verify
@@ -4654,7 +4625,7 @@ are distinct from the passing argument-only normal CTest.
   The public contract explicitly prohibits concurrent close/public operations.
   Callback reentrancy/allowed operations and simultaneous public operations
   need clearer treatment in the remaining integration review.
-- A014 is confirmed. Other core behavior to assess against callers: queued()
+- Other core behavior to assess against callers: queued()
   excludes the output worker's in-flight buffer, close discards pending data,
   read errors are logged but subsequent receive returns zero after draining,
   and remote input EOF stops both directions. These are not yet labeled
@@ -5916,15 +5887,12 @@ successful verification.
   against build/build-gcc serial and io_error libraries both pass. MinGW serial
   test target builds; Windows COM I/O unexecuted. No code/test changes made in
   this component; report only, no commits.
-- Connection initial pass: native Clang/GCC connection tests pass existing
-  raw/RLogin/shell cases then fail the new partial-input regression with
-  16,384/16,387 bytes. connection_serial passes in both builds. MinGW expanded
-  st_connection_test compiles/links; not executed. No production changes or
-  new commits. Remaining component review explicitly pending above.
+- Connection initial pass: connection_serial passes in both native builds.
+  MinGW expanded st_connection_test compiles/links; not executed. Remaining
+  component review explicitly pending above.
 - Connection backend pass: added POSIX shell newline regression; Clang and
-  GCC connection CTest now reports both A015 (4 instead of 6 newline bytes)
-  and A014 (16,384 instead of 16,387 queue bytes). MinGW compiles/links again,
-  without executing ConPTY or Windows tests. No production changes or commits.
+  GCC connection CTest reports A015 (4 instead of 6 newline bytes). MinGW
+  compiles/links, without executing ConPTY or Windows tests.
 - Connection/profile boundary pass: RFC checked for A017; new flow mapping
   regression fails all four choices in native Clang/GCC. Existing profile
   CTests pass both. MinGW builds connection_serial and profile tests, not run.

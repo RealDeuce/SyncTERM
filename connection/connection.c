@@ -288,9 +288,24 @@ input_worker(void *argument)
 			stop_connection(connection, received == 0);
 			break;
 		}
-		if (queue_write(&connection->input, buffer, (size_t)received,
-		    -1) < 0)
-			break;
+		/* A write that fills the queue may return after partial progress.
+		 * Retain that transport chunk until its complete suffix is queued. */
+		for (size_t queued = 0; queued < (size_t)received;) {
+			ssize_t result = queue_write(&connection->input,
+			    buffer + queued, (size_t)received - queued, -1);
+
+			if (result > 0) {
+				queued += (size_t)result;
+				continue;
+			}
+			if (atomic_load(&connection->stopping)
+			    || result == IO_ERROR_NOT_CONNECTED)
+				return 0;
+			st_connection_log(connection, ST_CONNECTION_LOG_ERROR,
+			    "input queue failed (%d)", (int)result);
+			stop_connection(connection, false);
+			return 0;
+		}
 	}
 	return 0;
 }

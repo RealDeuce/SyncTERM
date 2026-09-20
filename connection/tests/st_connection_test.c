@@ -390,6 +390,20 @@ struct partial_input_state {
 	atomic_uint reads;
 };
 
+static int
+wait_for_full_input_queue(st_connection_t *connection)
+{
+	const struct timespec pause = {0, 1000000};
+
+	for (unsigned int i = 0; i < 2000; ++i) {
+		if (st_connection_pending_raw(connection)
+		    == ST_CONNECTION_BUFFER_SIZE)
+			return 0;
+		(void)st_thread_sleep(&pause, NULL);
+	}
+	return 1;
+}
+
 static void
 partial_input_bind(void *state, st_connection_t *connection)
 {
@@ -444,19 +458,15 @@ test_partial_input_queue(void)
 	struct partial_input_state state;
 	st_connection_t *connection = NULL;
 	unsigned char received[ST_CONNECTION_BUFFER_SIZE + 3];
-	const struct timespec pause = {0, 1000000};
 	size_t total = 0;
 
 	atomic_init(&state.reads, 0);
-	CHECK(st_connection_start(&connection, &state, &operations, "audit",
+	CHECK(st_connection_start(&connection, &state, &operations, "test",
 	    NULL, NULL, NULL) == 0);
 	/* Wait for the worker to fill the last queue byte before draining it.
 	 * A correct worker may block here retaining the other three bytes. */
-	for (unsigned int i = 0; i < 2000; ++i) {
-		if (st_connection_pending_raw(connection) == ST_CONNECTION_BUFFER_SIZE)
-			break;
-		(void)st_thread_sleep(&pause, NULL);
-	}
+	CHECK(wait_for_full_input_queue(connection) == 0);
+	CHECK(atomic_load(&state.reads) == 1);
 	while (total < sizeof(received)) {
 		ssize_t count = st_connection_receive_raw(connection, received + total,
 		    sizeof(received) - total, 1000);
@@ -475,13 +485,49 @@ test_partial_input_queue(void)
 	return 0;
 }
 
-int
-main(void)
+static int
+test_partial_input_shutdown(void)
 {
+	static const struct st_connection_transport_ops operations = {
+		.bind = partial_input_bind,
+		.read = partial_input_read,
+		.write = partial_input_write,
+		.destroy = partial_input_destroy,
+	};
+	struct partial_input_state state;
+	st_connection_t *connection = NULL;
+
+	atomic_init(&state.reads, 0);
+	CHECK(st_connection_start(&connection, &state, &operations, "test",
+	    NULL, NULL, NULL) == 0);
+	CHECK(wait_for_full_input_queue(connection) == 0);
+	CHECK(atomic_load(&state.reads) == 1);
+	CHECK(st_connection_close(connection) == 0);
+	return 0;
+}
+
+static int
+test_partial_input(void)
+{
+	int failures = test_partial_input_queue();
+
+	failures += test_partial_input_shutdown();
+	return failures;
+}
+
+int
+main(int argc, char **argv)
+{
+	if (argc == 2 && strcmp(argv[1], "--partial-input") == 0)
+		return test_partial_input() != 0;
+	if (argc != 1) {
+		fprintf(stderr, "usage: %s [--partial-input]\n", argv[0]);
+		return 1;
+	}
 	CHECK(test_raw() == 0);
 	CHECK(test_rlogin() == 0);
 	CHECK(test_shell() == 0);
 	int failures = test_shell_line_discipline();
-	failures += test_partial_input_queue();
+	failures += test_partial_input();
 	return failures != 0;
 }
