@@ -50,6 +50,19 @@ wait_for_output(size_t size)
 }
 
 static int
+configure_modem_settings(void)
+{
+	st_settings_dispose(&st_settings);
+	st_settings_init(&st_settings);
+	st_settings.modem_device = strdup("fake-modem");
+	CHECK(st_settings.modem_device != NULL);
+	st_settings.modem_rate = 57600;
+	strcpy(st_settings.modem_init_string, "ATZ");
+	strcpy(st_settings.modem_dial_string, "ATDT");
+	return 0;
+}
+
+static int
 test_serial(void)
 {
 	struct st_profile profile;
@@ -65,7 +78,7 @@ test_serial(void)
 	profile.data_bits = 7;
 	profile.stop_bits = 1;
 	profile.parity = ST_PROFILE_PARITY_EVEN;
-	profile.flow_control = SERIAL_FLOW_CONTROL_XON_XOFF;
+	profile.flow_control = ST_PROFILE_FLOW_XON_XOFF;
 	strcpy(profile.address, "fake-serial");
 	CHECK(st_connection_connect_serial(&connection, &profile, NULL, NULL) == 0);
 	config = st_connection_serial_fake_config();
@@ -109,8 +122,7 @@ test_three_wire(void)
 	profile.connection_type = ST_CONNECTION_SERIAL_3WIRE;
 	profile.data_bits = 8;
 	profile.stop_bits = 1;
-	profile.flow_control = SERIAL_FLOW_CONTROL_RTS_CTS
-	    | SERIAL_FLOW_CONTROL_XON_XOFF;
+	profile.flow_control = ST_PROFILE_FLOW_RTS_CTS_XON_XOFF;
 	strcpy(profile.address, "fake-serial");
 	CHECK(st_connection_connect_serial(&connection, &profile, NULL, NULL) == 0);
 	config = st_connection_serial_fake_config();
@@ -132,13 +144,7 @@ test_modem(void)
 	size_t output_size;
 
 	st_connection_serial_fake_reset(SERIAL_MODEM_LINE_DCD);
-	st_settings_dispose(&st_settings);
-	st_settings_init(&st_settings);
-	st_settings.modem_device = strdup("fake-modem");
-	CHECK(st_settings.modem_device != NULL);
-	st_settings.modem_rate = 57600;
-	strcpy(st_settings.modem_init_string, "ATZ");
-	strcpy(st_settings.modem_dial_string, "ATDT");
+	CHECK(configure_modem_settings() == 0);
 	st_profile_init(&profile);
 	profile.connection_type = ST_CONNECTION_MODEM;
 	profile.data_bits = 8;
@@ -174,41 +180,122 @@ test_modem(void)
 }
 
 static int
+test_flow_control_case(int connection_type, int profile_flow,
+	unsigned serial_flow)
+{
+	struct st_profile profile;
+	struct serial_config config;
+	st_connection_t *connection = NULL;
+	int status;
+
+	st_connection_serial_fake_reset(connection_type == ST_CONNECTION_MODEM
+	    ? SERIAL_MODEM_LINE_DCD : 0);
+	st_profile_init(&profile);
+	profile.connection_type = connection_type;
+	profile.flow_control = profile_flow;
+	strcpy(profile.address, connection_type == ST_CONNECTION_MODEM
+	    ? "555" : "fake-serial");
+	status = connection_type == ST_CONNECTION_MODEM
+	    ? st_connection_connect_modem(&connection, &profile, NULL, NULL)
+	    : st_connection_connect_serial(&connection, &profile, NULL, NULL);
+	CHECK(status == 0);
+	config = st_connection_serial_fake_config();
+	CHECK(config.flow_control == serial_flow);
+	if (connection_type == ST_CONNECTION_SERIAL_3WIRE)
+		CHECK(!st_connection_serial_fake_rts());
+	CHECK(st_connection_close(connection) == 0);
+	st_profile_dispose(&profile);
+	return 0;
+}
+
+static int
 test_profile_flow_mapping(void)
 {
 	static const struct {
 		int profile;
 		unsigned serial;
+		unsigned three_wire;
 	} cases[] = {
-		{ST_PROFILE_FLOW_RTS_CTS, SERIAL_FLOW_CONTROL_RTS_CTS},
-		{ST_PROFILE_FLOW_XON_XOFF, SERIAL_FLOW_CONTROL_XON_XOFF},
+		{ST_PROFILE_FLOW_RTS_CTS, SERIAL_FLOW_CONTROL_RTS_CTS,
+		    SERIAL_FLOW_CONTROL_NONE},
+		{ST_PROFILE_FLOW_XON_XOFF, SERIAL_FLOW_CONTROL_XON_XOFF,
+		    SERIAL_FLOW_CONTROL_XON_XOFF},
 		{ST_PROFILE_FLOW_RTS_CTS_XON_XOFF,
-		    SERIAL_FLOW_CONTROL_RTS_CTS | SERIAL_FLOW_CONTROL_XON_XOFF},
-		{ST_PROFILE_FLOW_NONE, SERIAL_FLOW_CONTROL_NONE},
+		    SERIAL_FLOW_CONTROL_RTS_CTS | SERIAL_FLOW_CONTROL_XON_XOFF,
+		    SERIAL_FLOW_CONTROL_XON_XOFF},
+		{ST_PROFILE_FLOW_NONE, SERIAL_FLOW_CONTROL_NONE,
+		    SERIAL_FLOW_CONTROL_NONE},
 	};
-	int failures = 0;
 
+	CHECK(configure_modem_settings() == 0);
 	for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
-		struct st_profile profile;
-		struct serial_config config;
-		st_connection_t *connection = NULL;
+		CHECK(test_flow_control_case(ST_CONNECTION_SERIAL,
+		    cases[i].profile, cases[i].serial) == 0);
+		CHECK(test_flow_control_case(ST_CONNECTION_SERIAL_3WIRE,
+		    cases[i].profile, cases[i].three_wire) == 0);
+		CHECK(test_flow_control_case(ST_CONNECTION_MODEM,
+		    cases[i].profile, cases[i].serial) == 0);
+	}
+	st_settings_dispose(&st_settings);
+	return 0;
+}
 
-		st_connection_serial_fake_reset(0);
-		st_profile_init(&profile);
-		profile.connection_type = ST_CONNECTION_SERIAL;
-		profile.flow_control = cases[i].profile;
-		strcpy(profile.address, "fake-serial");
-		CHECK(st_connection_connect_serial(&connection, &profile, NULL, NULL) == 0);
-		config = st_connection_serial_fake_config();
-		CHECK(st_connection_close(connection) == 0);
-		st_profile_dispose(&profile);
-		if (config.flow_control != cases[i].serial) {
-			fprintf(stderr, "profile flow %d: got serial flags %u, expected %u\n",
-			    cases[i].profile, config.flow_control, cases[i].serial);
-			++failures;
+static int
+test_invalid_flow_control(void)
+{
+	static const int connection_types[] = {
+		ST_CONNECTION_SERIAL,
+		ST_CONNECTION_SERIAL_3WIRE,
+		ST_CONNECTION_MODEM,
+	};
+	static const int invalid_flows[] = {
+		ST_PROFILE_FLOW_RTS_CTS - 1,
+		ST_PROFILE_FLOW_NONE + 1,
+	};
+
+	CHECK(configure_modem_settings() == 0);
+	for (size_t i = 0;
+	    i < sizeof(connection_types) / sizeof(connection_types[0]); ++i) {
+		for (size_t j = 0;
+		    j < sizeof(invalid_flows) / sizeof(invalid_flows[0]); ++j) {
+			struct st_profile profile;
+			struct st_connection_error error;
+			struct setup_state setup_state = {0,
+			    ST_CONNECTION_SETUP_NONE};
+			struct st_connection_hooks hooks = {
+				.setup = setup,
+				.setup_context = &setup_state,
+			};
+			st_connection_t *connection =
+			    (st_connection_t *)(uintptr_t)1;
+			int status;
+
+			st_connection_serial_fake_reset(0);
+			st_profile_init(&profile);
+			profile.connection_type = connection_types[i];
+			profile.flow_control = invalid_flows[j];
+			strcpy(profile.address,
+			    connection_types[i] == ST_CONNECTION_MODEM
+			    ? "555" : "fake-serial");
+			if (connection_types[i] == ST_CONNECTION_MODEM)
+				status = st_connection_connect_modem(&connection,
+				    &profile, &hooks, &error);
+			else
+				status = st_connection_connect_serial(&connection,
+				    &profile, &hooks, &error);
+			CHECK(status == IO_ERROR_INVALID_ARGUMENT);
+			CHECK(connection == (st_connection_t *)(uintptr_t)1);
+			CHECK(error.code == IO_ERROR_INVALID_ARGUMENT);
+			CHECK(error.phase == ST_CONNECTION_SETUP_NONE);
+			CHECK(error.detail[0] != '\0');
+			CHECK(setup_state.phases == 0);
+			CHECK(st_connection_serial_fake_open_attempts() == 0);
+			CHECK(!st_connection_serial_fake_open());
+			st_profile_dispose(&profile);
 		}
 	}
-	return failures != 0;
+	st_settings_dispose(&st_settings);
+	return 0;
 }
 
 int
@@ -217,7 +304,8 @@ main(void)
 	CHECK(test_serial() == 0);
 	CHECK(test_three_wire() == 0);
 	CHECK(test_modem() == 0);
-	int failure = test_profile_flow_mapping();
+	CHECK(test_profile_flow_mapping() == 0);
+	CHECK(test_invalid_flow_control() == 0);
 	st_connection_serial_fake_dispose();
-	return failure;
+	return 0;
 }

@@ -7,8 +7,8 @@ recommended remedies. Severity does not imply exploitability; source-confirmed
 risks and reproduced failures must be distinguished using those entries.
 No remediation is authorized by this report.
 
-The audit is complete, not the implementation: **87 outstanding findings**
-comprise 10 high, 48 medium, 27 low and 2 unresolved design/performance
+The audit is complete, not the implementation: **86 outstanding findings**
+comprise 9 high, 48 medium, 27 low and 2 unresolved design/performance
 concerns.
 This is not a count of exploitable vulnerabilities or reproduced failures.
 All 47 tracked source directories and 12 root files are covered by the
@@ -19,7 +19,7 @@ Most urgent follow-up groups, subject to separate authorization:
 
 - Memory/resource safety: A027, A030 and A034–A036.
 - Authentication and write-policy correctness: A038 and A062.
-- Data preservation and required compatibility: A015–A019 and the
+- Data preservation and required compatibility: A015–A017, A019 and the
   mode-specific rendering/persistence findings.
 
 Start with the detailed evidence and regression tests for each finding;
@@ -38,7 +38,7 @@ consumer boundaries, not evidence that the entire decomposition is wrong.
 
 | Boundary | Evidence and assessment | Recommended direction, not authorized work |
 | --- | --- | --- |
-| Native I/O → portable result | A018 casts unrelated flow-control enums; A006 loses errno during cleanup | Preserve error ownership and translate enum semantics explicitly |
+| Native I/O → portable result | A006 loses errno during cleanup | Preserve error ownership across cleanup |
 | Mutable model → persistence | A019–A020, A025–A032, A061–A065, A100–A102 show round-trip, failure-atomicity and handle-contract mismatches | Define when state changes become visible and when handles expire; test failure paths at the public boundary |
 | Script declarations → bound implementation | A054–A055, A096 and A098–A099 show unavailable or approximated contracts | Keep capability scope explicit and test the shipped scripts against the actual host |
 | Public target → independent consumer | A002, A013, A047, A066 expose probe/dependency gaps | Probe the real declaration/link environment and test minimal consumers |
@@ -79,7 +79,7 @@ No new blanket GC, contention or scaling-performance diagnosis is made from
 source shape. The source and test inventory must retain those measurement
 limits in the final report.
 
-The current TODO documents contain 87 outstanding numbered findings. A007 and A011 are
+The current TODO documents contain 86 outstanding numbered findings. A007 and A011 are
 unresolved design/performance concerns, not confirmed runtime defects. Missing
 features and documentation errors are also explicitly distinguished from
 implementation failures in the detailed ledger.
@@ -101,7 +101,6 @@ implementation failures in the detailed ledger.
 | A015 | high behavioral regression | POSIX shell startup forces raw terminal settings |
 | A016 | medium | ConPTY atomic handles do not protect active users from close |
 | A017 | medium | RLogin urgent flush clears the wrong direction |
-| A018 | high | Profile flow-control choices are cast to unrelated serial flags |
 | A019 | high | INI insertion after an unterminated line corrupts serialization |
 | A020 | medium | INI setter accepts keys that its parser cannot recognize |
 | A021 | medium | Compact date-only branch is shadowed by epoch parsing |
@@ -180,7 +179,7 @@ implementation failures in the detailed ledger.
 
 `cmake --build build -j4` succeeds. The subsequent command
 `ctest --test-dir build --output-on-failure --timeout 30` registers 72 tests:
-**63 pass, 8 fail and 1 Wayland test skips**. X11 passes on the available test
+**64 pass, 7 fail and 1 Wayland test skips**. X11 passes on the available test
 display; SDL uses its CMake-configured dummy video driver. This is native
 verification, not Windows/macOS execution or comprehensive backend coverage.
 
@@ -193,7 +192,6 @@ verification, not Windows/macOS execution or comprehensive backend coverage.
 | theme | A024–A026 catalog errors and edit persistence |
 | st_audio_mixer | A022 partition-dependent crossfade |
 | connection | A015 shell newline handling |
-| connection_serial | A018 flow-control enum/flag mismatch |
 
 These results do not include the standalone audit regression executables or
 the extra isolated Wren script cases documented in AUDIT.md. Some registered

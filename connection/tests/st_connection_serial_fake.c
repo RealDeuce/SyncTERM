@@ -27,6 +27,7 @@ static struct {
 	uint8_t output[4096];
 	size_t input_count;
 	size_t output_count;
+	size_t open_attempts;
 	unsigned lines;
 	bool initialized;
 	bool open;
@@ -71,6 +72,7 @@ st_connection_serial_fake_reset(unsigned lines)
 	fake.config = (struct serial_config){0};
 	fake.input_count = 0;
 	fake.output_count = 0;
+	fake.open_attempts = 0;
 	fake.lines = lines;
 	fake.open = false;
 	fake.dtr = false;
@@ -139,6 +141,17 @@ st_connection_serial_fake_open(void)
 	return result;
 }
 
+size_t
+st_connection_serial_fake_open_attempts(void)
+{
+	size_t result;
+
+	(void)st_mutex_lock(&fake.mutex);
+	result = fake.open_attempts;
+	(void)st_mutex_unlock(&fake.mutex);
+	return result;
+}
+
 bool
 st_connection_serial_fake_dtr(void)
 {
@@ -167,6 +180,7 @@ serial_port_open(serial_port_t **result, const char *device)
 	if (result == NULL || device == NULL || device[0] == '\0')
 		return IO_ERROR_INVALID_ARGUMENT;
 	(void)st_mutex_lock(&fake.mutex);
+	++fake.open_attempts;
 	if (fake.open) {
 		(void)st_mutex_unlock(&fake.mutex);
 		return IO_ERROR_BUSY;

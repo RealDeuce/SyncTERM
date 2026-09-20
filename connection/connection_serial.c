@@ -218,8 +218,29 @@ wait_for_modem(serial_port_t *port, const char *command,
 }
 
 static int
+profile_flow_control(int profile_flow, unsigned *serial_flow)
+{
+	switch (profile_flow) {
+		case ST_PROFILE_FLOW_RTS_CTS:
+			*serial_flow = SERIAL_FLOW_CONTROL_RTS_CTS;
+			return 0;
+		case ST_PROFILE_FLOW_XON_XOFF:
+			*serial_flow = SERIAL_FLOW_CONTROL_XON_XOFF;
+			return 0;
+		case ST_PROFILE_FLOW_RTS_CTS_XON_XOFF:
+			*serial_flow = SERIAL_FLOW_CONTROL_RTS_CTS
+			    | SERIAL_FLOW_CONTROL_XON_XOFF;
+			return 0;
+		case ST_PROFILE_FLOW_NONE:
+			*serial_flow = SERIAL_FLOW_CONTROL_NONE;
+			return 0;
+	}
+	return IO_ERROR_INVALID_ARGUMENT;
+}
+
+static int
 configure_port(serial_port_t *port, const struct st_profile *profile,
-	uint32_t baud_rate, bool three_wire)
+	uint32_t baud_rate, unsigned flow_control)
 {
 	struct serial_config config;
 
@@ -227,9 +248,7 @@ configure_port(serial_port_t *port, const struct st_profile *profile,
 	config.data_bits = profile->data_bits != 0 ? profile->data_bits : 8;
 	config.stop_bits = profile->stop_bits != 0 ? profile->stop_bits : 1;
 	config.parity = profile_parity(profile->parity);
-	config.flow_control = (unsigned)profile->flow_control;
-	if (three_wire)
-		config.flow_control &= ~SERIAL_FLOW_CONTROL_RTS_CTS;
+	config.flow_control = flow_control;
 	return serial_port_configure(port, &config);
 }
 
@@ -241,13 +260,20 @@ connect_serial_common(st_connection_t **result,
 	struct serial_transport *transport;
 	serial_port_t *port;
 	const char *device;
+	unsigned flow_control;
 	bool three_wire;
 	int status;
 
 	if (result == NULL || profile == NULL)
 		return st_connection_fail(error, IO_ERROR_INVALID_ARGUMENT,
 		    ST_CONNECTION_SETUP_NONE, "invalid serial profile");
+	status = profile_flow_control(profile->flow_control, &flow_control);
+	if (status != 0)
+		return st_connection_fail(error, status,
+		    ST_CONNECTION_SETUP_NONE, "invalid serial flow control");
 	three_wire = profile->connection_type == ST_CONNECTION_SERIAL_3WIRE;
+	if (three_wire)
+		flow_control &= ~SERIAL_FLOW_CONTROL_RTS_CTS;
 	device = modem ? st_settings.modem_device : profile->address;
 	if (device == NULL || device[0] == '\0')
 		return st_connection_fail(error, IO_ERROR_INVALID_ARGUMENT,
@@ -263,7 +289,7 @@ connect_serial_common(st_connection_t **result,
 		    ST_CONNECTION_SETUP_OPENING_DEVICE,
 		    "unable to open serial device");
 	status = configure_port(port, profile,
-	    modem ? st_settings.modem_rate : profile->bps_rate, three_wire);
+	    modem ? st_settings.modem_rate : profile->bps_rate, flow_control);
 	if (status == 0 && three_wire)
 		status = serial_port_set_rts(port, false);
 	if (status == 0)

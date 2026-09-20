@@ -47,7 +47,7 @@ AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 | Correctness, ownership/lifetime and concurrency | Component lifecycle/error reviews, normal and injected tests, explicit GUI/host ownership closure; source and reproduced failures are qualified individually. A016, A023, A027/A035/A036 and A108/A109 illustrate distinct lifetime/error risks. |
 | Portability and all platform backends | POSIX/Windows sources and every audio/console backend reviewed; native, MinGW compile-only and unavailable runtime evidence kept separate. Capability probes/standalone targets reviewed. No unsupported platform pass inferred. |
 | Performance | Scaler/renderer benchmark source and measured cases reviewed, including common mixed-axis scaling; A011/A023 and backend pacing risks distinguished from measured regressions. Reconstructed legacy benchmark limitations explicitly recorded. |
-| Required legacy behavior | Read-only comparisons cover fonts/catalog/maps, modes, palette capacity, Prestel versus Mode 7, command line, console/input and settings behavior; A015/A018/A032 plus explicit parity limits. Frozen CTerm chapter cmp succeeds. |
+| Required legacy behavior | Read-only comparisons cover fonts/catalog/maps, modes, palette capacity, Prestel versus Mode 7, command line, console/input and settings behavior; A015/A032 plus explicit parity limits. Frozen CTerm chapter cmp succeeds. |
 | Wren scripts and bindings | Complete local source/signature/manual reviews; isolated shipped-script suites and host fixtures; host closure A100–A114. Connected/SFTP production integration missing from this application is reported, not invented or silently counted as working. |
 | Build logic, generators and documentation | Root/component CMake and generators reviewed; standalone/probe failures recorded; pinned Unicode/font regeneration and table comparisons documented; root manuals/license/development guidance covered. Wren VM vendored internals limited to integration boundaries as requested. |
 | Inventory and consolidated findings | 93 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 13 high, 51 medium, 27 low, 2 unresolved concerns; not all runtime reproductions. |
@@ -102,7 +102,7 @@ not the absence of failing tests. New findings will receive stable A-numbers.
 | audio_mixer/ | Reviewed | All local sources/tests/build read; A022 crossfade gap reproduced; device integration assigned to audio; ramp/performance/lifetime gaps below |
 | bbs_list/ | Reviewed | All local sources/header/tests/build read; A033 sanitizer reproduction, A034/A035 source findings; native list/web tests pass, MinGW compile only; integration/fault gaps below |
 | codepage/ | Reviewed | All local source/header/build/test read; exhaustive graphic roundtrip and expanded control/invalid-input tests pass native Clang/GCC; MinGW compile only |
-| connection/ | Reviewed | A015/A018 reproduced; A016 Windows source race; A017 RFC mismatch; shutdown stress and platform runtime gaps documented |
+| connection/ | Reviewed | A015 reproduced; A016 Windows source race; A017 RFC mismatch; shutdown stress and platform runtime gaps documented |
 | console/ | Reviewed | All local implementation/backends, tests, benchmark, build and docs read; local integration dispositions A047–A051, A108/A109 and GUI closure notes; native/isolated tests and platform-only risks distinguished; remaining Wren consumer questions belong to wren_host |
 | dynamic_library/ | Reviewed | A005; native fixtures pass; Windows compiled, not executed |
 | event/ | Reviewed | A004; native repeated tests, MinGW compile; failure-injection limitations below |
@@ -117,7 +117,7 @@ not the absence of failing tests. New findings will receive stable A-numbers.
 | name_value_list/ | Reviewed | Ownership/sorted contracts checked; allocation injection remains a limitation |
 | path/ | Reviewed | A008 conditional Windows defect; native boundary tests pass, MinGW compile |
 | pixels/ | Reviewed | All local API/implementation/filter/build/docs/tests/benchmark read; expanded upscale edge tests pass native/ASan/UBSan, MinGW compile; measurement limits below |
-| profile/ | Reviewed | Ownership/copy source and native tests; A018 consumer enum mismatch; allocation-failure injection remains a test gap |
+| profile/ | Reviewed | Ownership/copy source and native tests; allocation-failure injection remains a test gap |
 | scripts/ | Reviewed | All current script implementations/tests read, including main menu, editors, REPL, common bindings module and self-test driver; isolated suite results and runtime/cross-script gaps documented below; older remaining-source lists superseded |
 | semaphore/ | Reviewed | A004; native repeated tests, MinGW compile; failure-injection limitations below |
 | serial/ | Reviewed | A013 disables normal PTY coverage; manually enabled native PTY tests pass; Windows compile only |
@@ -1228,38 +1228,6 @@ for data before the urgent mark and any consumer-owned buffering, without
 discarding outbound user input; answer each window request. Preserve the
 explicit BBS username/password conventions separately from protocol fixes.
 Source: [RFC 1282](https://www.rfc-editor.org/rfc/rfc1282.html). No code changed.
-
-### A018 — Profile flow-control choices are cast to unrelated serial flags
-
-Severity: high. Classification: confirmed interface integration defect,
-reproduced using the serial test provider on native Clang and GCC.
-
-`connection/connection_serial.c:230` casts profile->flow_control directly to
-the serial_config bitmask. The two declarations have different meanings:
-
-| Profile choice/value | Required serial flags | Actual serial flags |
-| --- | --- | --- |
-| RTS/CTS = 0 | RTS/CTS = 1 | None = 0 |
-| XON/XOFF = 1 | XON/XOFF = 4 | RTS/CTS = 1 |
-| Both = 2 | RTS/CTS + XON/XOFF = 5 | DTR/DSR = 2 |
-| None = 3 | None = 0 | RTS/CTS + DTR/DSR = 3 |
-
-This applies to serial and modem setup; three-wire additionally masks the
-wrongly translated result. The default profile choice (RTS/CTS) therefore
-silently disables flow control. Real driver acceptance of unwanted DTR/DSR
-depends on platform capability, but the incorrect flags are deterministic.
-
-Reproduction: new test_profile_flow_mapping in
-connection/tests/st_connection_serial_test.c sets all four ST_PROFILE_FLOW_*
-choices, inspects the serial configuration delivered to the fake, then closes
-each connection. Both native toolchains fail all four mappings. Existing
-tests assigned SERIAL_FLOW_CONTROL_* values directly to the profile field,
-bypassing the public model and masking this bug.
-
-Recommendation: explicitly translate the profile enum to the serial bitmask
-and reject unknown choices; apply the three-wire restriction after translation.
-Test all choices through profile declarations, including modem and three-wire
-paths. No production or public interface change made.
 
 ### A019 — INI insertion after an unterminated line corrupts serialization
 
@@ -4661,8 +4629,7 @@ are distinct from the passing argument-only normal CTest.
 
 - Read every local file: public model, implementation, CMake and existing test.
   The component is cohesive and depends only on string duplication; connection
-  and persistence consumers interpret the model, not vice versa. Shared enum
-  values must not be assumed identical to lower-level APIs (A018).
+  and persistence consumers interpret the model, not vice versa.
 - Six path fields are owned; other strings are fixed arrays. Copy builds a
   temporary with all owned pointers cleared, duplicates each path, disposes
   partial state on failure, then replaces the initialized destination. The
@@ -5865,11 +5832,10 @@ successful verification.
 - Connection backend pass: added POSIX shell newline regression; Clang and
   GCC connection CTest reports A015 (4 instead of 6 newline bytes). MinGW
   compiles/links, without executing ConPTY or Windows tests.
-- Connection/profile boundary pass: RFC checked for A017; new flow mapping
-  regression fails all four choices in native Clang/GCC. Existing profile
+- Connection/profile boundary pass: RFC checked for A017. Existing profile
   CTests pass both. MinGW builds connection_serial and profile tests, not run.
-  Only test/report changes, no commits. Connection and profile source coverage
-  complete with documented stress/error-injection/platform gaps.
+  Connection and profile source coverage is complete with documented
+  stress/error-injection/platform gaps.
 - INI initial pass: existing ini CTest passes Clang/GCC; expanded ini_interface
   fails both unterminated-line insertion regressions after earlier tests pass.
   MinGW compiles/links expanded test, not run. Source implementation unchanged;

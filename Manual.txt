@@ -634,9 +634,10 @@ Direct communication with a serial port.
 
 3-wire::
 Serial, but with only transmit and receive.  In this mode, there
-is no way to detect if the remote has hung up and there is no flow
-control, so bytes can easily be lost.  This is primarily used for
-communicating with embedded hardware, and not BBSs.
+is no way to detect if the remote has hung up and RTS/CTS hardware flow
+control is unavailable.  XON/XOFF software flow control can still be used;
+without it, bytes can easily be lost.  This is primarily used for communicating
+with embedded hardware, and not BBSs.
 
 Shell::
 Runs a shell in the terminal.
@@ -711,7 +712,8 @@ port number value will be updated as well.
 
 Flow Control (Modem, Serial, and 3-wire)::
 The type of flow control
-to use. RTS/CTS, XON/XOFF, Both, or None
+to use. RTS/CTS, XON/XOFF, Both, or None.  For 3-wire connections, only
+XON/XOFF or None can take effect; any RTS/CTS component is ignored.
 
 Stop Bits (Modem, Serial, and 3-wire)::
 The number of stop bits to use.

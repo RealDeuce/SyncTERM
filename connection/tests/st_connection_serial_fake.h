@@ -18,6 +18,7 @@ void st_connection_serial_fake_set_lines(unsigned lines);
 size_t st_connection_serial_fake_output(void *data, size_t capacity);
 struct serial_config st_connection_serial_fake_config(void);
 bool st_connection_serial_fake_open(void);
+size_t st_connection_serial_fake_open_attempts(void);
 bool st_connection_serial_fake_dtr(void);
 bool st_connection_serial_fake_rts(void);
 
