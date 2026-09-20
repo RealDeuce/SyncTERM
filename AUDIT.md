@@ -35,9 +35,9 @@ repository-wide coverage. The legacy tree is read-only reference.
 
 ## Final audit disposition
 
-The repository-wide audit is complete. This is not an implementation approval,
-release certification or claim that findings have been fixed. The consolidated
-API/design assessment, priority groups and all 84 outstanding finding summaries are in
+The repository-wide audit is complete. This is not an implementation approval
+or release certification. The consolidated API/design assessment, priority
+groups and all 79 outstanding finding summaries are in
 AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 
 | Objective requirement | Authoritative evidence and disposition |
@@ -47,12 +47,11 @@ AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 | Correctness, ownership/lifetime and concurrency | Component lifecycle/error reviews, normal and injected tests, explicit GUI/host ownership closure; source and reproduced failures are qualified individually. A016, A023, A027/A035/A036 and A108/A109 illustrate distinct lifetime/error risks. |
 | Portability and all platform backends | POSIX/Windows sources and every audio/console backend reviewed; native, MinGW compile-only and unavailable runtime evidence kept separate. Capability probes/standalone targets reviewed. No unsupported platform pass inferred. |
 | Performance | Scaler/renderer benchmark source and measured cases reviewed, including common mixed-axis scaling; A011/A023 and backend pacing risks distinguished from measured regressions. Reconstructed legacy benchmark limitations explicitly recorded. |
-| Required legacy behavior | Read-only comparisons cover fonts/catalog/maps, modes, palette capacity, Prestel versus Mode 7, command line, console/input and settings behavior; A032 plus explicit parity limits. Frozen CTerm chapter cmp succeeds. |
+| Required legacy behavior | Read-only comparisons cover fonts/catalog/maps, modes, palette capacity, Prestel versus Mode 7, command line, console/input and settings behavior, plus explicit parity limits. Frozen CTerm chapter cmp succeeds. |
 | Wren scripts and bindings | Complete local source/signature/manual reviews; isolated shipped-script suites and host fixtures; host closure A100–A114. Connected/SFTP production integration missing from this application is reported, not invented or silently counted as working. |
 | Build logic, generators and documentation | Root/component CMake and generators reviewed; standalone/probe failures recorded; pinned Unicode/font regeneration and table comparisons documented; root manuals/license/development guidance covered. Wren VM vendored internals limited to integration boundaries as requested. |
-| Inventory and consolidated findings | 84 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 8 high, 47 medium, 27 low, 2 unresolved concerns; not all runtime reproductions. |
-| Relevant tests where practical | Fresh complete native build succeeds. Final selected CTest run: 67 executed, 58 pass, 9 fail, 5.71 seconds; failure matrix in index. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
-| Only tests/reports changed; no implementation remediation | Current status: 30 modified tracked tests, 23 untracked tests, 2 untracked reports; no staged files. Filtered worktree inspection finds no other changes. Baseline-to-current non-test difference is pre-existing str_list/CMakeLists.txt, unchanged since fdeab0d. No final-consolidation commits/push/reverts. |
+| Inventory and consolidated findings | 79 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 6 high, 44 medium, 27 low, 2 unresolved concerns; not all runtime reproductions. |
+| Relevant tests where practical | A complete native build succeeds. The latest 72-test run has a stable disposition of 67 pass, 4 fail and 1 Wayland skip; the sequence-dependent X11 failure in the full run passes in isolation. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
 | Explicit uncertainty | Each component records unavailable platforms, unexecuted failure paths and measurement limits; A007/A011 unresolved. Source-level risks are not called verified crashes. These are audit outcomes, not claims of implementation correctness. |
 
 Historical pending-source lists below are superseded by subsequent full reads,
@@ -121,7 +120,7 @@ not the absence of failing tests. New findings will receive stable A-numbers.
 | scripts/ | Reviewed | All current script implementations/tests read, including main menu, editors, REPL, common bindings module and self-test driver; isolated suite results and runtime/cross-script gaps documented below; older remaining-source lists superseded |
 | semaphore/ | Reviewed | A004; native repeated tests, MinGW compile; failure-injection limitations below |
 | serial/ | Reviewed | A013 disables normal PTY coverage; manually enabled native PTY tests pass; Windows compile only |
-| settings/ | Reviewed | All local sources/header/tests/build read; A029/A030/A032 reproduced, A031 source-confirmed write risk; global caller discipline and failure injection gaps below |
+| settings/ | Reviewed | All local sources/header/tests/build read; A031 is a source-confirmed write risk; global caller discipline and failure injection gaps remain below |
 | socket/ | Reviewed | Loopback native tests pass; Windows compile only |
 | str_list/ | Reviewed | Native failure injection and alias-input cases pass; MinGW compile |
 | string_compat/ | Reviewed | Native and opt-in fallback tests pass; MinGW compile |
@@ -371,9 +370,8 @@ followed by registration failure also cannot be interpreted as no mutation.
 Recommendation: reconcile the native/editor contract and explicitly define
 the separate persistence and live-slot update boundaries, then test unrelated
 settings preservation and failures between those stages. This is not a
-recommendation to weaken font bitmap validation in the renderer. A029 remains
-the separately reproduced empty-name persistence defect. These details close
-the earlier custom-font source questions with explicit source-only evidence;
+recommendation to weaken font bitmap validation in the renderer. These details
+close the earlier custom-font source questions with explicit source-only evidence;
 fault injection, filesystem replacement races and real font rendering remain
 verification limits, not successful tests.
 
@@ -946,8 +944,8 @@ Additional documentation reconciliation under A088/A090:
 
 The documented short-read SFTP contract supports A083: a successful read is
 explicitly up-to-count, not an exact chunk fill. The settings failure/stale
-snapshot claims correspond to A063–A065, ClassicTheme fallback to A032, and
-UI empty selection/tab order/Markdown semantics to A071/A074/A077/A078.
+snapshot claims correspond to A063–A065; UI empty selection, tab order and
+Markdown semantics correspond to A071/A074/A077/A078.
 Repeated promises were not assigned duplicate defect numbers. Full-source
 documentation coverage does not settle remaining app/console/host integration
 follow-ups or constitute final consolidated audit completion.
@@ -1335,55 +1333,16 @@ size query and read are one possible trigger; ordinary complete reads close.
 Recommended remedy: close the stream on every read outcome while preserving
 the primary failure. Add controlled short-read/error-path coverage.
 
-### A029 — An accepted empty font rename disappears on settings reload
-
-Severity: medium. Classification: confirmed persistence defect, reproduced.
-
-`settings/st_settings.c:361` explicitly permits an empty replacement font name.
-Saving encodes it as [Font:], but `settings/st_settings_store.c:421` ignores
-that section on load. The font record/path is lost from the loaded model even
-though rename and save returned success. The next font rewrite can remove its
-remaining on-disk section. `test_empty_font_name` adds a named font with a path,
-renames it empty, saves and reloads: count becomes zero instead of one.
-Reproduced with native Clang/GCC; MinGW compile/link only.
-
-Wren.adoc's MenuFont.name contract explicitly permits empty replacement names,
-so silently tightening the public behavior is not an approved remedy. Preserve
-the supported record across save/load, or obtain explicit authorization for a
-contract change. Test also allows an explicit rejection rather than data loss;
-that allowance does not by itself establish Wren compatibility.
-
-### A030 — Unbounded numeric theme colors reach RGB array indexing
-
-Severity: high. Classification: confirmed validation defect; invalid input
-propagation reproduced, subsequent out-of-bounds access established by source.
-
-`settings/st_settings_store.c:344` and adjacent color loads use
-ini_section_get_enum_names, whose implementation (`ini/ini.c:787`) intentionally
-also returns arbitrary parseable numeric values without bounding to name_count.
-The unsigned settings fields therefore accept FrameColour=1000000. In
-`theme/st_theme.c:406`, classic_colour only handles the exact default sentinel;
-set_complete_style then indexes its 16-entry rgb array at lines 383-384 with
-the supplied foreground/background. Theme manager creation always builds a
-Classic theme, even when a package is selected, so this path is not restricted
-to explicitly choosing the Classic theme.
-
-`test_classic_color_bounds` reproduces the unbounded settings value under
-Clang/GCC. It deliberately does not invoke unsafe rendering/theme construction.
-MinGW compiled/linked only. Other color keys have the same source pattern.
-Recommended remedy: validate each consumer's enum range/default sentinel before
-array indexing, including public struct inputs; do not globally restrict INI's
-numeric-enum API without reviewing its other consumers.
-
 ### A031 — Settings saves truncate the only copy before writing
 
 Severity: medium. Classification: source-confirmed data-loss risk on write
 failure; no disk-full/process-kill reproduction performed.
 
-`settings/st_settings_store.c:635` opens the existing settings file with wb.
-Once open succeeds the previous contents are gone; a short write/close failure
-returns an error but cannot restore them. The sidecar lock protects cooperating
-writers, not failure atomicity or readers which ignore the lock. The public
+`settings/st_settings_store.c`, `write_document`, opens the existing settings
+file with wb. Once open succeeds the previous contents are gone; a short
+write/close failure returns an error but cannot restore them. The sidecar lock
+protects cooperating writers, not failure atomicity or readers which ignore
+the lock. The public
 description calls this a read/merge/write transaction without documenting that
 failure can leave truncated settings. No temporary replacement, backup or
 fs_stream_sync is used here (unlike theme document saves).
@@ -1391,20 +1350,6 @@ fs_stream_sync is used here (unlike theme document saves).
 Recommended remedy: retain the old file until a complete replacement is ready,
 with explicit replacement/durability semantics and fault-injection tests.
 This is not a claim that every successful fclose must imply crash durability.
-
-### A032 — Classic color migration lost per-key UIFC fallback
-
-Severity: medium. Classification: confirmed legacy behavior regression,
-reproduced.
-
-`settings/st_settings_store.c:246` selects UIFC only when ClassicTheme is wholly
-absent. Legacy `/synchronet/src/sbbs/src/syncterm/syncterm.c:1876` selects the
-section independently for each key using iniReadExistingString. With
-[ClassicTheme] FrameColour=Blue and [UIFC] TextColour=Red, the new loader returns
-default TextColour 16, not Red 4. The new test_classic_per_key_fallback confirms
-this under native Clang/GCC. MinGW compile/link only; legacy helper inspected
-read-only, not executed. Recommended remedy: preserve per-key migration fallback
-and test mixed-section files without eliminating the newer-section precedence.
 
 ### A033 — BBS sort-field normalization overflows on INT_MIN
 
@@ -4809,8 +4754,6 @@ verification gaps. Host consumers are tracked under their own inventory rows.
   successful parse followed by fclose failure would leak it. No close-failure
   injection performed. Parser allocation failures are sometimes reported as
   INVALID_FORMAT rather than OUT_OF_MEMORY.
-- Classic color construction's unchecked RGB indexing was followed through
-  settings ingestion in the next pass: A030 confirms unbounded numeric input.
 - Directory backend discrepancies: POSIX skips non-UTF-8 names and stat errors;
   Windows stops on conversion errors and includes non-directory entries.
   POSIX open/enumeration error handling is A024. Symlink/reparse handling and
@@ -4905,27 +4848,27 @@ in-process memory accesses. Host consumers remain their own audit area.
   mandate to replace it with a new abstraction. Dependency direction is toward
   INI/filesystem/locks/paths; app_paths and io_error are PUBLIC despite the
   header exposing only forward-declared paths and int statuses.
-- Range handling is inconsistent: dimensions/timeouts are bounded, enum numeric
-  fallbacks are not. A030 makes the Classic color consequence concrete; output,
-  cursor and screen enum consumers require their own checks. ScalingFactor only
-  excludes negatives; finite-but-huge input must be bounded by console sizing
+- Range handling remains inconsistent: dimensions/timeouts and Classic theme
+  colours are bounded, while output, cursor and screen enum consumers require
+  their own checks. ScalingFactor only excludes negatives; finite-but-huge
+  input must be bounded by console sizing
   before narrowing. KDF is an opaque bounded string here; crypto consumer owns
   cost validation. No locale calls introduced.
-- Name validation differs: custom font insertion disallows empty but rename
-  allows it (A029). Duplicate font/sort/web-list names can still collapse under
+- Custom font insertion disallows empty names while replacement names may be
+  empty. Duplicate font/sort/web-list names can still collapse under
   case-insensitive lookup; full behavior should match the documented menu
   contract rather than silently imposing uniqueness. Sort update replaces the
   record before updating active name/order, so allocation failure can leave
   partially applied changes. Removing the last profile recreates defaults but
   can leave a partial list on allocation failure. Not injected.
 - Legacy settings reference preserves VideoMode alias, theme-package precedence,
-  KDF string migration, and sort profile defaults/custom-order migration.
-  Compared relevant read-only syncterm.c and bbslist.c helpers; per-key Classic
-  fallback differs (A032). This is not a full app-level legacy behavior claim.
+  KDF string migration, sort profile defaults/custom-order migration and the
+  per-key Classic/UIFC fallback. This is not a full app-level legacy behavior
+  claim.
 - Existing tests cover one owned-copy case and mixed independent/conflicting
   external settings edits, path redirection, sort and custom-font persistence,
-  unknown root content and basic empty sort values. New tests expose A029,
-  A030 and A032. Actual simultaneous writers, allocation failures, disk-full
+  Classic/UIFC migration, colour bounds, unknown root content and basic empty
+  sort values. Actual simultaneous writers, allocation failures, disk-full
   writes, all field boundaries and host handle invalidation are not tested.
 
 ### bbs_list/
@@ -4990,8 +4933,8 @@ implementation and application/Wren consumers remain separate inventory areas.
   validate names. It is not a replacement-into-owned-profile API: init would
   discard pre-existing owned paths. Current callers dispose/init appropriately.
 - Most other enum fields accept arbitrary numeric values from INI and narrow
-  size_t to int; sort order and call count also narrow without bounds. A030
-  already demonstrates why consumer range assumptions need checking. No new
+  size_t to int; sort order and call count also narrow without bounds. Consumer
+  range assumptions still need checking. No new
   array-indexing defect established within this codec: connection kind is
   validated before indexing its port table. Palette allows full uint32_t
   values, not just 24-bit RGB; renderer interpretation belongs to console.
@@ -5638,12 +5581,6 @@ successful verification.
   Both report st_bbs_sort.c:26 signed negation overflow. Test is intentionally
   not registered with CMake because build modifications are out of scope.
   No destructive path reproduction, Windows runtime or new commits.
-
-- Settings pass: both native builds pass settings; settings_store reaches and
-  fails three new cases (A029/A030/A032) after its original checks pass. Clang,
-  GCC and MinGW targets compile/link; no Windows runtime execution. Only
-  settings/tests/st_settings_store_test.c and this report changed in this pass.
-  Existing theme audit test changes remain untouched. No commits or fixes.
 
 - Theme partial pass: rebuilt st_theme_test with native Clang, native GCC and
   MinGW. Both native CTests reach and fail the new regular-file-as-directory

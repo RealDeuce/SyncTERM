@@ -360,7 +360,7 @@ resolve_glyph(struct st_theme_glyph *glyph)
 static int
 classic_colour(unsigned value, unsigned sentinel, int fallback)
 {
-	return value == sentinel ? fallback : (int)value;
+	return value >= sentinel ? fallback : (int)value;
 }
 
 static bool

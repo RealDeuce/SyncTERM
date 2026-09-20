@@ -7,6 +7,7 @@
 #include "io_error.h"
 #include "st_app_paths.h"
 
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -49,62 +50,176 @@ rewrite_value(const char *path, const char *key, int value)
 }
 
 static int
-test_empty_font_name(void)
+write_text(const char *path, const char *text)
 {
-	size_t before = st_settings_font_count();
-	size_t after;
-	int status;
+	FILE *stream = NULL;
+	size_t size = strlen(text);
+	size_t written;
+	int close_status;
 
-	CHECK(st_settings_font_insert(before, "Audit font") == 0);
-	CHECK(st_settings_font_set_path(before, ST_SETTINGS_FONT_8X16,
-	    "/fonts/audit.f16") == 0);
-	status = st_settings_font_rename(before, "");
-	if (status != 0) {
-		CHECK(st_settings_font_remove(before) == 0);
-		return 0;
+	if (fs_open(&stream, path, "wb") != 0)
+		return -1;
+	written = fwrite(text, 1, size, stream);
+	close_status = fclose(stream);
+	return written == size && close_status == 0 ? 0 : -1;
+}
+
+static int
+read_document(const char *path, ini_document_t **document)
+{
+	FILE *stream = NULL;
+	int status = fs_open(&stream, path, "rb");
+
+	if (status == 0) {
+		status = ini_document_read(document, stream);
+		if (fclose(stream) != 0 && status == 0)
+			status = IO_ERROR_IO;
 	}
+	return status;
+}
+
+static int
+test_empty_font_name(const char *path)
+{
+	ini_document_t *document = NULL;
+	ini_section_t *section;
+	size_t before = st_settings_font_count();
+
+	CHECK(st_settings_font_insert(before, "Temporary font") == 0);
+	CHECK(st_settings_font_set_path(before, ST_SETTINGS_FONT_8X16,
+	    "/fonts/empty-name.f16") == 0);
+	CHECK(st_settings_font_rename(before, "") == 0);
 	CHECK(st_settings_save() == 0);
 	CHECK(st_settings_reload() == 0);
-	after = st_settings_font_count();
-	if (after != before + 1)
-		fprintf(stderr, "accepted font rename lost on reload: %zu fonts, expected %zu\n",
-		    after, before + 1);
-	CHECK(after == before + 1);
+	CHECK(st_settings_font_count() == before + 1);
+	CHECK(strcmp(st_settings_font_at(before)->name, "") == 0);
+	CHECK(strcmp(st_settings_font_at(before)->path[ST_SETTINGS_FONT_8X16],
+	    "/fonts/empty-name.f16") == 0);
+	CHECK(read_document(path, &document) == 0);
+	section = ini_document_find_section(document, "Font:");
+	CHECK(section != NULL);
+	CHECK(strcmp(ini_section_get_string(section, "Path8x16", ""),
+	    "/fonts/empty-name.f16") == 0);
+	ini_document_free(&document);
 	return 0;
 }
 
 static int
 test_classic_color_bounds(const char *path)
 {
-	FILE *stream = NULL;
-	unsigned color;
+	ini_document_t *document = NULL;
+	ini_section_t *classic;
 
-	CHECK(fs_open(&stream, path, "wb") == 0);
-	CHECK(fputs("[ClassicTheme]\nFrameColour=1000000\n", stream) >= 0);
-	CHECK(fclose(stream) == 0);
+	CHECK(write_text(path,
+	    "[ClassicTheme]\n"
+	    "FrameColour=1000000\nTextColour=16\n"
+	    "BackgroundColour=1000000\nInverseColour=8\n"
+	    "LightbarColour=17\nLightbarBackgroundColour=9\n"
+	    "[UIFC]\nFrameColour=Red\nBackgroundColour=Green\n") == 0);
 	CHECK(st_settings_reload() == 0);
-	color = st_settings.theme_frame_color;
-	if (color > 16)
-		fprintf(stderr, "out-of-range classic color accepted: %u\n", color);
-	CHECK(color <= 16);
+	CHECK(st_settings.theme_frame_color == 16);
+	CHECK(st_settings.theme_text_color == 16);
+	CHECK(st_settings.theme_background_color == 8);
+	CHECK(st_settings.theme_inverse_color == 8);
+	CHECK(st_settings.theme_lightbar_color == 16);
+	CHECK(st_settings.theme_lightbar_background_color == 8);
+	st_settings.theme_frame_color = UINT_MAX;
+	st_settings.theme_text_color = UINT_MAX;
+	st_settings.theme_background_color = UINT_MAX;
+	st_settings.theme_inverse_color = UINT_MAX;
+	st_settings.theme_lightbar_color = UINT_MAX;
+	st_settings.theme_lightbar_background_color = UINT_MAX;
+	CHECK(st_settings_save() == 0);
+	CHECK(read_document(path, &document) == 0);
+	classic = ini_document_find_section(document, "ClassicTheme");
+	CHECK(classic != NULL);
+	CHECK(strcmp(ini_section_get_string(classic, "FrameColour", ""),
+	    "Default") == 0);
+	CHECK(strcmp(ini_section_get_string(classic, "TextColour", ""),
+	    "Default") == 0);
+	CHECK(strcmp(ini_section_get_string(classic, "BackgroundColour", ""),
+	    "Default") == 0);
+	CHECK(strcmp(ini_section_get_string(classic, "InverseColour", ""),
+	    "Default") == 0);
+	CHECK(strcmp(ini_section_get_string(classic, "LightbarColour", ""),
+	    "Default") == 0);
+	CHECK(strcmp(ini_section_get_string(classic,
+	    "LightbarBackgroundColour", ""), "Default") == 0);
+	ini_document_free(&document);
+	CHECK(st_settings_reload() == 0);
 	return 0;
 }
 
 static int
 test_classic_per_key_fallback(const char *path)
 {
-	FILE *stream = NULL;
+	ini_document_t *document = NULL;
+	ini_section_t *classic;
 
-	CHECK(fs_open(&stream, path, "wb") == 0);
-	CHECK(fputs("[ClassicTheme]\nFrameColour=Blue\n"
-	    "[UIFC]\nTextColour=Red\n", stream) >= 0);
-	CHECK(fclose(stream) == 0);
+	CHECK(write_text(path,
+	    "[ClassicTheme]\nFrameColour=Blue\nTextColour=invalid\n"
+	    "BackgroundColour=LightGray\n"
+	    "[UIFC]\nTextColour=Red\nInverseColour=Cyan\n"
+	    "LightbarColour=Yellow\nLightbarBackgroundColour=Brown\n") == 0);
 	CHECK(st_settings_reload() == 0);
 	CHECK(st_settings.theme_frame_color == 1);
-	if (st_settings.theme_text_color != 4)
-		fprintf(stderr, "legacy per-key color fallback lost: %u, expected 4\n",
-		    st_settings.theme_text_color);
-	CHECK(st_settings.theme_text_color == 4);
+	CHECK(st_settings.theme_text_color == 16);
+	CHECK(st_settings.theme_background_color == 7);
+	CHECK(st_settings.theme_inverse_color == 3);
+	CHECK(st_settings.theme_lightbar_color == 14);
+	CHECK(st_settings.theme_lightbar_background_color == 6);
+	CHECK(st_settings_save() == 0);
+	CHECK(read_document(path, &document) == 0);
+	CHECK(ini_document_find_section(document, "UIFC") == NULL);
+	classic = ini_document_find_section(document, "ClassicTheme");
+	CHECK(classic != NULL);
+	CHECK(strcmp(ini_section_get_string(classic, "FrameColour", ""),
+	    "Blue") == 0);
+	CHECK(strcmp(ini_section_get_string(classic, "TextColour", ""),
+	    "Default") == 0);
+	CHECK(strcmp(ini_section_get_string(classic, "BackgroundColour", ""),
+	    "LightGray") == 0);
+	CHECK(strcmp(ini_section_get_string(classic, "InverseColour", ""),
+	    "Cyan") == 0);
+	CHECK(strcmp(ini_section_get_string(classic, "LightbarColour", ""),
+	    "Yellow") == 0);
+	CHECK(strcmp(ini_section_get_string(classic,
+	    "LightbarBackgroundColour", ""), "Brown") == 0);
+	ini_document_free(&document);
+	return 0;
+}
+
+static int
+test_classic_external_migration(const char *path)
+{
+	ini_document_t *document = NULL;
+	ini_section_t *classic;
+	ini_section_t *legacy;
+
+	CHECK(write_text(path, "[UIFC]\nTextColour=Red\n") == 0);
+	CHECK(st_settings_reload() == 0);
+	CHECK(write_text(path, "[UIFC]\nTextColour=Green\n") == 0);
+	CHECK(st_settings_save() == 0);
+	CHECK(read_document(path, &document) == 0);
+	CHECK(ini_document_find_section(document, "UIFC") == NULL);
+	classic = ini_document_find_section(document, "ClassicTheme");
+	CHECK(classic != NULL);
+	CHECK(strcmp(ini_section_get_string(classic, "TextColour", ""),
+	    "Green") == 0);
+	ini_document_free(&document);
+
+	CHECK(write_text(path, "[UIFC]\nTextColour=Red\n") == 0);
+	CHECK(st_settings_reload() == 0);
+	st_settings.theme_text_color = 1;
+	CHECK(write_text(path, "[UIFC]\nTextColour=Green\n") == 0);
+	CHECK(st_settings_save() == IO_ERROR_CONFLICT);
+	CHECK(read_document(path, &document) == 0);
+	CHECK(ini_document_find_section(document, "ClassicTheme") == NULL);
+	legacy = ini_document_find_section(document, "UIFC");
+	CHECK(legacy != NULL);
+	CHECK(strcmp(ini_section_get_string(legacy, "TextColour", ""),
+	    "Green") == 0);
+	ini_document_free(&document);
 	return 0;
 }
 
@@ -230,9 +345,10 @@ main(void)
 	CHECK(strcmp(st_settings.sort_order, "") == 0);
 	CHECK(st_settings_sort_profile_count() == 1);
 	CHECK(st_settings_active_sort_profile() == 0);
-	int failure = test_empty_font_name();
+	int failure = test_empty_font_name(settings_path);
 	failure += test_classic_color_bounds(settings_path);
 	failure += test_classic_per_key_fallback(settings_path);
+	failure += test_classic_external_migration(settings_path);
 	st_settings_shutdown();
 	(void)fs_remove_file(settings_path);
 	(void)fs_remove_file(list_path);

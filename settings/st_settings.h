@@ -57,6 +57,10 @@ struct st_settings {
 	double scaling_factor;
 	uint32_t modem_rate;
 	uint32_t audio_output_modes;
+	/*
+	 * Classic foregrounds use 0..15 plus 16 for the role default;
+	 * backgrounds use 0..7 plus 8. Out-of-range values use the default.
+	 */
 	unsigned theme_frame_color;
 	unsigned theme_text_color;
 	unsigned theme_background_color;

@@ -14,6 +14,7 @@
 #include "string_compat.h"
 #include "xp_crypto.h"
 
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -354,6 +355,20 @@ main(void)
 	    == 0x7e);
 	CHECK(style(st_theme_active(manager), "classic.console.error")->legacy_attr
 	    == 0x7c);
+	settings.theme_frame_color = UINT_MAX;
+	settings.theme_text_color = UINT_MAX;
+	settings.theme_background_color = UINT_MAX;
+	settings.theme_inverse_color = UINT_MAX;
+	settings.theme_lightbar_color = UINT_MAX;
+	settings.theme_lightbar_background_color = UINT_MAX;
+	CHECK(st_theme_apply_settings(manager, &settings, error,
+	    sizeof(error)) == 0);
+	CHECK(style(st_theme_active(manager), "default")->legacy_attr == 0x1f);
+	CHECK(style(st_theme_active(manager), "frame")->legacy_attr == 0x1e);
+	CHECK(style(st_theme_active(manager), "list.item.focused")->legacy_attr
+	    == 0x71);
+	CHECK(style(st_theme_active(manager), "classic.header")->legacy_attr
+	    == 0x31);
 
 	st_theme_document_free(&document);
 	st_theme_manager_free(&manager);

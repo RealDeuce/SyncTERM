@@ -7,8 +7,8 @@ recommended remedies. Severity does not imply exploitability; source-confirmed
 risks and reproduced failures must be distinguished using those entries.
 No remediation is authorized by this report.
 
-The audit is complete, not the implementation: **82 outstanding findings**
-comprise 7 high, 46 medium, 27 low and 2 unresolved design/performance
+The audit is complete, not the implementation: **79 outstanding findings**
+comprise 6 high, 44 medium, 27 low and 2 unresolved design/performance
 concerns.
 This is not a count of exploitable vulnerabilities or reproduced failures.
 All 47 tracked source directories and 12 root files are covered by the
@@ -17,7 +17,7 @@ reviewed only at the requested integration boundaries.
 
 Most urgent follow-up groups, subject to separate authorization:
 
-- Memory/resource safety: A027, A030 and A034–A036.
+- Memory/resource safety: A027 and A034–A036.
 - Authentication and write-policy correctness: A038 and A062.
 - Data preservation and required compatibility: A016 and the
   mode-specific rendering/persistence findings.
@@ -39,7 +39,7 @@ consumer boundaries, not evidence that the entire decomposition is wrong.
 | Boundary | Evidence and assessment | Recommended direction, not authorized work |
 | --- | --- | --- |
 | Native I/O → portable result | A006 loses errno during cleanup | Preserve error ownership across cleanup |
-| Mutable model → persistence | A025–A032, A061–A065 and A100–A102 show round-trip, failure-atomicity and handle-contract mismatches | Define when state changes become visible and when handles expire; test failure paths at the public boundary |
+| Mutable model → persistence | A025–A028, A031, A061–A065 and A100–A102 show failure-atomicity and handle-contract mismatches | Define when state changes become visible and when handles expire; test failure paths at the public boundary |
 | Script declarations → bound implementation | A054–A055, A096 and A098–A099 show unavailable or approximated contracts | Keep capability scope explicit and test the shipped scripts against the actual host |
 | Public target → independent consumer | A002, A013, A047, A066 expose probe/dependency gaps | Probe the real declaration/link environment and test minimal consumers |
 | Source libraries → application distribution | A088, A091, A095 distinguish a functioning menu build from connected runtime, DLL/core packaging and notice assembly | Document and verify actual artifacts without representing planned integration as complete |
@@ -79,10 +79,10 @@ No new blanket GC, contention or scaling-performance diagnosis is made from
 source shape. The source and test inventory must retain those measurement
 limits in the final report.
 
-The current TODO documents contain 84 outstanding numbered findings. A007 and A011 are
-unresolved design/performance concerns, not confirmed runtime defects. Missing
-features and documentation errors are also explicitly distinguished from
-implementation failures in the detailed ledger.
+The current TODO documents contain 79 outstanding numbered findings. A007 and
+A011 are unresolved design/performance concerns, not confirmed runtime defects.
+Missing features and documentation errors are also explicitly distinguished
+from implementation failures in the detailed ledger.
 
 | Finding | Severity / qualification | Subject |
 | --- | --- | --- |
@@ -107,10 +107,7 @@ implementation failures in the detailed ledger.
 | A026 | medium | Resetting the last theme override is not persisted |
 | A027 | high | Failed theme document construction can free inputs twice |
 | A028 | low | Short theme-file reads skip fclose |
-| A029 | medium | An accepted empty font rename disappears on settings reload |
-| A030 | high | Unbounded numeric theme colors reach RGB array indexing |
 | A031 | medium | Settings saves truncate the only copy before writing |
-| A032 | medium | Classic color migration lost per-key UIFC fallback |
 | A033 | medium | BBS sort-field normalization overflows on INT_MIN |
 | A034 | high | BBS cache maintenance does not confine entry names to cache paths |
 | A035 | high | BBS mutation can use borrowed input after rebuilding frees it |
@@ -175,9 +172,9 @@ implementation failures in the detailed ledger.
 
 `cmake --build build -j4` succeeds. The subsequent command
 `ctest --test-dir build --output-on-failure --timeout 30` registers 72 tests:
-the stable disposition is **66 pass, 5 fail and 1 Wayland test skipped**. The
-final full run reported 65/6/1 because the sequence-dependent XRender test
-failed after the X11 test; its immediate isolated rerun passed. X11 passes on
+the stable disposition is **67 pass, 4 fail and 1 Wayland test skipped**. The
+final full run reported 66/5/1 because the sequence-dependent X11 test failed;
+its immediate isolated rerun passed. X11 passes on
 the available test display; SDL uses its CMake-configured dummy video driver.
 This is native verification, not Windows/macOS execution or comprehensive
 backend coverage.
@@ -185,7 +182,6 @@ backend coverage.
 | Failed registered test | Existing findings reproduced |
 | --- | --- |
 | value_convert | A021 compact-date parsing |
-| settings_store | A029–A030, A032 font/color persistence and validation |
 | webget | A037 cache identity after URL change |
 | theme | A024–A026 catalog errors and edit persistence |
 | st_audio_mixer | A022 partition-dependent crossfade |

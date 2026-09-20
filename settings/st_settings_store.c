@@ -59,7 +59,8 @@ static const char *background_colors[] = {
 	"LightGray", "Default", NULL
 };
 
-#define ENUM_NAMES(table) (table), (sizeof(table) / sizeof((table)[0]) - 1)
+#define ENUM_COUNT(table) (sizeof(table) / sizeof((table)[0]) - 1)
+#define ENUM_NAMES(table) (table), ENUM_COUNT(table)
 
 static const struct ini_bit_name audio_modes[] = {
 	{ 1U << 6, "CoreAudio" },
@@ -162,6 +163,47 @@ bounded_uint32(const ini_section_t *section, const char *key,
 	return value > UINT32_MAX ? fallback : (uint32_t)value;
 }
 
+static unsigned
+bounded_enum(const ini_section_t *section, const char *key,
+    const char *const *names, size_t name_count, unsigned fallback)
+{
+	size_t value = ini_section_get_enum_names(section, key, names, name_count,
+	    fallback);
+
+	return value < name_count ? (unsigned)value : fallback;
+}
+
+static unsigned
+classic_color(ini_document_t *document, const char *key,
+    const char *const *names, size_t name_count, unsigned fallback)
+{
+	ini_section_t *section = ini_document_find_section(document,
+	    "ClassicTheme");
+
+	if (section == NULL || !ini_section_has_key(section, key))
+		section = ini_document_find_section(document, "UIFC");
+	if (section == NULL)
+		return fallback;
+	return bounded_enum(section, key, names, name_count, fallback);
+}
+
+static void
+load_classic_colors(struct st_settings *value, ini_document_t *document)
+{
+	value->theme_frame_color = classic_color(document, "FrameColour",
+	    ENUM_NAMES(colors), 16);
+	value->theme_text_color = classic_color(document, "TextColour",
+	    ENUM_NAMES(colors), 16);
+	value->theme_background_color = classic_color(document,
+	    "BackgroundColour", ENUM_NAMES(background_colors), 8);
+	value->theme_inverse_color = classic_color(document, "InverseColour",
+	    ENUM_NAMES(background_colors), 8);
+	value->theme_lightbar_color = classic_color(document, "LightbarColour",
+	    ENUM_NAMES(colors), 16);
+	value->theme_lightbar_background_color = classic_color(document,
+	    "LightbarBackgroundColour", ENUM_NAMES(background_colors), 8);
+}
+
 static void
 settings_defaults(struct st_settings *value, const char *personal_list)
 {
@@ -227,7 +269,6 @@ decode_settings(struct st_settings *value, ini_document_t *document,
     const char *personal_list, const char *system_cache)
 {
 	ini_section_t *section;
-	ini_section_t *classic;
 	ini_section_t *web;
 	ini_section_t *sort_profiles;
 	const char *list_path;
@@ -240,9 +281,6 @@ decode_settings(struct st_settings *value, ini_document_t *document,
 	    || name_value_list_count(value->sort_profiles) != 4)
 		return IO_ERROR_OUT_OF_MEMORY;
 	section = ini_document_find_section(document, "SyncTERM");
-	classic = ini_document_find_section(document, "ClassicTheme");
-	if (classic == NULL)
-		classic = ini_document_find_section(document, "UIFC");
 	if (section != NULL) {
 		value->confirm_close = ini_section_get_bool(section, "ConfirmClose",
 		    value->confirm_close);
@@ -340,21 +378,7 @@ decode_settings(struct st_settings *value, ini_document_t *document,
 			value->theme_file = NULL;
 		}
 	}
-	if (classic != NULL) {
-		value->theme_frame_color = (unsigned)ini_section_get_enum_names(classic,
-		    "FrameColour", ENUM_NAMES(colors), 16);
-		value->theme_text_color = (unsigned)ini_section_get_enum_names(classic,
-		    "TextColour", ENUM_NAMES(colors), 16);
-		value->theme_background_color = (unsigned)ini_section_get_enum_names(
-		    classic, "BackgroundColour", ENUM_NAMES(background_colors), 8);
-		value->theme_inverse_color = (unsigned)ini_section_get_enum_names(
-		    classic, "InverseColour", ENUM_NAMES(background_colors), 8);
-		value->theme_lightbar_color = (unsigned)ini_section_get_enum_names(
-		    classic, "LightbarColour", ENUM_NAMES(colors), 16);
-		value->theme_lightbar_background_color = (unsigned)
-		    ini_section_get_enum_names(classic, "LightbarBackgroundColour",
-		    ENUM_NAMES(background_colors), 8);
-	}
+	load_classic_colors(value, document);
 	web = ini_document_find_section(document, "WebLists");
 	if (web != NULL) {
 		status = ini_section_copy_pairs(web, &value->web_downloads);
@@ -418,7 +442,7 @@ decode_settings(struct st_settings *value, ini_document_t *document,
 			"Path8x8", "Path8x14", "Path8x16", "Path12x20"
 		};
 
-		if (!ascii_case_starts_with(name, "Font:") || name[5] == '\0')
+		if (!ascii_case_starts_with(name, "Font:"))
 			continue;
 		if (st_settings_font_list_count(value->custom_fonts)
 		    >= ST_SETTINGS_CUSTOM_FONT_MAX)
@@ -462,11 +486,64 @@ ensure_section(ini_document_t *document, const char *name,
 
 #define SET(call) do { status = (call); if (status < 0) return status; } while (0)
 
+static unsigned
+valid_color(unsigned value, size_t count, unsigned fallback)
+{
+	return value < count ? value : fallback;
+}
+
+static int
+set_classic_colors(ini_document_t *document, const struct st_settings *value)
+{
+	ini_section_t *classic;
+	int status;
+
+	SET(ensure_section(document, "ClassicTheme", &classic));
+	SET(ini_section_set_enum_names(classic, "FrameColour", ENUM_NAMES(colors),
+	    valid_color(value->theme_frame_color, ENUM_COUNT(colors), 16),
+	    &ini_default_style));
+	SET(ini_section_set_enum_names(classic, "TextColour", ENUM_NAMES(colors),
+	    valid_color(value->theme_text_color, ENUM_COUNT(colors), 16),
+	    &ini_default_style));
+	SET(ini_section_set_enum_names(classic, "BackgroundColour",
+	    ENUM_NAMES(background_colors),
+	    valid_color(value->theme_background_color,
+	        ENUM_COUNT(background_colors), 8), &ini_default_style));
+	SET(ini_section_set_enum_names(classic, "InverseColour",
+	    ENUM_NAMES(background_colors),
+	    valid_color(value->theme_inverse_color, ENUM_COUNT(background_colors),
+	        8), &ini_default_style));
+	SET(ini_section_set_enum_names(classic, "LightbarColour",
+	    ENUM_NAMES(colors), valid_color(value->theme_lightbar_color,
+	        ENUM_COUNT(colors), 16), &ini_default_style));
+	SET(ini_section_set_enum_names(classic, "LightbarBackgroundColour",
+	    ENUM_NAMES(background_colors),
+	    valid_color(value->theme_lightbar_background_color,
+	        ENUM_COUNT(background_colors), 8), &ini_default_style));
+	return 0;
+}
+
+static int
+migrate_classic_colors(ini_document_t *document)
+{
+	struct st_settings value = {0};
+	ini_section_t *legacy;
+	int status;
+
+	load_classic_colors(&value, document);
+	status = set_classic_colors(document, &value);
+	if (status < 0)
+		return status;
+	legacy = ini_document_find_section(document, "UIFC");
+	if (legacy != NULL)
+		(void)ini_document_remove_section(document, legacy);
+	return 0;
+}
+
 static int
 encode_settings(ini_document_t *document, const struct st_settings *value)
 {
 	ini_section_t *section;
-	ini_section_t *classic;
 	ini_section_t *web;
 	ini_section_t *profiles;
 	name_value_list_t old_pairs = NULL;
@@ -532,22 +609,7 @@ encode_settings(ini_document_t *document, const struct st_settings *value)
 	SET(ini_section_set_bool(section, "LeftJustify", value->left_justify,
 	    &ini_default_style));
 
-	SET(ensure_section(document, "ClassicTheme", &classic));
-	SET(ini_section_set_enum_names(classic, "FrameColour", ENUM_NAMES(colors),
-	    value->theme_frame_color, &ini_default_style));
-	SET(ini_section_set_enum_names(classic, "TextColour", ENUM_NAMES(colors),
-	    value->theme_text_color, &ini_default_style));
-	SET(ini_section_set_enum_names(classic, "BackgroundColour",
-	    ENUM_NAMES(background_colors), value->theme_background_color,
-	    &ini_default_style));
-	SET(ini_section_set_enum_names(classic, "InverseColour",
-	    ENUM_NAMES(background_colors), value->theme_inverse_color,
-	    &ini_default_style));
-	SET(ini_section_set_enum_names(classic, "LightbarColour", ENUM_NAMES(colors),
-	    value->theme_lightbar_color, &ini_default_style));
-	SET(ini_section_set_enum_names(classic, "LightbarBackgroundColour",
-	    ENUM_NAMES(background_colors), value->theme_lightbar_background_color,
-	    &ini_default_style));
+	SET(set_classic_colors(document, value));
 
 	SET(ensure_section(document, "WebLists", &web));
 	SET(ini_section_copy_pairs(web, &old_pairs));
@@ -981,6 +1043,8 @@ st_settings_save(void)
 		else
 			status = replace_prefixed_sections(remote, local, "Font:");
 	}
+	if (status == 0)
+		status = migrate_classic_colors(remote);
 	if (status == 0)
 		status = write_document(remote, settings_path);
 	st_settings_init(&saved);
