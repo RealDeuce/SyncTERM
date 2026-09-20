@@ -278,6 +278,7 @@ enum st_console_event_type {
 	ST_CONSOLE_EVENT_MOUSE,
 	ST_CONSOLE_EVENT_RESIZE,
 	ST_CONSOLE_EVENT_FOCUS,
+	/* Host window closure or permanent terminal-input disconnection. */
 	ST_CONSOLE_EVENT_CLOSE,
 };
 

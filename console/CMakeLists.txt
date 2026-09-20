@@ -601,5 +601,14 @@ if(BUILD_TESTING)
 		add_test(NAME st_console_win32 COMMAND st_console_win32_test)
 		set_tests_properties(st_console_win32 PROPERTIES
 			SKIP_RETURN_CODE 77 TIMEOUT 20)
+		add_executable(st_console_ansi_windows_test
+			tests/st_console_ansi_windows_test.c)
+		target_link_libraries(st_console_ansi_windows_test PRIVATE st_console)
+		set_target_properties(st_console_ansi_windows_test PROPERTIES
+			C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		st_console_warnings(st_console_ansi_windows_test)
+		add_test(NAME st_console_ansi_windows
+			COMMAND st_console_ansi_windows_test)
+		set_tests_properties(st_console_ansi_windows PROPERTIES TIMEOUT 20)
 	endif()
 endif()

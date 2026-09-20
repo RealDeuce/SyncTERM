@@ -8,6 +8,7 @@
 #include "io_error.h"
 
 #include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <poll.h>
 #include <stdlib.h>
@@ -67,8 +68,9 @@ st_console_ansi_system_open(struct st_console_ansi_system **result,
 			return io_error_from_errno(errno);
 		}
 		system->restore_input = true;
-		*input_available = true;
 	}
+	if (fcntl(STDIN_FILENO, F_GETFL) >= 0)
+		*input_available = true;
 	*result = system;
 	return 0;
 }
@@ -91,15 +93,26 @@ st_console_ansi_system_read(struct st_console_ansi_system *system,
 		return 0;
 	if (status < 0)
 		return errno == EINTR ? 0 : io_error_from_errno(errno);
-	if ((descriptor.revents & POLLIN) == 0)
+	if ((descriptor.revents & POLLIN) == 0) {
+		if ((descriptor.revents & POLLHUP) != 0)
+			return IO_ERROR_NOT_CONNECTED;
 		return (descriptor.revents & (POLLERR | POLLNVAL)) != 0
 		    ? IO_ERROR_IO : 0;
+	}
 	count = read(STDIN_FILENO, buffer, size);
 	if (count < 0)
 		return errno == EINTR || errno == EAGAIN ? 0
 		    : io_error_from_errno(errno);
+	if (count == 0)
+		return IO_ERROR_NOT_CONNECTED;
 	*received = (size_t)count;
 	return 0;
+}
+
+void
+st_console_ansi_system_stop(struct st_console_ansi_system *system)
+{
+	(void)system;
 }
 
 bool

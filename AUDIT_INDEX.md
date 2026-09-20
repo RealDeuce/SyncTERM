@@ -7,8 +7,8 @@ recommended remedies. Severity does not imply exploitability; source-confirmed
 risks and reproduced failures must be distinguished using those entries.
 No remediation is authorized by this report.
 
-The audit is complete, not the implementation: **103 outstanding findings**
-comprise 14 high, 60 medium, 27 low and 2 unresolved design/performance
+The audit is complete, not the implementation: **100 outstanding findings**
+comprise 13 high, 58 medium, 27 low and 2 unresolved design/performance
 concerns.
 This is not a count of exploitable vulnerabilities or reproduced failures.
 All 47 tracked source directories and 12 root files are covered by the
@@ -17,7 +17,7 @@ reviewed only at the requested integration boundaries.
 
 Most urgent follow-up groups, subject to separate authorization:
 
-- Memory/resource safety: A027, A030, A034–A036 and A045.
+- Memory/resource safety: A027, A030 and A034–A036.
 - Authentication and write-policy correctness: A038 and A062.
 - Data preservation and required compatibility: A012, A014–A019,
   A079 and the mode-specific rendering/persistence findings.
@@ -79,7 +79,7 @@ No new blanket GC, contention or scaling-performance diagnosis is made from
 source shape. The source and test inventory must retain those measurement
 limits in the final report.
 
-The current TODO documents contain 103 outstanding numbered findings. A007 and A011 are
+The current TODO documents contain 100 outstanding numbered findings. A007 and A011 are
 unresolved design/performance concerns, not confirmed runtime defects. Missing
 features and documentation errors are also explicitly distinguished from
 implementation failures in the detailed ledger.
@@ -124,7 +124,6 @@ implementation failures in the detailed ledger.
 | A036 | high | Downloader closes the socket twice after TLS setup failure |
 | A037 | medium | Changing a download URL can reuse another resource's cache |
 | A038 | high | OpenSSL TLS 1.3 PSK mode accepts an unauthenticated certificate server |
-| A045 | high | ANSI CSI parser writes past its parameter array |
 | A047 | low | Standalone console build omits its string_compat dependency |
 | A048 | low | X11 runtime loader gives XkbFreeKeyboard the wrong function type |
 | A049 | medium | X11 external-scaling pixmap is not initialized on first scaled resize |
@@ -180,8 +179,6 @@ implementation failures in the detailed ledger.
 | A103 | medium | Surface fill shifts negative-origin rectangles instead of clipping them |
 | A104 | medium | Timed Wren input restarts its timeout after ignored events |
 | A105 | medium | Custom-font bindings do not preserve their declared editing boundaries |
-| A106 | medium | ANSI terminal hangup becomes an unpaced input-worker loop |
-| A107 | medium source-only risk | Windows ANSI early cleanup restores unsaved CRT modes |
 | A108 | medium source-confirmed | Wayland buffer failure loses the mapped length |
 | A109 | medium source-confirmed | Wayland worker waits incompletely handle disconnection and shutdown |
 | A110 | medium reproduced | Screen.readRect aborts on bounds errors instead of returning null |

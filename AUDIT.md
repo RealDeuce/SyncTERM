@@ -37,20 +37,20 @@ repository-wide coverage. The legacy tree is read-only reference.
 
 The repository-wide audit is complete. This is not an implementation approval,
 release certification or claim that findings have been fixed. The consolidated
-API/design assessment, priority groups and all 103 outstanding finding summaries are in
+API/design assessment, priority groups and all 100 outstanding finding summaries are in
 AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 
 | Objective requirement | Authoritative evidence and disposition |
 | --- | --- |
 | Entire repository, not only recent changes | git ls-files identifies 47 top-level source directories and 12 root files; every directory has an inventory row, no omissions. Per-component reviews cover local implementations, headers, tests/build and associated data/docs. |
 | API design, architecture and library layout | AUDIT_INDEX boundary/coupling/ownership assessment plus component public-contract and CMake dependency reviews; A001–A007, A047/A066, A088/A091 and host-contract findings. Cohesive decomposition is recognized; no redesign authorized. |
-| Correctness, ownership/lifetime and concurrency | Component lifecycle/error reviews, normal and injected tests, explicit GUI/host ownership closure; source and reproduced failures are qualified individually. A016, A023, A027/A035/A036, A106–A109 illustrate distinct lifetime/error risks. |
+| Correctness, ownership/lifetime and concurrency | Component lifecycle/error reviews, normal and injected tests, explicit GUI/host ownership closure; source and reproduced failures are qualified individually. A016, A023, A027/A035/A036 and A108/A109 illustrate distinct lifetime/error risks. |
 | Portability and all platform backends | POSIX/Windows sources and every audio/console backend reviewed; native, MinGW compile-only and unavailable runtime evidence kept separate. Capability probes/standalone targets reviewed. No unsupported platform pass inferred. |
 | Performance | Scaler/renderer benchmark source and measured cases reviewed, including common mixed-axis scaling; A011/A023 and backend pacing risks distinguished from measured regressions. Reconstructed legacy benchmark limitations explicitly recorded. |
 | Required legacy behavior | Read-only comparisons cover fonts/catalog/maps, modes, palette capacity, Prestel versus Mode 7, command line, console/input and settings behavior; A015/A018/A032 plus explicit parity limits. Frozen CTerm chapter cmp succeeds. |
 | Wren scripts and bindings | Complete local source/signature/manual reviews; isolated shipped-script suites and host fixtures; host closure A100–A114. Connected/SFTP production integration missing from this application is reported, not invented or silently counted as working. |
 | Build logic, generators and documentation | Root/component CMake and generators reviewed; standalone/probe failures recorded; pinned Unicode/font regeneration and table comparisons documented; root manuals/license/development guidance covered. Wren VM vendored internals limited to integration boundaries as requested. |
-| Inventory and consolidated findings | 103 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 14 high, 60 medium, 27 low, 2 unresolved concerns; not all runtime reproductions. |
+| Inventory and consolidated findings | 100 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 13 high, 58 medium, 27 low, 2 unresolved concerns; not all runtime reproductions. |
 | Relevant tests where practical | Fresh complete native build succeeds. Final selected CTest run: 60 executed, 51 pass, 9 fail, 5.12 seconds; failure matrix in index. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
 | Only tests/reports changed; no implementation remediation | Current status: 30 modified tracked tests, 23 untracked tests, 2 untracked reports; no staged files. Filtered worktree inspection finds no other changes. Baseline-to-current non-test difference is pre-existing str_list/CMakeLists.txt, unchanged since fdeab0d. No final-consolidation commits/push/reverts. |
 | Explicit uncertainty | Each component records unavailable platforms, unexecuted failure paths and measurement limits; A007/A011 unresolved. Source-level risks are not called verified crashes. These are audit outcomes, not claims of implementation correctness. |
@@ -103,7 +103,7 @@ not the absence of failing tests. New findings will receive stable A-numbers.
 | bbs_list/ | Reviewed | All local sources/header/tests/build read; A033 sanitizer reproduction, A034/A035 source findings; native list/web tests pass, MinGW compile only; integration/fault gaps below |
 | codepage/ | Reviewed | All local source/header/build/test read; exhaustive graphic roundtrip and expanded control/invalid-input tests pass native Clang/GCC; MinGW compile only |
 | connection/ | Reviewed | A014/A015/A018 reproduced; A016 Windows source race; A017 RFC mismatch; shutdown stress and platform runtime gaps documented |
-| console/ | Reviewed | All local implementation/backends, tests, benchmark, build and docs read; local integration dispositions A045, A047–A051, A106–A109 and GUI closure notes; native/isolated tests and platform-only risks distinguished; remaining Wren consumer questions belong to wren_host |
+| console/ | Reviewed | All local implementation/backends, tests, benchmark, build and docs read; local integration dispositions A047–A051, A108/A109 and GUI closure notes; native/isolated tests and platform-only risks distinguished; remaining Wren consumer questions belong to wren_host |
 | dynamic_library/ | Reviewed | A005; native fixtures pass; Windows compiled, not executed |
 | event/ | Reviewed | A004; native repeated tests, MinGW compile; failure-injection limitations below |
 | file_lock/ | Reviewed | A006; native tests plus failing controlled error-path reproduction; Windows source/compile only |
@@ -350,24 +350,6 @@ comparisons, build dependencies and the actual limits of tests/benchmarks.
 This does not declare the implementation complete or every platform correct.
 Remaining Wren event/selector/error contracts remain in the host inventory.
 
-### A107 — Windows ANSI early cleanup restores unsaved CRT modes
-
-Severity: medium portability/error-path risk; source-confirmed, Windows
-runtime not executed. `console/console_ansi_windows.c` allocates its state
-with calloc, leaving input_file_mode and output_file_mode zero. If output
-setup succeeds but input SetConsoleMode fails, open calls close before either
-_setmode save operation has run. Close treats both zero fields as saved modes
-because it tests only `>= 0`, and calls _setmode on stdin/stdout with those
-unsaved values. Successful startup does save the returned modes; the defect
-is specifically partial initialization, not normal destruction.
-
-The resulting CRT error/invalid-parameter-handler behavior is unverified and
-may differ by runtime; no Windows crash is claimed. Recommendation: represent
-whether each CRT mode was actually saved, and restore only initialized state.
-An injected input SetConsoleMode failure after successful output setup should
-assert that native output state is restored and unsaved CRT state is untouched.
-No production change or Windows fault-injection test was made.
-
 ### Console move and platform-risk dispositions
 
 Rechecked `console_text.c:781` move_cells, `console_pixels.c:529` cached raster
@@ -394,41 +376,11 @@ output contract risks; the existing Windows test does not exercise them.
 RGB uses fixed thresholds and indexed colors use four bits; mutable-palette
 approximation, bold/blink/conceal policy, host buffer-versus-window resize and
 partial resize rollback remain explicitly unverified platform behavior, not
-passing tests. The native ANSI hangup reproduction A106 does not verify this
-Win32 backend, whose input worker instead breaks on read/wait failure.
+passing tests.
 
-The terminal source-reading questions in older progress notes are now
-dispositioned by A106 (hangup/ownership), A107 (partial cleanup), the earlier
-successful failed-output retry check, and these move/platform risk notes.
-They are not new requests to alter public APIs or silently remove features.
+### ANSI terminal-ownership disposition
 
-### A106 — ANSI terminal hangup becomes an unpaced input-worker loop
-
-Severity: medium (shutdown/performance). Source-confirmed loop defect;
-native FreeBSD Clang reproduces the lost hangup indication at the read
-boundary. `console/console_ansi_posix.c:96` ignores POLLHUP without POLLIN;
-the read path also returns success for zero-byte EOF. Meanwhile
-`console/console_ansi.c:800` discards every read result and loops, relying on
-the read's 25 ms timeout for pacing. A disconnected descriptor remains ready,
-so neither EOF nor persistent errors terminate or pace this worker. This is
-not evidence of the previously investigated menu-scroll pause or GC behavior.
-
-`console/tests/st_console_ansi_hangup_test.c` opens a private PTY, temporarily
-attaches its slave to the test process's stdin, initializes the actual ANSI
-system reader, closes the master and performs one read. It restores stdin
-before asserting. Native result: `result=0 received=0`, failing the requirement
-that disconnection be distinguishable from an ordinary idle timeout. No
-physical terminal changes, GUI, worker spin or CPU benchmark was performed.
-Compile with the existing ANSI test's PTY-header definitions, console include
-path, console/io_error archives and its libutil dependency. This standalone
-test is deliberately not added to production CMake.
-
-Recommendation: define and propagate terminal EOF/error semantics to the
-worker and display event consumer; stop or otherwise handle disconnected
-input without repeatedly polling a permanently ready descriptor. Test EOF,
-HUP with buffered input, persistent errors and concurrent destruction.
-
-Related terminal-ownership disposition: ncurses has its own `curses_in_use`
+ncurses has its own `curses_in_use`
 guard, but stdio ANSI initialization has no corresponding ownership guard
 and snapshots/restores stdin's termios independently for each display. Two
 ANSI displays could compete for input and restore modes out of order; mixed
@@ -1841,29 +1793,6 @@ PSK session, independently of the TLS 1.3 negotiated cipher suite. OpenSSL's
 states that TLS 1.3 PSK establishment is observable through
 `SSL_session_reused()`. Add provider-parity tests for a correct PSK, incorrect
 PSK, and certificate-only fallback. No implementation change made.
-
-### A045 — ANSI CSI parser writes past its parameter array
-
-Severity: high (memory safety). Confirmed with native Clang UBSan.
-`console/console_ansi.c:634` declares parameters[3]. In the CSI parsing loop,
-three semicolons bring parameter_count to 3, terminating the bounded loop;
-`:686` then unconditionally stores parameters[parameter_count++], writing
-element 3. A complete four-parameter CSI sequence fits easily in the separate
-64-byte escape buffer, so that limit does not protect this array.
-
-Standalone `console/tests/st_console_ansi_parameters_test.c` includes the
-unchanged ANSI implementation to call its private parser without a terminal
-or input thread. It parses ESC [ 1 ; 2 ; 3 ; 4 A. Compile with the console
-target's include/link dependencies and `-fsanitize=address,undefined
--fno-sanitize-recover=all`; execution fails with `index 3 out of bounds for
-type 'unsigned int[3]'` at console_ansi.c:686. NULL display only suppresses
-subsequent event delivery; the error occurs before delivery. No production
-source modification, external system, or exploitability claim.
-
-Recommendation: enforce the parameter bound on every store, including the
-trailing parameter, and define handling of excess parameters. Add boundary
-cases for empty/trailing parameters and oversized numeric fields (whose
-unsigned accumulation currently wraps).
 
 ### A047 — Standalone console build omits its string_compat dependency
 
@@ -4392,19 +4321,12 @@ saves modes, code pages, cursor info and CRT translation modes. No real user's
 terminal touched in this pass.
 
 Further source concerns needing targeted checks: drawn-cell cache is updated
-before output success; input errors/EOF are ignored by the 25 ms loop and can
-be immediately ready repeatedly after hangup; two independent stdio ANSI
-displays have no exclusive ownership guard; Windows early cleanup reaches
-zero-initialized CRT mode fields before _setmode has initialized them. None
-has been reproduced here. CP437 output uses glyph rather than a Unicode-to-
+before output success; two independent stdio ANSI displays have no exclusive
+ownership guard. CP437 output uses glyph rather than a Unicode-to-
 CP437 conversion; custom font maps therefore need coverage. Terminal colour
 capability probing calls setupterm without an observed del_curterm cleanup,
 and shares the process-global terminfo context with curses; coexistence review
 remains pending. ASCII comparisons are local byte operations, not locale calls.
-
-Confirmed A045 is a separate parser bounds defect. The local UBSan fixture
-does not validate DoorWay protocol semantics, terminal restoration, or the
-Windows path. No claim that those areas passed from this parser-only test.
 
 ANSI PTY test now read completely and passed native Clang: Return, Alt arrow,
 Alt text, UTF-8, the implemented DoorWay byte forms, initial host sizing,

@@ -123,6 +123,15 @@ capabilities.  The ordinary terminal path reads terminfo and also accepts
 `COLORTERM=truecolor` or `COLORTERM=24bit` when terminfo does not advertise
 RGB.  Indexed cells stay indexed even on a direct-colour terminal.
 
+The ordinary ANSI backend reads and writes the process standard streams.
+Input may be an interactive terminal or a redirected pipe or regular file;
+output remains an ANSI byte stream when redirected.  End-of-file or a
+permanent input error finishes any pending escape or UTF-8 input, posts one
+`ST_CONSOLE_EVENT_CLOSE`, and stops the input worker.  Destroying the display
+interrupts its input wait without posting a close event.  A caller-supplied
+`st_console_ansi_io` replaces output only and does not provide an input
+source.
+
 ncurses uses its extended colour-pair interfaces when the required ncurses
 6.1 symbols are present, so colour and pair identifiers are not narrowed to
 signed 16-bit.  Palette entries changed through a mutable curses terminal are

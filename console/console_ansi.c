@@ -12,6 +12,7 @@
 #include "st_utf8.h"
 
 #include <inttypes.h>
+#include <limits.h>
 #include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -681,20 +682,37 @@ parse_escape(st_console_display_t *display, struct ansi_state *state)
 	else if (sequence[1] == '[') {
 		unsigned int value = 0;
 		bool have_value = false;
+		bool valid = true;
 
-		for (size_t i = 2; i + 1 < length && parameter_count < 3; ++i) {
+		for (size_t i = 2; i + 1 < length; ++i) {
 			if (sequence[i] >= '0' && sequence[i] <= '9') {
-				value = value * 10 + (unsigned int)(sequence[i] - '0');
+				unsigned int digit = (unsigned int)(sequence[i] - '0');
+
+				if (value > (UINT_MAX - digit) / 10) {
+					valid = false;
+					break;
+				}
+				value = value * 10 + digit;
 				have_value = true;
 			}
 			else if (sequence[i] == ';') {
+				if (parameter_count == sizeof(parameters)
+				    / sizeof(parameters[0])) {
+					valid = false;
+					break;
+				}
 				parameters[parameter_count++] = have_value ? value : 0;
 				value = 0;
 				have_value = false;
 			}
-			else
-				return true;
+			else {
+				valid = false;
+				break;
+			}
 		}
+		if (!valid || parameter_count == sizeof(parameters)
+		    / sizeof(parameters[0]))
+			goto raw;
 		parameters[parameter_count++] = have_value ? value : 0;
 		if (parameter_count > 1)
 			modifiers = xterm_modifiers(parameters[1]);
@@ -735,11 +753,29 @@ parse_escape(st_console_display_t *display, struct ansi_state *state)
 	if (code != 0)
 		post_key(display, code, modifiers);
 	else {
+	raw:
 		post_key(display, 27, 0);
 		for (size_t i = 1; i < length; ++i)
 			input_text_byte(display, state, sequence[i], 0);
 	}
 	return true;
+}
+
+static void
+finish_input(st_console_display_t *display, struct ansi_state *state)
+{
+	if (state->escape_length != 0) {
+		post_key(display, 27, 0);
+		for (size_t i = 1; i < state->escape_length; ++i)
+			input_text_byte(display, state, state->escape[i], 0);
+		state->escape_length = 0;
+	}
+	if (state->utf8_length != 0) {
+		post_text(display, UINT32_C(0xfffd), state->utf8_modifiers);
+		state->utf8_length = 0;
+		state->utf8_idle = 0;
+	}
+	state->doorway_phase = 0;
 }
 
 static void
@@ -809,10 +845,22 @@ ansi_input(void *argument)
 		uint32_t columns;
 		uint32_t rows;
 
-		(void)st_console_ansi_system_read(state->system, bytes,
+		int result = st_console_ansi_system_read(state->system, bytes,
 		    sizeof(bytes), &received, 25);
 		for (size_t i = 0; i < received; ++i)
 			input_byte(display, state, bytes[i]);
+		if (result != 0) {
+			if (!atomic_load_explicit(&state->stop,
+			    memory_order_acquire)) {
+				const struct st_console_event event = {
+					.type = ST_CONSOLE_EVENT_CLOSE,
+				};
+
+				finish_input(display, state);
+				(void)st_console_display_post_event(display, &event);
+			}
+			break;
+		}
 		if (received == 0 && state->escape_length != 0
 		    && ++state->escape_idle >= 2) {
 			post_key(display, 27, 0);
@@ -883,6 +931,7 @@ ansi_destroy(st_console_display_t *display)
 	if (state == NULL)
 		return;
 	atomic_store_explicit(&state->stop, true, memory_order_release);
+	st_console_ansi_system_stop(state->system);
 	if (state->input_started)
 		(void)st_thread_join(state->input_thread, NULL);
 	(void)state->io.write(state->io.context, restore, sizeof(restore) - 1);
