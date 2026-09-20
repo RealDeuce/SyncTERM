@@ -7,8 +7,8 @@ recommended remedies. Severity does not imply exploitability; source-confirmed
 risks and reproduced failures must be distinguished using those entries.
 No remediation is authorized by this report.
 
-The audit is complete, not the implementation: **84 outstanding findings**
-comprise 8 high, 47 medium, 27 low and 2 unresolved design/performance
+The audit is complete, not the implementation: **82 outstanding findings**
+comprise 7 high, 46 medium, 27 low and 2 unresolved design/performance
 concerns.
 This is not a count of exploitable vulnerabilities or reproduced failures.
 All 47 tracked source directories and 12 root files are covered by the
@@ -19,7 +19,7 @@ Most urgent follow-up groups, subject to separate authorization:
 
 - Memory/resource safety: A027, A030 and A034–A036.
 - Authentication and write-policy correctness: A038 and A062.
-- Data preservation and required compatibility: A016, A019 and the
+- Data preservation and required compatibility: A016 and the
   mode-specific rendering/persistence findings.
 
 Start with the detailed evidence and regression tests for each finding;
@@ -39,7 +39,7 @@ consumer boundaries, not evidence that the entire decomposition is wrong.
 | Boundary | Evidence and assessment | Recommended direction, not authorized work |
 | --- | --- | --- |
 | Native I/O → portable result | A006 loses errno during cleanup | Preserve error ownership across cleanup |
-| Mutable model → persistence | A019–A020, A025–A032, A061–A065, A100–A102 show round-trip, failure-atomicity and handle-contract mismatches | Define when state changes become visible and when handles expire; test failure paths at the public boundary |
+| Mutable model → persistence | A025–A032, A061–A065 and A100–A102 show round-trip, failure-atomicity and handle-contract mismatches | Define when state changes become visible and when handles expire; test failure paths at the public boundary |
 | Script declarations → bound implementation | A054–A055, A096 and A098–A099 show unavailable or approximated contracts | Keep capability scope explicit and test the shipped scripts against the actual host |
 | Public target → independent consumer | A002, A013, A047, A066 expose probe/dependency gaps | Probe the real declaration/link environment and test minimal consumers |
 | Source libraries → application distribution | A088, A091, A095 distinguish a functioning menu build from connected runtime, DLL/core packaging and notice assembly | Document and verify actual artifacts without representing planned integration as complete |
@@ -99,8 +99,6 @@ implementation failures in the detailed ledger.
 | A011 | unresolved performance concern | Non-native rwlock fast paths need performance validation |
 | A013 | medium verification gap | Serial PTY capability test is pre-disabled |
 | A016 | medium | ConPTY atomic handles do not protect active users from close |
-| A019 | high | INI insertion after an unterminated line corrupts serialization |
-| A020 | medium | INI setter accepts keys that its parser cannot recognize |
 | A021 | medium | Compact date-only branch is shadowed by epoch parsing |
 | A022 | medium | Crossfade completion inserts pull-size-dependent silence |
 | A023 | medium performance/reliability risk | Real-time audio callbacks take locks and free objects |
@@ -177,8 +175,8 @@ implementation failures in the detailed ledger.
 
 `cmake --build build -j4` succeeds. The subsequent command
 `ctest --test-dir build --output-on-failure --timeout 30` registers 72 tests:
-the stable disposition is **65 pass, 6 fail and 1 Wayland test skips**. The
-final full run reported 64/7/1 because the sequence-dependent XRender test
+the stable disposition is **66 pass, 5 fail and 1 Wayland test skipped**. The
+final full run reported 65/6/1 because the sequence-dependent XRender test
 failed after the X11 test; its immediate isolated rerun passed. X11 passes on
 the available test display; SDL uses its CMake-configured dummy video driver.
 This is native verification, not Windows/macOS execution or comprehensive
@@ -187,7 +185,6 @@ backend coverage.
 | Failed registered test | Existing findings reproduced |
 | --- | --- |
 | value_convert | A021 compact-date parsing |
-| ini_interface | A019–A020 serialization round trips |
 | settings_store | A029–A030, A032 font/color persistence and validation |
 | webget | A037 cache identity after URL change |
 | theme | A024–A026 catalog errors and edit persistence |
@@ -216,8 +213,7 @@ audio-device or remote-server validation is claimed. Fault injection and
 performance measurements cover only their documented scenarios. The scaler
 benchmark's reconstructed old pipeline is not an independent legacy binary.
 
-Tests intentionally retain failures. Standalone regressions are not registered
-in CMake because production/build changes were prohibited. No remediation,
-commit or push was performed during final consolidation. Current changes are
-52 test files and these two reports; no staged changes. The earlier explicitly
-accepted str_list build adjustment is unchanged from fdeab0d.
+Registered tests intentionally retain failures for outstanding findings.
+Standalone regressions that remain relevant are not registered in CMake.
+Git history records completed burn-down work; these documents describe the
+current outstanding set.

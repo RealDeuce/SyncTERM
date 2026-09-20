@@ -5,6 +5,7 @@
 
 #include "st_settings.h"
 
+#include "ini.h"
 #include "string_compat.h"
 #include "string_util.h"
 
@@ -258,7 +259,7 @@ st_settings_sort_profile_add(size_t index, const char *name,
 {
 	struct name_value *profile;
 
-	if (!ini_name_valid(name, "=:", false) || order == NULL
+	if (!ini_key_name_valid(name) || order == NULL
 	    || index > st_settings_sort_profile_count())
 		return -1;
 	profile = name_value_create(name, order);
@@ -280,7 +281,7 @@ st_settings_sort_profile_update(size_t index, const char *name,
 	bool active;
 
 	if (index >= st_settings_sort_profile_count()
-	    || !ini_name_valid(name, "=:", false)
+	    || !ini_key_name_valid(name)
 	    || order == NULL)
 		return -1;
 	old = st_settings.sort_profiles[index];

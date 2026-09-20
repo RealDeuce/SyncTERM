@@ -980,7 +980,9 @@ press Insert to add a field, Delete to remove one, and Enter to toggle
 between normal and reversed order.
 
 kbd:[F2]::
-Rename the selected profile (max 19 characters, must be unique).
+Rename the selected profile (max 19 characters, must be unique). Names use
+printable US-ASCII, cannot begin or end with whitespace, cannot contain `=`
+or `:`, and cannot begin with `;` or `[`.
 
 kbd:[Insert]::
 Create a new profile.
@@ -1050,7 +1052,9 @@ means credentials and paths will come from the Default Connection
 Settings, and they will be copied into your personal list if you use or
 modify them. Note that the web client will only do GET requests, and only
 supports status codes of 200 (OK) and 304 (Not Modified). Specifically,
-it does not support any redirection.
+it does not support any redirection. Web-list names use printable US-ASCII,
+cannot begin or end with whitespace, cannot contain `=` or `:`, and cannot
+begin with `;` or `[`.
 
 Default Connection Settings::
 Set the default values for a new directory

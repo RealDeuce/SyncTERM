@@ -112,6 +112,7 @@ void st_settings_shutdown(void);
 
 size_t st_settings_web_download_count(void);
 const struct name_value *st_settings_web_download_at(size_t index);
+/* Names passed to set or append must be valid INI key names. */
 int st_settings_web_download_set(size_t index, const char *name,
     const char *url);
 int st_settings_web_download_append(const char *name, const char *url);
@@ -122,6 +123,7 @@ size_t st_settings_sort_profile_count(void);
 const struct name_value *st_settings_sort_profile_at(size_t index);
 size_t st_settings_active_sort_profile(void);
 int st_settings_sort_profile_select(size_t index);
+/* Names passed to add or update must be valid INI key names. */
 int st_settings_sort_profile_add(size_t index, const char *name,
 	const char *order);
 int st_settings_sort_profile_update(size_t index, const char *name,

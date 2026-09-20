@@ -4203,7 +4203,9 @@ available in a connected VM.
 
 | Menu.addSortProfile(index, name, order)
 | Insert a profile.  Names are 1..19 bytes and case-insensitively
-  unique.  Returns `false` for invalid data or allocation failure.
+  unique.  They must be printable US-ASCII without leading or trailing
+  whitespace or `=`/`:`, and cannot begin with `;` or `[`.  Returns `false`
+  for invalid data or allocation failure.
 
 | Menu.updateSortProfile(index, name, order)
 | Replace a profile's name and field order.  Updating the active
@@ -4622,10 +4624,11 @@ in safe mode.
 
 === Menu Web Lists [[menu-web-lists]]
 
-`Menu.webLists` returns a fresh List of `[name, uri]` rows.  Names must
-be unique and non-empty; `System List` is reserved.  Indexes refer to
-the order shown by that returned List.  `Menu.webListsDirty` reports
-whether the in-memory list has unpersisted edits.
+`Menu.webLists` returns a fresh List of `[name, uri]` rows.  Names must be
+unique, non-empty printable US-ASCII without leading or trailing whitespace
+or `=`/`:`, and cannot begin with `;` or `[`.  `System List` is reserved.
+Indexes refer to the order shown by that returned List.  `Menu.webListsDirty`
+reports whether the in-memory list has unpersisted edits.
 
 [options="header",cols="2m,4"]
 |===

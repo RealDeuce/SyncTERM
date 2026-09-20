@@ -111,7 +111,7 @@ not the absence of failing tests. New findings will receive stable A-numbers.
 | filesystem/ | Reviewed | A010; native expanded tests pass; Windows compile-only regression |
 | fonts/ | Reviewed | API/generator/build/tests/docs reviewed; 98 legacy bitmaps and all 46 catalog metadata entries match; mapping bounds/legacy comparison and semantic limits below; native tests pass |
 | hex/ | Reviewed | A001; native tests and MinGW build; caller integration tracked separately |
-| ini/ | Reviewed | All local sources/tests/build read; A019/A020 reproduced; consumer integration tracked with owning components; failure injection/performance gaps below |
+| ini/ | Reviewed | All local sources/tests/build read; native tests pass; consumer integration tracked with owning components; failure injection/performance gaps below |
 | io_error/ | Reviewed | Sources/header/build and caller adapters reviewed; native test passes; 28 Win32 mapping cases added and MinGW compile/link verified, Windows execution unavailable |
 | list_crypto/ | Reviewed | All local code/tests/build read; expanded counted-password tests pass natively; MinGW compile only; provider/resource/erasure limits below |
 | name_value_list/ | Reviewed | Ownership/sorted contracts checked; allocation injection remains a limitation |
@@ -1178,51 +1178,6 @@ Recommendation: coordinate cancellation/unblocking and worker completion
 without invalidating handles still usable by workers; close the owned handles
 only when their users are finished. A mutex held over indefinitely blocking
 I/O is not by itself a sufficient cancellation strategy. No code changed.
-
-### A019 — INI insertion after an unterminated line corrupts serialization
-
-Severity: high. Classification: confirmed round-trip/data-preservation defect,
-reproduced on native Clang and GCC.
-
-`ini_section_set_string` inserts a new raw record without ensuring the preceding
-record ends in a newline. The parser legitimately retains a last line without
-one. Serializing therefore concatenates the old record with the new key.
-ini_document_add_section has the same missing-boundary check when appending
-with the default empty section separator (source inspection, not separately
-tested yet).
-
-Reproduction: new test_append_after_unterminated_line in
-ini/tests/ini_interface_test.c parses `First=one`, adds Second=two in the root,
-serializes and reparses. Output is `First=oneSecond=two\n`: the original value
-changes and the new key disappears. Starting with `[Section]` instead produces
-`[Section]Second=two\n`, losing the section as well. Both cases fail on Clang
-and GCC; MinGW compiles the test but has not executed it. Existing parse tests
-cover unterminated input without this subsequent insertion.
-
-Recommendation: maintain physical record boundaries when inserting/appending,
-while retaining the missing final newline on unmodified round trips. Cover
-keys, section headers, section additions, LF/CRLF and trailing trivia in tests.
-No production changes made.
-
-### A020 — INI setter accepts keys that its parser cannot recognize
-
-Severity: medium. Classification: confirmed successful-mutation round-trip
-failure on native Clang and GCC.
-
-ini_section_set_string validates printable names excluding '=' and ':' and
-rejects a leading ';', but permits leading '['. parse_line treats any line
-starting with '[' as a section header or malformed section, never a key.
-Setting `[Key]` to `value` succeeds in memory, serializes as `[Key]=value\n`,
-and then disappears on reparse. Because clone uses serialize/parse, cloning
-also cannot preserve such an accepted entry (source consequence, not separately
-tested). A malformed section also suppresses later keys until a valid header.
-
-New test_accepted_key_round_trip demonstrates the loss on both native builds.
-It allows either explicit INVALID_ARGUMENT rejection or successful preservation,
-without prescribing a new escaping syntax. Recommendation: make setter name
-validation and documented grammar agree with the parser, and test all reserved
-leading syntax. Review style prefixes/separators for the same mismatch; those
-remain source concerns, not independently reproduced findings. No code fixed.
 
 ### A021 — Compact date-only branch is shadowed by epoch parsing
 
@@ -4618,10 +4573,8 @@ are distinct from the passing argument-only normal CTest.
   output requirements or serialized-buffer deallocation. document_read can
   publish a parsed result then return a mapping-close error, unlike the broad
   success-only replacement promise; cleanup-failure injection not done.
-- A019 and A020 confirm physical/logical representation mismatches. Further
-  boundary checks needed: style prefix/separator contents can change grammar;
-  removing a key
-  using a borrowed matching name may invalidate that name during the scan.
+- Style prefix/separator contents can change serialized grammar. Removing a
+  key using a borrowed matching name may invalidate that name during the scan.
   These are follow-up candidates, not yet independently reproduced findings.
 - Sorted index insertion and record-array shifting can produce quadratic
   construction/removal for large documents. Each parsed key allocates both raw
@@ -4959,12 +4912,10 @@ in-process memory accesses. Host consumers remain their own audit area.
   before narrowing. KDF is an opaque bounded string here; crypto consumer owns
   cost validation. No locale calls introduced.
 - Name validation differs: custom font insertion disallows empty but rename
-  allows it (A029); sort names reject =/: but accept '[' prefixes (A020's INI
-  round-trip problem applies); web list names are only checked non-NULL and
-  can cause save rejection or case-insensitive duplicate collapse. Duplicate
-  font/sort names remain accepted; full behavior should match the documented
-  menu contract rather than silently imposing uniqueness. Sort update replaces
-  the record before updating active name/order, so allocation failure can leave
+  allows it (A029). Duplicate font/sort/web-list names can still collapse under
+  case-insensitive lookup; full behavior should match the documented menu
+  contract rather than silently imposing uniqueness. Sort update replaces the
+  record before updating active name/order, so allocation failure can leave
   partially applied changes. Removing the last profile recreates defaults but
   can leave a partial list on allocation failure. Not injected.
 - Legacy settings reference preserves VideoMode alias, theme-package precedence,
@@ -5788,14 +5739,6 @@ successful verification.
   builds connection_serial and profile tests, not run.
   Connection and profile source coverage is complete with documented
   stress/error-injection/platform gaps.
-- INI initial pass: existing ini CTest passes Clang/GCC; expanded ini_interface
-  fails both unterminated-line insertion regressions after earlier tests pass.
-  MinGW compiles/links expanded test, not run. Source implementation unchanged;
-  test/report only, no commits. INI remains partially reviewed.
-- INI completion pass: full local test-source review complete. Clang/GCC
-  expanded ini_interface reproduces A019 and A020; zero-bitfield regression
-  passes. MinGW builds the expanded executable, not run. No implementation,
-  build configuration or existing documentation edits; no commits.
 - Value-conversion initial pass: expanded value_convert test fails A021 on
   native Clang/GCC after existing checks pass. MinGW test compiles/links, not
   executed. Only test/report changes; decimal implementation review pending.

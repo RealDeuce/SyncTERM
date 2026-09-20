@@ -5,6 +5,7 @@
 
 #include "st_settings.h"
 
+#include "io_error.h"
 #include "string_compat.h"
 
 #include <stdio.h>
@@ -36,5 +37,21 @@ main(void)
 	CHECK(strcmp(copy.web_downloads[0]->value, "two") == 0);
 	st_settings_dispose(&copy);
 	st_settings_dispose(&source);
+
+	st_settings_init(&st_settings);
+	CHECK(st_settings_web_download_append("One",
+	    "https://example.invalid/one.lst") == 0);
+	CHECK(st_settings_web_download_append("[Invalid]",
+	    "https://example.invalid/rejected.lst") == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_settings_web_download_count() == 1);
+	CHECK(st_settings_web_download_set(0, ";Invalid",
+	    "https://example.invalid/rejected.lst") == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(strcmp(st_settings_web_download_at(0)->name, "One") == 0);
+	CHECK(st_settings_sort_profile_add(0, "Name", "29,1") == 0);
+	CHECK(st_settings_sort_profile_add(0, "[Invalid]", "29,1") == -1);
+	CHECK(st_settings_sort_profile_count() == 1);
+	CHECK(st_settings_sort_profile_update(0, ";Invalid", "29,1") == -1);
+	CHECK(strcmp(st_settings_sort_profile_at(0)->name, "Name") == 0);
+	st_settings_dispose(&st_settings);
 	return 0;
 }

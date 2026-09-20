@@ -21,8 +21,10 @@ typedef struct ini_document ini_document_t;
 typedef struct ini_section ini_section_t;
 
 /*
- * Section and key names are nonempty printable US-ASCII and compare with
- * ASCII-only case folding. Values are NUL-terminated byte strings with no
+ * Section and key names are nonempty printable US-ASCII, do not begin or end
+ * with ASCII whitespace, and compare with ASCII-only case folding. Section
+ * names cannot contain '[' or ']'. Key names cannot contain '=' or ':', or
+ * begin with ';' or '['. Values are NUL-terminated byte strings with no
  * specified encoding. Returned views and borrowed strings are invalidated by
  * the next document mutation or by freeing the document.
  *
@@ -31,6 +33,7 @@ typedef struct ini_section ini_section_t;
  * that block.
  */
 
+/* A nonempty section_separator is emitted as its own terminated record. */
 struct ini_write_style {
 	size_t key_width;
 	const char *key_prefix;
@@ -46,6 +49,9 @@ struct ini_bit_name {
 };
 
 extern const struct ini_write_style ini_default_style;
+
+/* Reports whether name satisfies the key-name grammar described above. */
+bool ini_key_name_valid(const char *name);
 
 /*
  * Result pointers are replaced only after a complete successful operation.

@@ -1040,7 +1040,7 @@ st_settings_web_download_set(size_t index, const char *name, const char *url)
 	struct name_value *previous;
 
 	if (index >= name_value_list_count(st_settings.web_downloads)
-	    || name == NULL || url == NULL)
+	    || !ini_key_name_valid(name) || url == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	replacement = name_value_create(name, url);
 	if (replacement == NULL)
@@ -1054,7 +1054,7 @@ st_settings_web_download_set(size_t index, const char *name, const char *url)
 int
 st_settings_web_download_append(const char *name, const char *url)
 {
-	if (name == NULL || url == NULL)
+	if (!ini_key_name_valid(name) || url == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	return name_value_list_append(&st_settings.web_downloads, name, url)
 	    ? 0 : IO_ERROR_OUT_OF_MEMORY;

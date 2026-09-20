@@ -922,6 +922,12 @@ valid_name(const char *name, const char *forbidden)
 	    && strpbrk(name, forbidden) == NULL;
 }
 
+bool
+ini_key_name_valid(const char *name)
+{
+	return valid_name(name, "=:") && name[0] != ';' && name[0] != '[';
+}
+
 static bool
 value_needs_literal(const char *value)
 {
@@ -1162,6 +1168,60 @@ key_record_insertion_index(const struct ini_section *section)
 	return position;
 }
 
+static int
+prepare_raw_termination(const struct ini_record *record,
+    const char *document_newline, char **replacement)
+{
+	const char *newline;
+	size_t length;
+	size_t newline_length;
+	char *raw;
+
+	*replacement = NULL;
+	length = strlen(record->raw);
+	if (length > 0 && record->raw[length - 1] == '\n')
+		return 0;
+	newline = document_newline;
+	newline_length = strlen(newline);
+	if (length > 0 && record->raw[length - 1] == '\r') {
+		newline = "\n";
+		newline_length = 1;
+	}
+	if (length > SIZE_MAX - newline_length - 1)
+		return IO_ERROR_OUT_OF_RANGE;
+	raw = malloc(length + newline_length + 1);
+	if (raw == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	memcpy(raw, record->raw, length);
+	memcpy(raw + length, newline, newline_length + 1);
+	*replacement = raw;
+	return 0;
+}
+
+static int
+prepare_record_termination(const struct ini_document *document,
+    size_t insertion, char **replacement)
+{
+	*replacement = NULL;
+	if (insertion == 0)
+		return 0;
+	return prepare_raw_termination(document->records[insertion - 1],
+	    document->newline, replacement);
+}
+
+static void
+commit_record_termination(struct ini_document *document, size_t insertion,
+    char *replacement)
+{
+	struct ini_record *record;
+
+	if (replacement == NULL)
+		return;
+	record = document->records[insertion - 1];
+	free(record->raw);
+	record->raw = replacement;
+}
+
 int
 ini_section_set_string(ini_section_t *section, const char *key,
     const char *value, const struct ini_write_style *style)
@@ -1169,7 +1229,7 @@ ini_section_set_string(ini_section_t *section, const char *key,
 	struct name_value *item;
 	bool literal;
 
-	if (section == NULL || !valid_name(key, "=:") || key[0] == ';'
+	if (section == NULL || !ini_key_name_valid(key)
 	    || value == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (style == NULL)
@@ -1207,14 +1267,23 @@ ini_section_set_string(ini_section_t *section, const char *key,
 		struct ini_record *record = new_key_record(section, key, value,
 		    literal, style);
 		struct name_value *new_item;
+		char *terminated_raw = NULL;
 		size_t count = ini_section_count(section);
 		size_t record_count = ini_record_list_count(section->document->records);
 		size_t insertion = key_record_insertion_index(section);
+		int error;
 
 		if (record == NULL)
 			return IO_ERROR_OUT_OF_MEMORY;
+		error = prepare_record_termination(section->document, insertion,
+		    &terminated_raw);
+		if (error != 0) {
+			record_free(record);
+			return error;
+		}
 		new_item = name_value_create(key, value);
 		if (new_item == NULL) {
+			free(terminated_raw);
 			record_free(record);
 			return IO_ERROR_OUT_OF_MEMORY;
 		}
@@ -1224,9 +1293,12 @@ ini_section_set_string(ini_section_t *section, const char *key,
 		    || !ini_record_list_reserve(&section->document->records,
 		    record_count + 1)) {
 			name_value_free_item(new_item);
+			free(terminated_raw);
 			record_free(record);
 			return IO_ERROR_OUT_OF_MEMORY;
 		}
+		commit_record_termination(section->document, insertion,
+		    terminated_raw);
 		(void)name_value_array_append(&section->entries, new_item);
 		(void)name_value_index_insert_sorted(&section->index, new_item);
 		(void)ini_record_list_append(&section->entry_records, record);
@@ -1440,6 +1512,7 @@ ini_document_add_section(ini_document_t *document, const char *name,
 	struct ini_record *header;
 	struct ini_record *separator_record = NULL;
 	struct ini_section *section;
+	char *terminated_raw = NULL;
 	size_t name_length;
 	size_t newline_length;
 	size_t total;
@@ -1489,10 +1562,33 @@ ini_document_add_section(ini_document_t *document, const char *name,
 			free(name_copy);
 			return IO_ERROR_OUT_OF_MEMORY;
 		}
+		char *separator_raw = NULL;
+
+		error = prepare_raw_termination(separator_record,
+		    document->newline, &separator_raw);
+		if (error != 0) {
+			record_free(separator_record);
+			record_free(header);
+			free(name_copy);
+			return error;
+		}
+		if (separator_raw != NULL) {
+			free(separator_record->raw);
+			separator_record->raw = separator_raw;
+		}
+	}
+	error = prepare_record_termination(document,
+	    ini_record_list_count(document->records), &terminated_raw);
+	if (error != 0) {
+		record_free(separator_record);
+		record_free(header);
+		free(name_copy);
+		return error;
 	}
 	if (!ini_record_list_reserve(&document->records,
 	    ini_record_list_count(document->records) + 1
 	    + (separator_record != NULL))) {
+		free(terminated_raw);
 		record_free(separator_record);
 		record_free(header);
 		free(name_copy);
@@ -1500,11 +1596,14 @@ ini_document_add_section(ini_document_t *document, const char *name,
 	}
 	error = append_section(document, name_copy, header, &section);
 	if (error != 0) {
+		free(terminated_raw);
 		record_free(separator_record);
 		record_free(header);
 		free(name_copy);
 		return error;
 	}
+	commit_record_termination(document,
+	    ini_record_list_count(document->records), terminated_raw);
 	if (separator_record != NULL)
 		(void)ini_record_list_append(&document->records, separator_record);
 	(void)ini_record_list_append(&document->records, header);

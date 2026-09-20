@@ -547,74 +547,165 @@ test_zero_bitfield(void)
 }
 
 static bool
-test_accepted_key_round_trip(void)
+test_key_name_grammar(void)
 {
+	static const char *const invalid_names[] = {
+		NULL, "", " leading", "trailing ", "bad=key", "bad:key",
+		";comment", "[section]",
+	};
+	static const char non_ascii_name[] = {'b', (char)0x80, 'd', '\0'};
 	ini_document_t *document = NULL;
 	ini_document_t *parsed = NULL;
 	char *text = NULL;
 	size_t size = 0;
-	bool retained;
 
-	CHECK(ini_document_create(&document) == 0);
-	int status = ini_section_set_string(ini_document_root(document),
-	    "[Key]", "value", NULL);
-	if (status == IO_ERROR_INVALID_ARGUMENT) {
-		ini_document_free(&document);
-		return true;
+	CHECK(ini_key_name_valid("Key"));
+	CHECK(ini_key_name_valid("Key[Part]"));
+	for (size_t i = 0;
+	    i < sizeof(invalid_names) / sizeof(invalid_names[0]); ++i) {
+		CHECK(!ini_key_name_valid(invalid_names[i]));
 	}
-	CHECK(status == 0);
+	CHECK(!ini_key_name_valid(non_ascii_name));
+	CHECK(ini_document_parse(&document, "Keep=yes\n", 9) == 0);
+	for (size_t i = 0;
+	    i < sizeof(invalid_names) / sizeof(invalid_names[0]); ++i) {
+		CHECK(ini_section_set_string(ini_document_root(document),
+		    invalid_names[i], "value", NULL) == IO_ERROR_INVALID_ARGUMENT);
+	}
+	CHECK(ini_section_set_string(ini_document_root(document), non_ascii_name,
+	    "value", NULL) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(ini_section_set_string(ini_document_root(document), "Key[Part]",
+	    "value", NULL) == 0);
 	CHECK(ini_document_serialize(document, &text, &size) == 0);
+	CHECK(strcmp(text, "Keep=yes\nKey[Part]=value\n") == 0);
 	CHECK(ini_document_parse(&parsed, text, size) == 0);
-	const char *value = ini_section_find(ini_document_root(parsed), "[Key]");
-	retained = value != NULL && strcmp(value, "value") == 0;
-	if (!retained)
-		fprintf(stderr, "accepted key lost after serialization: %s\n", text);
+	CHECK(strcmp(ini_section_find(ini_document_root(parsed), "Keep"),
+	    "yes") == 0);
+	CHECK(strcmp(ini_section_find(ini_document_root(parsed), "Key[Part]"),
+	    "value") == 0);
 	free(text);
 	ini_document_free(&parsed);
 	ini_document_free(&document);
-	CHECK(retained);
 	return true;
 }
 
 static bool
 test_append_after_unterminated_line(void)
 {
-	static const char *const inputs[] = {"First=one", "[Section]"};
-	bool passed = true;
+	static const struct {
+		const char *input;
+		const char *section_name;
+		const char *expected;
+		const char *prior_key;
+		const char *prior_value;
+	} cases[] = {
+		{"First=one", NULL, "First=one\nSecond=two\n", "First", "one"},
+		{"[Section]", "Section", "[Section]\nSecond=two\n", NULL, NULL},
+		{"[Section]\r\nFirst=one", "Section",
+		    "[Section]\r\nFirst=one\r\nSecond=two\r\n", "First", "one"},
+		{"First=one\n; trailing", NULL,
+		    "First=one\nSecond=two\n; trailing", "First", "one"},
+	};
 
-	for (size_t i = 0; i < sizeof(inputs) / sizeof(inputs[0]); ++i) {
+	for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
 		ini_document_t *document = NULL;
 		ini_document_t *parsed = NULL;
 		ini_section_t *section;
 		char *text = NULL;
 		size_t size = 0;
 
-		CHECK(ini_document_parse(&document, inputs[i], strlen(inputs[i])) == 0);
-		section = i == 0 ? ini_document_root(document)
-		    : ini_document_find_section(document, "Section");
+		CHECK(ini_document_parse(&document, cases[i].input,
+		    strlen(cases[i].input)) == 0);
+		section = cases[i].section_name == NULL ? ini_document_root(document)
+		    : ini_document_find_section(document, cases[i].section_name);
 		CHECK(ini_section_set_string(section, "Second", "two", NULL) == 0);
 		CHECK(ini_document_serialize(document, &text, &size) == 0);
+		CHECK(strcmp(text, cases[i].expected) == 0);
 		CHECK(ini_document_parse(&parsed, text, size) == 0);
-		section = i == 0 ? ini_document_root(parsed)
-		    : ini_document_find_section(parsed, "Section");
-		const char *value = ini_section_find(section, "Second");
-		if (value == NULL || strcmp(value, "two") != 0) {
-			fprintf(stderr, "appended key lost after parsing serialized text: %s\n",
-			    text);
-			passed = false;
-		}
-		if (i == 0) {
-			value = ini_section_find(section, "First");
-			if (value == NULL || strcmp(value, "one") != 0) {
-				fprintf(stderr, "appending changed the preceding value\n");
-				passed = false;
-			}
-		}
+		section = cases[i].section_name == NULL ? ini_document_root(parsed)
+		    : ini_document_find_section(parsed, cases[i].section_name);
+		CHECK(section != NULL);
+		CHECK(strcmp(ini_section_find(section, "Second"), "two") == 0);
+		if (cases[i].prior_key != NULL)
+			CHECK(strcmp(ini_section_find(section, cases[i].prior_key),
+			    cases[i].prior_value) == 0);
 		free(text);
 		ini_document_free(&parsed);
 		ini_document_free(&document);
 	}
-	return passed;
+	return true;
+}
+
+static bool
+test_add_section_after_unterminated_line(void)
+{
+	static const struct {
+		const char *input;
+		const char *separator;
+		const char *expected;
+	} cases[] = {
+		{"First=one", "", "First=one\n[Added]\n"},
+		{"[Section]", "", "[Section]\n[Added]\n"},
+		{"First=one\r\nLast=two", "",
+		    "First=one\r\nLast=two\r\n[Added]\r\n"},
+		{"First=one\n; trailing", "",
+		    "First=one\n; trailing\n[Added]\n"},
+		{"First=one", "\n", "First=one\n\n[Added]\n"},
+		{"First=one", "; divide", "First=one\n; divide\n[Added]\n"},
+	};
+
+	for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
+		struct ini_write_style style = ini_default_style;
+		ini_document_t *document = NULL;
+		ini_document_t *parsed = NULL;
+		ini_section_t *added = NULL;
+		char *text = NULL;
+		size_t size = 0;
+
+		style.section_separator = cases[i].separator;
+		CHECK(ini_document_parse(&document, cases[i].input,
+		    strlen(cases[i].input)) == 0);
+		CHECK(ini_document_add_section(document, "Added", &style,
+		    &added) == 0);
+		CHECK(added != NULL);
+		CHECK(ini_document_serialize(document, &text, &size) == 0);
+		CHECK(strcmp(text, cases[i].expected) == 0);
+		CHECK(ini_document_parse(&parsed, text, size) == 0);
+		CHECK(ini_document_find_section(parsed, "Added") != NULL);
+		if (strncmp(cases[i].input, "First=one", 9) == 0)
+			CHECK(strcmp(ini_section_find(ini_document_root(parsed),
+			    "First"), "one") == 0);
+		else
+			CHECK(ini_document_find_section(parsed, "Section") != NULL);
+		free(text);
+		ini_document_free(&parsed);
+		ini_document_free(&document);
+	}
+	return true;
+}
+
+static bool
+test_unterminated_record_without_insertion(void)
+{
+	ini_document_t *document = NULL;
+	ini_document_t *clone = NULL;
+	char *text = NULL;
+	size_t size = 0;
+
+	CHECK(ini_document_parse(&document, "First=one", 9) == 0);
+	CHECK(ini_section_set_string(ini_document_root(document), "First",
+	    "changed", NULL) == 0);
+	CHECK(ini_document_serialize(document, &text, &size) == 0);
+	CHECK(size == 13 && strcmp(text, "First=changed") == 0);
+	free(text);
+	text = NULL;
+	CHECK(ini_document_clone(&clone, document) == 0);
+	CHECK(ini_document_serialize(clone, &text, &size) == 0);
+	CHECK(size == 13 && strcmp(text, "First=changed") == 0);
+	free(text);
+	ini_document_free(&clone);
+	ini_document_free(&document);
+	return true;
 }
 
 int
@@ -627,7 +718,9 @@ main(void)
 	    || !test_clone())
 		return EXIT_FAILURE;
 	bool passed = test_append_after_unterminated_line();
-	passed = test_accepted_key_round_trip() && passed;
+	passed = test_add_section_after_unterminated_line() && passed;
+	passed = test_unterminated_record_without_insertion() && passed;
+	passed = test_key_name_grammar() && passed;
 	passed = test_zero_bitfield() && passed;
 	return passed ? EXIT_SUCCESS : EXIT_FAILURE;
 }
