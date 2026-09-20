@@ -239,6 +239,26 @@ clear_cell_pair(WrenVM *vm, struct foreign_cell *foreign)
 	*cell = blank;
 }
 
+static struct st_console_cell
+clipped_blank(WrenVM *vm, const struct st_console_cell *source)
+{
+	struct st_console_cell blank = *source;
+	uint32_t glyph = ' ';
+	uint16_t glyph_font = blank.font;
+	uint8_t columns;
+
+	blank.codepoint = ' ';
+	blank.flags &= ~(ST_CONSOLE_CELL_CONTINUATION
+	    | ST_CONSOLE_CELL_EXPLICIT_GLYPH | ST_CONSOLE_CELL_FALLBACK_FONT
+	    | ST_CONSOLE_CELL_PIXEL_GRAPHICS);
+	(void)st_console_font_lookup(st_wren_context_from_vm(vm)->console,
+	    blank.font, ' ', &glyph_font, &glyph, &columns);
+	blank.glyph = glyph;
+	if (glyph_font != blank.font)
+		blank.flags |= ST_CONSOLE_CELL_FALLBACK_FONT;
+	return blank;
+}
+
 static void
 set_cell_codepoint(WrenVM *vm, struct foreign_cell *foreign,
 	uint32_t codepoint, bool raw, uint8_t raw_glyph)
@@ -1001,43 +1021,34 @@ fn_screen_restore(WrenVM *vm)
 		st_wren_abort(vm, "Screen.restore failed");
 }
 
-static struct foreign_surface *
-new_surface(WrenVM *vm, int destination, uint32_t width, uint32_t height)
-{
-	struct st_console_style style;
-
-	if (st_console_get_style(st_wren_context_from_vm(vm)->console, &style) != 0)
-		style = (struct st_console_style){.foreground = 7};
-	wrenEnsureSlots(vm, destination + 2);
-	wrenGetVariable(vm, "syncterm", "Surface", destination + 1);
-	struct foreign_surface *surface = wrenSetSlotNewForeign(vm, destination,
-	    destination + 1, sizeof(*surface));
-	surface->header.kind = FOREIGN_SURFACE;
-	surface->storage = storage_create(width, height, &style);
-	if (surface->storage == NULL) {
-		st_wren_abort(vm, "out of memory creating Surface");
-		return NULL;
-	}
-	return surface;
-}
-
 static bool
-rect_arguments(WrenVM *vm, int first, struct st_console_rect *rect)
+read_rect_arguments(WrenVM *vm, int first, struct st_console_rect *rect)
 {
-	int64_t values[4];
+	double values[4];
 
 	for (size_t i = 0; i < 4; ++i) {
-		if (!slot_integer(vm, first + (int)i, 1, UINT32_MAX, &values[i]))
+		if (wrenGetSlotType(vm, first + (int)i) != WREN_TYPE_NUM) {
+			st_wren_abort(vm, "expected an integer");
 			return false;
+		}
+		values[i] = wrenGetSlotDouble(vm, first + (int)i);
+		if (!isfinite(values[i]) || trunc(values[i]) != values[i]) {
+			st_wren_abort(vm, "expected an integer");
+			return false;
+		}
+		if (values[i] < 1.0 || values[i] > (double)UINT32_MAX) {
+			wrenSetSlotNull(vm, 0);
+			return false;
+		}
 	}
 	if (values[2] < values[0] || values[3] < values[1]) {
-		st_wren_abort(vm, "rectangle is inverted");
+		wrenSetSlotNull(vm, 0);
 		return false;
 	}
 	rect->x = (uint32_t)values[0] - 1;
 	rect->y = (uint32_t)values[1] - 1;
-	rect->width = (uint32_t)(values[2] - values[0] + 1);
-	rect->height = (uint32_t)(values[3] - values[1] + 1);
+	rect->width = (uint32_t)(values[2] - values[0] + 1.0);
+	rect->height = (uint32_t)(values[3] - values[1] + 1.0);
 	return true;
 }
 
@@ -1045,15 +1056,40 @@ static void
 fn_screen_read_rect(WrenVM *vm)
 {
 	struct st_console_rect rect;
+	struct st_console_style style;
+	struct surface_storage *storage;
 	struct foreign_surface *surface;
+	uint32_t screen_width;
+	uint32_t screen_height;
+	st_console_t *console = st_wren_context_from_vm(vm)->console;
 
-	if (!rect_arguments(vm, 1, &rect))
+	if (!read_rect_arguments(vm, 1, &rect))
 		return;
-	surface = new_surface(vm, 0, rect.width, rect.height);
-	if (surface != NULL
-	    && st_console_read_cells(st_wren_context_from_vm(vm)->console,
-	    &rect, surface->storage->cells, rect.width) != 0)
-		st_wren_abort(vm, "Screen.readRect failed");
+	if (st_console_size(console, &screen_width, &screen_height) != 0
+	    || rect.x >= screen_width || rect.y >= screen_height
+	    || rect.width > screen_width - rect.x
+	    || rect.height > screen_height - rect.y) {
+		wrenSetSlotNull(vm, 0);
+		return;
+	}
+	if (st_console_get_style(console, &style) != 0)
+		style = (struct st_console_style){.foreground = 7};
+	storage = storage_create(rect.width, rect.height, &style);
+	if (storage == NULL) {
+		wrenSetSlotNull(vm, 0);
+		return;
+	}
+	if (st_console_read_cells(console, &rect, storage->cells,
+	    rect.width) != 0) {
+		storage_release(storage);
+		wrenSetSlotNull(vm, 0);
+		return;
+	}
+	wrenEnsureSlots(vm, 2);
+	wrenGetVariable(vm, "syncterm", "Surface", 1);
+	surface = wrenSetSlotNewForeign(vm, 0, 1, sizeof(*surface));
+	surface->header.kind = FOREIGN_SURFACE;
+	surface->storage = storage;
 }
 
 static bool
@@ -1751,36 +1787,59 @@ surface_copy(WrenVM *vm, bool partial)
 	    values[3], values[4], values[5], destination->storage->width,
 	    destination->storage->height, &source_rect, &destination_rect))
 		return;
-	for (uint32_t row = 0; row < source_rect.height; ++row) {
+	bool reverse = destination->storage == source->storage
+	    && destination_rect.y > source_rect.y
+	    && destination_rect.y < source_rect.y + source_rect.height;
+	for (uint32_t iteration = 0; iteration < source_rect.height;
+	    ++iteration) {
+		uint32_t row = reverse ? source_rect.height - iteration - 1
+		    : iteration;
+		size_t source_index = (size_t)(source_rect.y + row)
+		    * source->storage->width + source_rect.x;
 		size_t destination_index = (size_t)(destination_rect.y + row)
 		    * destination->storage->width + destination_rect.x;
-		struct foreign_cell boundary = {
-			.header.kind = FOREIGN_CELL,
-			.storage = destination->storage,
-			.index = destination_index,
-		};
+		size_t source_last = source_index + source_rect.width - 1;
+		size_t destination_last = destination_index
+		    + destination_rect.width - 1;
+		struct st_console_cell source_first_cell =
+		    source->storage->cells[source_index];
+		struct st_console_cell source_last_cell =
+		    source->storage->cells[source_last];
+		bool clipped_left = (source_first_cell.flags
+		    & ST_CONSOLE_CELL_CONTINUATION) != 0;
+		bool clipped_right = (source_last_cell.flags
+		    & ST_CONSOLE_CELL_CONTINUATION) == 0
+		    && resolved_cell_columns(vm, &source_last_cell) == 2;
+		bool repair_left = destination_rect.x != 0
+		    && (destination->storage->cells[destination_index].flags
+		    & ST_CONSOLE_CELL_CONTINUATION) != 0;
+		bool repair_right = destination_rect.x + destination_rect.width
+		    < destination->storage->width
+		    && (destination->storage->cells[destination_last].flags
+		    & ST_CONSOLE_CELL_CONTINUATION) == 0
+		    && resolved_cell_columns(vm,
+		    &destination->storage->cells[destination_last]) == 2
+		    && (destination->storage->cells[destination_last + 1].flags
+		    & ST_CONSOLE_CELL_CONTINUATION) != 0;
 
-		clear_cell_pair(vm, &boundary);
-		boundary.index += destination_rect.width - 1;
-		clear_cell_pair(vm, &boundary);
 		memmove(&destination->storage->cells[
 		    destination_index],
-		    &source->storage->cells[(size_t)(source_rect.y + row)
-		    * source->storage->width + source_rect.x],
+		    &source->storage->cells[source_index],
 		    (size_t)source_rect.width * sizeof(struct st_console_cell));
-		boundary.index = destination_index;
-		if ((destination->storage->cells[boundary.index].flags
-		    & ST_CONSOLE_CELL_CONTINUATION) != 0)
-			clear_cell_pair(vm, &boundary);
-		boundary.index = destination_index + destination_rect.width - 1;
-		{
-			struct st_console_cell *last =
-			    &destination->storage->cells[boundary.index];
-
-			if (resolved_cell_columns(vm, last) == 2 && (last->flags
-			    & ST_CONSOLE_CELL_CONTINUATION) == 0)
-				clear_cell_pair(vm, &boundary);
-		}
+		if (repair_left)
+			destination->storage->cells[destination_index - 1] =
+			    clipped_blank(vm, &destination->storage->cells[
+			    destination_index - 1]);
+		if (repair_right)
+			destination->storage->cells[destination_last + 1] =
+			    clipped_blank(vm, &destination->storage->cells[
+			    destination_last + 1]);
+		if (clipped_left)
+			destination->storage->cells[destination_index] =
+			    clipped_blank(vm, &source_first_cell);
+		if (clipped_right)
+			destination->storage->cells[destination_last] =
+			    clipped_blank(vm, &source_last_cell);
 	}
 }
 
@@ -1816,10 +1875,16 @@ fn_surface_fill(WrenVM *vm)
 			return;
 		}
 	}
+	if (values[2] <= 0 || values[3] <= 0)
+		return;
+	right = values[0] + values[2];
+	bottom = values[1] + values[3];
 	left = values[0] < 0 ? 0 : values[0];
 	top = values[1] < 0 ? 0 : values[1];
-	right = values[2] <= 0 ? left : left + values[2];
-	bottom = values[3] <= 0 ? top : top + values[3];
+	if (right <= 0 || bottom <= 0
+	    || left >= surface->storage->width
+	    || top >= surface->storage->height)
+		return;
 	if (right > surface->storage->width)
 		right = surface->storage->width;
 	if (bottom > surface->storage->height)

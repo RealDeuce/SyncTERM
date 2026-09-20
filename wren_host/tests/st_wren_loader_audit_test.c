@@ -52,8 +52,6 @@ main(int argc, char **argv)
 	CHECK(argc == 3);
 	CHECK(strcmp(argv[2], "autoload") == 0
 	    || strcmp(argv[2], "recovery") == 0
-	    || strcmp(argv[2], "surface") == 0
-	    || strcmp(argv[2], "surface-clip") == 0
 	    || strcmp(argv[2], "core-contracts") == 0
 	    || strcmp(argv[2], "physical-input") == 0
 	    || strcmp(argv[2], "cell") == 0
@@ -638,8 +636,6 @@ main(int argc, char **argv)
 	}
 	else if (strcmp(argv[2], "core-contracts") == 0) {
 		static const char *cases[] = {
-		    "import \"syncterm\" for Screen\n"
-		    "if (Screen.readRect(81, 1, 81, 1) != null) Fiber.abort(\"invalid rectangle must return null\")\n",
 		    "import \"syncterm\" for Format\n"
 		    "if (Format.bytes(-1) != Format.bytes(0)) Fiber.abort(\"negative bytes not clamped\")\n",
 		    "import \"syncterm\" for Format\n"
@@ -655,32 +651,6 @@ main(int argc, char **argv)
 			fprintf(stderr, "core contract %zu: %s\n", i, ok ? "PASS" : "FAIL");
 			passed = passed && ok;
 		}
-	}
-	else if (strcmp(argv[2], "surface-clip") == 0) {
-		CHECK(status == 0);
-		passed = wrenInterpret(host->vm, "surface_clip_audit",
-		    "import \"syncterm\" for Surface\n"
-		    "var s = Surface.new(4, 1)\n"
-		    "s[0].ch = \"A\"\n"
-		    "s[1].ch = \"B\"\n"
-		    "s[3].ch = \"X\"\n"
-		    "s.fill_(-1, 0, 2, 1, s[3])\n"
-		    "if (s[0].ch != \"X\") Fiber.abort(\"clipped intersection not filled\")\n"
-		    "if (s[1].ch != \"B\") Fiber.abort(\"negative origin extended fill\")\n")
-		    == WREN_RESULT_SUCCESS;
-	}
-	else if (strcmp(argv[2], "surface") == 0) {
-		CHECK(status == 0);
-		passed = wrenInterpret(host->vm, "surface_self_copy_audit",
-		    "import \"syncterm\" for Surface\n"
-		    "var s = Surface.new(3, 1)\n"
-		    "s[0].ch = \"A\"\n"
-		    "s[1].ch = \"B\"\n"
-		    "s[2].ch = \"C\"\n"
-		    "s.putRect(s, 0, 0)\n"
-		    "if (s[0].ch != \"A\" || s[1].ch != \"B\" || s[2].ch != \"C\") Fiber.abort(\"identity copy changed cells\")\n")
-		    == WREN_RESULT_SUCCESS;
-		fprintf(stderr, "surface identity copy: %s\n", passed ? "PASS" : "FAIL");
 	}
 	else {
 		CHECK(status == 0);

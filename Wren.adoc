@@ -2171,7 +2171,9 @@ sends something.
 | `Screen.readRect(sx, sy, ex, ey)`
 | Read a rectangle of cells (1-based, inclusive).  Returns a
   <<surface,`Surface`>> sized `(ex-sx+1) × (ey-sy+1)`, or `null` on
-  invalid coords / OOM.
+  invalid integral coordinates, capture failure, or backing-storage OOM.
+  Arguments of the wrong type, fractional values, NaN, and infinity are
+  programmer errors and abort the calling fiber.
 
 | `Screen.writeRect(sx, sy, ex, ey, src)`
 | Write `src` into a rectangle.  `src` may be a <<surface,`Surface`>>
@@ -3293,10 +3295,14 @@ a cell through `surf.rows[y][x]` mutates the underlying Surface.
   `putRect(src, srcRect, dstX, dstY)`
 | Paste a source Surface into this Surface at `(dstX, dstY)` (0-based).
   The 4-arg form copies a sub-rect of `src` defined by a `Rect`.
-  Out-of-bounds writes are clipped.
+  Out-of-bounds writes are clipped.  Source and destination may be the same
+  Surface; overlapping copies behave as though the clipped source were read
+  before any destination cell changed.  If clipping selects only half of a
+  two-cell glyph, that incomplete glyph becomes a styled blank.
 
 | `fill(rect, cell)`
-| Bulk-fill the cells inside `rect` (a `Rect`) with a copy of `cell`.
+| Bulk-fill the intersection of `rect` (a `Rect`) and the Surface with a copy
+  of `cell`.  Empty and disjoint rectangles are no-ops.
 
 | `toString`
 | Debug-only string form, e.g. `"Surface(80x25)"`.  Format may

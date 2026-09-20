@@ -363,6 +363,140 @@ exercise_surface_cell_retarget_contract(st_wren_host_t *public_host)
 }
 
 static int
+exercise_rectangle_contract(st_wren_host_t *public_host)
+{
+	struct st_wren_host *host = public_host;
+	static const char copy_source[] =
+	    "import \"syncterm\" for Cell, Screen, Surface\n"
+	    "import \"ui_widget\" for Rect\n"
+	    "class RectangleContract {\n"
+	    "  static row(s, y) {\n"
+	    "    var text = \"\"\n"
+	    "    for (x in 0...s.width) text = text + s.cellAt(x, y).ch\n"
+	    "    return text\n"
+	    "  }\n"
+	    "  static setRow(s, y, text) {\n"
+	    "    for (x in 0...text.count) s.cellAt(x, y).ch = text[x]\n"
+	    "  }\n"
+	    "  static expect(s, y, text, label) {\n"
+	    "    if (row(s, y) != text) Fiber.abort(label)\n"
+	    "  }\n"
+	    "}\n"
+	    "var s = Surface.new(5, 3)\n"
+	    "RectangleContract.setRow(s, 0, \"ABCDE\")\n"
+	    "s.putRect(s, 0, 0)\n"
+	    "RectangleContract.expect(s, 0, \"ABCDE\", \"identity copy\")\n"
+	    "s.putRect(s, Rect.new(0, 0, 4, 1), 1, 0)\n"
+	    "RectangleContract.expect(s, 0, \"AABCD\", \"right overlap\")\n"
+	    "RectangleContract.setRow(s, 0, \"ABCDE\")\n"
+	    "s.putRect(s, Rect.new(1, 0, 4, 1), 0, 0)\n"
+	    "RectangleContract.expect(s, 0, \"BCDEE\", \"left overlap\")\n"
+	    "RectangleContract.setRow(s, 0, \"AAAAA\")\n"
+	    "RectangleContract.setRow(s, 1, \"BBBBB\")\n"
+	    "RectangleContract.setRow(s, 2, \"CCCCC\")\n"
+	    "s.putRect(s, Rect.new(0, 0, 5, 2), 0, 1)\n"
+	    "RectangleContract.expect(s, 0, \"AAAAA\", \"down row zero\")\n"
+	    "RectangleContract.expect(s, 1, \"AAAAA\", \"down row one\")\n"
+	    "RectangleContract.expect(s, 2, \"BBBBB\", \"down row two\")\n"
+	    "RectangleContract.setRow(s, 0, \"AAAAA\")\n"
+	    "RectangleContract.setRow(s, 1, \"BBBBB\")\n"
+	    "RectangleContract.setRow(s, 2, \"CCCCC\")\n"
+	    "s.putRect(s, Rect.new(0, 1, 5, 2), 0, 0)\n"
+	    "RectangleContract.expect(s, 0, \"BBBBB\", \"up row zero\")\n"
+	    "RectangleContract.expect(s, 1, \"CCCCC\", \"up row one\")\n"
+	    "RectangleContract.expect(s, 2, \"CCCCC\", \"up row two\")\n"
+	    "var src = Surface.new(3, 1)\n"
+	    "var dst = Surface.new(4, 1)\n"
+	    "RectangleContract.setRow(src, 0, \"ABC\")\n"
+	    "RectangleContract.setRow(dst, 0, \"zzzz\")\n"
+	    "dst.putRect(src, Rect.new(-1, 0, 3, 1), 0, 0)\n"
+	    "RectangleContract.expect(dst, 0, \"zABz\", \"source clipping\")\n"
+	    "RectangleContract.setRow(dst, 0, \"zzzz\")\n"
+	    "dst.putRect(src, -1, 0)\n"
+	    "RectangleContract.expect(dst, 0, \"BCzz\", \"destination clipping\")\n"
+	    "var wide = Surface.new(4, 1)\n"
+	    "wide.cellAt(1, 0).legacyAttr = 0x1e\n"
+	    "wide.cellAt(1, 0).ch = \"\\u4e00\"\n"
+	    "RectangleContract.setRow(dst, 0, \"abcd\")\n"
+	    "dst.putRect(wide, Rect.new(2, 0, 1, 1), 1, 0)\n"
+	    "if (dst.cellAt(1, 0).ch != \" \" || dst.cellAt(1, 0).legacyAttr != 0x1e) Fiber.abort(\"clipped continuation\")\n"
+	    "if (dst.cellAt(0, 0).ch != \"a\" || dst.cellAt(2, 0).ch != \"c\") Fiber.abort(\"continuation changed outside\")\n"
+	    "RectangleContract.setRow(dst, 0, \"abcd\")\n"
+	    "dst.putRect(wide, Rect.new(1, 0, 1, 1), 1, 0)\n"
+	    "if (dst.cellAt(1, 0).ch != \" \" || dst.cellAt(1, 0).legacyAttr != 0x1e) Fiber.abort(\"clipped wide lead\")\n"
+	    "if (dst.cellAt(0, 0).ch != \"a\" || dst.cellAt(2, 0).ch != \"c\") Fiber.abort(\"wide lead changed outside\")\n"
+	    "var narrow = Surface.new(1, 1)\n"
+	    "narrow[0].ch = \"X\"\n"
+	    "RectangleContract.setRow(dst, 0, \"abcd\")\n"
+	    "dst.cellAt(1, 0).ch = \"\\u4e00\"\n"
+	    "dst.putRect(narrow, 2, 0)\n"
+	    "if (dst.cellAt(1, 0).ch != \" \" || dst.cellAt(2, 0).ch != \"X\") Fiber.abort(\"overwrite continuation\")\n"
+	    "RectangleContract.setRow(dst, 0, \"abcd\")\n"
+	    "dst.cellAt(1, 0).ch = \"\\u4e00\"\n"
+	    "dst.putRect(narrow, 1, 0)\n"
+	    "if (dst.cellAt(1, 0).ch != \"X\" || dst.cellAt(2, 0).ch != \" \") Fiber.abort(\"overwrite wide lead\")\n";
+	static const char rectangle_source[] =
+	    "import \"syncterm\" for Cell, Screen, Surface\n"
+	    "import \"ui_widget\" for Rect\n"
+	    "class FillContract {\n"
+	    "  static row(s, y) {\n"
+	    "    var text = \"\"\n"
+	    "    for (x in 0...s.width) text = text + s.cellAt(x, y).ch\n"
+	    "    return text\n"
+	    "  }\n"
+	    "}\n"
+	    "var fill = Surface.new(4, 3)\n"
+	    "var dot = Cell.new()\n"
+	    "dot.ch = \".\"\n"
+	    "var xcell = Cell.new()\n"
+	    "xcell.ch = \"X\"\n"
+	    "fill.fill(Rect.new(0, 0, 4, 3), dot)\n"
+	    "fill.fill(Rect.new(-1, 0, 2, 1), xcell)\n"
+	    "if (FillContract.row(fill, 0) != \"X...\") Fiber.abort(\"negative x fill\")\n"
+	    "fill.fill(Rect.new(0, -1, 1, 2), xcell)\n"
+	    "if (fill.cellAt(0, 0).ch != \"X\" || fill.cellAt(0, 1).ch != \".\") Fiber.abort(\"negative y fill\")\n"
+	    "fill.fill(Rect.new(3, 2, 3, 3), xcell)\n"
+	    "if (fill.cellAt(3, 2).ch != \"X\" || fill.cellAt(2, 2).ch != \".\") Fiber.abort(\"far edge fill\")\n"
+	    "fill.fill(Rect.new(0, 0, 0, 2), xcell)\n"
+	    "fill.fill(Rect.new(0, 0, -1, 2), xcell)\n"
+	    "fill.fill(Rect.new(-4, -4, 2, 2), xcell)\n"
+	    "if (fill.cellAt(1, 0).ch != \".\" || fill.cellAt(0, 1).ch != \".\") Fiber.abort(\"empty fill\")\n"
+	    "var read = Screen.readRect(1, 1, 1, 1)\n"
+	    "if (read == null || read.width != 1 || read.height != 1) Fiber.abort(\"valid readRect\")\n"
+	    "if (Screen.readRect(0, 1, 1, 1) != null || Screen.readRect(-1, 1, 1, 1) != null) Fiber.abort(\"invalid read origin\")\n"
+	    "if (Screen.readRect(2, 1, 1, 1) != null || Screen.readRect(1, 2, 1, 1) != null) Fiber.abort(\"inverted read\")\n"
+	    "if (Screen.readRect(81, 1, 81, 1) != null || Screen.readRect(1, 26, 1, 26) != null) Fiber.abort(\"out-of-bounds read\")\n"
+	    "if (Screen.readRect(1, 1, 4294967296, 1) != null) Fiber.abort(\"unrepresentable read\")\n"
+	    "var wrongType = Fiber.new { Screen.readRect(\"1\", 1, 1, 1) }\n"
+	    "wrongType.try()\n"
+	    "if (wrongType.error == null) Fiber.abort(\"readRect type error\")\n"
+	    "var fractional = Fiber.new { Screen.readRect(1.5, 1, 1, 1) }\n"
+	    "fractional.try()\n"
+	    "if (fractional.error == null) Fiber.abort(\"readRect fractional error\")\n";
+	WrenVM *vms[] = {host->vm, host->picker_vm};
+
+	for (size_t i = 0; i < sizeof(vms) / sizeof(vms[0]); ++i) {
+		char module[48];
+
+		(void)snprintf(module, sizeof(module), "surface_copy_contract_%zu", i);
+		if (wrenInterpret(vms[i], module, copy_source)
+		    != WREN_RESULT_SUCCESS) {
+			fprintf(stderr, "Surface copy contract failed in VM %zu: %s\n",
+			    i, host->last_error);
+			return -1;
+		}
+		(void)snprintf(module, sizeof(module), "rectangle_contract_%zu", i);
+		if (wrenInterpret(vms[i], module, rectangle_source)
+		    != WREN_RESULT_SUCCESS) {
+			fprintf(stderr, "rectangle contract failed in VM %zu: %s\n",
+			    i, host->last_error);
+			return -1;
+		}
+	}
+	return 0;
+}
+
+static int
 exercise_cursor_contract(st_wren_host_t *public_host)
 {
 	struct st_wren_host *host = public_host;
@@ -899,6 +1033,7 @@ main(void)
 	    &configured_identifier));
 	CHECK(exercise_unicode_fallback_contract(host) == 0);
 	CHECK(exercise_surface_cell_retarget_contract(host) == 0);
+	CHECK(exercise_rectangle_contract(host) == 0);
 	CHECK(exercise_web_refresh_overlay(host, console) == 0);
 	CHECK(exercise_cursor_contract(host) == 0);
 	CHECK(exercise_codepage_contract(host) == 0);

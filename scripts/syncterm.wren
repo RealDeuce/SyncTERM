@@ -829,6 +829,9 @@ foreign class Cell {
 //   surface.putRect(src, dstX, dstY)  - paste full src.
 //   surface.putRect(src, srcRect, dstX, dstY) - paste sub-rect of src.
 //   surface.fill(rect, cell)          - bulk fill with a Cell template.
+// Overlapping self-copies preserve the original clipped source.  A clipped
+// half of a two-cell glyph becomes a styled blank.  Fill intersects `rect`
+// with the Surface; empty and disjoint rectangles do nothing.
 //
 // `Screen.readRect` returns a Surface (sized to the requested rect);
 // `Screen.putRect` blits a Surface to the screen as a single atomic

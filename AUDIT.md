@@ -37,7 +37,7 @@ repository-wide coverage. The legacy tree is read-only reference.
 
 The repository-wide audit is complete. This is not an implementation approval,
 release certification or claim that findings have been fixed. The consolidated
-API/design assessment, priority groups and all 100 outstanding finding summaries are in
+API/design assessment, priority groups and all 97 outstanding finding summaries are in
 AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 
 | Objective requirement | Authoritative evidence and disposition |
@@ -50,7 +50,7 @@ AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 | Required legacy behavior | Read-only comparisons cover fonts/catalog/maps, modes, palette capacity, Prestel versus Mode 7, command line, console/input and settings behavior; A015/A018/A032 plus explicit parity limits. Frozen CTerm chapter cmp succeeds. |
 | Wren scripts and bindings | Complete local source/signature/manual reviews; isolated shipped-script suites and host fixtures; host closure A100–A114. Connected/SFTP production integration missing from this application is reported, not invented or silently counted as working. |
 | Build logic, generators and documentation | Root/component CMake and generators reviewed; standalone/probe failures recorded; pinned Unicode/font regeneration and table comparisons documented; root manuals/license/development guidance covered. Wren VM vendored internals limited to integration boundaries as requested. |
-| Inventory and consolidated findings | 100 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 13 high, 58 medium, 27 low, 2 unresolved concerns; not all runtime reproductions. |
+| Inventory and consolidated findings | 97 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 13 high, 55 medium, 27 low, 2 unresolved concerns; not all runtime reproductions. |
 | Relevant tests where practical | Fresh complete native build succeeds. Final selected CTest run: 60 executed, 51 pass, 9 fail, 5.12 seconds; failure matrix in index. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
 | Only tests/reports changed; no implementation remediation | Current status: 30 modified tracked tests, 23 untracked tests, 2 untracked reports; no staged files. Filtered worktree inspection finds no other changes. Baseline-to-current non-test difference is pre-existing str_list/CMakeLists.txt, unchanged since fdeab0d. No final-consolidation commits/push/reverts. |
 | Explicit uncertainty | Each component records unavailable platforms, unexecuted failure paths and measurement limits; A007/A011 unresolved. Source-level risks are not called verified crashes. These are audit outcomes, not claims of implementation correctness. |
@@ -138,7 +138,7 @@ not the absence of failing tests. New findings will receive stable A-numbers.
 | value_convert/ | Reviewed | A021 date precedence conflict; all local sources/tests/build read; native exact rounding checks pass; exotic formats and numeric performance unverified |
 | webget/ | Reviewed | All local source/header/test/build read; A036 source double-close, A037 URL/cache mismatch reproduced; protocol/TLS/fault gaps below |
 | windows_utf/ | Reviewed | Source and MinGW compile; Windows runtime not verified |
-| wren_host/ | Reviewed | All local implementation, public/internal headers, CMake/generator and integration tests read; isolated shipped-script and host-contract cases run; mutation/error/input/font/ownership integration dispositioned below, including A110–A114; runtime/fault limits explicit |
+| wren_host/ | Reviewed | All local implementation, public/internal headers, CMake/generator and integration tests read; isolated shipped-script and host-contract cases run; mutation/error/input/font/ownership integration dispositioned below, including A111–A114; runtime/fault limits explicit |
 | wren_vm/ | Reviewed at integration boundary | Full legacy diff, build/configuration, license, REPL private API coupling and minimal consumer link checked; upstream internals not exhaustively audited |
 | xptls/ | Reviewed | All five local source/header/build files read; A038 PSK authentication bypass reproduced against OpenSSL, rejected by Botan; broader TLS/platform coverage gaps below |
 | xptls_crypto/ | Reviewed | All local headers/providers/clear implementations/build/tests read; expanded tests pass OpenSSL, Botan and none; MinGW compile only; contract/resource gaps below |
@@ -195,8 +195,8 @@ dispositions. The Wren skill and local manual guided these comparisons; the
 modern isolated host harness, not the legacy executable, supplied runtime
 evidence. All new fixtures use fresh temporary paths and a headless console.
 
-- Screen read/Surface clipping/input deadlines are A110/A103/A104; physical
-  delivery is A112. Window mutation bindings discard native failures, including
+- Input deadlines are A104; physical delivery is A112. Window mutation
+  bindings discard native failures, including
   invalid window bounds and write/scroll failures. This is a source-only error-
   reporting concern: setter return conventions and recoverable write failures
   need an explicit contract; not every void-style setter is thereby broken.
@@ -225,26 +225,13 @@ Remaining work is final repository-wide inventory/evidence reconciliation,
 not unseen host source or a requirement to implement these findings. Review
 completion does not imply that every documented API currently works.
 
-### A110 — Screen.readRect aborts instead of returning null for invalid bounds
-
-Severity: medium API-contract defect. Wren.adoc:2171 promises null for invalid
-coordinates or OOM. `wren_host/wren_bind_core.c:974` allocates a Surface then
-aborts on a console read error. On a headless 80x25 console, reading the single
-cell (81,1)..(81,1) raises `Screen.readRect failed` rather than returning null.
-Confirmed native Clang using the standalone loader audit harness's
-`core-contracts` mode, case 0. This is an ordinary positive-coordinate bounds
-case, not an allocation-failure injection. Recommendation: preserve the
-documented recoverable-read result consistently across coordinate validation,
-allocation and console-read failure; test each without changing writeRect's
-separate documented abort contract.
-
 ### A111 — Format helpers do not enforce their argument contract
 
 Severity: medium API/error-boundary defect. Wren.adoc:5874 documents clamping
 negative values to zero and throwing for non-Numbers. Both Format.bytes and
 Format.duration directly call wrenGetSlotDouble without checking the slot
 type, and format signed values without clamping. Native standalone
-`core-contracts` cases 1 and 2 reproduce the negative-value mismatch by
+`core-contracts` cases 0 and 1 reproduce the negative-value mismatch by
 comparing each helper's -1 and 0 results; both fail.
 
 The non-Number path is source-confirmed misuse of the VM slot API, whose
@@ -260,7 +247,7 @@ remedy.
 Verification: rebuilt `wren_host/tests/st_wren_loader_audit_test.c` with the
 native picker target's includes/link dependencies and strict C17 warnings.
 Ran `core-contracts` in a fresh /tmp directory, safe mode, headless console:
-three cases executed, all three failed as above. No personal data, display,
+two cases executed, both failed as above. No personal data, display,
 network, production or build changes. The Wren skill/manual review guided the
 contract assertions; the legacy runner was not used to test this modern host.
 
@@ -464,26 +451,6 @@ a source-confirmed incomplete integration concern requiring a declared host
 slot policy, not proof that all explicit Cell.font operations fail. Connected
 terminal selector handling is not implemented by this menu host. Wren guidance
 and the local input/font API documentation informed this comparison.
-
-### A103 — Surface fill shifts negative-origin rectangles instead of clipping them
-
-Severity: medium (confirmed drawing outside the requested rectangle).
-wren_host/wren_bind_core.c:1627 computes left/top as max(origin,0), then
-adds the original width/height to those clamped origins. Thus a rectangle
-[-1,1) is turned into [0,2), rather than intersected with the Surface bounds.
-Wren.adoc describes fill as copying into cells inside the supplied rectangle;
-column one is outside that rectangle in this case.
-
-New `surface-clip` audit mode constructs a four-cell Surface, initializes A/B
-in columns zero/one and an X template in column three, then invokes the
-fill_ binding used directly by Surface.fill with (-1,0,2,1). Column zero is
-correctly X, but column one also changes, failing the B-retention assertion.
-Strict-warning native build and isolated execution reproduce the defect.
-No screen, persistent state or production code is changed. Recommend deriving
-the requested right/bottom edges before intersecting with destination bounds;
-retain tests for negative origins, empty/disjoint rectangles and both axes.
-Wide-pair repair and aliased template behavior are separate concerns and are
-not demonstrated by this narrow-glyph case. Wren guidance informed the fixture.
 
 Font-selector tracing in this pass: Cell.font resolves the selected catalog
 identifier and re-runs Unicode lookup; legacyAttr/bright/blink mutations only
@@ -2030,28 +1997,6 @@ the complete event-number/mask contract with a sufficient representation and
 test every supported event. Separately, next_input_event does not consult the
 stored mouse_events mask before emitting mouse events; consumer behavior needs
 further verification before claiming the filtering contract is implemented.
-
-### A059 — Surface self-copy clears source cells before copying them
-
-Severity: medium (surface content corruption). Confirmed through public Wren
-methods in the native headless host. wren_bind_core.c:1590-1621 copies rows
-using memmove, but first calls clear_cell_pair on each destination boundary.
-When source and destination share storage, that clearing can erase the source
-before memmove reads it. Even s.putRect(s, 0, 0) changes a three-cell ABC row.
-
-The `surface` case added to st_wren_loader_audit_test.c creates Surface(3,1),
-assigns A/B/C, performs that identity copy and checks all three cells. Native
-Clang strict C17 build succeeds; the test exits 1 with the Wren runtime error
-`identity copy changed cells`. It uses a fresh temporary script directory and
-headless console, with no GUI or personal settings. The same fixture retains
-its distinct autoload/recovery modes for A054/A055.
-
-Recommendation: define and honor overlap-safe source semantics, including
-wide-cell boundary repair, before mutating destinations. The always-forward
-row order is also unsuitable for overlapping downward self-copies, but only
-identity-copy corruption is reproduced here. Add horizontal/vertical overlap
-tests in both directions and clipped wide-cell cases; per-row memmove alone
-does not establish correctness for a two-dimensional operation.
 
 ### A060 — Cell.eqContent aborts on a non-Cell instead of returning false
 
@@ -3737,15 +3682,11 @@ int32 inputs, accounts for negative source/destination positions, and clips
 source/destination extents together. Surface Cell retargeting retains new
 storage before releasing old storage and changes only its index when already
 sharing storage. Full-cell screen blits deliberately bypass glyph lookup.
-Screen.readRect instead allocates before validating console bounds and aborts
-on invalid bounds, while the manual promises null for invalid coordinates/OOM;
-contract/legacy reconciliation remains pending. Window mutators often discard
-console errors, unlike snapshot and rectangle methods; consistency should be
-addressed only after documenting the intended script failure contracts.
+Window mutators often discard console errors, unlike snapshot and rectangle
+methods; consistency should be addressed only after documenting the intended
+script failure contracts.
 
-Source-only follow-ups: Surface.fill clips a negative origin to zero before
-adding width/height, extending the filled interval rather than intersecting
-the original rectangle. It also directly overwrites cells without the pair
+Source-only follow-ups: Surface.fill directly overwrites cells without the pair
 repair used by other mutations. ScreenFonts setters only change context slot
 numbers, not console selection; how scripts consume those values must be
 traced before assigning a defect. Palette binding remains limited to 0..255
