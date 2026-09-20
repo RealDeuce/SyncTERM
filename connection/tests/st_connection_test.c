@@ -386,6 +386,123 @@ test_shell_line_discipline(void)
 	return 0;
 }
 
+#if !SYNCTERM_PLATFORM_WINDOWS && ST_CONNECTION_TEST_HAVE_SHELL
+static int
+receive_until(st_connection_t *connection, char *buffer, size_t capacity,
+	const char *expected)
+{
+	size_t total = 0;
+
+	while (total + 1 < capacity) {
+		ssize_t count = st_connection_receive(connection, buffer + total,
+		    capacity - total - 1, 2000);
+
+		if (count <= 0)
+			break;
+		total += (size_t)count;
+		buffer[total] = '\0';
+		if (strstr(buffer, expected) != NULL)
+			return 0;
+	}
+	buffer[total] = '\0';
+	fprintf(stderr, "shell fixture did not emit %s; received: %s\n",
+	    expected, buffer);
+	return 1;
+}
+
+static int
+make_fixture_command(char *result, size_t capacity, const char *path)
+{
+	static const char prefix[] = "exec '";
+	size_t used = sizeof(prefix) - 1;
+
+	if (capacity <= used)
+		return 1;
+	memcpy(result, prefix, used);
+	for (; *path != '\0'; ++path) {
+		if (*path == '\'') {
+			static const char escaped[] = "'\\''";
+
+			if (sizeof(escaped) - 1 > capacity - used - 1)
+				return 1;
+			memcpy(result + used, escaped, sizeof(escaped) - 1);
+			used += sizeof(escaped) - 1;
+		}
+		else {
+			if (used + 1 >= capacity)
+				return 1;
+			result[used++] = *path;
+		}
+	}
+	if (used + 2 > capacity)
+		return 1;
+	result[used++] = '\'';
+	result[used] = '\0';
+	return 0;
+}
+#endif
+
+static int
+test_shell_interactive(const char *fixture)
+{
+#if !SYNCTERM_PLATFORM_WINDOWS && ST_CONNECTION_TEST_HAVE_SHELL
+	struct st_profile profile;
+	struct st_screen_geometry geometry = {80, 25, 0, 0};
+	st_connection_t *connection = NULL;
+	char buffer[256];
+	int failed = 0;
+
+	st_profile_init(&profile);
+	profile.connection_type = ST_CONNECTION_SHELL;
+	profile.screen_mode = ST_SCREEN_MODE_CURRENT;
+	if (fixture == NULL || make_fixture_command(profile.address,
+	    sizeof(profile.address), fixture) != 0) {
+		fprintf(stderr, "unable to construct shell fixture command\n");
+		failed = 1;
+		goto cleanup;
+	}
+	if (st_connection_connect_shell(&connection, &profile, &geometry,
+	    NULL, NULL) != 0) {
+		fprintf(stderr, "unable to connect to shell fixture\n");
+		failed = 1;
+		goto cleanup;
+	}
+	if (receive_until(connection, buffer, sizeof(buffer),
+	    "flags-ok\r\nready\r\n") != 0) {
+		failed = 1;
+		goto cleanup;
+	}
+	if (st_connection_send(connection, "\x13" "abc", 4, 1000) != 4
+	    || receive_until(connection, buffer, sizeof(buffer), "abc") != 0) {
+		fprintf(stderr, "shell fixture did not echo input immediately\n");
+		failed = 1;
+		goto cleanup;
+	}
+	if (st_connection_send(connection, "\r", 1, 1000) != 1
+	    || receive_until(connection, buffer, sizeof(buffer),
+	    "line-ok\r\nsignal-ready\r\n") != 0) {
+		fprintf(stderr, "shell fixture did not accept Return canonically\n");
+		failed = 1;
+		goto cleanup;
+	}
+	if (st_connection_send(connection, "\x03", 1, 1000) != 1
+	    || receive_until(connection, buffer, sizeof(buffer),
+	    "signal-ok\r\n") != 0) {
+		fprintf(stderr, "shell fixture did not receive terminal SIGINT\n");
+		failed = 1;
+	}
+
+cleanup:
+	if (connection != NULL && st_connection_close(connection) != 0)
+		failed = 1;
+	st_profile_dispose(&profile);
+	return failed;
+#else
+	(void)fixture;
+	return 0;
+#endif
+}
+
 struct partial_input_state {
 	atomic_uint reads;
 };
@@ -518,16 +635,27 @@ test_partial_input(void)
 int
 main(int argc, char **argv)
 {
+	const char *fixture = NULL;
+
 	if (argc == 2 && strcmp(argv[1], "--partial-input") == 0)
 		return test_partial_input() != 0;
-	if (argc != 1) {
-		fprintf(stderr, "usage: %s [--partial-input]\n", argv[0]);
+#if !SYNCTERM_PLATFORM_WINDOWS && ST_CONNECTION_TEST_HAVE_SHELL
+	if (argc == 2)
+		fixture = argv[1];
+	else
+#else
+	if (argc != 1)
+#endif
+	{
+		fprintf(stderr, "usage: %s [--partial-input] [shell-fixture]\n",
+		    argv[0]);
 		return 1;
 	}
 	CHECK(test_raw() == 0);
 	CHECK(test_rlogin() == 0);
 	CHECK(test_shell() == 0);
 	int failures = test_shell_line_discipline();
+	failures += test_shell_interactive(fixture);
 	failures += test_partial_input();
 	return failures != 0;
 }

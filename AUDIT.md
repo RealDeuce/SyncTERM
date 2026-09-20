@@ -37,7 +37,7 @@ repository-wide coverage. The legacy tree is read-only reference.
 
 The repository-wide audit is complete. This is not an implementation approval,
 release certification or claim that findings have been fixed. The consolidated
-API/design assessment, priority groups and all 93 outstanding finding summaries are in
+API/design assessment, priority groups and all 85 outstanding finding summaries are in
 AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 
 | Objective requirement | Authoritative evidence and disposition |
@@ -47,10 +47,10 @@ AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 | Correctness, ownership/lifetime and concurrency | Component lifecycle/error reviews, normal and injected tests, explicit GUI/host ownership closure; source and reproduced failures are qualified individually. A016, A023, A027/A035/A036 and A108/A109 illustrate distinct lifetime/error risks. |
 | Portability and all platform backends | POSIX/Windows sources and every audio/console backend reviewed; native, MinGW compile-only and unavailable runtime evidence kept separate. Capability probes/standalone targets reviewed. No unsupported platform pass inferred. |
 | Performance | Scaler/renderer benchmark source and measured cases reviewed, including common mixed-axis scaling; A011/A023 and backend pacing risks distinguished from measured regressions. Reconstructed legacy benchmark limitations explicitly recorded. |
-| Required legacy behavior | Read-only comparisons cover fonts/catalog/maps, modes, palette capacity, Prestel versus Mode 7, command line, console/input and settings behavior; A015/A032 plus explicit parity limits. Frozen CTerm chapter cmp succeeds. |
+| Required legacy behavior | Read-only comparisons cover fonts/catalog/maps, modes, palette capacity, Prestel versus Mode 7, command line, console/input and settings behavior; A032 plus explicit parity limits. Frozen CTerm chapter cmp succeeds. |
 | Wren scripts and bindings | Complete local source/signature/manual reviews; isolated shipped-script suites and host fixtures; host closure A100–A114. Connected/SFTP production integration missing from this application is reported, not invented or silently counted as working. |
 | Build logic, generators and documentation | Root/component CMake and generators reviewed; standalone/probe failures recorded; pinned Unicode/font regeneration and table comparisons documented; root manuals/license/development guidance covered. Wren VM vendored internals limited to integration boundaries as requested. |
-| Inventory and consolidated findings | 93 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 13 high, 51 medium, 27 low, 2 unresolved concerns; not all runtime reproductions. |
+| Inventory and consolidated findings | 85 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 8 high, 48 medium, 27 low, 2 unresolved concerns; not all runtime reproductions. |
 | Relevant tests where practical | Fresh complete native build succeeds. Final selected CTest run: 67 executed, 58 pass, 9 fail, 5.71 seconds; failure matrix in index. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
 | Only tests/reports changed; no implementation remediation | Current status: 30 modified tracked tests, 23 untracked tests, 2 untracked reports; no staged files. Filtered worktree inspection finds no other changes. Baseline-to-current non-test difference is pre-existing str_list/CMakeLists.txt, unchanged since fdeab0d. No final-consolidation commits/push/reverts. |
 | Explicit uncertainty | Each component records unavailable platforms, unexecuted failure paths and measurement limits; A007/A011 unresolved. Source-level risks are not called verified crashes. These are audit outcomes, not claims of implementation correctness. |
@@ -102,7 +102,7 @@ not the absence of failing tests. New findings will receive stable A-numbers.
 | audio_mixer/ | Reviewed | All local sources/tests/build read; A022 crossfade gap reproduced; device integration assigned to audio; ramp/performance/lifetime gaps below |
 | bbs_list/ | Reviewed | All local sources/header/tests/build read; A033 sanitizer reproduction, A034/A035 source findings; native list/web tests pass, MinGW compile only; integration/fault gaps below |
 | codepage/ | Reviewed | All local source/header/build/test read; exhaustive graphic roundtrip and expanded control/invalid-input tests pass native Clang/GCC; MinGW compile only |
-| connection/ | Reviewed | A015 reproduced; A016 Windows source race; A017 RFC mismatch; shutdown stress and platform runtime gaps documented |
+| connection/ | Reviewed | A016 Windows source race; A017 RFC mismatch; shutdown stress and platform runtime gaps documented |
 | console/ | Reviewed | All local implementation/backends, tests, benchmark, build and docs read; local integration dispositions A047–A051, A108/A109 and GUI closure notes; native/isolated tests and platform-only risks distinguished; remaining Wren consumer questions belong to wren_host |
 | dynamic_library/ | Reviewed | A005; native fixtures pass; Windows compiled, not executed |
 | event/ | Reviewed | A004; native repeated tests, MinGW compile; failure-injection limitations below |
@@ -1153,33 +1153,6 @@ each native build's serial/error libraries. Both Clang and GCC PTY tests pass
 on this host, establishing that the omitted coverage can run here.
 Recommendation: leave the probe result undefined on POSIX until the check, and
 explicitly report test skips. No CMake fix made under audit-only authority.
-
-### A015 — POSIX shell startup forces raw terminal settings
-
-Severity: high behavioral regression. Classification: confirmed source and
-native reproduction; interactive-shell-specific recovery behavior not tested.
-
-`connection/connection_shell_posix.c:291-299` disables OPOST, ECHO, ICANON,
-ISIG, ICRNL and related terminal processing before executing the shell.
-The legacy conn_pty.c:437-443 instead initializes TTYDEF input/output/local
-flags, disabling only software flow control in the input flags. Programs
-are then free to select raw mode themselves when needed. The new code makes
-ordinary command output lose LF-to-CRLF processing; programs that rely on
-canonical input, echo or terminal-generated signals also inherit those
-facilities disabled, unless they explicitly restore them.
-
-Reproduction: test_shell_line_discipline in connection/tests/st_connection_test.c
-opens a shell connection running `printf 'a\nb\n'`. Both Clang and GCC native
-builds return four bytes rather than the expected six-byte `a\r\nb\r\n`.
-The test reads through the public connection API, closes/reaps the child, and
-fails after cleanup. The existing shell test's output contains no newline,
-so it did not detect this difference. Only four bytes enter an otherwise
-empty input queue, so queue capacity is not involved.
-
-Recommendation: initialize the slave terminal with the legacy interactive
-line-discipline policy and let child applications request raw mode. Verify
-echo, Return, signal keys and ordinary newline output; do not compensate by
-rewriting bytes in the transport. No implementation changed.
 
 ### A016 — ConPTY atomic handles do not protect active users from close
 
@@ -4605,7 +4578,10 @@ are distinct from the passing argument-only normal CTest.
   MM_CHARSET construction is absent; integration expectations need follow-up.
   Default SHELL is now passed through `/bin/sh -c`, unlike the old direct exec;
   paths containing shell syntax/spaces therefore merit compatibility testing.
-  A015 covers the proven raw-terminal regression.
+  PTY setup uses complete system TTYDEF defaults when available and otherwise
+  retains the platform-created state, then disables software flow control and
+  selects the supported erase keys and 115200 baud. Registered tests cover
+  newline processing, echo, canonical Return, Ctrl+C and Ctrl+S behavior.
 - POSIX PTY master stays blocking. poll before write does not establish that
   the entire buffer fits. Shutdown sends SIGHUP, then joins workers, and only
   afterwards reaches destroy's ten-second wait/SIGKILL escalation. A blocked
@@ -5829,9 +5805,10 @@ successful verification.
 - Connection initial pass: connection_serial passes in both native builds.
   MinGW expanded st_connection_test compiles/links; not executed. Remaining
   component review explicitly pending above.
-- Connection backend pass: added POSIX shell newline regression; Clang and
-  GCC connection CTest reports A015 (4 instead of 6 newline bytes). MinGW
-  compiles/links, without executing ConPTY or Windows tests.
+- Connection backend pass: POSIX shell line-discipline coverage now verifies
+  newline processing, echo, canonical Return, Ctrl+C and disabled software
+  flow control under Clang and GCC. MinGW compiles/links, without executing
+  ConPTY or Windows tests.
 - Connection/profile boundary pass: RFC checked for A017. Existing profile
   CTests pass both. MinGW builds connection_serial and profile tests, not run.
   Connection and profile source coverage is complete with documented

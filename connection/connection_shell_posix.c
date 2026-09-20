@@ -25,6 +25,11 @@
 #include <termios.h>
 #include <unistd.h>
 
+#if ST_CONNECTION_HAVE_TTYDEFAULTS
+	#define TTYDEFCHARS
+	#include <sys/ttydefaults.h>
+#endif
+
 #if ST_CONNECTION_FORKPTY_HEADER_PTY_H
 	#include <pty.h>
 #elif ST_CONNECTION_FORKPTY_HEADER_UTIL_H
@@ -164,6 +169,38 @@ static const struct st_connection_transport_ops shell_operations = {
 	.destroy = shell_destroy,
 };
 
+static void
+configure_shell_terminal(void)
+{
+	struct termios attributes;
+
+	if (tcgetattr(STDIN_FILENO, &attributes) != 0)
+		return;
+#if ST_CONNECTION_HAVE_TTYDEFAULTS
+	attributes.c_iflag = TTYDEF_IFLAG;
+	attributes.c_oflag = TTYDEF_OFLAG;
+	attributes.c_lflag = TTYDEF_LFLAG;
+	attributes.c_cflag = TTYDEF_CFLAG;
+	memcpy(attributes.c_cc, ttydefchars, sizeof(attributes.c_cc));
+#endif
+	attributes.c_iflag &= ~(IXON | IXOFF);
+#if ST_CONNECTION_HAVE_IXANY
+	attributes.c_iflag &= ~IXANY;
+#endif
+	attributes.c_cc[VERASE] = '\b';
+#if ST_CONNECTION_HAVE_VERASE2
+	attributes.c_cc[VERASE2] = '\b';
+#endif
+#if ST_CONNECTION_HAVE_B115200
+	(void)cfsetispeed(&attributes, B115200);
+	(void)cfsetospeed(&attributes, B115200);
+#elif ST_CONNECTION_HAVE_TTYDEFAULTS
+	(void)cfsetispeed(&attributes, TTYDEF_SPEED);
+	(void)cfsetospeed(&attributes, TTYDEF_SPEED);
+#endif
+	(void)tcsetattr(STDIN_FILENO, TCSANOW, &attributes);
+}
+
 static char *
 environment_value(const char *name, const char *value)
 {
@@ -286,18 +323,7 @@ st_connection_connect_shell(st_connection_t **result,
 	window.ws_ypixel = (unsigned short)geometry.pixel_height;
 	child = forkpty(&master, NULL, NULL, &window);
 	if (child == 0) {
-		struct termios attributes;
-
-		if (tcgetattr(STDIN_FILENO, &attributes) == 0) {
-			attributes.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP
-			    | INLCR | IGNCR | ICRNL | IXON);
-			attributes.c_oflag &= ~OPOST;
-			attributes.c_lflag &= ~(ECHO | ECHONL | ICANON | ISIG
-			    | IEXTEN);
-			attributes.c_cflag &= ~(CSIZE | PARENB);
-			attributes.c_cflag |= CS8;
-			(void)tcsetattr(STDIN_FILENO, TCSANOW, &attributes);
-		}
+		configure_shell_terminal();
 		execle("/bin/sh", "sh", "-c", command, (char *)NULL,
 		    environment);
 		_exit(127);

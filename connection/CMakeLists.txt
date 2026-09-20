@@ -54,6 +54,10 @@ endif()
 include(CheckCSourceCompiles)
 set(ST_CONNECTION_HAVE_FORKPTY FALSE)
 set(ST_CONNECTION_HAVE_CONPTY FALSE)
+set(ST_CONNECTION_HAVE_TTYDEFAULTS FALSE)
+set(ST_CONNECTION_HAVE_IXANY FALSE)
+set(ST_CONNECTION_HAVE_VERASE2 FALSE)
+set(ST_CONNECTION_HAVE_B115200 FALSE)
 set(ST_CONNECTION_FORKPTY_HEADER_PTY_H FALSE)
 set(ST_CONNECTION_FORKPTY_HEADER_UTIL_H FALSE)
 set(ST_CONNECTION_FORKPTY_HEADER_LIBUTIL_H FALSE)
@@ -101,6 +105,48 @@ else()
 		list(APPEND ST_CONNECTION_DEFINITIONS _GNU_SOURCE)
 		list(APPEND CMAKE_REQUIRED_DEFINITIONS -D_GNU_SOURCE)
 	endif()
+	check_c_source_compiles([=[
+#include <termios.h>
+#define TTYDEFCHARS
+#include <sys/ttydefaults.h>
+_Static_assert(sizeof(ttydefchars) ==
+    sizeof(((struct termios *)0)->c_cc), "control character count");
+int main(void)
+{
+	struct termios attributes = {0};
+	attributes.c_iflag = TTYDEF_IFLAG;
+	attributes.c_oflag = TTYDEF_OFLAG;
+	attributes.c_lflag = TTYDEF_LFLAG;
+	attributes.c_cflag = TTYDEF_CFLAG;
+	attributes.c_cc[0] = ttydefchars[0];
+	return TTYDEF_SPEED == 0;
+}
+]=] ST_CONNECTION_TTYDEFAULTS_PROGRAMMING_ENVIRONMENT)
+	set(ST_CONNECTION_HAVE_TTYDEFAULTS
+		${ST_CONNECTION_TTYDEFAULTS_PROGRAMMING_ENVIRONMENT})
+	check_c_source_compiles([=[
+#include <termios.h>
+int main(void) { tcflag_t flag = IXANY; return flag == 0; }
+]=] ST_CONNECTION_IXANY_PROGRAMMING_ENVIRONMENT)
+	set(ST_CONNECTION_HAVE_IXANY
+		${ST_CONNECTION_IXANY_PROGRAMMING_ENVIRONMENT})
+	check_c_source_compiles([=[
+#include <termios.h>
+int main(void) { return VERASE2; }
+]=] ST_CONNECTION_VERASE2_PROGRAMMING_ENVIRONMENT)
+	set(ST_CONNECTION_HAVE_VERASE2
+		${ST_CONNECTION_VERASE2_PROGRAMMING_ENVIRONMENT})
+	check_c_source_compiles([=[
+#include <termios.h>
+int main(void)
+{
+	struct termios attributes = {0};
+	return cfsetispeed(&attributes, B115200)
+	    || cfsetospeed(&attributes, B115200);
+}
+]=] ST_CONNECTION_B115200_PROGRAMMING_ENVIRONMENT)
+	set(ST_CONNECTION_HAVE_B115200
+		${ST_CONNECTION_B115200_PROGRAMMING_ENVIRONMENT})
 	foreach(_library IN ITEMS "" util)
 		set(CMAKE_REQUIRED_LIBRARIES ${_st_connection_saved_required_libraries}
 			${_library})
@@ -185,7 +231,26 @@ if(BUILD_TESTING)
 	st_connection_warnings(st_connection_test)
 	target_compile_definitions(st_connection_test PRIVATE
 		ST_CONNECTION_TEST_HAVE_SHELL=$<BOOL:${ST_CONNECTION_TEST_HAVE_SHELL}>)
-	add_test(NAME connection COMMAND st_connection_test)
+	if(ST_CONNECTION_HAVE_FORKPTY)
+		add_executable(st_connection_shell_fixture
+			tests/st_connection_shell_fixture.c)
+		target_include_directories(st_connection_shell_fixture PRIVATE
+			${CMAKE_CURRENT_BINARY_DIR})
+		set_target_properties(st_connection_shell_fixture PROPERTIES
+			C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		st_connection_warnings(st_connection_shell_fixture)
+		if(ST_CONNECTION_DEFINITIONS)
+			target_compile_definitions(st_connection_shell_fixture PRIVATE
+				${ST_CONNECTION_DEFINITIONS})
+		endif()
+		add_dependencies(st_connection_test st_connection_shell_fixture)
+		add_test(NAME connection COMMAND st_connection_test
+			./$<TARGET_FILE_NAME:st_connection_shell_fixture>)
+		set_tests_properties(connection PROPERTIES WORKING_DIRECTORY
+			$<TARGET_FILE_DIR:st_connection_shell_fixture>)
+	else()
+		add_test(NAME connection COMMAND st_connection_test)
+	endif()
 	set_tests_properties(connection PROPERTIES TIMEOUT 15)
 	add_test(NAME connection_partial_input
 		COMMAND st_connection_test --partial-input)
