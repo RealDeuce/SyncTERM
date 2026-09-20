@@ -508,6 +508,7 @@ int st_console_set_palette(st_console_t *console, uint16_t first,
 	const uint32_t *rgb, uint32_t count);
 int st_console_get_palette(st_console_t *console, uint16_t first,
 	uint32_t *rgb, uint32_t count);
+/* Registration affects later lookups and writes, not retained cells. */
 int st_console_register_static_font(st_console_t *console,
 	const struct st_console_font *font, uint16_t *identifier);
 int st_console_register_font_copy(st_console_t *console,

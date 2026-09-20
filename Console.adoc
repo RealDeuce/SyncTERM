@@ -240,7 +240,9 @@ locale or `wcwidth()`.
 An eight-pixel glyph occupies one cell and a sixteen-pixel glyph occupies two.
 The second cell is marked `ST_CONSOLE_CELL_CONTINUATION`, and region mutations
 preserve complete pairs.  A wide glyph at the final column wraps before being
-written when wrapping is enabled.
+written when wrapping is enabled.  If it still cannot fit after the wrap, as
+in a one-column text window, the glyph is suppressed after the normal line
+advance or scroll.
 
 Static registration borrows immutable process-lifetime data.  Copy
 registration owns bitmap and mapping copies until console destruction, which
@@ -248,6 +250,8 @@ supports downloaded fonts and server-supplied Unicode maps.  If all 65,536
 identifiers are occupied, a new registration replaces the least-recently-used
 font, succeeds, and reports the replacement on standard error.  Existing
 cells retain that identifier and are not dirtied merely by the replacement.
+Registration never reinterprets retained cells; the new mapping applies to
+subsequent lookups and Unicode cell writes.
 
 SyncTERM retains all 46 legacy 256-glyph font families with explicit Unicode
 maps.  The Font Management screen filters them by the sizes actually present:
@@ -331,6 +335,9 @@ line insertion/deletion move matching cached glyph rasters with the cells, so
 retained rows do not pass through the font renderer again.  A full-width
 top-of-grid scroll advances a circular text-raster origin instead of copying
 every pixel row.  Non-text raster margins never participate in the scroll.
+If a horizontal text-window boundary crosses a wide pair, an affected row
+operation clears the complete pair, including its adjacent half outside the
+window, before moving the remaining complete cells.
 
 == Pixel Planes and Scaling
 

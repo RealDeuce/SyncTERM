@@ -37,7 +37,7 @@ repository-wide coverage. The legacy tree is read-only reference.
 
 The repository-wide audit is complete. This is not an implementation approval,
 release certification or claim that findings have been fixed. The consolidated
-API/design assessment, priority groups and all 107 outstanding finding summaries are in
+API/design assessment, priority groups and all 104 outstanding finding summaries are in
 AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 
 | Objective requirement | Authoritative evidence and disposition |
@@ -50,7 +50,7 @@ AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 | Required legacy behavior | Read-only comparisons cover fonts/catalog/maps, modes, palette capacity, Prestel versus Mode 7, command line, console/input and settings behavior; A015/A018/A032 plus explicit parity limits. Frozen CTerm chapter cmp succeeds. |
 | Wren scripts and bindings | Complete local source/signature/manual reviews; isolated shipped-script suites and host fixtures; host closure A100–A114. Connected/SFTP production integration missing from this application is reported, not invented or silently counted as working. |
 | Build logic, generators and documentation | Root/component CMake and generators reviewed; standalone/probe failures recorded; pinned Unicode/font regeneration and table comparisons documented; root manuals/license/development guidance covered. Wren VM vendored internals limited to integration boundaries as requested. |
-| Inventory and consolidated findings | 107 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 15 high, 63 medium, 27 low, 2 unresolved concerns; not all runtime reproductions. |
+| Inventory and consolidated findings | 104 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 15 high, 60 medium, 27 low, 2 unresolved concerns; not all runtime reproductions. |
 | Relevant tests where practical | Fresh complete native build succeeds. Final selected CTest run: 60 executed, 51 pass, 9 fail, 5.12 seconds; failure matrix in index. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
 | Only tests/reports changed; no implementation remediation | Current status: 30 modified tracked tests, 23 untracked tests, 2 untracked reports; no staged files. Filtered worktree inspection finds no other changes. Baseline-to-current non-test difference is pre-existing str_list/CMakeLists.txt, unchanged since fdeab0d. No final-consolidation commits/push/reverts. |
 | Explicit uncertainty | Each component records unavailable platforms, unexecuted failure paths and measurement limits; A007/A011 unresolved. Source-level risks are not called verified crashes. These are audit outcomes, not claims of implementation correctness. |
@@ -103,7 +103,7 @@ not the absence of failing tests. New findings will receive stable A-numbers.
 | bbs_list/ | Reviewed | All local sources/header/tests/build read; A033 sanitizer reproduction, A034/A035 source findings; native list/web tests pass, MinGW compile only; integration/fault gaps below |
 | codepage/ | Reviewed | All local source/header/build/test read; exhaustive graphic roundtrip and expanded control/invalid-input tests pass native Clang/GCC; MinGW compile only |
 | connection/ | Reviewed | A014/A015/A018 reproduced; A016 Windows source race; A017 RFC mismatch; shutdown stress and platform runtime gaps documented |
-| console/ | Reviewed | All local implementation/backends, tests, benchmark, build and docs read; local integration dispositions A045, A047–A052, A093–A094, A106–A109 and GUI closure notes; native/isolated tests and platform-only risks distinguished; remaining Wren consumer questions belong to wren_host |
+| console/ | Reviewed | All local implementation/backends, tests, benchmark, build and docs read; local integration dispositions A045, A047–A051, A106–A109 and GUI closure notes; native/isolated tests and platform-only risks distinguished; remaining Wren consumer questions belong to wren_host |
 | dynamic_library/ | Reviewed | A005; native fixtures pass; Windows compiled, not executed |
 | event/ | Reviewed | A004; native repeated tests, MinGW compile; failure-injection limitations below |
 | file_lock/ | Reviewed | A006; native tests plus failing controlled error-path reproduction; Windows source/compile only |
@@ -380,9 +380,8 @@ snapshot *cell* moves and explicitly describes cached rasters for scrolling;
 it does not promise generic pixel-overlay moves. Therefore this difference
 alone is an API clarification/design concern, not a confirmed regression.
 Callers requiring final-raster copies must not infer them from cell movement.
-Overlay/overlapping-move equivalence has not been runtime-tested; A093 remains
-the separately reproduced partial-scroll wide-pair defect. No measured generic
-move allocation/performance regression is claimed.
+Overlay/overlapping-move equivalence has not been runtime-tested. No measured
+generic move allocation/performance regression is claimed.
 
 Windows text source recheck confirms that KEY_EVENT_RECORD repeat counts are
 reduced to a physical-event boolean while text/key-code events are emitted
@@ -830,27 +829,9 @@ reported size. This supersedes the earlier pending all-mode *geometry* check,
 not the remaining application/host integration review. No production/build
 or product-documentation changes and no commits.
 
-### A094 — Deferred font registration resolves wide glyphs without forming pairs
+### Console mutation contract follow-up
 
-Severity: medium (confirmed retained-cell invariant violation). register_font
-in console/console.c:2060 resolves cells written before their font identifier
-exists. It receives the resolved column count but only updates glyph and
-fallback/dirty flags, without creating a continuation or normalizing an
-edge-clipped wide glyph. This is the first-registration path, not full-registry
-LRU replacement; the user's explicit permission not to dirty cells on eviction
-does not explain this behavior.
-
-The `registration` mode of console/tests/st_console_wide_scroll_test.c writes
-U+4E00/font zero before any font is registered, then registers a font mapping
-it to a two-cell glyph. All API calls succeed. A full-row read returns its
-wide leader followed by a space without CONTINUATION; the invariant assertion
-fails on native Clang. The default scroll case remains independent (A093).
-Strict-warning standalone compilation uses existing console-test dependencies;
-no GUI, CMake or production changes. Recommend defining deferred width-change
-semantics and preserving complete pairs, including right-edge cases, without
-changing the separately requested LRU replacement policy.
-
-Console mutation contract follow-up: normal rectangle fill and move-clear
+Normal rectangle fill and move-clear
 explicitly reject wide fill cells; generic move snapshots and normalizes
 source boundaries and retains EXPLICIT_GLYPH through the cell setter. This
 source review does not establish arbitrary pixel-overlay move preservation.
@@ -863,33 +844,6 @@ lack the wide-fill rejection used by rectangle fill. Their intended policy
 needs specification; existing window/pair findings should not be hidden by
 silently restricting inputs in tests. These observations disposition the
 earlier source questions without claiming those paths are correct or fixed.
-
-### A093 — Partial-width scrolling leaves broken wide-character pairs
-
-Severity: medium (confirmed retained-cell invariant violation). Console.adoc
-states that region mutations preserve complete wide pairs. In
-console/console_text.c, move_row_block_locked copies the selected row span
-with memmove and marks its cells dirty, bypassing the pair normalization used
-by st_console_set_cell_locked and generic move_cells. When the text window's
-left edge cuts through a pair, copying a narrow cell onto its continuation
-leaves the wide leader outside the window unchanged and without a partner.
-
-New standalone console/tests/st_console_wide_scroll_test.c reproduces through
-public APIs: create a headless 4x2 console, register a font with U+4E00 as a
-two-cell glyph, write it at columns 0–1 of the first row, select the window
-{1,0,2,2}, and scroll upward by one line. A full-row read returns U+4E00 at
-column zero and U+0020 without CONTINUATION at column one. The test allows
-either preservation or clearing of the original pair; it rejects only the
-orphaned leader. Strict-warning native Clang build succeeds and its final
-assertion fails. No production changes or CMake registration were made.
-
-Recommendation: apply boundary-pair normalization to the optimized row move
-and verify both edges and directions, insertion/deletion, and pixels outside
-the text area. Only upward scrolling across a left-edge pair was exercised;
-other operations sharing this helper are source-level follow-up, not separately
-reproduced failures. Existing fill and move-clear APIs explicitly reject wide
-fill cells; their rejection is not this defect. Direct clear/scroll codepoint
-fill behavior and invalid scalar inputs remain contract-review questions.
 
 ### Error translation coverage follow-up
 
@@ -2044,27 +1998,6 @@ Recommendation: make peer closure an ordinary transfer failure without
 requiring an undocumented process-global signal policy. Also test transfer
 cancellation and shutdown while a recipient stops reading; blocking writes
 on the worker are a separate unresolved responsiveness concern.
-
-### A052 — Wide character write escapes a one-column text window
-
-Severity: medium (confirmed mutation outside the selected text window).
-console_text.c:put_codepoint_locked detects insufficient room for a wide
-glyph, wraps to the next line, but does not check whether the window itself
-is narrower than two columns. st_console_set_cell_locked bounds its generated
-continuation against the full console width, not the active text window.
-
-Standalone console/tests/st_console_narrow_window_test.c creates a headless
-4x3 console, registers a mapped wide glyph, selects {1,0,1,3} as its text
-window and writes U+4E00. The cell at (2,1), outside that window, becomes
-U+4E00 with CONTINUATION set instead of remaining blank. Native Clang run
-fails with exactly that output. It uses public operations and full-row reads;
-the included existing test file supplies helpers only. No raster, display or
-out-of-allocation write is needed for this reproduction.
-
-Recommendation: define handling of a glyph wider than the text window and
-enforce the window boundary after wrapping. The test intentionally requires
-only preservation outside the window, not a particular replacement, clipping
-or rejection policy. Add full-console width-one and edge-window cases too.
 
 ### A053 — Bare -i option reads past the argument terminator
 

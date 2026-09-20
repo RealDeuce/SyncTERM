@@ -1231,6 +1231,213 @@ test_unicode_wide_cells(void)
 	CHECK(st_console_get_position(console, &x, &y) == 0);
 	CHECK(x == 2 && y == 1);
 	st_console_destroy(console);
+
+	console = create_headless(4, 2);
+	identifier = register_static_font(console, &font);
+	CHECK(identifier == 0);
+	{
+		const struct st_console_rect narrow_window = {1, 0, 1, 2};
+		const struct st_console_rect marker = {1, 1, 1, 1};
+		const struct st_console_cell letter = {.codepoint = 'A'};
+
+		CHECK(st_console_set_window(console, &narrow_window) == 0);
+		CHECK(st_console_set_wrap(console, false) == 0);
+		CHECK(st_console_put_codepoint(console, UINT32_C(0x4e00)) == 0);
+		CHECK(st_console_get_position(console, &x, &y) == 0);
+		CHECK(x == 1 && y == 0);
+		CHECK(read_cell(console, 1, 0).codepoint == ' ');
+		CHECK(read_cell(console, 2, 0).codepoint == ' ');
+
+		CHECK(st_console_set_wrap(console, true) == 0);
+		CHECK(st_console_put_codepoint(console, UINT32_C(0x4e00)) == 0);
+		CHECK(st_console_get_position(console, &x, &y) == 0);
+		CHECK(x == 1 && y == 1);
+		CHECK(read_cell(console, 1, 1).codepoint == ' ');
+		CHECK(read_cell(console, 2, 1).codepoint == ' ');
+
+		CHECK(st_console_write_cells(console, &marker, &letter, 1) == 0);
+		CHECK(st_console_set_position(console, 1, 1) == 0);
+		CHECK(st_console_put_codepoint(console, UINT32_C(0x4e00)) == 0);
+		CHECK(st_console_get_position(console, &x, &y) == 0);
+		CHECK(x == 1 && y == 1);
+		CHECK(read_cell(console, 1, 0).codepoint == 'A');
+		CHECK(read_cell(console, 1, 1).codepoint == ' ');
+		CHECK(read_cell(console, 2, 0).codepoint == ' ');
+		CHECK(read_cell(console, 2, 1).codepoint == ' ');
+	}
+	st_console_destroy(console);
+
+	console = create_headless(1, 2);
+	identifier = register_static_font(console, &font);
+	CHECK(identifier == 0);
+	CHECK(st_console_put_codepoint(console, UINT32_C(0x4e00)) == 0);
+	CHECK(st_console_get_position(console, &x, &y) == 0);
+	CHECK(x == 0 && y == 1);
+	CHECK(read_cell(console, 0, 0).codepoint == ' ');
+	CHECK(read_cell(console, 0, 1).codepoint == ' ');
+	st_console_destroy(console);
+}
+
+enum wide_window_operation {
+	WIDE_WINDOW_SCROLL_UP,
+	WIDE_WINDOW_SCROLL_DOWN,
+	WIDE_WINDOW_INSERT,
+	WIDE_WINDOW_DELETE,
+};
+
+static st_console_t *
+create_wide_boundary_console(bool pixels)
+{
+	static const uint8_t narrow_bitmap[] = {0x00, 0xff};
+	static const uint8_t wide_bitmap[] = {0xff, 0xff};
+	static const struct st_console_font_mapping mapping[] = {
+		{' ', 0},
+		{'A', 1},
+		{UINT32_C(0x4e00), 2},
+	};
+	static const struct st_console_font font = {
+		.bitmap = narrow_bitmap,
+		.bitmap_size = sizeof(narrow_bitmap),
+		.width = 8,
+		.height = 1,
+		.glyph_count = 2,
+		.row_stride = 1,
+		.glyph_stride = 1,
+		.wide_bitmap = wide_bitmap,
+		.wide_bitmap_size = sizeof(wide_bitmap),
+		.wide_glyph_count = 1,
+		.wide_row_stride = 2,
+		.wide_glyph_stride = 2,
+		.mapping = mapping,
+		.mapping_count = sizeof(mapping) / sizeof(mapping[0]),
+		.fallback_glyph = 0,
+	};
+	const struct st_console_display_config display_config = {
+		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	};
+	const struct st_console_config config = {
+		.columns = 6,
+		.rows = 4,
+		.cell_width = pixels ? 8 : 0,
+		.cell_height = pixels ? 1 : 0,
+		.pixel_width = pixels ? 49 : 0,
+		.pixel_height = pixels ? 5 : 0,
+	};
+	st_console_t *console = NULL;
+
+	CHECK(st_console_create(&console, &display_config, &config) == 0);
+	CHECK(register_static_font(console, &font) == 0);
+	CHECK(st_console_set_wrap(console, false) == 0);
+	for (uint32_t y = 0; y < 4; ++y) {
+		CHECK(st_console_set_position(console, 0, y) == 0);
+		CHECK(st_console_put_codepoint(console, UINT32_C(0x4e00)) == 0);
+		CHECK(st_console_set_position(console, 4, y) == 0);
+		CHECK(st_console_put_codepoint(console, UINT32_C(0x4e00)) == 0);
+	}
+	return console;
+}
+
+static void
+check_wide_boundary_rows(st_console_t *console, uint32_t first_cleared)
+{
+	const struct st_console_rect row = {0, 0, 6, 1};
+	struct st_console_cell cells[6];
+
+	for (uint32_t y = 0; y < 4; ++y) {
+		struct st_console_rect current = row;
+
+		current.y = y;
+		CHECK(st_console_read_cells(console, &current, cells, 6) == 0);
+		for (uint32_t x = 0; x < 6; ++x) {
+			bool continuation = (cells[x].flags
+			    & ST_CONSOLE_CELL_CONTINUATION) != 0;
+
+			if (continuation) {
+				CHECK(x > 0);
+				CHECK(cells[x - 1].codepoint == UINT32_C(0x4e00));
+				CHECK((cells[x - 1].flags
+				    & ST_CONSOLE_CELL_CONTINUATION) == 0);
+			}
+			else if (cells[x].codepoint == UINT32_C(0x4e00)) {
+				CHECK(x + 1 < 6);
+				CHECK((cells[x + 1].flags
+				    & ST_CONSOLE_CELL_CONTINUATION) != 0);
+			}
+		}
+		if (y >= first_cleared) {
+			CHECK(cells[0].codepoint == ' ');
+			CHECK(cells[5].codepoint == ' ');
+		}
+		else {
+			CHECK(cells[0].codepoint == UINT32_C(0x4e00));
+			CHECK((cells[1].flags
+			    & ST_CONSOLE_CELL_CONTINUATION) != 0);
+			CHECK(cells[4].codepoint == UINT32_C(0x4e00));
+			CHECK((cells[5].flags
+			    & ST_CONSOLE_CELL_CONTINUATION) != 0);
+		}
+	}
+}
+
+static void
+test_wide_window_row_operations(void)
+{
+	const struct st_console_rect window = {1, 0, 4, 4};
+
+	for (enum wide_window_operation operation = WIDE_WINDOW_SCROLL_UP;
+	    operation <= WIDE_WINDOW_DELETE; ++operation) {
+		st_console_t *console = create_wide_boundary_console(false);
+		uint32_t first_cleared = 0;
+
+		CHECK(st_console_set_window(console, &window) == 0);
+		if (operation >= WIDE_WINDOW_INSERT) {
+			first_cleared = 1;
+			CHECK(st_console_set_position(console, 1, 1) == 0);
+		}
+		switch (operation) {
+		case WIDE_WINDOW_SCROLL_UP:
+			CHECK(st_console_scroll(console, 1, ' ') == 0);
+			break;
+		case WIDE_WINDOW_SCROLL_DOWN:
+			CHECK(st_console_scroll(console, -1, ' ') == 0);
+			break;
+		case WIDE_WINDOW_INSERT:
+			CHECK(st_console_insert_lines(console, 1, ' ') == 0);
+			break;
+		case WIDE_WINDOW_DELETE:
+			CHECK(st_console_delete_lines(console, 1, ' ') == 0);
+			break;
+		}
+		check_wide_boundary_rows(console, first_cleared);
+		st_console_destroy(console);
+	}
+}
+
+static void
+test_wide_window_cached_scroll(void)
+{
+	const struct st_console_rect window = {1, 0, 4, 4};
+	const struct st_console_rect raster = {0, 0, 49, 5};
+	const uint32_t red = ST_CONSOLE_COLOR_RGB_VALUE(0xff, 0, 0);
+	const uint32_t green = ST_CONSOLE_COLOR_RGB_VALUE(0, 0xff, 0);
+	const uint32_t blue = ST_CONSOLE_COLOR_RGB_VALUE(0, 0, 0xff);
+	struct st_pixel_buffer *pixels = NULL;
+	st_console_t *console = create_wide_boundary_console(true);
+
+	CHECK(st_console_set_window(console, &window) == 0);
+	CHECK(st_console_set_pixel(console, 16, 1, red) == 0);
+	CHECK(st_console_set_pixel(console, 48, 1, green) == 0);
+	CHECK(st_console_set_pixel(console, 0, 4, blue) == 0);
+	CHECK(st_console_scroll(console, 1, ' ') == 0);
+	CHECK(st_console_get_pixels(&pixels, console, &raster, false) == 0);
+	CHECK(pixels->primary[16] == red);
+	CHECK(pixels->primary[0] == 0);
+	CHECK(pixels->primary[40] == 0);
+	CHECK(pixels->primary[49 + 48] == green);
+	CHECK(pixels->primary[(size_t)4 * 49] == blue);
+	st_pixel_buffer_destroy(pixels);
+	check_wide_boundary_rows(console, 0);
+	st_console_destroy(console);
 }
 
 static void
@@ -1532,10 +1739,14 @@ test_font_resolution_and_complete_cells(void)
 }
 
 static void
-test_deferred_font_resolution(void)
+test_font_registration_preserves_cells(void)
 {
 	static const uint8_t bitmap[] = {0x00, 0x80};
-	static const struct st_console_font_mapping mapping[] = {{'A', 1}};
+	static const uint8_t wide_bitmap[] = {0xff, 0xff};
+	static const struct st_console_font_mapping mapping[] = {
+		{'A', 1},
+		{UINT32_C(0x4e00), 2},
+	};
 	static const struct st_console_font font = {
 		.bitmap = bitmap,
 		.bitmap_size = sizeof(bitmap),
@@ -1544,6 +1755,11 @@ test_deferred_font_resolution(void)
 		.glyph_count = 2,
 		.row_stride = 1,
 		.glyph_stride = 1,
+		.wide_bitmap = wide_bitmap,
+		.wide_bitmap_size = sizeof(wide_bitmap),
+		.wide_glyph_count = 1,
+		.wide_row_stride = 2,
+		.wide_glyph_stride = 2,
 		.mapping = mapping,
 		.mapping_count = sizeof(mapping) / sizeof(mapping[0]),
 	};
@@ -1566,24 +1782,36 @@ test_deferred_font_resolution(void)
 		.backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};
 	const struct st_console_config config = {
-		.columns = 1,
+		.columns = 2,
 		.rows = 1,
 		.cell_width = 8,
 		.cell_height = 1,
 	};
-	const struct st_console_rect screen = {0, 0, 1, 1};
-	struct st_console_cell cell = {.codepoint = 'A'};
+	const struct st_console_rect first = {0, 0, 1, 1};
+	const struct st_console_rect row = {0, 0, 2, 1};
+	struct st_console_cell cell = {.codepoint = UINT32_C(0x4e00)};
+	struct st_console_cell cells[2];
 	st_console_t *console = NULL;
 	uint16_t identifier;
 
 	CHECK(st_console_create(&console, &config_display, &config) == 0);
-	CHECK(st_console_write_cells(console, &screen, &cell, 1) == 0);
+	CHECK(st_console_write_cells(console, &first, &cell, 1) == 0);
 	CHECK(read_cell(console, 0, 0).glyph == 0);
 	identifier = register_static_font(console, &font);
 	CHECK(identifier == 0);
-	CHECK(read_cell(console, 0, 0).glyph == 1);
+	CHECK(read_cell(console, 0, 0).glyph == 0);
+	CHECK((read_cell(console, 1, 0).flags
+	    & ST_CONSOLE_CELL_CONTINUATION) == 0);
+	CHECK(st_console_set_position(console, 0, 0) == 0);
+	CHECK(st_console_put_codepoint(console, UINT32_C(0x4e00)) == 0);
+	CHECK(st_console_read_cells(console, &row, cells, 2) == 0);
+	CHECK(cells[0].glyph == 2);
+	CHECK((cells[1].flags
+	    & ST_CONSOLE_CELL_CONTINUATION) != 0);
+
+	cell.codepoint = 'A';
 	cell.font = 1;
-	CHECK(st_console_write_cells(console, &screen, &cell, 1) == 0);
+	CHECK(st_console_write_cells(console, &first, &cell, 1) == 0);
 	CHECK(read_cell(console, 0, 0).font == 1);
 	CHECK(read_cell(console, 0, 0).glyph == 1);
 	CHECK((read_cell(console, 0, 0).flags
@@ -1591,6 +1819,10 @@ test_deferred_font_resolution(void)
 	identifier = register_static_font(console, &selected_font);
 	CHECK(identifier == 1);
 	CHECK(read_cell(console, 0, 0).font == 1);
+	CHECK(read_cell(console, 0, 0).glyph == 1);
+	CHECK((read_cell(console, 0, 0).flags
+	    & ST_CONSOLE_CELL_FALLBACK_FONT) != 0);
+	CHECK(st_console_write_cells(console, &first, &cell, 1) == 0);
 	CHECK(read_cell(console, 0, 0).glyph == 0);
 	CHECK((read_cell(console, 0, 0).flags
 	    & ST_CONSOLE_CELL_FALLBACK_FONT) == 0);
@@ -2084,11 +2316,13 @@ main(void)
 	test_concurrent_writers();
 	test_deferred_presentation();
 	test_unicode_wide_cells();
+	test_wide_window_row_operations();
+	test_wide_window_cached_scroll();
 	test_ansi_wide_cell_output();
 	test_ansi_output_modes();
 	test_ansi_cp437_output();
 	test_font_resolution_and_complete_cells();
-	test_deferred_font_resolution();
+	test_font_registration_preserves_cells();
 	test_font_registry_lru_replacement();
 	test_multiple_consoles_one_display();
 	test_failed_detachment_lifetime();

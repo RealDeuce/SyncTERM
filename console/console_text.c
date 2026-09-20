@@ -491,6 +491,29 @@ fill_line_locked(st_console_t *console, uint32_t y, uint32_t codepoint)
 }
 
 static void
+clear_window_boundary_pairs_locked(st_console_t *console, uint32_t top,
+	uint32_t height)
+{
+	struct st_console_cell blank;
+	uint32_t left = console->window.x;
+	uint32_t right = left + console->window.width;
+
+	if ((left == 0 && right == console->columns) || height == 0)
+		return;
+	blank = st_console_blank_locked(console, ' ');
+	for (uint32_t y = top; y < top + height; ++y) {
+		size_t row = (size_t)y * console->columns;
+
+		if (left != 0 && (console->cells[row + left].flags
+		    & ST_CONSOLE_CELL_CONTINUATION) != 0)
+			st_console_set_cell_locked(console, row + left, &blank);
+		if (right != console->columns && (console->cells[row + right].flags
+		    & ST_CONSOLE_CELL_CONTINUATION) != 0)
+			st_console_set_cell_locked(console, row + right - 1, &blank);
+	}
+}
+
+static void
 move_row_block_locked(st_console_t *console, uint32_t source_y,
 	uint32_t destination_y, uint32_t height)
 {
@@ -502,9 +525,15 @@ move_row_block_locked(st_console_t *console, uint32_t source_y,
 	};
 	bool backwards = destination_y > source_y;
 	size_t bytes = (size_t)source.width * sizeof(console->cells[0]);
+	uint32_t first;
+	uint32_t last;
 
 	if (height == 0 || source_y == destination_y)
 		return;
+	first = source_y < destination_y ? source_y : destination_y;
+	last = source_y > destination_y ? source_y : destination_y;
+	clear_window_boundary_pairs_locked(console, first,
+	    last - first + height);
 	st_console_move_raster_locked(console, &source, source.x, destination_y);
 	for (uint32_t row_index = 0; row_index < height; ++row_index) {
 		uint32_t row = backwards ? height - row_index - 1 : row_index;
@@ -617,6 +646,8 @@ put_codepoint_locked(st_console_t *console, uint32_t codepoint)
 		console->cursor_x = console->window.x;
 		line_feed_locked(console);
 	}
+	if (columns > right - console->cursor_x)
+		return;
 	st_console_set_cell_locked(console,
 	    (size_t)console->cursor_y * console->columns + console->cursor_x,
 	    &cell);

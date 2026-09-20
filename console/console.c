@@ -2236,30 +2236,6 @@ register_font(st_console_t *console, const struct st_console_font *font,
 		font_registration_free(registration);
 		return IO_ERROR_OUT_OF_MEMORY;
 	}
-	/* Resolve cells written before this identifier was available. */
-	if (evicted == NULL) {
-		size_t count = (size_t)console->columns * console->rows;
-
-		for (size_t i = 0; i < count; ++i) {
-			uint16_t glyph_font = assigned;
-			uint8_t columns;
-
-			if (console->cells[i].font != assigned
-			    || (console->cells[i].flags
-			    & ST_CONSOLE_CELL_EXPLICIT_GLYPH) != 0)
-				continue;
-			if (!st_console_font_lookup_locked(console, assigned,
-			    console->cells[i].codepoint, &glyph_font,
-			    &console->cells[i].glyph, &columns))
-				continue;
-			console->cells[i].flags &= ~ST_CONSOLE_CELL_FALLBACK_FONT;
-			if (glyph_font != console->cells[i].font)
-				console->cells[i].flags
-				    |= ST_CONSOLE_CELL_FALLBACK_FONT;
-			console->cells[i].flags |= ST_CONSOLE_CELL_DIRTY;
-			console->changed = true;
-		}
-	}
 	if (evicted != NULL) {
 		fprintf(stderr, "SyncTERM: font registry full; replacing "
 		    "least-recently-used font in slot %u\n", assigned);
