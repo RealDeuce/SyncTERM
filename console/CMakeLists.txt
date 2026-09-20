@@ -557,6 +557,13 @@ if(BUILD_TESTING)
 		set_tests_properties(st_console_x11 PROPERTIES
 			SKIP_RETURN_CODE 77
 			TIMEOUT 20)
+		if(ST_CONSOLE_HAVE_XRENDER)
+			add_test(NAME st_console_x11_xrender
+				COMMAND st_console_x11_test --xrender-pixels)
+			set_tests_properties(st_console_x11_xrender PROPERTIES
+				SKIP_RETURN_CODE 77
+				TIMEOUT 20)
+		endif()
 	endif()
 	if(ST_CONSOLE_HAVE_WAYLAND)
 		add_executable(st_console_wayland_test

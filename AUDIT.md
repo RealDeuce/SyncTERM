@@ -289,8 +289,8 @@ superseded; unavailable runtime/fault/performance checks are limits, not passes.
   normal lifecycle, not renderer reset, accelerated scaling-quality changes,
   multiple vsynced windows, input methods or monitor changes. Immediate event
   drawing is a measurement target, not proof of a throughput regression.
-- X11 retains/coalesces exposure output; A048/A049 are distinct signature/
-  rendering defects. Default-visual mask conversion has no indexed-visual
+- X11 retains/coalesces exposure output; A048 records its loader-signature
+  defect. Default-visual mask conversion has no indexed-visual
   allocation path; legacy x_events.c contains XAllocColor use. Indexed-visual
   parity remains unverified rather than declared supported or intentionally
   removed. Clipboard INCR/fallback, alternate modifier maps and unusual visual
@@ -1752,32 +1752,6 @@ crash or a particular ABI consequence.
 
 Recommendation: match the installed public declaration exactly and check
 other manually declared dynamic entry points against their public headers.
-
-### A049 — X11 external-scaling pixmap is not initialized on first scaled resize
-
-Severity: medium (source-confirmed missing upload; visible result not exercised
-against an X server). In console_x11.c:draw_state, external mode at exactly
-the source dimensions uses XPutImage directly on the window. The XRender
-pixmap is created only when destination dimensions subsequently differ.
-ensure_render_resources creates that pixmap but does not populate it;
-draw_state uploads only when damage_valid is true, then composites it.
-
-The presenter external branch in console_bitmap.c does not upload pixels for
-a host-size-only change: it sets frame.changed through layout_changed, while
-preserving the native raster. Consequently an unchanged, cursor-hidden image
-starting at 1:1 and then resized larger reaches a newly created pixmap with
-no XPutImage at all. Cursor-only damage can populate just a small portion.
-Likewise an existing pixmap can become stale while rendering goes directly
-to the window at 1:1, then be reused on returning to scaled dimensions.
-
-Existing st_console_x11_test.c checks external-mode creation and activation
-success, not displayed pixels across the 1:1-to-scaled transition. This is
-not a claim that a real-display reproduction was run. Recommendation: track
-the pixmap's content validity separately from the XImage's damage and upload
-the complete image when establishing or re-establishing that validity.
-Legacy comparison: conio/x_events.c:1937 uploads the full dw-by-dh XImage to
-xrender_pm immediately before XRenderComposite; the new damage-only upload
-removed that initialization guarantee. Legacy source was read, not executed.
 
 ### A050 — Wayland upper/left margin mouse coordinates wrap to the opposite edge
 

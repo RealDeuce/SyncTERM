@@ -91,6 +91,20 @@ find_named_window(Display *display, Window parent, const char *wanted)
 	return result;
 }
 
+static Window
+wait_named_window(Display *display, Window parent, const char *wanted)
+{
+	Window window = None;
+
+	for (unsigned int attempt = 0; attempt < 100 && window == None;
+	    ++attempt) {
+		window = find_named_window(display, parent, wanted);
+		if (window == None)
+			(void)nanosleep(&(struct timespec){0, 10000000}, NULL);
+	}
+	return window;
+}
+
 static int
 check_window_size(const char *title, int width, int height,
 	int minimum_width, int minimum_height)
@@ -102,7 +116,7 @@ check_window_size(const char *title, int width, int height,
 	long supplied = 0;
 
 	CHECK(display != NULL);
-	window = find_named_window(display, DefaultRootWindow(display), title);
+	window = wait_named_window(display, DefaultRootWindow(display), title);
 	CHECK(window != None);
 	for (unsigned int attempt = 0; attempt < 100; ++attempt) {
 		CHECK(XGetWindowAttributes(display, window, &attributes) != 0);
@@ -120,6 +134,194 @@ check_window_size(const char *title, int width, int height,
 	(void)XCloseDisplay(display);
 	return 0;
 }
+
+static unsigned long
+visual_component(unsigned int component, unsigned long mask)
+{
+	unsigned int shift = 0;
+	unsigned long maximum;
+
+	if (mask == 0)
+		return 0;
+	while (((mask >> shift) & 1UL) == 0)
+		++shift;
+	maximum = mask >> shift;
+	return (((unsigned long)component * maximum + 127UL) / 255UL << shift)
+	    & mask;
+}
+
+static unsigned long
+visual_pixel(const Visual *visual, uint32_t colour)
+{
+	return visual_component((colour >> 16) & UINT32_C(0xff),
+	    visual->red_mask)
+	    | visual_component((colour >> 8) & UINT32_C(0xff),
+	    visual->green_mask)
+	    | visual_component(colour & UINT32_C(0xff), visual->blue_mask);
+}
+
+static int
+wait_window_pixel(Display *display, Window window, int width, int height,
+	int x, int y, unsigned long expected)
+{
+	XWindowAttributes attributes;
+	unsigned long actual = 0;
+
+	for (unsigned int attempt = 0; attempt < 100; ++attempt) {
+		XImage *image;
+
+		CHECK(XGetWindowAttributes(display, window, &attributes) != 0);
+		if (attributes.width == width && attributes.height == height) {
+			image = XGetImage(display, window, x, y, 1, 1, AllPlanes,
+			    ZPixmap);
+			CHECK(image != NULL);
+			actual = XGetPixel(image, 0, 0);
+			XDestroyImage(image);
+			if (actual == expected)
+				return 0;
+		}
+		(void)nanosleep(&(struct timespec){0, 10000000}, NULL);
+	}
+	fprintf(stderr, "window pixel %d,%d is %#lx, expected %#lx\n",
+	    x, y, actual, expected);
+	return 1;
+}
+
+static int
+fill_pixels(st_console_t *console, uint32_t colour)
+{
+	struct st_pixel_buffer *pixels = NULL;
+	struct st_pixel_blit blit = {
+		.scale_x = 1,
+		.scale_y = 1,
+	};
+	uint32_t width;
+	uint32_t height;
+	int status;
+
+	status = st_console_pixel_size(console, &width, &height);
+	if (status == 0)
+		status = st_pixel_buffer_create(&pixels, width, height, true);
+	if (status == 0)
+		status = st_pixel_buffer_fill(pixels, colour, colour);
+	if (status == 0) {
+		blit.width = width;
+		blit.height = height;
+		status = st_console_blit_pixels(console, pixels, NULL, &blit);
+	}
+	st_pixel_buffer_destroy(pixels);
+	return status;
+}
+
+#if ST_CONSOLE_HAVE_XRENDER
+static int
+check_external_scaling_pixels(void)
+{
+	static const char title[] = "st_console X11 XRender test";
+	const struct st_console_display_config display_config = {
+		.backend = ST_CONSOLE_BACKEND_X11,
+	};
+	const struct st_console_config config = {
+		.columns = 8,
+		.rows = 4,
+		.cell_width = 8,
+		.cell_height = 16,
+		.wrap = true,
+		.scaling_mode = ST_CONSOLE_SCALING_EXTERNAL,
+	};
+	const uint32_t first_colour = ST_PIXEL_COLOR_RGB_VALUE(0x20, 0x80, 0xe0);
+	const uint32_t second_colour = ST_PIXEL_COLOR_RGB_VALUE(0xe0, 0x40, 0x20);
+	const uint32_t region_colour = ST_PIXEL_COLOR_RGB_VALUE(0x30, 0xd0, 0x60);
+	struct st_pixel_buffer *region = NULL;
+	const struct st_pixel_blit region_blit = {
+		.width = 8,
+		.height = 8,
+		.destination_x = 16,
+		.destination_y = 16,
+		.scale_x = 1,
+		.scale_y = 1,
+	};
+	st_console_t *console = NULL;
+	Display *display = XOpenDisplay(NULL);
+	XWindowAttributes attributes;
+	Window window;
+	int opcode;
+	int event;
+	int error;
+	unsigned long first_pixel;
+	unsigned long second_pixel;
+	unsigned long region_pixel;
+
+	if (display == NULL)
+		return 77;
+	if (XQueryExtension(display, "RENDER", &opcode, &event, &error) == 0) {
+		(void)XCloseDisplay(display);
+		return 77;
+	}
+	{
+		int status = st_console_create(&console, &display_config, &config);
+
+		if (status == IO_ERROR_NOT_FOUND
+		    || status == IO_ERROR_NOT_SUPPORTED) {
+			(void)XCloseDisplay(display);
+			return 77;
+		}
+		CHECK(status == 0);
+	}
+	CHECK(st_console_set_title(console, title) == 0);
+	CHECK(fill_pixels(console, first_colour) == 0);
+	CHECK(st_console_present(console) == 0);
+	window = wait_named_window(display, DefaultRootWindow(display), title);
+	CHECK(window != None);
+	CHECK(XGetWindowAttributes(display, window, &attributes) != 0);
+	first_pixel = visual_pixel(attributes.visual, first_colour);
+	second_pixel = visual_pixel(attributes.visual, second_colour);
+	region_pixel = visual_pixel(attributes.visual, region_colour);
+
+	CHECK(wait_window_pixel(display, window, 64, 64, 32, 32,
+	    first_pixel) == 0);
+	/* The first scaled repaint must initialize its new XRender source. */
+	CHECK(XResizeWindow(display, window, 128, 128) != 0);
+	(void)XSync(display, False);
+	CHECK(wait_window_pixel(display, window, 128, 128, 64, 64,
+	    first_pixel) == 0);
+
+	CHECK(XResizeWindow(display, window, 64, 64) != 0);
+	(void)XSync(display, False);
+	CHECK(wait_window_pixel(display, window, 64, 64, 32, 32,
+	    first_pixel) == 0);
+	CHECK(fill_pixels(console, second_colour) == 0);
+	CHECK(st_console_present(console) == 0);
+	CHECK(wait_window_pixel(display, window, 64, 64, 32, 32,
+	    second_pixel) == 0);
+	/* A retained XRender source must not preserve the old direct image. */
+	CHECK(XResizeWindow(display, window, 128, 128) != 0);
+	(void)XSync(display, False);
+	CHECK(wait_window_pixel(display, window, 128, 128, 64, 64,
+	    second_pixel) == 0);
+
+	CHECK(st_pixel_buffer_create(&region, 8, 8, true) == 0);
+	CHECK(st_pixel_buffer_fill(region, region_colour, region_colour) == 0);
+	CHECK(st_console_blit_pixels(console, region, NULL, &region_blit) == 0);
+	CHECK(st_console_present(console) == 0);
+	/* Steady scaled output must continue to apply regional damage. */
+	CHECK(wait_window_pixel(display, window, 128, 128, 40, 40,
+	    region_pixel) == 0);
+	CHECK(wait_window_pixel(display, window, 128, 128, 100, 100,
+	    second_pixel) == 0);
+
+	st_pixel_buffer_destroy(region);
+	st_console_destroy(console);
+	(void)XCloseDisplay(display);
+	return 0;
+}
+#else
+static int
+check_external_scaling_pixels(void)
+{
+	return 77;
+}
+#endif
 
 static int
 root_supports_atom(Display *display, Atom wanted)
@@ -171,7 +373,7 @@ check_window_metadata(const char *title)
 	char *icon_name = NULL;
 
 	CHECK(display != NULL);
-	window = find_named_window(display, DefaultRootWindow(display), title);
+	window = wait_named_window(display, DefaultRootWindow(display), title);
 	CHECK(window != None);
 	CHECK(XGetClassHint(display, window, &class_hint) != 0);
 	CHECK(class_hint.res_name != NULL
@@ -251,7 +453,7 @@ check_selection_owner(const char *title, Atom selection)
 	Window window;
 
 	CHECK(display != NULL);
-	window = find_named_window(display, DefaultRootWindow(display), title);
+	window = wait_named_window(display, DefaultRootWindow(display), title);
 	CHECK(window != None);
 	CHECK(XGetSelectionOwner(display, selection) == window);
 	(void)XCloseDisplay(display);
@@ -320,7 +522,7 @@ check_sommelier_selection(void)
 	CHECK(st_console_set_title(console, title) == 0);
 	CHECK(st_console_set_clipboard_text(console, "Sommelier") == 0);
 	CHECK(check_selection_owner(title, clipboard) == 0);
-	window = find_named_window(display, root, title);
+	window = wait_named_window(display, root, title);
 	CHECK(window != None);
 	CHECK(XGetSelectionOwner(display, XA_PRIMARY) != window);
 	st_console_destroy(console);
@@ -455,7 +657,7 @@ check_mouse_coordinates(st_console_t *console, const char *title)
 	bool marker = false;
 
 	CHECK(display != NULL);
-	window = find_named_window(display, DefaultRootWindow(display), title);
+	window = wait_named_window(display, DefaultRootWindow(display), title);
 	CHECK(window != None);
 	CHECK(st_console_events_clear(console) == 0);
 	CHECK(send_mouse_button(display, window, 40, 24, true) == 0);
@@ -504,7 +706,7 @@ check_escape_event(st_console_t *console)
 	CHECK(st_console_present(console) == 0);
 	display = XOpenDisplay(NULL);
 	CHECK(display != NULL);
-	window = find_named_window(display, DefaultRootWindow(display), title);
+	window = wait_named_window(display, DefaultRootWindow(display), title);
 	CHECK(window != None);
 	CHECK(check_window_size(title, 85, 64, 85, 64) == 0);
 	CHECK(st_console_events_clear(console) == 0);
@@ -630,7 +832,7 @@ check_escape_event(st_console_t *console)
 }
 
 int
-main(void)
+main(int argc, char **argv)
 {
 	const struct st_console_display_config config_display = {
 		.backend = ST_CONSOLE_BACKEND_X11,
@@ -656,6 +858,8 @@ main(void)
 
 	(void)setlocale(LC_CTYPE, "");
 	CHECK(check_keys() == 0);
+	if (argc == 2 && strcmp(argv[1], "--xrender-pixels") == 0)
+		return check_external_scaling_pixels();
 	status = st_console_create(&first, &config_display, &config);
 	if (status == IO_ERROR_NOT_FOUND || status == IO_ERROR_NOT_SUPPORTED)
 		return 77;
