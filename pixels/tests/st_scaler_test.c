@@ -5,6 +5,8 @@
 
 #include "st_pixels.h"
 
+#include "io_error.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -133,11 +135,62 @@ check_small_edge_damage(void)
 	st_pixel_scaler_destroy(incremental);
 }
 
+static void
+check_downscale_rejected(void)
+{
+	static const struct {
+		uint32_t width;
+		uint32_t height;
+	} rejected[] = {
+		{3, 6},
+		{8, 2},
+		{3, 2},
+	};
+	uint32_t source[12];
+	struct st_rgb_buffer input = {source, 4, 3};
+	st_pixel_scaler_t *scaler = NULL;
+	st_pixel_scaler_t *reference = NULL;
+	const struct st_rgb_buffer *scaled;
+	const struct st_rgb_buffer *fresh;
+	uint32_t saved[48];
+
+	CHECK(st_pixel_scaler_create(&scaler) == 0);
+	CHECK(st_pixel_scaler_create(&reference) == 0);
+	for (unsigned int policy = 0; policy < 2; ++policy)
+		for (size_t i = 0; i < sizeof(rejected) / sizeof(rejected[0]); ++i) {
+			struct st_pixel_rect damage = {1, 1, 1, 1};
+			struct st_pixel_rect output_damage;
+			const struct st_rgb_buffer *unchanged;
+
+			for (size_t pixel = 0; pixel < 12; ++pixel)
+				source[pixel] = (uint32_t)pixel * UINT32_C(0x010203);
+			CHECK(st_pixel_scaler_scale(scaler, &scaled, &input, 8, 6,
+			    (enum st_pixel_scaling_policy)policy) == 0);
+			memcpy(saved, scaled->pixels, sizeof(saved));
+			CHECK(st_pixel_scaler_scale(reference, &fresh, &input, 8, 6,
+			    (enum st_pixel_scaling_policy)policy) == 0);
+			unchanged = fresh;
+			CHECK(st_pixel_scaler_scale(scaler, &unchanged, &input,
+			    rejected[i].width, rejected[i].height,
+			    (enum st_pixel_scaling_policy)policy)
+			    == IO_ERROR_INVALID_ARGUMENT);
+			CHECK(unchanged == fresh);
+			CHECK(memcmp(saved, scaled->pixels, sizeof(saved)) == 0);
+			source[5] ^= UINT32_C(0x55aa33);
+			CHECK(st_pixel_scaler_scale_region(scaler, &scaled, &input,
+			    &damage, &output_damage) == 0);
+			CHECK(st_pixel_scaler_scale(reference, &fresh, &input, 8, 6,
+			    (enum st_pixel_scaling_policy)policy) == 0);
+			CHECK(memcmp(scaled->pixels, fresh->pixels, sizeof(saved)) == 0);
+		}
+	st_pixel_scaler_destroy(reference);
+	st_pixel_scaler_destroy(scaler);
+}
+
 int
 main(int argc, char **argv)
 {
 	static const struct scale_case cases[] = {
-		{4, 3, UINT64_C(0x66217c64977a5424)},
 		{7, 5, UINT64_C(0x422f2f3a6a36f610)},
 		{13, 11, UINT64_C(0x67372fe83dd0aac3)},
 		{14, 11, UINT64_C(0x4b398639f168c615)},
@@ -156,6 +209,7 @@ main(int argc, char **argv)
 	st_pixel_scaler_t *reference_scaler = NULL;
 	bool generate = argc == 2 && strcmp(argv[1], "--generate") == 0;
 
+	check_downscale_rejected();
 	check_small_edge_damage();
 	CHECK(st_pixel_buffer_create(&source, 7, 5, false) == 0);
 	input = (struct st_rgb_buffer){source->primary, source->width,

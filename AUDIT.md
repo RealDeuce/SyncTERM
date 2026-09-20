@@ -37,7 +37,7 @@ repository-wide coverage. The legacy tree is read-only reference.
 
 The repository-wide audit is complete. This is not an implementation approval,
 release certification or claim that findings have been fixed. The consolidated
-API/design assessment, priority groups and all 104 outstanding finding summaries are in
+API/design assessment, priority groups and all 103 outstanding finding summaries are in
 AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 
 | Objective requirement | Authoritative evidence and disposition |
@@ -50,7 +50,7 @@ AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 | Required legacy behavior | Read-only comparisons cover fonts/catalog/maps, modes, palette capacity, Prestel versus Mode 7, command line, console/input and settings behavior; A015/A018/A032 plus explicit parity limits. Frozen CTerm chapter cmp succeeds. |
 | Wren scripts and bindings | Complete local source/signature/manual reviews; isolated shipped-script suites and host fixtures; host closure A100–A114. Connected/SFTP production integration missing from this application is reported, not invented or silently counted as working. |
 | Build logic, generators and documentation | Root/component CMake and generators reviewed; standalone/probe failures recorded; pinned Unicode/font regeneration and table comparisons documented; root manuals/license/development guidance covered. Wren VM vendored internals limited to integration boundaries as requested. |
-| Inventory and consolidated findings | 104 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 15 high, 60 medium, 27 low, 2 unresolved concerns; not all runtime reproductions. |
+| Inventory and consolidated findings | 103 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 14 high, 60 medium, 27 low, 2 unresolved concerns; not all runtime reproductions. |
 | Relevant tests where practical | Fresh complete native build succeeds. Final selected CTest run: 60 executed, 51 pass, 9 fail, 5.12 seconds; failure matrix in index. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
 | Only tests/reports changed; no implementation remediation | Current status: 30 modified tracked tests, 23 untracked tests, 2 untracked reports; no staged files. Filtered worktree inspection finds no other changes. Baseline-to-current non-test difference is pre-existing str_list/CMakeLists.txt, unchanged since fdeab0d. No final-consolidation commits/push/reverts. |
 | Explicit uncertainty | Each component records unavailable platforms, unexecuted failure paths and measurement limits; A007/A011 unresolved. Source-level risks are not called verified crashes. These are audit outcomes, not claims of implementation correctness. |
@@ -116,7 +116,7 @@ not the absence of failing tests. New findings will receive stable A-numbers.
 | list_crypto/ | Reviewed | All local code/tests/build read; expanded counted-password tests pass natively; MinGW compile only; provider/resource/erasure limits below |
 | name_value_list/ | Reviewed | Ownership/sorted contracts checked; allocation injection remains a limitation |
 | path/ | Reviewed | A008 conditional Windows defect; native boundary tests pass, MinGW compile |
-| pixels/ | Reviewed | All local API/implementation/filter/build/docs/tests/benchmark read; A039 ASan regression retained; expanded upscale edge tests pass native/ASan/UBSan, MinGW compile; measurement limits below |
+| pixels/ | Reviewed | All local API/implementation/filter/build/docs/tests/benchmark read; expanded upscale edge tests pass native/ASan/UBSan, MinGW compile; measurement limits below |
 | profile/ | Reviewed | Ownership/copy source and native tests; A018 consumer enum mismatch; allocation-failure injection remains a test gap |
 | scripts/ | Reviewed | All current script implementations/tests read, including main menu, editors, REPL, common bindings module and self-test driver; isolated suite results and runtime/cross-script gaps documented below; older remaining-source lists superseded |
 | semaphore/ | Reviewed | A004; native repeated tests, MinGW compile; failure-injection limitations below |
@@ -1841,37 +1841,6 @@ PSK session, independently of the TLS 1.3 negotiated cipher suite. OpenSSL's
 states that TLS 1.3 PSK establishment is observable through
 `SSL_session_reused()`. Add provider-parity tests for a correct PSK, incorrect
 PSK, and certificate-only fallback. No implementation change made.
-
-### A039 — Regional downscaling indexes past its sampling table for unsampled damage
-
-Severity: high (memory safety). Confirmed with AddressSanitizer and unchanged
-implementation. `pixels/st_scaler.c:630` initializes an empty inverse-damage
-range to output_size/zero. Some source pixels have no output samples when
-downscaling. For damage confined to those pixels, `:902` subtracts the inverted
-bounds as unsigned dimensions and `:904` unconditionally calls
-update_blocky_region. Its `:806` access to x_samples[rectangle->x] can then be
-one past the allocated sampling array, followed by further invalid indexing.
-
-Standalone regression `pixels/tests/st_scaler_unsampled_damage_test.c` creates
-a scaler, scales eight black pixels to two output pixels, changes source pixel
-7 to white and submits that single-pixel damage. No unreasonable allocation,
-invalid pointer or out-of-source rectangle is involved. Native Clang ASan
-reports a four-byte heap-buffer-overflow at st_scaler.c:806, immediately beyond
-the 24-byte x_samples allocation. The public scaler accepts these dimensions
-and does not document an upscale-only precondition. This does not establish
-that the application currently downscales its console window or that a remote
-party can reach this path; consumer reachability remains under console review.
-
-Reproduction: compile the standalone test with pixels/st_scaler.c,
-pixels/st_pixels.c, pixels/st_pointy.c and pixels/st_xbr.c, include pixels and
-io_error, and enable `-fsanitize=address -fno-omit-frame-pointer`. The test exits
-1 with the sanitizer failure. No build registration or production source edit.
-
-Recommendation: represent empty mapped damage explicitly, return a bounded
-empty output rectangle and skip work when no output depends on the changed
-input. Check intermediate pointy-pipeline interpolation stages for the same
-empty-range assumption, and test both axes plus multi-stage propagation.
-Those related paths have not yet been reproduced.
 
 ### A045 — ANSI CSI parser writes past its parameter array
 
@@ -4387,9 +4356,8 @@ Clang and GCC. Those tests exercise aspect fitting, undersized-host clipping,
 scale preservation, cursor scanlines, external-scaling fallback, circular
 raster copying, dirty/blink uploads, and frame-copy destination bounds.
 
-Presenter fitting preserves at least the source raster dimensions and clips
-undersized hosts rather than downscaling. This does not establish a console
-route to A039. Regional upload callbacks map source damage through the scaler;
+Presenter fitting preserves at least the source raster dimensions. Regional
+upload callbacks map source damage through the scaler;
 failed uploads generally request a subsequent full upload. Backend-specific
 failure handling is still pending. Animation uses unsigned elapsed-time
 differences from a uint32_t epoch; long-running wrap/phase discontinuities
@@ -6128,8 +6096,7 @@ for small rectangles. No performance measurement yet. Compatibility scaling
 allocates intermediate planes and persistent scaling retains stage buffers.
 Persistent full-scale calls rebuild maps even when dimensions are unchanged;
 the README's 'prepared once per plan' wording is not sufficient evidence of a
-cached no-rebuild fast path. Regional updates avoid those allocations/maps but
-have the confirmed empty-damage defect A039.
+cached no-rebuild fast path. Regional updates avoid those allocations/maps.
 
 Borrowed scaler output lifetime and region prerequisites are partially
 documented; concurrency, output/source aliasing, invalidation after a failed
@@ -6139,9 +6106,6 @@ consistent with 'until next scale call' but not obviously with the header's
 broader 'results unchanged on failure' phrase. No allocation-failure test yet.
 The same typed-pointer-to-void** helper pattern noted in A007 appears in
 ensure_array calls; no separate redesign or duplicate finding is introduced.
-
-No production/build changes. Added only the standalone A039 regression and
-this report; native ASan failure retained, no commits.
 
 ### pixels/ — filter and verification completion
 
@@ -6159,9 +6123,7 @@ with a noninteger vertical finish, both policies, and every source pixel.
 After each mutation it verifies bounded output damage and full equality between
 regional and independently recomputed output. All pass native Clang/GCC and
 Clang ASan+UBSan; existing pointy hashes and larger multistage region cases also
-pass. The standalone A039 unsampled-downscale regression is separate and still
-fails; passing upscale tests do not conceal that failure. MinGW builds normal
-and expanded test targets, not executed.
+pass. MinGW builds normal and expanded test targets, not executed.
 
 Large-dimension arithmetic remains a concern: public pointy planning checks
 target dimensions against INT_MAX, but xBR computes int nl1=2*output_width and

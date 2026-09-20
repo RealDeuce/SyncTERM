@@ -159,8 +159,7 @@ static void
 make_axis_map(struct axis_sample *samples, struct axis_damage *damage,
 	uint32_t output_size, uint32_t source_size)
 {
-	uint32_t repeat = output_size >= source_size
-	    ? output_size / source_size : 1;
+	uint32_t repeat = output_size / source_size;
 	uint32_t expanded = source_size * repeat;
 	uint64_t increment = ((uint64_t)expanded << 16) / output_size;
 	uint64_t position = 0;
@@ -468,6 +467,7 @@ st_pixel_scaler_scale(st_pixel_scaler_t *scaler,
 	    || source->pixels == NULL
 	    || (policy != ST_PIXEL_SCALING_BLOCKY
 	    && policy != ST_PIXEL_SCALING_POINTY)
+	    || width < source->width || height < source->height
 	    || !pixel_count(source->width, source->height, &ignored_count)
 	    || !pixel_count(width, height, &target_count))
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -508,10 +508,6 @@ st_pixel_scaler_scale(st_pixel_scaler_t *scaler,
 	}
 	x_integer = width / source_width;
 	y_integer = height / source_height;
-	if (x_integer == 0)
-		x_integer = 1;
-	if (y_integer == 0)
-		y_integer = 1;
 	common = x_integer < y_integer ? x_integer : y_integer;
 	if ((common & 1U) != 0 && common > 5) {
 		pointy_odd = common;

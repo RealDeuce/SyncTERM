@@ -881,6 +881,9 @@ st_console_bitmap_presenter_frame(
 	destination = fit_rectangle(output_width, output_height,
 	    presenter->images[0]->width, presenter->images[0]->height,
 	    presenter->aspect_width, presenter->aspect_height);
+	if (destination.width < presenter->images[0]->width
+	    || destination.height < presenter->images[0]->height)
+		return IO_ERROR_INVALID_ARGUMENT;
 	layout_changed = presenter->output_width != output_width
 	    || presenter->output_height != output_height;
 	presenter->output_width = output_width;

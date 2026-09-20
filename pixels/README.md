@@ -28,9 +28,12 @@ preserved; where it is absent, the primary source supplies both destination
 planes.  Self-blits behave as though the source were snapshotted before any
 destination writes.
 
-The persistent scaler accepts only `st_rgb_buffer` input and implements the
-legacy scaling plan rather than exposing
-its stages as independent filter choices.  Pointy scaling decomposes common
+The persistent scaler accepts only `st_rgb_buffer` input and supports
+same-size output and upscaling; each target dimension must be at least the
+corresponding source dimension.  Invalid downscaling requests leave the
+current plan, its pixels, and the caller's result unchanged.  The scaler
+implements the legacy scaling plan rather than exposing its stages as
+independent filter choices.  Pointy scaling decomposes common
 integer factors into pointy and xBR stages, applies residual integer
 multiplication, and finishes with YCoCg interpolation where required.  Blocky
 scaling uses integer multiplication plus interpolation.  Coordinate and
