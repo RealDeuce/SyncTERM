@@ -7,8 +7,8 @@ recommended remedies. Severity does not imply exploitability; source-confirmed
 risks and reproduced failures must be distinguished using those entries.
 No remediation is authorized by this report.
 
-The audit is complete, not the implementation: **73 outstanding findings**
-comprise 5 high, 41 medium, 25 low and 2 unresolved design/performance
+The audit is complete, not the implementation: **71 outstanding findings**
+comprise 3 high, 41 medium, 25 low and 2 unresolved design/performance
 concerns.
 This is not a count of exploitable vulnerabilities or reproduced failures.
 All 47 tracked source directories and 12 root files are covered by the
@@ -17,7 +17,7 @@ reviewed only at the requested integration boundaries.
 
 Most urgent follow-up groups, subject to separate authorization:
 
-- Memory/resource safety: A034–A036.
+- Memory/resource safety: A036.
 - Authentication and write-policy correctness: A038 and A062.
 - Data preservation and required compatibility: A016 and the
   mode-specific rendering/persistence findings.
@@ -64,9 +64,9 @@ Concrete coupling concerns, not automatic refactoring requests:
 
 Ownership assessment: opaque handles and matching destruction functions are
 common and appropriate; the public pixel buffer deliberately exposes planes
-for its consumers. Failures cluster where borrowed inputs cross mutation
-(A035), multiple layers believe they own a descriptor (A036), or a handle
-outlives a native resource operation (A016). Deep copying a BBS object avoids
+for its consumers. Failures cluster where multiple layers believe they own a
+descriptor (A036), or a handle outlives a native resource operation (A016).
+Deep copying a BBS object avoids
 a dangling pointer but does not implement stale-model semantics (A101).
 
 Concurrency/performance assessment: lock/condition ownership and shutdown are
@@ -79,7 +79,7 @@ No new blanket GC, contention or scaling-performance diagnosis is made from
 source shape. The source and test inventory must retain those measurement
 limits in the final report.
 
-The current TODO documents contain 73 outstanding numbered findings. A007 and
+The current TODO documents contain 71 outstanding numbered findings. A007 and
 A011 are unresolved design/performance concerns, not confirmed runtime defects.
 Missing features and documentation errors are also explicitly distinguished
 from implementation failures in the detailed ledger.
@@ -104,8 +104,6 @@ from implementation failures in the detailed ledger.
 | A023 | medium performance/reliability risk | Real-time audio callbacks take locks and free objects |
 | A031 | medium | Settings saves truncate the only copy before writing |
 | A033 | medium | BBS sort-field normalization overflows on INT_MIN |
-| A034 | high | BBS cache maintenance does not confine entry names to cache paths |
-| A035 | high | BBS mutation can use borrowed input after rebuilding frees it |
 | A036 | high | Downloader closes the socket twice after TLS setup failure |
 | A037 | medium | Changing a download URL can reuse another resource's cache |
 | A038 | high | OpenSSL TLS 1.3 PSK mode accepts an unauthenticated certificate server |
@@ -165,11 +163,10 @@ from implementation failures in the detailed ledger.
 ### Latest configured native verification
 
 `cmake --build build -j4` succeeds. The subsequent command
-`ctest --test-dir build --output-on-failure --timeout 30` registers 72 tests:
-the stable disposition is **68 pass, 3 fail and 1 Wayland test skipped**. The
-latest full run reported 67/4/1 because the sequence-dependent X11 test failed;
-its immediate isolated rerun passed. X11 passes on
-the available test display; SDL uses its CMake-configured dummy video driver.
+`ctest --test-dir build --output-on-failure --timeout 30` registers 73 tests:
+the stable disposition is **69 pass, 3 fail and 1 Wayland test skipped**. The
+X11 tests pass on the available test display; SDL uses its CMake-configured
+dummy video driver.
 This is native verification, not Windows/macOS execution or comprehensive
 backend coverage.
 

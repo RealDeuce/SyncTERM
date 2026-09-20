@@ -9,7 +9,6 @@
 
 #include "filesystem.h"
 #include "io_error.h"
-#include "path.h"
 #include "path_windows.h"
 #include "st_windows_utf.h"
 
@@ -20,14 +19,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <wchar.h>
-
-static char *
-join_path(const char *directory, const char *name)
-{
-	char *result = NULL;
-
-	return path_join_alloc(&result, directory, name) == 0 ? result : NULL;
-}
 
 static int
 windows_error(DWORD error)
@@ -136,8 +127,10 @@ cache_is_current(const st_bbs_list_t *list, const char *name)
 {
 	for (size_t i = 0; i < st_bbs_list_count(list); ++i) {
 		const struct st_bbs_entry *entry = st_bbs_list_at(list, i);
+		char key[ST_BBS_CACHE_KEY_MAX + 1];
 
-		if (st_bbs_name_equal(entry->profile->name, name))
+		if (st_bbs_cache_key(key, sizeof(key), entry->profile->name)
+		    && st_bbs_name_equal(key, name))
 			return true;
 	}
 	return false;
@@ -156,18 +149,20 @@ cache_is_system(const st_bbs_list_t *list, const char *name)
 }
 
 int
-st_bbs_cache_rename(st_bbs_list_t *list, const char *old_name,
-    const char *new_name)
+st_bbs_cache_rename(st_bbs_list_t *list, const char *old_key,
+    const char *new_key)
 {
-	char *old_path = join_path(list->cache_path, old_name);
-	char *new_path = join_path(list->cache_path, new_name);
+	char *old_path = NULL;
+	char *new_path = NULL;
 	struct fs_info info;
-	int status;
+	int status = st_bbs_cache_path(&old_path, list, old_key);
 
-	if (old_path == NULL || new_path == NULL) {
+	if (status == 0)
+		status = st_bbs_cache_path(&new_path, list, new_key);
+	if (status < 0) {
 		free(old_path);
 		free(new_path);
-		return IO_ERROR_OUT_OF_MEMORY;
+		return status;
 	}
 	status = fs_get_link_info(&info, old_path);
 	if (status == IO_ERROR_NOT_FOUND)
@@ -182,14 +177,13 @@ st_bbs_cache_rename(st_bbs_list_t *list, const char *old_name,
 }
 
 int
-st_bbs_cache_remove(st_bbs_list_t *list, const char *name)
+st_bbs_cache_remove(st_bbs_list_t *list, const char *key)
 {
-	char *path = join_path(list->cache_path, name);
-	int status;
+	char *path = NULL;
+	int status = st_bbs_cache_path(&path, list, key);
 
-	if (path == NULL)
-		return IO_ERROR_OUT_OF_MEMORY;
-	status = remove_tree(path);
+	if (status == 0)
+		status = remove_tree(path);
 	free(path);
 	return status;
 }
@@ -232,6 +226,7 @@ st_bbs_cache_sweep(st_bbs_list_t *list)
 			break;
 		}
 		if (cache_is_system(list, name)
+		    || !st_bbs_cache_key_recognized(name)
 		    || cache_is_current(list, name)) {
 			free(name);
 			continue;

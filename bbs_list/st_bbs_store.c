@@ -256,20 +256,29 @@ st_bbs_list_update(st_bbs_list_t *list, const char *old_name,
 	struct st_profile remote_profile;
 	const struct st_profile *base_profile;
 	st_file_lock_t *lock = NULL;
+	char old_cache_key[ST_BBS_CACHE_KEY_MAX + 1];
+	char new_cache_key[ST_BBS_CACHE_KEY_MAX + 1];
+	bool rename_cache;
 	int status;
 
 	initialize_result(result);
 	if (list == NULL || profile == NULL || !st_bbs_name_valid(old_name)
-	    || !st_bbs_name_valid(profile->name)
-	    || baseline_personal(list, old_name) == NULL)
+	    || !st_bbs_name_valid(profile->name))
 		return IO_ERROR_INVALID_ARGUMENT;
-	status = begin_write(list, &lock, &remote, &info);
 	base_profile = baseline_personal(list, old_name);
+	if (base_profile == NULL
+	    || !st_bbs_cache_key(old_cache_key, sizeof(old_cache_key),
+	    base_profile->name)
+	    || !st_bbs_cache_key(new_cache_key, sizeof(new_cache_key),
+	    profile->name))
+		return IO_ERROR_INVALID_ARGUMENT;
+	rename_cache = !st_bbs_name_equal(old_name, profile->name);
+	status = begin_write(list, &lock, &remote, &info);
 	remote_section = status == 0
 	    ? ini_document_find_section(remote, old_name) : NULL;
 	if (status == 0 && remote_section == NULL)
 		status = IO_ERROR_CONFLICT;
-	if (status == 0 && !st_bbs_name_equal(old_name, profile->name)
+	if (status == 0 && rename_cache
 	    && ini_document_find_section(remote, profile->name) != NULL)
 		status = IO_ERROR_ALREADY_EXISTS;
 	if (status == 0)
@@ -300,7 +309,7 @@ st_bbs_list_update(st_bbs_list_t *list, const char *old_name,
 	if (status == 0)
 		status = merge_profile_sections(remote_section, compare_remote_section,
 		    base_section, local_section);
-	if (status == 0 && !st_bbs_name_equal(old_name, profile->name)
+	if (status == 0 && rename_cache
 	    && !ini_document_rename_section(remote, remote_section,
 	    profile->name))
 		status = IO_ERROR_INVALID_ARGUMENT;
@@ -311,8 +320,9 @@ st_bbs_list_update(st_bbs_list_t *list, const char *old_name,
 		    list->password, list->password_size);
 	if (status == 0)
 		status = install_document(list, &remote, &info);
-	if (status == 0 && !st_bbs_name_equal(old_name, profile->name)) {
-		int cache_status = st_bbs_cache_rename(list, old_name, profile->name);
+	if (status == 0 && rename_cache) {
+		int cache_status = st_bbs_cache_rename(list, old_cache_key,
+		    new_cache_key);
 		if (result != NULL)
 			result->cache_status = cache_status;
 	}
@@ -334,16 +344,20 @@ st_bbs_list_remove(st_bbs_list_t *list, const char *name,
 	struct st_profile remote_profile;
 	const struct st_profile *base_profile;
 	st_file_lock_t *lock = NULL;
+	char cache_key[ST_BBS_CACHE_KEY_MAX + 1];
 	bool found = false;
 	size_t count;
 	int status;
 
 	initialize_result(result);
-	if (list == NULL || !st_bbs_name_valid(name)
-	    || baseline_personal(list, name) == NULL)
+	if (list == NULL || !st_bbs_name_valid(name))
+		return IO_ERROR_INVALID_ARGUMENT;
+	base_profile = baseline_personal(list, name);
+	if (base_profile == NULL
+	    || !st_bbs_cache_key(cache_key, sizeof(cache_key),
+	    base_profile->name))
 		return IO_ERROR_INVALID_ARGUMENT;
 	status = begin_write(list, &lock, &remote, &info);
-	base_profile = baseline_personal(list, name);
 	st_profile_init(&remote_profile);
 	if (status == 0) {
 		ini_section_t *effective = ini_document_find_section(remote, name);
@@ -373,7 +387,7 @@ st_bbs_list_remove(st_bbs_list_t *list, const char *name,
 	if (status == 0)
 		status = install_document(list, &remote, &info);
 	if (status == 0) {
-		int cache_status = st_bbs_cache_remove(list, name);
+		int cache_status = st_bbs_cache_remove(list, cache_key);
 		if (result != NULL)
 			result->cache_status = cache_status;
 	}

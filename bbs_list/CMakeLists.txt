@@ -37,8 +37,9 @@ else()
 	set(ST_BBS_CACHE_SOURCE st_bbs_cache_posix.c)
 endif()
 
-add_library(st_bbs_list STATIC st_bbs_list.c st_bbs_profile_codec.c
-	st_bbs_store.c st_bbs_sort.c st_bbs_web.c ${ST_BBS_CACHE_SOURCE})
+add_library(st_bbs_list STATIC st_bbs_list.c st_bbs_cache_key.c
+	st_bbs_profile_codec.c st_bbs_store.c st_bbs_sort.c st_bbs_web.c
+	${ST_BBS_CACHE_SOURCE})
 target_include_directories(st_bbs_list PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_bbs_list PUBLIC st_profile st_list_crypto st_app_paths
 	st_webget
@@ -71,6 +72,22 @@ if(BUILD_TESTING)
 			-Wall -Wextra -Wpedantic -Werror)
 	endif()
 	add_test(NAME bbs_list COMMAND st_bbs_list_test)
+
+	add_executable(st_bbs_cache_safety_test
+		tests/st_bbs_cache_safety_test.c)
+	target_link_libraries(st_bbs_cache_safety_test PRIVATE st_bbs_list
+		syncterm_filesystem)
+	target_compile_definitions(st_bbs_cache_safety_test PRIVATE
+		ST_BBS_CACHE_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/cache-safety-test")
+	set_target_properties(st_bbs_cache_safety_test PROPERTIES C_STANDARD 17
+		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_bbs_cache_safety_test PRIVATE /W4 /WX)
+	else()
+		target_compile_options(st_bbs_cache_safety_test PRIVATE
+			-Wall -Wextra -Wpedantic -Werror)
+	endif()
+	add_test(NAME bbs_cache_safety COMMAND st_bbs_cache_safety_test)
 
 	add_executable(st_bbs_web_test tests/st_bbs_web_test.c)
 	target_link_libraries(st_bbs_web_test PRIVATE st_bbs_list st_settings

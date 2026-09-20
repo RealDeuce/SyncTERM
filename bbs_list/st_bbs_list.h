@@ -41,6 +41,7 @@ struct st_bbs_diagnostic {
 };
 
 struct st_bbs_mutation_result {
+	/* Secondary cache maintenance result after a committed mutation. */
 	int cache_status;
 };
 
@@ -74,6 +75,13 @@ int st_bbs_list_open(st_bbs_list_t **result,
 void st_bbs_list_close(st_bbs_list_t *list);
 int st_bbs_list_reload(st_bbs_list_t *list);
 
+/*
+ * Returned entries, profiles, diagnostics, defaults, and crypto information
+ * are borrowed from list. They remain valid only until the next non-const
+ * operation on that list, whether or not it succeeds, or until close. A
+ * borrowed value may be passed directly as an input to that next operation.
+ * Access to one list object must be serialized by its caller.
+ */
 size_t st_bbs_list_count(const st_bbs_list_t *list);
 const struct st_bbs_entry *st_bbs_list_at(const st_bbs_list_t *list,
     size_t index);
@@ -90,6 +98,10 @@ const struct st_bbs_diagnostic *st_bbs_list_diagnostic_at(
 
 int st_bbs_list_add(st_bbs_list_t *list, const struct st_profile *profile,
     struct st_bbs_mutation_result *result);
+/*
+ * Successful persistence/rebuild returns zero even if subsequent cache
+ * maintenance fails. Pass result to receive that secondary status.
+ */
 int st_bbs_list_update(st_bbs_list_t *list, const char *old_name,
     const struct st_profile *profile, struct st_bbs_mutation_result *result);
 int st_bbs_list_remove(st_bbs_list_t *list, const char *name,
@@ -156,7 +168,10 @@ bool st_bbs_sort_field_reversed(int field);
 int st_bbs_list_sort(st_bbs_list_t *list, const int *fields,
     size_t field_count);
 
-/* Removes cache directories which do not match a current combined entry. */
+/*
+ * Removes recognized cache directories which do not match a current combined
+ * entry. Unrecognized directory names are left untouched.
+ */
 int st_bbs_list_sweep_orphan_caches(st_bbs_list_t *list);
 
 #endif

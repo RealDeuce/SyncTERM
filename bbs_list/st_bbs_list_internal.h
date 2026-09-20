@@ -14,6 +14,8 @@
 
 #include <stdbool.h>
 
+#define ST_BBS_CACHE_KEY_MAX (ST_PROFILE_NAME_MAX * 2U + 2U)
+
 struct st_bbs_owned_entry {
 	struct st_bbs_entry public;
 	struct st_profile profile;
@@ -48,6 +50,10 @@ struct st_bbs_list {
 
 bool st_bbs_name_equal(const char *left, const char *right);
 bool st_bbs_name_valid(const char *name);
+bool st_bbs_cache_key(char *result, size_t result_size, const char *name);
+bool st_bbs_cache_key_recognized(const char *key);
+int st_bbs_cache_path(char **result, const st_bbs_list_t *list,
+    const char *key);
 int st_bbs_decode_profile(struct st_profile *profile,
     const ini_section_t *section, const char *name, bool system,
     const char *download_path);
@@ -56,9 +62,9 @@ int st_bbs_encode_profile(ini_section_t *section,
 bool st_bbs_profiles_equal(const struct st_profile *left,
     const struct st_profile *right);
 int st_bbs_list_rebuild(st_bbs_list_t *list);
-int st_bbs_cache_rename(st_bbs_list_t *list, const char *old_name,
-    const char *new_name);
-int st_bbs_cache_remove(st_bbs_list_t *list, const char *name);
+int st_bbs_cache_rename(st_bbs_list_t *list, const char *old_key,
+    const char *new_key);
+int st_bbs_cache_remove(st_bbs_list_t *list, const char *key);
 int st_bbs_cache_sweep(st_bbs_list_t *list);
 
 #endif

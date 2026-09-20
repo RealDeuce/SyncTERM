@@ -37,21 +37,21 @@ repository-wide coverage. The legacy tree is read-only reference.
 
 The repository-wide audit is complete. This is not an implementation approval
 or release certification. The consolidated API/design assessment, priority
-groups and all 73 outstanding finding summaries are in
+groups and all 71 outstanding finding summaries are in
 AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 
 | Objective requirement | Authoritative evidence and disposition |
 | --- | --- |
 | Entire repository, not only recent changes | git ls-files identifies 47 top-level source directories and 12 root files; every directory has an inventory row, no omissions. Per-component reviews cover local implementations, headers, tests/build and associated data/docs. |
 | API design, architecture and library layout | AUDIT_INDEX boundary/coupling/ownership assessment plus component public-contract and CMake dependency reviews; A001–A007, A047/A066, A088/A091 and host-contract findings. Cohesive decomposition is recognized; no redesign authorized. |
-| Correctness, ownership/lifetime and concurrency | Component lifecycle/error reviews, normal and injected tests, explicit GUI/host ownership closure; source and reproduced failures are qualified individually. A016, A023, A035/A036 and A108/A109 illustrate distinct lifetime/error risks. |
+| Correctness, ownership/lifetime and concurrency | Component lifecycle/error reviews, normal and injected tests, explicit GUI/host ownership closure; source and reproduced failures are qualified individually. A016, A023, A036 and A108/A109 illustrate distinct lifetime/error risks. |
 | Portability and all platform backends | POSIX/Windows sources and every audio/console backend reviewed; native, MinGW compile-only and unavailable runtime evidence kept separate. Capability probes/standalone targets reviewed. No unsupported platform pass inferred. |
 | Performance | Scaler/renderer benchmark source and measured cases reviewed, including common mixed-axis scaling; A011/A023 and backend pacing risks distinguished from measured regressions. Reconstructed legacy benchmark limitations explicitly recorded. |
 | Required legacy behavior | Read-only comparisons cover fonts/catalog/maps, modes, palette capacity, Prestel versus Mode 7, command line, console/input and settings behavior, plus explicit parity limits. Frozen CTerm chapter cmp succeeds. |
 | Wren scripts and bindings | Complete local source/signature/manual reviews; isolated shipped-script suites and host fixtures; host closure A100–A113. Connected/SFTP production integration missing from this application is reported, not invented or silently counted as working. |
 | Build logic, generators and documentation | Root/component CMake and generators reviewed; standalone/probe failures recorded; pinned Unicode/font regeneration and table comparisons documented; root manuals/license/development guidance covered. Wren VM vendored internals limited to integration boundaries as requested. |
-| Inventory and consolidated findings | 73 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 5 high, 41 medium, 25 low, 2 unresolved concerns; not all runtime reproductions. |
-| Relevant tests where practical | A complete native build succeeds. The latest 72-test run has a stable disposition of 68 pass, 3 fail and 1 Wayland skip; the sequence-dependent X11 failure in the full run passes in isolation. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
+| Inventory and consolidated findings | 71 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 3 high, 41 medium, 25 low, 2 unresolved concerns; not all runtime reproductions. |
+| Relevant tests where practical | A complete native build succeeds. The latest 73-test run has a stable disposition of 69 pass, 3 fail and 1 Wayland skip. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
 | Explicit uncertainty | Each component records unavailable platforms, unexecuted failure paths and measurement limits; A007/A011 unresolved. Source-level risks are not called verified crashes. These are audit outcomes, not claims of implementation correctness. |
 
 Historical pending-source lists below are superseded by subsequent full reads,
@@ -99,7 +99,7 @@ not the absence of failing tests. New findings will receive stable A-numbers.
 | array_list/ | Reviewed | A007 unresolved portability concern; native and optimized tests pass |
 | audio/ | Reviewed | All local backends/synthesis/build/tests read; A023 callback risk; native fake tests pass, MinGW WASAPI compile only; actual device/platform gaps below |
 | audio_mixer/ | Reviewed | All local sources/tests/build read; A022 crossfade gap reproduced; device integration assigned to audio; ramp/performance/lifetime gaps below |
-| bbs_list/ | Reviewed | All local sources/header/tests/build read; A033 sanitizer reproduction, A034/A035 source findings; native list/web tests pass, MinGW compile only; integration/fault gaps below |
+| bbs_list/ | Reviewed | All local sources/header/tests/build read; A033 sanitizer reproduction; native list/cache/web tests pass, including cache confinement and borrowed mutation inputs; MinGW cache/list tests also pass under Wine; integration/fault gaps below |
 | codepage/ | Reviewed | All local source/header/build/test read; exhaustive graphic roundtrip and expanded control/invalid-input tests pass native Clang/GCC; MinGW compile only |
 | connection/ | Reviewed | A016 Windows source race; shutdown stress and platform runtime gaps documented |
 | console/ | Reviewed | All local implementation/backends, tests, benchmark, build and docs read; local integration dispositions A047–A051, A108/A109 and GUI closure notes; native/isolated tests and platform-only risks distinguished; remaining Wren consumer questions belong to wren_host |
@@ -1265,50 +1265,6 @@ reachability claim yet; host sort-order parsing remains to review.
 Recommended remedy: validate without negating INT_MIN and cover the complete
 int boundary contract. Also source-only: field_count*sizeof(int) in sort's
 allocation lacks an overflow check; callers' count bounds remain to review.
-
-### A034 — BBS cache maintenance does not confine entry names to cache paths
-
-Severity: high. Classification: source-confirmed destructive-path defect;
-no destructive reproduction executed.
-
-`bbs_list/st_bbs_list.c:34` permits printable ASCII names except brackets and
-one reserved literal. It accepts '.', '..', and '../outside'. Add/update/remove
-use this validator; personal sections loaded from disk use it too. Both cache
-backends concatenate those names with cache_path using path_join_alloc, which
-does not sanitize components. POSIX `st_bbs_cache_remove` (line 94) passes that
-path directly to recursive remove_tree. Thus deleting a personal entry named
-'../outside' can delete the sibling path rather than that entry's cache.
-Rename also accepts unconstrained source/destination components. Windows uses
-the same join before path conversion and recursive removal; exact Windows
-normalization/runtime impact not tested. This is not a claim that opening a
-remote list by itself triggers deletion.
-
-Recommended remedy: separate BBS display names from safe cache components and
-enforce confinement at every destructive cache boundary. A display-name ban
-alone may break existing lists and is not assumed authorized. A future
-reproduction must intercept filesystem operations or use only disposable
-fixtures, never real user cache/data. Dot-component paths can target a broad
-parent, so do not execute them against existing directories during the audit.
-
-### A035 — BBS mutation can use borrowed input after rebuilding frees it
-
-Severity: high, conditional on borrowed input. Classification: source-confirmed
-lifetime defect; no sanitizer reproduction yet.
-
-`st_bbs_list_remove(list, st_bbs_list_at(list, i)->profile->name, ...)` supplies
-a name valid at call entry. At `bbs_list/st_bbs_store.c:374`, install_document
-rebuilds the view and frees that profile. Line 376 then uses name again for
-cache removal. Similarly update uses old_name and profile->name at lines
-314-315 after installing/rebuilding; both may alias existing entries. No public
-contract prohibits using returned profile/name pointers as mutation inputs.
-Existing tests use string literals and independent profile copies, so they
-do not cover these aliases. The consequence includes using freed bytes as
-filesystem path input, not just an incorrect UI value.
-
-Recommended remedy: retain required input values until all post-rebuild work
-finishes, and test getter-derived input arguments. Document borrowed view
-invalidation separately; it does not justify invalidating arguments while the
-callee still needs them.
 
 ### A036 — Downloader closes the socket twice after TLS setup failure
 
@@ -2511,8 +2467,8 @@ without exception cleanup, and callbacks restore app.theme only on normal
 return. Safe-mode theme-document editing still reaches the editor while host
 bindings must prohibit persistence. Output-mode help is stale (describes ANSI
 as CP437 and omits newer backends); keep that distinction from actual backend
-behavior. Web-list names use ASCII comparison, but path-component validity is
-the host's responsibility (see A034). Screen-mode geometry concerns and broad
+behavior. Web-list names use ASCII comparison, while the host validates their
+cache components. Screen-mode geometry concerns and broad
 settings-save/reload semantics remain those recorded in the binding audit,
 not resolved by reading the menu. No new production changes or commits.
 
@@ -4776,8 +4732,8 @@ implementation and application/Wren consumers remain separate inventory areas.
 
 - Public list objects own profiles/diagnostics, paths and a copied password;
   close clears password bytes through crypto before freeing. Public getters
-  borrow entries/profiles/defaults/diagnostics without clear invalidation or
-  thread-safety documentation. A035 affects getter-derived mutation inputs.
+  document borrowed lifetimes, permit their values as mutation inputs and
+  require caller-serialized access.
   Multiple objects can share disk paths, but also consult process-global
   settings for selected personal path and named web sources. Their behavior
   is not independent of those mutable globals.
@@ -4812,17 +4768,18 @@ implementation and application/Wren consumers remain separate inventory areas.
   secondary result after persistence; callers passing NULL cannot inspect it.
   Failed readback/rebuild after a successful write returns failure despite disk
   mutation. Contracts should distinguish persistence and refreshed-view errors.
-- Cache removal handles observed symlinks/reparse points without recursive
-  following, but path-based check/open sequences can race with replacements;
-  no race test. POSIX readdir errors are not distinguished from EOF. Recursive
-  depth is unbounded. Sweep protects a configured system-cache basename and
-  current entry names, not a dedicated ownership marker. A034 concerns direct
-  lexical escape even without any race or symlink.
-- Existing native list test passes: precedence/duplicates, typed round trips,
+- Cache roots use validated portable raw keys or a bracketed hexadecimal key
+  for display names which are not portable path components. Destructive
+  boundaries reject other keys and sweep leaves unrecognized names untouched.
+  Removal handles observed symlinks/reparse points without recursive following,
+  but path-based check/open sequences can race with replacements; no race test.
+  POSIX readdir errors are not distinguished from EOF and recursive depth is
+  unbounded. Legacy raw keys still lack a dedicated ownership marker.
+- Existing native list tests pass: precedence/duplicates, typed round trips,
   independent-field merge, conflicting edits/removal, cache rename/remove/sweep,
-  encryption rewrite/reopen. It uses disposable build-tree fixtures. It does
-  not cover borrowed inputs, failure atomicity, malformed names at cache
-  boundaries, allocation failures or simultaneous threads/processes.
+  confined unsafe-name keys, borrowed mutation inputs and encryption
+  rewrite/reopen. They use disposable build-tree fixtures. They do not cover
+  failure atomicity, allocation failures or simultaneous threads/processes.
 - Profile codec initializes a fresh profile, bounds copied fixed strings,
   connection kind/port/data bits/stop bits/music and palette length, and uses
   shared hex decoding for SSH fingerprints. It assumes its internal name
