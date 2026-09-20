@@ -141,6 +141,36 @@ test_specific_error_and_unchanged_outputs(void)
 	return 0;
 }
 
+static int
+test_recorded_failure_does_not_suppress_success(void)
+{
+	const struct tcp_client_fake_address addresses[] = {
+		{TCP_CLIENT_ADDRESS_IPV4, TCP_CLIENT_FAKE_PENDING_FAILURE, 300,
+		    IO_ERROR_HOST_UNREACHABLE},
+		{TCP_CLIENT_ADDRESS_IPV6, TCP_CLIENT_FAKE_PENDING_SUCCESS, 300, 0},
+	};
+	const struct tcp_client_options options = {
+		TCP_CLIENT_ADDRESS_ANY, 1000, NULL, NULL
+	};
+	socket_handle_t result = SOCKET_HANDLE_INVALID;
+	enum tcp_client_address_family family = TCP_CLIENT_ADDRESS_ANY;
+
+	tcp_client_fake_reset(addresses, 2);
+	CHECK(tcp_client_connect(&result, &family, "example", 23,
+	    &options) == 0);
+	CHECK(tcp_client_fake_start_count() == 2);
+	CHECK(tcp_client_fake_started_address(0) == 0);
+	CHECK(tcp_client_fake_started_address(1) == 1);
+	CHECK(tcp_client_fake_start_time(0) == 0);
+	CHECK(tcp_client_fake_start_time(1) == 250);
+	CHECK(tcp_client_fake_now() == 300);
+	CHECK(family == TCP_CLIENT_ADDRESS_IPV6);
+	CHECK(tcp_client_fake_close_count() == 1);
+	CHECK(socket_close(result) == 0);
+	CHECK(tcp_client_fake_close_count() == 2);
+	return 0;
+}
+
 int
 main(void)
 {
@@ -149,5 +179,6 @@ main(void)
 	CHECK(test_cancel_poll_and_cleanup() == 0);
 	CHECK(test_deadline_and_cleanup() == 0);
 	CHECK(test_specific_error_and_unchanged_outputs() == 0);
+	CHECK(test_recorded_failure_does_not_suppress_success() == 0);
 	return 0;
 }

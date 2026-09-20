@@ -24,6 +24,11 @@ struct socket_wait_item {
 int socket_internal_map_error(int native_error);
 int socket_internal_now_ms(int64_t *result);
 size_t socket_internal_wait_capacity(void);
+/*
+ * Clears each item's events and error before waiting. SOCKET_WAIT_ERROR
+ * carries a nonzero portable error in the corresponding error field. That
+ * value is authoritative because obtaining it may consume native error state.
+ */
 int socket_internal_wait_many(struct socket_wait_item *items, size_t count,
     int64_t timeout_ms);
 int socket_internal_start_connect(const void *address, size_t address_length,

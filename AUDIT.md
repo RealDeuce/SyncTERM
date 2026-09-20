@@ -122,11 +122,11 @@ not the absence of failing tests. New findings will receive stable A-numbers.
 | semaphore/ | Reviewed | A004; native repeated tests, MinGW compile; failure-injection limitations below |
 | serial/ | Reviewed | A013 disables normal PTY coverage; manually enabled native PTY tests pass; Windows compile only |
 | settings/ | Reviewed | All local sources/header/tests/build read; A029/A030/A032 reproduced, A031 source-confirmed write risk; global caller discipline and failure injection gaps below |
-| socket/ | Reviewed | A012 integration defect; loopback native tests pass; Windows compile only |
+| socket/ | Reviewed | Loopback native tests pass; Windows compile only |
 | str_list/ | Reviewed | Native failure injection and alias-input cases pass; MinGW compile |
 | string_compat/ | Reviewed | Native and opt-in fallback tests pass; MinGW compile |
 | string_util/ | Reviewed | Exhaustive byte classification/trim tests pass natively; MinGW compile |
-| tcp_client/ | Reviewed | A012 reproduced with consuming-error fake; real loopback refusal passes on FreeBSD |
+| tcp_client/ | Reviewed | Native algorithm and real loopback/refusal tests pass; Windows runtime exercised under Wine |
 | theme/ | Reviewed | All local sources/header/tests/build read; A024/A025/A026 reproduced; A027/A028 source-confirmed error paths; host/network integration and failure-injection gaps below |
 | threads/ | Reviewed | A004/A011; native and forced pthread fallback tests pass; Win32 backend compiled |
 | time/ | Reviewed | A002; controlled-clock and existing native tests; Windows source-only review |
@@ -1136,31 +1136,6 @@ for short-lived locks in renderer paths. Windows native SRW replacement is not
 automatically equivalent because the API explicitly supports recursive readers.
 Recommendation: benchmark uncontended and contended paths against actual console
 usage before selecting any remedy. No synchronization redesign performed.
-
-### A012 — TCP racing ignores errors already consumed by socket wait
-
-Severity: high correctness impact. Classification: confirmed integration defect
-with a deterministic failing algorithm test; not reproduced by the native
-FreeBSD loopback refusal case.
-
-`socket/socket_posix.c` socket_poll_events reads SO_ERROR on POLLERR and stores
-the translated error in socket_wait_item.error. Windows wait similarly reads
-the connection error on its exception path. `tcp_client/tcp_client.c` ignores
-that field and unconditionally calls socket_internal_connect_result again for
-every reported event. SO_ERROR reads consume pending errors, so zero from the
-second query does not establish connection success. See the
-[POSIX socket-option contract](https://pubs.opengroup.org/onlinepubs/9799919799/functions/V2_chap02.html).
-The connector can then publish a failed socket as success and abandon other
-addresses instead of trying them.
-
-The original fake preserved errors indefinitely. Updated only the fake to set
-SOCKET_WAIT_ERROR/item.error and make the subsequent connection-error query
-return zero, matching the consuming wait path. Existing
-test_specific_error_and_unchanged_outputs now fails under both Clang and GCC.
-A separate real bound-but-not-listening loopback test passes on this FreeBSD
-host; this does not exercise every asynchronous error ordering. Recommendation:
-honor the recorded wait error before querying SO_ERROR again and test that a
-failed candidate does not suppress a later successful one. No production fix.
 
 ### A013 — Serial PTY capability test is pre-disabled
 
@@ -4551,7 +4526,7 @@ in its header. It copies IPv4/IPv6 addresses into aligned bounded storage,
 interleaves families, staggers attempts by 250 ms and polls cancellation at
 50 ms while racing. Immediate failures advance without the stagger; output
 publication waits until blocking mode is restored and losers are closed.
-Per-attempt storage cleanup is explicit. A012 violates error-path correctness.
+Per-attempt storage cleanup is explicit.
 Interleaving repeatedly scans from the beginning (quadratic in address count)
 and each wait rebuilds active arrays; no real-world large-resolution benchmark
 performed. next_attempt = now + 250 lacks deadline-style saturation at INT64_MAX;
@@ -4560,10 +4535,9 @@ Numeric service strings avoid locale formatting ambiguity; DNS text/IDN policy
 is delegated to native getaddrinfo and is not a Unicode-hostname contract.
 
 Tests cover IPv4 loopback I/O, urgent data, EOF, cancellation, zero timeout,
-family ordering/staggering, error priority and loser cleanup. New loopback
-refusal test passes natively; the corrected consuming-error fake fails as
-documented in A012. IPv6 live connections, high descriptor counts, interrupt/
-clock/allocator faults, native Windows errors and concurrent readiness consumers
+family ordering/staggering, recorded wait errors, error priority and loser
+cleanup. IPv6 live connections, high descriptor counts, interrupt/clock/
+allocator faults, native Windows errors and concurrent readiness consumers
 remain runtime limitations. No external network services were contacted by tests.
 
 ### serial
@@ -5878,10 +5852,8 @@ successful verification.
   builds remain unchanged. MinGW compiles the Win32 (not pthread) backend.
   No code or test changes in this component; report only, no commits.
 - Socket/TCP pass: Clang/GCC socket and TCP loopback tests pass, including
-  bound-but-not-listening refusal. Both algorithm CTests fail at the existing
-  expected HOST_UNREACHABLE assertion after fake wait models consumed errors.
-  MinGW builds all three targets; no Windows runtime claim. Test failures are
-  retained; no production edits, build changes or commits.
+  bound-but-not-listening refusal. MinGW builds all three targets; no Windows
+  runtime claim was made in that pass.
 - Serial pass: normal Clang serial CTest passes but its flags confirm PTY=0.
   Existing tests compiled directly with -DST_SERIAL_TEST_HAVE_PTY=1 and linked
   against build/build-gcc serial and io_error libraries both pass. MinGW serial

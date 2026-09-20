@@ -98,6 +98,8 @@ main(void)
 	CHECK(socket_close(listener) == 0);
 	if (refused == 0)
 		(void)socket_close(connected);
+	if (refused != IO_ERROR_CONNECTION_REFUSED)
+		fprintf(stderr, "refused connection returned %d\n", refused);
 	CHECK(refused == IO_ERROR_CONNECTION_REFUSED);
 	CHECK(connected == SOCKET_HANDLE_INVALID && family == TCP_CLIENT_ADDRESS_ANY);
 	CHECK(socket_runtime_cleanup() == 0);

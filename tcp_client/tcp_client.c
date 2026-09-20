@@ -269,8 +269,14 @@ tcp_client_connect(socket_handle_t *result,
 
 			if (wait_items[wait_index].events == 0)
 				continue;
-			connect_error = socket_internal_connect_result(
-			    attempts[index].socket);
+			if (wait_items[wait_index].error != 0)
+				connect_error = wait_items[wait_index].error;
+			else if ((wait_items[wait_index].events
+			    & SOCKET_WAIT_ERROR) != 0)
+				connect_error = IO_ERROR_IO;
+			else
+				connect_error = socket_internal_connect_result(
+				    attempts[index].socket);
 			if (connect_error == IO_ERROR_IN_PROGRESS ||
 			    connect_error == IO_ERROR_WOULD_BLOCK)
 				continue;
