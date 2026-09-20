@@ -368,6 +368,8 @@ bind_method(WrenVM *vm, const char *module, const char *class_name,
 	method = st_wren_picker_bind_method(module, class_name, is_static,
 	    signature);
 	if (method == NULL && strcmp(module, "syncterm") == 0)
+		method = st_wren_pixel_bind_method(class_name, is_static, signature);
+	if (method == NULL && strcmp(module, "syncterm") == 0)
 		method = st_wren_repl_bind_method(class_name, is_static, signature);
 	if (method == NULL && strcmp(module, "syncterm") == 0)
 		method = st_wren_core_bind_method(class_name, is_static,
@@ -387,8 +389,12 @@ bind_class(WrenVM *vm, const char *module, const char *class_name)
 	methods = st_wren_picker_bind_class(module, class_name);
 	if (methods.allocate != NULL)
 		return methods;
-	if (strcmp(module, "syncterm") == 0)
+	if (strcmp(module, "syncterm") == 0) {
+		methods = st_wren_pixel_bind_class(class_name);
+		if (methods.allocate != NULL)
+			return methods;
 		methods = st_wren_core_bind_class(class_name);
+	}
 	else if (vm == host->vm && strcmp(module, "syncterm_menu") == 0)
 		methods = st_wren_menu_bind_class(class_name);
 	return methods;

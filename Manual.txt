@@ -74,10 +74,12 @@ POSIX-like systems.
 https://github.com/libjxl/libjxl[libjxl] is an optional but strongly
 recommended dependency.  It provides JPEG XL graphics support; without it,
 the only generally available image-transfer representation is uncompressed
-PPM.  JPEG XL integration has not yet been reconnected in this standalone
-CMake tree, and the Build Options screen currently reports it as unavailable.
-That is an incomplete part of the modernization, not a decision to remove
-JPEG XL support.
+PPM.  CMake's `ST_PIXEL_IMAGE_JXL` setting accepts `AUTO`, `ON`, or `OFF`;
+`AUTO` enables the decoder when usable libjxl decode and CMS headers are
+available, while `ON` makes those headers mandatory.  The resulting binary
+loads libjxl and libjxl_cms at run time and reports support only when the
+complete decoder is available.  libjxl_threads is loaded opportunistically;
+its absence merely selects single-threaded decoding.
 
 Encrypted BBS lists and TLS use either Botan 3.13 or newer or OpenSSL 3.0 or
 newer.  CMake prefers a usable Botan installation and then OpenSSL when

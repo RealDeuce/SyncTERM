@@ -37,7 +37,7 @@ repository-wide coverage. The legacy tree is read-only reference.
 
 The repository-wide audit is complete. This is not an implementation approval,
 release certification or claim that findings have been fixed. The consolidated
-API/design assessment, priority groups and all 94 outstanding finding summaries are in
+API/design assessment, priority groups and all 93 outstanding finding summaries are in
 AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 
 | Objective requirement | Authoritative evidence and disposition |
@@ -50,7 +50,7 @@ AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 | Required legacy behavior | Read-only comparisons cover fonts/catalog/maps, modes, palette capacity, Prestel versus Mode 7, command line, console/input and settings behavior; A015/A018/A032 plus explicit parity limits. Frozen CTerm chapter cmp succeeds. |
 | Wren scripts and bindings | Complete local source/signature/manual reviews; isolated shipped-script suites and host fixtures; host closure A100–A114. Connected/SFTP production integration missing from this application is reported, not invented or silently counted as working. |
 | Build logic, generators and documentation | Root/component CMake and generators reviewed; standalone/probe failures recorded; pinned Unicode/font regeneration and table comparisons documented; root manuals/license/development guidance covered. Wren VM vendored internals limited to integration boundaries as requested. |
-| Inventory and consolidated findings | 94 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 13 high, 52 medium, 27 low, 2 unresolved concerns; not all runtime reproductions. |
+| Inventory and consolidated findings | 93 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 13 high, 51 medium, 27 low, 2 unresolved concerns; not all runtime reproductions. |
 | Relevant tests where practical | Fresh complete native build succeeds. Final selected CTest run: 67 executed, 58 pass, 9 fail, 5.71 seconds; failure matrix in index. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
 | Only tests/reports changed; no implementation remediation | Current status: 30 modified tracked tests, 23 untracked tests, 2 untracked reports; no staged files. Filtered worktree inspection finds no other changes. Baseline-to-current non-test difference is pre-existing str_list/CMakeLists.txt, unchanged since fdeab0d. No final-consolidation commits/push/reverts. |
 | Explicit uncertainty | Each component records unavailable platforms, unexecuted failure paths and measurement limits; A007/A011 unresolved. Source-level risks are not called verified crashes. These are audit outcomes, not claims of implementation correctness. |
@@ -559,21 +559,6 @@ module-discovery assertion failing (the other four editor helper cases pass).
 Recommend implementing the declared catalog/filtering contract and retaining
 tests for discovery, reserved names, duplicates and byte-length limits.
 
-### A097 — Declared pixel binding family is unavailable in the host
-
-Severity: medium (confirmed binding/API availability gap). The current core
-binding table has no PixelColor, PixelBuffer, PixelMask, PixelBlit, or pixel
-Screen methods; the generic binder in wren_host.c returns st_wren_unsupported
-for unresolved declarations. The shipped scripts/pixel_vm_test.wren aborts at
-line 18 on PixelColor.rgb(0x123456), before buffer allocation or any of its six
-checks. This was reproduced again in the headless auxiliary runner.
-Colour-word construction is not a physical-display capability test. The
-console and `st_pixel_buffer` now retain the same indexed/direct colour words,
-so the storage prerequisite is complete; the declared Wren binding family and
-its per-host admission rules remain missing. Recommend implementing and
-testing that surface without classifying the abort as a headless/hardware
-limitation. No later pixel test coverage is implied by loading the module.
-
 ### A098 — Shipped UI demo imports an absent module
 
 Severity: low (confirmed demo integration gap, not a menu-startup failure).
@@ -585,8 +570,8 @@ would not establish this finding. Recommend supplying/documenting a supported
 invocation and its dependencies; connected-only modal/transfer calls remain
 additional context requirements and are not tested past the missing import.
 
-These three entries consolidate previously recorded unnumbered gaps, not
-three newly discovered regressions. Reused the existing isolated native
+These two entries consolidate previously recorded unnumbered gaps, not
+two newly discovered regressions. Reused the existing isolated native
 auxiliary-scripts audit executable in a fresh /tmp directory; it performs no
 personal-list access or real transfers. Other results repeat A085/A086 and a
 known theme-test column-oracle mismatch, not new findings. Wren guidance and
@@ -826,11 +811,11 @@ Manual.txt's Directory and Connected State sections describe selecting a BBS
 as establishing a connection and offer terminal, transfer and SSH/MQTT
 operations as current behavior. app/syncterm.c:220 instead applies selected
 profile overrides, sets success, then disposes the profile and tears down the
-host/consoles; there is no connected-session loop. The manual explicitly
-labels JPEG XL reconnection incomplete but gives no comparable boundary for
-these larger retained sections. This is not authorization to port those
-features, nor a claim that the consciously deferred CTerm port is itself a
-new regression. Recommend a clear current-implementation scope notice while
+host/consoles; there is no connected-session loop. The dependency section
+describes current optional-library behavior but gives no comparable boundary
+for these larger retained sections. This is not authorization to port those
+features, nor a claim that the consciously deferred CTerm port is itself a new
+regression. Recommend a clear current-implementation scope notice while
 preserving the legacy CTerm specification unchanged.
 
 Additional documentation gaps: Manual.txt references Themes.adoc, which is
@@ -911,10 +896,9 @@ documentation correction, not restoring obsolete transport restrictions).
   Modern event transport does not require the old byte-stuffing restriction;
   whether normalization is still required is a separate compatibility question.
 
-Other claims in this span map to already-recorded findings: the pixel API
-promises availability in all three VMs despite missing current bindings;
-static cursor methods conflict with A068; Color helpers conflict with A079;
-transactional Menu.load conflicts
+Other claims in this span map to already-recorded findings: static cursor
+methods conflict with A068; Color helpers conflict with A079; transactional
+Menu.load conflicts
 with A061. Do not count these repeated documentation promises as independent
 runtime defects. Font-slot terminology also needs reconciliation with the
 new registry/selector distinction. No connected runtime, GUI, network or
@@ -2847,23 +2831,11 @@ production edits, transfers, personal files or commits; Wren guidance used.
 ### Auxiliary UI scripts — coverage and integration gaps
 
 Read complete auto/menu/menu_host_ui.wren (80 lines), menu_host_ui_test.wren
-(33), ui.wren (30), pixel_vm_test.wren (36), and ui_demo.wren (627).
-Consulted the host-controller ABI/status restoration contract and pixel API
-documentation. MenuHostUI delegates interactive dialogs to independently
-pumped synchronous Apps; its progress pane deliberately draws without running
-an input loop, leaving restoration to its C owner. Its four existing width
-checks pass in the native headless auxiliary-scripts audit mode.
-
-Confirmed incomplete integration, not a physical-backend limitation:
-pixel_vm_test aborts at line 18, PixelColor.rgb(0x123456), before allocating a
-buffer or running any of its six checks. wren_host.c:378 routes unbound methods
-to st_wren_unsupported; wren_bind_core.c has no PixelColor registrations.
-The API is declared in syncterm.wren and documented in Wren.adoc:2434 onward.
-This is a medium API availability gap: ordinary colour-word construction
-should not depend on a graphical backend. Recommendation: explicitly scope
-and complete the promised pixel bindings, with menu/picker parity tests;
-do not misrepresent an unimplemented binding as host hardware incapability.
-No buffer/raster correctness claim follows from this early abort.
+(33), ui.wren (30), and ui_demo.wren (627). Consulted the host-controller
+ABI/status restoration contract. MenuHostUI delegates interactive dialogs to
+independently pumped synchronous Apps; its progress pane deliberately draws
+without running an input loop, leaving restoration to its C owner. Its four
+existing width checks pass in the native headless auxiliary-scripts audit mode.
 
 ui_demo.wren:30 imports transfer_app, absent from both scripts/ and the
 embedded script list. Loading the demo source directly with the production
@@ -2876,14 +2848,14 @@ requirements remain relevant after resolving the import. Recommendation:
 make the shipped gallery's dependency/context requirements explicit and
 ensure its supported invocation is tested when those integrations exist.
 
-The auxiliary-scripts audit test reports status-width 4/4 pass, pixel suite
-runtime failure and demo import failure, returning failure overall. It does
-not invoke the interactive gallery or start a transfer. Strict native Clang
-test compilation succeeds. ui.wren is a re-export module, with no new state;
-it does not currently aggregate LogView/Progress classes despite its broad
-"every public class" comment (documentation/layout concern, not a runtime
-failure). Wren guidance used; only test harness and audit report changed.
-These integration gaps remain distinct from numbered rendering findings.
+The auxiliary-scripts audit test reports status-width 4/4 pass and the demo
+import failure. It does not invoke the interactive gallery or start a transfer.
+Strict native Clang test compilation succeeds. ui.wren is a re-export module,
+with no new state; it does not currently aggregate LogView/Progress classes
+despite its broad "every public class" comment (documentation/layout concern,
+not a runtime failure). Wren guidance used; only test harness and audit report
+changed. These integration gaps remain distinct from numbered rendering
+findings.
 
 Picker-script coverage: read all ui_picker.wren (58 lines) and
 auto/picker/file_picker.wren (650 lines), both identical to the legacy

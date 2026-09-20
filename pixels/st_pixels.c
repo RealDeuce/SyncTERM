@@ -14,6 +14,18 @@
 #include <string.h>
 
 #define pixel_count st_pixels_count
+
+static bool
+storage_count(uint32_t width, uint32_t height, size_t element_size,
+	size_t *count)
+{
+	if (width == 0 || height == 0) {
+		*count = 0;
+		return true;
+	}
+	return pixel_count(width, height, element_size, count);
+}
+
 int
 st_pixel_buffer_create(struct st_pixel_buffer **result, uint32_t width,
 	uint32_t height, bool alternate)
@@ -22,18 +34,20 @@ st_pixel_buffer_create(struct st_pixel_buffer **result, uint32_t width,
 	size_t count;
 
 	if (result == NULL
-	    || !pixel_count(width, height, sizeof(uint32_t), &count))
+	    || !storage_count(width, height, sizeof(uint32_t), &count))
 		return IO_ERROR_INVALID_ARGUMENT;
 	buffer = calloc(1, sizeof(*buffer));
 	if (buffer == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
-	buffer->primary = calloc(count, sizeof(buffer->primary[0]));
+	buffer->primary = calloc(count != 0 ? count : 1,
+	    sizeof(buffer->primary[0]));
 	if (buffer->primary == NULL) {
 		free(buffer);
 		return IO_ERROR_OUT_OF_MEMORY;
 	}
 	if (alternate) {
-		buffer->alternate = calloc(count, sizeof(buffer->alternate[0]));
+		buffer->alternate = calloc(count != 0 ? count : 1,
+		    sizeof(buffer->alternate[0]));
 		if (buffer->alternate == NULL) {
 			free(buffer->primary);
 			free(buffer);
@@ -88,7 +102,7 @@ st_pixel_buffer_clone(struct st_pixel_buffer **result,
 	int status;
 
 	if (result == NULL || source == NULL || source->primary == NULL
-	    || !pixel_count(source->width, source->height, sizeof(uint32_t),
+	    || !storage_count(source->width, source->height, sizeof(uint32_t),
 	    &count))
 		return IO_ERROR_INVALID_ARGUMENT;
 	status = st_pixel_buffer_create(&copy, source->width, source->height,
@@ -111,12 +125,12 @@ st_pixel_buffer_ensure_alternate(struct st_pixel_buffer *buffer)
 	uint32_t *alternate;
 
 	if (buffer == NULL || buffer->primary == NULL
-	    || !pixel_count(buffer->width, buffer->height, sizeof(uint32_t),
+	    || !storage_count(buffer->width, buffer->height, sizeof(uint32_t),
 	    &count))
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (buffer->alternate != NULL)
 		return 0;
-	alternate = malloc(count * sizeof(alternate[0]));
+	alternate = malloc((count != 0 ? count : 1) * sizeof(alternate[0]));
 	if (alternate == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	memcpy(alternate, buffer->primary, count * sizeof(alternate[0]));
@@ -151,14 +165,14 @@ st_pixel_mask_create(struct st_pixel_mask **result, uint32_t width,
 	size_t count;
 	size_t bytes;
 
-	if (result == NULL || !pixel_count(width, height, 1, &count)
+	if (result == NULL || !storage_count(width, height, 1, &count)
 	    || count > SIZE_MAX - 7)
 		return IO_ERROR_INVALID_ARGUMENT;
 	bytes = (count + 7) / 8;
 	mask = calloc(1, sizeof(*mask));
 	if (mask == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
-	mask->bits = calloc(bytes, 1);
+	mask->bits = calloc(bytes != 0 ? bytes : 1, 1);
 	if (mask->bits == NULL) {
 		free(mask);
 		return IO_ERROR_OUT_OF_MEMORY;
@@ -226,7 +240,7 @@ st_pixel_buffer_fill(struct st_pixel_buffer *buffer, uint32_t primary,
 	size_t count;
 
 	if (buffer == NULL || buffer->primary == NULL
-	    || !pixel_count(buffer->width, buffer->height, sizeof(uint32_t),
+	    || !storage_count(buffer->width, buffer->height, sizeof(uint32_t),
 	    &count))
 		return IO_ERROR_INVALID_ARGUMENT;
 	for (size_t i = 0; i < count; ++i)

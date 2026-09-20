@@ -282,6 +282,7 @@ exercise_build_options_contract(st_wren_host_t *public_host)
 {
 	struct st_wren_host *host = public_host;
 	static const char source[] =
+	    "import \"syncterm\" for PixelBuffer\n"
 	    "import \"syncterm_menu\" for Menu\n"
 	    "var options = {}\n"
 	    "for (row in Menu.buildOptions) options[row[1]] = row[2]\n"
@@ -294,6 +295,8 @@ exercise_build_options_contract(st_wren_host_t *public_host)
 	    "|| !options.containsKey(\"Core Audio\") "
 	    "|| !options.containsKey(\"libsndfile\")) "
 	    "Fiber.abort(\"build options\")\n"
+	    "if (options[\"JPEG XL support\"] != PixelBuffer.jxlSupported) "
+	    "Fiber.abort(\"JPEG XL build option\")\n"
 	    "if (options[\"GPLv2+ binary (GNU Unifont-derived data)\"] != "
 	    ST_WREN_TEST_UNIFONT_ENABLED
 	    ") Fiber.abort(\"Unifont license option\")\n";
@@ -303,6 +306,29 @@ exercise_build_options_contract(st_wren_host_t *public_host)
 		fprintf(stderr, "build options contract failed: %s\n",
 		    host->last_error);
 		return -1;
+	}
+	return 0;
+}
+
+static int
+exercise_pixel_contract(st_wren_host_t *public_host)
+{
+	struct st_wren_host *host = public_host;
+	static const char source[] =
+	    "import \"pixel_vm_test\" for PixelVmTest\n"
+	    "var result = PixelVmTest.run()\n"
+	    "if (result[1] != 0) Fiber.abort(\"pixel contract failures: %(result[1])\")\n";
+	WrenVM *vms[] = {host->vm, host->picker_vm};
+
+	for (size_t i = 0; i < sizeof(vms) / sizeof(vms[0]); ++i) {
+		char module[48];
+
+		(void)snprintf(module, sizeof(module), "pixel_contract_%zu", i);
+		if (wrenInterpret(vms[i], module, source) != WREN_RESULT_SUCCESS) {
+			fprintf(stderr, "pixel contract failed in VM %zu: %s\n", i,
+			    host->last_error);
+			return -1;
+		}
 	}
 	return 0;
 }
@@ -1090,6 +1116,7 @@ main(void)
 	CHECK(exercise_surface_cell_retarget_contract(host) == 0);
 	CHECK(exercise_rectangle_contract(host) == 0);
 	CHECK(exercise_core_value_contracts(host, console) == 0);
+	CHECK(exercise_pixel_contract(host) == 0);
 	CHECK(exercise_web_refresh_overlay(host, console) == 0);
 	CHECK(exercise_cursor_contract(host) == 0);
 	CHECK(exercise_codepage_contract(host) == 0);
@@ -1201,9 +1228,14 @@ main(void)
 	CHECK(st_wren_host_create(&host, &host_config) == 0);
 	CHECK(wrenInterpret(((struct st_wren_host *)host)->vm,
 	    "ansi_host_capabilities",
-	    "import \"syncterm\" for Host\n"
+	    "import \"syncterm\" for Host, PixelBlit, PixelBuffer, Screen\n"
 	    "if (!Host.textTerminal || !Host.localControlKeys) "
-	    "Fiber.abort(\"ANSI host capabilities\")\n")
+	    "Fiber.abort(\"ANSI host capabilities\")\n"
+	    "if (Screen.supports.pixels || Screen.pixelSize != null || "
+	    "Screen.cellPixelSize != null) Fiber.abort(\"ANSI pixel capability\")\n"
+	    "if (Screen.setPixel(0, 0, 0) || "
+	    "Screen.blitPixels(PixelBuffer.new(1, 1), PixelBlit.new())) "
+	    "Fiber.abort(\"ANSI pixel mutation\")\n")
 	    == WREN_RESULT_SUCCESS);
 	CHECK(st_console_post_event(console, &ctrl_q) == 0);
 	CHECK(st_console_post_event(console, &ctrl_s) == 0);

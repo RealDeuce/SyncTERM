@@ -2526,11 +2526,14 @@ the native array directly.
   plane for both blink phases.
 
 | `PixelBuffer.fromPpm(source)`
-| Decode a P3 or P6 PPM image.
+| Decode the first P3 or P6 PPM image.  Values use PPM's BT.709 transfer
+  function and are converted to 8-bit sRGB; maximum values through 65535 are
+  accepted.
 
 | `PixelBuffer.fromJxl(source)`
 | Decode JPEG XL.  Returns `null` for invalid data, allocation failure, or an
-  unavailable decoder.
+  unavailable decoder.  The first displayed frame is colour-managed to
+  8-bit sRGB; alpha is discarded.
 
 | `PixelBuffer.jxlSupported`
 | `true` when libjxl was compiled in and can be loaded.  The JXL methods are
@@ -2655,6 +2658,8 @@ colours, malformed packed lengths, and invalid descriptor fields abort the
 calling fiber.  Constructors also abort on allocation failure because Wren
 foreign constructors cannot return `null`; factories, decoders, capture, and
 clone return `null` for recoverable allocation or decoding failure.
+The alternate-plane mutators leave the buffer unchanged and abort the calling
+fiber if the plane's first allocation fails.
 
 === Input
 

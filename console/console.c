@@ -1511,11 +1511,14 @@ st_console_capabilities(st_console_t *console, uint32_t *capabilities)
 		return IO_ERROR_IO;
 	if (console->pixels != NULL) {
 		value |= ST_CONSOLE_CAP_LOADABLE_FONTS
-		    | ST_CONSOLE_CAP_PALETTE_CHANGE | ST_CONSOLE_CAP_PIXELS
+		    | ST_CONSOLE_CAP_PALETTE_CHANGE
 		    | ST_CONSOLE_CAP_CUSTOM_CURSOR
 		    | ST_CONSOLE_CAP_EXTENDED_PALETTE
 		    | ST_CONSOLE_CAP_BLOCKY_SCALING
 		    | ST_CONSOLE_CAP_EXTERNAL_SCALING;
+		if (console->display->backend_ops == NULL
+		    || console->display->backend_ops->presents_pixels)
+			value |= ST_CONSOLE_CAP_PIXELS;
 	}
 	if (console->display->backend == ST_CONSOLE_BACKEND_ANSI
 	    || console->display->backend == ST_CONSOLE_BACKEND_NCURSES

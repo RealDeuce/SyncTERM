@@ -14,6 +14,7 @@
 #include "st_bbs_list.h"
 #include "st_builtin_fonts.h"
 #include "st_console.h"
+#include "st_pixel_image.h"
 #include "st_settings.h"
 #include "st_theme.h"
 #include "string_util.h"
@@ -1269,7 +1270,8 @@ fn_menu_build_options(WrenVM *vm)
 	    st_list_crypto_encryption_available());
 	push_build_option(vm, "Terminal", "Operation Overkill ][ Terminal",
 	    false);
-	push_build_option(vm, "Terminal", "JPEG XL support", false);
+	push_build_option(vm, "Terminal", "JPEG XL support",
+	    st_pixel_image_jxl_supported());
 	push_build_option(vm, "Video", "SDL",
 	    (console & ST_CONSOLE_BUILD_SDL) != 0);
 	push_build_option(vm, "Video", "X11 Support",

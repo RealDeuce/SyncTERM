@@ -1,7 +1,7 @@
 # SyncTERM re-audit
 
 Status: completed re-audit. The original 114 identifiers were dispositioned;
-resolved entries are removed from these living TODO documents. There are 100
+resolved entries are removed from these living TODO documents. There are 99
 outstanding numbered findings, including split claims and substantive
 unnumbered concerns. This is not a claim that all are runtime bugs or that the
 repository is release-ready.
@@ -32,10 +32,9 @@ bindings, then returns `st_wren_unsupported`. A declaration in
 `scripts/syncterm.wren` therefore does not prove implementation.
 
 The legacy menu host's `generic_class_allowed` explicitly includes Directory,
-File, FileError, Hyperlinks, PixelBlit, PixelBuffer, PixelColor, PixelMask,
-Platform, VideoFlags, WON and WONError. Its Host allowlist includes
-`cacheDirectory` and `downloadDir`. The legacy picker allowlist also includes
-the pixel family and VideoFlags, but not Directory/WON/Hyperlinks. These
+File, FileError, Hyperlinks, Platform, VideoFlags, WON and WONError. Its Host
+allowlist includes `cacheDirectory` and `downloadDir`. The legacy picker
+allowlist includes VideoFlags but not Directory/WON/Hyperlinks. These
 host-specific boundaries must be retained in repair planning; missing menu
 capabilities cannot all be labelled deferred connected-session work.
 
@@ -43,7 +42,6 @@ capabilities cannot all be labelled deferred connected-session work.
 
 | Family | Legacy/contract evidence | Current gap | Scope/disposition |
 | --- | --- | --- | --- |
-| PixelColor, PixelBuffer, PixelMask, PixelBlit and pixel Screen operations | `legacy syncterm/wren_bind_pixels.c`; Wren.adoc pixel graphics chapter; `scripts/pixel_vm_test.wren`; native-word assertions in `scripts/wrentest.wren` | No corresponding methods in the modern binding dispatch tables. Native pixel storage now preserves the documented indexed/direct colour words. | Required omission, A097; menu and picker as well as future connected VM. |
 | Directory and File I/O | `legacy syncterm/wren_bind_fs.c`; Wren.adoc Directory/File chapters; legacy menu allowlist | Modern picker bindings provide File `path`, `toString`, `token`, `isOpen`, not the open/read/write/close family. Core Host cache/download directory getters return null. | Required menu capability incompletely ported. Picker selection is present; it is not a substitute for operating on granted File handles. Respect the documented per-handle rights in any later repair. |
 | WON deserialization / WONError | `legacy syncterm/wren_bind.c` bindings and `wren_bind_won.c`; Wren.adoc WON chapter | No modern foreign bindings for deserialization or error fields. Existing serialization implemented in Wren is not evidence that deserialization exists. | Required menu capability omitted; not a CTerm dependency. |
 | VideoFlags | `legacy syncterm/wren_bind.c` static/instance properties and apply; Wren.adoc Screen.videoFlags | No modern binding family. | Required menu/picker capability omitted. Mapping to modern explicit cell/font semantics needs care; absence is not approval to remove it. |
@@ -52,31 +50,9 @@ capabilities cannot all be labelled deferred connected-session work.
 
 These family omissions sit alongside the partial-method findings in the
 numbered and supplemental ledgers (including CustomCursor, physical input,
-menu catalogs and script discovery). A097 is not an isolated absent method;
-the readiness map includes Wren-only supporting functionality. No explicit deferral authorizing
-these menu/picker omissions has been identified in the approved scope.
-
-### Decoder dependency behind the missing pixel bindings
-
-The legacy dependency is `syncterm/pixel_image.c` and `pixel_image.h`, not
-just foreign-method glue. `wren_bind_pixels.c`, `decode_pixel_source`, calls
-the PPM/JXL byte or file decoders; `PixelMask.fromPbm` calls the PBM decoders.
-File input first passes through `wren_file_read_path`, which enforces readable
-File authority. Modern source/build searches find no corresponding
-`pixel_image`, `decode_ppm`, `decode_pbm`, or `JxlDecoder` implementation.
-
-The documented contract includes P3/P6 PPM and P1/P4 PBM plus optional JXL
-(`Wren.adoc`, PixelBuffer/PixelMask). Lack of libjxl itself is not a defect:
-the legacy `fromJxl` returns null when unavailable, with `jxlSupported`
-reporting capability. The omission is the complete binding/decoder path,
-including the capability query and ordinary PPM/PBM support. Restoring only
-pixel allocation and Screen blits would leave these script consumers broken.
-
-Repair dependency order for this group (not implementation authorization):
-native palette-retaining pixel contract; byte/file decoder support and File
-rights-aware consumption; complete pixel bindings; menu/picker script tests.
-Byte-input decoders need not wait for File I/O, and optional JXL must remain
-optional. This group is relevant independently of the future sixel parser.
+menu catalogs and script discovery). The readiness map includes Wren-only
+supporting functionality. No explicit deferral authorizing these menu/picker
+omissions has been identified in the approved scope.
 
 ## Numbered disposition ledger
 
@@ -196,7 +172,6 @@ identifiers are retained; suffixes separate claims with different dispositions.
 | A091 | Required architecture not implemented | app/CMakeLists.txt builds an executable from syncterm.c rather than a shared application DLL with thin launchers; console_libretro provides backend frames, not application core entry points. AGENTS.md explicitly requires that architecture. | Track application packaging/ABI integration separately from console backend capability. No Windows runtime failure claimed and no blanket internal exports implied. |
 | A095 | Packaging omission, not a legal determination | No install/CPack notice assembly found; local license inventory has root BSD exception wording, Unifont GPL and Wren MIT texts, but retained LGPL notices reference an absent full text. | Inventory chosen providers and assemble notices before distribution. Disabling Unifont does not make differently licensed sources BSD; no license-compatibility opinion is asserted. |
 | A096 | Required shipped-menu functionality omitted | Menu.scriptModules still binds an unconditional empty List; BBS editor consumes it for available/missing script choices. Historical editor-helper assertion fails. | Implement the catalog/filtering contract independently of later execution of connected scripts. |
-| A097 | Required binding family omitted | Entire pixel binding family is absent, not merely PixelColor.rgb. Historical suite aborts before later checks. The native indexed/direct storage prerequisite is now present. | Implement the declared Wren family and its menu/picker admission rules; this is not a hardware limitation or single missing method. |
 | A098 | Demo integration mismatch, with connected context still deferred | ui_demo imports absent transfer_app; historical explicit demo interpretation fails. Demo is not embedded and later calls also need connected context. | Define supported demo invocation/dependencies; not a current menu-startup failure or authorization to port transfers now. |
 | A099-size | Required mode behavior approximated incorrectly | Menu duplicates a grid-only table with Prestel/XEP80 at 24 rows; authoritative startup table has 25. Historical Prestel selection fixture confirms 40x24. | Use authoritative mode configuration rather than another dimensions-only approximation. |
 | A099-identity | Required mode identity/full configuration omitted | CurrentScreenMode guesses first matching grid; SetScreenMode only resizes. Historical LCD identity assertion fails. Aspect, raster/cell geometry, blink and cursor effects are absent in this path by source inspection. | Mode-change integration prerequisite; passing startup tests cover a different path. |
@@ -292,7 +267,7 @@ declarations. These are source comparisons, not connected-session tests.
 | Distinct translated text, normalized keys and DoorWay scan input | Modern event variants provide these distinctions. CTerm key/protocol encoding must consume the appropriate channel rather than reinterpret every event as one byte. Backend-specific terminal limitations remain real; absent keypad translation and ANSI EOF handling are separate findings, not permission to bypass input methods. |
 | Download 256-glyph fonts into remote-selected slots | Legacy accepts 4096/3584/2048-byte payloads for 8x16/8x14/8x8 and switches to its font accumulator. Modern copied registration and Unicode maps provide storage primitives. Protocol slots must map to internal 16-bit font identifiers; existing cells retain their identifiers. Accumulation, slot bookkeeping and server mapping commands belong to the CTerm port. Preserve the approved least-recently-used registration replacement/logging policy even when cells still reference that identifier, without generations or forced cell dirtiness. |
 | Four font selections controlled by bright/blink bits | Modern `st_console_font_selection` provides four identifiers and independent selector enables. Resolve flags before current-font Unicode lookup; explicit glyph writes can bypass lookup. Registry availability does not implement parser mode state. Text-backend custom-map conversion remains a distinct parity concern. |
-| Extended device attributes advertise actual facilities | Modern native capability reporting and retained-index semantics exist. CTerm response construction is port work; the missing A097 Wren bindings are separate from native capability advertisement. |
+| Extended device attributes advertise actual facilities | Modern native capability reporting and retained-index semantics exist. CTerm response construction is port work. |
 
 ## Unnumbered concerns: reconciled supplemental ledger
 
@@ -424,7 +399,7 @@ not silently promoted to a defect merely because it appeared in that report.
 | SFTP queue completion errors | Source-confirmed inherited error handling gaps: unsuccessful fallback stat can leave a nonpositive total and launch no useful work; remote close results are ignored although SFTP.close explicitly permits SFTPError. | Test false-DONE behavior with fake endpoints before integration. A083 remains the separate reproduced short-read data loss. Trusting positive selection-time size versus restatting is an explicit consistency policy to resolve. |
 | SFTP worker/stop/job identity | Unresolved lifecycle contracts: non-yielding reservations serialize cooperative workers, but an abort can bypass workerExit/endpoint cleanup; stop does not alone quiesce pending workers. Duplicate direction/path jobs make first-match status/cancel ambiguous. | Future connected-VM retirement and same-VM restart need tests. Do not infer native threads from Wren fibers or claim independent JobSnap values are live aliases. |
 | SFTP persisted queue | Source-confirmed failure-atomicity gap: save deletes the previous cache file, then creates/opens/writes without checking create or ensuring exception cleanup. Load validates parser errors but not every I/O/status/number boundary. | Required error-path repair before enabling this persistence workflow; no filesystem failure executed. Missing Cache/File/WON support is separately inventoried, not proof the supplied script works today. |
-| Auxiliary gallery/re-export coverage | A097 covers missing pixel bindings and A098 the demo import/context gap; do not double-count those as backend failures. ui.wren's 'every public class' comment exceeds its re-exports. Menu progress pane intentionally has no input loop and is restored by its C owner. | Historical status-width checks do not prove pixel buffers or a connected gallery. No interactive gallery/transfer run. |
+| Auxiliary gallery/re-export coverage | A098 covers the demo import/context gap; do not double-count it as a backend failure. ui.wren's 'every public class' comment exceeds its re-exports. Menu progress pane intentionally has no input loop and is restored by its C owner. | Historical status-width checks do not prove a connected gallery. No interactive gallery/transfer run. |
 | Picker typed-path mask failure | Source-confirmed partial UI update: applyPath_ assigns the mask before refresh_, and failed refresh retains the old listing without restoring that mask. | Focused navigation-failure fixture needed; existing accept/cancel/overwrite/append tests do not cover it. Save disposition conveys intent, not a reserved filesystem object. |
 | Offline scrollback modal cleanup | Source-level exception-cleanup concern: copied/detached surface data and bounded lookups exist; normal completion resets hover/screen state. | Verify abort restoration separately during completed-session integration. A081/A082 retain their independent LogView row/anchor defects. |
 | Sort-profile editor paste/save | Unresolved usability policy: F6 paste explicitly disallows the blank append row. Cut copies before delete, so delete failure does not destroy the clipboard. Save failure retains working state; accepted-edit Escape semantics match the documented editor model. | Do not call this empty-profile data loss or demand transactional cancellation. A033 covers native sort arithmetic independently. |
@@ -501,10 +476,9 @@ This sequence is a repair backlog, not authorization to implement it.
 
 | Priority / shared cause | Scope and evidence | Verification needed in the later repair pass |
 | --- | --- | --- |
-| Shared missing graphics bindings | A097 covers the missing Wren pixel family. Native console and pixel storage now preserve indexed/direct identity and resolve only at text or bitmap presentation. | Exercise the declared family in the permitted menu and picker hosts, including capture/restore, alternate planes and partial updates. |
 | Prerequisite: cell/raster correctness | A049 partial XRender initialization. | Verify partial updates. Preserve batch/drain behavior; benchmark regional/full-frame paths separately from correctness. |
 | Prerequisite: lossless transport and usable input | A014 delivery suffix loss, A012 consumed socket errors, A015 shell discipline, A018 serial flow mapping and A016 Windows shutdown; missing mouse modifiers and A112 physical-event loss. | Partial receive/write and shutdown fixtures, all flow choices, actual mouse modifier/coordinate sequences, physical plus translated events and resynchronization. Avoid using a successful raw echo as proof for all families. |
-| Shared missing functionality: Wren and console consumers | Hyperlink registry, VideoFlags, Pixel* and decoders, Directory/File rights, Platform, WON decoding and script discovery as inventoried above. A068/A069/A079 are existing binding contract failures, not optional new APIs. | Exercise actual permitted menu/picker imports and operations, not just signature registration. Retain per-host authority distinctions; decoder tests need byte and granted-file paths. No optional dependency becomes mandatory by inference. |
+| Shared missing functionality: Wren and console consumers | Hyperlink registry, VideoFlags, Directory/File rights, Platform, WON decoding and script discovery as inventoried above. A068/A069/A079 are existing binding contract failures, not optional new APIs. | Exercise actual permitted menu/picker imports and operations, not just signature registration. Retain per-host authority distinctions. |
 | Independent urgent integrity/containment repairs | A027 ownership, A031/A034/A036, A038 selected-authentication enforcement, A019/A020, A025/A026/A029/A032/A033, A061–A065/A100/A101/A102/A105/A114 and supplemental failed-load/save publication boundaries. These can lose data, leave inconsistent state or violate the selected authentication contract independently of CTerm. | Disposable fixtures and stage-specific failure injection; verify disk result, live model, generation and retained views separately. For A038, distinguish explicitly selected PSK from WEB_PKI and test both providers. No personal files or speculative destructive reproduction. |
 | Backend/runtime reliability | A003/A048/A051/A108/A109 and detailed backend notes; A047/A066 component links and A002/A013 probes. A091 Windows application packaging is a separate deliverable from console primitives. | Capability-present/absent builds and actual platform lifecycle/input tests. Preserve source-only qualifications for unavailable platforms; a dummy renderer or cross-link does not certify them. |
 | Audio and UI behavior | A022 mixer discontinuity, supplemental audio clear/drain promise, established A067–A087 UI/script defects and A099 mode changes. | Partition-independent mixer assertions without audible tests; UI mutation/layout/input sequences and error containment. A023 real-time performance remains a risk pending measurement, not an already measured failure. |
@@ -531,7 +505,7 @@ text/value handling.
 | --- | --- |
 | Reconcile every existing finding | Numbered ledger contains every outstanding entry; split suffixes retain distinct outcomes. A050 and auxiliary A108/A090 claims are explicitly corrected rather than counted as outstanding bugs. A007/A011/A021 and performance concerns remain unresolved where evidence does not establish required behavior or failure. |
 | Review substantive unnumbered concerns | Supplemental ledger and original-audit coverage crosswalk include component, script, backend, ownership, documentation and historical-verification notes. Repeated observations are not counted twice. Newly established serial-catalog and mouse-modifier gaps have explicit legacy consumers. |
-| Required omission inventory beyond CTerm | Wren host allowlists, binding-family table and decoder dependency trace distinguish available declarations, absent implementations and permitted hosts. Menu/picker requirements are not mislabeled connected-session work. Native palette identity/capacity, hyperlink storage, input fidelity and mode/selector gaps appear alongside available replacements. |
+| Required omission inventory beyond CTerm | Wren host allowlists and the binding-family table distinguish available declarations, absent implementations and permitted hosts. Menu/picker requirements are not mislabeled connected-session work. Native palette identity/capacity, hyperlink storage, input fidelity and mode/selector gaps appear alongside available replacements. |
 | CTerm readiness | Three consumer-backed dependency maps cover cell/attribute/font/Unicode, geometry/cursor/scrolling, Prestel versus Mode 7, pixels/palettes, input, audio, synchronization and transport. Their boundaries distinguish repair prerequisites from parser/application integration. |
 | Prioritized backlog without redesign | Repair sequence groups shared causes and dependencies, identifies later verification, and retains explicit unresolved behavior decisions. Each numbered finding also has its own repair relationship; the priority groups are not permission to discard lower-priority rows. |
 | Audit-only authority and evidence limits | Only REAUDIT.md was created/edited for this re-audit. Existing dirty production files, manuals, tests and the original audit artifacts were preserved. No production repair, legacy-tree edit, personal-data access, desktop input, network test or push was performed. |

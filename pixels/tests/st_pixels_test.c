@@ -27,6 +27,20 @@ position(const struct st_pixel_buffer *buffer, uint32_t x, uint32_t y)
 int
 main(void)
 {
+	struct st_pixel_buffer *empty = NULL;
+	struct st_pixel_mask *empty_mask = NULL;
+
+	CHECK(st_pixel_buffer_create(&empty, 0, 0, false) == 0);
+	CHECK(empty != NULL && empty->primary != NULL && empty->width == 0
+	    && empty->height == 0);
+	CHECK(st_pixel_buffer_ensure_alternate(empty) == 0);
+	CHECK(empty->alternate != NULL);
+	st_pixel_buffer_destroy(empty);
+	CHECK(st_pixel_mask_create(&empty_mask, 0, 0) == 0);
+	CHECK(empty_mask != NULL && empty_mask->bits != NULL
+	    && empty_mask->width == 0 && empty_mask->height == 0);
+	st_pixel_mask_destroy(empty_mask);
+
 	struct st_pixel_buffer *source = NULL;
 	struct st_pixel_buffer *destination = NULL;
 	struct st_pixel_buffer *copy = NULL;

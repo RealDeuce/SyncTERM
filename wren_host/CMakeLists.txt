@@ -13,6 +13,7 @@ set(_st_wren_scripts
 	${CMAKE_CURRENT_SOURCE_DIR}/../scripts/syncterm_picker.wren
 	${CMAKE_CURRENT_SOURCE_DIR}/../scripts/picker_bootstrap.wren
 	${CMAKE_CURRENT_SOURCE_DIR}/../scripts/wren_console.wren
+	${CMAKE_CURRENT_SOURCE_DIR}/../scripts/pixel_vm_test.wren
 	${CMAKE_CURRENT_SOURCE_DIR}/../scripts/menu_bbs_editor.wren
 	${CMAKE_CURRENT_SOURCE_DIR}/../scripts/menu_palette_picker.wren
 	${CMAKE_CURRENT_SOURCE_DIR}/../scripts/menu_scrollback.wren
@@ -64,6 +65,7 @@ add_custom_command(OUTPUT ${_st_wren_embedded}
 add_library(st_wren_host STATIC
 	wren_host.c
 	wren_bind_core.c
+	wren_bind_pixels.c
 	wren_repl.c
 	wren_bind_menu.c
 	wren_selection.c
@@ -78,7 +80,8 @@ target_include_directories(st_wren_host SYSTEM PRIVATE
 target_link_libraries(st_wren_host
 	PUBLIC st_console st_app_paths st_profile
 	PRIVATE st_wren_vm st_codepage st_utf8 st_bbs_list st_audio
-		st_fonts st_settings st_theme st_time syncterm_io_error syncterm_path
+		st_fonts st_settings st_theme st_time st_pixel_image
+		syncterm_io_error syncterm_path syncterm_file_map
 		syncterm_string_compat syncterm_filesystem
 		syncterm_value_convert xptls::crypto)
 if(SYNCTERM_ENABLE_UNIFONT)

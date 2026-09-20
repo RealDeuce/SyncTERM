@@ -172,6 +172,9 @@ WrenForeignMethodFn st_wren_repl_bind_method(const char *class_name,
 WrenForeignMethodFn st_wren_core_bind_method(const char *class_name,
 	bool is_static, const char *signature);
 WrenForeignClassMethods st_wren_core_bind_class(const char *class_name);
+WrenForeignMethodFn st_wren_pixel_bind_method(const char *class_name,
+	bool is_static, const char *signature);
+WrenForeignClassMethods st_wren_pixel_bind_class(const char *class_name);
 WrenForeignMethodFn st_wren_menu_bind_method(const char *class_name,
 	bool is_static, const char *signature);
 WrenForeignClassMethods st_wren_menu_bind_class(const char *class_name);

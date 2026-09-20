@@ -83,6 +83,7 @@ main(void)
 	char scripts[sizeof(ST_WREN_PICKER_TEST_DIRECTORY) + 32];
 	char startup[sizeof(ST_WREN_PICKER_TEST_DIRECTORY) + 64];
 	char picked[sizeof(ST_WREN_PICKER_TEST_DIRECTORY) + 32];
+	char image[sizeof(ST_WREN_PICKER_TEST_DIRECTORY) + 32];
 	char *expected = NULL;
 	struct st_app_paths paths = {0};
 	struct st_console_config console_config = {
@@ -126,12 +127,15 @@ main(void)
 	    ST_WREN_PICKER_TEST_DIRECTORY);
 	(void)snprintf(picked, sizeof(picked), "%s/alpha.txt",
 	    ST_WREN_PICKER_TEST_DIRECTORY);
+	(void)snprintf(image, sizeof(image), "%s/pixel.ppm",
+	    ST_WREN_PICKER_TEST_DIRECTORY);
 	CHECK(fs_create_directories(scripts) == 0);
 	(void)snprintf(startup, sizeof(startup), "%s/file_picker.wren", scripts);
 	CHECK(write_startup_probe(startup) == 0);
 	CHECK(write_file(personal, "") == 0);
 	CHECK(write_file(shared, "") == 0);
 	CHECK(write_file(picked, "picked\n") == 0);
+	CHECK(write_file(image, "P3\n1 1\n255\n255 255 255\n") == 0);
 	paths.settings_file = settings;
 	paths.personal_list = personal;
 	paths.shared_list = shared;
@@ -239,6 +243,41 @@ main(void)
 	CHECK(restored.codepoint == marker.codepoint
 	    && restored.foreground == marker.foreground
 	    && restored.background == marker.background);
+	{
+		char source[sizeof(ST_WREN_PICKER_TEST_DIRECTORY) + 512];
+
+		CHECK(snprintf(source, sizeof(source),
+		    "import \"syncterm\" for Host, PixelBuffer, PixelColor\n"
+		    "var file = Host.pickFile(\"%s\", \"pixel.ppm\", 1)\n"
+		    "var image = PixelBuffer.fromPpm(file)\n"
+		    "if (image == null || image.width != 1 || "
+		    "PixelColor.toRgb(image[0]) != 0xffffff) "
+		    "Fiber.abort(\"readable File pixel decode\")\n",
+		    ST_WREN_PICKER_TEST_DIRECTORY) < (int)sizeof(source));
+		CHECK(st_console_post_event(picker_console, &enter) == 0);
+		CHECK(wrenInterpret(host->vm, "pixel_file_decode", source)
+		    == WREN_RESULT_SUCCESS);
+	}
+	{
+		char source[sizeof(ST_WREN_PICKER_TEST_DIRECTORY) + 512];
+		struct st_console_event overwrite = {
+			.type = ST_CONSOLE_EVENT_TEXT,
+			.data.text.codepoint = 'Y',
+		};
+
+		CHECK(snprintf(source, sizeof(source),
+		    "import \"syncterm\" for Host, PixelBuffer\n"
+		    "var file = Host.pickSavePath(\"%s\", \"pixel.ppm\")\n"
+		    "var rejected = Fiber.new { PixelBuffer.fromPpm(file) }\n"
+		    "rejected.try()\n"
+		    "if (rejected.error == null) "
+		    "Fiber.abort(\"write File accepted by pixel decoder\")\n",
+		    ST_WREN_PICKER_TEST_DIRECTORY) < (int)sizeof(source));
+		CHECK(st_console_post_event(picker_console, &enter) == 0);
+		CHECK(st_console_post_event(picker_console, &overwrite) == 0);
+		CHECK(wrenInterpret(host->vm, "pixel_file_rejection", source)
+		    == WREN_RESULT_SUCCESS);
+	}
 	call = (struct st_wren_picker_call){
 		.mode = ST_WREN_PICKER_FILE,
 		.title = "Cancel",
