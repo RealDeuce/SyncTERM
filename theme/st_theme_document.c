@@ -65,7 +65,6 @@ struct st_theme_document {
 	struct document_state *states;
 	size_t state_count;
 	size_t position;
-	size_t saved_position;
 	struct st_theme *preview;
 };
 
@@ -400,32 +399,7 @@ commit_state(struct st_theme_document *document, struct document_state *next,
 static int
 read_original(const char *path, char **result, size_t *result_size)
 {
-	FILE *stream = NULL;
-	int64_t size;
-	char *data;
-	int status = fs_open(&stream, path, "rb");
-
-	if (status != 0)
-		return status;
-	size = fs_stream_size(stream);
-	if (size < 0 || (uint64_t)size > SIZE_MAX - 1) {
-		(void)fclose(stream);
-		return size < 0 ? (int)size : IO_ERROR_OUT_OF_MEMORY;
-	}
-	data = malloc((size_t)size + 1);
-	if (data == NULL) {
-		(void)fclose(stream);
-		return IO_ERROR_OUT_OF_MEMORY;
-	}
-	if (fread(data, 1, (size_t)size, stream) != (size_t)size
-	    || fclose(stream) != 0) {
-		free(data);
-		return IO_ERROR_IO;
-	}
-	data[size] = '\0';
-	*result = data;
-	*result_size = (size_t)size;
-	return 0;
+	return theme_read_file(path, result, result_size);
 }
 
 static int
@@ -445,17 +419,18 @@ document_allocate(struct st_theme_document **result,
 		return IO_ERROR_OUT_OF_MEMORY;
 	}
 	document->manager = manager;
-	document->source = source;
-	document->original = original;
-	document->original_size = original_size;
 	document->states[0] = *initial;
-	*initial = (struct document_state){0};
 	document->state_count = 1;
 	document->preview = preview_from_state(document, &document->states[0]);
 	if (document->preview == NULL) {
+		document->states[0] = (struct document_state){0};
 		st_theme_document_free(&document);
 		return IO_ERROR_INVALID_FORMAT;
 	}
+	document->source = source;
+	document->original = original;
+	document->original_size = original_size;
+	*initial = (struct document_state){0};
 	*result = document;
 	return 0;
 }
@@ -1043,7 +1018,7 @@ bool
 st_theme_document_dirty(const struct st_theme_document *document)
 {
 	return document != NULL && (document->filename[0] == '\0'
-	    || document->position != document->saved_position);
+	    || document->position != 0);
 }
 
 bool
@@ -1210,7 +1185,7 @@ build_output(struct st_theme_document *document, ini_document_t **result)
 		ini_section_t *section;
 		char *name;
 
-		if (style->removed || style->present == 0)
+		if (style->removed)
 			continue;
 		size_t size = strlen(style->role) + 7;
 		name = malloc(size);
@@ -1220,12 +1195,14 @@ build_output(struct st_theme_document *document, ini_document_t **result)
 		}
 		(void)snprintf(name, size, "Style:%s", style->role);
 		section = ini_document_find_section(output, name);
-		if (section == NULL)
+		if (section == NULL && (style->present != 0 || !style->builtin))
 			status = ini_document_add_section(output, name, &ini_default_style,
 			    &section);
 		free(name);
 		if (status != 0)
 			goto failed;
+		if (section == NULL)
+			continue;
 		for (unsigned field = 0; field < ST_THEME_STYLE_FIELD_COUNT; ++field) {
 			if ((style->present & (1u << field)) == 0) {
 				(void)ini_section_remove_key(section, style_keys[field]);
@@ -1246,7 +1223,7 @@ build_output(struct st_theme_document *document, ini_document_t **result)
 		ini_section_t *section;
 		char *name;
 
-		if (glyph->removed || glyph->present == 0)
+		if (glyph->removed)
 			continue;
 		size_t size = strlen(glyph->name) + 7;
 		name = malloc(size);
@@ -1256,12 +1233,14 @@ build_output(struct st_theme_document *document, ini_document_t **result)
 		}
 		(void)snprintf(name, size, "Glyph:%s", glyph->name);
 		section = ini_document_find_section(output, name);
-		if (section == NULL)
+		if (section == NULL && (glyph->present != 0 || !glyph->builtin))
 			status = ini_document_add_section(output, name, &ini_default_style,
 			    &section);
 		free(name);
 		if (status != 0)
 			goto failed;
+		if (section == NULL)
+			continue;
 		for (unsigned field = 0; field < ST_THEME_GLYPH_FIELD_COUNT; ++field) {
 			if ((glyph->present & (1u << field)) == 0)
 				(void)ini_section_remove_key(section, glyph_keys[field]);
@@ -1288,6 +1267,19 @@ same_filename(const char *left, const char *right)
 #else
 	return strcmp(left, right) == 0;
 #endif
+}
+
+static void
+clear_history(struct st_theme_document *document)
+{
+	struct document_state saved = document->states[document->position];
+
+	document->states[document->position] = (struct document_state){0};
+	for (size_t i = 0; i < document->state_count; ++i)
+		state_dispose(&document->states[i]);
+	document->states[0] = saved;
+	document->state_count = 1;
+	document->position = 0;
 }
 
 static enum st_theme_document_error
@@ -1440,6 +1432,6 @@ st_theme_document_save(struct st_theme_document *document,
 	free(document->original);
 	document->original = serialized;
 	document->original_size = serialized_size;
-	document->saved_position = document->position;
+	clear_history(document);
 	return ST_THEME_DOCUMENT_OK;
 }

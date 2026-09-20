@@ -4518,7 +4518,9 @@ written.  A successful selection advances both the theme and settings
 generations, so scripts should reacquire outstanding `Settings` snapshots.
 
 `Menu.deleteTheme(filename)` removes a local theme file and returns `null`, or
-an error String.  Deleting the selected file first commits Classic Theme.
+an error String.  Deleting the selected file first commits and saves Classic
+Theme.  If deleting the file then fails, Classic remains selected and saved
+while the deletion error is returned.
 
 `Menu.refreshCloudThemes()` refreshes the official manifest, updates cached
 packages whose SHA-256 changed, and returns `null` or a warning String.  A
@@ -4539,8 +4541,9 @@ is never exposed as general filesystem authority.
 
 `Menu.deleteCloudTheme(package)` removes a cached package so it appears in
 Online Themes again, returning `null` or an error String.  Deleting the
-selected package first commits Classic Theme.  Both deletion operations are
-unavailable in safe mode.
+selected package first commits and saves Classic Theme.  If deleting the cache
+file then fails, Classic remains selected and saved while the deletion error is
+returned.  Both deletion operations are unavailable in safe mode.
 
 The shipped Themes browser combines `Menu.themes` with cached rows from
 `Menu.cloudThemes`, using distinct identities for Classic, local files, and

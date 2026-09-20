@@ -14,6 +14,7 @@
 #include "st_utf8.h"
 
 #include <dirent.h>
+#include <errno.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -75,11 +76,19 @@ st_theme_directory_read(struct st_theme_directory *result, const char *path)
 		return IO_ERROR_INVALID_ARGUMENT;
 	directory = opendir(path);
 	if (directory == NULL)
-		return IO_ERROR_NOT_FOUND;
-	for (struct dirent *entry = readdir(directory); entry != NULL;
-	    entry = readdir(directory)) {
+		return io_error_from_errno(errno);
+	for (;;) {
+		struct dirent *entry;
 		char *full = NULL;
 		struct fs_info info;
+
+		errno = 0;
+		entry = readdir(directory);
+		if (entry == NULL) {
+			if (errno != 0)
+				status = io_error_from_errno(errno);
+			break;
+		}
 
 		if (strcmp(entry->d_name, ".") == 0
 		    || strcmp(entry->d_name, "..") == 0
@@ -99,7 +108,7 @@ st_theme_directory_read(struct st_theme_directory *result, const char *path)
 			break;
 	}
 	if (closedir(directory) != 0 && status == 0)
-		status = IO_ERROR_IO;
+		status = io_error_from_errno(errno);
 	if (status != 0) {
 		st_theme_directory_dispose(&value);
 		return status;

@@ -294,10 +294,9 @@ class SettingsMenu {
         } else {
           error = Menu.deleteTheme(entry[7])
         }
+        app.theme = Theme.current
         if (error != null) {
           Alert.show(app, "Delete Theme", error)
-        } else {
-          app.theme = Theme.current
         }
         continue
       }

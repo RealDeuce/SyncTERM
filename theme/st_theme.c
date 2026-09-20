@@ -38,6 +38,61 @@ struct glyph_template {
 	uint8_t ascii;
 };
 
+int
+theme_read_stream_exact(FILE *stream, size_t size, char **result)
+{
+	char *data;
+	size_t read_size;
+	int close_status;
+
+	if (stream == NULL || result == NULL) {
+		if (stream != NULL)
+			(void)fclose(stream);
+		return IO_ERROR_INVALID_ARGUMENT;
+	}
+	if (size == SIZE_MAX) {
+		(void)fclose(stream);
+		return IO_ERROR_OUT_OF_MEMORY;
+	}
+	data = malloc(size + 1);
+	if (data == NULL) {
+		(void)fclose(stream);
+		return IO_ERROR_OUT_OF_MEMORY;
+	}
+	read_size = fread(data, 1, size, stream);
+	close_status = fclose(stream);
+	if (read_size != size || close_status != 0) {
+		free(data);
+		return IO_ERROR_IO;
+	}
+	data[size] = '\0';
+	*result = data;
+	return 0;
+}
+
+int
+theme_read_file(const char *path, char **result, size_t *result_size)
+{
+	FILE *stream = NULL;
+	int64_t size;
+	int status;
+
+	if (path == NULL || result == NULL || result_size == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	status = fs_open(&stream, path, "rb");
+	if (status != 0)
+		return status;
+	size = fs_stream_size(stream);
+	if (size < 0 || (uint64_t)size >= SIZE_MAX) {
+		(void)fclose(stream);
+		return size < 0 ? (int)size : IO_ERROR_OUT_OF_MEMORY;
+	}
+	status = theme_read_stream_exact(stream, (size_t)size, result);
+	if (status == 0)
+		*result_size = (size_t)size;
+	return status;
+}
+
 #define S(role, font, attribute, foreground, background) \
 	{role, font, attribute, foreground, background}
 
@@ -883,17 +938,23 @@ st_theme_manager_create(struct st_theme_manager **result,
 }
 
 static void
+dispose_catalog(struct st_theme_catalog_entry *catalog, size_t count)
+{
+	for (size_t i = 0; i < count; ++i) {
+		free(catalog[i].filename);
+		free(catalog[i].name);
+		free(catalog[i].author);
+		free(catalog[i].description);
+		free(catalog[i].version);
+		free(catalog[i].error);
+	}
+	free(catalog);
+}
+
+static void
 free_catalog(struct st_theme_manager *manager)
 {
-	for (size_t i = 0; i < manager->catalog_count; ++i) {
-		free(manager->catalog[i].filename);
-		free(manager->catalog[i].name);
-		free(manager->catalog[i].author);
-		free(manager->catalog[i].description);
-		free(manager->catalog[i].version);
-		free(manager->catalog[i].error);
-	}
-	free(manager->catalog);
+	dispose_catalog(manager->catalog, manager->catalog_count);
 	manager->catalog = NULL;
 	manager->catalog_count = 0;
 }
@@ -970,17 +1031,21 @@ st_theme_apply_settings(struct st_theme_manager *manager,
 }
 
 static int
-append_catalog(struct st_theme_manager *manager, const char *filename,
+append_catalog(struct st_theme_catalog_entry **catalog_ptr, size_t *count_ptr,
+	const char *filename,
 	const struct st_theme *theme, const char *load_error)
 {
-	if (manager->catalog_count == SIZE_MAX / sizeof(manager->catalog[0]))
+	struct st_theme_catalog_entry *catalog = *catalog_ptr;
+	size_t count = *count_ptr;
+
+	if (count == SIZE_MAX / sizeof(catalog[0]))
 		return IO_ERROR_OUT_OF_MEMORY;
-	struct st_theme_catalog_entry *catalog = realloc(manager->catalog,
-	    (manager->catalog_count + 1) * sizeof(manager->catalog[0]));
-	if (catalog == NULL)
+	struct st_theme_catalog_entry *resized = realloc(catalog,
+	    (count + 1) * sizeof(catalog[0]));
+	if (resized == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
-	manager->catalog = catalog;
-	struct st_theme_catalog_entry *entry = &catalog[manager->catalog_count];
+	*catalog_ptr = resized;
+	struct st_theme_catalog_entry *entry = &resized[count];
 	*entry = (struct st_theme_catalog_entry){
 		.filename = strdup(filename),
 		.name = strdup(theme != NULL && theme->name != NULL ? theme->name
@@ -1007,7 +1072,7 @@ append_catalog(struct st_theme_manager *manager, const char *filename,
 		free(entry->error);
 		return IO_ERROR_OUT_OF_MEMORY;
 	}
-	++manager->catalog_count;
+	*count_ptr = count + 1;
 	return 0;
 }
 
@@ -1031,28 +1096,25 @@ st_theme_catalog_refresh(struct st_theme_manager *manager, char *error,
 	size_t error_size)
 {
 	struct st_theme_directory directory = {0};
+	struct st_theme_catalog_entry *catalog = NULL;
+	size_t catalog_count = 0;
 	struct st_theme *classic;
 	int status;
 
 	if (manager == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	free_catalog(manager);
 	classic = build_classic_theme(manager->default_theme,
 	    &manager->classic_settings);
 	if (classic == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
-	status = append_catalog(manager, "", classic, NULL);
+	status = append_catalog(&catalog, &catalog_count, "", classic, NULL);
 	theme_free(classic);
-	if (status != 0)
-		return status;
-	status = st_theme_directory_read(&directory, manager->directory);
-	if (status == IO_ERROR_NOT_FOUND)
-		return 0;
-	if (status != 0) {
+	if (status == 0)
+		status = st_theme_directory_read(&directory, manager->directory);
+	if (status != 0 && status != IO_ERROR_NOT_FOUND) {
 		set_error(error, error_size, "unable to enumerate the themes directory");
-		return status;
 	}
-	for (size_t i = 0; i < directory.count; ++i) {
+	for (size_t i = 0; status == 0 && i < directory.count; ++i) {
 		struct st_theme *theme = NULL;
 		char load_error[256] = "";
 
@@ -1060,17 +1122,21 @@ st_theme_catalog_refresh(struct st_theme_manager *manager, char *error,
 			continue;
 		status = load_file(manager, directory.entries[i].name, &theme,
 		    load_error, sizeof(load_error));
-		status = append_catalog(manager, directory.entries[i].name, theme,
+		status = append_catalog(&catalog, &catalog_count,
+		    directory.entries[i].name, theme,
 		    status == 0 ? NULL : load_error);
 		theme_free(theme);
-		if (status != 0)
-			break;
 	}
 	st_theme_directory_dispose(&directory);
-	if (status == 0)
-		qsort(manager->catalog, manager->catalog_count,
-		    sizeof(manager->catalog[0]), catalog_compare);
-	return status;
+	if (status != 0 && status != IO_ERROR_NOT_FOUND) {
+		dispose_catalog(catalog, catalog_count);
+		return status;
+	}
+	qsort(catalog, catalog_count, sizeof(catalog[0]), catalog_compare);
+	free_catalog(manager);
+	manager->catalog = catalog;
+	manager->catalog_count = catalog_count;
+	return 0;
 }
 
 size_t

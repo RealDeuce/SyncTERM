@@ -1528,6 +1528,8 @@ fn_menu_delete_theme(WrenVM *vm)
 	struct st_settings previous;
 	const char *filename;
 	char error[256] = "";
+	bool selection_changed = false;
+	bool selection_saved = false;
 	int status;
 
 	if (!theme_filename(vm, 1, &filename))
@@ -1548,11 +1550,15 @@ fn_menu_delete_theme(WrenVM *vm)
 	}
 	if (st_settings.theme_file != NULL
 	    && strcmp(st_settings.theme_file, filename) == 0) {
+		selection_changed = true;
 		status = st_theme_select(host->themes, "", error, sizeof(error));
 		if (status == 0) {
 			free(st_settings.theme_file);
 			st_settings.theme_file = NULL;
+			free(st_settings.theme_package);
+			st_settings.theme_package = NULL;
 			status = st_settings_save();
+			selection_saved = status == 0;
 		}
 	}
 	else
@@ -1560,7 +1566,7 @@ fn_menu_delete_theme(WrenVM *vm)
 	if (status == 0)
 		status = st_theme_delete(host->themes, filename, error,
 		    sizeof(error));
-	if (status != 0) {
+	if (status != 0 && selection_changed && !selection_saved) {
 		(void)st_settings_copy(&st_settings, &previous);
 		(void)st_theme_apply_settings(host->themes, &previous, NULL, 0);
 	}
@@ -2067,6 +2073,8 @@ fn_menu_delete_cloud_theme(WrenVM *vm)
 	struct st_settings previous;
 	const char *package;
 	char error[256] = "";
+	bool selection_changed = false;
+	bool selection_saved = false;
 	int status;
 
 	if (!theme_package(vm, 1, &package))
@@ -2082,11 +2090,15 @@ fn_menu_delete_cloud_theme(WrenVM *vm)
 	}
 	if (st_settings.theme_package != NULL
 	    && strcmp(st_settings.theme_package, package) == 0) {
+		selection_changed = true;
 		status = st_theme_select(host->themes, "", error, sizeof(error));
 		if (status == 0) {
+			free(st_settings.theme_file);
+			st_settings.theme_file = NULL;
 			free(st_settings.theme_package);
 			st_settings.theme_package = NULL;
 			status = st_settings_save();
+			selection_saved = status == 0;
 		}
 	}
 	else
@@ -2094,7 +2106,7 @@ fn_menu_delete_cloud_theme(WrenVM *vm)
 	if (status == 0)
 		status = st_theme_cloud_delete(host->themes, package, error,
 		    sizeof(error));
-	if (status != 0) {
+	if (status != 0 && selection_changed && !selection_saved) {
 		(void)st_settings_copy(&st_settings, &previous);
 		(void)st_theme_apply_settings(host->themes, &previous, NULL, 0);
 	}

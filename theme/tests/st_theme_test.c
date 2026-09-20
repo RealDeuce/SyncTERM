@@ -6,8 +6,10 @@
  */
 
 #include "st_theme.h"
+#include "theme_internal.h"
 
 #include "filesystem.h"
+#include "io_error.h"
 #include "path.h"
 #include "st_app_paths.h"
 #include "st_settings.h"
@@ -87,23 +89,73 @@ document_glyph(const struct st_theme_document *document, const char *name,
 }
 
 static int
-test_invalid_catalog_directory(const char *regular_file)
+test_catalog_refresh_contract(const char *directory)
 {
-	struct st_app_paths paths = {.themes_directory = (char *)regular_file};
+	struct st_app_paths paths = {.themes_directory = (char *)directory};
 	struct st_settings settings;
 	struct st_theme_manager *manager = NULL;
+	char *theme_path = NULL;
 	char error[256] = "";
 	int status;
 
+	(void)fs_remove_file(directory);
+	CHECK(fs_create_directories(directory) == 0);
+	CHECK(path_join_alloc(&theme_path, directory, "catalog.ini") == 0);
+	CHECK(write_text(theme_path, "Name=Catalog Theme\n") == 0);
 	st_settings_init(&settings);
 	CHECK(st_theme_manager_create(&manager, &paths, &settings, error,
 	    sizeof(error)) == 0);
+	CHECK(st_theme_catalog_refresh(manager, error, sizeof(error)) == 0);
+	CHECK(st_theme_catalog_count(manager) == 2);
+	CHECK(strcmp(st_theme_catalog_at(manager, 1)->filename, "catalog.ini") == 0);
+	CHECK(fs_remove_file(theme_path) == 0);
+	CHECK(fs_remove_directory(directory) == 0);
+	CHECK(write_text(directory, "not a directory\n") == 0);
 	status = st_theme_catalog_refresh(manager, error, sizeof(error));
+	CHECK(status != 0);
+	CHECK(st_theme_catalog_count(manager) == 2);
+	CHECK(strcmp(st_theme_catalog_at(manager, 1)->filename, "catalog.ini") == 0);
+	CHECK(fs_remove_file(directory) == 0);
+	CHECK(st_theme_catalog_refresh(manager, error, sizeof(error)) == 0);
+	CHECK(st_theme_catalog_count(manager) == 1);
+	CHECK(st_theme_catalog_at(manager, 0)->filename[0] == '\0');
 	st_theme_manager_free(&manager);
 	st_settings_dispose(&settings);
-	if (status == 0)
-		fprintf(stderr, "regular file accepted as theme catalog directory\n");
+	free(theme_path);
+	return 0;
+}
+
+static int
+test_short_read_closes_stream(const char *path)
+{
+	FILE *stream = NULL;
+	char *data = NULL;
+
+	CHECK(write_text(path, "x") == 0);
+	CHECK(fs_open(&stream, path, "rb") == 0);
+	CHECK(theme_read_stream_exact(stream, 2, &data) == IO_ERROR_IO);
+	CHECK(data == NULL);
+	CHECK(fs_remove_file(path) == 0);
+	return 0;
+}
+
+static int
+test_failed_document_construction(struct st_theme_manager *manager)
+{
+	struct st_theme_style *default_style = find_style(manager->default_theme,
+	    "default");
+	struct st_theme_document *document = NULL;
+	char error[256] = "";
+	int saved_font;
+	int status;
+
+	CHECK(default_style != NULL);
+	saved_font = default_style->font;
+	default_style->font = -1;
+	status = st_theme_document_create(&document, manager, error, sizeof(error));
+	default_style->font = saved_font;
 	CHECK(status != 0);
+	CHECK(document == NULL);
 	return 0;
 }
 
@@ -121,12 +173,24 @@ test_branch_dirty(struct st_theme_manager *manager, const char *path)
 	    "saved", error, sizeof(error)) == 0);
 	CHECK(st_theme_document_save(document, NULL, false, error, sizeof(error))
 	    == ST_THEME_DOCUMENT_OK);
-	CHECK(st_theme_document_undo(document));
+	CHECK(!st_theme_document_dirty(document));
+	CHECK(!st_theme_document_can_undo(document));
+	CHECK(!st_theme_document_can_redo(document));
 	CHECK(st_theme_document_set_metadata(document, ST_THEME_METADATA_AUTHOR,
 	    "different", error, sizeof(error)) == 0);
 	dirty = st_theme_document_dirty(document);
+	CHECK(st_theme_document_can_undo(document));
+	CHECK(st_theme_document_undo(document));
+	CHECK(!st_theme_document_dirty(document));
+	CHECK(st_theme_document_can_redo(document));
+	CHECK(st_theme_document_redo(document));
+	CHECK(st_theme_document_dirty(document));
+	CHECK(write_text(path, "Name=Externally changed\n") == 0);
+	CHECK(st_theme_document_save(document, NULL, false, error, sizeof(error))
+	    == ST_THEME_DOCUMENT_CONFLICT);
+	CHECK(st_theme_document_dirty(document));
+	CHECK(st_theme_document_can_undo(document));
 	st_theme_document_free(&document);
-	CHECK(file_contains(path, "Author=saved"));
 	if (!dirty)
 		fprintf(stderr, "unsaved history branch reported clean\n");
 	CHECK(dirty);
@@ -138,28 +202,52 @@ test_reset_last_override(struct st_theme_manager *manager, const char *path)
 {
 	struct st_theme_document *document = NULL;
 	char error[256] = "";
-	int expected;
-	int actual;
+	int expected_style;
+	uint32_t expected_glyph;
 
 	CHECK(write_text(path,
-	    "Name=Reset\n[Style:frame]\nForeground=0x123456\n") == 0);
+	    "Name=Reset\n"
+	    "[Style:frame]\n; retained style comment\n"
+	    "Foreground=0x123456\nVendorStyle=kept\n"
+	    "[Glyph:arrow.up]\n; retained glyph comment\n"
+	    "ASCII=65\nVendorGlyph=kept\n") == 0);
 	CHECK(st_theme_document_open(&document, manager, "saved.ini", error,
 	    sizeof(error)) == 0);
 	CHECK(st_theme_document_set_style(document, "frame",
 	    ST_THEME_STYLE_FOREGROUND, ST_THEME_VALUE_DEFAULT, 0, error,
 	    sizeof(error)) == 0);
-	expected = style(st_theme_document_preview(document), "frame")->foreground;
+	CHECK(st_theme_document_set_glyph(document, "arrow.up",
+	    ST_THEME_GLYPH_ASCII, ST_THEME_VALUE_DEFAULT, 0, error,
+	    sizeof(error)) == 0);
+	expected_style = style(st_theme_document_preview(document), "frame")
+	    ->foreground;
+	expected_glyph = glyph(st_theme_document_preview(document), "arrow.up")
+	    ->codepoint;
 	CHECK(st_theme_document_save(document, NULL, false, error, sizeof(error))
 	    == ST_THEME_DOCUMENT_OK);
+	CHECK(file_contains(path, "; retained style comment"));
+	CHECK(file_contains(path, "VendorStyle=kept"));
+	CHECK(file_contains(path, "; retained glyph comment"));
+	CHECK(file_contains(path, "VendorGlyph=kept"));
+	CHECK(!file_contains(path, "Foreground="));
+	CHECK(!file_contains(path, "ASCII="));
 	st_theme_document_free(&document);
 	CHECK(st_theme_document_open(&document, manager, "saved.ini", error,
 	    sizeof(error)) == 0);
-	actual = style(st_theme_document_preview(document), "frame")->foreground;
+	CHECK(style(st_theme_document_preview(document), "frame")->foreground
+	    == expected_style);
+	CHECK(glyph(st_theme_document_preview(document), "arrow.up")->codepoint
+	    == expected_glyph);
+	CHECK(st_theme_document_add_style(document, "custom.empty", error,
+	    sizeof(error)) == 0);
+	CHECK(st_theme_document_save(document, NULL, false, error, sizeof(error))
+	    == ST_THEME_DOCUMENT_OK);
+	CHECK(file_contains(path, "[Style:custom.empty]"));
 	st_theme_document_free(&document);
-	if (actual != expected)
-		fprintf(stderr, "reset override returned after save: %#x vs %#x\n",
-		    actual, expected);
-	CHECK(actual == expected);
+	CHECK(st_theme_document_open(&document, manager, "saved.ini", error,
+	    sizeof(error)) == 0);
+	CHECK(style(st_theme_document_preview(document), "custom.empty") != NULL);
+	st_theme_document_free(&document);
 	return 0;
 }
 
@@ -180,6 +268,8 @@ main(void)
 	char *custom = NULL;
 	char *invalid = NULL;
 	char *saved = NULL;
+	char *catalog_directory = NULL;
+	char *short_read = NULL;
 	char error[256] = "";
 	uint64_t generation;
 
@@ -195,6 +285,10 @@ main(void)
 	CHECK(path_join_alloc(&custom, ST_THEME_TEST_DIRECTORY, "custom.ini") == 0);
 	CHECK(path_join_alloc(&invalid, ST_THEME_TEST_DIRECTORY, "invalid.ini") == 0);
 	CHECK(path_join_alloc(&saved, ST_THEME_TEST_DIRECTORY, "saved.ini") == 0);
+	CHECK(path_join_alloc(&catalog_directory, ST_THEME_TEST_DIRECTORY,
+	    "catalog-transaction") == 0);
+	CHECK(path_join_alloc(&short_read, ST_THEME_TEST_DIRECTORY,
+	    "short-read.tmp") == 0);
 	CHECK(write_text(custom,
 	    "; retained comment\n"
 	    "Name=Custom Theme\nAuthor=Tester\n\n"
@@ -223,6 +317,7 @@ main(void)
 	settings.theme_lightbar_background_color = 8;
 	CHECK(st_theme_manager_create(&manager, &paths, &settings, error,
 	    sizeof(error)) == 0);
+	CHECK(test_failed_document_construction(manager) == 0);
 	CHECK(st_theme_default(manager)->style_count == 48);
 	CHECK(st_theme_active(manager)->style_count == 55);
 	CHECK(style(st_theme_active(manager), "default")->legacy_attr == 0x1f);
@@ -389,9 +484,12 @@ main(void)
 	failure += test_reset_last_override(manager, saved);
 	st_theme_manager_free(&manager);
 	st_settings_dispose(&settings);
-	failure += test_invalid_catalog_directory(custom);
+	failure += test_catalog_refresh_contract(catalog_directory);
+	failure += test_short_read_closes_stream(short_read);
 	free(custom);
 	free(invalid);
 	free(saved);
+	free(catalog_directory);
+	free(short_read);
 	return failure;
 }

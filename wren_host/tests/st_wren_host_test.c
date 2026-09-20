@@ -74,6 +74,20 @@ write_zero_file(const char *path, size_t size)
 	return fclose(stream);
 }
 
+static bool
+file_contains(const char *path, const char *text)
+{
+	FILE *stream = fopen(path, "rb");
+	char buffer[8192];
+
+	if (stream == NULL)
+		return false;
+	size_t size = fread(buffer, 1, sizeof(buffer) - 1, stream);
+	bool okay = !ferror(stream) && fclose(stream) == 0;
+	buffer[size] = '\0';
+	return okay && strstr(buffer, text) != NULL;
+}
+
 static int
 discard_ansi_output(void *context, const void *data, size_t size)
 {
@@ -801,7 +815,7 @@ exercise_theme_menu_contract(st_wren_host_t *public_host)
 	    "if (document.setMetadata(0, \"Draft Theme\") != null || document.addStyle(\"custom.notice\") != null || document.setStyle(\"custom.notice\", 2, 2, 0xabcdef) != null) Fiber.abort(\"document edit\")\n"
 	    "if (!document.dirty || !document.canUndo || !document.undo() || !document.canRedo || !document.redo()) Fiber.abort(\"history\")\n"
 	    "var saved = document.save(\"host-draft.ini\", false)\n"
-	    "if (saved[0] != 0 || saved[1] != null || document.dirty) Fiber.abort(\"document save\")\n"
+	    "if (saved[0] != 0 || saved[1] != null || document.dirty || document.canUndo || document.canRedo) Fiber.abort(\"document save\")\n"
 	    "var reopened = Menu.openThemeDocument(\"host-draft.ini\")\n"
 	    "if (reopened.metadata(0) != \"Draft Theme\" || reopened.styles.count < 49) Fiber.abort(\"document reopen\")\n"
 	    "if (Menu.deleteTheme(\"host-draft.ini\") != null) Fiber.abort(\"document delete\")\n";
@@ -811,6 +825,90 @@ exercise_theme_menu_contract(st_wren_host_t *public_host)
 		fprintf(stderr, "theme menu contract failed: %s\n", host->last_error);
 		return -1;
 	}
+	return 0;
+}
+
+static int
+exercise_selected_local_theme_delete_failure(st_wren_host_t *public_host,
+	const char *path, const char *settings_path)
+{
+	struct st_wren_host *host = public_host;
+	const struct st_theme *active;
+	static const char select_source[] =
+	    "import \"syncterm_menu\" for Menu\n"
+	    "if (Menu.selectTheme(\"host-theme.ini\") != null || "
+	    "Menu.selectedThemeFile != \"host-theme.ini\") "
+	    "Fiber.abort(\"select local theme\")\n";
+	static const char delete_source[] =
+	    "import \"syncterm_menu\" for Menu\n"
+	    "if (Menu.deleteTheme(\"host-theme.ini\") == null) "
+	    "Fiber.abort(\"local delete unexpectedly succeeded\")\n"
+	    "if (Menu.selectedThemeFile != \"\" || "
+	    "Menu.selectedThemePackage != \"\") "
+	    "Fiber.abort(\"local delete restored stale selection\")\n";
+
+	CHECK(wrenInterpret(host->vm, "select_local_delete_failure", select_source)
+	    == WREN_RESULT_SUCCESS);
+	CHECK(fs_remove_file(path) == 0);
+	CHECK(fs_create_directories(path) == 0);
+	CHECK(wrenInterpret(host->vm, "selected_local_delete_failure",
+	    delete_source) == WREN_RESULT_SUCCESS);
+	active = st_theme_active(host->themes);
+	CHECK(active != NULL && active->filename != NULL
+	    && active->filename[0] == '\0' && active->package == NULL);
+	CHECK(st_settings.theme_file == NULL && st_settings.theme_package == NULL);
+	CHECK(!file_contains(settings_path, "ThemeFile=host-theme.ini"));
+	CHECK(fs_remove_directory(path) == 0);
+	CHECK(write_file(path,
+	    "Name=Host Theme\n[Style:frame]\nForeground=0x123456\n") == 0);
+	return 0;
+}
+
+static int
+exercise_selected_cloud_theme_delete_failure(st_wren_host_t *public_host,
+	const char *directory, const char *manifest, const char *path,
+	const char *settings_path)
+{
+	struct st_wren_host *host = public_host;
+	const struct st_theme *active;
+	char warning[256] = "";
+	static const char select_source[] =
+	    "import \"syncterm_menu\" for Menu\n"
+	    "if (Menu.selectCloudTheme(\"official/blue\") != null || "
+	    "Menu.selectedThemePackage != \"official/blue\") "
+	    "Fiber.abort(\"select cloud theme\")\n";
+	static const char delete_source[] =
+	    "import \"syncterm_menu\" for Menu\n"
+	    "if (Menu.deleteCloudTheme(\"official/blue\") == null) "
+	    "Fiber.abort(\"cloud delete unexpectedly succeeded\")\n"
+	    "if (Menu.selectedThemeFile != \"\" || "
+	    "Menu.selectedThemePackage != \"\") "
+	    "Fiber.abort(\"cloud delete restored stale selection\")\n";
+
+	CHECK(fs_create_directories(directory) == 0);
+	CHECK(write_file(path,
+	    "Name=Cloud Theme\n[Style:frame]\nForeground=0x654321\n") == 0);
+	CHECK(write_file(manifest,
+	    "Repository=official\n\n[Theme:blue]\nName=Cloud Theme\n"
+	    "URI=https://example.invalid/blue.ini\n"
+	    "SHA256=1891d225f61ef1aaa8df82e47f540561a4829fb5cc62535a34b1454f9bb0bfd5\n")
+	    == 0);
+	CHECK(st_theme_cloud_refresh(host->themes, false, "", warning,
+	    sizeof(warning)) == 0);
+	CHECK(wrenInterpret(host->vm, "select_cloud_delete_failure", select_source)
+	    == WREN_RESULT_SUCCESS);
+	CHECK(fs_remove_file(path) == 0);
+	CHECK(fs_create_directories(path) == 0);
+	CHECK(wrenInterpret(host->vm, "selected_cloud_delete_failure",
+	    delete_source) == WREN_RESULT_SUCCESS);
+	active = st_theme_active(host->themes);
+	CHECK(active != NULL && active->filename != NULL
+	    && active->filename[0] == '\0' && active->package == NULL);
+	CHECK(st_settings.theme_file == NULL && st_settings.theme_package == NULL);
+	CHECK(!file_contains(settings_path, "ThemePackage=official/blue"));
+	CHECK(fs_remove_directory(path) == 0);
+	CHECK(write_file(path,
+	    "Name=Cloud Theme\n[Style:frame]\nForeground=0x654321\n") == 0);
 	return 0;
 }
 
@@ -1082,6 +1180,9 @@ main(void)
 	char settings[sizeof(ST_WREN_TEST_DIRECTORY) + 32];
 	char scripts[sizeof(ST_WREN_TEST_DIRECTORY) + 32];
 	char theme[sizeof(ST_WREN_TEST_DIRECTORY) + 32];
+	char cloud_directory[sizeof(ST_WREN_TEST_DIRECTORY) + 64];
+	char cloud_manifest[sizeof(ST_WREN_TEST_DIRECTORY) + 80];
+	char cloud_theme[sizeof(ST_WREN_TEST_DIRECTORY) + 80];
 	char font[sizeof(ST_WREN_TEST_DIRECTORY) + 32];
 	char settings_contents[sizeof(font) + 192];
 	struct st_app_paths paths = {0};
@@ -1152,6 +1253,12 @@ main(void)
 	    ST_WREN_TEST_DIRECTORY);
 	(void)snprintf(theme, sizeof(theme), "%s/host-theme.ini",
 	    ST_WREN_TEST_DIRECTORY);
+	(void)snprintf(cloud_directory, sizeof(cloud_directory),
+	    "%s/themes/official", system_cache);
+	(void)snprintf(cloud_manifest, sizeof(cloud_manifest), "%s/manifest.lst",
+	    cloud_directory);
+	(void)snprintf(cloud_theme, sizeof(cloud_theme), "%s/blue.ini",
+	    cloud_directory);
 	(void)snprintf(font, sizeof(font), "%s/configured.f16",
 	    ST_WREN_TEST_DIRECTORY);
 	CHECK(write_file(personal,
@@ -1255,6 +1362,10 @@ main(void)
 	    > theme_generation);
 	CHECK(exercise_theme_contract(host, true) == 0);
 	CHECK(exercise_theme_menu_contract(host) == 0);
+	CHECK(exercise_selected_local_theme_delete_failure(host, theme, settings)
+	    == 0);
+	CHECK(exercise_selected_cloud_theme_delete_failure(host, cloud_directory,
+	    cloud_manifest, cloud_theme, settings) == 0);
 	CHECK(exercise_url_selection(host) == 0);
 	CHECK(wrenInterpret(((struct st_wren_host *)host)->vm, "repl_screen_probe",
 	    "import \"syncterm\" for Screen\n"

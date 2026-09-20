@@ -84,6 +84,12 @@ uint64_t st_theme_generation(const struct st_theme_manager *manager);
 int st_theme_apply_settings(struct st_theme_manager *manager,
 	const struct st_settings *settings, char *error, size_t error_size);
 
+/*
+ * Replaces the catalog only after a successful refresh.  A missing themes
+ * directory is a successful Classic-only catalog.  Returned entries are
+ * borrowed and remain valid until the next successful refresh or manager
+ * destruction.
+ */
 int st_theme_catalog_refresh(struct st_theme_manager *manager,
 	char *error, size_t error_size);
 size_t st_theme_catalog_count(const struct st_theme_manager *manager);
@@ -171,6 +177,7 @@ struct st_theme_document_glyph {
 	uint32_t values[ST_THEME_GLYPH_FIELD_COUNT];
 };
 
+/* Documents borrow manager and must be destroyed before it. */
 int st_theme_document_create(struct st_theme_document **result,
 	struct st_theme_manager *manager, char *error, size_t error_size);
 int st_theme_document_open(struct st_theme_document **result,
@@ -214,6 +221,9 @@ bool st_theme_document_undo(struct st_theme_document *document);
 bool st_theme_document_redo(struct st_theme_document *document);
 int st_theme_document_import(struct st_theme_document *document,
 	const char *filename, char *error, size_t error_size);
+/*
+ * A successful save establishes the current state as clean and clears history.
+ */
 enum st_theme_document_error st_theme_document_save(
 	struct st_theme_document *document, const char *filename, bool force,
 	char *error, size_t error_size);

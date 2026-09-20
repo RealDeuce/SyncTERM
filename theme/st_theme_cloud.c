@@ -170,49 +170,19 @@ st_theme_cloud_load_package(struct st_theme_manager *manager,
 	return 0;
 }
 
-static int
-read_file(const char *path, unsigned char **result, size_t *result_size)
-{
-	FILE *stream = NULL;
-	int64_t size;
-	unsigned char *data;
-	int status = fs_open(&stream, path, "rb");
-
-	if (status != 0)
-		return status;
-	size = fs_stream_size(stream);
-	if (size < 0 || (uint64_t)size > SIZE_MAX) {
-		(void)fclose(stream);
-		return size < 0 ? (int)size : IO_ERROR_OUT_OF_MEMORY;
-	}
-	data = malloc(size == 0 ? 1 : (size_t)size);
-	if (data == NULL) {
-		(void)fclose(stream);
-		return IO_ERROR_OUT_OF_MEMORY;
-	}
-	if (fread(data, 1, (size_t)size, stream) != (size_t)size
-	    || fclose(stream) != 0) {
-		free(data);
-		return IO_ERROR_IO;
-	}
-	*result = data;
-	*result_size = (size_t)size;
-	return 0;
-}
-
 static bool
 hash_matches(const char *path, const char *expected)
 {
 	unsigned char expected_bytes[32];
 	unsigned char actual[32];
-	unsigned char *data = NULL;
+	char *data = NULL;
 	size_t size = 0;
 	int status;
 
 	if (expected == NULL || strlen(expected) != 64
 	    || !st_hex_decode(expected_bytes, sizeof(expected_bytes), expected, 64))
 		return false;
-	status = read_file(path, &data, &size);
+	status = theme_read_file(path, &data, &size);
 	if (status == 0)
 		status = xp_digest(XP_DIGEST_SHA256, data, size, actual,
 		    sizeof(actual));

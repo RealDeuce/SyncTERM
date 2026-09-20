@@ -12,6 +12,7 @@
 #include "st_theme.h"
 
 #include <stddef.h>
+#include <stdio.h>
 
 struct st_theme_directory_entry {
 	char *name;
@@ -25,6 +26,10 @@ struct st_theme_directory {
 int st_theme_directory_read(struct st_theme_directory *result,
 	const char *path);
 void st_theme_directory_dispose(struct st_theme_directory *directory);
+
+/* Takes ownership of stream and closes it on every return path. */
+int theme_read_stream_exact(FILE *stream, size_t size, char **result);
+int theme_read_file(const char *path, char **result, size_t *result_size);
 
 struct st_theme_manager {
 	char *directory;

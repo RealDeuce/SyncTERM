@@ -37,21 +37,21 @@ repository-wide coverage. The legacy tree is read-only reference.
 
 The repository-wide audit is complete. This is not an implementation approval
 or release certification. The consolidated API/design assessment, priority
-groups and all 79 outstanding finding summaries are in
+groups and all 73 outstanding finding summaries are in
 AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 
 | Objective requirement | Authoritative evidence and disposition |
 | --- | --- |
 | Entire repository, not only recent changes | git ls-files identifies 47 top-level source directories and 12 root files; every directory has an inventory row, no omissions. Per-component reviews cover local implementations, headers, tests/build and associated data/docs. |
 | API design, architecture and library layout | AUDIT_INDEX boundary/coupling/ownership assessment plus component public-contract and CMake dependency reviews; A001–A007, A047/A066, A088/A091 and host-contract findings. Cohesive decomposition is recognized; no redesign authorized. |
-| Correctness, ownership/lifetime and concurrency | Component lifecycle/error reviews, normal and injected tests, explicit GUI/host ownership closure; source and reproduced failures are qualified individually. A016, A023, A027/A035/A036 and A108/A109 illustrate distinct lifetime/error risks. |
+| Correctness, ownership/lifetime and concurrency | Component lifecycle/error reviews, normal and injected tests, explicit GUI/host ownership closure; source and reproduced failures are qualified individually. A016, A023, A035/A036 and A108/A109 illustrate distinct lifetime/error risks. |
 | Portability and all platform backends | POSIX/Windows sources and every audio/console backend reviewed; native, MinGW compile-only and unavailable runtime evidence kept separate. Capability probes/standalone targets reviewed. No unsupported platform pass inferred. |
 | Performance | Scaler/renderer benchmark source and measured cases reviewed, including common mixed-axis scaling; A011/A023 and backend pacing risks distinguished from measured regressions. Reconstructed legacy benchmark limitations explicitly recorded. |
 | Required legacy behavior | Read-only comparisons cover fonts/catalog/maps, modes, palette capacity, Prestel versus Mode 7, command line, console/input and settings behavior, plus explicit parity limits. Frozen CTerm chapter cmp succeeds. |
-| Wren scripts and bindings | Complete local source/signature/manual reviews; isolated shipped-script suites and host fixtures; host closure A100–A114. Connected/SFTP production integration missing from this application is reported, not invented or silently counted as working. |
+| Wren scripts and bindings | Complete local source/signature/manual reviews; isolated shipped-script suites and host fixtures; host closure A100–A113. Connected/SFTP production integration missing from this application is reported, not invented or silently counted as working. |
 | Build logic, generators and documentation | Root/component CMake and generators reviewed; standalone/probe failures recorded; pinned Unicode/font regeneration and table comparisons documented; root manuals/license/development guidance covered. Wren VM vendored internals limited to integration boundaries as requested. |
-| Inventory and consolidated findings | 79 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 6 high, 44 medium, 27 low, 2 unresolved concerns; not all runtime reproductions. |
-| Relevant tests where practical | A complete native build succeeds. The latest 72-test run has a stable disposition of 67 pass, 4 fail and 1 Wayland skip; the sequence-dependent X11 failure in the full run passes in isolation. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
+| Inventory and consolidated findings | 73 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 5 high, 41 medium, 25 low, 2 unresolved concerns; not all runtime reproductions. |
+| Relevant tests where practical | A complete native build succeeds. The latest 72-test run has a stable disposition of 68 pass, 3 fail and 1 Wayland skip; the sequence-dependent X11 failure in the full run passes in isolation. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
 | Explicit uncertainty | Each component records unavailable platforms, unexecuted failure paths and measurement limits; A007/A011 unresolved. Source-level risks are not called verified crashes. These are audit outcomes, not claims of implementation correctness. |
 
 Historical pending-source lists below are superseded by subsequent full reads,
@@ -126,7 +126,7 @@ not the absence of failing tests. New findings will receive stable A-numbers.
 | string_compat/ | Reviewed | Native and opt-in fallback tests pass; MinGW compile |
 | string_util/ | Reviewed | Exhaustive byte classification/trim tests pass natively; MinGW compile |
 | tcp_client/ | Reviewed | Native algorithm and real loopback/refusal tests pass; Windows runtime exercised under Wine |
-| theme/ | Reviewed | All local sources/header/tests/build read; A024/A025/A026 reproduced; A027/A028 source-confirmed error paths; host/network integration and failure-injection gaps below |
+| theme/ | Reviewed | All local sources/header/tests/build read; catalog/editor/error cleanup regressions are covered; remaining host/network integration and failure-injection gaps are below |
 | threads/ | Reviewed | A004/A011; native and forced pthread fallback tests pass; Win32 backend compiled |
 | time/ | Reviewed | A002; controlled-clock and existing native tests; Windows source-only review |
 | unicode_grapheme/ | Reviewed | Public contracts/generator/runtime/build/docs/tests reviewed; pinned regeneration identical, generated trie bounds/order checked; expanded native tests pass, MinGW compile only |
@@ -137,7 +137,7 @@ not the absence of failing tests. New findings will receive stable A-numbers.
 | value_convert/ | Reviewed | A021 date precedence conflict; all local sources/tests/build read; native exact rounding checks pass; exotic formats and numeric performance unverified |
 | webget/ | Reviewed | All local source/header/test/build read; A036 source double-close, A037 URL/cache mismatch reproduced; protocol/TLS/fault gaps below |
 | windows_utf/ | Reviewed | Source and MinGW compile; Windows runtime not verified |
-| wren_host/ | Reviewed | All local implementation, public/internal headers, CMake/generator and integration tests read; isolated shipped-script and host-contract cases run; mutation/error/input/font/ownership integration dispositioned below, including A112–A114; runtime/fault limits explicit |
+| wren_host/ | Reviewed | All local implementation, public/internal headers, CMake/generator and integration tests read; isolated shipped-script and host-contract cases run; mutation/error/input/font/ownership integration dispositioned below, including A112–A113; runtime/fault limits explicit |
 | wren_vm/ | Reviewed at integration boundary | Full legacy diff, build/configuration, license, REPL private API coupling and minimal consumer link checked; upstream internals not exhaustively audited |
 | xptls/ | Reviewed | All five local source/header/build files read; A038 PSK authentication bypass reproduced against OpenSSL, rejected by Botan; broader TLS/platform coverage gaps below |
 | xptls_crypto/ | Reviewed | All local headers/providers/clear implementations/build/tests read; expanded tests pass OpenSSL, Botan and none; MinGW compile only; contract/resource gaps below |
@@ -173,20 +173,6 @@ No network operation or connection test performed. Recommendation: establish
 one existing connection-type policy for URL parsing and editor defaults and
 verify every enumerated type, not merely SSH/RLogin/TelnetTLS.
 
-### A114 — Failed active-theme deletion can leave saved and live settings split
-
-Severity: medium persistence/failure-atomicity defect, source-confirmed.
-`wren_host/wren_bind_menu.c:1523` switches away from an active theme, clears
-theme_file and saves settings before attempting st_theme_delete. If that
-deletion fails, rollback restores previous settings/theme in memory but does
-not restore the settings file already saved. The caller sees an error and the
-old active theme, but restart can use the newly saved selection. No deletion,
-personal settings write or injected filesystem failure was executed.
-Recommendation: define and enforce the transaction boundary across selection,
-settings persistence and file deletion, testing deletion failure after save.
-Memory/theme rollback calls also discard their own failure results; general
-OOM rollback reliability remains unverified, not an asserted successful path.
-
 ### Wren-host integration coverage closure
 
 All previously identified host follow-ups now have findings or explicit
@@ -210,8 +196,8 @@ evidence. All new fixtures use fresh temporary paths and a headless console.
   Cell field setters did not automatically resolve selector bits either, so
   that absence alone is not classified as a regression. Any future selector
   policy must retain the full-cell explicit-glyph bypass and registry lifetime.
-- Theme selection/deletion rollback is rechecked; A114 records the persisted
-  versus live split. General OOM/failure rollback remains untested. BBS and
+- Theme selection/deletion failure behavior is covered for local and cloud
+  themes. General OOM/failure rollback remains untested. BBS and
   Settings persistence/stale-handle/safe-mode boundaries are already covered
   in A061–A065 and A100–A105, not assumed safe from their normal-path tests.
 - Host/VM lifetimes, borrowed config and synchronous dispatcher use follow the
@@ -1244,94 +1230,6 @@ Recommendation: establish a bounded callback execution/ownership strategy and
 defer reclamation outside the callback, then measure worst-case callback time
 under producer/clear contention. This is a recommendation for separately
 authorized work, not permission to redesign the mixer during the audit.
-
-### A024 — POSIX theme catalog hides directory-open errors
-
-Severity: low. Classification: confirmed error-reporting defect, reproduced.
-
-- `theme/theme_directory_posix.c:76` returns `IO_ERROR_NOT_FOUND` for every
-  failed `opendir()`, regardless of errno. This includes a non-directory path,
-  permission denial, descriptor exhaustion and actual absence.
-- `theme/st_theme.c:1048` intentionally treats NOT_FOUND as an empty optional
-  themes directory, returning success with only the Classic entry. Thus real
-  configuration/access failures are silently presented as an empty catalog.
-- New `test_invalid_catalog_directory` in `theme/tests/st_theme_test.c` uses
-  an existing regular theme file as the directory. Manager creation succeeds;
-  catalog refresh incorrectly returns zero. Reproduced with native Clang and
-  GCC. MinGW compiled/linked, not executed; Windows enumeration does preserve
-  FindFirstFileW errors, so this is not a claim of the same Windows defect.
-- Related source-only gap: the POSIX readdir loop does not distinguish an
-  enumeration error from end-of-directory. No injected readdir failure tested.
-
-Recommended remedy: preserve/map directory-open errors, distinguish readdir
-failure from EOF, and reserve the optional-directory fallback for actual
-absence. Do not eliminate the intended missing-directory fallback.
-
-### A025 — Theme editor loses dirty state after branching from undo
-
-Severity: medium. Classification: confirmed correctness defect, reproduced.
-
-`theme/st_theme_document.c:380` discards redo states and reuses their numeric
-positions without invalidating saved_position. Dirty checking at line 1046
-only compares positions; save records the current position at line 1443.
-Open a file, edit Author to `saved`, save, undo, edit Author to `different`:
-the new state reuses the saved index and dirty() returns false, although disk
-still contains `Author=saved`. A caller relying on dirty() can discard the
-unsaved edit without warning. `test_branch_dirty` reproduces this under native
-Clang and GCC; MinGW compile/link only.
-
-Recommended remedy: invalidate the saved-state marker when its redo branch
-is discarded, and test save/undo/branch combinations. No fix made.
-
-### A026 — Resetting the last theme override is not persisted
-
-Severity: medium. Classification: confirmed persistence defect, reproduced.
-
-`theme/st_theme_document.c:1213` skips a style with no explicitly present fields
-instead of removing its old keys from the cloned source. Resetting the sole
-Foreground override on frame shows the correct built-in value in preview, but
-save retains the old source override. Reopening restores 0x123456 rather than
-the preview's 0xffff55. `test_reset_last_override` reproduces this under native
-Clang and GCC; MinGW compile/link only. The same skip exists for glyphs at
-line 1249; resetting the last override on a built-in glyph is source-affected
-but not separately reproduced here.
-
-Recommended remedy: reconcile zero-presence fields with retained source keys,
-without dropping unrelated comments/unknown fields. Test reset/save/reopen
-for both styles and glyphs. Validation of syntax alone does not catch this.
-
-### A027 — Failed theme document construction can free inputs twice
-
-Severity: high, conditional on construction failure. Classification:
-source-confirmed ownership defect; allocation failure not injected yet.
-
-`theme/st_theme_document.c:448` assigns source/original to the new document
-and moves the initial state. If preview construction then fails (including
-allocation failure), line 455 frees the document, including source/original.
-The callers treat nonzero status as retaining input ownership: create at
-line 496 frees source again, open at line 537 frees source and original again,
-and copy_path at line 576 frees source again. Nulling the callee's document
-fields does not null these separate caller-local pointers. This can become
-use-after-free/double-free while attempting to report the original failure.
-
-Recommended remedy: make constructor ownership transfer consistent on all
-returns, and test each failing allocation stage. This report does not claim
-a normal successful-construction crash or an executed OOM reproduction.
-
-### A028 — Short theme-file reads skip fclose
-
-Severity: low. Classification: source-confirmed resource leak; short-read
-injection/concurrent truncation not reproduced.
-
-Both `theme/st_theme_cloud.c:193` (hash input) and
-`theme/st_theme_document.c:420` (original/conflict snapshot) use
-`fread(...) != expected || fclose(...) != 0`. A short/error read satisfies the
-first operand, so fclose is never executed; only the buffer is freed.
-Repeated failures leak descriptors/stream allocations. Files shrinking between
-size query and read are one possible trigger; ordinary complete reads close.
-
-Recommended remedy: close the stream on every read outcome while preserving
-the primary failure. Add controlled short-read/error-path coverage.
 
 ### A031 — Settings saves truncate the only copy before writing
 
@@ -4745,10 +4643,10 @@ verification gaps. Host consumers are tracked under their own inventory rows.
   replacement/free operations; the API's lifetime/threading documentation
   deserves clarification. No internal manager locking is present; caller
   serialization must be assessed in the host audit.
-- Catalog refresh destroys the old catalog before enumeration and can leave
-  partial results on failure. Error behavior is not transactional. Each file
-  is parsed into a full default clone for metadata, and duplicate-section
-  detection is quadratic; no performance measurement yet.
+- Catalog refresh now stages a complete replacement and retains the prior
+  catalog on failure. Each file is parsed into a full default clone for
+  metadata, and duplicate-section detection is quadratic; no performance
+  measurement yet.
 - Source-only cleanup concern: load_path returns directly when read/close
   reports failure, without freeing a possibly published INI document. A
   successful parse followed by fclose failure would leak it. No close-failure
@@ -4756,8 +4654,8 @@ verification gaps. Host consumers are tracked under their own inventory rows.
   INVALID_FORMAT rather than OUT_OF_MEMORY.
 - Directory backend discrepancies: POSIX skips non-UTF-8 names and stat errors;
   Windows stops on conversion errors and includes non-directory entries.
-  POSIX open/enumeration error handling is A024. Symlink/reparse handling and
-  cloud downloaded-name validation require caller-specific review.
+  Symlink/reparse handling and cloud downloaded-name validation require
+  caller-specific review.
 - Local build is strict C17 and target-scoped. It exposes the full settings
   dependency publicly though the theme header already uses forward declarations;
   this is a coupling observation, not authorization to redesign it. Core themes,
@@ -4766,15 +4664,14 @@ verification gaps. Host consumers are tracked under their own inventory rows.
   theme consumers as well; evaluate only against actual consumer requirements,
   not an assumption that every implementation file needs its own library.
 - Editor states deeply own metadata/style/glyph strings; previews are separate
-  allocations. Documents borrow their manager and must not outlive it, which
-  the header does not explain. Every mutation clones the entire state and
+  allocations. Documents borrow their manager and must not outlive it, as the
+  header now states. Every mutation clones the entire state and
   builds a preview; history is unbounded, including redundant same-value edits.
   Indexed enumeration scans past removed entries, so enumerating all entries
   via *_at is quadratic. No UI workload benchmark performed.
 - commit_state discards redo history before realloc succeeds, so failed edits
-  can still remove redo. Constructor failure ownership is A027. Saved-index
-  reuse and zero-presence source reconciliation are A025/A026. No allocation
-  fault harness yet. Public errors also collapse preview allocation failures
+  can still remove redo. No allocation fault harness covers that path. Public
+  errors also collapse preview allocation failures
   into invalid-format/incomplete-default-style messages.
 - Document open reads the file three times (original bytes, parsed source,
   resolved theme); concurrent edits can mix versions. Save compares original
@@ -4783,7 +4680,7 @@ verification gaps. Host consumers are tracked under their own inventory rows.
   creation between check/rename can evade conflict/exists checks. No race test.
   Symlinks and case-insensitive POSIX filesystems complicate filename identity.
   Save does sync the temporary, but not the containing directory. No claim of
-  crash-durable rename. Short-read descriptor leaks are A028.
+  crash-durable rename.
 - Cloud manifest parsing checks required repository/name/URI/hash and duplicate
   known fields/packages; unknown sections/keys remain allowed. Package IDs are
   ASCII lowercase/digit/dot/underscore/hyphen and appended with .ini, so bare
@@ -5581,16 +5478,6 @@ successful verification.
   Both report st_bbs_sort.c:26 signed negation overflow. Test is intentionally
   not registered with CMake because build modifications are out of scope.
   No destructive path reproduction, Windows runtime or new commits.
-
-- Theme partial pass: rebuilt st_theme_test with native Clang, native GCC and
-  MinGW. Both native CTests reach and fail the new regular-file-as-directory
-  regression; all preceding assertions pass. Windows compile/link only.
-  No implementation fixes or commits made for this pass.
-- Theme editor/cloud pass: rebuilt the same target in Clang/GCC/MinGW.
-  Native CTest reproduces A025 (unsaved branch reported clean), A026 (reset
-  override restored on reopen) and A024. Existing preceding checks pass.
-  MinGW compile/link only. Changed only theme/tests/st_theme_test.c and this
-  report; no production changes or new commits.
 
 - Hex and UTF-8: both targets rebuilt through CMake and their CTests passed
   under Clang and GCC. Expanded UTF-8 tests cover all scalar values through
