@@ -245,6 +245,20 @@ socket_receive(socket_handle_t socket, void *buffer, size_t size,
 }
 
 int
+socket_at_urgent_mark(socket_handle_t socket, bool *at_mark)
+{
+	int result;
+
+	if (at_mark == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	result = sockatmark(socket);
+	if (result < 0)
+		return socket_internal_map_error(errno);
+	*at_mark = result != 0;
+	return 0;
+}
+
+int
 socket_internal_now_ms(int64_t *result)
 {
 	uint64_t now;

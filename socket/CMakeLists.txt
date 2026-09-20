@@ -90,6 +90,7 @@ int main(void)
 	(void)poll(&item, 1, 0);
 	(void)clock_gettime(CLOCK_MONOTONIC, &now);
 	(void)socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	(void)sockatmark(0);
 	(void)send(0, "", 0, MSG_DONTWAIT);
 	(void)recv(0, 0, 0, MSG_PEEK | MSG_DONTWAIT);
 	return flags == -2;
@@ -118,6 +119,7 @@ int main(void)
 	(void)poll(&item, 1, 0);
 	(void)clock_gettime(CLOCK_MONOTONIC, &now);
 	(void)socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	(void)sockatmark(0);
 	(void)send(0, "", 0, MSG_DONTWAIT);
 	(void)recv(0, 0, 0, MSG_PEEK | MSG_DONTWAIT);
 	return 0;

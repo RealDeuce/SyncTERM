@@ -541,13 +541,13 @@ st_connection_update_terminal_size(st_connection_t *connection,
 }
 
 void
-st_connection_clear_output(st_connection_t *connection)
+st_connection_clear_input(st_connection_t *connection)
 {
-	(void)st_mutex_lock(&connection->output.mutex);
-	connection->output.head = 0;
-	connection->output.count = 0;
-	(void)st_condition_broadcast(&connection->output.changed);
-	(void)st_mutex_unlock(&connection->output.mutex);
+	(void)st_mutex_lock(&connection->input.mutex);
+	connection->input.head = 0;
+	connection->input.count = 0;
+	(void)st_condition_broadcast(&connection->input.changed);
+	(void)st_mutex_unlock(&connection->input.mutex);
 }
 
 void

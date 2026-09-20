@@ -30,12 +30,20 @@
 struct server_state {
 	socket_handle_t listener;
 	atomic_bool allow_urgent;
+	atomic_bool allow_flush;
+	atomic_bool allow_postmark;
 	atomic_int stage;
 };
 
 struct log_state {
 	atomic_uint entries;
 	atomic_int last_error;
+};
+
+static const uint8_t rlogin_handshake[] = {
+	0, 's', 'e', 'c', 'r', 'e', 't', 0,
+	'u', 's', 'e', 'r', 0,
+	'a', 'n', 's', 'i', '/', '1', '1', '5', '2', '0', '0', 0,
 };
 
 static void
@@ -68,6 +76,65 @@ receive_exact(socket_handle_t socket, void *data, size_t size)
 }
 
 static int
+send_urgent(socket_handle_t socket, uint8_t control)
+{
+#if SYNCTERM_PLATFORM_WINDOWS
+	return send(socket, (const char *)&control, 1, MSG_OOB) == 1 ? 0 : 1;
+#else
+	return send(socket, &control, 1, MSG_OOB) == 1 ? 0 : 1;
+#endif
+}
+
+static int
+wait_for_stage(struct server_state *state, int stage)
+{
+	const struct timespec pause = {0, 1000000L};
+
+	for (unsigned attempts = 0; attempts < 3000; ++attempts) {
+		if (atomic_load(&state->stage) >= stage)
+			return 0;
+		(void)st_thread_sleep(&pause, NULL);
+	}
+	fprintf(stderr, "server stage is %d, expected %d\n",
+	    atomic_load(&state->stage), stage);
+	return 1;
+}
+
+static int
+connection_receive_exact(st_connection_t *connection, void *data,
+	size_t size)
+{
+	uint8_t *bytes = data;
+	size_t received = 0;
+
+	while (received < size) {
+		ssize_t count = st_connection_receive(connection, bytes + received,
+		    size - received, 2000);
+
+		if (count <= 0)
+			return 1;
+		received += (size_t)count;
+	}
+	return 0;
+}
+
+static int
+wait_for_pending(st_connection_t *connection, size_t count)
+{
+	const struct timespec pause = {0, 1000000L};
+
+	for (unsigned attempts = 0; attempts < 3000; ++attempts) {
+		if (st_connection_pending_raw(connection) == count)
+			return 0;
+		(void)st_thread_sleep(&pause, NULL);
+	}
+	fprintf(stderr, "pending input is %zu, expected %zu (connected=%d)\n",
+	    st_connection_pending_raw(connection), count,
+	    st_connection_is_connected(connection));
+	return 1;
+}
+
+static int
 server_worker(void *argument)
 {
 	struct server_state *state = argument;
@@ -95,47 +162,45 @@ static int
 rlogin_server_worker(void *argument)
 {
 	struct server_state *state = argument;
-	static const uint8_t expected[] = {
-		0, 's', 'e', 'c', 'r', 'e', 't', 0,
-		'u', 's', 'e', 'r', 0,
-		'a', 'n', 's', 'i', '/', '1', '1', '5', '2', '0', '0', 0,
-	};
 	static const uint8_t expected_window[] = {
 		0xff, 0xff, 's', 's', 0, 30, 0, 100, 0, 0, 0, 0,
 	};
+	static const uint8_t updated_window[] = {
+		0xff, 0xff, 's', 's', 0, 40, 0, 120, 0, 0, 0, 0,
+	};
 	socket_handle_t client;
 	uint8_t buffer[64];
-	uint8_t urgent = 0x80;
-#if !SYNCTERM_PLATFORM_WINDOWS
-	uint8_t cooked = 0x20;
-#endif
 
 	client = accept(state->listener, NULL, NULL);
 	if (!socket_handle_is_valid(client))
 		return 1;
 	atomic_store(&state->stage, 1);
-	if (receive_exact(client, buffer, sizeof(expected)) != 0
-	    || memcmp(buffer, expected, sizeof(expected)) != 0)
+	if (receive_exact(client, buffer, sizeof(rlogin_handshake)) != 0
+	    || memcmp(buffer, rlogin_handshake, sizeof(rlogin_handshake)) != 0)
 		goto failed;
 	atomic_store(&state->stage, 2);
 	while (!atomic_load(&state->allow_urgent))
 		st_thread_yield();
-#if SYNCTERM_PLATFORM_WINDOWS
-	if (send(client, (const char *)&urgent, 1, MSG_OOB) != 1)
-#else
-	if (send(client, &urgent, 1, MSG_OOB) != 1)
-#endif
+	if (send_urgent(client, 0x80) != 0)
 		goto failed;
 	atomic_store(&state->stage, 3);
 	if (receive_exact(client, buffer, sizeof(expected_window)) != 0
 	    || memcmp(buffer, expected_window, sizeof(expected_window)) != 0)
 		goto failed;
 	atomic_store(&state->stage, 4);
-
-#if !SYNCTERM_PLATFORM_WINDOWS
-	if (send(client, &cooked, 1, MSG_OOB) != 1)
+	if (receive_exact(client, buffer, sizeof(updated_window)) != 0
+	    || memcmp(buffer, updated_window, sizeof(updated_window)) != 0)
 		goto failed;
-#endif
+	atomic_store(&state->stage, 5);
+	if (send_urgent(client, 0x80) != 0
+	    || receive_exact(client, buffer, sizeof(updated_window)) != 0
+	    || memcmp(buffer, updated_window, sizeof(updated_window)) != 0)
+		goto failed;
+	if (socket_send(client, "y", 1) != 1)
+		goto failed;
+	atomic_store(&state->stage, 6);
+	while (!atomic_load(&state->allow_flush))
+		st_thread_yield();
 	if (socket_send(client, "cooked", 6) != 6)
 		goto failed;
 	if (receive_exact(client, buffer, 2) != 0
@@ -143,7 +208,48 @@ rlogin_server_worker(void *argument)
 		goto failed;
 	if (socket_send(client, "ready", 5) != 5)
 		goto failed;
+	atomic_store(&state->stage, 7);
+	(void)socket_shutdown(client, SOCKET_SHUTDOWN_BOTH);
+	(void)socket_close(client);
+	return 0;
+
+failed:
+	(void)socket_close(client);
+	return 1;
+}
+
+static int
+rlogin_flush_server_worker(void *argument)
+{
+	struct server_state *state = argument;
+	socket_handle_t client;
+	uint8_t buffer[64];
+
+	client = accept(state->listener, NULL, NULL);
+	if (!socket_handle_is_valid(client))
+		return 1;
+	if (receive_exact(client, buffer, sizeof(rlogin_handshake)) != 0
+	    || memcmp(buffer, rlogin_handshake, sizeof(rlogin_handshake)) != 0)
+		goto failed;
+	if (socket_send(client, "stale!!", 7) != 7)
+		goto failed;
+	atomic_store(&state->stage, 3);
+	while (!atomic_load(&state->allow_flush))
+		st_thread_yield();
+	if (send_urgent(client, 0x02) != 0)
+		goto failed;
+	atomic_store(&state->stage, 4);
+	while (!atomic_load(&state->allow_postmark))
+		st_thread_yield();
+	if (socket_send(client, "fresh", 5) != 5)
+		goto failed;
 	atomic_store(&state->stage, 5);
+	if (receive_exact(client, buffer, 5) != 0
+	    || memcmp(buffer, "keepF", 5) != 0)
+		goto failed;
+	if (socket_send(client, "ready", 5) != 5)
+		goto failed;
+	atomic_store(&state->stage, 6);
 	(void)socket_shutdown(client, SOCKET_SHUTDOWN_BOTH);
 	(void)socket_close(client);
 	return 0;
@@ -178,6 +284,8 @@ create_listener(struct server_state *server, uint16_t *port)
 	}
 	*port = ntohs(address.sin_port);
 	atomic_init(&server->allow_urgent, false);
+	atomic_init(&server->allow_flush, false);
+	atomic_init(&server->allow_postmark, false);
 	atomic_init(&server->stage, 0);
 	return 0;
 }
@@ -258,7 +366,6 @@ test_rlogin(void)
 	char buffer[8];
 	uint16_t port;
 	int thread_result;
-	ssize_t received;
 
 	atomic_init(&log_state.entries, 0);
 	atomic_init(&log_state.last_error, 0);
@@ -285,19 +392,20 @@ test_rlogin(void)
 	CHECK(st_connection_update_terminal_size(connection, &geometry) == 0);
 	CHECK(st_connection_update_terminal_size(connection, &geometry) == 0);
 	atomic_store(&server.allow_urgent, true);
-	received = st_connection_receive(connection, buffer, 6, 2000);
-	if (received != 6)
-		fprintf(stderr, "rlogin receive=%zd server-stage=%d error-log=%d\n",
-		    received, atomic_load(&server.stage),
-		    atomic_load(&log_state.last_error));
-	CHECK(received == 6);
-	CHECK(memcmp(buffer, "cooked", 6) == 0);
-#if SYNCTERM_PLATFORM_WINDOWS
+	CHECK(wait_for_stage(&server, 4) == 0);
+	geometry.columns = 120;
+	geometry.rows = 40;
+	CHECK(st_connection_update_terminal_size(connection, &geometry) == 0);
+	CHECK(wait_for_stage(&server, 6) == 0);
+	CHECK(connection_receive_exact(connection, buffer, 1) == 0);
+	CHECK(buffer[0] == 'y');
+	atomic_store(&server.allow_flush, true);
 	CHECK(st_connection_set_binary_mode(connection, false) == 0);
-#endif
+	CHECK(connection_receive_exact(connection, buffer, 6) == 0);
+	CHECK(memcmp(buffer, "cooked", 6) == 0);
 	CHECK(st_connection_send(connection, "\x13" "AB" "\x11", 4, 1000)
 	    == 4);
-	CHECK(st_connection_receive(connection, buffer, 5, 2000) == 5);
+	CHECK(connection_receive_exact(connection, buffer, 5) == 0);
 	CHECK(memcmp(buffer, "ready", 5) == 0);
 	CHECK(st_connection_close(connection) == 0);
 	CHECK(st_thread_join(thread, &thread_result) == ST_THREAD_SUCCESS);
@@ -305,6 +413,58 @@ test_rlogin(void)
 	CHECK(socket_close(server.listener) == 0);
 	CHECK(socket_runtime_cleanup() == 0);
 	CHECK(atomic_load(&log_state.entries) >= 1);
+	st_profile_dispose(&profile);
+	return 0;
+}
+
+static int
+test_rlogin_flush(void)
+{
+	struct server_state server;
+	struct st_profile profile;
+	struct st_screen_geometry geometry = {80, 25, 0, 0};
+	st_connection_t *connection = NULL;
+	st_thread_t thread;
+	char buffer[8];
+	uint16_t port;
+	int thread_result;
+
+	CHECK(socket_runtime_init() == 0);
+	CHECK(create_listener(&server, &port) == 0);
+	CHECK(st_thread_create(&thread, rlogin_flush_server_worker, &server)
+	    == ST_THREAD_SUCCESS);
+	st_profile_init(&profile);
+	profile.connection_type = ST_CONNECTION_RLOGIN;
+	profile.address_family = ST_ADDRESS_FAMILY_IPV4;
+	profile.screen_mode = ST_SCREEN_MODE_CURRENT;
+	profile.port = port;
+	strcpy(profile.address, "127.0.0.1");
+	strcpy(profile.username, "user");
+	strcpy(profile.password, "secret");
+	strcpy(profile.terminal_name, "ansi");
+	CHECK(st_connection_connect_rlogin(&connection, &profile, &geometry,
+	    NULL, NULL) == 0);
+	CHECK(wait_for_stage(&server, 3) == 0);
+	CHECK(wait_for_pending(connection, 7) == 0);
+	CHECK(st_connection_send(connection, "keep", 4, 1000) == 4);
+	atomic_store(&server.allow_flush, true);
+	CHECK(wait_for_stage(&server, 4) == 0);
+	CHECK(wait_for_pending(connection, 0) == 0);
+	atomic_store(&server.allow_postmark, true);
+	CHECK(wait_for_stage(&server, 5) == 0);
+	CHECK(wait_for_pending(connection, 5) == 0);
+	CHECK(st_connection_peek_raw(connection, buffer, 5) == 5);
+	CHECK(memcmp(buffer, "fresh", 5) == 0);
+	CHECK(connection_receive_exact(connection, buffer, 5) == 0);
+	CHECK(memcmp(buffer, "fresh", 5) == 0);
+	CHECK(st_connection_send(connection, "F", 1, 1000) == 1);
+	CHECK(connection_receive_exact(connection, buffer, 5) == 0);
+	CHECK(memcmp(buffer, "ready", 5) == 0);
+	CHECK(st_connection_close(connection) == 0);
+	CHECK(st_thread_join(thread, &thread_result) == ST_THREAD_SUCCESS);
+	CHECK(thread_result == 0);
+	CHECK(socket_close(server.listener) == 0);
+	CHECK(socket_runtime_cleanup() == 0);
 	st_profile_dispose(&profile);
 	return 0;
 }
@@ -652,6 +812,7 @@ main(int argc, char **argv)
 		return 1;
 	}
 	CHECK(test_raw() == 0);
+	CHECK(test_rlogin_flush() == 0);
 	CHECK(test_rlogin() == 0);
 	CHECK(test_shell() == 0);
 	int failures = test_shell_line_discipline();

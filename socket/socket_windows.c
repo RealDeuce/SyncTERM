@@ -229,6 +229,21 @@ socket_receive(socket_handle_t socket, void *buffer, size_t size,
 }
 
 int
+socket_at_urgent_mark(socket_handle_t socket, bool *at_mark)
+{
+	u_long value;
+
+	if (at_mark == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (ioctlsocket(socket, SIOCATMARK, &value) != 0)
+		return socket_internal_map_error(WSAGetLastError());
+	/* Winsock's result sense is opposite to sockatmark() for
+	 * out-of-line urgent data. */
+	*at_mark = value == 0;
+	return 0;
+}
+
+int
 socket_internal_now_ms(int64_t *result)
 {
 	uint64_t now;

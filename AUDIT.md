@@ -37,7 +37,7 @@ repository-wide coverage. The legacy tree is read-only reference.
 
 The repository-wide audit is complete. This is not an implementation approval,
 release certification or claim that findings have been fixed. The consolidated
-API/design assessment, priority groups and all 85 outstanding finding summaries are in
+API/design assessment, priority groups and all 84 outstanding finding summaries are in
 AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 
 | Objective requirement | Authoritative evidence and disposition |
@@ -50,7 +50,7 @@ AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 | Required legacy behavior | Read-only comparisons cover fonts/catalog/maps, modes, palette capacity, Prestel versus Mode 7, command line, console/input and settings behavior; A032 plus explicit parity limits. Frozen CTerm chapter cmp succeeds. |
 | Wren scripts and bindings | Complete local source/signature/manual reviews; isolated shipped-script suites and host fixtures; host closure A100–A114. Connected/SFTP production integration missing from this application is reported, not invented or silently counted as working. |
 | Build logic, generators and documentation | Root/component CMake and generators reviewed; standalone/probe failures recorded; pinned Unicode/font regeneration and table comparisons documented; root manuals/license/development guidance covered. Wren VM vendored internals limited to integration boundaries as requested. |
-| Inventory and consolidated findings | 85 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 8 high, 48 medium, 27 low, 2 unresolved concerns; not all runtime reproductions. |
+| Inventory and consolidated findings | 84 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 8 high, 47 medium, 27 low, 2 unresolved concerns; not all runtime reproductions. |
 | Relevant tests where practical | Fresh complete native build succeeds. Final selected CTest run: 67 executed, 58 pass, 9 fail, 5.71 seconds; failure matrix in index. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
 | Only tests/reports changed; no implementation remediation | Current status: 30 modified tracked tests, 23 untracked tests, 2 untracked reports; no staged files. Filtered worktree inspection finds no other changes. Baseline-to-current non-test difference is pre-existing str_list/CMakeLists.txt, unchanged since fdeab0d. No final-consolidation commits/push/reverts. |
 | Explicit uncertainty | Each component records unavailable platforms, unexecuted failure paths and measurement limits; A007/A011 unresolved. Source-level risks are not called verified crashes. These are audit outcomes, not claims of implementation correctness. |
@@ -102,7 +102,7 @@ not the absence of failing tests. New findings will receive stable A-numbers.
 | audio_mixer/ | Reviewed | All local sources/tests/build read; A022 crossfade gap reproduced; device integration assigned to audio; ramp/performance/lifetime gaps below |
 | bbs_list/ | Reviewed | All local sources/header/tests/build read; A033 sanitizer reproduction, A034/A035 source findings; native list/web tests pass, MinGW compile only; integration/fault gaps below |
 | codepage/ | Reviewed | All local source/header/build/test read; exhaustive graphic roundtrip and expanded control/invalid-input tests pass native Clang/GCC; MinGW compile only |
-| connection/ | Reviewed | A016 Windows source race; A017 RFC mismatch; shutdown stress and platform runtime gaps documented |
+| connection/ | Reviewed | A016 Windows source race; shutdown stress and platform runtime gaps documented |
 | console/ | Reviewed | All local implementation/backends, tests, benchmark, build and docs read; local integration dispositions A047–A051, A108/A109 and GUI closure notes; native/isolated tests and platform-only risks distinguished; remaining Wren consumer questions belong to wren_host |
 | dynamic_library/ | Reviewed | A005; native fixtures pass; Windows compiled, not executed |
 | event/ | Reviewed | A004; native repeated tests, MinGW compile; failure-injection limitations below |
@@ -1178,29 +1178,6 @@ Recommendation: coordinate cancellation/unblocking and worker completion
 without invalidating handles still usable by workers; close the owned handles
 only when their users are finished. A mutex held over indefinitely blocking
 I/O is not by itself a sufficient cancellation strategy. No code changed.
-
-### A017 — RLogin urgent flush clears the wrong direction
-
-Severity: medium. Classification: confirmed source/protocol mismatch;
-network-level urgent-flush reproduction not added.
-
-RFC 1282's From Server to Client section specifies that urgent 0x02 discards
-received server data awaiting display. connection/connection_network.c:92-94
-instead invokes st_connection_clear_output, which removes queued outbound
-user input and leaves the input queue untouched. The same mistake exists in
-the inspected legacy rlogin.c:116-123, so this is retained incorrect behavior,
-not a newly introduced regression. Existing tests do not send 0x02.
-
-The same section requires a window response to urgent 0x80. The new handler
-only responds when window_enabled was previously false, so repeated requests
-are ignored. The legacy code has the same limitation. Current tests send one
-request and do not exercise repetition.
-
-Recommendation: handle flush against pending server-output data, accounting
-for data before the urgent mark and any consumer-owned buffering, without
-discarding outbound user input; answer each window request. Preserve the
-explicit BBS username/password conventions separately from protocol fixes.
-Source: [RFC 1282](https://www.rfc-editor.org/rfc/rfc1282.html). No code changed.
 
 ### A019 — INI insertion after an unterminated line corrupts serialization
 
@@ -4532,9 +4509,8 @@ are distinct from the passing argument-only normal CTest.
 - Read all connection sources, headers, generated-header template, CMake and
   test sources, including POSIX/Windows/stub shell backends and serial fake.
   Compared relevant legacy RLogin controls, modem replies, PTY initial flags,
-  environment construction and teardown. Checked RFC 1282 directly; A017
-  records retained protocol mistakes. Remaining runtime/stress coverage gaps
-  are explicit below and are not claims of verified behavior.
+  environment construction and teardown. Remaining runtime/stress coverage
+  gaps are explicit below and are not claims of verified behavior.
 - Queue state is mutex-protected; workers own transport input/output, and
   close sets stopping, wakes queues/state, interrupts, joins, then destroys.
   The public contract explicitly prohibits concurrent close/public operations.
@@ -4556,8 +4532,7 @@ are distinct from the passing argument-only normal CTest.
   in binary mode as the legacy BBS implementation does, not RFC cooked mode.
   The initial server acknowledgment byte is not separately consumed or
   validated; the fake server omits it. Compatibility with rejection messages
-  and ordinary servers remains an integration test gap. A017 covers urgent
-  direction/repeated-response discrepancies.
+  and ordinary servers remains an integration test gap.
 - Connection's forkpty capability probes have the same target/probe language
   context issue as A002 in aggregate builds; standalone configuration sets
   the language standard. Unlike serial A013, their actual probe result names
@@ -5809,8 +5784,8 @@ successful verification.
   newline processing, echo, canonical Return, Ctrl+C and disabled software
   flow control under Clang and GCC. MinGW compiles/links, without executing
   ConPTY or Windows tests.
-- Connection/profile boundary pass: RFC checked for A017. Existing profile
-  CTests pass both. MinGW builds connection_serial and profile tests, not run.
+- Connection/profile boundary pass: Existing profile CTests pass both. MinGW
+  builds connection_serial and profile tests, not run.
   Connection and profile source coverage is complete with documented
   stress/error-injection/platform gaps.
 - INI initial pass: existing ini CTest passes Clang/GCC; expanded ini_interface

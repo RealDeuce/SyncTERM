@@ -67,7 +67,7 @@ ssize_t st_connection_queue_output(st_connection_t *connection,
 	const void *data, size_t size, int64_t timeout_ms);
 ssize_t st_connection_queue_output_atomic(st_connection_t *connection,
 	const void *data, size_t size, int64_t timeout_ms);
-void st_connection_clear_output(st_connection_t *connection);
+void st_connection_clear_input(st_connection_t *connection);
 void st_connection_pause_input(st_connection_t *connection, bool paused);
 void st_connection_log(st_connection_t *connection,
 	enum st_connection_log_level level, const char *format, ...);

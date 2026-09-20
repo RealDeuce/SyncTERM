@@ -37,7 +37,8 @@ main(void)
 	struct sockaddr_in address = {0};
 	test_socklen_t address_size = (test_socklen_t)sizeof(address);
 	unsigned events = 99;
-	char received[4] = {0};
+	char received[5] = {0};
+	bool at_mark;
 
 	CHECK(socket_runtime_init() == 0);
 	CHECK(!socket_handle_is_valid(SOCKET_HANDLE_INVALID));
@@ -58,7 +59,7 @@ main(void)
 	accepted = accept(listener, NULL, NULL);
 	CHECK(socket_handle_is_valid(accepted));
 
-	CHECK(socket_set_blocking(client, true) == 0);
+	CHECK(socket_set_blocking(client, false) == 0);
 	CHECK(socket_set_keepalive(client, true) == 0);
 	CHECK(socket_set_no_delay(client, true) == 0);
 	CHECK(socket_set_send_buffer_size(client, 4096) == 0);
@@ -73,11 +74,34 @@ main(void)
 	CHECK(received[0] == 'a');
 	CHECK(socket_receive(client, received, 3, SOCKET_RECEIVE_NONE) == 3);
 	CHECK(memcmp(received, "abc", 3) == 0);
-	CHECK(send(accepted, "!", 1, MSG_OOB) == 1);
+	CHECK(socket_at_urgent_mark(client, NULL) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(socket_send(accepted, "pre", 3) == 3);
+	received[0] = 0x02;
+	CHECK(send(accepted, received, 1, MSG_OOB) == 1);
+	CHECK(socket_send(accepted, "post", 4) == 4);
 	CHECK(socket_wait(client, SOCKET_WAIT_URGENT, 1000, &events) == 0);
 	CHECK((events & SOCKET_WAIT_URGENT) != 0);
+	CHECK(socket_at_urgent_mark(client, &at_mark) == 0);
+	CHECK(!at_mark);
+	CHECK(socket_receive(client, received, 1,
+	    SOCKET_RECEIVE_PEEK | SOCKET_RECEIVE_URGENT) == 1);
+	CHECK(received[0] == 0x02);
+	CHECK(socket_receive(client, received, 3, SOCKET_RECEIVE_NONE) == 3);
+	CHECK(memcmp(received, "pre", 3) == 0);
+	CHECK(socket_at_urgent_mark(client, &at_mark) == 0);
+	CHECK(at_mark);
 	CHECK(socket_receive(client, received, 1, SOCKET_RECEIVE_URGENT) == 1);
-	CHECK(received[0] == '!');
+	CHECK(received[0] == 0x02);
+	CHECK(socket_receive(client, received, 4, SOCKET_RECEIVE_NONE) == 4);
+	CHECK(memcmp(received, "post", 4) == 0);
+	CHECK(send(accepted, "?", 1, MSG_OOB) == 1);
+	CHECK(socket_wait(client, SOCKET_WAIT_URGENT, 1000, &events) == 0);
+	CHECK((events & SOCKET_WAIT_URGENT) != 0);
+	CHECK(socket_receive(client, received, 1,
+	    SOCKET_RECEIVE_PEEK | SOCKET_RECEIVE_URGENT) == 1);
+	CHECK(received[0] == '?');
+	CHECK(socket_receive(client, received, 1, SOCKET_RECEIVE_URGENT) == 1);
+	CHECK(received[0] == '?');
 	CHECK(socket_shutdown(accepted, SOCKET_SHUTDOWN_WRITE) == 0);
 	CHECK(socket_wait(client, SOCKET_WAIT_READABLE, 1000, &events) == 0);
 	CHECK((events & SOCKET_WAIT_CLOSED) != 0);

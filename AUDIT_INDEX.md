@@ -7,8 +7,8 @@ recommended remedies. Severity does not imply exploitability; source-confirmed
 risks and reproduced failures must be distinguished using those entries.
 No remediation is authorized by this report.
 
-The audit is complete, not the implementation: **85 outstanding findings**
-comprise 8 high, 48 medium, 27 low and 2 unresolved design/performance
+The audit is complete, not the implementation: **84 outstanding findings**
+comprise 8 high, 47 medium, 27 low and 2 unresolved design/performance
 concerns.
 This is not a count of exploitable vulnerabilities or reproduced failures.
 All 47 tracked source directories and 12 root files are covered by the
@@ -19,7 +19,7 @@ Most urgent follow-up groups, subject to separate authorization:
 
 - Memory/resource safety: A027, A030 and A034–A036.
 - Authentication and write-policy correctness: A038 and A062.
-- Data preservation and required compatibility: A016–A017, A019 and the
+- Data preservation and required compatibility: A016, A019 and the
   mode-specific rendering/persistence findings.
 
 Start with the detailed evidence and regression tests for each finding;
@@ -79,7 +79,7 @@ No new blanket GC, contention or scaling-performance diagnosis is made from
 source shape. The source and test inventory must retain those measurement
 limits in the final report.
 
-The current TODO documents contain 85 outstanding numbered findings. A007 and A011 are
+The current TODO documents contain 84 outstanding numbered findings. A007 and A011 are
 unresolved design/performance concerns, not confirmed runtime defects. Missing
 features and documentation errors are also explicitly distinguished from
 implementation failures in the detailed ledger.
@@ -99,7 +99,6 @@ implementation failures in the detailed ledger.
 | A011 | unresolved performance concern | Non-native rwlock fast paths need performance validation |
 | A013 | medium verification gap | Serial PTY capability test is pre-disabled |
 | A016 | medium | ConPTY atomic handles do not protect active users from close |
-| A017 | medium | RLogin urgent flush clears the wrong direction |
 | A019 | high | INI insertion after an unterminated line corrupts serialization |
 | A020 | medium | INI setter accepts keys that its parser cannot recognize |
 | A021 | medium | Compact date-only branch is shadowed by epoch parsing |

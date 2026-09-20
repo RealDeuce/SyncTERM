@@ -24,6 +24,10 @@ struct network_transport {
 	bool rlogin;
 	bool window_enabled;
 	bool urgent_pending;
+	bool urgent_control_known;
+	bool urgent_control_consumed;
+	bool urgent_flush_pending;
+	uint8_t urgent_control;
 };
 
 struct connect_cancel_context {
@@ -80,35 +84,112 @@ send_window(struct network_transport *transport,
 	packet[11] = (uint8_t)height;
 	result = st_connection_queue_output_atomic(transport->connection, packet,
 	    sizeof(packet), -1);
-	return result == (ssize_t)sizeof(packet) ? 0 : (int)result;
+	if (result == (ssize_t)sizeof(packet))
+		return 0;
+	return result < 0 ? (int)result : IO_ERROR_IO;
 }
 
-static void
+static int
 handle_urgent(struct network_transport *transport, uint8_t control)
 {
 	st_connection_t *connection = transport->connection;
+	int result = 0;
 
 	switch (control) {
 	case 0x02:
-		st_connection_clear_output(connection);
 		break;
 	case 0x10:
-		(void)st_connection_set_binary_mode(connection, true);
+		result = st_connection_set_binary_mode(connection, true);
 		break;
 	case 0x20:
-		(void)st_connection_set_binary_mode(connection, false);
+		result = st_connection_set_binary_mode(connection, false);
 		break;
 	case 0x80:
 		(void)st_mutex_lock(&transport->mutex);
-		if (!transport->window_enabled) {
-			transport->window_enabled = true;
-			(void)send_window(transport, &transport->geometry);
-		}
+		transport->window_enabled = true;
+		result = send_window(transport, &transport->geometry);
 		(void)st_mutex_unlock(&transport->mutex);
 		break;
 	default:
 		break;
 	}
+	return result;
+}
+
+static int
+process_urgent(struct network_transport *transport, bool *handled)
+{
+	uint8_t control;
+	ssize_t received;
+	int result;
+
+	*handled = false;
+	if (!transport->urgent_control_known) {
+		received = socket_receive(transport->socket,
+		    &transport->urgent_control, 1,
+		    SOCKET_RECEIVE_PEEK | SOCKET_RECEIVE_URGENT);
+		if (received == IO_ERROR_INVALID_ARGUMENT) {
+			/* Some stacks signal the exceptional condition before an OOB
+			 * peek succeeds. Remember a directly consumed control so a
+			 * flush can still drain the normal stream to its mark. */
+			received = socket_receive(transport->socket,
+			    &transport->urgent_control, 1, SOCKET_RECEIVE_URGENT);
+			if (received == 1)
+				transport->urgent_control_consumed = true;
+		}
+		if (received == IO_ERROR_WOULD_BLOCK)
+			transport->urgent_pending = true;
+		if (received < 0)
+			return (int)received;
+		if (received != 1)
+			return IO_ERROR_CONNECTION_RESET;
+		transport->urgent_control_known = true;
+		transport->urgent_pending = true;
+		if (transport->urgent_control == 0x02) {
+			st_connection_clear_input(transport->connection);
+			transport->urgent_flush_pending = true;
+		}
+	}
+	if (transport->urgent_flush_pending) {
+		uint8_t discarded[4096];
+
+		for (;;) {
+			bool at_mark;
+
+			result = socket_at_urgent_mark(transport->socket, &at_mark);
+			if (result != 0)
+				return result;
+			if (at_mark)
+				break;
+			received = socket_receive(transport->socket, discarded,
+			    sizeof(discarded), SOCKET_RECEIVE_NONE);
+			if (received > 0)
+				continue;
+			if (received < 0)
+				return (int)received;
+			return IO_ERROR_CONNECTION_RESET;
+		}
+	}
+	if (transport->urgent_control_consumed)
+		control = transport->urgent_control;
+	else {
+		received = socket_receive(transport->socket, &control, 1,
+		    SOCKET_RECEIVE_URGENT);
+		if (received == IO_ERROR_INVALID_ARGUMENT)
+			return IO_ERROR_WOULD_BLOCK;
+		if (received < 0)
+			return (int)received;
+		if (received != 1)
+			return IO_ERROR_CONNECTION_RESET;
+	}
+	transport->urgent_pending = false;
+	transport->urgent_control_known = false;
+	transport->urgent_control_consumed = false;
+	transport->urgent_flush_pending = false;
+	result = handle_urgent(transport, control);
+	if (result == 0)
+		*handled = true;
+	return result;
 }
 
 static ssize_t
@@ -120,6 +201,12 @@ network_read(void *state, void *data, size_t size, int64_t timeout_ms)
 	bool urgent_handled = false;
 	int result;
 
+	if (transport->urgent_pending) {
+		result = process_urgent(transport, &urgent_handled);
+		if (result != 0 && result != IO_ERROR_WOULD_BLOCK
+		    && result != IO_ERROR_INVALID_ARGUMENT)
+			return result;
+	}
 	if (transport->rlogin)
 		interests |= SOCKET_WAIT_URGENT;
 	result = socket_wait(transport->socket, interests, timeout_ms, &events);
@@ -127,23 +214,21 @@ network_read(void *state, void *data, size_t size, int64_t timeout_ms)
 		return result;
 	if ((events & SOCKET_WAIT_ERROR) != 0)
 		return IO_ERROR_IO;
-	if ((events & SOCKET_WAIT_URGENT) != 0) {
-		uint8_t control;
-		ssize_t received;
-		bool was_pending = transport->urgent_pending;
-
-		received = socket_receive(transport->socket, &control, 1,
-		    SOCKET_RECEIVE_URGENT);
-		if (received == 1) {
-			transport->urgent_pending = false;
-			handle_urgent(transport, control);
-			urgent_handled = true;
+	if (!urgent_handled && ((events & SOCKET_WAIT_URGENT) != 0
+	    || transport->urgent_pending)) {
+		result = process_urgent(transport, &urgent_handled);
+		if (result == IO_ERROR_INVALID_ARGUMENT) {
+			transport->urgent_pending = transport->urgent_pending
+			    || (events & SOCKET_WAIT_READABLE) != 0;
+			if ((events & SOCKET_WAIT_URGENT) != 0)
+				return IO_ERROR_WOULD_BLOCK;
+			result = IO_ERROR_WOULD_BLOCK;
 		}
-		transport->urgent_pending = received == IO_ERROR_WOULD_BLOCK
-		    ? true : was_pending;
-		if (received < 0 && received != IO_ERROR_WOULD_BLOCK
-		    && received != IO_ERROR_INVALID_ARGUMENT)
-			return received;
+		if (result == IO_ERROR_WOULD_BLOCK
+		    && transport->urgent_control_known)
+			return result;
+		if (result != 0 && result != IO_ERROR_WOULD_BLOCK)
+			return result;
 	}
 	if ((events & SOCKET_WAIT_READABLE) != 0 || urgent_handled) {
 		ssize_t received = socket_receive(transport->socket, data, size,
@@ -152,22 +237,7 @@ network_read(void *state, void *data, size_t size, int64_t timeout_ms)
 		if (urgent_handled && (received == 0
 		    || received == IO_ERROR_WOULD_BLOCK))
 			return IO_ERROR_WOULD_BLOCK;
-		if (received != 0 || !transport->urgent_pending)
-			return received;
-	}
-	if ((events & SOCKET_WAIT_CLOSED) != 0
-	    && transport->urgent_pending) {
-		uint8_t control;
-		ssize_t received = socket_receive(transport->socket, &control, 1,
-		    SOCKET_RECEIVE_URGENT);
-
-		if (received == 1) {
-			transport->urgent_pending = false;
-			handle_urgent(transport, control);
-		}
-		else if (received < 0 && received != IO_ERROR_WOULD_BLOCK)
-			return received;
-		return IO_ERROR_WOULD_BLOCK;
+		return received;
 	}
 	if ((events & SOCKET_WAIT_CLOSED) != 0)
 		return 0;

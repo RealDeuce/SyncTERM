@@ -592,10 +592,11 @@ Next you will be prompted for the protocol to use.  Options include:
 
 [[protocols]]
 RLogin::
-Uses the historic RFC1282 RLogin protocol without OOB data.  This
-is an obsolete, unencrypted protocol that can allow auto-login, and
-is 8-bit clean (unlike telnet).  It is very simple.  Instead of the
-local username, the users password is sent.
+Uses the historic RFC1282 RLogin protocol, including its urgent-data
+controls for flow mode, received-output flushing, and window-size
+reporting.  This is an obsolete, unencrypted protocol that can allow
+auto-login, and is 8-bit clean (unlike telnet).  It is very simple.
+Instead of the local username, the users password is sent.
 
 RLogin Reversed::
 Some RLogin servers that support password auto-login have
