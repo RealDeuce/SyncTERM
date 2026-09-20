@@ -827,13 +827,17 @@ sgr_present(st_console_t *console, struct curses_state *state)
 	for (uint32_t y = 0; y < visible_rows; ++y) {
 		for (uint32_t x = 0; x < visible_columns; ++x) {
 			size_t index = (size_t)y * console->columns + x;
-			const struct st_console_cell *cell = &console->cells[index];
+			const struct st_console_cell *source = &console->cells[index];
+			struct st_console_cell effective;
+			const struct st_console_cell *cell;
 
-			if (((cell->flags & ST_CONSOLE_CELL_DIRTY) == 0 || initializing)
-			    && st_console_cells_equal(cell, &state->drawn[index]))
+			if (((source->flags & ST_CONSOLE_CELL_DIRTY) == 0 || initializing)
+			    && st_console_cells_equal(source, &state->drawn[index]))
 				continue;
-			state->drawn[index] = *cell;
+			state->drawn[index] = *source;
 			state->drawn[index].flags &= ~ST_CONSOLE_CELL_DIRTY;
+			st_console_effective_cell_locked(console, source, &effective);
+			cell = &effective;
 			if ((cell->flags & ST_CONSOLE_CELL_CONTINUATION) != 0)
 				continue;
 			if (!position_known || output_x != x || output_y != y)
@@ -1080,22 +1084,26 @@ curses_present(st_console_t *console)
 	for (y = 0; y < visible_rows; ++y) {
 		for (x = 0; x < visible_columns; ++x) {
 			size_t index = (size_t)y * console->columns + x;
-			const struct st_console_cell *cell = &console->cells[index];
+			const struct st_console_cell *source = &console->cells[index];
+			struct st_console_cell effective;
+			const struct st_console_cell *cell;
 			int pair;
 			int foreground = -1;
 			int background = -1;
 			int write_result;
 
-			if ((cell->flags & ST_CONSOLE_CELL_DIRTY) == 0
-			    && st_console_cells_equal(cell, &state->drawn[index]))
+			if ((source->flags & ST_CONSOLE_CELL_DIRTY) == 0
+			    && st_console_cells_equal(source, &state->drawn[index]))
 				continue;
-			if ((cell->flags & ST_CONSOLE_CELL_CONTINUATION) != 0) {
-				state->drawn[index] = *cell;
+			if ((source->flags & ST_CONSOLE_CELL_CONTINUATION) != 0) {
+				state->drawn[index] = *source;
 				state->drawn[index].flags &= ~ST_CONSOLE_CELL_DIRTY;
 				state->drawn_foreground[index] = -1;
 				state->drawn_background[index] = -1;
 				continue;
 			}
+			st_console_effective_cell_locked(console, source, &effective);
+			cell = &effective;
 			pair = cell_pair(console, state, cell, index, &foreground,
 			    &background);
 			if (state->api.call_move(state->window, (int)y, (int)x) == ERR
@@ -1108,7 +1116,7 @@ curses_present(st_console_t *console)
 			if (write_result == ERR && !(x + 1 == visible_columns
 			    && y + 1 == visible_rows))
 				return IO_ERROR_IO;
-			state->drawn[index] = *cell;
+			state->drawn[index] = *source;
 			state->drawn[index].flags &= ~ST_CONSOLE_CELL_DIRTY;
 			state->drawn_foreground[index] = foreground;
 			state->drawn_background[index] = background;
@@ -1373,10 +1381,13 @@ curses_capabilities(const st_console_t *console)
 	else {
 		if (state->palette_mutable)
 			result |= ST_CONSOLE_CAP_PALETTE_CHANGE;
-		if (state->colour_count >= 65536 && state->extended_colours
+		if (state->colour_count >= 65535 && state->extended_colours
 		    && state->extended_pairs)
 			result |= ST_CONSOLE_CAP_EXTENDED_PALETTE;
 	}
+	if (state->direct_colour || state->sgr_direct
+	    || state->colour_count >= 16)
+		result |= ST_CONSOLE_CAP_BRIGHT_BACKGROUND;
 	return result;
 }
 

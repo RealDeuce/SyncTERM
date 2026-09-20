@@ -417,6 +417,7 @@ create_console(st_console_t **result, st_console_display_t *display,
 	    &pixel_extra_width, &pixel_extra_height)
 	    || config->blink_mode < ST_CONSOLE_BLINK_PC
 	    || config->blink_mode > ST_CONSOLE_BLINK_ATARI_ST
+	    || (config->video_flags & ~ST_CONSOLE_VIDEO_FLAGS) != 0
 	    || config->scaling_mode < ST_CONSOLE_SCALING_INTERNAL
 	    || config->scaling_mode > ST_CONSOLE_SCALING_EXTERNAL
 	    || (config->scaling_policy != ST_PIXEL_SCALING_BLOCKY
@@ -498,6 +499,7 @@ create_console(st_console_t **result, st_console_display_t *display,
 		console->cursor_custom = false;
 	}
 	console->blink_mode = config->blink_mode;
+	console->video_flags = config->video_flags;
 	console->scaling_mode = config->scaling_mode;
 	console->blocky_scaling
 	    = config->scaling_policy == ST_PIXEL_SCALING_BLOCKY;
@@ -1514,6 +1516,7 @@ st_console_capabilities(st_console_t *console, uint32_t *capabilities)
 		    | ST_CONSOLE_CAP_PALETTE_CHANGE
 		    | ST_CONSOLE_CAP_CUSTOM_CURSOR
 		    | ST_CONSOLE_CAP_EXTENDED_PALETTE
+		    | ST_CONSOLE_CAP_BRIGHT_BACKGROUND
 		    | ST_CONSOLE_CAP_BLOCKY_SCALING
 		    | ST_CONSOLE_CAP_EXTERNAL_SCALING;
 		if (console->display->backend_ops == NULL
@@ -2290,7 +2293,7 @@ st_console_font_for_flags(const struct st_console_font_selection *selection,
 	if (selection == NULL)
 		return 0;
 	bright = selection->bright_selects_font
-	    && (cell_flags & ST_CONSOLE_CELL_BOLD) != 0;
+	    && (cell_flags & ST_CONSOLE_CELL_BRIGHT) != 0;
 	blink = selection->blink_selects_font
 	    && (cell_flags & ST_CONSOLE_CELL_BLINK) != 0;
 	if (bright && blink)
@@ -2410,6 +2413,7 @@ st_console_snapshot_create(st_console_snapshot_t **result,
 	snapshot->cursor_custom = console->cursor_custom;
 	snapshot->custom_cursor = console->custom_cursor;
 	snapshot->blink_mode = console->blink_mode;
+	snapshot->video_flags = console->video_flags;
 	snapshot->blocky_scaling = console->blocky_scaling;
 	snapshot->pixel_top = console->pixel_top;
 	memcpy(snapshot->cells, console->cells,
@@ -2478,6 +2482,7 @@ st_console_snapshot_restore(st_console_t *console,
 	console->cursor_custom = snapshot->cursor_custom;
 	console->custom_cursor = snapshot->custom_cursor;
 	console->blink_mode = snapshot->blink_mode;
+	console->video_flags = snapshot->video_flags;
 	console->blocky_scaling = snapshot->blocky_scaling;
 	memcpy(console->cells, snapshot->cells,
 	    count * sizeof(console->cells[0]));

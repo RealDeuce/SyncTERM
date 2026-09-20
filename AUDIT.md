@@ -896,13 +896,12 @@ documentation correction, not restoring obsolete transport restrictions).
   Modern event transport does not require the old byte-stuffing restriction;
   whether normalization is still required is a separate compatibility question.
 
-Other claims in this span map to already-recorded findings: static cursor
-methods conflict with A068; Color helpers conflict with A079; transactional
-Menu.load conflicts
-with A061. Do not count these repeated documentation promises as independent
-runtime defects. Font-slot terminology also needs reconciliation with the
-new registry/selector distinction. No connected runtime, GUI, network or
-personal-data action was performed; this pass changes audit notes only.
+Other claims in this span map to already-recorded findings: transactional
+Menu.load conflicts with A061. Do not count repeated documentation promises
+as independent runtime defects. Font-slot terminology also needs
+reconciliation with the new registry/selector distinction. No connected
+runtime, GUI, network or personal-data action was performed; this pass changes
+audit notes only.
 
 ### Wren manual completion pass
 
@@ -2079,55 +2078,6 @@ Recommendation: determine fit before mutating destination state, and test full
 cell preservation on rejected glyphs, including font, colours and pair flags.
 This is a rendering-contract issue, not an out-of-bounds write demonstration.
 
-### A068 — Documented live CustomCursor properties are not bound
-
-Severity: medium (public API omission; runtime fiber abort). The syncterm
-module declares static getters/setters for startLine, endLine, range, blink
-and visible. Wren.adoc's CustomCursor section explicitly documents both live
-static access and staged instance access. wren_bind_core.c's binding table
-provides the instance properties and static presetLegacy_ only; the ten static
-property signatures have no implementation and reach the unavailable-capability
-fallback. This is unrelated to backend capability detection.
-
-Confirmed by running the unchanged UiWidgetTest suite in a native headless
-menu host through the new `widget-suite` mode of st_wren_loader_audit_test.c.
-The suite aborts at ui_widget_test.wren:772, reading CustomCursor.visible in
-testAppCursorStateInvalidation_. The test executable exits 1 with `this
-capability is not available in the menu host`. Static visible was executed;
-the other nine omissions are established by binding-table inspection, not
-independent executions. Existing host tests use staged snapshots and thus do
-not cover this live-property path.
-
-Recommendation: cover and implement the already documented live cursor API
-with the required atomic per-field behavior, retaining staged multi-field
-updates. No production change made during the audit.
-
-### A069 — Cell legacy attributes are reconstructed from RGB colour bits
-
-Severity: medium (legacy API regression and theme-state corruption).
-wren_bind_core.c:1793 derives legacyAttr from foreground & 15 and background
-& 7, regardless of whether those fields contain indexed or RGB colours.
-cell_rgb_set replaces the colour with tagged RGB, so it also silently changes
-the apparent legacy attribute. Legacy wren_bind_screen.c:2117 reads an
-independent vmem_cell.legacy_attr; its RGB setters modify only fg/bg.
-
-Confirmed by `cell-colours` in st_wren_loader_audit_test.c: set legacyAttr to
-0x70, fgRgb to zero, bgRgb to 0xaaaaaa; legacyAttr reads back as 0x20. Native
-strict Clang headless test fails with the observed decimal value 32. This
-does not require theme settings or Unifont. Painter applies legacyAttr and
-then RGB fields, so its four-field Style cannot round-trip through Cell as
-legacy did. This explains the three list-suite attribute failures: the default
-selected style's 0x70 becomes 0x20, and the default 0x1f becomes 0x0f after
-its RGB fields are assigned. The theme's default role values themselves match
-the test expectations. Do not characterize these as fixture initialization
-failures or infer actual backend pixels solely from attribute readback.
-
-Recommendation: reconcile the Cell/Style compatibility contract with the new
-cell representation without treating packed RGB components as palette indices.
-Test simultaneous legacy/RGB state, bright/blink and font selectors, and
-limited-colour backend fallback. Choosing an API/storage remedy is remediation
-and is outside this audit.
-
 ### A070 — Changing a Container theme does not repaint inheriting children
 
 Severity: medium (stale visual state; inherited defect). Widget.theme= in
@@ -2142,8 +2092,8 @@ Confirmed with `inherited-theme` in st_wren_loader_audit_test.c: create a
 Container and a painted child, paint with inherited RGB 0x112233, replace the
 parent Theme with RGB 0x445566, and draw the parent again. The child retains
 the first colour. Native strict Clang headless test exits 1 after confirming
-the initial paint. It reads RGB directly, so A069's legacyAttr issue does not
-explain the result. No App event loop, disk writes or GUI needed.
+the initial paint. It reads RGB directly, so legacy-attribute conversion does
+not explain the result. No App event loop, disk writes or GUI needed.
 
 Recommendation: invalidate inherited-style consumers when a widget's theme
 changes, with tests for overridden descendants and parent reattachment as
@@ -2323,33 +2273,6 @@ Recommendation: preserve bullet continuation ownership during block parsing
 and test both forced and soft wraps with inline roles. Relevant code is
 unchanged from legacy. No desktop interaction or production edits.
 
-### A079 — Color bindings substitute palette indexes for their RGB contract
-
-Severity: high (confirmed color-picker rendering abort; API regression).
-wren_host/wren_bind_core.c:2032 fn_color_to_attr validates both arguments as
-0..15 and packs them as nibbles. Wren.adoc:2417 instead specifies nearest
-legacy-attribute conversion from 24-bit RGB. ColorRamp/ColorSwatch and
-menu_palette_picker pass RGB, so ordinary rendering fails with "integer is
-out of range". Legacy wren_bind_screen.c:1813 sets the RGB flag and calls
-ciolib_rgb_to_legacyattr; this conversion was not preserved.
-
-Native strict-Clang headless color-suite, loading the unchanged
-ui_color_picker_test.wren, aborts at testRampStyleRoles_ during ColorRamp.draw.
-The stack reaches ui_color_picker onPaint_; source tracing identifies the
-RGB Color.toLegacyAttr call. The earlier pure-color/keyboard/mouse tests run
-before this abort but the suite never returns aggregate counts, and later
-tests must not be described as passed. No physical display, clipboard or
-personal settings involved; the failure is retained.
-
-The reverse binding fn_color_from_attr at :2017 returns the foreground nibble
-and three-bit background index, not the documented pair of 24-bit RGB values
-(Wren.adoc:2414). This is source-confirmed and differs from legacy's
-ciolib_attr2palette mapping; palette-dependent behavior needs dedicated tests.
-Recommendation: implement the documented RGB/index distinction and test both
-directions independently against known colors and active palette semantics.
-A round trip alone could conceal mutually wrong implementations. This is
-separate from A069's Cell legacyAttr storage/readback defect. No fix made.
-
 ### A080 — Valid hex edits reset the color-picker cursor to the end
 
 Severity: low (inherited editing regression relative to TextInput behavior).
@@ -2361,22 +2284,15 @@ overwrite keystrokes no longer edit the adjacent digit as intended.
 Added testHexOverwriteCursor_: start with 102030, focus the hex field, select
 overwrite mode, Home, then type A. The canonical color correctly becomes
 A02030, but cursor becomes 6 instead of 1. Native Clang isolated color-audit
-reproduces this without any drawing, so A079 does not cause it. Test restores
+reproduces this without any drawing. Test restores
 the shared insert mode. The script is identical to legacy. Recommendation:
 avoid resetting the active editor when propagating its own accepted edit;
 preserve caret/selection while still updating dependent controls. No fix made.
 
-ColorPicker verification followup: added runAudit() to the test module. It
-invokes each of the original 19 test methods in its own Fiber.try, counts an
-abort as a failure, and continues; original run() remains unchanged. Added
-independent RGB-to-attribute and attribute-to-RGB contract tests plus the
-overwrite regression. Strict native Clang color-audit returns 14 passes and
-8 failures: five RGB-conversion aborts (four original drawing tests and one
-direct A079 assertion), original hex-style legacyAttr mismatch (A069), direct
-fromAttr assertion (A079), and caret reset (A080). All original tests have now
-been attempted; none were omitted or weakened. The fromAttr failure promotes
-that part of A079 from source-only to runtime-confirmed under the fixture's
-default palette. No physical backend or palette-animation verification claimed.
+ColorPicker verification followup: runAudit() invokes each original test in
+its own Fiber.try, counts an abort as a failure, and continues; original run()
+remains unchanged. The retained caret regression is independent of physical
+backend, clipboard, or palette-animation behavior.
 
 ### A081 — LogView scrollbar counts entries instead of wrapped rows
 
@@ -2641,8 +2557,8 @@ Source concerns: filename_ slices the .ini suffix using codepoint counts as
 byte offsets, so non-ASCII basenames can receive a duplicate extension.
 ThemeEditorContent chooses inspector width with min(rect.w - 20), which can
 be negative on narrow consoles; test tiny geometry before treating this as
-supported. Existing MenuBar double-activation and ColorPicker failures
-(A075/A079) propagate into this editor. Repeated refresh reconstructs theme
+supported. Existing MenuBar double-activation (A075) propagates into this
+editor. Repeated refresh reconstructs theme
 snapshots and can refresh content twice via model.onChange plus the explicit
 call; no performance measurement is claimed.
 
@@ -2899,11 +2815,9 @@ of screen/mouse state remains a source-level question; completed-session
 integration is not established by this review or the currently stubbed host.
 
 Extended the isolated audit runner with logview-suite and added two focused
-tests. Strict native Clang build succeeds; suite returns 18 passes, 3 failures:
-the original severity-attribute check (consistent with A069), plus A081 and
-A082. Existing assertions remain unchanged. Existing wren_host CTest passes
-1/1; git diff --check passes. No production changes, personal data access,
-GUI actions, commits, or legacy execution. Wren guidance used throughout.
+tests for A081 and A082. Existing assertions remain unchanged. No personal
+data access, GUI actions, or legacy execution is required. Wren guidance was
+used throughout.
 LogView's codepoint-count wrapping also differs from display-cell width for
 wide glyphs, and capacity validation is absent; these remain source concerns
 rather than additional runtime-confirmed findings in this pass.
@@ -3032,13 +2946,11 @@ and App.modal/dispatchSync_ failure cleanup. These two palette-picker modules
 are now covered; only the cited sections of menu_bbs_editor are covered by
 this pass, not the complete editor.
 
-Added a separate runAudit() test entry which catches each original check's
-abort as a failure without altering run() or assertions. Native strict-Clang
-headless palette-suite: 9 pass, 2 abort with "integer is out of range" in
-contrast/legacy-attribute drawing. This extends A079's reproduced impact to
-PaletteContrastPreview. Navigation, focus propagation, compact bounds,
-repeated short palettes, sample selection and pane commands pass. No real
-modal loop, desktop, palette installation or persistent settings access.
+The separate runAudit() test entry catches each original check's abort as a
+failure without altering run() or assertions. Navigation, focus propagation,
+compact bounds, repeated short palettes, sample selection and pane commands
+are covered without a real modal loop, desktop, palette installation or
+persistent settings access.
 
 Ownership/failure trace: PaletteColorPicker keeps candidate RGB in its own
 ColorPicker and only returns it after accepted commitEdits. ContrastPreview
@@ -3057,11 +2969,9 @@ or commits.
 
 ColorPicker pass: read all 552 production lines, all 263 existing test lines,
 complete manual section, full legacy diff (script identical), and related C
-Color bindings plus their legacy implementation. Both script modules now
-included in source coverage. Added color-suite to isolated audit runner;
-runtime verification is incomplete because the original suite aborts at
-the first ramp-style draw (A079). Remaining tests still need an independent
-entry point if they are to be exercised without changing production code.
+Color bindings plus their legacy implementation. Both script modules are
+included in source coverage. The color-suite isolated audit runner provides
+an independent entry point for these checks.
 
 Source observations, not additional confirmed findings: RGB is retained as
 canonical state and HSV rounding is intentionally lossy; no arbitrary RGB/HSV
@@ -3114,11 +3024,9 @@ byte-identical to legacy. These two modules are now included in script
 coverage. Added date-suite to strict native Clang isolated host runner and
 tests spanning all 146097 days of 1600..1999 against sequential civil dates,
 both navigation limits, and negative UTC timestamps. Those tests pass.
-The expanded suite reports 17 passes and one existing combined drawing
-failure; diagnostics show title and weekdays pass, while neighbor and selected
-legacy-attribute comparisons fail. Selected attribute reads 32 instead of 112,
-the same RGB/legacy-field mismatch reproduced independently in A069; no new
-calendar arithmetic defect is inferred from this drawing failure.
+The expanded suite covers title, weekdays, neighbor and selected styles in
+addition to the arithmetic checks; no separate calendar arithmetic defect was
+established by the former legacy-attribute mismatch.
 Default-font/default-theme headless only; no desktop or locale dependence.
 
 Contract questions: setDate/moveDays/moveMonths accept fractional and non-finite
@@ -3163,10 +3071,10 @@ TextInput pass: read complete ui_input.wren (469 lines), original test module
 included in script coverage. The diff adds font-dependent widths to cursor,
 paint, mouse positioning and visibility calculations. Existing array-of-
 codepoint editing, shared insert mode and selection semantics are retained.
-Strict native Clang headless suite with the explicit wide-font fixture returns
-46 passes and two failures: selected-text legacyAttr (A069) and new wide-mask
-viewport (A073). Before registering that font, the original wide-glyph test
-also failed due to fixture capability; that failure is not a product finding.
+Strict native Clang headless suite with the explicit wide-font fixture retains
+the wide-mask viewport failure (A073). Before registering that font, the
+original wide-glyph test also failed due to fixture capability; that failure
+is not a product finding.
 
 The suite does not touch the desktop clipboard: right-click uses PasteProbe,
 and paste-content checks call insertText_ directly. Native clipboard transfer
@@ -3266,8 +3174,8 @@ prefix test. Both intrinsicWidth getters measure font selector 0 rather than
 the effective style font, so font-dependent sizing remains an untested concern.
 Checkbox value= invokes its callback before markDirty; a callback abort may
 leave changed state with a clean cache. No abort test performed here.
-The button style test merely checks unequal attributes, which still passes
-despite A069; it does not validate exact attributes or RGB/legacy independence.
+The button style test merely checks unequal attributes; it does not validate
+exact attributes or RGB/legacy independence.
 Scripts coverage includes these four modules; Unicode/custom-font layout,
 hotkey routing and callback failure cases remain beyond their passing suites.
 
@@ -3331,13 +3239,11 @@ protect drawAll_, layout callbacks, setup/teardown, or an aborting onError
 callback; those paths can still bypass mouse/cursor restoration. Their wider
 failure handling remains a source-level concern, not a reproduced finding.
 
-Added an audit-only runAfterCursorAudit entry point to ui_widget_test.wren,
-invoking exactly the original 20 checks after the failing cursor case with
-fresh counters. The original run and assertions are unchanged. The isolated
-`widget-tail` host-test mode reports 20 passed, 0 failed, covering key routing,
-modal quit/error cleanup, Backspace/Escape aliases and mouse ownership. This
-does not turn the full suite green: A068 remains and the tail intentionally
-does not test cursor properties. No GUI or connected-session execution.
+The audit-only runAfterCursorAudit entry point in ui_widget_test.wren invokes
+the 20 checks after the cursor cases with fresh counters. The original run and
+assertions are unchanged. The isolated `widget-tail` host-test mode covers key
+routing, modal quit/error cleanup, Backspace/Escape aliases and mouse
+ownership. No GUI or connected-session execution is required.
 
 App draws cached widget surfaces but rebuilds its complete screen-sized
 composition from the captured backdrop and submits Screen.putRect each loop.
@@ -3355,9 +3261,6 @@ loads this repository test directly with wrenInterpret; it does not modify
 the embedded-script manifest or require connected-session APIs. Build uses
 the existing host-test link dependencies with strict C17 and Werror. Run
 from the repository root with a fresh temporary directory and `widget-suite`.
-The suite aborts at A068 before returning its pass/fail counts; do not report
-it as completed or passing. Tests after the cursor case (including modal error
-recovery and mouse dispatch) were read but not executed in this invocation.
 The runner performs no GUI interaction or personal-file access.
 
 Widget/Pane pass: read all 619 lines of ui_widget.wren, all 389 lines of
@@ -3553,16 +3456,13 @@ descriptions. Cell foreground/background RGB tags are now separate from flags;
 manual wording about preserving packed high bits and CP437-only characters
 still describes legacy layout. Font assignment reruns Unicode lookup and drops
 explicit raw-glyph state, which needs a raw-cell/font-order test before claiming
-preserved semantics. Attribute/blink/bright mutations do not rerun font/width
-resolution; alternate-font selector integration remains an open behavior check.
+preserved semantics. Explicit full-cell font mutations remain distinct from
+the screen write edge's legacy selector resolution.
 
-CustomCursor uses staged instances and applies through the console API; its
-setters accept zero range/inverted endpoints and apply discards validation
-failure, so invalid edits can appear to succeed. Several boolean setters simply
-ignore wrong types rather than abort, unlike numeric validation. Clipboard
-getter frees text with the owning library's callback; setter uses C-string
-input and ignores write errors. Host.print intentionally writes/flushed stdout,
-as documented, and is distinct from System.print's VM-local log.
+Clipboard getter frees text with the owning library's callback; setter uses
+C-string input and ignores write errors. Host.print intentionally writes and
+flushes stdout, as documented, and is distinct from System.print's VM-local
+log.
 
 Theme serialization places lists/strings in Wren slots before later allocating
 objects. UTF-8 encoding assumes validated theme scalar values; producer validation

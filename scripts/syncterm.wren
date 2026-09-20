@@ -245,7 +245,7 @@ foreign class PixelBlit {
 //
 //       var c = CustomCursor.current
 //       c.startLine = 0; c.endLine = 7; c.blink = false
-//       c.apply()       // single setcustomcursor() under the hood
+//       c.apply()       // one locked renderer-state update
 //
 //   * Instance (via `.current`, `.normal`, `.solid`, `.none`):
 //     in-memory shadow.  Reads/writes touch local fields only;

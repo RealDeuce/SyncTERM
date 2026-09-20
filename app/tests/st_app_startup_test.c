@@ -222,6 +222,8 @@ test_legacy_mode_geometry(void)
 		{ST_SCREEN_MODE_132X50, 132, 50, 7, 7, 8, 8, 1056, 400, 4, 3},
 		{ST_SCREEN_MODE_132X60, 132, 60, 7, 7, 8, 8, 1056, 480, 4, 3},
 	};
+	const uint32_t bright_background = ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND
+	    | ST_CONSOLE_VIDEO_NO_BLINK;
 	struct st_settings settings;
 	struct st_command_line command = {0};
 	struct st_console_startup startup;
@@ -244,6 +246,19 @@ test_legacy_mode_geometry(void)
 		CHECK(startup.config.aspect_height == expected[i].aspect_y);
 		CHECK(startup.config.default_cursor.start == expected[i].start);
 		CHECK(startup.config.default_cursor.end == expected[i].end);
+		uint32_t expected_flags = 0;
+
+		if (expected[i].mode == ST_SCREEN_MODE_C64
+		    || expected[i].mode == ST_SCREEN_MODE_C128_40
+		    || expected[i].mode == ST_SCREEN_MODE_C128_80
+		    || expected[i].mode == ST_SCREEN_MODE_ATARIST_40X25
+		    || expected[i].mode == ST_SCREEN_MODE_ATARIST_80X25
+		    || expected[i].mode == ST_SCREEN_MODE_ATARIST_80X25_MONO)
+			expected_flags = bright_background;
+		else if (expected[i].mode == ST_SCREEN_MODE_VGA_80X25)
+			expected_flags = ST_CONSOLE_VIDEO_EXPAND
+			    | ST_CONSOLE_VIDEO_LINE_GRAPHICS_EXPAND;
+		CHECK(startup.config.video_flags == expected_flags);
 	}
 	st_settings_dispose(&settings);
 	return 0;

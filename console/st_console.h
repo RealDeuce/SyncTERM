@@ -54,6 +54,10 @@ typedef struct st_console_snapshot st_console_snapshot_t;
 #define ST_CONSOLE_CELL_EXPLICIT_GLYPH    (UINT32_C(1) << 20)
 /* Font zero supplies glyph; font still records the selected registration. */
 #define ST_CONSOLE_CELL_FALLBACK_FONT     (UINT32_C(1) << 21)
+#define ST_CONSOLE_CELL_BRIGHT            (UINT32_C(1) << 22)
+/* Colour was supplied by a legacy attribute and follows VideoFlags. */
+#define ST_CONSOLE_CELL_LEGACY_FOREGROUND (UINT32_C(1) << 23)
+#define ST_CONSOLE_CELL_LEGACY_BACKGROUND (UINT32_C(1) << 24)
 #define ST_CONSOLE_CELL_PUBLIC_FLAGS \
 	(ST_CONSOLE_CELL_BLINK | ST_CONSOLE_CELL_CONCEAL \
 	    | ST_CONSOLE_CELL_PIXEL_GRAPHICS \
@@ -64,7 +68,24 @@ typedef struct st_console_snapshot st_console_snapshot_t;
 	    | ST_CONSOLE_CELL_UNDERLINE | ST_CONSOLE_CELL_BOLD \
 	    | ST_CONSOLE_CELL_REVERSE | ST_CONSOLE_CELL_CONTINUATION \
 	    | ST_CONSOLE_CELL_EXPLICIT_GLYPH \
-	    | ST_CONSOLE_CELL_FALLBACK_FONT)
+	    | ST_CONSOLE_CELL_FALLBACK_FONT | ST_CONSOLE_CELL_BRIGHT \
+	    | ST_CONSOLE_CELL_LEGACY_FOREGROUND \
+	    | ST_CONSOLE_CELL_LEGACY_BACKGROUND)
+
+/* The source attribute bits retain these independently composable meanings. */
+#define ST_CONSOLE_VIDEO_ALT_CHARS            (UINT32_C(1) << 0)
+#define ST_CONSOLE_VIDEO_NO_BRIGHT            (UINT32_C(1) << 1)
+#define ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND    (UINT32_C(1) << 2)
+#define ST_CONSOLE_VIDEO_BLINK_ALT_CHARS      (UINT32_C(1) << 3)
+#define ST_CONSOLE_VIDEO_NO_BLINK             (UINT32_C(1) << 4)
+#define ST_CONSOLE_VIDEO_EXPAND               (UINT32_C(1) << 5)
+#define ST_CONSOLE_VIDEO_LINE_GRAPHICS_EXPAND (UINT32_C(1) << 6)
+#define ST_CONSOLE_VIDEO_FLAGS \
+	(ST_CONSOLE_VIDEO_ALT_CHARS | ST_CONSOLE_VIDEO_NO_BRIGHT \
+	    | ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND \
+	    | ST_CONSOLE_VIDEO_BLINK_ALT_CHARS | ST_CONSOLE_VIDEO_NO_BLINK \
+	    | ST_CONSOLE_VIDEO_EXPAND \
+	    | ST_CONSOLE_VIDEO_LINE_GRAPHICS_EXPAND)
 
 struct st_console_cell {
 	uint32_t codepoint;
@@ -245,6 +266,7 @@ struct st_console_config {
 	struct st_console_custom_cursor default_cursor;
 	bool wrap;
 	enum st_console_blink_mode blink_mode;
+	uint32_t video_flags;
 	enum st_console_scaling_mode scaling_mode;
 	/* Zero initialization selects SyncTERM's traditional blocky default. */
 	enum st_pixel_scaling_policy scaling_policy;
@@ -382,6 +404,7 @@ struct st_console_event {
 #define ST_CONSOLE_CAP_CLIPBOARD         (UINT32_C(1) << 9)
 #define ST_CONSOLE_CAP_OPEN_URL          (UINT32_C(1) << 10)
 #define ST_CONSOLE_CAP_LOCAL_CONTROL_KEYS (UINT32_C(1) << 11)
+#define ST_CONSOLE_CAP_BRIGHT_BACKGROUND (UINT32_C(1) << 12)
 
 /* Single-console convenience constructor; owns its display.  result is
  * unchanged on failure.  Use an explicit display for multiple consoles.
@@ -469,6 +492,8 @@ int st_console_set_blink_mode(st_console_t *console,
 	enum st_console_blink_mode mode);
 int st_console_get_blink_mode(st_console_t *console,
 	enum st_console_blink_mode *mode);
+int st_console_set_video_flags(st_console_t *console, uint32_t flags);
+int st_console_get_video_flags(st_console_t *console, uint32_t *flags);
 int st_console_set_scaling_mode(st_console_t *console,
 	enum st_console_scaling_mode mode);
 int st_console_get_scaling_mode(st_console_t *console,

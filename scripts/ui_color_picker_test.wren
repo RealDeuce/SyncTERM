@@ -50,7 +50,7 @@ class UiColorPickerTest {
 
   static testAttributeBinding_() {
     var colors = Color.fromAttr(0x07)
-    check_(colors[0] == 0xAAAAAA && colors[1] == 0,
+    check_(colors[0] == 0xA8A8A8 && colors[1] == 0,
         "Color.fromAttr decodes default light grey on black to RGB, not indexes")
   }
 

@@ -456,13 +456,17 @@ ansi_present(st_console_t *console)
 	for (uint32_t y = 0; y < visible_rows; ++y) {
 		for (uint32_t x = 0; x < visible_columns; ++x) {
 			size_t index = (size_t)y * console->columns + x;
-			const struct st_console_cell *cell = &console->cells[index];
+			const struct st_console_cell *source = &console->cells[index];
+			struct st_console_cell effective;
+			const struct st_console_cell *cell;
 
-			if (((cell->flags & ST_CONSOLE_CELL_DIRTY) == 0 || initializing)
-			    && st_console_cells_equal(cell, &state->drawn[index]))
+			if (((source->flags & ST_CONSOLE_CELL_DIRTY) == 0 || initializing)
+			    && st_console_cells_equal(source, &state->drawn[index]))
 				continue;
-			state->drawn[index] = *cell;
+			state->drawn[index] = *source;
 			state->drawn[index].flags &= ~ST_CONSOLE_CELL_DIRTY;
+			st_console_effective_cell_locked(console, source, &effective);
+			cell = &effective;
 			if ((cell->flags & ST_CONSOLE_CELL_CONTINUATION) != 0)
 				continue;
 			if (!position_known || output_x != x || output_y != y)
@@ -518,9 +522,14 @@ static uint32_t
 ansi_capabilities(const st_console_t *console)
 {
 	const struct ansi_state *state = console->display->backend_state;
+	uint32_t result = 0;
 
-	return state->direct_colour ? ST_CONSOLE_CAP_PALETTE_CHANGE
-	    | ST_CONSOLE_CAP_EXTENDED_PALETTE : 0;
+	if (state->direct_colour)
+		result |= ST_CONSOLE_CAP_PALETTE_CHANGE
+		    | ST_CONSOLE_CAP_EXTENDED_PALETTE;
+	if (state->direct_colour || state->indexed_colours >= 16)
+		result |= ST_CONSOLE_CAP_BRIGHT_BACKGROUND;
+	return result;
 }
 
 static void

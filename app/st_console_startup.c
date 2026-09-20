@@ -48,13 +48,21 @@ struct video_mode {
 	uint16_t aspect_width;
 	uint16_t aspect_height;
 	enum st_console_blink_mode blink_mode;
+	uint32_t video_flags;
 };
 
+#define VIDEO_MODE_FLAGS(columns, rows, cursor_start, cursor_end, cell_width, \
+	cell_height, pixel_width, pixel_height, aspect_width, aspect_height, \
+	blink_mode, video_flags) \
+	{columns, rows, cursor_start, cursor_end, cell_width, cell_height, \
+	    pixel_width, pixel_height, aspect_width, aspect_height, blink_mode, \
+	    video_flags}
 #define VIDEO_MODE(columns, rows, cursor_start, cursor_end, cell_width, \
 	cell_height, pixel_width, pixel_height, aspect_width, aspect_height, \
 	blink_mode) \
-	{columns, rows, cursor_start, cursor_end, cell_width, cell_height, \
-	    pixel_width, pixel_height, aspect_width, aspect_height, blink_mode}
+	VIDEO_MODE_FLAGS(columns, rows, cursor_start, cursor_end, cell_width, \
+	    cell_height, pixel_width, pixel_height, aspect_width, aspect_height, \
+	    blink_mode, 0)
 #define PC_MODE(columns, rows, cursor_start, cursor_end, cell_width, \
 	cell_height, pixel_width, pixel_height, aspect_width, aspect_height) \
 	VIDEO_MODE(columns, rows, cursor_start, cursor_end, cell_width, \
@@ -79,28 +87,36 @@ static const struct video_mode modes[] = {
 	[ST_SCREEN_MODE_132X43] = PC_MODE(132, 43, 7, 7, 8, 8, 1056, 350, 4, 3),
 	[ST_SCREEN_MODE_132X50] = PC_MODE(132, 50, 7, 7, 8, 8, 1056, 400, 4, 3),
 	[ST_SCREEN_MODE_132X60] = PC_MODE(132, 60, 7, 7, 8, 8, 1056, 480, 4, 3),
-	[ST_SCREEN_MODE_C64] = VIDEO_MODE(40, 25, 0, 7, 8, 8, 320, 200,
-	    6, 5, ST_CONSOLE_BLINK_COMMODORE),
-	[ST_SCREEN_MODE_C128_40] = VIDEO_MODE(40, 25, 0, 7, 8, 8, 320, 200,
-	    6, 5, ST_CONSOLE_BLINK_COMMODORE),
-	[ST_SCREEN_MODE_C128_80] = VIDEO_MODE(80, 25, 0, 7, 8, 8, 640, 200,
-	    4, 3, ST_CONSOLE_BLINK_COMMODORE),
+	[ST_SCREEN_MODE_C64] = VIDEO_MODE_FLAGS(40, 25, 0, 7, 8, 8, 320, 200,
+	    6, 5, ST_CONSOLE_BLINK_COMMODORE,
+	    ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND | ST_CONSOLE_VIDEO_NO_BLINK),
+	[ST_SCREEN_MODE_C128_40] = VIDEO_MODE_FLAGS(40, 25, 0, 7, 8, 8,
+	    320, 200, 6, 5, ST_CONSOLE_BLINK_COMMODORE,
+	    ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND | ST_CONSOLE_VIDEO_NO_BLINK),
+	[ST_SCREEN_MODE_C128_80] = VIDEO_MODE_FLAGS(80, 25, 0, 7, 8, 8,
+	    640, 200, 4, 3, ST_CONSOLE_BLINK_COMMODORE,
+	    ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND | ST_CONSOLE_VIDEO_NO_BLINK),
 	[ST_SCREEN_MODE_ATARI] = VIDEO_MODE(40, 24, 0, 7, 8, 8, 320, 192,
 	    4, 3, ST_CONSOLE_BLINK_ATARI),
 	[ST_SCREEN_MODE_ATARI_XEP80] = VIDEO_MODE(80, 25, 0, 15, 8, 16,
 	    640, 400, 4, 3, ST_CONSOLE_BLINK_ATARI),
 	[ST_SCREEN_MODE_EGA_80X25] = PC_MODE(80, 25, 12, 13, 8, 14, 640, 350, 4, 3),
-	[ST_SCREEN_MODE_VGA_80X25] = PC_MODE(80, 25, 14, 15, 9, 16, 720, 400, 4, 3),
+	[ST_SCREEN_MODE_VGA_80X25] = VIDEO_MODE_FLAGS(80, 25, 14, 15, 9, 16,
+	    720, 400, 4, 3, ST_CONSOLE_BLINK_PC, ST_CONSOLE_VIDEO_EXPAND
+	    | ST_CONSOLE_VIDEO_LINE_GRAPHICS_EXPAND),
 	[ST_SCREEN_MODE_PRESTEL] = VIDEO_MODE(40, 25, 14, 15, 12, 20,
 	    480, 500, 3077, 2400, ST_CONSOLE_BLINK_PRESTEL),
 	[ST_SCREEN_MODE_BEEB] = VIDEO_MODE(40, 25, 14, 15, 12, 20,
 	    480, 500, 3077, 2400, ST_CONSOLE_BLINK_PRESTEL),
-	[ST_SCREEN_MODE_ATARIST_40X25] = VIDEO_MODE(40, 25, 0, 7, 8, 8,
-	    320, 200, 4, 3, ST_CONSOLE_BLINK_ATARI_ST),
-	[ST_SCREEN_MODE_ATARIST_80X25] = VIDEO_MODE(80, 25, 0, 7, 8, 8,
-	    640, 200, 4, 3, ST_CONSOLE_BLINK_ATARI_ST),
-	[ST_SCREEN_MODE_ATARIST_80X25_MONO] = VIDEO_MODE(80, 25, 0, 15, 8,
-	    16, 640, 400, 4, 3, ST_CONSOLE_BLINK_ATARI_ST),
+	[ST_SCREEN_MODE_ATARIST_40X25] = VIDEO_MODE_FLAGS(40, 25, 0, 7, 8, 8,
+	    320, 200, 4, 3, ST_CONSOLE_BLINK_ATARI_ST,
+	    ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND | ST_CONSOLE_VIDEO_NO_BLINK),
+	[ST_SCREEN_MODE_ATARIST_80X25] = VIDEO_MODE_FLAGS(80, 25, 0, 7, 8, 8,
+	    640, 200, 4, 3, ST_CONSOLE_BLINK_ATARI_ST,
+	    ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND | ST_CONSOLE_VIDEO_NO_BLINK),
+	[ST_SCREEN_MODE_ATARIST_80X25_MONO] = VIDEO_MODE_FLAGS(80, 25, 0, 15,
+	    8, 16, 640, 400, 4, 3, ST_CONSOLE_BLINK_ATARI_ST,
+	    ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND | ST_CONSOLE_VIDEO_NO_BLINK),
 };
 
 static void
@@ -115,6 +131,7 @@ apply_mode(struct st_console_config *config, const struct video_mode *mode)
 	config->aspect_width = mode->aspect_width;
 	config->aspect_height = mode->aspect_height;
 	config->blink_mode = mode->blink_mode;
+	config->video_flags = mode->video_flags;
 	config->default_cursor = (struct st_console_custom_cursor){
 		.start = mode->cursor_start,
 		.end = mode->cursor_end,

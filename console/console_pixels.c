@@ -149,6 +149,10 @@ static bool
 prepare_fast_cell(st_console_t *console, const struct st_console_cell *cell,
 	struct font_cache *font_cache, struct fast_cell *state)
 {
+	struct st_console_cell effective;
+
+	st_console_effective_cell_locked(console, cell, &effective);
+	cell = &effective;
 	uint16_t glyph_font = st_console_cell_glyph_font(cell);
 	const struct st_console_font *font = cached_font(console, font_cache,
 	    glyph_font);
@@ -255,6 +259,7 @@ render_cell(st_console_t *console, uint32_t x, uint32_t y,
 	size_t index = (size_t)y * console->columns + x;
 	const struct st_console_cell *cell = &console->cells[index];
 	const struct st_console_cell *source = cell;
+	struct st_console_cell effective;
 	const struct st_console_font *font;
 	const uint8_t *glyph = NULL;
 	uint32_t glyph_width = 0;
@@ -273,6 +278,8 @@ render_cell(st_console_t *console, uint32_t x, uint32_t y,
 		if ((source->flags & ST_CONSOLE_CELL_DOUBLE_HEIGHT) == 0)
 			draw_glyph = false;
 	}
+	st_console_effective_cell_locked(console, source, &effective);
+	source = &effective;
 	glyph_font = st_console_cell_glyph_font(source);
 	font = draw_glyph ? cached_font(console, font_cache, glyph_font) : NULL;
 	if (font != NULL && !st_console_font_glyph_locked(console,
@@ -363,6 +370,14 @@ render_cell(st_console_t *console, uint32_t x, uint32_t y,
 		uint32_t y_remainder;
 		uint32_t x_step = font->width / console->cell_width;
 		uint32_t x_remainder = font->width % console->cell_width;
+		bool expanded = (console->video_flags & ST_CONSOLE_VIDEO_EXPAND) != 0
+		    && font->width < UINT32_MAX
+		    && font->width + 1 == console->cell_width;
+		bool repeat_last = expanded
+		    && (console->video_flags
+		    & ST_CONSOLE_VIDEO_LINE_GRAPHICS_EXPAND) != 0
+		    && source->glyph >= UINT32_C(0xc0)
+		    && source->glyph <= UINT32_C(0xdf);
 		bool separated = (source->flags & ST_CONSOLE_CELL_SEPARATED) != 0
 		    && source->glyph >= 160;
 
@@ -389,9 +404,17 @@ render_cell(st_console_t *console, uint32_t x, uint32_t y,
 			uint32_t font_x = glyph_x;
 			uint32_t x_accumulator = 0;
 			for (uint32_t px = 0; px < console->cell_width; ++px) {
-				bool set = font_row != NULL && row_bit(font_row, font_x);
+				bool expansion_gap = expanded && px == font->width
+				    && !repeat_last;
+				bool set;
 
-				if (!set && font_row != NULL
+				if (expanded)
+					font_x = glyph_x + (px < font->width
+					    ? px : font->width - 1);
+				set = !expansion_gap && font_row != NULL
+				    && row_bit(font_row, font_x);
+
+				if (!set && !expansion_gap && font_row != NULL
 				    && (source->flags & ST_CONSOLE_CELL_BOLD) != 0
 				    && font_x != 0)
 					set = row_bit(font_row, font_x - 1);
@@ -420,11 +443,13 @@ render_cell(st_console_t *console, uint32_t x, uint32_t y,
 				    = set
 				    && (source->flags & ST_CONSOLE_CELL_BLINK) == 0
 				    ? foreground : background;
-				font_x += x_step;
-				x_accumulator += x_remainder;
-				if (x_accumulator >= console->cell_width) {
-					x_accumulator -= console->cell_width;
-					++font_x;
+				if (!expanded) {
+					font_x += x_step;
+					x_accumulator += x_remainder;
+					if (x_accumulator >= console->cell_width) {
+						x_accumulator -= console->cell_width;
+						++font_x;
+					}
 				}
 			}
 			font_y += y_step;

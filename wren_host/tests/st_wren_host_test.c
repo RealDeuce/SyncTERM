@@ -583,14 +583,123 @@ exercise_cursor_contract(st_wren_host_t *public_host)
 	struct st_wren_host *host = public_host;
 	static const char source[] =
 	    "import \"syncterm\" for CustomCursor\n"
+	    "var saved = CustomCursor.current\n"
 	    "var normal = CustomCursor.normal\n"
 	    "if (normal.startLine != 14 || normal.endLine != 15 || normal.range != 16 || !normal.visible || !normal.blink) Fiber.abort(\"normal cursor\")\n"
 	    "var solid = CustomCursor.solid\n"
-	    "if (solid.startLine != 0 || solid.endLine != 15 || solid.range != 16 || !solid.visible || solid.blink) Fiber.abort(\"solid cursor\")\n";
+	    "if (solid.startLine != 0 || solid.endLine != 15 || solid.range != 16 || !solid.visible || solid.blink) Fiber.abort(\"solid cursor\")\n"
+	    "CustomCursor.startLine = 1\n"
+	    "CustomCursor.endLine = 3\n"
+	    "CustomCursor.range = 32\n"
+	    "CustomCursor.blink = false\n"
+	    "CustomCursor.visible = false\n"
+	    "if (CustomCursor.startLine != 1 || CustomCursor.endLine != 3 || CustomCursor.range != 32 || CustomCursor.blink || CustomCursor.visible) Fiber.abort(\"live cursor\")\n"
+	    "var staged = CustomCursor.current\n"
+	    "staged.startLine = 2\n"
+	    "staged.endLine = 5\n"
+	    "staged.range = 16\n"
+	    "staged.blink = true\n"
+	    "staged.visible = true\n"
+	    "staged.apply()\n"
+	    "if (CustomCursor.startLine != 2 || CustomCursor.endLine != 5 || !CustomCursor.blink || !CustomCursor.visible) Fiber.abort(\"staged cursor\")\n"
+	    "var invalid = CustomCursor.current\n"
+	    "invalid.range = 0\n"
+	    "var rejected = Fiber.new { invalid.apply() }\n"
+	    "rejected.try()\n"
+	    "if (rejected.error == null || CustomCursor.range != 16) Fiber.abort(\"invalid cursor\")\n"
+	    "var wrongType = Fiber.new { CustomCursor.visible = 1 }\n"
+	    "wrongType.try()\n"
+	    "if (wrongType.error == null) Fiber.abort(\"cursor Boolean type\")\n"
+	    "saved.apply()\n";
 
 	if (wrenInterpret(host->vm, "cursor_contract", source)
 	    != WREN_RESULT_SUCCESS) {
 		fprintf(stderr, "cursor contract failed: %s\n", host->last_error);
+		return -1;
+	}
+	return 0;
+}
+
+static int
+exercise_video_colour_contract(st_wren_host_t *public_host)
+{
+	struct st_wren_host *host = public_host;
+	static const char source[] =
+	    "import \"syncterm\" for Cell, Color, Screen, ScreenSupports, VideoFlags\n"
+	    "var saved = VideoFlags.current\n"
+	    "var savedScreen = Screen.save()\n"
+	    "var expansion = VideoFlags.expand\n"
+	    "VideoFlags.altChars = false\n"
+	    "VideoFlags.noBright = false\n"
+	    "VideoFlags.bgBright = false\n"
+	    "VideoFlags.blinkAltChars = false\n"
+	    "VideoFlags.noBlink = false\n"
+	    "VideoFlags.lineGraphicsExpand = false\n"
+	    "if (VideoFlags.altChars || VideoFlags.noBright || VideoFlags.bgBright || VideoFlags.blinkAltChars || VideoFlags.noBlink || VideoFlags.lineGraphicsExpand || VideoFlags.expand != expansion) Fiber.abort(\"live video flags\")\n"
+	    "Screen.font[2] = 65535\n"
+	    "VideoFlags.altChars = true\n"
+	    "VideoFlags.altChars = false\n"
+	    "Screen.font[1] = 0\n"
+	    "Screen.font[2] = 1\n"
+	    "Screen.font[3] = 2\n"
+	    "Screen.font[4] = 3\n"
+	    "VideoFlags.altChars = true\n"
+	    "VideoFlags.blinkAltChars = true\n"
+	    "Screen.window.position = [1, 1]\n"
+	    "Screen.attr = 0x08\n"
+	    "Screen.window.putChar(65)\n"
+	    "Screen.attr = 0x80\n"
+	    "Screen.window.putChar(65)\n"
+	    "Screen.attr = 0x88\n"
+	    "Screen.window.putChar(65)\n"
+	    "var selected = Screen.readRect(1, 1, 3, 1)\n"
+	    "if (selected.cellAt(0, 0).font != 1 || selected.cellAt(1, 0).font != 2 || selected.cellAt(2, 0).font != 3) Fiber.abort(\"attribute font selection\")\n"
+	    "VideoFlags.altChars = false\n"
+	    "VideoFlags.blinkAltChars = false\n"
+	    "if (Screen.readRect(1, 1, 1, 1).cellAt(0, 0).font != 1) Fiber.abort(\"stored font identity\")\n"
+	    "Screen.restore(savedScreen)\n"
+	    "if (Screen.font[1] != 0 || Screen.font[2] != 0 || Screen.font[3] != 0 || Screen.font[4] != 0 || VideoFlags.altChars || VideoFlags.blinkAltChars) Fiber.abort(\"screen display-state restore\")\n"
+	    "var staged = VideoFlags.current\n"
+	    "staged.noBright = true\n"
+	    "staged.bgBright = true\n"
+	    "staged.noBlink = true\n"
+	    "staged.apply()\n"
+	    "if (!VideoFlags.noBright || !VideoFlags.bgBright || !VideoFlags.noBlink || VideoFlags.expand != expansion) Fiber.abort(\"staged video flags\")\n"
+	    "VideoFlags.noBright = false\n"
+	    "VideoFlags.bgBright = false\n"
+	    "VideoFlags.noBlink = false\n"
+	    "var colours = Color.fromAttr(0x1f)\n"
+	    "if (colours[0] != 0xffffff || colours[1] != 0x0000a8) Fiber.abort(\"attribute RGB conversion\")\n"
+	    "if (Color.toLegacyAttr(0xffffff, 0) != 0x0f) Fiber.abort(\"RGB attribute conversion\")\n"
+	    "var old4 = Screen.palette[4]\n"
+	    "var old12 = Screen.palette[12]\n"
+	    "Screen.palette[4] = 0x123456\n"
+	    "Screen.palette[12] = 0x654321\n"
+	    "if (Color.fromAttr(0x01)[0] != 0x123456 || Color.toLegacyAttr(0x123456, 0) != 0x01) Fiber.abort(\"active foreground palette conversion\")\n"
+	    "VideoFlags.bgBright = true\n"
+	    "if (Color.fromAttr(0x90)[1] != 0x654321 || Color.toLegacyAttr(0, 0x654321) != 0x90) Fiber.abort(\"active background palette conversion\")\n"
+	    "VideoFlags.bgBright = false\n"
+	    "Screen.palette[4] = old4\n"
+	    "Screen.palette[12] = old12\n"
+	    "var cell = Cell.new()\n"
+	    "cell.legacyAttr = 0x9f\n"
+	    "if (cell.legacyAttr != 0x9f || !cell.bright || !cell.blink) Fiber.abort(\"legacy cell state\")\n"
+	    "cell.fgRgb = 0xa8a8a8\n"
+	    "if (!cell.bright || !cell.blink || cell.fgRgb != 0xa8a8a8) Fiber.abort(\"explicit RGB state\")\n"
+	    "if (!ScreenSupports.altBlinkFont || !ScreenSupports.altBoldFont || !ScreenSupports.brightBackground) Fiber.abort(\"screen capabilities\")\n"
+	    "var wrongType = Fiber.new { VideoFlags.noBlink = 1 }\n"
+	    "wrongType.try()\n"
+	    "if (wrongType.error == null) Fiber.abort(\"video Boolean type\")\n"
+	    "saved.apply()\n"
+	    "Screen.font[1] = 0\n"
+	    "Screen.font[2] = 0\n"
+	    "Screen.font[3] = 0\n"
+	    "Screen.font[4] = 0\n";
+
+	if (wrenInterpret(host->vm, "video_colour_contract", source)
+	    != WREN_RESULT_SUCCESS) {
+		fprintf(stderr, "video/colour contract failed: %s\n",
+		    host->last_error);
 		return -1;
 	}
 	return 0;
@@ -1119,6 +1228,7 @@ main(void)
 	CHECK(exercise_pixel_contract(host) == 0);
 	CHECK(exercise_web_refresh_overlay(host, console) == 0);
 	CHECK(exercise_cursor_contract(host) == 0);
+	CHECK(exercise_video_colour_contract(host) == 0);
 	CHECK(exercise_codepage_contract(host) == 0);
 	CHECK(st_wren_font_identifier(&((struct st_wren_host *)host)->menu, 46,
 	    &configured_identifier));

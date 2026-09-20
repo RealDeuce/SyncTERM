@@ -90,6 +90,61 @@ test_upload_retry(void)
 }
 
 static void
+test_vga_ninth_column(void)
+{
+	static const uint8_t bitmap[256] = {
+		[UINT8_C(0xb0)] = UINT8_C(0x01),
+		[UINT8_C(0xc0)] = UINT8_C(0x01),
+	};
+	const struct st_console_font font = {
+		.bitmap = bitmap,
+		.bitmap_size = sizeof(bitmap),
+		.width = 8,
+		.height = 1,
+		.glyph_count = 256,
+		.row_stride = 1,
+		.glyph_stride = 1,
+	};
+	const struct st_console_display_config display = {
+		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	};
+	const struct st_console_config config = {
+		.columns = 2,
+		.rows = 1,
+		.cell_width = 9,
+		.cell_height = 1,
+		.video_flags = ST_CONSOLE_VIDEO_EXPAND
+		    | ST_CONSOLE_VIDEO_LINE_GRAPHICS_EXPAND,
+	};
+	const struct st_console_rect rectangle = {0, 0, 2, 1};
+	const struct st_console_cell cells[2] = {
+		{.codepoint = UINT32_C(0xc0), .glyph = UINT32_C(0xc0),
+		    .foreground = 1},
+		{.codepoint = UINT32_C(0xb0), .glyph = UINT32_C(0xb0),
+		    .foreground = 1, .flags = ST_CONSOLE_CELL_BOLD},
+	};
+	st_console_t *console = NULL;
+	uint16_t identifier;
+
+	CHECK(st_console_create(&console, &display, &config) == 0);
+	console->cursor_visible = false;
+	CHECK(st_console_register_static_font(console, &font, &identifier) == 0);
+	CHECK(identifier == 0);
+	CHECK(st_console_write_complete_cells(console, &rectangle, cells, 2) == 0);
+	CHECK(st_console_present(console) == 0);
+	CHECK(console->pixels->primary[7] == 1);
+	CHECK(console->pixels->primary[8] == 1);
+	CHECK(console->pixels->primary[16] == 1);
+	CHECK(console->pixels->primary[17] == 0);
+	CHECK(st_console_set_video_flags(console,
+	    ST_CONSOLE_VIDEO_EXPAND) == 0);
+	CHECK(st_console_present(console) == 0);
+	CHECK(console->pixels->primary[7] == 1);
+	CHECK(console->pixels->primary[8] == 0);
+	st_console_destroy(console);
+}
+
+static void
 fill_planes(st_console_t *console, uint32_t primary, uint32_t alternate)
 {
 	size_t count = (size_t)console->pixels->width * console->pixels->height;
@@ -616,6 +671,7 @@ main(void)
 	test_mouse_coordinates();
 	test_default_cursor_scanlines();
 	test_wide_glyph_cursor();
+	test_vga_ninth_column();
 	test_upload_retry();
 	return 0;
 }

@@ -203,6 +203,10 @@ main(void)
 	CHECK(host->picker.fonts.slots[1] == 3);
 	CHECK(host->menu.mouse_events == 2);
 	CHECK(host->picker.mouse_events == 1);
+	/* The distinct unavailable values above are context markers, not fonts
+	 * the subsequent picker UI can render in this text-only fixture. */
+	host->menu.fonts.slots[1] = 0;
+	host->picker.fonts.slots[1] = 0;
 	CHECK(st_console_display_activate(display, console) == 0);
 	call = (struct st_wren_picker_call){
 		.mode = ST_WREN_PICKER_FILE,

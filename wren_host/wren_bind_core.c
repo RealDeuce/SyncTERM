@@ -33,6 +33,7 @@ enum foreign_kind {
 	FOREIGN_PHYSICAL_KEY_EVENT,
 	FOREIGN_MOUSE_EVENT,
 	FOREIGN_CURSOR,
+	FOREIGN_VIDEO_FLAGS,
 };
 
 struct foreign_header {
@@ -61,6 +62,7 @@ struct foreign_cell {
 struct foreign_snapshot {
 	struct foreign_header header;
 	st_console_snapshot_t *snapshot;
+	uint16_t font_slots[5];
 };
 
 struct foreign_key_event {
@@ -96,6 +98,11 @@ struct foreign_cursor {
 	struct st_console_custom_cursor cursor;
 };
 
+struct foreign_video_flags {
+	struct foreign_header header;
+	uint32_t flags;
+};
+
 struct binding {
 	const char *class_name;
 	bool is_static;
@@ -124,6 +131,17 @@ slot_integer(WrenVM *vm, int slot, int64_t minimum, int64_t maximum,
 		st_wren_abort(vm, "integer is out of range");
 		return false;
 	}
+	return true;
+}
+
+static bool
+slot_boolean(WrenVM *vm, int slot, bool *result)
+{
+	if (wrenGetSlotType(vm, slot) != WREN_TYPE_BOOL) {
+		st_wren_abort(vm, "expected a Boolean");
+		return false;
+	}
+	*result = wrenGetSlotBool(vm, slot);
 	return true;
 }
 
@@ -554,6 +572,20 @@ allocate_cursor(WrenVM *vm)
 			.start = 6, .end = 7, .range = 8, .visible = true,
 			.blink = true,
 		};
+	}
+}
+
+static void
+allocate_video_flags(WrenVM *vm)
+{
+	struct foreign_video_flags *flags = wrenSetSlotNewForeign(vm, 0, 0,
+	    sizeof(*flags));
+
+	flags->header.kind = FOREIGN_VIDEO_FLAGS;
+	if (st_console_get_video_flags(st_wren_context_from_vm(vm)->console,
+	    &flags->flags) != 0) {
+		flags->flags = 0;
+		st_wren_abort(vm, "VideoFlags snapshot failed");
 	}
 }
 
@@ -1029,6 +1061,8 @@ fn_screen_save(WrenVM *vm)
 		return;
 	}
 	foreign->snapshot = snapshot;
+	memcpy(foreign->font_slots, st_wren_context_from_vm(vm)->fonts.slots,
+	    sizeof(foreign->font_slots));
 }
 
 static void
@@ -1037,10 +1071,15 @@ fn_screen_restore(WrenVM *vm)
 	struct foreign_snapshot *snapshot = (struct foreign_snapshot *)foreign_kind(
 	    vm, 1, FOREIGN_SNAPSHOT);
 
-	if (snapshot != NULL && snapshot->snapshot != NULL
-	    && st_console_snapshot_restore(st_wren_context_from_vm(vm)->console,
-	    snapshot->snapshot) != 0)
+	if (snapshot == NULL || snapshot->snapshot == NULL)
+		return;
+	if (st_console_snapshot_restore(st_wren_context_from_vm(vm)->console,
+	    snapshot->snapshot) != 0) {
 		st_wren_abort(vm, "Screen.restore failed");
+		return;
+	}
+	memcpy(st_wren_context_from_vm(vm)->fonts.slots, snapshot->font_slots,
+	    sizeof(snapshot->font_slots));
 }
 
 static bool
@@ -1220,21 +1259,213 @@ legacy_colour(uint32_t colour)
 	return map[colour & 0x0f];
 }
 
+struct legacy_ycocg {
+	int32_t y;
+	int32_t co;
+	int32_t cg;
+};
+
+static int32_t
+floor_half(int32_t value)
+{
+	return value >= 0 ? value / 2 : -((-value + 1) / 2);
+}
+
+static struct legacy_ycocg
+rgb_to_ycocg(uint32_t rgb)
+{
+	int32_t red = (int32_t)((rgb >> 16) & UINT32_C(0xff));
+	int32_t green = (int32_t)((rgb >> 8) & UINT32_C(0xff));
+	int32_t blue = (int32_t)(rgb & UINT32_C(0xff));
+	int32_t co = red - blue;
+	int32_t temporary = blue + floor_half(co);
+	int32_t cg = green - temporary;
+
+	return (struct legacy_ycocg){temporary + floor_half(cg), co, cg};
+}
+
+static uint32_t
+ycocg_distance(uint32_t left, uint32_t right)
+{
+	struct legacy_ycocg x = rgb_to_ycocg(left);
+	struct legacy_ycocg y = rgb_to_ycocg(right);
+	uint32_t dy = (uint32_t)(x.y > y.y ? x.y - y.y : y.y - x.y);
+	uint32_t dco = (uint32_t)(x.co > y.co ? x.co - y.co : y.co - x.co);
+	uint32_t dcg = (uint32_t)(x.cg > y.cg ? x.cg - y.cg : y.cg - x.cg);
+
+	return dy + (dco >> 1) + (dcg >> 1);
+}
+
+static bool
+console_palette16(WrenVM *vm, uint32_t palette[16], uint32_t *video_flags)
+{
+	st_console_t *console = st_wren_context_from_vm(vm)->console;
+
+	if (st_console_get_palette(console, 0, palette, 16) != 0
+	    || st_console_get_video_flags(console, video_flags) != 0) {
+		st_wren_abort(vm, "console colour state is unavailable");
+		return false;
+	}
+	return true;
+}
+
+static bool
+native_colour_rgb(WrenVM *vm, uint32_t colour, uint32_t *rgb)
+{
+	if (ST_CONSOLE_COLOR_IS_RGB(colour)) {
+		*rgb = colour & UINT32_C(0xffffff);
+		return true;
+	}
+	if (colour > UINT16_MAX
+	    || st_console_get_palette(st_wren_context_from_vm(vm)->console,
+	    (uint16_t)colour, rgb, 1) != 0) {
+		st_wren_abort(vm, "cell colour is invalid");
+		return false;
+	}
+	return true;
+}
+
+static uint8_t
+nearest_legacy_base(WrenVM *vm, uint32_t colour, const uint32_t palette[16],
+	bool high)
+{
+	uint32_t target;
+	uint32_t best_distance = UINT32_MAX;
+	uint8_t best = 0;
+
+	if (!native_colour_rgb(vm, colour, &target))
+		return 0;
+	for (uint8_t i = 0; i < 8; ++i) {
+		uint8_t attribute_index = (uint8_t)(i | (high ? 8 : 0));
+		uint32_t distance = ycocg_distance(target,
+		    palette[legacy_colour(attribute_index)]);
+
+		if (distance < best_distance) {
+			best_distance = distance;
+			best = i;
+		}
+	}
+	return best;
+}
+
+static bool
+cell_legacy_attr(WrenVM *vm, const struct st_console_cell *cell,
+	uint8_t *attribute)
+{
+	uint32_t palette[16];
+	uint32_t video_flags;
+	bool bright = (cell->flags & ST_CONSOLE_CELL_BRIGHT) != 0;
+	bool blink = (cell->flags & ST_CONSOLE_CELL_BLINK) != 0;
+	uint8_t foreground;
+	uint8_t background;
+
+	if (!console_palette16(vm, palette, &video_flags))
+		return false;
+	if ((cell->flags & ST_CONSOLE_CELL_LEGACY_FOREGROUND) != 0
+	    && !ST_CONSOLE_COLOR_IS_RGB(cell->foreground)
+	    && cell->foreground < 8)
+		foreground = (uint8_t)legacy_colour(cell->foreground);
+	else
+		foreground = nearest_legacy_base(vm, cell->foreground, palette,
+		    bright && (video_flags & ST_CONSOLE_VIDEO_NO_BRIGHT) == 0);
+	if ((cell->flags & ST_CONSOLE_CELL_LEGACY_BACKGROUND) != 0
+	    && !ST_CONSOLE_COLOR_IS_RGB(cell->background)
+	    && cell->background < 8)
+		background = (uint8_t)legacy_colour(cell->background);
+	else
+		background = nearest_legacy_base(vm, cell->background, palette,
+		    blink && (video_flags
+		    & ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND) != 0);
+	*attribute = (uint8_t)(foreground | (background << 4)
+	    | (bright ? UINT8_C(0x08) : 0)
+	    | (blink ? UINT8_C(0x80) : 0));
+	return true;
+}
+
+static void
+set_cell_legacy_attr(struct st_console_cell *cell, uint8_t attribute)
+{
+	cell->foreground = legacy_colour(attribute & UINT8_C(0x07));
+	cell->background = legacy_colour((attribute >> 4) & UINT8_C(0x07));
+	cell->flags |= ST_CONSOLE_CELL_LEGACY_FOREGROUND
+	    | ST_CONSOLE_CELL_LEGACY_BACKGROUND;
+	if ((attribute & UINT8_C(0x08)) != 0)
+		cell->flags |= ST_CONSOLE_CELL_BRIGHT;
+	else
+		cell->flags &= ~ST_CONSOLE_CELL_BRIGHT;
+	if ((attribute & UINT8_C(0x80)) != 0)
+		cell->flags |= ST_CONSOLE_CELL_BLINK;
+	else
+		cell->flags &= ~ST_CONSOLE_CELL_BLINK;
+}
+
+static bool
+resolve_screen_style_font(WrenVM *vm, struct st_console_style *style)
+{
+	struct st_wren_context *context = st_wren_context_from_vm(vm);
+	struct st_console_font_selection selection = {
+		.normal = 1,
+		.bright = 2,
+		.blink = 3,
+		.bright_blink = 4,
+	};
+	uint32_t video_flags;
+	uint16_t slot;
+	uint16_t identifier;
+
+	if (st_console_get_video_flags(context->console, &video_flags) != 0) {
+		st_wren_abort(vm, "VideoFlags read failed");
+		return false;
+	}
+	selection.bright_selects_font
+	    = (video_flags & ST_CONSOLE_VIDEO_ALT_CHARS) != 0;
+	selection.blink_selects_font
+	    = (video_flags & ST_CONSOLE_VIDEO_BLINK_ALT_CHARS) != 0;
+	slot = st_console_font_for_flags(&selection, style->flags);
+	if (!st_wren_font_identifier(context, context->fonts.slots[slot],
+	    &identifier)) {
+		st_wren_abort(vm, "selected font is not available");
+		return false;
+	}
+	style->font = identifier;
+	return true;
+}
+
+static bool
+refresh_screen_style_font(WrenVM *vm)
+{
+	st_console_t *console = st_wren_context_from_vm(vm)->console;
+	struct st_console_style style;
+
+	if (st_console_get_style(console, &style) != 0) {
+		st_wren_abort(vm, "Screen style read failed");
+		return false;
+	}
+	if (!resolve_screen_style_font(vm, &style))
+		return false;
+	if (st_console_set_style(console, &style) != 0) {
+		st_wren_abort(vm, "Screen style update failed");
+		return false;
+	}
+	return true;
+}
+
 static void
 fn_screen_attr(WrenVM *vm)
 {
 	struct st_console_style style;
+	struct st_console_cell cell;
+	uint8_t value;
 
 	if (st_console_get_style(st_wren_context_from_vm(vm)->console, &style)
 	    != 0) {
 		st_wren_abort(vm, "Screen.attr failed");
 		return;
 	}
-	uint32_t value = legacy_colour(style.foreground)
-	    | ((legacy_colour(style.background) & 0x07) << 4);
-	if ((style.flags & ST_CONSOLE_CELL_BLINK) != 0)
-		value |= 0x80;
-	wrenSetSlotDouble(vm, 0, value);
+	cell = (struct st_console_cell){.foreground = style.foreground,
+	    .background = style.background, .flags = style.flags};
+	if (cell_legacy_attr(vm, &cell, &value))
+		wrenSetSlotDouble(vm, 0, value);
 }
 
 static void
@@ -1247,14 +1478,18 @@ fn_screen_attr_set(WrenVM *vm)
 	    || st_console_get_style(st_wren_context_from_vm(vm)->console,
 	    &style) != 0)
 		return;
-	style.foreground = legacy_colour((uint32_t)value);
-	style.background = legacy_colour((uint32_t)value >> 4) & 0x07;
-	if (((uint32_t)value & 0x80) != 0)
-		style.flags |= ST_CONSOLE_CELL_BLINK;
-	else
-		style.flags &= ~ST_CONSOLE_CELL_BLINK;
-	(void)st_console_set_style(st_wren_context_from_vm(vm)->console,
-	    &style);
+	struct st_console_cell cell = {.foreground = style.foreground,
+	    .background = style.background, .flags = style.flags};
+
+	set_cell_legacy_attr(&cell, (uint8_t)value);
+	style.foreground = cell.foreground;
+	style.background = cell.background;
+	style.flags = cell.flags;
+	if (!resolve_screen_style_font(vm, &style))
+		return;
+	if (st_console_set_style(st_wren_context_from_vm(vm)->console,
+	    &style) != 0)
+		st_wren_abort(vm, "Screen.attr failed");
 }
 
 static void
@@ -1378,7 +1613,8 @@ fn_screen_window_put_char(WrenVM *vm)
 {
 	int64_t value;
 
-	if (slot_integer(vm, 1, 0, UINT32_MAX, &value))
+	if (slot_integer(vm, 1, 0, UINT32_MAX, &value)
+	    && refresh_screen_style_font(vm))
 		(void)st_console_put_codepoint(
 		    st_wren_context_from_vm(vm)->console, (uint32_t)value);
 }
@@ -1394,8 +1630,9 @@ fn_screen_window_print(WrenVM *vm)
 		return;
 	}
 	text = wrenGetSlotBytes(vm, 1, &length);
-	(void)st_console_write_utf8(st_wren_context_from_vm(vm)->console,
-	    text, (size_t)length);
+	if (refresh_screen_style_font(vm))
+		(void)st_console_write_utf8(st_wren_context_from_vm(vm)->console,
+		    text, (size_t)length);
 }
 
 static void
@@ -1500,6 +1737,7 @@ SUPPORT_GETTER(window_title, ST_CONSOLE_CAP_WINDOW_TITLE)
 SUPPORT_GETTER(extended_palette, ST_CONSOLE_CAP_EXTENDED_PALETTE)
 SUPPORT_GETTER(blocky_scaling, ST_CONSOLE_CAP_BLOCKY_SCALING)
 SUPPORT_GETTER(external_scaling, ST_CONSOLE_CAP_EXTERNAL_SCALING)
+SUPPORT_GETTER(bright_background, ST_CONSOLE_CAP_BRIGHT_BACKGROUND)
 
 #undef SUPPORT_GETTER
 
@@ -1601,12 +1839,16 @@ fn_screen_font_get(WrenVM *vm)
 static void
 fn_screen_font_set(WrenVM *vm)
 {
+	struct st_wren_context *context = st_wren_context_from_vm(vm);
 	int64_t slot;
 	int64_t font;
 
 	if (slot_integer(vm, 1, 0, 4, &slot)
-	    && slot_integer(vm, 2, 0, UINT16_MAX, &font))
-		st_wren_context_from_vm(vm)->fonts.slots[slot] = (uint16_t)font;
+	    && slot_integer(vm, 2, 0, UINT16_MAX, &font)) {
+		context->fonts.slots[slot] = (uint16_t)font;
+		if (slot == 0)
+			context->fonts.slots[1] = (uint16_t)font;
+	}
 }
 
 static void
@@ -2042,24 +2284,14 @@ fn_cell_columns(WrenVM *vm)
 	wrenSetSlotDouble(vm, 0, resolved_cell_columns(vm, cell));
 }
 
-static uint8_t
-cell_legacy_attr(const struct st_console_cell *cell)
-{
-	uint8_t value = (uint8_t)(legacy_colour(cell->foreground)
-	    | ((legacy_colour(cell->background) & 0x07) << 4));
-
-	if ((cell->flags & ST_CONSOLE_CELL_BLINK) != 0)
-		value |= 0x80;
-	return value;
-}
-
 static void
 fn_cell_attr(WrenVM *vm)
 {
 	struct st_console_cell *cell = cell_value(vm, 0);
+	uint8_t value;
 
-	if (cell != NULL)
-		wrenSetSlotDouble(vm, 0, cell_legacy_attr(cell));
+	if (cell != NULL && cell_legacy_attr(vm, cell, &value))
+		wrenSetSlotDouble(vm, 0, value);
 }
 
 static void
@@ -2070,12 +2302,7 @@ fn_cell_attr_set(WrenVM *vm)
 
 	if (cell == NULL || !slot_integer(vm, 1, 0, 255, &value))
 		return;
-	cell->foreground = legacy_colour((uint32_t)value);
-	cell->background = legacy_colour((uint32_t)value >> 4) & 0x07;
-	if (((uint32_t)value & 0x80) != 0)
-		cell->flags |= ST_CONSOLE_CELL_BLINK;
-	else
-		cell->flags &= ~ST_CONSOLE_CELL_BLINK;
+	set_cell_legacy_attr(cell, (uint8_t)value);
 }
 
 static void
@@ -2084,8 +2311,8 @@ fn_cell_bright(WrenVM *vm)
 	struct st_console_cell *cell = cell_value(vm, 0);
 
 	if (cell != NULL)
-		wrenSetSlotBool(vm, 0, !ST_CONSOLE_COLOR_IS_RGB(cell->foreground)
-		    && (cell->foreground & 8) != 0);
+		wrenSetSlotBool(vm, 0,
+		    (cell->flags & ST_CONSOLE_CELL_BRIGHT) != 0);
 }
 
 static void
@@ -2095,12 +2322,10 @@ fn_cell_bright_set(WrenVM *vm)
 
 	if (cell == NULL || wrenGetSlotType(vm, 1) != WREN_TYPE_BOOL)
 		return;
-	if (!ST_CONSOLE_COLOR_IS_RGB(cell->foreground)) {
-		if (wrenGetSlotBool(vm, 1))
-			cell->foreground |= 8;
-		else
-			cell->foreground &= ~UINT32_C(8);
-	}
+	if (wrenGetSlotBool(vm, 1))
+		cell->flags |= ST_CONSOLE_CELL_BRIGHT;
+	else
+		cell->flags &= ~ST_CONSOLE_CELL_BRIGHT;
 }
 
 static void
@@ -2163,6 +2388,8 @@ cell_palette_set(WrenVM *vm, bool foreground)
 		cell->foreground = (uint32_t)value;
 	else
 		cell->background = (uint32_t)value;
+	cell->flags &= foreground ? ~ST_CONSOLE_CELL_LEGACY_FOREGROUND
+	    : ~ST_CONSOLE_CELL_LEGACY_BACKGROUND;
 }
 
 static void
@@ -2192,6 +2419,8 @@ cell_rgb_set(WrenVM *vm, bool foreground)
 		cell->foreground = ST_CONSOLE_COLOR_RGB_TAG | (uint32_t)value;
 	else
 		cell->background = ST_CONSOLE_COLOR_RGB_TAG | (uint32_t)value;
+	cell->flags &= foreground ? ~ST_CONSOLE_CELL_LEGACY_FOREGROUND
+	    : ~ST_CONSOLE_CELL_LEGACY_BACKGROUND;
 }
 
 static void fn_cell_fg_palette(WrenVM *vm) { cell_palette_get(vm, true); }
@@ -2251,11 +2480,12 @@ fn_cell_to_string(WrenVM *vm)
 {
 	struct st_console_cell *cell = cell_value(vm, 0);
 	char text[80];
+	uint8_t attribute;
 
-	if (cell == NULL)
+	if (cell == NULL || !cell_legacy_attr(vm, cell, &attribute))
 		return;
 	(void)snprintf(text, sizeof(text), "Cell(ch=%u attr=0x%02X font=%u)",
-	    cell->codepoint, cell_legacy_attr(cell), cell->font);
+	    cell->codepoint, attribute, cell->font);
 	wrenSetSlotString(vm, 0, text);
 }
 
@@ -2276,27 +2506,70 @@ fn_color_from_rgb(WrenVM *vm)
 static void
 fn_color_from_attr(WrenVM *vm)
 {
+	uint32_t palette[16];
+	uint32_t video_flags;
 	int64_t value;
+	uint8_t foreground;
+	uint8_t background;
 
-	if (!slot_integer(vm, 1, 0, 255, &value))
+	if (!slot_integer(vm, 1, 0, 255, &value)
+	    || !console_palette16(vm, palette, &video_flags))
 		return;
+	foreground = (uint8_t)value & UINT8_C(0x0f);
+	if ((video_flags & ST_CONSOLE_VIDEO_NO_BRIGHT) != 0)
+		foreground &= UINT8_C(0x07);
+	background = (uint8_t)(value >> 4);
+	if ((video_flags & ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND) == 0)
+		background &= UINT8_C(0x07);
 	wrenEnsureSlots(vm, 2);
 	wrenSetSlotNewList(vm, 0);
-	wrenSetSlotDouble(vm, 1, value & 0x0f);
+	wrenSetSlotDouble(vm, 1, palette[legacy_colour(foreground)]);
 	wrenInsertInList(vm, 0, -1, 1);
-	wrenSetSlotDouble(vm, 1, (value >> 4) & 0x07);
+	wrenSetSlotDouble(vm, 1, palette[legacy_colour(background)]);
 	wrenInsertInList(vm, 0, -1, 1);
 }
 
 static void
 fn_color_to_attr(WrenVM *vm)
 {
+	uint32_t palette[16];
+	uint32_t video_flags;
 	int64_t foreground;
 	int64_t background;
+	uint32_t best_foreground_distance = UINT32_MAX;
+	uint32_t best_background_distance = UINT32_MAX;
+	uint8_t best_foreground = 0;
+	uint8_t best_background = 0;
+	uint8_t foreground_count;
+	uint8_t background_count;
 
-	if (slot_integer(vm, 1, 0, 15, &foreground)
-	    && slot_integer(vm, 2, 0, 15, &background))
-		wrenSetSlotDouble(vm, 0, foreground | (background << 4));
+	if (!slot_integer(vm, 1, 0, 0xffffff, &foreground)
+	    || !slot_integer(vm, 2, 0, 0xffffff, &background)
+	    || !console_palette16(vm, palette, &video_flags))
+		return;
+	foreground_count = (video_flags & ST_CONSOLE_VIDEO_NO_BRIGHT) != 0
+	    ? 8 : 16;
+	background_count = (video_flags
+	    & ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND) != 0 ? 16 : 8;
+	for (uint8_t i = 0; i < foreground_count; ++i) {
+		uint32_t distance = ycocg_distance((uint32_t)foreground,
+		    palette[legacy_colour(i)]);
+
+		if (distance < best_foreground_distance) {
+			best_foreground_distance = distance;
+			best_foreground = i;
+		}
+	}
+	for (uint8_t i = 0; i < background_count; ++i) {
+		uint32_t distance = ycocg_distance((uint32_t)background,
+		    palette[legacy_colour(i)]);
+
+		if (distance < best_background_distance) {
+			best_background_distance = distance;
+			best_background = i;
+		}
+	}
+	wrenSetSlotDouble(vm, 0, best_foreground | (best_background << 4));
 }
 
 static void
@@ -2382,8 +2655,9 @@ cursor_value(WrenVM *vm)
 	static void fn_cursor_##name##_set(WrenVM *vm) \
 	{ \
 		struct foreign_cursor *cursor = cursor_value(vm); \
-		if (cursor != NULL && wrenGetSlotType(vm, 1) == WREN_TYPE_BOOL) \
-			cursor->cursor.field = wrenGetSlotBool(vm, 1); \
+		bool value; \
+		if (cursor != NULL && slot_boolean(vm, 1, &value)) \
+			cursor->cursor.field = value; \
 	}
 
 CURSOR_NUMBER(start, start)
@@ -2395,14 +2669,176 @@ CURSOR_BOOL(visible, visible)
 #undef CURSOR_NUMBER
 #undef CURSOR_BOOL
 
+#define CURSOR_STATIC_NUMBER(name, field) \
+	static void fn_cursor_##name##_static(WrenVM *vm) \
+	{ \
+		struct st_console_custom_cursor cursor; \
+		if (st_console_get_custom_cursor( \
+		    st_wren_context_from_vm(vm)->console, &cursor) != 0) { \
+			st_wren_abort(vm, "CustomCursor read failed"); \
+			return; \
+		} \
+		wrenSetSlotDouble(vm, 0, cursor.field); \
+	} \
+	static void fn_cursor_##name##_set_static(WrenVM *vm) \
+	{ \
+		struct st_console_custom_cursor cursor; \
+		int64_t value; \
+		if (!slot_integer(vm, 1, 0, UINT32_MAX, &value)) \
+			return; \
+		if (st_console_get_custom_cursor( \
+		    st_wren_context_from_vm(vm)->console, &cursor) != 0) { \
+			st_wren_abort(vm, "CustomCursor read failed"); \
+			return; \
+		} \
+		cursor.field = (uint32_t)value; \
+		if (st_console_set_custom_cursor( \
+		    st_wren_context_from_vm(vm)->console, &cursor) != 0) \
+			st_wren_abort(vm, "CustomCursor update failed"); \
+	}
+
+#define CURSOR_STATIC_BOOL(name, field) \
+	static void fn_cursor_##name##_static(WrenVM *vm) \
+	{ \
+		struct st_console_custom_cursor cursor; \
+		if (st_console_get_custom_cursor( \
+		    st_wren_context_from_vm(vm)->console, &cursor) != 0) { \
+			st_wren_abort(vm, "CustomCursor read failed"); \
+			return; \
+		} \
+		wrenSetSlotBool(vm, 0, cursor.field); \
+	} \
+	static void fn_cursor_##name##_set_static(WrenVM *vm) \
+	{ \
+		struct st_console_custom_cursor cursor; \
+		bool value; \
+		if (!slot_boolean(vm, 1, &value)) \
+			return; \
+		if (st_console_get_custom_cursor( \
+		    st_wren_context_from_vm(vm)->console, &cursor) != 0) { \
+			st_wren_abort(vm, "CustomCursor read failed"); \
+			return; \
+		} \
+		cursor.field = value; \
+		if (st_console_set_custom_cursor( \
+		    st_wren_context_from_vm(vm)->console, &cursor) != 0) \
+			st_wren_abort(vm, "CustomCursor update failed"); \
+	}
+
+CURSOR_STATIC_NUMBER(start, start)
+CURSOR_STATIC_NUMBER(end, end)
+CURSOR_STATIC_NUMBER(range, range)
+CURSOR_STATIC_BOOL(blink, blink)
+CURSOR_STATIC_BOOL(visible, visible)
+
+#undef CURSOR_STATIC_NUMBER
+#undef CURSOR_STATIC_BOOL
+
 static void
 fn_cursor_apply(WrenVM *vm)
 {
 	struct foreign_cursor *cursor = cursor_value(vm);
 
-	if (cursor != NULL)
-		(void)st_console_set_custom_cursor(
-		    st_wren_context_from_vm(vm)->console, &cursor->cursor);
+	if (cursor != NULL && st_console_set_custom_cursor(
+	    st_wren_context_from_vm(vm)->console, &cursor->cursor) != 0)
+		st_wren_abort(vm, "CustomCursor update failed");
+}
+
+static struct foreign_video_flags *
+video_flags_value(WrenVM *vm)
+{
+	return (struct foreign_video_flags *)foreign_kind(vm, 0,
+	    FOREIGN_VIDEO_FLAGS);
+}
+
+#define VIDEO_FLAG(name, bit) \
+	static void fn_video_##name##_static(WrenVM *vm) \
+	{ \
+		uint32_t flags; \
+		if (st_console_get_video_flags(st_wren_context_from_vm(vm)->console, \
+		    &flags) != 0) { \
+			st_wren_abort(vm, "VideoFlags read failed"); \
+			return; \
+		} \
+		wrenSetSlotBool(vm, 0, (flags & (bit)) != 0); \
+	} \
+	static void fn_video_##name##_set_static(WrenVM *vm) \
+	{ \
+		uint32_t flags; \
+		bool value; \
+		if (!slot_boolean(vm, 1, &value)) \
+			return; \
+		if (st_console_get_video_flags(st_wren_context_from_vm(vm)->console, \
+		    &flags) != 0) { \
+			st_wren_abort(vm, "VideoFlags read failed"); \
+			return; \
+		} \
+		if (value) \
+			flags |= (bit); \
+		else \
+			flags &= ~(bit); \
+		if (st_console_set_video_flags(st_wren_context_from_vm(vm)->console, \
+		    flags) != 0) \
+			st_wren_abort(vm, "VideoFlags update failed"); \
+	} \
+	static void fn_video_##name(WrenVM *vm) \
+	{ \
+		struct foreign_video_flags *flags = video_flags_value(vm); \
+		if (flags != NULL) \
+			wrenSetSlotBool(vm, 0, (flags->flags & (bit)) != 0); \
+	} \
+	static void fn_video_##name##_set(WrenVM *vm) \
+	{ \
+		struct foreign_video_flags *flags = video_flags_value(vm); \
+		bool value; \
+		if (flags == NULL || !slot_boolean(vm, 1, &value)) \
+			return; \
+		if (value) \
+			flags->flags |= (bit); \
+		else \
+			flags->flags &= ~(bit); \
+	}
+
+VIDEO_FLAG(alt_chars, ST_CONSOLE_VIDEO_ALT_CHARS)
+VIDEO_FLAG(no_bright, ST_CONSOLE_VIDEO_NO_BRIGHT)
+VIDEO_FLAG(bright_background, ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND)
+VIDEO_FLAG(blink_alt_chars, ST_CONSOLE_VIDEO_BLINK_ALT_CHARS)
+VIDEO_FLAG(no_blink, ST_CONSOLE_VIDEO_NO_BLINK)
+VIDEO_FLAG(line_graphics_expand, ST_CONSOLE_VIDEO_LINE_GRAPHICS_EXPAND)
+
+#undef VIDEO_FLAG
+
+static void
+fn_video_expand_static(WrenVM *vm)
+{
+	uint32_t flags;
+
+	if (st_console_get_video_flags(st_wren_context_from_vm(vm)->console,
+	    &flags) != 0) {
+		st_wren_abort(vm, "VideoFlags read failed");
+		return;
+	}
+	wrenSetSlotBool(vm, 0, (flags & ST_CONSOLE_VIDEO_EXPAND) != 0);
+}
+
+static void
+fn_video_expand(WrenVM *vm)
+{
+	struct foreign_video_flags *flags = video_flags_value(vm);
+
+	if (flags != NULL)
+		wrenSetSlotBool(vm, 0,
+		    (flags->flags & ST_CONSOLE_VIDEO_EXPAND) != 0);
+}
+
+static void
+fn_video_apply(WrenVM *vm)
+{
+	struct foreign_video_flags *flags = video_flags_value(vm);
+
+	if (flags != NULL && st_console_set_video_flags(
+	    st_wren_context_from_vm(vm)->console, flags->flags) != 0)
+		st_wren_abort(vm, "VideoFlags update failed");
 }
 
 static void
@@ -2675,9 +3111,9 @@ static const struct binding bindings[] = {
 	{"ScreenWindow", true, "putChar(_)", fn_screen_window_put_char},
 	{"ScreenWindow", true, "print(_)", fn_screen_window_print},
 	{"ScreenSupports", true, "loadableFonts", fn_support_loadable_fonts},
-	{"ScreenSupports", true, "altBlinkFont", fn_support_false},
-	{"ScreenSupports", true, "altBoldFont", fn_support_false},
-	{"ScreenSupports", true, "brightBackground", fn_support_false},
+	{"ScreenSupports", true, "altBlinkFont", fn_support_loadable_fonts},
+	{"ScreenSupports", true, "altBoldFont", fn_support_loadable_fonts},
+	{"ScreenSupports", true, "brightBackground", fn_support_bright_background},
 	{"ScreenSupports", true, "paletteChange", fn_support_palette_change},
 	{"ScreenSupports", true, "pixels", fn_support_pixels},
 	{"ScreenSupports", true, "customCursor", fn_support_custom_cursor},
@@ -2743,6 +3179,16 @@ static const struct binding bindings[] = {
 	{"Clipboard", true, "text", fn_clipboard_get},
 	{"Clipboard", true, "text=(_)", fn_clipboard_set},
 	{"CustomCursor", true, "presetLegacy_(_)", fn_cursor_preset},
+	{"CustomCursor", true, "startLine", fn_cursor_start_static},
+	{"CustomCursor", true, "startLine=(_)", fn_cursor_start_set_static},
+	{"CustomCursor", true, "endLine", fn_cursor_end_static},
+	{"CustomCursor", true, "endLine=(_)", fn_cursor_end_set_static},
+	{"CustomCursor", true, "range", fn_cursor_range_static},
+	{"CustomCursor", true, "range=(_)", fn_cursor_range_set_static},
+	{"CustomCursor", true, "blink", fn_cursor_blink_static},
+	{"CustomCursor", true, "blink=(_)", fn_cursor_blink_set_static},
+	{"CustomCursor", true, "visible", fn_cursor_visible_static},
+	{"CustomCursor", true, "visible=(_)", fn_cursor_visible_set_static},
 	{"CustomCursor", false, "startLine", fn_cursor_start},
 	{"CustomCursor", false, "startLine=(_)", fn_cursor_start_set},
 	{"CustomCursor", false, "endLine", fn_cursor_end},
@@ -2754,6 +3200,33 @@ static const struct binding bindings[] = {
 	{"CustomCursor", false, "visible", fn_cursor_visible},
 	{"CustomCursor", false, "visible=(_)", fn_cursor_visible_set},
 	{"CustomCursor", false, "apply()", fn_cursor_apply},
+	{"VideoFlags", true, "altChars", fn_video_alt_chars_static},
+	{"VideoFlags", true, "altChars=(_)", fn_video_alt_chars_set_static},
+	{"VideoFlags", true, "noBright", fn_video_no_bright_static},
+	{"VideoFlags", true, "noBright=(_)", fn_video_no_bright_set_static},
+	{"VideoFlags", true, "bgBright", fn_video_bright_background_static},
+	{"VideoFlags", true, "bgBright=(_)", fn_video_bright_background_set_static},
+	{"VideoFlags", true, "blinkAltChars", fn_video_blink_alt_chars_static},
+	{"VideoFlags", true, "blinkAltChars=(_)", fn_video_blink_alt_chars_set_static},
+	{"VideoFlags", true, "noBlink", fn_video_no_blink_static},
+	{"VideoFlags", true, "noBlink=(_)", fn_video_no_blink_set_static},
+	{"VideoFlags", true, "expand", fn_video_expand_static},
+	{"VideoFlags", true, "lineGraphicsExpand", fn_video_line_graphics_expand_static},
+	{"VideoFlags", true, "lineGraphicsExpand=(_)", fn_video_line_graphics_expand_set_static},
+	{"VideoFlags", false, "altChars", fn_video_alt_chars},
+	{"VideoFlags", false, "altChars=(_)", fn_video_alt_chars_set},
+	{"VideoFlags", false, "noBright", fn_video_no_bright},
+	{"VideoFlags", false, "noBright=(_)", fn_video_no_bright_set},
+	{"VideoFlags", false, "bgBright", fn_video_bright_background},
+	{"VideoFlags", false, "bgBright=(_)", fn_video_bright_background_set},
+	{"VideoFlags", false, "blinkAltChars", fn_video_blink_alt_chars},
+	{"VideoFlags", false, "blinkAltChars=(_)", fn_video_blink_alt_chars_set},
+	{"VideoFlags", false, "noBlink", fn_video_no_blink},
+	{"VideoFlags", false, "noBlink=(_)", fn_video_no_blink_set},
+	{"VideoFlags", false, "expand", fn_video_expand},
+	{"VideoFlags", false, "lineGraphicsExpand", fn_video_line_graphics_expand},
+	{"VideoFlags", false, "lineGraphicsExpand=(_)", fn_video_line_graphics_expand_set},
+	{"VideoFlags", false, "apply()", fn_video_apply},
 	{"Host", true, "exitRequested_", fn_host_exit_requested},
 	{"Host", true, "themeGeneration", fn_host_theme_generation},
 	{"Host", true, "themeData", fn_host_theme_data},
@@ -2803,5 +3276,7 @@ st_wren_core_bind_class(const char *class_name)
 		methods.allocate = allocate_mouse_event;
 	else if (strcmp(class_name, "CustomCursor") == 0)
 		methods.allocate = allocate_cursor;
+	else if (strcmp(class_name, "VideoFlags") == 0)
+		methods.allocate = allocate_video_flags;
 	return methods;
 }

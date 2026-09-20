@@ -175,8 +175,12 @@ write_run(struct win32_state *state, const st_console_t *console,
 			amount = sizeof(buffer) / sizeof(buffer[0]);
 		for (uint32_t i = 0; i < amount; ++i) {
 			size_t index = (size_t)y * console->columns + first + offset + i;
-			const struct st_console_cell *cell = &console->cells[index];
+			const struct st_console_cell *source = &console->cells[index];
+			struct st_console_cell effective;
+			const struct st_console_cell *cell;
 
+			st_console_effective_cell_locked(console, source, &effective);
+			cell = &effective;
 			buffer[i].Char.UnicodeChar = cell_character(cell);
 			buffer[i].Attributes = cell_attributes(console, state, cell);
 			if ((cell->flags & ST_CONSOLE_CELL_CONTINUATION) != 0)
@@ -185,7 +189,7 @@ write_run(struct win32_state *state, const st_console_t *console,
 			    && (console->cells[index + 1].flags
 			    & ST_CONSOLE_CELL_CONTINUATION) != 0)
 				buffer[i].Attributes |= COMMON_LVB_LEADING_BYTE;
-			state->drawn[index] = *cell;
+			state->drawn[index] = *source;
 			state->drawn[index].flags &= ~ST_CONSOLE_CELL_DIRTY;
 		}
 		buffer_size.X = (SHORT)amount;
@@ -716,7 +720,8 @@ static uint32_t
 win32_capabilities(const st_console_t *console)
 {
 	(void)console;
-	return ST_CONSOLE_CAP_PALETTE_CHANGE;
+	return ST_CONSOLE_CAP_PALETTE_CHANGE
+	    | ST_CONSOLE_CAP_BRIGHT_BACKGROUND;
 }
 
 static const struct st_console_backend_ops win32_ops = {

@@ -2236,13 +2236,14 @@ their output to the backend should branch on these.
 |===
 | Flag                 | True when the backend can…
 | `loadableFonts`      | Replace the bitmap font in any slot at
-                         runtime.  False on hardware text-mode
-                         backends like curses.
-| `altBlinkFont`       | Render the alternate-blink font slot.
-| `altBoldFont`        | Render the alternate-bold font slot.
-| `brightBackground`   | Render the high-intensity (bright) bit on
-                         background colors instead of using it as a
-                         blink toggle.
+                         runtime.
+| `altBlinkFont`       | Select a registered alternate font with the
+                         source blink bit.
+| `altBoldFont`        | Select a registered alternate font with the
+                         source bright bit.
+| `brightBackground`   | Render at least sixteen indexed colours, so
+                         the source blink bit can also select a bright
+                         background.
 | `paletteChange`      | Mutate the active palette at runtime.
 | `pixels`             | Address individual pixels (pixel-aware
                          backends only — needed for RIP, SIXEL,
@@ -2301,8 +2302,14 @@ Per-slot font management.  Five slots (0..4) match SyncTERM's font
 slot model.
 
 `Screen.font[i]` reads the font index in slot `i`.  `Screen.font[i] = n`
-loads font `n` into slot `i`.  Use the `Font` class
-(see <<font>>) for the named built-in indices.
+selects font `n` for slot `i`; assigning slot 0 also resets the
+normal slot 1, matching the legacy default-font operation.  Slots 1 through 4
+are respectively normal, source-bright, source-blink, and source-bright plus
+source-blink.  `VideoFlags.altChars` and `blinkAltChars` enable the two
+selectors.  Selection happens when text is written, and the resolved internal
+font identifier is retained in the cell; later flag or slot changes do not
+reinterpret existing cells.  Use the `Font` class (see <<font>>) for the named
+built-in indices.
 
 ==== Screen.palette
 
@@ -2335,7 +2342,7 @@ The class supports two usage modes:
 * *Instance* (staged edit): `CustomCursor.new()` (or
   `CustomCursor.current`) snapshots the current values.  Modify the
   instance's properties locally, then `apply()` to commit
-  atomically — one syscall regardless of how many fields changed.
+  as one locked state change regardless of how many fields changed.
 
 `CustomCursor.preserve(fn)` is a convenience for the common
 "snapshot, change, restore" pattern: snapshots the live cursor,
@@ -2372,32 +2379,33 @@ helper.
 [options="header",cols="2,3"]
 |===
 | Property             | Meaning
-| `altChars`           | Use the alternate (right-half) character set
-                         for graphics characters — the EGA/VGA "9th
-                         column" expansion.
-| `noBright`           | Suppress the bright-foreground bit; bold text
-                         renders as plain.
+| `altChars`           | Let source attribute bit 3 select font slot 2
+                         instead of slot 1 (and slot 4 instead of slot
+                         3 when bit 7 also selects a font).
+| `noBright`           | Prevent source attribute bit 3 from selecting
+                         a bright foreground palette entry.  This does
+                         not change the independent bold style flag or
+                         the source bit's use as an alternate-font selector.
 | `bgBright`           | Treat the high-intensity bit on the
-                         background nibble as bright background instead
-                         of blink.  The terminal's tradition was blink;
-                         most modern terminals bind it to bright bg.
-| `blinkAltChars`      | Repurpose the blink attribute bit (bit 7 of
-                         the legacy attribute byte) to select the
-                         alternate character set instead of triggering
-                         blink.  When set, "blinking" cells render
-                         from the alt-font slot statically; when clear,
-                         bit 7 means actual blink.
-| `noBlink`            | Disable blink rendering entirely.
+                         background nibble as a bright background.  Its
+                         blink and alternate-font meanings remain
+                         independently controlled.
+| `blinkAltChars`      | Let source attribute bit 7 select font slot 3
+                         instead of slot 1 (or slot 4 when bit 3 also
+                         selects a font).
+| `noBlink`            | Prevent source attribute bit 7 from blinking.
+                         The same bit may still select a bright
+                         background or alternate font.
 | `expand`             | Read-only.  True when the backend is using
-                         9-pixel-wide cells with the right-edge
-                         duplication for the box-drawing range.
-                         Flipping it under a live screen would
-                         mismatch cell-bitmap layout sized at video-
-                         mode init for 8-vs-9 pixel cells, so it's
-                         intentionally read-only.
+                         a cell one pixel wider than its font.  The
+                         extra column is blank unless
+                         `lineGraphicsExpand` applies.  It is fixed by
+                         the video-mode geometry and cannot be changed
+                         on a live console.
 | `lineGraphicsExpand` | Apply the right-edge duplication to box-
-                         drawing characters in the 0xC0..0xDF range
-                         (the "VGA 9th-column" trick).
+                         drawing glyph indices in the 0xC0..0xDF range
+                         when `expand` is true (the VGA ninth-column
+                         rule).
 |===
 
 ==== Screen.color — `Color`
@@ -2414,11 +2422,14 @@ writing into a `Cell` field via `fgRgb=` / `bgRgb=`.
 | Pack three 8-bit components into a uint32.
 
 | `Color.fromAttr(attr)`
-| Decode an attribute byte into `[fg, bg]` 24-bit RGB.
+| Decode an attribute byte into `[fg, bg]` 24-bit RGB through the active
+  sixteen-colour palette and current bright/background video-flag policy.
 
 | `Color.toLegacyAttr(fg, bg)`
 | Map 24-bit RGB foreground and background colours to the nearest legacy
-  text attribute byte.
+  text attribute byte in that same active palette.  Matching uses YCoCg
+  distance; bright foreground or background candidates are included only
+  when the current video flags give those attribute bits a colour meaning.
 |===
 
 === Pixel graphics [[pixel-graphics]]
@@ -3162,12 +3173,16 @@ what storage that object refers to; it does not copy cell contents.
 
 | `legacyAttr`, `legacyAttr=(n)`
 | Legacy attribute byte (foreground in low nibble, background in
-  high nibble, plus bright/blink bits).  The binding translates the DOS
-  blue/green/red bit order to the console palette's red/green/blue bit order
-  when the value crosses the Wren boundary.
+  high nibble, plus source bright/blink bits).  Setting it marks both
+  colours as legacy-derived.  The active `VideoFlags` decide whether
+  those source bits also select bright colours, blink, or alternate
+  font slots when a new screen cell is written.  Explicit `fgPalette`,
+  `bgPalette`, `fgRgb`, or `bgRgb` assignment replaces the corresponding
+  legacy-derived colour; `legacyAttr` then reports its nearest active-palette
+  representation while retaining the source bright/blink bits.
 
 | `bright`, `bright=(b)`
-| Bright bit.
+| Source attribute bit 3.  This is distinct from the `bold` drawing style.
 
 | `blink`, `blink=(b)`
 | Blink bit.
@@ -3181,9 +3196,9 @@ what storage that object refers to; it does not copy cell contents.
 | Foreground / background palette indices.
 
 | `fgRgb`, `bgRgb`
-| Foreground / background as 24-bit RGB.  Setters preserve bits
-  24..30 of the existing field, so toggling between palette and RGB
-  modes does not lose unrelated state.
+| Foreground / background as 24-bit RGB.  Setters change only the selected
+  colour channel and its legacy-derived marker; source bright/blink and all
+  other cell state remain intact.
 
 | `hyperlinkId`, `hyperlinkId=(n)`
 | Hyperlink ID attached to this cell.

@@ -268,6 +268,57 @@ st_console_get_blink_mode(st_console_t *console,
 }
 
 int
+st_console_set_video_flags(st_console_t *console, uint32_t flags)
+{
+	const uint32_t presentation_flags = ST_CONSOLE_VIDEO_NO_BRIGHT
+	    | ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND | ST_CONSOLE_VIDEO_NO_BLINK
+	    | ST_CONSOLE_VIDEO_LINE_GRAPHICS_EXPAND;
+	int result;
+
+	if (console == NULL || (flags & ~ST_CONSOLE_VIDEO_FLAGS) != 0)
+		return IO_ERROR_INVALID_ARGUMENT;
+	result = st_rwlock_write_lock(&console->state_lock);
+	if (result != ST_THREAD_SUCCESS)
+		return IO_ERROR_IO;
+	if (((flags ^ console->video_flags) & ST_CONSOLE_VIDEO_EXPAND) != 0) {
+		(void)st_rwlock_unlock(&console->state_lock);
+		return IO_ERROR_INVALID_ARGUMENT;
+	}
+	if (flags != console->video_flags) {
+		uint32_t changed = flags ^ console->video_flags;
+
+		console->video_flags = flags;
+		if ((changed & presentation_flags) != 0) {
+			size_t count = (size_t)console->columns * console->rows;
+
+			st_console_mark_all_locked(console);
+			for (size_t i = 0; console->drawn_cells != NULL && i < count;
+			    ++i)
+				console->drawn_cells[i].flags
+				    |= ST_CONSOLE_CELL_DIRTY;
+		}
+	}
+	result = st_console_finish_change_locked(console);
+	(void)st_rwlock_unlock(&console->state_lock);
+	return result;
+}
+
+int
+st_console_get_video_flags(st_console_t *console, uint32_t *flags)
+{
+	int result;
+
+	if (console == NULL || flags == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	result = st_rwlock_read_lock(&console->state_lock);
+	if (result != ST_THREAD_SUCCESS)
+		return IO_ERROR_IO;
+	*flags = console->video_flags;
+	(void)st_rwlock_unlock(&console->state_lock);
+	return 0;
+}
+
+int
 st_console_set_scaling_mode(st_console_t *console,
 	enum st_console_scaling_mode mode)
 {

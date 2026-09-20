@@ -7,8 +7,8 @@ recommended remedies. Severity does not imply exploitability; source-confirmed
 risks and reproduced failures must be distinguished using those entries.
 No remediation is authorized by this report.
 
-The audit is complete, not the implementation: **93 outstanding findings**
-comprise 13 high, 51 medium, 27 low and 2 unresolved design/performance
+The audit is complete, not the implementation: **90 outstanding findings**
+comprise 12 high, 49 medium, 27 low and 2 unresolved design/performance
 concerns.
 This is not a count of exploitable vulnerabilities or reproduced failures.
 All 47 tracked source directories and 12 root files are covered by the
@@ -19,8 +19,8 @@ Most urgent follow-up groups, subject to separate authorization:
 
 - Memory/resource safety: A027, A030 and A034–A036.
 - Authentication and write-policy correctness: A038 and A062.
-- Data preservation and required compatibility: A012, A014–A019,
-  A079 and the mode-specific rendering/persistence findings.
+- Data preservation and required compatibility: A012, A014–A019 and the
+  mode-specific rendering/persistence findings.
 
 Start with the detailed evidence and regression tests for each finding;
 do not infer that every issue needs a redesign or that changing the public
@@ -40,7 +40,7 @@ consumer boundaries, not evidence that the entire decomposition is wrong.
 | --- | --- | --- |
 | Native I/O → portable result | A012 consumes connection errors twice; A018 casts unrelated flow-control enums; A006 loses errno during cleanup | Preserve error ownership and translate enum semantics explicitly |
 | Mutable model → persistence | A019–A020, A025–A032, A061–A065, A100–A102 show round-trip, failure-atomicity and handle-contract mismatches | Define when state changes become visible and when handles expire; test failure paths at the public boundary |
-| Script declarations → bound implementation | A054–A055, A068, A079, A096, A098–A099 show unavailable or approximated contracts | Keep capability scope explicit and test the shipped scripts against the actual host |
+| Script declarations → bound implementation | A054–A055, A096 and A098–A099 show unavailable or approximated contracts | Keep capability scope explicit and test the shipped scripts against the actual host |
 | Public target → independent consumer | A002, A013, A047, A066 expose probe/dependency gaps | Probe the real declaration/link environment and test minimal consumers |
 | Source libraries → application distribution | A088, A091, A095 distinguish a functioning menu build from connected runtime, DLL/core packaging and notice assembly | Document and verify actual artifacts without representing planned integration as complete |
 
@@ -79,7 +79,7 @@ No new blanket GC, contention or scaling-performance diagnosis is made from
 source shape. The source and test inventory must retain those measurement
 limits in the final report.
 
-The current TODO documents contain 93 outstanding numbered findings. A007 and A011 are
+The current TODO documents contain 90 outstanding numbered findings. A007 and A011 are
 unresolved design/performance concerns, not confirmed runtime defects. Missing
 features and documentation errors are also explicitly distinguished from
 implementation failures in the detailed ledger.
@@ -141,8 +141,6 @@ implementation failures in the detailed ledger.
 | A065 | medium | Settings.reload reads disk rather than current running settings |
 | A066 | low | Wren VM target does not declare its math-library dependency |
 | A067 | medium | Painter truncation changes the style of an undrawn destination cell |
-| A068 | medium | Documented live CustomCursor properties are not bound |
-| A069 | medium | Cell legacy attributes are reconstructed from RGB colour bits |
 | A070 | medium | Changing a Container theme does not repaint inheriting children |
 | A071 | low | A newly constructed empty RadioGroup reports cursor zero |
 | A072 | medium | Popup wrapping counts UTF-8 bytes as screen columns |
@@ -152,7 +150,6 @@ implementation failures in the detailed ledger.
 | A076 | low | Help scrollbar-separator changes do not invalidate wrapped layout |
 | A077 | low | Markdown parses bold delimiters inside inline code |
 | A078 | low | Markdown bullet hard breaks lose continuation indentation |
-| A079 | high | Color bindings substitute palette indexes for their RGB contract |
 | A080 | low | Valid hex edits reset the color-picker cursor to the end |
 | A081 | low | LogView scrollbar counts entries instead of wrapped rows |
 | A082 | low | LogView capacity reduction loses its surviving scroll anchor |

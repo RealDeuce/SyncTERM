@@ -142,6 +142,53 @@ test_default_cursor_geometry(void)
 	st_console_destroy(console);
 }
 
+static void
+test_video_flags(void)
+{
+	struct st_console_display_config display_config = {
+		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	};
+	struct st_console_config config = {
+		.columns = 1,
+		.rows = 1,
+		.video_flags = ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND
+		    | ST_CONSOLE_VIDEO_EXPAND,
+	};
+	struct st_console_cell source = {
+		.foreground = 7,
+		.background = 1,
+		.flags = ST_CONSOLE_CELL_BRIGHT | ST_CONSOLE_CELL_BLINK
+		    | ST_CONSOLE_CELL_LEGACY_FOREGROUND
+		    | ST_CONSOLE_CELL_LEGACY_BACKGROUND,
+	};
+	struct st_console_cell effective;
+	st_console_snapshot_t *snapshot = NULL;
+	st_console_t *console = NULL;
+	uint32_t flags;
+
+	CHECK(st_console_create(&console, &display_config, &config) == 0);
+	CHECK(st_console_get_video_flags(console, &flags) == 0);
+	CHECK(flags == config.video_flags);
+	st_console_effective_cell_locked(console, &source, &effective);
+	CHECK(effective.foreground == 15 && effective.background == 9);
+	CHECK((effective.flags & ST_CONSOLE_CELL_BLINK) != 0);
+	CHECK(st_console_snapshot_create(&snapshot, console) == 0);
+	flags |= ST_CONSOLE_VIDEO_NO_BRIGHT | ST_CONSOLE_VIDEO_NO_BLINK;
+	CHECK(st_console_set_video_flags(console, flags) == 0);
+	st_console_effective_cell_locked(console, &source, &effective);
+	CHECK(effective.foreground == 7 && effective.background == 9);
+	CHECK((effective.flags & ST_CONSOLE_CELL_BLINK) == 0);
+	CHECK(st_console_snapshot_restore(console, snapshot) == 0);
+	CHECK(st_console_get_video_flags(console, &flags) == 0);
+	CHECK(flags == config.video_flags);
+	CHECK(st_console_set_video_flags(console,
+	    flags & ~ST_CONSOLE_VIDEO_EXPAND) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_console_set_video_flags(console,
+	    flags | (UINT32_C(1) << 31)) == IO_ERROR_INVALID_ARGUMENT);
+	st_console_snapshot_destroy(snapshot);
+	st_console_destroy(console);
+}
+
 static struct st_console_cell
 read_cell(st_console_t *console, uint32_t x, uint32_t y)
 {
@@ -1696,12 +1743,12 @@ test_font_resolution_and_complete_cells(void)
 	CHECK(glyph_font == fallback && glyph == 0 && columns == 1);
 
 	CHECK(st_console_font_for_flags(&selection, 0) == 10);
-	CHECK(st_console_font_for_flags(&selection, ST_CONSOLE_CELL_BOLD) == 11);
+	CHECK(st_console_font_for_flags(&selection, ST_CONSOLE_CELL_BRIGHT) == 11);
 	CHECK(st_console_font_for_flags(&selection, ST_CONSOLE_CELL_BLINK) == 12);
 	CHECK(st_console_font_for_flags(&selection,
-	    ST_CONSOLE_CELL_BOLD | ST_CONSOLE_CELL_BLINK) == 13);
+	    ST_CONSOLE_CELL_BRIGHT | ST_CONSOLE_CELL_BLINK) == 13);
 	CHECK(st_console_font_for_flags(&style_only,
-	    ST_CONSOLE_CELL_BOLD | ST_CONSOLE_CELL_BLINK) == 20);
+	    ST_CONSOLE_CELL_BRIGHT | ST_CONSOLE_CELL_BLINK) == 20);
 	CHECK(st_console_font_for_flags(NULL, ST_CONSOLE_CELL_BOLD) == 0);
 
 	CHECK(st_console_write_cells(console, &first, &cell, 1) == 0);
@@ -2302,6 +2349,7 @@ main(void)
 {
 	test_build_features();
 	test_default_cursor_geometry();
+	test_video_flags();
 	test_cell_and_regions();
 	test_text_window_and_scroll();
 	test_move_and_line_operations();

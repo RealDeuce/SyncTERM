@@ -123,13 +123,18 @@ masked `flags` field; it replaces none of those values.
 Single-bit attributes also use named masks in `flags`, not byte-sized Boolean
 members or implementation-defined C bit-fields.  No cell contains pointers or
 owns a separate allocation.
+`ST_CONSOLE_CELL_BRIGHT` and `ST_CONSOLE_CELL_BLINK` retain source attribute
+bits 3 and 7 independently of `ST_CONSOLE_CELL_BOLD`.  The two legacy-colour
+provenance flags opt base palette indices into the current video-flag policy;
+explicit palette and RGB writes do not acquire that policy accidentally.
 
 `st_console_write_cells` is the semantic Unicode edge: it resolves each
 codepoint through the supplied font before storing the cell.  A legacy decoder
 first uses `st_console_font_for_flags` to turn its normal/bright/blink font
 selection and the cell attributes into that supplied font identifier.  This
-keeps bright and blink usable as either display attributes or font selectors,
-as selected by the decoder.  `st_console_write_complete_cells` is the
+keeps the source bright and blink bits usable as display attributes and/or
+font selectors, as selected by the decoder, without conflating bright with
+the independent bold style.  `st_console_write_complete_cells` is the
 puttext-style bypass for cells whose font and glyph are already resolved.  It
 validates registered glyphs and wide-cell pairs when a bitmap raster is
 present, then preserves those choices without Unicode lookup.  A text-only
@@ -162,8 +167,21 @@ guarantee covers the complete 16-bit index space.  Bitmap and direct-colour
 backends provide both.  A mutable 16-colour Win32 console provides palette
 change without the extended guarantee.  Ncurses treats packed direct colour,
 large indexed colour, and mutable terminal palettes as separate capabilities;
-an indexed terminal needs at least 65,536 colours plus the extended colour and
-pair APIs before it advertises the complete space.
+an indexed terminal needs at least 65,535 reported colours plus the extended
+colour and pair APIs before it advertises the complete space.
+`ST_CONSOLE_CAP_BRIGHT_BACKGROUND` separately reports that the backend can
+present the sixteen-colour bright-background interpretation; it says nothing
+about mutable or extended palettes.
+
+The per-console video flags preserve the legacy meanings of source attribute
+bits 3 and 7.  Bright foreground, blink, bright background, and the two font
+selectors are independently controlled.  Presentation changes invalidate
+rendered content, while selector changes affect subsequent writes; neither
+rewrites cells or their already-resolved font identifiers.
+The geometry-owned `ST_CONSOLE_VIDEO_EXPAND` flag is immutable after creation.
+For an eight-pixel font in a nine-pixel cell it produces one blank ninth
+column; `ST_CONSOLE_VIDEO_LINE_GRAPHICS_EXPAND` instead repeats the eighth
+column for glyph indices 0xC0 through 0xDF.
 
 `ST_CONSOLE_CELL_DIRTY` belongs to the implementation.  Region writes ignore
 that bit from callers, and region reads do not return it.  Changed cells receive

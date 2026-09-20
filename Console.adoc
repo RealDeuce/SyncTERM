@@ -141,6 +141,11 @@ restored when the instance closes.
 `ST_CONSOLE_CAP_LOCAL_CONTROL_KEYS` is currently set only for ANSI and
 ncurses, where SyncTERM reserves Ctrl+Q and Ctrl+S for local commands.  The
 native Win32 console is a text terminal but has independent keyboard events.
+`ST_CONSOLE_CAP_BRIGHT_BACKGROUND` is independent of palette mutation and
+reports that the backend can present the sixteen-colour bright-background
+interpretation.  For ncurses, complete 16-bit indexed-palette capability
+requires a reported colour count of at least 65,535 together with the
+extended colour and pair interfaces; direct colour is a separate path.
 
 === Bitmap Backends
 
@@ -219,9 +224,16 @@ internal font identifier, indexed or direct-RGB colours, hyperlink identifier,
 and named flag masks.  SAA5050 control data is retained in flags separately
 from the displayed codepoint and glyph.
 
-The high colour bit selects direct RGB; otherwise the low eight bits are a
-palette index.  This distinction is retained through the library.  Pixel
-planes contain final packed `0x00RRGGBB`, never palette indices.
+`ST_CONSOLE_CELL_BRIGHT` and `ST_CONSOLE_CELL_BLINK` retain source attribute
+bits 3 and 7; `ST_CONSOLE_CELL_BOLD` remains an independent glyph-weight
+style.  The two legacy-colour provenance flags mean the corresponding stored
+base palette index should follow the console's video-flag policy.  An explicit
+palette or RGB colour does not acquire that policy merely because its numeric
+index is below eight.
+
+The high colour bit selects direct RGB; otherwise values through 65,535 are
+palette indices.  Cells and pixel planes use the same representation, so
+palette identity survives rasterization, capture, snapshots, and blits.
 
 `ST_CONSOLE_CELL_DIRTY` is private presentation state.  Writes ignore it from
 callers and reads do not return it.  Content changes mark cells in the
@@ -236,9 +248,11 @@ resolved cell; it preserves the supplied font and glyph.
 
 Each font registration contains one-bit bitmap data and a sorted Unicode
 mapping.  There is no implicit codepoint-to-glyph identity map, even for a
-256-glyph legacy font.  A decoder first resolves legacy blink/bright font
-selectors with `st_console_font_for_flags()`, then looks up the resulting
-`(font, codepoint)` pair.
+256-glyph legacy font.  A decoder first resolves legacy
+source-bright/source-blink font selectors with
+`st_console_font_for_flags()`, then looks up the resulting `(font,
+codepoint)` pair.  These source bits are distinct from the bold style and
+remain in the stored cell after font selection.
 
 Lookup checks the selected font first, then font zero's Unicode fallback.  If
 neither maps the scalar, font zero supplies a width-matched replacement.
@@ -325,8 +339,19 @@ Unifont-derived data makes the resulting executable GPL-2.0-or-later; see
 == Stateful Text Operations
 
 The current style, position, clipping/scroll window, wrapping, cursor, blink
-mode, palette, and scaling policy are per instance.  Changing the text window
-moves the position to its upper-left corner.
+mode, video flags, palette, and scaling policy are per instance.  Changing the
+text window moves the position to its upper-left corner.
+
+The seven video flags retain the legacy source-attribute policy without
+changing the cell ABI.  Source bit 3 may select a bright foreground and/or an
+alternate font; source bit 7 may select blink, a bright background, and/or an
+alternate font.  `NO_BRIGHT` and `NO_BLINK` disable only their respective
+rendering meanings.  `EXPAND` is fixed by the console geometry; when an
+eight-pixel font is displayed in a nine-pixel cell, the ninth column is blank
+except that `LINE_GRAPHICS_EXPAND` repeats column eight for glyph indices
+0xC0 through 0xDF.  Changing a flag that affects existing presentation
+invalidates retained rendering without rewriting cells or their resolved font
+identifiers; selector changes apply to subsequent writes.
 
 Filling the final column wraps immediately when wrapping is enabled; at the
 bottom of the window that wrap immediately scrolls.  Carriage return moves to
@@ -398,7 +423,7 @@ synchronous so failures can be returned.
 Snapshot creation is a drain boundary: pending changes are handed to the
 backend and live dirty flags are consumed before the copy.  A snapshot retains
 cells, pixel planes, palette, style, window, position, cursor, wrapping, and
-scaling state, but never dirty flags.  It can only be restored to its
+video/scaling state, but never dirty flags.  It can only be restored to its
 originating console with identical dimensions.  Font registrations are
 instance resources and are not copied.
 

@@ -96,6 +96,7 @@ struct st_console_snapshot {
 	bool cursor_custom;
 	struct st_console_custom_cursor custom_cursor;
 	enum st_console_blink_mode blink_mode;
+	uint32_t video_flags;
 	bool blocky_scaling;
 	uint32_t pixel_top;
 	struct st_console_cell *cells;
@@ -137,6 +138,7 @@ struct st_console {
 	struct st_console_custom_cursor default_cursor;
 	struct st_console_custom_cursor custom_cursor;
 	enum st_console_blink_mode blink_mode;
+	uint32_t video_flags;
 	enum st_console_scaling_mode scaling_mode;
 	bool blocky_scaling;
 	uint32_t aspect_width;
@@ -179,6 +181,28 @@ st_console_colour_rgb_locked(const st_console_t *console, uint32_t colour,
 	}
 	*rgb = 0;
 	return false;
+}
+
+static inline void
+st_console_effective_cell_locked(const st_console_t *console,
+	const struct st_console_cell *source, struct st_console_cell *effective)
+{
+	*effective = *source;
+	if ((source->flags & ST_CONSOLE_CELL_LEGACY_FOREGROUND) != 0
+	    && !ST_CONSOLE_COLOR_IS_RGB(source->foreground)
+	    && source->foreground < 8
+	    && (source->flags & ST_CONSOLE_CELL_BRIGHT) != 0
+	    && (console->video_flags & ST_CONSOLE_VIDEO_NO_BRIGHT) == 0)
+		effective->foreground = source->foreground + 8;
+	if ((source->flags & ST_CONSOLE_CELL_LEGACY_BACKGROUND) != 0
+	    && !ST_CONSOLE_COLOR_IS_RGB(source->background)
+	    && source->background < 8
+	    && (source->flags & ST_CONSOLE_CELL_BLINK) != 0
+	    && (console->video_flags
+	    & ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND) != 0)
+		effective->background = source->background + 8;
+	if ((console->video_flags & ST_CONSOLE_VIDEO_NO_BLINK) != 0)
+		effective->flags &= ~ST_CONSOLE_CELL_BLINK;
 }
 
 static inline uint16_t
