@@ -56,3 +56,30 @@ if(MSVC)
 else()
 	target_compile_options(st_tls PRIVATE -Wall -Wextra -Wpedantic -Werror)
 endif()
+
+if(BUILD_TESTING AND NOT ST_TLS_PROVIDER STREQUAL "none")
+	find_package(OpenSSL 3.0 QUIET)
+	if(OpenSSL_FOUND)
+		if(NOT TARGET syncterm_threads)
+			add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../threads"
+				"${CMAKE_CURRENT_BINARY_DIR}/threads")
+		endif()
+		add_executable(st_tls_psk_test tests/st_tls_psk_required_test.c)
+		target_link_libraries(st_tls_psk_test PRIVATE st_tls
+			syncterm_threads OpenSSL::SSL)
+		set_target_properties(st_tls_psk_test PROPERTIES C_STANDARD 17
+			C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		if(ST_TLS_PROVIDER STREQUAL "OpenSSL")
+			target_compile_definitions(st_tls_psk_test PRIVATE
+				ST_TLS_TEST_OPENSSL_PROVIDER=1)
+		endif()
+		if(MSVC)
+			target_compile_options(st_tls_psk_test PRIVATE /W4 /WX)
+		else()
+			target_compile_options(st_tls_psk_test PRIVATE
+				-Wall -Wextra -Wpedantic -Werror)
+		endif()
+		add_test(NAME st_tls_psk COMMAND st_tls_psk_test)
+		set_tests_properties(st_tls_psk PROPERTIES TIMEOUT 30)
+	endif()
+endif()

@@ -126,27 +126,34 @@ class ClientCredentials : public Botan::Credentials_Manager {
 public:
 	ClientCredentials(const struct st_tls_client_options& options)
 	{
-		if (options.server_auth == ST_TLS_SERVER_AUTH_WEB_PKI)
-			system_store_ = std::make_unique<Botan::System_Certificate_Store>();
-		else if (options.server_auth == ST_TLS_SERVER_AUTH_CERTIFICATE) {
-			custom_certificate_.emplace(options.trusted_certificate_file);
-			custom_store_ =
-			    std::make_unique<Botan::Certificate_Store_In_Memory>(
-			    *custom_certificate_);
-		}
-		if (options.client_certificate_file != nullptr) {
-			Botan::DataSource_Stream source(options.client_certificate_file);
-			while (Botan::PEM_Code::matches(source))
-				client_chain_.emplace_back(source);
-			if (client_chain_.empty())
-				throw std::runtime_error("client certificate file is empty");
-			Botan::DataSource_Stream key_source(options.client_key_file);
-			client_key_ = Botan::PKCS8::load_key(key_source);
-		}
 		if (options.psk != nullptr) {
 			psk_identity_ = options.psk_identity;
 			const auto *secret = static_cast<const uint8_t *>(options.psk);
 			psk_.assign(secret, secret + options.psk_size);
+		} else {
+			if (options.server_auth == ST_TLS_SERVER_AUTH_WEB_PKI)
+				system_store_ =
+				    std::make_unique<Botan::System_Certificate_Store>();
+			else if (options.server_auth
+			    == ST_TLS_SERVER_AUTH_CERTIFICATE) {
+				custom_certificate_.emplace(
+				    options.trusted_certificate_file);
+				custom_store_ = std::make_unique<
+				    Botan::Certificate_Store_In_Memory>(
+				    *custom_certificate_);
+			}
+			if (options.client_certificate_file != nullptr) {
+				Botan::DataSource_Stream source(
+				    options.client_certificate_file);
+				while (Botan::PEM_Code::matches(source))
+					client_chain_.emplace_back(source);
+				if (client_chain_.empty())
+					throw std::runtime_error(
+					    "client certificate file is empty");
+				Botan::DataSource_Stream key_source(
+				    options.client_key_file);
+				client_key_ = Botan::PKCS8::load_key(key_source);
+			}
 		}
 	}
 

@@ -67,6 +67,11 @@ struct st_tls_client_options {
 };
 
 /*
+ * Setting any PSK field selects PSK-only authentication. The identity,
+ * secret, and exact TLS version must all be supplied; certificate
+ * authentication options are ignored. Success guarantees that the peer
+ * selected the configured PSK rather than a certificate fallback.
+ *
  * Ownership of socket transfers only on success. Sessions make it
  * nonblocking internally and st_tls_close() closes it.
  */

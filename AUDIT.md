@@ -37,7 +37,7 @@ repository-wide coverage. The legacy tree is read-only reference.
 
 The repository-wide audit is complete. This is not an implementation approval
 or release certification. The consolidated API/design assessment, priority
-groups and all 69 outstanding finding summaries are in
+groups and all 68 outstanding finding summaries are in
 AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 
 | Objective requirement | Authoritative evidence and disposition |
@@ -50,8 +50,8 @@ AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 | Required legacy behavior | Read-only comparisons cover fonts/catalog/maps, modes, palette capacity, Prestel versus Mode 7, command line, console/input and settings behavior, plus explicit parity limits. Frozen CTerm chapter cmp succeeds. |
 | Wren scripts and bindings | Complete local source/signature/manual reviews; isolated shipped-script suites and host fixtures; host closure A100–A113. Connected/SFTP production integration missing from this application is reported, not invented or silently counted as working. |
 | Build logic, generators and documentation | Root/component CMake and generators reviewed; standalone/probe failures recorded; pinned Unicode/font regeneration and table comparisons documented; root manuals/license/development guidance covered. Wren VM vendored internals limited to integration boundaries as requested. |
-| Inventory and consolidated findings | 69 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 2 high, 40 medium, 25 low, 2 unresolved concerns; not all runtime reproductions. |
-| Relevant tests where practical | A complete native build succeeds. The latest 74-test run has a stable disposition of 71 pass, 2 fail and 1 Wayland skip. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
+| Inventory and consolidated findings | 68 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 1 high, 40 medium, 25 low, 2 unresolved concerns; not all runtime reproductions. |
+| Relevant tests where practical | A complete native build succeeds. The latest 75-test run has a stable disposition of 72 pass, 2 fail and 1 Wayland skip. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
 | Explicit uncertainty | Each component records unavailable platforms, unexecuted failure paths and measurement limits; A007/A011 unresolved. Source-level risks are not called verified crashes. These are audit outcomes, not claims of implementation correctness. |
 
 Historical pending-source lists below are superseded by subsequent full reads,
@@ -139,7 +139,7 @@ not the absence of failing tests. New findings will receive stable A-numbers.
 | windows_utf/ | Reviewed | Source and MinGW compile; Windows runtime not verified |
 | wren_host/ | Reviewed | All local implementation, public/internal headers, CMake/generator and integration tests read; isolated shipped-script and host-contract cases run; mutation/error/input/font/ownership integration dispositioned below, including A112–A113; runtime/fault limits explicit |
 | wren_vm/ | Reviewed at integration boundary | Full legacy diff, build/configuration, license, REPL private API coupling and minimal consumer link checked; upstream internals not exhaustively audited |
-| xptls/ | Reviewed | All five local source/header/build files read; A038 PSK authentication bypass reproduced against OpenSSL, rejected by Botan; broader TLS/platform coverage gaps below |
+| xptls/ | Reviewed | All local source/header/build/test files read; broader TLS/platform coverage gaps below |
 | xptls_crypto/ | Reviewed | All local headers/providers/clear implementations/build/tests read; expanded tests pass OpenSSL, Botan and none; MinGW compile only; contract/resource gaps below |
 
 ## Root documentation review and consolidated follow-ups
@@ -1265,35 +1265,6 @@ reachability claim yet; host sort-order parsing remains to review.
 Recommended remedy: validate without negating INT_MIN and cover the complete
 int boundary contract. Also source-only: field_count*sizeof(int) in sort's
 allocation lacks an overflow check; callers' count bounds remain to review.
-
-### A038 — OpenSSL TLS 1.3 PSK mode accepts an unauthenticated certificate server
-
-Severity: high. Confirmed by a local regression; not an inferred cipher-policy
-concern. `xptls/st_tls_openssl.c:253` installs the TLS 1.3 PSK callback but
-`:257` disables certificate verification. After `SSL_connect()` succeeds,
-`:330` captures certificates and publishes the session without verifying that
-the handshake actually used the PSK. A peer can instead complete an ordinary
-certificate handshake without knowing the configured secret. The Botan
-implementation explicitly rejects `psk && !session->psk_used` at
-`xptls/st_tls_botan.cpp:469`.
-
-`xptls/tests/st_tls_psk_required_test.c` constructs a local certificate-only
-TLS 1.3 server with a freshly generated self-signed certificate, no PSK
-callback and no configured secret. It connects through the unchanged public
-client API with a nonempty PSK and requires rejection. Native OpenSSL returns
-0 (regression exits 1); the same test linked against the Botan provider
-returns -34 and passes. The fixture uses a POSIX socket pair and a child
-process, no external network service or trust-store changes. No Windows
-runtime verification. The normal repository caller currently found is
-webget using WEB_PKI, not PSK; this finding concerns the exposed PSK API and
-must not be described as a demonstrated web-download authentication bypass.
-
-Recommendation: enforce successful PSK authentication before publishing a
-PSK session, independently of the TLS 1.3 negotiated cipher suite. OpenSSL's
-[PSK callback documentation](https://docs.openssl.org/3.0/man3/SSL_CTX_set_psk_client_callback/)
-states that TLS 1.3 PSK establishment is observable through
-`SSL_session_reused()`. Add provider-parity tests for a correct PSK, incorrect
-PSK, and certificate-only fallback. No implementation change made.
 
 ### A047 — Standalone console build omits its string_compat dependency
 
@@ -4939,10 +4910,11 @@ Read the public header, OpenSSL/Botan/unavailable implementations and CMake
 completely. The component is cohesive client-only TLS; sockets and generic
 errors are its public dependencies, provider details private. CMake uses the
 crypto provider selection and imported OpenSSL/Botan targets, C17 or C++20
-without extensions, and permits standalone configuration. There are no TLS
-tests registered by this component's CMake. Builds of st_tls in build
-(OpenSSL) and build-gcc (Botan) pass; the new standalone A038 test exercises
-both native provider implementations, not merely availability probes.
+without extensions, and permits standalone configuration. When a production
+TLS provider and an OpenSSL test fixture are available, CMake registers a
+portable loopback test covering TLS 1.2 and TLS 1.3 PSK success, wrong-secret
+rejection and certificate-fallback rejection. Native OpenSSL and Botan runs
+pass; no Windows runtime verification was available.
 
 - Ownership of a successful session/socket and peer DER is documented.
   Failure leaves the socket open but both providers force it to blocking after
@@ -4980,9 +4952,7 @@ both native provider implementations, not merely availability probes.
   all invalid enum values or reversed min/max version ranges explicitly.
   OpenSSL's unrecognized server_auth falls through to VERIFY_NONE, whereas
   Botan enables verification for any non-NONE value. Invalid caller input is
-  not the valid-input PSK bypass in A038. Botan credentials also process
-  certificate fields in PSK mode while OpenSSL ignores them; validation for
-  paired certificate/key fields is skipped in PSK mode in both implementations.
+  not a valid-input authentication failure.
 - OpenSSL's TLS 1.3 PSK callback always supplies a SHA-256 session and ignores
   the requested digest; primary documentation requires compatibility when the
   digest is supplied. Botan filters non-SHA-256 PSK requests. No second-callback
@@ -4996,12 +4966,11 @@ both native provider implementations, not merely availability probes.
   verify callback, which would conflict with the unconditional until-close
   borrowed-data promise if renegotiation is allowed. Not reproduced.
 - Missing verification includes real trusted/untrusted chains, IP-literal
-  identity checking, mutual TLS, TLS 1.2/1.3 PSK success and wrong-secret cases,
-  version bounds, record fragmentation, close_notify versus abrupt EOF,
+  identity checking, mutual TLS, version bounds, record fragmentation,
+  close_notify versus abrupt EOF,
   backpressure/retry, cancellation, allocation failures, and Windows runtime.
   The unavailable provider is source-reviewed only in this pass. Existing HTTP
-  loopback tests do not exercise TLS. No production or CMake changes, and the
-  standalone regression is intentionally not registered by a build-file edit.
+  loopback tests do not exercise TLS.
 
 ### xptls_crypto/
 

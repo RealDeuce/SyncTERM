@@ -245,7 +245,8 @@ st_tls_client_open(st_tls_session_t **result, socket_handle_t socket,
 		if (options->psk_version == ST_TLS_PROTOCOL_1_2) {
 			const char *cipher_list = options->psk_policy
 			    == ST_TLS_PSK_TLS12_COMPATIBILITY
-			    ? "ECDHE-PSK:DHE-PSK:PSK" : "ECDHE-PSK:DHE-PSK";
+			    ? "ECDHE-PSK:DHE-PSK:PSK"
+			    : "kECDHEPSK:kDHEPSK:!CBC:!eNULL:!RC4:!3DES:!DES";
 			if (!SSL_CTX_set_cipher_list(session->context, cipher_list)) {
 				status = IO_ERROR_NOT_SUPPORTED;
 				goto fail;
@@ -319,6 +320,14 @@ st_tls_client_open(st_tls_session_t **result, socket_handle_t socket,
 			report(session, status, true, "TLS handshake failed");
 			goto fail_blocking;
 		}
+	}
+	if (psk && (SSL_version(session->ssl) >= TLS1_3_VERSION
+	    ? SSL_session_reused(session->ssl) != 1
+	    : SSL_get_psk_identity(session->ssl) == NULL)) {
+		status = IO_ERROR_PROTOCOL;
+		report(session, status, true,
+		    "TLS handshake did not select the configured PSK");
+		goto fail_blocking;
 	}
 	status = capture_peer_certificates(session);
 	if (status < 0)
