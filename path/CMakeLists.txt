@@ -57,5 +57,17 @@ if(BUILD_TESTING)
 	if(NOT WIN32)
 		set_tests_properties(path PROPERTIES
 			ENVIRONMENT "HOME=/tmp/path-home")
+	else()
+		add_executable(path_windows_growth_test
+			tests/path_windows_growth_test.c path.c)
+		target_include_directories(path_windows_growth_test PRIVATE
+			${CMAKE_CURRENT_SOURCE_DIR})
+		target_link_libraries(path_windows_growth_test PRIVATE
+			st_windows_utf syncterm_io_error)
+		set_target_properties(path_windows_growth_test PROPERTIES
+			C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		syncterm_path_warnings(path_windows_growth_test)
+		add_test(NAME path_windows_growth COMMAND
+			path_windows_growth_test)
 	endif()
 endif()

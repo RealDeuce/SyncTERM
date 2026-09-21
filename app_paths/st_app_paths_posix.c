@@ -8,16 +8,19 @@
 #include "st_app_paths_internal.h"
 
 #include "io_error.h"
+#include "path.h"
 
 #include <stdlib.h>
 
 static char *
-environment_or_home(const char *environment, const char *home_suffix)
+environment_or_home(const char *environment, const char *home_suffix,
+    bool require_absolute)
 {
 	const char *value = getenv(environment);
 	const char *home;
 
-	if (value != NULL && value[0] != '\0')
+	if (value != NULL && value[0] != '\0'
+	    && (!require_absolute || path_is_rooted(value)))
 		return st_app_path_copy(value);
 	home = getenv("HOME");
 	if (home == NULL || home[0] == '\0')
@@ -33,10 +36,10 @@ st_app_paths_platform_init(struct st_app_paths *paths)
 	char *download = NULL;
 	char *data = NULL;
 
-	config = environment_or_home("XDG_CONFIG_HOME", ".config");
-	cache = environment_or_home("XDG_CACHE_HOME", ".cache");
-	download = environment_or_home("XDG_DOWNLOAD_DIR", "Downloads");
-	data = environment_or_home("XDG_DATA_HOME", ".local/share");
+	config = environment_or_home("XDG_CONFIG_HOME", ".config", true);
+	cache = environment_or_home("XDG_CACHE_HOME", ".cache", true);
+	download = environment_or_home("XDG_DOWNLOAD_DIR", "Downloads", false);
+	data = environment_or_home("XDG_DATA_HOME", ".local/share", true);
 	if (config != NULL) {
 		char *base = st_app_path_join(config, "syncterm");
 		free(config);

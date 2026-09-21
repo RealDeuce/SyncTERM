@@ -37,21 +37,21 @@ repository-wide coverage. The legacy tree is read-only reference.
 
 The repository-wide audit is complete. This is not an implementation approval
 or release certification. The consolidated API/design assessment, priority
-groups and all 35 outstanding finding summaries are in
+groups and all 31 outstanding finding summaries are in
 AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 
 | Objective requirement | Authoritative evidence and disposition |
 | --- | --- |
 | Entire repository, not only recent changes | git ls-files identifies 47 top-level source directories and 12 root files; every directory has an inventory row, no omissions. Per-component reviews cover local implementations, headers, tests/build and associated data/docs. |
-| API design, architecture and library layout | AUDIT_INDEX boundary/coupling/ownership assessment plus component public-contract and CMake dependency reviews; A006/A007, A088/A091 and host-contract findings. Cohesive decomposition is recognized; no redesign authorized. |
+| API design, architecture and library layout | AUDIT_INDEX boundary/coupling/ownership assessment plus component public-contract and CMake dependency reviews; A007, A088/A091 and host-contract findings. Cohesive decomposition is recognized; no redesign authorized. |
 | Correctness, ownership/lifetime and concurrency | Component lifecycle/error reviews, normal and injected tests, explicit GUI/host ownership closure; source and reproduced failures are qualified individually. A023 illustrates a remaining timing and reclamation risk. |
-| Portability and all platform backends | POSIX/Windows sources and every audio/console backend reviewed; native, MinGW compile-only and unavailable runtime evidence kept separate. Capability probes/standalone targets reviewed. No unsupported platform pass inferred. |
+| Portability and all platform backends | POSIX/Windows sources and every audio/console backend reviewed; native, MinGW cross-build, focused Wine and unavailable runtime evidence kept separate. Capability probes/standalone targets reviewed. No unsupported platform pass inferred. |
 | Performance | Scaler/renderer benchmark source and measured cases reviewed, including common mixed-axis scaling; A011/A023 and backend pacing risks distinguished from measured regressions. Reconstructed legacy benchmark limitations explicitly recorded. |
 | Required legacy behavior | Read-only comparisons cover fonts/catalog/maps, modes, palette capacity, Prestel versus Mode 7, command line, console/input and settings behavior, plus explicit parity limits. Frozen CTerm chapter cmp succeeds. |
 | Wren scripts and bindings | Complete local source/signature/manual reviews; isolated shipped-script suites and host fixtures; remaining host findings through A113. Connected/SFTP production integration missing from this application is reported, not invented or silently counted as working. |
 | Build logic, generators and documentation | Root/component CMake and generators reviewed; standalone/probe failures recorded; pinned Unicode/font regeneration and table comparisons documented; root manuals/license/development guidance covered. Wren VM vendored internals limited to integration boundaries as requested. |
-| Inventory and consolidated findings | 35 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 15 medium, 18 low, 2 unresolved concerns; not all runtime reproductions. |
-| Relevant tests where practical | Complete native Clang and GCC builds succeed. The latest 93-test runs have a stable disposition of 91 pass, 1 fail and 1 Wayland skip. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
+| Inventory and consolidated findings | 31 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 14 medium, 15 low, 2 unresolved concerns; not all runtime reproductions. |
+| Relevant tests where practical | Complete native Clang and GCC builds succeed. The latest 95-test runs have a stable disposition of 93 pass, 1 fail and 1 Wayland skip. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
 | Explicit uncertainty | Each component records unavailable platforms, unexecuted failure paths and measurement limits; A007/A011 unresolved. Source-level risks are not called verified crashes. These are audit outcomes, not claims of implementation correctness. |
 
 Historical pending-source lists below are superseded by subsequent full reads,
@@ -95,7 +95,7 @@ not the absence of failing tests. New findings will receive stable A-numbers.
 | Root CMake, configuration/type headers, .gitignore | Reviewed | Root source read; fresh native configure with testing/Unifont disabled succeeds; component probes and application packaging tracked in owning rows |
 | Root manuals, license and development guidance | Reviewed | Manual.txt, Wren.adoc, LICENSE, REVIEW.md and development guidance read; cterm.adoc intentionally frozen and identical to legacy by cmp; Console.adoc covered with console; contract mismatches A088–A090 and licensing/distribution notes below |
 | app/ | Reviewed | All local implementation/header/build/test read; A053, A088, A091; parser and 28 fixed-mode legacy geometry checked; startup/host ownership boundary dispositioned below; native startup tests pass, GUI/platform and future connected-loop limits explicit |
-| app_paths/ | Reviewed | A009; native normal tests plus failing XDG reproduction; other platforms source-only except MinGW compile |
+| app_paths/ | Reviewed | Native default/override tests pass; other platforms source-only except MinGW compile |
 | array_list/ | Reviewed | A007 unresolved portability concern; native and optimized tests pass |
 | audio/ | Reviewed | All local backends/synthesis/build/tests read; A023 callback risk; native fake tests pass, MinGW WASAPI compile only; actual device/platform gaps below |
 | audio_mixer/ | Reviewed | All local sources/tests/build read; native continuity tests pass; device integration assigned to audio; ramp/performance/lifetime gaps below |
@@ -105,16 +105,16 @@ not the absence of failing tests. New findings will receive stable A-numbers.
 | console/ | Reviewed | All local implementation/backends, tests, benchmark, build and docs read; GUI closure notes, native/isolated tests and platform-only risks distinguished; remaining Wren consumer questions belong to wren_host |
 | dynamic_library/ | Reviewed | Native fixtures pass; Windows compiled, not executed |
 | event/ | Reviewed | Native repeated tests, MinGW compile; failure-injection limitations below |
-| file_lock/ | Reviewed | A006; native tests plus failing controlled error-path reproduction; Windows source/compile only |
+| file_lock/ | Reviewed | Native coordination and controlled error-path tests pass; Windows source/compile only |
 | file_map/ | Reviewed | Native stream-lifetime test passes; Windows source/compile only |
-| filesystem/ | Reviewed | A010; native expanded tests pass; Windows compile-only regression |
+| filesystem/ | Reviewed | Native expanded tests and Windows root tests pass; other Windows behavior is source/compile reviewed |
 | fonts/ | Reviewed | API/generator/build/tests/docs reviewed; 98 legacy bitmaps and all 46 catalog metadata entries match; mapping bounds/legacy comparison and semantic limits below; native tests pass |
 | hex/ | Reviewed | Native tests and MinGW build; caller integration tracked separately |
 | ini/ | Reviewed | All local sources/tests/build read; native tests pass; consumer integration tracked with owning components; failure injection/performance gaps below |
 | io_error/ | Reviewed | Sources/header/build and caller adapters reviewed; native test passes; 28 Win32 mapping cases added and MinGW compile/link verified, Windows execution unavailable |
 | list_crypto/ | Reviewed | All local code/tests/build read; expanded counted-password tests pass natively; MinGW compile only; provider/resource/erasure limits below |
 | name_value_list/ | Reviewed | Ownership/sorted contracts checked; allocation injection remains a limitation |
-| path/ | Reviewed | A008 conditional Windows defect; native boundary tests pass, MinGW compile |
+| path/ | Reviewed | Native boundary and controlled Windows growth tests pass |
 | pixels/ | Reviewed | All local API/implementation/filter/build/docs/tests/benchmark read; expanded upscale edge tests pass native/ASan/UBSan, MinGW compile; measurement limits below |
 | profile/ | Reviewed | Ownership/copy source and native tests; allocation-failure injection remains a test gap |
 | scripts/ | Reviewed | All current script implementations/tests read, including main menu, editors, REPL, common bindings module and self-test driver; isolated suite results and runtime/cross-script gaps documented below; older remaining-source lists superseded |
@@ -681,21 +681,6 @@ follow-ups or constitute final consolidated audit completion.
 
 ## Findings
 
-### A006 — POSIX file-lock cleanup can overwrite the acquisition error
-
-Severity: low (misreported failure). Classification: confirmed defect with a
-controlled failing test, not a reproduced real filesystem failure.
-
-`file_lock/st_file_lock_posix.c:48` closes the descriptor after a non-EINTR
-flock failure, then translates errno. close can overwrite errno, so the caller
-receives the cleanup error instead of the acquisition error. The Windows path
-saves its error before cleanup and does not have this problem.
-`file_lock/tests/st_file_lock_error_test.c` includes the unchanged POSIX source
-with controlled open/flock/close calls. With flock reporting EACCES and close
-reporting EIO, the API returns -19 instead of -4. The test intentionally fails
-under both native compilers. Recommendation: save the acquisition errno before
-cleanup; do not modify implementation as part of this audit.
-
 ### A007 — Typed-list representation needs a portability decision
 
 Severity: unresolved, potentially medium. Classification: design/portability
@@ -714,55 +699,6 @@ array tests pass without diagnostics. No optimizer failure has been demonstrated
 and passing tests do not settle the C-language portability question.
 Recommendation: separately establish the supported representation/aliasing
 contract before deciding whether any implementation adjustment is needed.
-
-### A008 — Windows current-directory buffer growth is mistaken for success
-
-Severity: medium under concurrent directory changes. Classification: confirmed
-source/API mismatch, not runtime-reproduced on Windows; current application
-reachability remains unproven.
-
-`path/path_windows.c:98` tests GetCurrentDirectoryW only for zero after a prior
-sizing query. A larger required buffer is also returned as a nonzero value;
-that case is not successful string retrieval. The helper then returns the
-allocated buffer for string processing without establishing it contains a
-terminated path. See Microsoft's [GetCurrentDirectory contract](https://learn.microsoft.com/pl-pl/windows/win32/api/winbase/nf-winbase-getcurrentdirectory).
-The drive-relative helper at line 117 and the second path_make_absolute call
-in path_windows_extended similarly do not verify that the result fits.
-Trigger requires path context to grow between calls; this audit has not found
-an ordinary parent-process chdir caller establishing that trigger in SyncTERM.
-Recommendation: check returned sizes and retry/fail safely, with an explicit
-concurrency policy for relative resolution. Do not change implementation during
-the audit.
-
-### A009 — POSIX app paths accept relative XDG base directories
-
-Severity: low. Classification: confirmed specification mismatch, reproduced.
-
-`app_paths/st_app_paths_posix.c:20` accepts every nonempty environment value.
-For XDG_CONFIG_HOME, XDG_CACHE_HOME and XDG_DATA_HOME, relative values should
-instead be ignored according to the [XDG Base Directory specification](https://specifications.freedesktop.org/basedir/latest/).
-With all three set to `relative`, the standalone
-`app_paths/tests/st_app_paths_xdg_test.c` fails: settings, cache and SSH-key paths
-are rooted in the process working directory rather than the HOME defaults.
-The test performs no filesystem mutations. Recommendation: validate absolute
-XDG bases separately from explicit user path overrides; preserve any deliberate
-relative override support. No implementation changed.
-
-### A010 — Windows recursive mkdir reports success for nonexistent roots
-
-Severity: low. Classification: confirmed control-flow defect; Windows runtime
-reproduction not executed in this audit.
-
-`filesystem/filesystem_windows.c:479` only validates/creates the final path when
-its length exceeds the parsed root. For a drive root or UNC share root, the
-component loop is empty and the final check is skipped. Lexical path conversion
-can succeed for an absent drive/share, so fs_create_directories returns zero
-without checking that any directory exists. fs_create_parent_directories can
-inherit this false success for a file immediately below such a root.
-Recommendation: verify the root exists and is a directory when it is the entire
-requested path. The standalone Windows test
-`filesystem/tests/filesystem_missing_root_test.c` picks an absent drive and
-expects failure; compiled/linked with MinGW, not run. No implementation fix.
 
 ### A011 — Non-native rwlock fast paths need performance validation
 
@@ -2993,8 +2929,7 @@ in coordination; no injected synchronization-failure evidence yet. String path
 keys do not canonicalize aliases; native locks still provide the actual file
 exclusion. The POSIX descriptor is opened without close-on-exec: inheritance into
 spawned programs needs checking with the connection/process-launch audit before
-assigning user-visible impact. flock errors are retried only on EINTR; A006
-captures cleanup error loss.
+assigning user-visible impact. flock errors are retried only on EINTR.
 
 Existing tests exercise shared/shared and both shared/exclusive directions
 within one process, but not exclusive/exclusive or multiple processes. The
@@ -3117,7 +3052,7 @@ components without walking above root, and does not resolve symlinks; tilde
 expansion reads HOME and leaves named-user syntax literal. Windows handles
 drive-relative/current-drive/UNC roots, converts strictly through windows_utf,
 and constructs the extended namespace internally while rejecting incoming
-device namespace syntax. A008 captures unsafe sizing under changing path context.
+device namespace syntax.
 
 The component validator promises separator/dot rejection only. It accepts colon,
 Windows device basenames and trailing dots/spaces, so it must not be treated as
@@ -3128,8 +3063,9 @@ No allocations escape failure cleanup in source review. Windows wide joins have
 less complete multiplication guards than other helpers; practical input/native
 length limits and 32-bit behavior are not exercised here. Tests now apply exact-
 capacity canaries and in-place checks to their output vectors, plus repeated
-separators/root/dot traversal on POSIX. Native tests pass, Windows compiles only.
-No macOS/Haiku runtime or allocation-error injection performed.
+separators/root/dot traversal on POSIX. Native tests pass; normal and controlled
+buffer-growth Windows tests pass under Wine. No macOS/Haiku runtime or
+allocation-error injection performed.
 
 ### app_paths
 
@@ -3143,7 +3079,7 @@ belongs to filesystem. Platform defaults are computed before overrides, so full
 overrides do not bypass native-directory discovery failures. That is a design
 limitation, not an established violation of a promised contract.
 
-POSIX selects XDG/HOME defaults (A009); macOS uses Library support/cache paths;
+POSIX selects XDG/HOME defaults; macOS uses Library support/cache paths;
 Haiku uses find_directory categories, not guessed POSIX paths; Windows uses
 known-folder APIs and strict UTF conversion. Native discovery errors are often
 collapsed to NOT_FOUND or OUT_OF_MEMORY, reducing diagnostic precision. No
@@ -3163,8 +3099,8 @@ All six original files read (header, common composition, both backends, CMake,
 tests). Public size/time fields encode stable widths and output structs publish
 only on success. POSIX stat/lstat and Windows handle/reparse metadata distinguish
 follow/no-follow operations. Windows path conversion consistently uses the exact
-extended namespace through the path helper; A008 remains relevant to relative
-calls. Filetime conversion guards range and handles pre-epoch rounding without
+extended namespace through the path helper. Filetime conversion guards range
+and handles pre-epoch rounding without
 negating INT64_MIN. Stream size does not seek; truncation flushes, validates
 representability and leaves position unchanged. Sync flushes stream buffers and
 requests file durability, not parent-directory durability.
@@ -3186,7 +3122,7 @@ Recursive mkdir accepts existing directory components; POSIX creation mode is
 settings/key directories must impose that policy separately (caller reviews
 pending). Neither backend provides hostile-directory race resistance. Windows
 directory-link deletion behavior differs from POSIX lstat-based removal and is
-not explicitly documented. A010 records a concrete root-only failure.
+not explicitly documented.
 CMake requires 64-bit off_t with a _FILE_OFFSET_BITS retry, target-local
 definitions and strict-C17 probes. Public
 path linkage exceeds the types needed by filesystem.h; no cycle established.
@@ -3195,8 +3131,8 @@ Existing tests cover metadata, exclusive creation, multi-GiB sparse truncation,
 position retention, copy permissions/mtime, replacement rename, nested creation,
 symlinks/dangling links and cleanup; Windows additionally has long/exact names
 and optional symlink tests. Added hard-link self-copy preservation and oversized
-truncate rejection. Native Clang/GCC pass; MinGW builds. Windows missing-root
-test builds only. Real short writes, disk exhaustion, native cleanup failures,
+truncate rejection. Native Clang/GCC pass; MinGW builds and root behavior runs
+under Wine. Real short writes, disk exhaustion, native cleanup failures,
 cross-volume rename, ACL preservation and concurrent path replacement are not
 runtime-tested. No performance benchmark or claim of copy throughput parity.
 
@@ -4547,9 +4483,6 @@ successful verification.
 - Dynamic-library pass: native Clang/GCC fixture CTests pass and MinGW target
   builds. No test or production source changes in that component.
 - File-map/file-lock pass: native Clang/GCC CTests pass and MinGW targets build.
-  The new standalone POSIX lock-error reproduction compiles with both native
-  compilers and intentionally exits 1: expected -4, got -19, one cleanup close.
-  No build registration added; its source includes the reproduction command.
   The first build of the new stream-lifetime test caught an undeclared boolean
   literal in the test addition; corrected the test before the passing runs.
   No implementation changes or commits in this pass.
@@ -4565,17 +4498,6 @@ successful verification.
   windows_utf, compile/link with MinGW. No Windows runtime claim. New test
   cases include bounded non-NUL strndup input and size-zero/one copy boundaries.
   No production edits, normal-build option changes or commits.
-- Path/app-path pass: native Clang/GCC CTests pass; MinGW builds both targets.
-  New standalone XDG test links against unchanged native libraries and exits 1
-  with relative XDG_CONFIG_HOME/XDG_CACHE_HOME/XDG_DATA_HOME; outputs are
-  relative/syncterm/syncterm.ini, relative/syncterm, and
-  relative/syncterm/syncterm.ssh. HOME is inherited, not changed. No files created
-  by that reproduction; ordinary app-path tests use their build-tree fixture.
-  Windows sizing finding is source-only. No production edits or commits.
-- Filesystem pass: expanded native CTests pass under Clang and GCC; MinGW
-  normal target and standalone missing-root regression compile/link. The latter
-  has not been run and is expected to expose A010. No implementation or build
-  configuration changed; no commits.
 - Threads pass: native Clang/GCC st_threads CTest passes five consecutive runs
   each. A separate /tmp/st-threads-audit.G680vO build forces both optional pthread
   rwlocks and mutex_timedlock absent; its full test passes five runs. Normal

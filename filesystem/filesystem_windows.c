@@ -461,7 +461,7 @@ fs_create_directories(const char *path)
 		if (error < 0)
 			break;
 	}
-	if (error == 0 && length > root)
+	if (error == 0)
 		error = fs_create_or_confirm_directory(wide);
 	free(wide);
 	return error;

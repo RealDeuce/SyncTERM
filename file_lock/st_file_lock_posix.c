@@ -45,8 +45,9 @@ st_file_lock_platform_acquire(st_file_lock_t *lock, const char *path,
 	while (flock(descriptor, exclusive ? LOCK_EX : LOCK_SH) < 0) {
 		if (errno == EINTR)
 			continue;
+		int error = errno;
 		(void)close(descriptor);
-		return map_error(errno);
+		return map_error(error);
 	}
 	lock->native = descriptor;
 	return 0;

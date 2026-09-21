@@ -2,12 +2,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-/* Audit reproduction: cleanup must not overwrite the failed flock's errno.
- * Standalone POSIX test, intentionally failing until the defect is remedied:
- * cc -std=c17 -Wall -Wextra -Werror -Ifile_lock -Iio_error
- *   file_lock/tests/st_file_lock_error_test.c io_error/io_error.c
- *   -o /tmp/st_file_lock_error_test
- */
+/* Cleanup must not overwrite the failed flock's errno. */
 #include "st_file_lock_internal.h"
 #include "io_error.h"
 
@@ -20,7 +15,7 @@
 static int close_count;
 
 static int
-audit_open(const char *path, int flags, ...)
+test_open(const char *path, int flags, ...)
 {
 	(void)path;
 	(void)flags;
@@ -28,7 +23,7 @@ audit_open(const char *path, int flags, ...)
 }
 
 static int
-audit_flock(int descriptor, int operation)
+test_flock(int descriptor, int operation)
 {
 	(void)descriptor;
 	(void)operation;
@@ -37,7 +32,7 @@ audit_flock(int descriptor, int operation)
 }
 
 static int
-audit_close(int descriptor)
+test_close(int descriptor)
 {
 	(void)descriptor;
 	++close_count;
@@ -45,9 +40,9 @@ audit_close(int descriptor)
 	return -1;
 }
 
-#define open audit_open
-#define flock audit_flock
-#define close audit_close
+#define open test_open
+#define flock test_flock
+#define close test_close
 #include "../st_file_lock_posix.c"
 
 int

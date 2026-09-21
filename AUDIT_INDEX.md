@@ -7,8 +7,8 @@ recommended remedies. Severity does not imply exploitability; source-confirmed
 risks and reproduced failures must be distinguished using those entries.
 No remediation is authorized by this report.
 
-The audit is complete, not the implementation: **35 outstanding findings**
-comprise 15 medium, 18 low and 2 unresolved design/performance
+The audit is complete, not the implementation: **31 outstanding findings**
+comprise 14 medium, 15 low and 2 unresolved design/performance
 concerns.
 This is not a count of exploitable vulnerabilities or reproduced failures.
 All 47 tracked source directories and 12 root files are covered by the
@@ -36,7 +36,6 @@ consumer boundaries, not evidence that the entire decomposition is wrong.
 
 | Boundary | Evidence and assessment | Recommended direction, not authorized work |
 | --- | --- | --- |
-| Native I/O → portable result | A006 loses errno during cleanup | Preserve error ownership across cleanup |
 | Script declarations → bound implementation | A098 shows an unavailable demo dependency | Keep capability scope explicit and test the shipped scripts against the actual host |
 | Source libraries → application distribution | A088, A091, A095 distinguish a functioning menu build from connected runtime, DLL/core packaging and notice assembly | Document and verify actual artifacts without representing planned integration as complete |
 
@@ -71,18 +70,14 @@ No new blanket GC, contention or scaling-performance diagnosis is made from
 source shape. The source and test inventory must retain those measurement
 limits in the final report.
 
-The current TODO documents contain 35 outstanding numbered findings. A007 and
+The current TODO documents contain 31 outstanding numbered findings. A007 and
 A011 are unresolved design/performance concerns, not confirmed runtime defects.
 Missing features and documentation errors are also explicitly distinguished
 from implementation failures in the detailed ledger.
 
 | Finding | Severity / qualification | Subject |
 | --- | --- | --- |
-| A006 | low | POSIX file-lock cleanup can overwrite the acquisition error |
 | A007 | unresolved | Typed-list representation needs a portability decision |
-| A008 | medium under concurrent directory changes | Windows current-directory buffer growth is mistaken for success |
-| A009 | low | POSIX app paths accept relative XDG base directories |
-| A010 | low | Windows recursive mkdir reports success for nonexistent roots |
 | A011 | unresolved performance concern | Non-native rwlock fast paths need performance validation |
 | A021 | medium | Compact date-only branch is shadowed by epoch parsing |
 | A023 | medium performance/reliability risk | Real-time audio callbacks take locks and free objects |
@@ -118,8 +113,8 @@ from implementation failures in the detailed ledger.
 
 ### Latest configured native verification
 
-Native Clang and GCC builds succeed. Each configured tree registers 93 tests;
-the stable disposition is **91 pass, 1 fail and 1 Wayland test skipped**. The
+Native Clang and GCC builds succeed. Each configured tree registers 95 tests;
+the stable disposition is **93 pass, 1 fail and 1 Wayland test skipped**. The
 X11 tests pass on an isolated display; one GCC full-suite run encountered an
 intermittent BadWindow failure and its isolated rerun passed. SDL uses its
 CMake-configured dummy video driver.
@@ -147,7 +142,8 @@ reviews distinguish implemented behavior from future connected-session work.
 
 Native Clang and GCC execution provide the current runtime evidence;
 component-specific sanitizer, optional-provider and forced-fallback results
-are recorded separately. MinGW compile/link results do not establish Windows
+are recorded separately. MinGW builds succeed, and focused path/filesystem
+tests run under Wine; this does not establish blanket physical-Windows
 behavior. No blanket macOS, Haiku, Linux/musl, MSVC, physical GUI,
 audio-device or remote-server validation is claimed. Fault injection and
 performance measurements cover only their documented scenarios. The scaler

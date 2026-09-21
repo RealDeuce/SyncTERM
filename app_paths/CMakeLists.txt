@@ -63,4 +63,23 @@ if(BUILD_TESTING)
 			-Wall -Wextra -Wpedantic -Werror)
 	endif()
 	add_test(NAME app_paths COMMAND st_app_paths_test)
+	if(NOT WIN32 AND NOT APPLE AND
+	    NOT CMAKE_SYSTEM_NAME STREQUAL "Haiku")
+		add_executable(st_app_paths_xdg_test
+			tests/st_app_paths_xdg_test.c)
+		target_link_libraries(st_app_paths_xdg_test PRIVATE st_app_paths)
+		target_compile_definitions(st_app_paths_xdg_test PRIVATE
+			ST_APP_PATHS_XDG_TEST_HOME="${CMAKE_CURRENT_BINARY_DIR}/xdg-home")
+		set_target_properties(st_app_paths_xdg_test PROPERTIES
+			C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		if(MSVC)
+			target_compile_options(st_app_paths_xdg_test PRIVATE /W4 /WX)
+		else()
+			target_compile_options(st_app_paths_xdg_test PRIVATE
+				-Wall -Wextra -Wpedantic -Werror)
+		endif()
+		add_test(NAME app_paths_xdg COMMAND st_app_paths_xdg_test)
+		set_tests_properties(app_paths_xdg PROPERTIES ENVIRONMENT
+			"HOME=${CMAKE_CURRENT_BINARY_DIR}/xdg-home;XDG_CONFIG_HOME=relative;XDG_CACHE_HOME=relative;XDG_DATA_HOME=relative;XDG_DOWNLOAD_DIR=relative-download")
+	endif()
 endif()

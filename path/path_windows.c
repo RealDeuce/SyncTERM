@@ -84,41 +84,80 @@ syncterm_path_separator(void)
 	return '\\';
 }
 
-static wchar_t *
-windows_current_directory(void)
+static int
+grow_wide_buffer(wchar_t **buffer, DWORD *capacity, DWORD required)
 {
-	DWORD required = GetCurrentDirectoryW(0, NULL);
-	if (required == 0)
-		return NULL;
-	wchar_t *directory = malloc((size_t)required * sizeof(*directory));
-	if (directory == NULL) {
-		SetLastError(ERROR_NOT_ENOUGH_MEMORY);
-		return NULL;
+	DWORD next = required;
+	wchar_t *resized;
+	size_t bytes;
+
+	if (next <= *capacity) {
+		if (*capacity > UINT32_MAX / 2)
+			return IO_ERROR_OUT_OF_RANGE;
+		next = *capacity * 2;
 	}
-	if (GetCurrentDirectoryW(required, directory) == 0) {
-		free(directory);
-		return NULL;
-	}
-	return directory;
+	bytes = (size_t)next * sizeof(**buffer);
+	if (bytes / sizeof(**buffer) != (size_t)next)
+		return IO_ERROR_OUT_OF_RANGE;
+	resized = realloc(*buffer, bytes);
+	if (resized == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	*buffer = resized;
+	*capacity = next;
+	return 0;
 }
 
-static wchar_t *
-windows_drive_directory(wchar_t drive)
+static int
+windows_current_directory(wchar_t **result)
+{
+	wchar_t *directory = NULL;
+	DWORD capacity = 0;
+	DWORD required = GetCurrentDirectoryW(0, NULL);
+
+	for (;;) {
+		if (required == 0) {
+			DWORD native_error = GetLastError();
+			free(directory);
+			return io_error_from_windows(native_error);
+		}
+		int error = grow_wide_buffer(&directory, &capacity, required);
+		if (error < 0) {
+			free(directory);
+			return error;
+		}
+		required = GetCurrentDirectoryW(capacity, directory);
+		if (required != 0 && required < capacity) {
+			*result = directory;
+			return 0;
+		}
+	}
+}
+
+static int
+windows_drive_directory(wchar_t drive, wchar_t **result)
 {
 	wchar_t probe[] = {drive, L':', L'.', L'\0'};
+	wchar_t *directory = NULL;
+	DWORD capacity = 0;
 	DWORD required = GetFullPathNameW(probe, 0, NULL, NULL);
-	if (required == 0)
-		return NULL;
-	wchar_t *directory = malloc(((size_t)required + 1) * sizeof(*directory));
-	if (directory == NULL) {
-		SetLastError(ERROR_NOT_ENOUGH_MEMORY);
-		return NULL;
+
+	for (;;) {
+		if (required == 0) {
+			DWORD native_error = GetLastError();
+			free(directory);
+			return io_error_from_windows(native_error);
+		}
+		int error = grow_wide_buffer(&directory, &capacity, required);
+		if (error < 0) {
+			free(directory);
+			return error;
+		}
+		required = GetFullPathNameW(probe, capacity, directory, NULL);
+		if (required != 0 && required < capacity) {
+			*result = directory;
+			return 0;
+		}
 	}
-	if (GetFullPathNameW(probe, required + 1, directory, NULL) == 0) {
-		free(directory);
-		return NULL;
-	}
-	return directory;
 }
 
 static size_t
@@ -188,16 +227,17 @@ make_raw_absolute(wchar_t *path, wchar_t **result)
 	wchar_t *base;
 	const wchar_t *suffix = path;
 	bool suffix_rooted = false;
+	int error;
 	if (((path[0] >= L'A' && path[0] <= L'Z') ||
 	    (path[0] >= L'a' && path[0] <= L'z')) && path[1] == L':') {
-		base = windows_drive_directory(path[0]);
+		error = windows_drive_directory(path[0], &base);
 		suffix = path + 2;
 	}
 	else {
-		base = windows_current_directory();
+		error = windows_current_directory(&base);
 		if (wide_is_separator(path[0])) {
 			suffix_rooted = true;
-			if (base != NULL && wide_is_separator(base[0]) &&
+			if (error == 0 && wide_is_separator(base[0]) &&
 			    wide_is_separator(base[1])) {
 				size_t root = wide_unc_root_length(base);
 				if (root == 0) {
@@ -206,14 +246,14 @@ make_raw_absolute(wchar_t *path, wchar_t **result)
 				}
 				base[root] = L'\0';
 			}
-			else if (base != NULL && base[1] == L':')
+			else if (error == 0 && base[1] == L':')
 				base[2] = L'\0';
 		}
 	}
-	if (base == NULL)
-		return io_error_from_windows(GetLastError());
+	if (error < 0)
+		return error;
 	wchar_t *joined;
-	int error = join_wide(base, suffix, suffix_rooted, &joined);
+	error = join_wide(base, suffix, suffix_rooted, &joined);
 	free(base);
 	if (error < 0)
 		return error;
@@ -307,14 +347,13 @@ normalize_wide_absolute(const wchar_t *path, wchar_t **result)
 	return 0;
 }
 
-ptrdiff_t
-path_make_absolute(char *result, size_t result_size, const char *path)
+static int
+path_make_absolute_alloc(char **result, const char *path)
 {
 	wchar_t *wide;
 	wchar_t *absolute;
 	wchar_t *normalized;
 	char *utf8;
-	size_t utf8_length;
 
 	if (path == NULL || *path == '\0')
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -334,17 +373,27 @@ path_make_absolute(char *result, size_t result_size, const char *path)
 	free(normalized);
 	if (error < 0)
 		return error;
-	utf8_length = strlen(utf8);
-	ptrdiff_t stored = syncterm_path_store(result, result_size, utf8,
-	    utf8_length);
-	free(utf8);
+	*result = utf8;
+	return 0;
+}
+
+ptrdiff_t
+path_make_absolute(char *result, size_t result_size, const char *path)
+{
+	char *absolute;
+	int error = path_make_absolute_alloc(&absolute, path);
+
+	if (error < 0)
+		return error;
+	ptrdiff_t stored = syncterm_path_store(result, result_size, absolute,
+	    strlen(absolute));
+	free(absolute);
 	return stored;
 }
 
 int
 path_windows_extended(wchar_t **result, const char *path)
 {
-	ptrdiff_t required;
 	char *absolute;
 	wchar_t *wide;
 	wchar_t *extended;
@@ -355,19 +404,9 @@ path_windows_extended(wchar_t **result, const char *path)
 
 	if (result == NULL || path == NULL || path[0] == '\0')
 		return IO_ERROR_INVALID_ARGUMENT;
-	required = path_make_absolute(NULL, 0, path);
-	if (required < 0)
-		return (int)required;
-	if ((uintmax_t)required >= SIZE_MAX)
-		return IO_ERROR_OUT_OF_RANGE;
-	absolute = malloc((size_t)required + 1);
-	if (absolute == NULL)
-		return IO_ERROR_OUT_OF_MEMORY;
-	status = (int)path_make_absolute(absolute, (size_t)required + 1, path);
-	if (status < 0) {
-		free(absolute);
+	status = path_make_absolute_alloc(&absolute, path);
+	if (status < 0)
 		return status;
-	}
 	status = st_windows_utf8_to_utf16(&wide, absolute);
 	free(absolute);
 	if (status < 0)

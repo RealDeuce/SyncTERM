@@ -2,34 +2,49 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-/* POSIX/XDG audit regression: run with an absolute HOME and
- * XDG_CONFIG_HOME=relative XDG_CACHE_HOME=relative XDG_DATA_HOME=relative.
- * No directories or files are created. Intentionally fails until relative
- * XDG base directories are ignored as required by the specification.
- */
+/* Relative XDG base directories are ignored as required by the specification. */
 #include "st_app_paths.h"
-#include "path.h"
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+
+#ifndef ST_APP_PATHS_XDG_TEST_HOME
+#error "ST_APP_PATHS_XDG_TEST_HOME is required"
+#endif
+
+#define CHECK(expression) do { \
+	if (!(expression)) { \
+		fprintf(stderr, "failed: %s:%d: %s\n", __FILE__, __LINE__, \
+		    #expression); \
+		return 1; \
+	} \
+} while (0)
 
 int
 main(void)
 {
 	struct st_app_paths paths = {0};
+	struct st_app_path_overrides overrides = {
+		.settings_file = "relative/settings.ini",
+	};
 	const char *home = getenv("HOME");
-	if (home == NULL || home[0] != '/') {
-		fprintf(stderr, "test requires an absolute HOME\n");
-		return 2;
-	}
-	if (st_app_paths_init(&paths, NULL) != 0)
-		return 2;
-	int failed = !path_is_rooted(paths.settings_file)
-	    || !path_is_rooted(paths.cache_directory)
-	    || !path_is_rooted(paths.keys_file);
-	if (failed)
-		fprintf(stderr, "relative XDG paths accepted: %s; %s; %s\n",
-		    paths.settings_file, paths.cache_directory, paths.keys_file);
+
+	CHECK(home != NULL);
+	CHECK(strcmp(home, ST_APP_PATHS_XDG_TEST_HOME) == 0);
+	CHECK(st_app_paths_init(&paths, NULL) == 0);
+	CHECK(strcmp(paths.settings_file,
+	    ST_APP_PATHS_XDG_TEST_HOME "/.config/syncterm/syncterm.ini") == 0);
+	CHECK(strcmp(paths.cache_directory,
+	    ST_APP_PATHS_XDG_TEST_HOME "/.cache/syncterm") == 0);
+	CHECK(strcmp(paths.keys_file,
+	    ST_APP_PATHS_XDG_TEST_HOME "/.local/share/syncterm/syncterm.ssh")
+	    == 0);
+	CHECK(strcmp(paths.download_directory, "relative-download") == 0);
 	st_app_paths_dispose(&paths);
-	return failed;
+
+	CHECK(st_app_paths_init(&paths, &overrides) == 0);
+	CHECK(strcmp(paths.settings_file, "relative/settings.ini") == 0);
+	st_app_paths_dispose(&paths);
+	return 0;
 }

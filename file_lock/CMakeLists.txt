@@ -77,4 +77,21 @@ if(BUILD_TESTING)
 	endif()
 	add_test(NAME file_lock COMMAND st_file_lock_test)
 	set_tests_properties(file_lock PROPERTIES TIMEOUT 10)
+	if(NOT WIN32)
+		add_executable(st_file_lock_error_test
+			tests/st_file_lock_error_test.c)
+		target_include_directories(st_file_lock_error_test PRIVATE
+			${CMAKE_CURRENT_SOURCE_DIR})
+		target_link_libraries(st_file_lock_error_test PRIVATE
+			syncterm_io_error)
+		set_target_properties(st_file_lock_error_test PROPERTIES
+			C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		if(MSVC)
+			target_compile_options(st_file_lock_error_test PRIVATE /W4 /WX)
+		else()
+			target_compile_options(st_file_lock_error_test PRIVATE
+				-Wall -Wextra -Wpedantic -Werror)
+		endif()
+		add_test(NAME file_lock_error COMMAND st_file_lock_error_test)
+	endif()
 endif()

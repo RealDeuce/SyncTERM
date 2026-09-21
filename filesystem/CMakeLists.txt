@@ -124,4 +124,17 @@ if(BUILD_TESTING)
 		C_EXTENSIONS NO)
 	syncterm_filesystem_warnings(filesystem_test)
 	add_test(NAME filesystem COMMAND filesystem_test)
+	if(WIN32)
+		add_executable(filesystem_windows_root_test
+			tests/filesystem_missing_root_test.c)
+		target_link_libraries(filesystem_windows_root_test PRIVATE
+			syncterm_filesystem)
+		set_target_properties(filesystem_windows_root_test PROPERTIES
+			C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		syncterm_filesystem_warnings(filesystem_windows_root_test)
+		add_test(NAME filesystem_windows_root COMMAND
+			filesystem_windows_root_test)
+		set_tests_properties(filesystem_windows_root PROPERTIES
+			SKIP_RETURN_CODE 77)
+	endif()
 endif()
