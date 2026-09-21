@@ -37,7 +37,7 @@ repository-wide coverage. The legacy tree is read-only reference.
 
 The repository-wide audit is complete. This is not an implementation approval
 or release certification. The consolidated API/design assessment, priority
-groups and all 49 outstanding finding summaries are in
+groups and all 45 outstanding finding summaries are in
 AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 
 | Objective requirement | Authoritative evidence and disposition |
@@ -50,8 +50,8 @@ AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 | Required legacy behavior | Read-only comparisons cover fonts/catalog/maps, modes, palette capacity, Prestel versus Mode 7, command line, console/input and settings behavior, plus explicit parity limits. Frozen CTerm chapter cmp succeeds. |
 | Wren scripts and bindings | Complete local source/signature/manual reviews; isolated shipped-script suites and host fixtures; remaining host findings through A113. Connected/SFTP production integration missing from this application is reported, not invented or silently counted as working. |
 | Build logic, generators and documentation | Root/component CMake and generators reviewed; standalone/probe failures recorded; pinned Unicode/font regeneration and table comparisons documented; root manuals/license/development guidance covered. Wren VM vendored internals limited to integration boundaries as requested. |
-| Inventory and consolidated findings | 49 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 22 medium, 25 low, 2 unresolved concerns; not all runtime reproductions. |
-| Relevant tests where practical | Complete native Clang and GCC builds succeed. The latest 84-test runs have a stable disposition of 81 pass, 2 fail and 1 Wayland skip. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
+| Inventory and consolidated findings | 45 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 19 medium, 24 low, 2 unresolved concerns; not all runtime reproductions. |
+| Relevant tests where practical | Complete native Clang and GCC builds succeed. The latest 90-test runs have a stable disposition of 87 pass, 2 fail and 1 Wayland skip. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
 | Explicit uncertainty | Each component records unavailable platforms, unexecuted failure paths and measurement limits; A007/A011 unresolved. Source-level risks are not called verified crashes. These are audit outcomes, not claims of implementation correctness. |
 
 Historical pending-source lists below are superseded by subsequent full reads,
@@ -298,20 +298,6 @@ as a caller/legacy-contract question rather than recommending that every
 bright/blink change automatically chooses a different font. Full-cell writes
 intentionally bypass lookup, a distinct contract that must be retained.
 
-### A096 — BBS editor script discovery is an unconditional empty stub
-
-Severity: medium (confirmed missing shipped-menu functionality). At
-wren_host/wren_bind_menu.c:3484, Menu.scriptModules binds fn_menu_empty_list,
-which only returns a new empty List. Wren.adoc:4123 promises available root
-modules with reserved menu/picker names excluded. ScriptListPane in
-scripts/menu_bbs_editor.wren:99 uses that result for additions and labels
-configured names missing when absent from it. This is not the deferred
-execution of connected scripts: their editor catalog is already consumed by
-the shipped menu. The isolated auxiliary-scripts run again reports the
-module-discovery assertion failing (the other four editor helper cases pass).
-Recommend implementing the declared catalog/filtering contract and retaining
-tests for discovery, reserved names, duplicates and byte-length limits.
-
 ### A098 — Shipped UI demo imports an absent module
 
 Severity: low (confirmed demo integration gap, not a menu-startup failure).
@@ -323,15 +309,11 @@ would not establish this finding. Recommend supplying/documenting a supported
 invocation and its dependencies; connected-only modal/transfer calls remain
 additional context requirements and are not tested past the missing import.
 
-These two entries consolidate previously recorded unnumbered gaps, not
-two newly discovered regressions. Reused the existing isolated native
-auxiliary-scripts audit executable in a fresh /tmp directory; it performs no
-personal-list access or real transfers. Other results repeat A085/A086 and a
-known theme-test column-oracle mismatch, not new findings. Wren guidance and
-the relevant module-catalog manual contract informed this review. The
-unavailable WON.deserialize helper remains another explicitly recorded API
-scope question; declaration alone is not evidence every connected-only
-capability should be exposed in the trusted menu host.
+This entry consolidates a previously recorded unnumbered gap rather than a
+newly discovered regression. The unavailable WON.deserialize helper remains
+another explicitly recorded API-scope question; declaration alone is not
+evidence every connected-only capability should be exposed in the trusted
+menu host.
 
 ### A095 — Distribution notice assembly is not implemented
 
@@ -410,8 +392,8 @@ by this ordering. Font-state aliasing in the single-console compatibility path
 is a value copy of inline arrays, not two owners of a heap allocation.
 
 Creation uses zero-initialized state and funnels partial-failure cleanup
-through destroy. A055 remains the separate startup/recovery policy defect;
-allocation failure at every individual VM operation has not been injected.
+through destroy. Allocation failure at every individual VM operation has not
+been injected.
 Existing headless wren_host and wren_picker CTests pass again (2/2). This is
 not evidence that all script-abort cases recover, nor permission to treat a
 Wren fiber as a concurrently executing thread. Wren skill/guidance was used
@@ -613,8 +595,8 @@ is part of A088's current-versus-future documentation boundary, not evidence
 they are implemented or an authorization to import them. The claimed unknown
 foreign-declaration load error also conflicts with bind_method's catch-all
 unsupported method: unknown declarations can load and fail only when called.
-Picker recovery and additional-auto-load promises have concrete failures
-already recorded in A055 and A054 respectively.
+Picker recovery and additional-auto-load behavior are covered by registered
+host tests.
 
 Subsequently read Wren.adoc lines 1721–4110 continuously: hook handles, modal
 input, REPL, screen/cursor/video APIs, pixel APIs, input/event constants,
@@ -1040,84 +1022,6 @@ that executable. No application startup, settings access or display involved.
 Recommendation: validate the first character before reading the second;
 retain empty, one-character, valid two-character and excess-character option
 tests. No broad exploitability claim is made for this local argument error.
-
-### A054 — Additional user event scripts are never auto-loaded
-
-Severity: medium (documented extension behavior missing). Source-confirmed.
-Wren.adoc:918 specifies discovering scripts/auto/<event>/ and executing user
-scripts in addition to embedded event modules. wren_host/wren_host.c:425
-instead iterates only st_wren_embedded_scripts and loads those names. Its
-menu and picker callers do not enumerate the user event directory. A new
-auto/menu/my_startup.wren or auto/picker/my_startup.wren therefore never runs
-unless another module explicitly imports it. Existing-name overrides can load;
-this is not a claim that all overrides are broken.
-
-The CMake embedding list contains only menu_host_ui/main_menu for menu and
-file_picker for picker. The generator preserves this list with event tags;
-it cannot discover additional user files at runtime. Recommended regression:
-place a distinct marker module in each temporary event directory, create the
-host, and verify the module was interpreted exactly once without an import.
-The new st_wren_loader_audit_test.c autoload case now confirms that neither
-marker module is loaded despite successful headless host creation. It tests
-presence, not an exactly-once counter. Remedy: implement the documented
-event discovery/order contract and test unique scripts, overrides and imports
-together, rather than treating the embedded-name list as the complete event.
-
-Legacy comparison: wren_menu_host.c:269 and wren_picker_host.c:292 in the
-read-only Synchronet tree glob their respective auto directories, suppress
-overridden embedded modules and interpret additional user files. This supports
-classifying the missing discovery as lost behavior, not just aspirational docs.
-
-### A055 — Picker load failure prevents application startup instead of recovery
-
-Severity: medium (local script error terminates the application). Source-confirmed.
-Wren.adoc:1287 promises a recovery surface for picker implementation compile
-or runtime failures, reserving complete disablement for VM/bootstrap failure.
-In wren_host/wren_host.c:732, an error interpreting the picker event returns
-immediately, before recovery handles are acquired. st_wren_host_create at
-:879 propagates that error after destroying the entire host. app/syncterm.c
-then reports menu initialization failure and exits. A syntax error in a
-file_picker override thus cannot reach the promised picker REPL/cancel screen.
-
-The separate recovery call in wren_picker.c belongs to invocation of an
-already initialized picker and does not cover this initialization failure.
-Recommended regression: use an isolated invalid file_picker override, assert
-that the menu host still initializes, then exercise picker recovery/cancel.
-The new st_wren_loader_audit_test.c recovery case now confirms host creation
-fails with IO_ERROR_INVALID_FORMAT (-37) for a syntactically invalid picker
-override. It does not reach recovery-screen interaction. Remedy: preserve a
-usable bootstrap/recovery path when the optional picker implementation fails,
-without disguising VM/bootstrap initialization failures.
-
-Legacy comparison: wren_picker_host.c:370 acquires bootstrap/recovery handles
-before load_event_scripts(), and does not make a missing FilePicker class
-fatal to picker initialization. The modern host moved implementation loading
-ahead of recovery-handle setup and added the fatal return/class requirement.
-
-### A056 — POSIX picker reports directory read errors as successful listings
-
-Severity: low (misleading empty/partial directory display). Confirmed with a
-controlled native failure. wren_host/wren_picker_fs_posix.c:83 terminates its
-readdir loop on NULL without checking errno to distinguish EOF from failure.
-With no prior entry error and successful closedir, it returns success. The
-request-list consumer at wren_picker.c:494 consequently treats the incomplete
-result as a valid listing instead of returning its failure result.
-
-st_wren_picker_readdir_error_test.c includes the production POSIX adapter with
-only readdir replaced by a function returning NULL/EIO. Real opendir/closedir
-operate on /tmp; no directory contents are modified. Native Clang C17 with
--Wall -Wextra -Wpedantic -Werror compiles the fixture; running it prints
-`directory read error reported: FAIL (status 0)` and exits 1. Link dependencies
-are filesystem, path, utf8, string_compat and io_error; include directories
-also require wren_host, profile and wren_vm/include. No actual disk fault or
-partial-results test is claimed.
-
-Recommendation: clear/check errno immediately around each readdir call, retain
-the primary read error through close, and test EOF separately from read failure.
-Metadata failures need a consistent skip-or-fail policy too: current fs_get_info
-errors continue but leave status set, so whether they ultimately fail the whole
-listing depends on whether a later entry overwrites status. That ordering
-problem is source-observed, not exercised by this read-error fixture.
 
 ### A066 — Wren VM target does not declare its math-library dependency
 
@@ -1548,20 +1452,6 @@ navigation, protocol-dependent fields, palette/log subeditors, and script
 ordering. Legacy comparison shows this script is identical. The local manual
 explicitly says owning-editor Escape does not roll back accepted edits;
 immediate application is therefore not itself a cancellation defect.
-
-Added runHelpers() to the test module, retaining run() and every assertion.
-The isolated auxiliary-scripts runner uses only the five non-persistence
-checks: native strict Clang result 4 pass, 1 fail. Movement commit, movement
-cancel, deletion and EditorPane clear pass. Discovery fails because
-wren_host/wren_bind_menu.c:3484 binds Menu.scriptModules to fn_menu_empty_list.
-This is a confirmed medium incomplete-integration gap: the shipped script
-picker cannot offer modules and labels configured modules missing. It is not
-merely caused by the empty test directory; the binding always returns empty.
-Recommendation: implement the documented filtered module catalog and test
-disk/embedded sources and reserved VM exclusions before claiming discovery.
-No BBS list paths were configured or accessed. Original defaults/persistence
-tests were read but not executed by this helper-only mode; their coverage
-must not be inferred from the four passing checks.
 
 Source close-path concern: update_ validates paired TLS fields before applying
 any draft changes; callers retain the draft after false. pane.onClose checks
@@ -2404,8 +2294,8 @@ scripts/syncterm_menu.wren. An independent read-only signature comparison
 expanded C BIND_GETSET entries and normalized Wren parameter lists: all 286
 foreign declarations have matching class/static/signature bindings, with no
 extra C entries. This establishes binding presence, not correct behavior.
-Several are intentionally stubbed (offline scrollback, hyperlinks, cache,
-scriptModules), and serialRates/flowControlsNoRts share generic handlers;
+Several are intentionally stubbed (offline scrollback, hyperlinks and cache),
+and serialRates/flowControlsNoRts share generic handlers;
 their advertised semantics still need consumer/legacy comparison.
 
 Native CMake build of st_wren_host_test succeeds and CTest wren_host passes
@@ -2564,8 +2454,7 @@ font/mouse state and cells, successful file selection, Escape cancellation,
 preserved menu cells, and injected menu-restoration failure reaching the caller.
 It does not establish all multi-select/save-consent paths, stale request
 rejection, recursive entry, malformed strings, GC/allocation failures or
-Windows runtime behavior. Existing headless success does not contradict the
-separate A055 load-error and A056 directory-error regressions.
+Windows runtime behavior.
 
 Picker filesystem pass: wren_picker_fs_posix.c and wren_picker_fs_windows.c
 read completely. Both append into caller-owned vectors with checked geometric
@@ -2574,8 +2463,8 @@ UTF-8 validation to skip unrepresentable names, follows filesystem metadata and
 filters to files/directories. Windows uses extended wide paths and UTF-16
 conversion, checks FindNextFile termination errors, and frees its search/path
 resources. FILETIME conversion handles pre-epoch dates with negative floor
-seconds; maximum input remains within int64 seconds. FindClose failure is
-ignored. Windows execution was not performed in this pass.
+seconds; maximum input remains within int64 seconds. Windows execution was not
+performed in this pass.
 
 Windows hidden-file policy concern: the adapter discards FILE_ATTRIBUTE_HIDDEN,
 and shared fn_request_list classifies hidden entries solely by a leading dot.
@@ -2588,19 +2477,7 @@ Picker shared-source coverage added in this pass: wren_picker.c:1-145
 (request/string/path primitives), :250-360 (vector ownership/list serialization
 and request setup) and :448-552 (listing consumer). This is explicitly partial,
 not completion of the 1215-line file. Read Wren.adoc FilePickerOptions alongside
-the earlier picker trust-boundary section. New directory-read regression is
-standalone; no production or CMake changes were made.
-
-Loader regression verification: wren_host/tests/st_wren_loader_audit_test.c
-compiled with native Clang C17 and -Wall -Wextra -Wpedantic -Werror, linked
-against the existing build/wren_host and dependency archives (the same archive
-order as st_wren_picker_test's link.txt). Run the executable with two arguments:
-a fresh mktemp -d directory and either autoload or recovery. Each invocation
-uses only a headless console and its temporary script/theme/cache directories;
-no personal settings, GUI or network operations are used. Both modes exit 1
-with the failures recorded in A054/A055. The autoload host successfully
-initializes before checking the two absent modules. Tests remain standalone,
-not added to CMake because build configuration is outside audit edit authority.
+the earlier picker trust-boundary section.
 
 Wren host entry/lifecycle pass: read st_wren_host.h, wren_host_internal.h,
 wren_host.c, CMakeLists.txt and GenerateEmbeddedWren.cmake completely. Read
@@ -2627,8 +2504,7 @@ binding-level review.
 Module names are restricted to ASCII letters/digits/underscore; loaded source
 is capped at 4 MiB, NUL-terminated and freed using the VM load-complete hook.
 Read errors fall through to embedded content rather than being distinguished
-from absence. Embedded NUL, Unicode Windows paths (plain fopen), role-specific
-override precedence and reserved-module rules need further tests. The embedded
+from absence. Embedded NUL handling needs further tests. The embedded
 generator encodes bytes as bounded adjacent hex string literals, writes only
 the build-tree output supplied by CMake and attaches explicit script/generator
 dependencies. No generator edits or regeneration were performed this pass.

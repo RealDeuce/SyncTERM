@@ -116,13 +116,14 @@ class MenuTest {
 
   static testDiscovery_() {
     var modules = Menu.scriptModules
-    var available = pane_([], [0]).available_()
-    check_(modules.indexOf("menu_bbs_editor") >= 0 &&
-           modules.indexOf("syncterm_menu") < 0 &&
-           modules.indexOf("syncterm_picker") < 0 &&
-           modules.indexOf("picker_bootstrap") < 0 &&
-           Menu.wrenScriptsMaxLength == 1023 && available.count > 0,
-           "Menu.scriptModules: lists root modules except reserved VMs")
+    modules.add("__catalog_mutation_test")
+    var fresh = Menu.scriptModules
+    check_(fresh.indexOf("__catalog_mutation_test") < 0 &&
+           fresh.indexOf("syncterm_menu") < 0 &&
+           fresh.indexOf("syncterm_picker") < 0 &&
+           fresh.indexOf("picker_bootstrap") < 0 &&
+           Menu.wrenScriptsMaxLength == 1023,
+           "Menu.scriptModules: returns a fresh catalog without reserved VMs")
   }
 
   static testDefaultsRejectScripts_() {

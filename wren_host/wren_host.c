@@ -425,16 +425,14 @@ read_source(const char *path)
 {
 	FILE *stream;
 	char *source;
-	long length;
+	int64_t length;
 	size_t read_length;
+	bool failed;
 
-	stream = fopen(path, "rb");
-	if (stream == NULL)
+	if (fs_open(&stream, path, "rb") != 0)
 		return NULL;
-	if (fseek(stream, 0, SEEK_END) != 0
-	    || (length = ftell(stream)) < 0
-	    || (unsigned long)length > ST_WREN_MAX_MODULE_SIZE
-	    || fseek(stream, 0, SEEK_SET) != 0) {
+	length = fs_stream_size(stream);
+	if (length < 0 || (uint64_t)length > ST_WREN_MAX_MODULE_SIZE) {
 		fclose(stream);
 		return NULL;
 	}
@@ -444,13 +442,14 @@ read_source(const char *path)
 		return NULL;
 	}
 	read_length = fread(source, 1, (size_t)length, stream);
-	if (read_length != (size_t)length || ferror(stream)) {
+	failed = read_length != (size_t)length || ferror(stream);
+	if (fclose(stream) != 0)
+		failed = true;
+	if (failed) {
 		free(source);
-		fclose(stream);
 		return NULL;
 	}
 	source[read_length] = '\0';
-	fclose(stream);
 	return source;
 }
 
@@ -622,23 +621,50 @@ report_error(WrenVM *vm, WrenErrorType type, const char *module, int line,
 static int
 interpret_event_scripts(WrenVM *vm, const char *event)
 {
+	struct st_wren_host *host = st_wren_host_from_vm(vm);
+	struct st_wren_directory_entries user = {0};
+	bool success = true;
+
+	/* v1.10a treated an unavailable event directory as an empty one. */
+	(void)st_wren_script_inventory(host->config.paths->scripts_directory,
+	    event, &user);
 	for (const struct st_embedded_script *script = st_wren_embedded_scripts;
 	    script->name != NULL; ++script) {
-		WrenLoadModuleResult loaded;
-		WrenInterpretResult result;
+		bool overridden = false;
 
 		if (script->event == NULL || strcmp(script->event, event) != 0)
 			continue;
-		loaded = load_module(vm, script->name);
-		if (loaded.source == NULL)
-			return IO_ERROR_NOT_FOUND;
-		result = wrenInterpret(vm, script->name, loaded.source);
-		if (loaded.onComplete != NULL)
-			loaded.onComplete(vm, script->name, loaded);
-		if (result != WREN_RESULT_SUCCESS)
-			return IO_ERROR_INVALID_FORMAT;
+		for (size_t i = 0; i < user.count; ++i) {
+			if (strcmp(user.items[i].name, script->name) == 0) {
+				overridden = true;
+				break;
+			}
+		}
+		if (!overridden && wrenInterpret(vm, script->name, script->source)
+		    != WREN_RESULT_SUCCESS)
+			success = false;
 	}
-	return 0;
+	for (size_t i = 0; i < user.count; ++i) {
+		char *source;
+
+		if (wrenHasModule(vm, user.items[i].name))
+			continue;
+		source = read_named_source(host->config.paths->scripts_directory,
+		    event, user.items[i].name);
+		if (source == NULL) {
+			fprintf(stderr, "[%s] cannot read auto/%s/%s.wren\n",
+			    vm == host->picker_vm ? "wren-picker" : "wren-menu",
+			    event, user.items[i].name);
+			success = false;
+			continue;
+		}
+		if (wrenInterpret(vm, user.items[i].name, source)
+		    != WREN_RESULT_SUCCESS)
+			success = false;
+		free(source);
+	}
+	st_wren_directory_entries_dispose(&user);
+	return success ? 0 : IO_ERROR_INVALID_FORMAT;
 }
 
 static const struct st_embedded_script *
@@ -928,22 +954,20 @@ st_wren_picker_host_init(struct st_wren_host *host)
 	    || wrenInterpret(host->picker_vm, request->name, request->source)
 	    != WREN_RESULT_SUCCESS)
 		return IO_ERROR_INVALID_FORMAT;
-	status = interpret_event_scripts(host->picker_vm, "picker");
-	if (status != 0)
-		return status;
 	status = st_wren_input_context_init(host->picker_vm);
 	if (status != 0)
 		return status;
 	host->picker_bootstrap = class_handle(host->picker_vm,
 	    "picker_bootstrap", "PickerBootstrap");
-	host->picker_class = class_handle(host->picker_vm, "file_picker",
-	    "FilePicker");
 	host->picker_run = wrenMakeCallHandle(host->picker_vm, "run(_,_)" );
 	host->picker_recover = wrenMakeCallHandle(host->picker_vm,
 	    "recover(_,_)" );
-	if (host->picker_bootstrap == NULL || host->picker_class == NULL
-	    || host->picker_run == NULL || host->picker_recover == NULL)
+	if (host->picker_bootstrap == NULL || host->picker_run == NULL
+	    || host->picker_recover == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
+	(void)interpret_event_scripts(host->picker_vm, "picker");
+	host->picker_class = class_handle(host->picker_vm, "file_picker",
+	    "FilePicker");
 	return 0;
 }
 

@@ -1,11 +1,11 @@
-/* Windows directory enumeration for the isolated Wren file picker. */
+/* Windows directory enumeration for the Wren hosts. */
 
 /*
  * Copyright (c) 2026 Stephen Hurd
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "wren_host_internal.h"
+#include "wren_directory.h"
 
 #include "io_error.h"
 #include "path.h"
@@ -33,10 +33,10 @@ filetime_seconds(FILETIME value)
 }
 
 static int
-append_entry(struct st_wren_picker_entries *entries, char *name,
+append_entry(struct st_wren_directory_entries *entries, char *name,
 	const WIN32_FIND_DATAW *data)
 {
-	struct st_wren_picker_entry *item;
+	struct st_wren_directory_entry *item;
 	size_t capacity;
 
 	if (entries->count == entries->capacity) {
@@ -51,7 +51,7 @@ append_entry(struct st_wren_picker_entries *entries, char *name,
 		entries->capacity = capacity;
 	}
 	item = &entries->items[entries->count++];
-	*item = (struct st_wren_picker_entry){
+	*item = (struct st_wren_directory_entry){
 		.name = name,
 		.directory = (data->dwFileAttributes
 		    & FILE_ATTRIBUTE_DIRECTORY) != 0,
@@ -62,8 +62,8 @@ append_entry(struct st_wren_picker_entries *entries, char *name,
 }
 
 int
-st_wren_picker_enumerate(const char *directory,
-	struct st_wren_picker_entries *entries)
+st_wren_directory_enumerate(const char *directory,
+	struct st_wren_directory_entries *entries)
 {
 	wchar_t *extended = NULL;
 	wchar_t *pattern = NULL;
@@ -115,6 +115,9 @@ st_wren_picker_enumerate(const char *directory,
 	} while (FindNextFileW(search, &data));
 	if (status == 0 && GetLastError() != ERROR_NO_MORE_FILES)
 		status = io_error_from_windows(GetLastError());
-	FindClose(search);
+	if (!FindClose(search) && status == 0)
+		status = io_error_from_windows(GetLastError());
+	if (status != 0)
+		st_wren_directory_entries_dispose(entries);
 	return status;
 }

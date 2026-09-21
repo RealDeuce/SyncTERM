@@ -1214,9 +1214,23 @@ fn_menu_offline_scrollback_has_status(WrenVM *vm)
 static void fn_menu_false(WrenVM *vm) { wrenSetSlotBool(vm, 0, false); }
 
 static void
-fn_menu_empty_list(WrenVM *vm)
+fn_menu_script_modules(WrenVM *vm)
 {
+	const struct st_app_paths *paths = st_wren_host_from_vm(vm)->config.paths;
+	struct st_wren_directory_entries entries = {0};
+
+	wrenEnsureSlots(vm, 2);
 	wrenSetSlotNewList(vm, 0);
+	if (st_wren_script_inventory(paths->scripts_directory, NULL, &entries)
+	    != 0)
+		return;
+	for (size_t i = 0; i < entries.count; ++i) {
+		if (!st_wren_bbs_script_name_valid(entries.items[i].name))
+			continue;
+		wrenSetSlotString(vm, 1, entries.items[i].name);
+		wrenInsertInList(vm, 0, -1, 1);
+	}
+	st_wren_directory_entries_dispose(&entries);
 }
 
 static void
@@ -3886,7 +3900,7 @@ static const struct binding bindings[] = {
 	{"Menu", true, "quitApplication()", fn_menu_quit},
 	{"Menu", true, "entries", fn_menu_entries},
 	{"Menu", true, "canAppendEntry", fn_menu_can_append},
-	{"Menu", true, "scriptModules", fn_menu_empty_list},
+	{"Menu", true, "scriptModules", fn_menu_script_modules},
 	{"Menu", true, "wrenScriptsMaxLength",
 	    fn_menu_wren_scripts_max_length},
 	{"Menu", true, "defaults", fn_menu_defaults},

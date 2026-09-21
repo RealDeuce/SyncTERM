@@ -50,9 +50,9 @@ set(_st_wren_scripts
 
 set(_st_wren_embedded ${CMAKE_CURRENT_BINARY_DIR}/embedded_wren.c)
 if(WIN32)
-	set(_st_wren_picker_fs wren_picker_fs_windows.c)
+	set(_st_wren_directory_fs wren_picker_fs_windows.c)
 else()
-	set(_st_wren_picker_fs wren_picker_fs_posix.c)
+	set(_st_wren_directory_fs wren_picker_fs_posix.c)
 endif()
 add_custom_command(OUTPUT ${_st_wren_embedded}
 	COMMAND ${CMAKE_COMMAND} -DOUTPUT=${_st_wren_embedded}
@@ -70,8 +70,10 @@ add_library(st_wren_host STATIC
 	wren_repl.c
 	wren_bind_menu.c
 	wren_selection.c
+	wren_directory.c
+	wren_scripts.c
 	wren_picker.c
-	${_st_wren_picker_fs}
+	${_st_wren_directory_fs}
 	${_st_wren_embedded})
 target_include_directories(st_wren_host
 	PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
@@ -139,13 +141,44 @@ if(BUILD_TESTING)
 		target_compile_options(st_wren_loader_audit_test PRIVATE
 			-Wall -Wextra -Wpedantic -Werror)
 	endif()
-	foreach(_case settings-stale settings-save-failure settings-reload
-			screen-mode bbs-setters)
+	foreach(_case autoload recovery menu-error script-catalog settings-stale
+			settings-save-failure settings-reload screen-mode bbs-setters)
 		set(_directory "${CMAKE_CURRENT_BINARY_DIR}/audit-${_case}")
 		file(MAKE_DIRECTORY "${_directory}")
 		add_test(NAME "wren_${_case}"
 			COMMAND st_wren_loader_audit_test "${_directory}" "${_case}")
 	endforeach()
+
+	if(NOT WIN32)
+		foreach(_test readdir_error directory_metadata)
+			if(_test STREQUAL "readdir_error")
+				set(_source tests/st_wren_picker_readdir_error_test.c)
+			else()
+				set(_source "tests/st_wren_${_test}_test.c")
+			endif()
+			add_executable("st_wren_${_test}_test"
+				${_source} wren_directory.c)
+			target_include_directories("st_wren_${_test}_test" PRIVATE
+				${CMAKE_CURRENT_SOURCE_DIR})
+			target_link_libraries("st_wren_${_test}_test" PRIVATE
+				st_utf8 syncterm_filesystem syncterm_path
+				syncterm_string_compat syncterm_io_error)
+			set_target_properties("st_wren_${_test}_test" PROPERTIES
+				C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+			if(CMAKE_C_COMPILER_ID MATCHES "Clang|GNU")
+				target_compile_options("st_wren_${_test}_test" PRIVATE
+					-Wall -Wextra -Wpedantic -Werror)
+			endif()
+		endforeach()
+		set(_directory "${CMAKE_CURRENT_BINARY_DIR}/directory-error-test")
+		file(MAKE_DIRECTORY "${_directory}")
+		add_test(NAME wren_directory_read_error
+			COMMAND st_wren_readdir_error_test "${_directory}")
+		set(_directory "${CMAKE_CURRENT_BINARY_DIR}/directory-metadata-test")
+		file(MAKE_DIRECTORY "${_directory}")
+		add_test(NAME wren_directory_metadata
+			COMMAND st_wren_directory_metadata_test "${_directory}")
+	endif()
 
 	add_executable(st_wren_picker_test tests/st_wren_picker_test.c)
 	target_link_libraries(st_wren_picker_test PRIVATE st_wren_host

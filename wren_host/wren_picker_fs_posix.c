@@ -1,11 +1,11 @@
-/* POSIX directory enumeration for the isolated Wren file picker. */
+/* POSIX directory enumeration for the Wren hosts. */
 
 /*
  * Copyright (c) 2026 Stephen Hurd
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "wren_host_internal.h"
+#include "wren_directory.h"
 
 #include "filesystem.h"
 #include "io_error.h"
@@ -14,6 +14,7 @@
 #include "string_compat.h"
 
 #include <dirent.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -36,10 +37,10 @@ valid_utf8(const char *text)
 }
 
 static int
-append_entry(struct st_wren_picker_entries *entries, const char *name,
+append_entry(struct st_wren_directory_entries *entries, const char *name,
 	const struct fs_info *info)
 {
-	struct st_wren_picker_entry *item;
+	struct st_wren_directory_entry *item;
 	size_t capacity;
 
 	if (entries->count == entries->capacity) {
@@ -54,7 +55,7 @@ append_entry(struct st_wren_picker_entries *entries, const char *name,
 		entries->capacity = capacity;
 	}
 	item = &entries->items[entries->count];
-	*item = (struct st_wren_picker_entry){
+	*item = (struct st_wren_directory_entry){
 		.name = strdup(name),
 		.directory = info->kind == FS_ENTRY_DIRECTORY,
 		.size = info->size,
@@ -67,8 +68,8 @@ append_entry(struct st_wren_picker_entries *entries, const char *name,
 }
 
 int
-st_wren_picker_enumerate(const char *directory,
-	struct st_wren_picker_entries *entries)
+st_wren_directory_enumerate(const char *directory,
+	struct st_wren_directory_entries *entries)
 {
 	DIR *stream;
 	struct dirent *entry;
@@ -78,10 +79,19 @@ st_wren_picker_enumerate(const char *directory,
 		return IO_ERROR_INVALID_ARGUMENT;
 	stream = opendir(directory);
 	if (stream == NULL)
-		return IO_ERROR_IO;
-	while ((entry = readdir(stream)) != NULL) {
+		return io_error_from_errno(errno);
+	for (;;) {
 		char *full = NULL;
 		struct fs_info info;
+		int metadata_status;
+
+		errno = 0;
+		entry = readdir(stream);
+		if (entry == NULL) {
+			if (errno != 0)
+				status = io_error_from_errno(errno);
+			break;
+		}
 
 		if (strcmp(entry->d_name, ".") == 0
 		    || strcmp(entry->d_name, "..") == 0
@@ -90,9 +100,9 @@ st_wren_picker_enumerate(const char *directory,
 		status = path_join_alloc(&full, directory, entry->d_name);
 		if (status != 0)
 			break;
-		status = fs_get_info(&info, full);
+		metadata_status = fs_get_info(&info, full);
 		free(full);
-		if (status != 0)
+		if (metadata_status != 0)
 			continue;
 		if (info.kind != FS_ENTRY_FILE && info.kind != FS_ENTRY_DIRECTORY)
 			continue;
@@ -101,6 +111,8 @@ st_wren_picker_enumerate(const char *directory,
 			break;
 	}
 	if (closedir(stream) != 0 && status == 0)
-		status = IO_ERROR_IO;
+		status = io_error_from_errno(errno);
+	if (status != 0)
+		st_wren_directory_entries_dispose(entries);
 	return status;
 }

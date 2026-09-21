@@ -81,7 +81,8 @@ main(void)
 	char shared[sizeof(ST_WREN_PICKER_TEST_DIRECTORY) + 32];
 	char settings[sizeof(ST_WREN_PICKER_TEST_DIRECTORY) + 32];
 	char scripts[sizeof(ST_WREN_PICKER_TEST_DIRECTORY) + 32];
-	char startup[sizeof(ST_WREN_PICKER_TEST_DIRECTORY) + 64];
+	char picker_scripts[sizeof(ST_WREN_PICKER_TEST_DIRECTORY) + 48];
+	char startup[sizeof(ST_WREN_PICKER_TEST_DIRECTORY) + 96];
 	char picked[sizeof(ST_WREN_PICKER_TEST_DIRECTORY) + 32];
 	char image[sizeof(ST_WREN_PICKER_TEST_DIRECTORY) + 32];
 	char *expected = NULL;
@@ -125,12 +126,15 @@ main(void)
 	    ST_WREN_PICKER_TEST_DIRECTORY);
 	(void)snprintf(scripts, sizeof(scripts), "%s/scripts",
 	    ST_WREN_PICKER_TEST_DIRECTORY);
+	(void)snprintf(picker_scripts, sizeof(picker_scripts), "%s/auto/picker",
+	    scripts);
 	(void)snprintf(picked, sizeof(picked), "%s/alpha.txt",
 	    ST_WREN_PICKER_TEST_DIRECTORY);
 	(void)snprintf(image, sizeof(image), "%s/pixel.ppm",
 	    ST_WREN_PICKER_TEST_DIRECTORY);
-	CHECK(fs_create_directories(scripts) == 0);
-	(void)snprintf(startup, sizeof(startup), "%s/file_picker.wren", scripts);
+	CHECK(fs_create_directories(picker_scripts) == 0);
+	(void)snprintf(startup, sizeof(startup), "%s/file_picker.wren",
+	    picker_scripts);
 	CHECK(write_startup_probe(startup) == 0);
 	CHECK(write_file(personal, "") == 0);
 	CHECK(write_file(shared, "") == 0);

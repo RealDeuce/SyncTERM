@@ -20,6 +20,12 @@
 	} \
 } while (false)
 
+static const char *catalog_files[] = {
+	"Alpha.wren", "beta.wren", "syncterm.wren", "syncterm_menu.wren",
+	"syncterm_picker.wren", "picker_bootstrap.wren", "bad-name.wren",
+	"ignored.WREN", ".wren",
+};
+
 static void
 write_script(const char *path, const char *source)
 {
@@ -28,6 +34,58 @@ write_script(const char *path, const char *source)
 	CHECK(stream != NULL);
 	CHECK(fputs(source, stream) >= 0);
 	CHECK(fclose(stream) == 0);
+}
+
+static void
+write_embedded_override(const char *path, const char *name,
+	const char *addition)
+{
+	FILE *stream = fopen(path, "wb");
+	const struct st_embedded_script *found = NULL;
+
+	CHECK(stream != NULL);
+	for (const struct st_embedded_script *script = st_wren_embedded_scripts;
+	    script->name != NULL; ++script) {
+		if (script->event != NULL && strcmp(script->name, name) == 0) {
+			found = script;
+			break;
+		}
+	}
+	CHECK(found != NULL);
+	CHECK(fputs(found->source, stream) >= 0);
+	CHECK(fputc('\n', stream) != EOF);
+	CHECK(fputs(addition, stream) >= 0);
+	CHECK(fclose(stream) == 0);
+}
+
+static size_t
+log_count(const struct st_wren_log *log, const char *text)
+{
+	size_t count = 0;
+
+	for (uint64_t sequence = log->total - log->count;
+	    sequence < log->total; ++sequence) {
+		const struct st_wren_log_entry *entry =
+		    &log->entries[sequence % ST_WREN_LOG_CAPACITY];
+
+		if (entry->text != NULL && strcmp(entry->text, text) == 0)
+			++count;
+	}
+	return count;
+}
+
+static uint64_t
+log_position(const struct st_wren_log *log, const char *text)
+{
+	for (uint64_t sequence = log->total - log->count;
+	    sequence < log->total; ++sequence) {
+		const struct st_wren_log_entry *entry =
+		    &log->entries[sequence % ST_WREN_LOG_CAPACITY];
+
+		if (entry->text != NULL && strcmp(entry->text, text) == 0)
+			return sequence;
+	}
+	return UINT64_MAX;
 }
 
 int
@@ -52,6 +110,8 @@ main(int argc, char **argv)
 	CHECK(argc == 3);
 	CHECK(strcmp(argv[2], "autoload") == 0
 	    || strcmp(argv[2], "recovery") == 0
+	    || strcmp(argv[2], "menu-error") == 0
+	    || strcmp(argv[2], "script-catalog") == 0
 	    || strcmp(argv[2], "physical-input") == 0
 	    || strcmp(argv[2], "settings-stale") == 0
 	    || strcmp(argv[2], "settings-save-failure") == 0
@@ -94,11 +154,41 @@ main(int argc, char **argv)
 		(void)snprintf(script, sizeof(script), "%s/file_picker.wren", picker);
 		write_script(script, "class Broken {\n");
 	}
+	else if (strcmp(argv[2], "menu-error") == 0) {
+		(void)snprintf(script, sizeof(script), "%s/broken_addon.wren", menu);
+		write_script(script, "class Broken {\n");
+	}
 	else if (strcmp(argv[2], "autoload") == 0) {
-		(void)snprintf(script, sizeof(script), "%s/audit_menu_marker.wren", menu);
-		write_script(script, "class AuditMenuMarker {}\n");
-		(void)snprintf(script, sizeof(script), "%s/audit_picker_marker.wren", picker);
-		write_script(script, "class AuditPickerMarker {}\n");
+		(void)snprintf(script, sizeof(script), "%s/main_menu.wren", argv[1]);
+		write_script(script, "class Broken {\n");
+		(void)snprintf(script, sizeof(script), "%s/file_picker.wren", argv[1]);
+		write_script(script, "class Broken {\n");
+		(void)snprintf(script, sizeof(script), "%s/a_importer.wren", menu);
+		write_script(script, "import \"z_imported\"\n"
+		    "System.print(\"menu-importer\")\n");
+		(void)snprintf(script, sizeof(script), "%s/z_imported.wren", menu);
+		write_script(script, "System.print(\"menu-imported\")\n");
+		(void)snprintf(script, sizeof(script), "%s/main_menu.wren", menu);
+		write_embedded_override(script, "main_menu",
+		    "System.print(\"menu-override\")\n");
+		(void)snprintf(script, sizeof(script), "%s/a_importer.wren", picker);
+		write_script(script, "import \"z_imported\"\n"
+		    "System.print(\"picker-importer\")\n");
+		(void)snprintf(script, sizeof(script), "%s/z_imported.wren", picker);
+		write_script(script, "System.print(\"picker-imported\")\n");
+		(void)snprintf(script, sizeof(script), "%s/file_picker.wren", picker);
+		write_embedded_override(script, "file_picker",
+		    "System.print(\"picker-override\")\n");
+	}
+	else if (strcmp(argv[2], "script-catalog") == 0) {
+		for (size_t i = 0;
+		    i < sizeof(catalog_files) / sizeof(catalog_files[0]); ++i) {
+			(void)snprintf(script, sizeof(script), "%s/%s", argv[1],
+			    catalog_files[i]);
+			(void)fs_remove_file(script);
+		}
+		(void)snprintf(script, sizeof(script), "%s/directory.wren", argv[1]);
+		(void)fs_remove_directory(script);
 	}
 	paths.scripts_directory = argv[1];
 	paths.themes_directory = argv[1];
@@ -141,9 +231,63 @@ main(int argc, char **argv)
 	};
 	status = st_wren_host_create(&host, &host_config);
 	if (recovery) {
-		passed = status == 0;
-		fprintf(stderr, "host survives invalid picker implementation: %s (status %d)\n",
-		    passed ? "PASS" : "FAIL", status);
+		const struct st_console_event escape = {
+			.type = ST_CONSOLE_EVENT_KEY_CODE,
+			.data.key.code = 27,
+		};
+		struct st_wren_picker_call call = {
+			.mode = ST_WREN_PICKER_FILE,
+			.title = "Recovery test",
+		};
+
+		CHECK(status == 0);
+		CHECK(((struct st_wren_host *)host)->picker_class == NULL);
+		CHECK(st_console_post_event(console, &escape) == 0);
+		passed = st_wren_picker_host_run((struct st_wren_host *)host, &call)
+		    && call.completed && call.path_count == 0;
+		st_wren_picker_call_dispose(&call);
+		fprintf(stderr, "invalid picker implementation reaches recovery: %s\n",
+		    passed ? "PASS" : "FAIL");
+	}
+	else if (strcmp(argv[2], "menu-error") == 0) {
+		passed = status == IO_ERROR_INVALID_FORMAT && host == NULL;
+		fprintf(stderr, "invalid menu add-on rejects menu startup: %s\n",
+		    passed ? "PASS" : "FAIL");
+	}
+	else if (strcmp(argv[2], "script-catalog") == 0) {
+		char maximum_name[256];
+		char excessive_name[257];
+
+		CHECK(status == 0);
+		memset(maximum_name, 'a', sizeof(maximum_name) - 1);
+		maximum_name[sizeof(maximum_name) - 1] = '\0';
+		memset(excessive_name, 'a', sizeof(excessive_name) - 1);
+		excessive_name[sizeof(excessive_name) - 1] = '\0';
+		CHECK(st_wren_bbs_script_name_valid(maximum_name));
+		CHECK(!st_wren_bbs_script_name_valid(excessive_name));
+		CHECK(!st_wren_bbs_script_name_valid(""));
+		for (size_t i = 0;
+		    i < sizeof(catalog_files) / sizeof(catalog_files[0]); ++i) {
+			(void)snprintf(script, sizeof(script), "%s/%s", argv[1],
+			    catalog_files[i]);
+			write_script(script, "// catalog fixture\n");
+		}
+		(void)snprintf(script, sizeof(script), "%s/directory.wren", argv[1]);
+		CHECK(fs_create_directories(script) == 0);
+		passed = wrenInterpret(((struct st_wren_host *)host)->vm,
+		    "script_catalog_test",
+		    "import \"syncterm_menu\" for Menu\n"
+		    "var first = Menu.scriptModules\n"
+		    "if (first.count != 3 || first[0] != \"Alpha\" || "
+		    "first[1] != \"beta\" || first[2] != \"syncterm\") "
+		    "Fiber.abort(\"wrong script catalog\")\n"
+		    "first.add(\"changed\")\n"
+		    "var second = Menu.scriptModules\n"
+		    "if (second.count != 3 || second.indexOf(\"changed\") >= 0) "
+		    "Fiber.abort(\"script catalog was not fresh\")\n")
+		    == WREN_RESULT_SUCCESS;
+		fprintf(stderr, "root script catalog filtering and ownership: %s\n",
+		    passed ? "PASS" : "FAIL");
 	}
 	else if (strcmp(argv[2], "bbs-setters") == 0) {
 		static const char *cases[] = {
@@ -616,14 +760,39 @@ main(int argc, char **argv)
 			passed = passed && ok;
 		}
 	}
-	else {
-		CHECK(status == 0);
-		bool menu_loaded = wrenHasModule(host->vm, "audit_menu_marker");
-		bool picker_loaded = wrenHasModule(host->picker_vm, "audit_picker_marker");
+	else if (strcmp(argv[2], "autoload") == 0) {
+		struct st_wren_host *internal = host;
+		static const char *menu_messages[] = {
+			"menu-imported", "menu-importer", "menu-override",
+		};
+		static const char *picker_messages[] = {
+			"picker-imported", "picker-importer", "picker-override",
+		};
 
-		passed = menu_loaded && picker_loaded;
-		fprintf(stderr, "additional menu script: %s; additional picker script: %s\n",
-		    menu_loaded ? "PASS" : "FAIL", picker_loaded ? "PASS" : "FAIL");
+		CHECK(status == 0);
+		passed = wrenHasModule(internal->vm, "a_importer")
+		    && wrenHasModule(internal->vm, "z_imported")
+		    && wrenHasModule(internal->picker_vm, "a_importer")
+		    && wrenHasModule(internal->picker_vm, "z_imported");
+		for (size_t i = 0; i < sizeof(menu_messages) / sizeof(menu_messages[0]);
+		    ++i)
+			passed = passed
+			    && log_count(&internal->menu.log, menu_messages[i]) == 1;
+		for (size_t i = 0;
+		    i < sizeof(picker_messages) / sizeof(picker_messages[0]); ++i)
+			passed = passed
+			    && log_count(&internal->picker.log, picker_messages[i]) == 1;
+		passed = passed
+		    && log_position(&internal->menu.log, "menu-imported")
+		    < log_position(&internal->menu.log, "menu-importer")
+		    && log_position(&internal->menu.log, "menu-importer")
+		    < log_position(&internal->menu.log, "menu-override")
+		    && log_position(&internal->picker.log, "picker-imported")
+		    < log_position(&internal->picker.log, "picker-importer")
+		    && log_position(&internal->picker.log, "picker-importer")
+		    < log_position(&internal->picker.log, "picker-override");
+		fprintf(stderr, "event discovery, override and exactly-once loading: %s\n",
+		    passed ? "PASS" : "FAIL");
 	}
 	st_wren_host_destroy(host);
 	st_console_destroy(console);

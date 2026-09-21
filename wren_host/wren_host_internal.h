@@ -12,6 +12,7 @@
 #include "st_profile.h"
 #include "st_screen_mode.h"
 #include "st_settings.h"
+#include "wren_directory.h"
 #include "wren_bbs_model.h"
 #include "wren.h"
 
@@ -172,19 +173,6 @@ struct st_wren_context {
 	uint64_t seen_errors;
 };
 
-struct st_wren_picker_entry {
-	char *name;
-	bool directory;
-	uint64_t size;
-	int64_t modified;
-};
-
-struct st_wren_picker_entries {
-	struct st_wren_picker_entry *items;
-	size_t count;
-	size_t capacity;
-};
-
 struct st_embedded_script {
 	const char *name;
 	const char *source;
@@ -260,9 +248,9 @@ bool st_wren_picker_host_run(struct st_wren_host *host,
 void st_wren_picker_call_dispose(struct st_wren_picker_call *call);
 const char *st_wren_file_read_path(WrenVM *vm, int slot);
 
-int st_wren_picker_enumerate(const char *directory,
-	struct st_wren_picker_entries *entries);
-void st_wren_picker_entries_dispose(struct st_wren_picker_entries *entries);
+int st_wren_script_inventory(const char *directory, const char *event,
+	struct st_wren_directory_entries *entries);
+bool st_wren_bbs_script_name_valid(const char *name);
 
 void st_wren_unsupported(WrenVM *vm);
 void st_wren_push_theme_data(WrenVM *vm, const struct st_theme *theme);

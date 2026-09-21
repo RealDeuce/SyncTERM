@@ -917,12 +917,14 @@ nothing.
 
 === Load Order
 
-. `scripts/auto/<event>/` is globbed for the firing event.
+. `scripts/auto/<event>/` is enumerated for files with the exact lowercase
+  `.wren` suffix.
 . Each embedded script tagged with the firing event runs, unless its
-  module name appears in the user-script set (in which case the user
-  override runs instead).
+  module name appears in the user-script set.
 . Each user script in `scripts/auto/<event>/` runs as its own
-  filename-derived module.
+  filename-derived module in case-sensitive byte order.  This phase runs the
+  user override omitted from the preceding embedded phase.  A module already
+  loaded through an earlier import is skipped.
 . For `connected`, root modules selected by the active personal directory
   entry run in their stored order.  A module already loaded by an earlier
   script or import is skipped because Wren modules execute only once per VM.
@@ -940,6 +942,12 @@ body) resolve through the lookup chain for the current VM:
 The foundational `syncterm` module lazily loads the first time
 anything imports it; subsequent imports hit Wren's module cache.
 
+The menu host attempts every menu auto-load module and refuses to start a
+partly initialized menu if any of them cannot be read or interpreted.  Picker
+implementation modules are optional: their errors are logged while the
+embedded picker bootstrap and recovery surface remain available.  A missing
+`FilePicker` class enters recovery when the picker is invoked.
+
 === Per-Connection Scripts
 
 A personal directory entry may contain an ordered `WrenScripts` INI value:
@@ -956,6 +964,11 @@ bytes, and are case-sensitive Wren module names.  The menu does not offer a
 module already present in the entry, and the host removes exact duplicates
 assigned through the menu API.  `syncterm_menu`, `syncterm_picker`, and
 `picker_bootstrap` are reserved and cannot be selected.
+
+The editor catalog is rebuilt from root user-script files with the exact
+lowercase `.wren` suffix on each request, in case-sensitive byte order.  It
+does not include modules embedded in the executable.  Files with invalid
+module names and the three reserved names above are omitted.
 
 The entry editor's Wren Scripts row opens the ordered-list editor.  Select the
 blank final row or press Insert to add a root module; Delete removes one.
@@ -4182,8 +4195,10 @@ available in a connected VM.
 
 | Menu.scriptModules
 | Return a fresh List of valid root script-module names available for
-  per-entry connected loading.  Reserved menu and picker module names are
-  omitted.  The entry editor separately omits names already selected.
+  per-entry connected loading.  The list is rebuilt from user
+  `scripts/*.wren` files in case-sensitive byte order; embedded modules,
+  invalid names, and the reserved menu and picker module names are omitted.
+  The entry editor separately omits names already selected.
 
 | Menu.wrenScriptsMaxLength
 | Maximum byte length of the comma-separated `WrenScripts` INI value.  The

@@ -211,8 +211,8 @@ ascii_compare(const char *left, const char *right, bool case_sensitive)
 static int
 compare_entries_case(const void *left, const void *right)
 {
-	const struct st_wren_picker_entry *a = left;
-	const struct st_wren_picker_entry *b = right;
+	const struct st_wren_directory_entry *a = left;
+	const struct st_wren_directory_entry *b = right;
 
 	return ascii_compare(a->name, b->name, true);
 }
@@ -220,8 +220,8 @@ compare_entries_case(const void *left, const void *right)
 static int
 compare_entries_folded(const void *left, const void *right)
 {
-	const struct st_wren_picker_entry *a = left;
-	const struct st_wren_picker_entry *b = right;
+	const struct st_wren_directory_entry *a = left;
+	const struct st_wren_directory_entry *b = right;
 
 	return ascii_compare(a->name, b->name, false);
 }
@@ -256,22 +256,11 @@ wildcard_match(const char *pattern, const char *text, bool case_sensitive)
 	return *p == '\0';
 }
 
-void
-st_wren_picker_entries_dispose(struct st_wren_picker_entries *entries)
-{
-	if (entries == NULL)
-		return;
-	for (size_t i = 0; i < entries->count; ++i)
-		free(entries->items[i].name);
-	free(entries->items);
-	*entries = (struct st_wren_picker_entries){0};
-}
-
 static int
-move_entry(struct st_wren_picker_entries *destination,
-	struct st_wren_picker_entry *entry)
+move_entry(struct st_wren_directory_entries *destination,
+	struct st_wren_directory_entry *entry)
 {
-	struct st_wren_picker_entry *items;
+	struct st_wren_directory_entry *items;
 	size_t capacity;
 
 	if (destination->count == destination->capacity) {
@@ -305,12 +294,12 @@ format_timestamp(char result[24], int64_t modified)
 
 static void
 push_entry_list(WrenVM *vm, int slot,
-	const struct st_wren_picker_entries *entries)
+	const struct st_wren_directory_entries *entries)
 {
 	wrenEnsureSlots(vm, slot + 3);
 	wrenSetSlotNewList(vm, slot);
 	for (size_t i = 0; i < entries->count; ++i) {
-		const struct st_wren_picker_entry *entry = &entries->items[i];
+		const struct st_wren_directory_entry *entry = &entries->items[i];
 		char timestamp[24];
 
 		format_timestamp(timestamp, entry->modified);
@@ -458,9 +447,9 @@ fn_request_list(WrenVM *vm)
 	char *input;
 	char *mask;
 	char *directory;
-	struct st_wren_picker_entries raw = {0};
-	struct st_wren_picker_entries directories = {0};
-	struct st_wren_picker_entries files = {0};
+	struct st_wren_directory_entries raw = {0};
+	struct st_wren_directory_entries directories = {0};
+	struct st_wren_directory_entries files = {0};
 	bool root;
 	int status;
 
@@ -491,9 +480,9 @@ fn_request_list(WrenVM *vm)
 		return;
 	}
 	root = directory_root(directory);
-	status = st_wren_picker_enumerate(directory, &raw);
+	status = st_wren_directory_enumerate(directory, &raw);
 	if (status == 0 && !root) {
-		struct st_wren_picker_entry parent = {
+		struct st_wren_directory_entry parent = {
 			.name = strdup(".."), .directory = true,
 		};
 
@@ -504,7 +493,7 @@ fn_request_list(WrenVM *vm)
 		free(parent.name);
 	}
 	for (size_t i = 0; status == 0 && i < raw.count; ++i) {
-		struct st_wren_picker_entry *entry = &raw.items[i];
+		struct st_wren_directory_entry *entry = &raw.items[i];
 		bool hidden = entry->name[0] == '.';
 
 		if (hidden && !(call->options & ST_WREN_PICKER_SHOW_HIDDEN))
@@ -516,11 +505,11 @@ fn_request_list(WrenVM *vm)
 			status = move_entry(&files, entry);
 	}
 	free(mask);
-	st_wren_picker_entries_dispose(&raw);
+	st_wren_directory_entries_dispose(&raw);
 	if (status != 0) {
 		free(directory);
-		st_wren_picker_entries_dispose(&directories);
-		st_wren_picker_entries_dispose(&files);
+		st_wren_directory_entries_dispose(&directories);
+		st_wren_directory_entries_dispose(&files);
 		wrenSetSlotNull(vm, 0);
 		return;
 	}
@@ -545,8 +534,8 @@ fn_request_list(WrenVM *vm)
 	push_entry_list(vm, 1, &files);
 	wrenInsertInList(vm, 0, -1, 1);
 	free(directory);
-	st_wren_picker_entries_dispose(&directories);
-	st_wren_picker_entries_dispose(&files);
+	st_wren_directory_entries_dispose(&directories);
+	st_wren_directory_entries_dispose(&files);
 }
 
 static void
@@ -1158,8 +1147,8 @@ st_wren_picker_host_run(struct st_wren_host *host,
 	WrenInterpretResult result;
 
 	if (host == NULL || call == NULL || host->picker_vm == NULL
-	    || host->picker_bootstrap == NULL || host->picker_class == NULL
-	    || host->picker_run == NULL || host->picker_recover == NULL)
+	    || host->picker_bootstrap == NULL || host->picker_run == NULL
+	    || host->picker_recover == NULL)
 		return false;
 	host->last_error[0] = '\0';
 	previous_console = host->menu.console;
@@ -1173,13 +1162,17 @@ st_wren_picker_host_run(struct st_wren_host *host,
 	else if (st_console_snapshot_create(&snapshot,
 	    host->config.console) != 0)
 		return false;
-	wrenEnsureSlots(host->picker_vm, 3);
-	wrenSetSlotHandle(host->picker_vm, 0, host->picker_bootstrap);
-	wrenSetSlotHandle(host->picker_vm, 1, host->picker_class);
-	if (!push_request(host, 2, call))
+	if (host->picker_class == NULL)
 		result = WREN_RESULT_RUNTIME_ERROR;
-	else
-		result = wrenCall(host->picker_vm, host->picker_run);
+	else {
+		wrenEnsureSlots(host->picker_vm, 3);
+		wrenSetSlotHandle(host->picker_vm, 0, host->picker_bootstrap);
+		wrenSetSlotHandle(host->picker_vm, 1, host->picker_class);
+		if (!push_request(host, 2, call))
+			result = WREN_RESULT_RUNTIME_ERROR;
+		else
+			result = wrenCall(host->picker_vm, host->picker_run);
+	}
 	if (result != WREN_RESULT_SUCCESS) {
 		wrenEnsureSlots(host->picker_vm, 3);
 		wrenSetSlotHandle(host->picker_vm, 0, host->picker_bootstrap);
