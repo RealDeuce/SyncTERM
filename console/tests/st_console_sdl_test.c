@@ -76,8 +76,10 @@ main(int argc, char **argv)
 	struct st_console_config automatic = config;
 	st_console_t *first = NULL;
 	st_console_t *second = NULL;
+	st_console_display_t *first_display = NULL;
 	uint32_t width = 0;
 	uint32_t height = 0;
+	double scaling;
 	dynamic_library_t *library = NULL;
 	int (SDLCALL *push_event)(SDL_Event *) = NULL;
 	void *symbol;
@@ -90,10 +92,14 @@ main(int argc, char **argv)
 	(void)argc;
 	(void)argv;
 
-	status = st_console_create(&first, &config_display, &config);
+	status = st_console_display_create(&first_display, &config_display);
+	if (status == 0)
+		status = st_console_create_on_display(&first, first_display, &config);
 	if (status == IO_ERROR_NOT_FOUND || status == IO_ERROR_NOT_SUPPORTED)
 		return 77;
 	CHECK(status == 0);
+	CHECK(st_console_display_get_scaling(first_display, &scaling) == 0);
+	CHECK(scaling == 1.0);
 	automatic_display.backend = ST_CONSOLE_BACKEND_AUTO;
 	CHECK(st_console_create(&second, &automatic_display, &automatic) == 0);
 	CHECK(st_console_pixel_size(first, &width, &height) == 0);
@@ -135,6 +141,7 @@ main(int argc, char **argv)
 	CHECK(wait_for_close(second, &deadline) == 0);
 	CHECK(dynamic_library_close(library) == 0);
 	st_console_destroy(first);
+	st_console_display_destroy(first_display);
 	st_console_destroy(second);
 	{
 		const struct st_console_display_config display_config = {

@@ -169,6 +169,7 @@ enum sdl_command_type {
 	SDL_COMMAND_OPEN_URL,
 	SDL_COMMAND_SET_POINTER,
 	SDL_COMMAND_SET_FULLSCREEN,
+	SDL_COMMAND_GET_SCALING,
 };
 
 struct sdl_command {
@@ -186,6 +187,7 @@ struct sdl_command {
 		} size;
 		const char *text;
 		char **text_result;
+		double *scaling_result;
 		bool enabled;
 	} data;
 	int result;
@@ -1208,6 +1210,18 @@ process_command(struct sdl_command *command)
 			state->window_geometry = next;
 		return status;
 		}
+	case SDL_COMMAND_GET_SCALING:
+		{
+		int width;
+		int height;
+
+		if (manager.api.get_renderer_output_size(state->renderer,
+		    &width, &height) != 0 || width <= 0 || height <= 0)
+			return IO_ERROR_IO;
+		return st_console_bitmap_geometry_scaling(&state->window_geometry,
+		    (uint32_t)width, (uint32_t)height,
+		    command->data.scaling_result);
+		}
 	case SDL_COMMAND_SET_TITLE:
 		manager.api.set_window_title(state->window, command->data.text);
 		return 0;
@@ -1480,6 +1494,16 @@ sdl_set_fullscreen(st_console_display_t *display, bool fullscreen)
 	    .done = false, .next = NULL});
 }
 
+static int
+sdl_get_scaling(st_console_display_t *display, double *result)
+{
+	return submit_command(&(struct sdl_command){
+		.type = SDL_COMMAND_GET_SCALING,
+		.state = display->backend_state,
+		.data.scaling_result = result,
+	});
+}
+
 static void
 sdl_destroy(st_console_display_t *display)
 {
@@ -1514,6 +1538,7 @@ static const struct st_console_backend_ops sdl_ops = {
 	.open_url = sdl_open_url,
 	.set_pointer_visible = sdl_set_pointer,
 	.set_fullscreen = sdl_set_fullscreen,
+	.get_scaling = sdl_get_scaling,
 	.activate = sdl_activate,
 	.destroy = sdl_destroy,
 };

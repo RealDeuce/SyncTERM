@@ -77,6 +77,7 @@ enum quartz_command_type {
 	QUARTZ_COMMAND_OPEN_URL,
 	QUARTZ_COMMAND_POINTER,
 	QUARTZ_COMMAND_FULLSCREEN,
+	QUARTZ_COMMAND_GET_SCALING,
 };
 
 struct quartz_command {
@@ -92,6 +93,7 @@ struct quartz_command {
 		} size;
 		const char *text;
 		char **text_result;
+		double *scaling_result;
 		bool enabled;
 	} data;
 	int result;
@@ -1027,6 +1029,17 @@ process_command(struct quartz_command *command)
 			    height / scale)];
 		return render(state, NULL, true);
 	}
+	case QUARTZ_COMMAND_GET_SCALING: {
+		CGFloat scale = state->window.backingScaleFactor;
+		NSSize size = state->view.bounds.size;
+
+		if (scale <= 0)
+			scale = 1;
+		return st_console_bitmap_geometry_scaling(&state->window_geometry,
+		    (uint32_t)(size.width * scale),
+		    (uint32_t)(size.height * scale),
+		    command->data.scaling_result);
+	}
 	case QUARTZ_COMMAND_TITLE:
 		string = [NSString stringWithUTF8String:command->data.text];
 		if (string == nil)
@@ -1287,6 +1300,16 @@ quartz_set_fullscreen(st_console_display_t *display, bool fullscreen)
 	});
 }
 
+static int
+quartz_get_scaling(st_console_display_t *display, double *result)
+{
+	return submit_command(&(struct quartz_command){
+		.type = QUARTZ_COMMAND_GET_SCALING,
+		.state = display->backend_state,
+		.data.scaling_result = result,
+	});
+}
+
 static void
 quartz_destroy(st_console_display_t *display)
 {
@@ -1314,6 +1337,7 @@ static const struct st_console_backend_ops quartz_ops = {
 	.open_url = quartz_open_url,
 	.set_pointer_visible = quartz_set_pointer,
 	.set_fullscreen = quartz_set_fullscreen,
+	.get_scaling = quartz_get_scaling,
 	.activate = quartz_activate,
 	.destroy = quartz_destroy,
 };

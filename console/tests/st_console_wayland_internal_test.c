@@ -411,6 +411,25 @@ test_worker_completion(void)
 	return 0;
 }
 
+static int
+test_scaling_command(void)
+{
+	double scaling = 17.0;
+	struct state state = {
+		.window_geometry = {640, 400, 4, 3},
+		.window_width = 1280,
+		.window_height = 960,
+	};
+	struct command command = {
+		.type = CMD_GET_SCALING,
+		.data.scaling_result = &scaling,
+	};
+
+	CHECK(process(&state, &command) == 0);
+	CHECK(scaling == 2.0);
+	return 0;
+}
+
 int
 main(void)
 {
@@ -419,5 +438,6 @@ main(void)
 	CHECK(test_worker_failures() == 0);
 	CHECK(test_clipboard_send() == 0);
 	CHECK(test_worker_completion() == 0);
+	CHECK(test_scaling_command() == 0);
 	return 0;
 }

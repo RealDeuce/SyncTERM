@@ -517,6 +517,7 @@ main(void)
 	uint32_t blue = UINT32_C(0x0000ff);
 	uint32_t width;
 	uint32_t height;
+	double scaling;
 	uint64_t initial_generation;
 	const void *initial_identity;
 
@@ -535,6 +536,35 @@ main(void)
 	CHECK(st_console_scaled_window_size(640, 400, 4, 3, 0.25,
 	    &width, &height) == 0);
 	CHECK(width == 640 && height == 480);
+
+	{
+		const struct st_console_bitmap_geometry geometry = {640, 400, 4, 3};
+		const struct st_console_bitmap_geometry prestel = {
+			480, 500, 3077, 2400};
+
+		CHECK(st_console_bitmap_geometry_scaling(&geometry, 1280, 960,
+		    &scaling) == 0);
+		CHECK(scaling == 2.0);
+		CHECK(st_console_bitmap_geometry_scaling(&geometry, 1400, 960,
+		    &scaling) == 0);
+		CHECK(scaling == 2.0);
+		CHECK(st_console_bitmap_geometry_scaling(&geometry, 1280, 1000,
+		    &scaling) == 0);
+		CHECK(scaling == 2.0);
+		CHECK(st_console_bitmap_geometry_scaling(&geometry, 800, 600,
+		    &scaling) == 0);
+		CHECK(scaling == 1.25);
+		CHECK(st_console_bitmap_geometry_scaling(&prestel, 641, 500,
+		    &scaling) == 0);
+		CHECK(scaling == 1.0);
+		CHECK(st_console_bitmap_geometry_scaling(&prestel, 801, 625,
+		    &scaling) == 0);
+		CHECK(scaling == 1.25);
+		scaling = 17.0;
+		CHECK(st_console_bitmap_geometry_scaling(&geometry, 639, 480,
+		    &scaling) == IO_ERROR_OUT_OF_RANGE);
+		CHECK(scaling == 17.0);
+	}
 
 	{
 		struct st_console_bitmap_geometry previous = {640, 400, 4, 3};

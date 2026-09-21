@@ -631,6 +631,9 @@ int st_console_display_open_url(st_console_display_t *display,
 	const char *url);
 int st_console_display_set_fullscreen(st_console_display_t *display,
 	bool fullscreen);
+/* Returns the physical window scale; result is unchanged on failure. */
+int st_console_display_get_scaling(st_console_display_t *display,
+	double *result);
 
 /* Libretro pulls the display's last completed frame, not a logical console.
  * Size is advisory: a switch may change it before copy.  Copy validates both

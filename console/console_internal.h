@@ -37,6 +37,7 @@ struct st_console_backend_ops {
 	int (*open_url)(st_console_display_t *display, const char *url);
 	int (*set_pointer_visible)(st_console_display_t *display, bool visible);
 	int (*set_fullscreen)(st_console_display_t *display, bool fullscreen);
+	int (*get_scaling)(st_console_display_t *display, double *scaling);
 	/* Synchronously transfer the backend thread's retained console pointer. */
 	int (*activate)(st_console_t *console);
 	void (*destroy)(st_console_display_t *display);
@@ -341,6 +342,9 @@ int st_console_preserve_geometry_scale(
 	uint32_t current_width, uint32_t current_height,
 	uint32_t *width, uint32_t *height,
 	uint32_t *minimum_width, uint32_t *minimum_height);
+int st_console_bitmap_geometry_scaling(
+	const struct st_console_bitmap_geometry *geometry,
+	uint32_t output_width, uint32_t output_height, double *scaling);
 int st_console_bitmap_presenter_create(
 	struct st_console_bitmap_presenter **result, const st_console_t *console);
 void st_console_bitmap_presenter_destroy(

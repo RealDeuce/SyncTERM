@@ -498,6 +498,14 @@ operation independently returns `IO_ERROR_NOT_SUPPORTED` when unavailable.
 Backend-returned text is released with
 `st_console_free_text()` so allocation does not cross the library boundary.
 
+`st_console_display_get_scaling()` reports the active bitmap window's physical
+scale relative to its source raster while accounting for aspect correction.
+The X11, Wayland, SDL, GDI, and Quartz backends support the query.  Text,
+libretro, and headless backends return `IO_ERROR_NOT_SUPPORTED`.  A window
+smaller than the
+minimum source presentation is an invalid backend state and returns
+`IO_ERROR_OUT_OF_RANGE`; the result argument is unchanged on every failure.
+
 Unresolved host capability detection is documented in
 `console/CAPABILITY_GAPS.md`.  Missing implementation work is not a
 host-capability gap.

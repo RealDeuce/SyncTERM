@@ -380,8 +380,7 @@ Startup policy disposition: title-setting errors and web-cache refresh status
 are ignored by app; refresh cleans its temporary overlay/snapshot/arrays
 before returning and can leave existing caches available after a failure.
 This is best-effort startup behavior, not proof refresh succeeded. Making
-such failures fatal is not prescribed by the audit. Settings persistence at
-application exit remains an implementation/documentation gap under A088.
+such failures fatal is not prescribed by the audit.
 These checks close the application row's earlier ownership/integration
 questions while leaving broader host-script/backend integration in their own
 rows. Actual Windows/macOS/Haiku application execution, GUI fallback under
@@ -523,10 +522,9 @@ preserving the legacy CTerm specification unchanged.
 
 Additional documentation gaps: Manual.txt references Themes.adoc, which is
 absent from this repository. Its opening still claims this project lives in
-the Synchronet git repository. The persistent-state section describes saving
-window scaling at exit; the current app teardown does not implement that
-workflow. The connected GHost section gives a ghost:// URL while the earlier
-supported-scheme list omits it. These are source-checked documentation gaps;
+the Synchronet git repository. The connected GHost section gives a
+ghost:// URL while the earlier supported-scheme list omits it. These are
+source-checked documentation gaps;
 no GUI, network connection, personal settings or distribution was exercised.
 Full Wren.adoc coverage and cross-reference checks remain outstanding.
 

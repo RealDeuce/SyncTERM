@@ -44,6 +44,7 @@ enum command_type {
 	CMD_FULLSCREEN,
 	CMD_SET_CLIPBOARD,
 	CMD_GET_CLIPBOARD,
+	CMD_GET_SCALING,
 	CMD_DESTROY
 };
 
@@ -56,6 +57,7 @@ struct command {
 		} size;
 		const char *text;
 		char **text_result;
+		double *scaling_result;
 		bool enabled;
 	} data;
 	int result;
@@ -1696,6 +1698,10 @@ static int process(struct state *s, struct command *c)
 		}
 		wl_surface_commit(s->surface);
 		return 0;
+	case CMD_GET_SCALING:
+		return st_console_bitmap_geometry_scaling(&s->window_geometry,
+		    s->window_width, s->window_height,
+		    c->data.scaling_result);
 	case CMD_SET_CLIPBOARD:
 		return set_clipboard(s, c->data.text);
 	case CMD_GET_CLIPBOARD:
@@ -1889,6 +1895,12 @@ static int fullscreen(st_console_display_t *display, bool v)
 	    display->backend_state,
 	    &(struct command){.type = CMD_FULLSCREEN, .data.enabled = v});
 }
+static int scaling(st_console_display_t *display, double *r)
+{
+	return submit(display->backend_state,
+	    &(struct command){.type = CMD_GET_SCALING,
+		.data.scaling_result = r});
+}
 static int clipboard_set(st_console_display_t *display, const char *t)
 {
 	return submit(
@@ -1931,6 +1943,7 @@ static const struct st_console_backend_ops ops = {
     .get_clipboard_text = clipboard_get,
     .set_pointer_visible = pointer,
     .set_fullscreen = fullscreen,
+	.get_scaling = scaling,
 	.activate = activate,
     .destroy = destroy};
 

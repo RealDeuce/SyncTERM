@@ -352,6 +352,20 @@ main(void)
 	CHECK(st_settings_font_at(0)->path[ST_SETTINGS_FONT_8X8] == NULL);
 	CHECK(strcmp(st_settings_font_at(1)->path[ST_SETTINGS_FONT_12X20],
 	    "/fonts/tall.f20") == 0);
+	{
+		double installed_scaling = st_settings.scaling_factor;
+
+		CHECK(st_settings_persist_scaling_factor(0.5)
+		    == IO_ERROR_INVALID_ARGUMENT);
+		CHECK(st_settings_persist_scaling_factor(2.5) == 0);
+		CHECK(st_settings.scaling_factor == installed_scaling);
+		CHECK(read_document(settings_path, &document) == 0);
+		CHECK(ini_section_get_double(ini_document_find_section(document,
+		    "SyncTERM"), "ScalingFactor", 0.0) == 2.5);
+		CHECK(strcmp(ini_section_get_string(ini_document_find_section(document,
+		    "SyncTERM"), "Unknown", ""), "preserve") == 0);
+		ini_document_free(&document);
+	}
 	CHECK(st_settings_web_download_append("Two",
 	    "https://example.invalid/two.lst") == 0);
 	CHECK(st_settings_web_download_set(0, "First",
@@ -383,6 +397,8 @@ main(void)
 	    "SyncTERM"), "ScrollBackLines", 0) == 200);
 	CHECK(ini_section_get_int64(ini_document_find_section(document,
 	    "SyncTERM"), "OutputMode", 0) == 4);
+	CHECK(ini_section_get_double(ini_document_find_section(document,
+	    "SyncTERM"), "ScalingFactor", 0.0) == 2.5);
 	CHECK(strcmp(ini_section_get_string(ini_document_find_section(document,
 	    "SyncTERM"), "SortOrder", ""), "29,1") == 0);
 	CHECK(strcmp(ini_section_get_string(ini_document_find_section(document,

@@ -17,8 +17,8 @@ reviewed only at the requested integration boundaries.
 
 Most urgent follow-up, subject to separate authorization:
 
-- Data preservation and required compatibility: exit-time scaling persistence
-  and the remaining failed-load/save publication boundaries.
+- Data preservation and required compatibility: the remaining failed-load/save
+  publication boundaries.
 
 Start with the detailed evidence and regression tests for each finding;
 do not infer that every issue needs a redesign or that changing the public

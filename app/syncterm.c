@@ -6,6 +6,7 @@
  */
 
 #include "st_app_paths.h"
+#include "st_app_state.h"
 #include "st_audio_runtime.h"
 #include "st_builtin_fonts.h"
 #include "st_command_line.h"
@@ -74,6 +75,35 @@ apply_profile_overrides(struct st_profile *profile,
 		profile->hide_status = true;
 	if (command->hide_popups)
 		profile->hide_popups = true;
+}
+
+static void
+persist_window_scaling(st_wren_host_t *host, st_console_display_t *display,
+	bool normal_exit, bool safe_mode)
+{
+	enum st_screen_mode current_mode;
+	double scaling;
+	int status;
+
+	if (host == NULL || display == NULL
+	    || st_wren_host_get_screen_mode(host, &current_mode) != 0
+	    || !st_app_should_persist_scaling(normal_exit, safe_mode,
+	    (enum st_screen_mode)st_settings.startup_mode, current_mode))
+		return;
+	status = st_console_display_get_scaling(display, &scaling);
+	if (status == IO_ERROR_NOT_SUPPORTED)
+		return;
+	if (status != 0) {
+		fprintf(stderr, "SyncTERM: cannot read window scaling (%d)\n",
+		    status);
+		return;
+	}
+	if (scaling != st_settings.scaling_factor) {
+		status = st_settings_persist_scaling_factor(scaling);
+		if (status != 0)
+			fprintf(stderr,
+			    "SyncTERM: cannot save window scaling (%d)\n", status);
+	}
 }
 
 int
@@ -255,6 +285,7 @@ main(int argc, char **argv)
 		result = 0;
 
 finished:
+	persist_window_scaling(host, display, result == 0, command.safe_mode);
 	if (profile_initialized)
 		st_profile_dispose(&selected);
 	st_wren_host_destroy(host);

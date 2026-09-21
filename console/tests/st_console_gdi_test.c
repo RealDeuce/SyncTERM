@@ -110,13 +110,20 @@ main(void)
 	struct st_console_config scaled = config;
 	st_console_t *first = NULL;
 	st_console_t *second = NULL;
+	st_console_display_t *first_display = NULL;
 	uint32_t width;
 	uint32_t height;
-	int status = st_console_create(&first, &config_display, &config);
+	double scaling;
+	int status = st_console_display_create(&first_display, &config_display);
+
+	if (status == 0)
+		status = st_console_create_on_display(&first, first_display, &config);
 
 	if (status == IO_ERROR_NOT_FOUND || status == IO_ERROR_NOT_SUPPORTED)
 		return 77;
 	CHECK(status == 0);
+	CHECK(st_console_display_get_scaling(first_display, &scaling) == 0);
+	CHECK(scaling == 1.0);
 	scaled_display.initial_scaling = 1.25;
 	CHECK(st_console_create(&second, &scaled_display, &scaled) == 0);
 	CHECK(st_console_set_title(first, "st_console GDI one") == 0);
@@ -139,5 +146,6 @@ main(void)
 	CHECK(check_client_size(L"st_console GDI input test", 720, 540) == 0);
 	st_console_destroy(second);
 	st_console_destroy(first);
+	st_console_display_destroy(first_display);
 	return 0;
 }

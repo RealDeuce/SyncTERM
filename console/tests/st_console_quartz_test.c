@@ -37,14 +37,20 @@ main(void)
 	struct st_console_config automatic = config;
 	st_console_t *first = NULL;
 	st_console_t *second = NULL;
+	st_console_display_t *first_display = NULL;
 	uint32_t width;
 	uint32_t height;
+	double scaling;
 	int status;
 
-	status = st_console_create(&first, &config_display, &config);
+	status = st_console_display_create(&first_display, &config_display);
+	if (status == 0)
+		status = st_console_create_on_display(&first, first_display, &config);
 	if (status == IO_ERROR_NOT_FOUND || status == IO_ERROR_NOT_SUPPORTED)
 		return 77;
 	CHECK(status == 0);
+	CHECK(st_console_display_get_scaling(first_display, &scaling) == 0);
+	CHECK(scaling == 1.0);
 	automatic_display.backend = ST_CONSOLE_BACKEND_AUTO;
 	CHECK(st_console_create(&second, &automatic_display, &automatic) == 0);
 	CHECK(st_console_set_title(first, "st_console Quartz one") == 0);
@@ -60,5 +66,6 @@ main(void)
 	CHECK(width == 80 && height == 80);
 	st_console_destroy(second);
 	st_console_destroy(first);
+	st_console_display_destroy(first_display);
 	return 0;
 }

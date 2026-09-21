@@ -647,6 +647,13 @@ test_resize_palette_and_errors(void)
 	    == IO_ERROR_NOT_SUPPORTED);
 	CHECK(st_console_set_fullscreen(console, true)
 	    == IO_ERROR_NOT_SUPPORTED);
+	{
+		double scaling = 17.0;
+
+		CHECK(st_console_display_get_scaling(console->display, &scaling)
+		    == IO_ERROR_NOT_SUPPORTED);
+		CHECK(scaling == 17.0);
+	}
 	CHECK(st_console_end_update(console) == IO_ERROR_INVALID_ARGUMENT);
 	st_console_destroy(console);
 }

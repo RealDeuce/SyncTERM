@@ -8,6 +8,7 @@ if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 endif()
 
 add_library(st_app_startup STATIC
+	st_app_state.c
 	st_command_line.c
 	st_console_startup.c)
 target_include_directories(st_app_startup PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

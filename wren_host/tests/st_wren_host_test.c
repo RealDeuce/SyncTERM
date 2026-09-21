@@ -1959,6 +1959,12 @@ main(void)
 		.audio_runtime = audio_runtime,
 	};
 	CHECK(st_wren_host_create(&host, &host_config) == 0);
+	{
+		enum st_screen_mode mode = ST_SCREEN_MODE_80X25;
+
+		CHECK(st_wren_host_get_screen_mode(host, &mode) == 0);
+		CHECK(mode == (enum st_screen_mode)st_settings.startup_mode);
+	}
 	CHECK(exercise_session_history_contract(host) == 0);
 	CHECK(exercise_repl_style(host, console) == 0);
 	CHECK(exercise_mouse_drag_selection(host, console) == 0);

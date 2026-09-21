@@ -460,6 +460,56 @@ st_console_preserve_geometry_scale(
 	    next->aspect_height, width, height);
 }
 
+int
+st_console_bitmap_geometry_scaling(
+	const struct st_console_bitmap_geometry *geometry,
+	uint32_t output_width, uint32_t output_height, double *scaling)
+{
+	uint32_t minimum_width;
+	uint32_t minimum_height;
+	uint32_t candidate_width;
+	uint32_t candidate_height;
+	double width_scaling;
+	double height_scaling;
+	double result;
+	int status;
+
+	if (geometry == NULL || scaling == NULL || output_width == 0
+	    || output_height == 0)
+		return IO_ERROR_INVALID_ARGUMENT;
+	status = st_console_aspect_correct_size(geometry->width,
+	    geometry->height, geometry->aspect_width, geometry->aspect_height,
+	    &minimum_width, &minimum_height);
+	if (status != 0)
+		return status;
+	if (output_width < minimum_width || output_height < minimum_height)
+		return IO_ERROR_OUT_OF_RANGE;
+	width_scaling = (double)output_width / minimum_width;
+	height_scaling = (double)output_height / minimum_height;
+	if (width_scaling < height_scaling) {
+		status = st_console_scaled_window_size(geometry->width,
+		    geometry->height, geometry->aspect_width,
+		    geometry->aspect_height, height_scaling, &candidate_width,
+		    &candidate_height);
+		result = status == 0 && candidate_width <= output_width
+		    && candidate_height <= output_height
+		    ? height_scaling : width_scaling;
+	}
+	else if (height_scaling < width_scaling) {
+		status = st_console_scaled_window_size(geometry->width,
+		    geometry->height, geometry->aspect_width,
+		    geometry->aspect_height, width_scaling, &candidate_width,
+		    &candidate_height);
+		result = status == 0 && candidate_width <= output_width
+		    && candidate_height <= output_height
+		    ? width_scaling : height_scaling;
+	}
+	else
+		result = height_scaling;
+	*scaling = result;
+	return 0;
+}
+
 static struct st_console_rect
 fit_rectangle(uint32_t output_width, uint32_t output_height,
 	uint32_t source_width, uint32_t source_height, uint32_t aspect_width,

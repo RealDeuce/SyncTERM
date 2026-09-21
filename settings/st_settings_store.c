@@ -19,6 +19,7 @@
 #include "string_util.h"
 
 #include <limits.h>
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -1086,6 +1087,34 @@ int
 st_settings_save(void)
 {
 	return st_settings_save_value(&st_settings);
+}
+
+int
+st_settings_persist_scaling_factor(double scaling_factor)
+{
+	st_file_lock_t *lock = NULL;
+	ini_document_t *document = NULL;
+	ini_section_t *section;
+	int status;
+
+	if (!baseline_initialized || settings_path == NULL
+	    || !isfinite(scaling_factor) || scaling_factor < 1.0)
+		return IO_ERROR_INVALID_ARGUMENT;
+	status = fs_create_parent_directories(settings_path);
+	if (status == 0)
+		status = st_file_lock_acquire(&lock, settings_path, true);
+	if (status == 0)
+		status = read_document(&document, settings_path);
+	if (status == 0)
+		status = ensure_section(document, "SyncTERM", &section);
+	if (status == 0)
+		status = ini_section_set_double(section, "ScalingFactor",
+		    scaling_factor, &ini_default_style);
+	if (status == 0)
+		status = write_document(document, settings_path);
+	ini_document_free(&document);
+	st_file_lock_release(lock);
+	return status;
 }
 
 int

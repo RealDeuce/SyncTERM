@@ -1208,6 +1208,16 @@ st_wren_host_exit_requested(const st_wren_host_t *host)
 	return host != NULL && host->exit_requested;
 }
 
+int
+st_wren_host_get_screen_mode(const st_wren_host_t *host,
+	enum st_screen_mode *result)
+{
+	if (host == NULL || result == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	*result = host->current_screen_mode;
+	return 0;
+}
+
 const char *
 st_wren_host_last_error(const st_wren_host_t *host)
 {

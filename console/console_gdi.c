@@ -36,6 +36,7 @@ enum command_type {
 	COMMAND_OPEN_URL,
 	COMMAND_POINTER,
 	COMMAND_FULLSCREEN,
+	COMMAND_GET_SCALING,
 	COMMAND_DESTROY,
 };
 
@@ -45,6 +46,7 @@ struct command {
 		st_console_t *console;
 		const char *text;
 		char **text_result;
+		double *scaling_result;
 		struct {
 			uint32_t width;
 			uint32_t height;
@@ -755,6 +757,11 @@ process_command(struct gdi_state *state, struct command *command)
 	case COMMAND_PRESENT:
 		command->result = render(state, state->console, false);
 		break;
+	case COMMAND_GET_SCALING:
+		command->result = st_console_bitmap_geometry_scaling(
+		    &state->window_geometry, state->client_width,
+		    state->client_height, command->data.scaling_result);
+		break;
 	case COMMAND_RESIZE:
 		{
 		struct st_console_bitmap_geometry next = {
@@ -1173,6 +1180,15 @@ gdi_set_fullscreen(st_console_display_t *display, bool fullscreen)
 	});
 }
 
+static int
+gdi_get_scaling(st_console_display_t *display, double *result)
+{
+	return send_command(display->backend_state, &(struct command){
+		.type = COMMAND_GET_SCALING,
+		.data.scaling_result = result,
+	});
+}
+
 static void
 gdi_destroy(st_console_display_t *display)
 {
@@ -1209,6 +1225,7 @@ static const struct st_console_backend_ops gdi_ops = {
 	.open_url = gdi_open_url,
 	.set_pointer_visible = gdi_set_pointer,
 	.set_fullscreen = gdi_set_fullscreen,
+	.get_scaling = gdi_get_scaling,
 	.activate = gdi_activate,
 	.destroy = gdi_destroy,
 };

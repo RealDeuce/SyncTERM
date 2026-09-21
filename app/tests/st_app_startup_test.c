@@ -7,6 +7,7 @@
 
 #include "st_command_line.h"
 #include "st_console_startup.h"
+#include "st_app_state.h"
 #include "st_settings.h"
 
 #include <stdio.h>
@@ -80,6 +81,22 @@ test_command_line(void)
 	CHECK(st_command_line_parse(&command, 2, ansi_cp437, NULL) == 0
 	    && command.backend == ST_CONSOLE_BACKEND_ANSI
 	    && command.text_presentation == ST_CONSOLE_TEXT_CP437);
+	return 0;
+}
+
+static int
+test_application_state(void)
+{
+	CHECK(st_app_should_persist_scaling(true, false, ST_SCREEN_MODE_80X25,
+	    ST_SCREEN_MODE_80X25));
+	CHECK(!st_app_should_persist_scaling(false, false, ST_SCREEN_MODE_80X25,
+	    ST_SCREEN_MODE_80X25));
+	CHECK(!st_app_should_persist_scaling(true, true, ST_SCREEN_MODE_80X25,
+	    ST_SCREEN_MODE_80X25));
+	CHECK(!st_app_should_persist_scaling(true, false, ST_SCREEN_MODE_80X25,
+	    ST_SCREEN_MODE_80X43));
+	CHECK(st_app_should_persist_scaling(true, false, ST_SCREEN_MODE_CURRENT,
+	    ST_SCREEN_MODE_CURRENT));
 	return 0;
 }
 
@@ -268,6 +285,8 @@ int
 main(void)
 {
 	if (test_command_line() != 0)
+		return 1;
+	if (test_application_state() != 0)
 		return 1;
 	if (test_legacy_mode_geometry() != 0)
 		return 1;

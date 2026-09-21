@@ -867,6 +867,7 @@ main(int argc, char **argv)
 	char *clipboard = NULL;
 	uint32_t width;
 	uint32_t height;
+	double scaling;
 	int status;
 
 	(void)setlocale(LC_CTYPE, "");
@@ -879,6 +880,8 @@ main(int argc, char **argv)
 	CHECK(status == 0);
 	scaled_display.initial_scaling = 2.0;
 	CHECK(st_console_create(&second, &scaled_display, &scaled) == 0);
+	CHECK(st_console_display_get_scaling(second->display, &scaling) == 0);
+	CHECK(scaling == 2.0);
 	CHECK(st_console_set_title(first, "st_console X11 test one") == 0);
 	CHECK(st_console_set_title(second, "st_console X11 test two") == 0);
 	CHECK(check_window_metadata("st_console X11 test one") == 0);

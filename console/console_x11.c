@@ -245,6 +245,7 @@ enum x11_command_type {
 	X11_COMMAND_GET_CLIPBOARD,
 	X11_COMMAND_SET_POINTER,
 	X11_COMMAND_SET_FULLSCREEN,
+	X11_COMMAND_GET_SCALING,
 	X11_COMMAND_DESTROY,
 };
 
@@ -258,6 +259,7 @@ struct x11_command {
 		} size;
 		const char *text;
 		char **text_result;
+		double *scaling_result;
 		bool enabled;
 	} data;
 	int result;
@@ -2136,6 +2138,10 @@ process_command(struct x11_state *state, struct x11_command *command)
 		return set_pointer_visible(state, command->data.enabled);
 	case X11_COMMAND_SET_FULLSCREEN:
 		return set_fullscreen(state, command->data.enabled);
+	case X11_COMMAND_GET_SCALING:
+		return st_console_bitmap_geometry_scaling(&state->window_geometry,
+		    state->window_width, state->window_height,
+		    command->data.scaling_result);
 	case X11_COMMAND_DESTROY:
 		state->stop = true;
 		return 0;
@@ -2510,6 +2516,15 @@ x11_set_fullscreen(st_console_display_t *display, bool fullscreen)
 	});
 }
 
+static int
+x11_get_scaling(st_console_display_t *display, double *result)
+{
+	return submit_command(display->backend_state, &(struct x11_command){
+		.type = X11_COMMAND_GET_SCALING,
+		.data.scaling_result = result,
+	});
+}
+
 static void
 x11_destroy(st_console_display_t *display)
 {
@@ -2563,6 +2578,7 @@ static const struct st_console_backend_ops x11_ops = {
 	.get_clipboard_text = x11_get_clipboard,
 	.set_pointer_visible = x11_set_pointer,
 	.set_fullscreen = x11_set_fullscreen,
+	.get_scaling = x11_get_scaling,
 	.activate = x11_activate,
 	.destroy = x11_destroy,
 };

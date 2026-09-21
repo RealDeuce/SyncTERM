@@ -122,6 +122,9 @@ void st_settings_install(struct st_settings *replacement);
 /* Persist and publish value; no running-state change occurs on failure. */
 int st_settings_save_value(const struct st_settings *value);
 int st_settings_save(void);
+/* Update only SyncTERM.ScalingFactor in the latest on-disk document.
+ * Installed settings and the merge baseline are unchanged. */
+int st_settings_persist_scaling_factor(double scaling_factor);
 void st_settings_shutdown(void);
 
 size_t st_settings_web_download_count(void);

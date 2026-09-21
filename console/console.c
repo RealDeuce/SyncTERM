@@ -3158,3 +3158,31 @@ st_console_display_set_fullscreen(st_console_display_t *display,
 {
 	return display_host_call(display, NULL, fullscreen, 3, NULL);
 }
+
+int
+st_console_display_get_scaling(st_console_display_t *display, double *result)
+{
+	double scaling;
+	int status;
+
+	if (display == NULL || result == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (st_mutex_lock(&display->lifecycle_mutex) != ST_THREAD_SUCCESS)
+		return IO_ERROR_IO;
+	if (st_mutex_lock(&display->backend_mutex) != ST_THREAD_SUCCESS) {
+		(void)st_mutex_unlock(&display->lifecycle_mutex);
+		return IO_ERROR_IO;
+	}
+	if (display->backend_ops == NULL
+	    || display->backend_ops->get_scaling == NULL)
+		status = IO_ERROR_NOT_SUPPORTED;
+	else if (display->backend_failed)
+		status = IO_ERROR_IO;
+	else
+		status = display->backend_ops->get_scaling(display, &scaling);
+	(void)st_mutex_unlock(&display->backend_mutex);
+	(void)st_mutex_unlock(&display->lifecycle_mutex);
+	if (status == 0)
+		*result = scaling;
+	return status;
+}
