@@ -7,8 +7,8 @@ recommended remedies. Severity does not imply exploitability; source-confirmed
 risks and reproduced failures must be distinguished using those entries.
 No remediation is authorized by this report.
 
-The audit is complete, not the implementation: **50 outstanding findings**
-comprise 23 medium, 25 low and 2 unresolved design/performance
+The audit is complete, not the implementation: **49 outstanding findings**
+comprise 22 medium, 25 low and 2 unresolved design/performance
 concerns.
 This is not a count of exploitable vulnerabilities or reproduced failures.
 All 47 tracked source directories and 12 root files are covered by the
@@ -37,7 +37,6 @@ consumer boundaries, not evidence that the entire decomposition is wrong.
 | Boundary | Evidence and assessment | Recommended direction, not authorized work |
 | --- | --- | --- |
 | Native I/O → portable result | A006 loses errno during cleanup | Preserve error ownership across cleanup |
-| Mutable model → persistence | A100 and A105 show remaining failure-atomicity and handle-contract mismatches | Define when state changes become visible and when handles expire; test failure paths at the public boundary |
 | Script declarations → bound implementation | A054–A055, A096 and A098 show unavailable contracts | Keep capability scope explicit and test the shipped scripts against the actual host |
 | Public target → independent consumer | A002, A013, A047, A066 expose probe/dependency gaps | Probe the real declaration/link environment and test minimal consumers |
 | Source libraries → application distribution | A088, A091, A095 distinguish a functioning menu build from connected runtime, DLL/core packaging and notice assembly | Document and verify actual artifacts without representing planned integration as complete |
@@ -73,7 +72,7 @@ No new blanket GC, contention or scaling-performance diagnosis is made from
 source shape. The source and test inventory must retain those measurement
 limits in the final report.
 
-The current TODO documents contain 50 outstanding numbered findings. A007 and
+The current TODO documents contain 49 outstanding numbered findings. A007 and
 A011 are unresolved design/performance concerns, not confirmed runtime defects.
 Missing features and documentation errors are also explicitly distinguished
 from implementation failures in the detailed ledger.
@@ -127,16 +126,15 @@ from implementation failures in the detailed ledger.
 | A095 | low | Distribution notice assembly is not implemented |
 | A096 | medium | BBS editor script discovery is an unconditional empty stub |
 | A098 | low | Shipped UI demo imports an absent module |
-| A100 | medium | Rejected BBS palette/script assignments partially change the object |
-| A105 | medium | Custom-font bindings do not preserve their declared editing boundaries |
+| A105 | medium | Screen.font slot writes are not connected to rendering |
 | A113 | low source-confirmed | Menu default ports disagree with URL parsing |
 
 ## Verification and limits
 
 ### Latest configured native verification
 
-Native Clang and GCC builds succeed. Each configured tree registers 83 tests;
-the stable disposition is **80 pass, 2 fail and 1 Wayland test skipped**. The
+Native Clang and GCC builds succeed. Each configured tree registers 84 tests;
+the stable disposition is **81 pass, 2 fail and 1 Wayland test skipped**. The
 X11 tests pass on a dedicated Xvfb display; SDL uses its CMake-configured dummy
 video driver.
 This is native verification, not Windows/macOS execution or comprehensive

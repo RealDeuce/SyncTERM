@@ -126,7 +126,7 @@ if(BUILD_TESTING)
 	add_executable(st_wren_loader_audit_test
 		tests/st_wren_loader_audit_test.c)
 	target_link_libraries(st_wren_loader_audit_test PRIVATE st_wren_host
-		st_wren_vm st_bbs_list syncterm_filesystem)
+		st_wren_vm st_bbs_list st_settings syncterm_filesystem)
 	target_include_directories(st_wren_loader_audit_test PRIVATE
 		${CMAKE_CURRENT_BINARY_DIR})
 	target_include_directories(st_wren_loader_audit_test SYSTEM PRIVATE
@@ -140,7 +140,7 @@ if(BUILD_TESTING)
 			-Wall -Wextra -Wpedantic -Werror)
 	endif()
 	foreach(_case settings-stale settings-save-failure settings-reload
-			screen-mode)
+			screen-mode bbs-setters)
 		set(_directory "${CMAKE_CURRENT_BINARY_DIR}/audit-${_case}")
 		file(MAKE_DIRECTORY "${_directory}")
 		add_test(NAME "wren_${_case}"
@@ -149,7 +149,7 @@ if(BUILD_TESTING)
 
 	add_executable(st_wren_picker_test tests/st_wren_picker_test.c)
 	target_link_libraries(st_wren_picker_test PRIVATE st_wren_host
-		st_wren_vm st_bbs_list syncterm_filesystem syncterm_path
+		st_wren_vm st_bbs_list st_settings syncterm_filesystem syncterm_path
 		syncterm_array_list)
 	target_compile_definitions(st_wren_picker_test PRIVATE
 		ST_WREN_PICKER_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/picker-test")

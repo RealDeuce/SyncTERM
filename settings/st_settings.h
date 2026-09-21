@@ -32,6 +32,12 @@ struct st_settings_font {
 
 ARRAY_LIST_DECLARE(st_settings_font_list, struct st_settings_font)
 
+/* A host-owned editable view of only the custom-font configuration. */
+struct st_settings_font_draft {
+	st_settings_font_list_t fonts;
+	st_settings_font_list_t baseline;
+};
+
 enum st_cursor_type {
 	ST_CURSOR_DEFAULT,
 	ST_CURSOR_BLINK_UNDERLINE,
@@ -140,10 +146,26 @@ int st_settings_sort_profile_remove(size_t index);
 
 size_t st_settings_font_count(void);
 const struct st_settings_font *st_settings_font_at(size_t index);
-int st_settings_font_insert(size_t index, const char *name);
-int st_settings_font_rename(size_t index, const char *name);
-int st_settings_font_set_path(size_t index, enum st_settings_font_path slot,
-	const char *path);
-int st_settings_font_remove(size_t index);
+
+bool st_settings_font_name_valid(const char *name);
+void st_settings_font_draft_init(struct st_settings_font_draft *draft);
+void st_settings_font_draft_dispose(struct st_settings_font_draft *draft);
+/* Open from the installed settings; reload reads only Font: sections. */
+int st_settings_font_draft_open(struct st_settings_font_draft *draft);
+int st_settings_font_draft_reload(struct st_settings_font_draft *draft);
+/* Save merges only Font: sections and publishes them after a successful write. */
+int st_settings_font_draft_save(struct st_settings_font_draft *draft);
+size_t st_settings_font_draft_count(
+	const struct st_settings_font_draft *draft);
+const struct st_settings_font *st_settings_font_draft_at(
+	const struct st_settings_font_draft *draft, size_t index);
+int st_settings_font_draft_insert(struct st_settings_font_draft *draft,
+	size_t index, const char *name);
+int st_settings_font_draft_rename(struct st_settings_font_draft *draft,
+	size_t index, const char *name);
+int st_settings_font_draft_set_path(struct st_settings_font_draft *draft,
+	size_t index, enum st_settings_font_path slot, const char *path);
+int st_settings_font_draft_remove(struct st_settings_font_draft *draft,
+	size_t index);
 
 #endif

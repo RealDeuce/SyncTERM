@@ -79,28 +79,99 @@ read_document(const char *path, ini_document_t **document)
 }
 
 static int
-test_empty_font_name(const char *path)
+test_font_draft(const char *path)
 {
+	struct st_settings_font_draft first;
+	struct st_settings_font_draft second;
+	struct st_settings stale;
 	ini_document_t *document = NULL;
-	ini_section_t *section;
-	size_t before = st_settings_font_count();
+	ini_section_t *sync;
 
-	CHECK(st_settings_font_insert(before, "Temporary font") == 0);
-	CHECK(st_settings_font_set_path(before, ST_SETTINGS_FONT_8X16,
-	    "/fonts/empty-name.f16") == 0);
-	CHECK(st_settings_font_rename(before, "") == 0);
-	CHECK(st_settings_save() == 0);
+	CHECK(write_text(path,
+	    "; preserve font save\n[SyncTERM]\nScrollBackLines=123\n"
+	    "Unknown=preserve\n[Font:First]\nPath8x16=/fonts/first.f16\n"
+	    "[Font:first]\nPath8x8=/fonts/duplicate.f8\n"
+	    "[Font:]\nPath8x14=/fonts/empty.f14\n") == 0);
 	CHECK(st_settings_reload() == 0);
-	CHECK(st_settings_font_count() == before + 1);
-	CHECK(strcmp(st_settings_font_at(before)->name, "") == 0);
-	CHECK(strcmp(st_settings_font_at(before)->path[ST_SETTINGS_FONT_8X16],
-	    "/fonts/empty-name.f16") == 0);
+	CHECK(st_settings_font_count() == 1);
+	CHECK(strcmp(st_settings_font_at(0)->name, "First") == 0);
+	CHECK(st_settings_font_at(0)->path[ST_SETTINGS_FONT_8X8] == NULL);
+	CHECK(st_settings_font_name_valid("Printable: name"));
+	CHECK(!st_settings_font_name_valid(""));
+	CHECK(!st_settings_font_name_valid(" leading"));
+	CHECK(!st_settings_font_name_valid("trailing "));
+	CHECK(!st_settings_font_name_valid("bad[name"));
+	CHECK(!st_settings_font_name_valid("non\x7fprintable"));
+	st_settings_font_draft_init(&first);
+	st_settings_font_draft_init(&second);
+	CHECK(st_settings_font_draft_open(&first) == 0);
+	CHECK(st_settings_font_draft_open(&second) == 0);
+	CHECK(st_settings_font_draft_insert(&first, 1, "Second") == 0);
+	CHECK(st_settings_font_draft_insert(&first, 2, "sEcOnD") < 0);
+	CHECK(st_settings_font_draft_count(&first) == 2);
+	CHECK(st_settings_font_draft_count(&second) == 1);
+	CHECK(st_settings_font_draft_set_path(&first, 1,
+	    ST_SETTINGS_FONT_8X16, "/fonts/not-yet-validated.bin") == 0);
+	st_settings.scrollback_lines = 456;
+	st_settings_init(&stale);
+	CHECK(st_settings_copy(&stale, &st_settings));
+	CHECK(rewrite_value(path, "OutputMode", 4) == 0);
+	CHECK(st_settings_font_draft_save(&first) == 0);
+	CHECK(st_settings.scrollback_lines == 456);
+	CHECK(st_settings_font_count() == 2);
+	CHECK(strcmp(st_settings_font_at(1)->name, "Second") == 0);
 	CHECK(read_document(path, &document) == 0);
-	section = ini_document_find_section(document, "Font:");
-	CHECK(section != NULL);
-	CHECK(strcmp(ini_section_get_string(section, "Path8x16", ""),
-	    "/fonts/empty-name.f16") == 0);
+	sync = ini_document_find_section(document, "SyncTERM");
+	CHECK(ini_section_get_int64(sync, "OutputMode", 0) == 4);
+	CHECK(ini_section_get_int64(sync, "ScrollBackLines", 0) == 123);
+	CHECK(strcmp(ini_section_get_string(sync, "Unknown", ""),
+	    "preserve") == 0);
+	CHECK(ini_document_find_section(document, "Font:") == NULL);
+	{
+		size_t font_sections = 0;
+
+		for (size_t i = 0; i < ini_document_section_count(document); ++i) {
+			if (strncmp(ini_section_name(ini_document_section_at(document, i)),
+			    "Font:", 5) == 0)
+				font_sections++;
+		}
+		CHECK(font_sections == 2);
+	}
+	CHECK(strcmp(ini_section_get_string(ini_document_find_section(document,
+	    "Font:Second"), "Path8x16", ""),
+	    "/fonts/not-yet-validated.bin") == 0);
 	ini_document_free(&document);
+	document = NULL;
+	CHECK(st_settings_save_value(&stale) == 0);
+	st_settings_dispose(&stale);
+	CHECK(read_document(path, &document) == 0);
+	sync = ini_document_find_section(document, "SyncTERM");
+	CHECK(ini_section_get_int64(sync, "OutputMode", 0) == 4);
+	CHECK(ini_section_get_int64(sync, "ScrollBackLines", 0) == 456);
+	CHECK(ini_document_find_section(document, "Font:Second") != NULL);
+	ini_document_free(&document);
+	document = NULL;
+	CHECK(st_settings_font_draft_rename(&first, 1, "Unsaved") == 0);
+	CHECK(st_settings_font_draft_reload(&first) == 0);
+	CHECK(strcmp(st_settings_font_draft_at(&first, 1)->name, "Second") == 0);
+	CHECK(st_settings.scrollback_lines == 456);
+	CHECK(st_settings_font_draft_rename(&first, 1, "Local") == 0);
+	CHECK(write_text(path,
+	    "[SyncTERM]\nScrollBackLines=123\n[Font:Remote]\n"
+	    "Path8x16=/fonts/remote.f16\n") == 0);
+	CHECK(st_settings_font_draft_save(&first) == IO_ERROR_CONFLICT);
+	CHECK(strcmp(st_settings_font_draft_at(&first, 1)->name, "Local") == 0);
+	CHECK(read_document(path, &document) == 0);
+	CHECK(ini_document_find_section(document, "Font:Remote") != NULL);
+	CHECK(ini_document_find_section(document, "Font:Local") == NULL);
+	ini_document_free(&document);
+	CHECK(fs_remove_file(path) == 0);
+	CHECK(fs_create_directory(path) == 0);
+	CHECK(st_settings_font_draft_save(&first) < 0);
+	CHECK(strcmp(st_settings_font_draft_at(&first, 1)->name, "Local") == 0);
+	CHECK(fs_remove_directory(path) == 0);
+	st_settings_font_draft_dispose(&second);
+	st_settings_font_draft_dispose(&first);
 	return 0;
 }
 
@@ -289,10 +360,19 @@ main(void)
 	CHECK(strcmp(st_settings_web_download_at(0)->name, "Two") == 0);
 	CHECK(st_settings_sort_profile_select(0) == 0);
 	CHECK(st_settings_sort_profile_update(0, "Alphabetical", "29,1") == 0);
-	CHECK(st_settings_font_rename(0, "Renamed VGA") == 0);
-	CHECK(st_settings_font_set_path(0, ST_SETTINGS_FONT_8X8,
-	    "/fonts/custom.f8") == 0);
-	CHECK(st_settings_font_remove(1) == 0);
+	{
+		struct st_settings_font_draft draft;
+
+		st_settings_font_draft_init(&draft);
+		CHECK(st_settings_font_draft_open(&draft) == 0);
+		CHECK(st_settings_font_draft_rename(&draft, 0,
+		    "Renamed VGA") == 0);
+		CHECK(st_settings_font_draft_set_path(&draft, 0,
+		    ST_SETTINGS_FONT_8X8, "/fonts/custom.f8") == 0);
+		CHECK(st_settings_font_draft_remove(&draft, 1) == 0);
+		CHECK(st_settings_font_draft_save(&draft) == 0);
+		st_settings_font_draft_dispose(&draft);
+	}
 	st_settings.scrollback_lines = 200;
 	CHECK(rewrite_value(settings_path, "OutputMode", 4) == 0);
 	CHECK(st_settings_save() == 0);
@@ -364,7 +444,7 @@ main(void)
 	CHECK(strcmp(st_settings.sort_order, "") == 0);
 	CHECK(st_settings_sort_profile_count() == 1);
 	CHECK(st_settings_active_sort_profile() == 0);
-	int failure = test_empty_font_name(settings_path);
+	int failure = test_font_draft(settings_path);
 	failure += test_classic_color_bounds(settings_path);
 	failure += test_classic_per_key_fallback(settings_path);
 	failure += test_classic_external_migration(settings_path);

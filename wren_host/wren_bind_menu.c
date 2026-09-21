@@ -227,14 +227,14 @@ font_value(WrenVM *vm, struct foreign_font **handle_result)
 	}
 	handle = (struct foreign_font *)header;
 	if (handle->generation != host->font_generation
-	    || handle->index >= st_settings_font_count()) {
+	    || handle->index >= st_settings_font_draft_count(&host->font_draft)) {
 		st_wren_abort(vm,
 		    "MenuFont: stale handle; reacquire it from Menu.fonts");
 		return NULL;
 	}
 	if (handle_result != NULL)
 		*handle_result = handle;
-	return st_settings.custom_fonts[handle->index];
+	return host->font_draft.fonts[handle->index];
 }
 
 static bool
@@ -2376,10 +2376,13 @@ push_font(WrenVM *vm, int slot, int class_slot, size_t index)
 static void
 fn_menu_fonts(WrenVM *vm)
 {
+	struct st_wren_host *host = st_wren_host_from_vm(vm);
+
 	wrenEnsureSlots(vm, 3);
 	wrenSetSlotNewList(vm, 0);
 	wrenGetVariable(vm, "syncterm_menu", "MenuFont", 1);
-	for (size_t i = 0; i < st_settings_font_count(); ++i) {
+	for (size_t i = 0; i < st_settings_font_draft_count(&host->font_draft);
+	    ++i) {
 		push_font(vm, 2, 1, i);
 		wrenInsertInList(vm, 0, -1, 2);
 	}
@@ -2397,11 +2400,12 @@ fn_menu_can_create_font(WrenVM *vm)
 	struct st_wren_host *host = st_wren_host_from_vm(vm);
 
 	wrenSetSlotBool(vm, 0, !host->config.safe_mode
-	    && st_settings_font_count() < ST_SETTINGS_CUSTOM_FONT_MAX);
+	    && st_settings_font_draft_count(&host->font_draft)
+	    < ST_SETTINGS_CUSTOM_FONT_MAX);
 }
 
 static bool
-slot_font_name(WrenVM *vm, int slot, bool allow_empty, const char **name)
+slot_font_name(WrenVM *vm, int slot, const char **name)
 {
 	int length;
 	const char *value;
@@ -2411,18 +2415,29 @@ slot_font_name(WrenVM *vm, int slot, bool allow_empty, const char **name)
 		return false;
 	}
 	value = wrenGetSlotBytes(vm, slot, &length);
-	if ((!allow_empty && length == 0) || length > 50
+	if (length == 0 || length > 50
 	    || memchr(value, '\0', (size_t)length) != NULL
-	    || (length != 0 && (ascii_is_space((unsigned char)value[length - 1])
-	    || !string_span_is_printable_ascii(value, (size_t)length)
-	    || memchr(value, '[', (size_t)length) != NULL
-	    || memchr(value, ']', (size_t)length) != NULL))) {
-		st_wren_abort(vm, allow_empty
-		    ? "font name must contain at most 50 bytes"
-		    : "font name must contain 1 through 50 bytes");
+	    || !st_settings_font_name_valid(value)) {
+		st_wren_abort(vm, "font name must be an INI-safe printable ASCII "
+		    "String containing 1 through 50 bytes");
 		return false;
 	}
 	*name = value;
+	return true;
+}
+
+static bool
+font_name_available(struct st_wren_host *host, const char *name,
+    size_t except)
+{
+	for (size_t i = 0;
+	    i < st_settings_font_draft_count(&host->font_draft); ++i) {
+		const struct st_settings_font *font
+		    = st_settings_font_draft_at(&host->font_draft, i);
+
+		if (i != except && ascii_case_compare(font->name, name) == 0)
+			return false;
+	}
 	return true;
 }
 
@@ -2434,15 +2449,22 @@ fn_menu_create_font(WrenVM *vm)
 	int64_t index;
 
 	if (host->config.safe_mode
-	    || st_settings_font_count() >= ST_SETTINGS_CUSTOM_FONT_MAX) {
+	    || st_settings_font_draft_count(&host->font_draft)
+	    >= ST_SETTINGS_CUSTOM_FONT_MAX) {
 		wrenSetSlotNull(vm, 0);
 		return;
 	}
-	if (!slot_font_name(vm, 1, false, &name)
-	    || !slot_integer(vm, 2, 0, (int64_t)st_settings_font_count(),
+	if (!slot_font_name(vm, 1, &name)
+	    || !slot_integer(vm, 2, 0,
+	    (int64_t)st_settings_font_draft_count(&host->font_draft),
 	    &index))
 		return;
-	if (st_settings_font_insert((size_t)index, name) < 0) {
+	if (!font_name_available(host, name, SIZE_MAX)) {
+		st_wren_abort(vm, "font name is already configured");
+		return;
+	}
+	if (st_settings_font_draft_insert(&host->font_draft, (size_t)index,
+	    name) < 0) {
 		wrenSetSlotNull(vm, 0);
 		return;
 	}
@@ -2457,10 +2479,8 @@ static void
 fn_menu_reload_fonts(WrenVM *vm)
 {
 	struct st_wren_host *host = st_wren_host_from_vm(vm);
-	bool success = st_settings_reload() == 0;
+	bool success = st_settings_font_draft_reload(&host->font_draft) == 0;
 
-	if (success)
-		success = st_wren_reload_custom_fonts(host) == 0;
 	if (success) {
 		host->font_generation++;
 		host->fonts_dirty = false;
@@ -2472,12 +2492,15 @@ static void
 fn_menu_save_fonts(WrenVM *vm)
 {
 	struct st_wren_host *host = st_wren_host_from_vm(vm);
-	bool success = !host->config.safe_mode && st_settings_save() == 0;
+	bool success = !host->config.safe_mode
+	    && st_settings_font_draft_save(&host->font_draft) == 0;
 
-	if (success)
-		success = st_wren_reload_custom_fonts(host) == 0;
-	if (success)
+	if (success) {
 		host->fonts_dirty = false;
+		if (st_wren_reload_custom_fonts(host) < 0)
+			fprintf(stderr, "SyncTERM: custom font activation failed; "
+			    "keeping the previous live mappings\n");
+	}
 	wrenSetSlotBool(vm, 0, success);
 }
 
@@ -2499,14 +2522,19 @@ fn_font_name_set(WrenVM *vm)
 	const char *name;
 
 	(void)font;
-	if (font == NULL || !slot_font_name(vm, 1, true, &name))
+	if (font == NULL || !slot_font_name(vm, 1, &name))
 		return;
 	if (host->config.safe_mode) {
 		st_wren_abort(vm, "MenuFont.name: fonts are read-only in safe mode");
 		return;
 	}
-	if (st_settings_font_rename(handle->index, name) < 0) {
-		st_wren_abort(vm, "MenuFont.name: out of memory");
+	if (!font_name_available(host, name, handle->index)) {
+		st_wren_abort(vm, "MenuFont.name: name is already configured");
+		return;
+	}
+	if (st_settings_font_draft_rename(&host->font_draft, handle->index,
+	    name) < 0) {
+		st_wren_abort(vm, "MenuFont.name: could not replace name");
 		return;
 	}
 	host->fonts_dirty = true;
@@ -2540,27 +2568,20 @@ fn_font_path(WrenVM *vm)
 static void
 fn_font_set_file(WrenVM *vm)
 {
-	static const int64_t sizes[] = {2048, 3584, 4096, 10240};
 	struct st_wren_host *host = st_wren_host_from_vm(vm);
 	struct foreign_font *handle;
 	struct st_settings_font *font = font_value(vm, &handle);
 	enum st_settings_font_path slot;
 	const char *path;
-	FILE *stream;
 	bool success = false;
 
 	(void)font;
 	if (font == NULL || !slot_font_path(vm, 1, &slot))
 		return;
 	path = st_wren_file_read_path(vm, 2);
-	if (!host->config.safe_mode && path != NULL
-	    && fs_open(&stream, path, "rb") == 0) {
-		success = fs_stream_size(stream) == sizes[slot];
-		(void)fclose(stream);
-		if (success)
-			success = st_settings_font_set_path(handle->index, slot,
-			    path) == 0;
-	}
+	if (!host->config.safe_mode && path != NULL)
+		success = st_settings_font_draft_set_path(&host->font_draft,
+		    handle->index, slot, path) == 0;
 	if (success)
 		host->fonts_dirty = true;
 	wrenSetSlotBool(vm, 0, success);
@@ -2579,7 +2600,8 @@ fn_font_clear_file(WrenVM *vm)
 	if (font == NULL || !slot_font_path(vm, 1, &slot))
 		return;
 	success = !host->config.safe_mode
-	    && st_settings_font_set_path(handle->index, slot, NULL) == 0;
+	    && st_settings_font_draft_set_path(&host->font_draft,
+	    handle->index, slot, NULL) == 0;
 	if (success)
 		host->fonts_dirty = true;
 	wrenSetSlotBool(vm, 0, success);
@@ -2597,7 +2619,8 @@ fn_font_delete(WrenVM *vm)
 	if (font == NULL)
 		return;
 	success = !host->config.safe_mode
-	    && st_settings_font_remove(handle->index) == 0;
+	    && st_settings_font_draft_remove(&host->font_draft,
+	    handle->index) == 0;
 	if (success) {
 		host->font_generation++;
 		host->fonts_dirty = true;
@@ -3588,6 +3611,7 @@ fn_bbs_palette_set(WrenVM *vm)
 {
 	struct foreign_bbs *bbs = bbs_value(vm, 0);
 	struct st_profile *profile = bbs_mutable_profile(vm, bbs);
+	uint32_t palette[16];
 	int count;
 
 	if (profile == NULL)
@@ -3604,8 +3628,10 @@ fn_bbs_palette_set(WrenVM *vm)
 		wrenGetListElement(vm, 1, i, 2);
 		if (!slot_integer(vm, 2, 0, UINT32_C(0xffffff), &value))
 			return;
-		profile->palette[i] = (uint32_t)value;
+		palette[i] = (uint32_t)value;
 	}
+	if (count != 0)
+		memcpy(profile->palette, palette, (size_t)count * sizeof(palette[0]));
 	profile->palette_size = (unsigned)count;
 	bbs_changed(bbs);
 }
@@ -3655,6 +3681,7 @@ fn_bbs_wren_scripts_set(WrenVM *vm)
 {
 	struct foreign_bbs *bbs = bbs_value(vm, 0);
 	struct st_profile *profile = bbs_mutable_profile(vm, bbs);
+	char scripts[ST_PROFILE_WREN_SCRIPTS_MAX + 1];
 	int count;
 	size_t used = 0;
 
@@ -3683,11 +3710,12 @@ fn_bbs_wren_scripts_set(WrenVM *vm)
 			return;
 		}
 		if (used != 0)
-			profile->wren_scripts[used++] = ',';
-		memcpy(profile->wren_scripts + used, name, (size_t)length);
+			scripts[used++] = ',';
+		memcpy(scripts + used, name, (size_t)length);
 		used += (size_t)length;
 	}
-	profile->wren_scripts[used] = '\0';
+	scripts[used] = '\0';
+	memcpy(profile->wren_scripts, scripts, used + 1);
 	bbs_changed(bbs);
 }
 

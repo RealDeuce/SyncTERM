@@ -7,6 +7,8 @@
 
 #include "st_settings.h"
 
+#include "st_settings_internal.h"
+
 #include "filesystem.h"
 #include "ini.h"
 #include "io_error.h"
@@ -444,6 +446,23 @@ decode_settings(struct st_settings *value, ini_document_t *document,
 
 		if (!ascii_case_starts_with(name, "Font:"))
 			continue;
+		if (!st_settings_font_name_valid(name + 5))
+			continue;
+		{
+			bool duplicate = false;
+
+			for (size_t existing = 0;
+			    existing < st_settings_font_list_count(value->custom_fonts);
+			    ++existing) {
+				if (ascii_case_compare(
+				    value->custom_fonts[existing]->name, name + 5) == 0) {
+					duplicate = true;
+					break;
+				}
+			}
+			if (duplicate)
+				continue;
+		}
 		if (st_settings_font_list_count(value->custom_fonts)
 		    >= ST_SETTINGS_CUSTOM_FONT_MAX)
 			return IO_ERROR_OUT_OF_RANGE;
@@ -541,6 +560,48 @@ migrate_classic_colors(ini_document_t *document)
 }
 
 static int
+encode_fonts(ini_document_t *document, st_settings_font_list_t fonts)
+{
+	ini_section_t *section;
+
+	for (size_t i = ini_document_section_count(document); i > 0; --i) {
+		ini_section_t *candidate = ini_document_section_at(document, i - 1);
+
+		if (ascii_case_starts_with(ini_section_name(candidate), "Font:"))
+			(void)ini_document_remove_section(document, candidate);
+	}
+	for (size_t i = 0; i < st_settings_font_list_count(fonts); ++i) {
+		static const char *const keys[] = {
+			"Path8x8", "Path8x14", "Path8x16", "Path12x20"
+		};
+		const struct st_settings_font *font = fonts[i];
+		char *section_name;
+		size_t name_length = strlen(font->name);
+		int status;
+
+		section_name = malloc(name_length + sizeof("Font:"));
+		if (section_name == NULL)
+			return IO_ERROR_OUT_OF_MEMORY;
+		memcpy(section_name, "Font:", 5);
+		memcpy(section_name + 5, font->name, name_length + 1);
+		status = ini_document_add_section(document, section_name,
+		    &ini_default_style, &section);
+		free(section_name);
+		if (status < 0)
+			return status;
+		for (size_t path = 0; path < ST_SETTINGS_FONT_PATH_COUNT; ++path) {
+			if (font->path[path] == NULL)
+				continue;
+			status = ini_section_set_string(section, keys[path],
+			    font->path[path], &ini_default_style);
+			if (status < 0)
+				return status;
+		}
+	}
+	return 0;
+}
+
+static int
 encode_settings(ini_document_t *document, const struct st_settings *value)
 {
 	ini_section_t *section;
@@ -630,37 +691,6 @@ encode_settings(ini_document_t *document, const struct st_settings *value)
 	for (i = 0; i < name_value_list_count(value->sort_profiles); ++i) {
 		SET(ini_section_set_string(profiles, value->sort_profiles[i]->name,
 		    value->sort_profiles[i]->value, &ini_default_style));
-	}
-	for (i = ini_document_section_count(document); i > 0; --i) {
-		ini_section_t *candidate = ini_document_section_at(document, i - 1);
-
-		if (ascii_case_starts_with(ini_section_name(candidate), "Font:"))
-			(void)ini_document_remove_section(document, candidate);
-	}
-	for (i = 0; i < st_settings_font_list_count(value->custom_fonts); ++i) {
-		static const char *const keys[] = {
-			"Path8x8", "Path8x14", "Path8x16", "Path12x20"
-		};
-		const struct st_settings_font *font = value->custom_fonts[i];
-		char *section_name;
-		size_t name_length = strlen(font->name);
-
-		section_name = malloc(name_length + sizeof("Font:"));
-		if (section_name == NULL)
-			return IO_ERROR_OUT_OF_MEMORY;
-		memcpy(section_name, "Font:", 5);
-		memcpy(section_name + 5, font->name, name_length + 1);
-		status = ini_document_add_section(document, section_name,
-		    &ini_default_style, &profiles);
-		free(section_name);
-		if (status < 0)
-			return status;
-		for (size_t path = 0; path < ST_SETTINGS_FONT_PATH_COUNT; ++path) {
-			if (font->path[path] != NULL) {
-				SET(ini_section_set_string(profiles, keys[path],
-				    font->path[path], &ini_default_style));
-			}
-		}
 	}
 	return 0;
 }
@@ -803,79 +833,6 @@ replace_named_section(ini_document_t *remote, ini_document_t *local,
 	return 0;
 }
 
-static bool
-same_prefixed_sections(ini_document_t *left, ini_document_t *right,
-	const char *prefix)
-{
-	size_t left_index = 0;
-	size_t right_index = 0;
-
-	for (;;) {
-		ini_section_t *left_section = NULL;
-		ini_section_t *right_section = NULL;
-
-		while (left_index < ini_document_section_count(left)) {
-			ini_section_t *candidate = ini_document_section_at(left,
-			    left_index++);
-
-			if (ascii_case_starts_with(ini_section_name(candidate), prefix)) {
-				left_section = candidate;
-				break;
-			}
-		}
-		while (right_index < ini_document_section_count(right)) {
-			ini_section_t *candidate = ini_document_section_at(right,
-			    right_index++);
-
-			if (ascii_case_starts_with(ini_section_name(candidate), prefix)) {
-				right_section = candidate;
-				break;
-			}
-		}
-		if (left_section == NULL || right_section == NULL)
-			return left_section == right_section;
-		if (ascii_case_compare(ini_section_name(left_section),
-		    ini_section_name(right_section)) != 0
-		    || !same_pairs(left_section, right_section))
-			return false;
-	}
-}
-
-static int
-replace_prefixed_sections(ini_document_t *remote, ini_document_t *local,
-	const char *prefix)
-{
-	for (size_t i = ini_document_section_count(remote); i > 0; --i) {
-		ini_section_t *section = ini_document_section_at(remote, i - 1);
-
-		if (ascii_case_starts_with(ini_section_name(section), prefix))
-			(void)ini_document_remove_section(remote, section);
-	}
-	for (size_t i = 0; i < ini_document_section_count(local); ++i) {
-		ini_section_t *source = ini_document_section_at(local, i);
-		ini_section_t *destination;
-		int status;
-
-		if (!ascii_case_starts_with(ini_section_name(source), prefix))
-			continue;
-		status = ini_document_add_section(remote, ini_section_name(source),
-		    &ini_default_style, &destination);
-		if (status < 0)
-			return status;
-		for (size_t pair_index = 0;
-		    pair_index < ini_section_count(source); ++pair_index) {
-			const struct name_value *pair = ini_section_at(source,
-			    pair_index);
-
-			status = ini_section_set_string(destination, pair->name,
-			    pair->value, &ini_default_style);
-			if (status < 0)
-				return status;
-		}
-	}
-	return 0;
-}
-
 static int
 load_locked(const char *personal_list)
 {
@@ -961,6 +918,35 @@ st_settings_reload(void)
 	return status;
 }
 
+int
+st_settings_font_draft_reload(struct st_settings_font_draft *draft)
+{
+	st_file_lock_t *lock = NULL;
+	ini_document_t *document = NULL;
+	struct st_settings loaded;
+	int status;
+
+	if (draft == NULL || settings_path == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	st_settings_init(&loaded);
+	status = st_file_lock_acquire(&lock, settings_path, false);
+	if (status == 0) {
+		status = read_document(&document, settings_path);
+		st_file_lock_release(lock);
+	}
+	else if (status == IO_ERROR_NOT_FOUND)
+		status = read_document(&document, settings_path);
+	if (status == 0)
+		status = decode_settings(&loaded, document, personal_list_path,
+		    cached_system_list);
+	if (status == 0 && st_settings_font_draft_replace(draft,
+	    loaded.custom_fonts) < 0)
+		status = IO_ERROR_OUT_OF_MEMORY;
+	ini_document_free(&document);
+	st_settings_dispose(&loaded);
+	return status;
+}
+
 void
 st_settings_install(struct st_settings *replacement)
 {
@@ -988,6 +974,8 @@ st_settings_save_value(const struct st_settings *value)
 	struct st_settings installed;
 	struct st_settings saved;
 	struct st_settings remote_settings;
+	st_settings_font_list_t installed_fonts = NULL;
+	st_settings_font_list_t saved_fonts = NULL;
 	size_t i;
 	int status;
 
@@ -1045,23 +1033,29 @@ st_settings_save_value(const struct st_settings *value)
 		else
 			status = replace_named_section(remote, local, "SortProfiles");
 	}
-	if (status == 0
-	    && !same_prefixed_sections(canonical_base, local, "Font:")) {
-		if (!same_prefixed_sections(canonical_base, canonical_remote,
-		    "Font:")
-		    && !same_prefixed_sections(local, canonical_remote, "Font:"))
-			status = IO_ERROR_CONFLICT;
-		else
-			status = replace_prefixed_sections(remote, local, "Font:");
-	}
 	if (status == 0)
 		status = migrate_classic_colors(remote);
 	st_settings_init(&installed);
 	st_settings_init(&saved);
+	/* Ordinary settings snapshots may predate the separate font draft. */
+	if (status == 0
+	    && (!st_settings_fonts_copy(&installed_fonts,
+	    remote_settings.custom_fonts)
+	    || !st_settings_fonts_copy(&saved_fonts,
+	    remote_settings.custom_fonts)))
+		status = IO_ERROR_OUT_OF_MEMORY;
 	if (status == 0 && !st_settings_copy(&installed, value))
 		status = IO_ERROR_OUT_OF_MEMORY;
 	if (status == 0 && !st_settings_copy(&saved, value))
 		status = IO_ERROR_OUT_OF_MEMORY;
+	if (status == 0) {
+		st_settings_fonts_free(&installed.custom_fonts);
+		installed.custom_fonts = installed_fonts;
+		installed_fonts = NULL;
+		st_settings_fonts_free(&saved.custom_fonts);
+		saved.custom_fonts = saved_fonts;
+		saved_fonts = NULL;
+	}
 	if (status == 0)
 		status = write_document(remote, settings_path);
 	if (status == 0) {
@@ -1077,6 +1071,8 @@ st_settings_save_value(const struct st_settings *value)
 	}
 	st_settings_dispose(&installed);
 	st_settings_dispose(&saved);
+	st_settings_fonts_free(&installed_fonts);
+	st_settings_fonts_free(&saved_fonts);
 	st_settings_dispose(&remote_settings);
 	ini_document_free(&remote);
 	ini_document_free(&local);
@@ -1090,6 +1086,72 @@ int
 st_settings_save(void)
 {
 	return st_settings_save_value(&st_settings);
+}
+
+int
+st_settings_font_draft_save(struct st_settings_font_draft *draft)
+{
+	st_file_lock_t *lock = NULL;
+	ini_document_t *remote = NULL;
+	ini_document_t *new_baseline_document = NULL;
+	struct st_settings remote_before;
+	st_settings_font_list_t installed_fonts = NULL;
+	st_settings_font_list_t baseline_fonts = NULL;
+	st_settings_font_list_t draft_baseline = NULL;
+	int status;
+
+	if (draft == NULL || settings_path == NULL || !baseline_initialized)
+		return IO_ERROR_INVALID_ARGUMENT;
+	st_settings_init(&remote_before);
+	status = fs_create_parent_directories(settings_path);
+	if (status == 0)
+		status = st_file_lock_acquire(&lock, settings_path, true);
+	if (status == 0)
+		status = read_document(&remote, settings_path);
+	if (status == 0)
+		status = decode_settings(&remote_before, remote, personal_list_path,
+		    cached_system_list);
+	if (status == 0
+	    && !st_settings_fonts_equal(remote_before.custom_fonts,
+	    draft->baseline)
+	    && !st_settings_fonts_equal(remote_before.custom_fonts, draft->fonts))
+		status = IO_ERROR_CONFLICT;
+	if (status == 0)
+		status = encode_fonts(remote, draft->fonts);
+	if (status == 0)
+		status = ini_document_clone(&new_baseline_document,
+		    baseline_document);
+	if (status == 0)
+		status = encode_fonts(new_baseline_document, draft->fonts);
+	if (status == 0
+	    && (!st_settings_fonts_copy(&installed_fonts, draft->fonts)
+	    || !st_settings_fonts_copy(&baseline_fonts, draft->fonts)
+	    || !st_settings_fonts_copy(&draft_baseline, draft->fonts)))
+		status = IO_ERROR_OUT_OF_MEMORY;
+	if (status == 0)
+		status = write_document(remote, settings_path);
+	if (status == 0) {
+		st_settings_fonts_free(&st_settings.custom_fonts);
+		st_settings.custom_fonts = installed_fonts;
+		installed_fonts = NULL;
+		st_settings_fonts_free(&baseline_settings.custom_fonts);
+		baseline_settings.custom_fonts = baseline_fonts;
+		baseline_fonts = NULL;
+		ini_document_free(&baseline_document);
+		baseline_document = new_baseline_document;
+		new_baseline_document = NULL;
+		st_settings_fonts_free(&draft->baseline);
+		draft->baseline = draft_baseline;
+		draft_baseline = NULL;
+	}
+	st_settings_fonts_free(&installed_fonts);
+	st_settings_fonts_free(&baseline_fonts);
+	st_settings_fonts_free(&draft_baseline);
+	st_settings_dispose(&remote_before);
+	ini_document_free(&new_baseline_document);
+	ini_document_free(&remote);
+	st_file_lock_release(lock);
+	return status;
 }
 
 void

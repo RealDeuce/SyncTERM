@@ -1112,9 +1112,9 @@ see <<_text_modes>> in the console-library chapter.
 ==== Font Management
 
 The Font Management menu allows you to add and remove fonts.  Each font
-should have a unique name, and at least one file for 8x8, 8x14, or 8x16
-fonts.  The font format is the one used by "DOS fonts".  You can insert
-and delete items using the normal menu commands.
+has a unique, printable US-ASCII name and at least one file for 8x8, 8x14,
+8x16, or 12x20 fonts.  The font format is the one used by "DOS fonts".
+You can insert and delete items using the normal menu commands.
 
 
 ==== Program Settings

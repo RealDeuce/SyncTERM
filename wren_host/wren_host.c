@@ -278,7 +278,8 @@ st_wren_font_selector(struct st_wren_context *context, uint16_t identifier)
 }
 
 static int
-reload_custom_fonts_current(struct st_wren_context *context)
+prepare_custom_fonts(struct st_wren_context *context,
+    struct st_wren_font_state *prepared)
 {
 	uint8_t *fresh[ST_WREN_CUSTOM_FONT_MAX] = {0};
 	uint16_t identifiers[ST_WREN_CUSTOM_FONT_MAX] = {0};
@@ -290,9 +291,11 @@ reload_custom_fonts_current(struct st_wren_context *context)
 	size_t count;
 	int status;
 
-	if (context == NULL || st_console_cell_pixel_size(context->console,
+	if (context == NULL || prepared == NULL
+	    || st_console_cell_pixel_size(context->console,
 	    &width, &height) < 0)
 		return IO_ERROR_INVALID_ARGUMENT;
+	*prepared = context->fonts;
 	if (!custom_font_dimensions(width, height, &slot, &size))
 		return 0;
 	count = st_settings_font_count();
@@ -334,37 +337,72 @@ reload_custom_fonts_current(struct st_wren_context *context)
 	}
 	for (size_t i = 0; i < ST_WREN_CUSTOM_FONT_MAX; ++i) {
 		uint16_t selector = (uint16_t)(ST_WREN_FIRST_CUSTOM_FONT + i);
+		uint16_t old_identifier;
 
-		context->fonts.catalog_valid[selector] = i < count && available[i];
+		if (prepared->catalog_valid[selector]) {
+			old_identifier = prepared->catalog[selector];
+			prepared->selector_by_identifier[old_identifier] = 0;
+		}
+		prepared->catalog_valid[selector] = i < count && available[i];
 		if (i < count && available[i]) {
-			context->fonts.catalog[selector] = identifiers[i];
-			context->fonts.selector_by_identifier[identifiers[i]] = selector;
+			prepared->catalog[selector] = identifiers[i];
+			prepared->selector_by_identifier[identifiers[i]] = selector;
 		}
 	}
 	for (size_t i = 0; i < count; ++i)
 		free(fresh[i]);
-	context->fonts.loaded_count = count;
+	prepared->loaded_count = count;
 	return 0;
+}
+
+static int
+reload_custom_fonts_current(struct st_wren_context *context)
+{
+	struct st_wren_font_state *prepared = malloc(sizeof(*prepared));
+	int status;
+
+	if (prepared == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	status = prepare_custom_fonts(context, prepared);
+	if (status == 0)
+		context->fonts = *prepared;
+	free(prepared);
+	return status;
 }
 
 int
 st_wren_reload_custom_fonts(struct st_wren_host *host)
 {
+	struct st_wren_font_state *menu;
+	struct st_wren_font_state *picker;
 	int status;
 
 	if (host == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	status = reload_custom_fonts_current(&host->menu);
+	menu = malloc(sizeof(*menu));
+	picker = malloc(sizeof(*picker));
+	if (menu == NULL || picker == NULL) {
+		free(menu);
+		free(picker);
+		return IO_ERROR_OUT_OF_MEMORY;
+	}
+	status = prepare_custom_fonts(&host->menu, menu);
 	if (status == 0 && host->picker.console != host->menu.console)
-		status = reload_custom_fonts_current(&host->picker);
+		status = prepare_custom_fonts(&host->picker, picker);
 	else if (status == 0) {
 		uint16_t slots[5];
 
 		/* The one-console host shares registrations, not VM font selectors. */
 		memcpy(slots, host->picker.fonts.slots, sizeof(slots));
-		host->picker.fonts = host->menu.fonts;
-		memcpy(host->picker.fonts.slots, slots, sizeof(slots));
+		*picker = *menu;
+		memcpy(picker->slots, slots, sizeof(slots));
 	}
+	if (status == 0) {
+		host->menu.fonts = *menu;
+		host->picker.fonts = *picker;
+	}
+	free(menu);
+	free(picker);
 	return status;
 }
 
@@ -981,6 +1019,11 @@ st_wren_host_create(st_wren_host_t **result,
 	    ? config->picker_console : config->console;
 	host->font_generation = 1;
 	host->settings_generation = 1;
+	st_settings_font_draft_init(&host->font_draft);
+	if (st_settings_font_draft_open(&host->font_draft) < 0) {
+		st_wren_host_destroy(host);
+		return IO_ERROR_OUT_OF_MEMORY;
+	}
 	host->current_screen_mode = st_settings.startup_mode >= ST_SCREEN_MODE_CURRENT
 	    && st_settings.startup_mode <= ST_SCREEN_MODE_ATARIST_80X25_MONO
 	    ? (enum st_screen_mode)st_settings.startup_mode
@@ -1106,6 +1149,7 @@ st_wren_host_destroy(st_wren_host_t *host)
 	st_bbs_list_close(host->bbs_list);
 	st_wren_bbs_model_dispose(&host->bbs_model);
 	st_theme_manager_free(&host->themes);
+	st_settings_font_draft_dispose(&host->font_draft);
 	st_profile_dispose(&host->selected);
 	free(host);
 }

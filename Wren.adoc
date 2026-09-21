@@ -4709,50 +4709,52 @@ pathname as a file capability.
 
 === Menu Custom Fonts [[menu-custom-fonts]]
 
-Custom-font configuration is held in a C-owned model separate from
-the loaded conio font slots.  `Menu.fonts` returns a fresh List of
-`MenuFont` handles, or `null` if the INI file could not be read.
-`Menu.fontsDirty` reports whether that model has unsaved edits.
+Each menu host owns a custom-font draft separate from the loaded console font
+slots and from unrelated program settings.  `Menu.fonts` returns a fresh List
+of `MenuFont` handles. `Menu.fontsDirty` reports whether that draft has unsaved
+edits.
 
 [options="header",cols="2m,4"]
 |===
 | Method | Description
 
 | `Menu.canCreateFont`
-| Return whether another custom-font record can be added.  This includes
-  the build's available conio slots, safe mode, and model-read status.
+| Return whether another custom-font record can be added. This includes the
+  available custom slots and safe mode.
 
 | `Menu.createFont(name, index)`
-| Insert a blank custom font at `index` and return its handle.  The name
-  contains 1..50 bytes.  As with the native Font Management screen, this
-  operation does not impose uniqueness or character restrictions.  Returns
-  `null` for an empty or overlong name, allocation failure, safe mode, or
-  when all available custom conio slots are represented.
+| Insert a blank custom font at `index` and return its handle. Names contain
+  1..50 printable US-ASCII bytes, cannot begin or end with ASCII whitespace,
+  cannot contain `[` or `]`, and are unique under US-ASCII case-insensitive
+  comparison. Returns `null` for allocation failure, safe mode, or when all
+  available custom slots are represented; invalid arguments abort the fiber.
 
 | `Menu.saveFonts()`
-| Replace the `Font:` sections in `syncterm.ini`, then clear and reload
-  conio's custom font slots.  Returns Bool.  A persistence failure
-  leaves the previously loaded slots in place.
+| Merge only the draft's `Font:` sections into `syncterm.ini`, preserving
+  unrelated file content and unsaved runtime settings, then reload the live
+  custom font slots. Returns `true` when persistence succeeds. A persistence
+  failure leaves the draft dirty and the previously loaded slots in place.
+  A later live-slot activation failure is reported on standard error and also
+  leaves the previous mappings in place. Because settings files use
+  truncate-then-write persistence, a write failure can leave a partial file.
 
 | `Menu.reloadFonts()`
-| Discard unsaved model edits and reread the INI file transactionally.
+| Discard unsaved font edits and reread only the `Font:` sections
+  transactionally. Unrelated settings and loaded font slots are unchanged.
   Returns Bool.
 
 | `MenuFont.name`
-| Read/write display and INI-section name, containing at most 50 bytes.
-  The native editor permits an empty or duplicate replacement name, so the
-  binding does as well.  An empty replacement remains a font record across
-  save and reload and is stored in the `[Font:]` section.
+| Read/write the display and INI-section name using the same nonempty,
+  INI-safe and case-insensitively unique rules as `createFont`.
 
 | `MenuFont.path(slot)`
 | Configured pathname String for display, or `null`.  Returning a
   pathname does not mint a `File` and confers no open authority.
 
 | `MenuFont.setFile(slot, file)`
-| Assign a path from a live, read-authorized `File`, normally returned
-  by `Host.pickFile`.  Returns Bool.  The picker mask guides selection;
-  the binding does not add a file-size restriction absent from the native
-  Font Management screen.
+| Assign a path from a live, read-authorized `File`, normally returned by
+  `Host.pickFile`. Returns Bool. The picker mask guides selection. Bitmap size
+  is checked when the font is loaded, not while editing the draft.
 
 | `MenuFont.clearFile(slot)`
 | Clear one configured size and return Bool.

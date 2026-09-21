@@ -1019,9 +1019,17 @@ exercise_configuration_collections(st_wren_host_t *public_host)
 	    "|| Menu.fontsCatalog[46][0] != 46) Fiber.abort(\"font load\")\n"
 	    "var customFont = Menu.createFont(\"Temporary\", 1)\n"
 	    "if (customFont == null) Fiber.abort(\"font create\")\n"
+	    "var duplicate = Fiber.new { customFont.name = \"configured\" }\n"
+	    "duplicate.try()\n"
+	    "if (duplicate.error == null || customFont.name != \"Temporary\") Fiber.abort(\"font duplicate\")\n"
 	    "customFont.name = \"Renamed\"\n"
 	    "if (customFont.name != \"Renamed\" || !customFont.clearFile(2)) Fiber.abort(\"font edit\")\n"
-	    "if (!customFont.delete() || Menu.fonts.count != 1 || !Menu.saveFonts()) Fiber.abort(\"font delete\")\n";
+	    "if (!customFont.delete() || Menu.fonts.count != 1 || !Menu.saveFonts()) Fiber.abort(\"font delete\")\n"
+	    "var unsaved = Menu.createFont(\"Unsaved\", 1)\n"
+	    "if (unsaved == null || !Menu.reloadFonts() || Menu.fonts.count != 1 || Menu.fontsDirty) Fiber.abort(\"font reload\")\n"
+	    "var stale = Fiber.new { unsaved.name }\n"
+	    "stale.try()\n"
+	    "if (stale.error == null) Fiber.abort(\"font reload handle\")\n";
 
 	if (wrenInterpret(host->vm, "configuration_collections", source)
 	    != WREN_RESULT_SUCCESS) {
@@ -1698,6 +1706,8 @@ exercise_safe_mode_persistence_contract(st_wren_host_t *public_host,
 	    "if (snapshot.save() || !snapshot.dirty || Menu.settings.confirmClose != confirm) Fiber.abort(\"settings save\")\n"
 	    "if (!Menu.updateWebList(0, \"https://example.invalid/changed\") || !Menu.webListsDirty) Fiber.abort(\"web edit\")\n"
 	    "if (Menu.saveWebLists() || !Menu.webListsDirty) Fiber.abort(\"web save\")\n"
+	    "if (Menu.canCreateFont || Menu.createFont(\"Blocked\", 0) != null || Menu.saveFonts()) Fiber.abort(\"font safe mode\")\n"
+	    "if (!Menu.reloadFonts() || Menu.fontsDirty) Fiber.abort(\"font safe reload\")\n"
 	    "var algorithm = Menu.encryptionAlgorithm\n"
 	    "var keySize = Menu.encryptionKeySize\n"
 	    "if (Menu.setEncryption(6, 128, \"secret\")) Fiber.abort(\"encryption save\")\n"

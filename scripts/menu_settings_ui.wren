@@ -674,7 +674,26 @@ class SettingsMenu {
     return "# Font Name\n\nEnter the name that will identify this font in menus."
   }
 
-  static fontNameFits_(name) { name.bytes.count <= 50 }
+  static fontNameError_(fonts, name, except) {
+    var bytes = name.bytes
+    if (bytes.count == 0 || bytes.count > 50) {
+      return "The font name must contain 1 through 50 bytes."
+    }
+    if (bytes[0] == 0x20 || bytes[bytes.count - 1] == 0x20) {
+      return "The font name cannot begin or end with a space."
+    }
+    for (byte in bytes) {
+      if (byte < 0x20 || byte > 0x7E || byte == 0x5B || byte == 0x5D) {
+        return "The font name must be printable US-ASCII without brackets."
+      }
+    }
+    for (i in 0...fonts.count) {
+      if (i != except && MenuUi.namesEqual(fonts[i].name, name)) {
+        return "A font with that name is already configured."
+      }
+    }
+    return null
+  }
 
   static fontMask_(slot) {
     if (slot == MenuFontSlot.eightByEight) return "*.f8"
@@ -1141,9 +1160,9 @@ class SettingsMenu {
     var name = MenuUi.prompt(app, "Add Font", "Font name", "", 50,
         false, fontNameHelp_())
     if (name == null || name.count == 0) return false
-    if (!fontNameFits_(name)) {
-      Alert.show(app, "Font Management",
-          "The font name is longer than 50 bytes.")
+    var error = fontNameError_(fonts, name, -1)
+    if (error != null) {
+      Alert.show(app, "Font Management", error)
       return false
     }
     if (Menu.createFont(name, index) == null) {
@@ -1203,9 +1222,9 @@ class SettingsMenu {
           var name = MenuUi.prompt(app, "Rename Font", "Font name", font.name,
               50, false, fontNameHelp_())
           if (name == null || MenuUi.namesEqual(name, font.name)) return
-          if (!fontNameFits_(name)) {
-            Alert.show(app, "Font Management",
-                "The font name is longer than 50 bytes.")
+          var error = fontNameError_(fonts, name, index)
+          if (error != null) {
+            Alert.show(app, "Font Management", error)
             return
           }
           font.name = name
@@ -1216,7 +1235,10 @@ class SettingsMenu {
           var file = Host.pickFile(path == null ? "." : path,
               fontMask_(value), FilePickerOptions.allowEntry, title)
           app.restoreFocus()
-          if (file != null) font.setFile(value, file)
+          if (file != null && !font.setFile(value, file)) {
+            Alert.show(app, "Font Management",
+                "The font path could not be changed.")
+          }
         }
       }, view)
       if (picked == null || deleted) return

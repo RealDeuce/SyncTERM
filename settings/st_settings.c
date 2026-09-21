@@ -6,6 +6,7 @@
 #include "st_settings.h"
 
 #include "ini.h"
+#include "st_settings_internal.h"
 #include "string_compat.h"
 #include "string_util.h"
 
@@ -98,8 +99,9 @@ failed:
 	return NULL;
 }
 
-static bool
-copy_fonts(st_settings_font_list_t *result, st_settings_font_list_t source)
+bool
+st_settings_fonts_copy(st_settings_font_list_t *result,
+    st_settings_font_list_t source)
 {
 	for (size_t i = 0; i < st_settings_font_list_count(source); ++i) {
 		struct st_settings_font *copy = font_copy(source[i]);
@@ -112,12 +114,211 @@ copy_fonts(st_settings_font_list_t *result, st_settings_font_list_t source)
 	return true;
 }
 
-static void
-free_fonts(st_settings_font_list_t *fonts)
+void
+st_settings_fonts_free(st_settings_font_list_t *fonts)
 {
 	for (size_t i = 0; i < st_settings_font_list_count(*fonts); ++i)
 		font_free((*fonts)[i]);
 	st_settings_font_list_free_storage(fonts);
+}
+
+bool
+st_settings_fonts_equal(st_settings_font_list_t left,
+    st_settings_font_list_t right)
+{
+	if (st_settings_font_list_count(left) != st_settings_font_list_count(right))
+		return false;
+	for (size_t i = 0; i < st_settings_font_list_count(left); ++i) {
+		if (strcmp(left[i]->name, right[i]->name) != 0)
+			return false;
+		for (size_t path = 0; path < ST_SETTINGS_FONT_PATH_COUNT; ++path) {
+			const char *a = left[i]->path[path];
+			const char *b = right[i]->path[path];
+
+			if (a == NULL ? b != NULL : b == NULL || strcmp(a, b) != 0)
+				return false;
+		}
+	}
+	return true;
+}
+
+static bool
+font_name_available(st_settings_font_list_t fonts, const char *name,
+    size_t except)
+{
+	for (size_t i = 0; i < st_settings_font_list_count(fonts); ++i) {
+		if (i != except && ascii_case_compare(fonts[i]->name, name) == 0)
+			return false;
+	}
+	return true;
+}
+
+static int
+font_list_insert(st_settings_font_list_t *fonts, size_t index,
+    const char *name)
+{
+	struct st_settings_font *font;
+
+	if (!st_settings_font_name_valid(name)
+	    || index > st_settings_font_list_count(*fonts)
+	    || st_settings_font_list_count(*fonts) >= ST_SETTINGS_CUSTOM_FONT_MAX
+	    || !font_name_available(*fonts, name, SIZE_MAX))
+		return -1;
+	font = calloc(1, sizeof(*font));
+	if (font == NULL || (font->name = strdup(name)) == NULL
+	    || !st_settings_font_list_insert(fonts, index, font)) {
+		font_free(font);
+		return -1;
+	}
+	return 0;
+}
+
+static int
+font_list_rename(st_settings_font_list_t fonts, size_t index,
+    const char *name)
+{
+	char *replacement;
+
+	if (index >= st_settings_font_list_count(fonts)
+	    || !st_settings_font_name_valid(name)
+	    || !font_name_available(fonts, name, index))
+		return -1;
+	replacement = strdup(name);
+	if (replacement == NULL)
+		return -1;
+	free(fonts[index]->name);
+	fonts[index]->name = replacement;
+	return 0;
+}
+
+static int
+font_list_set_path(st_settings_font_list_t fonts, size_t index,
+    enum st_settings_font_path slot, const char *path)
+{
+	char *replacement = NULL;
+
+	if (index >= st_settings_font_list_count(fonts)
+	    || slot < 0 || slot >= ST_SETTINGS_FONT_PATH_COUNT)
+		return -1;
+	if (path != NULL && path[0] != '\0' && (replacement = strdup(path)) == NULL)
+		return -1;
+	free(fonts[index]->path[slot]);
+	fonts[index]->path[slot] = replacement;
+	return 0;
+}
+
+static int
+font_list_remove(st_settings_font_list_t fonts, size_t index)
+{
+	struct st_settings_font *font;
+
+	if (index >= st_settings_font_list_count(fonts))
+		return -1;
+	font = st_settings_font_list_take(fonts, index);
+	font_free(font);
+	return 0;
+}
+
+bool
+st_settings_font_name_valid(const char *name)
+{
+	return name != NULL && strlen(name) <= 50
+	    && ini_name_valid(name, "[]", false);
+}
+
+void
+st_settings_font_draft_init(struct st_settings_font_draft *draft)
+{
+	if (draft != NULL)
+		memset(draft, 0, sizeof(*draft));
+}
+
+void
+st_settings_font_draft_dispose(struct st_settings_font_draft *draft)
+{
+	if (draft == NULL)
+		return;
+	st_settings_fonts_free(&draft->fonts);
+	st_settings_fonts_free(&draft->baseline);
+	memset(draft, 0, sizeof(*draft));
+}
+
+int
+st_settings_font_draft_replace(struct st_settings_font_draft *draft,
+    st_settings_font_list_t fonts)
+{
+	struct st_settings_font_draft replacement = {0};
+
+	if (draft == NULL)
+		return -1;
+	if (!st_settings_fonts_copy(&replacement.fonts, fonts)
+	    || !st_settings_fonts_copy(&replacement.baseline, fonts)) {
+		st_settings_font_draft_dispose(&replacement);
+		return -1;
+	}
+	st_settings_font_draft_dispose(draft);
+	*draft = replacement;
+	return 0;
+}
+
+int
+st_settings_font_draft_open(struct st_settings_font_draft *draft)
+{
+	struct st_settings_font_draft copy = {0};
+
+	if (draft == NULL)
+		return -1;
+	if (!st_settings_fonts_copy(&copy.fonts, st_settings.custom_fonts)
+	    || !st_settings_fonts_copy(&copy.baseline, st_settings.custom_fonts)) {
+		st_settings_font_draft_dispose(&copy);
+		return -1;
+	}
+	st_settings_font_draft_dispose(draft);
+	*draft = copy;
+	return 0;
+}
+
+size_t
+st_settings_font_draft_count(const struct st_settings_font_draft *draft)
+{
+	return draft == NULL ? 0 : st_settings_font_list_count(draft->fonts);
+}
+
+const struct st_settings_font *
+st_settings_font_draft_at(const struct st_settings_font_draft *draft,
+    size_t index)
+{
+	return draft != NULL && index < st_settings_font_draft_count(draft)
+	    ? draft->fonts[index] : NULL;
+}
+
+int
+st_settings_font_draft_insert(struct st_settings_font_draft *draft,
+    size_t index, const char *name)
+{
+	return draft == NULL ? -1 : font_list_insert(&draft->fonts, index, name);
+}
+
+int
+st_settings_font_draft_rename(struct st_settings_font_draft *draft,
+    size_t index, const char *name)
+{
+	return draft == NULL ? -1 : font_list_rename(draft->fonts, index, name);
+}
+
+int
+st_settings_font_draft_set_path(struct st_settings_font_draft *draft,
+    size_t index, enum st_settings_font_path slot, const char *path)
+{
+	return draft == NULL ? -1
+	    : font_list_set_path(draft->fonts, index, slot, path);
+}
+
+int
+st_settings_font_draft_remove(struct st_settings_font_draft *draft,
+    size_t index)
+{
+	return draft == NULL ? -1 : font_list_remove(draft->fonts, index);
 }
 
 static bool
@@ -156,7 +357,7 @@ st_settings_dispose(struct st_settings *settings)
 	free(settings->active_sort_profile);
 	name_value_list_free(&settings->web_downloads);
 	name_value_list_free(&settings->sort_profiles);
-	free_fonts(&settings->custom_fonts);
+	st_settings_fonts_free(&settings->custom_fonts);
 	memset(settings, 0, sizeof(*settings));
 }
 
@@ -185,7 +386,7 @@ st_settings_copy(struct st_settings *result,
 	copy.custom_fonts = NULL;
 	if (!copy_web_downloads(&copy.web_downloads, source->web_downloads)
 	    || !copy_web_downloads(&copy.sort_profiles, source->sort_profiles)
-	    || !copy_fonts(&copy.custom_fonts, source->custom_fonts)
+	    || !st_settings_fonts_copy(&copy.custom_fonts, source->custom_fonts)
 	    || !copy_path(&copy.modem_device, source->modem_device)
 	    || !copy_path(&copy.list_path, source->list_path)
 	    || !copy_path(&copy.stored_list_path, source->stored_list_path)
@@ -332,67 +533,4 @@ st_settings_font_at(size_t index)
 {
 	return index < st_settings_font_count()
 	    ? st_settings.custom_fonts[index] : NULL;
-}
-
-int
-st_settings_font_insert(size_t index, const char *name)
-{
-	struct st_settings_font *font;
-
-	if (!ini_name_valid(name, "[]", false)
-	    || index > st_settings_font_count()
-	    || st_settings_font_count() >= ST_SETTINGS_CUSTOM_FONT_MAX)
-		return -1;
-	font = calloc(1, sizeof(*font));
-	if (font == NULL || (font->name = strdup(name)) == NULL
-	    || !st_settings_font_list_insert(&st_settings.custom_fonts, index,
-	    font)) {
-		font_free(font);
-		return -1;
-	}
-	return 0;
-}
-
-int
-st_settings_font_rename(size_t index, const char *name)
-{
-	char *replacement;
-
-	if (index >= st_settings_font_count()
-	    || !ini_name_valid(name, "[]", true))
-		return -1;
-	replacement = strdup(name);
-	if (replacement == NULL)
-		return -1;
-	free(st_settings.custom_fonts[index]->name);
-	st_settings.custom_fonts[index]->name = replacement;
-	return 0;
-}
-
-int
-st_settings_font_set_path(size_t index, enum st_settings_font_path slot,
-	const char *path)
-{
-	char *replacement = NULL;
-
-	if (index >= st_settings_font_count()
-	    || slot < 0 || slot >= ST_SETTINGS_FONT_PATH_COUNT)
-		return -1;
-	if (path != NULL && path[0] != '\0' && (replacement = strdup(path)) == NULL)
-		return -1;
-	free(st_settings.custom_fonts[index]->path[slot]);
-	st_settings.custom_fonts[index]->path[slot] = replacement;
-	return 0;
-}
-
-int
-st_settings_font_remove(size_t index)
-{
-	struct st_settings_font *font;
-
-	if (index >= st_settings_font_count())
-		return -1;
-	font = st_settings_font_list_take(st_settings.custom_fonts, index);
-	font_free(font);
-	return 0;
 }

@@ -123,8 +123,9 @@ class Menu {
   foreign static deleteWebList(index)
   foreign static saveWebLists()
   foreign static refreshWebList(index)
-  // Configured custom fonts are C-owned.  Structural changes invalidate
-  // existing MenuFont handles; saveFonts() persists and reloads slots.
+  // Each menu host owns an editable custom-font draft. Structural changes
+  // invalidate existing MenuFont handles; saveFonts() persists and reloads
+  // live slots, while reloadFonts() only replaces the draft.
   foreign static fonts
   foreign static fontsDirty
   foreign static canCreateFont
@@ -150,7 +151,7 @@ foreign class MenuFont {
   foreign name
   foreign name=(value)
   // path() is for display only.  setFile() requires a read-authorized
-  // File returned by the trusted picker and validates its exact size.
+  // File returned by the trusted picker. Bitmap size is checked when loaded.
   foreign path(slot)
   foreign setFile(slot, file)
   foreign clearFile(slot)

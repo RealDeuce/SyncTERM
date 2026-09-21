@@ -37,7 +37,7 @@ repository-wide coverage. The legacy tree is read-only reference.
 
 The repository-wide audit is complete. This is not an implementation approval
 or release certification. The consolidated API/design assessment, priority
-groups and all 50 outstanding finding summaries are in
+groups and all 49 outstanding finding summaries are in
 AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 
 | Objective requirement | Authoritative evidence and disposition |
@@ -48,10 +48,10 @@ AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 | Portability and all platform backends | POSIX/Windows sources and every audio/console backend reviewed; native, MinGW compile-only and unavailable runtime evidence kept separate. Capability probes/standalone targets reviewed. No unsupported platform pass inferred. |
 | Performance | Scaler/renderer benchmark source and measured cases reviewed, including common mixed-axis scaling; A011/A023 and backend pacing risks distinguished from measured regressions. Reconstructed legacy benchmark limitations explicitly recorded. |
 | Required legacy behavior | Read-only comparisons cover fonts/catalog/maps, modes, palette capacity, Prestel versus Mode 7, command line, console/input and settings behavior, plus explicit parity limits. Frozen CTerm chapter cmp succeeds. |
-| Wren scripts and bindings | Complete local source/signature/manual reviews; isolated shipped-script suites and host fixtures; host closure A100–A113. Connected/SFTP production integration missing from this application is reported, not invented or silently counted as working. |
+| Wren scripts and bindings | Complete local source/signature/manual reviews; isolated shipped-script suites and host fixtures; remaining host findings through A113. Connected/SFTP production integration missing from this application is reported, not invented or silently counted as working. |
 | Build logic, generators and documentation | Root/component CMake and generators reviewed; standalone/probe failures recorded; pinned Unicode/font regeneration and table comparisons documented; root manuals/license/development guidance covered. Wren VM vendored internals limited to integration boundaries as requested. |
-| Inventory and consolidated findings | 50 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 23 medium, 25 low, 2 unresolved concerns; not all runtime reproductions. |
-| Relevant tests where practical | Complete native Clang and GCC builds succeed. The latest 83-test runs have a stable disposition of 80 pass, 2 fail and 1 Wayland skip. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
+| Inventory and consolidated findings | 49 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 22 medium, 25 low, 2 unresolved concerns; not all runtime reproductions. |
+| Relevant tests where practical | Complete native Clang and GCC builds succeed. The latest 84-test runs have a stable disposition of 81 pass, 2 fail and 1 Wayland skip. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
 | Explicit uncertainty | Each component records unavailable platforms, unexecuted failure paths and measurement limits; A007/A011 unresolved. Source-level risks are not called verified crashes. These are audit outcomes, not claims of implementation correctness. |
 
 Historical pending-source lists below are superseded by subsequent full reads,
@@ -173,9 +173,7 @@ evidence. All new fixtures use fresh temporary paths and a headless console.
   that absence alone is not classified as a regression. Any future selector
   policy must retain the full-cell explicit-glyph bypass and registry lifetime.
 - Theme selection/deletion failure behavior is covered for local and cloud
-  themes. General OOM/failure rollback remains untested. Remaining BBS and
-  custom-font mutation boundaries are covered in A100 and A105, not assumed
-  safe from their normal-path tests.
+  themes. General OOM/failure rollback remains untested.
 - Host/VM lifetimes, borrowed config and synchronous dispatcher use follow the
   application ownership review. Multiple logical consoles do not make Wren
   thread-safe. Actual connected-session event scheduling/SFTP capabilities
@@ -275,35 +273,11 @@ closing its dynamic-library handle. Interaction with an existing curses
 screen and allocation lifetime remain source-only integration risks, not
 verified crashes or quantified leaks.
 
-### A105 — Custom-font bindings do not preserve their declared editing boundaries
+### A105 — Screen.font slot writes are not connected to rendering
 
-Severity: medium (source-confirmed API/transaction contract mismatch; no new
-font-file mutation or allocation-failure reproduction). Wren.adoc:4632–4674
-describes a separate custom-font model, unrestricted native-editor names,
-transactional reread, and no extra setFile size restriction. Current
-wren_bind_menu.c:2463 accepts only 2048/3584/4096/10240-byte files, while name
-validation imposes additional character rules. saveFonts calls the complete
-st_settings_save rather than a font-sections-only write; reloadFonts calls
-complete st_settings_reload before attempting font registration. It can thus
-reload non-font edits and, on a later registration failure, leave newly loaded
-settings with unchanged font-generation bookkeeping. Successful persistence
-followed by registration failure also cannot be interpreted as no mutation.
-
-Recommendation: reconcile the native/editor contract and explicitly define
-the separate persistence and live-slot update boundaries, then test unrelated
-settings preservation and failures between those stages. This is not a
-recommendation to weaken font bitmap validation in the renderer. These details
-close the earlier custom-font source questions with explicit source-only evidence;
-fault injection, filesystem replacement races and real font rendering remain
-verification limits, not successful tests.
-
-Immediate-settings follow-up: settings apply ignores both console
-scaling-setter results; backend failure in those stages is not injected. The
-currently absent connected runtime is covered by A088. These are explicit
-failure-boundary and consumer-verification limits.
-
-Font-selector contract reconciliation: legacy wren_bind_screen.c's Cell.font
-and legacyAttr/bright setters modify separate stored fields, so the absence
+Severity: medium (source-confirmed incomplete integration). Legacy
+wren_bind_screen.c's Cell.font and legacyAttr/bright setters modify separate
+stored fields, so the absence
 of automatic font reassignment on a Cell bright/blink edit is not by itself a
 new regression. The new explicit font ID/full-cell contract must not be
 replaced by unconditional selector interpretation. Screen.font is a different
@@ -323,33 +297,6 @@ alone settle when menu cells should interpret legacy selector bits. Keep that
 as a caller/legacy-contract question rather than recommending that every
 bright/blink change automatically chooses a different font. Full-cell writes
 intentionally bypass lookup, a distinct contract that must be retained.
-
-### A100 — Rejected BBS palette/script assignments partially change the object
-
-Severity: medium (confirmed in-memory mutation on validation failure).
-wren_host/wren_bind_menu.c:3254 writes each accepted palette element directly
-into the profile before validating later elements; palette_size and dirty are
-only updated after the loop. The wrenScripts setter at :3320 likewise copies
-each name into the existing byte buffer before checking the next, and only
-terminates the new string/sets dirty on complete success. Rejected input can
-therefore leave changed colors or a mixture of new-prefix and old-suffix
-script names, without the normal success bookkeeping.
-
-The new `bbs-setters` mode in the isolated host audit test loads a synthetic
-personal list from a fresh /tmp root, sets palette [1,2], catches the expected
-abort assigning [99,"bad"], then finds the first color is no longer 1. A
-second case sets scripts ["original"], catches the abort from ["x",false],
-and finds the old name changed. Both retention assertions fail natively after
-strict-warning compilation. The test calls no save and accesses no personal
-data; it demonstrates object mutation, not disk corruption. Dirty-state
-behavior follows from source ordering but is not asserted by these cases,
-which first make valid edits.
-
-Recommend validating/staging the complete proposed collection before updating
-the profile, with invalid later-element and capacity cases retained as tests.
-This does not prescribe a new transaction API or authorize an implementation
-change. Wren guidance was used to contain expected setter aborts with Fiber.try
-and inspect the same live object afterward.
 
 ### A096 — BBS editor script discovery is an unconditional empty stub
 
@@ -2006,16 +1953,13 @@ Full script comparison with legacy has no differences. Earlier sections
 not full module coverage. Also read complete menu_ui_test.wren (51 lines),
 whose two retained-view/height assertions have not yet been run independently.
 
-Custom-font workflow has no live font preview to restore: edits target the
-settings font model and save/reload happens on leaving Font Management.
-The script re-fetches handles each iteration after structural edits; host
-generation checks reject stale handles. Safe mode suppresses entry and the
-font mutation bindings independently reject writes. Existing binding-review
-concern is now traced through its caller: fn_font_set_file enforces exact
-2048/3584/4096/10240-byte sizes, contradicting Wren.adoc's explicit no-size-
-restriction contract, and font_ ignores its Bool result. Thus validation/open
-failure has no menu error feedback. This is source-confirmed, not a new
-runtime-tested finding or a reason to perform unsafe settings writes.
+Custom-font workflow has no live font preview to restore: edits target a
+per-host draft and save happens on leaving Font Management. The script
+re-fetches handles after structural edits; host generation checks reject stale
+handles. Safe mode suppresses entry and the font mutation bindings
+independently reject writes. Names are validated before mutation, and picker
+paths are stored without prematurely validating bitmap size; a failed path
+assignment now receives menu feedback.
 
 font_ releases focus before Host.pickFile and restores only after normal
 return; exceptional picker restoration remains an integration question.
@@ -2478,10 +2422,7 @@ Settings/BBS binding pass completes source reading of wren_bind_menu.c
 (including the full binding table). Binding-to-script declaration parity and
 the complete host test remain pending. The Settings manual was checked before
 this pass. Setters mark dirty even when assigning the existing value, and
-applying scaling ignores native setter errors. BBS palette
-and script-list setters mutate elements before completing validation, so a
-later invalid element may leave partial changes without setting dirty.
-These are not yet runtime-confirmed findings.
+applying scaling ignores native setter errors.
 
 Menu theme/font pass extends wren_bind_menu.c coverage through :2528, plus
 the previously read :3360-3480. Read Wren.adoc Menu Themes and Custom Fonts
@@ -2501,17 +2442,6 @@ likewise lacks a safe-mode gate despite Host.safeMode's
 documented restriction on script-driven external commands; no browser or
 external command was launched during this audit.
 
-Custom-font bindings use generation checks and prohibit mutation in safe mode.
-Reload calls the whole settings reload before font registration and increments
-font_generation only if both succeed; a partial registration failure can leave
-new settings paired with old generation/slots. Save preserves handles, but its
-full settings_save persists more than just font sections, unlike the stated
-separate-model contract. setFile requires exact bitmap byte sizes although the
-manual explicitly says it adds no size restriction. Name validation also adds
-ASCII/bracket/whitespace restrictions beyond that contract. These are recorded
-as source/documentation discrepancies pending consumer/legacy tests, without
-changing either side to force agreement. No network, theme deletion, font-file
-write or external URL action was performed in this pass.
 Menu binding read coverage extends through :1525, in addition to :3360-3480.
 Build-options data distinguishes compiled video/audio backends from unavailable
 features and reports the Unifont-derived binary license option. Audio choices
@@ -4182,22 +4112,22 @@ in-process memory accesses. Host consumers remain their own audit area.
   input must be bounded by console sizing
   before narrowing. KDF is an opaque bounded string here; crypto consumer owns
   cost validation. No locale calls introduced.
-- Custom font insertion disallows empty names while replacement names may be
-  empty. Duplicate font/sort/web-list names can still collapse under
-  case-insensitive lookup; full behavior should match the documented menu
-  contract rather than silently imposing uniqueness. Sort update replaces the
-  record before updating active name/order, so allocation failure can leave
-  partially applied changes. Removing the last profile recreates defaults but
-  can leave a partial list on allocation failure. Not injected.
+- Custom font names are nonempty, INI-safe printable US-ASCII and unique under
+  locale-independent ASCII case comparison. Duplicate sort/web-list names can
+  still collapse under case-insensitive lookup. Sort update replaces the record
+  before updating active name/order, so allocation failure can leave partially
+  applied changes. Removing the last profile recreates defaults but can leave a
+  partial list on allocation failure. Not injected.
 - Legacy settings reference preserves VideoMode alias, theme-package precedence,
   KDF string migration, sort profile defaults/custom-order migration and the
   per-key Classic/UIFC fallback. This is not a full app-level legacy behavior
   claim.
-- Existing tests cover one owned-copy case and mixed independent/conflicting
-  external settings edits, path redirection, sort and custom-font persistence,
-  Classic/UIFC migration, colour bounds, unknown root content and basic empty
-  sort values. Actual simultaneous writers, allocation failures, disk-full
-  writes, all field boundaries and host handle invalidation are not tested.
+- Existing tests cover owned copies, mixed independent/conflicting external
+  settings edits, path redirection, sort and custom-font draft persistence,
+  stale font snapshots, Classic/UIFC migration, colour bounds, unknown root
+  content, basic empty sort values and host font-handle invalidation. Actual
+  simultaneous writers, allocation failures, disk-full writes and all field
+  boundaries are not tested.
 
 ### bbs_list/
 

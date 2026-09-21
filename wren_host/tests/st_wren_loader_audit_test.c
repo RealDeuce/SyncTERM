@@ -108,7 +108,8 @@ main(int argc, char **argv)
 	if (strcmp(argv[2], "bbs-setters") == 0) {
 		(void)snprintf(personal, sizeof(personal), "%s/personal.ini", argv[1]);
 		(void)snprintf(cached, sizeof(cached), "%s/cached.ini", argv[1]);
-		write_script(personal, "[Audit]\nAddress=example.invalid\n");
+		write_script(personal, "[Audit]\nAddress=example.invalid\n"
+		    "Palette=1,2\nWrenScripts=original\n");
 		paths.personal_list = personal;
 		paths.cached_system_list = cached;
 	}
@@ -149,18 +150,37 @@ main(int argc, char **argv)
 		    "import \"syncterm_menu\" for Menu\n"
 		    "if (Menu.load(null) != 0) Fiber.abort(\"fixture load failed\")\n"
 		    "var entry = Menu.entries[0]\n"
-		    "entry.palette = [1, 2]\n"
 		    "var bad = Fiber.new { entry.palette = [99, \"bad\"] }\n"
 		    "bad.try()\n"
 		    "if (bad.error == null) Fiber.abort(\"invalid palette accepted\")\n"
-		    "if (entry.palette[0] != 1) Fiber.abort(\"rejected palette changed old value\")\n",
+		    "if (entry.palette.count != 2 || entry.palette[0] != 1 || "
+		    "entry.palette[1] != 2 || entry.dirty) "
+		    "Fiber.abort(\"rejected palette changed entry\")\n",
 		    "import \"syncterm_menu\" for Menu\n"
 		    "var entry = Menu.entries[0]\n"
-		    "entry.wrenScripts = [\"original\"]\n"
 		    "var bad = Fiber.new { entry.wrenScripts = [\"x\", false] }\n"
 		    "bad.try()\n"
 		    "if (bad.error == null) Fiber.abort(\"invalid scripts accepted\")\n"
-		    "if (entry.wrenScripts[0] != \"original\") Fiber.abort(\"rejected scripts changed old value\")\n",
+		    "if (entry.wrenScripts.count != 1 || "
+		    "entry.wrenScripts[0] != \"original\" || entry.dirty) "
+		    "Fiber.abort(\"rejected scripts changed entry\")\n",
+		    "import \"syncterm_menu\" for Menu\n"
+		    "var entry = Menu.entries[0]\n"
+		    "var bad = Fiber.new { entry.palette = "
+		    "[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16] }\n"
+		    "bad.try()\n"
+		    "if (bad.error == null || entry.palette.count != 2 || "
+		    "entry.palette[0] != 1 || entry.palette[1] != 2 || entry.dirty) "
+		    "Fiber.abort(\"oversized palette changed entry\")\n",
+		    "import \"syncterm_menu\" for Menu\n"
+		    "var entry = Menu.entries[0]\n"
+		    "var huge = \"a\"\n"
+		    "while (huge.bytes.count <= Menu.wrenScriptsMaxLength) huge = huge + \"a\"\n"
+		    "var bad = Fiber.new { entry.wrenScripts = [huge] }\n"
+		    "bad.try()\n"
+		    "if (bad.error == null || entry.wrenScripts.count != 1 || "
+		    "entry.wrenScripts[0] != \"original\" || entry.dirty) "
+		    "Fiber.abort(\"oversized scripts changed entry\")\n",
 		};
 		CHECK(status == 0);
 		passed = true;

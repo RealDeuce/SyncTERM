@@ -11,6 +11,7 @@
 #include "st_wren_host.h"
 #include "st_profile.h"
 #include "st_screen_mode.h"
+#include "st_settings.h"
 #include "wren_bbs_model.h"
 #include "wren.h"
 
@@ -214,6 +215,7 @@ struct st_wren_host {
 	bool web_lists_dirty;
 	bool fonts_dirty;
 	uint64_t font_generation;
+	struct st_settings_font_draft font_draft;
 	uint64_t settings_generation;
 	enum st_screen_mode current_screen_mode;
 	struct st_wren_context menu;
