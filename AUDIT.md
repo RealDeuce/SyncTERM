@@ -37,21 +37,21 @@ repository-wide coverage. The legacy tree is read-only reference.
 
 The repository-wide audit is complete. This is not an implementation approval
 or release certification. The consolidated API/design assessment, priority
-groups and all 71 outstanding finding summaries are in
+groups and all 69 outstanding finding summaries are in
 AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 
 | Objective requirement | Authoritative evidence and disposition |
 | --- | --- |
 | Entire repository, not only recent changes | git ls-files identifies 47 top-level source directories and 12 root files; every directory has an inventory row, no omissions. Per-component reviews cover local implementations, headers, tests/build and associated data/docs. |
 | API design, architecture and library layout | AUDIT_INDEX boundary/coupling/ownership assessment plus component public-contract and CMake dependency reviews; A001–A007, A047/A066, A088/A091 and host-contract findings. Cohesive decomposition is recognized; no redesign authorized. |
-| Correctness, ownership/lifetime and concurrency | Component lifecycle/error reviews, normal and injected tests, explicit GUI/host ownership closure; source and reproduced failures are qualified individually. A016, A023, A036 and A108/A109 illustrate distinct lifetime/error risks. |
+| Correctness, ownership/lifetime and concurrency | Component lifecycle/error reviews, normal and injected tests, explicit GUI/host ownership closure; source and reproduced failures are qualified individually. A016, A023 and A108/A109 illustrate distinct lifetime/error risks. |
 | Portability and all platform backends | POSIX/Windows sources and every audio/console backend reviewed; native, MinGW compile-only and unavailable runtime evidence kept separate. Capability probes/standalone targets reviewed. No unsupported platform pass inferred. |
 | Performance | Scaler/renderer benchmark source and measured cases reviewed, including common mixed-axis scaling; A011/A023 and backend pacing risks distinguished from measured regressions. Reconstructed legacy benchmark limitations explicitly recorded. |
 | Required legacy behavior | Read-only comparisons cover fonts/catalog/maps, modes, palette capacity, Prestel versus Mode 7, command line, console/input and settings behavior, plus explicit parity limits. Frozen CTerm chapter cmp succeeds. |
 | Wren scripts and bindings | Complete local source/signature/manual reviews; isolated shipped-script suites and host fixtures; host closure A100–A113. Connected/SFTP production integration missing from this application is reported, not invented or silently counted as working. |
 | Build logic, generators and documentation | Root/component CMake and generators reviewed; standalone/probe failures recorded; pinned Unicode/font regeneration and table comparisons documented; root manuals/license/development guidance covered. Wren VM vendored internals limited to integration boundaries as requested. |
-| Inventory and consolidated findings | 71 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 3 high, 41 medium, 25 low, 2 unresolved concerns; not all runtime reproductions. |
-| Relevant tests where practical | A complete native build succeeds. The latest 73-test run has a stable disposition of 69 pass, 3 fail and 1 Wayland skip. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
+| Inventory and consolidated findings | 69 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 2 high, 40 medium, 25 low, 2 unresolved concerns; not all runtime reproductions. |
+| Relevant tests where practical | A complete native build succeeds. The latest 74-test run has a stable disposition of 71 pass, 2 fail and 1 Wayland skip. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
 | Explicit uncertainty | Each component records unavailable platforms, unexecuted failure paths and measurement limits; A007/A011 unresolved. Source-level risks are not called verified crashes. These are audit outcomes, not claims of implementation correctness. |
 
 Historical pending-source lists below are superseded by subsequent full reads,
@@ -135,7 +135,7 @@ not the absence of failing tests. New findings will receive stable A-numbers.
 | unifont/ | Reviewed | API/build/test/docs/license/shared generator reviewed; identical regeneration and exhaustive UNSCII overlay test; enabled/disabled native builds verified; packaging/Wren display tracked with owners |
 | utf8/ | Reviewed | A001; expanded native tests and MinGW build; caller integration tracked separately |
 | value_convert/ | Reviewed | A021 date precedence conflict; all local sources/tests/build read; native exact rounding checks pass; exotic formats and numeric performance unverified |
-| webget/ | Reviewed | All local source/header/test/build read; A036 source double-close, A037 URL/cache mismatch reproduced; protocol/TLS/fault gaps below |
+| webget/ | Reviewed | All local source/header/test/build read; exact-URL cache identity and single-owner transport cleanup covered; remaining protocol/TLS/fault gaps below |
 | windows_utf/ | Reviewed | Source and MinGW compile; Windows runtime not verified |
 | wren_host/ | Reviewed | All local implementation, public/internal headers, CMake/generator and integration tests read; isolated shipped-script and host-contract cases run; mutation/error/input/font/ownership integration dispositioned below, including A112–A113; runtime/fault limits explicit |
 | wren_vm/ | Reviewed at integration boundary | Full legacy diff, build/configuration, license, REPL private API coupling and minimal consumer link checked; upstream internals not exhaustively audited |
@@ -1265,47 +1265,6 @@ reachability claim yet; host sort-order parsing remains to review.
 Recommended remedy: validate without negating INT_MIN and cover the complete
 int boundary contract. Also source-only: field_count*sizeof(int) in sort's
 allocation lacks an overflow check; callers' count bounds remain to review.
-
-### A036 — Downloader closes the socket twice after TLS setup failure
-
-Severity: high, conditional on descriptor reuse. Classification: confirmed
-source-level double-close; concurrent descriptor reuse not reproduced.
-
-`webget/st_webget.c:826` closes transport.socket on cancellation at TLS progress;
-line 831 does the same when TLS open fails. Neither invalidates the field.
-The caller then reaches cleanup at line 1093, and close_transport at line 844
-closes the same still-valid-looking handle again. st_tls.h explicitly retains
-caller socket ownership on failed open, so that contract does not remove the
-second close. Between closes, another thread can acquire the recycled socket
-descriptor and have it closed by this cleanup. BBS batch downloads provide
-actual concurrent socket activity, though the reuse race is not tested here.
-
-Recommended remedy: use one cleanup owner or invalidate immediately upon close;
-test cancellation and failed TLS setup with a controlled socket provider.
-
-### A037 — Changing a download URL can reuse another resource's cache
-
-Severity: medium. Classification: confirmed cache-identity defect, reproduced.
-
-`webget/st_webget.c:37` cache_info and its on-disk metadata contain freshness
-and validators, but no source URL. Fresh-cache lookup at line 938 uses only
-cache key/output path. BBS callers derive these from the configured list name,
-not its URL. Editing that list's URL retains the old resource as fresh (up to
-the one-day default or supplied max-age); stale metadata can also send old
-validators to the new endpoint. Theme packages have a similar stable ID/URI
-separation. No caller-side metadata invalidation was found in the BBS/settings
-APIs reviewed so far; application UI behavior remains a separate audit area.
-
-New webget test downloads /default, then requests /different using the same
-key/output and a callback cancelling before any network action. It returns
-success using the old fresh file instead of reaching cancellation for the new
-resource. Reproduced with native Clang/GCC; MinGW compile/link only. Existing
-304 test also intentionally changes ephemeral server port, illustrating the
-current cross-URL validator behavior rather than establishing correctness.
-
-Recommended remedy: bind cache metadata/validators to resource identity and
-invalidate them when the requested URL changes. Update the conditional-response
-fixture to use one resource endpoint when implementing that behavior.
 
 ### A038 — OpenSSL TLS 1.3 PSK mode accepts an unauthenticated certificate server
 
@@ -4827,7 +4786,9 @@ implementation and application/Wren consumers remain separate inventory areas.
   as an empty document and permit replacement of cached content. Desired empty
   list semantics must be established before imposing a nonempty constraint.
   Duplicate named list names, including 'System List', can share output/cache
-  keys; webget locking and identity behavior remains to review.
+  keys. Exact URL metadata prevents cross-resource freshness and validator
+  reuse, but duplicate names still share an output path and lock and can
+  replace each other's cached body.
 - Full web tests prove two downloads overlap via a server barrier, progress
   reports active/completed states, one failure does not prevent the other batch
   download, and indexed refresh avoids an unrelated unreachable URL. Servers
@@ -4840,11 +4801,13 @@ implementation and application/Wren consumers remain separate inventory areas.
 
 Read all local implementation/header/CMake/test files. Synchronous request API
 borrows inputs/callback contexts for the call; result is published on success.
-Public header gives little contract detail for timeout defaults/infinity,
-progress cancellation, validation callback statuses, cache ownership or partial
-success. Request includes TLS options and therefore exposes TLS dependency;
-other dependencies are target-private except io_error. No platform branches in
-the downloader itself. TLS/socket/lock platform behavior belongs to those rows.
+The public header documents exact URL cache identity and preservation of the
+old output until successful replacement, but gives little contract detail for
+timeout defaults/infinity, progress cancellation, validation callback statuses
+or partial success. Request includes TLS options and therefore exposes TLS
+dependency; other dependencies are target-private except io_error. No platform
+branches in the downloader itself. TLS/socket/lock platform behavior belongs
+to those rows.
 
 - URL parser rejects userinfo, fragments and literal control/space bytes, handles
   bracketed hosts, decimal ports and query-only targets. Allocation failures and
@@ -4877,6 +4840,12 @@ the downloader itself. TLS/socket/lock platform behavior belongs to those rows.
   output identity. Fixed temporary names are opened wb, not exclusively;
   symlink/cross-key alias behavior requires a disposable-file test. Cleanup may
   remove fixed temporary paths even on failure before acquiring their lock.
+- Cache metadata records the exact requested URL. Missing legacy identity or a
+  changed URL discards freshness and validators in memory, makes an
+  unconditional request, and preserves the existing body and on-disk metadata
+  if replacement fails. An unsolicited 304 without ETag or Last-Modified
+  conditions is rejected. Tests cover changed URLs, legacy metadata, old-body
+  preservation, validator suppression and successful rebinding.
 - Fresh-cache and 304 paths skip validate, maximum-size enforcement and most
   progress callbacks. Existing tests explicitly expect no repeated validation.
   This conflicts with theme's desire to redownload after an updated manifest
@@ -4887,16 +4856,18 @@ the downloader itself. TLS/socket/lock platform behavior belongs to those rows.
   new metadata. Later failure can return error after output changed and leave
   old validators paired with new bytes. Body and metadata are not one atomic
   transaction; no crash/write-failure injection. Neither temporary is synced
-  here. Cached response status 304 requires an existing regular output but does
-  not prove a validator was sent; missing cached output can still send stored
-  validators and fail on 304 rather than retrying unconditionally.
-- Normal cleanup frees URL/cache/header buffers and runtime references; TLS
-  failure double-close is A036. Existing native tests cover fixed download,
-  ETag conditional response, fresh hit and default one-day caching. A037 adds
-  changed-URL behavior. No TLS handshake, chunked/EOF body, callback rejection,
-  malformed headers, network interruption, disk-full or concurrent cache-key
-  collision coverage yet. Native Clang/GCC tests fail only the new assertion;
-  MinGW compile/link only.
+  here. A cached 304 requires an existing regular output and at least one sent
+  validator; missing cached output can still send stored validators and fail on
+  304 rather than retrying unconditionally.
+- Normal cleanup frees URL/cache/header buffers and runtime references. A
+  link-time fake transport test verifies that TLS cancellation and failed open
+  close the raw socket exactly once, while successful TLS ownership closes only
+  through the TLS session. Existing integration tests cover fixed download,
+  ETag conditional response, fresh hit, default one-day caching and the cache
+  identity cases above. No real TLS handshake, chunked/EOF body, callback
+  rejection, malformed headers, network interruption, disk-full or concurrent
+  cache-key collision coverage yet. Focused tests pass under native Clang, GCC
+  and ASan; the MinGW targets build and execute under Wine.
 
 ### list_crypto/
 
@@ -5410,12 +5381,6 @@ successful verification.
   CTests pass with the new embedded-NUL password boundary test. MinGW was not
   executed. Only list_crypto/tests/st_list_crypto_test.c and this report changed
   in this pass. No production changes or commits.
-
-- Webget pass: CMake builds succeed for Clang/GCC/MinGW; native webget CTest
-  fails the added changed-URL cache regression (status 0 versus CANCELLED -21)
-  after original assertions pass. No external endpoints contacted: test uses
-  loopback and cancellation. Only webget/tests/st_webget_test.c and this report
-  changed in this pass; no production modifications or commits.
 
 - BBS codec/web completion pass: both bbs_list and bbs_web pass with native
   Clang and GCC after CMake target builds. Both MinGW targets compile/link;

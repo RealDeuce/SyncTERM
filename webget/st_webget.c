@@ -35,6 +35,7 @@ struct parsed_url {
 };
 
 struct cache_info {
+	char *url;
 	char *etag;
 	char *last_modified;
 	int64_t response_time;
@@ -223,6 +224,7 @@ free_url(struct parsed_url *url)
 static void
 free_cache_info(struct cache_info *info)
 {
+	free(info->url);
 	free(info->etag);
 	free(info->last_modified);
 	memset(info, 0, sizeof(*info));
@@ -247,8 +249,12 @@ load_cache_info(struct cache_info *info, const char *path)
 		return status;
 	root = ini_document_root(document);
 	{
-		const char *value = ini_section_find(root, "ETag");
-		if (value != NULL && (info->etag = strdup(value)) == NULL)
+		const char *value = ini_section_find(root, "URL");
+		if (value != NULL && (info->url = strdup(value)) == NULL)
+			status = IO_ERROR_OUT_OF_MEMORY;
+		value = ini_section_find(root, "ETag");
+		if (status == 0 && value != NULL
+		    && (info->etag = strdup(value)) == NULL)
 			status = IO_ERROR_OUT_OF_MEMORY;
 		value = ini_section_find(root, "LastModified");
 		if (status == 0 && value != NULL
@@ -286,6 +292,9 @@ write_cache_info(const struct cache_info *info, const char *path)
 		return status;
 	root = ini_document_root(document);
 #define SET_INFO(call) do { status = (call); if (status < 0) goto finish; } while (0)
+	if (info->url != NULL)
+		SET_INFO(ini_section_set_string(root, "URL", info->url,
+		    &ini_default_style));
 	if (info->etag != NULL)
 		SET_INFO(ini_section_set_string(root, "ETag", info->etag,
 		    &ini_default_style));
@@ -822,15 +831,11 @@ connect_transport(struct transport *transport, const struct parsed_url *url,
 			tls = *request->tls_options;
 		if (tls.server_name == NULL)
 			tls.server_name = url->host;
-		if (!report_progress(request, ST_WEBGET_TLS, 0, 0, false)) {
-			(void)socket_close(transport->socket);
+		if (!report_progress(request, ST_WEBGET_TLS, 0, 0, false))
 			return IO_ERROR_CANCELLED;
-		}
 		status = st_tls_client_open(&transport->tls, transport->socket, &tls);
-		if (status < 0) {
-			(void)socket_close(transport->socket);
+		if (status < 0)
 			return status;
-		}
 	}
 	return 0;
 }
@@ -898,6 +903,7 @@ st_webget(struct st_webget_result *result,
 	size_t maximum;
 	int status;
 	bool runtime = false;
+	bool conditional = false;
 
 	if (result == NULL || request == NULL || request->url == NULL
 	    || request->cache_directory == NULL
@@ -933,6 +939,14 @@ st_webget(struct st_webget_result *result,
 	status = load_cache_info(&cache, metadata_path);
 	if (status < 0)
 		goto cleanup;
+	if (cache.url == NULL || strcmp(cache.url, request->url) != 0) {
+		free_cache_info(&cache);
+		cache.url = strdup(request->url);
+		if (cache.url == NULL) {
+			status = IO_ERROR_OUT_OF_MEMORY;
+			goto cleanup;
+		}
+	}
 	status = fs_get_info(&existing, output_path);
 	if (status == 0 && existing.kind == FS_ENTRY_FILE
 	    && cache_is_fresh(&cache, time(NULL))) {
@@ -950,6 +964,7 @@ st_webget(struct st_webget_result *result,
 	status = connect_transport(&transport, &url, request);
 	if (status < 0)
 		goto cleanup;
+	conditional = cache.etag != NULL || cache.last_modified != NULL;
 	status = make_request(&wire_request, &url, &cache);
 	if (status < 0)
 		goto cleanup;
@@ -969,6 +984,10 @@ st_webget(struct st_webget_result *result,
 	if (status < 0)
 		goto cleanup;
 	if (response.status == 304) {
+		if (!conditional) {
+			status = IO_ERROR_PROTOCOL;
+			goto cleanup;
+		}
 		status = fs_get_info(&existing, output_path);
 		if (status < 0 || existing.kind != FS_ENTRY_FILE) {
 			status = IO_ERROR_PROTOCOL;

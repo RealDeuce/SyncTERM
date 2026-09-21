@@ -64,6 +64,12 @@ struct st_webget_result {
 	uint64_t size;
 };
 
+/*
+ * Request pointers and callback contexts are borrowed for the duration of the
+ * call. Cache metadata is bound to the exact URL string. Metadata created by
+ * older versions, or for a different URL, is revalidated without conditional
+ * headers; an existing output remains untouched unless replacement succeeds.
+ */
 int st_webget(struct st_webget_result *result,
     const struct st_webget_request *request);
 

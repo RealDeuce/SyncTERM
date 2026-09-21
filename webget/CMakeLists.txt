@@ -58,4 +58,20 @@ if(BUILD_TESTING)
 	endif()
 	add_test(NAME webget COMMAND st_webget_test)
 	set_tests_properties(webget PROPERTIES TIMEOUT 10)
+
+	add_executable(st_webget_transport_test
+		tests/st_webget_transport_test.c)
+	target_link_libraries(st_webget_transport_test PRIVATE st_webget
+		syncterm_filesystem syncterm_tcp_client)
+	target_compile_definitions(st_webget_transport_test PRIVATE
+		ST_WEBGET_TRANSPORT_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/webget-transport-test")
+	set_target_properties(st_webget_transport_test PROPERTIES C_STANDARD 17
+		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_webget_transport_test PRIVATE /W4 /WX)
+	else()
+		target_compile_options(st_webget_transport_test PRIVATE
+			-Wall -Wextra -Wpedantic -Werror)
+	endif()
+	add_test(NAME webget_transport COMMAND st_webget_transport_test)
 endif()
