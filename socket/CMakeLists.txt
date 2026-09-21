@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.22)
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	project(SyncTERMSocket LANGUAGES C)
 	include(CTest)
-	include(CheckCSourceCompiles)
+	include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCheckC17Source.cmake")
 	set(CMAKE_C_STANDARD 17)
 	set(CMAKE_C_STANDARD_REQUIRED ON)
 	set(CMAKE_C_EXTENSIONS OFF)
@@ -17,7 +17,7 @@ if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 		set(SYNCTERM_PLATFORM_WINDOWS FALSE)
 		set(SYNCTERM_PLATFORM_POSIX TRUE)
 	endif()
-	check_c_source_compiles([=[
+	syncterm_check_c17_source([=[
 #include <sys/types.h>
 int main(void) { ssize_t value = 0; return value != 0; }
 ]=] SYNCTERM_HAVE_SSIZE_T)
@@ -34,8 +34,8 @@ if(NOT EXISTS "${PROJECT_BINARY_DIR}/syncterm_config.h")
 		set(SYNCTERM_PLATFORM_WINDOWS FALSE)
 		set(SYNCTERM_PLATFORM_POSIX TRUE)
 	endif()
-	include(CheckCSourceCompiles)
-	check_c_source_compiles([=[
+	include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCheckC17Source.cmake")
+	syncterm_check_c17_source([=[
 #include <sys/types.h>
 int main(void) { ssize_t value = 0; return value != 0; }
 ]=] SYNCTERM_HAVE_SSIZE_T)
@@ -52,7 +52,7 @@ if(NOT TARGET st_time)
 		"${CMAKE_CURRENT_BINARY_DIR}/time")
 endif()
 
-include(CheckCSourceCompiles)
+include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCheckC17Source.cmake")
 
 set(SYNCTERM_SOCKET_DEFINITIONS)
 set(_socket_probe_definitions)
@@ -70,7 +70,7 @@ else()
 	set(_socket_saved_required_libraries ${CMAKE_REQUIRED_LIBRARIES})
 	set(CMAKE_REQUIRED_DEFINITIONS ${_socket_saved_required_definitions}
 		${_socket_probe_definitions})
-	check_c_source_compiles([=[
+	syncterm_check_c17_source([=[
 #include <fcntl.h>
 #include <poll.h>
 #include <netinet/in.h>
@@ -99,7 +99,7 @@ int main(void)
 	if(NOT SYNCTERM_SOCKET_POSIX_BASELINE)
 		set(CMAKE_REQUIRED_LIBRARIES
 			${_socket_saved_required_libraries} rt)
-		check_c_source_compiles([=[
+		syncterm_check_c17_source([=[
 #include <fcntl.h>
 #include <poll.h>
 #include <netinet/in.h>
@@ -135,11 +135,11 @@ int main(void)
 		message(FATAL_ERROR
 			"The selected POSIX programming environment does not provide the required socket, poll, fcntl, and monotonic-clock APIs")
 	endif()
-	check_c_source_compiles([=[
+	syncterm_check_c17_source([=[
 #include <sys/socket.h>
 int main(void) { return MSG_NOSIGNAL == 0; }
 ]=] SYNCTERM_SOCKET_HAVE_MSG_NOSIGNAL)
-	check_c_source_compiles([=[
+	syncterm_check_c17_source([=[
 #include <sys/socket.h>
 int main(void) { return SO_NOSIGPIPE == 0; }
 ]=] SYNCTERM_SOCKET_HAVE_SO_NOSIGPIPE)

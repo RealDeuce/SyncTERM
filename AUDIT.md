@@ -37,21 +37,21 @@ repository-wide coverage. The legacy tree is read-only reference.
 
 The repository-wide audit is complete. This is not an implementation approval
 or release certification. The consolidated API/design assessment, priority
-groups and all 44 outstanding finding summaries are in
+groups and all 39 outstanding finding summaries are in
 AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 
 | Objective requirement | Authoritative evidence and disposition |
 | --- | --- |
 | Entire repository, not only recent changes | git ls-files identifies 47 top-level source directories and 12 root files; every directory has an inventory row, no omissions. Per-component reviews cover local implementations, headers, tests/build and associated data/docs. |
-| API design, architecture and library layout | AUDIT_INDEX boundary/coupling/ownership assessment plus component public-contract and CMake dependency reviews; A001–A007, A047/A066, A088/A091 and host-contract findings. Cohesive decomposition is recognized; no redesign authorized. |
+| API design, architecture and library layout | AUDIT_INDEX boundary/coupling/ownership assessment plus component public-contract and CMake dependency reviews; A006/A007, A047/A066, A088/A091 and host-contract findings. Cohesive decomposition is recognized; no redesign authorized. |
 | Correctness, ownership/lifetime and concurrency | Component lifecycle/error reviews, normal and injected tests, explicit GUI/host ownership closure; source and reproduced failures are qualified individually. A023 illustrates a remaining timing and reclamation risk. |
 | Portability and all platform backends | POSIX/Windows sources and every audio/console backend reviewed; native, MinGW compile-only and unavailable runtime evidence kept separate. Capability probes/standalone targets reviewed. No unsupported platform pass inferred. |
 | Performance | Scaler/renderer benchmark source and measured cases reviewed, including common mixed-axis scaling; A011/A023 and backend pacing risks distinguished from measured regressions. Reconstructed legacy benchmark limitations explicitly recorded. |
 | Required legacy behavior | Read-only comparisons cover fonts/catalog/maps, modes, palette capacity, Prestel versus Mode 7, command line, console/input and settings behavior, plus explicit parity limits. Frozen CTerm chapter cmp succeeds. |
 | Wren scripts and bindings | Complete local source/signature/manual reviews; isolated shipped-script suites and host fixtures; remaining host findings through A113. Connected/SFTP production integration missing from this application is reported, not invented or silently counted as working. |
 | Build logic, generators and documentation | Root/component CMake and generators reviewed; standalone/probe failures recorded; pinned Unicode/font regeneration and table comparisons documented; root manuals/license/development guidance covered. Wren VM vendored internals limited to integration boundaries as requested. |
-| Inventory and consolidated findings | 44 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 18 medium, 24 low, 2 unresolved concerns; not all runtime reproductions. |
-| Relevant tests where practical | Complete native Clang and GCC builds succeed. The latest 90-test runs have a stable disposition of 88 pass, 1 fail and 1 Wayland skip. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
+| Inventory and consolidated findings | 39 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 16 medium, 21 low, 2 unresolved concerns; not all runtime reproductions. |
+| Relevant tests where practical | Complete native Clang and GCC builds succeed. The latest 91-test runs have a stable disposition of 89 pass, 1 fail and 1 Wayland skip. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
 | Explicit uncertainty | Each component records unavailable platforms, unexecuted failure paths and measurement limits; A007/A011 unresolved. Source-level risks are not called verified crashes. These are audit outcomes, not claims of implementation correctness. |
 
 Historical pending-source lists below are superseded by subsequent full reads,
@@ -103,13 +103,13 @@ not the absence of failing tests. New findings will receive stable A-numbers.
 | codepage/ | Reviewed | All local source/header/build/test read; exhaustive graphic roundtrip and expanded control/invalid-input tests pass native Clang/GCC; MinGW compile only |
 | connection/ | Reviewed | Shutdown stress and platform runtime gaps documented |
 | console/ | Reviewed | All local implementation/backends, tests, benchmark, build and docs read; local integration dispositions A047–A048 and GUI closure notes; native/isolated tests and platform-only risks distinguished; remaining Wren consumer questions belong to wren_host |
-| dynamic_library/ | Reviewed | A005; native fixtures pass; Windows compiled, not executed |
-| event/ | Reviewed | A004; native repeated tests, MinGW compile; failure-injection limitations below |
+| dynamic_library/ | Reviewed | Native fixtures pass; Windows compiled, not executed |
+| event/ | Reviewed | Native repeated tests, MinGW compile; failure-injection limitations below |
 | file_lock/ | Reviewed | A006; native tests plus failing controlled error-path reproduction; Windows source/compile only |
 | file_map/ | Reviewed | Native stream-lifetime test passes; Windows source/compile only |
 | filesystem/ | Reviewed | A010; native expanded tests pass; Windows compile-only regression |
 | fonts/ | Reviewed | API/generator/build/tests/docs reviewed; 98 legacy bitmaps and all 46 catalog metadata entries match; mapping bounds/legacy comparison and semantic limits below; native tests pass |
-| hex/ | Reviewed | A001; native tests and MinGW build; caller integration tracked separately |
+| hex/ | Reviewed | Native tests and MinGW build; caller integration tracked separately |
 | ini/ | Reviewed | All local sources/tests/build read; native tests pass; consumer integration tracked with owning components; failure injection/performance gaps below |
 | io_error/ | Reviewed | Sources/header/build and caller adapters reviewed; native test passes; 28 Win32 mapping cases added and MinGW compile/link verified, Windows execution unavailable |
 | list_crypto/ | Reviewed | All local code/tests/build read; expanded counted-password tests pass natively; MinGW compile only; provider/resource/erasure limits below |
@@ -118,7 +118,7 @@ not the absence of failing tests. New findings will receive stable A-numbers.
 | pixels/ | Reviewed | All local API/implementation/filter/build/docs/tests/benchmark read; expanded upscale edge tests pass native/ASan/UBSan, MinGW compile; measurement limits below |
 | profile/ | Reviewed | Ownership/copy source and native tests; allocation-failure injection remains a test gap |
 | scripts/ | Reviewed | All current script implementations/tests read, including main menu, editors, REPL, common bindings module and self-test driver; isolated suite results and runtime/cross-script gaps documented below; older remaining-source lists superseded |
-| semaphore/ | Reviewed | A004; native repeated tests, MinGW compile; failure-injection limitations below |
+| semaphore/ | Reviewed | Native repeated tests, MinGW compile; failure-injection limitations below |
 | serial/ | Reviewed | A013 disables normal PTY coverage; manually enabled native PTY tests pass; Windows compile only |
 | settings/ | Reviewed | All local sources/header/tests/build read; global caller discipline and failure injection gaps remain below |
 | socket/ | Reviewed | Loopback native tests pass; Windows compile only |
@@ -127,13 +127,13 @@ not the absence of failing tests. New findings will receive stable A-numbers.
 | string_util/ | Reviewed | Exhaustive byte classification/trim tests pass natively; MinGW compile |
 | tcp_client/ | Reviewed | Native algorithm and real loopback/refusal tests pass; Windows runtime exercised under Wine |
 | theme/ | Reviewed | All local sources/header/tests/build read; catalog/editor/error cleanup regressions are covered; remaining host/network integration and failure-injection gaps are below |
-| threads/ | Reviewed | A004/A011; native and forced pthread fallback tests pass; Win32 backend compiled |
-| time/ | Reviewed | A002; controlled-clock and existing native tests; Windows source-only review |
+| threads/ | Reviewed | A011; native and forced pthread fallback tests pass; Win32 backend compiled |
+| time/ | Reviewed | Controlled-clock and existing native tests; Windows source-only review |
 | unicode_grapheme/ | Reviewed | Public contracts/generator/runtime/build/docs/tests reviewed; pinned regeneration identical, generated trie bounds/order checked; expanded native tests pass, MinGW compile only |
 | unicode_normalization/ | Reviewed | Public contracts/generator/runtime/build/docs/tests reviewed; pinned regeneration identical, table bounds/order checked; exhaustive Hangul roundtrip passes natively, MinGW compile only |
 | unicode_width/ | Reviewed | Header/generator/runtime/build/docs/tests reviewed; pinned regeneration identical, exhaustive scalar consistency passes; font/grapheme integration tracked separately |
 | unifont/ | Reviewed | API/build/test/docs/license/shared generator reviewed; identical regeneration and exhaustive UNSCII overlay test; enabled/disabled native builds verified; packaging/Wren display tracked with owners |
-| utf8/ | Reviewed | A001; expanded native tests and MinGW build; caller integration tracked separately |
+| utf8/ | Reviewed | Expanded native tests and MinGW build; caller integration tracked separately |
 | value_convert/ | Reviewed | A021 date precedence conflict; all local sources/tests/build read; native exact rounding checks pass; exotic formats and numeric performance unverified |
 | webget/ | Reviewed | All local source/header/test/build read; exact-URL cache identity and single-owner transport cleanup covered; remaining protocol/TLS/fault gaps below |
 | windows_utf/ | Reviewed | Source and MinGW compile; Windows runtime not verified |
@@ -681,89 +681,6 @@ documentation coverage does not settle remaining app/console/host integration
 follow-ups or constitute final consolidated audit completion.
 
 ## Findings
-
-### A001 — Empty-input and decode-result contracts are underspecified
-
-Severity: low. Classification: confirmed API documentation gap, not a proven
-implementation failure.
-
-- hex/st_hex.h: encode/decode comments do not say that both buffers must be
-  non-NULL even for empty input. hex/st_hex.c rejects NULL unconditionally.
-- utf8/st_utf8.h: decode documents unchanged outputs but not its success value,
-  exact error codes, mandatory output pointers, one-scalar prefix consumption,
-  or treatment of an empty/truncated input. The implementation returns zero on
-  success, INVALID_ARGUMENT for invalid pointers, INVALID_ENCODING for an empty
-  or incomplete sequence, and does not require consuming the entire buffer.
-
-Recommendation: document the existing contracts explicitly after approval;
-there is no need to redesign either API to resolve this finding. No header or
-implementation changes made by this audit.
-
-### A002 — Monotonic capability probe does not match target language mode
-
-Severity: medium portability risk. Classification: confirmed configuration
-context mismatch; no failing target platform reproduced in this audit.
-
-`time/CMakeLists.txt:22` and the librt retry use check_c_source_compiles without
-selecting C17/no extensions for the probe. The actual st_time target selects
-both. `build/CMakeFiles/CMakeConfigureLog.yaml:3681` confirms that the successful
-probe command has no `-std=c17`, whereas the target uses strict C17. A declaration
-visible only in a compiler's default programming environment can therefore pass
-the probe without establishing the target's required declaration/link context.
-Linux's explicit _GNU_SOURCE reduces that particular risk there but does not
-make the language-mode mismatch disappear. Recommendation: align probe context
-with the consuming target; no CMake changes made by this audit.
-
-### A003 — SDL uses an uninitialized deadline after clock failure
-
-Severity: medium, rare error path. Classification: confirmed source defect;
-the helper failure is tested, full SDL failure injection is not reproduced.
-
-`console/console_sdl.c:1238` declares an uninitialized timespec in next_command;
-line 1240 discards the return from st_time_utc_deadline_after_ms. If that helper
-fails (e.g. timespec_get returns zero), it leaves the output untouched. With an
-empty command queue and no shutdown, the subsequent condition timed wait receives
-the uninitialized structure. This violates its input contract and may produce
-undefined behavior or an unintended wait/busy loop.
-
-`time/tests/st_time_fault_test.c` directly exercises the helper's clock-failure
-path and verifies the output remains untouched. Recommendation: handle the
-failure before passing a deadline to timedwait, using an explicit error/shutdown
-policy. Merely initializing a zero deadline could turn failure into a busy loop.
-The broader SDL lifecycle audit is still pending. No implementation changed.
-
-### A004 — Event and semaphore deadline contracts omit the clock
-
-Severity: low. Classification: confirmed public API documentation gap.
-
-`event/st_event.h:32` and `semaphore/st_semaphore.h:33` accept a timespec
-deadline without specifying absolute versus relative time or the clock.
-Their implementations pass the value to st_condition_timedwait; the pthread
-backend uses default condition attributes (realtime clock), and the Windows
-backend computes a remaining duration from UTC. The public thread header also
-does not state that clock contract. Callers therefore need implementation
-knowledge to construct a correct deadline. Headers additionally omit explicit
-BUSY/timeout outcomes and immediate availability behavior for expired deadlines.
-Recommendation: document absolute UTC deadlines and the operation outcomes;
-do not change clocks or timeout behavior as an incidental documentation fix.
-No public headers changed in this audit.
-
-### A005 — Dynamic-library search policy is only partially documented
-
-Severity: low. Classification: confirmed API contract gap, not a request to
-change the previously approved loading policy.
-
-`dynamic_library/dynamic_library.h:23` describes preferred and older major
-versions but omits unversioned precedence. The POSIX implementation tries
-libNAME.so.MAJOR, libNAME.so, NAME.so, then descending older .so versions;
-on Apple it subsequently tries the dylib sequence. Thus an unversioned library
-can win over an available older version, and .so names win over dylib names.
-Windows ignores preferred_major and visibility, trying NAME.dll per alias.
-The header does not spell out these platform distinctions, symbol lifetime
-(bounded by the loaded library), or that loader failures other than absence
-also return NOT_FOUND (the unresolved-dependency fixture exercises that case).
-Recommendation: document the existing policy and limitations rather than
-silently changing lookup order or splitting the symbol API.
 
 ### A006 — POSIX file-lock cleanup can overwrite the acquisition error
 
@@ -2573,7 +2490,7 @@ C17 compile/link probe for ssize_t and the configured public type header;
 the Windows fallback uses SSIZE_T, while POSIX absence is fatal. Configuration
 is generated in the binary directory. Root itself neither downloads data nor
 runs target executables; component-specific probes remain covered by their
-own audits, including A002. Optional Unifont controls both its subdirectory
+own audits. Optional Unifont controls both its subdirectory
 and app linkage/definition. There are no root directory-wide compiler flags.
 The build*/ ignore pattern is not anchored and also ignores such directories
 below subdirectories, consistent with broadly excluding build trees.
@@ -2720,8 +2637,7 @@ application runs in a joined worker. Per-display commands borrow caller stack
 storage until signaled completion; the console core is responsible for one
 in-flight command per display. SDL library and video/text-input lifetime
 span the runner rather than each console. Events route by window ID, with
-SDL_QUIT delivered to every managed display. A003 still covers the unchecked
-deadline-construction failure in next_command. Returning from application_main
+SDL_QUIT delivered to every managed display. Returning from application_main
 with other threads still submitting console commands needs lifecycle-contract
 verification at the host integration; the passing tests destroy consoles first.
 
@@ -2959,9 +2875,8 @@ Build review: platform libraries are target-scoped, generated configuration
 and Wayland protocol files reside in the binary tree, runtime-loaded GUI
 libraries generally need headers at build time rather than runtime linkage.
 Wayland scanner is a host executable; cross-root discovery/tool selection
-needs actual cross-build verification. Several probes do not explicitly select
-the target's strict C17 programming environment (same class of concern as
-A002), and curses header checks do not establish the complete implementation
+needs actual cross-build verification. Curses header checks do not establish
+the complete implementation
 API/ABI. GCC suppresses pedantic warnings for whole backend source files, not
 only symbol conversions. These are review concerns, not reproduced additional
 portability failures. Minimal standalone native build concretely fails A047.
@@ -3017,7 +2932,7 @@ Encoding checks overflow before multiplication. Decoding validates the entire
 source before writing, honoring failure atomicity and non-overlap precondition.
 Two decode passes deliberately support unchanged destination on invalid input;
 no performance defect established. Public CMake includes are scoped to the
-component and C17 requirements are target-local. A001 documents the API gap.
+component and C17 requirements are target-local.
 Consumer sites identified in INI, list_crypto, BBS profile codec and theme cloud;
 full caller error/format handling remains assigned to those component reviews.
 
@@ -3029,7 +2944,7 @@ overlong forms and scalar validity before publishing outputs. Encoding stages
 bytes locally and leaves an undersized destination untouched while returning
 required size, as documented. No allocation, locale state or OS-specific path.
 CMake depends on io_error; no dependency cycle within this component.
-A001 records missing decode contract details. Console/theme/Wren caller behavior
+Console/theme/Wren caller behavior
 remains assigned to their respective reviews. Round trips alone are insufficient
 proof of correctness; tests must retain independent known encodings and invalid
 sequence cases as well.
@@ -3058,8 +2973,7 @@ checks multiply/add overflow. Windows milliseconds use GetTickCount64 while
 nanoseconds use QueryPerformanceCounter/Frequency: do not assume a shared epoch
 between these APIs. No current mixed-epoch consumer was found in the call-site
 search; nanoseconds are used by benchmarks. Neither helper owns resources or
-uses mutable global state. A002 covers the capability-probe mismatch; A003 is
-a caller error found while tracing the helper contract. Windows arithmetic was
+uses mutable global state. Windows arithmetic was
 source-reviewed but not fault-injected or runtime-tested in this pass.
 
 ### io_error
@@ -3119,8 +3033,8 @@ linear in preferred_major and alias count, so arbitrary untrusted huge major
 values would be expensive. Current callers use small constants. Names and
 runtime symbol use/teardown in audio and console remain those callers' audits.
 
-Build checks establish loader link availability but, like A002, do not select
-the target's C17 language mode. POSIX ${CMAKE_DL_LIBS} is target-local; Apple
+Build checks establish loader link availability in the target's strict C17
+language mode. POSIX ${CMAKE_DL_LIBS} is target-local; Apple
 naming is selected in CMake. GCC pedantic suppression accommodates native
 function-pointer conversions; no alternative declaration hack is introduced.
 Fixtures exercise functions and data, invalid input, missing names/symbols,
@@ -3154,7 +3068,7 @@ keys do not canonicalize aliases; native locks still provide the actual file
 exclusion. The POSIX descriptor is opened without close-on-exec: inheritance into
 spawned programs needs checking with the connection/process-launch audit before
 assigning user-visible impact. flock errors are retried only on EINTR; A006
-captures cleanup error loss. The flock probe shares A002's language-mode issue.
+captures cleanup error loss.
 
 Existing tests exercise shared/shared and both shared/exclusive directions
 within one process, but not exclusive/exclusive or multiple processes. The
@@ -3180,8 +3094,8 @@ streams can bypass the access check that POSIX performs before its empty case;
 the header does not currently promise rejection of write-only empty streams.
 Mapped size is captured at open and data has no NUL-termination promise. INI's
 borrowed-stream use is identified but parser ownership/error behavior remains
-part of the INI audit. CMake is target-scoped and has platform capability checks;
-the language-mode caveat in A002 also applies to those probes.
+part of the INI audit. CMake is target-scoped and its platform capability
+checks use the target's strict C17 language mode.
 Tests cover binary/Unicode paths, empty files, multiple maps, stream position,
 non-file streams, invalid arguments and unchanged failure outputs. Added a
 direct lifetime check after closing the borrowed stream. Native tests pass;
@@ -3233,8 +3147,7 @@ lifetime, remains part of each consuming component's review.
 
 ### string_compat
 
-All five files read. Unlike the A002 probes, the local capability helper sets
-C17, requires it, and disables language extensions. Probes take function
+All five files read. Capability probes take function
 addresses with complete signatures, preventing undeclared-call false positives,
 and link actual calls. Linux _GNU_SOURCE and Windows CRT warning selection
 are applied consistently to probes and propagated to consumers through the
@@ -3348,8 +3261,8 @@ settings/key directories must impose that policy separately (caller reviews
 pending). Neither backend provides hostile-directory race resistance. Windows
 directory-link deletion behavior differs from POSIX lstat-based removal and is
 not explicitly documented. A010 records a concrete root-only failure.
-CMake requires 64-bit off_t with a _FILE_OFFSET_BITS retry and target-local
-definitions, but its probes share A002's default-language-mode mismatch. Public
+CMake requires 64-bit off_t with a _FILE_OFFSET_BITS retry, target-local
+definitions and strict-C17 probes. Public
 path linkage exceeds the types needed by filesystem.h; no cycle established.
 
 Existing tests cover metadata, exclusive creation, multi-GiB sparse truncation,
@@ -3370,10 +3283,9 @@ CMake probes in strict C17 and prefers the complete pthread contract even on
 Windows; otherwise it selects the Win32 implementation. Optional pthread
 timed-mutex/rwlock facilities are separately probed. Configuration only compiles
 and links; no target execution required. PUBLIC platform definitions/includes
-keep the concrete public type layout consistent with consumers. Most operation
-preconditions are left implicit by the terse C11-style header; A004 includes
-the missing deadline clock. NULL/invalid-handle tolerance is not consistent
-across native and fallback paths and should not be assumed.
+keep the concrete public type layout consistent with consumers. NULL/invalid-
+handle tolerance is not consistent across native and fallback paths and should
+not be assumed.
 
 Pthread startup owns and frees its argument packet, join/exit transfer int
 results through intptr_t, and native TLS keys own only associations, not caller
@@ -3451,9 +3363,9 @@ handles on SO_NOSIGPIPE-only platforms need their own setup, an undocumented
 constraint. Error translation is platform-specific, with some unavoidable
 resource-error distinctions. TCP uses the socket private header as an explicit
 cross-library mechanism boundary; it is not an independent public wait-many API.
-Root include directories are exposed for generated config/types. Standalone
-builds set C17 for probes, but aggregate builds may share A002's probe-context
-issue. Windows link dependencies and platform sources are target-local.
+Root include directories are exposed for generated config/types. Capability
+probes use strict C17 in both standalone and aggregate builds. Windows link
+dependencies and platform sources are target-local.
 
 TCP resolves synchronously before deadline/cancellation, as explicitly stated
 in its header. It copies IPv4/IPv6 addresses into aligned bounded storage,
@@ -3511,8 +3423,8 @@ driver-latency benchmark. Baud enumeration reports native expressible/supported
 rates, not a guarantee of physical hardware acceptance. Modem status outputs
 publish only on success. There is no locale dependency or global mutable state.
 
-CMake selects one platform source with narrow helpers and per-capability probes;
-aggregate probe language-mode caveat A002 applies. Root includes are exposed for
+CMake selects one platform source with narrow helpers and strict-C17
+per-capability probes. Root includes are exposed for
 common generated types. A013 explains why ordinary serial CTest lacked real I/O.
 Manually enabled PTY tests cover transfers, timeouts, invalid config, enumeration,
 zero-length operations and close on this FreeBSD host. No physical serial device,
@@ -3538,8 +3450,8 @@ are distinct from the passing argument-only normal CTest.
   and remote input EOF stops both directions. These are not yet labeled
   defects without establishing the required caller contract.
 - Core clock helpers ignore failures (zero timestamp or expired deadline),
-  unlike returning the clock error. The deadline is initialized, so this is
-  not the uninitialized-data issue in A003. Mutex/condition/join failures are
+  unlike returning the clock error. The deadline is initialized. Mutex,
+  condition and join failures are
   commonly ignored; injected synchronization failures are not covered yet.
 - Network transport serializes geometry and atomically queues RLogin window
   packets; stop wakes blocked queue writers before joining. Geometry updates
@@ -3549,10 +3461,9 @@ are distinct from the passing argument-only normal CTest.
   The initial server acknowledgment byte is not separately consumed or
   validated; the fake server omits it. Compatibility with rejection messages
   and ordinary servers remains an integration test gap.
-- Connection's forkpty capability probes have the same target/probe language
-  context issue as A002 in aggregate builds; standalone configuration sets
-  the language standard. Unlike serial A013, their actual probe result names
-  are distinct from the preinitialized selection variables.
+- Connection's forkpty capability probes use strict C17 in both aggregate and
+  standalone builds. Unlike serial A013, their actual probe result names are
+  distinct from the preinitialized selection variables.
 - Serial setup opens/configures before publishing the connection, snapshots
   the 7-bit policy, and closes/DTR-drops on setup failure. Its profile/global
   settings inputs must remain stable during setup; mutable global modem
@@ -3673,9 +3584,9 @@ are distinct from the passing argument-only normal CTest.
   range before multiplication; floating exception/trapping and non-IEC behavior
   remain portability questions for the decimal arithmetic review. No integer
   replacement or locale API introduced by this audit.
-- Native-time probes share A002's language-context mismatch. string_util is
-  linked PUBLIC though its API is absent from the public conversion header;
-  this is an unnecessarily exposed implementation dependency, not a cycle.
+- string_util is linked PUBLIC though its API is absent from the public
+  conversion header; this is an unnecessarily exposed implementation
+  dependency, not a cycle.
 - Existing numeric tests cover a small set of extrema and a locale-independence
   check that silently skips unavailable non-C locales. No claim those locales
   were installed/exercised. New date test uses two forms in the same timezone
@@ -3743,8 +3654,8 @@ are distinct from the passing argument-only normal CTest.
   lists and drain scans affect scaling. No audio latency or contention metric
   gathered, so no measured performance regression claimed. Ticket/sequence
   wrap after 2^64 operations is not handled consistently but not reproduced.
-- CMake math probes share A002's context mismatch; thread/io_error dependencies
-  are PUBLIC despite neither being exposed by the mixer header. Existing tests
+- Thread/io_error dependencies are PUBLIC despite neither being exposed by the
+  mixer header. Existing tests
   cover basic mixing, loop termination, clear/drain and delayed acknowledgment,
   but their sleeps are scheduling assumptions, not explicit waiter barriers.
   Allocation/synchronization failure injection and concurrent mutation stress
@@ -3827,8 +3738,8 @@ are distinct from the passing argument-only normal CTest.
 - CMake separates policy AUTO/ON/OFF from detection and supports runtime-loaded
   optional libraries. Package probes compile only top-level headers, not all
   used API declarations/struct fields (notably PipeWire requested buffer field);
-  version compatibility can fail later at build time. Probes also share A002's
-  strict-language-context gap. SDL is off in normal builds, so its source was
+  version compatibility can fail later at build time. SDL is off in normal
+  builds, so its source was
   inspected but not compiled here. Native configured providers: ALSA, OSS,
   PipeWire, PortAudio, PulseAudio. MinGW configured provider: WASAPI.
 - Dependency direction is audio -> mixer/loader/threads; mixer is needlessly
@@ -4704,14 +4615,6 @@ successful verification.
 - Only hex/tests/st_hex_test.c, utf8/tests/st_utf8_test.c and this audit report
   changed during this pass. No production/header/build/documentation edits,
   commits, pushes or reverts performed as part of this pass.
-- Time/error pass: existing time and io_error CTests pass in both native builds.
-  Added audit-only time/tests/st_time_fault_test.c; compiled and ran successfully
-  with cc (Clang) and gcc13 using the documented standalone command. It directly
-  includes unchanged production st_time.c with controlled clocks, testing UTC
-  failure/invalid nanoseconds, carry normalization, invalid duration, monotonic
-  failure output preservation, infinity, UINT64 saturation, INT64 clamping and
-  expiration. No CMake registration was added because build edits are prohibited.
-  This is helper-level evidence, not evidence that SDL handles failures safely.
 - Event/semaphore pass: both targets rebuilt with Clang and GCC, both CTests
   passed ten consecutive runs per compiler. MinGW targets compiled and linked;
   no Windows runtime claim. Only their test sources and this report changed.

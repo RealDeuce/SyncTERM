@@ -17,20 +17,20 @@ if(WIN32)
 	set(ST_TIME_PLATFORM_SOURCE st_time_windows.c)
 	set(ST_TIME_PLATFORM_LIBRARIES)
 else()
-	include(CheckCSourceCompiles)
+	include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCheckC17Source.cmake")
 	set(_st_time_saved_required_libraries ${CMAKE_REQUIRED_LIBRARIES})
 	set(_st_time_saved_required_definitions ${CMAKE_REQUIRED_DEFINITIONS})
 	if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 		set(ST_TIME_DEFINITIONS _GNU_SOURCE)
 		list(APPEND CMAKE_REQUIRED_DEFINITIONS -D_GNU_SOURCE)
 	endif()
-	check_c_source_compiles([=[
+	syncterm_check_c17_source([=[
 #include <time.h>
 int main(void) { struct timespec value; return clock_gettime(CLOCK_MONOTONIC, &value); }
 ]=] ST_TIME_HAVE_MONOTONIC)
 	if(NOT ST_TIME_HAVE_MONOTONIC)
 		set(CMAKE_REQUIRED_LIBRARIES ${_st_time_saved_required_libraries} rt)
-		check_c_source_compiles([=[
+		syncterm_check_c17_source([=[
 #include <time.h>
 int main(void) { struct timespec value; return clock_gettime(CLOCK_MONOTONIC, &value); }
 ]=] ST_TIME_HAVE_MONOTONIC_WITH_RT)
@@ -63,13 +63,23 @@ endif()
 if(BUILD_TESTING)
 	add_executable(st_time_test tests/st_time_test.c)
 	target_link_libraries(st_time_test PRIVATE st_time)
+	add_executable(st_time_fault_test tests/st_time_fault_test.c)
+	target_include_directories(st_time_fault_test PRIVATE
+		${CMAKE_CURRENT_SOURCE_DIR}
+		${CMAKE_CURRENT_SOURCE_DIR}/../io_error)
 	set_target_properties(st_time_test PROPERTIES
+		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	set_target_properties(st_time_fault_test PROPERTIES
 		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
 		target_compile_options(st_time_test PRIVATE /W4 /WX)
+		target_compile_options(st_time_fault_test PRIVATE /W4 /WX)
 	else()
 		target_compile_options(st_time_test PRIVATE
 			-Wall -Wextra -Wpedantic -Werror)
+		target_compile_options(st_time_fault_test PRIVATE
+			-Wall -Wextra -Wpedantic -Werror)
 	endif()
 	add_test(NAME time COMMAND st_time_test)
+	add_test(NAME time_fault COMMAND st_time_fault_test)
 endif()

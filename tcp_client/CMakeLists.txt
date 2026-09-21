@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.22)
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	project(SyncTERMTCPClient LANGUAGES C)
 	include(CTest)
-	include(CheckCSourceCompiles)
+	include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCheckC17Source.cmake")
 	set(CMAKE_C_STANDARD 17)
 	set(CMAKE_C_STANDARD_REQUIRED ON)
 	set(CMAKE_C_EXTENSIONS OFF)
@@ -17,7 +17,7 @@ if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 		set(SYNCTERM_PLATFORM_WINDOWS FALSE)
 		set(SYNCTERM_PLATFORM_POSIX TRUE)
 	endif()
-	check_c_source_compiles([=[
+	syncterm_check_c17_source([=[
 #include <sys/types.h>
 int main(void) { ssize_t value = 0; return value != 0; }
 ]=] SYNCTERM_HAVE_SSIZE_T)
@@ -42,13 +42,13 @@ else()
 	endif()
 endif()
 
-include(CheckCSourceCompiles)
+include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCheckC17Source.cmake")
 set(_tcp_client_saved_required_definitions ${CMAKE_REQUIRED_DEFINITIONS})
 set(_tcp_client_saved_required_libraries ${CMAKE_REQUIRED_LIBRARIES})
 if(WIN32)
 	set(CMAKE_REQUIRED_LIBRARIES
 		${_tcp_client_saved_required_libraries} ws2_32)
-	check_c_source_compiles([=[
+	syncterm_check_c17_source([=[
 #include <winsock2.h>
 #include <ws2tcpip.h>
 int main(void)
@@ -69,7 +69,7 @@ else()
 		set(CMAKE_REQUIRED_DEFINITIONS
 			${_tcp_client_saved_required_definitions} -D_GNU_SOURCE)
 	endif()
-	check_c_source_compiles([=[
+	syncterm_check_c17_source([=[
 #include <netdb.h>
 #include <netinet/in.h>
 #include <sys/socket.h>

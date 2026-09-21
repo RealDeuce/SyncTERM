@@ -7,8 +7,8 @@ recommended remedies. Severity does not imply exploitability; source-confirmed
 risks and reproduced failures must be distinguished using those entries.
 No remediation is authorized by this report.
 
-The audit is complete, not the implementation: **44 outstanding findings**
-comprise 18 medium, 24 low and 2 unresolved design/performance
+The audit is complete, not the implementation: **39 outstanding findings**
+comprise 16 medium, 21 low and 2 unresolved design/performance
 concerns.
 This is not a count of exploitable vulnerabilities or reproduced failures.
 All 47 tracked source directories and 12 root files are covered by the
@@ -38,7 +38,7 @@ consumer boundaries, not evidence that the entire decomposition is wrong.
 | --- | --- | --- |
 | Native I/O → portable result | A006 loses errno during cleanup | Preserve error ownership across cleanup |
 | Script declarations → bound implementation | A098 shows an unavailable demo dependency | Keep capability scope explicit and test the shipped scripts against the actual host |
-| Public target → independent consumer | A002, A013, A047, A066 expose probe/dependency gaps | Probe the real declaration/link environment and test minimal consumers |
+| Public target → independent consumer | A013, A047 and A066 expose probe/dependency gaps | Probe the real declaration/link environment and test minimal consumers |
 | Source libraries → application distribution | A088, A091, A095 distinguish a functioning menu build from connected runtime, DLL/core packaging and notice assembly | Document and verify actual artifacts without representing planned integration as complete |
 
 Concrete coupling concerns, not automatic refactoring requests:
@@ -72,18 +72,13 @@ No new blanket GC, contention or scaling-performance diagnosis is made from
 source shape. The source and test inventory must retain those measurement
 limits in the final report.
 
-The current TODO documents contain 44 outstanding numbered findings. A007 and
+The current TODO documents contain 39 outstanding numbered findings. A007 and
 A011 are unresolved design/performance concerns, not confirmed runtime defects.
 Missing features and documentation errors are also explicitly distinguished
 from implementation failures in the detailed ledger.
 
 | Finding | Severity / qualification | Subject |
 | --- | --- | --- |
-| A001 | low | Empty-input and decode-result contracts are underspecified |
-| A002 | medium portability risk | Monotonic capability probe does not match target language mode |
-| A003 | medium | SDL uses an uninitialized deadline after clock failure |
-| A004 | low | Event and semaphore deadline contracts omit the clock |
-| A005 | low | Dynamic-library search policy is only partially documented |
 | A006 | low | POSIX file-lock cleanup can overwrite the acquisition error |
 | A007 | unresolved | Typed-list representation needs a portability decision |
 | A008 | medium under concurrent directory changes | Windows current-directory buffer growth is mistaken for success |
@@ -128,8 +123,8 @@ from implementation failures in the detailed ledger.
 
 ### Latest configured native verification
 
-Native Clang and GCC builds succeed. Each configured tree registers 90 tests;
-the stable disposition is **88 pass, 1 fail and 1 Wayland test skipped**. The
+Native Clang and GCC builds succeed. Each configured tree registers 91 tests;
+the stable disposition is **89 pass, 1 fail and 1 Wayland test skipped**. The
 X11 tests pass on a dedicated Xvfb display; SDL uses its CMake-configured dummy
 video driver.
 This is native verification, not Windows/macOS execution or comprehensive

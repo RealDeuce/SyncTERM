@@ -24,14 +24,14 @@ endif()
 set(_st_pixel_image_have_jxl FALSE)
 set(_st_pixel_image_have_jxl_threads FALSE)
 if(NOT _st_pixel_image_jxl STREQUAL "OFF")
-	include(CheckCSourceCompiles)
+	include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCheckC17Source.cmake")
 	find_path(ST_PIXEL_IMAGE_JXL_INCLUDE_DIR jxl/decode.h)
 	if(ST_PIXEL_IMAGE_JXL_INCLUDE_DIR)
 		set(_st_saved_required_includes "${CMAKE_REQUIRED_INCLUDES}")
 		set(_st_saved_try_compile_target_type "${CMAKE_TRY_COMPILE_TARGET_TYPE}")
 		set(CMAKE_REQUIRED_INCLUDES "${ST_PIXEL_IMAGE_JXL_INCLUDE_DIR}")
 		set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
-		check_c_source_compiles([=[
+		syncterm_check_c17_source([=[
 #include <jxl/cms.h>
 #include <jxl/decode.h>
 #include <jxl/encode.h>
@@ -46,7 +46,7 @@ int main(void)
 	return JPEGXL_MAJOR_VERSION < 0;
 }
 ]=] ST_PIXEL_IMAGE_JXL_HEADERS_VALID)
-		check_c_source_compiles([=[
+		syncterm_check_c17_source([=[
 #include <jxl/decode.h>
 #include <jxl/resizable_parallel_runner.h>
 int main(void)

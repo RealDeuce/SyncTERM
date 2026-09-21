@@ -8,7 +8,7 @@ if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	include(CTest)
 endif()
 
-include(CheckCSourceCompiles)
+include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCheckC17Source.cmake")
 find_package(PkgConfig QUIET)
 
 option(ST_AUDIO_BUILD_AUDIBLE_SMOKE_TEST
@@ -60,7 +60,7 @@ function(st_audio_use_pkg_backend option prefix package header source variable)
 	if(${prefix}_FOUND)
 		set(_st_audio_saved_required_includes ${CMAKE_REQUIRED_INCLUDES})
 		set(CMAKE_REQUIRED_INCLUDES ${${prefix}_INCLUDE_DIRS})
-		check_c_source_compiles("#include <${header}>\nint main(void) { return 0; }"
+		syncterm_check_c17_source("#include <${header}>\nint main(void) { return 0; }"
 			ST_AUDIO_${option}_HEADERS_WORK)
 		set(CMAKE_REQUIRED_INCLUDES ${_st_audio_saved_required_includes})
 	endif()
@@ -93,7 +93,7 @@ set(ST_AUDIO_OSS_HEADER_SYS_SOUNDCARD 0)
 set(ST_AUDIO_OSS_HEADER_MACHINE_SOUNDCARD 0)
 set(ST_AUDIO_OSS_LIBRARIES)
 if(NOT ST_AUDIO_OSS STREQUAL "OFF")
-	check_c_source_compiles([=[
+	syncterm_check_c17_source([=[
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/soundcard.h>
@@ -109,7 +109,7 @@ int main(void)
 		set(ST_AUDIO_HAVE_OSS 1)
 		set(ST_AUDIO_OSS_HEADER_SYS_SOUNDCARD 1)
 	else()
-		check_c_source_compiles([=[
+		syncterm_check_c17_source([=[
 #include <fcntl.h>
 #include <machine/soundcard.h>
 #include <sys/ioctl.h>
@@ -129,7 +129,7 @@ int main(void)
 	if(NOT ST_AUDIO_HAVE_OSS)
 		set(_st_audio_saved_required_libraries ${CMAKE_REQUIRED_LIBRARIES})
 		set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES} ossaudio)
-		check_c_source_compiles([=[
+		syncterm_check_c17_source([=[
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/soundcard.h>
@@ -160,7 +160,7 @@ if(NOT ST_AUDIO_CORE_AUDIO STREQUAL "OFF")
 	set(_st_audio_saved_required_libraries ${CMAKE_REQUIRED_LIBRARIES})
 	set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES}
 		${ST_AUDIO_AUDIO_TOOLBOX_FRAMEWORK})
-	check_c_source_compiles([=[
+	syncterm_check_c17_source([=[
 #include <AudioToolbox/AudioToolbox.h>
 int main(void)
 {
@@ -182,7 +182,7 @@ if(NOT ST_AUDIO_WASAPI STREQUAL "OFF")
 	set(_st_audio_saved_required_libraries ${CMAKE_REQUIRED_LIBRARIES})
 	set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES}
 		avrt ole32 uuid)
-	check_c_source_compiles([=[
+	syncterm_check_c17_source([=[
 #define COBJMACROS
 #include <initguid.h>
 #include <audioclient.h>
@@ -219,7 +219,7 @@ set(ST_AUDIO_KIOCSOUND_HEADER_LINUX_KD 0)
 if(WIN32)
 	list(APPEND _st_audio_sources audio_beep_windows.c)
 else()
-	check_c_source_compiles([=[
+	syncterm_check_c17_source([=[
 #include <machine/speaker.h>
 #include <sys/ioctl.h>
 int main(void) { tone_t tone = { 440, 10 }; return SPKRTONE + tone.frequency; }
@@ -228,7 +228,7 @@ int main(void) { tone_t tone = { 440, 10 }; return SPKRTONE + tone.frequency; }
 		set(ST_AUDIO_HAVE_SPEAKER_TONE 1)
 		set(ST_AUDIO_SPEAKER_HEADER_MACHINE_SPEAKER 1)
 	else()
-		check_c_source_compiles([=[
+		syncterm_check_c17_source([=[
 #include <machine/spkr.h>
 #include <sys/ioctl.h>
 int main(void) { tone_t tone = { 440, 10 }; return SPKRTONE + tone.frequency; }
@@ -237,7 +237,7 @@ int main(void) { tone_t tone = { 440, 10 }; return SPKRTONE + tone.frequency; }
 			set(ST_AUDIO_HAVE_SPEAKER_TONE 1)
 		endif()
 	endif()
-	check_c_source_compiles([=[
+	syncterm_check_c17_source([=[
 #include <sys/kbio.h>
 #include <sys/ioctl.h>
 int main(void) { return KIOCSOUND; }
@@ -245,7 +245,7 @@ int main(void) { return KIOCSOUND; }
 	if(ST_AUDIO_KIOCSOUND_WORKS)
 		set(ST_AUDIO_HAVE_KIOCSOUND 1)
 	else()
-		check_c_source_compiles([=[
+		syncterm_check_c17_source([=[
 #include <linux/kd.h>
 #include <sys/ioctl.h>
 int main(void) { return KIOCSOUND; }

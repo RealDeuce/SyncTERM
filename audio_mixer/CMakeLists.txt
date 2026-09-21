@@ -8,7 +8,7 @@ if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 include(CTest)
 endif()
 
-include(CheckCSourceCompiles)
+include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCheckC17Source.cmake")
 
 if(NOT TARGET syncterm_threads)
 	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../threads"
@@ -23,7 +23,7 @@ add_library(st_audio_mixer STATIC audio_mixer.c)
 target_include_directories(st_audio_mixer PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_audio_mixer PUBLIC syncterm_threads syncterm_io_error)
 
-check_c_source_compiles([=[
+syncterm_check_c17_source([=[
 #include <math.h>
 int main(void)
 {
@@ -36,7 +36,7 @@ int main(void)
 if(NOT ST_AUDIO_MIXER_MATH_IN_C_LIBRARY)
 	set(_st_audio_mixer_saved_required_libraries ${CMAKE_REQUIRED_LIBRARIES})
 	set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES} m)
-	check_c_source_compiles([=[
+	syncterm_check_c17_source([=[
 #include <math.h>
 int main(void)
 {

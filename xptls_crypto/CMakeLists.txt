@@ -8,7 +8,7 @@ if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	include(CTest)
 endif()
 
-include(CheckCSourceCompiles)
+include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCheckC17Source.cmake")
 
 option(XPTLS_CRYPTO_TEST_CLEAR_FALLBACK
 	"Build the best-effort clear fallback test even when it is not selected" OFF)
@@ -26,7 +26,7 @@ set(CMAKE_REQUIRED_DEFINITIONS ${_xptls_saved_required_definitions}
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
-check_c_source_compiles([=[
+syncterm_check_c17_source([=[
 #include <stddef.h>
 #include <string.h>
 int main(void)
@@ -38,7 +38,7 @@ int main(void)
 }
 ]=] XPTLS_CRYPTO_HAVE_MEMSET_EXPLICIT)
 if(NOT XPTLS_CRYPTO_HAVE_MEMSET_EXPLICIT AND NOT WIN32)
-	check_c_source_compiles([=[
+	syncterm_check_c17_source([=[
 #include <stddef.h>
 #include <string.h>
 #include <strings.h>
@@ -64,10 +64,10 @@ endif()
 find_package(OpenSSL 3.0 QUIET)
 
 if(OpenSSL_FOUND)
-	include(CheckCSourceCompiles)
+	include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCheckC17Source.cmake")
 	set(_xptls_saved_required_libraries "${CMAKE_REQUIRED_LIBRARIES}")
 	set(CMAKE_REQUIRED_LIBRARIES OpenSSL::Crypto)
-	check_c_source_compiles([=[
+	syncterm_check_c17_source([=[
 #include <openssl/evp.h>
 int main(void)
 {

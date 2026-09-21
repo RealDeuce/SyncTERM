@@ -1265,14 +1265,24 @@ submit_command(struct sdl_command *command)
 static struct sdl_command *
 next_command(bool *application_done)
 {
+	static const struct timespec idle = {0, 10000000L};
 	struct sdl_command *command;
 	struct timespec deadline;
+	int deadline_status;
 
-	(void)st_time_utc_deadline_after_ms(&deadline, 10);
+	deadline_status = st_time_utc_deadline_after_ms(&deadline, 10);
 	(void)st_mutex_lock(&manager.mutex);
-	if (manager.commands_head == NULL && !manager.application_done)
-		(void)st_condition_timedwait(&manager.changed, &manager.mutex,
-		    &deadline);
+	if (manager.commands_head == NULL && !manager.application_done) {
+		if (deadline_status == 0) {
+			(void)st_condition_timedwait(&manager.changed,
+			    &manager.mutex, &deadline);
+		}
+		else {
+			(void)st_mutex_unlock(&manager.mutex);
+			(void)st_thread_sleep(&idle, NULL);
+			(void)st_mutex_lock(&manager.mutex);
+		}
+	}
 	command = manager.commands_head;
 	if (command != NULL) {
 		manager.commands_head = command->next;

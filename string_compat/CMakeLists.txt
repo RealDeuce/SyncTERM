@@ -8,18 +8,10 @@ if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	include(CTest)
 endif()
 
-include(CheckCSourceCompiles)
+include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCheckC17Source.cmake")
 
 option(STRING_COMPAT_TEST_FALLBACKS
 	"Build tests that force every string compatibility fallback" OFF)
-
-function(string_compat_check_c17_source result source)
-	set(CMAKE_C_STANDARD 17)
-	set(CMAKE_C_STANDARD_REQUIRED ON)
-	set(CMAKE_C_EXTENSIONS OFF)
-	check_c_source_compiles("${source}" ${result})
-	set(${result} "${${result}}" PARENT_SCOPE)
-endfunction()
 
 set(STRING_COMPAT_COMPILE_DEFINITIONS)
 set(_string_compat_probe_definitions)
@@ -36,7 +28,7 @@ set(CMAKE_REQUIRED_DEFINITIONS
 	${_string_compat_saved_required_definitions}
 	${_string_compat_probe_definitions})
 
-string_compat_check_c17_source(STRING_COMPAT_ENV_HAVE_STRDUP [=[
+syncterm_check_c17_source([=[
 #include <stdlib.h>
 #include <string.h>
 
@@ -48,9 +40,9 @@ int main(void)
 	free(copy);
 	return failed;
 }
-]=])
+]=] STRING_COMPAT_ENV_HAVE_STRDUP)
 
-string_compat_check_c17_source(STRING_COMPAT_ENV_HAVE_STRNDUP [=[
+syncterm_check_c17_source([=[
 #include <stdlib.h>
 #include <string.h>
 
@@ -62,9 +54,9 @@ int main(void)
 	free(copy);
 	return failed;
 }
-]=])
+]=] STRING_COMPAT_ENV_HAVE_STRNDUP)
 
-string_compat_check_c17_source(STRING_COMPAT_ENV_HAVE_STRLCPY [=[
+syncterm_check_c17_source([=[
 #include <stddef.h>
 #include <string.h>
 
@@ -74,9 +66,9 @@ int main(void)
 	char destination[4];
 	return copy(destination, "string", sizeof(destination)) != 6;
 }
-]=])
+]=] STRING_COMPAT_ENV_HAVE_STRLCPY)
 
-string_compat_check_c17_source(STRING_COMPAT_ENV_HAVE_STRLCAT [=[
+syncterm_check_c17_source([=[
 #include <stddef.h>
 #include <string.h>
 
@@ -86,7 +78,7 @@ int main(void)
 	char destination[8] = "one";
 	return append(destination, "two", sizeof(destination)) != 6;
 }
-]=])
+]=] STRING_COMPAT_ENV_HAVE_STRLCAT)
 
 set(CMAKE_REQUIRED_DEFINITIONS
 	${_string_compat_saved_required_definitions})

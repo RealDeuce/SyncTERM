@@ -28,8 +28,8 @@ endif()
 if(WIN32)
 	set(ST_FILE_LOCK_PLATFORM_SOURCE st_file_lock_windows.c)
 else()
-	include(CheckCSourceCompiles)
-	check_c_source_compiles([=[
+	include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCheckC17Source.cmake")
+	syncterm_check_c17_source([=[
 #include <sys/file.h>
 #include <unistd.h>
 int main(void) { return flock(0, LOCK_SH) == 0; }

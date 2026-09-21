@@ -18,16 +18,7 @@ option(SYNCTERM_ENABLE_UNIFONT
 	"Build and use the GPLv2+ GNU Unifont-derived composite" ON)
 
 include(CTest)
-include(CheckCSourceCompiles)
-
-function(syncterm_check_c17_source result source)
-	set(CMAKE_C_STANDARD 17)
-	set(CMAKE_C_STANDARD_REQUIRED ON)
-	set(CMAKE_C_EXTENSIONS OFF)
-	set(CMAKE_REQUIRED_INCLUDES ${ARGN})
-	check_c_source_compiles("${source}" ${result})
-	set(${result} "${${result}}" PARENT_SCOPE)
-endfunction()
+include("${CMAKE_CURRENT_LIST_DIR}/cmake/SynctermCheckC17Source.cmake")
 
 if(WIN32)
 	set(SYNCTERM_PLATFORM_WINDOWS TRUE)
@@ -37,7 +28,7 @@ else()
 	set(SYNCTERM_PLATFORM_POSIX TRUE)
 endif()
 
-syncterm_check_c17_source(SYNCTERM_HAVE_SSIZE_T [=[
+syncterm_check_c17_source([=[
 #include <sys/types.h>
 
 int main(void)
@@ -45,7 +36,7 @@ int main(void)
 	ssize_t value = (ssize_t)-1;
 	return value < 0 ? 0 : 1;
 }
-]=])
+]=] SYNCTERM_HAVE_SSIZE_T)
 
 if(NOT SYNCTERM_HAVE_SSIZE_T AND SYNCTERM_PLATFORM_POSIX)
 	message(FATAL_ERROR "The target POSIX platform does not provide ssize_t")
@@ -53,7 +44,10 @@ endif()
 
 configure_file(syncterm_config.h.in syncterm_config.h @ONLY)
 
-syncterm_check_c17_source(SYNCTERM_TYPES_HEADER_VALID [=[
+set(_syncterm_saved_required_includes ${CMAKE_REQUIRED_INCLUDES})
+set(CMAKE_REQUIRED_INCLUDES
+	"${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}")
+syncterm_check_c17_source([=[
 #include "syncterm_types.h"
 
 _Static_assert((ssize_t)-1 < (ssize_t)0, "ssize_t must be signed");
@@ -63,7 +57,9 @@ int main(void)
 	ssize_t value = 0;
 	return value != 0;
 }
-]=] "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}")
+]=] SYNCTERM_TYPES_HEADER_VALID)
+set(CMAKE_REQUIRED_INCLUDES ${_syncterm_saved_required_includes})
+unset(_syncterm_saved_required_includes)
 
 if(NOT SYNCTERM_TYPES_HEADER_VALID)
 	message(FATAL_ERROR "syncterm_types.h is not usable with the target C17 toolchain")

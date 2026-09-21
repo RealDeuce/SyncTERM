@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.22)
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	project(STConnection LANGUAGES C)
 	include(CTest)
-	include(CheckCSourceCompiles)
+	include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCheckC17Source.cmake")
 	set(CMAKE_C_STANDARD 17)
 	set(CMAKE_C_STANDARD_REQUIRED ON)
 	set(CMAKE_C_EXTENSIONS OFF)
@@ -17,7 +17,7 @@ if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 		set(SYNCTERM_PLATFORM_WINDOWS FALSE)
 		set(SYNCTERM_PLATFORM_POSIX TRUE)
 	endif()
-	check_c_source_compiles([=[
+	syncterm_check_c17_source([=[
 #include <sys/types.h>
 int main(void) { ssize_t value = 0; return value != 0; }
 ]=] SYNCTERM_HAVE_SSIZE_T)
@@ -51,7 +51,7 @@ if(WIN32 AND NOT TARGET st_windows_utf)
 		"${CMAKE_CURRENT_BINARY_DIR}/windows_utf")
 endif()
 
-include(CheckCSourceCompiles)
+include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCheckC17Source.cmake")
 set(ST_CONNECTION_HAVE_FORKPTY FALSE)
 set(ST_CONNECTION_HAVE_CONPTY FALSE)
 set(ST_CONNECTION_HAVE_TTYDEFAULTS FALSE)
@@ -69,7 +69,7 @@ set(_st_connection_saved_required_definitions ${CMAKE_REQUIRED_DEFINITIONS})
 if(WIN32)
 	set(CMAKE_REQUIRED_LIBRARIES
 		${_st_connection_saved_required_libraries} bcrypt)
-	check_c_source_compiles([=[
+	syncterm_check_c17_source([=[
 #include <windows.h>
 #include <bcrypt.h>
 int main(void)
@@ -121,7 +121,7 @@ else()
 		list(APPEND ST_CONNECTION_DEFINITIONS _GNU_SOURCE)
 		list(APPEND CMAKE_REQUIRED_DEFINITIONS -D_GNU_SOURCE)
 	endif()
-	check_c_source_compiles([=[
+	syncterm_check_c17_source([=[
 #include <termios.h>
 #define TTYDEFCHARS
 #include <sys/ttydefaults.h>
@@ -140,19 +140,19 @@ int main(void)
 ]=] ST_CONNECTION_TTYDEFAULTS_PROGRAMMING_ENVIRONMENT)
 	set(ST_CONNECTION_HAVE_TTYDEFAULTS
 		${ST_CONNECTION_TTYDEFAULTS_PROGRAMMING_ENVIRONMENT})
-	check_c_source_compiles([=[
+	syncterm_check_c17_source([=[
 #include <termios.h>
 int main(void) { tcflag_t flag = IXANY; return flag == 0; }
 ]=] ST_CONNECTION_IXANY_PROGRAMMING_ENVIRONMENT)
 	set(ST_CONNECTION_HAVE_IXANY
 		${ST_CONNECTION_IXANY_PROGRAMMING_ENVIRONMENT})
-	check_c_source_compiles([=[
+	syncterm_check_c17_source([=[
 #include <termios.h>
 int main(void) { return VERASE2; }
 ]=] ST_CONNECTION_VERASE2_PROGRAMMING_ENVIRONMENT)
 	set(ST_CONNECTION_HAVE_VERASE2
 		${ST_CONNECTION_VERASE2_PROGRAMMING_ENVIRONMENT})
-	check_c_source_compiles([=[
+	syncterm_check_c17_source([=[
 #include <termios.h>
 int main(void)
 {
@@ -169,7 +169,7 @@ int main(void)
 		foreach(_header IN ITEMS pty.h util.h libutil.h)
 			string(REPLACE "." "_" _header_key ${_header})
 			string(TOUPPER ${_header_key} _header_key)
-			check_c_source_compiles("#include <${_header}>\n#include <fcntl.h>\n#include <poll.h>\n#include <signal.h>\n#include <sys/ioctl.h>\n#include <sys/wait.h>\n#include <termios.h>\n#include <unistd.h>\nextern char **environ;\nint main(void) { int master; int status; struct winsize size = {0}; struct termios attributes; struct pollfd item = {0}; pid_t child = forkpty(&master, 0, 0, &size); (void)poll(&item, 1, 0); (void)tcgetattr(master, &attributes); (void)tcsetattr(master, TCSANOW, &attributes); (void)fcntl(master, F_GETFD); (void)ioctl(master, TIOCSWINSZ, &size); (void)kill(child, SIGHUP); (void)waitpid(child, &status, WNOHANG); (void)execle(\"/bin/sh\", \"sh\", (char *)0, environ); (void)read(master, &status, sizeof(status)); (void)write(master, &status, sizeof(status)); return close(master); }"
+			syncterm_check_c17_source("#include <${_header}>\n#include <fcntl.h>\n#include <poll.h>\n#include <signal.h>\n#include <sys/ioctl.h>\n#include <sys/wait.h>\n#include <termios.h>\n#include <unistd.h>\nextern char **environ;\nint main(void) { int master; int status; struct winsize size = {0}; struct termios attributes; struct pollfd item = {0}; pid_t child = forkpty(&master, 0, 0, &size); (void)poll(&item, 1, 0); (void)tcgetattr(master, &attributes); (void)tcsetattr(master, TCSANOW, &attributes); (void)fcntl(master, F_GETFD); (void)ioctl(master, TIOCSWINSZ, &size); (void)kill(child, SIGHUP); (void)waitpid(child, &status, WNOHANG); (void)execle(\"/bin/sh\", \"sh\", (char *)0, environ); (void)read(master, &status, sizeof(status)); (void)write(master, &status, sizeof(status)); return close(master); }"
 				ST_CONNECTION_FORKPTY_COMPLETE_${_header_key}_${_library})
 			if(ST_CONNECTION_FORKPTY_COMPLETE_${_header_key}_${_library})
 				set(ST_CONNECTION_HAVE_FORKPTY TRUE)

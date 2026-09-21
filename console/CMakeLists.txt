@@ -8,7 +8,7 @@ if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	include(CTest)
 endif()
 
-include(CheckCSourceCompiles)
+include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCheckC17Source.cmake")
 find_package(PkgConfig QUIET)
 
 set(ST_CONSOLE_HAVE_QUARTZ 0)
@@ -31,7 +31,7 @@ set(ST_CONSOLE_HAVE_WIN32 0)
 if(WIN32)
 	set(_st_console_saved_required_libraries ${CMAKE_REQUIRED_LIBRARIES})
 	set(CMAKE_REQUIRED_LIBRARIES user32 gdi32 shell32)
-	check_c_source_compiles([=[
+	syncterm_check_c17_source([=[
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <shellapi.h>
@@ -47,7 +47,7 @@ int main(void)
 	return 0;
 }
 ]=] ST_CONSOLE_GDI_API_WORKS)
-	check_c_source_compiles([=[
+	syncterm_check_c17_source([=[
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 int main(void)
@@ -178,7 +178,7 @@ endif()
 set(_st_console_saved_try_compile_target_type
 	${CMAKE_TRY_COMPILE_TARGET_TYPE})
 set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
-check_c_source_compiles([=[
+syncterm_check_c17_source([=[
 #include <curses.h>
 int main(void)
 {
@@ -190,7 +190,7 @@ int main(void)
 }
 ]=] ST_CONSOLE_HAVE_CURSES_H)
 if(ST_CONSOLE_HAVE_CURSES_H)
-	check_c_source_compiles([=[
+	syncterm_check_c17_source([=[
 #include <curses.h>
 #include <wchar.h>
 int main(void)
@@ -202,7 +202,7 @@ int main(void)
 	return get_wide(window, &value) + add_wide(window, L"", 0);
 }
 ]=] ST_CONSOLE_HAVE_CURSES_WIDE)
-	check_c_source_compiles([=[
+	syncterm_check_c17_source([=[
 #include <curses.h>
 int main(void)
 {
@@ -234,7 +234,7 @@ if(NOT ST_CONSOLE_SDL STREQUAL "OFF")
 		list(REMOVE_DUPLICATES ST_CONSOLE_SDL_INCLUDE_DIRS)
 		set(_st_console_saved_required_includes ${CMAKE_REQUIRED_INCLUDES})
 		set(CMAKE_REQUIRED_INCLUDES ${ST_CONSOLE_SDL_INCLUDE_DIRS})
-		check_c_source_compiles("#include <SDL.h>\nint main(void) { SDL_Event event; (void)event; return 0; }"
+		syncterm_check_c17_source("#include <SDL.h>\nint main(void) { SDL_Event event; (void)event; return 0; }"
 			ST_CONSOLE_SDL_HEADERS_USABLE)
 		set(CMAKE_REQUIRED_INCLUDES ${_st_console_saved_required_includes})
 	endif()
@@ -436,7 +436,7 @@ if(BUILD_TESTING)
 			set(CMAKE_REQUIRED_LIBRARIES ${ST_CONSOLE_TEST_UTIL_LIBRARY})
 		endif()
 		if(_st_console_pty_header)
-			check_c_source_compiles("#include <${_st_console_pty_header}>\n#include <sys/ioctl.h>\nint main(void) { int fd; struct winsize size = {0}; return forkpty(&fd, 0, 0, &size) < 0; }"
+			syncterm_check_c17_source("#include <${_st_console_pty_header}>\n#include <sys/ioctl.h>\nint main(void) { int fd; struct winsize size = {0}; return forkpty(&fd, 0, 0, &size) < 0; }"
 				ST_CONSOLE_TEST_HAVE_FORKPTY)
 		endif()
 		set(CMAKE_REQUIRED_LIBRARIES ${_st_console_saved_required_libraries})

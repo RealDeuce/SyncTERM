@@ -13,11 +13,11 @@ if(NOT TARGET syncterm_io_error)
 		"${CMAKE_CURRENT_BINARY_DIR}/io_error")
 endif()
 
-include(CheckCSourceCompiles)
+include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCheckC17Source.cmake")
 
 if(WIN32)
 	set(SYNCTERM_DYNAMIC_LIBRARY_PLATFORM_SOURCE dynamic_library_windows.c)
-	check_c_source_compiles([=[
+	syncterm_check_c17_source([=[
 #include <windows.h>
 int main(void)
 {
@@ -33,7 +33,7 @@ else()
 		${CMAKE_REQUIRED_LIBRARIES})
 	set(CMAKE_REQUIRED_LIBRARIES
 		${_dynamic_library_saved_required_libraries} ${CMAKE_DL_LIBS})
-	check_c_source_compiles([=[
+	syncterm_check_c17_source([=[
 #include <dlfcn.h>
 int main(void)
 {

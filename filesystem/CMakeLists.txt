@@ -13,7 +13,7 @@ if(NOT TARGET syncterm_path)
 		"${CMAKE_CURRENT_BINARY_DIR}/path")
 endif()
 
-include(CheckCSourceCompiles)
+include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCheckC17Source.cmake")
 
 if(WIN32)
 	set(SYNCTERM_FILESYSTEM_PLATFORM_SOURCE filesystem_windows.c)
@@ -56,14 +56,14 @@ int main(void)
 	set(CMAKE_REQUIRED_DEFINITIONS
 		${_filesystem_saved_required_definitions}
 		${_filesystem_posix_probe_definitions})
-	check_c_source_compiles("${_filesystem_posix_probe}"
+	syncterm_check_c17_source("${_filesystem_posix_probe}"
 		SYNCTERM_FILESYSTEM_POSIX_ENV_BASELINE)
 	if(NOT SYNCTERM_FILESYSTEM_POSIX_ENV_BASELINE)
 		set(CMAKE_REQUIRED_DEFINITIONS
 			${_filesystem_saved_required_definitions}
 			${_filesystem_posix_probe_definitions}
 			-D_FILE_OFFSET_BITS=64)
-		check_c_source_compiles("${_filesystem_posix_probe}"
+		syncterm_check_c17_source("${_filesystem_posix_probe}"
 			SYNCTERM_FILESYSTEM_POSIX_ENV_LARGEFILE_BASELINE)
 		if(SYNCTERM_FILESYSTEM_POSIX_ENV_LARGEFILE_BASELINE)
 			list(APPEND SYNCTERM_FILESYSTEM_POSIX_DEFINITIONS

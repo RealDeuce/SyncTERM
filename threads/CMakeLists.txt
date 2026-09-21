@@ -8,7 +8,7 @@ if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	include(CTest)
 endif()
 
-include(CheckCSourceCompiles)
+include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCheckC17Source.cmake")
 
 set(_st_threads_saved_c_standard ${CMAKE_C_STANDARD})
 set(_st_threads_saved_c_standard_required ${CMAKE_C_STANDARD_REQUIRED})
@@ -28,7 +28,7 @@ set(THREADS_PREFER_PTHREAD_FLAG TRUE)
 find_package(Threads QUIET)
 if(Threads_FOUND)
 	set(CMAKE_REQUIRED_LIBRARIES Threads::Threads)
-	check_c_source_compiles([=[
+	syncterm_check_c17_source([=[
 #include <pthread.h>
 #include <sched.h>
 #include <time.h>
@@ -85,7 +85,7 @@ if(ST_THREADS_HAVE_PTHREAD_BACKEND)
 	set(ST_THREADS_BACKEND_PTHREAD TRUE)
 	set(ST_THREADS_BACKEND_WINDOWS FALSE)
 	set(ST_THREADS_SOURCES st_threads_pthread.c st_rwlock_pthread.c)
-	check_c_source_compiles([=[
+	syncterm_check_c17_source([=[
 #include <pthread.h>
 int main(void)
 {
@@ -100,7 +100,7 @@ int main(void)
 	return 0;
 }
 ]=] ST_THREADS_HAVE_PTHREAD_RWLOCK)
-	check_c_source_compiles([=[
+	syncterm_check_c17_source([=[
 #include <pthread.h>
 #include <time.h>
 int main(void)
@@ -112,7 +112,7 @@ int main(void)
 ]=] ST_THREADS_HAVE_PTHREAD_MUTEX_TIMEDLOCK)
 elseif(WIN32)
 	set(CMAKE_REQUIRED_LIBRARIES)
-	check_c_source_compiles([=[
+	syncterm_check_c17_source([=[
 #include <process.h>
 #include <stdint.h>
 #include <time.h>

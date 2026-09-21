@@ -15,13 +15,13 @@ foreach(_dependency IN ITEMS io_error filesystem)
 	endif()
 endforeach()
 
-include(CheckCSourceCompiles)
+include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCheckC17Source.cmake")
 
 set(SYNCTERM_FILE_MAP_DEFINITIONS)
 set(_file_map_saved_required_definitions ${CMAKE_REQUIRED_DEFINITIONS})
 if(WIN32)
 	set(SYNCTERM_FILE_MAP_PLATFORM_SOURCE file_map_windows.c)
-	check_c_source_compiles([=[
+	syncterm_check_c17_source([=[
 #include <stdio.h>
 #include <io.h>
 #include <stdint.h>
@@ -51,7 +51,7 @@ else()
 		set(CMAKE_REQUIRED_DEFINITIONS
 			${_file_map_saved_required_definitions} -D_GNU_SOURCE)
 	endif()
-	check_c_source_compiles([=[
+	syncterm_check_c17_source([=[
 #include <stdio.h>
 #include <fcntl.h>
 #include <sys/mman.h>

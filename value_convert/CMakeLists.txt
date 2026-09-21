@@ -13,11 +13,11 @@ if(NOT TARGET syncterm_string_util)
 		"${CMAKE_CURRENT_BINARY_DIR}/string_util")
 endif()
 
-include(CheckCSourceCompiles)
+include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCheckC17Source.cmake")
 
 if(WIN32)
 	set(SYNCTERM_VALUE_CONVERT_TIME_SOURCE value_convert_time_windows.c)
-	check_c_source_compiles([=[
+	syncterm_check_c17_source([=[
 #include <time.h>
 int main(void)
 {
@@ -43,7 +43,7 @@ else()
 	set(CMAKE_REQUIRED_DEFINITIONS
 		${_value_convert_saved_required_definitions}
 		${_value_convert_probe_definitions})
-	check_c_source_compiles([=[
+	syncterm_check_c17_source([=[
 #include <time.h>
 int main(void)
 {

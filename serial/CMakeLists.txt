@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.22)
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	project(STSerial LANGUAGES C)
 	include(CTest)
-	include(CheckCSourceCompiles)
+	include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCheckC17Source.cmake")
 	set(CMAKE_C_STANDARD 17)
 	set(CMAKE_C_STANDARD_REQUIRED ON)
 	set(CMAKE_C_EXTENSIONS OFF)
@@ -17,7 +17,7 @@ if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 		set(SYNCTERM_PLATFORM_WINDOWS FALSE)
 		set(SYNCTERM_PLATFORM_POSIX TRUE)
 	endif()
-	check_c_source_compiles([=[
+	syncterm_check_c17_source([=[
 #include <sys/types.h>
 int main(void) { ssize_t value = 0; return value != 0; }
 ]=] SYNCTERM_HAVE_SSIZE_T)
@@ -38,7 +38,7 @@ if(WIN32 AND NOT TARGET st_time)
 		"${CMAKE_CURRENT_BINARY_DIR}/time")
 endif()
 
-include(CheckCSourceCompiles)
+include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCheckC17Source.cmake")
 
 set(ST_SERIAL_DEFINITIONS)
 set(_st_serial_saved_required_definitions ${CMAKE_REQUIRED_DEFINITIONS})
@@ -50,7 +50,7 @@ endif()
 
 if(WIN32)
 	set(ST_SERIAL_PLATFORM_SOURCE serial_windows.c)
-	check_c_source_compiles([=[
+	syncterm_check_c17_source([=[
 #include <windows.h>
 int main(void)
 {
@@ -82,7 +82,7 @@ int main(void)
 ]=] ST_SERIAL_PLATFORM_BASELINE)
 else()
 	set(ST_SERIAL_PLATFORM_SOURCE serial_posix.c)
-	check_c_source_compiles([=[
+	syncterm_check_c17_source([=[
 #include <fcntl.h>
 #include <poll.h>
 #include <sys/ioctl.h>
@@ -108,11 +108,11 @@ int main(void)
 	return close(fd);
 }
 ]=] ST_SERIAL_PLATFORM_BASELINE)
-	check_c_source_compiles([=[
+	syncterm_check_c17_source([=[
 #include <termios.h>
 int main(void) { tcflag_t flags = CRTSCTS; return flags == 0; }
 ]=] ST_SERIAL_HAVE_CRTSCTS)
-	check_c_source_compiles([=[
+	syncterm_check_c17_source([=[
 #include <termios.h>
 int main(void)
 {
@@ -120,7 +120,7 @@ int main(void)
 	return flags == 0;
 }
 ]=] ST_SERIAL_HAVE_CCTS_OFLOW_CRTS_IFLOW)
-	check_c_source_compiles([=[
+	syncterm_check_c17_source([=[
 #include <sys/ioctl.h>
 #include <termios.h>
 int main(void)
@@ -132,10 +132,10 @@ int main(void)
 }
 ]=] ST_SERIAL_HAVE_MODEM_CONTROL)
 	foreach(_line IN ITEMS TIOCM_CAR TIOCM_CD TIOCM_RNG TIOCM_RI)
-		check_c_source_compiles("#include <sys/ioctl.h>\n#include <termios.h>\nint main(void) { return ${_line} == 0; }"
+		syncterm_check_c17_source("#include <sys/ioctl.h>\n#include <termios.h>\nint main(void) { return ${_line} == 0; }"
 			ST_SERIAL_HAVE_${_line})
 	endforeach()
-	check_c_source_compiles([=[
+	syncterm_check_c17_source([=[
 #include <sys/ioctl.h>
 #include <termios.h>
 int main(void)
@@ -161,7 +161,7 @@ int main(void)
 	foreach(_rate IN ITEMS 57600 115200 230400 460800 500000 576000
 	    921600 1000000 1152000 1500000 2000000 2500000 3000000
 	    3500000 4000000)
-		check_c_source_compiles("#include <termios.h>\nint main(void) { speed_t speed = B${_rate}; return speed == 0; }"
+		syncterm_check_c17_source("#include <termios.h>\nint main(void) { speed_t speed = B${_rate}; return speed == 0; }"
 			ST_SERIAL_HAVE_B${_rate})
 	endforeach()
 endif()
@@ -208,7 +208,7 @@ if(BUILD_TESTING)
 		if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 			list(APPEND CMAKE_REQUIRED_DEFINITIONS -D_GNU_SOURCE)
 		endif()
-		check_c_source_compiles([=[
+		syncterm_check_c17_source([=[
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>

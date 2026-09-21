@@ -1,7 +1,3 @@
-/* Audit-only controlled-clock test; no production hooks or build edits.
- * Compile: cc -std=c17 -Wall -Wextra -Werror -Itime -Iio_error
- *   time/tests/st_time_fault_test.c -o /tmp/st_time_fault_test
- */
 /* Copyright (c) 2026 Stephen Hurd
  * SPDX-License-Identifier: BSD-2-Clause
  */
