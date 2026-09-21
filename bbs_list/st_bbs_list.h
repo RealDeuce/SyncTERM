@@ -27,11 +27,18 @@ enum st_bbs_source {
 	ST_BBS_SOURCE_WEB_NAMED,
 };
 
+bool st_bbs_name_equal(const char *left, const char *right);
+bool st_bbs_name_valid(const char *name);
+
 struct st_bbs_entry {
 	const struct st_profile *profile;
 	enum st_bbs_source source;
 	const char *source_name;
 };
+
+/* Returns the first lower-priority entry hidden by entry, when one exists. */
+const struct st_bbs_entry *st_bbs_entry_shadowed(
+    const struct st_bbs_entry *entry);
 
 struct st_bbs_diagnostic {
 	enum st_bbs_source source;
@@ -76,11 +83,12 @@ void st_bbs_list_close(st_bbs_list_t *list);
 int st_bbs_list_reload(st_bbs_list_t *list);
 
 /*
- * Returned entries, profiles, diagnostics, defaults, and crypto information
- * are borrowed from list. They remain valid only until the next non-const
- * operation on that list, whether or not it succeeds, or until close. A
- * borrowed value may be passed directly as an input to that next operation.
- * Access to one list object must be serialized by its caller.
+ * Returned entries, profiles, diagnostics, defaults, shadowed entries, and
+ * crypto information are borrowed from list. A failed operation leaves them
+ * and the generation unchanged. A successful operation which changes or
+ * rebuilds the view invalidates them; a borrowed profile may be passed
+ * directly as input to that operation. Access to one list object must be
+ * serialized by its caller.
  */
 size_t st_bbs_list_count(const st_bbs_list_t *list);
 const struct st_bbs_entry *st_bbs_list_at(const st_bbs_list_t *list,
@@ -108,6 +116,13 @@ int st_bbs_list_remove(st_bbs_list_t *list, const char *name,
     struct st_bbs_mutation_result *result);
 int st_bbs_list_set_defaults(st_bbs_list_t *list,
     const struct st_profile *defaults);
+
+/*
+ * A successful mutation publishes its complete new in-memory view and advances
+ * the generation exactly once. The candidate view is allocated before the
+ * personal-list file is opened for writing. A write error may leave that file
+ * partially modified, but does not publish the candidate view or generation.
+ */
 
 /* Explicitly rewrites plain/v1/v2 storage using current v2 encryption. */
 int st_bbs_list_rewrite_encryption(st_bbs_list_t *list,
@@ -165,6 +180,11 @@ enum st_bbs_sort_field {
 int st_bbs_sort_field_normalize(int field);
 const char *st_bbs_sort_field_name(int field);
 bool st_bbs_sort_field_reversed(int field);
+/* fields must contain values accepted by st_bbs_sort_field_normalize(). */
+int st_bbs_compare_profiles(const struct st_profile *left,
+    enum st_bbs_source left_source, const struct st_profile *right,
+    enum st_bbs_source right_source, const int *fields,
+    size_t field_count);
 int st_bbs_list_sort(st_bbs_list_t *list, const int *fields,
     size_t field_count);
 

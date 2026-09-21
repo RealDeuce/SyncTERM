@@ -51,7 +51,7 @@ AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 | Wren scripts and bindings | Complete local source/signature/manual reviews; isolated shipped-script suites and host fixtures; host closure A100–A113. Connected/SFTP production integration missing from this application is reported, not invented or silently counted as working. |
 | Build logic, generators and documentation | Root/component CMake and generators reviewed; standalone/probe failures recorded; pinned Unicode/font regeneration and table comparisons documented; root manuals/license/development guidance covered. Wren VM vendored internals limited to integration boundaries as requested. |
 | Inventory and consolidated findings | 65 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 38 medium, 25 low, 2 unresolved concerns; not all runtime reproductions. |
-| Relevant tests where practical | A complete native build succeeds. The latest 75-test run has a stable disposition of 72 pass, 2 fail and 1 Wayland skip. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
+| Relevant tests where practical | A complete native build succeeds. The latest 76-test run has a stable disposition of 73 pass, 2 fail and 1 Wayland skip. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
 | Explicit uncertainty | Each component records unavailable platforms, unexecuted failure paths and measurement limits; A007/A011 unresolved. Source-level risks are not called verified crashes. These are audit outcomes, not claims of implementation correctness. |
 
 Historical pending-source lists below are superseded by subsequent full reads,
@@ -173,9 +173,9 @@ evidence. All new fixtures use fresh temporary paths and a headless console.
   that absence alone is not classified as a regression. Any future selector
   policy must retain the full-cell explicit-glyph bypass and registry lifetime.
 - Theme selection/deletion failure behavior is covered for local and cloud
-  themes. General OOM/failure rollback remains untested. BBS and
-  Settings persistence/stale-handle/safe-mode boundaries are already covered
-  in A061–A065 and A100–A105, not assumed safe from their normal-path tests.
+  themes. General OOM/failure rollback remains untested. Remaining Settings
+  and BBS mutation boundaries are covered in A063–A065, A100, and A105, not
+  assumed safe from their normal-path tests.
 - Host/VM lifetimes, borrowed config and synchronous dispatcher use follow the
   application ownership review. Multiple logical consoles do not make Wren
   thread-safe. Actual connected-session event scheduling/SFTP capabilities
@@ -366,64 +366,6 @@ alone settle when menu cells should interpret legacy selector bits. Keep that
 as a caller/legacy-contract question rather than recommending that every
 bright/blink change automatically chooses a different font. Full-cell writes
 intentionally bypass lookup, a distinct contract that must be retained.
-
-### A102 — BBS admission and transient-operation guards do not match the menu contract
-
-Severity: medium (confirmed host API contract defect, persistence consequences
-partly source-only). Wren.adoc requires quick-connect transient rename/save/
-delete to return false and Menu.create to reject invalid/duplicate names.
-wren_bind_menu.c's quick-connect and create paths both construct PERSONAL,
-is_new foreign objects. rename checks string capacity only, with no transient
-or read-only guard. create copies defaults and truncates the supplied name
-without checking validity or uniqueness. The shared save path treats is_new
-as permission to add a durable personal entry; there is no transient marker.
-
-Two additional native `bbs-setters` cases reproduce accepted rename of a
-quick-connect object and non-null creation of the existing fixture name Audit.
-Both assertions fail after a clean strict-warning compile. The fixture URL
-is parsed only, never connected; neither case calls save. The first compile
-hit Clang's adjacent-string-array warning in the test, corrected with explicit
-parentheses before the successful rebuild and five-case run. Output from the
-older executable after that failed compile is not evidence for the new cases.
-
-Lower-layer inspection limits the claim: st_bbs_list_add validates the name
-and rejects a duplicate disk section; it resets added/connected/calls when
-inserting. update/remove require baseline_personal and only write the personal
-document. Thus an editable system-copy or duplicate draft is not evidence
-that system/web source files can be overwritten. It still contradicts the
-host's in-memory read-only/admission promises, and transient saves can reach
-the ordinary insertion path if other checks succeed. Actual transient disk
-insertion was not executed. Recommend enforcing object-category/name rules at
-the documented API boundary and testing them without weakening lower storage
-validation.
-
-### A101 — BBS handles remain usable after a successful model reload
-
-Severity: medium (confirmed stale-state contract mismatch, not a demonstrated
-memory-lifetime error). Wren.adoc:4282 promises that a successful full load,
-create or delete invalidates older BBS handles and that using them aborts.
-The foreign_bbs structure in wren_bind_menu.c:43 contains an owned profile
-copy and original name but no model-generation token. bbs_value checks the
-foreign type only. Reload therefore cannot distinguish an old object from one
-acquired from the current model.
-
-Extended the isolated `bbs-setters` test with a third case: obtain a BBS from
-Menu.entries, successfully reload the synthetic list, then read the old
-entry's addr in a caught fiber. No abort occurs, so the stale-handle assertion
-fails. Strict-warning native compilation succeeds; the two earlier setter
-cases still fail independently. No save/delete or personal-list operation is
-performed. Source inspection shows save uses original_name against the current
-host list, so stale copies can be submitted to a different model generation;
-actual overwrite behavior is not reproduced here and is not asserted as a
-new disk-data-loss finding.
-
-Recommendation: reconcile the implemented handle semantics with the declared
-generation contract and test load/create/delete invalidation plus sort/rename
-preservation. Deep copies avoid a dangling borrowed profile but do not by
-themselves supply stale-object detection. This finding does not authorize
-introducing a new generation design; it reports the documented behavior that
-the implementation currently does not provide. Wren guidance was used for
-the caught-fiber assertion.
 
 ### A100 — Rejected BBS palette/script assignments partially change the object
 
@@ -822,9 +764,9 @@ documentation correction, not restoring obsolete transport restrictions).
   Modern event transport does not require the old byte-stuffing restriction;
   whether normalization is still required is a separate compatibility question.
 
-Other claims in this span map to already-recorded findings: transactional
-Menu.load conflicts with A061. Do not count repeated documentation promises
-as independent runtime defects. Font-slot terminology also needs
+Other claims in this span map to already-recorded findings; do not count
+repeated documentation promises as independent runtime defects. Font-slot
+terminology also needs
 reconciliation with the new registry/selector distinction. No connected
 runtime, GUI, network or personal-data action was performed; this pass changes
 audit notes only.
@@ -1341,25 +1283,6 @@ errors continue but leave status set, so whether they ultimately fail the whole
 listing depends on whether a later entry overwrites status. That ordering
 problem is source-observed, not exercised by this read-error fixture.
 
-### A061 — Failed Menu.load discards the existing model
-
-Severity: medium (loss of in-memory directory state on reload failure).
-Confirmed through the native headless Wren host. wren_bind_menu.c:314 closes
-host->bbs_list and clears it before attempting st_bbs_list_open. The documented
-transactional load contract (Wren.adoc:4040) requires failure to leave the old
-model and generation intact. The lower-level open API constructs a separate
-list, so the destructive ordering is in this binding, not a necessary property
-of opening a list.
-
-The `reload` case in st_wren_loader_audit_test.c writes one temporary personal
-entry, verifies Menu.load(null) succeeds with exactly one entry, then points the
-borrowed test paths at a directory instead of a file. A second Menu.load fails
-as expected, but Menu.entries becomes empty; the test exits 1 with
-`failed reload lost old entries`. No personal file is touched. Remedy: open
-and validate the replacement before swapping model ownership, with tests for
-password/decryption, I/O and allocation failure as well as successful replacement.
-Only the I/O-path failure was reproduced, not unsaved-edit loss or generation.
-
 ### A063 — Settings snapshots never become stale after another snapshot applies
 
 Severity: medium (documented lifetime/conflicting-update contract). Wren.adoc's
@@ -1747,10 +1670,8 @@ Directory copy uses a detached BbsEditor draft, and paste copies the palette
 list before applying. Current selection is normally restored by entry name
 after sorting/reload, not retained row position alone.
 
-Cross-component risks: settingsAction_ calls MainMenu.prepare after changes;
-a failed Menu.load can invalidate previously retained entry handles (A061),
-so leaving the old visual list is not a complete recovery. Edit navigation
-can reach system entries without returning through edit_'s copy prompt;
+Cross-component risks: settingsAction_ calls MainMenu.prepare after changes.
+Edit navigation can reach system entries without returning through edit_'s copy prompt;
 native write policy remains the enforcement boundary. Comment save failure
 alerts but leaves the edited working value and moves focus; this is not a
 claim of rollback. Several add/paste cancellation/error branches ignore the
@@ -2788,24 +2709,6 @@ Theme selection snapshots settings, applies selection, skips settings_save in
 safe mode and attempts rollback on failure; rollback errors are ignored. Read
 preview/catalog helpers as well, but full theme-edit integration and mutation
 failure paths remain pending. No actual audio device or theme change was made.
-
-Menu binding initial pass: wren_bind_menu.c:1-1180 and :3360-3480 read with
-Wren.adoc Menu BBS Model and identity/persistence/generation contracts. BBS
-foreign objects contain owned deep profile copies rather than borrowed record
-pointers, so list replacement does not inherently dangle those copies. However,
-no BBS generation check exists in bbs_value, unlike font_value's explicit
-generation guard. The documentation promises stale-handle rejection after
-load/create/delete. This is a behavior discrepancy pending targeted tests,
-not proof of a memory lifetime bug. Profiles release owned data on finalization.
-
-Additional source follow-ups: quick-connect objects use is_new, the same flag
-as new durable entries, and save routes such objects to st_bbs_list_add, despite
-the documented prohibition on transient saves. Menu.create/copy truncate names
-via snprintf and do not perform documented uniqueness validation or statistics
-reset. nameAvailable checks combined-list existence only, not validity/reserved
-names/personal-only collisions. Read-only source restrictions are missing from
-rename and some setters; save's lower-level source checks must be traced before
-claiming any on-disk effect. No writes were tested in this pass.
 
 URL parsing uses counted strings, rejects embedded NUL, handles bracketed hosts,
 bounded user/password/address spans and explicit numeric ports. It does not
@@ -4509,13 +4412,6 @@ implementation and application/Wren consumers remain separate inventory areas.
   Multiple objects can share disk paths, but also consult process-global
   settings for selected personal path and named web sources. Their behavior
   is not independent of those mutable globals.
-- Rebuild clears the view and defaults before decoding replacements. Failure
-  can leave a partial view with freed prior entries but unchanged generation;
-  reload/install have already replaced the personal document. Caller use of
-  generation on failed operations needs follow-up. Optional source failures
-  usually become diagnostics and continue, but diagnostic-allocation failures
-  are ignored in several branches. shared_path strdup failure is not checked
-  in open and can silently omit that source.
 - Precedence is personal, shared, system cache, configured named caches. Later
   duplicates replace earlier ones only within a source. ASCII case-folded name
   search is linear per appended section: full reconstruction is quadratic up
@@ -4536,8 +4432,6 @@ implementation and application/Wren consumers remain separate inventory areas.
 - Update/remove merge profile content and remove older duplicate sections.
   Case-only rename is treated as equal and not applied. Cache status is a
   secondary result after persistence; callers passing NULL cannot inspect it.
-  Failed readback/rebuild after a successful write returns failure despite disk
-  mutation. Contracts should distinguish persistence and refreshed-view errors.
 - Cache roots use validated portable raw keys or a bracketed hexadecimal key
   for display names which are not portable path components. Destructive
   boundaries reject other keys and sweep leaves unrecognized names untouched.
@@ -4548,8 +4442,9 @@ implementation and application/Wren consumers remain separate inventory areas.
 - Existing native list tests pass: precedence/duplicates, typed round trips,
   independent-field merge, conflicting edits/removal, cache rename/remove/sweep,
   confined unsafe-name keys, borrowed mutation inputs and encryption
-  rewrite/reopen. They use disposable build-tree fixtures. They do not cover
-  failure atomicity, allocation failures or simultaneous threads/processes.
+  rewrite/reopen. Disposable failure tests also cover allocation rejection
+  before persistence and failed-reload view preservation. They do not cover
+  simultaneous threads/processes.
 - Profile codec initializes a fresh profile, bounds copied fixed strings,
   connection kind/port/data bits/stop bits/music and palette length, and uses
   shared hex decoding for SSH fingerprints. It assumes its internal name

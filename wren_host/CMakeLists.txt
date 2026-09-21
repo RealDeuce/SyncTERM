@@ -64,6 +64,7 @@ add_custom_command(OUTPUT ${_st_wren_embedded}
 
 add_library(st_wren_host STATIC
 	wren_host.c
+	wren_bbs_model.c
 	wren_bind_core.c
 	wren_bind_pixels.c
 	wren_repl.c
@@ -103,7 +104,7 @@ endif()
 if(BUILD_TESTING)
 	add_executable(st_wren_host_test tests/st_wren_host_test.c)
 	target_link_libraries(st_wren_host_test PRIVATE st_wren_host
-		st_wren_vm st_settings st_theme st_time syncterm_filesystem
+		st_wren_vm st_settings st_theme st_time st_bbs_list syncterm_filesystem
 		syncterm_threads)
 	target_compile_definitions(st_wren_host_test PRIVATE
 		ST_WREN_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/host-test")
@@ -123,7 +124,8 @@ if(BUILD_TESTING)
 
 	add_executable(st_wren_picker_test tests/st_wren_picker_test.c)
 	target_link_libraries(st_wren_picker_test PRIVATE st_wren_host
-		st_wren_vm syncterm_filesystem syncterm_path syncterm_array_list)
+		st_wren_vm st_bbs_list syncterm_filesystem syncterm_path
+		syncterm_array_list)
 	target_compile_definitions(st_wren_picker_test PRIVATE
 		ST_WREN_PICKER_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/picker-test")
 	set_target_properties(st_wren_picker_test PROPERTIES

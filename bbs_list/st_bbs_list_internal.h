@@ -20,6 +20,7 @@ struct st_bbs_owned_entry {
 	struct st_bbs_entry public;
 	struct st_profile profile;
 	char *source_name;
+	struct st_bbs_owned_entry *shadowed;
 };
 
 struct st_bbs_owned_diagnostic {
@@ -28,10 +29,14 @@ struct st_bbs_owned_diagnostic {
 	char *section_name;
 };
 
-struct st_bbs_list {
+struct st_bbs_view {
 	struct st_bbs_owned_entry **entries;
 	struct st_bbs_owned_diagnostic **diagnostics;
 	struct st_profile defaults;
+};
+
+struct st_bbs_list {
+	struct st_bbs_view view;
 	ini_document_t *personal_document;
 	struct st_list_crypto_info crypto;
 	struct st_list_crypto_options write_options;
@@ -48,8 +53,6 @@ struct st_bbs_list {
 	size_t sort_field_count;
 };
 
-bool st_bbs_name_equal(const char *left, const char *right);
-bool st_bbs_name_valid(const char *name);
 bool st_bbs_cache_key(char *result, size_t result_size, const char *name);
 bool st_bbs_cache_key_recognized(const char *key);
 int st_bbs_cache_path(char **result, const st_bbs_list_t *list,
@@ -61,7 +64,12 @@ int st_bbs_encode_profile(ini_section_t *section,
     const struct st_profile *profile, bool defaults);
 bool st_bbs_profiles_equal(const struct st_profile *left,
     const struct st_profile *right);
-int st_bbs_list_rebuild(st_bbs_list_t *list);
+int st_bbs_view_prepare(const st_bbs_list_t *list,
+    ini_document_t *personal_document, struct st_bbs_view *view);
+void st_bbs_view_dispose(struct st_bbs_view *view);
+void st_bbs_view_publish(st_bbs_list_t *list, struct st_bbs_view *view);
+void st_bbs_view_sort(struct st_bbs_view *view, const int *fields,
+    size_t field_count);
 int st_bbs_cache_rename(st_bbs_list_t *list, const char *old_key,
     const char *new_key);
 int st_bbs_cache_remove(st_bbs_list_t *list, const char *key);

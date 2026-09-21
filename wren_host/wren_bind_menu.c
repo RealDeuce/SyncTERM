@@ -43,12 +43,9 @@ struct menu_foreign_header {
 
 struct foreign_bbs {
 	struct menu_foreign_header header;
-	struct st_profile profile;
-	char original_name[ST_PROFILE_NAME_MAX + 1];
-	enum st_bbs_source source;
-	bool is_defaults;
-	bool is_new;
-	bool dirty;
+	struct st_wren_bbs_record *record;
+	uint64_t generation;
+	enum st_wren_bbs_kind kind;
 };
 
 struct foreign_settings {
@@ -114,9 +111,7 @@ finalize_menu_foreign(void *data)
 
 	if (header == NULL)
 		return;
-	if (header->kind == MENU_FOREIGN_BBS)
-		st_profile_dispose(&((struct foreign_bbs *)data)->profile);
-	else if (header->kind == MENU_FOREIGN_SETTINGS)
+	if (header->kind == MENU_FOREIGN_SETTINGS)
 		st_settings_dispose(&((struct foreign_settings *)data)->settings);
 	else if (header->kind == MENU_FOREIGN_THEME_DOCUMENT)
 		st_theme_document_free(
@@ -137,7 +132,36 @@ bbs_value(WrenVM *vm, int slot)
 		st_wren_abort(vm, "expected a BBS entry");
 		return NULL;
 	}
-	return (struct foreign_bbs *)header;
+	struct foreign_bbs *bbs = (struct foreign_bbs *)header;
+	struct st_wren_host *host = st_wren_host_from_vm(vm);
+
+	if (!st_wren_bbs_model_valid(&host->bbs_model, bbs->record, bbs->kind,
+	    bbs->generation)) {
+		st_wren_abort(vm,
+		    "BBS handle is stale; reacquire it from Menu.entries");
+		return NULL;
+	}
+	return bbs;
+}
+
+static struct st_profile *
+bbs_mutable_profile(WrenVM *vm, struct foreign_bbs *bbs)
+{
+	if (bbs == NULL)
+		return NULL;
+	if (bbs->kind == ST_WREN_BBS_MODEL_ENTRY
+	    && bbs->record->source != ST_BBS_SOURCE_PERSONAL) {
+		st_wren_abort(vm, "BBS system entries are read-only");
+		return NULL;
+	}
+	return &bbs->record->profile;
+}
+
+static void
+bbs_changed(struct foreign_bbs *bbs)
+{
+	if (bbs->kind != ST_WREN_BBS_TRANSIENT)
+		bbs->record->dirty = true;
 }
 
 static struct foreign_settings *
@@ -265,26 +289,59 @@ slot_owned_string(WrenVM *vm, int slot, char **destination)
 }
 
 static struct foreign_bbs *
-push_bbs(WrenVM *vm, int destination, const struct st_profile *profile,
-	enum st_bbs_source source, bool is_defaults, bool is_new)
+push_bbs(WrenVM *vm, int destination, struct st_wren_bbs_record *record,
+	enum st_wren_bbs_kind kind)
 {
+	struct st_wren_host *host = st_wren_host_from_vm(vm);
+
 	wrenEnsureSlots(vm, destination + 2);
 	wrenGetVariable(vm, "syncterm_menu", "BBS", destination + 1);
 	struct foreign_bbs *bbs = wrenSetSlotNewForeign(vm, destination,
 	    destination + 1, sizeof(*bbs));
 	memset(bbs, 0, sizeof(*bbs));
 	bbs->header.kind = MENU_FOREIGN_BBS;
-	st_profile_init(&bbs->profile);
-	if (!st_profile_copy(&bbs->profile, profile)) {
-		st_wren_abort(vm, "out of memory copying BBS entry");
-		return NULL;
-	}
-	(void)snprintf(bbs->original_name, sizeof(bbs->original_name), "%s",
-	    profile->name);
-	bbs->source = source;
-	bbs->is_defaults = is_defaults;
-	bbs->is_new = is_new;
+	bbs->record = record;
+	bbs->kind = kind;
+	bbs->generation = kind == ST_WREN_BBS_TRANSIENT
+	    ? host->bbs_model.transient_generation : host->bbs_model.generation;
 	return bbs;
+}
+
+static size_t
+configured_sort_fields(int fields[32])
+{
+	size_t count = 0;
+	const char *cursor = st_settings.sort_order;
+
+	while (cursor != NULL && *cursor != '\0' && count < 32) {
+		char token[24];
+		const char *end = strchr(cursor, ',');
+		size_t length = end == NULL ? strlen(cursor) : (size_t)(end - cursor);
+		int64_t parsed;
+		int normalized;
+
+		if (length == 0 || length >= sizeof(token))
+			break;
+		memcpy(token, cursor, length);
+		token[length] = '\0';
+		if (!value_parse_int64(token, &parsed) || parsed < INT_MIN
+		    || parsed > INT_MAX
+		    || (normalized = st_bbs_sort_field_normalize((int)parsed)) == 0)
+			break;
+		fields[count++] = normalized;
+		if (end == NULL) {
+			cursor = NULL;
+			break;
+		}
+		cursor = end + 1;
+	}
+	if (count == 0 || (cursor != NULL && *cursor != '\0')) {
+		fields[0] = ST_BBS_SORT_EXPLICIT;
+		fields[1] = ST_BBS_SORT_SOURCE;
+		fields[2] = ST_BBS_SORT_NAME;
+		count = 3;
+	}
+	return count;
 }
 
 bool
@@ -295,16 +352,26 @@ st_wren_menu_copy_profile(WrenVM *vm, int slot, struct st_profile *result)
 	if (wrenGetSlotType(vm, slot) != WREN_TYPE_FOREIGN)
 		return false;
 	header = wrenGetSlotForeign(vm, slot);
-	return header != NULL && header->kind == MENU_FOREIGN_BBS
-	    && st_profile_copy(result, &((struct foreign_bbs *)header)->profile);
+	if (header == NULL || header->kind != MENU_FOREIGN_BBS)
+		return false;
+	struct foreign_bbs *bbs = (struct foreign_bbs *)header;
+	struct st_wren_host *host = st_wren_host_from_vm(vm);
+	return bbs->kind != ST_WREN_BBS_DEFAULTS
+	    && st_wren_bbs_model_valid(&host->bbs_model, bbs->record, bbs->kind,
+	    bbs->generation)
+	    && st_profile_copy(result, &bbs->record->profile);
 }
 
 static void
 fn_menu_load(WrenVM *vm)
 {
 	struct st_wren_host *host = st_wren_host_from_vm(vm);
+	struct st_wren_bbs_model replacement_model;
+	st_bbs_list_t *replacement_list = NULL;
 	const void *password = NULL;
 	size_t password_size = 0;
+	int fields[32];
+	size_t field_count;
 	int length;
 	int status;
 
@@ -316,12 +383,23 @@ fn_menu_load(WrenVM *vm)
 		st_wren_abort(vm, "Menu.load expects a String or null");
 		return;
 	}
-	st_bbs_list_close(host->bbs_list);
-	host->bbs_list = NULL;
-	status = st_bbs_list_open(&host->bbs_list, host->config.paths, password,
+	st_wren_bbs_model_init(&replacement_model);
+	status = st_bbs_list_open(&replacement_list, host->config.paths, password,
 	    password_size);
 	if (status == 0) {
-		fn_menu_sort(vm);
+		field_count = configured_sort_fields(fields);
+		status = st_bbs_list_sort(replacement_list, fields, field_count);
+	}
+	if (status == 0)
+		status = st_wren_bbs_model_build(&replacement_model,
+		    replacement_list);
+	if (status == 0) {
+		st_bbs_list_t *old_list = host->bbs_list;
+
+		host->bbs_list = replacement_list;
+		replacement_list = NULL;
+		st_wren_bbs_model_replace(&host->bbs_model, &replacement_model);
+		st_bbs_list_close(old_list);
 		wrenSetSlotDouble(vm, 0, 0);
 	}
 	else if (status == IO_ERROR_PASSWORD_REQUIRED)
@@ -330,6 +408,8 @@ fn_menu_load(WrenVM *vm)
 		wrenSetSlotDouble(vm, 0, 2);
 	else
 		wrenSetSlotDouble(vm, 0, 3);
+	st_wren_bbs_model_dispose(&replacement_model);
+	st_bbs_list_close(replacement_list);
 }
 
 static unsigned char
@@ -541,20 +621,18 @@ static void
 fn_menu_quick_connect(WrenVM *vm)
 {
 	struct st_wren_host *host = st_wren_host_from_vm(vm);
-	const struct st_profile *defaults;
 	struct st_profile profile;
 	const char *value;
 	int length;
 
-	if (host->bbs_list == NULL
-	    || (defaults = st_bbs_list_defaults(host->bbs_list)) == NULL
+	if (!host->bbs_model.loaded
 	    || wrenGetSlotType(vm, 1) != WREN_TYPE_STRING) {
 		wrenSetSlotNull(vm, 0);
 		return;
 	}
 	value = wrenGetSlotBytes(vm, 1, &length);
 	st_profile_init(&profile);
-	if (!st_profile_copy(&profile, defaults)
+	if (!st_profile_copy(&profile, &host->bbs_model.defaults.profile)
 	    || !parse_quick_connect(&profile, value, (size_t)length)) {
 		st_profile_dispose(&profile);
 		wrenSetSlotNull(vm, 0);
@@ -563,7 +641,11 @@ fn_menu_quick_connect(WrenVM *vm)
 	profile.identifier = -1;
 	profile.added = time(NULL);
 	profile.calls = 0;
-	(void)push_bbs(vm, 0, &profile, ST_BBS_SOURCE_PERSONAL, false, true);
+	if (!st_wren_bbs_model_set_transient(&host->bbs_model, &profile))
+		wrenSetSlotNull(vm, 0);
+	else
+		(void)push_bbs(vm, 0, &host->bbs_model.transient,
+		    ST_WREN_BBS_TRANSIENT);
 	st_profile_dispose(&profile);
 }
 
@@ -638,7 +720,7 @@ fn_menu_show_entry(WrenVM *vm)
 	if (bbs == NULL)
 		return;
 	(void)snprintf(composed, sizeof(composed), "%s - %s", title,
-	    bbs->profile.name);
+	    bbs->record->profile.name);
 	(void)st_console_set_title(host->config.console, composed);
 	wrenSetSlotBool(vm, 0, true);
 }
@@ -676,13 +758,14 @@ fn_menu_entries(WrenVM *vm)
 
 	wrenEnsureSlots(vm, 3);
 	wrenSetSlotNewList(vm, 0);
-	if (host->bbs_list == NULL)
+	if (!host->bbs_model.loaded)
 		return;
-	for (size_t i = 0; i < st_bbs_list_count(host->bbs_list); ++i) {
-		const struct st_bbs_entry *entry = st_bbs_list_at(host->bbs_list, i);
+	for (size_t i = 0; i < st_wren_bbs_model_count(&host->bbs_model); ++i) {
+		struct st_wren_bbs_record *record =
+		    st_wren_bbs_model_at(&host->bbs_model, i);
 
-		if (entry != NULL && push_bbs(vm, 1, entry->profile, entry->source,
-		    false, false) != NULL)
+		if (record != NULL && push_bbs(vm, 1, record,
+		    ST_WREN_BBS_MODEL_ENTRY) != NULL)
 			wrenInsertInList(vm, 0, -1, 1);
 	}
 }
@@ -692,21 +775,20 @@ fn_menu_can_append(WrenVM *vm)
 {
 	struct st_wren_host *host = st_wren_host_from_vm(vm);
 
-	wrenSetSlotBool(vm, 0, host->bbs_list != NULL
-	    && st_bbs_list_count(host->bbs_list) < ST_BBS_LIST_MAX_ENTRIES);
+	wrenSetSlotBool(vm, 0, host->bbs_model.loaded
+	    && st_wren_bbs_model_count(&host->bbs_model)
+	    < ST_BBS_LIST_MAX_ENTRIES);
 }
 
 static void
 fn_menu_defaults(WrenVM *vm)
 {
 	struct st_wren_host *host = st_wren_host_from_vm(vm);
-	const struct st_profile *profile;
-
-	if (host->bbs_list == NULL
-	    || (profile = st_bbs_list_defaults(host->bbs_list)) == NULL)
+	if (!host->bbs_model.loaded)
 		wrenSetSlotNull(vm, 0);
 	else
-		(void)push_bbs(vm, 0, profile, ST_BBS_SOURCE_PERSONAL, true, false);
+		(void)push_bbs(vm, 0, &host->bbs_model.defaults,
+		    ST_WREN_BBS_DEFAULTS);
 }
 
 static void
@@ -718,52 +800,60 @@ fn_menu_name_available(WrenVM *vm)
 		wrenSetSlotBool(vm, 0, false);
 		return;
 	}
-	wrenSetSlotBool(vm, 0, host->bbs_list != NULL
-	    && st_bbs_list_find(host->bbs_list, wrenGetSlotString(vm, 1)) == NULL);
+	wrenSetSlotBool(vm, 0, st_wren_bbs_model_name_available(&host->bbs_model,
+	    wrenGetSlotString(vm, 1)));
 }
 
 static void
 fn_menu_create(WrenVM *vm)
 {
 	struct st_wren_host *host = st_wren_host_from_vm(vm);
-	const struct st_profile *defaults;
-	struct st_profile profile;
+	struct st_wren_bbs_record *record;
+	const char *name;
+	int fields[32];
+	size_t field_count;
 
-	if (host->bbs_list == NULL || wrenGetSlotType(vm, 1) != WREN_TYPE_STRING
-	    || (defaults = st_bbs_list_defaults(host->bbs_list)) == NULL) {
+	if (!host->bbs_model.loaded
+	    || wrenGetSlotType(vm, 1) != WREN_TYPE_STRING) {
 		wrenSetSlotNull(vm, 0);
 		return;
 	}
-	st_profile_init(&profile);
-	if (!st_profile_copy(&profile, defaults)) {
+	name = wrenGetSlotString(vm, 1);
+	field_count = configured_sort_fields(fields);
+	record = st_wren_bbs_model_create(&host->bbs_model, name,
+	    &host->bbs_model.defaults.profile, fields, field_count);
+	if (record == NULL)
 		wrenSetSlotNull(vm, 0);
-		return;
-	}
-	(void)snprintf(profile.name, sizeof(profile.name), "%s",
-	    wrenGetSlotString(vm, 1));
-	(void)push_bbs(vm, 0, &profile, ST_BBS_SOURCE_PERSONAL, false, true);
-	st_profile_dispose(&profile);
+	else
+		(void)push_bbs(vm, 0, record, ST_WREN_BBS_MODEL_ENTRY);
 }
 
 static void
 fn_menu_copy(WrenVM *vm)
 {
 	struct foreign_bbs *source = bbs_value(vm, 1);
-	struct st_profile profile;
+	struct st_wren_host *host = st_wren_host_from_vm(vm);
+	struct st_wren_bbs_record *record;
+	const char *name;
+	int fields[32];
+	size_t field_count;
 
 	if (source == NULL || wrenGetSlotType(vm, 2) != WREN_TYPE_STRING) {
 		wrenSetSlotNull(vm, 0);
 		return;
 	}
-	st_profile_init(&profile);
-	if (!st_profile_copy(&profile, &source->profile)) {
-		wrenSetSlotNull(vm, 0);
+	if (source->kind == ST_WREN_BBS_DEFAULTS) {
+		st_wren_abort(vm, "Menu.copy expects a directory or transient BBS");
 		return;
 	}
-	(void)snprintf(profile.name, sizeof(profile.name), "%s",
-	    wrenGetSlotString(vm, 2));
-	(void)push_bbs(vm, 0, &profile, ST_BBS_SOURCE_PERSONAL, false, true);
-	st_profile_dispose(&profile);
+	name = wrenGetSlotString(vm, 2);
+	field_count = configured_sort_fields(fields);
+	record = st_wren_bbs_model_create(&host->bbs_model, name,
+	    &source->record->profile, fields, field_count);
+	if (record == NULL)
+		wrenSetSlotNull(vm, 0);
+	else
+		(void)push_bbs(vm, 0, record, ST_WREN_BBS_MODEL_ENTRY);
 }
 
 static void
@@ -771,40 +861,13 @@ fn_menu_sort(WrenVM *vm)
 {
 	struct st_wren_host *host = st_wren_host_from_vm(vm);
 	int fields[32];
-	size_t count = 0;
-	const char *cursor = st_settings.sort_order;
+	size_t count = configured_sort_fields(fields);
+	bool success = host->bbs_list != NULL
+	    && st_bbs_list_sort(host->bbs_list, fields, count) == 0;
 
-	while (cursor != NULL && *cursor != '\0' && count < 32) {
-		char token[24];
-		const char *end = strchr(cursor, ',');
-		size_t length = end == NULL ? strlen(cursor) : (size_t)(end - cursor);
-		int64_t parsed;
-		int normalized;
-
-		if (length == 0 || length >= sizeof(token))
-			break;
-		memcpy(token, cursor, length);
-		token[length] = '\0';
-		if (!value_parse_int64(token, &parsed) || parsed < INT_MIN
-		    || parsed > INT_MAX
-		    || (normalized = st_bbs_sort_field_normalize((int)parsed)) == 0)
-			break;
-		fields[count++] = normalized;
-		if (end == NULL) {
-			cursor = NULL;
-			break;
-		}
-		cursor = end + 1;
-	}
-	if (count == 0 || (cursor != NULL && *cursor != '\0')) {
-		fields[0] = ST_BBS_SORT_EXPLICIT;
-		fields[1] = ST_BBS_SORT_SOURCE;
-		fields[2] = ST_BBS_SORT_NAME;
-		count = 3;
-	}
-
-	wrenSetSlotBool(vm, 0, host->bbs_list != NULL
-	    && st_bbs_list_sort(host->bbs_list, fields, count) == 0);
+	if (success)
+		st_wren_bbs_model_sort(&host->bbs_model, fields, count);
+	wrenSetSlotBool(vm, 0, success);
 }
 
 static void
@@ -3041,14 +3104,15 @@ fn_settings_reload(WrenVM *vm)
 	{ \
 		struct foreign_bbs *bbs = bbs_value(vm, 0); \
 		if (bbs != NULL) \
-			wrenSetSlotString(vm, 0, bbs->profile.field); \
+			wrenSetSlotString(vm, 0, bbs->record->profile.field); \
 	} \
 	static void fn_bbs_##name##_set(WrenVM *vm) \
 	{ \
 		struct foreign_bbs *bbs = bbs_value(vm, 0); \
-		if (bbs != NULL && slot_fixed_string(vm, 1, bbs->profile.field, \
-		    sizeof(bbs->profile.field))) \
-			bbs->dirty = true; \
+		struct st_profile *profile = bbs_mutable_profile(vm, bbs); \
+		if (profile != NULL && slot_fixed_string(vm, 1, profile->field, \
+		    sizeof(profile->field))) \
+			bbs_changed(bbs); \
 	}
 
 #define BBS_OWNED_PROPERTY(name, field) \
@@ -3056,15 +3120,16 @@ fn_settings_reload(WrenVM *vm)
 	{ \
 		struct foreign_bbs *bbs = bbs_value(vm, 0); \
 		if (bbs != NULL) \
-			wrenSetSlotString(vm, 0, bbs->profile.field == NULL ? "" : \
-			    bbs->profile.field); \
+			wrenSetSlotString(vm, 0, bbs->record->profile.field == NULL ? "" : \
+			    bbs->record->profile.field); \
 	} \
 	static void fn_bbs_##name##_set(WrenVM *vm) \
 	{ \
 		struct foreign_bbs *bbs = bbs_value(vm, 0); \
-		if (bbs != NULL && slot_owned_string(vm, 1, \
-		    &bbs->profile.field)) \
-			bbs->dirty = true; \
+		struct st_profile *profile = bbs_mutable_profile(vm, bbs); \
+		if (profile != NULL && slot_owned_string(vm, 1, \
+		    &profile->field)) \
+			bbs_changed(bbs); \
 	}
 
 #define BBS_NUM_PROPERTY(name, field, minimum, maximum) \
@@ -3072,15 +3137,16 @@ fn_settings_reload(WrenVM *vm)
 	{ \
 		struct foreign_bbs *bbs = bbs_value(vm, 0); \
 		if (bbs != NULL) \
-			wrenSetSlotDouble(vm, 0, bbs->profile.field); \
+			wrenSetSlotDouble(vm, 0, bbs->record->profile.field); \
 	} \
 	static void fn_bbs_##name##_set(WrenVM *vm) \
 	{ \
 		struct foreign_bbs *bbs = bbs_value(vm, 0); \
+		struct st_profile *profile = bbs_mutable_profile(vm, bbs); \
 		int64_t value; \
-		if (bbs != NULL && slot_integer(vm, 1, minimum, maximum, &value)) { \
-			bbs->profile.field = value; \
-			bbs->dirty = true; \
+		if (profile != NULL && slot_integer(vm, 1, minimum, maximum, &value)) { \
+			profile->field = value; \
+			bbs_changed(bbs); \
 		} \
 	}
 
@@ -3089,15 +3155,16 @@ fn_settings_reload(WrenVM *vm)
 	{ \
 		struct foreign_bbs *bbs = bbs_value(vm, 0); \
 		if (bbs != NULL) \
-			wrenSetSlotBool(vm, 0, bbs->profile.field); \
+			wrenSetSlotBool(vm, 0, bbs->record->profile.field); \
 	} \
 	static void fn_bbs_##name##_set(WrenVM *vm) \
 	{ \
 		struct foreign_bbs *bbs = bbs_value(vm, 0); \
+		struct st_profile *profile = bbs_mutable_profile(vm, bbs); \
 		bool value; \
-		if (bbs != NULL && slot_bool(vm, 1, &value)) { \
-			bbs->profile.field = value; \
-			bbs->dirty = true; \
+		if (profile != NULL && slot_bool(vm, 1, &value)) { \
+			profile->field = value; \
+			bbs_changed(bbs); \
 		} \
 	}
 
@@ -3163,7 +3230,7 @@ fn_bbs_id(WrenVM *vm)
 	struct foreign_bbs *bbs = bbs_value(vm, 0);
 
 	if (bbs != NULL)
-		wrenSetSlotDouble(vm, 0, bbs->profile.identifier);
+		wrenSetSlotDouble(vm, 0, bbs->record->profile.identifier);
 }
 
 static void
@@ -3172,7 +3239,7 @@ fn_bbs_added(WrenVM *vm)
 	struct foreign_bbs *bbs = bbs_value(vm, 0);
 
 	if (bbs != NULL)
-		wrenSetSlotDouble(vm, 0, (double)bbs->profile.added);
+		wrenSetSlotDouble(vm, 0, (double)bbs->record->profile.added);
 }
 
 static void
@@ -3181,7 +3248,7 @@ fn_bbs_connected(WrenVM *vm)
 	struct foreign_bbs *bbs = bbs_value(vm, 0);
 
 	if (bbs != NULL)
-		wrenSetSlotDouble(vm, 0, (double)bbs->profile.connected);
+		wrenSetSlotDouble(vm, 0, (double)bbs->record->profile.connected);
 }
 
 static void
@@ -3190,7 +3257,7 @@ fn_bbs_calls(WrenVM *vm)
 	struct foreign_bbs *bbs = bbs_value(vm, 0);
 
 	if (bbs != NULL)
-		wrenSetSlotDouble(vm, 0, bbs->profile.calls);
+		wrenSetSlotDouble(vm, 0, bbs->record->profile.calls);
 }
 
 static void
@@ -3206,18 +3273,20 @@ fn_bbs_fingerprint(WrenVM *vm)
 	struct foreign_bbs *bbs = bbs_value(vm, 0);
 
 	if (bbs != NULL)
-		wrenSetSlotBytes(vm, 0, (const char *)bbs->profile.ssh_fingerprint,
-		    bbs->profile.ssh_fingerprint_size);
+		wrenSetSlotBytes(vm, 0,
+		    (const char *)bbs->record->profile.ssh_fingerprint,
+		    bbs->record->profile.ssh_fingerprint_size);
 }
 
 static void
 fn_bbs_fingerprint_set(WrenVM *vm)
 {
 	struct foreign_bbs *bbs = bbs_value(vm, 0);
+	struct st_profile *profile = bbs_mutable_profile(vm, bbs);
 	const char *value;
 	int length;
 
-	if (bbs == NULL)
+	if (profile == NULL)
 		return;
 	if (wrenGetSlotType(vm, 1) != WREN_TYPE_STRING) {
 		st_wren_abort(vm, "BBS.sshFingerprint expects a String");
@@ -3230,9 +3299,9 @@ fn_bbs_fingerprint_set(WrenVM *vm)
 		return;
 	}
 	if (length != 0)
-		memcpy(bbs->profile.ssh_fingerprint, value, (size_t)length);
-	bbs->profile.ssh_fingerprint_size = (uint8_t)length;
-	bbs->dirty = true;
+		memcpy(profile->ssh_fingerprint, value, (size_t)length);
+	profile->ssh_fingerprint_size = (uint8_t)length;
+	bbs_changed(bbs);
 }
 
 static void
@@ -3249,7 +3318,7 @@ fn_bbs_conn_type_name(WrenVM *vm)
 
 	if (bbs == NULL)
 		return;
-	type = bbs->profile.connection_type;
+	type = bbs->record->profile.connection_type;
 	wrenSetSlotString(vm, 0, type >= 0
 	    && (size_t)type < sizeof(names) / sizeof(names[0]) ? names[type] :
 	    names[0]);
@@ -3264,8 +3333,9 @@ fn_bbs_palette(WrenVM *vm)
 		return;
 	wrenEnsureSlots(vm, 2);
 	wrenSetSlotNewList(vm, 0);
-	for (unsigned i = 0; i < bbs->profile.palette_size; ++i) {
-		wrenSetSlotDouble(vm, 1, bbs->profile.palette[i] & UINT32_C(0xffffff));
+	for (unsigned i = 0; i < bbs->record->profile.palette_size; ++i) {
+		wrenSetSlotDouble(vm, 1,
+		    bbs->record->profile.palette[i] & UINT32_C(0xffffff));
 		wrenInsertInList(vm, 0, -1, 1);
 	}
 }
@@ -3274,9 +3344,10 @@ static void
 fn_bbs_palette_set(WrenVM *vm)
 {
 	struct foreign_bbs *bbs = bbs_value(vm, 0);
+	struct st_profile *profile = bbs_mutable_profile(vm, bbs);
 	int count;
 
-	if (bbs == NULL)
+	if (profile == NULL)
 		return;
 	if (wrenGetSlotType(vm, 1) != WREN_TYPE_LIST
 	    || (count = wrenGetListCount(vm, 1)) < 0 || count > 16) {
@@ -3290,10 +3361,10 @@ fn_bbs_palette_set(WrenVM *vm)
 		wrenGetListElement(vm, 1, i, 2);
 		if (!slot_integer(vm, 2, 0, UINT32_C(0xffffff), &value))
 			return;
-		bbs->profile.palette[i] = (uint32_t)value;
+		profile->palette[i] = (uint32_t)value;
 	}
-	bbs->profile.palette_size = (unsigned)count;
-	bbs->dirty = true;
+	profile->palette_size = (unsigned)count;
+	bbs_changed(bbs);
 }
 
 static bool
@@ -3321,7 +3392,7 @@ fn_bbs_wren_scripts(WrenVM *vm)
 		return;
 	wrenEnsureSlots(vm, 2);
 	wrenSetSlotNewList(vm, 0);
-	next = bbs->profile.wren_scripts;
+	next = bbs->record->profile.wren_scripts;
 	while (*next != '\0') {
 		const char *comma = strchr(next, ',');
 		size_t length = comma == NULL ? strlen(next) : (size_t)(comma - next);
@@ -3340,10 +3411,11 @@ static void
 fn_bbs_wren_scripts_set(WrenVM *vm)
 {
 	struct foreign_bbs *bbs = bbs_value(vm, 0);
+	struct st_profile *profile = bbs_mutable_profile(vm, bbs);
 	int count;
 	size_t used = 0;
 
-	if (bbs == NULL)
+	if (profile == NULL)
 		return;
 	if (wrenGetSlotType(vm, 1) != WREN_TYPE_LIST) {
 		st_wren_abort(vm, "BBS.wrenScripts expects a List");
@@ -3368,12 +3440,12 @@ fn_bbs_wren_scripts_set(WrenVM *vm)
 			return;
 		}
 		if (used != 0)
-			bbs->profile.wren_scripts[used++] = ',';
-		memcpy(bbs->profile.wren_scripts + used, name, (size_t)length);
+			profile->wren_scripts[used++] = ',';
+		memcpy(profile->wren_scripts + used, name, (size_t)length);
 		used += (size_t)length;
 	}
-	bbs->profile.wren_scripts[used] = '\0';
-	bbs->dirty = true;
+	profile->wren_scripts[used] = '\0';
+	bbs_changed(bbs);
 }
 
 static void
@@ -3382,18 +3454,26 @@ fn_bbs_name(WrenVM *vm)
 	struct foreign_bbs *bbs = bbs_value(vm, 0);
 
 	if (bbs != NULL)
-		wrenSetSlotString(vm, 0, bbs->profile.name);
+		wrenSetSlotString(vm, 0, bbs->record->profile.name);
 }
 
 static void
 fn_bbs_rename(WrenVM *vm)
 {
+	struct st_wren_host *host = st_wren_host_from_vm(vm);
 	struct foreign_bbs *bbs = bbs_value(vm, 0);
-	bool success = bbs != NULL && slot_fixed_string(vm, 1,
-	    bbs->profile.name, sizeof(bbs->profile.name));
+	char name[ST_PROFILE_NAME_MAX + 1];
+	int fields[32];
+	size_t field_count;
+	bool success = false;
 
-	if (success)
-		bbs->dirty = true;
+	if (bbs != NULL && bbs->kind == ST_WREN_BBS_MODEL_ENTRY
+	    && bbs->record->source == ST_BBS_SOURCE_PERSONAL
+	    && slot_fixed_string(vm, 1, name, sizeof(name))) {
+		field_count = configured_sort_fields(fields);
+		success = st_wren_bbs_model_rename(&host->bbs_model, bbs->record,
+		    name, fields, field_count);
+	}
 	wrenSetSlotBool(vm, 0, success);
 }
 
@@ -3404,7 +3484,7 @@ fn_bbs_type(WrenVM *vm)
 
 	if (bbs != NULL)
 		wrenSetSlotDouble(vm, 0,
-		    bbs->source == ST_BBS_SOURCE_PERSONAL ? 0 : 1);
+		    bbs->record->source == ST_BBS_SOURCE_PERSONAL ? 0 : 1);
 }
 
 static void
@@ -3413,17 +3493,18 @@ fn_bbs_comment(WrenVM *vm)
 	struct foreign_bbs *bbs = bbs_value(vm, 0);
 
 	if (bbs != NULL)
-		wrenSetSlotString(vm, 0, bbs->profile.comment);
+		wrenSetSlotString(vm, 0, bbs->record->profile.comment);
 }
 
 static void
 fn_bbs_comment_set(WrenVM *vm)
 {
 	struct foreign_bbs *bbs = bbs_value(vm, 0);
+	struct st_profile *profile = bbs_mutable_profile(vm, bbs);
 
-	if (bbs != NULL && slot_fixed_string(vm, 1, bbs->profile.comment,
-	    sizeof(bbs->profile.comment)))
-		bbs->dirty = true;
+	if (profile != NULL && slot_fixed_string(vm, 1, profile->comment,
+	    sizeof(profile->comment)))
+		bbs_changed(bbs);
 }
 
 static void
@@ -3432,7 +3513,8 @@ fn_bbs_dirty(WrenVM *vm)
 	struct foreign_bbs *bbs = bbs_value(vm, 0);
 
 	if (bbs != NULL)
-		wrenSetSlotBool(vm, 0, bbs->dirty);
+		wrenSetSlotBool(vm, 0, bbs->kind == ST_WREN_BBS_TRANSIENT
+		    ? false : bbs->record->dirty);
 }
 
 static void
@@ -3441,27 +3523,40 @@ fn_bbs_save(WrenVM *vm)
 	struct st_wren_host *host = st_wren_host_from_vm(vm);
 	struct foreign_bbs *bbs = bbs_value(vm, 0);
 	struct st_bbs_mutation_result mutation;
+	int fields[32];
+	size_t field_count;
 	int status;
 
 	if (bbs == NULL || host->bbs_list == NULL)
 		return;
-	if (host->config.safe_mode) {
+	if (bbs->kind == ST_WREN_BBS_TRANSIENT
+	    || (bbs->kind == ST_WREN_BBS_MODEL_ENTRY
+	    && bbs->record->source != ST_BBS_SOURCE_PERSONAL)
+	    || host->config.safe_mode) {
 		wrenSetSlotBool(vm, 0, false);
 		return;
 	}
-	if (bbs->is_defaults)
-		status = st_bbs_list_set_defaults(host->bbs_list, &bbs->profile);
-	else if (bbs->is_new)
-		status = st_bbs_list_add(host->bbs_list, &bbs->profile, &mutation);
-	else
-		status = st_bbs_list_update(host->bbs_list, bbs->original_name,
-		    &bbs->profile, &mutation);
-	if (status == 0) {
-		(void)snprintf(bbs->original_name, sizeof(bbs->original_name), "%s",
-		    bbs->profile.name);
-		bbs->is_new = false;
-		bbs->dirty = false;
+	if (!bbs->record->dirty) {
+		wrenSetSlotBool(vm, 0, true);
+		return;
 	}
+	field_count = configured_sort_fields(fields);
+	if (bbs->kind == ST_WREN_BBS_DEFAULTS)
+		status = st_bbs_list_set_defaults(host->bbs_list,
+		    &bbs->record->profile);
+	else if (!st_wren_bbs_model_prepare_save(&host->bbs_model, bbs->record))
+		status = IO_ERROR_OUT_OF_MEMORY;
+	else if (bbs->record->new_entry)
+		status = st_bbs_list_add(host->bbs_list, &bbs->record->profile,
+		    &mutation);
+	else
+		status = st_bbs_list_update(host->bbs_list,
+		    bbs->record->persisted_name, &bbs->record->profile, &mutation);
+	if (status == 0 && bbs->kind == ST_WREN_BBS_DEFAULTS)
+		bbs->record->dirty = false;
+	else if (status == 0)
+		st_wren_bbs_model_saved(&host->bbs_model, bbs->record, fields,
+		    field_count);
 	wrenSetSlotBool(vm, 0, status == 0);
 }
 
@@ -3471,12 +3566,24 @@ fn_bbs_delete(WrenVM *vm)
 	struct st_wren_host *host = st_wren_host_from_vm(vm);
 	struct foreign_bbs *bbs = bbs_value(vm, 0);
 	struct st_bbs_mutation_result mutation;
+	int fields[32];
+	size_t field_count;
+	bool success = false;
 
-	wrenSetSlotBool(vm, 0, bbs != NULL && host->bbs_list != NULL
-	    && !host->config.safe_mode
-	    && bbs->source == ST_BBS_SOURCE_PERSONAL && !bbs->is_defaults
-	    && !bbs->is_new && st_bbs_list_remove(host->bbs_list,
-	    bbs->original_name, &mutation) == 0);
+	if (bbs != NULL && host->bbs_list != NULL
+	    && bbs->kind == ST_WREN_BBS_MODEL_ENTRY
+	    && bbs->record->source == ST_BBS_SOURCE_PERSONAL) {
+		field_count = configured_sort_fields(fields);
+		if (bbs->record->new_entry)
+			success = st_wren_bbs_model_delete(&host->bbs_model,
+			    bbs->record, fields, field_count);
+		else if (!host->config.safe_mode
+		    && st_bbs_list_remove(host->bbs_list,
+		    bbs->record->persisted_name, &mutation) == 0)
+			success = st_wren_bbs_model_delete(&host->bbs_model,
+			    bbs->record, fields, field_count);
+	}
+	wrenSetSlotBool(vm, 0, success);
 }
 
 static void

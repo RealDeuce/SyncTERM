@@ -144,29 +144,32 @@ remove_older_sections(ini_document_t *document, const char *name,
 	}
 }
 
-static int
+static void
 install_document(st_bbs_list_t *list, ini_document_t **document,
-    const struct st_list_crypto_info *info)
+    const struct st_list_crypto_info *info, struct st_bbs_view *view)
 {
-	ini_document_t *fresh = NULL;
-	struct st_list_crypto_info fresh_info;
-	int status;
-	(void)info;
-
-	status = read_personal(list, &fresh, &fresh_info);
-	if (status < 0)
-		return status;
 	ini_document_free(&list->personal_document);
-	ini_document_free(document);
-	list->personal_document = fresh;
-	list->crypto = fresh_info;
-	status = st_bbs_list_rebuild(list);
-	if (status == 0 && list->sort_field_count != 0)
-		status = st_bbs_list_sort(list, list->sort_fields,
-		    list->sort_field_count);
-	if (status == 0)
-		list->generation++;
-	return status;
+	list->personal_document = *document;
+	*document = NULL;
+	list->crypto = *info;
+	st_bbs_view_publish(list, view);
+	list->generation++;
+}
+
+static void
+crypto_info_for_options(struct st_list_crypto_info *info,
+    const struct st_list_crypto_options *options)
+{
+	memset(info, 0, sizeof(*info));
+	info->format = options->cipher == ST_LIST_CIPHER_NONE
+	    ? ST_LIST_CRYPTO_PLAIN : ST_LIST_CRYPTO_V2;
+	info->cipher = options->cipher;
+	info->key_bits = options->key_bits;
+	info->kdf = options->cipher == ST_LIST_CIPHER_NONE
+	    ? ST_LIST_KDF_NONE : ST_LIST_KDF_SCRYPT;
+	info->cost_log2 = options->cost_log2;
+	info->block_size = options->block_size;
+	info->parallelism = options->parallelism;
 }
 
 static void
@@ -208,6 +211,7 @@ st_bbs_list_add(st_bbs_list_t *list, const struct st_profile *profile,
 	ini_section_t *section;
 	struct st_list_crypto_info info;
 	struct st_profile value;
+	struct st_bbs_view view = {0};
 	st_file_lock_t *lock = NULL;
 	int status;
 
@@ -230,10 +234,15 @@ st_bbs_list_add(st_bbs_list_t *list, const struct st_profile *profile,
 	if (status == 0)
 		status = st_bbs_encode_profile(section, &value, false);
 	if (status == 0)
+		status = st_bbs_view_prepare(list, remote, &view);
+	if (status == 0)
 		status = write_personal(list, remote, &list->write_options,
 		    list->password, list->password_size);
-	if (status == 0)
-		status = install_document(list, &remote, &info);
+	if (status == 0) {
+		crypto_info_for_options(&info, &list->write_options);
+		install_document(list, &remote, &info, &view);
+	}
+	st_bbs_view_dispose(&view);
 	st_profile_dispose(&value);
 	ini_document_free(&remote);
 	st_file_lock_release(lock);
@@ -254,6 +263,7 @@ st_bbs_list_update(st_bbs_list_t *list, const char *old_name,
 	ini_section_t *compare_remote_section;
 	struct st_list_crypto_info info;
 	struct st_profile remote_profile;
+	struct st_bbs_view view = {0};
 	const struct st_profile *base_profile;
 	st_file_lock_t *lock = NULL;
 	char old_cache_key[ST_BBS_CACHE_KEY_MAX + 1];
@@ -316,10 +326,14 @@ st_bbs_list_update(st_bbs_list_t *list, const char *old_name,
 	if (status == 0)
 		remove_older_sections(remote, old_name, remote_section);
 	if (status == 0)
+		status = st_bbs_view_prepare(list, remote, &view);
+	if (status == 0)
 		status = write_personal(list, remote, &list->write_options,
 		    list->password, list->password_size);
-	if (status == 0)
-		status = install_document(list, &remote, &info);
+	if (status == 0) {
+		crypto_info_for_options(&info, &list->write_options);
+		install_document(list, &remote, &info, &view);
+	}
 	if (status == 0 && rename_cache) {
 		int cache_status = st_bbs_cache_rename(list, old_cache_key,
 		    new_cache_key);
@@ -330,6 +344,7 @@ st_bbs_list_update(st_bbs_list_t *list, const char *old_name,
 	ini_document_free(&canonical_base);
 	ini_document_free(&canonical_remote);
 	ini_document_free(&remote);
+	st_bbs_view_dispose(&view);
 	st_profile_dispose(&remote_profile);
 	st_file_lock_release(lock);
 	return status;
@@ -342,6 +357,7 @@ st_bbs_list_remove(st_bbs_list_t *list, const char *name,
 	ini_document_t *remote = NULL;
 	struct st_list_crypto_info info;
 	struct st_profile remote_profile;
+	struct st_bbs_view view = {0};
 	const struct st_profile *base_profile;
 	st_file_lock_t *lock = NULL;
 	char cache_key[ST_BBS_CACHE_KEY_MAX + 1];
@@ -382,16 +398,21 @@ st_bbs_list_remove(st_bbs_list_t *list, const char *name,
 	if (status == 0 && !found)
 		status = IO_ERROR_CONFLICT;
 	if (status == 0)
+		status = st_bbs_view_prepare(list, remote, &view);
+	if (status == 0)
 		status = write_personal(list, remote, &list->write_options,
 		    list->password, list->password_size);
-	if (status == 0)
-		status = install_document(list, &remote, &info);
+	if (status == 0) {
+		crypto_info_for_options(&info, &list->write_options);
+		install_document(list, &remote, &info, &view);
+	}
 	if (status == 0) {
 		int cache_status = st_bbs_cache_remove(list, cache_key);
 		if (result != NULL)
 			result->cache_status = cache_status;
 	}
 	ini_document_free(&remote);
+	st_bbs_view_dispose(&view);
 	st_profile_dispose(&remote_profile);
 	st_file_lock_release(lock);
 	return status;
@@ -411,6 +432,7 @@ st_bbs_list_set_defaults(st_bbs_list_t *list,
 	ini_section_t *compare_remote_root;
 	struct st_list_crypto_info info;
 	struct st_profile remote_defaults;
+	struct st_bbs_view view = {0};
 	st_file_lock_t *lock = NULL;
 	int status;
 
@@ -422,7 +444,7 @@ st_bbs_list_set_defaults(st_bbs_list_t *list,
 	remote_root = status == 0 ? ini_document_root(remote) : NULL;
 	base_root = status == 0 ? ini_document_root(canonical_base) : NULL;
 	if (status == 0)
-		status = st_bbs_encode_profile(base_root, &list->defaults, true);
+		status = st_bbs_encode_profile(base_root, &list->view.defaults, true);
 	if (status == 0)
 		status = ini_document_clone(&local, canonical_base);
 	local_root = status == 0 ? ini_document_root(local) : NULL;
@@ -443,14 +465,19 @@ st_bbs_list_set_defaults(st_bbs_list_t *list,
 		status = merge_profile_sections(remote_root, compare_remote_root,
 		    base_root, local_root);
 	if (status == 0)
+		status = st_bbs_view_prepare(list, remote, &view);
+	if (status == 0)
 		status = write_personal(list, remote, &list->write_options,
 		    list->password, list->password_size);
-	if (status == 0)
-		status = install_document(list, &remote, &info);
+	if (status == 0) {
+		crypto_info_for_options(&info, &list->write_options);
+		install_document(list, &remote, &info, &view);
+	}
 	ini_document_free(&local);
 	ini_document_free(&canonical_base);
 	ini_document_free(&canonical_remote);
 	ini_document_free(&remote);
+	st_bbs_view_dispose(&view);
 	st_profile_dispose(&remote_defaults);
 	st_file_lock_release(lock);
 	return status;
@@ -473,6 +500,7 @@ st_bbs_list_rewrite_encryption(st_bbs_list_t *list,
 	ini_document_t *remote = NULL;
 	struct st_list_crypto_info info;
 	struct st_list_crypto_options selected = {0};
+	struct st_bbs_view view = {0};
 	unsigned char *new_password = NULL;
 	st_file_lock_t *lock = NULL;
 	int status;
@@ -495,37 +523,23 @@ st_bbs_list_rewrite_encryption(st_bbs_list_t *list,
 	if (status == 0)
 		status = read_personal(list, &remote, &info);
 	if (status == 0)
+		status = st_bbs_view_prepare(list, remote, &view);
+	if (status == 0)
 		status = write_personal(list, remote, &selected, password,
 		    password_size);
 	if (status == 0) {
+		crypto_info_for_options(&info, &selected);
 		replace_password(list, new_password, password_size);
 		new_password = NULL;
-		memset(&list->crypto, 0, sizeof(list->crypto));
-		list->crypto.format = selected.cipher == ST_LIST_CIPHER_NONE
-		    ? ST_LIST_CRYPTO_PLAIN : ST_LIST_CRYPTO_V2;
-		list->crypto.cipher = selected.cipher;
-		list->crypto.key_bits = selected.key_bits;
-		list->crypto.kdf = selected.cipher == ST_LIST_CIPHER_NONE
-		    ? ST_LIST_KDF_NONE : ST_LIST_KDF_SCRYPT;
-		list->crypto.cost_log2 = selected.cost_log2;
-		list->crypto.block_size = selected.block_size;
-		list->crypto.parallelism = selected.parallelism;
 		list->write_options = selected;
-		ini_document_free(&list->personal_document);
-		list->personal_document = remote;
-		remote = NULL;
-		status = st_bbs_list_rebuild(list);
-		if (status == 0 && list->sort_field_count != 0)
-			status = st_bbs_list_sort(list, list->sort_fields,
-			    list->sort_field_count);
-		if (status == 0)
-			list->generation++;
+		install_document(list, &remote, &info, &view);
 	}
 	if (new_password != NULL) {
 		xp_crypto_clear(new_password, password_size);
 		free(new_password);
 	}
 	ini_document_free(&remote);
+	st_bbs_view_dispose(&view);
 	st_file_lock_release(lock);
 	return status;
 }

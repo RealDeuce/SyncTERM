@@ -37,9 +37,11 @@ else()
 	set(ST_BBS_CACHE_SOURCE st_bbs_cache_posix.c)
 endif()
 
-add_library(st_bbs_list STATIC st_bbs_list.c st_bbs_cache_key.c
+set(ST_BBS_LIST_SOURCES st_bbs_list.c st_bbs_cache_key.c
 	st_bbs_profile_codec.c st_bbs_store.c st_bbs_sort.c st_bbs_web.c
 	${ST_BBS_CACHE_SOURCE})
+
+add_library(st_bbs_list STATIC ${ST_BBS_LIST_SOURCES})
 target_include_directories(st_bbs_list PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_bbs_list PUBLIC st_profile st_list_crypto st_app_paths
 	st_webget
@@ -72,6 +74,47 @@ if(BUILD_TESTING)
 			-Wall -Wextra -Wpedantic -Werror)
 	endif()
 	add_test(NAME bbs_list COMMAND st_bbs_list_test)
+
+	add_library(st_bbs_list_faultable STATIC ${ST_BBS_LIST_SOURCES})
+	target_include_directories(st_bbs_list_faultable PUBLIC
+		${CMAKE_CURRENT_SOURCE_DIR} PRIVATE
+		${CMAKE_CURRENT_SOURCE_DIR}/tests)
+	target_compile_definitions(st_bbs_list_faultable PRIVATE
+		ST_BBS_LIST_TEST_ALLOCATOR=1)
+	target_link_libraries(st_bbs_list_faultable PUBLIC st_profile st_list_crypto
+		st_app_paths st_webget syncterm_io_error PRIVATE st_file_lock
+		st_settings syncterm_array_list syncterm_filesystem syncterm_ini
+		syncterm_string_compat syncterm_path st_hex syncterm_string_util
+		xptls::crypto st_time syncterm_threads)
+	if(WIN32)
+		target_link_libraries(st_bbs_list_faultable PRIVATE st_windows_utf)
+	endif()
+	set_target_properties(st_bbs_list_faultable PROPERTIES C_STANDARD 17
+		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_bbs_list_faultable PRIVATE /W4 /WX)
+	else()
+		target_compile_options(st_bbs_list_faultable PRIVATE
+			-Wall -Wextra -Wpedantic -Werror)
+	endif()
+
+	add_executable(st_bbs_failure_test tests/st_bbs_failure_test.c
+		tests/st_bbs_test_allocator.c)
+	target_include_directories(st_bbs_failure_test PRIVATE
+		${CMAKE_CURRENT_SOURCE_DIR}/tests)
+	target_link_libraries(st_bbs_failure_test PRIVATE st_bbs_list_faultable
+		syncterm_filesystem)
+	target_compile_definitions(st_bbs_failure_test PRIVATE
+		ST_BBS_FAILURE_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/failure-test")
+	set_target_properties(st_bbs_failure_test PROPERTIES C_STANDARD 17
+		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_bbs_failure_test PRIVATE /W4 /WX)
+	else()
+		target_compile_options(st_bbs_failure_test PRIVATE
+			-Wall -Wextra -Wpedantic -Werror)
+	endif()
+	add_test(NAME bbs_failures COMMAND st_bbs_failure_test)
 
 	add_executable(st_bbs_cache_safety_test
 		tests/st_bbs_cache_safety_test.c)

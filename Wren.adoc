@@ -1149,7 +1149,8 @@ the mode palette without moving focus to another field.
 Creating or copying a personal entry with the same name as a read-only entry
 replaces that row immediately.  The model stores the read-only entry beneath
 the personal override.  Deleting the override exposes the read-only entry;
-renaming the personal entry exposes the read-only entry under its own name.
+renaming and saving the personal entry exposes the read-only entry under its
+own name.
 Adding an entry may create such an override.  Pasting a copied personal entry
 instead requires a name unique across all currently visible entries.
 
@@ -4201,14 +4202,14 @@ available in a connected VM.
 
 | Menu.create(name)
 | Create an unsaved personal entry from `Menu.defaults`, reset its
-  statistics, sort the model, and return its `BBS` handle.  Returns
-  `null` for an invalid/duplicate name or allocation failure.
+  statistics, insert it into the sorted working model, and return its `BBS`
+  handle.  Returns `null` for an invalid/duplicate name or allocation failure.
 
 | Menu.copy(source, name)
 | Create an unsaved personal copy of `source`, with reset statistics
-  and the supplied name. `source` may be a current directory record or
-  a valid transient produced by `quickConnect` or the host command-line
-  save flow. Returns `null` on failure.
+  and the supplied name, and insert it into the sorted working model.
+  `source` may be a current directory record or a valid transient produced by
+  `quickConnect` or the host command-line save flow. Returns `null` on failure.
 
 | Menu.sort()
 | Reapply the configured BBS-list sort profiles.
@@ -4312,16 +4313,20 @@ transients abort instead.  This menu-only authority lets a trusted offline
 application select a personal entry and reuse the same saved state that its
 connected script sees; it does not expose arbitrary filesystem construction.
 
-Setters mutate only the in-memory record and set `dirty`; `save()` is
-the persistence boundary and returns Bool.  A rename is likewise
-in-memory until `save()` performs the section rename and field update
-together.  `delete()` removes a personal entry from disk before
-removing it from the model.  System and web-cache records are
+Setters mutate the shared C-owned working record and set `dirty`; separately
+acquired handles for the same current record observe the change. `save()` is
+the persistence boundary and returns Bool.  A rename is likewise in-memory
+until `save()` performs the section rename and field update together.
+`delete()` removes a persisted personal entry from disk before removing it
+from the model; deleting an unsaved entry only discards that draft. System and
+web-cache records are
 read-only: setters abort, while `rename`, `save`, and `delete` return
 `false`.  Pass one to `Menu.copy` to obtain an editable personal copy.
 In safe mode, personal-entry and defaults setters still update their working
-`BBS`, but `save()` and `delete()` return `false`.  The working object remains
-dirty or new, and neither the persisted model nor an entry cache is changed.
+`BBS`, but `save()` and deletion of a persisted entry return `false`. Deleting
+an unsaved draft remains available because it changes no persistent state.
+An unsaved working object otherwise remains dirty or new, and neither the
+persisted directory nor an entry cache is changed.
 
 The shipped entry editor invokes those setters, including `rename()`,
 after each nested field editor accepts a changed value.  It calls
@@ -4347,8 +4352,10 @@ A successful full load, create, or delete advances the model
 generation.  Every previously obtained menu `BBS` handle then becomes
 stale; using one aborts with an instruction to reacquire it from
 `Menu.entries`.  This makes use-after-delete and references into a
-transactionally replaced list deterministic.  Sorting and in-place
-renaming preserve handles.
+transactionally replaced list deterministic. A create or delete also expires
+the current quick-connect handle. Sorting, saving, and in-place renaming
+preserve handles. A failed load or mutation preserves the current model,
+generation, and handles.
 
 === Menu Program Settings [[menu-program-settings]]
 

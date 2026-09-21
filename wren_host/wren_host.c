@@ -827,6 +827,7 @@ st_wren_host_create(st_wren_host_t **result,
 	    ? config->picker_console : config->console;
 	host->font_generation = 1;
 	st_profile_init(&host->selected);
+	st_wren_bbs_model_init(&host->bbs_model);
 	status = load_builtin_fonts(&host->menu);
 	if (status == 0)
 		status = reload_custom_fonts_current(&host->menu);
@@ -922,6 +923,7 @@ st_wren_host_destroy(st_wren_host_t *host)
 		host->menu.vm = NULL;
 	}
 	st_bbs_list_close(host->bbs_list);
+	st_wren_bbs_model_dispose(&host->bbs_model);
 	st_theme_manager_free(&host->themes);
 	st_profile_dispose(&host->selected);
 	free(host);

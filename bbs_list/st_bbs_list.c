@@ -22,6 +22,12 @@
 #include <string.h>
 #include <time.h>
 
+#ifdef ST_BBS_LIST_TEST_ALLOCATOR
+#include "st_bbs_test_allocator.h"
+#define calloc st_bbs_test_calloc
+#define strdup st_bbs_test_strdup
+#endif
+
 bool
 st_bbs_name_equal(const char *left, const char *right)
 {
@@ -55,9 +61,19 @@ free_entry(struct st_bbs_owned_entry *entry)
 {
 	if (entry == NULL)
 		return;
+	free_entry(entry->shadowed);
 	st_profile_dispose(&entry->profile);
 	free(entry->source_name);
 	free(entry);
+}
+
+const struct st_bbs_entry *
+st_bbs_entry_shadowed(const struct st_bbs_entry *entry)
+{
+	const struct st_bbs_owned_entry *owned = (const void *)entry;
+
+	return owned == NULL || owned->shadowed == NULL ? NULL
+	    : &owned->shadowed->public;
 }
 
 static void
@@ -70,20 +86,23 @@ free_diagnostic(struct st_bbs_owned_diagnostic *diagnostic)
 	free(diagnostic);
 }
 
-static void
-clear_view(st_bbs_list_t *list)
+void
+st_bbs_view_dispose(struct st_bbs_view *view)
 {
-	for (size_t i = 0; i < array_list_count((array_list_t)list->entries); ++i)
-		free_entry(list->entries[i]);
-	array_list_free((array_list_t *)&list->entries);
+	if (view == NULL)
+		return;
+	for (size_t i = 0; i < array_list_count((array_list_t)view->entries); ++i)
+		free_entry(view->entries[i]);
+	array_list_free((array_list_t *)&view->entries);
 	for (size_t i = 0;
-	    i < array_list_count((array_list_t)list->diagnostics); ++i)
-		free_diagnostic(list->diagnostics[i]);
-	array_list_free((array_list_t *)&list->diagnostics);
+	    i < array_list_count((array_list_t)view->diagnostics); ++i)
+		free_diagnostic(view->diagnostics[i]);
+	array_list_free((array_list_t *)&view->diagnostics);
+	st_profile_dispose(&view->defaults);
 }
 
 static int
-add_diagnostic(st_bbs_list_t *list, enum st_bbs_source source,
+add_diagnostic(struct st_bbs_view *view, enum st_bbs_source source,
     const char *source_name, const char *section_name, int status)
 {
 	struct st_bbs_owned_diagnostic *item = calloc(1, sizeof(*item));
@@ -101,7 +120,7 @@ add_diagnostic(st_bbs_list_t *list, enum st_bbs_source source,
 	item->public.source_name = item->source_name;
 	item->public.section_name = item->section_name;
 	item->public.status = status;
-	if (!array_list_append((array_list_t *)&list->diagnostics, item)) {
+	if (!array_list_append((array_list_t *)&view->diagnostics, item)) {
 		free_diagnostic(item);
 		return IO_ERROR_OUT_OF_MEMORY;
 	}
@@ -109,17 +128,47 @@ add_diagnostic(st_bbs_list_t *list, enum st_bbs_source source,
 }
 
 static struct st_bbs_owned_entry *
-find_owned(const st_bbs_list_t *list, const char *name)
+find_owned(const struct st_bbs_view *view, const char *name)
 {
-	for (size_t i = 0; i < array_list_count((array_list_t)list->entries); ++i) {
-		if (st_bbs_name_equal(list->entries[i]->profile.name, name))
-			return list->entries[i];
+	for (size_t i = 0; i < array_list_count((array_list_t)view->entries); ++i) {
+		if (st_bbs_name_equal(view->entries[i]->profile.name, name))
+			return view->entries[i];
 	}
 	return NULL;
 }
 
 static int
-append_source(st_bbs_list_t *list, ini_document_t *document,
+decode_entry(const st_bbs_list_t *list, ini_section_t *section,
+    enum st_bbs_source source, const char *source_name,
+    struct st_bbs_owned_entry **result)
+{
+	struct st_bbs_owned_entry *item = calloc(1, sizeof(*item));
+	int status;
+
+	if (item == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	item->source_name = source_name == NULL ? NULL : strdup(source_name);
+	if (source_name != NULL && item->source_name == NULL) {
+		free(item);
+		return IO_ERROR_OUT_OF_MEMORY;
+	}
+	status = st_bbs_decode_profile(&item->profile, section,
+	    ini_section_name(section), source != ST_BBS_SOURCE_PERSONAL,
+	    list->download_path);
+	if (status < 0) {
+		free_entry(item);
+		return status;
+	}
+	item->public.profile = &item->profile;
+	item->public.source = source;
+	item->public.source_name = item->source_name;
+	*result = item;
+	return 0;
+}
+
+static int
+append_source(const st_bbs_list_t *list, struct st_bbs_view *view,
+    ini_document_t *document,
     enum st_bbs_source source, const char *source_name)
 {
 	for (size_t i = 0; i < ini_document_section_count(document); ++i) {
@@ -130,18 +179,36 @@ append_source(st_bbs_list_t *list, ini_document_t *document,
 		int status;
 
 		if (!st_bbs_name_valid(name)) {
-			status = add_diagnostic(list, source, source_name, name,
+			status = add_diagnostic(view, source, source_name, name,
 			    IO_ERROR_INVALID_FORMAT);
 			if (status < 0)
 				return status;
 			continue;
 		}
-		existing = find_owned(list, name);
+		existing = find_owned(view, name);
 		if (existing != NULL) {
 			/* Later duplicate blocks replace earlier blocks in one source. */
 			if (existing->public.source != source
-			    || !st_bbs_name_equal(existing->source_name, source_name))
+			    || !st_bbs_name_equal(existing->source_name, source_name)) {
+				if (existing->shadowed == NULL) {
+					status = decode_entry(list, section, source, source_name,
+					    &existing->shadowed);
+					if (status < 0)
+						return status;
+				}
+				else if (existing->shadowed->public.source == source
+				    && st_bbs_name_equal(existing->shadowed->source_name,
+				    source_name)) {
+					st_profile_dispose(&existing->shadowed->profile);
+					status = st_bbs_decode_profile(
+					    &existing->shadowed->profile, section, name,
+					    source != ST_BBS_SOURCE_PERSONAL,
+					    list->download_path);
+					if (status < 0)
+						return status;
+				}
 				continue;
+			}
 			st_profile_dispose(&existing->profile);
 			status = st_bbs_decode_profile(&existing->profile, section, name,
 			    source != ST_BBS_SOURCE_PERSONAL, list->download_path);
@@ -149,27 +216,13 @@ append_source(st_bbs_list_t *list, ini_document_t *document,
 				return status;
 			continue;
 		}
-		if (array_list_count((array_list_t)list->entries)
+		if (array_list_count((array_list_t)view->entries)
 		    >= ST_BBS_LIST_MAX_ENTRIES)
 			return IO_ERROR_OUT_OF_RANGE;
-		item = calloc(1, sizeof(*item));
-		if (item == NULL)
-			return IO_ERROR_OUT_OF_MEMORY;
-		item->source_name = source_name == NULL ? NULL : strdup(source_name);
-		if (source_name != NULL && item->source_name == NULL) {
-			free(item);
-			return IO_ERROR_OUT_OF_MEMORY;
-		}
-		status = st_bbs_decode_profile(&item->profile, section, name,
-		    source != ST_BBS_SOURCE_PERSONAL, list->download_path);
-		if (status < 0) {
-			free_entry(item);
+		status = decode_entry(list, section, source, source_name, &item);
+		if (status < 0)
 			return status;
-		}
-		item->public.profile = &item->profile;
-		item->public.source = source;
-		item->public.source_name = item->source_name;
-		if (!array_list_append((array_list_t *)&list->entries, item)) {
+		if (!array_list_append((array_list_t *)&view->entries, item)) {
 			free_entry(item);
 			return IO_ERROR_OUT_OF_MEMORY;
 		}
@@ -213,46 +266,49 @@ cache_list_path(const st_bbs_list_t *list, const char *name)
 }
 
 int
-st_bbs_list_rebuild(st_bbs_list_t *list)
+st_bbs_view_prepare(const st_bbs_list_t *list,
+    ini_document_t *personal_document, struct st_bbs_view *view)
 {
 	ini_document_t *document = NULL;
 	ini_section_t *root;
 	int status;
 
-	clear_view(list);
-	st_profile_dispose(&list->defaults);
-	root = ini_document_root(list->personal_document);
-	status = st_bbs_decode_profile(&list->defaults, root, NULL, false,
+	if (list == NULL || personal_document == NULL || view == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	memset(view, 0, sizeof(*view));
+	st_profile_init(&view->defaults);
+	root = ini_document_root(personal_document);
+	status = st_bbs_decode_profile(&view->defaults, root, NULL, false,
 	    list->download_path);
 	if (status < 0)
-		return status;
-	status = append_source(list, list->personal_document,
+		goto failed;
+	status = append_source(list, view, personal_document,
 	    ST_BBS_SOURCE_PERSONAL, NULL);
 	if (status < 0)
-		return status;
+		goto failed;
 	if (list->shared_path != NULL) {
 		status = read_plain_document(list->shared_path, &document);
 		if (status == 0) {
-			status = append_source(list, document, ST_BBS_SOURCE_SHARED,
+			status = append_source(list, view, document,
+			    ST_BBS_SOURCE_SHARED,
 			    list->shared_path);
 			ini_document_free(&document);
 		} else if (status != IO_ERROR_NOT_FOUND) {
-			(void)add_diagnostic(list, ST_BBS_SOURCE_SHARED,
+			status = add_diagnostic(view, ST_BBS_SOURCE_SHARED,
 			    list->shared_path, NULL, status);
-			status = 0;
 		} else
 			status = 0;
 	}
 	if (status == 0 && list->cached_system_list != NULL) {
 		status = read_plain_document(list->cached_system_list, &document);
 		if (status == 0) {
-			status = append_source(list, document, ST_BBS_SOURCE_WEB_SYSTEM,
+			status = append_source(list, view, document,
+			    ST_BBS_SOURCE_WEB_SYSTEM,
 			    "System List");
 			ini_document_free(&document);
 		} else if (status != IO_ERROR_NOT_FOUND) {
-			(void)add_diagnostic(list, ST_BBS_SOURCE_WEB_SYSTEM,
+			status = add_diagnostic(view, ST_BBS_SOURCE_WEB_SYSTEM,
 			    "System List", NULL, status);
-			status = 0;
 		} else
 			status = 0;
 	}
@@ -262,25 +318,42 @@ st_bbs_list_rebuild(st_bbs_list_t *list)
 		char *source_path = cache_list_path(list, download->name);
 
 		if (source_path == NULL) {
-			(void)add_diagnostic(list, ST_BBS_SOURCE_WEB_NAMED,
+			status = add_diagnostic(view, ST_BBS_SOURCE_WEB_NAMED,
 			    download->name, NULL, IO_ERROR_INVALID_ARGUMENT);
 			continue;
 		}
 		status = read_plain_document(source_path, &document);
 		free(source_path);
 		if (status == 0) {
-			status = append_source(list, document, ST_BBS_SOURCE_WEB_NAMED,
+			status = append_source(list, view, document,
+			    ST_BBS_SOURCE_WEB_NAMED,
 			    download->name);
 			ini_document_free(&document);
 		} else if (status != IO_ERROR_NOT_FOUND) {
-			(void)add_diagnostic(list, ST_BBS_SOURCE_WEB_NAMED,
+			status = add_diagnostic(view, ST_BBS_SOURCE_WEB_NAMED,
 			    download->name, NULL, status);
-			status = 0;
 		} else {
 			status = 0;
 		}
 	}
+	if (status == 0 && list->sort_field_count != 0)
+		st_bbs_view_sort(view, list->sort_fields, list->sort_field_count);
+	if (status == 0)
+		return 0;
+failed:
+	ini_document_free(&document);
+	st_bbs_view_dispose(view);
 	return status;
+}
+
+void
+st_bbs_view_publish(st_bbs_list_t *list, struct st_bbs_view *view)
+{
+	struct st_bbs_view old = list->view;
+
+	list->view = *view;
+	memset(view, 0, sizeof(*view));
+	st_bbs_view_dispose(&old);
 }
 
 static int
@@ -342,7 +415,7 @@ st_bbs_list_open(st_bbs_list_t **result, const struct st_app_paths *paths,
 	list = calloc(1, sizeof(*list));
 	if (list == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
-	st_profile_init(&list->defaults);
+	st_profile_init(&list->view.defaults);
 	personal_path = st_settings.list_path != NULL
 	    && !st_settings.download_system_list
 	    ? st_settings.list_path : paths->personal_list;
@@ -358,7 +431,9 @@ st_bbs_list_open(st_bbs_list_t **result, const struct st_app_paths *paths,
 			memcpy(list->password, password, password_size);
 		list->password_size = password_size;
 	}
-	if (list->personal_path == NULL || list->cache_path == NULL
+	if (list->personal_path == NULL
+	    || (paths->shared_list != NULL && list->shared_path == NULL)
+	    || list->cache_path == NULL
 	    || list->system_cache_path == NULL
 	    || list->cached_system_list == NULL || list->download_path == NULL
 	    || (password_size != 0 && list->password == NULL)) {
@@ -376,7 +451,11 @@ st_bbs_list_open(st_bbs_list_t **result, const struct st_app_paths *paths,
 	}
 	if (status == 0) {
 		set_write_options(list);
-		status = st_bbs_list_rebuild(list);
+		struct st_bbs_view view;
+
+		status = st_bbs_view_prepare(list, list->personal_document, &view);
+		if (status == 0)
+			st_bbs_view_publish(list, &view);
 	}
 	if (status < 0) {
 		st_bbs_list_close(list);
@@ -392,8 +471,7 @@ st_bbs_list_close(st_bbs_list_t *list)
 {
 	if (list == NULL)
 		return;
-	clear_view(list);
-	st_profile_dispose(&list->defaults);
+	st_bbs_view_dispose(&list->view);
 	ini_document_free(&list->personal_document);
 	free(list->personal_path);
 	free(list->shared_path);
@@ -412,6 +490,7 @@ st_bbs_list_reload(st_bbs_list_t *list)
 {
 	ini_document_t *document = NULL;
 	struct st_list_crypto_info info;
+	struct st_bbs_view view;
 	st_file_lock_t *lock = NULL;
 	int status;
 
@@ -421,18 +500,16 @@ st_bbs_list_reload(st_bbs_list_t *list)
 	if (status < 0)
 		return status;
 	status = read_personal_document(list, &document, &info);
+	if (status == 0)
+		status = st_bbs_view_prepare(list, document, &view);
 	if (status == 0) {
 		ini_document_free(&list->personal_document);
 		list->personal_document = document;
 		document = NULL;
 		list->crypto = info;
 		set_write_options(list);
-		status = st_bbs_list_rebuild(list);
-		if (status == 0 && list->sort_field_count != 0)
-			status = st_bbs_list_sort(list, list->sort_fields,
-			    list->sort_field_count);
-		if (status == 0)
-			list->generation++;
+		st_bbs_view_publish(list, &view);
+		list->generation++;
 	}
 	ini_document_free(&document);
 	st_file_lock_release(lock);
@@ -443,7 +520,7 @@ size_t
 st_bbs_list_count(const st_bbs_list_t *list)
 {
 	return list == NULL ? 0
-	    : array_list_count((array_list_t)list->entries);
+	    : array_list_count((array_list_t)list->view.entries);
 }
 
 const struct st_bbs_entry *
@@ -451,7 +528,7 @@ st_bbs_list_at(const st_bbs_list_t *list, size_t index)
 {
 	if (list == NULL || index >= st_bbs_list_count(list))
 		return NULL;
-	return &list->entries[index]->public;
+	return &list->view.entries[index]->public;
 }
 
 const struct st_bbs_entry *
@@ -461,14 +538,14 @@ st_bbs_list_find(const st_bbs_list_t *list, const char *name)
 
 	if (list == NULL || name == NULL)
 		return NULL;
-	entry = find_owned(list, name);
+	entry = find_owned(&list->view, name);
 	return entry == NULL ? NULL : &entry->public;
 }
 
 const struct st_profile *
 st_bbs_list_defaults(const st_bbs_list_t *list)
 {
-	return list == NULL ? NULL : &list->defaults;
+	return list == NULL ? NULL : &list->view.defaults;
 }
 
 uint64_t
@@ -487,7 +564,7 @@ size_t
 st_bbs_list_diagnostic_count(const st_bbs_list_t *list)
 {
 	return list == NULL ? 0
-	    : array_list_count((array_list_t)list->diagnostics);
+	    : array_list_count((array_list_t)list->view.diagnostics);
 }
 
 const struct st_bbs_diagnostic *
@@ -495,5 +572,5 @@ st_bbs_list_diagnostic_at(const st_bbs_list_t *list, size_t index)
 {
 	if (list == NULL || index >= st_bbs_list_diagnostic_count(list))
 		return NULL;
-	return &list->diagnostics[index]->public;
+	return &list->view.diagnostics[index]->public;
 }

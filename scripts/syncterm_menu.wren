@@ -42,6 +42,7 @@ class Menu {
   foreign static defaults
   foreign static settings
   foreign static nameAvailable(name)
+  // create/copy insert an unsaved personal record into the working model.
   foreign static create(name)
   foreign static copy(source, name)
   foreign static sort()

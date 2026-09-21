@@ -313,6 +313,203 @@ exercise_menu_contract(st_wren_host_t *public_host)
 }
 
 static int
+interpret_bbs_contract(struct st_wren_host *host, const char *module,
+    const char *source)
+{
+	if (wrenInterpret(host->vm, module, source) == WREN_RESULT_SUCCESS)
+		return 0;
+	fprintf(stderr, "BBS model contract failed in %s: %s\n", module,
+	    host->last_error);
+	return -1;
+}
+
+static int
+exercise_bbs_model_contract(st_wren_host_t *public_host,
+    struct st_app_paths *paths, const char *personal, const char *shared)
+{
+	static const char personal_text[] =
+	    "[Alpha]\nAddress=alpha.example\nAdded=10\nLastConnected=100\n"
+	    "TotalCalls=9\n"
+	    "[Zulu]\nAddress=zulu.example\nLastConnected=200\n";
+	static const char state_source[] =
+	    "import \"syncterm_menu\" for Menu\n"
+	    "class BbsContractState {\n"
+	    "  static entry { __entry }\n"
+	    "  static entry=(value) { __entry = value }\n"
+	    "  static transient { __transient }\n"
+	    "  static transient=(value) { __transient = value }\n"
+	    "  static persisted { __persisted }\n"
+	    "  static persisted=(value) { __persisted = value }\n"
+	    "}\n"
+	    "if (Menu.load(null) != 0) Fiber.abort(\"initial load\")\n"
+	    "BbsContractState.entry = Menu.entries[0]\n"
+	    "BbsContractState.transient = Menu.quickConnect(\"raw://temporary.example:23\")\n";
+	static const char failed_load_source[] =
+	    "import \"syncterm_menu\" for Menu\n"
+	    "import \"bbs_contract_state\" for BbsContractState\n"
+	    "if (Menu.load(null) == 0) Fiber.abort(\"failed load succeeded\")\n"
+	    "if (BbsContractState.entry.name != \"Zulu\" || "
+	    "BbsContractState.transient.addr != \"temporary.example\") "
+	    "Fiber.abort(\"failed load changed model\")\n";
+	static const char successful_load_source[] =
+	    "import \"syncterm_menu\" for Menu\n"
+	    "import \"bbs_contract_state\" for BbsContractState\n"
+	    "if (Menu.load(null) != 0) Fiber.abort(\"reload\")\n"
+	    "var oldEntry = Fiber.new { BbsContractState.entry.name }.try()\n"
+	    "var oldTransient = Fiber.new { BbsContractState.transient.name }.try()\n"
+	    "if (!(oldEntry is String) || !(oldTransient is String)) "
+	    "Fiber.abort(\"successful load retained old handle\")\n";
+	static const char categories_source[] =
+	    "import \"syncterm_menu\" for Menu\n"
+	    "class BbsLookup {\n"
+	    "  static named(name) {\n"
+	    "    for (entry in Menu.entries) {\n"
+	    "      if (entry.name == name) return entry\n"
+	    "    }\n"
+	    "    return null\n"
+	    "  }\n"
+	    "}\n"
+	    "if (Menu.load(null) != 0) Fiber.abort(\"category load\")\n"
+	    "var system = BbsLookup.named(\"System\")\n"
+	    "if (system == null || system.type != 1) Fiber.abort(\"system entry\")\n"
+	    "var readOnly = Fiber.new { system.comment = \"forbidden\" }.try()\n"
+	    "if (!(readOnly is String) || system.rename(\"Other\") || "
+	    "system.save() || system.delete()) Fiber.abort(\"system mutability\")\n"
+	    "if (!Menu.nameAvailable(\"System\") || Menu.nameAvailable(\"Alpha\") "
+	    "|| Menu.nameAvailable(\"\") || Menu.nameAvailable(\"bad[name\") || "
+	    "Menu.nameAvailable(\"syncterm-system-cache\")) "
+	    "Fiber.abort(\"name admission\")\n"
+	    "if (Menu.create(\"Alpha\") != null || Menu.create(\"\") != null || "
+	    "Menu.create(\"bad[name\") != null) Fiber.abort(\"create admission\")\n"
+	    "var defaults = Menu.defaults\n"
+	    "var defaultsAgain = Menu.defaults\n"
+	    "defaults.comment = \"working defaults\"\n"
+	    "if (defaultsAgain.comment != \"working defaults\" || !defaults.save() "
+	    "|| defaults.dirty) Fiber.abort(\"defaults sharing\")\n"
+	    "var transient = Menu.quickConnect(\"raw://quick.example:23\")\n"
+	    "transient.comment = \"allowed\"\n"
+	    "if (transient.dirty || transient.rename(\"Transient\") || "
+	    "transient.save() || transient.delete()) Fiber.abort(\"transient rules\")\n"
+	    "var count = Menu.entries.count\n"
+	    "var shadow = Menu.create(\"System\")\n"
+	    "if (shadow == null || shadow.type != 0 || shadow.calls != 0 || "
+	    "shadow.connected != 0 || Menu.entries.count != count) "
+	    "Fiber.abort(\"system shadow\")\n"
+	    "var transientStale = Fiber.new { transient.name }.try()\n"
+	    "var systemStale = Fiber.new { system.name }.try()\n"
+	    "var defaultsStale = Fiber.new { defaults.comment }.try()\n"
+	    "if (!(transientStale is String) || !(systemStale is String) || "
+	    "!(defaultsStale is String)) Fiber.abort(\"create retained old handle\")\n"
+	    "var sameShadow = BbsLookup.named(\"System\")\n"
+	    "var unrelated = BbsLookup.named(\"Alpha\")\n"
+	    "shadow.comment = \"shared record\"\n"
+	    "if (sameShadow.comment != \"shared record\") Fiber.abort(\"record sharing\")\n"
+	    "if (!shadow.delete()) Fiber.abort(\"discard shadow\")\n"
+	    "var shadowStale = Fiber.new { shadow.name }.try()\n"
+	    "var unrelatedStale = Fiber.new { unrelated.name }.try()\n"
+	    "var restored = BbsLookup.named(\"System\")\n"
+	    "if (!(shadowStale is String) || !(unrelatedStale is String) || "
+	    "restored == null || restored.type != 1 "
+	    "|| restored.addr != \"system.example\") Fiber.abort(\"restore system\")\n"
+	    "var scratch = Menu.create(\"Scratch\")\n"
+	    "if (scratch == null || !scratch.delete()) Fiber.abort(\"discard draft\")\n"
+	    "if (!(Fiber.new { scratch.name }.try() is String)) "
+	    "Fiber.abort(\"deleted draft remained usable\")\n";
+	static const char save_shadow_source[] =
+	    "import \"syncterm_menu\" for Menu\n"
+	    "import \"bbs_contract_state\" for BbsContractState\n"
+	    "var shadow = Menu.create(\"System\")\n"
+	    "shadow.comment = \"persisted shadow\"\n"
+	    "if (!shadow.save() || shadow.dirty || shadow.comment != "
+	    "\"persisted shadow\") Fiber.abort(\"save shadow\")\n"
+	    "BbsContractState.persisted = shadow\n";
+	static const char delete_shadow_source[] =
+	    "import \"syncterm_menu\" for Menu\n"
+	    "import \"bbs_contract_state\" for BbsContractState\n"
+	    "var shadow = BbsContractState.persisted\n"
+	    "if (!shadow.delete()) Fiber.abort(\"delete shadow\")\n"
+	    "if (!(Fiber.new { shadow.name }.try() is String)) "
+	    "Fiber.abort(\"deleted shadow remained usable\")\n"
+	    "var restored = null\n"
+	    "for (entry in Menu.entries) {\n"
+	    "  if (entry.name == \"System\") restored = entry\n"
+	    "}\n"
+	    "if (restored == null || restored.type != 1) Fiber.abort(\"system not restored\")\n";
+	static const char save_copy_source[] =
+	    "import \"syncterm_menu\" for Menu\n"
+	    "import \"bbs_contract_state\" for BbsContractState\n"
+	    "var alpha = null\n"
+	    "for (entry in Menu.entries) {\n"
+	    "  if (entry.name == \"Alpha\") alpha = entry\n"
+	    "}\n"
+	    "if (alpha == null || alpha.calls != 9 || alpha.connected != 100) "
+	    "Fiber.abort(\"copy source\")\n"
+	    "var copy = Menu.copy(alpha, \"Copy\")\n"
+	    "if (copy == null || copy.calls != 0 || copy.connected != 0 || "
+	    "copy.added <= 0) Fiber.abort(\"copy reset\")\n"
+	    "var same = null\n"
+	    "for (entry in Menu.entries) {\n"
+	    "  if (entry.name == \"Copy\") same = entry\n"
+	    "}\n"
+	    "copy.comment = \"shared copy\"\n"
+	    "if (same.comment != \"shared copy\" || !copy.rename(\"Aardvark\") "
+	    "|| same.name != \"Aardvark\" || !Menu.sort() || "
+	    "same.name != \"Aardvark\" || !copy.save() || copy.dirty) "
+	    "Fiber.abort(\"copy lifecycle\")\n"
+	    "BbsContractState.persisted = copy\n";
+	static const char delete_copy_source[] =
+	    "import \"bbs_contract_state\" for BbsContractState\n"
+	    "var copy = BbsContractState.persisted\n"
+	    "if (copy.name != \"Aardvark\" || !copy.delete()) "
+	    "Fiber.abort(\"delete persisted copy\")\n"
+	    "if (!(Fiber.new { copy.name }.try() is String)) "
+	    "Fiber.abort(\"persisted delete retained handle\")\n";
+	struct st_wren_host *host = public_host;
+	char *saved_personal = paths->personal_list;
+	char *saved_list_path = st_settings.list_path;
+	bool saved_download_system_list = st_settings.download_system_list;
+
+	st_settings.list_path = NULL;
+	st_settings.download_system_list = false;
+	CHECK(write_file(personal, personal_text) == 0);
+	CHECK(write_file(shared,
+	    "[System]\nAddress=system.example\nUserName=ignored\n") == 0);
+	CHECK(interpret_bbs_contract(host, "bbs_contract_state", state_source) == 0);
+	paths->personal_list = ST_WREN_TEST_DIRECTORY;
+	CHECK(interpret_bbs_contract(host, "bbs_failed_load", failed_load_source)
+	    == 0);
+	paths->personal_list = saved_personal;
+	CHECK(interpret_bbs_contract(host, "bbs_successful_load",
+	    successful_load_source) == 0);
+	CHECK(interpret_bbs_contract(host, "bbs_categories", categories_source) == 0);
+	CHECK(!file_contains(personal, "[Scratch]"));
+	CHECK(interpret_bbs_contract(host, "bbs_save_shadow", save_shadow_source)
+	    == 0);
+	CHECK(file_contains(personal, "[System]"));
+	CHECK(file_contains(personal, "Comment=persisted shadow"));
+	CHECK(interpret_bbs_contract(host, "bbs_delete_shadow",
+	    delete_shadow_source) == 0);
+	CHECK(!file_contains(personal, "[System]"));
+	CHECK(interpret_bbs_contract(host, "bbs_save_copy", save_copy_source) == 0);
+	CHECK(file_contains(personal, "[Aardvark]"));
+	CHECK(interpret_bbs_contract(host, "bbs_delete_copy", delete_copy_source)
+	    == 0);
+	CHECK(!file_contains(personal, "[Aardvark]"));
+
+	CHECK(write_file(personal,
+	    "[Alpha]\nAddress=alpha.example\nLastConnected=100\n"
+	    "[Zulu]\nAddress=zulu.example\nLastConnected=200\n") == 0);
+	CHECK(write_file(shared, "") == 0);
+	CHECK(interpret_bbs_contract(host, "bbs_contract_restore",
+	    "import \"syncterm_menu\" for Menu\n"
+	    "if (Menu.load(null) != 0 || Menu.entries.count != 2) "
+	    "Fiber.abort(\"restore\")\n") == 0);
+	st_settings.list_path = saved_list_path;
+	st_settings.download_system_list = saved_download_system_list;
+	return 0;
+}
+
+static int
 exercise_build_options_contract(st_wren_host_t *public_host)
 {
 	struct st_wren_host *host = public_host;
@@ -1447,13 +1644,14 @@ exercise_safe_mode_persistence_contract(st_wren_host_t *public_host,
 	    "var entry = Menu.entries[0]\n"
 	    "entry.comment = \"unsaved edit\"\n"
 	    "if (!entry.rename(\"Renamed\") || entry.save() || !entry.dirty) Fiber.abort(\"entry save\")\n"
-	    "if (entry.delete() || Menu.entries.count != count || Menu.entries[0].name != \"Alpha\") Fiber.abort(\"entry delete\")\n"
+	    "if (entry.delete() || Menu.entries.count != count || Menu.entries[0].name != \"Renamed\") Fiber.abort(\"entry delete\")\n"
 	    "var fresh = Menu.create(\"Fresh\")\n"
 	    "fresh.comment = \"unsaved new entry\"\n"
-	    "if (fresh.save() || !fresh.dirty || Menu.entries.count != count) Fiber.abort(\"new entry save\")\n"
+	    "if (fresh.save() || !fresh.dirty || Menu.entries.count != count + 1) Fiber.abort(\"new entry save\")\n"
+	    "if (!fresh.delete() || Menu.entries.count != count) Fiber.abort(\"new entry discard\")\n"
 	    "var defaults = Menu.defaults\n"
 	    "defaults.comment = \"unsaved defaults\"\n"
-	    "if (defaults.save() || !defaults.dirty || Menu.defaults.comment == \"unsaved defaults\") Fiber.abort(\"defaults save\")\n"
+	    "if (defaults.save() || !defaults.dirty || Menu.defaults.comment != \"unsaved defaults\") Fiber.abort(\"defaults save\")\n"
 	    "var snapshot = Menu.settings\n"
 	    "var confirm = snapshot.confirmClose\n"
 	    "snapshot.confirmClose = !confirm\n"
@@ -1697,6 +1895,7 @@ main(void)
 	uint64_t theme_generation = st_theme_generation(
 	    ((struct st_wren_host *)host)->themes);
 	CHECK(exercise_menu_contract(host) == 0);
+	CHECK(exercise_bbs_model_contract(host, &paths, personal, shared) == 0);
 	CHECK(exercise_build_options_contract(host) == 0);
 	CHECK(exercise_configuration_collections(host) == 0);
 	CHECK(st_wren_font_identifier(&((struct st_wren_host *)host)->menu, 46,

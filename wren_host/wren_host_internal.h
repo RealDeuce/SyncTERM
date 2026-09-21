@@ -10,6 +10,7 @@
 
 #include "st_wren_host.h"
 #include "st_profile.h"
+#include "wren_bbs_model.h"
 #include "wren.h"
 
 #include <stdbool.h>
@@ -195,6 +196,7 @@ struct st_wren_host {
 	WrenVM *picker_vm;
 	struct st_wren_host_config config;
 	struct st_bbs_list *bbs_list;
+	struct st_wren_bbs_model bbs_model;
 	WrenHandle *main_menu;
 	WrenHandle *run_menu;
 	WrenHandle *menu_ui_class;

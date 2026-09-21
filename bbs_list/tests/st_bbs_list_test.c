@@ -97,6 +97,10 @@ main(void)
 	entry = st_bbs_list_find(first, "alpha");
 	CHECK(entry != NULL && entry->source == ST_BBS_SOURCE_PERSONAL);
 	CHECK(strcmp(entry->profile->address, "personal.example") == 0);
+	CHECK(st_bbs_entry_shadowed(entry) != NULL);
+	CHECK(st_bbs_entry_shadowed(entry)->source == ST_BBS_SOURCE_SHARED);
+	CHECK(strcmp(st_bbs_entry_shadowed(entry)->profile->address,
+	    "shared.example") == 0);
 	CHECK(st_bbs_list_find(first, "Shared") != NULL);
 	CHECK(st_bbs_list_find(first, "Shared")->profile->username[0] == '\0');
 	CHECK(st_bbs_list_find(first, "Shared")->profile->password[0] == '\0');

@@ -278,14 +278,16 @@ finish:
 static int
 rebuild_after_refresh(st_bbs_list_t *list, int status)
 {
+	struct st_bbs_view view = {0};
+
 	if (status != 0)
 		return status;
-	status = st_bbs_list_rebuild(list);
-	if (status == 0 && list->sort_field_count != 0)
-		status = st_bbs_list_sort(list, list->sort_fields,
-		    list->sort_field_count);
-	if (status == 0)
+	status = st_bbs_view_prepare(list, list->personal_document, &view);
+	if (status == 0) {
+		st_bbs_view_publish(list, &view);
 		list->generation++;
+	}
+	st_bbs_view_dispose(&view);
 	return status;
 }
 

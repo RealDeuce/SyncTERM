@@ -7,8 +7,8 @@ recommended remedies. Severity does not imply exploitability; source-confirmed
 risks and reproduced failures must be distinguished using those entries.
 No remediation is authorized by this report.
 
-The audit is complete, not the implementation: **61 outstanding findings**
-comprise 34 medium, 25 low and 2 unresolved design/performance
+The audit is complete, not the implementation: **58 outstanding findings**
+comprise 31 medium, 25 low and 2 unresolved design/performance
 concerns.
 This is not a count of exploitable vulnerabilities or reproduced failures.
 All 47 tracked source directories and 12 root files are covered by the
@@ -37,7 +37,7 @@ consumer boundaries, not evidence that the entire decomposition is wrong.
 | Boundary | Evidence and assessment | Recommended direction, not authorized work |
 | --- | --- | --- |
 | Native I/O → portable result | A006 loses errno during cleanup | Preserve error ownership across cleanup |
-| Mutable model → persistence | A061–A065 and A100–A102 show failure-atomicity and handle-contract mismatches | Define when state changes become visible and when handles expire; test failure paths at the public boundary |
+| Mutable model → persistence | A063–A065, A100 and A105 show remaining failure-atomicity and handle-contract mismatches | Define when state changes become visible and when handles expire; test failure paths at the public boundary |
 | Script declarations → bound implementation | A054–A055, A096 and A098–A099 show unavailable or approximated contracts | Keep capability scope explicit and test the shipped scripts against the actual host |
 | Public target → independent consumer | A002, A013, A047, A066 expose probe/dependency gaps | Probe the real declaration/link environment and test minimal consumers |
 | Source libraries → application distribution | A088, A091, A095 distinguish a functioning menu build from connected runtime, DLL/core packaging and notice assembly | Document and verify actual artifacts without representing planned integration as complete |
@@ -62,8 +62,7 @@ Concrete coupling concerns, not automatic refactoring requests:
 
 Ownership assessment: opaque handles and matching destruction functions are
 common and appropriate; the public pixel buffer deliberately exposes planes
-for its consumers. Deep copying a BBS object avoids a dangling pointer but
-does not implement stale-model semantics (A101).
+for its consumers.
 
 Concurrency/performance assessment: lock/condition ownership and shutdown are
 reviewed per component in AUDIT.md. Callback locking/allocation is an explicit
@@ -74,7 +73,7 @@ No new blanket GC, contention or scaling-performance diagnosis is made from
 source shape. The source and test inventory must retain those measurement
 limits in the final report.
 
-The current TODO documents contain 61 outstanding numbered findings. A007 and
+The current TODO documents contain 58 outstanding numbered findings. A007 and
 A011 are unresolved design/performance concerns, not confirmed runtime defects.
 Missing features and documentation errors are also explicitly distinguished
 from implementation failures in the detailed ledger.
@@ -105,7 +104,6 @@ from implementation failures in the detailed ledger.
 | A054 | medium | Additional user event scripts are never auto-loaded |
 | A055 | medium | Picker load failure prevents application startup instead of recovery |
 | A056 | low | POSIX picker reports directory read errors as successful listings |
-| A061 | medium | Failed Menu.load discards the existing model |
 | A063 | medium | Settings snapshots never become stale after another snapshot applies |
 | A064 | medium | Failed Settings.save still applies the previously unapplied snapshot |
 | A065 | medium | Settings.reload reads disk rather than current running settings |
@@ -136,8 +134,6 @@ from implementation failures in the detailed ledger.
 | A098 | low | Shipped UI demo imports an absent module |
 | A099 | medium | Menu screen-mode changes lose mode identity and use incomplete geometry |
 | A100 | medium | Rejected BBS palette/script assignments partially change the object |
-| A101 | medium | BBS handles remain usable after a successful model reload |
-| A102 | medium | BBS admission and transient-operation guards do not match the menu contract |
 | A105 | medium | Custom-font bindings do not preserve their declared editing boundaries |
 | A108 | medium source-confirmed | Wayland buffer failure loses the mapped length |
 | A109 | medium source-confirmed | Wayland worker waits incompletely handle disconnection and shutdown |
@@ -148,8 +144,8 @@ from implementation failures in the detailed ledger.
 ### Latest configured native verification
 
 `cmake --build build -j2` succeeds. The subsequent command
-`ctest --test-dir build --output-on-failure` registers 75 tests: the stable
-disposition is **72 pass, 2 fail and 1 Wayland test skipped**. The X11 tests
+`ctest --test-dir build --output-on-failure` registers 76 tests: the stable
+disposition is **73 pass, 2 fail and 1 Wayland test skipped**. The X11 tests
 pass on a dedicated Xvfb display; SDL uses its CMake-configured
 dummy video driver.
 This is native verification, not Windows/macOS execution or comprehensive

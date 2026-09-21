@@ -71,12 +71,9 @@ compare_nullable_ascii(const char *left, const char *right)
 #define COMPARE_VALUE(a, b) ((a) < (b) ? -1 : (a) > (b) ? 1 : 0)
 
 static int
-compare_field(const struct st_bbs_owned_entry *left,
-    const struct st_bbs_owned_entry *right, int field)
+compare_field(const struct st_profile *a, enum st_bbs_source a_source,
+    const struct st_profile *b, enum st_bbs_source b_source, int field)
 {
-	const struct st_profile *a = &left->profile;
-	const struct st_profile *b = &right->profile;
-
 	switch (field) {
 	case ST_BBS_SORT_NAME: return compare_nullable_ascii(a->name, b->name);
 	case ST_BBS_SORT_ADDED: return COMPARE_VALUE(a->added, b->added);
@@ -84,7 +81,7 @@ compare_field(const struct st_bbs_owned_entry *left,
 		return COMPARE_VALUE(a->connected, b->connected);
 	case ST_BBS_SORT_CALLS: return COMPARE_VALUE(a->calls, b->calls);
 	case ST_BBS_SORT_SOURCE:
-		return COMPARE_VALUE(left->public.source, right->public.source);
+		return COMPARE_VALUE(a_source, b_source);
 	case ST_BBS_SORT_ADDRESS: return compare_nullable_ascii(a->address, b->address);
 	case ST_BBS_SORT_PORT: return COMPARE_VALUE(a->port, b->port);
 	case ST_BBS_SORT_USERNAME: return compare_nullable_ascii(a->username, b->username);
@@ -129,6 +126,28 @@ compare_field(const struct st_bbs_owned_entry *left,
 	}
 }
 
+int
+st_bbs_compare_profiles(const struct st_profile *left,
+    enum st_bbs_source left_source, const struct st_profile *right,
+    enum st_bbs_source right_source, const int *fields, size_t field_count)
+{
+	if (left == NULL || right == NULL)
+		return left == right ? 0 : left == NULL ? -1 : 1;
+	for (size_t i = 0; i < field_count; ++i) {
+		int requested = fields[i];
+		int field = requested < 0 ? -requested : requested;
+		bool reverse = requested < 0;
+		int result = compare_field(left, left_source, right, right_source,
+		    field);
+
+		if (st_bbs_sort_field_reversed(field))
+			reverse = !reverse;
+		if (result != 0)
+			return reverse ? -result : result;
+	}
+	return compare_nullable_ascii(left->name, right->name);
+}
+
 bool
 st_bbs_sort_field_reversed(int field)
 {
@@ -143,18 +162,21 @@ compare_entries(const void *left_pointer, const void *right_pointer)
 	const struct st_bbs_owned_entry *left = *(const void *const *)left_pointer;
 	const struct st_bbs_owned_entry *right = *(const void *const *)right_pointer;
 
-	for (size_t i = 0; i < current_sort.count; ++i) {
-		int requested = current_sort.fields[i];
-		int field = requested < 0 ? -requested : requested;
-		bool reverse = requested < 0;
-		int result = compare_field(left, right, field);
+	return st_bbs_compare_profiles(&left->profile, left->public.source,
+	    &right->profile, right->public.source, current_sort.fields,
+	    current_sort.count);
+}
 
-		if (st_bbs_sort_field_reversed(field))
-			reverse = !reverse;
-		if (result != 0)
-			return reverse ? -result : result;
-	}
-	return compare_nullable_ascii(left->profile.name, right->profile.name);
+void
+st_bbs_view_sort(struct st_bbs_view *view, const int *fields,
+    size_t field_count)
+{
+	current_sort.fields = fields;
+	current_sort.count = field_count;
+	qsort(view->entries, array_list_count((array_list_t)view->entries),
+	    sizeof(*view->entries), compare_entries);
+	current_sort.fields = NULL;
+	current_sort.count = 0;
 }
 
 int
@@ -179,12 +201,7 @@ st_bbs_list_sort(st_bbs_list_t *list, const int *fields, size_t field_count)
 	free(list->sort_fields);
 	list->sort_fields = copy;
 	list->sort_field_count = field_count;
-	current_sort.fields = copy;
-	current_sort.count = field_count;
-	qsort(list->entries, st_bbs_list_count(list), sizeof(*list->entries),
-	    compare_entries);
-	current_sort.fields = NULL;
-	current_sort.count = 0;
+	st_bbs_view_sort(&list->view, copy, field_count);
 	list->generation++;
 	return 0;
 }

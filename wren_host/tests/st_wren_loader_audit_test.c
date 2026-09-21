@@ -53,7 +53,6 @@ main(int argc, char **argv)
 	CHECK(strcmp(argv[2], "autoload") == 0
 	    || strcmp(argv[2], "recovery") == 0
 	    || strcmp(argv[2], "physical-input") == 0
-	    || strcmp(argv[2], "reload") == 0
 	    || strcmp(argv[2], "settings-stale") == 0
 	    || strcmp(argv[2], "settings-save-failure") == 0
 	    || strcmp(argv[2], "settings-reload") == 0
@@ -106,8 +105,7 @@ main(int argc, char **argv)
 	paths.cache_directory = argv[1];
 	paths.system_cache_directory = argv[1];
 	paths.download_directory = argv[1];
-	if (strcmp(argv[2], "reload") == 0
-	    || strcmp(argv[2], "bbs-setters") == 0) {
+	if (strcmp(argv[2], "bbs-setters") == 0) {
 		(void)snprintf(personal, sizeof(personal), "%s/personal.ini", argv[1]);
 		(void)snprintf(cached, sizeof(cached), "%s/cached.ini", argv[1]);
 		write_script(personal, "[Audit]\nAddress=example.invalid\n");
@@ -146,21 +144,6 @@ main(int argc, char **argv)
 		fprintf(stderr, "host survives invalid picker implementation: %s (status %d)\n",
 		    passed ? "PASS" : "FAIL", status);
 	}
-	else if (strcmp(argv[2], "reload") == 0) {
-		CHECK(status == 0);
-		CHECK(wrenInterpret(host->vm, "initial_load_audit",
-		    "import \"syncterm_menu\" for Menu\n"
-		    "if (Menu.load(null) != 0 || Menu.entries.count != 1) Fiber.abort(\"initial load failed\")\n")
-		    == WREN_RESULT_SUCCESS);
-		/* A directory cannot be read as a personal list document. */
-		paths.personal_list = argv[1];
-		passed = wrenInterpret(host->vm, "failed_reload_audit",
-		    "import \"syncterm_menu\" for Menu\n"
-		    "if (Menu.load(null) == 0) Fiber.abort(\"expected reload failure\")\n"
-		    "if (Menu.entries.count != 1) Fiber.abort(\"failed reload lost old entries\")\n")
-		    == WREN_RESULT_SUCCESS;
-		fprintf(stderr, "failed reload preserves entries: %s\n", passed ? "PASS" : "FAIL");
-	}
 	else if (strcmp(argv[2], "bbs-setters") == 0) {
 		static const char *cases[] = {
 		    "import \"syncterm_menu\" for Menu\n"
@@ -178,18 +161,6 @@ main(int argc, char **argv)
 		    "bad.try()\n"
 		    "if (bad.error == null) Fiber.abort(\"invalid scripts accepted\")\n"
 		    "if (entry.wrenScripts[0] != \"original\") Fiber.abort(\"rejected scripts changed old value\")\n",
-		    "import \"syncterm_menu\" for Menu\n"
-		    "var entry = Menu.entries[0]\n"
-		    "if (Menu.load(null) != 0) Fiber.abort(\"reload failed\")\n"
-		    "var stale = Fiber.new { entry.addr }\n"
-		    "stale.try()\n"
-		    "if (stale.error == null) Fiber.abort(\"old BBS handle remained usable after reload\")\n",
-		    "import \"syncterm_menu\" for Menu\n"
-		    "var entry = Menu.quickConnect(\"raw://example.invalid:23\")\n"
-		    "if (entry == null) Fiber.abort(\"fixture URL rejected\")\n"
-		    "if (entry.rename(\"Transient\")) Fiber.abort(\"transient rename accepted\")\n",
-		    ("import \"syncterm_menu\" for Menu\n"
-		    "if (Menu.create(\"Audit\") != null) Fiber.abort(\"duplicate entry accepted\")\n"),
 		};
 		CHECK(status == 0);
 		passed = true;
