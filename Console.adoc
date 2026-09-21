@@ -111,6 +111,14 @@ backend.
 does not promise that an optional display server or runtime library is usable
 on the current host.
 
+The Wayland backend waits without a client-side deadline for the compositor's
+mandatory initial configure event during creation.  Once running, loss of the
+compositor posts one close event and makes pending and later backend operations
+fail.  Clipboard source delivery writes the complete payload to the descriptor
+supplied by Wayland; a closed receiver abandons that transfer without raising
+`SIGPIPE`, while an open receiver applies the protocol's ordinary write
+backpressure.
+
 === Text Backends
 
 Text backends display retained cells but cannot display arbitrary pixel-plane
@@ -419,6 +427,10 @@ presentation.  `st_console_present()` is a synchronous forced boundary even
 inside a batch.  On an inactive console it drains only the retained off-screen
 state and does not invoke the display backend.  Text backends remain
 synchronous so failures can be returned.
+
+Wayland does not wait when both shared-memory buffers remain owned by the
+compositor.  That presentation attempt is dropped successfully; a later
+change presents the then-current retained state.
 
 Snapshot creation is a drain boundary: pending changes are handed to the
 backend and live dirty flags are consumed before the copy.  A snapshot retains

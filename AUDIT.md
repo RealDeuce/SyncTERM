@@ -37,21 +37,21 @@ repository-wide coverage. The legacy tree is read-only reference.
 
 The repository-wide audit is complete. This is not an implementation approval
 or release certification. The consolidated API/design assessment, priority
-groups and all 65 outstanding finding summaries are in
+groups and all 50 outstanding finding summaries are in
 AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 
 | Objective requirement | Authoritative evidence and disposition |
 | --- | --- |
 | Entire repository, not only recent changes | git ls-files identifies 47 top-level source directories and 12 root files; every directory has an inventory row, no omissions. Per-component reviews cover local implementations, headers, tests/build and associated data/docs. |
 | API design, architecture and library layout | AUDIT_INDEX boundary/coupling/ownership assessment plus component public-contract and CMake dependency reviews; A001–A007, A047/A066, A088/A091 and host-contract findings. Cohesive decomposition is recognized; no redesign authorized. |
-| Correctness, ownership/lifetime and concurrency | Component lifecycle/error reviews, normal and injected tests, explicit GUI/host ownership closure; source and reproduced failures are qualified individually. A023 and A108/A109 illustrate distinct lifetime/error risks. |
+| Correctness, ownership/lifetime and concurrency | Component lifecycle/error reviews, normal and injected tests, explicit GUI/host ownership closure; source and reproduced failures are qualified individually. A023 illustrates a remaining timing and reclamation risk. |
 | Portability and all platform backends | POSIX/Windows sources and every audio/console backend reviewed; native, MinGW compile-only and unavailable runtime evidence kept separate. Capability probes/standalone targets reviewed. No unsupported platform pass inferred. |
 | Performance | Scaler/renderer benchmark source and measured cases reviewed, including common mixed-axis scaling; A011/A023 and backend pacing risks distinguished from measured regressions. Reconstructed legacy benchmark limitations explicitly recorded. |
 | Required legacy behavior | Read-only comparisons cover fonts/catalog/maps, modes, palette capacity, Prestel versus Mode 7, command line, console/input and settings behavior, plus explicit parity limits. Frozen CTerm chapter cmp succeeds. |
 | Wren scripts and bindings | Complete local source/signature/manual reviews; isolated shipped-script suites and host fixtures; host closure A100–A113. Connected/SFTP production integration missing from this application is reported, not invented or silently counted as working. |
 | Build logic, generators and documentation | Root/component CMake and generators reviewed; standalone/probe failures recorded; pinned Unicode/font regeneration and table comparisons documented; root manuals/license/development guidance covered. Wren VM vendored internals limited to integration boundaries as requested. |
-| Inventory and consolidated findings | 65 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 38 medium, 25 low, 2 unresolved concerns; not all runtime reproductions. |
-| Relevant tests where practical | A complete native build succeeds. The latest 76-test run has a stable disposition of 73 pass, 2 fail and 1 Wayland skip. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
+| Inventory and consolidated findings | 50 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 23 medium, 25 low, 2 unresolved concerns; not all runtime reproductions. |
+| Relevant tests where practical | Complete native Clang and GCC builds succeed. The latest 83-test runs have a stable disposition of 80 pass, 2 fail and 1 Wayland skip. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
 | Explicit uncertainty | Each component records unavailable platforms, unexecuted failure paths and measurement limits; A007/A011 unresolved. Source-level risks are not called verified crashes. These are audit outcomes, not claims of implementation correctness. |
 
 Historical pending-source lists below are superseded by subsequent full reads,
@@ -102,7 +102,7 @@ not the absence of failing tests. New findings will receive stable A-numbers.
 | bbs_list/ | Reviewed | All local sources/header/tests/build read; A033 sanitizer reproduction; native list/cache/web tests pass, including cache confinement and borrowed mutation inputs; MinGW cache/list tests also pass under Wine; integration/fault gaps below |
 | codepage/ | Reviewed | All local source/header/build/test read; exhaustive graphic roundtrip and expanded control/invalid-input tests pass native Clang/GCC; MinGW compile only |
 | connection/ | Reviewed | Shutdown stress and platform runtime gaps documented |
-| console/ | Reviewed | All local implementation/backends, tests, benchmark, build and docs read; local integration dispositions A047–A051, A108/A109 and GUI closure notes; native/isolated tests and platform-only risks distinguished; remaining Wren consumer questions belong to wren_host |
+| console/ | Reviewed | All local implementation/backends, tests, benchmark, build and docs read; local integration dispositions A047–A048 and GUI closure notes; native/isolated tests and platform-only risks distinguished; remaining Wren consumer questions belong to wren_host |
 | dynamic_library/ | Reviewed | A005; native fixtures pass; Windows compiled, not executed |
 | event/ | Reviewed | A004; native repeated tests, MinGW compile; failure-injection limitations below |
 | file_lock/ | Reviewed | A006; native tests plus failing controlled error-path reproduction; Windows source/compile only |
@@ -186,45 +186,6 @@ Remaining work is final repository-wide inventory/evidence reconciliation,
 not unseen host source or a requirement to implement these findings. Review
 completion does not imply that every documented API currently works.
 
-### A108 — Wayland buffer failure loses the mapped length
-
-Severity: medium resource/error-path defect, source-confirmed; not fault-
-injected against a compositor. `console/console_wayland.c:297` maps `size`
-bytes before creating the pool and protocol buffer. The stored buffer->size
-is assigned only after both creations succeed (:318). Either failure calls
-buffer_destroy, which passes the still-zero size to munmap and then discards
-the pointer. get_buffer_from destroys/reset the previous buffer before this
-creation path, so an old successful size does not repair the failed cleanup.
-Recommendation: retain mapped-region ownership/length as soon as acquired;
-inject each subsequent creation failure and verify release before discarding
-state. This is separate from buffer exhaustion or compositor shutdown.
-
-Also source-visible: width/stride and size_t multiplication are bounded, but
-total size is narrowed to int32_t for wl_shm_create_pool without a matching
-INT32_MAX total-size check. Large allocation/protocol behavior was not tested;
-the pool's signed protocol-size boundary needs validation before allocation.
-
-### A109 — Wayland worker waits do not consistently handle disconnection
-
-Severity: medium shutdown/liveness defect, source-confirmed paths; no live
-compositor failure injection. In `console/console_wayland.c:1651` worker,
-dispatch_pending, periodic draw and flush results are discarded. The poll
-result handles POLLIN but not POLLHUP/POLLERR/POLLNVAL. A terminal-ready fd
-without POLLIN can repeatedly wake the worker without setting failed or
-notifying the consumer. Unlike this path, a dispatch failure under POLLIN
-does break and publishes failure to waiting commands: do not claim all
-disconnects hang.
-
-`get_buffer_from:345` also waits in wl_display_dispatch when both buffers are
-busy, without servicing the command pipe. A connected but nonresponsive
-compositor withholding buffer releases can therefore prevent a queued stop
-command from completing. Startup's initial-configure wait has no deadline.
-Recommendation: make compositor errors and shutdown requests observable in
-every blocking wait, preserve buffered protocol work, and test connection
-loss, withheld configure/release events and destruction with a pending command.
-No claim that the existing basic Wayland integration test exercises these
-cases; it was not run on the user's display.
-
 ### GUI backend coverage closure
 
 The earlier full source/test/build reads are supplemented by the current
@@ -258,9 +219,8 @@ superseded; unavailable runtime/fault/performance checks are limits, not passes.
   classes remain source-level compatibility risks documented in its detailed
   review; no physical clipboard/input was exercised.
 - Wayland protocol-version/seat-removal/repeat/compose limitations remain
-  source-level compatibility risks; A050/A051 are isolated reproductions and
-  A108/A109 are source findings. Compositor positioning restrictions are not
-  substitutes for implementing supported behavior or lifecycle handling.
+  source-level compatibility risks. Compositor positioning restrictions are
+  not substitutes for implementing supported behavior or lifecycle handling.
 - Libretro's presenter is reviewed separately from an application core. A091
   covers the absent application ABI;
   emulator-driven cadence/blinking cannot be declared verified without that
@@ -1112,48 +1072,6 @@ crash or a particular ABI consequence.
 
 Recommendation: match the installed public declaration exactly and check
 other manually declared dynamic entry points against their public headers.
-
-### A050 — Wayland upper/left margin mouse coordinates wrap to the opposite edge
-
-Severity: medium (confirmed input-coordinate error). In
-console/console_wayland.c:mouse_position, wl_fixed_to_int(x) is signed int
-but frame.destination.x is uint32_t. Subtraction therefore wraps in unsigned
-arithmetic before assignment to int64_t. Negative differences bypass the
-negative clamp and hit the maximum-coordinate clamp instead. Y is identical.
-
-The standalone console/tests/st_console_wayland_mouse_test.c includes the
-unchanged implementation and calls the conversion with source 80x40,
-destination {10,10,160,80}, and pointer (5,5). Native Clang returns (79,39)
-instead of (0,0). Compile with the st_console target's include paths (including
-build/console/wayland-protocols) and st_console_test's library dependencies.
-The executable needs no compositor and creates no window. X11 widens the
-coordinate before subtracting and does not have this particular expression.
-
-Recommendation: perform subtraction in a signed type that represents both
-operands before clamping; test each margin and the interior independently.
-
-### A051 — Wayland clipboard send can terminate the process on receiver closure
-
-Severity: medium (confirmed process termination under default SIGPIPE policy).
-console/console_wayland.c:source_send writes directly to the recipient's pipe
-without suppressing SIGPIPE. If the recipient closes its read end, the write
-can terminate the process before the callback reaches its error handling.
-
-console/tests/st_console_wayland_clipboard_pipe_test.c invokes the unchanged
-callback in a child process with SIGPIPE explicitly set to its default and a
-local pipe whose reader has been closed. Native Clang execution reports
-termination by signal 13 instead of normal callback return. No compositor,
-system clipboard, external recipient or user window is involved. Compile and
-link using the same paths/dependencies as the A050 standalone test.
-
-This establishes library behavior with default signal handling, not the
-complete application's signal disposition. No SIGPIPE handling was found in
-the initial app/console/connection search, but application-wide startup and
-dependency effects remain part of the pending integration review.
-Recommendation: make peer closure an ordinary transfer failure without
-requiring an undocumented process-global signal policy. Also test transfer
-cancellation and shutdown while a recipient stops reading; blocking writes
-on the worker are a separate unresolved responsiveness concern.
 
 ### A053 — Bare -i option reads past the argument terminator
 
@@ -2957,8 +2875,8 @@ marked-text storage. This requires real input-method tests before claiming
 the same committed-text behavior as SDL/XIM. Modifier events toggle a local
 boolean and focus loss clears it, so release-after-focus-change needs testing.
 Physical mapping omits several keypad/international keys. Mouse conversion
-uses signed floating-point coordinates and thus avoids A050's unsigned wrap;
-scrolling collapses every nonzero delta to one step, with no accumulation.
+uses signed floating-point coordinates; scrolling collapses every nonzero
+delta to one step, with no accumulation.
 
 Fullscreen commands return before animation completion; keyboard shortcuts,
 command state and delegate state use different points for recording fullscreen.
@@ -3026,8 +2944,8 @@ verification at the host integration; the passing tests destroy consoles first.
 Window/pixel units are separated for high-DPI sizing; monitor bounds come
 from SDL_GetWindowDisplayIndex and usable bounds (ordinary bounds fallback),
 with frame borders subtracted for snap limits. Mouse mapping widens before
-subtracting destination offsets, unlike A050. Internal scaling uploads
-regions into a streaming texture and redraws the retained texture on expose.
+subtracting destination offsets. Internal scaling uploads regions into a
+streaming texture and redraws the retained texture on expose.
 External scaling quality is selected when a texture is created; changing
 scaling mode without changing texture dimensions does not recreate it.
 SDL renderer reset events have no handling in dispatch_event/state_for_event;
@@ -3053,19 +2971,20 @@ Wayland backend/loader and st_console_wayland_test.c now read in full.
 The existing integration test covers two displays, logical-console switching,
 basic pixel submission/resize, fullscreen request success and pointer-visibility
 requests without pointer entry. It does not assert rendered output, input,
-clipboard exchange, failed compositor connections after startup, protocol
-version fallback, buffer exhaustion or shutdown during an unfinished transfer.
-It was not run on a live compositor in this pass. A050 and A051 are isolated
-native regression tests and both fail as documented.
+clipboard exchange or protocol-version fallback. The compositor-independent
+internal test covers mapped-buffer cleanup, busy-buffer presentation policy,
+closed and backpressured clipboard recipients, connection-loss paths and
+pending-command failure. No live compositor was available in this pass.
 
 Worker lifecycle owns protocol objects, presents cached frames periodically,
 and serializes caller commands with a mutex/condition and wake pipe. Caller
 stack commands remain borrowed until completion; normal destruction submits
-stop, joins, then destroys presenter and synchronization objects. Startup
-waits for initial xdg configure without a deadline, and get_buffer_from can
-block on protocol dispatch without polling the command pipe. Worker ignores
-dispatch_pending/draw/flush errors in its periodic path and only tests POLLIN
-on the display descriptor; terminal connection-error handling needs injection.
+stop, joins, then destroys presenter and synchronization objects. The
+documented startup contract waits for initial xdg configure without a client
+deadline. Normal presentation does not block for buffer release: when both
+shared-memory buffers are owned by the compositor, that attempt is skipped and
+a later change presents the current retained state. Established connection
+loss posts one close event and fails pending and later backend operations.
 
 Protocol capability concerns: registry binding caps versions but does not
 require compositor v4 before invoking damage_buffer (a v4 request). Multiple
@@ -3077,25 +2996,12 @@ tracks requested and configured state separately; a compositor changing state
 independently may leave fullscreen_requested stale. The documented Wayland
 positioning limitation is distinct from these implementation questions.
 
-Wayland review in progress: loader header/source read completely, and backend
-through get_clipboard's receive loop (line 1220). Loader is once-initialized
-and retains its library process-wide. Protocol bindings dispatch through the
-loaded proxy entry points; xkbcommon is separately loaded per backend.
-Shared-memory buffers are double-buffered, with pending damage retained for
-busy buffers and copied on release. get_buffer_from waits through blocking
-wl_display_dispatch if both are busy; shutdown responsiveness when releases
-stop needs a dedicated check. buffer_create records mapped size only after
-pool/buffer creation succeeds, although failure cleanup uses buffer->size
-for munmap; this error-path leak is a source concern pending fault injection.
-
 Input uses xkb modifier names and key-to-UTF32, not an input-method or compose
 state. Repeat scheduling starts for every pressed key without querying the
 keymap's repeat flag; modifier/lock-key behavior remains to be tested.
 pointer_enter discards its coordinates, leaving a subsequent button event
-dependent on the last motion position. A050 independently reproduces the
-signed/unsigned margin conversion error. Clipboard source_send writes a
-potentially blocking pipe on the backend thread; cancellation, peer closure
-and shutdown behavior require follow-up. No compositor or desktop accessed.
+dependent on the last motion position. No compositor or desktop input was
+exercised.
 
 X11 backend source and st_console_x11_test.c have now been read completely.
 The event loop drains pending events before one draw_state call, and Expose

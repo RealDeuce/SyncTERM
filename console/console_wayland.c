@@ -24,6 +24,8 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <poll.h>
+#include <pthread.h>
+#include <signal.h>
 #include <stdatomic.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -133,7 +135,7 @@ struct state {
 	struct command *command;
 	int wake[2];
 	int start_status;
-	bool started, stop, failed, configured, pointer_visible;
+	bool started, stop, failed, configured, pointer_visible, close_posted;
 	bool fullscreen, fullscreen_requested, maximized;
 	struct wl_display *display;
 	struct wl_registry *registry;
@@ -307,6 +309,10 @@ static int buffer_create(struct state *state,
 		(void)close(fd);
 		return IO_ERROR_IO;
 	}
+	buffer->state = state;
+	buffer->size = size;
+	buffer->width = width;
+	buffer->height = height;
 	pool = wl_shm_create_pool(state->shm, fd, (int32_t)size);
 	(void)close(fd);
 	if (pool == NULL) {
@@ -320,47 +326,47 @@ static int buffer_create(struct state *state,
 		buffer_destroy(buffer);
 		return IO_ERROR_IO;
 	}
-	buffer->state = state;
-	buffer->size = size;
-	buffer->width = width;
-	buffer->height = height;
-	(void)wl_buffer_add_listener(buffer->object, &buffer_listener, buffer);
+	if (wl_buffer_add_listener(buffer->object, &buffer_listener, buffer) != 0) {
+		buffer_destroy(buffer);
+		return IO_ERROR_IO;
+	}
 	return 0;
 }
 
-static struct buffer *get_buffer_from(struct state *state,
-				      struct buffer *buffers,
-				      uint32_t width,
-				      uint32_t height,
-				      uint32_t format)
+static int get_buffer_from(struct state *state,
+			   struct buffer *buffers,
+			   uint32_t width,
+			   uint32_t height,
+			   uint32_t format,
+			   struct buffer **result)
 {
-	for (;;) {
-		for (size_t i = 0; i < 2; ++i) {
-			struct buffer *buffer = &buffers[i];
-			if (!buffer->busy) {
-				if (buffer->width != width ||
-				    buffer->height != height) {
-					buffer_destroy(buffer);
-					if (buffer_create(state,
-							  buffer,
-							  width,
-							  height,
-							  format) != 0)
-						return NULL;
-				}
-				return buffer;
+	*result = NULL;
+	for (size_t i = 0; i < 2; ++i) {
+		struct buffer *buffer = &buffers[i];
+		if (!buffer->busy) {
+			if (buffer->width != width || buffer->height != height) {
+				int status;
+
+				buffer_destroy(buffer);
+				status = buffer_create(
+				    state, buffer, width, height, format);
+				if (status != 0)
+					return status;
 			}
+			*result = buffer;
+			return 0;
 		}
-		if (wl_display_dispatch(state->display) < 0)
-			return NULL;
 	}
+	return IO_ERROR_WOULD_BLOCK;
 }
 
-static struct buffer *
-get_buffer(struct state *state, uint32_t width, uint32_t height)
+static int get_buffer(struct state *state,
+		      uint32_t width,
+		      uint32_t height,
+		      struct buffer **result)
 {
 	return get_buffer_from(
-	    state, state->buffers, width, height, WL_SHM_FORMAT_XRGB8888);
+	    state, state->buffers, width, height, WL_SHM_FORMAT_XRGB8888, result);
 }
 
 static void
@@ -468,7 +474,8 @@ static int update_buffers(void *context,
 static int draw(struct state *state, const st_console_t *console, bool forced)
 {
 	struct buffer *buffer;
-	struct buffer *background;
+	struct buffer *background = NULL;
+	bool background_changed;
 	bool full;
 	int status = st_console_bitmap_presenter_frame(state->presenter,
 						       console,
@@ -482,10 +489,23 @@ static int draw(struct state *state, const st_console_t *console, bool forced)
 		return status;
 	if (!state->frame.changed && !forced)
 		return 0;
-	buffer = get_buffer(
-	    state, state->frame.pixels->width, state->frame.pixels->height);
-	if (buffer == NULL)
-		return IO_ERROR_IO;
+	status = get_buffer(state, state->frame.pixels->width,
+	    state->frame.pixels->height, &buffer);
+	if (status == IO_ERROR_WOULD_BLOCK)
+		return 0;
+	if (status != 0)
+		return status;
+	background_changed = state->background_width != state->window_width
+	    || state->background_height != state->window_height;
+	if (background_changed) {
+		status = get_buffer_from(state, state->backgrounds,
+		    state->window_width, state->window_height,
+		    WL_SHM_FORMAT_XRGB8888, &background);
+		if (status == IO_ERROR_WOULD_BLOCK)
+			return 0;
+		if (status != 0)
+			return status;
+	}
 	state->latest_pixels = state->frame.pixels;
 	full = !buffer->valid;
 	if (full) {
@@ -512,15 +532,7 @@ static int draw(struct state *state, const st_console_t *console, bool forced)
 		    state->video_surface, 0, 0, INT32_MAX, INT32_MAX);
 	wl_surface_commit(state->video_surface);
 	buffer->busy = true;
-	if (state->background_width != state->window_width ||
-	    state->background_height != state->window_height) {
-		background = get_buffer_from(state,
-					     state->backgrounds,
-					     state->window_width,
-					     state->window_height,
-					     WL_SHM_FORMAT_XRGB8888);
-		if (background == NULL)
-			return IO_ERROR_IO;
+	if (background_changed) {
 		if (!background->valid) {
 			memset(background->pixels, 0, background->size);
 			background->valid = true;
@@ -1012,10 +1024,16 @@ static void source_send(void *data,
 			int32_t fd)
 {
 	struct state *state = data;
+	sigset_t blocked;
 	size_t sent = 0,
 	       length = state->clipboard == NULL ? 0 : strlen(state->clipboard);
 	(void)source;
 	(void)mime;
+	if (sigemptyset(&blocked) != 0 || sigaddset(&blocked, SIGPIPE) != 0
+	    || pthread_sigmask(SIG_BLOCK, &blocked, NULL) != 0) {
+		(void)close(fd);
+		return;
+	}
 	while (sent < length) {
 		ssize_t n = write(fd, state->clipboard + sent, length - sent);
 		if (n > 0)
@@ -1357,12 +1375,20 @@ static void top_configure(void *data,
 	}
 	st_console_display_request_repaint(s->console_display);
 }
+static void post_close(struct state *s)
+{
+	const struct st_console_event e = {.type = ST_CONSOLE_EVENT_CLOSE};
+
+	if (s->close_posted)
+		return;
+	s->close_posted = true;
+	(void)st_console_display_post_event(s->console_display, &e);
+}
 static void top_close(void *data, struct xdg_toplevel *top)
 {
 	struct state *s = data;
-	const struct st_console_event e = {.type = ST_CONSOLE_EVENT_CLOSE};
 	(void)top;
-	(void)st_console_display_post_event(s->console_display, &e);
+	post_close(s);
 }
 static void top_bounds(void *d, struct xdg_toplevel *t, int32_t w, int32_t h)
 {
@@ -1702,25 +1728,24 @@ static void pending(struct state *s)
 	(void)st_mutex_unlock(&s->mutex);
 }
 
-static int worker(void *argument)
+static bool
+terminal_poll_event(short events)
 {
-	struct state *s = argument;
+	return (events & (POLLHUP | POLLERR | POLLNVAL)) != 0;
+}
+
+static int worker_loop(struct state *s)
+{
 	struct pollfd fds[2];
-	int status = objects_create(s);
-	(void)st_mutex_lock(&s->mutex);
-	s->start_status = status;
-	s->started = true;
-	(void)st_condition_broadcast(&s->changed);
-	(void)st_mutex_unlock(&s->mutex);
-	if (status) {
-		objects_destroy(s);
-		return 1;
-	}
+
 	fds[0] = (struct pollfd){.fd = wl_display_get_fd(s->display),
 				 .events = POLLIN};
 	fds[1] = (struct pollfd){.fd = s->wake[0], .events = POLLIN};
 	while (!s->stop) {
-		(void)wl_display_dispatch_pending(s->display);
+		int ready;
+
+		if (wl_display_dispatch_pending(s->display) < 0)
+			return IO_ERROR_IO;
 		if (s->repeat_key && s->repeat_rate > 0 &&
 		    (int32_t)(now_ms() - s->repeat_next) >= 0) {
 			uint32_t interval = 1000U / (uint32_t)s->repeat_rate;
@@ -1730,15 +1755,32 @@ static int worker(void *argument)
 			emit_key(s, s->repeat_key - 1, true, true);
 			s->repeat_next += interval;
 		}
-		(void)wl_display_flush(s->display);
-		if (poll(fds, 2, 20) < 0 && errno != EINTR)
-			break;
-		if ((fds[0].revents & POLLIN) &&
-		    wl_display_dispatch(s->display) < 0)
-			break;
-		if (fds[1].revents & POLLIN)
+		if (wl_display_flush(s->display) < 0 && errno != EAGAIN)
+			return IO_ERROR_IO;
+		do
+			ready = poll(fds, 2, 20);
+		while (ready < 0 && errno == EINTR);
+		if (ready < 0)
+			return IO_ERROR_IO;
+		if ((fds[1].revents & POLLIN) != 0)
 			pending(s);
+		if (s->stop)
+			return 0;
+		if (terminal_poll_event(fds[1].revents))
+			return IO_ERROR_IO;
+		if ((fds[0].revents & POLLIN) != 0
+		    && wl_display_dispatch(s->display) < 0)
+			return IO_ERROR_IO;
+		if (terminal_poll_event(fds[0].revents))
+			return IO_ERROR_IO;
 	}
+	return 0;
+}
+
+static void worker_finish(struct state *s, int status)
+{
+	if (status != 0 && !s->stop)
+		post_close(s);
 	(void)st_mutex_lock(&s->mutex);
 	s->failed = true;
 	if (s->command) {
@@ -1748,8 +1790,26 @@ static int worker(void *argument)
 	}
 	(void)st_condition_broadcast(&s->changed);
 	(void)st_mutex_unlock(&s->mutex);
+}
+
+static int worker(void *argument)
+{
+	struct state *s = argument;
+	int status = objects_create(s);
+
+	(void)st_mutex_lock(&s->mutex);
+	s->start_status = status;
+	s->started = true;
+	(void)st_condition_broadcast(&s->changed);
+	(void)st_mutex_unlock(&s->mutex);
+	if (status) {
+		objects_destroy(s);
+		return 1;
+	}
+	status = worker_loop(s);
+	worker_finish(s, status);
 	objects_destroy(s);
-	return 0;
+	return status == 0 ? 0 : 1;
 }
 
 static int submit(struct state *s, struct command *c)

@@ -7,8 +7,8 @@ recommended remedies. Severity does not imply exploitability; source-confirmed
 risks and reproduced failures must be distinguished using those entries.
 No remediation is authorized by this report.
 
-The audit is complete, not the implementation: **58 outstanding findings**
-comprise 31 medium, 25 low and 2 unresolved design/performance
+The audit is complete, not the implementation: **50 outstanding findings**
+comprise 23 medium, 25 low and 2 unresolved design/performance
 concerns.
 This is not a count of exploitable vulnerabilities or reproduced failures.
 All 47 tracked source directories and 12 root files are covered by the
@@ -73,7 +73,7 @@ No new blanket GC, contention or scaling-performance diagnosis is made from
 source shape. The source and test inventory must retain those measurement
 limits in the final report.
 
-The current TODO documents contain 58 outstanding numbered findings. A007 and
+The current TODO documents contain 50 outstanding numbered findings. A007 and
 A011 are unresolved design/performance concerns, not confirmed runtime defects.
 Missing features and documentation errors are also explicitly distinguished
 from implementation failures in the detailed ledger.
@@ -98,8 +98,6 @@ from implementation failures in the detailed ledger.
 | A033 | medium | BBS sort-field normalization overflows on INT_MIN |
 | A047 | low | Standalone console build omits its string_compat dependency |
 | A048 | low | X11 runtime loader gives XkbFreeKeyboard the wrong function type |
-| A050 | medium | Wayland upper/left margin mouse coordinates wrap to the opposite edge |
-| A051 | medium | Wayland clipboard send can terminate the process on receiver closure |
 | A053 | low | Bare -i option reads past the argument terminator |
 | A054 | medium | Additional user event scripts are never auto-loaded |
 | A055 | medium | Picker load failure prevents application startup instead of recovery |
@@ -131,19 +129,16 @@ from implementation failures in the detailed ledger.
 | A098 | low | Shipped UI demo imports an absent module |
 | A100 | medium | Rejected BBS palette/script assignments partially change the object |
 | A105 | medium | Custom-font bindings do not preserve their declared editing boundaries |
-| A108 | medium source-confirmed | Wayland buffer failure loses the mapped length |
-| A109 | medium source-confirmed | Wayland worker waits incompletely handle disconnection and shutdown |
 | A113 | low source-confirmed | Menu default ports disagree with URL parsing |
 
 ## Verification and limits
 
 ### Latest configured native verification
 
-`cmake --build build -j2` succeeds. The subsequent command
-`ctest --test-dir build --output-on-failure` registers 76 tests: the stable
-disposition is **73 pass, 2 fail and 1 Wayland test skipped**. The X11 tests
-pass on a dedicated Xvfb display; SDL uses its CMake-configured
-dummy video driver.
+Native Clang and GCC builds succeed. Each configured tree registers 83 tests;
+the stable disposition is **80 pass, 2 fail and 1 Wayland test skipped**. The
+X11 tests pass on a dedicated Xvfb display; SDL uses its CMake-configured dummy
+video driver.
 This is native verification, not Windows/macOS execution or comprehensive
 backend coverage.
 
@@ -167,10 +162,10 @@ their former follow-ups. Other components have source/test/build/generator
 reviews and limitations in their own sections; script and root-document
 reviews distinguish implemented behavior from future connected-session work.
 
-Native Clang execution is the strongest runtime evidence in this audit;
-component-specific GCC, sanitizer, optional-provider and forced-fallback
-results are recorded separately. MinGW compile/link results do not establish
-Windows behavior. No blanket macOS, Haiku, Linux/musl, MSVC, physical GUI,
+Native Clang and GCC execution provide the current runtime evidence;
+component-specific sanitizer, optional-provider and forced-fallback results
+are recorded separately. MinGW compile/link results do not establish Windows
+behavior. No blanket macOS, Haiku, Linux/musl, MSVC, physical GUI,
 audio-device or remote-server validation is claimed. Fault injection and
 performance measurements cover only their documented scenarios. The scaler
 benchmark's reconstructed old pipeline is not an independent legacy binary.

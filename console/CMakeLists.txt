@@ -566,6 +566,25 @@ if(BUILD_TESTING)
 		endif()
 	endif()
 	if(ST_CONSOLE_HAVE_WAYLAND)
+		add_executable(st_console_wayland_internal_test
+			tests/st_console_wayland_internal_test.c)
+		target_include_directories(st_console_wayland_internal_test PRIVATE
+			${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}
+			${ST_CONSOLE_WAYLAND_INCLUDE_DIRS} ${_st_wl_dir})
+		target_link_libraries(st_console_wayland_internal_test PRIVATE
+			st_console syncterm_array_list syncterm_dynamic_library
+			st_time)
+		set_target_properties(st_console_wayland_internal_test PROPERTIES
+			C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		st_console_warnings(st_console_wayland_internal_test)
+		if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
+			target_compile_options(st_console_wayland_internal_test PRIVATE
+				-Wno-pedantic)
+		endif()
+		add_test(NAME st_console_wayland_internal
+			COMMAND st_console_wayland_internal_test)
+		set_tests_properties(st_console_wayland_internal PROPERTIES
+			TIMEOUT 20)
 		add_executable(st_console_wayland_test
 			tests/st_console_wayland_test.c)
 		target_link_libraries(st_console_wayland_test PRIVATE st_console)
