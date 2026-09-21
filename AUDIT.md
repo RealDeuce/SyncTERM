@@ -37,7 +37,7 @@ repository-wide coverage. The legacy tree is read-only reference.
 
 The repository-wide audit is complete. This is not an implementation approval
 or release certification. The consolidated API/design assessment, priority
-groups and all 30 outstanding finding summaries are in
+groups and all 29 outstanding finding summaries are in
 AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 
 | Objective requirement | Authoritative evidence and disposition |
@@ -50,7 +50,7 @@ AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 | Required legacy behavior | Read-only comparisons cover fonts/catalog/maps, modes, palette capacity, Prestel versus Mode 7, command line, console/input and settings behavior, plus explicit parity limits. Frozen CTerm chapter cmp succeeds. |
 | Wren scripts and bindings | Complete local source/signature/manual reviews; isolated shipped-script suites and host fixtures; remaining host findings through A113. Connected/SFTP production integration missing from this application is reported, not invented or silently counted as working. |
 | Build logic, generators and documentation | Root/component CMake and generators reviewed; standalone/probe failures recorded; pinned Unicode/font regeneration and table comparisons documented; root manuals/license/development guidance covered. Wren VM vendored internals limited to integration boundaries as requested. |
-| Inventory and consolidated findings | 30 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 13 medium, 15 low, 2 unresolved concerns; not all runtime reproductions. |
+| Inventory and consolidated findings | 29 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 12 medium, 15 low, 2 unresolved concerns; not all runtime reproductions. |
 | Relevant tests where practical | Complete native Clang and GCC builds succeed. The latest 95-test runs have a stable disposition of 93 pass, 1 fail and 1 Wayland skip. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
 | Explicit uncertainty | Each component records unavailable platforms, unexecuted failure paths and measurement limits; A007/A011 unresolved. Source-level risks are not called verified crashes. These are audit outcomes, not claims of implementation correctness. |
 
@@ -99,7 +99,7 @@ not the absence of failing tests. New findings will receive stable A-numbers.
 | array_list/ | Reviewed | A007 unresolved portability concern; native and optimized tests pass |
 | audio/ | Reviewed | All local backends/synthesis/build/tests read; A023 callback risk; native fake tests pass, MinGW WASAPI compile only; actual device/platform gaps below |
 | audio_mixer/ | Reviewed | All local sources/tests/build read; native continuity tests pass; device integration assigned to audio; ramp/performance/lifetime gaps below |
-| bbs_list/ | Reviewed | All local sources/header/tests/build read; A033 sanitizer reproduction; native list/cache/web tests pass, including cache confinement and borrowed mutation inputs; MinGW cache/list tests also pass under Wine; integration/fault gaps below |
+| bbs_list/ | Reviewed | All local sources/header/tests/build read; native list/cache/web tests pass, including cache confinement and borrowed mutation inputs; MinGW cache/list tests also pass under Wine; integration/fault gaps below |
 | codepage/ | Reviewed | All local source/header/build/test read; exhaustive graphic roundtrip and expanded control/invalid-input tests pass native Clang/GCC; MinGW compile only |
 | connection/ | Reviewed | Shutdown stress and platform runtime gaps documented |
 | console/ | Reviewed | All local implementation/backends, tests, benchmark, build and docs read; GUI closure notes, native/isolated tests and platform-only risks distinguished; remaining Wren consumer questions belong to wren_host |
@@ -731,23 +731,6 @@ Recommendation: establish a bounded callback execution/ownership strategy and
 defer reclamation outside the callback, then measure worst-case callback time
 under producer/clear contention. This is a recommendation for separately
 authorized work, not permission to redesign the mixer during the audit.
-
-### A033 — BBS sort-field normalization overflows on INT_MIN
-
-Severity: medium. Classification: confirmed undefined arithmetic, reproduced.
-
-`bbs_list/st_bbs_sort.c:26` computes -field before validating its magnitude.
-On the tested targets INT_MIN cannot be negated as int. The scalar public
-normalizer, field-name lookup and list sorting all reach this expression.
-The standalone test `bbs_list/tests/st_bbs_sort_boundary_test.c` includes the
-unchanged production source, supplies only a count stub for unused list sorting,
-and tests valid aliases and invalid boundaries. Clang and GCC UBSan both stop
-at line 26 with negation-of--2147483648 overflow. No application-input
-reachability claim yet; host sort-order parsing remains to review.
-
-Recommended remedy: validate without negating INT_MIN and cover the complete
-int boundary contract. Also source-only: field_count*sizeof(int) in sort's
-allocation lacks an overflow check; callers' count bounds remain to review.
 
 ### A053 — Bare -i option reads past the argument terminator
 
@@ -1525,8 +1508,7 @@ direct append via paste; evaluate desired insertion behavior and the model's
 minimum-profile rule before broadening the claim to empty-profile recovery.
 Cut stores the clipboard before deletion, so a failed deletion behaves as copy
 plus an error, not data loss. No separate runtime defect asserted here.
-Negative field signs are preserved by sameOrder_; integer overflow concerns
-in native sorting remain A033, not resolved by these Wren helper tests.
+Negative field signs are preserved by sameOrder_.
 No production changes or commits.
 
 Settings-menu source coverage completed: read remaining lines 1..651 and
@@ -2075,9 +2057,7 @@ percent-decode credentials or generally reject unrecognized schemes; legacy
 parity remains pending. Explicit CLI connection types override defaults before
 scheme parsing, and profile replacement occurs only on success. Menu's default
 port binding returns 23 for MQTT while quick-connect's helper returns 8883;
-consumer and legacy expectations need reconciliation. Sort parsing reuses the
-INT_MIN-sensitive normalizer already covered by A033; this is another consumer
-of that existing finding rather than a duplicate defect.
+consumer and legacy expectations need reconciliation.
 
 Core binding source read is complete (remaining :1740-2340 covered this pass).
 Reviewed Cell and CustomCursor manual contracts plus Host.print and Format
@@ -4415,19 +4395,6 @@ successful verification.
   no Windows runtime claim. This pass changes only the coverage/report notes.
   Existing audit tests remain unchanged, and no production changes or commits
   were made.
-
-- BBS initial pass: native Clang st_bbs_list_test rebuilt through CMake and
-  CTest passes. Standalone sort boundary test fails as intended under Clang
-  and GCC undefined-behavior sanitizers. Reproduction (from repository root):
-  obtain include flags from the corresponding build's
-  bbs_list/CMakeFiles/st_bbs_list_test.dir/flags.make C_INCLUDES line; compile
-  with cc or gcc13, -std=c17 -Wall -Wextra -Wpedantic -Werror
-  -fsanitize=undefined -fno-sanitize-recover=undefined, those include flags,
-  -Istring_util, bbs_list/tests/st_bbs_sort_boundary_test.c and the matching
-  build/string_util/libsyncterm_string_util.a; run the resulting executable.
-  Both report st_bbs_sort.c:26 signed negation overflow. Test is intentionally
-  not registered with CMake because build modifications are out of scope.
-  No destructive path reproduction, Windows runtime or new commits.
 
 - Hex and UTF-8: both targets rebuilt through CMake and their CTests passed
   under Clang and GCC. Expanded UTF-8 tests cover all scalar values through
