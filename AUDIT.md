@@ -37,7 +37,7 @@ repository-wide coverage. The legacy tree is read-only reference.
 
 The repository-wide audit is complete. This is not an implementation approval
 or release certification. The consolidated API/design assessment, priority
-groups and all 66 outstanding finding summaries are in
+groups and all 65 outstanding finding summaries are in
 AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 
 | Objective requirement | Authoritative evidence and disposition |
@@ -50,7 +50,7 @@ AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 | Required legacy behavior | Read-only comparisons cover fonts/catalog/maps, modes, palette capacity, Prestel versus Mode 7, command line, console/input and settings behavior, plus explicit parity limits. Frozen CTerm chapter cmp succeeds. |
 | Wren scripts and bindings | Complete local source/signature/manual reviews; isolated shipped-script suites and host fixtures; host closure A100–A113. Connected/SFTP production integration missing from this application is reported, not invented or silently counted as working. |
 | Build logic, generators and documentation | Root/component CMake and generators reviewed; standalone/probe failures recorded; pinned Unicode/font regeneration and table comparisons documented; root manuals/license/development guidance covered. Wren VM vendored internals limited to integration boundaries as requested. |
-| Inventory and consolidated findings | 66 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 39 medium, 25 low, 2 unresolved concerns; not all runtime reproductions. |
+| Inventory and consolidated findings | 65 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 38 medium, 25 low, 2 unresolved concerns; not all runtime reproductions. |
 | Relevant tests where practical | A complete native build succeeds. The latest 75-test run has a stable disposition of 72 pass, 2 fail and 1 Wayland skip. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
 | Explicit uncertainty | Each component records unavailable platforms, unexecuted failure paths and measurement limits; A007/A011 unresolved. Source-level risks are not called verified crashes. These are audit outcomes, not claims of implementation correctness. |
 
@@ -120,7 +120,7 @@ not the absence of failing tests. New findings will receive stable A-numbers.
 | scripts/ | Reviewed | All current script implementations/tests read, including main menu, editors, REPL, common bindings module and self-test driver; isolated suite results and runtime/cross-script gaps documented below; older remaining-source lists superseded |
 | semaphore/ | Reviewed | A004; native repeated tests, MinGW compile; failure-injection limitations below |
 | serial/ | Reviewed | A013 disables normal PTY coverage; manually enabled native PTY tests pass; Windows compile only |
-| settings/ | Reviewed | All local sources/header/tests/build read; A031 is a source-confirmed write risk; global caller discipline and failure injection gaps remain below |
+| settings/ | Reviewed | All local sources/header/tests/build read; global caller discipline and failure injection gaps remain below |
 | socket/ | Reviewed | Loopback native tests pass; Windows compile only |
 | str_list/ | Reviewed | Native failure injection and alias-input cases pass; MinGW compile |
 | string_compat/ | Reviewed | Native and opt-in fallback tests pass; MinGW compile |
@@ -1195,24 +1195,6 @@ Recommendation: establish a bounded callback execution/ownership strategy and
 defer reclamation outside the callback, then measure worst-case callback time
 under producer/clear contention. This is a recommendation for separately
 authorized work, not permission to redesign the mixer during the audit.
-
-### A031 — Settings saves truncate the only copy before writing
-
-Severity: medium. Classification: source-confirmed data-loss risk on write
-failure; no disk-full/process-kill reproduction performed.
-
-`settings/st_settings_store.c`, `write_document`, opens the existing settings
-file with wb. Once open succeeds the previous contents are gone; a short
-write/close failure returns an error but cannot restore them. The sidecar lock
-protects cooperating writers, not failure atomicity or readers which ignore
-the lock. The public
-description calls this a read/merge/write transaction without documenting that
-failure can leave truncated settings. No temporary replacement, backup or
-fs_stream_sync is used here (unlike theme document saves).
-
-Recommended remedy: retain the old file until a complete replacement is ready,
-with explicit replacement/durability semantics and fault-injection tests.
-This is not a claim that every successful fclose must imply crash durability.
 
 ### A033 — BBS sort-field normalization overflows on INT_MIN
 
@@ -4497,12 +4479,11 @@ verification gaps. Host consumers are tracked under their own inventory rows.
   into invalid-format/incomplete-default-style messages.
 - Document open reads the file three times (original bytes, parsed source,
   resolved theme); concurrent edits can mix versions. Save compares original
-  bytes then writes/validates a same-directory exclusive temporary and renames.
-  Comparison is not locked through replacement: concurrent saves or destination
-  creation between check/rename can evade conflict/exists checks. No race test.
-  Symlinks and case-insensitive POSIX filesystems complicate filename identity.
-  Save does sync the temporary, but not the containing directory. No claim of
-  crash-durable rename.
+  bytes before opening the destination directly. The comparison is not locked
+  through the write, so concurrent saves can evade conflict detection. No race
+  test exists. Direct writes deliberately preserve symbolic- and hard-link
+  relationships; case-insensitive POSIX filesystems still complicate filename
+  identity.
 - Cloud manifest parsing checks required repository/name/URI/hash and duplicate
   known fields/packages; unknown sections/keys remain allowed. Package IDs are
   ASCII lowercase/digit/dot/underscore/hyphen and appended with .ini, so bare
@@ -4619,11 +4600,9 @@ implementation and application/Wren consumers remain separate inventory areas.
   remains unsafe. Stable tie handling falls back to name, not original order.
 - Store performs sidecar-locked reread/field merge/write. V1 ordinary writes
   explicitly return NOT_SUPPORTED; explicit rewrite handles migration. Writes
-  prepare crypto output in tmpfile first, but then truncate the actual file and
-  copy: A031's failure-atomicity concern also applies here. No sync/replacement
-  protects the existing list from partial destination writes. This preparation
-  prevents crypto preparation failures from truncating the list, not write
-  failures after output is opened.
+  prepare crypto output in tmpfile first, so crypto preparation failures occur
+  before the destination is opened, then write the completed bytes through the
+  destination while preserving its filesystem identity.
 - Normal store writes use the object's retained write_options, not current
   remote encryption options. Same-password external rekey/parameter changes
   could be overwritten by a stale object's next edit; review with list_crypto

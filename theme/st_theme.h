@@ -222,7 +222,9 @@ bool st_theme_document_redo(struct st_theme_document *document);
 int st_theme_document_import(struct st_theme_document *document,
 	const char *filename, char *error, size_t error_size);
 /*
- * A successful save establishes the current state as clean and clears history.
+ * Save writes through the destination rather than replacing its directory
+ * entry. A successful save establishes the current state as clean and clears
+ * history. A write or close failure can leave partial destination contents.
  */
 enum st_theme_document_error st_theme_document_save(
 	struct st_theme_document *document, const char *filename, bool force,

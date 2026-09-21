@@ -21,6 +21,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifndef _WIN32
+#include <unistd.h>
+#endif
+
 #define CHECK(expression) do { \
 	if (!(expression)) { \
 		fprintf(stderr, "check failed at %s:%d: %s\n", __FILE__, __LINE__, \
@@ -196,6 +200,57 @@ test_branch_dirty(struct st_theme_manager *manager, const char *path)
 	CHECK(dirty);
 	return 0;
 }
+
+#ifndef _WIN32
+static int
+test_document_save_preserves_links(struct st_theme_manager *manager,
+	const char *directory)
+{
+	struct st_theme_document *document = NULL;
+	char *target = NULL;
+	char *hard_link = NULL;
+	char *symbolic_link = NULL;
+	struct fs_info info;
+	char error[256] = "";
+
+	CHECK(path_join_alloc(&target, directory, "identity.ini") == 0);
+	CHECK(path_join_alloc(&hard_link, directory, "identity-hard.ini") == 0);
+	CHECK(path_join_alloc(&symbolic_link, directory,
+	    "identity-symbolic.ini") == 0);
+	CHECK(write_text(target, "Name=Identity\n") == 0);
+	CHECK(link(target, hard_link) == 0);
+	CHECK(symlink("identity.ini", symbolic_link) == 0);
+	CHECK(st_theme_document_open(&document, manager, "identity.ini", error,
+	    sizeof(error)) == 0);
+	CHECK(st_theme_document_set_metadata(document, ST_THEME_METADATA_AUTHOR,
+	    "Hard Link", error, sizeof(error)) == 0);
+	CHECK(st_theme_document_save(document, NULL, false, error, sizeof(error))
+	    == ST_THEME_DOCUMENT_OK);
+	CHECK(file_contains(hard_link, "Author=Hard Link"));
+	CHECK(fs_get_link_info(&info, symbolic_link) == 0);
+	CHECK(info.kind == FS_ENTRY_LINK);
+	st_theme_document_free(&document);
+	CHECK(st_theme_document_open(&document, manager, "identity-symbolic.ini",
+	    error, sizeof(error)) == 0);
+	CHECK(st_theme_document_set_metadata(document,
+	    ST_THEME_METADATA_DESCRIPTION, "Symbolic Link", error,
+	    sizeof(error)) == 0);
+	CHECK(st_theme_document_save(document, NULL, false, error, sizeof(error))
+	    == ST_THEME_DOCUMENT_OK);
+	CHECK(fs_get_link_info(&info, symbolic_link) == 0);
+	CHECK(info.kind == FS_ENTRY_LINK);
+	CHECK(file_contains(target, "Description=Symbolic Link"));
+	CHECK(file_contains(hard_link, "Description=Symbolic Link"));
+	st_theme_document_free(&document);
+	CHECK(fs_remove_file(symbolic_link) == 0);
+	CHECK(fs_remove_file(hard_link) == 0);
+	CHECK(fs_remove_file(target) == 0);
+	free(symbolic_link);
+	free(hard_link);
+	free(target);
+	return 0;
+}
+#endif
 
 static int
 test_reset_last_override(struct st_theme_manager *manager, const char *path)
@@ -482,6 +537,10 @@ main(void)
 	CHECK(style(st_theme_active(manager), "frame")->foreground == 0x654321);
 	int failure = test_branch_dirty(manager, saved);
 	failure += test_reset_last_override(manager, saved);
+#ifndef _WIN32
+	failure += test_document_save_preserves_links(manager,
+	    ST_THEME_TEST_DIRECTORY);
+#endif
 	st_theme_manager_free(&manager);
 	st_settings_dispose(&settings);
 	failure += test_catalog_refresh_contract(catalog_directory);

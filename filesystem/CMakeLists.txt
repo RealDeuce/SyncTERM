@@ -47,7 +47,6 @@ int main(void)
 	(void)lstat(".", &status);
 	(void)ftruncate(0, (off_t)0);
 	(void)fchmod(0, (mode_t)0600);
-	(void)fsync(0);
 	(void)utime(".", &times);
 	return 0;
 }

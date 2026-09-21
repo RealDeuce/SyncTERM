@@ -1283,60 +1283,27 @@ clear_history(struct st_theme_document *document)
 }
 
 static enum st_theme_document_error
-write_replacement(struct st_theme_document *document, const char *path,
-	const char *filename, const char *data, size_t size, char *error,
-	size_t error_size)
+write_document(const char *path, const char *data, size_t size, bool exclusive,
+	char *error, size_t error_size)
 {
-	char *temporary = malloc(strlen(path) + 32);
-	struct st_theme *validated = NULL;
 	FILE *stream = NULL;
-	int status = IO_ERROR_IO;
+	int status = fs_open(&stream, path, exclusive ? "wbx" : "wb");
 
-	if (temporary == NULL) {
-		set_document_error(error, error_size, "out of memory");
-		return ST_THEME_DOCUMENT_IO;
-	}
-	for (unsigned attempt = 0; attempt < 100; ++attempt) {
-		(void)sprintf(temporary, "%s.tmp.%u", path, attempt);
-		status = fs_open(&stream, temporary, "wbx");
-		if (status == 0)
-			break;
-		if (status != IO_ERROR_ALREADY_EXISTS)
-			break;
-	}
-	if (stream == NULL) {
-		free(temporary);
+	if (status == IO_ERROR_ALREADY_EXISTS && exclusive) {
 		set_document_error(error, error_size,
-		    "unable to create a temporary theme file");
+		    "the theme file already exists");
+		return ST_THEME_DOCUMENT_EXISTS;
+	}
+	if (status != 0) {
+		set_document_error(error, error_size, "unable to open theme file");
 		return ST_THEME_DOCUMENT_IO;
 	}
-	bool wrote = fwrite(data, 1, size, stream) == size
-	    && fs_stream_sync(stream) == 0;
+	bool wrote = size == 0 || fwrite(data, 1, size, stream) == size;
 	if (fclose(stream) != 0)
 		wrote = false;
 	if (!wrote) {
-		(void)fs_remove_file(temporary);
-		free(temporary);
 		set_document_error(error, error_size,
-		    "unable to write the temporary theme file");
-		return ST_THEME_DOCUMENT_IO;
-	}
-	status = load_path(document->manager, temporary, filename, &validated,
-	    error, error_size);
-	theme_free(validated);
-	if (status != 0) {
-		(void)fs_remove_file(temporary);
-		free(temporary);
-		return status == IO_ERROR_INVALID_FORMAT
-		    ? ST_THEME_DOCUMENT_INVALID : ST_THEME_DOCUMENT_IO;
-	}
-	status = fs_rename(temporary, path);
-	if (status != 0)
-		(void)fs_remove_file(temporary);
-	free(temporary);
-	if (status != 0) {
-		set_document_error(error, error_size,
-		    "unable to replace the theme file");
+		    "unable to write theme file");
 		return ST_THEME_DOCUMENT_IO;
 	}
 	return ST_THEME_DOCUMENT_OK;
@@ -1414,8 +1381,8 @@ st_theme_document_save(struct st_theme_document *document,
 	}
 	enum st_theme_document_error write_result = ST_THEME_DOCUMENT_IO;
 	if (status == 0)
-		write_result = write_replacement(document, path, filename, serialized,
-		    serialized_size, error, error_size);
+		write_result = write_document(path, serialized, serialized_size,
+		    !force && !same, error, error_size);
 	free(path);
 	if (status != 0 || write_result != ST_THEME_DOCUMENT_OK) {
 		ini_document_free(&output);

@@ -229,21 +229,6 @@ fs_stream_truncate(FILE *stream, uint64_t size)
 }
 
 int
-fs_stream_sync(FILE *stream)
-{
-	if (stream == NULL)
-		return IO_ERROR_INVALID_ARGUMENT;
-	if (fflush(stream) != 0)
-		return fs_errno_error(errno);
-	int descriptor = _fileno(stream);
-	if (descriptor < 0)
-		return fs_errno_error(errno);
-	if (_commit(descriptor) != 0)
-		return fs_errno_error(errno);
-	return 0;
-}
-
-int
 fs_set_modified_time(const char *path, int64_t modified_time)
 {
 	wchar_t *wide;

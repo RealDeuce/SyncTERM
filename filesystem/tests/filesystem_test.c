@@ -90,7 +90,6 @@ main(void)
 	FILE *stream = NULL;
 	CHECK(fs_open(&stream, source, "r+b") == 0);
 	if (stream != NULL) {
-		CHECK(fs_stream_sync(stream) == 0);
 		CHECK(fseek(stream, 3, SEEK_SET) == 0);
 		CHECK(fs_stream_size(stream) == (int64_t)strlen("source contents"));
 		CHECK(ftell(stream) == 3);

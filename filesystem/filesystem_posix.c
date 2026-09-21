@@ -128,23 +128,6 @@ fs_stream_truncate(FILE *stream, uint64_t size)
 	return 0;
 }
 
-int
-fs_stream_sync(FILE *stream)
-{
-	int descriptor;
-
-	if (stream == NULL)
-		return IO_ERROR_INVALID_ARGUMENT;
-	if (fflush(stream) != 0)
-		return fs_errno_error(errno);
-	descriptor = fileno(stream);
-	if (descriptor < 0)
-		return fs_errno_error(errno);
-	if (fsync(descriptor) != 0)
-		return fs_errno_error(errno);
-	return 0;
-}
-
 static int
 fs_time_value(int64_t value, time_t *result)
 {

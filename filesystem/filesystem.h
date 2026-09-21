@@ -44,8 +44,6 @@ int fs_open(FILE **result, const char *path, const char *mode);
 /* Returns a byte size or a negative IO_ERROR_* value without seeking. */
 int64_t fs_stream_size(FILE *stream);
 int fs_stream_truncate(FILE *stream, uint64_t size);
-/* Flushes buffered output and asks the operating system to sync the file. */
-int fs_stream_sync(FILE *stream);
 int fs_set_modified_time(const char *path, int64_t modified_time);
 
 int fs_remove_file(const char *path);

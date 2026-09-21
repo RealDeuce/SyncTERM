@@ -4598,11 +4598,13 @@ than limiting the import to the built-in registry.
 is `null` on success.  A `null` filename saves to the current basename.  The
 codes are 0 success, 1 invalid document, 2 external-change conflict, 3 new
 destination already exists, 4 read-only safe mode, and 5 I/O failure.  A
-true `force` permits replacement for codes 2 and 3; it does not bypass theme
-validation or safe mode.  Save preserves untouched source text, validates
-the completed output, atomically replaces the destination where supported,
-and clears the editing history.  Saving the selected file also reloads the
-active process-wide theme.
+true `force` permits overwriting after codes 2 and 3; it does not bypass theme
+validation or safe mode.  Save preserves untouched source text, writes through
+the destination without replacing its filesystem entry, and clears the editing
+history after a successful write and close.  Saving through a symbolic or hard
+link therefore retains that link relationship.  An I/O failure after the file
+is opened can leave partial destination contents.  Saving the selected file
+also reloads the active process-wide theme.
 
 The shipped `menu_theme_editor` module keeps the document rows as the editing
 source of truth and builds a separate `Theme.fromData(document.themeData)`
