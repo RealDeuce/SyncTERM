@@ -67,8 +67,11 @@ set(_st_connection_saved_required_libraries ${CMAKE_REQUIRED_LIBRARIES})
 set(_st_connection_saved_required_definitions ${CMAKE_REQUIRED_DEFINITIONS})
 
 if(WIN32)
+	set(CMAKE_REQUIRED_LIBRARIES
+		${_st_connection_saved_required_libraries} bcrypt)
 	check_c_source_compiles([=[
 #include <windows.h>
+#include <bcrypt.h>
 int main(void)
 {
 	HPCON console = NULL;
@@ -76,12 +79,24 @@ int main(void)
 	STARTUPINFOEXW startup = {0};
 	PROCESS_INFORMATION process = {0};
 	SIZE_T bytes = 0;
-	HANDLE read_pipe = NULL;
-	HANDLE write_pipe = NULL;
+	HANDLE pipe = INVALID_HANDLE_VALUE;
+	HANDLE event = NULL;
+	OVERLAPPED overlapped = {0};
+	unsigned char random[16];
 	HMODULE kernel = GetModuleHandleW(L"kernel32.dll");
 	(void)console;
 	(void)size;
-	(void)CreatePipe(&read_pipe, &write_pipe, NULL, 0);
+	(void)BCryptGenRandom(NULL, random, sizeof(random),
+	    BCRYPT_USE_SYSTEM_PREFERRED_RNG);
+	pipe = CreateNamedPipeW(L"probe",
+	    PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED
+	    | FILE_FLAG_FIRST_PIPE_INSTANCE,
+	    PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT
+	    | PIPE_REJECT_REMOTE_CLIENTS, 1, 16384, 16384, 0, NULL);
+	event = CreateEventW(NULL, TRUE, FALSE, NULL);
+	overlapped.hEvent = event;
+	(void)ConnectNamedPipe(pipe, &overlapped);
+	(void)CancelIoEx(pipe, &overlapped);
 	(void)InitializeProcThreadAttributeList(NULL, 1, 0, &bytes);
 	(void)UpdateProcThreadAttribute(startup.lpAttributeList, 0,
 	    PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE, console, sizeof(console),
@@ -97,6 +112,7 @@ int main(void)
 		${ST_CONNECTION_CONPTY_PROGRAMMING_ENVIRONMENT})
 	if(ST_CONNECTION_HAVE_CONPTY)
 		set(ST_CONNECTION_SHELL_SOURCE connection_shell_windows.c)
+		list(APPEND ST_CONNECTION_PLATFORM_LIBRARIES bcrypt)
 	else()
 		set(ST_CONNECTION_SHELL_SOURCE connection_shell_stub.c)
 	endif()
@@ -255,6 +271,11 @@ if(BUILD_TESTING)
 	add_test(NAME connection_partial_input
 		COMMAND st_connection_test --partial-input)
 	set_tests_properties(connection_partial_input PROPERTIES TIMEOUT 15)
+	if(WIN32 AND ST_CONNECTION_HAVE_CONPTY)
+		add_test(NAME connection_shell_shutdown
+			COMMAND st_connection_test --shell-shutdown)
+		set_tests_properties(connection_shell_shutdown PROPERTIES TIMEOUT 30)
+	endif()
 
 	add_executable(st_connection_serial_test
 		connection.c connection_serial.c

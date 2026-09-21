@@ -37,20 +37,20 @@ repository-wide coverage. The legacy tree is read-only reference.
 
 The repository-wide audit is complete. This is not an implementation approval
 or release certification. The consolidated API/design assessment, priority
-groups and all 67 outstanding finding summaries are in
+groups and all 66 outstanding finding summaries are in
 AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 
 | Objective requirement | Authoritative evidence and disposition |
 | --- | --- |
 | Entire repository, not only recent changes | git ls-files identifies 47 top-level source directories and 12 root files; every directory has an inventory row, no omissions. Per-component reviews cover local implementations, headers, tests/build and associated data/docs. |
 | API design, architecture and library layout | AUDIT_INDEX boundary/coupling/ownership assessment plus component public-contract and CMake dependency reviews; A001–A007, A047/A066, A088/A091 and host-contract findings. Cohesive decomposition is recognized; no redesign authorized. |
-| Correctness, ownership/lifetime and concurrency | Component lifecycle/error reviews, normal and injected tests, explicit GUI/host ownership closure; source and reproduced failures are qualified individually. A016, A023 and A108/A109 illustrate distinct lifetime/error risks. |
+| Correctness, ownership/lifetime and concurrency | Component lifecycle/error reviews, normal and injected tests, explicit GUI/host ownership closure; source and reproduced failures are qualified individually. A023 and A108/A109 illustrate distinct lifetime/error risks. |
 | Portability and all platform backends | POSIX/Windows sources and every audio/console backend reviewed; native, MinGW compile-only and unavailable runtime evidence kept separate. Capability probes/standalone targets reviewed. No unsupported platform pass inferred. |
 | Performance | Scaler/renderer benchmark source and measured cases reviewed, including common mixed-axis scaling; A011/A023 and backend pacing risks distinguished from measured regressions. Reconstructed legacy benchmark limitations explicitly recorded. |
 | Required legacy behavior | Read-only comparisons cover fonts/catalog/maps, modes, palette capacity, Prestel versus Mode 7, command line, console/input and settings behavior, plus explicit parity limits. Frozen CTerm chapter cmp succeeds. |
 | Wren scripts and bindings | Complete local source/signature/manual reviews; isolated shipped-script suites and host fixtures; host closure A100–A113. Connected/SFTP production integration missing from this application is reported, not invented or silently counted as working. |
 | Build logic, generators and documentation | Root/component CMake and generators reviewed; standalone/probe failures recorded; pinned Unicode/font regeneration and table comparisons documented; root manuals/license/development guidance covered. Wren VM vendored internals limited to integration boundaries as requested. |
-| Inventory and consolidated findings | 67 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 40 medium, 25 low, 2 unresolved concerns; not all runtime reproductions. |
+| Inventory and consolidated findings | 66 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 39 medium, 25 low, 2 unresolved concerns; not all runtime reproductions. |
 | Relevant tests where practical | A complete native build succeeds. The latest 75-test run has a stable disposition of 72 pass, 2 fail and 1 Wayland skip. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
 | Explicit uncertainty | Each component records unavailable platforms, unexecuted failure paths and measurement limits; A007/A011 unresolved. Source-level risks are not called verified crashes. These are audit outcomes, not claims of implementation correctness. |
 
@@ -101,7 +101,7 @@ not the absence of failing tests. New findings will receive stable A-numbers.
 | audio_mixer/ | Reviewed | All local sources/tests/build read; A022 crossfade gap reproduced; device integration assigned to audio; ramp/performance/lifetime gaps below |
 | bbs_list/ | Reviewed | All local sources/header/tests/build read; A033 sanitizer reproduction; native list/cache/web tests pass, including cache confinement and borrowed mutation inputs; MinGW cache/list tests also pass under Wine; integration/fault gaps below |
 | codepage/ | Reviewed | All local source/header/build/test read; exhaustive graphic roundtrip and expanded control/invalid-input tests pass native Clang/GCC; MinGW compile only |
-| connection/ | Reviewed | A016 Windows source race; shutdown stress and platform runtime gaps documented |
+| connection/ | Reviewed | Shutdown stress and platform runtime gaps documented |
 | console/ | Reviewed | All local implementation/backends, tests, benchmark, build and docs read; local integration dispositions A047–A051, A108/A109 and GUI closure notes; native/isolated tests and platform-only risks distinguished; remaining Wren consumer questions belong to wren_host |
 | dynamic_library/ | Reviewed | A005; native fixtures pass; Windows compiled, not executed |
 | event/ | Reviewed | A004; native repeated tests, MinGW compile; failure-injection limitations below |
@@ -1127,31 +1127,6 @@ each native build's serial/error libraries. Both Clang and GCC PTY tests pass
 on this host, establishing that the omitted coverage can run here.
 Recommendation: leave the probe result undefined on POSIX until the check, and
 explicitly report test skips. No CMake fix made under audit-only authority.
-
-### A016 — ConPTY atomic handles do not protect active users from close
-
-Severity: medium. Classification: confirmed source-level lifetime race;
-Windows runtime reproduction and actual handle reuse not demonstrated.
-
-`connection/connection_shell_windows.c:38,57` loads a pipe handle atomically,
-then uses it in ReadFile/WriteFile at lines 44/63. Concurrent shutdown calls
-shell_interrupt:83-84, atomically clears and immediately closes both handles.
-A worker can be descheduled after loading a non-NULL handle and resume its
-I/O call after that handle is closed. Atomic exchange prevents double-close
-by the owners but does not retain ownership for a reader of the value.
-The public no-concurrent-close rule does not prevent this race: these are
-the connection's own workers, joined only after interrupt runs.
-
-At minimum the worker can issue I/O on an invalid handle; if the numeric
-handle is reused in the interval it could address a different object.
-No claim is made here that closing necessarily cancels already-pending
-synchronous I/O, or that the present code was observed hanging on Windows.
-Those shutdown semantics also need Windows execution tests.
-
-Recommendation: coordinate cancellation/unblocking and worker completion
-without invalidating handles still usable by workers; close the owned handles
-only when their users are finished. A mutex held over indefinitely blocking
-I/O is not by itself a sufficient cancellation strategy. No code changed.
 
 ### A021 — Compact date-only branch is shadowed by epoch parsing
 
@@ -4211,12 +4186,10 @@ are distinct from the passing argument-only normal CTest.
   concern requiring a controlled saturation test. Legacy escalation happened
   before waiting for its I/O threads. Allocation-failure cleanup also uses
   unbounded waitpid after HUP. No hang reproduced yet.
-- Windows ConPTY source inspected and cross-compiled, not run. A016 records
-  the lifetime race. Read/write ignore timeout_ms and use synchronous pipes;
-  verify close cancellation, process descendants, and close_console behavior
-  with a full output pipe on Windows. Failure paths collapse conversion/OOM/
-  process errors into IO_ERROR_IO, and native_error fields are never filled
-  by these providers. No Win32 behavior is inferred from native PTY tests.
+- Windows ConPTY source inspected and cross-compiled, not run. Conversion and
+  process failures still collapse into IO_ERROR_IO, and native_error fields
+  are never filled by these providers. No Win32 behavior is inferred from
+  native PTY tests.
 - Current search finds no production st_connection_* call sites outside the
   library (profile header only documents the API); no app or Wren integration
   can be claimed from these standalone tests. Existing network tests assume

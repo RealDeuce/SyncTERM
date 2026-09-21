@@ -7,8 +7,8 @@ recommended remedies. Severity does not imply exploitability; source-confirmed
 risks and reproduced failures must be distinguished using those entries.
 No remediation is authorized by this report.
 
-The audit is complete, not the implementation: **67 outstanding findings**
-comprise 40 medium, 25 low and 2 unresolved design/performance
+The audit is complete, not the implementation: **66 outstanding findings**
+comprise 39 medium, 25 low and 2 unresolved design/performance
 concerns.
 This is not a count of exploitable vulnerabilities or reproduced failures.
 All 47 tracked source directories and 12 root files are covered by the
@@ -17,8 +17,8 @@ reviewed only at the requested integration boundaries.
 
 Most urgent follow-up, subject to separate authorization:
 
-- Data preservation and required compatibility: A016 and the
-  mode-specific rendering/persistence findings.
+- Data preservation and required compatibility: the mode-specific rendering
+  and persistence findings.
 
 Start with the detailed evidence and regression tests for each finding;
 do not infer that every issue needs a redesign or that changing the public
@@ -62,21 +62,19 @@ Concrete coupling concerns, not automatic refactoring requests:
 
 Ownership assessment: opaque handles and matching destruction functions are
 common and appropriate; the public pixel buffer deliberately exposes planes
-for its consumers. A handle can still outlive a native resource operation
-(A016). Deep copying a BBS object avoids
-a dangling pointer but does not implement stale-model semantics (A101).
+for its consumers. Deep copying a BBS object avoids a dangling pointer but
+does not implement stale-model semantics (A101).
 
 Concurrency/performance assessment: lock/condition ownership and shutdown are
-reviewed per component in AUDIT.md. Atomics are not accepted as proof of
-lifetime safety (A016), and callback locking/allocation is an explicit audio
-risk (A023). The unresolved rwlock performance concern A011 is not a measured
-regression. Scaler/renderer correctness tests and existing benchmarks do not
-establish comparative speed across every platform, mode and update pattern.
+reviewed per component in AUDIT.md. Callback locking/allocation is an explicit
+audio risk (A023). The unresolved rwlock performance concern A011 is not a
+measured regression. Scaler/renderer correctness tests and existing benchmarks
+do not establish comparative speed across every platform, mode and update pattern.
 No new blanket GC, contention or scaling-performance diagnosis is made from
 source shape. The source and test inventory must retain those measurement
 limits in the final report.
 
-The current TODO documents contain 67 outstanding numbered findings. A007 and
+The current TODO documents contain 66 outstanding numbered findings. A007 and
 A011 are unresolved design/performance concerns, not confirmed runtime defects.
 Missing features and documentation errors are also explicitly distinguished
 from implementation failures in the detailed ledger.
@@ -95,7 +93,6 @@ from implementation failures in the detailed ledger.
 | A010 | low | Windows recursive mkdir reports success for nonexistent roots |
 | A011 | unresolved performance concern | Non-native rwlock fast paths need performance validation |
 | A013 | medium verification gap | Serial PTY capability test is pre-disabled |
-| A016 | medium | ConPTY atomic handles do not protect active users from close |
 | A021 | medium | Compact date-only branch is shadowed by epoch parsing |
 | A022 | medium | Crossfade completion inserts pull-size-dependent silence |
 | A023 | medium performance/reliability risk | Real-time audio callbacks take locks and free objects |

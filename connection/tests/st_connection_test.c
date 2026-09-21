@@ -514,6 +514,46 @@ test_shell(void)
 }
 
 static int
+test_shell_shutdown(void)
+{
+#if SYNCTERM_PLATFORM_WINDOWS && ST_CONNECTION_TEST_HAVE_SHELL
+	static const struct timespec pending_pause = {0, 25000000};
+	static const struct timespec output_pause = {0, 250000000};
+	struct st_screen_geometry geometry = {80, 25, 0, 0};
+	struct st_connection_error error;
+	struct st_profile profile;
+	st_connection_t *connection = NULL;
+	int status;
+
+	st_profile_init(&profile);
+	profile.connection_type = ST_CONNECTION_SHELL;
+	profile.screen_mode = ST_SCREEN_MODE_CURRENT;
+	strcpy(profile.address, "cmd.exe /d /q");
+	for (unsigned int attempt = 0; attempt < 8; ++attempt) {
+		status = st_connection_connect_shell(&connection, &profile,
+		    &geometry, NULL, &error);
+		if (status == IO_ERROR_NOT_SUPPORTED) {
+			st_profile_dispose(&profile);
+			return 0;
+		}
+		CHECK(status == 0);
+		(void)st_thread_sleep(&pending_pause, NULL);
+		CHECK(st_connection_close(connection) == 0);
+		connection = NULL;
+	}
+	strcpy(profile.address,
+	    "cmd.exe /d /q /c for /L %i in (1,1,2147483647) do "
+	    "@echo 0123456789abcdef0123456789abcdef");
+	CHECK(st_connection_connect_shell(&connection, &profile, &geometry,
+	    NULL, &error) == 0);
+	(void)st_thread_sleep(&output_pause, NULL);
+	CHECK(st_connection_close(connection) == 0);
+	st_profile_dispose(&profile);
+#endif
+	return 0;
+}
+
+static int
 test_shell_line_discipline(void)
 {
 #if !SYNCTERM_PLATFORM_WINDOWS && ST_CONNECTION_TEST_HAVE_SHELL
@@ -799,6 +839,8 @@ main(int argc, char **argv)
 
 	if (argc == 2 && strcmp(argv[1], "--partial-input") == 0)
 		return test_partial_input() != 0;
+	if (argc == 2 && strcmp(argv[1], "--shell-shutdown") == 0)
+		return test_shell_shutdown() != 0;
 #if !SYNCTERM_PLATFORM_WINDOWS && ST_CONNECTION_TEST_HAVE_SHELL
 	if (argc == 2)
 		fixture = argv[1];
@@ -807,8 +849,9 @@ main(int argc, char **argv)
 	if (argc != 1)
 #endif
 	{
-		fprintf(stderr, "usage: %s [--partial-input] [shell-fixture]\n",
-		    argv[0]);
+		fprintf(stderr,
+		    "usage: %s [--partial-input|--shell-shutdown] "
+		    "[shell-fixture]\n", argv[0]);
 		return 1;
 	}
 	CHECK(test_raw() == 0);
