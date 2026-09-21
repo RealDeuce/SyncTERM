@@ -173,9 +173,9 @@ evidence. All new fixtures use fresh temporary paths and a headless console.
   that absence alone is not classified as a regression. Any future selector
   policy must retain the full-cell explicit-glyph bypass and registry lifetime.
 - Theme selection/deletion failure behavior is covered for local and cloud
-  themes. General OOM/failure rollback remains untested. Remaining Settings
-  and BBS mutation boundaries are covered in A063–A065, A100, and A105, not
-  assumed safe from their normal-path tests.
+  themes. General OOM/failure rollback remains untested. Remaining BBS and
+  custom-font mutation boundaries are covered in A100 and A105, not assumed
+  safe from their normal-path tests.
 - Host/VM lifetimes, borrowed config and synchronous dispatcher use follow the
   application ownership review. Multiple logical consoles do not make Wren
   thread-safe. Actual connected-session event scheduling/SFTP capabilities
@@ -337,13 +337,10 @@ close the earlier custom-font source questions with explicit source-only evidenc
 fault injection, filesystem replacement races and real font rendering remain
 verification limits, not successful tests.
 
-Immediate-settings follow-up: settings_apply applies a theme before copying
-global settings, ignores both console scaling-setter results, then clears the
-snapshot dirty flag. A064 already demonstrates apply-before-save-failure;
-allocation or backend failure in these additional stages is not injected.
-Audio/list-path/KDF changes cannot be declared operational merely because a
-settings field changed; the currently absent connected runtime is covered by
-A088. These are explicit failure-boundary and consumer-verification limits.
+Immediate-settings follow-up: settings apply ignores both console
+scaling-setter results; backend failure in those stages is not injected. The
+currently absent connected runtime is covered by A088. These are explicit
+failure-boundary and consumer-verification limits.
 
 Font-selector contract reconciliation: legacy wren_bind_screen.c's Cell.font
 and legacyAttr/bright setters modify separate stored fields, so the absence
@@ -393,31 +390,6 @@ the profile, with invalid later-element and capacity cases retained as tests.
 This does not prescribe a new transaction API or authorize an implementation
 change. Wren guidance was used to contain expected setter aborts with Fiber.try
 and inspect the same live object afterward.
-
-### A099 — Menu screen-mode changes lose mode identity and use incomplete geometry
-
-Severity: medium (confirmed integration/legacy behavior mismatch).
-wren_host/wren_bind_menu.c:2177 duplicates a dimensions-only mode table;
-Prestel and Atari XEP80 are listed as 24 rows instead of the legacy/startup
-25. setScreenMode at :2248 only calls st_console_resize. It does not apply
-cell/raster geometry, aspect, blink mode or the configured default cursor
-promised by Wren.adoc:4450. currentScreenMode at :2223 guesses the first enum
-with matching grid dimensions, collapsing LCD/EGA/VGA and other 80x25 modes.
-
-Added `screen-mode` to the isolated host audit harness. After a successful
-Menu.setScreenMode(PRESTEL), the public console size is 40x24 rather than
-40x25. A separate script successfully selects LCD_80X25 then fails the check
-that currentScreenMode retains that identity. Native strict-warning compile
-and fresh temporary-root execution reproduce both cases without a GUI.
-Other geometry/cursor omissions are source-confirmed, not visual assertions
-from this headless fixture. The all-mode startup test remains passing: it
-exercises a different path and does not contradict this finding.
-
-Recommendation: make the menu mode-change contract use authoritative mode
-configuration/identity rather than a separate grid-size approximation, and
-test round-trip identity plus full geometry and cursor effects. That is a
-remedy recommendation only; no shared API or implementation was redesigned.
-Wren guidance and the mode API manual contract were used for the test.
 
 ### A096 — BBS editor script discovery is an unconditional empty stub
 
@@ -813,9 +785,8 @@ Additional documentation reconciliation under A088/A090:
   not reasons to change the language or make glyph widths uniformly one.
 
 The documented short-read SFTP contract supports A083: a successful read is
-explicitly up-to-count, not an exact chunk fill. The settings failure/stale
-snapshot claims correspond to A063–A065; UI empty selection, tab order and
-Markdown semantics correspond to A071/A074/A077/A078.
+explicitly up-to-count, not an exact chunk fill. UI empty selection, tab order
+and Markdown semantics correspond to A071/A074/A077/A078.
 Repeated promises were not assigned duplicate defect numbers. Full-source
 documentation coverage does not settle remaining app/console/host integration
 follow-ups or constitute final consolidated audit completion.
@@ -1282,68 +1253,6 @@ Metadata failures need a consistent skip-or-fail policy too: current fs_get_info
 errors continue but leave status set, so whether they ultimately fail the whole
 listing depends on whether a later entry overwrites status. That ordering
 problem is source-observed, not exercised by this read-error fixture.
-
-### A063 — Settings snapshots never become stale after another snapshot applies
-
-Severity: medium (documented lifetime/conflicting-update contract). Wren.adoc's
-Menu Program Settings section requires successful apply/save to invalidate
-other outstanding Settings objects. wren_bind_menu.c:53 stores only the
-snapshot and dirty flag; settings_value at :143 checks the foreign kind but
-has no generation check. settings_apply at :2965 copies the entire snapshot
-to running settings without invalidating other snapshots. Consequently an
-old editor can remain usable and potentially overwrite newer accepted values.
-
-Confirmed with the `settings-stale` case in
-wren_host/tests/st_wren_loader_audit_test.c: acquire two snapshots, toggle
-confirmClose on the second, successfully apply it, and read the first inside
-a catching Fiber. The getter returns normally instead of aborting. Native
-Clang strict C17 build succeeds; the test exits 1 with `settings apply
-invalidates other snapshots: FAIL`. This uses a headless temporary host and
-does not initialize or save personal settings. Overwriting newer values was
-not executed; it follows from the unchecked whole-snapshot apply path.
-
-Recommendation: implement the documented snapshot validity contract, with
-tests for apply/save/reload and multiple editor handles. Do not infer a
-memory-use-after-free here: snapshots own their settings data.
-
-### A064 — Failed Settings.save still applies the previously unapplied snapshot
-
-Severity: medium (transaction/visible-state contract). Wren.adoc Menu Program
-Settings explicitly promises that an unapplied snapshot is not applied when
-save fails. wren_bind_menu.c:2995 instead calls settings_apply before
-st_settings_save, so failure of the latter leaves running settings changed
-and the snapshot marked clean. The API returns false after those effects.
-
-Confirmed by `settings-save-failure` in st_wren_loader_audit_test.c. The host
-has no loaded settings store, guaranteeing that st_settings_save returns
-IO_ERROR_INVALID_ARGUMENT before file I/O. The script toggles confirmClose,
-checks save returns false, and reads a fresh Menu.settings snapshot. It sees
-the changed value; the native strict Clang test exits 1 with `failed settings
-save preserves running values: FAIL`. This is a persistence initialization
-failure, not an injected disk-full or permission error; those paths were not
-executed. No personal files were loaded or written.
-
-Recommendation: ensure persistence failure preserves the documented running
-state and dirty state, including effects on theme/scaling. Add failures after
-store initialization as well as this early error; do not silently weaken the
-documented transaction guarantee.
-
-### A065 — Settings.reload reads disk rather than current running settings
-
-Severity: medium (snapshot/reload semantics). Wren.adoc defines reload as
-discarding this snapshot's unapplied changes and copying current running
-settings. wren_bind_menu.c:3008 instead calls st_settings_reload, which loads
-from the configured file under a file lock, before copying the global state.
-This unnecessarily requires a disk store and can replace accepted in-memory
-settings with persisted values. The latter data-loss scenario remains a
-source-level consequence, not a runtime-tested case.
-
-The `settings-reload` standalone test creates a valid snapshot without loading
-a settings file, edits confirmClose, then calls reload to restore the running
-value. It aborts with `settings reload failed` instead of succeeding; native
-strict Clang test exits 1. No disk-store or GUI access. Recommendation: keep
-snapshot refresh distinct from disk reload, following the existing public
-contract, and test applied-but-unsaved running values plus external file edits.
 
 ### A066 — Wren VM target does not declare its math-library dependency
 
@@ -2194,11 +2103,10 @@ font_ releases focus before Host.pickFile and restores only after normal
 return; exceptional picker restoration remains an integration question.
 Font save failure displays an alert then returns from management with the
 in-memory dirty state retained; no transactional-discard claim is made.
-Program settings call applySettings_ after edits; failed apply calls reload,
-so the previously recorded Settings.reload contract issue (A065) is relevant
-to this caller. Broader cancellation/save behavior needs isolated model tests.
-No font files, personal configuration or production code modified; report-only
-this pass. Font model API manual and related host functions were rechecked.
+Program settings call applySettings_ after edits; broader cancellation/save
+behavior needs isolated model tests. No font files, personal configuration or
+production code modified; report-only this pass. Font model API manual and
+related host functions were rechecked.
 
 MenuUi pass: read complete scripts/menu_ui.wren (696 lines) and full legacy
 diff. This module is now included in script coverage. Modern changes are
@@ -2644,21 +2552,15 @@ ANSI discard callback; no desktop or actual terminal interaction. It covers
 menu selection, settings setter/apply happy paths, theme/font/sort collections,
 encryption transitions, REPL error recovery and style restoration, log ring
 eviction, Cell retarget lifetime and control-key routing. It does not exercise
-settings stale-handle, failed-save or reload contracts (A063–A065), or physical
-backend behavior. Its web refresh case deliberately
+physical backend behavior. Its web refresh case deliberately
 uses an invalid URI and verifies restoration of one cell, two palette entries
 and cursor, not a successful live download or full-screen restoration.
 
 Settings/BBS binding pass completes source reading of wren_bind_menu.c
 (including the full binding table). Binding-to-script declaration parity and
 the complete host test remain pending. The Settings manual was checked before
-this pass. Beyond A063, source-level contract discrepancies require targeted
-tests: reload calls st_settings_reload (disk reload), not a copy of current
-running settings; save applies first and can then fail persistence, although
-the manual promises unapplied changes remain unapplied on failure; setters
-mark dirty even when assigning the existing value. Apply explicitly updates
-theme and scaling but ignores scaling errors; other promised immediate
-effects and KDF/list-path integration require tracing consumers. BBS palette
+this pass. Setters mark dirty even when assigning the existing value, and
+applying scaling ignores native setter errors. BBS palette
 and script-list setters mutate elements before completing validation, so a
 later invalid element may leave partial changes without setting dirty.
 These are not yet runtime-confirmed findings.
@@ -2680,14 +2582,6 @@ safe-mode exception needs an explicit policy/legacy comparison. Menu.openUrl
 likewise lacks a safe-mode gate despite Host.safeMode's
 documented restriction on script-driven external commands; no browser or
 external command was launched during this audit.
-
-Screen-mode binding discrepancy: screen_mode_size duplicates only text-grid
-dimensions, currentScreenMode returns the first matching grid (so multiple
-80x25 modes collapse), and setScreenMode calls only st_console_resize without
-updating font geometry, raster margins, cursor defaults or aspect. Its Prestel
-and Atari XEP80 rows are 24 versus startup's 25. This is a source-observed
-integration concern needing focused mode tests and legacy comparison, not
-evidence that all console resize operations are wrong.
 
 Custom-font bindings use generation checks and prohibit mutation in safe mode.
 Reload calls the whole settings reload before font registration and increments

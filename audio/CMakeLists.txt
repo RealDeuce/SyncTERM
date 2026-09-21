@@ -45,7 +45,8 @@ set(ST_AUDIO_HAVE_PIPEWIRE 0)
 set(ST_AUDIO_HAVE_SDL 0)
 set(ST_AUDIO_HAVE_CORE_AUDIO 0)
 set(ST_AUDIO_HAVE_WASAPI 0)
-set(_st_audio_sources audio.c audio_synthesis.c audio_backends.c)
+set(_st_audio_sources audio.c audio_synthesis.c audio_backends.c
+	st_audio_runtime.c)
 set(_st_audio_runtime_loader FALSE)
 
 function(st_audio_use_pkg_backend option prefix package header source variable)

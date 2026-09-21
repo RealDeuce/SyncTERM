@@ -79,7 +79,7 @@ target_include_directories(st_wren_host
 target_include_directories(st_wren_host SYSTEM PRIVATE
 	${CMAKE_CURRENT_SOURCE_DIR}/../wren_vm/vm)
 target_link_libraries(st_wren_host
-	PUBLIC st_console st_app_paths st_profile
+	PUBLIC st_console st_app_paths st_profile st_screen_mode st_session_history
 	PRIVATE st_wren_vm st_codepage st_utf8 st_bbs_list st_audio
 		st_fonts st_settings st_theme st_time st_pixel_image
 		syncterm_io_error syncterm_path syncterm_file_map
@@ -104,7 +104,8 @@ endif()
 if(BUILD_TESTING)
 	add_executable(st_wren_host_test tests/st_wren_host_test.c)
 	target_link_libraries(st_wren_host_test PRIVATE st_wren_host
-		st_wren_vm st_settings st_theme st_time st_bbs_list syncterm_filesystem
+		st_wren_vm st_settings st_theme st_time st_bbs_list st_audio
+		syncterm_filesystem
 		syncterm_threads)
 	target_compile_definitions(st_wren_host_test PRIVATE
 		ST_WREN_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/host-test")
@@ -121,6 +122,30 @@ if(BUILD_TESTING)
 			-Wall -Wextra -Wpedantic -Werror)
 	endif()
 	add_test(NAME wren_host COMMAND st_wren_host_test)
+
+	add_executable(st_wren_loader_audit_test
+		tests/st_wren_loader_audit_test.c)
+	target_link_libraries(st_wren_loader_audit_test PRIVATE st_wren_host
+		st_wren_vm st_bbs_list syncterm_filesystem)
+	target_include_directories(st_wren_loader_audit_test PRIVATE
+		${CMAKE_CURRENT_BINARY_DIR})
+	target_include_directories(st_wren_loader_audit_test SYSTEM PRIVATE
+		${CMAKE_CURRENT_SOURCE_DIR}/../wren_vm/vm)
+	set_target_properties(st_wren_loader_audit_test PROPERTIES
+		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_wren_loader_audit_test PRIVATE /W4 /WX)
+	else()
+		target_compile_options(st_wren_loader_audit_test PRIVATE
+			-Wall -Wextra -Wpedantic -Werror)
+	endif()
+	foreach(_case settings-stale settings-save-failure settings-reload
+			screen-mode)
+		set(_directory "${CMAKE_CURRENT_BINARY_DIR}/audit-${_case}")
+		file(MAKE_DIRECTORY "${_directory}")
+		add_test(NAME "wren_${_case}"
+			COMMAND st_wren_loader_audit_test "${_directory}" "${_case}")
+	endforeach()
 
 	add_executable(st_wren_picker_test tests/st_wren_picker_test.c)
 	target_link_libraries(st_wren_picker_test PRIVATE st_wren_host

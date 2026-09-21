@@ -156,6 +156,32 @@ st_console_get_default_cursor(st_console_t *console,
 }
 
 int
+st_console_set_default_cursor(st_console_t *console,
+	const struct st_console_custom_cursor *cursor)
+{
+	int result;
+
+	if (console == NULL || cursor == NULL || cursor->range == 0
+	    || cursor->start >= cursor->range || cursor->end >= cursor->range
+	    || cursor->start > cursor->end)
+		return IO_ERROR_INVALID_ARGUMENT;
+	result = st_rwlock_write_lock(&console->state_lock);
+	if (result != ST_THREAD_SUCCESS)
+		return IO_ERROR_IO;
+	console->default_cursor = *cursor;
+	console->custom_cursor = *cursor;
+	console->cursor_visible = cursor->visible;
+	console->cursor_shape = cursor->start == 0
+	    && cursor->end == cursor->range - 1
+	    ? ST_CONSOLE_CURSOR_BLOCK : ST_CONSOLE_CURSOR_BAR;
+	console->cursor_custom = true;
+	console->changed = true;
+	result = st_console_finish_change_locked(console);
+	(void)st_rwlock_unlock(&console->state_lock);
+	return result;
+}
+
+int
 st_console_get_cursor(st_console_t *console, bool *visible,
 	enum st_console_cursor_shape *shape)
 {

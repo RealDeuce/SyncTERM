@@ -961,8 +961,18 @@ st_settings_reload(void)
 	return status;
 }
 
+void
+st_settings_install(struct st_settings *replacement)
+{
+	if (replacement == NULL)
+		return;
+	st_settings_dispose(&st_settings);
+	st_settings = *replacement;
+	st_settings_init(replacement);
+}
+
 int
-st_settings_save(void)
+st_settings_save_value(const struct st_settings *value)
 {
 	ini_document_t *remote = NULL;
 	ini_document_t *local = NULL;
@@ -975,12 +985,13 @@ st_settings_save(void)
 	ini_section_t *local_profiles;
 	ini_section_t *remote_profiles;
 	st_file_lock_t *lock = NULL;
+	struct st_settings installed;
 	struct st_settings saved;
 	struct st_settings remote_settings;
 	size_t i;
 	int status;
 
-	if (!baseline_initialized || settings_path == NULL)
+	if (!baseline_initialized || settings_path == NULL || value == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	status = fs_create_parent_directories(settings_path);
 	if (status == 0)
@@ -995,7 +1006,7 @@ st_settings_save(void)
 	if (status == 0)
 		status = ini_document_clone(&local, canonical_base);
 	if (status == 0)
-		status = encode_settings(local, &st_settings);
+		status = encode_settings(local, value);
 	st_settings_init(&remote_settings);
 	if (status == 0)
 		status = decode_settings(&remote_settings, remote,
@@ -1045,12 +1056,18 @@ st_settings_save(void)
 	}
 	if (status == 0)
 		status = migrate_classic_colors(remote);
+	st_settings_init(&installed);
+	st_settings_init(&saved);
+	if (status == 0 && !st_settings_copy(&installed, value))
+		status = IO_ERROR_OUT_OF_MEMORY;
+	if (status == 0 && !st_settings_copy(&saved, value))
+		status = IO_ERROR_OUT_OF_MEMORY;
 	if (status == 0)
 		status = write_document(remote, settings_path);
-	st_settings_init(&saved);
-	if (status == 0 && !st_settings_copy(&saved, &st_settings))
-		status = IO_ERROR_OUT_OF_MEMORY;
 	if (status == 0) {
+		st_settings_dispose(&st_settings);
+		st_settings = installed;
+		st_settings_init(&installed);
 		ini_document_free(&baseline_document);
 		baseline_document = remote;
 		remote = NULL;
@@ -1058,6 +1075,7 @@ st_settings_save(void)
 		baseline_settings = saved;
 		st_settings_init(&saved);
 	}
+	st_settings_dispose(&installed);
 	st_settings_dispose(&saved);
 	st_settings_dispose(&remote_settings);
 	ini_document_free(&remote);
@@ -1066,6 +1084,12 @@ st_settings_save(void)
 	ini_document_free(&canonical_remote);
 	st_file_lock_release(lock);
 	return status;
+}
+
+int
+st_settings_save(void)
+{
+	return st_settings_save_value(&st_settings);
 }
 
 void

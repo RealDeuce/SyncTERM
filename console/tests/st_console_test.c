@@ -1711,6 +1711,17 @@ test_font_resolution_and_complete_cells(void)
 		.mapping_count = sizeof(selected_mapping)
 		    / sizeof(selected_mapping[0]),
 	};
+	static const uint8_t mismatched_bitmap[] = {0x00, 0x00};
+	static const struct st_console_font mismatched_font = {
+		.bitmap = mismatched_bitmap,
+		.bitmap_size = sizeof(mismatched_bitmap),
+		.width = 8,
+		.height = 2,
+		.glyph_count = 1,
+		.row_stride = 1,
+		.glyph_stride = 2,
+		.fallback_glyph = 0,
+	};
 	const struct st_console_font_selection selection = {
 		.normal = 10,
 		.bright = 11,
@@ -1740,6 +1751,7 @@ test_font_resolution_and_complete_cells(void)
 	st_console_t *console = NULL;
 	uint16_t fallback;
 	uint16_t selected;
+	uint16_t mismatched;
 	uint16_t glyph_font;
 	uint32_t glyph;
 	uint8_t columns;
@@ -1761,6 +1773,11 @@ test_font_resolution_and_complete_cells(void)
 	CHECK(st_console_font_lookup(console, selected, 1, &glyph_font,
 	    &glyph, &columns) == 0);
 	CHECK(glyph_font == fallback && glyph == 0 && columns == 1);
+	CHECK(st_console_register_static_font(console, &mismatched_font,
+	    &mismatched) == 0);
+	CHECK(st_console_font_lookup(console, mismatched, 'B', &glyph_font,
+	    &glyph, &columns) == 0);
+	CHECK(glyph_font == mismatched && glyph == 0 && columns == 1);
 
 	CHECK(st_console_font_for_flags(&selection, 0) == 10);
 	CHECK(st_console_font_for_flags(&selection, ST_CONSOLE_CELL_BRIGHT) == 11);

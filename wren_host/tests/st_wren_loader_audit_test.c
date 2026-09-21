@@ -176,6 +176,12 @@ main(int argc, char **argv)
 	else if (strcmp(argv[2], "screen-mode") == 0) {
 		char source[512];
 		uint32_t columns, rows;
+		uint32_t pixel_width, pixel_height;
+		uint32_t aspect_width, aspect_height;
+		uint32_t palette[16];
+		struct st_console_custom_cursor cursor;
+		struct st_console_style style;
+		enum st_console_blink_mode blink;
 		CHECK(status == 0);
 		(void)snprintf(source, sizeof(source),
 		    "import \"syncterm_menu\" for Menu\n"
@@ -184,7 +190,22 @@ main(int argc, char **argv)
 		CHECK(wrenInterpret(host->vm, "mode_geometry", source)
 		    == WREN_RESULT_SUCCESS);
 		CHECK(st_console_size(console, &columns, &rows) == 0);
-		bool geometry = columns == 40 && rows == 25;
+		CHECK(st_console_cell_pixel_size(console, &pixel_width,
+		    &pixel_height) == 0);
+		bool geometry = columns == 40 && rows == 25
+		    && pixel_width == 12 && pixel_height == 20;
+		CHECK(st_console_pixel_size(console, &pixel_width, &pixel_height) == 0);
+		geometry = geometry && pixel_width == 480 && pixel_height == 500;
+		CHECK(st_console_get_aspect_ratio(console, &aspect_width,
+		    &aspect_height) == 0);
+		geometry = geometry && aspect_width == 3077 && aspect_height == 2400;
+		CHECK(st_console_get_blink_mode(console, &blink) == 0);
+		CHECK(st_console_get_default_cursor(console, &cursor) == 0);
+		CHECK(st_console_get_palette(console, 0, palette, 16) == 0);
+		CHECK(st_console_get_style(console, &style) == 0);
+		geometry = geometry && blink == ST_CONSOLE_BLINK_PRESTEL
+		    && cursor.range == 20 && palette[4] == UINT32_C(0x0000ff)
+		    && style.foreground == 7 && style.background == 0;
 		fprintf(stderr, "Prestel menu mode: %ux%u, expected 40x25\n",
 		    (unsigned)columns, (unsigned)rows);
 		(void)snprintf(source, sizeof(source),
@@ -515,6 +536,7 @@ main(int argc, char **argv)
 		    "var before = snapshot.confirmClose\n"
 		    "snapshot.confirmClose = !before\n"
 		    "if (snapshot.save()) Fiber.abort(\"expected persistence failure\")\n"
+		    "if (!snapshot.dirty) Fiber.abort(\"failed save cleaned snapshot\")\n"
 		    "if (Menu.settings.confirmClose != before) Fiber.abort(\"failed save applied snapshot\")\n")
 		    == WREN_RESULT_SUCCESS;
 		fprintf(stderr, "failed settings save preserves running values: %s\n",
@@ -524,6 +546,9 @@ main(int argc, char **argv)
 		CHECK(status == 0);
 		passed = wrenInterpret(host->vm, "settings_reload_audit",
 		    "import \"syncterm_menu\" for Menu\n"
+		    "var applied = Menu.settings\n"
+		    "applied.confirmClose = !applied.confirmClose\n"
+		    "if (!applied.apply()) Fiber.abort(\"apply failed\")\n"
 		    "var snapshot = Menu.settings\n"
 		    "var before = snapshot.confirmClose\n"
 		    "snapshot.confirmClose = !before\n"

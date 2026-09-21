@@ -323,6 +323,38 @@ storage_create(uint32_t width, uint32_t height,
 	return storage;
 }
 
+void
+st_wren_push_surface_take(WrenVM *vm, struct st_console_cell *cells,
+	uint32_t width, uint32_t height)
+{
+	struct surface_storage *storage;
+	struct foreign_surface *surface;
+
+	if (vm == NULL || cells == NULL || width == 0 || height == 0
+	    || width > SIZE_MAX / height) {
+		free(cells);
+		if (vm != NULL)
+			wrenSetSlotNull(vm, 0);
+		return;
+	}
+	storage = calloc(1, sizeof(*storage));
+	if (storage == NULL) {
+		free(cells);
+		st_wren_abort(vm, "out of memory");
+		return;
+	}
+	storage->references = 1;
+	storage->count = (size_t)width * height;
+	storage->width = width;
+	storage->height = height;
+	storage->cells = cells;
+	wrenEnsureSlots(vm, 2);
+	wrenGetVariable(vm, "syncterm", "Surface", 1);
+	surface = wrenSetSlotNewForeign(vm, 0, 1, sizeof(*surface));
+	surface->header.kind = FOREIGN_SURFACE;
+	surface->storage = storage;
+}
+
 static struct st_console_cell *
 cell_value(WrenVM *vm, int slot)
 {
@@ -853,15 +885,17 @@ queue_mouse_events(struct st_wren_context *context,
 
 	if (source->data.mouse.action == ST_CONSOLE_MOUSE_WHEEL) {
 		struct st_wren_input_record record;
+		int32_t wheel_y = st_settings.invert_wheel
+		    ? -source->data.mouse.wheel_y : source->data.mouse.wheel_y;
 
-		if (source->data.mouse.wheel_y != 0) {
+		if (wheel_y != 0) {
 			record = mouse_record(source,
-			    source->data.mouse.wheel_y > 0
+			    wheel_y > 0
 			    ? ST_WREN_MOUSE_WHEEL_UP : ST_WREN_MOUSE_WHEEL_DOWN,
 			    source->data.mouse.x, source->data.mouse.y,
 			    source->data.mouse.pixel_x, source->data.mouse.pixel_y,
 			    source->data.mouse.modifiers);
-			record.data.mouse.wheel_y = source->data.mouse.wheel_y;
+			record.data.mouse.wheel_y = wheel_y;
 			mouse_add_if_enabled(context, records, &count, record);
 		}
 		if (source->data.mouse.wheel_x != 0) {
@@ -1087,6 +1121,11 @@ next_input_event(WrenVM *vm, bool wait, int64_t timeout_ms, bool at_exit)
 		}
 		if (event.type == ST_CONSOLE_EVENT_CLOSE) {
 			host->exit_requested = true;
+			continue;
+		}
+		if (event.type == ST_CONSOLE_EVENT_RESIZE) {
+			st_wren_host_external_screen_resize(host, context->console,
+			    event.data.resize.columns, event.data.resize.rows);
 			continue;
 		}
 		status = queue_console_event(context, &event);

@@ -451,6 +451,13 @@ int st_console_cell_pixel_size(st_console_t *console, uint32_t *width,
 int st_console_capabilities(st_console_t *console, uint32_t *capabilities);
 int st_console_resize(st_console_t *console, uint32_t columns,
 	uint32_t rows);
+/*
+ * Replaces the complete logical/raster configuration and clears the console.
+ * All storage is prepared before the active backend is resized; failure leaves
+ * the existing console state intact.
+ */
+int st_console_reconfigure(st_console_t *console,
+	const struct st_console_config *config);
 
 int st_console_write_cells(st_console_t *console,
 	const struct st_console_rect *destination,
@@ -485,6 +492,9 @@ int st_console_get_cursor(st_console_t *console, bool *visible,
 	enum st_console_cursor_shape *shape);
 int st_console_get_default_cursor(st_console_t *console,
 	struct st_console_custom_cursor *cursor);
+/* Replaces the default cursor and immediately selects it. */
+int st_console_set_default_cursor(st_console_t *console,
+	const struct st_console_custom_cursor *cursor);
 int st_console_set_custom_cursor(st_console_t *console,
 	const struct st_console_custom_cursor *cursor);
 int st_console_get_custom_cursor(st_console_t *console,

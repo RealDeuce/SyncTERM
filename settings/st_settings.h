@@ -111,6 +111,10 @@ bool st_settings_copy(struct st_settings *result,
  */
 int st_settings_load(const struct st_app_paths *paths);
 int st_settings_reload(void);
+/* Consume an already prepared replacement without allocating. */
+void st_settings_install(struct st_settings *replacement);
+/* Persist and publish value; no running-state change occurs on failure. */
+int st_settings_save_value(const struct st_settings *value);
 int st_settings_save(void);
 void st_settings_shutdown(void);
 

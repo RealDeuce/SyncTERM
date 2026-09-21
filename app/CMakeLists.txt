@@ -12,7 +12,7 @@ add_library(st_app_startup STATIC
 	st_console_startup.c)
 target_include_directories(st_app_startup PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_app_startup PUBLIC st_console st_profile st_settings
-	syncterm_io_error)
+	st_screen_mode syncterm_io_error)
 set_target_properties(st_app_startup PROPERTIES
 	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 
@@ -23,7 +23,7 @@ set_target_properties(syncterm_app PROPERTIES
 target_compile_definitions(syncterm_app PRIVATE
 	$<$<CONFIG:Debug>:ST_DEBUG_BUILD>)
 target_link_libraries(syncterm_app PRIVATE st_wren_host st_settings
-	st_app_startup st_fonts)
+	st_app_startup st_audio st_fonts st_session_history)
 if(SYNCTERM_ENABLE_UNIFONT)
 	target_link_libraries(syncterm_app PRIVATE st_unifont)
 	target_compile_definitions(syncterm_app PRIVATE ST_HAVE_UNIFONT=1)

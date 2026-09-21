@@ -323,6 +323,25 @@ main(void)
 	    "First=https://example.invalid/first.lst") != NULL);
 	free(serialized);
 	ini_document_free(&document);
+	{
+		struct st_settings candidate;
+		bool old_confirm = st_settings.confirm_close;
+
+		st_settings_init(&candidate);
+		CHECK(st_settings_copy(&candidate, &st_settings));
+		candidate.confirm_close = !old_confirm;
+		CHECK(st_settings.confirm_close == old_confirm);
+		CHECK(st_settings_save_value(&candidate) == 0);
+		CHECK(st_settings.confirm_close == !old_confirm);
+		CHECK(read_document(settings_path, &document) == 0);
+		CHECK(ini_section_get_bool(ini_document_find_section(document,
+		    "SyncTERM"), "ConfirmClose", old_confirm) == !old_confirm);
+		ini_document_free(&document);
+		candidate.confirm_close = old_confirm;
+		st_settings_install(&candidate);
+		CHECK(st_settings.confirm_close == old_confirm);
+		st_settings_dispose(&candidate);
+	}
 
 	st_settings.scrollback_lines = 300;
 	CHECK(rewrite_value(settings_path, "ScrollBackLines", 400) == 0);

@@ -30,6 +30,18 @@ main(void)
 		.columns = 80, .rows = 50, .cell_width = 8, .cell_height = 8,
 		.scaling_mode = ST_CONSOLE_SCALING_EXTERNAL,
 	};
+	const struct st_console_config reconfigured = {
+		.columns = 40, .rows = 25, .cell_width = 12, .cell_height = 20,
+		.pixel_width = 480, .pixel_height = 500,
+		.default_cursor = {
+			.start = 14, .end = 15, .range = 20,
+			.visible = true, .blink = true,
+		},
+		.wrap = true,
+		.blink_mode = ST_CONSOLE_BLINK_PRESTEL,
+		.scaling_mode = ST_CONSOLE_SCALING_EXTERNAL,
+		.aspect_width = 3077, .aspect_height = 2400,
+	};
 	const struct st_console_custom_cursor cursor = {
 		.start = 0, .end = 7, .range = 8, .visible = true, .blink = false,
 	};
@@ -42,6 +54,10 @@ main(void)
 	uint32_t *pixels;
 	uint32_t width;
 	uint32_t height;
+	struct st_console_cell cell;
+	struct st_console_rect one = {0, 0, 1, 1};
+	struct st_console_custom_cursor mode_cursor;
+	enum st_console_blink_mode blink;
 	bool correct;
 
 	CHECK(st_console_display_create(&display, &display_config) == 0);
@@ -66,6 +82,19 @@ main(void)
 			}
 		}
 	}
+	CHECK(st_console_reconfigure(second, &reconfigured) == 0);
+	CHECK(st_console_size(second, &width, &height) == 0);
+	CHECK(width == 40 && height == 25);
+	CHECK(st_console_cell_pixel_size(second, &width, &height) == 0);
+	CHECK(width == 12 && height == 20);
+	CHECK(st_console_get_blink_mode(second, &blink) == 0);
+	CHECK(blink == ST_CONSOLE_BLINK_PRESTEL);
+	CHECK(st_console_get_default_cursor(second, &mode_cursor) == 0);
+	CHECK(mode_cursor.start == 14 && mode_cursor.end == 15
+	    && mode_cursor.range == 20 && mode_cursor.blink);
+	CHECK(st_console_read_cells(second, &one, &cell, 1) == 0);
+	CHECK(cell.codepoint == ' ' && cell.foreground == 7
+	    && cell.background == 0 && cell.font == 0);
 	CHECK(st_console_set_position(first, 79, 24) == 0);
 	CHECK(st_console_set_custom_cursor(first, &tall_cursor) == 0);
 	CHECK(st_console_display_activate(display, first) == 0);

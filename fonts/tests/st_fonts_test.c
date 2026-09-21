@@ -140,7 +140,7 @@ main(void)
 	CHECK(glyph_font == prestel && glyph == 'A' && columns == 1);
 	CHECK(st_console_font_lookup(console, prestel, '#', &glyph_font, &glyph,
 	    &columns) == 0);
-	CHECK(glyph_font == font8 && columns == 1);
+	CHECK(glyph_font == prestel && glyph == '?' && columns == 1);
 	CHECK(st_console_font_lookup(console, prestel, UINT32_C(0x00a3),
 	    &glyph_font, &glyph, &columns) == 0);
 	CHECK(glyph_font == prestel && glyph == 0x23 && columns == 1);
@@ -154,8 +154,7 @@ main(void)
 	    &glyph_font, &glyph, &columns) == 0);
 	CHECK(glyph_font == cp437 && glyph == 1 && columns == 1);
 	CHECK(st_console_font_lookup(console, cp437, UINT32_C(0x1f642),
-	    &glyph_font, &glyph, &columns) == 0);
-	CHECK(glyph_font == font8);
+	    &glyph_font, &glyph, &columns) != 0);
 	CHECK(st_console_font_lookup(console, font8, 'A', &glyph_font, &glyph,
 	    &columns) == 0);
 	CHECK(glyph_font == font8 && columns == 1
@@ -166,12 +165,12 @@ main(void)
 	    && glyph < st_unscii_16_font.glyph_count);
 	CHECK(st_console_font_lookup(console, font16, UINT32_C(0x10ffff),
 	    &glyph_font, &glyph, &columns) == 0);
-	CHECK(glyph_font == font8 && columns == 1
-	    && glyph == st_unscii_8_font.fallback_glyph);
+	CHECK(glyph_font == font16 && columns == 1
+	    && glyph == st_unscii_16_font.fallback_glyph);
 	CHECK(st_console_font_lookup(console, font16, UINT32_C(0x20000),
 	    &glyph_font, &glyph, &columns) == 0);
-	CHECK(glyph_font == font8 && columns == 2
-	    && glyph == st_unscii_8_font.wide_fallback_glyph);
+	CHECK(glyph_font == font16 && columns == 2
+	    && glyph == st_unscii_16_font.wide_fallback_glyph);
 	CHECK(st_console_get_style(console, &style) == 0);
 	style.font = font16;
 	CHECK(st_console_set_style(console, &style) == 0);
@@ -179,12 +178,12 @@ main(void)
 	CHECK(st_console_read_cells(console, &screen, cells, 2) == 0);
 	CHECK(cells[0].codepoint == UINT32_C(0x20000)
 	    && cells[0].font == font16
-	    && (cells[0].flags & ST_CONSOLE_CELL_FALLBACK_FONT) != 0
+	    && (cells[0].flags & ST_CONSOLE_CELL_FALLBACK_FONT) == 0
 	    && (cells[0].flags & ST_CONSOLE_CELL_CONTINUATION) == 0
 	    && (cells[0].flags & ~ST_CONSOLE_CELL_PUBLIC_FLAGS) == 0);
 	CHECK(cells[1].codepoint == UINT32_C(0x20000)
 	    && cells[1].font == font16
-	    && (cells[1].flags & ST_CONSOLE_CELL_FALLBACK_FONT) != 0
+	    && (cells[1].flags & ST_CONSOLE_CELL_FALLBACK_FONT) == 0
 	    && (cells[1].flags & ST_CONSOLE_CELL_CONTINUATION) != 0
 	    && (cells[1].flags & ~ST_CONSOLE_CELL_PUBLIC_FLAGS) == 0);
 	st_console_destroy(console);

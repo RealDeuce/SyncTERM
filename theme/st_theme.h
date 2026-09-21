@@ -18,6 +18,7 @@ struct st_app_paths;
 struct st_settings;
 struct st_theme_manager;
 struct st_theme_document;
+struct st_theme_prepared;
 
 struct st_theme_style {
 	char *role;
@@ -83,6 +84,14 @@ uint64_t st_theme_generation(const struct st_theme_manager *manager);
 /* Rebuilds and installs the selected theme from a settings snapshot. */
 int st_theme_apply_settings(struct st_theme_manager *manager,
 	const struct st_settings *settings, char *error, size_t error_size);
+/* Prepare all fallible work without changing the active theme. */
+int st_theme_prepare_settings(struct st_theme_prepared **result,
+	struct st_theme_manager *manager, const struct st_settings *settings,
+	char *error, size_t error_size);
+/* Installs and consumes a prepared theme. */
+void st_theme_install_prepared(struct st_theme_manager *manager,
+	struct st_theme_prepared **prepared);
+void st_theme_prepared_free(struct st_theme_prepared **prepared);
 
 /*
  * Replaces the catalog only after a successful refresh.  A missing themes

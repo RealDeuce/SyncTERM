@@ -11,11 +11,13 @@
 #include "filesystem.h"
 #include "io_error.h"
 #include "st_app_paths.h"
+#include "st_audio_runtime.h"
 #include "st_bbs_list.h"
 #include "st_builtin_fonts.h"
 #include "st_console.h"
 #include "st_pixel_image.h"
 #include "st_settings.h"
+#include "st_session_history.h"
 #include "st_theme.h"
 #include "string_util.h"
 #include "value_convert.h"
@@ -51,6 +53,7 @@ struct foreign_bbs {
 struct foreign_settings {
 	struct menu_foreign_header header;
 	struct st_settings settings;
+	uint64_t generation;
 	bool dirty;
 };
 
@@ -178,7 +181,15 @@ settings_value(WrenVM *vm)
 		st_wren_abort(vm, "expected Settings");
 		return NULL;
 	}
-	return (struct foreign_settings *)header;
+	struct foreign_settings *settings = (struct foreign_settings *)header;
+
+	if (settings->generation
+	    != st_wren_host_from_vm(vm)->settings_generation) {
+		st_wren_abort(vm,
+		    "Settings: stale snapshot; reacquire it from Menu.settings");
+		return NULL;
+	}
+	return settings;
 }
 
 static struct foreign_theme_document *
@@ -308,10 +319,10 @@ push_bbs(WrenVM *vm, int destination, struct st_wren_bbs_record *record,
 }
 
 static size_t
-configured_sort_fields(int fields[32])
+sort_fields(const char *order, int fields[32])
 {
 	size_t count = 0;
-	const char *cursor = st_settings.sort_order;
+	const char *cursor = order;
 
 	while (cursor != NULL && *cursor != '\0' && count < 32) {
 		char token[24];
@@ -342,6 +353,12 @@ configured_sort_fields(int fields[32])
 		count = 3;
 	}
 	return count;
+}
+
+static size_t
+configured_sort_fields(int fields[32])
+{
+	return sort_fields(st_settings.sort_order, fields);
 }
 
 bool
@@ -1132,8 +1149,69 @@ fn_menu_save_sort_profiles(WrenVM *vm)
 	    || st_settings_save() == 0);
 }
 
-static void fn_menu_false(WrenVM *vm) { wrenSetSlotBool(vm, 0, false); }
 static void fn_menu_null(WrenVM *vm) { wrenSetSlotNull(vm, 0); }
+
+static void
+fn_menu_offline_scrollback(WrenVM *vm)
+{
+	struct st_wren_host *host = st_wren_host_from_vm(vm);
+	struct st_console_cell *cells = NULL;
+	uint32_t width;
+	size_t lines;
+	enum st_screen_mode mode;
+	bool has_status;
+
+	if (host->config.session_history == NULL
+	    || st_session_history_copy(host->config.session_history, &cells,
+	    &width, &lines, &mode, &has_status) != 0
+	    || lines > UINT32_MAX) {
+		free(cells);
+		wrenSetSlotNull(vm, 0);
+		return;
+	}
+	(void)mode;
+	(void)has_status;
+	st_wren_push_surface_take(vm, cells, width, (uint32_t)lines);
+}
+
+static bool
+offline_scrollback_info(struct st_wren_host *host, enum st_screen_mode *mode,
+	bool *has_status)
+{
+	uint32_t width;
+	size_t lines;
+
+	return host->config.session_history != NULL
+	    && st_session_history_info(host->config.session_history, &width,
+	    &lines, mode, has_status) == 0;
+}
+
+static void
+fn_menu_prepare_offline_scrollback(WrenVM *vm)
+{
+	struct st_wren_host *host = st_wren_host_from_vm(vm);
+	enum st_screen_mode mode;
+	bool has_status;
+	bool success = offline_scrollback_info(host, &mode, &has_status);
+
+	(void)has_status;
+	if (success && mode != ST_SCREEN_MODE_CURRENT)
+		success = st_wren_host_set_screen_mode(host, mode) == 0;
+	wrenSetSlotBool(vm, 0, success);
+}
+
+static void
+fn_menu_offline_scrollback_has_status(WrenVM *vm)
+{
+	struct st_wren_host *host = st_wren_host_from_vm(vm);
+	enum st_screen_mode mode;
+	bool has_status = false;
+
+	(void)offline_scrollback_info(host, &mode, &has_status);
+	wrenSetSlotBool(vm, 0, has_status);
+}
+
+static void fn_menu_false(WrenVM *vm) { wrenSetSlotBool(vm, 0, false); }
 
 static void
 fn_menu_empty_list(WrenVM *vm)
@@ -1244,18 +1322,10 @@ fn_menu_log_levels(WrenVM *vm)
 static void
 fn_menu_screen_modes(WrenVM *vm)
 {
-	static const char *const names[] = {
-		"Current", "80x25", "LCD 80x25", "80x28", "80x30", "80x43",
-		"80x50", "80x60", "132x37", "132x52", "132x25", "132x28",
-		"132x30", "132x34", "132x43", "132x50", "132x60", "C64",
-		"C128 40-column", "C128 80-column", "Atari", "Atari XEP80",
-		"Custom", "EGA 80x25", "VGA 80x25", "Prestel", "BBC Micro",
-		"Atari ST 40x25", "Atari ST 80x25", "Atari ST mono 80x25",
-	};
 	wrenEnsureSlots(vm, 2);
 	wrenSetSlotNewList(vm, 0);
-	for (size_t i = 0; i < sizeof(names) / sizeof(names[0]); ++i) {
-		wrenSetSlotString(vm, 1, names[i]);
+	for (size_t i = 0; i < st_screen_mode_count(); ++i) {
+		wrenSetSlotString(vm, 1, st_screen_mode_at(i)->name);
 		wrenInsertInList(vm, 0, -1, 1);
 	}
 }
@@ -1396,7 +1466,7 @@ fn_menu_cursor_styles(WrenVM *vm)
 static void
 fn_menu_scaling_modes(WrenVM *vm)
 {
-	static const char *const names[] = {"Smooth", "Blocky", "External"};
+	static const char *const names[] = {"Blocky", "Pointy", "External"};
 	wrenEnsureSlots(vm, 2);
 	wrenSetSlotNewList(vm, 0);
 	for (size_t i = 0; i < sizeof(names) / sizeof(names[0]); ++i) {
@@ -1580,6 +1650,8 @@ fn_menu_select_theme(WrenVM *vm)
 		(void)st_settings_copy(&st_settings, &previous);
 		(void)st_theme_apply_settings(host->themes, &previous, NULL, 0);
 	}
+	else
+		++host->settings_generation;
 	st_settings_dispose(&previous);
 	theme_operation_result(vm, status, error);
 }
@@ -1633,6 +1705,8 @@ fn_menu_delete_theme(WrenVM *vm)
 		(void)st_settings_copy(&st_settings, &previous);
 		(void)st_theme_apply_settings(host->themes, &previous, NULL, 0);
 	}
+	if (selection_changed && (status == 0 || selection_saved))
+		++host->settings_generation;
 	st_settings_dispose(&previous);
 	theme_operation_result(vm, status, error);
 }
@@ -2125,6 +2199,8 @@ fn_menu_select_cloud_theme(WrenVM *vm)
 		(void)st_settings_copy(&st_settings, &previous);
 		(void)st_theme_apply_settings(host->themes, &previous, NULL, 0);
 	}
+	else
+		++host->settings_generation;
 	st_settings_dispose(&previous);
 	theme_operation_result(vm, status, error);
 }
@@ -2173,6 +2249,8 @@ fn_menu_delete_cloud_theme(WrenVM *vm)
 		(void)st_settings_copy(&st_settings, &previous);
 		(void)st_theme_apply_settings(host->themes, &previous, NULL, 0);
 	}
+	if (selection_changed && (status == 0 || selection_saved))
+		++host->settings_generation;
 	st_settings_dispose(&previous);
 	theme_operation_result(vm, status, error);
 }
@@ -2250,75 +2328,11 @@ fn_menu_wren_scripts_max_length(WrenVM *vm)
 	wrenSetSlotDouble(vm, 0, ST_PROFILE_WREN_SCRIPTS_MAX);
 }
 
-static bool
-screen_mode_size(int mode, uint32_t *columns, uint32_t *rows)
-{
-	static const struct {
-		uint32_t columns;
-		uint32_t rows;
-	} sizes[] = {
-		[ST_SCREEN_MODE_80X25] = {80, 25},
-		[ST_SCREEN_MODE_LCD_80X25] = {80, 25},
-		[ST_SCREEN_MODE_80X28] = {80, 28},
-		[ST_SCREEN_MODE_80X30] = {80, 30},
-		[ST_SCREEN_MODE_80X43] = {80, 43},
-		[ST_SCREEN_MODE_80X50] = {80, 50},
-		[ST_SCREEN_MODE_80X60] = {80, 60},
-		[ST_SCREEN_MODE_132X37] = {132, 37},
-		[ST_SCREEN_MODE_132X52] = {132, 52},
-		[ST_SCREEN_MODE_132X25] = {132, 25},
-		[ST_SCREEN_MODE_132X28] = {132, 28},
-		[ST_SCREEN_MODE_132X30] = {132, 30},
-		[ST_SCREEN_MODE_132X34] = {132, 34},
-		[ST_SCREEN_MODE_132X43] = {132, 43},
-		[ST_SCREEN_MODE_132X50] = {132, 50},
-		[ST_SCREEN_MODE_132X60] = {132, 60},
-		[ST_SCREEN_MODE_C64] = {40, 25},
-		[ST_SCREEN_MODE_C128_40] = {40, 25},
-		[ST_SCREEN_MODE_C128_80] = {80, 25},
-		[ST_SCREEN_MODE_ATARI] = {40, 24},
-		[ST_SCREEN_MODE_ATARI_XEP80] = {80, 24},
-		[ST_SCREEN_MODE_EGA_80X25] = {80, 25},
-		[ST_SCREEN_MODE_VGA_80X25] = {80, 25},
-		[ST_SCREEN_MODE_PRESTEL] = {40, 24},
-		[ST_SCREEN_MODE_BEEB] = {40, 25},
-		[ST_SCREEN_MODE_ATARIST_40X25] = {40, 25},
-		[ST_SCREEN_MODE_ATARIST_80X25] = {80, 25},
-		[ST_SCREEN_MODE_ATARIST_80X25_MONO] = {80, 25},
-	};
-
-	if (mode <= ST_SCREEN_MODE_CURRENT
-	    || (size_t)mode >= sizeof(sizes) / sizeof(sizes[0])
-	    || sizes[mode].columns == 0)
-		return false;
-	*columns = sizes[mode].columns;
-	*rows = sizes[mode].rows;
-	return true;
-}
-
 static void
 fn_menu_current_screen_mode(WrenVM *vm)
 {
 	struct st_wren_host *host = st_wren_host_from_vm(vm);
-	uint32_t columns;
-	uint32_t rows;
-	int mode = ST_SCREEN_MODE_CURRENT;
-
-	if (st_console_size(host->config.console, &columns, &rows) == 0) {
-		for (int candidate = ST_SCREEN_MODE_80X25;
-		    candidate <= ST_SCREEN_MODE_ATARIST_80X25_MONO; ++candidate) {
-			uint32_t candidate_columns;
-			uint32_t candidate_rows;
-
-			if (screen_mode_size(candidate, &candidate_columns,
-			    &candidate_rows) && columns == candidate_columns
-			    && rows == candidate_rows) {
-				mode = candidate;
-				break;
-			}
-		}
-	}
-	wrenSetSlotDouble(vm, 0, mode);
+	wrenSetSlotDouble(vm, 0, host->current_screen_mode);
 }
 
 static void
@@ -2326,25 +2340,12 @@ fn_menu_set_screen_mode(WrenVM *vm)
 {
 	struct st_wren_host *host = st_wren_host_from_vm(vm);
 	int64_t mode;
-	uint32_t columns;
-	uint32_t rows;
 
 	if (!slot_integer(vm, 1, ST_SCREEN_MODE_80X25,
 	    ST_SCREEN_MODE_ATARIST_80X25_MONO, &mode))
 		return;
-	if (mode == ST_SCREEN_MODE_CUSTOM) {
-		columns = (uint32_t)st_settings.custom_columns;
-		rows = (uint32_t)st_settings.custom_rows;
-	}
-	else if (!screen_mode_size((int)mode, &columns, &rows)) {
-		wrenSetSlotBool(vm, 0, false);
-		return;
-	}
-	if (st_console_resize(host->config.console, columns, rows) == 0) {
-		wrenSetSlotBool(vm, 0, true);
-	}
-	else
-		wrenSetSlotBool(vm, 0, false);
+	wrenSetSlotBool(vm, 0, st_wren_host_set_screen_mode(host,
+	    (enum st_screen_mode)mode) == 0);
 }
 
 static void
@@ -2607,29 +2608,25 @@ fn_font_delete(WrenVM *vm)
 static void
 fn_menu_palette_defaults(WrenVM *vm)
 {
-	static const uint32_t palette[] = {
-		UINT32_C(0x000000), UINT32_C(0x0000aa), UINT32_C(0x00aa00),
-		UINT32_C(0x00aaaa), UINT32_C(0xaa0000), UINT32_C(0xaa00aa),
-		UINT32_C(0xaa5500), UINT32_C(0xaaaaaa), UINT32_C(0x555555),
-		UINT32_C(0x5555ff), UINT32_C(0x55ff55), UINT32_C(0x55ffff),
-		UINT32_C(0xff5555), UINT32_C(0xff55ff), UINT32_C(0xffff55),
-		UINT32_C(0xffffff),
-	};
+	struct st_wren_host *host = st_wren_host_from_vm(vm);
+	const struct st_screen_mode_descriptor *descriptor;
 	int64_t mode;
-	unsigned minimum = 16;
 
 	if (!slot_integer(vm, 1, ST_SCREEN_MODE_CURRENT,
 	    ST_SCREEN_MODE_ATARIST_80X25_MONO, &mode))
 		return;
-	if (mode == ST_SCREEN_MODE_PRESTEL)
-		minimum = 8;
+	if (mode == ST_SCREEN_MODE_CURRENT)
+		mode = host->current_screen_mode;
+	descriptor = st_screen_mode_get((enum st_screen_mode)mode);
+	if (descriptor == NULL || descriptor->mode == ST_SCREEN_MODE_CUSTOM)
+		descriptor = st_screen_mode_get(ST_SCREEN_MODE_CURRENT);
 	wrenEnsureSlots(vm, 3);
 	wrenSetSlotNewList(vm, 0);
-	wrenSetSlotDouble(vm, 1, minimum);
+	wrenSetSlotDouble(vm, 1, descriptor->palette_count);
 	wrenInsertInList(vm, 0, -1, 1);
 	wrenSetSlotNewList(vm, 1);
-	for (size_t i = 0; i < sizeof(palette) / sizeof(palette[0]); ++i) {
-		wrenSetSlotDouble(vm, 2, palette[i]);
+	for (size_t i = 0; i < 16; ++i) {
+		wrenSetSlotDouble(vm, 2, descriptor->palette_rgb[i]);
 		wrenInsertInList(vm, 1, -1, 2);
 	}
 	wrenInsertInList(vm, 0, -1, 1);
@@ -2869,6 +2866,7 @@ fn_menu_settings(WrenVM *vm)
 
 	memset(settings, 0, sizeof(*settings));
 	settings->header.kind = MENU_FOREIGN_SETTINGS;
+	settings->generation = st_wren_host_from_vm(vm)->settings_generation;
 	st_settings_init(&settings->settings);
 	if (!st_settings_copy(&settings->settings, &st_settings))
 		st_wren_abort(vm, "out of memory copying settings");
@@ -2978,7 +2976,7 @@ fn_settings_scaling_mode(WrenVM *vm)
 
 	if (settings != NULL)
 		wrenSetSlotDouble(vm, 0, settings->settings.external_scaling ? 2 :
-		    settings->settings.blocky_scaling ? 1 : 0);
+		    settings->settings.blocky_scaling ? 0 : 1);
 }
 
 static void
@@ -2988,7 +2986,7 @@ fn_settings_scaling_mode_set(WrenVM *vm)
 	int64_t value;
 
 	if (settings != NULL && slot_integer(vm, 1, 0, 2, &value)) {
-		settings->settings.blocky_scaling = value == 1;
+		settings->settings.blocky_scaling = value == 0;
 		settings->settings.external_scaling = value == 2;
 		settings->dirty = true;
 	}
@@ -3042,22 +3040,257 @@ fn_settings_dirty(WrenVM *vm)
 		wrenSetSlotBool(vm, 0, settings->dirty);
 }
 
+static void
+apply_console_settings(st_console_t *console, const struct st_settings *settings)
+{
+	struct st_console_custom_cursor cursor;
+	uint32_t width;
+	uint32_t height;
+
+	if (console == NULL || st_console_cell_pixel_size(console, &width,
+	    &height) != 0)
+		return;
+	(void)width;
+	cursor = (struct st_console_custom_cursor){
+		.start = height - (height > 8 ? 2U : 1U),
+		.end = height - 1,
+		.range = height,
+		.visible = true,
+		.blink = true,
+	};
+	if (settings->default_cursor == ST_CURSOR_BLINK_BLOCK
+	    || settings->default_cursor == ST_CURSOR_SOLID_BLOCK) {
+		cursor.start = 0;
+		cursor.end = height - 1;
+	}
+	if (settings->default_cursor == ST_CURSOR_SOLID_UNDERLINE
+	    || settings->default_cursor == ST_CURSOR_SOLID_BLOCK)
+		cursor.blink = false;
+	(void)st_console_set_default_cursor(console, &cursor);
+	(void)st_console_set_blocky_scaling(console,
+	    settings->blocky_scaling != 0);
+	(void)st_console_set_scaling_mode(console,
+	    settings->external_scaling ? ST_CONSOLE_SCALING_EXTERNAL :
+	    ST_CONSOLE_SCALING_INTERNAL);
+}
+
+struct prepared_settings {
+	struct st_settings installed;
+	struct st_theme_prepared *theme;
+	st_bbs_list_t *bbs_list;
+	struct st_wren_bbs_model bbs_model;
+	bool replace_bbs;
+	bool rewrite_kdf;
+	bool reconfigure_custom;
+	struct st_list_crypto_options crypto;
+};
+
+static bool
+same_optional_string(const char *left, const char *right)
+{
+	if (left == NULL || left[0] == '\0')
+		return right == NULL || right[0] == '\0';
+	return right != NULL && strcmp(left, right) == 0;
+}
+
+static bool
+theme_settings_changed(const struct st_settings *candidate)
+{
+	if (!same_optional_string(candidate->theme_file, st_settings.theme_file)
+	    || !same_optional_string(candidate->theme_package,
+	    st_settings.theme_package))
+		return true;
+	if ((candidate->theme_file != NULL && candidate->theme_file[0] != '\0')
+	    || (candidate->theme_package != NULL
+	    && candidate->theme_package[0] != '\0'))
+		return false;
+	return candidate->theme_frame_color != st_settings.theme_frame_color
+	    || candidate->theme_text_color != st_settings.theme_text_color
+	    || candidate->theme_background_color
+	    != st_settings.theme_background_color
+	    || candidate->theme_inverse_color != st_settings.theme_inverse_color
+	    || candidate->theme_lightbar_color
+	    != st_settings.theme_lightbar_color
+	    || candidate->theme_lightbar_background_color
+	    != st_settings.theme_lightbar_background_color;
+}
+
+static void
+prepared_settings_dispose(struct prepared_settings *prepared)
+{
+	st_settings_dispose(&prepared->installed);
+	st_theme_prepared_free(&prepared->theme);
+	st_bbs_list_close(prepared->bbs_list);
+	st_wren_bbs_model_dispose(&prepared->bbs_model);
+	memset(prepared, 0, sizeof(*prepared));
+}
+
+static bool
+resolve_settings_list_path(struct st_settings *settings,
+	const struct st_app_paths *paths)
+{
+	const char *stored = settings->stored_list_path;
+	const char *resolved;
+	bool download;
+
+	if (stored == NULL || stored[0] == '\0')
+		stored = paths->personal_list;
+	download = ascii_case_starts_with(stored, "http://")
+	    || ascii_case_starts_with(stored, "https://");
+	resolved = download ? paths->cached_system_list : stored;
+	if (!replace_owned_string(&settings->list_path, resolved))
+		return false;
+	settings->download_system_list = download;
+	return true;
+}
+
+static const char *
+personal_list_path(const struct st_settings *settings,
+	const struct st_app_paths *paths)
+{
+	return settings->list_path != NULL && !settings->download_system_list
+	    ? settings->list_path : paths->personal_list;
+}
+
+static bool
+prepare_kdf(struct prepared_settings *prepared,
+	const struct st_wren_host *host, const struct st_settings *candidate)
+{
+	const struct st_list_crypto_info *info;
+	unsigned shift;
+
+	if (host->bbs_list == NULL || strcmp(candidate->key_derivation_iterations,
+	    st_settings.key_derivation_iterations) == 0)
+		return true;
+	if (sscanf(candidate->key_derivation_iterations, "scrypt-N%u", &shift)
+	    != 1 || shift < 8 || shift > 20)
+		return false;
+	info = st_bbs_list_crypto_info(host->bbs_list);
+	if (info == NULL || info->format == ST_LIST_CRYPTO_PLAIN)
+		return true;
+	prepared->crypto = (struct st_list_crypto_options)
+	    ST_LIST_CRYPTO_OPTIONS_AES256;
+	if (info->format == ST_LIST_CRYPTO_V2) {
+		prepared->crypto.cipher = info->cipher;
+		prepared->crypto.key_bits = info->key_bits;
+		prepared->crypto.block_size = info->block_size;
+		prepared->crypto.parallelism = info->parallelism;
+	}
+	prepared->crypto.cost_log2 = (uint8_t)shift;
+	prepared->rewrite_kdf = true;
+	return true;
+}
+
+static bool
+prepare_settings_change(WrenVM *vm, struct foreign_settings *settings,
+	struct prepared_settings *prepared)
+{
+	struct st_wren_host *host = st_wren_host_from_vm(vm);
+	int fields[32];
+	size_t field_count;
+	char error[256] = "";
+	int status;
+
+	memset(prepared, 0, sizeof(*prepared));
+	st_settings_init(&prepared->installed);
+	st_wren_bbs_model_init(&prepared->bbs_model);
+	if (!st_settings_copy(&prepared->installed, &settings->settings)
+	    || !resolve_settings_list_path(&prepared->installed,
+	    host->config.paths))
+		goto failed;
+	prepared->reconfigure_custom
+	    = host->current_screen_mode == ST_SCREEN_MODE_CUSTOM
+	    && (prepared->installed.custom_columns != st_settings.custom_columns
+	    || prepared->installed.custom_rows != st_settings.custom_rows
+	    || prepared->installed.custom_font_height
+	    != st_settings.custom_font_height
+	    || prepared->installed.custom_aspect_width
+	    != st_settings.custom_aspect_width
+	    || prepared->installed.custom_aspect_height
+	    != st_settings.custom_aspect_height);
+	status = 0;
+	if (theme_settings_changed(&prepared->installed))
+		status = st_theme_prepare_settings(&prepared->theme, host->themes,
+		    &prepared->installed, error, sizeof(error));
+	if (status != 0 || !prepare_kdf(prepared, host, &prepared->installed))
+		goto failed;
+	if (host->bbs_list != NULL && strcmp(personal_list_path(&st_settings,
+	    host->config.paths), personal_list_path(&prepared->installed,
+	    host->config.paths)) != 0) {
+		status = st_bbs_list_open_replacement(&prepared->bbs_list,
+		    host->bbs_list, host->config.paths, &prepared->installed);
+		field_count = sort_fields(prepared->installed.sort_order, fields);
+		if (status == 0)
+			status = st_bbs_list_sort(prepared->bbs_list, fields,
+			    field_count);
+		if (status == 0)
+			status = st_wren_bbs_model_build(&prepared->bbs_model,
+			    prepared->bbs_list);
+		if (status != 0)
+			goto failed;
+		prepared->replace_bbs = true;
+	}
+	return true;
+
+failed:
+	prepared_settings_dispose(prepared);
+	return false;
+}
+
+static bool
+rewrite_settings_kdf(struct st_wren_host *host,
+	const struct prepared_settings *prepared)
+{
+	return !prepared->rewrite_kdf
+	    || st_bbs_list_rewrite_encryption_current_password(host->bbs_list,
+	    &prepared->crypto) == 0;
+}
+
+static void
+install_prepared_settings(struct st_wren_host *host,
+	struct foreign_settings *settings, struct prepared_settings *prepared,
+	bool settings_already_installed)
+{
+	if (!settings_already_installed)
+		st_settings_install(&prepared->installed);
+	st_theme_install_prepared(host->themes, &prepared->theme);
+	if (prepared->replace_bbs) {
+		st_bbs_list_t *old_list = host->bbs_list;
+
+		host->bbs_list = prepared->bbs_list;
+		prepared->bbs_list = NULL;
+		st_wren_bbs_model_replace(&host->bbs_model, &prepared->bbs_model);
+		st_bbs_list_close(old_list);
+	}
+	if (prepared->reconfigure_custom)
+		(void)st_wren_host_set_screen_mode(host, ST_SCREEN_MODE_CUSTOM);
+	apply_console_settings(host->config.console, &st_settings);
+	if (host->config.picker_console != NULL)
+		apply_console_settings(host->config.picker_console, &st_settings);
+	if (host->config.session_history != NULL)
+		(void)st_session_history_set_capacity(host->config.session_history,
+		    (size_t)st_settings.scrollback_lines);
+	st_audio_runtime_set_allowed(host->config.audio_runtime,
+	    st_settings.audio_output_modes);
+	++host->settings_generation;
+	settings->generation = host->settings_generation;
+	settings->dirty = false;
+}
+
 static bool
 settings_apply(WrenVM *vm, struct foreign_settings *settings)
 {
 	struct st_wren_host *host = st_wren_host_from_vm(vm);
-	char error[256] = "";
+	struct prepared_settings prepared;
 
-	if (st_theme_apply_settings(host->themes, &settings->settings, error,
-	    sizeof(error)) != 0
-	    || !st_settings_copy(&st_settings, &settings->settings))
+	if (!prepare_settings_change(vm, settings, &prepared))
 		return false;
-	(void)st_console_set_blocky_scaling(host->config.console,
-	    st_settings.blocky_scaling != 0);
-	(void)st_console_set_scaling_mode(host->config.console,
-	    st_settings.external_scaling ? ST_CONSOLE_SCALING_EXTERNAL :
-	    ST_CONSOLE_SCALING_INTERNAL);
-	settings->dirty = false;
+	if (!rewrite_settings_kdf(host, &prepared)) {
+		prepared_settings_dispose(&prepared);
+		return false;
+	}
+	install_prepared_settings(host, settings, &prepared, false);
+	prepared_settings_dispose(&prepared);
 	return true;
 }
 
@@ -3074,9 +3307,18 @@ fn_settings_save(WrenVM *vm)
 {
 	struct st_wren_host *host = st_wren_host_from_vm(vm);
 	struct foreign_settings *settings = settings_value(vm);
-	bool success = settings != NULL && !host->config.safe_mode
-	    && settings_apply(vm, settings)
-	    && st_settings_save() == 0;
+	struct prepared_settings prepared;
+	bool success = false;
+
+	if (settings != NULL && !host->config.safe_mode
+	    && prepare_settings_change(vm, settings, &prepared)
+	    && rewrite_settings_kdf(host, &prepared)
+	    && st_settings_save_value(&prepared.installed) == 0) {
+		install_prepared_settings(host, settings, &prepared, true);
+		success = true;
+	}
+	if (settings != NULL && !host->config.safe_mode)
+		prepared_settings_dispose(&prepared);
 
 	wrenSetSlotBool(vm, 0, success);
 }
@@ -3085,16 +3327,17 @@ static void
 fn_settings_reload(WrenVM *vm)
 {
 	struct foreign_settings *settings = settings_value(vm);
+	struct st_settings replacement;
 
 	if (settings == NULL)
 		return;
-	if (st_settings_reload() != 0
-	    || st_theme_apply_settings(st_wren_host_from_vm(vm)->themes,
-	    &st_settings, NULL, 0) != 0
-	    || !st_settings_copy(&settings->settings, &st_settings)) {
+	st_settings_init(&replacement);
+	if (!st_settings_copy(&replacement, &st_settings)) {
 		st_wren_abort(vm, "settings reload failed");
 		return;
 	}
+	st_settings_dispose(&settings->settings);
+	settings->settings = replacement;
 	settings->dirty = false;
 	wrenSetSlotNull(vm, 0);
 }
@@ -3599,9 +3842,11 @@ fn_bbs_to_string(WrenVM *vm)
 static const struct binding bindings[] = {
 	{"Menu", true, "load(_)", fn_menu_load},
 	{"Menu", true, "quickConnect(_)", fn_menu_quick_connect},
-	{"Menu", true, "offlineScrollback", fn_menu_null},
-	{"Menu", true, "prepareOfflineScrollback()", fn_menu_false},
-	{"Menu", true, "offlineScrollbackHasStatus", fn_menu_false},
+	{"Menu", true, "offlineScrollback", fn_menu_offline_scrollback},
+	{"Menu", true, "prepareOfflineScrollback()",
+	    fn_menu_prepare_offline_scrollback},
+	{"Menu", true, "offlineScrollbackHasStatus",
+	    fn_menu_offline_scrollback_has_status},
 	{"Menu", true, "openUrl(_)", fn_menu_open_url},
 	{"Menu", true, "openHyperlink(_)", fn_menu_false},
 	{"Menu", true, "setHyperlinkHover(_)", fn_menu_null},

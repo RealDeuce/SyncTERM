@@ -10,6 +10,7 @@
 
 #include "st_wren_host.h"
 #include "st_profile.h"
+#include "st_screen_mode.h"
 #include "wren_bbs_model.h"
 #include "wren.h"
 
@@ -213,6 +214,8 @@ struct st_wren_host {
 	bool web_lists_dirty;
 	bool fonts_dirty;
 	uint64_t font_generation;
+	uint64_t settings_generation;
+	enum st_screen_mode current_screen_mode;
 	struct st_wren_context menu;
 	struct st_wren_context picker;
 	struct st_profile selected;
@@ -227,6 +230,8 @@ void st_wren_log_append(WrenVM *vm, int source, const char *text);
 void st_wren_log_error(WrenVM *vm, WrenErrorType type, const char *module,
 	int line, const char *message);
 void st_wren_log_dispose(WrenVM *vm);
+void st_wren_push_surface_take(WrenVM *vm, struct st_console_cell *cells,
+	uint32_t width, uint32_t height);
 WrenForeignMethodFn st_wren_repl_bind_method(const char *class_name,
 	bool is_static, const char *signature);
 
@@ -260,6 +265,10 @@ void st_wren_picker_entries_dispose(struct st_wren_picker_entries *entries);
 void st_wren_unsupported(WrenVM *vm);
 void st_wren_push_theme_data(WrenVM *vm, const struct st_theme *theme);
 int st_wren_reload_custom_fonts(struct st_wren_host *host);
+int st_wren_host_set_screen_mode(struct st_wren_host *host,
+	enum st_screen_mode mode);
+void st_wren_host_external_screen_resize(struct st_wren_host *host,
+	st_console_t *console, uint32_t columns, uint32_t rows);
 bool st_wren_font_identifier(struct st_wren_context *context, uint16_t selector,
 	uint16_t *identifier);
 uint16_t st_wren_font_selector(struct st_wren_context *context,

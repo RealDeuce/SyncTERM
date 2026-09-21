@@ -37,8 +37,8 @@ consumer boundaries, not evidence that the entire decomposition is wrong.
 | Boundary | Evidence and assessment | Recommended direction, not authorized work |
 | --- | --- | --- |
 | Native I/O → portable result | A006 loses errno during cleanup | Preserve error ownership across cleanup |
-| Mutable model → persistence | A063–A065, A100 and A105 show remaining failure-atomicity and handle-contract mismatches | Define when state changes become visible and when handles expire; test failure paths at the public boundary |
-| Script declarations → bound implementation | A054–A055, A096 and A098–A099 show unavailable or approximated contracts | Keep capability scope explicit and test the shipped scripts against the actual host |
+| Mutable model → persistence | A100 and A105 show remaining failure-atomicity and handle-contract mismatches | Define when state changes become visible and when handles expire; test failure paths at the public boundary |
+| Script declarations → bound implementation | A054–A055, A096 and A098 show unavailable contracts | Keep capability scope explicit and test the shipped scripts against the actual host |
 | Public target → independent consumer | A002, A013, A047, A066 expose probe/dependency gaps | Probe the real declaration/link environment and test minimal consumers |
 | Source libraries → application distribution | A088, A091, A095 distinguish a functioning menu build from connected runtime, DLL/core packaging and notice assembly | Document and verify actual artifacts without representing planned integration as complete |
 
@@ -104,9 +104,6 @@ from implementation failures in the detailed ledger.
 | A054 | medium | Additional user event scripts are never auto-loaded |
 | A055 | medium | Picker load failure prevents application startup instead of recovery |
 | A056 | low | POSIX picker reports directory read errors as successful listings |
-| A063 | medium | Settings snapshots never become stale after another snapshot applies |
-| A064 | medium | Failed Settings.save still applies the previously unapplied snapshot |
-| A065 | medium | Settings.reload reads disk rather than current running settings |
 | A066 | low | Wren VM target does not declare its math-library dependency |
 | A067 | medium | Painter truncation changes the style of an undrawn destination cell |
 | A070 | medium | Changing a Container theme does not repaint inheriting children |
@@ -132,7 +129,6 @@ from implementation failures in the detailed ledger.
 | A095 | low | Distribution notice assembly is not implemented |
 | A096 | medium | BBS editor script discovery is an unconditional empty stub |
 | A098 | low | Shipped UI demo imports an absent module |
-| A099 | medium | Menu screen-mode changes lose mode identity and use incomplete geometry |
 | A100 | medium | Rejected BBS palette/script assignments partially change the object |
 | A105 | medium | Custom-font bindings do not preserve their declared editing boundaries |
 | A108 | medium source-confirmed | Wayland buffer failure loses the mapped length |

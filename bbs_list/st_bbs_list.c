@@ -396,9 +396,10 @@ copy_required(const char *value)
 	return value == NULL ? NULL : strdup(value);
 }
 
-int
-st_bbs_list_open(st_bbs_list_t **result, const struct st_app_paths *paths,
-    const void *password, size_t password_size)
+static int
+open_list(st_bbs_list_t **result, const struct st_app_paths *paths,
+	const struct st_settings *settings, const void *password,
+	size_t password_size)
 {
 	st_bbs_list_t *list;
 	st_file_lock_t *lock = NULL;
@@ -416,9 +417,9 @@ st_bbs_list_open(st_bbs_list_t **result, const struct st_app_paths *paths,
 	if (list == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	st_profile_init(&list->view.defaults);
-	personal_path = st_settings.list_path != NULL
-	    && !st_settings.download_system_list
-	    ? st_settings.list_path : paths->personal_list;
+	personal_path = settings != NULL && settings->list_path != NULL
+	    && !settings->download_system_list
+	    ? settings->list_path : paths->personal_list;
 	list->personal_path = copy_required(personal_path);
 	list->shared_path = copy_required(paths->shared_list);
 	list->cache_path = copy_required(paths->cache_directory);
@@ -464,6 +465,24 @@ st_bbs_list_open(st_bbs_list_t **result, const struct st_app_paths *paths,
 	list->generation = 1;
 	*result = list;
 	return 0;
+}
+
+int
+st_bbs_list_open(st_bbs_list_t **result, const struct st_app_paths *paths,
+	const void *password, size_t password_size)
+{
+	return open_list(result, paths, &st_settings, password, password_size);
+}
+
+int
+st_bbs_list_open_replacement(st_bbs_list_t **result,
+	const st_bbs_list_t *current, const struct st_app_paths *paths,
+	const struct st_settings *settings)
+{
+	if (current == NULL)
+		return open_list(result, paths, settings, NULL, 0);
+	return open_list(result, paths, settings, current->password,
+	    current->password_size);
 }
 
 void

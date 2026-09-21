@@ -1000,34 +1000,94 @@ st_theme_generation(const struct st_theme_manager *manager)
 	return manager == NULL ? 0 : manager->generation;
 }
 
+struct st_theme_prepared {
+	struct st_theme *theme;
+	struct st_settings classic_settings;
+};
+
+void
+st_theme_prepared_free(struct st_theme_prepared **prepared_ptr)
+{
+	struct st_theme_prepared *prepared;
+
+	if (prepared_ptr == NULL || *prepared_ptr == NULL)
+		return;
+	prepared = *prepared_ptr;
+	theme_free(prepared->theme);
+	st_settings_dispose(&prepared->classic_settings);
+	free(prepared);
+	*prepared_ptr = NULL;
+}
+
+int
+st_theme_prepare_settings(struct st_theme_prepared **result,
+	struct st_theme_manager *manager, const struct st_settings *settings,
+	char *error, size_t error_size)
+{
+	struct st_theme_prepared *prepared;
+	int status;
+
+	if (result == NULL || manager == NULL || settings == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	*result = NULL;
+	prepared = calloc(1, sizeof(*prepared));
+	if (prepared == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	st_settings_init(&prepared->classic_settings);
+	if (settings->theme_package != NULL && settings->theme_package[0] != '\0') {
+		status = st_theme_cloud_load_package(manager, settings->theme_package,
+		    &prepared->theme, error, error_size);
+	}
+	else if (settings->theme_file == NULL || settings->theme_file[0] == '\0') {
+		prepared->theme = build_classic_theme(manager->default_theme, settings);
+		status = prepared->theme == NULL ? IO_ERROR_OUT_OF_MEMORY : 0;
+	}
+	else {
+		status = load_file(manager, settings->theme_file, &prepared->theme,
+		    error, error_size);
+	}
+	if (status == 0
+	    && !st_settings_copy(&prepared->classic_settings, settings))
+		status = IO_ERROR_OUT_OF_MEMORY;
+	if (status != 0) {
+		st_theme_prepared_free(&prepared);
+		return status;
+	}
+	*result = prepared;
+	return 0;
+}
+
+void
+st_theme_install_prepared(struct st_theme_manager *manager,
+	struct st_theme_prepared **prepared_ptr)
+{
+	struct st_theme_prepared *prepared;
+	struct st_settings previous;
+
+	if (manager == NULL || prepared_ptr == NULL || *prepared_ptr == NULL)
+		return;
+	prepared = *prepared_ptr;
+	previous = manager->classic_settings;
+	manager->classic_settings = prepared->classic_settings;
+	st_settings_init(&prepared->classic_settings);
+	st_settings_dispose(&previous);
+	install_theme(manager, prepared->theme);
+	prepared->theme = NULL;
+	st_theme_prepared_free(prepared_ptr);
+}
+
 int
 st_theme_apply_settings(struct st_theme_manager *manager,
 	const struct st_settings *settings, char *error, size_t error_size)
 {
-	struct st_theme *theme = NULL;
+	struct st_theme_prepared *prepared = NULL;
 	int status;
 
-	if (manager == NULL || settings == NULL)
-		return IO_ERROR_INVALID_ARGUMENT;
-	if (settings->theme_package != NULL && settings->theme_package[0] != '\0') {
-		status = st_theme_cloud_load_package(manager, settings->theme_package,
-		    &theme, error, error_size);
-	}
-	else if (settings->theme_file == NULL || settings->theme_file[0] == '\0') {
-		theme = build_classic_theme(manager->default_theme, settings);
-		status = theme == NULL ? IO_ERROR_OUT_OF_MEMORY : 0;
-	}
-	else
-		status = load_file(manager, settings->theme_file, &theme, error,
-		    error_size);
-	if (status != 0)
-		return status;
-	if (!st_settings_copy(&manager->classic_settings, settings)) {
-		theme_free(theme);
-		return IO_ERROR_OUT_OF_MEMORY;
-	}
-	install_theme(manager, theme);
-	return 0;
+	status = st_theme_prepare_settings(&prepared, manager, settings, error,
+	    error_size);
+	if (status == 0)
+		st_theme_install_prepared(manager, &prepared);
+	return status;
 }
 
 static int

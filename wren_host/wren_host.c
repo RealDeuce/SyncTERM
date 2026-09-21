@@ -14,6 +14,7 @@
 #include "st_bbs_list.h"
 #include "st_builtin_fonts.h"
 #include "st_console.h"
+#include "st_screen_mode.h"
 #include "st_settings.h"
 #include "st_theme.h"
 #include "string_compat.h"
@@ -29,6 +30,8 @@ _Static_assert(ST_WREN_CUSTOM_FONT_MAX == ST_SETTINGS_CUSTOM_FONT_MAX,
 	"custom font limits must agree");
 _Static_assert(ST_BUILTIN_FONT_COUNT == 46U,
 	"Wren font selectors reserve 0 through 45 for built-ins");
+
+static int reload_custom_fonts_current(struct st_wren_context *context);
 
 static int
 load_builtin_fonts(struct st_wren_context *context)
@@ -66,6 +69,157 @@ load_builtin_fonts(struct st_wren_context *context)
 		return status;
 	style.font = context->fonts.catalog[0];
 	return st_console_set_style(context->console, &style);
+}
+
+static uint32_t
+legacy_colour(uint32_t colour)
+{
+	static const uint8_t map[16] = {
+		0, 4, 2, 6, 1, 5, 3, 7, 8, 12, 10, 14, 9, 13, 11, 15,
+	};
+
+	return map[colour & 0x0f];
+}
+
+static void
+configure_cursor(struct st_console_config *config, int cursor)
+{
+	uint32_t height = config->cell_height == 0 ? 1 : config->cell_height;
+
+	switch (cursor) {
+	case ST_CURSOR_BLINK_UNDERLINE:
+	case ST_CURSOR_SOLID_UNDERLINE:
+		config->default_cursor.start = height - (height > 8 ? 2U : 1U);
+		config->default_cursor.end = height - 1;
+		break;
+	case ST_CURSOR_BLINK_BLOCK:
+	case ST_CURSOR_SOLID_BLOCK:
+		config->default_cursor.start = 0;
+		config->default_cursor.end = height - 1;
+		break;
+	case ST_CURSOR_DEFAULT:
+	default:
+		break;
+	}
+	config->default_cursor.range = height;
+	config->default_cursor.visible = true;
+	config->default_cursor.blink = cursor != ST_CURSOR_SOLID_UNDERLINE
+	    && cursor != ST_CURSOR_SOLID_BLOCK;
+}
+
+static int
+install_mode_state(struct st_wren_context *context,
+	const struct st_screen_mode_descriptor *mode, bool reconfigure)
+{
+	struct st_console_config config = mode->console;
+	struct st_console_style style;
+	struct st_console_cell blank;
+	struct st_console_rect screen;
+	uint32_t palette[16];
+	uint16_t identifier;
+	uint8_t attribute = mode->default_attribute;
+	int status;
+
+	config.scaling_mode = st_settings.external_scaling
+	    ? ST_CONSOLE_SCALING_EXTERNAL : ST_CONSOLE_SCALING_INTERNAL;
+	config.scaling_policy = st_settings.blocky_scaling
+	    ? ST_PIXEL_SCALING_BLOCKY : ST_PIXEL_SCALING_POINTY;
+	configure_cursor(&config, st_settings.default_cursor);
+	if (reconfigure) {
+		status = st_console_reconfigure(context->console, &config);
+		if (status != 0)
+			return status;
+		memset(&context->fonts, 0, sizeof(context->fonts));
+		status = load_builtin_fonts(context);
+		if (status == 0)
+			status = reload_custom_fonts_current(context);
+		if (status != 0)
+			return status;
+	}
+	st_screen_mode_console_palette(mode, palette);
+	status = st_console_set_palette(context->console, 0, palette, 16);
+	if (status != 0)
+		return status;
+	context->fonts.slots[0] = mode->font_selector;
+	for (size_t i = 1; i < sizeof(context->fonts.slots)
+	    / sizeof(context->fonts.slots[0]); ++i)
+		context->fonts.slots[i] = 0;
+	if (!st_wren_font_identifier(context, mode->font_selector, &identifier))
+		return IO_ERROR_NOT_SUPPORTED;
+	style = (struct st_console_style){
+		.foreground = legacy_colour(attribute & UINT8_C(0x07)),
+		.background = legacy_colour((attribute >> 4) & UINT8_C(0x07)),
+		.flags = ST_CONSOLE_CELL_LEGACY_FOREGROUND
+		    | ST_CONSOLE_CELL_LEGACY_BACKGROUND,
+		.font = identifier,
+	};
+	if ((attribute & UINT8_C(0x08)) != 0)
+		style.flags |= ST_CONSOLE_CELL_BRIGHT;
+	if ((attribute & UINT8_C(0x80)) != 0)
+		style.flags |= ST_CONSOLE_CELL_BLINK;
+	status = st_console_set_style(context->console, &style);
+	if (status != 0 || !reconfigure)
+		return status;
+	blank = (struct st_console_cell){
+		.codepoint = ' ',
+		.foreground = style.foreground,
+		.background = style.background,
+		.flags = style.flags,
+		.font = style.font,
+	};
+	screen = (struct st_console_rect){0, 0, config.columns, config.rows};
+	return st_console_fill(context->console, &screen, &blank);
+}
+
+int
+st_wren_host_set_screen_mode(struct st_wren_host *host,
+	enum st_screen_mode selected)
+{
+	struct st_screen_mode_descriptor custom;
+	const struct st_screen_mode_descriptor *mode;
+	int status;
+
+	if (host == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (selected == ST_SCREEN_MODE_CUSTOM) {
+		status = st_screen_mode_custom(&custom,
+		    (uint32_t)st_settings.custom_columns,
+		    (uint32_t)st_settings.custom_rows,
+		    (uint32_t)st_settings.custom_font_height,
+		    (uint32_t)st_settings.custom_aspect_width,
+		    (uint32_t)st_settings.custom_aspect_height);
+		if (status != 0)
+			return status;
+		mode = &custom;
+	}
+	else {
+		mode = st_screen_mode_get(selected);
+		if (mode == NULL || selected == ST_SCREEN_MODE_CURRENT)
+			return IO_ERROR_INVALID_ARGUMENT;
+	}
+	status = install_mode_state(&host->menu, mode, true);
+	if (status == 0 && host->picker.console != host->menu.console)
+		status = install_mode_state(&host->picker, mode, true);
+	else if (status == 0)
+		host->picker.fonts = host->menu.fonts;
+	if (status == 0)
+		host->current_screen_mode = selected;
+	return status;
+}
+
+void
+st_wren_host_external_screen_resize(struct st_wren_host *host,
+	st_console_t *console, uint32_t columns, uint32_t rows)
+{
+	st_console_t *other;
+
+	if (host == NULL || console == NULL || columns == 0 || rows == 0)
+		return;
+	other = console == host->menu.console ? host->picker.console
+	    : host->menu.console;
+	if (st_console_resize(console, columns, rows) == 0
+	    && (other == console || st_console_resize(other, columns, rows) == 0))
+		host->current_screen_mode = ST_SCREEN_MODE_CURRENT;
 }
 
 static bool
@@ -826,6 +980,11 @@ st_wren_host_create(st_wren_host_t **result,
 	host->picker.console = config->picker_console != NULL
 	    ? config->picker_console : config->console;
 	host->font_generation = 1;
+	host->settings_generation = 1;
+	host->current_screen_mode = st_settings.startup_mode >= ST_SCREEN_MODE_CURRENT
+	    && st_settings.startup_mode <= ST_SCREEN_MODE_ATARIST_80X25_MONO
+	    ? (enum st_screen_mode)st_settings.startup_mode
+	    : ST_SCREEN_MODE_CURRENT;
 	st_profile_init(&host->selected);
 	st_wren_bbs_model_init(&host->bbs_model);
 	status = load_builtin_fonts(&host->menu);
@@ -838,6 +997,28 @@ st_wren_host_create(st_wren_host_t **result,
 	}
 	else if (status == 0)
 		host->picker.fonts = host->menu.fonts;
+	if (status == 0) {
+		struct st_screen_mode_descriptor custom;
+		const struct st_screen_mode_descriptor *mode
+		    = st_screen_mode_get(host->current_screen_mode);
+
+		if (mode != NULL && mode->mode == ST_SCREEN_MODE_CUSTOM) {
+			status = st_screen_mode_custom(&custom,
+			    (uint32_t)st_settings.custom_columns,
+			    (uint32_t)st_settings.custom_rows,
+			    (uint32_t)st_settings.custom_font_height,
+			    (uint32_t)st_settings.custom_aspect_width,
+			    (uint32_t)st_settings.custom_aspect_height);
+			if (status == 0)
+				mode = &custom;
+		}
+		else if (mode == NULL)
+			mode = st_screen_mode_get(ST_SCREEN_MODE_CURRENT);
+		if (status == 0)
+			status = install_mode_state(&host->menu, mode, false);
+		if (status == 0 && host->picker.console != host->menu.console)
+			status = install_mode_state(&host->picker, mode, false);
+	}
 	if (status != 0) {
 		st_wren_host_destroy(host);
 		return status;

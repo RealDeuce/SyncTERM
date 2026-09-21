@@ -15,7 +15,9 @@ typedef struct st_console st_console_t;
 typedef struct st_console_display st_console_display_t;
 
 struct st_app_paths;
+struct st_audio_runtime;
 struct st_profile;
+struct st_session_history;
 
 struct st_wren_host_config {
 	st_console_display_t *display;
@@ -25,6 +27,8 @@ struct st_wren_host_config {
 	const struct st_app_paths *paths;
 	const char *application_title;
 	const char *launch_script;
+	struct st_session_history *session_history;
+	struct st_audio_runtime *audio_runtime;
 	bool safe_mode;
 };
 

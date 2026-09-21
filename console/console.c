@@ -1669,6 +1669,165 @@ st_console_resize(st_console_t *console, uint32_t columns, uint32_t rows)
 }
 
 int
+st_console_reconfigure(st_console_t *console,
+	const struct st_console_config *config)
+{
+	struct st_console_cell *cells;
+	struct st_console_cell *drawn_cells = NULL;
+	uint8_t *raster_rows = NULL;
+	struct st_pixel_buffer *pixels = NULL;
+	size_t count;
+	uint32_t pixel_width;
+	uint32_t pixel_height;
+	uint32_t pixel_extra_width;
+	uint32_t pixel_extra_height;
+	uint32_t minimum_width;
+	uint32_t minimum_height;
+	uint32_t old_cell_width;
+	uint32_t old_cell_height;
+	uint32_t old_extra_width;
+	uint32_t old_extra_height;
+	bool configured_cursor;
+	int result;
+
+	if (console == NULL || config == NULL
+	    || !cell_count(config->columns, config->rows, &count)
+	    || !pixel_dimensions(config->columns, config->rows,
+	    config->cell_width, config->cell_height, config->pixel_width,
+	    config->pixel_height, &pixel_width, &pixel_height,
+	    &pixel_extra_width, &pixel_extra_height)
+	    || config->blink_mode < ST_CONSOLE_BLINK_PC
+	    || config->blink_mode > ST_CONSOLE_BLINK_ATARI_ST
+	    || (config->video_flags & ~ST_CONSOLE_VIDEO_FLAGS) != 0
+	    || config->scaling_mode < ST_CONSOLE_SCALING_INTERNAL
+	    || config->scaling_mode > ST_CONSOLE_SCALING_EXTERNAL
+	    || (config->scaling_policy != ST_PIXEL_SCALING_BLOCKY
+	    && config->scaling_policy != ST_PIXEL_SCALING_POINTY)
+	    || ((config->aspect_width == 0) != (config->aspect_height == 0)))
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (pixel_width != 0 && st_console_aspect_correct_size(pixel_width,
+	    pixel_height, config->aspect_width, config->aspect_height,
+	    &minimum_width, &minimum_height) != 0)
+		return IO_ERROR_OUT_OF_RANGE;
+	cells = malloc(count * sizeof(*cells));
+	if (cells == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	if (pixel_width != 0) {
+		drawn_cells = calloc(count, sizeof(*drawn_cells));
+		raster_rows = calloc(config->rows, sizeof(*raster_rows));
+		if (drawn_cells == NULL || raster_rows == NULL)
+			result = IO_ERROR_OUT_OF_MEMORY;
+		else
+			result = st_pixel_buffer_create(&pixels, pixel_width,
+			    pixel_height, true);
+		if (result != 0) {
+			free(raster_rows);
+			free(drawn_cells);
+			free(cells);
+			return result;
+		}
+	}
+	result = st_rwlock_write_lock(&console->state_lock);
+	if (result != ST_THREAD_SUCCESS) {
+		st_pixel_buffer_destroy(pixels);
+		free(raster_rows);
+		free(drawn_cells);
+		free(cells);
+		return IO_ERROR_IO;
+	}
+	old_cell_width = console->cell_width;
+	old_cell_height = console->cell_height;
+	old_extra_width = console->pixel_extra_width;
+	old_extra_height = console->pixel_extra_height;
+	console->cell_width = config->cell_width;
+	console->cell_height = config->cell_height;
+	console->pixel_extra_width = pixel_extra_width;
+	console->pixel_extra_height = pixel_extra_height;
+	if (atomic_load_explicit(&console->display->active,
+	    memory_order_acquire) == console && console->display->backend_ops != NULL
+	    && console->display->backend_ops->resize != NULL) {
+		(void)st_mutex_lock(&console->display->backend_mutex);
+		result = atomic_load_explicit(&console->display->active,
+		    memory_order_acquire) == console
+		    ? (console->display->backend_failed ? IO_ERROR_IO
+		    : console->display->backend_ops->resize(console,
+		    config->columns, config->rows)) : 0;
+		(void)st_mutex_unlock(&console->display->backend_mutex);
+	}
+	else
+		result = 0;
+	if (result != 0) {
+		console->cell_width = old_cell_width;
+		console->cell_height = old_cell_height;
+		console->pixel_extra_width = old_extra_width;
+		console->pixel_extra_height = old_extra_height;
+		(void)st_rwlock_unlock(&console->state_lock);
+		st_pixel_buffer_destroy(pixels);
+		free(raster_rows);
+		free(drawn_cells);
+		free(cells);
+		return result;
+	}
+	free(console->cells);
+	free(console->raster_rows);
+	free(console->drawn_cells);
+	st_pixel_buffer_destroy(console->pixels);
+	console->cells = cells;
+	console->raster_rows = raster_rows;
+	console->drawn_cells = drawn_cells;
+	console->pixels = pixels;
+	console->columns = config->columns;
+	console->rows = config->rows;
+	console->pixel_top = 0;
+	console->window = (struct st_console_rect){0, 0, config->columns,
+	    config->rows};
+	console->cursor_x = 0;
+	console->cursor_y = 0;
+	console->wrap = config->wrap;
+	configured_cursor = config->default_cursor.range != 0;
+	if (configured_cursor)
+		console->default_cursor = config->default_cursor;
+	else {
+		uint32_t height = config->cell_height == 0 ? 1
+		    : config->cell_height;
+		uint32_t thickness = height > 8 ? 2 : 1;
+
+		console->default_cursor = (struct st_console_custom_cursor){
+			.start = height - thickness,
+			.end = height - 1,
+			.range = height,
+			.visible = true,
+			.blink = true,
+		};
+	}
+	console->custom_cursor = console->default_cursor;
+	console->cursor_visible = console->default_cursor.visible;
+	console->cursor_shape = console->default_cursor.start == 0
+	    && console->default_cursor.end >= console->default_cursor.range - 1
+	    ? ST_CONSOLE_CURSOR_BLOCK : ST_CONSOLE_CURSOR_UNDERLINE;
+	console->cursor_custom = configured_cursor;
+	console->blink_mode = config->blink_mode;
+	console->video_flags = config->video_flags;
+	console->scaling_mode = config->scaling_mode;
+	console->blocky_scaling
+	    = config->scaling_policy == ST_PIXEL_SCALING_BLOCKY;
+	console->aspect_width = config->aspect_width;
+	console->aspect_height = config->aspect_height;
+	console->pixel_surface_dirty = pixels != NULL;
+	console->palette_dirty = false;
+	console->changed = true;
+	initialize_cells(console, cells, count);
+	if (atomic_load_explicit(&console->display->active,
+	    memory_order_acquire) == console)
+		st_console_display_reset_animation(console->display,
+		    console->blink_mode);
+	st_console_mark_all_locked(console);
+	result = st_console_finish_change_locked(console);
+	(void)st_rwlock_unlock(&console->state_lock);
+	return result;
+}
+
+int
 st_console_write_cells(st_console_t *console,
 	const struct st_console_rect *destination,
 	const struct st_console_cell *cells, size_t stride)
@@ -2105,8 +2264,10 @@ st_console_font_lookup_locked(st_console_t *console, uint16_t identifier,
 	uint32_t codepoint, uint16_t *glyph_font, uint32_t *glyph,
 	uint8_t *columns)
 {
-	const struct st_console_font *font = st_console_font_locked(console,
+	const struct st_console_font *selected = st_console_font_locked(console,
 	    identifier);
+	const struct st_console_font *font = selected;
+	uint16_t fallback_identifier = identifier;
 
 	if (font != NULL && font_lookup_exact(font, codepoint, glyph, columns)) {
 		*glyph_font = identifier;
@@ -2114,9 +2275,18 @@ st_console_font_lookup_locked(st_console_t *console, uint16_t identifier,
 	}
 	if (identifier != 0)
 		font = st_console_font_locked(console, 0);
+	if (font == NULL || (selected != NULL
+	    && (font->width != selected->width || font->height != selected->height))) {
+		font = selected;
+		if (font == NULL)
+			return false;
+	}
+	else if (identifier != 0)
+		fallback_identifier = 0;
 	if (font == NULL)
 		return false;
-	if (identifier != 0 && font_lookup_exact(font, codepoint, glyph, columns)) {
+	if (fallback_identifier == 0
+	    && font_lookup_exact(font, codepoint, glyph, columns)) {
 		*glyph_font = 0;
 		return true;
 	}
@@ -2131,7 +2301,7 @@ st_console_font_lookup_locked(st_console_t *console, uint16_t identifier,
 		*glyph = font->fallback_glyph;
 	else
 		return false;
-	*glyph_font = 0;
+	*glyph_font = fallback_identifier;
 	return true;
 }
 

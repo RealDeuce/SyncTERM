@@ -6,6 +6,8 @@
  */
 
 #include "st_app_paths.h"
+#include "st_audio_runtime.h"
+#include "st_builtin_fonts.h"
 #include "st_command_line.h"
 #include "st_console.h"
 #include "st_console_startup.h"
@@ -15,6 +17,8 @@
 #include "st_unifont.h"
 #endif
 #include "st_profile.h"
+#include "st_screen_mode.h"
+#include "st_session_history.h"
 #include "st_settings.h"
 #include "st_syncterm_icon.h"
 #include "st_terminfo.h"
@@ -86,7 +90,10 @@ main(int argc, char **argv)
 	st_console_t *console = NULL;
 	st_console_t *picker_console = NULL;
 	st_console_display_t *display = NULL;
+	st_session_history_t *session_history = NULL;
+	st_audio_runtime_t *audio_runtime = NULL;
 	uint16_t default_font;
+	struct st_console_font native_font;
 	const struct st_console_font *application_font;
 	st_wren_host_t *host = NULL;
 	const char *invalid = NULL;
@@ -129,6 +136,16 @@ main(int argc, char **argv)
 		goto finished;
 	}
 	settings_loaded = true;
+	status = st_session_history_create(&session_history,
+	    (size_t)st_settings.scrollback_lines);
+	if (status == 0)
+		status = st_audio_runtime_create(&audio_runtime,
+		    st_settings.audio_output_modes);
+	if (status != 0) {
+		fprintf(stderr, "SyncTERM: cannot initialize runtime state (%d)\n",
+		    status);
+		goto finished;
+	}
 	status = st_console_startup_configure(&startup, &st_settings, &command);
 	if (status != 0) {
 		fprintf(stderr, "SyncTERM: invalid console settings (%d)\n", status);
@@ -145,11 +162,20 @@ main(int argc, char **argv)
 		    status);
 		goto finished;
 	}
-	application_font = startup.config.cell_height == 8 ? &st_unscii_8_font
+	const struct st_screen_mode_descriptor *startup_mode = st_screen_mode_get(
+	    (enum st_screen_mode)st_settings.startup_mode);
+	uint8_t selector = startup_mode == NULL ? 0 : startup_mode->font_selector;
+	if ((startup.config.cell_height == 14
+	    || startup.config.cell_height == 20)
+	    && st_builtin_font_get(selector, startup.config.cell_width,
+	    startup.config.cell_height, &native_font))
+		application_font = &native_font;
+	else
+		application_font = startup.config.cell_height == 8 ? &st_unscii_8_font
 #ifdef ST_HAVE_UNIFONT
-	    : &st_unifont_font;
+		    : &st_unifont_font;
 #else
-	    : &st_unscii_16_font;
+		    : &st_unscii_16_font;
 #endif
 	status = st_console_register_static_font(console, application_font,
 	    &default_font);
@@ -194,6 +220,8 @@ main(int argc, char **argv)
 		.paths = &paths,
 		.application_title = application_title,
 		.launch_script = command.wren_script,
+		.session_history = session_history,
+		.audio_runtime = audio_runtime,
 		.safe_mode = command.safe_mode,
 	};
 	status = st_wren_host_create(&host, &host_config);
@@ -230,6 +258,8 @@ finished:
 	if (profile_initialized)
 		st_profile_dispose(&selected);
 	st_wren_host_destroy(host);
+	st_audio_runtime_destroy(audio_runtime);
+	st_session_history_destroy(session_history);
 	st_console_destroy(picker_console);
 	st_console_destroy(console);
 	st_console_display_destroy(display);

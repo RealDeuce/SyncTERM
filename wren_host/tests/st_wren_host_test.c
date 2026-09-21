@@ -11,9 +11,11 @@
 #include "filesystem.h"
 #include "io_error.h"
 #include "st_app_paths.h"
+#include "st_audio_runtime.h"
 #include "st_console.h"
 #include "st_profile.h"
 #include "st_settings.h"
+#include "st_session_history.h"
 #include "st_theme.h"
 #include "st_threads.h"
 #include "st_time.h"
@@ -207,13 +209,15 @@ exercise_menu_contract(st_wren_host_t *public_host)
 	    "import \"syncterm_menu\" for Menu, MenuReadStatus\n"
 	    "if (Menu.load(null) != MenuReadStatus.ok) Fiber.abort(\"load\")\n"
 	    "if (Menu.applicationTitle != \"SyncTERM test - Headless\") Fiber.abort(\"application title\")\n"
-	    "if (Menu.currentScreenMode != 1) Fiber.abort(\"current mode\")\n"
+	    "if (Menu.currentScreenMode != 0) Fiber.abort(\"current mode\")\n"
 	    "if (!Menu.setScreenMode(3) || Menu.currentScreenMode != 3 || !Menu.setScreenMode(1)) Fiber.abort(\"set mode\")\n"
 	    "if (Menu.entries.count != 2 || Menu.entries[0].name != \"Zulu\") Fiber.abort(\"entries/sort\")\n"
 	    "var q = Menu.quickConnect(\"ssh://guest:secret@[::1]:2222\")\n"
 	    "if (q == null || q.connType != 5 || q.addr != \"::1\" || q.port != 2222 || q.user != \"guest\" || q.password != \"secret\") Fiber.abort(\"quick\")\n"
 	    "if (Menu.fileLocations[\"configuration\"].count == 0) Fiber.abort(\"paths\")\n"
 	    "if (Menu.paletteDefaults(1)[1].count != 16) Fiber.abort(\"palette\")\n"
+	    "var scalers = Menu.scalingModes\n"
+	    "if (scalers.count != 3 || scalers[0] != \"Blocky\" || scalers[1] != \"Pointy\" || scalers[2] != \"External\") Fiber.abort(\"scaling catalog\")\n"
 	    "if (Menu.fontsCatalog.count == 0) Fiber.abort(\"fonts\")\n"
 	    "if (Menu.wrenScriptsMaxLength < 1 || Menu.maxPathLength < 1) Fiber.abort(\"limits\")\n"
 	    "if (Menu.addWebList(\"Test\", \"https://example.invalid/list\", 0) != null || !Menu.webListsDirty || Menu.webLists.count != 1) Fiber.abort(\"web add\")\n"
@@ -226,7 +230,7 @@ exercise_menu_contract(st_wren_host_t *public_host)
 	    "s.modemDevice = \"modem\"\n"
 	    "s.modemInit = \"ATZ\"\n"
 	    "s.modemDial = \"ATDT\"\n"
-	    "s.listPath = \"list.lst\"\n"
+	    "s.listPath = s.listPath\n"
 	    "s.shellTerm = \"ansi\"\n"
 	    "s.tlsClientCert = \"client.pem\"\n"
 	    "s.tlsClientKey = \"client.key\"\n"
@@ -237,6 +241,7 @@ exercise_menu_contract(st_wren_host_t *public_host)
 	    "s.scrollbackLines = 100\n"
 	    "s.modemRate = 9600\n"
 	    "s.scalingMode = 1\n"
+	    "if (s.scalingMode != 1) Fiber.abort(\"scaling setting\")\n"
 	    "s.kdfShift = 15\n"
 	    "s.customRows = 30\n"
 	    "s.customColumns = 80\n"
@@ -310,6 +315,38 @@ exercise_menu_contract(st_wren_host_t *public_host)
 		return -1;
 	}
 	return 0;
+}
+
+static int
+exercise_session_history_contract(st_wren_host_t *public_host)
+{
+	struct st_wren_host *host = public_host;
+	static const char source[] =
+	    "import \"syncterm_menu\" for Menu\n"
+	    "var history = Menu.offlineScrollback\n"
+	    "if (history == null || history.width != 2 || history.height != 2) Fiber.abort(\"history surface\")\n"
+	    "if (history.cellAt(0, 0).ch != \"A\" || history.cellAt(1, 1).ch != \"D\") Fiber.abort(\"history contents\")\n"
+	    "if (!Menu.offlineScrollbackHasStatus || !Menu.prepareOfflineScrollback()) Fiber.abort(\"history metadata\")\n";
+
+	return wrenInterpret(host->vm, "session_history_contract", source)
+	    == WREN_RESULT_SUCCESS ? 0 : -1;
+}
+
+static int
+exercise_settings_save_contract(st_wren_host_t *public_host)
+{
+	struct st_wren_host *host = public_host;
+	static const char source[] =
+	    "import \"syncterm_menu\" for Menu\n"
+	    "var old = Menu.settings\n"
+	    "var current = Menu.settings\n"
+	    "current.promptSave = !current.promptSave\n"
+	    "if (!current.save() || current.dirty) Fiber.abort(\"save failed\")\n"
+	    "var stale = Fiber.new { old.promptSave }.try()\n"
+	    "if (!(stale is String)) Fiber.abort(\"save did not invalidate snapshot\")\n";
+
+	return wrenInterpret(host->vm, "settings_save_contract", source)
+	    == WREN_RESULT_SUCCESS ? 0 : -1;
 }
 
 static int
@@ -1054,9 +1091,12 @@ exercise_selected_local_theme_delete_failure(st_wren_host_t *public_host,
 	const struct st_theme *active;
 	static const char select_source[] =
 	    "import \"syncterm_menu\" for Menu\n"
+	    "var oldSettings = Menu.settings\n"
 	    "if (Menu.selectTheme(\"host-theme.ini\") != null || "
 	    "Menu.selectedThemeFile != \"host-theme.ini\") "
-	    "Fiber.abort(\"select local theme\")\n";
+	    "Fiber.abort(\"select local theme\")\n"
+	    "var stale = Fiber.new { oldSettings.confirmClose }.try()\n"
+	    "if (!(stale is String)) Fiber.abort(\"theme selection did not invalidate settings\")\n";
 	static const char delete_source[] =
 	    "import \"syncterm_menu\" for Menu\n"
 	    "if (Menu.deleteTheme(\"host-theme.ini\") == null) "
@@ -1687,8 +1727,8 @@ exercise_safe_mode_persistence_contract(st_wren_host_t *public_host,
 int
 main(void)
 {
-	static const uint8_t default_bitmap[16] = {0};
-	static const uint8_t default_wide_bitmap[16] = {0};
+	static const uint8_t default_bitmap[32] = {0};
+	static const uint8_t default_wide_bitmap[32] = {0};
 	static const struct st_console_font_mapping default_mapping[] = {
 		{'?', 0},
 		{'A', 1},
@@ -1698,15 +1738,15 @@ main(void)
 		.bitmap = default_bitmap,
 		.bitmap_size = sizeof(default_bitmap),
 		.width = 8,
-		.height = 8,
+		.height = 16,
 		.glyph_count = 2,
 		.row_stride = 1,
-		.glyph_stride = 8,
+		.glyph_stride = 16,
 		.wide_bitmap = default_wide_bitmap,
 		.wide_bitmap_size = sizeof(default_wide_bitmap),
 		.wide_glyph_count = 1,
 		.wide_row_stride = 2,
-		.wide_glyph_stride = 16,
+		.wide_glyph_stride = 32,
 		.mapping = default_mapping,
 		.mapping_count = sizeof(default_mapping) / sizeof(default_mapping[0]),
 	};
@@ -1769,6 +1809,8 @@ main(void)
 	};
 	struct st_profile selected;
 	st_console_t *console = NULL;
+	st_session_history_t *session_history = NULL;
+	st_audio_runtime_t *audio_runtime = NULL;
 	st_wren_host_t *host = NULL;
 	bool has_selection = false;
 	bool font_registered = false;
@@ -1827,12 +1869,23 @@ main(void)
 	CHECK(st_console_register_static_font(console, &default_font,
 	    &default_identifier) == 0);
 	CHECK(default_identifier == 0);
+	struct st_console_cell history_cells[4] = {
+		{.codepoint = 'A'}, {.codepoint = 'B'},
+		{.codepoint = 'C'}, {.codepoint = 'D'},
+	};
+	CHECK(st_session_history_create(&session_history, 4) == 0);
+	CHECK(st_audio_runtime_create(&audio_runtime, UINT32_MAX) == 0);
+	CHECK(st_session_history_publish(session_history, history_cells, 2, 2,
+	    ST_SCREEN_MODE_CURRENT, true) == 0);
 	host_config = (struct st_wren_host_config){
 		.console = console,
 		.paths = &paths,
 		.application_title = "SyncTERM test",
+		.session_history = session_history,
+		.audio_runtime = audio_runtime,
 	};
 	CHECK(st_wren_host_create(&host, &host_config) == 0);
+	CHECK(exercise_session_history_contract(host) == 0);
 	CHECK(exercise_repl_style(host, console) == 0);
 	CHECK(exercise_mouse_drag_selection(host, console) == 0);
 	CHECK(exercise_input_value_contract(host, console) == 0);
@@ -1895,6 +1948,9 @@ main(void)
 	uint64_t theme_generation = st_theme_generation(
 	    ((struct st_wren_host *)host)->themes);
 	CHECK(exercise_menu_contract(host) == 0);
+	CHECK(st_audio_runtime_allowed(audio_runtime) == 0);
+	CHECK(st_session_history_capacity(session_history) == 100);
+	CHECK(exercise_settings_save_contract(host) == 0);
 	CHECK(exercise_bbs_model_contract(host, &paths, personal, shared) == 0);
 	CHECK(exercise_build_options_contract(host) == 0);
 	CHECK(exercise_configuration_collections(host) == 0);
@@ -2046,6 +2102,8 @@ main(void)
 	    cache) == 0);
 	st_wren_host_destroy(host);
 	st_console_destroy(console);
+	st_session_history_destroy(session_history);
+	st_audio_runtime_destroy(audio_runtime);
 	st_settings_shutdown();
 	return 0;
 }

@@ -19,6 +19,7 @@
 
 typedef struct st_bbs_list st_bbs_list_t;
 struct st_app_paths;
+struct st_settings;
 
 enum st_bbs_source {
 	ST_BBS_SOURCE_PERSONAL,
@@ -79,6 +80,10 @@ typedef void (*st_bbs_web_refresh_progress_fn)(
 int st_bbs_list_open(st_bbs_list_t **result,
     const struct st_app_paths *paths, const void *password,
     size_t password_size);
+/* Opens a candidate list using settings and the password retained by current. */
+int st_bbs_list_open_replacement(st_bbs_list_t **result,
+	const st_bbs_list_t *current, const struct st_app_paths *paths,
+	const struct st_settings *settings);
 void st_bbs_list_close(st_bbs_list_t *list);
 int st_bbs_list_reload(st_bbs_list_t *list);
 

@@ -5,6 +5,7 @@
 
 #include "audio.h"
 #include "audio_internal.h"
+#include "st_audio_runtime.h"
 
 #include "io_error.h"
 #include "st_threads.h"
@@ -223,6 +224,7 @@ test_synthesis(void)
 int
 main(void)
 {
+	st_audio_runtime_t *runtime = NULL;
 	uint32_t compiled = audio_compiled_backends();
 	uint32_t available = audio_available_backends();
 	uint32_t known = AUDIO_BACKEND_WASAPI | AUDIO_BACKEND_ALSA
@@ -232,6 +234,11 @@ main(void)
 
 	CHECK((compiled & ~known) == 0);
 	CHECK((available & ~compiled) == 0);
+	CHECK(st_audio_runtime_create(&runtime, AUDIO_BACKEND_ALSA) == 0);
+	CHECK(st_audio_runtime_allowed(runtime) == AUDIO_BACKEND_ALSA);
+	st_audio_runtime_set_allowed(runtime, AUDIO_BACKEND_CORE_AUDIO);
+	CHECK(st_audio_runtime_allowed(runtime) == AUDIO_BACKEND_CORE_AUDIO);
+	st_audio_runtime_destroy(runtime);
 	CHECK(test_engine_and_stream() == 0);
 	CHECK(test_selection_errors() == 0);
 	CHECK(test_synthesis() == 0);
