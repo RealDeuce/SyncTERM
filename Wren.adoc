@@ -2323,9 +2323,11 @@ normal slot 1, matching the legacy default-font operation.  Slots 1 through 4
 are respectively normal, source-bright, source-blink, and source-bright plus
 source-blink.  `VideoFlags.altChars` and `blinkAltChars` enable the two
 selectors.  Selection happens when text is written, and the resolved internal
-font identifier is retained in the cell; later flag or slot changes do not
-reinterpret existing cells.  Use the `Font` class (see <<font>>) for the named
-built-in indices.
+font identifier is retained in the cell.  Clear, line insertion/deletion, and
+scroll operations likewise resolve the font for the blank cells they create.
+Later flag or slot changes do not reinterpret existing cells, and
+`Screen.putRect` preserves the already-resolved fonts in its Surface.  Use the
+`Font` class (see <<font>>) for the named built-in indices.
 
 ==== Screen.palette
 

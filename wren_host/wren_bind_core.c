@@ -2413,34 +2413,41 @@ fn_screen_window_bounds_set(WrenVM *vm)
 static void
 fn_screen_window_clear(WrenVM *vm)
 {
-	(void)st_console_clear_window(st_wren_context_from_vm(vm)->console,
-	    ' ');
+	if (refresh_screen_style_font(vm))
+		(void)st_console_clear_window(
+		    st_wren_context_from_vm(vm)->console, ' ');
 }
 
 static void
 fn_screen_window_clear_line(WrenVM *vm)
 {
-	(void)st_console_clear_line(st_wren_context_from_vm(vm)->console, ' ');
+	if (refresh_screen_style_font(vm))
+		(void)st_console_clear_line(
+		    st_wren_context_from_vm(vm)->console, ' ');
 }
 
 static void
 fn_screen_window_delete_line(WrenVM *vm)
 {
-	(void)st_console_delete_lines(st_wren_context_from_vm(vm)->console, 1,
-	    ' ');
+	if (refresh_screen_style_font(vm))
+		(void)st_console_delete_lines(
+		    st_wren_context_from_vm(vm)->console, 1, ' ');
 }
 
 static void
 fn_screen_window_insert_line(WrenVM *vm)
 {
-	(void)st_console_insert_lines(st_wren_context_from_vm(vm)->console, 1,
-	    ' ');
+	if (refresh_screen_style_font(vm))
+		(void)st_console_insert_lines(
+		    st_wren_context_from_vm(vm)->console, 1, ' ');
 }
 
 static void
 fn_screen_window_scroll(WrenVM *vm)
 {
-	(void)st_console_scroll(st_wren_context_from_vm(vm)->console, 1, ' ');
+	if (refresh_screen_style_font(vm))
+		(void)st_console_scroll(st_wren_context_from_vm(vm)->console, 1,
+		    ' ');
 }
 
 static void

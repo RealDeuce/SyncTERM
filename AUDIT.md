@@ -37,7 +37,7 @@ repository-wide coverage. The legacy tree is read-only reference.
 
 The repository-wide audit is complete. This is not an implementation approval
 or release certification. The consolidated API/design assessment, priority
-groups and all 31 outstanding finding summaries are in
+groups and all 30 outstanding finding summaries are in
 AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 
 | Objective requirement | Authoritative evidence and disposition |
@@ -50,7 +50,7 @@ AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 | Required legacy behavior | Read-only comparisons cover fonts/catalog/maps, modes, palette capacity, Prestel versus Mode 7, command line, console/input and settings behavior, plus explicit parity limits. Frozen CTerm chapter cmp succeeds. |
 | Wren scripts and bindings | Complete local source/signature/manual reviews; isolated shipped-script suites and host fixtures; remaining host findings through A113. Connected/SFTP production integration missing from this application is reported, not invented or silently counted as working. |
 | Build logic, generators and documentation | Root/component CMake and generators reviewed; standalone/probe failures recorded; pinned Unicode/font regeneration and table comparisons documented; root manuals/license/development guidance covered. Wren VM vendored internals limited to integration boundaries as requested. |
-| Inventory and consolidated findings | 31 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 14 medium, 15 low, 2 unresolved concerns; not all runtime reproductions. |
+| Inventory and consolidated findings | 30 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 13 medium, 15 low, 2 unresolved concerns; not all runtime reproductions. |
 | Relevant tests where practical | Complete native Clang and GCC builds succeed. The latest 95-test runs have a stable disposition of 93 pass, 1 fail and 1 Wayland skip. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
 | Explicit uncertainty | Each component records unavailable platforms, unexecuted failure paths and measurement limits; A007/A011 unresolved. Source-level risks are not called verified crashes. These are audit outcomes, not claims of implementation correctness. |
 
@@ -166,12 +166,6 @@ evidence. All new fixtures use fresh temporary paths and a headless console.
   invalid window bounds and write/scroll failures. This is a source-only error-
   reporting concern: setter return conventions and recoverable write failures
   need an explicit contract; not every void-style setter is thereby broken.
-- Font slots are context storage with no rendering consumer found; the manual
-  still promises active slot loading. This is an incomplete integration
-  concern, distinct from working explicit Cell.font/catalog lookup. Legacy
-  Cell field setters did not automatically resolve selector bits either, so
-  that absence alone is not classified as a regression. Any future selector
-  policy must retain the full-cell explicit-glyph bypass and registry lifetime.
 - Theme selection/deletion failure behavior is covered for local and cloud
   themes. General OOM/failure rollback remains untested.
 - Host/VM lifetimes, borrowed config and synchronous dispatcher use follow the
@@ -271,31 +265,6 @@ Likewise ANSI's setupterm probe does not restore/release terminal state before
 closing its dynamic-library handle. Interaction with an existing curses
 screen and allocation lifetime remain source-only integration risks, not
 verified crashes or quantified leaks.
-
-### A105 — Screen.font slot writes are not connected to rendering
-
-Severity: medium (source-confirmed incomplete integration). Legacy
-wren_bind_screen.c's Cell.font and legacyAttr/bright setters modify separate
-stored fields, so the absence
-of automatic font reassignment on a Cell bright/blink edit is not by itself a
-new regression. The new explicit font ID/full-cell contract must not be
-replaced by unconditional selector interpretation. Screen.font is a different
-API: legacy calls getfont/setfont, while current core bindings only read/write
-context.fonts.slots, and the manual still says it loads an active font slot.
-No current rendering consumer of those slot writes was found; retain this as
-a source-confirmed incomplete integration concern requiring a declared host
-slot policy, not proof that all explicit Cell.font operations fail. Connected
-terminal selector handling is not implemented by this menu host. Wren guidance
-and the local input/font API documentation informed this comparison.
-
-Font-selector tracing in this pass: Cell.font resolves the selected catalog
-identifier and re-runs Unicode lookup; legacyAttr/bright/blink mutations only
-change color/flag fields, and core bindings do not call
-st_console_font_for_flags. This confirms the implementation paths but does not
-alone settle when menu cells should interpret legacy selector bits. Keep that
-as a caller/legacy-contract question rather than recommending that every
-bright/blink change automatically chooses a different font. Full-cell writes
-intentionally bypass lookup, a distinct contract that must be retained.
 
 ### A098 — Shipped UI demo imports an absent module
 

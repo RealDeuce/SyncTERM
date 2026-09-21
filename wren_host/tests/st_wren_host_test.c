@@ -975,6 +975,70 @@ exercise_video_colour_contract(st_wren_host_t *public_host)
 }
 
 static int
+exercise_font_slot_contract(st_wren_host_t *public_host)
+{
+	struct st_wren_host *host = public_host;
+	static const char source[] =
+	    "import \"syncterm\" for Screen, Surface, VideoFlags\n"
+	    "var saved = Screen.save()\n"
+	    "VideoFlags.altChars = false\n"
+	    "VideoFlags.blinkAltChars = false\n"
+	    "Screen.window.bounds = [1, 2, 5, 6]\n"
+	    "Screen.font[1] = 0\n"
+	    "Screen.attr = 0x07\n"
+	    "Screen.font[1] = 4\n"
+	    "Screen.window.clear()\n"
+	    "if (Screen.readRect(1, 2, 1, 2).cellAt(0, 0).font != 4) Fiber.abort(\"clear font selection\")\n"
+	    "VideoFlags.altChars = true\n"
+	    "Screen.font[2] = 0\n"
+	    "Screen.attr = 0x08\n"
+	    "Screen.font[2] = 5\n"
+	    "Screen.window.position = [2, 3]\n"
+	    "Screen.window.clearToLineEnd()\n"
+	    "if (Screen.readRect(2, 3, 2, 3).cellAt(0, 0).font != 5) Fiber.abort(\"clear-line font selection\")\n"
+	    "VideoFlags.blinkAltChars = true\n"
+	    "Screen.font[3] = 0\n"
+	    "Screen.attr = 0x80\n"
+	    "Screen.font[3] = 6\n"
+	    "Screen.window.position = [1, 4]\n"
+	    "Screen.window.insertLine()\n"
+	    "if (Screen.readRect(1, 4, 1, 4).cellAt(0, 0).font != 6) Fiber.abort(\"insert-line font selection\")\n"
+	    "Screen.font[4] = 0\n"
+	    "Screen.attr = 0x88\n"
+	    "Screen.font[4] = 7\n"
+	    "Screen.window.position = [1, 4]\n"
+	    "Screen.window.deleteLine()\n"
+	    "if (Screen.readRect(1, 6, 1, 6).cellAt(0, 0).font != 7) Fiber.abort(\"delete-line font selection\")\n"
+	    "VideoFlags.altChars = false\n"
+	    "VideoFlags.blinkAltChars = false\n"
+	    "Screen.font[1] = 0\n"
+	    "Screen.attr = 0x07\n"
+	    "Screen.font[1] = 8\n"
+	    "Screen.window.scroll()\n"
+	    "if (Screen.readRect(1, 6, 1, 6).cellAt(0, 0).font != 8) Fiber.abort(\"scroll font selection\")\n"
+	    "Screen.font[1] = 10\n"
+	    "if (Screen.readRect(1, 6, 1, 6).cellAt(0, 0).font != 8) Fiber.abort(\"retained font identity\")\n"
+	    "VideoFlags.altChars = true\n"
+	    "VideoFlags.blinkAltChars = true\n"
+	    "var explicit = Surface.new(1, 1)\n"
+	    "explicit.cellAt(0, 0).ch = \"A\"\n"
+	    "explicit.cellAt(0, 0).font = 9\n"
+	    "explicit.cellAt(0, 0).legacyAttr = 0x88\n"
+	    "Screen.putRect(explicit, 5, 2)\n"
+	    "Screen.font[4] = 10\n"
+	    "if (Screen.readRect(5, 2, 5, 2).cellAt(0, 0).font != 9) Fiber.abort(\"explicit font identity\")\n"
+	    "Screen.restore(saved)\n";
+
+	if (wrenInterpret(host->vm, "font_slot_contract", source)
+	    != WREN_RESULT_SUCCESS) {
+		fprintf(stderr, "font slot contract failed: %s\n",
+		    host->last_error);
+		return -1;
+	}
+	return 0;
+}
+
+static int
 exercise_codepage_contract(st_wren_host_t *public_host)
 {
 	struct st_wren_host *host = public_host;
@@ -1943,6 +2007,7 @@ main(void)
 	CHECK(exercise_web_refresh_overlay(host, console) == 0);
 	CHECK(exercise_cursor_contract(host) == 0);
 	CHECK(exercise_video_colour_contract(host) == 0);
+	CHECK(exercise_font_slot_contract(host) == 0);
 	CHECK(exercise_codepage_contract(host) == 0);
 	CHECK(st_wren_font_identifier(&((struct st_wren_host *)host)->menu, 46,
 	    &configured_identifier));
