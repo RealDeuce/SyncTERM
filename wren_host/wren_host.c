@@ -730,12 +730,16 @@ st_wren_picker_host_init(struct st_wren_host *host)
 	host->picker_vm = wrenNewVM(&config);
 	if (host->picker_vm == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
+	host->picker.vm = host->picker_vm;
 	if (wrenInterpret(host->picker_vm, bootstrap->name, bootstrap->source)
 	    != WREN_RESULT_SUCCESS
 	    || wrenInterpret(host->picker_vm, request->name, request->source)
 	    != WREN_RESULT_SUCCESS)
 		return IO_ERROR_INVALID_FORMAT;
 	status = interpret_event_scripts(host->picker_vm, "picker");
+	if (status != 0)
+		return status;
+	status = st_wren_input_context_init(host->picker_vm);
 	if (status != 0)
 		return status;
 	host->picker_bootstrap = class_handle(host->picker_vm,
@@ -756,6 +760,7 @@ st_wren_picker_host_dispose(struct st_wren_host *host)
 {
 	if (host == NULL || host->picker_vm == NULL)
 		return;
+	st_wren_input_context_dispose(host->picker_vm);
 	if (host->picker_recover != NULL)
 		wrenReleaseHandle(host->picker_vm, host->picker_recover);
 	if (host->picker_run != NULL)
@@ -767,6 +772,7 @@ st_wren_picker_host_dispose(struct st_wren_host *host)
 	st_wren_log_dispose(host->picker_vm);
 	wrenFreeVM(host->picker_vm);
 	host->picker_vm = NULL;
+	host->picker.vm = NULL;
 	host->picker_recover = NULL;
 	host->picker_run = NULL;
 	host->picker_class = NULL;
@@ -853,11 +859,17 @@ st_wren_host_create(st_wren_host_t **result,
 		st_wren_host_destroy(host);
 		return IO_ERROR_OUT_OF_MEMORY;
 	}
+	host->menu.vm = host->vm;
 	status = interpret_event_scripts(host->vm, "menu");
 	if (status != 0 || !wrenHasModule(host->vm, "main_menu")
 	    || !wrenHasVariable(host->vm, "main_menu", "MainMenu")) {
 		st_wren_host_destroy(host);
 		return status == 0 ? IO_ERROR_INVALID_FORMAT : status;
+	}
+	status = st_wren_input_context_init(host->vm);
+	if (status != 0) {
+		st_wren_host_destroy(host);
+		return status;
 	}
 	wrenEnsureSlots(host->vm, 1);
 	wrenGetVariable(host->vm, "main_menu", "MainMenu", 0);
@@ -904,8 +916,10 @@ st_wren_host_destroy(st_wren_host_t *host)
 	if (host->vm != NULL && host->main_menu != NULL)
 		wrenReleaseHandle(host->vm, host->main_menu);
 	if (host->vm != NULL) {
+		st_wren_input_context_dispose(host->vm);
 		st_wren_log_dispose(host->vm);
 		wrenFreeVM(host->vm);
+		host->menu.vm = NULL;
 	}
 	st_bbs_list_close(host->bbs_list);
 	st_theme_manager_free(&host->themes);

@@ -16,6 +16,7 @@
 #include "st_settings.h"
 #include "st_theme.h"
 #include "st_threads.h"
+#include "st_time.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -1115,9 +1116,9 @@ exercise_mouse_drag_selection(struct st_wren_host *host,
 	static const char source[] =
 	    "import \"syncterm\" for Input, Mouse, MouseEvent\n"
 	    "Input.mouseEvents = 0\n"
-	    "Input.enableMouseEvent(Mouse.wheelDownPress)\n"
-	    "if (Input.mouseEvents != 137438953472) Fiber.abort(\"wide mouse mask\")\n"
-	    "Input.disableMouseEvent(Mouse.wheelDownPress)\n"
+	    "Input.enableMouseEvent(Mouse.wheelDown)\n"
+	    "if (Input.mouseEvents != 140737488355328) Fiber.abort(\"wide mouse mask\")\n"
+	    "Input.disableMouseEvent(Mouse.wheelDown)\n"
 	    "Input.enableMouseEvent(Mouse.button1Press)\n"
 	    "Input.enableMouseEvent(Mouse.button1DragStart)\n"
 	    "var press = Input.next()\n"
@@ -1161,8 +1162,271 @@ exercise_mouse_drag_selection(struct st_wren_host *host,
 		CHECK(before[index].font == after[index].font);
 		CHECK(before[index].hyperlink == after[index].hyperlink);
 	}
-	CHECK(!host->menu.mouse_left_pressed);
-	CHECK(!host->menu.mouse_left_dragging);
+	CHECK(!host->menu.mouse_gestures[0].pressed);
+	CHECK(!host->menu.mouse_gestures[0].dragging);
+	return 0;
+}
+
+static int
+exercise_input_value_contract(struct st_wren_host *host,
+	st_console_t *console)
+{
+	static const char values[] =
+	    "import \"syncterm\" for Input, KeyEvent, Mouse, MouseEvent, PhysicalKeyEvent\n"
+	    "var key = KeyEvent.new(4660)\n"
+	    "Input.unget(key)\n"
+	    "var gotKey = Input.poll()\n"
+	    "if (!(gotKey is KeyEvent) || gotKey.code != 4660) Fiber.abort(\"key unget\")\n"
+	    "var physical = PhysicalKeyEvent.new(77, true, 5, true)\n"
+	    "Input.unget(physical)\n"
+	    "var gotPhysical = Input.poll()\n"
+	    "if (!(gotPhysical is PhysicalKeyEvent) || gotPhysical.evdev != 77 || !gotPhysical.pressed || gotPhysical.modifiers != 5 || !gotPhysical.repeat) Fiber.abort(\"physical unget\")\n"
+	    "var mouse = MouseEvent.withPixelsAndWheel(Mouse.wheelLeft, 2, 3, 4, 5, 6, 9, 10, 11, 12, 13, -3, 0)\n"
+	    "Input.unget(mouse)\n"
+	    "var gotMouse = Input.poll()\n"
+	    "if (!(gotMouse is MouseEvent) || gotMouse.event != Mouse.wheelLeft || gotMouse.startX != 2 || gotMouse.startY != 3 || gotMouse.endX != 4 || gotMouse.endY != 5 || gotMouse.modifiers != 6 || gotMouse.bstate != 9 || gotMouse.startPixelX != 10 || gotMouse.startPixelY != 11 || gotMouse.endPixelX != 12 || gotMouse.endPixelY != 13 || gotMouse.wheelX != -3 || gotMouse.wheelY != 0) Fiber.abort(\"mouse unget\")\n"
+	    "var invalid = Fiber.new { Input.unget(42) }\n"
+	    "invalid.try()\n"
+	    "if (invalid.error == null) Fiber.abort(\"invalid unget\")\n"
+	    "invalid = Fiber.new { Input.enableMouseEvent(50) }\n"
+	    "invalid.try()\n"
+	    "if (invalid.error == null) Fiber.abort(\"invalid mouse event\")\n"
+	    "invalid = Fiber.new { Input.mouseEvents = 1125899906842624 }\n"
+	    "invalid.try()\n"
+	    "if (invalid.error == null) Fiber.abort(\"invalid mouse mask\")\n"
+	    "Input.synthesizePhysicalKey(88, true)\n"
+	    "Input.synthesizePhysicalKey(88, true)\n"
+	    "var press = Input.poll()\n"
+	    "if (!(press is PhysicalKeyEvent) || press.evdev != 88 || !press.pressed || press.modifiers != 0 || press.repeat || Input.poll() != null) Fiber.abort(\"physical press synthesis\")\n"
+	    "Input.synthesizePhysicalKey(88, false)\n"
+	    "Input.synthesizePhysicalKey(88, false)\n"
+	    "var release = Input.poll()\n"
+	    "if (!(release is PhysicalKeyEvent) || release.evdev != 88 || release.pressed || Input.poll() != null) Fiber.abort(\"physical release synthesis\")\n";
+	const struct st_console_event press = {
+		.type = ST_CONSOLE_EVENT_MOUSE,
+		.data.mouse = {
+			.x = 2, .y = 3, .pixel_x = 20, .pixel_y = 30,
+			.buttons = ST_CONSOLE_MOUSE_BUTTON_LEFT
+			    | ST_CONSOLE_MOUSE_BUTTON_X1,
+			.modifiers = ST_CONSOLE_MODIFIER_ALT,
+			.action = ST_CONSOLE_MOUSE_BUTTON,
+		},
+	};
+	const struct st_console_event move = {
+		.type = ST_CONSOLE_EVENT_MOUSE,
+		.data.mouse = {
+			.x = 4, .y = 5, .pixel_x = 40, .pixel_y = 50,
+			.buttons = ST_CONSOLE_MOUSE_BUTTON_LEFT
+			    | ST_CONSOLE_MOUSE_BUTTON_X1,
+			.modifiers = ST_CONSOLE_MODIFIER_CONTROL,
+			.action = ST_CONSOLE_MOUSE_MOVE,
+		},
+	};
+	const struct st_console_event release = {
+		.type = ST_CONSOLE_EVENT_MOUSE,
+		.data.mouse = {
+			.x = 6, .y = 7, .pixel_x = 60, .pixel_y = 70,
+			.modifiers = ST_CONSOLE_MODIFIER_SHIFT,
+			.action = ST_CONSOLE_MOUSE_BUTTON,
+		},
+	};
+	const struct st_console_event wheel = {
+		.type = ST_CONSOLE_EVENT_MOUSE,
+		.data.mouse = {
+			.x = 8, .y = 9, .pixel_x = 80, .pixel_y = 90,
+			.wheel_x = -3, .wheel_y = 2,
+			.modifiers = ST_CONSOLE_MODIFIER_GUI,
+			.action = ST_CONSOLE_MOUSE_WHEEL,
+		},
+	};
+	static const char mouse_source[] =
+	    "import \"syncterm\" for Input, Mouse, MouseEvent\n"
+	    "Input.mouseEvents = 0\n"
+	    "for (event in [Mouse.move, Mouse.button1Press, Mouse.button1Release, Mouse.button1DragStart, Mouse.button1DragEnd, Mouse.button4Press, Mouse.button4Release, Mouse.button4DragStart, Mouse.button4DragEnd, Mouse.wheelUp, Mouse.wheelLeft]) Input.enableMouseEvent(event)\n"
+	    "var events = []\n"
+	    "for (i in 0...11) events.add(Input.poll())\n"
+	    "if (events[0].event != Mouse.button1Press || events[1].event != Mouse.button4Press || events[0].bstate != 9 || events[1].bstate != 9 || events[0].modifiers != 4) Fiber.abort(\"button presses\")\n"
+	    "if (events[2].event != Mouse.move || events[3].event != Mouse.button1DragStart || events[4].event != Mouse.button4DragStart || events[3].startX != 3 || events[3].startY != 4 || events[3].endX != 5 || events[3].endY != 6 || events[3].modifiers != 4) Fiber.abort(\"drag expansion\")\n"
+	    "if (events[5].event != Mouse.button1Release || events[5].modifiers != 1 || events[6].event != Mouse.button1DragEnd || events[6].modifiers != 4 || events[7].event != Mouse.button4Release || events[8].event != Mouse.button4DragEnd) Fiber.abort(\"button releases\")\n"
+	    "if (events[9].event != Mouse.wheelUp || events[9].wheelY != 2 || events[9].wheelX != 0 || events[9].modifiers != 8 || events[10].event != Mouse.wheelLeft || events[10].wheelX != -3 || events[10].wheelY != 0) Fiber.abort(\"wheel axes\")\n"
+	    "if (Input.poll() != null) Fiber.abort(\"extra mouse event\")\n";
+
+	CHECK(wrenInterpret(host->vm, "input_value_contract", values)
+	    == WREN_RESULT_SUCCESS);
+	CHECK(st_console_post_event(console, &press) == 0);
+	CHECK(st_console_post_event(console, &move) == 0);
+	CHECK(st_console_post_event(console, &release) == 0);
+	CHECK(st_console_post_event(console, &wheel) == 0);
+	CHECK(wrenInterpret(host->vm, "mouse_input_contract", mouse_source)
+	    == WREN_RESULT_SUCCESS);
+	return 0;
+}
+
+static int
+exercise_claim_wake_contract(struct st_wren_host *host)
+{
+	static const char source[] =
+	    "import \"syncterm\" for Hook, Input, KeyEvent, REPL, Wake\n"
+	    "class ClaimProbe {\n"
+	    "  static start() {\n"
+	    "    __seen = []\n"
+	    "    __worker = Fiber.new {\n"
+	    "      __stale = Input.pushClaim(Fn.new {|event|\n"
+	    "        __seen.add(\"old\")\n"
+	    "        return false\n"
+	    "      })\n"
+	    "      Fiber.yield()\n"
+	    "      __current = Input.pushClaim(Fn.new {|event|\n"
+	    "        __seen.add(event.code)\n"
+	    "        return event.code == 2\n"
+	    "      })\n"
+	    "      Fiber.yield()\n"
+	    "    }\n"
+	    "    __worker.call()\n"
+	    "  }\n"
+	    "  static replace() { __worker.call() }\n"
+	    "  static stalePop() { __stale.pop() }\n"
+	    "  static currentPop() { __current.pop() }\n"
+	    "  static finish() { __worker.call() }\n"
+	    "  static dead() {\n"
+	    "    __deadWorker = Fiber.new {\n"
+	    "      __deadHandle = Input.pushClaim(Fn.new {|event| true })\n"
+	    "      Fiber.yield()\n"
+	    "    }\n"
+	    "    __deadWorker.call()\n"
+	    "    __deadWorker.call()\n"
+	    "  }\n"
+	    "  static deadPop() { __deadHandle.pop() }\n"
+	    "  static seen { __seen }\n"
+	    "}\n"
+	    "class WakeProbe {\n"
+	    "  static start() {\n"
+	    "    __values = []\n"
+	    "    __worker = Fiber.new {\n"
+	    "      var value = Fiber.yield()\n"
+	    "      __values.add(value)\n"
+	    "      value = Fiber.yield()\n"
+	    "      __values.add(value)\n"
+	    "    }\n"
+	    "    __worker.call()\n"
+	    "    Wake.post(__worker, \"one\")\n"
+	    "    Wake.post(__worker, \"two\")\n"
+	    "  }\n"
+	    "  static values { __values }\n"
+	    "}\n"
+	    "class BadText {\n"
+	    "  construct new() {}\n"
+	    "  toString { Fiber.abort(\"formatting failed\") }\n"
+	    "}\n"
+	    "for (value in [\"string\", 42, KeyEvent.new(1), BadText.new()]) {\n"
+	    "  var result = Hook.dispatch_(Fn.new { Fiber.abort(value) })\n"
+	    "  if (result != null) Fiber.abort(\"hook abort escaped\")\n"
+	    "}\n"
+	    "if (Hook.dispatch_(Fn.new { null }) != null) Fiber.abort(\"hook null result\")\n"
+	    "var yielded = Hook.dispatch_(Fn.new { Fiber.yield() })\n"
+	    "if (yielded != null) Fiber.abort(\"hook yield escaped\")\n"
+	    "ClaimProbe.start()\n"
+	    "WakeProbe.start()\n";
+	struct st_wren_input_record event = {
+		.type = ST_WREN_INPUT_KEY,
+		.data.key.code = 1,
+	};
+	bool consumed = true;
+
+	CHECK(wrenInterpret(host->vm, "input_async_contract", source)
+	    == WREN_RESULT_SUCCESS);
+	CHECK(st_wren_input_dispatch(host->vm, &event, &consumed) == 0);
+	CHECK(!consumed);
+	CHECK(wrenInterpret(host->vm, "input_async_contract",
+	    "ClaimProbe.replace()\n"
+	    "if (ClaimProbe.stalePop()) Fiber.abort(\"stale claim popped\")\n")
+	    == WREN_RESULT_SUCCESS);
+	event.data.key.code = 2;
+	CHECK(st_wren_input_dispatch(host->vm, &event, &consumed) == 0);
+	CHECK(consumed);
+	CHECK(wrenInterpret(host->vm, "input_async_contract",
+	    "if (ClaimProbe.seen.count != 2 || ClaimProbe.seen[0] != \"old\" || ClaimProbe.seen[1] != 2) Fiber.abort(\"claim ordering\")\n"
+	    "if (!ClaimProbe.currentPop() || ClaimProbe.currentPop()) Fiber.abort(\"claim pop\")\n"
+	    "ClaimProbe.finish()\n") == WREN_RESULT_SUCCESS);
+	consumed = true;
+	CHECK(st_wren_input_dispatch(host->vm, &event, &consumed) == 0);
+	CHECK(!consumed);
+	CHECK(wrenInterpret(host->vm, "input_async_contract",
+	    "ClaimProbe.dead()\n") == WREN_RESULT_SUCCESS);
+	consumed = true;
+	CHECK(st_wren_input_dispatch(host->vm, &event, &consumed) == 0);
+	CHECK(!consumed);
+	CHECK(wrenInterpret(host->vm, "input_async_contract",
+	    "if (ClaimProbe.deadPop()) Fiber.abort(\"dead claim survived\")\n")
+	    == WREN_RESULT_SUCCESS);
+	CHECK(st_wren_wake_drain(host->vm) == 0);
+	CHECK(wrenInterpret(host->vm, "input_async_contract",
+	    "if (WakeProbe.values.count != 2 || WakeProbe.values[0] != \"one\" || WakeProbe.values[1] != \"two\") Fiber.abort(\"wake order\")\n")
+	    == WREN_RESULT_SUCCESS);
+	CHECK(st_wren_wake_drain(host->vm) == 0);
+	return 0;
+}
+
+struct ignored_input_poster {
+	st_console_t *console;
+};
+
+static int
+post_ignored_input(void *argument)
+{
+	struct ignored_input_poster *poster = argument;
+	const struct timespec interval = {0, 20000000};
+	const struct st_console_event event = {
+		.type = ST_CONSOLE_EVENT_FOCUS,
+		.data.focus.focused = true,
+	};
+
+	for (unsigned int i = 0; i < 10; ++i) {
+		(void)st_thread_sleep(&interval, NULL);
+		if (st_console_post_event(poster->console, &event) != 0)
+			return 1;
+	}
+	return 0;
+}
+
+static int
+exercise_input_deadline_contract(struct st_wren_host *host,
+	st_console_t *console)
+{
+	struct ignored_input_poster poster = {.console = console};
+	st_thread_t thread;
+	uint64_t start;
+	uint64_t end;
+	int thread_result;
+
+	CHECK(st_thread_create(&thread, post_ignored_input, &poster)
+	    == ST_THREAD_SUCCESS);
+	CHECK(st_time_monotonic_ms(&start) == 0);
+	CHECK(wrenInterpret(host->vm, "input_deadline_contract",
+	    "import \"syncterm\" for Input\n"
+	    "if (Input.next(100) != null) Fiber.abort(\"unexpected input\")\n")
+	    == WREN_RESULT_SUCCESS);
+	CHECK(st_time_monotonic_ms(&end) == 0);
+	CHECK(st_thread_join(thread, &thread_result) == ST_THREAD_SUCCESS);
+	CHECK(thread_result == 0);
+	CHECK(end - start < 250);
+	CHECK(st_console_events_clear(console) == 0);
+	return 0;
+}
+
+static int
+exercise_persistent_quit_contract(struct st_wren_host *host,
+	st_console_t *console)
+{
+	const struct st_console_event close = {.type = ST_CONSOLE_EVENT_CLOSE};
+
+	CHECK(st_console_post_event(console, &close) == 0);
+	CHECK(wrenInterpret(host->vm, "persistent_quit_contract",
+	    "import \"syncterm\" for Input, Key\n"
+	    "for (i in 0...3) {\n"
+	    "  var event = Input.poll()\n"
+	    "  if (event == null || event.code != Key.quit) Fiber.abort(\"quit did not persist\")\n"
+	    "}\n") == WREN_RESULT_SUCCESS);
 	return 0;
 }
 
@@ -1373,6 +1637,9 @@ main(void)
 	CHECK(st_wren_host_create(&host, &host_config) == 0);
 	CHECK(exercise_repl_style(host, console) == 0);
 	CHECK(exercise_mouse_drag_selection(host, console) == 0);
+	CHECK(exercise_input_value_contract(host, console) == 0);
+	CHECK(exercise_claim_wake_contract(host) == 0);
+	CHECK(exercise_input_deadline_contract(host, console) == 0);
 	CHECK(exercise_repl_contract(host) == 0);
 	CHECK(wrenInterpret(((struct st_wren_host *)host)->vm,
 	    "headless_host_capabilities",
@@ -1394,9 +1661,12 @@ main(void)
 	CHECK(st_console_post_event(console, &wren_console_key) == 0);
 	CHECK(wrenInterpret(((struct st_wren_host *)host)->vm,
 	    "wren_console_key_contract",
-	    "import \"syncterm\" for Input, Key\n"
+	    "import \"syncterm\" for Input, Key, PhysicalKeyEvent\n"
+	    "var physical = Input.poll()\n"
 	    "var event = Input.poll()\n"
-	    "if (event == null || event.code != Key.wrenConsole) "
+	    "if (!(physical is PhysicalKeyEvent) || physical.evdev != 41 || "
+	    "!physical.pressed || physical.modifiers != 2 || physical.repeat || "
+	    "event == null || event.code != Key.wrenConsole) "
 	    "Fiber.abort(\"Ctrl+grave conversion failed\")\n")
 	    == WREN_RESULT_SUCCESS);
 	for (uint16_t selector = 0; selector < 45; ++selector)
@@ -1509,6 +1779,7 @@ main(void)
 	CHECK(st_wren_host_run_menu(host, &selected, &has_selection) == 0);
 	CHECK(!has_selection);
 	st_profile_dispose(&selected);
+	CHECK(exercise_persistent_quit_contract(host, console) == 0);
 	st_wren_host_destroy(host);
 	st_console_destroy(console);
 

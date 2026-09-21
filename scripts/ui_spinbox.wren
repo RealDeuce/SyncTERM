@@ -138,12 +138,12 @@ class SpinBox is Widget {
     if (bounds == null) return false
     if (!bounds.contains(me.startX, me.startY)) return false
     var e = me.event
-    if (e == Mouse.wheelUpPress || e == Mouse.wheelUpClick) {
-      bump_(_step)
+    if (e == Mouse.wheelUp) {
+      bump_(_step * me.wheelY.abs.max(1))
       return true
     }
-    if (e == Mouse.wheelDownPress || e == Mouse.wheelDownClick) {
-      bump_(-_step)
+    if (e == Mouse.wheelDown) {
+      bump_(-_step * me.wheelY.abs.max(1))
       return true
     }
     if (e != Mouse.button1Click && e != Mouse.button1Press) return false

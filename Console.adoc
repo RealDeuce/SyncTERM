@@ -451,6 +451,9 @@ display, including physical events submitted through the explicit-console
 entry point.  Focus loss queues releases on the event's target console before
 the focus event and clears the display's held set.  Clearing queued events does
 not alter held state.
+`st_console_synthesize_physical_key()` atomically compares that held state and
+queues only a real transition, so a failed queue reservation cannot change the
+state without delivering its edge.
 
 X11 committed text comes from its UTF-8 input context, preserving layouts,
 dead keys, compose processing, and external input methods.  Wayland uses
@@ -463,8 +466,8 @@ the retained screen, even while the application is idle.  A resize event
 reports the new host dimensions; it does not resize the logical console.
 
 Mouse coordinates are in the logical console pixel grid, independent of final
-window scaling.  Button state, action, coordinates, and wheel deltas remain
-separate fields.
+window scaling.  Button state, event-time modifiers, action, coordinates, and
+wheel deltas remain separate fields.
 
 == Window and Host Operations
 

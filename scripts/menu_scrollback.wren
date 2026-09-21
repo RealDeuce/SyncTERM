@@ -139,14 +139,12 @@ class OfflineScrollbackCanvas is Widget {
       return true
     }
     if (event is MouseEvent) {
-      if (event.event == Mouse.wheelUpPress ||
-          event.event == Mouse.wheelUpClick) {
-        move_(-1)
+      if (event.event == Mouse.wheelUp) {
+        move_(-event.wheelY.abs.max(1))
         return true
       }
-      if (event.event == Mouse.wheelDownPress ||
-          event.event == Mouse.wheelDownClick) {
-        move_(1)
+      if (event.event == Mouse.wheelDown) {
+        move_(event.wheelY.abs.max(1))
         return true
       }
       if (event.event == Mouse.button1Click) {
@@ -194,8 +192,8 @@ class OfflineScrollbackView {
     Input.enableMouseEvent(Mouse.button1DragStart)
     Input.enableMouseEvent(Mouse.button1DragMove)
     Input.enableMouseEvent(Mouse.button1DragEnd)
-    Input.enableMouseEvent(Mouse.wheelUpPress)
-    Input.enableMouseEvent(Mouse.wheelDownPress)
+    Input.enableMouseEvent(Mouse.wheelUp)
+    Input.enableMouseEvent(Mouse.wheelDown)
     Input.mouseVisible = true
     var background = Screen.readRect(1, 1, Screen.size[0], Screen.size[1])
     var dismiss = Fn.new { app.popModal() }

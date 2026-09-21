@@ -397,7 +397,10 @@ foreign class Input {
   // The two-arg `pushClaim_` is the foreign; the public one-arg
   // `pushClaim` captures `Fiber.current` automatically.
   foreign static pushClaim_(fiber, fn)
-  static pushClaim(fn) { pushClaim_(Fiber.current, fn) }
+  static pushClaim(fn) {
+    if (!(fn is Fn)) Fiber.abort("Input.pushClaim expects a Fn")
+    return pushClaim_(Fiber.current, fn)
+  }
 
   static unget(ev) {
     if (ev is KeyEvent) {
@@ -406,6 +409,8 @@ foreign class Input {
       Input.ungetPhysicalKey_(ev)
     } else if (ev is MouseEvent) {
       Input.ungetMouse_(ev)
+    } else {
+      Fiber.abort("Input.unget expects an input event")
     }
   }
   foreign static ungetKey_(ev)
@@ -423,10 +428,10 @@ foreign class ClaimHandle {
 
 // Fiber-resume primitive.  `Wake.post(fiber, value)` queues a
 // synthetic resume of `fiber`, delivering `value` as the return of
-// its next `Fiber.yield()`.  The wake is enqueued on the same
-// result queue Timer.trigger and SFTP completions use, so it's
-// delivered on the next main-loop drain - never in the middle of
-// the current foreign call.  Safe to call from hooks
+// its next `Fiber.yield()`.  The wake is enqueued in this VM's FIFO
+// and delivered when its owner loop next drains that FIFO - never in
+// the middle of the current foreign call.  Safe to call on the VM's
+// owner thread from hooks
 // (Hook.onInput / Hook.onMouse / Hook.onStatus / claim handlers /
 // worker fibers): remote bytes or any other state change a hook
 // observes can wake a UI fiber that's parked on `Fiber.yield()`.
@@ -446,7 +451,11 @@ foreign class ClaimHandle {
 // re-enters wrenCall (same rule as wrenCall in §7 of wren.md);
 // hooks are the canonical safe site.
 class Wake {
-  foreign static post(fiber, value)
+  foreign static post_(fiber, value)
+  static post(fiber, value) {
+    if (!(fiber is Fiber)) Fiber.abort("Wake.post expects a Fiber")
+    return post_(fiber, value)
+  }
 }
 
 foreign class KeyEvent {
@@ -458,8 +467,11 @@ foreign class KeyEvent {
 }
 foreign class PhysicalKeyEvent {
   construct new(evdev, pressed) {}
+  construct new(evdev, pressed, modifiers, repeat) {}
   foreign evdev
   foreign pressed
+  foreign modifiers
+  foreign repeat
   foreign toString
 }
 // Five constructor overloads for synthesising mouse events.  All
@@ -477,6 +489,9 @@ foreign class MouseEvent {
   construct new(event, startX, startY, endX, endY, modifiers, bstate) {}
   foreign static withPixels(event, startX, startY, endX, endY, modifiers,
       bstate, startPixelX, startPixelY, endPixelX, endPixelY)
+  foreign static withPixelsAndWheel(event, startX, startY, endX, endY,
+      modifiers, bstate, startPixelX, startPixelY, endPixelX, endPixelY,
+      wheelX, wheelY)
   foreign event
   foreign bstate
   foreign modifiers
@@ -488,15 +503,14 @@ foreign class MouseEvent {
   foreign startPixelY
   foreign endPixelX
   foreign endPixelY
+  foreign wheelX
+  foreign wheelY
   foreign toString
 }
-// Numeric values from `enum ciolib_mouse_event` in conio/ciolib.h.
-// MouseEvent.event matches one of these.  Each button's slot is
+// MouseEvent.event matches one of these stable values.  Each button's slot is
 // press/release/click/dbl/trpl/quad/dragStart/dragMove/dragEnd in
 // that order, offset by 9 per button.  Buttons 1/2/3 are left,
-// middle, and right.  Buttons 4/5 are the scroll
-// wheel (4 = up, 5 = down) and arrive as PRESS or CLICK depending
-// on backend; coords are the cursor's current position.
+// middle, and right; buttons 4/5 are X1 and X2.
 class Mouse {
   static move           { 0  }
   static button1Press   { 1  }
@@ -511,13 +525,47 @@ class Mouse {
   static button2Press    { 10 }
   static button2Release  { 11 }
   static button2Click    { 12 }
+  static button2DblClick { 13 }
+  static button2TrplClick{ 14 }
+  static button2QuadClick{ 15 }
+  static button2DragStart{ 16 }
+  static button2DragMove { 17 }
+  static button2DragEnd  { 18 }
   static button3Press    { 19 }
   static button3Release  { 20 }
   static button3Click    { 21 }
-  static wheelUpPress   { 28 }   // BUTTON_4_PRESS
-  static wheelUpClick   { 30 }   // BUTTON_4_CLICK
-  static wheelDownPress { 37 }   // BUTTON_5_PRESS
-  static wheelDownClick { 39 }   // BUTTON_5_CLICK
+  static button3DblClick { 22 }
+  static button3TrplClick{ 23 }
+  static button3QuadClick{ 24 }
+  static button3DragStart{ 25 }
+  static button3DragMove { 26 }
+  static button3DragEnd  { 27 }
+  static button4Press    { 28 }
+  static button4Release  { 29 }
+  static button4Click    { 30 }
+  static button4DblClick { 31 }
+  static button4TrplClick{ 32 }
+  static button4QuadClick{ 33 }
+  static button4DragStart{ 34 }
+  static button4DragMove { 35 }
+  static button4DragEnd  { 36 }
+  static button5Press    { 37 }
+  static button5Release  { 38 }
+  static button5Click    { 39 }
+  static button5DblClick { 40 }
+  static button5TrplClick{ 41 }
+  static button5QuadClick{ 42 }
+  static button5DragStart{ 43 }
+  static button5DragMove { 44 }
+  static button5DragEnd  { 45 }
+  static wheelUp         { 46 }
+  static wheelDown       { 47 }
+  static wheelLeft       { 48 }
+  static wheelRight      { 49 }
+  static wheelUpPress    { wheelUp }
+  static wheelUpClick    { wheelUp }
+  static wheelDownPress  { wheelDown }
+  static wheelDownClick  { wheelDown }
 }
 class Key {
   static escape      { 0x001B }
@@ -1483,7 +1531,7 @@ class Hook {
       return null
     }
     if (f.error != null) {
-      System.print("hook error: " + f.error)
+      System.print("hook handler aborted")
       REPL.printTrace_(f)
       return null
     }

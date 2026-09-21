@@ -306,16 +306,14 @@ class ColorRamp is Widget {
     if (bounds == null || !bounds.contains(event.startX, event.startY)) {
       return false
     }
-    if (event.event == Mouse.wheelUpPress ||
-        event.event == Mouse.wheelUpClick) {
+    if (event.event == Mouse.wheelUp) {
       focusSelf_()
-      change_(_value + 1)
+      change_(_value + event.wheelY.abs.max(1))
       return true
     }
-    if (event.event == Mouse.wheelDownPress ||
-        event.event == Mouse.wheelDownClick) {
+    if (event.event == Mouse.wheelDown) {
       focusSelf_()
-      change_(_value - 1)
+      change_(_value - event.wheelY.abs.max(1))
       return true
     }
     // Press and drag events deliberately fall through to App's text

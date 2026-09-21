@@ -141,14 +141,12 @@ class ThemeGlyphGrid is Widget {
     if (bounds == null || !bounds.contains(event.startX, event.startY)) {
       return false
     }
-    if (event.event == Mouse.wheelUpPress ||
-        event.event == Mouse.wheelUpClick) {
-      moveVertical_(-1)
+    if (event.event == Mouse.wheelUp) {
+      moveVertical_(-event.wheelY.abs.max(1))
       return true
     }
-    if (event.event == Mouse.wheelDownPress ||
-        event.event == Mouse.wheelDownClick) {
-      moveVertical_(1)
+    if (event.event == Mouse.wheelDown) {
+      moveVertical_(event.wheelY.abs.max(1))
       return true
     }
     if (event.event != Mouse.button1Click &&
@@ -624,15 +622,15 @@ class ThemeAtlas is Widget {
       return false
     }
     var overScroll = count_ > bounds.h && event.startX == bounds.right
-    if (event.event == Mouse.wheelUpPress ||
-        event.event == Mouse.wheelUpClick) {
-      _model.move(overScroll ? -viewport_ + 1 : -1)
+    if (event.event == Mouse.wheelUp) {
+      _model.move((overScroll ? -viewport_ + 1 : -1) *
+          event.wheelY.abs.max(1))
       ensureVisible_()
       return true
     }
-    if (event.event == Mouse.wheelDownPress ||
-        event.event == Mouse.wheelDownClick) {
-      _model.move(overScroll ? viewport_ - 1 : 1)
+    if (event.event == Mouse.wheelDown) {
+      _model.move((overScroll ? viewport_ - 1 : 1) *
+          event.wheelY.abs.max(1))
       ensureVisible_()
       return true
     }

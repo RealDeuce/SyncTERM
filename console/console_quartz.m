@@ -363,7 +363,10 @@ post_mouse(struct quartz_state *state, NSEvent *source,
 	NSUInteger native_buttons = [NSEvent pressedMouseButtons];
 	struct st_console_event event = {
 		.type = ST_CONSOLE_EVENT_MOUSE,
-		.data.mouse.action = action,
+		.data.mouse = {
+			.action = action,
+			.modifiers = event_modifiers(source.modifierFlags),
+		},
 	};
 	struct st_console_bitmap_frame frame = state->frame;
 	double x = point.x * scale;

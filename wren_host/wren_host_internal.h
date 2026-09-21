@@ -88,21 +88,80 @@ struct st_wren_log {
 	size_t count;
 };
 
+enum st_wren_input_type {
+	ST_WREN_INPUT_KEY,
+	ST_WREN_INPUT_PHYSICAL_KEY,
+	ST_WREN_INPUT_MOUSE,
+};
+
+struct st_wren_input_record {
+	enum st_wren_input_type type;
+	union {
+		struct {
+			uint16_t code;
+			uint32_t codepoint;
+			bool has_codepoint;
+		} key;
+		struct {
+			uint16_t evdev;
+			uint32_t modifiers;
+			bool pressed;
+			bool repeat;
+		} physical_key;
+		struct {
+			int event;
+			uint32_t buttons;
+			uint32_t modifiers;
+			int32_t start_x;
+			int32_t start_y;
+			int32_t end_x;
+			int32_t end_y;
+			int32_t start_pixel_x;
+			int32_t start_pixel_y;
+			int32_t end_pixel_x;
+			int32_t end_pixel_y;
+			int32_t wheel_x;
+			int32_t wheel_y;
+		} mouse;
+	} data;
+};
+
+struct st_wren_mouse_gesture {
+	int32_t start_x;
+	int32_t start_y;
+	int32_t start_pixel_x;
+	int32_t start_pixel_y;
+	int32_t end_x;
+	int32_t end_y;
+	uint32_t modifiers;
+	bool pressed;
+	bool dragging;
+};
+
+struct st_wren_input_claim;
+struct st_wren_wake;
+
 /* VM lifetime state, shared by that VM's UI and REPL. */
 struct st_wren_context {
 	struct st_wren_host *host;
+	WrenVM *vm;
 	st_console_t *console;
 	struct st_wren_font_state fonts;
 	uint64_t mouse_events;
 	uint32_t mouse_buttons;
-	int32_t mouse_drag_start_x;
-	int32_t mouse_drag_start_y;
-	int32_t mouse_drag_start_pixel_x;
-	int32_t mouse_drag_start_pixel_y;
-	int32_t mouse_drag_end_x;
-	int32_t mouse_drag_end_y;
-	bool mouse_left_pressed;
-	bool mouse_left_dragging;
+	struct st_wren_mouse_gesture mouse_gestures[5];
+	struct st_wren_input_record *pending_input;
+	size_t pending_input_head;
+	size_t pending_input_count;
+	size_t pending_input_capacity;
+	struct st_wren_input_claim *claim_top;
+	uint64_t next_claim_id;
+	struct st_wren_wake *wake_head;
+	struct st_wren_wake *wake_tail;
+	WrenHandle *hook_class;
+	WrenHandle *hook_dispatch;
+	WrenHandle *fiber_is_done;
+	WrenHandle *fiber_call;
 	struct st_wren_log log;
 	struct st_wren_log capture;
 	bool capturing;
@@ -205,5 +264,10 @@ uint16_t st_wren_font_selector(struct st_wren_context *context,
 	uint16_t identifier);
 int st_wren_mouse_drag_select(struct st_wren_context *context,
 	bool rectangular);
+int st_wren_input_context_init(WrenVM *vm);
+void st_wren_input_context_dispose(WrenVM *vm);
+int st_wren_input_dispatch(WrenVM *vm,
+	const struct st_wren_input_record *event, bool *consumed);
+int st_wren_wake_drain(WrenVM *vm);
 
 #endif

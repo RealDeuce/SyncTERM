@@ -203,7 +203,7 @@ class UiDatePickerTest {
     // Local right header arrow begins at x=25; bounds.x=2 => screen x=27.
     picker.handle(MouseEvent.new(Mouse.button1Click, 27, 5))
     var header = picker.value == "2025-04-01"
-    picker.handle(MouseEvent.new(Mouse.wheelUpPress, 10, 8))
+    picker.handle(MouseEvent.new(Mouse.wheelUp, 10, 8))
     check_(header && picker.value == "2025-03-01",
         "DatePicker: header arrows and wheel change month")
   }

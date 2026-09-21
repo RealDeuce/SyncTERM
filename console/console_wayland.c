@@ -847,7 +847,9 @@ static void pointer_motion(void *data,
 	struct st_console_event event = {
 	    .type = ST_CONSOLE_EVENT_MOUSE,
 	    .data.mouse = {.action = ST_CONSOLE_MOUSE_MOVE,
-			   .buttons = state->buttons}};
+			   .buttons = state->buttons,
+			   .modifiers = state->xkb_state == NULL
+			       ? 0 : modifiers(state)}};
 	(void)pointer;
 	(void)time;
 	if (state->frame.destination.width == 0)
@@ -870,6 +872,8 @@ static void pointer_button(void *data,
 	uint32_t mask = button == 0x110	  ? ST_CONSOLE_MOUSE_BUTTON_LEFT
 			: button == 0x111 ? ST_CONSOLE_MOUSE_BUTTON_RIGHT
 			: button == 0x112 ? ST_CONSOLE_MOUSE_BUTTON_MIDDLE
+			: button == 0x113 ? ST_CONSOLE_MOUSE_BUTTON_X1
+			: button == 0x114 ? ST_CONSOLE_MOUSE_BUTTON_X2
 					  : 0;
 	struct st_console_event event = {.type = ST_CONSOLE_EVENT_MOUSE,
 					 .data.mouse.action =
@@ -890,6 +894,8 @@ static void pointer_button(void *data,
 	else
 		state->buttons &= ~mask;
 	event.data.mouse.buttons = state->buttons;
+	event.data.mouse.modifiers = state->xkb_state == NULL
+	    ? 0 : modifiers(state);
 	st_console_bitmap_mouse_position(&state->frame,
 	    wl_fixed_to_int(state->pointer_x),
 	    wl_fixed_to_int(state->pointer_y), &event);
@@ -906,7 +912,9 @@ static void pointer_axis(void *data,
 	struct st_console_event event = {
 	    .type = ST_CONSOLE_EVENT_MOUSE,
 	    .data.mouse = {.action = ST_CONSOLE_MOUSE_WHEEL,
-			   .buttons = state->buttons}};
+			   .buttons = state->buttons,
+			   .modifiers = state->xkb_state == NULL
+			       ? 0 : modifiers(state)}};
 	int32_t direction = wl_fixed_to_int(value);
 	int32_t amount;
 	(void)pointer;

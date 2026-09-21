@@ -1848,9 +1848,10 @@ input until Esc":
 [source,wren]
 ----
 Hook.onKey(Key.f2) { |k|
-  Fiber.new {
+  var worker
+  worker = Fiber.new {
     var claim = Input.pushClaim(Fn.new {|ev|
-      Wake.post(Fiber.current, ev)
+      Wake.post(worker, ev)
       return true
     })
     while (true) {
@@ -1859,7 +1860,8 @@ Hook.onKey(Key.f2) { |k|
       // ...
     }
     claim.pop()
-  }.call()
+  }
+  worker.call()
   return true
 }
 ----
@@ -2688,22 +2690,22 @@ Unified blocking and nonblocking reader for keyboard and mouse events.
 
 | `Input.next(ms)`
 | Wait up to `ms` milliseconds; return the event or `null` on
-  timeout.
+  timeout.  Filtering unrelated host events does not restart the deadline.
 
 | `Input.poll()`
 | Return immediately with the next pending event, or `null` if
   nothing is pending.
 
 | `Input.unget(ev)`
-| Push an event back to the front of the input queue.  Routes by
-  event type — `KeyEvent` -> `ungetch`, `PhysicalKeyEvent` ->
-  physical-key synthesis, `MouseEvent` -> `ungetmouse`.
+| Push an exact copy of a `KeyEvent`, `PhysicalKeyEvent`, or `MouseEvent`
+  back to the front of this VM's input queue.  Other values abort the
+  calling fiber.
 
 | `Input.synthesizePhysicalKey(evdev, pressed)`
 | Synthesize a physical key edge.  `evdev` is an evdev key code number;
   `pressed` is `true` for press and `false` for release.  Duplicate
-  edges are suppressed by ciolib's held-key tracking.  Has no effect on
-  builds without physical-key event support.
+  edges are suppressed by the console's held-key tracking.  Synthesized
+  events have zero modifiers and `repeat=false`.
 
 | `Input.mousedrag()`, `Input.mousedrag(forceRect)`
 | Hand off to SyncTERM's full-screen drag-select gesture.  This uses the
@@ -2718,7 +2720,8 @@ Unified blocking and nonblocking reader for keyboard and mouse events.
 
 | `Input.mouseEvents`, `Input.mouseEvents=(mask)`
 | Read or set the bitmask of `Mouse.*` events the terminal will
-  deliver.  UI code typically saves the current mask, *replaces* it
+  deliver.  Event IDs are limited to 0 through 49, so every valid mask is
+  exactly representable by Wren `Num`.  UI code typically saves the current mask, *replaces* it
   with exactly the events it cares about, and restores on exit so
   the surrounding terminal's mouse mode survives.
 
@@ -2726,13 +2729,9 @@ Unified blocking and nonblocking reader for keyboard and mouse events.
 | Single-event toggles for the same mask.
 
 | `Input.setupMouseEvents()`
-| Reconfigure ciolib to report exactly the events appropriate for
-  cterm's current mouse mode (`MM_OFF` clears everything; the various
-  tracking modes each register their own button / move set), then
-  call `showmouse()`.  Wraps the C-side `setup_mouse_events(&ms)` +
-  `showmouse()` pair — call after toggling
-  <<cterm,`CTerm.mouseDisabled`>> or otherwise mutating mouse state
-  from a script.
+| Reserved for the future connected CTerm host, where it will select the
+  events required by the negotiated remote mouse mode.  It is not available
+  in the current menu or picker hosts.
 
 | `Input.pushClaim(fn)`
 | Push `fn` onto the input claim stack as the *current* claim for
@@ -2754,6 +2753,11 @@ supports the explicit `Widget.atExit` exception.
 For posting a synthetic resume to a parked fiber (the wake
 mechanism that `Hook.onInput`-style callbacks use to nudge a UI
 fiber), see <<wake,Wake>>.
+
+Claims and wakes are stored independently for each VM.  The persistent menu
+and picker currently use the synchronous `Input.next` path; the future
+connected-session owner loop is responsible for invoking claim dispatch and
+draining wakes.  Registering a claim alone does not create a background pump.
 
 === KeyEvent
 
@@ -2812,24 +2816,38 @@ code namespace as CTerm's physical-key reporting protocol.  Returned by
 `Input.next()` / `Input.poll()`, passed to `Input.pushClaim` handlers, and
 passed to `Hook.onPhysicalKey` callbacks.
 
+Physical events are delivered before any compatibility `KeyEvent` synthesized
+from the same modified press.  Repeated presses retain both the physical
+`repeat` flag and the compatibility event; releases produce only the physical
+event.
+
 [options="header",cols="2,3"]
 |===
 | Member | Description
 
-| `PhysicalKeyEvent.new(evdev, pressed)`
+| `PhysicalKeyEvent.new(evdev, pressed)` +
+  `PhysicalKeyEvent.new(evdev, pressed, modifiers, repeat)`
 | Construct a synthetic physical-key edge.  `evdev` must be in the evdev
   key-code range; `pressed` is `true` for press and `false` for release.
+  The short form uses zero modifiers and `repeat=false`.
 
 | `evdev`
 | evdev key code number.
 
 | `pressed`
 | `true` for press, `false` for release.
+
+| `modifiers`
+| Event-time modifier mask: Shift=1, Control=2, Alt=4, GUI=8,
+  Caps Lock=16, and Num Lock=32.
+
+| `repeat`
+| `true` when the backend identified this press as a repeat.
 |===
 
 === MouseEvent [[mouseevent]]
 
-Mirrors `struct mouse_event` from `ciolib.h`.  Returned by
+Represents one normalized SyncTERM mouse event.  Returned by
 `Input.next()` / `Input.poll()`, passed to `Input.pushClaim`
 handlers, and passed to `Hook.onMouse` callbacks — every mouse
 surface uses this same shape.
@@ -2847,7 +2865,7 @@ surface uses this same shape.
   Omitted `endX` / `endY` default to `startX` / `startY` (a
   zero-extent point event); omitted `modifiers` defaults to `0`;
   omitted `bstate` is derived from `event` — the bit for the
-  button this event is about, per `Mouse` / `CIOLIB_BUTTON(n)`,
+  button this event is about, per `Mouse`,
   or `0` for `Mouse.move`.  The seven-arg form is the canonical
   fully-explicit constructor.
 
@@ -2856,6 +2874,11 @@ surface uses this same shape.
 | Construct a fully explicit synthetic event including internal raster
   coordinates.  This is a named factory rather than a sixth overloaded
   constructor so pixel and cell coordinates cannot be confused by arity.
+
+| `MouseEvent.withPixelsAndWheel(event, startX, startY, endX, endY,
+  modifiers, bstate, startPixelX, startPixelY, endPixelX, endPixelY,
+  wheelX, wheelY)`
+| The fully explicit factory, including signed wheel-axis values.
 
 | `event`
 | Mouse event type code.
@@ -2866,7 +2889,9 @@ surface uses this same shape.
   drag-end handler check which other buttons were also held.
 
 | `modifiers`
-| Keyboard modifier mask.
+| Event-time keyboard modifier mask, using the same bits as
+  `PhysicalKeyEvent.modifiers`.  Derived click and drag events retain the
+  modifiers from their button press.
 
 | `startX`, `startY`
 | Click-down coordinates (1-based).
@@ -2882,17 +2907,22 @@ surface uses this same shape.
 | `endPixelX`, `endPixelY`
 | Release coordinates in the 0-based internal raster, with the same `-1` and
   synthetic-constructor rules as the start fields.
+
+| `wheelX`, `wheelY`
+| Signed native wheel magnitude.  A vertical event has `wheelX=0`; a
+  horizontal event has `wheelY=0`.  Diagonal input is returned as vertical
+  then horizontal events.
 |===
 
 ==== Mouse event constants
 
-`Mouse.button1*`, `Mouse.button2*`, and `Mouse.button3*` identify left,
-middle, and right button events.  Each family uses the ciolib order Press,
-Release, Click, double/triple/quadruple Click, DragStart, DragMove, and DragEnd;
-the Wren module currently names every button-1 event and the button-2 and
-button-3 Press, Release, and Click events.  `Mouse.wheelUpPress`,
-`Mouse.wheelUpClick`, `Mouse.wheelDownPress`, and `Mouse.wheelDownClick` cover
-the backend-dependent wheel forms.
+`Mouse.button1*` through `Mouse.button5*` identify left, middle, right, X1,
+and X2 events.  Each family occupies nine stable values in the order Press,
+Release, Click, double/triple/quadruple Click, DragStart, DragMove, and DragEnd.
+Native translation currently produces Press, Release, Click, DragStart,
+DragMove, and DragEnd; multi-click values remain available to synthetic input.
+`Mouse.wheelUp`, `wheelDown`, `wheelLeft`, and `wheelRight` are values 46
+through 49.  The older `wheel*Press` and `wheel*Click` names remain aliases.
 
 === ClaimHandle [[claimhandle]]
 
@@ -2914,13 +2944,12 @@ Returned from `Input.pushClaim`.  Drop the claim by calling
 
 === Wake [[wake]]
 
-Fiber-resume primitive.  `Wake.post(fiber, value)` queues a
+Owner-thread fiber-resume primitive.  `Wake.post(fiber, value)` queues a
 synthetic resume of `fiber`, delivering `value` as the return of
-its next `Fiber.yield()`.  The wake is enqueued on the same
-result queue `Timer.trigger` and SFTP completions use, so it's
-delivered on the next main-loop drain — never in the middle of the
-current foreign call.  Safe to call from any foreign context
-(hooks, claim handlers, worker fibers).  `value` may be any Wren
+its next `Fiber.yield()`.  It is held in that VM's FIFO and delivered by the
+owning host's next explicit wake drain — never in the middle of the current
+foreign call.  It may be called while executing that VM on its owner thread
+(hooks, claim handlers, and worker fibers).  `value` may be any Wren
 object — the deliverer pins it as a `WrenHandle` until delivery,
 then loads it into the fiber's resumed-value slot.  Multiple posts
 queue up; each becomes one resumption in arrival order.

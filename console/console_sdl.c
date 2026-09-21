@@ -979,6 +979,8 @@ dispatch_event(const SDL_Event *source)
 		    || source->window.event == SDL_WINDOWEVENT_FOCUS_LOST) {
 			state->focused = source->window.event
 			    == SDL_WINDOWEVENT_FOCUS_GAINED;
+			if (!state->focused)
+				state->key_modifiers = 0;
 			if (state->focused)
 				(void)manager.api.show_cursor(state->pointer_visible
 				    ? SDL_ENABLE : SDL_DISABLE);
@@ -1087,6 +1089,7 @@ dispatch_event(const SDL_Event *source)
 	case SDL_MOUSEMOTION:
 		event.type = ST_CONSOLE_EVENT_MOUSE;
 		event.data.mouse.action = ST_CONSOLE_MOUSE_MOVE;
+		event.data.mouse.modifiers = state->key_modifiers;
 		state->mouse_x = source->motion.x;
 		state->mouse_y = source->motion.y;
 		logical_mouse(state, state->mouse_x, state->mouse_y, &event);
@@ -1104,6 +1107,7 @@ dispatch_event(const SDL_Event *source)
 			state->mouse_buttons &= ~button;
 		event.type = ST_CONSOLE_EVENT_MOUSE;
 		event.data.mouse.action = ST_CONSOLE_MOUSE_BUTTON;
+		event.data.mouse.modifiers = state->key_modifiers;
 		state->mouse_x = source->button.x;
 		state->mouse_y = source->button.y;
 		logical_mouse(state, state->mouse_x, state->mouse_y, &event);
@@ -1114,6 +1118,7 @@ dispatch_event(const SDL_Event *source)
 	case SDL_MOUSEWHEEL:
 		event.type = ST_CONSOLE_EVENT_MOUSE;
 		event.data.mouse.action = ST_CONSOLE_MOUSE_WHEEL;
+		event.data.mouse.modifiers = state->key_modifiers;
 		event.data.mouse.wheel_x = source->wheel.direction
 		    == SDL_MOUSEWHEEL_FLIPPED ? -source->wheel.x : source->wheel.x;
 		event.data.mouse.wheel_y = source->wheel.direction

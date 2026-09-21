@@ -397,6 +397,7 @@ post_mouse(struct gdi_state *state, enum st_console_mouse_action action,
 			.action = action,
 			.wheel_x = wheel_x,
 			.wheel_y = wheel_y,
+			.modifiers = modifiers(),
 		},
 	};
 

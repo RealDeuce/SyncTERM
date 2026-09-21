@@ -380,6 +380,7 @@ struct st_console_event {
 			int32_t wheel_x;
 			int32_t wheel_y;
 			uint32_t buttons;
+			uint32_t modifiers;
 			enum st_console_mouse_action action;
 		} mouse;
 		struct {
@@ -597,6 +598,9 @@ int st_console_event_timedwait(st_console_t *console,
 int st_console_events_clear(st_console_t *console);
 int st_console_physical_key_state(st_console_t *console, uint16_t evdev,
 	bool *pressed);
+/* Queue a synthetic edge only when it changes the display's held-key state. */
+int st_console_synthesize_physical_key(st_console_t *console, uint16_t evdev,
+	bool pressed);
 int st_console_display_physical_key_state(st_console_display_t *display,
 	uint16_t evdev, bool *pressed);
 

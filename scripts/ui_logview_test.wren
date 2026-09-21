@@ -273,7 +273,7 @@ class UiLogviewTest {
     for (i in 1..12) {
       lv.append(LogView.LEVEL_INFO, "line %(i)")
     }
-    var ev = MouseEvent.new(Mouse.wheelUpClick, 10, 3, 10, 3)
+    var ev = MouseEvent.new(Mouse.wheelUp, 10, 3, 10, 3)
     var consumed = lv.handle(ev)
     check_(consumed && lv.scrollTop == 2,
            "wheel over scrollbar moves one viewport page")

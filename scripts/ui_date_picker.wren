@@ -263,14 +263,12 @@ class DatePicker is Widget {
     if (bounds == null || !bounds.contains(event.startX, event.startY)) {
       return false
     }
-    if (event.event == Mouse.wheelUpPress ||
-        event.event == Mouse.wheelUpClick) {
-      moveMonths(-1)
+    if (event.event == Mouse.wheelUp) {
+      moveMonths(-event.wheelY.abs.max(1))
       return true
     }
-    if (event.event == Mouse.wheelDownPress ||
-        event.event == Mouse.wheelDownClick) {
-      moveMonths(1)
+    if (event.event == Mouse.wheelDown) {
+      moveMonths(event.wheelY.abs.max(1))
       return true
     }
     if (event.event != Mouse.button1Click &&

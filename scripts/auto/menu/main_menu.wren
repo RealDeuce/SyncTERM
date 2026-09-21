@@ -254,10 +254,8 @@ class MainList is ListView {
       if (!active && activate != true) return true
     }
     if (event is MouseEvent && parent != null && !parent.focused &&
-        (event.event == Mouse.wheelUpPress ||
-         event.event == Mouse.wheelUpClick ||
-         event.event == Mouse.wheelDownPress ||
-         event.event == Mouse.wheelDownClick)) {
+        (event.event == Mouse.wheelUp ||
+         event.event == Mouse.wheelDown)) {
       if (_onInactiveWheel != null) _onInactiveWheel.call(event)
       return true
     }
@@ -560,25 +558,27 @@ class MainMenuApp {
   }
 
   routeWheel_(event) {
-    var up = event.event == Mouse.wheelUpPress ||
-        event.event == Mouse.wheelUpClick
-    var down = event.event == Mouse.wheelDownPress ||
-        event.event == Mouse.wheelDownClick
+    var up = event.event == Mouse.wheelUp
+    var down = event.event == Mouse.wheelDown
     if (!up && !down) return false
     var focused = _app.root.focusedChild
     if (focused == _directory) {
-      if (up) {
-        _list.up()
-      } else {
-        _list.down()
+      for (i in 0...event.wheelY.abs.max(1)) {
+        if (up) {
+          _list.up()
+        } else {
+          _list.down()
+        }
       }
       return true
     }
     if (focused == _settings) {
-      if (up) {
-        _settingsList.up()
-      } else {
-        _settingsList.down()
+      for (i in 0...event.wheelY.abs.max(1)) {
+        if (up) {
+          _settingsList.up()
+        } else {
+          _settingsList.down()
+        }
       }
       return true
     }
@@ -586,10 +586,8 @@ class MainMenuApp {
   }
 
   backgroundMouse_(event, hit) {
-    if (event.event == Mouse.wheelUpPress ||
-        event.event == Mouse.wheelUpClick ||
-        event.event == Mouse.wheelDownPress ||
-        event.event == Mouse.wheelDownClick) return routeWheel_(event)
+    if (event.event == Mouse.wheelUp ||
+        event.event == Mouse.wheelDown) return routeWheel_(event)
     if (event.event != Mouse.button1Click) return false
     if (hit != _app.root && hit != _backdrop) return false
     var focused = _app.root.focusedChild

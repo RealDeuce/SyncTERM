@@ -257,13 +257,15 @@ st_wren_mouse_drag_select(struct st_wren_context *context, bool rectangular)
 	};
 	struct st_console_event event;
 	struct st_console_rect screen;
+	struct st_wren_mouse_gesture *gesture;
 	size_t count;
 	bool copy = false;
 	int result;
 
 	if (context == NULL || context->console == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (!context->mouse_left_pressed || !context->mouse_left_dragging)
+	gesture = &context->mouse_gestures[0];
+	if (!gesture->pressed || !gesture->dragging)
 		return 0;
 	result = st_console_size(context->console, &selection.columns,
 	    &selection.rows);
@@ -301,10 +303,10 @@ st_wren_mouse_drag_select(struct st_wren_context *context, bool rectangular)
 		goto done;
 	for (size_t index = 0; index < count; ++index)
 		selection.displayed[index] = selection.original[index];
-	selection.start_x = context->mouse_drag_start_x;
-	selection.start_y = context->mouse_drag_start_y;
-	selection.end_x = context->mouse_drag_end_x;
-	selection.end_y = context->mouse_drag_end_y;
+	selection.start_x = gesture->start_x;
+	selection.start_y = gesture->start_y;
+	selection.end_x = gesture->end_x;
+	selection.end_y = gesture->end_y;
 	result = paint_selection(&selection, false);
 	while (result == 0) {
 		result = st_console_event_wait(context->console, &event);
@@ -320,8 +322,8 @@ st_wren_mouse_drag_select(struct st_wren_context *context, bool rectangular)
 		    & ST_CONSOLE_MOUSE_BUTTON_LEFT) != 0) {
 			selection.end_x = event.data.mouse.x;
 			selection.end_y = event.data.mouse.y;
-			context->mouse_drag_end_x = event.data.mouse.x;
-			context->mouse_drag_end_y = event.data.mouse.y;
+			gesture->end_x = event.data.mouse.x;
+			gesture->end_y = event.data.mouse.y;
 			result = paint_selection(&selection, false);
 		}
 		else if (event.data.mouse.action == ST_CONSOLE_MOUSE_BUTTON
@@ -329,10 +331,10 @@ st_wren_mouse_drag_select(struct st_wren_context *context, bool rectangular)
 		    & ST_CONSOLE_MOUSE_BUTTON_LEFT) == 0) {
 			selection.end_x = event.data.mouse.x;
 			selection.end_y = event.data.mouse.y;
-			context->mouse_drag_end_x = event.data.mouse.x;
-			context->mouse_drag_end_y = event.data.mouse.y;
-			context->mouse_left_pressed = false;
-			context->mouse_left_dragging = false;
+			gesture->end_x = event.data.mouse.x;
+			gesture->end_y = event.data.mouse.y;
+			gesture->pressed = false;
+			gesture->dragging = false;
 			copy = true;
 			break;
 		}

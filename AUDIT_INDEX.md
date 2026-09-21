@@ -7,8 +7,8 @@ recommended remedies. Severity does not imply exploitability; source-confirmed
 risks and reproduced failures must be distinguished using those entries.
 No remediation is authorized by this report.
 
-The audit is complete, not the implementation: **65 outstanding findings**
-comprise 38 medium, 25 low and 2 unresolved design/performance
+The audit is complete, not the implementation: **61 outstanding findings**
+comprise 34 medium, 25 low and 2 unresolved design/performance
 concerns.
 This is not a count of exploitable vulnerabilities or reproduced failures.
 All 47 tracked source directories and 12 root files are covered by the
@@ -74,7 +74,7 @@ No new blanket GC, contention or scaling-performance diagnosis is made from
 source shape. The source and test inventory must retain those measurement
 limits in the final report.
 
-The current TODO documents contain 65 outstanding numbered findings. A007 and
+The current TODO documents contain 61 outstanding numbered findings. A007 and
 A011 are unresolved design/performance concerns, not confirmed runtime defects.
 Missing features and documentation errors are also explicitly distinguished
 from implementation failures in the detailed ledger.
@@ -105,7 +105,6 @@ from implementation failures in the detailed ledger.
 | A054 | medium | Additional user event scripts are never auto-loaded |
 | A055 | medium | Picker load failure prevents application startup instead of recovery |
 | A056 | low | POSIX picker reports directory read errors as successful listings |
-| A058 | medium | Wren cannot round-trip every 64-bit mouse-event mask |
 | A061 | medium | Failed Menu.load discards the existing model |
 | A063 | medium | Settings snapshots never become stale after another snapshot applies |
 | A064 | medium | Failed Settings.save still applies the previously unapplied snapshot |
@@ -128,7 +127,6 @@ from implementation failures in the detailed ledger.
 | A084 | medium | Failed SFTP navigation retains rows under a different directory |
 | A085 | medium | Wren console helper paths corrupt multibyte text |
 | A086 | low | New-entry address parsing aborts on a trailing colon |
-| A087 | medium | Hook error reporting can throw while handling a non-string abort |
 | A088 | medium | User manual does not clearly distinguish implemented menu from future connected runtime |
 | A089 | low | Wren language reference gives incorrect standard-library contracts |
 | A090 | low | Wren examples and cell/input descriptions retain incompatible legacy assumptions |
@@ -140,11 +138,9 @@ from implementation failures in the detailed ledger.
 | A100 | medium | Rejected BBS palette/script assignments partially change the object |
 | A101 | medium | BBS handles remain usable after a successful model reload |
 | A102 | medium | BBS admission and transient-operation guards do not match the menu contract |
-| A104 | medium | Timed Wren input restarts its timeout after ignored events |
 | A105 | medium | Custom-font bindings do not preserve their declared editing boundaries |
 | A108 | medium source-confirmed | Wayland buffer failure loses the mapped length |
 | A109 | medium source-confirmed | Wayland worker waits incompletely handle disconnection and shutdown |
-| A112 | medium reproduced | Wren input drops physical-key press/release edges |
 | A113 | low source-confirmed | Menu default ports disagree with URL parsing |
 
 ## Verification and limits

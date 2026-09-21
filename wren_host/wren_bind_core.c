@@ -17,6 +17,8 @@
 #include "st_time.h"
 #include "st_utf8.h"
 #include "value_convert.h"
+#include "wren_vm.h"
+#include "wren_value.h"
 
 #include <limits.h>
 #include <math.h>
@@ -32,6 +34,7 @@ enum foreign_kind {
 	FOREIGN_KEY_EVENT,
 	FOREIGN_PHYSICAL_KEY_EVENT,
 	FOREIGN_MOUSE_EVENT,
+	FOREIGN_CLAIM_HANDLE,
 	FOREIGN_CURSOR,
 	FOREIGN_VIDEO_FLAGS,
 };
@@ -75,7 +78,9 @@ struct foreign_key_event {
 struct foreign_physical_key_event {
 	struct foreign_header header;
 	uint16_t evdev;
+	uint32_t modifiers;
 	bool pressed;
+	bool repeat;
 };
 
 struct foreign_mouse_event {
@@ -91,7 +96,37 @@ struct foreign_mouse_event {
 	int32_t start_pixel_y;
 	int32_t end_pixel_x;
 	int32_t end_pixel_y;
+	int32_t wheel_x;
+	int32_t wheel_y;
 };
+
+struct st_wren_input_claim {
+	WrenHandle *fiber;
+	WrenHandle *function;
+	uint64_t id;
+	struct st_wren_input_claim *next;
+};
+
+struct st_wren_wake {
+	WrenHandle *fiber;
+	WrenHandle *value;
+	struct st_wren_wake *next;
+};
+
+struct foreign_claim_handle {
+	struct foreign_header header;
+	struct st_wren_context *context;
+	struct st_wren_input_claim *entry;
+	uint64_t id;
+};
+
+#define ST_WREN_MOUSE_EVENT_MAX 49
+#define ST_WREN_MOUSE_MASK_MAX ((UINT64_C(1) << 50) - 1)
+#define ST_WREN_MOUSE_MOVE 0
+#define ST_WREN_MOUSE_WHEEL_UP 46
+#define ST_WREN_MOUSE_WHEEL_DOWN 47
+#define ST_WREN_MOUSE_WHEEL_LEFT 48
+#define ST_WREN_MOUSE_WHEEL_RIGHT 49
 
 struct foreign_cursor {
 	struct foreign_header header;
@@ -160,6 +195,85 @@ foreign_kind(WrenVM *vm, int slot, enum foreign_kind kind)
 		return NULL;
 	}
 	return header;
+}
+
+static int
+pending_reserve(struct st_wren_context *context, size_t additional)
+{
+	struct st_wren_input_record *records;
+	size_t required;
+	size_t capacity;
+
+	if (additional > SIZE_MAX - context->pending_input_count)
+		return IO_ERROR_OUT_OF_MEMORY;
+	required = context->pending_input_count + additional;
+	if (required <= context->pending_input_capacity)
+		return 0;
+	capacity = context->pending_input_capacity == 0
+	    ? 16 : context->pending_input_capacity;
+	while (capacity < required) {
+		if (capacity > SIZE_MAX / 2)
+			return IO_ERROR_OUT_OF_MEMORY;
+		capacity *= 2;
+	}
+	if (capacity > SIZE_MAX / sizeof(*records))
+		return IO_ERROR_OUT_OF_MEMORY;
+	records = malloc(capacity * sizeof(*records));
+	if (records == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	for (size_t i = 0; i < context->pending_input_count; ++i)
+		records[i] = context->pending_input[(context->pending_input_head + i)
+		    % context->pending_input_capacity];
+	free(context->pending_input);
+	context->pending_input = records;
+	context->pending_input_head = 0;
+	context->pending_input_capacity = capacity;
+	return 0;
+}
+
+static int
+pending_push_back(struct st_wren_context *context,
+	const struct st_wren_input_record *record)
+{
+	size_t tail;
+	int status = pending_reserve(context, 1);
+
+	if (status != 0)
+		return status;
+	tail = (context->pending_input_head + context->pending_input_count)
+	    % context->pending_input_capacity;
+	context->pending_input[tail] = *record;
+	++context->pending_input_count;
+	return 0;
+}
+
+static int
+pending_push_front(struct st_wren_context *context,
+	const struct st_wren_input_record *record)
+{
+	int status = pending_reserve(context, 1);
+
+	if (status != 0)
+		return status;
+	context->pending_input_head = context->pending_input_head == 0
+	    ? context->pending_input_capacity - 1
+	    : context->pending_input_head - 1;
+	context->pending_input[context->pending_input_head] = *record;
+	++context->pending_input_count;
+	return 0;
+}
+
+static bool
+pending_take(struct st_wren_context *context,
+	struct st_wren_input_record *record)
+{
+	if (context->pending_input_count == 0)
+		return false;
+	*record = context->pending_input[context->pending_input_head];
+	context->pending_input_head = (context->pending_input_head + 1)
+	    % context->pending_input_capacity;
+	--context->pending_input_count;
+	return true;
 }
 
 static void
@@ -518,10 +632,20 @@ allocate_physical_key_event(WrenVM *vm)
 	memset(event, 0, sizeof(*event));
 	event->header.kind = FOREIGN_PHYSICAL_KEY_EVENT;
 	if (!slot_integer(vm, 1, 0, UINT16_MAX, &evdev)
-	    || wrenGetSlotType(vm, 2) != WREN_TYPE_BOOL)
+	    || !slot_boolean(vm, 2, &event->pressed))
 		return;
 	event->evdev = (uint16_t)evdev;
-	event->pressed = wrenGetSlotBool(vm, 2);
+	if (wrenGetSlotCount(vm) == 5) {
+		int64_t modifiers;
+
+		if (!slot_integer(vm, 3, 0, UINT32_MAX, &modifiers)
+		    || !slot_boolean(vm, 4, &event->repeat))
+			return;
+		event->modifiers = (uint32_t)modifiers;
+	}
+	else if (wrenGetSlotCount(vm) != 3)
+		st_wren_abort(vm,
+		    "PhysicalKeyEvent.new expects 2 or 4 arguments");
 }
 
 static void
@@ -539,7 +663,13 @@ allocate_mouse_event(WrenVM *vm)
 		return;
 	}
 	for (int i = 0; i < count; ++i) {
-		if (!slot_integer(vm, i + 1, INT32_MIN, UINT32_MAX, &values[i]))
+		bool unsigned_field = i == 0 || (count == 4 && i == 3)
+		    || (count >= 6 && i == 5) || (count == 7 && i == 6);
+		int64_t minimum = unsigned_field ? 0 : INT32_MIN;
+		int64_t maximum = i == 0 ? ST_WREN_MOUSE_EVENT_MAX
+		    : unsigned_field ? UINT32_MAX : INT32_MAX;
+
+		if (!slot_integer(vm, i + 1, minimum, maximum, &values[i]))
 			return;
 	}
 	event->event = (int)values[0];
@@ -557,6 +687,19 @@ allocate_mouse_event(WrenVM *vm)
 		if (count == 7)
 			event->buttons = (uint32_t)values[6];
 	}
+	if (count != 7 && event->event >= 1 && event->event <= 45)
+		event->buttons = UINT32_C(1)
+		    << (unsigned int)((event->event - 1) / 9);
+}
+
+static void
+allocate_claim_handle(WrenVM *vm)
+{
+	struct foreign_claim_handle *handle = wrenSetSlotNewForeign(vm, 0, 0,
+	    sizeof(*handle));
+
+	memset(handle, 0, sizeof(*handle));
+	handle->header.kind = FOREIGN_CLAIM_HANDLE;
 }
 
 static void
@@ -613,129 +756,327 @@ finalize_foreign(void *data)
 }
 
 static void
-make_key_event(WrenVM *vm, int slot, uint16_t code, uint32_t codepoint,
-	bool has_codepoint)
+make_input_event(WrenVM *vm, int slot,
+	const struct st_wren_input_record *record)
 {
 	wrenEnsureSlots(vm, slot + 2);
-	wrenGetVariable(vm, "syncterm", "KeyEvent", slot + 1);
-	struct foreign_key_event *event = wrenSetSlotNewForeign(vm, slot,
-	    slot + 1, sizeof(*event));
+	if (record->type == ST_WREN_INPUT_KEY) {
+		struct foreign_key_event *event;
 
-	event->header.kind = FOREIGN_KEY_EVENT;
-	event->code = code;
-	event->codepoint = codepoint;
-	event->has_codepoint = has_codepoint;
+		wrenGetVariable(vm, "syncterm", "KeyEvent", slot + 1);
+		event = wrenSetSlotNewForeign(vm, slot, slot + 1, sizeof(*event));
+		event->header.kind = FOREIGN_KEY_EVENT;
+		event->code = record->data.key.code;
+		event->codepoint = record->data.key.codepoint;
+		event->has_codepoint = record->data.key.has_codepoint;
+	}
+	else if (record->type == ST_WREN_INPUT_PHYSICAL_KEY) {
+		struct foreign_physical_key_event *event;
+
+		wrenGetVariable(vm, "syncterm", "PhysicalKeyEvent", slot + 1);
+		event = wrenSetSlotNewForeign(vm, slot, slot + 1, sizeof(*event));
+		event->header.kind = FOREIGN_PHYSICAL_KEY_EVENT;
+		event->evdev = record->data.physical_key.evdev;
+		event->modifiers = record->data.physical_key.modifiers;
+		event->pressed = record->data.physical_key.pressed;
+		event->repeat = record->data.physical_key.repeat;
+	}
+	else {
+		struct foreign_mouse_event *event;
+
+		wrenGetVariable(vm, "syncterm", "MouseEvent", slot + 1);
+		event = wrenSetSlotNewForeign(vm, slot, slot + 1, sizeof(*event));
+		memset(event, 0, sizeof(*event));
+		event->header.kind = FOREIGN_MOUSE_EVENT;
+		event->event = record->data.mouse.event;
+		event->buttons = record->data.mouse.buttons;
+		event->modifiers = record->data.mouse.modifiers;
+		event->start_x = record->data.mouse.start_x;
+		event->start_y = record->data.mouse.start_y;
+		event->end_x = record->data.mouse.end_x;
+		event->end_y = record->data.mouse.end_y;
+		event->start_pixel_x = record->data.mouse.start_pixel_x;
+		event->start_pixel_y = record->data.mouse.start_pixel_y;
+		event->end_pixel_x = record->data.mouse.end_pixel_x;
+		event->end_pixel_y = record->data.mouse.end_pixel_y;
+		event->wheel_x = record->data.mouse.wheel_x;
+		event->wheel_y = record->data.mouse.wheel_y;
+	}
+}
+
+static struct st_wren_input_record
+mouse_record(const struct st_console_event *source, int code,
+	int32_t start_x, int32_t start_y, int32_t start_pixel_x,
+	int32_t start_pixel_y, uint32_t modifiers)
+{
+	struct st_wren_input_record record = {
+		.type = ST_WREN_INPUT_MOUSE,
+		.data.mouse = {
+			.event = code,
+			.buttons = source->data.mouse.buttons,
+			.modifiers = modifiers,
+			.start_x = start_x + 1,
+			.start_y = start_y + 1,
+			.end_x = source->data.mouse.x + 1,
+			.end_y = source->data.mouse.y + 1,
+			.start_pixel_x = start_pixel_x,
+			.start_pixel_y = start_pixel_y,
+			.end_pixel_x = source->data.mouse.pixel_x,
+			.end_pixel_y = source->data.mouse.pixel_y,
+		},
+	};
+
+	return record;
 }
 
 static void
-make_mouse_event(WrenVM *vm, const struct st_console_event *source,
-	int event_code, int32_t start_x, int32_t start_y,
-	int32_t start_pixel_x, int32_t start_pixel_y)
+mouse_add_if_enabled(struct st_wren_context *context,
+	struct st_wren_input_record *records, size_t *count,
+	struct st_wren_input_record record)
 {
-	wrenEnsureSlots(vm, 2);
-	wrenGetVariable(vm, "syncterm", "MouseEvent", 1);
-	struct foreign_mouse_event *event = wrenSetSlotNewForeign(vm, 0, 1,
-	    sizeof(*event));
-	memset(event, 0, sizeof(*event));
-	event->header.kind = FOREIGN_MOUSE_EVENT;
-	event->event = event_code;
-	event->buttons = source->data.mouse.buttons;
-	event->start_x = start_x + 1;
-	event->start_y = start_y + 1;
-	event->end_x = source->data.mouse.x + 1;
-	event->end_y = source->data.mouse.y + 1;
-	event->start_pixel_x = start_pixel_x;
-	event->start_pixel_y = start_pixel_y;
-	event->end_pixel_x = source->data.mouse.pixel_x;
-	event->end_pixel_y = source->data.mouse.pixel_y;
+	if ((context->mouse_events & (UINT64_C(1) << record.data.mouse.event))
+	    != 0)
+		records[(*count)++] = record;
 }
 
 static int
-mouse_event_code(struct st_wren_context *context,
-	const struct st_console_event *event, int32_t *start_x, int32_t *start_y,
-	int32_t *start_pixel_x, int32_t *start_pixel_y)
+queue_mouse_events(struct st_wren_context *context,
+	const struct st_console_event *source)
 {
-	uint32_t changed = context->mouse_buttons ^ event->data.mouse.buttons;
-	uint32_t pressed = changed & event->data.mouse.buttons;
-	int result = 0;
+	static const uint32_t masks[5] = {
+		ST_CONSOLE_MOUSE_BUTTON_LEFT, ST_CONSOLE_MOUSE_BUTTON_MIDDLE,
+		ST_CONSOLE_MOUSE_BUTTON_RIGHT, ST_CONSOLE_MOUSE_BUTTON_X1,
+		ST_CONSOLE_MOUSE_BUTTON_X2,
+	};
+	struct st_wren_input_record records[11];
+	size_t count = 0;
 
-	*start_x = event->data.mouse.x;
-	*start_y = event->data.mouse.y;
-	*start_pixel_x = event->data.mouse.pixel_x;
-	*start_pixel_y = event->data.mouse.pixel_y;
-	if (event->data.mouse.action == ST_CONSOLE_MOUSE_WHEEL)
-		return event->data.mouse.wheel_y > 0 ? 28 : 37;
-	if (event->data.mouse.action == ST_CONSOLE_MOUSE_MOVE) {
-		if (!context->mouse_left_pressed
-		    || (event->data.mouse.buttons
-		    & ST_CONSOLE_MOUSE_BUTTON_LEFT) == 0)
-			return 0;
-		context->mouse_drag_end_x = event->data.mouse.x;
-		context->mouse_drag_end_y = event->data.mouse.y;
-		if (!context->mouse_left_dragging
-		    && context->mouse_drag_end_x == context->mouse_drag_start_x
-		    && context->mouse_drag_end_y == context->mouse_drag_start_y)
-			return 0;
-		*start_x = context->mouse_drag_start_x;
-		*start_y = context->mouse_drag_start_y;
-		*start_pixel_x = context->mouse_drag_start_pixel_x;
-		*start_pixel_y = context->mouse_drag_start_pixel_y;
-		if (!context->mouse_left_dragging) {
-			context->mouse_left_dragging = true;
-			return 7;
+	if (source->data.mouse.action == ST_CONSOLE_MOUSE_WHEEL) {
+		struct st_wren_input_record record;
+
+		if (source->data.mouse.wheel_y != 0) {
+			record = mouse_record(source,
+			    source->data.mouse.wheel_y > 0
+			    ? ST_WREN_MOUSE_WHEEL_UP : ST_WREN_MOUSE_WHEEL_DOWN,
+			    source->data.mouse.x, source->data.mouse.y,
+			    source->data.mouse.pixel_x, source->data.mouse.pixel_y,
+			    source->data.mouse.modifiers);
+			record.data.mouse.wheel_y = source->data.mouse.wheel_y;
+			mouse_add_if_enabled(context, records, &count, record);
 		}
-		return 8;
-	}
-	context->mouse_buttons = event->data.mouse.buttons;
-	if ((changed & ST_CONSOLE_MOUSE_BUTTON_LEFT) != 0) {
-		if ((pressed & ST_CONSOLE_MOUSE_BUTTON_LEFT) != 0) {
-			context->mouse_drag_start_x = event->data.mouse.x;
-			context->mouse_drag_start_y = event->data.mouse.y;
-			context->mouse_drag_start_pixel_x = event->data.mouse.pixel_x;
-			context->mouse_drag_start_pixel_y = event->data.mouse.pixel_y;
-			context->mouse_drag_end_x = event->data.mouse.x;
-			context->mouse_drag_end_y = event->data.mouse.y;
-			context->mouse_left_pressed = true;
-			context->mouse_left_dragging = false;
-			result = 1;
-		}
-		else {
-			*start_x = context->mouse_drag_start_x;
-			*start_y = context->mouse_drag_start_y;
-			*start_pixel_x = context->mouse_drag_start_pixel_x;
-			*start_pixel_y = context->mouse_drag_start_pixel_y;
-			result = context->mouse_left_dragging ? 9 : 3;
-			context->mouse_left_pressed = false;
-			context->mouse_left_dragging = false;
+		if (source->data.mouse.wheel_x != 0) {
+			record = mouse_record(source,
+			    source->data.mouse.wheel_x < 0
+			    ? ST_WREN_MOUSE_WHEEL_LEFT : ST_WREN_MOUSE_WHEEL_RIGHT,
+			    source->data.mouse.x, source->data.mouse.y,
+			    source->data.mouse.pixel_x, source->data.mouse.pixel_y,
+			    source->data.mouse.modifiers);
+			record.data.mouse.wheel_x = source->data.mouse.wheel_x;
+			mouse_add_if_enabled(context, records, &count, record);
 		}
 	}
-	else if ((changed & ST_CONSOLE_MOUSE_BUTTON_MIDDLE) != 0)
-		result = pressed & ST_CONSOLE_MOUSE_BUTTON_MIDDLE ? 10 : 12;
-	else if ((changed & ST_CONSOLE_MOUSE_BUTTON_RIGHT) != 0)
-		result = pressed & ST_CONSOLE_MOUSE_BUTTON_RIGHT ? 19 : 21;
-	return result;
+	else if (source->data.mouse.action == ST_CONSOLE_MOUSE_MOVE) {
+		struct st_wren_input_record record = mouse_record(source,
+		    ST_WREN_MOUSE_MOVE, source->data.mouse.x, source->data.mouse.y,
+		    source->data.mouse.pixel_x, source->data.mouse.pixel_y,
+		    source->data.mouse.modifiers);
+
+		mouse_add_if_enabled(context, records, &count, record);
+		for (size_t i = 0; i < 5; ++i) {
+			struct st_wren_mouse_gesture *gesture =
+			    &context->mouse_gestures[i];
+
+			if (!gesture->pressed
+			    || (source->data.mouse.buttons & masks[i]) == 0)
+				continue;
+			if (!gesture->dragging
+			    && source->data.mouse.x == gesture->start_x
+			    && source->data.mouse.y == gesture->start_y)
+				continue;
+			gesture->end_x = source->data.mouse.x;
+			gesture->end_y = source->data.mouse.y;
+			record = mouse_record(source, (int)(i * 9 +
+			    (gesture->dragging ? 8 : 7)), gesture->start_x,
+			    gesture->start_y, gesture->start_pixel_x,
+			    gesture->start_pixel_y, gesture->modifiers);
+			gesture->dragging = true;
+			mouse_add_if_enabled(context, records, &count, record);
+		}
+	}
+	else {
+		uint32_t changed = context->mouse_buttons
+		    ^ source->data.mouse.buttons;
+
+		for (size_t i = 0; i < 5; ++i) {
+			struct st_wren_mouse_gesture *gesture =
+			    &context->mouse_gestures[i];
+			struct st_wren_input_record record;
+			int base = (int)(i * 9 + 1);
+
+			if ((changed & masks[i]) == 0)
+				continue;
+			if ((source->data.mouse.buttons & masks[i]) != 0) {
+				*gesture = (struct st_wren_mouse_gesture){
+					.start_x = source->data.mouse.x,
+					.start_y = source->data.mouse.y,
+					.start_pixel_x = source->data.mouse.pixel_x,
+					.start_pixel_y = source->data.mouse.pixel_y,
+					.end_x = source->data.mouse.x,
+					.end_y = source->data.mouse.y,
+					.modifiers = source->data.mouse.modifiers,
+					.pressed = true,
+				};
+				record = mouse_record(source, base,
+				    source->data.mouse.x, source->data.mouse.y,
+				    source->data.mouse.pixel_x,
+				    source->data.mouse.pixel_y,
+				    source->data.mouse.modifiers);
+				mouse_add_if_enabled(context, records, &count, record);
+			}
+			else {
+				record = mouse_record(source, base + 1,
+				    source->data.mouse.x, source->data.mouse.y,
+				    source->data.mouse.pixel_x,
+				    source->data.mouse.pixel_y,
+				    source->data.mouse.modifiers);
+				mouse_add_if_enabled(context, records, &count, record);
+				if (gesture->pressed) {
+					record = mouse_record(source,
+					    base + (gesture->dragging ? 8 : 2),
+					    gesture->start_x, gesture->start_y,
+					    gesture->start_pixel_x,
+					    gesture->start_pixel_y,
+					    gesture->modifiers);
+					mouse_add_if_enabled(context, records, &count,
+					    record);
+				}
+				memset(gesture, 0, sizeof(*gesture));
+			}
+		}
+		context->mouse_buttons = source->data.mouse.buttons;
+	}
+	if (pending_reserve(context, count) != 0)
+		return IO_ERROR_OUT_OF_MEMORY;
+	for (size_t i = 0; i < count; ++i)
+		(void)pending_push_back(context, &records[i]);
+	return 0;
+}
+
+static int
+queue_console_event(struct st_wren_context *context,
+	const struct st_console_event *event)
+{
+	struct st_wren_input_record records[2] = {0};
+	size_t count = 0;
+
+	switch (event->type) {
+	case ST_CONSOLE_EVENT_KEY_CODE:
+		records[count++] = (struct st_wren_input_record){
+			.type = ST_WREN_INPUT_KEY,
+			.data.key.code = legacy_key_code(event->data.key.code,
+			    event->data.key.modifiers),
+		};
+		break;
+	case ST_CONSOLE_EVENT_TEXT: {
+		uint8_t byte;
+
+		records[count++] = (struct st_wren_input_record){
+			.type = ST_WREN_INPUT_KEY,
+			.data.key = {
+				.code = st_codepage_from_unicode(&byte,
+				    ST_CODEPAGE_CP437, event->data.text.codepoint)
+				    ? byte : '?',
+				.codepoint = event->data.text.codepoint,
+				.has_codepoint = true,
+			},
+		};
+		break;
+	}
+	case ST_CONSOLE_EVENT_DOORWAY_KEY:
+		records[count++] = (struct st_wren_input_record){
+			.type = ST_WREN_INPUT_KEY,
+			.data.key.code =
+			    (uint16_t)event->data.doorway_key.scan_code << 8,
+		};
+		break;
+	case ST_CONSOLE_EVENT_PHYSICAL_KEY: {
+		uint16_t code;
+
+		records[count++] = (struct st_wren_input_record){
+			.type = ST_WREN_INPUT_PHYSICAL_KEY,
+			.data.physical_key = {
+				.evdev = event->data.physical_key.evdev,
+				.modifiers = event->data.physical_key.modifiers,
+				.pressed = event->data.physical_key.pressed,
+				.repeat = event->data.physical_key.repeat,
+			},
+		};
+		code = event->data.physical_key.pressed
+		    ? modified_physical_key(event->data.physical_key.evdev,
+		    event->data.physical_key.modifiers) : 0;
+		if (code != 0) {
+			records[count++] = (struct st_wren_input_record){
+				.type = ST_WREN_INPUT_KEY,
+				.data.key = {
+					.code = code,
+					.codepoint = code <= 0x1f ? code : 0,
+					.has_codepoint = code <= 0x1f,
+				},
+			};
+		}
+		break;
+	}
+	case ST_CONSOLE_EVENT_MOUSE:
+		return queue_mouse_events(context, event);
+	default:
+		return 0;
+	}
+	if (pending_reserve(context, count) != 0)
+		return IO_ERROR_OUT_OF_MEMORY;
+	for (size_t i = 0; i < count; ++i)
+		(void)pending_push_back(context, &records[i]);
+	return 0;
 }
 
 static bool
 next_input_event(WrenVM *vm, bool wait, int64_t timeout_ms, bool at_exit)
 {
 	struct st_wren_host *host = st_wren_host_from_vm(vm);
+	struct st_wren_context *context = st_wren_context_from_vm(vm);
+	struct st_wren_input_record record;
 	struct st_console_event event;
+	struct timespec deadline;
+	const struct timespec *deadline_pointer = NULL;
 	int status;
 
-	for (;;) {
-		if (!wait)
-			status = st_console_event_try(st_wren_context_from_vm(vm)->console, &event);
-		else if (timeout_ms < 0)
-			status = st_console_event_wait(st_wren_context_from_vm(vm)->console, &event);
-		else {
-			struct timespec deadline;
-
-			status = st_time_utc_deadline_after_ms(&deadline, timeout_ms);
-			if (status == 0)
-				status = st_console_event_timedwait(st_wren_context_from_vm(vm)->console,
-				    &event, &deadline);
+	if (wait && timeout_ms >= 0) {
+		status = st_time_utc_deadline_after_ms(&deadline, timeout_ms);
+		if (status != 0) {
+			st_wren_abort(vm, "input deadline failed");
+			return false;
 		}
+		deadline_pointer = &deadline;
+	}
+	for (;;) {
+		if (host->exit_requested && !at_exit) {
+			record = (struct st_wren_input_record){
+				.type = ST_WREN_INPUT_KEY,
+				.data.key.code = 0x7ee0,
+			};
+			make_input_event(vm, 0, &record);
+			return true;
+		}
+		if (pending_take(context, &record)) {
+			make_input_event(vm, 0, &record);
+			return true;
+		}
+		if (!wait)
+			status = st_console_event_try(context->console, &event);
+		else if (deadline_pointer == NULL)
+			status = st_console_event_wait(context->console, &event);
+		else
+			status = st_console_event_timedwait(context->console, &event,
+			    deadline_pointer);
 		if (status == IO_ERROR_WOULD_BLOCK || status == IO_ERROR_TIMED_OUT) {
 			wrenSetSlotNull(vm, 0);
 			return false;
@@ -744,67 +1085,14 @@ next_input_event(WrenVM *vm, bool wait, int64_t timeout_ms, bool at_exit)
 			st_wren_abort(vm, "input wait failed");
 			return false;
 		}
-		switch (event.type) {
-		case ST_CONSOLE_EVENT_KEY_CODE:
-			make_key_event(vm, 0, legacy_key_code(event.data.key.code,
-			    event.data.key.modifiers), 0, false);
-			return true;
-		case ST_CONSOLE_EVENT_TEXT: {
-			uint8_t byte;
-			uint16_t code = st_codepage_from_unicode(&byte,
-			    ST_CODEPAGE_CP437, event.data.text.codepoint) ? byte : '?';
-
-			make_key_event(vm, 0, code, event.data.text.codepoint, true);
-			return true;
-		}
-		case ST_CONSOLE_EVENT_DOORWAY_KEY: {
-			uint16_t code = (uint16_t)event.data.doorway_key.scan_code << 8;
-
-			/* SyncTERM's application key contract uses a NUL low byte for
-			 * both DoorWay extended-key frame forms. */
-			make_key_event(vm, 0, code, 0, false);
-			return true;
-		}
-		case ST_CONSOLE_EVENT_PHYSICAL_KEY: {
-			uint16_t code;
-
-			if (!event.data.physical_key.pressed)
-				continue;
-			code = modified_physical_key(event.data.physical_key.evdev,
-			    event.data.physical_key.modifiers);
-			if (code == 0)
-				continue;
-			make_key_event(vm, 0, code,
-			    code <= 0x1f ? code : 0, code <= 0x1f);
-			return true;
-		}
-		case ST_CONSOLE_EVENT_MOUSE: {
-			struct st_wren_context *context = st_wren_context_from_vm(vm);
-			int32_t start_x;
-			int32_t start_y;
-			int32_t start_pixel_x;
-			int32_t start_pixel_y;
-			int code = mouse_event_code(context, &event, &start_x, &start_y,
-			    &start_pixel_x, &start_pixel_y);
-
-			if (event.data.mouse.action == ST_CONSOLE_MOUSE_BUTTON
-			    && code == 0)
-				continue;
-			if (code < 64
-			    && (context->mouse_events & (UINT64_C(1) << code)) == 0)
-				continue;
-			make_mouse_event(vm, &event, code, start_x, start_y,
-			    start_pixel_x, start_pixel_y);
-			return true;
-		}
-		case ST_CONSOLE_EVENT_CLOSE:
+		if (event.type == ST_CONSOLE_EVENT_CLOSE) {
 			host->exit_requested = true;
-			if (at_exit)
-				continue;
-			make_key_event(vm, 0, 0x7ee0, 0, false);
-			return true;
-		default:
 			continue;
+		}
+		status = queue_console_event(context, &event);
+		if (status != 0) {
+			st_wren_abort(vm, "out of memory queuing input");
+			return false;
 		}
 	}
 }
@@ -853,7 +1141,7 @@ fn_input_mouse_events_set(WrenVM *vm)
 {
 	int64_t value;
 
-	if (slot_integer(vm, 1, 0, INT64_MAX, &value))
+	if (slot_integer(vm, 1, 0, (int64_t)ST_WREN_MOUSE_MASK_MAX, &value))
 		st_wren_context_from_vm(vm)->mouse_events = (uint64_t)value;
 }
 
@@ -862,7 +1150,7 @@ fn_input_mouse_event_enable(WrenVM *vm)
 {
 	int64_t value;
 
-	if (slot_integer(vm, 1, 0, 63, &value))
+	if (slot_integer(vm, 1, 0, ST_WREN_MOUSE_EVENT_MAX, &value))
 		st_wren_context_from_vm(vm)->mouse_events |= UINT64_C(1) << value;
 }
 
@@ -871,8 +1159,475 @@ fn_input_mouse_event_disable(WrenVM *vm)
 {
 	int64_t value;
 
-	if (slot_integer(vm, 1, 0, 63, &value))
+	if (slot_integer(vm, 1, 0, ST_WREN_MOUSE_EVENT_MAX, &value))
 		st_wren_context_from_vm(vm)->mouse_events &= ~(UINT64_C(1) << value);
+}
+
+static void
+fn_input_unget_key(WrenVM *vm)
+{
+	struct foreign_key_event *event = (struct foreign_key_event *)foreign_kind(
+	    vm, 1, FOREIGN_KEY_EVENT);
+	struct st_wren_input_record record;
+
+	if (event == NULL)
+		return;
+	record = (struct st_wren_input_record){
+		.type = ST_WREN_INPUT_KEY,
+		.data.key = {
+			.code = event->code,
+			.codepoint = event->codepoint,
+			.has_codepoint = event->has_codepoint,
+		},
+	};
+	if (pending_push_front(st_wren_context_from_vm(vm), &record) != 0)
+		st_wren_abort(vm, "out of memory returning input");
+}
+
+static void
+fn_input_unget_physical(WrenVM *vm)
+{
+	struct foreign_physical_key_event *event =
+	    (struct foreign_physical_key_event *)foreign_kind(vm, 1,
+	    FOREIGN_PHYSICAL_KEY_EVENT);
+	struct st_wren_input_record record;
+
+	if (event == NULL)
+		return;
+	record = (struct st_wren_input_record){
+		.type = ST_WREN_INPUT_PHYSICAL_KEY,
+		.data.physical_key = {
+			.evdev = event->evdev,
+			.modifiers = event->modifiers,
+			.pressed = event->pressed,
+			.repeat = event->repeat,
+		},
+	};
+	if (pending_push_front(st_wren_context_from_vm(vm), &record) != 0)
+		st_wren_abort(vm, "out of memory returning input");
+}
+
+static void
+fn_input_unget_mouse(WrenVM *vm)
+{
+	struct foreign_mouse_event *event =
+	    (struct foreign_mouse_event *)foreign_kind(vm, 1,
+	    FOREIGN_MOUSE_EVENT);
+	struct st_wren_input_record record;
+
+	if (event == NULL)
+		return;
+	record = (struct st_wren_input_record){
+		.type = ST_WREN_INPUT_MOUSE,
+		.data.mouse = {
+			.event = event->event,
+			.buttons = event->buttons,
+			.modifiers = event->modifiers,
+			.start_x = event->start_x,
+			.start_y = event->start_y,
+			.end_x = event->end_x,
+			.end_y = event->end_y,
+			.start_pixel_x = event->start_pixel_x,
+			.start_pixel_y = event->start_pixel_y,
+			.end_pixel_x = event->end_pixel_x,
+			.end_pixel_y = event->end_pixel_y,
+			.wheel_x = event->wheel_x,
+			.wheel_y = event->wheel_y,
+		},
+	};
+	if (pending_push_front(st_wren_context_from_vm(vm), &record) != 0)
+		st_wren_abort(vm, "out of memory returning input");
+}
+
+static void
+fn_input_synthesize_physical(WrenVM *vm)
+{
+	int64_t evdev;
+	bool pressed;
+	int status;
+
+	if (!slot_integer(vm, 1, 0, UINT16_MAX, &evdev)
+	    || !slot_boolean(vm, 2, &pressed))
+		return;
+	status = st_console_synthesize_physical_key(
+	    st_wren_context_from_vm(vm)->console, (uint16_t)evdev, pressed);
+	if (status != 0)
+		st_wren_abort(vm, status == IO_ERROR_OUT_OF_MEMORY
+		    ? "out of memory synthesizing physical input"
+		    : "physical input synthesis failed");
+}
+
+static void
+fn_mouse_with_pixels_common(WrenVM *vm, bool wheel)
+{
+	struct foreign_mouse_event *event;
+	int64_t values[13] = {0};
+	int count = wheel ? 13 : 11;
+
+	for (int i = 0; i < count; ++i) {
+		bool unsigned_field = i == 0 || i == 5 || i == 6;
+		int64_t minimum = unsigned_field ? 0 : INT32_MIN;
+		int64_t maximum = i == 0 ? ST_WREN_MOUSE_EVENT_MAX
+		    : unsigned_field ? UINT32_MAX : INT32_MAX;
+
+		if (!slot_integer(vm, i + 1, minimum, maximum, &values[i]))
+			return;
+	}
+	wrenEnsureSlots(vm, count + 2);
+	wrenGetVariable(vm, "syncterm", "MouseEvent", count + 1);
+	event = wrenSetSlotNewForeign(vm, 0, count + 1, sizeof(*event));
+	memset(event, 0, sizeof(*event));
+	event->header.kind = FOREIGN_MOUSE_EVENT;
+	event->event = (int)values[0];
+	event->start_x = (int32_t)values[1];
+	event->start_y = (int32_t)values[2];
+	event->end_x = (int32_t)values[3];
+	event->end_y = (int32_t)values[4];
+	event->modifiers = (uint32_t)values[5];
+	event->buttons = (uint32_t)values[6];
+	event->start_pixel_x = (int32_t)values[7];
+	event->start_pixel_y = (int32_t)values[8];
+	event->end_pixel_x = (int32_t)values[9];
+	event->end_pixel_y = (int32_t)values[10];
+	if (wheel) {
+		event->wheel_x = (int32_t)values[11];
+		event->wheel_y = (int32_t)values[12];
+	}
+}
+
+static void
+fn_mouse_with_pixels(WrenVM *vm)
+{
+	fn_mouse_with_pixels_common(vm, false);
+}
+
+static void
+fn_mouse_with_pixels_and_wheel(WrenVM *vm)
+{
+	fn_mouse_with_pixels_common(vm, true);
+}
+
+static bool
+claim_remove(struct st_wren_context *context,
+	struct st_wren_input_claim *entry, uint64_t id)
+{
+	struct st_wren_input_claim **cursor;
+
+	if (context == NULL || entry == NULL)
+		return false;
+	for (cursor = &context->claim_top; *cursor != NULL;
+	    cursor = &(*cursor)->next) {
+		struct st_wren_input_claim *removed;
+
+		if (*cursor != entry)
+			continue;
+		if (entry->id != id)
+			return false;
+		removed = *cursor;
+		*cursor = removed->next;
+		wrenReleaseHandle(context->vm, removed->function);
+		wrenReleaseHandle(context->vm, removed->fiber);
+		free(removed);
+		return true;
+	}
+	return false;
+}
+
+static void
+finalize_claim_handle(void *data)
+{
+	struct foreign_claim_handle *handle = data;
+
+	if (handle == NULL)
+		return;
+	(void)claim_remove(handle->context, handle->entry, handle->id);
+	handle->entry = NULL;
+}
+
+static void
+fn_input_push_claim(WrenVM *vm)
+{
+	struct st_wren_context *context = st_wren_context_from_vm(vm);
+	struct st_wren_input_claim *entry;
+	struct foreign_claim_handle *result;
+	WrenHandle *fiber = wrenGetSlotHandle(vm, 1);
+	WrenHandle *function = wrenGetSlotHandle(vm, 2);
+
+	if (fiber == NULL || function == NULL) {
+		if (fiber != NULL)
+			wrenReleaseHandle(vm, fiber);
+		if (function != NULL)
+			wrenReleaseHandle(vm, function);
+		st_wren_abort(vm, "out of memory registering input claim");
+		return;
+	}
+	for (entry = context->claim_top; entry != NULL; entry = entry->next)
+		if (wrenValuesSame(entry->fiber->value, fiber->value))
+			break;
+	if (entry == NULL) {
+		entry = calloc(1, sizeof(*entry));
+		if (entry == NULL) {
+			wrenReleaseHandle(vm, function);
+			wrenReleaseHandle(vm, fiber);
+			st_wren_abort(vm, "out of memory registering input claim");
+			return;
+		}
+		entry->fiber = fiber;
+		entry->function = function;
+		entry->next = context->claim_top;
+		context->claim_top = entry;
+	}
+	else {
+		wrenReleaseHandle(vm, entry->function);
+		wrenReleaseHandle(vm, fiber);
+		entry->function = function;
+	}
+	if (++context->next_claim_id == 0)
+		++context->next_claim_id;
+	entry->id = context->next_claim_id;
+	wrenEnsureSlots(vm, 4);
+	wrenGetVariable(vm, "syncterm", "ClaimHandle", 3);
+	result = wrenSetSlotNewForeign(vm, 0, 3, sizeof(*result));
+	result->header.kind = FOREIGN_CLAIM_HANDLE;
+	result->context = context;
+	result->entry = entry;
+	result->id = entry->id;
+}
+
+static void
+fn_claim_pop(WrenVM *vm)
+{
+	struct foreign_claim_handle *handle =
+	    (struct foreign_claim_handle *)foreign_kind(vm, 0,
+	    FOREIGN_CLAIM_HANDLE);
+	bool removed = false;
+
+	if (handle != NULL) {
+		removed = claim_remove(handle->context, handle->entry, handle->id);
+		handle->entry = NULL;
+	}
+	wrenSetSlotBool(vm, 0, removed);
+}
+
+static void
+fn_wake_post(WrenVM *vm)
+{
+	struct st_wren_context *context = st_wren_context_from_vm(vm);
+	struct st_wren_wake *wake = calloc(1, sizeof(*wake));
+
+	if (wake == NULL) {
+		st_wren_abort(vm, "out of memory posting wake");
+		return;
+	}
+	wake->fiber = wrenGetSlotHandle(vm, 1);
+	wake->value = wrenGetSlotHandle(vm, 2);
+	if (wake->fiber == NULL || wake->value == NULL) {
+		if (wake->fiber != NULL)
+			wrenReleaseHandle(vm, wake->fiber);
+		if (wake->value != NULL)
+			wrenReleaseHandle(vm, wake->value);
+		free(wake);
+		st_wren_abort(vm, "out of memory posting wake");
+		return;
+	}
+	if (context->wake_tail == NULL)
+		context->wake_head = wake;
+	else
+		context->wake_tail->next = wake;
+	context->wake_tail = wake;
+	wrenSetSlotNull(vm, 0);
+}
+
+static bool
+fiber_is_done(struct st_wren_context *context, WrenHandle *fiber)
+{
+	wrenEnsureSlots(context->vm, 1);
+	wrenSetSlotHandle(context->vm, 0, fiber);
+	if (wrenCall(context->vm, context->fiber_is_done) != WREN_RESULT_SUCCESS)
+		return true;
+	return wrenGetSlotType(context->vm, 0) != WREN_TYPE_BOOL
+	    || wrenGetSlotBool(context->vm, 0);
+}
+
+int
+st_wren_input_dispatch(WrenVM *vm,
+	const struct st_wren_input_record *event, bool *consumed)
+{
+	struct claim_snapshot {
+		WrenHandle *fiber;
+		WrenHandle *function;
+	};
+	struct st_wren_context *context;
+	struct st_wren_input_claim **cursor;
+	struct claim_snapshot *claims = NULL;
+	size_t count = 0;
+	size_t index = 0;
+	int status = 0;
+
+	if (vm == NULL || event == NULL || consumed == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	context = st_wren_context_from_vm(vm);
+	*consumed = false;
+	for (cursor = &context->claim_top; *cursor != NULL;) {
+		struct st_wren_input_claim *claim = *cursor;
+
+		if (!fiber_is_done(context, claim->fiber)) {
+			++count;
+			cursor = &claim->next;
+			continue;
+		}
+		*cursor = claim->next;
+		wrenReleaseHandle(vm, claim->function);
+		wrenReleaseHandle(vm, claim->fiber);
+		free(claim);
+	}
+	if (count != 0) {
+		claims = calloc(count, sizeof(*claims));
+		if (claims == NULL)
+			return IO_ERROR_OUT_OF_MEMORY;
+	}
+	for (struct st_wren_input_claim *claim = context->claim_top;
+	    claim != NULL; claim = claim->next) {
+		wrenEnsureSlots(vm, 2);
+		wrenSetSlotHandle(vm, 0, claim->fiber);
+		claims[index].fiber = wrenGetSlotHandle(vm, 0);
+		wrenSetSlotHandle(vm, 0, claim->function);
+		claims[index].function = wrenGetSlotHandle(vm, 0);
+		if (claims[index].fiber == NULL
+		    || claims[index].function == NULL) {
+			if (claims[index].function != NULL)
+				wrenReleaseHandle(vm, claims[index].function);
+			if (claims[index].fiber != NULL)
+				wrenReleaseHandle(vm, claims[index].fiber);
+			status = IO_ERROR_OUT_OF_MEMORY;
+			break;
+		}
+		++index;
+	}
+	for (size_t i = 0; status == 0 && i < index; ++i) {
+		wrenEnsureSlots(vm, 4);
+		wrenSetSlotHandle(vm, 0, context->hook_class);
+		wrenSetSlotHandle(vm, 1, claims[i].function);
+		make_input_event(vm, 2, event);
+		if (wrenCall(vm, context->hook_dispatch) != WREN_RESULT_SUCCESS) {
+			status = IO_ERROR_INVALID_FORMAT;
+			break;
+		}
+		if (wrenGetSlotType(vm, 0) == WREN_TYPE_BOOL
+		    && wrenGetSlotBool(vm, 0)) {
+			*consumed = true;
+			break;
+		}
+	}
+	for (size_t i = 0; i < index; ++i) {
+		if (claims[i].function != NULL)
+			wrenReleaseHandle(vm, claims[i].function);
+		if (claims[i].fiber != NULL)
+			wrenReleaseHandle(vm, claims[i].fiber);
+	}
+	free(claims);
+	return status;
+}
+
+int
+st_wren_wake_drain(WrenVM *vm)
+{
+	struct st_wren_context *context;
+	struct st_wren_wake *wake;
+	int status = 0;
+
+	if (vm == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	context = st_wren_context_from_vm(vm);
+	wake = context->wake_head;
+	context->wake_head = NULL;
+	context->wake_tail = NULL;
+	while (wake != NULL) {
+		struct st_wren_wake *next = wake->next;
+
+		if (!fiber_is_done(context, wake->fiber)) {
+			wrenEnsureSlots(vm, 2);
+			wrenSetSlotHandle(vm, 0, wake->fiber);
+			wrenSetSlotHandle(vm, 1, wake->value);
+			if (wrenCall(vm, context->fiber_call) != WREN_RESULT_SUCCESS)
+				status = IO_ERROR_INVALID_FORMAT;
+		}
+		wrenReleaseHandle(vm, wake->value);
+		wrenReleaseHandle(vm, wake->fiber);
+		free(wake);
+		wake = next;
+	}
+	return status;
+}
+
+int
+st_wren_input_context_init(WrenVM *vm)
+{
+	struct st_wren_context *context;
+
+	if (vm == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	context = st_wren_context_from_vm(vm);
+	context->vm = vm;
+	wrenEnsureSlots(vm, 1);
+	if (!wrenHasModule(vm, "syncterm")
+	    || !wrenHasVariable(vm, "syncterm", "Hook"))
+		return IO_ERROR_INVALID_FORMAT;
+	wrenGetVariable(vm, "syncterm", "Hook", 0);
+	context->hook_class = wrenGetSlotHandle(vm, 0);
+	context->hook_dispatch = wrenMakeCallHandle(vm, "dispatch_(_,_)");
+	context->fiber_is_done = wrenMakeCallHandle(vm, "isDone");
+	context->fiber_call = wrenMakeCallHandle(vm, "call(_)");
+	if (context->hook_class == NULL || context->hook_dispatch == NULL
+	    || context->fiber_is_done == NULL || context->fiber_call == NULL) {
+		st_wren_input_context_dispose(vm);
+		return IO_ERROR_OUT_OF_MEMORY;
+	}
+	return 0;
+}
+
+void
+st_wren_input_context_dispose(WrenVM *vm)
+{
+	struct st_wren_context *context;
+
+	if (vm == NULL)
+		return;
+	context = st_wren_context_from_vm(vm);
+	while (context->claim_top != NULL) {
+		struct st_wren_input_claim *claim = context->claim_top;
+
+		context->claim_top = claim->next;
+		wrenReleaseHandle(vm, claim->function);
+		wrenReleaseHandle(vm, claim->fiber);
+		free(claim);
+	}
+	while (context->wake_head != NULL) {
+		struct st_wren_wake *wake = context->wake_head;
+
+		context->wake_head = wake->next;
+		wrenReleaseHandle(vm, wake->value);
+		wrenReleaseHandle(vm, wake->fiber);
+		free(wake);
+	}
+	context->wake_tail = NULL;
+	free(context->pending_input);
+	context->pending_input = NULL;
+	context->pending_input_head = 0;
+	context->pending_input_count = 0;
+	context->pending_input_capacity = 0;
+	if (context->fiber_call != NULL)
+		wrenReleaseHandle(vm, context->fiber_call);
+	if (context->fiber_is_done != NULL)
+		wrenReleaseHandle(vm, context->fiber_is_done);
+	if (context->hook_dispatch != NULL)
+		wrenReleaseHandle(vm, context->hook_dispatch);
+	if (context->hook_class != NULL)
+		wrenReleaseHandle(vm, context->hook_class);
+	context->fiber_call = NULL;
+	context->fiber_is_done = NULL;
+	context->hook_dispatch = NULL;
+	context->hook_class = NULL;
 }
 
 static void
@@ -986,6 +1741,8 @@ MOUSE_GETTER(start_pixel_x, start_pixel_x)
 MOUSE_GETTER(start_pixel_y, start_pixel_y)
 MOUSE_GETTER(end_pixel_x, end_pixel_x)
 MOUSE_GETTER(end_pixel_y, end_pixel_y)
+MOUSE_GETTER(wheel_x, wheel_x)
+MOUSE_GETTER(wheel_y, wheel_y)
 
 #undef MOUSE_GETTER
 
@@ -1024,6 +1781,45 @@ fn_physical_pressed(WrenVM *vm)
 
 	if (event != NULL)
 		wrenSetSlotBool(vm, 0, event->pressed);
+}
+
+static void
+fn_physical_modifiers(WrenVM *vm)
+{
+	struct foreign_physical_key_event *event =
+	    (struct foreign_physical_key_event *)foreign_kind(vm, 0,
+	    FOREIGN_PHYSICAL_KEY_EVENT);
+
+	if (event != NULL)
+		wrenSetSlotDouble(vm, 0, event->modifiers);
+}
+
+static void
+fn_physical_repeat(WrenVM *vm)
+{
+	struct foreign_physical_key_event *event =
+	    (struct foreign_physical_key_event *)foreign_kind(vm, 0,
+	    FOREIGN_PHYSICAL_KEY_EVENT);
+
+	if (event != NULL)
+		wrenSetSlotBool(vm, 0, event->repeat);
+}
+
+static void
+fn_physical_to_string(WrenVM *vm)
+{
+	struct foreign_physical_key_event *event =
+	    (struct foreign_physical_key_event *)foreign_kind(vm, 0,
+	    FOREIGN_PHYSICAL_KEY_EVENT);
+	char text[96];
+
+	if (event == NULL)
+		return;
+	(void)snprintf(text, sizeof(text),
+	    "PhysicalKeyEvent(%u, %s, modifiers=%u, repeat=%s)",
+	    event->evdev, event->pressed ? "pressed" : "released",
+	    event->modifiers, event->repeat ? "true" : "false");
+	wrenSetSlotString(vm, 0, text);
 }
 
 static void
@@ -3067,6 +3863,11 @@ static const struct binding bindings[] = {
 	{"Input", true, "mouseEvents=(_)", fn_input_mouse_events_set},
 	{"Input", true, "enableMouseEvent(_)", fn_input_mouse_event_enable},
 	{"Input", true, "disableMouseEvent(_)", fn_input_mouse_event_disable},
+	{"Input", true, "pushClaim_(_,_)", fn_input_push_claim},
+	{"Input", true, "ungetKey_(_)", fn_input_unget_key},
+	{"Input", true, "ungetPhysicalKey_(_)", fn_input_unget_physical},
+	{"Input", true, "ungetMouse_(_)", fn_input_unget_mouse},
+	{"Input", true, "synthesizePhysicalKey(_,_)", fn_input_synthesize_physical},
 	{"Input", true, "mouseVisible=(_)", fn_input_mouse_visible_set},
 	{"Input", true, "mousedrag()", fn_input_mouse_drag},
 	{"Input", true, "mousedrag(_)", fn_input_mouse_drag},
@@ -3076,6 +3877,14 @@ static const struct binding bindings[] = {
 	{"KeyEvent", false, "toString", fn_key_to_string},
 	{"PhysicalKeyEvent", false, "evdev", fn_physical_evdev},
 	{"PhysicalKeyEvent", false, "pressed", fn_physical_pressed},
+	{"PhysicalKeyEvent", false, "modifiers", fn_physical_modifiers},
+	{"PhysicalKeyEvent", false, "repeat", fn_physical_repeat},
+	{"PhysicalKeyEvent", false, "toString", fn_physical_to_string},
+	{"MouseEvent", true, "withPixels(_,_,_,_,_,_,_,_,_,_,_)",
+	    fn_mouse_with_pixels},
+	{"MouseEvent", true,
+	    "withPixelsAndWheel(_,_,_,_,_,_,_,_,_,_,_,_,_)",
+	    fn_mouse_with_pixels_and_wheel},
 	{"MouseEvent", false, "event", fn_mouse_event},
 	{"MouseEvent", false, "bstate", fn_mouse_buttons},
 	{"MouseEvent", false, "modifiers", fn_mouse_modifiers},
@@ -3087,7 +3896,11 @@ static const struct binding bindings[] = {
 	{"MouseEvent", false, "startPixelY", fn_mouse_start_pixel_y},
 	{"MouseEvent", false, "endPixelX", fn_mouse_end_pixel_x},
 	{"MouseEvent", false, "endPixelY", fn_mouse_end_pixel_y},
+	{"MouseEvent", false, "wheelX", fn_mouse_wheel_x},
+	{"MouseEvent", false, "wheelY", fn_mouse_wheel_y},
 	{"MouseEvent", false, "toString", fn_mouse_to_string},
+	{"ClaimHandle", false, "pop()", fn_claim_pop},
+	{"Wake", true, "post_(_,_)", fn_wake_post},
 	{"Screen", true, "size", fn_screen_size},
 	{"Screen", true, "save()", fn_screen_save},
 	{"Screen", true, "restore(_)", fn_screen_restore},
@@ -3274,6 +4087,10 @@ st_wren_core_bind_class(const char *class_name)
 		methods.allocate = allocate_physical_key_event;
 	else if (strcmp(class_name, "MouseEvent") == 0)
 		methods.allocate = allocate_mouse_event;
+	else if (strcmp(class_name, "ClaimHandle") == 0) {
+		methods.allocate = allocate_claim_handle;
+		methods.finalize = finalize_claim_handle;
+	}
 	else if (strcmp(class_name, "CustomCursor") == 0)
 		methods.allocate = allocate_cursor;
 	else if (strcmp(class_name, "VideoFlags") == 0)

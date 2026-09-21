@@ -277,7 +277,7 @@ class UiHelpTest {
 
   static testWheelDownScrolls_() {
     var h = makeHelp_(20, 30, 9)
-    var ev = MouseEvent.new(Mouse.wheelDownClick, 5, 3, 5, 3)
+    var ev = MouseEvent.new(Mouse.wheelDown, 5, 3, 5, 3)
     var consumed = h.handle(ev)
     check_(consumed && h.scrollTop == 1,
            "Help: mouse wheel scrolls one line")
@@ -285,7 +285,7 @@ class UiHelpTest {
 
   static testScrollbarWheelMovesPage_() {
     var h = makeHelp_(20, 30, 9)             // viewport = 5
-    var ev = MouseEvent.new(Mouse.wheelDownClick, 29, 3, 29, 3)
+    var ev = MouseEvent.new(Mouse.wheelDown, 29, 3, 29, 3)
     var consumed = h.handle(ev)
     check_(consumed && h.scrollTop == 5,
            "Help: mouse wheel over scrollbar scrolls one page")

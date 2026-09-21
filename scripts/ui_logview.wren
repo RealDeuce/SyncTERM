@@ -311,13 +311,15 @@ class LogView is Widget {
 
     // Wheel: use the normal row step over content and a full viewport
     // over the scrollbar.
-    if (e == Mouse.wheelUpPress || e == Mouse.wheelUpClick) {
-      var step = overScrollbar ? bounds.h.max(1) : LogView.wheelStep
+    if (e == Mouse.wheelUp) {
+      var step = (overScrollbar ? bounds.h.max(1) : LogView.wheelStep) *
+          me.wheelY.abs.max(1)
       scrollBy(-step)
       return true
     }
-    if (e == Mouse.wheelDownPress || e == Mouse.wheelDownClick) {
-      var step = overScrollbar ? bounds.h.max(1) : LogView.wheelStep
+    if (e == Mouse.wheelDown) {
+      var step = (overScrollbar ? bounds.h.max(1) : LogView.wheelStep) *
+          me.wheelY.abs.max(1)
       scrollBy(step)
       return true
     }

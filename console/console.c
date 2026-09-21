@@ -2718,6 +2718,47 @@ st_console_physical_key_state(st_console_t *console, uint16_t evdev,
 }
 
 int
+st_console_synthesize_physical_key(st_console_t *console, uint16_t evdev,
+	bool pressed)
+{
+	struct st_console_event event = {
+		.type = ST_CONSOLE_EVENT_PHYSICAL_KEY,
+		.data.physical_key = {
+			.evdev = evdev,
+			.pressed = pressed,
+		},
+	};
+	st_console_display_t *display;
+	int result;
+
+	if (console == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	display = console->display;
+	result = st_mutex_lock(&display->input_mutex);
+	if (result != ST_THREAD_SUCCESS)
+		return IO_ERROR_IO;
+	if (physical_key_down(display, evdev) == pressed) {
+		(void)st_mutex_unlock(&display->input_mutex);
+		return 0;
+	}
+	result = st_mutex_lock(&console->event_mutex);
+	if (result != ST_THREAD_SUCCESS) {
+		(void)st_mutex_unlock(&display->input_mutex);
+		return IO_ERROR_IO;
+	}
+	result = reserve_events_locked(console, 1);
+	if (result == 0) {
+		append_event_locked(console, &event);
+		set_physical_key(display, evdev, pressed);
+		result = st_condition_signal(&console->event_ready)
+		    == ST_THREAD_SUCCESS ? 0 : IO_ERROR_IO;
+	}
+	(void)st_mutex_unlock(&console->event_mutex);
+	(void)st_mutex_unlock(&display->input_mutex);
+	return result;
+}
+
+int
 st_console_display_physical_key_state(st_console_display_t *display,
 	uint16_t evdev, bool *pressed)
 {

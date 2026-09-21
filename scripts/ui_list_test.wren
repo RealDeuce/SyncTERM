@@ -489,7 +489,7 @@ class UiListTest {
     var l = makeList_(20)
     l.bounds = Rect.new(1, 1, 10, 5)
     // UIFC maps wheel-down to one Down navigation event.
-    var ev = MouseEvent.new(Mouse.wheelDownClick, 5, 3, 5, 3)
+    var ev = MouseEvent.new(Mouse.wheelDown, 5, 3, 5, 3)
     var consumed = l.handle(ev)
     check_(consumed && l.selected == 1 && l.scrollTop == 0,
            "ListView.handle Mouse: wheel-down moves selection one row")
@@ -499,7 +499,7 @@ class UiListTest {
     var l = makeList_(20)
     l.bounds = Rect.new(1, 1, 10, 5)
     // UIFC maps wheel-up to Up, including the normal list wrapping.
-    var ev = MouseEvent.new(Mouse.wheelUpClick, 5, 3, 5, 3)
+    var ev = MouseEvent.new(Mouse.wheelUp, 5, 3, 5, 3)
     var consumed = l.handle(ev)
     check_(consumed && l.selected == 19 && l.scrollTop == 15,
            "ListView.handle Mouse: wheel-up wraps selection")
@@ -508,7 +508,7 @@ class UiListTest {
   static testMouseWheelScrollbarMovesPage_() {
     var l = makeList_(20)
     l.bounds = Rect.new(1, 1, 10, 5)
-    var ev = MouseEvent.new(Mouse.wheelDownClick, 10, 3, 10, 3)
+    var ev = MouseEvent.new(Mouse.wheelDown, 10, 3, 10, 3)
     var consumed = l.handle(ev)
     check_(consumed && l.scrollTop == 4 && l.selected == 4,
            "ListView.handle Mouse: wheel over scrollbar moves one page")

@@ -641,15 +641,20 @@ class ListView is Widget {
 
     // Wheel events over list content move one item.  Over the scrollbar,
     // move a viewport page while preserving the lightbar's screen row.
-    // Backends emit either a PRESS or a CLICK; accept both.
-    if (e == Mouse.wheelUpPress || e == Mouse.wheelUpClick) {
-      if (overScrollbar) scrollViewportPage_(-1)
-      if (!overScrollbar) up()
+    if (e == Mouse.wheelUp) {
+      var amount = me.wheelY.abs.max(1)
+      for (i in 0...amount) {
+        if (overScrollbar) scrollViewportPage_(-1)
+        if (!overScrollbar) up()
+      }
       return true
     }
-    if (e == Mouse.wheelDownPress || e == Mouse.wheelDownClick) {
-      if (overScrollbar) scrollViewportPage_(1)
-      if (!overScrollbar) down()
+    if (e == Mouse.wheelDown) {
+      var amount = me.wheelY.abs.max(1)
+      for (i in 0...amount) {
+        if (overScrollbar) scrollViewportPage_(1)
+        if (!overScrollbar) down()
+      }
       return true
     }
 

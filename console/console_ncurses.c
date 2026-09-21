@@ -1020,6 +1020,18 @@ mouse_event(struct curses_state *state, struct st_console_event *event)
 			    ? ST_CONSOLE_MOUSE_MOVE : ST_CONSOLE_MOUSE_BUTTON,
 		},
 	};
+#ifdef BUTTON_SHIFT
+	if ((buttons & BUTTON_SHIFT) != 0)
+		event->data.mouse.modifiers |= ST_CONSOLE_MODIFIER_SHIFT;
+#endif
+#ifdef BUTTON_CTRL
+	if ((buttons & BUTTON_CTRL) != 0)
+		event->data.mouse.modifiers |= ST_CONSOLE_MODIFIER_CONTROL;
+#endif
+#ifdef BUTTON_ALT
+	if ((buttons & BUTTON_ALT) != 0)
+		event->data.mouse.modifiers |= ST_CONSOLE_MODIFIER_ALT;
+#endif
 #ifdef BUTTON4_PRESSED
 	if ((buttons & BUTTON4_PRESSED) != 0) {
 		event->data.mouse.action = ST_CONSOLE_MOUSE_WHEEL;

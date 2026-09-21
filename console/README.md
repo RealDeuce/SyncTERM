@@ -338,7 +338,10 @@ SDL input uses evdev key numbers and the `ST_CONSOLE_MODIFIER_*` masks.  Mouse
 events carry zero-based cell coordinates in `x` and `y`.  Bitmap backends also
 provide zero-based internal-raster coordinates in `pixel_x` and `pixel_y`;
 text-only backends set those fields to `-1`.  Button state uses the
-`ST_CONSOLE_MOUSE_BUTTON_*` masks.
+`ST_CONSOLE_MOUSE_BUTTON_*` masks, and `modifiers` records the keyboard
+modifier state at the time of the mouse event.  Synthetic physical input uses
+`st_console_synthesize_physical_key()` to suppress duplicate held-state edges
+without changing state when queueing fails.
 
 Bitmap window backends consume Alt+Left and Alt+Right to snap the drawable to
 the previous or next integer display scale, Alt+Home centers the window where

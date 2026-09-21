@@ -718,8 +718,8 @@ class App {
     Input.enableMouseEvent(Mouse.button1DragEnd)
     Input.enableMouseEvent(Mouse.button2Click)
     Input.enableMouseEvent(Mouse.button3Click)
-    Input.enableMouseEvent(Mouse.wheelUpPress)
-    Input.enableMouseEvent(Mouse.wheelDownPress)
+    Input.enableMouseEvent(Mouse.wheelUp)
+    Input.enableMouseEvent(Mouse.wheelDown)
     return saved
   }
 

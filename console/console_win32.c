@@ -449,6 +449,7 @@ post_mouse(struct win32_state *state, const MOUSE_EVENT_RECORD *record)
 			.y = record->dwMousePosition.Y,
 			.pixel_x = -1,
 			.pixel_y = -1,
+			.modifiers = input_modifiers(record->dwControlKeyState),
 			.action = ST_CONSOLE_MOUSE_BUTTON,
 		},
 	};

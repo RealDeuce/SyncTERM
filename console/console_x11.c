@@ -1917,6 +1917,8 @@ handle_event(struct x11_state *state, XEvent *event)
 			break;
 		output.type = ST_CONSOLE_EVENT_MOUSE;
 		output.data.mouse.action = ST_CONSOLE_MOUSE_MOVE;
+		output.data.mouse.modifiers = st_console_x11_modifiers(
+		    event->xmotion.state);
 		st_console_bitmap_mouse_position(&state->frame, event->xmotion.x,
 		    event->xmotion.y, &output);
 		output.data.mouse.buttons = state->mouse_buttons;
@@ -1932,10 +1934,16 @@ handle_event(struct x11_state *state, XEvent *event)
 			button = ST_CONSOLE_MOUSE_BUTTON_MIDDLE;
 		else if (event->xbutton.button == Button3)
 			button = ST_CONSOLE_MOUSE_BUTTON_RIGHT;
+		else if (event->xbutton.button == 8)
+			button = ST_CONSOLE_MOUSE_BUTTON_X1;
+		else if (event->xbutton.button == 9)
+			button = ST_CONSOLE_MOUSE_BUTTON_X2;
 		if (event->type == ButtonPress && event->xbutton.button >= 4
 		    && event->xbutton.button <= 7) {
 			output.type = ST_CONSOLE_EVENT_MOUSE;
 			output.data.mouse.action = ST_CONSOLE_MOUSE_WHEEL;
+			output.data.mouse.modifiers = st_console_x11_modifiers(
+			    event->xbutton.state);
 			if (event->xbutton.button == 4)
 				output.data.mouse.wheel_y = 1;
 			else if (event->xbutton.button == 5)
@@ -1958,6 +1966,8 @@ handle_event(struct x11_state *state, XEvent *event)
 			state->mouse_buttons &= ~button;
 		output.type = ST_CONSOLE_EVENT_MOUSE;
 		output.data.mouse.action = ST_CONSOLE_MOUSE_BUTTON;
+		output.data.mouse.modifiers = st_console_x11_modifiers(
+		    event->xbutton.state);
 		st_console_bitmap_mouse_position(&state->frame, event->xbutton.x,
 		    event->xbutton.y, &output);
 		output.data.mouse.buttons = state->mouse_buttons;

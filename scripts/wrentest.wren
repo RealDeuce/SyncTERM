@@ -792,9 +792,9 @@ class WrenTest {
   static testScrollbackMouseMask_() {
     var saved = Input.mouseEvents
     var returned = ScrollbackView.setupMouse_()
-    // Bits 7/8/9 are button-1 drag start/move/end; 28 and 37 are
-    // wheel up/down press.  No raw movement or remote button events.
-    check_(returned == saved && Input.mouseEvents == 137707389824,
+    // Bits 7/8/9 are button-1 drag start/move/end; 46 and 47 are
+    // wheel up/down.  No raw movement or remote button events.
+    check_(returned == saved && Input.mouseEvents == 211106232533888,
            "ScrollbackView replaces the mouse mask for selection")
     Input.mouseEvents = returned
     check_(Input.mouseEvents == saved,

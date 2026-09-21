@@ -628,7 +628,8 @@ send_key(Display *display, Window window, KeySym keysym, bool pressed)
 }
 
 static int
-send_mouse_button(Display *display, Window window, int x, int y, bool pressed)
+send_mouse_button(Display *display, Window window, int x, int y, bool pressed,
+	unsigned int state)
 {
 	XEvent event = {0};
 
@@ -641,7 +642,7 @@ send_mouse_button(Display *display, Window window, int x, int y, bool pressed)
 	event.xbutton.x = x;
 	event.xbutton.y = y;
 	event.xbutton.button = Button1;
-	event.xbutton.state = pressed ? 0 : Button1Mask;
+	event.xbutton.state = state;
 	return XSendEvent(display, window, False,
 	    pressed ? ButtonPressMask : ButtonReleaseMask, &event) == 0;
 }
@@ -654,14 +655,17 @@ check_mouse_coordinates(st_console_t *console, const char *title)
 	Display *display = XOpenDisplay(NULL);
 	Window window;
 	unsigned int mouse_events = 0;
+	unsigned int shifted_press = 0;
+	unsigned int controlled_release = 0;
 	bool marker = false;
 
 	CHECK(display != NULL);
 	window = wait_named_window(display, DefaultRootWindow(display), title);
 	CHECK(window != None);
 	CHECK(st_console_events_clear(console) == 0);
-	CHECK(send_mouse_button(display, window, 40, 24, true) == 0);
-	CHECK(send_mouse_button(display, window, 40, 24, false) == 0);
+	CHECK(send_mouse_button(display, window, 40, 24, true, ShiftMask) == 0);
+	CHECK(send_mouse_button(display, window, 40, 24, false,
+	    Button1Mask | ControlMask) == 0);
 	CHECK(send_key(display, window, XK_F1, true) == 0);
 	CHECK(send_key(display, window, XK_F1, false) == 0);
 	(void)XFlush(display);
@@ -674,6 +678,13 @@ check_mouse_coordinates(st_console_t *console, const char *title)
 			CHECK(event.data.mouse.y == 1);
 			CHECK(event.data.mouse.pixel_x == 30);
 			CHECK(event.data.mouse.pixel_y == 24);
+			if (event.data.mouse.buttons != 0
+			    && event.data.mouse.modifiers == ST_CONSOLE_MODIFIER_SHIFT)
+				++shifted_press;
+			if (event.data.mouse.buttons == 0
+			    && event.data.mouse.modifiers
+			    == ST_CONSOLE_MODIFIER_CONTROL)
+				++controlled_release;
 			++mouse_events;
 		}
 		else if (event.type == ST_CONSOLE_EVENT_KEY_CODE
@@ -682,6 +693,8 @@ check_mouse_coordinates(st_console_t *console, const char *title)
 	}
 	CHECK(marker);
 	CHECK(mouse_events == 2);
+	CHECK(shifted_press == 1);
+	CHECK(controlled_release == 1);
 	CHECK(st_console_events_clear(console) == 0);
 	(void)XCloseDisplay(display);
 	return 0;

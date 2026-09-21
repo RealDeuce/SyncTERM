@@ -94,14 +94,12 @@ class ChoiceMessage is Widget {
     if (!(event is MouseEvent) || !bounds.contains(event.startX, event.startY)) {
       return false
     }
-    if (event.event == Mouse.wheelUpPress ||
-        event.event == Mouse.wheelUpClick) {
-      setScrollTop_(_scrollTop - 1)
+    if (event.event == Mouse.wheelUp) {
+      setScrollTop_(_scrollTop - event.wheelY.abs.max(1))
       return true
     }
-    if (event.event == Mouse.wheelDownPress ||
-        event.event == Mouse.wheelDownClick) {
-      setScrollTop_(_scrollTop + 1)
+    if (event.event == Mouse.wheelDown) {
+      setScrollTop_(_scrollTop + event.wheelY.abs.max(1))
       return true
     }
     if (event.event == Mouse.button1Click && overflowing_ &&

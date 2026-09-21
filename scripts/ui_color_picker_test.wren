@@ -164,9 +164,9 @@ class UiColorPickerTest {
 
   static testRampWheelMovesOne_() {
     var ramp = ramp_()
-    ramp.handle(MouseEvent.new(Mouse.wheelUpPress, 8, 5, 8, 5))
+    ramp.handle(MouseEvent.new(Mouse.wheelUp, 8, 5, 8, 5))
     var up = ramp.value == 101
-    ramp.handle(MouseEvent.new(Mouse.wheelDownPress, 8, 5, 8, 5))
+    ramp.handle(MouseEvent.new(Mouse.wheelDown, 8, 5, 8, 5))
     check_(up && ramp.value == 100,
            "ColorRamp: wheel changes exactly one unit")
   }
@@ -217,7 +217,7 @@ class UiColorPickerTest {
     var sf = ramp.draw()
     var right = ramp.handle(KeyEvent.new(Key.right))
     var wheel = ramp.handle(
-        MouseEvent.new(Mouse.wheelUpPress, 8, 5, 8, 5))
+        MouseEvent.new(Mouse.wheelUp, 8, 5, 8, 5))
     check_(sf.cellAt(18, 0).ch == "]" && sf.cellAt(19, 0).ch == " " &&
            right && wheel &&
            ramp.value == 102,

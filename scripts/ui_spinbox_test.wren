@@ -190,10 +190,10 @@ class UiSpinboxTest {
     var s = SpinBox.new()
     s.bounds = Rect.new(2, 5, 10, 1)
     s.value  = 5
-    var up = MouseEvent.new(Mouse.wheelUpPress, 6, 5, 6, 5)
+    var up = MouseEvent.new(Mouse.wheelUp, 6, 5, 6, 5)
     s.handle(up)
     check_(s.value == 6, "SpinBox: wheel up adds step")
-    var dn = MouseEvent.new(Mouse.wheelDownPress, 6, 5, 6, 5)
+    var dn = MouseEvent.new(Mouse.wheelDown, 6, 5, 6, 5)
     s.handle(dn)
     check_(s.value == 5, "SpinBox: wheel down subtracts step")
   }

@@ -312,13 +312,15 @@ class Help is Popup {
         me.startX == bounds.x + scrollbarColumn_
 
     // Wheel: one line over content, one viewport over the scrollbar.
-    if (e == Mouse.wheelUpPress || e == Mouse.wheelUpClick) {
-      var step = overScrollbar ? viewportRows_.max(1) : Help.wheelStep
+    if (e == Mouse.wheelUp) {
+      var step = (overScrollbar ? viewportRows_.max(1) : Help.wheelStep) *
+          me.wheelY.abs.max(1)
       scrollTop_ = _scrollTop - step
       return true
     }
-    if (e == Mouse.wheelDownPress || e == Mouse.wheelDownClick) {
-      var step = overScrollbar ? viewportRows_.max(1) : Help.wheelStep
+    if (e == Mouse.wheelDown) {
+      var step = (overScrollbar ? viewportRows_.max(1) : Help.wheelStep) *
+          me.wheelY.abs.max(1)
       scrollTop_ = _scrollTop + step
       return true
     }

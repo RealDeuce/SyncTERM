@@ -137,30 +137,12 @@ not the absence of failing tests. New findings will receive stable A-numbers.
 | value_convert/ | Reviewed | A021 date precedence conflict; all local sources/tests/build read; native exact rounding checks pass; exotic formats and numeric performance unverified |
 | webget/ | Reviewed | All local source/header/test/build read; exact-URL cache identity and single-owner transport cleanup covered; remaining protocol/TLS/fault gaps below |
 | windows_utf/ | Reviewed | Source and MinGW compile; Windows runtime not verified |
-| wren_host/ | Reviewed | All local implementation, public/internal headers, CMake/generator and integration tests read; isolated shipped-script and host-contract cases run; mutation/error/input/font/ownership integration dispositioned below, including A112–A113; runtime/fault limits explicit |
+| wren_host/ | Reviewed | All local implementation, public/internal headers, CMake/generator and integration tests read; isolated shipped-script and host-contract cases run; mutation/error/input/font/ownership integration dispositioned below, including A113; runtime/fault limits explicit |
 | wren_vm/ | Reviewed at integration boundary | Full legacy diff, build/configuration, license, REPL private API coupling and minimal consumer link checked; upstream internals not exhaustively audited |
 | xptls/ | Reviewed | All local source/header/build/test files read; broader TLS/platform coverage gaps below |
 | xptls_crypto/ | Reviewed | All local headers/providers/clear implementations/build/tests read; expanded tests pass OpenSSL, Botan and none; MinGW compile only; contract/resource gaps below |
 
 ## Root documentation review and consolidated follow-ups
-
-### A112 — Wren input drops physical-key edges
-
-Severity: medium API/input defect. Wren.adoc:2790 specifies PhysicalKeyEvent
-press and release objects from Input.next/poll. In
-`wren_host/wren_bind_core.c:648`, releases are discarded and presses are
-converted only when modified_physical_key supplies a legacy key code; other
-presses are discarded. No PhysicalKeyEvent is constructed on this input path.
-The object's constructor/getters existing does not establish delivery.
-
-Native `st_wren_loader_audit_test physical-input` posts an evdev-30 press,
-polls through the real host, then posts/releases and polls separately. Both
-cases fail because the returned value is not a PhysicalKeyEvent. Events are
-posted to a private headless console, not synthesized on the user's desktop.
-Recommendation: retain physical edges as their declared event type while
-preserving separately committed text/normalized key semantics; test ordinary,
-modified, repeat and release paths for both delivery and duplicate suppression.
-A104 separately covers the timeout extension caused by filtered events.
 
 ### A113 — Menu default ports disagree with its URL parser
 
@@ -180,16 +162,10 @@ dispositions. The Wren skill and local manual guided these comparisons; the
 modern isolated host harness, not the legacy executable, supplied runtime
 evidence. All new fixtures use fresh temporary paths and a headless console.
 
-- Input deadlines are A104; physical delivery is A112. Window mutation
-  bindings discard native failures, including
+- Window mutation bindings discard native failures, including
   invalid window bounds and write/scroll failures. This is a source-only error-
   reporting concern: setter return conventions and recoverable write failures
   need an explicit contract; not every void-style setter is thereby broken.
-- MouseEvent fields expose modifiers, but the console mouse event has no
-  modifier member and make_mouse_event leaves that field zero. Wheel conversion
-  collapses magnitude and interprets nonpositive vertical movement as down,
-  including horizontal-only input. Full-resolution mouse/drag semantics remain
-  incomplete host integration risks; no real pointer gesture was tested.
 - Font slots are context storage with no rendering consumer found; the manual
   still promises active slot loading. This is an incomplete integration
   concern, distinct from working explicit Cell.font/catalog lookup. Legacy
@@ -368,24 +344,6 @@ allocation or backend failure in these additional stages is not injected.
 Audio/list-path/KDF changes cannot be declared operational merely because a
 settings field changed; the currently absent connected runtime is covered by
 A088. These are explicit failure-boundary and consumer-verification limits.
-
-### A104 — Timed Wren input restarts its timeout after ignored events
-
-Severity: medium (source-confirmed deadline contract defect; timing not
-reproduced). Wren.adoc:2671 specifies waiting up to ms milliseconds.
-next_input_event in wren_bind_core.c:600 instead constructs a fresh UTC
-deadline inside its event-filtering loop. Physical releases, unrecognized
-physical presses and default/ignored event types continue that loop. An
-ignored event arriving near the deadline therefore starts another full wait;
-a continuing stream can extend the call indefinitely. Each underlying console
-wait can honor its deadline while the public Wren call violates its bound.
-
-Recommendation: compute one deadline for the operation and reuse it across
-filtered events, testing ignored events near expiry and continuous ignored
-input. No real keyboard or timing-sensitive test was run in this pass, and
-no measured latency is claimed. The evidence is the placement of deadline
-construction plus explicit continue branches, not an assumption of GC or
-mutex contention. This is distinct from documented indefinite Input.next().
 
 Font-selector contract reconciliation: legacy wren_bind_screen.c's Cell.font
 and legacyAttr/bright setters modify separate stored fields, so the absence
@@ -820,7 +778,7 @@ All four documentation-claim checks fail in fresh headless host execution.
 They are intentionally not proposed VM requirements: remedy the manual, not
 the implementation. Native strict-C17 compilation of the audit harness
 succeeds. The pre-existing serializer control still passes and the parser
-availability and A087 checks still fail separately. No production/manual edit.
+availability checks still fail separately. No production/manual edit.
 Source additionally shows System.clock delegates to C clock()/CLOCKS_PER_SEC,
 not the wall-clock-since-start contract stated here; it should not be used as
 the documented elapsed-time clock on the strength of that statement.
@@ -849,12 +807,6 @@ coverage.
 Severity: low (source-confirmed documentation defects; recommended remedy is
 documentation correction, not restoring obsolete transport restrictions).
 
-- Wren.adoc's second modal-input example posts to Fiber.current inside the
-  claim callback. That is the dispatch callback fiber, not the parked worker
-  created outside it. Capture the worker before constructing the callback,
-  as the preceding example already does. The documented Hook.dispatch_
-  implementation executes the callback in a new child fiber, establishing
-  the identity mismatch without requiring a live connection reproduction.
 - The Console.entries example tests e[2] against LogSource.runtimeError,
   although its own documented tuple and wren_repl.c:137–139 place source at
   index 1 and text at index 2. It silently selects no ordinary error entries.
@@ -1389,16 +1341,6 @@ errors continue but leave status set, so whether they ultimately fail the whole
 listing depends on whether a later entry overwrites status. That ordering
 problem is source-observed, not exercised by this read-error fixture.
 
-### A058 — Wren cannot round-trip every 64-bit mouse-event mask
-
-Severity: medium API representation limitation. The native mask is uint64_t,
-and the single-event helpers correctly support event numbers 0 through 63.
-`Input.mouseEvents`, however, crosses the Wren boundary as a Num, whose exact
-integer range ends at 2^53 - 1. Masks combining high and low bits can therefore
-lose low bits when read and restored, and the whole-mask setter cannot express
-bit 63. Define a lossless script representation or constrain and document the
-whole-mask contract without narrowing the single-event helpers.
-
 ### A061 — Failed Menu.load discards the existing model
 
 Severity: medium (loss of in-memory directory state on reload failure).
@@ -1824,23 +1766,6 @@ concerns, not new GUI reproductions. Wren guidance used; only tests/report
 changed, no commits. Remaining script source reading is syncterm.wren and
 wrentest.wren remainder; full repository completion is still unproven.
 
-### A087 — Hook error reporting can throw while handling a non-string abort
-
-Severity: medium (confirmed error-containment defect; inherited from legacy).
-scripts/syncterm.wren:1482 concatenates `f.error` directly onto a String.
-Wren permits non-string abort values. `Hook.dispatch_(Fn.new {
-Fiber.abort(42) })` therefore throws `Right operand must be a string` from
-finishDispatch_, rather than returning null as the documented hook contract
-requires. The legacy script has the same expression at line 1489.
-
-Reproduced in a fresh isolated native headless menu VM with the `core-helpers`
-mode of wren_host/tests/st_wren_loader_audit_test.c. The helper was invoked
-directly, not through a live connected dispatcher: this proves the wrapper
-failure, not a whole-program crash. Recommendation: safely format arbitrary
-error values without allowing diagnostic formatting to defeat containment;
-test numeric, null, foreign and throwing-toString error objects, as well as
-ordinary string errors. No production change made.
-
 ### Common Wren module — full source coverage
 
 Completed all 2159 lines of scripts/syncterm.wren, including declaration
@@ -1854,7 +1779,7 @@ or runtime verification of every foreign declaration.
 Fresh `core-helpers` execution compiled with native C17 strict warnings:
 serialization of a list containing Num/Bool/null/UTF-8 passes; calling
 WON.deserialize on `[1,true,null]` aborts with `this capability is not
-available in the menu host`; non-string hook abort containment fails A087.
+available in the menu host`.
 No WON deserializer binding exists in current wren_host C sources, so the
 manual's general-purpose serialization/parser pairing is incomplete here.
 This is an API integration gap, not a missing network or display capability.

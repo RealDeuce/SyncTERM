@@ -515,6 +515,26 @@ test_event_order(void)
 	CHECK(st_console_event_try(console, &result) == 0);
 	CHECK(result.type == ST_CONSOLE_EVENT_FOCUS);
 	CHECK(!result.data.focus.focused);
+	CHECK(st_console_synthesize_physical_key(console, 42, true) == 0);
+	CHECK(st_console_synthesize_physical_key(console, 42, true) == 0);
+	CHECK(st_console_physical_key_state(console, 42, &pressed) == 0);
+	CHECK(pressed);
+	CHECK(st_console_event_try(console, &result) == 0);
+	CHECK(result.type == ST_CONSOLE_EVENT_PHYSICAL_KEY);
+	CHECK(result.data.physical_key.evdev == 42);
+	CHECK(result.data.physical_key.pressed);
+	CHECK(!result.data.physical_key.repeat);
+	CHECK(result.data.physical_key.modifiers == 0);
+	CHECK(st_console_event_try(console, &result) == IO_ERROR_WOULD_BLOCK);
+	CHECK(st_console_synthesize_physical_key(console, 42, false) == 0);
+	CHECK(st_console_synthesize_physical_key(console, 42, false) == 0);
+	CHECK(st_console_physical_key_state(console, 42, &pressed) == 0);
+	CHECK(!pressed);
+	CHECK(st_console_event_try(console, &result) == 0);
+	CHECK(result.type == ST_CONSOLE_EVENT_PHYSICAL_KEY);
+	CHECK(result.data.physical_key.evdev == 42);
+	CHECK(!result.data.physical_key.pressed);
+	CHECK(st_console_event_try(console, &result) == IO_ERROR_WOULD_BLOCK);
 	st_console_destroy(console);
 }
 
