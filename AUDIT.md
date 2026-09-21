@@ -37,7 +37,7 @@ repository-wide coverage. The legacy tree is read-only reference.
 
 The repository-wide audit is complete. This is not an implementation approval
 or release certification. The consolidated API/design assessment, priority
-groups and all 45 outstanding finding summaries are in
+groups and all 44 outstanding finding summaries are in
 AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 
 | Objective requirement | Authoritative evidence and disposition |
@@ -50,8 +50,8 @@ AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 | Required legacy behavior | Read-only comparisons cover fonts/catalog/maps, modes, palette capacity, Prestel versus Mode 7, command line, console/input and settings behavior, plus explicit parity limits. Frozen CTerm chapter cmp succeeds. |
 | Wren scripts and bindings | Complete local source/signature/manual reviews; isolated shipped-script suites and host fixtures; remaining host findings through A113. Connected/SFTP production integration missing from this application is reported, not invented or silently counted as working. |
 | Build logic, generators and documentation | Root/component CMake and generators reviewed; standalone/probe failures recorded; pinned Unicode/font regeneration and table comparisons documented; root manuals/license/development guidance covered. Wren VM vendored internals limited to integration boundaries as requested. |
-| Inventory and consolidated findings | 45 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 19 medium, 24 low, 2 unresolved concerns; not all runtime reproductions. |
-| Relevant tests where practical | Complete native Clang and GCC builds succeed. The latest 90-test runs have a stable disposition of 87 pass, 2 fail and 1 Wayland skip. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
+| Inventory and consolidated findings | 44 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 18 medium, 24 low, 2 unresolved concerns; not all runtime reproductions. |
+| Relevant tests where practical | Complete native Clang and GCC builds succeed. The latest 90-test runs have a stable disposition of 88 pass, 1 fail and 1 Wayland skip. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
 | Explicit uncertainty | Each component records unavailable platforms, unexecuted failure paths and measurement limits; A007/A011 unresolved. Source-level risks are not called verified crashes. These are audit outcomes, not claims of implementation correctness. |
 
 Historical pending-source lists below are superseded by subsequent full reads,
@@ -98,7 +98,7 @@ not the absence of failing tests. New findings will receive stable A-numbers.
 | app_paths/ | Reviewed | A009; native normal tests plus failing XDG reproduction; other platforms source-only except MinGW compile |
 | array_list/ | Reviewed | A007 unresolved portability concern; native and optimized tests pass |
 | audio/ | Reviewed | All local backends/synthesis/build/tests read; A023 callback risk; native fake tests pass, MinGW WASAPI compile only; actual device/platform gaps below |
-| audio_mixer/ | Reviewed | All local sources/tests/build read; A022 crossfade gap reproduced; device integration assigned to audio; ramp/performance/lifetime gaps below |
+| audio_mixer/ | Reviewed | All local sources/tests/build read; native continuity tests pass; device integration assigned to audio; ramp/performance/lifetime gaps below |
 | bbs_list/ | Reviewed | All local sources/header/tests/build read; A033 sanitizer reproduction; native list/cache/web tests pass, including cache confinement and borrowed mutation inputs; MinGW cache/list tests also pass under Wine; integration/fault gaps below |
 | codepage/ | Reviewed | All local source/header/build/test read; exhaustive graphic roundtrip and expanded control/invalid-input tests pass native Clang/GCC; MinGW compile only |
 | connection/ | Reviewed | Shutdown stress and platform runtime gaps documented |
@@ -903,28 +903,6 @@ Recommendation: explicitly decide/document numeric-epoch versus compact-date
 precedence, preserve required consumer/legacy behavior, and make all supported
 date syntaxes reachable. Do not simply reorder parsing without considering
 existing epoch inputs. Implementation unchanged; failing test retained.
-
-### A022 — Crossfade completion inserts pull-size-dependent silence
-
-Severity: medium. Classification: confirmed deterministic audio discontinuity,
-reproduced on native Clang and GCC.
-
-pull_chunk_locked in audio_mixer/audio_mixer.c unconditionally breaks its
-stream-buffer loop after mixing an overlapping pair. Even if both buffers
-finish before the requested chunk ends, the next queued buffer is deferred
-until another pull/chunk. The remaining accumulator samples stay zero.
-
-New test_crossfade_pull_partition queues three two-frame buffers, with the
-second crossfading over one frame of the first. It compares a four-frame pull
-with four single-frame pulls of identically initialized mixers. Bulk output's
-last two left samples are 0,0; partitioned output's are 2990,2990. Both native
-toolchains fail; cleanup completes before assertion. This checks stream
-continuity rather than prescribing exact crossfade gain curves.
-
-Recommendation: continue through subsequent queued buffers at the correct
-output offset after an overlap finishes, retaining both participants' consumed
-counts and ticket lifetimes. Test overlap shorter than a chunk, successor
-buffers, loops and multiple adjacent crossfades. No mixer code changed.
 
 ### A023 — Real-time audio callbacks take locks and free objects
 
@@ -3759,8 +3737,7 @@ are distinct from the passing argument-only normal CTest.
   their envelope depend on pull size; a chunk as long as the ramp applies its
   final volume immediately. Low-gain interpolation also substitutes -60dB
   below a 1e-6 threshold despite permitting volumes down to -192dB. These
-  source concerns need targeted output tests/legacy comparison; A022 is the
-  separately reproduced crossfade issue.
+  source concerns need targeted output tests/legacy comparison.
 - Hot path holds the mixer mutex, computes powf per buffer, tanh per channel
   sample and frees acknowledged buffers under locks. Unbounded stream/buffer
   lists and drain scans affect scaling. No audio latency or contention metric
@@ -3771,7 +3748,7 @@ are distinct from the passing argument-only normal CTest.
   cover basic mixing, loop termination, clear/drain and delayed acknowledgment,
   but their sleeps are scheduling assumptions, not explicit waiter barriers.
   Allocation/synchronization failure injection and concurrent mutation stress
-  remain test gaps. All existing checks precede the new A022 failure.
+  remain test gaps.
 
 ### audio
 
@@ -4802,9 +4779,6 @@ successful verification.
   numerical/invalid-input tests pass before the retained A021 failure on both
   native toolchains. MinGW compiles/links again; no runtime claim. No numerical
   production changes or new findings beyond documented contract/coverage gaps.
-- Audio mixer pass: new pull-partition crossfade test fails identically on
-  native Clang/GCC (silent bulk tail versus queued nonzero single-frame tail).
-  MinGW compiles/links test; not executed. Only test/report edits, no commits.
 - Audio engine initial pass: existing native st_audio CTest passes using fake
   engine backends (availability checks load libraries, no audible playback).
   No new tests or production changes this pass; report only. Remaining audio

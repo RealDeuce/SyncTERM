@@ -67,7 +67,8 @@ typedef struct audio_stream audio_stream_t;
  *
  * A buffer's fade applies at mix time. A loop repeats until another buffer is
  * appended; crossfade makes that successor overlap the prior tail for its
- * fade-in length. Appending never waits for playback.
+ * fade-in length. Queued buffer and completed-crossfade boundaries do not add
+ * silence within a device pull. Appending never waits for playback.
  */
 
 /*

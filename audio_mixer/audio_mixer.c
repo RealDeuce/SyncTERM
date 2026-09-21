@@ -714,18 +714,22 @@ pull_chunk_locked(audio_mixer_t *mixer, int16_t *output, size_t frames,
 
 			if (head->overlay_total > 0 && next != NULL) {
 				struct audio_mixer_buffer *after_next = next->next;
+				size_t head_written;
+				size_t next_written;
+				size_t overlap_written;
 				bool drop_next;
 
 				drop = mix_buffer(mixer, head,
 				    mixer->accumulator + offset * 2, frames - offset,
-				    left_db, right_db, &written);
-				if (offset + written > maximum)
-					maximum = offset + written;
+				    left_db, right_db, &head_written);
 				drop_next = mix_buffer(mixer, next,
 				    mixer->accumulator + offset * 2, frames - offset,
-				    left_db, right_db, &written);
-				if (offset + written > maximum)
-					maximum = offset + written;
+				    left_db, right_db, &next_written);
+				overlap_written = head_written > next_written
+				    ? head_written : next_written;
+				offset += overlap_written;
+				if (offset > maximum)
+					maximum = offset;
 				if (drop_next) {
 					head->next = after_next;
 					if (stream->tail == next)
@@ -740,7 +744,7 @@ pull_chunk_locked(audio_mixer_t *mixer, int16_t *output, size_t frames,
 					retire_buffer_locked(stream, head, pull_ticket);
 					dropped = true;
 				}
-				break;
+				continue;
 			}
 			drop = mix_buffer(mixer, head,
 			    mixer->accumulator + offset * 2, frames - offset,
