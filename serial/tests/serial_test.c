@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #if ST_SERIAL_TEST_HAVE_PTY
@@ -140,11 +141,17 @@ test_pseudo_terminal(void)
 #endif
 
 int
-main(void)
+main(int argc, char **argv)
 {
-	CHECK(test_arguments() == 0);
+	if (argc != 2)
+		return EXIT_FAILURE;
+	if (strcmp(argv[1], "arguments") == 0)
+		return test_arguments() == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
+	if (strcmp(argv[1], "pty") != 0)
+		return EXIT_FAILURE;
 #if ST_SERIAL_TEST_HAVE_PTY
-	CHECK(test_pseudo_terminal() == 0);
+	return test_pseudo_terminal() == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
+#else
+	return 77;
 #endif
-	return 0;
 }

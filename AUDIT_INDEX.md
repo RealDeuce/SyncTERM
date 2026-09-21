@@ -7,8 +7,8 @@ recommended remedies. Severity does not imply exploitability; source-confirmed
 risks and reproduced failures must be distinguished using those entries.
 No remediation is authorized by this report.
 
-The audit is complete, not the implementation: **39 outstanding findings**
-comprise 16 medium, 21 low and 2 unresolved design/performance
+The audit is complete, not the implementation: **35 outstanding findings**
+comprise 15 medium, 18 low and 2 unresolved design/performance
 concerns.
 This is not a count of exploitable vulnerabilities or reproduced failures.
 All 47 tracked source directories and 12 root files are covered by the
@@ -38,7 +38,6 @@ consumer boundaries, not evidence that the entire decomposition is wrong.
 | --- | --- | --- |
 | Native I/O → portable result | A006 loses errno during cleanup | Preserve error ownership across cleanup |
 | Script declarations → bound implementation | A098 shows an unavailable demo dependency | Keep capability scope explicit and test the shipped scripts against the actual host |
-| Public target → independent consumer | A013, A047 and A066 expose probe/dependency gaps | Probe the real declaration/link environment and test minimal consumers |
 | Source libraries → application distribution | A088, A091, A095 distinguish a functioning menu build from connected runtime, DLL/core packaging and notice assembly | Document and verify actual artifacts without representing planned integration as complete |
 
 Concrete coupling concerns, not automatic refactoring requests:
@@ -72,7 +71,7 @@ No new blanket GC, contention or scaling-performance diagnosis is made from
 source shape. The source and test inventory must retain those measurement
 limits in the final report.
 
-The current TODO documents contain 39 outstanding numbered findings. A007 and
+The current TODO documents contain 35 outstanding numbered findings. A007 and
 A011 are unresolved design/performance concerns, not confirmed runtime defects.
 Missing features and documentation errors are also explicitly distinguished
 from implementation failures in the detailed ledger.
@@ -85,14 +84,10 @@ from implementation failures in the detailed ledger.
 | A009 | low | POSIX app paths accept relative XDG base directories |
 | A010 | low | Windows recursive mkdir reports success for nonexistent roots |
 | A011 | unresolved performance concern | Non-native rwlock fast paths need performance validation |
-| A013 | medium verification gap | Serial PTY capability test is pre-disabled |
 | A021 | medium | Compact date-only branch is shadowed by epoch parsing |
 | A023 | medium performance/reliability risk | Real-time audio callbacks take locks and free objects |
 | A033 | medium | BBS sort-field normalization overflows on INT_MIN |
-| A047 | low | Standalone console build omits its string_compat dependency |
-| A048 | low | X11 runtime loader gives XkbFreeKeyboard the wrong function type |
 | A053 | low | Bare -i option reads past the argument terminator |
-| A066 | low | Wren VM target does not declare its math-library dependency |
 | A067 | medium | Painter truncation changes the style of an undrawn destination cell |
 | A070 | medium | Changing a Container theme does not repaint inheriting children |
 | A071 | low | A newly constructed empty RadioGroup reports cursor zero |
@@ -123,10 +118,11 @@ from implementation failures in the detailed ledger.
 
 ### Latest configured native verification
 
-Native Clang and GCC builds succeed. Each configured tree registers 91 tests;
-the stable disposition is **89 pass, 1 fail and 1 Wayland test skipped**. The
-X11 tests pass on a dedicated Xvfb display; SDL uses its CMake-configured dummy
-video driver.
+Native Clang and GCC builds succeed. Each configured tree registers 93 tests;
+the stable disposition is **91 pass, 1 fail and 1 Wayland test skipped**. The
+X11 tests pass on an isolated display; one GCC full-suite run encountered an
+intermittent BadWindow failure and its isolated rerun passed. SDL uses its
+CMake-configured dummy video driver.
 This is native verification, not Windows/macOS execution or comprehensive
 backend coverage.
 

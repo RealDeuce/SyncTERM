@@ -119,7 +119,7 @@ typedef Bool (*x11_xkb_lookup_keysym_fn)(Display *, KeyCode, unsigned int,
 	unsigned int *, KeySym *);
 typedef XkbDescPtr (*x11_xkb_get_keyboard_fn)(Display *, unsigned int,
 	unsigned int);
-typedef Status (*x11_xkb_free_keyboard_fn)(XkbDescPtr, unsigned int, Bool);
+typedef void (*x11_xkb_free_keyboard_fn)(XkbDescPtr, unsigned int, Bool);
 #if ST_CONSOLE_HAVE_XRANDR
 typedef XRRMonitorInfo *(*x11_xrr_get_monitors_fn)(Display *, Window, Bool,
 	int *);
@@ -221,7 +221,7 @@ struct x11_api {
 	Bool (*xkb_lookup_keysym)(Display *, KeyCode, unsigned int,
 	    unsigned int *, KeySym *);
 	XkbDescPtr (*xkb_get_keyboard)(Display *, unsigned int, unsigned int);
-	Status (*xkb_free_keyboard)(XkbDescPtr, unsigned int, Bool);
+	void (*xkb_free_keyboard)(XkbDescPtr, unsigned int, Bool);
 #if ST_CONSOLE_HAVE_XRENDER
 	Status (*render_query_version)(Display *, int *, int *);
 	XRenderPictFormat *(*render_find_visual_format)(Display *, const Visual *);

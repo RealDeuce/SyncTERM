@@ -201,7 +201,6 @@ endfunction()
 st_serial_warnings(st_serial)
 
 if(BUILD_TESTING)
-	set(ST_SERIAL_TEST_HAVE_PTY 0)
 	if(NOT WIN32)
 		set(CMAKE_REQUIRED_DEFINITIONS
 			${_st_serial_saved_required_definitions})
@@ -224,6 +223,8 @@ int main(void)
 ]=] ST_SERIAL_TEST_HAVE_PTY)
 		set(CMAKE_REQUIRED_DEFINITIONS
 			${_st_serial_saved_required_definitions})
+	else()
+		set(ST_SERIAL_TEST_HAVE_PTY 0)
 	endif()
 	add_executable(serial_test tests/serial_test.c)
 	target_link_libraries(serial_test PRIVATE st_serial)
@@ -236,6 +237,10 @@ int main(void)
 	set_target_properties(serial_test PROPERTIES
 		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	st_serial_warnings(serial_test)
-	add_test(NAME serial COMMAND serial_test)
+	add_test(NAME serial COMMAND serial_test arguments)
 	set_tests_properties(serial PROPERTIES TIMEOUT 10)
+	add_test(NAME serial_pty COMMAND serial_test pty)
+	set_tests_properties(serial_pty PROPERTIES
+		SKIP_RETURN_CODE 77
+		TIMEOUT 10)
 endif()

@@ -294,6 +294,10 @@ if(NOT TARGET syncterm_dynamic_library)
 	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../dynamic_library"
 		"${CMAKE_CURRENT_BINARY_DIR}/dynamic_library")
 endif()
+if(NOT TARGET syncterm_string_compat)
+	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../string_compat"
+		"${CMAKE_CURRENT_BINARY_DIR}/string_compat")
+endif()
 if(NOT TARGET st_pixels)
 	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../pixels"
 		"${CMAKE_CURRENT_BINARY_DIR}/pixels")
@@ -502,7 +506,7 @@ if(BUILD_TESTING)
 			syncterm_array_list)
 		if(test STREQUAL "scheduler")
 			target_include_directories(st_console_${test}_test PRIVATE
-				${PROJECT_SOURCE_DIR}/time)
+				${CMAKE_CURRENT_SOURCE_DIR}/../time)
 		endif()
 		set_target_properties(st_console_${test}_test PROPERTIES
 			C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)

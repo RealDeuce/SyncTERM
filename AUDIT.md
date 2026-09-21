@@ -37,21 +37,21 @@ repository-wide coverage. The legacy tree is read-only reference.
 
 The repository-wide audit is complete. This is not an implementation approval
 or release certification. The consolidated API/design assessment, priority
-groups and all 39 outstanding finding summaries are in
+groups and all 35 outstanding finding summaries are in
 AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 
 | Objective requirement | Authoritative evidence and disposition |
 | --- | --- |
 | Entire repository, not only recent changes | git ls-files identifies 47 top-level source directories and 12 root files; every directory has an inventory row, no omissions. Per-component reviews cover local implementations, headers, tests/build and associated data/docs. |
-| API design, architecture and library layout | AUDIT_INDEX boundary/coupling/ownership assessment plus component public-contract and CMake dependency reviews; A006/A007, A047/A066, A088/A091 and host-contract findings. Cohesive decomposition is recognized; no redesign authorized. |
+| API design, architecture and library layout | AUDIT_INDEX boundary/coupling/ownership assessment plus component public-contract and CMake dependency reviews; A006/A007, A088/A091 and host-contract findings. Cohesive decomposition is recognized; no redesign authorized. |
 | Correctness, ownership/lifetime and concurrency | Component lifecycle/error reviews, normal and injected tests, explicit GUI/host ownership closure; source and reproduced failures are qualified individually. A023 illustrates a remaining timing and reclamation risk. |
 | Portability and all platform backends | POSIX/Windows sources and every audio/console backend reviewed; native, MinGW compile-only and unavailable runtime evidence kept separate. Capability probes/standalone targets reviewed. No unsupported platform pass inferred. |
 | Performance | Scaler/renderer benchmark source and measured cases reviewed, including common mixed-axis scaling; A011/A023 and backend pacing risks distinguished from measured regressions. Reconstructed legacy benchmark limitations explicitly recorded. |
 | Required legacy behavior | Read-only comparisons cover fonts/catalog/maps, modes, palette capacity, Prestel versus Mode 7, command line, console/input and settings behavior, plus explicit parity limits. Frozen CTerm chapter cmp succeeds. |
 | Wren scripts and bindings | Complete local source/signature/manual reviews; isolated shipped-script suites and host fixtures; remaining host findings through A113. Connected/SFTP production integration missing from this application is reported, not invented or silently counted as working. |
 | Build logic, generators and documentation | Root/component CMake and generators reviewed; standalone/probe failures recorded; pinned Unicode/font regeneration and table comparisons documented; root manuals/license/development guidance covered. Wren VM vendored internals limited to integration boundaries as requested. |
-| Inventory and consolidated findings | 39 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 16 medium, 21 low, 2 unresolved concerns; not all runtime reproductions. |
-| Relevant tests where practical | Complete native Clang and GCC builds succeed. The latest 91-test runs have a stable disposition of 89 pass, 1 fail and 1 Wayland skip. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
+| Inventory and consolidated findings | 35 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 15 medium, 18 low, 2 unresolved concerns; not all runtime reproductions. |
+| Relevant tests where practical | Complete native Clang and GCC builds succeed. The latest 93-test runs have a stable disposition of 91 pass, 1 fail and 1 Wayland skip. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
 | Explicit uncertainty | Each component records unavailable platforms, unexecuted failure paths and measurement limits; A007/A011 unresolved. Source-level risks are not called verified crashes. These are audit outcomes, not claims of implementation correctness. |
 
 Historical pending-source lists below are superseded by subsequent full reads,
@@ -102,7 +102,7 @@ not the absence of failing tests. New findings will receive stable A-numbers.
 | bbs_list/ | Reviewed | All local sources/header/tests/build read; A033 sanitizer reproduction; native list/cache/web tests pass, including cache confinement and borrowed mutation inputs; MinGW cache/list tests also pass under Wine; integration/fault gaps below |
 | codepage/ | Reviewed | All local source/header/build/test read; exhaustive graphic roundtrip and expanded control/invalid-input tests pass native Clang/GCC; MinGW compile only |
 | connection/ | Reviewed | Shutdown stress and platform runtime gaps documented |
-| console/ | Reviewed | All local implementation/backends, tests, benchmark, build and docs read; local integration dispositions A047–A048 and GUI closure notes; native/isolated tests and platform-only risks distinguished; remaining Wren consumer questions belong to wren_host |
+| console/ | Reviewed | All local implementation/backends, tests, benchmark, build and docs read; GUI closure notes, native/isolated tests and platform-only risks distinguished; remaining Wren consumer questions belong to wren_host |
 | dynamic_library/ | Reviewed | Native fixtures pass; Windows compiled, not executed |
 | event/ | Reviewed | Native repeated tests, MinGW compile; failure-injection limitations below |
 | file_lock/ | Reviewed | A006; native tests plus failing controlled error-path reproduction; Windows source/compile only |
@@ -119,7 +119,7 @@ not the absence of failing tests. New findings will receive stable A-numbers.
 | profile/ | Reviewed | Ownership/copy source and native tests; allocation-failure injection remains a test gap |
 | scripts/ | Reviewed | All current script implementations/tests read, including main menu, editors, REPL, common bindings module and self-test driver; isolated suite results and runtime/cross-script gaps documented below; older remaining-source lists superseded |
 | semaphore/ | Reviewed | Native repeated tests, MinGW compile; failure-injection limitations below |
-| serial/ | Reviewed | A013 disables normal PTY coverage; manually enabled native PTY tests pass; Windows compile only |
+| serial/ | Reviewed | Native PTY capability and I/O tests pass; Windows builds and reports the PTY test as skipped |
 | settings/ | Reviewed | All local sources/header/tests/build read; global caller discipline and failure injection gaps remain below |
 | socket/ | Reviewed | Loopback native tests pass; Windows compile only |
 | str_list/ | Reviewed | Native failure injection and alias-input cases pass; MinGW compile |
@@ -209,8 +209,7 @@ superseded; unavailable runtime/fault/performance checks are limits, not passes.
   normal lifecycle, not renderer reset, accelerated scaling-quality changes,
   multiple vsynced windows, input methods or monitor changes. Immediate event
   drawing is a measurement target, not proof of a throughput regression.
-- X11 retains/coalesces exposure output; A048 records its loader-signature
-  defect. Default-visual mask conversion has no indexed-visual
+- X11 retains/coalesces exposure output. Default-visual mask conversion has no indexed-visual
   allocation path; legacy x_events.c contains XAllocColor use. Indexed-visual
   parity remains unverified rather than declared supported or intentionally
   removed. Clipboard INCR/fallback, alternate modifier maps and unusual visual
@@ -782,23 +781,6 @@ automatically equivalent because the API explicitly supports recursive readers.
 Recommendation: benchmark uncontended and contended paths against actual console
 usage before selecting any remedy. No synchronization redesign performed.
 
-### A013 — Serial PTY capability test is pre-disabled
-
-Severity: medium verification gap. Classification: confirmed build/test defect.
-
-`serial/CMakeLists.txt` sets ST_SERIAL_TEST_HAVE_PTY to 0 immediately before
-calling check_c_source_compiles with that variable. The check skips already
-defined results. The resulting native test target has
-`-DST_SERIAL_TEST_HAVE_PTY=0` in its flags.make and runs only argument tests,
-not serial configuration, timed I/O, byte transfer or baud enumeration.
-The normal CTest passes without exposing this omission.
-
-Compiled the unchanged test manually with ST_SERIAL_TEST_HAVE_PTY=1 against
-each native build's serial/error libraries. Both Clang and GCC PTY tests pass
-on this host, establishing that the omitted coverage can run here.
-Recommendation: leave the probe result undefined on POSIX until the check, and
-explicitly report test skips. No CMake fix made under audit-only authority.
-
 ### A021 — Compact date-only branch is shadowed by epoch parsing
 
 Severity: medium. Classification: confirmed unreachable intended parsing path;
@@ -862,41 +844,6 @@ Recommended remedy: validate without negating INT_MIN and cover the complete
 int boundary contract. Also source-only: field_count*sizeof(int) in sort's
 allocation lacks an overflow check; callers' count bounds remain to review.
 
-### A047 — Standalone console build omits its string_compat dependency
-
-Severity: low (component build correctness). console/CMakeLists.txt declares a
-standalone STConsole project and adds absent component targets individually,
-but never adds string_compat before linking syncterm_string_compat. A top-level
-build supplies that target and masks the omission. A fresh native Clang
-configure with `cmake -S console -B /tmp/st-console-config-audit.fv42uV
--DBUILD_TESTING=OFF -DST_CONSOLE_X11=OFF -DST_CONSOLE_WAYLAND=OFF
--DST_CONSOLE_SDL=OFF` succeeds; building then fails at console.c:13 because
-string_compat.h is not found. No build files were edited.
-
-Recommendation: establish the dependency target in the standalone path just
-like the other required libraries, and retain a minimal standalone build check.
-This does not imply the top-level application build fails.
-
-### A048 — X11 runtime loader gives XkbFreeKeyboard the wrong function type
-
-Severity: low (confirmed declaration mismatch; no runtime failure reproduced).
-console/console_x11.c:121 and :222 declare the dynamically loaded
-XkbFreeKeyboard as returning Status. The installed X11/XKBlib.h:645 declares
-void XkbFreeKeyboard(XkbDescPtr, unsigned int, Bool). build_keycode_map calls
-through the incompatible pointer at :1518; discarding the result does not
-make the function types compatible.
-
-The compile-only console/tests/st_console_x11_signature_test.c includes the
-unchanged backend and uses C17 _Generic assertions against the header,
-loader typedef and loader member. Native Clang accepts the official-header
-assertion and fails both loader assertions. Run with -fsyntax-only and the
-st_console target's include directories from flags.make; no linking, display
-access or CMake edits are needed. This demonstrates the type mismatch, not a
-crash or a particular ABI consequence.
-
-Recommendation: match the installed public declaration exactly and check
-other manually declared dynamic entry points against their public headers.
-
 ### A053 — Bare -i option reads past the argument terminator
 
 Severity: low (confirmed one-byte out-of-bounds read on malformed local CLI
@@ -917,26 +864,6 @@ that executable. No application startup, settings access or display involved.
 Recommendation: validate the first character before reading the second;
 retain empty, one-character, valid two-character and excess-character option
 tests. No broad exploitability claim is made for this local argument error.
-
-### A066 — Wren VM target does not declare its math-library dependency
-
-Severity: low (component build dependency). wren_vm/CMakeLists.txt builds
-st_wren_vm without linking any math library. The VM references trunc, acos,
-sin, pow and other math functions. The complete host currently links through
-other libraries which supply -lm, concealing the missing dependency.
-
-Confirmed on native FreeBSD/Clang with
-wren_vm/tests/st_wren_vm_link_test.c: compile strict C17 with the public
-include directory and build/wren_vm/libst_wren_vm.a alone. Link fails with
-undefined math symbols. The identical command with -lm links and executes
-successfully, creating a VM, interpreting a sqrt assertion and freeing it.
-No CMake changes or new CTest registrations were made. This is not a failure
-of the current full application link. Platforms with math in the default C
-runtime were not tested by this isolated consumer.
-
-Recommendation: express the target's required math dependency using the
-project's platform capability policy, and cover a minimal consuming target
-without unrelated libraries accidentally satisfying it.
 
 ### A067 — Painter truncation changes the style of an undrawn destination cell
 
@@ -2747,8 +2674,7 @@ non-ASCII bytes rather than assuming an encoding. XFilterEvent precedes
 dispatch. Repeat release/press pairs are collapsed; focus loss clears the
 backend repeat table. Existing key tests cover only a small mapping sample.
 No X server, input method or user desktop was exercised in this pass.
-The remaining X11 implementation and full integration test remain pending;
-A048 is a compile-time finding, not evidence that runtime input was validated.
+The remaining X11 implementation and full integration test remain pending.
 
 ### console — core/text/raster review in progress
 
@@ -2879,7 +2805,7 @@ needs actual cross-build verification. Curses header checks do not establish
 the complete implementation
 API/ABI. GCC suppresses pedantic warnings for whole backend source files, not
 only symbol conversions. These are review concerns, not reproduced additional
-portability failures. Minimal standalone native build concretely fails A047.
+portability failures.
 
 GUI CTests for X11/Wayland/Quartz/GDI inherit the ambient display rather than
 provisioning isolation; do not run indiscriminately on the user's desktop.
@@ -3425,12 +3351,12 @@ publish only on success. There is no locale dependency or global mutable state.
 
 CMake selects one platform source with narrow helpers and strict-C17
 per-capability probes. Root includes are exposed for
-common generated types. A013 explains why ordinary serial CTest lacked real I/O.
-Manually enabled PTY tests cover transfers, timeouts, invalid config, enumeration,
-zero-length operations and close on this FreeBSD host. No physical serial device,
-modem-line transitions, flow-control stalls, Windows COM runtime, unplugging,
-allocation failure or cancellation fault injection was exercised. Those limits
-are distinct from the passing argument-only normal CTest.
+common generated types. Native PTY tests cover transfers, timeouts, invalid
+config, enumeration, zero-length operations and close on this FreeBSD host. No
+physical serial device, modem-line transitions, flow-control stalls, Windows
+COM runtime, unplugging, allocation failure or cancellation fault injection was
+exercised. Those limits are distinct from the passing native PTY test and the
+Windows argument coverage.
 
 ### connection
 
@@ -3462,8 +3388,7 @@ are distinct from the passing argument-only normal CTest.
   validated; the fake server omits it. Compatibility with rejection messages
   and ordinary servers remains an integration test gap.
 - Connection's forkpty capability probes use strict C17 in both aggregate and
-  standalone builds. Unlike serial A013, their actual probe result names are
-  distinct from the preinitialized selection variables.
+  standalone builds.
 - Serial setup opens/configures before publishing the connection, snapshots
   the 7-bit policy, and closes/DTR-drops on setup failure. Its profile/global
   settings inputs must remain stable during setup; mutable global modem
