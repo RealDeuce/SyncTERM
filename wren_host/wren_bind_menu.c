@@ -2649,6 +2649,10 @@ fn_menu_set_encryption(WrenVM *vm)
 		st_wren_abort(vm, "Menu.setEncryption expects a String or null");
 		return;
 	}
+	if (host->config.safe_mode) {
+		wrenSetSlotBool(vm, 0, false);
+		return;
+	}
 	options.cipher = (enum st_list_cipher)algorithm;
 	options.key_bits = (uint32_t)key_size;
 	if (password == NULL && algorithm != ST_LIST_CIPHER_NONE)
@@ -2768,7 +2772,7 @@ static void
 fn_menu_save_web_lists(WrenVM *vm)
 {
 	struct st_wren_host *host = st_wren_host_from_vm(vm);
-	bool success = st_settings_save() == 0;
+	bool success = !host->config.safe_mode && st_settings_save() == 0;
 
 	if (success)
 		host->web_lists_dirty = false;
@@ -3005,8 +3009,10 @@ fn_settings_apply(WrenVM *vm)
 static void
 fn_settings_save(WrenVM *vm)
 {
+	struct st_wren_host *host = st_wren_host_from_vm(vm);
 	struct foreign_settings *settings = settings_value(vm);
-	bool success = settings != NULL && settings_apply(vm, settings)
+	bool success = settings != NULL && !host->config.safe_mode
+	    && settings_apply(vm, settings)
 	    && st_settings_save() == 0;
 
 	wrenSetSlotBool(vm, 0, success);
@@ -3439,6 +3445,10 @@ fn_bbs_save(WrenVM *vm)
 
 	if (bbs == NULL || host->bbs_list == NULL)
 		return;
+	if (host->config.safe_mode) {
+		wrenSetSlotBool(vm, 0, false);
+		return;
+	}
 	if (bbs->is_defaults)
 		status = st_bbs_list_set_defaults(host->bbs_list, &bbs->profile);
 	else if (bbs->is_new)
@@ -3463,6 +3473,7 @@ fn_bbs_delete(WrenVM *vm)
 	struct st_bbs_mutation_result mutation;
 
 	wrenSetSlotBool(vm, 0, bbs != NULL && host->bbs_list != NULL
+	    && !host->config.safe_mode
 	    && bbs->source == ST_BBS_SOURCE_PERSONAL && !bbs->is_defaults
 	    && !bbs->is_new && st_bbs_list_remove(host->bbs_list,
 	    bbs->original_name, &mutation) == 0);

@@ -88,6 +88,26 @@ file_contains(const char *path, const char *text)
 	return okay && strstr(buffer, text) != NULL;
 }
 
+static bool
+file_equals(const char *path, const char *expected)
+{
+	FILE *stream = fopen(path, "rb");
+	char buffer[8192];
+	size_t expected_size = strlen(expected);
+	size_t size;
+	bool okay;
+
+	if (stream == NULL || expected_size >= sizeof(buffer)) {
+		if (stream != NULL)
+			(void)fclose(stream);
+		return false;
+	}
+	size = fread(buffer, 1, sizeof(buffer), stream);
+	okay = !ferror(stream) && fclose(stream) == 0;
+	return okay && size == expected_size
+	    && memcmp(buffer, expected, expected_size) == 0;
+}
+
 static int
 discard_ansi_output(void *context, const void *data, size_t size)
 {
@@ -1146,6 +1166,62 @@ exercise_mouse_drag_selection(struct st_wren_host *host,
 	return 0;
 }
 
+static int
+exercise_safe_mode_persistence_contract(st_wren_host_t *public_host,
+	const char *personal, const char *settings, const char *cache)
+{
+	static const char personal_contents[] =
+	    "[Alpha]\nAddress=alpha.example\nLastConnected=100\n";
+	static const char settings_contents[] =
+	    "[SyncTERM]\nConfirmClose=false\n"
+	    "[WebLists]\nAudit=https://example.invalid/original\n";
+	static const char source[] =
+	    "import \"syncterm\" for Host\n"
+	    "import \"syncterm_menu\" for Menu\n"
+	    "if (!Host.safeMode || Menu.load(null) != 0) Fiber.abort(\"safe setup\")\n"
+	    "var count = Menu.entries.count\n"
+	    "var entry = Menu.entries[0]\n"
+	    "entry.comment = \"unsaved edit\"\n"
+	    "if (!entry.rename(\"Renamed\") || entry.save() || !entry.dirty) Fiber.abort(\"entry save\")\n"
+	    "if (entry.delete() || Menu.entries.count != count || Menu.entries[0].name != \"Alpha\") Fiber.abort(\"entry delete\")\n"
+	    "var fresh = Menu.create(\"Fresh\")\n"
+	    "fresh.comment = \"unsaved new entry\"\n"
+	    "if (fresh.save() || !fresh.dirty || Menu.entries.count != count) Fiber.abort(\"new entry save\")\n"
+	    "var defaults = Menu.defaults\n"
+	    "defaults.comment = \"unsaved defaults\"\n"
+	    "if (defaults.save() || !defaults.dirty || Menu.defaults.comment == \"unsaved defaults\") Fiber.abort(\"defaults save\")\n"
+	    "var snapshot = Menu.settings\n"
+	    "var confirm = snapshot.confirmClose\n"
+	    "snapshot.confirmClose = !confirm\n"
+	    "if (snapshot.save() || !snapshot.dirty || Menu.settings.confirmClose != confirm) Fiber.abort(\"settings save\")\n"
+	    "if (!Menu.updateWebList(0, \"https://example.invalid/changed\") || !Menu.webListsDirty) Fiber.abort(\"web edit\")\n"
+	    "if (Menu.saveWebLists() || !Menu.webListsDirty) Fiber.abort(\"web save\")\n"
+	    "var algorithm = Menu.encryptionAlgorithm\n"
+	    "var keySize = Menu.encryptionKeySize\n"
+	    "if (Menu.setEncryption(6, 128, \"secret\")) Fiber.abort(\"encryption save\")\n"
+	    "if (Menu.encryptionAlgorithm != algorithm || Menu.encryptionKeySize != keySize) Fiber.abort(\"encryption state\")\n";
+	struct st_wren_host *host = public_host;
+	struct fs_info info;
+	char cache_directory[sizeof(ST_WREN_TEST_DIRECTORY) + 48];
+	char cache_sentinel[sizeof(ST_WREN_TEST_DIRECTORY) + 64];
+
+	CHECK(snprintf(cache_directory, sizeof(cache_directory), "%s/Alpha", cache)
+	    < (int)sizeof(cache_directory));
+	CHECK(snprintf(cache_sentinel, sizeof(cache_sentinel), "%s/sentinel",
+	    cache_directory) < (int)sizeof(cache_sentinel));
+	CHECK(fs_create_directories(cache_directory) == 0);
+	CHECK(write_file(cache_sentinel, "preserve") == 0);
+	CHECK(file_equals(personal, personal_contents));
+	CHECK(file_equals(settings, settings_contents));
+	CHECK(wrenInterpret(host->vm, "safe_mode_persistence_contract", source)
+	    == WREN_RESULT_SUCCESS);
+	CHECK(file_equals(personal, personal_contents));
+	CHECK(file_equals(settings, settings_contents));
+	CHECK(fs_get_info(&info, cache_sentinel) == 0
+	    && info.kind == FS_ENTRY_FILE);
+	return 0;
+}
+
 int
 main(void)
 {
@@ -1474,6 +1550,30 @@ main(void)
 	CHECK(st_wren_host_run_menu(host, &selected, &has_selection) == 0);
 	CHECK(has_selection);
 	st_profile_dispose(&selected);
+	st_wren_host_destroy(host);
+	st_console_destroy(console);
+
+	static const char safe_personal_contents[] =
+	    "[Alpha]\nAddress=alpha.example\nLastConnected=100\n";
+	static const char safe_settings_contents[] =
+	    "[SyncTERM]\nConfirmClose=false\n"
+	    "[WebLists]\nAudit=https://example.invalid/original\n";
+	CHECK(write_file(personal, safe_personal_contents) == 0);
+	CHECK(write_file(settings, safe_settings_contents) == 0);
+	CHECK(st_settings_reload() == 0);
+	console = NULL;
+	host = NULL;
+	console_config_display.backend = ST_CONSOLE_BACKEND_HEADLESS;
+	console_config_display.ansi_io = NULL;
+	CHECK(st_console_create(&console, &console_config_display,
+	    &console_config) == 0);
+	CHECK(st_console_register_static_font(console, &default_font,
+	    &default_identifier) == 0);
+	host_config.console = console;
+	host_config.safe_mode = true;
+	CHECK(st_wren_host_create(&host, &host_config) == 0);
+	CHECK(exercise_safe_mode_persistence_contract(host, personal, settings,
+	    cache) == 0);
 	st_wren_host_destroy(host);
 	st_console_destroy(console);
 	st_settings_shutdown();

@@ -84,8 +84,7 @@ main(int argc, char **argv)
 	    || strcmp(argv[2], "bbs-setters") == 0
 	    || strcmp(argv[2], "statusbar-suite") == 0
 	    || strcmp(argv[2], "inherited-theme") == 0
-	    || strcmp(argv[2], "cell-colours") == 0
-	    || strcmp(argv[2], "safe-save") == 0);
+	    || strcmp(argv[2], "cell-colours") == 0);
 	recovery = strcmp(argv[2], "recovery") == 0;
 	CHECK(strlen(argv[1]) < 900);
 	(void)snprintf(menu, sizeof(menu), "%s/auto/menu", argv[1]);
@@ -107,7 +106,7 @@ main(int argc, char **argv)
 	paths.cache_directory = argv[1];
 	paths.system_cache_directory = argv[1];
 	paths.download_directory = argv[1];
-	if (strcmp(argv[2], "reload") == 0 || strcmp(argv[2], "safe-save") == 0
+	if (strcmp(argv[2], "reload") == 0
 	    || strcmp(argv[2], "bbs-setters") == 0) {
 		(void)snprintf(personal, sizeof(personal), "%s/personal.ini", argv[1]);
 		(void)snprintf(cached, sizeof(cached), "%s/cached.ini", argv[1]);
@@ -146,28 +145,6 @@ main(int argc, char **argv)
 		passed = status == 0;
 		fprintf(stderr, "host survives invalid picker implementation: %s (status %d)\n",
 		    passed ? "PASS" : "FAIL", status);
-	}
-	else if (strcmp(argv[2], "safe-save") == 0) {
-		char contents[4096];
-		FILE *stream;
-		size_t count;
-
-		CHECK(status == 0);
-		CHECK(wrenInterpret(host->vm, "safe_save_audit",
-		    "import \"syncterm_menu\" for Menu\n"
-		    "import \"syncterm\" for Host\n"
-		    "if (!Host.safeMode || Menu.load(null) != 0) Fiber.abort(\"invalid safe-mode setup\")\n"
-		    "var entry = Menu.entries[0]\n"
-		    "entry.comment = \"safe-mode audit edit\"\n"
-		    "entry.save()\n") == WREN_RESULT_SUCCESS);
-		stream = fopen(personal, "rb");
-		CHECK(stream != NULL);
-		count = fread(contents, 1, sizeof(contents) - 1, stream);
-		CHECK(!ferror(stream));
-		CHECK(fclose(stream) == 0);
-		contents[count] = '\0';
-		passed = strcmp(contents, "[Audit]\nAddress=example.invalid\n") == 0;
-		fprintf(stderr, "safe-mode save leaves file unchanged: %s\n", passed ? "PASS" : "FAIL");
 	}
 	else if (strcmp(argv[2], "reload") == 0) {
 		CHECK(status == 0);

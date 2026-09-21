@@ -37,7 +37,7 @@ repository-wide coverage. The legacy tree is read-only reference.
 
 The repository-wide audit is complete. This is not an implementation approval
 or release certification. The consolidated API/design assessment, priority
-groups and all 68 outstanding finding summaries are in
+groups and all 67 outstanding finding summaries are in
 AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 
 | Objective requirement | Authoritative evidence and disposition |
@@ -50,7 +50,7 @@ AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 | Required legacy behavior | Read-only comparisons cover fonts/catalog/maps, modes, palette capacity, Prestel versus Mode 7, command line, console/input and settings behavior, plus explicit parity limits. Frozen CTerm chapter cmp succeeds. |
 | Wren scripts and bindings | Complete local source/signature/manual reviews; isolated shipped-script suites and host fixtures; host closure A100–A113. Connected/SFTP production integration missing from this application is reported, not invented or silently counted as working. |
 | Build logic, generators and documentation | Root/component CMake and generators reviewed; standalone/probe failures recorded; pinned Unicode/font regeneration and table comparisons documented; root manuals/license/development guidance covered. Wren VM vendored internals limited to integration boundaries as requested. |
-| Inventory and consolidated findings | 68 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 1 high, 40 medium, 25 low, 2 unresolved concerns; not all runtime reproductions. |
+| Inventory and consolidated findings | 67 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 40 medium, 25 low, 2 unresolved concerns; not all runtime reproductions. |
 | Relevant tests where practical | A complete native build succeeds. The latest 75-test run has a stable disposition of 72 pass, 2 fail and 1 Wayland skip. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
 | Explicit uncertainty | Each component records unavailable platforms, unexecuted failure paths and measurement limits; A007/A011 unresolved. Source-level risks are not called verified crashes. These are audit outcomes, not claims of implementation correctness. |
 
@@ -361,16 +361,6 @@ close the earlier custom-font source questions with explicit source-only evidenc
 fault injection, filesystem replacement races and real font rendering remain
 verification limits, not successful tests.
 
-Safe-mode follow-up to A062: Settings.save (:2992), Menu.saveWebLists (:2754)
-and Menu.setEncryption (:2604) also have no host safe_mode check. They call
-settings persistence or BBS encryption rewrite directly; settings_store.c's
-save checks its initialized baseline/path but has no host policy parameter.
-This is source-confirmed missing enforcement beyond the already reproduced
-BBS.save case. No additional rewrite/encryption/save was run in this pass.
-Cache refresh and external URL launch remain separate policy questions;
-their omission of a gate must not be silently treated as an approved exception
-or as evidence of an executed external action.
-
 Immediate-settings follow-up: settings_apply applies a theme before copying
 global settings, ignores both console scaling-setter results, then clears the
 snapshot dirty flag. A064 already demonstrates apply-before-save-failure;
@@ -445,9 +435,9 @@ document. Thus an editable system-copy or duplicate draft is not evidence
 that system/web source files can be overwritten. It still contradicts the
 host's in-memory read-only/admission promises, and transient saves can reach
 the ordinary insertion path if other checks succeed. Actual transient disk
-insertion was not executed. Existing A062 covers the separate safe-mode save
-violation. Recommend enforcing object-category/name rules at the documented
-API boundary and testing them without weakening lower storage validation.
+insertion was not executed. Recommend enforcing object-category/name rules at
+the documented API boundary and testing them without weakening lower storage
+validation.
 
 ### A101 — BBS handles remain usable after a successful model reload
 
@@ -1470,30 +1460,6 @@ as expected, but Menu.entries becomes empty; the test exits 1 with
 and validate the replacement before swapping model ownership, with tests for
 password/decryption, I/O and allocation failure as well as successful replacement.
 Only the I/O-path failure was reproduced, not unsaved-edit loss or generation.
-
-### A062 — BBS.save writes the personal list in safe mode
-
-Severity: high (violates explicitly selected no-write mode). Confirmed using
-only an isolated temporary personal list. app's -s help promises to prevent
-writing local files and passes safe_mode to the host. In
-wren_bind_menu.c:3419, fn_bbs_save calls the persistent add/update/defaults
-operations without checking host->config.safe_mode. st_bbs_store.c writes
-the personal file and has no separate safe-mode policy. This is distinct from
-sort-profile/theme bindings which explicitly suppress persistence in safe mode.
-
-The `safe-save` case in st_wren_loader_audit_test.c creates a one-entry fixture,
-constructs a host with safe_mode=true, asserts Host.safeMode and successful
-Menu.load, edits that entry's comment and calls save(). Reading the fixture
-afterward shows changed contents; the unchanged-file assertion fails. The
-native Clang strict C17 test exits 1 with `safe-mode save leaves file unchanged:
-FAIL`. It does not touch personal settings or any non-fixture file. The save
-return value is not constrained: refusing or keeping edits in memory would
-both satisfy this no-disk-write test.
-
-Recommendation: enforce no-write policy at every host persistence boundary,
-including add/update/default/delete and cache side effects, with isolated
-safe-mode tests for each. Delete has the same missing guard in source but was
-not executed; do not claim its runtime verification from this save test.
 
 ### A063 — Settings snapshots never become stale after another snapshot applies
 
@@ -2875,8 +2841,8 @@ ANSI discard callback; no desktop or actual terminal interaction. It covers
 menu selection, settings setter/apply happy paths, theme/font/sort collections,
 encryption transitions, REPL error recovery and style restoration, log ring
 eviction, Cell retarget lifetime and control-key routing. It does not exercise
-settings stale-handle, failed-save or reload contracts (A063–A065), safe-mode
-persistence, or physical backend behavior. Its web refresh case deliberately
+settings stale-handle, failed-save or reload contracts (A063–A065), or physical
+backend behavior. Its web refresh case deliberately
 uses an invalid URI and verifies restoration of one cell, two palette entries
 and cursor, not a successful live download or full-screen restoration.
 
@@ -2892,9 +2858,7 @@ theme and scaling but ignores scaling errors; other promised immediate
 effects and KDF/list-path integration require tracing consumers. BBS palette
 and script-list setters mutate elements before completing validation, so a
 later invalid element may leave partial changes without setting dirty.
-These are not yet runtime-confirmed findings. Settings.save, saveWebLists and
-setEncryption also lack host safe-mode checks; persistence behavior for those
-paths has not been reproduced and is not covered by A062's BBS-only test.
+These are not yet runtime-confirmed findings.
 
 Menu theme/font pass extends wren_bind_menu.c coverage through :2528, plus
 the previously read :3360-3480. Read Wren.adoc Menu Themes and Custom Fonts
@@ -2909,8 +2873,8 @@ This failure-order concern is source-only and still needs injection tests.
 
 Cloud refresh/cache/select can perform cache writes without a safe-mode gate;
 selection only gates settings_save. Whether cache updates are an intentional
-safe-mode exception needs explicit policy/legacy comparison before extending
-A062. Menu.openUrl likewise lacks a safe-mode gate despite Host.safeMode's
+safe-mode exception needs an explicit policy/legacy comparison. Menu.openUrl
+likewise lacks a safe-mode gate despite Host.safeMode's
 documented restriction on script-driven external commands; no browser or
 external command was launched during this audit.
 
@@ -2959,8 +2923,7 @@ via snprintf and do not perform documented uniqueness validation or statistics
 reset. nameAvailable checks combined-list existence only, not validity/reserved
 names/personal-only collisions. Read-only source restrictions are missing from
 rename and some setters; save's lower-level source checks must be traced before
-claiming any on-disk effect. The absence of safe-mode checks in BBS save/delete
-also requires lower-level verification. No writes were tested in this pass.
+claiming any on-disk effect. No writes were tested in this pass.
 
 URL parsing uses counted strings, rejects embedded NUL, handles bracketed hosts,
 bounded user/password/address spans and explicit numeric ports. It does not

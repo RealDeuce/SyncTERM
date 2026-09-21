@@ -7,17 +7,16 @@ recommended remedies. Severity does not imply exploitability; source-confirmed
 risks and reproduced failures must be distinguished using those entries.
 No remediation is authorized by this report.
 
-The audit is complete, not the implementation: **68 outstanding findings**
-comprise 1 high, 40 medium, 25 low and 2 unresolved design/performance
+The audit is complete, not the implementation: **67 outstanding findings**
+comprise 40 medium, 25 low and 2 unresolved design/performance
 concerns.
 This is not a count of exploitable vulnerabilities or reproduced failures.
 All 47 tracked source directories and 12 root files are covered by the
 inventory and component/integration dispositions. Vendored internals were
 reviewed only at the requested integration boundaries.
 
-Most urgent follow-up groups, subject to separate authorization:
+Most urgent follow-up, subject to separate authorization:
 
-- Write-policy correctness: A062.
 - Data preservation and required compatibility: A016 and the
   mode-specific rendering/persistence findings.
 
@@ -77,7 +76,7 @@ No new blanket GC, contention or scaling-performance diagnosis is made from
 source shape. The source and test inventory must retain those measurement
 limits in the final report.
 
-The current TODO documents contain 68 outstanding numbered findings. A007 and
+The current TODO documents contain 67 outstanding numbered findings. A007 and
 A011 are unresolved design/performance concerns, not confirmed runtime defects.
 Missing features and documentation errors are also explicitly distinguished
 from implementation failures in the detailed ledger.
@@ -112,7 +111,6 @@ from implementation failures in the detailed ledger.
 | A056 | low | POSIX picker reports directory read errors as successful listings |
 | A058 | medium | Wren cannot round-trip every 64-bit mouse-event mask |
 | A061 | medium | Failed Menu.load discards the existing model |
-| A062 | high | BBS.save writes the personal list in safe mode |
 | A063 | medium | Settings snapshots never become stale after another snapshot applies |
 | A064 | medium | Failed Settings.save still applies the previously unapplied snapshot |
 | A065 | medium | Settings.reload reads disk rather than current running settings |

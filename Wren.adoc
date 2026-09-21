@@ -4290,6 +4290,9 @@ together.  `delete()` removes a personal entry from disk before
 removing it from the model.  System and web-cache records are
 read-only: setters abort, while `rename`, `save`, and `delete` return
 `false`.  Pass one to `Menu.copy` to obtain an editable personal copy.
+In safe mode, personal-entry and defaults setters still update their working
+`BBS`, but `save()` and `delete()` return `false`.  The working object remains
+dirty or new, and neither the persisted model nor an entry cache is changed.
 
 The shipped entry editor invokes those setters, including `rename()`,
 after each nested field editor accepts a changed value.  It calls
@@ -4343,7 +4346,8 @@ colours used when the built-in theme is active.  It returns
 An unapplied snapshot is not applied after such a failure; settings already
 accepted through `apply()` remain active.  Changing the KDF work factor may
 rewrite an encrypted BBS list during `apply()`.  Saving `syncterm.ini` is
-disabled in safe mode.
+disabled in safe mode: `save()` returns `false` before applying the snapshot,
+and the snapshot remains dirty.
 
 A successful `apply()` or `save()` advances the settings generation.
 The object which performed the operation remains valid and clean, but
@@ -4624,7 +4628,8 @@ be `null` to reuse the password already held by the host.  Enabling
 encryption fails if neither source supplies a non-empty password.  A
 successful rewrite updates the current algorithm, key size, and held
 password; a failure leaves them unchanged.  The operation is disabled
-in safe mode.
+in safe mode, where it returns `false` without rewriting the list or changing
+the algorithm, key size, or held password.
 
 === Menu Web Lists [[menu-web-lists]]
 
