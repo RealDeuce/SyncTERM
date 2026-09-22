@@ -37,7 +37,7 @@ repository-wide coverage. The legacy tree is read-only reference.
 
 The repository-wide audit is complete. This is not an implementation approval
 or release certification. The consolidated API/design assessment, priority
-groups and all 26 outstanding finding summaries are in
+groups and all 25 outstanding finding summaries are in
 AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 
 | Objective requirement | Authoritative evidence and disposition |
@@ -48,10 +48,10 @@ AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 | Portability and all platform backends | POSIX/Windows sources and every audio/console backend reviewed; native, MinGW cross-build, focused Wine and unavailable runtime evidence kept separate. Capability probes/standalone targets reviewed. No unsupported platform pass inferred. |
 | Performance | Scaler/renderer benchmark source and measured cases reviewed, including common mixed-axis scaling; A011/A023 and backend pacing risks distinguished from measured regressions. Reconstructed legacy benchmark limitations explicitly recorded. |
 | Required legacy behavior | Read-only comparisons cover fonts/catalog/maps, modes, palette capacity, Prestel versus Mode 7, command line, console/input and settings behavior, plus explicit parity limits. Frozen CTerm chapter cmp succeeds. |
-| Wren scripts and bindings | Complete local source/signature/manual reviews; isolated shipped-script suites and host fixtures; remaining host findings through A113. Connected/SFTP production integration missing from this application is reported, not invented or silently counted as working. |
+| Wren scripts and bindings | Complete local source/signature/manual reviews and isolated shipped-script suites and host fixtures. Connected/SFTP production integration missing from this application is reported, not invented or silently counted as working. |
 | Build logic, generators and documentation | Root/component CMake and generators reviewed; standalone/probe failures recorded; pinned Unicode/font regeneration and table comparisons documented; root manuals/license/development guidance covered. Wren VM vendored internals limited to integration boundaries as requested. |
-| Inventory and consolidated findings | 26 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 9 medium, 15 low, 2 unresolved concerns; not all runtime reproductions. |
-| Relevant tests where practical | Complete native Clang and GCC builds have succeeded. The current configured native tree builds and its latest 98-test run has a disposition of 97 pass and 1 Wayland skip. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
+| Inventory and consolidated findings | 25 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 9 medium, 14 low, 2 unresolved concerns; not all runtime reproductions. |
+| Relevant tests where practical | Complete native Clang and GCC builds have succeeded. The current configured native tree builds and its latest 99-test run has a disposition of 98 pass and 1 Wayland skip. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
 | Explicit uncertainty | Each component records unavailable platforms, unexecuted failure paths and measurement limits; A007/A011 unresolved. Source-level risks are not called verified crashes. These are audit outcomes, not claims of implementation correctness. |
 
 Historical pending-source lists below are superseded by subsequent full reads,
@@ -137,23 +137,12 @@ not the absence of failing tests. New findings will receive stable A-numbers.
 | value_convert/ | Reviewed | All local sources/tests/build read; native exact rounding and date-precedence checks pass; exotic formats and numeric performance unverified |
 | webget/ | Reviewed | All local source/header/test/build read; exact-URL cache identity and single-owner transport cleanup covered; remaining protocol/TLS/fault gaps below |
 | windows_utf/ | Reviewed | Source and MinGW compile; Windows runtime not verified |
-| wren_host/ | Reviewed | All local implementation, public/internal headers, CMake/generator and integration tests read; isolated shipped-script and host-contract cases run; mutation/error/input/font/ownership integration dispositioned below, including A113; runtime/fault limits explicit |
+| wren_host/ | Reviewed | All local implementation, public/internal headers, CMake/generator and integration tests read; isolated shipped-script and host-contract cases run; mutation/error/input/font/ownership integration dispositioned below; runtime/fault limits explicit |
 | wren_vm/ | Reviewed at integration boundary | Full legacy diff, build/configuration, license, REPL private API coupling and minimal consumer link checked; upstream internals not exhaustively audited |
 | xptls/ | Reviewed | All local source/header/build/test files read; broader TLS/platform coverage gaps below |
 | xptls_crypto/ | Reviewed | All local headers/providers/clear implementations/build/tests read; expanded tests pass OpenSSL, Botan and none; MinGW compile only; contract/resource gaps below |
 
 ## Root documentation review and consolidated follow-ups
-
-### A113 — Menu default ports disagree with its URL parser
-
-Severity: low user-visible consistency defect, source-confirmed.
-`wren_host/wren_bind_menu.c:357` connection_default_port returns 8883 for
-MQTT and zero for shell; `fn_menu_default_port:1100` defaults both to 23.
-Wren.adoc:4406 calls this the built-in default for the connection type.
-These two policies in the same host disagree without a documented reason.
-No network operation or connection test performed. Recommendation: establish
-one existing connection-type policy for URL parsing and editor defaults and
-verify every enumerated type, not merely SSH/RLogin/TelnetTLS.
 
 ### Wren-host integration coverage closure
 

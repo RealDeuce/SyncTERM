@@ -21,13 +21,42 @@ copy_path(char **result, const char *source)
 	return *result != NULL;
 }
 
+uint16_t
+st_connection_default_port(enum st_connection_type type)
+{
+	switch (type) {
+	case ST_CONNECTION_RLOGIN:
+	case ST_CONNECTION_RLOGIN_REVERSED:
+		return 513;
+	case ST_CONNECTION_TELNET:
+		return 23;
+	case ST_CONNECTION_SSH:
+	case ST_CONNECTION_SSH_NO_AUTH:
+		return 22;
+	case ST_CONNECTION_MBBS_GHOST:
+		return UINT16_MAX;
+	case ST_CONNECTION_TELNET_TLS:
+		return 992;
+	case ST_CONNECTION_MQTT:
+		return 8883;
+	case ST_CONNECTION_UNKNOWN:
+	case ST_CONNECTION_RAW:
+	case ST_CONNECTION_MODEM:
+	case ST_CONNECTION_SERIAL:
+	case ST_CONNECTION_SERIAL_3WIRE:
+	case ST_CONNECTION_SHELL:
+	default:
+		return 0;
+	}
+}
+
 void
 st_profile_init(struct st_profile *profile)
 {
 	if (profile != NULL) {
 		memset(profile, 0, sizeof(*profile));
 		profile->connection_type = ST_CONNECTION_SSH;
-		profile->port = 22;
+		profile->port = st_connection_default_port(ST_CONNECTION_SSH);
 		profile->screen_mode = ST_SCREEN_MODE_CURRENT;
 		profile->flow_control = ST_PROFILE_FLOW_RTS_CTS;
 		profile->data_bits = 8;

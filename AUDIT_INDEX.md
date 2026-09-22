@@ -7,8 +7,8 @@ recommended remedies. Severity does not imply exploitability; source-confirmed
 risks and reproduced failures must be distinguished using those entries.
 No remediation is authorized by this report.
 
-The audit is complete, not the implementation: **26 outstanding findings**
-comprise 9 medium, 15 low and 2 unresolved design/performance
+The audit is complete, not the implementation: **25 outstanding findings**
+comprise 9 medium, 14 low and 2 unresolved design/performance
 concerns.
 This is not a count of exploitable vulnerabilities or reproduced failures.
 The audited inventory covered 47 tracked source directories and 12 root files.
@@ -64,7 +64,7 @@ No new blanket GC, contention or scaling-performance diagnosis is made from
 source shape. The source and test inventory must retain those measurement
 limits in the final report.
 
-The current TODO documents contain 26 outstanding numbered findings. A007 and
+The current TODO documents contain 25 outstanding numbered findings. A007 and
 A011 are unresolved design/performance concerns, not confirmed runtime defects.
 Missing features and documentation errors are also explicitly distinguished
 from implementation failures in the detailed ledger.
@@ -96,14 +96,13 @@ from implementation failures in the detailed ledger.
 | A091 | medium | Required Windows DLL/launcher and libretro application packaging is absent |
 | A095 | low | Distribution notice assembly is not implemented |
 | A098 | low | Shipped UI demo imports an absent module |
-| A113 | low source-confirmed | Menu default ports disagree with URL parsing |
 
 ## Verification and limits
 
 ### Latest configured native verification
 
 Native Clang and GCC builds have succeeded. The current configured native tree
-registers 98 tests; the latest disposition is **97 pass and 1 Wayland test
+registers 99 tests; the latest disposition is **98 pass and 1 Wayland test
 skipped**. The
 X11 tests pass on an isolated display; one GCC full-suite run encountered an
 intermittent BadWindow failure and its isolated rerun passed. SDL uses its

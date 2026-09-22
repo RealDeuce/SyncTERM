@@ -4500,7 +4500,9 @@ duplicate platform-dependent enum tables:
   `font` property remains the display-name String.
 
 | `defaultPort(connectionType)`
-| Return the built-in default port for a connection-type value.
+| Return the built-in default port for a connection-type value.  RLogin uses
+  513, Telnet 23, SSH 22, MBBS GHOST 65535, Telnet TLS 992, and MQTT 8883.
+  Types without an inherent network port return zero.
 
 | `serialRates(device)`
 | Open the named serial device and return its supported rates as

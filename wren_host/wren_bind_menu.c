@@ -451,21 +451,6 @@ ascii_prefix(const char *value, size_t length, const char *prefix)
 	return true;
 }
 
-static uint16_t
-connection_default_port(int type)
-{
-	if (type == ST_CONNECTION_SSH || type == ST_CONNECTION_SSH_NO_AUTH)
-		return 22;
-	if (type == ST_CONNECTION_RLOGIN
-	    || type == ST_CONNECTION_RLOGIN_REVERSED)
-		return 513;
-	if (type == ST_CONNECTION_TELNET_TLS)
-		return 992;
-	if (type == ST_CONNECTION_MQTT)
-		return 8883;
-	return type == ST_CONNECTION_SHELL ? 0 : 23;
-}
-
 static bool
 copy_span(char *destination, size_t size, const char *source, size_t length)
 {
@@ -509,7 +494,8 @@ parse_quick_connect(struct st_profile *profile, const char *value,
 		if (ascii_prefix(value, length, schemes[i].prefix)) {
 			prefix = strlen(schemes[i].prefix);
 			profile->connection_type = schemes[i].type;
-			profile->port = connection_default_port(schemes[i].type);
+			profile->port = st_connection_default_port(
+			    (enum st_connection_type)schemes[i].type);
 			break;
 		}
 	}
@@ -616,11 +602,12 @@ st_wren_host_select_url(st_wren_host_t *host, const char *url,
 	}
 	if (defaults == NULL) {
 		profile.connection_type = ST_CONNECTION_TELNET;
-		profile.port = connection_default_port(profile.connection_type);
+		profile.port = st_connection_default_port(ST_CONNECTION_TELNET);
 	}
 	if (default_connection_type != ST_CONNECTION_UNKNOWN) {
 		profile.connection_type = default_connection_type;
-		profile.port = connection_default_port(default_connection_type);
+		profile.port = st_connection_default_port(
+		    (enum st_connection_type)default_connection_type);
 	}
 	if (!parse_quick_connect(&profile, url, strlen(url))) {
 		st_profile_dispose(&profile);
@@ -1252,18 +1239,11 @@ static void
 fn_menu_default_port(WrenVM *vm)
 {
 	int64_t type;
-	uint16_t port = 23;
 
 	if (!slot_integer(vm, 1, 0, ST_CONNECTION_MQTT, &type))
 		return;
-	if (type == ST_CONNECTION_SSH || type == ST_CONNECTION_SSH_NO_AUTH)
-		port = 22;
-	else if (type == ST_CONNECTION_RLOGIN
-	    || type == ST_CONNECTION_RLOGIN_REVERSED)
-		port = 513;
-	else if (type == ST_CONNECTION_TELNET_TLS)
-		port = 992;
-	wrenSetSlotDouble(vm, 0, port);
+	wrenSetSlotDouble(vm, 0, st_connection_default_port(
+	    (enum st_connection_type)type));
 }
 
 static void

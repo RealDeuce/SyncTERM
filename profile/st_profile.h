@@ -187,6 +187,8 @@ struct st_profile {
 	bool expand_lf;
 };
 
+/* Returns zero for connection types without an inherent network port. */
+uint16_t st_connection_default_port(enum st_connection_type type);
 void st_profile_init(struct st_profile *profile);
 void st_profile_dispose(struct st_profile *profile);
 /* Result must previously have been initialized; it is replaced on success. */

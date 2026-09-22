@@ -1374,6 +1374,26 @@ exercise_configuration_collections(st_wren_host_t *public_host)
 }
 
 static int
+exercise_default_port_contract(st_wren_host_t *public_host)
+{
+	struct st_wren_host *host = public_host;
+	static const char source[] =
+	    "import \"syncterm_menu\" for Menu\n"
+	    "var expected = [0, 513, 513, 23, 0, 22, 22, 0, 0, 0, 0, 65535, 992, 8883]\n"
+	    "for (i in 0...expected.count) {\n"
+	    "  if (Menu.defaultPort(i) != expected[i]) Fiber.abort(\"default port\")\n"
+	    "}\n";
+
+	if (wrenInterpret(host->vm, "default_port_contract", source)
+	    != WREN_RESULT_SUCCESS) {
+		fprintf(stderr, "default-port contract failed: %s\n",
+		    host->last_error);
+		return -1;
+	}
+	return 0;
+}
+
+static int
 exercise_url_selection(st_wren_host_t *host)
 {
 	struct st_profile profile;
@@ -1388,6 +1408,28 @@ exercise_url_selection(st_wren_host_t *host)
 	    ST_CONNECTION_RLOGIN, &profile) == 0);
 	CHECK(profile.connection_type == ST_CONNECTION_SSH);
 	CHECK(profile.port == 22);
+	CHECK(st_wren_host_select_url(host, "raw://example.com",
+	    ST_CONNECTION_RLOGIN, &profile) == 0);
+	CHECK(profile.connection_type == ST_CONNECTION_RAW);
+	CHECK(profile.port == 0);
+	CHECK(st_wren_host_select_url(host, "ghost://example.com/program",
+	    ST_CONNECTION_RLOGIN, &profile) == 0);
+	CHECK(profile.connection_type == ST_CONNECTION_MBBS_GHOST);
+	CHECK(profile.port == UINT16_MAX);
+	CHECK(strcmp(profile.ghost_program, "program") == 0);
+	CHECK(st_wren_host_select_url(host, "mqtts://example.com",
+	    ST_CONNECTION_RLOGIN, &profile) == 0);
+	CHECK(profile.connection_type == ST_CONNECTION_MQTT);
+	CHECK(profile.port == 8883);
+	CHECK(st_wren_host_select_url(host, "shell:echo hello",
+	    ST_CONNECTION_RLOGIN, &profile) == 0);
+	CHECK(profile.connection_type == ST_CONNECTION_SHELL);
+	CHECK(profile.port == 0);
+	CHECK(strcmp(profile.address, "echo hello") == 0);
+	CHECK(st_wren_host_select_url(host, "raw://example.com:4242",
+	    ST_CONNECTION_RLOGIN, &profile) == 0);
+	CHECK(profile.connection_type == ST_CONNECTION_RAW);
+	CHECK(profile.port == 4242);
 	st_profile_dispose(&profile);
 	return 0;
 }
@@ -2333,6 +2375,7 @@ main(void)
 	CHECK(exercise_bbs_model_contract(host, &paths, personal, shared) == 0);
 	CHECK(exercise_build_options_contract(host) == 0);
 	CHECK(exercise_configuration_collections(host) == 0);
+	CHECK(exercise_default_port_contract(host) == 0);
 	CHECK(st_wren_font_identifier(&((struct st_wren_host *)host)->menu, 46,
 	    &configured_identifier));
 	CHECK(st_console_font_registered(console, configured_identifier,

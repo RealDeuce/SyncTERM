@@ -99,7 +99,6 @@ identifiers are retained; suffixes separate claims with different dispositions.
 | A091 | Required architecture not implemented | app/CMakeLists.txt builds an executable from syncterm.c rather than a shared application DLL with thin launchers; console_libretro provides backend frames, not application core entry points. AGENTS.md explicitly requires that architecture. | Track application packaging/ABI integration separately from console backend capability. No Windows runtime failure claimed and no blanket internal exports implied. |
 | A095 | Packaging omission, not a legal determination | No install/CPack notice assembly found; local license inventory has root BSD exception wording, Unifont GPL and Wren MIT texts, but retained LGPL notices reference an absent full text. | Inventory chosen providers and assemble notices before distribution. Disabling Unifont does not make differently licensed sources BSD; no license-compatibility opinion is asserted. |
 | A098 | Demo integration mismatch, with connected context still deferred | ui_demo imports absent transfer_app; historical explicit demo interpretation fails. Demo is not embedded and later calls also need connected context. | Define supported demo invocation/dependencies; not a current menu-startup failure or authorization to port transfers now. |
-| A113 | Incorrect host policy duplication | URL helper defaults MQTT to 8883 and shell to zero; Menu.defaultPort returns 23 for both. Source-confirmed disagreement. | One connection-type default policy; no network test needed to establish the inconsistency. |
 
 ## CTerm dependency trace: audio, synchronization and byte delivery
 
@@ -336,7 +335,7 @@ not silently promoted to a defect merely because it appeared in that report.
 | Main menu, common module, editors and self-test (2911–3132) | Supplemental script/host/model rows; serial catalogs and output modes explicitly separated from signature parity. |
 | REPL, SFTP, auxiliary UI and offline viewer (3133–3387) | A085 plus supplemental script/viewer rows; connected integration distinguished from current menu dependencies. |
 | UI, Widget/App, vendor and signature notes (3388–3948) | Supplemental UI/layout/event and VM-integration rows; inherited defects and unmeasured performance remain qualified. |
-| Native menu/core/picker and host/startup/tests (3949–4315) | Supplemental host/model/input/capability rows and the remaining A113 finding. |
+| Native menu/core/picker and host/startup/tests (3949–4315) | Supplemental host/model/input/capability rows. |
 | Detailed GUI and console/text/raster notes (4316–4775) | Supplemental backend/input/output rows and CTerm dependency maps, including the remaining Wayland protocol/input gaps. |
 | Small libraries through threads (4776–5185) | Supplemental component rows distinguish API documentation, hypothetical invalid inputs and actual defects. |
 | Socket/serial/connection/profile/INI/value/audio (5186–5607) | Numbered and supplemental component rows, plus consumer-backed byte/audio/synchronization map. |

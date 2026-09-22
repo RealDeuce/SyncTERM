@@ -1,6 +1,6 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 
-#include "st_bbs_list.h"
+#include "st_bbs_list_internal.h"
 
 #include "filesystem.h"
 #include "io_error.h"
@@ -57,6 +57,69 @@ copy_named(struct st_profile *result, const st_bbs_list_t *list,
 	return entry != NULL && st_profile_copy(result, entry->profile) ? 0 : -1;
 }
 
+static int
+check_profile_default_ports(void)
+{
+	static const struct {
+		const char *name;
+		int type;
+	} cases[] = {
+		{"Unknown", ST_CONNECTION_UNKNOWN},
+		{"RLogin", ST_CONNECTION_RLOGIN},
+		{"RLoginReversed", ST_CONNECTION_RLOGIN_REVERSED},
+		{"Telnet", ST_CONNECTION_TELNET},
+		{"Raw", ST_CONNECTION_RAW},
+		{"SSH", ST_CONNECTION_SSH},
+		{"SSHNA", ST_CONNECTION_SSH_NO_AUTH},
+		{"Modem", ST_CONNECTION_MODEM},
+		{"Serial", ST_CONNECTION_SERIAL},
+		{"NoRTS", ST_CONNECTION_SERIAL_3WIRE},
+		{"Shell", ST_CONNECTION_SHELL},
+		{"MBBSGhost", ST_CONNECTION_MBBS_GHOST},
+		{"TelnetS", ST_CONNECTION_TELNET_TLS},
+		{"MQTT", ST_CONNECTION_MQTT},
+	};
+	char text[128];
+
+	for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
+		ini_document_t *document = NULL;
+		struct st_profile profile;
+		ini_section_t *section;
+		int length = snprintf(text, sizeof(text),
+		    "[Profile]\nConnectionType=%s\n", cases[i].name);
+
+		CHECK(length > 0 && (size_t)length < sizeof(text));
+		CHECK(ini_document_parse(&document, text, (size_t)length) == 0);
+		section = ini_document_find_section(document, "Profile");
+		CHECK(section != NULL);
+		CHECK(st_bbs_decode_profile(&profile, section, "Profile", false,
+		    NULL) == 0);
+		CHECK(profile.connection_type == cases[i].type);
+		CHECK(profile.port == st_connection_default_port(
+		    (enum st_connection_type)cases[i].type));
+		st_profile_dispose(&profile);
+		ini_document_free(&document);
+	}
+	{
+		static const char explicit_port[] =
+		    "[Profile]\nConnectionType=Raw\nPort=4567\n";
+		ini_document_t *document = NULL;
+		struct st_profile profile;
+		ini_section_t *section;
+
+		CHECK(ini_document_parse(&document, explicit_port,
+		    sizeof(explicit_port) - 1) == 0);
+		section = ini_document_find_section(document, "Profile");
+		CHECK(section != NULL);
+		CHECK(st_bbs_decode_profile(&profile, section, "Profile", false,
+		    NULL) == 0);
+		CHECK(profile.port == 4567);
+		st_profile_dispose(&profile);
+		ini_document_free(&document);
+	}
+	return 0;
+}
+
 int
 main(void)
 {
@@ -90,6 +153,8 @@ main(void)
 	struct fs_info info;
 	const struct st_bbs_entry *entry;
 	int status;
+
+	CHECK(check_profile_default_ports() == 0);
 
 	(void)snprintf(personal, sizeof(personal), "%s/personal.lst",
 	    ST_BBS_TEST_DIRECTORY);

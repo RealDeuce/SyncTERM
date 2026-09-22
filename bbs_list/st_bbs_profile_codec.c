@@ -21,10 +21,6 @@ static const char *connection_types[] = {
 	"TelnetS", "MQTT", NULL
 };
 
-static const uint16_t connection_ports[] = {
-	0, 513, 513, 23, 0, 22, 22, 0, 0, 0, 0, 65535, 992, 8883
-};
-
 static const char *screen_modes[] = {
 	"Current", "80x25", "LCD80x25", "80x28", "80x30", "80x43",
 	"80x50", "80x60", "132x37", "132x52", "132x25", "132x28",
@@ -124,7 +120,8 @@ st_bbs_decode_profile(struct st_profile *profile,
 		connection = ST_CONNECTION_RAW;
 	profile->connection_type = connection;
 	profile->port = (uint16_t)bounded_int(section, "Port",
-	    connection_ports[connection], 0, UINT16_MAX);
+	    st_connection_default_port((enum st_connection_type)connection), 0,
+	    UINT16_MAX);
 	profile->flow_control = (int)ini_section_get_enum_names(section,
 	    "FlowControl", ENUM_NAMES(flow_controls), ST_PROFILE_FLOW_RTS_CTS);
 	profile->screen_mode = (int)ini_section_get_enum_names(section,
