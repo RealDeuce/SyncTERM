@@ -7229,7 +7229,12 @@ s.onChange = Fn.new {|v| /* ... */ }
 Keys: `Up` / `+` adds step; `Down` / `-` subtracts; `PageUp` /
 `PageDown` move ten steps; `Home` / `End` jump to `min` / `max`.
 Mouse wheel scrolls one step; clicks on the up/down arrow cells
-step ±1.  `value=` clamps to `[min, max]`.  Theme roles: `spinbox`,
+step ±1.  Pressing an arrow steps immediately; holding it waits 400 ms and
+then repeats at 8 Hz, accelerating to 16 Hz after two seconds and 32 Hz after
+five seconds.  Acceleration changes only the repeat rate, so every update is
+still one configured `step`.  Releasing or beginning a drag stops repetition,
+and a delayed UI wake never produces a burst of catch-up updates.
+`value=` clamps to `[min, max]`.  Theme roles: `spinbox`,
 `spinbox.focused`.  Glyphs reused: `scrollbar.up`, `scrollbar.down`.
 
 === DatePicker [[ui-date-picker]]
@@ -7353,8 +7358,9 @@ elsewhere into the bar's matcher.  The `focusedItem` cursor is painted with
 the focused role only while the MenuBar widget itself has focus, so multiple
 bars may retain their navigation positions without appearing simultaneously
 active.  Set `onFocus=` when a containing editor needs a mouse click to move
-its own focus to the bar before activation.  Mouse click activates the
-clicked item; clicks on inter-item gaps are dropped.  Theme roles:
+its own focus to the bar before activation.  A completed mouse click activates
+the clicked item; the initial press and any drag do not.  Clicks on inter-item
+gaps are dropped.  Theme roles:
 `menubar`, `menubar.item`, `menubar.item.focused`.
 
 === StatusBar [[ui-statusbar]]

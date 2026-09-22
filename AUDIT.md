@@ -37,7 +37,7 @@ repository-wide coverage. The legacy tree is read-only reference.
 
 The repository-wide audit is complete. This is not an implementation approval
 or release certification. The consolidated API/design assessment, priority
-groups and all 21 outstanding finding summaries are in
+groups and all 20 outstanding finding summaries are in
 AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 
 | Objective requirement | Authoritative evidence and disposition |
@@ -50,8 +50,8 @@ AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 | Required legacy behavior | Read-only comparisons cover fonts/catalog/maps, modes, palette capacity, Prestel versus Mode 7, command line, console/input and settings behavior, plus explicit parity limits. Frozen CTerm chapter cmp succeeds. |
 | Wren scripts and bindings | Complete local source/signature/manual reviews and isolated shipped-script suites and host fixtures. Connected/SFTP production integration missing from this application is reported, not invented or silently counted as working. |
 | Build logic, generators and documentation | Root/component CMake and generators reviewed; standalone/probe failures recorded; pinned Unicode/font regeneration and table comparisons documented; root manuals/license/development guidance covered. Wren VM vendored internals limited to integration boundaries as requested. |
-| Inventory and consolidated findings | 21 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 9 medium, 10 low, 2 unresolved concerns; not all runtime reproductions. |
-| Relevant tests where practical | Complete native Clang and GCC builds have succeeded. The current configured native tree builds and registers 102 tests; the latest combined run passed 100, skipped Wayland and hit the recorded intermittent X11/XRender failure, whose isolated rerun passed. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
+| Inventory and consolidated findings | 20 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 8 medium, 10 low, 2 unresolved concerns; not all runtime reproductions. |
+| Relevant tests where practical | Complete native Clang and GCC builds have succeeded. The current configured native trees register 104 tests. Clang passed all 103 runnable tests and skipped Wayland; GCC passed 102, skipped Wayland and hit the recorded intermittent X11 failure, whose isolated rerun passed. The MinGW cross-build succeeded. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
 | Explicit uncertainty | Each component records unavailable platforms, unexecuted failure paths and measurement limits; A007/A011 unresolved. Source-level risks are not called verified crashes. These are audit outcomes, not claims of implementation correctness. |
 
 Historical pending-source lists below are superseded by subsequent full reads,
@@ -821,35 +821,6 @@ regardless of callback assignment order or subsequent field additions, or
 explicitly reconsider the API contract. Test button removal/recreation and
 clearFields/repopulation as well as initial construction. No production edits.
 
-### A075 — MenuBar invokes resident commands twice per mouse click
-
-Severity: medium (duplicate command execution). ui_menubar.wren handleMouse_
-activates on both button1Press and button1Click. wren_bind_core.c:583
-button_event translates left-button down to 1 (Press) and up to 3 (Click),
-as defined in syncterm.wren. App.dispatchMouse_ forwards both to the hit
-widget without coalescing. A command that leaves the bar resident therefore
-runs twice for one ordinary down/up gesture. A command opening a modal may
-route the second event elsewhere instead; this test does not claim every
-command executes twice.
-
-Added testPressAndClickActivateOnce_ to ui_menubar_test.wren, delivering the
-host's two-event sequence and counting invocations. Native Clang isolated
-headless menubar-suite reports 17 passes and this one failure. Host translation
-and App routing were source-traced; no physical mouse/backend run claimed.
-Both-event activation is inherited from the legacy MenuBar script; its only
-modern differences are Unicode measurement and removal of byte truncation.
-Recommendation: define a single activation edge per gesture and verify modal
-opening, release-outside, and drag cancellation behavior across the host and
-widgets. No implementation change.
-
-SpinBox followup to A075: host button_event's press/click pair also triggers
-both branches of SpinBox.handleMouse_. Added testMouseGestureSingleStep_:
-value 5 becomes 7, with two onChange calls, instead of one step to 6 and one
-notification. Native headless spinbox-suite returns 21 passes and one failure.
-This confirms the previously open paired-event question; its implementation
-is byte-identical to legacy. Include SpinBox in A075's affected widgets and
-single-gesture regression coverage. No physical input or implementation edits.
-
 ### A076 — Help scrollbar-separator changes do not invalidate wrapped layout
 
 Severity: low (inherited stale layout). scripts/ui_help.wren's
@@ -1095,8 +1066,7 @@ Source concerns: filename_ slices the .ini suffix using codepoint counts as
 byte offsets, so non-ASCII basenames can receive a duplicate extension.
 ThemeEditorContent chooses inspector width with min(rect.w - 20), which can
 be negative on narrow consoles; test tiny geometry before treating this as
-supported. Existing MenuBar double-activation (A075) propagates into this
-editor. Repeated refresh reconstructs theme
+supported. Repeated refresh reconstructs theme
 snapshots and can refresh content twice via model.onChange plus the explicit
 call; no performance measurement is claimed.
 
@@ -1437,16 +1407,13 @@ No changes to calendar implementation or documentation.
 
 MenuBar pass: read complete implementation/test module, corresponding manual
 section, full legacy diff, and relevant host/App mouse dispatch. Both script
-modules now included in coverage. Original suite 17/17 passes; added paired-
-event failure is A075. Existing assertions exercise keyboard wrap/Home/End,
-ASCII hotkeys, individual clicks/gaps, focus callbacks and basic drawing.
+modules now included in coverage. Existing assertions exercise keyboard
+wrap/Home/End, ASCII hotkeys, individual clicks/gaps, focus callbacks and basic
+drawing.
 Remaining source concerns: mutable items can bypass layout-cache invalidation;
 layout always measures font zero while painting uses role-specific fonts;
 focus setter accepts fractional indices. These require contract/custom-font
-tests before separate findings. SpinBox's previously unresolved paired-event
-concern now has a confirmed host sequence to test against; it is not marked
-runtime-confirmed solely from the MenuBar reproduction. No desktop interaction,
-production changes or commits.
+tests before separate findings. No desktop interaction is claimed.
 
 Form pass: read full ui_form.wren and ui_form_test.wren, the matching manual
 section, and the complete legacy diff. These two modules are now included in

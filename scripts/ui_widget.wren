@@ -167,6 +167,20 @@ class Widget {
   // missing error on the first walk.
   parent=(p) { _parent = p }
 
+  // Return the App-like object anchoring this widget tree.  Kept as an
+  // implementation detail so widgets that need App services do not create a
+  // ui_widget <-> ui_app module cycle.
+  app_ {
+    var child = this
+    while (child is Widget) {
+      var p = child.parent
+      if (p == null) return null
+      if (!(p is Widget)) return p
+      child = p
+    }
+    return null
+  }
+
   theme { _theme }
   theme=(t) {
     _theme = t

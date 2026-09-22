@@ -1169,6 +1169,20 @@ fn_input_next_widget(WrenVM *vm)
 }
 
 static void
+fn_input_next_widget_timed(WrenVM *vm)
+{
+	int64_t milliseconds;
+
+	if (wrenGetSlotType(vm, 1) != WREN_TYPE_BOOL) {
+		st_wren_abort(vm, "Input.nextForWidget_ expects a Bool");
+		return;
+	}
+	if (!slot_integer(vm, 2, 0, INT_MAX, &milliseconds))
+		return;
+	(void)next_input_event(vm, true, milliseconds, wrenGetSlotBool(vm, 1));
+}
+
+static void
 fn_input_mouse_events(WrenVM *vm)
 {
 	wrenSetSlotDouble(vm, 0,
@@ -3912,6 +3926,7 @@ static const struct binding bindings[] = {
 	{"Input", true, "next(_)", fn_input_next_timed},
 	{"Input", true, "poll()", fn_input_poll},
 	{"Input", true, "nextForWidget_(_)", fn_input_next_widget},
+	{"Input", true, "nextForWidget_(_,_)", fn_input_next_widget_timed},
 	{"Input", true, "mouseEvents", fn_input_mouse_events},
 	{"Input", true, "mouseEvents=(_)", fn_input_mouse_events_set},
 	{"Input", true, "enableMouseEvent(_)", fn_input_mouse_event_enable},

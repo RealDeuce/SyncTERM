@@ -1,6 +1,7 @@
 // Self-tests for ui_menubar.
 
-import "ui_widget"  for Rect
+import "ui_widget"  for Widget, Rect
+import "ui_app"     for App
 import "ui_menubar" for MenuBar
 import "syncterm"   for KeyEvent, MouseEvent, Key, Mouse
 
@@ -27,6 +28,8 @@ class UiMenubarTest {
     testFocusedItemHasDifferentStyle_()
     testUnfocusedBarHasNoHighlightedItem_()
     testPressAndClickActivateOnce_()
+    testPressAndDragDoNotActivate_()
+    testModalCommandWaitsForClick_()
 
     var total = __pass + __fail
     System.print("=== ui_menubar: %(total) tests, %(__pass) pass, %(__fail) fail ===")
@@ -50,6 +53,31 @@ class UiMenubarTest {
     bar.handle(MouseEvent.new(Mouse.button1Click, 2, 1, 2, 1))
     check_(activations == 1,
            "MenuBar: one press/release gesture activates a resident command once")
+  }
+
+  static testPressAndDragDoNotActivate_() {
+    var activations = 0
+    var bar = makeBar_(Fn.new {|label| activations = activations + 1 })
+    var pressed = bar.handle(
+        MouseEvent.new(Mouse.button1Press, 2, 1, 2, 1))
+    var dragged = bar.handle(
+        MouseEvent.new(Mouse.button1DragStart, 2, 1, 10, 2))
+    bar.handle(MouseEvent.new(Mouse.button1DragEnd, 2, 1, 10, 2))
+    check_(!pressed && !dragged && activations == 0,
+           "MenuBar: press and release-outside drag do not activate")
+  }
+
+  static testModalCommandWaitsForClick_() {
+    var app = App.new()
+    var bar = MenuBar.new()
+    bar.bounds = Rect.new(1, 1, 20, 1)
+    bar.items = [["Open", Fn.new { app.pushModal(Widget.new()) }]]
+    app.root.add(bar)
+    bar.handle(MouseEvent.new(Mouse.button1Press, 2, 1, 2, 1))
+    var before = app.modalStack.count == 0
+    bar.handle(MouseEvent.new(Mouse.button1Click, 2, 1, 2, 1))
+    check_(before && app.modalStack.count == 1,
+           "MenuBar: modal command runs only on completed click")
   }
 
   static makeBar_(onFire) {

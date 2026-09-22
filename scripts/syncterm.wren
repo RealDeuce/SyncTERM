@@ -348,6 +348,7 @@ foreign class Input {
   // property so a save-on-exit widget can remain interactive while the
   // process quit request stays latched.
   foreign static nextForWidget_(atExit)
+  foreign static nextForWidget_(atExit, ms)
   foreign static mousedrag()
   foreign static mousedrag(forceRect)
   foreign static mouseVisible=(b)

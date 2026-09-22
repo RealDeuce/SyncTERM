@@ -53,6 +53,13 @@ class WakeOnly {
   construct new() {}
 }
 
+// Internal wake posted by App's one outstanding asynchronous mouse-repeat
+// timer.  The generation makes a completion harmless after release/cancel.
+class MouseRepeatWake {
+  construct new(generation) { _generation = generation }
+  generation { _generation }
+}
+
 class App {
   construct new() {
     _root        = Container.new()
@@ -82,6 +89,12 @@ class App {
     _tickPending   = false        // true while a Timer.trigger is queued for _runFiber
     _released      = false        // true while releaseFocus is in effect
     _releasedFocus = null         // saved focusedIndex (may be null if nothing was focused)
+    _mouseRepeatOwner = null
+    _mouseRepeatAction = null
+    _mouseRepeatStarted = null
+    _mouseRepeatDue = null
+    _mouseRepeatGeneration = 0
+    _mouseRepeatTimer = null
     // F1 → context help; user can rebind / unbind freely.
     bind(Key.f1, Fn.new {|k| showHelp() })
   }
@@ -136,6 +149,7 @@ class App {
   binding(keyCode)  { _keymap[keyCode] }
 
   pushModal(widget) {
+    stopMouseRepeat_(null)
     if (modalTop.atExit) widget.atExit = true
     widget.parent = this
     _modalStack.add(widget)
@@ -146,6 +160,7 @@ class App {
 
   popModal() {
     if (_modalStack.count == 0) return null
+    stopMouseRepeat_(null)
     var w = _modalStack.removeAt(-1)
     w.parent = null
     invalidateCursorState()
@@ -190,7 +205,99 @@ class App {
     return true
   }
 
-  quit() { _running = false }
+  quit() {
+    stopMouseRepeat_(null)
+    _running = false
+  }
+
+  // ----- Held mouse-button repetition -----------------------------
+  //
+  // Only one button-1 gesture can own repetition in an App.  The policy is
+  // intentionally fixed: immediate activation belongs to the widget, then
+  // App wakes it after 400 ms at 8 Hz, accelerating to 16 Hz after two
+  // seconds and 32 Hz after five.  A late wake fires once and advances the
+  // deadline; it never emits a catch-up burst.
+  repeatNow_ { Timer.now * 1000 }
+
+  repeatInterval_(heldMs) {
+    if (heldMs >= 5000) return 31.25
+    if (heldMs >= 2000) return 62.5
+    return 125
+  }
+
+  startMouseRepeat_(owner, action) {
+    stopMouseRepeat_(null)
+    var now = repeatNow_
+    _mouseRepeatOwner = owner
+    _mouseRepeatAction = action
+    _mouseRepeatStarted = now
+    _mouseRepeatDue = now + 400
+    _mouseRepeatGeneration = _mouseRepeatGeneration + 1
+    ensureMouseRepeatTimer_()
+  }
+
+  stopMouseRepeat_(owner) {
+    if (owner != null && owner != _mouseRepeatOwner) return false
+    if (_mouseRepeatOwner == null) return false
+    _mouseRepeatOwner = null
+    _mouseRepeatAction = null
+    _mouseRepeatStarted = null
+    _mouseRepeatDue = null
+    _mouseRepeatGeneration = _mouseRepeatGeneration + 1
+    return true
+  }
+
+  mouseRepeatWait_() {
+    if (_mouseRepeatOwner == null) return null
+    return ((_mouseRepeatDue - repeatNow_).ceil).max(0)
+  }
+
+  serviceMouseRepeat_() {
+    var owner = _mouseRepeatOwner
+    if (owner == null) return false
+    if (owner.app_ != this || !owner.inActiveLayer) {
+      stopMouseRepeat_(owner)
+      return false
+    }
+    var now = repeatNow_
+    if (now < _mouseRepeatDue) return false
+    var generation = _mouseRepeatGeneration
+    var due = _mouseRepeatDue
+    _mouseRepeatAction.call()
+    if (generation != _mouseRepeatGeneration || _mouseRepeatOwner == null) {
+      return true
+    }
+    var interval = repeatInterval_(now - _mouseRepeatStarted)
+    var next = due + interval
+    if (next <= now) next = now + interval
+    _mouseRepeatDue = next
+    ensureMouseRepeatTimer_()
+    return true
+  }
+
+  ensureMouseRepeatTimer_() {
+    if (_runMode != "async" || !_running || _mouseRepeatOwner == null ||
+        _mouseRepeatTimer != null) return
+    var timer
+    timer = Fiber.new {
+      while (_running && _runMode == "async" &&
+          _mouseRepeatOwner != null) {
+        var wait = mouseRepeatWait_()
+        Timer.trigger(Fiber.current, wait)
+        Fiber.yield()
+        if (!_running || _runMode != "async" ||
+            _mouseRepeatOwner == null) break
+        if (repeatNow_ < _mouseRepeatDue) continue
+        var generation = _mouseRepeatGeneration
+        _mouseRepeatTimer = null
+        Wake.post(_runFiber, MouseRepeatWake.new(generation))
+        return
+      }
+      _mouseRepeatTimer = null
+    }
+    _mouseRepeatTimer = timer
+    timer.call()
+  }
 
   // ----- External wake-up ----------------------------------------
   //
@@ -295,6 +402,7 @@ class App {
   // lands on screen *before* the picker host's screen save.
   releaseFocus() {
     if (_released) return
+    stopMouseRepeat_(null)
     _released = true
     var top = modalTop
     if (!(top is Container)) return
@@ -683,6 +791,10 @@ class App {
       dispatchMouse_(ev)
       return
     }
+    if (ev is MouseRepeatWake) {
+      if (ev.generation == _mouseRepeatGeneration) serviceMouseRepeat_()
+      return
+    }
     // Posted via app.post() with a non-event value.  WakeOnly is
     // the no-payload "just repaint" signal (redraw is automatic at
     // the top of the next iteration); other values flow through
@@ -695,8 +807,36 @@ class App {
   // inside a runSync context.
   drainOnceSync_() {
     drawAll_()
-    var ev = Input.nextForWidget_(modalTop.atExit)
-    dispatchSync_(ev)
+    var wait = mouseRepeatWait_()
+    var ev
+    if (wait == null) {
+      ev = Input.nextForWidget_(modalTop.atExit)
+    } else {
+      ev = Input.nextForWidget_(modalTop.atExit, wait)
+    }
+    if (ev == null) {
+      dispatchMouseRepeatSync_()
+    } else {
+      dispatchSync_(ev)
+    }
+  }
+
+  dispatchMouseRepeatSync_() {
+    var modalsBefore = []
+    for (modal in _modalStack) modalsBefore.add(modal)
+    var f = Fiber.new { serviceMouseRepeat_() }
+    f.try()
+    if (f.error == null) return true
+    stopMouseRepeat_(null)
+    discardFailedModalFrames_(modalsBefore)
+    if (_onError != null) {
+      _onError.call(f)
+    } else {
+      System.print("UI handler error: " + f.error)
+      REPL.printTrace_(f)
+    }
+    markAllDirty_()
+    return false
   }
 
   // Save the terminal's current mouse-events bitmask, REPLACE it with
@@ -771,6 +911,7 @@ class App {
       return true
     })
     while (_running) drainOnce_()
+    stopMouseRepeat_(null)
     _claim.pop()
     _claim    = null
     _runMode  = null
@@ -788,7 +929,8 @@ class App {
   // Hook.every don't fire while runSync is in its inner loop, so
   // dynamic widgets that depend on ticks won't refresh.  Use the
   // async run() for long-lived UI sessions where doterm needs to
-  // keep flowing.
+  // keep flowing.  App's internal held-mouse repeat uses the input
+  // wait deadline directly and therefore remains available here.
   runSync() {
     var savedMouse = setupMouse_()
     setupCursor_()
@@ -796,6 +938,7 @@ class App {
     _running  = true
     _backdrop = null            // recapture screen on first paint
     while (_running) drainOnceSync_()
+    stopMouseRepeat_(null)
     _runMode  = null
     _backdrop = null
     teardownCursor_()

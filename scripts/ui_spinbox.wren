@@ -22,8 +22,8 @@
 //   PageUp / PageDown   value ± step * 10
 //   Home / End          jump to min / max
 // Mouse:
-//   Click on ▲          value += step
-//   Click on ▼          value -= step
+//   Press/hold ▲         value += step, then repeats with acceleration
+//   Press/hold ▼         value -= step, then repeats with acceleration
 //   Wheel up / down     value ± step
 //
 // Theme roles consulted:
@@ -43,6 +43,8 @@ class SpinBox is Widget {
     _max      = 100
     _step     = 1
     _onChange = null
+    _heldArrow = 0
+    _suppressClick = false
   }
 
   value     { _value }
@@ -98,6 +100,22 @@ class SpinBox is Widget {
 
   bump_(delta) { value = _value + delta }
 
+  arrowDelta_(screenX) {
+    var lx = screenX - bounds.x
+    if (lx == upArrowX_) return _step
+    if (lx == downArrowX_) return -_step
+    return 0
+  }
+
+  stopHold_(suppressClick) {
+    if (_heldArrow == 0) return false
+    var app = app_
+    if (app != null) app.stopMouseRepeat_(this)
+    _heldArrow = 0
+    _suppressClick = suppressClick
+    return true
+  }
+
   handle(ev) {
     if (ev is KeyEvent) return handleKey_(ev)
     if (ev is MouseEvent) return handleMouse_(ev)
@@ -146,16 +164,35 @@ class SpinBox is Widget {
       bump_(-_step * me.wheelY.abs.max(1))
       return true
     }
-    if (e != Mouse.button1Click && e != Mouse.button1Press) return false
-    var lx = me.startX - bounds.x
-    if (lx == upArrowX_) {
-      bump_(_step)
+    if (e == Mouse.button1DragStart) {
+      stopHold_(false)
+      return false
+    }
+    if (e == Mouse.button1Release) {
+      return stopHold_(true)
+    }
+    if (e == Mouse.button1Press) {
+      _suppressClick = false
+      var delta = arrowDelta_(me.startX)
+      if (delta == 0) return false
+      stopHold_(false)
+      _heldArrow = delta
+      bump_(delta)
+      var app = app_
+      if (app != null) {
+        app.startMouseRepeat_(this, Fn.new { bump_(_heldArrow) })
+      }
       return true
     }
-    if (lx == downArrowX_) {
-      bump_(-_step)
+    if (e != Mouse.button1Click) return false
+    if (stopHold_(false)) return true
+    if (_suppressClick) {
+      _suppressClick = false
       return true
     }
-    return false
+    var delta = arrowDelta_(me.startX)
+    if (delta == 0) return false
+    bump_(delta)
+    return true
   }
 }

@@ -2024,7 +2024,8 @@ exercise_input_deadline_contract(struct st_wren_host *host,
 	CHECK(st_time_monotonic_ms(&start) == 0);
 	CHECK(wrenInterpret(host->vm, "input_deadline_contract",
 	    "import \"syncterm\" for Input\n"
-	    "if (Input.next(100) != null) Fiber.abort(\"unexpected input\")\n")
+	    "if (Input.next(100) != null) Fiber.abort(\"unexpected input\")\n"
+	    "if (Input.nextForWidget_(false, 0) != null) Fiber.abort(\"widget timeout\")\n")
 	    == WREN_RESULT_SUCCESS);
 	CHECK(st_time_monotonic_ms(&end) == 0);
 	CHECK(st_thread_join(thread, &thread_result) == ST_THREAD_SUCCESS);
@@ -2043,6 +2044,9 @@ exercise_persistent_quit_contract(struct st_wren_host *host,
 	CHECK(st_console_post_event(console, &close) == 0);
 	CHECK(wrenInterpret(host->vm, "persistent_quit_contract",
 	    "import \"syncterm\" for Input, Key\n"
+	    "var first = Input.nextForWidget_(false, 100)\n"
+	    "if (first == null || first.code != Key.quit) Fiber.abort(\"initial quit\")\n"
+	    "if (Input.nextForWidget_(true, 0) != null) Fiber.abort(\"at-exit timeout\")\n"
 	    "for (i in 0...3) {\n"
 	    "  var event = Input.poll()\n"
 	    "  if (event == null || event.code != Key.quit) Fiber.abort(\"quit did not persist\")\n"

@@ -31,8 +31,9 @@
 //                  same container fires the matching item.
 //
 // Mouse:
-//   Click on item  activates the clicked item.  Click on the strip
-//                  but outside any item is dropped.
+//   Completed click on item activates the clicked item.  Press and drag do
+//                  not activate.  Click on the strip but outside any item
+//                  is dropped.
 //
 // Theme roles consulted: menubar, menubar.item, menubar.item.focused.
 
@@ -203,9 +204,7 @@ class MenuBar is Widget {
   handleMouse_(me) {
     if (bounds == null) return false
     if (!bounds.contains(me.startX, me.startY)) return false
-    if (me.event != Mouse.button1Click && me.event != Mouse.button1Press) {
-      return false
-    }
+    if (me.event != Mouse.button1Click) return false
     var lx = me.startX - bounds.x
     var rects = layout_()
     var i = 0

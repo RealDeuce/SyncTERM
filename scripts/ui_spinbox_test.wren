@@ -1,8 +1,19 @@
 // Self-tests for ui_spinbox.
 
-import "ui_widget"  for Rect
+import "ui_widget"  for Widget, Rect
+import "ui_app"     for App
 import "ui_spinbox" for SpinBox
 import "syncterm"   for KeyEvent, MouseEvent, Key, Mouse
+
+class SpinboxRepeatTestApp is App {
+  construct new() {
+    super()
+    _now = 0
+  }
+
+  repeatNow_ { _now }
+  now=(value) { _now = value }
+}
 
 class UiSpinboxTest {
   static run() {
@@ -27,6 +38,10 @@ class UiSpinboxTest {
     testWheelChangesValue_()
     testDrawShowsValueAndArrows_()
     testMouseGestureSingleStep_()
+    testHeldArrowAccelerates_()
+    testReleaseStopsAndSuppressesClick_()
+    testDragStopsRepeat_()
+    testAppOwnershipStopsRepeat_()
 
     var total = __pass + __fail
     System.print("=== ui_spinbox: %(total) tests, %(__pass) pass, %(__fail) fail ===")
@@ -52,6 +67,99 @@ class UiSpinboxTest {
     s.handle(MouseEvent.new(Mouse.button1Click, 9, 5, 9, 5))
     check_(s.value == 6 && changes == 1,
            "SpinBox: one up-arrow press/release advances one step and notifies once")
+  }
+
+  static repeatSpinbox_(app) {
+    var s = SpinBox.new()
+    s.bounds = Rect.new(2, 5, 10, 1)
+    s.value = 5
+    app.root.add(s)
+    return s
+  }
+
+  static testHeldArrowAccelerates_() {
+    var app = SpinboxRepeatTestApp.new()
+    var s = repeatSpinbox_(app)
+    var changes = 0
+    s.onChange = Fn.new {|v| changes = changes + 1 }
+    s.handle(MouseEvent.new(Mouse.button1Press, 9, 5, 9, 5))
+    app.now = 399
+    var early = app.serviceMouseRepeat_()
+    app.now = 400
+    var first = app.serviceMouseRepeat_()
+    app.now = 524
+    var beforeEightHz = app.serviceMouseRepeat_()
+    app.now = 525
+    var eightHz = app.serviceMouseRepeat_()
+    app.now = 2000
+    var sixteenStart = app.serviceMouseRepeat_()
+    app.now = 2062
+    var beforeSixteenHz = app.serviceMouseRepeat_()
+    app.now = 2063
+    var sixteenHz = app.serviceMouseRepeat_()
+    app.now = 5000
+    var thirtyTwoStart = app.serviceMouseRepeat_()
+    app.now = 5031
+    var beforeThirtyTwoHz = app.serviceMouseRepeat_()
+    app.now = 5032
+    var thirtyTwoHz = app.serviceMouseRepeat_()
+    check_(s.value == 12 && changes == 7 && !early && first &&
+           !beforeEightHz && eightHz && sixteenStart &&
+           !beforeSixteenHz && sixteenHz && thirtyTwoStart &&
+           !beforeThirtyTwoHz && thirtyTwoHz,
+           "SpinBox: hold repeats at 8/16/32 Hz without catch-up")
+  }
+
+  static testReleaseStopsAndSuppressesClick_() {
+    var app = SpinboxRepeatTestApp.new()
+    var s = repeatSpinbox_(app)
+    var changes = 0
+    s.onChange = Fn.new {|v| changes = changes + 1 }
+    s.handle(MouseEvent.new(Mouse.button1Press, 9, 5, 9, 5))
+    var released = s.handle(
+        MouseEvent.new(Mouse.button1Release, 9, 5, 9, 5))
+    var clicked = s.handle(
+        MouseEvent.new(Mouse.button1Click, 9, 5, 9, 5))
+    app.now = 1000
+    check_(released && clicked && !app.serviceMouseRepeat_() &&
+           s.value == 6 && changes == 1,
+           "SpinBox: release stops hold and matching click adds no step")
+  }
+
+  static testDragStopsRepeat_() {
+    var app = SpinboxRepeatTestApp.new()
+    var s = repeatSpinbox_(app)
+    s.handle(MouseEvent.new(Mouse.button1Press, 10, 5, 10, 5))
+    var consumed = s.handle(
+        MouseEvent.new(Mouse.button1DragStart, 10, 5, 12, 6))
+    app.now = 1000
+    check_(!consumed && !app.serviceMouseRepeat_() && s.value == 4,
+           "SpinBox: drag cancels repeat and falls through")
+  }
+
+  static testAppOwnershipStopsRepeat_() {
+    var detachedApp = SpinboxRepeatTestApp.new()
+    var detached = repeatSpinbox_(detachedApp)
+    detached.handle(MouseEvent.new(Mouse.button1Press, 9, 5, 9, 5))
+    detachedApp.root.remove(detached)
+    detachedApp.now = 1000
+
+    var modalApp = SpinboxRepeatTestApp.new()
+    var modal = repeatSpinbox_(modalApp)
+    modal.handle(MouseEvent.new(Mouse.button1Press, 9, 5, 9, 5))
+    modalApp.pushModal(Widget.new())
+    modalApp.now = 1000
+
+    var quitApp = SpinboxRepeatTestApp.new()
+    var quitting = repeatSpinbox_(quitApp)
+    quitting.handle(MouseEvent.new(Mouse.button1Press, 9, 5, 9, 5))
+    quitApp.quit()
+    quitApp.now = 1000
+
+    check_(!detachedApp.serviceMouseRepeat_() &&
+           !modalApp.serviceMouseRepeat_() &&
+           !quitApp.serviceMouseRepeat_(),
+           "SpinBox: detach, modal transition, and quit cancel repeat")
   }
 
   static testDefaults_() {
