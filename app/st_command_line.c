@@ -34,10 +34,14 @@ option_prefix(char value)
 static bool
 parse_backend(struct st_command_line *result, const char *value)
 {
-	unsigned char backend = ascii_upper((unsigned char)value[0]);
-	unsigned char presentation = ascii_upper((unsigned char)value[1]);
+	unsigned char backend;
+	unsigned char presentation;
 
-	if (backend == '\0' || value[presentation == '\0' ? 1 : 2] != '\0')
+	if (value[0] == '\0')
+		return false;
+	backend = ascii_upper((unsigned char)value[0]);
+	presentation = ascii_upper((unsigned char)value[1]);
+	if (value[presentation == '\0' ? 1 : 2] != '\0')
 		return false;
 	result->fullscreen = false;
 	switch (backend) {

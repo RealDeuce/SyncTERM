@@ -15,12 +15,15 @@ main(void)
 	char program[] = "syncterm";
 	char *arguments[] = {program, option, NULL};
 	struct st_command_line parsed;
+	const char *invalid = NULL;
+	bool rejected;
 	int status;
 
 	if (option == NULL)
 		return EXIT_FAILURE;
 	memcpy(option, "-i", 3);
-	status = st_command_line_parse(&parsed, 2, arguments, NULL);
+	status = st_command_line_parse(&parsed, 2, arguments, &invalid);
+	rejected = status == IO_ERROR_INVALID_ARGUMENT && invalid == option;
 	free(option);
-	return status == IO_ERROR_INVALID_ARGUMENT ? EXIT_SUCCESS : EXIT_FAILURE;
+	return rejected ? EXIT_SUCCESS : EXIT_FAILURE;
 }

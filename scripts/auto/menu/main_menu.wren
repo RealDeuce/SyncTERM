@@ -863,17 +863,25 @@ class MainMenuApp {
     if (port >= 1 && port <= 65535) bbs.port = port
 
     var label = addressLabel_(type)
-    var address = MenuUi.prompt(_app, "New Entry", label, bbs.addr, 64,
-        false, addAddressHelp_(type))
-    if (address == null || address.count == 0) {
-      bbs.delete()
-      refresh_(preferred)
-      return
-    }
-    if (addressCanContainPort_(type)) {
+    var address = bbs.addr
+    while (true) {
+      address = MenuUi.prompt(_app, "New Entry", label, address, 64,
+          false, addAddressHelp_(type))
+      if (address == null || address.count == 0) {
+        bbs.delete()
+        refresh_(preferred)
+        return
+      }
+      if (!addressCanContainPort_(type)) break
       var parsed = splitAddressPort_(address)
+      if (parsed == null) {
+        Alert.show(_app, "New Entry",
+            "The TCP port must be a decimal number from 1 through 65535.")
+        continue
+      }
       address = parsed[0]
       if (parsed[1] != null) bbs.port = parsed[1]
+      break
     }
     bbs.addr = address
     if (!bbs.save()) {
@@ -1000,12 +1008,16 @@ class MainMenuApp {
 
   splitAddressPort_(address) {
     var colon = address.indexOf(":")
-    if (colon <= 0 || address.indexOf(":", colon + 1) >= 0 ||
-        colon + 1 >= address.bytes.count) return [address, null]
-    var port = Num.fromString(address[(colon + 1)...address.bytes.count])
-    if (port == null || !port.isInteger || port < 1 || port > 65535) {
-      return [address, null]
+    if (colon <= 0) return [address, null]
+    if (colon + 1 >= address.bytes.count) return null
+    if (address.indexOf(":", colon + 1) >= 0) return [address, null]
+    var portText = address[(colon + 1)...address.bytes.count]
+    for (i in 0...portText.bytes.count) {
+      var digit = portText.bytes[i]
+      if (digit < 0x30 || digit > 0x39) return null
     }
+    var port = Num.fromString(portText)
+    if (port == null || port < 1 || port > 65535) return null
     return [address[0...colon], port]
   }
 
@@ -1017,7 +1029,8 @@ class MainMenuApp {
         "to run. Shell connections are available on Unix-like systems."
     if (addressCanContainPort_(type)) {
       text = text + "\n\nA TCP port may follow a single colon, such as " +
-          "`bbs.example.net:2323`."
+          "`bbs.example.net:2323`. The port must be a decimal number from " +
+          "1 through 65535."
     }
     return text
   }

@@ -673,7 +673,10 @@ Also reachable from the command line as `mqtts://user:pass@host`.
 Finally, you will be promted for the "address".  This is the DNS addres,
 IP address, serial port, or command to connect to.  If the connection will
 be made over the network, and the name is a valid hostname, it will be
-auto-filled in this field.  To overwrite it, simply start typeing.
+auto-filled in this field.  To overwrite it, simply start typeing.  A network
+address may include a TCP port after a single colon.  The port must be a
+decimal number from 1 through 65535; invalid port input is shown again for
+correction.
 
 Once these three pieces of information are entered, the entry is created
 and you are returned to the Directory.  To further modify the settings,

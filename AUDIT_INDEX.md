@@ -7,8 +7,8 @@ recommended remedies. Severity does not imply exploitability; source-confirmed
 risks and reproduced failures must be distinguished using those entries.
 No remediation is authorized by this report.
 
-The audit is complete, not the implementation: **25 outstanding findings**
-comprise 9 medium, 14 low and 2 unresolved design/performance
+The audit is complete, not the implementation: **23 outstanding findings**
+comprise 9 medium, 12 low and 2 unresolved design/performance
 concerns.
 This is not a count of exploitable vulnerabilities or reproduced failures.
 The audited inventory covered 47 tracked source directories and 12 root files.
@@ -64,7 +64,7 @@ No new blanket GC, contention or scaling-performance diagnosis is made from
 source shape. The source and test inventory must retain those measurement
 limits in the final report.
 
-The current TODO documents contain 25 outstanding numbered findings. A007 and
+The current TODO documents contain 23 outstanding numbered findings. A007 and
 A011 are unresolved design/performance concerns, not confirmed runtime defects.
 Missing features and documentation errors are also explicitly distinguished
 from implementation failures in the detailed ledger.
@@ -74,7 +74,6 @@ from implementation failures in the detailed ledger.
 | A007 | unresolved | Typed-list representation needs a portability decision |
 | A011 | unresolved performance concern | Non-native rwlock fast paths need performance validation |
 | A023 | medium performance/reliability risk | Real-time audio callbacks take locks and free objects |
-| A053 | low | Bare -i option reads past the argument terminator |
 | A067 | medium | Painter truncation changes the style of an undrawn destination cell |
 | A070 | medium | Changing a Container theme does not repaint inheriting children |
 | A071 | low | A newly constructed empty RadioGroup reports cursor zero |
@@ -89,7 +88,6 @@ from implementation failures in the detailed ledger.
 | A081 | low | LogView scrollbar counts entries instead of wrapped rows |
 | A082 | low | LogView capacity reduction loses its surviving scroll anchor |
 | A085 | medium | Wren console helper paths corrupt multibyte text |
-| A086 | low | New-entry address parsing aborts on a trailing colon |
 | A088 | medium | User manual does not clearly distinguish implemented menu from future connected runtime |
 | A089 | low | Wren language reference gives incorrect standard-library contracts |
 | A090 | low | Wren examples and cell/input descriptions retain incompatible legacy assumptions |
@@ -102,10 +100,10 @@ from implementation failures in the detailed ledger.
 ### Latest configured native verification
 
 Native Clang and GCC builds have succeeded. The current configured native tree
-registers 99 tests; the latest disposition is **98 pass and 1 Wayland test
-skipped**. The
-X11 tests pass on an isolated display; one GCC full-suite run encountered an
-intermittent BadWindow failure and its isolated rerun passed. SDL uses its
+registers 101 tests; the latest combined run passed 99, skipped one Wayland
+test and hit the recorded intermittent X11 size assertion, whose isolated
+rerun passed. A prior GCC full-suite run likewise encountered an intermittent
+BadWindow failure and its isolated rerun passed. SDL uses its
 CMake-configured dummy video driver.
 This is native verification, not Windows/macOS execution or comprehensive
 backend coverage.

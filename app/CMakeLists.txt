@@ -63,4 +63,19 @@ if(BUILD_TESTING)
 			-Wall -Wextra -Wpedantic -Werror)
 	endif()
 	add_test(NAME app_startup COMMAND st_app_startup_test)
+	add_executable(st_command_line_empty_backend_test
+		tests/st_command_line_empty_backend_test.c)
+	target_link_libraries(st_command_line_empty_backend_test PRIVATE
+		st_app_startup)
+	set_target_properties(st_command_line_empty_backend_test PROPERTIES
+		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_command_line_empty_backend_test PRIVATE
+			/W4 /WX)
+	else()
+		target_compile_options(st_command_line_empty_backend_test PRIVATE
+			-Wall -Wextra -Wpedantic -Werror)
+	endif()
+	add_test(NAME command_line_empty_backend
+		COMMAND st_command_line_empty_backend_test)
 endif()

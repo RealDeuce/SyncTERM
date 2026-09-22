@@ -37,7 +37,7 @@ repository-wide coverage. The legacy tree is read-only reference.
 
 The repository-wide audit is complete. This is not an implementation approval
 or release certification. The consolidated API/design assessment, priority
-groups and all 25 outstanding finding summaries are in
+groups and all 23 outstanding finding summaries are in
 AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 
 | Objective requirement | Authoritative evidence and disposition |
@@ -50,8 +50,8 @@ AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 | Required legacy behavior | Read-only comparisons cover fonts/catalog/maps, modes, palette capacity, Prestel versus Mode 7, command line, console/input and settings behavior, plus explicit parity limits. Frozen CTerm chapter cmp succeeds. |
 | Wren scripts and bindings | Complete local source/signature/manual reviews and isolated shipped-script suites and host fixtures. Connected/SFTP production integration missing from this application is reported, not invented or silently counted as working. |
 | Build logic, generators and documentation | Root/component CMake and generators reviewed; standalone/probe failures recorded; pinned Unicode/font regeneration and table comparisons documented; root manuals/license/development guidance covered. Wren VM vendored internals limited to integration boundaries as requested. |
-| Inventory and consolidated findings | 25 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 9 medium, 14 low, 2 unresolved concerns; not all runtime reproductions. |
-| Relevant tests where practical | Complete native Clang and GCC builds have succeeded. The current configured native tree builds and its latest 99-test run has a disposition of 98 pass and 1 Wayland skip. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
+| Inventory and consolidated findings | 23 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 9 medium, 12 low, 2 unresolved concerns; not all runtime reproductions. |
+| Relevant tests where practical | Complete native Clang and GCC builds have succeeded. The current configured native tree builds and registers 101 tests; the latest combined run passed 99, skipped Wayland and hit the recorded intermittent X11 size assertion, whose isolated rerun passed. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
 | Explicit uncertainty | Each component records unavailable platforms, unexecuted failure paths and measurement limits; A007/A011 unresolved. Source-level risks are not called verified crashes. These are audit outcomes, not claims of implementation correctness. |
 
 Historical pending-source lists below are superseded by subsequent full reads,
@@ -94,7 +94,7 @@ not the absence of failing tests. New findings will receive stable A-numbers.
 | --- | --- | --- |
 | Root CMake, configuration/type headers, .gitignore | Reviewed | Root source read; fresh native configure with testing/Unifont disabled succeeds; component probes and application packaging tracked in owning rows |
 | Root manuals, license and development guidance | Reviewed | Manual.txt, Wren.adoc, LICENSE, REVIEW.md and development guidance read; cterm.adoc intentionally frozen and identical to legacy by cmp; Console.adoc covered with console; contract mismatches A088–A090 and licensing/distribution notes below |
-| app/ | Reviewed | All local implementation/header/build/test read; A053, A088, A091; parser and 28 fixed-mode legacy geometry checked; startup/host ownership boundary dispositioned below; native startup tests pass, GUI/platform and future connected-loop limits explicit |
+| app/ | Reviewed | All local implementation/header/build/test read; A088, A091; parser and 28 fixed-mode legacy geometry checked; startup/host ownership boundary dispositioned below; native startup tests pass, GUI/platform and future connected-loop limits explicit |
 | app_paths/ | Reviewed | Native default/override tests pass; other platforms source-only except MinGW compile |
 | array_list/ | Reviewed | A007 unresolved portability concern; native and optimized tests pass |
 | audio/ | Reviewed | All local backends/synthesis/build/tests read; A023 callback risk; native fake tests pass, MinGW WASAPI compile only; actual device/platform gaps below |
@@ -473,8 +473,7 @@ separate value (the legacy second pass did not increment past it). Both retain
 the last positional URL. Legacy's Darwin-only ignored -psn_ argument is not
 accepted now; whether any supported launch environment still supplies it is
 unverified, so this is a compatibility question rather than a confirmed
-current macOS startup defect. Bare -i remains the independently reproduced
-A053 memory-safety failure. This comparison does not establish connected
+current macOS startup defect. This comparison does not establish connected
 protocol behavior or actual backend availability from parser acceptance.
 
 Read all 1489 lines of Manual.txt, the 33-line root LICENSE and all 179 lines
@@ -687,27 +686,6 @@ Recommendation: establish a bounded callback execution/ownership strategy and
 defer reclamation outside the callback, then measure worst-case callback time
 under producer/clear contention. This is a recommendation for separately
 authorized work, not permission to redesign the mixer during the audit.
-
-### A053 — Bare -i option reads past the argument terminator
-
-Severity: low (confirmed one-byte out-of-bounds read on malformed local CLI
-input). app/st_command_line.c:38 reads value[1] in parse_backend before
-checking whether value[0] is NUL. st_command_line_parse passes argument+2
-for -i, so a precisely sized "-i" argument makes that access one byte past
-the allocated string. Subsequent validation rejects the option, too late to
-prevent the read.
-
-app/tests/st_command_line_empty_backend_test.c supplies a three-byte heap
-string containing "-i". Native Clang AddressSanitizer reports the read at
-parse_backend:38 via st_command_line_parse:199. Reproduce with:
-`cc -std=c17 -g -fsanitize=address -Iapp -Iconsole -Ipixels -Iprofile
--Iio_error app/tests/st_command_line_empty_backend_test.c
-app/st_command_line.c -o /tmp/st_command_line_empty_backend_test`, then run
-that executable. No application startup, settings access or display involved.
-
-Recommendation: validate the first character before reading the second;
-retain empty, one-character, valid two-character and excess-character option
-tests. No broad exploitability claim is made for this local argument error.
 
 ### A067 — Painter truncation changes the style of an undrawn destination cell
 
@@ -982,25 +960,6 @@ surviving visual anchor when evicting entries and clamp using visual rows.
 Wrapped-entry and viewport-resize interactions require additional tests.
 
 ## Component notes
-
-### A086 — New-entry address parsing aborts on a trailing colon
-
-Severity: low (confirmed user-input error handling defect, inherited).
-scripts/auto/menu/main_menu.wren:1005 searches for a second colon starting
-at colon+1 before checking that this offset is inside the string. A trailing
-colon makes indexOf(_, start) abort with "Start out of bounds." rather than
-returning the unsplit address/null port as the subsequent guard intends.
-Legacy main_menu.wren contains the same ordering.
-
-Added scripts/main_menu_test.wren with nine address-helper cases against
-MainMenuApp in an empty isolated headless host. Native strict Clang result:
-8 pass, 1 fail, exclusively bbs.example:. Tests cover port limits, empty port,
-IPv6 preservation and a multibyte hostname. Each helper call runs in Fiber.try
-so the failure is counted and later cases still run. Recommendation: check
-the suffix boundary before searching it, and test new-entry recovery. The
-App catches handler errors; this evidence does not establish a program crash.
-add_ creates a working entry before parsing, so cleanup of that draft after
-this abort needs a separate integration test. No lists were loaded or saved.
 
 ### Main menu — full script source coverage
 
@@ -2111,9 +2070,9 @@ uses ASCII-only case normalization, permits attached/separate paths for
 are attached and include ANSI UTF-8/CP437 distinctions. Single-argument -T/-v
 are special actions; -T with further arguments selects telnet. Repeated
 positional arguments overwrite the URL slot. Full legacy/manual comparison
-and application consumption of parsed options remain pending. Existing parser
-tests inspected through their command-line section cover valid forms and an
-invalid suffix but not bare -i; A053 adds the missing boundary case.
+and application consumption of parsed options remain pending. Registered
+parser tests cover valid forms, an invalid suffix and exact-size bare -i
+rejection.
 
 Root build pass: CMakeLists.txt, syncterm_config.h.in, syncterm_types.h and
 .gitignore read completely. Root declares C and uses a function-scoped strict

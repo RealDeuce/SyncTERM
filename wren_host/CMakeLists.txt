@@ -156,6 +156,13 @@ if(BUILD_TESTING)
 		add_test(NAME "wren_${_case}"
 			COMMAND st_wren_loader_audit_test "${_directory}" "${_case}")
 	endforeach()
+	set(_directory "${CMAKE_CURRENT_BINARY_DIR}/main-menu-address")
+	file(MAKE_DIRECTORY "${_directory}")
+	add_test(NAME wren_main_menu_address
+		COMMAND st_wren_loader_audit_test "${_directory}"
+			main-menu-address)
+	set_tests_properties(wren_main_menu_address PROPERTIES
+		WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/..")
 
 	if(NOT WIN32)
 		foreach(_test readdir_error directory_metadata)

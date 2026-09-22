@@ -137,6 +137,7 @@ main(int argc, char **argv)
 	    || strcmp(argv[2], "color-audit") == 0
 	    || strcmp(argv[2], "palette-suite") == 0
 	    || strcmp(argv[2], "menu-suite") == 0
+	    || strcmp(argv[2], "main-menu-address") == 0
 	    || strcmp(argv[2], "logview-suite") == 0
 	    || strcmp(argv[2], "auxiliary-scripts") == 0
 	    || strcmp(argv[2], "core-helpers") == 0
@@ -411,6 +412,32 @@ main(int argc, char **argv)
 			fprintf(stderr, "core helper %zu: %s\n", i, ok ? "PASS" : "FAIL");
 			passed = passed && ok;
 		}
+	}
+	else if (strcmp(argv[2], "main-menu-address") == 0) {
+		static char source[128 * 1024];
+		FILE *stream = fopen("scripts/main_menu_test.wren", "rb");
+		size_t count;
+
+		CHECK(status == 0);
+		CHECK(stream != NULL);
+		count = fread(source, 1, sizeof(source) - 1, stream);
+		CHECK(!ferror(stream) && feof(stream));
+		CHECK(fclose(stream) == 0);
+		source[count] = '\0';
+		CHECK(wrenInterpret(host->vm, "main_menu_test", source)
+		    == WREN_RESULT_SUCCESS);
+		CHECK(wrenInterpret(host->vm, "main_menu_address_suite",
+		    "import \"main_menu_test\" for MenuTest\n"
+		    "var result = MenuTest.run()\n") == WREN_RESULT_SUCCESS);
+		wrenEnsureSlots(host->vm, 2);
+		wrenGetVariable(host->vm, "main_menu_address_suite", "result", 0);
+		CHECK(wrenGetSlotType(host->vm, 0) == WREN_TYPE_LIST);
+		wrenGetListElement(host->vm, 0, 0, 1);
+		fprintf(stderr, "main-menu address: %.0f passed; ",
+		    wrenGetSlotDouble(host->vm, 1));
+		wrenGetListElement(host->vm, 0, 1, 1);
+		fprintf(stderr, "%.0f failed\n", wrenGetSlotDouble(host->vm, 1));
+		passed = wrenGetSlotDouble(host->vm, 1) == 0;
 	}
 	else if (strcmp(argv[2], "auxiliary-scripts") == 0) {
 		static const char *modules[] = {
