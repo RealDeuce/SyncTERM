@@ -3627,12 +3627,6 @@ external caller serialization and borrowed handle lifetimes are requirements
 that the header does not fully spell out. File locks do not protect these
 in-process memory accesses. Host consumers remain their own audit area.
 
-- Load binds copied paths and shuts down the previous store before opening the
-  replacement. Reload decodes a temporary first, but installs global settings
-  before copying the new baseline; that allocation failure can leave changed
-  globals and a disposed baseline snapshot with the old baseline document.
-  No OOM injection. Save writes disk before allocating its replacement baseline
-  snapshot, so a returned OOM can occur after persistence succeeded.
 - Save canonicalizes base/local/remote settings to avoid textual/default-only
   conflicts; scalar fields merge independently. Web lists/sort profiles and
   all Font sections are grouped conflict units, so disjoint edits within those
@@ -3669,9 +3663,10 @@ in-process memory accesses. Host consumers remain their own audit area.
 - Existing tests cover owned copies, mixed independent/conflicting external
   settings edits, path redirection, sort and custom-font draft persistence,
   stale font snapshots, Classic/UIFC migration, colour bounds, unknown root
-  content, basic empty sort values and host font-handle invalidation. Actual
-  simultaneous writers, allocation failures, disk-full writes and all field
-  boundaries are not tested.
+  content, basic empty sort values and host font-handle invalidation. Targeted
+  injection covers initial-load and reload snapshot-copy failure plus both
+  save snapshot copies. Actual simultaneous writers, most mutation allocation
+  failures, disk-full writes and all field boundaries are not tested.
 
 ### bbs_list/
 

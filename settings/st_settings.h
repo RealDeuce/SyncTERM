@@ -116,6 +116,7 @@ bool st_settings_copy(struct st_settings *result,
  * IO_ERROR_CONFLICT when the same field was changed differently elsewhere.
  */
 int st_settings_load(const struct st_app_paths *paths);
+/* Failure leaves the installed settings and merge baseline unchanged. */
 int st_settings_reload(void);
 /* Consume an already prepared replacement without allocating. */
 void st_settings_install(struct st_settings *replacement);

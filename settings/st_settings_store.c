@@ -23,6 +23,15 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef ST_SETTINGS_STORE_TEST_COPY
+#include "st_settings_test_copy.h"
+#define STORE_SETTINGS_COPY(result, source) \
+	st_settings_test_copy((result), (source))
+#else
+#define STORE_SETTINGS_COPY(result, source) \
+	st_settings_copy((result), (source))
+#endif
+
 static char *settings_path;
 static char *cached_system_list;
 static char *personal_list_path;
@@ -837,26 +846,30 @@ static int
 load_locked(const char *personal_list)
 {
 	ini_document_t *document = NULL;
+	struct st_settings baseline;
 	struct st_settings value;
 	int status;
 
+	st_settings_init(&baseline);
 	st_settings_init(&value);
 	status = read_document(&document, settings_path);
 	if (status == 0)
 		status = decode_settings(&value, document, personal_list,
 		    cached_system_list);
+	if (status == 0 && !STORE_SETTINGS_COPY(&baseline, &value))
+		status = IO_ERROR_OUT_OF_MEMORY;
 	if (status < 0) {
 		ini_document_free(&document);
+		st_settings_dispose(&baseline);
 		st_settings_dispose(&value);
 		return status;
 	}
 	st_settings_dispose(&st_settings);
 	st_settings = value;
+	st_settings_init(&value);
 	st_settings_dispose(&baseline_settings);
-	if (!st_settings_copy(&baseline_settings, &st_settings)) {
-		ini_document_free(&document);
-		return IO_ERROR_OUT_OF_MEMORY;
-	}
+	baseline_settings = baseline;
+	st_settings_init(&baseline);
 	ini_document_free(&baseline_document);
 	baseline_document = document;
 	baseline_initialized = true;
@@ -1044,9 +1057,9 @@ st_settings_save_value(const struct st_settings *value)
 	    || !st_settings_fonts_copy(&saved_fonts,
 	    remote_settings.custom_fonts)))
 		status = IO_ERROR_OUT_OF_MEMORY;
-	if (status == 0 && !st_settings_copy(&installed, value))
+	if (status == 0 && !STORE_SETTINGS_COPY(&installed, value))
 		status = IO_ERROR_OUT_OF_MEMORY;
-	if (status == 0 && !st_settings_copy(&saved, value))
+	if (status == 0 && !STORE_SETTINGS_COPY(&saved, value))
 		status = IO_ERROR_OUT_OF_MEMORY;
 	if (status == 0) {
 		st_settings_fonts_free(&installed.custom_fonts);
