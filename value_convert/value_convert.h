@@ -18,6 +18,7 @@ bool value_parse_uint64(const char *text, uint64_t *result);
 bool value_parse_bool(const char *text, bool *result);
 bool value_parse_double(const char *text, double *result);
 bool value_parse_duration(const char *text, double *seconds);
+/* Valid YYYYMMDD local dates take precedence; other integers are epochs. */
 bool value_parse_datetime(const char *text, time_t *result);
 
 bool value_format_int64(char *buffer, size_t size, int64_t value);

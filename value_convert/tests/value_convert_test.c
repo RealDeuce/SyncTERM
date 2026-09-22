@@ -104,13 +104,16 @@ main(void)
 	}
 	{
 		time_t compact;
+		time_t epoch;
 		time_t named;
 
 		CHECK(value_parse_datetime("20200102", &compact));
 		CHECK(value_parse_datetime("Jan  2 2020", &named));
-		if (compact != named)
-			fprintf(stderr, "compact date interpreted differently from named date\n");
 		CHECK(compact == named);
+		CHECK(value_parse_datetime("20200231", &epoch));
+		CHECK(epoch == (time_t)20200231);
+		CHECK(value_parse_datetime("123456789", &epoch));
+		CHECK(epoch == (time_t)123456789);
 	}
 	return EXIT_SUCCESS;
 }

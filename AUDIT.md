@@ -37,7 +37,7 @@ repository-wide coverage. The legacy tree is read-only reference.
 
 The repository-wide audit is complete. This is not an implementation approval
 or release certification. The consolidated API/design assessment, priority
-groups and all 29 outstanding finding summaries are in
+groups and all 28 outstanding finding summaries are in
 AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 
 | Objective requirement | Authoritative evidence and disposition |
@@ -50,8 +50,8 @@ AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 | Required legacy behavior | Read-only comparisons cover fonts/catalog/maps, modes, palette capacity, Prestel versus Mode 7, command line, console/input and settings behavior, plus explicit parity limits. Frozen CTerm chapter cmp succeeds. |
 | Wren scripts and bindings | Complete local source/signature/manual reviews; isolated shipped-script suites and host fixtures; remaining host findings through A113. Connected/SFTP production integration missing from this application is reported, not invented or silently counted as working. |
 | Build logic, generators and documentation | Root/component CMake and generators reviewed; standalone/probe failures recorded; pinned Unicode/font regeneration and table comparisons documented; root manuals/license/development guidance covered. Wren VM vendored internals limited to integration boundaries as requested. |
-| Inventory and consolidated findings | 29 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 12 medium, 15 low, 2 unresolved concerns; not all runtime reproductions. |
-| Relevant tests where practical | Complete native Clang and GCC builds succeed. The latest 95-test runs have a stable disposition of 93 pass, 1 fail and 1 Wayland skip. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
+| Inventory and consolidated findings | 28 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 11 medium, 15 low, 2 unresolved concerns; not all runtime reproductions. |
+| Relevant tests where practical | Complete native Clang and GCC builds succeed. The latest 95-test runs have a stable disposition of 94 pass and 1 Wayland skip. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
 | Explicit uncertainty | Each component records unavailable platforms, unexecuted failure paths and measurement limits; A007/A011 unresolved. Source-level risks are not called verified crashes. These are audit outcomes, not claims of implementation correctness. |
 
 Historical pending-source lists below are superseded by subsequent full reads,
@@ -134,7 +134,7 @@ not the absence of failing tests. New findings will receive stable A-numbers.
 | unicode_width/ | Reviewed | Header/generator/runtime/build/docs/tests reviewed; pinned regeneration identical, exhaustive scalar consistency passes; font/grapheme integration tracked separately |
 | unifont/ | Reviewed | API/build/test/docs/license/shared generator reviewed; identical regeneration and exhaustive UNSCII overlay test; enabled/disabled native builds verified; packaging/Wren display tracked with owners |
 | utf8/ | Reviewed | Expanded native tests and MinGW build; caller integration tracked separately |
-| value_convert/ | Reviewed | A021 date precedence conflict; all local sources/tests/build read; native exact rounding checks pass; exotic formats and numeric performance unverified |
+| value_convert/ | Reviewed | All local sources/tests/build read; native exact rounding and date-precedence checks pass; exotic formats and numeric performance unverified |
 | webget/ | Reviewed | All local source/header/test/build read; exact-URL cache identity and single-owner transport cleanup covered; remaining protocol/TLS/fault gaps below |
 | windows_utf/ | Reviewed | Source and MinGW compile; Windows runtime not verified |
 | wren_host/ | Reviewed | All local implementation, public/internal headers, CMake/generator and integration tests read; isolated shipped-script and host-contract cases run; mutation/error/input/font/ownership integration dispositioned below, including A113; runtime/fault limits explicit |
@@ -683,28 +683,6 @@ for short-lived locks in renderer paths. Windows native SRW replacement is not
 automatically equivalent because the API explicitly supports recursive readers.
 Recommendation: benchmark uncontended and contended paths against actual console
 usage before selecting any remedy. No synchronization redesign performed.
-
-### A021 — Compact date-only branch is shadowed by epoch parsing
-
-Severity: medium. Classification: confirmed unreachable intended parsing path;
-the desired precedence is an unresolved API contract decision.
-
-value_parse_datetime first accepts any int64 text representable by time_t as
-an epoch value, then attempts length-eight YYYYMMDD date parsing. Ordinary
-eight-digit dates are already accepted by the integer branch, so the later
-date-only branch cannot interpret them as calendar dates on tested targets.
-The compact date-with-time form containing 'T' does reach the calendar parser.
-
-New test in value_convert/tests/value_convert_test.c compares `20200102` with
-`Jan  2 2020` in the same process/timezone. Both Clang and GCC fail the equality
-check: the former is interpreted as the integer epoch count. This test encodes
-the calendar meaning implied by the existing length-eight branch, not a claim
-that the currently undocumented public API resolves the ambiguity that way.
-
-Recommendation: explicitly decide/document numeric-epoch versus compact-date
-precedence, preserve required consumer/legacy behavior, and make all supported
-date syntaxes reachable. Do not simply reorder parsing without considering
-existing epoch inputs. Implementation unchanged; failing test retained.
 
 ### A023 — Real-time audio callbacks take locks and free objects
 
@@ -3387,7 +3365,6 @@ Windows argument coverage.
   Zero formats as Never rather than an epoch date. mktime's -1 value is always
   rejected even where it also represents a real pre-epoch second; DST folds,
   signed/unsigned time_t narrowing and pre-epoch boundaries need tests.
-  A021 demonstrates the distinct compact-date precedence conflict.
 - Duration parsing checks isfinite after multiplying, rather than establishing
   range before multiplication; floating exception/trapping and non-IEC behavior
   remain portability questions for the decimal arithmetic review. No integer
@@ -3425,9 +3402,9 @@ Windows argument coverage.
 - New tests use mathematical midpoint strings and integer values around 2^53,
   guarded by radix/mantissa checks rather than assuming object representations.
   Halfway-even, just-above-halfway, malformed-input preservation, signed zero,
-  and insufficient double-format buffer checks pass on native Clang/GCC.
-  The suite still fails only at A021. These selected cases are not exhaustive
-  proof of rounding correctness across all inputs or floating-point formats.
+  insufficient double-format buffer checks and date precedence pass on native
+  Clang/GCC. These selected cases are not exhaustive proof of rounding
+  correctness across all inputs or floating-point formats.
 
 ### audio_mixer
 
@@ -4456,13 +4433,6 @@ successful verification.
   builds connection_serial and profile tests, not run.
   Connection and profile source coverage is complete with documented
   stress/error-injection/platform gaps.
-- Value-conversion initial pass: expanded value_convert test fails A021 on
-  native Clang/GCC after existing checks pass. MinGW test compiles/links, not
-  executed. Only test/report changes; decimal implementation review pending.
-- Value-conversion decimal pass: complete source review and additional exact
-  numerical/invalid-input tests pass before the retained A021 failure on both
-  native toolchains. MinGW compiles/links again; no runtime claim. No numerical
-  production changes or new findings beyond documented contract/coverage gaps.
 - Audio engine initial pass: existing native st_audio CTest passes using fake
   engine backends (availability checks load libraries, no audible playback).
   No new tests or production changes this pass; report only. Remaining audio

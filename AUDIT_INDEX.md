@@ -7,8 +7,8 @@ recommended remedies. Severity does not imply exploitability; source-confirmed
 risks and reproduced failures must be distinguished using those entries.
 No remediation is authorized by this report.
 
-The audit is complete, not the implementation: **29 outstanding findings**
-comprise 12 medium, 15 low and 2 unresolved design/performance
+The audit is complete, not the implementation: **28 outstanding findings**
+comprise 11 medium, 15 low and 2 unresolved design/performance
 concerns.
 This is not a count of exploitable vulnerabilities or reproduced failures.
 All 47 tracked source directories and 12 root files are covered by the
@@ -70,7 +70,7 @@ No new blanket GC, contention or scaling-performance diagnosis is made from
 source shape. The source and test inventory must retain those measurement
 limits in the final report.
 
-The current TODO documents contain 29 outstanding numbered findings. A007 and
+The current TODO documents contain 28 outstanding numbered findings. A007 and
 A011 are unresolved design/performance concerns, not confirmed runtime defects.
 Missing features and documentation errors are also explicitly distinguished
 from implementation failures in the detailed ledger.
@@ -79,7 +79,6 @@ from implementation failures in the detailed ledger.
 | --- | --- | --- |
 | A007 | unresolved | Typed-list representation needs a portability decision |
 | A011 | unresolved performance concern | Non-native rwlock fast paths need performance validation |
-| A021 | medium | Compact date-only branch is shadowed by epoch parsing |
 | A023 | medium performance/reliability risk | Real-time audio callbacks take locks and free objects |
 | A053 | low | Bare -i option reads past the argument terminator |
 | A067 | medium | Painter truncation changes the style of an undrawn destination cell |
@@ -112,16 +111,12 @@ from implementation failures in the detailed ledger.
 ### Latest configured native verification
 
 Native Clang and GCC builds succeed. Each configured tree registers 95 tests;
-the stable disposition is **93 pass, 1 fail and 1 Wayland test skipped**. The
+the stable disposition is **94 pass and 1 Wayland test skipped**. The
 X11 tests pass on an isolated display; one GCC full-suite run encountered an
 intermittent BadWindow failure and its isolated rerun passed. SDL uses its
 CMake-configured dummy video driver.
 This is native verification, not Windows/macOS execution or comprehensive
 backend coverage.
-
-| Failed registered test | Existing findings reproduced |
-| --- | --- |
-| value_convert | A021 compact-date parsing |
 
 These results do not include the standalone audit regression executables or
 the extra isolated Wren script cases documented in AUDIT.md. Some registered

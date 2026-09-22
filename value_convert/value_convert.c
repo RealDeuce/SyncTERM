@@ -465,6 +465,37 @@ finish_datetime(struct tm *parts, time_t *result)
 	return true;
 }
 
+static bool
+parse_compact_datetime(const char *text, size_t length, time_t *result)
+{
+	struct tm parts = {0};
+	int year;
+	int month;
+	int day;
+	int hour = 0;
+	int minute = 0;
+	int second = 0;
+
+	if ((length != 8 && length != 15)
+	    || !parse_fixed_uint(text, 4, &year)
+	    || !parse_fixed_uint(text + 4, 2, &month)
+	    || !parse_fixed_uint(text + 6, 2, &day))
+		return false;
+	if (length == 15
+	    && (text[8] != 'T'
+	    || !parse_fixed_uint(text + 9, 2, &hour)
+	    || !parse_fixed_uint(text + 11, 2, &minute)
+	    || !parse_fixed_uint(text + 13, 2, &second)))
+		return false;
+	parts.tm_year = year - 1900;
+	parts.tm_mon = month - 1;
+	parts.tm_mday = day;
+	parts.tm_hour = hour;
+	parts.tm_min = minute;
+	parts.tm_sec = second;
+	return finish_datetime(&parts, result);
+}
+
 bool
 value_parse_datetime(const char *text, time_t *result)
 {
@@ -473,7 +504,6 @@ value_parse_datetime(const char *text, time_t *result)
 	size_t length;
 	struct tm parts = {0};
 	int year;
-	int month;
 	int day;
 	int hour = 0;
 	int minute = 0;
@@ -487,28 +517,11 @@ value_parse_datetime(const char *text, time_t *result)
 		*result = (time_t)0;
 		return true;
 	}
+	if (parse_compact_datetime(begin, length, result))
+		return true;
 	if (value_parse_int64(text, &epoch) && (int64_t)(time_t)epoch == epoch) {
 		*result = (time_t)epoch;
 		return true;
-	}
-	if ((length == 8 || length == 15)
-	    && parse_fixed_uint(begin, 4, &year)
-	    && parse_fixed_uint(begin + 4, 2, &month)
-	    && parse_fixed_uint(begin + 6, 2, &day)) {
-		if (length == 15) {
-			if (begin[8] != 'T'
-			    || !parse_fixed_uint(begin + 9, 2, &hour)
-			    || !parse_fixed_uint(begin + 11, 2, &minute)
-			    || !parse_fixed_uint(begin + 13, 2, &second))
-				return false;
-		}
-		parts.tm_year = year - 1900;
-		parts.tm_mon = month - 1;
-		parts.tm_mday = day;
-		parts.tm_hour = hour;
-		parts.tm_min = minute;
-		parts.tm_sec = second;
-		return finish_datetime(&parts, result);
 	}
 	if ((length == 11 || length == 20) && month_number(begin) >= 0
 	    && begin[3] == ' ' && begin[6] == ' '
