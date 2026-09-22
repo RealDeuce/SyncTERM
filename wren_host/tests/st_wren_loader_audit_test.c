@@ -102,6 +102,7 @@ main(int argc, char **argv)
 	};
 	st_console_t *console = NULL;
 	st_wren_host_t *host = NULL;
+	st_hyperlink_registry_t *hyperlinks = NULL;
 	bool recovery;
 	bool passed = false;
 	int status;
@@ -204,6 +205,7 @@ main(int argc, char **argv)
 		paths.cached_system_list = cached;
 	}
 	CHECK(st_console_create(&console, &display, &config) == 0);
+	CHECK(st_hyperlink_registry_create(&hyperlinks) == 0);
 	if (strcmp(argv[2], "painter-truncate") == 0
 	    || strcmp(argv[2], "input-suite") == 0) {
 		static const uint8_t narrow[16] = {0};
@@ -228,6 +230,7 @@ main(int argc, char **argv)
 	const struct st_wren_host_config host_config = {
 		.console = console, .paths = &paths,
 		.application_title = "Loader audit", .safe_mode = true,
+		.hyperlinks = hyperlinks,
 	};
 	status = st_wren_host_create(&host, &host_config);
 	if (recovery) {
@@ -796,5 +799,6 @@ main(int argc, char **argv)
 	}
 	st_wren_host_destroy(host);
 	st_console_destroy(console);
+	st_hyperlink_registry_destroy(hyperlinks);
 	return passed ? EXIT_SUCCESS : EXIT_FAILURE;
 }

@@ -1149,8 +1149,6 @@ fn_menu_save_sort_profiles(WrenVM *vm)
 	    || st_settings_save() == 0);
 }
 
-static void fn_menu_null(WrenVM *vm) { wrenSetSlotNull(vm, 0); }
-
 static void
 fn_menu_offline_scrollback(WrenVM *vm)
 {
@@ -1210,8 +1208,6 @@ fn_menu_offline_scrollback_has_status(WrenVM *vm)
 	(void)offline_scrollback_info(host, &mode, &has_status);
 	wrenSetSlotBool(vm, 0, has_status);
 }
-
-static void fn_menu_false(WrenVM *vm) { wrenSetSlotBool(vm, 0, false); }
 
 static void
 fn_menu_script_modules(WrenVM *vm)
@@ -2300,8 +2296,61 @@ fn_menu_open_url(WrenVM *vm)
 		return;
 	}
 	url = wrenGetSlotString(vm, 1);
-	wrenSetSlotBool(vm, 0, url[0] != '\0'
+	wrenSetSlotBool(vm, 0, !host->config.safe_mode && url[0] != '\0'
 	    && st_console_open_url(host->config.console, url) == 0);
+}
+
+static bool
+openable_uri(const char *uri)
+{
+	static const char *const prefixes[] = {
+		"http://", "https://", "ftp://", "ftps://",
+	};
+
+	for (size_t i = 0; i < sizeof(prefixes) / sizeof(prefixes[0]); ++i) {
+		if (ascii_case_starts_with(uri, prefixes[i]))
+			return true;
+	}
+	return false;
+}
+
+static void
+fn_menu_open_hyperlink(WrenVM *vm)
+{
+	struct st_wren_host *host = st_wren_host_from_vm(vm);
+	struct st_hyperlink hyperlink = {0};
+	int64_t value;
+	bool opened = false;
+
+	if (!slot_integer(vm, 1, 1, UINT16_MAX, &value))
+		return;
+	if (!host->config.safe_mode
+	    && st_hyperlink_registry_copy(host->config.hyperlinks,
+	    (uint16_t)value, &hyperlink) == 0) {
+		if (openable_uri(hyperlink.uri))
+			opened = st_console_open_url(host->config.console,
+			    hyperlink.uri) == 0;
+		st_hyperlink_dispose(&hyperlink);
+	}
+	wrenSetSlotBool(vm, 0, opened);
+}
+
+static void
+fn_menu_set_hyperlink_hover(WrenVM *vm)
+{
+	struct st_wren_host *host = st_wren_host_from_vm(vm);
+	int64_t value;
+	bool present = false;
+	enum st_console_pointer_shape shape = ST_CONSOLE_POINTER_TEXT;
+
+	if (!slot_integer(vm, 1, 0, UINT16_MAX, &value))
+		return;
+	if (value != 0
+	    && st_hyperlink_registry_contains(host->config.hyperlinks,
+	    (uint16_t)value, &present) == 0 && present)
+		shape = ST_CONSOLE_POINTER_LINK;
+	(void)st_console_set_pointer_shape(host->config.console, shape);
+	wrenSetSlotNull(vm, 0);
 }
 
 static void
@@ -3890,8 +3939,8 @@ static const struct binding bindings[] = {
 	{"Menu", true, "offlineScrollbackHasStatus",
 	    fn_menu_offline_scrollback_has_status},
 	{"Menu", true, "openUrl(_)", fn_menu_open_url},
-	{"Menu", true, "openHyperlink(_)", fn_menu_false},
-	{"Menu", true, "setHyperlinkHover(_)", fn_menu_null},
+	{"Menu", true, "openHyperlink(_)", fn_menu_open_hyperlink},
+	{"Menu", true, "setHyperlinkHover(_)", fn_menu_set_hyperlink_hover},
 	{"Menu", true, "applicationTitle", fn_menu_application_title},
 	{"Menu", true, "timeText", fn_menu_time_text},
 	{"Menu", true, "timestamp", fn_menu_timestamp},

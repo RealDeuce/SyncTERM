@@ -36,6 +36,8 @@ struct st_console_backend_ops {
 	int (*get_clipboard_text)(st_console_display_t *display, char **result);
 	int (*open_url)(st_console_display_t *display, const char *url);
 	int (*set_pointer_visible)(st_console_display_t *display, bool visible);
+	int (*set_pointer_shape)(st_console_display_t *display,
+	    enum st_console_pointer_shape shape);
 	int (*set_fullscreen)(st_console_display_t *display, bool fullscreen);
 	int (*get_scaling)(st_console_display_t *display, double *scaling);
 	/* Synchronously transfer the backend thread's retained console pointer. */
@@ -153,6 +155,7 @@ struct st_console {
 	size_t event_count;
 	char *title;
 	bool pointer_visible;
+	enum st_console_pointer_shape pointer_shape;
 };
 
 static inline bool

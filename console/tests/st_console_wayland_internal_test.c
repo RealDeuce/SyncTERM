@@ -430,6 +430,27 @@ test_scaling_command(void)
 	return 0;
 }
 
+static int
+test_pointer_shapes(void)
+{
+	uint32_t cursors[ST_CONSOLE_POINTER_LINK + 1][16 * 16];
+
+	for (size_t shape = ST_CONSOLE_POINTER_DEFAULT;
+	    shape <= ST_CONSOLE_POINTER_LINK; ++shape) {
+		draw_cursor(cursors[shape], (enum st_console_pointer_shape)shape);
+		bool visible = false;
+
+		for (size_t pixel = 0; pixel < 16 * 16; ++pixel)
+			visible = visible || cursors[shape][pixel] != 0;
+		CHECK(visible);
+	}
+	CHECK(memcmp(cursors[ST_CONSOLE_POINTER_DEFAULT],
+	    cursors[ST_CONSOLE_POINTER_TEXT], sizeof(cursors[0])) != 0);
+	CHECK(memcmp(cursors[ST_CONSOLE_POINTER_TEXT],
+	    cursors[ST_CONSOLE_POINTER_LINK], sizeof(cursors[0])) != 0);
+	return 0;
+}
+
 int
 main(void)
 {
@@ -439,5 +460,6 @@ main(void)
 	CHECK(test_clipboard_send() == 0);
 	CHECK(test_worker_completion() == 0);
 	CHECK(test_scaling_command() == 0);
+	CHECK(test_pointer_shapes() == 0);
 	return 0;
 }

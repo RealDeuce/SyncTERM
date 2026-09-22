@@ -67,6 +67,9 @@ typedef void (SDLCALL *sdl_unlock_texture_fn)(SDL_Texture *);
 typedef int (SDLCALL *sdl_poll_event_fn)(SDL_Event *);
 typedef Uint32 (SDLCALL *sdl_get_ticks_fn)(void);
 typedef int (SDLCALL *sdl_show_cursor_fn)(int);
+typedef SDL_Cursor *(SDLCALL *sdl_create_system_cursor_fn)(SDL_SystemCursor);
+typedef void (SDLCALL *sdl_set_cursor_fn)(SDL_Cursor *);
+typedef void (SDLCALL *sdl_free_cursor_fn)(SDL_Cursor *);
 typedef void (SDLCALL *sdl_start_text_input_fn)(void);
 typedef void (SDLCALL *sdl_stop_text_input_fn)(void);
 typedef int (SDLCALL *sdl_set_clipboard_text_fn)(const char *);
@@ -117,6 +120,9 @@ struct sdl_api {
 	int (SDLCALL *poll_event)(SDL_Event *);
 	Uint32 (SDLCALL *get_ticks)(void);
 	int (SDLCALL *show_cursor)(int);
+	SDL_Cursor *(SDLCALL *create_system_cursor)(SDL_SystemCursor);
+	void (SDLCALL *set_cursor)(SDL_Cursor *);
+	void (SDLCALL *free_cursor)(SDL_Cursor *);
 	void (SDLCALL *start_text_input)(void);
 	void (SDLCALL *stop_text_input)(void);
 	int (SDLCALL *set_clipboard_text)(const char *);
@@ -151,6 +157,8 @@ struct sdl_state {
 	bool texture_valid;
 	bool focused;
 	bool pointer_visible;
+	enum st_console_pointer_shape pointer_shape;
+	SDL_Cursor *pointer_cursors[ST_CONSOLE_POINTER_LINK + 1];
 	bool fullscreen;
 	bool maximized;
 	struct sdl_state *next;
@@ -168,6 +176,7 @@ enum sdl_command_type {
 	SDL_COMMAND_GET_CLIPBOARD,
 	SDL_COMMAND_OPEN_URL,
 	SDL_COMMAND_SET_POINTER,
+	SDL_COMMAND_SET_POINTER_SHAPE,
 	SDL_COMMAND_SET_FULLSCREEN,
 	SDL_COMMAND_GET_SCALING,
 };
@@ -189,6 +198,7 @@ struct sdl_command {
 		char **text_result;
 		double *scaling_result;
 		bool enabled;
+		enum st_console_pointer_shape pointer_shape;
 	} data;
 	int result;
 	bool done;
@@ -313,6 +323,12 @@ load_sdl(void)
 	    "SDL_GetTicks")
 	    || !LOAD_REQUIRED(&manager.api, manager.library, show_cursor,
 	    "SDL_ShowCursor")
+	    || !LOAD_REQUIRED(&manager.api, manager.library,
+	    create_system_cursor, "SDL_CreateSystemCursor")
+	    || !LOAD_REQUIRED(&manager.api, manager.library, set_cursor,
+	    "SDL_SetCursor")
+	    || !LOAD_REQUIRED(&manager.api, manager.library, free_cursor,
+	    "SDL_FreeCursor")
 	    || !LOAD_REQUIRED(&manager.api, manager.library, start_text_input,
 	    "SDL_StartTextInput")
 	    || !LOAD_REQUIRED(&manager.api, manager.library, stop_text_input,
@@ -595,6 +611,7 @@ create_state(struct sdl_state *state, uint32_t width, uint32_t height,
 	}
 	state->focused = true;
 	state->pointer_visible = true;
+	state->pointer_shape = ST_CONSOLE_POINTER_DEFAULT;
 	state->minimum_width = minimum_width;
 	state->minimum_height = minimum_height;
 	state->windowed_width = width;
@@ -613,6 +630,11 @@ destroy_state(struct sdl_state *state)
 		link = &(*link)->next;
 	if (*link == state)
 		*link = state->next;
+	for (size_t i = 0; i < sizeof(state->pointer_cursors)
+	    / sizeof(state->pointer_cursors[0]); ++i) {
+		if (state->pointer_cursors[i] != NULL)
+			manager.api.free_cursor(state->pointer_cursors[i]);
+	}
 	manager.api.destroy_texture(state->texture);
 	manager.api.destroy_renderer(state->renderer);
 	manager.api.destroy_window(state->window);
@@ -986,6 +1008,10 @@ dispatch_event(const SDL_Event *source)
 			if (state->focused)
 				(void)manager.api.show_cursor(state->pointer_visible
 				    ? SDL_ENABLE : SDL_DISABLE);
+			if (state->focused
+			    && state->pointer_cursors[state->pointer_shape] != NULL)
+				manager.api.set_cursor(
+				    state->pointer_cursors[state->pointer_shape]);
 			event.type = ST_CONSOLE_EVENT_FOCUS;
 			event.data.focus.focused = state->focused;
 			(void)st_console_display_post_event(state->console_display, &event);
@@ -1241,6 +1267,28 @@ process_command(struct sdl_command *command)
 			return 0;
 		return manager.api.show_cursor(state->pointer_visible
 		    ? SDL_ENABLE : SDL_DISABLE) >= 0 ? 0 : IO_ERROR_IO;
+	case SDL_COMMAND_SET_POINTER_SHAPE: {
+		static const SDL_SystemCursor cursors[] = {
+			SDL_SYSTEM_CURSOR_ARROW,
+			SDL_SYSTEM_CURSOR_IBEAM,
+			SDL_SYSTEM_CURSOR_HAND,
+		};
+		enum st_console_pointer_shape shape = command->data.pointer_shape;
+
+		if (shape < ST_CONSOLE_POINTER_DEFAULT
+		    || shape > ST_CONSOLE_POINTER_LINK)
+			return IO_ERROR_INVALID_ARGUMENT;
+		if (state->pointer_cursors[shape] == NULL) {
+			state->pointer_cursors[shape] =
+			    manager.api.create_system_cursor(cursors[shape]);
+			if (state->pointer_cursors[shape] == NULL)
+				return IO_ERROR_NOT_SUPPORTED;
+		}
+		state->pointer_shape = shape;
+		if (state->focused)
+			manager.api.set_cursor(state->pointer_cursors[shape]);
+		return 0;
+	}
 	case SDL_COMMAND_SET_FULLSCREEN:
 		return set_fullscreen_state(state, command->data.enabled);
 	}
@@ -1487,6 +1535,17 @@ sdl_set_pointer(st_console_display_t *display, bool visible)
 }
 
 static int
+sdl_set_pointer_shape(st_console_display_t *display,
+	enum st_console_pointer_shape shape)
+{
+	return submit_command(&(struct sdl_command){
+		.type = SDL_COMMAND_SET_POINTER_SHAPE,
+		.state = display->backend_state,
+		.data.pointer_shape = shape,
+	});
+}
+
+static int
 sdl_set_fullscreen(st_console_display_t *display, bool fullscreen)
 {
 	return submit_command(&(struct sdl_command){SDL_COMMAND_SET_FULLSCREEN,
@@ -1537,6 +1596,7 @@ static const struct st_console_backend_ops sdl_ops = {
 	.get_clipboard_text = sdl_get_clipboard,
 	.open_url = sdl_open_url,
 	.set_pointer_visible = sdl_set_pointer,
+	.set_pointer_shape = sdl_set_pointer_shape,
 	.set_fullscreen = sdl_set_fullscreen,
 	.get_scaling = sdl_get_scaling,
 	.activate = sdl_activate,

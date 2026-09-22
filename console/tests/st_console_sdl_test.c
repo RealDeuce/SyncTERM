@@ -109,6 +109,16 @@ main(int argc, char **argv)
 	CHECK(st_console_set_title(first, "st_console SDL test") == 0);
 	CHECK(st_console_set_pointer_visible(first, false) == 0);
 	CHECK(st_console_set_pointer_visible(first, true) == 0);
+	int pointer_shape_status = st_console_set_pointer_shape(first,
+	    ST_CONSOLE_POINTER_TEXT);
+	CHECK(pointer_shape_status == 0
+	    || pointer_shape_status == IO_ERROR_NOT_SUPPORTED);
+	if (pointer_shape_status == 0) {
+		CHECK(st_console_set_pointer_shape(first, ST_CONSOLE_POINTER_LINK)
+		    == 0);
+		CHECK(st_console_set_pointer_shape(first, ST_CONSOLE_POINTER_DEFAULT)
+		    == 0);
+	}
 	CHECK(st_console_resize(first, 10, 5) == 0);
 	CHECK(st_console_pixel_size(first, &width, &height) == 0);
 	CHECK(width == 80 && height == 80);

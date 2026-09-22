@@ -1018,9 +1018,9 @@ class Font {
 // the `[id]` / `containsKey(id)` shape, this is NOT a Map - no
 // `keys` / `values` / `count` / iteration.  IDs flow IN from `add()`
 // returns or `Cell.hyperlinkId`; scripts can't enumerate the ID space.
-// ciolib doesn't expose an enumeration primitive either, and no
-// current script needs one - leave it as a sparse lookup until a
-// caller turns up that wants enumeration.
+// IDs remain valid for the application's lifetime.  A non-empty idParam
+// deduplicates an exact URI/parameter pair; null or empty idParam allocates a
+// fresh ID.  This family is not available in the file-picker VM.
 class Hyperlinks {
   foreign static [id]
   foreign static containsKey(id)

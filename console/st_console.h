@@ -162,6 +162,12 @@ enum st_console_cursor_shape {
 	ST_CONSOLE_CURSOR_BAR,
 };
 
+enum st_console_pointer_shape {
+	ST_CONSOLE_POINTER_DEFAULT,
+	ST_CONSOLE_POINTER_TEXT,
+	ST_CONSOLE_POINTER_LINK,
+};
+
 /* Bitmap cursor scan lines are inclusive and expressed in range units. */
 struct st_console_custom_cursor {
 	uint32_t start;
@@ -622,6 +628,8 @@ int st_console_get_clipboard_text(st_console_t *console, char **result);
 void st_console_free_text(char *text);
 int st_console_open_url(st_console_t *console, const char *url);
 int st_console_set_pointer_visible(st_console_t *console, bool visible);
+int st_console_set_pointer_shape(st_console_t *console,
+	enum st_console_pointer_shape shape);
 int st_console_set_fullscreen(st_console_t *console, bool fullscreen);
 int st_console_display_set_clipboard_text(st_console_display_t *display,
 	const char *text);

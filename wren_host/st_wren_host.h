@@ -9,6 +9,7 @@
 #define ST_WREN_HOST_H_
 
 #include "st_profile.h"
+#include "st_hyperlink.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -131,6 +132,8 @@ struct st_wren_host_config {
 	const char *launch_script;
 	struct st_session_history *session_history;
 	struct st_audio_runtime *audio_runtime;
+	/* Borrowed for the host and every connected-context lifetime. */
+	st_hyperlink_registry_t *hyperlinks;
 	bool safe_mode;
 };
 

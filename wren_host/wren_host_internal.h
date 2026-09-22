@@ -236,6 +236,8 @@ WrenForeignMethodFn st_wren_core_bind_method(const char *class_name,
 WrenForeignClassMethods st_wren_core_bind_class(const char *class_name);
 WrenForeignMethodFn st_wren_fs_bind_method(const char *class_name,
 	bool is_static, const char *signature);
+WrenForeignMethodFn st_wren_hyperlink_bind_method(const char *class_name,
+	bool is_static, const char *signature);
 WrenForeignClassMethods st_wren_fs_bind_class(const char *class_name);
 bool st_wren_file_push(WrenVM *vm, int slot, const char *path,
 	enum st_wren_picker_disposition disposition, bool picker_read);

@@ -31,9 +31,9 @@ contracts, not proof that those contracts pass.
 bindings, then returns `st_wren_unsupported`. A declaration in
 `scripts/syncterm.wren` therefore does not prove implementation.
 
-The legacy menu host's `generic_class_allowed` explicitly includes Hyperlinks,
-Platform and VideoFlags. The legacy picker allowlist includes VideoFlags but
-not Hyperlinks. These host-specific boundaries must be retained in repair
+The legacy menu host's `generic_class_allowed` explicitly includes Platform
+and VideoFlags. The legacy picker allowlist includes VideoFlags. These
+host-specific boundaries must be retained in repair
 planning; missing menu capabilities cannot all be labelled deferred
 connected-session work.
 
@@ -41,7 +41,6 @@ connected-session work.
 
 | Family | Legacy/contract evidence | Current gap | Scope/disposition |
 | --- | --- | --- | --- |
-| Hyperlinks | `legacy syncterm/wren_bind.c` lookup/contains/add/params bindings; legacy menu allowlist | No modern binding family. | Required menu capability omitted. Future OSC parsing is separate from this existing script API. |
 | Platform.name | `legacy syncterm/wren_bind.c` and menu allowlist | No modern binding found. | Required menu capability omitted, not connected-session work. |
 
 These family omissions sit alongside the partial-method findings in the
@@ -139,12 +138,12 @@ verification claim.
 | DEC private mode query/save/restore reads ALTCHARS/NOBRIGHT/BGBRIGHT/BLINKALTCHARS/NOBLINK, alongside parser-owned origin/autowrap/paste modes | Cell source-bright/source-blink flags, per-console VideoFlags and `st_console_font_selection`/font-for-flags primitives now exist, but the CTerm parser state machine is not ported. | CTerm must preserve parser-owned mode state and update the console flags when those modes change. Explicit full-cell/font writes must not be forced through implicit selectors. Do not claim the available selector primitives implement the parser policy. |
 | Current legacy writes retain selected glyph/font/colours and SAA5050 controls; Prestel emits full cells | Modern cell has separate codepoint/glyph, 16-bit registered font, tagged fg/bg and packed SAA controls/flags. Static/copied font registration and maps exist. | Use full-cell writes when the parser has already resolved the legacy glyph and retain SAA control data separately from the displayed codepoint. |
 | DECSCUSR/DEC mode handling changes cursor shape/visibility and restores parser cursor state | Console exposes cursor shape, visibility, custom scanlines and mode-default cursor APIs | Translate parser commands to these primitives, preserving mode table scanlines and wide-cell cursor behavior. |
-| OSC 8 handling in `cterm_cterm.c` sets current hyperlink; ordinary and Prestel cells retain its ID; `cterm_hyperlink_gc` marks IDs in scrollback | Cell/style hyperlink ID and raster indication exist; console source has no URI registry/lookup/liveness API. Wren Hyperlinks family is likewise missing. | Required shared functionality omitted, not satisfied by a numeric field. CTerm owns scrollback traversal; the registry must account for those retained references. No URI storage/lifetime design is implemented by this audit. |
+| OSC 8 handling in `cterm_cterm.c` sets current hyperlink; ordinary and Prestel cells retain its ID; `cterm_hyperlink_gc` marks IDs in scrollback | The application-lifetime shared registry supplies stable 16-bit IDs, copied URI/parameter storage and Wren lookup. | The future CTerm parser must allocate through this registry and retain the resulting ID in cells and scrollback. Stable non-reused IDs remove the legacy GC requirement for the application lifetime. |
 | `cterm_line_to_scrollback` reads complete cell rows into terminal-owned history | Modern read_cells can capture rows; scrollback storage/navigation remains terminal/application integration work | Preserve codepoint/glyph/font/colour/flags/hyperlink identity. Do not add a second console-owned scrollback subsystem merely because the old parser owns one. |
 | DEC checksum handler prefers native pixel planes, otherwise constructs a legacy cell representation before CRC | Modern pixel capture retains native indexed/direct colour identity; modern cell ABI deliberately differs | Preserve documented protocol semantics explicitly during porting. CRC over the new struct is not a compatible substitute; needed legacy attribute/encoding information cannot be assumed to match the legacy serialized cell. This is a compatibility decision to resolve, not permission to restore the whole legacy cell layout. |
 
 These are source-backed dependency mappings, not runtime CTerm tests. Palette
-identity and hyperlink storage are genuine foundation gaps. Parsing sequences,
+identity remains a genuine foundation gap. Parsing sequences,
 tracking DEC modes, terminal margins, scrollback policy and protocol responses
 remain responsibilities of the future CTerm port; available console primitives
 do not constitute an already integrated terminal.
@@ -305,11 +304,10 @@ not silently promoted to a defect merely because it appeared in that report.
 | Wren vendor integration/OOM | Source-confirmed inherited dependency limit: wrenNewVM calls memset immediately after allocation without checking NULL, so host NULL checks do not provide graceful VM OOM. Private REPL structures couple the host to this vendor version; NaN tagging has no alternate-format verification. | Document realistic failure guarantees; no induced OOM, allocator redesign or independent interpreter certification. Historical legacy diff does not prove every vendor internal correct. |
 | Menu binding signature parity | Historical comparison establishes matching declarations/signatures, not behavior; several matching handlers are stubs or generic handlers. | Keep absent semantic families distinct. A green ordinary host test does not validate every setting side effect or native backend. |
 | Menu serial catalogs | Required functionality incompletely ported. `serialRates(_)` is bound to fn_menu_rates, ignores the device and returns bare numbers; Wren.adoc:4411 and legacy fn_Menu_serialRates require queried `[value, displayName]` rows, with Current=0 and normal-catalog fallback. `flowControlsNoRts` shares the unrestricted handler although its documented/legacy rows contain only XON/XOFF and None. `scripts/menu_bbs_editor.wren:1143–1158` consumes both. | Repair row shape, preserved values, restricted catalog and device-query/fallback semantics together. No serial device was opened in the re-audit. |
-| Menu hyperlink stubs | openHyperlink and setHyperlinkHover are inert. | Hyperlink lookup/storage remains a required shared omission. No approved permanent removal established. |
 | ScreenSupports fixed false values | windowName, windowIcon and closeLock remain fixed false values. | Compare each property to actual backend capability when repairing; do not imply every backend supplies every facility. Host.uploadPath is also null but was not permitted by the legacy menu Host allowlist, unlike cacheDirectory/downloadDir. |
 | Host setting/theme partial failures | Settings apply ignores scaling errors; selected-theme save ignores reload failure. | Add per-stage fault fixtures rather than claim every operation is failure-atomic. |
 | Menu output-mode catalog | Source-confirmed incomplete catalog: fn_menu_output_modes returns only Automatic despite compiled selectable backends and richer startup policy. | Required settings-UI integration gap; trace persistence and restart semantics before prescribing live backend switching. This does not mean those backends are absent. |
-| Host safe-mode cache/external actions | Policy reconciliation still required: cloud cache operations and Menu.openUrl have no gate; Host.safeMode prose prohibits script-driven external commands, while cache behavior may have different intended scope. | No URL launched/cache updated here. Decide the cache and external-action policies explicitly rather than inferring them from unrelated persistence boundaries. |
+| Host safe-mode cache actions | Policy reconciliation still required for cloud cache operations, whose intended safe-mode scope may differ from persistence and external launches. | No cache was updated here. Decide cache policy explicitly rather than inferring it from unrelated persistence boundaries. |
 | Core cell/cursor/window setters | Source-observed error/representation gaps remain outside the completed compatibility work: font assignment reruns lookup and clears explicit-glyph state, and some unrelated setters ignore errors. | Test full-cell mutation ordering against intended contracts. Do not force selector semantics onto explicit font cells. |
 | Core surface initial/fill/character contracts | Initial spaces versus documented NUL cells, first-codepoint acceptance despite trailing text, and fill's wide-pair handling need specific compatibility checks. | Do not infer every raw-cell write requires lookup or every trailing-codepoint acceptance is a failure without its contract. |
 | Picker result/consent/reentrancy | Path/disposition adapter exists, not complete File I/O/one-shot consent enforcement. Multi-result conversion can skip failed allocations; recursive picker entry is exposed without a visible active-call guard. | Source-backed incomplete family and lifetime risks; no recursive VM execution or allocation failure induced. Existing restoration/acceptance tests do not cover these cases. |
@@ -362,7 +360,7 @@ This sequence is a repair backlog, not authorization to implement it.
 
 | Priority / shared cause | Scope and evidence | Verification needed in the later repair pass |
 | --- | --- | --- |
-| Shared missing functionality: Wren and console consumers | Hyperlink registry and Platform as inventoried above. | Exercise actual permitted menu/picker imports and operations, not just signature registration. Retain per-host authority distinctions. |
+| Shared missing functionality: Wren consumers | Platform as inventoried above. | Exercise actual permitted menu/picker imports and operations, not just signature registration. Retain per-host authority distinctions. |
 | Backend/runtime reliability | Detailed backend notes remain; A091 Windows application packaging is a separate deliverable from console primitives. | Capability-present/absent builds and actual platform lifecycle/input tests. Preserve source-only qualifications for unavailable platforms; a dummy renderer or cross-link does not certify them. |
 | Audio and UI behavior | The supplemental audio clear/drain promise and established A067–A086 UI/script defects. | Device-free audio failure injection plus UI mutation/layout/input sequences and error containment. A023 real-time performance remains a risk pending measurement, not an already measured failure. |
 | Documentation and unresolved questions | A007 aliasing portability, A011 fairness/performance, split A088–A090 contracts/examples, synthetic-key compatibility, A095 distribution notices and unproven supplemental risks. | Resolve the exact contract/evidence before changing behavior. Keep inherited defects labeled inherited, corrected findings closed, and legal/distribution review distinct from runtime bugs. |
@@ -372,7 +370,7 @@ slot mapping, protocol key/mouse encoding, status-row and terminal-margin
 policy, scrollback and audio-stream lifetime, connection callbacks and
 capability advertisement. These are not omissions from a console library
 merely because its primitives do not perform terminal emulation. Conversely,
-retained palette identity, required hyperlink storage, event fidelity and
+retained palette identity, event fidelity and
 already promised Wren families cannot be deferred by calling them parser work.
 
 Open behavior decisions must remain explicit: DEC checksum representation
@@ -388,7 +386,7 @@ text/value handling.
 | --- | --- |
 | Reconcile every existing finding | Numbered ledger contains every outstanding entry; split suffixes retain distinct outcomes. Auxiliary A090 claims are explicitly corrected rather than counted as outstanding bugs. A007/A011 and performance concerns remain unresolved where evidence does not establish required behavior or failure. |
 | Review substantive unnumbered concerns | Supplemental ledger and original-audit coverage crosswalk include component, script, backend, ownership, documentation and historical-verification notes. Repeated observations are not counted twice. Newly established serial-catalog and mouse-modifier gaps have explicit legacy consumers. |
-| Required omission inventory beyond CTerm | Wren host allowlists and the binding-family table distinguish available declarations, absent implementations and permitted hosts. Menu/picker requirements are not mislabeled connected-session work. Native palette identity/capacity, hyperlink storage, input fidelity and mode/selector gaps appear alongside available replacements. |
+| Required omission inventory beyond CTerm | Wren host allowlists and the binding-family table distinguish available declarations, absent implementations and permitted hosts. Menu/picker requirements are not mislabeled connected-session work. Native palette identity/capacity, input fidelity and mode/selector gaps appear alongside available replacements. |
 | CTerm readiness | Three consumer-backed dependency maps cover cell/attribute/font/Unicode, geometry/cursor/scrolling, Prestel versus Mode 7, pixels/palettes, input, audio, synchronization and transport. Their boundaries distinguish repair prerequisites from parser/application integration. |
 | Prioritized backlog without redesign | Repair sequence groups shared causes and dependencies, identifies later verification, and retains explicit unresolved behavior decisions. Each numbered finding also has its own repair relationship; the priority groups are not permission to discard lower-priority rows. |
 | Audit-only authority and evidence limits | Only REAUDIT.md was created/edited for this re-audit. Existing dirty production files, manuals, tests and the original audit artifacts were preserved. No production repair, legacy-tree edit, personal-data access, desktop input, network test or push was performed. |

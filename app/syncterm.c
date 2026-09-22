@@ -12,6 +12,7 @@
 #include "st_command_line.h"
 #include "st_console.h"
 #include "st_console_startup.h"
+#include "st_hyperlink.h"
 #include "io_error.h"
 #include "st_unicode_fonts.h"
 #ifdef ST_HAVE_UNIFONT
@@ -121,6 +122,7 @@ main(int argc, char **argv)
 	st_console_t *picker_console = NULL;
 	st_console_display_t *display = NULL;
 	st_session_history_t *session_history = NULL;
+	st_hyperlink_registry_t *hyperlinks = NULL;
 	st_audio_runtime_t *audio_runtime = NULL;
 	uint16_t default_font;
 	struct st_console_font native_font;
@@ -166,7 +168,9 @@ main(int argc, char **argv)
 		goto finished;
 	}
 	settings_loaded = true;
-	status = st_session_history_create(&session_history,
+	status = st_hyperlink_registry_create(&hyperlinks);
+	if (status == 0)
+		status = st_session_history_create(&session_history,
 	    (size_t)st_settings.scrollback_lines);
 	if (status == 0)
 		status = st_audio_runtime_create(&audio_runtime,
@@ -252,6 +256,7 @@ main(int argc, char **argv)
 		.launch_script = command.wren_script,
 		.session_history = session_history,
 		.audio_runtime = audio_runtime,
+		.hyperlinks = hyperlinks,
 		.safe_mode = command.safe_mode,
 	};
 	status = st_wren_host_create(&host, &host_config);
@@ -291,6 +296,7 @@ finished:
 	st_wren_host_destroy(host);
 	st_audio_runtime_destroy(audio_runtime);
 	st_session_history_destroy(session_history);
+	st_hyperlink_registry_destroy(hyperlinks);
 	st_console_destroy(picker_console);
 	st_console_destroy(console);
 	st_console_display_destroy(display);

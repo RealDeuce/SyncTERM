@@ -25,6 +25,8 @@
 
 #define GDI_COMMAND (WM_APP + 1)
 #define GDI_CURSOR_ARROW 32512
+#define GDI_CURSOR_IBEAM 32513
+#define GDI_CURSOR_HAND 32649
 
 enum command_type {
 	COMMAND_PRESENT,
@@ -35,6 +37,7 @@ enum command_type {
 	COMMAND_CLIPBOARD_GET,
 	COMMAND_OPEN_URL,
 	COMMAND_POINTER,
+	COMMAND_POINTER_SHAPE,
 	COMMAND_FULLSCREEN,
 	COMMAND_GET_SCALING,
 	COMMAND_DESTROY,
@@ -52,6 +55,7 @@ struct command {
 			uint32_t height;
 		} size;
 		bool enabled;
+		enum st_console_pointer_shape pointer_shape;
 	} data;
 	int result;
 };
@@ -83,6 +87,7 @@ struct gdi_state {
 	struct st_console_rect damage;
 	bool have_damage;
 	bool pointer_visible;
+	enum st_console_pointer_shape pointer_shape;
 	bool fullscreen;
 	bool maximized;
 	WINDOWPLACEMENT placement;
@@ -93,6 +98,16 @@ struct gdi_state {
 
 static st_once_flag_t class_once = ST_ONCE_FLAG_INIT;
 static ATOM window_class;
+
+static HCURSOR
+pointer_cursor(enum st_console_pointer_shape shape)
+{
+	static const unsigned int cursors[] = {
+		GDI_CURSOR_ARROW, GDI_CURSOR_IBEAM, GDI_CURSOR_HAND,
+	};
+
+	return LoadCursorW(NULL, MAKEINTRESOURCEW(cursors[shape]));
+}
 
 static HICON
 create_icon(const struct st_console_icon *icon)
@@ -849,8 +864,14 @@ process_command(struct gdi_state *state, struct command *command)
 		break;
 	case COMMAND_POINTER:
 		state->pointer_visible = command->data.enabled;
-		(void)SetCursor(state->pointer_visible ? LoadCursorW(NULL,
-		    MAKEINTRESOURCEW(GDI_CURSOR_ARROW)) : NULL);
+		(void)SetCursor(state->pointer_visible
+		    ? pointer_cursor(state->pointer_shape) : NULL);
+		command->result = 0;
+		break;
+	case COMMAND_POINTER_SHAPE:
+		state->pointer_shape = command->data.pointer_shape;
+		(void)SetCursor(state->pointer_visible
+		    ? pointer_cursor(state->pointer_shape) : NULL);
 		command->result = 0;
 		break;
 	case COMMAND_FULLSCREEN:
@@ -990,8 +1011,8 @@ window_proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
 		return 0;
 	}
 	case WM_SETCURSOR:
-		(void)SetCursor(state->pointer_visible ? LoadCursorW(NULL,
-		    MAKEINTRESOURCEW(GDI_CURSOR_ARROW)) : NULL);
+		(void)SetCursor(state->pointer_visible
+		    ? pointer_cursor(state->pointer_shape) : NULL);
 		return TRUE;
 	case GDI_COMMAND:
 		return process_command(state, (struct command *)lparam);
@@ -1181,6 +1202,16 @@ gdi_set_fullscreen(st_console_display_t *display, bool fullscreen)
 }
 
 static int
+gdi_set_pointer_shape(st_console_display_t *display,
+	enum st_console_pointer_shape shape)
+{
+	return send_command(display->backend_state, &(struct command){
+		.type = COMMAND_POINTER_SHAPE,
+		.data.pointer_shape = shape,
+	});
+}
+
+static int
 gdi_get_scaling(st_console_display_t *display, double *result)
 {
 	return send_command(display->backend_state, &(struct command){
@@ -1224,6 +1255,7 @@ static const struct st_console_backend_ops gdi_ops = {
 	.get_clipboard_text = gdi_get_clipboard,
 	.open_url = gdi_open_url,
 	.set_pointer_visible = gdi_set_pointer,
+	.set_pointer_shape = gdi_set_pointer_shape,
 	.set_fullscreen = gdi_set_fullscreen,
 	.get_scaling = gdi_get_scaling,
 	.activate = gdi_activate,
@@ -1247,6 +1279,7 @@ st_console_gdi_init(st_console_t *console)
 		console->pixels->width, console->pixels->height,
 		console->aspect_width, console->aspect_height};
 	state->pointer_visible = true;
+	state->pointer_shape = ST_CONSOLE_POINTER_DEFAULT;
 	state->console_display = console->display;
 	if (st_mutex_init(&state->mutex, ST_MUTEX_PLAIN) != ST_THREAD_SUCCESS) {
 		free(state);

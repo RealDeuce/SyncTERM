@@ -281,6 +281,11 @@ exercise_connected_sftp(st_wren_host_t *host, st_console_t *console,
 	    "%s/cache/Alpha/sftp_queue.won", ST_WREN_TEST_DIRECTORY);
 	(void)fs_remove_file(queue_path);
 	CHECK(st_wren_connected_create(&connected, &config) == 0);
+	CHECK(st_wren_connected_interpret(connected, "connected_hyperlinks",
+	    "import \"syncterm\" for Hyperlinks\n"
+	    "if (!Hyperlinks.containsKey(1) || Hyperlinks[1] != "
+	    "\"https://history.invalid/\") Fiber.abort(\"hyperlinks\")\n")
+	    == 0);
 	CHECK(st_wren_connected_interpret(connected, "connected_fs_won_test",
 	    "import \"syncterm\" for Cache, File, FileError, WON, WONError\n"
 	    "var decoded = WON.deserialize(\"{\\\"value\\\":[1,true,null]}\")\n"
@@ -2149,11 +2154,13 @@ main(void)
 	st_console_t *console = NULL;
 	st_session_history_t *session_history = NULL;
 	st_audio_runtime_t *audio_runtime = NULL;
+	st_hyperlink_registry_t *hyperlinks = NULL;
 	st_wren_host_t *host = NULL;
 	bool has_selection = false;
 	bool font_registered = false;
 	uint16_t default_identifier;
 	uint16_t configured_identifier;
+	uint16_t history_hyperlink;
 
 	CHECK(fs_create_directories(ST_WREN_TEST_DIRECTORY) == 0);
 	(void)snprintf(personal, sizeof(personal), "%s/personal.lst",
@@ -2212,6 +2219,11 @@ main(void)
 		{.codepoint = 'C'}, {.codepoint = 'D'},
 	};
 	CHECK(st_session_history_create(&session_history, 4) == 0);
+	CHECK(st_hyperlink_registry_create(&hyperlinks) == 0);
+	CHECK(st_hyperlink_registry_add(hyperlinks, "https://history.invalid/", 24,
+	    "history", 7, &history_hyperlink) == 0);
+	CHECK(history_hyperlink == 1);
+	history_cells[0].hyperlink = history_hyperlink;
 	CHECK(st_audio_runtime_create(&audio_runtime, UINT32_MAX) == 0);
 	CHECK(st_session_history_publish(session_history, history_cells, 2, 2,
 	    ST_SCREEN_MODE_CURRENT, true) == 0);
@@ -2221,8 +2233,30 @@ main(void)
 		.application_title = "SyncTERM test",
 		.session_history = session_history,
 		.audio_runtime = audio_runtime,
+		.hyperlinks = hyperlinks,
 	};
 	CHECK(st_wren_host_create(&host, &host_config) == 0);
+	CHECK(wrenInterpret(((struct st_wren_host *)host)->vm,
+	    "hyperlink_contract",
+	    "import \"syncterm\" for Cell, Hyperlinks\n"
+	    "import \"syncterm_menu\" for Menu\n"
+	    "if (!Hyperlinks.containsKey(1) || "
+	    "Hyperlinks[1] != \"https://history.invalid/\" || "
+	    "Hyperlinks.params(1) != \"history\") "
+	    "Fiber.abort(\"registry lookup\")\n"
+	    "var tagged = Hyperlinks.add(\"https://tagged.invalid/\", \"tag\")\n"
+	    "if (tagged != Hyperlinks.add(\"https://tagged.invalid/\", \"tag\")) "
+	    "Fiber.abort(\"explicit deduplication\")\n"
+	    "if (Hyperlinks.add(\"https://fresh.invalid/\", null) == "
+	    "Hyperlinks.add(\"https://fresh.invalid/\", null)) "
+	    "Fiber.abort(\"implicit identity reused\")\n"
+	    "var cell = Cell.new()\n"
+	    "var scrollback = Menu.offlineScrollback\n"
+	    "if (!scrollback.cellAt(0, 0, cell) || cell.hyperlinkId != 1) "
+	    "Fiber.abort(\"scrollback hyperlink\")\n"
+	    "if (Menu.openHyperlink(Hyperlinks.add(\"mailto:x@y\", null))) "
+	    "Fiber.abort(\"disallowed scheme opened\")\n")
+	    == WREN_RESULT_SUCCESS);
 	{
 		enum st_screen_mode mode = ST_SCREEN_MODE_80X25;
 
@@ -2444,12 +2478,19 @@ main(void)
 	host_config.console = console;
 	host_config.safe_mode = true;
 	CHECK(st_wren_host_create(&host, &host_config) == 0);
+	CHECK(wrenInterpret(((struct st_wren_host *)host)->vm,
+	    "safe_hyperlink_contract",
+	    "import \"syncterm_menu\" for Menu\n"
+	    "if (Menu.openUrl(\"https://example.invalid/\") || "
+	    "Menu.openHyperlink(1)) Fiber.abort(\"safe URL launch\")\n")
+	    == WREN_RESULT_SUCCESS);
 	CHECK(exercise_safe_mode_persistence_contract(host, personal, settings,
 	    cache) == 0);
 	st_wren_host_destroy(host);
 	st_console_destroy(console);
 	st_session_history_destroy(session_history);
 	st_audio_runtime_destroy(audio_runtime);
+	st_hyperlink_registry_destroy(hyperlinks);
 	st_settings_shutdown();
 	return 0;
 }

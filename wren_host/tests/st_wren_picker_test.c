@@ -115,6 +115,7 @@ main(void)
 	st_console_t *picker_console = NULL;
 	st_console_display_t *display = NULL;
 	st_wren_host_t *public_host = NULL;
+	st_hyperlink_registry_t *hyperlinks = NULL;
 	struct st_wren_host *host;
 
 	CHECK(fs_create_directories(ST_WREN_PICKER_TEST_DIRECTORY) == 0);
@@ -155,16 +156,21 @@ main(void)
 	    &console_config) == 0);
 	CHECK(st_console_create_on_display(&picker_console, display,
 	    &console_config) == 0);
+	CHECK(st_hyperlink_registry_create(&hyperlinks) == 0);
 	host_config = (struct st_wren_host_config){
 		.display = display,
 		.console = console,
 		.picker_console = picker_console,
 		.paths = &paths,
 		.application_title = "SyncTERM picker test",
+		.hyperlinks = hyperlinks,
 	};
 	CHECK(st_wren_host_create(&public_host, &host_config) == 0);
-	CHECK(st_console_write_cells(console, &marker_rect, &marker, 1) == 0);
 	host = public_host;
+	CHECK(wrenInterpret(host->picker_vm, "picker_hyperlink_contract",
+	    "import \"syncterm\" for Hyperlinks\n"
+	    "Hyperlinks.containsKey(1)\n") == WREN_RESULT_RUNTIME_ERROR);
+	CHECK(st_console_write_cells(console, &marker_rect, &marker, 1) == 0);
 	{
 		const struct st_console_rect origin = {0, 0, 1, 1};
 		struct st_console_cell cell;
@@ -377,5 +383,6 @@ main(void)
 	st_console_destroy(picker_console);
 	st_console_destroy(console);
 	st_console_display_destroy(display);
+	st_hyperlink_registry_destroy(hyperlinks);
 	return 0;
 }

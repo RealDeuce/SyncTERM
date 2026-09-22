@@ -63,6 +63,9 @@ main(void)
 	CHECK(st_console_create_on_display(&peer, display, &config) == 0);
 	CHECK(st_console_set_pointer_visible(peer, false) == 0);
 	CHECK(st_console_set_pointer_visible(peer, true) == 0);
+	CHECK(st_console_set_pointer_shape(peer, ST_CONSOLE_POINTER_TEXT) == 0);
+	CHECK(st_console_set_pointer_shape(peer, ST_CONSOLE_POINTER_LINK) == 0);
+	CHECK(st_console_set_pointer_shape(peer, ST_CONSOLE_POINTER_DEFAULT) == 0);
 	{
 		st_console_t *other = NULL;
 

@@ -3495,15 +3495,15 @@ distinguishes bundled font variants that use the same codepage encoding.
 
 === Hyperlinks [[hyperlinks]]
 
-Typed-ID lookup table over the active hyperlink registry.  Despite the
+Typed-ID lookup table over the application-lifetime hyperlink registry.  It
+is available to the menu and connected VMs, but not the file-picker VM.
+Despite the
 `[id]` / `containsKey(id)` shape, this is **not** a `Map` — there is no
 `keys` / `values` / `count` / iteration.  IDs flow into a script from
 `add()` returns or from `Cell.hyperlinkId` on cells under the cursor;
-scripts can't enumerate the ID space.  ciolib doesn't expose an
-enumeration primitive either, and no current script needs one.  If a
-caller turns up that wants enumeration, the table can grow `keys` /
-`count` / `iterate` later without breaking the existing surface (see
-`Console.entries` for the pattern).
+scripts can't enumerate the ID space.  IDs range from 1 through 65535, remain
+valid until application shutdown, and are never reused.  Zero means no
+hyperlink.
 
 [options="header",cols="2,3"]
 |===
@@ -3516,8 +3516,10 @@ caller turns up that wants enumeration, the table can grow `keys` /
 | `true` if `id` is present.
 
 | `Hyperlinks.add(uri, idParam)`
-| Allocate a new hyperlink ID for `uri` with optional `id` parameter
-  string.  Returns the new numeric ID.
+| Allocate a hyperlink ID for `uri` with optional `id` parameter string.
+  A non-empty parameter deduplicates an exact URI/parameter pair.  A `null`
+  or empty parameter always allocates a fresh ID.  Returns zero if the
+  registry is full or the value cannot be stored.
 
 | `Hyperlinks.params(id)`
 | Parameter string for `id`, or `null`.
@@ -4146,17 +4148,21 @@ available in a connected VM.
 | Menu.openUrl(url)
 | Open a detected plain-text URL with the configured local URL handler.
   Returns whether it opened.  This menu-only operation carries local browser
-  authority and is unavailable to connected scripts.
+  authority, is unavailable to connected scripts, and returns `false` in
+  safe mode.
 
 | Menu.openHyperlink(id)
-| Open an OSC 8 hyperlink from the conio hyperlink registry.  Returns
-  whether it opened.  The shipped viewer copies the URL to the clipboard
-  when opening fails.
+| Resolve an ID from the shared hyperlink registry and open HTTP, HTTPS, FTP,
+  or FTPS URIs with the configured local URL handler.  Scheme matching is
+  locale-independent and case-insensitive.  Returns `false` for other
+  schemes, unknown IDs, launch failures, and safe mode.  The shipped viewer
+  copies the URI to the clipboard when opening fails.
 
 | Menu.setHyperlinkHover(id)
-| Set the offline viewer's pointer and status-row URL for a hyperlink ID;
-  pass zero to clear both.  This is a presentation operation for the trusted
-  menu viewer, not a connected-session capability.
+| Select the link pointer when `id` names a registered hyperlink, or the text
+  pointer otherwise.  The shipped offline viewer separately resolves and
+  paints the full URI in its bottom row; pass zero to clear hover state.
+  Text-only and libretro backends do not expose pointer shapes.
 
 | Menu.applicationTitle
 | Return the classic header text, combining the SyncTERM version and

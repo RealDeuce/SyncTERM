@@ -1309,7 +1309,7 @@ Wren.adoc's detached offline Surface and screen-save/restore contracts.
 The viewer copies source rectangles, bounds its source coordinate lookup,
 and resets hyperlink hover after normal modal completion. Exception cleanup
 of screen/mouse state remains a source-level question; completed-session
-integration is not established by this review or the currently stubbed host.
+integration was not established by this audit pass.
 
 Extended the isolated audit runner with logview-suite and added two focused
 tests for A081 and A082. Existing assertions remain unchanged. No personal
@@ -1835,7 +1835,7 @@ scripts/syncterm_menu.wren. An independent read-only signature comparison
 expanded C BIND_GETSET entries and normalized Wren parameter lists: all 286
 foreign declarations have matching class/static/signature bindings, with no
 extra C entries. This establishes binding presence, not correct behavior.
-Several are intentionally stubbed (offline scrollback, hyperlinks and cache),
+Several were intentionally stubbed (offline scrollback and cache),
 and serialRates/flowControlsNoRts share generic handlers;
 their advertised semantics still need consumer/legacy comparison.
 
@@ -1868,10 +1868,8 @@ This failure-order concern is source-only and still needs injection tests.
 
 Cloud refresh/cache/select can perform cache writes without a safe-mode gate;
 selection only gates settings_save. Whether cache updates are an intentional
-safe-mode exception needs an explicit policy/legacy comparison. Menu.openUrl
-likewise lacks a safe-mode gate despite Host.safeMode's
-documented restriction on script-driven external commands; no browser or
-external command was launched during this audit.
+safe-mode exception needs an explicit policy/legacy comparison. No browser,
+external command, or cache update was launched during this audit.
 
 Menu binding read coverage extends through :1525, in addition to :3360-3480.
 Build-options data distinguishes compiled video/audio backends from unavailable

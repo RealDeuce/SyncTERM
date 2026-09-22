@@ -16,6 +16,7 @@ class OfflineScrollbackCanvas is Widget {
     _dismiss = dismiss
     _top = 0
     _hoverId = 0
+    _hoverUrl = null
     _cell = Cell.new()
   }
 
@@ -41,6 +42,11 @@ class OfflineScrollbackCanvas is Widget {
 
   move_(delta) {
     _top = (_top + delta).max(0).min(maxTop_)
+    if (_hoverId != 0 || _hoverUrl != null) {
+      _hoverId = 0
+      _hoverUrl = null
+      Menu.setHyperlinkHover(0)
+    }
     markDirty()
   }
 
@@ -66,6 +72,12 @@ class OfflineScrollbackCanvas is Widget {
     }
     title_(0)
     title_(_source.width - 10)
+    if (_hoverUrl != null && bounds.h > 0) {
+      var row = bounds.h - 1
+      Painter.fill(surface, Rect.new(0, row, bounds.w, 1), " ",
+          style("statusbar"))
+      Painter.text(surface, 0, row, _hoverUrl, style("statusbar"), bounds.w)
+    }
   }
 
   position_(event) {
@@ -106,9 +118,12 @@ class OfflineScrollbackCanvas is Widget {
         id = _cell.hyperlinkId
       }
     }
-    if (id == _hoverId) return
+    var url = id == 0 ? null : Hyperlinks[id]
+    if (id == _hoverId && url == _hoverUrl) return
     _hoverId = id
+    _hoverUrl = url
     Menu.setHyperlinkHover(id)
+    markDirty()
   }
 
   handle(event) {

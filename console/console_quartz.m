@@ -60,6 +60,7 @@ struct quartz_state {
 	struct st_console_rect damage;
 	bool have_damage;
 	bool pointer_visible;
+	enum st_console_pointer_shape pointer_shape;
 	bool fullscreen;
 	bool modifier_down[256];
 };
@@ -76,6 +77,7 @@ enum quartz_command_type {
 	QUARTZ_COMMAND_CLIPBOARD_GET,
 	QUARTZ_COMMAND_OPEN_URL,
 	QUARTZ_COMMAND_POINTER,
+	QUARTZ_COMMAND_POINTER_SHAPE,
 	QUARTZ_COMMAND_FULLSCREEN,
 	QUARTZ_COMMAND_GET_SCALING,
 };
@@ -95,6 +97,7 @@ struct quartz_command {
 		char **text_result;
 		double *scaling_result;
 		bool enabled;
+		enum st_console_pointer_shape pointer_shape;
 	} data;
 	int result;
 };
@@ -416,6 +419,15 @@ post_mouse(struct quartz_state *state, NSEvent *source,
 {
 	if (consoleState != NULL && !consoleState->pointer_visible)
 		[self addCursorRect:self.bounds cursor:consoleState->invisible_cursor];
+	else if (consoleState != NULL) {
+		NSCursor *cursor = NSCursor.arrowCursor;
+
+		if (consoleState->pointer_shape == ST_CONSOLE_POINTER_TEXT)
+			cursor = NSCursor.IBeamCursor;
+		else if (consoleState->pointer_shape == ST_CONSOLE_POINTER_LINK)
+			cursor = NSCursor.pointingHandCursor;
+		[self addCursorRect:self.bounds cursor:cursor];
+	}
 	else
 		[super resetCursorRects];
 }
@@ -1065,6 +1077,10 @@ process_command(struct quartz_command *command)
 		state->pointer_visible = command->data.enabled;
 		[state->window invalidateCursorRectsForView:state->view];
 		return 0;
+	case QUARTZ_COMMAND_POINTER_SHAPE:
+		state->pointer_shape = command->data.pointer_shape;
+		[state->window invalidateCursorRectsForView:state->view];
+		return 0;
 	case QUARTZ_COMMAND_FULLSCREEN:
 		if (((state->window.styleMask & NSWindowStyleMaskFullScreen) != 0)
 		    != command->data.enabled) {
@@ -1291,6 +1307,17 @@ quartz_set_pointer(st_console_display_t *display, bool visible)
 }
 
 static int
+quartz_set_pointer_shape(st_console_display_t *display,
+	enum st_console_pointer_shape shape)
+{
+	return submit_command(&(struct quartz_command){
+		.type = QUARTZ_COMMAND_POINTER_SHAPE,
+		.state = display->backend_state,
+		.data.pointer_shape = shape,
+	});
+}
+
+static int
 quartz_set_fullscreen(st_console_display_t *display, bool fullscreen)
 {
 	return submit_command(&(struct quartz_command){
@@ -1336,6 +1363,7 @@ static const struct st_console_backend_ops quartz_ops = {
 	.get_clipboard_text = quartz_get_clipboard,
 	.open_url = quartz_open_url,
 	.set_pointer_visible = quartz_set_pointer,
+	.set_pointer_shape = quartz_set_pointer_shape,
 	.set_fullscreen = quartz_set_fullscreen,
 	.get_scaling = quartz_get_scaling,
 	.activate = quartz_activate,
@@ -1365,6 +1393,7 @@ st_console_quartz_init(st_console_t *console)
 		console->pixels->width, console->pixels->height,
 		console->aspect_width, console->aspect_height};
 	state->pointer_visible = true;
+	state->pointer_shape = ST_CONSOLE_POINTER_DEFAULT;
 	state->console_display = console->display;
 	status = st_console_bitmap_presenter_create(&state->presenter, console);
 	if (status != 0) {

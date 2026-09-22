@@ -574,6 +574,11 @@ st_wren_bind_method(WrenVM *vm, const char *module, const char *class_name,
 
 	if (strcmp(module, "syncterm") == 0)
 		method = st_wren_fs_bind_method(class_name, is_static, signature);
+	if (method == NULL && strcmp(module, "syncterm") == 0
+	    && (st_wren_context_from_vm(vm)->event == NULL
+	    || strcmp(st_wren_context_from_vm(vm)->event, "picker") != 0))
+		method = st_wren_hyperlink_bind_method(class_name, is_static,
+		    signature);
 	if (method == NULL && strcmp(module, "syncterm") == 0)
 		method = st_wren_sftp_bind_method(class_name, is_static, signature);
 	if (method == NULL)
@@ -1058,7 +1063,8 @@ st_wren_host_create(st_wren_host_t **result,
 
 	if (result == NULL || config == NULL || config->console == NULL
 	    || ((config->display == NULL) != (config->picker_console == NULL))
-	    || config->paths == NULL || config->paths->scripts_directory == NULL)
+	    || config->paths == NULL || config->paths->scripts_directory == NULL
+	    || config->hyperlinks == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	host = calloc(1, sizeof(*host));
 	if (host == NULL)

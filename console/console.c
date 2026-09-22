@@ -460,6 +460,7 @@ create_console(st_console_t **result, st_console_display_t *display,
 	console->columns = config->columns;
 	console->display = display;
 	console->pointer_visible = true;
+	console->pointer_shape = ST_CONSOLE_POINTER_DEFAULT;
 	console->rows = config->rows;
 	console->cell_width = config->cell_width;
 	console->cell_height = config->cell_height;
@@ -893,6 +894,13 @@ apply_console(st_console_display_t *display, st_console_t *console, bool setup)
 	    && display->backend_ops->set_pointer_visible != NULL)
 		status = display->backend_ops->set_pointer_visible(display,
 		    console->pointer_visible);
+	if (status == 0 && setup && display->backend_ops != NULL
+	    && display->backend_ops->set_pointer_shape != NULL) {
+		status = display->backend_ops->set_pointer_shape(display,
+		    console->pointer_shape);
+		if (status == IO_ERROR_NOT_SUPPORTED)
+			status = 0;
+	}
 	if (status == 0) {
 		st_console_mark_all_locked(console);
 		status = present_locked(console, true, true);
@@ -3077,6 +3085,35 @@ st_console_set_pointer_visible(st_console_t *console, bool visible)
 		    memory_order_acquire) == console)
 			result = console->display->backend_failed ? IO_ERROR_IO
 			    : console->display->backend_ops->set_pointer_visible(console->display, visible);
+		(void)st_mutex_unlock(&console->display->backend_mutex);
+	}
+	(void)st_rwlock_unlock(&console->state_lock);
+	return result;
+}
+
+int
+st_console_set_pointer_shape(st_console_t *console,
+	enum st_console_pointer_shape shape)
+{
+	int result;
+
+	if (console == NULL || shape < ST_CONSOLE_POINTER_DEFAULT
+	    || shape > ST_CONSOLE_POINTER_LINK)
+		return IO_ERROR_INVALID_ARGUMENT;
+	result = st_rwlock_write_lock(&console->state_lock);
+	if (result != ST_THREAD_SUCCESS)
+		return IO_ERROR_IO;
+	console->pointer_shape = shape;
+	result = console->display->backend_ops == NULL
+	    || console->display->backend_ops->set_pointer_shape == NULL
+	    ? IO_ERROR_NOT_SUPPORTED : 0;
+	if (result == 0) {
+		(void)st_mutex_lock(&console->display->backend_mutex);
+		if (atomic_load_explicit(&console->display->active,
+		    memory_order_acquire) == console)
+			result = console->display->backend_failed ? IO_ERROR_IO
+			    : console->display->backend_ops->set_pointer_shape(
+			    console->display, shape);
 		(void)st_mutex_unlock(&console->display->backend_mutex);
 	}
 	(void)st_rwlock_unlock(&console->state_lock);

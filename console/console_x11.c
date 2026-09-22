@@ -109,6 +109,7 @@ typedef Pixmap (*x11_create_bitmap_from_data_fn)(Display *, Drawable,
 	const char *, unsigned int, unsigned int);
 typedef Cursor (*x11_create_pixmap_cursor_fn)(Display *, Pixmap, Pixmap,
 	XColor *, XColor *, unsigned int, unsigned int);
+typedef Cursor (*x11_create_font_cursor_fn)(Display *, unsigned int);
 typedef int (*x11_define_cursor_fn)(Display *, Window, Cursor);
 typedef int (*x11_undefine_cursor_fn)(Display *, Window);
 typedef int (*x11_free_cursor_fn)(Display *, Cursor);
@@ -212,6 +213,7 @@ struct x11_api {
 	    unsigned int, unsigned int);
 	Cursor (*create_pixmap_cursor)(Display *, Pixmap, Pixmap, XColor *,
 	    XColor *, unsigned int, unsigned int);
+	Cursor (*create_font_cursor)(Display *, unsigned int);
 	int (*define_cursor)(Display *, Window, Cursor);
 	int (*undefine_cursor)(Display *, Window);
 	int (*free_cursor)(Display *, Cursor);
@@ -244,6 +246,7 @@ enum x11_command_type {
 	X11_COMMAND_SET_CLIPBOARD,
 	X11_COMMAND_GET_CLIPBOARD,
 	X11_COMMAND_SET_POINTER,
+	X11_COMMAND_SET_POINTER_SHAPE,
 	X11_COMMAND_SET_FULLSCREEN,
 	X11_COMMAND_GET_SCALING,
 	X11_COMMAND_DESTROY,
@@ -261,6 +264,7 @@ struct x11_command {
 		char **text_result;
 		double *scaling_result;
 		bool enabled;
+		enum st_console_pointer_shape pointer_shape;
 	} data;
 	int result;
 	bool done;
@@ -326,6 +330,8 @@ struct x11_state {
 	bool key_down[256];
 	uint16_t keycode_evdev[256];
 	Cursor hidden_cursor;
+	Cursor pointer_cursors[ST_CONSOLE_POINTER_LINK + 1];
+	enum st_console_pointer_shape pointer_shape;
 	Pixmap icon_pixmap;
 	Pixmap icon_mask;
 	Atom wm_delete;
@@ -764,6 +770,7 @@ load_xlib(struct x11_state *state)
 	    "XCreateBitmapFromData")
 	    || !LOAD_REQUIRED(state, create_pixmap_cursor,
 	    "XCreatePixmapCursor")
+	    || !LOAD_REQUIRED(state, create_font_cursor, "XCreateFontCursor")
 	    || !LOAD_REQUIRED(state, define_cursor, "XDefineCursor")
 	    || !LOAD_REQUIRED(state, undefine_cursor, "XUndefineCursor")
 	    || !LOAD_REQUIRED(state, free_cursor, "XFreeCursor")
@@ -1991,12 +1998,36 @@ handle_event(struct x11_state *state, XEvent *event)
 }
 
 static int
+set_pointer_shape(struct x11_state *state,
+	enum st_console_pointer_shape shape)
+{
+	static const unsigned int shapes[] = {
+		XC_left_ptr, XC_xterm, XC_hand2,
+	};
+	Cursor cursor;
+
+	if (shape < ST_CONSOLE_POINTER_DEFAULT || shape > ST_CONSOLE_POINTER_LINK)
+		return IO_ERROR_INVALID_ARGUMENT;
+	cursor = state->pointer_cursors[shape];
+	if (cursor == None) {
+		cursor = state->api.create_font_cursor(state->display, shapes[shape]);
+		if (cursor == None)
+			return IO_ERROR_IO;
+		state->pointer_cursors[shape] = cursor;
+	}
+	state->pointer_shape = shape;
+	if (state->pointer_visible)
+		(void)state->api.define_cursor(state->display, state->window,
+		    cursor);
+	return 0;
+}
+
+static int
 set_pointer_visible(struct x11_state *state, bool visible)
 {
 	if (visible) {
-		(void)state->api.undefine_cursor(state->display, state->window);
 		state->pointer_visible = true;
-		return 0;
+		return set_pointer_shape(state, state->pointer_shape);
 	}
 	if (state->hidden_cursor == None) {
 		static const char empty[] = {0};
@@ -2136,6 +2167,8 @@ process_command(struct x11_state *state, struct x11_command *command)
 		return get_clipboard(state, command->data.text_result);
 	case X11_COMMAND_SET_POINTER:
 		return set_pointer_visible(state, command->data.enabled);
+	case X11_COMMAND_SET_POINTER_SHAPE:
+		return set_pointer_shape(state, command->data.pointer_shape);
 	case X11_COMMAND_SET_FULLSCREEN:
 		return set_fullscreen(state, command->data.enabled);
 	case X11_COMMAND_GET_SCALING:
@@ -2181,6 +2214,12 @@ destroy_x11_objects(struct x11_state *state)
 {
 	if (state->hidden_cursor != None)
 		(void)state->api.free_cursor(state->display, state->hidden_cursor);
+	for (size_t i = 0; i < sizeof(state->pointer_cursors)
+	    / sizeof(state->pointer_cursors[0]); ++i) {
+		if (state->pointer_cursors[i] != None)
+			(void)state->api.free_cursor(state->display,
+			    state->pointer_cursors[i]);
+	}
 	if (state->input_context != NULL)
 		state->api.destroy_ic(state->input_context);
 	if (state->input_method != NULL)
@@ -2327,6 +2366,8 @@ create_x11_objects(struct x11_state *state)
 	(void)state->api.map_window(state->display, state->window);
 	(void)state->api.sync(state->display, False);
 	state->pointer_visible = true;
+	state->pointer_shape = ST_CONSOLE_POINTER_DEFAULT;
+	(void)set_pointer_shape(state, state->pointer_shape);
 	return draw_state(state, state->console, true);
 }
 
@@ -2508,6 +2549,16 @@ x11_set_pointer(st_console_display_t *display, bool visible)
 }
 
 static int
+x11_set_pointer_shape(st_console_display_t *display,
+	enum st_console_pointer_shape shape)
+{
+	return submit_command(display->backend_state, &(struct x11_command){
+		.type = X11_COMMAND_SET_POINTER_SHAPE,
+		.data.pointer_shape = shape,
+	});
+}
+
+static int
 x11_set_fullscreen(st_console_display_t *display, bool fullscreen)
 {
 	return submit_command(display->backend_state, &(struct x11_command){
@@ -2577,6 +2628,7 @@ static const struct st_console_backend_ops x11_ops = {
 	.set_clipboard_text = x11_set_clipboard,
 	.get_clipboard_text = x11_get_clipboard,
 	.set_pointer_visible = x11_set_pointer,
+	.set_pointer_shape = x11_set_pointer_shape,
 	.set_fullscreen = x11_set_fullscreen,
 	.get_scaling = x11_get_scaling,
 	.activate = x11_activate,

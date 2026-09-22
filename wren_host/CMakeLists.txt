@@ -71,6 +71,7 @@ add_library(st_wren_host STATIC
 	wren_bind_core.c
 	wren_bind_won.c
 	wren_bind_fs.c
+	wren_bind_hyperlinks.c
 	wren_sftp.c
 	wren_bind_pixels.c
 	wren_repl.c
@@ -88,6 +89,7 @@ target_include_directories(st_wren_host SYSTEM PRIVATE
 	${CMAKE_CURRENT_SOURCE_DIR}/../wren_vm/vm)
 target_link_libraries(st_wren_host
 	PUBLIC st_console st_app_paths st_profile st_screen_mode st_session_history
+		st_hyperlink
 	PRIVATE st_wren_vm st_codepage st_utf8 st_bbs_list st_audio
 		st_fonts st_settings st_theme st_time st_pixel_image
 		syncterm_io_error syncterm_path syncterm_file_map

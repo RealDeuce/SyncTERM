@@ -41,6 +41,7 @@ enum command_type {
 	CMD_RESIZE,
 	CMD_TITLE,
 	CMD_POINTER,
+	CMD_POINTER_SHAPE,
 	CMD_FULLSCREEN,
 	CMD_SET_CLIPBOARD,
 	CMD_GET_CLIPBOARD,
@@ -59,6 +60,7 @@ struct command {
 		char **text_result;
 		double *scaling_result;
 		bool enabled;
+		enum st_console_pointer_shape pointer_shape;
 	} data;
 	int result;
 	bool done;
@@ -164,7 +166,8 @@ struct state {
 	struct xdg_surface *xdg_surface;
 	struct xdg_toplevel *toplevel;
 	struct wp_viewport *viewport;
-	struct buffer buffers[2], backgrounds[2], cursor_buffer;
+	struct buffer buffers[2], backgrounds[2];
+	struct buffer cursor_buffers[ST_CONSOLE_POINTER_LINK + 1];
 	struct st_console_bitmap_presenter *presenter;
 	struct st_console_bitmap_frame frame;
 	const struct st_rgb_buffer *latest_pixels;
@@ -173,6 +176,7 @@ struct state {
 	uint32_t bounds_width, bounds_height;
 	uint32_t background_width, background_height;
 	uint32_t input_serial;
+	enum st_console_pointer_shape pointer_shape;
 	uint32_t repeat_key, repeat_next;
 	int32_t repeat_rate, repeat_delay;
 	char *clipboard;
@@ -1467,7 +1471,9 @@ static void objects_destroy(struct state *s)
 		buffer_destroy(&s->buffers[i]);
 	for (size_t i = 0; i < 2; ++i)
 		buffer_destroy(&s->backgrounds[i]);
-	buffer_destroy(&s->cursor_buffer);
+	for (size_t i = 0; i < sizeof(s->cursor_buffers)
+	    / sizeof(s->cursor_buffers[0]); ++i)
+		buffer_destroy(&s->cursor_buffers[i]);
 	if (s->pointer)
 		wl_pointer_destroy(s->pointer);
 	if (s->keyboard)
@@ -1598,8 +1604,57 @@ static int objects_create(struct state *s)
 	return draw(s, s->console, true);
 }
 
+static void
+draw_cursor(uint32_t *pixels, enum st_console_pointer_shape shape)
+{
+	memset(pixels, 0, 16 * 16 * sizeof(*pixels));
+	if (shape == ST_CONSOLE_POINTER_DEFAULT) {
+		for (uint32_t y = 0; y < 14; ++y)
+			for (uint32_t x = 0; x <= y / 2; ++x)
+				pixels[y * 16 + x] = x == 0 || x == y / 2
+				    ? UINT32_C(0xff000000) : UINT32_C(0xffffffff);
+	}
+	else if (shape == ST_CONSOLE_POINTER_TEXT) {
+		for (uint32_t y = 1; y < 15; ++y)
+			pixels[y * 16 + 7] = UINT32_C(0xff000000);
+		for (uint32_t x = 4; x < 11; ++x) {
+			pixels[1 * 16 + x] = UINT32_C(0xff000000);
+			pixels[14 * 16 + x] = UINT32_C(0xff000000);
+		}
+	}
+	else {
+		for (uint32_t y = 1; y < 13; ++y)
+			pixels[y * 16 + 6] = UINT32_C(0xff000000);
+		for (uint32_t x = 6; x < 12; ++x)
+			pixels[6 * 16 + x] = UINT32_C(0xff000000);
+		for (uint32_t y = 6; y < 14; ++y) {
+			pixels[y * 16 + 5] = UINT32_C(0xff000000);
+			pixels[y * 16 + 12] = UINT32_C(0xff000000);
+		}
+		for (uint32_t x = 5; x <= 12; ++x)
+			pixels[13 * 16 + x] = UINT32_C(0xff000000);
+	}
+}
+
+static int
+create_cursor_buffer(struct state *s, enum st_console_pointer_shape shape)
+{
+	struct buffer *buffer = &s->cursor_buffers[shape];
+
+	if (buffer->object != NULL)
+		return 0;
+	if (buffer_create(s, buffer, 16, 16, WL_SHM_FORMAT_ARGB8888) != 0)
+		return IO_ERROR_IO;
+	draw_cursor(buffer->pixels, shape);
+	return 0;
+}
+
 static int set_pointer(struct state *s, bool visible)
 {
+	static const int32_t hotspot_x[] = {0, 7, 6};
+	static const int32_t hotspot_y[] = {0, 7, 1};
+	struct buffer *buffer;
+
 	/* A cursor request only applies while the pointer is over our surface. */
 	s->pointer_visible = visible;
 	if (!s->pointer || s->pointer_serial == 0)
@@ -1608,28 +1663,15 @@ static int set_pointer(struct state *s, bool visible)
 		wl_pointer_set_cursor(
 		    s->pointer, s->pointer_serial, NULL, 0, 0);
 	else {
-		if (!s->cursor_buffer.object) {
-			if (buffer_create(s,
-					  &s->cursor_buffer,
-					  16,
-					  16,
-					  WL_SHM_FORMAT_ARGB8888) != 0)
-				return IO_ERROR_IO;
-			memset(
-			    s->cursor_buffer.pixels, 0, s->cursor_buffer.size);
-			for (uint32_t y = 0; y < 14; ++y)
-				for (uint32_t x = 0; x <= y / 2; ++x)
-					s->cursor_buffer.pixels[y * 16 + x] =
-					    x == 0 || x == y / 2 ? 0xff000000
-								 : 0xffffffff;
-			wl_surface_attach(
-			    s->cursor_surface, s->cursor_buffer.object, 0, 0);
-			wl_surface_damage_buffer(
-			    s->cursor_surface, 0, 0, 16, 16);
-			wl_surface_commit(s->cursor_surface);
-		}
+		if (create_cursor_buffer(s, s->pointer_shape) != 0)
+			return IO_ERROR_IO;
+		buffer = &s->cursor_buffers[s->pointer_shape];
+		wl_surface_attach(s->cursor_surface, buffer->object, 0, 0);
+		wl_surface_damage_buffer(s->cursor_surface, 0, 0, 16, 16);
+		wl_surface_commit(s->cursor_surface);
 		wl_pointer_set_cursor(
-		    s->pointer, s->pointer_serial, s->cursor_surface, 0, 0);
+		    s->pointer, s->pointer_serial, s->cursor_surface,
+		    hotspot_x[s->pointer_shape], hotspot_y[s->pointer_shape]);
 	}
 	s->pointer_visible = visible;
 	return 0;
@@ -1683,6 +1725,9 @@ static int process(struct state *s, struct command *c)
 		return 0;
 	case CMD_POINTER:
 		return set_pointer(s, c->data.enabled);
+	case CMD_POINTER_SHAPE:
+		s->pointer_shape = c->data.pointer_shape;
+		return set_pointer(s, s->pointer_visible);
 	case CMD_FULLSCREEN:
 		if (c->data.enabled) {
 			if (!s->fullscreen && !s->fullscreen_requested) {
@@ -1889,6 +1934,13 @@ static int pointer(st_console_display_t *display, bool v)
 	    display->backend_state,
 	    &(struct command){.type = CMD_POINTER, .data.enabled = v});
 }
+static int pointer_shape(st_console_display_t *display,
+	enum st_console_pointer_shape shape)
+{
+	return submit(display->backend_state,
+	    &(struct command){.type = CMD_POINTER_SHAPE,
+		.data.pointer_shape = shape});
+}
 static int fullscreen(st_console_display_t *display, bool v)
 {
 	return submit(
@@ -1942,6 +1994,7 @@ static const struct st_console_backend_ops ops = {
     .set_clipboard_text = clipboard_set,
     .get_clipboard_text = clipboard_get,
     .set_pointer_visible = pointer,
+    .set_pointer_shape = pointer_shape,
     .set_fullscreen = fullscreen,
 	.get_scaling = scaling,
 	.activate = activate,
@@ -1967,11 +2020,14 @@ int st_console_wayland_init(st_console_t *c)
 	s->wake[0] = s->wake[1] = -1;
 	s->console_display = c->display;
 	s->pointer_visible = true;
+	s->pointer_shape = ST_CONSOLE_POINTER_DEFAULT;
 	for (size_t i = 0; i < 2; ++i) {
 		s->buffers[i].state = s;
 		s->backgrounds[i].state = s;
 	}
-	s->cursor_buffer.state = s;
+	for (size_t i = 0; i < sizeof(s->cursor_buffers)
+	    / sizeof(s->cursor_buffers[0]); ++i)
+		s->cursor_buffers[i].state = s;
 	if (st_mutex_init(&s->mutex, ST_MUTEX_PLAIN) != ST_THREAD_SUCCESS)
 		status = IO_ERROR_IO;
 	else if (st_condition_init(&s->changed) != ST_THREAD_SUCCESS) {

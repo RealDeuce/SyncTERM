@@ -645,6 +645,10 @@ test_resize_palette_and_errors(void)
 	    == IO_ERROR_NOT_SUPPORTED);
 	CHECK(st_console_set_pointer_visible(console, false)
 	    == IO_ERROR_NOT_SUPPORTED);
+	CHECK(st_console_set_pointer_shape(console, ST_CONSOLE_POINTER_LINK)
+	    == IO_ERROR_NOT_SUPPORTED);
+	CHECK(st_console_set_pointer_shape(console,
+	    (enum st_console_pointer_shape)-1) == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_console_set_fullscreen(console, true)
 	    == IO_ERROR_NOT_SUPPORTED);
 	{
@@ -1986,6 +1990,8 @@ struct multi_display_state {
 	unsigned int titles;
 	unsigned int pointers;
 	bool pointer_visible;
+	unsigned int pointer_shapes;
+	enum st_console_pointer_shape pointer_shape;
 	char title[16];
 	uint32_t columns;
 	uint32_t rows;
@@ -2097,6 +2103,18 @@ multi_pointer(st_console_display_t *display, bool visible)
 	return multi_fail(state, atomic_load(&display->active), 4);
 }
 
+static int
+multi_pointer_shape(st_console_display_t *display,
+	enum st_console_pointer_shape shape)
+{
+	struct multi_display_state *state = display->backend_state;
+
+	CHECK(atomic_load(&display->active)->pointer_shape == shape);
+	++state->pointer_shapes;
+	state->pointer_shape = shape;
+	return 0;
+}
+
 static const struct st_console_backend_ops multi_ops = {
 	.deferred_present = true,
 	.activate = multi_activate,
@@ -2106,6 +2124,7 @@ static const struct st_console_backend_ops multi_ops = {
 	.palette_changed = multi_palette,
 	.set_title = multi_title,
 	.set_pointer_visible = multi_pointer,
+	.set_pointer_shape = multi_pointer_shape,
 };
 
 static int
@@ -2193,9 +2212,11 @@ test_multiple_consoles_one_display(void)
 	CHECK(st_console_write_cells(second, &cell_rect, &cell, 1) == 0);
 	CHECK(st_console_set_title(second, "Second") == 0);
 	CHECK(st_console_set_pointer_visible(second, false) == 0);
+	CHECK(st_console_set_pointer_shape(second, ST_CONSOLE_POINTER_LINK) == 0);
 	CHECK(st_console_present(second) == 0);
 	CHECK(state.presents == 0 && state.resizes == 0 && state.palettes == 0
-	    && state.titles == 0 && state.pointers == 0);
+	    && state.titles == 0 && state.pointers == 0
+	    && state.pointer_shapes == 0);
 	CHECK(st_console_post_event(second, &second_event) == 0);
 	CHECK(st_console_event_try(first, &event) == IO_ERROR_WOULD_BLOCK);
 	CHECK(st_console_event_try(second, &event) == 0);
@@ -2209,6 +2230,8 @@ test_multiple_consoles_one_display(void)
 	    && state.palette_colours == second->palette);
 	CHECK(state.titles == 1 && strcmp(state.title, "Second") == 0);
 	CHECK(state.pointers == 1 && !state.pointer_visible);
+	CHECK(state.pointer_shapes == 1
+	    && state.pointer_shape == ST_CONSOLE_POINTER_LINK);
 	{
 		const uint32_t colours[3] = {1, 0, 2};
 		unsigned int before = state.palettes;
