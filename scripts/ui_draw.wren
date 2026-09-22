@@ -53,9 +53,10 @@ class Painter {
     var cell = Cell.new()
     for (c in str) {
       if (!surface.cellAt(x, y, cell)) break
-      applyStyle(cell, style)
-      var columns = Screen.textWidth(c, cell.font)
+      var font = style.font == null ? cell.font : style.font
+      var columns = Screen.textWidth(c, font)
       if (x + columns > surface.width) break
+      applyStyle(cell, style)
       cell.ch = c
       x = x + columns
     }
@@ -68,9 +69,10 @@ class Painter {
     for (c in str) {
       if (written >= maxW) break
       if (!surface.cellAt(x, y, cell)) break
-      applyStyle(cell, style)
-      var columns = Screen.textWidth(c, cell.font)
+      var font = style.font == null ? cell.font : style.font
+      var columns = Screen.textWidth(c, font)
       if (written + columns > maxW || x + columns > surface.width) break
+      applyStyle(cell, style)
       cell.ch = c
       x = x + columns
       written = written + columns
@@ -83,9 +85,10 @@ class Painter {
     var cell = Cell.new()
     while (i < len) {
       if (!surface.cellAt(x + i, y, cell)) break
+      var font = style.font == null ? cell.font : style.font
+      var columns = Screen.textWidth(ch, font)
+      if (i + columns > len || x + i + columns > surface.width) break
       applyStyle(cell, style)
-      var columns = Screen.textWidth(ch, cell.font)
-      if (i + columns > len) break
       cell.ch = ch
       i = i + columns
     }

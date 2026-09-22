@@ -22,12 +22,10 @@
 // Cancel buttons appear on the bottom row.  If neither is set, no
 // button row is created.
 //
-// Tab order: every field's widget in declaration order, then OK,
-// then Cancel.  Up / Down do their usual spatial nearest-focusable
-// scan.  The Form itself doesn't intercept any keys; Container does
-// the right thing because `addField` calls `add(widget)` for the
-// field widget (and add() for the buttons), so Tab traversal hits
-// them in the order they were added.
+// Tab order is the actual child order: every managed field's widget
+// in declaration order, then the implicit OK and Cancel buttons.
+// Form keeps those managed trailing controls in place regardless of
+// when their callbacks are assigned.
 //
 // Theme role consulted: "default" (for the label cells).  Labels
 // render in the Pane's text style — they're not a separate themable
@@ -79,7 +77,9 @@ class Form is Container {
   addField(labelText, widget) { addFieldH(labelText, widget, null) }
   addFieldH(labelText, widget, h) {
     _fields.add([labelText, widget, h])
-    add(widget)
+    var before = _ok != null ? _ok : _cancel
+    var index = before == null ? children.count : children.indexOf(before)
+    insertChild_(widget, index)
     // RadioGroup wraps Up/Down internally by default — fine standalone
     // but not in a Form, where Up at the top of the list should move
     // focus to the previous field instead of cycling within the group.
@@ -108,7 +108,8 @@ class Form is Container {
       _ok.onPress = Fn.new {
         if (_onSubmit != null) _onSubmit.call()
       }
-      add(_ok)
+      var index = _cancel == null ? children.count : children.indexOf(_cancel)
+      insertChild_(_ok, index)
     } else if (_onSubmit == null && _ok != null) {
       remove(_ok)
       _ok = null
@@ -118,7 +119,7 @@ class Form is Container {
       _cancel.onPress = Fn.new {
         if (_onCancel != null) _onCancel.call()
       }
-      add(_cancel)
+      insertChild_(_cancel, children.count)
     } else if (_onCancel == null && _cancel != null) {
       remove(_cancel)
       _cancel = null

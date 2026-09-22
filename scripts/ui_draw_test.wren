@@ -26,8 +26,11 @@ class UiDrawTest {
     testText_()
     testTextTruncate_()
     testWideText_()
+    testRejectedCappedTextPreservesCell_()
+    testRejectedEdgeTextPreservesCell_()
     testTextEmpty_()
     testHline_()
+    testRejectedHlinePreservesWidePair_()
     testVline_()
     testFrame_()
     testFrameInteriorUntouched_()
@@ -159,6 +162,47 @@ class UiDrawTest {
            "Painter.text: truncation never splits a wide glyph")
   }
 
+  static seedCell_(cell) {
+    cell.font = 0
+    cell.ch = "Z"
+    cell.legacyAttr = 0x87
+    cell.fgRgb = 0x123456
+    cell.bgRgb = 0x654321
+    cell.hyperlinkId = 9
+  }
+
+  static cellState_(cell) {
+    return [cell.ch, cell.font, cell.legacyAttr, cell.bright, cell.blink,
+        cell.fgRgb, cell.bgRgb, cell.hyperlinkId, cell.columns]
+  }
+
+  static cellMatchesState_(cell, state) {
+    return cell.ch == state[0] && cell.font == state[1] &&
+        cell.legacyAttr == state[2] && cell.bright == state[3] &&
+        cell.blink == state[4] && cell.fgRgb == state[5] &&
+        cell.bgRgb == state[6] && cell.hyperlinkId == state[7] &&
+        cell.columns == state[8]
+  }
+
+  static testRejectedCappedTextPreservesCell_() {
+    var s = Surface.new(3, 1)
+    seedCell_(s.cellAt(0, 0))
+    var before = cellState_(s.cellAt(0, 0))
+    Painter.text(s, 0, 0, "\u4e00", testStyle_, 1)
+    check_(Screen.textWidth("\u4e00", 0) == 2 &&
+           cellMatchesState_(s.cellAt(0, 0), before),
+           "Painter.text: capped-out glyph leaves the complete cell unchanged")
+  }
+
+  static testRejectedEdgeTextPreservesCell_() {
+    var s = Surface.new(3, 1)
+    seedCell_(s.cellAt(2, 0))
+    var before = cellState_(s.cellAt(2, 0))
+    Painter.text(s, 2, 0, "\u4e00", testStyle_)
+    check_(cellMatchesState_(s.cellAt(2, 0), before),
+           "Painter.text: edge-clipped glyph leaves the complete cell unchanged")
+  }
+
   static testTextEmpty_() {
     var s = Surface.new(5, 1)
     Painter.fill(s, Rect.new(0, 0, 5, 1), "Z", testStyle_)
@@ -175,6 +219,21 @@ class UiDrawTest {
            s.cellAt(5, 0).ch == "-" && s.cellAt(6, 0).ch == " " &&
            s.cellAt(1, 0).legacyAttr == 0x70,
            "Painter.hline: starts at x, len cells of `ch`, style applied")
+  }
+
+  static testRejectedHlinePreservesWidePair_() {
+    var s = Surface.new(3, 1)
+    var cell = s.cellAt(0, 0)
+    cell.font = 0
+    cell.ch = "\u4e00"
+    cell.legacyAttr = 0x87
+    cell.fgRgb = 0x123456
+    cell.bgRgb = 0x654321
+    var before = cellState_(cell)
+    Painter.hline(s, 0, 0, 1, "\u4e00", styleB_)
+    check_(cellMatchesState_(cell, before) && cell.columns == 2 &&
+           s.cellAt(1, 0).columns == 0,
+           "Painter.hline: rejected glyph preserves style and wide-cell pairing")
   }
 
   static testVline_() {

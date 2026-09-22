@@ -12,6 +12,7 @@ class UiRadioTest {
 
     testDefaults_()
     testItemsSetsSelectionAndCursor_()
+    testClearedItemsResetPointers_()
     testDownMovesCursorOnly_()
     testSpaceCommitsCursor_()
     testEnterCommitsCursor_()
@@ -53,6 +54,19 @@ class UiRadioTest {
     g.items = ["a", "b", "c"]
     check_(g.count == 3 && g.selected == 0 && g.cursor == 0,
            "RadioGroup: items= seeds selected=0 cursor=0")
+  }
+
+  static testClearedItemsResetPointers_() {
+    var g = RadioGroup.new()
+    g.bounds = Rect.new(1, 1, 10, 2)
+    g.items = ["a", "b"]
+    g.items = []
+    var cleared = g.selected == null && g.cursor == null &&
+        g.cursorPos == null && !g.handle(KeyEvent.new(Key.up)) &&
+        !g.handle(KeyEvent.new(Key.down))
+    g.items = ["again"]
+    check_(cleared && g.selected == 0 && g.cursor == 0,
+           "RadioGroup: clearing and repopulating restores consistent pointers")
   }
 
   static testDownMovesCursorOnly_() {

@@ -35,7 +35,7 @@ class RadioGroup is Widget {
     super()
     _items    = []
     _selected = -1
-    _cursor   = 0
+    _cursor   = -1
     _onChange = null
     _wrap     = true            // standalone behavior; Form turns this off
   }

@@ -119,7 +119,7 @@ main(int argc, char **argv)
 	    || strcmp(argv[2], "settings-stale") == 0
 	    || strcmp(argv[2], "settings-save-failure") == 0
 	    || strcmp(argv[2], "settings-reload") == 0
-	    || strcmp(argv[2], "painter-truncate") == 0
+	    || strcmp(argv[2], "draw-suite") == 0
 	    || strcmp(argv[2], "widget-suite") == 0
 	    || strcmp(argv[2], "widget-tail") == 0
 	    || strcmp(argv[2], "list-suite") == 0
@@ -136,7 +136,6 @@ main(int argc, char **argv)
 	    || strcmp(argv[2], "date-suite") == 0
 	    || strcmp(argv[2], "help-suite") == 0
 	    || strcmp(argv[2], "color-suite") == 0
-	    || strcmp(argv[2], "color-audit") == 0
 	    || strcmp(argv[2], "palette-suite") == 0
 	    || strcmp(argv[2], "menu-suite") == 0
 	    || strcmp(argv[2], "main-menu-address") == 0
@@ -146,7 +145,6 @@ main(int argc, char **argv)
 	    || strcmp(argv[2], "screen-mode") == 0
 	    || strcmp(argv[2], "bbs-setters") == 0
 	    || strcmp(argv[2], "statusbar-suite") == 0
-	    || strcmp(argv[2], "inherited-theme") == 0
 	    || strcmp(argv[2], "cell-colours") == 0);
 	recovery = strcmp(argv[2], "recovery") == 0;
 	CHECK(strlen(argv[1]) < 900);
@@ -209,7 +207,7 @@ main(int argc, char **argv)
 	}
 	CHECK(st_console_create(&console, &display, &config) == 0);
 	CHECK(st_hyperlink_registry_create(&hyperlinks) == 0);
-	if (strcmp(argv[2], "painter-truncate") == 0
+	if (strcmp(argv[2], "draw-suite") == 0
 	    || strcmp(argv[2], "input-suite") == 0
 	    || strcmp(argv[2], "logview-suite") == 0) {
 		static const uint8_t narrow[16] = {0};
@@ -550,6 +548,7 @@ main(int argc, char **argv)
 	}
 	else if (strcmp(argv[2], "widget-suite") == 0
 	    || strcmp(argv[2], "widget-tail") == 0
+	    || strcmp(argv[2], "draw-suite") == 0
 	    || strcmp(argv[2], "list-suite") == 0
 	    || strcmp(argv[2], "style-suite") == 0
 	    || strcmp(argv[2], "button-suite") == 0
@@ -564,13 +563,13 @@ main(int argc, char **argv)
 	    || strcmp(argv[2], "date-suite") == 0
 	    || strcmp(argv[2], "help-suite") == 0
 	    || strcmp(argv[2], "color-suite") == 0
-	    || strcmp(argv[2], "color-audit") == 0
 	    || strcmp(argv[2], "palette-suite") == 0
 	    || strcmp(argv[2], "menu-suite") == 0
 	    || strcmp(argv[2], "logview-suite") == 0
 	    || strcmp(argv[2], "statusbar-suite") == 0) {
 		static char source[128 * 1024];
 		bool list_suite = strcmp(argv[2], "list-suite") == 0;
+		bool draw_suite = strcmp(argv[2], "draw-suite") == 0;
 		bool style_suite = strcmp(argv[2], "style-suite") == 0;
 		bool button_suite = strcmp(argv[2], "button-suite") == 0;
 		bool checkbox_suite = strcmp(argv[2], "checkbox-suite") == 0;
@@ -583,13 +582,13 @@ main(int argc, char **argv)
 		bool menubar_suite = strcmp(argv[2], "menubar-suite") == 0;
 		bool date_suite = strcmp(argv[2], "date-suite") == 0;
 		bool help_suite = strcmp(argv[2], "help-suite") == 0;
-		bool color_suite = strcmp(argv[2], "color-suite") == 0
-		    || strcmp(argv[2], "color-audit") == 0;
+		bool color_suite = strcmp(argv[2], "color-suite") == 0;
 		bool palette_suite = strcmp(argv[2], "palette-suite") == 0;
 		bool menu_suite = strcmp(argv[2], "menu-suite") == 0;
 		bool logview_suite = strcmp(argv[2], "logview-suite") == 0;
 		bool statusbar_suite = strcmp(argv[2], "statusbar-suite") == 0;
-		FILE *stream = fopen(radio_suite ? "scripts/ui_radio_test.wren"
+		FILE *stream = fopen(draw_suite ? "scripts/ui_draw_test.wren"
+		    : radio_suite ? "scripts/ui_radio_test.wren"
 		    : logview_suite ? "scripts/ui_logview_test.wren"
 		    : menu_suite ? "scripts/menu_ui_test.wren"
 		    : palette_suite ? "scripts/menu_palette_picker_test.wren"
@@ -616,7 +615,8 @@ main(int argc, char **argv)
 		CHECK(!ferror(stream) && feof(stream));
 		CHECK(fclose(stream) == 0);
 		source[count] = '\0';
-		CHECK(wrenInterpret(host->vm, radio_suite ? "ui_radio_test"
+		CHECK(wrenInterpret(host->vm, draw_suite ? "ui_draw_test"
+		    : radio_suite ? "ui_radio_test"
 		    : logview_suite ? "ui_logview_test"
 		    : menu_suite ? "menu_ui_test"
 		    : palette_suite ? "menu_palette_picker_test"
@@ -646,12 +646,12 @@ main(int argc, char **argv)
 		    palette_suite ?
 		    "import \"menu_palette_picker_test\" for MenuPalettePickerTest\n"
 		    "var result = MenuPalettePickerTest.runAudit()\n" :
-		    strcmp(argv[2], "color-audit") == 0 ?
-		    "import \"ui_color_picker_test\" for UiColorPickerTest\n"
-		    "var result = UiColorPickerTest.runAudit()\n" :
 		    color_suite ?
 		    "import \"ui_color_picker_test\" for UiColorPickerTest\n"
 		    "var result = UiColorPickerTest.run()\n" :
+		    draw_suite ?
+		    "import \"ui_draw_test\" for UiDrawTest\n"
+		    "var result = UiDrawTest.run()\n" :
 		    help_suite ?
 		    "import \"ui_help_test\" for UiHelpTest\n"
 		    "var result = UiHelpTest.run()\n" :
@@ -716,29 +716,6 @@ main(int argc, char **argv)
 				fprintf(stderr, "%s\n", message);
 		}
 	}
-	else if (strcmp(argv[2], "inherited-theme") == 0) {
-		CHECK(status == 0);
-		passed = wrenInterpret(host->vm, "inherited_theme_audit",
-		    "import \"ui_widget\" for Widget, Container, Rect\n"
-		    "import \"ui_style\" for Style, Theme\n"
-		    "import \"ui_draw\" for Painter\n"
-		    "class Painted is Widget {\n"
-		    "  construct new() { super() }\n"
-		    "  onPaint_() { Painter.text(surface, 0, 0, \"X\", style(\"default\")) }\n"
-		    "}\n"
-		    "var parent = Container.new()\n"
-		    "parent.bounds = Rect.new(1, 1, 1, 1)\n"
-		    "var leaf = Painted.new()\n"
-		    "leaf.bounds = parent.bounds\n"
-		    "parent.add(leaf)\n"
-		    "parent.theme = Theme.new({\"default\": Style.new(0, 7, 0x112233, 0)}, {})\n"
-		    "if (parent.draw()[0].fgRgb != 0x112233) Fiber.abort(\"initial theme did not paint\")\n"
-		    "parent.theme = Theme.new({\"default\": Style.new(0, 7, 0x445566, 0)}, {})\n"
-		    "if (parent.draw()[0].fgRgb != 0x445566) Fiber.abort(\"child retained old inherited theme\")\n")
-		    == WREN_RESULT_SUCCESS;
-		fprintf(stderr, "parent theme change repaints inheriting children: %s\n",
-		    passed ? "PASS" : "FAIL");
-	}
 	else if (strcmp(argv[2], "cell-colours") == 0) {
 		CHECK(status == 0);
 		passed = wrenInterpret(host->vm, "cell_colours_audit",
@@ -750,23 +727,6 @@ main(int argc, char **argv)
 		    "if (cell.legacyAttr != 112) Fiber.abort(\"RGB setters lost legacy attribute: %(cell.legacyAttr)\")\n")
 		    == WREN_RESULT_SUCCESS;
 		fprintf(stderr, "RGB colors preserve legacy attribute: %s\n",
-		    passed ? "PASS" : "FAIL");
-	}
-	else if (strcmp(argv[2], "painter-truncate") == 0) {
-		CHECK(status == 0);
-		passed = wrenInterpret(host->vm, "painter_truncate_audit",
-		    "import \"syncterm\" for Surface, Screen\n"
-		    "import \"ui_draw\" for Painter\n"
-		    "import \"ui_style\" for Style\n"
-		    "var surface = Surface.new(3, 1)\n"
-		    "surface[0].ch = \"Z\"\n"
-		    "surface[0].legacyAttr = 7\n"
-		    "var before = surface[0].fgRgb\n"
-		    "if (Screen.textWidth(\"\\u4e00\", 0) != 2) Fiber.abort(\"expected wide test glyph\")\n"
-		    "Painter.text(surface, 0, 0, \"\\u4e00\", Style.new(0, 31, 0xffffff, 0x0000aa), 1)\n"
-		    "if (surface[0].ch != \"Z\" || surface[0].legacyAttr != 7 || surface[0].fgRgb != before) Fiber.abort(\"clipped glyph changed destination style\")\n")
-		    == WREN_RESULT_SUCCESS;
-		fprintf(stderr, "Painter truncation preserves undrawn cells: %s\n",
 		    passed ? "PASS" : "FAIL");
 	}
 	else if (strcmp(argv[2], "settings-save-failure") == 0) {

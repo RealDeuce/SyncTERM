@@ -5,44 +5,6 @@ import "ui_widget" for Rect
 import "ui_color_picker" for ColorModel, ColorPicker, ColorRamp
 
 class UiColorPickerTest {
-  // Audit entry: catch each failure independently without altering run().
-  static runAudit() {
-    __pass = 0
-    __fail = 0
-    auditCase_("RGB to HSV", Fn.new { testRgbHsvPrimaries_() })
-    auditCase_("HSV to RGB", Fn.new { testHsvRgbPrimaries_() })
-    auditCase_("retained HSV", Fn.new { testUndefinedHsvComponentsAreRetained_() })
-    auditCase_("hex", Fn.new { testHexRoundTrip_() })
-    auditCase_("click endpoints", Fn.new { testRampClickEndpoints_() })
-    auditCase_("wheel", Fn.new { testRampWheelMovesOne_() })
-    auditCase_("drag", Fn.new { testRampDragFallsThrough_() })
-    auditCase_("keyboard", Fn.new { testRampKeyboardSteps_() })
-    auditCase_("ramp styles", Fn.new { testRampStyleRoles_() })
-    auditCase_("HSV ramp", Fn.new { testHsvRampHasNoNumber_() })
-    auditCase_("digits", Fn.new { testEditableRampDigits_() })
-    auditCase_("restart", Fn.new { testEditableRampRestarts_() })
-    auditCase_("RGB sync", Fn.new { testPickerRgbSynchronization_() })
-    auditCase_("hex sync", Fn.new { testPickerHexSynchronization_() })
-    auditCase_("hex styles", Fn.new { testPickerHexStyle_() })
-    auditCase_("hex cursor", Fn.new { testPickerHexCursorCell_() })
-    auditCase_("invalid hex", Fn.new { testPickerRejectsIncompleteHex_() })
-    auditCase_("legacy attrs", Fn.new { testPickerLegacyAttributes_() })
-    auditCase_("sample", Fn.new { testPickerCompactSample_() })
-    auditCase_("RGB binding", Fn.new { testRgbBinding_() })
-    auditCase_("attribute binding", Fn.new { testAttributeBinding_() })
-    auditCase_("hex editing", Fn.new { testHexOverwriteCursor_() })
-    return [__pass, __fail]
-  }
-
-  static auditCase_(label, test) {
-    var fiber = Fiber.new { test.call() }
-    fiber.try()
-    if (fiber.error != null) {
-      __fail = __fail + 1
-      System.print("  FAIL %(label): aborted: %(fiber.error)")
-    }
-  }
-
   static testRgbBinding_() {
     check_(Color.toLegacyAttr(0xFFFFFF, 0x000000) == 0x0F,
         "Color RGB white-on-black maps to the default palette attribute")
@@ -95,6 +57,11 @@ class UiColorPickerTest {
     testPickerRejectsIncompleteHex_()
     testPickerLegacyAttributes_()
     testPickerCompactSample_()
+    testRgbBinding_()
+    testAttributeBinding_()
+    testHexOverwriteCursor_()
+    testLowercaseHexPreservesCursor_()
+    testHexSyncPreservesSelection_()
 
     var total = __pass + __fail
     System.print("=== ui_color_picker: %(total) tests, %(__pass) pass, " +
@@ -324,6 +291,29 @@ class UiColorPickerTest {
            sf.cellAt(15, 1).ch == "A" &&
            sf.cellAt(15, 1).fgRgb == 0xABCDEF,
            "ColorPicker: sample is a compact three-row colour field")
+  }
+
+  static testLowercaseHexPreservesCursor_() {
+    var picker = ColorPicker.new(0x102030)
+    picker.bounds = Rect.new(1, 1, 44, picker.preferredHeight)
+    picker.focusedIndex = picker.lastFocusIndex
+    var hex = picker.children[picker.lastFocusIndex]
+    hex.insertMode = false
+    hex.handle(KeyEvent.new(Key.home))
+    hex.handle(KeyEvent.new(0x61))
+    var ok = picker.value == 0xA02030 && hex.value == "A02030" &&
+        hex.cursor == 1 && hex.scrollOff == 0
+    hex.insertMode = true
+    check_(ok, "Color hex edit canonicalizes case without moving the cursor")
+  }
+
+  static testHexSyncPreservesSelection_() {
+    var picker = ColorPicker.new(0x102030)
+    var hex = picker.children[picker.lastFocusIndex]
+    hex.selectAll()
+    hex.syncEditedValue_("A02030")
+    check_(hex.value == "A02030" && hex.allSelected && hex.cursor == 6,
+           "Color hex synchronization preserves whole-field selection")
   }
 
 }

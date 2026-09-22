@@ -37,7 +37,7 @@ repository-wide coverage. The legacy tree is read-only reference.
 
 The repository-wide audit is complete. This is not an implementation approval
 or release certification. The consolidated API/design assessment, priority
-groups and all 16 outstanding finding summaries are in
+groups and all 10 outstanding finding summaries are in
 AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 
 | Objective requirement | Authoritative evidence and disposition |
@@ -50,8 +50,8 @@ AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 | Required legacy behavior | Read-only comparisons cover fonts/catalog/maps, modes, palette capacity, Prestel versus Mode 7, command line, console/input and settings behavior, plus explicit parity limits. Frozen CTerm chapter cmp succeeds. |
 | Wren scripts and bindings | Complete local source/signature/manual reviews and isolated shipped-script suites and host fixtures. Connected/SFTP production integration missing from this application is reported, not invented or silently counted as working. |
 | Build logic, generators and documentation | Root/component CMake and generators reviewed; standalone/probe failures recorded; pinned Unicode/font regeneration and table comparisons documented; root manuals/license/development guidance covered. Wren VM vendored internals limited to integration boundaries as requested. |
-| Inventory and consolidated findings | 16 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 7 medium, 7 low, 2 unresolved concerns; not all runtime reproductions. |
-| Relevant tests where practical | Complete native Clang and GCC builds have succeeded. The current configured native trees register 108 tests. The latest complete verification is recorded in AUDIT_INDEX.md. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
+| Inventory and consolidated findings | 10 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 4 medium, 4 low, 2 unresolved concerns; not all runtime reproductions. |
+| Relevant tests where practical | Complete native Clang and GCC builds have succeeded. The current configured native tree registers 114 tests. The latest complete verification is recorded in AUDIT_INDEX.md. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
 | Explicit uncertainty | Each component records unavailable platforms, unexecuted failure paths and measurement limits; A007/A011 unresolved. Source-level risks are not called verified crashes. These are audit outcomes, not claims of implementation correctness. |
 
 Historical pending-source lists below are superseded by subsequent full reads,
@@ -619,7 +619,6 @@ Additional documentation reconciliation under A088/A090:
   Wren semicolon syntax (Status callable chaining). These are example defects,
   not reasons to change the language or make glyph widths uniformly one.
 
-UI empty selection and tab order correspond to A071/A074.
 Repeated promises were not assigned duplicate defect numbers. Full-source
 documentation coverage does not settle remaining app/console/host integration
 follow-ups or constitute final consolidated audit completion.
@@ -685,133 +684,6 @@ Recommendation: establish a bounded callback execution/ownership strategy and
 defer reclamation outside the callback, then measure worst-case callback time
 under producer/clear contention. This is a recommendation for separately
 authorized work, not permission to redesign the mixer during the audit.
-
-### A067 — Painter truncation changes the style of an undrawn destination cell
-
-Severity: medium (visible drawing corruption). scripts/ui_draw.wren:74 applies
-the style to the destination Cell view before checking whether a wide glyph
-fits maxW or the Surface boundary. A rejected glyph leaves the old character
-with the new style. The uncapped text form similarly styles before its right
-edge check, and hline before its remaining-length check; those variants have
-not yet been reproduced independently.
-
-Confirmed with `painter-truncate` in st_wren_loader_audit_test.c. The test
-registers a tiny static font with a known two-column U+4E00 mapping before
-creating the headless host, sets the destination to Z with attribute 7, then
-calls Painter.text with a contrasting style and maxW=1. It first asserts the
-glyph is actually two columns. The character is not drawn, but the destination
-style changes. Native strict Clang test exits 1 with `clipped glyph changed
-destination style`. The initial test attempt without the fixture font stopped
-at its width precondition; that attempt did not demonstrate the defect. The
-final fixture does not depend on optional Unifont being enabled.
-
-Recommendation: determine fit before mutating destination state, and test full
-cell preservation on rejected glyphs, including font, colours and pair flags.
-This is a rendering-contract issue, not an out-of-bounds write demonstration.
-
-### A070 — Changing a Container theme does not repaint inheriting children
-
-Severity: medium (stale visual state; inherited defect). Widget.theme= in
-scripts/ui_widget.wren marks only itself and ancestors dirty. Its clean child
-still inherits the newly assigned Theme through effectiveTheme, but draw()
-reuses that child's old surface unless its activity state changes. Container
-composition therefore redraws the parent using stale child colours. App.theme=
-has separate subtree invalidation and does not establish correctness for this
-per-widget theme setter. The widget source matches legacy byte-for-byte.
-
-Confirmed with `inherited-theme` in st_wren_loader_audit_test.c: create a
-Container and a painted child, paint with inherited RGB 0x112233, replace the
-parent Theme with RGB 0x445566, and draw the parent again. The child retains
-the first colour. Native strict Clang headless test exits 1 after confirming
-the initial paint. It reads RGB directly, so legacy-attribute conversion does
-not explain the result. No App event loop, disk writes or GUI needed.
-
-Recommendation: invalidate inherited-style consumers when a widget's theme
-changes, with tests for overridden descendants and parent reattachment as
-well as ordinary inheritance. No implementation change made.
-
-### A071 — A newly constructed empty RadioGroup reports cursor zero
-
-Severity: low (public state contract; inherited). ui_radio.wren initializes
-_items to an empty list and _selected to -1, but _cursor to 0. Its cursor
-getter therefore returns 0 rather than null. The manual states both pointers
-are null for an empty group; assigning items=[] does set _cursor to -1, so
-empty state depends on whether the setter was called. Legacy source is
-identical.
-
-Extended the existing defaults assertion in ui_radio_test.wren to check cursor
-as well as selection. Native headless `radio-suite` returns 16 passes and one
-failure at that assertion. Other assertions were unchanged. Recommendation:
-make constructor and empty-items assignment obey the same documented state,
-and test cursorPos/first navigation from empty and explicitly cleared states.
-No production fix made.
-
-### A073 — Changing TextInput's display mask leaves its viewport stale
-
-Severity: medium (cursor/display correctness). scripts/ui_input.wren:120
-mask= changes the displayed glyph and marks the widget dirty, but does not
-call ensureVisible_. Width-dependent scrolling introduced in the modernized
-widget therefore continues using the old mask/value geometry. cursorPos
-clamps an out-of-view insertion column to the final field cell, hiding the
-inconsistency rather than displaying the insertion point.
-
-Reproduction: a four-cell field containing AAA initially fits with its cursor
-after the text. Assign U+4E00 as a two-column mask. The unchanged scrollOff=0
-paints two wide masks and clamps the cursor to column four, inside the second
-mask; expected scrollOff=2 shows the last mask and an insertion cursor after
-it at column three. Added testMaskWidthUpdatesViewport_ to ui_input_test.wren;
-it fails under native Clang in input-suite mode. The runner explicitly
-registers a tiny font containing a two-column U+4E00 glyph, so this result
-does not depend on optional Unifont availability. The original wide-character
-scrolling test passes with the same fixture.
-
-Recommendation: recalculate the viewport whenever displayed widths change,
-including mask changes; verify theme/font/focus changes separately. Only the
-mask case is reproduced. Legacy used one column per character, so its same
-mask setter did not encounter this width transition. No implementation change.
-
-### A074 — Form Tab order depends on callback/field creation order
-
-Severity: low (confirmed API-contract mismatch; inherited). Wren.adoc's Form
-section promises fields in declaration order, then OK, then Cancel.
-scripts/ui_form.wren addFieldH and ensureButtons_ append to Container.children
-in call order; layout_ changes geometry but does not change traversal order.
-Consequently assigning onCancel before onSubmit gives field/Cancel/OK, and
-adding a second field after onSubmit gives first-field/OK/second-field despite
-the second field being laid out above the buttons. The relevant legacy code
-is identical; only Unicode label-width calculations changed in this port.
-
-Added two tests to ui_form_test.wren that send actual Key.tab events through
-Form.handle and inspect focusedChild identity. Both fail in the strict native
-Clang headless form-suite. All twelve original checks and a new callback-setter
-idempotence/removal check pass (13 passes, 2 failures total). No real input,
-clipboard, desktop or modal loop is involved.
-
-Recommendation: make traversal match the declared logical field/button order
-regardless of callback assignment order or subsequent field additions, or
-explicitly reconsider the API contract. Test button removal/recreation and
-clearFields/repopulation as well as initial construction. No production edits.
-
-### A080 — Valid hex edits reset the color-picker cursor to the end
-
-Severity: low (inherited editing regression relative to TextInput behavior).
-ui_color_picker.wren hexChanged_ calls setRgb_ on every complete valid hex
-edit. syncChildren_ then assigns _hex.value, which resets TextInput's cursor
-to the end even when its text already matches the edited value. Subsequent
-overwrite keystrokes no longer edit the adjacent digit as intended.
-
-Added testHexOverwriteCursor_: start with 102030, focus the hex field, select
-overwrite mode, Home, then type A. The canonical color correctly becomes
-A02030, but cursor becomes 6 instead of 1. Native Clang isolated color-audit
-reproduces this without any drawing. Test restores
-the shared insert mode. The script is identical to legacy. Recommendation:
-avoid resetting the active editor when propagating its own accepted edit;
-preserve caret/selection while still updating dependent controls. No fix made.
-
-ColorPicker verification followup: runAudit() invokes each original test in
-its own Fiber.try, counts an abort as a failure, and continues; original run()
-remains unchanged. The retained caret regression is independent of physical
-backend, clipboard, or palette-animation behavior.
 
 ## Component notes
 
@@ -1321,9 +1193,7 @@ tests before separate findings. No desktop interaction is claimed.
 
 Form pass: read full ui_form.wren and ui_form_test.wren, the matching manual
 section, and the complete legacy diff. These two modules are now included in
-script coverage. Added form-suite to the isolated headless audit runner;
-results and new failing Tab regressions are A074. Width calculations are the
-only production differences from legacy. Layout measures labels using font
+script coverage. Layout measures labels using font
 zero but painting uses the selected style font; that shared width-consistency
 question remains untested for custom fonts. fields exposes the mutable backing
 list despite a source comment calling it read-only. rowH/rowGap assignment
@@ -1338,10 +1208,8 @@ TextInput pass: read complete ui_input.wren (469 lines), original test module
 included in script coverage. The diff adds font-dependent widths to cursor,
 paint, mouse positioning and visibility calculations. Existing array-of-
 codepoint editing, shared insert mode and selection semantics are retained.
-Strict native Clang headless suite with the explicit wide-font fixture retains
-the wide-mask viewport failure (A073). Before registering that font, the
-original wide-glyph test also failed due to fixture capability; that failure
-is not a product finding.
+The width-aware tests require an explicit wide-font fixture; without that
+fixture, a failed width precondition is not evidence of a product defect.
 
 The suite does not touch the desktop clipboard: right-click uses PasteProbe,
 and paste-content checks call insertText_ directly. Native clipboard transfer
@@ -1399,9 +1267,8 @@ arithmetic remain outside the ordinary finite-value layout fixtures.
 
 RadioGroup/SpinBox pass: read complete implementations (199/161 lines), test
 modules (197/206 original lines) and matching manual sections. Both production
-scripts are byte-identical to legacy. The isolated strict-Clang runner reports
-radio 16 passed / 1 failed (new A071 assertion), spinbox 21 passed / 0 failed.
-No GUI or external input. The radio suite covers cursor-versus-selection,
+scripts were byte-identical to legacy at audit time. No GUI or external input.
+The radio suite covers cursor-versus-selection,
 wrapping, edge fallthrough and callbacks; the spinbox suite covers valid range
 clamping, arithmetic steps, keys, individual mouse events and basic drawing.
 
@@ -1445,8 +1312,7 @@ Read all 341 lines of ui_style_test.wren and ran it unchanged through the
 isolated `style-suite` host mode: 35 passed, 0 failed. Covers Style composition,
 equality, complete/null fields, dotted role inheritance, Theme.fromData,
 default role completeness and glyph presence. It does not paint cached widget
-trees or verify generation refresh after mutation; A070 supplies a separate
-focused test for one of those gaps. The native host suite runner was rebuilt
+trees or verify generation refresh after mutation. The native host suite runner was rebuilt
 with strict C17 and warnings-as-errors. The scripts coverage inventory also
 includes complete ui_style.wren and ui_style_test.wren.
 
@@ -1569,8 +1435,8 @@ loops rather than skip clipped prefixes; frame/title helpers assume border
 glyphs occupy one cell; title width uses font 0 when the style inherits a font,
 which may not match destination cells; scrollbar drawing does not clamp its
 input scrollTop. These require caller-contract/reachability checks before
-being promoted to findings. A067 is independently reproduced, not inferred
-from those questions. Pane implementation itself remains unread by this pass.
+being promoted to findings. Pane implementation itself remains unread by this
+pass.
 
 Wren VM integration boundary: read CMakeLists, README, MIT license, common
 configuration, optional Meta implementation, and selected constructor/compiler

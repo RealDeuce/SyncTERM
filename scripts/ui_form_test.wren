@@ -27,6 +27,8 @@ class UiFormTest {
     testCallbackAssignmentOrder_()
     testFieldAddedAfterButtons_()
     testButtonSetterIdempotence_()
+    testButtonRemovalAndRecreationOrder_()
+    testClearAndRepopulateKeepsButtonsLast_()
 
     var total = __pass + __fail
     System.print("=== ui_form: %(total) tests, %(__pass) pass, %(__fail) fail ===")
@@ -50,7 +52,7 @@ class UiFormTest {
     f.onCancel = Fn.new {}
     var cancel = f.children[-1]
     f.onSubmit = Fn.new {}
-    var ok = f.children[-1]
+    var ok = f.children[-2]
     f.focusedIndex = 0
     f.handle(KeyEvent.new(Key.tab))
     var nextIsOk = f.focusedChild == ok
@@ -83,6 +85,38 @@ class UiFormTest {
     f.onSubmit = null
     check_(single && f.children.count == 0,
            "Form callback setter is idempotent and null removes its button")
+  }
+
+  static testButtonRemovalAndRecreationOrder_() {
+    var f = Form.new()
+    f.bounds = Rect.new(1, 1, 30, 10)
+    var field = f.addField("Name:", TextInput.new())
+    f.onSubmit = Fn.new {}
+    f.onCancel = Fn.new {}
+    var cancel = f.children[-1]
+    f.onSubmit = null
+    var removed = f.children.count == 2 && f.children[0] == field &&
+        f.children[1] == cancel
+    f.onSubmit = Fn.new {}
+    check_(removed && f.children.count == 3 && f.children[0] == field &&
+           f.children[1].label == "OK" && f.children[2] == cancel,
+           "Form: recreated OK returns before the trailing Cancel button")
+  }
+
+  static testClearAndRepopulateKeepsButtonsLast_() {
+    var f = Form.new()
+    f.bounds = Rect.new(1, 1, 30, 10)
+    f.addField("First:", TextInput.new())
+    f.onSubmit = Fn.new {}
+    f.onCancel = Fn.new {}
+    f.clearFields()
+    var buttonsRemain = f.children.count == 2 &&
+        f.children[0].label == "OK" && f.children[1].label == "Cancel"
+    var replacement = f.addField("Again:", TextInput.new())
+    check_(buttonsRemain && f.children.count == 3 &&
+           f.children[0] == replacement && f.children[1].label == "OK" &&
+           f.children[2].label == "Cancel",
+           "Form: repopulated fields stay before implicit buttons")
   }
 
   static testEmptyDefaults_() {

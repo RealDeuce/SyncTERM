@@ -6753,7 +6753,9 @@ Base class for everything paintable.  Holds:
 * `bounds` — a `Rect` in 1-based screen coords.
 * `parent` — pointer to the containing `Container` or `App`.
 * `theme=` — a per-widget Theme override; otherwise inherited via
-  `effectiveTheme` walking the parent chain.
+  `effectiveTheme` walking the parent chain.  Changing an override or
+  reparenting an inheriting widget invalidates affected cached surfaces;
+  an explicit descendant override ends that inherited-theme branch.
 * `focused`, `visible`, `focusable`, `activitySensitive`, `dirty` —
   boolean state flags.  Setting `activitySensitive` to `false` makes
   ambient screen chrome use its base theme roles regardless of modal
@@ -7122,7 +7124,9 @@ control characters are discarded, matching typed-input filtering, and
 `mask=` accepts `null` or a non-empty String and uses its first
 codepoint when painting every stored character.  It does not change
 `value`, cursor movement, length, or callback arguments, making it
-suitable for password and system-password fields.
+suitable for password and system-password fields.  Changing the mask
+recalculates the horizontal viewport because the replacement glyph may
+have a different display width.
 
 Assigning or resizing `bounds` recalculates the horizontal viewport.
 An initial value wider than the field displays its end followed by a
@@ -7315,7 +7319,10 @@ Ramp rows use `default` while idle and `list.item.focused` for their
 edge-to-edge focus lightbar.  Only the three-character RGB numeric field and
 the seven-cell hexadecimal field use `input` / `input.focused`.  Hex input
 is limited to six digits; the final cell displays the insertion cursor after
-a complete value without scrolling away its first digit.
+a complete value without scrolling away its first digit.  Complete valid
+edits are normalized to uppercase without moving the active caret or
+discarding its selection; assigning `ColorPicker.value` externally still
+replaces the field and leaves its cursor at the end.
 
 RGB is the canonical value.  HSV conversion retains hue for greys and
 retains hue/saturation for black, so moving away from those edge cases does
@@ -7420,9 +7427,11 @@ pane.add(f)
 * `rowH=` — default per-field height.  Default 1.
 
 The label column width auto-sizes to the longest label; widgets
-start one column past the longest label plus a 2-cell gap.  Tab /
-BackTab traversal hits widgets in declaration order, then OK, then
-Cancel.  `Esc` fires `onCancel` if wired.
+start one column past the longest label plus a 2-cell gap.  Form keeps its
+managed child order as fields in `addField` declaration order followed by
+the implicit OK and Cancel buttons, regardless of when their callbacks are
+assigned.  Container's normal insertion-order Tab / BackTab traversal then
+uses that order.  `Esc` fires `onCancel` if wired.
 
 `onSubmit=` / `onCancel=` are idempotent setters — assigning the
 same callback twice doesn't double-add the OK / Cancel button, and
@@ -7778,7 +7787,7 @@ The most useful entry points:
 | `fill(s, rect, ch, style)` | Bulk-fill a Surface rect with a single character + Style.
 
 | `text(s, x, y, str, style)` +
-  `text(s, x, y, str, style, maxW)` | Draw `str` on a single row.  6-arg form caps at `maxW` cells.
+  `text(s, x, y, str, style, maxW)` | Draw `str` on a single row.  6-arg form caps at `maxW` cells.  A glyph that cannot fit completely is not drawn and leaves its destination cell unchanged.
 
 | `frame(s, rect, glyphs, style)` +
   `frame(s, rect, glyphs, style, prefix)` | Box around `rect` using `prefix.*` glyphs.  The default is `"frame.display"`; pass `"frame.control"` for a control-bearing pane.
@@ -7786,7 +7795,7 @@ The most useful entry points:
 | `frameTitle(s, rect, glyphs, frameStyle, title, titleStyle, prefix)` | Frame with a centered `+| Title |+` in the top border.
 
 | `hline(s, x, y, len, ch, style)` +
-  `vline(s, x, y, len, ch, style)` | Single-row / single-column lines.
+  `vline(s, x, y, len, ch, style)` | Single-row / single-column lines.  `hline` likewise leaves the destination unchanged when its next glyph cannot fit completely.
 
 | `scrollbar(s, x, y, h, scrollTop, total, viewport, glyphs, trackStyle, thumbStyle)` | Vertical scrollbar with always-visible up/down arrows on the top/bottom rows when `h >= 3`.  Thumb stays inside the track between the arrows.
 

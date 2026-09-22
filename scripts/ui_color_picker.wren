@@ -344,6 +344,17 @@ class ColorHexInput is SelectOnFocusInput {
     return true
   }
 
+  // Normalize an accepted edit without turning it into a new external value
+  // assignment.  The latter intentionally places the cursor at the end;
+  // synchronization of this editor's own change must retain edit state.
+  syncEditedValue_(text) {
+    var oldCursor = cursor
+    var selected = allSelected
+    value = text
+    cursor = oldCursor
+    if (selected) selectAll()
+  }
+
   focused=(value) {
     if (!value && focused && _onLeave != null) _onLeave.call()
     super.focused = value
@@ -417,7 +428,7 @@ class ColorPicker is Container {
     _saturationRamp.onChange = Fn.new {|value| hsvChanged_(1, value) }
     _valueRamp.onChange = Fn.new {|value| hsvChanged_(2, value) }
     _hex.onChange = Fn.new {|text| hexChanged_(text) }
-    syncChildren_()
+    syncChildren_(false)
   }
 
   preferredWidth { 44 }
@@ -498,27 +509,29 @@ class ColorPicker is Container {
     if (component == 2) _brightness = number
     var next = ColorModel.fromHsv(_hue, _saturation, _brightness)
     if (next == _value) {
-      syncChildren_()
+      syncChildren_(false)
       return
     }
     _value = next
-    syncChildren_()
+    syncChildren_(false)
     notifyChange_()
   }
 
   hexChanged_(text) {
     var parsed = ColorModel.parseHex(text)
-    if (parsed != null) setRgb_(parsed, true)
+    if (parsed != null) setRgb_(parsed, true, true)
   }
 
   restoreHex_() {
     if (!_hex.valid) _hex.value = ColorModel.hex(_value)
   }
 
-  setRgb_(rgb, notify) {
+  setRgb_(rgb, notify) { setRgb_(rgb, notify, false) }
+
+  setRgb_(rgb, notify, preserveHexEdit) {
     var next = rgb.floor & 0xFFFFFF
     if (next == _value) {
-      syncChildren_()
+      syncChildren_(preserveHexEdit)
       return
     }
     _value = next
@@ -526,11 +539,11 @@ class ColorPicker is Container {
     _hue = hsv[0]
     _saturation = hsv[1]
     _brightness = hsv[2]
-    syncChildren_()
+    syncChildren_(preserveHexEdit)
     if (notify) notifyChange_()
   }
 
-  syncChildren_() {
+  syncChildren_(preserveHexEdit) {
     _swatch.value = _value
     _red.value = ColorModel.component(_value, 16)
     _green.value = ColorModel.component(_value, 8)
@@ -538,7 +551,12 @@ class ColorPicker is Container {
     _hueRamp.value = _hue
     _saturationRamp.value = _saturation
     _valueRamp.value = _brightness
-    _hex.value = ColorModel.hex(_value)
+    var hex = ColorModel.hex(_value)
+    if (preserveHexEdit) {
+      _hex.syncEditedValue_(hex)
+    } else {
+      _hex.value = hex
+    }
     for (ramp in [_red, _green, _blue, _hueRamp,
         _saturationRamp, _valueRamp]) ramp.refreshRamp()
     markDirty()

@@ -120,6 +120,8 @@ class TextInput is Widget {
   mask=(s) {
     if (s == null) {
       _mask = null
+      _scrollOff = 0
+      ensureVisible_()
       markDirty()
       return
     }
@@ -130,6 +132,8 @@ class TextInput is Widget {
     }
     if (first == null) return
     _mask = first
+    _scrollOff = 0
+    ensureVisible_()
     markDirty()
   }
 

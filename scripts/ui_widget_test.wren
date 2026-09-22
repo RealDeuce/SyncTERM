@@ -10,6 +10,7 @@
 
 import "ui_style"  for Style, Theme
 import "ui_widget" for Rect, Widget, Container
+import "ui_draw"   for Painter
 import "ui_app"    for App
 import "syncterm"  for KeyEvent, MouseEvent, Key, Mouse, CustomCursor
 
@@ -37,6 +38,11 @@ class Probe is Widget {
     _seen.add(ev)
     return _consume
   }
+}
+
+class ThemePaintProbe is Widget {
+  construct new() { super() }
+  onPaint_() { Painter.text(surface, 0, 0, "X", style("default")) }
 }
 
 class OutsideDismissProbe is Probe {
@@ -102,6 +108,9 @@ class UiWidgetTest {
     testWidgetThemeOverride_()
     testWidgetEffectiveThemeFallsBack_()
     testWidgetEffectiveThemeInheritsParent_()
+    testContainerThemeRepaintsInheritedChildren_()
+    testContainerThemeStopsAtExplicitOverride_()
+    testReparentRepaintsInheritedTheme_()
     testWidgetStyleAndGlyphForward_()
     testWidgetActivitySensitivity_()
     testWidgetMarkDirtyPropagates_()
@@ -305,6 +314,64 @@ class UiWidgetTest {
     c.add(leaf)
     check_(leaf.effectiveTheme == custom,
            "Widget.effectiveTheme: leaf walks up to parent's theme")
+  }
+
+  static theme_(rgb) {
+    return Theme.new({
+      "default": Style.new(0, 0x07, rgb, 0x000000)
+    }, {})
+  }
+
+  static testContainerThemeRepaintsInheritedChildren_() {
+    var parent = Container.new()
+    parent.bounds = Rect.new(1, 1, 1, 1)
+    var leaf = ThemePaintProbe.new()
+    leaf.bounds = parent.bounds
+    parent.add(leaf)
+    parent.theme = theme_(0x112233)
+    var first = parent.draw().cellAt(0, 0).fgRgb
+    parent.theme = theme_(0x445566)
+    var second = parent.draw().cellAt(0, 0).fgRgb
+    check_(first == 0x112233 && second == 0x445566,
+           "Container.theme=: inheriting child repaints with the new theme")
+  }
+
+  static testContainerThemeStopsAtExplicitOverride_() {
+    var parent = Container.new()
+    parent.bounds = Rect.new(1, 1, 2, 1)
+    parent.theme = theme_(0x112233)
+    var inherited = ThemePaintProbe.new()
+    inherited.bounds = Rect.new(1, 1, 1, 1)
+    var overridden = ThemePaintProbe.new()
+    overridden.bounds = Rect.new(2, 1, 1, 1)
+    overridden.theme = theme_(0xABCDEF)
+    parent.add(inherited)
+    parent.add(overridden)
+    parent.draw()
+    parent.theme = theme_(0x445566)
+    var overrideStayedClean = !overridden.dirty
+    var surface = parent.draw()
+    check_(overrideStayedClean && surface.cellAt(0, 0).fgRgb == 0x445566 &&
+           surface.cellAt(1, 0).fgRgb == 0xABCDEF,
+           "Container.theme=: explicit child theme cuts off invalidation")
+  }
+
+  static testReparentRepaintsInheritedTheme_() {
+    var first = Container.new()
+    first.bounds = Rect.new(1, 1, 1, 1)
+    first.theme = theme_(0x112233)
+    var second = Container.new()
+    second.bounds = Rect.new(1, 1, 1, 1)
+    second.theme = theme_(0x445566)
+    var leaf = ThemePaintProbe.new()
+    leaf.bounds = Rect.new(1, 1, 1, 1)
+    first.add(leaf)
+    var before = first.draw().cellAt(0, 0).fgRgb
+    first.remove(leaf)
+    second.add(leaf)
+    var after = second.draw().cellAt(0, 0).fgRgb
+    check_(before == 0x112233 && after == 0x445566,
+           "Container.add: reparented child repaints its inherited theme")
   }
 
   static testWidgetStyleAndGlyphForward_() {

@@ -165,7 +165,14 @@ class Widget {
   // effectiveTheme + markDirty).  Container and App both satisfy
   // this; passing a non-conforming object will surface as a method
   // missing error on the first walk.
-  parent=(p) { _parent = p }
+  parent=(p) {
+    if (_parent == p) return
+    _parent = p
+    if (_theme == null) {
+      markDirty()
+      markInheritedThemeChildrenDirty_()
+    }
+  }
 
   // Return the App-like object anchoring this widget tree.  Kept as an
   // implementation detail so widgets that need App services do not create a
@@ -185,6 +192,7 @@ class Widget {
   theme=(t) {
     _theme = t
     markDirty()
+    markInheritedThemeChildrenDirty_()
   }
 
   focused { _focused }
@@ -258,6 +266,18 @@ class Widget {
   // Invalidate this complete subtree without bubbling back through its
   // ancestors. Container extends this to visit every descendant.
   markTreeDirty_() { _dirty = true }
+
+  // Invalidate this widget only when its effective theme comes from its
+  // parent, then continue through any descendants with the same dependency.
+  // An explicit theme cuts off the inherited-theme branch.
+  markInheritedThemeDirty_() {
+    if (_theme != null) return
+    _dirty = true
+    markInheritedThemeChildrenDirty_()
+  }
+
+  // Container supplies the descendant walk; leaves have no children.
+  markInheritedThemeChildrenDirty_() {}
 
   clearDirty() { _dirty = false }
 
@@ -406,11 +426,19 @@ class Container is Widget {
   }
 
   add(child) {
+    return insertChild_(child, _children.count)
+  }
+
+  // Internal indexed insertion for containers with managed trailing controls.
+  // Existing focus remains on the same child when insertion shifts its index.
+  insertChild_(child, index) {
     child.parent = this
-    _children.add(child)
+    _children.insert(index, child)
     if (_focusedIndex < 0 && child.focusable) {
-      _focusedIndex = _children.count - 1
+      _focusedIndex = index
       child.focused = true
+    } else if (_focusedIndex >= index) {
+      _focusedIndex = _focusedIndex + 1
     }
     markDirty()
     return child
@@ -419,6 +447,10 @@ class Container is Widget {
   markTreeDirty_() {
     super.markTreeDirty_()
     for (child in _children) child.markTreeDirty_()
+  }
+
+  markInheritedThemeChildrenDirty_() {
+    for (child in _children) child.markInheritedThemeDirty_()
   }
 
   remove(child) {
