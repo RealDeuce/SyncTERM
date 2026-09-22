@@ -121,3 +121,15 @@ st_bbs_cache_path(char **result, const st_bbs_list_t *list, const char *key)
 		return IO_ERROR_INVALID_ARGUMENT;
 	return path_join_alloc(result, list->cache_path, key);
 }
+
+int
+st_bbs_list_cache_path(char **result, const st_bbs_list_t *list,
+	const char *name)
+{
+	char key[ST_BBS_CACHE_KEY_MAX + 1];
+
+	if (result == NULL || list == NULL || name == NULL
+	    || !st_bbs_cache_key(key, sizeof(key), name))
+		return IO_ERROR_INVALID_ARGUMENT;
+	return st_bbs_cache_path(result, list, key);
+}

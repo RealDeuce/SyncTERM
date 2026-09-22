@@ -212,6 +212,29 @@ fs_stream_size(FILE *stream)
 	return (int64_t)size;
 }
 
+int64_t
+fs_stream_position(FILE *stream)
+{
+	__int64 position;
+
+	if (stream == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	position = _ftelli64(stream);
+	if (position < 0)
+		return fs_errno_error(errno);
+	return (int64_t)position;
+}
+
+int
+fs_stream_seek(FILE *stream, int64_t offset)
+{
+	if (stream == NULL || offset < 0)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (_fseeki64(stream, (__int64)offset, SEEK_SET) != 0)
+		return fs_errno_error(errno);
+	return 0;
+}
+
 int
 fs_stream_truncate(FILE *stream, uint64_t size)
 {

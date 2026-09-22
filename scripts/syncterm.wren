@@ -1391,11 +1391,14 @@ foreign class Directory {
   foreign create(name)
   foreign createDir(name)
   foreign delete(name)
+  // Atomically replace a file through a complete sibling temporary file.
+  // The old file remains intact on write failure.
+  foreign replace(name, bytes)
   foreign toString
 }
 foreign class File {
   foreign path
-	foreign open()
+  foreign open()
   foreign close()
   foreign readBytes(count)
   foreign readBytes(count, offset)
@@ -1644,7 +1647,7 @@ class Host {
   // pickFile / pickFiles via the .token getter.  Returns null when
   // the token's HMAC doesn't verify (signing key rotated / corrupt
   // token), or when the file no longer exists or its content has
-  // changed since the user consented (SHA-1 mismatch).  This is
+  // changed since the user consented (SHA-256 mismatch).  This is
   // the only path by which Wren can construct a File foreign for a
   // path outside the sandboxed Cache / Download roots.  Write-
   // consent Files do NOT receive a token (single-shot doesn't

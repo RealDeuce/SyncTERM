@@ -371,6 +371,20 @@ reload_custom_fonts_current(struct st_wren_context *context)
 }
 
 int
+st_wren_context_load_fonts(struct st_wren_context *context)
+{
+	int status;
+
+	if (context == NULL || context->console == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	memset(&context->fonts, 0, sizeof(context->fonts));
+	status = load_builtin_fonts(context);
+	if (status == 0)
+		status = reload_custom_fonts_current(context);
+	return status;
+}
+
+int
 st_wren_reload_custom_fonts(struct st_wren_host *host)
 {
 	struct st_wren_font_state *menu;
@@ -492,12 +506,13 @@ source_complete(WrenVM *vm, const char *name, WrenLoadModuleResult result)
 	free((void *)result.source);
 }
 
-static WrenLoadModuleResult
-load_module(WrenVM *vm, const char *name)
+WrenLoadModuleResult
+st_wren_load_module(WrenVM *vm, const char *name)
 {
 	struct st_wren_host *host = st_wren_host_from_vm(vm);
 	WrenLoadModuleResult result = {NULL, NULL, NULL};
-	bool picker = vm == host->picker_vm;
+	const char *event = st_wren_context_from_vm(vm)->event;
+	bool picker = event != NULL && strcmp(event, "picker") == 0;
 	char *source;
 
 	if (!module_name_valid(name)) {
@@ -507,12 +522,13 @@ load_module(WrenVM *vm, const char *name)
 	if (!picker && (strcmp(name, "syncterm_picker") == 0
 	    || strcmp(name, "picker_bootstrap") == 0)) {
 		result.source =
-		    "Fiber.abort(\"picker modules are isolated from the menu VM\")";
+		    "Fiber.abort(\"picker modules are isolated from this VM\")";
 		return result;
 	}
-	if (picker && strcmp(name, "syncterm_menu") == 0) {
+	if (event != NULL && strcmp(event, "menu") != 0
+	    && strcmp(name, "syncterm_menu") == 0) {
 		result.source =
-		    "Fiber.abort(\"menu facilities are unavailable in the picker VM\")";
+		    "Fiber.abort(\"menu facilities are unavailable in this VM\")";
 		return result;
 	}
 	if (picker && strcmp(name, "picker_bootstrap") == 0) {
@@ -530,7 +546,7 @@ load_module(WrenVM *vm, const char *name)
 	    name);
 	if (source == NULL)
 		source = read_named_source(host->config.paths->scripts_directory,
-		    picker ? "picker" : "menu", name);
+		    event == NULL ? "menu" : event, name);
 	if (source != NULL) {
 		result.source = source;
 		result.onComplete = source_complete;
@@ -540,7 +556,8 @@ load_module(WrenVM *vm, const char *name)
 	    script->name != NULL; ++script) {
 		if (strcmp(script->name, name) == 0
 		    && (script->event == NULL
-		    || strcmp(script->event, picker ? "picker" : "menu") == 0)) {
+		    || strcmp(script->event,
+		    event == NULL ? "menu" : event) == 0)) {
 			result.source = script->source;
 			return result;
 		}
@@ -548,15 +565,20 @@ load_module(WrenVM *vm, const char *name)
 	return result;
 }
 
-static WrenForeignMethodFn
-bind_method(WrenVM *vm, const char *module, const char *class_name,
+WrenForeignMethodFn
+st_wren_bind_method(WrenVM *vm, const char *module, const char *class_name,
 	bool is_static, const char *signature)
 {
 	struct st_wren_host *host = st_wren_host_from_vm(vm);
 	WrenForeignMethodFn method = NULL;
 
-	method = st_wren_picker_bind_method(module, class_name, is_static,
-	    signature);
+	if (strcmp(module, "syncterm") == 0)
+		method = st_wren_fs_bind_method(class_name, is_static, signature);
+	if (method == NULL && strcmp(module, "syncterm") == 0)
+		method = st_wren_sftp_bind_method(class_name, is_static, signature);
+	if (method == NULL)
+		method = st_wren_picker_bind_method(module, class_name, is_static,
+		    signature);
 	if (method == NULL && strcmp(module, "syncterm") == 0)
 		method = st_wren_pixel_bind_method(class_name, is_static, signature);
 	if (method == NULL && strcmp(module, "syncterm") == 0)
@@ -570,13 +592,18 @@ bind_method(WrenVM *vm, const char *module, const char *class_name,
 	return method == NULL ? st_wren_unsupported : method;
 }
 
-static WrenForeignClassMethods
-bind_class(WrenVM *vm, const char *module, const char *class_name)
+WrenForeignClassMethods
+st_wren_bind_class(WrenVM *vm, const char *module, const char *class_name)
 {
 	struct st_wren_host *host = st_wren_host_from_vm(vm);
 	WrenForeignClassMethods methods = {NULL, NULL};
 
-	methods = st_wren_picker_bind_class(module, class_name);
+	if (strcmp(module, "syncterm") == 0)
+		methods = st_wren_fs_bind_class(class_name);
+	if (methods.allocate == NULL && strcmp(module, "syncterm") == 0)
+		methods = st_wren_sftp_bind_class(class_name);
+	if (methods.allocate == NULL)
+		methods = st_wren_picker_bind_class(module, class_name);
 	if (methods.allocate != NULL)
 		return methods;
 	if (strcmp(module, "syncterm") == 0) {
@@ -590,14 +617,14 @@ bind_class(WrenVM *vm, const char *module, const char *class_name)
 	return methods;
 }
 
-static void
-write_output(WrenVM *vm, const char *text)
+void
+st_wren_write_output(WrenVM *vm, const char *text)
 {
 	st_wren_log_append(vm, 0, text);
 }
 
-static void
-report_error(WrenVM *vm, WrenErrorType type, const char *module, int line,
+void
+st_wren_report_error(WrenVM *vm, WrenErrorType type, const char *module, int line,
 	const char *message)
 {
 	struct st_wren_host *host = st_wren_host_from_vm(vm);
@@ -617,8 +644,8 @@ report_error(WrenVM *vm, WrenErrorType type, const char *module, int line,
 	    module == NULL ? "?" : module, line, message == NULL ? "" : message);
 }
 
-static int
-interpret_event_scripts(WrenVM *vm, const char *event)
+int
+st_wren_interpret_event_scripts(WrenVM *vm, const char *event)
 {
 	struct st_wren_host *host = st_wren_host_from_vm(vm);
 	struct st_wren_directory_entries user = {0};
@@ -939,11 +966,12 @@ st_wren_picker_host_init(struct st_wren_host *host)
 		return IO_ERROR_NOT_FOUND;
 	wrenInitConfiguration(&config);
 	config.userData = &host->picker;
-	config.writeFn = write_output;
-	config.errorFn = report_error;
-	config.loadModuleFn = load_module;
-	config.bindForeignMethodFn = bind_method;
-	config.bindForeignClassFn = bind_class;
+	host->picker.event = "picker";
+	config.writeFn = st_wren_write_output;
+	config.errorFn = st_wren_report_error;
+	config.loadModuleFn = st_wren_load_module;
+	config.bindForeignMethodFn = st_wren_bind_method;
+	config.bindForeignClassFn = st_wren_bind_class;
 	host->picker_vm = wrenNewVM(&config);
 	if (host->picker_vm == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
@@ -964,7 +992,7 @@ st_wren_picker_host_init(struct st_wren_host *host)
 	if (host->picker_bootstrap == NULL || host->picker_run == NULL
 	    || host->picker_recover == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
-	(void)interpret_event_scripts(host->picker_vm, "picker");
+	(void)st_wren_interpret_event_scripts(host->picker_vm, "picker");
 	host->picker_class = class_handle(host->picker_vm, "file_picker",
 	    "FilePicker");
 	return 0;
@@ -975,6 +1003,7 @@ st_wren_picker_host_dispose(struct st_wren_host *host)
 {
 	if (host == NULL || host->picker_vm == NULL)
 		return;
+	st_wren_fs_context_dispose(host->picker_vm);
 	st_wren_input_context_dispose(host->picker_vm);
 	if (host->picker_recover != NULL)
 		wrenReleaseHandle(host->picker_vm, host->picker_recover);
@@ -1097,18 +1126,19 @@ st_wren_host_create(st_wren_host_t **result,
 	}
 	wrenInitConfiguration(&wren_config);
 	wren_config.userData = &host->menu;
-	wren_config.writeFn = write_output;
-	wren_config.errorFn = report_error;
-	wren_config.loadModuleFn = load_module;
-	wren_config.bindForeignMethodFn = bind_method;
-	wren_config.bindForeignClassFn = bind_class;
+	host->menu.event = "menu";
+	wren_config.writeFn = st_wren_write_output;
+	wren_config.errorFn = st_wren_report_error;
+	wren_config.loadModuleFn = st_wren_load_module;
+	wren_config.bindForeignMethodFn = st_wren_bind_method;
+	wren_config.bindForeignClassFn = st_wren_bind_class;
 	host->vm = wrenNewVM(&wren_config);
 	if (host->vm == NULL) {
 		st_wren_host_destroy(host);
 		return IO_ERROR_OUT_OF_MEMORY;
 	}
 	host->menu.vm = host->vm;
-	status = interpret_event_scripts(host->vm, "menu");
+	status = st_wren_interpret_event_scripts(host->vm, "menu");
 	if (status != 0 || !wrenHasModule(host->vm, "main_menu")
 	    || !wrenHasVariable(host->vm, "main_menu", "MainMenu")) {
 		st_wren_host_destroy(host);
@@ -1164,6 +1194,7 @@ st_wren_host_destroy(st_wren_host_t *host)
 	if (host->vm != NULL && host->main_menu != NULL)
 		wrenReleaseHandle(host->vm, host->main_menu);
 	if (host->vm != NULL) {
+		st_wren_fs_context_dispose(host->vm);
 		st_wren_input_context_dispose(host->vm);
 		st_wren_log_dispose(host->vm);
 		wrenFreeVM(host->vm);

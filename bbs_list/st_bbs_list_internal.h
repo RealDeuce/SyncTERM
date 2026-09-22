@@ -51,6 +51,8 @@ struct st_bbs_list {
 	uint64_t generation;
 	int *sort_fields;
 	size_t sort_field_count;
+	uint8_t picker_key[32];
+	bool picker_key_available;
 };
 
 bool st_bbs_cache_key(char *result, size_t result_size, const char *name);
@@ -74,5 +76,7 @@ int st_bbs_cache_rename(st_bbs_list_t *list, const char *old_key,
     const char *new_key);
 int st_bbs_cache_remove(st_bbs_list_t *list, const char *key);
 int st_bbs_cache_sweep(st_bbs_list_t *list);
+void st_bbs_picker_key_load(st_bbs_list_t *list,
+	ini_document_t *document, const struct st_list_crypto_info *info);
 
 #endif

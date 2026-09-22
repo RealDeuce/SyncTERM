@@ -198,7 +198,9 @@ int
 xp_digest(enum xp_digest_algorithm digest, const void *input,
 	size_t input_size, void *result, size_t result_size)
 {
-	const EVP_MD *md = digest == XP_DIGEST_SHA256 ? EVP_sha256()
+	const EVP_MD *md = digest == XP_DIGEST_MD5 ? EVP_md5()
+	    : digest == XP_DIGEST_SHA1 ? EVP_sha1()
+	    : digest == XP_DIGEST_SHA256 ? EVP_sha256()
 	    : digest == XP_DIGEST_SHA384 ? EVP_sha384()
 	    : digest == XP_DIGEST_SHA512 ? EVP_sha512() : NULL;
 	unsigned int produced = 0;
@@ -213,7 +215,9 @@ xp_digest(enum xp_digest_algorithm digest, const void *input,
 size_t
 xp_digest_size(enum xp_digest_algorithm digest)
 {
-	return digest == XP_DIGEST_SHA256 ? 32
+	return digest == XP_DIGEST_MD5 ? 16
+	    : digest == XP_DIGEST_SHA1 ? 20
+	    : digest == XP_DIGEST_SHA256 ? 32
 	    : digest == XP_DIGEST_SHA384 ? 48
 	    : digest == XP_DIGEST_SHA512 ? 64 : 0;
 }

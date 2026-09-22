@@ -5398,9 +5398,17 @@ Opaque handle pointing at a directory on disk.
   successful removal, `false` on any failure (no such entry, wrong
   type, non-empty directory, no permission, invalid name, …).  On
   success, every live `File` / `Directory` handle whose path is
-  at-or-below the removed entry is marked dead and pulled from the
-  live-handle registry; a subsequent operation on any such handle
+  at-or-below the removed entry is marked dead; a subsequent operation
+  on any such handle
   aborts the calling fiber with a "handle is dead" error.
+
+| `Directory.replace(name, bytes)`
+| Atomically replace a regular file with the complete byte String.  The
+  host writes and closes an exclusive sibling temporary file before the
+  rename, so any write or close failure leaves the prior file unchanged.
+  Returns `true` on success or a `FileError` on failure.  This operation is
+  intended for cache documents which must never expose a truncate-then-write
+  intermediate state; it does not promise persistence across a system crash.
 |===
 
 ==== Handle staleness [[directory-handle-staleness]]
@@ -5421,7 +5429,7 @@ Two layers of protection keep operations from acting on a stale path:
    re-checks `fexist(path)` / `isdir(path)` before doing anything.
    If the path is missing — because something outside the script
    (another script, another process, the user) deleted it — the
-   handle is marked dead, removed from the registry, and the
+   handle is marked dead, and the
    operation aborts the calling fiber.  This catches deletions
    that bypassed `Directory.delete`.
 
@@ -5443,11 +5451,10 @@ This matches platform reality:
 - On Windows, deleting a file that's currently open fails at the
   OS layer, so the situation never arises.
 
-While the file is open, operations against the fd hit OS-level
+While the file is open, operations against the descriptor hit OS-level
 errors if the underlying file is genuinely gone (very rare on Unix,
-impossible on Windows).  `File.close()` re-runs the existence check
-after `fclose`; if the path is gone at that point, the handle is
-marked dead and unregistered, and the next operation throws.
+impossible on Windows).  After `File.close()`, the next operation checks
+the path and reports a vanished file rather than silently acting elsewhere.
 
 Scripts should drop stale handles when they're done with them; the
 handles aren't hazardous (operations throw rather than corrupt
@@ -5543,7 +5550,7 @@ another binding does not broaden its authority.
   local-vs-remote without server-side hash extensions.
 
 | `File.isOpen`
-| `true` while the handle is valid.
+| `true` while the underlying stream is open.
 
 | `File.token`
 | Opaque consent token for picker-sourced `File`s; `null` for
@@ -6192,6 +6199,40 @@ layers — distinguish via `code`:
 
 The `toString` override produces `"SFTPError: <name>: <message>"`
 for `System.print` / interpolation; useful for log-line debug.
+
+==== Persistent transfer queue [[sftp-transfer-queue]]
+
+The shipped `sftp_queue` module runs one cooperative worker fiber per
+direction.  Jobs have stable numeric IDs; the browser and queue UI retain
+selection and cancel the intended job by ID even when status sorting changes.
+Duplicate pending jobs with the same direction and remote path reuse the
+existing job.
+
+Each claimed interval is filled completely, including when a successful
+remote or local read returns fewer bytes than requested.  Parallel interval
+completion advances a persisted resume point only across the contiguous
+prefix of the file, so data beyond a gap is never treated as durable progress.
+Downloads stat the remote before resuming and restart from zero when its size
+or mtime changed.  Uploads revalidate the picker consent token and fail when
+the local source changed; a compatible remote partial resumes from the saved
+frontier.
+
+The queue stores only queued and active work in
+`Cache/sftp_queue.won`.  Schema version 2 records the next stable job ID,
+source identity, cancellation request, and contiguous resume point.  Version
+1 documents are imported conservatively with resume set to zero.  Malformed
+or unsupported documents make the queue unavailable without rewriting the
+file.  Every mutation uses `Directory.replace`, so a failed persistence write
+leaves the previous complete document in place and makes the live queue fatal
+rather than continuing with state that cannot survive disconnect.
+
+Ordinary transfer failures retain partial data for diagnosis or a later
+explicit retry.  A user cancellation removes the local download partial or
+remote upload partial before publishing `cancelled`; a transient transport
+failure suspends the queue and preserves that cleanup request for the next
+connected VM.  Local and remote close failures affect the final job status.
+Best-effort mtime updates do not turn an otherwise complete transfer into a
+failure.
 
 ==== Async Ops [[async-pattern]]
 

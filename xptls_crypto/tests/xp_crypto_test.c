@@ -163,6 +163,15 @@ test_chacha20(void)
 static bool
 test_digest(void)
 {
+	static const unsigned char md5_abc[16] = {
+		0x90, 0x01, 0x50, 0x98, 0x3c, 0xd2, 0x4f, 0xb0,
+		0xd6, 0x96, 0x3f, 0x7d, 0x28, 0xe1, 0x7f, 0x72,
+	};
+	static const unsigned char sha1_abc[20] = {
+		0xa9, 0x99, 0x3e, 0x36, 0x47, 0x06, 0x81, 0x6a,
+		0xba, 0x3e, 0x25, 0x71, 0x78, 0x50, 0xc2, 0x6c,
+		0x9c, 0xd0, 0xd8, 0x9d,
+	};
 	static const unsigned char sha256_abc[32] = {
 		0xba, 0x78, 0x16, 0xbf, 0x8f, 0x01, 0xcf, 0xea,
 		0x41, 0x41, 0x40, 0xde, 0x5d, 0xae, 0x22, 0x23,
@@ -175,6 +184,14 @@ test_digest(void)
 	CHECK(xp_digest(XP_DIGEST_SHA256, "abc", 3, digest, sizeof(digest))
 	    == XP_CRYPTO_OK);
 	CHECK(memcmp(digest, sha256_abc, sizeof(digest)) == 0);
+	if (strcmp(xp_crypto_provider_name(), "none") != 0) {
+		CHECK(xp_digest(XP_DIGEST_MD5, "abc", 3, digest,
+		    sizeof(md5_abc)) == XP_CRYPTO_OK);
+		CHECK(memcmp(digest, md5_abc, sizeof(md5_abc)) == 0);
+		CHECK(xp_digest(XP_DIGEST_SHA1, "abc", 3, digest,
+		    sizeof(sha1_abc)) == XP_CRYPTO_OK);
+		CHECK(memcmp(digest, sha1_abc, sizeof(sha1_abc)) == 0);
+	}
 	return true;
 }
 

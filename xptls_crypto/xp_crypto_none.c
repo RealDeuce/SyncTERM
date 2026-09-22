@@ -233,7 +233,9 @@ xp_digest(enum xp_digest_algorithm digest, const void *input,
 size_t
 xp_digest_size(enum xp_digest_algorithm digest)
 {
-	return digest == XP_DIGEST_SHA256 ? 32
+	return digest == XP_DIGEST_MD5 ? 16
+	    : digest == XP_DIGEST_SHA1 ? 20
+	    : digest == XP_DIGEST_SHA256 ? 32
 	    : digest == XP_DIGEST_SHA384 ? 48
 	    : digest == XP_DIGEST_SHA512 ? 64 : 0;
 }

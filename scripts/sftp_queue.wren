@@ -16,8 +16,9 @@
 // state).  Single-session singleton — `start()` is called once on
 // connect by sftp_queue_init.wren; `stop()` runs on disconnect.
 
-import "syncterm" for Cache, CTerm, Download, File, FileFlag, Format,
-                       Host, SFTP, SFTPError, SFTPStat, Timer, Wake, WON
+import "syncterm" for Cache, CTerm, Download, File, FileError, FileFlag,
+                       Format, Host, SFTP, SFTPError, SFTPStat, Timer,
+					   Wake, WON, WONError
 
 // One in-flight or terminal-state job.  Mutable in place; serialized
 // from `persistNow_()`.  `cancel` is the volatile flag the workers
@@ -39,12 +40,16 @@ class Job {
   static WIN_SECS   { 3.0 }
   static SAMPLE_GAP { 0.1 }
 
-  construct new(dir, local, remote, total, localToken) {
+	construct new(id, dir, local, remote, total, localToken) {
+	_id          = id
     _dir         = dir
     _local       = local
     _remote      = remote
     _total       = total
     _done        = 0
+	_resume      = 0
+	_sourceSize  = 0
+	_sourceMtime = 0
     _status      = "queued"
     _errMsg      = ""
     _cancel      = false
@@ -56,12 +61,19 @@ class Job {
     _samples     = []
   }
   dir            { _dir          }
+	id             { _id           }
   local          { _local        }
   remote         { _remote       }
   total          { _total        }
   total=(v)      { _total = v    }
   done           { _done         }
   done=(v)       { _done = v     }
+	resume         { _resume       }
+	resume=(v)     { _resume = v   }
+	sourceSize     { _sourceSize   }
+	sourceSize=(v) { _sourceSize = v }
+	sourceMtime    { _sourceMtime  }
+	sourceMtime=(v) { _sourceMtime = v }
   status         { _status       }
   status=(s)     { _status = s   }
   errMsg         { _errMsg       }
@@ -101,6 +113,7 @@ class Job {
 // "no estimate available" rather than zero.
 class JobSnap {
   construct new(j) {
+	_id     = j.id
     _dir    = j.dir
     _local  = j.local
     _remote = j.remote
@@ -133,6 +146,7 @@ class JobSnap {
     }
   }
   dir    { _dir    }
+	id     { _id     }
   local  { _local  }
   remote { _remote }
   total  { _total  }
@@ -159,7 +173,9 @@ class JobCtx {
     _lf        = lf
     _hRemote   = hRemote
     _depth     = depth
-    _nextOff   = 0
+	_nextOff   = job.resume
+	_frontier  = job.resume
+	_completed = {}
     _alive     = 0
     _waiter    = null
     _err       = null
@@ -170,6 +186,20 @@ class JobCtx {
   lf         { _lf         }
   err        { _err        }
   depth      { _depth      }
+
+	// Publish only a completely filled claimed interval.  Out-of-order
+	// completions remain bounded by pipeline depth; persisted resume moves
+	// only across a contiguous prefix.
+	complete(off, size) {
+	  _completed[off] = size
+	  while (_completed.containsKey(_frontier)) {
+		var count = _completed[_frontier]
+		_completed.remove(_frontier)
+		_frontier = _frontier + count
+	  }
+	  _job.resume = _frontier
+	  SftpQueue.persistProgress_()
+	}
 
   // Reserve the next chunk's [offset, size] for the calling worker.
   // Returns null at end-of-file, on prior error, or when cancel /
@@ -287,6 +317,9 @@ class SftpQueue {
     if (__running) return
     __jobs        = []
     __gen         = 0
+	__progressGen = 0
+	__nextId      = 1
+	__fatal       = false
     __running     = true
     __suspended   = false
     __shellClosed = false
@@ -296,7 +329,11 @@ class SftpQueue {
     // (and link path) has its own characteristics.
     __ewmaRtt     = null
     __ewmaBps     = null
-    load_()
+	if (!load_()) {
+	  __fatal = true
+	  signalActive_()
+	  return
+	}
     signalActive_()
     spawnWorkers_()
   }
@@ -375,6 +412,8 @@ class SftpQueue {
   // Generation counter — bumps on enqueue and every state
   // transition.  Consumers cache it and rebuild only on change.
   static gen { __running ? __gen : 0 }
+	static progressGen { __running ? __progressGen : 0 }
+	static fatal { __fatal ? true : false }
 
   // ----- adaptive sizing --------------------------------------------
 
@@ -464,12 +503,19 @@ class SftpQueue {
   // the caller can keep a reference) or null if the queue isn't
   // running.
   static enqueue(direction, localPath, remotePath, total, localToken) {
-    if (!__running) return null
-    var j = Job.new(direction, localPath, remotePath, total, localToken)
+	if (!__running || __fatal) return null
+	for (existing in __jobs) {
+	  if (existing.dir == direction && existing.remote == remotePath &&
+		  (existing.status == SftpQueue.QUEUED ||
+		   existing.status == SftpQueue.ACTIVE)) return existing
+	}
+	var j = Job.new(__nextId, direction, localPath, remotePath, total,
+		localToken)
+	__nextId = __nextId + 1
     __jobs.add(j)
     bump_()
     signalActive_()
-    persistNow_()
+	if (!persistNow_()) return null
     return j
   }
   // 4-arg overload for download jobs (no token needed).
@@ -477,17 +523,16 @@ class SftpQueue {
     return enqueue(direction, localPath, remotePath, total, null)
   }
 
-  // Flag a single job for cancellation.  QUEUED → CANCELLED
-  // immediately; ACTIVE → cancel flag set, picked up at next chunk
-  // by the worker.  Terminal-state jobs are ignored.  Returns true
-  // if a matching job was found and changed.
-  static cancel(direction, remotePath) {
+  // Flag a single job for cancellation.  QUEUED and ACTIVE jobs are
+  // claimed by their worker so it can remove any partial destination
+  // before publishing CANCELLED.  Terminal-state jobs are ignored.
+	static cancel(id) {
     if (!__running) return false
     var hit = false
     for (j in __jobs) {
-      if (j.dir == direction && j.remote == remotePath) {
+	  if (j.id == id) {
         if (j.status == SftpQueue.QUEUED) {
-          j.status = SftpQueue.CANCELLED
+		  j.cancel = true
           hit = true
         } else if (j.status == SftpQueue.ACTIVE && !j.cancel) {
           j.cancel = true
@@ -511,7 +556,7 @@ class SftpQueue {
     var changed = false
     for (j in __jobs) {
       if (j.status == SftpQueue.QUEUED) {
-        j.status = SftpQueue.CANCELLED
+		j.cancel = true
         changed = true
       } else if (j.status == SftpQueue.ACTIVE && !j.cancel) {
         j.cancel = true
@@ -521,7 +566,7 @@ class SftpQueue {
     if (changed) {
       bump_()
       signalActive_()
-      persistNow_()
+	  persistNow_()
     }
   }
 
@@ -559,46 +604,32 @@ class SftpQueue {
     }
   }
 
-  // Walk the list, find the first QUEUED job for `direction` whose
-  // cancel flag isn't set, and flip it to ACTIVE.  Resets `done` to
-  // 0: pipelined chunk fetches arrive out-of-order so a partial
-  // file from a previous session can't be safely resumed (the local
-  // file size includes claimed-but-not-completed past-EOF holes).
-  // Throughput-window samples are reset and re-seeded by the
-  // dispatcher after it sets up its working baseline.
+  // Walk the list, find the first QUEUED job for `direction`, and flip
+  // it to ACTIVE.  The persisted contiguous frontier is the working
+  // baseline; out-of-order completed intervals beyond it are replayed.
+  // Throughput-window samples are reset and re-seeded by the dispatcher.
   static claimNext_(direction) {
     for (j in __jobs) {
-      if (j.dir == direction && j.status == SftpQueue.QUEUED && !j.cancel) {
+	  if (j.dir == direction && j.status == SftpQueue.QUEUED) {
         j.status = SftpQueue.ACTIVE
-        j.done   = 0
+		j.done   = j.resume
         j.resetSamples()
         bump_()
-        persistNow_()
+		if (!persistNow_()) return null
         return j
       }
     }
     return null
   }
 
-  // SFTP went away mid-session — fail any in-flight jobs of our
-  // direction so the gen counter advances and the queue screen
-  // updates.  QUEUED jobs are left alone; they'll either be
-  // retried after reconnect or dropped on persistence load if their
-  // status is terminal.
+  // SFTP went away mid-session. Preserve active frontiers and queued
+  // work for the next connected VM rather than converting transport
+  // loss into a per-file failure.
   static handleSftpDown_(direction) {
-    var changed = false
-    for (j in __jobs) {
-      if (j.dir == direction && j.status == SftpQueue.ACTIVE) {
-        j.status = SftpQueue.FAILED
-        j.errMsg = "connection lost"
-        changed = true
-      }
-    }
-    if (changed) {
-      bump_()
-      signalActive_()
-      persistNow_()
-    }
+	// Loss of the provider is a session interruption, not a per-file
+	// failure.  Preserve every active frontier for the next connection.
+	suspend()
+	persistNow_()
   }
 
   // Dispatch a claimed job to the per-direction transfer loop.
@@ -607,6 +638,33 @@ class SftpQueue {
   // no counting.  One worker per direction means the per-direction
   // bool maps cleanly to "this worker is moving bytes right now."
   static runJob_(job) {
+	if (job.cancel) {
+	  if (job.dir == SftpQueue.DOWNLOAD) {
+		if (Download == null || !Download.contains(job.local) ||
+			Download.delete(job.local)) {
+		  job.status = SftpQueue.CANCELLED
+		} else {
+		  job.status = SftpQueue.FAILED
+		  job.errMsg = "cancelled, but the local partial could not be removed"
+		}
+	  } else {
+		var removed = SFTP.remove(Fiber.current, job.remote) || Fiber.yield()
+		if (removed is SFTPError && removed.isTransient) {
+		  SftpQueue.suspend()
+		  return
+		} else if (removed is SFTPError && !(removed.code == 0 &&
+			removed.serverStatus == 2)) {
+		  job.status = SftpQueue.FAILED
+		  job.errMsg = "cancelled, but the remote partial could not be removed: " + removed.toString
+		} else {
+		  job.status = SftpQueue.CANCELLED
+		}
+	  }
+	  bump_()
+	  signalActive_()
+	  persistNow_()
+	  return
+	}
     if (job.dir == SftpQueue.UPLOAD) {
       Host.uploadArrow = true
       runUpload_(job)
@@ -627,9 +685,8 @@ class SftpQueue {
   // — the relaxed-name predicate is what makes typical SFTP names
   // like "file with spaces.zip" allowable here.  Errors land the job
   // in FAILED with a descriptive errMsg; cancel between chunks
-  // lands it in CANCELLED.  Mid-transfer interruption forfeits the
-  // partial — see claimNext_ for why pipelined transfers can't
-  // resume from a previous session.
+  // lands it in CANCELLED. Mid-transfer interruption preserves the
+  // partial and the last contiguous completed frontier for the next VM.
   static runDownload_(job) {
     if (Download == null) {
       job.status = SftpQueue.FAILED
@@ -638,34 +695,79 @@ class SftpQueue {
                    "(and create the directory if necessary) before downloading."
       return
     }
-    if (Download.contains(job.local)) Download.delete(job.local)
-    var lf = Download.create(job.local)
+	// Every download begins with a source identity check.  A changed source
+	// invalidates the checkpoint and the partial destination.
+	var source = SFTP.stat(Fiber.current, job.remote) || Fiber.yield()
+	if (!(source is SFTPStat)) {
+	  if (source is SFTPError && source.isTransient) {
+		SftpQueue.suspend()
+		return
+	  }
+	  job.status = SftpQueue.FAILED
+	  job.errMsg = "stat remote: " + source.toString
+	  return
+	}
+	if (job.resume > 0 && (job.sourceSize != source.size ||
+		job.sourceMtime != source.mtime)) {
+	  job.resume = 0
+	  job.done = 0
+	  if (Download.contains(job.local) && !Download.delete(job.local)) {
+		job.status = SftpQueue.FAILED
+		job.errMsg = "cannot discard local partial after remote source changed"
+		return
+	  }
+	}
+	job.sourceSize = source.size
+	job.sourceMtime = source.mtime
+	job.total = source.size
+	var lf = null
+	if (Download.contains(job.local)) {
+	  lf = Download.list[job.local]
+	  if (!(lf is File) || lf.size < job.resume || lf.size > job.total) {
+		if (!Download.delete(job.local)) {
+		  job.status = SftpQueue.FAILED
+		  job.errMsg = "cannot replace incompatible local partial"
+		  return
+		}
+		lf = null
+		job.resume = 0
+		job.done = 0
+	  }
+	}
+	if (lf == null) lf = Download.create(job.local)
     if (lf == null) {
       job.status = SftpQueue.FAILED
       job.errMsg = "cannot create local '%(job.local)'"
       return
     }
-    lf.open()
+	var localOpen = lf.open()
+	if (localOpen is FileError) {
+	  job.status = SftpQueue.FAILED
+	  job.errMsg = localOpen.toString
+	  return
+	}
+	if (job.resume == 0) {
+	  var truncated = lf.write("")
+	  if (truncated is FileError) {
+		lf.close()
+		job.status = SftpQueue.FAILED
+		job.errMsg = truncated.toString
+		return
+	  }
+	}
     var hSrc = SFTP.open(Fiber.current, job.remote, FileFlag.read) ||
                Fiber.yield()
     if (hSrc is SFTPError) {
-      lf.close()
+	  lf.close()
+	  if (hSrc.isTransient) {
+		SftpQueue.suspend()
+		return
+	  }
       job.status = SftpQueue.FAILED
       job.errMsg = "open remote: " + hSrc.toString
       return
     }
-    // Total size: trust job.total from enqueue (browser stat'd at
-    // selection time).  Fall back to an explicit stat for legacy /
-    // out-of-band enqueues — without a known total we can't pre-
-    // issue parallel chunks.
-    var totalSize = job.total
-    if (totalSize <= 0) {
-      var st = SFTP.stat(Fiber.current, job.remote) || Fiber.yield()
-      if (st is SFTPStat) {
-        totalSize = st.size
-        job.total = totalSize
-      }
-    }
+	var totalSize = source.size
     // Seed the throughput window now that done is at its working
     // baseline (zero — see claimNext_).
     job.recordSample()
@@ -676,27 +778,51 @@ class SftpQueue {
       Fiber.new { downloadChunk_(ctx) }.call()
     }
     ctx.await()
-    lf.close()
-    SFTP.close(Fiber.current, hSrc) || Fiber.yield()
+	var localClose = lf.close()
+	var remoteClose = SFTP.close(Fiber.current, hSrc) || Fiber.yield()
     if (ctx.err == "suspended") {
       // Worker is bailing per user request; leave the job ACTIVE so
       // it persists in that state and resumes on the next session.
       return
     }
     if (ctx.err == "cancelled") {
-      job.status = SftpQueue.CANCELLED
+	  if (Download.delete(job.local)) {
+		job.status = SftpQueue.CANCELLED
+	  } else {
+		job.status = SftpQueue.FAILED
+		job.errMsg = "cancelled, but the local partial could not be removed"
+	  }
     } else if (ctx.err != null) {
       job.status = SftpQueue.FAILED
       job.errMsg = ctx.err
-    } else {
-      job.total  = job.done
-      job.status = SftpQueue.DONE
+	} else if (localClose is FileError) {
+	  job.status = SftpQueue.FAILED
+	  job.errMsg = localClose.toString
+	} else if (remoteClose is SFTPError && remoteClose.isTransient) {
+	  SftpQueue.suspend()
+	  return
+	} else if (remoteClose is SFTPError) {
+	  job.status = SftpQueue.FAILED
+	  job.errMsg = "close remote: " + remoteClose.toString
+	} else {
+	  var finalSource = SFTP.stat(Fiber.current, job.remote) || Fiber.yield()
+	  if (finalSource is SFTPError && finalSource.isTransient) {
+		SftpQueue.suspend()
+		return
+	  }
+	  if (!(finalSource is SFTPStat) || finalSource.size != job.sourceSize ||
+		  finalSource.mtime != job.sourceMtime || job.resume != job.total) {
+		job.status = SftpQueue.FAILED
+		job.errMsg = "remote source changed during download"
+		return
+	  }
+	  job.done = job.total
+	  job.status = SftpQueue.DONE
       // Stamp local mtime to match the remote.  Stat after the data
       // is on disk so the local mtime matches the server's "as of
       // completion" timestamp.  Errors are non-fatal — chip falls
       // back to "[<>]".
-      var st = SFTP.stat(Fiber.current, job.remote) || Fiber.yield()
-      if (st is SFTPStat) lf.mtime = st.mtime
+	  lf.mtime = job.sourceMtime
     }
   }
 
@@ -710,36 +836,54 @@ class SftpQueue {
     while (true) {
       var slot = ctx.claimChunk(SftpQueue.adaptiveChunkSize)
       if (slot == null) break
-      var off  = slot[0]
-      var want = slot[1]
-      var t0 = Timer.now
-      var bytes = SFTP.read(Fiber.current, ctx.hRemote, want, off) ||
-                  Fiber.yield()
-      var rtt = Timer.now - t0
-      if (bytes is SFTPError) {
-        if (SftpQueue.shellClosed) {
-          SftpQueue.suspend()
-          ctx.setError("suspended")
-        } else {
-          ctx.setError("read remote: " + bytes.toString)
-        }
-        break
-      }
-      if (bytes == null) break
-      var got = bytes.bytes.count
-      if (got == 0) break
-      ctx.lf.writeBytes(bytes, off)
-      var job = ctx.job
-      job.done = job.done + got
-      job.recordSample()
+	  var off  = slot[0]
+	  var want = slot[1]
+	  var cursor = off
+	  var remaining = want
+	  while (remaining > 0) {
+		var t0 = Timer.now
+		var bytes = SFTP.read(Fiber.current, ctx.hRemote, remaining,
+			cursor) || Fiber.yield()
+		var rtt = Timer.now - t0
+		if (bytes is SFTPError) {
+		  if (bytes.isTransient || SftpQueue.shellClosed) {
+			SftpQueue.suspend()
+			ctx.setError("suspended")
+		  } else {
+			ctx.setError("read remote: " + bytes.toString)
+		  }
+		  break
+		}
+		if (bytes == null || bytes.bytes.count == 0) {
+		  ctx.setError("remote ended before the advertised size")
+		  break
+		}
+		var got = bytes.bytes.count
+		if (got > remaining) {
+		  ctx.setError("remote returned more bytes than requested")
+		  break
+		}
+		var written = ctx.lf.writeBytes(bytes, cursor)
+		if (written is FileError) {
+		  ctx.setError(written.toString)
+		  break
+		}
+		cursor = cursor + got
+		remaining = remaining - got
+		var job = ctx.job
+		job.done = job.done + got
+		job.recordSample()
       // Feed adaptive sizing.  RTT sample is the issue-to-response
       // wall time; BW sample assumes the pipeline is saturated at
       // ctx.depth concurrent requests, so the link's per-RTT capacity
       // is depth * got / rtt.  Both estimators clamp non-positive
       // values internally.
-      SftpQueue.recordRtt_(rtt)
-      if (rtt > 0) SftpQueue.recordBps_((got * ctx.depth) / rtt)
-      bump_()
+		SftpQueue.recordRtt_(rtt)
+		if (rtt > 0) SftpQueue.recordBps_((got * ctx.depth) / rtt)
+		bumpProgress_()
+	  }
+	  if (remaining != 0) break
+	  ctx.complete(off, want)
     }
     ctx.workerExit()
   }
@@ -749,8 +893,8 @@ class SftpQueue {
   // chunk fibers that race through the file in parallel.
   //
   // The token is verified by Host.openLocalFile: HMAC must match
-  // the installed signing key, AND the file's current SHA-1 must
-  // match the SHA-1 captured at consent time.  If either fails
+  // the installed signing key, AND the file's current SHA-256 must
+  // match the SHA-256 captured at consent time.  If either fails
   // (key rotated, file edited, file deleted), the upload is
   // rejected — the user must re-pick to re-consent to the new
   // content.  Uploads without a token fail immediately.
@@ -766,14 +910,62 @@ class SftpQueue {
       job.errMsg = "consent token rejected (file changed, deleted, or key rotated)"
       return
     }
-    lf.open()
+	var opened = lf.open()
+	if (opened is FileError) {
+	  job.status = SftpQueue.FAILED
+	  job.errMsg = opened.toString
+	  return
+	}
     var totalSize = lf.size
     job.total = totalSize
-    var flags = FileFlag.write | FileFlag.creat | FileFlag.trunc
+	var localMtime = lf.mtime
+	if (job.resume > 0 && (job.sourceSize != totalSize ||
+		job.sourceMtime != localMtime)) {
+	  lf.close()
+	  job.status = SftpQueue.FAILED
+	  job.errMsg = "local upload source changed; pick it again"
+	  return
+	}
+	job.sourceSize = totalSize
+	job.sourceMtime = localMtime
+	var remote = SFTP.stat(Fiber.current, job.remote) || Fiber.yield()
+	var restart = job.resume == 0
+	if (remote is SFTPStat) {
+	  if (remote.size < job.resume || remote.size > totalSize) restart = true
+	} else if (remote is SFTPError) {
+	  // SSH_FX_NO_SUCH_FILE is the only stat failure that authorizes create.
+	  if (remote.code == 0 && remote.serverStatus == 2) {
+		restart = true
+	  } else if (remote.isTransient) {
+		lf.close()
+		SftpQueue.suspend()
+		return
+	  } else {
+		lf.close()
+		job.status = SftpQueue.FAILED
+		job.errMsg = "stat remote: " + remote.toString
+		return
+	  }
+	} else {
+	  lf.close()
+	  job.status = SftpQueue.FAILED
+	  job.errMsg = "stat remote returned an invalid result"
+	  return
+	}
+	if (restart) {
+	  job.resume = 0
+	  job.done = 0
+	}
+	var flags = FileFlag.write | FileFlag.creat
+	if (restart) flags = flags | FileFlag.trunc
     var hDst  = SFTP.open(Fiber.current, job.remote, flags) ||
                 Fiber.yield()
     if (hDst is SFTPError) {
       lf.close()
+	  if (hDst.isTransient) {
+		SftpQueue.suspend()
+		return
+	  }
       job.status = SftpQueue.FAILED
       job.errMsg = "open remote: " + hDst.toString
       return
@@ -786,20 +978,42 @@ class SftpQueue {
       Fiber.new { uploadChunk_(ctx) }.call()
     }
     ctx.await()
-    var localMtime = lf.mtime
-    lf.close()
-    SFTP.close(Fiber.current, hDst) || Fiber.yield()
+	var localClose = lf.close()
+	var remoteClose = SFTP.close(Fiber.current, hDst) || Fiber.yield()
     if (ctx.err == "suspended") {
       // Worker is bailing per user request; leave the job ACTIVE so
       // it persists in that state and resumes on the next session.
       return
     }
     if (ctx.err == "cancelled") {
-      job.status = SftpQueue.CANCELLED
+	  var removed = SFTP.remove(Fiber.current, job.remote) || Fiber.yield()
+	  if (removed is SFTPError && removed.isTransient) {
+		SftpQueue.suspend()
+		return
+	  } else if (removed is SFTPError) {
+		job.status = SftpQueue.FAILED
+		job.errMsg = "cancelled, but the remote partial could not be removed: " + removed.toString
+	  } else {
+		job.status = SftpQueue.CANCELLED
+	  }
     } else if (ctx.err != null) {
       job.status = SftpQueue.FAILED
       job.errMsg = ctx.err
+	} else if (localClose is FileError) {
+	  job.status = SftpQueue.FAILED
+	  job.errMsg = localClose.toString
+	} else if (remoteClose is SFTPError && remoteClose.isTransient) {
+	  SftpQueue.suspend()
+	  return
+	} else if (remoteClose is SFTPError) {
+	  job.status = SftpQueue.FAILED
+	  job.errMsg = "close remote: " + remoteClose.toString
+	} else if (Host.openLocalFile(job.localToken) == null ||
+		job.resume != job.total) {
+	  job.status = SftpQueue.FAILED
+	  job.errMsg = "local upload source changed during transfer"
     } else {
+	  job.done = job.total
       job.status = SftpQueue.DONE
       // Stamp the remote with the local mtime so a subsequent browse
       // shows [==] without depending on hash extensions.  Symmetric
@@ -820,32 +1034,47 @@ class SftpQueue {
     while (true) {
       var slot = ctx.claimChunk(SftpQueue.adaptiveChunkSize)
       if (slot == null) break
-      var off  = slot[0]
-      var want = slot[1]
-      var chunk = ctx.lf.readBytes(want, off)
-      if (chunk == null) break
-      var got = chunk.bytes.count
-      if (got == 0) break
-      var t0 = Timer.now
-      var r = SFTP.write(Fiber.current, ctx.hRemote, off, chunk) ||
-              Fiber.yield()
-      var rtt = Timer.now - t0
-      if (r is SFTPError) {
-        if (SftpQueue.shellClosed) {
-          SftpQueue.suspend()
-          ctx.setError("suspended")
-        } else {
-          ctx.setError("write remote: " + r.toString)
-        }
-        break
-      }
-      var job = ctx.job
-      job.done = job.done + got
-      job.recordSample()
+	  var off  = slot[0]
+	  var want = slot[1]
+	  var cursor = off
+	  var remaining = want
+	  while (remaining > 0) {
+		var chunk = ctx.lf.readBytes(remaining, cursor)
+		if (chunk is FileError || chunk == null || chunk.bytes.count == 0) {
+		  ctx.setError(chunk is FileError ? chunk.toString :
+			  "local source ended before its advertised size")
+		  break
+		}
+		var got = chunk.bytes.count
+		if (got > remaining) {
+		  ctx.setError("local read returned more bytes than requested")
+		  break
+		}
+		var t0 = Timer.now
+		var r = SFTP.write(Fiber.current, ctx.hRemote, cursor, chunk) ||
+			Fiber.yield()
+		var rtt = Timer.now - t0
+		if (r is SFTPError) {
+		  if (r.isTransient || SftpQueue.shellClosed) {
+			SftpQueue.suspend()
+			ctx.setError("suspended")
+		  } else {
+			ctx.setError("write remote: " + r.toString)
+		  }
+		  break
+		}
+		cursor = cursor + got
+		remaining = remaining - got
+		var job = ctx.job
+		job.done = job.done + got
+		job.recordSample()
       // Feed adaptive sizing — see downloadChunk_ for the rationale.
-      SftpQueue.recordRtt_(rtt)
-      if (rtt > 0) SftpQueue.recordBps_((got * ctx.depth) / rtt)
-      bump_()
+		SftpQueue.recordRtt_(rtt)
+		if (rtt > 0) SftpQueue.recordBps_((got * ctx.depth) / rtt)
+		bumpProgress_()
+	  }
+	  if (remaining != 0) break
+	  ctx.complete(off, want)
     }
     ctx.workerExit()
   }
@@ -855,24 +1084,46 @@ class SftpQueue {
   static bump_() {
     __gen = __gen + 1
   }
+	static bumpProgress_() { __progressGen = __progressGen + 1 }
+	static persistProgress_() {
+	  bumpProgress_()
+	  return persistNow_()
+	}
+
+	static persistenceFailed_(reason) {
+	  __fatal = true
+	  __suspended = true
+	  for (j in __jobs) {
+		if (j.status == SftpQueue.ACTIVE || j.status == SftpQueue.QUEUED) {
+		  j.status = SftpQueue.FAILED
+		  j.errMsg = "queue persistence failed: %(reason)"
+		}
+	  }
+	  bump_()
+	  signalActive_()
+	  return false
+	}
 
   // Serialize the current list to Cache/sftp_queue.won.  Called on
   // every state transition + enqueue + cancel; matches the C side's
   // "flush on every change" cadence.  At queue scale (<<100 jobs)
   // the cost is negligible.
   static persistNow_() {
-    if (!__running) return
+	if (!__running || __fatal) return !__fatal
     var jobs = []
     for (j in __jobs) {
+	  if (j.status != SftpQueue.QUEUED && j.status != SftpQueue.ACTIVE) continue
       var m = {
+		"id":     j.id,
         "dir":    j.dir,
         "local":  j.local,
         "remote": j.remote,
-        "status": j.status,
         "total":  j.total,
-        "done":   j.done
+		"resume": j.resume,
+		"sourceSize": j.sourceSize,
+		"sourceMtime": j.sourceMtime,
+		"cancel": j.cancel
       }
-      if (j.errMsg.count > 0) m["err"] = j.errMsg
       // Picker consent token — present only for arbitrary-path
       // uploads.  Worker re-resolves via Host.openLocalFile on
       // resume; verify failure (key rotated, file changed) lands
@@ -880,34 +1131,32 @@ class SftpQueue {
       if (j.localToken != null) m["localToken"] = j.localToken
       jobs.add(m)
     }
-    var doc = { "version": 1, "jobs": jobs }
+	var doc = { "version": 2, "nextId": __nextId, "jobs": jobs }
     var text = WON.serialize(doc, "  ")
-    // Directory.create is exclusive (fopen "wbx") — fails when the
-    // file already exists.  Delete-then-create is the simplest
-    // overwrite-an-existing-file path given the binding surface.
-    if (Cache.contains(SftpQueue.FILENAME)) Cache.delete(SftpQueue.FILENAME)
-    var f = Cache.create(SftpQueue.FILENAME)
-    f.open()
-    f.writeBytes(text, 0)
-    f.close()
+	var replaced = Cache.replace(SftpQueue.FILENAME, text)
+	if (replaced is FileError) return persistenceFailed_(replaced.toString)
+	if (replaced != true) return persistenceFailed_("atomic replacement failed")
+	return true
   }
 
-  // Load persisted jobs.  ACTIVE → QUEUED (restart from byte 0;
-  // matches C).  DONE / FAILED / CANCELLED dropped (also matches C
-  // — those don't carry session-history across reconnects).
+  // Load persisted jobs. ACTIVE work returns to QUEUED at its contiguous
+  // resume frontier. Version-1 imports restart at byte zero. Terminal jobs
+  // are not persisted.
   static load_() {
-    if (!Cache.contains(SftpQueue.FILENAME)) return
+	if (Cache == null) return false
+	if (!Cache.contains(SftpQueue.FILENAME)) return true
     // Directory.list returns a Map<String, File|Directory> for the
     // existing entries; create can't open an existing file.
     var entries = Cache.list
     var f = entries[SftpQueue.FILENAME]
-    if (f == null || !(f is File)) return
-    f.open()
+	if (f == null || !(f is File)) return false
+	var opened = f.open()
+	if (opened is FileError) return false
     var bytes = f.size
     var text = ""
     if (bytes > 0) text = f.readBytes(bytes)
-    f.close()
-    if (text.count == 0) return
+	var closed = f.close()
+	if (text is FileError || closed is FileError || text.count == 0) return false
     // WON.deserialize aborts on bad input; guard so a corrupt
     // persisted file doesn't brick the queue.  Check fiber.error
     // rather than try()'s return — on success try() returns the
@@ -917,34 +1166,62 @@ class SftpQueue {
     var doc = null
     var fb = Fiber.new { doc = WON.deserialize(text) }
     fb.try()
-    if (fb.error != null) return
-    if (!(doc is Map)) return
+	if (fb.error != null || doc is WONError || !(doc is Map)) return false
     var ver = doc["version"]
-    if (ver != 1) return
+	if (ver != 1 && ver != 2) return false
     var loaded = doc["jobs"]
-    if (!(loaded is List)) return
+	if (!(loaded is List)) return false
+	if (ver == 2) {
+	  var next = doc["nextId"]
+	  if (!(next is Num) || next < 1 || next != next.floor) return false
+	  __nextId = next
+	}
     for (m in loaded) {
-      if (!(m is Map)) continue
-      var status = m["status"]
-      if (status == SftpQueue.DONE || status == SftpQueue.FAILED ||
-          status == SftpQueue.CANCELLED) continue
+	  if (!(m is Map)) return false
+	  if (ver == 1) {
+		var oldStatus = m["status"]
+		if (oldStatus == SftpQueue.DONE || oldStatus == SftpQueue.FAILED ||
+			oldStatus == SftpQueue.CANCELLED) continue
+		if (oldStatus != SftpQueue.QUEUED && oldStatus != SftpQueue.ACTIVE) {
+		  return false
+		}
+	  }
       var dir    = m["dir"]
       var local  = m["local"]
       var remote = m["remote"]
-      if (!(dir is String) || !(local is String) || !(remote is String)) continue
-      if (dir != SftpQueue.UPLOAD && dir != SftpQueue.DOWNLOAD) continue
+	  if (!(dir is String) || !(local is String) || !(remote is String)) return false
+	  if (dir != SftpQueue.UPLOAD && dir != SftpQueue.DOWNLOAD) return false
       var total = m["total"]
-      if (!(total is Num)) total = 0
-      var done = m["done"]
-      if (!(done is Num)) done = 0
+	  if (!(total is Num) || total < 0 || total != total.floor) return false
       var token = m["localToken"]
       if (!(token is String) || token.count == 0) token = null
-      var j = Job.new(dir, local, remote, total, token)
-      j.done   = done
-      j.status = (status == SftpQueue.ACTIVE) ? SftpQueue.QUEUED : (status is String ? status : SftpQueue.QUEUED)
-      var jerr = m["err"]
-      if (jerr is String) j.errMsg = jerr
+	  if (dir == SftpQueue.UPLOAD && token == null) return false
+	  var id = ver == 2 ? m["id"] : __nextId
+	  if (!(id is Num) || id < 1 || id != id.floor) return false
+	  for (existing in __jobs) {
+		if (existing.id == id || (existing.dir == dir &&
+			existing.remote == remote)) return false
+	  }
+	  var j = Job.new(id, dir, local, remote, total, token)
+	  if (ver == 2) {
+		var resume = m["resume"]
+		var sourceSize = m["sourceSize"]
+		var sourceMtime = m["sourceMtime"]
+		var cancel = m["cancel"]
+		if (!(resume is Num) || resume < 0 || resume > total ||
+			resume != resume.floor || !(sourceSize is Num) || sourceSize < 0 ||
+			sourceSize != sourceSize.floor || !(sourceMtime is Num) ||
+			sourceMtime != sourceMtime.floor || !(cancel is Bool)) return false
+		j.resume = resume
+		j.done = resume
+		j.sourceSize = sourceSize
+		j.sourceMtime = sourceMtime
+		j.cancel = cancel
+	  }
+	  if (id >= __nextId) __nextId = id + 1
+	  j.status = SftpQueue.QUEUED
       __jobs.add(j)
     }
+	return true
   }
 }

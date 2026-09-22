@@ -21,6 +21,7 @@
 #include "st_time.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
@@ -117,6 +118,269 @@ discard_ansi_output(void *context, const void *data, size_t size)
 	(void)context;
 	(void)data;
 	(void)size;
+	return 0;
+}
+
+struct fake_sftp_response {
+	struct st_wren_sftp_response response;
+	unsigned char bytes[32];
+};
+
+struct fake_sftp {
+	struct fake_sftp_response responses[128];
+	size_t head;
+	size_t count;
+	uint64_t next_id;
+	const unsigned char *remote;
+	size_t remote_size;
+	int64_t modified;
+	bool close_error;
+	bool transient_read;
+	bool transient_sent;
+	uint64_t transient_offset;
+};
+
+static bool fake_sftp_available(void *context)
+{
+	(void)context;
+	return true;
+}
+
+static const char *fake_sftp_public_directory(void *context)
+{
+	(void)context;
+	return "/";
+}
+
+static int
+fake_sftp_submit(void *context, const struct st_wren_sftp_request *request,
+	uint64_t *request_id)
+{
+	struct fake_sftp *fake = context;
+	struct fake_sftp_response *stored;
+	size_t index;
+
+	if (fake->count == sizeof(fake->responses) / sizeof(fake->responses[0]))
+		return IO_ERROR_OUT_OF_RANGE;
+	index = (fake->head + fake->count) %
+	    (sizeof(fake->responses) / sizeof(fake->responses[0]));
+	stored = &fake->responses[index];
+	memset(stored, 0, sizeof(*stored));
+	stored->response.request_id = ++fake->next_id;
+	*request_id = stored->response.request_id;
+	switch (request->operation) {
+	case ST_WREN_SFTP_STAT:
+		stored->response.kind = ST_WREN_SFTP_RESULT_STAT;
+		stored->response.stat.size = fake->remote_size;
+		stored->response.stat.modified_time = fake->modified;
+		break;
+	case ST_WREN_SFTP_OPEN:
+		stored->response.kind = ST_WREN_SFTP_RESULT_HANDLE;
+		stored->response.handle = 1;
+		break;
+	case ST_WREN_SFTP_READ: {
+		if (fake->transient_read && !fake->transient_sent
+		    && request->offset >= fake->transient_offset) {
+			fake->transient_sent = true;
+			stored->response.kind = ST_WREN_SFTP_RESULT_ERROR;
+			stored->response.error_code = IO_ERROR_IO;
+			stored->response.message = "injected transport loss";
+			stored->response.transient = true;
+			break;
+		}
+		size_t available = request->offset < fake->remote_size
+		    ? fake->remote_size - (size_t)request->offset : 0;
+		size_t amount = request->size < available ? request->size : available;
+
+		/* Deliberately exercise successful short reads. */
+		if (amount > 7)
+			amount = 7;
+		stored->response.kind = amount == 0 ? ST_WREN_SFTP_RESULT_EOF
+		    : ST_WREN_SFTP_RESULT_BYTES;
+		if (amount != 0) {
+			memcpy(stored->bytes, fake->remote + request->offset, amount);
+			stored->response.data = stored->bytes;
+			stored->response.size = amount;
+		}
+		break;
+	}
+	case ST_WREN_SFTP_CLOSE:
+		if (fake->close_error) {
+			stored->response.kind = ST_WREN_SFTP_RESULT_ERROR;
+			stored->response.error_code = IO_ERROR_IO;
+			stored->response.message = "injected close failure";
+			break;
+		}
+		stored->response.kind = ST_WREN_SFTP_RESULT_OK;
+		break;
+	case ST_WREN_SFTP_REMOVE:
+	case ST_WREN_SFTP_SET_MTIME:
+		stored->response.kind = ST_WREN_SFTP_RESULT_OK;
+		break;
+	default:
+		stored->response.kind = ST_WREN_SFTP_RESULT_ERROR;
+		stored->response.error_code = IO_ERROR_NOT_SUPPORTED;
+		stored->response.message = "fake operation is not supported";
+		break;
+	}
+	fake->count++;
+	return 0;
+}
+
+static int
+fake_sftp_poll(void *context, struct st_wren_sftp_response *response,
+	uint32_t timeout_ms)
+{
+	struct fake_sftp *fake = context;
+	(void)timeout_ms;
+
+	if (fake->count == 0)
+		return 0;
+	*response = fake->responses[fake->head].response;
+	fake->head = (fake->head + 1) %
+	    (sizeof(fake->responses) / sizeof(fake->responses[0]));
+	fake->count--;
+	return 1;
+}
+
+static int
+exercise_connected_sftp(st_wren_host_t *host, st_console_t *console,
+	struct st_profile *profile)
+{
+	static const unsigned char remote[] =
+	    "short reads must fill every reserved interval without holes";
+	struct fake_sftp fake = {
+		.remote = remote,
+		.remote_size = sizeof(remote) - 1,
+		.modified = INT64_C(1700000123),
+	};
+	const struct st_wren_sftp_provider provider = {
+		.context = &fake,
+		.available = fake_sftp_available,
+		.public_directory = fake_sftp_public_directory,
+		.submit = fake_sftp_submit,
+		.poll = fake_sftp_poll,
+	};
+	struct st_wren_connected_config config = {
+		.host = host,
+		.console = console,
+		.profile = profile,
+		.sftp = &provider,
+	};
+	st_wren_connected_t *connected = NULL;
+	char path[sizeof(ST_WREN_TEST_DIRECTORY) + 32];
+	char queue_path[sizeof(ST_WREN_TEST_DIRECTORY) + 64];
+	struct timespec delay = {.tv_nsec = 300000000L};
+	FILE *stream;
+	unsigned char local[sizeof(remote)];
+
+	free(profile->download_directory);
+	profile->download_directory = strdup(ST_WREN_TEST_DIRECTORY);
+	CHECK(profile->download_directory != NULL);
+	(void)snprintf(queue_path, sizeof(queue_path),
+	    "%s/cache/Alpha/sftp_queue.won", ST_WREN_TEST_DIRECTORY);
+	(void)fs_remove_file(queue_path);
+	CHECK(st_wren_connected_create(&connected, &config) == 0);
+	CHECK(st_wren_connected_interpret(connected, "connected_fs_won_test",
+	    "import \"syncterm\" for Cache, File, FileError, WON, WONError\n"
+	    "var decoded = WON.deserialize(\"{\\\"value\\\":[1,true,null]}\")\n"
+	    "if (decoded is WONError || decoded[\"value\"][0] != 1) Fiber.abort(\"WON decode\")\n"
+	    "if (!(WON.deserialize(\"{\") is WONError)) Fiber.abort(\"WON error\")\n"
+	    "var replaced = Cache.replace(\"fs-test.won\", \"atomic\")\n"
+	    "if (replaced is FileError || replaced != true) Fiber.abort(\"replace\")\n"
+	    "var f = Cache.list[\"fs-test.won\"]\n"
+	    "if (!(f is File) || (f.open() is FileError) || f.read() != \"atomic\" || (f.close() is FileError)) Fiber.abort(\"file round trip\")\n"
+	    "if (!Cache.delete(\"fs-test.won\")) Fiber.abort(\"delete\")\n") == 0);
+	CHECK(st_wren_connected_interpret(connected, "sftp_short_read_test",
+	    "import \"sftp_queue\" for SftpQueue\n"
+	    "if (SftpQueue.enqueue(SftpQueue.DOWNLOAD, \"short.bin\", "
+	    "\"/remote.bin\", 58) == null) Fiber.abort(\"enqueue\")\n") == 0);
+	(void)st_thread_sleep(&delay, NULL);
+	for (size_t i = 0; i < 64; ++i)
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "sftp_short_read_result",
+	    "import \"sftp_queue\" for SftpQueue\n"
+	    "var jobs = SftpQueue.snapshot\n"
+	    "if (jobs.count != 1 || jobs[0].status != SftpQueue.DONE || "
+	    "jobs[0].done != jobs[0].total) Fiber.abort(\"download result\")\n")
+	    == 0);
+	(void)snprintf(path, sizeof(path), "%s/short.bin",
+	    ST_WREN_TEST_DIRECTORY);
+	CHECK(fs_open(&stream, path, "rb") == 0);
+	CHECK(fread(local, 1, sizeof(remote) - 1, stream) == sizeof(remote) - 1);
+	CHECK(fclose(stream) == 0);
+	CHECK(memcmp(local, remote, sizeof(remote) - 1) == 0);
+	fake.close_error = true;
+	CHECK(st_wren_connected_interpret(connected, "sftp_close_error_test",
+	    "import \"sftp_queue\" for SftpQueue\n"
+	    "SftpQueue.enqueue(SftpQueue.DOWNLOAD, \"close.bin\", "
+	    "\"/close-error.bin\", 58)\n") == 0);
+	(void)st_thread_sleep(&delay, NULL);
+	for (size_t i = 0; i < 64; ++i)
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "sftp_close_error_result",
+	    "import \"sftp_queue\" for SftpQueue\n"
+	    "var failed = SftpQueue.snapshot.where {|j| "
+	    "j.remote == \"/close-error.bin\" }.toList\n"
+	    "if (failed.count != 1 || failed[0].status != SftpQueue.FAILED) "
+	    "Fiber.abort(\"close failure reported DONE\")\n") == 0);
+	(void)snprintf(path, sizeof(path), "%s/close.bin",
+	    ST_WREN_TEST_DIRECTORY);
+	CHECK(fs_get_info(&(struct fs_info){0}, path) == 0);
+	CHECK(fs_remove_file(path) == 0);
+	fake.close_error = false;
+	fake.transient_read = true;
+	fake.transient_sent = false;
+	fake.transient_offset = 21;
+	CHECK(st_wren_connected_interpret(connected, "sftp_suspend_test",
+	    "import \"sftp_queue\" for SftpQueue\n"
+	    "SftpQueue.enqueue(SftpQueue.DOWNLOAD, \"resume.bin\", "
+	    "\"/resume.bin\", 58)\n") == 0);
+	(void)st_thread_sleep(&delay, NULL);
+	for (size_t i = 0; i < 64; ++i)
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "sftp_suspend_result",
+	    "import \"sftp_queue\" for SftpQueue\n"
+	    "var jobs = SftpQueue.snapshot.where {|j| "
+	    "j.remote == \"/resume.bin\" }.toList\n"
+	    "if (!SftpQueue.suspended || jobs.count != 1 || "
+	    "jobs[0].status != SftpQueue.ACTIVE) Fiber.abort(\"not suspended\")\n")
+	    == 0);
+	st_wren_connected_destroy(connected);
+	connected = NULL;
+	fake.transient_read = false;
+	CHECK(st_wren_connected_create(&connected, &config) == 0);
+	(void)st_thread_sleep(&delay, NULL);
+	for (size_t i = 0; i < 64; ++i)
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "sftp_resume_result",
+	    "import \"sftp_queue\" for SftpQueue\n"
+	    "var jobs = SftpQueue.snapshot\n"
+	    "if (jobs.count != 1 || jobs[0].status != SftpQueue.DONE || "
+	    "jobs[0].done != jobs[0].total) Fiber.abort(\"resume result\")\n")
+	    == 0);
+	(void)snprintf(path, sizeof(path), "%s/resume.bin",
+	    ST_WREN_TEST_DIRECTORY);
+	CHECK(fs_open(&stream, path, "rb") == 0);
+	CHECK(fread(local, 1, sizeof(remote) - 1, stream) == sizeof(remote) - 1);
+	CHECK(fclose(stream) == 0);
+	CHECK(memcmp(local, remote, sizeof(remote) - 1) == 0);
+	CHECK(fs_remove_file(path) == 0);
+	st_wren_connected_destroy(connected);
+	connected = NULL;
+	(void)snprintf(path, sizeof(path), "%s/short.bin",
+	    ST_WREN_TEST_DIRECTORY);
+	CHECK(fs_remove_file(path) == 0);
+	CHECK(write_file(queue_path, "{ malformed queue") == 0);
+	CHECK(st_wren_connected_create(&connected, &config) == 0);
+	CHECK(st_wren_connected_interpret(connected, "invalid_queue_result",
+	    "import \"sftp_queue\" for SftpQueue\n"
+	    "if (!SftpQueue.fatal || SftpQueue.enqueue(SftpQueue.DOWNLOAD, "
+	    "\"x\", \"/remote.bin\", 1) != null) Fiber.abort(\"invalid queue\")\n")
+	    == 0);
+	st_wren_connected_destroy(connected);
+	CHECK(file_equals(queue_path, "{ malformed queue"));
+	CHECK(fs_remove_file(queue_path) == 0);
 	return 0;
 }
 
@@ -2093,6 +2357,7 @@ main(void)
 	CHECK(title_cell.background == ST_CONSOLE_COLOR_RGB_VALUE(0xaa, 0xaa,
 	    0xaa));
 	CHECK(strcmp(selected.name, "Alpha") == 0);
+	CHECK(exercise_connected_sftp(host, console, &selected) == 0);
 	st_profile_dispose(&selected);
 	CHECK(wrenInterpret(((struct st_wren_host *)host)->vm,
 	    "alt_shortcut_contract",

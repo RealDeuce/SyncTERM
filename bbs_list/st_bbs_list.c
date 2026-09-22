@@ -450,6 +450,8 @@ open_list(st_bbs_list_t **result, const struct st_app_paths *paths,
 	}
 	if (status == 0) {
 		set_write_options(list);
+		st_bbs_picker_key_load(list, list->personal_document,
+		    &list->crypto);
 		struct st_bbs_view view;
 
 		status = st_bbs_view_prepare(list, list->personal_document, &view);
@@ -524,6 +526,7 @@ st_bbs_list_reload(st_bbs_list_t *list)
 		list->personal_document = document;
 		document = NULL;
 		list->crypto = info;
+		st_bbs_picker_key_load(list, list->personal_document, &info);
 		set_write_options(list);
 		st_bbs_view_publish(list, &view);
 		list->generation++;

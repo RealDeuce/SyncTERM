@@ -47,7 +47,8 @@ target_link_libraries(st_bbs_list PUBLIC st_profile st_list_crypto st_app_paths
 	st_webget
 	syncterm_io_error PRIVATE st_file_lock st_settings syncterm_array_list
 	syncterm_filesystem syncterm_ini syncterm_string_compat syncterm_path st_hex
-	syncterm_string_util xptls::crypto st_time syncterm_threads)
+	syncterm_string_util st_consent_token xptls::crypto st_time
+	syncterm_threads)
 if(WIN32)
 	target_link_libraries(st_bbs_list PRIVATE st_windows_utf)
 endif()
@@ -85,7 +86,7 @@ if(BUILD_TESTING)
 		st_app_paths st_webget syncterm_io_error PRIVATE st_file_lock
 		st_settings syncterm_array_list syncterm_filesystem syncterm_ini
 		syncterm_string_compat syncterm_path st_hex syncterm_string_util
-		xptls::crypto st_time syncterm_threads)
+		st_consent_token xptls::crypto st_time syncterm_threads)
 	if(WIN32)
 		target_link_libraries(st_bbs_list_faultable PRIVATE st_windows_utf)
 	endif()

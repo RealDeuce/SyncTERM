@@ -11,6 +11,7 @@
 
 #include "io_error.h"
 
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 
@@ -43,6 +44,8 @@ int fs_open(FILE **result, const char *path, const char *mode);
 
 /* Returns a byte size or a negative IO_ERROR_* value without seeking. */
 int64_t fs_stream_size(FILE *stream);
+int64_t fs_stream_position(FILE *stream);
+int fs_stream_seek(FILE *stream, int64_t offset);
 int fs_stream_truncate(FILE *stream, uint64_t size);
 int fs_set_modified_time(const char *path, int64_t modified_time);
 
@@ -50,6 +53,12 @@ int fs_remove_file(const char *path);
 int fs_remove_directory(const char *path);
 /* Replaces an existing non-directory destination; never copies volumes. */
 int fs_rename(const char *source, const char *destination);
+/*
+ * Atomically replaces path after completely writing and closing a sibling
+ * temporary file. The previous path remains intact on every pre-rename
+ * failure. A NULL data pointer is valid only when size is zero.
+ */
+int fs_replace_file(const char *path, const void *data, size_t size);
 /* Overwrites destination and preserves permission mode and modified time. */
 int fs_copy_file(const char *source, const char *destination);
 /* Single creation reports IO_ERROR_ALREADY_EXISTS. */

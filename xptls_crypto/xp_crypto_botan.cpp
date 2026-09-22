@@ -164,6 +164,8 @@ static const char *
 digest_name(enum xp_digest_algorithm digest)
 {
 	switch (digest) {
+	case XP_DIGEST_MD5: return "MD5";
+	case XP_DIGEST_SHA1: return "SHA-1";
 	case XP_DIGEST_SHA256: return "SHA-256";
 	case XP_DIGEST_SHA384: return "SHA-384";
 	case XP_DIGEST_SHA512: return "SHA-512";
@@ -193,7 +195,9 @@ xp_digest(enum xp_digest_algorithm digest, const void *input,
 extern "C" size_t
 xp_digest_size(enum xp_digest_algorithm digest)
 {
-	return digest == XP_DIGEST_SHA256 ? 32
+	return digest == XP_DIGEST_MD5 ? 16
+	    : digest == XP_DIGEST_SHA1 ? 20
+	    : digest == XP_DIGEST_SHA256 ? 32
 	    : digest == XP_DIGEST_SHA384 ? 48
 	    : digest == XP_DIGEST_SHA512 ? 64 : 0;
 }
@@ -204,7 +208,9 @@ xp_kdf_pbkdf2(enum xp_digest_algorithm digest,
 	const void *salt, size_t salt_size, uint64_t iterations,
 	void *result, size_t result_size)
 {
-	const char *digest_value = digest_name(digest);
+	const char *digest_value = digest == XP_DIGEST_SHA256
+	    || digest == XP_DIGEST_SHA384 || digest == XP_DIGEST_SHA512
+	    ? digest_name(digest) : nullptr;
 	if ((password == nullptr && password_size != 0)
 	    || (salt == nullptr && salt_size != 0)
 	    || (result == nullptr && result_size != 0) || digest_value == nullptr

@@ -7,18 +7,12 @@ recommended remedies. Severity does not imply exploitability; source-confirmed
 risks and reproduced failures must be distinguished using those entries.
 No remediation is authorized by this report.
 
-The audit is complete, not the implementation: **28 outstanding findings**
-comprise 11 medium, 15 low and 2 unresolved design/performance
+The audit is complete, not the implementation: **26 outstanding findings**
+comprise 9 medium, 15 low and 2 unresolved design/performance
 concerns.
 This is not a count of exploitable vulnerabilities or reproduced failures.
-All 47 tracked source directories and 12 root files are covered by the
-inventory and component/integration dispositions. Vendored internals were
-reviewed only at the requested integration boundaries.
-
-Most urgent follow-up, subject to separate authorization:
-
-- Data preservation and required compatibility: SFTP persisted-queue
-  replacement.
+The audited inventory covered 47 tracked source directories and 12 root files.
+Vendored internals were reviewed only at the requested integration boundaries.
 
 Start with the detailed evidence and regression tests for each finding;
 do not infer that every issue needs a redesign or that changing the public
@@ -70,7 +64,7 @@ No new blanket GC, contention or scaling-performance diagnosis is made from
 source shape. The source and test inventory must retain those measurement
 limits in the final report.
 
-The current TODO documents contain 28 outstanding numbered findings. A007 and
+The current TODO documents contain 26 outstanding numbered findings. A007 and
 A011 are unresolved design/performance concerns, not confirmed runtime defects.
 Missing features and documentation errors are also explicitly distinguished
 from implementation failures in the detailed ledger.
@@ -94,8 +88,6 @@ from implementation failures in the detailed ledger.
 | A080 | low | Valid hex edits reset the color-picker cursor to the end |
 | A081 | low | LogView scrollbar counts entries instead of wrapped rows |
 | A082 | low | LogView capacity reduction loses its surviving scroll anchor |
-| A083 | medium | SFTP queue loses unfilled portions of short-read chunks |
-| A084 | medium | Failed SFTP navigation retains rows under a different directory |
 | A085 | medium | Wren console helper paths corrupt multibyte text |
 | A086 | low | New-entry address parsing aborts on a trailing colon |
 | A088 | medium | User manual does not clearly distinguish implemented menu from future connected runtime |
@@ -110,8 +102,9 @@ from implementation failures in the detailed ledger.
 
 ### Latest configured native verification
 
-Native Clang and GCC builds succeed. Each configured tree registers 95 tests;
-the stable disposition is **94 pass and 1 Wayland test skipped**. The
+Native Clang and GCC builds have succeeded. The current configured native tree
+registers 98 tests; the latest disposition is **97 pass and 1 Wayland test
+skipped**. The
 X11 tests pass on an isolated display; one GCC full-suite run encountered an
 intermittent BadWindow failure and its isolated rerun passed. SDL uses its
 CMake-configured dummy video driver.

@@ -17,7 +17,7 @@
 // the App (live-session behavior, transfers continue in background),
 // the close path also calls SftpQueue.suspend(), which exits worker
 // fibers without flipping ACTIVE → terminal.  Jobs persist in their
-// ACTIVE state and resume from `done` on the next session.
+// ACTIVE state and resume from their contiguous frontier on the next session.
 // CTerm.sftpActive clears as part of suspend(), so is_connected goes
 // false and the term.c disconnect path can run normally.
 
@@ -221,7 +221,8 @@ class SftpFmt {
       }
     }
 
-    SFTP.close(Fiber.current, h) || Fiber.yield()
+	var closed = SFTP.close(Fiber.current, h) || Fiber.yield()
+	if (closed is SFTPError) return closed
 
     entries.sort {|a, b|
       if (a.isDir != b.isDir) return a.isDir
@@ -391,11 +392,13 @@ class SftpApp is App {
     _bDescBar = null
     _bCwd     = null
     _bLastGen = -1   // last SftpQueue.gen we refreshed chips against
+	_bNavGen  = 0
 
     // Queue-mode state — null until ensureQueue_() builds it.
     _qPane     = null
     _qList     = null
     _qLastGen  = -1
+	_qLastProgressGen = -1
 
     // Mode-switch hotkeys — bound once, valid in either mode.
     bind(Key.altS, Fn.new {|k| setMode("browser") })
@@ -451,6 +454,7 @@ class SftpApp is App {
       // any progress that ticked while browser mode was up.
       rebuildQueue_()
       _qLastGen = SftpQueue.gen
+	  _qLastProgressGen = SftpQueue.progressGen
     }
   }
 
@@ -481,8 +485,10 @@ class SftpApp is App {
     if (_mode == "queue") {
       if (_qPane == null) return
       var g = SftpQueue.gen
-      if (g != _qLastGen) {
+	  var pg = SftpQueue.progressGen
+	  if (g != _qLastGen || pg != _qLastProgressGen) {
         _qLastGen = g
+		_qLastProgressGen = pg
         rebuildQueue_()
       }
       // Auto-quit when the shell has closed and there's nothing more
@@ -594,12 +600,13 @@ class SftpApp is App {
 
     list.onSelect = Fn.new {|i, item|
       if (item.isDir) {
+		var candidate
         if (item.isParent) {
-          _bCwd = SftpFmt.parentPath(_bCwd)
+		  candidate = SftpFmt.parentPath(_bCwd)
         } else {
-          _bCwd = SftpFmt.joinPath(_bCwd, item.name)
+		  candidate = item.remote
         }
-        refreshBrowser_()
+		refreshBrowser_(candidate)
         return
       }
       // File: enqueue for download.  Idempotent on (DOWNLOAD, remote).
@@ -610,7 +617,7 @@ class SftpApp is App {
             "(and create the directory if necessary) before downloading.")
         return
       }
-      var remote   = SftpFmt.joinPath(_bCwd, item.name)
+	  var remote   = item.remote
       var existing = SftpQueue.status(SftpQueue.DOWNLOAD, remote)
       if (existing == SftpQueue.QUEUED || existing == SftpQueue.ACTIVE) {
         showDescBar_("Already queued: %(item.name)")
@@ -621,21 +628,24 @@ class SftpApp is App {
     }
 
     _bCwd = runChild(Fn.new { SftpFmt.initialCwd() })
-    refreshBrowser_()
+	refreshBrowser_(_bCwd)
   }
 
-  refreshBrowser_() {
-    popStatus("Loading %(_bCwd) ...")
-    var cwd = _bCwd
-    var r = runChild(Fn.new { SftpFmt.loadDir(cwd) })
+  refreshBrowser_(candidate) {
+	_bNavGen = _bNavGen + 1
+	var generation = _bNavGen
+    popStatus("Loading %(candidate) ...")
+    var r = runChild(Fn.new { SftpFmt.loadDir(candidate) })
     popStatus(null)
-    _bPane.title = "SFTP: %(_bCwd)"
+	// A later navigation owns the view.  A late completion must not
+	// replace either its directory identity or its rows.
+	if (generation != _bNavGen) return
     if (r is SFTPError) {
-      Alert.show(this, "Cannot list %(_bCwd):\n" + r.toString)
-      if (_bList.items.count == 0) _bList.items = []
-      updateDescBar_(null)
+	  Alert.show(this, "Cannot list %(candidate):\n" + r.toString)
       return
     }
+	_bCwd = candidate
+	_bPane.title = "SFTP: %(_bCwd)"
     _bList.resetItems(r)
     _bLastGen = SftpQueue.gen   // baseline for chip-refresh polling
     // resetItems bypasses the selected= setter, so onSelectionChange
@@ -766,19 +776,17 @@ class SftpApp is App {
         }
       }
     }
-    // Preserve selection across rebuild — match by (dir, remote).
-    var prevDir    = null
-    var prevRemote = null
+	// Preserve selection across rebuild by stable job identity.
+	var previousId = null
     var sel = _qList.selectedItem
     if (sel != null) {
-      prevDir    = sel.snap.dir
-      prevRemote = sel.snap.remote
+	  previousId = sel.snap.id
     }
     _qList.items = rows
-    if (prevRemote != null) {
+	if (previousId != null) {
       for (i in 0...rows.count) {
         var r = rows[i]
-        if (r.snap.dir == prevDir && r.snap.remote == prevRemote) {
+		if (r.snap.id == previousId) {
           _qList.selected = i
           break
         }
@@ -793,7 +801,7 @@ class SftpApp is App {
   cancelSelected_() {
     var item = _qList.selectedItem
     if (item == null) return
-    SftpQueue.cancel(item.snap.dir, item.snap.remote)
+	SftpQueue.cancel(item.snap.id)
   }
 
   // ----- Lifecycle -----------------------------------------------

@@ -107,6 +107,35 @@ fs_stream_size(FILE *stream)
 	return (int64_t)status.st_size;
 }
 
+int64_t
+fs_stream_position(FILE *stream)
+{
+	off_t position;
+
+	if (stream == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	position = ftello(stream);
+	if (position < 0)
+		return fs_errno_error(errno);
+	if ((uintmax_t)position > INT64_MAX)
+		return IO_ERROR_OUT_OF_RANGE;
+	return (int64_t)position;
+}
+
+int
+fs_stream_seek(FILE *stream, int64_t offset)
+{
+	off_t native_offset = (off_t)offset;
+
+	if (stream == NULL || offset < 0)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if ((int64_t)native_offset != offset)
+		return IO_ERROR_OUT_OF_RANGE;
+	if (fseeko(stream, native_offset, SEEK_SET) != 0)
+		return fs_errno_error(errno);
+	return 0;
+}
+
 int
 fs_stream_truncate(FILE *stream, uint64_t size)
 {

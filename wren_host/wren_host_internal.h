@@ -171,6 +171,12 @@ struct st_wren_context {
 	bool capturing;
 	uint64_t seen_total;
 	uint64_t seen_errors;
+	struct st_wren_file *files;
+	struct st_wren_directory *directories;
+	struct st_wren_connected *connected;
+	const struct st_profile *profile;
+	const char *event;
+	bool cterm_sftp_active;
 };
 
 struct st_embedded_script {
@@ -228,6 +234,19 @@ WrenForeignMethodFn st_wren_repl_bind_method(const char *class_name,
 WrenForeignMethodFn st_wren_core_bind_method(const char *class_name,
 	bool is_static, const char *signature);
 WrenForeignClassMethods st_wren_core_bind_class(const char *class_name);
+WrenForeignMethodFn st_wren_fs_bind_method(const char *class_name,
+	bool is_static, const char *signature);
+WrenForeignClassMethods st_wren_fs_bind_class(const char *class_name);
+bool st_wren_file_push(WrenVM *vm, int slot, const char *path,
+	enum st_wren_picker_disposition disposition, bool picker_read);
+void st_wren_fs_context_dispose(WrenVM *vm);
+void st_wren_won_deserialize(WrenVM *vm);
+void st_wren_won_error_allocate(WrenVM *vm);
+void st_wren_won_error_finalize(void *data);
+void st_wren_won_error_code(WrenVM *vm);
+void st_wren_won_error_offset(WrenVM *vm);
+void st_wren_won_error_message(WrenVM *vm);
+void st_wren_won_error_toString(WrenVM *vm);
 WrenForeignMethodFn st_wren_pixel_bind_method(const char *class_name,
 	bool is_static, const char *signature);
 WrenForeignClassMethods st_wren_pixel_bind_class(const char *class_name);
@@ -247,6 +266,7 @@ bool st_wren_picker_host_run(struct st_wren_host *host,
 	struct st_wren_picker_call *call);
 void st_wren_picker_call_dispose(struct st_wren_picker_call *call);
 const char *st_wren_file_read_path(WrenVM *vm, int slot);
+const char *st_wren_directory_path(WrenVM *vm, int slot);
 
 int st_wren_script_inventory(const char *directory, const char *event,
 	struct st_wren_directory_entries *entries);
@@ -255,6 +275,7 @@ bool st_wren_bbs_script_name_valid(const char *name);
 void st_wren_unsupported(WrenVM *vm);
 void st_wren_push_theme_data(WrenVM *vm, const struct st_theme *theme);
 int st_wren_reload_custom_fonts(struct st_wren_host *host);
+int st_wren_context_load_fonts(struct st_wren_context *context);
 int st_wren_host_set_screen_mode(struct st_wren_host *host,
 	enum st_screen_mode mode);
 void st_wren_host_external_screen_resize(struct st_wren_host *host,
@@ -270,5 +291,18 @@ void st_wren_input_context_dispose(WrenVM *vm);
 int st_wren_input_dispatch(WrenVM *vm,
 	const struct st_wren_input_record *event, bool *consumed);
 int st_wren_wake_drain(WrenVM *vm);
+int st_wren_wake_enqueue(WrenVM *vm, int fiber_slot, int value_slot);
+WrenForeignMethodFn st_wren_sftp_bind_method(const char *class_name,
+	bool is_static, const char *signature);
+WrenForeignClassMethods st_wren_sftp_bind_class(const char *class_name);
+WrenLoadModuleResult st_wren_load_module(WrenVM *vm, const char *name);
+WrenForeignMethodFn st_wren_bind_method(WrenVM *vm, const char *module,
+	const char *class_name, bool is_static, const char *signature);
+WrenForeignClassMethods st_wren_bind_class(WrenVM *vm, const char *module,
+	const char *class_name);
+void st_wren_write_output(WrenVM *vm, const char *text);
+void st_wren_report_error(WrenVM *vm, WrenErrorType type,
+	const char *module, int line, const char *message);
+int st_wren_interpret_event_scripts(WrenVM *vm, const char *event);
 
 #endif

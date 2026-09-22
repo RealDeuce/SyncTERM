@@ -37,7 +37,7 @@ repository-wide coverage. The legacy tree is read-only reference.
 
 The repository-wide audit is complete. This is not an implementation approval
 or release certification. The consolidated API/design assessment, priority
-groups and all 28 outstanding finding summaries are in
+groups and all 26 outstanding finding summaries are in
 AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 
 | Objective requirement | Authoritative evidence and disposition |
@@ -50,8 +50,8 @@ AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 | Required legacy behavior | Read-only comparisons cover fonts/catalog/maps, modes, palette capacity, Prestel versus Mode 7, command line, console/input and settings behavior, plus explicit parity limits. Frozen CTerm chapter cmp succeeds. |
 | Wren scripts and bindings | Complete local source/signature/manual reviews; isolated shipped-script suites and host fixtures; remaining host findings through A113. Connected/SFTP production integration missing from this application is reported, not invented or silently counted as working. |
 | Build logic, generators and documentation | Root/component CMake and generators reviewed; standalone/probe failures recorded; pinned Unicode/font regeneration and table comparisons documented; root manuals/license/development guidance covered. Wren VM vendored internals limited to integration boundaries as requested. |
-| Inventory and consolidated findings | 28 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 11 medium, 15 low, 2 unresolved concerns; not all runtime reproductions. |
-| Relevant tests where practical | Complete native Clang and GCC builds succeed. The latest 95-test runs have a stable disposition of 94 pass and 1 Wayland skip. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
+| Inventory and consolidated findings | 26 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 9 medium, 15 low, 2 unresolved concerns; not all runtime reproductions. |
+| Relevant tests where practical | Complete native Clang and GCC builds have succeeded. The current configured native tree builds and its latest 98-test run has a disposition of 97 pass and 1 Wayland skip. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
 | Explicit uncertainty | Each component records unavailable platforms, unexecuted failure paths and measurement limits; A007/A011 unresolved. Source-level risks are not called verified crashes. These are audit outcomes, not claims of implementation correctness. |
 
 Historical pending-source lists below are superseded by subsequent full reads,
@@ -278,10 +278,7 @@ invocation and its dependencies; connected-only modal/transfer calls remain
 additional context requirements and are not tested past the missing import.
 
 This entry consolidates a previously recorded unnumbered gap rather than a
-newly discovered regression. The unavailable WON.deserialize helper remains
-another explicitly recorded API-scope question; declaration alone is not
-evidence every connected-only capability should be exposed in the trusted
-menu host.
+newly discovered regression.
 
 ### A095 — Distribution notice assembly is not implemented
 
@@ -623,11 +620,6 @@ Additional documentation reconciliation under A088/A090:
   existence check ensures identity is too strong: existence alone cannot
   distinguish replacement at the same pathname. No new runtime exploit or
   file-operation defect is claimed from those prose contradictions.
-- File rights/hash/token paragraphs describe the legacy complete filesystem
-  surface. Current wren_picker.c exposes File.path/toString/token/isOpen,
-  with token unavailable; the broader methods are not established merely by
-  their shared-module declarations. Keep this integration gap distinct from
-  intentionally absent connected protocols.
 - The UI introduction promises no foreign calls per cell. Painter.text and
   line routines call Surface.cellAt, field setters and Screen.textWidth while
   iterating. Reusing mutable Cell views avoids allocation but does not remove
@@ -639,8 +631,7 @@ Additional documentation reconciliation under A088/A090:
   Wren semicolon syntax (Status callable chaining). These are example defects,
   not reasons to change the language or make glyph widths uniformly one.
 
-The documented short-read SFTP contract supports A083: a successful read is
-explicitly up-to-count, not an exact chunk fill. UI empty selection, tab order
+UI empty selection, tab order
 and Markdown semantics correspond to A071/A074/A077/A078.
 Repeated promises were not assigned duplicate defect numbers. Full-source
 documentation coverage does not settle remaining app/console/host integration
@@ -1061,20 +1052,11 @@ source inventory; older chronological lists of outstanding scripts below are
 superseded. Source coverage is not equivalent to connected-host integration
 or runtime verification of every foreign declaration.
 
-Fresh `core-helpers` execution compiled with native C17 strict warnings:
-serialization of a list containing Num/Bool/null/UTF-8 passes; calling
-WON.deserialize on `[1,true,null]` aborts with `this capability is not
-available in the menu host`.
-No WON deserializer binding exists in current wren_host C sources, so the
-manual's general-purpose serialization/parser pairing is incomplete here.
-This is an API integration gap, not a missing network or display capability.
-
 Source-level contract concern: Range keys are hashable and documented as
 supported Map keys, but writeMap_ feeds them to write_, which converts Ranges
 to Lists. Serialized Map output then contains List keys, rejected by the
-documented parser contract. A runtime parser round trip cannot be established
-in the current host because its deserializer is unavailable. Legacy shares
-this conversion; do not label it a new modernization regression.
+documented parser contract. Legacy shares this conversion; do not label it a
+new modernization regression.
 
 Other design limits: SurfaceRows/Cols manufacture lazy views without bounds
 validation at outer indexing (cell access returns null later). Preservation
@@ -1258,132 +1240,6 @@ main_menu, full BBS/theme editors and their tests, syncterm.wren remainder,
 and wrentest.wren remainder are still outstanding. Auxiliary run continues
 to fail for the separately documented pixel binding and demo dependency
 gaps; those failures are not attributed to A085. Only tests/report changed.
-
-### A084 — Failed SFTP navigation retains rows under a different directory
-
-Severity: medium (source-confirmed wrong-path behavior in currently
-unintegrated scripts; no live remote operation reproduced).
-scripts/sftp_app.wren:598/600 changes _bCwd before refreshBrowser_. If
-loadDir returns SFTPError, :627 onward updates the title to the new cwd,
-shows an alert, and leaves a nonempty _bList unchanged. Subsequent file
-selection at :613 and description lookup at :672 concatenate the new cwd
-with the old row name. BrowserRow.remote still describes the original row,
-so chip/status and action can even disagree about which remote file it is.
-
-Concrete source trace: /old lists directory blocked and file report.txt;
-opening blocked sets cwd=/old/blocked, but a listing failure retains the
-/old rows. Selecting report.txt now queues /old/blocked/report.txt rather
-than /old/report.txt. No malicious input is required; an ordinary permission
-or transient listing error suffices. The script is identical to legacy Wren.
-Recommendation: commit cwd and rows together after successful navigation,
-or disable/clear stale rows on failure; bind actions to the displayed row's
-identity. Add a fake-directory-error test before implementing a remedy.
-
-### SFTP UI — source coverage and remaining script inventory
-
-Read all 815 lines of sftp_app.wren and compared with legacy (identical).
-Reviewed path/date/size helpers, browser row snapshots, mode caching, queue
-selection preservation, description loading, picker handoff, modal lifetime,
-shell-close behavior and tick-driven updates. Consulted the documented
-runChild single-resume-source contract and its implementation. SFTP requests
-are correctly issued from child fibers rather than directly awaiting results
-on the input/timer-driven App fiber. That alone does not ensure navigation
-ordering: runChild pumps further events while loading, so nested navigation
-and late-result application remain unresolved without controlled scheduling
-tests. Constructor-time browser loading also precedes App.run registration
-and needs an integration test in the eventual connected host.
-
-Performance concern: every queue generation change refreshes every browser
-row; statusChip can enumerate Download.list separately for each local match
-and compute a full-file hash. Queue generation advances per completed chunk,
-with UI polling at 100ms. This is potentially repeated directory enumeration
-and file hashing on the foreground thread, not merely repainting status
-glyphs. No timing benchmark or claim about observed UI stalls is made.
-
-Ownership: QueueRow holds detached JobSnap values. Selection/cancellation use
-(direction, remote) identity, inheriting duplicate-job ambiguity noted in the
-queue review. Picker focus restoration and __current restoration occur on
-normal return only; abort cleanup requires integration verification. The
-comment claiming resume from done is stale: claimNext_ resets done to zero.
-Shell suspension is a request, not proof all in-flight workers have stopped.
-No connected VM, network, transfer, production edit or commit was used.
-
-Explicit remaining script source coverage after this pass:
-- auto/menu/main_menu.wren — full pass outstanding.
-- menu_bbs_editor.wren and menu_bbs_editor_test.wren — earlier selected paths
-  reviewed, full pass outstanding.
-- menu_theme_editor.wren and menu_theme_editor_test.wren — full pass outstanding.
-- syncterm.wren — bindings/classes reviewed selectively, remainder outstanding.
-- wren_console.wren — full script pass outstanding despite native REPL review.
-- wrentest.wren — selected tests read, remainder outstanding.
-
-All other files currently listed by rg --files scripts have source coverage
-recorded in component notes (this is not a claim all tests pass or all GUI/
-connected behavior has been exercised). Wren guidance used for this pass;
-only the audit report changed. Broader inventory rows remain active.
-
-### A083 — SFTP queue loses unfilled portions of short-read chunks
-
-Severity: medium (source-confirmed transfer correctness defect in currently
-unintegrated scripts; no live transfer reproduced). scripts/sftp_queue.wren
-JobCtx.claimChunk reserves the whole requested range by advancing _nextOff.
-downloadChunk_ at :709 accepts any nonempty SFTP.read result, writes it once
-at the reserved offset and claims another range; it never requests the
-unfilled suffix. Wren.adoc:5965 explicitly permits reading *up to* count
-bytes. With reserved ranges [0,30720) and [30720,61440), a first result of
-100 bytes leaves [100,30720) unwritten even if later reads succeed. No error
-is recorded. runDownload_ then sets total=done and status=DONE (:692), hiding
-the size discrepancy rather than checking full byte coverage.
-
-The upload loop (:819) makes the equivalent assumption about local readBytes,
-also documented as an up-to read. EOF/empty results before all reserved bytes
-arrive merely break the worker loop; the dispatcher can still mark DONE.
-The script is identical to the legacy Wren queue, so this is inherited, not
-a proven regression from the old C queue. Recommendation: complete each
-reserved interval or explicitly fail an unexpected short/EOF result; verify
-full coverage before success. Test short reads at interior offsets, premature
-EOF and out-of-order completion using deterministic fake endpoints. Those
-worker-level reproduction tests remain outstanding; no network used here.
-
-### SFTP queue — source coverage
-
-Read all 950 lines of scripts/sftp_queue.wren, compared against legacy Wren
-(identical), and consulted local File/SFTP read/write/close contracts. Reviewed
-Job/JobSnap ownership, JobCtx reservations/wakeup, adaptive sizing, enqueue/
-cancel, both transfer loops, persistence and reload. This does not cover the
-815-line sftp_app.wren or establish a working connected host: queue module and
-required SFTP bindings are absent from the current embedded host integration.
-All findings here describe supplied script behavior when that integration is
-provided, not an observed current menu transfer failure.
-
-Further source-confirmed error-handling gaps: runDownload_ ignores an initial
-SFTP.stat error when total<=0, allowing zero claimed bytes followed by DONE;
-positive enqueue sizes are trusted despite the enqueue comment promising a
-restat, so remote growth since selection is not fetched. Both dispatchers
-discard SFTP.close errors (:680/:791), although the documented result permits
-SFTPError; an upload close failure can therefore still be reported as DONE.
-Treat these as medium completion-contract concerns requiring fake-endpoint
-tests, not as demonstrated server failures.
-
-Ownership/concurrency questions: cooperative non-yielding claimChunk makes
-offset reservation serial, and bumpAlive precedes every worker launch.
-However, workerExit is only on normal loop exit; an aborting local-file API
-can strand the dispatcher's alive count and skip endpoint cleanup. stop()
-clears __running but claimChunk checks cancel/suspended, not running; safety
-therefore depends on disconnect retiring the VM and its pending callbacks.
-Same-VM stop/start with pending workers is not shown safe. Snapshot copies
-scalar/string job state rather than exposing live Jobs; enqueue intentionally
-returns a mutable Job. Duplicate direction/remote pairs make status/cancel
-select the first match, which may be terminal; intended identity semantics
-need clarification.
-
-Persistence deletes the old file before creating/writing the replacement,
-has no null check after Cache.create, and lacks exception cleanup; an I/O
-failure can lose the previous saved queue and abort a transition. load_ guards
-WON parse errors but not file I/O, accepts unknown status strings and arbitrary
-numeric totals; unknown statuses become jobs no worker claims. These are
-source concerns for followup, not newly executed filesystem failures. No
-production edits, transfers, personal files or commits; Wren guidance used.
 
 ### Auxiliary UI scripts — coverage and integration gaps
 

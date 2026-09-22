@@ -1451,30 +1451,37 @@ fn_claim_pop(WrenVM *vm)
 static void
 fn_wake_post(WrenVM *vm)
 {
-	struct st_wren_context *context = st_wren_context_from_vm(vm);
-	struct st_wren_wake *wake = calloc(1, sizeof(*wake));
-
-	if (wake == NULL) {
+	if (st_wren_wake_enqueue(vm, 1, 2) != 0) {
 		st_wren_abort(vm, "out of memory posting wake");
 		return;
 	}
-	wake->fiber = wrenGetSlotHandle(vm, 1);
-	wake->value = wrenGetSlotHandle(vm, 2);
+	wrenSetSlotNull(vm, 0);
+}
+
+int
+st_wren_wake_enqueue(WrenVM *vm, int fiber_slot, int value_slot)
+{
+	struct st_wren_context *context = st_wren_context_from_vm(vm);
+	struct st_wren_wake *wake = calloc(1, sizeof(*wake));
+
+	if (wake == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	wake->fiber = wrenGetSlotHandle(vm, fiber_slot);
+	wake->value = wrenGetSlotHandle(vm, value_slot);
 	if (wake->fiber == NULL || wake->value == NULL) {
 		if (wake->fiber != NULL)
 			wrenReleaseHandle(vm, wake->fiber);
 		if (wake->value != NULL)
 			wrenReleaseHandle(vm, wake->value);
 		free(wake);
-		st_wren_abort(vm, "out of memory posting wake");
-		return;
+		return IO_ERROR_OUT_OF_MEMORY;
 	}
 	if (context->wake_tail == NULL)
 		context->wake_head = wake;
 	else
 		context->wake_tail->next = wake;
 	context->wake_tail = wake;
-	wrenSetSlotNull(vm, 0);
+	return 0;
 }
 
 static bool
@@ -4100,6 +4107,11 @@ static const struct binding bindings[] = {
 	{"Host", true, "altKeyShort", fn_host_alt_short},
 	{"Host", true, "print(_)", fn_host_print},
 	{"Timer", true, "now", fn_timer_now},
+	{"WON", true, "deserialize(_)", st_wren_won_deserialize},
+	{"WONError", false, "code", st_wren_won_error_code},
+	{"WONError", false, "offset", st_wren_won_error_offset},
+	{"WONError", false, "message", st_wren_won_error_message},
+	{"WONError", false, "toString", st_wren_won_error_toString},
 	{"Format", true, "bytes(_)", fn_format_bytes},
 	{"Format", true, "duration(_)", fn_format_duration},
 	{"CTerm", true, "statusDisplay", fn_cterm_status_display},
@@ -4141,5 +4153,9 @@ st_wren_core_bind_class(const char *class_name)
 		methods.allocate = allocate_cursor;
 	else if (strcmp(class_name, "VideoFlags") == 0)
 		methods.allocate = allocate_video_flags;
+	else if (strcmp(class_name, "WONError") == 0) {
+		methods.allocate = st_wren_won_error_allocate;
+		methods.finalize = st_wren_won_error_finalize;
+	}
 	return methods;
 }

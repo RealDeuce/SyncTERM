@@ -33,6 +33,22 @@ write_text(const char *path, const char *text)
 	return status;
 }
 
+static bool
+file_contains(const char *path, const char *text)
+{
+	char buffer[8192];
+	FILE *stream;
+	size_t size;
+	bool okay;
+
+	if (fs_open(&stream, path, "rb") != 0)
+		return false;
+	size = fread(buffer, 1, sizeof(buffer) - 1, stream);
+	okay = !ferror(stream) && fclose(stream) == 0;
+	buffer[size] = '\0';
+	return okay && strstr(buffer, text) != NULL;
+}
+
 static int
 copy_named(struct st_profile *result, const st_bbs_list_t *list,
     const char *name)
@@ -67,6 +83,10 @@ main(void)
 	char system_list[sizeof(ST_BBS_TEST_DIRECTORY) + 96];
 	char lock_path[sizeof(personal) + 8];
 	char cache_item[sizeof(cache) + 64];
+	char *public_cache_path = NULL;
+	uint8_t picker_key[32];
+	uint8_t reopened_picker_key[32];
+	bool picker_key_available;
 	struct fs_info info;
 	const struct st_bbs_entry *entry;
 	int status;
@@ -93,6 +113,14 @@ main(void)
 
 	status = st_bbs_list_open(&first, &paths, NULL, 0);
 	CHECK(status == 0);
+	CHECK(st_bbs_list_picker_key(first, picker_key,
+	    &picker_key_available) == 0);
+	CHECK(!picker_key_available);
+	CHECK(st_bbs_list_cache_path(&public_cache_path, first, "Beta") == 0);
+	(void)snprintf(cache_item, sizeof(cache_item), "%s/Beta", cache);
+	CHECK(strcmp(public_cache_path, cache_item) == 0);
+	free(public_cache_path);
+	public_cache_path = NULL;
 	CHECK(st_bbs_list_count(first) == 2);
 	entry = st_bbs_list_find(first, "alpha");
 	CHECK(entry != NULL && entry->source == ST_BBS_SOURCE_PERSONAL);
@@ -237,6 +265,11 @@ main(void)
 	status = st_bbs_list_rewrite_encryption(first, &crypto, password,
 	    sizeof(password) - 1);
 	CHECK(status == 0 || status == IO_ERROR_NOT_SUPPORTED);
+	if (status == 0) {
+		CHECK(st_bbs_list_picker_key(first, picker_key,
+		    &picker_key_available) == 0);
+		CHECK(picker_key_available);
+	}
 	st_bbs_list_close(second);
 	second = NULL;
 	st_bbs_list_close(first);
@@ -246,6 +279,12 @@ main(void)
 	    status == 0 ? sizeof(password) - 1 : 0) == 0);
 	CHECK(st_bbs_list_crypto_info(verify)->format == (status == 0
 	    ? ST_LIST_CRYPTO_V2 : ST_LIST_CRYPTO_PLAIN));
+	CHECK(st_bbs_list_picker_key(verify, reopened_picker_key,
+	    &picker_key_available) == 0);
+	CHECK(picker_key_available == (status == 0));
+	if (status == 0)
+		CHECK(memcmp(picker_key, reopened_picker_key,
+		    sizeof(picker_key)) == 0);
 	CHECK(st_bbs_list_find(verify, "Beta") != NULL);
 	entry = st_bbs_list_find(verify, "Beta");
 	CHECK(entry->profile->connection_type == ST_CONNECTION_TELNET_TLS);
@@ -261,6 +300,18 @@ main(void)
 	    && entry->profile->ssh_fingerprint[19] == 19);
 	CHECK(entry->profile->hide_status && entry->profile->expand_lf
 	    && entry->profile->defer_telnet_negotiation);
+	if (status == 0) {
+		const struct st_list_crypto_options plain = {
+			.cipher = ST_LIST_CIPHER_NONE,
+		};
+
+		CHECK(st_bbs_list_rewrite_encryption(verify, &plain, password,
+		    sizeof(password) - 1) == 0);
+		CHECK(st_bbs_list_picker_key(verify, reopened_picker_key,
+		    &picker_key_available) == 0);
+		CHECK(!picker_key_available);
+		CHECK(!file_contains(personal, "WrenPickerHmacKey"));
+	}
 	st_bbs_list_close(verify);
 
 	(void)snprintf(cache_item, sizeof(cache_item), "%s/Beta/nested/item", cache);

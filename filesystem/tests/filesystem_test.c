@@ -134,6 +134,20 @@ main(void)
 	CHECK(fs_get_info(&info, replacement) == IO_ERROR_NOT_FOUND);
 	CHECK(fs_get_info(&info, destination) == 0);
 	CHECK(info.size == strlen("replacement"));
+	CHECK(fs_replace_file(destination, "atomic contents", 15) == 0);
+	CHECK(fs_get_info(&info, destination) == 0);
+	CHECK(info.size == 15);
+	CHECK(fs_replace_file(destination, NULL, 0) == 0);
+	CHECK(fs_get_info(&info, destination) == 0);
+	CHECK(info.size == 0);
+	CHECK(fs_replace_file(NULL, "x", 1) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(fs_replace_file(destination, NULL, 1) ==
+	    IO_ERROR_INVALID_ARGUMENT);
+	CHECK(fs_open(&stream, destination, "r+b") == 0);
+	CHECK(fs_stream_position(stream) == 0);
+	CHECK(fs_stream_seek(stream, 0) == 0);
+	CHECK(fs_stream_seek(stream, -1) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(fclose(stream) == 0);
 
 	CHECK(fs_create_directories(nested) == 0);
 	{

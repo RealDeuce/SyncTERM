@@ -25,14 +25,6 @@ struct foreign_request {
 	uint64_t generation;
 };
 
-struct foreign_file {
-	uint32_t magic;
-	char *path;
-	enum st_wren_picker_disposition disposition;
-};
-
-#define FOREIGN_FILE_MAGIC UINT32_C(0x53544649)
-
 struct binding {
 	const char *module;
 	const char *class_name;
@@ -785,89 +777,12 @@ fn_request_quit(WrenVM *vm)
 	wrenSetSlotNull(vm, 0);
 }
 
-static void
-file_allocate(WrenVM *vm)
-{
-	struct foreign_file *file = wrenSetSlotNewForeign(vm, 0, 0,
-	    sizeof(*file));
-
-	*file = (struct foreign_file){.magic = FOREIGN_FILE_MAGIC};
-}
-
-static void
-file_finalize(void *data)
-{
-	struct foreign_file *file = data;
-
-	free(file->path);
-	file->path = NULL;
-}
-
-static struct foreign_file *
-file_value(WrenVM *vm)
-{
-	if (wrenGetSlotType(vm, 0) != WREN_TYPE_FOREIGN) {
-		st_wren_abort(vm, "expected a File");
-		return NULL;
-	}
-	return wrenGetSlotForeign(vm, 0);
-}
-
-static void
-fn_file_path(WrenVM *vm)
-{
-	struct foreign_file *file = file_value(vm);
-
-	if (file != NULL)
-		wrenSetSlotString(vm, 0, file->path == NULL ? "" : file->path);
-}
-
-static void
-fn_file_token(WrenVM *vm)
-{
-	if (file_value(vm) != NULL)
-		wrenSetSlotNull(vm, 0);
-}
-
-static void
-fn_file_is_open(WrenVM *vm)
-{
-	if (file_value(vm) != NULL)
-		wrenSetSlotBool(vm, 0, false);
-}
-
 static bool
 push_file(WrenVM *vm, int slot, const char *path,
 	enum st_wren_picker_disposition disposition)
 {
-	struct foreign_file *file;
-
-	wrenEnsureSlots(vm, slot + 2);
-	wrenGetVariable(vm, "syncterm", "File", slot + 1);
-	file = wrenSetSlotNewForeign(vm, slot, slot + 1, sizeof(*file));
-	if (file == NULL)
-		return false;
-	*file = (struct foreign_file){
-		.magic = FOREIGN_FILE_MAGIC,
-		.path = strdup(path),
-		.disposition = disposition,
-	};
-	return file->path != NULL;
-}
-
-const char *
-st_wren_file_read_path(WrenVM *vm, int slot)
-{
-	struct foreign_file *file;
-
-	if (wrenGetSlotType(vm, slot) != WREN_TYPE_FOREIGN)
-		return NULL;
-	file = wrenGetSlotForeign(vm, slot);
-	if (file == NULL || file->magic != FOREIGN_FILE_MAGIC
-	    || file->path == NULL
-	    || file->disposition != ST_WREN_PICKER_DISPOSITION_READ)
-		return NULL;
-	return file->path;
+	return st_wren_file_push(vm, slot, path, disposition,
+	    disposition == ST_WREN_PICKER_DISPOSITION_READ);
 }
 
 static bool
@@ -892,6 +807,9 @@ picker_initial(WrenVM *vm, int slot)
 
 	if (wrenGetSlotType(vm, slot) == WREN_TYPE_STRING)
 		return wrenGetSlotString(vm, slot);
+	const char *directory = st_wren_directory_path(vm, slot);
+	if (directory != NULL)
+		return directory;
 	if (wrenGetSlotType(vm, slot) == WREN_TYPE_NULL)
 		return host->config.paths->download_directory;
 	st_wren_abort(vm, "Host picker initial path must be a String or null");
@@ -1085,10 +1003,6 @@ static const struct binding bindings[] = {
 	{"syncterm", "Host", true, "pickFiles(_,_,_)", fn_host_pick_files},
 	{"syncterm", "Host", true, "pickSavePath(_,_)", fn_host_pick_save},
 	{"syncterm", "Host", true, "pickSavePath(_,_,_)", fn_host_pick_save_options},
-	{"syncterm", "File", false, "path", fn_file_path},
-	{"syncterm", "File", false, "toString", fn_file_path},
-	{"syncterm", "File", false, "token", fn_file_token},
-	{"syncterm", "File", false, "isOpen", fn_file_is_open},
 };
 
 WrenForeignMethodFn
@@ -1114,11 +1028,6 @@ st_wren_picker_bind_class(const char *module, const char *class_name)
 	    && strcmp(class_name, "PickerRequest") == 0) {
 		methods.allocate = request_allocate;
 		methods.finalize = request_finalize;
-	}
-	else if (strcmp(module, "syncterm") == 0
-	    && strcmp(class_name, "File") == 0) {
-		methods.allocate = file_allocate;
-		methods.finalize = file_finalize;
 	}
 	return methods;
 }

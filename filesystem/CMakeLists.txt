@@ -46,6 +46,8 @@ int main(void)
 	(void)fstat(0, &status);
 	(void)lstat(".", &status);
 	(void)ftruncate(0, (off_t)0);
+	(void)ftello(stdin);
+	(void)fseeko(stdin, (off_t)0, SEEK_SET);
 	(void)fchmod(0, (mode_t)0600);
 	(void)utime(".", &times);
 	return 0;

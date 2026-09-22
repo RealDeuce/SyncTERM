@@ -199,4 +199,16 @@ int st_bbs_list_sort(st_bbs_list_t *list, const int *fields,
  */
 int st_bbs_list_sweep_orphan_caches(st_bbs_list_t *list);
 
+/* Allocates the confined cache directory path for a BBS profile name. */
+int st_bbs_list_cache_path(char **result, const st_bbs_list_t *list,
+	const char *name);
+
+/*
+ * Returns the per-installation picker key, creating it in an encrypted
+ * personal list when necessary. A plain personal list reports available as
+ * false without modifying the list.
+ */
+int st_bbs_list_picker_key(st_bbs_list_t *list, uint8_t key[32],
+	bool *available);
+
 #endif

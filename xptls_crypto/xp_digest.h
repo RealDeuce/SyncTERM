@@ -18,6 +18,8 @@ enum xp_digest_algorithm {
 	XP_DIGEST_SHA256 = 1,
 	XP_DIGEST_SHA384,
 	XP_DIGEST_SHA512,
+	XP_DIGEST_MD5,
+	XP_DIGEST_SHA1,
 };
 
 size_t xp_digest_size(enum xp_digest_algorithm algorithm);

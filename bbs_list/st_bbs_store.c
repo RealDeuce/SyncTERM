@@ -11,7 +11,9 @@
 #include "filesystem.h"
 #include "io_error.h"
 #include "path.h"
+#include "st_consent_token.h"
 #include "st_file_lock.h"
+#include "st_hex.h"
 #include "xp_crypto.h"
 
 #include <stdlib.h>
@@ -32,6 +34,26 @@ static const char *profile_keys[] = {
 	"SSHAcceptEarlyData", "StopBits", "DataBits", "Parity", "Palette",
 	"SortOrder"
 };
+
+static const char picker_key_name[] = "WrenPickerHmacKey";
+
+void
+st_bbs_picker_key_load(st_bbs_list_t *list, ini_document_t *document,
+	const struct st_list_crypto_info *info)
+{
+	const char *encoded;
+
+	list->picker_key_available = false;
+	xp_crypto_clear(list->picker_key, sizeof(list->picker_key));
+	if (document == NULL || info == NULL
+	    || info->format != ST_LIST_CRYPTO_V2)
+		return;
+	encoded = ini_section_find(ini_document_root(document), picker_key_name);
+	if (encoded != NULL && strlen(encoded) == sizeof(list->picker_key) * 2
+	    && st_hex_decode(list->picker_key, sizeof(list->picker_key), encoded,
+	    strlen(encoded)))
+		list->picker_key_available = true;
+}
 
 static int
 read_personal(st_bbs_list_t *list, ini_document_t **result,
@@ -151,6 +173,7 @@ install_document(st_bbs_list_t *list, ini_document_t **document,
 	list->personal_document = *document;
 	*document = NULL;
 	list->crypto = *info;
+	st_bbs_picker_key_load(list, list->personal_document, info);
 	st_bbs_view_publish(list, view);
 	list->generation++;
 }
@@ -521,6 +544,9 @@ st_bbs_list_rewrite_encryption(st_bbs_list_t *list,
 		status = st_file_lock_acquire(&lock, list->personal_path, true);
 	if (status == 0)
 		status = read_personal(list, &remote, &info);
+	if (status == 0 && selected.cipher == ST_LIST_CIPHER_NONE)
+		(void)ini_section_remove_key(ini_document_root(remote),
+		    picker_key_name);
 	if (status == 0)
 		status = st_bbs_view_prepare(list, remote, &view);
 	if (status == 0)
@@ -551,4 +577,68 @@ st_bbs_list_rewrite_encryption_current_password(st_bbs_list_t *list,
 		return IO_ERROR_PASSWORD_REQUIRED;
 	return st_bbs_list_rewrite_encryption(list, options, list->password,
 	    list->password_size);
+}
+
+int
+st_bbs_list_picker_key(st_bbs_list_t *list, uint8_t key[32], bool *available)
+{
+	ini_document_t *remote = NULL;
+	struct st_list_crypto_info info;
+	struct st_bbs_view view = {0};
+	st_file_lock_t *lock = NULL;
+	uint8_t generated[ST_CONSENT_TOKEN_KEY_SIZE];
+	char encoded[ST_CONSENT_TOKEN_KEY_SIZE * 2 + 1];
+	const char *stored;
+	int status;
+
+	if (list == NULL || key == NULL || available == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	*available = false;
+	if (list->crypto.format != ST_LIST_CRYPTO_V2)
+		return 0;
+	if (list->picker_key_available) {
+		memcpy(key, list->picker_key, sizeof(list->picker_key));
+		*available = true;
+		return 0;
+	}
+	status = begin_write(list, &lock, &remote, &info);
+	if (status == 0 && info.format != ST_LIST_CRYPTO_V2)
+		status = IO_ERROR_CONFLICT;
+	stored = status == 0 ? ini_section_find(ini_document_root(remote),
+	    picker_key_name) : NULL;
+	if (status == 0 && stored != NULL
+	    && strlen(stored) == sizeof(generated) * 2
+	    && st_hex_decode(generated, sizeof(generated), stored,
+	    strlen(stored))) {
+		memcpy(list->picker_key, generated, sizeof(generated));
+		list->picker_key_available = true;
+	}
+	else if (status == 0) {
+		if (st_consent_token_generate_key(generated) != XP_CRYPTO_OK)
+			status = IO_ERROR_NOT_SUPPORTED;
+		if (status == 0 && !st_hex_encode(encoded, sizeof(encoded), generated,
+		    sizeof(generated)))
+			status = IO_ERROR_OUT_OF_RANGE;
+		if (status == 0)
+			status = ini_section_set_string(ini_document_root(remote),
+			    picker_key_name, encoded, &ini_default_style);
+		if (status == 0)
+			status = st_bbs_view_prepare(list, remote, &view);
+		if (status == 0)
+			status = write_personal(list, remote, &list->write_options,
+			    list->password, list->password_size);
+		if (status == 0) {
+			crypto_info_for_options(&info, &list->write_options);
+			install_document(list, &remote, &info, &view);
+		}
+	}
+	if (status == 0 && list->picker_key_available) {
+		memcpy(key, list->picker_key, sizeof(list->picker_key));
+		*available = true;
+	}
+	xp_crypto_clear(generated, sizeof(generated));
+	ini_document_free(&remote);
+	st_bbs_view_dispose(&view);
+	st_file_lock_release(lock);
+	return status;
 }
