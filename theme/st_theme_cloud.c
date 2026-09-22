@@ -301,8 +301,8 @@ parse_manifest(const char *path, struct st_cloud_theme_entry **result,
 
 	if (status == 0)
 		status = ini_document_read(&document, stream);
-	if (stream != NULL && fclose(stream) != 0 && status == 0)
-		status = IO_ERROR_IO;
+	if (stream != NULL)
+		(void)fclose(stream);
 	if (status != 0)
 		goto failed;
 	ini_section_t *root = ini_document_root(document);

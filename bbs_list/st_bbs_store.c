@@ -49,8 +49,7 @@ read_personal(st_bbs_list_t *list, ini_document_t **result,
 		return status;
 	status = st_list_crypto_read(result, stream, list->password,
 	    list->password_size, 0, info);
-	if (fclose(stream) != 0 && status == 0)
-		status = IO_ERROR_IO;
+	(void)fclose(stream);
 	return status;
 }
 

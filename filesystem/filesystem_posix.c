@@ -261,8 +261,7 @@ fs_copy_file(const char *source, const char *destination)
 		error = fs_errno_error(errno);
 	if (fclose(output) != 0 && error == 0)
 		error = fs_errno_error(errno);
-	if (fclose(input) != 0 && error == 0)
-		error = fs_errno_error(errno);
+	(void)fclose(input);
 	if (error == 0)
 		error = fs_set_modified_time(destination,
 		    (int64_t)source_status.st_mtime);

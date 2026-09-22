@@ -443,8 +443,7 @@ read_source(const char *path)
 	}
 	read_length = fread(source, 1, (size_t)length, stream);
 	failed = read_length != (size_t)length || ferror(stream);
-	if (fclose(stream) != 0)
-		failed = true;
+	(void)fclose(stream);
 	if (failed) {
 		free(source);
 		return NULL;

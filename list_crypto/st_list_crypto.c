@@ -338,7 +338,6 @@ st_list_crypto_inspect(FILE *stream, struct st_list_crypto_info *info)
 	file_map_t *map = NULL;
 	struct parsed_header header;
 	int error;
-	int close_error;
 
 	if (info == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -346,11 +345,9 @@ st_list_crypto_inspect(FILE *stream, struct st_list_crypto_info *info)
 	if (error != 0)
 		return error;
 	error = parse_header(file_map_data(map), file_map_size(map), &header);
-	close_error = file_map_close(map);
+	file_map_close(map);
 	if (error != 0)
 		return error;
-	if (close_error != 0)
-		return close_error;
 	*info = header.info;
 	return 0;
 }
@@ -470,7 +467,6 @@ st_list_crypto_read(ini_document_t **result, FILE *stream,
 	size_t expected_iv_size;
 	size_t cipher_size;
 	int error;
-	int close_error;
 
 	if (result == NULL || (password == NULL && password_size != 0))
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -570,9 +566,7 @@ done:
 		xp_crypto_clear(plain, size - header.payload_offset + 1);
 		free(plain);
 	}
-	close_error = file_map_close(map);
-	if (error == 0)
-		error = close_error;
+	file_map_close(map);
 	if (error == 0) {
 		ini_document_free(result);
 		*result = document;

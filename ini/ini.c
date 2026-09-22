@@ -521,7 +521,6 @@ ini_document_read(ini_document_t **result, FILE *stream)
 {
 	file_map_t *map = NULL;
 	int error;
-	int close_error;
 
 	if (result == NULL || stream == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -529,8 +528,8 @@ ini_document_read(ini_document_t **result, FILE *stream)
 	if (error != 0)
 		return error;
 	error = ini_document_parse(result, file_map_data(map), file_map_size(map));
-	close_error = file_map_close(map);
-	return error != 0 ? error : close_error;
+	file_map_close(map);
+	return error;
 }
 
 int

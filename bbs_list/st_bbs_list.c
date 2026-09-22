@@ -239,8 +239,7 @@ read_plain_document(const char *path, ini_document_t **result)
 	if (status < 0)
 		return status;
 	status = ini_document_read(result, stream);
-	if (fclose(stream) != 0 && status == 0)
-		status = IO_ERROR_IO;
+	(void)fclose(stream);
 	return status;
 }
 
@@ -372,8 +371,7 @@ read_personal_document(st_bbs_list_t *list, ini_document_t **result,
 		return status;
 	status = st_list_crypto_read(result, stream, list->password,
 	    list->password_size, 0, info);
-	if (fclose(stream) != 0 && status == 0)
-		status = IO_ERROR_IO;
+	(void)fclose(stream);
 	return status;
 }
 

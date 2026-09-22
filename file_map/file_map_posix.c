@@ -90,7 +90,6 @@ file_map_open(file_map_t **result, const char *path)
 	FILE *stream = NULL;
 	file_map_t *map = NULL;
 	struct fs_info info;
-	int close_error;
 	int error;
 
 	if (result == NULL || path == NULL || *path == '\0')
@@ -106,13 +105,9 @@ file_map_open(file_map_t **result, const char *path)
 	if (error != 0)
 		return error;
 	error = file_map_open_stream(&map, stream);
-	close_error = fclose(stream) == 0 ? 0 : file_map_errno_error(errno);
+	(void)fclose(stream);
 	if (error != 0)
 		return error;
-	if (close_error != 0) {
-		(void)file_map_close(map);
-		return close_error;
-	}
 	*result = map;
 	return 0;
 }
@@ -129,15 +124,12 @@ file_map_size(const file_map_t *map)
 	return map == NULL ? 0 : map->size;
 }
 
-int
+void
 file_map_close(file_map_t *map)
 {
-	int error = 0;
-
 	if (map == NULL)
-		return 0;
-	if (map->size != 0 && munmap((void *)map->data, map->size) != 0)
-		error = file_map_errno_error(errno);
+		return;
+	if (map->size != 0)
+		(void)munmap((void *)map->data, map->size);
 	free(map);
-	return error;
 }

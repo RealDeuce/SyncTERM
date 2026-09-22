@@ -69,7 +69,7 @@ test_stream_mapping(const char *path, const unsigned char *contents,
 	CHECK(file_map_size(map) == size);
 	CHECK(memcmp(file_map_data(map), contents, size) == 0);
 	CHECK(ftell(stream) == position);
-	CHECK(file_map_close(map) == 0);
+	file_map_close(map);
 	CHECK(fgetc(stream) == 'S');
 	CHECK(fclose(stream) == 0);
 
@@ -84,7 +84,7 @@ test_stream_mapping(const char *path, const unsigned char *contents,
 	CHECK(file_map_data(map) != NULL);
 	if (file_map_data(map) != NULL)
 		CHECK(memcmp(file_map_data(map), contents, size) == 0);
-	CHECK(file_map_close(map) == 0);
+	file_map_close(map);
 }
 
 static void
@@ -165,22 +165,22 @@ main(void)
 	CHECK(second != NULL);
 	CHECK(file_map_size(second) == sizeof(contents));
 	CHECK(memcmp(file_map_data(second), contents, sizeof(contents)) == 0);
-	CHECK(file_map_close(second) == 0);
-	CHECK(file_map_close(map) == 0);
+	file_map_close(second);
+	file_map_close(map);
 
 	map = NULL;
 	CHECK(file_map_open(&map, empty_path) == 0);
 	CHECK(map != NULL);
 	CHECK(file_map_size(map) == 0);
 	CHECK(file_map_data(map) != NULL);
-	CHECK(file_map_close(map) == 0);
+	file_map_close(map);
 
 	map = NULL;
 	CHECK(file_map_open(&map, unicode_path) == 0);
 	CHECK(map != NULL);
 	CHECK(file_map_size(map) == sizeof(contents));
 	CHECK(memcmp(file_map_data(map), contents, sizeof(contents)) == 0);
-	CHECK(file_map_close(map) == 0);
+	file_map_close(map);
 
 	CHECK(file_map_open(NULL, binary_path) == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(file_map_open(&unchanged, NULL) == IO_ERROR_INVALID_ARGUMENT);
@@ -197,7 +197,7 @@ main(void)
 	CHECK(unchanged == (file_map_t *)(uintptr_t)1);
 	CHECK(file_map_data(NULL) == NULL);
 	CHECK(file_map_size(NULL) == 0);
-	CHECK(file_map_close(NULL) == 0);
+	file_map_close(NULL);
 
 	CHECK(fs_remove_file(unicode_path) == 0);
 	CHECK(fs_remove_file(empty_path) == 0);

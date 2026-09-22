@@ -709,8 +709,7 @@ read_document(ini_document_t **result, const char *path)
 	if (status < 0)
 		return status;
 	status = ini_document_read(result, stream);
-	if (fclose(stream) != 0 && status == 0)
-		status = IO_ERROR_IO;
+	(void)fclose(stream);
 	return status;
 }
 

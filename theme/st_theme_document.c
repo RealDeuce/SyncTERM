@@ -497,8 +497,8 @@ st_theme_document_open(struct st_theme_document **result,
 		status = fs_open(&stream, path, "rb");
 	if (status == 0)
 		status = ini_document_read(&source, stream);
-	if (stream != NULL && fclose(stream) != 0 && status == 0)
-		status = IO_ERROR_IO;
+	if (stream != NULL)
+		(void)fclose(stream);
 	if (status == 0)
 		status = load_file(manager, filename, &theme, error, error_size);
 	if (status == 0 && !state_from_theme(&initial, manager, theme, source,
@@ -536,8 +536,8 @@ st_theme_document_copy_path(struct st_theme_document **result,
 	status = fs_open(&stream, path, "rb");
 	if (status == 0)
 		status = ini_document_read(&source, stream);
-	if (stream != NULL && fclose(stream) != 0 && status == 0)
-		status = IO_ERROR_IO;
+	if (stream != NULL)
+		(void)fclose(stream);
 	if (status == 0)
 		status = load_path(manager, path, "", &theme, error, error_size);
 	if (status == 0 && !state_from_theme(&initial, manager, theme, source,

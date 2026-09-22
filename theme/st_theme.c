@@ -43,7 +43,6 @@ theme_read_stream_exact(FILE *stream, size_t size, char **result)
 {
 	char *data;
 	size_t read_size;
-	int close_status;
 
 	if (stream == NULL || result == NULL) {
 		if (stream != NULL)
@@ -60,8 +59,8 @@ theme_read_stream_exact(FILE *stream, size_t size, char **result)
 		return IO_ERROR_OUT_OF_MEMORY;
 	}
 	read_size = fread(data, 1, size, stream);
-	close_status = fclose(stream);
-	if (read_size != size || close_status != 0) {
+	(void)fclose(stream);
+	if (read_size != size) {
 		free(data);
 		return IO_ERROR_IO;
 	}
@@ -788,8 +787,7 @@ load_path(const struct st_theme_manager *manager, const char *path,
 		return status;
 	}
 	status = ini_document_read(&document, stream);
-	if (fclose(stream) != 0 && status == 0)
-		status = IO_ERROR_IO;
+	(void)fclose(stream);
 	if (status != 0) {
 		set_error(error, error_size, "unable to read theme file");
 		return status;

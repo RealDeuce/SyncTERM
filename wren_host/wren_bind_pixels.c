@@ -757,7 +757,7 @@ decode_source(WrenVM *vm, int slot, bool jxl,
 		status = st_pixel_image_decode_jxl(pixel_result, data, length);
 	else
 		status = st_pixel_image_decode_ppm(pixel_result, data, length);
-	(void)file_map_close(map);
+	file_map_close(map);
 	return status;
 }
 

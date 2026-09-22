@@ -33,7 +33,7 @@ int file_map_open_stream(file_map_t **result, FILE *stream);
 const void *file_map_data(const file_map_t *map);
 size_t file_map_size(const file_map_t *map);
 
-/* Always consumes map and attempts every cleanup operation. NULL succeeds. */
-int file_map_close(file_map_t *map);
+/* Always consumes map and attempts every cleanup operation. NULL is allowed. */
+void file_map_close(file_map_t *map);
 
 #endif

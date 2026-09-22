@@ -3326,9 +3326,7 @@ Windows argument coverage.
   This permissive parse policy needs explicit public documentation.
 - Serialization and collection result functions free the previous destination.
   The header's replacement contract does not clearly state initialized-or-NULL
-  output requirements or serialized-buffer deallocation. document_read can
-  publish a parsed result then return a mapping-close error, unlike the broad
-  success-only replacement promise; cleanup-failure injection not done.
+  output requirements or serialized-buffer deallocation.
 - Style prefix/separator contents can change serialized grammar. Removing a
   key using a borrowed matching name may invalidate that name during the scan.
   These are follow-up candidates, not yet independently reproduced findings.
@@ -3340,8 +3338,8 @@ Windows argument coverage.
   name suppression and opaque value bytes, literals, malformed lines, read
   position preservation, replacement on parse errors, typed conversions,
   comments, rename/remove, clone independence and invalid arguments. They do
-  not inject each allocation failure, mapping-close failure or short stream
-  writes. The public view-invalidated-on-mutation wording is broader than the
+  not inject each allocation failure or short stream writes. The public
+  view-invalidated-on-mutation wording is broader than the
   stable section pointers reused by existing tests and likely consumers;
   clarify that contract rather than infer undocumented stability guarantees.
 - Added zero-bitfield test passes with a nonzero default: the empty encoded
@@ -3558,11 +3556,8 @@ verification gaps. Host consumers are tracked under their own inventory rows.
   catalog on failure. Each file is parsed into a full default clone for
   metadata, and duplicate-section detection is quadratic; no performance
   measurement yet.
-- Source-only cleanup concern: load_path returns directly when read/close
-  reports failure, without freeing a possibly published INI document. A
-  successful parse followed by fclose failure would leak it. No close-failure
-  injection performed. Parser allocation failures are sometimes reported as
-  INVALID_FORMAT rather than OUT_OF_MEMORY.
+- Parser allocation failures are sometimes reported as INVALID_FORMAT rather
+  than OUT_OF_MEMORY.
 - Directory backend discrepancies: POSIX skips non-UTF-8 names and stat errors;
   Windows stops on conversion errors and includes non-directory entries.
   Symlink/reparse handling and cloud downloaded-name validation require
@@ -3878,9 +3873,9 @@ No new confirmed functional defect assigned in this pass.
   with PBKDF2 up to INT_MAX and scrypt memory guard delegated to xp_kdf. This
   does not establish an acceptable interactive CPU budget for every accepted
   parameter. No expensive adversarial-cost execution performed.
-- Read publishes document/info only after parse, marker check and map close
-  succeed, preserving initialized prior output on failure. V1 iteration override
-  is capped at INT_MAX, defaults to 50000; inspect cannot know that caller value.
+- Read publishes document/info only after parse and marker checks succeed,
+  preserving initialized prior output on failure. V1 iteration override is
+  capped at INT_MAX, defaults to 50000; inspect cannot know that caller value.
   The stream contract relies on file_map_open_stream. Existing tests verify
   unchanged file position; EOF/error indicators and unsupported stream kinds
   are not independently exercised here.

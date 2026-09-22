@@ -32,8 +32,7 @@ validate_list(const char *path, void *context)
 	if (status < 0)
 		return status;
 	status = ini_document_read(&document, stream);
-	if (fclose(stream) != 0 && status == 0)
-		status = IO_ERROR_IO;
+	(void)fclose(stream);
 	if (status == 0
 	    && ini_document_section_count(document) > ST_BBS_LIST_MAX_ENTRIES)
 		status = IO_ERROR_OUT_OF_RANGE;
