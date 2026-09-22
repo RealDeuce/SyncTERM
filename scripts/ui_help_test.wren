@@ -4,6 +4,7 @@
 import "ui_widget"   for Rect
 import "ui_help"     for Help
 import "ui_markdown" for Markdown, MdRole
+import "ui_style"    for Style, Theme
 import "syncterm"    for KeyEvent, MouseEvent, Key, Mouse
 
 class FakeApp {
@@ -61,7 +62,11 @@ class UiHelpTest {
     testDragFallsThrough_()
     testSeparatorReflows_()
     testCodeSpanKeepsLiteralMarkup_()
+    testCodeSpanRestoresSurroundingRole_()
     testBulletHardBreakKeepsIndent_()
+    testBulletHardBreakChain_()
+    testBulletWithoutHardBreakDoesNotContinue_()
+    testThemeFontReflows_()
 
     var total = __pass + __fail
     System.print("=== ui_help: %(total) tests, %(__pass) pass, %(__fail) fail ===")
@@ -84,6 +89,16 @@ class UiHelpTest {
            "Markdown: bold delimiters inside a code span remain literal")
   }
 
+  static testCodeSpanRestoresSurroundingRole_() {
+    var runs = Markdown.parseInline_(
+        "**before `**literal\\**` after**", MdRole.text)
+    check_(runs.count == 3 && runs[0].text == "before " &&
+        runs[0].role == MdRole.bold &&
+        runs[1].text == "**literal\\**" && runs[1].role == MdRole.code &&
+        runs[2].text == " after" && runs[2].role == MdRole.bold,
+        "Markdown: code is literal and closing it resumes surrounding bold")
+  }
+
   static testBulletHardBreakKeepsIndent_() {
     var lines = Markdown.layout(Markdown.parse("- first  \nsecond"), 30)
     var second = ""
@@ -101,6 +116,52 @@ class UiHelpTest {
            "Markdown: paragraph hard break retains the next line")
   }
 
+  static lineText_(line) {
+    var text = ""
+    for (run in line.runs) text = text + run.text
+    return text
+  }
+
+  static testBulletHardBreakChain_() {
+    var lines = Markdown.layout(Markdown.parse(
+        "- first  \n**second**  \nthird\noutside"), 30)
+    var hasBold = false
+    if (lines.count > 1) {
+      for (run in lines[1].runs) {
+        if (run.text == "second" && run.role == MdRole.bold) hasBold = true
+      }
+    }
+    check_(lines.count == 4 && lineText_(lines[1]) == "  second" &&
+        lineText_(lines[2]) == "  third" &&
+        lineText_(lines[3]) == "outside" && hasBold,
+        "Markdown: chained bullet hard breaks retain indent and inline roles")
+  }
+
+  static testBulletWithoutHardBreakDoesNotContinue_() {
+    var lines = Markdown.layout(Markdown.parse("- first\nsecond"), 30)
+    check_(lines.count == 2 && lineText_(lines[0]) == "• first" &&
+        lineText_(lines[1]) == "second",
+        "Markdown: an ordinary source line is not owned by a bullet")
+  }
+
+  static testThemeFontReflows_() {
+    var wide = Theme.new({
+      "default": Style.new(255, 0x07, 0xaaaaaa, 0x000000)
+    }, Theme.default.glyphs)
+    var narrow = Theme.new({
+      "default": Style.new(0, 0x07, 0xaaaaaa, 0x000000)
+    }, Theme.default.glyphs)
+    var help = Help.new("Help", "AA AA")
+    help.bounds = Rect.new(1, 1, 10, 5)
+    help.theme = wide
+    help.handle(KeyEvent.new(Key.end))
+    var wideTop = help.scrollTop
+    help.theme = narrow
+    help.handle(KeyEvent.new(Key.end))
+    check_(wideTop == 1 && help.scrollTop == 0,
+        "Help: changing the effective font invalidates wrapped layout")
+  }
+
   static testSeparatorReflows_() {
     var body = "aaaa bbbbb aaaa bbbbb aaaa bbbbb"
     var changed = Help.new("Help", body)
@@ -114,6 +175,15 @@ class UiHelpTest {
     fresh.handle(KeyEvent.new(Key.end))
     check_(changed.scrollTop == fresh.scrollTop,
            "Help: separator change reflows cached lines like initial layout")
+
+    changed.scrollbarSeparator = true
+    changed.handle(KeyEvent.new(Key.end))
+    fresh = Help.new("Help", body)
+    fresh.bounds = Rect.new(1, 1, 14, 6)
+    fresh.scrollbarSeparator = true
+    fresh.handle(KeyEvent.new(Key.end))
+    check_(changed.scrollTop == fresh.scrollTop,
+           "Help: restoring the separator reflows and clamps cached layout")
   }
 
   // Build a help with `lineCount` rendered rows by emitting one bullet

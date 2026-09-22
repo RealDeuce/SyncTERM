@@ -43,6 +43,7 @@ class Help is Popup {
     _doc       = Markdown.parse(_body)
     _lines     = []             // populated by ensureLayout_()
     _layoutW   = -1             // width the cached _lines were laid out at
+    _layoutTheme = null         // theme whose role fonts were measured
     _scrollTop = 0
     _sbSide    = "right"        // "right" (default) or "left"
     _sbSep     = true           // separator between scrollbar and content
@@ -64,7 +65,9 @@ class Help is Popup {
   }
   scrollbarSeparator      { _sbSep }
   scrollbarSeparator=(b) {
+    if (_sbSep == b) return
     _sbSep = b
+    _layoutW = -1
     markDirty()
   }
 
@@ -86,9 +89,12 @@ class Help is Popup {
   // consistent state.
   ensureLayout_() {
     if (bounds == null) return
-    if (_layoutW != -1 && _layoutBoundsW == bounds.w && _layoutBoundsH == bounds.h) return
+    var currentTheme = effectiveTheme
+    if (_layoutW != -1 && _layoutBoundsW == bounds.w &&
+        _layoutBoundsH == bounds.h && _layoutTheme == currentTheme) return
     _layoutBoundsW = bounds.w
     _layoutBoundsH = bounds.h
+    _layoutTheme = currentTheme
     // Width budget accounts for: 2 frame cells + 1-cell padding
     // on each non-scrollbar side.  When the scrollbar appears it
     // replaces the padding cell on its side, so text can be flush
@@ -97,9 +103,19 @@ class Help is Popup {
     var noSb   = (bounds.w - 4).max(1)             // both sides padded
     var sbOH   = _sbSep ? 2 : 1
     var withSb = (bounds.w - 3 - sbOH).max(1)      // one side padded + scrollbar
-    var lines = _plain ? preformattedLines_() : Markdown.layout(_doc, noSb)
+    var measure
+    if (currentTheme == null) {
+      measure = Fn.new {|text, role| Screen.textWidth(text, 0) }
+    } else {
+      measure = Fn.new {|text, role|
+        var font = currentTheme.style(role).font
+        return Screen.textWidth(text, font == null ? 0 : font)
+      }
+    }
+    var lines = _plain ? preformattedLines_() :
+        Markdown.layoutWith_(_doc, noSb, measure)
     if (lines.count > rows) {
-      if (!_plain) lines = Markdown.layout(_doc, withSb)
+      if (!_plain) lines = Markdown.layoutWith_(_doc, withSb, measure)
       _layoutW = withSb
     } else {
       _layoutW = noSb

@@ -169,7 +169,7 @@ if(BUILD_TESTING)
 		COMMAND st_wren_loader_audit_test "${_directory}" logview-suite)
 	set_tests_properties(wren_logview PROPERTIES
 		WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/..")
-	foreach(_widget menubar spinbox)
+	foreach(_widget menubar spinbox popup help progress menu)
 		set(_directory
 			"${CMAKE_CURRENT_BINARY_DIR}/audit-${_widget}-suite")
 		file(MAKE_DIRECTORY "${_directory}")

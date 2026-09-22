@@ -374,7 +374,8 @@ class App {
       markAllDirty_()
     } else {
       if (_status != null) _status.parent = null
-      _status = PopStatus.show(message)
+      var font = effectiveTheme.style("default").font
+      _status = PopStatus.show(message, font == null ? 0 : font)
       _status.parent = this
     }
     drawAll_()

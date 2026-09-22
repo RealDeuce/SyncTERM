@@ -103,6 +103,8 @@ main(int argc, char **argv)
 	st_console_t *console = NULL;
 	st_wren_host_t *host = NULL;
 	st_hyperlink_registry_t *hyperlinks = NULL;
+	uint16_t audit_wide_font = 0;
+	bool have_audit_wide_font = false;
 	bool recovery;
 	bool passed = false;
 	int status;
@@ -229,12 +231,58 @@ main(int argc, char **argv)
 		CHECK(st_console_register_static_font(console, &font, &identifier) == 0);
 		CHECK(identifier == 0);
 	}
+	else if (strcmp(argv[2], "popup-suite") == 0
+	    || strcmp(argv[2], "help-suite") == 0
+	    || strcmp(argv[2], "progress-suite") == 0
+	    || strcmp(argv[2], "menu-suite") == 0) {
+		static const uint8_t narrow[16] = {0};
+		static const uint8_t wide[32] = {0};
+		static const struct st_console_font_mapping base_mapping[] = {
+			{'?', 0},
+		};
+		static const struct st_console_font_mapping wide_mapping[] = {
+			{'?', 0}, {'A', 1}, {UINT32_C(0x4e00), 1},
+		};
+		const struct st_console_font base_font = {
+			.bitmap = narrow, .bitmap_size = sizeof(narrow),
+			.width = 8, .height = 16, .glyph_count = 1,
+			.row_stride = 1, .glyph_stride = 16,
+			.mapping = base_mapping, .mapping_count = 1,
+		};
+		const struct st_console_font wide_font = {
+			.bitmap = narrow, .bitmap_size = sizeof(narrow),
+			.width = 8, .height = 16, .glyph_count = 1,
+			.row_stride = 1, .glyph_stride = 16,
+			.wide_bitmap = wide, .wide_bitmap_size = sizeof(wide),
+			.wide_glyph_count = 1, .wide_row_stride = 2,
+			.wide_glyph_stride = 32,
+			.mapping = wide_mapping, .mapping_count = 3,
+		};
+		uint16_t identifier;
+
+		CHECK(st_console_register_static_font(console, &base_font,
+		    &identifier) == 0);
+		CHECK(identifier == 0);
+		CHECK(st_console_register_static_font(console, &wide_font,
+		    &identifier) == 0);
+		CHECK(identifier == 1);
+		audit_wide_font = identifier;
+		have_audit_wide_font = true;
+	}
 	const struct st_wren_host_config host_config = {
 		.console = console, .paths = &paths,
 		.application_title = "Loader audit", .safe_mode = true,
 		.hyperlinks = hyperlinks,
 	};
 	status = st_wren_host_create(&host, &host_config);
+	if (status == 0 && have_audit_wide_font) {
+		struct st_wren_context *context =
+		    &((struct st_wren_host *)host)->menu;
+
+		context->fonts.catalog[UINT8_MAX] = audit_wide_font;
+		context->fonts.catalog_valid[UINT8_MAX] = true;
+		context->fonts.selector_by_identifier[audit_wide_font] = UINT8_MAX;
+	}
 	if (recovery) {
 		const struct st_console_event escape = {
 			.type = ST_CONSOLE_EVENT_KEY_CODE,
@@ -664,8 +712,7 @@ main(int argc, char **argv)
 			const char *message = host->menu.log.entries[
 			    sequence % ST_WREN_LOG_CAPACITY].text;
 
-			if (message != NULL && (strstr(message, "FAIL") != NULL
-			    || strstr(message, "wrap audit:") != NULL))
+			if (message != NULL && strstr(message, "FAIL") != NULL)
 				fprintf(stderr, "%s\n", message);
 		}
 	}

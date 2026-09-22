@@ -7523,12 +7523,17 @@ around the wrapped message: width is `longest-line + 4` (frame +
 padding), height is `4 + msgRows + extraRows` (2 frame + 2 padding +
 content).  Subclasses pass `extraRows` for whatever they paint
 below the message — `1` for Alert/Confirm (button row), `2` for
-Prompt (input + button rows).
+Prompt (input + button rows).  Message width is measured in display
+cells with the resolved `default` style font; wrapping never splits a
+UTF-8 codepoint.  A single glyph wider than the available row remains
+intact and is left to the painter's clipping policy.
 
 `PopStatus` is the non-modal companion: a centered frame with a
 message and no buttons, used by `App.popStatus(message)`.  It does
 not push onto the modal stack — purely decorative — and is
-dismissed with `app.popStatus(null)`.
+dismissed with `app.popStatus(null)`.  Its sizing, centering, and
+single-line truncation use the same painted-font display widths, and
+truncation stops only at a Unicode codepoint boundary.
 
 ==== Standalone popups
 
@@ -7621,11 +7626,16 @@ CommonMark + Pandoc subset by `ui_markdown.wren`.  Supported syntax:
   separated paragraphs; Pandoc-style definition lists (term line
   followed by one or more `:  description` lines).
 * Inline: `**bold**`, `` `code` ``.  Backslash escapes a literal
-  `*`, `` ` ``, or `\`.
+  `*`, `` ` ``, or `\` outside a code span.  Inside a code span,
+  only the closing backtick is syntax: bold markers and backslashes
+  are literal.  Closing code resumes the surrounding bold or ordinary
+  role.
 * Hard line break: a line ending in two trailing spaces forces a
   break at that point inside a paragraph or bullet.  Continuation
   uses the same wrap indent as a soft wrap (so a bullet's hard-
-  break still hangs under the text).
+  break still hangs under the text).  An unmarked source line belongs
+  to a bullet only when the preceding bullet-owned line has this hard
+  break; the rule can chain across multiple lines.
 * Italics are intentionally omitted — terminal italic support
   varies and dim grey on dark blue is hard to read.
 
@@ -7645,9 +7655,12 @@ text with one styled space cell on each end (`" Title "`).
 
 Layout is reflow-on-width: `Markdown.layout(doc, cols)` returns a
 list of `MdLine`s, each carrying pre-resolved style runs ready for
-`Painter.text`.  `Help` re-runs layout whenever its bounds change
-(open, resize, scrollbar appearing/disappearing) and clamps the
-scroll position accordingly.
+`Painter.text`.  The public layout helper uses font zero; `Help`
+measures every run with the font resolved for that run's role so its
+layout matches painting.  `Help` re-runs layout whenever its bounds,
+scrollbar-separator width, or effective theme changes (as well as when
+the scrollbar appears or disappears), and clamps the scroll position
+accordingly.
 
 Example combining heading + def-list:
 

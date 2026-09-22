@@ -7,7 +7,7 @@ import "ui_widget" for Rect, Container
 import "ui_popup"  for Alert, Confirm, Prompt, LinePrompt, Find, Popup,
                        PopStatus
 import "ui_help" for Help
-import "ui_style" for Theme
+import "ui_style" for Style, Theme
 import "menu_ui" for MenuUi, ModalPane, StandaloneChoice
 import "syncterm"  for KeyEvent, Key, Screen
 
@@ -19,6 +19,7 @@ class FakeApp {
   modalStack { _stack }
   modalTop { _stack.count == 0 ? null : _stack[-1] }
   effectiveTheme { _theme }
+  theme=(value) { _theme = value }
   markDirty() {}
   pushModal(w) {
     w.parent = this
@@ -120,6 +121,9 @@ class UiPopupTest {
     testModalPaneEscDismisses_()
     testWrappingAscii_()
     testWrappingUnicode_()
+    testWrappingUsesPaintedFont_()
+    testOverwideGlyphStaysIntact_()
+    testStatusFitsUnicodeByCells_()
     testBrowserAcceptAndCancel_()
     testBrowserRejectedAccept_()
     testBrowserCommandRestoresPreview_()
@@ -194,13 +198,44 @@ class UiPopupTest {
 
   static testWrappingUnicode_() {
     var lines = Popup.wrap_("\u00e9\u00e9", 1)
-    System.print("wrap audit: accented input -> %(lines.count) rows [%(lines.join("|"))]")
     check_(lines.count == 2 && lines[0] == "\u00e9" && lines[1] == "\u00e9",
            "one-cell wrapping keeps each CP437-representable Unicode glyph intact")
     lines = Popup.wrap_("\u2500\u2500", 2)
-    System.print("wrap audit: box input -> %(lines.count) rows [%(lines.join("|"))]")
     check_(lines.count == 1 && lines[0] == "\u2500\u2500",
            "two box-drawing glyphs fit a two-cell line")
+  }
+
+  static wideTheme_() {
+    return Theme.new({
+      "default": Style.new(255, 0x07, 0xaaaaaa, 0x000000)
+    }, Theme.default.glyphs)
+  }
+
+  static testWrappingUsesPaintedFont_() {
+    var lines = Popup.wrap_("AAA", 4, 255)
+    var narrow = Popup.centeredBounds_("AAAA", 0, 1, false, 0)
+    var wide = Popup.centeredBounds_("AAAA", 0, 1, false, 255)
+    var app = FakeApp.new()
+    app.theme = wideTheme_()
+    Alert.show(app, "AAAAAAAAAA")
+    check_(lines.count == 2 && lines[0] == "AA" && lines[1] == "A" &&
+        wide.w == narrow.w + 4 && app.modalTop.bounds.w == 24,
+        "popup wrapping and sizing use the font that paints the message")
+  }
+
+  static testOverwideGlyphStaysIntact_() {
+    var lines = Popup.wrap_("\u4e00", 1, 255)
+    check_(lines.count == 1 && lines[0] == "\u4e00",
+        "a glyph wider than the row remains intact for painter clipping")
+  }
+
+  static testStatusFitsUnicodeByCells_() {
+    var status = PopStatus.new("\u00e9\u00e9")
+    status.bounds = Rect.new(1, 1, 5, 5)
+    status.draw()
+    check_(Popup.fitPrefix_("\u00e9\u00e9", 1, 0) == "\u00e9" &&
+        Popup.fitPrefix_("\u4e00", 1, 255) == "",
+        "status truncation preserves codepoint boundaries and cell width")
   }
 
   // ----- Alert ----------------------------------------------------

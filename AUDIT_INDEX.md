@@ -7,8 +7,8 @@ recommended remedies. Severity does not imply exploitability; source-confirmed
 risks and reproduced failures must be distinguished using those entries.
 No remediation is authorized by this report.
 
-The audit is complete, not the implementation: **20 outstanding findings**
-comprise 8 medium, 10 low and 2 unresolved design/performance
+The audit is complete, not the implementation: **16 outstanding findings**
+comprise 7 medium, 7 low and 2 unresolved design/performance
 concerns.
 This is not a count of exploitable vulnerabilities or reproduced failures.
 The audited inventory covered 47 tracked source directories and 12 root files.
@@ -64,7 +64,7 @@ No new blanket GC, contention or scaling-performance diagnosis is made from
 source shape. The source and test inventory must retain those measurement
 limits in the final report.
 
-The current TODO documents contain 20 outstanding numbered findings. A007 and
+The current TODO documents contain 16 outstanding numbered findings. A007 and
 A011 are unresolved design/performance concerns, not confirmed runtime defects.
 Missing features and documentation errors are also explicitly distinguished
 from implementation failures in the detailed ledger.
@@ -77,12 +77,8 @@ from implementation failures in the detailed ledger.
 | A067 | medium | Painter truncation changes the style of an undrawn destination cell |
 | A070 | medium | Changing a Container theme does not repaint inheriting children |
 | A071 | low | A newly constructed empty RadioGroup reports cursor zero |
-| A072 | medium | Popup wrapping counts UTF-8 bytes as screen columns |
 | A073 | medium | Changing TextInput's display mask leaves its viewport stale |
 | A074 | low | Form Tab order depends on callback/field creation order |
-| A076 | low | Help scrollbar-separator changes do not invalidate wrapped layout |
-| A077 | low | Markdown parses bold delimiters inside inline code |
-| A078 | low | Markdown bullet hard breaks lose continuation indentation |
 | A080 | low | Valid hex edits reset the color-picker cursor to the end |
 | A085 | medium | Wren console helper paths corrupt multibyte text |
 | A088 | medium | User manual does not clearly distinguish implemented menu from future connected runtime |
@@ -97,10 +93,10 @@ from implementation failures in the detailed ledger.
 ### Latest configured native verification
 
 Native Clang and GCC builds have succeeded. The current configured native trees
-register 104 tests. The latest Clang run passed all 103 runnable tests and
-skipped one Wayland test. The latest GCC run passed 102, skipped Wayland and
-hit the recorded intermittent X11 window-size failure; its isolated rerun
-passed. The MinGW cross-build also succeeded. SDL uses its
+register 108 tests. The latest Clang run passed 106 tests, skipped one Wayland
+test and hit the recorded intermittent XRender failure; its isolated rerun
+passed. The latest GCC run passed all 107 runnable tests and skipped Wayland.
+The MinGW cross-build also succeeded. SDL uses its
 CMake-configured dummy video driver.
 This is native verification, not Windows/macOS execution or comprehensive
 backend coverage.

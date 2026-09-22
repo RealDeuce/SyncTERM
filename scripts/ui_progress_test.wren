@@ -2,6 +2,7 @@
 
 import "ui_widget"   for Rect
 import "ui_progress" for ProgressBar, ProgressText
+import "ui_style"    for Style, Theme
 
 class UiProgressTest {
   static run() {
@@ -27,6 +28,7 @@ class UiProgressTest {
     testTextRowsShareLeftEdge_()
     testRepaintAfterDecrease_()
     testTextRepaintAfterShrink_()
+    testTextWrapUsesPaintedFont_()
 
     var total = __pass + __fail
     System.print("=== ui_progress: %(total) tests, %(__pass) pass, %(__fail) fail ===")
@@ -84,6 +86,16 @@ class UiProgressTest {
       }
     }
     check_(ok, "shortened progress text clears old rows and recenters")
+  }
+
+  static testTextWrapUsesPaintedFont_() {
+    var p = ProgressText.new()
+    p.theme = Theme.new({
+      "default": Style.new(255, 0x07, 0xaaaaaa, 0x000000)
+    }, Theme.default.glyphs)
+    p.lines = ["AAA"]
+    check_(p.rowCount(6) == 2,
+        "progress text wraps with the font used to paint it")
   }
 
   static testDefaults_() {

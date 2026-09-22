@@ -97,9 +97,10 @@ class MdLine {
 // closures.  At this scale a stateful helper is easier to follow.
 
 class MdWrapState {
-  construct new(width, indent) {
+  construct new(width, indent, measure) {
     _width  = width
     _indent = indent
+    _measure = measure
     _line   = []
     _lineW  = 0
     _word   = []
@@ -115,7 +116,7 @@ class MdWrapState {
   appendPrefix(prefix) {
     for (r in prefix) {
       _line.add(r)
-      _lineW = _lineW + Screen.textWidth(r.text, 0)
+      _lineW = _lineW + _measure.call(r.text, r.role)
     }
   }
 
@@ -127,7 +128,7 @@ class MdWrapState {
     } else {
       _word.add(MdRun.new(c, role))
     }
-    _wordW = _wordW + Screen.textWidth(c, 0)
+    _wordW = _wordW + _measure.call(c, role)
   }
 
   // Commit the current word to the line.  If the line would overflow
@@ -145,13 +146,13 @@ class MdWrapState {
       // term + padding); subsequent lines use the indent.
       if (_indent.count > 0) {
         _line.add(MdRun.new(_indent, MdRole.text))
-        _lineW = _indent.count
+        _lineW = _measure.call(_indent, MdRole.text)
       }
       _first = false
     }
     for (r in _word) {
       _line.add(r)
-      _lineW = _lineW + Screen.textWidth(r.text, 0)
+      _lineW = _lineW + _measure.call(r.text, r.role)
     }
     _word  = []
     _wordW = 0
@@ -167,7 +168,7 @@ class MdWrapState {
     } else {
       _line.add(MdRun.new(" ", role))
     }
-    _lineW = _lineW + 1
+    _lineW = _lineW + _measure.call(" ", role)
   }
 
   // Hard line break: flush the in-progress word, emit the current
@@ -183,7 +184,7 @@ class MdWrapState {
     _lineW = 0
     if (_indent.count > 0) {
       _line.add(MdRun.new(_indent, MdRole.text))
-      _lineW = _indent.count
+      _lineW = _measure.call(_indent, MdRole.text)
     }
     _first = false
   }
@@ -241,9 +242,19 @@ class Markdown {
             parseInline_(ln[2..-1], MdRole.heading1)))
         i = i + 1
       } else if (ln.startsWith("- ") || ln.startsWith("* ")) {
-        blocks.add(MdBlock.new(MdBlockKind.bullet,
-            parseInline_(ln[2..-1], MdRole.text)))
+        var bulletText = ln[2..-1]
+        var prev = ln
         i = i + 1
+        while (endsWithHardBreak_(prev) && i < lines.count) {
+          var next = lines[i]
+          if (next == "" || isBlockMarker_(next) || isDefMarker_(next)) break
+          if (i + 1 < lines.count && isDefMarker_(lines[i + 1])) break
+          bulletText = stripTrailingSpaces_(bulletText) + "\n" + next
+          prev = next
+          i = i + 1
+        }
+        blocks.add(MdBlock.new(MdBlockKind.bullet,
+            parseInline_(bulletText, MdRole.text)))
       } else if (i + 1 < lines.count && isDefMarker_(lines[i + 1])) {
         // Pandoc-style definition list.  Greedy: consume successive
         // (term, ":  desc") pairs, allowing a single blank line
@@ -300,11 +311,11 @@ class Markdown {
     return blocks
   }
 
-  // Parse inline markup into runs.  Bold (`**...**`) and code
-  // (`` `...` ``) toggle the active role on / off; backslash
-  // escapes a literal `*`, `` ` ``, or `\`.  Unmatched markers
-  // pass through as literal characters, matching CommonMark's
-  // permissive lexer.
+  // Parse inline markup into runs.  Outside code spans, bold markers
+  // toggle bold and backslash escapes `*`, `` ` ``, or `\`.  Inside a
+  // code span only the closing backtick is syntax: bold markers and
+  // backslashes remain literal.  Closing code resumes the surrounding
+  // bold/default role.  Unmatched opening markers remain literal.
   //
   // We materialise the string into a list of codepoints up front
   // because the inline scanner needs lookahead (`**`, escape pairs)
@@ -314,11 +325,26 @@ class Markdown {
     for (c in text) cps.add(c)
     var runs = []
     var buf  = ""
-    var role = defaultRole
+    var bold = false
+    var code = false
     var i    = 0
     var n    = cps.count
     while (i < n) {
       var c = cps[i]
+      var role = code ? MdRole.code : (bold ? MdRole.bold : defaultRole)
+      if (code) {
+        if (c == "`") {
+          if (buf != "") {
+            runs.add(MdRun.new(buf, role))
+            buf = ""
+          }
+          code = false
+        } else {
+          buf = buf + c
+        }
+        i = i + 1
+        continue
+      }
       if (c == "\\" && i + 1 < n) {
         var next = cps[i + 1]
         if (next == "*" || next == "`" || next == "\\") {
@@ -328,8 +354,7 @@ class Markdown {
         }
       }
       if (c == "*" && i + 1 < n && cps[i + 1] == "*") {
-        if (role != MdRole.bold &&
-            !hasClosingMarker_(cps, i + 2, "*", 2)) {
+        if (!bold && !hasClosingMarker_(cps, i + 2, "*", 2)) {
           buf = buf + "**"
           i = i + 2
           continue
@@ -338,13 +363,12 @@ class Markdown {
           runs.add(MdRun.new(buf, role))
           buf = ""
         }
-        role = (role == MdRole.bold) ? defaultRole : MdRole.bold
+        bold = !bold
         i = i + 2
         continue
       }
       if (c == "`") {
-        if (role != MdRole.code &&
-            !hasClosingMarker_(cps, i + 1, "`", 1)) {
+        if (!hasClosingCode_(cps, i + 1)) {
           buf = buf + c
           i = i + 1
           continue
@@ -353,15 +377,25 @@ class Markdown {
           runs.add(MdRun.new(buf, role))
           buf = ""
         }
-        role = (role == MdRole.code) ? defaultRole : MdRole.code
+        code = true
         i = i + 1
         continue
       }
       buf = buf + c
       i = i + 1
     }
-    if (buf != "") runs.add(MdRun.new(buf, role))
+    if (buf != "") {
+      var role = code ? MdRole.code : (bold ? MdRole.bold : defaultRole)
+      runs.add(MdRun.new(buf, role))
+    }
     return runs
+  }
+
+  static hasClosingCode_(cps, start) {
+    for (i in start...cps.count) {
+      if (cps[i] == "`") return true
+    }
+    return false
   }
 
   // ----- Layout (word-wrap to width) -----------------------------
@@ -369,6 +403,14 @@ class Markdown {
   // Lay out parsed blocks into rendered lines at `width` cells.
   // `width <= 0` returns the empty list (defensive — no bounds yet).
   static layout(blocks, width) {
+    return layoutWith_(blocks, width,
+        Fn.new {|text, role| Screen.textWidth(text, 0) })
+  }
+
+  // Internal font-aware entry point used by Help.  `measure` accepts
+  // text and its resolved role so layout and painting use identical
+  // display widths without exposing theme policy from Markdown.
+  static layoutWith_(blocks, width, measure) {
     var lines = []
     if (width <= 0) return lines
     for (block in blocks) {
@@ -377,7 +419,7 @@ class Markdown {
         continue
       }
       if (block.kind == MdBlockKind.deflist) {
-        layoutDefList_(block.runs, width, lines)
+        layoutDefList_(block.runs, width, lines, measure)
         continue
       }
       var firstPrefix = []
@@ -395,7 +437,7 @@ class Markdown {
         // title render.
         firstPrefix = [MdRun.new(" ", headingRole)]
       }
-      var s = MdWrapState.new(width, indent)
+      var s = MdWrapState.new(width, indent, measure)
       s.appendPrefix(firstPrefix)
       for (r in block.runs) {
         // Codepoint iteration via `for (c in r.text)`; raw `r.text[i]`
@@ -426,10 +468,10 @@ class Markdown {
   // viewport so a giant term can't squeeze the description out
   // entirely).  Continuation lines indent into the description
   // column so wrapped descriptions stay aligned.
-  static layoutDefList_(items, width, lines) {
+  static layoutDefList_(items, width, lines, measure) {
     var termMax = 0
     for (item in items) {
-      var n = runsWidth_(item.term)
+      var n = runsWidth_(item.term, measure)
       if (n > termMax) termMax = n
     }
     var cap     = (width / 2).floor.max(8)
@@ -450,7 +492,7 @@ class Markdown {
       // two columns don't collide.
       var prefix = []
       for (r in item.term) prefix.add(r)
-      var tw  = runsWidth_(item.term)
+      var tw  = runsWidth_(item.term, measure)
       var pad = (stop - tw).max(1)
       var padStr = ""
       ii = 0
@@ -460,7 +502,7 @@ class Markdown {
       }
       prefix.add(MdRun.new(padStr, MdRole.text))
 
-      var s = MdWrapState.new(width, indent)
+      var s = MdWrapState.new(width, indent, measure)
       s.appendPrefix(prefix)
       for (r in item.runs) {
         for (c in r.text) {
@@ -526,9 +568,9 @@ class Markdown {
 
   // Sum of run text lengths in display cells.  Used for laying out
   // the term column in def lists.
-  static runsWidth_(runs) {
+  static runsWidth_(runs, measure) {
     var n = 0
-    for (r in runs) n = n + Screen.textWidth(r.text, 0)
+    for (r in runs) n = n + measure.call(r.text, r.role)
     return n
   }
 

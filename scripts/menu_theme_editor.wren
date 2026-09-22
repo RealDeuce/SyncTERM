@@ -1566,7 +1566,8 @@ class ThemeEditor {
 
   static confirmClose_(app, document) {
     var prompt = ThemeClosePrompt.new(Fn.new { save_(app, document, false) })
-    prompt.bounds = Popup.centeredBounds_(prompt.message, 1, 39)
+    prompt.bounds = Popup.centeredBounds_(prompt.message, 1, 39, false,
+        Popup.appMessageFont_(app))
     app.modal(prompt)
     if (prompt.result == null) return false
     return prompt.result == "save" || prompt.result == "discard"

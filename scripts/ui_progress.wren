@@ -43,8 +43,10 @@ class ProgressText is Widget {
   wrappedLines_(width) {
     var wrapped = []
     var textWidth = (width - 2).max(1)
+    var font = style("default").font
+    if (font == null) font = 0
     for (line in _lines) {
-      for (part in Popup.wrap_(line, textWidth)) wrapped.add(part)
+      for (part in Popup.wrap_(line, textWidth, font)) wrapped.add(part)
     }
     return wrapped
   }

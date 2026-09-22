@@ -124,7 +124,8 @@ class ExistingFileChoice is Popup {
 
   static show(app) {
     var p = ExistingFileChoice.new()
-    p.bounds = Popup.centeredBounds_(p.message, 1, 38)
+    p.bounds = Popup.centeredBounds_(p.message, 1, 38, false,
+        Popup.appMessageFont_(app))
     app.modal(p)
     return p.result
   }

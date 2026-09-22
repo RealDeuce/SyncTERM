@@ -14,6 +14,7 @@ class ChoiceMessage is Widget {
     _lines = []
     _layoutW = -1
     _layoutH = -1
+    _layoutTheme = null
     _scrollTop = 0
   }
 
@@ -26,13 +27,18 @@ class ChoiceMessage is Widget {
 
   ensureLayout_() {
     if (bounds == null) return
-    if (_layoutW == bounds.w && _layoutH == bounds.h) return
+    var currentTheme = effectiveTheme
+    if (_layoutW == bounds.w && _layoutH == bounds.h &&
+        _layoutTheme == currentTheme) return
     _layoutW = bounds.w
     _layoutH = bounds.h
+    _layoutTheme = currentTheme
     var width = bounds.w.max(1)
-    var lines = Popup.wrap_(_message, width)
+    var font = currentTheme.style("default").font
+    if (font == null) font = 0
+    var lines = Popup.wrap_(_message, width, font)
     if (lines.count > bounds.h && width > 2) {
-      lines = Popup.wrap_(_message, width - 2)
+      lines = Popup.wrap_(_message, width - 2, font)
     }
     _lines = lines
     setScrollTop_(_scrollTop)
@@ -302,7 +308,7 @@ class MenuUi {
     p.atExit = atExit
     p.input.maxLen = maxLen
     if (masked) p.input.mask = "*"
-    p.sizeForInput(maxLen, 34)
+    p.sizeForInput(maxLen, 34, Popup.appMessageFont_(app))
     p.onDismiss = Fn.new {|value| app.quit() }
     app.pushModal(p)
     app.runSync()
@@ -330,7 +336,8 @@ class MenuUi {
     var p = Alert.new(title, message)
     p.helpText = helpText
     p.atExit = atExit
-    p.bounds = Popup.centeredTitledBounds_(title, message, 1, 24)
+    p.bounds = Popup.centeredTitledBounds_(title, message, 1, 24, false,
+        Popup.appMessageFont_(app))
     p.onDismiss = Fn.new {|value| app.quit() }
     app.pushModal(p)
     app.runSync()
@@ -349,7 +356,8 @@ class MenuUi {
     var p = Confirm.new(message)
     p.title = title
     p.atExit = atExit
-    p.bounds = Popup.centeredTitledBounds_(title, message, 1, 24)
+    p.bounds = Popup.centeredTitledBounds_(title, message, 1, 24, false,
+        Popup.appMessageFont_(app))
     p.onDismiss = Fn.new {|value| app.quit() }
     app.pushModal(p)
     app.runSync()
@@ -374,7 +382,7 @@ class MenuUi {
     var popup = StandaloneChoice.new(message, labels)
     popup.title = title
     popup.bounds = Popup.centeredBounds_(message, labels.count + 1,
-        longest.max(24))
+        longest.max(24), false, Popup.appMessageFont_(app))
     if (current == null) {
       popup.selected = 0
     } else if (rows[0] is List) {
@@ -688,7 +696,8 @@ class MenuUi {
   static text(app, title, message) {
     var p = Alert.new(title, message)
     p.preformatted = true
-    p.bounds = Popup.centeredTitledBounds_(title, message, 1, 34, true)
+    p.bounds = Popup.centeredTitledBounds_(title, message, 1, 34, true,
+        Popup.appMessageFont_(app))
     app.modal(p)
   }
 }

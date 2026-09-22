@@ -65,17 +65,19 @@ class PopStatus is Pane {
   // Width: msgW + 2 (frame) + 2 (padding); height: 5 (frame top +
   // padding row + msg + padding row + frame bot).  Capped and placed
   // inside the standard menu modal work area.
-  static centeredBounds_(message) {
+  static centeredBounds_(message) { centeredBounds_(message, 0) }
+  static centeredBounds_(message, font) {
     var sz   = Screen.size
-    var msgW = (message == null ? 0 : message.count)
+    var msgW = message == null ? 0 : Screen.textWidth(message, font)
     var w    = (msgW + 4).max(20).min(sz[0] - 4)
     var h    = 5
     return Pane.modalBounds(w, h)
   }
 
-  static show(message) {
+  static show(message) { show(message, 0) }
+  static show(message, font) {
     var p = PopStatus.new(message)
-    p.bounds = PopStatus.centeredBounds_(message)
+    p.bounds = PopStatus.centeredBounds_(message, font)
     return p
   }
 
@@ -88,12 +90,13 @@ class PopStatus is Pane {
     if (cb == null) return
     var iw  = cb.w
     var msg = _message
-    var trim = msg
-    if (msg.count > iw) trim = msg[0...iw]
+    var font = st.font == null ? 0 : st.font
+    var trim = Popup.fitPrefix_(msg, iw, font)
+    var trimWidth = Screen.textWidth(trim, font)
     // Surface coords: cb.x - bounds.x is the leftmost content col,
     // cb.y - bounds.y is the top content row.  Both account for
     // the frame + UIFC padding cell.
-    var col = (cb.x - bounds.x) + ((iw - trim.count) / 2).floor
+    var col = (cb.x - bounds.x) + ((iw - trimWidth) / 2).floor
     var row = cb.y - bounds.y
     Painter.text(sf, col, row, trim, st, iw)
   }
@@ -139,7 +142,7 @@ class Popup is Pane {
     if (_preformatted) {
       lines = Popup.splitHardLines_(_message)
     } else {
-      lines = Popup.wrap_(_message, cb.w)
+      lines = Popup.wrap_(_message, cb.w, messageFont_)
     }
     return lines.count.max(1)
   }
@@ -155,13 +158,16 @@ class Popup is Pane {
   // only (no word-wrapping) so a tall ASCII-art block gets the
   // height it needs.
   static centeredBounds_(message, extraRows, minW) {
-    return centeredBounds_(message, extraRows, minW, false)
+    return centeredBounds_(message, extraRows, minW, false, 0)
   }
   static centeredBounds_(message, extraRows, minW, preformatted) {
+    return centeredBounds_(message, extraRows, minW, preformatted, 0)
+  }
+  static centeredBounds_(message, extraRows, minW, preformatted, font) {
     var sz   = Screen.size                    // [w, h]
     var maxW = (sz[0] - 4).max(1)
     var minimumW = minW.min(maxW)
-    var longest = longestHardLine_(message)
+    var longest = longestHardLine_(message, font)
     var w  = (longest + 4).max(minimumW).min(maxW) // +4 = frame(2)+padding(2)
     var iw = (w - 4).max(1)
     var rows = 1
@@ -170,7 +176,7 @@ class Popup is Pane {
       if (preformatted) {
         lines = splitHardLines_(message)
       } else {
-        lines = wrap_(message, iw)
+        lines = wrap_(message, iw, font)
       }
       rows = lines.count.max(1)
     }
@@ -182,28 +188,33 @@ class Popup is Pane {
   // button.  Reserve the same amount of room on both sides of the centered
   // title so the button cannot overwrite its leading characters.
   static centeredTitledBounds_(title, message, extraRows, minW) {
-    return centeredTitledBounds_(title, message, extraRows, minW, false)
+    return centeredTitledBounds_(title, message, extraRows, minW, false, 0)
   }
   static centeredTitledBounds_(title, message, extraRows, minW, preformatted) {
+    return centeredTitledBounds_(title, message, extraRows, minW,
+        preformatted, 0)
+  }
+  static centeredTitledBounds_(title, message, extraRows, minW, preformatted,
+      font) {
     var requested = minW
     if (title is String && title.count > 0) {
       requested = requested.max(title.count + 12)
     }
-    return centeredBounds_(message, extraRows, requested, preformatted)
+    return centeredBounds_(message, extraRows, requested, preformatted, font)
   }
 
-  // Length (codepoints ≅ display cells for the strings we draw) of
-  // the longest line bounded by CR / LF / EOS.  Used by
-  // centeredBounds_ to size the popup wide enough to avoid wrapping
-  // when the screen has room.  Counts codepoints (`.count`) rather
-  // than bytes so multi-byte UTF-8 (e.g. box-drawing) doesn't inflate
-  // the measurement.
-  static longestHardLine_(message) {
+  // Display-cell width of the longest line bounded by CR / LF / EOS.
+  // Used by centeredBounds_ to size the popup wide enough to avoid
+  // wrapping when the screen has room.  Measurement uses the same font
+  // that will paint the message.
+  static longestHardLine_(message) { longestHardLine_(message, 0) }
+  static longestHardLine_(message, font) {
     if (message == null) return 0
     var lines = splitHardLines_(message)
     var longest = 0
     for (line in lines) {
-      if (line.count > longest) longest = line.count
+      var width = Screen.textWidth(line, font)
+      if (width > longest) longest = width
     }
     return longest
   }
@@ -235,47 +246,73 @@ class Popup is Pane {
 
   // Split `msg` into display lines for a `width`-cell column.  Honours
   // explicit CR / LF / CRLF breaks and word-wraps long lines (hard-
-  // break for words that exceed the column).  Byte-indexed throughout
-  // — fine for ASCII / CP437 message text.
-  static wrap_(msg, width) {
+  // break for words that exceed the column).  The two-argument form
+  // retains the font-zero default used by existing internal callers.
+  static wrap_(msg, width) { wrap_(msg, width, 0) }
+  static wrap_(msg, width, font) {
     if (msg == null || width <= 0) return []
-    var bytes = msg.bytes
-    var n = bytes.count
     var out = []
-    var lineStart = 0
-    var i = 0
-    while (i < n) {
-      var ch = msg[i]
-      if (ch == "\n" || ch == "\r") {
-        wrapInto_(msg, lineStart, i, width, out)
-        if (ch == "\r" && i + 1 < n && msg[i + 1] == "\n") {
-          i = i + 1
-        }
-        lineStart = i + 1
-      }
-      i = i + 1
-    }
-    wrapInto_(msg, lineStart, n, width, out)
+    for (line in splitHardLines_(msg)) wrapLine_(line, width, font, out)
     return out
   }
 
-  // Push msg[start...end] into out, word-wrapped at width.  Empty
-  // input emits a single blank entry so paragraph-separator newlines
-  // render as visible blank rows.
-  static wrapInto_(msg, start, end, width, out) {
-    if (start >= end) {
+  // Push one hard line into `out`, word-wrapped at display-cell width.
+  // A glyph wider than the complete row remains intact as one over-wide
+  // line; the painter owns the eventual clipping decision.
+  static wrapLine_(line, width, font, out) {
+    var chars = []
+    for (c in line) chars.add(c)
+    if (chars.count == 0) {
       out.add("")
       return
     }
-    while (end - start > width) {
-      var brk = start + width
-      while (brk > start && msg[brk] != " ") brk = brk - 1
-      if (brk == start) brk = start + width      // hard break (no space)
-      out.add(msg[start...brk])
-      while (brk < end && msg[brk] == " ") brk = brk + 1
-      start = brk
+    var start = 0
+    while (start < chars.count) {
+      var i = start
+      var columns = 0
+      var lastSpace = -1
+      while (i < chars.count) {
+        var c = chars[i]
+        var cw = Screen.textWidth(c, font)
+        if (columns + cw > width) {
+          if (c == " ") lastSpace = i
+          if (i == start) i = i + 1
+          break
+        }
+        columns = columns + cw
+        if (c == " ") lastSpace = i
+        i = i + 1
+      }
+      if (i >= chars.count) {
+        out.add(chars[start...chars.count].join(""))
+        return
+      }
+      if (lastSpace >= start) {
+        out.add(chars[start...lastSpace].join(""))
+        start = lastSpace + 1
+        while (start < chars.count && chars[start] == " ") {
+          start = start + 1
+        }
+      } else {
+        out.add(chars[start...i].join(""))
+        start = i
+      }
     }
-    if (start < end) out.add(msg[start...end])
+  }
+
+  // Longest prefix that fits `width` display cells without splitting a
+  // Unicode codepoint.  Used for single-line status text.
+  static fitPrefix_(text, width, font) {
+    if (text == null || width <= 0) return ""
+    var prefix = ""
+    var columns = 0
+    for (c in text) {
+      var cw = Screen.textWidth(c, font)
+      if (columns + cw > width) break
+      prefix = prefix + c
+      columns = columns + cw
+    }
+    return prefix
   }
 
   // Paint frame + title (Pane), then each message line in the
@@ -297,13 +334,14 @@ class Popup is Pane {
     if (_preformatted) {
       lines = Popup.splitHardLines_(_message)
     } else {
-      lines = Popup.wrap_(_message, iw)
+      lines = Popup.wrap_(_message, iw, messageFont_)
     }
     var blockCol = sx0
     if (_preformatted) {
       var longest = 0
       for (line in lines) {
-        if (line.count > longest) longest = line.count
+        var width = Screen.textWidth(line, messageFont_)
+        if (width > longest) longest = width
       }
       blockCol = sx0 + ((iw - longest) / 2).floor
     }
@@ -311,7 +349,9 @@ class Popup is Pane {
     while (i < lines.count) {
       var line = lines[i]
       var col  = blockCol
-      if (!_preformatted) col = sx0 + ((iw - line.count) / 2).floor
+      if (!_preformatted) {
+        col = sx0 + ((iw - Screen.textWidth(line, messageFont_)) / 2).floor
+      }
       Painter.text(sf, col, sy0 + i, line, st, iw)
       i = i + 1
     }
@@ -325,6 +365,16 @@ class Popup is Pane {
   // chosen.  Receives the Bool result (or whatever value the
   // subclass dismissed with).
   onDismiss=(fn) { _onDismiss = fn }
+
+  messageFont_ {
+    var font = style("default").font
+    return font == null ? 0 : font
+  }
+
+  static appMessageFont_(app) {
+    var font = app.effectiveTheme.style("default").font
+    return font == null ? 0 : font
+  }
 
   // Subclasses dismiss by calling dismissWith_(value) — writing
   // `_result` directly from a subclass method would create a new
@@ -371,14 +421,16 @@ class Alert is Popup {
 
   static show(app, message) {
     var p = Alert.new(message)
-    p.bounds = Popup.centeredBounds_(message, 1, 20)
+    p.bounds = Popup.centeredBounds_(message, 1, 20, false,
+        Popup.appMessageFont_(app))
     app.modal(p)
     return null
   }
 
   static show(app, title, message) {
     var p = Alert.new(title, message)
-    p.bounds = Popup.centeredTitledBounds_(title, message, 1, 20)
+    p.bounds = Popup.centeredTitledBounds_(title, message, 1, 20, false,
+        Popup.appMessageFont_(app))
     app.modal(p)
     return null
   }
@@ -386,21 +438,24 @@ class Alert is Popup {
   static show(app, title, message, helpText) {
     var p = Alert.new(title, message)
     p.helpText = helpText
-    p.bounds = Popup.centeredTitledBounds_(title, message, 1, 20)
+    p.bounds = Popup.centeredTitledBounds_(title, message, 1, 20, false,
+        Popup.appMessageFont_(app))
     app.modal(p)
     return null
   }
 
   static runStandalone(app, message) {
     var p = Alert.new(message)
-    p.bounds = Popup.centeredBounds_(message, 1, 20)
+    p.bounds = Popup.centeredBounds_(message, 1, 20, false,
+        Popup.appMessageFont_(app))
     Popup.runStandalone_(app, p)
     return null
   }
 
   static runStandalone(app, title, message) {
     var p = Alert.new(title, message)
-    p.bounds = Popup.centeredTitledBounds_(title, message, 1, 20)
+    p.bounds = Popup.centeredTitledBounds_(title, message, 1, 20, false,
+        Popup.appMessageFont_(app))
     Popup.runStandalone_(app, p)
     return null
   }
@@ -413,7 +468,8 @@ class Alert is Popup {
   static showPreformatted(app, message) {
     var p = Alert.new(message)
     p.preformatted = true
-    p.bounds = Popup.centeredBounds_(message, 1, 20, true)
+    p.bounds = Popup.centeredBounds_(message, 1, 20, true,
+        Popup.appMessageFont_(app))
     app.modal(p)
     return null
   }
@@ -464,7 +520,8 @@ class Confirm is Popup {
 
   static show(app, message) {
     var p = Confirm.new(message)
-    p.bounds = Popup.centeredBounds_(message, 1, 24)
+    p.bounds = Popup.centeredBounds_(message, 1, 24, false,
+        Popup.appMessageFont_(app))
     app.modal(p)
     return p.result
   }
@@ -472,14 +529,16 @@ class Confirm is Popup {
   static show(app, message, helpText) {
     var p = Confirm.new(message)
     p.helpText = helpText
-    p.bounds = Popup.centeredBounds_(message, 1, 24)
+    p.bounds = Popup.centeredBounds_(message, 1, 24, false,
+        Popup.appMessageFont_(app))
     app.modal(p)
     return p.result
   }
 
   static runStandalone(app, message) {
     var p = Confirm.new(message)
-    p.bounds = Popup.centeredBounds_(message, 1, 24)
+    p.bounds = Popup.centeredBounds_(message, 1, 24, false,
+        Popup.appMessageFont_(app))
     return Popup.runStandalone_(app, p)
   }
 
@@ -550,14 +609,19 @@ class Prompt is Popup {
   // content padding; title width is an independent outer constraint.
   sizeForInput(inputWidth) { sizeForInput(inputWidth, 30) }
   sizeForInput(inputWidth, minimumWidth) {
+    sizeForInput(inputWidth, minimumWidth, 0)
+  }
+  sizeForInput(inputWidth, minimumWidth, font) {
     var requested = (inputWidth + 4).max(minimumWidth)
-    bounds = Popup.centeredTitledBounds_(title, message, 2, requested)
+    bounds = Popup.centeredTitledBounds_(title, message, 2, requested,
+        false, font)
   }
 
   static show(app, message) { show(app, message, null) }
   static show(app, message, initial) {
     var p = Prompt.new(message, initial)
-    p.sizeForInput(initial == null ? 0 : initial.count)
+    p.sizeForInput(initial == null ? 0 : initial.count, 30,
+        Popup.appMessageFont_(app))
     app.modal(p)
     return p.result
   }
@@ -565,7 +629,8 @@ class Prompt is Popup {
   static runStandalone(app, message) { runStandalone(app, message, null) }
   static runStandalone(app, message, initial) {
     var p = Prompt.new(message, initial)
-    p.sizeForInput(initial == null ? 0 : initial.count)
+    p.sizeForInput(initial == null ? 0 : initial.count, 30,
+        Popup.appMessageFont_(app))
     return Popup.runStandalone_(app, p)
   }
 

@@ -1,10 +1,12 @@
 // Self-tests for menu_ui.
 
 import "ui_widget" for Rect
-import "menu_ui" for ChoiceViewState, MenuUi
+import "menu_ui" for ChoiceMessage, ChoiceViewState, MenuUi
 import "menu_settings_ui" for SettingsMenu
 import "menu_sort_profiles" for SortProfiles
 import "syncterm_menu" for Menu
+import "syncterm" for Key, KeyEvent
+import "ui_style" for Style, Theme
 
 class MenuUiTest {
   static run() {
@@ -18,6 +20,7 @@ class MenuUiTest {
     testAsciiNames_()
     testSortFieldLabels_()
     testSortOrderComparison_()
+    testChoiceMessageUsesPaintedFont_()
 
     var total = __pass + __fail
     System.print("=== menu_ui: %(total) tests, %(__pass) pass, " +
@@ -95,6 +98,18 @@ class MenuUiTest {
     check_(first == second && fresh != first && second.selected == 10 &&
            second.scrollTop == 8,
            "ChoiceViewState: repeated choices retain ListView viewport")
+  }
+
+  static testChoiceMessageUsesPaintedFont_() {
+    var message = ChoiceMessage.new("AAA")
+    message.theme = Theme.new({
+      "default": Style.new(255, 0x07, 0xaaaaaa, 0x000000)
+    }, Theme.default.glyphs)
+    message.bounds = Rect.new(1, 1, 4, 1)
+    message.draw()
+    message.handle(KeyEvent.new(Key.end))
+    check_(message.scrollTop == 2,
+        "choice messages wrap with the font used to paint them")
   }
 
   static testBrowserMaximumHeight_() {

@@ -37,7 +37,7 @@ repository-wide coverage. The legacy tree is read-only reference.
 
 The repository-wide audit is complete. This is not an implementation approval
 or release certification. The consolidated API/design assessment, priority
-groups and all 20 outstanding finding summaries are in
+groups and all 16 outstanding finding summaries are in
 AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 
 | Objective requirement | Authoritative evidence and disposition |
@@ -50,8 +50,8 @@ AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 | Required legacy behavior | Read-only comparisons cover fonts/catalog/maps, modes, palette capacity, Prestel versus Mode 7, command line, console/input and settings behavior, plus explicit parity limits. Frozen CTerm chapter cmp succeeds. |
 | Wren scripts and bindings | Complete local source/signature/manual reviews and isolated shipped-script suites and host fixtures. Connected/SFTP production integration missing from this application is reported, not invented or silently counted as working. |
 | Build logic, generators and documentation | Root/component CMake and generators reviewed; standalone/probe failures recorded; pinned Unicode/font regeneration and table comparisons documented; root manuals/license/development guidance covered. Wren VM vendored internals limited to integration boundaries as requested. |
-| Inventory and consolidated findings | 20 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 8 medium, 10 low, 2 unresolved concerns; not all runtime reproductions. |
-| Relevant tests where practical | Complete native Clang and GCC builds have succeeded. The current configured native trees register 104 tests. Clang passed all 103 runnable tests and skipped Wayland; GCC passed 102, skipped Wayland and hit the recorded intermittent X11 failure, whose isolated rerun passed. The MinGW cross-build succeeded. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
+| Inventory and consolidated findings | 16 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 7 medium, 7 low, 2 unresolved concerns; not all runtime reproductions. |
+| Relevant tests where practical | Complete native Clang and GCC builds have succeeded. The current configured native trees register 108 tests. The latest complete verification is recorded in AUDIT_INDEX.md. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
 | Explicit uncertainty | Each component records unavailable platforms, unexecuted failure paths and measurement limits; A007/A011 unresolved. Source-level risks are not called verified crashes. These are audit outcomes, not claims of implementation correctness. |
 
 Historical pending-source lists below are superseded by subsequent full reads,
@@ -619,8 +619,7 @@ Additional documentation reconciliation under A088/A090:
   Wren semicolon syntax (Status callable chaining). These are example defects,
   not reasons to change the language or make glyph widths uniformly one.
 
-UI empty selection, tab order
-and Markdown semantics correspond to A071/A074/A077/A078.
+UI empty selection and tab order correspond to A071/A074.
 Repeated promises were not assigned duplicate defect numbers. Full-source
 documentation coverage does not settle remaining app/console/host integration
 follow-ups or constitute final consolidated audit completion.
@@ -747,34 +746,6 @@ make constructor and empty-items assignment obey the same documented state,
 and test cursorPos/first navigation from empty and explicitly cleared states.
 No production fix made.
 
-### A072 — Popup wrapping counts UTF-8 bytes as screen columns
-
-Severity: medium (inherited visible layout defect). scripts/ui_popup.wren:265
-wrapInto_ compares byte offsets with a display-cell width and advances a hard
-break by that many bytes. This is not safe even for Unicode characters that
-have CP437 equivalents. Native headless popup-suite demonstrates that wrapping
-two U+00E9 characters at width one produces four rows [é, empty, é, empty],
-instead of two; two U+2500 box-drawing characters at width two produce three
-rows [─, ─, empty], instead of one. Wren range slicing decodes codepoints at
-selected byte positions and skips continuation positions; the reproduced
-effect is spurious wrapping/empty rows, not a claim of invalid UTF-8 output.
-
-This routine controls Popup sizing, msgRows and message painting, and is also
-used by ProgressText. The complete popup script is byte-identical to legacy:
-this is an inherited defect exposed by the audit, not a new-port regression.
-Recommendation: wrap using display widths under the same font-resolution
-rules as drawing, preserving UTF-8 boundaries and hard-break/space semantics.
-Test CP437-representable multibyte characters as well as wide glyphs and font
-overrides. No production fix made.
-
-Reproduction: strict-C17 standalone st_wren_loader_audit_test, fresh /tmp
-fixture root, popup-suite mode. Expanded ui_popup_test.wren returns 44 passes
-and the two failures above. Existing fake App initially aborted because it
-lacked modalTop and returned a null effectiveTheme. Updated that test fixture
-to provide its actual stack top and Theme.default; no assertions removed or
-weakened. The remaining 43 existing assertions and the added ASCII CR/LF/CRLF
-wrapping check pass. Tests do not exercise a real modal event loop or desktop.
-
 ### A073 — Changing TextInput's display mask leaves its viewport stale
 
 Severity: medium (cursor/display correctness). scripts/ui_input.wren:120
@@ -820,61 +791,6 @@ Recommendation: make traversal match the declared logical field/button order
 regardless of callback assignment order or subsequent field additions, or
 explicitly reconsider the API contract. Test button removal/recreation and
 clearFields/repopulation as well as initial construction. No production edits.
-
-### A076 — Help scrollbar-separator changes do not invalidate wrapped layout
-
-Severity: low (inherited stale layout). scripts/ui_help.wren's
-scrollbarSeparator= setter marks drawing dirty but leaves _layoutW valid.
-ensureLayout_ returns early when bounds width/height are unchanged, even
-though separator visibility changes available text width by one column.
-Painting uses the new viewportCols_ with the old wrapped lines and scroll
-range. The cache key lacks a layout-affecting option.
-
-Added testSeparatorReflows_ compares an already laid-out Help whose separator
-is disabled with a freshly constructed Help having the same final properties.
-At 14x6, body "aaaa bbbbb aaaa bbbbb aaaa bbbbb", End produces different
-scrollTop values. Strict native Clang headless help-suite reports all 23
-existing checks passing and this regression failing. No GUI or production
-edits. The relevant implementation is unchanged from legacy; only run-text
-painting width changed in the modernized version.
-
-Recommendation: include separator state in the layout cache key or invalidate
-it when changing that option, then clamp scroll position against recomputed
-lines. Test both directions and at top/end; custom-font layout consistency
-remains a separate question.
-
-### A077 — Markdown parses bold delimiters inside inline code
-
-Severity: low (inherited help-text corruption). ui_markdown.wren parseInline_
-handles ** before checking whether the active role is MdRole.code. Parsing
-`**literal**` enclosed in backticks loses the literal asterisks and changes
-the run's role to bold. This violates the advertised inline-code semantics
-of the documented Markdown subset. The implementation uses one role variable
-rather than preserving code-span literal content independently of other markup.
-
-Added testCodeSpanKeepsLiteralMarkup_ in ui_help_test.wren expects one code
-run containing **literal**. It fails in the native headless help-suite.
-Recommendation: keep code-span contents literal and separately test escaping,
-unmatched delimiters, and bold surrounding code; do not infer support for all
-CommonMark constructs beyond the documented subset. Relevant parsing code is
-unchanged from legacy. No implementation edits.
-
-### A078 — Markdown bullet hard breaks lose continuation indentation
-
-Severity: low (inherited documented-format mismatch). Wren.adoc explicitly
-supports trailing-double-space hard breaks inside bullets with hanging-indent
-continuations. ui_markdown.wren parse consumes each bullet as a single source
-line; only the paragraph branch joins following lines and converts trailing
-spaces to a hard-break token. Consequently "- first  \nsecond" is parsed as
-a bullet followed by an independent paragraph, and second is drawn without
-the required two-cell indent.
-
-Added testBulletHardBreakKeepsIndent_: bullet continuation assertion fails;
-the same hard break in an ordinary paragraph passes. Strict native Clang
-headless help-suite now reports 24 passes / 3 failures (A076, A077, A078).
-Recommendation: preserve bullet continuation ownership during block parsing
-and test both forced and soft wraps with inline roles. Relevant code is
-unchanged from legacy. No desktop interaction or production edits.
 
 ### A080 — Valid hex edits reset the color-picker cursor to the end
 
@@ -1278,19 +1194,17 @@ related host functions were rechecked.
 MenuUi pass: read complete scripts/menu_ui.wren (696 lines) and full legacy
 diff. This module is now included in script coverage. Modern changes are
 selective Unicode width measurement; browser label widths still use .count.
-ChoiceMessage delegates wrapping to Popup.wrap_, so A072 also affects its
-message viewport. Main responsibilities are mapped choice values, callbacks
-before dismissal, browser preview/cancel hooks, standalone synchronous dialog
-ownership, and retained ListView state across repeated choices.
+Main responsibilities are mapped choice values, callbacks before dismissal,
+browser preview/cancel hooks, standalone synchronous dialog ownership, and
+retained ListView state across repeated choices.
 
 Extended ui_popup_test with browser acceptance, rejection, Escape and direct-
 command cases using the existing fake App. All four assertions pass: mapped
 row values are returned, rejection keeps the pane open, acceptance omits the
 cancel hook, Escape calls it once, and a direct command calls cancellation
-before returning its command/value. Entire popup-suite now 48 passes / 2
-retained A072 failures. These are direct synchronous event tests, not a real
-App loop or disk-backed menu session. Existing nested-choice callback test
-also remains passing.
+before returning its command/value. These are direct synchronous event tests,
+not a real App loop or disk-backed menu session. Existing nested-choice
+callback test also remains passing.
 
 Unresolved failure contracts: browser cancellation sets its closed flag before
 calling external onCancel; an abort there leaves a resident pane whose later
@@ -1353,36 +1267,26 @@ performance has not been measured. No production changes or commits.
 Markdown pass: read all 575 lines of ui_markdown.wren, complete legacy diff,
 and the documented Markdown subset. No dedicated ui_markdown_test.wren exists;
 extended ui_help_test.wren exercises the parser via the isolated headless host.
-This module is now included in script coverage. Modern differences add font-zero
-display-width queries; parsing and wrap policy are inherited. Confirmed new
-findings are A077/A078, not Unicode byte-splitting (inline parsing correctly
-materializes codepoints before scanning).
+This module is now included in script coverage.
 
 Further source concerns: a single word longer than the viewport is emitted
 unsplit and Help clips its suffix with no horizontal scrolling. Definition
 terms are measured against a cap but their prefix is not clipped/wrapped;
 at narrow widths the continuation indent can consume the complete viewport,
 leaving descriptions invisible. Need explicit overflow-policy tests before
-classifying these separately. Layout has no theme/font parameter and measures
-font zero whereas Help paints per-role fonts. Parsing/coalescing repeatedly
-concatenates strings and closing-marker searches rescan suffixes; worst-case
-cost needs measurement, not an unsupported performance claim. CR handling is
-explicitly LF-only in source; normalization responsibility needs documentation
-review. No production/build/documentation changes or commits.
+classifying these separately. Parsing/coalescing repeatedly concatenates strings
+and closing-marker searches rescan suffixes; worst-case cost needs measurement,
+not an unsupported performance claim. CR handling is explicitly LF-only in
+source; normalization responsibility needs documentation review.
 
 Help pass: read full ui_help.wren (350 lines), original ui_help_test.wren
 (297 lines), matching manual section and Markdown-subset introduction, and
 complete legacy diff. Both modules are now included in script coverage.
-Existing 23 checks pass in isolated native headless host; new cache-invalidation
-failure is A076. Tests exercise keyboard dismissal/scrolling, preformatted
-hard lines, individual wheel/click/drag events and scrollbar drawing. FakeApp
-is sufficient for these tests because painting occurs outside its parentage;
-its null theme/missing modalTop would not support a general attached draw.
-Markdown implementation and its own tests remain pending, not implicitly
-covered by the Help wrapper review. No actual modal pumping or screen text
-selection is established by directly injected events. The documentation says
-any other key dismisses, but process-close Key.quit deliberately falls through
-and its test passes. No existing documentation changed.
+Tests exercise keyboard dismissal/scrolling, preformatted hard lines,
+individual wheel/click/drag events and scrollbar drawing. No actual modal
+pumping or screen text selection is established by directly injected events.
+The documentation says any other key dismisses, but process-close Key.quit
+deliberately falls through and its test passes.
 
 DatePicker pass: read complete ui_date_picker.wren (299 lines), original
 test module (211 lines), and full matching manual section. Implementation is
@@ -1456,16 +1360,15 @@ the popup manual through its layout/standalone introduction, and compared the
 complete implementation with legacy (identical). Script coverage includes
 ui_popup.wren and ui_popup_test.wren; imports ui_input/ui_help/menu_ui are not
 thereby marked reviewed. Tests cover fake-parent dismissal, prompt editing,
-layout and MenuUi choice interactions; the two added Unicode wrap failures
-are A072. Strict native Clang headless execution only.
+layout and MenuUi choice interactions. Strict native Clang headless execution
+only.
 
 Source questions requiring followup: preformatted= does not mark the cached
-surface dirty or re-layout a popup changed after its first draw. PopStatus and
-popup centering/truncation still use codepoint counts (Find uses byte count)
-rather than font-dependent column widths. Very small consoles can force button
-rows/input fields beyond their content bounds; tall ordinary Popup messages
-are not explicitly clipped to the content rectangle before drawing. These
-are not yet separate reproduced findings. Confirm's close-button path returns
+surface dirty or re-layout a popup changed after its first draw. Find sizing
+uses byte count rather than font-dependent column widths. Very small consoles
+can force button rows/input fields beyond their content bounds; tall ordinary
+Popup messages are not explicitly clipped to the content rectangle before
+drawing. These are not yet separate reproduced findings. Confirm's close-button path returns
 null rather than the false used by Esc; the manual specifies Yes/No/Esc but
 does not define that path, so clarify the return contract before calling it a
 defect. Standalone asynchronous driver cleanup remains part of App integration
@@ -1491,12 +1394,8 @@ are retained by reference, so caller mutation without reassigning/markDirty
 can bypass the widget cache; clarify whether that is permitted by the API.
 Progress arithmetic multiplies before dividing and does not reject non-finite
 inputs; realistic transfer sizes do not approach floating overflow, and no
-application failure is asserted. Width measurement with a null style font
-uses font zero, sharing the inherited-font question noted for other widgets.
-Tests use normal finite values and the default font, not wide-glyph/custom-font
-layouts. ProgressText wrapping delegates to Popup.wrap_, which still requires
-the popup component review. Passing these tests does not establish that helper's
-Unicode or narrow-width correctness.
+application failure is asserted. Retained-list mutation and non-finite
+arithmetic remain outside the ordinary finite-value layout fixtures.
 
 RadioGroup/SpinBox pass: read complete implementations (199/161 lines), test
 modules (197/206 original lines) and matching manual sections. Both production
