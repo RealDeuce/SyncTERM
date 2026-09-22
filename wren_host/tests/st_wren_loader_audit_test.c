@@ -208,7 +208,8 @@ main(int argc, char **argv)
 	CHECK(st_console_create(&console, &display, &config) == 0);
 	CHECK(st_hyperlink_registry_create(&hyperlinks) == 0);
 	if (strcmp(argv[2], "painter-truncate") == 0
-	    || strcmp(argv[2], "input-suite") == 0) {
+	    || strcmp(argv[2], "input-suite") == 0
+	    || strcmp(argv[2], "logview-suite") == 0) {
 		static const uint8_t narrow[16] = {0};
 		static const uint8_t wide[32] = {0};
 		static const struct st_console_font_mapping mapping[] = {

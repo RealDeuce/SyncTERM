@@ -2,7 +2,7 @@
 
 import "ui_widget"  for Rect
 import "ui_logview" for LogView
-import "syncterm"   for Key, KeyEvent, Mouse, MouseEvent
+import "syncterm"   for Key, KeyEvent, Mouse, MouseEvent, Screen
 
 class UiLogviewTest {
   static run() {
@@ -30,7 +30,14 @@ class UiLogviewTest {
     testScrollbarAppearsWhenOverflowing_()
     testScrollbarWheelMovesPage_()
     testWrappedScrollbarClick_()
+    testWrappedScrollbarTrackAndDrag_()
     testCapacityShrinkAnchor_()
+    testWrappedCapacityShrinkAnchor_()
+    testEvictedCapacityAnchor_()
+    testCapacityShrinkBelowViewport_()
+    testResizePreservesAnchor_()
+    testWideGlyphRows_()
+    testEmptyEntryRows_()
 
     var total = __pass + __fail
     System.print("=== ui_logview: %(total) tests, %(__pass) pass, %(__fail) fail ===")
@@ -65,6 +72,112 @@ class UiLogviewTest {
     lv.capacity = 8
     check_(lv.scrollTop == 2,
         "capacity shrink retains the anchored entry when it survives eviction")
+  }
+
+  static testWrappedScrollbarTrackAndDrag_() {
+    var lv = LogView.new()
+    lv.bounds = Rect.new(1, 1, 7, 5)
+    lv.append(LogView.LEVEL_INFO,
+        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWX")
+    lv.handle(keyEvent_(Key.home))
+    var clicked = lv.handle(MouseEvent.new(Mouse.button1Press, 7, 3, 7, 3))
+    var clickTop = lv.scrollTop
+    var dragged = lv.handle(MouseEvent.new(Mouse.button1DragMove, 7, 2, 7, 4))
+    check_(clicked && clickTop == 3 && dragged && lv.scrollTop == null,
+        "scrollbar track and drag use wrapped visual rows")
+  }
+
+  static testWrappedCapacityShrinkAnchor_() {
+    var lv = LogView.new()
+    lv.bounds = Rect.new(1, 1, 7, 3)
+    lv.append(LogView.LEVEL_INFO, "abcdefghij")
+    for (line in ["one", "two", "three", "four", "five"]) {
+      lv.append(LogView.LEVEL_INFO, line)
+    }
+    lv.handle(keyEvent_(Key.home))
+    lv.scrollBy(3)
+    var before = lv.draw().cellAt(0, 0).ch
+    lv.capacity = 4
+    var after = lv.draw().cellAt(0, 0).ch
+    check_(before == "t" && after == "t" && lv.scrollTop == 0,
+        "capacity shrink preserves content after wrapped entries are dropped")
+  }
+
+  static testEvictedCapacityAnchor_() {
+    var lv = LogView.new()
+    lv.bounds = Rect.new(1, 1, 7, 3)
+    lv.append(LogView.LEVEL_INFO, "abcdefghij")
+    for (line in ["one", "two", "three", "four", "five"]) {
+      lv.append(LogView.LEVEL_INFO, line)
+    }
+    lv.handle(keyEvent_(Key.home))
+    lv.capacity = 4
+    var sf = lv.draw()
+    check_(lv.scrollTop == 0 && sf.cellAt(0, 0).ch == "t",
+        "evicting the anchor keeps the view on the oldest retained content")
+  }
+
+  static testCapacityShrinkBelowViewport_() {
+    var lv = LogView.new()
+    lv.bounds = Rect.new(1, 1, 20, 4)
+    for (line in ["alpha", "bravo", "charlie", "delta", "echo", "foxtrot"]) {
+      lv.append(LogView.LEVEL_INFO, line)
+    }
+    lv.handle(keyEvent_(Key.home))
+    lv.scrollBy(1)
+    lv.capacity = 3
+    var sf = lv.draw()
+    check_(lv.scrollTop == 0 && sf.cellAt(0, 0).ch == "d",
+        "capacity shrink keeps anchored mode when retained content fits")
+  }
+
+  static testResizePreservesAnchor_() {
+    var lv = LogView.new()
+    var text = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567"
+    lv.bounds = Rect.new(1, 1, 7, 3)
+    lv.append(LogView.LEVEL_INFO, text)
+    lv.handle(keyEvent_(Key.home))
+    lv.scrollBy(4)
+    var narrow = lv.draw().cellAt(0, 0).ch
+    lv.bounds = Rect.new(1, 1, 12, 3)
+    var wide = lv.draw().cellAt(0, 0).ch
+    var wideTop = lv.scrollTop
+    lv.bounds = Rect.new(1, 1, 7, 3)
+    var narrowAgain = lv.draw().cellAt(0, 0).ch
+    var narrowTop = lv.scrollTop
+    lv.goLive()
+    lv.bounds = Rect.new(1, 1, 12, 3)
+    check_(narrow == "u" && wide == "u" && wideTop == 2 &&
+           narrowAgain == "u" && narrowTop == 4 && lv.scrollTop == null,
+        "resize reflows an anchor by content while live mode remains live")
+  }
+
+  static testWideGlyphRows_() {
+    var lv = LogView.new()
+    lv.bounds = Rect.new(1, 1, 5, 2)
+    lv.append(LogView.LEVEL_INFO, "A\u4e00BCDE")
+    lv.handle(keyEvent_(Key.home))
+    lv.handle(keyEvent_(Key.down))
+    var sf = lv.draw()
+    var wideWidth = Screen.textWidth("\u4e00", 0)
+    check_(wideWidth == 2 && lv.scrollTop == null &&
+           sf.cellAt(0, 0).ch == "B" &&
+           sf.cellAt(0, 1).ch == "E",
+        "double-width glyphs contribute two display columns when wrapping")
+  }
+
+  static testEmptyEntryRows_() {
+    var lv = LogView.new()
+    lv.bounds = Rect.new(1, 1, 5, 2)
+    lv.append(LogView.LEVEL_INFO, "")
+    lv.append(LogView.LEVEL_INFO, "")
+    lv.append(LogView.LEVEL_INFO, "x")
+    lv.handle(keyEvent_(Key.home))
+    lv.handle(keyEvent_(Key.down))
+    var sf = lv.draw()
+    check_(lv.scrollTop == null && sf.cellAt(0, 0).chByte == 0x20 &&
+           sf.cellAt(0, 1).ch == "x",
+        "empty entries each retain one visual row")
   }
 
   // Construct a key event for handle() — use synthetic events since

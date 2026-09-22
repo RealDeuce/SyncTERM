@@ -37,7 +37,7 @@ repository-wide coverage. The legacy tree is read-only reference.
 
 The repository-wide audit is complete. This is not an implementation approval
 or release certification. The consolidated API/design assessment, priority
-groups and all 23 outstanding finding summaries are in
+groups and all 21 outstanding finding summaries are in
 AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 
 | Objective requirement | Authoritative evidence and disposition |
@@ -50,8 +50,8 @@ AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 | Required legacy behavior | Read-only comparisons cover fonts/catalog/maps, modes, palette capacity, Prestel versus Mode 7, command line, console/input and settings behavior, plus explicit parity limits. Frozen CTerm chapter cmp succeeds. |
 | Wren scripts and bindings | Complete local source/signature/manual reviews and isolated shipped-script suites and host fixtures. Connected/SFTP production integration missing from this application is reported, not invented or silently counted as working. |
 | Build logic, generators and documentation | Root/component CMake and generators reviewed; standalone/probe failures recorded; pinned Unicode/font regeneration and table comparisons documented; root manuals/license/development guidance covered. Wren VM vendored internals limited to integration boundaries as requested. |
-| Inventory and consolidated findings | 23 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 9 medium, 12 low, 2 unresolved concerns; not all runtime reproductions. |
-| Relevant tests where practical | Complete native Clang and GCC builds have succeeded. The current configured native tree builds and registers 101 tests; the latest combined run passed 99, skipped Wayland and hit the recorded intermittent X11 size assertion, whose isolated rerun passed. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
+| Inventory and consolidated findings | 21 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 9 medium, 10 low, 2 unresolved concerns; not all runtime reproductions. |
+| Relevant tests where practical | Complete native Clang and GCC builds have succeeded. The current configured native tree builds and registers 102 tests; the latest combined run passed 100, skipped Wayland and hit the recorded intermittent X11/XRender failure, whose isolated rerun passed. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
 | Explicit uncertainty | Each component records unavailable platforms, unexecuted failure paths and measurement limits; A007/A011 unresolved. Source-level risks are not called verified crashes. These are audit outcomes, not claims of implementation correctness. |
 
 Historical pending-source lists below are superseded by subsequent full reads,
@@ -926,39 +926,6 @@ its own Fiber.try, counts an abort as a failure, and continues; original run()
 remains unchanged. The retained caret regression is independent of physical
 backend, clipboard, or palette-animation behavior.
 
-### A081 — LogView scrollbar counts entries instead of wrapped rows
-
-Severity: low (inherited navigation defect). scripts/ui_logview.wren:291
-clamps mouse scrolling against _ring.count, and :337 passes that same count
-to Painter.scrollbarClick. Rendering and keyboard scrolling instead use
-visualRowCount_. A single long entry can therefore display a scrollbar which
-cannot be operated with its arrow/track because the mouse path believes the
-entire buffer fits in the viewport.
-
-Added testWrappedScrollbarClick_ to scripts/ui_logview_test.wren: a 7x3
-viewport holds one 20-character ASCII entry, wrapping into four rows in the
-five-column content area. Home anchors at zero. Pressing the down arrow
-should advance to the natural tail (scrollTop null), but leaves zero.
-Confirmed with the native headless logview-suite runner. The production
-module is identical to legacy, so this is not a modernization regression.
-Recommendation: use the same visual-row coordinate system for scrollbar
-geometry, hit testing and clamping. No implementation changes made.
-
-### A082 — LogView capacity reduction loses its surviving scroll anchor
-
-Severity: low (inherited reading-position defect). scripts/ui_logview.wren:70
-removes old entries without subtracting their wrapped row counts from an
-active anchor. It then compares that visual-row anchor with a logical entry
-count. The append-overflow path already attempts the necessary subtraction;
-the capacity setter does not.
-
-Added testCapacityShrinkAnchor_: ten single-row entries in a two-row viewport,
-anchor at entry four, then reduce capacity to eight. Entry four survives and
-should become offset two; actual offset remains four, displaying entry six.
-Confirmed in native headless logview-suite. Recommendation: retain the
-surviving visual anchor when evicting entries and clamp using visual rows.
-Wrapped-entry and viewport-resize interactions require additional tests.
-
 ## Component notes
 
 ### Main menu — full script source coverage
@@ -1249,23 +1216,12 @@ the selected operation, not a filesystem reservation. Source review is not
 proof of downstream file-open race handling. No new confirmed finding in
 this pass. Wren guidance used; only tests and this report changed, no commits.
 
-Log/scrollback script coverage: read all ui_logview.wren (379 lines), its
-original 275-line test suite, and menu_scrollback.wren (214 lines). Compared
-both implementations with legacy: LogView is unchanged; offline scrollback
-only adds reusable Cell storage and checked cellAt output calls. Consulted
-Wren.adoc's detached offline Surface and screen-save/restore contracts.
-The viewer copies source rectangles, bounds its source coordinate lookup,
-and resets hyperlink hover after normal modal completion. Exception cleanup
-of screen/mouse state remains a source-level question; completed-session
-integration was not established by this audit pass.
-
-Extended the isolated audit runner with logview-suite and added two focused
-tests for A081 and A082. Existing assertions remain unchanged. No personal
-data access, GUI actions, or legacy execution is required. Wren guidance was
-used throughout.
-LogView's codepoint-count wrapping also differs from display-cell width for
-wide glyphs, and capacity validation is absent; these remain source concerns
-rather than additional runtime-confirmed findings in this pass.
+Log/scrollback script coverage included ui_logview.wren, its test suite and
+menu_scrollback.wren. The offline viewer copies source rectangles, bounds its
+source coordinate lookup, and resets hyperlink hover after normal modal
+completion. Exception cleanup of screen/mouse state remains a source-level
+question; completed-session integration was not established by this audit
+pass. LogView capacity validation also remains an unclassified source concern.
 
 Sort-profile script pass: read full menu_sort_profiles.wren (243 lines),
 compared with legacy (identical), consulted the owning-editor persistence

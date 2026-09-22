@@ -41,7 +41,7 @@
 
 import "ui_widget" for Widget, Rect
 import "ui_draw"   for Painter
-import "syncterm"  for Key, KeyEvent, Mouse, MouseEvent
+import "syncterm"  for Key, KeyEvent, Mouse, MouseEvent, Screen
 
 class LogView is Widget {
   // Severity constants — mirror the C-side LOG_* macros so callers
@@ -61,7 +61,7 @@ class LogView is Widget {
     focusable    = true
     _capacity    = 256
     _ring        = []     // entries are [level, text]
-    _scrollTop   = -1     // -1 = live tail; >= 0 = anchored offset
+    _scrollAnchor = null   // null = live tail; otherwise [entry, codepoint]
   }
 
   // Maximum lines retained in the ring.  Setting smaller than the
@@ -69,8 +69,7 @@ class LogView is Widget {
   capacity     { _capacity }
   capacity=(n) {
     _capacity = n
-    while (_ring.count > _capacity) _ring.removeAt(0)
-    if (_scrollTop > _ring.count - 1) _scrollTop = -1
+    trimToCapacity_()
     markDirty()
   }
 
@@ -78,38 +77,52 @@ class LogView is Widget {
   count { _ring.count }
 
   // Public scroll position; null when live-tailing.
-  scrollTop { _scrollTop < 0 ? null : _scrollTop }
+  scrollTop {
+    if (_scrollAnchor == null) return null
+    var layout = layout_
+    return effectiveScrollTop_(layout[0])
+  }
 
   cursorVisible { false }
 
   // Append a new line.  When in live-tail mode the view auto-follows
   // the latest entry; in scroll mode the anchor stays put (so the
   // user can read older entries without the view jumping out from
-  // under them).  Anchor adjustment on ring overflow uses the
-  // WRAPPED row count of the dropped entry — a long line collapses
-  // multiple visual rows when it falls off the back.
+  // under them).  Anchors identify the entry and codepoint at the top
+  // of the view, so dropping or rewrapping preceding content does not
+  // change the surviving text being read.
   append(level, text) {
     _ring.add([level, text])
-    if (_ring.count > _capacity) {
-      var droppedRows = rowsForEntry_(_ring[0], contentWidth_)
-      _ring.removeAt(0)
-      if (_scrollTop >= 0) {
-        _scrollTop = (_scrollTop - droppedRows).max(0)
-      }
-    }
+    trimToCapacity_()
     markDirty()
+  }
+
+  trimToCapacity_() {
+    var dropped = 0
+    while (_ring.count > _capacity) {
+      _ring.removeAt(0)
+      dropped = dropped + 1
+    }
+    if (_scrollAnchor == null || dropped == 0) return
+    if (_ring.count == 0) {
+      _scrollAnchor = null
+    } else if (_scrollAnchor[0] < dropped) {
+      _scrollAnchor = [0, 0]
+    } else {
+      _scrollAnchor = [_scrollAnchor[0] - dropped, _scrollAnchor[1]]
+    }
   }
 
   // Drop everything and return to live mode.
   clear() {
     _ring.clear()
-    _scrollTop = -1
+    _scrollAnchor = null
     markDirty()
   }
 
   // Force live-tail mode (no anchor).
   goLive() {
-    _scrollTop = -1
+    _scrollAnchor = null
     markDirty()
   }
 
@@ -120,16 +133,17 @@ class LogView is Widget {
   // to live.  Counts are in WRAPPED visual rows, not logical entries.
   scrollBy(delta) {
     if (bounds == null) return
-    var n  = visualRowCount_
+    var rows = layout_[0]
+    var n  = rows.count
     var vh = bounds.h
     if (n <= vh) return
     var maxTop = n - vh
-    if (_scrollTop < 0) {
-      _scrollTop = maxTop
-    }
-    _scrollTop = (_scrollTop + delta).max(0).min(maxTop)
-    if (_scrollTop == maxTop && delta > 0) {
-      _scrollTop = -1
+    var top = effectiveScrollTop_(rows)
+    var target = (top + delta).max(0).min(maxTop)
+    if (target == maxTop && delta > 0) {
+      _scrollAnchor = null
+    } else {
+      _scrollAnchor = anchorForRow_(rows, target)
     }
     markDirty()
   }
@@ -137,68 +151,97 @@ class LogView is Widget {
   // Effective top-of-viewport visual-row index given the current scroll
   // mode.  In live mode this is `visualRowCount - viewport` (or 0
   // when content fits); in scroll mode it's the explicit anchor.
-  effectiveScrollTop_ {
-    var n = visualRowCount_
+  effectiveScrollTop_(rows) {
+    var n = rows.count
     if (n == 0) return 0
     var vh = bounds == null ? 0 : bounds.h
-    if (_scrollTop >= 0) return _scrollTop
-    if (n > vh) return n - vh
-    return 0
+    var maxTop = (n - vh).max(0)
+    if (_scrollAnchor == null) return maxTop
+    return rowForAnchor_(rows, _scrollAnchor).min(maxTop)
   }
 
-  // True when wrapped content exceeds the viewport — the signal for
-  // "draw a scrollbar."  Computed at the worst-case (scrollbar-shown)
-  // width to avoid the showing-shrinks-content-shrinks-row-count
-  // oscillation that would trigger if we asked at the wider width.
-  scrollbarVisible_ {
-    if (bounds == null || bounds.h <= 0) return false
-    var narrowW = (bounds.w - 2).max(1)
-    return visualRowCountAtWidth_(narrowW) > bounds.h
-  }
-
-  // Codepoint-aware row count for one entry at the given width.
-  // String.count returns codepoints; multi-byte UTF-8 stays intact.
-  rowsForEntry_(entry, width) {
-    if (width <= 0) return 1
-    var n = entry[1].count
-    if (n == 0) return 1
-    return ((n + width - 1) / width).floor
-  }
-
-  // Sum of wrapped rows across the ring at the given width.  Cheap
-  // enough to recompute per frame; caching could come if 256 × few-
-  // codepoints turns out to be hot.
-  visualRowCountAtWidth_(width) {
-    var total = 0
-    for (e in _ring) total = total + rowsForEntry_(e, width)
-    return total
-  }
-
-  visualRowCount_ { visualRowCountAtWidth_(contentWidth_) }
-
-  // Split `text` into chunks of <= `width` codepoints, walking
-  // codepoints (NOT bytes) so multi-byte UTF-8 doesn't get cleaved.
-  // Empty input still returns one (empty) chunk so blank-line entries
-  // occupy a row.
-  wrapText_(text, width) {
-    var chunks = []
+  // Split one entry into visual rows.  Each row is
+  // [entry index, starting codepoint, text].  Screen.textWidth uses
+  // the same font lookup and fallback-width rules as Painter.text.
+  layoutEntry_(entryIndex, width) {
+    var entry = _ring[entryIndex]
+    var text = entry[1]
+    var st = styleForLevel_(entry[0])
+    var font = st.font == null ? 0 : st.font
+    var rows = []
     if (width <= 0) {
-      chunks.add(text)
-      return chunks
+      rows.add([entryIndex, 0, text])
+      return rows
     }
     var chunk = ""
-    var len   = 0
+    var columns = 0
+    var offset = 0
+    var start = 0
     for (cp in text) {
-      chunk = chunk + cp
-      len   = len + 1
-      if (len >= width) {
-        chunks.add(chunk)
+      var cpWidth = Screen.textWidth(cp, font)
+      if (chunk.count > 0 && columns + cpWidth > width) {
+        rows.add([entryIndex, start, chunk])
         chunk = ""
-        len   = 0
+        columns = 0
+        start = offset
+      }
+      chunk = chunk + cp
+      columns = columns + cpWidth
+      offset = offset + 1
+      if (columns >= width) {
+        rows.add([entryIndex, start, chunk])
+        chunk = ""
+        columns = 0
+        start = offset
       }
     }
-    if (chunk.bytes.count > 0 || chunks.count == 0) chunks.add(chunk)
-    return chunks
+    if (chunk.count > 0 || rows.count == 0) {
+      rows.add([entryIndex, start, chunk])
+    }
+    return rows
+  }
+
+  layoutAtWidth_(width) {
+    var rows = []
+    for (i in 0..._ring.count) {
+      for (row in layoutEntry_(i, width)) rows.add(row)
+    }
+    return rows
+  }
+
+  // Return [visual rows, content width, scrollbar visible].  Probe at
+  // the scrollbar width first so showing the bar cannot oscillate with
+  // the wider no-scrollbar layout.
+  layout_ {
+    if (bounds == null) return [[], 0, false]
+    var contentWidth = (bounds.w - 2).max(0)
+    var probe = layoutAtWidth_(contentWidth.max(1))
+    var showScrollbar = bounds.h > 0 && probe.count > bounds.h
+    if (showScrollbar) {
+      if (contentWidth == 0) probe = layoutAtWidth_(0)
+      return [probe, contentWidth, true]
+    }
+    return [layoutAtWidth_(bounds.w.max(0)), bounds.w.max(0), false]
+  }
+
+  anchorForRow_(rows, row) {
+    if (rows.count == 0) return null
+    var clamped = row.max(0).min(rows.count - 1)
+    return [rows[clamped][0], rows[clamped][1]]
+  }
+
+  rowForAnchor_(rows, anchor) {
+    if (rows.count == 0) return 0
+    var result = 0
+    for (i in 0...rows.count) {
+      var row = rows[i]
+      if (row[0] > anchor[0]) return result
+      if (row[0] == anchor[0]) {
+        if (row[1] > anchor[1]) return result
+        result = i
+      }
+    }
+    return result
   }
 
   // Wheel-step (rows) for mouse-wheel scrolling.  Matches the
@@ -213,10 +256,6 @@ class LogView is Widget {
   scrollbarColumn_ { bounds.w - 1 }
   separatorColumn_ { bounds.w - 2 }
   contentColumn_   { 0 }
-  contentWidth_ {
-    if (bounds == null) return 0
-    return scrollbarVisible_ ? (bounds.w - 2).max(0) : bounds.w
-  }
 
   styleForLevel_(level) {
     if (level <= LogView.LEVEL_ERR)     return style("logview.error")
@@ -230,7 +269,10 @@ class LogView is Widget {
     var w  = bounds.w
     var h  = bounds.h
     var cx = contentColumn_
-    var cw = contentWidth_
+    var layout = layout_
+    var rows = layout[0]
+    var cw = layout[1]
+    var showScrollbar = layout[2]
 
     // Default background: blank cells with the info style (cascades to
     // default if no role).  Severity-tinted lines paint over the
@@ -238,39 +280,24 @@ class LogView is Widget {
     var bg = style("logview.info")
     Painter.fill(sf, Rect.new(0, 0, w, h), " ", bg)
 
-    // Walk entries from the start, skipping wrapped rows until we
-    // reach `effectiveScrollTop_`, then paint up to `h` rows.  Each
-    // entry expands into 1+ wrapped chunks (codepoint-aware) sharing
-    // the entry's severity tint.
-    var skip    = effectiveScrollTop_
+    // Paint the shared visual-row layout so rendering, navigation and
+    // scrollbar geometry cannot disagree about wrapping.
+    var top = effectiveScrollTop_(rows)
     var painted = 0
-    var ei      = 0
-    while (ei < _ring.count && painted < h) {
-      var entry  = _ring[ei]
-      var lvl    = entry[0]
-      var txt    = entry[1]
-      var st     = styleForLevel_(lvl)
-      var chunks = wrapText_(txt, cw)
-      var ci     = 0
-      while (ci < chunks.count && painted < h) {
-        if (skip > 0) {
-          skip = skip - 1
-        } else {
-          Painter.fill(sf, Rect.new(cx, painted, cw, 1), " ", st)
-          Painter.text(sf, cx, painted, chunks[ci], st, cw)
-          painted = painted + 1
-        }
-        ci = ci + 1
-      }
-      ei = ei + 1
+    while (top + painted < rows.count && painted < h) {
+      var row = rows[top + painted]
+      var st = styleForLevel_(_ring[row[0]][0])
+      Painter.fill(sf, Rect.new(cx, painted, cw, 1), " ", st)
+      Painter.text(sf, cx, painted, row[2], st, cw)
+      painted = painted + 1
     }
 
-    if (scrollbarVisible_) {
+    if (showScrollbar) {
       var glyphs     = effectiveTheme.glyphs
       var trackStyle = style("scrollbar.track")
       var thumbStyle = style("scrollbar.thumb")
       Painter.scrollbar(sf, scrollbarColumn_, 0, h,
-                        effectiveScrollTop_, visualRowCount_, h,
+                        effectiveScrollTop_(rows), rows.count, h,
                         glyphs, trackStyle, thumbStyle)
       // Single-column separator between scrollbar and content.
       var sepStyle = style("default")
@@ -288,16 +315,16 @@ class LogView is Widget {
   // valid range and snapping back to live mode when the target lands
   // at (or past) the natural tail.  Internal helper used by the
   // mouse-driven scroll path.
-  setScrollTo_(target) {
-    var n  = _ring.count
+  setScrollTo_(target, rows) {
+    var n  = rows.count
     var vh = bounds.h
     if (n <= vh) return
     var maxTop = n - vh
     var t      = target.max(0).min(maxTop)
     if (t == maxTop) {
-      _scrollTop = -1
+      _scrollAnchor = null
     } else {
-      _scrollTop = t
+      _scrollAnchor = anchorForRow_(rows, t)
     }
     markDirty()
   }
@@ -305,8 +332,10 @@ class LogView is Widget {
   handleMouse_(me) {
     if (bounds == null) return false
     var e = me.event
+    var layout = layout_
+    var rows = layout[0]
 
-    var overScrollbar = scrollbarVisible_ &&
+    var overScrollbar = layout[2] &&
         me.startX == bounds.x + scrollbarColumn_
 
     // Wheel: use the normal row step over content and a full viewport
@@ -336,9 +365,9 @@ class LogView is Widget {
     // local coords; convert against bounds.x to get screen coords.
     if (overScrollbar) {
       var py = me.endY - bounds.y
-      var t  = Painter.scrollbarClick(py, bounds.h, _ring.count,
-                                      bounds.h, effectiveScrollTop_)
-      setScrollTo_(t)
+      var t  = Painter.scrollbarClick(py, bounds.h, rows.count,
+                                      bounds.h, effectiveScrollTop_(rows))
+      setScrollTo_(t, rows)
       return true
     }
 
@@ -367,7 +396,7 @@ class LogView is Widget {
     }
     if (c == Key.home) {
       if (_ring.count > 0) {
-        _scrollTop = 0
+        _scrollAnchor = [0, 0]
         markDirty()
       }
       return true
