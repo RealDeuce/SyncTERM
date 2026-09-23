@@ -28,7 +28,21 @@ struct fake_state {
 	bool fail_write;
 };
 
+struct latency_state {
+	struct audio_backend_callbacks callbacks;
+	st_mutex_t mutex;
+	st_condition_t condition;
+	bool entered;
+	bool released;
+};
+
+struct drain_context {
+	audio_stream_t *stream;
+	int result;
+};
+
 static atomic_size_t total_writes = 0;
+static struct latency_state *latency_state;
 
 static bool
 fake_available(void)
@@ -105,6 +119,66 @@ fake_latency(void *opaque)
 	return 0;
 }
 
+static int
+latency_open(void **result, const struct audio_backend_callbacks *callbacks)
+{
+	struct latency_state *state = calloc(1, sizeof(*state));
+
+	if (state == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	if (st_mutex_init(&state->mutex, ST_MUTEX_PLAIN) != ST_THREAD_SUCCESS) {
+		free(state);
+		return IO_ERROR_IO;
+	}
+	if (st_condition_init(&state->condition) != ST_THREAD_SUCCESS) {
+		st_mutex_destroy(&state->mutex);
+		free(state);
+		return IO_ERROR_IO;
+	}
+	state->callbacks = *callbacks;
+	latency_state = state;
+	*result = state;
+	return 0;
+}
+
+static void
+latency_close(void *opaque)
+{
+	struct latency_state *state = opaque;
+
+	latency_state = NULL;
+	st_condition_destroy(&state->condition);
+	st_mutex_destroy(&state->mutex);
+	free(state);
+}
+
+static uint32_t
+gated_latency(void *opaque)
+{
+	struct latency_state *state = opaque;
+
+	if (st_mutex_lock(&state->mutex) != ST_THREAD_SUCCESS)
+		return 1;
+	state->entered = true;
+	(void)st_condition_broadcast(&state->condition);
+	while (!state->released) {
+		if (st_condition_wait(&state->condition, &state->mutex)
+		    != ST_THREAD_SUCCESS)
+			break;
+	}
+	(void)st_mutex_unlock(&state->mutex);
+	return 1;
+}
+
+static int
+drain_thread(void *opaque)
+{
+	struct drain_context *context = opaque;
+
+	context->result = audio_stream_drain(context->stream);
+	return 0;
+}
+
 static const struct audio_backend_descriptor unavailable_backend = {
 	AUDIO_BACKEND_CORE_AUDIO, fake_unavailable, fake_open, fake_close,
 	fake_write, fake_latency
@@ -120,6 +194,10 @@ static const struct audio_backend_descriptor working_backend = {
 static const struct audio_backend_descriptor immediate_failure_backend = {
 	AUDIO_BACKEND_PIPEWIRE, fake_available, fake_immediate_failure_open,
 	fake_close, NULL, fake_latency
+};
+static const struct audio_backend_descriptor latency_backend = {
+	AUDIO_BACKEND_PORTAUDIO, fake_available, latency_open, latency_close,
+	NULL, gated_latency
 };
 
 static int
@@ -195,6 +273,55 @@ test_selection_errors(void)
 }
 
 static int
+test_clear_after_submission(void)
+{
+	const struct audio_backend_descriptor *backends[] = {
+		&latency_backend
+	};
+	audio_engine_t *engine = NULL;
+	audio_stream_t *stream = NULL;
+	struct latency_state *state;
+	struct drain_context context;
+	st_thread_t thread;
+	int16_t frames[] = { 1000, 1000, -1000, -1000 };
+	int16_t output[4];
+	int clear_status;
+	int thread_status;
+
+	CHECK(audio_engine_create_with_backends(&engine,
+	    AUDIO_BACKEND_PORTAUDIO, backends, 1) == 0);
+	state = latency_state;
+	CHECK(state != NULL);
+	CHECK(audio_stream_create(&stream, engine, 0.0f, 0.0f) == 0);
+	CHECK(audio_stream_append(stream, frames, 2, NULL) == 0);
+	CHECK(state->callbacks.pull(state->callbacks.context, output, 2) == 2);
+	context.stream = stream;
+	context.result = IO_ERROR_IO;
+	CHECK(st_thread_create(&thread, drain_thread, &context)
+	    == ST_THREAD_SUCCESS);
+	CHECK(st_mutex_lock(&state->mutex) == ST_THREAD_SUCCESS);
+	while (!state->entered) {
+		CHECK(st_condition_wait(&state->condition, &state->mutex)
+		    == ST_THREAD_SUCCESS);
+	}
+	CHECK(st_mutex_unlock(&state->mutex) == ST_THREAD_SUCCESS);
+
+	clear_status = audio_stream_clear(stream);
+	CHECK(st_mutex_lock(&state->mutex) == ST_THREAD_SUCCESS);
+	state->released = true;
+	(void)st_condition_broadcast(&state->condition);
+	CHECK(st_mutex_unlock(&state->mutex) == ST_THREAD_SUCCESS);
+	CHECK(st_thread_join(thread, &thread_status) == ST_THREAD_SUCCESS);
+	CHECK(thread_status == 0);
+	CHECK(clear_status == 0);
+	CHECK(context.result == 0);
+
+	audio_stream_destroy(stream);
+	audio_engine_destroy(engine);
+	return 0;
+}
+
+static int
 test_synthesis(void)
 {
 	int16_t frames[400 * AUDIO_CHANNELS];
@@ -241,6 +368,7 @@ main(void)
 	st_audio_runtime_destroy(runtime);
 	CHECK(test_engine_and_stream() == 0);
 	CHECK(test_selection_errors() == 0);
+	CHECK(test_clear_after_submission() == 0);
 	CHECK(test_synthesis() == 0);
 	return 0;
 }

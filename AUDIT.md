@@ -2778,8 +2778,7 @@ Windows argument coverage.
   stream before signaling under mixer. Pending buffers retire with a pull
   ticket and are freed at acknowledgment; drain snapshots sequence numbers.
   Tests establish that idle means no queued source, not no unacknowledged
-  device data. Clear discards both source and retired buffers; it cannot undo
-  samples already copied into a backend. Consumer semantics need audio review.
+  device data.
 - Destroy broadcasts then immediately destroys synchronization objects and
   frees state; it is not safe concurrently with an active drain/wait operation.
   The internal header does not document that exclusion. No concurrent-destroy
@@ -2825,10 +2824,6 @@ Windows argument coverage.
 - Callback pulls acknowledge immediately; blocking worker acknowledges after
   write accepts the full fixed 512-frame block. Short final content is padded
   with silence. Backend latency is sampled separately by the drain caller.
-  Clear cancellation is checked during mixer drain, but after that returns the
-  outer drain samples latency/sleeps and checks only engine failure. A clear
-  during that phase cannot return CANCELLED as the broad public wording says;
-  controlled late-clear reproduction pending.
 - Shutdown stops the mixer then joins the blocking worker before backend close.
   The backend contract has no interrupt/cancel operation. OSS write, Pulse
   simple_write and ALSA write/recovery loops can remain in the backend after

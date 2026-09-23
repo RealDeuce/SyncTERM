@@ -108,8 +108,11 @@ int audio_stream_append_u8_mono_22050(audio_stream_t *stream,
 int audio_stream_clear(audio_stream_t *stream);
 /*
  * Drain waits for the buffers present when it is called, not later appends.
- * Clear cancels a concurrent drain. An unterminated loop returns
- * IO_ERROR_BUSY instead of waiting forever.
+ * Clear cancels a concurrent drain while those buffers are still queued or
+ * awaiting mixer acknowledgment. Once they have been submitted and
+ * acknowledged, clear cannot retract them and does not cancel the final
+ * backend-latency wait. An unterminated loop returns IO_ERROR_BUSY instead of
+ * waiting forever.
  */
 int audio_stream_drain(audio_stream_t *stream);
 bool audio_stream_is_idle(audio_stream_t *stream);
