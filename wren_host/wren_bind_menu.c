@@ -16,6 +16,7 @@
 #include "st_builtin_fonts.h"
 #include "st_console.h"
 #include "st_pixel_image.h"
+#include "serial.h"
 #include "st_settings.h"
 #include "st_session_history.h"
 #include "st_theme.h"
@@ -24,6 +25,7 @@
 #include "value_convert_time.h"
 #include "xp_crypto.h"
 
+#include <inttypes.h>
 #include <math.h>
 #include <limits.h>
 #include <stdio.h>
@@ -1257,16 +1259,92 @@ fn_menu_address_families(WrenVM *vm)
 static void
 fn_menu_rates(WrenVM *vm)
 {
-	static const unsigned rates[] = {
-		0, 300, 1200, 2400, 4800, 9600, 19200, 38400, 57600,
-		115200, 230400,
+	static const struct {
+		uint32_t value;
+		const char *name;
+	} rates[] = {
+		{300, "300"}, {600, "600"}, {1200, "1200"},
+		{2400, "2400"}, {4800, "4800"}, {9600, "9600"},
+		{19200, "19200"}, {38400, "38400"}, {57600, "57600"},
+		{76800, "76800"}, {115200, "115200"}, {0, "Current"},
 	};
-	wrenEnsureSlots(vm, 2);
+	wrenEnsureSlots(vm, 3);
 	wrenSetSlotNewList(vm, 0);
-	for (size_t i = 0; i < sizeof(rates) / sizeof(rates[0]); ++i) {
-		wrenSetSlotDouble(vm, 1, rates[i]);
-		wrenInsertInList(vm, 0, -1, 1);
+	for (size_t i = 0; i < sizeof(rates) / sizeof(rates[0]); ++i)
+		push_row(vm, 0, 1, 2, rates[i].value, rates[i].name);
+}
+
+static int
+compare_rates(const void *left, const void *right)
+{
+	uint32_t a = *(const uint32_t *)left;
+	uint32_t b = *(const uint32_t *)right;
+
+	return (a > b) - (a < b);
+}
+
+static void
+fn_menu_serial_rates(WrenVM *vm)
+{
+	serial_port_t *port = NULL;
+	const char *device;
+	uint32_t *rates = NULL;
+	size_t count = 0;
+	int status;
+
+	if (!slot_c_string(vm, 1, &device))
+		return;
+	status = serial_port_open(&port, device);
+	if (status == 0)
+		status = serial_port_get_baud_rates(port, NULL, 0, &count);
+	if (status == 0 && count != 0 && count <= SIZE_MAX / sizeof(*rates)) {
+		rates = malloc(count * sizeof(*rates));
+		if (rates == NULL)
+			status = IO_ERROR_OUT_OF_MEMORY;
 	}
+	else if (status == 0)
+		status = IO_ERROR_NOT_SUPPORTED;
+	if (status == 0) {
+		size_t available;
+
+		status = serial_port_get_baud_rates(port, rates, count,
+		    &available);
+		if (status == 0 && available > count)
+			status = IO_ERROR_OUT_OF_RANGE;
+		else if (status == 0)
+			count = available;
+	}
+	if (port != NULL && serial_port_close(port) != 0)
+		status = IO_ERROR_IO;
+	if (status != 0 || count == 0) {
+		free(rates);
+		fn_menu_rates(vm);
+		return;
+	}
+
+	qsort(rates, count, sizeof(*rates), compare_rates);
+	size_t first = 0;
+	while (first < count && rates[first] == 0)
+		first++;
+	if (first == count) {
+		free(rates);
+		fn_menu_rates(vm);
+		return;
+	}
+	wrenEnsureSlots(vm, 3);
+	wrenSetSlotNewList(vm, 0);
+	uint32_t previous = 0;
+	for (size_t i = first; i < count; ++i) {
+		char name[16];
+
+		if (rates[i] == 0 || rates[i] == previous)
+			continue;
+		(void)snprintf(name, sizeof(name), "%" PRIu32, rates[i]);
+		push_row(vm, 0, 1, 2, rates[i], name);
+		previous = rates[i];
+	}
+	push_row(vm, 0, 1, 2, 0, "Current");
+	free(rates);
 }
 
 static void
@@ -1290,6 +1368,15 @@ fn_menu_flow_controls(WrenVM *vm)
 		"RTS/CTS", "XON/XOFF", "RTS/CTS + XON/XOFF", "None",
 	};
 	push_rows(vm, names, sizeof(names) / sizeof(names[0]));
+}
+
+static void
+fn_menu_flow_controls_no_rts(WrenVM *vm)
+{
+	wrenEnsureSlots(vm, 3);
+	wrenSetSlotNewList(vm, 0);
+	push_row(vm, 0, 1, 2, ST_PROFILE_FLOW_XON_XOFF, "XON/XOFF");
+	push_row(vm, 0, 1, 2, ST_PROFILE_FLOW_NONE, "None");
 }
 
 static void
@@ -1323,8 +1410,39 @@ fn_menu_screen_modes(WrenVM *vm)
 static void
 fn_menu_output_modes(WrenVM *vm)
 {
-	static const char *const names[] = {"Automatic"};
-	push_rows(vm, names, 1);
+	static const struct {
+		uint32_t value;
+		uint32_t feature;
+		const char *name;
+	} modes[] = {
+		{0, 0, "Automatic"},
+		{1, ST_CONSOLE_BUILD_NCURSES, "Curses"},
+		{2, ST_CONSOLE_BUILD_NCURSES, "Curses on cp437 Device"},
+		{3, ST_CONSOLE_BUILD_NCURSES, "Curses using US-ASCII"},
+		{4, ST_CONSOLE_BUILD_ANSI, "ANSI"},
+		{5, ST_CONSOLE_BUILD_X11, "X11"},
+		{6, ST_CONSOLE_BUILD_X11, "X11 Fullscreen"},
+		{7, ST_CONSOLE_BUILD_WIN32, "Win32 Console"},
+		{8, ST_CONSOLE_BUILD_WIN32, "Win32 Console Fullscreen"},
+		{9, ST_CONSOLE_BUILD_SDL, "SDL"},
+		{10, ST_CONSOLE_BUILD_SDL, "SDL Fullscreen"},
+		{11, ST_CONSOLE_BUILD_GDI, "GDI"},
+		{12, ST_CONSOLE_BUILD_GDI, "GDI Fullscreen"},
+		{14, ST_CONSOLE_BUILD_WAYLAND, "Wayland"},
+		{15, ST_CONSOLE_BUILD_WAYLAND, "Wayland Fullscreen"},
+		{16, ST_CONSOLE_BUILD_QUARTZ, "Quartz"},
+		{17, ST_CONSOLE_BUILD_QUARTZ, "Quartz Fullscreen"},
+	};
+	uint32_t features = st_console_build_features();
+
+	wrenEnsureSlots(vm, 3);
+	wrenSetSlotNewList(vm, 0);
+	for (size_t i = 0; i < sizeof(modes) / sizeof(modes[0]); ++i) {
+		if (modes[i].feature != 0
+		    && (features & modes[i].feature) == 0)
+			continue;
+		push_row(vm, 0, 1, 2, modes[i].value, modes[i].name);
+	}
 }
 
 static void
@@ -3952,11 +4070,11 @@ static const struct binding bindings[] = {
 	{"Menu", true, "defaultPort(_)", fn_menu_default_port},
 	{"Menu", true, "addressFamilies", fn_menu_address_families},
 	{"Menu", true, "rates", fn_menu_rates},
-	{"Menu", true, "serialRates(_)", fn_menu_rates},
+	{"Menu", true, "serialRates(_)", fn_menu_serial_rates},
 	{"Menu", true, "musicModes", fn_menu_music_modes},
 	{"Menu", true, "ripModes", fn_menu_rip_modes},
 	{"Menu", true, "flowControls", fn_menu_flow_controls},
-	{"Menu", true, "flowControlsNoRts", fn_menu_flow_controls},
+	{"Menu", true, "flowControlsNoRts", fn_menu_flow_controls_no_rts},
 	{"Menu", true, "parities", fn_menu_parities},
 	{"Menu", true, "paletteDefaults(_)", fn_menu_palette_defaults},
 	{"Menu", true, "fontsCatalog", fn_menu_fonts_catalog},

@@ -4515,8 +4515,11 @@ duplicate platform-dependent enum tables:
   Atari palettes.  Returns `null` when the mode cannot be mapped.
 
 | `outputModes`
-| Build-dependent List of `[value, displayName]` rows.  Assign only a
-  value present in this list to `Settings.outputMode`.
+| Build-dependent List of `[value, displayName]` rows for ordinary
+  application output backends.  Headless and libretro are intentionally
+  omitted.  Assign only a value present in this list to
+  `Settings.outputMode`; the selected backend is used on the next startup,
+  not switched while the application is running.
 
 | `audioModes`
 | Build-dependent List of `[bit, displayName]` rows for selectable

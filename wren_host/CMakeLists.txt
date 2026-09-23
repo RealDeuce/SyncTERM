@@ -91,7 +91,7 @@ target_link_libraries(st_wren_host
 	PUBLIC st_console st_app_paths st_profile st_screen_mode st_session_history
 		st_hyperlink
 	PRIVATE st_wren_vm st_codepage st_utf8 st_bbs_list st_audio
-		st_fonts st_settings st_theme st_time st_pixel_image
+		st_fonts st_settings st_theme st_time st_pixel_image st_serial
 		syncterm_io_error syncterm_path syncterm_file_map
 		syncterm_string_compat syncterm_filesystem
 		syncterm_value_convert st_consent_token xptls::crypto)
@@ -112,13 +112,42 @@ else()
 endif()
 
 if(BUILD_TESTING)
+	include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCheckC17Source.cmake")
+	set(_st_wren_saved_required_definitions ${CMAKE_REQUIRED_DEFINITIONS})
+	if(NOT WIN32)
+		if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+			list(APPEND CMAKE_REQUIRED_DEFINITIONS -D_GNU_SOURCE)
+		endif()
+		syncterm_check_c17_source([=[
+#include <fcntl.h>
+#include <stdlib.h>
+#include <unistd.h>
+int main(void)
+{
+	int master = posix_openpt(O_RDWR | O_NOCTTY);
+	char *name;
+	if (master < 0 || grantpt(master) != 0 || unlockpt(master) != 0)
+		return 1;
+	name = ptsname(master);
+	return name == 0 || close(master) != 0;
+}
+]=] ST_WREN_TEST_HAVE_PTY)
+	else()
+		set(ST_WREN_TEST_HAVE_PTY 0)
+	endif()
+	set(CMAKE_REQUIRED_DEFINITIONS ${_st_wren_saved_required_definitions})
+
 	add_executable(st_wren_host_test tests/st_wren_host_test.c)
 	target_link_libraries(st_wren_host_test PRIVATE st_wren_host
 		st_wren_vm st_settings st_theme st_time st_bbs_list st_audio
 		syncterm_filesystem
 		syncterm_threads)
 	target_compile_definitions(st_wren_host_test PRIVATE
-		ST_WREN_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/host-test")
+		ST_WREN_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/host-test"
+		ST_WREN_TEST_HAVE_PTY=$<BOOL:${ST_WREN_TEST_HAVE_PTY}>)
+	if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+		target_compile_definitions(st_wren_host_test PRIVATE _GNU_SOURCE)
+	endif()
 	if(SYNCTERM_ENABLE_UNIFONT)
 		target_compile_definitions(st_wren_host_test PRIVATE
 			ST_HAVE_UNIFONT=1)

@@ -1,7 +1,7 @@
 # SyncTERM re-audit
 
 Status: completed re-audit. The original 114 identifiers were dispositioned;
-resolved entries are removed from these living TODO documents. There are 45
+resolved entries are removed from these living TODO documents. There are 42
 outstanding numbered findings, including split claims and substantive
 unnumbered concerns. This is not a claim that all are runtime bugs or that the
 repository is release-ready.
@@ -22,32 +22,6 @@ Evidence in this document is source-confirmed unless explicitly marked as a
 new runtime reproduction. Historical reproductions in AUDIT.md have not been
 rerun for these sections. Tests retained in the tree are evidence of intended
 contracts, not proof that those contracts pass.
-
-## Wren binding-family omissions
-
-### Host reachability
-
-`wren_host/wren_host.c`, `bind_method`, tries picker, REPL, core, and menu
-bindings, then returns `st_wren_unsupported`. A declaration in
-`scripts/syncterm.wren` therefore does not prove implementation.
-
-The legacy menu host's `generic_class_allowed` explicitly includes Platform
-and VideoFlags. The legacy picker allowlist includes VideoFlags. These
-host-specific boundaries must be retained in repair
-planning; missing menu capabilities cannot all be labelled deferred
-connected-session work.
-
-### Confirmed missing or partial families
-
-| Family | Legacy/contract evidence | Current gap | Scope/disposition |
-| --- | --- | --- | --- |
-| Platform.name | `legacy syncterm/wren_bind.c` and menu allowlist | No modern binding found. | Required menu capability omitted, not connected-session work. |
-
-These family omissions sit alongside the partial-method findings in the
-numbered and supplemental ledgers (including physical input and menu catalogs).
-The readiness map includes Wren-only
-supporting functionality. No explicit deferral authorizing these menu/picker
-omissions has been identified in the approved scope.
 
 ## Numbered disposition ledger
 
@@ -270,10 +244,8 @@ not silently promoted to a defect merely because it appeared in that report.
 | Painter clipping assumptions | Unresolved caller-domain questions: negative starting coordinates break loops rather than skip a clipped prefix; border/title glyphs assume one cell and inherited fonts can differ from font-zero measurements. | Test actual negative-bound/two-column-border callers before changing those contracts. Bulk and retargeted-cell mutation already exist; no absent per-cell writeback claim. |
 | Wren vendor integration/OOM | Source-confirmed inherited dependency limit: wrenNewVM calls memset immediately after allocation without checking NULL, so host NULL checks do not provide graceful VM OOM. Private REPL structures couple the host to this vendor version; NaN tagging has no alternate-format verification. | Document realistic failure guarantees; no induced OOM, allocator redesign or independent interpreter certification. Historical legacy diff does not prove every vendor internal correct. |
 | Menu binding signature parity | Historical comparison establishes matching declarations/signatures, not behavior; several matching handlers are stubs or generic handlers. | Keep absent semantic families distinct. A green ordinary host test does not validate every setting side effect or native backend. |
-| Menu serial catalogs | Required functionality incompletely ported. `serialRates(_)` is bound to fn_menu_rates, ignores the device and returns bare numbers; Wren.adoc:4411 and legacy fn_Menu_serialRates require queried `[value, displayName]` rows, with Current=0 and normal-catalog fallback. `flowControlsNoRts` shares the unrestricted handler although its documented/legacy rows contain only XON/XOFF and None. `scripts/menu_bbs_editor.wren:1143–1158` consumes both. | Repair row shape, preserved values, restricted catalog and device-query/fallback semantics together. No serial device was opened in the re-audit. |
 | ScreenSupports fixed false values | windowName, windowIcon and closeLock remain fixed false values. | Compare each property to actual backend capability when repairing; do not imply every backend supplies every facility. Host.uploadPath is also null but was not permitted by the legacy menu Host allowlist, unlike cacheDirectory/downloadDir. |
 | Host setting/theme partial failures | Settings apply ignores scaling errors; selected-theme save ignores reload failure. | Add per-stage fault fixtures rather than claim every operation is failure-atomic. |
-| Menu output-mode catalog | Source-confirmed incomplete catalog: fn_menu_output_modes returns only Automatic despite compiled selectable backends and richer startup policy. | Required settings-UI integration gap; trace persistence and restart semantics before prescribing live backend switching. This does not mean those backends are absent. |
 | Host safe-mode cache actions | Policy reconciliation still required for cloud cache operations, whose intended safe-mode scope may differ from persistence and external launches. | No cache was updated here. Decide cache policy explicitly rather than inferring it from unrelated persistence boundaries. |
 | Core cell/cursor/window setters | Source-observed error/representation gaps remain outside the completed compatibility work: font assignment reruns lookup and clears explicit-glyph state, and some unrelated setters ignore errors. | Test full-cell mutation ordering against intended contracts. Do not force selector semantics onto explicit font cells. |
 | Core surface initial/fill/character contracts | Initial spaces versus documented NUL cells, first-codepoint acceptance despite trailing text, and fill's wide-pair handling need specific compatibility checks. | Do not infer every raw-cell write requires lookup or every trailing-codepoint acceptance is a failure without its contract. |
@@ -300,7 +272,7 @@ not silently promoted to a defect merely because it appeared in that report.
 | Host, GUI, move, failed-output, ownership and geometry closure (191–227, 306–405, 735–831) | Supplemental host/backend/lifecycle/geometry rows and CTerm cell/input map; no generic teardown UAF or persistent failed-output cache loss inferred. |
 | Error translation follow-up (920–941) | io_error supplemental disposition; Windows test additions are compile-only historical evidence. |
 | Manual completion (1102–1150) | A088 and the remaining A090 filesystem contract, plus the Wren family/decoder inventory. |
-| Main menu, common module, editors and self-test (2911–3132) | Supplemental script/host/model rows; serial catalogs and output modes explicitly separated from signature parity. |
+| Main menu, common module, editors and self-test (2911–3132) | Supplemental script/host/model rows; signature parity alone is not semantic coverage. |
 | REPL, SFTP, auxiliary UI and offline viewer (3133–3387) | Supplemental script/viewer rows; connected integration distinguished from current menu dependencies. |
 | UI, Widget/App, vendor and signature notes (3388–3948) | Supplemental UI/layout/event and VM-integration rows; inherited defects and unmeasured performance remain qualified. |
 | Native menu/core/picker and host/startup/tests (3949–4315) | Supplemental host/model/input/capability rows. |
@@ -327,7 +299,6 @@ This sequence is a repair backlog, not authorization to implement it.
 
 | Priority / shared cause | Scope and evidence | Verification needed in the later repair pass |
 | --- | --- | --- |
-| Shared missing functionality: Wren consumers | Platform as inventoried above. | Exercise actual permitted menu/picker imports and operations, not just signature registration. Retain per-host authority distinctions. |
 | Backend/runtime reliability | Detailed backend notes remain; A091 Windows application packaging is a separate deliverable from console primitives. | Capability-present/absent builds and actual platform lifecycle/input tests. Preserve source-only qualifications for unavailable platforms; a dummy renderer or cross-link does not certify them. |
 | Audio and UI behavior | The supplemental audio clear/drain promise and remaining REPL layout/error risks. | Device-free audio failure injection plus long-line and error-containment checks. A023 real-time performance remains a risk pending measurement, not an already measured failure. |
 | Documentation and unresolved questions | A007 aliasing portability, A011 fairness/performance, A088 current/future documentation, the A090 filesystem contract, A095 distribution notices and unproven supplemental risks. | Resolve the exact contract/evidence before changing behavior. Keep inherited defects labeled inherited, corrected findings closed, and legal/distribution review distinct from runtime bugs. |

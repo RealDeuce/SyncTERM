@@ -19,11 +19,22 @@
 #include "st_theme.h"
 #include "st_threads.h"
 #include "st_time.h"
+#include "syncterm_config.h"
 
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
+#if ST_WREN_TEST_HAVE_PTY
+#include <fcntl.h>
+#include <unistd.h>
+#endif
+
+#if SYNCTERM_PLATFORM_POSIX
+#include <sys/utsname.h>
+#endif
 
 #ifndef ST_WREN_TEST_DIRECTORY
 #error ST_WREN_TEST_DIRECTORY is required
@@ -847,6 +858,207 @@ exercise_build_options_contract(st_wren_host_t *public_host)
 	}
 	return 0;
 }
+
+struct catalog_row {
+	uint32_t value;
+	const char *name;
+};
+
+static bool
+catalog_matches(WrenVM *vm, const char *module, const char *variable,
+	const struct catalog_row *expected, size_t count)
+{
+	wrenEnsureSlots(vm, 4);
+	wrenGetVariable(vm, module, variable, 0);
+	if (wrenGetSlotType(vm, 0) != WREN_TYPE_LIST
+	    || wrenGetListCount(vm, 0) != (int)count)
+		return false;
+	for (size_t i = 0; i < count; ++i) {
+		wrenGetListElement(vm, 0, (int)i, 1);
+		if (wrenGetSlotType(vm, 1) != WREN_TYPE_LIST
+		    || wrenGetListCount(vm, 1) != 2)
+			return false;
+		wrenGetListElement(vm, 1, 0, 2);
+		wrenGetListElement(vm, 1, 1, 3);
+		if (wrenGetSlotType(vm, 2) != WREN_TYPE_NUM
+		    || wrenGetSlotDouble(vm, 2) != expected[i].value
+		    || wrenGetSlotType(vm, 3) != WREN_TYPE_STRING
+		    || strcmp(wrenGetSlotString(vm, 3), expected[i].name) != 0)
+			return false;
+	}
+	return true;
+}
+
+#if ST_WREN_TEST_HAVE_PTY
+static bool
+serial_catalog_valid(WrenVM *vm, const char *module, const char *variable,
+	bool require_native_rates)
+{
+	uint32_t previous = 0;
+	int count;
+
+	wrenEnsureSlots(vm, 4);
+	wrenGetVariable(vm, module, variable, 0);
+	if (wrenGetSlotType(vm, 0) != WREN_TYPE_LIST)
+		return false;
+	count = wrenGetListCount(vm, 0);
+	if (count < 2)
+		return false;
+	for (int i = 0; i < count; ++i) {
+		double number;
+		char expected[16];
+
+		wrenGetListElement(vm, 0, i, 1);
+		if (wrenGetSlotType(vm, 1) != WREN_TYPE_LIST
+		    || wrenGetListCount(vm, 1) != 2)
+			return false;
+		wrenGetListElement(vm, 1, 0, 2);
+		wrenGetListElement(vm, 1, 1, 3);
+		if (wrenGetSlotType(vm, 2) != WREN_TYPE_NUM
+		    || wrenGetSlotType(vm, 3) != WREN_TYPE_STRING)
+			return false;
+		number = wrenGetSlotDouble(vm, 2);
+		if (i == count - 1)
+			return number == 0
+			    && strcmp(wrenGetSlotString(vm, 3), "Current") == 0;
+		if (number <= previous || number > UINT32_MAX)
+			return false;
+		if (i == 0 && require_native_rates && number >= 300)
+			return false;
+		previous = (uint32_t)number;
+		(void)snprintf(expected, sizeof(expected), "%" PRIu32, previous);
+		if (strcmp(wrenGetSlotString(vm, 3), expected) != 0)
+			return false;
+	}
+	return false;
+}
+#endif
+
+static int
+exercise_menu_catalog_contract(st_wren_host_t *public_host)
+{
+	struct st_wren_host *host = public_host;
+	static const struct catalog_row rates[] = {
+		{300, "300"}, {600, "600"}, {1200, "1200"},
+		{2400, "2400"}, {4800, "4800"}, {9600, "9600"},
+		{19200, "19200"}, {38400, "38400"}, {57600, "57600"},
+		{76800, "76800"}, {115200, "115200"}, {0, "Current"},
+	};
+	static const struct catalog_row no_rts[] = {
+		{ST_PROFILE_FLOW_XON_XOFF, "XON/XOFF"},
+		{ST_PROFILE_FLOW_NONE, "None"},
+	};
+	static const struct catalog_row output_modes[] = {
+		{0, "Automatic"},
+		{1, "Curses"}, {2, "Curses on cp437 Device"},
+		{3, "Curses using US-ASCII"}, {4, "ANSI"},
+		{5, "X11"}, {6, "X11 Fullscreen"},
+		{7, "Win32 Console"}, {8, "Win32 Console Fullscreen"},
+		{9, "SDL"}, {10, "SDL Fullscreen"},
+		{11, "GDI"}, {12, "GDI Fullscreen"},
+		{14, "Wayland"}, {15, "Wayland Fullscreen"},
+		{16, "Quartz"}, {17, "Quartz Fullscreen"},
+	};
+	static const uint32_t output_features[] = {
+		0,
+		ST_CONSOLE_BUILD_NCURSES, ST_CONSOLE_BUILD_NCURSES,
+		ST_CONSOLE_BUILD_NCURSES, ST_CONSOLE_BUILD_ANSI,
+		ST_CONSOLE_BUILD_X11, ST_CONSOLE_BUILD_X11,
+		ST_CONSOLE_BUILD_WIN32, ST_CONSOLE_BUILD_WIN32,
+		ST_CONSOLE_BUILD_SDL, ST_CONSOLE_BUILD_SDL,
+		ST_CONSOLE_BUILD_GDI, ST_CONSOLE_BUILD_GDI,
+		ST_CONSOLE_BUILD_WAYLAND, ST_CONSOLE_BUILD_WAYLAND,
+		ST_CONSOLE_BUILD_QUARTZ, ST_CONSOLE_BUILD_QUARTZ,
+	};
+	struct catalog_row expected_output[
+	    sizeof(output_modes) / sizeof(output_modes[0])];
+	size_t output_count = 0;
+	uint32_t features = st_console_build_features();
+	const char *expected_platform = "Unknown";
+	static const char source[] =
+	    "import \"syncterm\" for Platform\n"
+	    "import \"syncterm_menu\" for Menu\n"
+	    "var platformResult = Platform.name\n"
+	    "var ratesResult = Menu.rates\n"
+	    "var missingRatesResult = Menu.serialRates(\"/no/such/syncterm-device\")\n"
+	    "var noRtsResult = Menu.flowControlsNoRts\n"
+	    "var outputModesResult = Menu.outputModes\n"
+	    "if (!(Fiber.new { Menu.serialRates(123) }.try() is String)) Fiber.abort(\"serial type validation\")\n"
+	    "if (!(Fiber.new { Menu.serialRates(\"bad\\u0000device\") }.try() is String)) Fiber.abort(\"serial NUL validation\")\n";
+	static const char platform_source[] =
+	    "import \"syncterm\" for Platform\n"
+	    "var platformResult = Platform.name\n";
+
+	if (wrenInterpret(host->vm, "menu_catalog_contract", source)
+	    != WREN_RESULT_SUCCESS) {
+		fprintf(stderr, "menu catalog contract failed: %s\n",
+		    host->last_error);
+		return -1;
+	}
+#if SYNCTERM_PLATFORM_WINDOWS
+	expected_platform = "Windows";
+#elif SYNCTERM_PLATFORM_POSIX
+	struct utsname information;
+
+	if (uname(&information) == 0)
+		expected_platform = information.sysname;
+#endif
+	wrenEnsureSlots(host->vm, 1);
+	wrenGetVariable(host->vm, "menu_catalog_contract", "platformResult", 0);
+	CHECK(wrenGetSlotType(host->vm, 0) == WREN_TYPE_STRING);
+	CHECK(strcmp(wrenGetSlotString(host->vm, 0), expected_platform) == 0);
+	CHECK(wrenInterpret(host->picker_vm, "picker_platform_contract",
+	    platform_source) == WREN_RESULT_SUCCESS);
+	wrenEnsureSlots(host->picker_vm, 1);
+	wrenGetVariable(host->picker_vm, "picker_platform_contract",
+	    "platformResult", 0);
+	CHECK(wrenGetSlotType(host->picker_vm, 0) == WREN_TYPE_STRING);
+	CHECK(strcmp(wrenGetSlotString(host->picker_vm, 0), expected_platform)
+	    == 0);
+	CHECK(catalog_matches(host->vm, "menu_catalog_contract", "ratesResult",
+	    rates, sizeof(rates) / sizeof(rates[0])));
+	CHECK(catalog_matches(host->vm, "menu_catalog_contract",
+	    "missingRatesResult", rates, sizeof(rates) / sizeof(rates[0])));
+	CHECK(catalog_matches(host->vm, "menu_catalog_contract", "noRtsResult",
+	    no_rts, sizeof(no_rts) / sizeof(no_rts[0])));
+	for (size_t i = 0; i < sizeof(output_modes) / sizeof(output_modes[0]);
+	    ++i) {
+		if (output_features[i] != 0
+		    && (features & output_features[i]) == 0)
+			continue;
+		expected_output[output_count++] = output_modes[i];
+	}
+	CHECK(catalog_matches(host->vm, "menu_catalog_contract",
+	    "outputModesResult", expected_output, output_count));
+	return 0;
+}
+
+#if ST_WREN_TEST_HAVE_PTY
+static int
+exercise_serial_catalog_contract(st_wren_host_t *public_host)
+{
+	struct st_wren_host *host = public_host;
+	char source[512];
+	int master = posix_openpt(O_RDWR | O_NOCTTY);
+	char *name;
+
+	CHECK(master >= 0);
+	CHECK(grantpt(master) == 0);
+	CHECK(unlockpt(master) == 0);
+	name = ptsname(master);
+	CHECK(name != NULL);
+	CHECK(snprintf(source, sizeof(source),
+	    "import \"syncterm_menu\" for Menu\n"
+	    "var serialResult = Menu.serialRates(\"%s\")\n", name)
+	    < (int)sizeof(source));
+	CHECK(wrenInterpret(host->vm, "serial_catalog_contract", source)
+	    == WREN_RESULT_SUCCESS);
+	CHECK(serial_catalog_valid(host->vm, "serial_catalog_contract",
+	    "serialResult", true));
+	CHECK(close(master) == 0);
+	return 0;
+}
+#endif
 
 static int
 exercise_pixel_contract(st_wren_host_t *public_host)
@@ -2415,6 +2627,10 @@ main(void)
 	CHECK(exercise_settings_save_contract(host) == 0);
 	CHECK(exercise_bbs_model_contract(host, &paths, personal, shared) == 0);
 	CHECK(exercise_build_options_contract(host) == 0);
+	CHECK(exercise_menu_catalog_contract(host) == 0);
+#if ST_WREN_TEST_HAVE_PTY
+	CHECK(exercise_serial_catalog_contract(host) == 0);
+#endif
 	CHECK(exercise_configuration_collections(host) == 0);
 	CHECK(exercise_default_port_contract(host) == 0);
 	CHECK(st_wren_font_identifier(&((struct st_wren_host *)host)->menu, 46,

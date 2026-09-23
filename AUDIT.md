@@ -1350,9 +1350,8 @@ scripts/syncterm_menu.wren. An independent read-only signature comparison
 expanded C BIND_GETSET entries and normalized Wren parameter lists: all 286
 foreign declarations have matching class/static/signature bindings, with no
 extra C entries. This establishes binding presence, not correct behavior.
-Several were intentionally stubbed (offline scrollback and cache),
-and serialRates/flowControlsNoRts share generic handlers;
-their advertised semantics still need consumer/legacy comparison.
+Several were intentionally stubbed (offline scrollback and cache); their
+advertised semantics still need consumer/legacy comparison.
 
 Native CMake build of st_wren_host_test succeeds and CTest wren_host passes
 (1/1, 1.12 seconds). It uses build-tree fixture files, headless output and an
@@ -1389,8 +1388,8 @@ external command, or cache update was launched during this audit.
 Menu binding read coverage extends through :1525, in addition to :3360-3480.
 Build-options data distinguishes compiled video/audio backends from unavailable
 features and reports the Unifont-derived binary license option. Audio choices
-use runtime availability, whereas outputModes currently offers only Automatic;
-settings UI/backend-policy completeness remains to be assessed with scripts.
+use runtime availability; settings UI/backend-policy completeness remains to
+be assessed with scripts.
 Theme selection snapshots settings, applies selection, skips settings_save in
 safe mode and attempts rollback on failure; rollback errors are ignored. Read
 preview/catalog helpers as well, but full theme-edit integration and mutation

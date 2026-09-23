@@ -16,6 +16,7 @@
 #include "st_theme.h"
 #include "st_time.h"
 #include "st_utf8.h"
+#include "syncterm_config.h"
 #include "value_convert.h"
 #include "wren_vm.h"
 #include "wren_value.h"
@@ -25,6 +26,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#if SYNCTERM_PLATFORM_POSIX
+#include <sys/utsname.h>
+#endif
 
 enum foreign_kind {
 	FOREIGN_GENERIC,
@@ -3930,12 +3935,30 @@ fn_format_duration(WrenVM *vm)
 }
 
 static void
+fn_platform_name(WrenVM *vm)
+{
+#if SYNCTERM_PLATFORM_WINDOWS
+	wrenSetSlotString(vm, 0, "Windows");
+#elif SYNCTERM_PLATFORM_POSIX
+	struct utsname information;
+
+	if (uname(&information) == 0)
+		wrenSetSlotString(vm, 0, information.sysname);
+	else
+		wrenSetSlotString(vm, 0, "Unknown");
+#else
+	wrenSetSlotString(vm, 0, "Unknown");
+#endif
+}
+
+static void
 fn_cterm_status_display(WrenVM *vm)
 {
 	wrenSetSlotDouble(vm, 0, 0);
 }
 
 static const struct binding bindings[] = {
+	{"Platform", true, "name", fn_platform_name},
 	{"Input", true, "next()", fn_input_next},
 	{"Input", true, "next(_)", fn_input_next_timed},
 	{"Input", true, "poll()", fn_input_poll},
