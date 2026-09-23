@@ -1912,6 +1912,13 @@ When physical-key reporting is active, the console drains and ignores
 translated `KeyEvent`.  This keeps host key state synchronized without sending
 console keystrokes to the connected application.
 
+The editor stores cursor positions as UTF-8 byte offsets for Wren string
+slicing, but Left, Right, Backspace, Delete, and Ctrl+W move only across
+complete Unicode codepoints.  The displayed cursor column follows the glyph
+width selected by `Screen.textWidth()` and eight-column tab stops.  Editing is
+codepoint-based: grapheme-cluster navigation, Unicode normalization, and
+Unicode word-breaking are not performed.
+
 The REPL evaluates input through `REPL.eval(module, src)`.  The
 input is pre-classified by inspecting its leading non-whitespace
 token: source that begins with a Wren statement keyword (`var`,
@@ -2031,8 +2038,10 @@ list of currently-registered names for tooling.
 | Clear the screen and the in-memory log.  Returns to live mode.
 
 | Middle-click
-| Paste from system clipboard at the cursor.  Multi-line text is
-  split on LF and each line submitted as if Enter were pressed.
+| Paste from the system clipboard at the cursor.  Valid Unicode text and Tab
+  are inserted.  CR, LF, and CRLF each delimit one submitted line.  Other C0,
+  DEL, and C1 controls, malformed UTF-8, and non-scalar encodings are discarded
+  without discarding valid text around them.
 
 | Alt+drag
 | Hand off to the existing select-and-copy gesture.

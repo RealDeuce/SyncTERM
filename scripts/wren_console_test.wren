@@ -1,31 +1,81 @@
-// Audit-only helper tests. No interactive console or evaluated user source.
+import "syncterm" for Screen
 import "wren_console" for WrenConsole
 
-class MenuTest {
-  static run() {
-    var pass = 0
-    var fail = 0
-    var check = Fn.new {|ok, label|
-      if (ok) {
-        pass = pass + 1
-      } else {
-        fail = fail + 1
-        System.print("  FAIL " + label)
-      }
+class WrenConsoleTest {
+  static check_(ok, label) {
+    if (ok) {
+      __pass = __pass + 1
+    } else {
+      __fail = __fail + 1
+      System.print("  FAIL " + label)
     }
-    check.call(WrenConsole.quoteString_("abc\n") == "\"abc\\n\"",
-        "ASCII quoting escapes newline")
-    check.call(WrenConsole.quoteString_("é") == "\"é\"",
-        "quoting preserves Unicode text")
-    check.call(WrenConsole.killWord_("abc def") == "abc ",
+  }
+
+  static run() {
+    __pass = 0
+    __fail = 0
+
+    check_(WrenConsole.quoteString_("abc\n") == "\"abc\\n\"",
+        "quoting escapes newline")
+    var special = String.fromByte(0x22) + String.fromByte(0x5c) +
+        String.fromByte(0x0d) + String.fromByte(0x09) +
+        String.fromByte(0) + String.fromByte(1) + String.fromByte(0x7f)
+    check_(WrenConsole.quoteString_(special) ==
+        "\"\\\"\\\\\\r\\t\\0\\x01\\x7f\"",
+        "quoting preserves the established C-style escapes")
+    check_(WrenConsole.quoteString_("é一") == "\"é一\"",
+        "quoting preserves valid Unicode text")
+    check_(WrenConsole.quoteString_(String.fromByte(0x80)) == "\"\\x80\"",
+        "quoting escapes malformed UTF-8 bytes")
+    var overlong = String.fromByte(0xc0) + String.fromByte(0xaf)
+    check_(WrenConsole.quoteString_(overlong) == "\"\\xc0\\xaf\"",
+        "quoting rejects non-canonical UTF-8")
+    check_(WrenConsole.killWord_("abc def") == "abc ",
         "ASCII kill-word retains preceding word")
-    check.call(WrenConsole.killWord_("é x") == "é ",
+    check_(WrenConsole.killWord_("é一 x") == "é一 ",
         "kill-word retains preceding multibyte word")
-    var received = null
-    WrenConsole.register("audit-args", "test", Fn.new {|args| received = args })
-    WrenConsole.runCommand_("/audit-args éxy", "main_menu")
-    check.call(received == "éxy", "registered command receives full Unicode arguments")
-    WrenConsole.unregister("audit-args")
-    return [pass, fail]
+
+    var received = []
+    WrenConsole.register("edit", "test", Fn.new {|args| received.add(args) })
+    WrenConsole.runCommand_("/edit é一", "main_menu")
+    check_(received.count == 1 && received[0] == "é一",
+        "registered command receives full Unicode arguments")
+    check_(WrenConsole.runCommand_("/in módulo", "main_menu") == "módulo",
+        "/in receives the full Unicode module name")
+
+    var controls = String.fromByte(1) + String.fromCodePoint(0x85) +
+        String.fromByte(0x80) + String.fromByte(0xed) +
+        String.fromByte(0xa0) + String.fromByte(0x80)
+    var pasted = WrenConsole.pasteText_(
+        "α\r\n/edit β\n/edit γ\rδ\t一" + controls + "ε",
+        "main_menu", "/edit ", "/edit ".bytes.count)
+    check_(received.count == 4 && received[1] == "α" &&
+        received[2] == "β" && received[3] == "γ",
+        "paste normalizes CR, LF, and CRLF submissions")
+    check_(pasted[0] == "main_menu" && pasted[1] == "δ\t一ε" &&
+        pasted[2] == pasted[1].bytes.count,
+        "paste keeps Unicode and Tab while dropping invalid controls")
+
+    // The C harness queues actual text and editing events before this call.
+    WrenConsole.run("main_menu")
+    check_(received.count == 6 && received[4] == "AΩZ" &&
+        received[5] == "keep done",
+        "interactive editing preserves codepoint boundaries")
+    WrenConsole.unregister("edit")
+
+    WrenConsole.drawPrompt_(1, "m", "A一B", "A一".bytes.count)
+    var position = Screen.window.position
+    check_(position[0] == 14 && position[1] == 1,
+        "prompt cursor accounts for a wide glyph")
+    WrenConsole.drawPrompt_(1, "m", "A\u0301B", "A\u0301".bytes.count)
+    position = Screen.window.position
+    check_(position[0] == 13 && position[1] == 1,
+        "prompt cursor follows the rendered fallback-glyph width")
+    WrenConsole.drawPrompt_(1, "m", "A\tB", 2)
+    position = Screen.window.position
+    check_(position[0] == 17 && position[1] == 1,
+        "prompt cursor follows eight-column tab stops")
+
+    return [__pass, __fail]
   }
 }

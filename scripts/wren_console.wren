@@ -88,20 +88,133 @@ class WrenConsole {
     return ab.count < bb.count
   }
 
-  // Backward kill-word (Ctrl+W).  Strip trailing whitespace, then strip
-  // the run of non-whitespace before it.  Matches readline's
-  // unix-word-rubout: any non-space counts as part of the word.
+  // Decode one strictly-valid UTF-8 scalar at a byte offset.  Wren's
+  // built-in string iterator accepts malformed and non-canonical sequences,
+  // which is unsuitable for deciding editor boundaries.  Return -1 for an
+  // invalid byte so callers can reject or escape it without losing the valid
+  // text around it.
+  static utf8CodepointAt_(s, index) {
+    var bytes = s.bytes
+    var count = bytes.count
+    if (index < 0 || index >= count) return -1
+    var b0 = bytes[index]
+    if (b0 < 0x80) return b0
+    if (b0 < 0xc2 || b0 > 0xf4) return -1
+    if (b0 <= 0xdf) {
+      if (index + 1 >= count) return -1
+      var b1 = bytes[index + 1]
+      if (b1 < 0x80 || b1 > 0xbf) return -1
+      return ((b0 & 0x1f) << 6) | (b1 & 0x3f)
+    }
+    if (b0 <= 0xef) {
+      if (index + 2 >= count) return -1
+      var b1 = bytes[index + 1]
+      var b2 = bytes[index + 2]
+      if (b1 < 0x80 || b1 > 0xbf || b2 < 0x80 || b2 > 0xbf) return -1
+      if ((b0 == 0xe0 && b1 < 0xa0) || (b0 == 0xed && b1 >= 0xa0)) return -1
+      return ((b0 & 0x0f) << 12) | ((b1 & 0x3f) << 6) | (b2 & 0x3f)
+    }
+    if (index + 3 >= count) return -1
+    var b1 = bytes[index + 1]
+    var b2 = bytes[index + 2]
+    var b3 = bytes[index + 3]
+    if (b1 < 0x80 || b1 > 0xbf || b2 < 0x80 || b2 > 0xbf ||
+        b3 < 0x80 || b3 > 0xbf) return -1
+    if ((b0 == 0xf0 && b1 < 0x90) || (b0 == 0xf4 && b1 > 0x8f)) return -1
+    return ((b0 & 0x07) << 18) | ((b1 & 0x3f) << 12) |
+        ((b2 & 0x3f) << 6) | (b3 & 0x3f)
+  }
+
+  static utf8Length_(codepoint) {
+    if (codepoint < 0) return 0
+    if (codepoint < 0x80) return 1
+    if (codepoint < 0x800) return 2
+    if (codepoint < 0x10000) return 3
+    return 4
+  }
+
+  static nextIndex_(s, index) {
+    if (index >= s.bytes.count) return s.bytes.count
+    var length = utf8Length_(utf8CodepointAt_(s, index))
+    return index + (length == 0 ? 1 : length)
+  }
+
+  static previousIndex_(s, index) {
+    if (index <= 0) return 0
+    var bytes = s.bytes
+    var candidate = index - 1
+    while (candidate > 0 && bytes[candidate] >= 0x80 &&
+        bytes[candidate] <= 0xbf) candidate = candidate - 1
+    var length = utf8Length_(utf8CodepointAt_(s, candidate))
+    return length > 0 && candidate + length == index ? candidate : index - 1
+  }
+
+  // Backward kill-word (Ctrl+W).  Strip trailing ASCII spaces, then strip
+  // the run of non-spaces before it.  This is deliberately independent of
+  // host locale; any codepoint other than U+0020 belongs to the word.
   static killWord_(s) {
-    var i = s.count
-    while (i > 0 && s[i - 1] == " ") i = i - 1
-    while (i > 0 && s[i - 1] != " ") i = i - 1
+    var i = s.bytes.count
+    while (i > 0) {
+      var previous = previousIndex_(s, i)
+      if (s[previous...i] != " ") break
+      i = previous
+    }
+    while (i > 0) {
+      var previous = previousIndex_(s, i)
+      if (s[previous...i] == " ") break
+      i = previous
+    }
     return s[0...i]
+  }
+
+  // Apply clipboard text to the current edit buffer.  Newlines submit the
+  // current line, with CRLF treated as one newline.  Tab and valid printable
+  // Unicode scalars are retained; C0 (other than Tab/newline), DEL, C1, and
+  // malformed UTF-8 are discarded.  The returned cursor remains a byte
+  // offset because Wren string slices use byte offsets.
+  static pasteText_(pasted, current, input, cursor) {
+    var i = 0
+    var previousCR = false
+    while (i < pasted.bytes.count) {
+      var codepoint = utf8CodepointAt_(pasted, i)
+      var length = utf8Length_(codepoint)
+      if (length == 0) {
+        length = 1
+        previousCR = false
+      } else if (codepoint == 0x0d) {
+        current = submitLine_(input, current)
+        input = ""
+        cursor = 0
+        previousCR = true
+      } else if (codepoint == 0x0a) {
+        if (!previousCR) {
+          current = submitLine_(input, current)
+          input = ""
+          cursor = 0
+        }
+        previousCR = false
+      } else {
+        previousCR = false
+        var printable = codepoint == 0x09 ||
+            (codepoint >= 0x20 && codepoint != 0x7f &&
+            !(codepoint >= 0x80 && codepoint <= 0x9f))
+        if (printable) {
+          var text = pasted[i...(i + length)]
+          input = input[0...cursor] + text +
+              input[cursor...input.bytes.count]
+          cursor = cursor + length
+        }
+      }
+      i = i + length
+    }
+    return [current, input, cursor]
   }
 
   // Append `line` to history if non-empty and not a dup of the last
   // entry, then dispatch it like Enter would.  Returns the (possibly
   // changed) current module.
   static submitLine_(line, current) {
+    if (__history == null) __history = []
     if (line.count > 0 &&
         (__history.count == 0 || __history[__history.count - 1] != line)) {
       __history.add(line)
@@ -201,30 +314,19 @@ class WrenConsole {
         //      select-and-copy loop; it consumes the rest of the drag
         //      itself, then restores the screen on exit.
         // 12 = CIOLIB_BUTTON_2_CLICK     — paste clipboard into the
-        //      input line.  LF submits the line in progress; CR is
-        //      dropped (paired with LF or alone); other control bytes
-        //      are silently skipped.
+        //      input line.  CR, LF, and CRLF submit the line in progress;
+        //      invalid text and controls other than Tab are skipped.
         if (ev.event == 7) {
           Input.mousedrag()
           redrawPrompt = true
         } else if (ev.event == 12) {
           var pasted = Clipboard.text
           if (pasted != null) {
-            for (b in pasted.bytes) {
-              if (b == 0x0A) {
-                currentModule = submitLine_(input, currentModule)
-                input  = ""
-                cursor = 0
-                histIdx = -1
-              } else if (b == 0x0D) {
-                // CR ignored
-              } else if (b >= 0x20 && b < 0x7F) {
-                input = input[0...cursor] + String.fromCodePoint(b) +
-                        input[cursor...input.bytes.count]
-                cursor  = cursor + 1
-                histIdx = -1
-              }
-            }
+            var result = pasteText_(pasted, currentModule, input, cursor)
+            currentModule = result[0]
+            input = result[1]
+            cursor = result[2]
+            histIdx = -1
             redrawPrompt = true
           }
         }
@@ -255,25 +357,27 @@ class WrenConsole {
           redrawPrompt = true
         } else if (key == Key.backspace || key == 0x007F) { // BS or DEL
           if (cursor > 0) {
-            input  = input[0...(cursor - 1)] + input[cursor...input.bytes.count]
-            cursor = cursor - 1
+            var previous = previousIndex_(input, cursor)
+            input  = input[0...previous] + input[cursor...input.bytes.count]
+            cursor = previous
             histIdx = -1
             redrawPrompt = true
           }
         } else if (key == Key.delete) {              // forward-delete
           if (cursor < input.bytes.count) {
-            input = input[0...cursor] + input[(cursor + 1)...input.bytes.count]
+            var next = nextIndex_(input, cursor)
+            input = input[0...cursor] + input[next...input.bytes.count]
             histIdx = -1
             redrawPrompt = true
           }
         } else if (key == Key.left) {
           if (cursor > 0) {
-            cursor = cursor - 1
+            cursor = previousIndex_(input, cursor)
             redrawPrompt = true
           }
         } else if (key == Key.right) {
           if (cursor < input.bytes.count) {
-            cursor = cursor + 1
+            cursor = nextIndex_(input, cursor)
             redrawPrompt = true
           }
         } else if (key == Key.home) {
@@ -397,7 +501,9 @@ class WrenConsole {
           lastTotal = Console.total
           promptRow = Screen.window.position[1]
           redrawPrompt = true
-        } else if (ev.codepoint != null && ev.codepoint >= 0x20) {
+        } else if (ev.codepoint != null && ev.codepoint >= 0x20 &&
+            ev.codepoint != 0x7f &&
+            !(ev.codepoint >= 0x80 && ev.codepoint <= 0x9f)) {
           // Typing a printable char rejoins live mode if we're
           // currently in scrollback.
           if (scrollTop != -1) {
@@ -410,7 +516,7 @@ class WrenConsole {
           // input.count and ev.text.count are codepoint counts;
           // cursor / slice indices are byte-based, so use
           // bytes.count for both to keep the byte arithmetic right
-          // when pasted content includes multi-byte UTF-8.
+          // when the input includes multi-byte UTF-8.
           input  = input[0...cursor] + ev.text +
                    input[cursor...input.bytes.count]
           cursor = cursor + ev.text.bytes.count
@@ -492,23 +598,38 @@ class WrenConsole {
   static quoteString_(s) {
     var hex = "0123456789abcdef"
     var out = "\""
-    for (b in s.bytes) {
-      if (b == 0x22) {                       // "
+    var i = 0
+    while (i < s.bytes.count) {
+      var b = s.bytes[i]
+      var codepoint = utf8CodepointAt_(s, i)
+      var length = utf8Length_(codepoint)
+      if (length == 0) {
+        out = out + "\\x" + hex[(b >> 4) & 0xf] + hex[b & 0xf]
+        i = i + 1
+      } else if (b == 0x22) {                // "
         out = out + "\\\""
+        i = i + 1
       } else if (b == 0x5C) {                // \
         out = out + "\\\\"
+        i = i + 1
       } else if (b == 0x0A) {
         out = out + "\\n"
+        i = i + 1
       } else if (b == 0x0D) {
         out = out + "\\r"
+        i = i + 1
       } else if (b == 0x09) {
         out = out + "\\t"
+        i = i + 1
       } else if (b == 0x00) {
         out = out + "\\0"
+        i = i + 1
       } else if (b < 0x20 || b == 0x7F) {
         out = out + "\\x" + hex[(b >> 4) & 0xf] + hex[b & 0xf]
+        i = i + 1
       } else {
-        out = out + String.fromCodePoint(b)
+        out = out + s[i...(i + length)]
+        i = i + length
       }
     }
     return out + "\""
@@ -563,7 +684,7 @@ class WrenConsole {
       return current
     }
     if (line.startsWith("/in ")) {
-      var name = line[4...line.count].trim()
+      var name = line[4...line.bytes.count].trim()
       if (name == "") {
         System.print("usage: /in <module>")
         return current
@@ -581,8 +702,8 @@ class WrenConsole {
     // surfaces as a logged error instead of tearing out the console.
     if (__commands != null) {
       var sp   = line.indexOf(" ")
-      var name = (sp == -1) ? line[1...line.count] : line[1...sp]
-      var args = (sp == -1) ? "" : line[(sp + 1)...line.count]
+      var name = (sp == -1) ? line[1...line.bytes.count] : line[1...sp]
+      var args = (sp == -1) ? "" : line[(sp + 1)...line.bytes.count]
       if (__commands.containsKey(name)) {
         var fn = __commands[name][1]
         var f  = Fiber.new { fn.call(args) }
@@ -723,12 +844,32 @@ class WrenConsole {
     Screen.window.clearToLineEnd()
     var prefix = "(%(mod)) wren> "
     Screen.window.print(prefix + input)
-    // Re-position the conio cursor inside the just-painted input so
-    // the user sees where Left/Right/Home/End are sitting.  Column
-    // is 1-based, so prefix.count + cursor + 1.  Past-end cursor
-    // (== input.bytes.count) lands one past the last char, matching
-    // where an append would write.
-    Screen.window.position = [prefix.count + cursor + 1, row]
+    // Re-position the cursor by rendered columns, not UTF-8 bytes.  Tab
+    // stops are relative to the whole line; Screen.textWidth supplies the
+    // selected-font/fallback width for each rendered codepoint.
+    Screen.window.position = [displayColumns_(prefix + input[0...cursor], 0) + 1,
+        row]
+  }
+
+  static displayColumns_(s, font) {
+    var columns = 0
+    var start = 0
+    var i = 0
+    while (i < s.bytes.count) {
+      var codepoint = utf8CodepointAt_(s, i)
+      var length = utf8Length_(codepoint)
+      if (length == 0) length = 1
+      if (codepoint == 0x09) {
+        if (i > start) columns = columns + Screen.textWidth(s[start...i], font)
+        columns = columns + 8 - (columns % 8)
+        i = i + length
+        start = i
+      } else {
+        i = i + length
+      }
+    }
+    if (i > start) columns = columns + Screen.textWidth(s[start...i], font)
+    return columns
   }
 
   // conio's cputs treats LF as line-feed-only (cursor down, same column).

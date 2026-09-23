@@ -37,7 +37,7 @@ repository-wide coverage. The legacy tree is read-only reference.
 
 The repository-wide audit is complete. This is not an implementation approval
 or release certification. The consolidated API/design assessment, priority
-groups and all 10 outstanding finding summaries are in
+groups and all 9 outstanding finding summaries are in
 AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 
 | Objective requirement | Authoritative evidence and disposition |
@@ -50,8 +50,8 @@ AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 | Required legacy behavior | Read-only comparisons cover fonts/catalog/maps, modes, palette capacity, Prestel versus Mode 7, command line, console/input and settings behavior, plus explicit parity limits. Frozen CTerm chapter cmp succeeds. |
 | Wren scripts and bindings | Complete local source/signature/manual reviews and isolated shipped-script suites and host fixtures. Connected/SFTP production integration missing from this application is reported, not invented or silently counted as working. |
 | Build logic, generators and documentation | Root/component CMake and generators reviewed; standalone/probe failures recorded; pinned Unicode/font regeneration and table comparisons documented; root manuals/license/development guidance covered. Wren VM vendored internals limited to integration boundaries as requested. |
-| Inventory and consolidated findings | 10 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 4 medium, 4 low, 2 unresolved concerns; not all runtime reproductions. |
-| Relevant tests where practical | Complete native Clang and GCC builds have succeeded. The current configured native tree registers 114 tests. The latest complete verification is recorded in AUDIT_INDEX.md. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
+| Inventory and consolidated findings | 9 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 3 medium, 4 low, 2 unresolved concerns; not all runtime reproductions. |
+| Relevant tests where practical | Complete native Clang and GCC builds have succeeded. The current configured native tree registers 115 tests. The latest complete verification is recorded in AUDIT_INDEX.md. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
 | Explicit uncertainty | Each component records unavailable platforms, unexecuted failure paths and measurement limits; A007/A011 unresolved. Source-level risks are not called verified crashes. These are audit outcomes, not claims of implementation correctness. |
 
 Historical pending-source lists below are superseded by subsequent full reads,
@@ -866,43 +866,18 @@ does not alter the existing manual. Wren guidance used; only audit harness
 and report changed, no commits. Theme editor and its test are now removed
 from the remaining source-review backlog; broader runtime gaps remain.
 
-### A085 — Wren console helper paths corrupt multibyte text
-
-Severity: medium (confirmed interactive text correctness defects, inherited).
-scripts/wren_console.wren mixes codepoint counts with byte-based String slice
-indices in killWord_ and runCommand_. quoteString_ iterates UTF-8 bytes but
-re-encodes each byte using String.fromCodePoint, producing mojibake instead
-of retaining the original text. These paths are unchanged from legacy.
-
-Added scripts/wren_console_test.wren and included it in the isolated
-auxiliary-scripts runner. Native strict Clang run: two ASCII controls pass;
-three Unicode assertions fail. quoteString_("é") should return quoted é;
-killWord_("é x") should retain "é "; a registered /audit-args command invoked
-with "éxy" should receive the entire argument. All three fail through the
-production embedded Wren module. No interactive input, arbitrary REPL eval,
-user file, or network operation is used. The test unregisters its command.
-
-Recommendation: consistently distinguish byte offsets, codepoints and display
-columns; preserve UTF-8 sequences when quoting and editing; use byte lengths
-for byte slices. Add actual cursor/backspace/delete event tests as well:
-the loop currently moves/deletes one byte even though it accepts Unicode
-text events, and drawPrompt_ uses that byte offset as a screen column. Those
-additional paths are source concerns, not exercised by these helper tests.
-
 ### Wren console — source coverage
 
-Read all 788 lines of wren_console.wren and its full legacy diff. Reviewed
+Read the complete wren_console.wren and its full legacy diff. Reviewed
 command registration, history, REPL error isolation, quoting, clipboard input,
 prompt positioning, log reconstruction and screen/mouse restoration. Local
 changes add default colours and backend-appropriate Ctrl+Q/Ctrl+S exits;
 other reviewed paths are inherited. Consulted the String indexing contract
 and console editing documentation. Wren guidance used.
 
-Further source questions: clipboard insertion accepts ASCII only although
-keyboard text accepts Unicode; /in uses the same count/slice mismatch as
-registered commands. renderAllRows_ splits explicit newlines but does not
-wrap to screen width despite claiming display-row units; long lines can make
-scrollback paging and single-row moveRect disagree. drawPrompt_ has no
+Remaining source questions: renderAllRows_ splits explicit newlines but does
+not wrap to screen width despite claiming display-row units; long lines can
+make scrollback paging and single-row moveRect disagree. drawPrompt_ has no
 horizontal viewport or long-input bounds policy. The main runBody_ is guarded
 by Fiber.try, but setup and restoration failures lie outside that guard.
 User-defined toString failures occur after the eval fiber returns. These need
@@ -911,8 +886,7 @@ targeted event/failure tests before stronger runtime claims.
 Updated remaining script coverage: wren_console.wren is now source-reviewed;
 main_menu, full BBS/theme editors and their tests, syncterm.wren remainder,
 and wrentest.wren remainder are still outstanding. Auxiliary run continues
-to fail for the separately documented pixel binding and demo dependency
-gaps; those failures are not attributed to A085. Only tests/report changed.
+to fail for the separately documented pixel binding and demo dependency gaps.
 
 ### Auxiliary UI scripts — coverage and integration gaps
 

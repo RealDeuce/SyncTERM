@@ -88,6 +88,61 @@ log_position(const struct st_wren_log *log, const char *text)
 	return UINT64_MAX;
 }
 
+static void
+post_text(st_console_t *console, uint32_t codepoint)
+{
+	const struct st_console_event event = {
+		.type = ST_CONSOLE_EVENT_TEXT,
+		.data.text.codepoint = codepoint,
+	};
+
+	CHECK(st_console_post_event(console, &event) == 0);
+}
+
+static void
+post_key(st_console_t *console, uint16_t code)
+{
+	const struct st_console_event event = {
+		.type = ST_CONSOLE_EVENT_KEY_CODE,
+		.data.key.code = code,
+	};
+
+	CHECK(st_console_post_event(console, &event) == 0);
+}
+
+static void
+post_wren_console_events(st_console_t *console)
+{
+	static const uint32_t first[] = {
+		'/', 'e', 'd', 'i', 't', ' ', 'A', UINT32_C(0x00e9),
+		UINT32_C(0x4e00), 'Z',
+	};
+	static const uint32_t second[] = {
+		'/', 'e', 'd', 'i', 't', ' ', 'k', 'e', 'e', 'p', ' ',
+		UINT32_C(0x00e9), 'w', 'o', 'r', 'd',
+	};
+
+	for (size_t i = 0; i < sizeof(first) / sizeof(first[0]); ++i)
+		post_text(console, first[i]);
+	post_key(console, ST_CONSOLE_KEY_LEFT);
+	post_key(console, '\b');
+	post_key(console, ST_CONSOLE_KEY_LEFT);
+	post_key(console, ST_CONSOLE_KEY_RIGHT);
+	post_key(console, ST_CONSOLE_KEY_LEFT);
+	post_key(console, ST_CONSOLE_KEY_DELETE);
+	post_text(console, UINT32_C(0x03a9));
+	post_key(console, '\r');
+	for (size_t i = 0; i < sizeof(second) / sizeof(second[0]); ++i)
+		post_text(console, second[i]);
+	post_key(console, UINT16_C(0x0017));
+	post_text(console, 'd');
+	post_text(console, 'o');
+	post_text(console, 'n');
+	post_text(console, 'e');
+	post_key(console, '\r');
+	post_key(console, 27);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -140,6 +195,7 @@ main(int argc, char **argv)
 	    || strcmp(argv[2], "menu-suite") == 0
 	    || strcmp(argv[2], "main-menu-address") == 0
 	    || strcmp(argv[2], "logview-suite") == 0
+	    || strcmp(argv[2], "wren-console-suite") == 0
 	    || strcmp(argv[2], "auxiliary-scripts") == 0
 	    || strcmp(argv[2], "core-helpers") == 0
 	    || strcmp(argv[2], "screen-mode") == 0
@@ -209,7 +265,8 @@ main(int argc, char **argv)
 	CHECK(st_hyperlink_registry_create(&hyperlinks) == 0);
 	if (strcmp(argv[2], "draw-suite") == 0
 	    || strcmp(argv[2], "input-suite") == 0
-	    || strcmp(argv[2], "logview-suite") == 0) {
+	    || strcmp(argv[2], "logview-suite") == 0
+	    || strcmp(argv[2], "wren-console-suite") == 0) {
 		static const uint8_t narrow[16] = {0};
 		static const uint8_t wide[32] = {0};
 		static const struct st_console_font_mapping mapping[] = {
@@ -486,9 +543,45 @@ main(int argc, char **argv)
 		fprintf(stderr, "%.0f failed\n", wrenGetSlotDouble(host->vm, 1));
 		passed = wrenGetSlotDouble(host->vm, 1) == 0;
 	}
+	else if (strcmp(argv[2], "wren-console-suite") == 0) {
+		static char source[128 * 1024];
+		FILE *stream = fopen("scripts/wren_console_test.wren", "rb");
+		size_t count;
+
+		CHECK(status == 0);
+		CHECK(stream != NULL);
+		count = fread(source, 1, sizeof(source) - 1, stream);
+		CHECK(!ferror(stream) && feof(stream));
+		CHECK(fclose(stream) == 0);
+		source[count] = '\0';
+		CHECK(wrenInterpret(host->vm, "wren_console_test", source)
+		    == WREN_RESULT_SUCCESS);
+		post_wren_console_events(console);
+		CHECK(wrenInterpret(host->vm, "wren_console_suite",
+		    "import \"wren_console_test\" for WrenConsoleTest\n"
+		    "var result = WrenConsoleTest.run()\n")
+		    == WREN_RESULT_SUCCESS);
+		wrenEnsureSlots(host->vm, 2);
+		wrenGetVariable(host->vm, "wren_console_suite", "result", 0);
+		CHECK(wrenGetSlotType(host->vm, 0) == WREN_TYPE_LIST);
+		wrenGetListElement(host->vm, 0, 0, 1);
+		fprintf(stderr, "wren console: %.0f passed; ",
+		    wrenGetSlotDouble(host->vm, 1));
+		wrenGetListElement(host->vm, 0, 1, 1);
+		fprintf(stderr, "%.0f failed\n", wrenGetSlotDouble(host->vm, 1));
+		passed = wrenGetSlotDouble(host->vm, 1) == 0;
+		for (size_t i = 0; i < host->menu.log.count; ++i) {
+			uint64_t sequence = host->menu.log.total - host->menu.log.count + i;
+			const char *message = host->menu.log.entries[
+			    sequence % ST_WREN_LOG_CAPACITY].text;
+
+			if (message != NULL && strstr(message, "FAIL") != NULL)
+				fprintf(stderr, "%s\n", message);
+		}
+	}
 	else if (strcmp(argv[2], "auxiliary-scripts") == 0) {
 		static const char *modules[] = {
-			"menu_host_ui_test", "pixel_vm_test", "wren_console_test",
+			"menu_host_ui_test", "pixel_vm_test",
 			"menu_theme_editor_test",
 			"menu_bbs_editor_test",
 			"main_menu_test",
