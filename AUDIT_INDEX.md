@@ -85,7 +85,7 @@ from implementation failures in the detailed ledger.
 ### Latest configured native verification
 
 Native Clang and GCC builds have succeeded. The current configured native tree
-registers 116 tests. The latest Clang run passed 115 tests and skipped the
+registers 118 tests. The latest Clang run passed 117 tests and skipped the
 unavailable Wayland display test; the XRender test passed in that run. The Wren
 console test also passes under GCC and with Unifont disabled; the complete
 MinGW tree compiles and links. SDL uses its CMake-configured dummy video driver.

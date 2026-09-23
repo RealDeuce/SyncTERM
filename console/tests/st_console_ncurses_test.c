@@ -53,6 +53,15 @@ output_contains(const char *text)
 }
 
 static bool
+output_contains_byte(unsigned char byte)
+{
+	for (size_t i = 0; i < terminal_output_size; ++i)
+		if (terminal_output[i] == byte)
+			return true;
+	return false;
+}
+
+static bool
 cursor_visible_at_end(void)
 {
 	bool visible = true;
@@ -80,8 +89,26 @@ child_result(int descriptor, unsigned char result)
 }
 
 static void
-child_test(int report)
+child_test(int report, bool cp437)
 {
+	static const uint8_t bitmap[] = {0x00, 0xff, 0x81};
+	static const struct st_console_font_mapping mapping[] = {
+		{'?', 0},
+		{'Z', 1},
+		{UINT32_C(0x00e9), 2},
+	};
+	static const struct st_console_font font = {
+		.bitmap = bitmap,
+		.bitmap_size = sizeof(bitmap),
+		.width = 8,
+		.height = 1,
+		.glyph_count = 3,
+		.row_stride = 1,
+		.glyph_stride = 1,
+		.mapping = mapping,
+		.mapping_count = sizeof(mapping) / sizeof(mapping[0]),
+		.fallback_glyph = 0,
+	};
 	struct st_console_config config = {
 		.columns = 8,
 		.rows = 3,
@@ -92,16 +119,19 @@ child_test(int report)
 	st_console_display_t *display = NULL;
 	const struct st_console_display_config display_config = {
 		.backend = ST_CONSOLE_BACKEND_NCURSES,
+		.text_presentation = cp437 ? ST_CONSOLE_TEXT_CP437
+		    : ST_CONSOLE_TEXT_UNICODE,
 	};
 	struct st_console_event event;
-	const struct st_console_rect cells_rect = {0, 0, 3, 1};
-	struct st_console_cell cells[3] = {
+	const struct st_console_rect cells_rect = {0, 0, 4, 1};
+	struct st_console_cell cells[4] = {
 		{.codepoint = 'A', .foreground = 9, .background = 0},
 		{.codepoint = 'B',
 		    .foreground = ST_CONSOLE_COLOR_RGB_VALUE(0, 215, 175),
 		    .background = 0},
 		{.codepoint = 'C', .foreground = 7, .background = 0,
 		    .flags = ST_CONSOLE_CELL_BOLD},
+		{.codepoint = UINT32_C(0x00e9), .foreground = 7, .background = 0},
 	};
 	struct timespec deadline;
 	uint32_t columns;
@@ -112,6 +142,10 @@ child_test(int report)
 	    && (strcmp(colorterm, "truecolor") == 0
 	    || strcmp(colorterm, "24bit") == 0);
 	int status;
+	uint16_t font_identifier;
+
+	if (cp437 && !expect_direct)
+		cells[3].codepoint = 'Z';
 
 	status = st_console_display_create(&display, &display_config);
 	if (status == 0)
@@ -124,6 +158,14 @@ child_test(int report)
 		child_result(report, 'C');
 		_exit(1);
 	}
+	if (st_console_register_static_font(console, &font, &font_identifier) != 0
+	    || font_identifier != 0) {
+		child_result(report, 'G');
+		st_console_destroy(console);
+		_exit(1);
+	}
+	for (size_t i = 0; i < sizeof(cells) / sizeof(cells[0]); ++i)
+		cells[i].font = font_identifier;
 	if (st_console_size(console, &columns, &rows) != 0
 	    || columns != 91 || rows != 37) {
 		child_result(report, 'D');
@@ -173,9 +215,13 @@ child_test(int report)
 		if (st_console_write_cells(console, &rectangle, marker, 7) != 0)
 			_exit(1);
 	}
-	if (st_console_write_cells(console, &cells_rect, cells, 3) != 0
-	    || st_console_present(console) != 0) {
+	if (st_console_write_cells(console, &cells_rect, cells, 4) != 0) {
 		child_result(report, 'P');
+		st_console_destroy(console);
+		_exit(1);
+	}
+	if (st_console_present(console) != 0) {
+		child_result(report, 'Q');
 		st_console_destroy(console);
 		_exit(1);
 	}
@@ -283,7 +329,7 @@ wait_child(pid_t child, int master, int *child_status)
 }
 
 int
-main(void)
+main(int argc, char **argv)
 {
 	struct winsize size = {.ws_row = 37, .ws_col = 91};
 	const char *colorterm = getenv("COLORTERM");
@@ -295,6 +341,14 @@ main(void)
 	pid_t child;
 	int child_status;
 	int status;
+	bool cp437;
+
+	if (argc == 1)
+		cp437 = false;
+	else if (argc == 2 && strcmp(argv[1], "--cp437") == 0)
+		cp437 = true;
+	else
+		return EXIT_FAILURE;
 
 	if (pipe(report) != 0)
 		return EXIT_FAILURE;
@@ -303,7 +357,7 @@ main(void)
 		return EXIT_FAILURE;
 	if (child == 0) {
 		(void)close(report[0]);
-		child_test(report[1]);
+		child_test(report[1], cp437);
 	}
 	(void)close(report[1]);
 	status = wait_report(report[0], master, 'R');
@@ -321,8 +375,9 @@ main(void)
 	    || (direct_colour
 	    && (!output_contains("\033[38;2;255;84;84m")
 	    || !output_contains("\033[38;2;0;215;175m")))
-	    || !output_contains("\033[1m")) {
-		fprintf(stderr, "ncurses emitted the wrong colour representation\n");
+	    || !output_contains("\033[1m")
+	    || (cp437 && !output_contains_byte(direct_colour ? 0x82 : 'Z'))) {
+		fprintf(stderr, "ncurses emitted the wrong cell representation\n");
 		goto failed;
 	}
 	size.ws_row = 43;

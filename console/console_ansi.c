@@ -313,8 +313,8 @@ static void
 emit_character(struct ansi_writer *writer, const struct st_console_cell *cell)
 {
 	if (writer->state->presentation == ST_CONSOLE_TEXT_CP437) {
-		unsigned char character = cell->glyph <= UINT8_MAX
-		    ? (unsigned char)cell->glyph : '?';
+		unsigned char character = st_console_cp437_character(
+		    cell->codepoint);
 
 		if (writer->state->doorway_enabled && character < 0x20)
 			emit(writer, "\0", 1);

@@ -123,8 +123,10 @@ backpressure.
 
 Text backends display retained cells but cannot display arbitrary pixel-plane
 changes or registered bitmap fonts.  ANSI Unicode mode and wide ncurses emit
-the retained Unicode scalar; CP437 modes emit the byte-sized glyph value.
-Continuation cells for wide glyphs are skipped.
+the retained Unicode scalar; CP437 modes encode that scalar through the
+locale-independent CP437 table and use `?` when it is not representable.
+Bitmap glyph indexes never select text-terminal characters.  Continuation
+cells for wide glyphs are skipped.
 
 ANSI direct-colour support and indexed-colour count are separate
 capabilities.  The ordinary terminal path reads terminfo and also accepts

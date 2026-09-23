@@ -673,7 +673,7 @@ write_cell(struct curses_state *state, const struct st_console_cell *cell)
 {
 	if (state->presentation == ST_CONSOLE_TEXT_CP437)
 		return state->api.call_addch(state->window,
-		    (chtype)(cell->glyph <= UCHAR_MAX ? cell->glyph : '?'));
+		    (chtype)st_console_cp437_character(cell->codepoint));
 	if (state->presentation == ST_CONSOLE_TEXT_ASCII)
 		return state->api.call_addch(state->window, ascii_cell(cell));
 #if ST_CONSOLE_HAVE_CURSES_WIDE
@@ -734,8 +734,8 @@ sgr_character(struct sgr_writer *writer, const struct curses_state *state,
 	uint32_t codepoint = cell->codepoint;
 
 	if (state->presentation == ST_CONSOLE_TEXT_CP437) {
-		unsigned char character = cell->glyph <= UCHAR_MAX
-		    ? (unsigned char)cell->glyph : '?';
+		unsigned char character = st_console_cp437_character(
+		    cell->codepoint);
 
 		sgr_emit(writer, &character, 1);
 		return;

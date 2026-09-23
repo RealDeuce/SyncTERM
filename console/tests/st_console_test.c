@@ -1654,6 +1654,23 @@ test_ansi_output_modes(void)
 static void
 test_ansi_cp437_output(void)
 {
+	static const uint8_t bitmap[] = {0x00, 0xff};
+	static const struct st_console_font_mapping mapping[] = {
+		{'?', 0},
+		{UINT32_C(0x00e9), 1},
+	};
+	static const struct st_console_font font = {
+		.bitmap = bitmap,
+		.bitmap_size = sizeof(bitmap),
+		.width = 8,
+		.height = 1,
+		.glyph_count = 2,
+		.row_stride = 1,
+		.glyph_stride = 1,
+		.mapping = mapping,
+		.mapping_count = sizeof(mapping) / sizeof(mapping[0]),
+		.fallback_glyph = 0,
+	};
 	const unsigned char expected = 0x82;
 	static const char restore_cursor[] = "\033[?25h\033[0 q";
 	struct output output = {0};
@@ -1672,19 +1689,51 @@ test_ansi_cp437_output(void)
 		.rows = 1,
 	};
 	const struct st_console_rect cell_rect = {0, 0, 1, 1};
-	const struct st_console_cell cell = {
+	struct st_console_cell cell = {
 		.codepoint = UINT32_C(0x00e9),
-		.glyph = 0x82,
 		.foreground = 7,
 	};
 	st_console_t *console = NULL;
+	uint16_t identifier;
 
 	CHECK(st_console_create(&console, &config_display, &config) == 0);
+	identifier = register_static_font(console, &font);
+	CHECK(identifier == 0);
+	cell.font = identifier;
+	output.length = 0;
+	CHECK(st_console_write_cells(console, &cell_rect, &cell, 1) == 0);
+	CHECK(count_bytes(output.data, output.length, &expected, 1) == 1);
+	cell.codepoint = UINT32_C(0x1f642);
+	cell.glyph = expected;
+	output.length = 0;
 	CHECK(st_console_write_complete_cells(console, &cell_rect, &cell, 1)
 	    == 0);
-	CHECK(count_bytes(output.data, output.length, &expected, 1) == 1);
+	CHECK(count_bytes(output.data, output.length, &expected, 1) == 0);
 	st_console_destroy(console);
 	CHECK(contains(output.data, output.length, restore_cursor));
+}
+
+static void
+test_ascii_character_identity(void)
+{
+	struct st_console_cell cell = {
+		.codepoint = UINT32_C(0x2556),
+		.glyph = 'X',
+	};
+	bool alternate;
+
+	CHECK(st_console_ascii_character(&cell, &alternate) == 'k');
+	CHECK(alternate);
+	cell.codepoint = UINT32_C(0x1f642);
+	cell.glyph = 196;
+	CHECK(st_console_ascii_character(&cell, &alternate) == '?');
+	CHECK(!alternate);
+	cell.codepoint = UINT32_C(0x001e);
+	cell.glyph = 30;
+	CHECK(st_console_ascii_character(&cell, &alternate) == '^');
+	CHECK(!alternate);
+	CHECK(st_console_cp437_character(UINT32_C(0x00e9)) == 0x82);
+	CHECK(st_console_cp437_character(UINT32_C(0x1f642)) == '?');
 }
 
 static void
@@ -2436,6 +2485,7 @@ main(void)
 	test_ansi_wide_cell_output();
 	test_ansi_output_modes();
 	test_ansi_cp437_output();
+	test_ascii_character_identity();
 	test_font_resolution_and_complete_cells();
 	test_font_registration_preserves_cells();
 	test_font_registry_lru_replacement();

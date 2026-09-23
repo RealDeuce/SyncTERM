@@ -485,6 +485,16 @@ if(BUILD_TESTING)
 			set_tests_properties(st_console_ncurses_direct PROPERTIES
 				ENVIRONMENT "TERM=xterm-256color;COLORTERM=truecolor"
 				SKIP_RETURN_CODE 77 TIMEOUT 20)
+			add_test(NAME st_console_ncurses_cp437
+				COMMAND st_console_ncurses_test --cp437)
+			set_tests_properties(st_console_ncurses_cp437 PROPERTIES
+				ENVIRONMENT "TERM=xterm-256color;COLORTERM="
+				SKIP_RETURN_CODE 77 TIMEOUT 20)
+			add_test(NAME st_console_ncurses_direct_cp437
+				COMMAND st_console_ncurses_test --cp437)
+			set_tests_properties(st_console_ncurses_direct_cp437 PROPERTIES
+				ENVIRONMENT "TERM=xterm-256color;COLORTERM=truecolor"
+				SKIP_RETURN_CODE 77 TIMEOUT 20)
 		endif()
 	endif()
 	add_executable(st_console_bitmap_test tests/console_bitmap_test.c)

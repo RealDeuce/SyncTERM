@@ -106,6 +106,9 @@ because an arbitrary callback cannot be probed.  The ordinary terminal path
 selects UTF-8 or CP437 cell output from
 `text_presentation`, obtains the terminal size, decodes keyboard input, and
 uses DoorWay keyboard reporting when the enclosing terminal implements it.
+CP437 output encodes the retained Unicode codepoint through the
+locale-independent codepage table and substitutes `?` when it has no mapping;
+the resolved bitmap glyph index is not a terminal character code.
 
 ## Cells and coordinates
 

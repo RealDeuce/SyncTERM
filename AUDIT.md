@@ -51,7 +51,7 @@ AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 | Wren scripts and bindings | Complete local source/signature/manual reviews and isolated shipped-script suites and host fixtures. Connected/SFTP production integration missing from this application is reported, not invented or silently counted as working. |
 | Build logic, generators and documentation | Root/component CMake and generators reviewed; standalone/probe failures recorded; pinned Unicode/font regeneration and table comparisons documented; root manuals/license/development guidance covered. Wren VM vendored internals limited to integration boundaries as requested. |
 | Inventory and consolidated findings | 8 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 3 medium, 3 low, 2 unresolved concerns; not all runtime reproductions. |
-| Relevant tests where practical | Complete native Clang and GCC builds have succeeded. The current configured native tree registers 116 tests. The latest complete verification is recorded in AUDIT_INDEX.md. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
+| Relevant tests where practical | Complete native Clang and GCC builds have succeeded. The current configured native tree registers 118 tests. The latest complete verification is recorded in AUDIT_INDEX.md. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
 | Explicit uncertainty | Each component records unavailable platforms, unexecuted failure paths and measurement limits; A007/A011 unresolved. Source-level risks are not called verified crashes. These are audit outcomes, not claims of implementation correctness. |
 
 Historical pending-source lists below are superseded by subsequent full reads,
@@ -75,10 +75,10 @@ integration is reviewed. Application, console and Wren-host integration now
 have explicit dispositions below; final inventory/report verification is above.
 
 Latest native verification: the complete configured Clang build succeeds.
-CTest executes all 116 registered tests: 115 pass and the unavailable Wayland
+CTest executes all 118 registered tests: 117 pass and the unavailable Wayland
 display test skips. SDL runs with its configured dummy driver; this is not
 real-window verification. Remaining standalone audit cases are not registered
-in CMake and therefore are not counted among these 116 tests.
+in CMake and therefore are not counted among these 118 tests.
 
 Each directory row includes all tracked sources, headers, backends, generators,
 tests, and local documentation. Cross-component callers are reviewed with the
@@ -1963,10 +1963,6 @@ for this backend. Whether the integrating run loop explicitly forces frames
 often enough for idle blink/cursor animation remains unresolved; do not claim
 integration coverage from these library tests.
 
-The ASCII/alternate-character helper tries Unicode box-drawing mappings and
-then a CP437 interpretation of the low byte of glyph before ordinary ASCII.
-Because glyph is a font index, not necessarily CP437, that fallback needs
-selected-font/custom-map tests. No new confirmed finding assigned yet.
 The main wrapper selects Quartz's application runner when built, otherwise
 SDL's runner; runner lifecycle and no-SDL fallback remain assigned to their
 backend source reviews. No production files, build configuration or existing
@@ -1984,11 +1980,10 @@ terminal touched in this pass.
 
 Further source concerns needing targeted checks: drawn-cell cache is updated
 before output success; two independent stdio ANSI displays have no exclusive
-ownership guard. CP437 output uses glyph rather than a Unicode-to-
-CP437 conversion; custom font maps therefore need coverage. Terminal colour
-capability probing calls setupterm without an observed del_curterm cleanup,
-and shares the process-global terminfo context with curses; coexistence review
-remains pending. ASCII comparisons are local byte operations, not locale calls.
+ownership guard. Terminal colour capability probing calls setupterm without an
+observed del_curterm cleanup, and shares the process-global terminfo context
+with curses; coexistence review remains pending. ASCII comparisons are local
+byte operations, not locale calls.
 
 ANSI PTY test now read completely and passed native Clang: Return, Alt arrow,
 Alt text, UTF-8, the implemented DoorWay byte forms, initial host sizing,

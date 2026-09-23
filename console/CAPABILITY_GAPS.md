@@ -19,13 +19,15 @@ an explicit backend contract.
   direct colour only when it is available.  An explicit output callback must
   declare basic, indexed, or direct-colour support.
 - ANSI text output is selected explicitly: Unicode presentation writes UTF-8,
-  while CP437 presentation writes the cell's byte-sized font index.  The
+  while CP437 presentation encodes the cell's retained Unicode scalar through
+  the locale-independent CP437 table and substitutes `?` when necessary.  The
   command-line forms are `-iA`/`-iAU` and `-iAC`, respectively.  No terminal
   query can prove that an independently configured terminal uses the selected
   encoding.
 - ANSI has no portable way to select a registered bitmap font.  Unicode mode
-  emits the cell's Unicode scalar as UTF-8; CP437 mode emits its byte-sized
-  glyph index.  Both skip the stored continuation cell.
+  emits the cell's Unicode scalar as UTF-8; CP437 mode encodes that same scalar
+  rather than treating its bitmap glyph index as a byte.  Both skip the stored
+  continuation cell.
   SyncTERM deliberately derives one- versus two-column width from its font
   data without consulting the process locale; a host terminal whose width
   policy disagrees may position that glyph differently.  Cursor visibility

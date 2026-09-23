@@ -254,6 +254,7 @@ int st_console_ansi_init(st_console_t *console,
 	const struct st_console_ansi_io *io);
 unsigned char st_console_ascii_character(const struct st_console_cell *cell,
 	bool *alternate);
+unsigned char st_console_cp437_character(uint32_t codepoint);
 int st_console_ncurses_init(st_console_t *console);
 int st_console_sdl_init(st_console_t *console);
 int st_console_x11_init(st_console_t *console);
