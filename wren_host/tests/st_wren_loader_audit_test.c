@@ -498,13 +498,21 @@ main(int argc, char **argv)
 		    "import \"syncterm\" for Hook\n"
 		    "if (Hook.dispatch_(Fn.new { Fiber.abort(42) }) != null) Fiber.abort(\"hook abort did not pass through\")\n",
 		    "var map = {\"key\": 9}\n"
-		    "for (key in map) {\n"
-		    "  if (key != \"key\") Fiber.abort(\"manual says Map iteration yields keys\")\n"
-		    "}\n",
+		    "for (entry in map) {\n"
+		    "  if (entry.key != \"key\" || entry.value != 9) Fiber.abort(\"Map entry\")\n"
+		    "}\n"
+		    "if (map.keys.toList[0] != \"key\") Fiber.abort(\"Map keys\")\n",
 		    "var list = [9]\n"
-		    "if (list.remove(9) != true) Fiber.abort(\"manual says List.remove returns true\")\n",
-		    "if ((5..0).toList.count != 5) Fiber.abort(\"manual reverse-range example omits zero\")\n",
-		    "if (Object.supertype != Object) Fiber.abort(\"manual says Object is its own supertype\")\n",
+		    "if (list.remove(9) != 9 || list.remove(9) != null) Fiber.abort(\"List.remove result\")\n",
+		    "var inclusive = (5..0).toList\n"
+		    "var exclusive = (5...0).toList\n"
+		    "if (inclusive.count != 6 || inclusive[0] != 5 || inclusive[5] != 0) Fiber.abort(\"inclusive reverse range\")\n"
+		    "if (exclusive.count != 5 || exclusive[0] != 5 || exclusive[4] != 1) Fiber.abort(\"exclusive reverse range\")\n",
+		    "if (Object.supertype != null) Fiber.abort(\"Object supertype\")\n",
+		    "class UnsupportedProbe { foreign static call() }\n"
+		    "var unsupported = Fiber.new { UnsupportedProbe.call() }\n"
+		    "unsupported.try()\n"
+		    "if (!(unsupported.error is String) || !unsupported.error.contains(\"not available\")) Fiber.abort(\"unsupported method fallback\")\n",
 		};
 		CHECK(status == 0);
 		passed = true;

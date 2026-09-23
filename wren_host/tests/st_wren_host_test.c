@@ -1794,9 +1794,10 @@ exercise_input_value_contract(struct st_wren_host *host,
 	static const char values[] =
 	    "import \"syncterm\" for Input, KeyEvent, Mouse, MouseEvent, PhysicalKeyEvent\n"
 	    "var key = KeyEvent.new(4660)\n"
+	    "if (key.codepoint != null || key.text != \"\") Fiber.abort(\"extended key text\")\n"
 	    "Input.unget(key)\n"
 	    "var gotKey = Input.poll()\n"
-	    "if (!(gotKey is KeyEvent) || gotKey.code != 4660) Fiber.abort(\"key unget\")\n"
+	    "if (!(gotKey is KeyEvent) || gotKey.code != 4660 || gotKey.codepoint != null || gotKey.text != \"\") Fiber.abort(\"key unget\")\n"
 	    "var physical = PhysicalKeyEvent.new(77, true, 5, true)\n"
 	    "Input.unget(physical)\n"
 	    "var gotPhysical = Input.poll()\n"
@@ -1822,6 +1823,37 @@ exercise_input_value_contract(struct st_wren_host *host,
 	    "Input.synthesizePhysicalKey(88, false)\n"
 	    "var release = Input.poll()\n"
 	    "if (!(release is PhysicalKeyEvent) || release.evdev != 88 || release.pressed || Input.poll() != null) Fiber.abort(\"physical release synthesis\")\n";
+	static const char codepage_source[] =
+	    "import \"syncterm\" for Codepage, Font, Input, Key, KeyEvent, Screen\n"
+	    "var original = Screen.font[0]\n"
+	    "Screen.font[0] = 20\n"
+	    "if (Font.codepage != Codepage.cp1251) Fiber.abort(\"selected codepage\")\n"
+	    "var byte = KeyEvent.new(0xc0)\n"
+	    "if (byte.code != 0xc0 || byte.codepoint != 0x0410 || byte.text != String.fromCodePoint(0x0410)) Fiber.abort(\"constructor codepage\")\n"
+	    "var escape = KeyEvent.new(0x01e0)\n"
+	    "if (escape.code != Key.escape || escape.codepoint != Key.escape) Fiber.abort(\"escape normalization\")\n"
+	    "var encodable = Input.poll()\n"
+	    "if (!(encodable is KeyEvent) || encodable.code != 0xc0 || encodable.codepoint != 0x0410 || encodable.text != String.fromCodePoint(0x0410)) Fiber.abort(\"encodable text\")\n"
+	    "Input.unget(encodable)\n"
+	    "var returned = Input.poll()\n"
+	    "if (returned.code != 0xc0 || returned.codepoint != 0x0410 || returned.text != String.fromCodePoint(0x0410)) Fiber.abort(\"unicode unget\")\n"
+	    "var unencodable = Input.poll()\n"
+	    "if (unencodable.code != 0x3f || unencodable.codepoint != 0x4e00 || unencodable.text != String.fromCodePoint(0x4e00)) Fiber.abort(\"unencodable text\")\n"
+	    "var compatibility = Input.poll()\n"
+	    "if (compatibility.code != 0xc0 || compatibility.codepoint != 0x0410 || compatibility.text != String.fromCodePoint(0x0410)) Fiber.abort(\"compatibility codepage\")\n"
+	    "Screen.font[0] = original\n";
+	const struct st_console_event encodable = {
+		.type = ST_CONSOLE_EVENT_TEXT,
+		.data.text.codepoint = UINT32_C(0x0410),
+	};
+	const struct st_console_event unencodable = {
+		.type = ST_CONSOLE_EVENT_TEXT,
+		.data.text.codepoint = UINT32_C(0x4e00),
+	};
+	const struct st_console_event compatibility = {
+		.type = ST_CONSOLE_EVENT_KEY_CODE,
+		.data.key.code = UINT16_C(0x00c0),
+	};
 	const struct st_console_event press = {
 		.type = ST_CONSOLE_EVENT_MOUSE,
 		.data.mouse = {
@@ -1872,6 +1904,11 @@ exercise_input_value_contract(struct st_wren_host *host,
 	    "if (Input.poll() != null) Fiber.abort(\"extra mouse event\")\n";
 
 	CHECK(wrenInterpret(host->vm, "input_value_contract", values)
+	    == WREN_RESULT_SUCCESS);
+	CHECK(st_console_post_event(console, &encodable) == 0);
+	CHECK(st_console_post_event(console, &unencodable) == 0);
+	CHECK(st_console_post_event(console, &compatibility) == 0);
+	CHECK(wrenInterpret(host->vm, "input_codepage_contract", codepage_source)
 	    == WREN_RESULT_SUCCESS);
 	CHECK(st_console_post_event(console, &press) == 0);
 	CHECK(st_console_post_event(console, &move) == 0);

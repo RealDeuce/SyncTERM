@@ -188,8 +188,8 @@ return v     // return from method/function
 ----
 
 `for (x in seq) {}` works on anything implementing `iterate(prev)`
-and `iteratorValue(iter)` — Lists, Maps (yields keys), Strings (yields
-codepoint substrings), Ranges, and your own classes.
+and `iteratorValue(iter)` — Lists, Maps (yields `MapEntry` objects), Strings
+(yields codepoint substrings), Ranges, and your own classes.
 
 === Functions and Closures
 
@@ -394,10 +394,11 @@ import "module" for A, B, C       // multiple
 import "module" for Name as Alias // rename on import
 ----
 
-Module names are strings; the host resolves them.  In SyncTERM,
-modules are looked up in (1) embedded scripts (compiled in), (2) the
-user script directory.  A user file `myhelper.wren` in the script
-dir is importable as `import "myhelper"`.
+Module names are strings; the host resolves them.  In SyncTERM, modules are
+looked up first in the root user script directory, then in the active event's
+user script directory, and finally in the matching embedded scripts.  A user
+file `myhelper.wren` in the script directory is importable as
+`import "myhelper"` and overrides an embedded module with the same name.
 
 === Common Pitfalls
 
@@ -443,7 +444,7 @@ Static-only namespace for I/O and timing.
 | `System.printAll(seq)`  | Print each item in `seq`, one per line.
 | `System.write(value)`   | Print `value.toString`, no newline.
 | `System.writeAll(seq)`  | Like `printAll` without newlines.
-| `System.clock`          | Wall-clock time in seconds since process start, as Num.
+| `System.clock`          | Process CPU time reported by C `clock()`, in seconds as Num; not elapsed wall time.
 |===
 
 NOTE: In SyncTERM, `System.print` / `System.write` are routed to the
@@ -473,7 +474,7 @@ The class of all classes.  Useful properties:
 [cols="2m,3"]
 |===
 | `Cls.name`       | String name of the class.
-| `Cls.supertype`  | Parent class, or `Object` for `Object` itself.
+| `Cls.supertype`  | Parent class, or `null` when `Cls` is `Object`.
 | `Cls.toString`   | The class name.
 |===
 
@@ -566,7 +567,7 @@ Mutable, ordered, dynamic-length, heterogeneous.
 | `list.add(v)`                      | Append.
 | `list.addAll(seq)`                 | Append every item of `seq`.
 | `list.insert(i, v)`                | Insert `v` at index `i`.
-| `list.remove(v)`                   | Remove first occurrence; returns true if removed.
+| `list.remove(v)`                   | Remove and return the first occurrence; returns `null` if absent.
 | `list.removeAt(i)`                 | Remove and return element at `i`.
 | `list.clear()`                     | Empty the list.
 | `list.indexOf(v)`                  | Index of first match, or `-1`.
@@ -582,7 +583,8 @@ Mutable, ordered, dynamic-length, heterogeneous.
 
 Mutable hash map.  Keys may be any hashable value (Num, String,
 Bool, Null, Range, or Class — *not* List, Map, or arbitrary
-instance).  Iteration yields keys.
+instance).  Iteration yields `MapEntry` objects with `key` and `value`
+properties; use `m.keys` when only keys are wanted.
 
 [cols="2m,3"]
 |===
@@ -595,7 +597,7 @@ instance).  Iteration yields keys.
 | `m.remove(k)`                      | Remove and return the old value (or `null`).
 | `m.clear()`                        | Empty the map.
 | `m.keys`, `m.values`               | `Sequence` views (lazy).
-| `m.iterate(prev)`, `m.iteratorValue(iter)` | Sequence protocol; iterating yields keys.
+| `m.iterate(prev)`, `m.iteratorValue(iter)` | Sequence protocol; iterating yields `MapEntry` objects.
 | `m.toString`                       | `"{a: 1, b: 2}"`.
 |===
 
@@ -614,7 +616,8 @@ Nums.  Lazy — values are produced on iteration.
 | `for (i in r) {}`       | Iterate.
 |===
 
-Reverse ranges are valid: `5..0` walks 5, 4, 3, 2, 1.
+Reverse ranges are valid: `5..0` walks 5, 4, 3, 2, 1, 0, while `5\...0`
+excludes the ending zero.
 
 === Sequence (mixin)
 
@@ -1205,21 +1208,19 @@ prompt, picker, viewer, or submenu until that child is dismissed.
 
 === Headless Tests
 
-`run_wren.sh scripts/test_name.wren` runs a source-tree script in an
-off-screen connected VM.  `wrentest.wren` receives a Bash PTY and is treated
-as the aggregate connected-VM suite; other scripts receive a short-lived
-`/usr/bin/true` PTY.
+The CMake test suite drives menu and picker VMs against headless consoles and
+isolated temporary data trees.  After building a configured tree, run the Wren
+tests with:
 
-`run_wren.sh --menu scripts/test_name.wren` runs a menu-only test without
-opening an interactive SyncTERM window.  The test module must export class
-`MenuTest` with a static `run()` method returning `[passed, failed]`.  The
-harness constructs an isolated scripts directory, installs a temporary
-`MainMenu` entry point, invokes the test in the real menu VM, and exits through
-`Menu.quitApplication()`.  It does not copy scripts into the developer's
-personal scripts directory or expose menu capabilities to a connected VM.
-Use `--menu-write` for a test which must mutate the directory or settings.
-It removes safe mode only inside the same temporary XDG data tree; the tree is
-deleted when the harness exits.
+[source,shell]
+----
+ctest --test-dir build --output-on-failure -R '^(wren_|st_wren_)'
+----
+
+The `wren_host` test covers the shared host bindings.  The `wren_*` tests run
+the menu, picker, and individual UI-script suites through the same embedded
+module loader used by the application.  The current tree does not provide a
+standalone source-tree connected-VM script runner.
 
 === VM Lifetimes and Trust Boundaries [[vm-trust-boundaries]]
 
@@ -1362,8 +1363,10 @@ import "syncterm" for Screen, Input, Conn, Hook, Key
 An import does not grant all methods declared by that module.  The
 menu VM resolves the declarations so shared UI libraries can load, but
 forbidden methods abort with "this capability is not available in the
-menu VM" if called.  Unknown foreign declarations remain module-load
-errors.  Menu-only data APIs are imported separately:
+menu VM" if called.  An unrecognized foreign method declaration binds the
+same unsupported-method fallback, so it loads and aborts only when called.
+A foreign class still requires a host allocator.  Menu-only data APIs are
+imported separately:
 
 [source,wren]
 ----
@@ -2786,19 +2789,25 @@ draining wakes.  Registering a claim alone does not create a background pump.
 
 === KeyEvent
 
-Wraps a 16-bit ciolib key code.
+Carries a 16-bit compatibility key code and, when the event represents text,
+a separate Unicode value.
 
 [options="header",cols="2,3"]
 |===
 | Member | Description
 
 | `KeyEvent.new(code)`
-| Construct from a raw 16-bit code.  Aborts the calling fiber if
-  `code` is not roundtrip-representable through ciolib's
-  byte-stuffed key transport — see <<keyevent-encoding>> below.
+| Construct from any integer from 0 through 65535.  Single-byte values are
+  decoded through the codepage of currently selected font slot 0; other
+  values represent extended compatibility keys and have no `codepoint`.
+  The alternate scancode representation of Escape, 0x01E0, is normalized to
+  `Key.escape`.
 
 | `code`
-| Raw 16-bit ciolib code.
+| 16-bit compatibility key code.  For native Unicode text input the host
+  encodes the character through the selected font's codepage; an
+  unrepresentable character uses `?` here without changing `codepoint` or
+  `text`.
 
 | `codepoint`
 | Unicode value of the byte under the current `Font.codepage` for
@@ -2808,31 +2817,8 @@ Wraps a 16-bit ciolib key code.
 | UTF-8 form of `codepoint`, or `""` for extended keys.
 |===
 
-==== Encoding constraint [[keyevent-encoding]]
-
-ciolib transports 16-bit key codes through `getch` / `ungetch` as a
-low-byte then high-byte sequence, with the convention that the
-*first* byte being `0x00` or `0xE0` means "extended scancode follows."
-The corollary: a code with high byte non-zero AND low byte not
-`0x00` / `0xE0` cannot be represented in that stream — `Input.unget`
-would split it into two separate, unrelated reads.
-
-`KeyEvent.new(code)` therefore accepts only:
-
-* High byte `0x00` — single-byte ASCII / printable keys
-  (`KeyEvent.new(0x001B)` for Esc, `KeyEvent.new(0x0041)` for `A`).
-* Low byte `0x00` — extended scancode-only keys
-  (`KeyEvent.new(0x3B00)` for F1, `KeyEvent.new(0xFA00)` for an
-  arbitrary synthetic sentinel).
-* Low byte `0xE0` — `E0`-prefixed extended keys
-  (`KeyEvent.new(0x29E0)` for the Wren console hotkey).
-
-Any other combination (`KeyEvent.new(0xFB01)`, `KeyEvent.new(0x1234)`)
-aborts the calling fiber with a clear error.
-
-The `CIO_KEY_ABORTED` scancode (0x01E0, "Esc by scancode") is
-normalized to plain Esc (0x001B) inside the constructor, so scripts
-only ever see one Esc value.
+`Input.unget` stores the complete event record, including its separate Unicode
+value.  It does not split or reinterpret the 16-bit compatibility code.
 
 === PhysicalKeyEvent [[physicalkeyevent]]
 
@@ -3012,10 +2998,8 @@ keys use the low byte for the character and 0 for the high byte.
 [options="header",cols="2,1,4"]
 |===
 | Constant     | Code   | Description
-| `escape`     | 0x001B | Esc.  `KeyEvent.new` also normalises the
-                          synthetic `CIO_KEY_ABORTED` (0x01E0,
-                          "Esc-by-scancode") to this value, so scripts
-                          only ever see one Esc.
+| `escape`     | 0x001B | Esc.  The alternate 0x01E0 scancode form is
+                          normalized to this value, so scripts see one Esc.
 | `enter`      | 0x000D | Enter / Return (CR).
 | `backspace`  | 0x0008 | Backspace (BS).
 | `tab`        | 0x0009 | Tab (HT).
@@ -3199,8 +3183,8 @@ character set; only the box-drawing glyph shapes differ.
 
 === Cell [[cell]]
 
-Wraps a `struct vmem_cell`: one screen cell's character, attribute,
-and color state.  Use cases: read a rectangle through
+Wraps one `st_console_cell`: its Unicode character, resolved glyph/font,
+colours, source attributes, flags, and hyperlink.  Use cases: read a rectangle through
 `Screen.readRect`, build a list manually, then write it back through
 `Screen.writeRect`.
 
@@ -3216,14 +3200,17 @@ what storage that object refers to; it does not copy cell contents.
 | Construct an empty cell.
 
 | `ch`, `ch=(s)`
-| Character as a Unicode string (one codepoint, round-tripped
-  through CP437).
+| Character as a one-codepoint Unicode string.  Assignment resolves the glyph
+  in the selected font and then the Unicode fallback fonts.
 
 | `chByte`, `chByte=(n)`
-| Character as a raw 8-bit byte.
+| Explicit CP437 compatibility adapter.  The setter selects the raw CP437
+  glyph byte; the getter maps `ch` back to CP437 or returns `?` when it cannot
+  be represented.
 
 | `font`, `font=(n)`
-| Font slot.
+| Font catalog selector at the Wren boundary.  The resolved internal font
+  identifier is retained in stored cells.
 
 | `legacyAttr`, `legacyAttr=(n)`
 | Legacy attribute byte (foreground in low nibble, background in
@@ -3243,7 +3230,7 @@ what storage that object refers to; it does not copy cell contents.
 
 | `pixelGraphics`
 | Read-only.  `true` when pixel drawing has marked this text cell as containing
-  raster data outside the `vmem_cell`.  Capture that data separately with
+  raster data.  Capture the pixel planes separately with
   `Screen.readPixels`; it is not contained in a `Cell` or `Surface`.
 
 | `fgPalette`, `bgPalette`
@@ -3264,12 +3251,10 @@ what storage that object refers to; it does not copy cell contents.
   you want to know "do these two cells have the same content?"
   (e.g. `surf.where {|c| c.eqContent(template) }`).
 +
-Returns `false` for non-Cell `other` (no fiber abort), `false` if
-either cell flies the pixel-graphics flag (the actual pixel data
-lives outside the `vmem_cell` and isn't compared), and ignores the
-internal BG dirty bit (render bookkeeping, not content).  All other
-bits, including the Prestel control char in fg and the
-double-height/Prestel-mode/etc. flags in bg, are compared bit-exact.
+Returns `false` for non-Cell `other` (no fiber abort) and when either cell has
+the pixel-graphics flag, because the pixel planes are not part of a `Cell`.
+Otherwise it compares the Unicode codepoint, resolved glyph, colours, public
+flags, font, and hyperlink.
 +
 Note that `Cell` cannot be a `Map` key — Wren's Maps reject any
 foreign object regardless of `==` definitions
@@ -3281,7 +3266,7 @@ instead.
 === Surface [[surface]]
 
 A `width × height` grid of <<cell,`Cell`>>s backed by a contiguous
-`vmem_cell` buffer.  `Surface is Sequence`, so the linear `[i]`
+`st_console_cell` buffer.  `Surface is Sequence`, so the linear `[i]`
 subscript, `count`, and the standard sequence helpers (`each`,
 `where`, `map`, `all`, `any`, `reduce`, `join`, `take`, `skip`,
 `toList`, …) all work — handy for "tell me where any 'X' lives"
@@ -3300,8 +3285,8 @@ per frame.
 | Member | Description
 
 | `Surface.new(width, height)`
-| Allocate a fresh Surface of the given size.  Cells start zeroed
-  (NUL char, attribute 0, slot 0, no hyperlink).
+| Allocate a fresh Surface of the given size.  Cells start as spaces using the
+  current screen style.
 
 | `width`, `height`
 | Dimensions in cells.
@@ -3589,7 +3574,7 @@ the ring has wrapped.
 [source,wren]
 ----
 var errors = Console.entries.where {|e|
-  e[2] == LogSource.runtimeError
+  e[1] == LogSource.runtimeError
 }.toList
 ----
 +
@@ -4650,10 +4635,12 @@ custom role with inherited fields.  `removeStyle(role)` removes only a custom
 role.
 
 `ThemeDocument.glyphs` returns rows
-`[name, builtin, present, cp437, ascii]`.  Its `present` bits are 0 CP437 and
-1 ASCII.  `setGlyph(name, field, mode, value)` accepts modes 0 Default and
-2 Explicit; mode 1 is not meaningful for glyphs.  `addGlyph(name, cp437,
-ascii)` creates a complete custom glyph and `removeGlyph(name)` removes one.
+`[name, builtin, present, cp437, ascii, codepoint]`.  Its `present` bits are
+0 CP437, 1 ASCII, and 2 Codepoint.  `setGlyph(name, field, mode, value)`
+accepts modes 0 Default and 2 Explicit; mode 1 is not meaningful for glyphs.
+`addGlyph(name, ascii)` creates a custom glyph with its required ASCII value;
+the other representations can then be set explicitly.  `removeGlyph(name)`
+removes a custom glyph.
 
 `ThemeDocument.themeData` returns a fresh Wren theme-data snapshot for the
 draft.  `Theme.fromData(data)` decodes such a snapshot without changing the
@@ -5807,7 +5794,8 @@ host releases the previous handle when the callable changes.
 | `Status.callable`
 | The currently installed render `Fn` (or `null` when nothing has
   been set).  Read it back if you want to chain — wrap the existing
-  callable in your own `Fn.new { \|s\| original.call(s); ... }`.
+  callable in your own multi-line `Fn.new` and call `original.call(s)` before
+  the additional statements.
 
 | `Status.callable = fn`
 | Install (or clear) the render callable.  `fn` must be a callable
@@ -5976,7 +5964,7 @@ Multi-fire / event-loop dispatch:
 
 [source,wren]
 ----
-import "syncterm" for Timer, SFTP, SFTPStat, SFTPError
+import "syncterm" for Timer, TimerElapsed, SFTP, SFTPStat, SFTPError
 
 Timer.trigger(Fiber.current, 100)        // spinner tick
 SFTP.stat(Fiber.current, "/foo")          // stat in flight
@@ -6462,10 +6450,11 @@ System.print(WON.serializeLossy(mixed))          // [1,2,3]
 == Built-in UI Library [[ui-library]]
 
 SyncTERM ships a pure-Wren widget library on top of the
-<<modal-input,Modal Input>> primitive.  It draws into Surfaces with
-no foreign calls per cell, composites them through a screen-sized
-backbuffer, and applies a final `Screen.putRect` per frame, so the
-whole thing runs without flicker even on slow remote BBSes.  The
+<<modal-input,Modal Input>> primitive.  It reuses mutable `Cell` views while
+drawing into Surfaces, avoiding a new Wren object for every cell.  Drawing
+still uses foreign cell and text-width methods.  The library composites
+through a screen-sized backbuffer and applies a final `Screen.putRect` per
+frame, so the whole thing runs without flicker even on slow remote BBSes.  The
 visual style follows SyncTERM's classic conventions: cyan-on-blue dialog frames,
 yellow titles, lightbar selection, drop shadows on modals, and a
 distinct cyan inactive palette for any pane that's currently behind
@@ -7076,8 +7065,10 @@ pane.fitContentToScreen() // sized to list, constrained, and centered
 === TextInput [[ui-input]]
 
 Single-line text edit field.  Stores the value as a list of
-codepoint strings so the cursor indexes by codepoint and emoji /
-multibyte characters take one cell per codepoint.
+codepoint strings, so editing indexes codepoints without splitting UTF-8.
+Cursor placement, scrolling, and painting use `Screen.textWidth`; a codepoint
+may therefore occupy zero, one, or two cells.  Full grapheme-cluster editing
+is not currently provided.
 
 [source,wren]
 ----
@@ -7760,13 +7751,10 @@ source or the process-wide selection.
 
 `Glyphs` entries are either a single string or `[primary,
 fallback]` pairs — primary is the rich Unicode glyph, fallback is
-an ASCII-safe substitute.  Cell storage is CP437, so primary
-glyphs MUST be in CP437 too — `Cell.ch=` substitutes `?` for any
-codepoint not in the table.  As a safety net, `Glyphs[name]`
-auto-promotes to the per-entry fallback when the primary's first
-codepoint doesn't encode in CP437 (probed via the foreign
-`Codepage.encodes_(text)`).  Resolutions are cached per name so
-the encoding test runs once.  Set `theme.glyphs.asciiOnly = true`
+an ASCII-safe substitute.  The host resolves each theme glyph at load time in
+Codepoint, CP437, then ASCII order and supplies the resulting Unicode primary
+to Wren.  `Glyphs` caches that primary by name.  Set
+`theme.glyphs.asciiOnly = true`
 to force the fallback for every entry that has one — useful when
 the user has selected a font that can't render line-drawing
 characters at all.

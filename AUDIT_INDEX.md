@@ -7,8 +7,8 @@ recommended remedies. Severity does not imply exploitability; source-confirmed
 risks and reproduced failures must be distinguished using those entries.
 No remediation is authorized by this report.
 
-The audit is complete, not the implementation: **9 outstanding findings**
-comprise 3 medium, 4 low and 2 unresolved design/performance
+The audit is complete, not the implementation: **8 outstanding findings**
+comprise 3 medium, 3 low and 2 unresolved design/performance
 concerns.
 This is not a count of exploitable vulnerabilities or reproduced failures.
 The audited inventory covered 47 tracked source directories and 12 root files.
@@ -64,7 +64,7 @@ No new blanket GC, contention or scaling-performance diagnosis is made from
 source shape. The source and test inventory must retain those measurement
 limits in the final report.
 
-The current TODO documents contain 9 outstanding numbered findings. A007 and
+The current TODO documents contain 8 outstanding numbered findings. A007 and
 A011 are unresolved design/performance concerns, not confirmed runtime defects.
 Missing features and documentation errors are also explicitly distinguished
 from implementation failures in the detailed ledger.
@@ -75,8 +75,7 @@ from implementation failures in the detailed ledger.
 | A011 | unresolved performance concern | Non-native rwlock fast paths need performance validation |
 | A023 | medium performance/reliability risk | Real-time audio callbacks take locks and free objects |
 | A088 | medium | User manual does not clearly distinguish implemented menu from future connected runtime |
-| A089 | low | Wren language reference gives incorrect standard-library contracts |
-| A090 | low | Wren examples and cell/input descriptions retain incompatible legacy assumptions |
+| A090 | low | Wren filesystem handle and error contract is unresolved |
 | A091 | medium | Required Windows DLL/launcher and libretro application packaging is absent |
 | A095 | low | Distribution notice assembly is not implemented |
 | A098 | low | Shipped UI demo imports an absent module |
@@ -86,9 +85,8 @@ from implementation failures in the detailed ledger.
 ### Latest configured native verification
 
 Native Clang and GCC builds have succeeded. The current configured native tree
-registers 115 tests. The latest Clang run passed 113 tests, skipped the
-unavailable Wayland display test, and hit the known intermittent XRender
-`BadWindow`; the XRender test passed on its immediate isolated rerun. The Wren
+registers 116 tests. The latest Clang run passed 115 tests and skipped the
+unavailable Wayland display test; the XRender test passed in that run. The Wren
 console test also passes under GCC and with Unifont disabled; the complete
 MinGW tree compiles and links. SDL uses its CMake-configured dummy video driver.
 This is native and cross-build verification, not Windows/macOS execution or

@@ -127,6 +127,7 @@ struct foreign_claim_handle {
 #define ST_WREN_MOUSE_WHEEL_DOWN 47
 #define ST_WREN_MOUSE_WHEEL_LEFT 48
 #define ST_WREN_MOUSE_WHEEL_RIGHT 49
+#define ST_WREN_KEY_ESCAPE_BY_SCANCODE UINT16_C(0x01e0)
 
 struct foreign_cursor {
 	struct foreign_header header;
@@ -144,6 +145,26 @@ struct binding {
 	const char *signature;
 	WrenForeignMethodFn method;
 };
+
+static enum st_codepage font_codepage(uint16_t selector);
+
+static struct st_wren_input_record
+compatibility_key_record(struct st_wren_context *context, uint16_t code)
+{
+	struct st_wren_input_record record = {
+		.type = ST_WREN_INPUT_KEY,
+	};
+
+	if (code == ST_WREN_KEY_ESCAPE_BY_SCANCODE)
+		code = UINT16_C(0x001b);
+	record.data.key.code = code;
+	if ((code & UINT16_C(0xff00)) == 0) {
+		record.data.key.codepoint = st_codepage_to_unicode(
+		    font_codepage(context->fonts.slots[0]), (uint8_t)code, false);
+		record.data.key.has_codepoint = true;
+	}
+	return record;
+}
 
 static bool
 slot_integer(WrenVM *vm, int slot, int64_t minimum, int64_t maximum,
@@ -640,18 +661,18 @@ allocate_key_event(WrenVM *vm)
 {
 	struct foreign_key_event *event = wrenSetSlotNewForeign(vm, 0, 0,
 	    sizeof(*event));
+	struct st_wren_context *context = st_wren_context_from_vm(vm);
+	struct st_wren_input_record record;
 	int64_t code;
 
 	memset(event, 0, sizeof(*event));
 	event->header.kind = FOREIGN_KEY_EVENT;
 	if (!slot_integer(vm, 1, 0, UINT16_MAX, &code))
 		return;
-	event->code = (uint16_t)code;
-	if ((event->code & 0xff00U) == 0) {
-		event->codepoint = st_codepage_to_unicode(ST_CODEPAGE_CP437,
-		    (uint8_t)event->code, false);
-		event->has_codepoint = true;
-	}
+	record = compatibility_key_record(context, (uint16_t)code);
+	event->code = record.data.key.code;
+	event->codepoint = record.data.key.codepoint;
+	event->has_codepoint = record.data.key.has_codepoint;
 }
 
 static void
@@ -1004,13 +1025,13 @@ queue_console_event(struct st_wren_context *context,
 	size_t count = 0;
 
 	switch (event->type) {
-	case ST_CONSOLE_EVENT_KEY_CODE:
-		records[count++] = (struct st_wren_input_record){
-			.type = ST_WREN_INPUT_KEY,
-			.data.key.code = legacy_key_code(event->data.key.code,
-			    event->data.key.modifiers),
-		};
+	case ST_CONSOLE_EVENT_KEY_CODE: {
+		uint16_t code = legacy_key_code(event->data.key.code,
+		    event->data.key.modifiers);
+
+		records[count++] = compatibility_key_record(context, code);
 		break;
+	}
 	case ST_CONSOLE_EVENT_TEXT: {
 		uint8_t byte;
 
@@ -1018,7 +1039,8 @@ queue_console_event(struct st_wren_context *context,
 			.type = ST_WREN_INPUT_KEY,
 			.data.key = {
 				.code = st_codepage_from_unicode(&byte,
-				    ST_CODEPAGE_CP437, event->data.text.codepoint)
+				    font_codepage(context->fonts.slots[0]),
+				    event->data.text.codepoint)
 				    ? byte : '?',
 				.codepoint = event->data.text.codepoint,
 				.has_codepoint = true,
@@ -1048,16 +1070,8 @@ queue_console_event(struct st_wren_context *context,
 		code = event->data.physical_key.pressed
 		    ? modified_physical_key(event->data.physical_key.evdev,
 		    event->data.physical_key.modifiers) : 0;
-		if (code != 0) {
-			records[count++] = (struct st_wren_input_record){
-				.type = ST_WREN_INPUT_KEY,
-				.data.key = {
-					.code = code,
-					.codepoint = code <= 0x1f ? code : 0,
-					.has_codepoint = code <= 0x1f,
-				},
-			};
-		}
+		if (code != 0)
+			records[count++] = compatibility_key_record(context, code);
 		break;
 	}
 	case ST_CONSOLE_EVENT_MOUSE:

@@ -233,7 +233,7 @@ class WrenTest {
     testPhysicalKeyInputDrain_()
     testWrenConsoleMouseMask_()
     testScrollbackMouseMask_()
-    testKeyEventCtorValidation_()
+    testKeyEventContract_()
 
     // ------ read-only live bindings ---------------------------------
     testConnConnected_()
@@ -815,37 +815,28 @@ class WrenTest {
            "WrenConsole mouse mask can be restored exactly")
   }
 
-  // KeyEvent.new validates that the code is roundtrip-representable
-  // through ciolib's byte-stuffing: high-byte 0 (single-byte ASCII /
-  // printable) OR low-byte 0 / 0xE0 (extended scancode-style).  Any
-  // other combination would silently split into two reads on
-  // Input.unget - reject at construction.
-  static testKeyEventCtorValidation_() {
-    // Valid: high byte 0 (printable / ASCII).
-    var a = KeyEvent.new(0x001B)        // Esc
-    check_(a.code == 0x001B, "KeyEvent.new(0x001B) accepted (Esc)")
-    var b = KeyEvent.new(0x0041)        // 'A'
-    check_(b.code == 0x0041, "KeyEvent.new(0x0041) accepted (printable)")
+  // Key events retain the 16-bit compatibility code separately from
+  // Unicode text. Single-byte codes use the selected font's codepage.
+  static testKeyEventContract_() {
+    var original = Screen.font[0]
+    Screen.font[0] = 20
 
-    // Valid: low byte 0 (extended scancode-only).
-    var c = KeyEvent.new(0x3B00)        // F1
-    check_(c.code == 0x3B00, "KeyEvent.new(0x3B00) accepted (F1)")
+    var printable = KeyEvent.new(0xC0)
+    check_(Font.codepage == Codepage.cp1251 &&
+           printable.code == 0xC0 && printable.codepoint == 0x0410 &&
+           printable.text == String.fromCodePoint(0x0410),
+           "KeyEvent.new decodes through selected font codepage")
 
-    // Valid: low byte 0xE0 (E0-prefixed extended).
-    var d = KeyEvent.new(0x29E0)        // wrenConsole
-    check_(d.code == 0x29E0, "KeyEvent.new(0x29E0) accepted (E0-extended)")
+    var extended = KeyEvent.new(0x1234)
+    check_(extended.code == 0x1234 && extended.codepoint == null &&
+           extended.text == "",
+           "KeyEvent.new preserves arbitrary 16-bit extended code")
 
-    // Invalid: high byte non-zero AND low byte not 0/0xE0.
-    var f = Fiber.new { KeyEvent.new(0xFB01) }
-    var err = f.try()
-    check_(err is String && err.contains("0xFB01") &&
-           err.contains("not a representable"),
-           "KeyEvent.new(0xFB01) rejected")
+    var escape = KeyEvent.new(0x01E0)
+    check_(escape.code == Key.escape && escape.codepoint == Key.escape,
+           "KeyEvent.new normalizes scancode Escape")
 
-    var g = Fiber.new { KeyEvent.new(0x1234) }
-    var err2 = g.try()
-    check_(err2 is String && err2.contains("0x1234"),
-           "KeyEvent.new(0x1234) rejected")
+    Screen.font[0] = original
   }
 
   // ===== read-only live bindings ==================================

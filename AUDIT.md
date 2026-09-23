@@ -37,7 +37,7 @@ repository-wide coverage. The legacy tree is read-only reference.
 
 The repository-wide audit is complete. This is not an implementation approval
 or release certification. The consolidated API/design assessment, priority
-groups and all 9 outstanding finding summaries are in
+groups and all 8 outstanding finding summaries are in
 AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 
 | Objective requirement | Authoritative evidence and disposition |
@@ -50,8 +50,8 @@ AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 | Required legacy behavior | Read-only comparisons cover fonts/catalog/maps, modes, palette capacity, Prestel versus Mode 7, command line, console/input and settings behavior, plus explicit parity limits. Frozen CTerm chapter cmp succeeds. |
 | Wren scripts and bindings | Complete local source/signature/manual reviews and isolated shipped-script suites and host fixtures. Connected/SFTP production integration missing from this application is reported, not invented or silently counted as working. |
 | Build logic, generators and documentation | Root/component CMake and generators reviewed; standalone/probe failures recorded; pinned Unicode/font regeneration and table comparisons documented; root manuals/license/development guidance covered. Wren VM vendored internals limited to integration boundaries as requested. |
-| Inventory and consolidated findings | 9 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 3 medium, 4 low, 2 unresolved concerns; not all runtime reproductions. |
-| Relevant tests where practical | Complete native Clang and GCC builds have succeeded. The current configured native tree registers 115 tests. The latest complete verification is recorded in AUDIT_INDEX.md. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
+| Inventory and consolidated findings | 8 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 3 medium, 3 low, 2 unresolved concerns; not all runtime reproductions. |
+| Relevant tests where practical | Complete native Clang and GCC builds have succeeded. The current configured native tree registers 116 tests. The latest complete verification is recorded in AUDIT_INDEX.md. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
 | Explicit uncertainty | Each component records unavailable platforms, unexecuted failure paths and measurement limits; A007/A011 unresolved. Source-level risks are not called verified crashes. These are audit outcomes, not claims of implementation correctness. |
 
 Historical pending-source lists below are superseded by subsequent full reads,
@@ -74,13 +74,11 @@ directory has an inventory row; that mechanical check does not prove every
 integration is reviewed. Application, console and Wren-host integration now
 have explicit dispositions below; final inventory/report verification is above.
 
-Latest native verification: the complete configured build succeeds with
-`cmake --build build -j4`. CTest excluding the real-display X11/Wayland tests
-executes 67 tests in 5.71 seconds: 58 pass and 9 fail, all at recorded
-regressions. No selected test times out or skips. AUDIT_INDEX.md contains the
-failure-to-finding matrix and command. SDL runs with its configured dummy
-driver; this is not real-window verification. Remaining standalone audit cases
-are not registered in CMake and therefore are not counted among these 67 tests.
+Latest native verification: the complete configured Clang build succeeds.
+CTest executes all 116 registered tests: 115 pass and the unavailable Wayland
+display test skips. SDL runs with its configured dummy driver; this is not
+real-window verification. Remaining standalone audit cases are not registered
+in CMake and therefore are not counted among these 116 tests.
 
 Each directory row includes all tracked sources, headers, backends, generators,
 tests, and local documentation. Cross-component callers are reviewed with the
@@ -93,7 +91,7 @@ not the absence of failing tests. New findings will receive stable A-numbers.
 | Area | Coverage | Notes |
 | --- | --- | --- |
 | Root CMake, configuration/type headers, .gitignore | Reviewed | Root source read; fresh native configure with testing/Unifont disabled succeeds; component probes and application packaging tracked in owning rows |
-| Root manuals, license and development guidance | Reviewed | Manual.txt, Wren.adoc, LICENSE, REVIEW.md and development guidance read; cterm.adoc intentionally frozen and identical to legacy by cmp; Console.adoc covered with console; contract mismatches A088–A090 and licensing/distribution notes below |
+| Root manuals, license and development guidance | Reviewed | Manual.txt, Wren.adoc, LICENSE, REVIEW.md and development guidance read; cterm.adoc intentionally frozen and identical to legacy by cmp; Console.adoc covered with console; contract mismatches A088 and A090 and licensing/distribution notes below |
 | app/ | Reviewed | All local implementation/header/build/test read; A088, A091; parser and 28 fixed-mode legacy geometry checked; startup/host ownership boundary dispositioned below; native startup tests pass, GUI/platform and future connected-loop limits explicit |
 | app_paths/ | Reviewed | Native default/override tests pass; other platforms source-only except MinGW compile |
 | array_list/ | Reviewed | A007 unresolved portability concern; native and optimized tests pass |
@@ -511,117 +509,30 @@ the Synchronet git repository. The connected GHost section gives a
 ghost:// URL while the earlier supported-scheme list omits it. These are
 source-checked documentation gaps;
 no GUI, network connection, personal settings or distribution was exercised.
-Full Wren.adoc coverage and cross-reference checks remain outstanding.
 
-### A089 — Wren language reference gives incorrect standard-library contracts
+### A090 — Wren filesystem handle and error contract is unresolved
 
-Severity: low (confirmed documentation errors, not VM regressions).
-Read Wren.adoc lines 1–1720 continuously in this pass and compared the
-language/stdlib claims with the vendored VM and an isolated native menu VM.
-The added `core-helpers` cases deliberately assert the manual's claims:
+Severity: low (contradictory public documentation and an unsettled handle
+model, not a demonstrated filesystem defect).
 
-- Map iteration is documented as yielding keys in three places; the shipped
-  Map.iteratorValue constructs MapEntry objects. Use map.keys for keys.
-- List.remove is documented as returning true when removed; it returns the
-  removed value instead (the check using integer 9 fails).
-- The reverse-range example says `5..0` produces five values ending at 1;
-  the inclusive range has six values and ends at 0.
-- Object.supertype is documented as Object; the VM returns null.
+`File` and `Directory` objects retain pathnames, but the manual also describes
+them as filesystem snapshots and claims that existence checks prevent an
+operation from acting on the wrong object. A pathname lookup cannot establish
+that identity: an entry can be replaced at the same name.
 
-All four documentation-claim checks fail in fresh headless host execution.
-They are intentionally not proposed VM requirements: remedy the manual, not
-the implementation. Native strict-C17 compilation of the audit harness
-succeeds. The pre-existing serializer control still passes and the parser
-availability checks still fail separately. No production/manual edit.
-Source additionally shows System.clock delegates to C clock()/CLOCKS_PER_SEC,
-not the wall-clock-since-start contract stated here; it should not be used as
-the documented elapsed-time clock on the strength of that statement.
+The current methods also report failed lookups inconsistently. A closed
+`File` whose pathname cannot be inspected is marked dead and returns
+`FileErr.vanished`; a `Directory` whose pathname no longer names a directory
+is marked dead and aborts the fiber. Generic filename-policy prose additionally
+fails to distinguish the strict Cache leaf-name policy from the relaxed safe
+leaf names accepted below Download.
 
-The script-loading discussion at Wren.adoc:400 lists embedded sources before
-user files, contradicting both its later Load Order section and the actual
-load_module implementation (root user file, event user file, embedded fallback).
-The Headless Tests section describes run_wren.sh, absent from this repo.
-The embedded-module inventory lists numerous absent connected scripts; that
-is part of A088's current-versus-future documentation boundary, not evidence
-they are implemented or an authorization to import them. The claimed unknown
-foreign-declaration load error also conflicts with bind_method's catch-all
-unsupported method: unknown declarations can load and fail only when called.
-Picker recovery and additional-auto-load behavior are covered by registered
-host tests.
-
-Subsequently read Wren.adoc lines 1721–4110 continuously: hook handles, modal
-input, REPL, screen/cursor/video APIs, pixel APIs, input/event constants,
-codepages, cells/surfaces/fonts, log access, connected APIs, and the beginning
-of the menu model contract. Remaining continuous reading starts at line 4111.
-Previously consulted later API sections are useful evidence, not full manual
-coverage.
-
-### A090 — Wren examples and cell/input descriptions retain incompatible legacy assumptions
-
-Severity: low (source-confirmed documentation defects; recommended remedy is
-documentation correction, not restoring obsolete transport restrictions).
-
-- The Console.entries example tests e[2] against LogSource.runtimeError,
-  although its own documented tuple and wren_repl.c:137–139 place source at
-  index 1 and text at index 2. It silently selects no ordinary error entries.
-- Cell.ch is described as round-tripped through CP437 and cells as legacy
-  vmem_cell storage with control bits hidden in fg/bg. The current binding
-  stores a Unicode codepoint directly in st_console_cell; flags are separate.
-  chByte retains an explicit CP437 adapter. The old representation description
-  must not be used to justify moving flags back into colors.
-- KeyEvent.new is documented as rejecting non-byte-stuffable 16-bit values
-  and normalizing 0x01e0 to Escape. allocate_key_event currently accepts every
-  integer in 0..UINT16_MAX and performs neither check nor normalization.
-  Single-byte synthetic keys use CP437, not the documented selected codepage.
-  Modern event transport does not require the old byte-stuffing restriction;
-  whether normalization is still required is a separate compatibility question.
-
-Other claims in this span map to already-recorded findings; do not count
-repeated documentation promises as independent runtime defects. Font-slot
-terminology also needs
-reconciliation with the new registry/selector distinction. No connected
-runtime, GUI, network or personal-data action was performed; this pass changes
-audit notes only.
-
-### Wren manual completion pass
-
-Read the remainder of Wren.adoc, lines 4111–7739: menu record/settings/theme/
-encryption/web/font contracts; host and picker capabilities; filesystem
-rights/errors/tokens; transfer and SFTP contracts; WON; complete UI library
-reference and worked examples. Combined with the preceding continuous passes,
-the whole manual now has source coverage. No live transfer, consent-token
-operation, external command, device I/O or personal-data access was attempted.
-
-Additional documentation reconciliation under A088/A090:
-
-- ThemeDocument.glyphs is described as five fields and addGlyph as three
-  arguments. Current rows have three metadata fields plus all three glyph
-  fields (including Codepoint), and the binding is addGlyph(_,_). The final
-  Glyphs chapter still requires CP437 and mentions Codepage.encodes_, absent
-  from the current module. This contradicts the implemented Unicode fallback
-  direction; do not remove Unicode support to satisfy this old description.
-- Directory staleness says external disappearance aborts, while File's later
-  contract says it returns FileErr.vanished. Filename policy also alternates
-  between strict cache names and relaxed download names without consistently
-  qualifying the generic Directory statements. These must be clarified before
-  consumers can rely on the error/filename contract. The assertion that an
-  existence check ensures identity is too strong: existence alone cannot
-  distinguish replacement at the same pathname. No new runtime exploit or
-  file-operation defect is claimed from those prose contradictions.
-- The UI introduction promises no foreign calls per cell. Painter.text and
-  line routines call Surface.cellAt, field setters and Screen.textWidth while
-  iterating. Reusing mutable Cell views avoids allocation but does not remove
-  those foreign calls. This is a misleading performance claim, not a measured
-  performance regression.
-- TextInput prose says multibyte/emoji codepoints each take one cell, despite
-  the current display-width-aware implementation. Some examples also omit
-  needed imports (TimerElapsed in the multi-fire example) or include invalid
-  Wren semicolon syntax (Status callable chaining). These are example defects,
-  not reasons to change the language or make glyph widths uniformly one.
-
-Repeated promises were not assigned duplicate defect numbers. Full-source
-documentation coverage does not settle remaining app/console/host integration
-follow-ups or constitute final consolidated audit completion.
+Before changing either code or documentation, decide whether these handles
+represent path capabilities or particular opened filesystem objects, then
+define per-operation error results, invalidation, replacement behavior, and
+the separately scoped Cache and Download name policies. The existing
+existence checks and `FileErr.vanished` name are evidence, not the desired
+contract.
 
 ## Findings
 
@@ -858,13 +769,8 @@ supported. Repeated refresh reconstructs theme
 snapshots and can refresh content twice via model.onChange plus the explicit
 call; no performance measurement is claimed.
 
-Documentation mismatch: Wren.adoc:4542 still describes five-field glyph rows
-and addGlyph(name, cp437, ascii), while the current editor consumes codepoint
-as a sixth field and calls addGlyph(name, ascii). This needs reconciliation
-with the reviewed binding, not removal of Unicode functionality. This audit
-does not alter the existing manual. Wren guidance used; only audit harness
-and report changed, no commits. Theme editor and its test are now removed
-from the remaining source-review backlog; broader runtime gaps remain.
+Theme editor and its test are removed from the remaining source-review
+backlog; broader runtime gaps remain.
 
 ### Wren console — source coverage
 
@@ -1190,8 +1096,7 @@ and paste-content checks call insertText_ directly. Native clipboard transfer
 and callback-abort repaint behavior remain untested. Array cursor setters
 accept fractions, and value=/maxLen= do not enforce an existing-value cap;
 these need domain/contract clarification rather than automatic remediation.
-The manual's claim of one cell per codepoint is stale relative to modern
-width handling; its cursorAttr description also says focused style although
+The manual's cursorAttr description says focused style although
 the code deliberately uses fillStyle_. Full grapheme editing is not claimed
 or treated as required here. Display-width methods repeatedly resolve style
 and cross the host boundary per character; no performance regression is
@@ -1501,9 +1406,8 @@ consumer and legacy expectations need reconciliation.
 
 Core binding source read is complete (remaining :1740-2340 covered this pass).
 Reviewed Cell and CustomCursor manual contracts plus Host.print and Format
-descriptions. Cell foreground/background RGB tags are now separate from flags;
-manual wording about preserving packed high bits and CP437-only characters
-still describes legacy layout. Font assignment reruns Unicode lookup and drops
+descriptions. Cell foreground/background RGB tags are separate from flags.
+Font assignment reruns Unicode lookup and drops
 explicit raw-glyph state, which needs a raw-cell/font-order test before claiming
 preserved semantics. Explicit full-cell font mutations remain distinct from
 the screen write edge's legacy selector resolution.

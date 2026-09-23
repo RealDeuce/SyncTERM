@@ -150,7 +150,8 @@ if(BUILD_TESTING)
 			-Wall -Wextra -Wpedantic -Werror)
 	endif()
 	foreach(_case autoload recovery menu-error script-catalog settings-stale
-			settings-save-failure settings-reload screen-mode bbs-setters)
+			settings-save-failure settings-reload screen-mode bbs-setters
+			core-helpers)
 		set(_directory "${CMAKE_CURRENT_BINARY_DIR}/audit-${_case}")
 		file(MAKE_DIRECTORY "${_directory}")
 		add_test(NAME "wren_${_case}"
