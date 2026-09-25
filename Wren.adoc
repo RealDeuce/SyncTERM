@@ -5034,11 +5034,10 @@ pre-bound from these at module load.
   C-owned theme state or snapshots returned to another VM.
 
 | `Host.cacheDirectory`
-| Returns a fresh `Directory` whose path resolves lazily from the
-  active BBS context (`SYNCTERM_PATH_CACHE`).  No Wren-visible
-  constructor for an `is_cache` `Directory` exists, so this is
-  the only path to one.  Use the module-level `Cache` binding
-  instead in most code.
+| Returns a fresh `Directory` for the active BBS cache pathname
+  (`SYNCTERM_PATH_CACHE`).  No Wren-visible `Directory` constructor exists,
+  so this is the only path to that root.  Use the module-level `Cache`
+  binding instead in most code.
 
 | `Host.downloadDir`
 | Returns a fresh `Directory` rooted at the BBS's configured
@@ -5374,7 +5373,9 @@ picker as `initialDir`.
 
 === Directory
 
-Opaque handle pointing at a directory on disk.
+Opaque handle containing a directory pathname grant.  The grant applies to
+the pathname, not to a particular filesystem object that occupied it when the
+handle was created.
 
 [options="header",cols="2,3"]
 |===
@@ -5387,9 +5388,8 @@ Opaque handle pointing at a directory on disk.
 | A Map keyed by entry name; values are `File` objects for regular
   files and `Directory` objects for subdirectories.  Symlinks, device
   nodes, FIFOs, etc. are silently skipped.  Names are filtered by the
-  <<filename-policy,filename policy>>, so hidden / dotfiles /
-  Windows-reserved names don't appear.  Each read enumerates the
-  directory afresh; cache the value if you'll touch it more than once.
+  policy of the directory's Cache or Download root.  Each read enumerates
+  the directory afresh; cache the value if you'll touch it more than once.
   Use this to obtain handles to existing files, or to walk a tree.
 
 | `Directory.create(name)`
@@ -5416,11 +5416,7 @@ Opaque handle pointing at a directory on disk.
   files and empty subdirectories; refuses anything else (symlinks,
   device nodes, FIFOs, non-empty directories).  Returns `true` on
   successful removal, `false` on any failure (no such entry, wrong
-  type, non-empty directory, no permission, invalid name, …).  On
-  success, every live `File` / `Directory` handle whose path is
-  at-or-below the removed entry is marked dead; a subsequent operation
-  on any such handle
-  aborts the calling fiber with a "handle is dead" error.
+  type, non-empty directory, no permission, invalid name, …).
 
 | `Directory.replace(name, bytes)`
 | Atomically replace a regular file with the complete byte String.  The
@@ -5431,39 +5427,30 @@ Opaque handle pointing at a directory on disk.
   intermediate state; it does not promise persistence across a system crash.
 |===
 
-==== Handle staleness [[directory-handle-staleness]]
+==== Pathname grants [[directory-handle-staleness]]
 
-`File` and `Directory` foreign objects are filesystem snapshots —
-the C side caches the absolute path at the moment the handle was
-issued (via `Directory.list`, `Directory.create`, `Directory.createDir`,
-or `Cache`).  A subsequent `Directory.delete` invalidates handles
-to the removed entry by walking a live-handle registry and setting
-a `dead` flag on each match.
+`File` and `Directory` foreign objects retain an absolute pathname and the
+operations granted for that pathname.  They are not filesystem snapshots and
+do not preserve the identity of a particular file or directory.  A closed
+handle therefore addresses the current entry at its pathname.  Removing,
+replacing, or recreating that entry does not revoke the grant, whether the
+change came through `Directory.delete` or from outside SyncTERM.
 
-Two layers of protection keep operations from acting on a stale path:
-
-1. **Active invalidation.** `Directory.delete` walks every live
-   handle and marks dead anything whose path is the removed entry
-   or a descendant of it.  Subsequent ops on a dead handle throw.
-2. **Per-call existence check.** Every File / Directory method
-   re-checks `fexist(path)` / `isdir(path)` before doing anything.
-   If the path is missing — because something outside the script
-   (another script, another process, the user) deleted it — the
-   handle is marked dead, and the
-   operation aborts the calling fiber.  This catches deletions
-   that bypassed `Directory.delete`.
-
-The active layer is fast (one boolean check); the existence layer
-costs a `stat()` per operation but covers the externally-modified
-case.  Together they ensure no File / Directory operation ever
-silently acts on the wrong path.
+Operations still validate the state they require.  A closed `File` operation
+that finds its pathname unavailable returns `FileErr.vanished` where that
+method normally reports the error; the handle remains usable if the pathname
+later becomes available.  A `Directory` operation whose root pathname does
+not currently name a directory aborts that call with `Directory: path
+vanished`, but does not poison the handle.  The same handle works again if a
+directory is recreated at that pathname.  `File.path`, `File.token`, and
+`Directory.toString` report stored handle metadata without requiring the
+pathname to exist.
 
 ==== Open files are exempt
 
-A File handle whose underlying file is currently open (between
-`File.open()` and `File.close()`) is *not* marked dead by the
-invalidation walk and bypasses the per-call `fexist()` check.
-This matches platform reality:
+A File whose stream is currently open (between `File.open()` and
+`File.close()`) performs stream operations on that opened stream and bypasses
+the closed-path existence check.  This matches platform reality:
 
 - On Unix, an open file descriptor remains valid after the path is
   unlinked; reads and writes continue to work, and the inode is
@@ -5471,21 +5458,16 @@ This matches platform reality:
 - On Windows, deleting a file that's currently open fails at the
   OS layer, so the situation never arises.
 
-While the file is open, operations against the descriptor hit OS-level
-errors if the underlying file is genuinely gone (very rare on Unix,
-impossible on Windows).  After `File.close()`, the next operation checks
-the path and reports a vanished file rather than silently acting elsewhere.
+After `File.close()`, a later open resolves the pathname again and may open a
+replacement file.  Properties implemented as pathname operations, including
+`mtime`, `sha1`, and `md5`, continue to resolve the pathname even while a
+stream is open.  Stored metadata properties do not access the filesystem.
 
-Scripts should drop stale handles when they're done with them; the
-handles aren't hazardous (operations throw rather than corrupt
-state) but holding them prevents the underlying foreign data from
-being GC'd.
+==== Filename Policies [[filename-policy]]
 
-==== Filename Policy [[filename-policy]]
+Directories below `Cache` use the strict portable cache-name policy:
 
-Filenames passed to any `Directory` or `File` method must satisfy:
-
-* Length 1..64 characters.
+* Length 1..64 bytes.
 * Characters from `[A-Za-z0-9._-]` only.
 * Must not begin with `.` or `-`.
 * Must not end with `.`.
@@ -5494,8 +5476,13 @@ Filenames passed to any `Directory` or `File` method must satisfy:
   `AUX`, `NUL`, `COM1`..`COM9`, `LPT1`..`LPT9`), case-insensitively
   and with or without an extension.
 
-Method calls violating the policy fail (return null / no-op);
-methods on the resulting `File` are no-ops if construction failed.
+Directories below `Download` use the relaxed safe-leaf policy.  Names are
+1..255 bytes, must not be `.` or `..`, and may not contain a path separator,
+NUL, an ASCII control byte, DEL, or a Windows reserved device basename.
+Spaces, leading dots or dashes, trailing dots, parentheses, and non-ASCII
+bytes are otherwise accepted.  Descendant directories inherit their root's
+policy.  Each method retains the invalid-name result documented in its method
+description.
 
 === File
 
@@ -5510,8 +5497,10 @@ Every `File` carries rights assigned by the host when it is created:
   Read methods, hashes, and read-consuming bindings reject them.  See
   <<file-write-consent,Write consent>>.
 
-Rights belong to the foreign handle, not the path.  Passing a `File` to
-another binding does not broaden its authority.
+Permissions apply to the stored pathname, not to a particular file object at
+that pathname.  The foreign handle retains those permissions so a script
+cannot substitute a different pathname.  Passing a `File` to another binding
+does not broaden its authority.
 
 [options="header",cols="2,3"]
 |===
@@ -5589,19 +5578,11 @@ another binding does not broaden its authority.
   need it for display.
 |===
 
-A `File` whose backing file has been deleted via `Directory.delete`
-is *dead* — every subsequent method aborts the calling fiber with
-"handle is dead" (a programmer error: the script kept the handle
-after explicitly invalidating it).  See the
-<<directory-handle-staleness,Handle staleness>> note in the Directory
-section for the full mechanism.
-
-A `File` whose backing path *vanished externally* (another process
-deleted it, the user `rm`'d the file outside the script's awareness)
-is recoverable — the per-call `fexist()` check catches it and
-returns a `<<fileerror,FileError>>` with `code == FileErr.vanished`
-in place of the typed result.  Drop or inspect the error and move on;
-the fiber is not aborted.
+A closed `File` whose pathname is unavailable returns a
+`<<fileerror,FileError>>` with `code == FileErr.vanished` from the
+existence check, whether the entry was deleted through `Directory.delete` or
+outside SyncTERM.  The pathname grant remains valid.  If a regular file is
+later created at the same pathname, the original `File` can open it.
 
 ==== Write consent [[file-write-consent]]
 
@@ -5690,16 +5671,15 @@ demux with `is FileError`.
 | `FileErr.statFailed`    | 3 | `flength` / `fstat` failed mid-op.
 | `FileErr.mmapFailed`    | 4 | `xpmap` returned NULL — only from `File.sha1` / `File.md5`.
 | `FileErr.oom`           | 5 | Internal `malloc` / `realloc` returned NULL.
-| `FileErr.vanished`      | 6 | Backing file/dir gone (race with external `rm`).
+| `FileErr.vanished`      | 6 | A closed File's pathname is unavailable.
 | `FileErr.resolveFailed` | 7 | `Cache`-relative path resolution failed.
 | `FileErr.seekFailed`    | 8 | `fseek` failed while positioning an open file.
 |===
 
 **What is NOT a FileError:** programmer errors abort the fiber instead.
-That covers: using a dead handle (`Directory.delete` invalidated it),
-calling read/write on an unopened file, calling `open()` twice,
-passing a negative offset/count, reading past EOF, passing the wrong
-type to a setter.  These are all "your code is wrong" — fail loud.
+That covers calling read/write on an unopened file, calling `open()` twice,
+passing a negative offset/count, reading past EOF, and passing the wrong type
+to a setter.  These are all "your code is wrong" — fail loud.
 
 **What is also not a FileError:** EOF from a short read.  `File.read`
 and friends return whatever bytes were actually read (possibly empty),

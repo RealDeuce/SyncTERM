@@ -171,8 +171,6 @@ struct st_wren_context {
 	bool capturing;
 	uint64_t seen_total;
 	uint64_t seen_errors;
-	struct st_wren_file *files;
-	struct st_wren_directory *directories;
 	struct st_wren_connected *connected;
 	const struct st_profile *profile;
 	const char *event;
@@ -241,7 +239,6 @@ WrenForeignMethodFn st_wren_hyperlink_bind_method(const char *class_name,
 WrenForeignClassMethods st_wren_fs_bind_class(const char *class_name);
 bool st_wren_file_push(WrenVM *vm, int slot, const char *path,
 	enum st_wren_picker_disposition disposition, bool picker_read);
-void st_wren_fs_context_dispose(WrenVM *vm);
 void st_wren_won_deserialize(WrenVM *vm);
 void st_wren_won_error_allocate(WrenVM *vm);
 void st_wren_won_error_finalize(void *data);

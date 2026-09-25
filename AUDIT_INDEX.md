@@ -7,8 +7,8 @@ recommended remedies. Severity does not imply exploitability; source-confirmed
 risks and reproduced failures must be distinguished using those entries.
 No remediation is authorized by this report.
 
-The audit is complete, not the implementation: **7 outstanding findings**
-comprise 2 medium, 3 low and 2 unresolved design/performance
+The audit is complete, not the implementation: **6 outstanding findings**
+comprise 2 medium, 2 low and 2 unresolved design/performance
 concerns.
 This is not a count of exploitable vulnerabilities or reproduced failures.
 The audited inventory covered 47 tracked source directories and 12 root files.
@@ -64,7 +64,7 @@ No new blanket GC, contention or scaling-performance diagnosis is made from
 source shape. The source and test inventory must retain those measurement
 limits in the final report.
 
-The current TODO documents contain 7 outstanding numbered findings. A007 and
+The current TODO documents contain 6 outstanding numbered findings. A007 and
 A011 are unresolved design/performance concerns, not confirmed runtime defects.
 Missing features and documentation errors are also explicitly distinguished
 from implementation failures in the detailed ledger.
@@ -74,7 +74,6 @@ from implementation failures in the detailed ledger.
 | A007 | unresolved | Typed-list representation needs a portability decision |
 | A011 | unresolved performance concern | Non-native rwlock fast paths need performance validation |
 | A088 | medium | User manual does not clearly distinguish implemented menu from future connected runtime |
-| A090 | low | Wren filesystem handle and error contract is unresolved |
 | A091 | medium | Required Windows DLL/launcher and libretro application packaging is absent |
 | A095 | low | Distribution notice assembly is not implemented |
 | A098 | low | Shipped UI demo imports an absent module |

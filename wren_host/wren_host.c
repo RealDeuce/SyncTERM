@@ -1008,7 +1008,6 @@ st_wren_picker_host_dispose(struct st_wren_host *host)
 {
 	if (host == NULL || host->picker_vm == NULL)
 		return;
-	st_wren_fs_context_dispose(host->picker_vm);
 	st_wren_input_context_dispose(host->picker_vm);
 	if (host->picker_recover != NULL)
 		wrenReleaseHandle(host->picker_vm, host->picker_recover);
@@ -1200,7 +1199,6 @@ st_wren_host_destroy(st_wren_host_t *host)
 	if (host->vm != NULL && host->main_menu != NULL)
 		wrenReleaseHandle(host->vm, host->main_menu);
 	if (host->vm != NULL) {
-		st_wren_fs_context_dispose(host->vm);
 		st_wren_input_context_dispose(host->vm);
 		st_wren_log_dispose(host->vm);
 		wrenFreeVM(host->vm);

@@ -255,6 +255,93 @@ fake_sftp_poll(void *context, struct st_wren_sftp_response *response,
 }
 
 static int
+exercise_filesystem_path_handles(st_wren_connected_t *connected)
+{
+	char external_file[sizeof(ST_WREN_TEST_DIRECTORY) + 40];
+	char external_directory[sizeof(ST_WREN_TEST_DIRECTORY) + 40];
+	char external_child[sizeof(ST_WREN_TEST_DIRECTORY) + 56];
+
+	CHECK(snprintf(external_file, sizeof(external_file),
+	    "%s/wren-external-file.tmp", ST_WREN_TEST_DIRECTORY)
+	    < (int)sizeof(external_file));
+	CHECK(snprintf(external_directory, sizeof(external_directory),
+	    "%s/wren-external-dir", ST_WREN_TEST_DIRECTORY)
+	    < (int)sizeof(external_directory));
+	CHECK(snprintf(external_child, sizeof(external_child),
+	    "%s/child.tmp", external_directory) < (int)sizeof(external_child));
+	(void)fs_remove_file(external_file);
+	(void)fs_remove_file(external_child);
+	(void)fs_remove_directory(external_directory);
+
+	CHECK(st_wren_connected_interpret(connected, "filesystem_path_handles",
+	    "import \"syncterm\" for Cache, Download, File, FileError, FileErr\n"
+	    "class PathHandles {\n"
+	    "  static file { __file }\n"
+	    "  static directory { __directory }\n"
+	    "  static prepare() {\n"
+	    "    __file = Download.create(\"wren-external-file.tmp\")\n"
+	    "    __directory = Download.createDir(\"wren-external-dir\")\n"
+	    "    if (!(__file is File) || __directory == null) Fiber.abort(\"path setup\")\n"
+	    "  }\n"
+	    "  static checkMissing() {\n"
+	    "    if (!(__file.path is String) || __file.token != null) Fiber.abort(\"missing file metadata\")\n"
+	    "    var missing = __file.open()\n"
+	    "    if (!(missing is FileError) || missing.code != FileErr.vanished) Fiber.abort(\"missing file result\")\n"
+	    "    var unavailable = Fiber.new { __directory.contains(\"child.tmp\") }.try()\n"
+	    "    if (!(unavailable is String)) Fiber.abort(\"missing directory result\")\n"
+	    "    if (!(__directory.toString is String)) Fiber.abort(\"missing directory metadata\")\n"
+	    "  }\n"
+	    "  static checkRestored() {\n"
+	    "    var opened = __file.open()\n"
+	    "    if (opened is FileError || __file.read() != \"external-restored\") Fiber.abort(\"restored file\")\n"
+	    "    if (__file.close() is FileError) Fiber.abort(\"restored close\")\n"
+	    "    var child = __directory.create(\"child.tmp\")\n"
+	    "    if (!(child is File) || !__directory.delete(\"child.tmp\")) Fiber.abort(\"restored directory\")\n"
+	    "  }\n"
+	    "}\n"
+	    "PathHandles.prepare()\n") == 0);
+	CHECK(fs_remove_file(external_file) == 0);
+	CHECK(fs_remove_directory(external_directory) == 0);
+	CHECK(st_wren_connected_interpret(connected, "filesystem_path_missing",
+	    "import \"filesystem_path_handles\" for PathHandles\n"
+	    "PathHandles.checkMissing()\n") == 0);
+	CHECK(write_file(external_file, "external-restored") == 0);
+	CHECK(fs_create_directory(external_directory) == 0);
+	CHECK(st_wren_connected_interpret(connected, "filesystem_path_restored",
+	    "import \"filesystem_path_handles\" for PathHandles\n"
+	    "PathHandles.checkRestored()\n") == 0);
+
+	CHECK(st_wren_connected_interpret(connected, "filesystem_delete_reuse",
+	    "import \"syncterm\" for Cache, Download, File, FileError, FileErr\n"
+	    "var oldFile = Download.create(\"wren-delete-file.tmp\")\n"
+	    "if (!(oldFile is File) || !Download.delete(\"wren-delete-file.tmp\")) Fiber.abort(\"file delete\")\n"
+	    "var missing = Fiber.new { oldFile.open() }.try()\n"
+	    "if (!(missing is FileError) || missing.code != FileErr.vanished) Fiber.abort(\"deleted file result\")\n"
+	    "var newFile = Download.create(\"wren-delete-file.tmp\")\n"
+	    "if (!(newFile is File) || (newFile.open() is FileError) || (newFile.write(\"recreated\") is FileError) || (newFile.close() is FileError)) Fiber.abort(\"file recreate\")\n"
+	    "if ((oldFile.open() is FileError) || oldFile.read() != \"recreated\" || (oldFile.close() is FileError)) Fiber.abort(\"file handle reuse\")\n"
+	    "if (!Download.delete(\"wren-delete-file.tmp\")) Fiber.abort(\"file cleanup\")\n"
+	    "var oldDir = Download.createDir(\"wren-delete-dir\")\n"
+	    "if (oldDir == null || !Download.delete(\"wren-delete-dir\")) Fiber.abort(\"directory delete\")\n"
+	    "var unavailable = Fiber.new { oldDir.contains(\"child.tmp\") }.try()\n"
+	    "if (!(unavailable is String)) Fiber.abort(\"deleted directory result\")\n"
+	    "var newDir = Download.createDir(\"wren-delete-dir\")\n"
+	    "if (newDir == null || oldDir.contains(\"child.tmp\")) Fiber.abort(\"directory handle reuse\")\n"
+	    "if (!Download.delete(\"wren-delete-dir\")) Fiber.abort(\"directory cleanup\")\n"
+	    "var replacement = Download.create(\"wren-replace.tmp\")\n"
+	    "if (!(replacement is File) || (Download.replace(\"wren-replace.tmp\", \"replacement\") is FileError)) Fiber.abort(\"replace setup\")\n"
+	    "if ((replacement.open() is FileError) || replacement.read() != \"replacement\" || (replacement.close() is FileError)) Fiber.abort(\"replace handle\")\n"
+	    "if (!Download.delete(\"wren-replace.tmp\")) Fiber.abort(\"replace cleanup\")\n"
+	    "var relaxed = Download.create(\"file with spaces.tmp\")\n"
+	    "if (!(relaxed is File) || !Download.delete(\"file with spaces.tmp\")) Fiber.abort(\"download names\")\n"
+	    "if (Download.create(\"../escape\") != null || Download.create(\"nul\\u0000suffix\") != null || Cache.create(\".hidden\") != null) Fiber.abort(\"name policies\")\n") == 0);
+
+	CHECK(fs_remove_file(external_file) == 0);
+	CHECK(fs_remove_directory(external_directory) == 0);
+	return 0;
+}
+
+static int
 exercise_connected_sftp(st_wren_host_t *host, st_console_t *console,
 	struct st_profile *profile)
 {
@@ -292,6 +379,7 @@ exercise_connected_sftp(st_wren_host_t *host, st_console_t *console,
 	    "%s/cache/Alpha/sftp_queue.won", ST_WREN_TEST_DIRECTORY);
 	(void)fs_remove_file(queue_path);
 	CHECK(st_wren_connected_create(&connected, &config) == 0);
+	CHECK(exercise_filesystem_path_handles(connected) == 0);
 	CHECK(st_wren_connected_interpret(connected, "connected_hyperlinks",
 	    "import \"syncterm\" for Hyperlinks\n"
 	    "if (!Hyperlinks.containsKey(1) || Hyperlinks[1] != "

@@ -950,7 +950,6 @@ st_wren_connected_destroy(st_wren_connected_t *connected)
 		connected->hooks = next;
 	}
 	if (connected->vm != NULL) {
-		st_wren_fs_context_dispose(connected->vm);
 		st_wren_input_context_dispose(connected->vm);
 		st_wren_log_dispose(connected->vm);
 		wrenFreeVM(connected->vm);

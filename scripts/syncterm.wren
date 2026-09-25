@@ -1397,6 +1397,11 @@ foreign class Directory {
   foreign replace(name, bytes)
   foreign toString
 }
+// File and Directory values grant operations on a stored pathname.  They do
+// not identify the particular filesystem object present when the value was
+// created, and deletion does not revoke the pathname grant.  Closed File
+// operations and Directory operations retain their method-specific missing
+// path behavior; the same value can be used again after the path is recreated.
 foreign class File {
   foreign path
   foreign open()
@@ -1432,15 +1437,15 @@ foreign class File {
   foreign toString
 }
 
-// Recoverable I/O failures (disk full, mmap failed, file vanished
-// out from under an open handle, etc.) are returned IN PLACE of
+// Recoverable I/O failures (disk full, mmap failed, a closed File's
+// pathname unavailable, etc.) are returned IN PLACE of
 // the typed result foreign - mirrors SFTPError.  Compare with `is
 // FileError`, or just ignore the value (most scripts will: a
 // failed write returns a FileError that the caller can drop on
 // the floor and continue, rather than aborting the fiber).
 //
-// Programmer errors - using a dead handle, calling read on an
-// unopened file, passing a negative offset - still abort the
+// Programmer errors - calling read on an unopened file or passing a
+// negative offset - still abort the
 // fiber loudly.  Only the recoverable I/O bucket flows through
 // FileError.
 foreign class FileError is Error {
@@ -1559,9 +1564,8 @@ foreign class HookHandle {
 
 // Module-private bridge for state the host owns but Wren shouldn't
 // be able to construct directly.  `cacheDirectory` returns a fresh
-// Directory whose path resolves lazily from the active BBS context;
-// no Wren-visible constructor for an `is_cache` Directory exists, so
-// this is the only path to one.
+// Directory for the active BBS cache pathname; no Wren-visible
+// Directory constructor exists, so this is the only path to that root.
 //
 // `downloadDir` returns a fresh Directory rooted at the BBS's
 // configured DownloadPath, with the relaxed filename predicate

@@ -37,7 +37,7 @@ repository-wide coverage. The legacy tree is read-only reference.
 
 The repository-wide audit is complete. This is not an implementation approval
 or release certification. The consolidated API/design assessment, priority
-groups and all 7 outstanding finding summaries are in
+groups and all 6 outstanding finding summaries are in
 AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 
 | Objective requirement | Authoritative evidence and disposition |
@@ -50,7 +50,7 @@ AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 | Required legacy behavior | Read-only comparisons cover fonts/catalog/maps, modes, palette capacity, Prestel versus Mode 7, command line, console/input and settings behavior, plus explicit parity limits. Frozen CTerm chapter cmp succeeds. |
 | Wren scripts and bindings | Complete local source/signature/manual reviews and isolated shipped-script suites and host fixtures. Connected/SFTP production integration missing from this application is reported, not invented or silently counted as working. |
 | Build logic, generators and documentation | Root/component CMake and generators reviewed; standalone/probe failures recorded; pinned Unicode/font regeneration and table comparisons documented; root manuals/license/development guidance covered. Wren VM vendored internals limited to integration boundaries as requested. |
-| Inventory and consolidated findings | 7 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 2 medium, 3 low, 2 unresolved concerns; not all runtime reproductions. |
+| Inventory and consolidated findings | 6 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 2 medium, 2 low, 2 unresolved concerns; not all runtime reproductions. |
 | Relevant tests where practical | Complete native Clang and GCC builds have succeeded. The current configured native tree registers 118 tests. The latest complete verification is recorded in AUDIT_INDEX.md. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
 | Explicit uncertainty | Each component records unavailable platforms, unexecuted failure paths and measurement limits; A007/A011 unresolved. Source-level risks are not called verified crashes. These are audit outcomes, not claims of implementation correctness. |
 
@@ -91,7 +91,7 @@ not the absence of failing tests. New findings will receive stable A-numbers.
 | Area | Coverage | Notes |
 | --- | --- | --- |
 | Root CMake, configuration/type headers, .gitignore | Reviewed | Root source read; fresh native configure with testing/Unifont disabled succeeds; component probes and application packaging tracked in owning rows |
-| Root manuals, license and development guidance | Reviewed | Manual.txt, Wren.adoc, LICENSE, REVIEW.md and development guidance read; cterm.adoc intentionally frozen and identical to legacy by cmp; Console.adoc covered with console; contract mismatches A088 and A090 and licensing/distribution notes below |
+| Root manuals, license and development guidance | Reviewed | Manual.txt, Wren.adoc, LICENSE, REVIEW.md and development guidance read; cterm.adoc intentionally frozen and identical to legacy by cmp; Console.adoc covered with console; contract mismatch A088 and licensing/distribution notes below |
 | app/ | Reviewed | All local implementation/header/build/test read; A088, A091; parser and 28 fixed-mode legacy geometry checked; startup/host ownership boundary dispositioned below; native startup tests pass, GUI/platform and future connected-loop limits explicit |
 | app_paths/ | Reviewed | Native default/override tests pass; other platforms source-only except MinGW compile |
 | array_list/ | Reviewed | A007 unresolved portability concern; native and optimized tests pass |
@@ -493,30 +493,6 @@ the Synchronet git repository. The connected GHost section gives a
 ghost:// URL while the earlier supported-scheme list omits it. These are
 source-checked documentation gaps;
 no GUI, network connection, personal settings or distribution was exercised.
-
-### A090 — Wren filesystem handle and error contract is unresolved
-
-Severity: low (contradictory public documentation and an unsettled handle
-model, not a demonstrated filesystem defect).
-
-`File` and `Directory` objects retain pathnames, but the manual also describes
-them as filesystem snapshots and claims that existence checks prevent an
-operation from acting on the wrong object. A pathname lookup cannot establish
-that identity: an entry can be replaced at the same name.
-
-The current methods also report failed lookups inconsistently. A closed
-`File` whose pathname cannot be inspected is marked dead and returns
-`FileErr.vanished`; a `Directory` whose pathname no longer names a directory
-is marked dead and aborts the fiber. Generic filename-policy prose additionally
-fails to distinguish the strict Cache leaf-name policy from the relaxed safe
-leaf names accepted below Download.
-
-Before changing either code or documentation, decide whether these handles
-represent path capabilities or particular opened filesystem objects, then
-define per-operation error results, invalidation, replacement behavior, and
-the separately scoped Cache and Download name policies. The existing
-existence checks and `FileErr.vanished` name are evidence, not the desired
-contract.
 
 ## Findings
 

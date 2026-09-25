@@ -36,7 +36,6 @@ identifiers are retained; suffixes separate claims with different dispositions.
 | A088-runtime | Documentation mismatch around explicitly deferred integration | Current application accepts selected profile, applies overrides, then tears down without a connected-session loop. Manual describes connected functions as available. CTerm was explicitly deferred; its absence is not newly unauthorized porting loss. | State current availability separately from retained future specifications. Do not modify the deliberately frozen CTerm chapter to imply a reduced eventual contract. |
 | A088-references | Documentation defects | Manual still references absent Themes.adoc and the Synchronet repository as this project's location. | Repair references separately from implementation. |
 | A088-schemes | Internal documentation inconsistency | Manual's supported-scheme list omits ghost:// while its later GHost section uses that scheme. | Reconcile the list with parsing separately from the explicitly deferred connected transport. This comparison proves inconsistent prose, not an implemented GHost connection. |
-| A090-file | Unresolved public filesystem contract | File and Directory retain paths; failed closed-File lookup returns FileErr.vanished while failed Directory lookup aborts. Existence cannot prove object identity after replacement, and Cache and Download intentionally apply different leaf-name policies. | Decide path-capability versus opened-object semantics and the per-operation error, invalidation, and name policies before changing code or documentation. |
 | A091 | Required architecture not implemented | app/CMakeLists.txt builds an executable from syncterm.c rather than a shared application DLL with thin launchers; console_libretro provides backend frames, not application core entry points. AGENTS.md explicitly requires that architecture. | Track application packaging/ABI integration separately from console backend capability. No Windows runtime failure claimed and no blanket internal exports implied. |
 | A095 | Packaging omission, not a legal determination | No install/CPack notice assembly found; local license inventory has root BSD exception wording, Unifont GPL and Wren MIT texts, but retained LGPL notices reference an absent full text. | Inventory chosen providers and assemble notices before distribution. Disabling Unifont does not make differently licensed sources BSD; no license-compatibility opinion is asserted. |
 | A098 | Demo integration mismatch, with connected context still deferred | ui_demo imports absent transfer_app; historical explicit demo interpretation fails. Demo is not embedded and later calls also need connected context. | Define supported demo invocation/dependencies; not a current menu-startup failure or authorization to port transfers now. |
@@ -258,7 +257,7 @@ not silently promoted to a defect merely because it appeared in that report.
 | Numbered findings interspersed through AUDIT.md:148–3280 | Numbered ledger retains the outstanding entries from the original numbered set and splits mixed claims. The later component notes do not create additional independent counts for repeated findings. |
 | Host, GUI, move, failed-output, ownership and geometry closure (191–227, 306–405, 735–831) | Supplemental host/backend/lifecycle/geometry rows and CTerm cell/input map; no generic teardown UAF or persistent failed-output cache loss inferred. |
 | Error translation follow-up (920–941) | io_error supplemental disposition; Windows test additions are compile-only historical evidence. |
-| Manual completion (1102–1150) | A088 and the remaining A090 filesystem contract, plus the Wren family/decoder inventory. |
+| Manual completion (1102–1150) | A088 plus the Wren family/decoder inventory. |
 | Main menu, common module, editors and self-test (2911–3132) | Supplemental script/host/model rows; signature parity alone is not semantic coverage. |
 | REPL, SFTP, auxiliary UI and offline viewer (3133–3387) | Supplemental script/viewer rows; connected integration distinguished from current menu dependencies. |
 | UI, Widget/App, vendor and signature notes (3388–3948) | Supplemental UI/layout/event and VM-integration rows; inherited defects and unmeasured performance remain qualified. |
@@ -288,7 +287,7 @@ This sequence is a repair backlog, not authorization to implement it.
 | --- | --- | --- |
 | Backend/runtime reliability | Detailed backend notes remain; A091 Windows application packaging is a separate deliverable from console primitives. | Capability-present/absent builds and actual platform lifecycle/input tests. Preserve source-only qualifications for unavailable platforms; a dummy renderer or cross-link does not certify them. |
 | UI behavior | Remaining REPL layout/error risks. | Long-line and error-containment checks. |
-| Documentation and unresolved questions | A007 aliasing portability, A011 fairness/performance, A088 current/future documentation, the A090 filesystem contract, A095 distribution notices and unproven supplemental risks. | Resolve the exact contract/evidence before changing behavior. Keep inherited defects labeled inherited, corrected findings closed, and legal/distribution review distinct from runtime bugs. |
+| Documentation and unresolved questions | A007 aliasing portability, A011 fairness/performance, A088 current/future documentation, A095 distribution notices and unproven supplemental risks. | Resolve the exact contract/evidence before changing behavior. Keep inherited defects labeled inherited, corrected findings closed, and legal/distribution review distinct from runtime bugs. |
 
 Future CTerm work still includes parser state and responses, downloaded-font
 slot mapping, protocol key/mouse encoding, status-row and terminal-margin
@@ -299,8 +298,8 @@ retained palette identity, event fidelity and
 already promised Wren families cannot be deferred by calling them parser work.
 
 Open behavior decisions must remain explicit: DEC checksum representation
-across the changed cell ABI; unresolved contradictory documentation (including URL
-schemes and filesystem handle/error behavior); and lifecycle/invalid-input domains not promised
+across the changed cell ABI; unresolved contradictory documentation including URL
+schemes; and lifecycle/invalid-input domains not promised
 by the current interfaces. No decision here changes LRU font semantics,
 Prestel/Mode 7 behavior, foreground/background tags or locale-independent
 text/value handling.

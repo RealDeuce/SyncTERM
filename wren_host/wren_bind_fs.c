@@ -38,26 +38,19 @@ enum file_rights {
 struct st_wren_file {
 	uint32_t magic;
 	struct st_wren_context *context;
-	struct st_wren_file *previous;
-	struct st_wren_file *next;
 	char *path;
 	char *token;
 	FILE *stream;
 	unsigned int rights;
 	enum st_wren_picker_disposition disposition;
 	bool consumed;
-	bool dead;
 };
 
 struct st_wren_directory {
 	uint32_t magic;
 	struct st_wren_context *context;
-	struct st_wren_directory *previous;
-	struct st_wren_directory *next;
 	char *path;
-	bool cache;
 	bool relaxed;
-	bool dead;
 };
 
 struct st_wren_file_error {
@@ -191,74 +184,19 @@ child_path(const struct st_wren_directory *directory, const char *name)
 	return result;
 }
 
-static void
-register_file(struct st_wren_file *file)
+static char *
+slot_child_path(WrenVM *vm, int slot,
+	const struct st_wren_directory *directory)
 {
-	file->next = file->context->files;
-	if (file->next != NULL)
-		file->next->previous = file;
-	file->context->files = file;
-}
+	const char *name;
+	int length;
 
-static void
-unregister_file(struct st_wren_file *file)
-{
-	if (file->previous != NULL)
-		file->previous->next = file->next;
-	else if (file->context != NULL && file->context->files == file)
-		file->context->files = file->next;
-	if (file->next != NULL)
-		file->next->previous = file->previous;
-	file->previous = NULL;
-	file->next = NULL;
-}
-
-static void
-register_directory(struct st_wren_directory *directory)
-{
-	directory->next = directory->context->directories;
-	if (directory->next != NULL)
-		directory->next->previous = directory;
-	directory->context->directories = directory;
-}
-
-static void
-unregister_directory(struct st_wren_directory *directory)
-{
-	if (directory->previous != NULL)
-		directory->previous->next = directory->next;
-	else if (directory->context != NULL
-	    && directory->context->directories == directory)
-		directory->context->directories = directory->next;
-	if (directory->next != NULL)
-		directory->next->previous = directory->previous;
-	directory->previous = NULL;
-	directory->next = NULL;
-}
-
-static bool
-path_below(const char *candidate, const char *root)
-{
-	size_t length = strlen(root);
-
-	return strcmp(candidate, root) == 0
-	    || (strncmp(candidate, root, length) == 0
-	    && path_is_separator(candidate[length]));
-}
-
-static void
-invalidate_below(struct st_wren_context *context, const char *path)
-{
-	for (struct st_wren_file *file = context->files; file != NULL;
-	    file = file->next) {
-		if (file->stream == NULL && path_below(file->path, path))
-			file->dead = true;
-	}
-	for (struct st_wren_directory *directory = context->directories;
-	    directory != NULL; directory = directory->next) {
-		if (path_below(directory->path, path))
-			directory->dead = true;
-	}
+	if (wrenGetSlotType(vm, slot) != WREN_TYPE_STRING)
+		return NULL;
+	name = wrenGetSlotBytes(vm, slot, &length);
+	if (length < 0 || memchr(name, '\0', (size_t)length) != NULL)
+		return NULL;
+	return child_path(directory, name);
 }
 
 static void
@@ -309,7 +247,6 @@ file_finalize(void *data)
 
 	if (file->stream != NULL)
 		(void)fclose(file->stream);
-	unregister_file(file);
 	free(file->path);
 	free(file->token);
 	file->magic = 0;
@@ -331,16 +268,14 @@ directory_finalize(void *data)
 {
 	struct st_wren_directory *directory = data;
 
-	unregister_directory(directory);
 	free(directory->path);
 	directory->magic = 0;
 }
 
 static struct st_wren_file *
-checked_file(WrenVM *vm, bool require_open, unsigned int rights)
+file_handle(WrenVM *vm)
 {
 	struct st_wren_file *file;
-	struct fs_info info;
 
 	if (wrenGetSlotType(vm, 0) != WREN_TYPE_FOREIGN) {
 		st_wren_abort(vm, "expected a File");
@@ -352,10 +287,17 @@ checked_file(WrenVM *vm, bool require_open, unsigned int rights)
 		st_wren_abort(vm, "File: invalid handle");
 		return NULL;
 	}
-	if (file->dead) {
-		st_wren_abort(vm, "File: handle is dead");
+	return file;
+}
+
+static struct st_wren_file *
+checked_file(WrenVM *vm, bool require_open, unsigned int rights)
+{
+	struct st_wren_file *file = file_handle(vm);
+	struct fs_info info;
+
+	if (file == NULL)
 		return NULL;
-	}
 	if ((file->rights & rights) != rights) {
 		st_wren_abort(vm, (rights & FILE_RIGHT_WRITE) != 0
 		    ? "File: handle does not grant write access"
@@ -370,7 +312,6 @@ checked_file(WrenVM *vm, bool require_open, unsigned int rights)
 	    && !(file->disposition == ST_WREN_PICKER_DISPOSITION_CREATE
 	    && !file->consumed)
 	    && fs_get_info(&info, file->path) != 0) {
-		file->dead = true;
 		push_error(vm, 6, errno, "File vanished");
 		return NULL;
 	}
@@ -378,10 +319,9 @@ checked_file(WrenVM *vm, bool require_open, unsigned int rights)
 }
 
 static struct st_wren_directory *
-checked_directory(WrenVM *vm)
+directory_handle(WrenVM *vm)
 {
 	struct st_wren_directory *directory;
-	struct fs_info info;
 
 	if (wrenGetSlotType(vm, 0) != WREN_TYPE_FOREIGN) {
 		st_wren_abort(vm, "expected a Directory");
@@ -389,14 +329,23 @@ checked_directory(WrenVM *vm)
 	}
 	directory = wrenGetSlotForeign(vm, 0);
 	if (directory == NULL || directory->magic != ST_WREN_DIRECTORY_MAGIC
-	    || directory->context == NULL
-	    || directory->path == NULL || directory->dead) {
-		st_wren_abort(vm, "Directory: handle is dead");
+	    || directory->context == NULL || directory->path == NULL) {
+		st_wren_abort(vm, "Directory: invalid handle");
 		return NULL;
 	}
+	return directory;
+}
+
+static struct st_wren_directory *
+checked_directory(WrenVM *vm)
+{
+	struct st_wren_directory *directory = directory_handle(vm);
+	struct fs_info info;
+
+	if (directory == NULL)
+		return NULL;
 	if (fs_get_info(&info, directory->path) != 0
 	    || info.kind != FS_ENTRY_DIRECTORY) {
-		directory->dead = true;
 		st_wren_abort(vm, "Directory: path vanished");
 		return NULL;
 	}
@@ -428,7 +377,6 @@ push_file_full(WrenVM *vm, int slot, const char *path, unsigned int rights,
 		wrenSetSlotNull(vm, slot);
 		return false;
 	}
-	register_file(file);
 	return true;
 }
 
@@ -458,8 +406,7 @@ st_wren_file_push(WrenVM *vm, int slot, const char *path,
 }
 
 static bool
-push_directory(WrenVM *vm, int slot, const char *path, bool relaxed,
-	bool cache)
+push_directory(WrenVM *vm, int slot, const char *path, bool relaxed)
 {
 	struct st_wren_directory *directory;
 	char *absolute = absolute_path(path);
@@ -474,10 +421,8 @@ push_directory(WrenVM *vm, int slot, const char *path, bool relaxed,
 		.magic = ST_WREN_DIRECTORY_MAGIC,
 		.context = st_wren_context_from_vm(vm),
 		.path = absolute,
-		.cache = cache,
 		.relaxed = relaxed,
 	};
-	register_directory(directory);
 	return true;
 }
 
@@ -490,8 +435,7 @@ fn_directory_contains(WrenVM *vm)
 
 	if (directory == NULL)
 		return;
-	path = wrenGetSlotType(vm, 1) == WREN_TYPE_STRING
-	    ? child_path(directory, wrenGetSlotString(vm, 1)) : NULL;
+	path = slot_child_path(vm, 1, directory);
 	wrenSetSlotBool(vm, 0, path != NULL && fs_get_info(&info, path) == 0
 	    && (info.kind == FS_ENTRY_FILE || info.kind == FS_ENTRY_DIRECTORY));
 	free(path);
@@ -522,7 +466,7 @@ fn_directory_list(WrenVM *vm)
 			continue;
 		wrenSetSlotString(vm, 1, entry->name);
 		if (entry->directory)
-			(void)push_directory(vm, 2, path, directory->relaxed, false);
+			(void)push_directory(vm, 2, path, directory->relaxed);
 		else
 			(void)push_file_full(vm, 2, path,
 			    FILE_RIGHT_READ | FILE_RIGHT_WRITE,
@@ -542,8 +486,7 @@ fn_directory_create(WrenVM *vm)
 
 	if (directory == NULL)
 		return;
-	path = wrenGetSlotType(vm, 1) == WREN_TYPE_STRING
-	    ? child_path(directory, wrenGetSlotString(vm, 1)) : NULL;
+	path = slot_child_path(vm, 1, directory);
 	if (path == NULL || fs_open(&stream, path, "wbx") != 0
 	    || fclose(stream) != 0
 	    || !push_file_full(vm, 0, path, FILE_RIGHT_READ | FILE_RIGHT_WRITE,
@@ -560,10 +503,9 @@ fn_directory_create_dir(WrenVM *vm)
 
 	if (directory == NULL)
 		return;
-	path = wrenGetSlotType(vm, 1) == WREN_TYPE_STRING
-	    ? child_path(directory, wrenGetSlotString(vm, 1)) : NULL;
+	path = slot_child_path(vm, 1, directory);
 	if (path == NULL || fs_create_directory(path) != 0
-	    || !push_directory(vm, 0, path, directory->relaxed, false))
+	    || !push_directory(vm, 0, path, directory->relaxed))
 		wrenSetSlotNull(vm, 0);
 	free(path);
 }
@@ -578,8 +520,7 @@ fn_directory_delete(WrenVM *vm)
 
 	if (directory == NULL)
 		return;
-	path = wrenGetSlotType(vm, 1) == WREN_TYPE_STRING
-	    ? child_path(directory, wrenGetSlotString(vm, 1)) : NULL;
+	path = slot_child_path(vm, 1, directory);
 	if (path == NULL || fs_get_link_info(&info, path) != 0
 	    || (info.kind != FS_ENTRY_FILE && info.kind != FS_ENTRY_DIRECTORY)) {
 		wrenSetSlotBool(vm, 0, false);
@@ -588,8 +529,6 @@ fn_directory_delete(WrenVM *vm)
 	}
 	status = info.kind == FS_ENTRY_DIRECTORY ? fs_remove_directory(path)
 	    : fs_remove_file(path);
-	if (status == 0)
-		invalidate_below(directory->context, path);
 	wrenSetSlotBool(vm, 0, status == 0);
 	free(path);
 }
@@ -605,8 +544,7 @@ fn_directory_replace(WrenVM *vm)
 
 	if (directory == NULL)
 		return;
-	path = wrenGetSlotType(vm, 1) == WREN_TYPE_STRING
-	    ? child_path(directory, wrenGetSlotString(vm, 1)) : NULL;
+	path = slot_child_path(vm, 1, directory);
 	if (path == NULL || !slot_bytes(vm, 2, &data, &size)) {
 		st_wren_abort(vm, "Directory.replace: expected a valid name and String");
 		free(path);
@@ -623,7 +561,7 @@ fn_directory_replace(WrenVM *vm)
 static void
 fn_directory_string(WrenVM *vm)
 {
-	struct st_wren_directory *directory = checked_directory(vm);
+	struct st_wren_directory *directory = directory_handle(vm);
 
 	if (directory != NULL)
 		wrenSetSlotString(vm, 0, directory->path);
@@ -981,7 +919,7 @@ fn_file_is_open(WrenVM *vm)
 static void
 fn_file_path(WrenVM *vm)
 {
-	struct st_wren_file *file = checked_file(vm, false, 0);
+	struct st_wren_file *file = file_handle(vm);
 
 	if (file != NULL)
 		wrenSetSlotString(vm, 0, file->path);
@@ -997,7 +935,7 @@ st_wren_file_read_path(WrenVM *vm, int slot)
 	file = wrenGetSlotForeign(vm, slot);
 	if (file == NULL || file->magic != ST_WREN_FILE_MAGIC
 	    || file->context != st_wren_context_from_vm(vm)
-	    || file->dead || (file->rights & FILE_RIGHT_READ) == 0)
+	    || (file->rights & FILE_RIGHT_READ) == 0)
 		return NULL;
 	return file->path;
 }
@@ -1011,8 +949,7 @@ st_wren_directory_path(WrenVM *vm, int slot)
 		return NULL;
 	directory = wrenGetSlotForeign(vm, slot);
 	if (directory == NULL || directory->magic != ST_WREN_DIRECTORY_MAGIC
-	    || directory->context != st_wren_context_from_vm(vm)
-	    || directory->dead)
+	    || directory->context != st_wren_context_from_vm(vm))
 		return NULL;
 	return directory->path;
 }
@@ -1020,7 +957,7 @@ st_wren_directory_path(WrenVM *vm, int slot)
 static void
 fn_file_token(WrenVM *vm)
 {
-	struct st_wren_file *file = checked_file(vm, false, 0);
+	struct st_wren_file *file = file_handle(vm);
 
 	if (file == NULL || file->token == NULL)
 		wrenSetSlotNull(vm, 0);
@@ -1099,7 +1036,7 @@ fn_host_cache(WrenVM *vm)
 	if (host->bbs_list == NULL || profile == NULL
 	    || st_bbs_list_cache_path(&path, host->bbs_list,
 	    profile->name) != 0 || fs_create_directories(path) != 0
-	    || !push_directory(vm, 0, path, false, true))
+	    || !push_directory(vm, 0, path, false))
 		wrenSetSlotNull(vm, 0);
 	free(path);
 }
@@ -1138,7 +1075,7 @@ fn_host_download(WrenVM *vm)
 	path = profile == NULL ? NULL : profile->download_directory;
 	if (profile == NULL || dangerous_download(path)
 	    || fs_get_info(&info, path) != 0 || info.kind != FS_ENTRY_DIRECTORY
-	    || !push_directory(vm, 0, path, true, false))
+	    || !push_directory(vm, 0, path, true))
 		wrenSetSlotNull(vm, 0);
 }
 
@@ -1256,31 +1193,4 @@ st_wren_fs_bind_class(const char *class_name)
 		methods.finalize = file_error_finalize;
 	}
 	return methods;
-}
-
-void
-st_wren_fs_context_dispose(WrenVM *vm)
-{
-	struct st_wren_context *context = st_wren_context_from_vm(vm);
-
-	for (struct st_wren_file *file = context->files; file != NULL;
-	    ) {
-		struct st_wren_file *next = file->next;
-
-		file->context = NULL;
-		file->previous = NULL;
-		file->next = NULL;
-		file = next;
-	}
-	for (struct st_wren_directory *directory = context->directories;
-	    directory != NULL; ) {
-		struct st_wren_directory *next = directory->next;
-
-		directory->context = NULL;
-		directory->previous = NULL;
-		directory->next = NULL;
-		directory = next;
-	}
-	context->files = NULL;
-	context->directories = NULL;
 }
