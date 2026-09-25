@@ -322,6 +322,33 @@ test_clear_after_submission(void)
 }
 
 static int
+test_one_shot_reclamation(void)
+{
+	const struct audio_backend_descriptor *backends[] = {
+		&latency_backend
+	};
+	audio_engine_t *engine = NULL;
+	struct latency_state *state;
+	int16_t frames[] = { 1000, 1000, -1000, -1000 };
+	int16_t output[4];
+	size_t i;
+
+	CHECK(audio_engine_create_with_backends(&engine,
+	    AUDIO_BACKEND_PORTAUDIO, backends, 1) == 0);
+	state = latency_state;
+	CHECK(state != NULL);
+	for (i = 0; i < 32; i++) {
+		CHECK(audio_engine_play(engine, frames, 2, NULL) == 0);
+		CHECK(audio_engine_stream_count_for_test(engine) == 1);
+		CHECK(state->callbacks.pull(state->callbacks.context, output, 2)
+		    == 2);
+		CHECK(audio_engine_stream_count_for_test(engine) == 1);
+	}
+	audio_engine_destroy(engine);
+	return 0;
+}
+
+static int
 test_synthesis(void)
 {
 	int16_t frames[400 * AUDIO_CHANNELS];
@@ -369,6 +396,7 @@ main(void)
 	CHECK(test_engine_and_stream() == 0);
 	CHECK(test_selection_errors() == 0);
 	CHECK(test_clear_after_submission() == 0);
+	CHECK(test_one_shot_reclamation() == 0);
 	CHECK(test_synthesis() == 0);
 	return 0;
 }

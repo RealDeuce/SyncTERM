@@ -306,9 +306,11 @@ endfunction()
 st_audio_warnings(st_audio)
 
 if(BUILD_TESTING)
+	target_compile_definitions(st_audio PRIVATE ST_AUDIO_TESTING=1)
 	add_executable(st_audio_test tests/audio_test.c)
 	target_include_directories(st_audio_test PRIVATE
 		${CMAKE_CURRENT_SOURCE_DIR})
+	target_compile_definitions(st_audio_test PRIVATE ST_AUDIO_TESTING=1)
 	target_link_libraries(st_audio_test PRIVATE st_audio)
 	set_target_properties(st_audio_test PROPERTIES
 		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)

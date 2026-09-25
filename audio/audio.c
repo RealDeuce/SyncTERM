@@ -103,7 +103,6 @@ backend_pull(void *context, int16_t *frames, size_t frame_count)
 	result = audio_mixer_pull_pending(engine->mixer, frames, frame_count,
 	    &ticket);
 	audio_mixer_acknowledge(engine->mixer, ticket);
-	reap_one_shots(engine);
 	return result;
 }
 
@@ -140,7 +139,6 @@ device_worker(void *argument)
 				return 0;
 			}
 			audio_mixer_acknowledge(engine->mixer, ticket);
-			reap_one_shots(engine);
 		} while (populated > 0);
 	}
 	return 0;
@@ -284,6 +282,23 @@ audio_engine_backend(const audio_engine_t *engine)
 	return engine == NULL ? AUDIO_BACKEND_NONE : engine->backend->backend;
 }
 
+#if defined(ST_AUDIO_TESTING)
+size_t
+audio_engine_stream_count_for_test(audio_engine_t *engine)
+{
+	audio_stream_t *stream;
+	size_t count = 0;
+
+	if (engine == NULL
+	    || st_mutex_lock(&engine->mutex) != ST_THREAD_SUCCESS)
+		return SIZE_MAX;
+	for (stream = engine->streams; stream != NULL; stream = stream->next)
+		count++;
+	(void)st_mutex_unlock(&engine->mutex);
+	return count;
+}
+#endif
+
 static int
 create_stream(audio_stream_t **result, audio_engine_t *engine,
     float volume_left_db, float volume_right_db, bool one_shot)
@@ -295,6 +310,8 @@ create_stream(audio_stream_t **result, audio_engine_t *engine,
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (atomic_load_explicit(&engine->failed, memory_order_acquire))
 		return IO_ERROR_IO;
+	/* Stream destruction stays on an ordinary caller, not a device thread. */
+	reap_one_shots(engine);
 	stream = calloc(1, sizeof(*stream));
 	if (stream == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;

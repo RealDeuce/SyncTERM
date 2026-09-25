@@ -35,6 +35,10 @@ int audio_engine_create_with_backends(audio_engine_t **result,
 	const struct audio_backend_descriptor *const backends[],
 	size_t backend_count);
 
+#if defined(ST_AUDIO_TESTING)
+size_t audio_engine_stream_count_for_test(audio_engine_t *engine);
+#endif
+
 extern const struct audio_backend_descriptor audio_backend_alsa;
 extern const struct audio_backend_descriptor audio_backend_core_audio;
 extern const struct audio_backend_descriptor audio_backend_oss;

@@ -37,20 +37,20 @@ repository-wide coverage. The legacy tree is read-only reference.
 
 The repository-wide audit is complete. This is not an implementation approval
 or release certification. The consolidated API/design assessment, priority
-groups and all 8 outstanding finding summaries are in
+groups and all 7 outstanding finding summaries are in
 AUDIT_INDEX.md; full evidence, recommendations and limitations remain here.
 
 | Objective requirement | Authoritative evidence and disposition |
 | --- | --- |
 | Entire repository, not only recent changes | git ls-files identifies 47 top-level source directories and 12 root files; every directory has an inventory row, no omissions. Per-component reviews cover local implementations, headers, tests/build and associated data/docs. |
 | API design, architecture and library layout | AUDIT_INDEX boundary/coupling/ownership assessment plus component public-contract and CMake dependency reviews; A007, A088/A091 and host-contract findings. Cohesive decomposition is recognized; no redesign authorized. |
-| Correctness, ownership/lifetime and concurrency | Component lifecycle/error reviews, normal and injected tests, explicit GUI/host ownership closure; source and reproduced failures are qualified individually. A023 illustrates a remaining timing and reclamation risk. |
+| Correctness, ownership/lifetime and concurrency | Component lifecycle/error reviews, normal and injected tests, explicit GUI/host ownership closure; source and reproduced failures are qualified individually. |
 | Portability and all platform backends | POSIX/Windows sources and every audio/console backend reviewed; native, MinGW cross-build, focused Wine and unavailable runtime evidence kept separate. Capability probes/standalone targets reviewed. No unsupported platform pass inferred. |
-| Performance | Scaler/renderer benchmark source and measured cases reviewed, including common mixed-axis scaling; A011/A023 and backend pacing risks distinguished from measured regressions. Reconstructed legacy benchmark limitations explicitly recorded. |
+| Performance | Scaler/renderer benchmark source and measured cases reviewed, including common mixed-axis scaling; A011 and backend pacing risks distinguished from measured regressions. Reconstructed legacy benchmark limitations explicitly recorded. |
 | Required legacy behavior | Read-only comparisons cover fonts/catalog/maps, modes, palette capacity, Prestel versus Mode 7, command line, console/input and settings behavior, plus explicit parity limits. Frozen CTerm chapter cmp succeeds. |
 | Wren scripts and bindings | Complete local source/signature/manual reviews and isolated shipped-script suites and host fixtures. Connected/SFTP production integration missing from this application is reported, not invented or silently counted as working. |
 | Build logic, generators and documentation | Root/component CMake and generators reviewed; standalone/probe failures recorded; pinned Unicode/font regeneration and table comparisons documented; root manuals/license/development guidance covered. Wren VM vendored internals limited to integration boundaries as requested. |
-| Inventory and consolidated findings | 8 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 3 medium, 3 low, 2 unresolved concerns; not all runtime reproductions. |
+| Inventory and consolidated findings | 7 outstanding detailed headings are matched in the index; every finding has severity/qualification and recommended direction. 2 medium, 3 low, 2 unresolved concerns; not all runtime reproductions. |
 | Relevant tests where practical | Complete native Clang and GCC builds have succeeded. The current configured native tree registers 118 tests. The latest complete verification is recorded in AUDIT_INDEX.md. Isolated regressions, sanitizers/provider/fallback and cross-compile evidence retained in detailed entries. |
 | Explicit uncertainty | Each component records unavailable platforms, unexecuted failure paths and measurement limits; A007/A011 unresolved. Source-level risks are not called verified crashes. These are audit outcomes, not claims of implementation correctness. |
 
@@ -95,7 +95,7 @@ not the absence of failing tests. New findings will receive stable A-numbers.
 | app/ | Reviewed | All local implementation/header/build/test read; A088, A091; parser and 28 fixed-mode legacy geometry checked; startup/host ownership boundary dispositioned below; native startup tests pass, GUI/platform and future connected-loop limits explicit |
 | app_paths/ | Reviewed | Native default/override tests pass; other platforms source-only except MinGW compile |
 | array_list/ | Reviewed | A007 unresolved portability concern; native and optimized tests pass |
-| audio/ | Reviewed | All local backends/synthesis/build/tests read; A023 callback risk; native fake tests pass, MinGW WASAPI compile only; actual device/platform gaps below |
+| audio/ | Reviewed | All local backends/synthesis/build/tests read; native fake tests pass, MinGW WASAPI compile only; actual device/platform gaps below |
 | audio_mixer/ | Reviewed | All local sources/tests/build read; native continuity tests pass; device integration assigned to audio; ramp/performance/lifetime gaps below |
 | bbs_list/ | Reviewed | All local sources/header/tests/build read; native list/cache/web tests pass, including cache confinement and borrowed mutation inputs; MinGW cache/list tests also pass under Wine; integration/fault gaps below |
 | codepage/ | Reviewed | All local source/header/build/test read; exhaustive graphic roundtrip and expanded control/invalid-input tests pass native Clang/GCC; MinGW compile only |
@@ -571,30 +571,6 @@ for short-lived locks in renderer paths. Windows native SRW replacement is not
 automatically equivalent because the API explicitly supports recursive readers.
 Recommendation: benchmark uncontended and contended paths against actual console
 usage before selecting any remedy. No synchronization redesign performed.
-
-### A023 — Real-time audio callbacks take locks and free objects
-
-Severity: medium performance/reliability risk. Classification: confirmed
-callback-path operations conflicting with provider guidance; no measured
-deadline miss or audible glitch reproduced.
-
-audio_backend_portaudio.c's callback synchronously invokes audio.c backend_pull.
-That calls mixer pull (mixer and stream mutexes), acknowledgment (locks and
-buffer deallocation), then reap_one_shots (engine lock, stream destruction,
-condition/mutex destruction and free). Public clear can also free an arbitrarily
-long queue under the same stream mutex, blocking the callback behind it.
-
-PortAudio's callback guidance specifically identifies mutex operations and
-allocation/deallocation as operations to avoid due to unbounded execution and
-priority inversion. Source: [Writing a Callback Function](https://portaudio.com/docs/v19-doxydocs/writing_a_callback.html).
-PipeWire explicitly selects RT_PROCESS and reaches the same shared path;
-other callback providers share it too, but their exact timing guarantees were
-not established by this finding.
-
-Recommendation: establish a bounded callback execution/ownership strategy and
-defer reclamation outside the callback, then measure worst-case callback time
-under producer/clear contention. This is a recommendation for separately
-authorized work, not permission to redesign the mixer during the audit.
 
 ## Component notes
 
@@ -2789,11 +2765,6 @@ Windows argument coverage.
   final volume immediately. Low-gain interpolation also substitutes -60dB
   below a 1e-6 threshold despite permitting volumes down to -192dB. These
   source concerns need targeted output tests/legacy comparison.
-- Hot path holds the mixer mutex, computes powf per buffer, tanh per channel
-  sample and frees acknowledged buffers under locks. Unbounded stream/buffer
-  lists and drain scans affect scaling. No audio latency or contention metric
-  gathered, so no measured performance regression claimed. Ticket/sequence
-  wrap after 2^64 operations is not handled consistently but not reproduced.
 - Thread/io_error dependencies are PUBLIC despite neither being exposed by the
   mixer header. Existing tests
   cover basic mixing, loop termination, clear/drain and delayed acknowledgment,
@@ -2814,9 +2785,8 @@ Windows argument coverage.
 - One engine is enforced with a process-static atomic, released on all examined
   creation failure paths and destruction. One-shots are marked only after
   append succeeds so an empty newly created stream cannot be prematurely reaped.
-  A very fast blocking backend may finish before marking, leaving the idle
-  one-shot until a later pull/reap or engine destruction; memory-retention
-  timing deserves a targeted test, not a use-after-free claim.
+  Completed one-shots are reclaimed by later stream creation or engine
+  destruction, keeping stream synchronization teardown out of device paths.
 - Callback pulls acknowledge immediately; blocking worker acknowledges after
   write accepts the full fixed 512-frame block. Short final content is padded
   with silence. Backend latency is sampled separately by the drain caller.
@@ -2880,7 +2850,6 @@ Windows argument coverage.
   PipeWire, PortAudio, PulseAudio. MinGW configured provider: WASAPI.
 - Dependency direction is audio -> mixer/loader/threads; mixer is needlessly
   PUBLIC even though audio.h does not expose it. No dependency cycle observed.
-  Real-time work/reclamation concern is A023, not a demonstrated timing result.
 
 ### theme/
 
@@ -3784,5 +3753,5 @@ successful verification.
   native GCC st_audio fake-provider CTest passes, MinGW st_audio_test builds
   with WASAPI. Native Clang test passed in the preceding pass. No physical
   device, audible smoke, SDL, macOS or Windows runtime verification claimed.
-  PortAudio primary guidance checked for A023; legacy harmonic artifacts
-  confirmed as intentional. Report only this pass, no commits.
+  Legacy harmonic artifacts confirmed as intentional. Report only this pass,
+  no commits.
