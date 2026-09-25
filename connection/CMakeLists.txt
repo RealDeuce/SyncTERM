@@ -247,6 +247,10 @@ if(BUILD_TESTING)
 	st_connection_warnings(st_connection_test)
 	target_compile_definitions(st_connection_test PRIVATE
 		ST_CONNECTION_TEST_HAVE_SHELL=$<BOOL:${ST_CONNECTION_TEST_HAVE_SHELL}>)
+	if(ST_CONNECTION_DEFINITIONS)
+		target_compile_definitions(st_connection_test PRIVATE
+			${ST_CONNECTION_DEFINITIONS})
+	endif()
 	if(ST_CONNECTION_HAVE_FORKPTY)
 		add_executable(st_connection_shell_fixture
 			tests/st_connection_shell_fixture.c)

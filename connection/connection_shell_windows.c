@@ -298,6 +298,7 @@ int
 st_connection_connect_shell(st_connection_t **result,
 	const struct st_profile *profile,
 	const struct st_screen_geometry *current_screen,
+	const struct st_connection_shell_environment *shell_environment,
 	const struct st_connection_hooks *hooks,
 	struct st_connection_error *error)
 {
@@ -317,6 +318,8 @@ st_connection_connect_shell(st_connection_t **result,
 	HMODULE kernel;
 	bool attributes_initialized = false;
 	int status;
+
+	(void)shell_environment;
 
 	if (result == NULL || profile == NULL
 	    || profile->connection_type != ST_CONNECTION_SHELL)

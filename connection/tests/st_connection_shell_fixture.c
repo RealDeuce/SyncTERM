@@ -8,6 +8,7 @@
 #include <poll.h>
 #include <signal.h>
 #include <stddef.h>
+#include <stdlib.h>
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
@@ -37,12 +38,23 @@ write_all(const char *text)
 	return 0;
 }
 
+static int
+write_environment(const char *name)
+{
+	const char *value = getenv(name);
+
+	return write_all(name) || write_all("=")
+	    || write_all(value != NULL ? value : "<unset>") || write_all("\n");
+}
+
 int
-main(void)
+main(int argc, char **argv)
 {
 	struct termios attributes;
 	char input[32];
 	ssize_t count;
+
+	(void)argc;
 
 	if (tcgetattr(STDIN_FILENO, &attributes) != 0)
 		return 1;
@@ -68,6 +80,11 @@ main(void)
 #endif
 	if (signal(SIGINT, handle_interrupt) == SIG_ERR)
 		return 3;
+	if (write_all("ARGV0=") || write_all(argv[0]) || write_all("\n")
+	    || write_environment("TERM") || write_environment("COLUMNS")
+	    || write_environment("LINES") || write_environment("TERMCAP")
+	    || write_environment("MM_CHARSET"))
+		return 4;
 	if (write_all("flags-ok\nready\n") != 0)
 		return 4;
 	count = read(STDIN_FILENO, input, sizeof(input));

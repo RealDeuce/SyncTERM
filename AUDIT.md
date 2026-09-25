@@ -2623,15 +2623,11 @@ Windows argument coverage.
   Response substring matching preserves the legacy broad OK/CONNECT policy;
   tests cover only ATZ/ATDT555 success and initialization cancellation, not
   timeout, malformed responses, echo-off variants or physical modem behavior.
-- POSIX shell environment is assembled before fork and frees the parent's
-  copies afterward. TERM/COLUMNS/LINES are supplied, but legacy TERMCAP and
-  MM_CHARSET construction is absent; integration expectations need follow-up.
-  Default SHELL is now passed through `/bin/sh -c`, unlike the old direct exec;
-  paths containing shell syntax/spaces therefore merit compatibility testing.
-  PTY setup uses complete system TTYDEF defaults when available and otherwise
-  retains the platform-created state, then disables software flow control and
-  selects the supported erase keys and 115200 baud. Registered tests cover
-  newline processing, echo, canonical Return, Ctrl+C and Ctrl+S behavior.
+- POSIX PTY setup uses complete system TTYDEF defaults when available and
+  otherwise retains the platform-created state, then disables software flow
+  control and selects the supported erase keys and 115200 baud. Registered
+  tests cover newline processing, echo, canonical Return, Ctrl+C and Ctrl+S
+  behavior.
 - POSIX PTY master stays blocking. poll before write does not establish that
   the entire buffer fits. Shutdown sends SIGHUP, then joins workers, and only
   afterwards reaches destroy's ten-second wait/SIGKILL escalation. A blocked

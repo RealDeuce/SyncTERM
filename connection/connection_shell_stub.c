@@ -11,12 +11,14 @@ int
 st_connection_connect_shell(st_connection_t **result,
 	const struct st_profile *profile,
 	const struct st_screen_geometry *current_screen,
+	const struct st_connection_shell_environment *shell_environment,
 	const struct st_connection_hooks *hooks,
 	struct st_connection_error *error)
 {
 	(void)result;
 	(void)profile;
 	(void)current_screen;
+	(void)shell_environment;
 	(void)hooks;
 	return st_connection_fail(error, IO_ERROR_NOT_SUPPORTED,
 	    ST_CONNECTION_SETUP_STARTING_SHELL,

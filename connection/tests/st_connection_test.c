@@ -489,7 +489,7 @@ test_shell(void)
 #endif
 #if ST_CONNECTION_TEST_HAVE_SHELL
 	count = st_connection_connect_shell(&connection, &profile, &geometry,
-	    NULL, &error);
+	    NULL, NULL, &error);
 #if SYNCTERM_PLATFORM_WINDOWS
 	if (count == IO_ERROR_NOT_SUPPORTED) {
 		st_profile_dispose(&profile);
@@ -506,7 +506,7 @@ test_shell(void)
 	CHECK(st_connection_close(connection) == 0);
 #else
 	count = st_connection_connect_shell(&connection, &profile, &geometry,
-	    NULL, &error);
+	    NULL, NULL, &error);
 	CHECK(count == IO_ERROR_NOT_SUPPORTED);
 #endif
 	st_profile_dispose(&profile);
@@ -531,7 +531,7 @@ test_shell_shutdown(void)
 	strcpy(profile.address, "cmd.exe /d /q");
 	for (unsigned int attempt = 0; attempt < 8; ++attempt) {
 		status = st_connection_connect_shell(&connection, &profile,
-		    &geometry, NULL, &error);
+		    &geometry, NULL, NULL, &error);
 		if (status == IO_ERROR_NOT_SUPPORTED) {
 			st_profile_dispose(&profile);
 			return 0;
@@ -545,7 +545,7 @@ test_shell_shutdown(void)
 	    "cmd.exe /d /q /c for /L %i in (1,1,2147483647) do "
 	    "@echo 0123456789abcdef0123456789abcdef");
 	CHECK(st_connection_connect_shell(&connection, &profile, &geometry,
-	    NULL, &error) == 0);
+	    NULL, NULL, &error) == 0);
 	(void)st_thread_sleep(&output_pause, NULL);
 	CHECK(st_connection_close(connection) == 0);
 	st_profile_dispose(&profile);
@@ -568,7 +568,7 @@ test_shell_line_discipline(void)
 	profile.screen_mode = ST_SCREEN_MODE_CURRENT;
 	strcpy(profile.address, "printf 'a\\nb\\n'");
 	CHECK(st_connection_connect_shell(&connection, &profile, &geometry,
-	    NULL, NULL) == 0);
+	    NULL, NULL, NULL) == 0);
 	while (total < sizeof(buffer)) {
 		ssize_t count = st_connection_receive(connection, buffer + total,
 		    sizeof(buffer) - total, 1000);
@@ -640,6 +640,196 @@ make_fixture_command(char *result, size_t capacity, const char *path)
 	result[used] = '\0';
 	return 0;
 }
+
+struct saved_environment {
+	char *value;
+	bool present;
+};
+
+static int
+save_environment(const char *name, struct saved_environment *saved)
+{
+	const char *value = getenv(name);
+
+	saved->value = NULL;
+	saved->present = value != NULL;
+	if (value != NULL) {
+		size_t length = strlen(value) + 1;
+
+		saved->value = malloc(length);
+		if (saved->value == NULL)
+			return 1;
+		memcpy(saved->value, value, length);
+	}
+	return 0;
+}
+
+static int
+restore_environment(const char *name, struct saved_environment *saved)
+{
+	int result = saved->present ? setenv(name, saved->value, 1)
+	    : unsetenv(name);
+
+	free(saved->value);
+	saved->value = NULL;
+	return result != 0;
+}
+
+static int
+test_shell_environment(const char *fixture)
+{
+	static const char expected[] =
+	    "TERM=syncterm-test\r\n"
+	    "COLUMNS=80\r\n"
+	    "LINES=24\r\n"
+	    "TERMCAP=syncterm|SyncTERM:co#80:li#24:\r\n"
+	    "MM_CHARSET=CP437\r\n";
+	static const struct st_connection_shell_environment supplied = {
+		.termcap = "syncterm|SyncTERM:co#80:li#24:",
+		.mm_charset = "CP437",
+	};
+	static const struct st_connection_shell_environment omitted = {
+		.termcap = NULL,
+		.mm_charset = "",
+	};
+	struct saved_environment saved_termcap;
+	struct saved_environment saved_charset;
+	struct st_screen_geometry geometry = {80, 25, 0, 0};
+	struct st_profile profile;
+	st_connection_t *connection = NULL;
+	char buffer[512];
+	bool environment_saved = false;
+	int failed = 0;
+
+	st_profile_init(&profile);
+	profile.connection_type = ST_CONNECTION_SHELL;
+	profile.screen_mode = ST_SCREEN_MODE_CURRENT;
+	strcpy(profile.terminal_name, "syncterm-test");
+	if (fixture == NULL || make_fixture_command(profile.address,
+	    sizeof(profile.address), fixture) != 0) {
+		fprintf(stderr, "unable to construct shell fixture command\n");
+		failed = 1;
+		goto cleanup;
+	}
+	if (st_connection_connect_shell(&connection, &profile, &geometry,
+	    &supplied, NULL, NULL) != 0
+	    || receive_until(connection, buffer, sizeof(buffer), expected) != 0) {
+		fprintf(stderr, "shell fixture did not receive supplied environment\n");
+		failed = 1;
+		goto cleanup;
+	}
+	if (st_connection_close(connection) != 0) {
+		failed = 1;
+		connection = NULL;
+		goto cleanup;
+	}
+	connection = NULL;
+	if (save_environment("TERMCAP", &saved_termcap) != 0
+	    || save_environment("MM_CHARSET", &saved_charset) != 0) {
+		free(saved_termcap.value);
+		fprintf(stderr, "unable to save shell test environment\n");
+		failed = 1;
+		goto cleanup;
+	}
+	environment_saved = true;
+	if (setenv("TERMCAP", "inherited-termcap", 1) != 0
+	    || setenv("MM_CHARSET", "inherited-charset", 1) != 0
+	    || st_connection_connect_shell(&connection, &profile, &geometry,
+	    &omitted, NULL, NULL) != 0
+	    || receive_until(connection, buffer, sizeof(buffer),
+	    "TERMCAP=<unset>\r\nMM_CHARSET=<unset>\r\n") != 0) {
+		fprintf(stderr, "shell fixture inherited omitted environment\n");
+		failed = 1;
+	}
+
+cleanup:
+	if (connection != NULL && st_connection_close(connection) != 0)
+		failed = 1;
+	if (environment_saved) {
+		if (restore_environment("TERMCAP", &saved_termcap) != 0)
+			failed = 1;
+		if (restore_environment("MM_CHARSET", &saved_charset) != 0)
+			failed = 1;
+	}
+	st_profile_dispose(&profile);
+	return failed;
+}
+
+static int
+test_shell_default_executable(const char *fixture)
+{
+	static const char fallback_command[] =
+	    "printf '\\146\\141\\154\\154\\142\\141\\143\\153\\055"
+	    "\\157\\153\\n'\n";
+	struct saved_environment saved_shell;
+	struct st_screen_geometry geometry = {80, 25, 0, 0};
+	struct st_profile profile;
+	st_connection_t *connection = NULL;
+	char link_name[128];
+	char buffer[512];
+	char expected[192];
+	bool shell_saved = false;
+	bool link_created = false;
+	int failed = 0;
+
+	st_profile_init(&profile);
+	profile.connection_type = ST_CONNECTION_SHELL;
+	profile.screen_mode = ST_SCREEN_MODE_CURRENT;
+	if (fixture == NULL || snprintf(link_name, sizeof(link_name),
+	    "./st connection shell default-%ld", (long)getpid()) < 0
+	    || save_environment("SHELL", &saved_shell) != 0) {
+		fprintf(stderr, "unable to prepare default shell test\n");
+		failed = 1;
+		goto cleanup;
+	}
+	shell_saved = true;
+	if (symlink(fixture, link_name) != 0) {
+		fprintf(stderr, "unable to create default shell fixture link\n");
+		failed = 1;
+		goto cleanup;
+	}
+	link_created = true;
+	if (snprintf(expected, sizeof(expected), "ARGV0=%s\r\n", link_name)
+	    < 0) {
+		failed = 1;
+		goto cleanup;
+	}
+	if (setenv("SHELL", link_name, 1) != 0
+	    || st_connection_connect_shell(&connection, &profile, &geometry,
+	    NULL, NULL, NULL) != 0
+	    || receive_until(connection, buffer, sizeof(buffer), expected) != 0) {
+		fprintf(stderr, "SHELL was not executed as a literal path\n");
+		failed = 1;
+		goto cleanup;
+	}
+	if (st_connection_close(connection) != 0) {
+		failed = 1;
+		connection = NULL;
+		goto cleanup;
+	}
+	connection = NULL;
+	if (unsetenv("SHELL") != 0
+	    || st_connection_connect_shell(&connection, &profile, &geometry,
+	    NULL, NULL, NULL) != 0
+	    || st_connection_send(connection, fallback_command,
+	    sizeof(fallback_command) - 1, 1000)
+	    != (ssize_t)(sizeof(fallback_command) - 1)
+	    || receive_until(connection, buffer, sizeof(buffer),
+	    "fallback-ok\r\n") != 0) {
+		fprintf(stderr, "empty SHELL did not fall back to /bin/sh\n");
+		failed = 1;
+	}
+
+cleanup:
+	if (connection != NULL && st_connection_close(connection) != 0)
+		failed = 1;
+	if (link_created && unlink(link_name) != 0)
+		failed = 1;
+	if (shell_saved && restore_environment("SHELL", &saved_shell) != 0)
+		failed = 1;
+	st_profile_dispose(&profile);
+	return failed;
+}
 #endif
 
 static int
@@ -662,7 +852,7 @@ test_shell_interactive(const char *fixture)
 		goto cleanup;
 	}
 	if (st_connection_connect_shell(&connection, &profile, &geometry,
-	    NULL, NULL) != 0) {
+	    NULL, NULL, NULL) != 0) {
 		fprintf(stderr, "unable to connect to shell fixture\n");
 		failed = 1;
 		goto cleanup;
@@ -859,6 +1049,10 @@ main(int argc, char **argv)
 	CHECK(test_rlogin() == 0);
 	CHECK(test_shell() == 0);
 	int failures = test_shell_line_discipline();
+#if !SYNCTERM_PLATFORM_WINDOWS && ST_CONNECTION_TEST_HAVE_SHELL
+	failures += test_shell_environment(fixture);
+	failures += test_shell_default_executable(fixture);
+#endif
 	failures += test_shell_interactive(fixture);
 	failures += test_partial_input();
 	return failures != 0;

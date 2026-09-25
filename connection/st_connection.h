@@ -47,6 +47,17 @@ struct st_screen_geometry {
 	uint32_t pixel_height;
 };
 
+/*
+ * Optional POSIX shell environment values. The strings are values only, are
+ * borrowed for the duration of connect, and may be NULL or empty to omit the
+ * corresponding variable. Inherited TERMCAP and MM_CHARSET values are always
+ * removed. Windows shell transports accept this argument but ignore it.
+ */
+struct st_connection_shell_environment {
+	const char *termcap;
+	const char *mm_charset;
+};
+
 typedef enum st_connection_setup_action (*st_connection_setup_fn)(
 	void *context, enum st_connection_setup_phase phase);
 typedef void (*st_connection_log_fn)(void *context,
@@ -69,13 +80,17 @@ struct st_connection_error {
 };
 
 /*
- * Result is unchanged on failure. Profile and the hooks structure may be
- * released on return. Hook contexts remain owned by the caller and must stay
- * valid through close; the log hook may be called by either worker thread.
+ * Result is unchanged on failure. Profile, shell environment, and the hooks
+ * structure may be released on return. Hook contexts remain owned by the
+ * caller and must stay valid through close; the log hook may be called by
+ * either worker thread.
  * For RLogin and shell, current_screen is the complete current screen when
  * the profile selects CURRENT; the initial terminal height excludes the
  * status row unless hide_status is set. Other modes obtain their complete
  * screen dimensions from the profile and global custom-mode settings.
+ * On POSIX, a nonempty shell profile address is interpreted by /bin/sh -c;
+ * an empty address directly executes the nonempty SHELL path, or /bin/sh when
+ * SHELL is absent or empty.
  */
 int st_connection_connect_raw(st_connection_t **result,
 	const struct st_profile *profile,
@@ -97,6 +112,7 @@ int st_connection_connect_modem(st_connection_t **result,
 int st_connection_connect_shell(st_connection_t **result,
 	const struct st_profile *profile,
 	const struct st_screen_geometry *current_screen,
+	const struct st_connection_shell_environment *shell_environment,
 	const struct st_connection_hooks *hooks,
 	struct st_connection_error *error);
 

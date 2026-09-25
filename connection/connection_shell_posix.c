@@ -206,7 +206,11 @@ environment_value(const char *name, const char *value)
 {
 	size_t name_length = strlen(name);
 	size_t value_length = strlen(value);
-	char *result = malloc(name_length + value_length + 2);
+	char *result;
+
+	if (value_length > SIZE_MAX - name_length - 2)
+		return NULL;
+	result = malloc(name_length + value_length + 2);
 
 	if (result != NULL)
 		(void)snprintf(result, name_length + value_length + 2, "%s=%s",
@@ -224,12 +228,16 @@ environment_matches(const char *entry, const char *name)
 
 static char **
 make_environment(const struct st_profile *profile,
-	const struct st_screen_geometry *geometry, char **owned)
+	const struct st_screen_geometry *geometry,
+	const struct st_connection_shell_environment *shell_environment,
+	char **owned)
 {
-	static const char *names[] = {"TERM", "COLUMNS", "LINES"};
+	static const char *names[] = {
+		"TERM", "COLUMNS", "LINES", "TERMCAP", "MM_CHARSET"
+	};
 	char columns[32];
 	char rows[32];
-	const char *values[3];
+	const char *values[5];
 	size_t original_count = 0;
 	size_t count = 0;
 	size_t i;
@@ -245,24 +253,34 @@ make_environment(const struct st_profile *profile,
 	    ? st_settings.terminal_type : "ansi";
 	values[1] = columns;
 	values[2] = rows;
-	result = calloc(original_count + 4, sizeof(*result));
+	values[3] = shell_environment != NULL
+	    ? shell_environment->termcap : NULL;
+	values[4] = shell_environment != NULL
+	    ? shell_environment->mm_charset : NULL;
+	if (original_count > SIZE_MAX / sizeof(*result) - 6)
+		return NULL;
+	result = calloc(original_count + 6, sizeof(*result));
 	if (result == NULL)
 		return NULL;
 	for (i = 0; i < original_count; ++i) {
 		size_t replacement;
 
-		for (replacement = 0; replacement < 3; ++replacement) {
+		for (replacement = 0; replacement < 5; ++replacement) {
 			if (environment_matches(environ[i], names[replacement]))
 				break;
 		}
-		if (replacement == 3)
+		if (replacement == 5)
 			result[count++] = environ[i];
 	}
-	for (i = 0; i < 3; ++i) {
+	for (i = 0; i < 5; ++i) {
+		if (values[i] == NULL || values[i][0] == '\0')
+			continue;
 		owned[i] = environment_value(names[i], values[i]);
 		if (owned[i] == NULL) {
-			while (i > 0)
-				free(owned[--i]);
+			while (i > 0) {
+				--i;
+				free(owned[i]);
+			}
 			free(result);
 			return NULL;
 		}
@@ -275,15 +293,17 @@ int
 st_connection_connect_shell(st_connection_t **result,
 	const struct st_profile *profile,
 	const struct st_screen_geometry *current_screen,
+	const struct st_connection_shell_environment *shell_environment,
 	const struct st_connection_hooks *hooks,
 	struct st_connection_error *error)
 {
 	struct st_screen_geometry geometry;
 	struct shell_transport *transport;
 	struct winsize window;
-	char *owned_environment[3] = {NULL, NULL, NULL};
+	char *owned_environment[5] = {NULL, NULL, NULL, NULL, NULL};
 	char **environment;
 	const char *command;
+	bool explicit_command;
 	pid_t child;
 	int master;
 	int status;
@@ -308,10 +328,12 @@ st_connection_connect_shell(st_connection_t **result,
 	    ST_CONNECTION_SETUP_STARTING_SHELL))
 		return st_connection_fail(error, IO_ERROR_CANCELLED,
 		    ST_CONNECTION_SETUP_STARTING_SHELL, "connection cancelled");
-	command = profile->address[0] != '\0' ? profile->address : getenv("SHELL");
+	explicit_command = profile->address[0] != '\0';
+	command = explicit_command ? profile->address : getenv("SHELL");
 	if (command == NULL || command[0] == '\0')
 		command = "/bin/sh";
-	environment = make_environment(profile, &geometry, owned_environment);
+	environment = make_environment(profile, &geometry, shell_environment,
+	    owned_environment);
 	if (environment == NULL)
 		return st_connection_fail(error, IO_ERROR_OUT_OF_MEMORY,
 		    ST_CONNECTION_SETUP_STARTING_SHELL,
@@ -324,11 +346,14 @@ st_connection_connect_shell(st_connection_t **result,
 	child = forkpty(&master, NULL, NULL, &window);
 	if (child == 0) {
 		configure_shell_terminal();
-		execle("/bin/sh", "sh", "-c", command, (char *)NULL,
-		    environment);
+		if (explicit_command)
+			execle("/bin/sh", "sh", "-c", command, (char *)NULL,
+			    environment);
+		else
+			execle(command, command, (char *)NULL, environment);
 		_exit(127);
 	}
-	for (i = 0; i < 3; ++i)
+	for (i = 0; i < 5; ++i)
 		free(owned_environment[i]);
 	free(environment);
 	if (child < 0)
