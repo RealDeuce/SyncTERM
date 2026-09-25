@@ -2370,23 +2370,30 @@ fn_screen_attr_set(WrenVM *vm)
 static void
 fn_screen_window_position(WrenVM *vm)
 {
+	struct st_console_rect window;
 	uint32_t x;
 	uint32_t y;
 
 	if (st_console_get_position(st_wren_context_from_vm(vm)->console,
-	    &x, &y) != 0)
+	    &x, &y) != 0 || st_console_get_window(
+	    st_wren_context_from_vm(vm)->console, &window) != 0
+	    || x < window.x || y < window.y
+	    || x - window.x >= window.width || y - window.y >= window.height) {
+		st_wren_abort(vm, "Screen.window.position failed");
 		return;
+	}
 	wrenEnsureSlots(vm, 2);
 	wrenSetSlotNewList(vm, 0);
-	wrenSetSlotDouble(vm, 1, x + 1);
+	wrenSetSlotDouble(vm, 1, x - window.x + 1);
 	wrenInsertInList(vm, 0, -1, 1);
-	wrenSetSlotDouble(vm, 1, y + 1);
+	wrenSetSlotDouble(vm, 1, y - window.y + 1);
 	wrenInsertInList(vm, 0, -1, 1);
 }
 
 static void
 fn_screen_window_position_set(WrenVM *vm)
 {
+	struct st_console_rect window;
 	int64_t x;
 	int64_t y;
 
@@ -2402,8 +2409,12 @@ fn_screen_window_position_set(WrenVM *vm)
 	wrenGetListElement(vm, 1, 1, 2);
 	if (!slot_integer(vm, 2, 1, UINT32_MAX, &y))
 		return;
-	(void)st_console_set_position(st_wren_context_from_vm(vm)->console,
-	    (uint32_t)x - 1, (uint32_t)y - 1);
+	if (st_console_get_window(st_wren_context_from_vm(vm)->console,
+	    &window) != 0 || (uint64_t)x > window.width
+	    || (uint64_t)y > window.height
+	    || st_console_set_position(st_wren_context_from_vm(vm)->console,
+	    window.x + (uint32_t)x - 1, window.y + (uint32_t)y - 1) != 0)
+		st_wren_abort(vm, "Screen.window.position update failed");
 }
 
 static void
@@ -2412,8 +2423,10 @@ fn_screen_window_bounds(WrenVM *vm)
 	struct st_console_rect window;
 
 	if (st_console_get_window(st_wren_context_from_vm(vm)->console,
-	    &window) != 0)
+	    &window) != 0) {
+		st_wren_abort(vm, "Screen.window.bounds failed");
 		return;
+	}
 	wrenEnsureSlots(vm, 2);
 	wrenSetSlotNewList(vm, 0);
 	uint32_t values[4] = {window.x + 1, window.y + 1,
@@ -2441,53 +2454,61 @@ fn_screen_window_bounds_set(WrenVM *vm)
 		if (!slot_integer(vm, 2, 1, UINT32_MAX, &values[i]))
 			return;
 	}
-	if (values[2] < values[0] || values[3] < values[1])
+	if (values[2] < values[0] || values[3] < values[1]) {
+		st_wren_abort(vm, "Screen.window.bounds update failed");
 		return;
+	}
 	window = (struct st_console_rect){(uint32_t)values[0] - 1,
 	    (uint32_t)values[1] - 1, (uint32_t)(values[2] - values[0] + 1),
 	    (uint32_t)(values[3] - values[1] + 1)};
-	(void)st_console_set_window(st_wren_context_from_vm(vm)->console,
-	    &window);
+	if (st_console_set_window(st_wren_context_from_vm(vm)->console,
+	    &window) != 0)
+		st_wren_abort(vm, "Screen.window.bounds update failed");
 }
 
 static void
 fn_screen_window_clear(WrenVM *vm)
 {
 	if (refresh_screen_style_font(vm))
-		(void)st_console_clear_window(
-		    st_wren_context_from_vm(vm)->console, ' ');
+		if (st_console_clear_window(st_wren_context_from_vm(vm)->console,
+		    ' ') != 0)
+			st_wren_abort(vm, "Screen.window.clear failed");
 }
 
 static void
 fn_screen_window_clear_line(WrenVM *vm)
 {
 	if (refresh_screen_style_font(vm))
-		(void)st_console_clear_line(
-		    st_wren_context_from_vm(vm)->console, ' ');
+		if (st_console_clear_line(st_wren_context_from_vm(vm)->console,
+		    ' ') != 0)
+			st_wren_abort(vm, "Screen.window.clearToLineEnd failed");
 }
 
 static void
 fn_screen_window_delete_line(WrenVM *vm)
 {
 	if (refresh_screen_style_font(vm))
-		(void)st_console_delete_lines(
-		    st_wren_context_from_vm(vm)->console, 1, ' ');
+		if (st_console_delete_lines(st_wren_context_from_vm(vm)->console,
+		    1, ' ') != 0)
+			st_wren_abort(vm, "Screen.window.deleteLine failed");
 }
 
 static void
 fn_screen_window_insert_line(WrenVM *vm)
 {
 	if (refresh_screen_style_font(vm))
-		(void)st_console_insert_lines(
-		    st_wren_context_from_vm(vm)->console, 1, ' ');
+		if (st_console_insert_lines(st_wren_context_from_vm(vm)->console,
+		    1, ' ') != 0)
+			st_wren_abort(vm, "Screen.window.insertLine failed");
 }
 
 static void
 fn_screen_window_scroll(WrenVM *vm)
 {
 	if (refresh_screen_style_font(vm))
-		(void)st_console_scroll(st_wren_context_from_vm(vm)->console, 1,
-		    ' ');
+		if (st_console_scroll(st_wren_context_from_vm(vm)->console, 1,
+		    ' ') != 0)
+			st_wren_abort(vm, "Screen.window.scroll failed");
 }
 
 static void
@@ -2497,8 +2518,9 @@ fn_screen_window_put_char(WrenVM *vm)
 
 	if (slot_integer(vm, 1, 0, UINT32_MAX, &value)
 	    && refresh_screen_style_font(vm))
-		(void)st_console_put_codepoint(
-		    st_wren_context_from_vm(vm)->console, (uint32_t)value);
+		if (st_console_put_codepoint(st_wren_context_from_vm(vm)->console,
+		    (uint32_t)value) != 0)
+			st_wren_abort(vm, "Screen.window.putChar failed");
 }
 
 static void
@@ -2513,8 +2535,9 @@ fn_screen_window_print(WrenVM *vm)
 	}
 	text = wrenGetSlotBytes(vm, 1, &length);
 	if (refresh_screen_style_font(vm))
-		(void)st_console_write_utf8(st_wren_context_from_vm(vm)->console,
-		    text, (size_t)length);
+		if (st_console_write_utf8(st_wren_context_from_vm(vm)->console,
+		    text, (size_t)length) != 0)
+			st_wren_abort(vm, "Screen.window.print failed");
 }
 
 static void
@@ -2640,12 +2663,13 @@ fn_codepage_encodes(WrenVM *vm)
 	}
 	text = (const unsigned char *)wrenGetSlotBytes(vm, 1, &length);
 	if (length <= 0 || st_utf8_decode_one(&codepoint, &consumed, text,
-	    (size_t)length) != 0) {
+	    (size_t)length) != 0 || consumed != (size_t)length) {
 		wrenSetSlotBool(vm, 0, false);
 		return;
 	}
 	wrenSetSlotBool(vm, 0, st_codepage_from_unicode(&encoded,
-	    ST_CODEPAGE_CP437, codepoint));
+	    font_codepage(st_wren_context_from_vm(vm)->fonts.slots[0]),
+	    codepoint));
 }
 
 static enum st_codepage
@@ -3089,7 +3113,7 @@ fn_cell_ch_set(WrenVM *vm)
 	}
 	text = (const unsigned char *)wrenGetSlotBytes(vm, 1, &length);
 	if (length == 0 || st_utf8_decode_one(&codepoint, &consumed,
-	    text, (size_t)length) != 0) {
+	    text, (size_t)length) != 0 || consumed != (size_t)length) {
 		st_wren_abort(vm, "Cell.ch expects one valid Unicode codepoint");
 		return;
 	}
@@ -3100,11 +3124,18 @@ static void
 fn_cell_byte(WrenVM *vm)
 {
 	struct st_console_cell *cell = cell_value(vm, 0);
+	struct st_wren_context *context = st_wren_context_from_vm(vm);
+	uint16_t selector;
 	uint8_t value;
 
 	if (cell == NULL)
 		return;
-	if (!st_codepage_from_unicode(&value, ST_CODEPAGE_CP437,
+	selector = st_wren_font_selector(context, cell->font);
+	if ((cell->flags & (ST_CONSOLE_CELL_EXPLICIT_GLYPH
+	    | ST_CONSOLE_CELL_FALLBACK_FONT)) == ST_CONSOLE_CELL_EXPLICIT_GLYPH
+	    && cell->glyph <= UINT8_MAX)
+		value = (uint8_t)cell->glyph;
+	else if (!st_codepage_from_unicode(&value, font_codepage(selector),
 	    cell->codepoint))
 		value = '?';
 	wrenSetSlotDouble(vm, 0, value);
@@ -3114,13 +3145,18 @@ static void
 fn_cell_byte_set(WrenVM *vm)
 {
 	struct foreign_cell *foreign = foreign_cell_value(vm, 0);
+	struct st_wren_context *context = st_wren_context_from_vm(vm);
 	int64_t value;
+	uint16_t selector;
 
-	if (foreign != NULL && slot_integer(vm, 1, 0, 255, &value))
+	if (foreign != NULL && slot_integer(vm, 1, 0, 255, &value)) {
+		selector = st_wren_font_selector(context,
+		    foreign->storage->cells[foreign->index].font);
 		set_cell_codepoint(vm, foreign,
-		    st_codepage_to_unicode(ST_CODEPAGE_CP437,
+		    st_codepage_to_unicode(font_codepage(selector),
 		    (uint8_t)value, true), true,
 		    (uint8_t)value);
+	}
 }
 
 static void
@@ -3137,18 +3173,32 @@ static void
 fn_cell_font_set(WrenVM *vm)
 {
 	struct foreign_cell *foreign = foreign_cell_value(vm, 0);
+	struct st_console_cell *cell;
+	struct st_wren_context *context = st_wren_context_from_vm(vm);
 	int64_t value;
 	uint16_t identifier;
+	uint16_t selector;
+	uint8_t byte;
 
 	if (foreign != NULL && slot_integer(vm, 1, 0, UINT8_MAX, &value)) {
-		if (!st_wren_font_identifier(st_wren_context_from_vm(vm),
+		if (!st_wren_font_identifier(context,
 		    (uint16_t)value, &identifier)) {
 			st_wren_abort(vm, "font is not available");
 			return;
 		}
-		foreign->storage->cells[foreign->index].font = identifier;
+		cell = &foreign->storage->cells[foreign->index];
+		selector = st_wren_font_selector(context, cell->font);
+		if ((cell->flags & (ST_CONSOLE_CELL_EXPLICIT_GLYPH
+		    | ST_CONSOLE_CELL_FALLBACK_FONT))
+		    == ST_CONSOLE_CELL_EXPLICIT_GLYPH && cell->glyph <= UINT8_MAX)
+			byte = (uint8_t)cell->glyph;
+		else if (!st_codepage_from_unicode(&byte, font_codepage(selector),
+		    cell->codepoint))
+			byte = '?';
+		cell->font = identifier;
 		set_cell_codepoint(vm, foreign,
-		    foreign->storage->cells[foreign->index].codepoint, false, 0);
+		    st_codepage_to_unicode(font_codepage((uint16_t)value), byte,
+		    true), true, byte);
 	}
 }
 

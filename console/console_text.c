@@ -7,20 +7,23 @@
 
 #include "io_error.h"
 #include "st_utf8.h"
+#include "st_unicode_width.h"
 
 #include <stdlib.h>
 #include <string.h>
 
-struct st_console_cell
-st_console_blank_locked(const st_console_t *console, uint32_t codepoint)
+static struct st_console_cell
+style_cell_locked(const st_console_t *console, uint32_t codepoint,
+	uint8_t *columns)
 {
 	struct st_console_cell cell;
 	uint32_t glyph = codepoint;
 	uint16_t glyph_font = console->style.font;
-	uint8_t columns;
+	uint8_t resolved_columns = st_unicode_columns(codepoint);
 
 	(void)st_console_font_lookup_locked((st_console_t *)console,
-	    console->style.font, codepoint, &glyph_font, &glyph, &columns);
+	    console->style.font, codepoint, &glyph_font, &glyph,
+	    &resolved_columns);
 	cell = (struct st_console_cell){
 		.codepoint = codepoint,
 		.glyph = glyph,
@@ -33,7 +36,26 @@ st_console_blank_locked(const st_console_t *console, uint32_t codepoint)
 	cell.flags &= ~ST_CONSOLE_CELL_FALLBACK_FONT;
 	if (glyph_font != cell.font)
 		cell.flags |= ST_CONSOLE_CELL_FALLBACK_FONT;
+	if (columns != NULL)
+		*columns = resolved_columns;
 	return cell;
+}
+
+struct st_console_cell
+st_console_blank_locked(const st_console_t *console, uint32_t codepoint)
+{
+	return style_cell_locked(console, codepoint, NULL);
+}
+
+static bool
+fill_codepoint_valid_locked(const st_console_t *console, uint32_t codepoint)
+{
+	uint8_t columns;
+
+	if (!st_unicode_scalar_valid(codepoint))
+		return false;
+	(void)style_cell_locked(console, codepoint, &columns);
+	return columns == 1;
 }
 
 int
@@ -675,8 +697,7 @@ static void
 put_codepoint_locked(st_console_t *console, uint32_t codepoint)
 {
 	struct st_console_cell cell;
-	uint16_t glyph_font;
-	uint8_t columns = 1;
+	uint8_t columns;
 	uint32_t right = console->window.x + console->window.width;
 
 	switch (codepoint) {
@@ -708,13 +729,7 @@ put_codepoint_locked(st_console_t *console, uint32_t codepoint)
 	default:
 		break;
 	}
-	cell = st_console_blank_locked(console, codepoint);
-	glyph_font = console->style.font;
-	(void)st_console_font_lookup_locked(console, cell.font, codepoint,
-	    &glyph_font, &cell.glyph, &columns);
-	cell.flags &= ~ST_CONSOLE_CELL_FALLBACK_FONT;
-	if (glyph_font != cell.font)
-		cell.flags |= ST_CONSOLE_CELL_FALLBACK_FONT;
+	cell = style_cell_locked(console, codepoint, &columns);
 	if (columns == 2 && console->cursor_x + 1 >= right) {
 		if (!console->wrap) {
 			console->cursor_x = right - 1;
@@ -743,7 +758,7 @@ st_console_put_codepoint(st_console_t *console, uint32_t codepoint)
 {
 	int result;
 
-	if (console == NULL)
+	if (console == NULL || !st_unicode_scalar_valid(codepoint))
 		return IO_ERROR_INVALID_ARGUMENT;
 	result = st_rwlock_write_lock(&console->state_lock);
 	if (result != ST_THREAD_SUCCESS)
@@ -804,6 +819,10 @@ st_console_clear_window(st_console_t *console, uint32_t codepoint)
 	result = st_rwlock_write_lock(&console->state_lock);
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
+	if (!fill_codepoint_valid_locked(console, codepoint)) {
+		(void)st_rwlock_unlock(&console->state_lock);
+		return IO_ERROR_INVALID_ARGUMENT;
+	}
 	for (y = console->window.y;
 	    y < console->window.y + console->window.height; ++y)
 		fill_line_locked(console, y, codepoint);
@@ -829,6 +848,10 @@ st_console_clear_line(st_console_t *console, uint32_t codepoint)
 	result = st_rwlock_write_lock(&console->state_lock);
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
+	if (!fill_codepoint_valid_locked(console, codepoint)) {
+		(void)st_rwlock_unlock(&console->state_lock);
+		return IO_ERROR_INVALID_ARGUMENT;
+	}
 	blank = st_console_blank_locked(console, codepoint);
 	right = console->window.x + console->window.width;
 	for (uint32_t x = console->cursor_x; x < right; ++x)
@@ -866,9 +889,11 @@ text_cell_wide_locked(st_console_t *console,
 	uint32_t width;
 	size_t row_stride;
 
-	return font != NULL && st_console_font_glyph_locked(console,
-	    glyph_font, cell->glyph, &bitmap, &width, &row_stride)
-	    && width == font->width * 2;
+	if (font != NULL && st_console_font_glyph_locked(console,
+	    glyph_font, cell->glyph, &bitmap, &width, &row_stride))
+		return width == font->width * 2;
+	return (cell->flags & ST_CONSOLE_CELL_EXPLICIT_GLYPH) == 0
+	    && st_unicode_columns(cell->codepoint) == 2;
 }
 
 static void
@@ -897,7 +922,8 @@ move_cells(st_console_t *console, const struct st_console_rect *source,
 	size_t count;
 	int result;
 
-	if (console == NULL || source == NULL)
+	if (console == NULL || source == NULL
+	    || (fill != NULL && !st_unicode_scalar_valid(fill->codepoint)))
 		return IO_ERROR_INVALID_ARGUMENT;
 	result = st_rwlock_write_lock(&console->state_lock);
 	if (result != ST_THREAD_SUCCESS)
@@ -994,6 +1020,10 @@ st_console_scroll(st_console_t *console, int32_t lines, uint32_t codepoint)
 	result = st_rwlock_write_lock(&console->state_lock);
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
+	if (!fill_codepoint_valid_locked(console, codepoint)) {
+		(void)st_rwlock_unlock(&console->state_lock);
+		return IO_ERROR_INVALID_ARGUMENT;
+	}
 	scroll_locked(console, lines, codepoint);
 	result = st_console_finish_change_locked(console);
 	(void)st_rwlock_unlock(&console->state_lock);
@@ -1037,6 +1067,10 @@ change_lines(st_console_t *console, uint32_t count, uint32_t codepoint,
 	result = st_rwlock_write_lock(&console->state_lock);
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
+	if (!fill_codepoint_valid_locked(console, codepoint)) {
+		(void)st_rwlock_unlock(&console->state_lock);
+		return IO_ERROR_INVALID_ARGUMENT;
+	}
 	move_lines_locked(console, count, insert, codepoint);
 	result = st_console_finish_change_locked(console);
 	(void)st_rwlock_unlock(&console->state_lock);

@@ -465,16 +465,24 @@ int st_console_resize(st_console_t *console, uint32_t columns,
 int st_console_reconfigure(st_console_t *console,
 	const struct st_console_config *config);
 
+/*
+ * Semantic cell writes require Unicode scalar codepoints.  A two-column cell
+ * must be followed by its matching continuation cell in the same row.
+ */
 int st_console_write_cells(st_console_t *console,
 	const struct st_console_rect *destination,
 	const struct st_console_cell *cells, size_t stride);
-/* Writes already-resolved font/glyph cells without Unicode lookup. */
+/*
+ * Writes already-resolved font/glyph cells without Unicode lookup.  Stored
+ * codepoints must still be Unicode scalars.
+ */
 int st_console_write_complete_cells(st_console_t *console,
 	const struct st_console_rect *destination,
 	const struct st_console_cell *cells, size_t stride);
 int st_console_read_cells(st_console_t *console,
 	const struct st_console_rect *source, struct st_console_cell *cells,
 	size_t stride);
+/* A fill cell must contain a Unicode scalar which occupies one column. */
 int st_console_fill(st_console_t *console,
 	const struct st_console_rect *destination,
 	const struct st_console_cell *cell);
@@ -526,14 +534,17 @@ int st_console_set_window(st_console_t *console,
 int st_console_get_window(st_console_t *console,
 	struct st_console_rect *window);
 int st_console_set_wrap(st_console_t *console, bool wrap);
+/* Semantic codepoint operations reject values which are not Unicode scalars. */
 int st_console_put_codepoint(st_console_t *console, uint32_t codepoint);
 int st_console_write_utf8(st_console_t *console, const char *text,
 	size_t length);
+/* Fill codepoints for clear, scroll and line edits must occupy one column. */
 int st_console_clear_window(st_console_t *console, uint32_t codepoint);
 int st_console_clear_line(st_console_t *console, uint32_t codepoint);
 int st_console_move_cells(st_console_t *console,
 	const struct st_console_rect *source, uint32_t destination_x,
 	uint32_t destination_y);
+/* The optional clearing cell must contain a one-column Unicode scalar. */
 int st_console_move_cells_clear(st_console_t *console,
 	const struct st_console_rect *source, uint32_t destination_x,
 	uint32_t destination_y, const struct st_console_cell *fill);

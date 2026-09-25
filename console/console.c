@@ -1219,6 +1219,23 @@ cell_is_wide_locked(st_console_t *console, const struct st_console_cell *cell)
 	    && width == font->width * 2;
 }
 
+static bool
+semantic_cell_is_wide_locked(st_console_t *console,
+	const struct st_console_cell *cell)
+{
+	const uint8_t *bitmap;
+	uint16_t glyph_font = st_console_cell_glyph_font(cell);
+	const struct st_console_font *font = st_console_font_locked(console,
+	    glyph_font);
+	uint32_t width;
+	size_t row_stride;
+
+	if (font != NULL && st_console_font_glyph_locked(console,
+	    glyph_font, cell->glyph, &bitmap, &width, &row_stride))
+		return width == font->width * 2;
+	return st_unicode_columns(cell->codepoint) == 2;
+}
+
 static struct st_console_cell
 prepare_cell_locked(st_console_t *console, const struct st_console_cell *source)
 {
@@ -1281,19 +1298,23 @@ row_cells_valid_locked(st_console_t *console,
 	bool have_previous = false;
 
 	for (uint32_t x = 0; x < width; ++x) {
-		struct st_console_cell value = prepare_cell_locked(console, &cells[x]);
+		struct st_console_cell value;
+
+		if (!st_unicode_scalar_valid(cells[x].codepoint))
+			return false;
+		value = prepare_cell_locked(console, &cells[x]);
 
 		if (have_previous
 		    && (value.flags & ST_CONSOLE_CELL_CONTINUATION) == 0)
 			return false;
 		if ((value.flags & ST_CONSOLE_CELL_CONTINUATION) != 0) {
 			if (!have_previous || !pair_matches(&previous, &value)
-			    || !cell_is_wide_locked(console, &previous))
+			    || !semantic_cell_is_wide_locked(console, &previous))
 				return false;
 			have_previous = false;
 			continue;
 		}
-		if (cell_is_wide_locked(console, &value)) {
+		if (semantic_cell_is_wide_locked(console, &value)) {
 			if (x + 1 >= width)
 				return false;
 			previous = value;
@@ -1313,9 +1334,7 @@ complete_cell_valid_locked(st_console_t *console,
 	uint32_t width;
 	size_t row_stride;
 
-	if (cell->codepoint > UINT32_C(0x10ffff)
-	    || (cell->codepoint >= UINT32_C(0xd800)
-	    && cell->codepoint <= UINT32_C(0xdfff)))
+	if (!st_unicode_scalar_valid(cell->codepoint))
 		return false;
 	return console->pixels == NULL
 	    || st_console_font_glyph_locked(console,
@@ -1972,7 +1991,8 @@ st_console_fill(st_console_t *console,
 	uint32_t y;
 	int result;
 
-	if (console == NULL || destination == NULL || cell == NULL)
+	if (console == NULL || destination == NULL || cell == NULL
+	    || !st_unicode_scalar_valid(cell->codepoint))
 		return IO_ERROR_INVALID_ARGUMENT;
 	result = st_rwlock_write_lock(&console->state_lock);
 	if (result != ST_THREAD_SUCCESS)
@@ -1985,7 +2005,7 @@ st_console_fill(st_console_t *console,
 		struct st_console_cell value = prepare_cell_locked(console, cell);
 
 		if ((value.flags & ST_CONSOLE_CELL_CONTINUATION) != 0
-		    || cell_is_wide_locked(console, &value)) {
+		    || semantic_cell_is_wide_locked(console, &value)) {
 			(void)st_rwlock_unlock(&console->state_lock);
 			return IO_ERROR_INVALID_ARGUMENT;
 		}

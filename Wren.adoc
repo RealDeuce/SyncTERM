@@ -2295,7 +2295,9 @@ their output to the backend should branch on these.
 Operations scoped to the active text window.  Cursor position,
 character output, line edits, and clearing all act inside the
 window's rectangle.  Coordinates are window-relative (1, 1 is the
-top-left of the window, not the screen).
+top-left of the window, not the screen).  Invalid bounds, out-of-window
+positions, invalid character values, and failed console operations abort the
+calling fiber rather than leaving partially changed state.
 
 [options="header",cols="2,3"]
 |===
@@ -3127,6 +3129,10 @@ Enum-style class identifying a character-set encoding.  Returned by
 `Font.codepage` and `Font.codepageOf(i)` to tell scripts which
 encoding the bytes in a screen cell are in.
 
+`Codepage.encodes_(s)` accepts exactly one Unicode codepoint and reports
+whether the codepage of the selected primary font (`Screen.font[0]`) can
+encode it.  It does not consult the process locale.
+
 A `_b` suffix on a codepage name means "broken vertical" — the
 font variant draws box-drawing pipe characters with one-pixel gaps
 between rows.  The base codepage and its `_b` variant cover the same
@@ -3200,17 +3206,22 @@ what storage that object refers to; it does not copy cell contents.
 | Construct an empty cell.
 
 | `ch`, `ch=(s)`
-| Character as a one-codepoint Unicode string.  Assignment resolves the glyph
-  in the selected font and then the Unicode fallback fonts.
+| Character as a one-codepoint Unicode string.  Assignment requires exactly
+  one complete codepoint, then resolves its glyph in the selected font and
+  the Unicode fallback fonts.
 
 | `chByte`, `chByte=(n)`
-| Explicit CP437 compatibility adapter.  The setter selects the raw CP437
-  glyph byte; the getter maps `ch` back to CP437 or returns `?` when it cannot
-  be represented.
+| Exact legacy glyph byte interpreted through this cell's selected font
+  codepage.  The setter stores that byte as the explicit glyph and updates
+  `ch` to its Unicode meaning.  The getter returns an existing explicit byte,
+  or encodes `ch` through the selected font codepage and returns `?` when it
+  cannot be represented.
 
 | `font`, `font=(n)`
 | Font catalog selector at the Wren boundary.  The resolved internal font
-  identifier is retained in stored cells.
+  identifier is retained in stored cells.  Assignment preserves the current
+  `chByte`, then updates `ch` and the explicit glyph to that byte's meaning in
+  the new font's codepage.
 
 | `legacyAttr`, `legacyAttr=(n)`
 | Legacy attribute byte (foreground in low nibble, background in
@@ -3361,7 +3372,9 @@ a cell through `surf.rows[y][x]` mutates the underlying Surface.
 
 | `fill(rect, cell)`
 | Bulk-fill the intersection of `rect` (a `Rect`) and the Surface with a copy
-  of `cell`.  Empty and disjoint rectangles are no-ops.
+  of `cell`.  The cell must occupy exactly one column; a wide or continuation
+  cell aborts the calling fiber without changing the Surface.  Empty and
+  disjoint rectangles are no-ops.
 
 | `toString`
 | Debug-only string form, e.g. `"Surface(80x25)"`.  Format may

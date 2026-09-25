@@ -393,22 +393,6 @@ reported size. This supersedes the earlier pending all-mode *geometry* check,
 not the remaining application/host integration review. No production/build
 or product-documentation changes and no commits.
 
-### Console mutation contract follow-up
-
-Normal rectangle fill and move-clear
-explicitly reject wide fill cells; generic move snapshots and normalizes
-source boundaries and retains EXPLICIT_GLYPH through the cell setter. This
-source review does not establish arbitrary pixel-overlay move preservation.
-Direct put/clear/scroll and ordinary cell writes lack the Unicode scalar
-validation used by public font lookup and complete-cell writes, while the
-manual explicitly promises validation only for UTF-8 strings. Record that
-inconsistency as an API-contract concern, not an asserted requirement to
-choose rejection rather than replacement. Clear/scroll codepoint fills also
-lack the wide-fill rejection used by rectangle fill. Their intended policy
-needs specification; existing window/pair findings should not be hidden by
-silently restricting inputs in tests. These observations disposition the
-earlier source questions without claiming those paths are correct or fixed.
-
 ### Error translation coverage follow-up
 
 Reread both io_error implementations, public header and CMake/test, and checked
@@ -1651,11 +1635,6 @@ fallback/copy/deferred registration, 65,536-slot LRU replacement, concurrent
 activation/metadata, failed detachment and retained ANSI options. Isolated PTY
 tests supply the previously documented curses coverage.
 
-Wide-cell tests cover four-column wrapping and
-single-cell overwrite, not one-column windows or partial-window scrolling
-across wide pairs. Invalid scalar put_codepoint is explicitly expected to
-succeed with UINT32_MAX in a no-font headless console; treat that as an API
-contract consistency question rather than silently replacing its test oracle.
 Snapshot tests require draining even an open nested batch to output and
 propagate output failure; this narrows the earlier uncertainty about intended
 snapshot behavior. LRU testing explicitly expects replacement without a
@@ -1908,13 +1887,9 @@ text-area offset, with right/bottom pixel margins addressed independently;
 partial scrolling copies rows overlap-safely. Raster normalization allocates
 both full text planes before changing the circular offset.
 
-Further targeted checks remain: one-column windows receiving wide glyphs,
-scrolling through wide-pair boundaries, wide fill codepoints, deferred font
-registration changing a cell from narrow to wide, and invalid-scalar behavior
-of direct codepoint writes. These are source concerns, not yet reproduced
-findings. Generic move_cells allocates a cell rectangle and reuses semantic
-cell setters; whether pixel overlays and explicit glyph identity survive all
-move cases remains to be tested. No performance conclusions from source alone.
+Generic move_cells allocates a cell rectangle and reuses semantic cell
+setters; whether pixel overlays survive all move cases remains to be tested.
+No performance conclusions follow from source alone.
 
 Shared bitmap presenter, libretro backend, text-terminal character helper and
 main entry wrapper now also read in full, together with console_bitmap_test.c

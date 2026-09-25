@@ -102,6 +102,25 @@ register_static_font(st_console_t *console, const struct st_console_font *font)
 }
 
 static void
+check_text_state(st_console_t *console, const struct st_console_rect *rect,
+	const struct st_console_cell *expected, size_t stride,
+	uint32_t expected_x, uint32_t expected_y)
+{
+	struct st_console_cell *actual;
+	uint32_t x;
+	uint32_t y;
+	size_t count = stride * rect->height;
+
+	actual = malloc(count * sizeof(*actual));
+	CHECK(actual != NULL);
+	CHECK(st_console_read_cells(console, rect, actual, stride) == 0);
+	CHECK(memcmp(actual, expected, count * sizeof(*actual)) == 0);
+	free(actual);
+	CHECK(st_console_get_position(console, &x, &y) == 0);
+	CHECK(x == expected_x && y == expected_y);
+}
+
+static void
 test_default_cursor_geometry(void)
 {
 	struct st_console_display_config config_display = {
@@ -326,8 +345,57 @@ test_move_and_line_operations(void)
 	CHECK(read_cell(console, 2, 1).codepoint == '-');
 	CHECK(read_cell(console, 5, 1).codepoint == '-');
 	CHECK(st_console_set_position(console, 0, 1) == 0);
-	CHECK(st_console_put_codepoint(console, UINT32_MAX) == 0);
-	CHECK(read_cell(console, 0, 1).codepoint == UINT32_MAX);
+	CHECK(st_console_put_codepoint(console, UINT32_MAX)
+	    == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(read_cell(console, 0, 1).codepoint == ' ');
+	st_console_destroy(console);
+}
+
+static void
+test_invalid_scalar_mutations(void)
+{
+	const struct st_console_rect screen = {0, 0, 4, 2};
+	const struct st_console_rect one = {1, 0, 1, 1};
+	const struct st_console_rect source = {0, 0, 2, 1};
+	struct st_console_cell before[8];
+	const struct st_console_cell invalid = {
+		.codepoint = UINT32_C(0xd800),
+	};
+	st_console_t *console = create_headless(4, 2);
+
+	CHECK(st_console_write_utf8(console, "abcdefgh", 8) == 0);
+	CHECK(st_console_set_position(console, 2, 1) == 0);
+	CHECK(st_console_read_cells(console, &screen, before, 4) == 0);
+	CHECK(st_console_write_cells(console, &one, &invalid, 1)
+	    == IO_ERROR_INVALID_ARGUMENT);
+	check_text_state(console, &screen, before, 4, 2, 1);
+	CHECK(st_console_write_complete_cells(console, &one, &invalid, 1)
+	    == IO_ERROR_INVALID_ARGUMENT);
+	check_text_state(console, &screen, before, 4, 2, 1);
+	CHECK(st_console_fill(console, &one, &invalid)
+	    == IO_ERROR_INVALID_ARGUMENT);
+	check_text_state(console, &screen, before, 4, 2, 1);
+	CHECK(st_console_move_cells_clear(console, &source, 1, 0, &invalid)
+	    == IO_ERROR_INVALID_ARGUMENT);
+	check_text_state(console, &screen, before, 4, 2, 1);
+	CHECK(st_console_put_codepoint(console, UINT32_C(0x110000))
+	    == IO_ERROR_INVALID_ARGUMENT);
+	check_text_state(console, &screen, before, 4, 2, 1);
+	CHECK(st_console_clear_window(console, UINT32_C(0xdfff))
+	    == IO_ERROR_INVALID_ARGUMENT);
+	check_text_state(console, &screen, before, 4, 2, 1);
+	CHECK(st_console_clear_line(console, UINT32_C(0x110000))
+	    == IO_ERROR_INVALID_ARGUMENT);
+	check_text_state(console, &screen, before, 4, 2, 1);
+	CHECK(st_console_scroll(console, 1, UINT32_MAX)
+	    == IO_ERROR_INVALID_ARGUMENT);
+	check_text_state(console, &screen, before, 4, 2, 1);
+	CHECK(st_console_insert_lines(console, 1, UINT32_C(0xd800))
+	    == IO_ERROR_INVALID_ARGUMENT);
+	check_text_state(console, &screen, before, 4, 2, 1);
+	CHECK(st_console_delete_lines(console, 1, UINT32_C(0x110000))
+	    == IO_ERROR_INVALID_ARGUMENT);
+	check_text_state(console, &screen, before, 4, 2, 1);
 	st_console_destroy(console);
 }
 
@@ -1266,6 +1334,7 @@ test_unicode_wide_cells(void)
 	const struct st_console_rect row = {0, 0, 4, 1};
 	const struct st_console_rect single = {1, 0, 1, 1};
 	struct st_console_cell cells[4];
+	struct st_console_cell before[8];
 	struct st_console_cell value = {.codepoint = 'A'};
 	struct st_console_cell wide = {.codepoint = UINT32_C(0x4e00)};
 	st_console_t *console = NULL;
@@ -1291,6 +1360,33 @@ test_unicode_wide_cells(void)
 	    == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_console_fill(console, &single, &wide)
 	    == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_console_read_cells(console,
+	    &(const struct st_console_rect){0, 0, 4, 2}, before, 4) == 0);
+	CHECK(st_console_move_cells_clear(console,
+	    &(const struct st_console_rect){0, 0, 1, 1}, 2, 0, &wide)
+	    == IO_ERROR_INVALID_ARGUMENT);
+	check_text_state(console,
+	    &(const struct st_console_rect){0, 0, 4, 2}, before, 4, 2, 0);
+	CHECK(st_console_clear_window(console, UINT32_C(0x4e00))
+	    == IO_ERROR_INVALID_ARGUMENT);
+	check_text_state(console,
+	    &(const struct st_console_rect){0, 0, 4, 2}, before, 4, 2, 0);
+	CHECK(st_console_clear_line(console, UINT32_C(0x4e00))
+	    == IO_ERROR_INVALID_ARGUMENT);
+	check_text_state(console,
+	    &(const struct st_console_rect){0, 0, 4, 2}, before, 4, 2, 0);
+	CHECK(st_console_scroll(console, 1, UINT32_C(0x4e00))
+	    == IO_ERROR_INVALID_ARGUMENT);
+	check_text_state(console,
+	    &(const struct st_console_rect){0, 0, 4, 2}, before, 4, 2, 0);
+	CHECK(st_console_insert_lines(console, 1, UINT32_C(0x4e00))
+	    == IO_ERROR_INVALID_ARGUMENT);
+	check_text_state(console,
+	    &(const struct st_console_rect){0, 0, 4, 2}, before, 4, 2, 0);
+	CHECK(st_console_delete_lines(console, 1, UINT32_C(0x4e00))
+	    == IO_ERROR_INVALID_ARGUMENT);
+	check_text_state(console,
+	    &(const struct st_console_rect){0, 0, 4, 2}, before, 4, 2, 0);
 	CHECK(st_console_set_position(console, 3, 0) == 0);
 	CHECK(st_console_set_wrap(console, false) == 0);
 	CHECK(st_console_put_codepoint(console, UINT32_C(0x4e00)) == 0);
@@ -1939,11 +2035,12 @@ test_font_registration_preserves_cells(void)
 	uint16_t identifier;
 
 	CHECK(st_console_create(&console, &config_display, &config) == 0);
-	CHECK(st_console_write_cells(console, &first, &cell, 1) == 0);
-	CHECK(read_cell(console, 0, 0).glyph == 0);
+	CHECK(st_console_write_cells(console, &first, &cell, 1)
+	    == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(read_cell(console, 0, 0).codepoint == ' ');
 	identifier = register_static_font(console, &font);
 	CHECK(identifier == 0);
-	CHECK(read_cell(console, 0, 0).glyph == 0);
+	CHECK(read_cell(console, 0, 0).codepoint == ' ');
 	CHECK((read_cell(console, 1, 0).flags
 	    & ST_CONSOLE_CELL_CONTINUATION) == 0);
 	CHECK(st_console_set_position(console, 0, 0) == 0);
@@ -2469,6 +2566,7 @@ main(void)
 	test_cell_and_regions();
 	test_text_window_and_scroll();
 	test_move_and_line_operations();
+	test_invalid_scalar_mutations();
 	test_snapshot_drains();
 	test_snapshot_state();
 	test_event_order();
