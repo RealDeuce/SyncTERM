@@ -323,6 +323,13 @@ check_normalize(void)
 	CHECK(!changed && size == sizeof(composed) - 1
 	    && memcmp(output, composed, size) == 0);
 	free(output);
+	output = NULL;
+	CHECK(st_unicode_text_normalize(&output, &size, composed,
+	    sizeof(composed) - 1, NULL) == 0);
+	CHECK(size == sizeof(composed) - 1
+	    && memcmp(output, composed, size) == 0);
+	free(output);
+	output = NULL;
 	CHECK(st_unicode_text_normalize(&output, &size, "\xc0\x80", 2,
 	    &changed) == IO_ERROR_INVALID_ENCODING);
 	return 0;

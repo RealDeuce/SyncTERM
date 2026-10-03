@@ -86,6 +86,8 @@ main(void)
 	uint16_t glyph_font;
 	uint32_t glyph;
 	uint8_t columns;
+	char glyph_text[4];
+	size_t glyph_text_size;
 
 	CHECK(st_console_create(&console, &config_display, &config) == 0);
 	CHECK(st_console_register_static_font(console, &st_unscii_8_font,
@@ -153,6 +155,15 @@ main(void)
 	CHECK(st_console_font_lookup(console, cp437, UINT32_C(0x263a),
 	    &glyph_font, &glyph, &columns) == 0);
 	CHECK(glyph_font == cp437 && glyph == 1 && columns == 1);
+	CHECK(st_console_font_lookup(console, cp437, '|', &glyph_font, &glyph,
+	    &columns) == 0);
+	CHECK(glyph_font == cp437 && glyph == 0x7c && columns == 1);
+	CHECK(st_console_font_lookup(console, cp437, UINT32_C(0x00a6),
+	    &glyph_font, &glyph, &columns) == 0);
+	CHECK(glyph_font == cp437 && glyph == 0x7c && columns == 1);
+	CHECK(st_console_font_glyph_text(console, cp437, 0x7c, glyph_text,
+	    sizeof(glyph_text), &glyph_text_size) == 0);
+	CHECK(glyph_text_size == 1 && glyph_text[0] == '|');
 	CHECK(st_console_font_lookup(console, cp437, UINT32_C(0x1f642),
 	    &glyph_font, &glyph, &columns) != 0);
 	CHECK(st_console_font_lookup(console, font8, 'A', &glyph_font, &glyph,
@@ -176,14 +187,14 @@ main(void)
 	CHECK(st_console_set_style(console, &style) == 0);
 	CHECK(st_console_put_codepoint(console, UINT32_C(0x20000)) == 0);
 	CHECK(st_console_read_cells(console, &screen, cells, 2) == 0);
-	CHECK(cells[0].codepoint == UINT32_C(0x20000)
+	CHECK(cells[0].glyph == st_unscii_16_font.wide_fallback_glyph
 	    && cells[0].font == font16
-	    && (cells[0].flags & ST_CONSOLE_CELL_FALLBACK_FONT) == 0
+	    && cells[0].glyph_font == font16
 	    && (cells[0].flags & ST_CONSOLE_CELL_CONTINUATION) == 0
 	    && (cells[0].flags & ~ST_CONSOLE_CELL_PUBLIC_FLAGS) == 0);
-	CHECK(cells[1].codepoint == UINT32_C(0x20000)
+	CHECK(cells[1].glyph == st_unscii_16_font.wide_fallback_glyph
 	    && cells[1].font == font16
-	    && (cells[1].flags & ST_CONSOLE_CELL_FALLBACK_FONT) == 0
+	    && cells[1].glyph_font == font16
 	    && (cells[1].flags & ST_CONSOLE_CELL_CONTINUATION) != 0
 	    && (cells[1].flags & ~ST_CONSOLE_CELL_PUBLIC_FLAGS) == 0);
 	st_console_destroy(console);

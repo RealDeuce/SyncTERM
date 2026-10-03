@@ -93,7 +93,7 @@ main(void)
 	CHECK(mode_cursor.start == 14 && mode_cursor.end == 15
 	    && mode_cursor.range == 20 && mode_cursor.blink);
 	CHECK(st_console_read_cells(second, &one, &cell, 1) == 0);
-	CHECK(cell.codepoint == ' ' && cell.foreground == 7
+	CHECK(cell.glyph == ' ' && cell.foreground == 7
 	    && cell.background == 0 && cell.font == 0);
 	CHECK(st_console_set_position(first, 79, 24) == 0);
 	CHECK(st_console_set_custom_cursor(first, &tall_cursor) == 0);

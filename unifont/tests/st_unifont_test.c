@@ -5,6 +5,7 @@
 #include "st_unifont.h"
 
 #include "st_console.h"
+#include "st_presentation_font.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -91,5 +92,54 @@ main(void)
 	CHECK(memcmp(glyph_bitmap(&st_unifont_font, composite_glyph),
 	    armenian_small_et, sizeof(armenian_small_et)) == 0);
 	st_console_destroy(console);
+
+	{
+		static const char toned_thumb[] =
+		    "\xf0\x9f\x91\x8d\xf0\x9f\x8f\xbd";
+		struct st_presentation_font presentation = {0};
+		struct st_console_cell presented[2];
+		const struct st_console_rect row = {0, 0, 2, 1};
+		uint32_t replacement;
+		uint32_t replacement_character;
+		uint16_t owner;
+		uint8_t replacement_columns;
+
+		CHECK(st_presentation_font_create(&presentation,
+		    &st_unifont_font) == 0);
+		CHECK(presentation.font.fallback_glyph
+		    != presentation.font.decode_error_glyph);
+		CHECK(presentation.font.wide_fallback_glyph
+		    >= presentation.font.glyph_count);
+		CHECK(st_console_create(&console, &config_display, &config) == 0);
+		CHECK(st_console_register_static_font(console, &presentation.font,
+		    &composite) == 0 && composite == 0);
+		CHECK(st_console_font_lookup(console, 0, UINT32_C(0xfffd), &owner,
+		    &replacement_character, &replacement_columns) == 0);
+		CHECK(owner == 0 && replacement_columns == 1
+		    && replacement_character != presentation.font.fallback_glyph
+		    && replacement_character != presentation.font.decode_error_glyph);
+		CHECK(st_console_font_lookup_cluster(console, 0, toned_thumb,
+		    sizeof(toned_thumb) - 1, 2, &owner, &replacement) == 0);
+		CHECK(owner == 0
+		    && replacement == presentation.font.wide_fallback_glyph);
+		CHECK(st_console_write_utf8(console, toned_thumb,
+		    sizeof(toned_thumb) - 1) == 0);
+		CHECK(st_console_read_cells(console, &row, presented, 2) == 0);
+		CHECK(presented[0].glyph == replacement
+		    && presented[0].glyph_font == 0
+		    && (presented[0].flags & ST_CONSOLE_CELL_CONTINUATION) == 0);
+		CHECK(presented[1].glyph == replacement
+		    && presented[1].glyph_font == 0
+		    && (presented[1].flags & ST_CONSOLE_CELL_CONTINUATION) != 0);
+		CHECK(st_console_set_position(console, 0, 0) == 0);
+		CHECK(st_console_put_decode_error(console) == 0);
+		CHECK(st_console_read_cells(console, &row, presented, 2) == 0);
+		CHECK(presented[0].glyph == presentation.font.decode_error_glyph
+		    && presented[0].glyph_font == 0
+		    && presented[0].glyph != replacement_character
+		    && presented[0].glyph != presentation.font.fallback_glyph);
+		st_console_destroy(console);
+		st_presentation_font_destroy(&presentation);
+	}
 	return EXIT_SUCCESS;
 }

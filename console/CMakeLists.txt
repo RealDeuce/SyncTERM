@@ -310,6 +310,18 @@ if(NOT TARGET st_unicode_width)
 	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../unicode_width"
 		"${CMAKE_CURRENT_BINARY_DIR}/unicode_width")
 endif()
+if(NOT TARGET st_unicode_normalization)
+	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../unicode_normalization"
+		"${CMAKE_CURRENT_BINARY_DIR}/unicode_normalization")
+endif()
+if(NOT TARGET st_unicode_grapheme)
+	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../unicode_grapheme"
+		"${CMAKE_CURRENT_BINARY_DIR}/unicode_grapheme")
+endif()
+if(NOT TARGET st_unicode_text)
+	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../unicode_text"
+		"${CMAKE_CURRENT_BINARY_DIR}/unicode_text")
+endif()
 if(NOT TARGET st_codepage)
 	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../codepage"
 		"${CMAKE_CURRENT_BINARY_DIR}/codepage")
@@ -369,7 +381,7 @@ target_include_directories(st_console PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
 		${_st_wl_dir})
 target_link_libraries(st_console PUBLIC syncterm_io_error syncterm_threads
 	st_pixels PRIVATE syncterm_array_list syncterm_dynamic_library st_utf8
-	st_time st_unicode_width st_codepage syncterm_string_compat)
+	st_time st_unicode_width st_unicode_text st_codepage syncterm_string_compat)
 if(WIN32)
 	target_link_libraries(st_console PRIVATE st_windows_utf)
 endif()

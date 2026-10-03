@@ -51,9 +51,6 @@ typedef struct st_console_snapshot st_console_snapshot_t;
 #define ST_CONSOLE_CELL_BOLD              (UINT32_C(1) << 17)
 #define ST_CONSOLE_CELL_REVERSE           (UINT32_C(1) << 18)
 #define ST_CONSOLE_CELL_CONTINUATION      (UINT32_C(1) << 19)
-#define ST_CONSOLE_CELL_EXPLICIT_GLYPH    (UINT32_C(1) << 20)
-/* Font zero supplies glyph; font still records the selected registration. */
-#define ST_CONSOLE_CELL_FALLBACK_FONT     (UINT32_C(1) << 21)
 #define ST_CONSOLE_CELL_BRIGHT            (UINT32_C(1) << 22)
 /* Colour was supplied by a legacy attribute and follows VideoFlags. */
 #define ST_CONSOLE_CELL_LEGACY_FOREGROUND (UINT32_C(1) << 23)
@@ -67,8 +64,7 @@ typedef struct st_console_snapshot st_console_snapshot_t;
 	    | ST_CONSOLE_CELL_SAA5050_CONTROL_MASK \
 	    | ST_CONSOLE_CELL_UNDERLINE | ST_CONSOLE_CELL_BOLD \
 	    | ST_CONSOLE_CELL_REVERSE | ST_CONSOLE_CELL_CONTINUATION \
-	    | ST_CONSOLE_CELL_EXPLICIT_GLYPH \
-	    | ST_CONSOLE_CELL_FALLBACK_FONT | ST_CONSOLE_CELL_BRIGHT \
+	    | ST_CONSOLE_CELL_BRIGHT \
 	    | ST_CONSOLE_CELL_LEGACY_FOREGROUND \
 	    | ST_CONSOLE_CELL_LEGACY_BACKGROUND)
 
@@ -88,17 +84,23 @@ typedef struct st_console_snapshot st_console_snapshot_t;
 	    | ST_CONSOLE_VIDEO_LINE_GRAPHICS_EXPAND)
 
 struct st_console_cell {
-	uint32_t codepoint;
 	uint32_t glyph;
 	uint32_t foreground;
 	uint32_t background;
 	uint32_t flags;
 	uint16_t font;
+	uint16_t glyph_font;
 	uint16_t hyperlink;
 };
 
 struct st_console_font_mapping {
 	uint32_t codepoint;
+	uint32_t glyph;
+};
+
+struct st_console_font_cluster_mapping {
+	const char *text;
+	size_t text_size;
 	uint32_t glyph;
 };
 
@@ -149,9 +151,12 @@ struct st_console_font {
 	size_t wide_glyph_stride;
 	const struct st_console_font_mapping *mapping;
 	size_t mapping_count;
+	const struct st_console_font_cluster_mapping *cluster_mapping;
+	size_t cluster_mapping_count;
 	/* Replacement glyphs must belong to the matching bitmap bank. */
 	uint32_t fallback_glyph;
 	uint32_t wide_fallback_glyph;
+	uint32_t decode_error_glyph;
 };
 
 #define ST_CONSOLE_FONT_NO_WIDE_FALLBACK UINT32_C(0)
@@ -536,6 +541,7 @@ int st_console_get_window(st_console_t *console,
 int st_console_set_wrap(st_console_t *console, bool wrap);
 /* Semantic codepoint operations reject values which are not Unicode scalars. */
 int st_console_put_codepoint(st_console_t *console, uint32_t codepoint);
+int st_console_put_decode_error(st_console_t *console);
 int st_console_write_utf8(st_console_t *console, const char *text,
 	size_t length);
 /* Fill codepoints for clear, scroll and line edits must occupy one column. */
@@ -544,7 +550,7 @@ int st_console_clear_line(st_console_t *console, uint32_t codepoint);
 int st_console_move_cells(st_console_t *console,
 	const struct st_console_rect *source, uint32_t destination_x,
 	uint32_t destination_y);
-/* The optional clearing cell must contain a one-column Unicode scalar. */
+/* The optional clearing cell must contain one resolved narrow glyph. */
 int st_console_move_cells_clear(st_console_t *console,
 	const struct st_console_rect *source, uint32_t destination_x,
 	uint32_t destination_y, const struct st_console_cell *fill);
@@ -578,6 +584,11 @@ uint16_t st_console_font_for_flags(
 int st_console_font_lookup(st_console_t *console, uint16_t identifier,
 	uint32_t codepoint, uint16_t *glyph_font, uint32_t *glyph,
 	uint8_t *columns);
+int st_console_font_lookup_cluster(st_console_t *console, uint16_t identifier,
+	const char *text, size_t text_size, uint8_t columns,
+	uint16_t *glyph_font, uint32_t *glyph);
+int st_console_font_glyph_text(st_console_t *console, uint16_t identifier,
+	uint32_t glyph, char *text, size_t text_size, size_t *required);
 int st_console_font_glyph_columns(st_console_t *console,
 	uint16_t identifier, uint32_t glyph, uint8_t *columns);
 

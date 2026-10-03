@@ -45,8 +45,8 @@ main(int argc, char **argv)
 	    "Key:\" spaced \"\r\n"
 	    "[sec]\r\n"
 	    "Key=last\r\n"
-	    "Bad\x80=hidden\r\n"
-	    "[Invalid\x80]\r\n"
+	    "Bad\xc3\xa9=hidden\r\n"
+	    "[Invalid\xc3\xa9]\r\n"
 	    "Leaked=no\r\n";
 	struct ini_write_style style = ini_default_style;
 	ini_document_t *document = NULL;
@@ -74,7 +74,7 @@ main(int argc, char **argv)
 	section = ini_document_find_section(document, "SEC");
 	CHECK(section == ini_document_section_at(document, 1));
 	CHECK(strcmp(ini_section_find(section, "key"), "last") == 0);
-	CHECK(!ini_section_has_key(section, "Bad\x80"));
+	CHECK(!ini_section_has_key(section, "Bad\xc3\xa9"));
 	CHECK(!ini_section_has_key(section, "Leaked"));
 	first = ini_document_section_at(document, 0);
 	CHECK(strcmp(ini_section_find(first, "KEY"), " spaced ") == 0);

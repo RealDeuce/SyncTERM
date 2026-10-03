@@ -107,7 +107,7 @@ main(void)
 	};
 	const struct st_console_rect marker_rect = {7, 4, 1, 1};
 	const struct st_console_cell marker = {
-		.codepoint = 'Z', .foreground = 3, .background = 4,
+		.glyph = 'Z', .foreground = 3, .background = 4,
 	};
 	struct st_console_cell restored = {0};
 	struct st_wren_picker_call call;
@@ -176,9 +176,9 @@ main(void)
 		struct st_console_cell cell;
 
 		CHECK(st_console_read_cells(picker_console, &origin, &cell, 1) == 0);
-		CHECK(cell.codepoint == 'S');
+		CHECK(cell.glyph == 'S');
 		CHECK(st_console_read_cells(console, &origin, &cell, 1) == 0);
-		CHECK(cell.codepoint != 'S');
+		CHECK(cell.glyph != 'S');
 	}
 	/* Both VMs keep their own context even when their console is inactive. */
 	CHECK(st_wren_context_from_vm(host->vm) == &host->menu);
@@ -198,9 +198,9 @@ main(void)
 		struct st_console_cell cell;
 
 		CHECK(st_console_read_cells(picker_console, &origin, &cell, 1) == 0);
-		CHECK(cell.codepoint == 'P');
+		CHECK(cell.glyph == 'P');
 		CHECK(st_console_read_cells(console, &origin, &cell, 1) == 0);
-		CHECK(cell.codepoint != 'P');
+		CHECK(cell.glyph != 'P');
 	}
 	CHECK(st_console_display_activate(display, picker_console) == 0);
 	CHECK(wrenInterpret(host->vm, "menu_context_probe",
@@ -239,7 +239,7 @@ main(void)
 		CHECK(active == console);
 		CHECK(st_console_read_cells(picker_console, &screen, cells, 80) == 0);
 		for (size_t i = 0; i < sizeof(cells) / sizeof(cells[0]); ++i)
-			if (cells[i].codepoint != ' ' && cells[i].codepoint != 0)
+			if (cells[i].glyph != ' ' && cells[i].glyph != 0)
 				drawn = true;
 		CHECK(drawn);
 	}
@@ -254,7 +254,7 @@ main(void)
 	expected = NULL;
 	st_wren_picker_call_dispose(&call);
 	CHECK(st_console_read_cells(console, &marker_rect, &restored, 1) == 0);
-	CHECK(restored.codepoint == marker.codepoint
+	CHECK(restored.glyph == marker.glyph
 	    && restored.foreground == marker.foreground
 	    && restored.background == marker.background);
 	{

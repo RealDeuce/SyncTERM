@@ -19,13 +19,33 @@ if(NOT TARGET st_hex)
 	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../hex"
 		"${CMAKE_CURRENT_BINARY_DIR}/hex")
 endif()
+if(NOT TARGET st_unicode_text)
+	if(NOT TARGET st_utf8)
+		add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../utf8"
+			"${CMAKE_CURRENT_BINARY_DIR}/utf8")
+	endif()
+	if(NOT TARGET st_unicode_width)
+		add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../unicode_width"
+			"${CMAKE_CURRENT_BINARY_DIR}/unicode_width")
+	endif()
+	if(NOT TARGET st_unicode_normalization)
+		add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../unicode_normalization"
+			"${CMAKE_CURRENT_BINARY_DIR}/unicode_normalization")
+	endif()
+	if(NOT TARGET st_unicode_grapheme)
+		add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../unicode_grapheme"
+			"${CMAKE_CURRENT_BINARY_DIR}/unicode_grapheme")
+	endif()
+	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../unicode_text"
+		"${CMAKE_CURRENT_BINARY_DIR}/unicode_text")
+endif()
 
 add_library(syncterm_ini STATIC ini.c)
 target_include_directories(syncterm_ini PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(syncterm_ini
 	PUBLIC syncterm_io_error syncterm_name_value_list syncterm_str_list
 	PRIVATE syncterm_array_list syncterm_file_map st_hex syncterm_string_compat
-		syncterm_string_util syncterm_value_convert)
+		syncterm_string_util syncterm_value_convert st_unicode_text)
 set_target_properties(syncterm_ini PROPERTIES
 	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 

@@ -69,8 +69,8 @@ class WrenConsoleTest {
         "prompt cursor accounts for a wide glyph")
     WrenConsole.drawPrompt_(1, "m", "A\u0301B", "A\u0301".bytes.count)
     position = Screen.window.position
-    check_(position[0] == 13 && position[1] == 1,
-        "prompt cursor follows the rendered fallback-glyph width")
+    check_(position[0] == 12 && position[1] == 1,
+        "prompt cursor follows the NFC grapheme width")
     WrenConsole.drawPrompt_(1, "m", "A\tB", 2)
     position = Screen.window.position
     check_(position[0] == 17 && position[1] == 1,

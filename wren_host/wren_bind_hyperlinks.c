@@ -88,9 +88,11 @@ fn_hyperlinks_add(WrenVM *vm)
 		    "Hyperlinks.add: parameter must be a String or null");
 		return;
 	}
-	uri = wrenGetSlotBytes(vm, 1, &uri_length);
+	if (!st_wren_text_slot(vm, 1, &uri, &uri_length))
+		return;
 	if (wrenGetSlotType(vm, 2) == WREN_TYPE_STRING)
-		parameter = wrenGetSlotBytes(vm, 2, &parameter_length);
+		if (!st_wren_text_slot(vm, 2, &parameter, &parameter_length))
+			return;
 	(void)st_hyperlink_registry_add(
 	    st_wren_host_from_vm(vm)->config.hyperlinks,
 	    uri, (size_t)uri_length, parameter, (size_t)parameter_length,

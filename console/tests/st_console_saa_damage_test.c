@@ -38,9 +38,9 @@ main(void)
 	const struct st_console_rect top = {0, 0, 1, 1};
 	const struct st_console_rect raster = {0, 0, 8, 4};
 	struct st_console_cell cells[2] = {
-		{.codepoint = 1, .foreground = 7,
+		{.glyph = 1, .foreground = 7,
 		 .flags = ST_CONSOLE_CELL_SAA5050 | ST_CONSOLE_CELL_DOUBLE_HEIGHT},
-		{.codepoint = 0, .foreground = 7,
+		{.glyph = 0, .foreground = 7,
 		 .flags = ST_CONSOLE_CELL_SAA5050 | ST_CONSOLE_CELL_TERMINAL_FONT},
 	};
 	st_console_t *console = NULL;
@@ -56,7 +56,7 @@ main(void)
 	CHECK(st_console_write_cells(console, &grid, cells, 1) == 0);
 	CHECK(st_console_present(console) == 0);
 	/* Change the glyph but retain double-height mode in the upper row. */
-	cells[0].codepoint = 0;
+	cells[0].glyph = 0;
 	CHECK(st_console_write_cells(console, &top, cells, 1) == 0);
 	CHECK(st_console_get_pixels(&incremental, console, &raster, false) == 0);
 	CHECK(st_console_get_pixels(&forced, console, &raster, true) == 0);

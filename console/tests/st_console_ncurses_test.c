@@ -91,23 +91,28 @@ child_result(int descriptor, unsigned char result)
 static void
 child_test(int report, bool cp437)
 {
-	static const uint8_t bitmap[] = {0x00, 0xff, 0x81};
+	static const uint8_t bitmap[128] = {0};
 	static const struct st_console_font_mapping mapping[] = {
-		{'?', 0},
-		{'Z', 1},
-		{UINT32_C(0x00e9), 2},
+		{'?', '?'},
+		{'A', 'A'}, {'B', 'B'}, {'C', 'C'}, {'D', 'D'}, {'E', 'E'},
+		{'F', 'F'}, {'G', 'G'}, {'H', 'H'}, {'I', 'I'}, {'J', 'J'},
+		{'K', 'K'}, {'L', 'L'}, {'M', 'M'}, {'N', 'N'}, {'O', 'O'},
+		{'P', 'P'}, {'Q', 'Q'}, {'R', 'R'}, {'S', 'S'}, {'T', 'T'},
+		{'U', 'U'}, {'V', 'V'}, {'W', 'W'}, {'X', 'X'}, {'Y', 'Y'},
+		{'Z', 'Z'},
+		{UINT32_C(0x00e9), 127},
 	};
 	static const struct st_console_font font = {
 		.bitmap = bitmap,
 		.bitmap_size = sizeof(bitmap),
 		.width = 8,
 		.height = 1,
-		.glyph_count = 3,
+		.glyph_count = 128,
 		.row_stride = 1,
 		.glyph_stride = 1,
 		.mapping = mapping,
 		.mapping_count = sizeof(mapping) / sizeof(mapping[0]),
-		.fallback_glyph = 0,
+		.fallback_glyph = '?',
 	};
 	struct st_console_config config = {
 		.columns = 8,
@@ -125,13 +130,13 @@ child_test(int report, bool cp437)
 	struct st_console_event event;
 	const struct st_console_rect cells_rect = {0, 0, 4, 1};
 	struct st_console_cell cells[4] = {
-		{.codepoint = 'A', .foreground = 9, .background = 0},
-		{.codepoint = 'B',
+		{.glyph = 'A', .foreground = 9, .background = 0},
+		{.glyph = 'B',
 		    .foreground = ST_CONSOLE_COLOR_RGB_VALUE(0, 215, 175),
 		    .background = 0},
-		{.codepoint = 'C', .foreground = 7, .background = 0,
+		{.glyph = 'C', .foreground = 7, .background = 0,
 		    .flags = ST_CONSOLE_CELL_BOLD},
-		{.codepoint = UINT32_C(0x00e9), .foreground = 7, .background = 0},
+		{.glyph = 127, .foreground = 7, .background = 0},
 	};
 	struct timespec deadline;
 	uint32_t columns;
@@ -145,7 +150,7 @@ child_test(int report, bool cp437)
 	uint16_t font_identifier;
 
 	if (cp437 && !expect_direct)
-		cells[3].codepoint = 'Z';
+		cells[3].glyph = 'Z';
 
 	status = st_console_display_create(&display, &display_config);
 	if (status == 0)
@@ -209,7 +214,7 @@ child_test(int report, bool cp437)
 		struct st_console_cell marker[7] = {0};
 
 		for (size_t i = 0; i < 7; ++i) {
-			marker[i].codepoint = (uint32_t)text[i];
+			marker[i].glyph = (uint32_t)text[i];
 			marker[i].foreground = 7;
 		}
 		if (st_console_write_cells(console, &rectangle, marker, 7) != 0)

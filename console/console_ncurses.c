@@ -656,34 +656,40 @@ rebuild_colour_maps(st_console_t *console)
 }
 
 static chtype
-ascii_cell(const struct st_console_cell *cell)
+ascii_cell(st_console_t *console, const struct st_console_cell *cell)
 {
 	bool alternate;
-	chtype result = st_console_ascii_character(cell, &alternate);
+	uint32_t codepoint;
+	chtype result = st_console_ascii_character(console, cell, &alternate);
 
+	(void)st_console_cell_codepoint_locked(console, cell, &codepoint);
 	if (alternate)
 		result |= A_ALTCHARSET;
-	else if (cell->codepoint > 0 && cell->codepoint < 0x20)
+	else if (codepoint > 0 && codepoint < 0x20)
 		result |= A_REVERSE;
 	return result;
 }
 
 static int
-write_cell(struct curses_state *state, const struct st_console_cell *cell)
+write_cell(st_console_t *console, struct curses_state *state,
+	const struct st_console_cell *cell)
 {
+	uint32_t codepoint;
+
+	(void)st_console_cell_codepoint_locked(console, cell, &codepoint);
 	if (state->presentation == ST_CONSOLE_TEXT_CP437)
 		return state->api.call_addch(state->window,
-		    (chtype)st_console_cp437_character(cell->codepoint));
+		    (chtype)st_console_cp437_character(codepoint));
 	if (state->presentation == ST_CONSOLE_TEXT_ASCII)
-		return state->api.call_addch(state->window, ascii_cell(cell));
+		return state->api.call_addch(state->window, ascii_cell(console, cell));
 #if ST_CONSOLE_HAVE_CURSES_WIDE
 	if (state->wide) {
 		wchar_t value[2];
 
-		if (cell->codepoint <= (uint32_t)WCHAR_MAX
-		    && !(cell->codepoint >= UINT32_C(0xd800)
-		    && cell->codepoint <= UINT32_C(0xdfff))) {
-			value[0] = (wchar_t)cell->codepoint;
+		if (codepoint <= (uint32_t)WCHAR_MAX
+		    && !(codepoint >= UINT32_C(0xd800)
+		    && codepoint <= UINT32_C(0xdfff))) {
+			value[0] = (wchar_t)codepoint;
 			value[1] = 0;
 			return state->api.call_add_wide(state->window, value, 1);
 		}
@@ -691,7 +697,7 @@ write_cell(struct curses_state *state, const struct st_console_cell *cell)
 #else
 	(void)state;
 #endif
-	return state->api.call_addch(state->window, ascii_cell(cell));
+	return state->api.call_addch(state->window, ascii_cell(console, cell));
 }
 
 static void
@@ -726,22 +732,23 @@ sgr_style(st_console_t *console, struct curses_state *state,
 }
 
 static void
-sgr_character(struct sgr_writer *writer, const struct curses_state *state,
-	const struct st_console_cell *cell)
+sgr_character(struct sgr_writer *writer, st_console_t *console,
+	const struct curses_state *state, const struct st_console_cell *cell)
 {
 	char encoded[4];
 	ptrdiff_t length;
-	uint32_t codepoint = cell->codepoint;
+	uint32_t codepoint;
+
+	(void)st_console_cell_codepoint_locked(console, cell, &codepoint);
 
 	if (state->presentation == ST_CONSOLE_TEXT_CP437) {
-		unsigned char character = st_console_cp437_character(
-		    cell->codepoint);
+		unsigned char character = st_console_cp437_character(codepoint);
 
 		sgr_emit(writer, &character, 1);
 		return;
 	}
 	if (state->presentation == ST_CONSOLE_TEXT_ASCII) {
-		chtype value = ascii_cell(cell);
+		chtype value = ascii_cell(console, cell);
 		unsigned char character = (unsigned char)(value & A_CHARTEXT);
 
 		if ((value & A_ALTCHARSET) != 0)
@@ -810,7 +817,6 @@ sgr_present(st_console_t *console, struct curses_state *state)
 
 	if (initializing) {
 		const struct st_console_cell blank = {
-			.codepoint = ' ',
 			.glyph = ' ',
 			.foreground = 7,
 			.background = 0,
@@ -848,7 +854,7 @@ sgr_present(st_console_t *console, struct curses_state *state)
 				current_style = *cell;
 				style_known = true;
 			}
-			sgr_character(&writer, state, cell);
+			sgr_character(&writer, console, state, cell);
 			output_x = x + 1;
 			output_y = y;
 			if (x + 1 < console->columns
@@ -1124,7 +1130,7 @@ curses_present(st_console_t *console)
 			    state->extended_pairs ? 0 : (NCURSES_PAIRS_T)pair,
 			    state->extended_pairs ? &pair : NULL) == ERR)
 				return IO_ERROR_IO;
-			write_result = write_cell(state, cell);
+			write_result = write_cell(console, state, cell);
 			if (write_result == ERR && !(x + 1 == visible_columns
 			    && y + 1 == visible_rows))
 				return IO_ERROR_IO;

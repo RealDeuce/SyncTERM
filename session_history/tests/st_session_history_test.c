@@ -27,20 +27,20 @@ main(void)
 	bool status;
 
 	for (size_t i = 0; i < 8; ++i)
-		source[i].codepoint = (uint32_t)('A' + i);
+		source[i].glyph = (uint32_t)('A' + i);
 	CHECK(st_session_history_create(&history, 3) == 0);
 	CHECK(st_session_history_publish(history, source, 2, 4,
 	    ST_SCREEN_MODE_C64, true) == 0);
 	CHECK(st_session_history_copy(history, &copy, &width, &lines, &mode,
 	    &status) == 0);
 	CHECK(width == 2 && lines == 3 && mode == ST_SCREEN_MODE_C64 && status);
-	CHECK(copy[0].codepoint == 'C' && copy[5].codepoint == 'H');
+	CHECK(copy[0].glyph == 'C' && copy[5].glyph == 'H');
 	free(copy);
 	CHECK(st_session_history_set_capacity(history, 2) == 0);
 	CHECK(st_session_history_capacity(history) == 2);
 	CHECK(st_session_history_copy(history, &copy, &width, &lines, &mode,
 	    &status) == 0);
-	CHECK(lines == 2 && copy[0].codepoint == 'E');
+	CHECK(lines == 2 && copy[0].glyph == 'E');
 	free(copy);
 	st_session_history_clear(history);
 	CHECK(st_session_history_copy(history, &copy, &width, &lines, &mode,

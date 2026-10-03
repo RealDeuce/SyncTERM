@@ -128,7 +128,7 @@ main(void)
 		fail("malloc", -1);
 	for (size_t i = 0; i < (size_t)COLUMNS * ROWS; ++i) {
 		screen[i] = (struct st_console_cell){
-			.codepoint = (uint32_t)(i & 255U),
+			.glyph = (uint32_t)(i & 255U),
 			.foreground = 15,
 			.background = 0,
 			.font = 1,
@@ -149,7 +149,7 @@ main(void)
 	start = monotonic_ns();
 	for (uint32_t pass = 0; pass < raster_passes; ++pass) {
 		for (size_t i = 0; i < (size_t)COLUMNS * ROWS; ++i)
-			screen[i].codepoint = (uint32_t)((i + pass) & 255U);
+			screen[i].glyph = (uint32_t)((i + pass) & 255U);
 		status = st_console_write_cells(console, &full, screen, COLUMNS);
 		if (status != 0)
 			fail("cell update", status);
@@ -166,7 +166,7 @@ main(void)
 	start = monotonic_ns();
 	for (uint32_t pass = 0; pass < raster_passes; ++pass) {
 		for (size_t i = 0; i < (size_t)COLUMNS * ROWS; ++i)
-			screen[i].codepoint = (uint32_t)((i + pass) & 255U);
+			screen[i].glyph = (uint32_t)((i + pass) & 255U);
 		status = st_console_write_cells(console, &full, screen, COLUMNS);
 		if (status != 0)
 			fail("full raster", status);
@@ -182,7 +182,7 @@ main(void)
 		fail("wide font registration", status);
 	for (size_t i = 0; i < (size_t)COLUMNS * ROWS; i += 2) {
 		screen[i] = (struct st_console_cell){
-			.codepoint = UINT32_C(0x4e00),
+			.glyph = UINT32_C(0x4e00),
 			.foreground = 15,
 			.background = 0,
 			.font = wide_font_identifier,
@@ -196,7 +196,7 @@ main(void)
 		    ? UINT32_C(0x4e00) : UINT32_C(0x4e01);
 
 		for (size_t i = 0; i < (size_t)COLUMNS * ROWS; ++i)
-			screen[i].codepoint = codepoint;
+			screen[i].glyph = codepoint;
 		status = st_console_write_cells(console, &full, screen, COLUMNS);
 		if (status != 0)
 			fail("wide font raster", status);
@@ -208,7 +208,7 @@ main(void)
 
 	for (size_t i = 0; i < (size_t)COLUMNS * ROWS; ++i) {
 		screen[i] = (struct st_console_cell){
-			.codepoint = (uint32_t)(i & 255U),
+			.glyph = (uint32_t)(i & 255U),
 			.foreground = 15,
 			.background = 0,
 			.font = font_identifier,
@@ -220,7 +220,7 @@ main(void)
 	start = monotonic_ns();
 	for (uint32_t pass = 0; pass < scroll_passes; ++pass) {
 		for (uint32_t x = 0; x < COLUMNS; ++x)
-			line[x].codepoint = (pass + x) & 255U;
+			line[x].glyph = (pass + x) & 255U;
 		status = st_console_begin_update(console);
 		if (status == 0)
 			status = st_console_scroll(console, 1, ' ');

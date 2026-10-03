@@ -43,14 +43,17 @@ st_console_cp437_character(uint32_t codepoint)
 }
 
 unsigned char
-st_console_ascii_character(const struct st_console_cell *cell,
-	bool *alternate)
+st_console_ascii_character(st_console_t *console,
+	const struct st_console_cell *cell, bool *alternate)
 {
 	unsigned char character = '?';
 	unsigned char cp437;
+	uint32_t codepoint;
+
+	(void)st_console_cell_codepoint_locked(console, cell, &codepoint);
 
 	*alternate = true;
-	switch (cell->codepoint) {
+	switch (codepoint) {
 	case UINT32_C(0x2191): character = '-'; break;
 	case UINT32_C(0x2193): character = '.'; break;
 	case UINT32_C(0x2500): case UINT32_C(0x2501):
@@ -83,17 +86,17 @@ st_console_ascii_character(const struct st_console_cell *cell,
 	}
 	if (*alternate)
 		return character;
-	if (cell->codepoint >= 0x80
+	if (codepoint >= 0x80
 	    && st_codepage_from_unicode(&cp437, ST_CODEPAGE_CP437,
-	    cell->codepoint)
+	    codepoint)
 	    && cp437_alternate_character(cp437, &character)) {
 		*alternate = true;
 		return character;
 	}
 	*alternate = false;
-	if (cell->codepoint >= 0x20 && cell->codepoint <= 0x7e)
-		return (unsigned char)cell->codepoint;
-	if (cell->codepoint > 0 && cell->codepoint < 0x20)
-		return (unsigned char)(cell->codepoint + 'A' - 1);
+	if (codepoint >= 0x20 && codepoint <= 0x7e)
+		return (unsigned char)codepoint;
+	if (codepoint > 0 && codepoint < 0x20)
+		return (unsigned char)(codepoint + 'A' - 1);
 	return '?';
 }

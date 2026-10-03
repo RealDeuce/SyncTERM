@@ -24,9 +24,9 @@ typedef struct ini_section ini_section_t;
  * Section and key names are nonempty printable US-ASCII, do not begin or end
  * with ASCII whitespace, and compare with ASCII-only case folding. Section
  * names cannot contain '[' or ']'. Key names cannot contain '=' or ':', or
- * begin with ';' or '['. Values are NUL-terminated byte strings with no
- * specified encoding. Returned views and borrowed strings are invalidated by
- * the next document mutation or by freeing the document.
+ * begin with ';' or '['. Values are valid UTF-8 in NFC and cannot contain NUL.
+ * Returned views and borrowed strings are invalidated by the next document
+ * mutation or by freeing the document.
  *
  * Repeated physical sections and keys remain distinct in file order. Name
  * lookup selects the last matching section block and the last matching key in

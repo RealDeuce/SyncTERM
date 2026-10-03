@@ -106,9 +106,9 @@ because an arbitrary callback cannot be probed.  The ordinary terminal path
 selects UTF-8 or CP437 cell output from
 `text_presentation`, obtains the terminal size, decodes keyboard input, and
 uses DoorWay keyboard reporting when the enclosing terminal implements it.
-CP437 output encodes the retained Unicode codepoint through the
-locale-independent codepage table and substitutes `?` when it has no mapping;
-the resolved bitmap glyph index is not a terminal character code.
+Text output reverse-maps each resolved font/glyph pair to its canonical NFC
+cluster. CP437 output then encodes a single-scalar cluster through the
+locale-independent codepage table and substitutes `?` when it has no mapping.
 
 ## Cells and coordinates
 
@@ -116,13 +116,12 @@ Coordinates and dimensions are zero-based `uint32_t` values.  Rectangles have
 nonzero width and height and must fit entirely in the current grid.  Source and
 destination row strides are cell counts expressed as `size_t`.
 
-`struct st_console_cell` is a compact 24-byte value.  `codepoint` retains the
-Unicode scalar, `font` retains the flag-resolved selected registration, and
-`glyph` is its already-resolved bitmap index.  The single
-`ST_CONSOLE_CELL_FALLBACK_FONT` bit records when font zero supplies that glyph;
-this preserves the selected font for a later character change without adding
-another field.  In particular, an SAA5050 control character is stored in the
-masked `flags` field; it replaces none of those values.
+`struct st_console_cell` is a compact 24-byte value. `font` retains the
+flag-resolved selected registration, `glyph_font` identifies the registration
+that owns the drawable, and `glyph` is that font's bitmap index. The cell does
+not retain a codepoint or cluster identifier. In particular, an SAA5050
+control character is stored in the masked `flags` field; it replaces none of
+those values.
 Single-bit attributes also use named masks in `flags`, not byte-sized Boolean
 members or implementation-defined C bit-fields.  No cell contains pointers or
 owns a separate allocation.
@@ -131,24 +130,14 @@ bits 3 and 7 independently of `ST_CONSOLE_CELL_BOLD`.  The two legacy-colour
 provenance flags opt base palette indices into the current video-flag policy;
 explicit palette and RGB writes do not acquire that policy accidentally.
 
-`st_console_write_cells` is the semantic Unicode edge: it resolves each
-codepoint through the supplied font before storing the cell.  A legacy decoder
-first uses `st_console_font_for_flags` to turn its normal/bright/blink font
-selection and the cell attributes into that supplied font identifier.  This
-keeps the source bright and blink bits usable as display attributes and/or
-font selectors, as selected by the decoder, without conflating bright with
-the independent bold style.  `st_console_write_complete_cells` is the
-puttext-style bypass for cells whose font and glyph are already resolved.  It
-validates registered glyphs and wide-cell pairs when a bitmap raster is
-present, then preserves those choices without Unicode lookup.  A text-only
-instance preserves the same complete-cell fields but need not have bitmap
-fonts registered because its backend emits the retained codepoints.
-
-A semantic cell may be written before its requested font identifier is
-registered, as happens for the console's initial blank cells.  The first
-registration of that identifier resolves only those deferred cells.  Reusing
-an occupied identifier during least-recently-used replacement does not rescan
-or dirty existing cells.
+`st_console_write_cells` and `st_console_write_complete_cells` both consume
+already-resolved cells and preserve `font`, `glyph_font`, and `glyph` without a
+Unicode lookup. Semantic text enters through `st_console_put_codepoint` or
+`st_console_write_utf8`; the latter strictly validates UTF-8, normalizes it to
+NFC, segments extended grapheme clusters, and resolves one drawable per
+cluster. A legacy decoder first uses `st_console_font_for_flags` to turn its
+normal/bright/blink selection and the cell attributes into `font`, then uses a
+font lookup to obtain `glyph_font` and `glyph`.
 
 The high bit of a colour selects direct RGB.  Without that tag, values from
 zero through 65,535 are palette indexes.  The same representation is used by
@@ -195,11 +184,14 @@ The bitmap presenter converts contiguous dirty-cell runs to pixel rectangles;
 damage is not accumulated into an instance-level rectangle in the rendering
 path.
 
-Font registrations use internal 16-bit identifiers and contain sorted Unicode
-maps.  There is no implicit codepoint-to-glyph identity map, including for a
-256-glyph font.  Font zero is the Unicode fallback.  Lookup checks the selected
-font's explicit map first and then font zero's explicit map.  If neither maps
-the scalar, font zero supplies a width-matched replacement glyph.  Static
+Font registrations use internal 16-bit identifiers and contain sorted scalar
+maps plus optional NFC single-grapheme maps. There is no implicit
+codepoint-to-glyph identity map, including for a 256-glyph font. Font zero is
+the Unicode fallback. Lookup checks the selected font's explicit maps first
+and then font zero's explicit maps. If neither maps the cluster, font zero
+supplies its narrow or wide `.notdef` glyph. Font zero also owns a distinct
+decode-error glyph, so malformed input is not visually conflated with missing
+font coverage. Static
 registration borrows process-lifetime immutable data without copying it;
 copied registration owns the bitmap and Unicode map until console destruction,
 which also permits a connection decoder to supply a mapping with a downloaded
@@ -209,10 +201,11 @@ succeeds, and reports the local replacement on standard error.  Existing cells
 are not dirtied merely because that local slot was replaced.
 
 An eight-pixel glyph occupies one cell and a sixteen-pixel glyph occupies two.
-Mapped glyph width comes from font data.  Missing-scalar replacement width
-comes from generated Unicode 18 East Asian Width `W`/`F` and
-`Emoji_Presentation` data, never the process locale or `wcwidth()`.  Ambiguous
-and text-default emoji characters remain one column.  The second cell has
+Mapped glyph width comes from font data. Missing-cluster replacement width
+comes from the Unicode 18 grapheme and width data, never the process locale or
+`wcwidth()`. Emoji modifier sequences are one extended grapheme even without a
+ZWJ, so an unsupported sequence produces one wide `.notdef` pair rather than
+one replacement per scalar. The second cell has
 `ST_CONSOLE_CELL_CONTINUATION`, and mutations preserve complete pairs.  With
 wrapping enabled, a wide glyph at the final column wraps before it is written.
 The current tentative no-wrap rule draws nothing and clamps the cursor to the

@@ -63,14 +63,15 @@ slot_string(WrenVM *vm, int slot, const char **result, size_t *length,
 
 	if (wrenGetSlotType(vm, slot) != WREN_TYPE_STRING) {
 		(void)snprintf(message, sizeof(message),
-		    "%s: expected a path String", operation);
+		    "%s: expected a String", operation);
 		st_wren_abort(vm, message);
 		return false;
 	}
-	value = wrenGetSlotBytes(vm, slot, &count);
+	if (!st_wren_text_slot(vm, slot, &value, &count))
+		return false;
 	if (count < 0 || memchr(value, '\0', (size_t)count) != NULL) {
 		(void)snprintf(message, sizeof(message),
-		    "%s: path contains NUL", operation);
+		    "%s: String contains NUL", operation);
 		st_wren_abort(vm, message);
 		return false;
 	}
@@ -804,9 +805,15 @@ static const char *
 picker_initial(WrenVM *vm, int slot)
 {
 	struct st_wren_host *host = st_wren_host_from_vm(vm);
+	const char *value;
+	size_t length;
 
-	if (wrenGetSlotType(vm, slot) == WREN_TYPE_STRING)
-		return wrenGetSlotString(vm, slot);
+	if (wrenGetSlotType(vm, slot) == WREN_TYPE_STRING) {
+		if (!slot_string(vm, slot, &value, &length,
+		    "Host picker initial path"))
+			return NULL;
+		return value;
+	}
 	const char *directory = st_wren_directory_path(vm, slot);
 	if (directory != NULL)
 		return directory;
@@ -829,8 +836,13 @@ host_pick_file(WrenVM *vm, const char *title)
 		return;
 	if (wrenGetSlotType(vm, 2) == WREN_TYPE_NULL)
 		mask = "*";
-	else if (wrenGetSlotType(vm, 2) == WREN_TYPE_STRING)
-		mask = wrenGetSlotString(vm, 2);
+	else if (wrenGetSlotType(vm, 2) == WREN_TYPE_STRING) {
+		size_t mask_length;
+
+		if (!slot_string(vm, 2, &mask, &mask_length,
+		    "Host.pickFile mask"))
+			return;
+	}
 	else {
 		st_wren_abort(vm, "Host.pickFile: mask must be a String or null");
 		return;
@@ -867,11 +879,13 @@ static void fn_host_pick_file(WrenVM *vm)
 static void
 fn_host_pick_file_title(WrenVM *vm)
 {
-	if (wrenGetSlotType(vm, 4) != WREN_TYPE_STRING) {
-		st_wren_abort(vm, "Host.pickFile: title must be a String");
+	const char *title;
+	size_t title_length;
+
+	if (!slot_string(vm, 4, &title, &title_length,
+	    "Host.pickFile title"))
 		return;
-	}
-	host_pick_file(vm, wrenGetSlotString(vm, 4));
+	host_pick_file(vm, title);
 }
 
 static void
@@ -885,8 +899,14 @@ fn_host_pick_files(WrenVM *vm)
 
 	if (initial == NULL)
 		return;
-	mask = wrenGetSlotType(vm, 2) == WREN_TYPE_STRING ?
-	    wrenGetSlotString(vm, 2) : "*";
+	mask = "*";
+	if (wrenGetSlotType(vm, 2) == WREN_TYPE_STRING) {
+		size_t mask_length;
+
+		if (!slot_string(vm, 2, &mask, &mask_length,
+		    "Host.pickFiles mask"))
+			return;
+	}
 	if ((wrenGetSlotType(vm, 2) != WREN_TYPE_STRING
 	    && wrenGetSlotType(vm, 2) != WREN_TYPE_NULL)
 	    || !slot_integer(vm, 3, &options)) {
@@ -936,8 +956,14 @@ host_pick_save(WrenVM *vm, int options)
 
 	if (initial == NULL)
 		return;
-	mask = wrenGetSlotType(vm, 2) == WREN_TYPE_STRING ?
-	    wrenGetSlotString(vm, 2) : "*";
+	mask = "*";
+	if (wrenGetSlotType(vm, 2) == WREN_TYPE_STRING) {
+		size_t mask_length;
+
+		if (!slot_string(vm, 2, &mask, &mask_length,
+		    "Host.pickSavePath mask"))
+			return;
+	}
 	if (wrenGetSlotType(vm, 2) != WREN_TYPE_STRING
 	    && wrenGetSlotType(vm, 2) != WREN_TYPE_NULL) {
 		st_wren_abort(vm, "Host.pickSavePath: invalid mask");

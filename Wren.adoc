@@ -1919,8 +1919,9 @@ The editor stores cursor positions as UTF-8 byte offsets for Wren string
 slicing, but Left, Right, Backspace, Delete, and Ctrl+W move only across
 complete Unicode codepoints.  The displayed cursor column follows the glyph
 width selected by `Screen.textWidth()` and eight-column tab stops.  Editing is
-codepoint-based: grapheme-cluster navigation, Unicode normalization, and
-Unicode word-breaking are not performed.
+codepoint-based: grapheme-cluster navigation and Unicode word-breaking are not
+performed. Display boundaries normalize text to NFC and measure complete
+extended grapheme clusters.
 
 The REPL evaluates input through `REPL.eval(module, src)`.  The
 input is pre-classified by inspecting its leading non-whitespace
@@ -3189,8 +3190,8 @@ character set; only the box-drawing glyph shapes differ.
 
 === Cell [[cell]]
 
-Wraps one `st_console_cell`: its Unicode character, resolved glyph/font,
-colours, source attributes, flags, and hyperlink.  Use cases: read a rectangle through
+Wraps one `st_console_cell`: its resolved drawable glyph/font, colours, source
+attributes, flags, and hyperlink.  Use cases: read a rectangle through
 `Screen.readRect`, build a list manually, then write it back through
 `Screen.writeRect`.
 
@@ -3206,22 +3207,23 @@ what storage that object refers to; it does not copy cell contents.
 | Construct an empty cell.
 
 | `ch`, `ch=(s)`
-| Character as a one-codepoint Unicode string.  Assignment requires exactly
-  one complete codepoint, then resolves its glyph in the selected font and
-  the Unicode fallback fonts.
+| Character as one NFC extended grapheme cluster. Assignment accepts exactly
+  one valid cluster, normalizes it to NFC, then resolves one drawable glyph in
+  the selected font and Unicode fallback font. An unsupported cluster is one
+  missing glyph, including emoji modifier sequences that do not use ZWJ.
 
 | `chByte`, `chByte=(n)`
 | Exact legacy glyph byte interpreted through this cell's selected font
-  codepage.  The setter stores that byte as the explicit glyph and updates
-  `ch` to its Unicode meaning.  The getter returns an existing explicit byte,
+  codepage.  The setter stores that byte as the drawable glyph and updates
+  `ch` to its Unicode meaning.  The getter returns an existing drawable byte,
   or encodes `ch` through the selected font codepage and returns `?` when it
   cannot be represented.
 
 | `font`, `font=(n)`
-| Font catalog selector at the Wren boundary.  The resolved internal font
-  identifier is retained in stored cells.  Assignment preserves the current
-  `chByte`, then updates `ch` and the explicit glyph to that byte's meaning in
-  the new font's codepage.
+| Font catalog selector at the Wren boundary. The selected and actual glyph
+  font identifiers are retained separately in stored cells. Assignment
+  preserves the current `chByte`, then updates `ch` and the drawable glyph to
+  that byte's meaning in the new font's codepage.
 
 | `legacyAttr`, `legacyAttr=(n)`
 | Legacy attribute byte (foreground in low nibble, background in
@@ -3264,8 +3266,8 @@ what storage that object refers to; it does not copy cell contents.
 +
 Returns `false` for non-Cell `other` (no fiber abort) and when either cell has
 the pixel-graphics flag, because the pixel planes are not part of a `Cell`.
-Otherwise it compares the Unicode codepoint, resolved glyph, colours, public
-flags, font, and hyperlink.
+Otherwise it compares the drawable glyph and its owning font, colours, public
+flags, selected font, and hyperlink.
 +
 Note that `Cell` cannot be a `Map` key — Wren's Maps reject any
 foreign object regardless of `==` definitions
@@ -7062,9 +7064,9 @@ pane.fitContentToScreen() // sized to list, constrained, and centered
 
 Single-line text edit field.  Stores the value as a list of
 codepoint strings, so editing indexes codepoints without splitting UTF-8.
-Cursor placement, scrolling, and painting use `Screen.textWidth`; a codepoint
-may therefore occupy zero, one, or two cells.  Full grapheme-cluster editing
-is not currently provided.
+Cursor placement, scrolling, and painting use `Screen.textWidth`, which
+normalizes to NFC and resolves each extended grapheme cluster once. Full
+grapheme-cluster editing is not currently provided.
 
 [source,wren]
 ----

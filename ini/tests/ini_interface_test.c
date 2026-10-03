@@ -72,6 +72,8 @@ document_text(const ini_document_t *document)
 static bool
 test_document_and_parse(void)
 {
+	static const char decomposed[] = "[NFC]\nValue=e\xcc\x81\n";
+	static const char composed[] = "[NFC]\nValue=\xc3\xa9\n";
 	static const char input[] =
 	    " ; root comment\r\n"
 	    "Root = caf\xc3\xa9\r\n"
@@ -86,12 +88,12 @@ test_document_and_parse(void)
 	    "key=second\r\n"
 	    "[alpha]\r\n"
 	    "Key=third\r\n"
-	    "[Bad\x80]\r\n"
+	    "[Bad\xc3\xa9]\r\n"
 	    "Hidden=no\r\n"
 	    "[Unclosed\r\n"
 	    "StillHidden=no\r\n"
 	    "[Beta]\r\n"
-	    "Raw=\x80\xff\r\n"
+	    "Raw=\xc3\xa9\r\n"
 	    "Last=no-newline";
 	ini_document_t *document = NULL;
 	ini_section_t *root;
@@ -136,7 +138,7 @@ test_document_and_parse(void)
 	CHECK(ini_section_at(first, 2) == NULL);
 	CHECK(!ini_section_has_key(second, "Hidden"));
 	CHECK(!ini_section_has_key(second, "StillHidden"));
-	CHECK(strcmp(ini_section_find(beta, "Raw"), "\x80\xff") == 0);
+	CHECK(strcmp(ini_section_find(beta, "Raw"), "\xc3\xa9") == 0);
 	CHECK(strcmp(ini_section_find(beta, "Last"), "no-newline") == 0);
 
 	CHECK(name_value_list_append(&pairs, "old", "value"));
@@ -175,6 +177,17 @@ test_document_and_parse(void)
 	ini_document_free(&document);
 	CHECK(ini_document_parse(&document, NULL, 0) == 0);
 	ini_document_free(&document);
+	CHECK(ini_document_parse(&document, decomposed,
+	    sizeof(decomposed) - 1) == 0);
+	CHECK(strcmp(ini_section_find(ini_document_find_section(document, "NFC"),
+	    "Value"), "\xc3\xa9") == 0);
+	serialized = NULL;
+	serialized_size = 0;
+	CHECK(ini_document_serialize(document, &serialized, &serialized_size) == 0);
+	CHECK(serialized_size == sizeof(composed) - 1
+	    && memcmp(serialized, composed, serialized_size) == 0);
+	free(serialized);
+	ini_document_free(&document);
 	return true;
 }
 
@@ -182,6 +195,7 @@ static bool
 test_result_replacement_and_invalid_input(void)
 {
 	static const unsigned char embedded_nul[] = {'A', '=', '1', 0, '\n'};
+	static const unsigned char malformed_utf8[] = {'A', '=', 0x80, '\n'};
 	ini_document_t *document = NULL;
 	ini_document_t *other = NULL;
 	ini_document_t *original;
@@ -205,6 +219,11 @@ test_result_replacement_and_invalid_input(void)
 	CHECK(document == original);
 	CHECK(strcmp(ini_section_find(ini_document_root(document), "Keep"),
 	    "yes") == 0);
+	fclose(stream);
+	stream = stream_from(malformed_utf8, sizeof(malformed_utf8));
+	CHECK(stream != NULL);
+	CHECK(ini_document_read(&document, stream) == IO_ERROR_INVALID_ENCODING);
+	CHECK(document == original);
 	fclose(stream);
 
 	CHECK(ini_document_create(NULL) == IO_ERROR_INVALID_ARGUMENT);

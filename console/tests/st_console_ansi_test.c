@@ -29,6 +29,27 @@
 static unsigned char terminal_output[65536];
 static size_t terminal_output_size;
 
+static const uint8_t text_font_bitmap[128] = {0};
+static const struct st_console_font_mapping text_font_mapping[] = {
+	{'A', 'A'}, {'B', 'B'}, {'C', 'C'}, {'D', 'D'}, {'E', 'E'},
+	{'F', 'F'}, {'G', 'G'}, {'H', 'H'}, {'I', 'I'}, {'J', 'J'},
+	{'K', 'K'}, {'L', 'L'}, {'M', 'M'}, {'N', 'N'}, {'O', 'O'},
+	{'P', 'P'}, {'Q', 'Q'}, {'R', 'R'}, {'S', 'S'}, {'T', 'T'},
+	{'U', 'U'}, {'V', 'V'}, {'W', 'W'}, {'X', 'X'}, {'Y', 'Y'},
+	{'Z', 'Z'},
+};
+static const struct st_console_font text_font = {
+	.bitmap = text_font_bitmap,
+	.bitmap_size = sizeof(text_font_bitmap),
+	.width = 8,
+	.height = 1,
+	.glyph_count = 128,
+	.row_stride = 1,
+	.glyph_stride = 1,
+	.mapping = text_font_mapping,
+	.mapping_count = sizeof(text_font_mapping) / sizeof(text_font_mapping[0]),
+};
+
 static void
 save_output(const unsigned char *data, size_t size)
 {
@@ -125,6 +146,7 @@ child_test(int descriptor)
 	uint32_t columns;
 	uint32_t rows;
 	uint32_t capabilities;
+	uint16_t font_identifier;
 
 	if (st_console_create(&console, &config_display, &config) != 0
 	    || st_console_size(console, &columns, &rows) != 0
@@ -134,6 +156,11 @@ child_test(int descriptor)
 	    || (capabilities & ST_CONSOLE_CAP_LOCAL_CONTROL_KEYS) == 0) {
 		report(descriptor, 'C');
 		_exit(1);
+	}
+	if (st_console_register_static_font(console, &text_font,
+	    &font_identifier) != 0 || font_identifier != 0) {
+		report(descriptor, 'F');
+		goto failed;
 	}
 	report(descriptor, 'R');
 	if (!next_event(console, &event) || event.type != ST_CONSOLE_EVENT_KEY_CODE
@@ -202,13 +229,13 @@ child_test(int descriptor)
 		struct st_console_cell marker[7] = {0};
 
 		for (size_t i = 0; i < 7; ++i) {
-			marker[i].codepoint = (uint32_t)text[i];
+			marker[i].glyph = (uint32_t)text[i];
 			marker[i].foreground = 7;
 		}
 		if (st_console_write_cells(console, &rectangle, marker, 7) != 0)
 			goto failed;
 		for (size_t i = 0; i < 6; ++i)
-			marker[i].codepoint = (uint32_t)"SHRINK"[i];
+			marker[i].glyph = (uint32_t)"SHRINK"[i];
 		if (st_console_write_cells(console, &top, marker, 6) != 0
 		    || st_console_present(console) != 0)
 			goto failed;

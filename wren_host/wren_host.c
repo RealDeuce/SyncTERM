@@ -17,8 +17,10 @@
 #include "st_screen_mode.h"
 #include "st_settings.h"
 #include "st_theme.h"
+#include "st_unicode_text.h"
 #include "string_compat.h"
 
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -32,6 +34,42 @@ _Static_assert(ST_BUILTIN_FONT_COUNT == 46U,
 	"Wren font selectors reserve 0 through 45 for built-ins");
 
 static int reload_custom_fonts_current(struct st_wren_context *context);
+
+bool
+st_wren_text_slot(WrenVM *vm, int slot, const char **text, int *length)
+{
+	char *normalized;
+	size_t normalized_size;
+	const char *source;
+	bool changed;
+	int source_size;
+	int status;
+
+	if (wrenGetSlotType(vm, slot) != WREN_TYPE_STRING) {
+		st_wren_abort(vm, "expected a String");
+		return false;
+	}
+	source = wrenGetSlotBytes(vm, slot, &source_size);
+	if (source_size < 0) {
+		st_wren_abort(vm, "invalid String size");
+		return false;
+	}
+	status = st_unicode_text_normalize(&normalized, &normalized_size, source,
+	    (size_t)source_size, &changed);
+	if (status != 0 || normalized_size > INT_MAX) {
+		free(normalized);
+		st_wren_abort(vm, status == IO_ERROR_INVALID_ENCODING
+		    ? "String is not valid UTF-8" : "out of memory");
+		return false;
+	}
+	if (changed)
+		wrenSetSlotBytes(vm, slot, normalized, normalized_size);
+	free(normalized);
+	*text = wrenGetSlotBytes(vm, slot, &source_size);
+	if (length != NULL)
+		*length = source_size;
+	return true;
+}
 
 static int
 load_builtin_fonts(struct st_wren_context *context)
@@ -161,12 +199,18 @@ install_mode_state(struct st_wren_context *context,
 	if (status != 0 || !reconfigure)
 		return status;
 	blank = (struct st_console_cell){
-		.codepoint = ' ',
 		.foreground = style.foreground,
 		.background = style.background,
 		.flags = style.flags,
 		.font = style.font,
+		.glyph_font = style.font,
 	};
+	{
+		uint8_t columns;
+
+		(void)st_console_font_lookup(context->console, blank.font, ' ',
+		    &blank.glyph_font, &blank.glyph, &columns);
+	}
 	screen = (struct st_console_rect){0, 0, config.columns, config.rows};
 	return st_console_fill(context->console, &screen, &blank);
 }

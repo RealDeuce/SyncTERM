@@ -165,9 +165,8 @@ slot_path(WrenVM *vm, int slot, const char **result)
 	int size;
 	const char *value;
 
-	if (wrenGetSlotType(vm, slot) != WREN_TYPE_STRING)
+	if (!st_wren_text_slot(vm, slot, &value, &size))
 		return false;
-	value = wrenGetSlotBytes(vm, slot, &size);
 	if (size < 0 || memchr(value, '\0', (size_t)size) != NULL)
 		return false;
 	*result = value;

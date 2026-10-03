@@ -220,6 +220,7 @@ struct st_wren_host {
 struct st_wren_host *st_wren_host_from_vm(WrenVM *vm);
 struct st_wren_context *st_wren_context_from_vm(WrenVM *vm);
 void st_wren_abort(WrenVM *vm, const char *message);
+bool st_wren_text_slot(WrenVM *vm, int slot, const char **text, int *length);
 void st_wren_log_append(WrenVM *vm, int source, const char *text);
 void st_wren_log_error(WrenVM *vm, WrenErrorType type, const char *module,
 	int line, const char *message);

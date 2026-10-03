@@ -14,6 +14,7 @@
 #include "st_console_startup.h"
 #include "st_hyperlink.h"
 #include "io_error.h"
+#include "st_presentation_font.h"
 #include "st_unicode_fonts.h"
 #ifdef ST_HAVE_UNIFONT
 #include "st_unifont.h"
@@ -127,6 +128,7 @@ main(int argc, char **argv)
 	uint16_t default_font;
 	struct st_console_font native_font;
 	const struct st_console_font *application_font;
+	struct st_presentation_font presentation_font = {0};
 	st_wren_host_t *host = NULL;
 	const char *invalid = NULL;
 	bool has_selection = false;
@@ -211,6 +213,15 @@ main(int argc, char **argv)
 #else
 		    : &st_unscii_16_font;
 #endif
+	status = st_presentation_font_create(&presentation_font,
+	    application_font);
+	if (status != 0) {
+		fprintf(stderr,
+		    "SyncTERM: cannot create the presentation font (%d)\n",
+		    status);
+		goto finished;
+	}
+	application_font = &presentation_font.font;
 	status = st_console_register_static_font(console, application_font,
 	    &default_font);
 	if (status != 0) {
@@ -300,6 +311,7 @@ finished:
 	st_console_destroy(picker_console);
 	st_console_destroy(console);
 	st_console_display_destroy(display);
+	st_presentation_font_destroy(&presentation_font);
 	if (settings_loaded)
 		st_settings_shutdown();
 	st_app_paths_dispose(&paths);

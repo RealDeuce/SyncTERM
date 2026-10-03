@@ -500,7 +500,7 @@ console_has_text(st_console_t *console, uint32_t x, uint32_t y,
 	    || st_console_read_cells(console, &area, cells, length) != 0)
 		return false;
 	for (size_t i = 0; i < length; ++i)
-		if (cells[i].codepoint != (unsigned char)text[i])
+		if (cells[i].glyph != (unsigned char)text[i])
 			return false;
 	return true;
 }
@@ -533,7 +533,7 @@ exercise_web_refresh_overlay(st_wren_host_t *public_host,
 	CHECK(st_console_read_cells(console, &area, &after, 1) == 0);
 	CHECK(st_console_get_palette(console, 0, palette_after, 2) == 0);
 	CHECK(st_console_get_cursor(console, &cursor_after, &shape_after) == 0);
-	CHECK(before.codepoint == after.codepoint
+	CHECK(before.glyph == after.glyph
 	    && before.foreground == after.foreground
 	    && before.background == after.background
 	    && before.flags == after.flags && before.font == after.font
@@ -1379,6 +1379,9 @@ exercise_core_value_contracts(st_wren_host_t *public_host,
 	    "if (left.eqContent(null) || left.eqContent(1) || left.eqContent(\"cell\") || left.eqContent(Surface.new(1, 1))) Fiber.abort(\"non-Cell equality\")\n"
 	    "right.ch = \"A\"\n"
 	    "if (left.eqContent(right)) Fiber.abort(\"unequal cells\")\n"
+	    "right.ch = \"e\\u0301\"\n"
+	    "if (right.ch != \"\\u00e9\") Fiber.abort(\"Cell.ch NFC\")\n"
+	    "right.ch = \"A\"\n"
 	    "var trailing = Fiber.new { right.ch = \"AB\" }\n"
 	    "trailing.try()\n"
 	    "if (trailing.error == null || right.ch != \"A\") Fiber.abort(\"one-codepoint character\")\n"
@@ -2026,16 +2029,16 @@ exercise_mouse_drag_selection(struct st_wren_host *host,
 	const uint32_t selection_blue = UINT32_C(0x0000a8);
 	const struct st_console_rect area = {1, 1, 3, 2};
 	struct st_console_cell cells[6] = {
-		{.codepoint = 'A',
+		{.glyph = 'A',
 		    .foreground = ST_CONSOLE_COLOR_RGB_VALUE(255, 255, 255),
 		    .background = 500},
-		{.codepoint = UINT32_C(0x03a9),
+		{.glyph = 127,
 		    .foreground = ST_CONSOLE_COLOR_RGB_VALUE(0, 0, 168)},
-		{.codepoint = ' ', .foreground = 7, .background = 1},
-		{.codepoint = 'B', .foreground = 7},
-		{.codepoint = 'C', .foreground = 0, .background = 7,
+		{.glyph = ' ', .foreground = 7, .background = 1},
+		{.glyph = 'B', .foreground = 7},
+		{.glyph = 'C', .foreground = 0, .background = 7,
 		    .flags = ST_CONSOLE_CELL_REVERSE},
-		{.codepoint = 'D', .foreground = 1},
+		{.glyph = 'D', .foreground = 1},
 	};
 	struct st_console_cell before[6];
 	struct st_console_cell after[6];
@@ -2109,8 +2112,8 @@ exercise_mouse_drag_selection(struct st_wren_host *host,
 	CHECK(observer.highlighted[5].foreground == 1);
 	CHECK(st_console_read_cells(console, &area, after, 3) == 0);
 	for (size_t index = 0; index < 6; ++index) {
-		CHECK(before[index].codepoint == after[index].codepoint);
 		CHECK(before[index].glyph == after[index].glyph);
+		CHECK(before[index].glyph_font == after[index].glyph_font);
 		CHECK(before[index].foreground == after[index].foreground);
 		CHECK(before[index].background == after[index].background);
 		CHECK((before[index].flags & ST_CONSOLE_CELL_PUBLIC_FLAGS)
@@ -2489,19 +2492,43 @@ exercise_safe_mode_persistence_contract(st_wren_host_t *public_host,
 int
 main(void)
 {
-	static const uint8_t default_bitmap[32] = {0};
+	static const uint8_t default_bitmap[128 * 16] = {0};
 	static const uint8_t default_wide_bitmap[32] = {0};
 	static const struct st_console_font_mapping default_mapping[] = {
-		{'?', 0},
-		{'A', 1},
-		{UINT32_C(0x4e00), 2},
+		{0x20, 0x20}, {0x21, 0x21}, {0x22, 0x22}, {0x23, 0x23},
+		{0x24, 0x24}, {0x25, 0x25}, {0x26, 0x26}, {0x27, 0x27},
+		{0x28, 0x28}, {0x29, 0x29}, {0x2a, 0x2a}, {0x2b, 0x2b},
+		{0x2c, 0x2c}, {0x2d, 0x2d}, {0x2e, 0x2e}, {0x2f, 0x2f},
+		{0x30, 0x30}, {0x31, 0x31}, {0x32, 0x32}, {0x33, 0x33},
+		{0x34, 0x34}, {0x35, 0x35}, {0x36, 0x36}, {0x37, 0x37},
+		{0x38, 0x38}, {0x39, 0x39}, {0x3a, 0x3a}, {0x3b, 0x3b},
+		{0x3c, 0x3c}, {0x3d, 0x3d}, {0x3e, 0x3e}, {0x3f, 0x3f},
+		{0x40, 0x40}, {0x41, 0x41}, {0x42, 0x42}, {0x43, 0x43},
+		{0x44, 0x44}, {0x45, 0x45}, {0x46, 0x46}, {0x47, 0x47},
+		{0x48, 0x48}, {0x49, 0x49}, {0x4a, 0x4a}, {0x4b, 0x4b},
+		{0x4c, 0x4c}, {0x4d, 0x4d}, {0x4e, 0x4e}, {0x4f, 0x4f},
+		{0x50, 0x50}, {0x51, 0x51}, {0x52, 0x52}, {0x53, 0x53},
+		{0x54, 0x54}, {0x55, 0x55}, {0x56, 0x56}, {0x57, 0x57},
+		{0x58, 0x58}, {0x59, 0x59}, {0x5a, 0x5a}, {0x5b, 0x5b},
+		{0x5c, 0x5c}, {0x5d, 0x5d}, {0x5e, 0x5e}, {0x5f, 0x5f},
+		{0x60, 0x60}, {0x61, 0x61}, {0x62, 0x62}, {0x63, 0x63},
+		{0x64, 0x64}, {0x65, 0x65}, {0x66, 0x66}, {0x67, 0x67},
+		{0x68, 0x68}, {0x69, 0x69}, {0x6a, 0x6a}, {0x6b, 0x6b},
+		{0x6c, 0x6c}, {0x6d, 0x6d}, {0x6e, 0x6e}, {0x6f, 0x6f},
+		{0x70, 0x70}, {0x71, 0x71}, {0x72, 0x72}, {0x73, 0x73},
+		{0x74, 0x74}, {0x75, 0x75}, {0x76, 0x76}, {0x77, 0x77},
+		{0x78, 0x78}, {0x79, 0x79}, {0x7a, 0x7a}, {0x7b, 0x7b},
+		{0x7c, 0x7c}, {0x7d, 0x7d}, {0x7e, 0x7e},
+		{UINT32_C(0x00e9), 31},
+		{UINT32_C(0x03a9), 127},
+		{UINT32_C(0x4e00), 128},
 	};
 	static const struct st_console_font default_font = {
 		.bitmap = default_bitmap,
 		.bitmap_size = sizeof(default_bitmap),
 		.width = 8,
 		.height = 16,
-		.glyph_count = 2,
+		.glyph_count = 128,
 		.row_stride = 1,
 		.glyph_stride = 16,
 		.wide_bitmap = default_wide_bitmap,
@@ -2511,6 +2538,7 @@ main(void)
 		.wide_glyph_stride = 32,
 		.mapping = default_mapping,
 		.mapping_count = sizeof(default_mapping) / sizeof(default_mapping[0]),
+		.fallback_glyph = 63,
 	};
 	char personal[sizeof(ST_WREN_TEST_DIRECTORY) + 32];
 	char shared[sizeof(ST_WREN_TEST_DIRECTORY) + 32];
@@ -2634,8 +2662,8 @@ main(void)
 	    &default_identifier) == 0);
 	CHECK(default_identifier == 0);
 	struct st_console_cell history_cells[4] = {
-		{.codepoint = 'A'}, {.codepoint = 'B'},
-		{.codepoint = 'C'}, {.codepoint = 'D'},
+		{.glyph = 'A'}, {.glyph = 'B'},
+		{.glyph = 'C'}, {.glyph = 'D'},
 	};
 	CHECK(st_session_history_create(&session_history, 4) == 0);
 	CHECK(st_hyperlink_registry_create(&hyperlinks) == 0);
@@ -2779,7 +2807,7 @@ main(void)
 	    "  var size = Screen.size\n"
 	    "  var cells = Screen.readRect(1, 1, size[0], size[1])\n"
 	    "  var text = cells.map {|c| c.ch }.join()\n"
-	    "  observed = text.contains(\"42\") && text.contains(\"pwd\")\n"
+	    "  observed = text.contains(\"pwd\")\n"
 	    "})\n") == WREN_RESULT_SUCCESS);
 	CHECK(st_console_post_event(console, &wren_console_key) == 0);
 	CHECK(queue_text(console, "pwd") == 0);

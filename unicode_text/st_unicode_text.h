@@ -60,8 +60,8 @@ int st_unicode_text_consume(st_unicode_text_t *text);
 
 /*
  * Strict finite-text convenience operation.  On success result is allocated,
- * NUL-terminated NFC and result_size excludes the terminator.  Outputs are
- * unchanged when the input is malformed or an allocation fails.
+ * NUL-terminated NFC and result_size excludes the terminator.  changed may be
+ * NULL. Outputs are unchanged when the input is malformed or allocation fails.
  */
 int st_unicode_text_normalize(char **result, size_t *result_size,
 	const void *bytes, size_t size, bool *changed);

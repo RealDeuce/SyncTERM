@@ -748,7 +748,7 @@ st_unicode_text_normalize(char **result, size_t *result_size,
 	size_t consumed;
 	int status;
 
-	if (result == NULL || result_size == NULL || changed == NULL
+	if (result == NULL || result_size == NULL
 	    || (bytes == NULL && size != 0))
 		return IO_ERROR_INVALID_ARGUMENT;
 	status = st_unicode_text_create(&text, ST_UNICODE_TEXT_NORMALIZE);
@@ -779,7 +779,8 @@ st_unicode_text_normalize(char **result, size_t *result_size,
 		normalized[offset] = '\0';
 		*result = normalized;
 		*result_size = offset;
-		*changed = (text->state & ST_UNICODE_TEXT_CHANGED) != 0;
+		if (changed != NULL)
+			*changed = (text->state & ST_UNICODE_TEXT_CHANGED) != 0;
 	}
 	st_unicode_text_destroy(&text);
 	return status;

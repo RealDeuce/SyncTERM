@@ -310,11 +310,14 @@ emit_style(struct ansi_writer *writer, const st_console_t *console,
 }
 
 static void
-emit_character(struct ansi_writer *writer, const struct st_console_cell *cell)
+emit_character(struct ansi_writer *writer, st_console_t *console,
+	const struct st_console_cell *cell)
 {
+	uint32_t codepoint;
+
+	(void)st_console_cell_codepoint_locked(console, cell, &codepoint);
 	if (writer->state->presentation == ST_CONSOLE_TEXT_CP437) {
-		unsigned char character = st_console_cp437_character(
-		    cell->codepoint);
+		unsigned char character = st_console_cp437_character(codepoint);
 
 		if (writer->state->doorway_enabled && character < 0x20)
 			emit(writer, "\0", 1);
@@ -322,7 +325,8 @@ emit_character(struct ansi_writer *writer, const struct st_console_cell *cell)
 	}
 	else if (writer->state->presentation == ST_CONSOLE_TEXT_ASCII) {
 		bool alternate;
-		unsigned char character = st_console_ascii_character(cell, &alternate);
+		unsigned char character = st_console_ascii_character(console, cell,
+		    &alternate);
 
 		if (alternate)
 			emit(writer, "\016", 1);
@@ -331,19 +335,29 @@ emit_character(struct ansi_writer *writer, const struct st_console_cell *cell)
 			emit(writer, "\017", 1);
 	}
 	else {
-		char encoded[4];
-		uint32_t codepoint = cell->codepoint;
-		ptrdiff_t length;
+		char local[32];
+		char *encoded = local;
+		size_t length;
 
-		if (!st_unicode_scalar_valid(codepoint))
-			codepoint = UINT32_C(0xfffd);
 		if (writer->state->doorway_enabled && codepoint < 0x20)
 			emit(writer, "\0", 1);
-		length = st_utf8_encode_one(encoded, sizeof(encoded), codepoint);
-		if (length < 0)
-			writer->result = (int)length;
-		else
-			emit(writer, encoded, (size_t)length);
+		if (!st_console_font_glyph_text_locked(console, cell->glyph_font,
+		    cell->glyph, local, sizeof(local), &length))
+			length = (size_t)st_utf8_encode_one(local, sizeof(local),
+			    UINT32_C(0xfffd));
+		else if (length > sizeof(local)) {
+			encoded = malloc(length);
+			if (encoded == NULL || !st_console_font_glyph_text_locked(console,
+			    cell->glyph_font, cell->glyph, encoded, length, &length)) {
+				free(encoded);
+				encoded = local;
+				length = (size_t)st_utf8_encode_one(local,
+				    sizeof(local), UINT32_C(0xfffd));
+			}
+		}
+		emit(writer, encoded, length);
+		if (encoded != local)
+			free(encoded);
 	}
 }
 
@@ -365,7 +379,7 @@ prepare_initial_screen(struct ansi_writer *writer, st_console_t *console,
 	struct ansi_state *state)
 {
 	const struct st_console_cell blank = {
-		.codepoint = ' ', .glyph = ' ', .foreground = 7, .background = 0,
+		.glyph = ' ', .foreground = 7, .background = 0,
 	};
 	static const char clear_and_hide[] = "\033[2J\033[H\033[?25l";
 
@@ -477,7 +491,7 @@ ansi_present(st_console_t *console)
 				current_style = *cell;
 				style_known = true;
 			}
-			emit_character(&writer, cell);
+			emit_character(&writer, console, cell);
 			output_x = x + 1;
 			output_y = y;
 			if (x + 1 < console->columns

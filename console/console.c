@@ -8,6 +8,7 @@
 #include "console_config.h"
 #include "io_error.h"
 #include "st_time.h"
+#include "st_unicode_text.h"
 #include "st_utf8.h"
 #include "st_unicode_width.h"
 #include "string_compat.h"
@@ -24,13 +25,13 @@ static void free_retired_consoles(st_console_display_t *display);
 
 _Static_assert(sizeof(struct st_console_cell) == 24,
 	"st_console_cell must remain compact");
-_Static_assert(offsetof(struct st_console_cell, codepoint) == 0
-	&& offsetof(struct st_console_cell, glyph) == 4
-	&& offsetof(struct st_console_cell, foreground) == 8
-	&& offsetof(struct st_console_cell, background) == 12
-	&& offsetof(struct st_console_cell, flags) == 16
-	&& offsetof(struct st_console_cell, font) == 20
-	&& offsetof(struct st_console_cell, hyperlink) == 22,
+_Static_assert(offsetof(struct st_console_cell, glyph) == 0
+	&& offsetof(struct st_console_cell, foreground) == 4
+	&& offsetof(struct st_console_cell, background) == 8
+	&& offsetof(struct st_console_cell, flags) == 12
+	&& offsetof(struct st_console_cell, font) == 16
+	&& offsetof(struct st_console_cell, glyph_font) == 18
+	&& offsetof(struct st_console_cell, hyperlink) == 20,
 	"st_console_cell layout must remain stable");
 
 static bool
@@ -127,12 +128,12 @@ initialize_cells(st_console_t *console, struct st_console_cell *cells,
 	size_t count)
 {
 	struct st_console_cell blank = {
-		.codepoint = ' ',
 		.glyph = ' ',
 		.foreground = 7,
 		.background = 0,
 		.flags = ST_CONSOLE_CELL_DIRTY,
 		.font = 0,
+		.glyph_font = 0,
 		.hyperlink = 0,
 	};
 	size_t i;
@@ -1181,12 +1182,12 @@ static bool
 cells_equal(const struct st_console_cell *left,
 	const struct st_console_cell *right)
 {
-	return left->codepoint == right->codepoint
-	    && left->glyph == right->glyph
+	return left->glyph == right->glyph
 	    && left->foreground == right->foreground
 	    && left->background == right->background
 	    && ((left->flags ^ right->flags) & ST_CONSOLE_CELL_PUBLIC_FLAGS) == 0
 	    && left->font == right->font
+	    && left->glyph_font == right->glyph_font
 	    && left->hyperlink == right->hyperlink;
 }
 
@@ -1219,38 +1220,13 @@ cell_is_wide_locked(st_console_t *console, const struct st_console_cell *cell)
 	    && width == font->width * 2;
 }
 
-static bool
-semantic_cell_is_wide_locked(st_console_t *console,
-	const struct st_console_cell *cell)
-{
-	const uint8_t *bitmap;
-	uint16_t glyph_font = st_console_cell_glyph_font(cell);
-	const struct st_console_font *font = st_console_font_locked(console,
-	    glyph_font);
-	uint32_t width;
-	size_t row_stride;
-
-	if (font != NULL && st_console_font_glyph_locked(console,
-	    glyph_font, cell->glyph, &bitmap, &width, &row_stride))
-		return width == font->width * 2;
-	return st_unicode_columns(cell->codepoint) == 2;
-}
-
 static struct st_console_cell
 prepare_cell_locked(st_console_t *console, const struct st_console_cell *source)
 {
 	struct st_console_cell value = *source;
-	uint16_t glyph_font = value.font;
-	uint8_t columns;
 
+	(void)console;
 	value.flags &= ST_CONSOLE_CELL_PUBLIC_FLAGS;
-	if ((value.flags & ST_CONSOLE_CELL_EXPLICIT_GLYPH) == 0) {
-		value.flags &= ~ST_CONSOLE_CELL_FALLBACK_FONT;
-		(void)st_console_font_lookup_locked(console, value.font,
-		    value.codepoint, &glyph_font, &value.glyph, &columns);
-		if (glyph_font != value.font)
-			value.flags |= ST_CONSOLE_CELL_FALLBACK_FONT;
-	}
 	return value;
 }
 
@@ -1258,14 +1234,15 @@ static bool
 pair_matches(const struct st_console_cell *leading,
 	const struct st_console_cell *continuation)
 {
-	return leading->codepoint == continuation->codepoint
-	    && leading->glyph == continuation->glyph
+	return leading->glyph == continuation->glyph
 	    && leading->font == continuation->font
-	    && ((leading->flags ^ continuation->flags)
-	    & ST_CONSOLE_CELL_FALLBACK_FONT) == 0
+	    && leading->glyph_font == continuation->glyph_font
 	    && (leading->flags & ST_CONSOLE_CELL_CONTINUATION) == 0
 	    && (continuation->flags & ST_CONSOLE_CELL_CONTINUATION) != 0;
 }
+
+static bool complete_cell_valid_locked(st_console_t *console,
+	const struct st_console_cell *cell);
 
 void
 st_console_cursor_span_locked(const st_console_t *console,
@@ -1300,21 +1277,21 @@ row_cells_valid_locked(st_console_t *console,
 	for (uint32_t x = 0; x < width; ++x) {
 		struct st_console_cell value;
 
-		if (!st_unicode_scalar_valid(cells[x].codepoint))
-			return false;
 		value = prepare_cell_locked(console, &cells[x]);
+		if (!complete_cell_valid_locked(console, &value))
+			return false;
 
 		if (have_previous
 		    && (value.flags & ST_CONSOLE_CELL_CONTINUATION) == 0)
 			return false;
 		if ((value.flags & ST_CONSOLE_CELL_CONTINUATION) != 0) {
 			if (!have_previous || !pair_matches(&previous, &value)
-			    || !semantic_cell_is_wide_locked(console, &previous))
+			    || !cell_is_wide_locked(console, &previous))
 				return false;
 			have_previous = false;
 			continue;
 		}
-		if (semantic_cell_is_wide_locked(console, &value)) {
+		if (cell_is_wide_locked(console, &value)) {
 			if (x + 1 >= width)
 				return false;
 			previous = value;
@@ -1334,8 +1311,6 @@ complete_cell_valid_locked(st_console_t *console,
 	uint32_t width;
 	size_t row_stride;
 
-	if (!st_unicode_scalar_valid(cell->codepoint))
-		return false;
 	return console->pixels == NULL
 	    || st_console_font_glyph_locked(console,
 	    st_console_cell_glyph_font(cell), cell->glyph,
@@ -1380,17 +1355,12 @@ complete_row_valid_locked(st_console_t *console,
 static void
 make_clipped_blank_locked(st_console_t *console, struct st_console_cell *cell)
 {
-	uint16_t glyph_font = cell->font;
 	uint8_t columns;
 
-	cell->codepoint = ' ';
 	cell->flags &= ~(ST_CONSOLE_CELL_CONTINUATION
-	    | ST_CONSOLE_CELL_EXPLICIT_GLYPH | ST_CONSOLE_CELL_FALLBACK_FONT
 	    | ST_CONSOLE_CELL_PIXEL_GRAPHICS);
 	(void)st_console_font_lookup_locked(console, cell->font, ' ',
-	    &glyph_font, &cell->glyph, &columns);
-	if (glyph_font != cell->font)
-		cell->flags |= ST_CONSOLE_CELL_FALLBACK_FONT;
+	    &cell->glyph_font, &cell->glyph, &columns);
 }
 
 static void
@@ -1929,7 +1899,6 @@ st_console_write_complete_cells(st_console_t *console,
 			struct st_console_cell value = cells[(size_t)y * stride + x];
 
 			value.flags &= ST_CONSOLE_CELL_PUBLIC_FLAGS;
-			value.flags |= ST_CONSOLE_CELL_EXPLICIT_GLYPH;
 			set_cell_raw_locked(console, first + x, &value);
 		}
 	}
@@ -1991,8 +1960,7 @@ st_console_fill(st_console_t *console,
 	uint32_t y;
 	int result;
 
-	if (console == NULL || destination == NULL || cell == NULL
-	    || !st_unicode_scalar_valid(cell->codepoint))
+	if (console == NULL || destination == NULL || cell == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	result = st_rwlock_write_lock(&console->state_lock);
 	if (result != ST_THREAD_SUCCESS)
@@ -2005,7 +1973,8 @@ st_console_fill(st_console_t *console,
 		struct st_console_cell value = prepare_cell_locked(console, cell);
 
 		if ((value.flags & ST_CONSOLE_CELL_CONTINUATION) != 0
-		    || semantic_cell_is_wide_locked(console, &value)) {
+		    || cell_is_wide_locked(console, &value)
+		    || !complete_cell_valid_locked(console, &value)) {
 			(void)st_rwlock_unlock(&console->state_lock);
 			return IO_ERROR_INVALID_ARGUMENT;
 		}
@@ -2177,6 +2146,41 @@ font_bank_valid(const uint8_t *bitmap, size_t bitmap_size, uint32_t width,
 }
 
 static bool
+font_cluster_valid(const char *text, size_t text_size)
+{
+	st_unicode_text_t *graphemes = NULL;
+	struct st_unicode_text_item item;
+	char *normalized = NULL;
+	size_t normalized_size = 0;
+	size_t consumed;
+	size_t count = 0;
+	bool changed;
+	bool valid = false;
+
+	if (text == NULL || text_size == 0
+	    || st_unicode_text_normalize(&normalized, &normalized_size,
+	    text, text_size, &changed) != 0 || changed
+	    || normalized_size != text_size
+	    || memcmp(normalized, text, text_size) != 0)
+		goto finished;
+	if (st_unicode_text_create(&graphemes, ST_UNICODE_TEXT_GRAPHEMES) != 0
+	    || st_unicode_text_feed(graphemes, text, text_size, &consumed) != 0
+	    || consumed != text_size || st_unicode_text_finish(graphemes) != 0)
+		goto finished;
+	while (st_unicode_text_peek(graphemes, &item) == 0) {
+		if (item.kind != ST_UNICODE_TEXT_ITEM_TEXT)
+			goto finished;
+		++count;
+		(void)st_unicode_text_consume(graphemes);
+	}
+	valid = count == 1;
+finished:
+	free(normalized);
+	st_unicode_text_destroy(&graphemes);
+	return valid;
+}
+
+static bool
 font_valid(const struct st_console_font *font)
 {
 	uint64_t total;
@@ -2194,6 +2198,7 @@ font_valid(const struct st_console_font *font)
 		return false;
 	total = (uint64_t)font->glyph_count + font->wide_glyph_count;
 	if (total > UINT32_MAX || font->fallback_glyph >= font->glyph_count
+	    || font->decode_error_glyph >= font->glyph_count
 	    || (font->wide_fallback_glyph != ST_CONSOLE_FONT_NO_WIDE_FALLBACK
 	    && (font->wide_fallback_glyph < font->glyph_count
 	    || font->wide_fallback_glyph >= total)))
@@ -2207,6 +2212,14 @@ font_valid(const struct st_console_font *font)
 		    && font->mapping[i].codepoint <= UINT32_C(0xdfff))
 		    || (i != 0 && font->mapping[i - 1].codepoint
 		    >= font->mapping[i].codepoint))
+			return false;
+	}
+	if (font->cluster_mapping_count != 0 && font->cluster_mapping == NULL)
+		return false;
+	for (size_t i = 0; i < font->cluster_mapping_count; ++i) {
+		if (font->cluster_mapping[i].glyph >= total
+		    || !font_cluster_valid(font->cluster_mapping[i].text,
+		    font->cluster_mapping[i].text_size))
 			return false;
 	}
 	return true;
@@ -2287,17 +2300,44 @@ font_lookup_exact(const struct st_console_font *font, uint32_t codepoint,
 	return true;
 }
 
+static bool
+font_lookup_cluster_exact(const struct st_console_font *font,
+	const char *text, size_t text_size, uint32_t *glyph)
+{
+	for (size_t i = 0; i < font->cluster_mapping_count; ++i) {
+		const struct st_console_font_cluster_mapping *mapping
+		    = &font->cluster_mapping[i];
+
+		if (mapping->text_size == text_size
+		    && memcmp(mapping->text, text, text_size) == 0) {
+			*glyph = mapping->glyph;
+			return true;
+		}
+	}
+	return false;
+}
+
 bool
-st_console_font_lookup_locked(st_console_t *console, uint16_t identifier,
-	uint32_t codepoint, uint16_t *glyph_font, uint32_t *glyph,
-	uint8_t *columns)
+st_console_font_lookup_cluster_locked(st_console_t *console,
+	uint16_t identifier, const char *text, size_t text_size, uint8_t columns,
+	uint16_t *glyph_font, uint32_t *glyph)
 {
 	const struct st_console_font *selected = st_console_font_locked(console,
 	    identifier);
 	const struct st_console_font *font = selected;
 	uint16_t fallback_identifier = identifier;
+	uint32_t codepoint;
+	size_t consumed;
+	bool scalar = st_utf8_decode_one(&codepoint, &consumed, text,
+	    text_size) == 0 && consumed == text_size;
+	uint8_t ignored_columns;
 
-	if (font != NULL && font_lookup_exact(font, codepoint, glyph, columns)) {
+#define LOOKUP_EXACT(candidate) \
+	((scalar && font_lookup_exact((candidate), codepoint, glyph, \
+	    &ignored_columns)) || font_lookup_cluster_exact((candidate), text, \
+	    text_size, glyph))
+
+	if (font != NULL && LOOKUP_EXACT(font)) {
 		*glyph_font = identifier;
 		return true;
 	}
@@ -2313,23 +2353,112 @@ st_console_font_lookup_locked(st_console_t *console, uint16_t identifier,
 		fallback_identifier = 0;
 	if (font == NULL)
 		return false;
-	if (fallback_identifier == 0
-	    && font_lookup_exact(font, codepoint, glyph, columns)) {
+	if (fallback_identifier == 0 && LOOKUP_EXACT(font)) {
 		*glyph_font = 0;
 		return true;
 	}
-	*columns = st_unicode_columns(codepoint);
-	if (*columns == 2) {
+	if (columns == 2) {
 		if (font->wide_fallback_glyph
 		    == ST_CONSOLE_FONT_NO_WIDE_FALLBACK)
 			return false;
 		*glyph = font->wide_fallback_glyph;
 	}
-	else if (*columns == 1)
+	else if (columns == 1)
 		*glyph = font->fallback_glyph;
 	else
 		return false;
 	*glyph_font = fallback_identifier;
+
+#undef LOOKUP_EXACT
+	return true;
+}
+
+bool
+st_console_font_lookup_locked(st_console_t *console, uint16_t identifier,
+	uint32_t codepoint, uint16_t *glyph_font, uint32_t *glyph,
+	uint8_t *columns)
+{
+	const struct st_console_font *font;
+	char encoded[4];
+	ptrdiff_t size = st_utf8_encode_one(encoded, sizeof(encoded), codepoint);
+
+	if (size < 0)
+		return false;
+	*columns = st_unicode_columns(codepoint);
+	if (!st_console_font_lookup_cluster_locked(console, identifier,
+	    encoded, (size_t)size, *columns, glyph_font, glyph))
+		return false;
+	font = st_console_font_locked(console, *glyph_font);
+	if (font != NULL)
+		*columns = *glyph < font->glyph_count ? 1 : 2;
+	return true;
+}
+
+bool
+st_console_font_glyph_text_locked(st_console_t *console,
+	uint16_t identifier, uint32_t glyph, char *text, size_t text_size,
+	size_t *required)
+{
+	const struct st_console_font *font = st_console_font_locked(console,
+	    identifier);
+	const char *selected = NULL;
+	size_t selected_size = 0;
+	char encoded[4];
+	char scalar_selected[4];
+
+	*required = 0;
+	if (font == NULL)
+		return false;
+	for (size_t i = 0; i < font->mapping_count; ++i) {
+		ptrdiff_t size;
+
+		if (font->mapping[i].glyph != glyph)
+			continue;
+		size = st_utf8_encode_one(encoded, sizeof(encoded),
+		    font->mapping[i].codepoint);
+		if (size < 0)
+			continue;
+		if (selected == NULL) {
+			memcpy(scalar_selected, encoded, (size_t)size);
+			selected = scalar_selected;
+			selected_size = (size_t)size;
+		}
+	}
+	for (size_t i = 0; i < font->cluster_mapping_count; ++i) {
+		const struct st_console_font_cluster_mapping *mapping
+		    = &font->cluster_mapping[i];
+
+		if (mapping->glyph != glyph)
+			continue;
+		if (selected == NULL) {
+			selected = mapping->text;
+			selected_size = mapping->text_size;
+		}
+	}
+	if (selected == NULL)
+		return false;
+	*required = selected_size;
+	if (text_size >= selected_size)
+		memcpy(text, selected, selected_size);
+	return true;
+}
+
+bool
+st_console_cell_codepoint_locked(st_console_t *console,
+	const struct st_console_cell *cell, uint32_t *codepoint)
+{
+	char encoded[4];
+	size_t required;
+	size_t consumed;
+
+	if (!st_console_font_glyph_text_locked(console, cell->glyph_font,
+	    cell->glyph, encoded, sizeof(encoded), &required)
+	    || required > sizeof(encoded)
+	    || st_utf8_decode_one(codepoint, &consumed, encoded, required) != 0
+	    || consumed != required) {
+		*codepoint = UINT32_C(0xfffd);
+		return false;
+	}
 	return true;
 }
 
@@ -2339,9 +2468,13 @@ font_registration_free(struct st_console_font_registration *registration)
 	if (registration == NULL)
 		return;
 	if (registration->owned) {
+		for (size_t i = 0;
+		    i < registration->font.cluster_mapping_count; ++i)
+			free((void *)registration->font.cluster_mapping[i].text);
 		free((void *)registration->font.bitmap);
 		free((void *)registration->font.wide_bitmap);
 		free((void *)registration->font.mapping);
+		free((void *)registration->font.cluster_mapping);
 	}
 	free(registration);
 }
@@ -2361,6 +2494,7 @@ font_registration_create(const struct st_console_font *font, bool copy)
 	registration->font.bitmap = NULL;
 	registration->font.wide_bitmap = NULL;
 	registration->font.mapping = NULL;
+	registration->font.cluster_mapping = NULL;
 	registration->font.bitmap = malloc(font->bitmap_size);
 	if (registration->font.bitmap == NULL)
 		goto failed;
@@ -2381,6 +2515,24 @@ font_registration_create(const struct st_console_font *font, bool copy)
 			goto failed;
 		memcpy((void *)registration->font.mapping, font->mapping,
 		    font->mapping_count * sizeof(font->mapping[0]));
+	}
+	if (font->cluster_mapping_count != 0) {
+		struct st_console_font_cluster_mapping *mapping;
+
+		if (font->cluster_mapping_count > SIZE_MAX / sizeof(mapping[0]))
+			goto failed;
+		mapping = calloc(font->cluster_mapping_count, sizeof(mapping[0]));
+		if (mapping == NULL)
+			goto failed;
+		registration->font.cluster_mapping = mapping;
+		for (size_t i = 0; i < font->cluster_mapping_count; ++i) {
+			mapping[i] = font->cluster_mapping[i];
+			mapping[i].text = malloc(mapping[i].text_size);
+			if (mapping[i].text == NULL)
+				goto failed;
+			memcpy((void *)mapping[i].text, font->cluster_mapping[i].text,
+			    mapping[i].text_size);
+		}
 	}
 	return registration;
 failed:
@@ -2523,6 +2675,50 @@ st_console_font_lookup(st_console_t *console, uint16_t identifier,
 	    glyph_font, glyph, columns);
 	(void)st_rwlock_unlock(&console->state_lock);
 	return found ? 0 : IO_ERROR_NOT_FOUND;
+}
+
+int
+st_console_font_lookup_cluster(st_console_t *console, uint16_t identifier,
+	const char *text, size_t text_size, uint8_t columns,
+	uint16_t *glyph_font, uint32_t *glyph)
+{
+	int result;
+	bool found;
+
+	if (console == NULL || (text == NULL && text_size != 0)
+	    || text_size == 0 || (columns != 1 && columns != 2)
+	    || glyph_font == NULL || glyph == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	result = st_rwlock_read_lock(&console->state_lock);
+	if (result != ST_THREAD_SUCCESS)
+		return IO_ERROR_IO;
+	found = st_console_font_lookup_cluster_locked(console, identifier,
+	    text, text_size, columns, glyph_font, glyph);
+	(void)st_rwlock_unlock(&console->state_lock);
+	return found ? 0 : IO_ERROR_NOT_FOUND;
+}
+
+int
+st_console_font_glyph_text(st_console_t *console, uint16_t identifier,
+	uint32_t glyph, char *text, size_t text_size, size_t *required)
+{
+	size_t needed = 0;
+	bool found;
+	int result;
+
+	if (console == NULL || required == NULL
+	    || (text == NULL && text_size != 0))
+		return IO_ERROR_INVALID_ARGUMENT;
+	result = st_rwlock_read_lock(&console->state_lock);
+	if (result != ST_THREAD_SUCCESS)
+		return IO_ERROR_IO;
+	found = st_console_font_glyph_text_locked(console, identifier, glyph,
+	    text, text_size, &needed);
+	(void)st_rwlock_unlock(&console->state_lock);
+	*required = needed;
+	if (!found)
+		return IO_ERROR_NOT_FOUND;
+	return text_size < needed ? IO_ERROR_OUT_OF_RANGE : 0;
 }
 
 int
@@ -3029,13 +3225,15 @@ int
 st_console_set_title(st_console_t *console, const char *title)
 {
 	char *copy;
+	size_t copy_size;
 	int result;
 
 	if (console == NULL || title == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	copy = strdup(title);
-	if (copy == NULL)
-		return IO_ERROR_OUT_OF_MEMORY;
+	result = st_unicode_text_normalize(&copy, &copy_size, title,
+	    strlen(title), NULL);
+	if (result != 0)
+		return result;
 	result = st_rwlock_write_lock(&console->state_lock);
 	if (result != ST_THREAD_SUCCESS) {
 		free(copy);
@@ -3051,7 +3249,7 @@ st_console_set_title(st_console_t *console, const char *title)
 		if (atomic_load_explicit(&console->display->active,
 		    memory_order_acquire) == console)
 			result = console->display->backend_failed ? IO_ERROR_IO
-			    : console->display->backend_ops->set_title(console->display, title);
+			    : console->display->backend_ops->set_title(console->display, copy);
 		(void)st_mutex_unlock(&console->display->backend_mutex);
 	}
 	(void)st_rwlock_unlock(&console->state_lock);
@@ -3190,23 +3388,62 @@ int
 st_console_display_set_clipboard_text(st_console_display_t *display,
 	const char *text)
 {
-	return text == NULL ? IO_ERROR_INVALID_ARGUMENT
-	    : display_host_call(display, text, false, 0, NULL);
+	char *normalized;
+	size_t normalized_size;
+	int result;
+
+	if (text == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	result = st_unicode_text_normalize(&normalized, &normalized_size, text,
+	    strlen(text), NULL);
+	if (result != 0)
+		return result;
+	result = display_host_call(display, normalized, false, 0, NULL);
+	free(normalized);
+	return result;
 }
 
 int
 st_console_display_get_clipboard_text(st_console_display_t *display,
 	char **result)
 {
-	return result == NULL ? IO_ERROR_INVALID_ARGUMENT
-	    : display_host_call(display, NULL, false, 1, result);
+	char *raw = NULL;
+	char *normalized;
+	size_t normalized_size;
+	int status;
+
+	if (result == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	status = display_host_call(display, NULL, false, 1, &raw);
+	if (status != 0)
+		return status;
+	if (raw == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	status = st_unicode_text_normalize(&normalized, &normalized_size, raw,
+	    strlen(raw), NULL);
+	free(raw);
+	if (status != 0)
+		return status;
+	*result = normalized;
+	return 0;
 }
 
 int
 st_console_display_open_url(st_console_display_t *display, const char *url)
 {
-	return url == NULL ? IO_ERROR_INVALID_ARGUMENT
-	    : display_host_call(display, url, false, 2, NULL);
+	char *normalized;
+	size_t normalized_size;
+	int result;
+
+	if (url == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	result = st_unicode_text_normalize(&normalized, &normalized_size, url,
+	    strlen(url), NULL);
+	if (result != 0)
+		return result;
+	result = display_host_call(display, normalized, false, 2, NULL);
+	free(normalized);
+	return result;
 }
 
 int

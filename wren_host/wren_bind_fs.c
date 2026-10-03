@@ -191,9 +191,8 @@ slot_child_path(WrenVM *vm, int slot,
 	const char *name;
 	int length;
 
-	if (wrenGetSlotType(vm, slot) != WREN_TYPE_STRING)
+	if (!st_wren_text_slot(vm, slot, &name, &length))
 		return NULL;
-	name = wrenGetSlotBytes(vm, slot, &length);
 	if (length < 0 || memchr(name, '\0', (size_t)length) != NULL)
 		return NULL;
 	return child_path(directory, name);

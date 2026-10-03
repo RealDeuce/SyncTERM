@@ -220,15 +220,18 @@ static void
 capture_contains(WrenVM *vm)
 {
 	struct st_wren_log *log = &st_wren_context_from_vm(vm)->capture;
+	const char *needle;
 	bool found = false;
 
 	if (wrenGetSlotType(vm, 1) != WREN_TYPE_STRING) {
 		st_wren_abort(vm, "REPL.captureContains_ expects a String");
 		return;
 	}
+	if (!st_wren_text_slot(vm, 1, &needle, NULL))
+		return;
 	for (uint64_t i = log->total - log->count; i < log->total; ++i) {
 		if (strstr(log->entries[i % ST_WREN_LOG_CAPACITY].text,
-		    wrenGetSlotString(vm, 1)) != NULL)
+		    needle) != NULL)
 			found = true;
 	}
 	wrenSetSlotBool(vm, 0, found);
@@ -254,6 +257,8 @@ static void
 repl_compile(WrenVM *vm)
 {
 	ObjClosure *closure;
+	const char *module;
+	const char *source;
 
 	if (wrenGetSlotType(vm, 1) != WREN_TYPE_STRING
 	    || wrenGetSlotType(vm, 2) != WREN_TYPE_STRING
@@ -262,8 +267,11 @@ repl_compile(WrenVM *vm)
 		st_wren_abort(vm, "REPL.compile_ expects two Strings and two Bools");
 		return;
 	}
-	closure = wrenCompileSource(vm, wrenGetSlotString(vm, 1),
-	    wrenGetSlotString(vm, 2), wrenGetSlotBool(vm, 3),
+	if (!st_wren_text_slot(vm, 1, &module, NULL)
+	    || !st_wren_text_slot(vm, 2, &source, NULL))
+		return;
+	module = wrenGetSlotString(vm, 1);
+	closure = wrenCompileSource(vm, module, source, wrenGetSlotBool(vm, 3),
 	    wrenGetSlotBool(vm, 4));
 	vm->apiStack[0] = closure == NULL ? NULL_VAL : OBJ_VAL(closure);
 }
@@ -271,11 +279,15 @@ repl_compile(WrenVM *vm)
 static void
 repl_has_module(WrenVM *vm)
 {
+	const char *module;
+
 	if (wrenGetSlotType(vm, 1) != WREN_TYPE_STRING) {
 		st_wren_abort(vm, "REPL.hasModule expects a String");
 		return;
 	}
-	wrenSetSlotBool(vm, 0, wrenHasModule(vm, wrenGetSlotString(vm, 1)));
+	if (!st_wren_text_slot(vm, 1, &module, NULL))
+		return;
+	wrenSetSlotBool(vm, 0, wrenHasModule(vm, module));
 }
 
 static void

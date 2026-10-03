@@ -26,10 +26,10 @@ main(void)
 		.scaling_mode = ST_CONSOLE_SCALING_EXTERNAL,
 	};
 	struct st_console_cell cells[2] = {
-		{.codepoint = 65, .foreground = 7, .flags =
+		{.glyph = 0, .foreground = 7, .flags =
 		 ST_CONSOLE_CELL_SAA5050 | ST_CONSOLE_CELL_TERMINAL_FONT
 		 | ST_CONSOLE_CELL_DOUBLE_HEIGHT | ST_CONSOLE_CELL_BLINK},
-		{.codepoint = 65, .foreground = 7, .flags =
+		{.glyph = 0, .foreground = 7, .flags =
 		 ST_CONSOLE_CELL_SAA5050 | ST_CONSOLE_CELL_TERMINAL_FONT},
 	};
 	const struct st_console_rect grid = {0, 0, 1, 2};
@@ -40,6 +40,7 @@ main(void)
 	CHECK(st_console_create(&console, &display, &config) == 0);
 	CHECK(st_console_register_static_font(console, &font, &id) == 0);
 	cells[0].font = cells[1].font = id;
+	cells[0].glyph_font = cells[1].glyph_font = id;
 	CHECK(st_console_write_cells(console, &grid, cells, 1) == 0);
 	CHECK(st_console_set_blink_mode(console, ST_CONSOLE_BLINK_PRESTEL) == 0);
 	/* Presenter tests run without backend threads; hold the state lock. */

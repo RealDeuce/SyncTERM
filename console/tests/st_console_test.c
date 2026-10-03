@@ -223,13 +223,13 @@ test_cell_and_regions(void)
 {
 	st_console_t *console = create_headless(70000, 2);
 	struct st_console_cell source[4] = {
-		{.codepoint = 'a', .foreground = 1, .background = 2},
-		{.codepoint = 'b', .foreground = 3, .background = 4,
+		{.glyph = 'a', .foreground = 1, .background = 2},
+		{.glyph = 'b', .foreground = 3, .background = 4,
 		    .flags = ST_CONSOLE_CELL_SAA5050
 		    | ST_CONSOLE_CELL_SAA5050_CONTROL(0x1d), .font = 2},
-		{.codepoint = 'c', .foreground = ST_CONSOLE_COLOR_RGB_VALUE(1, 2, 3),
+		{.glyph = 'c', .foreground = ST_CONSOLE_COLOR_RGB_VALUE(1, 2, 3),
 		    .background = 5, .hyperlink = 19},
-		{.codepoint = 'd', .foreground = 6, .background = 7,
+		{.glyph = 'd', .foreground = 6, .background = 7,
 		    .flags = ST_CONSOLE_CELL_DIRTY},
 	};
 	struct st_console_cell result[6] = {0};
@@ -242,11 +242,11 @@ test_cell_and_regions(void)
 	CHECK(columns == 70000 && rows == 2);
 	CHECK(st_console_write_cells(console, &rect, source, 2) == 0);
 	CHECK(st_console_read_cells(console, &rect, result, 3) == 0);
-	CHECK(result[0].codepoint == 'a' && result[1].codepoint == 'b');
-	CHECK(result[3].codepoint == 'c' && result[4].codepoint == 'd');
+	CHECK(result[0].glyph == 'a' && result[1].glyph == 'b');
+	CHECK(result[3].glyph == 'c' && result[4].glyph == 'd');
 	CHECK((result[1].flags & ST_CONSOLE_CELL_SAA5050_CONTROL_MASK)
 	    == ST_CONSOLE_CELL_SAA5050_CONTROL(0x1d));
-	CHECK(result[1].codepoint == 'b');
+	CHECK(result[1].glyph == 'b');
 	CHECK((result[4].flags & ST_CONSOLE_CELL_DIRTY) == 0);
 	CHECK(st_console_write_cells(console, &rect, source, 1)
 	    == IO_ERROR_OUT_OF_RANGE);
@@ -295,22 +295,22 @@ test_text_window_and_scroll(void)
 	CHECK(st_console_set_style(console, &style) == 0);
 	CHECK(st_console_write_utf8(console, "abcde", 5) == 0);
 	cell = read_cell(console, 2, 1);
-	CHECK(cell.codepoint == 'a' && cell.font == 3 && cell.hyperlink == 9);
+	CHECK(cell.glyph == 'a' && cell.font == 3 && cell.hyperlink == 9);
 	CHECK((cell.flags & ST_CONSOLE_CELL_BOLD) != 0);
 	CHECK((cell.flags & ST_CONSOLE_CELL_DIRTY) == 0);
-	CHECK(read_cell(console, 5, 1).codepoint == 'd');
-	CHECK(read_cell(console, 2, 2).codepoint == 'e');
+	CHECK(read_cell(console, 5, 1).glyph == 'd');
+	CHECK(read_cell(console, 2, 2).glyph == 'e');
 	CHECK(st_console_get_position(console, &x, &y) == 0);
 	CHECK(x == 3 && y == 2);
 	CHECK(st_console_write_utf8(console, "\xc0\x80", 2)
 	    == IO_ERROR_INVALID_ENCODING);
 	CHECK(st_console_set_position(console, 2, 2) == 0);
 	CHECK(st_console_insert_lines(console, 1, '.') == 0);
-	CHECK(read_cell(console, 2, 2).codepoint == '.');
+	CHECK(read_cell(console, 2, 2).glyph == '.');
 	CHECK(st_console_delete_lines(console, 1, '-') == 0);
-	CHECK(read_cell(console, 2, 2).codepoint == '-');
+	CHECK(read_cell(console, 2, 2).glyph == '-');
 	CHECK(st_console_scroll(console, -1, '+') == 0);
-	CHECK(read_cell(console, 2, 1).codepoint == '+');
+	CHECK(read_cell(console, 2, 1).glyph == '+');
 	st_console_destroy(console);
 }
 
@@ -322,32 +322,32 @@ test_move_and_line_operations(void)
 	const struct st_console_rect source = {0, 0, 4, 1};
 	const struct st_console_rect shifted = {1, 0, 4, 1};
 	const struct st_console_cell fill = {
-		.codepoint = '.',
+		.glyph = '.',
 		.foreground = 3,
 		.background = 4,
 	};
 
 	for (uint32_t i = 0; i < 4; ++i)
-		cells[i] = (struct st_console_cell){.codepoint = 'a' + i};
+		cells[i] = (struct st_console_cell){.glyph = 'a' + i};
 	CHECK(st_console_write_cells(console, &source, cells, 4) == 0);
 	CHECK(st_console_move_cells(console, &source, 1, 0) == 0);
-	CHECK(read_cell(console, 0, 0).codepoint == 'a');
-	CHECK(read_cell(console, 1, 0).codepoint == 'a');
-	CHECK(read_cell(console, 4, 0).codepoint == 'd');
+	CHECK(read_cell(console, 0, 0).glyph == 'a');
+	CHECK(read_cell(console, 1, 0).glyph == 'a');
+	CHECK(read_cell(console, 4, 0).glyph == 'd');
 	CHECK(st_console_move_cells_clear(console, &shifted, 0, 0, &fill) == 0);
-	CHECK(read_cell(console, 0, 0).codepoint == 'a');
-	CHECK(read_cell(console, 1, 0).codepoint == 'b');
-	CHECK(read_cell(console, 3, 0).codepoint == 'd');
-	CHECK(read_cell(console, 4, 0).codepoint == '.');
+	CHECK(read_cell(console, 0, 0).glyph == 'a');
+	CHECK(read_cell(console, 1, 0).glyph == 'b');
+	CHECK(read_cell(console, 3, 0).glyph == 'd');
+	CHECK(read_cell(console, 4, 0).glyph == '.');
 	CHECK(st_console_set_position(console, 2, 1) == 0);
 	CHECK(st_console_clear_line(console, '-') == 0);
-	CHECK(read_cell(console, 1, 1).codepoint == ' ');
-	CHECK(read_cell(console, 2, 1).codepoint == '-');
-	CHECK(read_cell(console, 5, 1).codepoint == '-');
+	CHECK(read_cell(console, 1, 1).glyph == ' ');
+	CHECK(read_cell(console, 2, 1).glyph == '-');
+	CHECK(read_cell(console, 5, 1).glyph == '-');
 	CHECK(st_console_set_position(console, 0, 1) == 0);
 	CHECK(st_console_put_codepoint(console, UINT32_MAX)
 	    == IO_ERROR_INVALID_ARGUMENT);
-	CHECK(read_cell(console, 0, 1).codepoint == ' ');
+	CHECK(read_cell(console, 0, 1).glyph == ' ');
 	st_console_destroy(console);
 }
 
@@ -355,29 +355,12 @@ static void
 test_invalid_scalar_mutations(void)
 {
 	const struct st_console_rect screen = {0, 0, 4, 2};
-	const struct st_console_rect one = {1, 0, 1, 1};
-	const struct st_console_rect source = {0, 0, 2, 1};
 	struct st_console_cell before[8];
-	const struct st_console_cell invalid = {
-		.codepoint = UINT32_C(0xd800),
-	};
 	st_console_t *console = create_headless(4, 2);
 
 	CHECK(st_console_write_utf8(console, "abcdefgh", 8) == 0);
 	CHECK(st_console_set_position(console, 2, 1) == 0);
 	CHECK(st_console_read_cells(console, &screen, before, 4) == 0);
-	CHECK(st_console_write_cells(console, &one, &invalid, 1)
-	    == IO_ERROR_INVALID_ARGUMENT);
-	check_text_state(console, &screen, before, 4, 2, 1);
-	CHECK(st_console_write_complete_cells(console, &one, &invalid, 1)
-	    == IO_ERROR_INVALID_ARGUMENT);
-	check_text_state(console, &screen, before, 4, 2, 1);
-	CHECK(st_console_fill(console, &one, &invalid)
-	    == IO_ERROR_INVALID_ARGUMENT);
-	check_text_state(console, &screen, before, 4, 2, 1);
-	CHECK(st_console_move_cells_clear(console, &source, 1, 0, &invalid)
-	    == IO_ERROR_INVALID_ARGUMENT);
-	check_text_state(console, &screen, before, 4, 2, 1);
 	CHECK(st_console_put_codepoint(console, UINT32_C(0x110000))
 	    == IO_ERROR_INVALID_ARGUMENT);
 	check_text_state(console, &screen, before, 4, 2, 1);
@@ -402,6 +385,21 @@ test_invalid_scalar_mutations(void)
 static void
 test_snapshot_drains(void)
 {
+	static const uint8_t bitmap[128] = {0};
+	static const struct st_console_font_mapping mapping[] = {
+		{' ', ' '}, {'a', 'a'}, {'b', 'b'}, {'c', 'c'},
+	};
+	static const struct st_console_font font = {
+		.bitmap = bitmap,
+		.bitmap_size = sizeof(bitmap),
+		.width = 8,
+		.height = 1,
+		.glyph_count = 128,
+		.row_stride = 1,
+		.glyph_stride = 1,
+		.mapping = mapping,
+		.mapping_count = sizeof(mapping) / sizeof(mapping[0]),
+	};
 	struct output output = {0};
 	struct st_console_ansi_io io = {
 		.write = write_output,
@@ -422,6 +420,7 @@ test_snapshot_drains(void)
 	size_t writes;
 
 	CHECK(st_console_create(&console, &config_display, &config) == 0);
+	CHECK(register_static_font(console, &font) == 0);
 	CHECK(st_console_begin_update(console) == 0);
 	CHECK(st_console_begin_update(console) == 0);
 	CHECK(st_console_write_utf8(console, "abc", 3) == 0);
@@ -442,10 +441,10 @@ test_snapshot_drains(void)
 	CHECK(output.writes == writes);
 	CHECK(st_console_clear_window(console, ' ') == 0);
 	CHECK(st_console_snapshot_restore(console, snapshot) == 0);
-	CHECK(read_cell(console, 0, 0).codepoint == 'a');
-	CHECK(read_cell(console, 1, 0).codepoint == 'b');
-	CHECK(read_cell(console, 2, 0).codepoint == 'c');
-	CHECK(read_cell(console, 3, 0).codepoint == ' ');
+	CHECK(read_cell(console, 0, 0).glyph == 'a');
+	CHECK(read_cell(console, 1, 0).glyph == 'b');
+	CHECK(read_cell(console, 2, 0).glyph == 'c');
+	CHECK(read_cell(console, 3, 0).glyph == ' ');
 	CHECK(st_console_set_cursor(console, false, ST_CONSOLE_CURSOR_BAR) == 0);
 	st_console_snapshot_destroy(snapshot);
 	st_console_destroy(console);
@@ -673,8 +672,8 @@ test_resize_palette_and_errors(void)
 
 	CHECK(st_console_put_codepoint(console, 'x') == 0);
 	CHECK(st_console_resize(console, 3, 3) == 0);
-	CHECK(read_cell(console, 0, 0).codepoint == 'x');
-	CHECK(read_cell(console, 2, 2).codepoint == ' ');
+	CHECK(read_cell(console, 0, 0).glyph == 'x');
+	CHECK(read_cell(console, 2, 2).glyph == ' ');
 	CHECK(st_console_set_palette(console, 254, set, 2) == 0);
 	CHECK(st_console_get_palette(console, 254, get, 2) == 0);
 	CHECK(memcmp(set, get, sizeof(set)) == 0);
@@ -763,7 +762,7 @@ test_pixels_and_font_rendering(void)
 		.wrap = true,
 	};
 	struct st_console_cell cell = {
-		.codepoint = 1,
+		.glyph = 1,
 		.foreground = ST_CONSOLE_COLOR_RGB_VALUE(255, 0, 0),
 		.background = 0,
 		.flags = ST_CONSOLE_CELL_BLINK,
@@ -886,7 +885,7 @@ test_fast_font_attributes(void)
 
 	for (size_t i = 0; i < 5; ++i) {
 		cells[i] = (struct st_console_cell){
-			.codepoint = 1,
+			.glyph = 1,
 			.foreground = ST_CONSOLE_COLOR_RGB_VALUE(255, 0, 0),
 			.background = ST_CONSOLE_COLOR_RGB_VALUE(0, 255, 0),
 			.font = 1,
@@ -981,7 +980,7 @@ test_raster_margin_and_scroll(void)
 	for (uint32_t y = 0; y < 3; ++y) {
 		for (uint32_t x = 0; x < 2; ++x) {
 			cells[(size_t)y * 2 + x] = (struct st_console_cell){
-				.codepoint = 1,
+				.glyph = 1,
 				.foreground = ST_CONSOLE_COLOR_RGB_VALUE(
 				    16U * (y + 1), 0, 0),
 				.background = 0,
@@ -1084,7 +1083,7 @@ test_saa5050_double_height_raster(void)
 	};
 	struct st_console_cell cells[2] = {
 		{
-			.codepoint = 1,
+			.glyph = 1,
 			.foreground = 7,
 			.background = 0,
 			.flags = ST_CONSOLE_CELL_SAA5050
@@ -1092,7 +1091,7 @@ test_saa5050_double_height_raster(void)
 			.font = 1,
 		},
 		{
-			.codepoint = 0,
+			.glyph = 0,
 			.foreground = 7,
 			.background = 0,
 			.flags = ST_CONSOLE_CELL_SAA5050
@@ -1185,7 +1184,7 @@ write_row(void *argument)
 	struct writer_context *context = argument;
 	struct st_console_rect row = {0, context->row, 64, 1};
 	struct st_console_cell cell = {
-		.codepoint = context->codepoint,
+		.glyph = context->codepoint,
 		.foreground = context->row,
 		.background = 0,
 	};
@@ -1218,8 +1217,8 @@ test_concurrent_writers(void)
 	CHECK(st_thread_join(threads[1], NULL) == ST_THREAD_SUCCESS);
 	CHECK(contexts[0].succeeded && contexts[1].succeeded);
 	for (uint32_t x = 0; x < 64; ++x) {
-		CHECK(read_cell(console, x, 0).codepoint == 'x');
-		CHECK(read_cell(console, x, 1).codepoint == 'y');
+		CHECK(read_cell(console, x, 0).glyph == 'x');
+		CHECK(read_cell(console, x, 1).glyph == 'y');
 	}
 	st_console_destroy(console);
 }
@@ -1271,7 +1270,7 @@ test_deferred_presentation(void)
 	console->display->backend_state = &state;
 	CHECK(st_console_start_presentation_worker(console) == 0);
 	for (unsigned int i = 0; i < 200; ++i) {
-		cell.codepoint = (i & 1U) == 0 ? 'a' : 'b';
+		cell.glyph = (i & 1U) == 0 ? 'a' : 'b';
 		CHECK(st_console_write_cells(console, &destination, &cell, 1) == 0);
 	}
 	CHECK(timespec_get(&deadline, TIME_UTC) == TIME_UTC);
@@ -1335,8 +1334,8 @@ test_unicode_wide_cells(void)
 	const struct st_console_rect single = {1, 0, 1, 1};
 	struct st_console_cell cells[4];
 	struct st_console_cell before[8];
-	struct st_console_cell value = {.codepoint = 'A'};
-	struct st_console_cell wide = {.codepoint = UINT32_C(0x4e00)};
+	struct st_console_cell value = {.glyph = 1};
+	struct st_console_cell wide = {.glyph = 2};
 	st_console_t *console = NULL;
 	uint16_t identifier;
 	uint32_t x;
@@ -1347,15 +1346,15 @@ test_unicode_wide_cells(void)
 	CHECK(identifier == 0);
 	CHECK(st_console_put_codepoint(console, UINT32_C(0x4e00)) == 0);
 	CHECK(st_console_read_cells(console, &row, cells, 4) == 0);
-	CHECK(cells[0].codepoint == UINT32_C(0x4e00));
+	CHECK(cells[0].glyph == 2 && cells[0].glyph_font == 0);
 	CHECK((cells[0].flags & ST_CONSOLE_CELL_CONTINUATION) == 0);
-	CHECK(cells[1].codepoint == UINT32_C(0x4e00));
+	CHECK(cells[1].glyph == 2 && cells[1].glyph_font == 0);
 	CHECK((cells[1].flags & ST_CONSOLE_CELL_CONTINUATION) != 0);
 	CHECK(st_console_get_position(console, &x, &y) == 0);
 	CHECK(x == 2 && y == 0);
 	CHECK(st_console_write_cells(console, &single, &value, 1) == 0);
-	CHECK(read_cell(console, 0, 0).codepoint == ' ');
-	CHECK(read_cell(console, 1, 0).codepoint == 'A');
+	CHECK(read_cell(console, 0, 0).glyph == 0);
+	CHECK(read_cell(console, 1, 0).glyph == 1);
 	CHECK(st_console_write_cells(console, &single, &wide, 1)
 	    == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_console_fill(console, &single, &wide)
@@ -1390,7 +1389,7 @@ test_unicode_wide_cells(void)
 	CHECK(st_console_set_position(console, 3, 0) == 0);
 	CHECK(st_console_set_wrap(console, false) == 0);
 	CHECK(st_console_put_codepoint(console, UINT32_C(0x4e00)) == 0);
-	CHECK(read_cell(console, 3, 0).codepoint == ' ');
+	CHECK(read_cell(console, 3, 0).glyph == ' ');
 	CHECK(st_console_get_position(console, &x, &y) == 0);
 	CHECK(x == 3 && y == 0);
 	CHECK(st_console_set_wrap(console, true) == 0);
@@ -1399,7 +1398,7 @@ test_unicode_wide_cells(void)
 		const struct st_console_rect pair = {0, 1, 2, 1};
 
 		CHECK(st_console_read_cells(console, &pair, cells, 2) == 0);
-		CHECK(cells[0].codepoint == UINT32_C(0x4e00));
+		CHECK(cells[0].glyph == 2);
 		CHECK((cells[1].flags & ST_CONSOLE_CELL_CONTINUATION) != 0);
 	}
 	CHECK(st_console_get_position(console, &x, &y) == 0);
@@ -1412,32 +1411,32 @@ test_unicode_wide_cells(void)
 	{
 		const struct st_console_rect narrow_window = {1, 0, 1, 2};
 		const struct st_console_rect marker = {1, 1, 1, 1};
-		const struct st_console_cell letter = {.codepoint = 'A'};
+		const struct st_console_cell letter = {.glyph = 1};
 
 		CHECK(st_console_set_window(console, &narrow_window) == 0);
 		CHECK(st_console_set_wrap(console, false) == 0);
 		CHECK(st_console_put_codepoint(console, UINT32_C(0x4e00)) == 0);
 		CHECK(st_console_get_position(console, &x, &y) == 0);
 		CHECK(x == 1 && y == 0);
-		CHECK(read_cell(console, 1, 0).codepoint == ' ');
-		CHECK(read_cell(console, 2, 0).codepoint == ' ');
+		CHECK(read_cell(console, 1, 0).glyph == ' ');
+		CHECK(read_cell(console, 2, 0).glyph == ' ');
 
 		CHECK(st_console_set_wrap(console, true) == 0);
 		CHECK(st_console_put_codepoint(console, UINT32_C(0x4e00)) == 0);
 		CHECK(st_console_get_position(console, &x, &y) == 0);
 		CHECK(x == 1 && y == 1);
-		CHECK(read_cell(console, 1, 1).codepoint == ' ');
-		CHECK(read_cell(console, 2, 1).codepoint == ' ');
+		CHECK(read_cell(console, 1, 1).glyph == ' ');
+		CHECK(read_cell(console, 2, 1).glyph == ' ');
 
 		CHECK(st_console_write_cells(console, &marker, &letter, 1) == 0);
 		CHECK(st_console_set_position(console, 1, 1) == 0);
 		CHECK(st_console_put_codepoint(console, UINT32_C(0x4e00)) == 0);
 		CHECK(st_console_get_position(console, &x, &y) == 0);
 		CHECK(x == 1 && y == 1);
-		CHECK(read_cell(console, 1, 0).codepoint == 'A');
-		CHECK(read_cell(console, 1, 1).codepoint == ' ');
-		CHECK(read_cell(console, 2, 0).codepoint == ' ');
-		CHECK(read_cell(console, 2, 1).codepoint == ' ');
+		CHECK(read_cell(console, 1, 0).glyph == 1);
+		CHECK(read_cell(console, 1, 1).glyph == 0);
+		CHECK(read_cell(console, 2, 0).glyph == ' ');
+		CHECK(read_cell(console, 2, 1).glyph == ' ');
 	}
 	st_console_destroy(console);
 
@@ -1447,8 +1446,8 @@ test_unicode_wide_cells(void)
 	CHECK(st_console_put_codepoint(console, UINT32_C(0x4e00)) == 0);
 	CHECK(st_console_get_position(console, &x, &y) == 0);
 	CHECK(x == 0 && y == 1);
-	CHECK(read_cell(console, 0, 0).codepoint == ' ');
-	CHECK(read_cell(console, 0, 1).codepoint == ' ');
+	CHECK(read_cell(console, 0, 0).glyph == ' ');
+	CHECK(read_cell(console, 0, 1).glyph == ' ');
 	st_console_destroy(console);
 }
 
@@ -1528,25 +1527,25 @@ check_wide_boundary_rows(st_console_t *console, uint32_t first_cleared)
 
 			if (continuation) {
 				CHECK(x > 0);
-				CHECK(cells[x - 1].codepoint == UINT32_C(0x4e00));
+				CHECK(cells[x - 1].glyph == 2);
 				CHECK((cells[x - 1].flags
 				    & ST_CONSOLE_CELL_CONTINUATION) == 0);
 			}
-			else if (cells[x].codepoint == UINT32_C(0x4e00)) {
+			else if (cells[x].glyph == 2) {
 				CHECK(x + 1 < 6);
 				CHECK((cells[x + 1].flags
 				    & ST_CONSOLE_CELL_CONTINUATION) != 0);
 			}
 		}
 		if (y >= first_cleared) {
-			CHECK(cells[0].codepoint == ' ');
-			CHECK(cells[5].codepoint == ' ');
+			CHECK(cells[0].glyph == 0);
+			CHECK(cells[5].glyph == 0);
 		}
 		else {
-			CHECK(cells[0].codepoint == UINT32_C(0x4e00));
+			CHECK(cells[0].glyph == 2);
 			CHECK((cells[1].flags
 			    & ST_CONSOLE_CELL_CONTINUATION) != 0);
-			CHECK(cells[4].codepoint == UINT32_C(0x4e00));
+			CHECK(cells[4].glyph == 2);
 			CHECK((cells[5].flags
 			    & ST_CONSOLE_CELL_CONTINUATION) != 0);
 		}
@@ -1657,8 +1656,8 @@ test_ansi_wide_cell_output(void)
 	};
 	const struct st_console_rect row = {0, 0, 2, 1};
 	struct st_console_cell cells[2] = {
-		{.codepoint = UINT32_C(0x4e00)},
-		{.codepoint = UINT32_C(0x4e00),
+		{.glyph = 1},
+		{.glyph = 1,
 		    .flags = ST_CONSOLE_CELL_CONTINUATION},
 	};
 	st_console_t *console = NULL;
@@ -1668,6 +1667,8 @@ test_ansi_wide_cell_output(void)
 	identifier = register_static_font(console, &font);
 	cells[0].font = identifier;
 	cells[1].font = identifier;
+	cells[0].glyph_font = identifier;
+	cells[1].glyph_font = identifier;
 	CHECK(st_console_write_cells(console, &row, cells, 2) == 0);
 	CHECK(count_bytes(output.data, output.length, encoded, sizeof(encoded))
 	    == 1);
@@ -1719,7 +1720,6 @@ test_ansi_output_modes(void)
 		    == direct_colour[mode]);
 		for (size_t i = 0; i < 9; ++i) {
 			cells[i] = (struct st_console_cell){
-				.codepoint = (uint32_t)('a' + i / 3),
 				.glyph = (uint32_t)('a' + i / 3),
 				.foreground = 9,
 			};
@@ -1735,7 +1735,6 @@ test_ansi_output_modes(void)
 		for (size_t i = 0; i < 6; ++i)
 			cells[i] = cells[i + 3];
 		for (size_t i = 6; i < 9; ++i) {
-			cells[i].codepoint = 'd';
 			cells[i].glyph = 'd';
 		}
 		CHECK(st_console_begin_update(console) == 0);
@@ -1786,7 +1785,7 @@ test_ansi_cp437_output(void)
 	};
 	const struct st_console_rect cell_rect = {0, 0, 1, 1};
 	struct st_console_cell cell = {
-		.codepoint = UINT32_C(0x00e9),
+		.glyph = 1,
 		.foreground = 7,
 	};
 	st_console_t *console = NULL;
@@ -1796,10 +1795,10 @@ test_ansi_cp437_output(void)
 	identifier = register_static_font(console, &font);
 	CHECK(identifier == 0);
 	cell.font = identifier;
+	cell.glyph_font = identifier;
 	output.length = 0;
 	CHECK(st_console_write_cells(console, &cell_rect, &cell, 1) == 0);
 	CHECK(count_bytes(output.data, output.length, &expected, 1) == 1);
-	cell.codepoint = UINT32_C(0x1f642);
 	cell.glyph = expected;
 	output.length = 0;
 	CHECK(st_console_write_complete_cells(console, &cell_rect, &cell, 1)
@@ -1812,24 +1811,39 @@ test_ansi_cp437_output(void)
 static void
 test_ascii_character_identity(void)
 {
-	struct st_console_cell cell = {
-		.codepoint = UINT32_C(0x2556),
-		.glyph = 'X',
+	static const uint8_t bitmap[3] = {0};
+	static const struct st_console_font_mapping mapping[] = {
+		{UINT32_C(0x001e), 2},
+		{UINT32_C(0x2556), 0},
+		{UINT32_C(0x1f642), 1},
 	};
+	static const struct st_console_font font = {
+		.bitmap = bitmap,
+		.bitmap_size = sizeof(bitmap),
+		.width = 8,
+		.height = 1,
+		.glyph_count = 3,
+		.row_stride = 1,
+		.glyph_stride = 1,
+		.mapping = mapping,
+		.mapping_count = sizeof(mapping) / sizeof(mapping[0]),
+	};
+	st_console_t *console = create_headless(1, 1);
+	struct st_console_cell cell = {0};
 	bool alternate;
 
-	CHECK(st_console_ascii_character(&cell, &alternate) == 'k');
+	CHECK(register_static_font(console, &font) == 0);
+	CHECK(st_console_ascii_character(console, &cell, &alternate) == 'k');
 	CHECK(alternate);
-	cell.codepoint = UINT32_C(0x1f642);
-	cell.glyph = 196;
-	CHECK(st_console_ascii_character(&cell, &alternate) == '?');
+	cell.glyph = 1;
+	CHECK(st_console_ascii_character(console, &cell, &alternate) == '?');
 	CHECK(!alternate);
-	cell.codepoint = UINT32_C(0x001e);
-	cell.glyph = 30;
-	CHECK(st_console_ascii_character(&cell, &alternate) == '^');
+	cell.glyph = 2;
+	CHECK(st_console_ascii_character(console, &cell, &alternate) == '^');
 	CHECK(!alternate);
 	CHECK(st_console_cp437_character(UINT32_C(0x00e9)) == 0x82);
 	CHECK(st_console_cp437_character(UINT32_C(0x1f642)) == '?');
+	st_console_destroy(console);
 }
 
 static void
@@ -1902,7 +1916,7 @@ test_font_resolution_and_complete_cells(void)
 		.cell_height = 1,
 	};
 	const struct st_console_rect first = {0, 0, 1, 1};
-	struct st_console_cell cell = {.codepoint = 'A', .font = 1};
+	struct st_console_cell cell = {0};
 	struct st_console_cell read;
 	st_console_t *console = NULL;
 	uint16_t fallback;
@@ -1944,37 +1958,100 @@ test_font_resolution_and_complete_cells(void)
 	    ST_CONSOLE_CELL_BRIGHT | ST_CONSOLE_CELL_BLINK) == 20);
 	CHECK(st_console_font_for_flags(NULL, ST_CONSOLE_CELL_BOLD) == 0);
 
+	cell.glyph = 2;
+	cell.font = selected;
+	cell.glyph_font = selected;
 	CHECK(st_console_write_cells(console, &first, &cell, 1) == 0);
 	read = read_cell(console, 0, 0);
-	CHECK(read.font == selected && read.glyph == 2);
-	cell.codepoint = 'B';
+	CHECK(read.font == selected && read.glyph_font == selected
+	    && read.glyph == 2);
+	cell.glyph = 2;
+	cell.glyph_font = fallback;
 	CHECK(st_console_write_cells(console, &first, &cell, 1) == 0);
 	read = read_cell(console, 0, 0);
-	CHECK(read.font == selected && read.glyph == 2
-	    && (read.flags & ST_CONSOLE_CELL_FALLBACK_FONT) != 0);
+	CHECK(read.font == selected && read.glyph_font == fallback
+	    && read.glyph == 2);
 	CHECK(st_console_write_complete_cells(console, &first, &read, 1) == 0);
 	read = read_cell(console, 0, 0);
-	CHECK(read.font == selected && read.glyph == 2
-	    && (read.flags & ST_CONSOLE_CELL_FALLBACK_FONT) != 0
-	    && (read.flags & ST_CONSOLE_CELL_EXPLICIT_GLYPH) != 0);
-	read.flags &= ~ST_CONSOLE_CELL_EXPLICIT_GLYPH;
-	cell = read;
-	cell.codepoint = 'A';
+	CHECK(read.font == selected && read.glyph_font == fallback
+	    && read.glyph == 2);
+	cell.glyph = 2;
+	cell.glyph_font = selected;
 	CHECK(st_console_write_cells(console, &first, &cell, 1) == 0);
 	read = read_cell(console, 0, 0);
-	CHECK(read.font == selected && read.glyph == 2
-	    && (read.flags & ST_CONSOLE_CELL_FALLBACK_FONT) == 0);
+	CHECK(read.font == selected && read.glyph_font == selected
+	    && read.glyph == 2);
 	cell = read;
 	cell.glyph = 1;
 	CHECK(st_console_write_complete_cells(console, &first, &cell, 1) == 0);
 	read = read_cell(console, 0, 0);
-	CHECK(read.codepoint == 'A' && read.font == selected && read.glyph == 1);
-	CHECK((read.flags & ST_CONSOLE_CELL_EXPLICIT_GLYPH) != 0);
-	cell.font = UINT16_MAX;
-	CHECK(st_console_write_complete_cells(console, &first, &cell, 1)
-	    == IO_ERROR_INVALID_ARGUMENT);
-	read = read_cell(console, 0, 0);
-	CHECK(read.font == selected && read.glyph == 1);
+	CHECK(read.glyph == 1 && read.font == selected
+	    && read.glyph_font == selected);
+	st_console_destroy(console);
+}
+
+static void
+test_cluster_font_mapping(void)
+{
+	static const char waving_hand_tone[] =
+	    "\xf0\x9f\x91\x8b\xf0\x9f\x8f\xbd";
+	static const uint8_t bitmap[2] = {0};
+	static const uint8_t wide_bitmap[2] = {0};
+	static const struct st_console_font_mapping mapping[] = {
+		{'?', 0}, {'A', 1},
+	};
+	static const struct st_console_font_cluster_mapping clusters[] = {
+		{waving_hand_tone, sizeof(waving_hand_tone) - 1, 2},
+	};
+	static const struct st_console_font font = {
+		.bitmap = bitmap,
+		.bitmap_size = sizeof(bitmap),
+		.width = 8,
+		.height = 1,
+		.glyph_count = 2,
+		.row_stride = 1,
+		.glyph_stride = 1,
+		.wide_bitmap = wide_bitmap,
+		.wide_bitmap_size = sizeof(wide_bitmap),
+		.wide_glyph_count = 1,
+		.wide_row_stride = 2,
+		.wide_glyph_stride = 2,
+		.mapping = mapping,
+		.mapping_count = sizeof(mapping) / sizeof(mapping[0]),
+		.cluster_mapping = clusters,
+		.cluster_mapping_count = sizeof(clusters) / sizeof(clusters[0]),
+	};
+	const struct st_console_display_config display = {
+		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	};
+	const struct st_console_config config = {.columns = 2, .rows = 1};
+	const struct st_console_rect row = {0, 0, 2, 1};
+	struct st_console_cell cells[2];
+	char copied[sizeof(waving_hand_tone)];
+	size_t copied_size;
+	st_console_t *console = NULL;
+	uint16_t owner;
+	uint16_t identifier;
+	uint32_t glyph;
+
+	CHECK(st_console_create(&console, &display, &config) == 0);
+	identifier = register_static_font(console, &font);
+	CHECK(identifier == 0);
+	CHECK(st_console_font_lookup_cluster(console, identifier,
+	    waving_hand_tone, sizeof(waving_hand_tone) - 1, 2, &owner,
+	    &glyph) == 0);
+	CHECK(owner == identifier && glyph == 2);
+	CHECK(st_console_write_utf8(console, waving_hand_tone,
+	    sizeof(waving_hand_tone) - 1) == 0);
+	CHECK(st_console_read_cells(console, &row, cells, 2) == 0);
+	CHECK(cells[0].glyph == 2 && cells[0].glyph_font == identifier);
+	CHECK((cells[0].flags & ST_CONSOLE_CELL_CONTINUATION) == 0);
+	CHECK(cells[1].glyph == 2 && cells[1].glyph_font == identifier);
+	CHECK((cells[1].flags & ST_CONSOLE_CELL_CONTINUATION) != 0);
+	CHECK(st_console_font_glyph_text(console, identifier, glyph, copied,
+	    sizeof(copied), &copied_size) == 0);
+	CHECK(copied_size == sizeof(waving_hand_tone) - 1
+	    && memcmp(copied, waving_hand_tone, copied_size) == 0);
 	st_console_destroy(console);
 }
 
@@ -2029,44 +2106,48 @@ test_font_registration_preserves_cells(void)
 	};
 	const struct st_console_rect first = {0, 0, 1, 1};
 	const struct st_console_rect row = {0, 0, 2, 1};
-	struct st_console_cell cell = {.codepoint = UINT32_C(0x4e00)};
+	struct st_console_cell cell = {0};
 	struct st_console_cell cells[2];
 	st_console_t *console = NULL;
 	uint16_t identifier;
+	uint16_t glyph_font;
+	uint32_t glyph;
+	uint8_t columns;
 
 	CHECK(st_console_create(&console, &config_display, &config) == 0);
-	CHECK(st_console_write_cells(console, &first, &cell, 1)
-	    == IO_ERROR_INVALID_ARGUMENT);
-	CHECK(read_cell(console, 0, 0).codepoint == ' ');
+	CHECK(st_console_font_lookup(console, 0, UINT32_C(0x4e00), &glyph_font,
+	    &glyph, &columns) == IO_ERROR_NOT_FOUND);
+	CHECK(read_cell(console, 0, 0).glyph == ' ');
 	identifier = register_static_font(console, &font);
 	CHECK(identifier == 0);
-	CHECK(read_cell(console, 0, 0).codepoint == ' ');
+	CHECK(read_cell(console, 0, 0).glyph == ' ');
 	CHECK((read_cell(console, 1, 0).flags
 	    & ST_CONSOLE_CELL_CONTINUATION) == 0);
 	CHECK(st_console_set_position(console, 0, 0) == 0);
 	CHECK(st_console_put_codepoint(console, UINT32_C(0x4e00)) == 0);
 	CHECK(st_console_read_cells(console, &row, cells, 2) == 0);
 	CHECK(cells[0].glyph == 2);
+	CHECK(cells[0].glyph_font == 0);
 	CHECK((cells[1].flags
 	    & ST_CONSOLE_CELL_CONTINUATION) != 0);
 
-	cell.codepoint = 'A';
+	cell.glyph = 1;
 	cell.font = 1;
+	cell.glyph_font = 0;
 	CHECK(st_console_write_cells(console, &first, &cell, 1) == 0);
 	CHECK(read_cell(console, 0, 0).font == 1);
 	CHECK(read_cell(console, 0, 0).glyph == 1);
-	CHECK((read_cell(console, 0, 0).flags
-	    & ST_CONSOLE_CELL_FALLBACK_FONT) != 0);
+	CHECK(read_cell(console, 0, 0).glyph_font == 0);
 	identifier = register_static_font(console, &selected_font);
 	CHECK(identifier == 1);
 	CHECK(read_cell(console, 0, 0).font == 1);
 	CHECK(read_cell(console, 0, 0).glyph == 1);
-	CHECK((read_cell(console, 0, 0).flags
-	    & ST_CONSOLE_CELL_FALLBACK_FONT) != 0);
+	CHECK(read_cell(console, 0, 0).glyph_font == 0);
+	cell.glyph = 0;
+	cell.glyph_font = 1;
 	CHECK(st_console_write_cells(console, &first, &cell, 1) == 0);
 	CHECK(read_cell(console, 0, 0).glyph == 0);
-	CHECK((read_cell(console, 0, 0).flags
-	    & ST_CONSOLE_CELL_FALLBACK_FONT) == 0);
+	CHECK(read_cell(console, 0, 0).glyph_font == 1);
 	st_console_destroy(console);
 }
 
@@ -2322,7 +2403,7 @@ test_multiple_consoles_one_display(void)
 		.wrap = true,
 	};
 	const struct st_console_rect cell_rect = {0, 0, 1, 1};
-	const struct st_console_cell cell = {.codepoint = 'B'};
+	const struct st_console_cell cell = {.glyph = 'B'};
 	const struct st_console_event first_event = {
 		.type = ST_CONSOLE_EVENT_KEY_CODE, .data.key.code = 'A',
 	};
@@ -2585,6 +2666,7 @@ main(void)
 	test_ansi_cp437_output();
 	test_ascii_character_identity();
 	test_font_resolution_and_complete_cells();
+	test_cluster_font_mapping();
 	test_font_registration_preserves_cells();
 	test_font_registry_lru_replacement();
 	test_multiple_consoles_one_display();

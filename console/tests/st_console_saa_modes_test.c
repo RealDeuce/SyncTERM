@@ -36,12 +36,12 @@ check_mode(bool prestel)
 	const struct st_console_rect grid = {0, 0, 2, 2};
 	const struct st_console_rect raster = {0, 0, 16, 4};
 	struct st_console_cell cells[4] = {
-		{.codepoint = 1, .foreground = 7,
+		{.glyph = 1, .foreground = 7,
 		 .flags = ST_CONSOLE_CELL_DOUBLE_HEIGHT},
-		{.codepoint = 0, .foreground = 7, .background = 1},
-		{.codepoint = 0, .foreground = 7,
+		{.glyph = 0, .foreground = 7, .background = 1},
+		{.glyph = 0, .foreground = 7,
 		 .flags = ST_CONSOLE_CELL_DOUBLE_HEIGHT},
-		{.codepoint = 0, .foreground = 7, .background = 2},
+		{.glyph = 0, .foreground = 7, .background = 2},
 	};
 	st_console_t *console = NULL;
 	struct st_pixel_buffer *pixels = NULL;

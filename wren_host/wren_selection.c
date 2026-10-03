@@ -9,11 +9,11 @@
 
 #include "io_error.h"
 #include "st_console.h"
-#include "st_utf8.h"
 
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
 struct text_selection {
 	st_console_t *console;
@@ -174,44 +174,62 @@ paint_selection(struct text_selection *selection, bool clear)
 }
 
 static int
-append_cell(char *text, size_t capacity, size_t *length,
-	const struct st_console_cell *cell)
+append_cell(st_console_t *console, char **text, size_t *capacity,
+	size_t *length, const struct st_console_cell *cell, bool *nonspace)
 {
-	char encoded[4];
-	uint32_t codepoint;
-	ptrdiff_t amount;
+	static const char replacement[] = "\xef\xbf\xbd";
+	size_t amount;
+	int status;
 
+	*nonspace = false;
 	if ((cell->flags & ST_CONSOLE_CELL_CONTINUATION) != 0)
 		return 0;
-	codepoint = cell->codepoint == 0 ? ' ' : cell->codepoint;
-	amount = st_utf8_encode_one(encoded, sizeof(encoded), codepoint);
-	if (amount < 0)
-		amount = st_utf8_encode_one(encoded, sizeof(encoded), UINT32_C(0xfffd));
-	if (amount < 0 || (size_t)amount > capacity - *length)
+	status = st_console_font_glyph_text(console, cell->glyph_font,
+	    cell->glyph, NULL, 0, &amount);
+	if (status == IO_ERROR_NOT_FOUND)
+		amount = sizeof(replacement) - 1;
+	else if (status != IO_ERROR_OUT_OF_RANGE && status != 0)
+		return status;
+	if (amount > SIZE_MAX - *length - 1)
 		return IO_ERROR_OUT_OF_RANGE;
-	for (ptrdiff_t index = 0; index < amount; ++index)
-		text[(*length)++] = encoded[index];
+	if (*length + amount + 1 > *capacity) {
+		size_t fresh_capacity = *capacity == 0 ? 256 : *capacity;
+		char *fresh;
+
+		while (fresh_capacity < *length + amount + 1) {
+			if (fresh_capacity > SIZE_MAX / 2) {
+				fresh_capacity = *length + amount + 1;
+				break;
+			}
+			fresh_capacity *= 2;
+		}
+		fresh = realloc(*text, fresh_capacity);
+		if (fresh == NULL)
+			return IO_ERROR_OUT_OF_MEMORY;
+		*text = fresh;
+		*capacity = fresh_capacity;
+	}
+	if (status == IO_ERROR_NOT_FOUND)
+		memcpy(*text + *length, replacement, amount);
+	else {
+		status = st_console_font_glyph_text(console, cell->glyph_font,
+		    cell->glyph, *text + *length, amount, &amount);
+		if (status != 0)
+			return status;
+	}
+	*nonspace = amount != 1 || (*text)[*length] != ' ';
+	*length += amount;
 	return 0;
 }
 
 static int
 copy_selection(struct text_selection *selection)
 {
-	size_t count = (size_t)selection->columns * selection->rows;
-	size_t capacity;
+	size_t capacity = 0;
 	size_t length = 0;
-	char *text;
+	char *text = NULL;
 	int result = 0;
 
-	if (count > (SIZE_MAX - 1) / 4)
-		return IO_ERROR_OUT_OF_RANGE;
-	capacity = count * 4;
-	if ((size_t)selection->rows > SIZE_MAX - capacity - 1)
-		return IO_ERROR_OUT_OF_RANGE;
-	capacity += (size_t)selection->rows + 1;
-	text = malloc(capacity);
-	if (text == NULL)
-		return IO_ERROR_OUT_OF_MEMORY;
 	for (uint32_t y = 0; y < selection->rows; ++y) {
 		size_t last_text = length;
 		bool have_row = false;
@@ -220,15 +238,16 @@ copy_selection(struct text_selection *selection)
 			size_t offset = (size_t)y * selection->columns + x;
 			const struct st_console_cell *cell =
 			    &selection->original[offset];
+			bool nonspace;
 
 			if (!cell_selected(selection, x, y))
 				continue;
 			have_row = true;
-			result = append_cell(text, capacity, &length, cell);
+			result = append_cell(selection->console, &text, &capacity,
+			    &length, cell, &nonspace);
 			if (result != 0)
 				goto done;
-			if (cell->codepoint != 0 && cell->codepoint != ' '
-			    && (cell->flags & ST_CONSOLE_CELL_CONTINUATION) == 0)
+			if (nonspace)
 				last_text = length;
 		}
 		if (!have_row)
@@ -236,8 +255,27 @@ copy_selection(struct text_selection *selection)
 		if (selection->rectangular
 		    || cell_selected(selection, selection->columns - 1, y)) {
 			length = last_text;
+			if (length + 2 > capacity) {
+				char *fresh = realloc(text, length + 2);
+
+				if (fresh == NULL) {
+					result = IO_ERROR_OUT_OF_MEMORY;
+					goto done;
+				}
+				text = fresh;
+				capacity = length + 2;
+			}
 			text[length++] = '\n';
 		}
+	}
+	if (length + 1 > capacity) {
+		char *fresh = realloc(text, length + 1);
+
+		if (fresh == NULL) {
+			result = IO_ERROR_OUT_OF_MEMORY;
+			goto done;
+		}
+		text = fresh;
 	}
 	text[length] = '\0';
 	/* A console without a host clipboard simply cannot publish the result. */

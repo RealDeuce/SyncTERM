@@ -15,6 +15,8 @@
 #include "st_settings.h"
 #include "st_theme.h"
 #include "st_time.h"
+#include "st_unicode_text.h"
+#include "st_unicode_width.h"
 #include "st_utf8.h"
 #include "syncterm_config.h"
 #include "value_convert.h"
@@ -315,7 +317,7 @@ storage_release(struct surface_storage *storage)
 
 static struct surface_storage *
 storage_create(uint32_t width, uint32_t height,
-	const struct st_console_style *style)
+	const struct st_console_style *style, st_console_t *console)
 {
 	struct surface_storage *storage;
 	struct st_console_cell blank;
@@ -337,13 +339,19 @@ storage_create(uint32_t width, uint32_t height,
 	storage->width = width;
 	storage->height = height;
 	blank = (struct st_console_cell){
-		.codepoint = ' ',
 		.foreground = style->foreground,
 		.background = style->background,
 		.flags = style->flags & ST_CONSOLE_CELL_PUBLIC_FLAGS,
 		.font = style->font,
+		.glyph_font = style->font,
 		.hyperlink = style->hyperlink,
 	};
+	{
+		uint8_t columns;
+
+		(void)st_console_font_lookup(console, blank.font, ' ',
+		    &blank.glyph_font, &blank.glyph, &columns);
+	}
 	for (size_t i = 0; i < storage->count; ++i)
 		storage->cells[i] = blank;
 	return storage;
@@ -428,18 +436,11 @@ clear_cell_pair(WrenVM *vm, struct foreign_cell *foreign)
 	struct surface_storage *storage = foreign->storage;
 	struct st_console_cell *cell = &storage->cells[foreign->index];
 	struct st_console_cell blank = *cell;
-	uint32_t glyph = ' ';
-	uint16_t glyph_font = blank.font;
 	uint8_t columns;
 
-	blank.codepoint = ' ';
-	blank.flags &= ~(ST_CONSOLE_CELL_CONTINUATION
-	    | ST_CONSOLE_CELL_EXPLICIT_GLYPH | ST_CONSOLE_CELL_FALLBACK_FONT);
+	blank.flags &= ~ST_CONSOLE_CELL_CONTINUATION;
 	(void)st_console_font_lookup(st_wren_context_from_vm(vm)->console,
-	    blank.font, ' ', &glyph_font, &glyph, &columns);
-	blank.glyph = glyph;
-	if (glyph_font != blank.font)
-		blank.flags |= ST_CONSOLE_CELL_FALLBACK_FONT;
+	    blank.font, ' ', &blank.glyph_font, &blank.glyph, &columns);
 	if ((cell->flags & ST_CONSOLE_CELL_CONTINUATION) != 0
 	    && foreign->index % storage->width != 0)
 		storage->cells[foreign->index - 1] = blank;
@@ -455,47 +456,35 @@ static struct st_console_cell
 clipped_blank(WrenVM *vm, const struct st_console_cell *source)
 {
 	struct st_console_cell blank = *source;
-	uint32_t glyph = ' ';
-	uint16_t glyph_font = blank.font;
 	uint8_t columns;
 
-	blank.codepoint = ' ';
 	blank.flags &= ~(ST_CONSOLE_CELL_CONTINUATION
-	    | ST_CONSOLE_CELL_EXPLICIT_GLYPH | ST_CONSOLE_CELL_FALLBACK_FONT
 	    | ST_CONSOLE_CELL_PIXEL_GRAPHICS);
 	(void)st_console_font_lookup(st_wren_context_from_vm(vm)->console,
-	    blank.font, ' ', &glyph_font, &glyph, &columns);
-	blank.glyph = glyph;
-	if (glyph_font != blank.font)
-		blank.flags |= ST_CONSOLE_CELL_FALLBACK_FONT;
+	    blank.font, ' ', &blank.glyph_font, &blank.glyph, &columns);
 	return blank;
 }
 
 static void
-set_cell_codepoint(WrenVM *vm, struct foreign_cell *foreign,
-	uint32_t codepoint, bool raw, uint8_t raw_glyph)
+set_cell_cluster(WrenVM *vm, struct foreign_cell *foreign, const char *text,
+	size_t text_size, uint8_t columns, bool raw, uint8_t raw_glyph)
 {
 	struct st_console_cell value = foreign->storage->cells[foreign->index];
-	uint32_t glyph = raw_glyph;
-	uint16_t glyph_font = value.font;
-	uint8_t columns = 1;
 
 	clear_cell_pair(vm, foreign);
-	value.codepoint = codepoint;
-	value.flags &= ~(ST_CONSOLE_CELL_CONTINUATION
-	    | ST_CONSOLE_CELL_EXPLICIT_GLYPH | ST_CONSOLE_CELL_FALLBACK_FONT);
-	if (raw)
-		value.flags |= ST_CONSOLE_CELL_EXPLICIT_GLYPH;
-	else if (st_console_font_lookup(
-	    st_wren_context_from_vm(vm)->console, value.font, codepoint,
-	    &glyph_font, &glyph, &columns) != 0) {
-		glyph = '?';
-		glyph_font = value.font;
-		columns = 1;
+	value.flags &= ~ST_CONSOLE_CELL_CONTINUATION;
+	if (raw) {
+		value.glyph = raw_glyph;
+		value.glyph_font = value.font;
+		(void)st_console_font_glyph_columns(
+		    st_wren_context_from_vm(vm)->console, value.glyph_font,
+		    value.glyph, &columns);
 	}
-	value.glyph = glyph;
-	if (glyph_font != value.font)
-		value.flags |= ST_CONSOLE_CELL_FALLBACK_FONT;
+	else if (st_console_font_lookup_cluster(
+	    st_wren_context_from_vm(vm)->console, value.font, text, text_size,
+	    columns, &value.glyph_font, &value.glyph) != 0) {
+		return;
+	}
 	foreign->storage->cells[foreign->index] = value;
 	if (columns == 2 && foreign->storage->width != 0
 	    && foreign->index % foreign->storage->width + 1
@@ -505,26 +494,25 @@ set_cell_codepoint(WrenVM *vm, struct foreign_cell *foreign,
 	}
 }
 
+static void
+set_cell_codepoint(WrenVM *vm, struct foreign_cell *foreign,
+	uint32_t codepoint, bool raw, uint8_t raw_glyph)
+{
+	char encoded[4];
+	ptrdiff_t size = st_utf8_encode_one(encoded, sizeof(encoded), codepoint);
+
+	if (size > 0)
+		set_cell_cluster(vm, foreign, encoded, (size_t)size,
+		    st_unicode_columns(codepoint), raw, raw_glyph);
+}
+
 static uint8_t
 resolved_cell_columns(WrenVM *vm, const struct st_console_cell *cell)
 {
 	uint8_t columns = 1;
 
-	if ((cell->flags & ST_CONSOLE_CELL_EXPLICIT_GLYPH) != 0) {
-		(void)st_console_font_glyph_columns(
-		    st_wren_context_from_vm(vm)->console,
-		    (cell->flags & ST_CONSOLE_CELL_FALLBACK_FONT) != 0
-		    ? 0 : cell->font,
-		    cell->glyph, &columns);
-	}
-	else {
-		uint16_t glyph_font;
-		uint32_t glyph;
-
-		(void)st_console_font_lookup(
-		    st_wren_context_from_vm(vm)->console, cell->font,
-		    cell->codepoint, &glyph_font, &glyph, &columns);
-	}
+	(void)st_console_font_glyph_columns(st_wren_context_from_vm(vm)->console,
+	    cell->glyph_font, cell->glyph, &columns);
 	return columns;
 }
 
@@ -548,7 +536,8 @@ allocate_cell(WrenVM *vm)
 	cell->header.kind = FOREIGN_CELL;
 	if (st_console_get_style(st_wren_context_from_vm(vm)->console, &style) != 0)
 		style = (struct st_console_style){.foreground = 7};
-	cell->storage = storage_create(1, 1, &style);
+	cell->storage = storage_create(1, 1, &style,
+	    st_wren_context_from_vm(vm)->console);
 	if (cell->storage == NULL)
 		st_wren_abort(vm, "Cell.new: out of memory");
 }
@@ -570,7 +559,7 @@ allocate_surface(WrenVM *vm)
 	if (st_console_get_style(st_wren_context_from_vm(vm)->console, &style) != 0)
 		style = (struct st_console_style){.foreground = 7};
 	surface->storage = storage_create((uint32_t)width, (uint32_t)height,
-	    &style);
+	    &style, st_wren_context_from_vm(vm)->console);
 	if (surface->storage == NULL)
 		st_wren_abort(vm, "Surface.new: dimensions are too large");
 }
@@ -2010,7 +1999,8 @@ fn_screen_read_rect(WrenVM *vm)
 	}
 	if (st_console_get_style(console, &style) != 0)
 		style = (struct st_console_style){.foreground = 7};
-	storage = storage_create(rect.width, rect.height, &style);
+	storage = storage_create(rect.width, rect.height, &style,
+	    st_wren_context_from_vm(vm)->console);
 	if (storage == NULL) {
 		wrenSetSlotNull(vm, 0);
 		return;
@@ -2529,11 +2519,10 @@ fn_screen_window_print(WrenVM *vm)
 	int length;
 	const char *text;
 
-	if (wrenGetSlotType(vm, 1) != WREN_TYPE_STRING) {
+	if (!st_wren_text_slot(vm, 1, &text, &length)) {
 		st_wren_abort(vm, "Screen.window.print expects a String");
 		return;
 	}
-	text = wrenGetSlotBytes(vm, 1, &length);
 	if (refresh_screen_style_font(vm))
 		if (st_console_write_utf8(st_wren_context_from_vm(vm)->console,
 		    text, (size_t)length) != 0)
@@ -2582,11 +2571,14 @@ static void
 fn_screen_text_width(WrenVM *vm)
 {
 	const unsigned char *text;
+	st_unicode_text_t *graphemes = NULL;
+	struct st_unicode_text_item item;
 	int length;
 	int64_t selector;
 	uint16_t identifier;
-	size_t offset = 0;
+	size_t consumed;
 	uint64_t width = 0;
+	int status;
 
 	if (wrenGetSlotType(vm, 1) != WREN_TYPE_STRING
 	    || !slot_integer(vm, 2, 0, UINT8_MAX, &selector)) {
@@ -2597,24 +2589,44 @@ fn_screen_text_width(WrenVM *vm)
 		st_wren_abort(vm, "font is not available");
 		return;
 	}
-	text = (const unsigned char *)wrenGetSlotBytes(vm, 1, &length);
-	while (offset < (size_t)length) {
-		uint32_t codepoint;
+	{
+		const char *normalized;
+
+		if (!st_wren_text_slot(vm, 1, &normalized, &length))
+			return;
+		text = (const unsigned char *)normalized;
+	}
+	status = st_unicode_text_create(&graphemes, ST_UNICODE_TEXT_GRAPHEMES);
+	if (status == 0)
+		status = st_unicode_text_feed(graphemes, text, (size_t)length,
+		    &consumed);
+	if (status == 0 && consumed != (size_t)length)
+		status = IO_ERROR_INVALID_ENCODING;
+	if (status == 0)
+		status = st_unicode_text_finish(graphemes);
+	if (status != 0) {
+		st_unicode_text_destroy(&graphemes);
+		st_wren_abort(vm, status == IO_ERROR_INVALID_ENCODING
+		    ? "text is not valid UTF-8" : "out of memory");
+		return;
+	}
+	while (st_unicode_text_peek(graphemes, &item) == 0) {
 		uint32_t glyph;
 		uint16_t glyph_font;
-		uint8_t columns = 1;
-		size_t consumed;
+		uint8_t columns = item.columns;
 
-		if (st_utf8_decode_one(&codepoint, &consumed, text + offset,
-		    (size_t)length - offset) != 0) {
-			st_wren_abort(vm, "text is not valid UTF-8");
-			return;
+		if (st_console_font_lookup_cluster(
+		    st_wren_context_from_vm(vm)->console, identifier,
+		    (const char *)item.bytes, item.size, item.columns, &glyph_font,
+		    &glyph) == 0) {
+			(void)st_console_font_glyph_columns(
+			    st_wren_context_from_vm(vm)->console, glyph_font, glyph,
+			    &columns);
 		}
-		(void)st_console_font_lookup(st_wren_context_from_vm(vm)->console, identifier,
-		    codepoint, &glyph_font, &glyph, &columns);
 		width += columns;
-		offset += consumed;
+		(void)st_unicode_text_consume(graphemes);
 	}
+	st_unicode_text_destroy(&graphemes);
 	wrenSetSlotDouble(vm, 0, (double)width);
 }
 
@@ -2661,7 +2673,13 @@ fn_codepage_encodes(WrenVM *vm)
 		st_wren_abort(vm, "Codepage.encodes_ expects a String");
 		return;
 	}
-	text = (const unsigned char *)wrenGetSlotBytes(vm, 1, &length);
+	{
+		const char *normalized;
+
+		if (!st_wren_text_slot(vm, 1, &normalized, &length))
+			return;
+		text = (const unsigned char *)normalized;
+	}
 	if (length <= 0 || st_utf8_decode_one(&codepoint, &consumed, text,
 	    (size_t)length) != 0 || consumed != (size_t)length) {
 		wrenSetSlotBool(vm, 0, false);
@@ -3083,41 +3101,103 @@ static void
 fn_cell_ch(WrenVM *vm)
 {
 	struct st_console_cell *cell = cell_value(vm, 0);
-	char encoded[4];
-	uint32_t codepoint;
-	ptrdiff_t length;
+	char local[32];
+	char *encoded = local;
+	size_t length;
+	int status;
 
 	if (cell == NULL)
 		return;
-	codepoint = cell->codepoint;
-	length = st_utf8_encode_one(encoded, sizeof(encoded), codepoint);
-	if (length < 0)
-		wrenSetSlotString(vm, 0, "?");
-	else
-		wrenSetSlotBytes(vm, 0, encoded, (size_t)length);
+	status = st_console_font_glyph_text(st_wren_context_from_vm(vm)->console,
+	    cell->glyph_font, cell->glyph, local, sizeof(local), &length);
+	if (status == IO_ERROR_OUT_OF_RANGE) {
+		encoded = malloc(length);
+		if (encoded != NULL)
+			status = st_console_font_glyph_text(
+			    st_wren_context_from_vm(vm)->console, cell->glyph_font,
+			    cell->glyph, encoded, length, &length);
+		else
+			status = IO_ERROR_OUT_OF_MEMORY;
+	}
+	if (status != 0) {
+		encoded = local;
+		length = (size_t)st_utf8_encode_one(local, sizeof(local),
+		    UINT32_C(0xfffd));
+	}
+	wrenSetSlotBytes(vm, 0, encoded, length);
+	if (encoded != local)
+		free(encoded);
 }
 
 static void
 fn_cell_ch_set(WrenVM *vm)
 {
 	struct foreign_cell *foreign = foreign_cell_value(vm, 0);
-	const unsigned char *text;
-	uint32_t codepoint;
+	const char *text;
+	st_unicode_text_t *unicode = NULL;
+	struct st_unicode_text_item item;
+	char *normalized = NULL;
+	size_t normalized_size = 0;
+	uint8_t columns = 1;
 	size_t consumed;
 	int length;
+	int status;
 
 	if (foreign == NULL || wrenGetSlotType(vm, 1) != WREN_TYPE_STRING) {
 		if (foreign != NULL)
 			st_wren_abort(vm, "Cell.ch expects a String");
 		return;
 	}
-	text = (const unsigned char *)wrenGetSlotBytes(vm, 1, &length);
-	if (length == 0 || st_utf8_decode_one(&codepoint, &consumed,
-	    text, (size_t)length) != 0 || consumed != (size_t)length) {
-		st_wren_abort(vm, "Cell.ch expects one valid Unicode codepoint");
+	text = wrenGetSlotBytes(vm, 1, &length);
+	status = length <= 0 ? IO_ERROR_INVALID_ENCODING
+	    : st_unicode_text_create(&unicode, ST_UNICODE_TEXT_GRAPHEMES);
+	if (status == 0)
+		status = st_unicode_text_feed(unicode, text, (size_t)length,
+		    &consumed);
+	if (status == 0 && consumed != (size_t)length)
+		status = IO_ERROR_INVALID_ENCODING;
+	if (status == 0)
+		status = st_unicode_text_finish(unicode);
+	if (status != 0 || st_unicode_text_peek(unicode, &item) != 0
+	    || item.kind != ST_UNICODE_TEXT_ITEM_TEXT) {
+		st_unicode_text_destroy(&unicode);
+		st_wren_abort(vm, "Cell.ch expects one valid Unicode grapheme");
 		return;
 	}
-	set_cell_codepoint(vm, foreign, codepoint, false, 0);
+	normalized = malloc(item.size);
+	if (normalized == NULL) {
+		st_unicode_text_destroy(&unicode);
+		st_wren_abort(vm, "out of memory");
+		return;
+	}
+	memcpy(normalized, item.bytes, item.size);
+	normalized_size = item.size;
+	columns = item.columns;
+	(void)st_unicode_text_consume(unicode);
+	if (st_unicode_text_peek(unicode, &item) == 0) {
+		free(normalized);
+		st_unicode_text_destroy(&unicode);
+		st_wren_abort(vm, "Cell.ch expects one valid Unicode grapheme");
+		return;
+	}
+	st_unicode_text_destroy(&unicode);
+	set_cell_cluster(vm, foreign, normalized, normalized_size, columns,
+	    false, 0);
+	free(normalized);
+}
+
+static bool
+cell_scalar(struct st_wren_context *context,
+	const struct st_console_cell *cell, uint32_t *codepoint)
+{
+	char encoded[4];
+	size_t required;
+	size_t consumed;
+
+	return st_console_font_glyph_text(context->console, cell->glyph_font,
+	    cell->glyph, encoded, sizeof(encoded), &required) == 0
+	    && st_utf8_decode_one(codepoint, &consumed, encoded, required) == 0
+	    && consumed == required;
 }
 
 static void
@@ -3127,16 +3207,16 @@ fn_cell_byte(WrenVM *vm)
 	struct st_wren_context *context = st_wren_context_from_vm(vm);
 	uint16_t selector;
 	uint8_t value;
+	uint32_t codepoint;
 
 	if (cell == NULL)
 		return;
 	selector = st_wren_font_selector(context, cell->font);
-	if ((cell->flags & (ST_CONSOLE_CELL_EXPLICIT_GLYPH
-	    | ST_CONSOLE_CELL_FALLBACK_FONT)) == ST_CONSOLE_CELL_EXPLICIT_GLYPH
-	    && cell->glyph <= UINT8_MAX)
+	if (cell->glyph_font == cell->font && cell->glyph <= UINT8_MAX)
 		value = (uint8_t)cell->glyph;
-	else if (!st_codepage_from_unicode(&value, font_codepage(selector),
-	    cell->codepoint))
+	else if (!cell_scalar(context, cell, &codepoint)
+	    || !st_codepage_from_unicode(&value, font_codepage(selector),
+	    codepoint))
 		value = '?';
 	wrenSetSlotDouble(vm, 0, value);
 }
@@ -3179,6 +3259,7 @@ fn_cell_font_set(WrenVM *vm)
 	uint16_t identifier;
 	uint16_t selector;
 	uint8_t byte;
+	uint32_t codepoint;
 
 	if (foreign != NULL && slot_integer(vm, 1, 0, UINT8_MAX, &value)) {
 		if (!st_wren_font_identifier(context,
@@ -3188,12 +3269,11 @@ fn_cell_font_set(WrenVM *vm)
 		}
 		cell = &foreign->storage->cells[foreign->index];
 		selector = st_wren_font_selector(context, cell->font);
-		if ((cell->flags & (ST_CONSOLE_CELL_EXPLICIT_GLYPH
-		    | ST_CONSOLE_CELL_FALLBACK_FONT))
-		    == ST_CONSOLE_CELL_EXPLICIT_GLYPH && cell->glyph <= UINT8_MAX)
+		if (cell->glyph_font == cell->font && cell->glyph <= UINT8_MAX)
 			byte = (uint8_t)cell->glyph;
-		else if (!st_codepage_from_unicode(&byte, font_codepage(selector),
-		    cell->codepoint))
+		else if (!cell_scalar(context, cell, &codepoint)
+		    || !st_codepage_from_unicode(&byte, font_codepage(selector),
+		    codepoint))
 			byte = '?';
 		cell->font = identifier;
 		set_cell_codepoint(vm, foreign,
@@ -3397,8 +3477,8 @@ fn_cell_equal(WrenVM *vm)
 		wrenSetSlotBool(vm, 0, false);
 		return;
 	}
-	wrenSetSlotBool(vm, 0, left->codepoint == right->codepoint
-		    && left->glyph == right->glyph
+	wrenSetSlotBool(vm, 0, left->glyph == right->glyph
+		    && left->glyph_font == right->glyph_font
 		    && left->foreground == right->foreground
 		    && left->background == right->background
 		    && (left->flags & ST_CONSOLE_CELL_PUBLIC_FLAGS)
@@ -3416,8 +3496,9 @@ fn_cell_to_string(WrenVM *vm)
 
 	if (cell == NULL || !cell_legacy_attr(vm, cell, &attribute))
 		return;
-	(void)snprintf(text, sizeof(text), "Cell(ch=%u attr=0x%02X font=%u)",
-	    cell->codepoint, attribute, cell->font);
+	(void)snprintf(text, sizeof(text),
+	    "Cell(glyph=%u glyphFont=%u attr=0x%02X font=%u)",
+	    cell->glyph, cell->glyph_font, attribute, cell->font);
 	wrenSetSlotString(vm, 0, text);
 }
 
@@ -3922,11 +4003,13 @@ fn_host_alt_short(WrenVM *vm)
 static void
 fn_host_print(WrenVM *vm)
 {
-	if (wrenGetSlotType(vm, 1) != WREN_TYPE_STRING) {
+	const char *text;
+
+	if (!st_wren_text_slot(vm, 1, &text, NULL)) {
 		st_wren_abort(vm, "Host.print expects a String");
 		return;
 	}
-	puts(wrenGetSlotString(vm, 1));
+	puts(text);
 	fflush(stdout);
 }
 

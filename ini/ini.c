@@ -11,6 +11,7 @@
 #include "file_map.h"
 #include "io_error.h"
 #include "st_hex.h"
+#include "st_unicode_text.h"
 #include "string_compat.h"
 #include "string_util.h"
 #include "value_convert.h"
@@ -429,6 +430,20 @@ parse_line(struct ini_document *document, struct ini_section **current,
 				if (value == NULL)
 					return IO_ERROR_OUT_OF_MEMORY;
 			}
+			{
+				char *normalized;
+				size_t normalized_size;
+				int normalize_error = st_unicode_text_normalize(
+				    &normalized, &normalized_size, value, strlen(value),
+				    NULL);
+
+				if (normalize_error != 0) {
+					free(value);
+					return normalize_error;
+				}
+				free(value);
+				value = normalized;
+			}
 			name = duplicate_span(line, name_begin, name_end);
 			if (name == NULL) {
 				free(value);
@@ -488,21 +503,31 @@ ini_document_parse(ini_document_t **result, const void *input, size_t size)
 		const char *newline = memchr(line, '\n', size - offset);
 		size_t length = newline == NULL ? size - offset
 		    : (size_t)(newline - line) + 1;
+		char *normalized;
+		size_t normalized_length;
 
 		if (memchr(line, '\0', length) != NULL) {
 			error = IO_ERROR_INVALID_ENCODING;
 			break;
 		}
+		error = st_unicode_text_normalize(&normalized, &normalized_length,
+		    line, length, NULL);
+		if (error != 0)
+			break;
 		if (!saw_newline) {
-			if (length > 0 && line[length - 1] == '\n') {
-				if (length > 1 && line[length - 2] == '\r')
+			if (normalized_length > 0
+			    && normalized[normalized_length - 1] == '\n') {
+				if (normalized_length > 1
+				    && normalized[normalized_length - 2] == '\r')
 					memcpy(document->newline, "\r\n", 3);
 				else
 					memcpy(document->newline, "\n", 2);
 				saw_newline = true;
 			}
 		}
-		error = parse_line(document, &current, line, length);
+		error = parse_line(document, &current, normalized,
+		    normalized_length);
+		free(normalized);
 		if (error != 0)
 			break;
 		offset += length;
@@ -1226,11 +1251,19 @@ ini_section_set_string(ini_section_t *section, const char *key,
     const char *value, const struct ini_write_style *style)
 {
 	struct name_value *item;
+	char *normalized;
+	size_t normalized_size;
+	int normalize_error;
 	bool literal;
 
 	if (section == NULL || !ini_key_name_valid(key)
 	    || value == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
+	normalize_error = st_unicode_text_normalize(&normalized,
+	    &normalized_size, value, strlen(value), NULL);
+	if (normalize_error != 0)
+		return normalize_error;
+	value = normalized;
 	if (style == NULL)
 		style = &ini_default_style;
 	if (style->key_prefix == NULL || style->value_separator == NULL
@@ -1238,7 +1271,7 @@ ini_section_set_string(ini_section_t *section, const char *key,
 	    || *style->literal_separator == '\0'
 	    || style->value_separator[1] != '\0'
 	    || style->literal_separator[1] != '\0')
-		return IO_ERROR_INVALID_ARGUMENT;
+		goto invalid;
 	literal = value_needs_literal(value);
 	item = section_find_item(section, key);
 	if (item != NULL) {
@@ -1248,18 +1281,20 @@ ini_section_set_string(ini_section_t *section, const char *key,
 		int error;
 
 		if (source_index == SIZE_MAX)
-			return IO_ERROR_IO;
+			goto io_error;
 		record = section->entry_records[source_index];
 		copy = strdup(value);
 		if (copy == NULL)
-			return IO_ERROR_OUT_OF_MEMORY;
+			goto out_of_memory;
 		error = replace_record_value(record, value, literal, style);
 		if (error != 0) {
 			free(copy);
+			free(normalized);
 			return error;
 		}
 		free((char *)item->value);
 		item->value = copy;
+		free(normalized);
 		return 0;
 	}
 	{
@@ -1273,18 +1308,19 @@ ini_section_set_string(ini_section_t *section, const char *key,
 		int error;
 
 		if (record == NULL)
-			return IO_ERROR_OUT_OF_MEMORY;
+			goto out_of_memory;
 		error = prepare_record_termination(section->document, insertion,
 		    &terminated_raw);
 		if (error != 0) {
 			record_free(record);
+			free(normalized);
 			return error;
 		}
 		new_item = name_value_create(key, value);
 		if (new_item == NULL) {
 			free(terminated_raw);
 			record_free(record);
-			return IO_ERROR_OUT_OF_MEMORY;
+			goto out_of_memory;
 		}
 		if (!name_value_array_reserve(&section->entries, count + 1)
 		    || !name_value_index_reserve(&section->index, count + 1)
@@ -1294,7 +1330,7 @@ ini_section_set_string(ini_section_t *section, const char *key,
 			name_value_free_item(new_item);
 			free(terminated_raw);
 			record_free(record);
-			return IO_ERROR_OUT_OF_MEMORY;
+			goto out_of_memory;
 		}
 		commit_record_termination(section->document, insertion,
 		    terminated_raw);
@@ -1304,7 +1340,18 @@ ini_section_set_string(ini_section_t *section, const char *key,
 		(void)ini_record_list_insert(&section->document->records, insertion,
 		    record);
 	}
+	free(normalized);
 	return 0;
+
+invalid:
+	free(normalized);
+	return IO_ERROR_INVALID_ARGUMENT;
+io_error:
+	free(normalized);
+	return IO_ERROR_IO;
+out_of_memory:
+	free(normalized);
+	return IO_ERROR_OUT_OF_MEMORY;
 }
 
 int

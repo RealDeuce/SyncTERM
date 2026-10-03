@@ -162,12 +162,12 @@ static inline bool
 st_console_cells_equal(const struct st_console_cell *left,
 	const struct st_console_cell *right)
 {
-	return left->codepoint == right->codepoint
-	    && left->glyph == right->glyph
+	return left->glyph == right->glyph
 	    && left->foreground == right->foreground
 	    && left->background == right->background
 	    && ((left->flags ^ right->flags) & ST_CONSOLE_CELL_PUBLIC_FLAGS) == 0
 	    && left->font == right->font
+	    && left->glyph_font == right->glyph_font
 	    && left->hyperlink == right->hyperlink;
 }
 
@@ -212,8 +212,7 @@ st_console_effective_cell_locked(const st_console_t *console,
 static inline uint16_t
 st_console_cell_glyph_font(const struct st_console_cell *cell)
 {
-	return (cell->flags & ST_CONSOLE_CELL_FALLBACK_FONT) != 0
-	    ? 0 : cell->font;
+	return cell->glyph_font;
 }
 
 static inline bool
@@ -252,9 +251,11 @@ st_console_rect_accumulate(struct st_console_rect *damage, bool *valid,
 
 int st_console_ansi_init(st_console_t *console,
 	const struct st_console_ansi_io *io);
-unsigned char st_console_ascii_character(const struct st_console_cell *cell,
-	bool *alternate);
+unsigned char st_console_ascii_character(st_console_t *console,
+	const struct st_console_cell *cell, bool *alternate);
 unsigned char st_console_cp437_character(uint32_t codepoint);
+bool st_console_cell_codepoint_locked(st_console_t *console,
+	const struct st_console_cell *cell, uint32_t *codepoint);
 int st_console_ncurses_init(st_console_t *console);
 int st_console_sdl_init(st_console_t *console);
 int st_console_x11_init(st_console_t *console);
@@ -292,6 +293,12 @@ bool st_console_font_glyph_locked(st_console_t *console, uint16_t identifier,
 bool st_console_font_lookup_locked(st_console_t *console,
 	uint16_t identifier, uint32_t codepoint, uint16_t *glyph_font,
 	uint32_t *glyph, uint8_t *columns);
+bool st_console_font_lookup_cluster_locked(st_console_t *console,
+	uint16_t identifier, const char *text, size_t text_size, uint8_t columns,
+	uint16_t *glyph_font, uint32_t *glyph);
+bool st_console_font_glyph_text_locked(st_console_t *console,
+	uint16_t identifier, uint32_t glyph, char *text, size_t text_size,
+	size_t *required);
 int st_console_rasterize_locked(st_console_t *console, bool force);
 size_t st_console_pixel_position_locked(const st_console_t *console,
 	uint32_t x, uint32_t y);

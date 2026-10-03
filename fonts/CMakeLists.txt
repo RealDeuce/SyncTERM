@@ -24,6 +24,7 @@ endif()
 add_library(st_fonts STATIC
 	st_builtin_font_data.c
 	st_builtin_fonts.c
+	st_presentation_font.c
 	generated/st_unscii_8.c
 	generated/st_unscii_16.c)
 target_include_directories(st_fonts PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

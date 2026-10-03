@@ -118,9 +118,9 @@ test_vga_ninth_column(void)
 	};
 	const struct st_console_rect rectangle = {0, 0, 2, 1};
 	const struct st_console_cell cells[2] = {
-		{.codepoint = UINT32_C(0xc0), .glyph = UINT32_C(0xc0),
+		{.glyph = UINT32_C(0xc0),
 		    .foreground = 1},
-		{.codepoint = UINT32_C(0xb0), .glyph = UINT32_C(0xb0),
+		{.glyph = UINT32_C(0xb0),
 		    .foreground = 1, .flags = ST_CONSOLE_CELL_BOLD},
 	};
 	st_console_t *console = NULL;

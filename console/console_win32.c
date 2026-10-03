@@ -121,9 +121,11 @@ cell_attributes(const st_console_t *console, struct win32_state *state,
 }
 
 static WCHAR
-cell_character(const struct st_console_cell *cell)
+cell_character(st_console_t *console, const struct st_console_cell *cell)
 {
-	uint32_t value = cell->codepoint;
+	uint32_t value;
+
+	(void)st_console_cell_codepoint_locked(console, cell, &value);
 
 	if ((cell->flags & ST_CONSOLE_CELL_CONTINUATION) != 0) {
 		if (value > UINT32_C(0xffff) && value <= UINT32_C(0x10ffff))
@@ -181,7 +183,7 @@ write_run(struct win32_state *state, const st_console_t *console,
 
 			st_console_effective_cell_locked(console, source, &effective);
 			cell = &effective;
-			buffer[i].Char.UnicodeChar = cell_character(cell);
+			buffer[i].Char.UnicodeChar = cell_character(console, cell);
 			buffer[i].Attributes = cell_attributes(console, state, cell);
 			if ((cell->flags & ST_CONSOLE_CELL_CONTINUATION) != 0)
 				buffer[i].Attributes |= COMMON_LVB_TRAILING_BYTE;

@@ -256,11 +256,8 @@ slot_fixed_string(WrenVM *vm, int slot, char *destination, size_t size)
 	const char *value;
 	int length;
 
-	if (wrenGetSlotType(vm, slot) != WREN_TYPE_STRING) {
-		st_wren_abort(vm, "expected a String");
+	if (!st_wren_text_slot(vm, slot, &value, &length))
 		return false;
-	}
-	value = wrenGetSlotBytes(vm, slot, &length);
 	if (length < 0 || (size_t)length >= size
 	    || memchr(value, '\0', (size_t)length) != NULL) {
 		st_wren_abort(vm, "String is too long or contains NUL");
@@ -278,11 +275,8 @@ slot_owned_string(WrenVM *vm, int slot, char **destination)
 	int length;
 	char *copy = NULL;
 
-	if (wrenGetSlotType(vm, slot) != WREN_TYPE_STRING) {
-		st_wren_abort(vm, "expected a String");
+	if (!st_wren_text_slot(vm, slot, &value, &length))
 		return false;
-	}
-	value = wrenGetSlotBytes(vm, slot, &length);
 	if (length < 0 || memchr(value, '\0', (size_t)length) != NULL) {
 		st_wren_abort(vm, "String contains NUL");
 		return false;
@@ -636,7 +630,10 @@ fn_menu_quick_connect(WrenVM *vm)
 		wrenSetSlotNull(vm, 0);
 		return;
 	}
-	value = wrenGetSlotBytes(vm, 1, &length);
+	if (!st_wren_text_slot(vm, 1, &value, &length)) {
+		wrenSetSlotNull(vm, 0);
+		return;
+	}
 	st_profile_init(&profile);
 	if (!st_profile_copy(&profile, &host->bbs_model.defaults.profile)
 	    || !parse_quick_connect(&profile, value, (size_t)length)) {
@@ -806,8 +803,14 @@ fn_menu_name_available(WrenVM *vm)
 		wrenSetSlotBool(vm, 0, false);
 		return;
 	}
-	wrenSetSlotBool(vm, 0, st_wren_bbs_model_name_available(&host->bbs_model,
-	    wrenGetSlotString(vm, 1)));
+	{
+		const char *name;
+
+		if (!st_wren_text_slot(vm, 1, &name, NULL))
+			return;
+		wrenSetSlotBool(vm, 0,
+		    st_wren_bbs_model_name_available(&host->bbs_model, name));
+	}
 }
 
 static void
@@ -824,7 +827,8 @@ fn_menu_create(WrenVM *vm)
 		wrenSetSlotNull(vm, 0);
 		return;
 	}
-	name = wrenGetSlotString(vm, 1);
+	if (!st_wren_text_slot(vm, 1, &name, NULL))
+		return;
 	field_count = configured_sort_fields(fields);
 	record = st_wren_bbs_model_create(&host->bbs_model, name,
 	    &host->bbs_model.defaults.profile, fields, field_count);
@@ -852,7 +856,8 @@ fn_menu_copy(WrenVM *vm)
 		st_wren_abort(vm, "Menu.copy expects a directory or transient BBS");
 		return;
 	}
-	name = wrenGetSlotString(vm, 2);
+	if (!st_wren_text_slot(vm, 2, &name, NULL))
+		return;
 	field_count = configured_sort_fields(fields);
 	record = st_wren_bbs_model_create(&host->bbs_model, name,
 	    &source->record->profile, fields, field_count);
@@ -1668,11 +1673,8 @@ theme_filename(WrenVM *vm, int slot, const char **result)
 	int length;
 	const char *value;
 
-	if (wrenGetSlotType(vm, slot) != WREN_TYPE_STRING) {
-		st_wren_abort(vm, "theme filename must be a String");
+	if (!st_wren_text_slot(vm, slot, &value, &length))
 		return false;
-	}
-	value = wrenGetSlotBytes(vm, slot, &length);
 	if (length < 0 || memchr(value, '\0', (size_t)length) != NULL) {
 		st_wren_abort(vm, "theme filename contains NUL");
 		return false;
@@ -2393,7 +2395,8 @@ fn_menu_open_url(WrenVM *vm)
 		st_wren_abort(vm, "Menu.openUrl expects a String");
 		return;
 	}
-	url = wrenGetSlotString(vm, 1);
+	if (!st_wren_text_slot(vm, 1, &url, NULL))
+		return;
 	wrenSetSlotBool(vm, 0, !host->config.safe_mode && url[0] != '\0'
 	    && st_console_open_url(host->config.console, url) == 0);
 }
@@ -2938,11 +2941,8 @@ slot_c_string(WrenVM *vm, int slot, const char **value)
 {
 	int length;
 
-	if (wrenGetSlotType(vm, slot) != WREN_TYPE_STRING) {
-		st_wren_abort(vm, "expected a String");
+	if (!st_wren_text_slot(vm, slot, value, &length))
 		return false;
-	}
-	*value = wrenGetSlotBytes(vm, slot, &length);
 	if (length < 0 || memchr(*value, '\0', (size_t)length) != NULL) {
 		st_wren_abort(vm, "String contains NUL");
 		return false;

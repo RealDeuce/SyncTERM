@@ -6,7 +6,9 @@
 #include "wren_host_internal.h"
 #include "filesystem.h"
 #include "st_app_paths.h"
+#include "st_builtin_fonts.h"
 #include "st_console.h"
+#include "st_presentation_font.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -158,6 +160,9 @@ main(int argc, char **argv)
 	st_console_t *console = NULL;
 	st_wren_host_t *host = NULL;
 	st_hyperlink_registry_t *hyperlinks = NULL;
+	struct st_console_font builtin_font;
+	struct st_console_font_mapping *builtin_mapping = NULL;
+	struct st_presentation_font presentation_font = {0};
 	uint16_t audit_wide_font = 0;
 	bool have_audit_wide_font = false;
 	bool recovery;
@@ -263,65 +268,74 @@ main(int argc, char **argv)
 	}
 	CHECK(st_console_create(&console, &display, &config) == 0);
 	CHECK(st_hyperlink_registry_create(&hyperlinks) == 0);
-	if (strcmp(argv[2], "draw-suite") == 0
-	    || strcmp(argv[2], "input-suite") == 0
-	    || strcmp(argv[2], "logview-suite") == 0
-	    || strcmp(argv[2], "wren-console-suite") == 0) {
-		static const uint8_t narrow[16] = {0};
-		static const uint8_t wide[32] = {0};
-		static const struct st_console_font_mapping mapping[] = {
-			{'?', 0}, {UINT32_C(0x4e00), 1},
-		};
-		const struct st_console_font font = {
-			.bitmap = narrow, .bitmap_size = sizeof(narrow),
-			.width = 8, .height = 16, .glyph_count = 1,
-			.row_stride = 1, .glyph_stride = 16,
-			.wide_bitmap = wide, .wide_bitmap_size = sizeof(wide),
-			.wide_glyph_count = 1, .wide_row_stride = 2,
-			.wide_glyph_stride = 32,
-			.mapping = mapping, .mapping_count = 2,
-		};
-		uint16_t identifier;
+	CHECK(st_builtin_font_get(0, 8, 16, &builtin_font));
+	builtin_mapping = malloc((builtin_font.mapping_count + 1)
+	    * sizeof(builtin_mapping[0]));
+	CHECK(builtin_mapping != NULL);
+	{
+		size_t insertion = 0;
 
-		CHECK(st_console_register_static_font(console, &font, &identifier) == 0);
-		CHECK(identifier == 0);
+		while (insertion < builtin_font.mapping_count
+		    && builtin_font.mapping[insertion].codepoint
+		    < UINT32_C(0x4e00))
+			++insertion;
+		memcpy(builtin_mapping, builtin_font.mapping,
+		    insertion * sizeof(builtin_mapping[0]));
+		builtin_mapping[insertion]
+		    = (struct st_console_font_mapping){UINT32_C(0x4e00),
+		    builtin_font.glyph_count};
+		memcpy(builtin_mapping + insertion + 1,
+		    builtin_font.mapping + insertion,
+		    (builtin_font.mapping_count - insertion)
+		    * sizeof(builtin_mapping[0]));
 	}
-	else if (strcmp(argv[2], "popup-suite") == 0
+	builtin_font.mapping = builtin_mapping;
+	++builtin_font.mapping_count;
+	{
+		static const uint8_t wide_bitmap[32] = {0};
+
+		builtin_font.wide_bitmap = wide_bitmap;
+		builtin_font.wide_bitmap_size = sizeof(wide_bitmap);
+		builtin_font.wide_glyph_count = 1;
+		builtin_font.wide_row_stride = 2;
+		builtin_font.wide_glyph_stride = 32;
+	}
+	CHECK(st_presentation_font_create(&presentation_font, &builtin_font) == 0);
+	free(builtin_mapping);
+	builtin_mapping = NULL;
+	CHECK(st_console_register_static_font(console, &presentation_font.font,
+	    &audit_wide_font) == 0);
+	CHECK(audit_wide_font == 0);
+	if (strcmp(argv[2], "popup-suite") == 0
 	    || strcmp(argv[2], "help-suite") == 0
 	    || strcmp(argv[2], "progress-suite") == 0
 	    || strcmp(argv[2], "menu-suite") == 0) {
-		static const uint8_t narrow[16] = {0};
-		static const uint8_t wide[32] = {0};
-		static const struct st_console_font_mapping base_mapping[] = {
-			{'?', 0},
-		};
+		static const uint8_t narrow_bitmap[16] = {0};
+		static const uint8_t wide_bitmap[32] = {0};
 		static const struct st_console_font_mapping wide_mapping[] = {
 			{'?', 0}, {'A', 1}, {UINT32_C(0x4e00), 1},
 		};
-		const struct st_console_font base_font = {
-			.bitmap = narrow, .bitmap_size = sizeof(narrow),
-			.width = 8, .height = 16, .glyph_count = 1,
-			.row_stride = 1, .glyph_stride = 16,
-			.mapping = base_mapping, .mapping_count = 1,
-		};
 		const struct st_console_font wide_font = {
-			.bitmap = narrow, .bitmap_size = sizeof(narrow),
-			.width = 8, .height = 16, .glyph_count = 1,
-			.row_stride = 1, .glyph_stride = 16,
-			.wide_bitmap = wide, .wide_bitmap_size = sizeof(wide),
-			.wide_glyph_count = 1, .wide_row_stride = 2,
+			.bitmap = narrow_bitmap,
+			.bitmap_size = sizeof(narrow_bitmap),
+			.width = 8,
+			.height = 16,
+			.glyph_count = 1,
+			.row_stride = 1,
+			.glyph_stride = 16,
+			.wide_bitmap = wide_bitmap,
+			.wide_bitmap_size = sizeof(wide_bitmap),
+			.wide_glyph_count = 1,
+			.wide_row_stride = 2,
 			.wide_glyph_stride = 32,
-			.mapping = wide_mapping, .mapping_count = 3,
+			.mapping = wide_mapping,
+			.mapping_count = sizeof(wide_mapping)
+			    / sizeof(wide_mapping[0]),
 		};
-		uint16_t identifier;
 
-		CHECK(st_console_register_static_font(console, &base_font,
-		    &identifier) == 0);
-		CHECK(identifier == 0);
 		CHECK(st_console_register_static_font(console, &wide_font,
-		    &identifier) == 0);
-		CHECK(identifier == 1);
-		audit_wide_font = identifier;
+		    &audit_wide_font) == 0);
+		CHECK(audit_wide_font == 1);
 		have_audit_wide_font = true;
 	}
 	const struct st_wren_host_config host_config = {
@@ -935,6 +949,7 @@ main(int argc, char **argv)
 	}
 	st_wren_host_destroy(host);
 	st_console_destroy(console);
+	st_presentation_font_destroy(&presentation_font);
 	st_hyperlink_registry_destroy(hyperlinks);
 	return passed ? EXIT_SUCCESS : EXIT_FAILURE;
 }

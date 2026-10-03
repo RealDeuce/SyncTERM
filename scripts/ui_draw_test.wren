@@ -155,6 +155,10 @@ class UiDrawTest {
                  s.cellAt(3, 0).ch == "A"
     check_(layout && Screen.textWidth("A\u4e00A", 0) == 4,
            "Painter.text: Unicode width comes from the selected font")
+    var toned = String.fromCodePoint(0x1f44d) +
+        String.fromCodePoint(0x1f3fd)
+    check_(Screen.textWidth(toned, 0) == 2,
+           "Screen.textWidth resolves an emoji grapheme once")
 
     Painter.fill(s, Rect.new(0, 0, 5, 1), " ", testStyle_)
     Painter.text(s, 0, 0, "A\u4e00", testStyle_, 2)
