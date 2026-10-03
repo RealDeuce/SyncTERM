@@ -4,7 +4,7 @@
 # Unicode normalization data
 
 The generated tables use `UnicodeData.txt` and
-`DerivedNormalizationProps.txt` from Unicode 17.0.0. They expose canonical
+`DerivedNormalizationProps.txt` from Unicode 18.0.0. They expose canonical
 decomposition, canonical combining class, and canonical composition primitives;
 the caller owns ordering and the complete normalization algorithm.
 

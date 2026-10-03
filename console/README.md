@@ -210,7 +210,7 @@ are not dirtied merely because that local slot was replaced.
 
 An eight-pixel glyph occupies one cell and a sixteen-pixel glyph occupies two.
 Mapped glyph width comes from font data.  Missing-scalar replacement width
-comes from generated Unicode 17 East Asian Width `W`/`F` and
+comes from generated Unicode 18 East Asian Width `W`/`F` and
 `Emoji_Presentation` data, never the process locale or `wcwidth()`.  Ambiguous
 and text-default emoji characters remain one column.  The second cell has
 `ST_CONSOLE_CELL_CONTINUATION`, and mutations preserve complete pairs.  With

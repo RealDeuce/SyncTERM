@@ -3,8 +3,8 @@
 
 # Unicode grapheme and emoji data
 
-The generated tables use Unicode 17.0.0 `GraphemeBreakProperty.txt`,
-`DerivedCoreProperties.txt`, and `emoji-data.txt`, plus the Unicode Emoji 17.0
+The generated tables use Unicode 18.0.0 `GraphemeBreakProperty.txt`,
+`DerivedCoreProperties.txt`, and `emoji-data.txt`, plus the Unicode Emoji 18.0
 RGI sequence files. They expose properties required by UAX #29 and maximal
 matching of standardized RGI emoji sequences; the caller owns grapheme-break
 state and policy.

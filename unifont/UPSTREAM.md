@@ -1,9 +1,9 @@
 # GNU Unifont-derived font data
 
-`generated/st_unifont_data.c` is built from GNU Unifont 17.0.05 with UNSCII
+`generated/st_unifont_data.c` is built from GNU Unifont 18.0.01 with UNSCII
 8x16 glyphs overlaid on matching codepoints.  UNSCII wins on duplicates.
 
-GNU Unifont 17.0.05 is distributed under the GNU GPL version 2 or later with
+GNU Unifont 18.0.01 is distributed under the GNU GPL version 2 or later with
 the GNU font embedding exception, or under the SIL Open Font License 1.1.
 See <https://unifoundry.com/unifont/index.html> for upstream terms.  This data
 is isolated in optional library `st_unifont`.

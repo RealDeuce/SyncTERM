@@ -11,12 +11,13 @@ import pathlib
 import urllib.request
 
 
+UNIFONT_VERSION = "18.0.01"
 SOURCES = {
     "unifont": (
-        "https://www.unifoundry.com/pub/unifont/unifont-17.0.05/"
-        "font-builds/unifont-17.0.05.hex.gz",
-        "2ae5311c8e123e9e85f5331cd012aa99757071df23243f1487fdbf8f3acd86be",
-        "unifont-17.0.05.hex.gz",
+        f"https://www.unifoundry.com/pub/unifont/unifont-{UNIFONT_VERSION}/"
+        f"font-builds/unifont-{UNIFONT_VERSION}.hex.gz",
+        "e66385c79a0b8b24a466f3129930e08a966a935b4bf3b28c6bb17a9df9bf791d",
+        f"unifont-{UNIFONT_VERSION}.hex.gz",
     ),
     "unscii16": (
         "https://raw.githubusercontent.com/viznut/unscii/"
@@ -156,7 +157,7 @@ def main():
     unscii16 = parse_hex(source_bytes("unscii16", args.source_dir), 16,
                          "unscii-16.hex")
     unifont = parse_hex(source_bytes("unifont", args.source_dir), 16,
-                        "unifont-17.0.05.hex")
+                        f"unifont-{UNIFONT_VERSION}.hex")
     composite = dict(unifont)
     composite.update(unscii16)
     generated = args.root / "fonts" / "generated"
@@ -171,8 +172,8 @@ def main():
     generated.mkdir(parents=True, exist_ok=True)
     write_font(generated / "st_unifont_data.c", "st_unifont_font",
                composite, 16,
-               "GNU Unifont 17.0.05 modified in 2026 with an UNSCII overlay; "
-               "see unifont/UPSTREAM.md",
+               f"GNU Unifont {UNIFONT_VERSION} modified in 2026 with an "
+               "UNSCII overlay; see unifont/UPSTREAM.md",
                "st_unifont.h", "GPL-2.0-or-later")
 
 

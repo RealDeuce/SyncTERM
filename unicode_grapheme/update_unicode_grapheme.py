@@ -10,32 +10,32 @@ import pathlib
 import urllib.request
 
 
-VERSION = "17.0.0"
+VERSION = "18.0.0"
 SOURCES = {
     "grapheme": (
         f"GraphemeBreakProperty-{VERSION}.txt",
         f"https://www.unicode.org/Public/{VERSION}/ucd/auxiliary/GraphemeBreakProperty.txt",
-        "d6b51d1d2ae5c33b451b7ed994b48f1f4dc62b2272a5831e7fd418514a6bae89",
+        "0839dcb79e4ac639ecd538b1abf7c9d22e3f9dd265b7e182d33627aa4d75b45a",
     ),
     "core": (
         f"DerivedCoreProperties-{VERSION}.txt",
         f"https://www.unicode.org/Public/{VERSION}/ucd/DerivedCoreProperties.txt",
-        "24c7fed1195c482faaefd5c1e7eb821c5ee1fb6de07ecdbaa64b56a99da22c08",
+        "09c928886a178fcafd93c29e4bd59073a058e5a100b716d425cb563ab50f68c9",
     ),
     "emoji": (
         f"emoji-data-{VERSION}.txt",
         f"https://www.unicode.org/Public/{VERSION}/ucd/emoji/emoji-data.txt",
-        "2cb2bb9455cda83e8481541ecf5b6dfda66a3bb89efa3fa7c5297eccf607b72b",
+        "80d00f8e616a0ef27fd6b8de3b758c06383b5d917e2977709578e68baf733bf1",
     ),
     "sequences": (
         f"emoji-sequences-{VERSION}.txt",
         f"https://www.unicode.org/Public/{VERSION}/emoji/emoji-sequences.txt",
-        "12cc8267dc33cbd11ed32bcf6fc5dc2ad9c7a77bae1bdfba2f41b1b9b3ead8dd",
+        "1823dce71f3dd9cb0ad1976797baee4ffbdc1909756f43af8ce4c57f732843a4",
     ),
     "zwj": (
         f"emoji-zwj-sequences-{VERSION}.txt",
         f"https://www.unicode.org/Public/{VERSION}/emoji/emoji-zwj-sequences.txt",
-        "5b25441daed2322b068c5e70cda522946a4f0274df864445a1965a92e5fc5cad",
+        "f61b5213bdf85a57741a9f903cb38d0f39a3d13be6ff4aca3b39857e859a9191",
     ),
 }
 

@@ -29,12 +29,15 @@ main(void)
 	CHECK(st_unicode_east_asian_width(UINT32_C(0xd800))
 	    == ST_UNICODE_EAW_INVALID);
 	CHECK(st_unicode_emoji_presentation(UINT32_C(0x1f1e6)));
+	/* U+1F6D9 LIGHTHOUSE was added with Emoji 18.0. */
+	CHECK(st_unicode_emoji_presentation(UINT32_C(0x1f6d9)));
 	CHECK(!st_unicode_emoji_presentation(UINT32_C(0x00a9)));
 	CHECK(st_unicode_columns('A') == 1);
 	CHECK(st_unicode_columns(UINT32_C(0x00a1)) == 1);
 	CHECK(st_unicode_columns(UINT32_C(0x1100)) == 2);
 	CHECK(st_unicode_columns(UINT32_C(0x4e00)) == 2);
 	CHECK(st_unicode_columns(UINT32_C(0x1f600)) == 2);
+	CHECK(st_unicode_columns(UINT32_C(0x1f6d9)) == 2);
 	/* Regional indicators are emoji-presentation but East Asian neutral. */
 	CHECK(st_unicode_columns(UINT32_C(0x1f1e6)) == 2);
 	/* Copyright sign is text-default unless presentation is selected later. */

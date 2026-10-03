@@ -10,18 +10,18 @@ import pathlib
 import urllib.request
 
 
-VERSION = "17.0.0"
+VERSION = "18.0.0"
 SOURCES = (
     (
         f"EastAsianWidth-{VERSION}.txt",
         f"https://www.unicode.org/Public/{VERSION}/ucd/EastAsianWidth.txt",
-        "ea7ce50f3444a050333448dffef1cadd9325af55cbb764b4a2280faf52170a33",
+        "a0cf29eacd00cfcaec4381c6b7c281685f18dbb4e7ff82b4076ccb342ca839aa",
         frozenset(("W", "F")),
     ),
     (
         f"emoji-data-{VERSION}.txt",
         f"https://www.unicode.org/Public/{VERSION}/ucd/emoji/emoji-data.txt",
-        "2cb2bb9455cda83e8481541ecf5b6dfda66a3bb89efa3fa7c5297eccf607b72b",
+        "80d00f8e616a0ef27fd6b8de3b758c06383b5d917e2977709578e68baf733bf1",
         frozenset(("Emoji_Presentation",)),
     ),
 )

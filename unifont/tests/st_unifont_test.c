@@ -31,6 +31,10 @@ glyph_bitmap(const struct st_console_font *font, uint32_t glyph)
 int
 main(void)
 {
+	static const uint8_t armenian_small_et[] = {
+		0x00, 0x00, 0x00, 0x40, 0x40, 0x78, 0x40, 0x40,
+		0x40, 0x38, 0x18, 0x00, 0x00, 0x00, 0x00, 0x00,
+	};
 	const struct st_console_display_config config_display = {
 		.backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};
@@ -80,6 +84,12 @@ main(void)
 	CHECK(st_console_font_lookup(console, composite, UINT32_C(0xfffd),
 	    &glyph_font, &composite_glyph, &columns) == 0
 	    && glyph_font == composite && columns == 1);
+	/* Unicode 18 assigned U+0558 and Unifont 18 supplies its real glyph. */
+	CHECK(st_console_font_lookup(console, composite, UINT32_C(0x0558),
+	    &glyph_font, &composite_glyph, &columns) == 0
+	    && glyph_font == composite && columns == 1);
+	CHECK(memcmp(glyph_bitmap(&st_unifont_font, composite_glyph),
+	    armenian_small_et, sizeof(armenian_small_et)) == 0);
 	st_console_destroy(console);
 	return EXIT_SUCCESS;
 }

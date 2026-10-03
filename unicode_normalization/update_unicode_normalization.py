@@ -10,17 +10,17 @@ import pathlib
 import urllib.request
 
 
-VERSION = "17.0.0"
+VERSION = "18.0.0"
 SOURCES = {
     "unicode": (
         f"UnicodeData-{VERSION}.txt",
         f"https://www.unicode.org/Public/{VERSION}/ucd/UnicodeData.txt",
-        "2e1efc1dcb59c575eedf5ccae60f95229f706ee6d031835247d843c11d96470c",
+        "0736451de439ae7baf1425136617da495e09ee5afbe6e394374db7009ea08950",
     ),
     "derived": (
         f"DerivedNormalizationProps-{VERSION}.txt",
         f"https://www.unicode.org/Public/{VERSION}/ucd/DerivedNormalizationProps.txt",
-        "71fd6a206a2c0cdd41feb6b7f656aa31091db45e9cedc926985d718397f9e488",
+        "98ac7f67d985fe781e317f6182e885e94cabb0c314769e6dd73e48b226931ccd",
     ),
 }
 

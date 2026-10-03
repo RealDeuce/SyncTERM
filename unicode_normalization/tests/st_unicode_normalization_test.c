@@ -26,6 +26,8 @@ main(void)
 
 	CHECK(st_unicode_canonical_combining_class('A') == 0);
 	CHECK(st_unicode_canonical_combining_class(UINT32_C(0x0301)) == 230);
+	/* U+1D127 MUSICAL SYMBOL COMBINING STRESS was added in Unicode 18.0. */
+	CHECK(st_unicode_canonical_combining_class(UINT32_C(0x1d127)) == 220);
 	CHECK(st_unicode_canonical_decompose(UINT32_C(0x01fa), output, 4) == 3);
 	CHECK(output[0] == 'A' && output[1] == UINT32_C(0x030a)
 	    && output[2] == UINT32_C(0x0301));
