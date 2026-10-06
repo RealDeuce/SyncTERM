@@ -14,6 +14,7 @@
 #include "st_app_paths.h"
 #include "st_file_lock.h"
 #include "st_settings.h"
+#include "st_unicode_compare.h"
 #include "string_compat.h"
 #include "string_util.h"
 #include "xp_crypto.h"
@@ -33,26 +34,19 @@ st_bbs_name_equal(const char *left, const char *right)
 {
 	if (left == NULL || right == NULL)
 		return left == right;
-	return ascii_case_compare(left, right) == 0;
+	bool equal;
+
+	return st_unicode_caseless_equal(&equal, left, strlen(left), right,
+	    strlen(right)) == 0 && equal;
 }
 
 bool
 st_bbs_name_valid(const char *name)
 {
-	size_t length;
-
-	if (name == NULL)
-		return false;
-	length = strlen(name);
-	if (length == 0 || length > ST_PROFILE_NAME_MAX
+	if (!st_unicode_name_valid(name, ST_PROFILE_NAME_SCALAR_MAX,
+	    ST_PROFILE_NAME_MAX, "[]")
 	    || st_bbs_name_equal(name, "syncterm-system-cache"))
 		return false;
-	for (size_t i = 0; i < length; ++i) {
-		unsigned char value = (unsigned char)name[i];
-
-		if (value < 0x20 || value > 0x7e || value == '[' || value == ']')
-			return false;
-	}
 	return true;
 }
 
@@ -336,7 +330,8 @@ st_bbs_view_prepare(const st_bbs_list_t *list,
 		}
 	}
 	if (status == 0 && list->sort_field_count != 0)
-		st_bbs_view_sort(view, list->sort_fields, list->sort_field_count);
+		status = st_bbs_view_sort(view, list->sort_fields,
+		    list->sort_field_count);
 	if (status == 0)
 		return 0;
 failed:

@@ -36,6 +36,10 @@ if(NOT TARGET st_webget)
 	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../webget"
 		"${CMAKE_CURRENT_BINARY_DIR}/webget")
 endif()
+if(NOT TARGET st_unicode_compare)
+	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../unicode_compare"
+		"${CMAKE_CURRENT_BINARY_DIR}/unicode_compare")
+endif()
 
 if(WIN32)
 	set(_st_theme_directory theme_directory_windows.c)
@@ -49,6 +53,7 @@ target_include_directories(st_theme PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_theme
 	PUBLIC st_settings
 	PRIVATE st_app_paths st_codepage st_hex st_utf8 st_webget xptls_crypto syncterm_ini
+		st_unicode_compare
 		syncterm_filesystem syncterm_path syncterm_string_compat
 		syncterm_string_util)
 if(WIN32)

@@ -9,8 +9,10 @@
 
 #include "string_compat.h"
 #include "string_util.h"
+#include "st_unicode_compare.h"
 
 #include <stdlib.h>
+#include <string.h>
 
 ARRAY_LIST_DEFINE(name_value_array, struct name_value)
 SORTED_ARRAY_LIST_DEFINE(name_value_index, struct name_value,
@@ -20,7 +22,11 @@ int
 name_value_compare(const struct name_value *left,
     const struct name_value *right)
 {
-	return ascii_case_compare(left->name, right->name);
+	int compared;
+
+	return st_unicode_caseless_compare(&compared, left->name,
+	    strlen(left->name), right->name, strlen(right->name)) == 0
+	    ? compared : strcmp(left->name, right->name);
 }
 
 struct name_value *

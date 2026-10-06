@@ -10,108 +10,52 @@
 #include "io_error.h"
 #include "path.h"
 #include "st_hex.h"
-#include "string_util.h"
+#include "st_unicode_compare.h"
+#include "xp_digest.h"
 
+#include <stdlib.h>
 #include <string.h>
 
-static bool
-reserved_device(const char *name, size_t length)
-{
-	static const char *const reserved[] = {
-		"con", "prn", "aux", "nul",
-		"com1", "com2", "com3", "com4", "com5",
-		"com6", "com7", "com8", "com9",
-		"lpt1", "lpt2", "lpt3", "lpt4", "lpt5",
-		"lpt6", "lpt7", "lpt8", "lpt9",
-	};
-
-	while (length != 0 && (name[length - 1] == ' '
-	    || name[length - 1] == '.'))
-		length--;
-	for (size_t i = 0; i < sizeof(reserved) / sizeof(reserved[0]); ++i) {
-		if (strlen(reserved[i]) == length
-		    && ascii_case_ncompare(name, reserved[i], length) == 0)
-			return true;
-	}
-	return false;
-}
-
-static bool
-portable_component(const char *name)
-{
-	size_t length;
-	size_t basename;
-
-	if (!st_bbs_name_valid(name) || !path_untrusted_component_valid(name))
-		return false;
-	length = strlen(name);
-	if (name[length - 1] == '.' || name[length - 1] == ' ')
-		return false;
-	for (size_t i = 0; i < length; ++i) {
-		if (strchr("<>:\"|?*", name[i]) != NULL)
-			return false;
-	}
-	basename = strcspn(name, ".");
-	return !reserved_device(name, basename);
-}
-
-/*
- * Brackets are forbidden in display names, so they reserve a collision-free
- * namespace for folded hexadecimal keys without changing ordinary cache names.
- */
 bool
 st_bbs_cache_key(char *result, size_t result_size, const char *name)
 {
-	unsigned char folded[ST_PROFILE_NAME_MAX];
-	size_t length;
+	unsigned char digest[32];
+	char *folded = NULL;
+	size_t folded_size;
+	int status;
 
-	if (result == NULL || !st_bbs_name_valid(name))
+	if (result == NULL || result_size <= ST_BBS_CACHE_KEY_MAX
+	    || !st_bbs_name_valid(name))
 		return false;
-	length = strlen(name);
-	if (portable_component(name)) {
-		if (result_size <= length)
-			return false;
-		memcpy(result, name, length + 1);
-		return true;
-	}
-	if (result_size < length * 2U + 3U)
+	status = st_unicode_caseless_key(&folded, &folded_size, name,
+	    strlen(name));
+	if (status != 0)
 		return false;
-	for (size_t i = 0; i < length; ++i)
-		folded[i] = ascii_to_lower((unsigned char)name[i]);
-	result[0] = '[';
-	if (!st_hex_encode(result + 1, result_size - 1, folded, length))
+	status = xp_digest(XP_DIGEST_SHA256, folded, folded_size, digest,
+	    sizeof(digest));
+	free(folded);
+	if (status != 0)
 		return false;
-	result[length * 2U + 1U] = ']';
-	result[length * 2U + 2U] = '\0';
+	memcpy(result, "[u18-", 5);
+	if (!st_hex_encode(result + 5, result_size - 5, digest, sizeof(digest)))
+		return false;
+	result[69] = ']';
+	result[70] = '\0';
 	return true;
 }
 
 bool
 st_bbs_cache_key_recognized(const char *key)
 {
-	unsigned char decoded[ST_PROFILE_NAME_MAX + 1];
-	char canonical[ST_BBS_CACHE_KEY_MAX + 1];
-	size_t length;
-	size_t encoded_length;
-
-	if (portable_component(key))
-		return true;
-	if (key == NULL)
+	if (key == NULL || strlen(key) != ST_BBS_CACHE_KEY_MAX
+	    || memcmp(key, "[u18-", 5) != 0 || key[69] != ']')
 		return false;
-	length = strlen(key);
-	if (length < 4 || length > ST_BBS_CACHE_KEY_MAX || key[0] != '['
-	    || key[length - 1] != ']')
-		return false;
-	encoded_length = length - 2;
-	if ((encoded_length & 1U) != 0
-	    || !st_hex_decode(decoded, sizeof(decoded) - 1, key + 1,
-	    encoded_length))
-		return false;
-	decoded[encoded_length / 2] = '\0';
-	return !portable_component((const char *)decoded)
-	    && st_bbs_cache_key(canonical, sizeof(canonical),
-	    (const char *)decoded)
-	    && strcmp(canonical, key) == 0;
+	for (size_t i = 5; i < 69; ++i) {
+		if (!((key[i] >= '0' && key[i] <= '9')
+		    || (key[i] >= 'a' && key[i] <= 'f')))
+			return false;
+	}
+	return true;
 }
 
 int

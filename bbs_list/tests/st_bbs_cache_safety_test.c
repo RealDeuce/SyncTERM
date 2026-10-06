@@ -49,17 +49,21 @@ clean_fixture(void)
 	static const char *const files[] = {
 		"personal.lst", "personal.lst.lock", "shared.lst",
 		"Outside/keep",
-		"cache/[2e2e2f6f757473696465]/cache.txt",
-		"cache/Safe Name/cache.txt",
-		"cache/[6261642f6e616d65]/cache.txt",
-		"cache/Renamed/cache.txt",
-		"cache/[7368617265642f6e616d65]/cache.txt",
-		"cache/Cache Failure",
+		"cache/[u18-62ca1d92c4a3fc44a5fa30d1ddc593be1a9945ca21c0821af53d4f2b604075e7]/cache.txt",
+		"cache/[u18-91dd0f8f29c38fee318385492df1eb0f2114869cb2c319f086f22c545db87c1d]/cache.txt",
+		"cache/[u18-f209ddc9341cc72fb06d7876cfa266ae5db799e093d453d43c8adfe577fe1dc5]/cache.txt",
+		"cache/[u18-017e9e217af8bbb732e91d3f534e0702b9f492edd2c3a9994383aa9bfa700f77]/cache.txt",
+		"cache/[u18-2bcf4635382b5ba52b8343c9b6273ba9e9f0fd95a90e132767bfcff041b20c3e]/cache.txt",
+		"cache/[u18-b9b1535db6d18b54bf63266443c037af0567f4177f19554b05022feaa5ec8476]",
 	};
 	static const char *const directories[] = {
-		"cache/[2e2e2f6f757473696465]", "cache/Safe Name",
-		"cache/[6261642f6e616d65]", "cache/Renamed",
-		"cache/[7368617265642f6e616d65]", "cache/Orphan",
+		"cache/[u18-62ca1d92c4a3fc44a5fa30d1ddc593be1a9945ca21c0821af53d4f2b604075e7]",
+		"cache/[u18-91dd0f8f29c38fee318385492df1eb0f2114869cb2c319f086f22c545db87c1d]",
+		"cache/[u18-f209ddc9341cc72fb06d7876cfa266ae5db799e093d453d43c8adfe577fe1dc5]",
+		"cache/[u18-017e9e217af8bbb732e91d3f534e0702b9f492edd2c3a9994383aa9bfa700f77]",
+		"cache/[u18-2bcf4635382b5ba52b8343c9b6273ba9e9f0fd95a90e132767bfcff041b20c3e]",
+		"cache/Orphan",
+		"cache/[u18-0000000000000000000000000000000000000000000000000000000000000000]",
 		"cache/[6e756c]", "cache/[666f6f]",
 		"cache/syncterm-system-cache", "cache", "Outside", "",
 	};
@@ -90,20 +94,23 @@ check_key_contract(void)
 	char key[ST_BBS_CACHE_KEY_MAX + 1];
 
 	CHECK(st_bbs_cache_key(key, sizeof(key), "Normal Name"));
-	CHECK(strcmp(key, "Normal Name") == 0);
+	CHECK(strcmp(key, "[u18-f0f4db0c76b5d4f68d5c58b47d15de497777f1a7812044728507ee6457fb8ec6]") == 0);
+	CHECK(st_bbs_cache_key_recognized(key));
+	CHECK(st_bbs_cache_key(key, sizeof(key), "NORMAL NAME"));
+	CHECK(strcmp(key, "[u18-f0f4db0c76b5d4f68d5c58b47d15de497777f1a7812044728507ee6457fb8ec6]") == 0);
 	CHECK(st_bbs_cache_key(key, sizeof(key), "../Outside"));
-	CHECK(strcmp(key, "[2e2e2f6f757473696465]") == 0);
+	CHECK(strcmp(key, "[u18-62ca1d92c4a3fc44a5fa30d1ddc593be1a9945ca21c0821af53d4f2b604075e7]") == 0);
 	CHECK(st_bbs_cache_key(key, sizeof(key), "CON"));
-	CHECK(strcmp(key, "[636f6e]") == 0);
+	CHECK(strcmp(key, "[u18-1143da2bc54c495c4be31d3868785d39ffdfd56df5668f0645d8f14d47647952]") == 0);
 	CHECK(st_bbs_cache_key(key, sizeof(key), "trail."));
-	CHECK(strcmp(key, "[747261696c2e]") == 0);
+	CHECK(strcmp(key, "[u18-cedd4b9ff43e695b31d896bebded15445818ddbec673abc6baa2e22661864b9d]") == 0);
 	CHECK(st_bbs_cache_key(key, sizeof(key), "One\\Two"));
-	CHECK(strcmp(key, "[6f6e655c74776f]") == 0);
-	CHECK(st_bbs_cache_key_recognized("Normal Name"));
-	CHECK(st_bbs_cache_key_recognized("[636f6e]"));
+	CHECK(strcmp(key, "[u18-11b8e8b4c13a882a72dd9b86344147d13b63f5bbef78e343e63699db5c46e28a]") == 0);
+	CHECK(!st_bbs_cache_key_recognized("Normal Name"));
+	CHECK(!st_bbs_cache_key_recognized("[636f6e]"));
 	CHECK(!st_bbs_cache_key_recognized("../Outside"));
 	CHECK(!st_bbs_cache_key_recognized("[666f6f]"));
-	CHECK(!st_bbs_cache_key_recognized("[636F6e]"));
+	CHECK(!st_bbs_cache_key_recognized("[u18-F0f4db0c76b5d4f68d5c58b47d15de497777f1a7812044728507ee6457fb8ec6]"));
 	CHECK(!st_bbs_cache_key_recognized("syncterm-system-cache"));
 	return 0;
 }
@@ -147,7 +154,7 @@ main(void)
 	CHECK(fs_create_directories(system_cache) == 0);
 	CHECK(create_cache_file("Outside/keep") == 0);
 	CHECK(create_cache_file(
-	    "cache/[2e2e2f6f757473696465]/cache.txt") == 0);
+	    "cache/[u18-62ca1d92c4a3fc44a5fa30d1ddc593be1a9945ca21c0821af53d4f2b604075e7]/cache.txt") == 0);
 	paths.settings_file = personal;
 	paths.personal_list = personal;
 	paths.shared_list = shared;
@@ -164,11 +171,11 @@ main(void)
 	fixture_path(path, sizeof(path), "Outside/keep");
 	CHECK(fs_get_info(&info, path) == 0 && info.kind == FS_ENTRY_FILE);
 	fixture_path(path, sizeof(path),
-	    "cache/[2e2e2f6f757473696465]");
+	    "cache/[u18-62ca1d92c4a3fc44a5fa30d1ddc593be1a9945ca21c0821af53d4f2b604075e7]");
 	CHECK(fs_get_link_info(&info, path) == IO_ERROR_NOT_FOUND);
 	CHECK(fs_get_info(&info, cache) == 0 && info.kind == FS_ENTRY_DIRECTORY);
 
-	CHECK(create_cache_file("cache/Safe Name/cache.txt") == 0);
+	CHECK(create_cache_file("cache/[u18-91dd0f8f29c38fee318385492df1eb0f2114869cb2c319f086f22c545db87c1d]/cache.txt") == 0);
 	entry = st_bbs_list_find(list, "Safe Name");
 	CHECK(entry != NULL);
 	st_profile_init(&profile);
@@ -178,10 +185,10 @@ main(void)
 	    &mutation) == 0);
 	CHECK(mutation.cache_status == 0);
 	st_profile_dispose(&profile);
-	fixture_path(path, sizeof(path), "cache/Safe Name");
+	fixture_path(path, sizeof(path), "cache/[u18-91dd0f8f29c38fee318385492df1eb0f2114869cb2c319f086f22c545db87c1d]");
 	CHECK(fs_get_link_info(&info, path) == IO_ERROR_NOT_FOUND);
 	fixture_path(path, sizeof(path),
-	    "cache/[6261642f6e616d65]/cache.txt");
+	    "cache/[u18-f209ddc9341cc72fb06d7876cfa266ae5db799e093d453d43c8adfe577fe1dc5]/cache.txt");
 	CHECK(fs_get_info(&info, path) == 0 && info.kind == FS_ENTRY_FILE);
 
 	entry = st_bbs_list_find(list, "Bad/Name");
@@ -193,9 +200,9 @@ main(void)
 	    &mutation) == 0);
 	CHECK(mutation.cache_status == 0);
 	st_profile_dispose(&profile);
-	fixture_path(path, sizeof(path), "cache/[6261642f6e616d65]");
+	fixture_path(path, sizeof(path), "cache/[u18-f209ddc9341cc72fb06d7876cfa266ae5db799e093d453d43c8adfe577fe1dc5]");
 	CHECK(fs_get_link_info(&info, path) == IO_ERROR_NOT_FOUND);
-	fixture_path(path, sizeof(path), "cache/Renamed/cache.txt");
+	fixture_path(path, sizeof(path), "cache/[u18-017e9e217af8bbb732e91d3f534e0702b9f492edd2c3a9994383aa9bfa700f77]/cache.txt");
 	CHECK(fs_get_info(&info, path) == 0 && info.kind == FS_ENTRY_FILE);
 
 	entry = st_bbs_list_find(list, "Renamed");
@@ -205,13 +212,13 @@ main(void)
 	CHECK(st_bbs_list_update(list, entry->profile->name, source->profile,
 	    &mutation) == 0);
 	CHECK(mutation.cache_status == 0);
-	fixture_path(path, sizeof(path), "cache/Renamed");
+	fixture_path(path, sizeof(path), "cache/[u18-017e9e217af8bbb732e91d3f534e0702b9f492edd2c3a9994383aa9bfa700f77]");
 	CHECK(fs_get_link_info(&info, path) == IO_ERROR_NOT_FOUND);
 	fixture_path(path, sizeof(path),
-	    "cache/[7368617265642f6e616d65]/cache.txt");
+	    "cache/[u18-2bcf4635382b5ba52b8343c9b6273ba9e9f0fd95a90e132767bfcff041b20c3e]/cache.txt");
 	CHECK(fs_get_info(&info, path) == 0 && info.kind == FS_ENTRY_FILE);
 
-	fixture_path(path, sizeof(path), "cache/Cache Failure");
+	fixture_path(path, sizeof(path), "cache/[u18-b9b1535db6d18b54bf63266443c037af0567f4177f19554b05022feaa5ec8476]");
 	CHECK(write_text(path, "not a directory") == 0);
 	entry = st_bbs_list_find(list, "Cache Failure");
 	CHECK(entry != NULL);
@@ -227,21 +234,27 @@ main(void)
 
 	fixture_path(path, sizeof(path), "cache/Orphan");
 	CHECK(fs_create_directory(path) == 0);
+	fixture_path(path, sizeof(path),
+	    "cache/[u18-0000000000000000000000000000000000000000000000000000000000000000]");
+	CHECK(fs_create_directory(path) == 0);
 	fixture_path(path, sizeof(path), "cache/[6e756c]");
 	CHECK(fs_create_directory(path) == 0);
 	fixture_path(path, sizeof(path), "cache/[666f6f]");
 	CHECK(fs_create_directory(path) == 0);
 	CHECK(st_bbs_list_sweep_orphan_caches(list) == 0);
 	fixture_path(path, sizeof(path), "cache/Orphan");
+	CHECK(fs_get_info(&info, path) == 0 && info.kind == FS_ENTRY_DIRECTORY);
+	fixture_path(path, sizeof(path),
+	    "cache/[u18-0000000000000000000000000000000000000000000000000000000000000000]");
 	CHECK(fs_get_link_info(&info, path) == IO_ERROR_NOT_FOUND);
 	fixture_path(path, sizeof(path), "cache/[6e756c]");
-	CHECK(fs_get_link_info(&info, path) == IO_ERROR_NOT_FOUND);
+	CHECK(fs_get_info(&info, path) == 0 && info.kind == FS_ENTRY_DIRECTORY);
 	fixture_path(path, sizeof(path), "cache/[666f6f]");
 	CHECK(fs_get_info(&info, path) == 0 && info.kind == FS_ENTRY_DIRECTORY);
 	CHECK(fs_get_info(&info, system_cache) == 0
 	    && info.kind == FS_ENTRY_DIRECTORY);
 	fixture_path(path, sizeof(path),
-	    "cache/[7368617265642f6e616d65]/cache.txt");
+	    "cache/[u18-2bcf4635382b5ba52b8343c9b6273ba9e9f0fd95a90e132767bfcff041b20c3e]/cache.txt");
 	CHECK(fs_get_info(&info, path) == 0 && info.kind == FS_ENTRY_FILE);
 
 	st_bbs_list_close(list);

@@ -25,7 +25,7 @@ import "ui_style"  for Style
 import "ui_widget" for Widget, Rect
 import "ui_draw"   for Painter
 import "ui_popup"  for Find
-import "syncterm"  for KeyEvent, MouseEvent, Key, Mouse
+import "syncterm"  for KeyEvent, MouseEvent, Key, Mouse, Text
 
 class ListView is Widget {
   construct new() {
@@ -583,48 +583,11 @@ class ListView is Widget {
     return -1
   }
 
-  // ASCII case-insensitive `startsWith` / `contains` — folds A..Z to
-  // a..z byte-wise.  Multi-byte UTF-8 passes through unchanged
-  // (matched as raw bytes), which is fine for the BBS-style names
-  // we typically search through.  Instance methods (not static) so
-  // bare-name calls from findPrefix_ / findSubstring_ resolve via
-  // implicit `this`; subclasses inherit them automatically.
   ciStartsWith_(s, prefix) {
-    var sb = s.bytes
-    var pb = prefix.bytes
-    if (pb.count > sb.count) return false
-    var i = 0
-    while (i < pb.count) {
-      if (foldByte_(sb[i]) != foldByte_(pb[i])) return false
-      i = i + 1
-    }
-    return true
+    return Text.caselessStartsWith(s, prefix)
   }
   ciContains_(s, needle) {
-    var sb = s.bytes
-    var nb = needle.bytes
-    if (nb.count == 0) return true
-    if (nb.count > sb.count) return false
-    var last = sb.count - nb.count
-    var i = 0
-    while (i <= last) {
-      var j = 0
-      var ok = true
-      while (j < nb.count) {
-        if (foldByte_(sb[i + j]) != foldByte_(nb[j])) {
-          ok = false
-          break
-        }
-        j = j + 1
-      }
-      if (ok) return true
-      i = i + 1
-    }
-    return false
-  }
-  foldByte_(b) {
-    if (b >= 0x41 && b <= 0x5A) return b + 0x20
-    return b
+    return Text.caselessContains(s, needle)
   }
 
   // UIFC maps each wheel notch to one Up/Down navigation event.

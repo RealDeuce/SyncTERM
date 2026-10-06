@@ -23,7 +23,7 @@
 
 import "ui_widget" for Widget, Rect
 import "ui_draw"   for Painter
-import "syncterm"  for KeyEvent, MouseEvent, Mouse, Key, Screen
+import "syncterm"  for KeyEvent, MouseEvent, Mouse, Key, Screen, Text
 
 class Button is Widget {
   construct new(label) {
@@ -85,7 +85,7 @@ class Button is Widget {
   }
 
   // Parent-driven hotkey: if the typed codepoint matches our
-  // highlighted label letter (case-insensitive ASCII), activate.
+  // highlighted label letter (Unicode canonical caseless), activate.
   // Container.handle calls this for each visible child after the
   // focused child fails to consume the key.
   tryHotkey(ev) {
@@ -94,12 +94,7 @@ class Button is Widget {
     var cp = ev.codepoint
     if (cp == null) return false
     var hkChar = _label[_hotkeyIdx]
-    if (hkChar.bytes.count != 1) return false
-    var hkB = hkChar.bytes[0]
-    if (hkB >= 0x61 && hkB <= 0x7A) hkB = hkB - 0x20
-    var cpU = cp
-    if (cpU >= 0x61 && cpU <= 0x7A) cpU = cpU - 0x20
-    if (cpU != hkB) return false
+    if (!Text.caselessEqual(String.fromCodePoint(cp), hkChar)) return false
     activate_()
     return true
   }

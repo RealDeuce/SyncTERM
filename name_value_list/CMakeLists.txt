@@ -20,12 +20,16 @@ if(NOT TARGET syncterm_string_util)
 	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../string_util"
 		"${CMAKE_CURRENT_BINARY_DIR}/string_util")
 endif()
+if(NOT TARGET st_unicode_compare)
+	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../unicode_compare"
+		"${CMAKE_CURRENT_BINARY_DIR}/unicode_compare")
+endif()
 
 add_library(syncterm_name_value_list STATIC name_value_list.c)
 target_include_directories(syncterm_name_value_list PUBLIC
 	${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(syncterm_name_value_list PUBLIC syncterm_array_list
-	PRIVATE syncterm_string_compat syncterm_string_util)
+	PRIVATE syncterm_string_compat syncterm_string_util st_unicode_compare)
 set_target_properties(syncterm_name_value_list PROPERTIES
 	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 

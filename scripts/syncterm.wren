@@ -11,6 +11,13 @@
 // module-load time (wren_vm.c:559-563).
 class Error {}
 
+class Text {
+  foreign static caselessEqual(left, right)
+  foreign static caselessStartsWith(text, prefix)
+  foreign static caselessContains(text, needle)
+  foreign static compare(left, right, caseSensitive)
+}
+
 // Concrete Wren-side base for script-defined error types.  Use this
 // when a script wants to surface its own typed error without writing
 // C bindings:

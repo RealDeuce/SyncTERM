@@ -15,6 +15,7 @@
 #include "st_codepage.h"
 #include "st_settings.h"
 #include "st_utf8.h"
+#include "st_unicode_compare.h"
 #include "string_compat.h"
 #include "string_util.h"
 #include "theme_internal.h"
@@ -31,6 +32,30 @@ struct style_template {
 	int foreground;
 	int background;
 };
+
+static bool
+text_equal_span(const char *left, size_t left_size, const char *right)
+{
+	bool equal;
+
+	return st_unicode_caseless_equal(&equal, left, left_size, right,
+	    strlen(right)) == 0 && equal;
+}
+
+static bool
+text_equal(const char *left, const char *right)
+{
+	return text_equal_span(left, strlen(left), right);
+}
+
+static const char *
+section_suffix(const char *name, const char *prefix)
+{
+	const char *colon = strchr(name, ':');
+
+	return colon != NULL && text_equal_span(name, (size_t)(colon - name),
+	    prefix) ? colon + 1 : NULL;
+}
 
 struct glyph_template {
 	const char *name;
@@ -518,8 +543,7 @@ parse_number(const char *text, long minimum, long maximum, bool inherit,
 	bool any = false;
 
 	string_ascii_trim_span(text, strlen(text), &begin, &end);
-	if (inherit && ascii_case_span_equal(text + begin, end - begin,
-	    "inherit")) {
+	if (inherit && text_equal_span(text + begin, end - begin, "inherit")) {
 		*result = ST_THEME_INHERIT;
 		return true;
 	}
@@ -570,7 +594,7 @@ metadata_destination(const char *key, struct st_theme *theme,
 	};
 
 	for (unsigned i = 0; i < sizeof(names) / sizeof(names[0]); ++i) {
-		if (ascii_case_compare(key, names[i]) == 0) {
+		if (text_equal(key, names[i])) {
 			*destination = destinations[i];
 			*bit = 1u << i;
 			return true;
@@ -616,7 +640,7 @@ parse_style(ini_section_t *section, struct st_theme *theme, char *error,
 	size_t error_size)
 {
 	const char *section_name = ini_section_name(section);
-	const char *role = section_name + 6;
+	const char *role = section_suffix(section_name, "Style");
 	struct st_theme_style *style;
 	unsigned seen = 0;
 
@@ -637,22 +661,22 @@ parse_style(ini_section_t *section, struct st_theme *theme, char *error,
 		long maximum = 0;
 		unsigned bit = 0;
 
-		if (ascii_case_compare(pair->name, "Font") == 0) {
+		if (text_equal(pair->name, "Font")) {
 			destination = &style->font;
 			maximum = 255;
 			bit = 1u;
 		}
-		else if (ascii_case_compare(pair->name, "LegacyAttr") == 0) {
+		else if (text_equal(pair->name, "LegacyAttr")) {
 			destination = &style->legacy_attr;
 			maximum = 255;
 			bit = 2u;
 		}
-		else if (ascii_case_compare(pair->name, "Foreground") == 0) {
+		else if (text_equal(pair->name, "Foreground")) {
 			destination = &style->foreground;
 			maximum = 0xffffff;
 			bit = 4u;
 		}
-		else if (ascii_case_compare(pair->name, "Background") == 0) {
+		else if (text_equal(pair->name, "Background")) {
 			destination = &style->background;
 			maximum = 0xffffff;
 			bit = 8u;
@@ -679,7 +703,7 @@ parse_glyph(ini_section_t *section, struct st_theme *theme, char *error,
 	size_t error_size)
 {
 	const char *section_name = ini_section_name(section);
-	const char *name = section_name + 6;
+	const char *name = section_suffix(section_name, "Glyph");
 	struct st_theme_glyph *glyph;
 	bool is_new;
 	unsigned seen = 0;
@@ -704,15 +728,15 @@ parse_glyph(ini_section_t *section, struct st_theme *theme, char *error,
 		unsigned field;
 		int parsed;
 
-		if (ascii_case_compare(pair->name, "CP437") == 0) {
+		if (text_equal(pair->name, "CP437")) {
 			field = ST_THEME_GLYPH_CP437;
 		}
-		else if (ascii_case_compare(pair->name, "ASCII") == 0) {
+		else if (text_equal(pair->name, "ASCII")) {
 			field = ST_THEME_GLYPH_ASCII;
 			minimum = 0x20;
 			maximum = 0x7e;
 		}
-		else if (ascii_case_compare(pair->name, "Codepoint") == 0) {
+		else if (text_equal(pair->name, "Codepoint")) {
 			field = ST_THEME_GLYPH_CODEPOINT;
 			maximum = 0x10ffff;
 		}
@@ -812,15 +836,15 @@ load_path(const struct st_theme_manager *manager, const char *path,
 	for (size_t i = 0; i < ini_document_section_count(document); ++i) {
 		ini_section_t *section = ini_document_section_at(document, i);
 		const char *name = ini_section_name(section);
-		bool style = ascii_case_starts_with(name, "Style:");
-		bool glyph = ascii_case_starts_with(name, "Glyph:");
+		bool style = section_suffix(name, "Style") != NULL;
+		bool glyph = section_suffix(name, "Glyph") != NULL;
 
 		if (!style && !glyph)
 			continue;
 		for (size_t prior = 0; prior < i; ++prior) {
 			const char *prior_name = ini_section_name(
 			    ini_document_section_at(document, prior));
-			if (ascii_case_compare(name, prior_name) == 0) {
+			if (text_equal(name, prior_name)) {
 				set_error(error, error_size, "duplicate section [%s]", name);
 				status = IO_ERROR_INVALID_FORMAT;
 				goto failed;
@@ -857,7 +881,7 @@ st_theme_valid_filename(const char *filename)
 	if (!path_untrusted_component_valid(filename))
 		return false;
 	extension = strrchr(filename, '.');
-	return extension != NULL && ascii_case_compare(extension, ".ini") == 0;
+	return extension != NULL && text_equal(extension, ".ini");
 }
 
 int
@@ -1144,9 +1168,19 @@ catalog_compare(const void *left_ptr, const void *right_ptr)
 		return right->filename[0] == '\0' ? 0 : -1;
 	if (right->filename[0] == '\0')
 		return 1;
-	int compared = ascii_case_compare(left->name, right->name);
-	return compared != 0 ? compared : ascii_case_compare(left->filename,
-	    right->filename);
+	int compared;
+
+	if (st_unicode_collate(&compared, left->name, strlen(left->name),
+	    right->name, strlen(right->name),
+	    ST_UNICODE_COLLATION_CASE_INSENSITIVE) != 0)
+		compared = strcmp(left->name, right->name);
+	if (compared != 0)
+		return compared;
+	if (st_unicode_collate(&compared, left->filename, strlen(left->filename),
+	    right->filename, strlen(right->filename),
+	    ST_UNICODE_COLLATION_CASE_INSENSITIVE) != 0)
+		compared = strcmp(left->filename, right->filename);
+	return compared;
 }
 
 int

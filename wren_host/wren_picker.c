@@ -12,6 +12,7 @@
 #include "path.h"
 #include "st_app_paths.h"
 #include "st_console.h"
+#include "st_unicode_compare.h"
 #include "string_compat.h"
 #include "value_convert.h"
 
@@ -174,31 +175,28 @@ directory_root(const char *directory)
 	return root;
 }
 
-static unsigned char
-ascii_fold(unsigned char value)
+static int
+prepare_sort_keys(struct st_wren_directory_entries *entries, size_t first,
+	enum st_unicode_collation_strength strength)
 {
-	return value >= 'A' && value <= 'Z' ?
-	    (unsigned char)(value + ('a' - 'A')) : value;
+	for (size_t i = first; i < entries->count; ++i) {
+		int status = st_unicode_sort_key_create(&entries->items[i].sort_key,
+		    entries->items[i].name, strlen(entries->items[i].name), strength);
+
+		if (status != 0) {
+			for (size_t done = first; done < i; ++done)
+				st_unicode_sort_key_destroy(&entries->items[done].sort_key);
+			return status;
+		}
+	}
+	return 0;
 }
 
-static int
-ascii_compare(const char *left, const char *right, bool case_sensitive)
+static void
+clear_sort_keys(struct st_wren_directory_entries *entries)
 {
-	const unsigned char *a = (const unsigned char *)left;
-	const unsigned char *b = (const unsigned char *)right;
-
-	while (*a != '\0' && *b != '\0') {
-		unsigned char ca = case_sensitive ? *a : ascii_fold(*a);
-		unsigned char cb = case_sensitive ? *b : ascii_fold(*b);
-
-		if (ca != cb)
-			return ca < cb ? -1 : 1;
-		++a;
-		++b;
-	}
-	if (*a != *b)
-		return *a == '\0' ? -1 : 1;
-	return case_sensitive ? 0 : strcmp(left, right);
+	for (size_t i = 0; i < entries->count; ++i)
+		st_unicode_sort_key_destroy(&entries->items[i].sort_key);
 }
 
 static int
@@ -207,7 +205,7 @@ compare_entries_case(const void *left, const void *right)
 	const struct st_wren_directory_entry *a = left;
 	const struct st_wren_directory_entry *b = right;
 
-	return ascii_compare(a->name, b->name, true);
+	return st_unicode_sort_key_compare(a->sort_key, b->sort_key);
 }
 
 static int
@@ -216,37 +214,7 @@ compare_entries_folded(const void *left, const void *right)
 	const struct st_wren_directory_entry *a = left;
 	const struct st_wren_directory_entry *b = right;
 
-	return ascii_compare(a->name, b->name, false);
-}
-
-static bool
-wildcard_match(const char *pattern, const char *text, bool case_sensitive)
-{
-	const unsigned char *p = (const unsigned char *)pattern;
-	const unsigned char *s = (const unsigned char *)text;
-	const unsigned char *star = NULL;
-	const unsigned char *retry = NULL;
-
-	while (*s != '\0') {
-		if (*p == '*') {
-			star = ++p;
-			retry = s;
-			continue;
-		}
-		if (*p == '?' || (case_sensitive ? *p == *s :
-		    ascii_fold(*p) == ascii_fold(*s))) {
-			++p;
-			++s;
-			continue;
-		}
-		if (star == NULL)
-			return false;
-		p = star;
-		s = ++retry;
-	}
-	while (*p == '*')
-		++p;
-	return *p == '\0';
+	return st_unicode_sort_key_compare(a->sort_key, b->sort_key);
 }
 
 static int
@@ -493,9 +461,15 @@ fn_request_list(WrenVM *vm)
 			continue;
 		if (entry->directory)
 			status = move_entry(&directories, entry);
-		else if (wildcard_match(mask, entry->name,
-		    (call->options & ST_WREN_PICKER_MASK_CASE) != 0))
-			status = move_entry(&files, entry);
+		else {
+			bool matched;
+
+			status = st_unicode_wildcard_match(&matched, mask, strlen(mask),
+			    entry->name, strlen(entry->name),
+			    (call->options & ST_WREN_PICKER_MASK_CASE) != 0);
+			if (status == 0 && matched)
+				status = move_entry(&files, entry);
+		}
 	}
 	free(mask);
 	st_wren_directory_entries_dispose(&raw);
@@ -506,9 +480,26 @@ fn_request_list(WrenVM *vm)
 		wrenSetSlotNull(vm, 0);
 		return;
 	}
+	enum st_unicode_collation_strength strength
+	    = (call->options & ST_WREN_PICKER_CASE_SORT) != 0
+	    ? ST_UNICODE_COLLATION_CASE_SENSITIVE
+	    : ST_UNICODE_COLLATION_CASE_INSENSITIVE;
+	size_t directory_first = root ? 0 : 1;
+	status = prepare_sort_keys(&directories, directory_first, strength);
+	if (status == 0)
+		status = prepare_sort_keys(&files, 0, strength);
+	if (status != 0) {
+		free(directory);
+		clear_sort_keys(&directories);
+		clear_sort_keys(&files);
+		st_wren_directory_entries_dispose(&directories);
+		st_wren_directory_entries_dispose(&files);
+		wrenSetSlotNull(vm, 0);
+		return;
+	}
 	if (directories.count > (root ? 1U : 2U))
-		qsort(directories.items + (root ? 0 : 1),
-		    directories.count - (root ? 0 : 1),
+		qsort(directories.items + directory_first,
+		    directories.count - directory_first,
 		    sizeof(directories.items[0]),
 		    (call->options & ST_WREN_PICKER_CASE_SORT) != 0 ?
 		    compare_entries_case : compare_entries_folded);
@@ -516,6 +507,8 @@ fn_request_list(WrenVM *vm)
 		qsort(files.items, files.count, sizeof(files.items[0]),
 		    (call->options & ST_WREN_PICKER_CASE_SORT) != 0 ?
 		    compare_entries_case : compare_entries_folded);
+	clear_sort_keys(&directories);
+	clear_sort_keys(&files);
 	wrenEnsureSlots(vm, 4);
 	wrenSetSlotNewList(vm, 0);
 	wrenSetSlotString(vm, 1, directory);

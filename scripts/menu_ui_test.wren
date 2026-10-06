@@ -17,7 +17,7 @@ class MenuUiTest {
     testChoiceViewState_()
     testBrowserMaximumHeight_()
     testThemeIdentityAndLabels_()
-    testAsciiNames_()
+    testUnicodeNames_()
     testSortFieldLabels_()
     testSortOrderComparison_()
     testChoiceMessageUsesPaintedFont_()
@@ -76,12 +76,13 @@ class MenuUiTest {
         "online catalog excludes already cached packages")
   }
 
-  static testAsciiNames_() {
+  static testUnicodeNames_() {
     check_(MenuUi.namesEqual("AbC", "aBc") &&
         MenuUi.namesEqual("", "") &&
-        !MenuUi.namesEqual("\u00c9", "\u00e9") &&
+        MenuUi.namesEqual("\u00c9", "e\u0301") &&
+        MenuUi.namesEqual("Stra\u00dfe", "STRASSE") &&
         !MenuUi.namesEqual("a", "aa"),
-        "name matching folds ASCII only without locale-dependent casing")
+        "name matching uses Unicode canonical caseless matching")
   }
 
   static testChoiceViewState_() {

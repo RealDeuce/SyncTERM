@@ -13,6 +13,7 @@
 #include "path.h"
 #include "st_codepage.h"
 #include "st_utf8.h"
+#include "st_unicode_compare.h"
 #include "string_compat.h"
 #include "string_util.h"
 #include "theme_internal.h"
@@ -28,6 +29,17 @@ static const char *const style_keys[] = {
 	"Font", "LegacyAttr", "Foreground", "Background",
 };
 static const char *const glyph_keys[] = {"CP437", "ASCII", "Codepoint"};
+
+static const char *
+section_suffix(const char *name, const char *prefix)
+{
+	const char *colon = strchr(name, ':');
+	bool equal;
+
+	return colon != NULL && st_unicode_caseless_equal(&equal, name,
+	    (size_t)(colon - name), prefix, strlen(prefix)) == 0 && equal
+	    ? colon + 1 : NULL;
+}
 
 struct document_style {
 	char *role;
@@ -1132,8 +1144,8 @@ remove_definition_sections(ini_document_t *output)
 		ini_section_t *section = ini_document_section_at(output, i - 1);
 		const char *name = ini_section_name(section);
 
-		if ((ascii_case_starts_with(name, "Style:")
-		    || ascii_case_starts_with(name, "Glyph:"))
+		if ((section_suffix(name, "Style") != NULL
+		    || section_suffix(name, "Glyph") != NULL)
 		    && !ini_document_remove_section(output, section))
 			return IO_ERROR_IO;
 	}
@@ -1169,12 +1181,14 @@ build_output(struct st_theme_document *document, ini_document_t **result)
 		const char *name = ini_section_name(section);
 		bool remove = false;
 
-		if (ascii_case_starts_with(name, "Style:")) {
-			struct document_style *style = find_document_style(state, name + 6);
+		const char *suffix = section_suffix(name, "Style");
+
+		if (suffix != NULL) {
+			struct document_style *style = find_document_style(state, suffix);
 			remove = style == NULL || style->removed;
 		}
-		else if (ascii_case_starts_with(name, "Glyph:")) {
-			struct document_glyph *glyph = find_document_glyph(state, name + 6);
+		else if ((suffix = section_suffix(name, "Glyph")) != NULL) {
+			struct document_glyph *glyph = find_document_glyph(state, suffix);
 			remove = glyph == NULL || glyph->removed;
 		}
 		if (remove)

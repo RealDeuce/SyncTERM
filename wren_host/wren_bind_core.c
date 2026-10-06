@@ -16,6 +16,7 @@
 #include "st_theme.h"
 #include "st_time.h"
 #include "st_unicode_text.h"
+#include "st_unicode_compare.h"
 #include "st_unicode_width.h"
 #include "st_utf8.h"
 #include "syncterm_config.h"
@@ -3602,12 +3603,12 @@ fn_clipboard_get(WrenVM *vm)
 static void
 fn_clipboard_set(WrenVM *vm)
 {
-	if (wrenGetSlotType(vm, 1) != WREN_TYPE_STRING) {
-		st_wren_abort(vm, "Clipboard.text expects a String");
+	const char *text;
+
+	if (!st_wren_text_slot(vm, 1, &text, NULL))
 		return;
-	}
 	(void)st_console_set_clipboard_text(
-	    st_wren_context_from_vm(vm)->console, wrenGetSlotString(vm, 1));
+	    st_wren_context_from_vm(vm)->console, text);
 }
 
 static void
@@ -4084,6 +4085,94 @@ fn_platform_name(WrenVM *vm)
 #endif
 }
 
+static bool
+text_pair(WrenVM *vm, const char **left, int *left_size,
+	const char **right, int *right_size)
+{
+	return st_wren_text_slot(vm, 1, left, left_size)
+	    && st_wren_text_slot(vm, 2, right, right_size);
+}
+
+static void
+fn_text_caseless_equal(WrenVM *vm)
+{
+	const char *left;
+	const char *right;
+	int left_size;
+	int right_size;
+	bool equal;
+
+	if (!text_pair(vm, &left, &left_size, &right, &right_size))
+		return;
+	if (st_unicode_caseless_equal(&equal, left, (size_t)left_size, right,
+	    (size_t)right_size) != 0) {
+		st_wren_abort(vm, "Unicode comparison failed");
+		return;
+	}
+	wrenSetSlotBool(vm, 0, equal);
+}
+
+static void
+fn_text_caseless_starts_with(WrenVM *vm)
+{
+	const char *text;
+	const char *prefix;
+	int text_size;
+	int prefix_size;
+	bool matched;
+
+	if (!text_pair(vm, &text, &text_size, &prefix, &prefix_size))
+		return;
+	if (st_unicode_caseless_starts_with(&matched, text, (size_t)text_size,
+	    prefix, (size_t)prefix_size) != 0) {
+		st_wren_abort(vm, "Unicode comparison failed");
+		return;
+	}
+	wrenSetSlotBool(vm, 0, matched);
+}
+
+static void
+fn_text_caseless_contains(WrenVM *vm)
+{
+	const char *text;
+	const char *needle;
+	int text_size;
+	int needle_size;
+	bool matched;
+
+	if (!text_pair(vm, &text, &text_size, &needle, &needle_size))
+		return;
+	if (st_unicode_caseless_contains(&matched, text, (size_t)text_size,
+	    needle, (size_t)needle_size) != 0) {
+		st_wren_abort(vm, "Unicode comparison failed");
+		return;
+	}
+	wrenSetSlotBool(vm, 0, matched);
+}
+
+static void
+fn_text_compare(WrenVM *vm)
+{
+	const char *left;
+	const char *right;
+	int left_size;
+	int right_size;
+	bool case_sensitive;
+	int compared;
+
+	if (!text_pair(vm, &left, &left_size, &right, &right_size)
+	    || !slot_boolean(vm, 3, &case_sensitive))
+		return;
+	if (st_unicode_collate(&compared, left, (size_t)left_size, right,
+	    (size_t)right_size, case_sensitive
+	    ? ST_UNICODE_COLLATION_CASE_SENSITIVE
+	    : ST_UNICODE_COLLATION_CASE_INSENSITIVE) != 0) {
+		st_wren_abort(vm, "Unicode collation failed");
+		return;
+	}
+	wrenSetSlotDouble(vm, 0, compared);
+}
+
 static void
 fn_cterm_status_display(WrenVM *vm)
 {
@@ -4092,6 +4181,10 @@ fn_cterm_status_display(WrenVM *vm)
 
 static const struct binding bindings[] = {
 	{"Platform", true, "name", fn_platform_name},
+	{"Text", true, "caselessEqual(_,_)", fn_text_caseless_equal},
+	{"Text", true, "caselessStartsWith(_,_)", fn_text_caseless_starts_with},
+	{"Text", true, "caselessContains(_,_)", fn_text_caseless_contains},
+	{"Text", true, "compare(_,_,_)", fn_text_compare},
 	{"Input", true, "next()", fn_input_next},
 	{"Input", true, "next(_)", fn_input_next_timed},
 	{"Input", true, "poll()", fn_input_poll},

@@ -8,6 +8,7 @@
 #include "st_settings.h"
 
 #include "st_settings_internal.h"
+#include "st_unicode_compare.h"
 
 #include "filesystem.h"
 #include "ini.h"
@@ -22,6 +23,27 @@
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+
+static bool
+names_equal(const char *left, const char *right)
+{
+	bool equal;
+
+	return st_unicode_caseless_equal(&equal, left, strlen(left), right,
+	    strlen(right)) == 0 && equal;
+}
+
+static const char *
+section_suffix(const char *name, const char *prefix)
+{
+	const char *colon = strchr(name, ':');
+	bool equal;
+
+	if (colon == NULL || st_unicode_caseless_equal(&equal, name,
+	    (size_t)(colon - name), prefix, strlen(prefix)) != 0 || !equal)
+		return NULL;
+	return colon + 1;
+}
 
 #ifdef ST_SETTINGS_STORE_TEST_COPY
 #include "st_settings_test_copy.h"
@@ -410,8 +432,8 @@ decode_settings(struct st_settings *value, ini_document_t *document,
 
 		for (size_t i = 0;
 		    i < name_value_list_count(value->sort_profiles); ++i) {
-			if (ascii_case_compare(value->sort_profiles[i]->name,
-			    value->active_sort_profile) == 0) {
+			if (names_equal(value->sort_profiles[i]->name,
+			    value->active_sort_profile)) {
 				active_found = true;
 				break;
 			}
@@ -450,13 +472,14 @@ decode_settings(struct st_settings *value, ini_document_t *document,
 	for (size_t i = 0; i < ini_document_section_count(document); ++i) {
 		ini_section_t *font_section = ini_document_section_at(document, i);
 		const char *name = ini_section_name(font_section);
+		const char *font_name = section_suffix(name, "Font");
 		static const char *const keys[] = {
 			"Path8x8", "Path8x14", "Path8x16", "Path12x20"
 		};
 
-		if (!ascii_case_starts_with(name, "Font:"))
+		if (font_name == NULL)
 			continue;
-		if (!st_settings_font_name_valid(name + 5))
+		if (!st_settings_font_name_valid(font_name))
 			continue;
 		{
 			bool duplicate = false;
@@ -464,8 +487,8 @@ decode_settings(struct st_settings *value, ini_document_t *document,
 			for (size_t existing = 0;
 			    existing < st_settings_font_list_count(value->custom_fonts);
 			    ++existing) {
-				if (ascii_case_compare(
-				    value->custom_fonts[existing]->name, name + 5) == 0) {
+				if (names_equal(value->custom_fonts[existing]->name,
+				    font_name)) {
 					duplicate = true;
 					break;
 				}
@@ -479,7 +502,7 @@ decode_settings(struct st_settings *value, ini_document_t *document,
 		{
 			struct st_settings_font *font = calloc(1, sizeof(*font));
 
-			if (font == NULL || (font->name = strdup(name + 5)) == NULL
+			if (font == NULL || (font->name = strdup(font_name)) == NULL
 			    || !st_settings_font_list_append(&value->custom_fonts, font)) {
 				if (font != NULL) {
 					free(font->name);
@@ -577,7 +600,7 @@ encode_fonts(ini_document_t *document, st_settings_font_list_t fonts)
 	for (size_t i = ini_document_section_count(document); i > 0; --i) {
 		ini_section_t *candidate = ini_document_section_at(document, i - 1);
 
-		if (ascii_case_starts_with(ini_section_name(candidate), "Font:"))
+		if (section_suffix(ini_section_name(candidate), "Font") != NULL)
 			(void)ini_document_remove_section(document, candidate);
 	}
 	for (size_t i = 0; i < st_settings_font_list_count(fonts); ++i) {
@@ -1224,6 +1247,17 @@ st_settings_web_download_at(size_t index)
 	return st_settings.web_downloads[index];
 }
 
+static bool
+web_download_name_available(const char *name, size_t except)
+{
+	for (size_t i = 0; i < st_settings_web_download_count(); ++i) {
+		if (i != except && names_equal(st_settings.web_downloads[i]->name,
+		    name))
+			return false;
+	}
+	return !names_equal(name, "System List");
+}
+
 int
 st_settings_web_download_set(size_t index, const char *name, const char *url)
 {
@@ -1231,7 +1265,9 @@ st_settings_web_download_set(size_t index, const char *name, const char *url)
 	struct name_value *previous;
 
 	if (index >= name_value_list_count(st_settings.web_downloads)
-	    || !ini_key_name_valid(name) || url == NULL)
+	    || !st_unicode_name_valid(name, 50, 100, "=:")
+	    || name[0] == ';' || name[0] == '[' || url == NULL
+	    || !web_download_name_available(name, index))
 		return IO_ERROR_INVALID_ARGUMENT;
 	replacement = name_value_create(name, url);
 	if (replacement == NULL)
@@ -1245,7 +1281,9 @@ st_settings_web_download_set(size_t index, const char *name, const char *url)
 int
 st_settings_web_download_append(const char *name, const char *url)
 {
-	if (!ini_key_name_valid(name) || url == NULL)
+	if (!st_unicode_name_valid(name, 50, 100, "=:")
+	    || name[0] == ';' || name[0] == '[' || url == NULL
+	    || !web_download_name_available(name, SIZE_MAX))
 		return IO_ERROR_INVALID_ARGUMENT;
 	return name_value_list_append(&st_settings.web_downloads, name, url)
 	    ? 0 : IO_ERROR_OUT_OF_MEMORY;

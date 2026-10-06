@@ -70,6 +70,12 @@ main(void)
 	CHECK(name_value_list_remove(list, 0));
 	CHECK(!name_value_list_remove(list, 0));
 	name_value_list_free(&list);
+	CHECK(name_value_list_add_unique(&list, "Stra\xc3\x9f" "e", "four",
+	    &index) == ARRAY_LIST_INSERTED);
+	CHECK(name_value_list_add_unique(&list, "STRASSE", "five", &index)
+	    == ARRAY_LIST_INSERT_DUPLICATE);
+	CHECK(name_value_list_count(list) == 1);
+	name_value_list_free(&list);
 	/* A large owning list must be freed without repeatedly shifting its tail. */
 	for (size_t i = 0; i < 8192; ++i)
 		CHECK(name_value_list_append(&list, "item", "value"));

@@ -21,7 +21,7 @@
 // CTerm.sftpActive clears as part of suspend(), so is_connected goes
 // false and the term.c disconnect path can run normally.
 
-import "syncterm" for CTerm, Download, File, Format, Host, Key,
+import "syncterm" for CTerm, Download, File, Format, Host, Key, Text,
                        KeyEvent, Screen, SFTP, SFTPError
 import "ui_app"    for App
 import "ui_pane"   for Pane
@@ -172,18 +172,8 @@ class SftpFmt {
     return (lf.mtime == mtime) ? "[==]" : "[<>]"
   }
 
-  // Byte-wise less-than for two Strings.  Wren's String doesn't
-  // implement `<`; List.sort needs a comparator.
   static stringLT(a, b) {
-    var ab = a.bytes
-    var bb = b.bytes
-    var n  = ab.count.min(bb.count)
-    var i = 0
-    while (i < n) {
-      if (ab[i] != bb[i]) return ab[i] < bb[i]
-      i = i + 1
-    }
-    return ab.count < bb.count
+    return Text.compare(a, b, false) < 0
   }
 
   // ----- SFTP loaders (browser) -----------------------------------

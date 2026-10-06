@@ -21,7 +21,7 @@ struct name_value {
 	const char *value;
 };
 
-/* ASCII-only case-insensitive name ordering, independent of locale. Values
+/* Unicode canonical-caseless name ordering, independent of locale. Values
  * do not participate. Both items and their names must be non-NULL. A stack
  * name_value containing a borrowed name may be used as a search key. */
 int name_value_compare(const struct name_value *left,

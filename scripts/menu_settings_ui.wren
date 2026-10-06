@@ -676,15 +676,16 @@ class SettingsMenu {
 
   static fontNameError_(fonts, name, except) {
     var bytes = name.bytes
-    if (bytes.count == 0 || bytes.count > 50) {
-      return "The font name must contain 1 through 50 bytes."
+    if (name.count == 0 || name.count > 50 || bytes.count > 100) {
+      return "The font name must contain 1 through 50 Unicode characters " +
+          "and at most 100 UTF-8 bytes."
     }
     if (bytes[0] == 0x20 || bytes[bytes.count - 1] == 0x20) {
       return "The font name cannot begin or end with a space."
     }
     for (byte in bytes) {
-      if (byte < 0x20 || byte > 0x7E || byte == 0x5B || byte == 0x5D) {
-        return "The font name must be printable US-ASCII without brackets."
+      if (byte < 0x20 || byte == 0x7F || byte == 0x5B || byte == 0x5D) {
+        return "The font name cannot contain controls or brackets."
       }
     }
     for (i in 0...fonts.count) {

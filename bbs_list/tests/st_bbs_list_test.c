@@ -155,6 +155,10 @@ main(void)
 	int status;
 
 	CHECK(check_profile_default_ports() == 0);
+	CHECK(st_bbs_name_equal("Stra\xc3\x9f" "e", "STRASSE"));
+	CHECK(st_bbs_name_equal("\xc3\x85", "A\xcc\x8a"));
+	CHECK(st_bbs_name_valid("M\xc3\xbcnchen"));
+	CHECK(!st_bbs_name_valid("A\xcc\x8a"));
 
 	(void)snprintf(personal, sizeof(personal), "%s/personal.lst",
 	    ST_BBS_TEST_DIRECTORY);
@@ -182,7 +186,9 @@ main(void)
 	    &picker_key_available) == 0);
 	CHECK(!picker_key_available);
 	CHECK(st_bbs_list_cache_path(&public_cache_path, first, "Beta") == 0);
-	(void)snprintf(cache_item, sizeof(cache_item), "%s/Beta", cache);
+	(void)snprintf(cache_item, sizeof(cache_item),
+	    "%s/[u18-f44e64e75f3948e9f73f8dfa94721c4ce8cbb4f265c4790c702b2d41cfbf2753]",
+	    cache);
 	CHECK(strcmp(public_cache_path, cache_item) == 0);
 	free(public_cache_path);
 	public_cache_path = NULL;
@@ -288,17 +294,24 @@ main(void)
 	st_profile_dispose(&profile);
 	st_profile_dispose(&other);
 
-	(void)snprintf(cache_item, sizeof(cache_item), "%s/Beta/nested", cache);
+	(void)snprintf(cache_item, sizeof(cache_item),
+	    "%s/[u18-f44e64e75f3948e9f73f8dfa94721c4ce8cbb4f265c4790c702b2d41cfbf2753]/nested",
+	    cache);
 	CHECK(fs_create_directories(cache_item) == 0);
-	(void)snprintf(cache_item, sizeof(cache_item), "%s/Beta/nested/item", cache);
+	(void)snprintf(cache_item, sizeof(cache_item),
+	    "%s/[u18-f44e64e75f3948e9f73f8dfa94721c4ce8cbb4f265c4790c702b2d41cfbf2753]/nested/item",
+	    cache);
 	CHECK(write_text(cache_item, "cached") == 0);
 	st_profile_init(&profile);
 	CHECK(copy_named(&profile, first, "Beta") == 0);
 	(void)strcpy(profile.name, "Gamma");
 	CHECK(st_bbs_list_update(first, "Beta", &profile, NULL) == 0);
-	(void)snprintf(cache_item, sizeof(cache_item), "%s/Beta", cache);
+	(void)snprintf(cache_item, sizeof(cache_item),
+	    "%s/[u18-f44e64e75f3948e9f73f8dfa94721c4ce8cbb4f265c4790c702b2d41cfbf2753]",
+	    cache);
 	CHECK(fs_get_link_info(&info, cache_item) == IO_ERROR_NOT_FOUND);
-	(void)snprintf(cache_item, sizeof(cache_item), "%s/Gamma/nested/item",
+	(void)snprintf(cache_item, sizeof(cache_item),
+	    "%s/[u18-be9d587defa1f0c09ef49eb17e206983a5f8f8289e4281860bd0ee5a19592c67]/nested/item",
 	    cache);
 	CHECK(fs_get_info(&info, cache_item) == 0 && info.kind == FS_ENTRY_FILE);
 	st_profile_dispose(&profile);
@@ -308,20 +321,30 @@ main(void)
 	CHECK(st_bbs_list_update(first, "Gamma", &profile, NULL) == 0);
 	st_profile_dispose(&profile);
 
-	(void)snprintf(cache_item, sizeof(cache_item), "%s/Alpha/nested", cache);
+	(void)snprintf(cache_item, sizeof(cache_item),
+	    "%s/[u18-8ed3f6ad685b959ead7022518e1af76cd816f8e8ec7ccdda1ed4018e8f2223f8]/nested",
+	    cache);
 	CHECK(fs_create_directories(cache_item) == 0);
 	status = st_bbs_list_remove(first, "Alpha", NULL);
 	CHECK(status == 0);
-	(void)snprintf(cache_item, sizeof(cache_item), "%s/Alpha", cache);
+	(void)snprintf(cache_item, sizeof(cache_item),
+	    "%s/[u18-8ed3f6ad685b959ead7022518e1af76cd816f8e8ec7ccdda1ed4018e8f2223f8]",
+	    cache);
 	CHECK(fs_get_link_info(&info, cache_item) == IO_ERROR_NOT_FOUND);
 	entry = st_bbs_list_find(first, "Alpha");
 	CHECK(entry != NULL && entry->source == ST_BBS_SOURCE_SHARED);
-	(void)snprintf(cache_item, sizeof(cache_item), "%s/Orphan/nested", cache);
+	(void)snprintf(cache_item, sizeof(cache_item),
+	    "%s/[u18-0000000000000000000000000000000000000000000000000000000000000000]/nested",
+	    cache);
 	CHECK(fs_create_directories(cache_item) == 0);
 	CHECK(st_bbs_list_sweep_orphan_caches(first) == 0);
-	(void)snprintf(cache_item, sizeof(cache_item), "%s/Orphan", cache);
+	(void)snprintf(cache_item, sizeof(cache_item),
+	    "%s/[u18-0000000000000000000000000000000000000000000000000000000000000000]",
+	    cache);
 	CHECK(fs_get_link_info(&info, cache_item) == IO_ERROR_NOT_FOUND);
-	(void)snprintf(cache_item, sizeof(cache_item), "%s/Beta", cache);
+	(void)snprintf(cache_item, sizeof(cache_item),
+	    "%s/[u18-f44e64e75f3948e9f73f8dfa94721c4ce8cbb4f265c4790c702b2d41cfbf2753]",
+	    cache);
 	CHECK(fs_get_info(&info, cache_item) == 0
 	    && info.kind == FS_ENTRY_DIRECTORY);
 	CHECK(fs_get_info(&info, system_cache) == 0

@@ -12,11 +12,14 @@
 #include <stddef.h>
 #include <stdint.h>
 
+typedef struct st_unicode_sort_key st_unicode_sort_key_t;
+
 struct st_wren_directory_entry {
 	char *name;
 	bool directory;
 	uint64_t size;
 	int64_t modified;
+	st_unicode_sort_key_t *sort_key;
 };
 
 struct st_wren_directory_entries {

@@ -11,6 +11,7 @@
 #include "file_map.h"
 #include "io_error.h"
 #include "st_hex.h"
+#include "st_unicode_compare.h"
 #include "st_unicode_text.h"
 #include "string_compat.h"
 #include "string_util.h"
@@ -76,7 +77,20 @@ static int
 ini_section_compare(const struct ini_section *left,
     const struct ini_section *right)
 {
-	return ascii_case_compare(left->name, right->name);
+	int compared;
+
+	return st_unicode_caseless_compare(&compared, left->name,
+	    strlen(left->name), right->name, strlen(right->name)) == 0
+	    ? compared : strcmp(left->name, right->name);
+}
+
+static bool
+text_equal(const char *left, const char *right)
+{
+	bool equal;
+
+	return st_unicode_caseless_equal(&equal, left, strlen(left), right,
+	    strlen(right)) == 0 && equal;
 }
 
 static void
@@ -817,7 +831,7 @@ ini_section_get_enum_names(const ini_section_t *section, const char *key,
 	if (text == NULL)
 		return default_value;
 	for (size_t i = 0; i < name_count; i++) {
-		if (ascii_case_compare(text, names[i]) == 0)
+		if (text_equal(text, names[i]))
 			return i;
 	}
 	if (!value_parse_uint64(text, &numeric) || numeric > SIZE_MAX)
@@ -914,7 +928,7 @@ ini_section_get_bitfield(const ini_section_t *section, const char *key,
 		bool matched = false;
 
 		for (size_t n = 0; n < name_count; n++) {
-			if (ascii_case_compare(field, names[n].name) == 0) {
+			if (text_equal(field, names[n].name)) {
 				result |= names[n].bit;
 				matched = true;
 				break;
@@ -935,15 +949,7 @@ ini_section_get_bitfield(const ini_section_t *section, const char *key,
 static bool
 valid_name(const char *name, const char *forbidden)
 {
-	size_t length;
-
-	if (name == NULL || *name == '\0')
-		return false;
-	length = strlen(name);
-	return !ascii_is_space((unsigned char)name[0])
-	    && !ascii_is_space((unsigned char)name[length - 1])
-	    && string_span_is_printable_ascii(name, length)
-	    && strpbrk(name, forbidden) == NULL;
+	return st_unicode_name_valid(name, 1024, 2048, forbidden);
 }
 
 bool
@@ -1531,7 +1537,7 @@ ini_section_remove_key(ini_section_t *section, const char *key)
 		size_t index = i - 1;
 		struct name_value *item = section->entries[index];
 
-		if (ascii_case_compare(item->name, key) == 0) {
+		if (text_equal(item->name, key)) {
 			struct ini_record *record = section->entry_records[index];
 			size_t raw_index = record_index(section->document, record);
 

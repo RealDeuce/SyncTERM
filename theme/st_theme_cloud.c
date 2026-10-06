@@ -13,6 +13,7 @@
 #include "path.h"
 #include "st_hex.h"
 #include "st_webget.h"
+#include "st_unicode_compare.h"
 #include "string_compat.h"
 #include "string_util.h"
 #include "theme_internal.h"
@@ -27,6 +28,30 @@
 #define ST_THEME_MANIFEST_URL \
 	"http://syncterm.bbsdev.net/themes/manifest.lst"
 #endif
+
+static bool
+text_equal_span(const char *left, size_t left_size, const char *right)
+{
+	bool equal;
+
+	return st_unicode_caseless_equal(&equal, left, left_size, right,
+	    strlen(right)) == 0 && equal;
+}
+
+static bool
+text_equal(const char *left, const char *right)
+{
+	return text_equal_span(left, strlen(left), right);
+}
+
+static const char *
+section_suffix(const char *name, const char *prefix)
+{
+	const char *colon = strchr(name, ':');
+
+	return colon != NULL && text_equal_span(name, (size_t)(colon - name),
+	    prefix) ? colon + 1 : NULL;
+}
 
 #define ST_THEME_REPOSITORY "official"
 
@@ -212,7 +237,7 @@ append_manifest_entry(struct st_cloud_theme_entry **entries, size_t *count,
 		const struct name_value *pair = ini_section_at(section, i);
 		for (unsigned field = 0; field < sizeof(keys) / sizeof(keys[0]);
 		    ++field) {
-			if (ascii_case_compare(pair->name, keys[field]) != 0)
+			if (!text_equal(pair->name, keys[field]))
 				continue;
 			if ((seen & (1u << field)) != 0) {
 				cloud_error(error, error_size,
@@ -275,7 +300,12 @@ cloud_compare(const void *left_ptr, const void *right_ptr)
 {
 	const struct st_cloud_theme_entry *left = left_ptr;
 	const struct st_cloud_theme_entry *right = right_ptr;
-	int value = ascii_case_compare(left->name, right->name);
+	int value;
+
+	if (st_unicode_collate(&value, left->name, strlen(left->name),
+	    right->name, strlen(right->name),
+	    ST_UNICODE_COLLATION_CASE_INSENSITIVE) != 0)
+		value = strcmp(left->name, right->name);
 
 	return value != 0 ? value : strcmp(left->package, right->package);
 }
@@ -308,7 +338,7 @@ parse_manifest(const char *path, struct st_cloud_theme_entry **result,
 	ini_section_t *root = ini_document_root(document);
 	for (size_t i = 0; i < ini_section_count(root); ++i) {
 		const struct name_value *pair = ini_section_at(root, i);
-		if (ascii_case_compare(pair->name, "Repository") == 0) {
+		if (text_equal(pair->name, "Repository")) {
 			++repository_count;
 			if (strcmp(pair->value, ST_THEME_REPOSITORY) != 0)
 				repository_count += 2;
@@ -323,10 +353,11 @@ parse_manifest(const char *path, struct st_cloud_theme_entry **result,
 	for (size_t i = 0; i < ini_document_section_count(document); ++i) {
 		ini_section_t *section = ini_document_section_at(document, i);
 		const char *name = ini_section_name(section);
+		const char *id = section_suffix(name, "Theme");
 
-		if (!ascii_case_starts_with(name, "Theme:"))
+		if (id == NULL)
 			continue;
-		status = append_manifest_entry(&entries, &count, name + 6, section,
+		status = append_manifest_entry(&entries, &count, id, section,
 		    error, error_size);
 		if (status != 0)
 			goto failed;

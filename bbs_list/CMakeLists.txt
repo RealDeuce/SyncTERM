@@ -9,7 +9,7 @@ if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 endif()
 
 foreach(_dependency IN ITEMS profile list_crypto app_paths webget file_lock hex
-		settings time)
+		settings time unicode_compare)
 	if(NOT TARGET st_${_dependency})
 		add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../${_dependency}"
 			"${CMAKE_CURRENT_BINARY_DIR}/${_dependency}")
@@ -48,7 +48,7 @@ target_link_libraries(st_bbs_list PUBLIC st_profile st_list_crypto st_app_paths
 	syncterm_io_error PRIVATE st_file_lock st_settings syncterm_array_list
 	syncterm_filesystem syncterm_ini syncterm_string_compat syncterm_path st_hex
 	syncterm_string_util st_consent_token xptls::crypto st_time
-	syncterm_threads)
+	syncterm_threads st_unicode_compare)
 if(WIN32)
 	target_link_libraries(st_bbs_list PRIVATE st_windows_utf)
 endif()
@@ -86,7 +86,8 @@ if(BUILD_TESTING)
 		st_app_paths st_webget syncterm_io_error PRIVATE st_file_lock
 		st_settings syncterm_array_list syncterm_filesystem syncterm_ini
 		syncterm_string_compat syncterm_path st_hex syncterm_string_util
-		st_consent_token xptls::crypto st_time syncterm_threads)
+		st_consent_token xptls::crypto st_time syncterm_threads
+		st_unicode_compare)
 	if(WIN32)
 		target_link_libraries(st_bbs_list_faultable PRIVATE st_windows_utf)
 	endif()

@@ -7,6 +7,7 @@
 
 #include "ini.h"
 #include "st_settings_internal.h"
+#include "st_unicode_compare.h"
 #include "string_compat.h"
 #include "string_util.h"
 
@@ -25,19 +26,12 @@ static const struct name_value default_sort_profiles[] = {
 };
 
 static bool
-ini_name_valid(const char *name, const char *forbidden, bool allow_empty)
+names_equal(const char *left, const char *right)
 {
-	size_t length;
+	bool equal;
 
-	if (name == NULL)
-		return false;
-	length = strlen(name);
-	if (length == 0)
-		return allow_empty;
-	return !ascii_is_space((unsigned char)name[0])
-	    && !ascii_is_space((unsigned char)name[length - 1])
-	    && string_span_is_printable_ascii(name, length)
-	    && strpbrk(name, forbidden) == NULL;
+	return st_unicode_caseless_equal(&equal, left, strlen(left), right,
+	    strlen(right)) == 0 && equal;
 }
 
 static bool
@@ -147,7 +141,7 @@ font_name_available(st_settings_font_list_t fonts, const char *name,
     size_t except)
 {
 	for (size_t i = 0; i < st_settings_font_list_count(fonts); ++i) {
-		if (i != except && ascii_case_compare(fonts[i]->name, name) == 0)
+		if (i != except && names_equal(fonts[i]->name, name))
 			return false;
 	}
 	return true;
@@ -222,8 +216,7 @@ font_list_remove(st_settings_font_list_t fonts, size_t index)
 bool
 st_settings_font_name_valid(const char *name)
 {
-	return name != NULL && strlen(name) <= 50
-	    && ini_name_valid(name, "[]", false);
+	return name != NULL && st_unicode_name_valid(name, 50, 100, "[]");
 }
 
 void
@@ -424,8 +417,8 @@ st_settings_active_sort_profile(void)
 {
 	for (size_t i = 0; i < st_settings_sort_profile_count(); ++i) {
 		if (st_settings.active_sort_profile != NULL
-		    && ascii_case_compare(st_settings.sort_profiles[i]->name,
-		    st_settings.active_sort_profile) == 0)
+		    && names_equal(st_settings.sort_profiles[i]->name,
+		    st_settings.active_sort_profile))
 			return i;
 	}
 	return 0;
@@ -460,9 +453,14 @@ st_settings_sort_profile_add(size_t index, const char *name,
 {
 	struct name_value *profile;
 
-	if (!ini_key_name_valid(name) || order == NULL
+	if (!st_unicode_name_valid(name, 19, 38, "=:")
+	    || name[0] == ';' || name[0] == '[' || order == NULL
 	    || index > st_settings_sort_profile_count())
 		return -1;
+	for (size_t i = 0; i < st_settings_sort_profile_count(); ++i) {
+		if (names_equal(st_settings.sort_profiles[i]->name, name))
+			return -1;
+	}
 	profile = name_value_create(name, order);
 	if (profile == NULL)
 		return -1;
@@ -482,12 +480,18 @@ st_settings_sort_profile_update(size_t index, const char *name,
 	bool active;
 
 	if (index >= st_settings_sort_profile_count()
-	    || !ini_key_name_valid(name)
+	    || !st_unicode_name_valid(name, 19, 38, "=:")
+	    || name[0] == ';' || name[0] == '['
 	    || order == NULL)
 		return -1;
+	for (size_t i = 0; i < st_settings_sort_profile_count(); ++i) {
+		if (i != index && names_equal(st_settings.sort_profiles[i]->name,
+		    name))
+			return -1;
+	}
 	old = st_settings.sort_profiles[index];
 	active = st_settings.active_sort_profile != NULL
-	    && ascii_case_compare(old->name, st_settings.active_sort_profile) == 0;
+	    && names_equal(old->name, st_settings.active_sort_profile);
 	replacement = name_value_create(name, order);
 	if (replacement == NULL)
 		return -1;

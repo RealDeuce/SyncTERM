@@ -31,7 +31,7 @@ import "syncterm" for Hook, Conn, Console, Screen, CTerm, BBS, Key,
     Parity, BBSListType, ScreenMode, AddressFamily, MusicMode,
     RipVersion, LogMode, StatusDisplay, Color, Cell, Hyperlinks,
     REPL, Input, Wake, KeyEvent, PhysicalKeyEvent, MouseEvent, Mouse,
-    Cache, Platform,
+    Cache, Platform, Text,
     Timer, TimerElapsed, WON, FileError, FileErr, WONError, WONErr,
     Error, ScriptError, Surface, Scrollback, Host, PixelColor,
     PixelBuffer, PixelMask, PixelBlit
@@ -298,6 +298,7 @@ class WrenTest {
 
     // ------ Platform ----------------------------------------------
     testPlatformName_()
+    testUnicodeText_()
 
     // ------ WON serialize / deserialize ----------------------------
     testWONPrimitives_()
@@ -1397,6 +1398,15 @@ class WrenTest {
     var n = Platform.name
     check_(n is String && n.count > 0,
            "Platform.name returns non-empty String (got %(n))")
+  }
+
+  static testUnicodeText_() {
+    check_(Text.caselessEqual("Stra\u00dfe", "STRASSE") &&
+        Text.caselessEqual("\u00c5", "A\u030a") &&
+        Text.caselessStartsWith("Stra\u00dfe", "strass") &&
+        Text.caselessContains("caf\u00e9", "F\u00c9") &&
+        Text.compare("cab", "c\u00e1b", false) < 0,
+        "Unicode Text comparisons")
   }
 
   // ===== WON serialize / deserialize =============================

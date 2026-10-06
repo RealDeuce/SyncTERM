@@ -4228,8 +4228,9 @@ available in a connected VM.
 
 | Menu.nameAvailable(name)
 | Test whether a new personal entry name is valid and unused by another
-  personal entry.  Names are 1..30 bytes and the reserved
-  `syncterm-system-cache` name is rejected.  A personal entry may
+  personal entry. Names are 1..30 Unicode scalars and at most 60 UTF-8 bytes;
+  identity uses Unicode canonical caseless matching. The reserved
+  `syncterm-system-cache` name is rejected. A personal entry may
   intentionally shadow a read-only system entry of the same name.
 
 | Menu.create(name)
@@ -4264,9 +4265,9 @@ available in a connected VM.
   directory.  Returns `false` for an invalid index.
 
 | Menu.addSortProfile(index, name, order)
-| Insert a profile.  Names are 1..19 bytes and case-insensitively
-  unique.  They must be printable US-ASCII without leading or trailing
-  whitespace or `=`/`:`, and cannot begin with `;` or `[`.  Returns `false`
+| Insert a profile. Names are 1..19 Unicode scalars, at most 38 UTF-8 bytes,
+  and canonically caseless-unique. They cannot contain controls, leading or
+  trailing Unicode whitespace, `=`/`:`, and cannot begin with `;` or `[`. Returns `false`
   for invalid data or allocation failure.
 
 | Menu.updateSortProfile(index, name, order)
@@ -4710,9 +4711,10 @@ the algorithm, key size, or held password.
 
 === Menu Web Lists [[menu-web-lists]]
 
-`Menu.webLists` returns a fresh List of `[name, uri]` rows.  Names must be
-unique, non-empty printable US-ASCII without leading or trailing whitespace
-or `=`/`:`, and cannot begin with `;` or `[`.  `System List` is reserved.
+`Menu.webLists` returns a fresh List of `[name, uri]` rows. Names must contain
+1..50 Unicode scalars and at most 100 UTF-8 bytes, be canonically
+caseless-unique, and have no controls, leading or trailing Unicode whitespace,
+or `=`/`:`, and cannot begin with `;` or `[`. `System List` is reserved.
 Indexes refer to the order shown by that returned List.  `Menu.webListsDirty`
 reports whether the in-memory list has unpersisted edits.
 
@@ -4763,9 +4765,10 @@ edits.
 
 | `Menu.createFont(name, index)`
 | Insert a blank custom font at `index` and return its handle. Names contain
-  1..50 printable US-ASCII bytes, cannot begin or end with ASCII whitespace,
-  cannot contain `[` or `]`, and are unique under US-ASCII case-insensitive
-  comparison. Returns `null` for allocation failure, safe mode, or when all
+  1..50 Unicode scalars and at most 100 UTF-8 bytes, cannot begin or end with
+  Unicode whitespace, cannot contain controls, `[` or `]`, and are unique
+  under Unicode canonical caseless matching. Returns `null` for allocation
+  failure, safe mode, or when all
   available custom slots are represented; invalid arguments abort the fiber.
 
 | `Menu.saveFonts()`
@@ -5919,6 +5922,32 @@ no process model) is exposed.
   is checked before POSIX, so Cygwin / MSYS report the native OS.
 |===
 
+=== Text [[text]]
+
+Locale-independent Unicode 18 comparison helpers. All inputs are normalized
+to NFC at the Wren host boundary. Caseless matching uses full default Unicode
+case folding with canonical equivalence; ordering uses the non-ignorable DUCET
+collation table and an identical tie-break for deterministic results.
+
+[options="header",cols="2,3"]
+|===
+| Method | Description
+
+| `Text.caselessEqual(left, right)`
+| Canonical caseless equality.
+
+| `Text.caselessStartsWith(text, prefix)`
+| Caseless prefix matching at extended grapheme-cluster boundaries.
+
+| `Text.caselessContains(text, needle)`
+| Caseless substring matching at extended grapheme-cluster boundaries.
+
+| `Text.compare(left, right, caseSensitive)`
+| Return a negative number, zero, or a positive number using Unicode 18 DUCET
+  ordering. The Boolean selects tertiary (case-sensitive) rather than
+  secondary (case-insensitive) strength.
+|===
+
 === Timer [[timer]]
 
 One-shot fiber resumption after a delay.  Registers a fiber to
@@ -6993,7 +7022,7 @@ does not apply the inactive palette to the other list.
 
 ==== Search
 
-Two complementary search modes, both case-insensitive (ASCII fold)
+Two complementary search modes, both using Unicode canonical caseless matching
 and wrapping at the end of the list:
 
 * *Type-to-search* — any printable character grows a rolling buffer
@@ -7354,7 +7383,7 @@ bar.items  = [
 
 Keys: `Left` / `Right` move focus between items with wrap; `Home` /
 `End` jump to ends; `Enter` / `Space` activate the focused item; a
-typed letter (case-insensitive ASCII) matched against item labels'
+typed Unicode scalar (canonical caseless) matched against item labels'
 first characters activates that item.  `focusedItem` is `null`
 when the bar is empty (or explicitly cleared); otherwise an
 integer in `0..count - 1`.  `tryHotkey(ev)` is exposed

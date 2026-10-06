@@ -27,13 +27,17 @@ foreach(_dependency IN ITEMS filesystem ini io_error)
 			"${CMAKE_CURRENT_BINARY_DIR}/${_dependency}")
 	endif()
 endforeach()
+if(NOT TARGET st_unicode_compare)
+	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../unicode_compare"
+		"${CMAKE_CURRENT_BINARY_DIR}/unicode_compare")
+endif()
 
 add_library(st_settings STATIC st_settings.c st_settings_store.c)
 target_include_directories(st_settings PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_settings PUBLIC
 	syncterm_name_value_list st_app_paths syncterm_io_error PRIVATE
 	st_file_lock syncterm_filesystem syncterm_ini syncterm_string_compat
-	syncterm_string_util)
+	syncterm_string_util st_unicode_compare)
 set_target_properties(st_settings PROPERTIES
 	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 
@@ -76,7 +80,7 @@ if(BUILD_TESTING)
 	target_link_libraries(st_settings_faultable PUBLIC
 		syncterm_name_value_list st_app_paths syncterm_io_error PRIVATE
 		st_file_lock syncterm_filesystem syncterm_ini
-		syncterm_string_compat syncterm_string_util)
+		syncterm_string_compat syncterm_string_util st_unicode_compare)
 	set_target_properties(st_settings_faultable PROPERTIES
 		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	st_settings_warnings(st_settings_faultable)

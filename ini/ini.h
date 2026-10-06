@@ -21,10 +21,11 @@ typedef struct ini_document ini_document_t;
 typedef struct ini_section ini_section_t;
 
 /*
- * Section and key names are nonempty printable US-ASCII, do not begin or end
- * with ASCII whitespace, and compare with ASCII-only case folding. Section
- * names cannot contain '[' or ']'. Key names cannot contain '=' or ':', or
- * begin with ';' or '['. Values are valid UTF-8 in NFC and cannot contain NUL.
+ * Section and key names are nonempty NFC UTF-8 without controls or leading or
+ * trailing Unicode whitespace, and compare by Unicode canonical caseless
+ * matching. Section names cannot contain '[' or ']'. Key names cannot contain
+ * '=' or ':', or begin with ';' or '['. Values are valid UTF-8 in NFC and
+ * cannot contain NUL.
  * Returned views and borrowed strings are invalidated by the next document
  * mutation or by freeing the document.
  *

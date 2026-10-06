@@ -39,7 +39,7 @@
 
 import "ui_widget" for Widget, Rect
 import "ui_draw"   for Painter
-import "syncterm"  for KeyEvent, MouseEvent, Key, Mouse, Screen
+import "syncterm"  for KeyEvent, MouseEvent, Key, Mouse, Screen, Text
 
 class MenuBar is Widget {
   construct new() {
@@ -135,29 +135,22 @@ class MenuBar is Widget {
   }
 
   // Try to match a typed printable codepoint against item labels'
-  // first characters (case-insensitive ASCII).  Returns true and
+  // first characters (Unicode canonical caseless).  Returns true and
   // activates if matched.  Used by Container.handle's hotkey scan
   // and by our own letter-key path.
   tryHotkey(ev) {
     if (!(ev is KeyEvent)) return false
     var cp = ev.codepoint
     if (cp == null) return false
-    if (cp < 0x20 || cp >= 0x7F) return false
-    var cpU = cp
-    if (cpU >= 0x61 && cpU <= 0x7A) cpU = cpU - 0x20
+    var typed = String.fromCodePoint(cp)
     var i = 0
     while (i < _items.count) {
       var lbl = _items[i][0]
       if (lbl.count > 0) {
-        var firstCh = lbl[0]
-        if (firstCh.bytes.count == 1) {
-          var b = firstCh.bytes[0]
-          if (b >= 0x61 && b <= 0x7A) b = b - 0x20
-          if (b == cpU) {
-            focusedItem = i
-            activate_(i)
-            return true
-          }
+        if (Text.caselessStartsWith(lbl, typed)) {
+          focusedItem = i
+          activate_(i)
+          return true
         }
       }
       i = i + 1

@@ -580,6 +580,7 @@ test_key_name_grammar(void)
 
 	CHECK(ini_key_name_valid("Key"));
 	CHECK(ini_key_name_valid("Key[Part]"));
+	CHECK(ini_key_name_valid("M\xc3\xbcnchen"));
 	for (size_t i = 0;
 	    i < sizeof(invalid_names) / sizeof(invalid_names[0]); ++i) {
 		CHECK(!ini_key_name_valid(invalid_names[i]));

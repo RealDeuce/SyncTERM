@@ -1,4 +1,4 @@
-import "syncterm" for Key, KeyEvent, Mouse, MouseEvent, Screen
+import "syncterm" for Key, KeyEvent, Mouse, MouseEvent, Screen, Text
 import "ui_app" for App
 import "ui_draw" for Painter
 import "ui_widget" for Rect, Widget
@@ -272,15 +272,7 @@ class MenuUi {
   }
 
   static namesEqual(left, right) {
-    if (left.bytes.count != right.bytes.count) return false
-    for (i in 0...left.bytes.count) {
-      var l = left.bytes[i]
-      var r = right.bytes[i]
-      if (l >= 0x41 && l <= 0x5A) l = l + 0x20
-      if (r >= 0x41 && r <= 0x5A) r = r + 0x20
-      if (l != r) return false
-    }
-    return true
+    return Text.caselessEqual(left, right)
   }
 
   static promptStandalone(title, message, initial, maxLen, masked) {

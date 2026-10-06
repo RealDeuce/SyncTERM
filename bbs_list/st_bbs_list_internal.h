@@ -14,7 +14,7 @@
 
 #include <stdbool.h>
 
-#define ST_BBS_CACHE_KEY_MAX (ST_PROFILE_NAME_MAX * 2U + 2U)
+#define ST_BBS_CACHE_KEY_MAX 70U
 
 struct st_bbs_owned_entry {
 	struct st_bbs_entry public;
@@ -70,7 +70,7 @@ int st_bbs_view_prepare(const st_bbs_list_t *list,
     ini_document_t *personal_document, struct st_bbs_view *view);
 void st_bbs_view_dispose(struct st_bbs_view *view);
 void st_bbs_view_publish(st_bbs_list_t *list, struct st_bbs_view *view);
-void st_bbs_view_sort(struct st_bbs_view *view, const int *fields,
+int st_bbs_view_sort(struct st_bbs_view *view, const int *fields,
     size_t field_count);
 int st_bbs_cache_rename(st_bbs_list_t *list, const char *old_key,
     const char *new_key);

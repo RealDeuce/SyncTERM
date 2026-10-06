@@ -367,7 +367,7 @@ exercise_connected_sftp(st_wren_host_t *host, st_console_t *console,
 	};
 	st_wren_connected_t *connected = NULL;
 	char path[sizeof(ST_WREN_TEST_DIRECTORY) + 32];
-	char queue_path[sizeof(ST_WREN_TEST_DIRECTORY) + 64];
+	char queue_path[sizeof(ST_WREN_TEST_DIRECTORY) + 96];
 	struct timespec delay = {.tv_nsec = 300000000L};
 	FILE *stream;
 	unsigned char local[sizeof(remote)];
@@ -376,7 +376,8 @@ exercise_connected_sftp(st_wren_host_t *host, st_console_t *console,
 	profile->download_directory = strdup(ST_WREN_TEST_DIRECTORY);
 	CHECK(profile->download_directory != NULL);
 	(void)snprintf(queue_path, sizeof(queue_path),
-	    "%s/cache/Alpha/sftp_queue.won", ST_WREN_TEST_DIRECTORY);
+	    "%s/cache/[u18-8ed3f6ad685b959ead7022518e1af76cd816f8e8ec7ccdda1ed4018e8f2223f8]/sftp_queue.won",
+	    ST_WREN_TEST_DIRECTORY);
 	(void)fs_remove_file(queue_path);
 	CHECK(st_wren_connected_create(&connected, &config) == 0);
 	CHECK(exercise_filesystem_path_handles(connected) == 0);

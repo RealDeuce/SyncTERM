@@ -20,6 +20,7 @@
 #include "st_settings.h"
 #include "st_session_history.h"
 #include "st_theme.h"
+#include "st_unicode_compare.h"
 #include "string_util.h"
 #include "value_convert.h"
 #include "value_convert_time.h"
@@ -1022,25 +1023,23 @@ slot_profile_name(WrenVM *vm, int slot, size_t except, const char **name)
 {
 	int length;
 	const char *value;
+	bool equal;
 
-	if (wrenGetSlotType(vm, slot) != WREN_TYPE_STRING) {
-		st_wren_abort(vm, "sort profile name must be a String");
+	if (!st_wren_text_slot(vm, slot, &value, &length)) {
 		return false;
 	}
-	value = wrenGetSlotBytes(vm, slot, &length);
-	if (length < 1 || length > 19
+	if (length < 1
 	    || memchr(value, '\0', (size_t)length) != NULL
-	    || ascii_is_space((unsigned char)value[0])
-	    || ascii_is_space((unsigned char)value[length - 1])
-	    || !string_span_is_printable_ascii(value, (size_t)length)
-	    || memchr(value, '=', (size_t)length) != NULL
-	    || memchr(value, ':', (size_t)length) != NULL) {
-		st_wren_abort(vm, "sort profile name must contain 1 through 19 bytes");
+	    || !st_unicode_name_valid(value, 19, 38, "=:")) {
+		st_wren_abort(vm, "sort profile name must contain 1 through 19 "
+		    "Unicode scalars (38 UTF-8 bytes maximum)");
 		return false;
 	}
 	for (size_t i = 0; i < st_settings_sort_profile_count(); ++i) {
-		if (i != except && ascii_case_compare(
-		    st_settings_sort_profile_at(i)->name, value) == 0) {
+		const char *existing = st_settings_sort_profile_at(i)->name;
+
+		if (i != except && st_unicode_caseless_equal(&equal, existing,
+		    strlen(existing), value, (size_t)length) == 0 && equal) {
 			st_wren_abort(vm, "sort profile name is already in use");
 			return false;
 		}
@@ -2578,12 +2577,13 @@ slot_font_name(WrenVM *vm, int slot, const char **name)
 		st_wren_abort(vm, "font name must be a String");
 		return false;
 	}
-	value = wrenGetSlotBytes(vm, slot, &length);
-	if (length == 0 || length > 50
+	if (!st_wren_text_slot(vm, slot, &value, &length))
+		return false;
+	if (length == 0
 	    || memchr(value, '\0', (size_t)length) != NULL
 	    || !st_settings_font_name_valid(value)) {
-		st_wren_abort(vm, "font name must be an INI-safe printable ASCII "
-		    "String containing 1 through 50 bytes");
+		st_wren_abort(vm, "font name must contain 1 through 50 Unicode "
+		    "scalars (100 UTF-8 bytes maximum)");
 		return false;
 	}
 	*name = value;
@@ -2594,12 +2594,15 @@ static bool
 font_name_available(struct st_wren_host *host, const char *name,
     size_t except)
 {
+	bool equal;
+
 	for (size_t i = 0;
 	    i < st_settings_font_draft_count(&host->font_draft); ++i) {
 		const struct st_settings_font *font
 		    = st_settings_font_draft_at(&host->font_draft, i);
 
-		if (i != except && ascii_case_compare(font->name, name) == 0)
+		if (i != except && st_unicode_caseless_equal(&equal, font->name,
+		    strlen(font->name), name, strlen(name)) == 0 && equal)
 			return false;
 	}
 	return true;
