@@ -1,0 +1,512 @@
+[[reference-network]]
+=== Networking and security API reference
+
+==== Native sockets and TCP client
+
+`socket_handle_t` is `SOCKET` on Windows and `int` on POSIX.  Initialize it to
+`SOCKET_HANDLE_INVALID` and test it with `socket_handle_is_valid()`.
+
+[source,c]
+----
+int socket_runtime_init(void);
+int socket_runtime_cleanup(void);
+bool socket_handle_is_valid(socket_handle_t socket);
+int socket_close(socket_handle_t socket);
+int socket_shutdown(socket_handle_t socket,
+    enum socket_shutdown_direction direction);
+int socket_set_blocking(socket_handle_t socket, bool blocking);
+int socket_set_keepalive(socket_handle_t socket, bool enabled);
+int socket_set_no_delay(socket_handle_t socket, bool enabled);
+int socket_set_send_buffer_size(socket_handle_t socket, size_t size);
+int socket_set_receive_buffer_size(socket_handle_t socket, size_t size);
+ssize_t socket_send(socket_handle_t socket, const void *buffer, size_t size);
+ssize_t socket_receive(socket_handle_t socket, void *buffer, size_t size,
+    unsigned flags);
+int socket_at_urgent_mark(socket_handle_t socket, bool *at_mark);
+int socket_wait(socket_handle_t socket, unsigned interests,
+    int64_t timeout_ms, unsigned *events);
+int tcp_client_connect(socket_handle_t *result,
+    enum tcp_client_address_family *connected_family, const char *host,
+    uint16_t port, const struct tcp_client_options *options);
+----
+
+Socket handles are passed by value and remain caller-owned until successful TLS
+transfer or explicit close.  Buffers are borrowed counted spans and may be NULL
+only when size is zero.  Scalar output pointers are required except
+`connected_family`, which may be NULL.  Status calls return zero/negative
+`IO_ERROR_*`; send/receive return nonnegative byte counts/negative errors.
+`host`, `options`, and the cancellation context are borrowed for connect.
+
+[cols="3m,7"]
+|===
+| Function | Parameters, result, and effect
+
+| socket_runtime_init(), socket_runtime_cleanup()
+| Acquire/release the process socket runtime.  Match every successful init;
+POSIX implements the same balanced contract even when no native setup is
+needed.
+
+| socket_close(socket)
+| Closes a valid native handle and returns zero or `IO_ERROR_*`.
+
+| socket_shutdown(socket, direction)
+| Disables reads, writes, or both without closing the handle.
+
+| socket_set_blocking(socket, blocking)
+| Selects blocking/nonblocking I/O.
+
+| socket_set_keepalive(socket, enabled), socket_set_no_delay(socket, enabled)
+| Toggle TCP keepalive or Nagle suppression.
+
+| socket_set_send_buffer_size(socket, size), socket_set_receive_buffer_size(socket, size)
+| Request native buffer sizes with checked `size_t` conversion.
+
+| socket_send(socket, buffer, size)
+| Returns bytes sent, zero for an empty request, or negative `IO_ERROR_*`.
+Short sends are successful progress.
+
+| socket_receive(socket, buffer, size, flags)
+| Returns bytes received, zero for EOF/empty request, or negative error.
+Flags may request peek or urgent data.
+
+| socket_at_urgent_mark(socket, at_mark)
+| Reports whether the next normal byte follows the urgent-data mark.
+
+| socket_wait(socket, interests, timeout_ms, events)
+| Waits for readable/writable/urgent interest; `-1` is infinite.  Clears
+`events` before waiting and may add closed/error bits.  Timeout is an error.
+
+| tcp_client_connect(result, connected_family, host, port, options)
+| Resolves and races addresses according to family and overall timeout.
+`options->cancel` runs synchronously on the caller.  Success installs a
+blocking connected socket and optional actual family; failure changes neither.
+|===
+
+==== Crypto provider
+
+Provider APIs return `XP_CRYPTO_OK` or a negative `XP_CRYPTO_*` code.  Use
+`xp_crypto_status_string(status)` for a static diagnostic, and
+`xp_crypto_provider_name()` / `xp_crypto_provider_version()` for static
+provider identity.
+
+[source,c]
+----
+const char *xp_crypto_status_string(int status);
+const char *xp_crypto_provider_name(void);
+const char *xp_crypto_provider_version(void);
+int xp_crypto_random(void *result, size_t size);
+void xp_crypto_clear(void *data, size_t size);
+size_t xp_digest_size(enum xp_digest_algorithm algorithm);
+int xp_digest(enum xp_digest_algorithm algorithm, const void *input,
+    size_t input_size, void *result, size_t result_size);
+bool xp_cipher_supported(enum xp_cipher_algorithm algorithm,
+    enum xp_cipher_direction direction);
+int xp_cipher_crypt(enum xp_cipher_algorithm algorithm,
+    enum xp_cipher_direction direction, const void *key, size_t key_size,
+    const void *iv, size_t iv_size, uint32_t initial_counter,
+    const void *input, size_t input_size, void *output, size_t output_size);
+bool xp_kdf_scrypt_parameters_valid(uint64_t n, uint32_t r, uint32_t p);
+int xp_kdf_pbkdf2(enum xp_digest_algorithm digest,
+    const void *password, size_t password_size,
+    const void *salt, size_t salt_size, uint64_t iterations,
+    void *result, size_t result_size);
+int xp_kdf_scrypt(const void *password, size_t password_size,
+    const void *salt, size_t salt_size, uint64_t n, uint32_t r, uint32_t p,
+    void *result, size_t result_size);
+----
+
+Every byte pointer is a counted borrowed span; NULL is valid only at size zero.
+Output capacity is explicit and the caller owns output storage.  Cipher input
+and output may be exactly the same buffer but otherwise must not overlap.
+Provider strings are static.  Integer enums/parameters must pass algorithm
+validation; status-returning functions use `XP_CRYPTO_*`.
+
+[cols="3m,7"]
+|===
+| Function | Parameters, result, and effect
+
+| xp_crypto_random(result, size)
+| Fills exactly `size` cryptographic random bytes; NULL is valid only for zero.
+
+| xp_crypto_clear(data, size)
+| Performs a non-optimizable clear before secret storage is freed or reused.
+
+| xp_digest_size(algorithm)
+| Returns digest bytes or zero for an unsupported identifier.
+
+| xp_digest(algorithm, input, input_size, result, result_size)
+| Hashes counted bytes; result size must exactly accommodate the selected
+digest.
+
+| xp_cipher_supported(algorithm, direction)
+| Queries provider support separately for encryption and decryption.
+
+| xp_cipher_crypt(algorithm, direction, key, key_size, iv, iv_size, counter, input, input_size, output, output_size)
+| Processes one whole buffer without padding.  Exact in-place operation is
+allowed.  CBC input must contain whole blocks; nonce/IV requirements are in
+`xp_cipher.h`.
+
+| xp_kdf_scrypt_parameters_valid(n, r, p)
+| Validates power-of-two/cost/overflow/memory bounds without deriving a key.
+
+| xp_kdf_pbkdf2(digest, password, password_size, salt, salt_size, iterations, result, result_size)
+| Derives exactly `result_size` bytes from counted password and salt, both of
+which may contain NUL.
+
+| xp_kdf_scrypt(password, password_size, salt, salt_size, n, r, p, result, result_size)
+| Bounded scrypt derivation; requests above `XP_KDF_SCRYPT_MAX_MEMORY` fail by
+policy.
+|===
+
+==== TLS client
+
+`struct st_tls_client_options` selects server name/authentication, certificate
+paths or PSK, version bounds, handshake timeout, and an optional diagnostic
+callback.  Option storage is borrowed only for open.  Diagnostic record
+strings are provider-owned and valid only during the callback.
+
+[source,c]
+----
+int st_tls_client_open(st_tls_session_t **result, socket_handle_t socket,
+    const struct st_tls_client_options *options);
+int st_tls_send(st_tls_session_t *session, const void *data, size_t size,
+    int64_t timeout_ms, size_t *sent);
+int st_tls_receive(st_tls_session_t *session, void *data, size_t size,
+    int64_t timeout_ms, size_t *received);
+int st_tls_flush(st_tls_session_t *session, int64_t timeout_ms);
+bool st_tls_has_pending(const st_tls_session_t *session);
+enum st_tls_protocol_version st_tls_protocol_version(
+    const st_tls_session_t *session);
+const char *st_tls_cipher(const st_tls_session_t *session);
+const char *st_tls_error(const st_tls_session_t *session);
+size_t st_tls_peer_certificate_count(const st_tls_session_t *session);
+int st_tls_peer_certificate(const st_tls_session_t *session, size_t index,
+    const void **data, size_t *size);
+int st_tls_terminate(st_tls_session_t *session);
+void st_tls_close(st_tls_session_t *session);
+----
+
+Session pointers must be live except NULL close.  Data buffers are borrowed for
+the call.  `sent`, `received`, DER `data`, and DER `size` are required outputs
+and changed only on zero status.  Timeouts are relative milliseconds: `-1`
+infinite, zero polling, lower invalid.  Cipher/error/DER pointers are borrowed
+until close or the next documented state change.  Status calls use
+zero/negative `IO_ERROR_*`.
+
+[cols="3m,7"]
+|===
+| Function | Parameters, result, and effect
+
+| st_tls_client_open(result, socket, options)
+| Performs a client handshake.  Socket ownership transfers only on success;
+then the session makes it nonblocking and owns closing it.  Any PSK option
+selects PSK-only mode and requires identity, secret, and exact TLS version.
+
+| st_tls_send(session, data, size, timeout_ms, sent)
+| Attempts counted application bytes and reports progress through `sent`.
+
+| st_tls_receive(session, data, size, timeout_ms, received)
+| Receives decrypted bytes and reports the count separately from status.
+
+| st_tls_flush(session, timeout_ms)
+| Drives pending provider output to the socket.
+
+| st_tls_has_pending(session)
+| True when decrypted application bytes can be read without socket input.
+
+| st_tls_protocol_version(session), st_tls_cipher(session)
+| Return negotiated protocol enum and a borrowed provider cipher name.
+
+| st_tls_error(session)
+| Returns a borrowed session error string for the most recent failure.
+
+| st_tls_peer_certificate_count(session)
+| Returns the number of certificates retained from the peer chain.
+
+| st_tls_peer_certificate(session, index, data, size)
+| Returns a borrowed DER span valid until close.
+
+| st_tls_terminate(session)
+| Sends/drives orderly TLS shutdown when possible without freeing the object.
+
+| st_tls_close(session)
+| Frees provider state and closes the owned socket; NULL is accepted.
+|===
+
+==== Consent tokens
+
+[source,c]
+----
+int st_consent_token_generate_key(uint8_t key[ST_CONSENT_TOKEN_KEY_SIZE]);
+int st_consent_token_sign(char **result,
+    const uint8_t key[ST_CONSENT_TOKEN_KEY_SIZE], const char *path);
+int st_consent_token_verify(char **result,
+    const uint8_t key[ST_CONSENT_TOKEN_KEY_SIZE], const char *token);
+----
+
+Key arrays must address 32 readable/writable bytes as appropriate.  Path/token
+are required borrowed NUL-terminated strings.  Sign/verify output pointers are
+required, unchanged on `XP_CRYPTO_*` error, and receive malloc-owned strings.
+
+[cols="3m,7"]
+|===
+| Function | Parameters, result, and effect
+
+| st_consent_token_generate_key(key)
+| Fills exactly `ST_CONSENT_TOKEN_KEY_SIZE` random bytes; returns
+`XP_CRYPTO_*`.
+
+| st_consent_token_sign(result, key, path)
+| Authenticates a path and returns a malloc-owned Base64 token.
+
+| st_consent_token_verify(result, key, token)
+| Authenticates/decodes a token and returns a new malloc-owned path.  Never use
+an unverified token substring as a path.
+|===
+
+==== Conditional web cache
+
+`struct st_webget_request` borrows all pointers for one synchronous call.
+`maximum_size == 0` selects `ST_WEBGET_DEFAULT_MAX_SIZE`.  The progress
+callback receives phase and byte counts and returns false to cancel.  The
+validation callback receives the completed temporary path and returns zero
+only when it is safe to install.
+
+[source,c]
+----
+int st_webget(struct st_webget_result *result,
+    const struct st_webget_request *request);
+----
+
+Both pointers are required.  Every request string/callback context and nested
+TLS options object is borrowed until return.  Callbacks execute on the calling
+thread.  Zero installs `result`; negative `IO_ERROR_*` leaves it unchanged and
+preserves the previously installed output.
+
+[cols="3m,7"]
+|===
+| Function | Parameters, result, and effect
+
+| st_webget(result, request)
+| Validates URL/cache names, checks metadata freshness, conditionally
+downloads, enforces the size limit, calls validation, and replaces the cached
+output only after all stages succeed.  On success `result->outcome` is
+downloaded, not-modified, or fresh-cache and `size` is installed bytes.
+|===
+
+==== Encrypted list documents
+
+`st_list_crypto_info` describes the detected format and whether a rewrite is
+recommended.  `ST_LIST_CRYPTO_OPTIONS_AES256` is the current default write
+policy initializer.
+
+[source,c]
+----
+bool st_list_crypto_encryption_available(void);
+int st_list_crypto_inspect(FILE *stream, struct st_list_crypto_info *info);
+int st_list_crypto_read(ini_document_t **result, FILE *stream,
+    const void *password, size_t password_size, uint64_t v1_iterations,
+    struct st_list_crypto_info *info);
+int st_list_crypto_write(FILE *stream, const ini_document_t *document,
+    const struct st_list_crypto_options *options,
+    const void *password, size_t password_size);
+----
+
+Streams/documents/options are borrowed and required.  `info` may be NULL only
+where the header permits optional reporting.  Password is a counted borrowed
+byte span and may be NULL only at zero length.  Inspect/read preserve stream
+position.  Read's output handle is in/out and replaced only on zero; write owns
+neither stream nor transaction and can leave partial bytes on failure.
+
+[cols="3m,7"]
+|===
+| Function | Parameters, result, and effect
+
+| st_list_crypto_encryption_available()
+| Reports whether the selected provider can write supported encrypted lists.
+
+| st_list_crypto_inspect(stream, info)
+| Identifies plain/v1/v2 from the first line without deriving a password and
+restores stream state.
+
+| st_list_crypto_read(result, stream, password, password_size, v1_iterations, info)
+| Parses/decrypts to a replacement INI document only after complete success.
+Passwords are counted bytes.  Zero v1 iterations selects 50000; wrong password
+or failed legacy check reports `IO_ERROR_DECRYPTION_FAILED`.
+
+| st_list_crypto_write(stream, document, options, password, password_size)
+| Writes plain INI for cipher none or v2 encrypted data for current ciphers.
+The caller positions and transactionally manages the stream; this function may
+partially write it on failure.
+|===
+
+==== Serial ports
+
+`serial_config` supplies complete baud/data/stop/parity/flow policy.  Flow and
+modem-line enums are bit masks where documented.
+
+[source,c]
+----
+int serial_port_open(serial_port_t **result, const char *device);
+int serial_port_close(serial_port_t *port);
+int serial_port_configure(serial_port_t *port,
+    const struct serial_config *config);
+ssize_t serial_port_read(serial_port_t *port, void *buffer, size_t size,
+    int64_t timeout_ms);
+ssize_t serial_port_write(serial_port_t *port, const void *buffer, size_t size,
+    int64_t timeout_ms);
+int serial_port_get_modem_lines(serial_port_t *port, unsigned *lines);
+int serial_port_set_dtr(serial_port_t *port, bool enabled);
+int serial_port_set_rts(serial_port_t *port, bool enabled);
+int serial_port_get_baud_rates(serial_port_t *port, uint32_t *rates,
+    size_t capacity, size_t *count);
+----
+
+`device`/`config` and I/O buffers are borrowed.  A successful open installs an
+owned port; close consumes it and NULL succeeds.  Read/write buffers may be
+NULL only for zero size and return nonnegative count/negative `IO_ERROR_*`.
+`lines` and `count` are required outputs; `rates` may be NULL only when
+capacity is zero.  One reader and one writer may overlap, but configuration,
+line control, enumeration, and close require external exclusion from I/O.
+
+[cols="3m,7"]
+|===
+| Function | Parameters, result, and effect
+
+| serial_port_open(result, device)
+| Opens a POSIX path or UTF-8 Windows COM name without changing configuration.
+
+| serial_port_close(port)
+| Closes and frees; NULL succeeds.  Stop reader/writer users first.
+
+| serial_port_configure(port, config)
+| Applies the complete supported configuration atomically at the native API
+boundary; zero baud retains the device's rate.
+
+| serial_port_read(port, buffer, size, timeout_ms)
+| Returns a possibly short byte count or `IO_ERROR_*`; zero timeout polls and
+`-1` waits indefinitely.
+
+| serial_port_write(port, buffer, size, timeout_ms)
+| Timed, possibly short counterpart for output.
+
+| serial_port_get_modem_lines(port, lines)
+| Writes the current CTS/DSR/RING/DCD bit mask.
+
+| serial_port_set_dtr(port, enabled), serial_port_set_rts(port, enabled)
+| Explicitly drives the selected output modem line.
+
+| serial_port_get_baud_rates(port, rates, capacity, count)
+| Always reports the full enumerable count and copies at most `capacity`
+entries.  Enumeration does not guarantee that this device accepts every rate.
+|===
+
+==== Stateful connections
+
+Connect functions borrow profiles and setup inputs only during the call.  Hook
+contexts remain borrowed until close, and the log hook may run on either
+worker.  `st_connection_error` reports the high-level status, failed setup
+phase, optional native code, and bounded detail.
+
+[source,c]
+----
+int st_connection_connect_raw(st_connection_t **result,
+    const struct st_profile *profile, const struct st_connection_hooks *hooks,
+    struct st_connection_error *error);
+int st_connection_connect_rlogin(st_connection_t **result,
+    const struct st_profile *profile,
+    const struct st_screen_geometry *current_screen,
+    const struct st_connection_hooks *hooks, struct st_connection_error *error);
+int st_connection_connect_serial(st_connection_t **result,
+    const struct st_profile *profile, const struct st_connection_hooks *hooks,
+    struct st_connection_error *error);
+int st_connection_connect_modem(st_connection_t **result,
+    const struct st_profile *profile, const struct st_connection_hooks *hooks,
+    struct st_connection_error *error);
+int st_connection_connect_shell(st_connection_t **result,
+    const struct st_profile *profile,
+    const struct st_screen_geometry *current_screen,
+    const struct st_connection_shell_environment *shell_environment,
+    const struct st_connection_hooks *hooks, struct st_connection_error *error);
+ssize_t st_connection_send(st_connection_t *connection, const void *data,
+    size_t size, int64_t timeout_ms);
+ssize_t st_connection_send_raw(st_connection_t *connection, const void *data,
+    size_t size, int64_t timeout_ms);
+ssize_t st_connection_receive(st_connection_t *connection, void *data,
+    size_t size, int64_t timeout_ms);
+ssize_t st_connection_receive_raw(st_connection_t *connection, void *data,
+    size_t size, int64_t timeout_ms);
+ssize_t st_connection_peek_raw(st_connection_t *connection, void *data,
+    size_t size);
+size_t st_connection_pending_raw(st_connection_t *connection);
+size_t st_connection_queued(st_connection_t *connection);
+bool st_connection_is_connected(st_connection_t *connection);
+uint64_t st_connection_elapsed_ms(st_connection_t *connection);
+int st_connection_set_binary_mode(st_connection_t *connection, bool enabled);
+int st_connection_update_terminal_size(st_connection_t *connection,
+    const struct st_screen_geometry *geometry);
+int st_connection_close(st_connection_t *connection);
+----
+
+Connect `result` is required and unchanged on failure.  Profile, geometry,
+environment, and hook struct are borrowed during connect; hook contexts remain
+borrowed through close.  `error` may be NULL and is written only to describe a
+failure.  Data buffers are counted borrowed spans, NULL only for zero.  I/O
+returns nonnegative counts/negative `IO_ERROR_*`; status mutations return zero
+or negative error.  Queue/state queries require a live object.  Close consumes
+it and requires all concurrent callers stopped.
+
+[cols="3m,7"]
+|===
+| Function | Parameters, result, and effect
+
+| st_connection_connect_raw(result, profile, hooks, error)
+| Opens the profile's raw byte-stream transport and starts its workers.
+
+| st_connection_connect_rlogin(result, profile, current_screen, hooks, error)
+| Opens RLogin with current/fixed terminal geometry and status-row policy.
+
+| st_connection_connect_serial(result, profile, hooks, error)
+| Opens/configures the profile serial device.
+
+| st_connection_connect_modem(result, profile, hooks, error)
+| Opens the modem device, runs initialization, and dials.
+
+| st_connection_connect_shell(result, profile, current_screen, environment, hooks, error)
+| Starts the platform shell transport.  POSIX may execute `/bin/sh -c`; the
+optional TERM/TERMCAP/MM_CHARSET values are borrowed for setup.
+
+| st_connection_send(connection, data, size, timeout_ms)
+| Sends through protocol processing; returns short count or negative error.
+
+| st_connection_send_raw(connection, data, size, timeout_ms)
+| Sends directly through the underlying transport queue.
+
+| st_connection_receive(connection, data, size, timeout_ms)
+| Receives protocol-processed application bytes.
+
+| st_connection_receive_raw(connection, data, size, timeout_ms)
+| Receives underlying raw bytes.
+
+| st_connection_peek_raw(connection, data, size)
+| Copies currently queued raw bytes without consuming them.
+
+| st_connection_pending_raw(connection), st_connection_queued(connection)
+| Return currently available receive bytes or queued transmit bytes.
+
+| st_connection_is_connected(connection)
+| Reports live transport state.
+
+| st_connection_elapsed_ms(connection)
+| Returns monotonic milliseconds since successful connection establishment.
+
+| st_connection_set_binary_mode(connection, enabled)
+| Changes protocol text/binary handling where the transport supports it.
+
+| st_connection_update_terminal_size(connection, geometry)
+| Updates usable terminal geometry after status-row adjustment.
+
+| st_connection_close(connection)
+| Stops/joins both workers, releases transport resources, and consumes the
+connection.  It must not race another public operation.
+|===

@@ -1,0 +1,504 @@
+[[reference-system]]
+=== System API reference
+
+==== Time and deadlines
+
+[source,c]
+----
+int st_time_monotonic_ms(uint64_t *result);
+int st_time_monotonic_ns(uint64_t *result);
+int st_deadline_start(struct st_deadline *result, int64_t timeout_ms);
+int st_deadline_remaining_ms(const struct st_deadline *deadline,
+    int64_t *result);
+int st_time_utc_deadline_after_ms(struct timespec *result,
+    int64_t timeout_ms);
+----
+
+Every output pointer is required and written only on zero return.  Failures are
+negative `IO_ERROR_*`.  Timeout values are signed milliseconds so `-1` can
+represent infinity; smaller values are invalid.
+
+[cols="3m,7"]
+|===
+| Function | Parameters, result, and effect
+
+| st_time_monotonic_ms(result), st_time_monotonic_ns(result)
+| Write an arbitrary-origin monotonic timestamp.  Subtract timestamps for
+elapsed time; never interpret them as wall-clock values.
+
+| st_deadline_start(result, timeout_ms)
+| Captures a monotonic deadline.  `-1` is infinite, zero is already expired,
+and values below `-1` are invalid.
+
+| st_deadline_remaining_ms(deadline, result)
+| Writes nonnegative milliseconds remaining, zero when expired, or `-1` for
+infinity.
+
+| st_time_utc_deadline_after_ms(result, timeout_ms)
+| Creates the absolute `TIME_UTC` `timespec` required by
+`st_condition_timedwait()`.
+|===
+
+==== Native paths
+
+[source,c]
+----
+bool path_is_separator(char character);
+const char *path_basename(const char *path);
+const char *path_untrusted_basename(const char *path);
+bool path_is_rooted(const char *path);
+bool path_untrusted_component_valid(const char *component);
+int path_join_alloc(char **result, const char *directory, const char *name);
+ptrdiff_t path_parent(char *result, size_t result_size, const char *path);
+ptrdiff_t path_append_separator(char *result, size_t result_size,
+    const char *path);
+ptrdiff_t path_make_absolute(char *result, size_t result_size,
+    const char *path);
+ptrdiff_t path_expand_user(char *result, size_t result_size, const char *path);
+----
+
+All path/name inputs are required borrowed NUL-terminated native path strings.
+Returned basename pointers alias the input.  `path_join_alloc` installs a
+malloc-owned string on zero return.  Buffer APIs return required bytes
+excluding NUL or negative `IO_ERROR_*`; `result_size` includes the NUL.
+
+[cols="3m,7"]
+|===
+| Function | Parameters, result, and effect
+
+| path_is_separator(character)
+| Tests the native platform separator set.
+
+| path_basename(path)
+| Returns a borrowed pointer into `path` after the last native separator.
+
+| path_untrusted_basename(path)
+| Same view operation, but recognizes both slash styles for foreign input.
+
+| path_is_rooted(path)
+| Tests native rooted syntax; Windows drive-relative `C:foo` is not rooted.
+
+| path_untrusted_component_valid(component)
+| Rejects empty, dot, dot-dot, and components containing native or foreign
+separators.
+
+| path_join_alloc(result, directory, name)
+| Allocates `directory` plus a native separator plus `name`; installs the
+malloc-owned result only on success.
+
+| path_parent(result, size, path)
+| Writes the lexical parent and returns required bytes or `IO_ERROR_*`.
+
+| path_append_separator(result, size, path)
+| Adds a native trailing separator only when needed.
+
+| path_make_absolute(result, size, path)
+| Lexically resolves an absolute native path; the object need not exist.
+
+| path_expand_user(result, size, path)
+| POSIX expands `~` and `~/` from `HOME`; Windows leaves them literal.
+|===
+
+All four buffer-output operations permit exact in-place use, permit NULL only
+for a zero-size sizing call, and leave a short buffer unchanged.
+
+==== Filesystem
+
+`struct fs_info` contains `kind`, regular-file byte `size`, and whole-second
+Unix `modified_time`.  Every path is UTF-8.
+
+[source,c]
+----
+int fs_get_info(struct fs_info *result, const char *path);
+int fs_get_link_info(struct fs_info *result, const char *path);
+int fs_open(FILE **result, const char *path, const char *mode);
+int64_t fs_stream_size(FILE *stream);
+int64_t fs_stream_position(FILE *stream);
+int fs_stream_seek(FILE *stream, int64_t offset);
+int fs_stream_truncate(FILE *stream, uint64_t size);
+int fs_set_modified_time(const char *path, int64_t modified_time);
+int fs_remove_file(const char *path);
+int fs_remove_directory(const char *path);
+int fs_rename(const char *source, const char *destination);
+int fs_replace_file(const char *path, const void *data, size_t size);
+int fs_copy_file(const char *source, const char *destination);
+int fs_create_directory(const char *path);
+int fs_create_directories(const char *path);
+int fs_create_parent_directories(const char *path);
+----
+
+Paths/modes and streams are borrowed for each call.  Object outputs are
+required and unchanged on failure.  Status functions return zero or negative
+`IO_ERROR_*`; the two `int64_t` query functions return a nonnegative value or
+negative error.  `data == NULL` is valid only with size zero.
+
+[cols="3m,7"]
+|===
+| Function | Parameters, result, and effect
+
+| fs_get_info(result, path)
+| Stats the final target, following a link/reparse point.
+
+| fs_get_link_info(result, path)
+| Stats the final directory entry itself and may report `FS_ENTRY_LINK`.
+
+| fs_open(result, path, mode)
+| Opens a C `FILE *` using UTF-8 path handling; caller closes with `fclose()`.
+
+| fs_stream_size(stream)
+| Returns the underlying regular-file size without changing position, or a
+negative `IO_ERROR_*` as `int64_t`.
+
+| fs_stream_position(stream)
+| Returns the 64-bit current byte position or a negative error.
+
+| fs_stream_seek(stream, offset)
+| Sets an absolute 64-bit byte position.
+
+| fs_stream_truncate(stream, size)
+| Changes the underlying file length without narrowing to `long`.
+
+| fs_set_modified_time(path, modified_time)
+| Sets whole-second Unix modification time.
+
+| fs_remove_file(path), fs_remove_directory(path)
+| Remove only the expected object kind and translate native errors.
+
+| fs_rename(source, destination)
+| Renames without cross-volume copying and replaces an existing
+non-directory destination.
+
+| fs_replace_file(path, data, size)
+| Writes and closes a sibling temporary, then atomically replaces `path`.
+Every pre-rename failure preserves the previous path.
+
+| fs_copy_file(source, destination)
+| Overwrites destination data while preserving source permission mode and
+modified time.
+
+| fs_create_directory(path)
+| Creates one directory; an existing object reports
+`IO_ERROR_ALREADY_EXISTS`.
+
+| fs_create_directories(path)
+| Creates missing directory components; existing directories succeed.
+
+| fs_create_parent_directories(path)
+| Creates only the parent hierarchy for a file pathname.
+|===
+
+==== Application paths
+
+[source,c]
+----
+int st_app_paths_init(struct st_app_paths *paths,
+    const struct st_app_path_overrides *overrides);
+void st_app_paths_dispose(struct st_app_paths *paths);
+int st_app_paths_prepare_settings(const struct st_app_paths *paths);
+int st_app_paths_prepare_personal_list(const struct st_app_paths *paths);
+int st_app_paths_prepare_cache(const struct st_app_paths *paths);
+int st_app_paths_prepare_keys(const struct st_app_paths *paths);
+int st_app_paths_prepare_scripts(const struct st_app_paths *paths);
+int st_app_paths_prepare_themes(const struct st_app_paths *paths);
+----
+
+`paths` is caller storage which becomes owning only after successful init and
+must then be disposed once.  `overrides` may be NULL; its strings are borrowed
+for init.  Prepare functions require a successfully initialized live struct
+and return zero or negative `IO_ERROR_*`.
+
+`st_app_paths_init(paths, overrides)` allocates every selected path into a
+caller-provided struct; `overrides` and its strings are borrowed only during
+initialization.  Dispose with `st_app_paths_dispose(paths)`.
+
+The preparation functions take a completed `st_app_paths` and create the
+minimum required hierarchy:
+
+[cols="3m,7"]
+|===
+| Function | Prepared location
+
+| st_app_paths_prepare_settings(paths)
+| Parent of `settings_file`.
+
+| st_app_paths_prepare_personal_list(paths)
+| Parent of `personal_list`.
+
+| st_app_paths_prepare_cache(paths)
+| `cache_directory` and required parents.
+
+| st_app_paths_prepare_keys(paths)
+| Parent of `keys_file`.
+
+| st_app_paths_prepare_scripts(paths)
+| `scripts_directory`.
+
+| st_app_paths_prepare_themes(paths)
+| `themes_directory`.
+|===
+
+==== File maps and locks
+
+[source,c]
+----
+int file_map_open(file_map_t **result, const char *path);
+int file_map_open_stream(file_map_t **result, FILE *stream);
+const void *file_map_data(const file_map_t *map);
+size_t file_map_size(const file_map_t *map);
+void file_map_close(file_map_t *map);
+int st_file_lock_acquire(st_file_lock_t **result, const char *path,
+    bool exclusive);
+void st_file_lock_release(st_file_lock_t *lock);
+----
+
+Open/acquire output handles are required and unchanged on negative
+`IO_ERROR_*`.  Path/stream inputs are borrowed.  Map byte views remain valid
+only until close.  Close/release consume their object and accept NULL.
+
+[cols="3m,7"]
+|===
+| Function | Parameters, result, and effect
+
+| file_map_open(result, path)
+| Maps the entire regular file read-only.  A successful empty map has size
+zero and a non-NULL data pointer.
+
+| file_map_open_stream(result, stream)
+| Maps the stream's complete underlying regular file without changing its
+position.  The stream is borrowed only during the call and may then close.
+
+| file_map_data(map), file_map_size(map)
+| Return the borrowed immutable byte view and count.  NULL maps report NULL
+and zero.
+
+| file_map_close(map)
+| Consumes the map and attempts every cleanup; NULL is accepted.
+
+| st_file_lock_acquire(result, path, exclusive)
+| Blocks while acquiring the persistent `<path>.lock` sidecar in shared or
+exclusive mode.  Installs an owned lock only on success.
+
+| st_file_lock_release(lock)
+| Releases and frees the lock; NULL is accepted.
+|===
+
+==== Dynamic libraries
+
+[source,c]
+----
+int dynamic_library_open(dynamic_library_t **result,
+    const char *const names[], size_t name_count, unsigned preferred_major,
+    enum dynamic_library_visibility visibility);
+void *dynamic_library_symbol(const dynamic_library_t *library,
+    const char *name);
+int dynamic_library_close(dynamic_library_t *library);
+----
+
+`names` is a borrowed array of `name_count` borrowed NUL-terminated fragments;
+each must be nonempty safe ASCII and not a path.  Open installs an owned handle
+on zero.  Symbol takes a required live handle/name and returns a borrowed
+pointer or NULL.  Close consumes even when it reports negative cleanup error.
+
+[cols="3m,7"]
+|===
+| Function | Parameters, result, and effect
+
+| dynamic_library_open(result, names, name_count, preferred_major, visibility)
+| Tries safe non-path ASCII name fragments using platform naming, beginning at
+the preferred major and descending.  Visibility is local or process-global.
+
+| dynamic_library_symbol(library, name)
+| Returns a borrowed raw symbol pointer or NULL.  Cast it only to the exact
+declaration tested by CMake.
+
+| dynamic_library_close(library)
+| Consumes the handle, returning zero or `IO_ERROR_*`; NULL succeeds.
+|===
+
+==== Threads
+
+All functions below return `ST_THREAD_SUCCESS`, `ST_THREAD_BUSY`,
+`ST_THREAD_ERROR`, `ST_THREAD_NO_MEMORY`, or `ST_THREAD_TIMED_OUT` as
+applicable.  `ST_ONCE_FLAG_INIT` is the only valid static once initializer;
+`ST_THREAD_LOCAL` declares native thread-local storage.
+
+[source,c]
+----
+void st_call_once(st_once_flag_t *flag, void (*function)(void));
+int st_condition_init(st_condition_t *condition);
+void st_condition_destroy(st_condition_t *condition);
+int st_condition_signal(st_condition_t *condition);
+int st_condition_broadcast(st_condition_t *condition);
+int st_condition_wait(st_condition_t *condition, st_mutex_t *mutex);
+int st_condition_timedwait(st_condition_t *condition, st_mutex_t *mutex,
+    const struct timespec *deadline);
+int st_mutex_init(st_mutex_t *mutex, int type);
+void st_mutex_destroy(st_mutex_t *mutex);
+int st_mutex_lock(st_mutex_t *mutex);
+int st_mutex_trylock(st_mutex_t *mutex);
+int st_mutex_timedlock(st_mutex_t *mutex, const struct timespec *deadline);
+int st_mutex_unlock(st_mutex_t *mutex);
+int st_rwlock_init(st_rwlock_t *lock);
+int st_rwlock_read_lock(st_rwlock_t *lock);
+int st_rwlock_try_read_lock(st_rwlock_t *lock);
+int st_rwlock_write_lock(st_rwlock_t *lock);
+int st_rwlock_try_write_lock(st_rwlock_t *lock);
+int st_rwlock_unlock(st_rwlock_t *lock);
+int st_rwlock_destroy(st_rwlock_t *lock);
+int st_thread_create(st_thread_t *thread, st_thread_start_t function,
+    void *argument);
+st_thread_t st_thread_current(void);
+int st_thread_detach(st_thread_t thread);
+bool st_thread_equal(st_thread_t left, st_thread_t right);
+_Noreturn void st_thread_exit(int result);
+int st_thread_join(st_thread_t thread, int *result);
+int st_thread_sleep(const struct timespec *duration,
+    struct timespec *remaining);
+void st_thread_yield(void);
+int st_thread_storage_create(st_thread_storage_t *storage,
+    st_thread_storage_destructor_t destructor);
+void st_thread_storage_delete(st_thread_storage_t storage);
+void *st_thread_storage_get(st_thread_storage_t storage);
+int st_thread_storage_set(st_thread_storage_t storage, void *value);
+----
+
+Synchronization object pointers refer to caller-provided native storage which
+must remain alive from successful init through destroy.  Absolute deadlines
+are borrowed and use `TIME_UTC`.  Thread start argument and TLS values are
+untyped borrowed pointers whose ownership is defined by the caller.  Join's
+result pointer and sleep's remaining pointer may be NULL.  Destroy/delete do
+not coordinate active users; external shutdown is mandatory.
+
+[cols="3m,7"]
+|===
+| Function group | Parameters, result, and effect
+
+| st_call_once(flag, function)
+| Calls `function` exactly once for the initialized flag.  The callback takes
+no context and cannot report failure.
+
+| st_mutex_init(mutex, type), st_mutex_destroy(mutex)
+| Initialize a plain, recursive, and/or timed mutex; destroy only while
+unlocked and externally quiescent.
+
+| st_mutex_lock(mutex), st_mutex_trylock(mutex), st_mutex_timedlock(mutex, deadline), st_mutex_unlock(mutex)
+| Acquire/release a mutex.  Timed lock uses an absolute `TIME_UTC` deadline;
+try/timed operations report busy/timeout without ownership.
+
+| st_condition_init(condition), st_condition_destroy(condition)
+| Initialize/destroy a condition object; destruction requires no waiter.
+
+| st_condition_wait(condition, mutex)
+| Atomically releases the held mutex, waits, and reacquires it.  Always call
+inside a loop which rechecks the protected predicate.
+
+| st_condition_timedwait(condition, mutex, deadline)
+| Predicate wait with an absolute `TIME_UTC` deadline.
+
+| st_condition_signal(condition), st_condition_broadcast(condition)
+| Wake one or all waiters; neither operation stores a notification.
+
+| st_rwlock_init(lock), st_rwlock_destroy(lock)
+| Initialize/destroy an unlocked reader/writer lock.
+
+| st_rwlock_read_lock(lock), st_rwlock_try_read_lock(lock)
+| Acquire a recursive read lock.  Each acquisition needs one unlock by the
+same thread.
+
+| st_rwlock_write_lock(lock), st_rwlock_try_write_lock(lock)
+| Acquire the nonrecursive exclusive lock.  Read-to-write upgrade is invalid.
+
+| st_rwlock_unlock(lock)
+| Releases one read acquisition or the write acquisition held by this thread.
+
+| st_thread_create(thread, function, argument)
+| Starts `function(argument)` and stores a joinable handle.  The function's
+integer return becomes the join result.
+
+| st_thread_current(), st_thread_equal(left, right)
+| Obtain/compare opaque thread identities.
+
+| st_thread_join(thread, result)
+| Waits for a joinable thread and optionally writes its integer result; the
+handle is no longer joinable afterward.
+
+| st_thread_detach(thread)
+| Relinquishes the ability to join; native resources release on exit.
+
+| st_thread_exit(result)
+| Terminates the current thread with the supplied join result.
+
+| st_thread_sleep(duration, remaining), st_thread_yield()
+| Sleep for a relative duration (optionally reporting interruption remainder)
+or yield execution.
+
+| st_thread_storage_create(storage, destructor)
+| Creates a process key.  A non-NULL per-thread value is passed to the
+destructor at thread exit, subject to the documented iteration limit.
+
+| st_thread_storage_get(storage), st_thread_storage_set(storage, value)
+| Read or replace this thread's value for the key.
+
+| st_thread_storage_delete(storage)
+| Deletes the key; it does not run destructors for existing values.
+|===
+
+==== Events and semaphores
+
+[source,c]
+----
+int st_event_create(st_event_t **result, enum st_event_reset_mode mode,
+    bool initially_set);
+int st_event_set(st_event_t *event);
+int st_event_reset(st_event_t *event);
+int st_event_wait(st_event_t *event);
+int st_event_trywait(st_event_t *event);
+int st_event_timedwait(st_event_t *event,
+    const struct timespec *deadline);
+void st_event_destroy(st_event_t *event);
+
+int st_semaphore_create(st_semaphore_t **result, size_t initial_count,
+    size_t maximum_count);
+int st_semaphore_post(st_semaphore_t *semaphore);
+int st_semaphore_wait(st_semaphore_t *semaphore);
+int st_semaphore_trywait(st_semaphore_t *semaphore);
+int st_semaphore_timedwait(st_semaphore_t *semaphore,
+    const struct timespec *deadline);
+void st_semaphore_destroy(st_semaphore_t *semaphore);
+----
+
+Create outputs are required and unchanged on non-success `ST_THREAD_*`.
+Operation object pointers must be live.  Timed deadlines are required borrowed
+absolute `TIME_UTC` values.  Destroy accepts NULL but otherwise requires no
+active operation or waiter.
+
+[cols="3m,7"]
+|===
+| Function group | Parameters, result, and effect
+
+| st_event_create(result, mode, initially_set)
+| Allocates an auto-reset or manual-reset binary event.
+
+| st_event_set(event), st_event_reset(event)
+| Set the signaled state or clear it.  Auto-reset consumes one signal when a
+wait succeeds; manual-reset remains set until reset.
+
+| st_event_wait(event), st_event_trywait(event), st_event_timedwait(event, deadline)
+| Wait indefinitely, poll, or wait to an absolute deadline.  Results use
+`ST_THREAD_*`.
+
+| st_event_destroy(event)
+| Frees an event after all operations/waiters stop; NULL is accepted.
+
+| st_semaphore_create(result, initial_count, maximum_count)
+| Allocates a bounded counter; maximum must be nonzero and initial no greater.
+
+| st_semaphore_post(semaphore)
+| Adds one permit, or returns `ST_THREAD_ERROR` unchanged at maximum.
+
+| st_semaphore_wait(semaphore), st_semaphore_trywait(semaphore), st_semaphore_timedwait(semaphore, deadline)
+| Consume one permit using indefinite, polling, or absolute-deadline waiting.
+
+| st_semaphore_destroy(semaphore)
+| Frees after all operations/waiters stop; NULL is accepted.
+|===

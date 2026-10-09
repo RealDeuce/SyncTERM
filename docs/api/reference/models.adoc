@@ -1,0 +1,832 @@
+[[reference-models]]
+=== Model API reference
+
+==== INI documents
+
+An `ini_document_t` owns physical section blocks, records, comments, and
+values.  An `ini_section_t` is a borrowed view into that document.  Any
+document mutation invalidates all previously returned sections, pairs, and
+string views.  A NULL `ini_write_style` selects `ini_default_style` where the
+setter permits it.
+
+[source,c]
+----
+bool ini_key_name_valid(const char *name);
+int ini_document_create(ini_document_t **result);
+int ini_document_clone(ini_document_t **result, const ini_document_t *source);
+int ini_document_parse(ini_document_t **result, const void *data, size_t size);
+int ini_document_read(ini_document_t **result, FILE *stream);
+int ini_document_serialize(const ini_document_t *document, char **result,
+    size_t *size);
+int ini_document_write(const ini_document_t *document, FILE *stream);
+void ini_document_free(ini_document_t **document);
+ini_section_t *ini_document_root(ini_document_t *document);
+size_t ini_document_section_count(const ini_document_t *document);
+ini_section_t *ini_document_section_at(ini_document_t *document, size_t index);
+ini_section_t *ini_document_find_section(ini_document_t *document,
+    const char *name);
+int ini_document_add_section(ini_document_t *document, const char *name,
+    const struct ini_write_style *style, ini_section_t **result);
+bool ini_document_remove_section(ini_document_t *, ini_section_t *);
+bool ini_document_rename_section(ini_document_t *, ini_section_t *,
+    const char *name);
+const char *ini_section_name(const ini_section_t *section);
+size_t ini_section_count(const ini_section_t *section);
+const struct name_value *ini_section_at(const ini_section_t *, size_t index);
+const char *ini_section_find(const ini_section_t *, const char *key);
+bool ini_section_has_key(const ini_section_t *, const char *key);
+int ini_section_copy_pairs(const ini_section_t *, name_value_list_t *result);
+const char *ini_section_get_string(const ini_section_t *, const char *key,
+    const char *default_value);
+int64_t ini_section_get_int64(const ini_section_t *, const char *, int64_t);
+int64_t ini_section_get_bounded_int64(const ini_section_t *, const char *,
+    int64_t default_value, int64_t minimum, int64_t maximum);
+uint64_t ini_section_get_uint64(const ini_section_t *, const char *, uint64_t);
+double ini_section_get_double(const ini_section_t *, const char *, double);
+bool ini_section_get_bool(const ini_section_t *, const char *, bool);
+double ini_section_get_duration(const ini_section_t *, const char *, double);
+time_t ini_section_get_datetime(const ini_section_t *, const char *, time_t);
+size_t ini_section_get_enum(const ini_section_t *, const char *, str_list_t,
+    size_t default_value);
+size_t ini_section_get_enum_names(const ini_section_t *, const char *,
+    const char *const *names, size_t name_count, size_t default_value);
+uint64_t ini_section_get_bitfield(const ini_section_t *, const char *,
+    const struct ini_bit_name *, size_t name_count, uint64_t default_value);
+int ini_section_get_string_list(const ini_section_t *, const char *key,
+    const char *delimiters, str_list_t *result);
+int ini_section_get_int64_list(const ini_section_t *, const char *key,
+    const char *delimiters, int64_t **result, size_t *count);
+void ini_free_int64_list(int64_t *values);
+int ini_section_set_string(ini_section_t *, const char *, const char *,
+    const struct ini_write_style *);
+int ini_section_set_int64(ini_section_t *, const char *, int64_t,
+    const struct ini_write_style *);
+int ini_section_set_uint64(ini_section_t *, const char *, uint64_t,
+    const struct ini_write_style *);
+int ini_section_set_double(ini_section_t *, const char *, double,
+    const struct ini_write_style *);
+int ini_section_set_bool(ini_section_t *, const char *, bool,
+    const struct ini_write_style *);
+int ini_section_set_duration(ini_section_t *, const char *, double,
+    const struct ini_write_style *);
+int ini_section_set_datetime(ini_section_t *, const char *, time_t,
+    bool include_time, const struct ini_write_style *);
+int ini_section_set_enum(ini_section_t *, const char *, str_list_t,
+    size_t value, const struct ini_write_style *);
+int ini_section_set_enum_names(ini_section_t *, const char *,
+    const char *const *, size_t name_count, size_t value,
+    const struct ini_write_style *);
+int ini_section_set_bitfield(ini_section_t *, const char *,
+    const struct ini_bit_name *, size_t name_count, uint64_t value,
+    const struct ini_write_style *);
+int ini_section_set_string_list(ini_section_t *, const char *, str_list_t,
+    const char *separator, const struct ini_write_style *);
+int ini_section_set_int64_list(ini_section_t *, const char *,
+    const int64_t *, size_t count, const char *separator,
+    const struct ini_write_style *);
+size_t ini_section_remove_key(ini_section_t *section, const char *key);
+----
+
+Document/section pointers must belong to the same live document.  Names, keys,
+values, styles, enum/bit tables, and input arrays are borrowed for the call.
+Create/clone/parse/read and allocated-list outputs are required in/out handles
+replaced only on zero `IO_ERROR_*` status.  Getters return defaults rather than
+errors; successful setters invalidate every borrowed document view.
+
+[cols="3m,7"]
+|===
+| Function group | Parameters, result, and effect
+
+| ini_key_name_valid(name)
+| Tests the strict NFC key-name grammar without modifying a document.
+
+| ini_document_create(result), ini_document_clone(result, source)
+| Install a new empty/deep-copied document only after complete allocation.
+
+| ini_document_parse(result, data, size)
+| Parses counted bytes as the round-trip-preserving INI format.
+
+| ini_document_read(result, stream)
+| Maps/parses the complete regular file without changing stream position;
+flush caller writes first.
+
+| ini_document_serialize(document, result, size)
+| Allocates a NUL-terminated representation; `size` excludes the NUL.
+
+| ini_document_write(document, stream)
+| Writes serialized bytes at the stream's current position; the caller owns
+flush, close, truncation, and atomic replacement policy.
+
+| ini_document_free(document_ptr)
+| Frees and clears the handle; NULL is accepted.
+
+| ini_document_root(document)
+| Returns the borrowed root block which contains records before any section.
+
+| ini_document_section_count(document), ini_document_section_at(document, index)
+| Iterate physical non-root section blocks in file order; out-of-range returns
+NULL.
+
+| ini_document_find_section(document, name)
+| Returns the last canonical-caseless matching section block.
+
+| ini_document_add_section(document, name, style, result)
+| Appends a physical section and optionally returns its borrowed view.
+
+| ini_document_remove_section(document, section)
+| Removes exactly that physical block; false means it is not owned by document.
+
+| ini_document_rename_section(document, section, name)
+| Validates and replaces the block's name while preserving its records.
+
+| ini_section_name(section), ini_section_count(section), ini_section_at(section, index)
+| Return borrowed section name, pair count, or indexed pair view.
+
+| ini_section_find(section, key), ini_section_has_key(section, key)
+| Find the last matching key's borrowed value or test presence.
+
+| ini_section_copy_pairs(section, result)
+| Appends deep-copied logical pairs to an owning `name_value_list_t`.
+
+| ini_section_get_string(section, key, default_value)
+| Returns a borrowed stored value or the caller's default pointer.
+
+| ini_section_get_int64(section, key, default_value), ini_section_get_uint64(section, key, default_value), ini_section_get_double(section, key, default_value), ini_section_get_bool(section, key, default_value)
+| Strictly parse the selected scalar; missing/malformed/out-of-range input
+returns the supplied default.
+
+| ini_section_get_bounded_int64(section, key, default, minimum, maximum)
+| Additionally requires the parsed value inside inclusive bounds.
+
+| ini_section_get_duration(section, key, default_value), ini_section_get_datetime(section, key, default_value)
+| Parse duration seconds or local-date/epoch syntax with caller default.
+
+| ini_section_get_enum(section, key, names, default_value), ini_section_get_enum_names(section, key, names, name_count, default_value)
+| Canonical-caseless match against a string list or name array; returns default
+index if absent/invalid.
+
+| ini_section_get_bitfield(section, key, names, count, default)
+| Parses named bits from the supplied table.
+
+| ini_section_get_string_list(section, key, delimiters, result)
+| Replaces an owning string list with parsed nonempty fields.
+
+| ini_section_get_int64_list(section, key, delimiters, result, count)
+| Allocates a strict integer array; free it with
+`ini_free_int64_list(values)`.
+
+| ini_section_set_string(section, key, value, style), ini_section_set_int64(section, key, value, style), ini_section_set_uint64(section, key, value, style)
+| Replace the last matching key in this physical block or append it, preserving
+the rest of the document.
+
+| ini_section_set_double(section, key, value, style), ini_section_set_bool(section, key, value, style), ini_section_set_duration(section, key, value, style)
+| Typed formatting counterparts with the same mutation rule.
+
+| ini_section_set_datetime(section, key, value, include_time, style)
+| Writes a local date or date/time.
+
+| ini_section_set_enum(section, key, names, value, style), ini_section_set_enum_names(section, key, names, name_count, value, style)
+| Writes the selected string-list/name-array entry; invalid indexes fail.
+
+| ini_section_set_bitfield(section, key, names, count, value, style)
+| Formats a named bit mask and rejects bits without representation.
+
+| ini_section_set_string_list(section, key, values, separator, style), ini_section_set_int64_list(section, key, values, count, separator, style)
+| Formats complete lists with the explicit separator.
+
+| ini_section_remove_key(section, key)
+| Removes every matching key from this physical block and returns count.
+|===
+
+==== Profiles
+
+[source,c]
+----
+uint16_t st_connection_default_port(enum st_connection_type type);
+void st_profile_init(struct st_profile *profile);
+void st_profile_dispose(struct st_profile *profile);
+bool st_profile_copy(struct st_profile *result,
+    const struct st_profile *source);
+----
+
+Profile pointers address caller storage.  Initialize before copy/field use and
+dispose afterward.  Copy requires an initialized destination, deep-copies owned
+paths, and returns false without changing it.  Default-port is pure and returns
+zero for invalid/non-network types.
+
+`st_profile_init(profile)` establishes defaults and owned fields;
+`st_profile_dispose(profile)` frees its owned optional paths.  Call
+`st_profile_copy(result, source)` only with an initialized destination; it
+deep-copies owned fields and preserves the old destination on failure.
+`st_connection_default_port(type)` returns the inherent network port or zero
+for transports without one.
+
+Enumeration values stored in files or exposed to Wren—especially connection
+type and screen mode—are compatibility values and must not be renumbered.
+
+==== Settings values and global store
+
+[source,c]
+----
+void st_settings_init(struct st_settings *settings);
+void st_settings_dispose(struct st_settings *settings);
+bool st_settings_copy(struct st_settings *result,
+    const struct st_settings *source);
+int st_settings_load(const struct st_app_paths *paths);
+int st_settings_reload(void);
+void st_settings_install(struct st_settings *replacement);
+int st_settings_save_value(const struct st_settings *value);
+int st_settings_save(void);
+int st_settings_persist_scaling_factor(double scaling_factor);
+void st_settings_shutdown(void);
+size_t st_settings_web_download_count(void);
+const struct name_value *st_settings_web_download_at(size_t index);
+int st_settings_web_download_set(size_t index, const char *name,
+    const char *url);
+int st_settings_web_download_append(const char *name, const char *url);
+int st_settings_web_download_remove(size_t index);
+int st_settings_web_download_move(size_t from, size_t to);
+size_t st_settings_sort_profile_count(void);
+const struct name_value *st_settings_sort_profile_at(size_t index);
+size_t st_settings_active_sort_profile(void);
+int st_settings_sort_profile_select(size_t index);
+int st_settings_sort_profile_add(size_t index, const char *name,
+    const char *order);
+int st_settings_sort_profile_update(size_t index, const char *name,
+    const char *order);
+int st_settings_sort_profile_remove(size_t index);
+size_t st_settings_font_count(void);
+const struct st_settings_font *st_settings_font_at(size_t index);
+bool st_settings_font_name_valid(const char *name);
+void st_settings_font_draft_init(struct st_settings_font_draft *draft);
+void st_settings_font_draft_dispose(struct st_settings_font_draft *draft);
+int st_settings_font_draft_open(struct st_settings_font_draft *draft);
+int st_settings_font_draft_reload(struct st_settings_font_draft *draft);
+int st_settings_font_draft_save(struct st_settings_font_draft *draft);
+size_t st_settings_font_draft_count(
+    const struct st_settings_font_draft *draft);
+const struct st_settings_font *st_settings_font_draft_at(
+    const struct st_settings_font_draft *draft, size_t index);
+int st_settings_font_draft_insert(struct st_settings_font_draft *draft,
+    size_t index, const char *name);
+int st_settings_font_draft_rename(struct st_settings_font_draft *draft,
+    size_t index, const char *name);
+int st_settings_font_draft_set_path(struct st_settings_font_draft *draft,
+    size_t index, enum st_settings_font_path slot, const char *path);
+int st_settings_font_draft_remove(struct st_settings_font_draft *draft,
+    size_t index);
+----
+
+Caller-owned settings/draft structs require init before use and dispose after.
+The global store functions are process-wide and caller-serialized.  Strings
+passed to mutators are borrowed and copied.  `*_at` pointers are borrowed until
+the next mutation/reload/shutdown.  Indexes must be in range (insert permits
+the documented end position); status functions return zero/negative
+`IO_ERROR_*`.  Save failure preserves installed state and merge baseline.
+
+[cols="3m,7"]
+|===
+| Function group | Parameters, result, and effect
+
+| st_settings_init(settings), st_settings_dispose(settings), st_settings_copy(result, source)
+| Initialize defaults, free owned members, or transactionally deep-copy into
+an initialized destination.
+
+| st_settings_load(paths)
+| Binds the process store to borrowed application paths until shutdown, reads
+settings or defaults, and establishes the merge baseline.
+
+| st_settings_reload()
+| Reads and publishes a new value only on success; failure preserves installed
+settings and baseline.
+
+| st_settings_install(replacement)
+| Consumes the already initialized value without allocation, publishes it, and
+reinitializes the caller's struct to empty defaults.
+
+| st_settings_save_value(value)
+| Locked three-way merges, writes, and publishes `value`; conflict or I/O
+failure changes neither installed settings nor baseline.
+
+| st_settings_save()
+| Saves the process-global `st_settings` value through `save_value`.
+
+| st_settings_persist_scaling_factor(value)
+| Updates only `SyncTERM.ScalingFactor` in the latest disk document; it does
+not change installed state or merge baseline.
+
+| st_settings_shutdown()
+| Disposes installed/baseline state and releases the borrowed path binding.
+
+| st_settings_web_download_count(), st_settings_web_download_at(index)
+| Iterate borrowed configured name/URL pairs.
+
+| st_settings_web_download_set(index, name, url), st_settings_web_download_append(name, url), st_settings_web_download_remove(index), st_settings_web_download_move(from, to)
+| Mutate the installed web-download list.  Names must satisfy INI key grammar;
+indexes are validated.
+
+| st_settings_sort_profile_count(), st_settings_sort_profile_at(index)
+| Iterate borrowed named sort-order strings.
+
+| st_settings_active_sort_profile(), st_settings_sort_profile_select(index)
+| Query/select the installed active profile.
+
+| st_settings_sort_profile_add(index, name, order), st_settings_sort_profile_update(index, name, order), st_settings_sort_profile_remove(index)
+| Insert/update/remove a sort profile with validated name and index.
+
+| st_settings_font_count(), st_settings_font_at(index)
+| Iterate borrowed installed custom-font entries.
+
+| st_settings_font_name_valid(name)
+| Tests the shared custom-font name policy.
+
+| st_settings_font_draft_init(draft), st_settings_font_draft_dispose(draft)
+| Manage an independent editable font-section transaction.
+
+| st_settings_font_draft_open(draft), st_settings_font_draft_reload(draft)
+| Populate from installed settings or reload only disk `Font:` sections.
+
+| st_settings_font_draft_save(draft)
+| Locked-merges only font sections, writes, publishes fonts, and updates the
+draft baseline after success.
+
+| st_settings_font_draft_count(draft), st_settings_font_draft_at(draft, index)
+| Inspect borrowed draft entries.
+
+| st_settings_font_draft_insert(draft, index, name), st_settings_font_draft_rename(draft, index, name), st_settings_font_draft_set_path(draft, index, slot, path), st_settings_font_draft_remove(draft, index)
+| Edit validated entries by index; path slot is one of the four font heights.
+|===
+
+==== Theme manager
+
+Theme structs and catalog rows contain manager-owned strings/arrays.  Treat
+them as immutable borrowed snapshots and reacquire them after the invalidating
+operation described below.
+
+[source,c]
+----
+int st_theme_manager_create(struct st_theme_manager **result,
+    const struct st_app_paths *paths, const struct st_settings *settings,
+    char *error, size_t error_size);
+void st_theme_manager_free(struct st_theme_manager **manager);
+const struct st_theme *st_theme_active(const struct st_theme_manager *manager);
+const struct st_theme *st_theme_default(const struct st_theme_manager *manager);
+uint64_t st_theme_generation(const struct st_theme_manager *manager);
+int st_theme_apply_settings(struct st_theme_manager *,
+    const struct st_settings *, char *error, size_t error_size);
+int st_theme_prepare_settings(struct st_theme_prepared **result,
+    struct st_theme_manager *, const struct st_settings *,
+    char *error, size_t error_size);
+void st_theme_install_prepared(struct st_theme_manager *,
+    struct st_theme_prepared **prepared);
+void st_theme_prepared_free(struct st_theme_prepared **prepared);
+int st_theme_catalog_refresh(struct st_theme_manager *, char *, size_t);
+size_t st_theme_catalog_count(const struct st_theme_manager *);
+const struct st_theme_catalog_entry *st_theme_catalog_at(
+    const struct st_theme_manager *, size_t index);
+int st_theme_preview(struct st_theme_manager *, const char *filename,
+    char *error, size_t error_size);
+void st_theme_cancel_preview(struct st_theme_manager *);
+int st_theme_select(struct st_theme_manager *, const char *filename,
+    char *error, size_t error_size);
+int st_theme_delete(struct st_theme_manager *, const char *filename,
+    char *error, size_t error_size);
+int st_theme_cloud_refresh(struct st_theme_manager *, bool fetch,
+    const char *selected_package, char *warning, size_t warning_size);
+size_t st_theme_cloud_count(const struct st_theme_manager *);
+const struct st_cloud_theme_entry *st_theme_cloud_at(
+    const struct st_theme_manager *, size_t index);
+bool st_theme_valid_package(const char *package);
+int st_theme_cloud_cache(struct st_theme_manager *, const char *package,
+    char *error, size_t error_size);
+int st_theme_cloud_preview(struct st_theme_manager *, const char *package,
+    char *error, size_t error_size);
+int st_theme_cloud_select(struct st_theme_manager *, const char *package,
+    char *error, size_t error_size);
+int st_theme_cloud_delete(struct st_theme_manager *, const char *package,
+    char *error, size_t error_size);
+int st_theme_cloud_copy_document(struct st_theme_document **result,
+    struct st_theme_manager *, const char *package, char *error, size_t);
+bool st_theme_valid_filename(const char *filename);
+----
+
+Manager/prepared output handles are required and installed/consumed as named.
+Paths/settings, filenames, and packages are borrowed; manager copies retained
+data.  Optional error/warning buffers may be NULL only with size zero and are
+best-effort diagnostics, while the integer return is authoritative
+zero/negative `IO_ERROR_*`.  Catalog/theme rows and strings are borrowed and
+invalidation-scoped as detailed below.  No manager operation is implicitly
+safe to race another; the owner serializes it.
+
+[cols="3m,7"]
+|===
+| Function group | Parameters, result, and effect
+
+| st_theme_manager_create(result, paths, settings, error, error_size)
+| Allocates the compiled default, path policy, and selected active theme.
+`paths` and `settings` are read during creation; bounded error text is optional.
+
+| st_theme_manager_free(manager_ptr)
+| Frees catalogs, themes, paths, and previews and clears the handle.  Documents
+must already be destroyed.
+
+| st_theme_active(manager), st_theme_default(manager)
+| Return borrowed active/preview or compiled fallback themes.
+
+| st_theme_generation(manager)
+| Monotonic change counter for snapshots consumed by Wren/UI code.
+
+| st_theme_prepare_settings(result, manager, settings, error, size)
+| Performs every fallible load/allocation without changing active state.
+
+| st_theme_install_prepared(manager, prepared_ptr)
+| Consumes a prepared value and atomically installs its theme/settings view.
+
+| st_theme_prepared_free(prepared_ptr)
+| Discards an uninstalled preparation.
+
+| st_theme_apply_settings(manager, settings, error, size)
+| Convenience prepare-and-install operation.
+
+| st_theme_catalog_refresh(manager, error, size)
+| Builds and swaps the local catalog only on success; a missing directory
+produces Classic-only success.
+
+| st_theme_catalog_count(manager), st_theme_catalog_at(manager, index)
+| Iterate borrowed local rows valid until successful refresh/destruction.
+
+| st_theme_preview(manager, filename, error, size)
+| Loads Classic for empty name or a valid local basename and makes it active
+without committing selection.
+
+| st_theme_cancel_preview(manager)
+| Drops preview and restores installed active theme.
+
+| st_theme_select(manager, filename, error, size)
+| Loads and installs the chosen local identity in manager state.
+
+| st_theme_delete(manager, filename, error, size)
+| Removes a validated local theme file; callers coordinate selected settings.
+
+| st_theme_cloud_refresh(manager, fetch, selected_package, warning, size)
+| Refreshes cached/manifest package state, optionally fetching, and returns a
+nonfatal bounded warning separately from status.
+
+| st_theme_cloud_count(manager), st_theme_cloud_at(manager, index)
+| Iterate borrowed cloud catalog rows.
+
+| st_theme_valid_package(package), st_theme_valid_filename(filename)
+| Validate stable package identity or safe local basename syntax.
+
+| st_theme_cloud_cache(manager, package, error, error_size), st_theme_cloud_preview(manager, package, error, error_size), st_theme_cloud_select(manager, package, error, error_size), st_theme_cloud_delete(manager, package, error, error_size)
+| Download/cache, temporarily activate, install, or remove a named package;
+each accepts bounded error output.
+
+| st_theme_cloud_copy_document(result, manager, package, error, size)
+| Creates an editable document copy of a cached read-only package.
+|===
+
+==== Theme documents
+
+A document borrows its manager, owns editable source records and history, and
+must be freed before that manager.  Metadata field, style field, glyph field,
+and value-mode enums select the corresponding operation.
+
+[source,c]
+----
+int st_theme_document_create(struct st_theme_document **result,
+    struct st_theme_manager *, char *error, size_t error_size);
+int st_theme_document_open(struct st_theme_document **result,
+    struct st_theme_manager *, const char *filename, char *error, size_t);
+int st_theme_document_copy_path(struct st_theme_document **result,
+    struct st_theme_manager *, const char *path, char *error, size_t);
+void st_theme_document_free(struct st_theme_document **document);
+const char *st_theme_document_filename(const struct st_theme_document *);
+const char *st_theme_document_metadata(const struct st_theme_document *,
+    unsigned field);
+int st_theme_document_set_metadata(struct st_theme_document *, unsigned field,
+    const char *value, char *error, size_t error_size);
+size_t st_theme_document_style_count(const struct st_theme_document *);
+bool st_theme_document_style_at(const struct st_theme_document *, size_t index,
+    struct st_theme_document_style *result);
+int st_theme_document_set_style(struct st_theme_document *, const char *role,
+    unsigned field, enum st_theme_value_mode mode, int value,
+    char *error, size_t error_size);
+int st_theme_document_add_style(struct st_theme_document *, const char *role,
+    char *error, size_t error_size);
+int st_theme_document_remove_style(struct st_theme_document *,
+    const char *role, char *error, size_t error_size);
+size_t st_theme_document_glyph_count(const struct st_theme_document *);
+bool st_theme_document_glyph_at(const struct st_theme_document *, size_t index,
+    struct st_theme_document_glyph *result);
+int st_theme_document_set_glyph(struct st_theme_document *, const char *name,
+    unsigned field, enum st_theme_value_mode mode, uint32_t value,
+    char *error, size_t error_size);
+int st_theme_document_add_glyph(struct st_theme_document *, const char *name,
+    int ascii, char *error, size_t error_size);
+int st_theme_document_remove_glyph(struct st_theme_document *, const char *name,
+    char *error, size_t error_size);
+const struct st_theme *st_theme_document_preview(
+    const struct st_theme_document *);
+bool st_theme_document_dirty(const struct st_theme_document *);
+bool st_theme_document_can_undo(const struct st_theme_document *);
+bool st_theme_document_can_redo(const struct st_theme_document *);
+bool st_theme_document_undo(struct st_theme_document *);
+bool st_theme_document_redo(struct st_theme_document *);
+int st_theme_document_import(struct st_theme_document *, const char *filename,
+    char *error, size_t error_size);
+enum st_theme_document_error st_theme_document_save(
+    struct st_theme_document *, const char *filename, bool force,
+    char *error, size_t error_size);
+----
+
+Document handles are owned; manager/name/value/path inputs are borrowed.
+`*_at` requires a valid index and copies scalar fields to required output while
+leaving strings borrowed.  Field enums must be below their `*_FIELD_COUNT`;
+mode/value ranges depend on the chosen field.  Integer edit/import operations
+return zero/negative `IO_ERROR_*`; save instead returns the complete
+`ST_THEME_DOCUMENT_*` domain.  Boolean history operations distinguish “no
+step” from a performed step and do not report allocation errors.
+
+[cols="3m,7"]
+|===
+| Function group | Parameters, result, and effect
+
+| st_theme_document_create(result, manager, error, error_size), st_theme_document_open(result, manager, filename, error, error_size), st_theme_document_copy_path(result, manager, path, error, error_size)
+| Create an empty draft, open a safe local basename, or import an arbitrary
+host-approved path into a new owned document.
+
+| st_theme_document_free(document_ptr)
+| Frees and clears the handle.
+
+| st_theme_document_filename(document), st_theme_document_metadata(document, field)
+| Return borrowed current filename or selected metadata value.
+
+| st_theme_document_set_metadata(document, field, value, error, size)
+| Validates and records one undoable metadata edit.
+
+| st_theme_document_style_count(document), st_theme_document_style_at(document, index, result)
+| Iterate copied style descriptors; descriptor strings remain document-owned.
+
+| st_theme_document_set_style(document, role, field, mode, value, error, size)
+| Set Default/Inherit/Explicit state for one field with range/role validation.
+
+| st_theme_document_add_style(document, role, error, error_size), st_theme_document_remove_style(document, role, error, error_size)
+| Add/remove a custom or removable style definition as an undoable edit.
+
+| st_theme_document_glyph_count(document), st_theme_document_glyph_at(document, index, result)
+| Iterate copied glyph descriptors and presence bits.
+
+| st_theme_document_set_glyph(document, name, field, mode, value, error, size)
+| Set a glyph's CP437, ASCII, or codepoint field under the permitted mode.
+
+| st_theme_document_add_glyph(document, name, ascii, error, error_size), st_theme_document_remove_glyph(document, name, error, error_size)
+| Add a complete custom glyph or remove a removable definition.
+
+| st_theme_document_preview(document)
+| Returns a borrowed resolved theme snapshot of the current unsaved draft.
+
+| st_theme_document_dirty(document), st_theme_document_can_undo(document), st_theme_document_can_redo(document)
+| Query editor/history state.
+
+| st_theme_document_undo(document), st_theme_document_redo(document)
+| Move one history step and report whether a step existed.
+
+| st_theme_document_import(document, filename, error, size)
+| Replaces style/glyph sections as one undoable operation while retaining
+destination filename/global metadata.
+
+| st_theme_document_save(document, filename, force, error, size)
+| Writes through the destination and returns `ST_THEME_DOCUMENT_*` detail.
+Success marks clean and clears history; I/O failure may leave partial contents.
+|===
+
+==== BBS directory
+
+[source,c]
+----
+bool st_bbs_name_equal(const char *left, const char *right);
+bool st_bbs_name_valid(const char *name);
+const struct st_bbs_entry *st_bbs_entry_shadowed(const struct st_bbs_entry *);
+int st_bbs_list_open(st_bbs_list_t **result, const struct st_app_paths *paths,
+    const void *password, size_t password_size);
+int st_bbs_list_open_replacement(st_bbs_list_t **result,
+    const st_bbs_list_t *current, const struct st_app_paths *paths,
+    const struct st_settings *settings);
+void st_bbs_list_close(st_bbs_list_t *list);
+int st_bbs_list_reload(st_bbs_list_t *list);
+size_t st_bbs_list_count(const st_bbs_list_t *list);
+const struct st_bbs_entry *st_bbs_list_at(const st_bbs_list_t *, size_t index);
+const struct st_bbs_entry *st_bbs_list_find(const st_bbs_list_t *,
+    const char *name);
+const struct st_profile *st_bbs_list_defaults(const st_bbs_list_t *);
+uint64_t st_bbs_list_generation(const st_bbs_list_t *);
+const struct st_list_crypto_info *st_bbs_list_crypto_info(const st_bbs_list_t *);
+size_t st_bbs_list_diagnostic_count(const st_bbs_list_t *);
+const struct st_bbs_diagnostic *st_bbs_list_diagnostic_at(
+    const st_bbs_list_t *, size_t index);
+int st_bbs_list_add(st_bbs_list_t *, const struct st_profile *,
+    struct st_bbs_mutation_result *result);
+int st_bbs_list_update(st_bbs_list_t *, const char *old_name,
+    const struct st_profile *, struct st_bbs_mutation_result *result);
+int st_bbs_list_remove(st_bbs_list_t *, const char *name,
+    struct st_bbs_mutation_result *result);
+int st_bbs_list_set_defaults(st_bbs_list_t *, const struct st_profile *);
+int st_bbs_list_rewrite_encryption(st_bbs_list_t *,
+    const struct st_list_crypto_options *, const void *password, size_t);
+int st_bbs_list_rewrite_encryption_current_password(st_bbs_list_t *,
+    const struct st_list_crypto_options *);
+int st_bbs_list_refresh_web(st_bbs_list_t *, st_webget_progress_fn,
+    void *progress_context);
+int st_bbs_list_refresh_web_at(st_bbs_list_t *, size_t index,
+    st_webget_progress_fn, void *progress_context);
+int st_bbs_web_cache_refresh(const struct st_app_paths *,
+    st_bbs_web_refresh_progress_fn, void *progress_context);
+int st_bbs_sort_field_normalize(int field);
+const char *st_bbs_sort_field_name(int field);
+bool st_bbs_sort_field_reversed(int field);
+int st_bbs_compare_profiles(const struct st_profile *left,
+    enum st_bbs_source left_source, const struct st_profile *right,
+    enum st_bbs_source right_source, const int *fields, size_t field_count);
+int st_bbs_list_sort(st_bbs_list_t *, const int *fields, size_t field_count);
+int st_bbs_list_sweep_orphan_caches(st_bbs_list_t *);
+int st_bbs_list_cache_path(char **result, const st_bbs_list_t *,
+    const char *name);
+int st_bbs_list_picker_key(st_bbs_list_t *, uint8_t key[32], bool *available);
+----
+
+Open output handles are required and unchanged on negative `IO_ERROR_*`
+failure; close consumes and accepts only a live object.  Paths/settings,
+profiles, names, field arrays, progress callbacks, and contexts are borrowed.
+Password is a counted secret copied by successful open and cleared on close.
+Mutation result is optional; when supplied, its `cache_status` is secondary to
+the primary integer status.  Every returned entry/profile/diagnostic/info
+pointer is borrowed until the next successful rebuild/mutation.  Callers
+serialize all access to one list.
+
+[cols="3m,7"]
+|===
+| Function group | Parameters, result, and effect
+
+| st_bbs_name_equal(left, right), st_bbs_name_valid(name)
+| Canonical-caseless equality and shared BBS-name validation.
+
+| st_bbs_entry_shadowed(entry)
+| Returns the first borrowed lower-priority entry hidden by this row.
+
+| st_bbs_list_open(result, paths, password, password_size)
+| Loads all configured sources; copies password bytes for encrypted-list
+operations and clears them on close.
+
+| st_bbs_list_open_replacement(result, current, paths, settings)
+| Builds a candidate using current's retained password and new settings/paths.
+
+| st_bbs_list_close(list)
+| Frees all sources, views, diagnostics, secrets, and synchronization.
+
+| st_bbs_list_reload(list)
+| Rebuilds and publishes a complete view only on success.
+
+| st_bbs_list_count(list), st_bbs_list_at(list, index), st_bbs_list_find(list, name)
+| Inspect borrowed combined entries by index/name.
+
+| st_bbs_list_defaults(list), st_bbs_list_generation(list), st_bbs_list_crypto_info(list)
+| Borrow defaults/crypto metadata or read the invalidation generation.
+
+| st_bbs_list_diagnostic_count(list), st_bbs_list_diagnostic_at(list, index)
+| Iterate borrowed source/section load diagnostics.
+
+| st_bbs_list_add(list, profile, result), st_bbs_list_update(list, old_name, profile, result), st_bbs_list_remove(list, name, result)
+| Persist a personal-list mutation then publish one new generation.  Optional
+result reports secondary cache maintenance separately from committed success.
+
+| st_bbs_list_set_defaults(list, defaults)
+| Persists/publishes new personal defaults.
+
+| st_bbs_list_rewrite_encryption(list, options, password, password_size)
+| Explicitly rewrites storage with supplied current policy/secret.
+
+| st_bbs_list_rewrite_encryption_current_password(list, options)
+| Rewrites using the secret retained by the opened encrypted list.
+
+| st_bbs_list_refresh_web(list, progress, progress_context), st_bbs_list_refresh_web_at(list, index, progress, progress_context)
+| Refresh all or one configured web source and rebuild the combined view;
+progress callback runs on the caller.
+
+| st_bbs_web_cache_refresh(paths, progress, context)
+| Startup cache-only refresh which does not open a personal directory.
+
+| st_bbs_sort_field_normalize(field), st_bbs_sort_field_name(field), st_bbs_sort_field_reversed(field)
+| Normalize persisted aliases and query display/direction policy.
+
+| st_bbs_compare_profiles(left, left_source, right, right_source, fields, count)
+| Applies the validated multi-field ordering and returns comparison sign.
+
+| st_bbs_list_sort(list, fields, count)
+| Reorders the in-memory combined view and advances generation on change.
+
+| st_bbs_list_sweep_orphan_caches(list)
+| Removes only recognized cache directories not matching current entries.
+
+| st_bbs_list_cache_path(result, list, name)
+| Allocates the confined cache directory for a validated profile name.
+
+| st_bbs_list_picker_key(list, key, available)
+| Returns/creates the per-installation picker key only for encrypted personal
+storage; plain storage reports unavailable without mutation.
+|===
+
+==== Screen modes, history, and hyperlinks
+
+[source,c]
+----
+size_t st_screen_mode_count(void);
+const struct st_screen_mode_descriptor *st_screen_mode_at(size_t index);
+const struct st_screen_mode_descriptor *st_screen_mode_get(
+    enum st_screen_mode mode);
+int st_screen_mode_custom(struct st_screen_mode_descriptor *result,
+    uint32_t columns, uint32_t rows, uint32_t font_height,
+    uint32_t aspect_width, uint32_t aspect_height);
+void st_screen_mode_console_palette(
+    const struct st_screen_mode_descriptor *mode, uint32_t result[16]);
+int st_session_history_create(st_session_history_t **result,
+    size_t line_capacity);
+void st_session_history_destroy(st_session_history_t *history);
+int st_session_history_set_capacity(st_session_history_t *, size_t);
+size_t st_session_history_capacity(st_session_history_t *);
+int st_session_history_publish(st_session_history_t *,
+    const struct st_console_cell *cells, uint32_t width, size_t lines,
+    enum st_screen_mode mode, bool has_status);
+void st_session_history_clear(st_session_history_t *);
+int st_session_history_copy(st_session_history_t *,
+    struct st_console_cell **cells, uint32_t *width, size_t *lines,
+    enum st_screen_mode *mode, bool *has_status);
+int st_session_history_info(st_session_history_t *, uint32_t *width,
+    size_t *lines, enum st_screen_mode *mode, bool *has_status);
+int st_hyperlink_registry_create(st_hyperlink_registry_t **result);
+void st_hyperlink_registry_destroy(st_hyperlink_registry_t *registry);
+int st_hyperlink_registry_add(st_hyperlink_registry_t *,
+    const char *uri, size_t uri_length, const char *parameter,
+    size_t parameter_length, uint16_t *identifier);
+int st_hyperlink_registry_copy(st_hyperlink_registry_t *, uint16_t identifier,
+    struct st_hyperlink *result);
+int st_hyperlink_registry_contains(st_hyperlink_registry_t *,
+    uint16_t identifier, bool *result);
+void st_hyperlink_dispose(struct st_hyperlink *hyperlink);
+----
+
+Static screen descriptors are borrowed; custom/palette result buffers are
+required caller storage.  History create installs ownership on zero, publish
+borrows and copies `width * lines` cells, and copy installs a malloc-owned cell
+array plus required metadata outputs.  Hyperlink add borrows counted spans
+(`parameter == NULL` only at zero length), copies them, and writes a required
+nonzero ID.  Copy produces owned strings disposed by `st_hyperlink_dispose`.
+All status functions return zero/negative `IO_ERROR_*`.
+
+[cols="3m,7"]
+|===
+| Function group | Parameters, result, and effect
+
+| st_screen_mode_count(), st_screen_mode_at(index), st_screen_mode_get(mode)
+| Iterate/query borrowed static mode descriptors.
+
+| st_screen_mode_custom(result, columns, rows, font_height, aspect_width, aspect_height)
+| Validates dimensions and fills a caller-owned custom descriptor.
+
+| st_screen_mode_console_palette(mode, result[16])
+| Converts descriptor DOS attribute ordering to console palette indexes.
+
+| st_session_history_create(result, capacity), st_session_history_destroy(history)
+| Allocate/free synchronized detached scrollback.
+
+| st_session_history_set_capacity(history, line_capacity), st_session_history_capacity(history)
+| Resize/query retained line capacity; shrinking keeps newest lines.
+
+| st_session_history_publish(history, cells, width, lines, mode, has_status)
+| Copies the newest lines and associated mode/status metadata.
+
+| st_session_history_clear(history)
+| Drops the published snapshot while retaining configured capacity.
+
+| st_session_history_copy(history, cells, width, lines, mode, has_status)
+| Returns a consistent metadata snapshot and malloc-owned cell array.
+
+| st_session_history_info(history, width, lines, mode, has_status)
+| Reads the same metadata without copying cell content.
+
+| st_hyperlink_registry_create(result), st_hyperlink_registry_destroy(registry)
+| Allocate/free the application-lifetime synchronized ID registry.
+
+| st_hyperlink_registry_add(registry, uri, uri_length, parameter, parameter_length, identifier)
+| Copies counted spans and returns a stable nonzero ID; embedded NUL is
+rejected and IDs are never reused.
+
+| st_hyperlink_registry_copy(registry, identifier, result)
+| Deep-copies one URI/parameter into caller-owned result fields.
+
+| st_hyperlink_registry_contains(registry, identifier, result)
+| Tests a nonzero identifier without allocating.
+
+| st_hyperlink_dispose(hyperlink)
+| Frees copied fields and clears the caller-owned value.
+|===

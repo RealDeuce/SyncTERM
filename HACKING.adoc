@@ -1,6 +1,6 @@
 = Hacking on SyncTERM
 :toc: left
-:toclevels: 3
+:toclevels: 4
 :source-highlighter: highlight.js
 
 This guide is the entry point for working on the modern SyncTERM source tree.
@@ -133,19 +133,34 @@ Every component API change should normally include:
 
 The following chapters cover all project-owned library targets.  Internal
 headers are implementation details and the vendored Wren VM retains its own
-upstream API.
+upstream API.  Each component overview is followed by a callable reference:
+the C declaration gives the exact parameter and result types, and the adjacent
+contract states ownership, valid ranges, failure behavior, invalidation, and
+threading assumptions.
 
 include::docs/api/foundation.adoc[]
 
+include::docs/api/reference/foundation.adoc[]
+
 include::docs/api/system.adoc[]
+
+include::docs/api/reference/system.adoc[]
 
 include::docs/api/network.adoc[]
 
+include::docs/api/reference/network.adoc[]
+
 include::docs/api/models.adoc[]
+
+include::docs/api/reference/models.adoc[]
 
 include::docs/api/media.adoc[]
 
+include::docs/api/reference/media.adoc[]
+
 include::docs/api/application.adoc[]
+
+include::docs/api/reference/application.adoc[]
 
 == Product and scripting manuals
 

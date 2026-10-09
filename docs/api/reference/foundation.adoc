@@ -1,0 +1,716 @@
+[[reference-foundation]]
+=== Foundation API reference
+
+==== `syncterm_io_error`
+
+All `IO_ERROR_*` constants are negative and stable.  Callers compare the
+symbolic value; they do not negate it or translate it back to a native error.
+
+[source,c]
+----
+int io_error_from_errno(int error);
+int io_error_from_windows(unsigned long error);
+----
+
+Both functions take a native error value by value and return one negative
+`IO_ERROR_*`; they never return success and have no side effects.  Save the
+native error before cleanup and pass the saved value.
+
+[cols="3m,7"]
+|===
+| Function | Parameters, result, and effect
+
+| io_error_from_errno(error)
+| Converts an `errno` value to `IO_ERROR_*`.  Pass the saved error value, not
+the ambient `errno`, because intervening cleanup may change it.
+
+| io_error_from_windows(error)
+| Converts a Win32 `DWORD` value supplied as `unsigned long`; the public
+header therefore does not require `<windows.h>`.
+|===
+
+==== `st_hex` and `st_base64`
+
+[source,c]
+----
+bool st_hex_encode(char *destination, size_t destination_capacity,
+    const void *source, size_t source_size);
+bool st_hex_decode(void *destination, size_t destination_capacity,
+    const char *source, size_t source_size);
+bool st_hex_digit_value(unsigned char character, uint8_t *result);
+
+bool st_base64_encoded_size(size_t source_size, size_t *result);
+bool st_base64_decoded_size(const char *source, size_t source_size,
+    size_t *result);
+bool st_base64_encode(char *destination, size_t destination_capacity,
+    const void *source, size_t source_size);
+bool st_base64_decode(void *destination, size_t destination_capacity,
+    const char *source, size_t source_size);
+----
+
+`source` is a borrowed counted byte span and may be NULL only when its size is
+zero.  `destination` is caller storage of `destination_capacity` bytes.
+Source and destination must not overlap.  `result` is a required output unless
+the individual operation explicitly supports sizing without storage.  These
+APIs return true only after writing the complete result; false leaves every
+output byte/value unchanged.
+
+[cols="3m,7"]
+|===
+| Function | Parameters, result, and effect
+
+| st_hex_encode(destination, capacity, source, size)
+| Writes `size * 2` lowercase digits and a NUL.  Returns false for invalid
+pointers, overlap, overflow, or insufficient capacity without changing the
+destination.
+
+| st_hex_decode(destination, capacity, source, size)
+| Decodes exactly `size / 2` bytes.  Rejects odd length, non-hex digits,
+overlap, or a short destination; failure leaves the destination unchanged.
+
+| st_hex_digit_value(character, result)
+| Converts one ASCII hex digit to `uint8_t`; accepts either case and leaves
+`result` unchanged for other bytes.
+
+| st_base64_encoded_size(source_size, result)
+| Returns the encoded character count excluding the NUL, with overflow
+checking.
+
+| st_base64_decoded_size(source, source_size, result)
+| Strictly validates padding and alphabet and returns the exact binary size.
+
+| st_base64_encode(destination, capacity, source, source_size)
+| Writes RFC 4648 Base64 plus NUL.  Capacity includes that terminator.
+
+| st_base64_decode(destination, capacity, source, source_size)
+| Writes the exact validated bytes; binary output is not NUL-terminated.
+|===
+
+==== UTF-8 and Unicode properties
+
+[source,c]
+----
+bool st_unicode_scalar_valid(uint32_t value);
+int st_utf8_decode_one(uint32_t *result, size_t *consumed,
+    const void *data, size_t size);
+ptrdiff_t st_utf8_encode_one(char *result, size_t result_size,
+    uint32_t value);
+
+enum st_unicode_east_asian_width st_unicode_east_asian_width(
+    uint32_t codepoint);
+bool st_unicode_emoji_presentation(uint32_t codepoint);
+uint8_t st_unicode_columns(uint32_t codepoint);
+uint8_t st_unicode_canonical_combining_class(uint32_t codepoint);
+size_t st_unicode_canonical_decompose(uint32_t codepoint, uint32_t *output,
+    size_t capacity);
+bool st_unicode_canonical_compose(uint32_t first, uint32_t second,
+    uint32_t *composition);
+enum st_unicode_grapheme_break st_unicode_grapheme_break(uint32_t codepoint);
+enum st_unicode_indic_conjunct_break st_unicode_indic_conjunct_break(
+    uint32_t codepoint);
+bool st_unicode_extended_pictographic(uint32_t codepoint);
+size_t st_unicode_rgi_emoji_prefix(const uint32_t *codepoints, size_t count);
+----
+
+Every `codepoint`, `first`, `second`, and `value` is a numeric candidate scalar,
+not encoded UTF-8.  Counted arrays are borrowed for the call.  Output pointers
+are required except where a zero capacity explicitly permits NULL.  Decode
+returns zero or negative `IO_ERROR_*`; encode returns a positive required byte
+count or negative error.  Property queries are pure and allocation-free.
+
+[cols="3m,7"]
+|===
+| Function | Parameters, result, and effect
+
+| st_unicode_scalar_valid(value)
+| True for Unicode scalar values: `0..0x10ffff` excluding surrogates.
+
+| st_utf8_decode_one(result, consumed, data, size)
+| Decodes one strict scalar from counted bytes.  Returns zero or
+`IO_ERROR_INVALID_ENCODING`; both outputs are unchanged on failure.
+
+| st_utf8_encode_one(result, result_size, value)
+| Returns the required/written byte count or `IO_ERROR_*`.  `result == NULL`
+is valid only for a zero-size sizing call; a short buffer is unchanged.
+
+| st_unicode_east_asian_width(codepoint)
+| Returns the generated East Asian Width property or
+`ST_UNICODE_EAW_INVALID` for a non-scalar.
+
+| st_unicode_emoji_presentation(codepoint)
+| Reports the generated Emoji_Presentation property.
+
+| st_unicode_columns(codepoint)
+| Returns zero for a non-scalar, otherwise one or two fixed display columns.
+
+| st_unicode_canonical_combining_class(codepoint)
+| Returns the canonical combining class; unassigned/non-combining values use
+zero.
+
+| st_unicode_canonical_decompose(codepoint, output, capacity)
+| Returns the full canonical decomposition length.  It writes only when the
+complete result fits; an undecomposable scalar returns itself, and a
+non-scalar returns zero.
+
+| st_unicode_canonical_compose(first, second, composition)
+| Returns true and writes the NFC composition when that canonical pair exists.
+
+| st_unicode_grapheme_break(codepoint)
+| Returns the generated grapheme-break property.
+
+| st_unicode_indic_conjunct_break(codepoint)
+| Returns the generated Indic-conjunct-break property.
+
+| st_unicode_extended_pictographic(codepoint)
+| Reports the Extended_Pictographic property.
+
+| st_unicode_rgi_emoji_prefix(codepoints, count)
+| Returns the number of scalars in the longest RGI emoji sequence at the
+beginning of the input, or zero.
+|===
+
+==== Streaming Unicode text
+
+`st_unicode_text_t` owns decoder, normalization, segmentation, and queued
+output state.  `ST_UNICODE_TEXT_NORMALIZE` emits normalized spans;
+`ST_UNICODE_TEXT_GRAPHEMES` emits complete grapheme clusters.  A peeked item's
+`bytes` are borrowed until consume, reset, another mutation which reallocates
+the queue, or destruction.
+
+[source,c]
+----
+int st_unicode_text_create(st_unicode_text_t **result,
+    enum st_unicode_text_mode mode);
+void st_unicode_text_destroy(st_unicode_text_t **text);
+void st_unicode_text_reset(st_unicode_text_t *text);
+int st_unicode_text_feed_byte(st_unicode_text_t *text, uint8_t byte);
+int st_unicode_text_feed(st_unicode_text_t *text, const void *bytes,
+    size_t size, size_t *consumed);
+int st_unicode_text_feed_scalar(st_unicode_text_t *text, uint32_t scalar);
+int st_unicode_text_feed_scalars(st_unicode_text_t *text,
+    const uint32_t *scalars, size_t count, size_t *consumed);
+int st_unicode_text_finish(st_unicode_text_t *text);
+uint32_t st_unicode_text_state(const st_unicode_text_t *text);
+int st_unicode_text_peek(const st_unicode_text_t *text,
+    struct st_unicode_text_item *item);
+int st_unicode_text_consume(st_unicode_text_t *text);
+int st_unicode_text_normalize(char **result, size_t *result_size,
+    const void *bytes, size_t size, bool *changed);
+----
+
+`text` is a required live object except that destroy accepts a NULL handle
+pointer/value.  Feed inputs are borrowed counted spans; `consumed` is required
+for multi-item feeds and is written only with successfully accepted input.
+Functions returning `int` use zero/negative `IO_ERROR_*`.  `normalize` installs
+malloc-owned output only after complete success; the caller frees it with
+`free()`.
+
+[cols="3m,7"]
+|===
+| Function | Parameters, result, and effect
+
+| st_unicode_text_create(result, mode)
+| Allocates an empty pipeline.  Returns zero or `IO_ERROR_*`; `result` is
+unchanged on failure.
+
+| st_unicode_text_destroy(text_ptr)
+| Frees the pipeline and sets the caller's handle to NULL; NULL is accepted.
+
+| st_unicode_text_reset(text)
+| Discards queued/input state while retaining allocations for reuse.
+
+| st_unicode_text_feed_byte(text, byte)
+| Feeds one UTF-8 byte.  Decode errors become queued
+`ST_UNICODE_TEXT_ITEM_DECODE_ERROR` items rather than silently replacing text.
+
+| st_unicode_text_feed(text, bytes, size, consumed)
+| Feeds as much counted UTF-8 as the pipeline can accept.  `consumed` tells the
+caller where to resume when an output item becomes ready.
+
+| st_unicode_text_feed_scalar(text, scalar)
+| Feeds one already-decoded scalar; rejects non-scalars.
+
+| st_unicode_text_feed_scalars(text, scalars, count, consumed)
+| Scalar-array counterpart of `feed`, with partial-consumption reporting.
+
+| st_unicode_text_finish(text)
+| Marks end of input, emits any complete pending text, and exposes incomplete
+UTF-8 as a decode-error item.
+
+| st_unicode_text_state(text)
+| Returns the `ST_UNICODE_TEXT_*` bit mask: ready output, incomplete input,
+finished input, any decode error, and normalization changed.
+
+| st_unicode_text_peek(text, item)
+| Copies the next item's metadata and borrowed byte view without removing it;
+returns `IO_ERROR_NOT_FOUND` when no item is ready.
+
+| st_unicode_text_consume(text)
+| Removes the item returned by `peek`; returns `IO_ERROR_NOT_FOUND` if empty.
+
+| st_unicode_text_normalize(result, result_size, bytes, size, changed)
+| Strict finite-input convenience operation.  On success it installs a
+malloc-owned, NUL-terminated NFC buffer; size excludes the NUL.  Malformed
+UTF-8 or allocation failure leaves all outputs unchanged.
+|===
+
+==== Unicode comparison and collation
+
+[source,c]
+----
+int st_unicode_caseless_key(char **result, size_t *result_size,
+    const void *bytes, size_t size);
+int st_unicode_caseless_compare(int *comparison,
+    const void *left, size_t left_size,
+    const void *right, size_t right_size);
+int st_unicode_caseless_equal(bool *equal,
+    const void *left, size_t left_size,
+    const void *right, size_t right_size);
+int st_unicode_caseless_starts_with(bool *matched,
+    const void *text, size_t text_size,
+    const void *prefix, size_t prefix_size);
+int st_unicode_caseless_contains(bool *matched,
+    const void *text, size_t text_size,
+    const void *needle, size_t needle_size);
+int st_unicode_wildcard_match(bool *matched,
+    const void *pattern, size_t pattern_size,
+    const void *text, size_t text_size, bool case_sensitive);
+int st_unicode_sort_key_create(st_unicode_sort_key_t **result,
+    const void *bytes, size_t size,
+    enum st_unicode_collation_strength strength);
+void st_unicode_sort_key_destroy(st_unicode_sort_key_t **key);
+int st_unicode_sort_key_compare(const st_unicode_sort_key_t *left,
+    const st_unicode_sort_key_t *right);
+int st_unicode_collate(int *comparison,
+    const void *left, size_t left_size,
+    const void *right, size_t right_size,
+    enum st_unicode_collation_strength strength);
+bool st_unicode_name_valid(const char *name, size_t maximum_scalars,
+    size_t maximum_bytes, const char *forbidden_ascii);
+----
+
+All text operands are borrowed counted strict UTF-8; a NULL operand is valid
+only with size zero.  Scalar outputs (`comparison`, `equal`, `matched`) are
+required and unchanged on error.  Functions returning `int` use zero/negative
+`IO_ERROR_*`, except `st_unicode_sort_key_compare`, whose negative/zero/positive
+value is the comparison itself.  Created keys and key strings are owned; free
+strings with `free()` and keys with the component destructor.
+
+[cols="3m,7"]
+|===
+| Function | Parameters, result, and effect
+
+| st_unicode_caseless_key(result, size, bytes, byte_count)
+| Allocates NUL-terminated `NFD(toCasefold(NFD(input)))`; counted input and
+output may contain embedded NUL scalars.
+
+| st_unicode_caseless_compare(comparison, left, left_size, right, right_size)
+| Writes a negative, zero, or positive canonical-caseless comparison.
+
+| st_unicode_caseless_equal(equal, left, left_size, right, right_size)
+| Equality convenience wrapper with the same strict UTF-8 failure contract.
+
+| st_unicode_caseless_starts_with(matched, text, text_size, prefix, prefix_size)
+| Matches only when both ends align to extended grapheme boundaries.
+
+| st_unicode_caseless_contains(matched, text, text_size, needle, needle_size)
+| Canonical-caseless substring search with grapheme-boundary alignment.
+
+| st_unicode_wildcard_match(matched, pattern, pattern_size, text, text_size, case_sensitive)
+| Matches `*` as zero or more grapheme clusters and `?` as exactly one.
+
+| st_unicode_sort_key_create(result, bytes, size, strength)
+| Allocates a DUCET non-ignorable key at case-insensitive or case-sensitive
+strength.  Input is strict counted UTF-8.
+
+| st_unicode_sort_key_destroy(key_ptr)
+| Frees a key and clears the handle.
+
+| st_unicode_sort_key_compare(left, right)
+| Compares two successfully created keys; no allocation or error return.
+
+| st_unicode_collate(comparison, left, left_size, right, right_size, strength)
+| One-shot create/compare/destroy collation.
+
+| st_unicode_name_valid(name, maximum_scalars, maximum_bytes, forbidden_ascii)
+| Validates the shared NFC display/configuration-name policy and optional
+forbidden ASCII set.
+|===
+
+==== Legacy codepages and Windows text
+
+[source,c]
+----
+size_t st_codepage_count(void);
+const char *st_codepage_name(enum st_codepage codepage);
+bool st_codepage_broken_vertical(enum st_codepage codepage);
+uint32_t st_codepage_to_unicode(enum st_codepage codepage, uint8_t value,
+    bool graphic_controls);
+bool st_codepage_from_unicode(uint8_t *result, enum st_codepage codepage,
+    uint32_t codepoint);
+int st_windows_utf8_to_utf16(wchar_t **result, const char *source);
+int st_windows_utf16_to_utf8(char **result, const wchar_t *source);
+----
+
+Codepage enums must be in `[0, ST_CODEPAGE_COUNT)` unless the documented
+fallback is desired.  Name pointers are static and never freed.  Reverse-map
+`result` is required and unchanged on false.  Windows conversion sources are
+required NUL-terminated strings; outputs are malloc-owned and unchanged on a
+negative `IO_ERROR_*` failure.
+
+[cols="3m,7"]
+|===
+| Function | Parameters, result, and effect
+
+| st_codepage_count()
+| Returns `ST_CODEPAGE_COUNT` as a `size_t` for iteration.
+
+| st_codepage_name(codepage)
+| Returns a borrowed canonical name or NULL for an invalid enumeration.
+
+| st_codepage_broken_vertical(codepage)
+| Reports codepages whose legacy glyph layout needs vertical-line repair.
+
+| st_codepage_to_unicode(codepage, value, graphic_controls)
+| Maps one byte; optional graphic controls select display glyphs for control
+bytes.  Invalid codepages produce U+FFFD.
+
+| st_codepage_from_unicode(result, codepage, codepoint)
+| Reverse maps a scalar, choosing the first legacy alias.  Returns false and
+leaves `result` unchanged if unmappable.
+
+| st_windows_utf8_to_utf16(result, source)
+| Windows-only strict conversion of a NUL-terminated string to malloc-owned
+UTF-16.  Result is unchanged on `IO_ERROR_*` failure.
+
+| st_windows_utf16_to_utf8(result, source)
+| Strict reverse conversion with the same ownership contract.
+|===
+
+==== String and value conversion
+
+`string_compat.h` conditionally maps the standard names `strdup`, `strndup`,
+`strlcpy`, and `strlcat` to project fallbacks.  Whether each fallback symbol
+exists is a generated capability decision.
+
+[source,c]
+----
+char *syncterm_strdup(const char *string);
+char *syncterm_strndup(const char *string, size_t maximum);
+size_t syncterm_strlcpy(char *destination, const char *source, size_t size);
+size_t syncterm_strlcat(char *destination, const char *source, size_t size);
+----
+
+`string` and `source` must be valid NUL-terminated strings.  The duplicate
+functions return a `malloc()`-owned NUL-terminated copy or NULL when allocation
+fails; `maximum` limits the inspected/copied source characters, excluding the
+terminator.  For `strlcpy`, `destination` may be NULL only when `size` is zero;
+otherwise it names `size` writable bytes.  For `strlcat`, `destination` must
+name `size` accessible bytes containing a NUL within that range.  The `strl*`
+functions always return the length they tried to create, excluding the NUL:
+the source length for copy, or initial destination length plus source length
+for append.  A return value greater than or equal to `size` therefore reports
+truncation.  Source and destination may not overlap.
+
+[cols="3m,7"]
+|===
+| Function | Parameters, result, and effect
+
+| syncterm_strdup(string)
+| Allocates an exact copy of `string`; returns NULL on allocation failure.
+
+| syncterm_strndup(string, maximum)
+| Allocates up to `maximum` source characters plus a terminator; returns NULL
+on allocation failure.
+
+| syncterm_strlcpy(destination, source, size)
+| Copies as much of `source` as fits, always terminating when `size` is
+nonzero, and returns the complete source length.
+
+| syncterm_strlcat(destination, source, size)
+| Appends as much as fits, terminates when space exists, and returns the
+initial destination length plus complete source length.
+|===
+
+[source,c]
+----
+bool ascii_is_space(unsigned char character);
+bool ascii_is_printable(unsigned char character);
+unsigned char ascii_to_lower(unsigned char character);
+int ascii_case_compare(const char *left, const char *right);
+int ascii_case_ncompare(const char *left, const char *right, size_t length);
+bool ascii_case_starts_with(const char *text, const char *prefix);
+bool ascii_case_span_equal(const char *text, size_t length,
+    const char *value);
+char *string_trim_ascii(char *string);
+void string_ascii_trim_span(const char *string, size_t length,
+    size_t *begin, size_t *end);
+bool string_span_is_printable_ascii(const char *string, size_t length);
+
+bool value_parse_int64(const char *text, int64_t *result);
+bool value_parse_uint64(const char *text, uint64_t *result);
+bool value_parse_bool(const char *text, bool *result);
+bool value_parse_double(const char *text, double *result);
+bool value_parse_duration(const char *text, double *seconds);
+bool value_parse_datetime(const char *text, time_t *result);
+bool value_format_int64(char *buffer, size_t size, int64_t value);
+bool value_format_uint64(char *buffer, size_t size, uint64_t value);
+bool value_format_double(char *buffer, size_t size, double value);
+bool value_format_duration(char *buffer, size_t size, double seconds);
+bool value_format_byte_estimate(char *buffer, size_t size, uint64_t bytes);
+bool value_format_duration_estimate(char *buffer, size_t size,
+    double seconds);
+bool value_format_datetime(char *buffer, size_t size, time_t value,
+    bool include_time);
+bool decimal_parse_double(const char *begin, const char *end, double *result);
+bool decimal_format_double(char *buffer, size_t size, double value,
+    int precision);
+bool decimal_format_fixed(char *buffer, size_t size, double value,
+    unsigned places);
+----
+
+NUL-terminated input pointers are required unless a counted span is explicit.
+Parse output pointers are required and unchanged on false.  Format buffers are
+caller-owned, `size` includes the NUL, and false means no complete value fit;
+partial/truncated text is never a successful result.  ASCII helpers never
+consult the process locale.  The trim-span outputs are required and describe a
+half-open range inside borrowed input.
+
+[cols="3m,7"]
+|===
+| Function group | Parameters, result, and effect
+
+| ascii_is_space(character), ascii_is_printable(character), ascii_to_lower(character)
+| Locale-independent classification/conversion of one `unsigned char`.
+
+| ascii_case_compare(left, right), ascii_case_ncompare(left, right, length)
+| Negative/zero/positive ASCII-case-insensitive ordering for whole strings or
+at most `length` bytes.
+
+| ascii_case_starts_with(text, prefix)
+| ASCII-case-insensitive prefix test.
+
+| ascii_case_span_equal(text, length, value)
+| Compares a counted span to a NUL-terminated value without allocating.
+
+| string_trim_ascii(string)
+| Terminates trailing ASCII space in place and returns the first non-space
+character within the same buffer.
+
+| string_ascii_trim_span(string, length, begin, end)
+| Reports the half-open non-space subspan without modifying input.
+
+| string_span_is_printable_ascii(string, length)
+| True only when every counted byte is printable ASCII.
+
+| value_parse_int64(text, result), value_parse_uint64(text, result)
+| Strict whole-string integer conversion with range checking.
+
+| value_parse_bool(text, result)
+| Parses the component's accepted true/false spellings, rejecting suffixes.
+
+| value_parse_double(text, result), decimal_parse_double(begin, end, result)
+| Locale-independent finite/exceptional decimal conversion; the decimal form
+accepts an explicit `[begin,end)` span.
+
+| value_parse_duration(text, seconds)
+| Parses a strict duration into seconds.
+
+| value_parse_datetime(text, result)
+| Treats a valid `YYYYMMDD` local date as a date before considering integer
+epoch syntax.
+
+| value_format_int64(buffer, size, value), value_format_uint64(buffer, size, value), value_format_double(buffer, size, value)
+| Write a complete NUL-terminated value or return false without truncating.
+
+| decimal_format_double(buffer, size, value, precision)
+| Writes locale-independent decimal notation using the requested significant
+precision.
+
+| decimal_format_fixed(buffer, size, value, places)
+| Writes fixed-point notation with exactly `places` decimal places.
+
+| value_format_duration(buffer, size, seconds)
+| Writes the parseable duration representation.
+
+| value_format_byte_estimate(buffer, size, bytes)
+| Writes integers below 1024 bytes and one-decimal scaled estimates above it.
+
+| value_format_duration_estimate(buffer, size, seconds)
+| Writes a human estimate; negative/NaN becomes zero and positive infinity
+becomes `infy`.
+
+| value_format_datetime(buffer, size, value, include_time)
+| Formats local date, optionally with time, without partial output.
+|===
+
+==== Pointer arrays
+
+`array_list_t` is NULL for empty or a library allocation containing non-NULL
+items followed by a maintained NULL sentinel.  The array owns no item.
+
+[source,c]
+----
+size_t array_list_count(array_list_t list);
+bool array_list_reserve(array_list_t *list, size_t count);
+bool array_list_insert(array_list_t *list, size_t index, void *item);
+bool array_list_append(array_list_t *list, void *item);
+void *array_list_take(array_list_t list, size_t index);
+void array_list_clear(array_list_t list);
+void array_list_free(array_list_t *list);
+bool array_list_sorted_find(array_list_t list, const void *key,
+    array_list_compare_fn compare, size_t *index);
+bool array_list_sorted_insert(array_list_t *list, void *item,
+    array_list_compare_fn compare);
+enum array_list_insert_result array_list_sorted_insert_unique(
+    array_list_t *list, void *item, array_list_compare_fn compare,
+    size_t *index);
+----
+
+`list` is a borrowed handle for read/in-place removal and `list *` is an
+in/out handle which may relocate on success.  Items and keys must be non-NULL;
+the library never frees them.  Comparators receive item/key pointers directly,
+must impose stable ascending order, and must not mutate the list.  Boolean
+mutators preserve the list on false.  Optional `index` outputs are explicitly
+noted below.
+
+[cols="3m,7"]
+|===
+| Function | Parameters, result, and effect
+
+| array_list_count(list)
+| Returns the number of items; NULL has count zero.
+
+| array_list_reserve(list_ptr, count)
+| Ensures capacity without changing count.  It may relocate `*list`; failure
+leaves the handle and contents unchanged.
+
+| array_list_insert(list_ptr, index, item)
+| Inserts a non-NULL item before `index`, where `0..count` is valid.
+
+| array_list_append(list_ptr, item)
+| Inserts at the current count.
+
+| array_list_take(list, index)
+| Removes and returns the item without freeing or shrinking storage; invalid
+index returns NULL.
+
+| array_list_clear(list)
+| Drops every pointer but retains capacity and does not free items.
+
+| array_list_free(list_ptr)
+| Frees only array storage and clears the handle.
+
+| array_list_sorted_find(list, key, compare, index)
+| Binary-searches an ascending list.  Returns whether an equal item exists and
+writes the first equal index or insertion position when `index` is non-NULL.
+
+| array_list_sorted_insert(list_ptr, item, compare)
+| Inserts after existing equal items.
+
+| array_list_sorted_insert_unique(list_ptr, item, compare, index)
+| Returns `ARRAY_LIST_INSERTED`, `ARRAY_LIST_INSERT_DUPLICATE`, or
+`ARRAY_LIST_INSERT_ERROR`; duplicate/error never consumes `item`.
+|===
+
+`ARRAY_LIST_DECLARE/DEFINE` and `SORTED_ARRAY_LIST_DECLARE/DEFINE` generate
+typed wrappers with the same contracts.  The declaration macro belongs in a
+header; the matching definition macro appears exactly once in a C file.
+
+==== Owning string and name/value lists
+
+[source,c]
+----
+void str_list_free(str_list_t *list);
+void str_list_free_item(char *item);
+size_t str_list_count(str_list_t list);
+bool str_list_append(str_list_t *list, const char *string);
+bool str_list_append_list(str_list_t *list, str_list_t source);
+bool str_list_clone(str_list_t *result, str_list_t source);
+bool str_list_contains(str_list_t list, const char *string);
+bool str_list_remove(str_list_t list, size_t index);
+char *str_list_take(str_list_t list, size_t index);
+char *str_list_take_last(str_list_t list);
+bool str_list_split(str_list_t *result, const char *string,
+    const char *delimiters);
+char *str_list_join(str_list_t list, const char *separator);
+
+int name_value_compare(const struct name_value *left,
+    const struct name_value *right);
+struct name_value *name_value_create(const char *name, const char *value);
+bool name_value_set_value(struct name_value *item, const char *value);
+void name_value_free_item(struct name_value *item);
+size_t name_value_list_count(name_value_list_t list);
+bool name_value_list_append(name_value_list_t *list, const char *name,
+    const char *value);
+bool name_value_list_add_sorted(name_value_list_t *list, const char *name,
+    const char *value);
+enum array_list_insert_result name_value_list_add_unique(
+    name_value_list_t *list, const char *name, const char *value,
+    size_t *index);
+struct name_value *name_value_list_take(name_value_list_t list, size_t index);
+bool name_value_list_remove(name_value_list_t list, size_t index);
+void name_value_list_free(name_value_list_t *list);
+----
+
+String/name/value inputs are required NUL-terminated borrowed strings and are
+copied by insertion APIs.  A `*_t *` destination is in/out and replaced or
+relocated only on success.  Taken/joined strings and taken name/value items
+transfer to the caller and must be released with the matching component
+function.  Lists are not internally synchronized; callers serialize every
+access which can race mutation.
+
+[cols="3m,7"]
+|===
+| Function group | Parameters, result, and effect
+
+| str_list_count(list), str_list_contains(list, string)
+| Read a nullable owning string list; contains uses exact case-sensitive text.
+
+| str_list_append(list_ptr, string), str_list_append_list(list_ptr, source)
+| Deep-copy one string or every source string.  Failure leaves destination
+unchanged and may relocate only on success.
+
+| str_list_clone(result, source)
+| Replaces `result` with a complete deep copy after successful allocation.
+
+| str_list_remove(list, index)
+| Frees the indexed string and compacts in place.
+
+| str_list_take(list, index), str_list_take_last(list)
+| Transfers one string to the caller; release it with
+`str_list_free_item(item)`.
+
+| str_list_split(result, string, delimiters)
+| Replaces `result` with nonempty fields split on any delimiter byte.
+
+| str_list_join(list, separator)
+| Returns an exactly sized owned string, including empty output for an empty
+list.
+
+| str_list_free_item(item), str_list_free(list_ptr)
+| Free a transferred/joined string or an entire owning list respectively.
+
+| name_value_create(name, value), name_value_set_value(item, value)
+| Allocate an owning immutable-name pair or transactionally replace its value.
+
+| name_value_compare(left, right)
+| Unicode canonical-caseless ordering by name only.
+
+| name_value_list_count(list), name_value_list_append(list_ptr, name, value)
+| Inspect or append a copied pair to the owning list.
+
+| name_value_list_add_sorted(list_ptr, name, value), name_value_list_add_unique(list_ptr, name, value, index)
+| Add to an already sorted owning list; unique addition returns the shared
+array-list insertion result and optional index.
+
+| name_value_list_take(list, index), name_value_list_remove(list, index)
+| Transfer or free an indexed pair without reallocating list storage.
+
+| name_value_free_item(item), name_value_list_free(list_ptr)
+| Dispose one transferred pair or the owning list and all its pairs.
+|===
+
+The generated `name_value_array_*` functions form a non-owning array, and
+`name_value_index_*` adds sorted search/insertion.  Dispose these borrowed
+indexes with `*_free_storage`; never call `name_value_list_free()` on them.

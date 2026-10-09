@@ -1,0 +1,871 @@
+[[reference-media]]
+=== Media and console API reference
+
+==== Audio mixer
+
+Mixer input/output is interleaved native-endian signed 16-bit stereo.  Counts
+are frames.  Mixer buffer options apply per queued buffer; stream volume applies
+to the complete stream.
+
+[source,c]
+----
+int audio_mixer_create(audio_mixer_t **result);
+void audio_mixer_destroy(audio_mixer_t *mixer);
+int audio_mixer_stream_create(audio_mixer_stream_t **result,
+    audio_mixer_t *mixer, float volume_left_db, float volume_right_db);
+void audio_mixer_stream_destroy(audio_mixer_stream_t *stream);
+int audio_mixer_stream_append(audio_mixer_stream_t *stream,
+    const int16_t *frames, size_t frame_count,
+    const struct audio_mixer_buffer_options *options);
+int audio_mixer_stream_append_take(audio_mixer_stream_t *stream,
+    int16_t *frames, size_t frame_count,
+    const struct audio_mixer_buffer_options *options);
+int audio_mixer_stream_clear(audio_mixer_stream_t *stream);
+int audio_mixer_stream_drain(audio_mixer_stream_t *stream);
+bool audio_mixer_stream_is_idle(audio_mixer_stream_t *stream);
+int audio_mixer_stream_set_volume(audio_mixer_stream_t *, float, float);
+int audio_mixer_stream_ramp_volume(audio_mixer_stream_t *, float, float,
+    size_t frame_count);
+int audio_mixer_stream_get_volume(audio_mixer_stream_t *, float *, float *);
+size_t audio_mixer_pull(audio_mixer_t *, int16_t *output, size_t frame_count);
+size_t audio_mixer_pull_pending(audio_mixer_t *, int16_t *output,
+    size_t frame_count, uint64_t *ticket);
+void audio_mixer_acknowledge(audio_mixer_t *, uint64_t ticket);
+int audio_mixer_wait_for_data(audio_mixer_t *);
+void audio_mixer_stop(audio_mixer_t *, int status);
+----
+
+Create outputs and live object pointers are required.  Frame arrays are
+borrowed by append and conditionally consumed by append-take; NULL is valid only
+at zero frames.  Options are borrowed and required.  dB output pointers and
+pull ticket are required.  Status calls return zero/negative `IO_ERROR_*`;
+pull returns the non-silent prefix count.  The mixer synchronizes stream work,
+but destruction still requires external quiescence.
+
+[cols="3m,7"]
+|===
+| Function group | Parameters, result, and effect
+
+| audio_mixer_create(result), audio_mixer_destroy(mixer)
+| Allocate/free a mixer and any remaining streams/queues.
+
+| audio_mixer_stream_create(result, mixer, left_db, right_db)
+| Adds an owned stream with initial channel gains.
+
+| audio_mixer_stream_destroy(stream)
+| Removes a stream and discards its queued audio; do not race stream calls.
+
+| audio_mixer_stream_append(stream, frames, count, options)
+| Copies and queues frames.
+
+| audio_mixer_stream_append_take(stream, frames, count, options)
+| Queues caller allocation and takes ownership only on success.
+
+| audio_mixer_stream_clear(stream)
+| Discards queued/not-yet-acknowledged playback and cancels affected drain.
+
+| audio_mixer_stream_drain(stream)
+| Waits for the queue present at entry; an unterminated loop is busy.
+
+| audio_mixer_stream_is_idle(stream)
+| Reports no queued or backend-pending frames for the stream.
+
+| audio_mixer_stream_set_volume(stream, left_db, right_db), audio_mixer_stream_ramp_volume(stream, left_db, right_db, frame_count), audio_mixer_stream_get_volume(stream, left_db, right_db)
+| Set immediately, interpolate over a frame count, or query channel dB gains.
+
+| audio_mixer_pull(mixer, output, frame_count)
+| Fills every requested frame and returns the non-silent prefix length.
+
+| audio_mixer_pull_pending(mixer, output, frame_count, ticket)
+| Pulls for a blocking backend and issues an acknowledgment ticket.
+
+| audio_mixer_acknowledge(mixer, ticket)
+| Marks ticketed frames accepted by the device so drain can progress.
+
+| audio_mixer_wait_for_data(mixer)
+| Blocks a backend worker until data or stop.
+
+| audio_mixer_stop(mixer, status)
+| Wakes workers/drains and makes the supplied status terminal.
+|===
+
+==== Audio engine
+
+All public PCM is `AUDIO_SAMPLE_RATE` (44100 Hz), two-channel, native-endian
+`int16_t`.  Volumes range from -192 through +96 dB.
+
+[source,c]
+----
+uint32_t audio_available_backends(void);
+uint32_t audio_compiled_backends(void);
+int audio_engine_create(audio_engine_t **result, uint32_t allowed_backends);
+void audio_engine_destroy(audio_engine_t *engine);
+enum audio_backend audio_engine_backend(const audio_engine_t *engine);
+int audio_stream_create(audio_stream_t **result, audio_engine_t *engine,
+    float volume_left_db, float volume_right_db);
+void audio_stream_destroy(audio_stream_t *stream);
+int audio_stream_append(audio_stream_t *, const int16_t *frames,
+    size_t frame_count, const struct audio_buffer_options *options);
+int audio_stream_append_take(audio_stream_t *, int16_t *frames,
+    size_t frame_count, const struct audio_buffer_options *options);
+int audio_stream_append_u8_mono_22050(audio_stream_t *, const uint8_t *samples,
+    size_t sample_count, const struct audio_buffer_options *options);
+int audio_stream_clear(audio_stream_t *);
+int audio_stream_drain(audio_stream_t *);
+bool audio_stream_is_idle(audio_stream_t *);
+int audio_stream_set_volume(audio_stream_t *, float, float);
+int audio_stream_ramp_volume(audio_stream_t *, float, float, size_t);
+int audio_stream_get_volume(audio_stream_t *, float *, float *);
+int audio_engine_play(audio_engine_t *, const int16_t *, size_t,
+    const struct audio_buffer_options *);
+int audio_engine_play_u8_mono_22050(audio_engine_t *, const uint8_t *, size_t,
+    const struct audio_buffer_options *);
+int audio_generate_tone(int16_t *result, size_t frame_count,
+    double frequency, enum audio_wave_shape shape, bool clean_edges);
+int audio_beep(audio_engine_t *, double frequency, uint32_t duration_ms);
+int st_audio_runtime_create(st_audio_runtime_t **result, uint32_t allowed);
+void st_audio_runtime_destroy(st_audio_runtime_t *runtime);
+void st_audio_runtime_set_allowed(st_audio_runtime_t *, uint32_t allowed);
+uint32_t st_audio_runtime_allowed(st_audio_runtime_t *);
+int st_audio_runtime_acquire(st_audio_runtime_t *, audio_engine_t **result);
+----
+
+Engine/stream create outputs are required and unchanged on negative
+`IO_ERROR_*`.  Buffers/options are borrowed except append-take's conditional
+transfer.  Counts are frames/samples, never bytes.  Gain values must be finite
+and in range.  Stream methods synchronize concurrent operations, but callers
+must stop them before stream/engine destruction.  Runtime acquire returns a
+borrowed engine, not a new ownership reference.
+
+[cols="3m,7"]
+|===
+| Function group | Parameters, result, and effect
+
+| audio_compiled_backends(), audio_available_backends()
+| Return candidate masks before or after probing runtime-loadable libraries.
+
+| audio_engine_create(result, allowed_backends)
+| Opens the first usable allowed backend in documented preference order.  Only
+one engine may exist per process.
+
+| audio_engine_destroy(engine)
+| Stops workers/callbacks, destroys remaining streams, and frees the engine.
+
+| audio_engine_backend(engine)
+| Returns the selected single backend bit.
+
+| audio_stream_create(result, engine, left_db, right_db), audio_stream_destroy(stream)
+| Add/remove an independently queued stream owned by the engine.
+
+| audio_stream_append(stream, frames, frame_count, options), audio_stream_append_take(stream, frames, frame_count, options)
+| Copy or conditionally take ownership of fixed-format frames and queue
+per-buffer fade/crossfade/loop policy.
+
+| audio_stream_append_u8_mono_22050(stream, samples, sample_count, options)
+| Converts/copies legacy unsigned 8-bit 22050 Hz mono samples before queuing.
+
+| audio_stream_clear(stream), audio_stream_drain(stream), audio_stream_is_idle(stream)
+| Cancel queued work, wait for the entry snapshot, or query completion.
+
+| audio_stream_set_volume(stream, left_db, right_db), audio_stream_ramp_volume(stream, left_db, right_db, frame_count), audio_stream_get_volume(stream, left_db, right_db)
+| Immediate/ramped/query stream gain.
+
+| audio_engine_play(engine, frames, frame_count, options), audio_engine_play_u8_mono_22050(engine, samples, sample_count, options)
+| Queue a copied one-shot.  Looping is rejected because no stream handle would
+exist to stop it.
+
+| audio_generate_tone(result, frame_count, frequency, shape, clean_edges)
+| Fills fixed-format stereo samples for the selected waveform.
+
+| audio_beep(engine, frequency, duration_ms)
+| Synchronously plays the historical beep, using speaker fallback as needed.
+
+| st_audio_runtime_create(result, allowed), st_audio_runtime_destroy(runtime)
+| Manage application-lifetime lazy engine state and synchronization.
+
+| st_audio_runtime_set_allowed(runtime, allowed), st_audio_runtime_allowed(runtime)
+| Set/query the mask used only when an engine has not yet been created.
+
+| st_audio_runtime_acquire(runtime, result)
+| Lazily creates and returns a borrowed engine valid through runtime destroy.
+|===
+
+==== Pixel buffers, masks, and scaler
+
+[source,c]
+----
+int st_pixel_buffer_create(struct st_pixel_buffer **result, uint32_t width,
+    uint32_t height, bool alternate);
+int st_pixel_buffer_clone(struct st_pixel_buffer **result,
+    const struct st_pixel_buffer *source);
+int st_pixel_buffer_ensure_alternate(struct st_pixel_buffer *buffer);
+void st_pixel_buffer_remove_alternate(struct st_pixel_buffer *buffer);
+void st_pixel_buffer_destroy(struct st_pixel_buffer *buffer);
+int st_rgb_buffer_create(struct st_rgb_buffer **result, uint32_t width,
+    uint32_t height);
+void st_rgb_buffer_destroy(struct st_rgb_buffer *buffer);
+int st_pixel_mask_create(struct st_pixel_mask **result, uint32_t width,
+    uint32_t height);
+int st_pixel_mask_get(const struct st_pixel_mask *, uint32_t x, uint32_t y,
+    bool *value);
+int st_pixel_mask_set(struct st_pixel_mask *, uint32_t x, uint32_t y,
+    bool value);
+void st_pixel_mask_destroy(struct st_pixel_mask *mask);
+int st_pixel_buffer_fill(struct st_pixel_buffer *, uint32_t primary,
+    uint32_t alternate);
+int st_pixel_scaler_create(st_pixel_scaler_t **result);
+void st_pixel_scaler_destroy(st_pixel_scaler_t *scaler);
+int st_pixel_scaler_scale(st_pixel_scaler_t *,
+    const struct st_rgb_buffer **result, const struct st_rgb_buffer *source,
+    uint32_t width, uint32_t height, enum st_pixel_scaling_policy policy);
+int st_pixel_scaler_scale_region(st_pixel_scaler_t *,
+    const struct st_rgb_buffer **result, const struct st_rgb_buffer *source,
+    const struct st_pixel_rect *damage, struct st_pixel_rect *output_damage);
+int st_pixel_buffer_blit(struct st_pixel_buffer *destination,
+    const struct st_pixel_buffer *source, const struct st_pixel_mask *mask,
+    const struct st_pixel_blit *blit);
+----
+
+Create/clone outputs are required owned handles, unchanged on negative
+`IO_ERROR_*`; dimensions must be nonzero and multiplication representable.
+Mask coordinates must be in bounds.  Scale result is a required borrowed-view
+output, source/damage are borrowed, and output damage is required.  Blit
+destination is mutable, source/blit are required borrowed inputs, mask may be
+NULL, scale factors must be nonzero, and failure occurs before partial change.
+
+[cols="3m,7"]
+|===
+| Function group | Parameters, result, and effect
+
+| st_pixel_buffer_create(result, width, height, alternate)
+| Allocates a nonempty zeroed native-colour buffer and optional blink plane.
+
+| st_pixel_buffer_clone(result, source)
+| Deep-copies dimensions and present planes.
+
+| st_pixel_buffer_ensure_alternate(buffer)
+| Allocates the alternate plane initialized from primary before publishing it.
+
+| st_pixel_buffer_remove_alternate(buffer), st_pixel_buffer_destroy(buffer)
+| Remove one plane or free the complete buffer.
+
+| st_rgb_buffer_create(result, width, height), st_rgb_buffer_destroy(buffer)
+| Allocate/free a nonempty zeroed packed-`0x00RRGGBB` image.
+
+| st_pixel_mask_create(result, width, height), st_pixel_mask_destroy(mask)
+| Allocate/free a zeroed contiguous MSB-first bit mask.
+
+| st_pixel_mask_get(mask, x, y, value), st_pixel_mask_set(mask, x, y, value)
+| Bounds-checked bit access.
+
+| st_pixel_buffer_fill(buffer, primary, alternate)
+| Fills existing planes with native palette-index/tagged-RGB values.
+
+| st_pixel_buffer_blit(destination, source, mask, blit)
+| Clips and integer-scales the selected source rectangle, optional mask and
+flips.  Self-blit has source-snapshot semantics; alternate source content is
+preserved.
+
+| st_pixel_scaler_create(result), st_pixel_scaler_destroy(scaler)
+| Allocate/free a persistent scaling plan and retained intermediate images.
+
+| st_pixel_scaler_scale(scaler, result, source, width, height, policy)
+| Plans/scales a complete RGB image at same size or larger.  Returns a borrowed
+buffer until the next scale/destruction.
+
+| st_pixel_scaler_scale_region(scaler, result, source, damage, output_damage)
+| Updates a prior plan after source damage and reports expanded final damage.
+|===
+
+==== External image decoding
+
+[source,c]
+----
+int st_pixel_image_decode_ppm(struct st_pixel_buffer **result,
+    const void *data, size_t length);
+int st_pixel_image_decode_pbm(struct st_pixel_mask **result,
+    const void *data, size_t length);
+bool st_pixel_image_jxl_supported(void);
+int st_pixel_image_decode_jxl(struct st_pixel_buffer **result,
+    const void *data, size_t length);
+----
+
+`data` is a borrowed counted byte span, NULL only for zero length.  Output
+handles are required and unchanged on negative `IO_ERROR_*`; success transfers
+ownership to the caller and the corresponding pixels destructor.  Decoders
+reject malformed dimensions, arithmetic overflow, truncation, and trailing
+format violations rather than returning a partial image.
+
+[cols="3m,7"]
+|===
+| Function | Parameters, result, and effect
+
+| st_pixel_image_decode_ppm(result, data, length)
+| Strictly decodes counted PPM bytes into an owned tagged-RGB pixel buffer.
+
+| st_pixel_image_decode_pbm(result, data, length)
+| Strictly decodes counted PBM bytes into an owned bit mask.
+
+| st_pixel_image_jxl_supported()
+| Reports whether the optional runtime JPEG XL decoder is usable.
+
+| st_pixel_image_decode_jxl(result, data, length)
+| Decodes to an owned pixel buffer or returns `IO_ERROR_NOT_SUPPORTED` when
+unavailable.  Every decoder preserves `result` on failure.
+|===
+
+==== Font catalogs
+
+[source,c]
+----
+size_t st_builtin_font_count(void);
+const char *st_builtin_font_name(size_t selector);
+bool st_builtin_font_broken_vertical(size_t selector);
+enum st_codepage st_builtin_font_codepage(size_t selector);
+bool st_builtin_font_get(size_t selector, uint32_t width, uint32_t height,
+    struct st_console_font *font);
+int st_presentation_font_create(struct st_presentation_font *result,
+    const struct st_console_font *base);
+void st_presentation_font_destroy(struct st_presentation_font *font);
+extern const struct st_console_font st_unscii_8_font;
+extern const struct st_console_font st_unscii_16_font;
+extern const struct st_console_font st_unifont_font;
+----
+
+Selectors must be below `st_builtin_font_count()`.  Static names/font storage
+are borrowed for process lifetime.  `st_builtin_font_get` writes a required
+descriptor only on true, and that descriptor borrows catalog storage.
+Presentation result is caller storage which owns allocations only after zero
+return and must then be destroyed once; `base` is borrowed during creation.
+
+[cols="3m,7"]
+|===
+| Function or object | Parameters, result, and effect
+
+| st_builtin_font_count(), st_builtin_font_name(selector)
+| Iterate static legacy selector names; invalid selector name is NULL.
+
+| st_builtin_font_broken_vertical(selector), st_builtin_font_codepage(selector)
+| Query rendering repair and source codepage metadata.
+
+| st_builtin_font_get(selector, width, height, font)
+| Copies a console-font descriptor borrowing process-lifetime bitmap/mapping
+storage; requires exact supported cell dimensions.
+
+| st_presentation_font_create(result, base), st_presentation_font_destroy(font)
+| Build/free an owned augmented fallback-font descriptor.
+
+| st_unscii_8_font, st_unscii_16_font, st_unifont_font
+| Process-lifetime static `st_console_font` objects; Unifont exists only in the
+optional target.
+|===
+
+==== Console object lifecycle and capabilities
+
+The complete data-model and rendering semantics are in
+link:Console.adoc[Console.adoc].  This index maps every public C entry point to
+its operational group.
+[source,c]
+----
+int st_console_get_backend(st_console_t *console,
+	enum st_console_backend *backend);
+int st_console_display_get_backend(st_console_display_t *display,
+	enum st_console_backend *backend);
+const char *st_console_backend_name(enum st_console_backend backend);
+uint32_t st_console_build_features(void);
+
+int st_console_create(st_console_t **result,
+	const struct st_console_display_config *display_config,
+	const struct st_console_config *config);
+/*
+ * Explicit multi-console lifecycle.  The display must outlive every console
+ * created on it.  Its backend is opened when the first console is created.
+ */
+int st_console_display_create(st_console_display_t **result,
+	const struct st_console_display_config *config);
+void st_console_display_destroy(st_console_display_t *display);
+int st_console_create_on_display(st_console_t **result,
+	st_console_display_t *display, const struct st_console_config *config);
+/* Activation includes full presentation.  Failure restores the previous
+ * console's backend state.  If restoration also fails, backend operations
+ * return IO_ERROR_IO until a later activation succeeds.  Input continues to
+ * target the previous selection until a switch succeeds.
+ */
+int st_console_display_activate(st_console_display_t *display,
+	st_console_t *console);
+/* Returns a borrowed selection, or NULL for an empty display.  The caller
+ * must coordinate destruction; this query does not extend console lifetime.
+ */
+int st_console_display_active(st_console_display_t *display,
+	st_console_t **console);
+/* The caller must prevent new operations on this console and let its active
+ * calls return.  The library drains its own presentation and input references.
+ * Removing the selected console selects a remaining peer; if that fails, the
+ * peer remains selected with backend operations suspended until activation.
+ * Display destruction requires all callers using that display to have stopped.
+ * Invalidates the caller's handle immediately.  If a failed backend cannot
+ * detach, storage is retained internally until recovery or backend shutdown.
+ */
+void st_console_destroy(st_console_t *console);
+
+int st_console_size(st_console_t *console, uint32_t *columns,
+	uint32_t *rows);
+int st_console_cell_pixel_size(st_console_t *console, uint32_t *width,
+	uint32_t *height);
+int st_console_capabilities(st_console_t *console, uint32_t *capabilities);
+int st_console_resize(st_console_t *console, uint32_t columns,
+	uint32_t rows);
+/*
+ * Replaces the complete logical/raster configuration and clears the console.
+ * All storage is prepared before the active backend is resized; failure leaves
+ * the existing console state intact.
+ */
+int st_console_reconfigure(st_console_t *console,
+	const struct st_console_config *config);
+
+/*
+ * Semantic cell writes require Unicode scalar codepoints.  A two-column cell
+ * must be followed by its matching continuation cell in the same row.
+ */
+int st_console_write_cells(st_console_t *console,
+	const struct st_console_rect *destination,
+	const struct st_console_cell *cells, size_t stride);
+/*
+ * Writes already-resolved font/glyph cells without Unicode lookup.  Stored
+ * codepoints must still be Unicode scalars.
+ */
+int st_console_write_complete_cells(st_console_t *console,
+	const struct st_console_rect *destination,
+	const struct st_console_cell *cells, size_t stride);
+int st_console_read_cells(st_console_t *console,
+	const struct st_console_rect *source, struct st_console_cell *cells,
+	size_t stride);
+/* A fill cell must contain a Unicode scalar which occupies one column. */
+int st_console_fill(st_console_t *console,
+	const struct st_console_rect *destination,
+	const struct st_console_cell *cell);
+
+/* Updates nest.  The outermost end makes the batch eligible for presentation. */
+int st_console_begin_update(st_console_t *console);
+int st_console_end_update(st_console_t *console);
+/* Forces a synchronous presentation, including changes in an open batch. */
+int st_console_present(st_console_t *console);
+
+int st_console_set_style(st_console_t *console,
+	const struct st_console_style *style);
+int st_console_get_style(st_console_t *console,
+	struct st_console_style *style);
+int st_console_set_position(st_console_t *console, uint32_t x, uint32_t y);
+int st_console_get_position(st_console_t *console, uint32_t *x,
+	uint32_t *y);
+int st_console_set_cursor(st_console_t *console, bool visible,
+	enum st_console_cursor_shape shape);
+int st_console_get_cursor(st_console_t *console, bool *visible,
+	enum st_console_cursor_shape *shape);
+int st_console_get_default_cursor(st_console_t *console,
+	struct st_console_custom_cursor *cursor);
+/* Replaces the default cursor and immediately selects it. */
+int st_console_set_default_cursor(st_console_t *console,
+	const struct st_console_custom_cursor *cursor);
+int st_console_set_custom_cursor(st_console_t *console,
+	const struct st_console_custom_cursor *cursor);
+int st_console_get_custom_cursor(st_console_t *console,
+	struct st_console_custom_cursor *cursor);
+int st_console_set_blink_mode(st_console_t *console,
+	enum st_console_blink_mode mode);
+int st_console_get_blink_mode(st_console_t *console,
+	enum st_console_blink_mode *mode);
+int st_console_set_video_flags(st_console_t *console, uint32_t flags);
+int st_console_get_video_flags(st_console_t *console, uint32_t *flags);
+int st_console_set_scaling_mode(st_console_t *console,
+	enum st_console_scaling_mode mode);
+int st_console_get_scaling_mode(st_console_t *console,
+	enum st_console_scaling_mode *mode);
+int st_console_set_blocky_scaling(st_console_t *console, bool blocky);
+int st_console_get_blocky_scaling(st_console_t *console, bool *blocky);
+int st_console_set_aspect_ratio(st_console_t *console, uint32_t width,
+	uint32_t height);
+int st_console_get_aspect_ratio(st_console_t *console, uint32_t *width,
+	uint32_t *height);
+int st_console_set_window(st_console_t *console,
+	const struct st_console_rect *window);
+int st_console_get_window(st_console_t *console,
+	struct st_console_rect *window);
+int st_console_set_wrap(st_console_t *console, bool wrap);
+/* Semantic codepoint operations reject values which are not Unicode scalars. */
+int st_console_put_codepoint(st_console_t *console, uint32_t codepoint);
+int st_console_put_decode_error(st_console_t *console);
+int st_console_write_utf8(st_console_t *console, const char *text,
+	size_t length);
+/* Fill codepoints for clear, scroll and line edits must occupy one column. */
+int st_console_clear_window(st_console_t *console, uint32_t codepoint);
+int st_console_clear_line(st_console_t *console, uint32_t codepoint);
+int st_console_move_cells(st_console_t *console,
+	const struct st_console_rect *source, uint32_t destination_x,
+	uint32_t destination_y);
+/* The optional clearing cell must contain one resolved narrow glyph. */
+int st_console_move_cells_clear(st_console_t *console,
+	const struct st_console_rect *source, uint32_t destination_x,
+	uint32_t destination_y, const struct st_console_cell *fill);
+int st_console_scroll(st_console_t *console, int32_t lines,
+	uint32_t codepoint);
+int st_console_insert_lines(st_console_t *console, uint32_t count,
+	uint32_t codepoint);
+int st_console_delete_lines(st_console_t *console, uint32_t count,
+	uint32_t codepoint);
+
+/* Palette entries are packed 0x00RRGGBB.  count may be 65,536 when first is
+ * zero; otherwise the range must end at or before entry 65,535.
+ */
+int st_console_set_palette(st_console_t *console, uint16_t first,
+	const uint32_t *rgb, uint32_t count);
+int st_console_get_palette(st_console_t *console, uint16_t first,
+	uint32_t *rgb, uint32_t count);
+/* Registration affects later lookups and writes, not retained cells. */
+int st_console_register_static_font(st_console_t *console,
+	const struct st_console_font *font, uint16_t *identifier);
+int st_console_register_font_copy(st_console_t *console,
+	const struct st_console_font *font, uint16_t *identifier);
+int st_console_font_registered(st_console_t *console, uint16_t identifier,
+	bool *registered);
+uint16_t st_console_font_for_flags(
+	const struct st_console_font_selection *selection, uint32_t cell_flags);
+/*
+ * Resolve legacy selector flags before passing the resulting identifier here.
+ * glyph_font receives the registration that actually supplies the glyph.
+ */
+int st_console_font_lookup(st_console_t *console, uint16_t identifier,
+	uint32_t codepoint, uint16_t *glyph_font, uint32_t *glyph,
+	uint8_t *columns);
+int st_console_font_lookup_cluster(st_console_t *console, uint16_t identifier,
+	const char *text, size_t text_size, uint8_t columns,
+	uint16_t *glyph_font, uint32_t *glyph);
+int st_console_font_glyph_text(st_console_t *console, uint16_t identifier,
+	uint32_t glyph, char *text, size_t text_size, size_t *required);
+int st_console_font_glyph_columns(st_console_t *console,
+	uint16_t identifier, uint32_t glyph, uint8_t *columns);
+
+/*
+ * Pixel coordinates are zero-based and independent of the text window.
+ * Pixel colours use the same indexed/direct representation as cell colours.
+ */
+int st_console_pixel_size(st_console_t *console, uint32_t *width,
+	uint32_t *height);
+int st_console_set_pixel(st_console_t *console, uint32_t x, uint32_t y,
+	uint32_t colour);
+int st_console_get_pixels(struct st_pixel_buffer **result,
+	st_console_t *console, const struct st_console_rect *source,
+	bool force_text);
+int st_console_blit_pixels(st_console_t *console,
+	const struct st_pixel_buffer *source, const struct st_pixel_mask *mask,
+	const struct st_pixel_blit *blit);
+
+int st_console_snapshot_create(st_console_snapshot_t **result,
+	st_console_t *console);
+int st_console_snapshot_restore(st_console_t *console,
+	const st_console_snapshot_t *snapshot);
+void st_console_snapshot_destroy(st_console_snapshot_t *snapshot);
+
+/*
+ * Backends feed their complete input semantics into the ordered queue.
+ * A physical press may be followed by either a normalized key code or the
+ * text committed by the host input method, but not both for the same result.
+ * One input-method commit may contain more than one text event.
+ */
+/* Target this console's queue, even when inactive. */
+int st_console_post_event(st_console_t *console,
+	const struct st_console_event *event);
+/* Host input targets whichever console is active when delivery is locked.
+ * Physical-key state belongs to the display with either posting entry point.
+ */
+int st_console_display_post_event(st_console_display_t *display,
+	const struct st_console_event *event);
+int st_console_event_try(st_console_t *console,
+	struct st_console_event *event);
+int st_console_event_wait(st_console_t *console,
+	struct st_console_event *event);
+int st_console_event_timedwait(st_console_t *console,
+	struct st_console_event *event, const struct timespec *deadline);
+int st_console_events_clear(st_console_t *console);
+int st_console_physical_key_state(st_console_t *console, uint16_t evdev,
+	bool *pressed);
+/* Queue a synthetic edge only when it changes the display's held-key state. */
+int st_console_synthesize_physical_key(st_console_t *console, uint16_t evdev,
+	bool pressed);
+int st_console_display_physical_key_state(st_console_display_t *display,
+	uint16_t evdev, bool *pressed);
+
+/* Desktop/host operations can be independently unsupported by a backend. */
+int st_console_set_title(st_console_t *console, const char *title);
+int st_console_set_clipboard_text(st_console_t *console, const char *text);
+/* result is unchanged on failure; release it with st_console_free_text. */
+int st_console_get_clipboard_text(st_console_t *console, char **result);
+void st_console_free_text(char *text);
+int st_console_open_url(st_console_t *console, const char *url);
+int st_console_set_pointer_visible(st_console_t *console, bool visible);
+int st_console_set_pointer_shape(st_console_t *console,
+	enum st_console_pointer_shape shape);
+int st_console_set_fullscreen(st_console_t *console, bool fullscreen);
+int st_console_display_set_clipboard_text(st_console_display_t *display,
+	const char *text);
+int st_console_display_get_clipboard_text(st_console_display_t *display,
+	char **result);
+int st_console_display_open_url(st_console_display_t *display,
+	const char *url);
+int st_console_display_set_fullscreen(st_console_display_t *display,
+	bool fullscreen);
+/* Returns the physical window scale; result is unchanged on failure. */
+int st_console_display_get_scaling(st_console_display_t *display,
+	double *result);
+
+/* Libretro pulls the display's last completed frame, not a logical console.
+ * Size is advisory: a switch may change it before copy.  Copy validates both
+ * destination dimensions and leaves the destination untouched if too small.
+ */
+int st_console_display_libretro_frame_size(st_console_display_t *display,
+	uint32_t *width, uint32_t *height);
+int st_console_display_libretro_frame_copy(st_console_display_t *display,
+	uint32_t *destination, size_t destination_stride, size_t destination_rows);
+
+----
+Every console/display/snapshot pointer must refer to a live object of that
+kind, except where a destructor explicitly accepts NULL.  Configuration,
+rectangle, cell, font, event, pixel, title, and URL inputs are borrowed for the
+call unless registration says static lifetime or copy.  Result/output pointers
+are required unless the declaration's contract says optional and are unchanged
+on negative `IO_ERROR_*`.  Owned text/pixel/snapshot results must use the
+component's matching destructor.  Coordinates and rectangles are zero-based,
+nonempty where required, and checked against current dimensions.  Public calls
+may run concurrently on a live console, but owners must quiesce all calls before
+destroying a console or its display.
+
+[cols="3m,7"]
+|===
+| Function group | Parameters, result, and effect
+
+| st_console_backend_name(backend), st_console_build_features()
+| Return a static backend name and compile-time `ST_CONSOLE_BUILD_*` mask.
+
+| st_console_get_backend(console, result), st_console_display_get_backend(display, result)
+| Query the selected runtime backend.
+
+| st_console_display_create(result, config), st_console_display_destroy(display)
+| Create/destroy a physical display.  Destroy only after all attached consoles.
+
+| st_console_create(result, display_config, console_config)
+| Convenience constructor owning a private display and one logical console.
+
+| st_console_create_on_display(result, display, config)
+| Attaches a logical console; display must outlive it.
+
+| st_console_display_activate(display, console), st_console_display_active(display, result)
+| Synchronously switch/query the active attached console.
+
+| st_console_destroy(console)
+| Detaches and frees after external quiescence; may activate a remaining peer.
+
+| st_console_size(console, columns, rows), st_console_cell_pixel_size(console, width, height), st_console_pixel_size(console, width, height)
+| Query grid, cell, or complete raster dimensions.
+
+| st_console_capabilities(console, capabilities)
+| Returns runtime `ST_CONSOLE_CAP_*` bits; use these instead of backend names.
+
+| st_console_resize(console, columns, rows)
+| Validates and replaces logical geometry, retaining compatible state where
+specified by the console manual.
+
+| st_console_reconfigure(console, config)
+| Applies complete logical rendering policy without selecting a new display.
+|===
+
+==== Console cells and stateful text
+
+[cols="3m,7"]
+|===
+| Function group | Parameters, result, and effect
+
+| st_console_write_cells(console, rectangle, cells, stride)
+| Validates all semantic Unicode cells, resolves fonts/glyphs, then writes the
+rectangle transactionally.
+
+| st_console_write_complete_cells(console, rectangle, cells, stride)
+| Writes already resolved cells while preserving supplied font/glyph fields.
+
+| st_console_read_cells(console, rectangle, cells, stride)
+| Copies public cell state; private dirty flags are omitted.
+
+| st_console_fill(console, rectangle, cell)
+| Validates one semantic fill cell and applies it throughout the rectangle.
+
+| st_console_set_style(console, style), st_console_get_style(console, style)
+| Set/query current font, colors, hyperlink, and public style flags.
+
+| st_console_set_position(console, x, y), st_console_get_position(console, x, y)
+| Set/query cursor write position within the current text window.
+
+| st_console_set_window(console, window), st_console_get_window(console, window)
+| Set/query clipping/scroll rectangle; setting moves position to its origin.
+
+| st_console_set_wrap(console, wrap)
+| Enable/disable automatic right-margin wrap.
+
+| st_console_put_codepoint(console, codepoint)
+| Applies control/text semantics for one scalar using current state.
+
+| st_console_put_decode_error(console)
+| Writes the console's visible decode-error representation.
+
+| st_console_write_utf8(console, text, size)
+| Strictly validates the complete counted UTF-8 string before changing cells.
+
+| st_console_clear_window(console, codepoint), st_console_clear_line(console, codepoint)
+| Fill current window/line using the supplied one-column scalar.
+
+| st_console_move_cells(console, source, destination_x, destination_y), st_console_move_cells_clear(console, source, destination_x, destination_y, fill)
+| Snapshot-move a rectangle, optionally clearing its source with validated
+one-column content.
+
+| st_console_scroll(console, lines, codepoint), st_console_insert_lines(console, count, codepoint), st_console_delete_lines(console, count, codepoint)
+| Move cached cells/rasters within the current window and fill exposed rows.
+|===
+
+==== Console cursor, presentation, palette, and fonts
+
+[cols="3m,7"]
+|===
+| Function group | Parameters, result, and effect
+
+| st_console_set_cursor(console, visible, shape), st_console_get_cursor(console, visible, shape)
+| Set/query visibility, standard shape, and scanline bounds.
+
+| st_console_get_default_cursor(console, cursor), st_console_set_default_cursor(console, cursor)
+| Query/replace the mode's default cursor description.
+
+| st_console_set_custom_cursor(console, cursor), st_console_get_custom_cursor(console, cursor)
+| Set/query custom bitmap cursor data where capability permits it.
+
+| st_console_set_blink_mode(console, mode), st_console_get_blink_mode(console, mode)
+| Select/query text and cursor blink policy.
+
+| st_console_set_video_flags(console, flags), st_console_get_video_flags(console, flags)
+| Set/query legacy attribute interpretation flags.
+
+| st_console_set_scaling_mode(console, mode), st_console_get_scaling_mode(console, mode)
+| Set/query internal versus external scale policy.
+
+| st_console_set_blocky_scaling(console, blocky), st_console_get_blocky_scaling(console, blocky)
+| Select/query blocky versus pointy software filter policy.
+
+| st_console_set_aspect_ratio(console, width, height), st_console_get_aspect_ratio(console, width, height)
+| Set/query positive logical display aspect ratio.
+
+| st_console_begin_update(console), st_console_end_update(console)
+| Enter/leave nestable batching; balance each successful begin.
+
+| st_console_present(console)
+| Synchronous forced drain/present boundary, including inside a batch.
+
+| st_console_set_palette(console, first, rgb, count), st_console_get_palette(console, first, rgb, count)
+| Bounds-checked range update/query of packed RGB palette entries.
+
+| st_console_register_static_font(console, font, identifier)
+| Registers borrowed immutable process-lifetime font storage.
+
+| st_console_register_font_copy(console, font, identifier)
+| Registers owned copies of bitmap/mappings.
+
+| st_console_font_registered(console, identifier, result)
+| Tests whether an internal identifier currently exists.
+
+| st_console_font_for_flags(selection, cell_flags)
+| Resolves source bright/blink selector policy to an internal font identifier.
+
+| st_console_font_lookup(console, identifier, codepoint, glyph_font, glyph, columns), st_console_font_lookup_cluster(console, identifier, text, text_size, columns, glyph_font, glyph)
+| Resolve scalar or grapheme cluster to font/glyph/columns using fallback.
+
+| st_console_font_glyph_text(console, identifier, glyph, text, text_size, required), st_console_font_glyph_columns(console, identifier, glyph, columns)
+| Query retained mapping text/width for a concrete font glyph.
+|===
+
+==== Console pixels, snapshots, and input
+
+[cols="3m,7"]
+|===
+| Function group | Parameters, result, and effect
+
+| st_console_set_pixel(console, x, y, colour)
+| Writes one raster pixel to both blink planes and marks the intersecting cell
+pixel-based.
+
+| st_console_get_pixels(result, console, source, force_text)
+| Returns an owned pixel buffer for the pixel-coordinate source rectangle;
+`force_text` redraws retained text cells instead of preserving pixel graphics.
+
+| st_console_blit_pixels(console, source, mask, blit)
+| Applies the shared clipped/scaled/masked blit to console raster planes.
+
+| st_console_snapshot_create(result, console)
+| Drains and copies restorable logical state; snapshot remains bound to its
+originating console/dimensions.
+
+| st_console_snapshot_restore(console, snapshot)
+| Restores a compatible origin snapshot; registered fonts are not copied.
+
+| st_console_snapshot_destroy(snapshot)
+| Frees snapshot storage.
+
+| st_console_post_event(console, event)
+| Queues an event explicitly on this logical console.
+
+| st_console_display_post_event(display, event)
+| Queues host input on whichever console is active when delivery serializes.
+
+| st_console_event_try(console, event), st_console_event_wait(console, event), st_console_event_timedwait(console, event, deadline)
+| Dequeue by polling, indefinite wait, or absolute deadline.
+
+| st_console_events_clear(console)
+| Drops queued events without changing held physical-key state.
+
+| st_console_physical_key_state(console, evdev, pressed), st_console_display_physical_key_state(display, evdev, pressed)
+| Query evdev-style held state/modifiers from console/display context.
+
+| st_console_synthesize_physical_key(console, evdev, pressed)
+| Atomically queues only a real held-state transition.
+|===
+
+==== Console host operations
+
+[cols="3m,7"]
+|===
+| Function group | Parameters, result, and effect
+
+| st_console_set_title(console, title)
+| Retains a per-console UTF-8 title and applies it when active.
+
+| st_console_set_clipboard_text(console, text), st_console_get_clipboard_text(console, result)
+| Single-console forwarding operations for display clipboard.  Get returns
+owned text released with `st_console_free_text()`.
+
+| st_console_open_url(console, url)
+| Requests host URL handling; unavailable backends return not-supported.
+
+| st_console_set_pointer_visible(console, visible), st_console_set_pointer_shape(console, shape)
+| Retain/apply per-console pointer preferences.
+
+| st_console_set_fullscreen(console, fullscreen)
+| Single-console forwarding operation for physical fullscreen.
+
+| st_console_display_set_clipboard_text(display, text), st_console_display_get_clipboard_text(display, result), st_console_display_open_url(display, url), st_console_display_set_fullscreen(display, fullscreen)
+| Explicit physical-display forms of the same host operations.
+
+| st_console_display_get_scaling(display, result)
+| Writes the active bitmap window's single physical/source scale factor,
+including aspect correction; `result` is unchanged on failure.
+
+| st_console_display_libretro_frame_size(display, width, height)
+| Queries the last completed pull-based frame dimensions.
+
+| st_console_display_libretro_frame_copy(display, destination, destination_stride, destination_rows)
+| Copies that retained XRGB frame only when destination stride/capacity fit;
+a size change after query therefore fails safely.
+|===
