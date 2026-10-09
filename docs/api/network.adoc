@@ -1,0 +1,123 @@
+[[api-network]]
+== Networking, security, and byte streams
+
+The lower layers expose native byte streams and provider-neutral crypto.  The
+upper layers compose them into TLS, conditional downloads, encrypted lists,
+and stateful SyncTERM connections.  Do not pass provider or native-library
+objects across these boundaries.
+
+=== Sockets and connection establishment
+
+[cols="2m,2m,5"]
+|===
+| Target | Header | Contract
+
+| `syncterm_socket`
+| link:socket/socket.h[socket.h]
+| Portable native socket handles, runtime setup/cleanup, blocking mode,
+options, send/receive, urgent data, shutdown, and readiness waiting.  Each
+successful runtime initialization needs matching cleanup.  Send/receive
+return nonnegative byte counts or `IO_ERROR_*`; zero receive means EOF.
+`socket_wait()` uses relative milliseconds and reports timeout as
+`IO_ERROR_TIMED_OUT`.  Test: `socket`.
+
+| `syncterm_tcp_client`
+| link:tcp_client/tcp_client.h[tcp_client.h]
+| Blocking TCP connection establishment with IPv4/IPv6 address racing.  The
+caller owns socket-runtime setup.  Resolution is synchronous and occurs before
+the connect deadline and cancellation polling; the cancellation callback runs
+on the calling thread.  Success returns a blocking socket.  Tests: `tcp_client`
+and `tcp_client_algorithm`.
+|===
+
+=== Cryptography and TLS
+
+[cols="2m,2m,5"]
+|===
+| Target | Header | Contract
+
+| `xptls::crypto`
+| link:xptls_crypto/xp_crypto.h[xp_crypto.h],
+link:xptls_crypto/xp_digest.h[xp_digest.h],
+link:xptls_crypto/xp_cipher.h[xp_cipher.h],
+link:xptls_crypto/xp_kdf.h[xp_kdf.h]
+| Provider-neutral random bytes, secure clearing, digests, whole-buffer
+ciphers, PBKDF2, and bounded scrypt.  APIs return `XP_CRYPTO_*` rather than
+`IO_ERROR_*`.  Provider name/version strings have static lifetime.  Cipher
+operations do not add padding; callers supply complete blocks and exact
+algorithm-specific key/IV sizes.  Clear passwords and derived secrets before
+freeing or reusing their storage.  Test: `xp_crypto`.
+
+| `st_tls`
+| link:xptls/st_tls.h[st_tls.h]
+| Client-only certificate or PSK TLS over an already connected socket.  Socket
+ownership transfers only when `st_tls_client_open()` succeeds; the session
+makes it nonblocking and closes it during `st_tls_close()`.  Any PSK field
+selects PSK-only authentication and therefore requires identity, secret, and
+an exact TLS version.  Peer-certificate DER and diagnostic strings are
+borrowed.  Send, receive, flush, and terminate use explicit timeouts.  Test
+when the selected provider supports it: `st_tls_psk`.
+
+| `st_consent_token`
+| link:consent_token/st_consent_token.h[st_consent_token.h]
+| Generates a 32-byte key and signs/verifies picker paths as malloc-owned
+Base64 tokens.  Results use `XP_CRYPTO_*`; verification returns a newly
+allocated path rather than a borrowed token substring.  Test: `consent_token`.
+|===
+
+=== Downloads and encrypted documents
+
+[cols="2m,2m,5"]
+|===
+| Target | Header | Contract
+
+| `st_webget`
+| link:webget/st_webget.h[st_webget.h]
+| Synchronous HTTP/HTTPS conditional-cache download.  Request strings and
+callback contexts are borrowed only during the call.  Cache metadata is bound
+to the exact URL; old or mismatched metadata forces unconditional validation.
+The existing installed output remains intact unless download, size limits,
+optional validation, and replacement all succeed.  Progress may cancel by
+returning false.  Tests: `webget` and `webget_transport`.
+
+| `st_list_crypto`
+| link:list_crypto/st_list_crypto.h[st_list_crypto.h]
+| Inspection and read/write of plain, legacy-v1, and current-v2 BBS-list INI
+streams.  Inspection preserves stream state and never derives a password.
+Read replaces the document only on complete success.  Current encrypted writes
+use AES-128/AES-256 or ChaCha20 with scrypt; the caller provides a stream
+already positioned and prepared for replacement.  The component does not make
+that write atomic.  Test: `list_crypto`.
+|===
+
+=== Serial and application connections
+
+[cols="2m,2m,5"]
+|===
+| Target | Header | Contract
+
+| `st_serial`
+| link:serial/serial.h[serial.h]
+| Opaque serial ports, complete configuration, timed byte I/O, modem lines,
+and enumerable baud rates.  Opening does not change device configuration;
+`configure` applies a complete valid configuration or rejects unsupported
+rates/modes instead of approximating.  One reader and one writer may run
+concurrently, but configuration and modem-line operations may not race I/O.
+Stop all users before close.  Tests: `serial` and POSIX `serial_pty`.
+
+| `st_connection`
+| link:connection/st_connection.h[st_connection.h]
+| Stateful raw, RLogin, serial, modem, and shell byte streams selected from an
+`st_profile`.  Setup hooks run during connection; log hooks and their contexts
+remain valid through close and may be called by either worker thread.  Normal
+send/receive applies protocol processing while the `_raw` forms access the
+underlying byte queue.  Zero timeout polls, `-1` waits forever, and positive
+short counts are valid.  Close stops and joins both workers; it must not race
+another public operation.  Tests: `connection`, `connection_partial_input`,
+platform shell shutdown, and `connection_serial`.
+|===
+
+The connection library is a transport/service component; it does not itself
+run the terminal parser or connected-session application loop.  Keep screen
+geometry updates, Wren connected contexts, and terminal emulation coordinated
+by the application layer.

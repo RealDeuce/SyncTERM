@@ -1,0 +1,105 @@
+[[api-application]]
+== Wren and application assembly
+
+This layer composes the project libraries into persistent menu/picker state,
+per-connection scripting state, startup policy, and the executable.  The C
+host boundary is documented here; Wren-visible classes and methods are
+authoritatively documented in link:Wren.adoc[Wren.adoc].
+
+=== Wren VM
+
+Target `st_wren_vm` is the vendored Wren interpreter with its meta and random
+optional modules.  Its public embedding header is
+link:wren_vm/include/wren.h[wren.h], and its upstream layout/license note
+is link:wren_vm/README.md[wren_vm/README.md].  SyncTERM keeps the vendor
+implementation private and disables computed-goto extensions so it remains a
+portable C17 target.  The `st_wren_vm_link` test verifies the embedding link
+surface.
+
+Do not add SyncTERM policy directly to the VM.  New product bindings belong in
+`st_wren_host`, where their ownership, VM availability, and safe-mode behavior
+can be tested independently of the interpreter.
+
+=== SyncTERM Wren host
+
+Target `st_wren_host`; C header:
+link:wren_host/st_wren_host.h[st_wren_host.h].
+
+`st_wren_host_t` owns the persistent menu VM and isolated picker support.  Its
+configuration borrows the display, menu console, optional picker console,
+application paths, session history, audio runtime, and application-lifetime
+hyperlink registry.  Those objects must outlive the host.  The host is not a
+general concurrent VM service; its caller serializes host/VM operations.
+
+`st_wren_host_run_menu()` runs until the menu exits or selects a profile.  The
+destination profile must already be initialized and is replaced only when
+`has_selection` is true.  URL selection builds the same temporary profile as
+the Wren quick-connect path.  Screen-mode and last-error queries are borrowed
+observations of host state.
+
+Each `st_wren_connected_t` is a fresh connected-session VM associated with one
+profile and logical console.  It borrows its host, console, profile, and
+optional SFTP provider for its lifetime.  Pumping dispatches queued host work;
+interpret adds source to that VM; shell closure delivers the matching lifecycle
+event.  Destroy the connected context before any borrowed object.
+
+The provider-neutral SFTP interface is asynchronous:
+
+* `submit` must copy every request pointer before returning and issue an ID
+  unique among unpolled requests.
+* `poll` returns one response, no response, or an error.  Every pointer in a
+  response is borrowed only for that `poll` call.
+* `cancel_all` is the shutdown boundary.  The provider context remains owned
+  by the connection layer.
+
+On the Wren side, async results resume captured fibers; Wren is cooperative and
+single-threaded, not an `async`/`await` runtime.  Menu, picker, and connected
+VMs have different available bindings and lifetimes.  Module resolution checks
+the root user script directory, then the active event directory, then embedded
+modules.  Follow link:WREN_GUIDANCE.md[WREN_GUIDANCE.md] before editing
+scripts or bindings.
+
+Tests include `wren_host`, the `wren_*` script suites, directory and picker
+tests, and the loader audit cases registered by `wren_host/CMakeLists.txt`.
+
+=== Startup policy
+
+Target `st_app_startup` exposes three small policy headers:
+
+[cols="2m,5"]
+|===
+| Header | Contract
+
+| link:app/st_command_line.h[st_command_line.h]
+| Parses borrowed `argv` storage into an action, path/script/URL choices,
+backend and presentation policy, connection defaults, geometry, and safe-mode
+flags.  `invalid_argument` identifies rejected borrowed input.
+
+| link:app/st_console_startup.h[st_console_startup.h]
+| Merges settings and command-line policy into separate logical-console and
+physical-display configurations plus initial fullscreen state.
+
+| link:app/st_app_state.h[st_app_state.h]
+| Decides whether a clean normal exit may persist runtime scaling, accounting
+for safe mode and the startup/current screen modes.
+|===
+
+Tests: `app_startup` and `command_line_empty_backend`.
+
+`app/st_terminfo.h` is the narrow executable helper which writes SyncTERM's
+terminfo source to a caller-owned stream.  It is exercised by
+`syncterm_terminfo` rather than exposed as a reusable library target.
+
+=== Executable
+
+Target `syncterm_app` produces the `syncterm` executable.  It owns process
+startup/shutdown ordering: command parsing, application paths, settings,
+display and logical consoles, fonts, themes, audio runtime, hyperlinks,
+session history, and the Wren host.  It links `st_console_main` where that
+platform entry wrapper exists.
+
+Keep executable code as orchestration.  Reusable parsing, policy, state, or
+mechanisms belong in the narrow component which owns them, with a public header
+only when another target is a real consumer.  Early command tests are
+`syncterm_help`, `syncterm_version`, and `syncterm_terminfo`; they do not prove
+interactive backend or connected-session behavior.

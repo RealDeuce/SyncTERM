@@ -1,0 +1,129 @@
+[[api-media]]
+== Audio, pixels, fonts, and console
+
+These components own presentation data and devices.  Pixel buffers and fonts
+are deliberately visible data structures for efficient drawing; engines,
+streams, scalers, displays, and consoles retain opaque lifetimes.
+
+=== Audio
+
+[cols="2m,2m,5"]
+|===
+| Target | Header | Contract
+
+| `st_audio_mixer`
+| link:audio_mixer/audio_mixer.h[audio_mixer.h]
+| Internal fixed-format software mixer for signed 16-bit stereo frames.  A
+mixer owns streams; stream queues support copied or ownership-transferred
+buffers, fades, crossfade, loops, volume ramps, draining, and cancellation.
+Blocking backends use ticketed pull/acknowledge so “played” does not mean only
+“copied into a temporary buffer.”  Test: `st_audio_mixer`.
+
+| `st_audio`
+| link:audio/audio.h[audio.h]
+| Public fixed-format playback at 44.1 kHz, native-endian signed 16-bit stereo.
+All counts are frames.  Only one engine may exist per process; it owns the
+selected backend and destroys surviving streams.  Appends are asynchronous;
+drain snapshots the buffers present at entry and rejects an unterminated loop.
+Stream operations are thread-safe, but destruction may not race operations.
+The API also converts legacy unsigned 8-bit mono data and synthesizes tones.
+Test: `st_audio`; optional audible smoke testing is not part of CTest.
+
+| `st_audio` runtime helper
+| link:audio/st_audio_runtime.h[st_audio_runtime.h]
+| Application-owned lazy engine creation and allowed-backend policy.  Acquire
+returns a borrowed engine valid until runtime destruction.  The allowed mask
+controls lazy creation only while no engine exists; changing it does not
+replace an existing engine or transfer caller ownership.
+|===
+
+=== Pixels and images
+
+Target `st_pixels`; header: link:pixels/st_pixels.h[st_pixels.h].
+
+`st_pixel_buffer` stores palette indexes or `ST_PIXEL_COLOR_RGB_TAG` values and
+may carry an alternate blink plane.  `st_rgb_buffer` is narrower packed
+`0x00RRGGBB` data used after palette resolution.  Buffers are nonempty,
+contiguous, and row-major; masks are contiguous MSB-first bits.  Blits clip,
+scale by integer factors, optionally reflect, preserve alternate content, and
+snapshot self-blits.
+
+The persistent scaler accepts RGB input, same-size output, or upscaling only.
+Its returned plane is borrowed until the next scale call or destruction.
+`scale_region` reuses an existing plan and expands damage through the filter
+dependency radius.  See link:pixels/README.md[pixels/README.md] for the
+scaling pipeline contract.  Tests: `st_pixels` and `st_scaler`; the benchmark
+target is not a pass/fail test.
+
+Target `st_pixel_image`; header:
+link:pixel_image/st_pixel_image.h[st_pixel_image.h].  It decodes PPM into
+a pixel buffer and PBM into a mask, and optionally decodes JPEG XL when the
+runtime library is available.  Result pointers remain unchanged on failure;
+query `st_pixel_image_jxl_supported()` before promising JXL support.  Test:
+`pixel_image`.
+
+=== Fonts
+
+[cols="2m,2m,5"]
+|===
+| Target | Header | Contract
+
+| `st_fonts`
+| link:fonts/st_builtin_fonts.h[st_builtin_fonts.h]
+| Catalog of built-in legacy bitmap fonts and their codepages.  A lookup must
+match exact cell dimensions; returned bitmap/mapping storage is borrowed for
+process lifetime.
+
+| `st_fonts`
+| link:fonts/st_presentation_font.h[st_presentation_font.h]
+| Builds an owned presentation font by augmenting a base console font with
+drawable missing-text glyphs.  Destroy it with
+`st_presentation_font_destroy()`.
+
+| `st_fonts`
+| link:fonts/st_unicode_fonts.h[st_unicode_fonts.h]
+| Static compiled UNSCII 8- and 16-pixel console font objects.
+
+| `st_unifont` (optional)
+| link:unifont/st_unifont.h[st_unifont.h]
+| Static GNU Unifont-derived composite console font, built only when
+`SYNCTERM_ENABLE_UNIFONT` is enabled.  Its licensing is distinct from the
+project's BSD-licensed code; see the root license notices.
+|===
+
+Tests: `fonts` and, when enabled, `unifont`.
+
+=== Console
+
+Target `st_console`; public header:
+link:console/st_console.h[st_console.h].  The detailed user-facing API is
+link:Console.adoc[Console.adoc], while
+link:console/README.md[console/README.md] records backend and threading
+contracts.
+
+The key composition rules are:
+
+* A display owns one physical backend, presentation machinery, and active
+  logical console.  A console owns cells, pixels, fonts, palette, cursor,
+  events, and desired presentation state.  The display outlives every console
+  attached to it.
+* `st_console_create()` is the single-console convenience form.
+  Multi-console applications create a display and use
+  `st_console_create_on_display()`, switching synchronously with
+  `st_console_display_activate()`.
+* Cell, Unicode text, window, palette, font, pixel, snapshot, input-event, and
+  host-integration operations are separate API groups.  Batch related raster
+  changes between `begin_update` and `end_update`; balance every successful
+  begin.
+* Backend events enter through the display and remain queued on the console
+  active when they arrived.  Display and console lifetimes require external
+  quiescence at destruction.
+* Capability bits, not backend names, decide whether palette changes, pixels,
+  custom cursors, clipboard, URL opening, or scaling modes are available.
+* Desktop executables link `st_console_main` as well as `st_console`; its
+  interface renames the application's main and supplies the platform entry
+  wrapper needed for main-thread GUI ownership.
+
+Core and backend CTests are named `st_console*`.  Availability-dependent GUI
+tests exercise only the backend present in that build/environment; a dummy or
+headless run is not evidence for every native desktop behavior.

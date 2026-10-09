@@ -1,0 +1,122 @@
+[[api-models]]
+== Configuration and application models
+
+These components turn foundation services into SyncTERM's persistent and
+in-memory models.  Their returned views are frequently borrowed and
+generation-scoped; a successful reload or mutation normally invalidates them.
+
+=== INI documents and profiles
+
+[cols="2m,2m,5"]
+|===
+| Target | Header | Contract
+
+| `syncterm_ini`
+| link:ini/ini.h[ini.h]
+| Round-trip-preserving INI documents with Unicode canonical-caseless lookup.
+Parsing retains repeated physical sections/keys, comments, and file order;
+lookup selects the last matching section block and last matching key in it.
+Names and values are strict NFC UTF-8 under the grammar in the header.  All
+returned section/item/string views are invalidated by the next document
+mutation.  Typed getters fall back to their supplied default; typed setters
+apply an explicit write style.  Parse/clone/read replace results only after
+complete success.  Tests: `ini` and `ini_interface`.
+
+| `st_profile`
+| link:profile/st_profile.h[st_profile.h]
+| Connection-profile value object, serialized enums, fixed-size user fields,
+and owned optional path strings.  Initialize before use, dispose once, and
+copy only into an initialized destination.  `st_profile_copy()` preserves the
+old destination on allocation failure.  Connection-type default ports are
+centralized here.  Test: `profile`.
+|===
+
+=== Settings
+
+`st_settings` combines a copyable settings value with one process-global
+store.  Value objects own their optional strings, name/value lists, and custom
+font entries; initialize, copy, and dispose them like profiles.
+
+The global store is bound to `st_app_paths` from `st_settings_load()` until
+`st_settings_shutdown()`.  A missing file installs defaults without creating
+the file.  Save performs a locked read/merge/write transaction and returns
+`IO_ERROR_CONFLICT` when the same field changed differently on disk.
+`st_settings_save_value()` persists before publishing, so a failed save does
+not alter running state.  The font-draft API intentionally merges only
+`Font:` sections and has a separate baseline/reload lifecycle.
+
+Target: `st_settings`; header:
+link:settings/st_settings.h[st_settings.h].  Tests: `settings`,
+`settings_store`, and `settings_failures`.
+
+=== Themes
+
+Target `st_theme` exposes two related lifetimes in
+link:theme/st_theme.h[st_theme.h]:
+
+* A theme manager owns the compiled default, active theme, local catalog,
+  online catalog/cache, and generation counter.  Catalog rows are borrowed
+  until the next successful catalog refresh or manager destruction.  The
+  active-theme pointer follows the installed/preview theme and must be
+  reacquired after preview, selection, cancellation, or settings apply.
+  Preview is reversible; select installs the chosen identity.  Prepare/install
+  separates fallible settings work from the state change.
+* A theme document is an editor transaction which borrows its manager.  It
+  exposes metadata, style, and glyph views; tracks dirty state and undo/redo;
+  imports another document's definitions; and reports detailed save outcomes.
+  Destroy every document before its manager.
+
+The complete file grammar, inheritance cascade, registries, online-package
+rules, and editor behavior are in link:Themes.adoc[Themes.adoc].  Test:
+`theme`.
+
+=== BBS directory
+
+Target `st_bbs_list`; header:
+link:bbs_list/st_bbs_list.h[st_bbs_list.h].
+
+An `st_bbs_list_t` merges personal, shared, system-web, and named-web sources
+into one view.  The opened list copies and later clears password bytes.  Entry,
+profile, diagnostic, defaults, shadow, and crypto-info pointers are borrowed;
+any successful rebuild or mutation which advances the generation invalidates
+them.  Serialize access to one list object.
+
+Mutations publish a fully built candidate view and advance the generation once
+after persistence succeeds.  Cache maintenance is secondary: a committed
+mutation still returns success and reports cache failure through
+`st_bbs_mutation_result`.  A write error can partially alter the personal-list
+file but never publishes the candidate view.  Web refresh has both an opened
+list operation and a cache-only startup operation.  Sorting uses normalized
+stable field identifiers; the historical shifted alias remains accepted.
+
+Tests: `bbs_list`, `bbs_failures`, `bbs_cache_safety`, and `bbs_web`.
+
+=== Display/session models
+
+[cols="2m,2m,5"]
+|===
+| Target | Header | Contract
+
+| `st_screen_mode`
+| link:screen_mode/st_screen_mode.h[st_screen_mode.h]
+| Authoritative built-in mode names, geometry, console configuration,
+palette, default attribute, and font selector.  Descriptor pointers are
+borrowed static data.  `st_screen_mode_custom()` validates and constructs the
+custom mode; palette conversion translates DOS attribute order into console
+indexes.  Test: `screen_mode`.
+
+| `st_session_history`
+| link:session_history/st_session_history.h[st_session_history.h]
+| A synchronized, detached scrollback snapshot retained after a connected
+session ends.  Publish copies only the newest lines which fit capacity.  Copy
+returns caller-owned cell storage freed with `free()`; info returns metadata
+without the cell allocation.  Test: `session_history`.
+
+| `st_hyperlink`
+| link:hyperlink/st_hyperlink.h[st_hyperlink.h]
+| Application-lifetime registry mapping nonzero 16-bit identifiers to copied
+URI/parameter spans.  IDs are stable and never reused before registry
+destruction.  Copy returns owned strings disposed with
+`st_hyperlink_dispose()`; registry operations synchronize their own state.
+Test: `hyperlink`.
+|===

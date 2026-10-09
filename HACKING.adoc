@@ -1,0 +1,162 @@
+= Hacking on SyncTERM
+:toc: left
+:toclevels: 3
+:source-highlighter: highlight.js
+
+This guide is the entry point for working on the modern SyncTERM source tree.
+It describes how the C components fit together and collects their API
+contracts in one document.  The declarations in the linked public headers
+remain authoritative; these chapters explain how to use those declarations
+without losing ownership, failure, or concurrency invariants.
+
+== Build and test
+
+SyncTERM is a C17 CMake project.  Configure it independently of the legacy
+Synchronet tree and always use an out-of-source build:
+
+[source,sh]
+----
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+cmake --build build
+ctest --test-dir build --output-on-failure
+----
+
+`BUILD_TESTING`, inherited from CTest, controls test targets.  The
+`SYNCTERM_ENABLE_UNIFONT` option controls the optional GPLv2+-derived composite
+font and is enabled by default.  Less common test-only options live beside the
+component which uses them; inspect that component's `CMakeLists.txt` before
+enabling one.
+
+To iterate on a component, build its library or test target and select its
+CTest name:
+
+[source,sh]
+----
+cmake --build build --target st_theme_test
+ctest --test-dir build --output-on-failure -R '^theme$'
+----
+
+Do not add or repair legacy makefiles.  Capability checks and generated
+configuration headers belong in the build tree, and a new target must set
+`C_STANDARD 17`, `C_STANDARD_REQUIRED YES`, and `C_EXTENSIONS NO`.
+
+== Component model
+
+Each component owns one responsibility, its allocation boundary, and its
+platform mechanisms.  Consumers link its CMake target and include its public
+header; they do not reach into an `_internal.h` header or copy a native handle
+out of an opaque object.
+
+[source,text]
+----
+application and Wren host
+        |
+models: settings, themes, BBS lists, profiles, screen modes
+        |
+services: connections, web cache, TLS, audio, console
+        |
+mechanisms: files, sockets, threads, Unicode, containers
+        |
+POSIX or Windows implementation selected by capability
+----
+
+This is a dependency direction, not a rule that every upper component must use
+every lower one.  CMake expresses the actual edges with target-level
+`PUBLIC` and `PRIVATE` dependencies.
+
+Public headers are source-level component boundaries inside SyncTERM.  They
+are not a stable third-party ABI unless a declaration is explicitly identified
+as an external boundary.  On Windows, internal component APIs are not DLL
+exports; only launcher-facing and libretro declarations cross the application
+DLL boundary.
+
+The legacy sources below `/synchronet` are read-only reference material.  New
+or extracted code belongs in this tree, one responsibility-focused directory
+and `CMakeLists.txt` per component.  Use tabs for C indentation, keep changes
+reviewable, and avoid copying unused compatibility APIs merely because the
+legacy library provided them.  link:AGENTS.md[AGENTS.md] contains the complete
+development rules followed by maintainers and coding agents.
+
+== Common API rules
+
+Most fallible project APIs return zero on success and a negative
+`IO_ERROR_*` value on failure.  Byte-count APIs use `ssize_t` so that
+nonnegative counts and negative errors share one result.  Important
+exceptions are called out in the component chapters: `st_threads` returns
+`ST_THREAD_*`, the crypto provider returns `XP_CRYPTO_*`, and some collection
+mutators return `bool` or `enum array_list_insert_result`.
+
+Unless a header says otherwise:
+
+* An opaque object returned through `T **result` is owned by the caller and is
+  released by that component's matching close, destroy, dispose, or free
+  operation.
+* A `const` pointer returned from an object is borrowed.  It normally remains
+  valid only until that object is mutated or destroyed.
+* “Result is unchanged on failure” is a transaction guarantee.  Do not clear
+  or free the old result before calling such an API.
+* A function which consumes an argument says so explicitly.  Do not use a
+  consumed object even when cleanup reports an error.
+* Destruction is not implicit synchronization.  Owners stop new calls, signal
+  shutdown where necessary, join workers, and only then destroy shared state.
+* UTF-8 text is validated where the public contract says it is text.  Counted
+  byte strings, passwords, wire data, and mapped files may contain NUL bytes.
+
+Use the generated `syncterm_config.h` only for capabilities established by
+CMake.  `syncterm_types.h` supplies the narrow Windows `ssize_t` compatibility
+definition; it is not a general portability umbrella.
+
+== Adding or changing an API
+
+Start from the consumer.  Add the smallest operation needed, identify who owns
+every input and result, and state which views a mutation invalidates.  For
+fallible mutation, decide whether the operation is transactional, partially
+committing, or consuming, then make the header and tests say the same thing.
+
+Keep platform policy in the common implementation and platform mechanisms
+behind a narrow internal interface.  Prefer a complete compile/link capability
+probe over compiler or operating-system guesses.  A public dependency belongs
+in `target_link_libraries(... PUBLIC ...)` only when the public header or the
+link interface requires it.
+
+Every component API change should normally include:
+
+* header documentation for ownership, valid ranges, invalidation, and errors;
+* focused success, boundary, and failure-path tests;
+* CMake registration under a stable CTest name;
+* both native and practical cross-toolchain verification when platform code
+  changes; and
+* an update to the relevant chapter below when the component's role or
+  composition contract changes.
+
+== API guide
+
+The following chapters cover all project-owned library targets.  Internal
+headers are implementation details and the vendored Wren VM retains its own
+upstream API.
+
+include::docs/api/foundation.adoc[]
+
+include::docs/api/system.adoc[]
+
+include::docs/api/network.adoc[]
+
+include::docs/api/models.adoc[]
+
+include::docs/api/media.adoc[]
+
+include::docs/api/application.adoc[]
+
+== Product and scripting manuals
+
+* link:Manual.txt[SyncTERM user manual]
+* link:Console.adoc[console API and rendering semantics]
+* link:Themes.adoc[theme files, roles, glyphs, and editor behavior]
+* link:Wren.adoc[authoritative SyncTERM Wren API]
+* link:WREN_GUIDANCE.md[Wren implementation guidance]
+* link:cterm.adoc[retained CTerm protocol specification]
+
+Before editing Wren source or bindings, read both `WREN_GUIDANCE.md` and the
+relevant `Wren.adoc` sections.  Before moving legacy code, trace actual modern
+consumers and their transitive needs; this project does not aim to recreate
+general-purpose `xpdev`, `conio`, or `ciolib` libraries.
