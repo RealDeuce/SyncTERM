@@ -487,9 +487,8 @@ features, nor a claim that the consciously deferred CTerm port is itself a new
 regression. Recommend a clear current-implementation scope notice while
 preserving the legacy CTerm specification unchanged.
 
-Additional documentation gaps: Manual.txt references Themes.adoc, which is
-absent from this repository. Its opening still claims this project lives in
-the Synchronet git repository. The connected GHost section gives a
+Additional documentation gaps: Manual.txt's opening still claims this project
+lives in the Synchronet git repository. The connected GHost section gives a
 ghost:// URL while the earlier supported-scheme list omits it. These are
 source-checked documentation gaps;
 no GUI, network connection, personal settings or distribution was exercised.
