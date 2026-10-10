@@ -90,8 +90,8 @@ pixel_dimensions(uint32_t columns, uint32_t rows, uint32_t cell_width,
 	return true;
 }
 
-static void
-initialize_palette(uint32_t palette[UINT16_MAX + 1U])
+static uint32_t
+default_palette_entry(uint32_t index)
 {
 	static const uint32_t system[16] = {
 		0x000000, 0xa80000, 0x00a800, 0xa85400,
@@ -109,22 +109,40 @@ initialize_palette(uint32_t palette[UINT16_MAX + 1U])
 		0xb6b6b6, 0x6d6d6d, 0xff6d6d, 0x6dff6d,
 		0xffff6d, 0x6d6dff, 0xff6dff, 0x6dffff,
 	};
+	uint32_t value;
 
-	memset(palette, 0, (UINT16_MAX + 1U) * sizeof(palette[0]));
-	memcpy(palette, system, sizeof(system));
-	for (uint32_t index = 16; index < 232; ++index) {
-		uint32_t value = index - 16;
-
-		palette[index] = ((uint32_t)cube[value / 36] << 16)
+	if (index < 16)
+		return system[index];
+	if (index < 232) {
+		value = index - 16;
+		return ((uint32_t)cube[value / 36] << 16)
 		    | ((uint32_t)cube[(value / 6) % 6] << 8)
 		    | cube[value % 6];
 	}
-	for (uint32_t index = 232; index < 256; ++index) {
-		uint32_t value = 8 + (index - 232) * 10;
-
-		palette[index] = (value << 16) | (value << 8) | value;
+	if (index < 256) {
+		value = 8 + (index - 232) * 10;
+		return (value << 16) | (value << 8) | value;
 	}
-	memcpy(&palette[256], legacy_tail, sizeof(legacy_tail));
+	if (index < 256 + sizeof(legacy_tail) / sizeof(legacy_tail[0]))
+		return legacy_tail[index - 256];
+	return 0;
+}
+
+int
+st_console_get_default_palette(uint16_t first, uint32_t *rgb, uint32_t count)
+{
+	if (rgb == NULL || count > UINT16_MAX + UINT32_C(1) - first)
+		return IO_ERROR_INVALID_ARGUMENT;
+	for (uint32_t offset = 0; offset < count; ++offset)
+		rgb[offset] = default_palette_entry((uint32_t)first + offset);
+	return 0;
+}
+
+static void
+initialize_palette(uint32_t palette[UINT16_MAX + 1U])
+{
+	(void)st_console_get_default_palette(0, palette,
+	    UINT16_MAX + UINT32_C(1));
 }
 
 static void

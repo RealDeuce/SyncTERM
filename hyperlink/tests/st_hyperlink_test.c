@@ -28,6 +28,12 @@ struct thread_context {
 };
 
 static int
+mark_one(void *context, st_hyperlink_mark_fn mark, void *mark_context)
+{
+	return mark(mark_context, *(const uint16_t *)context);
+}
+
+static int
 add_from_thread(void *opaque)
 {
 	struct thread_context *context = opaque;
@@ -109,6 +115,15 @@ main(void)
 	identifier = 27;
 	CHECK(st_hyperlink_registry_add(registry, "x", 1, NULL, 0,
 	    &identifier) == IO_ERROR_OUT_OF_RANGE && identifier == 27);
+	CHECK(st_hyperlink_registry_register_root(registry, mark_one, &first) == 0);
+	CHECK(st_hyperlink_registry_collect(registry) == 0);
+	CHECK(st_hyperlink_registry_contains(registry, first, &contains) == 0
+	    && contains);
+	CHECK(st_hyperlink_registry_contains(registry, distinct, &contains) == 0
+	    && !contains);
+	CHECK(st_hyperlink_registry_add(registry, "reused", 6, NULL, 0,
+	    &identifier) == 0 && identifier == 2);
+	st_hyperlink_registry_unregister_root(registry, mark_one, &first);
 	CHECK(st_hyperlink_registry_copy(registry, first, &link) == 0
 	    && strcmp(link.uri, uri) == 0);
 	st_hyperlink_dispose(&link);

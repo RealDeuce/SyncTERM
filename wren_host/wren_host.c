@@ -16,6 +16,7 @@
 #include "st_console.h"
 #include "st_font_catalog.h"
 #include "st_screen_mode.h"
+#include "st_session_history.h"
 #include "st_settings.h"
 #include "st_theme.h"
 #include "st_unicode_text.h"
@@ -35,6 +36,69 @@ _Static_assert(ST_BUILTIN_FONT_COUNT == 46U,
 	"Wren font selectors reserve 0 through 45 for built-ins");
 
 static int reload_custom_fonts_current(struct st_wren_context *context);
+
+static int
+mark_console_hyperlinks(st_console_t *console, st_hyperlink_mark_fn mark,
+	void *mark_context)
+{
+	struct st_console_cell *cells;
+	struct st_console_rect rect;
+	uint32_t columns;
+	uint32_t rows;
+	size_t count;
+	int status;
+
+	status = st_console_size(console, &columns, &rows);
+	if (status != 0)
+		return status;
+	if (columns == 0 || rows == 0)
+		return 0;
+	if ((size_t)columns > SIZE_MAX / rows
+	    || (size_t)columns * rows > SIZE_MAX / sizeof(*cells))
+		return IO_ERROR_OUT_OF_RANGE;
+	count = (size_t)columns * rows;
+	cells = malloc(count * sizeof(*cells));
+	if (cells == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	rect = (struct st_console_rect){0, 0, columns, rows};
+	status = st_console_read_cells(console, &rect, cells, columns);
+	for (size_t i = 0; status == 0 && i < count; ++i)
+		status = mark(mark_context, cells[i].hyperlink);
+	free(cells);
+	return status;
+}
+
+static int
+mark_host_hyperlinks(void *context, st_hyperlink_mark_fn mark,
+	void *mark_context)
+{
+	struct st_wren_host *host = context;
+	struct st_console_cell *history = NULL;
+	uint32_t width;
+	size_t lines;
+	enum st_screen_mode mode;
+	bool has_status;
+	int status;
+
+	status = mark_console_hyperlinks(host->menu.console, mark, mark_context);
+	if (status == 0 && host->picker.console != host->menu.console)
+		status = mark_console_hyperlinks(host->picker.console, mark,
+		    mark_context);
+	if (status == 0)
+		status = st_wren_mark_surface_hyperlinks(host, mark, mark_context);
+	if (status != 0 || host->config.session_history == NULL)
+		return status;
+	status = st_session_history_copy(host->config.session_history, &history,
+	    &width, &lines, &mode, &has_status);
+	if (status == IO_ERROR_NOT_FOUND)
+		return 0;
+	if (status != 0)
+		return status;
+	for (size_t i = 0; status == 0 && i < (size_t)width * lines; ++i)
+		status = mark(mark_context, history[i].hyperlink);
+	free(history);
+	return status;
+}
 
 bool
 st_wren_text_slot(WrenVM *vm, int slot, const char **text, int *length)
@@ -1068,6 +1132,13 @@ st_wren_host_create(st_wren_host_t **result,
 	host->picker.host = host;
 	host->picker.console = config->picker_console != NULL
 	    ? config->picker_console : config->console;
+	status = st_hyperlink_registry_register_root(config->hyperlinks,
+	    mark_host_hyperlinks, host);
+	if (status != 0) {
+		free(host);
+		return status;
+	}
+	host->hyperlink_root_registered = true;
 	host->font_generation = 1;
 	host->settings_generation = 1;
 	st_settings_font_draft_init(&host->font_draft);
@@ -1181,6 +1252,11 @@ st_wren_host_destroy(st_wren_host_t *host)
 {
 	if (host == NULL)
 		return;
+	if (host->hyperlink_root_registered) {
+		st_hyperlink_registry_unregister_root(host->config.hyperlinks,
+		    mark_host_hyperlinks, host);
+		host->hyperlink_root_registered = false;
+	}
 	st_wren_picker_host_dispose(host);
 	if (host->vm != NULL && host->menu_status_clear != NULL)
 		wrenReleaseHandle(host->vm, host->menu_status_clear);

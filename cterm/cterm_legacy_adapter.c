@@ -13,48 +13,48 @@
 #include "st_base64.h"
 #include "st_utf8.h"
 
+#include <limits.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
 
-const struct video_params vparams[1] = {
-	{.mode = C80, .cols = 80, .rows = 25, .charheight = 16,
-	    .charwidth = 8, .default_attr = 7, .aspect_width = 4,
-	    .aspect_height = 3},
-};
-
-const struct dac_colors dac_default[256] = {{0, 0, 0}};
-
-struct st_cterm_cio_api cio_api = {
-	.options = CONIO_OPT_LOADABLE_FONTS | CONIO_OPT_PALETTE_SETTING
-	    | CONIO_OPT_SET_PIXEL | CONIO_OPT_CUSTOM_CURSOR
-	    | CONIO_OPT_EXTENDED_PALETTE | CONIO_OPT_FONT_SELECT
-	    | CONIO_OPT_KEY_EVENTS | CONIO_OPT_BRIGHT_BACKGROUND
-	    | CONIO_OPT_PRESTEL_REVEAL,
-	.vmem_gettext = (void *)(uintptr_t)1,
-	.mouse = (void *)(uintptr_t)1,
-};
-
-static uint32_t
-legacy_colour(uint32_t colour)
+void
+st_cterm_adapter_record_error(struct cterminal *cterm, int error)
 {
-	static const uint8_t map[16] = {
-		0, 4, 2, 6, 1, 5, 3, 7, 8, 12, 10, 14, 9, 13, 11, 15,
-	};
+	if (cterm != NULL && error != 0 && cterm->screen.error == 0)
+		cterm->screen.error = error;
+}
 
-	return map[colour & 15U];
+int
+st_cterm_adapter_take_error(struct cterminal *cterm)
+{
+	int error;
+
+	if (cterm == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	error = cterm->screen.error;
+	cterm->screen.error = 0;
+	return error;
+}
+
+static bool
+adapter_succeeded(struct cterminal *cterm, int status)
+{
+	if (status != 0)
+		st_cterm_adapter_record_error(cterm, status);
+	return status == 0;
 }
 
 void
-st_cterm_adapter_attr2palette(uint8_t attribute, uint32_t *foreground,
-	uint32_t *background)
+st_cterm_adapter_attr2palette(struct cterminal *cterm, uint8_t attribute,
+	uint32_t *foreground, uint32_t *background)
 {
 	if (foreground != NULL)
-		*foreground = legacy_colour(attribute & 15U);
+		*foreground = cterm->screen.mode_palette[attribute & 15U];
 	if (background != NULL)
-		*background = legacy_colour((attribute >> 4) & 7U);
+		*background = cterm->screen.mode_palette[(attribute >> 4) & 7U];
 }
 
 static uint16_t
@@ -66,12 +66,18 @@ font_identifier(const struct cterminal *cterm, uint8_t selector)
 }
 
 static uint32_t
-cell_flags(const struct vmem_cell *source)
+cell_flags(const struct cterminal *cterm, const struct vmem_cell *source)
 {
 	uint32_t flags = ST_CONSOLE_CELL_LEGACY_FOREGROUND
 	    | ST_CONSOLE_CELL_LEGACY_BACKGROUND;
 
-	if ((source->legacy_attr & 8U) != 0)
+	if ((source->bg & CIOLIB_BG_PRESTEL) != 0
+	    && (source->legacy_attr & 8U) != 0) {
+		flags |= ST_CONSOLE_CELL_CONCEAL;
+		if (cterm->screen.prestel_reveal)
+			flags |= ST_CONSOLE_CELL_REVEAL;
+	}
+	else if ((source->legacy_attr & 8U) != 0)
 		flags |= ST_CONSOLE_CELL_BRIGHT;
 	if ((source->legacy_attr & BLINK) != 0)
 		flags |= ST_CONSOLE_CELL_BLINK;
@@ -108,7 +114,7 @@ modern_cell(struct cterminal *cterm, const struct vmem_cell *source,
 		    | CIOLIB_BG_PRESTEL | CIOLIB_BG_PIXEL_GRAPHICS
 		    | CIOLIB_BG_REVEAL | CIOLIB_BG_DIRTY | CIOLIB_BG_SEPARATED
 		    | CIOLIB_BG_PRESTEL_TERMINAL),
-		.flags = cell_flags(source),
+		.flags = cell_flags(cterm, source),
 		.font = selected,
 		.glyph_font = selected,
 		.hyperlink = source->hyperlink_id,
@@ -171,6 +177,8 @@ legacy_cell(struct cterminal *cterm, const struct st_console_cell *source,
 	    | ((background & 7U) << 4));
 	if ((source->flags & ST_CONSOLE_CELL_BRIGHT) != 0)
 		destination->legacy_attr |= 8U;
+	if ((source->flags & ST_CONSOLE_CELL_CONCEAL) != 0)
+		destination->legacy_attr |= 8U;
 	if ((source->flags & ST_CONSOLE_CELL_BLINK) != 0)
 		destination->legacy_attr |= BLINK;
 	destination->fg = source->foreground;
@@ -197,25 +205,40 @@ legacy_cell(struct cterminal *cterm, const struct st_console_cell *source,
 void
 st_cterm_adapter_gettextinfo(struct cterminal *cterm, struct text_info *info)
 {
-	struct st_console_rect window;
-	struct st_console_style style;
+	struct st_console_rect window = {0};
 	uint32_t columns = 0;
 	uint32_t rows = 0;
 	uint32_t x = 0;
 	uint32_t y = 0;
+	int status;
 
-	(void)st_console_size(cterm->screen.console, &columns, &rows);
-	(void)st_console_get_window(cterm->screen.console, &window);
-	(void)st_console_get_position(cterm->screen.console, &x, &y);
-	(void)st_console_get_style(cterm->screen.console, &style);
+	status = st_console_size(cterm->screen.console, &columns, &rows);
+	if (status == 0)
+		status = st_console_get_window(cterm->screen.console, &window);
+	if (status == 0)
+		status = st_console_get_position(cterm->screen.console, &x, &y);
+	if (!adapter_succeeded(cterm, status)) {
+		*info = (struct text_info){0};
+		return;
+	}
+	if (columns > UINT8_MAX || rows > UINT8_MAX
+	    || window.x >= UINT8_MAX || window.y >= UINT8_MAX
+	    || window.width > UINT8_MAX - window.x
+	    || window.height > UINT8_MAX - window.y
+	    || x < window.x || y < window.y
+	    || x - window.x >= UINT8_MAX || y - window.y >= UINT8_MAX) {
+		st_cterm_adapter_record_error(cterm, IO_ERROR_OUT_OF_RANGE);
+		*info = (struct text_info){0};
+		return;
+	}
 	*info = (struct text_info){
 		.winleft = (uint8_t)(window.x + 1),
 		.wintop = (uint8_t)(window.y + 1),
 		.winright = (uint8_t)(window.x + window.width),
 		.winbottom = (uint8_t)(window.y + window.height),
 		.attribute = cterm->attr,
-		.normattr = 7,
-		.currmode = C80,
+		.normattr = (uint8_t)cterm->screen.video_params[0].default_attr,
+		.currmode = (uint8_t)cterm->screen.video_params[0].mode,
 		.screenheight = (uint8_t)rows,
 		.screenwidth = (uint8_t)columns,
 		.curx = (uint8_t)(x - window.x + 1),
@@ -227,15 +250,16 @@ int
 st_cterm_adapter_getvideoflags(struct cterminal *cterm)
 {
 	uint32_t flags = 0;
-	(void)st_console_get_video_flags(cterm->screen.console, &flags);
+	(void)adapter_succeeded(cterm,
+	    st_console_get_video_flags(cterm->screen.console, &flags));
 	return (int)flags;
 }
 
 void
 st_cterm_adapter_setvideoflags(struct cterminal *cterm, int flags)
 {
-	(void)st_console_set_video_flags(cterm->screen.console,
-	    (uint32_t)flags & ST_CONSOLE_VIDEO_FLAGS);
+	(void)adapter_succeeded(cterm, st_console_set_video_flags(
+	    cterm->screen.console, (uint32_t)flags & ST_CONSOLE_VIDEO_FLAGS));
 }
 
 void
@@ -252,7 +276,8 @@ st_cterm_adapter_window(struct cterminal *cterm, int left, int top,
 		.width = (uint32_t)(right - left + 1),
 		.height = (uint32_t)(bottom - top + 1),
 	};
-	(void)st_console_set_window(cterm->screen.console, &window);
+	(void)adapter_succeeded(cterm,
+	    st_console_set_window(cterm->screen.console, &window));
 }
 
 void
@@ -260,11 +285,14 @@ st_cterm_adapter_gotoxy(struct cterminal *cterm, int x, int y)
 {
 	struct st_console_rect window;
 
-	if (x < 1 || y < 1
-	    || st_console_get_window(cterm->screen.console, &window) != 0)
+	if (x < 1 || y < 1)
 		return;
-	(void)st_console_set_position(cterm->screen.console,
-	    window.x + (uint32_t)x - 1, window.y + (uint32_t)y - 1);
+	if (!adapter_succeeded(cterm,
+	    st_console_get_window(cterm->screen.console, &window)))
+		return;
+	(void)adapter_succeeded(cterm, st_console_set_position(
+	    cterm->screen.console, window.x + (uint32_t)x - 1,
+	    window.y + (uint32_t)y - 1));
 }
 
 int
@@ -274,8 +302,10 @@ st_cterm_adapter_wherex(struct cterminal *cterm)
 	uint32_t x, y;
 
 	if (st_console_get_window(cterm->screen.console, &window) != 0
-	    || st_console_get_position(cterm->screen.console, &x, &y) != 0)
+	    || st_console_get_position(cterm->screen.console, &x, &y) != 0) {
+		st_cterm_adapter_record_error(cterm, IO_ERROR_IO);
 		return 1;
+	}
 	return (int)(x - window.x + 1);
 }
 
@@ -286,8 +316,10 @@ st_cterm_adapter_wherey(struct cterminal *cterm)
 	uint32_t x, y;
 
 	if (st_console_get_window(cterm->screen.console, &window) != 0
-	    || st_console_get_position(cterm->screen.console, &x, &y) != 0)
+	    || st_console_get_position(cterm->screen.console, &x, &y) != 0) {
+		st_cterm_adapter_record_error(cterm, IO_ERROR_IO);
 		return 1;
+	}
 	return (int)(y - window.y + 1);
 }
 
@@ -296,10 +328,11 @@ st_cterm_adapter_textattr(struct cterminal *cterm, int attribute)
 {
 	struct st_console_style style;
 
-	if (st_console_get_style(cterm->screen.console, &style) != 0)
+	if (!adapter_succeeded(cterm,
+	    st_console_get_style(cterm->screen.console, &style)))
 		return;
 	cterm->attr = (uint8_t)attribute;
-	st_cterm_adapter_attr2palette(cterm->attr, &style.foreground,
+	st_cterm_adapter_attr2palette(cterm, cterm->attr, &style.foreground,
 	    &style.background);
 	style.flags = ST_CONSOLE_CELL_LEGACY_FOREGROUND
 	    | ST_CONSOLE_CELL_LEGACY_BACKGROUND;
@@ -310,7 +343,8 @@ st_cterm_adapter_textattr(struct cterminal *cterm, int attribute)
 	style.font = font_identifier(cterm,
 	    st_cterm_adapter_attrfont(cterm, cterm->attr));
 	style.hyperlink = cterm->screen.current_hyperlink;
-	(void)st_console_set_style(cterm->screen.console, &style);
+	(void)adapter_succeeded(cterm,
+	    st_console_set_style(cterm->screen.console, &style));
 }
 
 void
@@ -319,18 +353,20 @@ st_cterm_adapter_setcolour(struct cterminal *cterm, uint32_t foreground,
 {
 	struct st_console_style style;
 
-	if (st_console_get_style(cterm->screen.console, &style) != 0)
+	if (!adapter_succeeded(cterm,
+	    st_console_get_style(cterm->screen.console, &style)))
 		return;
 	style.foreground = foreground;
 	style.background = background;
-	(void)st_console_set_style(cterm->screen.console, &style);
+	(void)adapter_succeeded(cterm,
+	    st_console_set_style(cterm->screen.console, &style));
 }
 
 void
 st_cterm_adapter_cursor(struct cterminal *cterm, int cursor)
 {
-	(void)st_console_set_cursor(cterm->screen.console, cursor != _NOCURSOR,
-	    ST_CONSOLE_CURSOR_BLOCK);
+	(void)adapter_succeeded(cterm, st_console_set_cursor(cterm->screen.console,
+	    cursor != _NOCURSOR, ST_CONSOLE_CURSOR_BLOCK));
 }
 
 void
@@ -339,7 +375,8 @@ st_cterm_adapter_getcustomcursor(struct cterminal *cterm, int *start,
 {
 	struct st_console_custom_cursor cursor;
 
-	if (st_console_get_custom_cursor(cterm->screen.console, &cursor) != 0)
+	if (!adapter_succeeded(cterm,
+	    st_console_get_custom_cursor(cterm->screen.console, &cursor)))
 		cursor = (struct st_console_custom_cursor){0};
 	*start = (int)cursor.start;
 	*end = (int)cursor.end;
@@ -363,12 +400,23 @@ st_cterm_adapter_setcustomcursor(struct cterminal *cterm, int start,
 		.blink = blink != 0,
 		.visible = visible != 0,
 	};
-	(void)st_console_set_custom_cursor(cterm->screen.console, &cursor);
+	(void)adapter_succeeded(cterm,
+	    st_console_set_custom_cursor(cterm->screen.console, &cursor));
 }
 
 int
 st_cterm_adapter_putch(struct cterminal *cterm, int value)
 {
+	struct st_console_rect window;
+	struct st_console_rect destination;
+	struct st_console_cell cell;
+	struct vmem_cell source;
+	uint32_t x;
+	uint32_t y;
+	uint32_t right;
+	uint32_t bottom;
+	int status;
+
 	if (value == 7) {
 		audio_engine_t *engine = NULL;
 		if (cterm->screen.audio != NULL
@@ -376,9 +424,84 @@ st_cterm_adapter_putch(struct cterminal *cterm, int value)
 			(void)audio_beep(engine, 800.0, 100);
 		return value;
 	}
-	return st_console_put_codepoint(cterm->screen.console,
-	    st_codepage_to_unicode(cterm->screen.codepage, (uint8_t)value, true))
-	    == 0 ? value : -1;
+	status = st_console_get_window(cterm->screen.console, &window);
+	if (status == 0)
+		status = st_console_get_position(cterm->screen.console, &x, &y);
+	if (!adapter_succeeded(cterm, status))
+		return -1;
+	right = window.x + window.width;
+	bottom = window.y + window.height;
+	switch ((uint8_t)value) {
+	case '\r':
+		status = st_console_set_position(cterm->screen.console, window.x, y);
+		break;
+	case '\n':
+		if (y + 1 < bottom)
+			status = st_console_set_position(cterm->screen.console, x, y + 1);
+		else if (cterm->screen.wscroll != 0)
+			status = st_console_scroll(cterm->screen.console, 1, ' ');
+		else
+			status = 0;
+		break;
+	case '\b':
+		if (x == window.x)
+			return value;
+		--x;
+		status = st_console_set_position(cterm->screen.console, x, y);
+		if (status != 0)
+			break;
+		source = (struct vmem_cell){
+			.ch = ' ', .legacy_attr = cterm->attr,
+			.fg = cterm->fg_color, .bg = cterm->bg_color,
+			.font = st_cterm_adapter_attrfont(cterm, cterm->attr),
+			.hyperlink_id = cterm->screen.current_hyperlink,
+		};
+		status = modern_cell(cterm, &source, &cell);
+		if (status == 0) {
+			destination = (struct st_console_rect){x, y, 1, 1};
+			status = st_console_write_complete_cells(cterm->screen.console,
+			    &destination, &cell, 1);
+		}
+		break;
+	case '\t': {
+		uint32_t spaces = 8 - ((x - window.x) % 8);
+
+		status = 0;
+		while (spaces-- != 0 && status == 0)
+			status = st_cterm_adapter_putch(cterm, ' ') < 0
+			    ? IO_ERROR_IO : 0;
+		break;
+	}
+	default:
+		source = (struct vmem_cell){
+			.ch = (uint8_t)value, .legacy_attr = cterm->attr,
+			.fg = cterm->fg_color, .bg = cterm->bg_color,
+			.font = st_cterm_adapter_attrfont(cterm, cterm->attr),
+			.hyperlink_id = cterm->screen.current_hyperlink,
+		};
+		status = modern_cell(cterm, &source, &cell);
+		if (status == 0) {
+			destination = (struct st_console_rect){x, y, 1, 1};
+			status = st_console_write_complete_cells(cterm->screen.console,
+			    &destination, &cell, 1);
+		}
+		if (status != 0)
+			break;
+		if (x + 1 < right)
+			status = st_console_set_position(cterm->screen.console, x + 1, y);
+		else if (y + 1 < bottom)
+			status = st_console_set_position(cterm->screen.console,
+			    window.x, y + 1);
+		else {
+			if (cterm->screen.wscroll != 0)
+				status = st_console_scroll(cterm->screen.console, 1, ' ');
+			if (status == 0)
+				status = st_console_set_position(cterm->screen.console,
+				    window.x, bottom - 1);
+		}
+		break;
+	}
+	return adapter_succeeded(cterm, status) ? value : -1;
 }
 
 int
@@ -394,13 +517,15 @@ st_cterm_adapter_cputs(struct cterminal *cterm, const char *text)
 void
 st_cterm_adapter_clrscr(struct cterminal *cterm)
 {
-	(void)st_console_clear_window(cterm->screen.console, ' ');
+	(void)adapter_succeeded(cterm,
+	    st_console_clear_window(cterm->screen.console, ' '));
 }
 
 void
 st_cterm_adapter_clreol(struct cterminal *cterm)
 {
-	(void)st_console_clear_line(cterm->screen.console, ' ');
+	(void)adapter_succeeded(cterm,
+	    st_console_clear_line(cterm->screen.console, ' '));
 }
 
 int
@@ -416,15 +541,17 @@ st_cterm_adapter_puttext(struct cterminal *cterm, int left, int top,
 		return 0;
 	count = (size_t)(right - left + 1) * (size_t)(bottom - top + 1);
 	cells = calloc(count, sizeof(*cells));
-	if (cells == NULL)
+	if (cells == NULL) {
+		st_cterm_adapter_record_error(cterm, IO_ERROR_OUT_OF_MEMORY);
 		return 0;
+	}
 	for (size_t i = 0; i < count; ++i) {
 		cells[i].ch = input[i * 2];
 		cells[i].legacy_attr = input[i * 2 + 1];
 		cells[i].font = st_cterm_adapter_attrfont(cterm,
 		    cells[i].legacy_attr);
-		st_cterm_adapter_attr2palette(cells[i].legacy_attr, &cells[i].fg,
-		    &cells[i].bg);
+		st_cterm_adapter_attr2palette(cterm, cells[i].legacy_attr,
+		    &cells[i].fg, &cells[i].bg);
 		cells[i].hyperlink_id = cterm->screen.current_hyperlink;
 	}
 	status = st_cterm_adapter_vmem_puttext(cterm, left, top, right, bottom,
@@ -449,8 +576,10 @@ st_cterm_adapter_vmem_puttext(struct cterminal *cterm, int left, int top,
 	    (uint32_t)(bottom - top + 1)};
 	count = (size_t)rect.width * rect.height;
 	modern = calloc(count, sizeof(*modern));
-	if (modern == NULL)
+	if (modern == NULL) {
+		st_cterm_adapter_record_error(cterm, IO_ERROR_OUT_OF_MEMORY);
 		return 0;
+	}
 	for (size_t i = 0; i < count; ++i) {
 		status = modern_cell(cterm, &cells[i], &modern[i]);
 		if (status != 0)
@@ -460,6 +589,8 @@ st_cterm_adapter_vmem_puttext(struct cterminal *cterm, int left, int top,
 		status = st_console_write_complete_cells(cterm->screen.console,
 		    &rect, modern, rect.width);
 	free(modern);
+	if (status != 0)
+		st_cterm_adapter_record_error(cterm, status);
 	return status == 0;
 }
 
@@ -479,8 +610,10 @@ st_cterm_adapter_vmem_gettext(struct cterminal *cterm, int left, int top,
 	    (uint32_t)(bottom - top + 1)};
 	count = (size_t)rect.width * rect.height;
 	modern = malloc(count * sizeof(*modern));
-	if (modern == NULL)
+	if (modern == NULL) {
+		st_cterm_adapter_record_error(cterm, IO_ERROR_OUT_OF_MEMORY);
 		return 0;
+	}
 	status = st_console_read_cells(cterm->screen.console, &rect, modern,
 	    rect.width);
 	if (status == 0) {
@@ -488,6 +621,8 @@ st_cterm_adapter_vmem_gettext(struct cterminal *cterm, int left, int top,
 			legacy_cell(cterm, &modern[i], &cells[i]);
 	}
 	free(modern);
+	if (status != 0)
+		st_cterm_adapter_record_error(cterm, status);
 	return status == 0;
 }
 
@@ -503,9 +638,9 @@ st_cterm_adapter_movetext(struct cterminal *cterm, int left, int top,
 	rect = (struct st_console_rect){(uint32_t)(left - 1),
 	    (uint32_t)(top - 1), (uint32_t)(right - left + 1),
 	    (uint32_t)(bottom - top + 1)};
-	return st_console_move_cells(cterm->screen.console, &rect,
-	    (uint32_t)(destination_left - 1), (uint32_t)(destination_top - 1))
-	    == 0;
+	return adapter_succeeded(cterm, st_console_move_cells(
+	    cterm->screen.console, &rect, (uint32_t)(destination_left - 1),
+	    (uint32_t)(destination_top - 1)));
 }
 
 int
@@ -517,15 +652,17 @@ st_cterm_adapter_movetext_clear(struct cterminal *cterm, int left, int top,
 	struct st_console_cell modern;
 
 	if (left < 1 || top < 1 || right < left || bottom < top
-	    || destination_left < 1 || destination_top < 1
-	    || modern_cell(cterm, fill, &modern) != 0)
+	    || destination_left < 1 || destination_top < 1)
+		return 0;
+	if (!adapter_succeeded(cterm, modern_cell(cterm, fill, &modern)))
 		return 0;
 	rect = (struct st_console_rect){(uint32_t)(left - 1),
 	    (uint32_t)(top - 1), (uint32_t)(right - left + 1),
 	    (uint32_t)(bottom - top + 1)};
-	return st_console_move_cells_clear(cterm->screen.console, &rect,
+	return adapter_succeeded(cterm, st_console_move_cells_clear(
+	    cterm->screen.console, &rect,
 	    (uint32_t)(destination_left - 1), (uint32_t)(destination_top - 1),
-	    &modern) == 0;
+	    &modern));
 }
 
 struct ciolib_pixels *
@@ -540,11 +677,13 @@ st_cterm_adapter_getpixels(struct cterminal *cterm, uint32_t left,
 		return NULL;
 	rect = (struct st_console_rect){left, top, right - left + 1,
 	    bottom - top + 1};
-	if (st_console_get_pixels(&modern, cterm->screen.console, &rect,
-	    force != 0) != 0)
+	int status = st_console_get_pixels(&modern, cterm->screen.console, &rect,
+	    force != 0);
+	if (!adapter_succeeded(cterm, status))
 		return NULL;
 	result = malloc(sizeof(*result));
 	if (result == NULL) {
+		st_cterm_adapter_record_error(cterm, IO_ERROR_OUT_OF_MEMORY);
 		st_pixel_buffer_destroy(modern);
 		return NULL;
 	}
@@ -572,10 +711,19 @@ st_cterm_adapter_setpixels(struct cterminal *cterm, uint32_t left,
 	uint32_t y_offset, uint32_t mask_x, uint32_t mask_y,
 	struct ciolib_pixels *pixels, struct ciolib_mask *mask)
 {
-	struct st_pixel_buffer source = {pixels->pixels, pixels->pixelsb,
-	    pixels->width, pixels->height};
+	struct st_pixel_buffer source;
 	struct st_pixel_mask modern_mask;
-	struct st_pixel_blit blit = {
+	struct st_pixel_blit blit;
+	const struct st_pixel_mask *mask_pointer = NULL;
+
+	if (pixels == NULL || pixels->pixels == NULL || right < left
+	    || bottom < top) {
+		st_cterm_adapter_record_error(cterm, IO_ERROR_INVALID_ARGUMENT);
+		return 0;
+	}
+	source = (struct st_pixel_buffer){pixels->pixels, pixels->pixelsb,
+	    pixels->width, pixels->height};
+	blit = (struct st_pixel_blit){
 		.source_x = x_offset,
 		.source_y = y_offset,
 		.width = right - left + 1,
@@ -587,15 +735,13 @@ st_cterm_adapter_setpixels(struct cterminal *cterm, uint32_t left,
 		.mask_x = mask_x,
 		.mask_y = mask_y,
 	};
-	const struct st_pixel_mask *mask_pointer = NULL;
-
 	if (mask != NULL) {
 		modern_mask = (struct st_pixel_mask){mask->bits, mask->width,
 		    mask->height};
 		mask_pointer = &modern_mask;
 	}
-	return st_console_blit_pixels(cterm->screen.console, &source,
-	    mask_pointer, &blit) == 0;
+	return adapter_succeeded(cterm, st_console_blit_pixels(
+	    cterm->screen.console, &source, mask_pointer, &blit));
 }
 
 int
@@ -608,8 +754,8 @@ st_cterm_adapter_setpalette(struct cterminal *cterm, uint32_t entry,
 		return 0;
 	colour = ((uint32_t)(red >> 8) << 16)
 	    | ((uint32_t)(green >> 8) << 8) | (blue >> 8);
-	return st_console_set_palette(cterm->screen.console, (uint16_t)entry,
-	    &colour, 1) == 0;
+	return adapter_succeeded(cterm, st_console_set_palette(
+	    cterm->screen.console, (uint16_t)entry, &colour, 1));
 }
 
 int
@@ -618,8 +764,10 @@ st_cterm_adapter_getpalette(struct cterminal *cterm, uint32_t entry,
 {
 	uint32_t colour;
 
-	if (entry > UINT16_MAX || st_console_get_palette(cterm->screen.console,
-	    (uint16_t)entry, &colour, 1) != 0)
+	if (entry > UINT16_MAX)
+		return 0;
+	if (!adapter_succeeded(cterm, st_console_get_palette(
+	    cterm->screen.console, (uint16_t)entry, &colour, 1)))
 		return 0;
 	*red = (uint8_t)(colour >> 16);
 	*green = (uint8_t)(colour >> 8);
@@ -643,9 +791,10 @@ st_cterm_adapter_replace_font(struct cterminal *cterm, uint8_t selector,
 	struct st_console_font font;
 
 	(void)name;
-	if (size == 0 || size % 256 != 0
-	    || st_console_cell_pixel_size(cterm->screen.console, &width,
-	    &height) != 0)
+	if (size == 0 || size % 256 != 0)
+		return;
+	if (!adapter_succeeded(cterm, st_console_cell_pixel_size(
+	    cterm->screen.console, &width, &height)))
 		return;
 	font = (struct st_console_font){
 		.bitmap = data,
@@ -656,9 +805,10 @@ st_cterm_adapter_replace_font(struct cterminal *cterm, uint8_t selector,
 		.row_stride = ((size_t)width + 7) / 8,
 		.glyph_stride = size / 256,
 	};
-	if (font.row_stride * height != font.glyph_stride
-	    || st_console_register_font_copy(cterm->screen.console, &font,
-	    &identifier) != 0)
+	if (font.row_stride * height != font.glyph_stride)
+		return;
+	if (!adapter_succeeded(cterm, st_console_register_font_copy(
+	    cterm->screen.console, &font, &identifier)))
 		return;
 	cterm->screen.font_identifiers[selector] = identifier;
 	cterm->screen.font_valid[selector] = true;
@@ -668,8 +818,102 @@ int
 st_cterm_adapter_get_modepalette(struct cterminal *cterm, uint32_t *palette)
 {
 	for (uint32_t i = 0; i < 16; ++i)
-		palette[i] = i;
-	(void)cterm;
+		palette[i] = cterm->screen.mode_palette[i];
+	return 1;
+}
+
+int
+st_cterm_adapter_set_modepalette(struct cterminal *cterm,
+	const uint32_t *palette)
+{
+	if (palette == NULL)
+		return 0;
+	for (size_t i = 0; i < 16; ++i) {
+		if (palette[i] > UINT16_MAX)
+			return 0;
+	}
+	memcpy(cterm->screen.mode_palette, palette,
+	    sizeof(cterm->screen.mode_palette));
+	return 1;
+}
+
+int
+st_cterm_adapter_find_vmode(struct cterminal *cterm, int mode)
+{
+	struct video_params *parameters = &cterm->screen.video_params[0];
+	uint32_t columns;
+	uint32_t rows;
+	uint32_t width;
+	uint32_t height;
+	uint32_t aspect_width;
+	uint32_t aspect_height;
+	int status;
+
+	if (mode != parameters->mode)
+		return -1;
+	status = st_console_size(cterm->screen.console, &columns, &rows);
+	if (status == 0)
+		status = st_console_cell_pixel_size(cterm->screen.console, &width,
+		    &height);
+	if (status == 0)
+		status = st_console_get_aspect_ratio(cterm->screen.console,
+		    &aspect_width, &aspect_height);
+	if (!adapter_succeeded(cterm, status))
+		return -1;
+	if (width == 0 || height == 0 || columns > UINT8_MAX
+	    || rows > UINT8_MAX || width > INT_MAX
+	    || height > INT_MAX || aspect_width > INT_MAX
+	    || aspect_height > INT_MAX || columns > INT_MAX / width
+	    || rows > INT_MAX / height) {
+		st_cterm_adapter_record_error(cterm, IO_ERROR_OUT_OF_RANGE);
+		return -1;
+	}
+	parameters->cols = (int)columns;
+	parameters->rows = (int)rows;
+	parameters->charwidth = (int)width;
+	parameters->charheight = (int)height;
+	parameters->aspect_width = (int)aspect_width;
+	parameters->aspect_height = (int)aspect_height;
+	parameters->xres = (int)(columns * width);
+	parameters->yres = (int)(rows * height);
+	return 0;
+}
+
+int
+st_cterm_adapter_set_hold_update(struct cterminal *cterm, int hold)
+{
+	int normalized = hold != 0;
+	int status = 0;
+
+	if (normalized == (cterm->screen.hold_update != 0))
+		return cterm->screen.hold_update;
+	if (normalized)
+		status = st_console_begin_update(cterm->screen.console);
+	else
+		status = st_console_end_update(cterm->screen.console);
+	if (adapter_succeeded(cterm, status))
+		cterm->screen.hold_update = normalized;
+	return cterm->screen.hold_update;
+}
+
+int
+st_cterm_adapter_hold_update(const struct cterminal *cterm)
+{
+	return cterm->screen.hold_update;
+}
+
+int
+st_cterm_adapter_default_palette(uint32_t entry, uint8_t *red,
+	uint8_t *green, uint8_t *blue)
+{
+	uint32_t colour;
+
+	if (entry >= TOTAL_DAC_SIZE || red == NULL || green == NULL || blue == NULL
+	    || st_console_get_default_palette((uint16_t)entry, &colour, 1) != 0)
+		return 0;
+	*red = (uint8_t)(colour >> 16);
+	*green = (uint8_t)(colour >> 8);
+	*blue = (uint8_t)colour;
 	return 1;
 }
 
@@ -712,11 +956,14 @@ st_cterm_adapter_add_hyperlink(struct cterminal *cterm, const char *uri,
 	const char *parameter)
 {
 	uint16_t identifier = 0;
+	int status;
 
-	if (cterm->screen.hyperlinks != NULL && uri != NULL)
-		(void)st_hyperlink_registry_add(cterm->screen.hyperlinks, uri,
+	if (cterm->screen.hyperlinks != NULL && uri != NULL) {
+		status = st_hyperlink_registry_add(cterm->screen.hyperlinks, uri,
 		    strlen(uri), parameter, parameter == NULL ? 0 : strlen(parameter),
 		    &identifier);
+		st_cterm_adapter_record_error(cterm, status);
+	}
 	return identifier;
 }
 
@@ -757,9 +1004,11 @@ st_cterm_adapter_set_hyperlink(struct cterminal *cterm, uint16_t identifier)
 	struct st_console_style style;
 
 	cterm->screen.current_hyperlink = identifier;
-	if (st_console_get_style(cterm->screen.console, &style) == 0) {
+	if (adapter_succeeded(cterm,
+	    st_console_get_style(cterm->screen.console, &style))) {
 		style.hyperlink = identifier;
-		(void)st_console_set_style(cterm->screen.console, &style);
+		(void)adapter_succeeded(cterm,
+		    st_console_set_style(cterm->screen.console, &style));
 	}
 }
 
@@ -863,13 +1112,17 @@ st_cterm_adapter_savescreen(struct cterminal *cterm)
 	struct ciolib_screen *screen;
 	uint32_t columns, rows;
 
-	if (st_console_size(cterm->screen.console, &columns, &rows) != 0)
+	if (!adapter_succeeded(cterm,
+	    st_console_size(cterm->screen.console, &columns, &rows)))
 		return NULL;
 	screen = calloc(1, sizeof(*screen));
-	if (screen == NULL)
+	if (screen == NULL) {
+		st_cterm_adapter_record_error(cterm, IO_ERROR_OUT_OF_MEMORY);
 		return NULL;
+	}
 	screen->vmem = calloc((size_t)columns * rows, sizeof(*screen->vmem));
 	if (screen->vmem == NULL) {
+		st_cterm_adapter_record_error(cterm, IO_ERROR_OUT_OF_MEMORY);
 		free(screen);
 		return NULL;
 	}

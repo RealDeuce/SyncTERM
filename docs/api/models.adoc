@@ -115,8 +115,8 @@ without the cell allocation.  Test: `session_history`.
 | `st_hyperlink`
 | link:hyperlink/st_hyperlink.h[st_hyperlink.h]
 | Application-lifetime registry mapping nonzero 16-bit identifiers to copied
-URI/parameter spans.  IDs are stable and never reused before registry
-destruction.  Copy returns owned strings disposed with
-`st_hyperlink_dispose()`; registry operations synchronize their own state.
-Test: `hyperlink`.
+URI/parameter spans. Registered roots mark live IDs when the space is full;
+unreachable slots can then be reclaimed and reused. Copy returns owned strings
+disposed with `st_hyperlink_dispose()`; registry operations synchronize their
+own state. Test: `hyperlink`.
 |===

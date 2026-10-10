@@ -414,8 +414,11 @@ verify_key_tables(void)
 static void
 toggle_prestel_reveal(struct cterminal *cterm)
 {
-	cio_api.options ^= CONIO_OPT_PRESTEL_REVEAL;
 	struct ciolib_screen *savscrn = savescreen();
+
+	if (savscrn == NULL)
+		return;
+	cterm->screen.prestel_reveal = !cterm->screen.prestel_reveal;
 	ciolib_vmem_puttext(1, 1, savscrn->text_info.screenwidth,
 	    savscrn->text_info.screenheight, savscrn->vmem);
 	freescreen(savscrn);
@@ -1390,6 +1393,22 @@ cterm_setpalette(struct cterminal *cterm, uint32_t entry, uint16_t r, uint16_t g
 	return setpalette(entry, r, g, b);
 }
 
+int
+cterm_resetpalette(struct cterminal *cterm, uint32_t entry)
+{
+	const uint32_t palette_offset = cio_api.options
+	    & CONIO_OPT_EXTENDED_PALETTE ? 16 : 0;
+	uint8_t red;
+	uint8_t green;
+	uint8_t blue;
+
+	if (!st_cterm_adapter_default_palette(entry, &red, &green, &blue))
+		return 0;
+	return cterm_setpalette(cterm, entry + palette_offset,
+	    (uint16_t)red << 8 | red, (uint16_t)green << 8 | green,
+	    (uint16_t)blue << 8 | blue);
+}
+
 void
 cterm_do_tab(struct cterminal *cterm)
 {
@@ -1903,9 +1922,8 @@ cterm_reset(struct cterminal *cterm)
 
 	/* Set up a shadow palette */
 	if (cio_api.options & CONIO_OPT_EXTENDED_PALETTE) {
-		for (i = 0; i < (int)(sizeof(dac_default)
-		    / sizeof(struct dac_colors)); i++)
-			cterm_setpalette(cterm, i + 16, dac_default[i].red << 8 | dac_default[i].red, dac_default[i].green << 8 | dac_default[i].green, dac_default[i].blue << 8 | dac_default[i].blue);
+		for (i = 0; i < TOTAL_DAC_SIZE; i++)
+			(void)cterm_resetpalette(cterm, (uint32_t)i);
 		if (cterm->has_palette_override) {
 			uint32_t op[16];
 			get_modepalette(op);
@@ -2072,8 +2090,10 @@ void cterm_start(struct cterminal *cterm)
 		attr2palette(cterm->attr, &cterm->fg_color, &cterm->bg_color);
 		FREE_AND_NULL(cterm->fg_tc_str);
 		FREE_AND_NULL(cterm->bg_tc_str);
-		cterm->fg_color += 16;
-		cterm->bg_color += 16;
+		if (cio_api.options & CONIO_OPT_EXTENDED_PALETTE) {
+			cterm->fg_color += 16;
+			cterm->bg_color += 16;
+		}
 		textattr(cterm->attr);
 		ciolib_setcolour(cterm->fg_color, cterm->bg_color);
 		ciolib_setcursortype(cterm->cursor);
@@ -2311,7 +2331,6 @@ CIOLIBEXPORT size_t cterm_write(struct cterminal * cterm, const void *vbuf, int 
 	int i, j, x, y;
 	struct text_info	ti;
 	int	olddmc;
-	int oldptnm;
 	uint32_t palette[16];
 	int mpalette;
 	int orig_fonts[4];
@@ -2348,10 +2367,8 @@ CIOLIBEXPORT size_t cterm_write(struct cterminal * cterm, const void *vbuf, int 
 	setfont(cterm->altfont[2], FALSE, 3);
 	setfont(cterm->altfont[3], FALSE, 4);
 
-	oldptnm=puttext_can_move;
-	puttext_can_move=1;
-	olddmc=hold_update;
-	hold_update=1;
+	olddmc = st_cterm_adapter_hold_update(cterm);
+	(void)st_cterm_adapter_set_hold_update(cterm, 1);
 	gettextinfo(&ti);
 	setwindow(cterm);
 	x = cterm->xpos;
@@ -2402,8 +2419,7 @@ CIOLIBEXPORT size_t cterm_write(struct cterminal * cterm, const void *vbuf, int 
 	}
 	ABS_XY(&cterm->xpos, &cterm->ypos);
 
-	hold_update=olddmc;
-	puttext_can_move=oldptnm;
+	(void)st_cterm_adapter_set_hold_update(cterm, olddmc);
 	CURR_XY(&x, &y);
 	gotoxy(x, y);
 	ciolib_setcursortype(cterm->cursor);

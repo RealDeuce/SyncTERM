@@ -3510,9 +3510,12 @@ Despite the
 `[id]` / `containsKey(id)` shape, this is **not** a `Map` — there is no
 `keys` / `values` / `count` / iteration.  IDs flow into a script from
 `add()` returns or from `Cell.hyperlinkId` on cells under the cursor;
-scripts can't enumerate the ID space.  IDs range from 1 through 65535, remain
-valid until application shutdown, and are never reused.  Zero means no
-hyperlink.
+scripts can't enumerate the ID space. IDs range from 1 through 65535 and zero
+means no hyperlink. IDs attached to live console cells, Wren `Cell`/`Surface`
+storage, terminal scrollback, or retained session history remain stable. If
+the registry fills, IDs not reachable from those roots may be reclaimed and
+reused. Consequently, scripts should resolve or attach an ID promptly rather
+than treating a detached number as permanent application-lifetime storage.
 
 [options="header",cols="2,3"]
 |===

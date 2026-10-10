@@ -5,6 +5,8 @@
 
 #include "st_cterm.h"
 
+#include "io_error.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -83,6 +85,7 @@ main(void)
 	struct output output = {0};
 	struct st_console_cell cell;
 	struct st_console_rect one = {0, 0, 1, 1};
+	uint32_t palette[2];
 	char text[8];
 	size_t required;
 
@@ -104,7 +107,10 @@ main(void)
 
 	feed(terminal, "\x1b[31m", 5);
 	feed(terminal, "e", 1);
+	CHECK(st_console_get_palette(console, 16, palette, 2) == 0);
+	CHECK(palette[0] == 0x000000 && palette[1] == 0xa80000);
 	CHECK(st_console_read_cells(console, &one, &cell, 1) == 0);
+	CHECK(cell.foreground == 17 && cell.background == 16);
 	CHECK(st_console_font_glyph_text(console, cell.glyph_font, cell.glyph,
 	    text, sizeof(text), &required) == 0);
 	CHECK(required == 1 && text[0] == 'e');
@@ -159,6 +165,22 @@ main(void)
 	    && memcmp(output.bytes, "\x1b[<0;3;2M", output.size) == 0);
 	output.size = 0;
 	output.user = 0;
+	output.responses = 0;
+
+	/* Geometry reports the actual configured cell dimensions. */
+	feed(terminal, "\x1b[=3n", strlen("\x1b[=3n"));
+	CHECK(output.responses == 1
+	    && output.size == strlen("\x1b[=3;16;8n")
+	    && memcmp(output.bytes, "\x1b[=3;16;8n", output.size) == 0);
+	output.size = 0;
+	output.responses = 0;
+	feed(terminal, "\x1b[<c", strlen("\x1b[<c"));
+	CHECK(output.responses == 1
+	    && output.size == strlen("\x1b[<0;1;2;3;4;5;6;7;8c")
+	    && memcmp(output.bytes, "\x1b[<0;1;2;3;4;5;6;7;8c",
+	    output.size) == 0);
+	output.size = 0;
+	output.responses = 0;
 
 	/* A truncated sequence produces exactly one decode-error glyph. */
 	feed(terminal, "\xf0\x9f", 2);
@@ -241,7 +263,103 @@ main(void)
 			st_cterm_destroy(&terminal);
 		}
 	}
+	{
+		const struct st_cterm_config prestel_config = {
+			.console = console,
+			.fonts = fonts,
+			.emulation = ST_CTERM_PRESTEL,
+			.encoding = ST_CTERM_ENCODING_CODEPAGE,
+			.codepage = ST_CODEPAGE_PRESTEL,
+			.font_selector = 0,
+			.terminal_rows = 3,
+			.quiet = true,
+		};
+		const uint8_t concealed[] = {0x1b, 'X', 'A'};
+		struct st_console_cell row[20];
+		struct st_console_rect row_rect = {0, 0, 20, 1};
+		bool found_concealed = false;
+		bool found_revealed = false;
+
+		CHECK(st_cterm_create(&terminal, &prestel_config) == 0);
+		feed(terminal, concealed, sizeof(concealed));
+		CHECK(st_console_read_cells(console, &row_rect, row, 20) == 0);
+		for (size_t i = 0; i < 20; ++i)
+			if ((row[i].flags & ST_CONSOLE_CELL_CONCEAL) != 0
+			    && (row[i].flags & ST_CONSOLE_CELL_REVEAL) == 0)
+				found_concealed = true;
+		CHECK(found_concealed);
+		(void)st_cterm_handle_key(terminal, ST_CONSOLE_KEY_F3);
+		CHECK(st_console_read_cells(console, &row_rect, row, 20) == 0);
+		for (size_t i = 0; i < 20; ++i)
+			if ((row[i].flags & (ST_CONSOLE_CELL_CONCEAL
+			    | ST_CONSOLE_CELL_REVEAL))
+			    == (ST_CONSOLE_CELL_CONCEAL | ST_CONSOLE_CELL_REVEAL))
+				found_revealed = true;
+		CHECK(found_revealed);
+		st_cterm_destroy(&terminal);
+		CHECK(st_cterm_create(&terminal, &prestel_config) == 0);
+		feed(terminal, concealed, sizeof(concealed));
+		CHECK(st_console_read_cells(console, &row_rect, row, 20) == 0);
+		found_revealed = false;
+		for (size_t i = 0; i < 20; ++i)
+			if ((row[i].flags & (ST_CONSOLE_CELL_CONCEAL
+			    | ST_CONSOLE_CELL_REVEAL))
+			    == (ST_CONSOLE_CELL_CONCEAL | ST_CONSOLE_CELL_REVEAL))
+				found_revealed = true;
+		CHECK(!found_revealed);
+		st_cterm_destroy(&terminal);
+	}
+	{
+		size_t consumed = 99;
+		const struct st_cterm_config failure_config = {
+			.console = console,
+			.fonts = fonts,
+			.emulation = ST_CTERM_ANSI_BBS,
+			.encoding = ST_CTERM_ENCODING_CODEPAGE,
+			.codepage = ST_CODEPAGE_CP437,
+			.font_selector = 0,
+			.terminal_rows = 3,
+			.quiet = true,
+		};
+
+		CHECK(st_cterm_create(&terminal, &failure_config) == 0);
+		CHECK(st_console_resize(console, 1, 1) == 0);
+		CHECK(st_cterm_write(terminal, "x", 1, &consumed) != 0);
+		CHECK(consumed == 1);
+		st_cterm_destroy(&terminal);
+		CHECK(st_console_resize(console, 20, 4) == 0);
+		CHECK(st_cterm_create(&terminal, &failure_config) == 0);
+		CHECK(st_console_resize(console, 256, 4) == 0);
+		CHECK(st_cterm_write(terminal, "\x1b[=3n", 5, &consumed)
+		    == IO_ERROR_OUT_OF_RANGE);
+		CHECK(consumed == 5);
+		st_cterm_destroy(&terminal);
+	}
 	st_font_catalog_destroy(fonts);
 	st_console_destroy(console);
+	{
+		const struct st_console_config wide_config = {
+			.columns = 256, .rows = 25, .cell_width = 8,
+			.cell_height = 16,
+		};
+		const struct st_cterm_config wide_cterm_config = {
+			.console = NULL,
+			.fonts = NULL,
+			.emulation = ST_CTERM_ANSI_BBS,
+			.encoding = ST_CTERM_ENCODING_CODEPAGE,
+			.codepage = ST_CODEPAGE_CP437,
+		};
+		struct st_cterm_config attempted = wide_cterm_config;
+
+		CHECK(st_console_create(&console, &display, &wide_config) == 0);
+		CHECK(st_font_catalog_create(&fonts, console) == 0);
+		attempted.console = console;
+		attempted.fonts = fonts;
+		CHECK(st_cterm_create(&terminal, &attempted)
+		    == IO_ERROR_OUT_OF_RANGE);
+		CHECK(terminal == NULL);
+		st_font_catalog_destroy(fonts);
+		st_console_destroy(console);
+	}
 	return EXIT_SUCCESS;
 }

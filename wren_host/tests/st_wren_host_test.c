@@ -2606,6 +2606,7 @@ main(void)
 	st_wren_host_t *host = NULL;
 	bool has_selection = false;
 	bool font_registered = false;
+	bool hyperlink_present = false;
 	uint16_t default_identifier;
 	uint16_t configured_identifier;
 	uint16_t history_hyperlink;
@@ -2702,9 +2703,15 @@ main(void)
 	    "var scrollback = Menu.offlineScrollback\n"
 	    "if (!scrollback.cellAt(0, 0, cell) || cell.hyperlinkId != 1) "
 	    "Fiber.abort(\"scrollback hyperlink\")\n"
+	    "cell.hyperlinkId = tagged\n"
 	    "if (Menu.openHyperlink(Hyperlinks.add(\"mailto:x@y\", null))) "
 	    "Fiber.abort(\"disallowed scheme opened\")\n")
 	    == WREN_RESULT_SUCCESS);
+	CHECK(st_hyperlink_registry_collect(hyperlinks) == 0);
+	CHECK(st_hyperlink_registry_contains(hyperlinks, 2, &hyperlink_present) == 0
+	    && hyperlink_present);
+	CHECK(st_hyperlink_registry_contains(hyperlinks, 3, &hyperlink_present) == 0
+	    && !hyperlink_present);
 	{
 		enum st_screen_mode mode = ST_SCREEN_MODE_80X25;
 

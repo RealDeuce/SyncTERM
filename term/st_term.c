@@ -45,6 +45,24 @@ profile_emulation(enum st_screen_mode mode)
 	}
 }
 
+enum st_cterm_encoding
+st_term_profile_encoding(const struct st_profile *profile)
+{
+	return profile != NULL
+	    && profile->connection_type == ST_CONNECTION_SHELL
+	    ? ST_CTERM_ENCODING_UTF8 : ST_CTERM_ENCODING_CODEPAGE;
+}
+
+static enum st_cterm_petscii_machine
+profile_petscii_machine(enum st_screen_mode mode)
+{
+	switch (mode) {
+	case ST_SCREEN_MODE_C128_40: return ST_CTERM_PETSCII_C128_40;
+	case ST_SCREEN_MODE_C128_80: return ST_CTERM_PETSCII_C128_80;
+	default: return ST_CTERM_PETSCII_C64;
+	}
+}
+
 static int
 send_all(st_connection_t *connection, const uint8_t *bytes, size_t size)
 {
@@ -119,7 +137,9 @@ st_term_connect_profile(st_connection_t **result,
 	case ST_CONNECTION_MODEM:
 		return st_connection_connect_modem(result, profile, hooks, error);
 	case ST_CONNECTION_SHELL: {
-		const struct st_connection_shell_environment environment = {0};
+		const struct st_connection_shell_environment environment = {
+			.mm_charset = "UTF-8",
+		};
 		return st_connection_connect_shell(result, profile, &geometry,
 		    &environment, hooks, error);
 	}
@@ -135,6 +155,8 @@ st_term_session_create(st_term_session_t **result,
 	st_term_session_t *session;
 	uint32_t columns;
 	uint32_t rows;
+	uint16_t palette_mapping[16];
+	const struct st_screen_mode_descriptor *mode;
 	int status;
 
 	if (result == NULL || config == NULL || config->console == NULL
@@ -146,6 +168,9 @@ st_term_session_create(st_term_session_t **result,
 	if (session == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	session->config = *config;
+	mode = st_screen_mode_get(config->screen_mode);
+	if (mode != NULL)
+		st_screen_mode_palette_mapping(mode, palette_mapping);
 	const struct st_cterm_config cterm_config = {
 		.console = config->console,
 		.fonts = config->fonts,
@@ -154,6 +179,8 @@ st_term_session_create(st_term_session_t **result,
 		.emulation = profile_emulation(config->screen_mode),
 		.encoding = config->encoding,
 		.codepage = config->codepage,
+		.palette_mapping = mode == NULL ? NULL : palette_mapping,
+		.petscii_machine = profile_petscii_machine(config->screen_mode),
 		.font_selector = config->font_selector,
 		.terminal_rows = config->hide_status ? rows : rows - 1,
 		.scrollback_lines = config->history == NULL ? 0
@@ -174,15 +201,22 @@ st_term_session_create(st_term_session_t **result,
 		struct st_console_style style;
 		uint8_t width;
 
-		if (st_console_get_style(config->console, &style) == 0) {
+		status = st_console_get_style(config->console, &style);
+		if (status == 0) {
 			blank.foreground = style.foreground;
 			blank.background = style.background;
 			blank.flags = style.flags;
 			blank.font = style.font;
 			blank.glyph_font = style.font;
-			(void)st_console_font_lookup(config->console, blank.font, ' ',
+			status = st_console_font_lookup(config->console, blank.font, ' ',
 			    &blank.glyph_font, &blank.glyph, &width);
-			(void)st_console_fill(config->console, &status_row, &blank);
+			if (status == 0)
+				status = st_console_fill(config->console, &status_row, &blank);
+		}
+		if (status != 0) {
+			st_cterm_destroy(&session->cterm);
+			free(session);
+			return status;
 		}
 	}
 	*result = session;

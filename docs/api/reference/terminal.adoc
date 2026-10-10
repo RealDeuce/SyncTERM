@@ -63,7 +63,10 @@ use CP437.  This query does not assert that the selector is registered.
 `terminal_rows == 0` selects every console row; otherwise it must not exceed
 console height.  `scrollback_lines` is bounded by addressable allocation size.
 The font selector must be registered in the supplied catalog, and that catalog
-must belong to the supplied console.
+must belong to the supplied console. Geometry must fit the legacy parser's
+8-bit row and column reports. `palette_mapping`, when non-NULL, points to 16
+borrowed canonical palette indices copied during creation. `petscii_machine`
+selects C64, C128 40-column, or C128 80-column semantics for PETSCII.
 
 [source,c]
 ----
@@ -154,6 +157,8 @@ state and is not safe for concurrent calls.
 int st_term_connect_profile(st_connection_t **result,
     const struct st_profile *profile, st_console_t *console,
     const struct st_connection_hooks *hooks, struct st_connection_error *error);
+enum st_cterm_encoding st_term_profile_encoding(
+    const struct st_profile *profile);
 int st_term_session_create(st_term_session_t **result,
     const struct st_term_config *config);
 void st_term_session_destroy(st_term_session_t **session);
@@ -174,6 +179,11 @@ int st_term_session_send_text(st_term_session_t *session,
 Shell connection creation.  Pointers are borrowed for the call; connection
 hooks follow `st_connection` lifetime rules after success.  Unsupported
 profile types return `IO_ERROR_NOT_SUPPORTED`.  Caller owns the connection.
+Shell children receive `MM_CHARSET=UTF-8`.
+
+| st_term_profile_encoding(profile)
+| Returns UTF8 for a local Shell profile and CODEPAGE for remote byte
+transports (and for NULL). Use this result for the matching session config.
 
 | st_term_session_create(result, config)
 | Requires matching non-NULL console, open connection, and font catalog.

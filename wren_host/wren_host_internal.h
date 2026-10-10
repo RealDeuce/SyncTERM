@@ -144,6 +144,7 @@ struct st_wren_mouse_gesture {
 
 struct st_wren_input_claim;
 struct st_wren_wake;
+struct surface_storage;
 
 /* VM lifetime state, shared by that VM's UI and REPL. */
 struct st_wren_context {
@@ -206,6 +207,8 @@ struct st_wren_host {
 	bool selected_valid;
 	bool web_lists_dirty;
 	bool fonts_dirty;
+	bool hyperlink_root_registered;
+	struct surface_storage *surface_storage;
 	uint64_t font_generation;
 	struct st_settings_font_draft font_draft;
 	uint64_t settings_generation;
@@ -227,6 +230,8 @@ void st_wren_log_error(WrenVM *vm, WrenErrorType type, const char *module,
 void st_wren_log_dispose(WrenVM *vm);
 void st_wren_push_surface_take(WrenVM *vm, struct st_console_cell *cells,
 	uint32_t width, uint32_t height);
+int st_wren_mark_surface_hyperlinks(struct st_wren_host *host,
+	st_hyperlink_mark_fn mark, void *mark_context);
 WrenForeignMethodFn st_wren_repl_bind_method(const char *class_name,
 	bool is_static, const char *signature);
 

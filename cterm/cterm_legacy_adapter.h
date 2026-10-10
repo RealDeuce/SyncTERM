@@ -91,7 +91,6 @@ enum {
 #define CONIO_OPT_FONT_SELECT        (UINT32_C(1) << 5)
 #define CONIO_OPT_KEY_EVENTS         (UINT32_C(1) << 6)
 #define CONIO_OPT_BRIGHT_BACKGROUND  (UINT32_C(1) << 7)
-#define CONIO_OPT_PRESTEL_REVEAL     (UINT32_C(1) << 8)
 #define CONIO_FIRST_FREE_FONT 46
 #define TOTAL_DAC_SIZE 282
 
@@ -134,13 +133,15 @@ struct video_params {
 	int aspect_width, aspect_height, xres, yres;
 };
 
-struct dac_colors {
-	unsigned char red, green, blue;
-};
-
 struct ciolib_screen {
 	struct vmem_cell *vmem;
 	struct text_info text_info;
+};
+
+struct st_cterm_cio_api {
+	uint32_t options;
+	bool vmem_gettext;
+	bool mouse;
 };
 
 struct st_cterm_legacy_screen {
@@ -153,25 +154,20 @@ struct st_cterm_legacy_screen {
 	bool font_valid[UINT8_MAX + 1U];
 	uint16_t selectors[5];
 	uint16_t current_hyperlink;
+	uint32_t mode_palette[16];
+	struct video_params video_params[1];
+	struct st_cterm_cio_api api;
 	int hold_update;
-	int puttext_can_move;
 	int wscroll;
+	int error;
+	bool prestel_reveal;
+	bool hyperlink_root_registered;
 	st_unicode_presentation_t *unicode;
 	uint32_t provisional_x;
 	uint32_t provisional_y;
 };
 
 struct cterminal;
-typedef bool (*ciolib_hyperlink_mark_fn)(uint16_t identifier);
-
-extern const struct video_params vparams[1];
-extern const struct dac_colors dac_default[256];
-struct st_cterm_cio_api {
-	uint32_t options;
-	void *vmem_gettext;
-	void *mouse;
-};
-extern struct st_cterm_cio_api cio_api;
 
 int st_cterm_adapter_cells_to_modern(struct cterminal *cterm,
 	const struct vmem_cell *source, struct st_console_cell *destination,
@@ -230,8 +226,17 @@ int st_cterm_adapter_getfont(struct cterminal *cterm, int slot);
 int st_cterm_adapter_setfont(struct cterminal *cterm, int selector,
 	int force, int slot);
 uint8_t st_cterm_adapter_attrfont(struct cterminal *cterm, uint8_t attribute);
-void st_cterm_adapter_attr2palette(uint8_t attribute, uint32_t *foreground,
-	uint32_t *background);
+void st_cterm_adapter_attr2palette(struct cterminal *cterm,
+	uint8_t attribute, uint32_t *foreground, uint32_t *background);
+int st_cterm_adapter_set_modepalette(struct cterminal *cterm,
+	const uint32_t *palette);
+int st_cterm_adapter_find_vmode(struct cterminal *cterm, int mode);
+int st_cterm_adapter_set_hold_update(struct cterminal *cterm, int hold);
+int st_cterm_adapter_hold_update(const struct cterminal *cterm);
+int st_cterm_adapter_default_palette(uint32_t entry, uint8_t *red,
+	uint8_t *green, uint8_t *blue);
+void st_cterm_adapter_record_error(struct cterminal *cterm, int error);
+int st_cterm_adapter_take_error(struct cterminal *cterm);
 uint16_t st_cterm_adapter_add_hyperlink(struct cterminal *cterm,
 	const char *uri, const char *parameter);
 char *st_cterm_adapter_hyperlink_url(struct cterminal *cterm,
@@ -253,6 +258,8 @@ struct ciolib_screen *st_cterm_adapter_savescreen(struct cterminal *cterm);
 void st_cterm_adapter_freescreen(struct ciolib_screen *screen);
 
 #ifndef ST_CTERM_ADAPTER_IMPLEMENTATION
+#define cio_api (cterm->screen.api)
+#define vparams (cterm->screen.video_params)
 #define gettextinfo(i) st_cterm_adapter_gettextinfo(cterm, (i))
 #define getvideoflags() st_cterm_adapter_getvideoflags(cterm)
 #define setvideoflags(f) st_cterm_adapter_setvideoflags(cterm, (f))
@@ -285,22 +292,19 @@ void st_cterm_adapter_freescreen(struct ciolib_screen *screen);
 #define map_rgb(r,g,b) st_cterm_adapter_map_rgb((r),(g),(b))
 #define replace_font(i,n,d,s) st_cterm_adapter_replace_font(cterm,(i),(n),(d),(s))
 #define get_modepalette(p) st_cterm_adapter_get_modepalette(cterm,(p))
-#define set_modepalette(p) ((void)(p))
+#define set_modepalette(p) st_cterm_adapter_set_modepalette(cterm,(p))
 #define getfont(s) st_cterm_adapter_getfont(cterm,(s))
 #define setfont(f,force,s) st_cterm_adapter_setfont(cterm,(f),(force),(s))
 #define ciolib_attrfont(a) st_cterm_adapter_attrfont(cterm,(a))
-#define attr2palette(a,f,b) st_cterm_adapter_attr2palette((a),(f),(b))
+#define attr2palette(a,f,b) st_cterm_adapter_attr2palette(cterm,(a),(f),(b))
 #define ciolib_add_hyperlink(u,p) st_cterm_adapter_add_hyperlink(cterm,(u),(p))
 #define ciolib_get_hyperlink_url(i) st_cterm_adapter_hyperlink_url(cterm,(i))
 #define ciolib_get_hyperlink_params(i) st_cterm_adapter_hyperlink_params(cterm,(i))
 #define ciolib_set_current_hyperlink(i) st_cterm_adapter_set_hyperlink(cterm,(i))
 #define ciolib_get_current_hyperlink() st_cterm_adapter_get_hyperlink(cterm)
-#define ciolib_set_hyperlink_gc_callback(fn,data) ((void)0)
 #define savescreen() st_cterm_adapter_savescreen(cterm)
 #define freescreen(s) st_cterm_adapter_freescreen(s)
-#define find_vmode(mode) 0
-#define hold_update (cterm->screen.hold_update)
-#define puttext_can_move (cterm->screen.puttext_can_move)
+#define find_vmode(mode) st_cterm_adapter_find_vmode(cterm,(mode))
 #define _wscroll (cterm->screen.wscroll)
 #define xp_timer64() st_cterm_adapter_timer64()
 #define crc16(d,n) st_cterm_adapter_crc16((d),(n),0)

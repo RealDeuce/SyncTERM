@@ -48,5 +48,8 @@ int st_screen_mode_custom(struct st_screen_mode_descriptor *result,
 /* Convert the descriptor's DOS attribute order to console palette indexes. */
 void st_screen_mode_console_palette(
 	const struct st_screen_mode_descriptor *mode, uint32_t result[16]);
+/* Map DOS attribute nibbles to canonical console palette entries. */
+void st_screen_mode_palette_mapping(
+	const struct st_screen_mode_descriptor *mode, uint16_t result[16]);
 
 #endif

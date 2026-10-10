@@ -170,6 +170,7 @@ static void
 destroy_status_sub(st_cterm_t *terminal)
 {
 	if (terminal->status_sub != NULL) {
+		(void)st_cterm_adapter_set_hold_update(terminal->status_sub, 0);
 		cterm_end(terminal->status_sub, false);
 		terminal->status_sub = NULL;
 	}
@@ -182,9 +183,12 @@ clear_reserved_status(st_cterm_t *terminal)
 	struct st_console_cell blank = {0};
 	struct st_console_rect row;
 	uint8_t width;
+	int status;
 
-	if (st_console_get_style(terminal->screen.console, &style) != 0)
+	if (st_console_get_style(terminal->screen.console, &style) != 0) {
+		st_cterm_adapter_record_error(terminal, IO_ERROR_IO);
 		return;
+	}
 	row = (struct st_console_rect){
 		.x = (uint32_t)(terminal->x - 1),
 		.y = (uint32_t)(terminal->y + terminal->height - 1),
@@ -196,9 +200,14 @@ clear_reserved_status(st_cterm_t *terminal)
 	blank.flags = style.flags;
 	blank.font = style.font;
 	blank.glyph_font = style.font;
-	(void)st_console_font_lookup(terminal->screen.console, blank.font, ' ',
-	    &blank.glyph_font, &blank.glyph, &width);
-	(void)st_console_fill(terminal->screen.console, &row, &blank);
+	status = st_console_font_lookup(
+	    terminal->screen.console, blank.font, ' ', &blank.glyph_font,
+	    &blank.glyph, &width);
+	st_cterm_adapter_record_error(terminal, status);
+	if (status != 0)
+		return;
+	st_cterm_adapter_record_error(terminal,
+	    st_console_fill(terminal->screen.console, &row, &blank));
 }
 
 static void
@@ -224,6 +233,9 @@ status_display_changed(struct cterminal *terminal, int old_type,
 		return;
 	screen = terminal->screen;
 	screen.unicode = NULL;
+	screen.hold_update = 0;
+	screen.error = 0;
+	screen.hyperlink_root_registered = false;
 	terminal->status_sub = cterm_init(1, terminal->width, terminal->x,
 	    terminal->y + terminal->height, 0, terminal->width, NULL,
 	    terminal->emulation, &screen);
@@ -246,6 +258,168 @@ utf8_supported(enum st_cterm_emulation emulation)
 	    || emulation == ST_CTERM_ATARI_ST_VT52;
 }
 
+static int
+mark_hyperlinks(void *context, st_hyperlink_mark_fn mark, void *mark_context)
+{
+	st_cterm_t *terminal = context;
+	struct st_console_cell *cells;
+	struct st_console_rect rect;
+	uint32_t columns;
+	uint32_t rows;
+	size_t count;
+	int status;
+
+	status = mark(mark_context, terminal->screen.current_hyperlink);
+	if (status != 0)
+		return status;
+	if (terminal->status_sub != NULL) {
+		status = mark(mark_context,
+		    terminal->status_sub->screen.current_hyperlink);
+		if (status != 0)
+			return status;
+	}
+	if (terminal->backlines > 0 && terminal->scrollback != NULL) {
+		count = (size_t)terminal->backlines * (size_t)terminal->backwidth;
+		for (size_t i = 0; i < count; ++i) {
+			status = mark(mark_context,
+			    terminal->scrollback[i].hyperlink_id);
+			if (status != 0)
+				return status;
+		}
+	}
+	status = st_console_size(terminal->screen.console, &columns, &rows);
+	if (status != 0)
+		return status;
+	if (columns == 0 || rows == 0)
+		return 0;
+	if ((size_t)columns > SIZE_MAX / rows
+	    || (size_t)columns * rows > SIZE_MAX / sizeof(*cells))
+		return IO_ERROR_OUT_OF_RANGE;
+	count = (size_t)columns * rows;
+	cells = malloc(count * sizeof(*cells));
+	if (cells == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	rect = (struct st_console_rect){0, 0, columns, rows};
+	status = st_console_read_cells(terminal->screen.console, &rect, cells,
+	    columns);
+	for (size_t i = 0; status == 0 && i < count; ++i)
+		status = mark(mark_context, cells[i].hyperlink);
+	free(cells);
+	return status;
+}
+
+static void
+default_palette_mapping(enum st_cterm_emulation emulation,
+	uint32_t mapping[16])
+{
+	static const uint16_t colour[16] = {
+		0, 4, 2, 6, 1, 5, 3, 7, 8, 12, 10, 14, 9, 13, 11, 15,
+	};
+	static const uint16_t c64[16] = {
+		256, 257, 258, 259, 260, 261, 262, 263,
+		264, 265, 266, 267, 268, 269, 270, 271,
+	};
+	static const uint16_t atari[16] = {
+		272, 273, 273, 273, 273, 273, 273, 273,
+		273, 273, 273, 273, 273, 273, 273, 273,
+	};
+	static const uint16_t prestel[16] = {
+		0, 21, 46, 51, 196, 201, 226, 15,
+		0, 21, 46, 51, 196, 201, 226, 15,
+	};
+	static const uint16_t atari_st[16] = {
+		15, 196, 46, 226, 21, 201, 51, 274,
+		275, 276, 277, 278, 279, 280, 281, 0,
+	};
+	const uint16_t *source = colour;
+
+	switch (emulation) {
+	case ST_CTERM_PETSCII: source = c64; break;
+	case ST_CTERM_ATASCII: source = atari; break;
+	case ST_CTERM_PRESTEL:
+	case ST_CTERM_BBC: source = prestel; break;
+	case ST_CTERM_ATARI_ST_VT52: source = atari_st; break;
+	default: break;
+	}
+	for (size_t i = 0; i < 16; ++i)
+		mapping[i] = source[i];
+}
+
+static int
+initialize_legacy_screen(struct st_cterm_legacy_screen *screen,
+	const struct st_cterm_config *config, uint32_t columns, uint32_t rows)
+{
+	uint32_t cell_width;
+	uint32_t cell_height;
+	uint32_t aspect_width;
+	uint32_t aspect_height;
+	uint32_t capabilities;
+	int mode = C80;
+	int default_attribute = config->emulation == ST_CTERM_PETSCII
+	    || config->emulation == ST_CTERM_ATARI_ST_VT52 ? 15 : 7;
+	int status;
+
+	status = st_console_cell_pixel_size(config->console, &cell_width,
+	    &cell_height);
+	if (status == 0)
+		status = st_console_get_aspect_ratio(config->console, &aspect_width,
+		    &aspect_height);
+	if (status == 0)
+		status = st_console_capabilities(config->console, &capabilities);
+	if (status != 0)
+		return status;
+	if (cell_width == 0 || cell_height == 0 || columns > UINT8_MAX
+	    || rows > UINT8_MAX || cell_width > INT_MAX
+	    || cell_height > INT_MAX || aspect_width > INT_MAX
+	    || aspect_height > INT_MAX || columns > INT_MAX / cell_width
+	    || rows > INT_MAX / cell_height)
+		return IO_ERROR_OUT_OF_RANGE;
+	if (config->emulation == ST_CTERM_PETSCII) {
+		switch (config->petscii_machine) {
+		case ST_CTERM_PETSCII_C64: mode = C64_40X25; break;
+		case ST_CTERM_PETSCII_C128_40: mode = C128_40X25; break;
+		case ST_CTERM_PETSCII_C128_80: mode = C128_80X25; break;
+		default: return IO_ERROR_INVALID_ARGUMENT;
+		}
+	}
+	screen->video_params[0] = (struct video_params){
+		.mode = mode,
+		.cols = (int)columns,
+		.rows = (int)rows,
+		.charheight = (int)cell_height,
+		.charwidth = (int)cell_width,
+		.default_attr = default_attribute,
+		.aspect_width = (int)aspect_width,
+		.aspect_height = (int)aspect_height,
+		.xres = (int)(columns * cell_width),
+		.yres = (int)(rows * cell_height),
+	};
+	if (config->palette_mapping != NULL) {
+		for (size_t i = 0; i < 16; ++i)
+			screen->mode_palette[i] = config->palette_mapping[i];
+	}
+	else
+		default_palette_mapping(config->emulation, screen->mode_palette);
+	screen->api.options = CONIO_OPT_KEY_EVENTS;
+	if (capabilities & ST_CONSOLE_CAP_LOADABLE_FONTS)
+		screen->api.options |= CONIO_OPT_LOADABLE_FONTS
+		    | CONIO_OPT_FONT_SELECT;
+	if (capabilities & ST_CONSOLE_CAP_PALETTE_CHANGE)
+		screen->api.options |= CONIO_OPT_PALETTE_SETTING;
+	if (capabilities & ST_CONSOLE_CAP_PIXELS)
+		screen->api.options |= CONIO_OPT_SET_PIXEL;
+	if (capabilities & ST_CONSOLE_CAP_CUSTOM_CURSOR)
+		screen->api.options |= CONIO_OPT_CUSTOM_CURSOR;
+	if (capabilities & ST_CONSOLE_CAP_EXTENDED_PALETTE)
+		screen->api.options |= CONIO_OPT_EXTENDED_PALETTE;
+	if (capabilities & ST_CONSOLE_CAP_BRIGHT_BACKGROUND)
+		screen->api.options |= CONIO_OPT_BRIGHT_BACKGROUND;
+	screen->api.vmem_gettext = true;
+	screen->api.mouse = true;
+	screen->wscroll = 1;
+	return 0;
+}
+
 int
 st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 {
@@ -255,6 +429,7 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 	uint16_t normal;
 	uint32_t columns;
 	uint32_t rows;
+	uint32_t terminal_rows;
 	int status;
 
 	if (result == NULL || config == NULL || config->console == NULL
@@ -271,9 +446,14 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 	    config->font_selector, &normal)
 	    || st_console_size(config->console, &columns, &rows) != 0
 	    || config->terminal_rows > rows
-	    || columns > INT_MAX || rows > INT_MAX
 	    || config->scrollback_lines > INT_MAX)
 		return IO_ERROR_INVALID_ARGUMENT;
+	if (columns > UINT8_MAX || rows > UINT8_MAX)
+		return IO_ERROR_OUT_OF_RANGE;
+	status = initialize_legacy_screen(&screen, config, columns, rows);
+	if (status != 0)
+		return status;
+	terminal_rows = config->terminal_rows == 0 ? rows : config->terminal_rows;
 	if (config->scrollback_lines != 0) {
 		if ((size_t)columns > SIZE_MAX / config->scrollback_lines
 		    || (size_t)columns * config->scrollback_lines
@@ -303,14 +483,18 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 	}
 	for (size_t slot = 0; slot < 5; ++slot)
 		screen.selectors[slot] = config->font_selector;
-	if (config->terminal_rows != 0)
-		rows = config->terminal_rows;
-	terminal = cterm_init((int)rows, (int)columns, 1, 1,
+	terminal = cterm_init((int)terminal_rows, (int)columns, 1, 1,
 	    (int)config->scrollback_lines, (int)columns, scrollback,
 	    config->emulation, &screen);
 	if (terminal == NULL) {
 		free(scrollback);
 		return IO_ERROR_OUT_OF_MEMORY;
+	}
+	status = st_cterm_adapter_take_error(terminal);
+	if (status != 0) {
+		cterm_end(terminal, false);
+		free(scrollback);
+		return status;
 	}
 	terminal->quiet = config->quiet;
 	terminal->wire_encoding = config->encoding;
@@ -342,6 +526,15 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 			return status;
 		}
 	}
+	if (config->hyperlinks != NULL) {
+		status = st_hyperlink_registry_register_root(config->hyperlinks,
+		    mark_hyperlinks, terminal);
+		if (status != 0) {
+			st_cterm_destroy(&terminal);
+			return status;
+		}
+		terminal->screen.hyperlink_root_registered = true;
+	}
 	*result = terminal;
 	return 0;
 }
@@ -357,25 +550,48 @@ st_cterm_destroy(st_cterm_t **terminal)
 	(void)st_cterm_finish(*terminal);
 	st_unicode_presentation_destroy(&(*terminal)->screen.unicode);
 	destroy_status_sub(*terminal);
+	(void)st_cterm_adapter_set_hold_update(*terminal, 0);
+	if ((*terminal)->screen.hyperlink_root_registered) {
+		st_hyperlink_registry_unregister_root((*terminal)->screen.hyperlinks,
+		    mark_hyperlinks, *terminal);
+		(*terminal)->screen.hyperlink_root_registered = false;
+	}
 	cterm_end(*terminal, false);
 	free(scrollback);
 	*terminal = NULL;
 }
 
 static int
-legacy_write(st_cterm_t *terminal, const uint8_t *bytes, size_t size)
+legacy_write(st_cterm_t *terminal, const uint8_t *bytes, size_t size,
+	size_t *consumed)
 {
 	int speed = 0;
+	int status;
+	size_t offset = 0;
+
+	*consumed = 0;
+
+	status = st_cterm_adapter_take_error(terminal);
+	if (status == 0 && terminal->status_sub != NULL)
+		status = st_cterm_adapter_take_error(terminal->status_sub);
+	if (status != 0)
+		return status;
 
 	while (size != 0) {
 		int chunk = size > INT_MAX ? INT_MAX : (int)size;
+		size_t used = cterm_write(terminal, bytes, chunk, &speed);
 
-		if (cterm_write(terminal, bytes, chunk, &speed) != (size_t)chunk)
+		offset += used;
+		*consumed = offset;
+		if (used != (size_t)chunk)
 			return IO_ERROR_IO;
 		bytes += chunk;
 		size -= (size_t)chunk;
 	}
-	return 0;
+	status = st_cterm_adapter_take_error(terminal);
+	if (status == 0 && terminal->status_sub != NULL)
+		status = st_cterm_adapter_take_error(terminal->status_sub);
+	return status;
 }
 
 int
@@ -389,13 +605,14 @@ st_cterm_write(st_cterm_t *terminal, const void *bytes, size_t size,
 	if (terminal == NULL || consumed == NULL || (bytes == NULL && size != 0))
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (terminal->wire_encoding == ST_CTERM_ENCODING_CODEPAGE) {
-		status = legacy_write(terminal, input, size);
+		status = legacy_write(terminal, input, size, consumed);
 		if (terminal->api_status_destroy_pending) {
 			destroy_status_sub(terminal);
 			terminal->api_status_destroy_pending = false;
 			clear_reserved_status(terminal);
 		}
-		*consumed = status == 0 ? size : 0;
+		if (status == 0)
+			status = st_cterm_adapter_take_error(terminal);
 		return status;
 	}
 	while (offset < size) {
@@ -405,13 +622,17 @@ st_cterm_write(st_cterm_t *terminal, const void *bytes, size_t size,
 		    ? terminal->status_sub : terminal;
 
 		if (target->accumulator != NULL || byte < 0x20 || byte == 0x7f) {
+			size_t used;
+
 			status = st_unicode_presentation_boundary(
 			    terminal->screen.unicode);
 			if (status == 0)
-				status = legacy_write(terminal, &byte, 1);
+				status = legacy_write(terminal, &byte, 1, &used);
+			else
+				used = 0;
+			offset += used;
 			if (status != 0)
 				break;
-			++offset;
 		}
 		else {
 			size_t span = 1;
@@ -432,6 +653,8 @@ st_cterm_write(st_cterm_t *terminal, const void *bytes, size_t size,
 		terminal->api_status_destroy_pending = false;
 		clear_reserved_status(terminal);
 	}
+	if (status == 0)
+		status = st_cterm_adapter_take_error(terminal);
 	*consumed = offset;
 	return status;
 }
@@ -439,10 +662,17 @@ st_cterm_write(st_cterm_t *terminal, const void *bytes, size_t size,
 int
 st_cterm_finish(st_cterm_t *terminal)
 {
+	int status;
+
 	if (terminal == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	return terminal->screen.unicode == NULL ? 0
+	status = terminal->screen.unicode == NULL ? 0
 	    : st_unicode_presentation_boundary(terminal->screen.unicode);
+	if (status == 0)
+		status = st_cterm_adapter_take_error(terminal);
+	if (status == 0 && terminal->status_sub != NULL)
+		status = st_cterm_adapter_take_error(terminal->status_sub);
+	return status;
 }
 
 int
@@ -453,7 +683,7 @@ st_cterm_reset_terminal(st_cterm_t *terminal)
 	if (status != 0)
 		return status;
 	cterm_reset(terminal);
-	return 0;
+	return st_cterm_adapter_take_error(terminal);
 }
 
 enum st_cterm_encoding

@@ -24,6 +24,7 @@ main(void)
 	const struct st_screen_mode_descriptor *mode;
 	struct st_screen_mode_descriptor custom;
 	uint32_t console_palette[16];
+	uint16_t palette_mapping[16];
 
 	CHECK(st_screen_mode_count() == ST_SCREEN_MODE_ATARIST_80X25_MONO + 1U);
 	for (size_t i = 0; i < st_screen_mode_count(); ++i) {
@@ -49,6 +50,12 @@ main(void)
 	CHECK(mode->palette_rgb[1] == 0xffffff);
 	st_screen_mode_console_palette(mode, console_palette);
 	CHECK(console_palette[4] == 0xffffff);
+	st_screen_mode_palette_mapping(mode, palette_mapping);
+	CHECK(palette_mapping[0] == 256 && palette_mapping[15] == 271);
+	mode = st_screen_mode_get(ST_SCREEN_MODE_80X25);
+	st_screen_mode_palette_mapping(mode, palette_mapping);
+	CHECK(palette_mapping[1] == 4 && palette_mapping[4] == 1
+	    && palette_mapping[15] == 15);
 	mode = st_screen_mode_get(ST_SCREEN_MODE_ATARIST_80X25_MONO);
 	CHECK(mode->palette_count == 2);
 	CHECK(mode->palette_rgb[0] == 0xffffff);

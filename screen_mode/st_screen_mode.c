@@ -274,8 +274,55 @@ st_screen_mode_console_palette(const struct st_screen_mode_descriptor *mode,
 		0, 4, 2, 6, 1, 5, 3, 7, 8, 12, 10, 14, 9, 13, 11, 15,
 	};
 
-	if (mode == NULL || result == NULL)
+	if (mode == NULL || result == NULL || mode->palette_rgb == NULL)
 		return;
 	for (size_t i = 0; i < 16; ++i)
 		result[native_index[i]] = mode->palette_rgb[i];
+}
+
+void
+st_screen_mode_palette_mapping(const struct st_screen_mode_descriptor *mode,
+	uint16_t result[16])
+{
+	static const uint16_t mappings[][16] = {
+		[ST_SCREEN_PALETTE_MONO] = {
+			0, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
+		},
+		[ST_SCREEN_PALETTE_GREYSCALE] = {
+			0, 7, 7, 7, 7, 7, 7, 7, 8, 15, 15, 15, 15, 15, 15, 15,
+		},
+		[ST_SCREEN_PALETTE_COLOUR] = {
+			0, 4, 2, 6, 1, 5, 3, 7, 8, 12, 10, 14, 9, 13, 11, 15,
+		},
+		[ST_SCREEN_PALETTE_C64] = {
+			256, 257, 258, 259, 260, 261, 262, 263,
+			264, 265, 266, 267, 268, 269, 270, 271,
+		},
+		[ST_SCREEN_PALETTE_ATARI] = {
+			272, 273, 273, 273, 273, 273, 273, 273,
+			273, 273, 273, 273, 273, 273, 273, 273,
+		},
+		[ST_SCREEN_PALETTE_PRESTEL] = {
+			0, 21, 46, 51, 196, 201, 226, 15,
+			0, 21, 46, 51, 196, 201, 226, 15,
+		},
+		[ST_SCREEN_PALETTE_ATARI_ST_16] = {
+			15, 196, 46, 226, 21, 201, 51, 274,
+			275, 276, 277, 278, 279, 280, 281, 0,
+		},
+		[ST_SCREEN_PALETTE_ATARI_ST_4] = {
+			15, 196, 46, 0, 15, 196, 46, 0,
+			15, 196, 46, 0, 15, 196, 46, 0,
+		},
+		[ST_SCREEN_PALETTE_ATARI_ST_2] = {
+			15, 0, 15, 0, 15, 0, 15, 0,
+			15, 0, 15, 0, 15, 0, 15, 0,
+		},
+	};
+
+	if (mode == NULL || result == NULL
+	    || (unsigned)mode->palette
+	    >= sizeof(mappings) / sizeof(mappings[0]))
+		return;
+	memcpy(result, mappings[mode->palette], sizeof(mappings[0]));
 }

@@ -44,6 +44,13 @@ boundary turns one incomplete UTF-8 prefix into one decode-error glyph.  An
 ordinary write boundary does not flush it.  Fixed byte-table emulations reject
 UTF-8 mode.
 
+The bridge obtains geometry and capabilities from the active console instead
+of simulating an 80x25 VGA device. Screen-mode palette mappings select the
+canonical palette entries, while CTerm's extended shadow palette preserves
+remote palette changes without replacing those defaults. Rows and columns
+greater than 255 are rejected because the retained parser reports them through
+legacy 8-bit fields rather than silently truncating them.
+
 Protocol responses and encoded local input are distinguished by
 `enum st_cterm_output_origin`, although the minimal session sends both through
 the active connection.  BEL is local: it may beep but emits no wire bytes.
@@ -65,7 +72,8 @@ audio, hyperlink, and history services.  It receives ordered wire bytes into
 CTerm and converts console text events from Unicode to the selected wire
 encoding.  In a legacy encoding, an unmappable grapheme beeps locally and only
 that grapheme is omitted.  Raw CTerm responses bypass text conversion.  There
-is no simulated baud throttling.
+is no simulated baud throttling. Local shell PTYs advertise and consume UTF-8;
+remote transports retain the configured byte codepage.
 
 When status is visible, the bottom console row is reserved and excluded from
 reported terminal geometry.  CTerm's staged scrollback ring plus visible rows

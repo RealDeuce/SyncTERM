@@ -34,6 +34,12 @@ enum st_cterm_encoding {
 	ST_CTERM_ENCODING_CODEPAGE,
 };
 
+enum st_cterm_petscii_machine {
+	ST_CTERM_PETSCII_C64,
+	ST_CTERM_PETSCII_C128_40,
+	ST_CTERM_PETSCII_C128_80,
+};
+
 enum st_cterm_output_origin {
 	ST_CTERM_OUTPUT_RESPONSE,
 	ST_CTERM_OUTPUT_USER,
@@ -55,6 +61,10 @@ struct st_cterm_config {
 	enum st_cterm_emulation emulation;
 	enum st_cterm_encoding encoding;
 	enum st_codepage codepage;
+	/* Optional 16-entry attribute-to-canonical-palette mapping. */
+	const uint16_t *palette_mapping;
+	/* Used only by PETSCII to select C64/C128 colour and font semantics. */
+	enum st_cterm_petscii_machine petscii_machine;
 	uint8_t font_selector;
 	/* Zero uses every console row; otherwise reserves the remaining rows. */
 	uint32_t terminal_rows;

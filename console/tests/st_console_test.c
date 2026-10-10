@@ -2652,6 +2652,20 @@ test_display_copies_ansi_options(void)
 	st_console_display_destroy(display);
 }
 
+static void
+test_default_palette_contract(void)
+{
+	uint32_t palette[4];
+
+	CHECK(st_console_get_default_palette(0, palette, 2) == 0);
+	CHECK(palette[0] == 0x000000 && palette[1] == 0xa80000);
+	CHECK(st_console_get_default_palette(256, palette, 4) == 0);
+	CHECK(palette[0] == 0x000000 && palette[1] == 0xffffff
+	    && palette[2] == 0x813338 && palette[3] == 0x75cec8);
+	CHECK(st_console_get_default_palette(UINT16_MAX, palette, 2)
+	    == IO_ERROR_INVALID_ARGUMENT);
+}
+
 int
 main(void)
 {
@@ -2686,6 +2700,7 @@ main(void)
 	test_multiple_consoles_one_display();
 	test_failed_detachment_lifetime();
 	test_display_copies_ansi_options();
+	test_default_palette_contract();
 	test_ncurses_when_available();
 	return EXIT_SUCCESS;
 }

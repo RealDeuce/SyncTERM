@@ -749,6 +749,8 @@ int st_screen_mode_custom(struct st_screen_mode_descriptor *result,
     uint32_t aspect_width, uint32_t aspect_height);
 void st_screen_mode_console_palette(
     const struct st_screen_mode_descriptor *mode, uint32_t result[16]);
+void st_screen_mode_palette_mapping(
+    const struct st_screen_mode_descriptor *mode, uint16_t result[16]);
 int st_session_history_create(st_session_history_t **result,
     size_t line_capacity);
 void st_session_history_destroy(st_session_history_t *history);
@@ -772,6 +774,11 @@ int st_hyperlink_registry_copy(st_hyperlink_registry_t *, uint16_t identifier,
     struct st_hyperlink *result);
 int st_hyperlink_registry_contains(st_hyperlink_registry_t *,
     uint16_t identifier, bool *result);
+int st_hyperlink_registry_register_root(st_hyperlink_registry_t *,
+    st_hyperlink_root_fn root, void *context);
+void st_hyperlink_registry_unregister_root(st_hyperlink_registry_t *,
+    st_hyperlink_root_fn root, void *context);
+int st_hyperlink_registry_collect(st_hyperlink_registry_t *);
 void st_hyperlink_dispose(struct st_hyperlink *hyperlink);
 ----
 
@@ -781,7 +788,11 @@ borrows and copies `width * lines` cells, and copy installs a malloc-owned cell
 array plus required metadata outputs.  Hyperlink add borrows counted spans
 (`parameter == NULL` only at zero length), copies them, and writes a required
 nonzero ID.  Copy produces owned strings disposed by `st_hyperlink_dispose`.
-All status functions return zero/negative `IO_ERROR_*`.
+Root callbacks receive a marker and must report every live ID without calling
+back into the registry; they and their contexts remain borrowed until
+unregistered. Collection is automatic only when all IDs are occupied, or may
+be requested explicitly. A failed root callback aborts collection without
+reclaiming entries. All status functions return zero/negative `IO_ERROR_*`.
 
 [cols="3m,7"]
 |===
@@ -795,6 +806,9 @@ All status functions return zero/negative `IO_ERROR_*`.
 
 | st_screen_mode_console_palette(mode, result[16])
 | Converts descriptor DOS attribute ordering to console palette indexes.
+
+| st_screen_mode_palette_mapping(mode, result[16])
+| Returns the descriptor's legacy attribute-to-canonical-palette mapping.
 
 | st_session_history_create(result, capacity), st_session_history_destroy(history)
 | Allocate/free synchronized detached scrollback.
@@ -818,14 +832,22 @@ All status functions return zero/negative `IO_ERROR_*`.
 | Allocate/free the application-lifetime synchronized ID registry.
 
 | st_hyperlink_registry_add(registry, uri, uri_length, parameter, parameter_length, identifier)
-| Copies counted spans and returns a stable nonzero ID; embedded NUL is
-rejected and IDs are never reused.
+| Copies counted spans and returns a nonzero ID; embedded NUL is rejected.
+An ID remains stable while a registered root marks it, but an unreachable ID
+may be reused after collection.
 
 | st_hyperlink_registry_copy(registry, identifier, result)
 | Deep-copies one URI/parameter into caller-owned result fields.
 
 | st_hyperlink_registry_contains(registry, identifier, result)
 | Tests a nonzero identifier without allocating.
+
+| st_hyperlink_registry_register_root(registry, root, context), st_hyperlink_registry_unregister_root(registry, root, context)
+| Adds/removes a borrowed collector root. Duplicate registration is rejected.
+
+| st_hyperlink_registry_collect(registry)
+| Marks through every registered root and reclaims unmarked slots. With no
+registered roots it returns `IO_ERROR_OUT_OF_RANGE` and preserves all IDs.
 
 | st_hyperlink_dispose(hyperlink)
 | Frees copied fields and clears the caller-owned value.

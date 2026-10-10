@@ -764,11 +764,8 @@ cterm_cterm_osc_finish(struct cterminal *cterm)
 	/* OSC 104 — reset colour palette */
 	else if (strncmp("104", cterm->strbuf, 3) == 0) {
 		if (strlen(cterm->strbuf) == 3) {
-			for (i = 0; i < sizeof(dac_default) / sizeof(struct dac_colors); i++)
-				cterm_setpalette(cterm, i + palette_offset,
-				    dac_default[i].red << 8 | dac_default[i].red,
-				    dac_default[i].green << 8 | dac_default[i].green,
-				    dac_default[i].blue << 8 | dac_default[i].blue);
+			for (i = 0; i < TOTAL_DAC_SIZE; i++)
+				(void)cterm_resetpalette(cterm, (uint32_t)i);
 		}
 		else if (cterm->strbuf[3] == ';') {
 			char *seqlast;
@@ -777,11 +774,8 @@ cterm_cterm_osc_finish(struct cterminal *cterm)
 			while ((p = strtok_r(p2, ";", &seqlast)) != NULL) {
 				p2 = NULL;
 				pi = strtoul(p, NULL, 10);
-				if (pi < sizeof(dac_default) / sizeof(struct dac_colors))
-					cterm_setpalette(cterm, pi + palette_offset,
-					    dac_default[pi].red << 8 | dac_default[pi].red,
-					    dac_default[pi].green << 8 | dac_default[pi].green,
-					    dac_default[pi].blue << 8 | dac_default[pi].blue);
+				if (pi < TOTAL_DAC_SIZE)
+					(void)cterm_resetpalette(cterm, (uint32_t)pi);
 			}
 		}
 	}
@@ -1455,9 +1449,9 @@ cterm_accumulate_doorway(struct cterminal *cterm, unsigned char byte, int *speed
  * cterm_accumulate_music — ANSI / BANSI music string accumulator
  *
  * Collects bytes into musicbuf until the terminator 0x0E (SO) fires the
- * music playback.  Any byte outside the allowed musicchars set aborts
- * the accumulation silently.  Touches hold_update / puttext_can_move so
- * rendering stays still across play_music().
+ * music playback. Any byte outside the allowed musicchars set aborts
+ * the accumulation silently. Pending text is presented before playback,
+ * then the rendering batch resumes while the music runs.
  * ------------------------------------------------------------------------ */
 bool
 cterm_accumulate_music(struct cterminal *cterm, unsigned char byte, int *speed)
@@ -1467,13 +1461,11 @@ cterm_accumulate_music(struct cterminal *cterm, unsigned char byte, int *speed)
 	(void)speed;
 
 	if (byte == 14) {
-		hold_update = 0;
-		puttext_can_move = 0;
+		(void)st_cterm_adapter_set_hold_update(cterm, 0);
 		CURR_XY(&x, &y);
 		gotoxy(x, y);
 		ciolib_setcursortype(cterm->cursor);
-		hold_update = 1;
-		puttext_can_move = 1;
+		(void)st_cterm_adapter_set_hold_update(cterm, 1);
 		play_music(cterm);
 	}
 	else if (strchr(musicchars, byte) != NULL) {

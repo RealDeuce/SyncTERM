@@ -57,6 +57,9 @@ struct surface_storage {
 	uint32_t width;
 	uint32_t height;
 	struct st_console_cell *cells;
+	struct st_wren_host *host;
+	struct surface_storage *previous;
+	struct surface_storage *next;
 };
 
 struct foreign_surface {
@@ -311,14 +314,45 @@ storage_release(struct surface_storage *storage)
 	if (storage == NULL)
 		return;
 	if (--storage->references == 0) {
+		if (storage->previous != NULL)
+			storage->previous->next = storage->next;
+		else
+			storage->host->surface_storage = storage->next;
+		if (storage->next != NULL)
+			storage->next->previous = storage->previous;
 		free(storage->cells);
 		free(storage);
 	}
 }
 
+static void
+storage_attach(struct surface_storage *storage, struct st_wren_host *host)
+{
+	storage->host = host;
+	storage->next = host->surface_storage;
+	if (storage->next != NULL)
+		storage->next->previous = storage;
+	host->surface_storage = storage;
+}
+
+int
+st_wren_mark_surface_hyperlinks(struct st_wren_host *host,
+	st_hyperlink_mark_fn mark, void *mark_context)
+{
+	int status = 0;
+
+	for (struct surface_storage *storage = host->surface_storage;
+	    storage != NULL && status == 0; storage = storage->next) {
+		for (size_t i = 0; i < storage->count && status == 0; ++i)
+			status = mark(mark_context, storage->cells[i].hyperlink);
+	}
+	return status;
+}
+
 static struct surface_storage *
 storage_create(uint32_t width, uint32_t height,
-	const struct st_console_style *style, st_console_t *console)
+	const struct st_console_style *style, st_console_t *console,
+	struct st_wren_host *host)
 {
 	struct surface_storage *storage;
 	struct st_console_cell blank;
@@ -355,6 +389,7 @@ storage_create(uint32_t width, uint32_t height,
 	}
 	for (size_t i = 0; i < storage->count; ++i)
 		storage->cells[i] = blank;
+	storage_attach(storage, host);
 	return storage;
 }
 
@@ -383,6 +418,7 @@ st_wren_push_surface_take(WrenVM *vm, struct st_console_cell *cells,
 	storage->width = width;
 	storage->height = height;
 	storage->cells = cells;
+	storage_attach(storage, st_wren_host_from_vm(vm));
 	wrenEnsureSlots(vm, 2);
 	wrenGetVariable(vm, "syncterm", "Surface", 1);
 	surface = wrenSetSlotNewForeign(vm, 0, 1, sizeof(*surface));
@@ -538,7 +574,7 @@ allocate_cell(WrenVM *vm)
 	if (st_console_get_style(st_wren_context_from_vm(vm)->console, &style) != 0)
 		style = (struct st_console_style){.foreground = 7};
 	cell->storage = storage_create(1, 1, &style,
-	    st_wren_context_from_vm(vm)->console);
+	    st_wren_context_from_vm(vm)->console, st_wren_host_from_vm(vm));
 	if (cell->storage == NULL)
 		st_wren_abort(vm, "Cell.new: out of memory");
 }
@@ -560,7 +596,8 @@ allocate_surface(WrenVM *vm)
 	if (st_console_get_style(st_wren_context_from_vm(vm)->console, &style) != 0)
 		style = (struct st_console_style){.foreground = 7};
 	surface->storage = storage_create((uint32_t)width, (uint32_t)height,
-	    &style, st_wren_context_from_vm(vm)->console);
+	    &style, st_wren_context_from_vm(vm)->console,
+	    st_wren_host_from_vm(vm));
 	if (surface->storage == NULL)
 		st_wren_abort(vm, "Surface.new: dimensions are too large");
 }
@@ -2001,7 +2038,7 @@ fn_screen_read_rect(WrenVM *vm)
 	if (st_console_get_style(console, &style) != 0)
 		style = (struct st_console_style){.foreground = 7};
 	storage = storage_create(rect.width, rect.height, &style,
-	    st_wren_context_from_vm(vm)->console);
+	    st_wren_context_from_vm(vm)->console, st_wren_host_from_vm(vm));
 	if (storage == NULL) {
 		wrenSetSlotNull(vm, 0);
 		return;

@@ -42,6 +42,9 @@ struct st_term_config {
 int st_term_connect_profile(st_connection_t **result,
 	const struct st_profile *profile, st_console_t *console,
 	const struct st_connection_hooks *hooks, struct st_connection_error *error);
+/* Local PTY sessions exchange UTF-8; byte-oriented remote transports do not. */
+enum st_cterm_encoding st_term_profile_encoding(
+	const struct st_profile *profile);
 int st_term_session_create(st_term_session_t **result,
 	const struct st_term_config *config);
 void st_term_session_destroy(st_term_session_t **session);

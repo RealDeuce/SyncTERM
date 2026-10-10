@@ -320,7 +320,8 @@ void cterm_uctputs(struct cterminal *cterm, char *buf);
 void cterm_respond(struct cterminal *cterm, const char *data, size_t len);
 void cterm_respond_printf(struct cterminal *cterm, const char *fmt, ...);
 int cterm_setpalette(struct cterminal *cterm, uint32_t entry,
-    uint16_t r, uint16_t g, uint16_t b);
+	    uint16_t r, uint16_t g, uint16_t b);
+int cterm_resetpalette(struct cterminal *cterm, uint32_t entry);
 
 void cterm_reset(struct cterminal *cterm);
 void cterm_set_negative(struct cterminal *cterm, bool on);

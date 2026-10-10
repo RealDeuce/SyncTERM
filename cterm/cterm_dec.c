@@ -1745,7 +1745,7 @@ all_done:
 		setpixels(cterm->sx_left, cterm->sx_y, cterm->sx_row_max_x, cterm->sx_y + 6 * cterm->sx_iv - 1, cterm->sx_left, 0, cterm->sx_left, 0, cterm->sx_pixels, cterm->sx_mask);
 	}
 
-	hold_update=cterm->sx_hold_update;
+	(void)st_cterm_adapter_set_hold_update(cterm, cterm->sx_hold_update);
 
 	/* Finish off the background */
 	cterm->sx_x = cterm->sx_left;
@@ -2052,8 +2052,8 @@ void cterm_parse_sixel_intro(struct cterminal *cterm)
 		cterm->sx_first_pass = 1;
 		cterm->sx_height = 0;
 		cterm->sx_width = 0;
-		cterm->sx_hold_update = hold_update;
-		hold_update = 0;
+		cterm->sx_hold_update = st_cterm_adapter_hold_update(cterm);
+		(void)st_cterm_adapter_set_hold_update(cterm, 0);
 
 		gettextinfo(&ti);
 		vmode = find_vmode(ti.currmode);
@@ -2075,7 +2075,7 @@ void cterm_parse_sixel_intro(struct cterminal *cterm)
 		cterm->cursor = _NOCURSOR;
 		ciolib_setcursortype(cterm->cursor);
 		cterm_gotoxy(cterm, TERM_MINX, TERM_MINY);
-		hold_update = 1;
+		(void)st_cterm_adapter_set_hold_update(cterm, 1);
 		cterm->sx_trans = hgrid = 0;
 		ratio = strtoul(cterm->strbuf, &p, 10);
 		if (*p == ';') {

@@ -683,7 +683,7 @@ cterm_dispatch_prestel(struct cterminal *cterm, unsigned char byte, int *speed)
 			cterm_uctputs(cterm, cterm->print_buf);
 			cterm->print_buf[0] = 0;
 			cterm->print_pos = cterm->print_buf;
-			cio_api.options &= ~(CONIO_OPT_PRESTEL_REVEAL);
+			cterm->screen.prestel_reveal = false;
 			cterm_prestel_new_line(cterm);
 			cterm_clearscreen(cterm, (char)cterm->attr);
 			gotoxy(CURR_MINX, CURR_MINY);
@@ -801,7 +801,7 @@ cterm_dispatch_beeb(struct cterminal *cterm, unsigned char byte, int *speed)
 			cterm_uctputs(cterm, cterm->print_buf);
 			cterm->print_buf[0] = 0;
 			cterm->print_pos = cterm->print_buf;
-			cio_api.options &= ~(CONIO_OPT_PRESTEL_REVEAL);
+			cterm->screen.prestel_reveal = false;
 			cterm_prestel_new_line(cterm);
 			cterm_clearscreen(cterm, (char)cterm->attr);
 			gotoxy(CURR_MINX, CURR_MINY);
