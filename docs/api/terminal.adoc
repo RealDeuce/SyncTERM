@@ -1,0 +1,80 @@
+[[api-terminal]]
+== Terminal pipeline
+
+The connected terminal path is three deliberately separate components.  Target
+`st_font_catalog` registers selector-addressed fonts on one console.  Target
+`st_cterm` owns terminal protocol state and renders into that console.  Target
+`st_term` joins a connection, CTerm, console events, and session history into
+the minimal connected loop.
+
+=== Font catalog
+
+Header: link:font_catalog/st_font_catalog.h[st_font_catalog.h].  A catalog
+borrows exactly one console.  It registers all built-in fonts compatible with
+that console's cell dimensions and maps the legacy selectors 0 through 45 to
+console font identifiers.  Custom selectors begin at 46, contain exactly 256
+glyphs, must match the console cell dimensions, and use CP437 semantic
+mapping.  Loading a custom font is transactional with respect to its selector:
+a missing, incorrectly sized, unreadable, or unregistrable file leaves the old
+mapping intact.
+
+The reusable registration helper is also used by the Wren host, so menu and
+connected-terminal custom fonts enforce the same dimensions and exact file
+size.  Console font registrations retain their bitmap independently; destroying
+the catalog removes only selector tables.
+
+=== CTerm
+
+Header: link:cterm/st_cterm.h[st_cterm.h].  The port retains the complete
+ECMA-48/DEC, SyncTERM, VT52, ATASCII, PETSCII, Prestel, and BBC handler family,
+but its public boundary is the small `st_cterm_*` interface.  The imported
+implementation and its bridge are private to target `st_cterm` and are licensed
+under BSD-2-Clause; link:cterm/LICENSE[cterm/LICENSE] contains the terms.
+
+Cells passed to the console are resolved glyph cells, never Unicode-codepoint
+placeholders.  The bridge maps legacy byte cells through the selected font and
+codepage before constructing `struct st_console_cell`.  Readback is
+intentionally a projection and need not losslessly reproduce Unicode input.
+
+UTF-8 mode is streaming.  Decoder state survives write boundaries, while raw
+C0/DEL bytes and active terminal-sequence accumulators remain parser input.
+Graphic text is shown immediately as a provisional grapheme; combining input
+may revise that cell before the grapheme commits.  A parser/reset/disconnect
+boundary turns one incomplete UTF-8 prefix into one decode-error glyph.  An
+ordinary write boundary does not flush it.  Fixed byte-table emulations reject
+UTF-8 mode.
+
+Protocol responses and encoded local input are distinguished by
+`enum st_cterm_output_origin`, although the minimal session sends both through
+the active connection.  BEL is local: it may beep but emits no wire bytes.
+DEC mouse/focus reporting, a reserved host-writable DEC status row, remote
+fonts, pixels, hyperlinks, and audio are handled inside CTerm.  DECCKSR computes
+its CRC over the selected row-major array of modern 24-byte cells; the explicit
+reserved field is zero, making the byte representation deterministic.
+
+=== Minimal connected session
+
+Header: link:term/st_term.h[st_term.h].  This first `term.c` replacement handles
+Raw, RLogin (both username orders), Serial, 3-wire Serial, Modem, and Shell
+profiles.  Other connection types return `IO_ERROR_NOT_SUPPORTED`; Wren,
+transfers, RIP, and auxiliary connected applications remain outside this
+minimal loop.
+
+The session borrows the console, open connection, font catalog, and optional
+audio, hyperlink, and history services.  It receives ordered wire bytes into
+CTerm and converts console text events from Unicode to the selected wire
+encoding.  In a legacy encoding, an unmappable grapheme beeps locally and only
+that grapheme is omitted.  Raw CTerm responses bypass text conversion.  There
+is no simulated baud throttling.
+
+When status is visible, the bottom console row is reserved and excluded from
+reported terminal geometry.  CTerm's staged scrollback ring plus visible rows
+is published chronologically to session history during destruction.  Alt-H or
+Ctrl-Q returns to the picker; Alt-X or a window-close event exits the
+application.  A direct URL exits after its one session, while an interactive
+selection may return to the persistent picker.
+
+Focused CTest names are `unicode_text`, `font_catalog`, `cterm`, and `term`.
+The CTerm test exercises every emulation family at least as a parser smoke
+case and covers split UTF-8, provisional revision, BEL silence on the wire,
+status routing, mouse reporting, deterministic DECCKSR, and history snapshots.

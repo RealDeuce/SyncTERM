@@ -13,6 +13,7 @@
 #include <stdint.h>
 
 typedef struct st_unicode_text st_unicode_text_t;
+typedef struct st_unicode_presentation st_unicode_presentation_t;
 
 enum st_unicode_text_mode {
 	ST_UNICODE_TEXT_NORMALIZE,
@@ -39,6 +40,43 @@ struct st_unicode_text_item {
 	bool rgi_emoji;
 	uint8_t columns;
 };
+
+enum st_unicode_presentation_event_kind {
+	ST_UNICODE_PRESENTATION_BEGIN,
+	ST_UNICODE_PRESENTATION_REVISE,
+	ST_UNICODE_PRESENTATION_COMMIT,
+	ST_UNICODE_PRESENTATION_DECODE_ERROR,
+};
+
+/*
+ * BEGIN publishes the first scalar immediately. REVISE replaces that same
+ * provisional grapheme after a combining/ZWJ extension. COMMIT makes the
+ * most recently published bytes final. Event byte storage is borrowed only
+ * for the callback. A decode error contains the offending original bytes.
+ */
+struct st_unicode_presentation_event {
+	enum st_unicode_presentation_event_kind kind;
+	const uint8_t *bytes;
+	size_t size;
+	bool rgi_emoji;
+	uint8_t columns;
+};
+
+typedef int (*st_unicode_presentation_callback_t)(void *context,
+	const struct st_unicode_presentation_event *event);
+
+int st_unicode_presentation_create(st_unicode_presentation_t **result,
+	st_unicode_presentation_callback_t callback, void *context);
+void st_unicode_presentation_destroy(st_unicode_presentation_t **presentation);
+void st_unicode_presentation_reset(st_unicode_presentation_t *presentation);
+int st_unicode_presentation_feed(st_unicode_presentation_t *presentation,
+	const void *bytes, size_t size, size_t *consumed);
+/*
+ * Flushes an incomplete UTF-8 sequence as one decode error and commits the
+ * provisional grapheme, then remains ready for more input. Use at a control,
+ * reset, encoding change, or disconnect boundary, never at an ordinary read.
+ */
+int st_unicode_presentation_boundary(st_unicode_presentation_t *presentation);
 
 int st_unicode_text_create(st_unicode_text_t **result,
 	enum st_unicode_text_mode mode);

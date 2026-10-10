@@ -1,0 +1,202 @@
+[[reference-terminal]]
+=== Terminal API reference
+
+==== Font catalog
+
+[source,c]
+----
+int st_font_catalog_create(st_font_catalog_t **result, st_console_t *console);
+void st_font_catalog_destroy(st_font_catalog_t *catalog);
+int st_font_catalog_load_custom(st_font_catalog_t *catalog, uint8_t selector,
+    const char *path);
+int st_font_catalog_register_custom(st_console_t *console, const char *path,
+    uint16_t *identifier);
+bool st_font_catalog_identifier(const st_font_catalog_t *catalog,
+    uint8_t selector, uint16_t *identifier);
+bool st_font_catalog_selector(const st_font_catalog_t *catalog,
+    uint16_t identifier, uint8_t *selector);
+enum st_codepage st_font_catalog_codepage(const st_font_catalog_t *catalog,
+    uint8_t selector);
+st_console_t *st_font_catalog_console(const st_font_catalog_t *catalog);
+----
+
+[cols="3m,7"]
+|===
+| Function | Parameters, result, constraints, and ownership
+
+| st_font_catalog_create(result, console)
+| `result` and `console` are required.  Registers compatible built-ins and
+allocates selector state; zero succeeds, negative `IO_ERROR_*` fails with
+`result` unchanged.  The console is borrowed and must outlive the catalog.
+
+| st_font_catalog_destroy(catalog)
+| Frees selector state; NULL is accepted.  Registered console fonts remain.
+
+| st_font_catalog_load_custom(catalog, selector, path)
+| Requires selector 46 or greater and a non-NULL path.  The file must contain
+exactly 256 glyphs at the console cell dimensions.  On success replaces that
+selector and returns zero; on failure its old mapping is unchanged.
+
+| st_font_catalog_register_custom(console, path, identifier)
+| Registers the same exact-size custom-font format without a catalog mapping.
+Writes the console-owned identifier only on success.  This is for hosts which
+own their own selector table.
+
+| st_font_catalog_identifier(catalog, selector, identifier)
+| Returns true and writes the identifier when the selector is registered;
+otherwise returns false and leaves output unspecified.
+
+| st_font_catalog_selector(catalog, identifier, selector)
+| Reverse lookup.  Returns true only for the catalog's current mapping.
+
+| st_font_catalog_codepage(catalog, selector)
+| Returns the built-in selector's semantic codepage; selectors 46 and above
+use CP437.  This query does not assert that the selector is registered.
+
+| st_font_catalog_console(catalog)
+| Returns the borrowed console, or NULL for a NULL catalog.
+|===
+
+==== CTerm
+
+`struct st_cterm_config` borrows every pointer through terminal destruction.
+`terminal_rows == 0` selects every console row; otherwise it must not exceed
+console height.  `scrollback_lines` is bounded by addressable allocation size.
+The font selector must be registered in the supplied catalog, and that catalog
+must belong to the supplied console.
+
+[source,c]
+----
+int st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config);
+void st_cterm_destroy(st_cterm_t **terminal);
+int st_cterm_write(st_cterm_t *terminal, const void *bytes, size_t size,
+    size_t *consumed);
+int st_cterm_finish(st_cterm_t *terminal);
+int st_cterm_reset_terminal(st_cterm_t *terminal);
+enum st_cterm_encoding st_cterm_encoding(const st_cterm_t *terminal);
+enum st_codepage st_cterm_codepage(const st_cterm_t *terminal);
+int st_cterm_set_encoding(st_cterm_t *terminal,
+    enum st_cterm_encoding encoding, enum st_codepage codepage);
+int st_cterm_copy_history(st_cterm_t *terminal,
+    struct st_console_cell **cells, uint32_t *columns, size_t *rows);
+bool st_cterm_handle_key(st_cterm_t *terminal, uint16_t key_code);
+bool st_cterm_handle_doorway_key(st_cterm_t *terminal, uint8_t scan_code);
+bool st_cterm_handle_physical_keys(st_cterm_t *terminal,
+    const struct st_console_event *events, size_t count);
+bool st_cterm_handle_mouse(st_cterm_t *terminal,
+    const struct st_console_event *event);
+bool st_cterm_handle_focus(st_cterm_t *terminal, bool focused);
+----
+
+[cols="3m,7"]
+|===
+| Function | Parameters, result, constraints, and effect
+
+| st_cterm_create(result, config)
+| Allocates and resets terminal/parser state and its optional scrollback.
+Returns zero or negative `IO_ERROR_*`; `result` is unchanged on failure.
+UTF-8 is valid only for ANSI-BBS and Atari-ST VT52.
+
+| st_cterm_destroy(terminal_ptr)
+| Finishes streams, destroys a status subterminal, frees scrollback/parser
+state, and sets the caller handle to NULL.  NULL pointer/value is accepted.
+
+| st_cterm_write(terminal, bytes, size, consumed)
+| Incrementally consumes borrowed wire bytes.  `consumed` is required and is
+always written.  A successful return consumes all bytes; on callback/render
+failure it identifies the resume offset.  A call boundary is not EOF.
+
+| st_cterm_finish(terminal)
+| Commits a pending grapheme and reports an incomplete UTF-8 prefix once as a
+decode error.  Safe to call again without duplicating the error.
+
+| st_cterm_reset_terminal(terminal)
+| Finishes the Unicode boundary, then applies the emulation reset.
+
+| st_cterm_encoding(terminal), st_cterm_codepage(terminal)
+| Return active policy.  NULL yields CODEPAGE and CP437 defaults respectively.
+
+| st_cterm_set_encoding(terminal, encoding, codepage)
+| Finishes pending Unicode before changing policy.  Rejects an invalid enum,
+codepage, or UTF-8 with a fixed byte-table emulation.
+
+| st_cterm_copy_history(terminal, cells, columns, rows)
+| Allocates a row-major chronological snapshot: staged ring lines then visible
+terminal rows.  All outputs are unchanged on failure; caller frees `*cells`.
+
+| st_cterm_handle_key(terminal, key_code)
+| Encodes one normalized key according to active terminal modes.  Returns true
+when handled; emitted bytes carry USER origin.
+
+| st_cterm_handle_doorway_key(terminal, scan_code)
+| DoorWay scan-code counterpart; returns whether handled.
+
+| st_cterm_handle_physical_keys(terminal, events, count)
+| Requires every counted event to be PHYSICAL_KEY.  Updates key-event mode and
+returns whether CTerm handled the batch.  The event array is borrowed.
+
+| st_cterm_handle_mouse(terminal, event)
+| Requires one MOUSE event.  Applies DEC 9/1000/1002/1003 and encoding modes
+1005/1006/1015/1016; returns true when a report or alternate-scroll key emits.
+
+| st_cterm_handle_focus(terminal, focused)
+| Emits DEC focus-in/out only while mode 1004 is enabled; return reports emit.
+|===
+
+Output/APC/size callbacks are synchronous and must copy borrowed byte/text
+spans before returning if they retain them.  CTerm is ordered mutable session
+state and is not safe for concurrent calls.
+
+==== Minimal connected session
+
+[source,c]
+----
+int st_term_connect_profile(st_connection_t **result,
+    const struct st_profile *profile, st_console_t *console,
+    const struct st_connection_hooks *hooks, struct st_connection_error *error);
+int st_term_session_create(st_term_session_t **result,
+    const struct st_term_config *config);
+void st_term_session_destroy(st_term_session_t **session);
+int st_term_session_run(st_term_session_t *session,
+    enum st_term_disposition *disposition);
+int st_term_session_pump(st_term_session_t *session,
+    enum st_term_disposition *disposition, bool *finished);
+int st_term_session_send_text(st_term_session_t *session,
+    const char *utf8, size_t size);
+----
+
+[cols="3m,7"]
+|===
+| Function | Parameters, result, constraints, and effect
+
+| st_term_connect_profile(result, profile, console, hooks, error)
+| Reads current console geometry and dispatches Raw, RLogin, Serial, Modem, or
+Shell connection creation.  Pointers are borrowed for the call; connection
+hooks follow `st_connection` lifetime rules after success.  Unsupported
+profile types return `IO_ERROR_NOT_SUPPORTED`.  Caller owns the connection.
+
+| st_term_session_create(result, config)
+| Requires matching non-NULL console, open connection, and font catalog.
+Optional audio/hyperlink/history pointers may be NULL.  All configured objects
+are borrowed through session destruction.  A visible status row requires at
+least two console rows.  Result is unchanged on failure.
+
+| st_term_session_destroy(session_ptr)
+| Finishes Unicode, publishes history when configured, releases CTerm, and
+sets the handle NULL.  It neither closes nor destroys the borrowed connection.
+
+| st_term_session_run(session, disposition)
+| Pumps until disconnect or local exit.  Writes RETURN_TO_PICKER or
+EXIT_APPLICATION and returns zero, or stops at the first `IO_ERROR_*`.
+
+| st_term_session_pump(session, disposition, finished)
+| Performs one bounded connection receive and drains currently queued console
+events.  `finished` is always initialized false and becomes true on a terminal
+condition.  Caller repeats while zero and not finished.
+
+| st_term_session_send_text(session, utf8, size)
+| Strictly validates and NFC-normalizes the counted UTF-8, then sends each
+grapheme.  UTF-8 sessions send normalized bytes.  Legacy sessions map a
+single-scalar grapheme through the configured codepage; unmappable graphemes
+beep and are omitted without aborting representable neighbours.
+|===

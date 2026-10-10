@@ -4,12 +4,16 @@
 == Status and Scope
 
 This is the design contract for the connected-session input and output
-boundary.  It applies to the future ports of `term.c`, CTerm, and the connected
-Wren bindings.  It does not describe those ports as already implemented.
+boundary.  The CTerm parser, provisional Unicode presentation layer, outgoing
+text encoder, and minimal `term.c` session loop are implemented.  The connected
+Wren hooks, transfer detection, RIP, and other higher-level session features
+remain later porting work.
 
-Exact C and Wren function names may be chosen during implementation.  The
-separation between default Unicode text operations and explicitly raw byte
-operations is normative.
+The implemented C interfaces are documented in
+link:docs/api/terminal.adoc[the terminal API guide] and its reference chapter.
+The Wren names below remain design examples until that connected binding is
+ported.  The separation between default Unicode text operations and explicitly
+raw byte operations is normative.
 
 The design must support all of the following at the same time:
 
@@ -100,11 +104,12 @@ The decoder must define and test these transitions:
   prefix remains incomplete; and
 * reset after a decode error without losing the following valid input.
 
-Malformed-input presentation policy must be applied once to the shared
-decoder events so Wren and the display observe the same result.  The exact
-replacement or notification policy remains an implementation decision.  Basic
-incremental decoding does not perform NFC normalization or grapheme buffering;
-those are separate text-presentation policies.
+Malformed-input presentation policy is applied once: every malformed maximal
+subpart produces one decode-error event, and an incomplete prefix produces one
+such event only at an explicit parser/reset/disconnect boundary.  The
+`st_unicode_presentation_t` layer performs NFC normalization and immediate
+provisional grapheme BEGIN/REVISE/COMMIT delivery; ordinary decoder feeds never
+pretend to be an end boundary.
 
 == Wren Boundary
 
@@ -183,10 +188,10 @@ typed raw and text spans, or use separate callbacks.  `term.c` encodes only the
 text spans.  It must never character-encode escape introducers, binary fields,
 or other protocol bytes.
 
-The outgoing encoder needs an explicit policy for Unicode scalars which the
-selected legacy codepage cannot represent.  That policy must not affect raw
-responses.  Partial-send accounting is measured in final wire bytes, after
-text encoding and connection framing.
+For the minimal loop, an outgoing grapheme which cannot be represented in the
+selected legacy codepage beeps locally and is omitted; representable neighbours
+continue.  This policy does not affect raw responses.  Partial-send accounting
+is measured in final wire bytes, after text encoding and connection framing.
 
 == Ownership
 
@@ -232,15 +237,15 @@ The port is not complete until focused tests cover at least:
   encoding; and
 * mixed raw/text responses such as selected-area transmission.
 
-== Decisions Deferred to the Port
+== Decisions Deferred to the Connected Wren Port
 
 The architecture does not yet choose:
 
 * final Wren method names and compatibility aliases;
 * whether default input hooks fire per scalar or per grapheme;
-* the malformed-input replacement and notification policy;
-* the outgoing unmappable-scalar policy; or
-* the concrete C callback or typed-event interface between `term.c` and CTerm.
+* the precise placement/order of raw hooks and transfer detection; and
+* how Unicode hook replacement events join CTerm's implemented presentation
+  event stream without a second decoder.
 
 Those choices must preserve the central invariant: one ordered raw stream, one
 parser-aware text classification point, and one shared Unicode conversion for

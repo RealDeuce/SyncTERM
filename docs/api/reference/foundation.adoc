@@ -318,6 +318,48 @@ malloc-owned, NUL-terminated NFC buffer; size excludes the NUL.  Malformed
 UTF-8 or allocation failure leaves all outputs unchanged.
 |===
 
+==== Provisional Unicode presentation
+
+[source,c]
+----
+int st_unicode_presentation_create(st_unicode_presentation_t **result,
+    st_unicode_presentation_callback_t callback, void *context);
+void st_unicode_presentation_destroy(st_unicode_presentation_t **presentation);
+void st_unicode_presentation_reset(st_unicode_presentation_t *presentation);
+int st_unicode_presentation_feed(st_unicode_presentation_t *presentation,
+    const void *bytes, size_t size, size_t *consumed);
+int st_unicode_presentation_boundary(st_unicode_presentation_t *presentation);
+----
+
+The callback receives a synchronous borrowed event.  BEGIN starts a provisional
+grapheme, REVISE replaces that same grapheme with the supplied NFC bytes,
+COMMIT makes it final, and DECODE_ERROR describes the malformed maximal
+subpart.  `columns` is the current display width and `rgi_emoji` identifies a
+complete recognized emoji sequence.
+
+[cols="3m,7"]
+|===
+| Function | Parameters, result, and effect
+
+| st_unicode_presentation_create(result, callback, context)
+| Requires `result` and `callback`, allocates empty streaming state, and leaves
+`result` unchanged on failure.  Context is borrowed for the object's lifetime.
+
+| st_unicode_presentation_destroy(presentation_ptr)
+| Frees decoder/grapheme storage and sets the handle NULL; NULL is accepted.
+
+| st_unicode_presentation_reset(presentation)
+| Silently discards decoder and provisional-grapheme state without callbacks.
+
+| st_unicode_presentation_feed(presentation, bytes, size, consumed)
+| Incrementally consumes borrowed UTF-8 and synchronously emits events.
+Incomplete prefixes remain pending.  `consumed` is required and always written.
+
+| st_unicode_presentation_boundary(presentation)
+| Flushes one incomplete prefix as one DECODE_ERROR, then commits the pending
+grapheme.  A repeated boundary emits nothing until more input arrives.
+|===
+
 ==== Unicode comparison and collation
 
 [source,c]

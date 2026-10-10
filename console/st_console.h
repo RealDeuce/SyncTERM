@@ -97,6 +97,13 @@ struct st_console_cell {
 	uint16_t font;
 	uint16_t glyph_font;
 	uint16_t hyperlink;
+	/*
+	 * Reserved bytes make the serialized cell rectangle deterministic.
+	 * Callers must initialize this to zero; the console also clears it when
+	 * accepting cells so stack padding or future fields cannot affect a raw
+	 * rectangle checksum.
+	 */
+	uint16_t reserved;
 };
 
 struct st_console_font_mapping {

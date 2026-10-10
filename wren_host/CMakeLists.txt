@@ -93,7 +93,7 @@ target_link_libraries(st_wren_host
 	PRIVATE st_wren_vm st_codepage st_utf8 st_unicode_text st_unicode_width
 		st_unicode_compare
 		st_bbs_list st_audio
-		st_fonts st_settings st_theme st_time st_pixel_image st_serial
+		st_fonts st_font_catalog st_settings st_theme st_time st_pixel_image st_serial
 		syncterm_io_error syncterm_path syncterm_file_map
 		syncterm_string_compat syncterm_filesystem
 		syncterm_value_convert st_consent_token xptls::crypto)

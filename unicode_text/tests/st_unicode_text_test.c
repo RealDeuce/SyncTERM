@@ -407,12 +407,77 @@ check_errors(void)
 	return 0;
 }
 
+struct presentation_log {
+	struct {
+		enum st_unicode_presentation_event_kind kind;
+		uint8_t bytes[8];
+		size_t size;
+	} events[8];
+	size_t count;
+};
+
+static int
+record_presentation(void *context,
+	const struct st_unicode_presentation_event *event)
+{
+	struct presentation_log *log = context;
+
+	if (log->count >= sizeof(log->events) / sizeof(log->events[0])
+	    || event->size > sizeof(log->events[0].bytes))
+		return IO_ERROR_OUT_OF_RANGE;
+	log->events[log->count].kind = event->kind;
+	log->events[log->count].size = event->size;
+	memcpy(log->events[log->count].bytes, event->bytes, event->size);
+	++log->count;
+	return 0;
+}
+
+static int
+check_provisional_presentation(void)
+{
+	static const uint8_t acute[] = {0xcc, 0x81};
+	static const uint8_t composed[] = {0xc3, 0xa9};
+	struct presentation_log log = {0};
+	st_unicode_presentation_t *presentation = NULL;
+	size_t consumed;
+
+	CHECK(st_unicode_presentation_create(&presentation,
+	    record_presentation, &log) == 0);
+	CHECK(st_unicode_presentation_feed(presentation, "e", 1, &consumed) == 0
+	    && consumed == 1);
+	CHECK(log.count == 1
+	    && log.events[0].kind == ST_UNICODE_PRESENTATION_BEGIN
+	    && log.events[0].size == 1 && log.events[0].bytes[0] == 'e');
+	CHECK(st_unicode_presentation_feed(presentation, acute, 1, &consumed) == 0
+	    && consumed == 1 && log.count == 1);
+	CHECK(st_unicode_presentation_feed(presentation, acute + 1, 1,
+	    &consumed) == 0 && consumed == 1);
+	CHECK(log.count == 2
+	    && log.events[1].kind == ST_UNICODE_PRESENTATION_REVISE
+	    && log.events[1].size == sizeof(composed)
+	    && memcmp(log.events[1].bytes, composed, sizeof(composed)) == 0);
+	CHECK(st_unicode_presentation_boundary(presentation) == 0);
+	CHECK(log.count == 3
+	    && log.events[2].kind == ST_UNICODE_PRESENTATION_COMMIT);
+	CHECK(st_unicode_presentation_feed(presentation, "\xf0\x9f", 2,
+	    &consumed) == 0 && consumed == 2);
+	CHECK(st_unicode_presentation_boundary(presentation) == 0);
+	CHECK(log.count == 4
+	    && log.events[3].kind == ST_UNICODE_PRESENTATION_DECODE_ERROR
+	    && log.events[3].size == 2);
+	CHECK(st_unicode_presentation_boundary(presentation) == 0
+	    && log.count == 4);
+	st_unicode_presentation_destroy(&presentation);
+	return 0;
+}
+
 int
 main(void)
 {
 	CHECK(check_normalize() == 0);
 	CHECK(check_graphemes() == 0);
 	CHECK(check_errors() == 0);
+	CHECK(check_provisional_presentation() == 0);
 	CHECK(check_normalization_conformance() == 0);
 	CHECK(check_grapheme_conformance() == 0);
 	return EXIT_SUCCESS;

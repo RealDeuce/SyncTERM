@@ -31,7 +31,11 @@ _Static_assert(offsetof(struct st_console_cell, glyph) == 0
 	&& offsetof(struct st_console_cell, flags) == 12
 	&& offsetof(struct st_console_cell, font) == 16
 	&& offsetof(struct st_console_cell, glyph_font) == 18
-	&& offsetof(struct st_console_cell, hyperlink) == 20,
+	&& offsetof(struct st_console_cell, hyperlink) == 20
+	&& offsetof(struct st_console_cell, reserved) == 22
+	&& sizeof(struct st_console_cell)
+	    == offsetof(struct st_console_cell, reserved)
+	    + sizeof(((struct st_console_cell *)0)->reserved),
 	"st_console_cell layout must remain stable");
 
 static bool
@@ -1226,6 +1230,7 @@ cell_for_storage(const struct st_console_cell *source)
 	struct st_console_cell value = *source;
 
 	value.flags &= ST_CONSOLE_CELL_PUBLIC_FLAGS;
+	value.reserved = 0;
 	return value;
 }
 

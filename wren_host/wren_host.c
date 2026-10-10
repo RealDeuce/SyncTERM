@@ -14,6 +14,7 @@
 #include "st_bbs_list.h"
 #include "st_builtin_fonts.h"
 #include "st_console.h"
+#include "st_font_catalog.h"
 #include "st_screen_mode.h"
 #include "st_settings.h"
 #include "st_theme.h"
@@ -74,28 +75,25 @@ st_wren_text_slot(WrenVM *vm, int slot, const char **text, int *length)
 static int
 load_builtin_fonts(struct st_wren_context *context)
 {
-	struct st_console_font font;
+	st_font_catalog_t *catalog = NULL;
 	struct st_console_style style;
-	uint32_t width;
-	uint32_t height;
 	uint16_t identifier;
 	int status;
 
-	if (st_console_cell_pixel_size(context->console, &width, &height) != 0)
-		return IO_ERROR_INVALID_ARGUMENT;
+	status = st_font_catalog_create(&catalog, context->console);
+	if (status != 0)
+		return status;
 	for (size_t selector = 0; selector < st_builtin_font_count(); ++selector) {
 		context->fonts.catalog_valid[selector] = false;
-		if (!st_builtin_font_get(selector, width, height, &font))
+		if (!st_font_catalog_identifier(catalog, (uint8_t)selector,
+		    &identifier))
 			continue;
-		status = st_console_register_static_font(context->console, &font,
-		    &identifier);
-		if (status != 0)
-			return status;
 		context->fonts.catalog[selector] = identifier;
 		context->fonts.catalog_valid[selector] = true;
 		context->fonts.selector_by_identifier[identifier]
 		    = (uint16_t)selector;
 	}
+	st_font_catalog_destroy(catalog);
 	if (!context->fonts.catalog_valid[0]) {
 		context->fonts.catalog[0] = 0;
 		context->fonts.catalog_valid[0] = true;
@@ -267,8 +265,8 @@ st_wren_host_external_screen_resize(struct st_wren_host *host,
 }
 
 static bool
-custom_font_dimensions(uint32_t width, uint32_t height,
-	enum st_settings_font_path *slot, size_t *size)
+custom_font_slot(uint32_t width, uint32_t height,
+	enum st_settings_font_path *slot)
 {
 	if (width == 8 && height == 8)
 		*slot = ST_SETTINGS_FONT_8X8;
@@ -280,29 +278,7 @@ custom_font_dimensions(uint32_t width, uint32_t height,
 		*slot = ST_SETTINGS_FONT_12X20;
 	else
 		return false;
-	*size = ((size_t)width + 7) / 8 * height * 256;
 	return true;
-}
-
-static uint8_t *
-read_custom_font(const char *path, size_t size)
-{
-	uint8_t *bitmap;
-	FILE *stream;
-
-	if (path == NULL || fs_open(&stream, path, "rb") < 0)
-		return NULL;
-	if (fs_stream_size(stream) != (int64_t)size) {
-		(void)fclose(stream);
-		return NULL;
-	}
-	bitmap = malloc(size);
-	if (bitmap != NULL && fread(bitmap, 1, size, stream) != size) {
-		free(bitmap);
-		bitmap = NULL;
-	}
-	(void)fclose(stream);
-	return bitmap;
 }
 
 bool
@@ -325,13 +301,11 @@ static int
 prepare_custom_fonts(struct st_wren_context *context,
     struct st_wren_font_state *prepared)
 {
-	uint8_t *fresh[ST_WREN_CUSTOM_FONT_MAX] = {0};
 	uint16_t identifiers[ST_WREN_CUSTOM_FONT_MAX] = {0};
 	bool available[ST_WREN_CUSTOM_FONT_MAX] = {0};
 	uint32_t width;
 	uint32_t height;
 	enum st_settings_font_path slot;
-	size_t size;
 	size_t count;
 	int status;
 
@@ -340,7 +314,7 @@ prepare_custom_fonts(struct st_wren_context *context,
 	    &width, &height) < 0)
 		return IO_ERROR_INVALID_ARGUMENT;
 	*prepared = context->fonts;
-	if (!custom_font_dimensions(width, height, &slot, &size))
+	if (!custom_font_slot(width, height, &slot))
 		return 0;
 	count = st_settings_font_count();
 	for (size_t i = 0; i < count; ++i) {
@@ -349,35 +323,13 @@ prepare_custom_fonts(struct st_wren_context *context,
 
 		if (path == NULL)
 			continue;
-		fresh[i] = read_custom_font(path, size);
-		if (fresh[i] == NULL) {
-			/* Unreadable and wrong-sized configured files stay unavailable. */
-			continue;
-		}
-	}
-	for (size_t i = 0; i < count; ++i) {
-		status = 0;
-		if (i < count && fresh[i] != NULL) {
-			const struct st_console_font font = {
-				.bitmap = fresh[i],
-				.bitmap_size = size,
-				.width = width,
-				.height = height,
-				.glyph_count = 256,
-				.row_stride = ((size_t)width + 7) / 8,
-				.glyph_stride = (((size_t)width + 7) / 8) * height,
-			};
-
-			status = st_console_register_font_copy(context->console,
-			    &font, &identifiers[i]);
-			if (status == 0)
-				available[i] = true;
-		}
-		if (status < 0) {
-			for (size_t free_index = 0; free_index < count; ++free_index)
-				free(fresh[free_index]);
+		status = st_font_catalog_register_custom(context->console, path,
+		    &identifiers[i]);
+		if (status == 0)
+			available[i] = true;
+		else if (status != IO_ERROR_NOT_FOUND
+		    && status != IO_ERROR_INVALID_ENCODING)
 			return status;
-		}
 	}
 	for (size_t i = 0; i < ST_WREN_CUSTOM_FONT_MAX; ++i) {
 		uint16_t selector = (uint16_t)(ST_WREN_FIRST_CUSTOM_FONT + i);
@@ -393,8 +345,6 @@ prepare_custom_fonts(struct st_wren_context *context,
 			prepared->selector_by_identifier[identifiers[i]] = selector;
 		}
 	}
-	for (size_t i = 0; i < count; ++i)
-		free(fresh[i]);
 	prepared->loaded_count = count;
 	return 0;
 }

@@ -233,7 +233,11 @@ allocations.  It retains the resolved bitmap glyph, the selected and actual
 internal font identifiers, indexed or direct-RGB colours, hyperlink identifier,
 and named flag masks.  It does not retain the Unicode scalar or grapheme which
 selected that glyph.  SAA5050 control data is retained in flags separately
-from the displayed glyph.
+from the displayed glyph.  The final `reserved` member is always zeroed by
+callers and normalized by the console.  Together with compile-time offset and
+size assertions, this defines a padding-free 24-byte cell representation for
+internal raw rectangle checksums; it does not turn the structure into a
+persistent or cross-version file format.
 
 `ST_CONSOLE_CELL_BRIGHT` and `ST_CONSOLE_CELL_BLINK` retain source attribute
 bits 3 and 7; `ST_CONSOLE_CELL_BOLD` remains an independent glyph-weight

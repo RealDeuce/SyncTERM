@@ -24,7 +24,8 @@ set_target_properties(syncterm_app PROPERTIES
 target_compile_definitions(syncterm_app PRIVATE
 	$<$<CONFIG:Debug>:ST_DEBUG_BUILD>)
 target_link_libraries(syncterm_app PRIVATE st_wren_host st_settings
-	st_app_startup st_audio st_fonts st_session_history st_hyperlink)
+	st_app_startup st_audio st_fonts st_font_catalog st_term
+	st_session_history st_hyperlink)
 if(SYNCTERM_ENABLE_UNIFONT)
 	target_link_libraries(syncterm_app PRIVATE st_unifont)
 	target_compile_definitions(syncterm_app PRIVATE ST_HAVE_UNIFONT=1)

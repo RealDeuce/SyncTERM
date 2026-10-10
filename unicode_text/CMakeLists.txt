@@ -18,7 +18,8 @@ if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 		"${CMAKE_CURRENT_BINARY_DIR}/unicode_grapheme")
 endif()
 
-add_library(st_unicode_text STATIC st_unicode_text.c)
+add_library(st_unicode_text STATIC st_unicode_text.c
+	st_unicode_presentation.c)
 target_include_directories(st_unicode_text PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_unicode_text PUBLIC
 	syncterm_io_error st_utf8 st_unicode_width st_unicode_normalization

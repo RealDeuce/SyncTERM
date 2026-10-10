@@ -72,7 +72,10 @@ prefix property queries.  It is an oracle; segmentation state lives in
 grouped into extended grapheme clusters.  Feed until `READY`, inspect the
 borrowed item with `peek`, then `consume`; call `finish` to resolve an
 incomplete final sequence.  `st_unicode_text_normalize()` is the allocated
-finite-input convenience API.  Test: `unicode_text`.
+finite-input convenience API.  The same header exposes
+`st_unicode_presentation_t`, whose BEGIN/REVISE/COMMIT events support immediate
+provisional grapheme display without flushing UTF-8 at feed boundaries.
+Test: `unicode_text`.
 
 | `st_unicode_compare`
 | link:unicode_compare/st_unicode_compare.h[st_unicode_compare.h]

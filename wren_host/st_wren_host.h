@@ -161,6 +161,8 @@ int st_wren_host_select_url(st_wren_host_t *host, const char *url,
 	int default_connection_type, struct st_profile *selected);
 
 bool st_wren_host_exit_requested(const st_wren_host_t *host);
+int st_wren_host_set_screen_mode(st_wren_host_t *host,
+	enum st_screen_mode selected);
 int st_wren_host_get_screen_mode(const st_wren_host_t *host,
 	enum st_screen_mode *result);
 const char *st_wren_host_last_error(const st_wren_host_t *host);

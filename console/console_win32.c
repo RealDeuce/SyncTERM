@@ -161,7 +161,7 @@ allocate_drawn(struct win32_state *state, uint32_t columns, uint32_t rows)
 }
 
 static int
-write_run(struct win32_state *state, const st_console_t *console,
+write_run(struct win32_state *state, st_console_t *console,
 	uint32_t y, uint32_t first, uint32_t count)
 {
 	CHAR_INFO buffer[256];

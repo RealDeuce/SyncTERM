@@ -150,6 +150,10 @@ include::docs/api/network.adoc[]
 
 include::docs/api/reference/network.adoc[]
 
+include::docs/api/terminal.adoc[]
+
+include::docs/api/reference/terminal.adoc[]
+
 include::docs/api/models.adoc[]
 
 include::docs/api/reference/models.adoc[]

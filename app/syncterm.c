@@ -12,6 +12,8 @@
 #include "st_command_line.h"
 #include "st_console.h"
 #include "st_console_startup.h"
+#include "st_connection.h"
+#include "st_font_catalog.h"
 #include "st_hyperlink.h"
 #include "io_error.h"
 #include "st_presentation_font.h"
@@ -25,11 +27,13 @@
 #include "st_settings.h"
 #include "st_syncterm_icon.h"
 #include "st_terminfo.h"
+#include "st_term.h"
 #include "st_wren_host.h"
 
 #include <locale.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 
 static const char application_title[] = "SyncTERM 2.0a"
 #ifdef ST_DEBUG_BUILD
@@ -106,6 +110,154 @@ persist_window_scaling(st_wren_host_t *host, st_console_display_t *display,
 			fprintf(stderr,
 			    "SyncTERM: cannot save window scaling (%d)\n", status);
 	}
+}
+
+static enum st_settings_font_path
+font_path_slot(uint32_t width, uint32_t height, bool *valid)
+{
+	*valid = true;
+	if (width == 8 && height == 8)
+		return ST_SETTINGS_FONT_8X8;
+	if (width == 8 && height == 14)
+		return ST_SETTINGS_FONT_8X14;
+	if (width == 8 && height == 16)
+		return ST_SETTINGS_FONT_8X16;
+	if (width == 12 && height == 20)
+		return ST_SETTINGS_FONT_12X20;
+	*valid = false;
+	return ST_SETTINGS_FONT_8X16;
+}
+
+static int
+prepare_session_fonts(st_font_catalog_t **result, st_console_t *console,
+	const struct st_profile *profile, uint8_t fallback, uint8_t *selected)
+{
+	st_font_catalog_t *catalog = NULL;
+	uint32_t width;
+	uint32_t height;
+	bool valid;
+	enum st_settings_font_path slot;
+	int status = st_font_catalog_create(&catalog, console);
+
+	if (status != 0)
+		return status;
+	if (st_console_cell_pixel_size(console, &width, &height) == 0) {
+		slot = font_path_slot(width, height, &valid);
+		if (valid) {
+			for (size_t i = 0; i < st_settings_font_count()
+			    && i + ST_FONT_CATALOG_FIRST_CUSTOM <= UINT8_MAX; ++i) {
+				const struct st_settings_font *font
+				    = st_settings_font_at(i);
+
+				if (font->path[slot] != NULL)
+					(void)st_font_catalog_load_custom(catalog,
+					    (uint8_t)(i
+					    + ST_FONT_CATALOG_FIRST_CUSTOM),
+					    font->path[slot]);
+			}
+		}
+	}
+	*selected = fallback;
+	if (profile->font[0] != '\0') {
+		for (size_t i = 0; i < st_builtin_font_count(); ++i) {
+			if (strcmp(profile->font, st_builtin_font_name(i)) == 0) {
+				*selected = (uint8_t)i;
+				break;
+			}
+		}
+		for (size_t i = 0; i < st_settings_font_count()
+		    && i + ST_FONT_CATALOG_FIRST_CUSTOM <= UINT8_MAX; ++i) {
+			const struct st_settings_font *font = st_settings_font_at(i);
+
+			if (font->name != NULL
+			    && strcmp(profile->font, font->name) == 0) {
+				*selected = (uint8_t)(i
+				    + ST_FONT_CATALOG_FIRST_CUSTOM);
+				break;
+			}
+		}
+	}
+	{
+		uint16_t identifier;
+
+		if (!st_font_catalog_identifier(catalog, *selected, &identifier))
+			*selected = fallback;
+	}
+	*result = catalog;
+	return 0;
+}
+
+static int
+run_selected(st_wren_host_t *host, st_console_display_t *display,
+	st_console_t *console, const struct st_profile *profile,
+	st_audio_runtime_t *audio, st_hyperlink_registry_t *hyperlinks,
+	st_session_history_t *history, enum st_term_disposition *disposition)
+{
+	const struct st_screen_mode_descriptor *mode;
+	enum st_screen_mode session_mode
+	    = (enum st_screen_mode)profile->screen_mode;
+	st_font_catalog_t *fonts = NULL;
+	st_connection_t *connection = NULL;
+	st_term_session_t *session = NULL;
+	struct st_connection_error error = {0};
+	uint8_t selector = 0;
+	int status;
+
+	if (profile->screen_mode != ST_SCREEN_MODE_CURRENT) {
+		status = st_wren_host_set_screen_mode(host,
+		    (enum st_screen_mode)profile->screen_mode);
+		if (status != 0)
+			return status;
+	}
+	else {
+		status = st_wren_host_get_screen_mode(host, &session_mode);
+		if (status != 0)
+			return status;
+	}
+	status = st_console_display_activate(display, console);
+	if (status != 0)
+		return status;
+	mode = st_screen_mode_get(session_mode);
+	if (mode != NULL)
+		selector = mode->font_selector;
+	status = prepare_session_fonts(&fonts, console, profile, selector,
+	    &selector);
+	if (status != 0)
+		goto finished;
+	status = st_term_connect_profile(&connection, profile, console, NULL,
+	    &error);
+	if (status != 0) {
+		fprintf(stderr, "SyncTERM: connection failed (%d)%s%s\n", status,
+		    error.detail[0] == '\0' ? "" : ": ",
+		    error.detail[0] == '\0' ? "" : error.detail);
+		goto finished;
+	}
+	const struct st_term_config config = {
+		.console = console,
+		.connection = connection,
+		.fonts = fonts,
+		.audio = audio,
+		.hyperlinks = hyperlinks,
+		.history = history,
+		.screen_mode = session_mode,
+		.encoding = ST_CTERM_ENCODING_CODEPAGE,
+		.codepage = st_font_catalog_codepage(fonts, selector),
+		.font_selector = selector,
+		.hide_status = profile->hide_status,
+	};
+	status = st_term_session_create(&session, &config);
+	if (status == 0)
+		status = st_term_session_run(session, disposition);
+finished:
+	st_term_session_destroy(&session);
+	if (connection != NULL) {
+		int close_status = st_connection_close(connection);
+
+		if (status == 0)
+			status = close_status;
+	}
+	st_font_catalog_destroy(fonts);
+	return status;
 }
 
 int
@@ -279,26 +431,44 @@ main(int argc, char **argv)
 	(void)st_wren_host_refresh_web_lists(host);
 	st_profile_init(&selected);
 	profile_initialized = true;
-	if (command.url != NULL) {
-		status = st_wren_host_select_url(host, command.url,
-		    command.connection_type_set ? command.connection_type
-		    : ST_CONNECTION_UNKNOWN, &selected);
-		has_selection = status == 0;
-	}
-	else
-		status = st_wren_host_run_menu(host, &selected, &has_selection);
-	if (status != 0) {
-		const char *detail = st_wren_host_last_error(host);
+	for (;;) {
+		enum st_term_disposition disposition = ST_TERM_RETURN_TO_PICKER;
 
-		fprintf(stderr, "SyncTERM: menu failed (%d)%s%s\n", status,
-		    detail == NULL ? "" : ": ", detail == NULL ? "" : detail);
-	}
-	else if (has_selection) {
+		has_selection = false;
+		if (command.url != NULL) {
+			status = st_wren_host_select_url(host, command.url,
+			    command.connection_type_set ? command.connection_type
+			    : ST_CONNECTION_UNKNOWN, &selected);
+			has_selection = status == 0;
+		}
+		else
+			status = st_wren_host_run_menu(host, &selected, &has_selection);
+		if (status != 0) {
+			const char *detail = st_wren_host_last_error(host);
+
+			fprintf(stderr, "SyncTERM: menu failed (%d)%s%s\n", status,
+			    detail == NULL ? "" : ": ",
+			    detail == NULL ? "" : detail);
+			break;
+		}
+		if (!has_selection) {
+			if (st_wren_host_exit_requested(host))
+				result = 0;
+			break;
+		}
 		apply_profile_overrides(&selected, &command);
-		result = 0;
+		status = run_selected(host, display, console, &selected,
+		    audio_runtime, hyperlinks, session_history, &disposition);
+		if (status != 0)
+			fprintf(stderr, "SyncTERM: session failed (%d)\n", status);
+		if (command.url != NULL || disposition == ST_TERM_EXIT_APPLICATION) {
+			result = status == 0 ? 0 : 1;
+			break;
+		}
+		st_profile_dispose(&selected);
+		st_profile_init(&selected);
+		(void)st_console_display_activate(display, picker_console);
 	}
-	else if (st_wren_host_exit_requested(host))
-		result = 0;
 
 finished:
 	persist_window_scaling(host, display, result == 0, command.safe_mode);
