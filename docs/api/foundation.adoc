@@ -43,9 +43,10 @@ oracles.  `st_unicode_text` composes them into a streaming text pipeline, and
 
 | `st_utf8`
 | link:utf8/st_utf8.h[st_utf8.h]
-| Validate Unicode scalar values and decode or encode one strict UTF-8 scalar.
-Decode reports bytes consumed; encode returns a byte count or `IO_ERROR_*`.
-Outputs are unchanged on failure.  Test: `utf8`.
+| Validate Unicode scalar values and decode or encode strict UTF-8.  The
+one-scalar operations serve finite buffers; the caller-owned incremental
+decoder retains prefixes across feeds and reports exact malformed maximal
+subparts without choosing replacement policy.  Test: `utf8`.
 
 | `st_unicode_width`
 | link:unicode_width/st_unicode_width.h[st_unicode_width.h]

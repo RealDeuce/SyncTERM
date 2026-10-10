@@ -36,9 +36,7 @@ struct ansi_state {
 	unsigned char escape[64];
 	size_t escape_length;
 	unsigned int escape_idle;
-	unsigned char utf8[4];
-	size_t utf8_length;
-	size_t utf8_expected;
+	struct st_utf8_decoder utf8_decoder;
 	uint32_t utf8_modifiers;
 	unsigned int utf8_idle;
 	unsigned int doorway_phase;
@@ -585,69 +583,75 @@ post_doorway_key(st_console_display_t *display, unsigned char scan_code,
 }
 
 static void
+flush_input_text(st_console_display_t *display, struct ansi_state *state)
+{
+	struct st_utf8_decode_event event;
+
+	if (st_utf8_decoder_flush(&state->utf8_decoder, &event) == 0
+	    && event.kind == ST_UTF8_DECODE_EVENT_MALFORMED)
+		post_text(display, UINT32_C(0xfffd), state->utf8_modifiers);
+	state->utf8_idle = 0;
+}
+
+static void
 input_text_byte(st_console_display_t *display, struct ansi_state *state,
 	unsigned char byte, uint32_t modifiers)
 {
-	uint32_t codepoint;
+	struct st_utf8_decode_event event;
 	size_t consumed;
 
-	if (state->utf8_length != 0 && modifiers != state->utf8_modifiers) {
-		post_text(display, UINT32_C(0xfffd), state->utf8_modifiers);
-		state->utf8_length = 0;
+	if (st_utf8_decoder_incomplete(&state->utf8_decoder)
+	    && modifiers != state->utf8_modifiers)
+		flush_input_text(display, state);
+	if (st_utf8_decoder_incomplete(&state->utf8_decoder)) {
+		(void)st_utf8_decoder_feed(&state->utf8_decoder, &byte, 1,
+		    &consumed, &event);
+		if (event.kind == ST_UTF8_DECODE_EVENT_SCALAR) {
+			post_text(display, event.data.scalar, state->utf8_modifiers);
+			state->utf8_idle = 0;
+		}
+		else if (event.kind == ST_UTF8_DECODE_EVENT_MALFORMED) {
+			post_text(display, UINT32_C(0xfffd), state->utf8_modifiers);
+			state->utf8_idle = 0;
+		}
+		if (consumed == 0)
+			input_text_byte(display, state, byte, modifiers);
+		return;
 	}
-	if (state->utf8_length == 0) {
-		if (byte < 0x20 || byte == 0x7f) {
-			uint16_t code = byte == '\n' || byte == '\r' ? 13
-			    : byte == 0x7f ? 8 : byte;
+	if (byte < 0x20 || byte == 0x7f) {
+		uint16_t code = byte == '\n' || byte == '\r' ? 13
+		    : byte == 0x7f ? 8 : byte;
 
-			if (byte == '\n' && state->last_was_carriage_return) {
-				state->last_was_carriage_return = false;
-				return;
-			}
-			state->last_was_carriage_return = byte == '\r';
-			post_key(display, code, modifiers);
+		if (byte == '\n' && state->last_was_carriage_return) {
+			state->last_was_carriage_return = false;
 			return;
 		}
-		state->last_was_carriage_return = false;
-		if (byte < 0x80) {
-			post_text(display, byte, modifiers);
-			return;
-		}
-		if (state->presentation == ST_CONSOLE_TEXT_CP437) {
-			post_text(display, st_codepage_to_unicode(ST_CODEPAGE_CP437,
-			    byte, false), modifiers);
-			return;
-		}
-		if (state->presentation == ST_CONSOLE_TEXT_ASCII) {
-			post_text(display, UINT32_C(0xfffd), modifiers);
-			return;
-		}
-		state->utf8_expected = byte >= 0xc2 && byte <= 0xdf ? 2
-		    : byte >= 0xe0 && byte <= 0xef ? 3
-		    : byte >= 0xf0 && byte <= 0xf4 ? 4 : 0;
-		if (state->utf8_expected == 0) {
-			post_text(display, UINT32_C(0xfffd), modifiers);
-			return;
-		}
-		state->utf8_modifiers = modifiers;
-		state->utf8_idle = 0;
-	}
-	else if ((byte & 0xc0) != 0x80) {
-		post_text(display, UINT32_C(0xfffd), state->utf8_modifiers);
-		state->utf8_length = 0;
-		input_text_byte(display, state, byte, modifiers);
+		state->last_was_carriage_return = byte == '\r';
+		post_key(display, code, modifiers);
 		return;
 	}
-	state->utf8[state->utf8_length++] = byte;
-	if (state->utf8_length < state->utf8_expected)
+	state->last_was_carriage_return = false;
+	if (byte < 0x80) {
+		post_text(display, byte, modifiers);
 		return;
-	if (st_utf8_decode_one(&codepoint, &consumed, state->utf8,
-	    state->utf8_length) == 0)
-		post_text(display, codepoint, modifiers);
-	else
+	}
+	if (state->presentation == ST_CONSOLE_TEXT_CP437) {
+		post_text(display, st_codepage_to_unicode(ST_CODEPAGE_CP437,
+		    byte, false), modifiers);
+		return;
+	}
+	if (state->presentation == ST_CONSOLE_TEXT_ASCII) {
 		post_text(display, UINT32_C(0xfffd), modifiers);
-	state->utf8_length = 0;
+		return;
+	}
+	state->utf8_modifiers = modifiers;
 	state->utf8_idle = 0;
+	(void)st_utf8_decoder_feed(&state->utf8_decoder, &byte, 1,
+	    &consumed, &event);
+	if (event.kind == ST_UTF8_DECODE_EVENT_SCALAR)
+		post_text(display, event.data.scalar, modifiers);
+	else if (event.kind == ST_UTF8_DECODE_EVENT_MALFORMED)
+		post_text(display, UINT32_C(0xfffd), modifiers);
 }
 
 static uint32_t
@@ -793,11 +797,8 @@ finish_input(st_console_display_t *display, struct ansi_state *state)
 			input_text_byte(display, state, state->escape[i], 0);
 		state->escape_length = 0;
 	}
-	if (state->utf8_length != 0) {
-		post_text(display, UINT32_C(0xfffd), state->utf8_modifiers);
-		state->utf8_length = 0;
-		state->utf8_idle = 0;
-	}
+	if (st_utf8_decoder_incomplete(&state->utf8_decoder))
+		flush_input_text(display, state);
 	state->doorway_phase = 0;
 }
 
@@ -815,10 +816,8 @@ input_byte(st_console_display_t *display, struct ansi_state *state,
 		return;
 	}
 	if (byte == 0) {
-		if (state->utf8_length != 0) {
-			post_text(display, UINT32_C(0xfffd), state->utf8_modifiers);
-			state->utf8_length = 0;
-		}
+		if (st_utf8_decoder_incomplete(&state->utf8_decoder))
+			flush_input_text(display, state);
 		if (state->escape_length != 0) {
 			post_key(display, 27, 0);
 			for (size_t i = 1; i < state->escape_length; ++i)
@@ -828,7 +827,7 @@ input_byte(st_console_display_t *display, struct ansi_state *state,
 		state->doorway_phase = 1;
 		return;
 	}
-	if (state->utf8_length != 0) {
+	if (st_utf8_decoder_incomplete(&state->utf8_decoder)) {
 		input_text_byte(display, state, byte, state->utf8_modifiers);
 		return;
 	}
@@ -891,11 +890,10 @@ ansi_input(void *argument)
 				input_text_byte(display, state, state->escape[i], 0);
 			state->escape_length = 0;
 		}
-		if (received == 0 && state->utf8_length != 0
+		if (received == 0
+		    && st_utf8_decoder_incomplete(&state->utf8_decoder)
 		    && ++state->utf8_idle >= 2) {
-			post_text(display, UINT32_C(0xfffd), state->utf8_modifiers);
-			state->utf8_length = 0;
-			state->utf8_idle = 0;
+			flush_input_text(display, state);
 		}
 		if (st_console_ansi_system_size(state->system, &columns, &rows)
 		    && (columns != known_columns || rows != known_rows)) {

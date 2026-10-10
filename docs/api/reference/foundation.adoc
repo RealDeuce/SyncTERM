@@ -96,6 +96,38 @@ int st_utf8_decode_one(uint32_t *result, size_t *consumed,
 ptrdiff_t st_utf8_encode_one(char *result, size_t result_size,
     uint32_t value);
 
+enum st_utf8_decode_event_kind {
+    ST_UTF8_DECODE_EVENT_NONE,
+    ST_UTF8_DECODE_EVENT_SCALAR,
+    ST_UTF8_DECODE_EVENT_MALFORMED,
+};
+
+struct st_utf8_decode_event {
+    enum st_utf8_decode_event_kind kind;
+    union {
+        uint32_t scalar;
+        struct {
+            uint8_t bytes[4];
+            size_t size;
+        } malformed;
+    } data;
+};
+
+struct st_utf8_decoder {
+    uint8_t pending[4];
+    size_t pending_size;
+    size_t expected_size;
+};
+
+void st_utf8_decoder_init(struct st_utf8_decoder *decoder);
+void st_utf8_decoder_reset(struct st_utf8_decoder *decoder);
+bool st_utf8_decoder_incomplete(const struct st_utf8_decoder *decoder);
+int st_utf8_decoder_feed(struct st_utf8_decoder *decoder,
+    const void *data, size_t size, size_t *consumed,
+    struct st_utf8_decode_event *event);
+int st_utf8_decoder_flush(struct st_utf8_decoder *decoder,
+    struct st_utf8_decode_event *event);
+
 enum st_unicode_east_asian_width st_unicode_east_asian_width(
     uint32_t codepoint);
 bool st_unicode_emoji_presentation(uint32_t codepoint);
@@ -118,6 +150,13 @@ are required except where a zero capacity explicitly permits NULL.  Decode
 returns zero or negative `IO_ERROR_*`; encode returns a positive required byte
 count or negative error.  Property queries are pure and allocation-free.
 
+`struct st_utf8_decoder` is caller-owned, allocation-free state; an all-zero
+value is initialized.  Each successful incremental feed emits at most one
+event.  Malformed UTF-8 is successful decoder output, not an `IO_ERROR_*`:
+the event retains the exact bytes of one Unicode maximal subpart so the caller
+can choose replacement, notification, or rejection.  Only the union member
+selected by the event kind is valid.
+
 [cols="3m,7"]
 |===
 | Function | Parameters, result, and effect
@@ -132,6 +171,31 @@ count or negative error.  Property queries are pure and allocation-free.
 | st_utf8_encode_one(result, result_size, value)
 | Returns the required/written byte count or `IO_ERROR_*`.  `result == NULL`
 is valid only for a zero-size sizing call; a short buffer is unchanged.
+
+| st_utf8_decoder_init(decoder)
+| Initializes caller-owned state.  NULL is accepted.  A zero-initialized
+structure has the same state.
+
+| st_utf8_decoder_reset(decoder)
+| Silently discards any pending prefix and restores initialized state.  NULL
+is accepted.
+
+| st_utf8_decoder_incomplete(decoder)
+| Reports whether a valid but incomplete prefix is pending; NULL reports
+false.
+
+| st_utf8_decoder_feed(decoder, data, size, consumed, event)
+| Consumes through at most one scalar or malformed event.  `NONE` means the
+entire span was consumed without completing an event.  A byte which breaks a
+pending prefix is left unconsumed so the next call reconsiders it.  Thus a
+malformed event may return `consumed == 0`; processing that event changes the
+decoder state, so retry then makes progress.  Required outputs and decoder
+state are unchanged on argument failure.
+
+| st_utf8_decoder_flush(decoder, event)
+| Emits one pending incomplete prefix as a malformed event, or `NONE` when
+empty, and leaves the decoder immediately reusable.  Unlike `reset`, it does
+not silently discard pending input.
 
 | st_unicode_east_asian_width(codepoint)
 | Returns the generated East Asian Width property or

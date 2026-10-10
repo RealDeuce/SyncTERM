@@ -45,9 +45,7 @@ struct item_buffer {
 struct st_unicode_text {
 	enum st_unicode_text_mode mode;
 	uint32_t state;
-	uint8_t utf8[4];
-	size_t utf8_count;
-	size_t utf8_expected;
+	struct st_utf8_decoder decoder;
 	struct scalar_buffer segment;
 	struct scalar_buffer original;
 	struct scalar_buffer cluster;
@@ -484,36 +482,6 @@ emit_decode_error(st_unicode_text_t *text, const uint8_t *bytes, size_t size)
 	return status;
 }
 
-static size_t
-utf8_expected(uint8_t byte)
-{
-	if (byte >= 0xc2 && byte <= 0xdf)
-		return 2;
-	if (byte >= 0xe0 && byte <= 0xef)
-		return 3;
-	if (byte >= 0xf0 && byte <= 0xf4)
-		return 4;
-	return 0;
-}
-
-static bool
-continuation_valid(const st_unicode_text_t *text, uint8_t byte)
-{
-	if (byte < 0x80 || byte > 0xbf)
-		return false;
-	if (text->utf8_count != 1)
-		return true;
-	if (text->utf8[0] == 0xe0)
-		return byte >= 0xa0;
-	if (text->utf8[0] == 0xed)
-		return byte <= 0x9f;
-	if (text->utf8[0] == 0xf0)
-		return byte >= 0x90;
-	if (text->utf8[0] == 0xf4)
-		return byte <= 0x8f;
-	return true;
-}
-
 int
 st_unicode_text_create(st_unicode_text_t **result,
 	enum st_unicode_text_mode mode)
@@ -551,8 +519,7 @@ st_unicode_text_reset(st_unicode_text_t *text)
 	if (text == NULL)
 		return;
 	text->state = 0;
-	text->utf8_count = 0;
-	text->utf8_expected = 0;
+	st_utf8_decoder_reset(&text->decoder);
 	text->segment.count = 0;
 	text->original.count = 0;
 	text->cluster.count = 0;
@@ -564,45 +531,31 @@ st_unicode_text_reset(st_unicode_text_t *text)
 int
 st_unicode_text_feed_byte(st_unicode_text_t *text, uint8_t byte)
 {
-	uint32_t scalar;
-	size_t consumed;
-	int status;
+	size_t offset = 0;
 
 	if (text == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	if ((text->state & ST_UNICODE_TEXT_FINISHED) != 0)
 		return IO_ERROR_CONFLICT;
-again:
-	if (text->utf8_count == 0) {
-		if (byte < 0x80)
-			return accept_scalar(text, byte);
-		text->utf8_expected = utf8_expected(byte);
-		if (text->utf8_expected == 0)
-			return emit_decode_error(text, &byte, 1);
-		text->utf8[0] = byte;
-		text->utf8_count = 1;
-		return 0;
-	}
-	if (!continuation_valid(text, byte)) {
-		status = emit_decode_error(text, text->utf8, text->utf8_count);
+	while (offset < 1) {
+		struct st_utf8_decode_event event;
+		size_t consumed;
+		int status = st_utf8_decoder_feed(&text->decoder, &byte + offset,
+		    1 - offset, &consumed, &event);
+
 		if (status != 0)
 			return status;
-		text->utf8_count = 0;
-		text->utf8_expected = 0;
-		goto again;
+		offset += consumed;
+		if (event.kind == ST_UTF8_DECODE_EVENT_SCALAR)
+			status = accept_scalar(text, event.data.scalar);
+		else if (event.kind == ST_UTF8_DECODE_EVENT_MALFORMED)
+			status = emit_decode_error(text,
+			    event.data.malformed.bytes,
+			    event.data.malformed.size);
+		if (status != 0)
+			return status;
 	}
-	text->utf8[text->utf8_count++] = byte;
-	if (text->utf8_count != text->utf8_expected)
-		return 0;
-	status = st_utf8_decode_one(&scalar, &consumed, text->utf8,
-	    text->utf8_count);
-	if (status == 0)
-		status = accept_scalar(text, scalar);
-	else
-		status = emit_decode_error(text, text->utf8, text->utf8_count);
-	text->utf8_count = 0;
-	text->utf8_expected = 0;
-	return status;
+	return 0;
 }
 
 int
@@ -634,7 +587,7 @@ st_unicode_text_feed_scalar(st_unicode_text_t *text, uint32_t scalar)
 		return IO_ERROR_INVALID_ARGUMENT;
 	if ((text->state & ST_UNICODE_TEXT_FINISHED) != 0)
 		return IO_ERROR_CONFLICT;
-	if (text->utf8_count != 0)
+	if (st_utf8_decoder_incomplete(&text->decoder))
 		return IO_ERROR_CONFLICT;
 	return accept_scalar(text, scalar);
 }
@@ -661,18 +614,21 @@ st_unicode_text_feed_scalars(st_unicode_text_t *text,
 int
 st_unicode_text_finish(st_unicode_text_t *text)
 {
+	struct st_utf8_decode_event event;
 	int status;
 
 	if (text == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	if ((text->state & ST_UNICODE_TEXT_FINISHED) != 0)
 		return 0;
-	if (text->utf8_count != 0) {
-		status = emit_decode_error(text, text->utf8, text->utf8_count);
+	status = st_utf8_decoder_flush(&text->decoder, &event);
+	if (status != 0)
+		return status;
+	if (event.kind == ST_UTF8_DECODE_EVENT_MALFORMED) {
+		status = emit_decode_error(text, event.data.malformed.bytes,
+		    event.data.malformed.size);
 		if (status != 0)
 			return status;
-		text->utf8_count = 0;
-		text->utf8_expected = 0;
 	}
 	status = flush_unicode(text);
 	if (status == 0)
@@ -688,7 +644,7 @@ st_unicode_text_state(const st_unicode_text_t *text)
 	if (text == NULL)
 		return 0;
 	state = text->state;
-	if (text->utf8_count != 0 || text->segment.count != 0
+	if (st_utf8_decoder_incomplete(&text->decoder) || text->segment.count != 0
 	    || text->cluster.count != 0)
 		state |= ST_UNICODE_TEXT_INCOMPLETE;
 	else

@@ -84,6 +84,13 @@ The decoder is session state, not call-local state.  In UTF-8 mode it retains
 an incomplete prefix across connection reads and CTerm writes.  It is not
 finished or flushed at an ordinary buffer boundary.
 
+The `st_utf8` component supplies this basic mechanism as a caller-owned
+`struct st_utf8_decoder`.  Its feed operation emits decoded scalars or exact
+malformed maximal-subpart events and may leave a byte unconsumed when that byte
+must be reconsidered after an error.  Its flush operation reports an
+incomplete prefix and returns the state to immediate reuse; reset discards a
+prefix silently.  The decoder does not itself substitute U+FFFD.
+
 The decoder must define and test these transitions:
 
 * completion of two-, three-, and four-byte scalars across every split point;
@@ -93,11 +100,11 @@ The decoder must define and test these transitions:
   prefix remains incomplete; and
 * reset after a decode error without losing the following valid input.
 
-Malformed-input policy must be applied once by the shared decoder so Wren and
-the display observe the same result.  The exact replacement or notification
-policy remains an implementation decision.  Basic incremental decoding must
-not perform NFC normalization or grapheme buffering implicitly; those are
-separate text-presentation policies.
+Malformed-input presentation policy must be applied once to the shared
+decoder events so Wren and the display observe the same result.  The exact
+replacement or notification policy remains an implementation decision.  Basic
+incremental decoding does not perform NFC normalization or grapheme buffering;
+those are separate text-presentation policies.
 
 == Wren Boundary
 

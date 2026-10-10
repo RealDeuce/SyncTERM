@@ -1,4 +1,4 @@
-/* Strict, locale-independent Unicode scalar encoding. */
+/* Strict, locale-independent UTF-8 encoding and decoding. */
 
 /*
  * Copyright (c) 2026 Stephen Hurd
@@ -10,6 +10,52 @@
 #include "io_error.h"
 
 #include <string.h>
+
+static size_t
+utf8_expected(uint8_t byte)
+{
+	if (byte >= 0xc2 && byte <= 0xdf)
+		return 2;
+	if (byte >= 0xe0 && byte <= 0xef)
+		return 3;
+	if (byte >= 0xf0 && byte <= 0xf4)
+		return 4;
+	return 0;
+}
+
+static bool
+continuation_valid(const struct st_utf8_decoder *decoder, uint8_t byte)
+{
+	if (byte < 0x80 || byte > 0xbf)
+		return false;
+	if (decoder->pending_size != 1)
+		return true;
+	if (decoder->pending[0] == 0xe0)
+		return byte >= 0xa0;
+	if (decoder->pending[0] == 0xed)
+		return byte <= 0x9f;
+	if (decoder->pending[0] == 0xf0)
+		return byte >= 0x90;
+	if (decoder->pending[0] == 0xf4)
+		return byte <= 0x8f;
+	return true;
+}
+
+static void
+clear_decoder(struct st_utf8_decoder *decoder)
+{
+	decoder->pending_size = 0;
+	decoder->expected_size = 0;
+}
+
+static void
+set_malformed(struct st_utf8_decode_event *event, const uint8_t *bytes,
+	size_t size)
+{
+	event->kind = ST_UTF8_DECODE_EVENT_MALFORMED;
+	memcpy(event->data.malformed.bytes, bytes, size);
+	event->data.malformed.size = size;
+}
 
 bool
 st_unicode_scalar_valid(uint32_t value)
@@ -100,4 +146,104 @@ st_utf8_encode_one(char *result, size_t result_size, uint32_t value)
 	if (result != NULL && result_size >= length)
 		memcpy(result, encoded, length);
 	return (ptrdiff_t)length;
+}
+
+void
+st_utf8_decoder_init(struct st_utf8_decoder *decoder)
+{
+	if (decoder != NULL)
+		memset(decoder, 0, sizeof(*decoder));
+}
+
+void
+st_utf8_decoder_reset(struct st_utf8_decoder *decoder)
+{
+	st_utf8_decoder_init(decoder);
+}
+
+bool
+st_utf8_decoder_incomplete(const struct st_utf8_decoder *decoder)
+{
+	return decoder != NULL && decoder->pending_size != 0;
+}
+
+int
+st_utf8_decoder_feed(struct st_utf8_decoder *decoder, const void *data,
+	size_t size, size_t *consumed, struct st_utf8_decode_event *event)
+{
+	const uint8_t *input = data;
+	size_t offset = 0;
+
+	if (decoder == NULL || consumed == NULL || event == NULL
+	    || (data == NULL && size != 0))
+		return IO_ERROR_INVALID_ARGUMENT;
+	event->kind = ST_UTF8_DECODE_EVENT_NONE;
+	*consumed = 0;
+	while (offset < size) {
+		uint8_t byte = input[offset];
+
+		if (decoder->pending_size == 0) {
+			if (byte < 0x80) {
+				event->kind = ST_UTF8_DECODE_EVENT_SCALAR;
+				event->data.scalar = byte;
+				*consumed = offset + 1;
+				return 0;
+			}
+			decoder->expected_size = utf8_expected(byte);
+			if (decoder->expected_size == 0) {
+				set_malformed(event, &byte, 1);
+				*consumed = offset + 1;
+				return 0;
+			}
+			decoder->pending[0] = byte;
+			decoder->pending_size = 1;
+			++offset;
+			continue;
+		}
+		if (!continuation_valid(decoder, byte)) {
+			set_malformed(event, decoder->pending,
+			    decoder->pending_size);
+			clear_decoder(decoder);
+			*consumed = offset;
+			return 0;
+		}
+		decoder->pending[decoder->pending_size++] = byte;
+		++offset;
+		if (decoder->pending_size == decoder->expected_size) {
+			uint32_t scalar;
+			size_t decoded;
+			int status = st_utf8_decode_one(&scalar, &decoded,
+			    decoder->pending, decoder->pending_size);
+
+			if (status != 0) {
+				set_malformed(event, decoder->pending,
+				    decoder->pending_size);
+				clear_decoder(decoder);
+				*consumed = offset;
+				return 0;
+			}
+			clear_decoder(decoder);
+			event->kind = ST_UTF8_DECODE_EVENT_SCALAR;
+			event->data.scalar = scalar;
+			*consumed = offset;
+			return 0;
+		}
+	}
+	*consumed = offset;
+	return 0;
+}
+
+int
+st_utf8_decoder_flush(struct st_utf8_decoder *decoder,
+	struct st_utf8_decode_event *event)
+{
+	if (decoder == NULL || event == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (decoder->pending_size == 0) {
+		event->kind = ST_UTF8_DECODE_EVENT_NONE;
+		return 0;
+	}
+	set_malformed(event, decoder->pending, decoder->pending_size);
+	clear_decoder(decoder);
+	return 0;
 }

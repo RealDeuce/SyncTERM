@@ -270,6 +270,7 @@ enum redirected_case {
 	REDIRECTED_FILE,
 	REDIRECTED_ESCAPE,
 	REDIRECTED_UTF8,
+	REDIRECTED_MALFORMED,
 	REDIRECTED_STOP,
 };
 
@@ -317,6 +318,18 @@ redirected_child(int descriptor, enum redirected_case test)
 		if (!next_event(console, &event)
 		    || event.type != ST_CONSOLE_EVENT_TEXT
 		    || event.data.text.codepoint != UINT32_C(0xfffd))
+			goto failed;
+	}
+	else if (test == REDIRECTED_MALFORMED) {
+		for (size_t i = 0; i < 3; ++i) {
+			if (!next_event(console, &event)
+			    || event.type != ST_CONSOLE_EVENT_TEXT
+			    || event.data.text.codepoint != UINT32_C(0xfffd))
+				goto failed;
+		}
+		if (!next_event(console, &event)
+		    || event.type != ST_CONSOLE_EVENT_TEXT
+		    || event.data.text.codepoint != 'B')
 			goto failed;
 	}
 	if (!next_event(console, &event) || event.type != ST_CONSOLE_EVENT_CLOSE
@@ -545,6 +558,8 @@ main(void)
 	    || !run_redirected_case(REDIRECTED_FILE, "x", 1)
 	    || !run_redirected_case(REDIRECTED_ESCAPE, "\033[", 2)
 	    || !run_redirected_case(REDIRECTED_UTF8, "\303", 1)
+	    || !run_redirected_case(REDIRECTED_MALFORMED,
+	    "\340\200\200B", 4)
 	    || !run_redirected_case(REDIRECTED_STOP, NULL, 0))
 		return EXIT_FAILURE;
 	return EXIT_SUCCESS;

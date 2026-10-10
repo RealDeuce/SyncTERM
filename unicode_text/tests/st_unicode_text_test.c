@@ -388,8 +388,16 @@ check_errors(void)
 	CHECK((st_unicode_text_state(text)
 	    & ST_UNICODE_TEXT_SAW_DECODE_ERROR) != 0);
 	while (st_unicode_text_peek(text, &item) == 0) {
-		if (item.kind == ST_UNICODE_TEXT_ITEM_DECODE_ERROR)
+		if (item.kind == ST_UNICODE_TEXT_ITEM_DECODE_ERROR) {
+			if (errors == 0)
+				CHECK(item.size == 1 && item.bytes[0] == 0xe0);
+			else if (errors == 1)
+				CHECK(item.size == 1 && item.bytes[0] == 0x80);
+			else if (errors == 2)
+				CHECK(item.size == 2 && item.bytes[0] == 0xf0
+				    && item.bytes[1] == 0x9f);
 			++errors;
+		}
 		else
 			++text_items;
 		CHECK(st_unicode_text_consume(text) == 0);
