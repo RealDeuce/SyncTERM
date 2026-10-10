@@ -5,7 +5,7 @@
 
 import "ui_widget" for Rect
 import "ui_list"   for ListView
-import "syncterm"  for KeyEvent, MouseEvent, Key, Mouse
+import "syncterm"  for KeyEvent, MouseEvent, Key, Mouse, Text
 
 class UiListTest {
   static run() {
@@ -20,6 +20,7 @@ class UiListTest {
     testListItemsSetterPreservesView_()
     testListItemsSetterClampsView_()
     testResetItemsResetsView_()
+    testSearchKeys_()
 
     // Selection clamping
     testSelectedClampsHigh_()
@@ -118,6 +119,20 @@ class UiListTest {
     l.items = ["a", "b", "c"]
     check_(l.count == 3 && l.selected == 0 && l.scrollTop == 0,
            "List items=: initial population selects the first row")
+  }
+
+  static testSearchKeys_() {
+    var l = ListView.new()
+    l.items = ["Straße", "café", "ß"]
+    l.searchKeys = l.items.map {|item| Text.caselessKey(item) }.toList
+    check_(l.findSubstring_("FÉ") == 1 &&
+           l.findPrefix_("STRASS") == 0 &&
+           l.findSubstring_("s") == 0,
+           "List search keys prefilter caseless searches")
+    l.items = ["ß"]
+    l.searchKeys = [Text.caselessKey("ß")]
+    check_(l.findSubstring_("s") == -1,
+           "List search keys retain grapheme-boundary verification")
   }
 
   static testListItemsSetterEmpty_() {

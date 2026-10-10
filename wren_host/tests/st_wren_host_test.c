@@ -580,7 +580,7 @@ exercise_menu_contract(st_wren_host_t *public_host)
 	    "if (Menu.applicationTitle != \"SyncTERM test - Headless\") Fiber.abort(\"application title\")\n"
 	    "if (Menu.currentScreenMode != 0) Fiber.abort(\"current mode\")\n"
 	    "if (!Menu.setScreenMode(3) || Menu.currentScreenMode != 3 || !Menu.setScreenMode(1)) Fiber.abort(\"set mode\")\n"
-	    "if (Menu.entries.count != 2 || Menu.entries[0].name != \"Zulu\") Fiber.abort(\"entries/sort\")\n"
+	    "if (Menu.entries.count != 2 || Menu.entries[0].name != \"Zulu\" || Menu.entries[0].searchKey != \"zulu\") Fiber.abort(\"entries/sort\")\n"
 	    "var q = Menu.quickConnect(\"ssh://guest:secret@[::1]:2222\")\n"
 	    "if (q == null || q.connType != 5 || q.addr != \"::1\" || q.port != 2222 || q.user != \"guest\" || q.password != \"secret\") Fiber.abort(\"quick\")\n"
 	    "if (Menu.fileLocations[\"configuration\"].count == 0) Fiber.abort(\"paths\")\n"
@@ -859,7 +859,7 @@ exercise_bbs_model_contract(st_wren_host_t *public_host,
 	    "}\n"
 	    "copy.comment = \"shared copy\"\n"
 	    "if (same.comment != \"shared copy\" || !copy.rename(\"Aardvark\") "
-	    "|| same.name != \"Aardvark\" || !Menu.sort() || "
+	    "|| same.name != \"Aardvark\" || same.searchKey != \"aardvark\" || !Menu.sort() || "
 	    "same.name != \"Aardvark\" || !copy.save() || copy.dirty) "
 	    "Fiber.abort(\"copy lifecycle\")\n"
 	    "BbsContractState.persisted = copy\n";

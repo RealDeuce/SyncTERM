@@ -255,6 +255,7 @@ foreign class Settings {
 // reload, create, or delete invalidates handles from the older generation.
 foreign class BBS {
   foreign name
+  foreign searchKey
   foreign rename(name)
   foreign type
   // Fixed Directory rooted at this personal entry's per-BBS cache.

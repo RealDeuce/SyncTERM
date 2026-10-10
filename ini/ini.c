@@ -50,6 +50,7 @@ struct ini_section {
 
 static int ini_section_compare(const struct ini_section *left,
     const struct ini_section *right);
+static bool valid_name(const char *name, const char *forbidden);
 
 ARRAY_LIST_DECLARE(ini_record_list, struct ini_record)
 ARRAY_LIST_DECLARE(ini_section_list, struct ini_section)
@@ -210,23 +211,6 @@ content_length(const char *line, size_t length)
 	return length;
 }
 
-static bool
-valid_name_span(const char *string, size_t begin, size_t end)
-{
-	return begin < end
-	    && string_span_is_printable_ascii(string + begin, end - begin);
-}
-
-static bool
-span_contains(const char *string, size_t begin, size_t end, char character)
-{
-	for (size_t i = begin; i < end; i++) {
-		if (string[i] == character)
-			return true;
-	}
-	return false;
-}
-
 static char *
 duplicate_span(const char *string, size_t begin, size_t end)
 {
@@ -374,15 +358,14 @@ parse_line(struct ini_document *document, struct ini_section **current,
 		    &name_begin, &name_end);
 		name_begin += begin + 1;
 		name_end += begin + 1;
-		if (!valid_name_span(line, name_begin, name_end)
-		    || span_contains(line, name_begin, name_end, '[')
-		    || span_contains(line, name_begin, name_end, ']')) {
-			*current = NULL;
-			goto trivia;
-		}
 		name = duplicate_span(line, name_begin, name_end);
 		if (name == NULL)
 			return IO_ERROR_OUT_OF_MEMORY;
+		if (!valid_name(name, "[]")) {
+			free(name);
+			*current = NULL;
+			goto trivia;
+		}
 		record = record_create_span(INI_RECORD_SECTION, line, raw_length);
 		if (record == NULL) {
 			free(name);
@@ -422,8 +405,6 @@ parse_line(struct ini_document *document, struct ini_section **current,
 			    &name_begin, &name_end);
 			name_begin += begin;
 			name_end += begin;
-			if (!valid_name_span(line, name_begin, name_end))
-				goto trivia;
 			string_ascii_trim_span(line + separator + 1,
 			    end - separator - 1, &value_begin, &value_end);
 			value_begin += separator + 1;
@@ -462,6 +443,11 @@ parse_line(struct ini_document *document, struct ini_section **current,
 			if (name == NULL) {
 				free(value);
 				return IO_ERROR_OUT_OF_MEMORY;
+			}
+			if (!ini_key_name_valid(name)) {
+				free(name);
+				free(value);
+				goto trivia;
 			}
 			record = record_create_span(INI_RECORD_KEY, line, raw_length);
 			if (record == NULL) {

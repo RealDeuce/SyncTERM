@@ -3893,6 +3893,17 @@ fn_bbs_name(WrenVM *vm)
 }
 
 static void
+fn_bbs_search_key(WrenVM *vm)
+{
+	struct foreign_bbs *bbs = bbs_value(vm, 0);
+
+	if (bbs != NULL)
+		wrenSetSlotBytes(vm, 0, bbs->record->name_key == NULL ? ""
+		    : bbs->record->name_key,
+		    bbs->record->name_key_size);
+}
+
+static void
 fn_bbs_rename(WrenVM *vm)
 {
 	struct st_wren_host *host = st_wren_host_from_vm(vm);
@@ -4202,6 +4213,7 @@ static const struct binding bindings[] = {
 	    settings_lightbar_background_color),
 
 	{"BBS", false, "name", fn_bbs_name},
+	{"BBS", false, "searchKey", fn_bbs_search_key},
 	{"BBS", false, "rename(_)", fn_bbs_rename},
 	{"BBS", false, "type", fn_bbs_type},
 	{"BBS", false, "cache", fn_bbs_cache},

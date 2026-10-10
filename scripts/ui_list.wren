@@ -42,12 +42,20 @@ class ListView is Widget {
     _sbSep         = true          // separator between scrollbar and content
     _searchBuf     = ""             // type-to-search rolling buffer
     _lastSearch    = ""             // most recent Ctrl-F query (for Ctrl-G)
+    _searchKeys    = null           // optional pre-folded key per item
     _selectionMode = "single"       // "single" or "tag"
     _tagged        = null           // List<Bool> in tag mode, else null
   }
 
   items { _items }
   items=(list) { setItems_(list, false) }
+
+  // Optional Text.caselessKey() values parallel to items.  They cheaply
+  // reject non-matches; the normal matcher still verifies candidates so
+  // grapheme-boundary semantics remain unchanged.
+  searchKeys=(keys) {
+    _searchKeys = keys is List && keys.count == _items.count ? keys : null
+  }
 
   // Replace the collection and deliberately return to its first row.
   // Use for navigation to a different collection; ordinary items=
@@ -59,6 +67,7 @@ class ListView is Widget {
     var selected = _selected
     var scrollTop = _scrollTop
     _items = list
+    _searchKeys = null
 
     if (list.count == 0) {
       _selected = -1
@@ -559,10 +568,12 @@ class ListView is Widget {
     var n = _items.count
     if (n == 0 || prefix.count == 0) return -1
     var start = _selected < 0 ? 0 : (_selected + 1) % n
+    var key = _searchKeys == null ? null : Text.caselessKey(prefix)
     var i = 0
     while (i < n) {
       var idx = (start + i) % n
-      if (ciStartsWith_(searchTextFor_(_items[idx]), prefix)) return idx
+      if ((key == null || _searchKeys[idx].startsWith(key)) &&
+          ciStartsWith_(searchTextFor_(_items[idx]), prefix)) return idx
       i = i + 1
     }
     return -1
@@ -574,10 +585,12 @@ class ListView is Widget {
     var n = _items.count
     if (n == 0 || needle.count == 0) return -1
     var start = _selected < 0 ? 0 : (_selected + 1) % n
+    var key = _searchKeys == null ? null : Text.caselessKey(needle)
     var i = 0
     while (i < n) {
       var idx = (start + i) % n
-      if (ciContains_(searchTextFor_(_items[idx]), needle)) return idx
+      if ((key == null || _searchKeys[idx].contains(key)) &&
+          ciContains_(searchTextFor_(_items[idx]), needle)) return idx
       i = i + 1
     }
     return -1

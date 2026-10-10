@@ -660,14 +660,20 @@ class MainMenuApp {
   refresh_(preferred, fallback) {
     _entries = Menu.entries
     var labels = []
+    var searchKeys = []
     var selected = fallback.max(0)
     for (i in 0..._entries.count) {
       var bbs = _entries[i]
       labels.add(bbs.name)
+      searchKeys.add(bbs.searchKey)
       if (preferred != null && bbs.name == preferred) selected = i
     }
-    if (Menu.canAppendEntry) labels.add("")
+    if (Menu.canAppendEntry) {
+      labels.add("")
+      searchKeys.add("")
+    }
     _list.items = labels
+    _list.searchKeys = searchKeys
     if (labels.count > 0) _list.selected = selected.min(labels.count - 1)
     if (_entries.count == 0) {
       _selected = null

@@ -4113,6 +4113,25 @@ fn_text_caseless_equal(WrenVM *vm)
 }
 
 static void
+fn_text_caseless_key(WrenVM *vm)
+{
+	const char *text;
+	int text_size;
+	char *key;
+	size_t key_size;
+
+	if (!st_wren_text_slot(vm, 1, &text, &text_size))
+		return;
+	if (st_unicode_caseless_key(&key, &key_size, text, (size_t)text_size)
+	    != 0) {
+		st_wren_abort(vm, "Unicode comparison failed");
+		return;
+	}
+	wrenSetSlotBytes(vm, 0, key, key_size);
+	free(key);
+}
+
+static void
 fn_text_caseless_starts_with(WrenVM *vm)
 {
 	const char *text;
@@ -4181,6 +4200,7 @@ fn_cterm_status_display(WrenVM *vm)
 
 static const struct binding bindings[] = {
 	{"Platform", true, "name", fn_platform_name},
+	{"Text", true, "caselessKey(_)", fn_text_caseless_key},
 	{"Text", true, "caselessEqual(_,_)", fn_text_caseless_equal},
 	{"Text", true, "caselessStartsWith(_,_)", fn_text_caseless_starts_with},
 	{"Text", true, "caselessContains(_,_)", fn_text_caseless_contains},

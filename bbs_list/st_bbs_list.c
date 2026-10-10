@@ -57,8 +57,41 @@ free_entry(struct st_bbs_owned_entry *entry)
 		return;
 	free_entry(entry->shadowed);
 	st_profile_dispose(&entry->profile);
+	free(entry->name_key);
 	free(entry->source_name);
 	free(entry);
+}
+
+static int
+compare_bytes(const void *left, size_t left_size,
+	const void *right, size_t right_size)
+{
+	size_t shared = left_size < right_size ? left_size : right_size;
+	int compared = shared == 0 ? 0 : memcmp(left, right, shared);
+
+	if (compared != 0)
+		return compared < 0 ? -1 : 1;
+	return left_size == right_size ? 0 : left_size < right_size ? -1 : 1;
+}
+
+static int
+compare_entry_names(const void *left, const void *right)
+{
+	const struct st_bbs_owned_entry *left_entry = left;
+	const struct st_bbs_owned_entry *right_entry = right;
+
+	return compare_bytes(left_entry->name_key, left_entry->name_key_size,
+	    right_entry->name_key, right_entry->name_key_size);
+}
+
+static int
+compare_key_to_entry(const void *key_pointer, const void *entry_pointer)
+{
+	const struct st_bbs_owned_entry *key = key_pointer;
+	const struct st_bbs_owned_entry *entry =
+	    *(const struct st_bbs_owned_entry *const *)entry_pointer;
+
+	return compare_entry_names(key, entry);
 }
 
 const struct st_bbs_entry *
@@ -85,6 +118,7 @@ st_bbs_view_dispose(struct st_bbs_view *view)
 {
 	if (view == NULL)
 		return;
+	array_list_free((array_list_t *)&view->names);
 	for (size_t i = 0; i < array_list_count((array_list_t)view->entries); ++i)
 		free_entry(view->entries[i]);
 	array_list_free((array_list_t *)&view->entries);
@@ -122,13 +156,34 @@ add_diagnostic(struct st_bbs_view *view, enum st_bbs_source source,
 }
 
 static struct st_bbs_owned_entry *
+find_owned_by_key(const struct st_bbs_view *view,
+	const struct st_bbs_owned_entry *key)
+{
+	struct st_bbs_owned_entry **found = bsearch(key, view->names,
+	    array_list_count((array_list_t)view->names), sizeof(*view->names),
+	    compare_key_to_entry);
+
+	return found == NULL ? NULL : *found;
+}
+
+static int
+make_name_key(struct st_bbs_owned_entry *key, const char *name)
+{
+	return st_unicode_caseless_key(&key->name_key, &key->name_key_size,
+	    name, strlen(name));
+}
+
+static struct st_bbs_owned_entry *
 find_owned(const struct st_bbs_view *view, const char *name)
 {
-	for (size_t i = 0; i < array_list_count((array_list_t)view->entries); ++i) {
-		if (st_bbs_name_equal(view->entries[i]->profile.name, name))
-			return view->entries[i];
-	}
-	return NULL;
+	struct st_bbs_owned_entry key = {0};
+	struct st_bbs_owned_entry *found;
+
+	if (make_name_key(&key, name) != 0)
+		return NULL;
+	found = find_owned_by_key(view, &key);
+	free(key.name_key);
+	return found;
 }
 
 static int
@@ -168,6 +223,7 @@ append_source(const st_bbs_list_t *list, struct st_bbs_view *view,
 	for (size_t i = 0; i < ini_document_section_count(document); ++i) {
 		ini_section_t *section = ini_document_section_at(document, i);
 		const char *name = ini_section_name(section);
+		struct st_bbs_owned_entry key = {0};
 		struct st_bbs_owned_entry *existing;
 		struct st_bbs_owned_entry *item;
 		int status;
@@ -179,8 +235,12 @@ append_source(const st_bbs_list_t *list, struct st_bbs_view *view,
 				return status;
 			continue;
 		}
-		existing = find_owned(view, name);
+		status = make_name_key(&key, name);
+		if (status != 0)
+			return status;
+		existing = find_owned_by_key(view, &key);
 		if (existing != NULL) {
+			free(key.name_key);
 			/* Later duplicate blocks replace earlier blocks in one source. */
 			if (existing->public.source != source
 			    || !st_bbs_name_equal(existing->source_name, source_name)) {
@@ -211,15 +271,26 @@ append_source(const st_bbs_list_t *list, struct st_bbs_view *view,
 			continue;
 		}
 		if (array_list_count((array_list_t)view->entries)
-		    >= ST_BBS_LIST_MAX_ENTRIES)
+		    >= ST_BBS_LIST_MAX_ENTRIES) {
+			free(key.name_key);
 			return IO_ERROR_OUT_OF_RANGE;
+		}
 		status = decode_entry(list, section, source, source_name, &item);
-		if (status < 0)
+		if (status < 0) {
+			free(key.name_key);
 			return status;
-		if (!array_list_append((array_list_t *)&view->entries, item)) {
+		}
+		item->name_key = key.name_key;
+		item->name_key_size = key.name_key_size;
+		size_t count = array_list_count((array_list_t)view->entries);
+		if (!array_list_reserve((array_list_t *)&view->entries, count + 1)
+		    || !array_list_reserve((array_list_t *)&view->names, count + 1)) {
 			free_entry(item);
 			return IO_ERROR_OUT_OF_MEMORY;
 		}
+		(void)array_list_append((array_list_t *)&view->entries, item);
+		(void)array_list_sorted_insert((array_list_t *)&view->names, item,
+		    compare_entry_names);
 	}
 	return 0;
 }

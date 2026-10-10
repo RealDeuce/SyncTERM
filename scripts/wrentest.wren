@@ -1402,6 +1402,7 @@ class WrenTest {
 
   static testUnicodeText_() {
     check_(Text.caselessEqual("Stra\u00dfe", "STRASSE") &&
+        Text.caselessKey("Stra\u00dfe") == Text.caselessKey("STRASSE") &&
         Text.caselessEqual("\u00c5", "A\u030a") &&
         Text.caselessStartsWith("Stra\u00dfe", "strass") &&
         Text.caselessContains("caf\u00e9", "F\u00c9") &&

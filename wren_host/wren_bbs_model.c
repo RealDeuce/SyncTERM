@@ -8,6 +8,7 @@
 #include "wren_bbs_model.h"
 
 #include "io_error.h"
+#include "st_unicode_compare.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,7 +29,30 @@ free_record(struct st_wren_bbs_record *record)
 		return;
 	free_record(record->shadowed);
 	st_profile_dispose(&record->profile);
+	free(record->name_key);
 	free(record);
+}
+
+static bool
+replace_name_key(struct st_wren_bbs_record *record, const char *name)
+{
+	char *key;
+	size_t key_size;
+
+	if (st_unicode_caseless_key(&key, &key_size, name, strlen(name)) != 0)
+		return false;
+	free(record->name_key);
+	record->name_key = key;
+	record->name_key_size = key_size;
+	return true;
+}
+
+static bool
+same_name_key(const struct st_wren_bbs_record *record,
+	const char *key, size_t key_size)
+{
+	return record->name_key_size == key_size
+	    && (key_size == 0 || memcmp(record->name_key, key, key_size) == 0);
 }
 
 void
@@ -50,7 +74,9 @@ st_wren_bbs_model_dispose(struct st_wren_bbs_model *model)
 		free_record(model->entries[i]);
 	free(model->entries);
 	st_profile_dispose(&model->defaults.profile);
+	free(model->defaults.name_key);
 	st_profile_dispose(&model->transient.profile);
+	free(model->transient.name_key);
 	memset(model, 0, sizeof(*model));
 }
 
@@ -62,7 +88,8 @@ copy_record(const struct st_profile *profile, enum st_bbs_source source)
 	if (record == NULL)
 		return NULL;
 	st_profile_init(&record->profile);
-	if (!st_profile_copy(&record->profile, profile)) {
+	if (!st_profile_copy(&record->profile, profile)
+	    || !replace_name_key(record, profile->name)) {
 		free_record(record);
 		return NULL;
 	}
@@ -204,14 +231,23 @@ bool
 st_wren_bbs_model_name_available(const struct st_wren_bbs_model *model,
     const char *name)
 {
+	char *key;
+	size_t key_size;
+	bool available = true;
+
 	if (model == NULL || !model->loaded || !st_bbs_name_valid(name))
+		return false;
+	if (st_unicode_caseless_key(&key, &key_size, name, strlen(name)) != 0)
 		return false;
 	for (size_t i = 0; i < model->count; ++i) {
 		if (model->entries[i]->source == ST_BBS_SOURCE_PERSONAL
-		    && st_bbs_name_equal(model->entries[i]->profile.name, name))
-			return false;
+		    && same_name_key(model->entries[i], key, key_size)) {
+			available = false;
+			break;
+		}
 	}
-	return true;
+	free(key);
+	return available;
 }
 
 static int
@@ -276,6 +312,10 @@ st_wren_bbs_model_create(struct st_wren_bbs_model *model, const char *name,
 	record = copy_record(source, ST_BBS_SOURCE_PERSONAL);
 	if (record == NULL)
 		return NULL;
+	if (!replace_name_key(record, name)) {
+		free_record(record);
+		return NULL;
+	}
 	(void)snprintf(record->profile.name, sizeof(record->profile.name), "%s",
 	    name);
 	record->profile.source = ST_PROFILE_SOURCE_USER;
@@ -301,15 +341,25 @@ st_wren_bbs_model_rename(struct st_wren_bbs_model *model,
     struct st_wren_bbs_record *record, const char *name,
     const int *fields, size_t field_count)
 {
+	char *key;
+	size_t key_size;
+
 	if (model == NULL || record == NULL
 	    || record->source != ST_BBS_SOURCE_PERSONAL
 	    || !st_bbs_name_valid(name) || !contains(model, record))
 		return false;
+	if (st_unicode_caseless_key(&key, &key_size, name, strlen(name)) != 0)
+		return false;
 	for (size_t i = 0; i < model->count; ++i) {
 		if (model->entries[i] != record
-		    && st_bbs_name_equal(model->entries[i]->profile.name, name))
+		    && same_name_key(model->entries[i], key, key_size)) {
+			free(key);
 			return false;
+		}
 	}
+	free(record->name_key);
+	record->name_key = key;
+	record->name_key_size = key_size;
 	(void)snprintf(record->profile.name, sizeof(record->profile.name), "%s",
 	    name);
 	record->dirty = true;
@@ -376,15 +426,22 @@ st_wren_bbs_model_set_transient(struct st_wren_bbs_model *model,
     const struct st_profile *profile)
 {
 	struct st_profile copy;
+	char *key;
+	size_t key_size;
 
 	st_profile_init(&copy);
-	if (!st_profile_copy(&copy, profile)) {
+	if (!st_profile_copy(&copy, profile)
+	    || st_unicode_caseless_key(&key, &key_size, profile->name,
+	    strlen(profile->name)) != 0) {
 		st_profile_dispose(&copy);
 		return false;
 	}
 	st_profile_dispose(&model->transient.profile);
+	free(model->transient.name_key);
 	memset(&model->transient, 0, sizeof(model->transient));
 	model->transient.profile = copy;
+	model->transient.name_key = key;
+	model->transient.name_key_size = key_size;
 	model->transient.source = ST_BBS_SOURCE_PERSONAL;
 	model->transient_generation++;
 	model->transient_valid = true;
@@ -395,6 +452,9 @@ void
 st_wren_bbs_model_invalidate_transient(struct st_wren_bbs_model *model)
 {
 	st_profile_dispose(&model->transient.profile);
+	free(model->transient.name_key);
+	model->transient.name_key = NULL;
+	model->transient.name_key_size = 0;
 	st_profile_init(&model->transient.profile);
 	model->transient_generation++;
 	model->transient_valid = false;

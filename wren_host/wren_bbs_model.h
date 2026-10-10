@@ -23,6 +23,8 @@ enum st_wren_bbs_kind {
 
 struct st_wren_bbs_record {
 	struct st_profile profile;
+	char *name_key;
+	size_t name_key_size;
 	char persisted_name[ST_PROFILE_NAME_MAX + 1];
 	enum st_bbs_source source;
 	struct st_wren_bbs_record *shadowed;

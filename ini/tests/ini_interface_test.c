@@ -72,8 +72,10 @@ document_text(const ini_document_t *document)
 static bool
 test_document_and_parse(void)
 {
-	static const char decomposed[] = "[NFC]\nValue=e\xcc\x81\n";
-	static const char composed[] = "[NFC]\nValue=\xc3\xa9\n";
+	static const char decomposed[] =
+	    "[Cafe\xcc\x81]\nValue=e\xcc\x81\n";
+	static const char composed[] =
+	    "[Caf\xc3\xa9]\nValue=\xc3\xa9\n";
 	static const char input[] =
 	    " ; root comment\r\n"
 	    "Root = caf\xc3\xa9\r\n"
@@ -99,6 +101,7 @@ test_document_and_parse(void)
 	ini_section_t *root;
 	ini_section_t *first;
 	ini_section_t *second;
+	ini_section_t *unicode;
 	ini_section_t *beta;
 	name_value_list_t pairs = NULL;
 	const struct name_value *pair;
@@ -121,13 +124,15 @@ test_document_and_parse(void)
 	CHECK(!ini_section_has_key(root, "BadLiteral"));
 	CHECK(!ini_section_has_key(root, "NotLiteral"));
 
-	CHECK(ini_document_section_count(document) == 3);
+	CHECK(ini_document_section_count(document) == 4);
 	first = ini_document_section_at(document, 0);
 	second = ini_document_section_at(document, 1);
-	beta = ini_document_section_at(document, 2);
-	CHECK(first != NULL && second != NULL && beta != NULL);
+	unicode = ini_document_section_at(document, 2);
+	beta = ini_document_section_at(document, 3);
+	CHECK(first != NULL && second != NULL && unicode != NULL && beta != NULL);
 	CHECK(strcmp(ini_section_name(first), "Alpha") == 0);
 	CHECK(strcmp(ini_section_name(second), "alpha") == 0);
+	CHECK(strcmp(ini_section_name(unicode), "Bad\xc3\xa9") == 0);
 	CHECK(strcmp(ini_section_name(beta), "Beta") == 0);
 	CHECK(ini_document_find_section(document, "ALPHA") == second);
 	CHECK(ini_section_count(first) == 2);
@@ -136,7 +141,7 @@ test_document_and_parse(void)
 	CHECK(pair != NULL && strcmp(pair->name, "Key") == 0
 	    && strcmp(pair->value, "first") == 0);
 	CHECK(ini_section_at(first, 2) == NULL);
-	CHECK(!ini_section_has_key(second, "Hidden"));
+	CHECK(strcmp(ini_section_find(unicode, "Hidden"), "no") == 0);
 	CHECK(!ini_section_has_key(second, "StillHidden"));
 	CHECK(strcmp(ini_section_find(beta, "Raw"), "\xc3\xa9") == 0);
 	CHECK(strcmp(ini_section_find(beta, "Last"), "no-newline") == 0);
@@ -179,7 +184,8 @@ test_document_and_parse(void)
 	ini_document_free(&document);
 	CHECK(ini_document_parse(&document, decomposed,
 	    sizeof(decomposed) - 1) == 0);
-	CHECK(strcmp(ini_section_find(ini_document_find_section(document, "NFC"),
+	CHECK(strcmp(ini_section_find(ini_document_find_section(document,
+	    "Caf\xc3\xa9"),
 	    "Value"), "\xc3\xa9") == 0);
 	serialized = NULL;
 	serialized_size = 0;

@@ -12,6 +12,7 @@
 class Error {}
 
 class Text {
+  foreign static caselessKey(text)
   foreign static caselessEqual(left, right)
   foreign static caselessStartsWith(text, prefix)
   foreign static caselessContains(text, needle)

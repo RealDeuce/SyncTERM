@@ -125,11 +125,12 @@ main(void)
 {
 	static const char personal_text[] =
 	    "; personal comment\n[Alpha]\nAddress=old.example\nUnknown=keep\n"
-	    "[Alpha]\nAddress=personal.example\n";
+	    "[Alpha]\nAddress=personal.example\n"
+	    "[Stra\xc3\x9f" "e]\nAddress=unicode-personal.example\n";
 	static const char shared_text[] =
 	    "[Alpha]\nAddress=shared.example\n[Shared]\n"
 	    "Address=shared-only.example\nUserName=ignored\nPassword=ignored\n"
-	    "TotalCalls=99\n";
+	    "TotalCalls=99\n[STRASSE]\nAddress=unicode-shared.example\n";
 	static const char password[] = "list password";
 	struct st_app_paths paths = {0};
 	struct st_profile profile;
@@ -145,7 +146,7 @@ main(void)
 	char system_cache[sizeof(ST_BBS_TEST_DIRECTORY) + 64];
 	char system_list[sizeof(ST_BBS_TEST_DIRECTORY) + 96];
 	char lock_path[sizeof(personal) + 8];
-	char cache_item[sizeof(cache) + 64];
+	char cache_item[sizeof(cache) + 128];
 	char *public_cache_path = NULL;
 	uint8_t picker_key[32];
 	uint8_t reopened_picker_key[32];
@@ -192,7 +193,7 @@ main(void)
 	CHECK(strcmp(public_cache_path, cache_item) == 0);
 	free(public_cache_path);
 	public_cache_path = NULL;
-	CHECK(st_bbs_list_count(first) == 2);
+	CHECK(st_bbs_list_count(first) == 3);
 	entry = st_bbs_list_find(first, "alpha");
 	CHECK(entry != NULL && entry->source == ST_BBS_SOURCE_PERSONAL);
 	CHECK(strcmp(entry->profile->address, "personal.example") == 0);
@@ -204,6 +205,11 @@ main(void)
 	CHECK(st_bbs_list_find(first, "Shared")->profile->username[0] == '\0');
 	CHECK(st_bbs_list_find(first, "Shared")->profile->password[0] == '\0');
 	CHECK(st_bbs_list_find(first, "Shared")->profile->calls == 0);
+	entry = st_bbs_list_find(first, "strasse");
+	CHECK(entry != NULL && entry->source == ST_BBS_SOURCE_PERSONAL);
+	CHECK(st_bbs_entry_shadowed(entry) != NULL);
+	CHECK(strcmp(st_bbs_entry_shadowed(entry)->profile->address,
+	    "unicode-shared.example") == 0);
 	CHECK(st_bbs_sort_field_normalize(30) == ST_BBS_SORT_EXPLICIT);
 	CHECK(st_bbs_sort_field_normalize(ST_BBS_SORT_LF_EXPAND)
 	    == ST_BBS_SORT_LF_EXPAND);
@@ -250,7 +256,7 @@ main(void)
 		profile.ssh_fingerprint[i] = (uint8_t)i;
 	profile.ssh_fingerprint_size = 20;
 	CHECK(st_bbs_list_add(first, &profile, &mutation) == 0);
-	CHECK(st_bbs_list_count(first) == 3);
+	CHECK(st_bbs_list_count(first) == 4);
 	CHECK(st_bbs_list_find(first, "Alpha")->source == ST_BBS_SOURCE_PERSONAL);
 	{
 		const int fields[] = { ST_BBS_SORT_ADDRESS };
