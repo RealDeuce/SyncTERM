@@ -170,6 +170,7 @@ include::docs/api/reference/application.adoc[]
 * link:Wren.adoc[authoritative SyncTERM Wren API]
 * link:WREN_GUIDANCE.md[Wren implementation guidance]
 * link:cterm.adoc[retained CTerm protocol specification]
+* link:UnicodeBoundary.adoc[terminal wire and Unicode boundary design]
 
 Before editing Wren source or bindings, read both `WREN_GUIDANCE.md` and the
 relevant `Wren.adoc` sections.  Before moving legacy code, trace actual modern
