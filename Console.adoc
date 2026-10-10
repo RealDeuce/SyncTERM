@@ -250,12 +250,18 @@ palette identity survives rasterization, capture, snapshots, and blits.
 callers and reads do not return it.  Content changes mark cells in the
 low-bandwidth mutation path; the renderer consumes contiguous dirty runs.
 
-`st_console_write_cells()` is the Unicode edge: it resolves each codepoint
-through the selected font and fallback.  `st_console_write_complete_cells()`
-is the puttext-style bypass for callers which already possess a complete,
-resolved cell; it preserves the supplied font and glyph.  Both interfaces
-require every stored codepoint to be a Unicode scalar.  Rejection happens
-before any destination cell is changed.
+Cell operations accept only resolved font/glyph cells.  Before constructing a
+cell from semantic text, the caller resolves its normalized grapheme cluster
+with `st_console_font_lookup_cluster()`; the scalar convenience lookup is
+`st_console_font_lookup()`.  `st_console_write_cells()` applies normal
+pair-aware cell mutation, while `st_console_write_complete_cells()` bulk-copies
+a complete validated rectangle without per-cell pair synthesis.  Neither
+operation interprets `cell.glyph` as a codepoint.
+
+Readback returns the resolved cell, not the scalar or grapheme which selected
+its glyph.  `st_console_font_glyph_text()` can provide a representative
+registered mapping for text backends and selection, but that mapping is not
+lossless provenance and is not required to reproduce the original input.
 
 == Fonts and Unicode
 
@@ -378,9 +384,10 @@ values beyond U+10FFFF are rejected.  Formatted output is not part of this
 layer.
 
 Direct semantic codepoint writes apply the same Unicode-scalar requirement.
-Fill values used by rectangle fill, move-and-clear, window clearing,
-scrolling, and line insertion/deletion must also occupy exactly one text
-column.  An invalid scalar or two-column fill is rejected before text or
+Codepoint arguments used by window clearing, scrolling, and line
+insertion/deletion must occupy exactly one text column.  Cell arguments used by
+rectangle fill and move-and-clear must already contain a resolved one-column
+glyph.  Invalid semantic input or a wide fill is rejected before text or
 cursor state changes.
 
 Moves have snapshot source semantics when rectangles overlap.  Scrolling and

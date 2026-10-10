@@ -106,8 +106,9 @@ because an arbitrary callback cannot be probed.  The ordinary terminal path
 selects UTF-8 or CP437 cell output from
 `text_presentation`, obtains the terminal size, decodes keyboard input, and
 uses DoorWay keyboard reporting when the enclosing terminal implements it.
-Text output reverse-maps each resolved font/glyph pair to its canonical NFC
-cluster. CP437 output then encodes a single-scalar cluster through the
+Text output reverse-maps each resolved font/glyph pair to a representative
+registered NFC mapping; cells do not retain the text which selected it. CP437
+output then encodes a single-scalar mapping through the
 locale-independent codepage table and substitutes `?` when it has no mapping.
 
 ## Cells and coordinates
@@ -137,7 +138,7 @@ Unicode lookup. Semantic text enters through `st_console_put_codepoint` or
 NFC, segments extended grapheme clusters, and resolves one drawable per
 cluster. A legacy decoder first uses `st_console_font_for_flags` to turn its
 normal/bright/blink selection and the cell attributes into `font`, then uses a
-font lookup to obtain `glyph_font` and `glyph`.
+scalar or grapheme-cluster font lookup to obtain `glyph_font` and `glyph`.
 
 The high bit of a colour selects direct RGB.  Without that tag, values from
 zero through 65,535 are palette indexes.  The same representation is used by

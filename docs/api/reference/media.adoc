@@ -423,24 +423,22 @@ int st_console_resize(st_console_t *console, uint32_t columns,
 int st_console_reconfigure(st_console_t *console,
 	const struct st_console_config *config);
 
-/*
- * Semantic cell writes require Unicode scalar codepoints.  A two-column cell
- * must be followed by its matching continuation cell in the same row.
- */
+/* Writes resolved cells.  Wide glyphs require matching continuation cells. */
 int st_console_write_cells(st_console_t *console,
-	const struct st_console_rect *destination,
-	const struct st_console_cell *cells, size_t stride);
+    const struct st_console_rect *destination,
+    const struct st_console_cell *cells, size_t stride);
 /*
- * Writes already-resolved font/glyph cells without Unicode lookup.  Stored
- * codepoints must still be Unicode scalars.
+ * Bulk-copies a complete rectangle of resolved cells without per-cell pair
+ * synthesis.  Wide glyphs require matching continuation cells.
  */
 int st_console_write_complete_cells(st_console_t *console,
-	const struct st_console_rect *destination,
-	const struct st_console_cell *cells, size_t stride);
+    const struct st_console_rect *destination,
+    const struct st_console_cell *cells, size_t stride);
+/* Returns resolved cell state; source Unicode text is not retained. */
 int st_console_read_cells(st_console_t *console,
-	const struct st_console_rect *source, struct st_console_cell *cells,
-	size_t stride);
-/* A fill cell must contain a Unicode scalar which occupies one column. */
+    const struct st_console_rect *source, struct st_console_cell *cells,
+    size_t stride);
+/* The resolved fill glyph must occupy one column. */
 int st_console_fill(st_console_t *console,
 	const struct st_console_rect *destination,
 	const struct st_console_cell *cell);
@@ -685,17 +683,20 @@ specified by the console manual.
 | Function group | Parameters, result, and effect
 
 | st_console_write_cells(console, rectangle, cells, stride)
-| Validates all semantic Unicode cells, resolves fonts/glyphs, then writes the
-rectangle transactionally.
+| Validates and writes caller-resolved glyph cells.  Each wide glyph must have
+a matching continuation cell in the submitted row.
 
 | st_console_write_complete_cells(console, rectangle, cells, stride)
-| Writes already resolved cells while preserving supplied font/glyph fields.
+| Bulk-copies a complete rectangle of resolved cells while preserving supplied
+font/glyph fields and validated wide pairs.
 
 | st_console_read_cells(console, rectangle, cells, stride)
-| Copies public cell state; private dirty flags are omitted.
+| Copies resolved public cell state; private dirty flags and the source Unicode
+text are not retained.
 
 | st_console_fill(console, rectangle, cell)
-| Validates one semantic fill cell and applies it throughout the rectangle.
+| Validates one resolved, single-column glyph cell and applies it throughout
+the rectangle.
 
 | st_console_set_style(console, style), st_console_get_style(console, style)
 | Set/query current font, colors, hyperlink, and public style flags.
@@ -781,10 +782,14 @@ one-column content.
 | Resolves source bright/blink selector policy to an internal font identifier.
 
 | st_console_font_lookup(console, identifier, codepoint, glyph_font, glyph, columns), st_console_font_lookup_cluster(console, identifier, text, text_size, columns, glyph_font, glyph)
-| Resolve scalar or grapheme cluster to font/glyph/columns using fallback.
+| Resolve semantic text using fallback before constructing a cell.  The scalar
+form determines columns; the cluster form accepts the caller's one- or
+two-column grapheme width.
 
 | st_console_font_glyph_text(console, identifier, glyph, text, text_size, required), st_console_font_glyph_columns(console, identifier, glyph, columns)
-| Query retained mapping text/width for a concrete font glyph.
+| Query a representative registered mapping and width for a concrete font
+glyph.  Mapping text is not retained-cell provenance and need not reproduce
+the text which originally selected the glyph.
 |===
 
 ==== Console pixels, snapshots, and input

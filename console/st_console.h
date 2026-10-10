@@ -83,6 +83,12 @@ typedef struct st_console_snapshot st_console_snapshot_t;
 	    | ST_CONSOLE_VIDEO_EXPAND \
 	    | ST_CONSOLE_VIDEO_LINE_GRAPHICS_EXPAND)
 
+/*
+ * Retained cells contain resolved font glyphs, never Unicode codepoints.
+ * Resolve semantic text with st_console_font_lookup_cluster() before
+ * constructing a cell.  font is the selected font and glyph_font is the font
+ * which actually supplies glyph after fallback.
+ */
 struct st_console_cell {
 	uint32_t glyph;
 	uint32_t foreground;
@@ -470,24 +476,22 @@ int st_console_resize(st_console_t *console, uint32_t columns,
 int st_console_reconfigure(st_console_t *console,
 	const struct st_console_config *config);
 
-/*
- * Semantic cell writes require Unicode scalar codepoints.  A two-column cell
- * must be followed by its matching continuation cell in the same row.
- */
+/* Writes resolved cells.  Wide glyphs require matching continuation cells. */
 int st_console_write_cells(st_console_t *console,
 	const struct st_console_rect *destination,
 	const struct st_console_cell *cells, size_t stride);
 /*
- * Writes already-resolved font/glyph cells without Unicode lookup.  Stored
- * codepoints must still be Unicode scalars.
+ * Bulk-copies a complete rectangle of resolved cells without per-cell pair
+ * synthesis.  Wide glyphs require matching continuation cells.
  */
 int st_console_write_complete_cells(st_console_t *console,
 	const struct st_console_rect *destination,
 	const struct st_console_cell *cells, size_t stride);
+/* Returns resolved cell state; source Unicode text is not retained. */
 int st_console_read_cells(st_console_t *console,
 	const struct st_console_rect *source, struct st_console_cell *cells,
 	size_t stride);
-/* A fill cell must contain a Unicode scalar which occupies one column. */
+/* The resolved fill glyph must occupy one column. */
 int st_console_fill(st_console_t *console,
 	const struct st_console_rect *destination,
 	const struct st_console_cell *cell);
@@ -584,9 +588,14 @@ uint16_t st_console_font_for_flags(
 int st_console_font_lookup(st_console_t *console, uint16_t identifier,
 	uint32_t codepoint, uint16_t *glyph_font, uint32_t *glyph,
 	uint8_t *columns);
+/* Resolve one UTF-8 grapheme cluster before constructing retained cells. */
 int st_console_font_lookup_cluster(st_console_t *console, uint16_t identifier,
 	const char *text, size_t text_size, uint8_t columns,
 	uint16_t *glyph_font, uint32_t *glyph);
+/*
+ * Returns a representative mapping, not the text which originally selected
+ * the glyph.
+ */
 int st_console_font_glyph_text(st_console_t *console, uint16_t identifier,
 	uint32_t glyph, char *text, size_t text_size, size_t *required);
 int st_console_font_glyph_columns(st_console_t *console,

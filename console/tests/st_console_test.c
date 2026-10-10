@@ -2041,6 +2041,17 @@ test_cluster_font_mapping(void)
 	    waving_hand_tone, sizeof(waving_hand_tone) - 1, 2, &owner,
 	    &glyph) == 0);
 	CHECK(owner == identifier && glyph == 2);
+	cells[0] = (struct st_console_cell){
+		.glyph = glyph,
+		.font = identifier,
+		.glyph_font = owner,
+	};
+	cells[1] = cells[0];
+	cells[1].flags = ST_CONSOLE_CELL_CONTINUATION;
+	CHECK(st_console_write_cells(console, &row, cells, 2) == 0);
+	CHECK(st_console_read_cells(console, &row, cells, 2) == 0);
+	CHECK(cells[0].glyph == glyph && cells[0].glyph_font == owner);
+	CHECK((cells[1].flags & ST_CONSOLE_CELL_CONTINUATION) != 0);
 	CHECK(st_console_write_utf8(console, waving_hand_tone,
 	    sizeof(waving_hand_tone) - 1) == 0);
 	CHECK(st_console_read_cells(console, &row, cells, 2) == 0);

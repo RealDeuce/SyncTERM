@@ -1221,11 +1221,10 @@ cell_is_wide_locked(st_console_t *console, const struct st_console_cell *cell)
 }
 
 static struct st_console_cell
-prepare_cell_locked(st_console_t *console, const struct st_console_cell *source)
+cell_for_storage(const struct st_console_cell *source)
 {
 	struct st_console_cell value = *source;
 
-	(void)console;
 	value.flags &= ST_CONSOLE_CELL_PUBLIC_FLAGS;
 	return value;
 }
@@ -1277,7 +1276,7 @@ row_cells_valid_locked(st_console_t *console,
 	for (uint32_t x = 0; x < width; ++x) {
 		struct st_console_cell value;
 
-		value = prepare_cell_locked(console, &cells[x]);
+		value = cell_for_storage(&cells[x]);
 		if (!complete_cell_valid_locked(console, &value))
 			return false;
 
@@ -1388,7 +1387,7 @@ st_console_set_cell_locked(st_console_t *console, size_t index,
 	struct st_console_cell value = *source;
 	struct st_console_cell continuation;
 
-	value = prepare_cell_locked(console, source);
+	value = cell_for_storage(source);
 	if (cells_equal(&console->cells[index], &value))
 		return;
 	clear_pair_locked(console, index);
@@ -1970,7 +1969,7 @@ st_console_fill(st_console_t *console,
 		return IO_ERROR_OUT_OF_RANGE;
 	}
 	{
-		struct st_console_cell value = prepare_cell_locked(console, cell);
+		struct st_console_cell value = cell_for_storage(cell);
 
 		if ((value.flags & ST_CONSOLE_CELL_CONTINUATION) != 0
 		    || cell_is_wide_locked(console, &value)
