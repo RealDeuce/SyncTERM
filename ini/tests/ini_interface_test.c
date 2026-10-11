@@ -727,6 +727,33 @@ test_add_section_after_unterminated_line(void)
 }
 
 static bool
+test_cached_name_lookup(void)
+{
+	static const char input[] =
+	    "[Names]\n"
+	    "Stra\xc3\x9f" "e=sharp\n"
+	    "Caf\xc3\xa9=accent\n"
+	    "MixedCase=ascii\n";
+	char long_name[140];
+	ini_document_t *document = NULL;
+	ini_section_t *section;
+
+	CHECK(ini_document_parse(&document, input, sizeof(input) - 1) == 0);
+	section = ini_document_find_section(document, "NAMES");
+	CHECK(section != NULL);
+	CHECK(strcmp(ini_section_find(section, "STRASSE"), "sharp") == 0);
+	CHECK(strcmp(ini_section_find(section, "CAF\xc3\x89"), "accent") == 0);
+	CHECK(strcmp(ini_section_find(section, "mixedcase"), "ascii") == 0);
+	memset(long_name, 'A', sizeof(long_name) - 1);
+	long_name[sizeof(long_name) - 1] = '\0';
+	CHECK(ini_section_set_string(section, long_name, "long", NULL) == 0);
+	memset(long_name, 'a', sizeof(long_name) - 1);
+	CHECK(strcmp(ini_section_find(section, long_name), "long") == 0);
+	ini_document_free(&document);
+	return true;
+}
+
+static bool
 test_unterminated_record_without_insertion(void)
 {
 	ini_document_t *document = NULL;
@@ -763,6 +790,7 @@ main(void)
 	passed = test_add_section_after_unterminated_line() && passed;
 	passed = test_unterminated_record_without_insertion() && passed;
 	passed = test_key_name_grammar() && passed;
+	passed = test_cached_name_lookup() && passed;
 	passed = test_zero_bitfield() && passed;
 	return passed ? EXIT_SUCCESS : EXIT_FAILURE;
 }

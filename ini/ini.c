@@ -99,6 +99,31 @@ ini_section_compare(const struct ini_section *left,
 	    ? compared : strcmp(left->name, right->name);
 }
 
+static const char *
+lookup_name_key(const char *name, char *ascii_key, size_t capacity,
+    char **allocated, size_t *size)
+{
+	size_t name_size = strlen(name);
+	size_t i;
+
+	*allocated = NULL;
+	for (i = 0; i < name_size && i < capacity; ++i) {
+		unsigned char byte = (unsigned char)name[i];
+
+		if (byte >= 0x80)
+			break;
+		ascii_key[i] = byte >= 'A' && byte <= 'Z'
+		    ? (char)(byte + ('a' - 'A')) : (char)byte;
+	}
+	/* ASCII canonical-caseless keys need no Unicode fold or allocation. */
+	if (i == name_size) {
+		*size = name_size;
+		return ascii_key;
+	}
+	return st_unicode_caseless_key(allocated, size, name, name_size) == 0
+	    ? *allocated : NULL;
+}
+
 static bool
 text_equal(const char *left, const char *right)
 {
@@ -654,21 +679,23 @@ ini_section_t *
 ini_document_find_section(ini_document_t *document, const char *name)
 {
 	struct ini_section key = {0};
+	char ascii_key[64];
+	char *allocated;
 	ini_section_t *found = NULL;
 	size_t index;
 
 	if (document == NULL || name == NULL)
 		return NULL;
 	key.name = (char *)name;
-	(void)st_unicode_caseless_key(&key.name_key, &key.name_key_size,
-	    name, strlen(name));
+	key.name_key = (char *)lookup_name_key(name, ascii_key,
+	    sizeof(ascii_key), &allocated, &key.name_key_size);
 	if (ini_section_index_find(document->index, &key, &index)) {
 		while (index + 1 < ini_section_index_count(document->index)
 		    && ini_section_compare(document->index[index + 1], &key) == 0)
 			index++;
 		found = document->index[index];
 	}
-	free(key.name_key);
+	free(allocated);
 	return found;
 }
 
@@ -705,11 +732,13 @@ section_last_index(const ini_section_t *section, const char *key,
     bool *found)
 {
 	struct name_value search = {.name = key, .value = ""};
+	char ascii_key[64];
+	char *allocated = NULL;
 	size_t index = 0;
 
 	if (key != NULL)
-		(void)st_unicode_caseless_key(&search.name_key,
-		    &search.name_key_size, key, strlen(key));
+		search.name_key = (char *)lookup_name_key(key, ascii_key,
+		    sizeof(ascii_key), &allocated, &search.name_key_size);
 	*found = section != NULL && key != NULL
 	    && name_value_index_find(section->index, &search, &index);
 	if (*found) {
@@ -717,7 +746,7 @@ section_last_index(const ini_section_t *section, const char *key,
 		    && name_value_compare(section->index[index + 1], &search) == 0)
 			index++;
 	}
-	free(search.name_key);
+	free(allocated);
 	return index;
 }
 
