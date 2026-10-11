@@ -108,6 +108,26 @@ cterm_size(void *context, uint32_t columns, uint32_t rows,
 		    session->config.connection, &geometry);
 }
 
+static int
+update_connection_geometry(st_term_session_t *session)
+{
+	uint32_t cell_width;
+	uint32_t cell_height;
+	struct st_screen_geometry geometry;
+	int status;
+
+	status = st_cterm_size(session->cterm, &geometry.columns, &geometry.rows);
+	if (status == 0)
+		status = st_console_cell_pixel_size(session->config.console,
+		    &cell_width, &cell_height);
+	if (status != 0)
+		return status;
+	geometry.pixel_width = geometry.columns * cell_width;
+	geometry.pixel_height = geometry.rows * cell_height;
+	return st_connection_update_terminal_size(session->config.connection,
+	    &geometry);
+}
+
 int
 st_term_connect_profile(st_connection_t **result,
 	const struct st_profile *profile, st_console_t *console,
@@ -183,6 +203,7 @@ st_term_session_create(st_term_session_t **result,
 		.petscii_machine = profile_petscii_machine(config->screen_mode),
 		.font_selector = config->font_selector,
 		.terminal_rows = config->hide_status ? rows : rows - 1,
+		.status_line = !config->hide_status,
 		.scrollback_lines = config->history == NULL ? 0
 		    : st_session_history_capacity(config->history),
 		.output = cterm_output,
@@ -195,29 +216,11 @@ st_term_session_create(st_term_session_t **result,
 		free(session);
 		return status;
 	}
-	if (!config->hide_status) {
-		struct st_console_rect status_row = {0, rows - 1, columns, 1};
-		struct st_console_cell blank = {0};
-		struct st_console_style style;
-		uint8_t width;
-
-		status = st_console_get_style(config->console, &style);
-		if (status == 0) {
-			blank.foreground = style.foreground;
-			blank.background = style.background;
-			blank.flags = style.flags;
-			blank.font = style.font;
-			blank.glyph_font = style.font;
-			status = st_console_font_lookup(config->console, blank.font, ' ',
-			    &blank.glyph_font, &blank.glyph, &width);
-			if (status == 0)
-				status = st_console_fill(config->console, &status_row, &blank);
-		}
-		if (status != 0) {
-			st_cterm_destroy(&session->cterm);
-			free(session);
-			return status;
-		}
+	status = update_connection_geometry(session);
+	if (status != 0) {
+		st_cterm_destroy(&session->cterm);
+		free(session);
+		return status;
 	}
 	*result = session;
 	return 0;
@@ -373,22 +376,13 @@ handle_event(st_term_session_t *session,
 		    event->data.focus.focused);
 		return session->output_error;
 	case ST_CONSOLE_EVENT_RESIZE: {
-		uint32_t pixel_width = 0;
-		uint32_t pixel_height = 0;
-		struct st_screen_geometry geometry;
+		int status;
 
-		(void)st_console_pixel_size(session->config.console, &pixel_width,
-		    &pixel_height);
-		geometry = (struct st_screen_geometry){
-			.columns = event->data.resize.columns,
-			.rows = event->data.resize.rows
-			    - (!session->config.hide_status
-			    && event->data.resize.rows != 0),
-			.pixel_width = pixel_width,
-			.pixel_height = pixel_height,
-		};
-		return st_connection_update_terminal_size(
-		    session->config.connection, &geometry);
+		status = st_cterm_resize(session->cterm,
+		    event->data.resize.columns, event->data.resize.rows);
+		if (status != 0)
+			return status;
+		return update_connection_geometry(session);
 	}
 	default:
 		return 0;

@@ -219,7 +219,7 @@ int st_cterm_adapter_getpalette(struct cterminal *cterm, uint32_t entry,
 uint32_t st_cterm_adapter_map_rgb(uint16_t red, uint16_t green,
 	uint16_t blue);
 void st_cterm_adapter_replace_font(struct cterminal *cterm, uint8_t selector,
-	const char *name, const void *data, size_t size);
+	char *name, void *data, size_t size);
 int st_cterm_adapter_get_modepalette(struct cterminal *cterm,
 	uint32_t *palette);
 int st_cterm_adapter_getfont(struct cterminal *cterm, int slot);

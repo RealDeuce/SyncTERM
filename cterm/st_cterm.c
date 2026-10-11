@@ -50,8 +50,19 @@ static void
 emit_size(struct cterminal *terminal, int columns, int rows,
 	int pixel_width, int pixel_height, void *context)
 {
-	(void)terminal;
 	st_cterm_t *owner = context;
+	uint32_t cell_width;
+	uint32_t cell_height;
+
+	if ((pixel_width < 0 || pixel_height < 0)
+	    && st_console_cell_pixel_size(terminal->screen.console, &cell_width,
+	    &cell_height) == 0 && cell_width != 0 && cell_height != 0
+	    && columns >= 0 && rows >= 0
+	    && (uint32_t)columns <= UINT32_MAX / cell_width
+	    && (uint32_t)rows <= UINT32_MAX / cell_height) {
+		pixel_width = columns * (int)cell_width;
+		pixel_height = rows * (int)cell_height;
+	}
 
 	if (owner->api_size_changed != NULL)
 		owner->api_size_changed(owner->api_size_context,
@@ -217,19 +228,34 @@ status_display_changed(struct cterminal *terminal, int old_type,
 	struct st_cterm_legacy_screen screen;
 	uint32_t columns;
 	uint32_t rows;
-	(void)old_type;
+	int available;
+	int new_rows;
 	(void)context;
 
+	if (st_console_size(terminal->screen.console, &columns, &rows) != 0) {
+		terminal->status_display_type = old_type;
+		st_cterm_adapter_record_error(terminal, IO_ERROR_IO);
+		return;
+	}
+	available = terminal->height + (old_type >= 1 ? 1 : 0);
+	new_rows = available - (new_type >= 1 ? 1 : 0);
+	if (new_rows < 1 || columns > INT_MAX
+	    || (uint32_t)(terminal->y - 1 + new_rows
+	    + (new_type >= 1 ? 1 : 0)) > rows) {
+		terminal->status_display_type = old_type;
+		st_cterm_adapter_record_error(terminal, IO_ERROR_OUT_OF_RANGE);
+		return;
+	}
+	cterm_resize_rows(terminal, new_rows);
 	if (new_type != 2) {
 		/* A subterminal may currently be bubbling this callback. */
 		terminal->api_status_destroy_pending = terminal->status_sub != NULL;
+		if (new_type == 1 && terminal->status_sub == NULL)
+			clear_reserved_status(terminal);
 		return;
 	}
 	terminal->api_status_destroy_pending = false;
 	if (terminal->status_sub != NULL)
-		return;
-	if (st_console_size(terminal->screen.console, &columns, &rows) != 0
-	    || (uint32_t)(terminal->y + terminal->height - 1) >= rows)
 		return;
 	screen = terminal->screen;
 	screen.unicode = NULL;
@@ -239,8 +265,13 @@ status_display_changed(struct cterminal *terminal, int old_type,
 	terminal->status_sub = cterm_init(1, terminal->width, terminal->x,
 	    terminal->y + terminal->height, 0, terminal->width, NULL,
 	    terminal->emulation, &screen);
-	if (terminal->status_sub == NULL)
+	if (terminal->status_sub == NULL) {
+		terminal->status_display_type = old_type;
+		cterm_resize_rows(terminal,
+		    available - (old_type >= 1 ? 1 : 0));
+		st_cterm_adapter_record_error(terminal, IO_ERROR_OUT_OF_MEMORY);
 		return;
+	}
 	terminal->status_sub->parent = terminal;
 	terminal->status_sub->quiet = terminal->quiet;
 	terminal->status_sub->response_cb = terminal->response_cb;
@@ -310,7 +341,7 @@ mark_hyperlinks(void *context, st_hyperlink_mark_fn mark, void *mark_context)
 
 static void
 default_palette_mapping(enum st_cterm_emulation emulation,
-	uint32_t mapping[16])
+	enum st_cterm_petscii_machine petscii_machine, uint32_t mapping[16])
 {
 	static const uint16_t colour[16] = {
 		0, 4, 2, 6, 1, 5, 3, 7, 8, 12, 10, 14, 9, 13, 11, 15,
@@ -334,7 +365,10 @@ default_palette_mapping(enum st_cterm_emulation emulation,
 	const uint16_t *source = colour;
 
 	switch (emulation) {
-	case ST_CTERM_PETSCII: source = c64; break;
+	case ST_CTERM_PETSCII:
+		source = petscii_machine == ST_CTERM_PETSCII_C128_80
+		    ? colour : c64;
+		break;
 	case ST_CTERM_ATASCII: source = atari; break;
 	case ST_CTERM_PRESTEL:
 	case ST_CTERM_BBC: source = prestel; break;
@@ -399,7 +433,8 @@ initialize_legacy_screen(struct st_cterm_legacy_screen *screen,
 			screen->mode_palette[i] = config->palette_mapping[i];
 	}
 	else
-		default_palette_mapping(config->emulation, screen->mode_palette);
+		default_palette_mapping(config->emulation, config->petscii_machine,
+		    screen->mode_palette);
 	screen->api.options = CONIO_OPT_KEY_EVENTS;
 	if (capabilities & ST_CONSOLE_CAP_LOADABLE_FONTS)
 		screen->api.options |= CONIO_OPT_LOADABLE_FONTS
@@ -430,6 +465,7 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 	uint32_t columns;
 	uint32_t rows;
 	uint32_t terminal_rows;
+	uint32_t status_rows;
 	int status;
 
 	if (result == NULL || config == NULL || config->console == NULL
@@ -453,7 +489,13 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 	status = initialize_legacy_screen(&screen, config, columns, rows);
 	if (status != 0)
 		return status;
-	terminal_rows = config->terminal_rows == 0 ? rows : config->terminal_rows;
+	status_rows = config->status_line ? 1 : 0;
+	if (rows <= status_rows)
+		return IO_ERROR_INVALID_ARGUMENT;
+	terminal_rows = config->terminal_rows == 0
+	    ? rows - status_rows : config->terminal_rows;
+	if (terminal_rows + status_rows > rows)
+		return IO_ERROR_INVALID_ARGUMENT;
 	if (config->scrollback_lines != 0) {
 		if ((size_t)columns > SIZE_MAX / config->scrollback_lines
 		    || (size_t)columns * config->scrollback_lines
@@ -497,6 +539,8 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 		return status;
 	}
 	terminal->quiet = config->quiet;
+	terminal->status_display_type = config->status_line ? 1 : 0;
+	terminal->api_reserved_rows = rows - terminal_rows - status_rows;
 	terminal->wire_encoding = config->encoding;
 	terminal->api_output = config->output;
 	terminal->api_output_context = config->output_context;
@@ -518,6 +562,14 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 	terminal->mouse_state_change_cbdata = terminal;
 	terminal->mouse_state_query = mouse_mode_query;
 	terminal->mouse_state_query_cbdata = terminal;
+	if (config->status_line) {
+		clear_reserved_status(terminal);
+		status = st_cterm_adapter_take_error(terminal);
+		if (status != 0) {
+			st_cterm_destroy(&terminal);
+			return status;
+		}
+	}
 	if (config->encoding == ST_CTERM_ENCODING_UTF8) {
 		status = st_unicode_presentation_create(&terminal->screen.unicode,
 		    present_unicode, terminal);
@@ -609,7 +661,8 @@ st_cterm_write(st_cterm_t *terminal, const void *bytes, size_t size,
 		if (terminal->api_status_destroy_pending) {
 			destroy_status_sub(terminal);
 			terminal->api_status_destroy_pending = false;
-			clear_reserved_status(terminal);
+			if (terminal->status_display_type != 0)
+				clear_reserved_status(terminal);
 		}
 		if (status == 0)
 			status = st_cterm_adapter_take_error(terminal);
@@ -651,7 +704,8 @@ st_cterm_write(st_cterm_t *terminal, const void *bytes, size_t size,
 	if (terminal->api_status_destroy_pending) {
 		destroy_status_sub(terminal);
 		terminal->api_status_destroy_pending = false;
-		clear_reserved_status(terminal);
+		if (terminal->status_display_type != 0)
+			clear_reserved_status(terminal);
 	}
 	if (status == 0)
 		status = st_cterm_adapter_take_error(terminal);
@@ -684,6 +738,144 @@ st_cterm_reset_terminal(st_cterm_t *terminal)
 		return status;
 	cterm_reset(terminal);
 	return st_cterm_adapter_take_error(terminal);
+}
+
+static int
+resize_scrollback(st_cterm_t *terminal, uint32_t columns,
+	struct vmem_cell **result)
+{
+	struct vmem_cell *resized;
+	size_t count;
+	size_t copy_columns;
+
+	if (terminal->backlines == 0)
+		return 0;
+	if ((size_t)columns > SIZE_MAX / (size_t)terminal->backlines
+	    || (size_t)columns * (size_t)terminal->backlines
+	    > SIZE_MAX / sizeof(*resized))
+		return IO_ERROR_OUT_OF_RANGE;
+	count = (size_t)columns * (size_t)terminal->backlines;
+	resized = calloc(count, sizeof(*resized));
+	if (resized == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	copy_columns = columns < (uint32_t)terminal->backwidth
+	    ? columns : (size_t)terminal->backwidth;
+	for (int line = 0; line < terminal->backfilled; ++line) {
+		int source = terminal->backstart + line;
+
+		if (source >= terminal->backlines)
+			source -= terminal->backlines;
+		memcpy(resized + (size_t)line * columns,
+		    terminal->scrollback + (size_t)source * terminal->backwidth,
+		    copy_columns * sizeof(*resized));
+	}
+	*result = resized;
+	return 0;
+}
+
+static void
+resize_parser_geometry(st_cterm_t *terminal, int columns, int rows,
+	int cursor_x, int cursor_y)
+{
+	int old_columns = terminal->width;
+	int old_rows = terminal->height;
+	uint32_t last_x = (uint32_t)(terminal->x - 1 + columns - 1);
+	uint32_t last_y = (uint32_t)(terminal->y - 1 + rows - 1);
+
+	terminal->width = columns;
+	terminal->height = rows;
+	if (terminal->right_margin == old_columns
+	    || terminal->right_margin > columns)
+		terminal->right_margin = columns;
+	if (terminal->left_margin > columns)
+		terminal->left_margin = 1;
+	if (terminal->bottom_margin == old_rows
+	    || terminal->bottom_margin > rows)
+		terminal->bottom_margin = rows;
+	if (terminal->top_margin > rows)
+		terminal->top_margin = 1;
+	if (cursor_x > columns)
+		cursor_x = columns;
+	if (cursor_y > rows)
+		cursor_y = rows;
+	if (terminal->screen.provisional_x > last_x)
+		terminal->screen.provisional_x = last_x;
+	if (terminal->screen.provisional_y > last_y)
+		terminal->screen.provisional_y = last_y;
+	setwindow(terminal);
+	cterm_gotoxy(terminal, cursor_x, cursor_y);
+	(void)st_cterm_adapter_find_vmode(terminal,
+	    terminal->screen.video_params[0].mode);
+}
+
+int
+st_cterm_resize(st_cterm_t *terminal, uint32_t columns, uint32_t rows)
+{
+	struct vmem_cell *scrollback = NULL;
+	struct vmem_cell *old_scrollback;
+	uint32_t status_rows;
+	uint32_t terminal_rows;
+	int cursor_x;
+	int cursor_y;
+	int status_x = 1;
+	int status_y = 1;
+	int status;
+
+	if (terminal == NULL || columns == 0 || rows == 0
+	    || columns > UINT8_MAX || rows > UINT8_MAX)
+		return IO_ERROR_INVALID_ARGUMENT;
+	status_rows = terminal->status_display_type >= 1 ? 1 : 0;
+	if (rows <= terminal->api_reserved_rows + status_rows)
+		return IO_ERROR_OUT_OF_RANGE;
+	terminal_rows = rows - terminal->api_reserved_rows - status_rows;
+	if (terminal->backlines != 0) {
+		status = resize_scrollback(terminal, columns, &scrollback);
+		if (status != 0)
+			return status;
+	}
+	cursor_x = terminal->xpos;
+	cursor_y = terminal->ypos;
+	if (terminal->status_sub != NULL) {
+		status_x = terminal->status_sub->xpos;
+		status_y = terminal->status_sub->ypos;
+	}
+	status = st_console_resize(terminal->screen.console, columns, rows);
+	if (status != 0) {
+		free(scrollback);
+		return status;
+	}
+	old_scrollback = terminal->scrollback;
+	terminal->scrollback = scrollback;
+	terminal->backwidth = (int)columns;
+	terminal->backstart = 0;
+	terminal->backpos = terminal->backfilled == terminal->backlines
+	    ? 0 : terminal->backfilled;
+	free(old_scrollback);
+	resize_parser_geometry(terminal, (int)columns, (int)terminal_rows,
+	    cursor_x, cursor_y);
+	if (terminal->status_sub != NULL) {
+		terminal->status_sub->x = terminal->x;
+		terminal->status_sub->y = terminal->y + terminal->height;
+		resize_parser_geometry(terminal->status_sub, (int)columns, 1,
+		    status_x, status_y);
+	}
+	if (terminal->status_sub == NULL || terminal->status_display_active == 0)
+		setwindow(terminal);
+	status = st_cterm_adapter_take_error(terminal);
+	if (status == 0 && terminal->status_sub != NULL)
+		status = st_cterm_adapter_take_error(terminal->status_sub);
+	return status;
+}
+
+int
+st_cterm_size(const st_cterm_t *terminal, uint32_t *columns, uint32_t *rows)
+{
+	if (terminal == NULL || columns == NULL || rows == NULL
+	    || terminal->width < 1 || terminal->height < 1)
+		return IO_ERROR_INVALID_ARGUMENT;
+	*columns = (uint32_t)terminal->width;
+	*rows = (uint32_t)terminal->height;
+	return 0;
 }
 
 enum st_cterm_encoding

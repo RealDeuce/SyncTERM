@@ -60,8 +60,11 @@ use CP437.  This query does not assert that the selector is registered.
 ==== CTerm
 
 `struct st_cterm_config` borrows every pointer through terminal destruction.
-`terminal_rows == 0` selects every console row; otherwise it must not exceed
-console height.  `scrollback_lines` is bounded by addressable allocation size.
+`status_line` initially selects the DEC indicator status display and reserves
+one console row for it. `terminal_rows == 0` selects every row not occupied by
+that status display; otherwise the difference remains reserved for the caller.
+The terminal and optional status row must fit the console.
+`scrollback_lines` is bounded by addressable allocation size.
 The font selector must be registered in the supplied catalog, and that catalog
 must belong to the supplied console. Geometry must fit the legacy parser's
 8-bit row and column reports. `palette_mapping`, when non-NULL, points to 16
@@ -76,6 +79,9 @@ int st_cterm_write(st_cterm_t *terminal, const void *bytes, size_t size,
     size_t *consumed);
 int st_cterm_finish(st_cterm_t *terminal);
 int st_cterm_reset_terminal(st_cterm_t *terminal);
+int st_cterm_resize(st_cterm_t *terminal, uint32_t columns, uint32_t rows);
+int st_cterm_size(const st_cterm_t *terminal, uint32_t *columns,
+    uint32_t *rows);
 enum st_cterm_encoding st_cterm_encoding(const st_cterm_t *terminal);
 enum st_codepage st_cterm_codepage(const st_cterm_t *terminal);
 int st_cterm_set_encoding(st_cterm_t *terminal,
@@ -115,6 +121,20 @@ decode error.  Safe to call again without duplicating the error.
 
 | st_cterm_reset_terminal(terminal)
 | Finishes the Unicode boundary, then applies the emulation reset.
+
+| st_cterm_resize(terminal, columns, rows)
+| Resizes the underlying console and updates CTerm geometry, margins, cursor
+bounds, status subterminal, and scrollback width. Incremental Unicode decoder
+and grapheme state remain live across the resize.
+Overlapping visible cells and chronological scrollback content are preserved.
+The configured count of caller-reserved rows remains fixed; a selected DEC
+status display additionally consumes one row. Dimensions must be 1 through
+255, and at least one terminal row must remain. Returns zero or `IO_ERROR_*`.
+
+| st_cterm_size(terminal, columns, rows)
+| Writes the main terminal's current columns and rows, excluding a status line
+and caller-reserved rows. Both output pointers are required. Returns zero or
+`IO_ERROR_INVALID_ARGUMENT`.
 
 | st_cterm_encoding(terminal), st_cterm_codepage(terminal)
 | Return active policy.  NULL yields CODEPAGE and CP437 defaults respectively.
@@ -189,7 +209,9 @@ transports (and for NULL). Use this result for the matching session config.
 | Requires matching non-NULL console, open connection, and font catalog.
 Optional audio/hyperlink/history pointers may be NULL.  All configured objects
 are borrowed through session destruction.  A visible status row requires at
-least two console rows.  Result is unchanged on failure.
+least two console rows. The connection is updated with the main terminal's
+initial cell and pixel geometry, excluding that status row. Result is unchanged
+on failure.
 
 | st_term_session_destroy(session_ptr)
 | Finishes Unicode, publishes history when configured, releases CTerm, and

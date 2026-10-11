@@ -11,6 +11,7 @@
 
 #include "io_error.h"
 #include "st_base64.h"
+#include "st_time.h"
 #include "st_utf8.h"
 
 #include <limits.h>
@@ -18,7 +19,6 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
-#include <time.h>
 
 void
 st_cterm_adapter_record_error(struct cterminal *cterm, int error)
@@ -149,11 +149,8 @@ legacy_cell(struct cterminal *cterm, const struct st_console_cell *source,
 	uint32_t scalar = UINT32_C(0xfffd);
 	size_t consumed;
 	uint8_t byte = '?';
-	uint32_t foreground = source->foreground & 15U;
-	uint32_t background = source->background & 7U;
-	static const uint8_t inverse[16] = {
-		0, 4, 2, 6, 1, 5, 3, 7, 8, 12, 10, 14, 9, 13, 11, 15,
-	};
+	uint32_t foreground = 0;
+	uint32_t background = 0;
 
 	memset(destination, 0, sizeof(*destination));
 	if (st_console_font_glyph_text(cterm->screen.console, source->glyph_font,
@@ -169,10 +166,18 @@ legacy_cell(struct cterminal *cterm, const struct st_console_cell *source,
 			break;
 		}
 	}
-	if (foreground < 16)
-		foreground = inverse[foreground];
-	if (background < 16)
-		background = inverse[background];
+	for (size_t i = 0; i < 16; ++i) {
+		if (cterm->screen.mode_palette[i] == source->foreground) {
+			foreground = (uint32_t)i;
+			break;
+		}
+	}
+	for (size_t i = 0; i < 8; ++i) {
+		if (cterm->screen.mode_palette[i] == source->background) {
+			background = (uint32_t)i;
+			break;
+		}
+	}
 	destination->legacy_attr = (uint8_t)((foreground & 7U)
 	    | ((background & 7U) << 4));
 	if ((source->flags & ST_CONSOLE_CELL_BRIGHT) != 0)
@@ -365,8 +370,16 @@ st_cterm_adapter_setcolour(struct cterminal *cterm, uint32_t foreground,
 void
 st_cterm_adapter_cursor(struct cterminal *cterm, int cursor)
 {
+	enum st_console_cursor_shape shape = ST_CONSOLE_CURSOR_BLOCK;
+	bool visible;
+
+	if (cursor == _NORMALCURSOR)
+		shape = ST_CONSOLE_CURSOR_UNDERLINE;
+	else if (cursor == _NOCURSOR
+	    && st_console_get_cursor(cterm->screen.console, &visible, &shape) != 0)
+		shape = ST_CONSOLE_CURSOR_BLOCK;
 	(void)adapter_succeeded(cterm, st_console_set_cursor(cterm->screen.console,
-	    cursor != _NOCURSOR, ST_CONSOLE_CURSOR_BLOCK));
+	    cursor != _NOCURSOR, shape));
 }
 
 void
@@ -783,7 +796,7 @@ st_cterm_adapter_map_rgb(uint16_t red, uint16_t green, uint16_t blue)
 
 void
 st_cterm_adapter_replace_font(struct cterminal *cterm, uint8_t selector,
-	const char *name, const void *data, size_t size)
+	char *name, void *data, size_t size)
 {
 	uint32_t width;
 	uint32_t height;
@@ -792,10 +805,10 @@ st_cterm_adapter_replace_font(struct cterminal *cterm, uint8_t selector,
 
 	(void)name;
 	if (size == 0 || size % 256 != 0)
-		return;
+		goto done;
 	if (!adapter_succeeded(cterm, st_console_cell_pixel_size(
 	    cterm->screen.console, &width, &height)))
-		return;
+		goto done;
 	font = (struct st_console_font){
 		.bitmap = data,
 		.bitmap_size = size,
@@ -806,12 +819,15 @@ st_cterm_adapter_replace_font(struct cterminal *cterm, uint8_t selector,
 		.glyph_stride = size / 256,
 	};
 	if (font.row_stride * height != font.glyph_stride)
-		return;
+		goto done;
 	if (!adapter_succeeded(cterm, st_console_register_font_copy(
 	    cterm->screen.console, &font, &identifier)))
-		return;
+		goto done;
 	cterm->screen.font_identifiers[selector] = identifier;
 	cterm->screen.font_valid[selector] = true;
+done:
+	free(data);
+	free(name);
 }
 
 int
@@ -932,9 +948,9 @@ st_cterm_adapter_setfont(struct cterminal *cterm, int selector, int force,
 	(void)force;
 	if (selector < 0 || selector > UINT8_MAX || slot < 0 || slot >= 5
 	    || !cterm->screen.font_valid[selector])
-		return -1;
+		return 0;
 	cterm->screen.selectors[slot] = (uint16_t)selector;
-	return selector;
+	return 1;
 }
 
 uint8_t
@@ -1021,12 +1037,11 @@ st_cterm_adapter_get_hyperlink(struct cterminal *cterm)
 uint64_t
 st_cterm_adapter_timer64(void)
 {
-	struct timespec now;
+	uint64_t now;
 
-	if (timespec_get(&now, TIME_UTC) != TIME_UTC)
+	if (st_time_monotonic_ms(&now) != 0)
 		return 0;
-	return (uint64_t)now.tv_sec * UINT64_C(1000)
-	    + (uint64_t)now.tv_nsec / UINT64_C(1000000);
+	return now;
 }
 
 uint16_t

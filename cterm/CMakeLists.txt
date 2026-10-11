@@ -14,7 +14,7 @@ add_library(st_cterm STATIC
 	cterm_vt52.c)
 target_include_directories(st_cterm PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_cterm PUBLIC st_console st_codepage st_font_catalog st_hyperlink
-	st_audio st_base64 st_utf8 st_unicode_text)
+	st_audio st_base64 st_time st_utf8 st_unicode_text)
 set_target_properties(st_cterm PROPERTIES C_STANDARD 17
 	C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 if(MSVC)

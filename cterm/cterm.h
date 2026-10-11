@@ -101,6 +101,7 @@ struct cterminal {
 	uint16_t api_mouse_modes;
 	uint32_t api_mouse_buttons;
 	bool api_status_destroy_pending;
+	uint32_t api_reserved_rows;
 	int	x;		// X position of the left side on the screen
 	int	y;		// Y position of the top pn the screen
 	int setfont_result;

@@ -66,8 +66,10 @@ struct st_cterm_config {
 	/* Used only by PETSCII to select C64/C128 colour and font semantics. */
 	enum st_cterm_petscii_machine petscii_machine;
 	uint8_t font_selector;
-	/* Zero uses every console row; otherwise reserves the remaining rows. */
+	/* Zero uses every available row; otherwise reserves the remainder. */
 	uint32_t terminal_rows;
+	/* Initially reserve one available row for the DEC indicator status line. */
+	bool status_line;
 	size_t scrollback_lines;
 	bool quiet;
 	st_cterm_output_callback_t output;
@@ -96,6 +98,11 @@ int st_cterm_write(st_cterm_t *terminal, const void *bytes, size_t size,
 /* Disconnect/reset boundary: replacement for a truncated UTF-8 sequence. */
 int st_cterm_finish(st_cterm_t *terminal);
 int st_cterm_reset_terminal(st_cterm_t *terminal);
+
+/* Resizes the owned console geometry and preserves visible and saved cells. */
+int st_cterm_resize(st_cterm_t *terminal, uint32_t columns, uint32_t rows);
+int st_cterm_size(const st_cterm_t *terminal, uint32_t *columns,
+	uint32_t *rows);
 
 enum st_cterm_encoding st_cterm_encoding(const st_cterm_t *terminal);
 enum st_codepage st_cterm_codepage(const st_cterm_t *terminal);

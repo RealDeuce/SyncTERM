@@ -40,6 +40,8 @@ test_shell_utf8_boundary(void)
 	struct st_console_cell cell;
 	enum st_term_disposition disposition;
 	bool finished;
+	uint32_t columns;
+	uint32_t rows;
 	char text[8];
 	size_t required;
 	bool found = false;
@@ -65,6 +67,15 @@ test_shell_utf8_boundary(void)
 		.hide_status = true,
 	};
 	CHECK(st_term_session_create(&session, &config) == 0);
+	const struct st_console_event resize = {
+		.type = ST_CONSOLE_EVENT_RESIZE,
+		.data.resize = {.columns = 90, .rows = 30},
+	};
+	CHECK(st_console_post_event(console, &resize) == 0);
+	CHECK(st_term_session_pump(session, &disposition, &finished) == 0);
+	CHECK(!finished);
+	CHECK(st_console_size(console, &columns, &rows) == 0);
+	CHECK(columns == 90 && rows == 30);
 	for (size_t attempt = 0; attempt < 100 && !found; ++attempt) {
 		status = st_term_session_pump(session, &disposition, &finished);
 		CHECK(status == 0);

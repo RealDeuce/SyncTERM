@@ -99,6 +99,7 @@ main(void)
 		.codepage = ST_CODEPAGE_CP437,
 		.font_selector = 0,
 		.terminal_rows = 3,
+		.status_line = true,
 		.output = capture,
 		.output_context = &output,
 		.quiet = true,
@@ -147,6 +148,20 @@ main(void)
 	CHECK(st_console_font_glyph_text(console, cell.glyph_font, cell.glyph,
 	    text, sizeof(text), &required) == 0);
 	CHECK(required == 1 && text[0] == ' ');
+	feed(terminal, "\x1b[1$~", strlen("\x1b[1$~"));
+
+	/* DEC cursor styles retain their block/underline distinction. */
+	{
+		bool visible;
+		enum st_console_cursor_shape shape;
+
+		feed(terminal, "\x1b[4 q", strlen("\x1b[4 q"));
+		CHECK(st_console_get_cursor(console, &visible, &shape) == 0);
+		CHECK(visible && shape == ST_CONSOLE_CURSOR_UNDERLINE);
+		feed(terminal, "\x1b[2 q", strlen("\x1b[2 q"));
+		CHECK(st_console_get_cursor(console, &visible, &shape) == 0);
+		CHECK(visible && shape == ST_CONSOLE_CURSOR_BLOCK);
+	}
 
 	/* DEC mouse state is owned by CTerm and emits on the user lane. */
 	feed(terminal, "\x1b[?1000h\x1b[?1006h",
@@ -172,6 +187,13 @@ main(void)
 	CHECK(output.responses == 1
 	    && output.size == strlen("\x1b[=3;16;8n")
 	    && memcmp(output.bytes, "\x1b[=3;16;8n", output.size) == 0);
+	output.size = 0;
+	output.responses = 0;
+	/* Font selector zero is a successful selection, not a false failure. */
+	feed(terminal, "\x1b[0;0 D\x1b[=1n",
+	    strlen("\x1b[0;0 D\x1b[=1n"));
+	CHECK(output.responses == 1 && output.size > strlen("\x1b[=1;46;0"));
+	CHECK(memcmp(output.bytes, "\x1b[=1;46;0", strlen("\x1b[=1;46;0")) == 0);
 	output.size = 0;
 	output.responses = 0;
 	feed(terminal, "\x1b[<c", strlen("\x1b[<c"));
@@ -230,8 +252,27 @@ main(void)
 		CHECK(history != NULL && columns == 20 && rows == 3);
 		free(history);
 	}
+	{
+		uint32_t columns;
+		uint32_t rows;
+
+		CHECK(st_cterm_resize(terminal, 24, 6) == 0);
+		CHECK(st_console_size(console, &columns, &rows) == 0);
+		CHECK(columns == 24 && rows == 6);
+		CHECK(st_cterm_size(terminal, &columns, &rows) == 0);
+		CHECK(columns == 24 && rows == 5);
+		feed(terminal, "\x1b[2$~\x1b[1$}R",
+		    strlen("\x1b[2$~\x1b[1$}R"));
+		one.x = 0;
+		one.y = 5;
+		CHECK(st_console_read_cells(console, &one, &cell, 1) == 0);
+		CHECK(st_console_font_glyph_text(console, cell.glyph_font, cell.glyph,
+		    text, sizeof(text), &required) == 0);
+		CHECK(required == 1 && text[0] == 'R');
+	}
 
 	st_cterm_destroy(&terminal);
+	CHECK(st_console_resize(console, 20, 4) == 0);
 	{
 		static const struct {
 			enum st_cterm_emulation emulation;
@@ -262,6 +303,76 @@ main(void)
 			feed(terminal, smoke[i].bytes, sizeof(smoke[i].bytes));
 			st_cterm_destroy(&terminal);
 		}
+	}
+	{
+		uint16_t mapping[16];
+		struct st_console_cell *history = NULL;
+		uint32_t history_columns;
+		size_t history_rows;
+		bool found = false;
+
+		for (size_t i = 0; i < 16; ++i)
+			mapping[i] = (uint16_t)(100 + i);
+		const struct st_cterm_config mapped_config = {
+			.console = console,
+			.fonts = fonts,
+			.emulation = ST_CTERM_ANSI_BBS,
+			.encoding = ST_CTERM_ENCODING_CODEPAGE,
+			.codepage = ST_CODEPAGE_CP437,
+			.palette_mapping = mapping,
+			.font_selector = 0,
+			.scrollback_lines = 2,
+			.quiet = true,
+		};
+
+		CHECK(st_cterm_create(&terminal, &mapped_config) == 0);
+		feed(terminal, "A", 1);
+		one = (struct st_console_rect){0, 0, 1, 1};
+		CHECK(st_console_read_cells(console, &one, &cell, 1) == 0);
+		cell.foreground = mapping[4] + 16;
+		cell.background = mapping[0] + 16;
+		cell.flags &= ~ST_CONSOLE_CELL_BRIGHT;
+		CHECK(st_console_write_complete_cells(console, &one, &cell, 1) == 0);
+		feed(terminal, "\x1b[1;1;1;1;1$r",
+		    strlen("\x1b[1;1;1;1;1$r"));
+		CHECK(st_console_read_cells(console, &one, &cell, 1) == 0);
+		CHECK(cell.foreground == (uint32_t)mapping[12] + 16);
+		feed(terminal, "\r\nB\r\nC\r\nD\r\nE",
+		    strlen("\r\nB\r\nC\r\nD\r\nE"));
+		CHECK(st_cterm_resize(terminal, 10, 5) == 0);
+		CHECK(st_cterm_copy_history(terminal, &history, &history_columns,
+		    &history_rows) == 0);
+		for (size_t i = 0; i < (size_t)history_columns * history_rows; ++i) {
+			if (st_console_font_glyph_text(console, history[i].glyph_font,
+			    history[i].glyph, text, sizeof(text), &required) == 0
+			    && required == 1 && text[0] == 'A') {
+				CHECK(history[i].foreground == (uint32_t)mapping[12] + 16);
+				found = true;
+			}
+		}
+		CHECK(found);
+		free(history);
+		st_cterm_destroy(&terminal);
+		CHECK(st_console_resize(console, 20, 4) == 0);
+	}
+	{
+		const struct st_cterm_config c128_config = {
+			.console = console,
+			.fonts = fonts,
+			.emulation = ST_CTERM_PETSCII,
+			.encoding = ST_CTERM_ENCODING_CODEPAGE,
+			.codepage = ST_CODEPAGE_PETSCII_UPPER,
+			.petscii_machine = ST_CTERM_PETSCII_C128_80,
+			.font_selector = 0,
+			.quiet = true,
+		};
+
+		CHECK(st_cterm_create(&terminal, &c128_config) == 0);
+		feed(terminal, "A", 1);
+		one = (struct st_console_rect){0, 0, 1, 1};
+		CHECK(st_console_read_cells(console, &one, &cell, 1) == 0);
+		CHECK(cell.foreground == 31);
+		st_cterm_destroy(&terminal);
 	}
 	{
 		const struct st_cterm_config prestel_config = {
