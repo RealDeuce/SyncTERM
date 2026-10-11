@@ -21,6 +21,7 @@ struct st_bbs_owned_entry {
 	struct st_profile profile;
 	char *source_name;
 	struct st_bbs_owned_entry *shadowed;
+	size_t references;
 };
 
 struct st_bbs_owned_diagnostic {
@@ -33,6 +34,7 @@ struct st_bbs_view {
 	struct st_bbs_owned_entry **entries;
 	struct st_bbs_owned_entry **names;
 	struct st_bbs_owned_diagnostic **diagnostics;
+	struct st_bbs_source_snapshot **snapshots;
 	struct st_profile defaults;
 };
 
@@ -69,6 +71,9 @@ int st_bbs_encode_profile(ini_section_t *section,
 bool st_bbs_profiles_equal(const struct st_profile *left,
     const struct st_profile *right);
 int st_bbs_view_prepare(const st_bbs_list_t *list,
+    ini_document_t *personal_document, struct st_bbs_view *view);
+int st_bbs_view_prepare_update(const st_bbs_list_t *list,
+    const char *old_name, const struct st_profile *profile,
     ini_document_t *personal_document, struct st_bbs_view *view);
 void st_bbs_view_dispose(struct st_bbs_view *view);
 void st_bbs_view_publish(st_bbs_list_t *list, struct st_bbs_view *view);

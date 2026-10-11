@@ -19,7 +19,7 @@ if(NOT TARGET syncterm_threads)
 	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../threads"
 		"${CMAKE_CURRENT_BINARY_DIR}/threads")
 endif()
-foreach(_dependency IN ITEMS array_list filesystem ini io_error path
+foreach(_dependency IN ITEMS array_list file_map filesystem ini io_error path
 		string_compat string_util)
 	if(NOT TARGET syncterm_${_dependency})
 		add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../${_dependency}"
@@ -46,7 +46,8 @@ target_include_directories(st_bbs_list PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_bbs_list PUBLIC st_profile st_list_crypto st_app_paths
 	st_webget
 	syncterm_io_error PRIVATE st_file_lock st_settings syncterm_array_list
-	syncterm_filesystem syncterm_ini syncterm_string_compat syncterm_path st_hex
+	syncterm_file_map syncterm_filesystem syncterm_ini
+	syncterm_string_compat syncterm_path st_hex
 	syncterm_string_util st_consent_token xptls::crypto st_time
 	syncterm_threads st_unicode_compare)
 if(WIN32)
@@ -84,7 +85,8 @@ if(BUILD_TESTING)
 		ST_BBS_LIST_TEST_ALLOCATOR=1)
 	target_link_libraries(st_bbs_list_faultable PUBLIC st_profile st_list_crypto
 		st_app_paths st_webget syncterm_io_error PRIVATE st_file_lock
-		st_settings syncterm_array_list syncterm_filesystem syncterm_ini
+		st_settings syncterm_array_list syncterm_file_map
+		syncterm_filesystem syncterm_ini
 		syncterm_string_compat syncterm_path st_hex syncterm_string_util
 		st_consent_token xptls::crypto st_time syncterm_threads
 		st_unicode_compare)

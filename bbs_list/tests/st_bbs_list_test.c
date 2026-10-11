@@ -332,6 +332,50 @@ main(void)
 	CHECK(st_bbs_list_update(first, "Beta", &other, NULL) == 0);
 	st_profile_dispose(&other);
 	CHECK(strcmp(st_bbs_list_at(first, 0)->profile->name, "Alpha") == 0);
+	CHECK(write_text(shared,
+	    "[Alpha]\nAddress=shared.example\n[Shared]\n"
+	    "Address=y-externally.example\n[STRASSE]\n"
+	    "Address=unicode-shared.example\n") == 0);
+	st_profile_init(&other);
+	CHECK(copy_named(&other, first, "Beta") == 0);
+	CHECK(st_bbs_list_update(first, "Beta", &other, NULL) == 0);
+	st_profile_dispose(&other);
+	CHECK(strcmp(st_bbs_list_find(first, "Shared")->profile->address,
+	    "y-externally.example") == 0);
+	st_profile_init(&other);
+	CHECK(copy_named(&other, first, "Beta") == 0);
+	(void)strcpy(other.name, "Shared");
+	CHECK(st_bbs_list_update(first, "Beta", &other, NULL) == 0);
+	CHECK(st_bbs_list_count(first) == 3);
+	CHECK(st_bbs_list_find(first, "Shared")->source
+	    == ST_BBS_SOURCE_PERSONAL);
+	(void)strcpy(other.name, "Beta");
+	CHECK(st_bbs_list_update(first, "Shared", &other, NULL) == 0);
+	CHECK(st_bbs_list_count(first) == 4);
+	CHECK(st_bbs_list_find(first, "Shared")->source
+	    == ST_BBS_SOURCE_SHARED);
+	st_profile_dispose(&other);
+	st_profile_init(&other);
+	CHECK(copy_named(&other, first, "Beta") == 0);
+	(void)strcpy(other.name, "bEtA");
+	CHECK(st_bbs_list_update(first, "Beta", &other, NULL) == 0);
+	CHECK(st_bbs_list_reload(first) == 0);
+	CHECK(strcmp(st_bbs_list_find(first, "Beta")->profile->name,
+	    "bEtA") == 0);
+	(void)strcpy(other.name, "Beta");
+	CHECK(st_bbs_list_update(first, "bEtA", &other, NULL) == 0);
+	st_profile_dispose(&other);
+	st_profile_init(&other);
+	CHECK(copy_named(&other, first, "Alpha") == 0);
+	(void)strcpy(other.name, "Delta");
+	CHECK(st_bbs_list_update(first, "Alpha", &other, NULL) == 0);
+	CHECK(st_bbs_list_find(first, "Alpha")->source
+	    == ST_BBS_SOURCE_SHARED);
+	(void)strcpy(other.name, "Alpha");
+	CHECK(st_bbs_list_update(first, "Delta", &other, NULL) == 0);
+	CHECK(st_bbs_list_find(first, "Alpha")->source
+	    == ST_BBS_SOURCE_PERSONAL);
+	st_profile_dispose(&other);
 	{
 		const int fields[] = { ST_BBS_SORT_ADDRESS };
 
@@ -373,6 +417,19 @@ main(void)
 	CHECK(st_bbs_list_remove(second, "Beta", NULL) == IO_ERROR_CONFLICT);
 	st_profile_dispose(&profile);
 	st_profile_dispose(&other);
+	CHECK(st_bbs_list_reload(second) == 0);
+	st_profile_init(&profile);
+	(void)strcpy(profile.name, "Concurrent");
+	(void)strcpy(profile.address, "concurrent.example");
+	CHECK(st_bbs_list_add(second, &profile, NULL) == 0);
+	st_profile_dispose(&profile);
+	st_profile_init(&profile);
+	CHECK(copy_named(&profile, first, "Beta") == 0);
+	(void)strcpy(profile.comment, "preserve concurrent addition");
+	CHECK(st_bbs_list_update(first, "Beta", &profile, NULL) == 0);
+	CHECK(st_bbs_list_find(first, "Concurrent") != NULL);
+	CHECK(st_bbs_list_remove(first, "Concurrent", NULL) == 0);
+	st_profile_dispose(&profile);
 
 	(void)snprintf(cache_item, sizeof(cache_item),
 	    "%s/[u18-f44e64e75f3948e9f73f8dfa94721c4ce8cbb4f265c4790c702b2d41cfbf2753]/nested",

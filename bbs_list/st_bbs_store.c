@@ -120,6 +120,25 @@ same_value(const char *left, const char *right)
 }
 
 static int
+documents_equal(bool *equal, const ini_document_t *left,
+    const ini_document_t *right)
+{
+	char *left_bytes = NULL;
+	char *right_bytes = NULL;
+	size_t left_size, right_size;
+	int status = ini_document_serialize(left, &left_bytes, &left_size);
+
+	if (status == 0)
+		status = ini_document_serialize(right, &right_bytes, &right_size);
+	if (status == 0)
+		*equal = left_size == right_size
+		    && memcmp(left_bytes, right_bytes, left_size) == 0;
+	free(left_bytes);
+	free(right_bytes);
+	return status;
+}
+
+static int
 merge_profile_sections(ini_section_t *remote,
     const ini_section_t *remote_compare, const ini_section_t *base,
     const ini_section_t *local)
@@ -285,12 +304,15 @@ st_bbs_list_update(st_bbs_list_t *list, const char *old_name,
 	ini_section_t *compare_remote_section;
 	struct st_list_crypto_info info;
 	struct st_profile remote_profile;
+	struct st_profile merged_profile;
 	struct st_bbs_view view = {0};
 	const struct st_profile *base_profile;
 	st_file_lock_t *lock = NULL;
 	char old_cache_key[ST_BBS_CACHE_KEY_MAX + 1];
 	char new_cache_key[ST_BBS_CACHE_KEY_MAX + 1];
 	bool rename_cache;
+	bool rename_section;
+	bool remote_unchanged = false;
 	int status;
 
 	initialize_result(result);
@@ -305,7 +327,11 @@ st_bbs_list_update(st_bbs_list_t *list, const char *old_name,
 	    profile->name))
 		return IO_ERROR_INVALID_ARGUMENT;
 	rename_cache = !st_bbs_name_equal(old_name, profile->name);
+	rename_section = strcmp(old_name, profile->name) != 0;
 	status = begin_write(list, &lock, &remote, &info);
+	if (status == 0)
+		status = documents_equal(&remote_unchanged, remote,
+		    list->personal_document);
 	remote_section = status == 0
 	    ? ini_document_find_section(remote, old_name) : NULL;
 	if (status == 0 && remote_section == NULL)
@@ -341,14 +367,21 @@ st_bbs_list_update(st_bbs_list_t *list, const char *old_name,
 	if (status == 0)
 		status = merge_profile_sections(remote_section, compare_remote_section,
 		    base_section, local_section);
-	if (status == 0 && rename_cache
+	if (status == 0 && rename_section
 	    && !ini_document_rename_section(remote, remote_section,
 	    profile->name))
 		status = IO_ERROR_INVALID_ARGUMENT;
 	if (status == 0)
 		remove_older_sections(remote, old_name, remote_section);
+	st_profile_init(&merged_profile);
+	if (status == 0 && remote_unchanged)
+		status = st_bbs_decode_profile(&merged_profile, remote_section,
+		    profile->name, false, list->download_path);
 	if (status == 0)
-		status = st_bbs_view_prepare(list, remote, &view);
+		status = remote_unchanged
+		    ? st_bbs_view_prepare_update(list, old_name, &merged_profile,
+		    remote, &view)
+		    : st_bbs_view_prepare(list, remote, &view);
 	if (status == 0)
 		status = write_personal(list, remote, &list->write_options,
 		    list->password, list->password_size);
@@ -367,6 +400,7 @@ st_bbs_list_update(st_bbs_list_t *list, const char *old_name,
 	ini_document_free(&canonical_remote);
 	ini_document_free(&remote);
 	st_bbs_view_dispose(&view);
+	st_profile_dispose(&merged_profile);
 	st_profile_dispose(&remote_profile);
 	st_file_lock_release(lock);
 	return status;

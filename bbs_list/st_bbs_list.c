@@ -9,6 +9,7 @@
 
 #include "array_list.h"
 #include "filesystem.h"
+#include "file_map.h"
 #include "io_error.h"
 #include "path.h"
 #include "st_app_paths.h"
@@ -69,6 +70,8 @@ free_entry(struct st_bbs_owned_entry *entry)
 {
 	if (entry == NULL)
 		return;
+	if (--entry->references != 0)
+		return;
 	free_entry(entry->shadowed);
 	st_profile_dispose(&entry->profile);
 	free((char *)entry->public.name_key);
@@ -128,6 +131,28 @@ free_diagnostic(struct st_bbs_owned_diagnostic *diagnostic)
 	free(diagnostic);
 }
 
+struct st_bbs_source_snapshot {
+	/* Exact bytes, not timestamps: same-size edits within one second count. */
+	char *path;
+	char *bytes;
+	size_t size;
+	ini_document_t *document;
+	int read_status;
+	int status;
+	size_t references;
+};
+
+static void
+release_snapshot(struct st_bbs_source_snapshot *snapshot)
+{
+	if (snapshot == NULL || --snapshot->references != 0)
+		return;
+	ini_document_free(&snapshot->document);
+	free(snapshot->bytes);
+	free(snapshot->path);
+	free(snapshot);
+}
+
 void
 st_bbs_view_dispose(struct st_bbs_view *view)
 {
@@ -141,6 +166,10 @@ st_bbs_view_dispose(struct st_bbs_view *view)
 	    i < array_list_count((array_list_t)view->diagnostics); ++i)
 		free_diagnostic(view->diagnostics[i]);
 	array_list_free((array_list_t *)&view->diagnostics);
+	for (size_t i = 0;
+	    i < array_list_count((array_list_t)view->snapshots); ++i)
+		release_snapshot(view->snapshots[i]);
+	array_list_free((array_list_t *)&view->snapshots);
 	st_profile_dispose(&view->defaults);
 }
 
@@ -227,6 +256,7 @@ decode_entry(const st_bbs_list_t *list, ini_section_t *section,
 
 	if (item == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
+	item->references = 1;
 	item->source_name = source_name == NULL ? NULL : strdup(source_name);
 	key_copy = malloc(name_key_size + 1);
 	if ((source_name != NULL && item->source_name == NULL)
@@ -341,16 +371,61 @@ append_source(const st_bbs_list_t *list, struct st_bbs_view *view,
 }
 
 static int
-read_plain_document(const char *path, ini_document_t **result)
+read_plain_document(const st_bbs_list_t *list, struct st_bbs_view *view,
+    const char *path, ini_document_t **result)
 {
-	FILE *stream;
-	int status = fs_open(&stream, path, "rb");
+	struct st_bbs_source_snapshot *snapshot = NULL;
+	file_map_t *map = NULL;
+	size_t size;
+	const void *bytes;
+	int status = file_map_open(&map, path);
 
-	if (status < 0)
-		return status;
-	status = ini_document_read(result, stream);
-	(void)fclose(stream);
-	return status;
+	bytes = file_map_data(map);
+	size = file_map_size(map);
+	for (size_t i = 0;
+	    i < array_list_count((array_list_t)list->view.snapshots); ++i) {
+		struct st_bbs_source_snapshot *old = list->view.snapshots[i];
+
+		if (strcmp(old->path, path) == 0 && old->read_status == status
+		    && (status < 0 || (old->size == size
+		    && (size == 0 || memcmp(old->bytes, bytes, size) == 0)))) {
+			snapshot = old;
+			snapshot->references++;
+			break;
+		}
+	}
+	if (snapshot == NULL) {
+		snapshot = calloc(1, sizeof(*snapshot));
+		if (snapshot == NULL) {
+			file_map_close(map);
+			return IO_ERROR_OUT_OF_MEMORY;
+		}
+		snapshot->path = strdup(path);
+		if (status == 0)
+			snapshot->bytes = malloc(size == 0 ? 1 : size);
+		if (snapshot->path == NULL
+		    || (status == 0 && snapshot->bytes == NULL)) {
+			free(snapshot->path);
+			free(snapshot->bytes);
+			free(snapshot);
+			file_map_close(map);
+			return IO_ERROR_OUT_OF_MEMORY;
+		}
+		if (status == 0 && size != 0)
+			memcpy(snapshot->bytes, bytes, size);
+		snapshot->size = status == 0 ? size : 0;
+		snapshot->references = 1;
+		snapshot->read_status = status;
+		snapshot->status = status == 0
+		    ? ini_document_parse(&snapshot->document, bytes, size) : status;
+	}
+	file_map_close(map);
+	if (!array_list_append((array_list_t *)&view->snapshots, snapshot)) {
+		release_snapshot(snapshot);
+		return IO_ERROR_OUT_OF_MEMORY;
+	}
+	*result = snapshot->document;
+	return snapshot->status;
 }
 
 static char *
@@ -372,6 +447,53 @@ cache_list_path(const st_bbs_list_t *list, const char *name)
 		path = NULL;
 	free(filename);
 	return path;
+}
+
+static bool
+source_unchanged(const struct st_bbs_view *view, size_t index,
+    const char *path)
+{
+	struct st_bbs_source_snapshot *snapshot;
+	file_map_t *map = NULL;
+	int status;
+	bool same;
+
+	if (index >= array_list_count((array_list_t)view->snapshots))
+		return false;
+	snapshot = view->snapshots[index];
+	if (strcmp(snapshot->path, path) != 0)
+		return false;
+	status = file_map_open(&map, path);
+	same = status == snapshot->read_status
+	    && (status < 0 || (file_map_size(map) == snapshot->size
+	    && (snapshot->size == 0 || memcmp(file_map_data(map),
+	    snapshot->bytes, snapshot->size) == 0)));
+	file_map_close(map);
+	return same;
+}
+
+static bool
+external_sources_unchanged(const st_bbs_list_t *list)
+{
+	size_t index = 0;
+
+	if (list->shared_path != NULL
+	    && !source_unchanged(&list->view, index++, list->shared_path))
+		return false;
+	if (list->cached_system_list != NULL
+	    && !source_unchanged(&list->view, index++, list->cached_system_list))
+		return false;
+	for (size_t i = 0; i < st_settings_web_download_count(); ++i) {
+		const struct name_value *download = st_settings_web_download_at(i);
+		char *path = cache_list_path(list, download->name);
+		bool same = path != NULL
+		    && source_unchanged(&list->view, index++, path);
+
+		free(path);
+		if (!same)
+			return false;
+	}
+	return index == array_list_count((array_list_t)list->view.snapshots);
 }
 
 int
@@ -396,12 +518,12 @@ st_bbs_view_prepare(const st_bbs_list_t *list,
 	if (status < 0)
 		goto failed;
 	if (list->shared_path != NULL) {
-		status = read_plain_document(list->shared_path, &document);
+		status = read_plain_document(list, view, list->shared_path,
+		    &document);
 		if (status == 0) {
 			status = append_source(list, view, document,
 			    ST_BBS_SOURCE_SHARED,
 			    list->shared_path);
-			ini_document_free(&document);
 		} else if (status != IO_ERROR_NOT_FOUND) {
 			status = add_diagnostic(view, ST_BBS_SOURCE_SHARED,
 			    list->shared_path, NULL, status);
@@ -409,12 +531,12 @@ st_bbs_view_prepare(const st_bbs_list_t *list,
 			status = 0;
 	}
 	if (status == 0 && list->cached_system_list != NULL) {
-		status = read_plain_document(list->cached_system_list, &document);
+		status = read_plain_document(list, view, list->cached_system_list,
+		    &document);
 		if (status == 0) {
 			status = append_source(list, view, document,
 			    ST_BBS_SOURCE_WEB_SYSTEM,
 			    "System List");
-			ini_document_free(&document);
 		} else if (status != IO_ERROR_NOT_FOUND) {
 			status = add_diagnostic(view, ST_BBS_SOURCE_WEB_SYSTEM,
 			    "System List", NULL, status);
@@ -431,13 +553,12 @@ st_bbs_view_prepare(const st_bbs_list_t *list,
 			    download->name, NULL, IO_ERROR_INVALID_ARGUMENT);
 			continue;
 		}
-		status = read_plain_document(source_path, &document);
+		status = read_plain_document(list, view, source_path, &document);
 		free(source_path);
 		if (status == 0) {
 			status = append_source(list, view, document,
 			    ST_BBS_SOURCE_WEB_NAMED,
 			    download->name);
-			ini_document_free(&document);
 		} else if (status != IO_ERROR_NOT_FOUND) {
 			status = add_diagnostic(view, ST_BBS_SOURCE_WEB_NAMED,
 			    download->name, NULL, status);
@@ -451,7 +572,161 @@ st_bbs_view_prepare(const st_bbs_list_t *list,
 	if (status == 0)
 		return 0;
 failed:
-	ini_document_free(&document);
+	st_bbs_view_dispose(view);
+	return status;
+}
+
+static size_t
+entry_position(struct st_bbs_owned_entry **entries,
+    const struct st_bbs_owned_entry *entry)
+{
+	for (size_t i = 0; i < array_list_count((array_list_t)entries); ++i) {
+		if (entries[i] == entry)
+			return i;
+	}
+	return SIZE_MAX;
+}
+
+int
+st_bbs_view_prepare_update(const st_bbs_list_t *list,
+    const char *old_name, const struct st_profile *profile,
+    ini_document_t *personal_document, struct st_bbs_view *view)
+{
+	struct st_bbs_owned_entry *replacement = NULL;
+	struct st_bbs_owned_entry *old;
+	struct st_bbs_owned_entry *destination;
+	size_t count, old_entry_index, old_name_index, destination_entry_index;
+	size_t destination_name_index;
+	int status = IO_ERROR_OUT_OF_MEMORY;
+
+	if (!list->sort_configured || !external_sources_unchanged(list))
+		return st_bbs_view_prepare(list, personal_document, view);
+	/* Visible entries are immutable; share them until the old view is retired. */
+	memset(view, 0, sizeof(*view));
+	st_profile_init(&view->defaults);
+	if (!st_profile_copy(&view->defaults, &list->view.defaults))
+		goto failed;
+	count = array_list_count((array_list_t)list->view.entries);
+	if (!array_list_reserve((array_list_t *)&view->entries, count + 1)
+	    || !array_list_reserve((array_list_t *)&view->names, count + 1))
+		goto failed;
+	for (size_t i = 0; i < count; ++i) {
+		struct st_bbs_owned_entry *entry = list->view.entries[i];
+
+		entry->references++;
+		if (!array_list_append((array_list_t *)&view->entries, entry)) {
+			free_entry(entry);
+			goto failed;
+		}
+	}
+	for (size_t i = 0; i < count; ++i) {
+		if (!array_list_append((array_list_t *)&view->names,
+		    list->view.names[i]))
+			goto failed;
+	}
+	for (size_t i = 0; i < array_list_count(
+	    (array_list_t)list->view.diagnostics); ++i) {
+		const struct st_bbs_owned_diagnostic *diagnostic =
+		    list->view.diagnostics[i];
+
+		status = add_diagnostic(view, diagnostic->public.source,
+		    diagnostic->source_name, diagnostic->section_name,
+		    diagnostic->public.status);
+		if (status < 0)
+			goto failed;
+	}
+	for (size_t i = 0; i < array_list_count(
+	    (array_list_t)list->view.snapshots); ++i) {
+		struct st_bbs_source_snapshot *snapshot = list->view.snapshots[i];
+
+		snapshot->references++;
+		if (!array_list_append((array_list_t *)&view->snapshots,
+		    snapshot)) {
+			release_snapshot(snapshot);
+			status = IO_ERROR_OUT_OF_MEMORY;
+			goto failed;
+		}
+	}
+	old = find_owned(view, old_name);
+	if (old == NULL || old->public.source != ST_BBS_SOURCE_PERSONAL) {
+		status = IO_ERROR_CONFLICT;
+		goto failed;
+	}
+	replacement = calloc(1, sizeof(*replacement));
+	if (replacement == NULL) {
+		status = IO_ERROR_OUT_OF_MEMORY;
+		goto failed;
+	}
+	replacement->references = 1;
+	st_profile_init(&replacement->profile);
+	if (!st_profile_copy(&replacement->profile, profile)
+	    || make_name_key(replacement, profile->name) < 0) {
+		status = IO_ERROR_OUT_OF_MEMORY;
+		free_entry(replacement);
+		goto failed;
+	}
+	replacement->public.profile = &replacement->profile;
+	replacement->public.source = ST_BBS_SOURCE_PERSONAL;
+	destination = find_owned_by_key(view, replacement);
+	if (destination != old && destination != NULL
+	    && destination->public.source == ST_BBS_SOURCE_PERSONAL) {
+		status = IO_ERROR_CONFLICT;
+		free_entry(replacement);
+		goto failed;
+	}
+	if (destination == old) {
+		old_entry_index = entry_position(view->entries, old);
+		old_name_index = entry_position(view->names, old);
+		replacement->shadowed = old->shadowed;
+		if (replacement->shadowed != NULL)
+			replacement->shadowed->references++;
+		view->entries[old_entry_index] = replacement;
+		view->names[old_name_index] = replacement;
+		free_entry(old);
+	} else {
+		if (destination == NULL) {
+			if (!array_list_append((array_list_t *)&view->entries,
+			    replacement)) {
+				status = IO_ERROR_OUT_OF_MEMORY;
+				free_entry(replacement);
+				goto failed;
+			}
+			if (!array_list_sorted_insert((array_list_t *)&view->names,
+			    replacement, compare_entry_names)) {
+				status = IO_ERROR_OUT_OF_MEMORY;
+				goto failed;
+			}
+		} else {
+			destination_entry_index = entry_position(view->entries,
+			    destination);
+			destination_name_index = entry_position(view->names,
+			    destination);
+			replacement->shadowed = destination;
+			view->entries[destination_entry_index] = replacement;
+			view->names[destination_name_index] = replacement;
+		}
+		old_entry_index = entry_position(view->entries, old);
+		old_name_index = entry_position(view->names, old);
+		if (old->shadowed != NULL) {
+			old->shadowed->references++;
+			view->entries[old_entry_index] = old->shadowed;
+			view->names[old_name_index] = old->shadowed;
+		} else {
+			(void)array_list_take((array_list_t)view->entries,
+			    old_entry_index);
+			(void)array_list_take((array_list_t)view->names,
+			    old_name_index);
+		}
+		free_entry(old);
+	}
+	if (list->sort_configured) {
+		status = st_bbs_view_sort(view, list->sort_fields,
+		    list->sort_field_count);
+		if (status < 0)
+			goto failed;
+	}
+	return 0;
+failed:
 	st_bbs_view_dispose(view);
 	return status;
 }
