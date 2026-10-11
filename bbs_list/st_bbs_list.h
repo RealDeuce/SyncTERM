@@ -190,6 +190,18 @@ int st_bbs_compare_profiles(const struct st_profile *left,
     enum st_bbs_source left_source, const struct st_profile *right,
     enum st_bbs_source right_source, const int *fields,
     size_t field_count);
+struct st_bbs_sort_record {
+	const struct st_profile *profile;
+	enum st_bbs_source source;
+	void *value;
+};
+/*
+ * Sorts count records by normalized fields, preserving each opaque value with
+ * its profile and source. Every profile must be non-NULL. The records are
+ * unchanged if preparing the sort fails; returns zero or a negative I/O error.
+ */
+int st_bbs_sort_records(struct st_bbs_sort_record *records, size_t count,
+    const int *fields, size_t field_count);
 int st_bbs_list_sort(st_bbs_list_t *list, const int *fields,
     size_t field_count);
 

@@ -267,6 +267,28 @@ void
 st_wren_bbs_model_sort(struct st_wren_bbs_model *model,
     const int *fields, size_t field_count)
 {
+	struct st_bbs_sort_record *records = NULL;
+
+	if (model->count < 2)
+		return;
+	if (model->count <= SIZE_MAX / sizeof(*records))
+		records = malloc(model->count * sizeof(*records));
+	if (records != NULL) {
+		for (size_t i = 0; i < model->count; ++i) {
+			records[i].profile = &model->entries[i]->profile;
+			records[i].source = model->entries[i]->source;
+			records[i].value = model->entries[i];
+		}
+		if (st_bbs_sort_records(records, model->count, fields,
+		    field_count) == 0) {
+			for (size_t i = 0; i < model->count; ++i)
+				model->entries[i] = records[i].value;
+			free(records);
+			return;
+		}
+		free(records);
+	}
+	/* Keep model operations available if preparing collation keys fails. */
 	current_sort.fields = fields;
 	current_sort.count = field_count;
 	qsort(model->entries, model->count, sizeof(*model->entries),

@@ -120,6 +120,59 @@ check_profile_default_ports(void)
 	return 0;
 }
 
+static int
+check_prepared_sort(void)
+{
+	static const char *const names[] = {
+		"Zulu", "Alpha", "\xc3\x81lpha", "Beta", "Stra\xc3\x9f\x65",
+		"Delta"
+	};
+	static const int by_name[] = {ST_BBS_SORT_NAME, ST_BBS_SORT_NAME};
+	static const int by_calls[] = {
+		ST_BBS_SORT_CALLS, ST_BBS_SORT_ADDRESS, ST_BBS_SORT_NAME
+	};
+	static const int by_source[] = {-ST_BBS_SORT_SOURCE};
+	static const struct {
+		const int *fields;
+		size_t count;
+	} orders[] = {
+		{NULL, 0}, {by_name, 2}, {by_calls, 3}, {by_source, 1}
+	};
+	struct st_profile profiles[sizeof(names) / sizeof(names[0])];
+	struct st_bbs_sort_record records[sizeof(profiles) / sizeof(profiles[0])];
+
+	for (size_t i = 0; i < sizeof(profiles) / sizeof(profiles[0]); ++i) {
+		st_profile_init(&profiles[i]);
+		(void)strcpy(profiles[i].name, names[i]);
+		(void)strcpy(profiles[i].address, i % 2 == 0 ? "omega" : "alpha");
+		profiles[i].calls = (uint32_t)(i % 3);
+	}
+	for (size_t order = 0; order < sizeof(orders) / sizeof(orders[0]);
+	    ++order) {
+		for (size_t i = 0; i < sizeof(records) / sizeof(records[0]);
+		    ++i) {
+			records[i].profile = &profiles[i];
+			records[i].source = i % 2 == 0 ? ST_BBS_SOURCE_PERSONAL
+			    : ST_BBS_SOURCE_SHARED;
+			records[i].value = &profiles[i];
+		}
+		CHECK(st_bbs_sort_records(records,
+		    sizeof(records) / sizeof(records[0]), orders[order].fields,
+		    orders[order].count) == 0);
+		for (size_t i = 0; i < sizeof(records) / sizeof(records[0]); ++i) {
+			CHECK(records[i].value == records[i].profile);
+			if (i != 0)
+				CHECK(st_bbs_compare_profiles(records[i - 1].profile,
+				    records[i - 1].source, records[i].profile,
+				    records[i].source, orders[order].fields,
+				    orders[order].count) <= 0);
+		}
+	}
+	for (size_t i = 0; i < sizeof(profiles) / sizeof(profiles[0]); ++i)
+		st_profile_dispose(&profiles[i]);
+	return 0;
+}
+
 int
 main(void)
 {
@@ -156,6 +209,7 @@ main(void)
 	int status;
 
 	CHECK(check_profile_default_ports() == 0);
+	CHECK(check_prepared_sort() == 0);
 	CHECK(st_bbs_name_equal("Stra\xc3\x9f" "e", "STRASSE"));
 	CHECK(st_bbs_name_equal("\xc3\x85", "A\xcc\x8a"));
 	CHECK(st_bbs_name_valid("M\xc3\xbcnchen"));
@@ -255,9 +309,21 @@ main(void)
 	for (size_t i = 0; i < 20; ++i)
 		profile.ssh_fingerprint[i] = (uint8_t)i;
 	profile.ssh_fingerprint_size = 20;
+	CHECK(write_text(shared,
+	    "[Alpha]\nAddress=shared.example\n[Shared]\n"
+	    "Address=z-externally.example\n[STRASSE]\n"
+	    "Address=unicode-shared.example\n") == 0);
 	CHECK(st_bbs_list_add(first, &profile, &mutation) == 0);
 	CHECK(st_bbs_list_count(first) == 4);
+	CHECK(strcmp(st_bbs_list_find(first, "Shared")->profile->address,
+	    "z-externally.example") == 0);
 	CHECK(st_bbs_list_find(first, "Alpha")->source == ST_BBS_SOURCE_PERSONAL);
+	CHECK(st_bbs_list_sort(first, NULL, 0) == 0);
+	st_profile_init(&other);
+	CHECK(copy_named(&other, first, "Beta") == 0);
+	CHECK(st_bbs_list_update(first, "Beta", &other, NULL) == 0);
+	st_profile_dispose(&other);
+	CHECK(strcmp(st_bbs_list_at(first, 0)->profile->name, "Alpha") == 0);
 	{
 		const int fields[] = { ST_BBS_SORT_ADDRESS };
 

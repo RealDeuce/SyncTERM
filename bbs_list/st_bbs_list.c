@@ -173,6 +173,15 @@ make_name_key(struct st_bbs_owned_entry *key, const char *name)
 	    name, strlen(name));
 }
 
+static bool
+reserved_name_key(const struct st_bbs_owned_entry *key)
+{
+	static const char reserved[] = "syncterm-system-cache";
+
+	return key->name_key_size == sizeof(reserved) - 1
+	    && memcmp(key->name_key, reserved, sizeof(reserved) - 1) == 0;
+}
+
 static struct st_bbs_owned_entry *
 find_owned(const struct st_bbs_view *view, const char *name)
 {
@@ -228,7 +237,8 @@ append_source(const st_bbs_list_t *list, struct st_bbs_view *view,
 		struct st_bbs_owned_entry *item;
 		int status;
 
-		if (!st_bbs_name_valid(name)) {
+		if (!st_unicode_name_valid(name, ST_PROFILE_NAME_SCALAR_MAX,
+		    ST_PROFILE_NAME_MAX, "[]")) {
 			status = add_diagnostic(view, source, source_name, name,
 			    IO_ERROR_INVALID_FORMAT);
 			if (status < 0)
@@ -238,6 +248,14 @@ append_source(const st_bbs_list_t *list, struct st_bbs_view *view,
 		status = make_name_key(&key, name);
 		if (status != 0)
 			return status;
+		if (reserved_name_key(&key)) {
+			free(key.name_key);
+			status = add_diagnostic(view, source, source_name, name,
+			    IO_ERROR_INVALID_FORMAT);
+			if (status < 0)
+				return status;
+			continue;
+		}
 		existing = find_owned_by_key(view, &key);
 		if (existing != NULL) {
 			free(key.name_key);
@@ -400,7 +418,7 @@ st_bbs_view_prepare(const st_bbs_list_t *list,
 			status = 0;
 		}
 	}
-	if (status == 0 && list->sort_field_count != 0)
+	if (status == 0 && list->sort_configured)
 		status = st_bbs_view_sort(view, list->sort_fields,
 		    list->sort_field_count);
 	if (status == 0)

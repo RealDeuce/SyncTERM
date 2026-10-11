@@ -24,7 +24,7 @@ struct sort_context {
 };
 
 struct prepared_entry {
-	struct st_bbs_owned_entry *entry;
+	struct st_bbs_sort_record record;
 	st_unicode_sort_key_t **keys;
 };
 
@@ -207,8 +207,8 @@ compare_prepared(const void *left_pointer, const void *right_pointer)
 		bool reverse = requested < 0;
 		int result = left->keys[i] != NULL
 		    ? st_unicode_sort_key_compare(left->keys[i], right->keys[i])
-		    : compare_field(&left->entry->profile, left->entry->public.source,
-		    &right->entry->profile, right->entry->public.source, field);
+		    : compare_field(left->record.profile, left->record.source,
+		    right->record.profile, right->record.source, field);
 
 		if (st_bbs_sort_field_reversed(field))
 			reverse = !reverse;
@@ -220,35 +220,38 @@ compare_prepared(const void *left_pointer, const void *right_pointer)
 }
 
 static void
-prepared_dispose(struct prepared_entry *entries, size_t entry_count,
-	size_t key_count)
+prepared_dispose(struct prepared_entry *entries, st_unicode_sort_key_t **keys,
+	size_t entry_count, size_t field_count)
 {
-	st_unicode_sort_key_t **keys;
-
-	if (entries == NULL)
-		return;
-	keys = entries[0].keys;
 	for (size_t entry = 0; entry < entry_count; ++entry) {
-		if (entries[entry].keys < keys)
-			keys = entries[entry].keys;
-		for (size_t key = 0; key < key_count; ++key)
-			st_unicode_sort_key_destroy(&entries[entry].keys[key]);
+		for (size_t key = 0; key < field_count; ++key) {
+			if (entries[entry].keys[key]
+			    != entries[entry].keys[field_count])
+				st_unicode_sort_key_destroy(&entries[entry].keys[key]);
+		}
+		st_unicode_sort_key_destroy(&entries[entry].keys[field_count]);
 	}
 	free(keys);
 	free(entries);
 }
 
 int
-st_bbs_view_sort(struct st_bbs_view *view, const int *fields,
-    size_t field_count)
+st_bbs_sort_records(struct st_bbs_sort_record *records, size_t entry_count,
+    const int *fields, size_t field_count)
 {
-	size_t entry_count = array_list_count((array_list_t)view->entries);
 	size_t key_count = field_count + 1;
 	struct prepared_entry *entries;
 	st_unicode_sort_key_t **keys;
 	int status = 0;
 
-	if (entry_count == 0)
+	if ((entry_count != 0 && records == NULL)
+	    || (field_count != 0 && fields == NULL))
+		return IO_ERROR_INVALID_ARGUMENT;
+	for (size_t entry = 0; entry < entry_count; ++entry) {
+		if (records[entry].profile == NULL)
+			return IO_ERROR_INVALID_ARGUMENT;
+	}
+	if (entry_count < 2)
 		return 0;
 	if (key_count == 0 || entry_count > SIZE_MAX / sizeof(*entries)
 	    || entry_count > SIZE_MAX / key_count
@@ -261,28 +264,30 @@ st_bbs_view_sort(struct st_bbs_view *view, const int *fields,
 		free(entries);
 		return IO_ERROR_OUT_OF_MEMORY;
 	}
-	for (size_t entry = 0; status == 0 && entry < entry_count; ++entry) {
-		entries[entry].entry = view->entries[entry];
+	for (size_t entry = 0; entry < entry_count; ++entry) {
+		entries[entry].record = records[entry];
 		entries[entry].keys = keys + entry * key_count;
+	}
+	for (size_t entry = 0; status == 0 && entry < entry_count; ++entry) {
+		const char *name = entries[entry].record.profile->name;
+
+		status = st_unicode_sort_key_create(
+		    &entries[entry].keys[field_count], name, strlen(name),
+		    ST_UNICODE_COLLATION_CASE_INSENSITIVE);
 		for (size_t key = 0; status == 0 && key < field_count; ++key) {
 			int field = fields[key] < 0 ? -fields[key] : fields[key];
 			const char *text;
 
-			if (text_field(&entries[entry].entry->profile, field, &text))
+			if (field == ST_BBS_SORT_NAME)
+				entries[entry].keys[key] = entries[entry].keys[field_count];
+			else if (text_field(entries[entry].record.profile, field, &text))
 				status = st_unicode_sort_key_create(&entries[entry].keys[key],
 				    text, strlen(text),
 				    ST_UNICODE_COLLATION_CASE_INSENSITIVE);
 		}
-		if (status == 0) {
-			const char *name = entries[entry].entry->profile.name;
-
-			status = st_unicode_sort_key_create(
-			    &entries[entry].keys[field_count], name, strlen(name),
-			    ST_UNICODE_COLLATION_CASE_INSENSITIVE);
-		}
 	}
 	if (status != 0) {
-		prepared_dispose(entries, entry_count, key_count);
+		prepared_dispose(entries, keys, entry_count, field_count);
 		return status;
 	}
 	current_sort.fields = fields;
@@ -291,9 +296,38 @@ st_bbs_view_sort(struct st_bbs_view *view, const int *fields,
 	current_sort.fields = NULL;
 	current_sort.count = 0;
 	for (size_t i = 0; i < entry_count; ++i)
-		view->entries[i] = entries[i].entry;
-	prepared_dispose(entries, entry_count, key_count);
+		records[i] = entries[i].record;
+	prepared_dispose(entries, keys, entry_count, field_count);
 	return 0;
+}
+
+int
+st_bbs_view_sort(struct st_bbs_view *view, const int *fields,
+    size_t field_count)
+{
+	size_t count = array_list_count((array_list_t)view->entries);
+	struct st_bbs_sort_record *records;
+	int status;
+
+	if (count < 2)
+		return 0;
+	if (count > SIZE_MAX / sizeof(*records))
+		return IO_ERROR_OUT_OF_MEMORY;
+	records = malloc(count * sizeof(*records));
+	if (records == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	for (size_t i = 0; i < count; ++i) {
+		records[i].profile = &view->entries[i]->profile;
+		records[i].source = view->entries[i]->public.source;
+		records[i].value = view->entries[i];
+	}
+	status = st_bbs_sort_records(records, count, fields, field_count);
+	if (status == 0) {
+		for (size_t i = 0; i < count; ++i)
+			view->entries[i] = records[i].value;
+	}
+	free(records);
+	return status;
 }
 
 int
@@ -324,6 +358,7 @@ st_bbs_list_sort(st_bbs_list_t *list, const int *fields, size_t field_count)
 	free(list->sort_fields);
 	list->sort_fields = copy;
 	list->sort_field_count = field_count;
+	list->sort_configured = true;
 	list->generation++;
 	return 0;
 }

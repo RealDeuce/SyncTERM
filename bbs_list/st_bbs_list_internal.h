@@ -54,6 +54,7 @@ struct st_bbs_list {
 	uint64_t generation;
 	int *sort_fields;
 	size_t sort_field_count;
+	bool sort_configured;
 	uint8_t picker_key[32];
 	bool picker_key_available;
 };

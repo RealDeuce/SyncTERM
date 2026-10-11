@@ -762,7 +762,6 @@ class MainMenuApp {
       if (!result[0]) return finalName
       selected = result[2]
       finalName = current.name
-      Menu.sort()
       if (result[1] == 0) return finalName
       var entries = Menu.entries
       if (entries.count == 0) return finalName
@@ -897,7 +896,6 @@ class MainMenuApp {
       refresh_(preferred)
       return
     }
-    Menu.sort()
     refresh_(name)
   }
 
