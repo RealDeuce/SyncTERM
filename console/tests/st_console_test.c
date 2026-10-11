@@ -1085,6 +1085,7 @@ test_partial_full_width_raster_scroll(void)
 	struct st_console_cell cells[5];
 	struct st_console_cell fill;
 	struct st_pixel_buffer *pixels = NULL;
+	struct st_pixel_buffer *forced = NULL;
 	st_console_t *console = NULL;
 	uint16_t font_identifier;
 
@@ -1103,12 +1104,21 @@ test_partial_full_width_raster_scroll(void)
 	CHECK(st_console_write_complete_cells(console, &screen, cells, 1) == 0);
 	CHECK(st_console_move_cells_clear(console, &scroll_up, 0, 0,
 	    &fill) == 0);
+	/* A reserved row makes this a rectangular move, not a rotation of the
+	 * complete text raster. */
+	CHECK(console->pixel_top == 0);
 	CHECK(st_console_get_pixels(&pixels, console, &pixels_rect, false) == 0);
 	CHECK(pixels->primary[0] == 2);
 	CHECK(pixels->primary[1] == 3);
 	CHECK(pixels->primary[2] == 4);
 	CHECK(pixels->primary[3] == 9);
 	CHECK(pixels->primary[4] == 5);
+	CHECK(st_console_get_pixels(&forced, console, &pixels_rect, true) == 0);
+	CHECK(memcmp(pixels->primary, forced->primary,
+	    (size_t)pixels->width * pixels->height
+	    * sizeof(pixels->primary[0])) == 0);
+	st_pixel_buffer_destroy(forced);
+	forced = NULL;
 	st_pixel_buffer_destroy(pixels);
 	pixels = NULL;
 
@@ -1116,12 +1126,18 @@ test_partial_full_width_raster_scroll(void)
 	fill.foreground = 8;
 	CHECK(st_console_move_cells_clear(console, &scroll_down, 0, 1,
 	    &fill) == 0);
+	CHECK(console->pixel_top == 0);
 	CHECK(st_console_get_pixels(&pixels, console, &pixels_rect, false) == 0);
 	CHECK(pixels->primary[0] == 8);
 	CHECK(pixels->primary[1] == 1);
 	CHECK(pixels->primary[2] == 2);
 	CHECK(pixels->primary[3] == 3);
 	CHECK(pixels->primary[4] == 5);
+	CHECK(st_console_get_pixels(&forced, console, &pixels_rect, true) == 0);
+	CHECK(memcmp(pixels->primary, forced->primary,
+	    (size_t)pixels->width * pixels->height
+	    * sizeof(pixels->primary[0])) == 0);
+	st_pixel_buffer_destroy(forced);
 	st_pixel_buffer_destroy(pixels);
 	st_console_destroy(console);
 }

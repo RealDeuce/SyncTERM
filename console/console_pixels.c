@@ -549,26 +549,6 @@ st_console_rasterize_locked(st_console_t *console, bool force)
 	return 0;
 }
 
-static void
-copy_text_raster_row_locked(st_console_t *console, uint32_t source_y,
-	uint32_t destination_y)
-{
-	size_t bytes = (size_t)console->columns * console->cell_width
-	    * sizeof(console->pixels->primary[0]);
-
-	for (uint32_t py = 0; py < console->cell_height; ++py) {
-		size_t source = st_console_pixel_position_locked(console, 0,
-		    source_y * console->cell_height + py);
-		size_t destination = st_console_pixel_position_locked(console, 0,
-		    destination_y * console->cell_height + py);
-
-		memmove(&console->pixels->primary[destination],
-		    &console->pixels->primary[source], bytes);
-		memmove(&console->pixels->alternate[destination],
-		    &console->pixels->alternate[source], bytes);
-	}
-}
-
 void
 st_console_move_raster_locked(st_console_t *console,
 	const struct st_console_rect *source, uint32_t destination_x,
@@ -577,8 +557,6 @@ st_console_move_raster_locked(st_console_t *console,
 	bool backwards;
 	bool full_scroll_up;
 	bool full_scroll_down;
-	uint32_t preserved_row = 0;
-	uint32_t preserved_rows = 0;
 	size_t cell_bytes;
 	size_t pixel_bytes;
 
@@ -592,46 +570,25 @@ st_console_move_raster_locked(st_console_t *console,
 	full_scroll_up = source->x == 0 && destination_x == 0
 	    && source->width == console->columns && destination_y == 0
 	    && source->y > 0
-	    && source->height > console->rows / 2;
+	    && source->height == console->rows - source->y;
 	full_scroll_down = source->x == 0 && destination_x == 0
 	    && source->width == console->columns && source->y == 0
 	    && destination_y > 0
-	    && source->height > console->rows / 2;
+	    && source->height == console->rows - destination_y;
 	if (full_scroll_up || full_scroll_down) {
 		uint32_t text_height = console->rows * console->cell_height;
-		uint32_t shift_rows = full_scroll_up ? source->y : destination_y;
-		uint32_t shift = shift_rows * console->cell_height;
-
-		preserved_row = (full_scroll_up ? source->y : destination_y)
-		    + source->height;
-		preserved_rows = console->rows - preserved_row;
+		uint32_t shift = (full_scroll_up ? source->y : destination_y)
+		    * console->cell_height;
 
 		if (full_scroll_up) {
 			console->pixel_top += shift;
 			if (console->pixel_top >= text_height)
 				console->pixel_top -= text_height;
-			for (uint32_t row = preserved_rows; row > 0; --row) {
-				uint32_t destination = preserved_row + row - 1;
-
-				copy_text_raster_row_locked(console,
-				    destination - shift_rows, destination);
-			}
 		}
-		else {
-			if (console->pixel_top < shift)
-				console->pixel_top += text_height - shift;
-			else
-				console->pixel_top -= shift;
-			for (uint32_t row = 0; row < preserved_rows; ++row) {
-				uint32_t destination = preserved_row + row;
-				uint32_t moved = destination + shift_rows;
-
-				if (moved >= console->rows)
-					moved -= console->rows;
-				copy_text_raster_row_locked(console, moved,
-				    destination);
-			}
-		}
+		else if (console->pixel_top < shift)
+			console->pixel_top += text_height - shift;
+		else
+			console->pixel_top -= shift;
 		pixel_bytes = 0;
 	}
 	for (uint32_t row_index = 0; row_index < source->height; ++row_index) {
