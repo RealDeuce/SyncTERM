@@ -271,6 +271,20 @@ translated_key(WPARAM key)
 	}
 }
 
+static uint32_t
+control_character(WPARAM key)
+{
+	if ((key >= 'A' && key <= 'Z') || key == VK_SPACE)
+		return (uint32_t)key;
+	switch (key) {
+	case VK_OEM_MINUS: return '_';
+	case VK_OEM_4: return '[';
+	case VK_OEM_5: return '\\';
+	case VK_OEM_6: return ']';
+	default: return UINT32_MAX;
+	}
+}
+
 static void
 add_damage(struct gdi_state *state,
 	const struct st_console_rect *rectangle)
@@ -663,6 +677,14 @@ post_key(struct gdi_state *state, UINT message, WPARAM key, LPARAM detail)
 	uint16_t physical = evdev_key(detail);
 	uint16_t translated = translated_key(key);
 	uint32_t key_modifiers = modifiers();
+	uint32_t control = control_character(key);
+	bool control_key = false;
+
+	if (down && translated == 0 && control != UINT32_MAX
+	    && (key_modifiers & ST_CONSOLE_MODIFIER_CONTROL) != 0
+	    && (key_modifiers
+	    & (ST_CONSOLE_MODIFIER_ALT | ST_CONSOLE_MODIFIER_GUI)) == 0)
+		control_key = st_console_control_key(control, &translated);
 
 	if (physical != 0)
 		(void)st_console_display_post_event(state->console_display,
@@ -701,7 +723,7 @@ post_key(struct gdi_state *state, UINT message, WPARAM key, LPARAM detail)
 			return;
 		}
 	}
-	if (down && translated != 0)
+	if (down && (translated != 0 || control_key))
 		(void)st_console_display_post_event(state->console_display,
 		    &(struct st_console_event){
 			.type = ST_CONSOLE_EVENT_KEY_CODE,

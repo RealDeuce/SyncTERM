@@ -132,6 +132,10 @@ main(void)
 	/* BEL is local: it neither becomes a cell nor emits host bytes. */
 	feed(terminal, "\a", 1);
 	CHECK(output.size == 0);
+	CHECK(st_cterm_handle_key(terminal, 3));
+	CHECK(output.size == 1 && output.bytes[0] == 3);
+	CHECK(output.user == 1 && output.responses == 0);
+	output = (struct output){0};
 
 	/* A host-writable status display routes Unicode into the reserved row. */
 	feed(terminal, "\x1b[2$~\x1b[1$}S",

@@ -705,6 +705,7 @@ emit_key(struct state *state, uint32_t key, bool pressed, bool repeat)
 	xkb_keysym_t sym;
 	uint16_t translated;
 	uint32_t text, mods;
+	bool control_key = false;
 	if (key > UINT16_MAX)
 		return;
 	mods = state->xkb_state == NULL ? 0 : modifiers(state);
@@ -751,7 +752,10 @@ emit_key(struct state *state, uint32_t key, bool pressed, bool repeat)
 		return;
 	}
 	translated = key_from_sym(sym);
-	if (translated != 0) {
+	if (translated == 0 && (mods & ST_CONSOLE_MODIFIER_CONTROL) != 0
+	    && (mods & ST_CONSOLE_MODIFIER_ALT) == 0)
+		control_key = st_console_control_key((uint32_t)sym, &translated);
+	if (translated != 0 || control_key) {
 		event =
 		    (struct st_console_event){.type = ST_CONSOLE_EVENT_KEY_CODE,
 					      .data.key = {
@@ -759,7 +763,7 @@ emit_key(struct state *state, uint32_t key, bool pressed, bool repeat)
 						      .modifiers = mods}};
 		(void)st_console_display_post_event(state->console_display, &event);
 	}
-	if (translated == 0
+	if (translated == 0 && !control_key
 	    && (mods & (ST_CONSOLE_MODIFIER_CONTROL | ST_CONSOLE_MODIFIER_ALT))
 	    == 0) {
 		text = state->xkb.state_key_get_utf32(state->xkb_state, code);

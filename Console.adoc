@@ -479,7 +479,9 @@ given console's queue, including an inactive console.  Switching does not move
 already queued events between consoles.
 
 Normalized non-text keys use `ST_CONSOLE_KEY_*`; ASCII controls retain their
-byte values.  Physical events carry evdev-style identity, modifiers,
+byte values.  Graphical backends translate Control combined with an ASCII
+letter, `@`, `[`, `\\`, `]`, `^`, `_`, or Space into that control's
+`KEY_CODE` byte.  Physical events carry evdev-style identity, modifiers,
 press/release, and repeat state.  Held physical-key state belongs to the
 display, including physical events submitted through the explicit-console
 entry point.  Focus loss queues releases on the event's target console before

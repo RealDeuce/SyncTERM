@@ -41,6 +41,22 @@ contains(const unsigned char *data, size_t length, const char *needle)
 	return false;
 }
 
+static void
+test_control_keys(void)
+{
+	uint16_t key = UINT16_MAX;
+
+	CHECK(st_console_control_key('a', &key) && key == 1);
+	CHECK(st_console_control_key('Z', &key) && key == 26);
+	CHECK(st_console_control_key('[', &key) && key == 27);
+	CHECK(st_console_control_key('\\', &key) && key == 28);
+	CHECK(st_console_control_key(']', &key) && key == 29);
+	CHECK(st_console_control_key('^', &key) && key == 30);
+	CHECK(st_console_control_key('_', &key) && key == 31);
+	CHECK(st_console_control_key(' ', &key) && key == 0);
+	CHECK(!st_console_control_key('1', &key));
+}
+
 static size_t
 count_bytes(const unsigned char *data, size_t length,
 	const unsigned char *needle, size_t needle_length)
@@ -2755,6 +2771,7 @@ test_default_palette_contract(void)
 int
 main(void)
 {
+	test_control_keys();
 	test_build_features();
 	test_default_cursor_geometry();
 	test_video_flags();

@@ -3044,6 +3044,24 @@ event_valid(const struct st_console_event *event)
 	return false;
 }
 
+bool
+st_console_control_key(uint32_t character, uint16_t *key)
+{
+	uint16_t result;
+
+	if (character >= 'a' && character <= 'z')
+		character -= 'a' - 'A';
+	if (character >= '@' && character <= '_')
+		result = (uint16_t)(character - '@');
+	else if (character == ' ')
+		result = 0;
+	else
+		return false;
+	if (key != NULL)
+		*key = result;
+	return true;
+}
+
 static int
 post_event(st_console_display_t *display, st_console_t *console,
 	const struct st_console_event *event)

@@ -251,6 +251,7 @@ st_console_rect_accumulate(struct st_console_rect *damage, bool *valid,
 
 int st_console_ansi_init(st_console_t *console,
 	const struct st_console_ansi_io *io);
+bool st_console_control_key(uint32_t character, uint16_t *key);
 unsigned char st_console_ascii_character(st_console_t *console,
 	const struct st_console_cell *cell, bool *alternate);
 unsigned char st_console_cp437_character(uint32_t codepoint);

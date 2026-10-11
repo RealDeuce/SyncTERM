@@ -710,6 +710,8 @@ check_escape_event(st_console_t *console)
 	Window window;
 	unsigned int escape_keys = 0;
 	unsigned int escape_text = 0;
+	unsigned int control_keys = 0;
+	unsigned int control_text = 0;
 	unsigned int alt_b = 0;
 	bool marker = false;
 
@@ -745,6 +747,32 @@ check_escape_event(st_console_t *console)
 	CHECK(marker);
 	CHECK(escape_keys == 1);
 	CHECK(escape_text == 0);
+	CHECK(st_console_events_clear(console) == 0);
+	CHECK(send_key_with_state(display, window, XK_c, true, ControlMask) == 0);
+	CHECK(send_key_with_state(display, window, XK_c, false, ControlMask) == 0);
+	CHECK(send_key(display, window, XK_F1, true) == 0);
+	CHECK(send_key(display, window, XK_F1, false) == 0);
+	(void)XFlush(display);
+	CHECK(timespec_get(&deadline, TIME_UTC) == TIME_UTC);
+	++deadline.tv_sec;
+	marker = false;
+	while (!marker
+	    && st_console_event_timedwait(console, &event, &deadline) == 0) {
+		if (event.type == ST_CONSOLE_EVENT_KEY_CODE) {
+			if (event.data.key.code == 3
+			    && event.data.key.modifiers
+			    == ST_CONSOLE_MODIFIER_CONTROL)
+				++control_keys;
+			else if (event.data.key.code == ST_CONSOLE_KEY_F1)
+				marker = true;
+		}
+		else if (event.type == ST_CONSOLE_EVENT_TEXT
+		    && event.data.text.codepoint == 3)
+			++control_text;
+	}
+	CHECK(marker);
+	CHECK(control_keys == 1);
+	CHECK(control_text == 0);
 	CHECK(st_console_events_clear(console) == 0);
 	CHECK(send_key_with_state(display, window, XK_b, true, Mod1Mask) == 0);
 	CHECK(send_key_with_state(display, window, XK_b, false, Mod1Mask) == 0);

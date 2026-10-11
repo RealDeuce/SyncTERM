@@ -1041,8 +1041,15 @@ dispatch_event(const SDL_Event *source)
 	case SDL_KEYUP: {
 		uint16_t physical = evdev_key(source->key.keysym.scancode);
 		uint16_t key = translated_key(source->key.keysym.sym);
+		bool control_key = false;
 
 		state->key_modifiers = event_modifiers(source->key.keysym.mod);
+		if (key == 0
+		    && (state->key_modifiers & ST_CONSOLE_MODIFIER_CONTROL) != 0
+		    && (state->key_modifiers
+		    & (ST_CONSOLE_MODIFIER_ALT | ST_CONSOLE_MODIFIER_GUI)) == 0)
+			control_key = st_console_control_key(
+			    (uint32_t)source->key.keysym.sym, &key);
 		if (physical != 0) {
 			event.type = ST_CONSOLE_EVENT_PHYSICAL_KEY;
 			event.data.physical_key.evdev = physical;
@@ -1083,7 +1090,7 @@ dispatch_event(const SDL_Event *source)
 				break;
 			}
 		}
-		if (source->type == SDL_KEYDOWN && key != 0) {
+		if (source->type == SDL_KEYDOWN && (key != 0 || control_key)) {
 			event = (struct st_console_event){
 				.type = ST_CONSOLE_EVENT_KEY_CODE,
 				.data.key = {

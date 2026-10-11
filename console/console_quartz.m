@@ -487,6 +487,7 @@ post_mouse(struct quartz_state *state, NSEvent *source,
 	bool command = (modifiers & NSEventModifierFlagCommand) != 0;
 	bool control = (modifiers & NSEventModifierFlagControl) != 0;
 	bool option = (modifiers & NSEventModifierFlagOption) != 0;
+	bool control_key = false;
 	NSString *characters = event.charactersIgnoringModifiers;
 	unichar character = characters.length == 0
 	    ? 0 : [characters characterAtIndex:0];
@@ -546,7 +547,9 @@ post_mouse(struct quartz_state *state, NSEvent *source,
 		}
 	}
 	key = translated_key(event.keyCode);
-	if (key != 0)
+	if (key == 0 && control && !command && !option)
+		control_key = st_console_control_key(character, &key);
+	if (key != 0 || control_key)
 		(void)st_console_display_post_event(consoleState->console_display,
 		    &(struct st_console_event){
 			.type = ST_CONSOLE_EVENT_KEY_CODE,

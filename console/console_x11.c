@@ -1390,6 +1390,7 @@ key_event(struct x11_state *state, XKeyEvent *source, bool pressed)
 	unsigned int consumed = 0;
 	uint16_t physical;
 	bool repeat = false;
+	bool control_key = false;
 	char stack_text[128];
 	char *text = stack_text;
 	int text_length = 0;
@@ -1479,8 +1480,12 @@ key_event(struct x11_state *state, XKeyEvent *source, bool pressed)
 		}
 		key = lookup_status == XLookupChars ? 0
 		    : st_console_x11_key_from_keysym(keysym);
+		if (key == 0 && (source->state & ControlMask) != 0
+		    && (source->state & Mod1Mask) == 0)
+			control_key = st_console_control_key((uint32_t)(keysym == NoSymbol
+			    ? resolved_keysym : keysym), &key);
 
-		if (key != 0) {
+		if (key != 0 || control_key) {
 			struct st_console_event event = {
 				.type = ST_CONSOLE_EVENT_KEY_CODE,
 				.data.key = {
