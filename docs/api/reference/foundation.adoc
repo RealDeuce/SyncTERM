@@ -393,6 +393,9 @@ int st_unicode_collate(int *comparison,
     enum st_unicode_collation_strength strength);
 bool st_unicode_name_valid(const char *name, size_t maximum_scalars,
     size_t maximum_bytes, const char *forbidden_ascii);
+bool st_unicode_name_valid_normalized(const char *name,
+    size_t maximum_scalars, size_t maximum_bytes,
+    const char *forbidden_ascii);
 ----
 
 All text operands are borrowed counted strict UTF-8; a NULL operand is valid
@@ -441,6 +444,11 @@ strength.  Input is strict counted UTF-8.
 | st_unicode_name_valid(name, maximum_scalars, maximum_bytes, forbidden_ascii)
 | Validates the shared NFC display/configuration-name policy and optional
 forbidden ASCII set.
+
+| st_unicode_name_valid_normalized(name, maximum_scalars, maximum_bytes, forbidden_ascii)
+| Applies the same scalar, length, and character policy to text already
+normalized by `st_unicode_text_normalize`; the caller must guarantee that
+precondition.  Does not normalize the name again.
 |===
 
 ==== Legacy codepages and Windows text

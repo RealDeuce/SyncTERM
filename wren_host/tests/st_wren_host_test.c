@@ -827,7 +827,10 @@ exercise_bbs_model_contract(st_wren_host_t *public_host,
 	    "var scratch = Menu.create(\"Scratch\")\n"
 	    "if (scratch == null || !scratch.delete()) Fiber.abort(\"discard draft\")\n"
 	    "if (!(Fiber.new { scratch.name }.try() is String)) "
-	    "Fiber.abort(\"deleted draft remained usable\")\n";
+	    "Fiber.abort(\"deleted draft remained usable\")\n"
+	    "var accent = Menu.create(\"Cafe\\u0301\")\n"
+	    "if (accent == null || accent.name != \"Caf\\u00e9\" || "
+	    "!accent.delete()) Fiber.abort(\"normalized Wren name\")\n";
 	static const char save_shadow_source[] =
 	    "import \"syncterm_menu\" for Menu\n"
 	    "import \"bbs_contract_state\" for BbsContractState\n"

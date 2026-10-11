@@ -105,7 +105,10 @@ errors; successful setters invalidate every borrowed document view.
 | Install a new empty/deep-copied document only after complete allocation.
 
 | ini_document_parse(result, data, size)
-| Parses counted bytes as the round-trip-preserving INI format.
+| Parses counted bytes as the round-trip-preserving INI format.  Each input
+line is normalized once; extracted names and plain values reuse those bytes.
+Escaped literal values are normalized after decoding because escapes can form
+new Unicode sequences.
 
 | ini_document_read(result, stream)
 | Maps/parses the complete regular file without changing stream position;
@@ -613,6 +616,7 @@ Success marks clean and clears history; I/O failure may leave partial contents.
 ----
 bool st_bbs_name_equal(const char *left, const char *right);
 bool st_bbs_name_valid(const char *name);
+bool st_bbs_name_valid_normalized(const char *name);
 const struct st_bbs_entry *st_bbs_entry_shadowed(const struct st_bbs_entry *);
 int st_bbs_list_open(st_bbs_list_t **result, const struct st_app_paths *paths,
     const void *password, size_t password_size);
@@ -679,6 +683,10 @@ shadowed entry.
 
 | st_bbs_name_equal(left, right), st_bbs_name_valid(name)
 | Canonical-caseless equality and shared BBS-name validation.
+
+| st_bbs_name_valid_normalized(name)
+| Applies the same BBS-name policy without normalizing again; `name` must
+already be normalized at the INI or Wren text boundary.
 
 | st_bbs_entry_shadowed(entry)
 | Returns the first borrowed lower-priority entry hidden by this row.

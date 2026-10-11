@@ -77,11 +77,20 @@ wildcard_and_name_tests(void)
 	CHECK(st_unicode_wildcard_match(&matched, "\xc0\x80", 2,
 	    "text", 4, false) < 0);
 	CHECK(st_unicode_name_valid("M\xc3\xbcnchen", 30, 60, "[]"));
+	CHECK(st_unicode_name_valid_normalized("M\xc3\xbcnchen", 30, 60,
+	    "[]"));
 	CHECK(st_unicode_name_valid("\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x92\xbb",
 	    30, 60, "[]"));
+	CHECK(!st_unicode_name_valid("A\xcc\x8a", 30, 60, "[]"));
 	CHECK(!st_unicode_name_valid(" leading", 30, 60, "[]"));
+	CHECK(!st_unicode_name_valid_normalized(" leading", 30, 60, "[]"));
 	CHECK(!st_unicode_name_valid("bad[name", 30, 60, "[]"));
+	CHECK(!st_unicode_name_valid_normalized("bad[name", 30, 60, "[]"));
 	CHECK(!st_unicode_name_valid("bad\xe2\x80\xae", 30, 60, "[]"));
+	CHECK(!st_unicode_name_valid_normalized("bad\xe2\x80\xae", 30, 60,
+	    "[]"));
+	CHECK(!st_unicode_name_valid_normalized("bad\xc0\x80", 30, 60,
+	    "[]"));
 }
 
 int

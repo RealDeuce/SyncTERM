@@ -213,7 +213,9 @@ main(void)
 	CHECK(st_bbs_name_equal("Stra\xc3\x9f" "e", "STRASSE"));
 	CHECK(st_bbs_name_equal("\xc3\x85", "A\xcc\x8a"));
 	CHECK(st_bbs_name_valid("M\xc3\xbcnchen"));
+	CHECK(st_bbs_name_valid_normalized("M\xc3\xbcnchen"));
 	CHECK(!st_bbs_name_valid("A\xcc\x8a"));
+	CHECK(!st_bbs_name_valid_normalized(" leading"));
 
 	(void)snprintf(personal, sizeof(personal), "%s/personal.lst",
 	    ST_BBS_TEST_DIRECTORY);

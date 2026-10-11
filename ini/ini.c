@@ -53,6 +53,8 @@ struct ini_section {
 static int ini_section_compare(const struct ini_section *left,
     const struct ini_section *right);
 static bool valid_name(const char *name, const char *forbidden);
+static bool valid_normalized_name(const char *name, const char *forbidden);
+static bool normalized_key_name_valid(const char *name);
 
 ARRAY_LIST_DECLARE(ini_record_list, struct ini_record)
 ARRAY_LIST_DECLARE(ini_section_list, struct ini_section)
@@ -258,13 +260,15 @@ duplicate_span(const char *string, size_t begin, size_t end)
 }
 
 static int
-decode_literal(const char *string, size_t length, char **result)
+decode_literal(const char *string, size_t length, char **result,
+    bool *escaped)
 {
 	char *decoded = malloc(length + 1);
 	size_t output = 0;
 
 	if (decoded == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
+	*escaped = false;
 	for (size_t i = 0; i < length; i++) {
 		unsigned char value = (unsigned char)string[i];
 
@@ -272,6 +276,7 @@ decode_literal(const char *string, size_t length, char **result)
 			decoded[output++] = (char)value;
 			continue;
 		}
+		*escaped = true;
 		if (++i >= length)
 			goto invalid;
 		switch (string[i]) {
@@ -409,7 +414,7 @@ parse_line(struct ini_document *document, struct ini_section **current,
 		name = duplicate_span(line, name_begin, name_end);
 		if (name == NULL)
 			return IO_ERROR_OUT_OF_MEMORY;
-		if (!valid_name(name, "[]")) {
+		if (!valid_normalized_name(name, "[]")) {
 			free(name);
 			*current = NULL;
 			goto trivia;
@@ -458,41 +463,44 @@ parse_line(struct ini_document *document, struct ini_section **current,
 			value_begin += separator + 1;
 			value_end += separator + 1;
 			if (line[separator] == ':') {
+				bool escaped;
+				int decode_error;
+
 				if (value_end - value_begin < 2
 				    || line[value_begin] != '"'
 				    || line[value_end - 1] != '"')
 					goto trivia;
-				int decode_error = decode_literal(line + value_begin + 1,
-				    value_end - value_begin - 2, &value);
+				decode_error = decode_literal(line + value_begin + 1,
+				    value_end - value_begin - 2, &value, &escaped);
 				if (decode_error == IO_ERROR_OUT_OF_MEMORY)
 					return decode_error;
 				if (decode_error != 0)
 					goto trivia;
+				if (escaped) {
+					char *normalized;
+					size_t normalized_size;
+					int normalize_error;
+
+					/* Escapes can form new Unicode sequences. */
+					normalize_error = st_unicode_text_normalize(
+					    &normalized, &normalized_size, value,
+					    strlen(value), NULL);
+					free(value);
+					if (normalize_error != 0)
+						return normalize_error;
+					value = normalized;
+				}
 			} else {
 				value = duplicate_span(line, value_begin, value_end);
 				if (value == NULL)
 					return IO_ERROR_OUT_OF_MEMORY;
-			}
-			{
-				char *normalized;
-				size_t normalized_size;
-				int normalize_error = st_unicode_text_normalize(
-				    &normalized, &normalized_size, value, strlen(value),
-				    NULL);
-
-				if (normalize_error != 0) {
-					free(value);
-					return normalize_error;
-				}
-				free(value);
-				value = normalized;
 			}
 			name = duplicate_span(line, name_begin, name_end);
 			if (name == NULL) {
 				free(value);
 				return IO_ERROR_OUT_OF_MEMORY;
 			}
-			if (!ini_key_name_valid(name)) {
+			if (!normalized_key_name_valid(name)) {
 				free(name);
 				free(value);
 				goto trivia;
@@ -1005,6 +1013,20 @@ static bool
 valid_name(const char *name, const char *forbidden)
 {
 	return st_unicode_name_valid(name, 1024, 2048, forbidden);
+}
+
+static bool
+valid_normalized_name(const char *name, const char *forbidden)
+{
+	return st_unicode_name_valid_normalized(name, 1024, 2048,
+	    forbidden);
+}
+
+static bool
+normalized_key_name_valid(const char *name)
+{
+	return valid_normalized_name(name, "=:") && name[0] != ';'
+	    && name[0] != '[';
 }
 
 bool

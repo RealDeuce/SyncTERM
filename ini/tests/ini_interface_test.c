@@ -727,6 +727,31 @@ test_add_section_after_unterminated_line(void)
 }
 
 static bool
+test_normalized_read_boundary(void)
+{
+	static const char input[] =
+	    "[Cafe\xcc\x81]\n"
+	    "Plain=A\xcc\x8a\n"
+	    "LiteralPlain:\"A\xcc\x8a\"\n"
+	    "Literal:\"A\\xCC\\x8A\"\n";
+	static const char invalid_literal[] = "Bad:\"\\xC0\\x80\"\n";
+	ini_document_t *document = NULL;
+	ini_section_t *section;
+
+	CHECK(ini_document_parse(&document, input, sizeof(input) - 1) == 0);
+	section = ini_document_find_section(document, "Caf\xc3\xa9");
+	CHECK(section != NULL);
+	CHECK(strcmp(ini_section_find(section, "Plain"), "\xc3\x85") == 0);
+	CHECK(strcmp(ini_section_find(section, "LiteralPlain"), "\xc3\x85") == 0);
+	CHECK(strcmp(ini_section_find(section, "Literal"), "\xc3\x85") == 0);
+	ini_document_free(&document);
+	CHECK(ini_document_parse(&document, invalid_literal,
+	    sizeof(invalid_literal) - 1) == IO_ERROR_INVALID_ENCODING);
+	CHECK(document == NULL);
+	return true;
+}
+
+static bool
 test_cached_name_lookup(void)
 {
 	static const char input[] =
@@ -790,6 +815,7 @@ main(void)
 	passed = test_add_section_after_unterminated_line() && passed;
 	passed = test_unterminated_record_without_insertion() && passed;
 	passed = test_key_name_grammar() && passed;
+	passed = test_normalized_read_boundary() && passed;
 	passed = test_cached_name_lookup() && passed;
 	passed = test_zero_bitfield() && passed;
 	return passed ? EXIT_SUCCESS : EXIT_FAILURE;

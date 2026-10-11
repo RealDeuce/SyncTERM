@@ -40,14 +40,28 @@ st_bbs_name_equal(const char *left, const char *right)
 	    strlen(right)) == 0 && equal;
 }
 
+static bool
+bbs_name_valid(const char *name, bool known_normalized)
+{
+	bool valid = known_normalized
+	    ? st_unicode_name_valid_normalized(name,
+	    ST_PROFILE_NAME_SCALAR_MAX, ST_PROFILE_NAME_MAX, "[]")
+	    : st_unicode_name_valid(name, ST_PROFILE_NAME_SCALAR_MAX,
+	    ST_PROFILE_NAME_MAX, "[]");
+
+	return valid && !st_bbs_name_equal(name, "syncterm-system-cache");
+}
+
 bool
 st_bbs_name_valid(const char *name)
 {
-	if (!st_unicode_name_valid(name, ST_PROFILE_NAME_SCALAR_MAX,
-	    ST_PROFILE_NAME_MAX, "[]")
-	    || st_bbs_name_equal(name, "syncterm-system-cache"))
-		return false;
-	return true;
+	return bbs_name_valid(name, false);
+}
+
+bool
+st_bbs_name_valid_normalized(const char *name)
+{
+	return bbs_name_valid(name, true);
 }
 
 static void
@@ -255,7 +269,8 @@ append_source(const st_bbs_list_t *list, struct st_bbs_view *view,
 		struct st_bbs_owned_entry *item;
 		int status;
 
-		if (!st_unicode_name_valid(name, ST_PROFILE_NAME_SCALAR_MAX,
+		if (!st_unicode_name_valid_normalized(name,
+		    ST_PROFILE_NAME_SCALAR_MAX,
 		    ST_PROFILE_NAME_MAX, "[]")) {
 			status = add_diagnostic(view, source, source_name, name,
 			    IO_ERROR_INVALID_FORMAT);

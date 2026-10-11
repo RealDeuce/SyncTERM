@@ -1030,7 +1030,7 @@ slot_profile_name(WrenVM *vm, int slot, size_t except, const char **name)
 	}
 	if (length < 1
 	    || memchr(value, '\0', (size_t)length) != NULL
-	    || !st_unicode_name_valid(value, 19, 38, "=:")) {
+	    || !st_unicode_name_valid_normalized(value, 19, 38, "=:")) {
 		st_wren_abort(vm, "sort profile name must contain 1 through 19 "
 		    "Unicode scalars (38 UTF-8 bytes maximum)");
 		return false;

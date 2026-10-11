@@ -63,6 +63,7 @@ struct st_wren_bbs_record *st_wren_bbs_model_at(
 bool st_wren_bbs_model_valid(const struct st_wren_bbs_model *model,
     const struct st_wren_bbs_record *record, enum st_wren_bbs_kind kind,
     uint64_t generation);
+/* Name arguments are NFC text from the Wren host boundary. */
 bool st_wren_bbs_model_name_available(struct st_wren_bbs_model *model,
     const char *name);
 

@@ -66,5 +66,9 @@ int st_unicode_collate(int *comparison,
 /* Shared policy for user-visible configuration/display names. */
 bool st_unicode_name_valid(const char *name, size_t maximum_scalars,
 	size_t maximum_bytes, const char *forbidden_ascii);
+/* For text already normalized by st_unicode_text_normalize. */
+bool st_unicode_name_valid_normalized(const char *name,
+	size_t maximum_scalars, size_t maximum_bytes,
+	const char *forbidden_ascii);
 
 #endif

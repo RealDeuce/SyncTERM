@@ -884,9 +884,10 @@ st_unicode_wildcard_match(bool *matched,
 	return status;
 }
 
-bool
-st_unicode_name_valid(const char *name, size_t maximum_scalars,
-	size_t maximum_bytes, const char *forbidden_ascii)
+static bool
+name_valid(const char *name, size_t maximum_scalars,
+	size_t maximum_bytes, const char *forbidden_ascii,
+	bool known_normalized)
 {
 	char *normalized = NULL;
 	size_t normalized_size;
@@ -900,11 +901,14 @@ st_unicode_name_valid(const char *name, size_t maximum_scalars,
 	if (name == NULL)
 		return false;
 	length = strlen(name);
-	if (length == 0 || length > maximum_bytes
-	    || st_unicode_text_normalize(&normalized, &normalized_size,
+	if (length == 0 || length > maximum_bytes)
+		return false;
+	if (!known_normalized
+	    && st_unicode_text_normalize(&normalized, &normalized_size,
 	    name, length, NULL) != 0)
 		return false;
-	if (normalized_size != length || memcmp(normalized, name, length) != 0) {
+	if (!known_normalized && (normalized_size != length
+	    || memcmp(normalized, name, length) != 0)) {
 		free(normalized);
 		return false;
 	}
@@ -947,4 +951,20 @@ st_unicode_name_valid(const char *name, size_t maximum_scalars,
 	}
 	return visible && (first_flags & ST_UNICODE_PROPERTY_WHITE_SPACE) == 0
 	    && (last_flags & ST_UNICODE_PROPERTY_WHITE_SPACE) == 0;
+}
+
+bool
+st_unicode_name_valid(const char *name, size_t maximum_scalars,
+	size_t maximum_bytes, const char *forbidden_ascii)
+{
+	return name_valid(name, maximum_scalars, maximum_bytes,
+	    forbidden_ascii, false);
+}
+
+bool
+st_unicode_name_valid_normalized(const char *name, size_t maximum_scalars,
+	size_t maximum_bytes, const char *forbidden_ascii)
+{
+	return name_valid(name, maximum_scalars, maximum_bytes,
+	    forbidden_ascii, true);
 }

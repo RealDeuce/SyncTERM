@@ -30,6 +30,8 @@ enum st_bbs_source {
 
 bool st_bbs_name_equal(const char *left, const char *right);
 bool st_bbs_name_valid(const char *name);
+/* For names already normalized by the INI or Wren text boundary. */
+bool st_bbs_name_valid_normalized(const char *name);
 
 struct st_bbs_entry {
 	const struct st_profile *profile;

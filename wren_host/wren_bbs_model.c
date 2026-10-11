@@ -272,7 +272,8 @@ st_wren_bbs_model_name_available(struct st_wren_bbs_model *model,
 	size_t key_size;
 	bool available = true;
 
-	if (model == NULL || !model->loaded || !st_bbs_name_valid(name))
+	if (model == NULL || !model->loaded
+	    || !st_bbs_name_valid_normalized(name))
 		return false;
 	if (st_unicode_caseless_key(&key, &key_size, name, strlen(name)) != 0)
 		return false;
@@ -409,7 +410,7 @@ st_wren_bbs_model_rename(struct st_wren_bbs_model *model,
 
 	if (model == NULL || record == NULL
 	    || record->source != ST_BBS_SOURCE_PERSONAL
-	    || !st_bbs_name_valid(name) || !contains(model, record))
+	    || !st_bbs_name_valid_normalized(name) || !contains(model, record))
 		return false;
 	if (st_unicode_caseless_key(&key, &key_size, name, strlen(name)) != 0)
 		return false;
