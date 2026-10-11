@@ -20,7 +20,7 @@
  * on demand (the cterm->prestel_prog_state machine).
  *
  * The attribute helpers (cterm_prestel_*) are invoked from three
- * different call sites outside this file — cterm_gotoxy(),
+ * different call sites outside this file — cterm_set_position(),
  * cterm_reset(), and cterm_adjust_currpos() all need to re-evaluate
  * Prestel line state after motion or reset — so they are non-static
  * with the canonical cterm_ prefix.  The accumulators / dispatchers
@@ -32,7 +32,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "cterm_legacy_adapter.h"
+#include "cterm_render.h"
 #include "cterm.h"
 #include "cterm_internal.h"
 #include "cterm_prestel.h"
@@ -46,14 +46,18 @@ cterm_prestel_new_line(struct cterminal *cterm)
 {
 	cterm->extattr &= ~(CTERM_EXTATTR_PRESTEL_CONCEAL | CTERM_EXTATTR_PRESTEL_DOUBLE_HEIGHT | CTERM_EXTATTR_PRESTEL_HOLD | CTERM_EXTATTR_PRESTEL_MOSAIC | CTERM_EXTATTR_PRESTEL_SEPARATED);
 	cterm->attr = 7;
-	attr2palette(cterm->attr, &cterm->fg_color, &cterm->bg_color);
-	cterm->bg_color |= CIOLIB_BG_PRESTEL;
+	cterm_render_attribute_colours(cterm, cterm->attr, &cterm->fg_color, &cterm->bg_color);
+	cterm->cell_flags &= ~(ST_CONSOLE_CELL_SAA5050
+	    | ST_CONSOLE_CELL_DOUBLE_HEIGHT | ST_CONSOLE_CELL_SEPARATED
+	    | ST_CONSOLE_CELL_TERMINAL_FONT | ST_CONSOLE_CELL_PIXEL_GRAPHICS
+	    | ST_CONSOLE_CELL_CONCEAL | ST_CONSOLE_CELL_REVEAL
+	    | ST_CONSOLE_CELL_SAA5050_CONTROL_MASK);
+	cterm->cell_flags |= ST_CONSOLE_CELL_SAA5050;
 	if (cterm->emulation == CTERM_EMULATION_PRESTEL)
-		cterm->bg_color |= CIOLIB_BG_PRESTEL_TERMINAL;
-	cterm->bg_color &= ~CIOLIB_BG_SEPARATED;
+		cterm->cell_flags |= ST_CONSOLE_CELL_TERMINAL_FONT;
 	cterm->prestel_last_mosaic = 0;
-	textattr(cterm->attr);
-	setcolour(cterm->fg_color, cterm->bg_color);
+	cterm_render_set_attribute(cterm, cterm->attr);
+	cterm_render_set_colours(cterm, cterm->fg_color, cterm->bg_color);
 }
 
 void
@@ -62,15 +66,15 @@ cterm_prestel_apply_ctrl_before(struct cterminal *cterm, uint8_t ch)
 	switch (ch) {
 		case 73: /* Steady */
 			cterm->attr &= 0x7f;
-			attr2palette(cterm->attr, &cterm->fg_color, &cterm->bg_color);
+			cterm_render_attribute_colours(cterm, cterm->attr, &cterm->fg_color, &cterm->bg_color);
 			if (cterm->extattr & CTERM_EXTATTR_PRESTEL_DOUBLE_HEIGHT)
-				cterm->bg_color |= CIOLIB_BG_DOUBLE_HEIGHT;
+				cterm->cell_flags |= ST_CONSOLE_CELL_DOUBLE_HEIGHT;
 			break;
 		case 76: /* Normal Height */
 			cterm->extattr &= ~(CTERM_EXTATTR_PRESTEL_HOLD);
 			cterm->prestel_last_mosaic = 0;
 			cterm->extattr &= ~(CTERM_EXTATTR_PRESTEL_DOUBLE_HEIGHT);
-			cterm->bg_color &= ~CIOLIB_BG_DOUBLE_HEIGHT;
+			cterm->cell_flags &= ~ST_CONSOLE_CELL_DOUBLE_HEIGHT;
 			break;
 		case 88: /* Conceal Display */
 			cterm->attr |= 0x08;
@@ -80,16 +84,16 @@ cterm_prestel_apply_ctrl_before(struct cterminal *cterm, uint8_t ch)
 			if (!(cterm->extattr & CTERM_EXTATTR_PRESTEL_HOLD))
 				cterm->prestel_last_mosaic = 0;
 			cterm->extattr &= ~(CTERM_EXTATTR_PRESTEL_SEPARATED);
-			cterm->bg_color &= ~CIOLIB_BG_SEPARATED;
+			cterm->cell_flags &= ~ST_CONSOLE_CELL_SEPARATED;
 			break;
 		case 90: /* Separated Mosaics */
 			if (!(cterm->extattr & CTERM_EXTATTR_PRESTEL_HOLD))
 				cterm->prestel_last_mosaic = 0;
 			cterm->extattr |= CTERM_EXTATTR_PRESTEL_SEPARATED;
-			cterm->bg_color |= CIOLIB_BG_SEPARATED;
+			cterm->cell_flags |= ST_CONSOLE_CELL_SEPARATED;
 			break;
 		case 92: /* Black Background */
-			cterm_set_bgattr(cterm, BLACK);
+			cterm_set_bgattr(cterm, CTERM_COLOR_BLACK);
 			break;
 		case 93: /* New Background */
 			cterm_set_bgattr(cterm, cterm->attr & 0x07);
@@ -98,9 +102,9 @@ cterm_prestel_apply_ctrl_before(struct cterminal *cterm, uint8_t ch)
 			cterm->extattr |= CTERM_EXTATTR_PRESTEL_HOLD;
 			break;
 	}
-	cterm->bg_color |= CIOLIB_BG_PRESTEL;
+	cterm->cell_flags |= ST_CONSOLE_CELL_SAA5050;
 	if (cterm->emulation == CTERM_EMULATION_PRESTEL)
-		cterm->bg_color |= CIOLIB_BG_PRESTEL_TERMINAL;
+		cterm->cell_flags |= ST_CONSOLE_CELL_TERMINAL_FONT;
 }
 
 void
@@ -121,40 +125,40 @@ void
 cterm_prestel_apply_ctrl_after(struct cterminal *cterm, uint8_t ch)
 {
 	switch (ch) {
-		case 65: cterm_prestel_colour(cterm, true, RED); break;
-		case 66: cterm_prestel_colour(cterm, true, GREEN); break;
-		case 67: cterm_prestel_colour(cterm, true, YELLOW); break;
-		case 68: cterm_prestel_colour(cterm, true, BLUE); break;
-		case 69: cterm_prestel_colour(cterm, true, MAGENTA); break;
-		case 70: cterm_prestel_colour(cterm, true, CYAN); break;
-		case 71: cterm_prestel_colour(cterm, true, WHITE); break;
+		case 65: cterm_prestel_colour(cterm, true, CTERM_COLOR_RED); break;
+		case 66: cterm_prestel_colour(cterm, true, CTERM_COLOR_GREEN); break;
+		case 67: cterm_prestel_colour(cterm, true, CTERM_COLOR_YELLOW); break;
+		case 68: cterm_prestel_colour(cterm, true, CTERM_COLOR_BLUE); break;
+		case 69: cterm_prestel_colour(cterm, true, CTERM_COLOR_MAGENTA); break;
+		case 70: cterm_prestel_colour(cterm, true, CTERM_COLOR_CYAN); break;
+		case 71: cterm_prestel_colour(cterm, true, CTERM_COLOR_WHITE); break;
 		case 72: /* Flash */
 			cterm->attr |= 0x80;
-			attr2palette(cterm->attr, &cterm->fg_color, &cterm->bg_color);
+			cterm_render_attribute_colours(cterm, cterm->attr, &cterm->fg_color, &cterm->bg_color);
 			if (cterm->extattr & CTERM_EXTATTR_PRESTEL_DOUBLE_HEIGHT)
-				cterm->bg_color |= CIOLIB_BG_DOUBLE_HEIGHT;
+				cterm->cell_flags |= ST_CONSOLE_CELL_DOUBLE_HEIGHT;
 			break;
 		case 77: /* Double Height */
 			cterm->extattr &= ~(CTERM_EXTATTR_PRESTEL_HOLD);
 			cterm->prestel_last_mosaic = 0;
 			cterm->extattr |= CTERM_EXTATTR_PRESTEL_DOUBLE_HEIGHT;
-			cterm->bg_color |= CIOLIB_BG_DOUBLE_HEIGHT;
+			cterm->cell_flags |= ST_CONSOLE_CELL_DOUBLE_HEIGHT;
 			break;
-		case 81: cterm_prestel_colour(cterm, false, RED); break;
-		case 82: cterm_prestel_colour(cterm, false, GREEN); break;
-		case 83: cterm_prestel_colour(cterm, false, YELLOW); break;
-		case 84: cterm_prestel_colour(cterm, false, BLUE); break;
-		case 85: cterm_prestel_colour(cterm, false, MAGENTA); break;
-		case 86: cterm_prestel_colour(cterm, false, CYAN); break;
-		case 87: cterm_prestel_colour(cterm, false, WHITE); break;
+		case 81: cterm_prestel_colour(cterm, false, CTERM_COLOR_RED); break;
+		case 82: cterm_prestel_colour(cterm, false, CTERM_COLOR_GREEN); break;
+		case 83: cterm_prestel_colour(cterm, false, CTERM_COLOR_YELLOW); break;
+		case 84: cterm_prestel_colour(cterm, false, CTERM_COLOR_BLUE); break;
+		case 85: cterm_prestel_colour(cterm, false, CTERM_COLOR_MAGENTA); break;
+		case 86: cterm_prestel_colour(cterm, false, CTERM_COLOR_CYAN); break;
+		case 87: cterm_prestel_colour(cterm, false, CTERM_COLOR_WHITE); break;
 		case 95: /* Release Mosaics */
 			cterm->prestel_last_mosaic = 0;
 			cterm->extattr &= ~(CTERM_EXTATTR_PRESTEL_HOLD);
 			break;
 	}
-	cterm->bg_color |= CIOLIB_BG_PRESTEL;
+	cterm->cell_flags |= ST_CONSOLE_CELL_SAA5050;
 	if (cterm->emulation == CTERM_EMULATION_PRESTEL)
-		cterm->bg_color |= CIOLIB_BG_PRESTEL_TERMINAL;
+		cterm->cell_flags |= ST_CONSOLE_CELL_TERMINAL_FONT;
 }
 
 void
@@ -167,7 +171,7 @@ cterm_prestel_apply_ctrl(struct cterminal *cterm, uint8_t ch)
 void
 cterm_prestel_get_state(struct cterminal *cterm)
 {
-	struct vmem_cell *line;
+	struct st_console_cell *line;
 	int sx, sy;
 	int tx, ty;
 
@@ -180,11 +184,14 @@ cterm_prestel_get_state(struct cterminal *cterm)
 	}
 	cterm_prestel_new_line(cterm);
 	if (tx > 1) {
-		vmem_gettext(cterm->x, sy, cterm->x + tx - 2, sy, line);
+		cterm_render_read_cells(cterm, cterm->x, sy, cterm->x + tx - 2, sy, line);
 		for (int i = 0; i < (tx - 1); i++) {
-			uint8_t ch = line[i].ch;
-			if (line[i].fg & CIOLIB_FG_PRESTEL_CTRL_MASK) {
-				ch = (line[i].fg & CIOLIB_FG_PRESTEL_CTRL_MASK) >> CIOLIB_FG_PRESTEL_CTRL_SHIFT;
+			uint8_t ch = cterm_render_cell_byte(cterm, &line[i]);
+			if ((line[i].flags
+			    & ST_CONSOLE_CELL_SAA5050_CONTROL_MASK) != 0) {
+				ch = (uint8_t)((line[i].flags
+				    & ST_CONSOLE_CELL_SAA5050_CONTROL_MASK)
+				    >> ST_CONSOLE_CELL_SAA5050_CONTROL_SHIFT);
 				cterm_prestel_apply_ctrl(cterm, ch);
 			}
 			else {
@@ -196,8 +203,8 @@ cterm_prestel_get_state(struct cterminal *cterm)
 			}
 		}
 	}
-	textattr(cterm->attr);
-	setcolour(cterm->fg_color, cterm->bg_color);
+	cterm_render_set_attribute(cterm, cterm->attr);
+	cterm_render_set_colours(cterm, cterm->fg_color, cterm->bg_color);
 	free(line);
 }
 
@@ -207,14 +214,15 @@ cterm_prestel_fix_line(struct cterminal *cterm, int x, int y, bool restore, bool
 	int sy = y;
 	int sx = 1;
 	int ex = 1;
-	struct vmem_cell *line;
+	struct st_console_cell *line;
 	unsigned int extattr = cterm->extattr;
 	uint32_t fg_color = cterm->fg_color;
 	uint32_t bg_color = cterm->bg_color;
+	uint32_t cell_flags = cterm->cell_flags;
 	unsigned char attr = cterm->attr;
 	uint8_t prestel_last_mosaic = cterm->prestel_last_mosaic;
-	bool fixed = false;
 	bool dblheight = false;
+	(void)force;
 
 	cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_SCREEN, &sy, &sx);
 	ex = sx + TERM_MAXX - 1;
@@ -223,69 +231,60 @@ cterm_prestel_fix_line(struct cterminal *cterm, int x, int y, bool restore, bool
 		fprintf(stderr, "malloc() in cterm_prestel_fix_line()\n");
 		return;
 	}
-	vmem_gettext(sx, sy, ex, sy, line);
+	cterm_render_read_cells(cterm, sx, sy, ex, sy, line);
 	cterm_prestel_new_line(cterm);
 	for (int i = 0; i < TERM_MAXX; i++) {
-		if ((line[i].bg & CIOLIB_BG_PRESTEL) == 0)
+		uint8_t byte;
+		uint8_t control = 0;
+		uint16_t hyperlink;
+
+		if ((line[i].flags & ST_CONSOLE_CELL_SAA5050) == 0)
 			continue;
-		uint8_t ch;
-		if (line[i].fg & CIOLIB_FG_PRESTEL_CTRL_MASK) {
+		byte = cterm_render_cell_byte(cterm, &line[i]);
+		hyperlink = line[i].hyperlink;
+		if ((line[i].flags & ST_CONSOLE_CELL_SAA5050_CONTROL_MASK) != 0) {
 			if (i == (x - 1)) {
 				extattr = cterm->extattr;
 				fg_color = cterm->fg_color;
 				bg_color = cterm->bg_color;
+				cell_flags = cterm->cell_flags;
 				attr = cterm->attr;
 				prestel_last_mosaic = cterm->prestel_last_mosaic;
 			}
-			ch = (line[i].fg & CIOLIB_FG_PRESTEL_CTRL_MASK) >> CIOLIB_FG_PRESTEL_CTRL_SHIFT;
-			cterm_prestel_apply_ctrl_before(cterm, ch);
-			if ((cterm->extattr & CTERM_EXTATTR_PRESTEL_DOUBLE_HEIGHT) && ((line[i].bg & CIOLIB_BG_DOUBLE_HEIGHT) == 0)) {
-				line[i].bg |= CIOLIB_BG_DOUBLE_HEIGHT;
-				fixed = true;
+			control = (uint8_t)((line[i].flags
+			    & ST_CONSOLE_CELL_SAA5050_CONTROL_MASK)
+			    >> ST_CONSOLE_CELL_SAA5050_CONTROL_SHIFT);
+			cterm_prestel_apply_ctrl_before(cterm, control);
+			if (cterm->extattr & CTERM_EXTATTR_PRESTEL_DOUBLE_HEIGHT)
 				dblheight = true;
-			}
-			if (((cterm->extattr & CTERM_EXTATTR_PRESTEL_DOUBLE_HEIGHT) == 0) && (line[i].bg & CIOLIB_BG_DOUBLE_HEIGHT)) {
-				line[i].bg &= ~CIOLIB_BG_DOUBLE_HEIGHT;
-				fixed = true;
-				dblheight = true;
-			}
-			if (line[i].fg != (cterm->fg_color | (ch << 24))
-			    || line[i].bg != cterm->bg_color
-			    || line[i].legacy_attr != cterm->attr) {
-				line[i].fg = cterm->fg_color | (ch << 24);
-				line[i].bg = cterm->bg_color;
-				line[i].legacy_attr = cterm->attr;
-				fixed = true;
-			}
-			if (line[i].ch < 128 && (cterm->extattr & CTERM_EXTATTR_PRESTEL_HOLD)) {
+			if (byte < 128 && (cterm->extattr & CTERM_EXTATTR_PRESTEL_HOLD)) {
 				if (cterm->prestel_last_mosaic != 0) {
-					line[i].ch = cterm->prestel_last_mosaic | 0x80;
+					byte = cterm->prestel_last_mosaic | 0x80;
 					if (cterm->prestel_last_mosaic & 0x80)
-						line[i].bg &= ~CIOLIB_BG_SEPARATED;
+						cterm->cell_flags &= ~ST_CONSOLE_CELL_SEPARATED;
 					else
-						line[i].bg |= CIOLIB_BG_SEPARATED;
-					fixed = true;
+						cterm->cell_flags |= ST_CONSOLE_CELL_SEPARATED;
 				}
-				else {
-					if (line[i].ch != ch - 64) {
-						line[i].ch = ch - 64;
-						fixed = true;
-					}
-				}
+				else
+					byte = control - 64;
 			}
-			if (line[i].ch >= 160 && ((cterm->extattr & CTERM_EXTATTR_PRESTEL_HOLD) == 0)) {
-				line[i].ch = ch;
-				fixed = true;
-			}
-			if (line[i].ch >= 160 && (cterm->extattr & CTERM_EXTATTR_PRESTEL_HOLD)) {
-				if ((!!(cterm->prestel_last_mosaic & 0x80)) == (!!(line[i].bg & CIOLIB_BG_SEPARATED))) {
+			if (byte >= 160 && ((cterm->extattr & CTERM_EXTATTR_PRESTEL_HOLD) == 0))
+				byte = control;
+			if (byte >= 160 && (cterm->extattr & CTERM_EXTATTR_PRESTEL_HOLD)) {
+				if ((!!(cterm->prestel_last_mosaic & 0x80))
+				    == (!!(cterm->cell_flags & ST_CONSOLE_CELL_SEPARATED))) {
 					if (cterm->prestel_last_mosaic & 0x80)
-						line[i].bg &= ~CIOLIB_BG_SEPARATED;
+						cterm->cell_flags &= ~ST_CONSOLE_CELL_SEPARATED;
 					else
-						line[i].bg |= CIOLIB_BG_SEPARATED;
+						cterm->cell_flags |= ST_CONSOLE_CELL_SEPARATED;
 				}
 			}
-			cterm_prestel_apply_ctrl_after(cterm, ch);
+			cterm_render_make_cell(cterm, &line[i], byte, cterm->attr,
+			    cterm->fg_color, cterm->bg_color,
+			    cterm_render_attribute_font(cterm, cterm->attr), hyperlink,
+			    cterm->cell_flags
+			    | ST_CONSOLE_CELL_SAA5050_CONTROL(control));
+			cterm_prestel_apply_ctrl_after(cterm, control);
 			if (cterm->extattr & CTERM_EXTATTR_PRESTEL_DOUBLE_HEIGHT)
 				dblheight = true;
 		}
@@ -294,63 +293,40 @@ cterm_prestel_fix_line(struct cterminal *cterm, int x, int y, bool restore, bool
 				extattr = cterm->extattr;
 				fg_color = cterm->fg_color;
 				bg_color = cterm->bg_color;
+				cell_flags = cterm->cell_flags;
 				attr = cterm->attr;
 				prestel_last_mosaic = cterm->prestel_last_mosaic;
 			}
-			if ((cterm->extattr & CTERM_EXTATTR_PRESTEL_DOUBLE_HEIGHT) && ((line[i].bg & CIOLIB_BG_DOUBLE_HEIGHT) == 0)) {
-				line[i].bg |= CIOLIB_BG_DOUBLE_HEIGHT;
-				fixed = true;
+			if (cterm->extattr & CTERM_EXTATTR_PRESTEL_DOUBLE_HEIGHT)
 				dblheight = true;
-			}
-			if (((cterm->extattr & CTERM_EXTATTR_PRESTEL_DOUBLE_HEIGHT) == 0) && (line[i].bg & CIOLIB_BG_DOUBLE_HEIGHT)) {
-				line[i].bg &= ~CIOLIB_BG_DOUBLE_HEIGHT;
-				fixed = true;
-				dblheight = true;
-			}
-			if (line[i].fg != cterm->fg_color
-			    || line[i].bg != cterm->bg_color
-			    || line[i].legacy_attr != cterm->attr) {
-				line[i].fg = cterm->fg_color;
-				line[i].bg = cterm->bg_color;
-				line[i].legacy_attr = cterm->attr;
-				fixed = true;
-			}
-			if (line[i].ch >= 160 && ((cterm->extattr & CTERM_EXTATTR_PRESTEL_MOSAIC) == 0)) {
-				line[i].ch &= 0x7f;
-				fixed = true;
-			}
+			if (byte >= 160 && ((cterm->extattr & CTERM_EXTATTR_PRESTEL_MOSAIC) == 0))
+				byte &= 0x7f;
 			else if ((cterm->extattr & CTERM_EXTATTR_PRESTEL_MOSAIC)
-			    && ((line[i].ch >= 32 && line[i].ch < 64)
-			     || (line[i].ch >= 96 && line[i].ch < 128))) {
-				line[i].ch |= 0x80;
+			    && ((byte >= 32 && byte < 64)
+			     || (byte >= 96 && byte < 128))) {
+				byte |= 0x80;
 				if (cterm->extattr & CTERM_EXTATTR_PRESTEL_SEPARATED)
-					line[i].bg |= CIOLIB_BG_SEPARATED;
+					cterm->cell_flags |= ST_CONSOLE_CELL_SEPARATED;
 				else
-					line[i].bg &= ~CIOLIB_BG_SEPARATED;
-				fixed = true;
+					cterm->cell_flags &= ~ST_CONSOLE_CELL_SEPARATED;
 			}
 			else if ((cterm->extattr & CTERM_EXTATTR_PRESTEL_MOSAIC)
-			    && ((line[i].ch >= 0xc0 && line[i].ch <= 0xdf))) {
-				line[i].ch &= 0x7f;
-				fixed = true;
-			}
-			else if ((line[i].bg & CIOLIB_BG_SEPARATED) && ((cterm->extattr & CTERM_EXTATTR_PRESTEL_SEPARATED) == 0)) {
-				line[i].bg &= ~CIOLIB_BG_SEPARATED;
-				fixed = true;
-			}
-			else if (((line[i].bg & CIOLIB_BG_SEPARATED) == 0) && (cterm->extattr & CTERM_EXTATTR_PRESTEL_SEPARATED)) {
-				line[i].bg |= CIOLIB_BG_SEPARATED;
-				fixed = true;
-			}
-			if (line[i].ch >= 160) {
-				cterm->prestel_last_mosaic = line[i].ch;
+			    && byte >= 0xc0 && byte <= 0xdf)
+				byte &= 0x7f;
+			else if (cterm->extattr & CTERM_EXTATTR_PRESTEL_SEPARATED)
+				cterm->cell_flags |= ST_CONSOLE_CELL_SEPARATED;
+			else
+				cterm->cell_flags &= ~ST_CONSOLE_CELL_SEPARATED;
+			cterm_render_make_current_cell(cterm, &line[i], byte,
+			    hyperlink);
+			if (byte >= 160) {
+				cterm->prestel_last_mosaic = byte;
 				if (cterm->extattr & CTERM_EXTATTR_PRESTEL_SEPARATED)
 					cterm->prestel_last_mosaic &= 0x7f;
 			}
 		}
 	}
-	if (force || fixed)
-		vmem_puttext(sx, sy, ex, sy, line);
+	cterm_render_write_cells(cterm, sx, sy, ex, sy, line);
 	free(line);
 	if (dblheight)
 		cterm_prestel_fix_line(cterm, x, y + 1, false, true);
@@ -358,6 +334,7 @@ cterm_prestel_fix_line(struct cterminal *cterm, int x, int y, bool restore, bool
 		cterm->extattr = extattr;
 		cterm->fg_color = fg_color;
 		cterm->bg_color = bg_color;
+		cterm->cell_flags = cell_flags;
 		cterm->attr = attr;
 		cterm->prestel_last_mosaic = prestel_last_mosaic;
 	}
@@ -397,7 +374,7 @@ cterm_prestel_move(struct cterminal *cterm, int xadj, int yadj)
 			ty -= TERM_MAXY;
 		}
 	}
-	gotoxy(tx, ty);
+	cterm_render_set_position(cterm, tx, ty);
 	cterm_prestel_get_state(cterm);
 }
 
@@ -419,7 +396,9 @@ cterm_prestel_send_memory(struct cterminal *cterm, uint8_t mem, char *retbuf, si
 void
 cterm_prestel_handle_escaped(struct cterminal *cterm, uint8_t ctrl)
 {
-	struct vmem_cell tmpvc[1] = {0};
+	struct st_console_cell tmpvc[1] = {0};
+	uint8_t byte;
+	uint32_t flags;
 	int sx, sy, x, y;
 
 	if (ctrl < 0x40 || ctrl > 0x5f) {
@@ -429,33 +408,32 @@ cterm_prestel_handle_escaped(struct cterminal *cterm, uint8_t ctrl)
 		return;
 	}
 	cterm_prestel_apply_ctrl_before(cterm, ctrl);
-	textattr(cterm->attr);
-	setcolour(cterm->fg_color, cterm->bg_color);
+	cterm_render_set_attribute(cterm, cterm->attr);
+	cterm_render_set_colours(cterm, cterm->fg_color, cterm->bg_color);
 	cterm->escbuf[0] = 0;
 	cterm->sequence = 0;
 	cterm->accumulator = NULL;
-	tmpvc[0].fg = cterm->fg_color | (ctrl << 24);
-	tmpvc[0].bg = cterm->bg_color;
+	flags = cterm->cell_flags | ST_CONSOLE_CELL_SAA5050_CONTROL(ctrl);
 	if ((cterm->extattr & CTERM_EXTATTR_PRESTEL_HOLD) && (cterm->prestel_last_mosaic != 0)) {
-		tmpvc[0].ch = cterm->prestel_last_mosaic;
-		if (tmpvc[0].ch & 0x80)
-			tmpvc[0].bg &= ~CIOLIB_BG_SEPARATED;
+		byte = cterm->prestel_last_mosaic;
+		if (byte & 0x80)
+			flags &= ~ST_CONSOLE_CELL_SEPARATED;
 		else
-			tmpvc[0].bg |= CIOLIB_BG_SEPARATED;
-		tmpvc[0].ch |= 0x80;
+			flags |= ST_CONSOLE_CELL_SEPARATED;
+		byte |= 0x80;
 	}
-	else {
-		tmpvc[0].ch = ' ';
-	}
-	tmpvc[0].legacy_attr = cterm->attr;
-	tmpvc[0].font = ciolib_attrfont(cterm->attr);
-	tmpvc[0].hyperlink_id = ciolib_get_current_hyperlink();
+	else
+		byte = ' ';
+	cterm_render_make_cell(cterm, &tmpvc[0], byte, cterm->attr,
+	    cterm->fg_color, cterm->bg_color,
+	    cterm_render_attribute_font(cterm, cterm->attr),
+	    cterm_render_get_hyperlink(cterm), flags);
 	SCR_XY(&sx, &sy);
 	CURR_XY(&x, &y);
-	vmem_puttext(sx, sy, sx, sy, tmpvc);
+	cterm_render_write_cells(cterm, sx, sy, sx, sy, tmpvc);
 	cterm_prestel_apply_ctrl_after(cterm, ctrl);
-	textattr(cterm->attr);
-	setcolour(cterm->fg_color, cterm->bg_color);
+	cterm_render_set_attribute(cterm, cterm->attr);
+	cterm_render_set_colours(cterm, cterm->fg_color, cterm->bg_color);
 	cterm_advance_char(cterm, &x, &y, 1);
 }
 
@@ -612,12 +590,12 @@ cterm_beeb_vdu23(struct cterminal *cterm, int *speed)
 	    && cterm->seq_param_int[8] == 0) {
 		switch (cterm->seq_param_int[1]) {
 			case 0:
-				cterm->cursor = _NOCURSOR;
-				ciolib_setcursortype(cterm->cursor);
+				cterm->cursor = CTERM_CURSOR_HIDDEN;
+				cterm_render_set_cursor(cterm, cterm->cursor);
 				break;
 			case 1:
-				cterm->cursor = _NORMALCURSOR;
-				ciolib_setcursortype(cterm->cursor);
+				cterm->cursor = CTERM_CURSOR_UNDERLINE;
+				cterm_render_set_cursor(cterm, cterm->cursor);
 				break;
 		}
 	}
@@ -629,7 +607,7 @@ cterm_beeb_vdu28(struct cterminal *cterm, int *speed)
 	(void)speed;
 	/* VDU 28 operands arrive as 8-bit characters (0-255); the '0' offset
 	 * keeps the result well inside int range. */
-	gotoxy((int)(cterm->seq_param_int[1] - ' ') + 1,
+	cterm_render_set_position(cterm, (int)(cterm->seq_param_int[1] - ' ') + 1,
 	    (int)(cterm->seq_param_int[0] - ' ') + 1);
 }
 
@@ -686,15 +664,15 @@ cterm_dispatch_prestel(struct cterminal *cterm, unsigned char byte, int *speed)
 			cterm->screen.prestel_reveal = false;
 			cterm_prestel_new_line(cterm);
 			cterm_clearscreen(cterm, (char)cterm->attr);
-			gotoxy(CURR_MINX, CURR_MINY);
+			cterm_render_set_position(cterm, CURR_MINX, CURR_MINY);
 			break;
 		case 17:	/* Cursor on */
-			cterm->cursor = _NORMALCURSOR;
-			ciolib_setcursortype(cterm->cursor);
+			cterm->cursor = CTERM_CURSOR_UNDERLINE;
+			cterm_render_set_cursor(cterm, cterm->cursor);
 			break;
 		case 20:	/* Cursor off */
-			cterm->cursor = _NOCURSOR;
-			ciolib_setcursortype(cterm->cursor);
+			cterm->cursor = CTERM_CURSOR_HIDDEN;
+			cterm_render_set_cursor(cterm, cterm->cursor);
 			break;
 		case 27:	/* ESC — enter sequence mode */
 			cterm_uctputs(cterm, cterm->print_buf);
@@ -707,7 +685,7 @@ cterm_dispatch_prestel(struct cterminal *cterm, unsigned char byte, int *speed)
 			cterm_uctputs(cterm, cterm->print_buf);
 			cterm->print_buf[0] = 0;
 			cterm->print_pos = cterm->print_buf;
-			gotoxy(CURR_MINX, CURR_MINY);
+			cterm_render_set_position(cterm, CURR_MINX, CURR_MINY);
 			cterm_prestel_new_line(cterm);
 			break;
 		default:
@@ -770,7 +748,7 @@ cterm_dispatch_beeb(struct cterminal *cterm, unsigned char byte, int *speed)
 			cterm->print_buf[0] = 0;
 			cterm->print_pos = cterm->print_buf;
 			if (!cterm->quiet) {
-				putch(7);
+				cterm_render_write_byte(cterm, 7);
 			}
 			break;
 		case 8:		/* APB */
@@ -804,7 +782,7 @@ cterm_dispatch_beeb(struct cterminal *cterm, unsigned char byte, int *speed)
 			cterm->screen.prestel_reveal = false;
 			cterm_prestel_new_line(cterm);
 			cterm_clearscreen(cterm, (char)cterm->attr);
-			gotoxy(CURR_MINX, CURR_MINY);
+			cterm_render_set_position(cterm, CURR_MINX, CURR_MINY);
 			break;
 		case 23:	/* VDU 23 — reprogram display (9 trailing bytes) */
 			cterm_uctputs(cterm, cterm->print_buf);
@@ -828,7 +806,7 @@ cterm_dispatch_beeb(struct cterminal *cterm, unsigned char byte, int *speed)
 			cterm_uctputs(cterm, cterm->print_buf);
 			cterm->print_buf[0] = 0;
 			cterm->print_pos = cterm->print_buf;
-			gotoxy(CURR_MINX, CURR_MINY);
+			cterm_render_set_position(cterm, CURR_MINX, CURR_MINY);
 			cterm_prestel_new_line(cterm);
 			break;
 		case 127:	/* Destructive backspace */

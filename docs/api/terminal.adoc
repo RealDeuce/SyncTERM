@@ -28,13 +28,16 @@ the catalog removes only selector tables.
 Header: link:cterm/st_cterm.h[st_cterm.h].  The port retains the complete
 ECMA-48/DEC, SyncTERM, VT52, ATASCII, PETSCII, Prestel, and BBC handler family,
 but its public boundary is the small `st_cterm_*` interface.  The imported
-implementation and its bridge are private to target `st_cterm` and are licensed
-under BSD-2-Clause; link:cterm/LICENSE[cterm/LICENSE] contains the terms.
+implementation and its renderer are private to target `st_cterm` and are
+licensed under BSD-2-Clause; link:cterm/LICENSE[cterm/LICENSE] contains the
+terms.
 
 Cells passed to the console are resolved glyph cells, never Unicode-codepoint
-placeholders.  The bridge maps legacy byte cells through the selected font and
-codepage before constructing `struct st_console_cell`.  Readback is
-intentionally a projection and need not losslessly reproduce Unicode input.
+placeholders.  CTerm resolves each protocol byte through the selected codepage
+and font before constructing `struct st_console_cell`; scrollback and every
+screen-edit operation retain that native cell type.  Protocols which transmit
+screen contents explicitly project glyphs back through the selected codepage.
+That readback is intentionally lossy and need not reproduce Unicode input.
 
 UTF-8 mode is streaming.  Decoder state survives write boundaries, while raw
 C0/DEL bytes and active terminal-sequence accumulators remain parser input.
@@ -44,12 +47,12 @@ boundary turns one incomplete UTF-8 prefix into one decode-error glyph.  An
 ordinary write boundary does not flush it.  Fixed byte-table emulations reject
 UTF-8 mode.
 
-The bridge obtains geometry and capabilities from the active console instead
+The renderer obtains geometry and capabilities from the active console instead
 of simulating an 80x25 VGA device. Screen-mode palette mappings select the
 canonical palette entries, while CTerm's extended shadow palette preserves
-remote palette changes without replacing those defaults. Rows and columns
-greater than 255 are rejected because the retained parser reports them through
-legacy 8-bit fields rather than silently truncating them.
+remote palette changes without replacing those defaults. Geometry uses the
+console's 32-bit dimensions at the public boundary and is limited to `INT_MAX`
+internally because the parser's coordinate arithmetic is signed.
 
 Protocol responses and encoded local input are distinguished by
 `enum st_cterm_output_origin`, although the minimal session sends both through

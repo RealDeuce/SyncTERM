@@ -294,10 +294,11 @@ void cterm_coord_get_xy(struct cterminal *cterm,
 
 void cterm_clear_lcf(struct cterminal *cterm);
 void cterm_adjust_currpos(struct cterminal *cterm, int xadj, int yadj, int scroll);
-void cterm_gotoxy(struct cterminal *cterm, int x, int y);
+void cterm_apply_window(struct cterminal *cterm);
+void cterm_set_position(struct cterminal *cterm, int x, int y);
 void cterm_scrollup(struct cterminal *cterm);
 void cterm_scrolldown(struct cterminal *cterm);
-void cterm_clreol(struct cterminal *cterm);
+void cterm_clear_line(struct cterminal *cterm);
 void cterm_clear2bol(struct cterminal *cterm);
 void cterm_dellines(struct cterminal *cterm, int lines);
 void cterm_clear_selection(struct cterminal *cterm);

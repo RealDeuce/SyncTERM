@@ -34,7 +34,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "cterm_legacy_adapter.h"
+#include "cterm_render.h"
 #include "cterm.h"
 #include "cterm_internal.h"
 #include "cterm_ecma48.h"
@@ -118,7 +118,7 @@ cterm_handle_cha(struct cterminal *cterm, int *speed)
 	CURR_XY(NULL, &row);
 	col = (int)cterm->seq_param_int[0];
 	if (col >= CURR_MINX && col <= CURR_MAXX)
-		gotoxy(col, row);
+		cterm_render_set_position(cterm, col, row);
 }
 
 void
@@ -139,7 +139,7 @@ cterm_handle_cup(struct cterminal *cterm, int *speed)
 		row = CURR_MAXY;
 	if (col > CURR_MAXX)
 		col = CURR_MAXX;
-	gotoxy(col, row);
+	cterm_render_set_position(cterm, col, row);
 }
 
 void
@@ -212,7 +212,7 @@ cterm_handle_vpa(struct cterminal *cterm, int *speed)	/* CSI d */
 		row = CURR_MINY;
 	if (row > CURR_MAXY)
 		row = CURR_MAXY;
-	gotoxy(col, row);
+	cterm_render_set_position(cterm, col, row);
 }
 
 void
@@ -265,11 +265,11 @@ cterm_handle_ich(struct cterminal *cterm, int *speed)	/* CSI @ */
 		cterm->seq_param_int[0] = 1;
 	if (cterm->seq_param_int[0] > (uint64_t)(TERM_MAXX - i + 1))
 		cterm->seq_param_int[0] = TERM_MAXX - i + 1;
-	movetext(col, row, max_col - (int)cterm->seq_param_int[0], row,
+	cterm_render_move_cells(cterm, col, row, max_col - (int)cterm->seq_param_int[0], row,
 	    col + (int)cterm->seq_param_int[0], row);
 	for (l = 0; l < (int)cterm->seq_param_int[0]; l++)
-		putch(' ');
-	cterm_gotoxy(cterm, i, j);
+		cterm_render_write_byte(cterm, ' ');
+	cterm_set_position(cterm, i, j);
 }
 
 void
@@ -281,26 +281,26 @@ cterm_handle_ed(struct cterminal *cterm, int *speed)	/* CSI J */
 	cterm_seq_default(cterm, 0, 0);
 	switch (cterm->seq_param_int[0]) {
 		case 0:
-			clreol();
+			cterm_render_clear_line(cterm);
 			CURR_XY(&col, &row);
 			for (i = row + 1; i <= TERM_MAXY; i++) {
-				cterm_gotoxy(cterm, TERM_MINY, i);
-				clreol();
+				cterm_set_position(cterm, TERM_MINY, i);
+				cterm_render_clear_line(cterm);
 			}
-			gotoxy(col, row);
+			cterm_render_set_position(cterm, col, row);
 			break;
 		case 1:
 			cterm_clear2bol(cterm);
 			CURR_XY(&col, &row);
 			for (i = row - 1; i >= TERM_MINY; i--) {
-				cterm_gotoxy(cterm, TERM_MINX, i);
-				clreol();
+				cterm_set_position(cterm, TERM_MINX, i);
+				cterm_render_clear_line(cterm);
 			}
-			gotoxy(col, row);
+			cterm_render_set_position(cterm, col, row);
 			break;
 		case 2:
 			cterm_clearscreen(cterm, (char)cterm->attr);
-			gotoxy(CURR_MINX, CURR_MINY);
+			cterm_render_set_position(cterm, CURR_MINX, CURR_MINY);
 			break;
 	}
 }
@@ -314,16 +314,16 @@ cterm_handle_el(struct cterminal *cterm, int *speed)	/* CSI K */
 	cterm_seq_default(cterm, 0, 0);
 	switch (cterm->seq_param_int[0]) {
 		case 0:
-			clreol();
+			cterm_render_clear_line(cterm);
 			break;
 		case 1:
 			cterm_clear2bol(cterm);
 			break;
 		case 2:
 			CURR_XY(&col, &row);
-			gotoxy(CURR_MINX, row);
-			clreol();
-			gotoxy(col, row);
+			cterm_render_set_position(cterm, CURR_MINX, row);
+			cterm_render_clear_line(cterm);
+			cterm_render_set_position(cterm, col, row);
 			break;
 	}
 }
@@ -349,12 +349,12 @@ cterm_handle_il(struct cterminal *cterm, int *speed)	/* CSI L */
 	max_row = TERM_MAXY;
 	cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_SCREEN, &max_col, &max_row);
 	if (i)
-		movetext(col2, row2, max_col, max_row - i, col2, row2 + i);
+		cterm_render_move_cells(cterm, col2, row2, max_col, max_row - i, col2, row2 + i);
 	for (j = 0; j < i; j++) {
-		cterm_gotoxy(cterm, TERM_MINX, row + j);
-		cterm_clreol(cterm);
+		cterm_set_position(cterm, TERM_MINX, row + j);
+		cterm_clear_line(cterm);
 	}
-	cterm_gotoxy(cterm, col, row);
+	cterm_set_position(cterm, col, row);
 }
 
 void
@@ -392,10 +392,10 @@ cterm_handle_dch(struct cterminal *cterm, int *speed)	/* CSI P */
 	col2 = col;
 	row2 = row;
 	cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_SCREEN, &col2, &row2);
-	movetext(col2 + i, row2, max_col, row2, col2, row2);
-	cterm_gotoxy(cterm, TERM_MAXX - i, row);
-	cterm_clreol(cterm);
-	cterm_gotoxy(cterm, col, row);
+	cterm_render_move_cells(cterm, col2 + i, row2, max_col, row2, col2, row2);
+	cterm_set_position(cterm, TERM_MAXX - i, row);
+	cterm_clear_line(cterm);
+	cterm_set_position(cterm, col, row);
 }
 
 void
@@ -428,7 +428,7 @@ void
 cterm_handle_ech(struct cterminal *cterm, int *speed)	/* CSI X */
 {
 	int i, k, col, row, col2, row2, max_col;
-	struct vmem_cell *vc;
+	struct st_console_cell *vc;
 	(void)speed;
 	cterm_clear_lcf(cterm);
 	cterm_seq_default(cterm, 0, 1);
@@ -442,12 +442,7 @@ cterm_handle_ech(struct cterminal *cterm, int *speed)	/* CSI X */
 	if (vc == NULL)
 		return;
 	for (k = 0; k < i; k++) {
-		vc[k].ch = ' ';
-		vc[k].legacy_attr = cterm->attr;
-		vc[k].fg = cterm->fg_color;
-		vc[k].bg = cterm->bg_color;
-		vc[k].font = ciolib_attrfont(cterm->attr);
-		vc[k].hyperlink_id = 0;
+		cterm_render_make_current_cell(cterm, &vc[k], ' ', 0);
 	}
 	col2 = col;
 	row2 = row;
@@ -455,7 +450,7 @@ cterm_handle_ech(struct cterminal *cterm, int *speed)	/* CSI X */
 	max_col = CURR_MAXX;
 	cterm_coord_conv_xy(cterm, CTERM_COORD_CURR, CTERM_COORD_SCREEN, &max_col, NULL);
 	(void)max_col;
-	vmem_puttext(col2, row2, col2 + i - 1, row2, vc);
+	cterm_render_write_cells(cterm, col2, row2, col2 + i - 1, row2, vc);
 	free(vc);
 }
 
@@ -496,10 +491,10 @@ cterm_handle_tbc(struct cterminal *cterm, int *speed)	/* CSI g */
 	cterm_seq_default(cterm, 0, 0);
 	switch (cterm->seq_param_int[0]) {
 		case 0:
-			cterm_delete_tabstop(cterm, wherex());
+			cterm_delete_tabstop(cterm, cterm_render_position_x(cterm));
 			break;
 		case 1:
-			cterm_delete_vtabstop(cterm, wherey());
+			cterm_delete_vtabstop(cterm, cterm_render_position_y(cterm));
 			break;
 		case 3:
 			cterm->tab_count = 0;
@@ -576,7 +571,7 @@ void
 cterm_handle_sl(struct cterminal *cterm, int *speed)	/* CSI SP @ */
 {
 	int i, j, k, row, col, max_row, max_col;
-	struct vmem_cell *vc;
+	struct st_console_cell *vc;
 	(void)speed;
 	row = TERM_MINY;
 	col = TERM_MINX;
@@ -590,20 +585,15 @@ cterm_handle_sl(struct cterminal *cterm, int *speed)	/* CSI SP @ */
 		return;
 	if (i > TERM_MAXX)
 		i = TERM_MAXX;
-	movetext(col + i, row, max_col, max_row, col, row);
+	cterm_render_move_cells(cterm, col + i, row, max_col, max_row, col, row);
 	j = i * TERM_MAXY;
 	vc = malloc(j * sizeof(*vc));
 	if (vc == NULL)
 		return;
 	for (k = 0; k < j; k++) {
-		vc[k].ch = ' ';
-		vc[k].legacy_attr = cterm->attr;
-		vc[k].fg = cterm->fg_color;
-		vc[k].bg = cterm->bg_color;
-		vc[k].font = ciolib_attrfont(cterm->attr);
-		vc[k].hyperlink_id = 0;
+		cterm_render_make_current_cell(cterm, &vc[k], ' ', 0);
 	}
-	vmem_puttext(max_col - i + 1, row, max_col, max_row, vc);
+	cterm_render_write_cells(cterm, max_col - i + 1, row, max_col, max_row, vc);
 	free(vc);
 }
 
@@ -611,7 +601,7 @@ void
 cterm_handle_sr(struct cterminal *cterm, int *speed)	/* CSI SP A */
 {
 	int i, j, k, row, col, max_row, max_col;
-	struct vmem_cell *vc;
+	struct st_console_cell *vc;
 	(void)speed;
 	row = TERM_MINY;
 	col = TERM_MINX;
@@ -625,20 +615,15 @@ cterm_handle_sr(struct cterminal *cterm, int *speed)	/* CSI SP A */
 		return;
 	if (i > cterm->width)
 		i = cterm->width;
-	movetext(col, row, max_col - i, max_row, col + i, row);
+	cterm_render_move_cells(cterm, col, row, max_col - i, max_row, col + i, row);
 	j = i * TERM_MAXY;
 	vc = malloc(j * sizeof(*vc));
 	if (vc == NULL)
 		return;
 	for (k = 0; k < j; k++) {
-		vc[k].ch = ' ';
-		vc[k].legacy_attr = cterm->attr;
-		vc[k].fg = cterm->fg_color;
-		vc[k].bg = cterm->bg_color;
-		vc[k].font = ciolib_attrfont(cterm->attr);
-		vc[k].hyperlink_id = 0;
+		cterm_render_make_current_cell(cterm, &vc[k], ' ', 0);
 	}
-	vmem_puttext(col, row, col + i - 1, max_row, vc);
+	cterm_render_write_cells(cterm, col, row, col + i - 1, max_row, vc);
 	free(vc);
 }
 
@@ -658,8 +643,8 @@ cterm_handle_sgr(struct cterminal *cterm, int *speed)	/* CSI m — Select Graphi
 			continue;
 		cterm_apply_sgr(cterm, &i);
 	}
-	textattr(cterm->attr);
-	setcolour(cterm->fg_color, cterm->bg_color);
+	cterm_render_set_attribute(cterm, cterm->attr);
+	cterm_render_set_colours(cterm, cterm->fg_color, cterm->bg_color);
 }
 
 void
@@ -696,14 +681,14 @@ void
 cterm_handle_hts(struct cterminal *cterm, int *speed)	/* ESC H */
 {
 	(void)speed;
-	cterm_insert_tabstop(cterm, wherex());
+	cterm_insert_tabstop(cterm, cterm_render_position_x(cterm));
 }
 
 void
 cterm_handle_vts(struct cterminal *cterm, int *speed)	/* ESC J */
 {
 	(void)speed;
-	cterm_insert_vtabstop(cterm, wherey());
+	cterm_insert_vtabstop(cterm, cterm_render_position_y(cterm));
 }
 
 void
@@ -725,9 +710,9 @@ void
 cterm_handle_ris(struct cterminal *cterm, int *speed)	/* ESC c — Reset to Initial State */
 {
 	(void)speed;
-	clrscr();
+	cterm_render_clear_window(cterm);
 	cterm_reset(cterm);
-	cterm_gotoxy(cterm, CURR_MINX, CURR_MINY);
+	cterm_set_position(cterm, CURR_MINX, CURR_MINY);
 }
 
 /* ------------------------------------------------------------------------
@@ -753,7 +738,7 @@ cterm_string_alloc(struct cterminal *cterm, int type, cterm_accumulator_fn acc)
 {
 	cterm->string = type;
 	cterm->accumulator = acc;
-	FREE_AND_NULL(cterm->strbuf);
+	CTERM_FREE_AND_CLEAR(cterm->strbuf);
 	cterm->strbuf = malloc(1024);
 	cterm->strbufsize = 1024;
 	cterm->strbuflen = 0;
@@ -832,7 +817,7 @@ cterm_handle_st(struct cterminal *cterm, int *speed)	/* ESC \ (String Terminator
 			break;
 		/* SOS, PM: no registered semantics — buffer is dropped below. */
 	}
-	FREE_AND_NULL(cterm->strbuf);
+	CTERM_FREE_AND_CLEAR(cterm->strbuf);
 	cterm->strbufsize = cterm->strbuflen = 0;
 	cterm->string = 0;
 	/* The string is done; the caller (cterm_accumulate_ecma_seq) will
@@ -884,7 +869,7 @@ cterm_accumulate_command_string(struct cterminal *cterm, unsigned char byte,
 		 * re-dispatch this byte through the normal path. */
 		cterm->string = 0;
 		cterm->accumulator = NULL;
-		FREE_AND_NULL(cterm->strbuf);
+		CTERM_FREE_AND_CLEAR(cterm->strbuf);
 		cterm->strbuflen = cterm->strbufsize = 0;
 		cterm->sixel = SIXEL_INACTIVE;
 		return false;
@@ -898,13 +883,13 @@ cterm_accumulate_command_string(struct cterminal *cterm, unsigned char byte,
 		char *p;
 		cterm->strbufsize *= 2;
 		if (cterm->strbufsize > 1024 * 1024 * 512) {
-			FREE_AND_NULL(cterm->strbuf);
+			CTERM_FREE_AND_CLEAR(cterm->strbuf);
 			cterm->strbuflen = cterm->strbufsize = 0;
 			return true;
 		}
 		p = realloc(cterm->strbuf, cterm->strbufsize);
 		if (p == NULL) {
-			FREE_AND_NULL(cterm->strbuf);
+			CTERM_FREE_AND_CLEAR(cterm->strbuf);
 			cterm->strbuflen = cterm->strbufsize = 0;
 			return true;
 		}
@@ -939,7 +924,7 @@ cterm_accumulate_sos(struct cterminal *cterm, unsigned char byte, int *speed)
 		cterm->strbuflen--;
 		cterm->string = 0;
 		cterm->accumulator = NULL;
-		FREE_AND_NULL(cterm->strbuf);
+		CTERM_FREE_AND_CLEAR(cterm->strbuf);
 		cterm->strbuflen = cterm->strbufsize = 0;
 		cterm_write(cterm, "\x1b", 1, speed);
 		cterm_write(cterm, &ch_byte, 1, speed);
@@ -956,7 +941,7 @@ cterm_accumulate_sos(struct cterminal *cterm, unsigned char byte, int *speed)
 		char *p;
 		cterm->strbufsize *= 2;
 		if (cterm->strbufsize > 1024 * 1024 * 512) {
-			FREE_AND_NULL(cterm->strbuf);
+			CTERM_FREE_AND_CLEAR(cterm->strbuf);
 			cterm->string = 0;
 			cterm->accumulator = NULL;
 			cterm->strbuflen = cterm->strbufsize = 0;
@@ -966,7 +951,7 @@ cterm_accumulate_sos(struct cterminal *cterm, unsigned char byte, int *speed)
 		if (p == NULL) {
 			cterm->string = 0;
 			cterm->accumulator = NULL;
-			FREE_AND_NULL(cterm->strbuf);
+			CTERM_FREE_AND_CLEAR(cterm->strbuf);
 			cterm->strbuflen = cterm->strbufsize = 0;
 			return true;
 		}
@@ -1018,7 +1003,7 @@ cterm_dispatch_ecma(struct cterminal *cterm, unsigned char byte, int *speed)
 			if (cterm->log == CTERM_LOG_ASCII && cterm->logfile != NULL)
 				fputs("\x07", cterm->logfile);
 			if (!cterm->quiet) {
-				putch(7);
+				cterm_render_write_byte(cterm, 7);
 			}
 			break;
 		case 12:	/* FF — clear screen (CTerm legacy) */
@@ -1029,7 +1014,7 @@ cterm_dispatch_ecma(struct cterminal *cterm, unsigned char byte, int *speed)
 			if (cterm->log == CTERM_LOG_ASCII && cterm->logfile != NULL)
 				fputs("\x0c", cterm->logfile);
 			cterm_clearscreen(cterm, (char)cterm->attr);
-			gotoxy(CURR_MINX, CURR_MINY);
+			cterm_render_set_position(cterm, CURR_MINX, CURR_MINY);
 			break;
 		case 27:	/* ESC — start a sequence, prime seq_feed() */
 			cterm_uctputs(cterm, cterm->print_buf);
@@ -1166,12 +1151,12 @@ cterm_accumulate_ecma_seq(struct cterminal *cterm, unsigned char byte, int *spee
  * Legacy SGR first, then extended colors if needed.
  */
 static void
-sgr_diff(struct cterminal *cterm, const struct vmem_cell *prev, const struct vmem_cell *next)
+sgr_diff(struct cterminal *cterm, const struct st_console_cell *prev, const struct st_console_cell *next)
 {
 	static const int cga2ansi[] = {0,4,2,6,1,5,3,7};
 	int need_reset = 0;
-	uint8_t pa = prev->legacy_attr;
-	uint8_t na = next->legacy_attr;
+	uint8_t pa = cterm_render_cell_attribute(cterm, prev);
+	uint8_t na = cterm_render_cell_attribute(cterm, next);
 
 	/* Check if we need a reset — if any attribute was ON in prev but OFF in next */
 	if ((pa & 0x08) && !(na & 0x08))	/* bold off */
@@ -1214,24 +1199,25 @@ sgr_diff(struct cterminal *cterm, const struct vmem_cell *prev, const struct vme
 			cterm_respond_printf(cterm, "\033[%sm", sgrbuf);
 	}
 
-	if (next->fg != prev->fg) {
-		if (next->fg & 0x80000000)
+	if (next->foreground != prev->foreground) {
+		if (next->foreground & 0x80000000)
 			cterm_respond_printf(cterm, "\033[38;2;%d;%d;%dm",
-			    (next->fg >> 16) & 0xff, (next->fg >> 8) & 0xff, next->fg & 0xff);
-		else if (next->fg >= 16)
-			cterm_respond_printf(cterm, "\033[38;5;%dm", next->fg & 0xffff);
+			    (next->foreground >> 16) & 0xff, (next->foreground >> 8) & 0xff, next->foreground & 0xff);
+		else if (next->foreground >= 16)
+			cterm_respond_printf(cterm, "\033[38;5;%dm", next->foreground & 0xffff);
 	}
 
-	if (next->bg != prev->bg) {
-		if (next->bg & 0x80000000)
+	if (next->background != prev->background) {
+		if (next->background & 0x80000000)
 			cterm_respond_printf(cterm, "\033[48;2;%d;%d;%dm",
-			    (next->bg >> 16) & 0xff, (next->bg >> 8) & 0xff, next->bg & 0xff);
-		else if (next->bg >= 16)
-			cterm_respond_printf(cterm, "\033[48;5;%dm", next->bg & 0xffff);
+			    (next->background >> 16) & 0xff, (next->background >> 8) & 0xff, next->background & 0xff);
+		else if (next->background >= 16)
+			cterm_respond_printf(cterm, "\033[48;5;%dm", next->background & 0xffff);
 	}
 
 	if (next->font != prev->font)
-		cterm_respond_printf(cterm, "\033[0;%d D", next->font);
+		cterm_respond_printf(cterm, "\033[0;%d D",
+		    cterm_render_cell_font(cterm, next));
 }
 
 /*
@@ -1250,8 +1236,7 @@ cterm_transmit_selected(struct cterminal *cterm)
 {
 	int start_row, start_col, end_row, end_col;
 	int cur_row, cur_col;
-	struct text_info ti;
-	struct vmem_cell *cells;
+	struct st_console_cell *cells;
 	int total_cells, i;
 	int screen_width;
 
@@ -1262,8 +1247,15 @@ cterm_transmit_selected(struct cterminal *cterm)
 	if (cterm->ssa_row == 0)
 		goto done;
 
-	gettextinfo(&ti);
-	screen_width = ti.screenwidth;
+	{
+		uint32_t columns;
+		uint32_t rows;
+
+		if (st_console_size(cterm->screen.console, &columns, &rows) != 0
+		    || columns > INT_MAX)
+			goto done;
+		screen_width = (int)columns;
+	}
 	start_row = cterm->ssa_row;
 	start_col = cterm->ssa_col;
 
@@ -1306,7 +1298,7 @@ cterm_transmit_selected(struct cterminal *cterm)
 	if (end_row < start_row || (end_row == start_row && end_col < start_col))
 		goto done;
 
-	/* Calculate total cells and read them all via vmem_gettext */
+	/* Calculate the row-major cell count before reading the selected rows. */
 	/* Convert to a linear cell range */
 	int start_linear = (start_row - 1) * screen_width + (start_col - 1);
 	int end_linear = (end_row - 1) * screen_width + (end_col - 1);
@@ -1316,7 +1308,7 @@ cterm_transmit_selected(struct cterminal *cterm)
 		goto done;
 
 	/* Read cells row by row */
-	cells = calloc(total_cells, sizeof(struct vmem_cell));
+	cells = calloc(total_cells, sizeof(struct st_console_cell));
 	if (cells == NULL)
 		goto done;
 
@@ -1330,7 +1322,7 @@ cterm_transmit_selected(struct cterminal *cterm)
 			int count = row_end - c + 1;
 			if (pos + count > total_cells)
 				count = total_cells - pos;
-			vmem_gettext(c, r, c + count - 1, r, &cells[pos]);
+			cterm_render_read_cells(cterm, c, r, c + count - 1, r, &cells[pos]);
 			pos += count;
 			r++;
 			c = 1;
@@ -1340,7 +1332,7 @@ cterm_transmit_selected(struct cterminal *cterm)
 	if (cterm->fetm) {
 		/* FETM=EXCLUDE: text only, C0/DEL → SPACE */
 		for (i = 0; i < total_cells; i++) {
-			uint8_t ch = cells[i].ch;
+			uint8_t ch = cterm_render_cell_byte(cterm, &cells[i]);
 			if (ch < 0x20 || ch == 0x7f)
 				ch = ' ';
 			cterm_respond(cterm, (char *)&ch, 1);
@@ -1348,14 +1340,13 @@ cterm_transmit_selected(struct cterminal *cterm)
 	}
 	else {
 		/* FETM=INSERT: characters with SGR diffs, hyperlinks, doorway encoding */
-		struct vmem_cell prev = {
-			.legacy_attr = 7,
-			.ch = ' ',
-			.font = 0,
-			.fg = 7,
-			.bg = 0,
-			.hyperlink_id = 0,
-		};
+		struct st_console_cell prev;
+		uint32_t foreground;
+		uint32_t background;
+
+		cterm_render_attribute_colours(cterm, 7, &foreground, &background);
+		cterm_render_make_cell(cterm, &prev, ' ', 7, foreground,
+		    background, 0, 0, 0);
 
 		for (i = 0; i < total_cells; i++) {
 			/* Emit SGR diff */
@@ -1368,13 +1359,13 @@ cterm_transmit_selected(struct cterminal *cterm)
 			 * any conformant parser silently drops.  The host parser
 			 * recognizes ESC : \ as "escaped ST" within STS content
 			 * and converts it back to ESC \ for replay. */
-			if (cells[i].hyperlink_id != prev.hyperlink_id) {
-				if (cells[i].hyperlink_id == 0) {
+			if (cells[i].hyperlink != prev.hyperlink) {
+				if (cells[i].hyperlink == 0) {
 					cterm_respond_printf(cterm, "\033]8;;\033:\\");
 				}
 				else {
-					char *url = ciolib_get_hyperlink_url(cells[i].hyperlink_id);
-					char *params = ciolib_get_hyperlink_params(cells[i].hyperlink_id);
+					char *url = cterm_render_hyperlink_url(cterm, cells[i].hyperlink);
+					char *params = cterm_render_hyperlink_params(cterm, cells[i].hyperlink);
 					cterm_respond_printf(cterm, "\033]8;%s;%s\033:\\",
 					    params ? params : "", url ? url : "");
 					free(url);
@@ -1382,7 +1373,7 @@ cterm_transmit_selected(struct cterminal *cterm)
 				}
 			}
 
-			uint8_t ch = cells[i].ch;
+			uint8_t ch = cterm_render_cell_byte(cterm, &cells[i]);
 			if (ch < 0x20 || ch == 0x7f) {
 				/* Doorway encode C0/DEL */
 				char doorway[] = "\033[=255h\x00X\033[=255l";
@@ -1605,37 +1596,35 @@ cterm_build_param_strs(struct cterminal *cterm)
 void
 cterm_ecma48_apply_sgr(struct cterminal *cterm, int *pi)
 {
-	struct text_info ti;
 	int flags;
 
-	gettextinfo(&ti);
-	flags = getvideoflags();
+	flags = cterm_render_get_video_flags(cterm);
 	switch (cterm->seq_param_int[*pi]) {
 		case 0:
 			cterm_set_negative(cterm, false);
-			cterm->attr = ti.normattr;
-			attr2palette(cterm->attr, &cterm->fg_color, &cterm->bg_color);
-			FREE_AND_NULL(cterm->fg_tc_str);
-			FREE_AND_NULL(cterm->bg_tc_str);
+			cterm->attr = cterm->screen.default_attribute;
+			cterm_render_attribute_colours(cterm, cterm->attr, &cterm->fg_color, &cterm->bg_color);
+			CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
+			CTERM_FREE_AND_CLEAR(cterm->bg_tc_str);
 			break;
 		case 1:
 			if (!cterm->skypix)
 				cterm->attr |= 8;
-			if (!(flags & CIOLIB_VIDEO_NOBRIGHT)) {
-				attr2palette(cterm->attr,
+			if (!(flags & ST_CONSOLE_VIDEO_NO_BRIGHT)) {
+				cterm_render_attribute_colours(cterm, cterm->attr,
 				    cterm->negative ? NULL : &cterm->fg_color,
 				    cterm->negative ? &cterm->fg_color : NULL);
-				FREE_AND_NULL(cterm->fg_tc_str);
+				CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
 			}
 			break;
 		case 2:
 			if (!cterm->skypix)
 				cterm->attr &= 247;
-			if (!(flags & CIOLIB_VIDEO_NOBRIGHT)) {
-				attr2palette(cterm->attr,
+			if (!(flags & ST_CONSOLE_VIDEO_NO_BRIGHT)) {
+				cterm_render_attribute_colours(cterm, cterm->attr,
 				    cterm->negative ? NULL : &cterm->fg_color,
 				    cterm->negative ? &cterm->fg_color : NULL);
-				FREE_AND_NULL(cterm->fg_tc_str);
+				CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
 			}
 			break;
 		case 4:	/* Underscore */
@@ -1644,11 +1633,11 @@ cterm_ecma48_apply_sgr(struct cterminal *cterm, int *pi)
 		case 6:
 			if (!cterm->skypix)
 				cterm->attr |= 128;
-			if (flags & CIOLIB_VIDEO_BGBRIGHT) {
-				attr2palette(cterm->attr,
+			if (flags & ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND) {
+				cterm_render_attribute_colours(cterm, cterm->attr,
 				    cterm->negative ? &cterm->bg_color : NULL,
 				    cterm->negative ? NULL : &cterm->bg_color);
-				FREE_AND_NULL(cterm->bg_tc_str);
+				CTERM_FREE_AND_CLEAR(cterm->bg_tc_str);
 			}
 			break;
 		case 7:
@@ -1661,80 +1650,80 @@ cterm_ecma48_apply_sgr(struct cterminal *cterm, int *pi)
 				cterm->attr |= j >> 4;
 			}
 			cterm->fg_color = cterm->bg_color;
-			FREE_AND_NULL(cterm->fg_tc_str);
+			CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
 			if (cterm->bg_tc_str != NULL)
 				cterm->fg_tc_str = strdup(cterm->bg_tc_str);
 			break;
 		case 22:
 			cterm->attr &= 0xf7;
-			if (!(flags & CIOLIB_VIDEO_NOBRIGHT)) {
-				attr2palette(cterm->attr,
+			if (!(flags & ST_CONSOLE_VIDEO_NO_BRIGHT)) {
+				cterm_render_attribute_colours(cterm, cterm->attr,
 				    cterm->negative ? NULL : &cterm->fg_color,
 				    cterm->negative ? &cterm->fg_color : NULL);
-				FREE_AND_NULL(cterm->fg_tc_str);
+				CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
 			}
 			break;
 		case 25:
 			cterm->attr &= 0x7f;
-			if (flags & CIOLIB_VIDEO_BGBRIGHT) {
-				attr2palette(cterm->attr,
+			if (flags & ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND) {
+				cterm_render_attribute_colours(cterm, cterm->attr,
 				    cterm->negative ? &cterm->bg_color : NULL,
 				    cterm->negative ? NULL : &cterm->bg_color);
-				FREE_AND_NULL(cterm->bg_tc_str);
+				CTERM_FREE_AND_CLEAR(cterm->bg_tc_str);
 			}
 			break;
 		case 27:
 			cterm_set_negative(cterm, false);
 			break;
 		case 30:
-			cterm_set_fgattr(cterm, cterm_skypix_color(cterm, BLACK));
+			cterm_set_fgattr(cterm, cterm_skypix_color(cterm, CTERM_COLOR_BLACK));
 			break;
 		case 31:
-			cterm_set_fgattr(cterm, cterm_skypix_color(cterm, RED));
+			cterm_set_fgattr(cterm, cterm_skypix_color(cterm, CTERM_COLOR_RED));
 			break;
 		case 32:
-			cterm_set_fgattr(cterm, cterm_skypix_color(cterm, GREEN));
+			cterm_set_fgattr(cterm, cterm_skypix_color(cterm, CTERM_COLOR_GREEN));
 			break;
 		case 33:
-			cterm_set_fgattr(cterm, cterm_skypix_color(cterm, BROWN));
+			cterm_set_fgattr(cterm, cterm_skypix_color(cterm, CTERM_COLOR_BROWN));
 			break;
 		case 34:
-			cterm_set_fgattr(cterm, cterm_skypix_color(cterm, BLUE));
+			cterm_set_fgattr(cterm, cterm_skypix_color(cterm, CTERM_COLOR_BLUE));
 			break;
 		case 35:
-			cterm_set_fgattr(cterm, cterm_skypix_color(cterm, MAGENTA));
+			cterm_set_fgattr(cterm, cterm_skypix_color(cterm, CTERM_COLOR_MAGENTA));
 			break;
 		case 36:
-			cterm_set_fgattr(cterm, cterm_skypix_color(cterm, CYAN));
+			cterm_set_fgattr(cterm, cterm_skypix_color(cterm, CTERM_COLOR_CYAN));
 			break;
 		case 37:
 		case 39:
-			cterm_set_fgattr(cterm, cterm_skypix_color(cterm, LIGHTGRAY));
+			cterm_set_fgattr(cterm, cterm_skypix_color(cterm, CTERM_COLOR_LIGHT_GRAY));
 			break;
 		case 40:
 		case 49:
-			cterm_set_bgattr(cterm, cterm_skypix_color(cterm, BLACK));
+			cterm_set_bgattr(cterm, cterm_skypix_color(cterm, CTERM_COLOR_BLACK));
 			break;
 		case 41:
-			cterm_set_bgattr(cterm, cterm_skypix_color(cterm, RED));
+			cterm_set_bgattr(cterm, cterm_skypix_color(cterm, CTERM_COLOR_RED));
 			break;
 		case 42:
-			cterm_set_bgattr(cterm, cterm_skypix_color(cterm, GREEN));
+			cterm_set_bgattr(cterm, cterm_skypix_color(cterm, CTERM_COLOR_GREEN));
 			break;
 		case 43:
-			cterm_set_bgattr(cterm, cterm_skypix_color(cterm, BROWN));
+			cterm_set_bgattr(cterm, cterm_skypix_color(cterm, CTERM_COLOR_BROWN));
 			break;
 		case 44:
-			cterm_set_bgattr(cterm, cterm_skypix_color(cterm, BLUE));
+			cterm_set_bgattr(cterm, cterm_skypix_color(cterm, CTERM_COLOR_BLUE));
 			break;
 		case 45:
-			cterm_set_bgattr(cterm, cterm_skypix_color(cterm, MAGENTA));
+			cterm_set_bgattr(cterm, cterm_skypix_color(cterm, CTERM_COLOR_MAGENTA));
 			break;
 		case 46:
-			cterm_set_bgattr(cterm, cterm_skypix_color(cterm, CYAN));
+			cterm_set_bgattr(cterm, cterm_skypix_color(cterm, CTERM_COLOR_CYAN));
 			break;
 		case 47:
-			cterm_set_bgattr(cterm, cterm_skypix_color(cterm, LIGHTGRAY));
+			cterm_set_bgattr(cterm, cterm_skypix_color(cterm, CTERM_COLOR_LIGHT_GRAY));
 			break;
 	}
 }

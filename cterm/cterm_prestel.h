@@ -12,7 +12,7 @@
  * helpers, accumulators, and single-byte dispatchers.
  *
  * The serial-attribute helpers are also called from cterm_reset,
- * cterm_gotoxy, and cterm_adjust_currpos in cterm.c to re-apply Prestel
+ * cterm_set_position, and cterm_adjust_currpos in cterm.c to re-apply Prestel
  * line state after motion or reset.
  */
 

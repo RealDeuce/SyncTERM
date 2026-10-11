@@ -35,7 +35,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "cterm_legacy_adapter.h"
+#include "cterm_render.h"
 #include "cterm.h"
 #include "cterm_internal.h"
 #include "cterm_dec.h"
@@ -45,50 +45,50 @@
 void
 cterm_handle_decscusr(struct cterminal *cterm, int *speed)	/* CSI SP q */
 {
-	int s, e, r, b, v;
+	struct st_console_custom_cursor custom = {0};
 	(void)speed;
 	cterm_seq_default(cterm, 0, 1);
 	switch (cterm->seq_param_int[0]) {
 		case 0:
 		case 1:
 		default:
-			cterm->cursor = _SOLIDCURSOR;
-			_setcursortype(_SOLIDCURSOR);
-			if (cio_api.options & CONIO_OPT_CUSTOM_CURSOR) {
-				getcustomcursor(&s, &e, &r, &b, &v);
-				b = true;
-				v = true;
-				setcustomcursor(s, e, r, b, v);
+			cterm->cursor = CTERM_CURSOR_BLOCK;
+			cterm_render_set_cursor(cterm, CTERM_CURSOR_BLOCK);
+			if (cterm->screen.capabilities & ST_CONSOLE_CAP_CUSTOM_CURSOR) {
+				cterm_render_get_custom_cursor(cterm, &custom);
+				custom.blink = true;
+				custom.visible = true;
+				cterm_render_set_custom_cursor(cterm, &custom);
 			}
 			break;
 		case 2:
-			cterm->cursor = _SOLIDCURSOR;
-			_setcursortype(_SOLIDCURSOR);
-			if (cio_api.options & CONIO_OPT_CUSTOM_CURSOR) {
-				getcustomcursor(&s, &e, &r, &b, &v);
-				b = false;
-				v = true;
-				setcustomcursor(s, e, r, b, v);
+			cterm->cursor = CTERM_CURSOR_BLOCK;
+			cterm_render_set_cursor(cterm, CTERM_CURSOR_BLOCK);
+			if (cterm->screen.capabilities & ST_CONSOLE_CAP_CUSTOM_CURSOR) {
+				cterm_render_get_custom_cursor(cterm, &custom);
+				custom.blink = false;
+				custom.visible = true;
+				cterm_render_set_custom_cursor(cterm, &custom);
 			}
 			break;
 		case 3:
-			cterm->cursor = _NORMALCURSOR;
-			_setcursortype(_NORMALCURSOR);
-			if (cio_api.options & CONIO_OPT_CUSTOM_CURSOR) {
-				getcustomcursor(&s, &e, &r, &b, &v);
-				b = true;
-				v = true;
-				setcustomcursor(s, e, r, b, v);
+			cterm->cursor = CTERM_CURSOR_UNDERLINE;
+			cterm_render_set_cursor(cterm, CTERM_CURSOR_UNDERLINE);
+			if (cterm->screen.capabilities & ST_CONSOLE_CAP_CUSTOM_CURSOR) {
+				cterm_render_get_custom_cursor(cterm, &custom);
+				custom.blink = true;
+				custom.visible = true;
+				cterm_render_set_custom_cursor(cterm, &custom);
 			}
 			break;
 		case 4:
-			cterm->cursor = _NORMALCURSOR;
-			_setcursortype(_NORMALCURSOR);
-			if (cio_api.options & CONIO_OPT_CUSTOM_CURSOR) {
-				getcustomcursor(&s, &e, &r, &b, &v);
-				b = false;
-				v = true;
-				setcustomcursor(s, e, r, b, v);
+			cterm->cursor = CTERM_CURSOR_UNDERLINE;
+			cterm_render_set_cursor(cterm, CTERM_CURSOR_UNDERLINE);
+			if (cterm->screen.capabilities & ST_CONSOLE_CAP_CUSTOM_CURSOR) {
+				cterm_render_get_custom_cursor(cterm, &custom);
+				custom.blink = false;
+				custom.visible = true;
+				cterm_render_set_custom_cursor(cterm, &custom);
 			}
 			break;
 	}
@@ -224,7 +224,7 @@ cterm_handle_deccra(struct cterminal *cterm, int *speed)	/* CSI Pts;...;Ppd $ v 
 {
 	int st, sl, sb, sr, dt, dl;
 	int sw, sh, i;
-	struct vmem_cell *buf;
+	struct st_console_cell *buf;
 	(void)speed;
 	cterm_seq_default(cterm, 0, 1);
 	cterm_seq_default(cterm, 1, 1);
@@ -267,8 +267,8 @@ cterm_handle_deccra(struct cterminal *cterm, int *speed)	/* CSI Pts;...;Ppd $ v 
 	buf = calloc(sw, sizeof(*buf));
 	if (buf) {
 		for (i = 0; i < sh; i++) {
-			vmem_gettext(sl, st + i, sl + sw - 1, st + i, buf);
-			vmem_puttext(dl, dt + i, dl + sw - 1, dt + i, buf);
+			cterm_render_read_cells(cterm, sl, st + i, sl + sw - 1, st + i, buf);
+			cterm_render_write_cells(cterm, dl, dt + i, dl + sw - 1, dt + i, buf);
 		}
 		free(buf);
 	}
@@ -279,8 +279,8 @@ cterm_handle_decic(struct cterminal *cterm, int *speed)	/* CSI Pn ' } */
 {
 	int cx, cy;
 	int n, scx, scy, srx, sry, width, keep, c, r;
-	struct vmem_cell *rowbuf;
-	struct vmem_cell blank = {0};
+	struct st_console_cell *rowbuf;
+	struct st_console_cell blank = {0};
 	(void)speed;
 	cterm_seq_default(cterm, 0, 1);
 	TERM_XY(&cx, &cy);
@@ -303,18 +303,13 @@ cterm_handle_decic(struct cterminal *cterm, int *speed)	/* CSI Pn ' } */
 	rowbuf = calloc(width, sizeof(*rowbuf));
 	if (rowbuf == NULL)
 		return;
-	blank.ch = ' ';
-	blank.legacy_attr = cterm->attr;
-	blank.fg = cterm->fg_color;
-	blank.bg = cterm->bg_color;
-	blank.font = ciolib_attrfont(cterm->attr);
-	blank.hyperlink_id = 0;
+	cterm_render_make_current_cell(cterm, &blank, ' ', 0);
 	for (r = scy; r <= sry; r++) {
-		vmem_gettext(scx, r, srx, r, rowbuf);
+		cterm_render_read_cells(cterm, scx, r, srx, r, rowbuf);
 		memmove(&rowbuf[n], &rowbuf[0], keep * sizeof(*rowbuf));
 		for (c = 0; c < n; c++)
 			rowbuf[c] = blank;
-		vmem_puttext(scx, r, srx, r, rowbuf);
+		cterm_render_write_cells(cterm, scx, r, srx, r, rowbuf);
 	}
 	free(rowbuf);
 }
@@ -324,8 +319,8 @@ cterm_handle_decdc(struct cterminal *cterm, int *speed)	/* CSI Pn ' ~ */
 {
 	int cx, cy;
 	int n, scx, scy, srx, sry, width, keep, c, r;
-	struct vmem_cell *rowbuf;
-	struct vmem_cell blank = {0};
+	struct st_console_cell *rowbuf;
+	struct st_console_cell blank = {0};
 	(void)speed;
 	cterm_seq_default(cterm, 0, 1);
 	TERM_XY(&cx, &cy);
@@ -348,18 +343,13 @@ cterm_handle_decdc(struct cterminal *cterm, int *speed)	/* CSI Pn ' ~ */
 	rowbuf = calloc(width, sizeof(*rowbuf));
 	if (rowbuf == NULL)
 		return;
-	blank.ch = ' ';
-	blank.legacy_attr = cterm->attr;
-	blank.fg = cterm->fg_color;
-	blank.bg = cterm->bg_color;
-	blank.font = ciolib_attrfont(cterm->attr);
-	blank.hyperlink_id = 0;
+	cterm_render_make_current_cell(cterm, &blank, ' ', 0);
 	for (r = scy; r <= sry; r++) {
-		vmem_gettext(scx, r, srx, r, rowbuf);
+		cterm_render_read_cells(cterm, scx, r, srx, r, rowbuf);
 		memmove(&rowbuf[0], &rowbuf[n], keep * sizeof(*rowbuf));
 		for (c = keep; c < width; c++)
 			rowbuf[c] = blank;
-		vmem_puttext(scx, r, srx, r, rowbuf);
+		cterm_render_write_cells(cterm, scx, r, srx, r, rowbuf);
 	}
 	free(rowbuf);
 }
@@ -409,9 +399,10 @@ cterm_handle_deccara(struct cterminal *cterm, int *speed)	/* CSI Pt;Pl;Pb;Pr;...
 		uint32_t save_fg = cterm->fg_color;
 		uint32_t save_bg = cterm->bg_color;
 		bool save_neg = cterm->negative;
+		uint32_t save_flags = cterm->cell_flags;
 		char *save_fg_tc = cterm->fg_tc_str ? strdup(cterm->fg_tc_str) : NULL;
 		char *save_bg_tc = cterm->bg_tc_str ? strdup(cterm->bg_tc_str) : NULL;
-		struct vmem_cell *rowbuf;
+		struct st_console_cell *rowbuf;
 		st = top; sl = left; sb = bottom; sr = right;
 		cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_SCREEN, &sl, &st);
 		cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_SCREEN, &sr, &sb);
@@ -428,31 +419,38 @@ cterm_handle_deccara(struct cterminal *cterm, int *speed)	/* CSI Pt;Pl;Pb;Pr;...
 					c_start = sl;
 					c_end = sr;
 				}
-				vmem_gettext(c_start, r, c_end, r, rowbuf);
+				cterm_render_read_cells(cterm, c_start, r, c_end, r, rowbuf);
 				int cnt = c_end - c_start + 1;
 				for (int c = 0; c < cnt; c++) {
-					cterm->attr = rowbuf[c].legacy_attr;
-					cterm->fg_color = rowbuf[c].fg;
-					cterm->bg_color = rowbuf[c].bg;
+					uint8_t byte = cterm_render_cell_byte(cterm,
+					    &rowbuf[c]);
+					cterm->attr = cterm_render_cell_attribute(cterm,
+					    &rowbuf[c]);
+					cterm->fg_color = rowbuf[c].foreground;
+					cterm->bg_color = rowbuf[c].background;
+					cterm->cell_flags = rowbuf[c].flags
+					    & ~(ST_CONSOLE_CELL_BRIGHT
+					    | ST_CONSOLE_CELL_BLINK
+					    | ST_CONSOLE_CELL_LEGACY_FOREGROUND
+					    | ST_CONSOLE_CELL_LEGACY_BACKGROUND);
 					cterm->negative = false;
-					FREE_AND_NULL(cterm->fg_tc_str);
-					FREE_AND_NULL(cterm->bg_tc_str);
+					CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
+					CTERM_FREE_AND_CLEAR(cterm->bg_tc_str);
 					for (int p = 4; p < cterm->seq_param_count; p++)
 						cterm_apply_sgr(cterm, &p);
-					rowbuf[c].legacy_attr = cterm->attr;
-					rowbuf[c].fg = cterm->fg_color;
-					rowbuf[c].bg = cterm->bg_color;
-					rowbuf[c].font = ciolib_attrfont(cterm->attr);
+					cterm_render_make_current_cell(cterm, &rowbuf[c],
+					    byte, rowbuf[c].hyperlink);
 				}
-				vmem_puttext(c_start, r, c_end, r, rowbuf);
+				cterm_render_write_cells(cterm, c_start, r, c_end, r, rowbuf);
 			}
 			free(rowbuf);
 		}
-		FREE_AND_NULL(cterm->fg_tc_str);
-		FREE_AND_NULL(cterm->bg_tc_str);
+		CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
+		CTERM_FREE_AND_CLEAR(cterm->bg_tc_str);
 		cterm->attr = save_attr;
 		cterm->fg_color = save_fg;
 		cterm->bg_color = save_bg;
+		cterm->cell_flags = save_flags;
 		cterm->negative = save_neg;
 		cterm->fg_tc_str = save_fg_tc;
 		cterm->bg_tc_str = save_bg_tc;
@@ -464,7 +462,7 @@ cterm_handle_decrara(struct cterminal *cterm, int *speed)	/* CSI Pt;Pl;Pb;Pr;...
 {
 	int top, left, bottom, right;
 	int st, sl, sb, sr, bufsz;
-	struct vmem_cell *rowbuf;
+	struct st_console_cell *rowbuf;
 	(void)speed;
 	cterm_seq_default(cterm, 0, 1);
 	cterm_seq_default(cterm, 1, 1);
@@ -512,49 +510,58 @@ cterm_handle_decrara(struct cterminal *cterm, int *speed)	/* CSI Pt;Pl;Pb;Pr;...
 			c_start = sl;
 			c_end = sr;
 		}
-		vmem_gettext(c_start, r, c_end, r, rowbuf);
+		cterm_render_read_cells(cterm, c_start, r, c_end, r, rowbuf);
 		int cnt = c_end - c_start + 1;
 		for (int c = 0; c < cnt; c++) {
+			uint8_t attribute = cterm_render_cell_attribute(cterm,
+			    &rowbuf[c]);
 			for (int p = 4; p < cterm->seq_param_count; p++) {
 				cterm_seq_default(cterm, p, 0);
 				switch (cterm->seq_param_int[p]) {
 					case 0:
-						rowbuf[c].legacy_attr ^= 0x88;
-						attr2palette(rowbuf[c].legacy_attr, &rowbuf[c].fg, NULL);
-						attr2palette(rowbuf[c].legacy_attr, NULL, &rowbuf[c].bg);
+					attribute ^= 0x88;
+					cterm_render_attribute_colours(cterm, attribute, &rowbuf[c].foreground, NULL);
+					cterm_render_attribute_colours(cterm, attribute, NULL, &rowbuf[c].background);
 						{
-							uint32_t tfg = rowbuf[c].fg;
-							rowbuf[c].fg = rowbuf[c].bg;
-							rowbuf[c].bg = tfg;
+							uint32_t tfg = rowbuf[c].foreground;
+							rowbuf[c].foreground = rowbuf[c].background;
+							rowbuf[c].background = tfg;
 						}
 						break;
 					case 1:
 					case 22:
-						rowbuf[c].legacy_attr ^= 0x08;
-						attr2palette(rowbuf[c].legacy_attr, &rowbuf[c].fg, NULL);
+					attribute ^= 0x08;
+					cterm_render_attribute_colours(cterm, attribute, &rowbuf[c].foreground, NULL);
 						break;
 					case 5:
 					case 25:
-						rowbuf[c].legacy_attr ^= 0x80;
-						attr2palette(rowbuf[c].legacy_attr, NULL, &rowbuf[c].bg);
+					attribute ^= 0x80;
+					cterm_render_attribute_colours(cterm, attribute, NULL, &rowbuf[c].background);
 						break;
 					case 7:
 					case 27:
 					{
-						uint8_t a = rowbuf[c].legacy_attr;
+						uint8_t a = attribute;
 						uint8_t fg_nibble = a & 0x0f;
 						uint8_t bg_nibble = (a >> 4) & 0x0f;
-						rowbuf[c].legacy_attr = (fg_nibble << 4) | bg_nibble;
-						uint32_t tfg = rowbuf[c].fg;
-						rowbuf[c].fg = rowbuf[c].bg;
-						rowbuf[c].bg = tfg;
+						attribute = (fg_nibble << 4) | bg_nibble;
+						uint32_t tfg = rowbuf[c].foreground;
+						rowbuf[c].foreground = rowbuf[c].background;
+						rowbuf[c].background = tfg;
 						break;
 					}
 				}
 			}
-			rowbuf[c].font = ciolib_attrfont(rowbuf[c].legacy_attr);
+			cterm_render_make_cell(cterm, &rowbuf[c],
+			    cterm_render_cell_byte(cterm, &rowbuf[c]), attribute,
+			    rowbuf[c].foreground, rowbuf[c].background,
+			    cterm_render_attribute_font(cterm, attribute),
+			    rowbuf[c].hyperlink, rowbuf[c].flags
+			    & ~(ST_CONSOLE_CELL_BRIGHT | ST_CONSOLE_CELL_BLINK
+			    | ST_CONSOLE_CELL_LEGACY_FOREGROUND
+			    | ST_CONSOLE_CELL_LEGACY_BACKGROUND));
 		}
-		vmem_puttext(c_start, r, c_end, r, rowbuf);
+		cterm_render_write_cells(cterm, c_start, r, c_end, r, rowbuf);
 	}
 	free(rowbuf);
 }
@@ -627,7 +634,8 @@ cterm_handle_deccksr(struct cterminal *cterm, int *speed)	/* CSI Pid;1;Pt;Pl;Pb;
 			 * no-padding layout assertion. The checksum is therefore the raw
 			 * row-major modern cell rectangle, including every defined byte.
 			 */
-			crc = crc16(cells, count * sizeof(*cells));
+			crc = cterm_render_crc16(cells,
+			    count * sizeof(*cells), 0);
 			cterm_respond_printf(cterm, "\x1bP%u!~%04X\x1b\\",
 			    (unsigned)cterm->seq_param_int[0], crc);
 		}
@@ -644,7 +652,7 @@ cterm_handle_decrqm_dec(struct cterminal *cterm, int *speed)	/* CSI ? $ p */
 	if (cterm->seq_param_count != 1)
 		return;
 	cterm_seq_default(cterm, 0, 0);
-	vidflags = getvideoflags();
+	vidflags = cterm_render_get_video_flags(cterm);
 	switch (cterm->seq_param_int[0]) {
 		case 6:
 			pm = (cterm->extattr & CTERM_EXTATTR_ORIGINMODE) ? 1 : 2;
@@ -653,22 +661,22 @@ cterm_handle_decrqm_dec(struct cterminal *cterm, int *speed)	/* CSI ? $ p */
 			pm = (cterm->extattr & CTERM_EXTATTR_AUTOWRAP) ? 1 : 2;
 			break;
 		case 25:
-			pm = (cterm->cursor == _NORMALCURSOR) ? 1 : 2;
+			pm = (cterm->cursor == CTERM_CURSOR_UNDERLINE) ? 1 : 2;
 			break;
 		case 31:
-			pm = (vidflags & CIOLIB_VIDEO_ALTCHARS) ? 1 : 2;
+			pm = (vidflags & ST_CONSOLE_VIDEO_ALT_CHARS) ? 1 : 2;
 			break;
 		case 32:
-			pm = (vidflags & CIOLIB_VIDEO_NOBRIGHT) ? 1 : 2;
+			pm = (vidflags & ST_CONSOLE_VIDEO_NO_BRIGHT) ? 1 : 2;
 			break;
 		case 33:
-			pm = (vidflags & CIOLIB_VIDEO_BGBRIGHT) ? 1 : 2;
+			pm = (vidflags & ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND) ? 1 : 2;
 			break;
 		case 34:
-			pm = (vidflags & CIOLIB_VIDEO_BLINKALTCHARS) ? 1 : 2;
+			pm = (vidflags & ST_CONSOLE_VIDEO_BLINK_ALT_CHARS) ? 1 : 2;
 			break;
 		case 35:
-			pm = (vidflags & CIOLIB_VIDEO_NOBLINK) ? 1 : 2;
+			pm = (vidflags & ST_CONSOLE_VIDEO_NO_BLINK) ? 1 : 2;
 			break;
 		case 67:
 			pm = (cterm->extattr & CTERM_EXTATTR_DECBKM) ? 1 : 2;
@@ -705,12 +713,10 @@ cterm_handle_decrqm_dec(struct cterminal *cterm, int *speed)	/* CSI ? $ p */
 void
 cterm_handle_save_dec_modes(struct cterminal *cterm, int *speed)	/* CSI ? s */
 {
-	struct text_info ti;
 	int flags;
 	int i;
 	(void)speed;
-	gettextinfo(&ti);
-	flags = getvideoflags();
+	flags = cterm_render_get_video_flags(cterm);
 	if (cterm->seq_param_count == 0) {
 		cterm->saved_mode_mask |= (CTERM_SAVEMODE_AUTOWRAP
 		    | CTERM_SAVEMODE_CURSOR | CTERM_SAVEMODE_ALTCHARS
@@ -727,12 +733,12 @@ cterm_handle_save_dec_modes(struct cterminal *cterm, int *speed)	/* CSI ? s */
 		    | CTERM_SAVEMODE_DECLRMM | CTERM_SAVEMODE_DECBKM);
 		cterm->saved_mode &= ~cterm->saved_mode_mask;
 		cterm->saved_mode |= (cterm->extattr & CTERM_EXTATTR_AUTOWRAP) ? CTERM_SAVEMODE_AUTOWRAP : 0;
-		cterm->saved_mode |= (cterm->cursor == _NORMALCURSOR) ? CTERM_SAVEMODE_CURSOR : 0;
-		cterm->saved_mode |= (flags & CIOLIB_VIDEO_ALTCHARS) ? CTERM_SAVEMODE_ALTCHARS : 0;
-		cterm->saved_mode |= (flags & CIOLIB_VIDEO_NOBRIGHT) ? CTERM_SAVEMODE_NOBRIGHT : 0;
-		cterm->saved_mode |= (flags & CIOLIB_VIDEO_BGBRIGHT) ? CTERM_SAVEMODE_BGBRIGHT : 0;
-		cterm->saved_mode |= (flags & CIOLIB_VIDEO_BLINKALTCHARS) ? CTERM_SAVEMODE_BLINKALTCHARS : 0;
-		cterm->saved_mode |= (flags & CIOLIB_VIDEO_NOBLINK) ? CTERM_SAVEMODE_NOBLINK : 0;
+		cterm->saved_mode |= (cterm->cursor == CTERM_CURSOR_UNDERLINE) ? CTERM_SAVEMODE_CURSOR : 0;
+		cterm->saved_mode |= (flags & ST_CONSOLE_VIDEO_ALT_CHARS) ? CTERM_SAVEMODE_ALTCHARS : 0;
+		cterm->saved_mode |= (flags & ST_CONSOLE_VIDEO_NO_BRIGHT) ? CTERM_SAVEMODE_NOBRIGHT : 0;
+		cterm->saved_mode |= (flags & ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND) ? CTERM_SAVEMODE_BGBRIGHT : 0;
+		cterm->saved_mode |= (flags & ST_CONSOLE_VIDEO_BLINK_ALT_CHARS) ? CTERM_SAVEMODE_BLINKALTCHARS : 0;
+		cterm->saved_mode |= (flags & ST_CONSOLE_VIDEO_NO_BLINK) ? CTERM_SAVEMODE_NOBLINK : 0;
 		cterm->saved_mode |= (cterm->extattr & CTERM_EXTATTR_ORIGINMODE) ? CTERM_SAVEMODE_ORIGIN : 0;
 		cterm->saved_mode |= (cterm->extattr & CTERM_EXTATTR_SXSCROLL) ? CTERM_SAVEMODE_SIXEL_SCROLL : 0;
 		cterm->saved_mode |= (cterm->mouse_state_query(9, cterm->mouse_state_query_cbdata) ? CTERM_SAVEMODE_MOUSE_X10 : 0);
@@ -748,7 +754,7 @@ cterm_handle_save_dec_modes(struct cterminal *cterm, int *speed)	/* CSI ? s */
 		cterm->saved_mode |= (cterm->mouse_state_query(1016, cterm->mouse_state_query_cbdata) ? CTERM_SAVEMODE_MOUSE_SGR_PIXELS : 0);
 		cterm->saved_mode |= (cterm->extattr & CTERM_EXTATTR_DECLRMM) ? CTERM_SAVEMODE_DECLRMM : 0;
 		cterm->saved_mode |= (cterm->extattr & CTERM_EXTATTR_DECBKM) ? CTERM_SAVEMODE_DECBKM : 0;
-		setwindow(cterm);
+		cterm_apply_window(cterm);
 		return;
 	}
 	for (i = 0; i < cterm->seq_param_count; i++) {
@@ -758,7 +764,7 @@ cterm_handle_save_dec_modes(struct cterminal *cterm, int *speed)	/* CSI ? s */
 				cterm->saved_mode_mask |= CTERM_SAVEMODE_ORIGIN;
 				cterm->saved_mode &= ~CTERM_SAVEMODE_ORIGIN;
 				cterm->saved_mode |= (cterm->extattr & CTERM_EXTATTR_ORIGINMODE) ? CTERM_SAVEMODE_ORIGIN : 0;
-				setwindow(cterm);
+				cterm_apply_window(cterm);
 				break;
 			case 7:
 				cterm->saved_mode_mask |= CTERM_SAVEMODE_AUTOWRAP;
@@ -773,32 +779,32 @@ cterm_handle_save_dec_modes(struct cterminal *cterm, int *speed)	/* CSI ? s */
 			case 25:
 				cterm->saved_mode_mask |= CTERM_SAVEMODE_CURSOR;
 				cterm->saved_mode &= ~CTERM_SAVEMODE_CURSOR;
-				cterm->saved_mode |= (cterm->cursor == _NORMALCURSOR) ? CTERM_SAVEMODE_CURSOR : 0;
+				cterm->saved_mode |= (cterm->cursor == CTERM_CURSOR_UNDERLINE) ? CTERM_SAVEMODE_CURSOR : 0;
 				break;
 			case 31:
 				cterm->saved_mode_mask |= CTERM_SAVEMODE_ALTCHARS;
 				cterm->saved_mode &= ~CTERM_SAVEMODE_ALTCHARS;
-				cterm->saved_mode |= (flags & CIOLIB_VIDEO_ALTCHARS) ? CTERM_SAVEMODE_ALTCHARS : 0;
+				cterm->saved_mode |= (flags & ST_CONSOLE_VIDEO_ALT_CHARS) ? CTERM_SAVEMODE_ALTCHARS : 0;
 				break;
 			case 32:
 				cterm->saved_mode_mask |= CTERM_SAVEMODE_NOBRIGHT;
 				cterm->saved_mode &= ~CTERM_SAVEMODE_NOBRIGHT;
-				cterm->saved_mode |= (flags & CIOLIB_VIDEO_NOBRIGHT) ? CTERM_SAVEMODE_NOBRIGHT : 0;
+				cterm->saved_mode |= (flags & ST_CONSOLE_VIDEO_NO_BRIGHT) ? CTERM_SAVEMODE_NOBRIGHT : 0;
 				break;
 			case 33:
 				cterm->saved_mode_mask |= CTERM_SAVEMODE_BGBRIGHT;
 				cterm->saved_mode &= ~CTERM_SAVEMODE_BGBRIGHT;
-				cterm->saved_mode |= (flags & CIOLIB_VIDEO_BGBRIGHT) ? CTERM_SAVEMODE_BGBRIGHT : 0;
+				cterm->saved_mode |= (flags & ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND) ? CTERM_SAVEMODE_BGBRIGHT : 0;
 				break;
 			case 34:
 				cterm->saved_mode_mask |= CTERM_SAVEMODE_BLINKALTCHARS;
 				cterm->saved_mode &= ~CTERM_SAVEMODE_BLINKALTCHARS;
-				cterm->saved_mode |= (flags & CIOLIB_VIDEO_BLINKALTCHARS) ? CTERM_SAVEMODE_BLINKALTCHARS : 0;
+				cterm->saved_mode |= (flags & ST_CONSOLE_VIDEO_BLINK_ALT_CHARS) ? CTERM_SAVEMODE_BLINKALTCHARS : 0;
 				break;
 			case 35:
 				cterm->saved_mode_mask |= CTERM_SAVEMODE_NOBLINK;
 				cterm->saved_mode &= ~CTERM_SAVEMODE_NOBLINK;
-				cterm->saved_mode |= (flags & CIOLIB_VIDEO_NOBLINK) ? CTERM_SAVEMODE_NOBLINK : 0;
+				cterm->saved_mode |= (flags & ST_CONSOLE_VIDEO_NO_BLINK) ? CTERM_SAVEMODE_NOBLINK : 0;
 				break;
 			case 67:
 				cterm->saved_mode_mask |= CTERM_SAVEMODE_DECBKM;
@@ -872,14 +878,12 @@ cterm_handle_save_dec_modes(struct cterminal *cterm, int *speed)	/* CSI ? s */
 void
 cterm_handle_restore_dec_modes(struct cterminal *cterm, int *speed)	/* CSI ? u */
 {
-	struct text_info ti;
 	int flags, i;
 	uint32_t oldfg, oldbg;
 	bool updfg, updbg;
 	(void)speed;
-	gettextinfo(&ti);
-	flags = getvideoflags();
-	attr2palette(cterm->attr, &oldfg, &oldbg);
+	flags = cterm_render_get_video_flags(cterm);
+	cterm_render_attribute_colours(cterm, cterm->attr, &oldfg, &oldbg);
 	updfg = (oldfg == cterm->fg_color);
 	updbg = (oldbg == cterm->bg_color);
 	if (cterm->seq_param_count == 0) {
@@ -888,7 +892,7 @@ cterm_handle_restore_dec_modes(struct cterminal *cterm, int *speed)	/* CSI ? u *
 				cterm->extattr |= CTERM_EXTATTR_ORIGINMODE;
 			else
 				cterm->extattr &= ~CTERM_EXTATTR_ORIGINMODE;
-			setwindow(cterm);
+			cterm_apply_window(cterm);
 		}
 		if (cterm->saved_mode_mask & CTERM_SAVEMODE_AUTOWRAP) {
 			if (cterm->saved_mode & CTERM_SAVEMODE_AUTOWRAP)
@@ -903,40 +907,40 @@ cterm_handle_restore_dec_modes(struct cterminal *cterm, int *speed)	/* CSI ? u *
 				cterm->extattr &= ~CTERM_EXTATTR_SXSCROLL;
 		}
 		if (cterm->saved_mode_mask & CTERM_SAVEMODE_CURSOR) {
-			cterm->cursor = (cterm->saved_mode & CTERM_SAVEMODE_CURSOR) ? _NORMALCURSOR : _NOCURSOR;
-			ciolib_setcursortype(cterm->cursor);
+			cterm->cursor = (cterm->saved_mode & CTERM_SAVEMODE_CURSOR) ? CTERM_CURSOR_UNDERLINE : CTERM_CURSOR_HIDDEN;
+			cterm_render_set_cursor(cterm, cterm->cursor);
 		}
 		if (cterm->saved_mode_mask & CTERM_SAVEMODE_ALTCHARS) {
 			if (cterm->saved_mode & CTERM_SAVEMODE_ALTCHARS)
-				flags |= CIOLIB_VIDEO_ALTCHARS;
+				flags |= ST_CONSOLE_VIDEO_ALT_CHARS;
 			else
-				flags &= ~CIOLIB_VIDEO_ALTCHARS;
+				flags &= ~ST_CONSOLE_VIDEO_ALT_CHARS;
 		}
 		if (cterm->saved_mode_mask & CTERM_SAVEMODE_BLINKALTCHARS) {
 			if (cterm->saved_mode & CTERM_SAVEMODE_BLINKALTCHARS)
-				flags |= CIOLIB_VIDEO_BLINKALTCHARS;
+				flags |= ST_CONSOLE_VIDEO_BLINK_ALT_CHARS;
 			else
-				flags &= ~CIOLIB_VIDEO_BLINKALTCHARS;
+				flags &= ~ST_CONSOLE_VIDEO_BLINK_ALT_CHARS;
 		}
 		if (cterm->saved_mode_mask & CTERM_SAVEMODE_NOBRIGHT) {
 			if (cterm->saved_mode & CTERM_SAVEMODE_NOBRIGHT)
-				flags |= CIOLIB_VIDEO_NOBRIGHT;
+				flags |= ST_CONSOLE_VIDEO_NO_BRIGHT;
 			else
-				flags &= ~CIOLIB_VIDEO_NOBRIGHT;
+				flags &= ~ST_CONSOLE_VIDEO_NO_BRIGHT;
 		}
 		if (cterm->saved_mode_mask & CTERM_SAVEMODE_NOBLINK) {
 			if (cterm->saved_mode & CTERM_SAVEMODE_NOBLINK)
-				flags |= CIOLIB_VIDEO_NOBLINK;
+				flags |= ST_CONSOLE_VIDEO_NO_BLINK;
 			else
-				flags &= ~CIOLIB_VIDEO_NOBLINK;
+				flags &= ~ST_CONSOLE_VIDEO_NO_BLINK;
 		}
 		if (cterm->saved_mode_mask & CTERM_SAVEMODE_BGBRIGHT) {
 			if (cterm->saved_mode & CTERM_SAVEMODE_BGBRIGHT)
-				flags |= CIOLIB_VIDEO_BGBRIGHT;
+				flags |= ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND;
 			else
-				flags &= ~CIOLIB_VIDEO_BGBRIGHT;
+				flags &= ~ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND;
 		}
-		setvideoflags(flags);
+		cterm_render_set_video_flags(cterm, flags);
 		if (cterm->saved_mode_mask & CTERM_SAVEMODE_MOUSE_X10)
 			cterm->mouse_state_change(9, cterm->saved_mode & CTERM_SAVEMODE_MOUSE_X10, cterm->mouse_state_change_cbdata);
 		if (cterm->saved_mode_mask & CTERM_SAVEMODE_MOUSE_NORMAL)
@@ -983,7 +987,7 @@ cterm_handle_restore_dec_modes(struct cterminal *cterm, int *speed)	/* CSI ? u *
 					else
 						cterm->extattr &= ~CTERM_EXTATTR_ORIGINMODE;
 				}
-				setwindow(cterm);
+				cterm_apply_window(cterm);
 				break;
 			case 7:
 				if (cterm->saved_mode_mask & CTERM_SAVEMODE_AUTOWRAP) {
@@ -999,53 +1003,53 @@ cterm_handle_restore_dec_modes(struct cterminal *cterm, int *speed)	/* CSI ? u *
 				break;
 			case 25:
 				if (cterm->saved_mode_mask & CTERM_SAVEMODE_CURSOR) {
-					cterm->cursor = (cterm->saved_mode & CTERM_SAVEMODE_CURSOR) ? _NORMALCURSOR : _NOCURSOR;
-					ciolib_setcursortype(cterm->cursor);
+					cterm->cursor = (cterm->saved_mode & CTERM_SAVEMODE_CURSOR) ? CTERM_CURSOR_UNDERLINE : CTERM_CURSOR_HIDDEN;
+					cterm_render_set_cursor(cterm, cterm->cursor);
 				}
 				break;
 			case 31:
 				if (cterm->saved_mode_mask & CTERM_SAVEMODE_ALTCHARS) {
 					if (cterm->saved_mode & CTERM_SAVEMODE_ALTCHARS)
-						flags |= CIOLIB_VIDEO_ALTCHARS;
+						flags |= ST_CONSOLE_VIDEO_ALT_CHARS;
 					else
-						flags &= ~CIOLIB_VIDEO_ALTCHARS;
-					setvideoflags(flags);
+						flags &= ~ST_CONSOLE_VIDEO_ALT_CHARS;
+					cterm_render_set_video_flags(cterm, flags);
 				}
 				break;
 			case 32:
 				if (cterm->saved_mode_mask & CTERM_SAVEMODE_NOBRIGHT) {
 					if (cterm->saved_mode & CTERM_SAVEMODE_NOBRIGHT)
-						flags |= CIOLIB_VIDEO_NOBRIGHT;
+						flags |= ST_CONSOLE_VIDEO_NO_BRIGHT;
 					else
-						flags &= ~CIOLIB_VIDEO_NOBRIGHT;
-					setvideoflags(flags);
+						flags &= ~ST_CONSOLE_VIDEO_NO_BRIGHT;
+					cterm_render_set_video_flags(cterm, flags);
 				}
 				break;
 			case 33:
 				if (cterm->saved_mode_mask & CTERM_SAVEMODE_BGBRIGHT) {
 					if (cterm->saved_mode & CTERM_SAVEMODE_BGBRIGHT)
-						flags |= CIOLIB_VIDEO_BGBRIGHT;
+						flags |= ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND;
 					else
-						flags &= ~CIOLIB_VIDEO_BGBRIGHT;
-					setvideoflags(flags);
+						flags &= ~ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND;
+					cterm_render_set_video_flags(cterm, flags);
 				}
 				break;
 			case 34:
 				if (cterm->saved_mode_mask & CTERM_SAVEMODE_BLINKALTCHARS) {
 					if (cterm->saved_mode & CTERM_SAVEMODE_BLINKALTCHARS)
-						flags |= CIOLIB_VIDEO_BLINKALTCHARS;
+						flags |= ST_CONSOLE_VIDEO_BLINK_ALT_CHARS;
 					else
-						flags &= ~CIOLIB_VIDEO_BLINKALTCHARS;
-					setvideoflags(flags);
+						flags &= ~ST_CONSOLE_VIDEO_BLINK_ALT_CHARS;
+					cterm_render_set_video_flags(cterm, flags);
 				}
 				break;
 			case 35:
 				if (cterm->saved_mode_mask & CTERM_SAVEMODE_NOBLINK) {
 					if (cterm->saved_mode & CTERM_SAVEMODE_NOBLINK)
-						flags |= CIOLIB_VIDEO_NOBLINK;
+						flags |= ST_CONSOLE_VIDEO_NO_BLINK;
 					else
-						flags &= ~CIOLIB_VIDEO_NOBLINK;
-					setvideoflags(flags);
+						flags &= ~ST_CONSOLE_VIDEO_NO_BLINK;
+					cterm_render_set_video_flags(cterm, flags);
 				}
 				break;
 			case 67:
@@ -1116,19 +1120,19 @@ cterm_handle_restore_dec_modes(struct cterminal *cterm, int *speed)	/* CSI ? u *
 	}
 finish:
 	if (updfg || updbg) {
-		attr2palette(cterm->attr, updfg ? &cterm->fg_color : NULL,
+		cterm_render_attribute_colours(cterm, cterm->attr, updfg ? &cterm->fg_color : NULL,
 		    updbg ? &cterm->bg_color : NULL);
 		if (updfg) {
 			if (cterm->negative)
-				FREE_AND_NULL(cterm->bg_tc_str);
+				CTERM_FREE_AND_CLEAR(cterm->bg_tc_str);
 			else
-				FREE_AND_NULL(cterm->fg_tc_str);
+				CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
 		}
 		if (updbg) {
 			if (cterm->negative)
-				FREE_AND_NULL(cterm->fg_tc_str);
+				CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
 			else
-				FREE_AND_NULL(cterm->bg_tc_str);
+				CTERM_FREE_AND_CLEAR(cterm->bg_tc_str);
 		}
 	}
 }
@@ -1149,7 +1153,7 @@ cterm_handle_decrc(struct cterminal *cterm, int *speed)	/* ESC 8 */
 		if (cterm->save_ypos < CURR_MINY || cterm->save_ypos > CURR_MAXY
 		    || cterm->save_xpos < CURR_MINX || cterm->save_xpos > CURR_MAXX)
 			return;
-		gotoxy(cterm->save_xpos, cterm->save_ypos);
+		cterm_render_set_position(cterm, cterm->save_xpos, cterm->save_ypos);
 	}
 }
 
@@ -1169,14 +1173,14 @@ cterm_handle_decsm(struct cterminal *cterm, int *speed)	/* CSI ? h */
 				cterm_clear_lcf(cterm);
 				cterm->extattr |= CTERM_EXTATTR_ORIGINMODE;
 				cterm_clear_selection(cterm);
-				setwindow(cterm);
+				cterm_apply_window(cterm);
 				break;
 			case 7:
 				cterm->extattr |= CTERM_EXTATTR_AUTOWRAP;
 				break;
 			case 25:
-				cterm->cursor = _NORMALCURSOR;
-				ciolib_setcursortype(cterm->cursor);
+				cterm->cursor = CTERM_CURSOR_UNDERLINE;
+				cterm_render_set_cursor(cterm, cterm->cursor);
 				break;
 			case 67:
 				cterm->extattr |= CTERM_EXTATTR_DECBKM;
@@ -1225,15 +1229,15 @@ cterm_handle_decrm(struct cterminal *cterm, int *speed)	/* CSI ? l */
 				cterm_clear_lcf(cterm);
 				cterm->extattr &= ~CTERM_EXTATTR_ORIGINMODE;
 				cterm_clear_selection(cterm);
-				setwindow(cterm);
+				cterm_apply_window(cterm);
 				break;
 			case 7:
 				cterm_clear_lcf(cterm);
 				cterm->extattr &= ~CTERM_EXTATTR_AUTOWRAP;
 				break;
 			case 25:
-				cterm->cursor = _NOCURSOR;
-				ciolib_setcursortype(cterm->cursor);
+				cterm->cursor = CTERM_CURSOR_HIDDEN;
+				cterm_render_set_cursor(cterm, cterm->cursor);
 				break;
 			case 67:
 				cterm->extattr &= ~CTERM_EXTATTR_DECBKM;
@@ -1283,8 +1287,8 @@ cterm_handle_decslrm(struct cterminal *cterm, int *speed)	/* CSI Pl ; Pr s */
 		cterm->left_margin = col;
 		cterm->right_margin = max_col;
 		cterm_clear_selection(cterm);
-		setwindow(cterm);
-		gotoxy(CURR_MINX, CURR_MINY);
+		cterm_apply_window(cterm);
+		cterm_render_set_position(cterm, CURR_MINX, CURR_MINY);
 	}
 }
 
@@ -1302,8 +1306,8 @@ cterm_handle_decstbm(struct cterminal *cterm, int *speed)	/* CSI Pt ; Pb r */
 		cterm->top_margin = row;
 		cterm->bottom_margin = max_row;
 		cterm_clear_selection(cterm);
-		setwindow(cterm);
-		gotoxy(CURR_MINX, CURR_MINY);
+		cterm_apply_window(cterm);
+		cterm_render_set_position(cterm, CURR_MINX, CURR_MINY);
 	}
 }
 
@@ -1405,7 +1409,7 @@ sixel_numeric_command_terminated(const char *p, const char *end, bool finish, bo
 }
 
 static void
-sixel_set_mask_range(struct ciolib_mask *mask, int start, int count)
+sixel_set_mask_range(struct st_pixel_mask *mask, int start, int count)
 {
 	int end;
 	int byte;
@@ -1450,7 +1454,7 @@ sixel_init_current_line(struct cterminal *cterm)
 	for (i = 0; i < fill_height * cterm->sx_iv; i++) {
 		row_pos = i * cterm->sx_pixels->width + cterm->sx_left;
 		for (j = 0; j < fill_width; j++) {
-			cterm->sx_pixels->pixels[row_pos + j] = cterm->sx_bg;
+			cterm->sx_pixels->primary[row_pos + j] = cterm->sx_bg;
 		}
 		sixel_set_mask_range(cterm->sx_mask, row_pos, fill_width);
 	}
@@ -1459,17 +1463,47 @@ sixel_init_current_line(struct cterminal *cterm)
 		cterm->sx_row_max_x = cterm->sx_left + fill_width - 1;
 }
 
+static void
+sixel_present_current_line(struct cterminal *cterm)
+{
+	struct st_pixel_blit blit;
+
+	if (cterm->sx_row_max_x < cterm->sx_left)
+		return;
+	blit = (struct st_pixel_blit){
+		.source_x = (uint32_t)cterm->sx_left,
+		.width = (uint32_t)(cterm->sx_row_max_x - cterm->sx_left + 1),
+		.height = (uint32_t)(6 * cterm->sx_iv),
+		.destination_x = cterm->sx_left,
+		.destination_y = cterm->sx_y,
+		.scale_x = 1,
+		.scale_y = 1,
+		.mask_x = (uint32_t)cterm->sx_left,
+	};
+	cterm_render_blit_pixels(cterm, cterm->sx_pixels, cterm->sx_mask,
+	    &blit);
+}
+
 void cterm_parse_sixel_string(struct cterminal *cterm, bool finish)
 {
 	char *p = cterm->strbuf;
 	char *end;
 	int i, j, k;
-	int vmode;
 	int pos;
-	struct text_info ti;
+	uint32_t screen_width;
+	uint32_t screen_height;
+	uint32_t cell_width;
+	uint32_t cell_height;
 	int palette_offset = 0;
 
-	if (cio_api.options & CONIO_OPT_EXTENDED_PALETTE)
+	if (st_console_cell_pixel_size(cterm->screen.console, &cell_width,
+	    &cell_height) != 0 || cell_width == 0 || cell_height == 0)
+		return;
+	if (st_console_size(cterm->screen.console, &screen_width,
+	    &screen_height) != 0)
+		return;
+
+	if (cterm->screen.capabilities & ST_CONSOLE_CAP_EXTENDED_PALETTE)
 		palette_offset = 16;
 
 	if (cterm->strbuflen == 0) {
@@ -1490,38 +1524,34 @@ void cterm_parse_sixel_string(struct cterminal *cterm, bool finish)
 			unsigned data = *p - '?';
 
 			cterm->sx_pixels_sent = 1;
-			gettextinfo(&ti);
-			vmode = find_vmode(ti.currmode);
-			if (vmode == -1)
-				return;
 			if (cterm->sx_pixels == NULL) {
-				cterm->sx_pixels = malloc(sizeof(struct ciolib_pixels));
+				cterm->sx_pixels = malloc(sizeof(struct st_pixel_buffer));
 				if (cterm->sx_pixels != NULL) {
-					cterm->sx_pixels->pixels = malloc(sizeof(cterm->sx_pixels->pixels[0]) * cterm->sx_iv * ti.screenwidth * vparams[vmode].charwidth * 6);
-					if (cterm->sx_pixels->pixels != NULL) {
-						cterm->sx_pixels->pixelsb = NULL;
-						cterm->sx_pixels->width = ti.screenwidth * vparams[vmode].charwidth;
+					cterm->sx_pixels->primary = malloc(sizeof(cterm->sx_pixels->primary[0]) * cterm->sx_iv * (int)(screen_width * cell_width) * 6);
+					if (cterm->sx_pixels->primary != NULL) {
+						cterm->sx_pixels->alternate = NULL;
+						cterm->sx_pixels->width = (int)(screen_width * cell_width);
 						cterm->sx_pixels->height = cterm->sx_iv * 6;
-						cterm->sx_mask = malloc(sizeof(struct ciolib_mask));
+						cterm->sx_mask = malloc(sizeof(struct st_pixel_mask));
 						if (cterm->sx_mask != NULL) {
 							cterm->sx_mask->width = cterm->sx_pixels->width;
 							cterm->sx_mask->height = cterm->sx_pixels->height;
-							cterm->sx_mask->bits = malloc((cterm->sx_iv * 6 * ti.screenwidth * vparams[vmode].charwidth + 7)/8);
+							cterm->sx_mask->bits = malloc((cterm->sx_iv * 6 * (int)(screen_width * cell_width) + 7)/8);
 							if (cterm->sx_mask->bits != NULL)
-								memset(cterm->sx_mask->bits, 0, (cterm->sx_iv * 6 * ti.screenwidth * vparams[vmode].charwidth + 7)/8);
+								memset(cterm->sx_mask->bits, 0, (cterm->sx_iv * 6 * (int)(screen_width * cell_width) + 7)/8);
 							else {
-								FREE_AND_NULL(cterm->sx_mask);
-								free(cterm->sx_pixels->pixels);
-								FREE_AND_NULL(cterm->sx_pixels);
+								CTERM_FREE_AND_CLEAR(cterm->sx_mask);
+								free(cterm->sx_pixels->primary);
+								CTERM_FREE_AND_CLEAR(cterm->sx_pixels);
 							}
 						}
 						else {
-							free(cterm->sx_pixels->pixels);
-							FREE_AND_NULL(cterm->sx_pixels);
+							free(cterm->sx_pixels->primary);
+							CTERM_FREE_AND_CLEAR(cterm->sx_pixels);
 						}
 					}
 					else {
-						FREE_AND_NULL(cterm->sx_pixels);
+						CTERM_FREE_AND_CLEAR(cterm->sx_pixels);
 					}
 				}
 			}
@@ -1540,19 +1570,19 @@ void cterm_parse_sixel_string(struct cterminal *cterm, bool finish)
 					for (j = 0; j < cterm->sx_iv; j++) {
 						for (k = 0; k < cterm->sx_ih; k++) {
 							pos = i * cterm->sx_iv * cterm->sx_pixels->width + j * cterm->sx_pixels->width + cterm->sx_x + k;
-							cterm->sx_pixels->pixels[pos] = cterm->sx_bg;
+							cterm->sx_pixels->primary[pos] = cterm->sx_bg;
 							cterm->sx_mask->bits[pos/8] |= (0x80 >> (pos % 8));
 						}
 					}
 				}
 			}
-			if (cterm->sx_x + cterm->sx_ih <= ti.screenwidth * vparams[vmode].charwidth) {
+			if (cterm->sx_x + cterm->sx_ih <= (int)(screen_width * cell_width)) {
 				for (i=0; i<6; i++) {
 					if (data & (1<<i)) {
 						for (j = 0; j < cterm->sx_iv; j++) {
 							for (k = 0; k < cterm->sx_ih; k++) {
 								pos = i * cterm->sx_iv * cterm->sx_pixels->width + j * cterm->sx_pixels->width + cterm->sx_x + k;
-								cterm->sx_pixels->pixels[pos] = cterm->sx_fg;
+								cterm->sx_pixels->primary[pos] = cterm->sx_fg;
 								cterm->sx_mask->bits[pos/8] |= (0x80 >> (pos % 8));
 							}
 						}
@@ -1562,7 +1592,7 @@ void cterm_parse_sixel_string(struct cterminal *cterm, bool finish)
 							for (j = 0; j < cterm->sx_iv; j++) {
 								for (k = 0; k < cterm->sx_ih; k++) {
 									pos = i * cterm->sx_iv * cterm->sx_pixels->width + j * cterm->sx_pixels->width + cterm->sx_x + k;
-									cterm->sx_pixels->pixels[pos] = cterm->sx_bg;
+									cterm->sx_pixels->primary[pos] = cterm->sx_bg;
 									cterm->sx_mask->bits[pos/8] |= (0x80 >> (pos % 8));
 								}
 							}
@@ -1613,11 +1643,9 @@ void cterm_parse_sixel_string(struct cterminal *cterm, bool finish)
 							p++;
 							cterm->sx_height = (int)strtoul(p, &p, 10);
 						}
-						gettextinfo(&ti);
-						vmode = find_vmode(ti.currmode);
-						if (vmode != -1) {
-							int max_w = ti.screenwidth * vparams[vmode].charwidth;
-							int max_h = ti.screenheight * vparams[vmode].charheight;
+						{
+							int max_w = (int)(screen_width * cell_width);
+							int max_h = (int)(screen_height * cell_height);
 							if (cterm->sx_iv < 1)
 								cterm->sx_iv = 1;
 							if (cterm->sx_iv > max_h)
@@ -1649,7 +1677,7 @@ void cterm_parse_sixel_string(struct cterminal *cterm, bool finish)
 					p++;
 					if (!*p)
 						break;
-					cterm->sx_fg = strtoul(p, &p, 10) + TOTAL_DAC_SIZE + palette_offset;
+					cterm->sx_fg = strtoul(p, &p, 10) + CTERM_PALETTE_SIZE + palette_offset;
 					/* Do we want to redefine it while we're here? */
 					if (*p == ';') {
 						unsigned long t,r,g,b;
@@ -1693,15 +1721,10 @@ void cterm_parse_sixel_string(struct cterminal *cterm, bool finish)
 					{
 						int max_row = TERM_MAXY;
 						cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_CURR, &max_row, NULL);
-						gettextinfo(&ti);
-						vmode = find_vmode(ti.currmode);
-
-						if (vmode == -1)
-							return;
-						setpixels(cterm->sx_left, cterm->sx_y, cterm->sx_row_max_x, cterm->sx_y + 6 * cterm->sx_iv - 1, cterm->sx_left, 0, cterm->sx_left, 0, cterm->sx_pixels, cterm->sx_mask);
+						sixel_present_current_line(cterm);
 						cterm->sx_row_max_x = 0;
 
-						if ((!(cterm->extattr & CTERM_EXTATTR_SXSCROLL)) && (((cterm->sx_y + 6 * cterm->sx_iv) + 6*cterm->sx_iv - 1) >= (cterm->y + max_row - 1) * vparams[vmode].charheight)) {
+						if ((!(cterm->extattr & CTERM_EXTATTR_SXSCROLL)) && (((cterm->sx_y + 6 * cterm->sx_iv) + 6*cterm->sx_iv - 1) >= (cterm->y + max_row - 1) * (int)cell_height)) {
 							p++;
 							break;
 						}
@@ -1710,9 +1733,9 @@ void cterm_parse_sixel_string(struct cterminal *cterm, bool finish)
 						cterm->sx_y += 6*cterm->sx_iv;
 						if (cterm->sx_height)
 							cterm->sx_height -= cterm->sx_height > 6 ? 6 : cterm->sx_height;
-						while ((cterm->sx_y + 6 * cterm->sx_iv - 1) >= (cterm->y + max_row - 1) * vparams[vmode].charheight) {
+						while ((cterm->sx_y + 6 * cterm->sx_iv - 1) >= (cterm->y + max_row - 1) * (int)cell_height) {
 							cterm_cond_scrollup(cterm);
-							cterm->sx_y -= vparams[vmode].charheight;
+							cterm->sx_y -= cell_height;
 						}
 						cterm->sx_first_pass = 1;
 						sixel_init_current_line(cterm);
@@ -1738,14 +1761,11 @@ keep_tail:
 	return;
 
 all_done:
-	gettextinfo(&ti);
-	vmode = find_vmode(ti.currmode);
-
 	if (cterm->sx_row_max_x) {
-		setpixels(cterm->sx_left, cterm->sx_y, cterm->sx_row_max_x, cterm->sx_y + 6 * cterm->sx_iv - 1, cterm->sx_left, 0, cterm->sx_left, 0, cterm->sx_pixels, cterm->sx_mask);
+		sixel_present_current_line(cterm);
 	}
 
-	(void)st_cterm_adapter_set_hold_update(cterm, cterm->sx_hold_update);
+	(void)cterm_render_set_hold_update(cterm, cterm->sx_hold_update);
 
 	/* Finish off the background */
 	cterm->sx_x = cterm->sx_left;
@@ -1754,19 +1774,29 @@ all_done:
 		cterm->sx_height -= cterm->sx_height > 6 ? 6 : cterm->sx_height;
 
 	if (cterm->sx_height && cterm->sx_width) {
-		struct ciolib_pixels px;
+		struct st_pixel_buffer px;
 
-		px.pixels = malloc(sizeof(px.pixels[0])*cterm->sx_width*cterm->sx_height*cterm->sx_iv*cterm->sx_ih);
-		if (px.pixels) {
-			px.pixelsb = NULL;
+		px.primary = malloc(sizeof(px.primary[0])*cterm->sx_width*cterm->sx_height*cterm->sx_iv*cterm->sx_ih);
+		if (px.primary) {
+			struct st_pixel_blit blit;
+
+			px.alternate = NULL;
 			px.height = cterm->sx_height;
 			px.width = cterm->sx_width;
 			for (i = 0; i<cterm->sx_height*cterm->sx_iv; i++) {
 				for (j = 0; j < cterm->sx_width*cterm->sx_ih; j++)
-					px.pixels[i*cterm->sx_width*cterm->sx_ih + j] = cterm->sx_bg;
+					px.primary[i*cterm->sx_width*cterm->sx_ih + j] = cterm->sx_bg;
 			}
-			setpixels(cterm->sx_x, cterm->sx_y, cterm->sx_x + cterm->sx_width - 1, cterm->sx_y + cterm->sx_height - 1, 0, 0, 0, 0, &px, NULL);
-			free(px.pixels);
+			blit = (struct st_pixel_blit){
+				.width = (uint32_t)cterm->sx_width,
+				.height = (uint32_t)cterm->sx_height,
+				.destination_x = cterm->sx_x,
+				.destination_y = cterm->sx_y,
+				.scale_x = 1,
+				.scale_y = 1,
+			};
+			cterm_render_blit_pixels(cterm, &px, NULL, &blit);
+			free(px.primary);
 		}
 		else {
 			fprintf(stderr, "Error allocating memory for sixel data\n");
@@ -1774,28 +1804,26 @@ all_done:
 	}
 
 	if (cterm->extattr & CTERM_EXTATTR_SXSCROLL) {
-		if (vmode != -1) {
-			cterm->sx_x = cterm->sx_x / vparams[vmode].charwidth + 1;
-			cterm->sx_x -= (cterm->x - 1);
+		cterm->sx_x = cterm->sx_x / cell_width + 1;
+		cterm->sx_x -= (cterm->x - 1);
 
-			cterm->sx_y = (cterm->sx_y - 1) / vparams[vmode].charheight + 1;
-			cterm->sx_y -= (cterm->y - 1);
+		cterm->sx_y = (cterm->sx_y - 1) / cell_height + 1;
+		cterm->sx_y -= (cterm->y - 1);
 
-			cterm_gotoxy(cterm, cterm->sx_x, cterm->sx_y);
-		}
+		cterm_set_position(cterm, cterm->sx_x, cterm->sx_y);
 	}
 	else {
-		cterm_gotoxy(cterm, cterm->sx_start_x, cterm->sx_start_y);
+		cterm_set_position(cterm, cterm->sx_start_x, cterm->sx_start_y);
 	}
 	cterm->cursor = cterm->sx_orig_cursor;
-	ciolib_setcursortype(cterm->cursor);
+	cterm_render_set_cursor(cterm, cterm->cursor);
 	cterm->sixel = SIXEL_INACTIVE;
 	if (cterm->sx_pixels)
-		FREE_AND_NULL(cterm->sx_pixels->pixels);
+		CTERM_FREE_AND_CLEAR(cterm->sx_pixels->primary);
 	if (cterm->sx_mask)
-		FREE_AND_NULL(cterm->sx_mask->bits);
-	FREE_AND_NULL(cterm->sx_pixels);
-	FREE_AND_NULL(cterm->sx_mask);
+		CTERM_FREE_AND_CLEAR(cterm->sx_mask->bits);
+	CTERM_FREE_AND_CLEAR(cterm->sx_pixels);
+	CTERM_FREE_AND_CLEAR(cterm->sx_mask);
 }
 
 static int
@@ -1898,12 +1926,12 @@ all_done:
 	if (cterm->macro_del == MACRO_DELETE_ALL) {
 		for (i = 0; i < (int)(sizeof(cterm->macros)
 		    / sizeof(cterm->macros[0])); i++) {
-			FREE_AND_NULL(cterm->macros[i]);
+			CTERM_FREE_AND_CLEAR(cterm->macros[i]);
 			cterm->macro_lens[i] = 0;
 		}
 	}
 	else {
-		FREE_AND_NULL(cterm->macros[cterm->macro_num]);
+		CTERM_FREE_AND_CLEAR(cterm->macros[cterm->macro_num]);
 		cterm->macro_lens[cterm->macro_num] = 0;
 	}
 	if (cterm->strbuflen == 0)
@@ -1988,18 +2016,18 @@ all_done:
 				else {
 					ul = strtoul(p, &p, 10);
 					if (ul > MAX_MACRO_LEN) {
-						FREE_AND_NULL(cterm->macros[cterm->macro_num]);
+						CTERM_FREE_AND_CLEAR(cterm->macros[cterm->macro_num]);
 						return;
 					}
 					p++;
 				}
 				plen = get_hexstrlen(p, end);
 				if (plen < 0) {
-					FREE_AND_NULL(cterm->macros[cterm->macro_num]);
+					CTERM_FREE_AND_CLEAR(cterm->macros[cterm->macro_num]);
 					return;
 				}
 				if (plen > MAX_MACRO_LEN) {
-					FREE_AND_NULL(cterm->macros[cterm->macro_num]);
+					CTERM_FREE_AND_CLEAR(cterm->macros[cterm->macro_num]);
 					return;
 				}
 				for (unsigned long j = 0; j < ul; j++) {
@@ -2013,11 +2041,11 @@ all_done:
 			else {
 				plen = get_hexstrlen(p, end);
 				if (plen < 0) {
-					FREE_AND_NULL(cterm->macros[cterm->macro_num]);
+					CTERM_FREE_AND_CLEAR(cterm->macros[cterm->macro_num]);
 					return;
 				}
 				if (plen > MAX_MACRO_LEN) {
-					FREE_AND_NULL(cterm->macros[cterm->macro_num]);
+					CTERM_FREE_AND_CLEAR(cterm->macros[cterm->macro_num]);
 					return;
 				}
 				get_hexstr(p, end, out);
@@ -2042,8 +2070,8 @@ void cterm_parse_sixel_intro(struct cterminal *cterm)
 
 	if (cterm->strbuf[i] == 'q') {
 		int ratio, hgrid;
-		int vmode;
-		struct text_info ti;
+		uint32_t cell_width;
+		uint32_t cell_height;
 		char *p;
 
 		cterm->sixel = SIXEL_STARTED;
@@ -2052,30 +2080,30 @@ void cterm_parse_sixel_intro(struct cterminal *cterm)
 		cterm->sx_first_pass = 1;
 		cterm->sx_height = 0;
 		cterm->sx_width = 0;
-		cterm->sx_hold_update = st_cterm_adapter_hold_update(cterm);
-		(void)st_cterm_adapter_set_hold_update(cterm, 0);
+		cterm->sx_hold_update = cterm_render_hold_update(cterm);
+		(void)cterm_render_set_hold_update(cterm, 0);
 
-		gettextinfo(&ti);
-		vmode = find_vmode(ti.currmode);
-		if (vmode == -1) {
+		if (st_console_cell_pixel_size(cterm->screen.console, &cell_width,
+		    &cell_height) != 0 || cell_width == 0 || cell_height == 0) {
 			cterm->sixel = SIXEL_INACTIVE;
 			return;
 		}
-		attr2palette(ti.attribute, &cterm->sx_fg, &cterm->sx_bg);
+		cterm_render_attribute_colours(cterm, cterm->attr, &cterm->sx_fg,
+		    &cterm->sx_bg);
 		if (cterm->extattr & CTERM_EXTATTR_SXSCROLL) {
 			TERM_XY(&cterm->sx_start_x, &cterm->sx_start_y);
-			cterm->sx_left = cterm->sx_x = (cterm->sx_start_x - 1) * vparams[vmode].charwidth;
-			cterm->sx_y = (cterm->sx_start_y - 1) * vparams[vmode].charheight;
+			cterm->sx_left = cterm->sx_x = (cterm->sx_start_x - 1) * cell_width;
+			cterm->sx_y = (cterm->sx_start_y - 1) * cell_height;
 		}
 		else {
 			cterm->sx_x = cterm->sx_left = cterm->sx_y = 0;
 			TERM_XY(&cterm->sx_start_x, &cterm->sx_start_y);
 		}
 		cterm->sx_orig_cursor = cterm->cursor;
-		cterm->cursor = _NOCURSOR;
-		ciolib_setcursortype(cterm->cursor);
-		cterm_gotoxy(cterm, TERM_MINX, TERM_MINY);
-		(void)st_cterm_adapter_set_hold_update(cterm, 1);
+		cterm->cursor = CTERM_CURSOR_HIDDEN;
+		cterm_render_set_cursor(cterm, cterm->cursor);
+		cterm_set_position(cterm, TERM_MINX, TERM_MINY);
+		(void)cterm_render_set_hold_update(cterm, 1);
 		cterm->sx_trans = hgrid = 0;
 		ratio = strtoul(cterm->strbuf, &p, 10);
 		if (*p == ';') {
@@ -2386,16 +2414,16 @@ cterm_dec_dcs_finish(struct cterminal *cterm)
 			case ' ':
 				if (cterm->strbuf[3] == 'q' && cterm->strbuf[4] == 0) {
 					int style;
-					int cs, ce, cr, cb, cv;
-					if (cio_api.options & CONIO_OPT_CUSTOM_CURSOR) {
-						getcustomcursor(&cs, &ce, &cr, &cb, &cv);
-						if (cterm->cursor == _SOLIDCURSOR)
-							style = cb ? 1 : 2;
+					struct st_console_custom_cursor custom = {0};
+					if (cterm->screen.capabilities & ST_CONSOLE_CAP_CUSTOM_CURSOR) {
+						cterm_render_get_custom_cursor(cterm, &custom);
+						if (cterm->cursor == CTERM_CURSOR_BLOCK)
+							style = custom.blink ? 1 : 2;
 						else
-							style = cb ? 3 : 4;
+							style = custom.blink ? 3 : 4;
 					}
 					else {
-						style = (cterm->cursor == _SOLIDCURSOR) ? 2 : 4;
+						style = (cterm->cursor == CTERM_CURSOR_BLOCK) ? 2 : 4;
 					}
 					sprintf(tmp, "\x1bP1$r%d q\x1b\\", style);
 					cterm_respond(cterm, tmp, strlen(tmp));

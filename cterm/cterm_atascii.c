@@ -29,7 +29,7 @@
 #include <limits.h>
 #include <string.h>
 
-#include "cterm_legacy_adapter.h"
+#include "cterm_render.h"
 #include "cterm.h"
 #include "cterm_internal.h"
 #include "cterm_atascii.h"
@@ -66,7 +66,18 @@ atascii_literal_byte(struct cterminal *cterm, unsigned char byte, int *speed)
 		ch[0] = k;
 		ch[1] = cterm->attr;
 		SCR_XY(&sx, &sy);
-		puttext(sx, sy, sx, sy, ch);
+		{
+			struct st_console_cell cell;
+			uint32_t foreground;
+			uint32_t background;
+
+			cterm_render_attribute_colours(cterm, ch[1], &foreground,
+			    &background);
+			if (cterm_render_make_cell(cterm, &cell, ch[0], ch[1],
+			    foreground, background,
+			    cterm_render_attribute_font(cterm, ch[1]), 0, 0) == 0)
+				cterm_render_write_cells(cterm, sx, sy, sx, sy, &cell);
+		}
 		CURR_XY(&x, &y);
 		cterm_advance_char(cterm, &x, &y, 1);
 	}
@@ -97,7 +108,7 @@ atascii_up(struct cterminal *cterm)	/* 28 — wraps to bottom of same column */
 	y--;
 	if (y < CURR_MINY)
 		y = CURR_MAXY;
-	gotoxy(x, y);
+	cterm_render_set_position(cterm, x, y);
 }
 
 static void
@@ -108,7 +119,7 @@ atascii_down(struct cterminal *cterm)	/* 29 — wraps to top of same column */
 	y++;
 	if (y > CURR_MAXY)
 		y = CURR_MINY;
-	gotoxy(x, y);
+	cterm_render_set_position(cterm, x, y);
 }
 
 static void
@@ -119,7 +130,7 @@ atascii_left(struct cterminal *cterm)	/* 30 — wraps to right side of same row 
 	x--;
 	if (x < CURR_MINX)
 		x = CURR_MAXX;
-	gotoxy(x, y);
+	cterm_render_set_position(cterm, x, y);
 }
 
 static void
@@ -130,7 +141,7 @@ atascii_right(struct cterminal *cterm)	/* 31 — wraps to left side of same row 
 	x++;
 	if (x > CURR_MAXX)
 		x = CURR_MINX;
-	gotoxy(x, y);
+	cterm_render_set_position(cterm, x, y);
 }
 
 static void
@@ -147,9 +158,9 @@ atascii_backspace(struct cterminal *cterm)	/* 126 — erase, no wrap */
 	x--;
 	if (x < CURR_MINX)
 		return;
-	gotoxy(x, y);
-	putch(32);
-	gotoxy(x, y);
+	cterm_render_set_position(cterm, x, y);
+	cterm_render_write_byte(cterm, 32);
+	cterm_render_set_position(cterm, x, y);
 }
 
 static void
@@ -183,29 +194,29 @@ atascii_insert_line(struct cterminal *cterm)	/* 157 */
 		ex = CURR_MAXX;
 		ey = CURR_MAXY;
 		cterm_coord_conv_xy(cterm, CTERM_COORD_CURR, CTERM_COORD_SCREEN, &ex, &ey);
-		movetext(sx, sy, ex, ey - 1, sx, sy + 1);
+		cterm_render_move_cells(cterm, sx, sy, ex, ey - 1, sx, sy + 1);
 	}
-	gotoxy(CURR_MINX, y);
-	cterm_clreol(cterm);
+	cterm_render_set_position(cterm, CURR_MINX, y);
+	cterm_clear_line(cterm);
 }
 
 static void
 atascii_clear_tab(struct cterminal *cterm)	/* 158 */
 {
-	cterm_delete_tabstop(cterm, wherex());
+	cterm_delete_tabstop(cterm, cterm_render_position_x(cterm));
 }
 
 static void
 atascii_set_tab(struct cterminal *cterm)	/* 159 */
 {
-	cterm_insert_tabstop(cterm, wherex());
+	cterm_insert_tabstop(cterm, cterm_render_position_x(cterm));
 }
 
 static void
 atascii_bell(struct cterminal *cterm)	/* 253 */
 {
 	if (!cterm->quiet) {
-		putch(7);
+		cterm_render_write_byte(cterm, 7);
 	}
 }
 
@@ -220,11 +231,11 @@ atascii_delete_char(struct cterminal *cterm)	/* 254 */
 		cterm_coord_conv_xy(cterm, CTERM_COORD_CURR, CTERM_COORD_SCREEN, &sx, &sy);
 		ex = CURR_MAXX;
 		cterm_coord_conv_xy(cterm, CTERM_COORD_CURR, CTERM_COORD_SCREEN, &ex, NULL);
-		movetext(sx + 1, sy, ex, sy, sx, sy);
+		cterm_render_move_cells(cterm, sx + 1, sy, ex, sy, sx, sy);
 	}
-	gotoxy(CURR_MAXX, y);
-	cterm_clreol(cterm);
-	gotoxy(x, y);
+	cterm_render_set_position(cterm, CURR_MAXX, y);
+	cterm_clear_line(cterm);
+	cterm_render_set_position(cterm, x, y);
 }
 
 static void
@@ -238,10 +249,10 @@ atascii_insert_char(struct cterminal *cterm)	/* 255 */
 		cterm_coord_conv_xy(cterm, CTERM_COORD_CURR, CTERM_COORD_SCREEN, &sx, &sy);
 		ex = CURR_MAXX;
 		cterm_coord_conv_xy(cterm, CTERM_COORD_CURR, CTERM_COORD_SCREEN, &ex, NULL);
-		movetext(sx, sy, ex - 1, sy, sx + 1, sy);
+		cterm_render_move_cells(cterm, sx, sy, ex - 1, sy, sx + 1, sy);
 	}
-	putch(32);
-	gotoxy(x, y);
+	cterm_render_write_byte(cterm, 32);
+	cterm_render_set_position(cterm, x, y);
 }
 
 /* ------------------------------------------------------------------------

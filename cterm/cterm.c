@@ -14,8 +14,8 @@
 
 /*
  * Coordinate systems in use here... text is 1-based.
- * "pixel"   the ciolib screen in pixels.  sixel commands happen here.
- * "screen"  the ciolib screen... gettext/puttext/movetext and mouse
+ * "pixel"   the console raster in pixels.  Sixel commands happen here.
+ * "screen"  the console cell grid and pointer coordinates.
  *           are in this space.
  * "absterm" position inside the full terminal area.  These coordinates
  *           are used when origin mode is off.
@@ -36,7 +36,7 @@
  #include <malloc.h>	/* alloca() on Win32 */
 #endif
 
-#include "cterm_legacy_adapter.h"
+#include "cterm_render.h"
 
 #include "cterm.h"
 #include "cterm_internal.h"
@@ -128,34 +128,34 @@ struct key_mapping {
 
 static const struct key_mapping atascii_keys[] = {
 	{253,                      "\x07",        1},	/* Undo Unicode: Atascii beep -> ^G */
-	{CIO_KEY_UP,               "\x1c",        1},
-	{CIO_KEY_LEFT,             "\x1e",        1},
-	{CIO_KEY_RIGHT,            "\x1f",        1},
-	{CIO_KEY_DOWN,             "\x1d",        1},
-	{CIO_KEY_IC,               "\xff",        1},
-	{CIO_KEY_DC,               "\x7e",        1},	/* "Delete" key */
+	{CTERM_KEY_DOS_UP,               "\x1c",        1},
+	{CTERM_KEY_DOS_LEFT,             "\x1e",        1},
+	{CTERM_KEY_DOS_RIGHT,            "\x1f",        1},
+	{CTERM_KEY_DOS_DOWN,             "\x1d",        1},
+	{CTERM_KEY_DOS_IC,               "\xff",        1},
+	{CTERM_KEY_DOS_DC,               "\x7e",        1},	/* "Delete" key */
 };
 
 static const struct key_mapping petscii_keys[] = {
 	{8,                        "\x14",        1},
 	{'\n',                     "\x0d",        1},
 	{'\r',                     "\x0d",        1},
-	{CIO_KEY_F(1),             "\x85",        1},
-	{CIO_KEY_F(2),             "\x89",        1},
-	{CIO_KEY_F(3),             "\x86",        1},
-	{CIO_KEY_F(4),             "\x8a",        1},
-	{CIO_KEY_F(5),             "\x87",        1},
-	{CIO_KEY_F(6),             "\x8b",        1},
-	{CIO_KEY_F(7),             "\x88",        1},
-	{CIO_KEY_F(8),             "\x8c",        1},
-	{CIO_KEY_HOME,             "\x13",        1},
-	{CIO_KEY_UP,               "\x91",        1},
-	{CIO_KEY_LEFT,             "\x9d",        1},
-	{CIO_KEY_RIGHT,            "\x1d",        1},
-	{CIO_KEY_END,              "\x93",        1},	/* Clear / Shift-Home */
-	{CIO_KEY_DOWN,             "\x11",        1},
-	{CIO_KEY_IC,               "\x94",        1},
-	{CIO_KEY_DC,               "\x14",        1},
+	{CTERM_KEY_DOS_F(1),             "\x85",        1},
+	{CTERM_KEY_DOS_F(2),             "\x89",        1},
+	{CTERM_KEY_DOS_F(3),             "\x86",        1},
+	{CTERM_KEY_DOS_F(4),             "\x8a",        1},
+	{CTERM_KEY_DOS_F(5),             "\x87",        1},
+	{CTERM_KEY_DOS_F(6),             "\x8b",        1},
+	{CTERM_KEY_DOS_F(7),             "\x88",        1},
+	{CTERM_KEY_DOS_F(8),             "\x8c",        1},
+	{CTERM_KEY_DOS_HOME,             "\x13",        1},
+	{CTERM_KEY_DOS_UP,               "\x91",        1},
+	{CTERM_KEY_DOS_LEFT,             "\x9d",        1},
+	{CTERM_KEY_DOS_RIGHT,            "\x1d",        1},
+	{CTERM_KEY_DOS_END,              "\x93",        1},	/* Clear / Shift-Home */
+	{CTERM_KEY_DOS_DOWN,             "\x11",        1},
+	{CTERM_KEY_DOS_IC,               "\x94",        1},
+	{CTERM_KEY_DOS_DC,               "\x14",        1},
 };
 
 static const struct key_mapping prestel_keys[] = {
@@ -169,43 +169,43 @@ static const struct key_mapping prestel_keys[] = {
 	{'#',                      "_",           1},
 	{'_',                      "`",           1},
 	{'`',                      "#",           1},
-	{CIO_KEY_F(7),             "\x1b",        1},
-	{CIO_KEY_HOME,             "\x1e",        1},
-	{CIO_KEY_UP,               "\x8f",        1},
-	{CIO_KEY_LEFT,             "\x8c",        1},
-	{CIO_KEY_RIGHT,            "\x8d",        1},
-	{CIO_KEY_DOWN,             "\x8e",        1},
-	{CIO_KEY_DC,               "\x7f",        1},
-	{CIO_KEY_SHIFT_F(1),       "\x91",        1},
-	{CIO_KEY_SHIFT_F(2),       "\x92",        1},
-	{CIO_KEY_SHIFT_F(3),       "\x93",        1},
-	{CIO_KEY_SHIFT_F(4),       "\x94",        1},
-	{CIO_KEY_SHIFT_F(5),       "\x95",        1},
-	{CIO_KEY_SHIFT_F(6),       "\x96",        1},
-	{CIO_KEY_SHIFT_F(7),       "\x97",        1},
-	{CIO_KEY_SHIFT_F(8),       "\x98",        1},
-	{CIO_KEY_SHIFT_F(9),       "\x99",        1},
-	{CIO_KEY_SHIFT_F(10),      "\x90",        1},	/* F0 */
-	{CIO_KEY_CTRL_F(1),        "\xa1",        1},
-	{CIO_KEY_CTRL_F(2),        "\xa2",        1},
-	{CIO_KEY_CTRL_F(3),        "\xa3",        1},
-	{CIO_KEY_CTRL_F(4),        "\xa4",        1},
-	{CIO_KEY_CTRL_F(5),        "\xa5",        1},
-	{CIO_KEY_CTRL_F(6),        "\xa6",        1},
-	{CIO_KEY_CTRL_F(7),        "\xa7",        1},
-	{CIO_KEY_CTRL_F(8),        "\xa8",        1},
-	{CIO_KEY_CTRL_F(9),        "\xa9",        1},
-	{CIO_KEY_CTRL_F(10),       "\xa0",        1},	/* F0 */
-	{CIO_KEY_CTRL_LEFT,        "\xac",        1},
-	{CIO_KEY_CTRL_RIGHT,       "\xad",        1},
-	{CIO_KEY_CTRL_END,         "\xab",        1},	/* Copy */
-	{CIO_KEY_CTRL_UP,          "\xaf",        1},
-	{CIO_KEY_CTRL_DOWN,        "\xae",        1},
-	{CIO_KEY_SHIFT_UP,         "\x9f",        1},
-	{CIO_KEY_SHIFT_LEFT,       "\x9c",        1},
-	{CIO_KEY_SHIFT_RIGHT,      "\x9d",        1},
-	{CIO_KEY_SHIFT_END,        "\x9b",        1},	/* Copy */
-	{CIO_KEY_SHIFT_DOWN,       "\x9e",        1},
+	{CTERM_KEY_DOS_F(7),             "\x1b",        1},
+	{CTERM_KEY_DOS_HOME,             "\x1e",        1},
+	{CTERM_KEY_DOS_UP,               "\x8f",        1},
+	{CTERM_KEY_DOS_LEFT,             "\x8c",        1},
+	{CTERM_KEY_DOS_RIGHT,            "\x8d",        1},
+	{CTERM_KEY_DOS_DOWN,             "\x8e",        1},
+	{CTERM_KEY_DOS_DC,               "\x7f",        1},
+	{CTERM_KEY_DOS_SHIFT_F(1),       "\x91",        1},
+	{CTERM_KEY_DOS_SHIFT_F(2),       "\x92",        1},
+	{CTERM_KEY_DOS_SHIFT_F(3),       "\x93",        1},
+	{CTERM_KEY_DOS_SHIFT_F(4),       "\x94",        1},
+	{CTERM_KEY_DOS_SHIFT_F(5),       "\x95",        1},
+	{CTERM_KEY_DOS_SHIFT_F(6),       "\x96",        1},
+	{CTERM_KEY_DOS_SHIFT_F(7),       "\x97",        1},
+	{CTERM_KEY_DOS_SHIFT_F(8),       "\x98",        1},
+	{CTERM_KEY_DOS_SHIFT_F(9),       "\x99",        1},
+	{CTERM_KEY_DOS_SHIFT_F(10),      "\x90",        1},	/* F0 */
+	{CTERM_KEY_DOS_CTRL_F(1),        "\xa1",        1},
+	{CTERM_KEY_DOS_CTRL_F(2),        "\xa2",        1},
+	{CTERM_KEY_DOS_CTRL_F(3),        "\xa3",        1},
+	{CTERM_KEY_DOS_CTRL_F(4),        "\xa4",        1},
+	{CTERM_KEY_DOS_CTRL_F(5),        "\xa5",        1},
+	{CTERM_KEY_DOS_CTRL_F(6),        "\xa6",        1},
+	{CTERM_KEY_DOS_CTRL_F(7),        "\xa7",        1},
+	{CTERM_KEY_DOS_CTRL_F(8),        "\xa8",        1},
+	{CTERM_KEY_DOS_CTRL_F(9),        "\xa9",        1},
+	{CTERM_KEY_DOS_CTRL_F(10),       "\xa0",        1},	/* F0 */
+	{CTERM_KEY_DOS_CTRL_LEFT,        "\xac",        1},
+	{CTERM_KEY_DOS_CTRL_RIGHT,       "\xad",        1},
+	{CTERM_KEY_DOS_CTRL_END,         "\xab",        1},	/* Copy */
+	{CTERM_KEY_DOS_CTRL_UP,          "\xaf",        1},
+	{CTERM_KEY_DOS_CTRL_DOWN,        "\xae",        1},
+	{CTERM_KEY_DOS_SHIFT_UP,         "\x9f",        1},
+	{CTERM_KEY_DOS_SHIFT_LEFT,       "\x9c",        1},
+	{CTERM_KEY_DOS_SHIFT_RIGHT,      "\x9d",        1},
+	{CTERM_KEY_DOS_SHIFT_END,        "\x9b",        1},	/* Copy */
+	{CTERM_KEY_DOS_SHIFT_DOWN,       "\x9e",        1},
 };
 
 static const struct key_mapping prestel_keys_cursor[] = {
@@ -219,158 +219,158 @@ static const struct key_mapping prestel_keys_cursor[] = {
 	{'#',                      "_",           1},
 	{'_',                      "`",           1},
 	{'`',                      "#",           1},
-	{CIO_KEY_F(7),             "\x1b",        1},
-	{CIO_KEY_HOME,             "\x1e",        1},
-	{CIO_KEY_UP,               "\x0b",        1},
-	{CIO_KEY_LEFT,             "\x08",        1},
-	{CIO_KEY_RIGHT,            "\x09",        1},
-	{CIO_KEY_DOWN,             "\x0a",        1},
-	{CIO_KEY_DC,               "\x7f",        1},
-	{CIO_KEY_SHIFT_F(1),       "\x91",        1},
-	{CIO_KEY_SHIFT_F(2),       "\x92",        1},
-	{CIO_KEY_SHIFT_F(3),       "\x93",        1},
-	{CIO_KEY_SHIFT_F(4),       "\x94",        1},
-	{CIO_KEY_SHIFT_F(5),       "\x95",        1},
-	{CIO_KEY_SHIFT_F(6),       "\x96",        1},
-	{CIO_KEY_SHIFT_F(7),       "\x97",        1},
-	{CIO_KEY_SHIFT_F(8),       "\x98",        1},
-	{CIO_KEY_SHIFT_F(9),       "\x99",        1},
-	{CIO_KEY_SHIFT_F(10),      "\x90",        1},	/* F0 */
-	{CIO_KEY_CTRL_F(1),        "\xa1",        1},
-	{CIO_KEY_CTRL_F(2),        "\xa2",        1},
-	{CIO_KEY_CTRL_F(3),        "\xa3",        1},
-	{CIO_KEY_CTRL_F(4),        "\xa4",        1},
-	{CIO_KEY_CTRL_F(5),        "\xa5",        1},
-	{CIO_KEY_CTRL_F(6),        "\xa6",        1},
-	{CIO_KEY_CTRL_F(7),        "\xa7",        1},
-	{CIO_KEY_CTRL_F(8),        "\xa8",        1},
-	{CIO_KEY_CTRL_F(9),        "\xa9",        1},
-	{CIO_KEY_CTRL_F(10),       "\xa0",        1},	/* F0 */
-	{CIO_KEY_CTRL_LEFT,        "\xac",        1},
-	{CIO_KEY_CTRL_RIGHT,       "\xad",        1},
-	{CIO_KEY_CTRL_END,         "\xab",        1},	/* Copy */
-	{CIO_KEY_CTRL_UP,          "\xaf",        1},
-	{CIO_KEY_CTRL_DOWN,        "\xae",        1},
-	{CIO_KEY_SHIFT_UP,         "\x9f",        1},
-	{CIO_KEY_SHIFT_LEFT,       "\x9c",        1},
-	{CIO_KEY_SHIFT_RIGHT,      "\x9d",        1},
-	{CIO_KEY_SHIFT_END,        "\x9b",        1},	/* Copy */
-	{CIO_KEY_SHIFT_DOWN,       "\x9e",        1},
+	{CTERM_KEY_DOS_F(7),             "\x1b",        1},
+	{CTERM_KEY_DOS_HOME,             "\x1e",        1},
+	{CTERM_KEY_DOS_UP,               "\x0b",        1},
+	{CTERM_KEY_DOS_LEFT,             "\x08",        1},
+	{CTERM_KEY_DOS_RIGHT,            "\x09",        1},
+	{CTERM_KEY_DOS_DOWN,             "\x0a",        1},
+	{CTERM_KEY_DOS_DC,               "\x7f",        1},
+	{CTERM_KEY_DOS_SHIFT_F(1),       "\x91",        1},
+	{CTERM_KEY_DOS_SHIFT_F(2),       "\x92",        1},
+	{CTERM_KEY_DOS_SHIFT_F(3),       "\x93",        1},
+	{CTERM_KEY_DOS_SHIFT_F(4),       "\x94",        1},
+	{CTERM_KEY_DOS_SHIFT_F(5),       "\x95",        1},
+	{CTERM_KEY_DOS_SHIFT_F(6),       "\x96",        1},
+	{CTERM_KEY_DOS_SHIFT_F(7),       "\x97",        1},
+	{CTERM_KEY_DOS_SHIFT_F(8),       "\x98",        1},
+	{CTERM_KEY_DOS_SHIFT_F(9),       "\x99",        1},
+	{CTERM_KEY_DOS_SHIFT_F(10),      "\x90",        1},	/* F0 */
+	{CTERM_KEY_DOS_CTRL_F(1),        "\xa1",        1},
+	{CTERM_KEY_DOS_CTRL_F(2),        "\xa2",        1},
+	{CTERM_KEY_DOS_CTRL_F(3),        "\xa3",        1},
+	{CTERM_KEY_DOS_CTRL_F(4),        "\xa4",        1},
+	{CTERM_KEY_DOS_CTRL_F(5),        "\xa5",        1},
+	{CTERM_KEY_DOS_CTRL_F(6),        "\xa6",        1},
+	{CTERM_KEY_DOS_CTRL_F(7),        "\xa7",        1},
+	{CTERM_KEY_DOS_CTRL_F(8),        "\xa8",        1},
+	{CTERM_KEY_DOS_CTRL_F(9),        "\xa9",        1},
+	{CTERM_KEY_DOS_CTRL_F(10),       "\xa0",        1},	/* F0 */
+	{CTERM_KEY_DOS_CTRL_LEFT,        "\xac",        1},
+	{CTERM_KEY_DOS_CTRL_RIGHT,       "\xad",        1},
+	{CTERM_KEY_DOS_CTRL_END,         "\xab",        1},	/* Copy */
+	{CTERM_KEY_DOS_CTRL_UP,          "\xaf",        1},
+	{CTERM_KEY_DOS_CTRL_DOWN,        "\xae",        1},
+	{CTERM_KEY_DOS_SHIFT_UP,         "\x9f",        1},
+	{CTERM_KEY_DOS_SHIFT_LEFT,       "\x9c",        1},
+	{CTERM_KEY_DOS_SHIFT_RIGHT,      "\x9d",        1},
+	{CTERM_KEY_DOS_SHIFT_END,        "\x9b",        1},	/* Copy */
+	{CTERM_KEY_DOS_SHIFT_DOWN,       "\x9e",        1},
 };
 
 static const struct key_mapping beeb_keys[] = {
 	{8,                        "\x7f",        1},
-	{CIO_KEY_F(7),             "\x1b",        1},
-	{CIO_KEY_HOME,             "\x1f",        1},
-	{CIO_KEY_UP,               "\x8f",        1},
-	{CIO_KEY_LEFT,             "\x8c",        1},
-	{CIO_KEY_RIGHT,            "\x8d",        1},
-	{CIO_KEY_DOWN,             "\x8e",        1},
-	{CIO_KEY_DC,               "\x7f",        1},
-	{CIO_KEY_SHIFT_F(1),       "\x91",        1},
-	{CIO_KEY_SHIFT_F(2),       "\x92",        1},
-	{CIO_KEY_SHIFT_F(3),       "\x93",        1},
-	{CIO_KEY_SHIFT_F(4),       "\x94",        1},
-	{CIO_KEY_SHIFT_F(5),       "\x95",        1},
-	{CIO_KEY_SHIFT_F(6),       "\x96",        1},
-	{CIO_KEY_SHIFT_F(7),       "\x97",        1},
-	{CIO_KEY_SHIFT_F(8),       "\x98",        1},
-	{CIO_KEY_SHIFT_F(9),       "\x99",        1},
-	{CIO_KEY_SHIFT_F(10),      "\x90",        1},	/* F0 */
-	{CIO_KEY_CTRL_F(1),        "\xa1",        1},
-	{CIO_KEY_CTRL_F(2),        "\xa2",        1},
-	{CIO_KEY_CTRL_F(3),        "\xa3",        1},
-	{CIO_KEY_CTRL_F(4),        "\xa4",        1},
-	{CIO_KEY_CTRL_F(5),        "\xa5",        1},
-	{CIO_KEY_CTRL_F(6),        "\xa6",        1},
-	{CIO_KEY_CTRL_F(7),        "\xa7",        1},
-	{CIO_KEY_CTRL_F(8),        "\xa8",        1},
-	{CIO_KEY_CTRL_F(9),        "\xa9",        1},
-	{CIO_KEY_CTRL_F(10),       "\xa0",        1},	/* F0 */
-	{CIO_KEY_CTRL_LEFT,        "\xac",        1},
-	{CIO_KEY_CTRL_RIGHT,       "\xad",        1},
-	{CIO_KEY_CTRL_END,         "\xab",        1},	/* Copy */
-	{CIO_KEY_CTRL_UP,          "\xaf",        1},
-	{CIO_KEY_CTRL_DOWN,        "\xae",        1},
-	{CIO_KEY_SHIFT_UP,         "\x9f",        1},
-	{CIO_KEY_SHIFT_LEFT,       "\x9c",        1},
-	{CIO_KEY_SHIFT_RIGHT,      "\x9d",        1},
-	{CIO_KEY_SHIFT_END,        "\x9b",        1},	/* Copy */
-	{CIO_KEY_SHIFT_DOWN,       "\x9e",        1},
+	{CTERM_KEY_DOS_F(7),             "\x1b",        1},
+	{CTERM_KEY_DOS_HOME,             "\x1f",        1},
+	{CTERM_KEY_DOS_UP,               "\x8f",        1},
+	{CTERM_KEY_DOS_LEFT,             "\x8c",        1},
+	{CTERM_KEY_DOS_RIGHT,            "\x8d",        1},
+	{CTERM_KEY_DOS_DOWN,             "\x8e",        1},
+	{CTERM_KEY_DOS_DC,               "\x7f",        1},
+	{CTERM_KEY_DOS_SHIFT_F(1),       "\x91",        1},
+	{CTERM_KEY_DOS_SHIFT_F(2),       "\x92",        1},
+	{CTERM_KEY_DOS_SHIFT_F(3),       "\x93",        1},
+	{CTERM_KEY_DOS_SHIFT_F(4),       "\x94",        1},
+	{CTERM_KEY_DOS_SHIFT_F(5),       "\x95",        1},
+	{CTERM_KEY_DOS_SHIFT_F(6),       "\x96",        1},
+	{CTERM_KEY_DOS_SHIFT_F(7),       "\x97",        1},
+	{CTERM_KEY_DOS_SHIFT_F(8),       "\x98",        1},
+	{CTERM_KEY_DOS_SHIFT_F(9),       "\x99",        1},
+	{CTERM_KEY_DOS_SHIFT_F(10),      "\x90",        1},	/* F0 */
+	{CTERM_KEY_DOS_CTRL_F(1),        "\xa1",        1},
+	{CTERM_KEY_DOS_CTRL_F(2),        "\xa2",        1},
+	{CTERM_KEY_DOS_CTRL_F(3),        "\xa3",        1},
+	{CTERM_KEY_DOS_CTRL_F(4),        "\xa4",        1},
+	{CTERM_KEY_DOS_CTRL_F(5),        "\xa5",        1},
+	{CTERM_KEY_DOS_CTRL_F(6),        "\xa6",        1},
+	{CTERM_KEY_DOS_CTRL_F(7),        "\xa7",        1},
+	{CTERM_KEY_DOS_CTRL_F(8),        "\xa8",        1},
+	{CTERM_KEY_DOS_CTRL_F(9),        "\xa9",        1},
+	{CTERM_KEY_DOS_CTRL_F(10),       "\xa0",        1},	/* F0 */
+	{CTERM_KEY_DOS_CTRL_LEFT,        "\xac",        1},
+	{CTERM_KEY_DOS_CTRL_RIGHT,       "\xad",        1},
+	{CTERM_KEY_DOS_CTRL_END,         "\xab",        1},	/* Copy */
+	{CTERM_KEY_DOS_CTRL_UP,          "\xaf",        1},
+	{CTERM_KEY_DOS_CTRL_DOWN,        "\xae",        1},
+	{CTERM_KEY_DOS_SHIFT_UP,         "\x9f",        1},
+	{CTERM_KEY_DOS_SHIFT_LEFT,       "\x9c",        1},
+	{CTERM_KEY_DOS_SHIFT_RIGHT,      "\x9d",        1},
+	{CTERM_KEY_DOS_SHIFT_END,        "\x9b",        1},	/* Copy */
+	{CTERM_KEY_DOS_SHIFT_DOWN,       "\x9e",        1},
 };
 
 static const struct key_mapping vt52_keys[] = {
-	{CIO_KEY_F(1),             "\033P",       2},
-	{CIO_KEY_F(2),             "\033Q",       2},
-	{CIO_KEY_F(3),             "\033R",       2},
-	{CIO_KEY_UP,               "\033A",       2},
-	{CIO_KEY_LEFT,             "\033D",       2},
-	{CIO_KEY_RIGHT,            "\033C",       2},
-	{CIO_KEY_DOWN,             "\033B",       2},
+	{CTERM_KEY_DOS_F(1),             "\033P",       2},
+	{CTERM_KEY_DOS_F(2),             "\033Q",       2},
+	{CTERM_KEY_DOS_F(3),             "\033R",       2},
+	{CTERM_KEY_DOS_UP,               "\033A",       2},
+	{CTERM_KEY_DOS_LEFT,             "\033D",       2},
+	{CTERM_KEY_DOS_RIGHT,            "\033C",       2},
+	{CTERM_KEY_DOS_DOWN,             "\033B",       2},
 };
 
 static const struct key_mapping ansi_keys[] = {
-	{CIO_KEY_BACKTAB,          "\033[Z",      3},
-	{CIO_KEY_F(1),             "\033[11~",    5},
-	{CIO_KEY_F(2),             "\033[12~",    5},
-	{CIO_KEY_F(3),             "\033[13~",    5},
-	{CIO_KEY_F(4),             "\033[14~",    5},
-	{CIO_KEY_F(5),             "\033[15~",    5},
-	{CIO_KEY_F(6),             "\033[17~",    5},
-	{CIO_KEY_F(7),             "\033[18~",    5},
-	{CIO_KEY_F(8),             "\033[19~",    5},
-	{CIO_KEY_F(9),             "\033[20~",    5},
-	{CIO_KEY_F(10),            "\033[21~",    5},
-	{CIO_KEY_HOME,             "\033[H",      3},
-	{CIO_KEY_UP,               "\033[A",      3},
-	{CIO_KEY_PPAGE,            "\033[V",      3},
-	{CIO_KEY_LEFT,             "\033[D",      3},
-	{CIO_KEY_RIGHT,            "\033[C",      3},
-	{CIO_KEY_END,              "\033[K",      3},
-#ifdef CIO_KEY_SELECT
-	{CIO_KEY_SELECT,           "\033[K",      3},
+	{CTERM_KEY_DOS_BACKTAB,          "\033[Z",      3},
+	{CTERM_KEY_DOS_F(1),             "\033[11~",    5},
+	{CTERM_KEY_DOS_F(2),             "\033[12~",    5},
+	{CTERM_KEY_DOS_F(3),             "\033[13~",    5},
+	{CTERM_KEY_DOS_F(4),             "\033[14~",    5},
+	{CTERM_KEY_DOS_F(5),             "\033[15~",    5},
+	{CTERM_KEY_DOS_F(6),             "\033[17~",    5},
+	{CTERM_KEY_DOS_F(7),             "\033[18~",    5},
+	{CTERM_KEY_DOS_F(8),             "\033[19~",    5},
+	{CTERM_KEY_DOS_F(9),             "\033[20~",    5},
+	{CTERM_KEY_DOS_F(10),            "\033[21~",    5},
+	{CTERM_KEY_DOS_HOME,             "\033[H",      3},
+	{CTERM_KEY_DOS_UP,               "\033[A",      3},
+	{CTERM_KEY_DOS_PPAGE,            "\033[V",      3},
+	{CTERM_KEY_DOS_LEFT,             "\033[D",      3},
+	{CTERM_KEY_DOS_RIGHT,            "\033[C",      3},
+	{CTERM_KEY_DOS_END,              "\033[K",      3},
+#ifdef CTERM_KEY_DOS_SELECT
+	{CTERM_KEY_DOS_SELECT,           "\033[K",      3},
 #endif
-	{CIO_KEY_DOWN,             "\033[B",      3},
-	{CIO_KEY_NPAGE,            "\033[U",      3},
-	{CIO_KEY_IC,               "\033[@",      3},
-	{CIO_KEY_SHIFT_F(1),       "\033[11;2~",  7},
-	{CIO_KEY_SHIFT_F(2),       "\033[12;2~",  7},
-	{CIO_KEY_SHIFT_F(3),       "\033[13;2~",  7},
-	{CIO_KEY_SHIFT_F(4),       "\033[14;2~",  7},
-	{CIO_KEY_SHIFT_F(5),       "\033[15;2~",  7},
-	{CIO_KEY_SHIFT_F(6),       "\033[17;2~",  7},
-	{CIO_KEY_SHIFT_F(7),       "\033[18;2~",  7},
-	{CIO_KEY_SHIFT_F(8),       "\033[19;2~",  7},
-	{CIO_KEY_SHIFT_F(9),       "\033[20;2~",  7},
-	{CIO_KEY_SHIFT_F(10),      "\033[21;2~",  7},
-	{CIO_KEY_CTRL_F(1),        "\033[11;5~",  7},
-	{CIO_KEY_CTRL_F(2),        "\033[12;5~",  7},
-	{CIO_KEY_CTRL_F(3),        "\033[13;5~",  7},
-	{CIO_KEY_CTRL_F(4),        "\033[14;5~",  7},
-	{CIO_KEY_CTRL_F(5),        "\033[15;5~",  7},
-	{CIO_KEY_CTRL_F(6),        "\033[17;5~",  7},
-	{CIO_KEY_CTRL_F(7),        "\033[18;5~",  7},
-	{CIO_KEY_CTRL_F(8),        "\033[19;5~",  7},
-	{CIO_KEY_CTRL_F(9),        "\033[20;5~",  7},
-	{CIO_KEY_CTRL_F(10),       "\033[21;5~",  7},
-	{CIO_KEY_ALT_F(1),         "\033[11;3~",  7},
-	{CIO_KEY_ALT_F(2),         "\033[12;3~",  7},
-	{CIO_KEY_ALT_F(3),         "\033[13;3~",  7},
-	{CIO_KEY_ALT_F(4),         "\033[14;3~",  7},
-	{CIO_KEY_ALT_F(5),         "\033[15;3~",  7},
-	{CIO_KEY_ALT_F(6),         "\033[17;3~",  7},
-	{CIO_KEY_ALT_F(7),         "\033[18;3~",  7},
-	{CIO_KEY_ALT_F(8),         "\033[19;3~",  7},
-	{CIO_KEY_ALT_F(9),         "\033[20;3~",  7},
-	{CIO_KEY_ALT_F(10),        "\033[21;3~",  7},
-	{CIO_KEY_F(11),            "\033[23~",    5},
-	{CIO_KEY_F(12),            "\033[24~",    5},
-	{CIO_KEY_SHIFT_F(11),      "\033[23;2~",  7},
-	{CIO_KEY_SHIFT_F(12),      "\033[24;2~",  7},
-	{CIO_KEY_CTRL_F(11),       "\033[23;5~",  7},
-	{CIO_KEY_CTRL_F(12),       "\033[24;5~",  7},
-	{CIO_KEY_ALT_F(11),        "\033[23;3~",  7},
-	{CIO_KEY_ALT_F(12),        "\033[24;3~",  7},
+	{CTERM_KEY_DOS_DOWN,             "\033[B",      3},
+	{CTERM_KEY_DOS_NPAGE,            "\033[U",      3},
+	{CTERM_KEY_DOS_IC,               "\033[@",      3},
+	{CTERM_KEY_DOS_SHIFT_F(1),       "\033[11;2~",  7},
+	{CTERM_KEY_DOS_SHIFT_F(2),       "\033[12;2~",  7},
+	{CTERM_KEY_DOS_SHIFT_F(3),       "\033[13;2~",  7},
+	{CTERM_KEY_DOS_SHIFT_F(4),       "\033[14;2~",  7},
+	{CTERM_KEY_DOS_SHIFT_F(5),       "\033[15;2~",  7},
+	{CTERM_KEY_DOS_SHIFT_F(6),       "\033[17;2~",  7},
+	{CTERM_KEY_DOS_SHIFT_F(7),       "\033[18;2~",  7},
+	{CTERM_KEY_DOS_SHIFT_F(8),       "\033[19;2~",  7},
+	{CTERM_KEY_DOS_SHIFT_F(9),       "\033[20;2~",  7},
+	{CTERM_KEY_DOS_SHIFT_F(10),      "\033[21;2~",  7},
+	{CTERM_KEY_DOS_CTRL_F(1),        "\033[11;5~",  7},
+	{CTERM_KEY_DOS_CTRL_F(2),        "\033[12;5~",  7},
+	{CTERM_KEY_DOS_CTRL_F(3),        "\033[13;5~",  7},
+	{CTERM_KEY_DOS_CTRL_F(4),        "\033[14;5~",  7},
+	{CTERM_KEY_DOS_CTRL_F(5),        "\033[15;5~",  7},
+	{CTERM_KEY_DOS_CTRL_F(6),        "\033[17;5~",  7},
+	{CTERM_KEY_DOS_CTRL_F(7),        "\033[18;5~",  7},
+	{CTERM_KEY_DOS_CTRL_F(8),        "\033[19;5~",  7},
+	{CTERM_KEY_DOS_CTRL_F(9),        "\033[20;5~",  7},
+	{CTERM_KEY_DOS_CTRL_F(10),       "\033[21;5~",  7},
+	{CTERM_KEY_DOS_ALT_F(1),         "\033[11;3~",  7},
+	{CTERM_KEY_DOS_ALT_F(2),         "\033[12;3~",  7},
+	{CTERM_KEY_DOS_ALT_F(3),         "\033[13;3~",  7},
+	{CTERM_KEY_DOS_ALT_F(4),         "\033[14;3~",  7},
+	{CTERM_KEY_DOS_ALT_F(5),         "\033[15;3~",  7},
+	{CTERM_KEY_DOS_ALT_F(6),         "\033[17;3~",  7},
+	{CTERM_KEY_DOS_ALT_F(7),         "\033[18;3~",  7},
+	{CTERM_KEY_DOS_ALT_F(8),         "\033[19;3~",  7},
+	{CTERM_KEY_DOS_ALT_F(9),         "\033[20;3~",  7},
+	{CTERM_KEY_DOS_ALT_F(10),        "\033[21;3~",  7},
+	{CTERM_KEY_DOS_F(11),            "\033[23~",    5},
+	{CTERM_KEY_DOS_F(12),            "\033[24~",    5},
+	{CTERM_KEY_DOS_SHIFT_F(11),      "\033[23;2~",  7},
+	{CTERM_KEY_DOS_SHIFT_F(12),      "\033[24;2~",  7},
+	{CTERM_KEY_DOS_CTRL_F(11),       "\033[23;5~",  7},
+	{CTERM_KEY_DOS_CTRL_F(12),       "\033[24;5~",  7},
+	{CTERM_KEY_DOS_ALT_F(11),        "\033[23;3~",  7},
+	{CTERM_KEY_DOS_ALT_F(12),        "\033[24;3~",  7},
 };
 
 static int
@@ -414,14 +414,8 @@ verify_key_tables(void)
 static void
 toggle_prestel_reveal(struct cterminal *cterm)
 {
-	struct ciolib_screen *savscrn = savescreen();
-
-	if (savscrn == NULL)
-		return;
-	cterm->screen.prestel_reveal = !cterm->screen.prestel_reveal;
-	ciolib_vmem_puttext(1, 1, savscrn->text_info.screenwidth,
-	    savscrn->text_info.screenheight, savscrn->vmem);
-	freescreen(savscrn);
+	cterm_render_set_prestel_reveal(cterm,
+	    !cterm->screen.prestel_reveal);
 }
 
 static int
@@ -461,13 +455,13 @@ cterm_encode_key_ex(struct cterminal *cterm, int key, bool emit)
 		case CTERM_EMULATION_PRESTEL:
 		case CTERM_EMULATION_BEEB:
 			/* PRESTEL and BEEB: F3 or PgDn toggles reveal. */
-			if (key == CIO_KEY_F(3) || key == CIO_KEY_NPAGE) {
+			if (key == CTERM_KEY_DOS_F(3) || key == CTERM_KEY_DOS_NPAGE) {
 				toggle_prestel_reveal(cterm);
 				return 0;
 			}
 			switch (cterm->emulation) {
 				case CTERM_EMULATION_PRESTEL:
-					if (cterm->cursor == _NORMALCURSOR) {
+					if (cterm->cursor == CTERM_CURSOR_UNDERLINE) {
 						table = prestel_keys_cursor;
 						table_count = KEY_MAP_SIZE(prestel_keys_cursor);
 					}
@@ -487,7 +481,7 @@ cterm_encode_key_ex(struct cterminal *cterm, int key, bool emit)
 			break;
 		default:
 			/* VT52 and ANSI-BBS: DEL and BS respect DECBKM. */
-			if (key == CIO_KEY_DC) {
+			if (key == CTERM_KEY_DOS_DC) {
 				if (cterm->extattr & CTERM_EXTATTR_DECBKM) {
 					if (emit)
 						cterm_send_keystroke(cterm, "\x7f", 1);
@@ -590,7 +584,7 @@ cterm_pk_emit(struct cterminal *cterm, const uint16_t *keys, size_t count,
 }
 
 bool
-cterm_pk_events(struct cterminal *cterm, const struct ciolib_key_event *events,
+cterm_pk_events(struct cterminal *cterm, const struct st_console_event *events,
     size_t count)
 {
 	uint16_t batch[64];
@@ -601,8 +595,13 @@ cterm_pk_events(struct cterminal *cterm, const struct ciolib_key_event *events,
 	if (cterm == NULL || events == NULL || count == 0 || !cterm->pk_mode)
 		return false;
 	for (size_t i = 0; i < count; i++) {
-		uint16_t evdev = events[i].evdev;
-		bool pressed = events[i].pressed;
+		uint16_t evdev;
+		bool pressed;
+
+		if (events[i].type != ST_CONSOLE_EVENT_PHYSICAL_KEY)
+			return false;
+		evdev = events[i].data.physical_key.evdev;
+		pressed = events[i].data.physical_key.pressed;
 		if (evdev >= CTERM_PK_MAX_EVDEV)
 			continue;
 		if (cterm_pk_get(cterm, evdev) == pressed)
@@ -624,7 +623,10 @@ cterm_pk_events(struct cterminal *cterm, const struct ciolib_key_event *events,
 bool
 cterm_pk_synthesize(struct cterminal *cterm, uint16_t evdev, bool pressed)
 {
-	struct ciolib_key_event event = {evdev, pressed};
+	struct st_console_event event = {
+		.type = ST_CONSOLE_EVENT_PHYSICAL_KEY,
+		.data.physical_key = {.evdev = evdev, .pressed = pressed},
+	};
 
 	return cterm_pk_events(cterm, &event, 1);
 }
@@ -786,15 +788,15 @@ void
 cterm_coord_get_xy(struct cterminal *cterm, enum cterm_coordinates coord, int *x, int *y)
 {
 	if (x)
-		*x = wherex();
+		*x = cterm_render_position_x(cterm);
 	if (y)
-		*y = wherey();
+		*y = cterm_render_position_y(cterm);
 
 	cterm_coord_conv_xy(cterm, CTERM_COORD_CURR, coord, x, y);
 }
 
 void
-setwindow(struct cterminal *cterm)
+cterm_apply_window(struct cterminal *cterm)
 {
 	int col, row, max_col, max_row;
 
@@ -804,7 +806,7 @@ setwindow(struct cterminal *cterm)
 	max_col = CURR_MAXX;
 	max_row = CURR_MAXY;
 	cterm_coord_conv_xy(cterm, CTERM_COORD_CURR, CTERM_COORD_SCREEN, &max_col, &max_row);
-	window(col, row, max_col, max_row);
+	cterm_render_set_window(cterm, col, row, max_col, max_row);
 }
 
 /* Adjust cterm->height in place without a full reinit.  Used by the
@@ -823,8 +825,8 @@ cterm_resize_rows(struct cterminal *cterm, int new_rows)
 	if (new_rows < 1 || new_rows == old_rows)
 		return;
 
-	/* Capture cursor in terminal coords before changing geometry; ciolib
-	 * window() resets the window-relative cursor, so we always restore. */
+	/* Capture terminal coordinates because changing the console window also
+	 * changes the window-relative cursor; restore it after the resize. */
 	TERM_XY(&tx, &ty);
 	if (ty > new_rows)
 		ty = new_rows;
@@ -837,20 +839,15 @@ cterm_resize_rows(struct cterminal *cterm, int new_rows)
 		cterm->top_margin = 1;
 
 	cterm->height = new_rows;
-	setwindow(cterm);
-	cterm_gotoxy(cterm, tx, ty);
+	cterm_apply_window(cterm);
+	cterm_set_position(cterm, tx, ty);
 
 	if (new_rows > old_rows) {
-		struct vmem_cell *buf = calloc(cterm->width, sizeof(*buf));
+		struct st_console_cell *buf = calloc(cterm->width, sizeof(*buf));
 		int i, r, sx, sy, ex;
 
 		if (buf) {
-			buf[0].ch = ' ';
-			buf[0].legacy_attr = cterm->attr;
-			buf[0].fg = cterm->fg_color;
-			buf[0].bg = cterm->bg_color;
-			buf[0].font = ciolib_attrfont(cterm->attr);
-			buf[0].hyperlink_id = 0;
+			cterm_render_make_current_cell(cterm, &buf[0], ' ', 0);
 			for (i = 1; i < cterm->width; i++)
 				buf[i] = buf[0];
 			for (r = old_rows + 1; r <= new_rows; r++) {
@@ -861,7 +858,7 @@ cterm_resize_rows(struct cterminal *cterm, int new_rows)
 				    CTERM_COORD_SCREEN, &sx, &sy);
 				cterm_coord_conv_xy(cterm, CTERM_COORD_TERM,
 				    CTERM_COORD_SCREEN, &ex, NULL);
-				vmem_puttext(sx, sy, ex, sy, buf);
+				cterm_render_write_cells(cterm, sx, sy, ex, sy, buf);
 			}
 			free(buf);
 		}
@@ -907,18 +904,18 @@ set_attr(struct cterminal *cterm, unsigned char colour, bool bg)
 		cterm->attr &= 0xF8;
 		cterm->attr |= (colour & 0x07);
 	}
-	attr2palette(cterm->attr, bg ? NULL : &cterm->fg_color, bg ? &cterm->bg_color : NULL);
+	cterm_render_attribute_colours(cterm, cterm->attr, bg ? NULL : &cterm->fg_color, bg ? &cterm->bg_color : NULL);
 	if (cterm->emulation == CTERM_EMULATION_PRESTEL || cterm->emulation == CTERM_EMULATION_BEEB) {
 		if (cterm->extattr & CTERM_EXTATTR_PRESTEL_DOUBLE_HEIGHT)
-			cterm->bg_color |= CIOLIB_BG_DOUBLE_HEIGHT;
-		cterm->bg_color |= CIOLIB_BG_PRESTEL;
+			cterm->cell_flags |= ST_CONSOLE_CELL_DOUBLE_HEIGHT;
+		cterm->cell_flags |= ST_CONSOLE_CELL_SAA5050;
 		if (cterm->emulation == CTERM_EMULATION_PRESTEL)
-			cterm->bg_color |= CIOLIB_BG_PRESTEL_TERMINAL;
+			cterm->cell_flags |= ST_CONSOLE_CELL_TERMINAL_FONT;
 	}
 	if (bg)
-		FREE_AND_NULL(cterm->bg_tc_str);
+		CTERM_FREE_AND_CLEAR(cterm->bg_tc_str);
 	else
-		FREE_AND_NULL(cterm->fg_tc_str);
+		CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
 }
 
 void
@@ -934,10 +931,10 @@ cterm_set_bgattr(struct cterminal *cterm, unsigned char colour)
 }
 
 void
-cterm_gotoxy(struct cterminal *cterm, int x, int y)
+cterm_set_position(struct cterminal *cterm, int x, int y)
 {
 	cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_CURR, &x, &y);
-	gotoxy(x, y);
+	cterm_render_set_position(cterm, x, y);
 	ABS_XY(&cterm->xpos, &cterm->ypos);
 	if (cterm->emulation == CTERM_EMULATION_PRESTEL || cterm->emulation == CTERM_EMULATION_BEEB)
 		cterm_prestel_get_state(cterm);
@@ -953,7 +950,7 @@ cterm_gotoxy(struct cterminal *cterm, int x, int y)
  * Called from ripper.c's cb_accept_introducer() as the cursor-position
  * fallback for the RIP `!` BOL predicate.
  */
-CIOLIBEXPORT int
+ int
 cterm_crpos(struct cterminal *cterm)
 {
 	int tx, ty, ax, ay;
@@ -1047,7 +1044,7 @@ cterm_fill_rect(struct cterminal *cterm, int left, int top, int right, int botto
 {
 	int width = right - left + 1;
 	int height = bottom - top + 1;
-	struct vmem_cell *buf;
+	struct st_console_cell *buf;
 	int i, r;
 
 	if (width <= 0 || height <= 0)
@@ -1056,26 +1053,21 @@ cterm_fill_rect(struct cterminal *cterm, int left, int top, int right, int botto
 	if (buf == NULL)
 		return;
 	/* Initialize one row of cells with current attributes, no hyperlink */
-	buf[0].ch = ch;
-	buf[0].legacy_attr = cterm->attr;
-	buf[0].fg = cterm->fg_color;
-	buf[0].bg = cterm->bg_color;
-	buf[0].font = ciolib_attrfont(cterm->attr);
-	buf[0].hyperlink_id = 0;
+	cterm_render_make_current_cell(cterm, &buf[0], ch, 0);
 	for (i = 1; i < width; i++)
 		buf[i] = buf[0];
 	/* Write row by row */
 	for (r = top; r <= bottom; r++)
-		vmem_puttext(left, r, right, r, buf);
+		cterm_render_write_cells(cterm, left, r, right, r, buf);
 	free(buf);
 }
 
 void
-cterm_clreol(struct cterminal *cterm)
+cterm_clear_line(struct cterminal *cterm)
 {
 	int x, y;
 	int rm;
-	struct vmem_cell *buf;
+	struct st_console_cell *buf;
 	int i;
 	int width;
 
@@ -1092,17 +1084,12 @@ cterm_clreol(struct cterminal *cterm)
 		if (i > 0)
 			buf[i] = buf[0];
 		else {
-			buf[i].ch = ' ';
-			buf[i].legacy_attr = cterm->attr;
-			buf[i].fg = cterm->fg_color;
-			buf[i].bg = cterm->bg_color;
-			buf[i].font = ciolib_attrfont(cterm->attr);
-			buf[i].hyperlink_id = 0;
+			cterm_render_make_current_cell(cterm, &buf[i], ' ', 0);
 		}
 	}
 	cterm_coord_conv_xy(cterm, CTERM_COORD_CURR, CTERM_COORD_SCREEN, &x, &y);
 	cterm_coord_conv_xy(cterm, CTERM_COORD_CURR, CTERM_COORD_SCREEN, &rm, NULL);
-	vmem_puttext(x, y, rm, y, buf);
+	cterm_render_write_cells(cterm, x, y, rm, y, buf);
 	free(buf);
 }
 
@@ -1110,7 +1097,7 @@ void
 cterm_clrblk(struct cterminal *cterm, int sx, int sy, int ex, int ey)
 {
 	int i;
-	struct vmem_cell *buf;
+	struct st_console_cell *buf;
 	int chars = (ex - sx + 1) * (ey - sy + 1);
 
 	buf = calloc(chars, sizeof(*buf));
@@ -1120,15 +1107,10 @@ cterm_clrblk(struct cterminal *cterm, int sx, int sy, int ex, int ey)
 		if (i > 0)
 			buf[i] = buf[0];
 		else {
-			buf[i].ch = ' ';
-			buf[i].legacy_attr = cterm->attr;
-			buf[i].fg = cterm->fg_color;
-			buf[i].bg = cterm->bg_color;
-			buf[i].font = ciolib_attrfont(cterm->attr);
-			buf[i].hyperlink_id = 0;
+			cterm_render_make_current_cell(cterm, &buf[i], ' ', 0);
 		}
 	}
-	vmem_puttext(sx, sy, ex, ey, buf);
+	cterm_render_write_cells(cterm, sx, sy, ex, ey, buf);
 	free(buf);
 }
 
@@ -1140,20 +1122,14 @@ cterm_scrolldown(struct cterminal *cterm)
 	int maxx = TERM_MAXX;
 	int maxy = TERM_MAXY;
 	int x,y;
-	struct vmem_cell fill = {
-		.ch = ' ',
-		.legacy_attr = cterm->attr,
-		.fg = cterm->fg_color,
-		.bg = cterm->bg_color,
-		.font = ciolib_attrfont(cterm->attr),
-		.hyperlink_id = 0,
-	};
+	struct st_console_cell fill;
+	cterm_render_make_current_cell(cterm, &fill, ' ', 0);
 
 	cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_SCREEN, &minx, &miny);
 	cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_SCREEN, &maxx, &maxy);
 	CURR_XY(&x, &y);
-	movetext_clear(minx, miny, maxx, maxy - 1, minx, miny + 1, &fill);
-	gotoxy(x, y);
+	cterm_render_move_cells_clear(cterm, minx, miny, maxx, maxy - 1, minx, miny + 1, &fill);
+	cterm_render_set_position(cterm, x, y);
 }
 
 static void
@@ -1175,7 +1151,7 @@ cterm_line_to_scrollback(struct cterminal *cterm, int row)
 		if (getw < cterm->backwidth) {
 			memset(cterm->scrollback + cterm->backpos * cterm->backwidth, 0, sizeof(*cterm->scrollback) * cterm->backwidth);
 		}
-		vmem_gettext(cterm->x, row, cterm->x + getw - 1, row, cterm->scrollback + cterm->backpos * cterm->backwidth);
+		cterm_render_read_cells(cterm, cterm->x, row, cterm->x + getw - 1, row, cterm->scrollback + cterm->backpos * cterm->backwidth);
 
 		cterm->backpos++;
 		if (cterm->backpos == cterm->backlines)
@@ -1191,21 +1167,15 @@ cterm_scrollup(struct cterminal *cterm)
 	int maxx = TERM_MAXX;
 	int maxy = TERM_MAXY;
 	int x,y;
-	struct vmem_cell fill = {
-		.ch = ' ',
-		.legacy_attr = cterm->attr,
-		.fg = cterm->fg_color,
-		.bg = cterm->bg_color,
-		.font = ciolib_attrfont(cterm->attr),
-		.hyperlink_id = 0,
-	};
+	struct st_console_cell fill;
+	cterm_render_make_current_cell(cterm, &fill, ' ', 0);
 
 	cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_SCREEN, &minx, &miny);
 	cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_SCREEN, &maxx, &maxy);
 	cterm_line_to_scrollback(cterm, miny);
 	CURR_XY(&x, &y);
-	movetext_clear(minx, miny + 1, maxx, maxy, minx, miny, &fill);
-	gotoxy(x, y);
+	cterm_render_move_cells_clear(cterm, minx, miny + 1, maxx, maxy, minx, miny, &fill);
+	cterm_render_set_position(cterm, x, y);
 }
 
 void
@@ -1242,18 +1212,18 @@ cterm_dellines(struct cterminal * cterm, int lines)
 	if (lines > maxy - sy + 1) // Delete all the lines... ie: clear screen...
 		lines = maxy - sy + 1;
 	if (sy + lines <= maxy)
-		movetext(minx, sy + lines, maxx, maxy, minx, sy);
+		cterm_render_move_cells(cterm, minx, sy + lines, maxx, maxy, minx, sy);
 	for(i = TERM_MAXY - lines + 1; i <= TERM_MAXY; i++) {
-		cterm_gotoxy(cterm, TERM_MINX, i);
-		cterm_clreol(cterm);
+		cterm_set_position(cterm, TERM_MINX, i);
+		cterm_clear_line(cterm);
 	}
-	cterm_gotoxy(cterm, x, y);
+	cterm_set_position(cterm, x, y);
 }
 
 void
 cterm_clear2bol(struct cterminal * cterm)
 {
-	struct vmem_cell *buf;
+	struct st_console_cell *buf;
 	int i;
 	int x, y;
 	int minx = CURR_MINX;
@@ -1265,17 +1235,12 @@ cterm_clear2bol(struct cterminal * cterm)
 			if (i > 0)
 				buf[i] = buf[0];
 			else {
-				buf[i].ch = ' ';
-				buf[i].legacy_attr = cterm->attr;
-				buf[i].fg = cterm->fg_color;
-				buf[i].bg = cterm->bg_color;
-				buf[i].font = ciolib_attrfont(cterm->attr);
-				buf[i].hyperlink_id = 0;
+				cterm_render_make_current_cell(cterm, &buf[i], ' ', 0);
 			}
 		}
 		cterm_coord_conv_xy(cterm, CTERM_COORD_CURR, CTERM_COORD_SCREEN, &x, &y);
 		cterm_coord_conv_xy(cterm, CTERM_COORD_CURR, CTERM_COORD_SCREEN, &minx, NULL);
-		vmem_puttext(minx, y, x, y, buf);
+		cterm_render_write_cells(cterm, minx, y, x, y, buf);
 		free(buf);
 	}
 	else {
@@ -1296,8 +1261,8 @@ cterm_clearscreen(struct cterminal *cterm, char attr)
 
 	for (int i = 0; i < cterm->height; i++)
 		cterm_line_to_scrollback(cterm, miny + i);
-	clrscr();
-	gotoxy(CURR_MINX, CURR_MINY);
+	cterm_render_clear_window(cterm);
+	cterm_render_set_position(cterm, CURR_MINX, CURR_MINY);
 }
 
 /*
@@ -1332,7 +1297,7 @@ bool cterm_parse_sub_parameters(struct sub_params *sub, struct cterminal *cterm,
 		p++;
 		sub->param_int[i] = strtoull(p, &p, 10);
 		if (*p != ':' && *p != 0) {
-			FREE_AND_NULL(sub->param_int);
+			CTERM_FREE_AND_CLEAR(sub->param_int);
 			return false;
 		}
 	}
@@ -1341,7 +1306,7 @@ bool cterm_parse_sub_parameters(struct sub_params *sub, struct cterminal *cterm,
 
 void cterm_free_sub_parameters(struct sub_params *sub)
 {
-	FREE_AND_NULL(sub->param_int);
+	CTERM_FREE_AND_CLEAR(sub->param_int);
 }
 
 /* ------------------------------------------------------------------------
@@ -1385,24 +1350,24 @@ cterm_seq_default(struct cterminal *cterm, int index, uint64_t val)
 int
 cterm_setpalette(struct cterminal *cterm, uint32_t entry, uint16_t r, uint16_t g, uint16_t b)
 {
-	const uint32_t palette_offset = cio_api.options & CONIO_OPT_EXTENDED_PALETTE ? 16 : 0;
+	const uint32_t palette_offset = cterm->screen.capabilities & ST_CONSOLE_CAP_EXTENDED_PALETTE ? 16 : 0;
 	if (entry == 7 + palette_offset)
 		cterm->default_fg_palette = (uint32_t)r >> 8 << 16 | (uint32_t)g >> 8 << 8 | (uint32_t)b >> 8;
 	else if (entry == palette_offset)
 		cterm->default_bg_palette = (uint32_t)r >> 8 << 16 | (uint32_t)g >> 8 << 8 | (uint32_t)b >> 8;
-	return setpalette(entry, r, g, b);
+	return cterm_render_set_palette(cterm, entry, r, g, b);
 }
 
 int
 cterm_resetpalette(struct cterminal *cterm, uint32_t entry)
 {
-	const uint32_t palette_offset = cio_api.options
-	    & CONIO_OPT_EXTENDED_PALETTE ? 16 : 0;
+	const uint32_t palette_offset = cterm->screen.capabilities
+	    & ST_CONSOLE_CAP_EXTENDED_PALETTE ? 16 : 0;
 	uint8_t red;
 	uint8_t green;
 	uint8_t blue;
 
-	if (!st_cterm_adapter_default_palette(entry, &red, &green, &blue))
+	if (!cterm_render_default_palette(entry, &red, &green, &blue))
 		return 0;
 	return cterm_setpalette(cterm, entry + palette_offset,
 	    (uint16_t)red << 8 | red, (uint16_t)green << 8 | green,
@@ -1439,7 +1404,7 @@ cterm_do_tab(struct cterminal *cterm)
 		else if(cy < CURR_MAXY)
 			cy++;
 	}
-	gotoxy(cx, cy);
+	cterm_render_set_position(cterm, cx, cy);
 }
 
 void
@@ -1462,7 +1427,7 @@ cterm_do_backtab(struct cterminal *cterm)
 	}
 	if (ox >= lm && cx < lm)
 		cx = lm;
-	gotoxy(cx, cy);
+	cterm_render_set_position(cterm, cx, cy);
 }
 
 void
@@ -1487,7 +1452,7 @@ cterm_do_vtab(struct cterminal *cterm)
 		cterm_cond_scrollup(cterm);
 		cy = bm;
 	}
-	gotoxy(cx, cy);
+	cterm_render_set_position(cterm, cx, cy);
 }
 
 void
@@ -1539,7 +1504,7 @@ cterm_adjust_currpos(struct cterminal *cterm, int xadj, int yadj, int scroll)
 			tx = TERM_MAXX;
 		if (tx < TERM_MINX)
 			tx = TERM_MINX;
-		cterm_gotoxy(cterm, tx, ty);
+		cterm_set_position(cterm, tx, ty);
 		return;
 	}
 	/*
@@ -1565,7 +1530,7 @@ cterm_adjust_currpos(struct cterminal *cterm, int xadj, int yadj, int scroll)
 		tx = cterm->left_margin;
 	if (ty < cterm->top_margin && y >= cterm->top_margin)
 		ty = cterm->top_margin;
-	gotoxy(tx, ty);
+	cterm_render_set_position(cterm, tx, ty);
 	if (cterm->emulation == CTERM_EMULATION_PRESTEL || cterm->emulation == CTERM_EMULATION_BEEB)
 		cterm_prestel_get_state(cterm);
 }
@@ -1594,22 +1559,22 @@ cterm_skypix_color(struct cterminal *cterm, int color)
 	if (!cterm->skypix)
 		return color;
 	switch (color) {
-		case BLACK:        return 0;
-		case RED:          return 3;
-		case GREEN:        return 4;
-		case BROWN:        return 6;
-		case BLUE:         return 1;
-		case MAGENTA:      return 7;
-		case CYAN:         return 5;
-		case LIGHTGRAY:    return 2;
-		case DARKGRAY:     return 8;
-		case LIGHTRED:     return 11;
-		case LIGHTGREEN:   return 12;
-		case YELLOW:       return 14;
-		case LIGHTBLUE:    return 9;
-		case LIGHTMAGENTA: return 15;
-		case LIGHTCYAN:    return 13;
-		case WHITE:        return 10;
+		case CTERM_COLOR_BLACK:        return 0;
+		case CTERM_COLOR_RED:          return 3;
+		case CTERM_COLOR_GREEN:        return 4;
+		case CTERM_COLOR_BROWN:        return 6;
+		case CTERM_COLOR_BLUE:         return 1;
+		case CTERM_COLOR_MAGENTA:      return 7;
+		case CTERM_COLOR_CYAN:         return 5;
+		case CTERM_COLOR_LIGHT_GRAY:    return 2;
+		case CTERM_COLOR_DARK_GRAY:     return 8;
+		case CTERM_COLOR_LIGHT_RED:     return 11;
+		case CTERM_COLOR_LIGHT_GREEN:   return 12;
+		case CTERM_COLOR_YELLOW:       return 14;
+		case CTERM_COLOR_LIGHT_BLUE:    return 9;
+		case CTERM_COLOR_LIGHT_MAGENTA: return 15;
+		case CTERM_COLOR_LIGHT_CYAN:    return 13;
+		case CTERM_COLOR_WHITE:        return 10;
 	}
 	return color;
 }
@@ -1810,9 +1775,8 @@ void
 cterm_reset(struct cterminal *cterm)
 {
 	int  i;
-	struct text_info ti;
 
-	cterm->altfont[0] = cterm->altfont[1] = cterm->altfont[2] = cterm->altfont[3] = getfont(1);
+	cterm->altfont[0] = cterm->altfont[1] = cterm->altfont[2] = cterm->altfont[3] = cterm_render_font_selector(cterm, 1);
 	cterm->top_margin=1;
 	cterm->bottom_margin=cterm->height;
 	cterm->left_margin=1;
@@ -1830,7 +1794,7 @@ cterm_reset(struct cterminal *cterm)
 	cterm->string = 0;
 	cterm->accumulator = NULL;
 	cterm->saved_accumulator = NULL;
-	FREE_AND_NULL(cterm->strbuf);
+	CTERM_FREE_AND_CLEAR(cterm->strbuf);
 	cterm->strbuflen = 0;
 	cterm->strbufsize = 0;
 	cterm->musicbuf[0] = 0;
@@ -1840,15 +1804,21 @@ cterm_reset(struct cterminal *cterm)
 	cterm->octave=4;
 	cterm->notelen=4;
 	cterm->noteshape=CTERM_MUSIC_NORMAL;
-	cterm->musicfore=TRUE;
+	cterm->musicfore=true;
 	cterm->backpos=0;
 	cterm->xpos = TERM_MINX;
 	cterm->ypos = TERM_MINY;
-	cterm->cursor=_NORMALCURSOR;
+	cterm->cursor=CTERM_CURSOR_UNDERLINE;
 	cterm->extattr = CTERM_EXTATTR_AUTOWRAP | CTERM_EXTATTR_SXSCROLL | CTERM_EXTATTR_DECBKM;
+	cterm->cell_flags = 0;
+	if (cterm->emulation == CTERM_EMULATION_PRESTEL
+	    || cterm->emulation == CTERM_EMULATION_BEEB)
+		cterm->cell_flags |= ST_CONSOLE_CELL_SAA5050;
+	if (cterm->emulation == CTERM_EMULATION_PRESTEL)
+		cterm->cell_flags |= ST_CONSOLE_CELL_TERMINAL_FONT;
 	if (cterm->emulation == CTERM_EMULATION_ATARIST_VT52)
 		cterm->extattr &= ~CTERM_EXTATTR_AUTOWRAP;
-	FREE_AND_NULL(cterm->tabs);
+	CTERM_FREE_AND_CLEAR(cterm->tabs);
 	cterm->tabs = malloc(sizeof(cterm_tabs));
 	if (cterm->tabs) {
 		memcpy(cterm->tabs, cterm_tabs, sizeof(cterm_tabs));
@@ -1856,7 +1826,7 @@ cterm_reset(struct cterminal *cterm)
 	}
 	else
 		cterm->tab_count = 0;
-	FREE_AND_NULL(cterm->vtabs);
+	CTERM_FREE_AND_CLEAR(cterm->vtabs);
 	cterm->vtab_count = 0;
 	cterm->decsace = 0;
 	cterm->decscs_speed = 0;
@@ -1865,26 +1835,25 @@ cterm_reset(struct cterminal *cterm)
 	cterm->saved_mode_mask = 0;
 	cterm->negative = false;
 	cterm->c64reversemode = false;
-	gettextinfo(&ti);
-	switch (ti.currmode) {
-		case C64_40X25:
-		case C128_40X25:
-		case C128_80X25:
+	switch (cterm->screen.mode) {
+		case CTERM_MODE_C64_40:
+		case CTERM_MODE_C128_40:
+		case CTERM_MODE_C128_80:
 			cterm->attr = 15;
 			break;
 		default:
-			cterm->attr = ti.normattr;
+			cterm->attr = cterm->screen.default_attribute;
 			break;
 	}
-	attr2palette(cterm->attr, &cterm->fg_color, &cterm->bg_color);
+	cterm_render_attribute_colours(cterm, cterm->attr, &cterm->fg_color, &cterm->bg_color);
 	if (cterm->last_column_flag & CTERM_LCF_FORCED)
 		cterm->last_column_flag &= ~(CTERM_LCF_SET);
 	else
 		cterm->last_column_flag &= ~(CTERM_LCF_SET | CTERM_LCF_ENABLED);
 	cterm->doorway_mode = 0;
 	cterm->doorway_char = 0;
-	FREE_AND_NULL(cterm->fg_tc_str);
-	FREE_AND_NULL(cterm->bg_tc_str);
+	CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
+	CTERM_FREE_AND_CLEAR(cterm->bg_tc_str);
 	cterm->sixel = SIXEL_INACTIVE;
 	cterm->sx_iv = 0;
 	cterm->sx_ih = 0;
@@ -1901,17 +1870,17 @@ cterm_reset(struct cterminal *cterm)
 	cterm->sx_start_x = 0;
 	cterm->sx_start_y = 0;
 	cterm->sx_row_max_x = 0;
-	FREE_AND_NULL(cterm->sx_pixels);
+	CTERM_FREE_AND_CLEAR(cterm->sx_pixels);
 	cterm->sx_width = 0;
 	cterm->sx_height = 0;
-	FREE_AND_NULL(cterm->sx_mask);
-	ciolib_set_current_hyperlink(0);
+	CTERM_FREE_AND_CLEAR(cterm->sx_mask);
+	cterm_render_set_hyperlink(cterm, 0);
 	for (i = 0; i < (int)(sizeof(cterm->macros)
 	    / sizeof(cterm->macros[0])); i++) {
-		FREE_AND_NULL(cterm->macros[i]);
+		CTERM_FREE_AND_CLEAR(cterm->macros[i]);
 		cterm->macro_lens[i] = 0;
 	}
-	setwindow(cterm);
+	cterm_apply_window(cterm);
 
 	/* Set up tabs for ATASCII */
 	if(cterm->emulation == CTERM_EMULATION_ATASCII) {
@@ -1921,12 +1890,12 @@ cterm_reset(struct cterminal *cterm)
 	cterm->atascii_inverse = false;
 
 	/* Set up a shadow palette */
-	if (cio_api.options & CONIO_OPT_EXTENDED_PALETTE) {
-		for (i = 0; i < TOTAL_DAC_SIZE; i++)
+	if (cterm->screen.capabilities & ST_CONSOLE_CAP_EXTENDED_PALETTE) {
+		for (i = 0; i < CTERM_PALETTE_SIZE; i++)
 			(void)cterm_resetpalette(cterm, (uint32_t)i);
 		if (cterm->has_palette_override) {
 			uint32_t op[16];
-			get_modepalette(op);
+			cterm_render_get_modepalette(cterm, op);
 			for (i = 0; i < 16; i++) {
 				uint32_t c = cterm->palette_override[i];
 				cterm_setpalette(cterm, op[i] + 16,
@@ -1954,8 +1923,8 @@ cterm_reset(struct cterminal *cterm)
 }
 
 struct cterminal* cterm_init(int height, int width, int xpos, int ypos,
-    int backlines, int backcols, struct vmem_cell *scrollback, int emulation,
-    const struct st_cterm_legacy_screen *screen)
+    int backlines, int backcols, struct st_console_cell *scrollback, int emulation,
+    const struct cterm_render_state *screen)
 {
 	static bool key_tables_verified = false;
 	char	*revision="$Revision: 1.332 $";
@@ -2052,8 +2021,8 @@ struct cterminal* cterm_init(int height, int width, int xpos, int ypos,
 	}
 	strcat(cterm->DA,"c");
 	if (cterm->emulation == CTERM_EMULATION_PRESTEL) {
-		cterm->cursor = _NOCURSOR;
-		ciolib_setcursortype(cterm->cursor);
+		cterm->cursor = CTERM_CURSOR_HIDDEN;
+		cterm_render_set_cursor(cterm, cterm->cursor);
 		memcpy(cterm->prestel_data[0], "????????????????", PRESTEL_MEM_SLOT_SIZE);
 		memcpy(cterm->prestel_data[1], ":2:?4967?89:1???", PRESTEL_MEM_SLOT_SIZE);
 		memcpy(cterm->prestel_data[2], ":1632?123?456???", PRESTEL_MEM_SLOT_SIZE);
@@ -2063,9 +2032,9 @@ struct cterminal* cterm_init(int height, int width, int xpos, int ypos,
 		memcpy(cterm->prestel_data[6], ";???????????????", PRESTEL_MEM_SLOT_SIZE);
 	}
 	if (cterm->emulation == CTERM_EMULATION_ATARIST_VT52) {
-		flags = getvideoflags();
-		flags |= CIOLIB_VIDEO_BGBRIGHT;
-		setvideoflags(flags);
+		flags = cterm_render_get_video_flags(cterm);
+		flags |= ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND;
+		cterm_render_set_video_flags(cterm, flags);
 	}
 
 	return cterm;
@@ -2073,34 +2042,31 @@ struct cterminal* cterm_init(int height, int width, int xpos, int ypos,
 
 void cterm_start(struct cterminal *cterm)
 {
-	struct text_info ti;
-
 	if (!cterm->started) {
-		gettextinfo(&ti);
-		switch (ti.currmode) {
-			case C64_40X25:
-			case C128_40X25:
-			case C128_80X25:
+		switch (cterm->screen.mode) {
+			case CTERM_MODE_C64_40:
+			case CTERM_MODE_C128_40:
+			case CTERM_MODE_C128_80:
 				cterm->attr = 15;
 				break;
 			default:
-				cterm->attr = ti.normattr;
+				cterm->attr = cterm->screen.default_attribute;
 				break;
 		}
-		attr2palette(cterm->attr, &cterm->fg_color, &cterm->bg_color);
-		FREE_AND_NULL(cterm->fg_tc_str);
-		FREE_AND_NULL(cterm->bg_tc_str);
-		if (cio_api.options & CONIO_OPT_EXTENDED_PALETTE) {
+		cterm_render_attribute_colours(cterm, cterm->attr, &cterm->fg_color, &cterm->bg_color);
+		CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
+		CTERM_FREE_AND_CLEAR(cterm->bg_tc_str);
+		if (cterm->screen.capabilities & ST_CONSOLE_CAP_EXTENDED_PALETTE) {
 			cterm->fg_color += 16;
 			cterm->bg_color += 16;
 		}
-		textattr(cterm->attr);
-		ciolib_setcolour(cterm->fg_color, cterm->bg_color);
-		ciolib_setcursortype(cterm->cursor);
+		cterm_render_set_attribute(cterm, cterm->attr);
+		cterm_render_set_colours(cterm, cterm->fg_color, cterm->bg_color);
+		cterm_render_set_cursor(cterm, cterm->cursor);
 		cterm->started=1;
-		setwindow(cterm);
+		cterm_apply_window(cterm);
 		cterm_clearscreen(cterm, cterm->attr);
-		cterm_gotoxy(cterm, 1, 1);
+		cterm_set_position(cterm, 1, 1);
 	}
 }
 
@@ -2113,17 +2079,17 @@ cterm_advance_char(struct cterminal *cterm, int *x, int *y, int move)
 
 	if (cterm->emulation == CTERM_EMULATION_PRESTEL || cterm->emulation == CTERM_EMULATION_BEEB) {
 		cterm_prestel_fix_line(cterm, *x, *y, true, false);
-		textattr(cterm->attr);
-		setcolour(cterm->fg_color, cterm->bg_color);
+		cterm_render_set_attribute(cterm, cterm->attr);
+		cterm_render_set_colours(cterm, cterm->fg_color, cterm->bg_color);
 	}
 	if((*x == rm || *x == CURR_MAXX) && (!(cterm->extattr & CTERM_EXTATTR_AUTOWRAP))) {
-		gotoxy(*x, *y);
+		cterm_render_set_position(cterm, *x, *y);
 		return;
 	}
 	else {
 		if((*x == rm || *x == CURR_MAXX) && ((cterm->last_column_flag & (CTERM_LCF_ENABLED | CTERM_LCF_SET)) == CTERM_LCF_ENABLED)) {
 			cterm->last_column_flag |= CTERM_LCF_SET;
-			gotoxy(*x, *y);
+			cterm_render_set_position(cterm, *x, *y);
 		}
 		else if(*y == bm && (*x == rm || *x == CURR_MAXX)) {
 			if (cterm->emulation == CTERM_EMULATION_PRESTEL) {
@@ -2149,7 +2115,7 @@ cterm_advance_char(struct cterminal *cterm, int *x, int *y, int move)
 				if (*y < CURR_MAXY)
 					(*y)++;
 				if (move)
-					gotoxy(*x, *y);
+					cterm_render_set_position(cterm, *x, *y);
 			}
 			else {
 				(*x)++;
@@ -2157,7 +2123,7 @@ cterm_advance_char(struct cterminal *cterm, int *x, int *y, int move)
 		}
 	}
 	if (move)
-		gotoxy(*x, *y);
+		cterm_render_set_position(cterm, *x, *y);
 }
 
 void
@@ -2175,8 +2141,8 @@ cterm_ctputs(struct cterminal *cterm, char *buf)
 	}
 
 	outp = buf;
-	oldscroll = _wscroll;
-	_wscroll = 0;
+	oldscroll = cterm->screen.wscroll;
+	cterm->screen.wscroll = 0;
 	CURR_XY(&cx, &cy);
 	if (cterm->log == CTERM_LOG_ASCII && cterm->logfile != NULL)
 		fputs(buf, cterm->logfile);
@@ -2190,7 +2156,7 @@ cterm_ctputs(struct cterminal *cterm, char *buf)
 			case '\n':
 				cterm_clear_lcf(cterm);
 				*p = 0;
-				cputs(outp);
+				cterm_render_write_string(cterm, outp);
 				outp = p + 1;
 				cterm_adjust_currpos(cterm, 0, 1, 1);
 				CURR_XY(&cx, &cy);
@@ -2202,7 +2168,7 @@ cterm_ctputs(struct cterminal *cterm, char *buf)
 			case '\r':
 				cterm_clear_lcf(cterm);
 				*p = 0;
-				cputs(outp);
+				cterm_render_write_string(cterm, outp);
 				outp = p + 1;
 				cterm_adjust_currpos(cterm, INT_MIN, 0, 0);
 				CURR_XY(&cx, &cy);
@@ -2210,7 +2176,7 @@ cterm_ctputs(struct cterminal *cterm, char *buf)
 			case '\b':
 				cterm_clear_lcf(cterm);
 				*p=0;
-				cputs(outp);
+				cterm_render_write_string(cterm, outp);
 				outp = p + 1;
 				cterm_adjust_currpos(cterm, -1, 0, 0);
 				CURR_XY(&cx, &cy);
@@ -2220,7 +2186,7 @@ cterm_ctputs(struct cterminal *cterm, char *buf)
 			case '\t':
 				cterm_clear_lcf(cterm);
 				*p=0;
-				cputs(outp);
+				cterm_render_write_string(cterm, outp);
 				outp=p+1;
 				cterm_do_tab(cterm);
 				CURR_XY(&cx, &cy);
@@ -2236,7 +2202,7 @@ cterm_ctputs(struct cterminal *cterm, char *buf)
 					char ch;
 					ch = *(p + 1);
 					*(p + 1) = 0;
-					cputs(outp);
+					cterm_render_write_string(cterm, outp);
 					*(p+1) = ch;
 					outp = p + 1;
 				}
@@ -2244,10 +2210,10 @@ cterm_ctputs(struct cterminal *cterm, char *buf)
 				break;
 		}
 	}
-	cputs(outp);
+	cterm_render_write_string(cterm, outp);
 	if (cterm->emulation == CTERM_EMULATION_PRESTEL || cterm->emulation == CTERM_EMULATION_BEEB)
 		cterm_prestel_fix_line(cterm, cx, cy, true, false);
-	_wscroll=oldscroll;
+	cterm->screen.wscroll=oldscroll;
 }
 
 /* ustrlen / cterm_uctputs / ustrcat live in cterm_internal.h */
@@ -2278,12 +2244,19 @@ cterm_dispatch_byte(struct cterminal *cterm, unsigned char byte, int *speed)
 		/* else: control byte with no handler — drop silently */
 	}
 	else {
-		unsigned char ch[2];
+		struct st_console_cell cell;
+		uint8_t attribute;
+		uint32_t foreground;
+		uint32_t background;
 		int sx, sy, x, y;
-		ch[0] = byte;
-		ch[1] = cterm_c64_get_attr(cterm);
+		attribute = cterm_c64_get_attr(cterm);
+		cterm_render_attribute_colours(cterm, attribute, &foreground,
+		    &background);
 		SCR_XY(&sx, &sy);
-		puttext(sx, sy, sx, sy, ch);
+		if (cterm_render_make_cell(cterm, &cell, byte, attribute,
+		    foreground, background, cterm_render_attribute_font(cterm, attribute),
+		    0, 0) == 0)
+			cterm_render_write_cells(cterm, sx, sy, sx, sy, &cell);
 		CURR_XY(&x, &y);
 		cterm_advance_char(cterm, &x, &y, 1);
 	}
@@ -2319,7 +2292,7 @@ cterm_accumulate_trailing(struct cterminal *cterm, unsigned char byte, int *spee
 	return true;
 }
 
-CIOLIBEXPORT size_t cterm_write(struct cterminal * cterm, const void *vbuf, int buflen, int *speed)
+ size_t cterm_write(struct cterminal * cterm, const void *vbuf, int buflen, int *speed)
 {
 	const unsigned char *buf = (unsigned char *)vbuf;
 	/* Alias the struct-resident print-batch buffer so the unified
@@ -2329,7 +2302,6 @@ CIOLIBEXPORT size_t cterm_write(struct cterminal * cterm, const void *vbuf, int 
 	unsigned char *prnpos;
 	const unsigned char *prnlast = &prn[sizeof(cterm->print_buf)-sizeof(cterm->escbuf)-1];
 	int i, j, x, y;
-	struct text_info	ti;
 	int	olddmc;
 	uint32_t palette[16];
 	int mpalette;
@@ -2348,36 +2320,35 @@ CIOLIBEXPORT size_t cterm_write(struct cterminal * cterm, const void *vbuf, int 
 		cterm_start(cterm);
 
 	/* Now rejigger the current modes palette... */
-	if (cio_api.options & CONIO_OPT_EXTENDED_PALETTE)
+	if (cterm->screen.capabilities & ST_CONSOLE_CAP_EXTENDED_PALETTE)
 		palette_offset = 16;
-	mpalette = get_modepalette(palette);
+	mpalette = cterm_render_get_modepalette(cterm, palette);
 	if (mpalette) {
 		for (i=0; i < 16; i++)
 			palette[i] += palette_offset;
-		set_modepalette(palette);
+		cterm_render_set_modepalette(cterm, palette);
 	}
 
 	/* Deedle up the fonts */
-	orig_fonts[0] = getfont(1);
-	orig_fonts[1] = getfont(2);
-	orig_fonts[2] = getfont(3);
-	orig_fonts[3] = getfont(4);
-	setfont(cterm->altfont[0], FALSE, 1);
-	setfont(cterm->altfont[1], FALSE, 2);
-	setfont(cterm->altfont[2], FALSE, 3);
-	setfont(cterm->altfont[3], FALSE, 4);
+	orig_fonts[0] = cterm_render_font_selector(cterm, 1);
+	orig_fonts[1] = cterm_render_font_selector(cterm, 2);
+	orig_fonts[2] = cterm_render_font_selector(cterm, 3);
+	orig_fonts[3] = cterm_render_font_selector(cterm, 4);
+	cterm_render_set_font_selector(cterm, cterm->altfont[0], false, 1);
+	cterm_render_set_font_selector(cterm, cterm->altfont[1], false, 2);
+	cterm_render_set_font_selector(cterm, cterm->altfont[2], false, 3);
+	cterm_render_set_font_selector(cterm, cterm->altfont[3], false, 4);
 
-	olddmc = st_cterm_adapter_hold_update(cterm);
-	(void)st_cterm_adapter_set_hold_update(cterm, 1);
-	gettextinfo(&ti);
-	setwindow(cterm);
+	olddmc = cterm_render_hold_update(cterm);
+	(void)cterm_render_set_hold_update(cterm, 1);
+	cterm_apply_window(cterm);
 	x = cterm->xpos;
 	y = cterm->ypos;
 	cterm_coord_conv_xy(cterm, CTERM_COORD_ABSTERM, CTERM_COORD_CURR, &x, &y);
-	gotoxy(x, y);
-	textattr(cterm->attr);
-	setcolour(cterm->fg_color, cterm->bg_color);
-	ciolib_setcursortype(cterm->cursor);
+	cterm_render_set_position(cterm, x, y);
+	cterm_render_set_attribute(cterm, cterm->attr);
+	cterm_render_set_colours(cterm, cterm->fg_color, cterm->bg_color);
+	cterm_render_set_cursor(cterm, cterm->cursor);
 	if(buflen==-1)
 		buflen=ustrlen(buf);
 	switch(buflen) {
@@ -2419,23 +2390,23 @@ CIOLIBEXPORT size_t cterm_write(struct cterminal * cterm, const void *vbuf, int 
 	}
 	ABS_XY(&cterm->xpos, &cterm->ypos);
 
-	(void)st_cterm_adapter_set_hold_update(cterm, olddmc);
+	(void)cterm_render_set_hold_update(cterm, olddmc);
 	CURR_XY(&x, &y);
-	gotoxy(x, y);
-	ciolib_setcursortype(cterm->cursor);
+	cterm_render_set_position(cterm, x, y);
+	cterm_render_set_cursor(cterm, cterm->cursor);
 
 	/* Now rejigger the current modes palette... */
 	if (mpalette) {
 		for (i=0; i < 16; i++)
 			palette[i] -= palette_offset;
-		set_modepalette(palette);
+		cterm_render_set_modepalette(cterm, palette);
 	}
 
 	/* De-doodle the fonts */
-	setfont(orig_fonts[0], FALSE, 1);
-	setfont(orig_fonts[1], FALSE, 2);
-	setfont(orig_fonts[2], FALSE, 3);
-	setfont(orig_fonts[3], FALSE, 4);
+	cterm_render_set_font_selector(cterm, orig_fonts[0], false, 1);
+	cterm_render_set_font_selector(cterm, orig_fonts[1], false, 2);
+	cterm_render_set_font_selector(cterm, orig_fonts[2], false, 3);
+	cterm_render_set_font_selector(cterm, orig_fonts[3], false, 4);
 
 	return buflen > 0 ? (size_t)buflen : 0;
 }
@@ -2480,16 +2451,16 @@ void cterm_end(struct cterminal *cterm, int free_fonts)
 			cterm->fx_stream = NULL;
 		}
 
-		FREE_AND_NULL(cterm->strbuf);
-		FREE_AND_NULL(cterm->tabs);
-		FREE_AND_NULL(cterm->vtabs);
-		FREE_AND_NULL(cterm->fg_tc_str);
-		FREE_AND_NULL(cterm->bg_tc_str);
-		FREE_AND_NULL(cterm->sx_pixels);
-		FREE_AND_NULL(cterm->sx_mask);
+		CTERM_FREE_AND_CLEAR(cterm->strbuf);
+		CTERM_FREE_AND_CLEAR(cterm->tabs);
+		CTERM_FREE_AND_CLEAR(cterm->vtabs);
+		CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
+		CTERM_FREE_AND_CLEAR(cterm->bg_tc_str);
+		CTERM_FREE_AND_CLEAR(cterm->sx_pixels);
+		CTERM_FREE_AND_CLEAR(cterm->sx_mask);
 		for (i = 0; i < (int)(sizeof(cterm->macros)
 		    / sizeof(cterm->macros[0])); i++) {
-			FREE_AND_NULL(cterm->macros[i]);
+			CTERM_FREE_AND_CLEAR(cterm->macros[i]);
 		}
 
 		free(cterm);

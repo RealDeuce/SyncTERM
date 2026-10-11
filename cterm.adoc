@@ -3825,21 +3825,20 @@ sequences are supported:
 
 === Bitmap Rendering
 
-Prestel/Mode 7 rendering is handled specially in the bitmap driver
-(`bitmap_con.c`) because it requires features not available in the
-standard text rendering path:
+Prestel/Mode 7 rendering is represented directly in
+`struct st_console_cell` flags so every console backend sees the same cell
+semantics:
 
 - **Separated mosaics:** Mosaic characters are rendered with gaps
-  between the 2×3 blocks, using the `CIOLIB_BG_SEPARATED` flag
+  between the 2×3 blocks, using `ST_CONSOLE_CELL_SEPARATED`
 - **Double-height rendering:** Characters are stretched vertically
   across two physical rows, with top/bottom half tracking per row
-- **Concealed display:** The `CIOLIB_BG_PRESTEL` flag enables special
-  concealment rendering where foreground pixels are suppressed unless
-  `CONIO_OPT_PRESTEL_REVEAL` is set
+- **Concealed display:** `ST_CONSOLE_CELL_CONCEAL` suppresses foreground
+  pixels; `ST_CONSOLE_CELL_REVEAL` makes concealed content visible
 - **Row state caching:** Double-height row states (top/bottom) are
   pre-computed to avoid O(rows²) scanning during rendering
 
-The `CIOLIB_BG_PRESTEL_TERMINAL` flag distinguishes Prestel terminal
+The `ST_CONSOLE_CELL_TERMINAL_FONT` flag distinguishes Prestel terminal
 mode from BEEB mode for double-height bottom-row handling: Prestel
 copies attributes from the row above, while BEEB uses the cell's own
 attributes.

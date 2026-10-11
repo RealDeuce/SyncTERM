@@ -66,8 +66,8 @@ that status display; otherwise the difference remains reserved for the caller.
 The terminal and optional status row must fit the console.
 `scrollback_lines` is bounded by addressable allocation size.
 The font selector must be registered in the supplied catalog, and that catalog
-must belong to the supplied console. Geometry must fit the legacy parser's
-8-bit row and column reports. `palette_mapping`, when non-NULL, points to 16
+must belong to the supplied console. Geometry must fit the parser's signed
+coordinate representation. `palette_mapping`, when non-NULL, points to 16
 borrowed canonical palette indices copied during creation. `petscii_machine`
 selects C64, C128 40-column, or C128 80-column semantics for PETSCII.
 

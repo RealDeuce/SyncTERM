@@ -18,7 +18,7 @@
 #include <stdio.h>	/* FILE* */
 #include <stdint.h>
 #include <stdbool.h>
-#include "cterm_legacy_adapter.h"
+#include "cterm_render.h"
 #include "st_cterm.h"
 
 /* Maximum CSI parameter count that the unified dispatch parser will
@@ -89,8 +89,8 @@ enum prestel_prog_states {
 #define PRESTEL_MEM_SLOT_SIZE 16
 
 struct cterminal {
-	/* conio stuff */
-	struct st_cterm_legacy_screen screen;
+	/* Rendering state */
+	struct cterm_render_state screen;
 	enum st_cterm_encoding wire_encoding;
 	st_cterm_output_callback_t api_output;
 	void *api_output_context;
@@ -116,7 +116,7 @@ struct cterminal {
 	int					left_margin;
 	int					right_margin;
 	int					quiet;			// No sounds are made
-	struct vmem_cell	*scrollback;
+	struct st_console_cell	*scrollback;
 	int					backfilled;		// Number of lines copied into scrollback
 	int					backlines;		// Number of lines in scrollback
 	int					backwidth;		// Number of columns in scrollback
@@ -147,13 +147,14 @@ struct cterminal {
 	int32_t				saved_mode_mask;
 
 	/* emulation state */
-	int					started;		// Indicates that conio functions are being called
+	int					started;		// Indicates that terminal output has started
 	bool					c64reversemode;	// Commodore 64 reverse mode state
 	bool negative;
 	bool lf_expand;
 	unsigned char		attr;			// Current attribute
 	uint32_t			fg_color;
 	uint32_t			bg_color;
+	uint32_t			cell_flags;
 	uint32_t			default_fg_palette;
 	uint32_t			default_bg_palette;
 	unsigned int		extattr;		// Extended attributes
@@ -249,10 +250,10 @@ struct cterminal {
 	int					sx_start_x;		// Starting X position
 	int					sx_start_y;		// Starting Y position
 	int					sx_row_max_x;	// Max right size of this sixel line
-	struct ciolib_pixels *sx_pixels;
+	struct st_pixel_buffer *sx_pixels;
 	int					sx_width;		// Width from raster attributes
 	int					sx_height;		// REMAINING height from raster attributes
-	struct ciolib_mask	*sx_mask;
+	struct st_pixel_mask	*sx_mask;
 	int					sx_orig_cursor;	// Original value of cterm->cursor
 
 	/* APC Handler */
@@ -426,26 +427,31 @@ extern "C" {
 #endif
 
 struct cterminal *cterm_init(int height, int width, int xpos, int ypos,
-	int backlines, int backcols, struct vmem_cell *scrollback, int emulation,
-	const struct st_cterm_legacy_screen *screen);
-CIOLIBEXPORT size_t cterm_write(struct cterminal *cterm, const void *buf, int buflen, int *speed);
-CIOLIBEXPORT int cterm_openlog(struct cterminal *cterm, char *logfile, int logtype);
-CIOLIBEXPORT void cterm_closelog(struct cterminal *cterm);
-CIOLIBEXPORT void cterm_end(struct cterminal *cterm, int free_fonts);
-CIOLIBEXPORT void cterm_clearscreen(struct cterminal *cterm, char attr);
-CIOLIBEXPORT void cterm_start(struct cterminal *cterm);
-CIOLIBEXPORT int cterm_crpos(struct cterminal *cterm);
-CIOLIBEXPORT int cterm_encode_key(struct cterminal *cterm, int key);
-CIOLIBEXPORT enum cterm_key_result cterm_handle_key(struct cterminal *cterm, int key);
-CIOLIBEXPORT bool cterm_pk_events(struct cterminal *cterm, const struct ciolib_key_event *events, size_t count);
-CIOLIBEXPORT bool cterm_pk_synthesize(struct cterminal *cterm, uint16_t evdev, bool pressed);
-CIOLIBEXPORT bool cterm_pk_resync(struct cterminal *cterm, const uint16_t *held_keys, size_t count);
-CIOLIBEXPORT bool cterm_pk_enabled(const struct cterminal *cterm);
-CIOLIBEXPORT bool cterm_atascii_inverse(const struct cterminal *cterm);
+	int backlines, int backcols, struct st_console_cell *scrollback,
+	int emulation,
+	const struct cterm_render_state *screen);
+size_t cterm_write(struct cterminal *cterm, const void *buf, int buflen,
+	int *speed);
+int cterm_openlog(struct cterminal *cterm, char *logfile, int logtype);
+void cterm_closelog(struct cterminal *cterm);
+void cterm_end(struct cterminal *cterm, int free_fonts);
+void cterm_clearscreen(struct cterminal *cterm, char attr);
+void cterm_start(struct cterminal *cterm);
+int cterm_crpos(struct cterminal *cterm);
+int cterm_encode_key(struct cterminal *cterm, int key);
+enum cterm_key_result cterm_handle_key(struct cterminal *cterm, int key);
+bool cterm_pk_events(struct cterminal *cterm,
+	const struct st_console_event *events, size_t count);
+bool cterm_pk_synthesize(struct cterminal *cterm, uint16_t evdev,
+	bool pressed);
+bool cterm_pk_resync(struct cterminal *cterm, const uint16_t *held_keys,
+	size_t count);
+bool cterm_pk_enabled(const struct cterminal *cterm);
+bool cterm_atascii_inverse(const struct cterminal *cterm);
 /* Emit a response back to the connected host via cterm's registered
  * response callback (set by the terminal app).  Silently drops if no
  * callback has been registered. */
-CIOLIBEXPORT void cterm_respond(struct cterminal *cterm, const char *data, size_t len);
+void cterm_respond(struct cterminal *cterm, const char *data, size_t len);
 /* ================================================================
  * Foreground SFX playback.
  *
@@ -462,16 +468,14 @@ CIOLIBEXPORT void cterm_respond(struct cterminal *cterm, const char *data, size_
  * can't be acquired. Writes are non-blocking append; the stream drains in
  * the background.
  * ================================================================ */
-CIOLIBEXPORT bool cterm_play_fx(struct cterminal *cterm, const int16_t *frames, size_t nframes);
-CIOLIBEXPORT bool cterm_play_fx_tone(struct cterminal *cterm, double freq,
-                                     uint32_t duration_ms, uint32_t shape);
-CIOLIBEXPORT bool cterm_play_fx_u8(struct cterminal *cterm, const unsigned char *samp,
-                                   size_t size);
-void cterm_gotoxy(struct cterminal *cterm, int x, int y);
-void setwindow(struct cterminal *cterm);
-void cterm_clreol(struct cterminal *cterm);
+bool cterm_play_fx(struct cterminal *cterm, const int16_t *frames,
+	size_t nframes);
+bool cterm_play_fx_tone(struct cterminal *cterm, double freq,
+	uint32_t duration_ms, uint32_t shape);
+bool cterm_play_fx_u8(struct cterminal *cterm,
+	const unsigned char *samp, size_t size);
 void cterm_scrollup(struct cterminal *cterm);
-CIOLIBEXPORT void cterm_resize_rows(struct cterminal *cterm, int new_rows);
+void cterm_resize_rows(struct cterminal *cterm, int new_rows);
 
 #ifdef __cplusplus
 }

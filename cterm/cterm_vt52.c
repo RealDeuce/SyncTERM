@@ -32,7 +32,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "cterm_legacy_adapter.h"
+#include "cterm_render.h"
 #include "cterm.h"
 #include "cterm_internal.h"
 #include "cterm_vt52.h"
@@ -97,7 +97,7 @@ cterm_vt52_home(struct cterminal *cterm, int *speed)	/* ESC H */
 {
 	(void)cterm;
 	(void)speed;
-	gotoxy(CURR_MINX, CURR_MINY);
+	cterm_render_set_position(cterm, CURR_MINX, CURR_MINY);
 }
 
 static void
@@ -112,13 +112,13 @@ cterm_vt52_erase_to_end(struct cterminal *cterm, int *speed)	/* ESC J */
 {
 	int x, y, i;
 	(void)speed;
-	clreol();
+	cterm_render_clear_line(cterm);
 	CURR_XY(&x, &y);
 	for (i = y + 1; i <= TERM_MAXY; i++) {
-		cterm_gotoxy(cterm, TERM_MINY, i);
-		clreol();
+		cterm_set_position(cterm, TERM_MINY, i);
+		cterm_render_clear_line(cterm);
 	}
-	gotoxy(x, y);
+	cterm_render_set_position(cterm, x, y);
 }
 
 static void
@@ -126,7 +126,7 @@ cterm_vt52_erase_eol(struct cterminal *cterm, int *speed)	/* ESC K */
 {
 	(void)cterm;
 	(void)speed;
-	clreol();
+	cterm_render_clear_line(cterm);
 }
 
 static void
@@ -144,7 +144,7 @@ cterm_vt52_goto_xy(struct cterminal *cterm, int *speed)	/* ESC Y row col */
 		return;
 	if (x > 79)
 		x = 79;
-	gotoxy(CURR_MINX + x, CURR_MINY + y);
+	cterm_render_set_position(cterm, CURR_MINX + x, CURR_MINY + y);
 }
 
 /* ---- GEMDOS / Atari ST TOS extensions --------------------------------- */
@@ -154,7 +154,7 @@ cterm_vt52_clear_screen(struct cterminal *cterm, int *speed)	/* ESC E */
 {
 	(void)speed;
 	cterm_clearscreen(cterm, (char)cterm->attr);
-	gotoxy(CURR_MINX, CURR_MINY);
+	cterm_render_set_position(cterm, CURR_MINX, CURR_MINY);
 }
 
 static void
@@ -172,10 +172,10 @@ cterm_vt52_insert_line(struct cterminal *cterm, int *speed)	/* ESC L */
 	maxx = TERM_MAXX;
 	maxy = TERM_MAXY;
 	cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_SCREEN, &maxx, &maxy);
-	movetext(x2, y2, maxx, maxy - 1, x2, y2 + 1);
-	cterm_gotoxy(cterm, TERM_MINX, y);
-	cterm_clreol(cterm);
-	cterm_gotoxy(cterm, x, y);
+	cterm_render_move_cells(cterm, x2, y2, maxx, maxy - 1, x2, y2 + 1);
+	cterm_set_position(cterm, TERM_MINX, y);
+	cterm_clear_line(cterm);
+	cterm_set_position(cterm, x, y);
 }
 
 static void
@@ -192,14 +192,14 @@ cterm_vt52_do_attr(struct cterminal *cterm, char attr, bool bg)
 		bg = !bg;
 	if (bg) {
 		cterm->attr = (attr & 0x0F) << 4 | (cterm->attr & 0x0F);
-		attr2palette(cterm->attr, NULL, &cterm->bg_color);
+		cterm_render_attribute_colours(cterm, cterm->attr, NULL, &cterm->bg_color);
 	}
 	else {
 		cterm->attr = (attr & 0x0F) | (cterm->attr & 0xF0);
-		attr2palette(cterm->attr, &cterm->fg_color, NULL);
+		cterm_render_attribute_colours(cterm, cterm->attr, &cterm->fg_color, NULL);
 	}
-	textattr(cterm->attr);
-	setcolour(cterm->fg_color, cterm->bg_color);
+	cterm_render_set_attribute(cterm, cterm->attr);
+	cterm_render_set_colours(cterm, cterm->fg_color, cterm->bg_color);
 }
 
 static void
@@ -224,26 +224,26 @@ cterm_vt52_clear_to_begin(struct cterminal *cterm, int *speed)	/* ESC d */
 	cterm_clear2bol(cterm);
 	CURR_XY(&x, &y);
 	for (i = y - 1; i >= TERM_MINY; i--) {
-		cterm_gotoxy(cterm, TERM_MINX, i);
-		clreol();
+		cterm_set_position(cterm, TERM_MINX, i);
+		cterm_render_clear_line(cterm);
 	}
-	gotoxy(x, y);
+	cterm_render_set_position(cterm, x, y);
 }
 
 static void
 cterm_vt52_cursor_on(struct cterminal *cterm, int *speed)	/* ESC e */
 {
 	(void)speed;
-	cterm->cursor = _NORMALCURSOR;
-	ciolib_setcursortype(cterm->cursor);
+	cterm->cursor = CTERM_CURSOR_UNDERLINE;
+	cterm_render_set_cursor(cterm, cterm->cursor);
 }
 
 static void
 cterm_vt52_cursor_off(struct cterminal *cterm, int *speed)	/* ESC f */
 {
 	(void)speed;
-	cterm->cursor = _NOCURSOR;
-	ciolib_setcursortype(cterm->cursor);
+	cterm->cursor = CTERM_CURSOR_HIDDEN;
+	cterm_render_set_cursor(cterm, cterm->cursor);
 }
 
 static void
@@ -262,7 +262,7 @@ cterm_vt52_restore_cursor(struct cterminal *cterm, int *speed)	/* ESC k */
 		if (cterm->save_ypos < CURR_MINY || cterm->save_ypos > CURR_MAXY
 		    || cterm->save_xpos < CURR_MINX || cterm->save_xpos > CURR_MAXX)
 			return;
-		gotoxy(cterm->save_xpos, cterm->save_ypos);
+		cterm_render_set_position(cterm, cterm->save_xpos, cterm->save_ypos);
 	}
 }
 
@@ -272,9 +272,9 @@ cterm_vt52_clear_line(struct cterminal *cterm, int *speed)	/* ESC l */
 	int x, y;
 	(void)speed;
 	CURR_XY(&x, &y);
-	gotoxy(CURR_MINX, y);
-	clreol();
-	gotoxy(x, y);
+	cterm_render_set_position(cterm, CURR_MINX, y);
+	cterm_render_clear_line(cterm);
+	cterm_render_set_position(cterm, x, y);
 }
 
 static void
@@ -289,8 +289,8 @@ cterm_vt52_reverse_on(struct cterminal *cterm, int *speed)	/* ESC p */
 {
 	(void)speed;
 	cterm_set_negative(cterm, true);
-	textattr(cterm->attr);
-	setcolour(cterm->fg_color, cterm->bg_color);
+	cterm_render_set_attribute(cterm, cterm->attr);
+	cterm_render_set_colours(cterm, cterm->fg_color, cterm->bg_color);
 }
 
 static void
@@ -298,8 +298,8 @@ cterm_vt52_reverse_off(struct cterminal *cterm, int *speed)	/* ESC q */
 {
 	(void)speed;
 	cterm_set_negative(cterm, false);
-	textattr(cterm->attr);
-	setcolour(cterm->fg_color, cterm->bg_color);
+	cterm_render_set_attribute(cterm, cterm->attr);
+	cterm_render_set_colours(cterm, cterm->fg_color, cterm->bg_color);
 }
 
 static void
@@ -340,7 +340,7 @@ cterm_dispatch_vt52(struct cterminal *cterm, unsigned char byte, int *speed)
 			if (cterm->log == CTERM_LOG_ASCII && cterm->logfile != NULL)
 				fputs("\x07", cterm->logfile);
 			if (!cterm->quiet) {
-				putch(7);
+				cterm_render_write_byte(cterm, 7);
 			}
 			break;
 		case 11:	/* VT — treated as LF */

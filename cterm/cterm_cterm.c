@@ -33,7 +33,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
-#include "cterm_legacy_adapter.h"
+#include "cterm_render.h"
 #include "cterm.h"
 #include "cterm_internal.h"
 #include "cterm_cterm.h"
@@ -59,7 +59,7 @@ cterm_handle_fnt(struct cterminal *cterm, int *speed)	/* CSI SP D — Font Selec
 		case 1:
 		case 2:
 		case 3:
-			if (setfont((int)cterm->seq_param_int[1], FALSE,
+			if (cterm_render_set_font_selector(cterm, (int)cterm->seq_param_int[1], false,
 			    (int)cterm->seq_param_int[0] + 1) == 0)
 				cterm->setfont_result = 1;
 			else
@@ -189,19 +189,18 @@ cterm_handle_syncterm_rm_ext(struct cterminal *cterm, int *speed)	/* CSI = l */
 void
 cterm_handle_xterm_gfx_query(struct cterminal *cterm, int *speed)	/* CSI ? S */
 {
-	struct text_info ti;
-	int vmode;
+	uint32_t cell_width;
+	uint32_t cell_height;
 	(void)speed;
 	cterm_seq_default(cterm, 0, 0);
 	cterm_seq_default(cterm, 1, 0);
 	if (cterm->seq_param_int[0] != 2 || cterm->seq_param_int[1] != 1)
 		return;
-	gettextinfo(&ti);
-	vmode = find_vmode(ti.currmode);
-	if (vmode != -1)
+	if (st_console_cell_pixel_size(cterm->screen.console, &cell_width,
+	    &cell_height) == 0)
 		cterm_respond_printf(cterm, "\x1b[?2;0;%u;%uS",
-		    vparams[vmode].charwidth * cterm->width,
-		    vparams[vmode].charheight * cterm->height);
+		    cell_width * (uint32_t)cterm->width,
+		    cell_height * (uint32_t)cterm->height);
 }
 
 void
@@ -209,8 +208,8 @@ cterm_handle_ext_state_query(struct cterminal *cterm, int *speed)	/* CSI = n */
 {
 	char tmp[3072];
 	int vidflags;
-	struct text_info ti;
-	int vmode;
+	uint32_t cell_width;
+	uint32_t cell_height;
 	(void)speed;
 	tmp[0] = 0;
 	cterm_seq_default(cterm, 0, 1);
@@ -222,7 +221,7 @@ cterm_handle_ext_state_query(struct cterminal *cterm, int *speed)	/* CSI = n */
 	switch (cterm->seq_param_int[0]) {
 		case 1:
 			sprintf(tmp, "\x1b[=1;%u;%u;%u;%u;%u;%un",
-			    CONIO_FIRST_FREE_FONT,
+			    CTERM_FIRST_DYNAMIC_FONT,
 			    (uint8_t)cterm->setfont_result,
 			    (uint8_t)cterm->altfont[0],
 			    (uint8_t)cterm->altfont[1],
@@ -230,7 +229,7 @@ cterm_handle_ext_state_query(struct cterminal *cterm, int *speed)	/* CSI = n */
 			    (uint8_t)cterm->altfont[3]);
 			break;
 		case 2:
-			vidflags = getvideoflags();
+			vidflags = cterm_render_get_video_flags(cterm);
 			strcpy(tmp, "\x1b[=2");
 			if (cterm->extattr & CTERM_EXTATTR_ORIGINMODE)
 				strcat(tmp, ";6");
@@ -238,17 +237,17 @@ cterm_handle_ext_state_query(struct cterminal *cterm, int *speed)	/* CSI = n */
 				strcat(tmp, ";7");
 			if (cterm->mouse_state_query(9, cterm->mouse_state_query_cbdata))
 				strcat(tmp, ";9");
-			if (cterm->cursor == _NORMALCURSOR)
+			if (cterm->cursor == CTERM_CURSOR_UNDERLINE)
 				strcat(tmp, ";25");
-			if (vidflags & CIOLIB_VIDEO_ALTCHARS)
+			if (vidflags & ST_CONSOLE_VIDEO_ALT_CHARS)
 				strcat(tmp, ";31");
-			if (vidflags & CIOLIB_VIDEO_NOBRIGHT)
+			if (vidflags & ST_CONSOLE_VIDEO_NO_BRIGHT)
 				strcat(tmp, ";32");
-			if (vidflags & CIOLIB_VIDEO_BGBRIGHT)
+			if (vidflags & ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND)
 				strcat(tmp, ";33");
-			if (vidflags & CIOLIB_VIDEO_BLINKALTCHARS)
+			if (vidflags & ST_CONSOLE_VIDEO_BLINK_ALT_CHARS)
 				strcat(tmp, ";34");
-			if (vidflags & CIOLIB_VIDEO_NOBLINK)
+			if (vidflags & ST_CONSOLE_VIDEO_NO_BLINK)
 				strcat(tmp, ";35");
 			if (cterm->extattr & CTERM_EXTATTR_DECLRMM)
 				strcat(tmp, ";69");
@@ -279,12 +278,10 @@ cterm_handle_ext_state_query(struct cterminal *cterm, int *speed)	/* CSI = n */
 			strcat(tmp, "n");
 			break;
 		case 3:	/* Query font char dimensions */
-			gettextinfo(&ti);
-			vmode = find_vmode(ti.currmode);
-			if (vmode != -1)
+			if (st_console_cell_pixel_size(cterm->screen.console,
+			    &cell_width, &cell_height) == 0)
 				sprintf(tmp, "\x1b[=3;%u;%un",
-				    vparams[vmode].charheight,
-				    vparams[vmode].charwidth);
+				    cell_height, cell_width);
 			break;
 		case 4:
 			sprintf(tmp, "\x1b[=4;%dn",
@@ -295,7 +292,7 @@ cterm_handle_ext_state_query(struct cterminal *cterm, int *speed)	/* CSI = n */
 			    (cterm->last_column_flag & CTERM_LCF_FORCED) ? 1 : 0);
 			break;
 		case 6:
-			sprintf(tmp, "\x1b[=6;%dn", cio_api.vmem_gettext ? 1 : 0);
+			sprintf(tmp, "\x1b[=6;%dn", true ? 1 : 0);
 			break;
 		case 7:
 			/* Audio channel / feature query DSR.  cterm doesn't own
@@ -335,10 +332,11 @@ cterm_handle_macro_query(struct cterminal *cterm, int *speed)	/* CSI ? n */
 			for (k = 0; k < (sizeof(cterm->macros) / sizeof(cterm->macros[0])); k++) {
 				if (cterm->macros[k]) {
 					for (i = 0; i <= cterm->macro_lens[k]; i++)
-						crc = ucrc16(cterm->macros[k][i], crc);
+						crc = cterm_render_crc16(
+						    &(uint8_t){(uint8_t)cterm->macros[k][i]}, 1, crc);
 				}
 				else {
-					crc = ucrc16(0, crc);
+					crc = cterm_render_crc16(&(uint8_t){0}, 1, crc);
 				}
 			}
 			snprintf(tmp, sizeof(tmp), "\x1bP%u!~%04X\x1b\\",
@@ -409,22 +407,21 @@ cterm_handle_syncterm_ext_da(struct cterminal *cterm, int *speed)	/* CSI < c */
 	if (cterm->seq_param_int[0] != 0)
 		return;
 	strcpy(tmp, "\x1b[<0");
-	if (cio_api.options & CONIO_OPT_LOADABLE_FONTS)
+	if (cterm->screen.capabilities & ST_CONSOLE_CAP_LOADABLE_FONTS)
 		strcat(tmp, ";1");
-	if (cio_api.options & CONIO_OPT_BRIGHT_BACKGROUND)
+	if (cterm->screen.capabilities & ST_CONSOLE_CAP_BRIGHT_BACKGROUND)
 		strcat(tmp, ";2");
-	if (cio_api.options & CONIO_OPT_PALETTE_SETTING)
+	if (cterm->screen.capabilities & ST_CONSOLE_CAP_PALETTE_CHANGE)
 		strcat(tmp, ";3");
-	if (cio_api.options & CONIO_OPT_SET_PIXEL)
+	if (cterm->screen.capabilities & ST_CONSOLE_CAP_PIXELS)
 		strcat(tmp, ";4");
-	if (cio_api.options & CONIO_OPT_FONT_SELECT)
+	if (cterm->screen.capabilities & ST_CONSOLE_CAP_LOADABLE_FONTS)
 		strcat(tmp, ";5");
-	if (cio_api.options & CONIO_OPT_EXTENDED_PALETTE)
+	if (cterm->screen.capabilities & ST_CONSOLE_CAP_EXTENDED_PALETTE)
 		strcat(tmp, ";6");
-	if (cio_api.mouse)
+	if (true)
 		strcat(tmp, ";7");
-	if (cio_api.options & CONIO_OPT_KEY_EVENTS)
-		strcat(tmp, ";8");
+	strcat(tmp, ";8");
 	strcat(tmp, "c");
 	cterm_respond(cterm, tmp, strlen(tmp));
 }
@@ -471,7 +468,7 @@ cterm_handle_scorc(struct cterminal *cterm, int *speed)		/* CSI u (SCO) */
 		if (cterm->save_ypos < CURR_MINY || cterm->save_ypos > CURR_MAXY
 		    || cterm->save_xpos < CURR_MINX || cterm->save_xpos > CURR_MAXX)
 			return;
-		gotoxy(cterm->save_xpos, cterm->save_ypos);
+		cterm_render_set_position(cterm, cterm->save_xpos, cterm->save_ypos);
 	}
 }
 
@@ -502,20 +499,20 @@ cterm_handle_csi_t(struct cterminal *cterm, int *speed)	/* CSI Pc ; Pr ; Pg ; Pb
 		c = &cterm->fg_color;
 	if (c == NULL)
 		return;
-	nc = map_rgb((uint16_t)(cterm->seq_param_int[1] << 8),
+	nc = cterm_render_map_rgb((uint16_t)(cterm->seq_param_int[1] << 8),
 	    (uint16_t)(cterm->seq_param_int[2] << 8),
 	    (uint16_t)(cterm->seq_param_int[3] << 8));
 	if (nc != UINT32_MAX)
 		*c = nc;
-	setcolour(cterm->fg_color, cterm->bg_color);
+	cterm_render_set_colours(cterm, cterm->fg_color, cterm->bg_color);
 }
 
 /* ---- DECSET / DECRESET cascade (CSI ? h / CSI ? l) ---------------------
  * SyncTERM-private DEC private modes layer.  Processes CTerm-specific
- * modes (CIOLIB video flags 31-35, sixel-scroll 80) first, marks those
+ * modes (console video flags 31-35, sixel-scroll 80) first, marks those
  * parameters consumed, then forwards the remaining parameters to the
  * DEC / XTerm handler in cterm_dec.c.  A final palette refresh is done
- * after the chain completes because CIOLIB_VIDEO_* flags change how the
+ * after the chain completes because `ST_CONSOLE_VIDEO_*` flags change how the
  * current attribute maps to fg/bg colour. */
 
 static void
@@ -525,7 +522,7 @@ cterm_decset_reset_common(struct cterminal *cterm, bool set)
 	bool updfg, updbg;
 	int i, flags;
 
-	attr2palette(cterm->attr, &oldfg, &oldbg);
+	cterm_render_attribute_colours(cterm, cterm->attr, &oldfg, &oldbg);
 	updfg = (oldfg == cterm->fg_color);
 	updbg = (oldbg == cterm->bg_color);
 
@@ -533,42 +530,42 @@ cterm_decset_reset_common(struct cterminal *cterm, bool set)
 		if (cterm_seq_param_consumed(cterm, i))
 			continue;
 		cterm_seq_default(cterm, i, 0);
-		flags = getvideoflags();
+		flags = cterm_render_get_video_flags(cterm);
 		switch (cterm->seq_param_int[i]) {
 			case 31:
 				if (set)
-					flags |= CIOLIB_VIDEO_ALTCHARS;
+					flags |= ST_CONSOLE_VIDEO_ALT_CHARS;
 				else
-					flags &= ~CIOLIB_VIDEO_ALTCHARS;
-				setvideoflags(flags);
+					flags &= ~ST_CONSOLE_VIDEO_ALT_CHARS;
+				cterm_render_set_video_flags(cterm, flags);
 				break;
 			case 32:
 				if (set)
-					flags |= CIOLIB_VIDEO_NOBRIGHT;
+					flags |= ST_CONSOLE_VIDEO_NO_BRIGHT;
 				else
-					flags &= ~CIOLIB_VIDEO_NOBRIGHT;
-				setvideoflags(flags);
+					flags &= ~ST_CONSOLE_VIDEO_NO_BRIGHT;
+				cterm_render_set_video_flags(cterm, flags);
 				break;
 			case 33:
 				if (set)
-					flags |= CIOLIB_VIDEO_BGBRIGHT;
+					flags |= ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND;
 				else
-					flags &= ~CIOLIB_VIDEO_BGBRIGHT;
-				setvideoflags(flags);
+					flags &= ~ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND;
+				cterm_render_set_video_flags(cterm, flags);
 				break;
 			case 34:
 				if (set)
-					flags |= CIOLIB_VIDEO_BLINKALTCHARS;
+					flags |= ST_CONSOLE_VIDEO_BLINK_ALT_CHARS;
 				else
-					flags &= ~CIOLIB_VIDEO_BLINKALTCHARS;
-				setvideoflags(flags);
+					flags &= ~ST_CONSOLE_VIDEO_BLINK_ALT_CHARS;
+				cterm_render_set_video_flags(cterm, flags);
 				break;
 			case 35:
 				if (set)
-					flags |= CIOLIB_VIDEO_NOBLINK;
+					flags |= ST_CONSOLE_VIDEO_NO_BLINK;
 				else
-					flags &= ~CIOLIB_VIDEO_NOBLINK;
-				setvideoflags(flags);
+					flags &= ~ST_CONSOLE_VIDEO_NO_BLINK;
+				cterm_render_set_video_flags(cterm, flags);
 				break;
 			case 80:
 				if (set)
@@ -589,19 +586,19 @@ cterm_decset_reset_common(struct cterminal *cterm, bool set)
 		cterm_handle_decrm(cterm, NULL);
 
 	if (updfg || updbg) {
-		attr2palette(cterm->attr, updfg ? &cterm->fg_color : NULL,
+		cterm_render_attribute_colours(cterm, cterm->attr, updfg ? &cterm->fg_color : NULL,
 		    updbg ? &cterm->bg_color : NULL);
 		if (updfg) {
 			if (cterm->negative)
-				FREE_AND_NULL(cterm->bg_tc_str);
+				CTERM_FREE_AND_CLEAR(cterm->bg_tc_str);
 			else
-				FREE_AND_NULL(cterm->fg_tc_str);
+				CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
 		}
 		if (updbg) {
 			if (cterm->negative)
-				FREE_AND_NULL(cterm->fg_tc_str);
+				CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
 			else
-				FREE_AND_NULL(cterm->bg_tc_str);
+				CTERM_FREE_AND_CLEAR(cterm->bg_tc_str);
 		}
 	}
 }
@@ -656,19 +653,20 @@ cterm_cterm_handle_font_dcs(struct cterminal *cterm)
 	ssize_t i;
 
 	cterm->font_slot = strtoul(cterm->strbuf + 11, &p, 10);
-	if (cterm->font_slot < CONIO_FIRST_FREE_FONT)
+	if (cterm->font_slot < CTERM_FIRST_DYNAMIC_FONT)
 		return;
 	if (cterm->font_slot > 255)
 		return;
 	if (p && *p == ':') {
 		p++;
-		i = b64_decode(cterm->fontbuf, sizeof(cterm->fontbuf), p, 0);
+		i = cterm_render_base64_decode(cterm->fontbuf,
+		    sizeof(cterm->fontbuf), p);
 		if (i < 0)
 			return;
 		p2 = malloc(i);
 		if (p2) {
 			memcpy(p2, cterm->fontbuf, i);
-			replace_font(cterm->font_slot,
+			cterm_render_replace_font(cterm, cterm->font_slot,
 			    strdup("Remote Defined Font"), p2, i);
 		}
 	}
@@ -690,7 +688,7 @@ cterm_cterm_osc_finish(struct cterminal *cterm)
 	size_t i;
 	int palette_offset = 0;
 
-	if (cio_api.options & CONIO_OPT_EXTENDED_PALETTE)
+	if (cterm->screen.capabilities & ST_CONSOLE_CAP_EXTENDED_PALETTE)
 		palette_offset = 16;
 
 	/* OSC 4 — Change colour palette */
@@ -708,7 +706,7 @@ cterm_cterm_osc_finish(struct cterminal *cterm)
 			else {
 				if (p[0] == '?' && p[1] == 0) {
 					uint8_t qr, qg, qb;
-					if (getpalette(index + palette_offset, &qr, &qg, &qb))
+					if (cterm_render_get_palette(cterm, index + palette_offset, &qr, &qg, &qb))
 						cterm_respond_printf(cterm,
 						    "\033]4;%lu;rgb:%02x/%02x/%02x\033\\",
 						    index, qr, qg, qb);
@@ -764,7 +762,7 @@ cterm_cterm_osc_finish(struct cterminal *cterm)
 	/* OSC 104 — reset colour palette */
 	else if (strncmp("104", cterm->strbuf, 3) == 0) {
 		if (strlen(cterm->strbuf) == 3) {
-			for (i = 0; i < TOTAL_DAC_SIZE; i++)
+			for (i = 0; i < CTERM_PALETTE_SIZE; i++)
 				(void)cterm_resetpalette(cterm, (uint32_t)i);
 		}
 		else if (cterm->strbuf[3] == ';') {
@@ -774,7 +772,7 @@ cterm_cterm_osc_finish(struct cterminal *cterm)
 			while ((p = strtok_r(p2, ";", &seqlast)) != NULL) {
 				p2 = NULL;
 				pi = strtoul(p, NULL, 10);
-				if (pi < TOTAL_DAC_SIZE)
+				if (pi < CTERM_PALETTE_SIZE)
 					(void)cterm_resetpalette(cterm, (uint32_t)pi);
 			}
 		}
@@ -804,14 +802,14 @@ cterm_cterm_osc_finish(struct cterminal *cterm)
 				char *savelast;
 				while ((tok = strtok_r(ptmp, ":", &savelast)) != NULL) {
 					ptmp = NULL;
-					if (strnicmp(tok, "id=", 3) == 0)
+					if (cterm_render_casecmp_n(tok, "id=", 3) == 0)
 						id_param = tok + 3;
 				}
-				ciolib_set_current_hyperlink(
-				    ciolib_add_hyperlink(uri, id_param));
+				cterm_render_set_hyperlink(cterm,
+				    cterm_render_add_hyperlink(cterm, uri, id_param));
 			}
 			else {
-				ciolib_set_current_hyperlink(0);
+				cterm_render_set_hyperlink(cterm, 0);
 			}
 		}
 	}
@@ -971,11 +969,11 @@ static void play_music(struct cterminal *cterm)
 	if(cterm->music==1) {
 		switch(toupper(*p)) {
 			case 'F':
-				cterm->musicfore=TRUE;
+				cterm->musicfore=true;
 				p++;
 				break;
 			case 'B':
-				cterm->musicfore=FALSE;
+				cterm->musicfore=false;
 				p++;
 				break;
 			case 'N':
@@ -1002,10 +1000,10 @@ static void play_music(struct cterminal *cterm)
 				p++;
 				switch(toupper(*p)) {
 					case 'F':
-						cterm->musicfore=TRUE;
+						cterm->musicfore=true;
 						break;
 					case 'B':
-						cterm->musicfore=FALSE;
+						cterm->musicfore=false;
 						break;
 					case 'N':
 						cterm->noteshape=CTERM_MUSIC_NORMAL;
@@ -1280,23 +1278,23 @@ void cterm_save_extended_colour_seq(struct cterminal *cterm, int fg, int seqoff,
 	const char **p = cterm->seq_param_strs;
 
 	if (*str)
-		FREE_AND_NULL(*str);
+		CTERM_FREE_AND_CLEAR(*str);
 
 	switch (count) {
 		case 1:
-			if (asprintf(str, "%s", p[seqoff]) < 0)
+			if (cterm_render_asprintf(str, "%s", p[seqoff]) < 0)
 				*str = NULL;
 			break;
 		case 2:
-			if (asprintf(str, "%s;%s", p[seqoff], p[seqoff+1]) < 0)
+			if (cterm_render_asprintf(str, "%s;%s", p[seqoff], p[seqoff+1]) < 0)
 				*str = NULL;
 			break;
 		case 3:
-			if (asprintf(str, "%s;%s;%s", p[seqoff], p[seqoff+1], p[seqoff+2]) < 0)
+			if (cterm_render_asprintf(str, "%s;%s;%s", p[seqoff], p[seqoff+1], p[seqoff+2]) < 0)
 				*str = NULL;
 			break;
 		case 5:
-			if (asprintf(str, "%s;%s;%s;%s;%s", p[seqoff], p[seqoff+1], p[seqoff+2], p[seqoff+3], p[seqoff+4]) < 0)
+			if (cterm_render_asprintf(str, "%s;%s;%s;%s;%s", p[seqoff], p[seqoff+1], p[seqoff+2], p[seqoff+3], p[seqoff+4]) < 0)
 				*str = NULL;
 			break;
 	}
@@ -1309,15 +1307,15 @@ void cterm_parse_extended_colour(struct cterminal *cterm, int *i, bool fg)
 	uint32_t *co;
 	int palette_offset = 0;
 
-	if (cio_api.options & CONIO_OPT_EXTENDED_PALETTE)
+	if (cterm->screen.capabilities & ST_CONSOLE_CAP_EXTENDED_PALETTE)
 		palette_offset = 16;
 
 	if (cterm == NULL || i == NULL)
 		return;
 	if (fg)
-		FREE_AND_NULL(cterm->fg_tc_str);
+		CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
 	else
-		FREE_AND_NULL(cterm->bg_tc_str);
+		CTERM_FREE_AND_CLEAR(cterm->bg_tc_str);
 	co = fg ? (&cterm->fg_color) : (&cterm->bg_color);
 	if (*i >= cterm->seq_param_count)
 		return;
@@ -1339,7 +1337,7 @@ void cterm_parse_extended_colour(struct cterminal *cterm, int *i, bool fg)
 			}
 			else if (sub.param_count >= 5 && sub.param_int[1] == 2) {
 				if (sub.param_count == 5) {
-					nc = map_rgb(SGR_RGB_SCALE(sub.param_int[2]),
+					nc = cterm_render_map_rgb(SGR_RGB_SCALE(sub.param_int[2]),
 					    SGR_RGB_SCALE(sub.param_int[3]),
 					    SGR_RGB_SCALE(sub.param_int[4]));
 					if (nc != UINT32_MAX)
@@ -1347,7 +1345,7 @@ void cterm_parse_extended_colour(struct cterminal *cterm, int *i, bool fg)
 					cterm_save_extended_colour_seq(cterm, fg, *i, 1);
 				}
 				else if (sub.param_count > 5) {
-					nc = map_rgb(SGR_RGB_SCALE(sub.param_int[3]),
+					nc = cterm_render_map_rgb(SGR_RGB_SCALE(sub.param_int[3]),
 					    SGR_RGB_SCALE(sub.param_int[4]),
 					    SGR_RGB_SCALE(sub.param_int[5]));
 					if (nc != UINT32_MAX)
@@ -1382,11 +1380,11 @@ void cterm_parse_extended_colour(struct cterminal *cterm, int *i, bool fg)
 		if (cterm_parse_sub_parameters(&sub, cterm, (*i)+1)) {
 			nc = UINT32_MAX;
 			if (sub.param_count > 4)
-				nc = map_rgb(SGR_RGB_SCALE(sub.param_int[2]),
+				nc = cterm_render_map_rgb(SGR_RGB_SCALE(sub.param_int[2]),
 				    SGR_RGB_SCALE(sub.param_int[3]),
 				    SGR_RGB_SCALE(sub.param_int[4]));
 			else if (sub.param_count == 4)
-				nc = map_rgb(SGR_RGB_SCALE(sub.param_int[1]),
+				nc = cterm_render_map_rgb(SGR_RGB_SCALE(sub.param_int[1]),
 				    SGR_RGB_SCALE(sub.param_int[2]),
 				    SGR_RGB_SCALE(sub.param_int[3]));
 			if (nc != UINT32_MAX)
@@ -1398,7 +1396,7 @@ void cterm_parse_extended_colour(struct cterminal *cterm, int *i, bool fg)
 	else if ((*i)+4 < cterm->seq_param_count
 	    && cterm->seq_param_int[(*i)+1] == 2) {
 		/* CSI 38 ; 2 ; R ; G ; B m */
-		nc = map_rgb(SGR_RGB_SCALE(cterm->seq_param_int[(*i)+2]),
+		nc = cterm_render_map_rgb(SGR_RGB_SCALE(cterm->seq_param_int[(*i)+2]),
 		    SGR_RGB_SCALE(cterm->seq_param_int[(*i)+3]),
 		    SGR_RGB_SCALE(cterm->seq_param_int[(*i)+4]));
 		if (nc != UINT32_MAX)
@@ -1423,21 +1421,17 @@ void cterm_parse_extended_colour(struct cterminal *cterm, int *i, bool fg)
 bool
 cterm_accumulate_doorway(struct cterminal *cterm, unsigned char byte, int *speed)
 {
-	struct vmem_cell tmpvc[1] = {0};
+	struct st_console_cell tmpvc[1] = {0};
 	int sx, sy, x, y;
 	(void)speed;
 
 	cterm_uctputs(cterm, cterm->print_buf);
 	cterm->print_buf[0] = 0;
 	cterm->print_pos = cterm->print_buf;
-	tmpvc[0].ch = byte;
-	tmpvc[0].legacy_attr = cterm->attr;
-	tmpvc[0].fg = cterm->fg_color;
-	tmpvc[0].bg = cterm->bg_color;
-	tmpvc[0].font = ciolib_attrfont(cterm->attr);
-	tmpvc[0].hyperlink_id = ciolib_get_current_hyperlink();
+	cterm_render_make_current_cell(cterm, &tmpvc[0], byte,
+	    cterm_render_get_hyperlink(cterm));
 	SCR_XY(&sx, &sy);
-	vmem_puttext(sx, sy, sx, sy, tmpvc);
+	cterm_render_write_cells(cterm, sx, sy, sx, sy, tmpvc);
 	CURR_XY(&x, &y);
 	cterm_advance_char(cterm, &x, &y, 1);
 	cterm->doorway_char = 0;
@@ -1461,11 +1455,11 @@ cterm_accumulate_music(struct cterminal *cterm, unsigned char byte, int *speed)
 	(void)speed;
 
 	if (byte == 14) {
-		(void)st_cterm_adapter_set_hold_update(cterm, 0);
+		(void)cterm_render_set_hold_update(cterm, 0);
 		CURR_XY(&x, &y);
-		gotoxy(x, y);
-		ciolib_setcursortype(cterm->cursor);
-		(void)st_cterm_adapter_set_hold_update(cterm, 1);
+		cterm_render_set_position(cterm, x, y);
+		cterm_render_set_cursor(cterm, cterm->cursor);
+		(void)cterm_render_set_hold_update(cterm, 1);
 		play_music(cterm);
 	}
 	else if (strchr(musicchars, byte) != NULL) {
@@ -1484,7 +1478,7 @@ cterm_accumulate_music(struct cterminal *cterm, unsigned char byte, int *speed)
  * cterm_accumulate_font — remote font download accumulator
  *
  * Collects exactly font_size raw bytes into fontbuf, then hands the
- * completed image to replace_font().  No sequence parsing — just bulk
+ * completed image to cterm_render_replace_font(cterm, ).  No sequence parsing — just bulk
  * byte capture.  Returns true while accumulation is active.
  * ------------------------------------------------------------------------ */
 bool
@@ -1496,13 +1490,13 @@ cterm_accumulate_font(struct cterminal *cterm, unsigned char byte, int *speed)
 		char *buf2 = malloc(cterm->font_size);
 		if (buf2 != NULL) {
 			memcpy(buf2, cterm->fontbuf, cterm->font_size);
-			if (cterm->font_slot >= CONIO_FIRST_FREE_FONT
+			if (cterm->font_slot >= CTERM_FIRST_DYNAMIC_FONT
 			    && cterm->font_slot < 256)
-				replace_font(cterm->font_slot,
+				cterm_render_replace_font(cterm, cterm->font_slot,
 				    strdup("Remote Defined Font"),
 				    buf2, cterm->font_size);
 			else
-				FREE_AND_NULL(buf2);
+				CTERM_FREE_AND_CLEAR(buf2);
 		}
 		cterm->font_size = 0;
 		cterm->accumulator = NULL;
@@ -1525,35 +1519,35 @@ cterm_accumulate_font(struct cterminal *cterm, unsigned char byte, int *speed)
 static void
 set_bright_fg(struct cterminal *cterm, unsigned char colour, int flags)
 {
-	if (!(flags & CIOLIB_VIDEO_NOBRIGHT)) {
+	if (!(flags & ST_CONSOLE_VIDEO_NO_BRIGHT)) {
 		cterm_set_fgattr(cterm, colour);
 		if (!cterm->skypix)
 			cterm->attr |= 8;
-		attr2palette(cterm->attr,
+		cterm_render_attribute_colours(cterm, cterm->attr,
 		    cterm->negative ? NULL : &cterm->fg_color,
 		    cterm->negative ? &cterm->fg_color : NULL);
-		FREE_AND_NULL(cterm->fg_tc_str);
+		CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
 	}
 }
 
 static void
 set_bright_bg(struct cterminal *cterm, unsigned char colour, int flags)
 {
-	if (flags & CIOLIB_VIDEO_BGBRIGHT) {
+	if (flags & ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND) {
 		cterm_set_bgattr(cterm, colour);
 		if (!cterm->skypix)
 			cterm->attr |= 128;
-		attr2palette(cterm->attr,
+		cterm_render_attribute_colours(cterm, cterm->attr,
 		    cterm->negative ? &cterm->bg_color : NULL,
 		    cterm->negative ? NULL : &cterm->bg_color);
-		FREE_AND_NULL(cterm->bg_tc_str);
+		CTERM_FREE_AND_CLEAR(cterm->bg_tc_str);
 	}
 }
 
 void
 cterm_cterm_apply_sgr(struct cterminal *cterm, int *pi)
 {
-	int flags = getvideoflags();
+	int flags = cterm_render_get_video_flags(cterm);
 
 	switch (cterm->seq_param_int[*pi]) {
 		case 38:
@@ -1562,22 +1556,22 @@ cterm_cterm_apply_sgr(struct cterminal *cterm, int *pi)
 		case 48:
 			cterm_parse_extended_colour(cterm, pi, false ^ cterm->negative);
 			return;
-		case 90:  set_bright_fg(cterm, BLACK,     flags); return;
-		case 91:  set_bright_fg(cterm, RED,       flags); return;
-		case 92:  set_bright_fg(cterm, GREEN,     flags); return;
-		case 93:  set_bright_fg(cterm, BROWN,     flags); return;
-		case 94:  set_bright_fg(cterm, BLUE,      flags); return;
-		case 95:  set_bright_fg(cterm, MAGENTA,   flags); return;
-		case 96:  set_bright_fg(cterm, CYAN,      flags); return;
-		case 97:  set_bright_fg(cterm, LIGHTGRAY, flags); return;
-		case 100: set_bright_bg(cterm, BLACK,     flags); return;
-		case 101: set_bright_bg(cterm, RED,       flags); return;
-		case 102: set_bright_bg(cterm, GREEN,     flags); return;
-		case 103: set_bright_bg(cterm, BROWN,     flags); return;
-		case 104: set_bright_bg(cterm, BLUE,      flags); return;
-		case 105: set_bright_bg(cterm, MAGENTA,   flags); return;
-		case 106: set_bright_bg(cterm, CYAN,      flags); return;
-		case 107: set_bright_bg(cterm, LIGHTGRAY, flags); return;
+		case 90:  set_bright_fg(cterm, CTERM_COLOR_BLACK,     flags); return;
+		case 91:  set_bright_fg(cterm, CTERM_COLOR_RED,       flags); return;
+		case 92:  set_bright_fg(cterm, CTERM_COLOR_GREEN,     flags); return;
+		case 93:  set_bright_fg(cterm, CTERM_COLOR_BROWN,     flags); return;
+		case 94:  set_bright_fg(cterm, CTERM_COLOR_BLUE,      flags); return;
+		case 95:  set_bright_fg(cterm, CTERM_COLOR_MAGENTA,   flags); return;
+		case 96:  set_bright_fg(cterm, CTERM_COLOR_CYAN,      flags); return;
+		case 97:  set_bright_fg(cterm, CTERM_COLOR_LIGHT_GRAY, flags); return;
+		case 100: set_bright_bg(cterm, CTERM_COLOR_BLACK,     flags); return;
+		case 101: set_bright_bg(cterm, CTERM_COLOR_RED,       flags); return;
+		case 102: set_bright_bg(cterm, CTERM_COLOR_GREEN,     flags); return;
+		case 103: set_bright_bg(cterm, CTERM_COLOR_BROWN,     flags); return;
+		case 104: set_bright_bg(cterm, CTERM_COLOR_BLUE,      flags); return;
+		case 105: set_bright_bg(cterm, CTERM_COLOR_MAGENTA,   flags); return;
+		case 106: set_bright_bg(cterm, CTERM_COLOR_CYAN,      flags); return;
+		case 107: set_bright_bg(cterm, CTERM_COLOR_LIGHT_GRAY, flags); return;
 	}
 	cterm_dec_apply_sgr(cterm, pi);
 }

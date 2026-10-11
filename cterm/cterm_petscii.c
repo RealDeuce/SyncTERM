@@ -35,7 +35,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "cterm_legacy_adapter.h"
+#include "cterm_render.h"
 #include "cterm.h"
 #include "cterm_internal.h"
 #include "cterm_petscii.h"
@@ -69,20 +69,19 @@ static const uint8_t petscii_colour_80[256] = {
 static void
 petscii_colour(struct cterminal *cterm, unsigned char byte)
 {
-	struct text_info ti;
 	uint8_t nibble;
 
-	gettextinfo(&ti);
-	if (ti.currmode == C64_40X25 || ti.currmode == C128_40X25)
+	if (cterm->screen.mode == CTERM_MODE_C64_40
+	    || cterm->screen.mode == CTERM_MODE_C128_40)
 		nibble = petscii_colour_40[byte];
 	else
 		nibble = petscii_colour_80[byte];
 	cterm->attr &= 0xf0;
 	cterm->attr |= (nibble & 0x0f);
-	textattr(cterm->attr);
-	attr2palette(cterm->attr, &cterm->fg_color, &cterm->bg_color);
-	FREE_AND_NULL(cterm->fg_tc_str);
-	FREE_AND_NULL(cterm->bg_tc_str);
+	cterm_render_set_attribute(cterm, cterm->attr);
+	cterm_render_attribute_colours(cterm, cterm->attr, &cterm->fg_color, &cterm->bg_color);
+	CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
+	CTERM_FREE_AND_CLEAR(cterm->bg_tc_str);
 }
 
 /* ------------------------------------------------------------------------
@@ -115,7 +114,7 @@ static void
 petscii_bell(struct cterminal *cterm)	/* 7 */
 {
 	if (!cterm->quiet) {
-		putch(7);
+		cterm_render_write_byte(cterm, 7);
 	}
 }
 
@@ -143,15 +142,12 @@ petscii_down(struct cterminal *cterm)	/* 17 — cursor down w/ scroll */
 static void
 petscii_font_lower(struct cterminal *cterm)	/* 14 */
 {
-	struct text_info ti;
-
-	gettextinfo(&ti);
-	if (ti.currmode == C64_40X25) {
-		setfont(33, FALSE, 1);
+	if (cterm->screen.mode == CTERM_MODE_C64_40) {
+		cterm_render_set_font_selector(cterm, 33, false, 1);
 		cterm->altfont[0] = 33;
 	}
 	else {
-		setfont(35, FALSE, 1);
+		cterm_render_set_font_selector(cterm, 35, false, 1);
 		cterm->altfont[0] = 35;
 	}
 }
@@ -159,15 +155,12 @@ petscii_font_lower(struct cterminal *cterm)	/* 14 */
 static void
 petscii_font_upper(struct cterminal *cterm)	/* 142 */
 {
-	struct text_info ti;
-
-	gettextinfo(&ti);
-	if (ti.currmode == C64_40X25) {
-		setfont(32, FALSE, 1);
+	if (cterm->screen.mode == CTERM_MODE_C64_40) {
+		cterm_render_set_font_selector(cterm, 32, false, 1);
 		cterm->altfont[0] = 32;
 	}
 	else {
-		setfont(34, FALSE, 1);
+		cterm_render_set_font_selector(cterm, 34, false, 1);
 		cterm->altfont[0] = 34;
 	}
 }
@@ -207,21 +200,21 @@ petscii_delete(struct cterminal *cterm)	/* 20 — wrapping backspace */
 		if (y == CURR_MINY)
 			return;
 		x = CURR_MINX;
-		gotoxy(x, y - 1);
+		cterm_render_set_position(cterm, x, y - 1);
 	}
 	else
-		gotoxy(--x, y);
+		cterm_render_set_position(cterm, --x, y);
 	if (x < CURR_MAXX) {
 		sx = x;
 		sy = y;
 		cterm_coord_conv_xy(cterm, CTERM_COORD_CURR, CTERM_COORD_SCREEN, &sx, &sy);
 		ex = CURR_MAXX;
 		cterm_coord_conv_xy(cterm, CTERM_COORD_CURR, CTERM_COORD_SCREEN, &ex, NULL);
-		movetext(sx + 1, sy, ex, sy, sx, sy);
+		cterm_render_move_cells(cterm, sx + 1, sy, ex, sy, sx, sy);
 	}
-	gotoxy(CURR_MAXX, y);
-	cterm_clreol(cterm);
-	gotoxy(x, y);
+	cterm_render_set_position(cterm, CURR_MAXX, y);
+	cterm_clear_line(cterm);
+	cterm_render_set_position(cterm, x, y);
 }
 
 static void
@@ -232,10 +225,10 @@ petscii_left(struct cterminal *cterm)	/* 157 — cursor left (wraps) */
 	CURR_XY(&x, &y);
 	if (x == CURR_MINX) {
 		if (y > CURR_MINY)
-			gotoxy(CURR_MAXX, y - 1);
+			cterm_render_set_position(cterm, CURR_MAXX, y - 1);
 	}
 	else
-		gotoxy(x - 1, y);
+		cterm_render_set_position(cterm, x - 1, y);
 }
 
 static void
@@ -247,13 +240,13 @@ petscii_right(struct cterminal *cterm)	/* 29 — cursor right (wraps + scroll) *
 	if (x == CURR_MAXX) {
 		if (y == CURR_MAXY) {
 			cterm_cond_scrollup(cterm);
-			gotoxy(CURR_MINX, y);
+			cterm_render_set_position(cterm, CURR_MINX, y);
 		}
 		else
-			gotoxy(CURR_MINX, y + 1);
+			cterm_render_set_position(cterm, CURR_MINX, y + 1);
 	}
 	else
-		gotoxy(x + 1, y);
+		cterm_render_set_position(cterm, x + 1, y);
 }
 
 static void
@@ -274,10 +267,10 @@ petscii_insert(struct cterminal *cterm)	/* 148 — insert + erase under cursor *
 		cterm_coord_conv_xy(cterm, CTERM_COORD_CURR, CTERM_COORD_SCREEN, &sx, &sy);
 		ex = CURR_MAXX;
 		cterm_coord_conv_xy(cterm, CTERM_COORD_CURR, CTERM_COORD_SCREEN, &ex, NULL);
-		movetext(sx, sy, ex - 1, sy, sx + 1, sy);
+		cterm_render_move_cells(cterm, sx, sy, ex - 1, sy, sx + 1, sy);
 	}
-	putch(' ');
-	gotoxy(x, y);
+	cterm_render_write_byte(cterm, ' ');
+	cterm_render_set_position(cterm, x, y);
 }
 
 /* ------------------------------------------------------------------------

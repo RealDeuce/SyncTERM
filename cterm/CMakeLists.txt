@@ -7,7 +7,7 @@ add_library(st_cterm STATIC
 	cterm_cterm.c
 	cterm_dec.c
 	cterm_ecma48.c
-	cterm_legacy_adapter.c
+	cterm_render.c
 	cterm_petscii.c
 	cterm_prestel.c
 	st_cterm.c

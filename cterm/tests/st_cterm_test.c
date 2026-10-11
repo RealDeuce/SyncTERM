@@ -442,7 +442,7 @@ main(void)
 		CHECK(st_cterm_create(&terminal, &failure_config) == 0);
 		CHECK(st_console_resize(console, 256, 4) == 0);
 		CHECK(st_cterm_write(terminal, "\x1b[=3n", 5, &consumed)
-		    == IO_ERROR_OUT_OF_RANGE);
+		    == 0);
 		CHECK(consumed == 5);
 		st_cterm_destroy(&terminal);
 	}
@@ -466,9 +466,9 @@ main(void)
 		CHECK(st_font_catalog_create(&fonts, console) == 0);
 		attempted.console = console;
 		attempted.fonts = fonts;
-		CHECK(st_cterm_create(&terminal, &attempted)
-		    == IO_ERROR_OUT_OF_RANGE);
-		CHECK(terminal == NULL);
+		CHECK(st_cterm_create(&terminal, &attempted) == 0);
+		CHECK(terminal != NULL);
+		st_cterm_destroy(&terminal);
 		st_font_catalog_destroy(fonts);
 		st_console_destroy(console);
 	}
