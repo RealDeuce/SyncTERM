@@ -23,6 +23,8 @@ enum st_wren_bbs_kind {
 
 struct st_wren_bbs_record {
 	struct st_profile profile;
+	/* Borrowed until the source list's generation changes. */
+	const struct st_bbs_entry *source_entry;
 	char *name_key;
 	size_t name_key_size;
 	char persisted_name[ST_PROFILE_NAME_MAX + 1];
@@ -34,6 +36,8 @@ struct st_wren_bbs_record {
 
 struct st_wren_bbs_model {
 	struct st_wren_bbs_record **entries;
+	const st_bbs_list_t *source_list;
+	uint64_t source_generation;
 	size_t count;
 	size_t capacity;
 	struct st_wren_bbs_record defaults;
@@ -48,6 +52,8 @@ void st_wren_bbs_model_init(struct st_wren_bbs_model *model);
 void st_wren_bbs_model_dispose(struct st_wren_bbs_model *model);
 int st_wren_bbs_model_build(struct st_wren_bbs_model *model,
     const st_bbs_list_t *list);
+const char *st_wren_bbs_model_search_key(struct st_wren_bbs_model *model,
+	struct st_wren_bbs_record *record, size_t *size);
 void st_wren_bbs_model_replace(struct st_wren_bbs_model *destination,
     struct st_wren_bbs_model *replacement);
 
@@ -57,7 +63,7 @@ struct st_wren_bbs_record *st_wren_bbs_model_at(
 bool st_wren_bbs_model_valid(const struct st_wren_bbs_model *model,
     const struct st_wren_bbs_record *record, enum st_wren_bbs_kind kind,
     uint64_t generation);
-bool st_wren_bbs_model_name_available(const struct st_wren_bbs_model *model,
+bool st_wren_bbs_model_name_available(struct st_wren_bbs_model *model,
     const char *name);
 
 struct st_wren_bbs_record *st_wren_bbs_model_create(

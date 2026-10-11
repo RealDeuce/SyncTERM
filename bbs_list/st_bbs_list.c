@@ -57,7 +57,7 @@ free_entry(struct st_bbs_owned_entry *entry)
 		return;
 	free_entry(entry->shadowed);
 	st_profile_dispose(&entry->profile);
-	free(entry->name_key);
+	free((char *)entry->public.name_key);
 	free(entry->source_name);
 	free(entry);
 }
@@ -80,8 +80,9 @@ compare_entry_names(const void *left, const void *right)
 	const struct st_bbs_owned_entry *left_entry = left;
 	const struct st_bbs_owned_entry *right_entry = right;
 
-	return compare_bytes(left_entry->name_key, left_entry->name_key_size,
-	    right_entry->name_key, right_entry->name_key_size);
+	return compare_bytes(left_entry->public.name_key,
+	    left_entry->public.name_key_size, right_entry->public.name_key,
+	    right_entry->public.name_key_size);
 }
 
 static int
@@ -169,8 +170,13 @@ find_owned_by_key(const struct st_bbs_view *view,
 static int
 make_name_key(struct st_bbs_owned_entry *key, const char *name)
 {
-	return st_unicode_caseless_key(&key->name_key, &key->name_key_size,
-	    name, strlen(name));
+	char *name_key;
+	int status = st_unicode_caseless_key(&name_key,
+	    &key->public.name_key_size, name, strlen(name));
+
+	if (status == 0)
+		key->public.name_key = name_key;
+	return status;
 }
 
 static bool
@@ -178,8 +184,8 @@ reserved_name_key(const struct st_bbs_owned_entry *key)
 {
 	static const char reserved[] = "syncterm-system-cache";
 
-	return key->name_key_size == sizeof(reserved) - 1
-	    && memcmp(key->name_key, reserved, sizeof(reserved) - 1) == 0;
+	return key->public.name_key_size == sizeof(reserved) - 1
+	    && memcmp(key->public.name_key, reserved, sizeof(reserved) - 1) == 0;
 }
 
 static struct st_bbs_owned_entry *
@@ -191,25 +197,34 @@ find_owned(const struct st_bbs_view *view, const char *name)
 	if (make_name_key(&key, name) != 0)
 		return NULL;
 	found = find_owned_by_key(view, &key);
-	free(key.name_key);
+	free((char *)key.public.name_key);
 	return found;
 }
 
 static int
 decode_entry(const st_bbs_list_t *list, ini_section_t *section,
     enum st_bbs_source source, const char *source_name,
+    const char *name_key, size_t name_key_size,
     struct st_bbs_owned_entry **result)
 {
 	struct st_bbs_owned_entry *item = calloc(1, sizeof(*item));
+	char *key_copy;
 	int status;
 
 	if (item == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	item->source_name = source_name == NULL ? NULL : strdup(source_name);
-	if (source_name != NULL && item->source_name == NULL) {
-		free(item);
+	key_copy = malloc(name_key_size + 1);
+	if ((source_name != NULL && item->source_name == NULL)
+	    || key_copy == NULL) {
+		free(key_copy);
+		free_entry(item);
 		return IO_ERROR_OUT_OF_MEMORY;
 	}
+	memcpy(key_copy, name_key, name_key_size);
+	key_copy[name_key_size] = '\0';
+	item->public.name_key = key_copy;
+	item->public.name_key_size = name_key_size;
 	status = st_bbs_decode_profile(&item->profile, section,
 	    ini_section_name(section), source != ST_BBS_SOURCE_PERSONAL,
 	    list->download_path);
@@ -232,6 +247,9 @@ append_source(const st_bbs_list_t *list, struct st_bbs_view *view,
 	for (size_t i = 0; i < ini_document_section_count(document); ++i) {
 		ini_section_t *section = ini_document_section_at(document, i);
 		const char *name = ini_section_name(section);
+		size_t name_key_size;
+		const char *name_key = ini_section_name_key(section,
+		    &name_key_size);
 		struct st_bbs_owned_entry key = {0};
 		struct st_bbs_owned_entry *existing;
 		struct st_bbs_owned_entry *item;
@@ -245,11 +263,9 @@ append_source(const st_bbs_list_t *list, struct st_bbs_view *view,
 				return status;
 			continue;
 		}
-		status = make_name_key(&key, name);
-		if (status != 0)
-			return status;
+		key.public.name_key = name_key;
+		key.public.name_key_size = name_key_size;
 		if (reserved_name_key(&key)) {
-			free(key.name_key);
 			status = add_diagnostic(view, source, source_name, name,
 			    IO_ERROR_INVALID_FORMAT);
 			if (status < 0)
@@ -258,12 +274,12 @@ append_source(const st_bbs_list_t *list, struct st_bbs_view *view,
 		}
 		existing = find_owned_by_key(view, &key);
 		if (existing != NULL) {
-			free(key.name_key);
 			/* Later duplicate blocks replace earlier blocks in one source. */
 			if (existing->public.source != source
 			    || !st_bbs_name_equal(existing->source_name, source_name)) {
 				if (existing->shadowed == NULL) {
 					status = decode_entry(list, section, source, source_name,
+					    name_key, name_key_size,
 					    &existing->shadowed);
 					if (status < 0)
 						return status;
@@ -290,16 +306,12 @@ append_source(const st_bbs_list_t *list, struct st_bbs_view *view,
 		}
 		if (array_list_count((array_list_t)view->entries)
 		    >= ST_BBS_LIST_MAX_ENTRIES) {
-			free(key.name_key);
 			return IO_ERROR_OUT_OF_RANGE;
 		}
-		status = decode_entry(list, section, source, source_name, &item);
-		if (status < 0) {
-			free(key.name_key);
+		status = decode_entry(list, section, source, source_name,
+		    name_key, name_key_size, &item);
+		if (status < 0)
 			return status;
-		}
-		item->name_key = key.name_key;
-		item->name_key_size = key.name_key_size;
 		size_t count = array_list_count((array_list_t)view->entries);
 		if (!array_list_reserve((array_list_t *)&view->entries, count + 1)
 		    || !array_list_reserve((array_list_t *)&view->names, count + 1)) {

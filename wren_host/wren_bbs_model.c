@@ -48,11 +48,44 @@ replace_name_key(struct st_wren_bbs_record *record, const char *name)
 }
 
 static bool
-same_name_key(const struct st_wren_bbs_record *record,
-	const char *key, size_t key_size)
+same_name_key(struct st_wren_bbs_model *model,
+	struct st_wren_bbs_record *record,
+	const char *key, size_t key_size, bool *same)
 {
-	return record->name_key_size == key_size
-	    && (key_size == 0 || memcmp(record->name_key, key, key_size) == 0);
+	size_t size;
+	const char *record_key = st_wren_bbs_model_search_key(model, record,
+	    &size);
+
+	if (record_key == NULL)
+		return false;
+	*same = size == key_size
+	    && (key_size == 0 || memcmp(record_key, key, key_size) == 0);
+	return true;
+}
+
+const char *
+st_wren_bbs_model_search_key(struct st_wren_bbs_model *model,
+	struct st_wren_bbs_record *record, size_t *size)
+{
+	if (model == NULL || record == NULL || size == NULL)
+		return NULL;
+	if (record->name_key == NULL && record->source_entry == NULL) {
+		*size = 0;
+		return "";
+	}
+	if (record->name_key == NULL && record->source_entry != NULL) {
+		if (model->source_list != NULL
+		    && st_bbs_list_generation(model->source_list)
+		    == model->source_generation) {
+			*size = record->source_entry->name_key_size;
+			return record->source_entry->name_key;
+		}
+		/* The list rebuilt while this menu handle remained valid. */
+		if (!replace_name_key(record, record->profile.name))
+			return NULL;
+	}
+	*size = record->name_key_size;
+	return record->name_key;
 }
 
 void
@@ -81,7 +114,8 @@ st_wren_bbs_model_dispose(struct st_wren_bbs_model *model)
 }
 
 static struct st_wren_bbs_record *
-copy_record(const struct st_profile *profile, enum st_bbs_source source)
+copy_record(const struct st_profile *profile, enum st_bbs_source source,
+	const struct st_bbs_entry *entry)
 {
 	struct st_wren_bbs_record *record = calloc(1, sizeof(*record));
 
@@ -89,10 +123,11 @@ copy_record(const struct st_profile *profile, enum st_bbs_source source)
 		return NULL;
 	st_profile_init(&record->profile);
 	if (!st_profile_copy(&record->profile, profile)
-	    || !replace_name_key(record, profile->name)) {
+	    || (entry == NULL && !replace_name_key(record, profile->name))) {
 		free_record(record);
 		return NULL;
 	}
+	record->source_entry = entry;
 	record->source = source;
 	(void)snprintf(record->persisted_name, sizeof(record->persisted_name),
 	    "%s", profile->name);
@@ -107,7 +142,7 @@ copy_entry(const struct st_bbs_entry *entry)
 
 	if (entry == NULL)
 		return NULL;
-	record = copy_record(entry->profile, entry->source);
+	record = copy_record(entry->profile, entry->source, entry);
 	if (record == NULL)
 		return NULL;
 	shadowed = st_bbs_entry_shadowed(entry);
@@ -154,6 +189,8 @@ st_wren_bbs_model_build(struct st_wren_bbs_model *model,
 
 	if (model == NULL || list == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
+	model->source_list = list;
+	model->source_generation = st_bbs_list_generation(list);
 	count = st_bbs_list_count(list);
 	if (!reserve_entries(model, count))
 		return IO_ERROR_OUT_OF_MEMORY;
@@ -228,7 +265,7 @@ st_wren_bbs_model_valid(const struct st_wren_bbs_model *model,
 }
 
 bool
-st_wren_bbs_model_name_available(const struct st_wren_bbs_model *model,
+st_wren_bbs_model_name_available(struct st_wren_bbs_model *model,
     const char *name)
 {
 	char *key;
@@ -240,10 +277,14 @@ st_wren_bbs_model_name_available(const struct st_wren_bbs_model *model,
 	if (st_unicode_caseless_key(&key, &key_size, name, strlen(name)) != 0)
 		return false;
 	for (size_t i = 0; i < model->count; ++i) {
-		if (model->entries[i]->source == ST_BBS_SOURCE_PERSONAL
-		    && same_name_key(model->entries[i], key, key_size)) {
-			available = false;
-			break;
+		if (model->entries[i]->source == ST_BBS_SOURCE_PERSONAL) {
+			bool same;
+
+			if (!same_name_key(model, model->entries[i], key,
+			    key_size, &same) || same) {
+				available = false;
+				break;
+			}
 		}
 	}
 	free(key);
@@ -331,7 +372,7 @@ st_wren_bbs_model_create(struct st_wren_bbs_model *model, const char *name,
 	    && (model->count >= ST_BBS_LIST_MAX_ENTRIES
 	    || !reserve_entries(model, model->count + 1)))
 		return NULL;
-	record = copy_record(source, ST_BBS_SOURCE_PERSONAL);
+	record = copy_record(source, ST_BBS_SOURCE_PERSONAL, NULL);
 	if (record == NULL)
 		return NULL;
 	if (!replace_name_key(record, name)) {
@@ -373,10 +414,14 @@ st_wren_bbs_model_rename(struct st_wren_bbs_model *model,
 	if (st_unicode_caseless_key(&key, &key_size, name, strlen(name)) != 0)
 		return false;
 	for (size_t i = 0; i < model->count; ++i) {
-		if (model->entries[i] != record
-		    && same_name_key(model->entries[i], key, key_size)) {
-			free(key);
-			return false;
+		if (model->entries[i] != record) {
+			bool same;
+
+			if (!same_name_key(model, model->entries[i], key,
+			    key_size, &same) || same) {
+				free(key);
+				return false;
+			}
 		}
 	}
 	free(record->name_key);

@@ -13,7 +13,7 @@ int
 main(void)
 {
 	name_value_list_t list = NULL;
-	struct name_value key = {"key", ""};
+	struct name_value key = {.name = "key", .value = ""};
 	struct name_value *taken;
 	size_t index;
 	name_value_index_t borrowed = NULL;
@@ -72,6 +72,8 @@ main(void)
 	name_value_list_free(&list);
 	CHECK(name_value_list_add_unique(&list, "Stra\xc3\x9f" "e", "four",
 	    &index) == ARRAY_LIST_INSERTED);
+	CHECK(list[0]->name_key_size == 7
+	    && memcmp(list[0]->name_key, "strasse", 7) == 0);
 	CHECK(name_value_list_add_unique(&list, "STRASSE", "five", &index)
 	    == ARRAY_LIST_INSERT_DUPLICATE);
 	CHECK(name_value_list_count(list) == 1);

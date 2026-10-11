@@ -7,6 +7,7 @@
 
 #include "name_value_list.h"
 
+#include "io_error.h"
 #include "string_compat.h"
 #include "string_util.h"
 #include "st_unicode_compare.h"
@@ -18,12 +19,27 @@ ARRAY_LIST_DEFINE(name_value_array, struct name_value)
 SORTED_ARRAY_LIST_DEFINE(name_value_index, struct name_value,
     name_value_compare)
 
+static int
+compare_keys(const char *left, size_t left_size,
+	const char *right, size_t right_size)
+{
+	size_t shared = left_size < right_size ? left_size : right_size;
+	int compared = shared == 0 ? 0 : memcmp(left, right, shared);
+
+	if (compared != 0)
+		return compared < 0 ? -1 : 1;
+	return left_size == right_size ? 0 : left_size < right_size ? -1 : 1;
+}
+
 int
 name_value_compare(const struct name_value *left,
     const struct name_value *right)
 {
 	int compared;
 
+	if (left->name_key != NULL && right->name_key != NULL)
+		return compare_keys(left->name_key, left->name_key_size,
+		    right->name_key, right->name_key_size);
 	return st_unicode_caseless_compare(&compared, left->name,
 	    strlen(left->name), right->name, strlen(right->name)) == 0
 	    ? compared : strcmp(left->name, right->name);
@@ -35,6 +51,7 @@ name_value_create(const char *name, const char *value)
 	struct name_value *item;
 	char *name_copy;
 	char *value_copy;
+	int status;
 
 	if (name == NULL || value == NULL)
 		return NULL;
@@ -54,6 +71,16 @@ name_value_create(const char *name, const char *value)
 	}
 	item->name = name_copy;
 	item->value = value_copy;
+	item->name_key = NULL;
+	item->name_key_size = 0;
+	status = st_unicode_caseless_key(&item->name_key,
+	    &item->name_key_size, name_copy, strlen(name_copy));
+	if (status != 0 && status != IO_ERROR_INVALID_ENCODING) {
+		free(item);
+		free(value_copy);
+		free(name_copy);
+		return NULL;
+	}
 	return item;
 }
 
@@ -79,6 +106,7 @@ name_value_free_item(struct name_value *item)
 		return;
 	free((char *)item->name);
 	free((char *)item->value);
+	free(item->name_key);
 	free(item);
 }
 

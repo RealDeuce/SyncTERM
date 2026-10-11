@@ -3895,12 +3895,19 @@ fn_bbs_name(WrenVM *vm)
 static void
 fn_bbs_search_key(WrenVM *vm)
 {
+	struct st_wren_host *host = st_wren_host_from_vm(vm);
 	struct foreign_bbs *bbs = bbs_value(vm, 0);
+	size_t size;
+	const char *key;
 
-	if (bbs != NULL)
-		wrenSetSlotBytes(vm, 0, bbs->record->name_key == NULL ? ""
-		    : bbs->record->name_key,
-		    bbs->record->name_key_size);
+	if (bbs == NULL)
+		return;
+	key = st_wren_bbs_model_search_key(&host->bbs_model, bbs->record,
+	    &size);
+	if (key == NULL)
+		st_wren_abort(vm, "BBS.searchKey: out of memory");
+	else
+		wrenSetSlotBytes(vm, 0, key, size);
 }
 
 static void

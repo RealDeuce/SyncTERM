@@ -799,6 +799,9 @@ list.
 
 | name_value_create(name, value), name_value_set_value(item, value)
 | Allocate an owning immutable-name pair or transactionally replace its value.
+Created pairs retain a caseless `name_key` and `name_key_size`; the key is
+borrowed from the pair and freed with it.  Invalid-UTF-8 names retain the
+previous bytewise comparison fallback.
 
 | name_value_compare(left, right)
 | Unicode canonical-caseless ordering by name only.

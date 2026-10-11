@@ -19,10 +19,10 @@ struct st_settings st_settings;
 ARRAY_LIST_DEFINE(st_settings_font_list, struct st_settings_font)
 
 static const struct name_value default_sort_profiles[] = {
-	{ "Name", "29,1" },
-	{ "Last Connected", "29,3,1" },
-	{ "Most Called", "29,4,1" },
-	{ "Date Added", "29,2,1" },
+	{ .name = "Name", .value = "29,1" },
+	{ .name = "Last Connected", .value = "29,3,1" },
+	{ .name = "Most Called", .value = "29,4,1" },
+	{ .name = "Date Added", .value = "29,2,1" },
 };
 
 static bool

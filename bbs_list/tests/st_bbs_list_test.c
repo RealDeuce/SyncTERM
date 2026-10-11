@@ -250,6 +250,10 @@ main(void)
 	CHECK(st_bbs_list_count(first) == 3);
 	entry = st_bbs_list_find(first, "alpha");
 	CHECK(entry != NULL && entry->source == ST_BBS_SOURCE_PERSONAL);
+	CHECK(entry->name_key_size == 5
+	    && memcmp(entry->name_key, "alpha", entry->name_key_size) == 0);
+	CHECK(entry->name_key != ini_section_name_key(
+	    ini_document_find_section(first->personal_document, "Alpha"), NULL));
 	CHECK(strcmp(entry->profile->address, "personal.example") == 0);
 	CHECK(st_bbs_entry_shadowed(entry) != NULL);
 	CHECK(st_bbs_entry_shadowed(entry)->source == ST_BBS_SOURCE_SHARED);
@@ -261,6 +265,8 @@ main(void)
 	CHECK(st_bbs_list_find(first, "Shared")->profile->calls == 0);
 	entry = st_bbs_list_find(first, "strasse");
 	CHECK(entry != NULL && entry->source == ST_BBS_SOURCE_PERSONAL);
+	CHECK(entry->name_key_size == 7
+	    && memcmp(entry->name_key, "strasse", entry->name_key_size) == 0);
 	CHECK(st_bbs_entry_shadowed(entry) != NULL);
 	CHECK(strcmp(st_bbs_entry_shadowed(entry)->profile->address,
 	    "unicode-shared.example") == 0);

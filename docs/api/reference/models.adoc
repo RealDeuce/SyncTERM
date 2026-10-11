@@ -31,6 +31,7 @@ bool ini_document_remove_section(ini_document_t *, ini_section_t *);
 bool ini_document_rename_section(ini_document_t *, ini_section_t *,
     const char *name);
 const char *ini_section_name(const ini_section_t *section);
+const char *ini_section_name_key(const ini_section_t *section, size_t *size);
 size_t ini_section_count(const ini_section_t *section);
 const struct name_value *ini_section_at(const ini_section_t *, size_t index);
 const char *ini_section_find(const ini_section_t *, const char *key);
@@ -141,6 +142,11 @@ NULL.
 
 | ini_section_name(section), ini_section_count(section), ini_section_at(section, index)
 | Return borrowed section name, pair count, or indexed pair view.
+
+| ini_section_name_key(section, size)
+| Return the section's borrowed NFD caseless key and write its byte count to
+`size` when non-NULL.  The key is computed once when the section is read,
+added, or renamed; it is invalidated by document mutation.
 
 | ini_section_find(section, key), ini_section_has_key(section, key)
 | Find the last matching key's borrowed value or test presence.
@@ -663,6 +669,9 @@ Mutation result is optional; when supplied, its `cache_status` is secondary to
 the primary integer status.  Every returned entry/profile/diagnostic/info
 pointer is borrowed until the next successful rebuild/mutation.  Callers
 serialize all access to one list.
+Each entry's `name_key` and `name_key_size` expose the retained NFD caseless
+form of its name.  The bytes are borrowed with the entry, including for a
+shadowed entry.
 
 [cols="3m,7"]
 |===

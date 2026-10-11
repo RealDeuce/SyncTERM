@@ -35,6 +35,9 @@ struct st_bbs_entry {
 	const struct st_profile *profile;
 	enum st_bbs_source source;
 	const char *source_name;
+	/* Borrowed canonical-caseless key, valid with this entry. */
+	const char *name_key;
+	size_t name_key_size;
 };
 
 /* Returns the first lower-priority entry hidden by entry, when one exists. */

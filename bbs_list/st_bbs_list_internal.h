@@ -19,8 +19,6 @@
 struct st_bbs_owned_entry {
 	struct st_bbs_entry public;
 	struct st_profile profile;
-	char *name_key;
-	size_t name_key_size;
 	char *source_name;
 	struct st_bbs_owned_entry *shadowed;
 };

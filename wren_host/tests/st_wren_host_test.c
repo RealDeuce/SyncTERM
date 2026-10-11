@@ -683,6 +683,13 @@ exercise_menu_contract(st_wren_host_t *public_host)
 		fprintf(stderr, "menu contract failed: %s\n", host->last_error);
 		return -1;
 	}
+	CHECK(host->bbs_model.count != 0);
+	size_t key_size;
+	CHECK(st_wren_bbs_model_search_key(&host->bbs_model,
+	    host->bbs_model.entries[0], &key_size) != NULL);
+	if (st_bbs_list_generation(host->bbs_list)
+	    != host->bbs_model.source_generation)
+		CHECK(host->bbs_model.entries[0]->name_key != NULL);
 	return 0;
 }
 
@@ -860,7 +867,8 @@ exercise_bbs_model_contract(st_wren_host_t *public_host,
 	    "copy.comment = \"shared copy\"\n"
 	    "if (same.comment != \"shared copy\" || !copy.rename(\"Aardvark\") "
 	    "|| same.name != \"Aardvark\" || same.searchKey != \"aardvark\" || !Menu.sort() || "
-	    "same.name != \"Aardvark\" || !copy.save() || copy.dirty) "
+	    "same.name != \"Aardvark\" || !copy.save() || copy.dirty || "
+	    "copy.searchKey != \"aardvark\") "
 	    "Fiber.abort(\"copy lifecycle\")\n"
 	    "BbsContractState.persisted = copy\n";
 	static const char delete_copy_source[] =
@@ -881,6 +889,13 @@ exercise_bbs_model_contract(st_wren_host_t *public_host,
 	CHECK(write_file(shared,
 	    "[System]\nAddress=system.example\nUserName=ignored\n") == 0);
 	CHECK(interpret_bbs_contract(host, "bbs_contract_state", state_source) == 0);
+	CHECK(host->bbs_model.count != 0);
+	struct st_wren_bbs_record *loaded = host->bbs_model.entries[0];
+	size_t loaded_key_size;
+	CHECK(loaded->source_entry != NULL && loaded->name_key == NULL);
+	CHECK(st_wren_bbs_model_search_key(&host->bbs_model, loaded,
+	    &loaded_key_size) == loaded->source_entry->name_key);
+	CHECK(loaded_key_size == loaded->source_entry->name_key_size);
 	paths->personal_list = ST_WREN_TEST_DIRECTORY;
 	CHECK(interpret_bbs_contract(host, "bbs_failed_load", failed_load_source)
 	    == 0);

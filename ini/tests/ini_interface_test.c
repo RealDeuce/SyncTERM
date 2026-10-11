@@ -131,6 +131,10 @@ test_document_and_parse(void)
 	beta = ini_document_section_at(document, 3);
 	CHECK(first != NULL && second != NULL && unicode != NULL && beta != NULL);
 	CHECK(strcmp(ini_section_name(first), "Alpha") == 0);
+	size_t first_key_size;
+	const char *first_key = ini_section_name_key(first, &first_key_size);
+	CHECK(first_key != NULL && first_key_size == 5
+	    && memcmp(first_key, "alpha", first_key_size) == 0);
 	CHECK(strcmp(ini_section_name(second), "alpha") == 0);
 	CHECK(strcmp(ini_section_name(unicode), "Bad\xc3\xa9") == 0);
 	CHECK(strcmp(ini_section_name(beta), "Beta") == 0);
@@ -140,6 +144,8 @@ test_document_and_parse(void)
 	pair = ini_section_at(first, 0);
 	CHECK(pair != NULL && strcmp(pair->name, "Key") == 0
 	    && strcmp(pair->value, "first") == 0);
+	CHECK(pair->name_key != NULL && pair->name_key_size == 3
+	    && memcmp(pair->name_key, "key", pair->name_key_size) == 0);
 	CHECK(ini_section_at(first, 2) == NULL);
 	CHECK(strcmp(ini_section_find(unicode, "Hidden"), "no") == 0);
 	CHECK(!ini_section_has_key(second, "StillHidden"));
@@ -187,6 +193,11 @@ test_document_and_parse(void)
 	CHECK(strcmp(ini_section_find(ini_document_find_section(document,
 	    "Caf\xc3\xa9"),
 	    "Value"), "\xc3\xa9") == 0);
+	size_t cafe_key_size;
+	const char *cafe_key = ini_section_name_key(
+	    ini_document_find_section(document, "CAF\xc3\x89"), &cafe_key_size);
+	CHECK(cafe_key != NULL && cafe_key_size == 6
+	    && memcmp(cafe_key, "cafe\xcc\x81", cafe_key_size) == 0);
 	serialized = NULL;
 	serialized_size = 0;
 	CHECK(ini_document_serialize(document, &serialized, &serialized_size) == 0);
@@ -506,6 +517,11 @@ test_mutation(void)
 	CHECK(ini_document_section_count(document) == 3);
 	CHECK(ini_document_rename_section(document, three, "two"));
 	CHECK(strcmp(ini_section_name(three), "two") == 0);
+	size_t renamed_key_size;
+	const char *renamed_key = ini_section_name_key(three,
+	    &renamed_key_size);
+	CHECK(renamed_key != NULL && renamed_key_size == 3
+	    && memcmp(renamed_key, "two", renamed_key_size) == 0);
 	CHECK(ini_document_find_section(document, "TWO") == three);
 	CHECK(!ini_document_remove_section(document, ini_document_root(document)));
 	CHECK(ini_document_remove_section(document, one));

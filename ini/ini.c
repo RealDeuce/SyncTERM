@@ -42,6 +42,8 @@ struct ini_record {
 struct ini_section {
 	struct ini_document *document;
 	char *name;
+	char *name_key;
+	size_t name_key_size;
 	struct ini_record *header;
 	name_value_list_t entries;
 	name_value_index_t index;
@@ -79,6 +81,18 @@ ini_section_compare(const struct ini_section *left,
     const struct ini_section *right)
 {
 	int compared;
+	size_t shared;
+
+	if (left->name_key != NULL && right->name_key != NULL) {
+		shared = left->name_key_size < right->name_key_size
+		    ? left->name_key_size : right->name_key_size;
+		compared = shared == 0 ? 0 : memcmp(left->name_key,
+		    right->name_key, shared);
+		if (compared != 0)
+			return compared < 0 ? -1 : 1;
+		return left->name_key_size == right->name_key_size ? 0
+		    : left->name_key_size < right->name_key_size ? -1 : 1;
+	}
 
 	return st_unicode_caseless_compare(&compared, left->name,
 	    strlen(left->name), right->name, strlen(right->name)) == 0
@@ -138,6 +152,7 @@ section_release(struct ini_section *section)
 	ini_record_list_free_storage(&section->entry_records);
 	name_value_list_free(&section->entries);
 	free(section->name);
+	free(section->name_key);
 }
 
 static void
@@ -284,16 +299,24 @@ append_section(struct ini_document *document, char *name,
     struct ini_record *header, struct ini_section **result)
 {
 	struct ini_section *section = calloc(1, sizeof(*section));
+	int status;
 
 	if (section == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	section->document = document;
 	section->name = name;
 	section->header = header;
+	status = st_unicode_caseless_key(&section->name_key,
+	    &section->name_key_size, name, strlen(name));
+	if (status != 0) {
+		free(section);
+		return status;
+	}
 	if (!ini_section_list_reserve(&document->sections,
 	    ini_section_list_count(document->sections) + 1)
 	    || !ini_section_index_reserve(&document->index,
 	    ini_section_index_count(document->index) + 1)) {
+		free(section->name_key);
 		free(section);
 		return IO_ERROR_OUT_OF_MEMORY;
 	}
@@ -631,23 +654,36 @@ ini_section_t *
 ini_document_find_section(ini_document_t *document, const char *name)
 {
 	struct ini_section key = {0};
+	ini_section_t *found = NULL;
 	size_t index;
 
 	if (document == NULL || name == NULL)
 		return NULL;
 	key.name = (char *)name;
-	if (!ini_section_index_find(document->index, &key, &index))
-		return NULL;
-	while (index + 1 < ini_section_index_count(document->index)
-	    && ini_section_compare(document->index[index + 1], &key) == 0)
-		index++;
-	return document->index[index];
+	(void)st_unicode_caseless_key(&key.name_key, &key.name_key_size,
+	    name, strlen(name));
+	if (ini_section_index_find(document->index, &key, &index)) {
+		while (index + 1 < ini_section_index_count(document->index)
+		    && ini_section_compare(document->index[index + 1], &key) == 0)
+			index++;
+		found = document->index[index];
+	}
+	free(key.name_key);
+	return found;
 }
 
 const char *
 ini_section_name(const ini_section_t *section)
 {
 	return section == NULL ? NULL : section->name;
+}
+
+const char *
+ini_section_name_key(const ini_section_t *section, size_t *size)
+{
+	if (size != NULL)
+		*size = section == NULL ? 0 : section->name_key_size;
+	return section == NULL ? NULL : section->name_key;
 }
 
 size_t
@@ -668,16 +704,20 @@ static size_t
 section_last_index(const ini_section_t *section, const char *key,
     bool *found)
 {
-	struct name_value search = {key, ""};
+	struct name_value search = {.name = key, .value = ""};
 	size_t index = 0;
 
+	if (key != NULL)
+		(void)st_unicode_caseless_key(&search.name_key,
+		    &search.name_key_size, key, strlen(key));
 	*found = section != NULL && key != NULL
 	    && name_value_index_find(section->index, &search, &index);
-	if (!*found)
-		return index;
-	while (index + 1 < name_value_index_count(section->index)
-	    && name_value_compare(section->index[index + 1], &search) == 0)
-		index++;
+	if (*found) {
+		while (index + 1 < name_value_index_count(section->index)
+		    && name_value_compare(section->index[index + 1], &search) == 0)
+			index++;
+	}
+	free(search.name_key);
 	return index;
 }
 
@@ -1712,6 +1752,8 @@ ini_document_rename_section(ini_document_t *document, ini_section_t *section,
     const char *name)
 {
 	char *copy;
+	char *name_key;
+	size_t name_key_size;
 	char *raw;
 	size_t length;
 	size_t newline_length;
@@ -1722,14 +1764,21 @@ ini_document_rename_section(ini_document_t *document, ini_section_t *section,
 	copy = strdup(name);
 	if (copy == NULL)
 		return false;
+	if (st_unicode_caseless_key(&name_key, &name_key_size, name,
+	    strlen(name)) != 0) {
+		free(copy);
+		return false;
+	}
 	length = strlen(name);
 	newline_length = strlen(document->newline);
 	if (length > SIZE_MAX - newline_length - 3) {
+		free(name_key);
 		free(copy);
 		return false;
 	}
 	raw = malloc(length + newline_length + 3);
 	if (raw == NULL) {
+		free(name_key);
 		free(copy);
 		return false;
 	}
@@ -1745,6 +1794,9 @@ ini_document_rename_section(ini_document_t *document, ini_section_t *section,
 	}
 	free(section->name);
 	section->name = copy;
+	free(section->name_key);
+	section->name_key = name_key;
+	section->name_key_size = name_key_size;
 	free(section->header->raw);
 	section->header->raw = raw;
 	rebuild_section_index(document);

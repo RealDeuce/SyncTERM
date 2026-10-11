@@ -84,6 +84,8 @@ bool ini_document_rename_section(ini_document_t *document,
     ini_section_t *section, const char *name);
 
 const char *ini_section_name(const ini_section_t *section);
+/* Borrowed canonical-caseless key; invalidated by document mutation. */
+const char *ini_section_name_key(const ini_section_t *section, size_t *size);
 size_t ini_section_count(const ini_section_t *section);
 const struct name_value *ini_section_at(const ini_section_t *section,
     size_t index);

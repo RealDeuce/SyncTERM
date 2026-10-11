@@ -68,14 +68,16 @@ main(int argc, char **argv)
 	CHECK(source_position == 7);
 	CHECK(ini_document_read(&document, source) == 0);
 	CHECK(ftell(source) == source_position);
-	CHECK(ini_document_section_count(document) == 2);
+	CHECK(ini_document_section_count(document) == 3);
 	CHECK(strcmp(ini_section_find(ini_document_root(document), "root"),
 	    "one") == 0);
 	section = ini_document_find_section(document, "SEC");
 	CHECK(section == ini_document_section_at(document, 1));
 	CHECK(strcmp(ini_section_find(section, "key"), "last") == 0);
-	CHECK(!ini_section_has_key(section, "Bad\xc3\xa9"));
+	CHECK(strcmp(ini_section_find(section, "Bad\xc3\xa9"), "hidden") == 0);
 	CHECK(!ini_section_has_key(section, "Leaked"));
+	CHECK(strcmp(ini_section_find(ini_document_section_at(document, 2),
+	    "Leaked"), "no") == 0);
 	first = ini_document_section_at(document, 0);
 	CHECK(strcmp(ini_section_find(first, "KEY"), " spaced ") == 0);
 	CHECK(ini_section_copy_pairs(first, &pairs) == 0);

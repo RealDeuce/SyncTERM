@@ -13,12 +13,15 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-/* Library-created items own both strings. Read the fields directly, but do
- * not replace/free them or edit their characters. Use set_value to replace
- * a value. Names remain stable while an item is present in a sorted index. */
+/* Library-created items own both strings and the optional caseless name key.
+ * Read the fields directly, but do not replace/free them or edit their
+ * characters. Use set_value to replace a value. Names remain stable while an
+ * item is present in a sorted index. */
 struct name_value {
 	const char *name;
 	const char *value;
+	char *name_key;
+	size_t name_key_size;
 };
 
 /* Unicode canonical-caseless name ordering, independent of locale. Values
