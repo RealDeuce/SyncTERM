@@ -347,7 +347,7 @@ cterm_render_write_byte(struct cterminal *cterm, int value)
 		audio_engine_t *engine = NULL;
 		if (cterm->screen.audio != NULL
 		    && st_audio_runtime_acquire(cterm->screen.audio, &engine) == 0)
-			(void)audio_beep(engine, 800.0, 100);
+			(void)audio_beep(engine, 440.0, 100);
 		return value;
 	}
 	status = st_console_get_window(cterm->screen.console, &window);

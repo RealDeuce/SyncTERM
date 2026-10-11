@@ -262,7 +262,7 @@ beep(st_term_session_t *session)
 
 	if (session->config.audio != NULL)
 		(void)st_audio_runtime_acquire(session->config.audio, &engine);
-	(void)audio_beep(engine, 800.0, 100);
+	(void)audio_beep(engine, 440.0, 100);
 }
 
 int
