@@ -1057,6 +1057,76 @@ test_raster_margin_and_scroll(void)
 }
 
 static void
+test_partial_full_width_raster_scroll(void)
+{
+	const uint8_t bitmap[] = {UINT8_C(0x80)};
+	const struct st_console_font font = {
+		.bitmap = bitmap,
+		.bitmap_size = sizeof(bitmap),
+		.width = 1,
+		.height = 1,
+		.glyph_count = 1,
+		.row_stride = 1,
+		.glyph_stride = 1,
+	};
+	const struct st_console_display_config display = {
+		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	};
+	const struct st_console_config config = {
+		.columns = 1,
+		.rows = 5,
+		.cell_width = 1,
+		.cell_height = 1,
+	};
+	const struct st_console_rect screen = {0, 0, 1, 5};
+	const struct st_console_rect pixels_rect = {0, 0, 1, 5};
+	const struct st_console_rect scroll_up = {0, 1, 1, 3};
+	const struct st_console_rect scroll_down = {0, 0, 1, 3};
+	struct st_console_cell cells[5];
+	struct st_console_cell fill;
+	struct st_pixel_buffer *pixels = NULL;
+	st_console_t *console = NULL;
+	uint16_t font_identifier;
+
+	CHECK(st_console_create(&console, &display, &config) == 0);
+	font_identifier = register_static_font(console, &font);
+	for (uint32_t y = 0; y < 5; ++y) {
+		cells[y] = (struct st_console_cell){
+			.foreground = y + 1,
+			.background = 0,
+			.font = font_identifier,
+			.glyph_font = font_identifier,
+		};
+	}
+	fill = cells[0];
+	fill.foreground = 9;
+	CHECK(st_console_write_complete_cells(console, &screen, cells, 1) == 0);
+	CHECK(st_console_move_cells_clear(console, &scroll_up, 0, 0,
+	    &fill) == 0);
+	CHECK(st_console_get_pixels(&pixels, console, &pixels_rect, false) == 0);
+	CHECK(pixels->primary[0] == 2);
+	CHECK(pixels->primary[1] == 3);
+	CHECK(pixels->primary[2] == 4);
+	CHECK(pixels->primary[3] == 9);
+	CHECK(pixels->primary[4] == 5);
+	st_pixel_buffer_destroy(pixels);
+	pixels = NULL;
+
+	CHECK(st_console_write_complete_cells(console, &screen, cells, 1) == 0);
+	fill.foreground = 8;
+	CHECK(st_console_move_cells_clear(console, &scroll_down, 0, 1,
+	    &fill) == 0);
+	CHECK(st_console_get_pixels(&pixels, console, &pixels_rect, false) == 0);
+	CHECK(pixels->primary[0] == 8);
+	CHECK(pixels->primary[1] == 1);
+	CHECK(pixels->primary[2] == 2);
+	CHECK(pixels->primary[3] == 3);
+	CHECK(pixels->primary[4] == 5);
+	st_pixel_buffer_destroy(pixels);
+	st_console_destroy(console);
+}
+
+static void
 test_saa5050_double_height_raster(void)
 {
 	static const uint8_t glyphs[] = {0x00, 0x00, 0x80, 0x01};
@@ -2683,6 +2753,7 @@ main(void)
 	test_pixels_and_font_rendering();
 	test_fast_font_attributes();
 	test_raster_margin_and_scroll();
+	test_partial_full_width_raster_scroll();
 	test_saa5050_double_height_raster();
 	test_concurrent_writers();
 	test_deferred_presentation();

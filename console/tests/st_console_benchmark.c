@@ -68,6 +68,7 @@ main(void)
 	};
 	struct st_console_cell *screen;
 	struct st_console_cell line[COLUMNS];
+	struct st_console_cell fill;
 	struct st_console_display_config config_display = {
 		.backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};
@@ -107,6 +108,10 @@ main(void)
 	};
 	const struct st_console_rect full = {0, 0, COLUMNS, ROWS};
 	const struct st_console_rect last = {0, ROWS - 1, COLUMNS, 1};
+	const struct st_console_rect terminal_scroll = {0, 1, COLUMNS,
+	    ROWS - 2};
+	const struct st_console_rect terminal_last = {0, ROWS - 2,
+	    COLUMNS, 1};
 	st_console_t *console = NULL;
 	uint64_t start;
 	uint64_t end;
@@ -141,8 +146,10 @@ main(void)
 	    &font_identifier);
 	if (status != 0)
 		fail("st_console_register_static_font", status);
-	for (size_t i = 0; i < (size_t)COLUMNS * ROWS; ++i)
+	for (size_t i = 0; i < (size_t)COLUMNS * ROWS; ++i) {
 		screen[i].font = font_identifier;
+		screen[i].glyph_font = font_identifier;
+	}
 	status = st_console_begin_update(console);
 	if (status != 0)
 		fail("st_console_begin_update", status);
@@ -182,21 +189,21 @@ main(void)
 		fail("wide font registration", status);
 	for (size_t i = 0; i < (size_t)COLUMNS * ROWS; i += 2) {
 		screen[i] = (struct st_console_cell){
-			.glyph = UINT32_C(0x4e00),
+			.glyph = 1,
 			.foreground = 15,
 			.background = 0,
 			.font = wide_font_identifier,
+			.glyph_font = wide_font_identifier,
 		};
 		screen[i + 1] = screen[i];
 		screen[i + 1].flags = ST_CONSOLE_CELL_CONTINUATION;
 	}
 	start = monotonic_ns();
 	for (uint32_t pass = 0; pass < raster_passes; ++pass) {
-		uint32_t codepoint = (pass & 1U) == 0
-		    ? UINT32_C(0x4e00) : UINT32_C(0x4e01);
+		uint32_t glyph = (pass & 1U) == 0 ? 1 : 2;
 
 		for (size_t i = 0; i < (size_t)COLUMNS * ROWS; ++i)
-			screen[i].glyph = codepoint;
+			screen[i].glyph = glyph;
 		status = st_console_write_cells(console, &full, screen, COLUMNS);
 		if (status != 0)
 			fail("wide font raster", status);
@@ -212,8 +219,16 @@ main(void)
 			.foreground = 15,
 			.background = 0,
 			.font = font_identifier,
+			.glyph_font = font_identifier,
 		};
 	}
+	fill = (struct st_console_cell){
+		.glyph = ' ',
+		.foreground = 15,
+		.background = 0,
+		.font = font_identifier,
+		.glyph_font = font_identifier,
+	};
 
 	for (uint32_t x = 0; x < COLUMNS; ++x)
 		line[x] = screen[x];
@@ -233,6 +248,27 @@ main(void)
 	}
 	end = monotonic_ns();
 	printf("scroll: %.3f ms for %u scroll-and-render operations "
+	    "(%.3f us/line)\n", milliseconds(start, end), scroll_passes,
+	    milliseconds(start, end) * 1000.0 / scroll_passes);
+
+	start = monotonic_ns();
+	for (uint32_t pass = 0; pass < scroll_passes; ++pass) {
+		for (uint32_t x = 0; x < COLUMNS; ++x)
+			line[x].glyph = (pass + x) & 255U;
+		status = st_console_begin_update(console);
+		if (status == 0)
+			status = st_console_move_cells_clear(console, &terminal_scroll,
+			    0, 0, &fill);
+		if (status == 0)
+			status = st_console_write_cells(console, &terminal_last, line,
+			    COLUMNS);
+		if (status == 0)
+			status = st_console_end_update(console);
+		if (status != 0)
+			fail("rectangular scroll", status);
+	}
+	end = monotonic_ns();
+	printf("rectangular scroll: %.3f ms for %u move-and-render operations "
 	    "(%.3f us/line)\n", milliseconds(start, end), scroll_passes,
 	    milliseconds(start, end) * 1000.0 / scroll_passes);
 	printf("checksum: %" PRIu64 "\n", checksum(console));

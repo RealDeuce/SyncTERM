@@ -1011,6 +1011,54 @@ normalize_saved_boundaries_locked(st_console_t *console,
 	}
 }
 
+static bool
+move_full_width_rows_locked(st_console_t *console,
+	const struct st_console_rect *source, uint32_t destination_x,
+	uint32_t destination_y, const struct st_console_cell *fill)
+{
+	size_t count;
+	size_t source_cell;
+	size_t destination_cell;
+	uint32_t exposed;
+	uint32_t fill_y;
+
+	if (source->x != 0 || destination_x != 0
+	    || source->width != console->columns)
+		return false;
+	if (source->y == destination_y)
+		return true;
+	count = (size_t)source->width * source->height;
+	source_cell = (size_t)source->y * console->columns;
+	destination_cell = (size_t)destination_y * console->columns;
+	st_console_move_raster_locked(console, source, destination_x,
+	    destination_y);
+	memmove(&console->cells[destination_cell], &console->cells[source_cell],
+	    count * sizeof(console->cells[0]));
+	for (size_t i = 0; i < count; ++i)
+		console->cells[destination_cell + i].flags |= ST_CONSOLE_CELL_DIRTY;
+	console->changed = true;
+	if (fill == NULL)
+		return true;
+	if (destination_y < source->y) {
+		exposed = source->y - destination_y;
+		if (exposed > source->height)
+			exposed = source->height;
+		fill_y = source->y + source->height - exposed;
+	}
+	else {
+		exposed = destination_y - source->y;
+		if (exposed > source->height)
+			exposed = source->height;
+		fill_y = source->y;
+	}
+	for (uint32_t y = fill_y; y < fill_y + exposed; ++y) {
+		for (uint32_t x = 0; x < console->columns; ++x)
+			st_console_set_cell_locked(console,
+			    (size_t)y * console->columns + x, fill);
+	}
+	return true;
+}
+
 static int
 move_cells(st_console_t *console, const struct st_console_rect *source,
 	uint32_t destination_x, uint32_t destination_y,
@@ -1039,6 +1087,12 @@ move_cells(st_console_t *console, const struct st_console_rect *source,
 			return IO_ERROR_INVALID_ARGUMENT;
 		}
 	}
+	if (move_full_width_rows_locked(console, source, destination_x,
+	    destination_y, fill)) {
+		result = st_console_finish_change_locked(console);
+		(void)st_rwlock_unlock(&console->state_lock);
+		return result;
+	}
 	count = (size_t)source->width * source->height;
 	saved = malloc(count * sizeof(saved[0]));
 	if (saved == NULL) {
@@ -1051,6 +1105,12 @@ move_cells(st_console_t *console, const struct st_console_rect *source,
 		    + source->x], (size_t)source->width * sizeof(saved[0]));
 	normalize_saved_boundaries_locked(console, saved, source->width,
 	    source->height);
+	/* Keep the resolved raster in step with the cells.  The destination
+	 * writes below still validate wide-cell boundaries and mark damage, but
+	 * cells which survived the move then compare equal to drawn_cells and do
+	 * not need to be rendered again. */
+	st_console_move_raster_locked(console, source, destination_x,
+	    destination_y);
 	for (uint32_t y = 0; y < source->height; ++y) {
 		for (uint32_t x = 0; x < source->width; ++x) {
 			st_console_set_cell_locked(console,
