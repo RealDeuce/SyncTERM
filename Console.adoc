@@ -398,7 +398,14 @@ Moves have snapshot source semantics when rectangles overlap.  Scrolling and
 line insertion/deletion move matching cached glyph rasters with the cells, so
 retained rows do not pass through the font renderer again.  A full-width
 top-of-grid scroll advances a circular text-raster origin instead of copying
-every pixel row.  Non-text raster margins never participate in the scroll.
+every pixel row.  By default, non-text raster margins do not participate.
+`st_console_set_full_surface_scroll(console, true)` instead rotates the
+entire pixel height, including rows below the text grid, for RIP's 640x350
+surface with 43 eight-pixel text rows.  Exposed text rows are repainted even
+when their cells were already blank; a trailing strip beyond the text width
+is cleared to the fill cell's background.  The setter accepts `false` to
+restore text-only scrolling, normalizing any pending ring offset first; it
+requires a bitmap console and returns `IO_ERROR_NOT_SUPPORTED` otherwise.
 If a horizontal text-window boundary crosses a wide pair, an affected row
 operation clears the complete pair, including its adjacent half outside the
 window, before moving the remaining complete cells.

@@ -1225,6 +1225,7 @@ set_cell_raw_locked(st_console_t *console, size_t index,
 	value.flags |= ST_CONSOLE_CELL_DIRTY;
 	console->cells[index] = value;
 	console->changed = true;
+	console->raster_current = false;
 }
 
 static bool
@@ -1434,6 +1435,7 @@ st_console_mark_all_locked(st_console_t *console)
 	for (i = 0; i < count; ++i)
 		console->cells[i].flags |= ST_CONSOLE_CELL_DIRTY;
 	console->changed = true;
+	console->raster_current = false;
 }
 
 static int
@@ -1684,6 +1686,113 @@ st_console_resize(st_console_t *console, uint32_t columns, uint32_t rows)
 	st_console_mark_all_locked(console);
 	result = st_console_finish_change_locked(console);
 	(void)st_rwlock_unlock(&console->state_lock);
+	return result;
+}
+
+int
+st_console_regrid_preserve_pixels(st_console_t *console,
+	uint32_t columns, uint32_t rows, uint32_t cell_width,
+	uint32_t cell_height)
+{
+	struct st_console_cell *cells;
+	struct st_console_cell *drawn_cells;
+	uint8_t *raster_rows;
+	struct st_console_cell blank;
+	size_t count;
+	uint32_t pixel_width, pixel_height;
+	uint32_t extra_width, extra_height;
+	uint32_t old_cell_width, old_cell_height;
+	uint32_t old_extra_width, old_extra_height;
+	int result;
+
+	if (console == NULL || cell_width == 0 || cell_height == 0
+	    || !cell_count(columns, rows, &count))
+		return IO_ERROR_INVALID_ARGUMENT;
+	cells = malloc(count * sizeof(*cells));
+	drawn_cells = malloc(count * sizeof(*drawn_cells));
+	raster_rows = calloc(rows, sizeof(*raster_rows));
+	if (cells == NULL || drawn_cells == NULL || raster_rows == NULL) {
+		free(raster_rows);
+		free(drawn_cells);
+		free(cells);
+		return IO_ERROR_OUT_OF_MEMORY;
+	}
+	result = st_rwlock_write_lock(&console->state_lock);
+	if (result != ST_THREAD_SUCCESS) {
+		result = IO_ERROR_IO;
+		goto discard;
+	}
+	if (console->pixels == NULL) {
+		result = IO_ERROR_NOT_SUPPORTED;
+		goto unlock;
+	}
+	if (!pixel_dimensions(columns, rows, cell_width, cell_height,
+	    console->pixels->width, console->pixels->height,
+	    &pixel_width, &pixel_height, &extra_width, &extra_height)) {
+		result = IO_ERROR_INVALID_ARGUMENT;
+		goto unlock;
+	}
+	result = st_console_rasterize_locked(console, false);
+	if (result == 0)
+		result = st_console_normalize_raster_locked(console);
+	if (result != 0)
+		goto unlock;
+	old_cell_width = console->cell_width;
+	old_cell_height = console->cell_height;
+	old_extra_width = console->pixel_extra_width;
+	old_extra_height = console->pixel_extra_height;
+	console->cell_width = cell_width;
+	console->cell_height = cell_height;
+	console->pixel_extra_width = extra_width;
+	console->pixel_extra_height = extra_height;
+	if (atomic_load_explicit(&console->display->active,
+	    memory_order_acquire) == console
+	    && console->display->backend_ops != NULL
+	    && console->display->backend_ops->resize != NULL) {
+		(void)st_mutex_lock(&console->display->backend_mutex);
+		result = atomic_load_explicit(&console->display->active,
+		    memory_order_acquire) == console
+		    ? (console->display->backend_failed ? IO_ERROR_IO
+		    : console->display->backend_ops->resize(console,
+		    columns, rows)) : 0;
+		(void)st_mutex_unlock(&console->display->backend_mutex);
+	}
+	if (result != 0) {
+		console->cell_width = old_cell_width;
+		console->cell_height = old_cell_height;
+		console->pixel_extra_width = old_extra_width;
+		console->pixel_extra_height = old_extra_height;
+		goto unlock;
+	}
+	blank = st_console_blank_locked(console, ' ');
+	blank.flags &= ~ST_CONSOLE_CELL_DIRTY;
+	blank.flags |= ST_CONSOLE_CELL_PIXEL_GRAPHICS;
+	for (size_t i = 0; i < count; i++) {
+		cells[i] = blank;
+		drawn_cells[i] = blank;
+	}
+	free(console->cells);
+	free(console->drawn_cells);
+	free(console->raster_rows);
+	console->cells = cells;
+	console->drawn_cells = drawn_cells;
+	console->raster_rows = raster_rows;
+	console->columns = columns;
+	console->rows = rows;
+	console->window = (struct st_console_rect){0, 0, columns, rows};
+	console->cursor_x = 0;
+	console->cursor_y = 0;
+	console->pixel_surface_dirty = true;
+	console->changed = true;
+	result = st_console_finish_change_locked(console);
+	(void)st_rwlock_unlock(&console->state_lock);
+	return result;
+unlock:
+	(void)st_rwlock_unlock(&console->state_lock);
+discard:
+	free(raster_rows);
+	free(drawn_cells);
+	free(cells);
 	return result;
 }
 
@@ -2832,6 +2941,7 @@ st_console_snapshot_create(st_console_snapshot_t **result,
 	snapshot->video_flags = console->video_flags;
 	snapshot->blocky_scaling = console->blocky_scaling;
 	snapshot->pixel_top = console->pixel_top;
+	snapshot->full_surface_scroll = console->full_surface_scroll;
 	memcpy(snapshot->cells, console->cells,
 	    count * sizeof(snapshot->cells[0]));
 	for (size_t i = 0; i < count; ++i)
@@ -2913,6 +3023,7 @@ st_console_snapshot_restore(st_console_t *console,
 		memcpy(console->drawn_cells, snapshot->cells,
 		    count * sizeof(console->drawn_cells[0]));
 		console->pixel_top = snapshot->pixel_top;
+		console->full_surface_scroll = snapshot->full_surface_scroll;
 		console->pixel_surface_dirty = true;
 	}
 	st_console_mark_all_locked(console);

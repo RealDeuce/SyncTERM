@@ -195,6 +195,7 @@ struct st_wren_host {
 	WrenHandle *main_menu;
 	WrenHandle *run_menu;
 	WrenHandle *menu_ui_class;
+	WrenHandle *menu_prompt;
 	WrenHandle *menu_status;
 	WrenHandle *menu_status_clear;
 	WrenHandle *picker_bootstrap;
@@ -238,6 +239,7 @@ WrenForeignMethodFn st_wren_repl_bind_method(const char *class_name,
 WrenForeignMethodFn st_wren_core_bind_method(const char *class_name,
 	bool is_static, const char *signature);
 WrenForeignClassMethods st_wren_core_bind_class(const char *class_name);
+void st_wren_core_new_generic(WrenVM *vm, int slot, int class_slot);
 WrenForeignMethodFn st_wren_fs_bind_method(const char *class_name,
 	bool is_static, const char *signature);
 WrenForeignMethodFn st_wren_hyperlink_bind_method(const char *class_name,

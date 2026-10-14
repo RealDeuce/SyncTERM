@@ -70,6 +70,24 @@ must belong to the supplied console. Geometry must fit the parser's signed
 coordinate representation. `palette_mapping`, when non-NULL, points to 16
 borrowed canonical palette indices copied during creation. `petscii_machine`
 selects C64, C128 40-column, or C128 80-column semantics for PETSCII.
+`rip_version` is `ST_CTERM_RIP_OFF` (the zero/default value),
+`ST_CTERM_RIP_1`, or `ST_CTERM_RIP_3`. RIP requires ANSI-BBS and a bitmap
+console of at least 640×350 pixels; its drawing canvas is the upper-left
+640×350 pixels. Creation enables full-surface scrolling on that console and
+destruction restores text-only scrolling. `rip_directory`, when non-NULL, is
+a borrowed per-BBS directory for RIP scene, icon, and variable files; its
+path must remain valid for the terminal lifetime. A NULL `rip_prompt` leaves
+interactive `RIP_DEFINE` variables unchanged. Otherwise the callback runs
+synchronously with the prompt text, initial value, maximum character count,
+and `reject_blank` flag. It returns zero with a NULL `*result` to cancel, or
+zero with a `malloc`-owned string to accept; a nonzero result reports an error.
+`rip_prompt_context` is passed to that callback unchanged.
+
+`$SBARON$` changes the reserved status row, but the connected-session
+contents of that row belong to the Wren application UI, not RIP drawing.
+The minimal terminal session does not render those contents; their port is
+deferred with the connected Wren UI.
+RIP modem-transfer execution is also deferred.
 
 [source,c]
 ----
@@ -88,7 +106,9 @@ int st_cterm_set_encoding(st_cterm_t *terminal,
     enum st_cterm_encoding encoding, enum st_codepage codepage);
 int st_cterm_copy_history(st_cterm_t *terminal,
     struct st_console_cell **cells, uint32_t *columns, size_t *rows);
-bool st_cterm_handle_key(st_cterm_t *terminal, uint16_t key_code);
+bool st_cterm_handle_key(st_cterm_t *terminal, uint16_t key_code,
+    uint32_t modifiers);
+bool st_cterm_handle_rip_text(st_cterm_t *terminal, uint32_t codepoint);
 bool st_cterm_handle_doorway_key(st_cterm_t *terminal, uint8_t scan_code);
 bool st_cterm_handle_physical_keys(st_cterm_t *terminal,
     const struct st_console_event *events, size_t count);
@@ -116,11 +136,12 @@ always written.  A successful return consumes all bytes; on callback/render
 failure it identifies the resume offset.  A call boundary is not EOF.
 
 | st_cterm_finish(terminal)
-| Commits a pending grapheme and reports an incomplete UTF-8 prefix once as a
-decode error.  Safe to call again without duplicating the error.
+| Dispatches a pending RIP command at end of stream, commits a pending
+grapheme, and reports an incomplete UTF-8 prefix once as a decode error.
+Safe to call again without duplicating the command or error.
 
 | st_cterm_reset_terminal(terminal)
-| Finishes the Unicode boundary, then applies the emulation reset.
+| Finishes the RIP and Unicode boundaries, then applies the emulation reset.
 
 | st_cterm_resize(terminal, columns, rows)
 | Resizes the underlying console and updates CTerm geometry, margins, cursor
@@ -147,9 +168,15 @@ codepage, or UTF-8 with a fixed byte-table emulation.
 | Allocates a row-major chronological snapshot: staged ring lines then visible
 terminal rows.  All outputs are unchanged on failure; caller frees `*cells`.
 
-| st_cterm_handle_key(terminal, key_code)
-| Encodes one normalized key according to active terminal modes.  Returns true
-when handled; emitted bytes carry USER origin.
+| st_cterm_handle_key(terminal, key_code, modifiers)
+| Encodes one normalized key according to active terminal modes. `modifiers`
+is a `ST_CONSOLE_MODIFIER_*` bitmask; RIP uses Shift for reverse tab selection.
+Returns true when handled; emitted bytes carry USER origin.
+
+| st_cterm_handle_rip_text(terminal, codepoint)
+| Gives a Unicode text-input scalar to RIP's button-hotkey handler before the
+session sends it on the wire. Returns true if RIP consumed it. A non-hotkey
+must still be sent by the caller through the session's text-output path.
 
 | st_cterm_handle_doorway_key(terminal, scan_code)
 | DoorWay scan-code counterpart; returns whether handled.
@@ -160,7 +187,9 @@ returns whether CTerm handled the batch.  The event array is borrowed.
 
 | st_cterm_handle_mouse(terminal, event)
 | Requires one MOUSE event.  Applies DEC 9/1000/1002/1003 and encoding modes
-1005/1006/1015/1016; returns true when a report or alternate-scroll key emits.
+1005/1006/1015/1016. With RIP enabled, it also handles mouse regions,
+buttons, and click queries in the RIP pixel canvas. Returns true when the
+event is consumed or a report, RIP command, or alternate-scroll key emits.
 
 | st_cterm_handle_focus(terminal, focused)
 | Emits DEC focus-in/out only while mode 1004 is enabled; return reports emit.
@@ -179,6 +208,8 @@ int st_term_connect_profile(st_connection_t **result,
     const struct st_connection_hooks *hooks, struct st_connection_error *error);
 enum st_cterm_encoding st_term_profile_encoding(
     const struct st_profile *profile);
+enum st_cterm_rip_version st_term_profile_rip_version(
+    const struct st_profile *profile);
 int st_term_session_create(st_term_session_t **result,
     const struct st_term_config *config);
 void st_term_session_destroy(st_term_session_t **session);
@@ -188,6 +219,9 @@ int st_term_session_pump(st_term_session_t *session,
     enum st_term_disposition *disposition, bool *finished);
 int st_term_session_send_text(st_term_session_t *session,
     const char *utf8, size_t size);
+int st_term_rip_wire_to_utf8(char *result, size_t capacity,
+    size_t *result_size, const uint8_t *wire, size_t size,
+    enum st_codepage codepage);
 ----
 
 [cols="3m,7"]
@@ -205,16 +239,25 @@ Shell children receive `MM_CHARSET=UTF-8`.
 | Returns UTF8 for a local Shell profile and CODEPAGE for remote byte
 transports (and for NULL). Use this result for the matching session config.
 
+| st_term_profile_rip_version(profile)
+| Maps profile RIP version 1 or 3 to the matching CTerm mode. Returns
+`ST_CTERM_RIP_OFF` for NULL or any other profile value.
+
 | st_term_session_create(result, config)
 | Requires matching non-NULL console, open connection, and font catalog.
 Optional audio/hyperlink/history pointers may be NULL.  All configured objects
 are borrowed through session destruction.  A visible status row requires at
 least two console rows. The connection is updated with the main terminal's
 initial cell and pixel geometry, excluding that status row. Result is unchanged
-on failure.
+on failure. `rip_version` selects the RIP parser; `rip_directory` and
+`rip_prompt`/`rip_prompt_context` have the CTerm lifetime and callback rules
+above. For a codepage RIP connection, the session translates incoming wire
+bytes to UTF-8 before CTerm and translates outgoing Unicode back to the
+configured codepage. CTerm and the RIP parser therefore see Unicode regardless
+of the remote wire encoding.
 
 | st_term_session_destroy(session_ptr)
-| Finishes Unicode, publishes history when configured, releases CTerm, and
+| Finishes RIP and Unicode, publishes history when configured, releases CTerm, and
 sets the handle NULL.  It neither closes nor destroys the borrowed connection.
 
 | st_term_session_run(session, disposition)
@@ -231,4 +274,13 @@ condition.  Caller repeats while zero and not finished.
 grapheme.  UTF-8 sessions send normalized bytes.  Legacy sessions map a
 single-scalar grapheme through the configured codepage; unmappable graphemes
 beep and are omitted without aborting representable neighbours.
+
+| st_term_rip_wire_to_utf8(result, capacity, result_size, wire, size, codepage)
+| Converts counted codepage wire bytes to UTF-8 without changing ASCII RIP
+introducers and delimiters. `result` must have sufficient `capacity` (up to
+four bytes per input byte); input and output must not overlap. On success,
+`*result_size` is the byte count, with no terminator. On failure, it is
+unchanged, though `result` may contain a partial conversion. NULL input is
+valid only with zero `size`; NULL output is valid only with zero `capacity`
+and zero `size`. Returns zero or negative `IO_ERROR_*`.
 |===

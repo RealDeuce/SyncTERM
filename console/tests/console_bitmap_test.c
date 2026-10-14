@@ -219,6 +219,94 @@ test_circular_text_raster(void)
 }
 
 static void
+test_full_surface_scroll_gap(void)
+{
+	const struct st_console_display_config display = {
+		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	};
+	const struct st_console_config config = {
+		.columns = 1, .rows = 2,
+		.cell_width = 1, .cell_height = 1,
+		.pixel_width = 1, .pixel_height = 3,
+		.scaling_mode = ST_CONSOLE_SCALING_EXTERNAL,
+	};
+	const struct st_console_rect rect = {0, 0, 1, 3};
+	struct st_pixel_buffer *pixels = NULL;
+	st_console_t *console = NULL;
+
+	CHECK(st_console_create(&console, &display, &config) == 0);
+	CHECK(st_console_set_pixel(console, 0, 0,
+	    ST_PIXEL_COLOR_RGB_TAG | UINT32_C(0xff0000)) == 0);
+	CHECK(st_console_set_pixel(console, 0, 1,
+	    ST_PIXEL_COLOR_RGB_TAG | UINT32_C(0x0000ff)) == 0);
+	CHECK(st_console_set_pixel(console, 0, 2,
+	    ST_PIXEL_COLOR_RGB_TAG | UINT32_C(0x00ff00)) == 0);
+	CHECK(st_console_set_full_surface_scroll(console, true) == 0);
+	CHECK(st_console_scroll(console, 1, ' ') == 0);
+	CHECK(st_console_get_pixels(&pixels, console, &rect, false) == 0);
+	CHECK(pixels->primary[0] == (ST_PIXEL_COLOR_RGB_TAG | UINT32_C(0x0000ff)));
+	CHECK(pixels->primary[1] == 0);
+	CHECK(pixels->primary[2] == (ST_PIXEL_COLOR_RGB_TAG | UINT32_C(0xff0000)));
+	st_pixel_buffer_destroy(pixels);
+	CHECK(st_console_scroll(console, 1, ' ') == 0);
+	CHECK(st_console_get_pixels(&pixels, console, &rect, false) == 0);
+	CHECK(pixels->primary[0] == 0);
+	CHECK(pixels->primary[1] == 0);
+	CHECK(pixels->primary[2] == (ST_PIXEL_COLOR_RGB_TAG | UINT32_C(0x0000ff)));
+	st_pixel_buffer_destroy(pixels);
+	{
+		const struct st_console_rect source = {0, 1, 1, 1};
+		const struct st_console_cell blank = console->cells[1];
+
+		CHECK(st_console_set_pixel(console, 0, 0,
+		    ST_PIXEL_COLOR_RGB_TAG | UINT32_C(0xff0000)) == 0);
+		CHECK(st_console_move_cells_clear(console, &source, 0, 0,
+		    &blank) == 0);
+		CHECK(st_console_move_cells_clear(console, &source, 0, 0,
+		    &blank) == 0);
+		CHECK(st_console_get_pixels(&pixels, console, &rect, false) == 0);
+		CHECK(pixels->primary[1] == 0);
+		st_pixel_buffer_destroy(pixels);
+	}
+	CHECK(st_console_set_full_surface_scroll(console, false) == 0);
+	CHECK(st_console_get_pixels(&pixels, console, &rect, false) == 0);
+	CHECK(pixels->primary[1] == 0);
+	st_pixel_buffer_destroy(pixels);
+	st_console_destroy(console);
+}
+
+static void
+test_full_surface_scroll_right_strip(void)
+{
+	const struct st_console_display_config display = {
+		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	};
+	const struct st_console_config config = {
+		.columns = 1, .rows = 2,
+		.cell_width = 1, .cell_height = 1,
+		.pixel_width = 2, .pixel_height = 2,
+		.scaling_mode = ST_CONSOLE_SCALING_EXTERNAL,
+	};
+	const struct st_console_rect source = {0, 1, 1, 1};
+	const struct st_console_rect pixels_rect = {0, 0, 2, 2};
+	struct st_pixel_buffer *pixels = NULL;
+	st_console_t *console = NULL;
+	struct st_console_cell blank;
+
+	CHECK(st_console_create(&console, &display, &config) == 0);
+	CHECK(st_console_set_full_surface_scroll(console, true) == 0);
+	CHECK(st_console_set_pixel(console, 1, 0,
+	    ST_PIXEL_COLOR_RGB_TAG | UINT32_C(0xff0000)) == 0);
+	blank = console->cells[1];
+	CHECK(st_console_move_cells_clear(console, &source, 0, 0,
+	    &blank) == 0);
+	CHECK(st_console_get_pixels(&pixels, console, &pixels_rect, false) == 0);
+	CHECK(pixels->primary[3] == 0);
+	st_pixel_buffer_destroy(pixels);
+	st_console_destroy(console);
+}
+
+static void
 test_indexed_pixel_palette_change(void)
 {
 	const struct st_console_display_config display = {
@@ -486,6 +574,58 @@ test_wide_glyph_cursor(void)
 	st_console_destroy(console);
 }
 
+static void
+test_pixel_raster_cache(void)
+{
+	static const uint8_t bitmap[256] = {0};
+	const struct st_console_font font = {
+		.bitmap = bitmap,
+		.bitmap_size = sizeof(bitmap),
+		.width = 1,
+		.height = 1,
+		.glyph_count = 256,
+		.row_stride = 1,
+		.glyph_stride = 1,
+	};
+	const struct st_console_display_config display = {
+		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	};
+	const struct st_console_config config = {
+		.columns = 2, .rows = 1,
+		.cell_width = 1, .cell_height = 1,
+		.pixel_width = 2, .pixel_height = 1,
+	};
+	const struct st_console_rect cell_rect = {1, 0, 1, 1};
+	const struct st_console_rect pixel_rect = {0, 0, 2, 1};
+	const struct st_console_cell cell = {
+		.glyph = ' ', .background = 4,
+	};
+	struct st_pixel_buffer *pixels = NULL;
+	st_console_t *console = NULL;
+	uint16_t identifier;
+
+	CHECK(st_console_create(&console, &display, &config) == 0);
+	CHECK(st_console_begin_update(console) == 0);
+	CHECK(st_console_register_static_font(console, &font, &identifier) == 0);
+	CHECK(identifier == 0);
+	CHECK(!console->raster_current);
+	CHECK(st_console_set_pixel(console, 0, 0, 5) == 0);
+	CHECK(console->raster_current);
+	CHECK(st_console_set_pixel(console, 0, 0, 6) == 0);
+	CHECK(console->raster_current);
+	CHECK(st_console_write_complete_cells(console, &cell_rect,
+	    &cell, 1) == 0);
+	CHECK(!console->raster_current);
+	CHECK(st_console_set_pixel(console, 0, 0, 7) == 0);
+	CHECK(console->raster_current);
+	CHECK(st_console_get_pixels(&pixels, console, &pixel_rect, false) == 0);
+	CHECK(pixels->primary[0] == 7);
+	CHECK(pixels->primary[1] == 4);
+	st_pixel_buffer_destroy(pixels);
+	CHECK(st_console_end_update(console) == 0);
+	st_console_destroy(console);
+}
+
 int
 main(void)
 {
@@ -696,6 +836,8 @@ main(void)
 	st_console_bitmap_presenter_destroy(presenter);
 	st_console_destroy(console);
 	test_circular_text_raster();
+	test_full_surface_scroll_gap();
+	test_full_surface_scroll_right_strip();
 	test_indexed_pixel_palette_change();
 	test_initial_window_geometry();
 	test_mouse_coordinates();
@@ -703,5 +845,6 @@ main(void)
 	test_wide_glyph_cursor();
 	test_vga_ninth_column();
 	test_upload_retry();
+	test_pixel_raster_cache();
 	return 0;
 }

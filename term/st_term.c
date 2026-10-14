@@ -53,6 +53,18 @@ st_term_profile_encoding(const struct st_profile *profile)
 	    ? ST_CTERM_ENCODING_UTF8 : ST_CTERM_ENCODING_CODEPAGE;
 }
 
+enum st_cterm_rip_version
+st_term_profile_rip_version(const struct st_profile *profile)
+{
+	if (profile == NULL)
+		return ST_CTERM_RIP_OFF;
+	switch (profile->rip_version) {
+	case ST_RIP_VERSION_1: return ST_CTERM_RIP_1;
+	case ST_RIP_VERSION_3: return ST_CTERM_RIP_3;
+	default: return ST_CTERM_RIP_OFF;
+	}
+}
+
 static enum st_cterm_petscii_machine
 profile_petscii_machine(enum st_screen_mode mode)
 {
@@ -86,7 +98,13 @@ cterm_output(void *context, enum st_cterm_output_origin origin,
 	st_term_session_t *session = context;
 	(void)origin;
 
-	if (session->output_error == 0)
+	if (session->output_error != 0)
+		return;
+	if (session->config.rip_version != ST_CTERM_RIP_OFF
+	    && session->config.encoding == ST_CTERM_ENCODING_CODEPAGE)
+		session->output_error = st_term_session_send_text(session,
+		    (const char *)bytes, size);
+	else
 		session->output_error = send_all(session->config.connection,
 		    bytes, size);
 }
@@ -197,7 +215,10 @@ st_term_session_create(st_term_session_t **result,
 		.audio = config->audio,
 		.hyperlinks = config->hyperlinks,
 		.emulation = profile_emulation(config->screen_mode),
-		.encoding = config->encoding,
+		.encoding = config->rip_version != ST_CTERM_RIP_OFF
+		    ? ST_CTERM_ENCODING_UTF8 : config->encoding,
+		.rip_version = config->rip_version,
+		.rip_directory = config->rip_directory,
 		.codepage = config->codepage,
 		.palette_mapping = mode == NULL ? NULL : palette_mapping,
 		.petscii_machine = profile_petscii_machine(config->screen_mode),
@@ -210,6 +231,8 @@ st_term_session_create(st_term_session_t **result,
 		.output_context = session,
 		.size_changed = cterm_size,
 		.size_context = session,
+		.rip_prompt = config->rip_prompt,
+		.rip_prompt_context = config->rip_prompt_context,
 	};
 	status = st_cterm_create(&session->cterm, &cterm_config);
 	if (status != 0) {
@@ -341,6 +364,54 @@ local_command(const struct st_console_event *event,
 }
 
 static int
+write_wire(st_term_session_t *session, const uint8_t *bytes, size_t size)
+{
+	char unicode[4096 * 4];
+	size_t converted = 0;
+	size_t consumed;
+	int status;
+
+	if (session->config.rip_version == ST_CTERM_RIP_OFF
+	    || session->config.encoding == ST_CTERM_ENCODING_UTF8) {
+		status = st_cterm_write(session->cterm, bytes, size, &consumed);
+		return status == 0 && consumed != size ? IO_ERROR_IO : status;
+	}
+	status = st_term_rip_wire_to_utf8(unicode, sizeof(unicode),
+	    &converted, bytes, size, session->config.codepage);
+	if (status != 0)
+		return status;
+	status = st_cterm_write(session->cterm, unicode, converted, &consumed);
+	return status == 0 && consumed != converted ? IO_ERROR_IO : status;
+}
+
+int
+st_term_rip_wire_to_utf8(char *result, size_t capacity,
+	size_t *result_size, const uint8_t *wire, size_t size,
+	enum st_codepage codepage)
+{
+	size_t converted = 0;
+
+	if (result_size == NULL || (result == NULL && (capacity != 0 || size != 0))
+	    || (wire == NULL && size != 0)
+	    || codepage < ST_CODEPAGE_CP437 || codepage >= ST_CODEPAGE_COUNT)
+		return IO_ERROR_INVALID_ARGUMENT;
+	for (size_t i = 0; i < size; i++) {
+		/* RIP's ASCII introducer and delimiters are protocol bytes.
+		 * CP437's display mapping of '|' to U+00A6 must not alter them. */
+		uint32_t scalar = wire[i] < 0x80 ? wire[i]
+		    : st_codepage_to_unicode(codepage, wire[i], false);
+		ptrdiff_t written = st_utf8_encode_one(result + converted,
+		    capacity - converted, scalar);
+
+		if (written < 0)
+			return (int)written;
+		converted += (size_t)written;
+	}
+	*result_size = converted;
+	return 0;
+}
+
+static int
 handle_event(st_term_session_t *session,
 	const struct st_console_event *event,
 	enum st_term_disposition *disposition, bool *finished)
@@ -355,11 +426,15 @@ handle_event(st_term_session_t *session,
 		ptrdiff_t size = st_utf8_encode_one(utf8, sizeof(utf8),
 		    event->data.text.codepoint);
 
+		if (st_cterm_handle_rip_text(session->cterm,
+		    event->data.text.codepoint))
+			return session->output_error;
 		return size < 0 ? IO_ERROR_INVALID_ENCODING
 		    : st_term_session_send_text(session, utf8, (size_t)size);
 	}
 	case ST_CONSOLE_EVENT_KEY_CODE:
-		(void)st_cterm_handle_key(session->cterm, event->data.key.code);
+		(void)st_cterm_handle_key(session->cterm, event->data.key.code,
+		    event->data.key.modifiers);
 		return session->output_error;
 	case ST_CONSOLE_EVENT_PHYSICAL_KEY:
 		(void)st_cterm_handle_physical_keys(session->cterm, event, 1);
@@ -407,12 +482,9 @@ st_term_session_pump(st_term_session_t *session,
 	    && received != IO_ERROR_WOULD_BLOCK)
 		return (int)received;
 	if (received > 0) {
-		size_t consumed;
-
-		status = st_cterm_write(session->cterm, bytes, (size_t)received,
-		    &consumed);
-		if (status != 0 || consumed != (size_t)received)
-			return status == 0 ? IO_ERROR_IO : status;
+		status = write_wire(session, bytes, (size_t)received);
+		if (status != 0)
+			return status;
 	}
 	while ((status = st_console_event_try(session->config.console,
 	    &event)) == 0) {

@@ -8,6 +8,7 @@
 #include "st_app_paths.h"
 #include "st_app_state.h"
 #include "st_audio_runtime.h"
+#include "st_bbs_list.h"
 #include "st_builtin_fonts.h"
 #include "st_command_line.h"
 #include "st_console.h"
@@ -33,6 +34,7 @@
 #include <locale.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 static const char application_title[] = "SyncTERM 2.0a"
@@ -188,8 +190,18 @@ prepare_session_fonts(st_font_catalog_t **result, st_console_t *console,
 }
 
 static int
+run_rip_prompt(void *context, const char *question, const char *initial,
+	size_t field_width, bool reject_blank, char **result)
+{
+	(void)reject_blank;
+	return st_wren_host_prompt(context, "RIP Input", question, initial,
+	    field_width, result);
+}
+
+static int
 run_selected(st_wren_host_t *host, st_console_display_t *display,
 	st_console_t *console, const struct st_profile *profile,
+	const struct st_app_paths *paths,
 	st_audio_runtime_t *audio, st_hyperlink_registry_t *hyperlinks,
 	st_session_history_t *history, enum st_term_disposition *disposition)
 {
@@ -199,6 +211,7 @@ run_selected(st_wren_host_t *host, st_console_display_t *display,
 	st_font_catalog_t *fonts = NULL;
 	st_connection_t *connection = NULL;
 	st_term_session_t *session = NULL;
+	char *rip_directory = NULL;
 	struct st_connection_error error = {0};
 	uint8_t selector = 0;
 	int status;
@@ -232,6 +245,13 @@ run_selected(st_wren_host_t *host, st_console_display_t *display,
 		    error.detail[0] == '\0' ? "" : error.detail);
 		goto finished;
 	}
+	if (st_term_profile_rip_version(profile) != ST_CTERM_RIP_OFF
+	    && st_bbs_name_valid(profile->name)) {
+		status = st_bbs_cache_path_for_name(&rip_directory,
+		    paths->cache_directory, profile->name);
+		if (status != 0)
+			goto finished;
+	}
 	const struct st_term_config config = {
 		.console = console,
 		.connection = connection,
@@ -241,9 +261,13 @@ run_selected(st_wren_host_t *host, st_console_display_t *display,
 		.history = history,
 		.screen_mode = session_mode,
 		.encoding = st_term_profile_encoding(profile),
+		.rip_version = st_term_profile_rip_version(profile),
+		.rip_directory = rip_directory,
 		.codepage = st_font_catalog_codepage(fonts, selector),
 		.font_selector = selector,
 		.hide_status = profile->hide_status,
+		.rip_prompt = run_rip_prompt,
+		.rip_prompt_context = host,
 	};
 	status = st_term_session_create(&session, &config);
 	if (status == 0)
@@ -257,6 +281,7 @@ finished:
 			status = close_status;
 	}
 	st_font_catalog_destroy(fonts);
+	free(rip_directory);
 	return status;
 }
 
@@ -457,7 +482,7 @@ main(int argc, char **argv)
 			break;
 		}
 		apply_profile_overrides(&selected, &command);
-		status = run_selected(host, display, console, &selected,
+		status = run_selected(host, display, console, &selected, &paths,
 		    audio_runtime, hyperlinks, session_history, &disposition);
 		if (status != 0)
 			fprintf(stderr, "SyncTERM: session failed (%d)\n", status);

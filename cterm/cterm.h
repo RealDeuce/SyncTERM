@@ -88,9 +88,35 @@ enum prestel_prog_states {
 #define PRESTEL_MEM_SLOTS 7
 #define PRESTEL_MEM_SLOT_SIZE 16
 
+struct cterm_rip_engine;
+
 struct cterminal {
 	/* Rendering state */
 	struct cterm_render_state screen;
+	struct cterm_rip_engine *rip_engine;
+	const char *rip_directory;
+	st_cterm_rip_prompt_callback_t rip_prompt;
+	void *rip_prompt_context;
+	bool rip_text_disabled;
+	int rip_text_font_style;
+	struct {
+		int x;
+		int y;
+		int left;
+		int top;
+		int right;
+		int bottom;
+		int font_style;
+		bool wrap;
+		bool disabled;
+		bool cursor_visible;
+		enum st_console_cursor_shape cursor_shape;
+		uint8_t attr;
+		uint32_t foreground;
+		uint32_t background;
+	} rip_saved_text;
+	uint16_t rip_text_font_identifiers[6];
+	bool rip_text_font_registered[6];
 	enum st_cterm_encoding wire_encoding;
 	st_cterm_output_callback_t api_output;
 	void *api_output_context;

@@ -599,9 +599,43 @@ fill_line_locked(st_console_t *console, uint32_t y, uint32_t codepoint)
 	struct st_console_cell blank = st_console_blank_locked(console, codepoint);
 	uint32_t x;
 
-	for (x = 0; x < console->window.width; ++x)
-		st_console_set_cell_locked(console,
-		    (size_t)y * console->columns + console->window.x + x, &blank);
+	for (x = 0; x < console->window.width; ++x) {
+		size_t index = (size_t)y * console->columns
+		    + console->window.x + x;
+
+		st_console_set_cell_locked(console, index, &blank);
+		/* The pixel ring can expose graphics even when this cell's
+		 * contents already equal the fill cell. */
+		if (console->drawn_cells != NULL)
+			console->drawn_cells[index].flags |= ST_CONSOLE_CELL_DIRTY;
+	}
+}
+
+static void
+clear_full_surface_scroll_strip_locked(st_console_t *console,
+	uint32_t first_row, uint32_t row_count, uint32_t background)
+{
+	uint32_t text_width;
+	uint32_t strip_width;
+
+	if (!console->full_surface_scroll || console->pixels == NULL)
+		return;
+	text_width = console->columns * console->cell_width;
+	if (text_width >= console->pixels->width)
+		return;
+	strip_width = console->pixels->width - text_width;
+	for (uint32_t y = first_row * console->cell_height;
+	    y < (first_row + row_count) * console->cell_height; ++y) {
+		size_t position = st_console_pixel_position_locked(console,
+		    text_width, y);
+
+		for (uint32_t x = 0; x < strip_width; ++x) {
+			console->pixels->primary[position + x] = background;
+			console->pixels->alternate[position + x] = background;
+		}
+	}
+	console->pixel_surface_dirty = true;
+	console->changed = true;
 }
 
 static void
@@ -694,6 +728,16 @@ scroll_locked(st_console_t *console, int32_t lines, uint32_t codepoint)
 		    console->window.height - amount);
 		for (row = top; row < top + amount; ++row)
 			fill_line_locked(console, row, codepoint);
+	}
+	if (top == 0 && bottom == console->rows
+	    && console->window.x == 0
+	    && console->window.width == console->columns) {
+		struct st_console_cell blank = st_console_blank_locked(console,
+		    codepoint);
+
+		clear_full_surface_scroll_strip_locked(console,
+		    lines > 0 ? bottom - amount : top, amount,
+		    blank.background);
 	}
 }
 
@@ -1052,10 +1096,21 @@ move_full_width_rows_locked(st_console_t *console,
 		fill_y = source->y;
 	}
 	for (uint32_t y = fill_y; y < fill_y + exposed; ++y) {
-		for (uint32_t x = 0; x < console->columns; ++x)
-			st_console_set_cell_locked(console,
-			    (size_t)y * console->columns + x, fill);
+		for (uint32_t x = 0; x < console->columns; ++x) {
+			size_t index = (size_t)y * console->columns + x;
+
+			st_console_set_cell_locked(console, index, fill);
+			if (console->drawn_cells != NULL)
+				console->drawn_cells[index].flags
+				    |= ST_CONSOLE_CELL_DIRTY;
+		}
 	}
+	if ((destination_y == 0 && source->y > 0
+	    && source->height == console->rows - source->y)
+	    || (source->y == 0 && destination_y > 0
+	    && source->height == console->rows - destination_y))
+		clear_full_surface_scroll_strip_locked(console, fill_y,
+		    exposed, fill->background);
 	return true;
 }
 
@@ -1126,10 +1181,15 @@ move_cells(st_console_t *console, const struct st_console_rect *source,
 				uint32_t screen_y = source->y + y;
 
 				if (!inside(screen_x, screen_y, destination_x,
-				    destination_y, source->width, source->height))
-					st_console_set_cell_locked(console,
-					    (size_t)screen_y * console->columns
-					    + screen_x, fill);
+				    destination_y, source->width, source->height)) {
+					size_t index = (size_t)screen_y
+					    * console->columns + screen_x;
+
+					st_console_set_cell_locked(console, index, fill);
+					if (console->drawn_cells != NULL)
+						console->drawn_cells[index].flags
+						    |= ST_CONSOLE_CELL_DIRTY;
+				}
 			}
 		}
 	}

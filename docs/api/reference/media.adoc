@@ -505,6 +505,7 @@ int st_console_move_cells(st_console_t *console,
 int st_console_move_cells_clear(st_console_t *console,
 	const struct st_console_rect *source, uint32_t destination_x,
 	uint32_t destination_y, const struct st_console_cell *fill);
+int st_console_set_full_surface_scroll(st_console_t *console, bool enabled);
 int st_console_scroll(st_console_t *console, int32_t lines,
 	uint32_t codepoint);
 int st_console_insert_lines(st_console_t *console, uint32_t count,
@@ -727,6 +728,13 @@ the rectangle.
 | st_console_move_cells(console, source, destination_x, destination_y), st_console_move_cells_clear(console, source, destination_x, destination_y, fill)
 | Snapshot-move a rectangle, optionally clearing its source with validated
 one-column content.
+
+| st_console_set_full_surface_scroll(console, enabled)
+| On a bitmap console, include non-text pixel rows in full-width row
+scrolling when `enabled` is true. Disabling restores text-only scrolling;
+switching modes preserves the visible surface by normalizing the ring offset.
+Returns zero or `IO_ERROR_*`; a text-only console returns
+`IO_ERROR_NOT_SUPPORTED`.
 
 | st_console_scroll(console, lines, codepoint), st_console_insert_lines(console, count, codepoint), st_console_delete_lines(console, count, codepoint)
 | Move cached cells/rasters within the current window and fill exposed rows.

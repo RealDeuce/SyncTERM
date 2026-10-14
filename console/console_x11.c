@@ -55,6 +55,8 @@ typedef int (*x11_destroy_window_fn)(Display *, Window);
 typedef int (*x11_map_window_fn)(Display *, Window);
 typedef int (*x11_resize_window_fn)(Display *, Window, unsigned int,
 	unsigned int);
+typedef Status (*x11_get_window_attributes_fn)(Display *, Window,
+	XWindowAttributes *);
 typedef int (*x11_move_window_fn)(Display *, Window, int, int);
 typedef Bool (*x11_translate_coordinates_fn)(Display *, Window, Window,
 	int, int, int *, int *, Window *);
@@ -162,6 +164,7 @@ struct x11_api {
 	int (*destroy_window)(Display *, Window);
 	int (*map_window)(Display *, Window);
 	int (*resize_window)(Display *, Window, unsigned int, unsigned int);
+	Status (*get_window_attributes)(Display *, Window, XWindowAttributes *);
 	int (*move_window)(Display *, Window, int, int);
 	Bool (*translate_coordinates)(Display *, Window, Window, int, int,
 	    int *, int *, Window *);
@@ -720,6 +723,8 @@ load_xlib(struct x11_state *state)
 	    || !LOAD_REQUIRED(state, destroy_window, "XDestroyWindow")
 	    || !LOAD_REQUIRED(state, map_window, "XMapWindow")
 	    || !LOAD_REQUIRED(state, resize_window, "XResizeWindow")
+	    || !LOAD_REQUIRED(state, get_window_attributes,
+	    "XGetWindowAttributes")
 	    || !LOAD_REQUIRED(state, move_window, "XMoveWindow")
 	    || !LOAD_REQUIRED(state, translate_coordinates,
 	    "XTranslateCoordinates")
@@ -2109,6 +2114,42 @@ set_size_hints(struct x11_state *state, uint32_t width, uint32_t height)
 }
 
 static int
+settle_window_resize(struct x11_state *state, uint32_t width,
+	uint32_t height)
+{
+	uint32_t started = milliseconds_now();
+	XWindowAttributes attributes;
+	struct pollfd descriptor = {
+		.fd = state->api.connection_number(state->display),
+		.events = POLLIN,
+	};
+
+	for (;;) {
+		while (state->api.pending(state->display) != 0) {
+			XEvent event;
+
+			(void)state->api.next_event(state->display, &event);
+			if (!state->api.filter_event(&event, state->window))
+				handle_event(state, &event);
+		}
+		if (state->api.get_window_attributes(state->display,
+		    state->window, &attributes) == 0)
+			return IO_ERROR_IO;
+		if ((uint32_t)attributes.width == width
+		    && (uint32_t)attributes.height == height)
+			break;
+		if ((uint32_t)(milliseconds_now() - started) >= UINT32_C(1000))
+			break;
+		(void)poll(&descriptor, 1, 10);
+	}
+	state->window_width = (uint32_t)attributes.width;
+	state->window_height = (uint32_t)attributes.height;
+	state->windowed_width = state->window_width;
+	state->windowed_height = state->window_height;
+	return 0;
+}
+
+static int
 process_command(struct x11_state *state, struct x11_command *command)
 {
 	switch (command->type) {
@@ -2140,15 +2181,14 @@ process_command(struct x11_state *state, struct x11_command *command)
 		state->windowed_width = width;
 		state->windowed_height = height;
 		state->window_geometry = next;
-		if (!state->fullscreen && !state->maximized)
+		if (!state->fullscreen && !state->maximized) {
 			(void)state->api.resize_window(state->display, state->window,
 			    width, height);
-		/*
-		 * Complete the resize before acknowledging the command.  Console
-		 * activation can immediately submit another resize, and its scale
-		 * calculation must see the resulting ConfigureNotify first.
-		 */
-		(void)state->api.sync(state->display, False);
+			/* XSync only confirms that X processed the request; a window
+			 * manager may resize later.  The next activation must use the
+			 * resulting geometry, not a stale ConfigureNotify. */
+			return settle_window_resize(state, width, height);
+		}
 		return 0;
 		}
 	case X11_COMMAND_SET_TITLE:

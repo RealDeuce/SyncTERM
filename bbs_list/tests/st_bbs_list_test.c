@@ -249,6 +249,11 @@ main(void)
 	CHECK(strcmp(public_cache_path, cache_item) == 0);
 	free(public_cache_path);
 	public_cache_path = NULL;
+	CHECK(st_bbs_cache_path_for_name(&public_cache_path,
+	    paths.cache_directory, "Beta") == 0);
+	CHECK(strcmp(public_cache_path, cache_item) == 0);
+	free(public_cache_path);
+	public_cache_path = NULL;
 	CHECK(st_bbs_list_count(first) == 3);
 	entry = st_bbs_list_find(first, "alpha");
 	CHECK(entry != NULL && entry->source == ST_BBS_SOURCE_PERSONAL);

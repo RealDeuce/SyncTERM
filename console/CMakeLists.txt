@@ -430,6 +430,13 @@ if(BUILD_TESTING)
 		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	st_console_warnings(st_console_test)
 	add_test(NAME st_console COMMAND st_console_test)
+	add_executable(st_console_regrid_test
+		tests/st_console_regrid_test.c)
+	target_link_libraries(st_console_regrid_test PRIVATE st_console)
+	set_target_properties(st_console_regrid_test PROPERTIES
+		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	st_console_warnings(st_console_regrid_test)
+	add_test(NAME st_console_regrid COMMAND st_console_regrid_test)
 	set_tests_properties(st_console PROPERTIES
 		ENVIRONMENT "TERM=xterm"
 		TIMEOUT 20)

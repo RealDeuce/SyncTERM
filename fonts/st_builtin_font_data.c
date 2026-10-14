@@ -28997,6 +28997,8 @@ static const struct st_console_font_mapping codepage_0_mapping[] = {
 	{UINT32_C(0x002261), UINT32_C(0xf0)},
 	{UINT32_C(0x002264), UINT32_C(0xf3)},
 	{UINT32_C(0x002265), UINT32_C(0xf2)},
+	/* CP437 graphic DEL decodes to U+2302; retain U+007F as an alias. */
+	{UINT32_C(0x002302), UINT32_C(0x7f)},
 	{UINT32_C(0x002310), UINT32_C(0xa9)},
 	{UINT32_C(0x002320), UINT32_C(0xf4)},
 	{UINT32_C(0x002321), UINT32_C(0xf5)},

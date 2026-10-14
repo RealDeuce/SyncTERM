@@ -34,6 +34,12 @@ enum st_cterm_encoding {
 	ST_CTERM_ENCODING_CODEPAGE,
 };
 
+enum st_cterm_rip_version {
+	ST_CTERM_RIP_OFF = 0,
+	ST_CTERM_RIP_1 = 1,
+	ST_CTERM_RIP_3 = 2,
+};
+
 enum st_cterm_petscii_machine {
 	ST_CTERM_PETSCII_C64,
 	ST_CTERM_PETSCII_C128_40,
@@ -51,6 +57,11 @@ typedef void (*st_cterm_apc_callback_t)(void *context, const char *text,
 	size_t size);
 typedef void (*st_cterm_size_callback_t)(void *context, uint32_t columns,
 	uint32_t rows, uint32_t pixel_width, uint32_t pixel_height);
+/* Called synchronously for RIP_DEFINE. Return zero and a NULL result to
+ * cancel, or a malloc-owned string to accept. A nonzero return is an error. */
+typedef int (*st_cterm_rip_prompt_callback_t)(void *context,
+	const char *question, const char *initial, size_t field_width,
+	bool reject_blank, char **result);
 
 struct st_cterm_config {
 	/* All pointers are borrowed and must outlive the terminal. */
@@ -60,6 +71,10 @@ struct st_cterm_config {
 	st_hyperlink_registry_t *hyperlinks;
 	enum st_cterm_emulation emulation;
 	enum st_cterm_encoding encoding;
+	/* RIP requires ANSI-BBS and at least a 640x350 pixel console. */
+	enum st_cterm_rip_version rip_version;
+	/* Optional per-BBS RIP asset directory; borrowed for terminal lifetime. */
+	const char *rip_directory;
 	enum st_codepage codepage;
 	/* Optional 16-entry attribute-to-canonical-palette mapping. */
 	const uint16_t *palette_mapping;
@@ -78,6 +93,9 @@ struct st_cterm_config {
 	void *apc_context;
 	st_cterm_size_callback_t size_changed;
 	void *size_context;
+	/* Without a callback, interactive RIP_DEFINE leaves the variable unchanged. */
+	st_cterm_rip_prompt_callback_t rip_prompt;
+	void *rip_prompt_context;
 };
 
 /*
@@ -118,7 +136,10 @@ int st_cterm_copy_history(st_cterm_t *terminal,
 	struct st_console_cell **cells, uint32_t *columns, size_t *rows);
 
 /* Encoded key bytes are delivered with ST_CTERM_OUTPUT_USER origin. */
-bool st_cterm_handle_key(st_cterm_t *terminal, uint16_t key_code);
+bool st_cterm_handle_key(st_cterm_t *terminal, uint16_t key_code,
+	uint32_t modifiers);
+/* RIP hotkeys may consume printable text before it is sent to the wire. */
+bool st_cterm_handle_rip_text(st_cterm_t *terminal, uint32_t codepoint);
 bool st_cterm_handle_doorway_key(st_cterm_t *terminal, uint8_t scan_code);
 bool st_cterm_handle_physical_keys(st_cterm_t *terminal,
 	const struct st_console_event *events, size_t count);

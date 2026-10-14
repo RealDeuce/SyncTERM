@@ -805,6 +805,102 @@ menu_status_clear(struct st_wren_host *host)
 	(void)wrenCall(host->vm, host->menu_status_clear);
 }
 
+static int
+drain_prompt_input(st_console_t *console, bool *closed,
+	bool *resized, struct st_console_event *last_resize)
+{
+	struct st_console_event event;
+	int status;
+
+	while ((status = st_console_event_try(console, &event)) == 0) {
+		if (event.type == ST_CONSOLE_EVENT_CLOSE)
+			*closed = true;
+		else if (event.type == ST_CONSOLE_EVENT_RESIZE) {
+			*last_resize = event;
+			*resized = true;
+		}
+	}
+	return status == IO_ERROR_WOULD_BLOCK ? 0 : status;
+}
+
+int
+st_wren_host_prompt(st_wren_host_t *host, const char *title,
+	const char *question, const char *initial, size_t max_length,
+	char **result)
+{
+	st_console_snapshot_t *snapshot = NULL;
+	struct st_console_event resize = {0};
+	const struct st_console_event close = {
+		.type = ST_CONSOLE_EVENT_CLOSE,
+	};
+	bool closed, resized = false;
+	int status, restore_status;
+
+	if (host == NULL || title == NULL || question == NULL || initial == NULL
+	    || result == NULL || max_length > INT_MAX)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (host->menu_ui_class == NULL || host->menu_prompt == NULL)
+		return IO_ERROR_NOT_SUPPORTED;
+	*result = NULL;
+	closed = host->exit_requested;
+	status = st_console_snapshot_create(&snapshot, host->config.console);
+	if (status != 0)
+		return status;
+	status = drain_prompt_input(host->config.console, &closed,
+	    &resized, &resize);
+	if (status != 0 || closed)
+		goto finished;
+	wrenEnsureSlots(host->vm, 6);
+	wrenSetSlotHandle(host->vm, 0, host->menu_ui_class);
+	wrenSetSlotString(host->vm, 1, title);
+	wrenSetSlotString(host->vm, 2, question);
+	wrenSetSlotString(host->vm, 3, initial);
+	wrenSetSlotDouble(host->vm, 4, (double)max_length);
+	wrenSetSlotBool(host->vm, 5, false);
+	if (wrenCall(host->vm, host->menu_prompt) != WREN_RESULT_SUCCESS)
+		status = IO_ERROR_IO;
+	else if (wrenGetSlotType(host->vm, 0) == WREN_TYPE_STRING) {
+		*result = strdup(wrenGetSlotString(host->vm, 0));
+		if (*result == NULL)
+			status = IO_ERROR_OUT_OF_MEMORY;
+	}
+	else if (wrenGetSlotType(host->vm, 0) != WREN_TYPE_NULL)
+		status = IO_ERROR_INVALID_FORMAT;
+finished:
+	{
+		int drain_status = drain_prompt_input(host->config.console,
+		    &closed, &resized, &resize);
+
+		if (status == 0)
+			status = drain_status;
+	}
+	closed = closed || host->exit_requested;
+	restore_status = st_console_snapshot_restore(host->config.console,
+	    snapshot);
+	st_console_snapshot_destroy(snapshot);
+	if (status == 0)
+		status = restore_status;
+	if (resized) {
+		int post_status = st_console_post_event(host->config.console,
+		    &resize);
+
+		if (status == 0)
+			status = post_status;
+	}
+	if (closed) {
+		int post_status = st_console_post_event(host->config.console,
+		    &close);
+
+		if (status == 0)
+			status = post_status;
+	}
+	if (status != 0) {
+		free(*result);
+		*result = NULL;
+	}
+	return status;
+}
+
 static const char *
 web_phase_name(enum st_webget_phase phase)
 {
@@ -1230,10 +1326,13 @@ st_wren_host_create(st_wren_host_t **result,
 	host->menu_ui_class = class_handle(host->vm, "menu_host_ui",
 	    "MenuHostUI");
 	if (host->menu_ui_class != NULL) {
+		host->menu_prompt = wrenMakeCallHandle(host->vm,
+		    "prompt(_,_,_,_,_)");
 		host->menu_status = wrenMakeCallHandle(host->vm, "status(_,_)" );
 		host->menu_status_clear = wrenMakeCallHandle(host->vm,
 		    "statusClear()" );
-		if (host->menu_status == NULL || host->menu_status_clear == NULL) {
+		if (host->menu_prompt == NULL || host->menu_status == NULL
+		    || host->menu_status_clear == NULL) {
 			st_wren_host_destroy(host);
 			return IO_ERROR_OUT_OF_MEMORY;
 		}
@@ -1258,6 +1357,8 @@ st_wren_host_destroy(st_wren_host_t *host)
 		host->hyperlink_root_registered = false;
 	}
 	st_wren_picker_host_dispose(host);
+	if (host->vm != NULL && host->menu_prompt != NULL)
+		wrenReleaseHandle(host->vm, host->menu_prompt);
 	if (host->vm != NULL && host->menu_status_clear != NULL)
 		wrenReleaseHandle(host->vm, host->menu_status_clear);
 	if (host->vm != NULL && host->menu_status != NULL)

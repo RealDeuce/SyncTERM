@@ -1964,6 +1964,143 @@ queue_text(st_console_t *console, const char *text)
 	return 0;
 }
 
+struct prompt_poster {
+	st_console_t *console;
+	const char *text;
+	uint32_t codepoint;
+	uint32_t finish;
+	bool close;
+};
+
+static int
+post_prompt_input(void *argument)
+{
+	struct prompt_poster *poster = argument;
+	const struct timespec delay = {0, 100000000};
+	const struct st_console_event enter = {
+		.type = ST_CONSOLE_EVENT_TEXT,
+		.data.text.codepoint = poster->finish,
+	};
+	const struct st_console_event unicode = {
+		.type = ST_CONSOLE_EVENT_TEXT,
+		.data.text.codepoint = poster->codepoint,
+	};
+	const struct st_console_event close = {
+		.type = ST_CONSOLE_EVENT_CLOSE,
+	};
+
+	if (st_thread_sleep(&delay, NULL) != ST_THREAD_SUCCESS)
+		return 1;
+	if (poster->close)
+		return st_console_post_event(poster->console, &close) == 0
+		    ? 0 : 1;
+	if (queue_text(poster->console, poster->text) != 0
+	    || (poster->codepoint != 0
+	    && st_console_post_event(poster->console, &unicode) != 0)
+	    || st_console_post_event(poster->console, &enter) != 0)
+		return 1;
+	return 0;
+}
+
+static int
+exercise_prompt_close_during(struct st_wren_host *host,
+	st_console_t *console)
+{
+	struct prompt_poster poster = {.console = console, .close = true};
+	struct st_console_event forwarded;
+	st_thread_t thread;
+	char *answer = NULL;
+	int thread_result;
+
+	CHECK(st_thread_create(&thread, post_prompt_input, &poster)
+	    == ST_THREAD_SUCCESS);
+	CHECK(st_wren_host_prompt(host, "RIP Input", "Close?", "",
+	    20, &answer) == 0);
+	CHECK(st_thread_join(thread, &thread_result) == ST_THREAD_SUCCESS);
+	CHECK(thread_result == 0 && answer == NULL);
+	CHECK(st_wren_host_exit_requested(host));
+	CHECK(st_console_event_try(console, &forwarded) == 0);
+	CHECK(forwarded.type == ST_CONSOLE_EVENT_CLOSE);
+	return 0;
+}
+
+static int
+exercise_menu_prompt(struct st_wren_host *host, st_console_t *console)
+{
+	struct prompt_poster poster = {
+		.console = console, .text = "fresh", .finish = '\r'
+	};
+	const struct st_console_style style = {
+		.foreground = ST_CONSOLE_COLOR_RGB_VALUE(0x12, 0x34, 0x56),
+		.background = ST_CONSOLE_COLOR_RGB_VALUE(0x65, 0x43, 0x21),
+		.font = 0,
+	};
+	struct st_console_style restored;
+	st_thread_t thread;
+	char *answer = NULL;
+	uint32_t x, y;
+	bool cursor_visible;
+	enum st_console_cursor_shape cursor_shape;
+	int thread_result;
+
+	CHECK(st_console_set_style(console, &style) == 0);
+	CHECK(st_console_set_position(console, 7, 8) == 0);
+	CHECK(st_console_set_cursor(console, false,
+	    ST_CONSOLE_CURSOR_BLOCK) == 0);
+	CHECK(queue_text(console, "stale\r") == 0);
+	CHECK(st_thread_create(&thread, post_prompt_input, &poster)
+	    == ST_THREAD_SUCCESS);
+	CHECK(st_wren_host_prompt(host, "RIP Input", "Your name?", "seed",
+	    20, &answer) == 0);
+	CHECK(st_thread_join(thread, &thread_result) == ST_THREAD_SUCCESS);
+	CHECK(thread_result == 0);
+	CHECK(answer != NULL && strcmp(answer, "fresh") == 0);
+	CHECK(st_console_get_style(console, &restored) == 0);
+	CHECK(restored.foreground == style.foreground
+	    && restored.background == style.background
+	    && restored.font == style.font);
+	CHECK(st_console_get_position(console, &x, &y) == 0
+	    && x == 7 && y == 8);
+	CHECK(st_console_get_cursor(console, &cursor_visible,
+	    &cursor_shape) == 0);
+	CHECK(!cursor_visible && cursor_shape == ST_CONSOLE_CURSOR_BLOCK);
+	free(answer);
+	answer = NULL;
+	poster.text = "";
+	poster.finish = 27;
+	CHECK(st_thread_create(&thread, post_prompt_input, &poster)
+	    == ST_THREAD_SUCCESS);
+	CHECK(st_wren_host_prompt(host, "RIP Input", "Cancel?", "seed",
+	    20, &answer) == 0);
+	CHECK(st_thread_join(thread, &thread_result) == ST_THREAD_SUCCESS);
+	CHECK(thread_result == 0 && answer == NULL);
+	poster.codepoint = 0xe9;
+	poster.finish = '\r';
+	CHECK(st_thread_create(&thread, post_prompt_input, &poster)
+	    == ST_THREAD_SUCCESS);
+	CHECK(st_wren_host_prompt(host, "RIP Input", "Unicode?", "A",
+	    1, &answer) == 0);
+	CHECK(st_thread_join(thread, &thread_result) == ST_THREAD_SUCCESS);
+	CHECK(thread_result == 0);
+	CHECK(answer != NULL && strcmp(answer, "\xc3\xa9") == 0);
+	free(answer);
+	answer = NULL;
+	{
+		const struct st_console_event close = {
+			.type = ST_CONSOLE_EVENT_CLOSE,
+		};
+		struct st_console_event forwarded;
+
+		CHECK(st_console_post_event(console, &close) == 0);
+		CHECK(st_wren_host_prompt(host, "RIP Input", "Closed?", "",
+		    20, &answer) == 0);
+		CHECK(answer == NULL);
+		CHECK(st_console_event_try(console, &forwarded) == 0);
+		CHECK(forwarded.type == ST_CONSOLE_EVENT_CLOSE);
+	}
+	return 0;
+}
+
 static int
 exercise_repl_style(struct st_wren_host *host, st_console_t *console)
 {
@@ -2703,6 +2840,7 @@ main(void)
 		.hyperlinks = hyperlinks,
 	};
 	CHECK(st_wren_host_create(&host, &host_config) == 0);
+	CHECK(exercise_menu_prompt(host, console) == 0);
 	CHECK(wrenInterpret(((struct st_wren_host *)host)->vm,
 	    "hyperlink_contract",
 	    "import \"syncterm\" for Cell, Hyperlinks\n"
@@ -2964,6 +3102,7 @@ main(void)
 	    == WREN_RESULT_SUCCESS);
 	CHECK(exercise_safe_mode_persistence_contract(host, personal, settings,
 	    cache) == 0);
+	CHECK(exercise_prompt_close_during(host, console) == 0);
 	st_wren_host_destroy(host);
 	st_console_destroy(console);
 	st_session_history_destroy(session_history);

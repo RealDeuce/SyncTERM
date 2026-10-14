@@ -476,6 +476,15 @@ int st_console_capabilities(st_console_t *console, uint32_t *capabilities);
 int st_console_resize(st_console_t *console, uint32_t columns,
 	uint32_t rows);
 /*
+ * Replace the text grid and cell dimensions without changing the pixel
+ * surface, palette, or registered fonts. Pending text is rasterized first;
+ * the new cells are blank and existing pixels remain visible until overwritten.
+ * Requires an existing pixel surface and a grid that fits inside it.
+ */
+int st_console_regrid_preserve_pixels(st_console_t *console,
+	uint32_t columns, uint32_t rows, uint32_t cell_width,
+	uint32_t cell_height);
+/*
  * Replaces the complete logical/raster configuration and clears the console.
  * All storage is prepared before the active backend is resized; failure leaves
  * the existing console state intact.
@@ -565,6 +574,10 @@ int st_console_move_cells(st_console_t *console,
 int st_console_move_cells_clear(st_console_t *console,
 	const struct st_console_rect *source, uint32_t destination_x,
 	uint32_t destination_y, const struct st_console_cell *fill);
+/* Include non-text pixel rows in full-width row scrolling.  Switching modes
+ * preserves visible pixels by normalizing the current ring offset.  Requires
+ * a bitmap console; a text-only console returns IO_ERROR_NOT_SUPPORTED. */
+int st_console_set_full_surface_scroll(st_console_t *console, bool enabled);
 int st_console_scroll(st_console_t *console, int32_t lines,
 	uint32_t codepoint);
 int st_console_insert_lines(st_console_t *console, uint32_t count,

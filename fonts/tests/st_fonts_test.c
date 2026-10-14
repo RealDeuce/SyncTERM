@@ -161,6 +161,9 @@ main(void)
 	CHECK(st_console_font_lookup(console, cp437, UINT32_C(0x00a6),
 	    &glyph_font, &glyph, &columns) == 0);
 	CHECK(glyph_font == cp437 && glyph == 0x7c && columns == 1);
+	CHECK(st_console_font_lookup(console, cp437, UINT32_C(0x2302),
+	    &glyph_font, &glyph, &columns) == 0);
+	CHECK(glyph_font == cp437 && glyph == 0x7f && columns == 1);
 	CHECK(st_console_font_glyph_text(console, cp437, 0x7c, glyph_text,
 	    sizeof(glyph_text), &glyph_text_size) == 0);
 	CHECK(glyph_text_size == 1 && glyph_text[0] == '|');

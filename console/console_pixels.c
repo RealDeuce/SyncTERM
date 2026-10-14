@@ -26,9 +26,13 @@ st_console_pixel_position_locked(const st_console_t *console,
 	uint32_t text_height = console->rows * console->cell_height;
 	uint32_t physical_y = y;
 
-	if (x < text_width && y < text_height) {
-		physical_y = y >= text_height - console->pixel_top
-		    ? y - (text_height - console->pixel_top)
+	if (console->full_surface_scroll
+	    || (x < text_width && y < text_height)) {
+		uint32_t height = console->full_surface_scroll
+		    ? console->pixels->height : text_height;
+
+		physical_y = y >= height - console->pixel_top
+		    ? y - (height - console->pixel_top)
 		    : console->pixel_top + y;
 	}
 	return (size_t)physical_y * console->pixels->width + x;
@@ -46,6 +50,15 @@ st_console_copy_pixels_locked(const st_console_t *console,
 
 	for (uint32_t y = 0; y < rectangle->height; ++y) {
 		uint32_t logical_y = rectangle->y + y;
+		if (console->full_surface_scroll) {
+			size_t from = st_console_pixel_position_locked(console,
+			    rectangle->x, logical_y);
+
+			memcpy(&destination[(size_t)y * destination_stride],
+			    &plane[from], (size_t)rectangle->width
+			    * sizeof(plane[0]));
+			continue;
+		}
 		uint32_t text_part = rectangle->x < text_width
 		    && logical_y < text_height
 		    ? rectangle->width < text_width - rectangle->x
@@ -73,17 +86,19 @@ st_console_copy_pixels_locked(const st_console_t *console,
 int
 st_console_normalize_raster_locked(st_console_t *console)
 {
-	uint32_t text_width;
-	uint32_t text_height;
+	uint32_t width;
+	uint32_t height;
 	size_t count;
 	uint32_t *primary;
 	uint32_t *alternate;
 
 	if (console->pixels == NULL || console->pixel_top == 0)
 		return 0;
-	text_width = console->columns * console->cell_width;
-	text_height = console->rows * console->cell_height;
-	count = (size_t)text_width * text_height;
+	width = console->full_surface_scroll ? console->pixels->width
+	    : console->columns * console->cell_width;
+	height = console->full_surface_scroll ? console->pixels->height
+	    : console->rows * console->cell_height;
+	count = (size_t)width * height;
 	primary = malloc(count * sizeof(primary[0]));
 	alternate = malloc(count * sizeof(alternate[0]));
 	if (primary == NULL || alternate == NULL) {
@@ -91,28 +106,51 @@ st_console_normalize_raster_locked(st_console_t *console)
 		free(primary);
 		return IO_ERROR_OUT_OF_MEMORY;
 	}
-	for (uint32_t y = 0; y < text_height; ++y) {
+	for (uint32_t y = 0; y < height; ++y) {
 		size_t from = st_console_pixel_position_locked(console, 0, y);
-		size_t to = (size_t)y * text_width;
+		size_t to = (size_t)y * width;
 
 		memcpy(&primary[to], &console->pixels->primary[from],
-		    (size_t)text_width * sizeof(primary[0]));
+		    (size_t)width * sizeof(primary[0]));
 		memcpy(&alternate[to], &console->pixels->alternate[from],
-		    (size_t)text_width * sizeof(alternate[0]));
+		    (size_t)width * sizeof(alternate[0]));
 	}
 	console->pixel_top = 0;
-	for (uint32_t y = 0; y < text_height; ++y) {
-		size_t from = (size_t)y * text_width;
+	for (uint32_t y = 0; y < height; ++y) {
+		size_t from = (size_t)y * width;
 		size_t to = (size_t)y * console->pixels->width;
 
 		memcpy(&console->pixels->primary[to], &primary[from],
-		    (size_t)text_width * sizeof(primary[0]));
+		    (size_t)width * sizeof(primary[0]));
 		memcpy(&console->pixels->alternate[to], &alternate[from],
-		    (size_t)text_width * sizeof(alternate[0]));
+		    (size_t)width * sizeof(alternate[0]));
 	}
 	free(alternate);
 	free(primary);
 	return 0;
+}
+
+int
+st_console_set_full_surface_scroll(st_console_t *console, bool enabled)
+{
+	int status;
+
+	if (console == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	status = st_rwlock_write_lock(&console->state_lock);
+	if (status != ST_THREAD_SUCCESS)
+		return IO_ERROR_IO;
+	if (console->pixels == NULL)
+		status = IO_ERROR_NOT_SUPPORTED;
+	else if (console->full_surface_scroll == enabled)
+		status = 0;
+	else {
+		status = st_console_normalize_raster_locked(console);
+		if (status == 0)
+			console->full_surface_scroll = enabled;
+	}
+	(void)st_rwlock_unlock(&console->state_lock);
+	return status;
 }
 
 struct font_cache {
@@ -546,6 +584,7 @@ st_console_rasterize_locked(st_console_t *console, bool force)
 		}
 		console->raster_rows[y] = (uint8_t)scale;
 	}
+	console->raster_current = true;
 	return 0;
 }
 
@@ -563,6 +602,7 @@ st_console_move_raster_locked(st_console_t *console,
 	if (console->pixels == NULL || source->width == 0 || source->height == 0
 	    || (source->x == destination_x && source->y == destination_y))
 		return;
+	console->raster_current = false;
 	backwards = destination_y > source->y;
 	cell_bytes = (size_t)source->width * sizeof(console->drawn_cells[0]);
 	pixel_bytes = (size_t)source->width * console->cell_width
@@ -576,7 +616,9 @@ st_console_move_raster_locked(st_console_t *console,
 	    && destination_y > 0
 	    && source->height == console->rows - destination_y;
 	if (full_scroll_up || full_scroll_down) {
-		uint32_t text_height = console->rows * console->cell_height;
+		uint32_t text_height = console->full_surface_scroll
+		    ? console->pixels->height
+		    : console->rows * console->cell_height;
 		uint32_t shift = (full_scroll_up ? source->y : destination_y)
 		    * console->cell_height;
 
@@ -728,7 +770,8 @@ st_console_set_pixel(st_console_t *console, uint32_t x, uint32_t y,
 	else if (x >= console->pixels->width || y >= console->pixels->height)
 		status = IO_ERROR_OUT_OF_RANGE;
 	else {
-		status = st_console_rasterize_locked(console, false);
+		status = console->raster_current ? 0
+		    : st_console_rasterize_locked(console, false);
 		if (status == 0) {
 			position = st_console_pixel_position_locked(console, x, y);
 			console->pixels->primary[position] = colour;
@@ -759,7 +802,8 @@ st_console_get_pixels(struct st_pixel_buffer **result, st_console_t *console,
 	else if (!pixel_rect_valid(console, source))
 		status = IO_ERROR_OUT_OF_RANGE;
 	else {
-		status = st_console_rasterize_locked(console, force_text);
+		status = !force_text && console->raster_current ? 0
+		    : st_console_rasterize_locked(console, force_text);
 		if (status == 0 && force_text) {
 			console->changed = true;
 			status = st_console_finish_change_locked(console);
@@ -800,7 +844,8 @@ st_console_blit_pixels(st_console_t *console,
 	if (console->pixels == NULL || !pixel_changes_supported(console))
 		status = IO_ERROR_NOT_SUPPORTED;
 	else {
-		status = st_console_rasterize_locked(console, false);
+		status = console->raster_current ? 0
+		    : st_console_rasterize_locked(console, false);
 		if (status == 0)
 			status = st_console_normalize_raster_locked(console);
 		if (status == 0)

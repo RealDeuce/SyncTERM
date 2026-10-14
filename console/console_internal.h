@@ -102,6 +102,7 @@ struct st_console_snapshot {
 	uint32_t video_flags;
 	bool blocky_scaling;
 	uint32_t pixel_top;
+	bool full_surface_scroll;
 	struct st_console_cell *cells;
 	struct st_pixel_buffer *pixels;
 };
@@ -121,6 +122,7 @@ struct st_console {
 	uint32_t pixel_extra_width;
 	uint32_t pixel_extra_height;
 	uint32_t pixel_top;
+	bool full_surface_scroll;
 	struct st_pixel_buffer *pixels;
 	/* Cell metadata represented by the current contents of pixels. */
 	struct st_console_cell *drawn_cells;
@@ -148,6 +150,8 @@ struct st_console {
 	uint32_t aspect_height;
 	bool changed;
 	bool pixel_surface_dirty;
+	/* Text cells have been rasterized since the last cell/raster move. */
+	bool raster_current;
 	bool palette_dirty;
 	struct st_console_event *events;
 	size_t event_capacity;

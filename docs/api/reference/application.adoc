@@ -153,6 +153,9 @@ int st_wren_host_refresh_web_lists(st_wren_host_t *host);
  */
 int st_wren_host_run_menu(st_wren_host_t *host,
 	struct st_profile *selected, bool *has_selection);
+int st_wren_host_prompt(st_wren_host_t *host, const char *title,
+	const char *question, const char *initial, size_t max_length,
+	char **result);
 
 /*
  * Creates the same temporary profile as Menu.quickConnect(). An UNKNOWN
@@ -245,6 +248,15 @@ destroyed.
 | st_wren_host_run_menu(host, selected, has_selection)
 | Pumps the persistent menu until exit or selection.  `selected` must be an
 initialized profile; it is replaced only when `has_selection` becomes true.
+
+| st_wren_host_prompt(host, title, question, initial, max_length, result)
+| Runs a synchronous prompt in the persistent menu VM over a saved copy of
+the connected screen, then restores the screen. `title`, `question`,
+`initial`, and `result` are required; `max_length` must not exceed `INT_MAX`.
+On success, `*result` is either NULL for cancel or a `malloc`-owned UTF-8
+string for the caller to free. Close and resize events are reposted after
+the prompt. Returns zero or negative `IO_ERROR_*`; unsupported menu UI
+returns `IO_ERROR_NOT_SUPPORTED`.
 
 | st_wren_host_select_url(host, url, default_connection_type, selected)
 | Builds the same temporary profile as Wren `Menu.quickConnect`; explicit URL

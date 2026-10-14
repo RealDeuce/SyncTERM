@@ -8,6 +8,7 @@
 #include "st_term.h"
 
 #include "io_error.h"
+#include "st_pixels.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -93,6 +94,232 @@ test_shell_utf8_boundary(void)
 	st_console_destroy(console);
 	return 0;
 }
+
+static int
+test_shell_rip_profile(void)
+{
+	const struct st_console_display_config display = {
+		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	};
+	const struct st_console_config console_config = {
+		.columns = 80, .rows = 25, .cell_width = 8, .cell_height = 16,
+	};
+	const struct st_console_rect pixel = {100, 100, 1, 1};
+	struct st_profile profile;
+	st_console_t *console = NULL;
+	st_connection_t *connection = NULL;
+	st_font_catalog_t *fonts = NULL;
+	st_term_session_t *session = NULL;
+	struct st_pixel_buffer *pixels = NULL;
+	enum st_term_disposition disposition;
+	bool finished;
+	bool drawn = false;
+	uint32_t columns, rows, cell_width, cell_height;
+
+	CHECK(st_console_create(&console, &display, &console_config) == 0);
+	CHECK(st_font_catalog_create(&fonts, console) == 0);
+	st_profile_init(&profile);
+	profile.connection_type = ST_CONNECTION_SHELL;
+	profile.rip_version = ST_RIP_VERSION_1;
+	strcpy(profile.address, "printf '!|*\\r\\n!|X2S2S\\r'; sleep 2");
+	CHECK(st_term_connect_profile(&connection, &profile, console, NULL, NULL)
+	    == 0);
+	const struct st_term_config config = {
+		.console = console,
+		.connection = connection,
+		.fonts = fonts,
+		.screen_mode = ST_SCREEN_MODE_80X25,
+		.encoding = st_term_profile_encoding(&profile),
+		.rip_version = st_term_profile_rip_version(&profile),
+		.codepage = ST_CODEPAGE_CP437,
+		.font_selector = 0,
+		.hide_status = true,
+	};
+	CHECK(st_term_session_create(&session, &config) == 0);
+	for (size_t attempt = 0; attempt < 100 && !drawn; attempt++) {
+		CHECK(st_term_session_pump(session, &disposition, &finished) == 0);
+		CHECK(st_console_get_pixels(&pixels, console, &pixel, false) == 0);
+		drawn = pixels->primary[0] == 0x14;
+		st_pixel_buffer_destroy(pixels);
+		pixels = NULL;
+	}
+	CHECK(drawn);
+	CHECK(st_console_size(console, &columns, &rows) == 0);
+	CHECK(columns == 80 && rows == 43);
+	CHECK(st_console_cell_pixel_size(console, &cell_width,
+	    &cell_height) == 0);
+	CHECK(cell_width == 8 && cell_height == 8);
+	st_term_session_destroy(&session);
+	CHECK(st_connection_close(connection) == 0);
+	st_profile_dispose(&profile);
+	st_font_catalog_destroy(fonts);
+	st_console_destroy(console);
+	return 0;
+}
+
+static int
+test_shell_rip_cp437_boundary(void)
+{
+	const struct st_console_display_config display = {
+		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	};
+	const struct st_console_config screen = {
+		.columns = 80, .rows = 43,
+		.cell_width = 8, .cell_height = 8,
+		.pixel_width = 640, .pixel_height = 350,
+	};
+	const struct st_console_rect glyph = {50, 50, 8, 8};
+	struct st_profile profile;
+	st_console_t *console = NULL, *reference = NULL;
+	st_font_catalog_t *fonts = NULL, *reference_fonts = NULL;
+	st_connection_t *connection = NULL;
+	st_term_session_t *session = NULL;
+	st_cterm_t *reference_terminal = NULL;
+	struct st_pixel_buffer *expected = NULL, *actual = NULL;
+	uint32_t expected_palette[256], actual_palette[256];
+	enum st_term_disposition disposition;
+	bool finished, matched = false;
+	size_t mismatch = 0;
+	uint32_t mismatch_expected = 0, mismatch_actual = 0;
+	size_t consumed;
+	static const char raw[] = "!|c0F\r\n!|@1E1E\x82\r\n";
+
+	CHECK(st_console_create(&console, &display, &screen) == 0);
+	CHECK(st_console_create(&reference, &display, &screen) == 0);
+	CHECK(st_font_catalog_create(&fonts, console) == 0);
+	CHECK(st_font_catalog_create(&reference_fonts, reference) == 0);
+	const struct st_cterm_config reference_config = {
+		.console = reference,
+		.fonts = reference_fonts,
+		.emulation = ST_CTERM_ANSI_BBS,
+		.encoding = ST_CTERM_ENCODING_CODEPAGE,
+		.rip_version = ST_CTERM_RIP_1,
+		.codepage = ST_CODEPAGE_CP437,
+	};
+	CHECK(st_cterm_create(&reference_terminal, &reference_config) == 0);
+	CHECK(st_cterm_write(reference_terminal, raw, sizeof(raw) - 1,
+	    &consumed) == 0 && consumed == sizeof(raw) - 1);
+	CHECK(st_console_get_pixels(&expected, reference, &glyph, false) == 0);
+	CHECK(st_console_get_palette(reference, 0, expected_palette, 256) == 0);
+	bool painted = false;
+	for (size_t i = 0; i < 64; i++)
+		painted |= expected_palette[expected->primary[i]]
+		    != expected_palette[0];
+	CHECK(painted);
+	st_profile_init(&profile);
+	profile.connection_type = ST_CONNECTION_SHELL;
+	profile.rip_version = ST_RIP_VERSION_1;
+	strcpy(profile.address,
+	    "printf '!|c0F\\r\\n!|@1E1E\\202\\r\\n'; sleep 2");
+	CHECK(st_term_connect_profile(&connection, &profile, console, NULL,
+	    NULL) == 0);
+	const struct st_term_config config = {
+		.console = console,
+		.connection = connection,
+		.fonts = fonts,
+		.screen_mode = ST_SCREEN_MODE_80X43,
+		.encoding = ST_CTERM_ENCODING_CODEPAGE,
+		.rip_version = ST_CTERM_RIP_1,
+		.codepage = ST_CODEPAGE_CP437,
+		.hide_status = true,
+	};
+	CHECK(st_term_session_create(&session, &config) == 0);
+	for (size_t attempt = 0; attempt < 100 && !matched; attempt++) {
+		CHECK(st_term_session_pump(session, &disposition, &finished) == 0);
+		CHECK(st_console_get_pixels(&actual, console, &glyph, false) == 0);
+		CHECK(st_console_get_palette(console, 0, actual_palette, 256) == 0);
+		matched = true;
+		for (size_t i = 0; i < 64; i++) {
+			if (expected_palette[expected->primary[i]]
+			    != actual_palette[actual->primary[i]]) {
+				matched = false;
+				mismatch = i;
+				mismatch_expected = expected_palette[expected->primary[i]];
+				mismatch_actual = actual_palette[actual->primary[i]];
+				break;
+			}
+		}
+		st_pixel_buffer_destroy(actual);
+		actual = NULL;
+	}
+	if (!matched)
+		fprintf(stderr, "RIP CP437 glyph mismatch at %zu: %#x != %#x\n",
+		    mismatch, mismatch_expected, mismatch_actual);
+	CHECK(matched);
+	st_term_session_destroy(&session);
+	CHECK(st_connection_close(connection) == 0);
+	st_cterm_destroy(&reference_terminal);
+	st_pixel_buffer_destroy(expected);
+	st_profile_dispose(&profile);
+	st_font_catalog_destroy(fonts);
+	st_font_catalog_destroy(reference_fonts);
+	st_console_destroy(console);
+	st_console_destroy(reference);
+	return 0;
+}
+
+static int
+test_shell_rip_cp437_query_output(void)
+{
+	const struct st_console_display_config display = {
+		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	};
+	const struct st_console_config screen = {
+		.columns = 80, .rows = 43,
+		.cell_width = 8, .cell_height = 8,
+		.pixel_width = 640, .pixel_height = 350,
+	};
+	const struct st_console_rect first = {0, 0, 1, 1};
+	struct st_profile profile;
+	st_console_t *console = NULL;
+	st_font_catalog_t *fonts = NULL;
+	st_connection_t *connection = NULL;
+	st_term_session_t *session = NULL;
+	struct st_console_cell cell;
+	enum st_term_disposition disposition;
+	char text[8] = {0};
+	size_t required;
+	bool finished, echoed = false;
+
+	CHECK(st_console_create(&console, &display, &screen) == 0);
+	CHECK(st_font_catalog_create(&fonts, console) == 0);
+	st_profile_init(&profile);
+	profile.connection_type = ST_CONNECTION_SHELL;
+	profile.rip_version = ST_RIP_VERSION_1;
+	strcpy(profile.address,
+	    "stty raw -echo;printf '!|1\\0330000\\202^M\\r\\n';head -c2");
+	CHECK(st_term_connect_profile(&connection, &profile, console, NULL,
+	    NULL) == 0);
+	const struct st_term_config config = {
+		.console = console,
+		.connection = connection,
+		.fonts = fonts,
+		.screen_mode = ST_SCREEN_MODE_80X43,
+		.encoding = ST_CTERM_ENCODING_CODEPAGE,
+		.rip_version = ST_CTERM_RIP_1,
+		.codepage = ST_CODEPAGE_CP437,
+		.hide_status = true,
+	};
+	CHECK(st_term_session_create(&session, &config) == 0);
+	for (size_t attempt = 0; attempt < 100 && !echoed; attempt++) {
+		CHECK(st_term_session_pump(session, &disposition, &finished) == 0);
+		CHECK(st_console_read_cells(console, &first, &cell, 1) == 0);
+		echoed = st_console_font_glyph_text(console, cell.glyph_font,
+		    cell.glyph, text, sizeof(text), &required) == 0
+		    && required == 2 && memcmp(text, "\xc3\xa9", 2) == 0;
+	}
+	if (!echoed)
+		fprintf(stderr, "RIP query echo first glyph: font=%u glyph=%u text=%02x %02x\n",
+		    (unsigned)cell.glyph_font, (unsigned)cell.glyph,
+		    (unsigned)(uint8_t)text[0], (unsigned)(uint8_t)text[1]);
+	CHECK(echoed);
+	st_term_session_destroy(&session);
+	CHECK(st_connection_close(connection) == 0);
+	st_profile_dispose(&profile);
+	st_font_catalog_destroy(fonts);
+	st_console_destroy(console);
+	return 0;
+}
 #endif
 
 int
@@ -108,9 +335,33 @@ main(void)
 	st_console_t *console = NULL;
 	st_connection_t *connection = NULL;
 	st_term_session_t *session = NULL;
+	char decoded[8];
+	size_t decoded_size;
+	static const uint8_t rip_wire[] = {'!', '|', 0x82, '\r'};
+
+	CHECK(st_term_rip_wire_to_utf8(decoded, sizeof(decoded),
+	    &decoded_size, rip_wire, sizeof(rip_wire), ST_CODEPAGE_CP437) == 0);
+	CHECK(decoded_size == 5
+	    && memcmp(decoded, "!|\xc3\xa9\r", 5) == 0);
+
+	for (unsigned value = 0x80; value <= 0xff; value++) {
+		uint8_t encoded = 0;
+		uint32_t scalar = st_codepage_to_unicode(ST_CODEPAGE_CP437,
+		    (uint8_t)value, false);
+
+		CHECK(st_codepage_from_unicode(&encoded, ST_CODEPAGE_CP437,
+		    scalar) && encoded == value);
+	}
 
 	CHECK(st_console_create(&console, &display, &console_config) == 0);
 	st_profile_init(&profile);
+	CHECK(st_term_profile_rip_version(NULL) == ST_CTERM_RIP_OFF);
+	CHECK(st_term_profile_rip_version(&profile) == ST_CTERM_RIP_OFF);
+	profile.rip_version = ST_RIP_VERSION_1;
+	CHECK(st_term_profile_rip_version(&profile) == ST_CTERM_RIP_1);
+	profile.rip_version = ST_RIP_VERSION_3;
+	CHECK(st_term_profile_rip_version(&profile) == ST_CTERM_RIP_3);
+	profile.rip_version = ST_RIP_VERSION_NONE;
 	profile.connection_type = ST_CONNECTION_TELNET;
 	CHECK(st_term_profile_encoding(&profile) == ST_CTERM_ENCODING_CODEPAGE);
 	profile.connection_type = ST_CONNECTION_SHELL;
@@ -125,6 +376,9 @@ main(void)
 	st_console_destroy(console);
 #if !SYNCTERM_PLATFORM_WINDOWS
 	CHECK(test_shell_utf8_boundary() == 0);
+	CHECK(test_shell_rip_profile() == 0);
+	CHECK(test_shell_rip_cp437_boundary() == 0);
+	CHECK(test_shell_rip_cp437_query_output() == 0);
 #endif
 	return EXIT_SUCCESS;
 }

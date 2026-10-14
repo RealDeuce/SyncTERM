@@ -70,10 +70,18 @@ int
 st_bbs_list_cache_path(char **result, const st_bbs_list_t *list,
 	const char *name)
 {
+	return list == NULL ? IO_ERROR_INVALID_ARGUMENT
+	    : st_bbs_cache_path_for_name(result, list->cache_path, name);
+}
+
+int
+st_bbs_cache_path_for_name(char **result, const char *cache_directory,
+	const char *name)
+{
 	char key[ST_BBS_CACHE_KEY_MAX + 1];
 
-	if (result == NULL || list == NULL || name == NULL
+	if (result == NULL || cache_directory == NULL || name == NULL
 	    || !st_bbs_cache_key(key, sizeof(key), name))
 		return IO_ERROR_INVALID_ARGUMENT;
-	return st_bbs_cache_path(result, list, key);
+	return path_join_alloc(result, cache_directory, key);
 }

@@ -153,6 +153,13 @@ int st_wren_host_refresh_web_lists(st_wren_host_t *host);
 int st_wren_host_run_menu(st_wren_host_t *host,
 	struct st_profile *selected, bool *has_selection);
 
+/* C-owned connected-session prompt, rendered by the persistent menu VM.
+ * A NULL result means the user cancelled; an accepted string is malloc-owned.
+ * The connected console is restored after the dialog. */
+int st_wren_host_prompt(st_wren_host_t *host, const char *title,
+	const char *question, const char *initial, size_t max_length,
+	char **result);
+
 /*
  * Creates the same temporary profile as Menu.quickConnect(). An UNKNOWN
  * default uses the BBS-list default; an explicit URL scheme still wins.

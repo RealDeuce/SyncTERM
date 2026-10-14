@@ -9,13 +9,1604 @@
 
 #include "cterm.h"
 #include "cterm_internal.h"
+#include "cterm_rip_engine.h"
+#include "cterm_rip_asset.h"
+#include "cterm_rip_file_query.h"
+#include "cterm_rip_fonts.h"
+#include "cterm_rip_time.h"
+#include "filesystem.h"
+#include "ini.h"
 #include "io_error.h"
+#include "string_compat.h"
+#include "st_builtin_fonts.h"
+#include "st_unicode_text.h"
 #include "st_utf8.h"
+#include "st_threads.h"
 
 #include <limits.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+
+static int write_plain(st_cterm_t *terminal, const void *bytes,
+    size_t size, size_t *consumed);
+static int rip_send_mouse_command(st_cterm_t *terminal,
+    const char *command);
+static int rip_activate_field(st_cterm_t *terminal,
+    const struct cterm_rip_mouse_field *field);
+static int rip_compat_frame(st_cterm_t *terminal);
+static void status_display_changed(struct cterminal *terminal,
+    int old_type, int new_type, void *context);
+static int resize_scrollback(st_cterm_t *terminal, uint32_t columns,
+    struct st_console_cell **result);
+static void resize_parser_geometry(st_cterm_t *terminal, int columns,
+    int rows, int cursor_x, int cursor_y);
+
+/* RIPv3 reset restores the session font, outside RIP's six text styles. */
+enum { RIP_TEXT_FONT_DEFAULT = 6 };
+
+static int
+rip_text_font(st_cterm_t *terminal, int style)
+{
+	struct st_console_font font;
+	struct st_console_custom_cursor cursor;
+	struct st_console_cell *scrollback = NULL;
+	struct st_console_cell *old_scrollback;
+	const uint8_t *bitmap;
+	size_t bitmap_size;
+	uint32_t cell_width, cell_height, columns, rows, old_width, old_height;
+	uint32_t old_cell_width, old_cell_height;
+	uint32_t status_rows;
+	uint16_t identifier;
+	int status;
+
+	if (style < 0 || style > RIP_TEXT_FONT_DEFAULT)
+		return 0;
+	if (style == RIP_TEXT_FONT_DEFAULT) {
+		const struct cterm_rip_engine *engine = terminal->rip_engine;
+
+		cell_width = engine->default_text.cell_width;
+		cell_height = engine->default_text.cell_height;
+		columns = engine->default_text.columns;
+		rows = engine->default_text.rows;
+		identifier = engine->default_text.font_identifier;
+	}
+	else {
+		cell_width = style == 1 || style == 3 ? 7
+		    : style == 4 ? 16 : 8;
+		cell_height = style < 2 ? 8 : style == 5 ? 16 : 14;
+		columns = style == 1 || style == 3 ? 91
+		    : style == 4 ? 40 : 80;
+		rows = cell_height == 8 ? 43 : cell_height == 16 ? 21 : 25;
+	}
+	status_rows = terminal->status_display_type >= 1 ? 1 : 0;
+	if (rows <= status_rows + terminal->api_reserved_rows)
+		return IO_ERROR_OUT_OF_RANGE;
+	if (style != RIP_TEXT_FONT_DEFAULT
+	    && !terminal->rip_text_font_registered[style]) {
+		if (!st_builtin_font_get(45, 8, 8, &font))
+			return IO_ERROR_NOT_SUPPORTED;
+		if (style == 0 || style == 2 || style == 5) {
+			if (!st_builtin_font_get(style == 5 ? 0 : 45,
+			    cell_width, cell_height,
+			    &font))
+				return IO_ERROR_NOT_SUPPORTED;
+		}
+		else {
+			bitmap = cterm_rip_text_font_data(style, &bitmap_size);
+			if (bitmap == NULL)
+				return IO_ERROR_NOT_SUPPORTED;
+			font.bitmap = bitmap;
+			font.bitmap_size = bitmap_size;
+			font.width = cell_width;
+			font.height = cell_height;
+			font.row_stride = (cell_width + 7U) / 8U;
+			font.glyph_stride = font.row_stride * cell_height;
+		}
+		status = st_console_register_static_font(terminal->screen.console,
+		    &font, &identifier);
+		if (status != 0)
+			return status;
+		terminal->rip_text_font_identifiers[style] = identifier;
+		terminal->rip_text_font_registered[style] = true;
+	}
+	if (style != RIP_TEXT_FONT_DEFAULT)
+		identifier = terminal->rip_text_font_identifiers[style];
+	status = st_console_size(terminal->screen.console, &old_width,
+	    &old_height);
+	if (status != 0)
+		return status;
+	status = st_console_cell_pixel_size(terminal->screen.console,
+	    &old_cell_width, &old_cell_height);
+	if (status != 0)
+		return status;
+	if (old_cell_height != cell_height) {
+		status = st_console_get_default_cursor(
+		    terminal->screen.console, &cursor);
+		if (status != 0)
+			return status;
+		cursor.range = cell_height;
+		cursor.start = cell_height - (cell_height > 8 ? 2U : 1U);
+		cursor.end = cell_height - 1U;
+	}
+	if (columns != old_width || rows != old_height
+	    || cell_width != old_cell_width || cell_height != old_cell_height) {
+		if (terminal->backlines != 0) {
+			status = resize_scrollback(terminal, columns, &scrollback);
+			if (status != 0)
+				return status;
+		}
+		status = st_console_regrid_preserve_pixels(
+		    terminal->screen.console, columns, rows, cell_width,
+		    cell_height);
+		if (status != 0) {
+			free(scrollback);
+			return status;
+		}
+		old_scrollback = terminal->scrollback;
+		terminal->scrollback = scrollback;
+		terminal->backwidth = (int)columns;
+		terminal->backstart = 0;
+		terminal->backpos = terminal->backfilled == terminal->backlines
+		    ? 0 : terminal->backfilled;
+		free(old_scrollback);
+		resize_parser_geometry(terminal, (int)columns,
+		    (int)(rows - status_rows - terminal->api_reserved_rows), 1, 1);
+		if (terminal->status_sub != NULL) {
+			terminal->status_sub->x = terminal->x;
+			terminal->status_sub->y = terminal->y + terminal->height;
+			resize_parser_geometry(terminal->status_sub,
+			    (int)columns, 1, 1, 1);
+		}
+		if (old_cell_height != cell_height) {
+			status = st_console_set_default_cursor(
+			    terminal->screen.console, &cursor);
+			if (status != 0)
+				return status;
+		}
+	}
+	for (size_t selector = 0; selector < UINT8_MAX + 1U; selector++) {
+		terminal->screen.font_identifiers[selector] = identifier;
+		terminal->screen.font_valid[selector] = true;
+	}
+	cterm_render_attribute_colours(terminal, terminal->attr,
+	    &terminal->fg_color, &terminal->bg_color);
+	if ((terminal->screen.capabilities
+	    & ST_CONSOLE_CAP_EXTENDED_PALETTE) != 0) {
+		terminal->fg_color += 16;
+		terminal->bg_color += 16;
+	}
+	cterm_render_set_attribute(terminal, terminal->attr);
+	cterm_render_set_colours(terminal, terminal->fg_color,
+	    terminal->bg_color);
+	/* Legacy reinit_screen() starts its replacement CTerm before restoring
+	 * the saved pixel canvas.  A later plain-text byte must not start it
+	 * again and erase graphics beneath the text window. */
+	terminal->started = 1;
+	terminal->rip_text_font_style = style;
+	return cterm_render_take_error(terminal);
+}
+
+static int
+rip_passthrough(void *context, const uint8_t *bytes, size_t size)
+{
+	st_cterm_t *terminal = context;
+	size_t consumed;
+	int status = write_plain(terminal, bytes, size, &consumed);
+
+	return status == 0 && consumed != size ? IO_ERROR_IO : status;
+}
+
+static int
+rip_control(void *context, const uint8_t *bytes, size_t size)
+{
+	st_cterm_t *terminal = context;
+	const char *version;
+
+	if (size < 3 || bytes[0] != 0x1b || bytes[1] != '[')
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (size != 3 && (size != 4 || bytes[2] != '0'))
+		return 0;
+	version = terminal->rip_engine->raster.version == 3
+	    ? "RIPSCRIP030001" : "RIPSCRIP015410";
+	if (terminal->api_output != NULL)
+		terminal->api_output(terminal->api_output_context,
+		    ST_CTERM_OUTPUT_RESPONSE, (const uint8_t *)version, 14);
+	return 0;
+}
+
+static bool
+rip_music_introducer(void *context, uint8_t final)
+{
+	st_cterm_t *terminal = context;
+
+	return final == '|'
+	    || (final == 'M' && terminal->music_enable == CTERM_MUSIC_ENABLED)
+	    || (final == 'N' && terminal->music_enable >= CTERM_MUSIC_BANSI);
+}
+
+static bool
+rip_at_column(void *context)
+{
+	st_cterm_t *terminal = context;
+
+	return terminal->xpos == cterm_crpos(terminal);
+}
+
+static bool
+rip_text_disabled(void *context)
+{
+	st_cterm_t *terminal = context;
+
+	return terminal->rip_text_disabled;
+}
+
+static int
+rip_digit(char value)
+{
+	if (value >= '0' && value <= '9')
+		return value - '0';
+	if (value >= 'A' && value <= 'Z')
+		return value - 'A' + 10;
+	if (value >= 'a' && value <= 'z')
+		return value - 'a' + 10;
+	return -1;
+}
+
+static bool
+rip_number(const char *text, size_t width, int *value)
+{
+	int number = 0;
+
+	for (size_t i = 0; i < width; i++) {
+		int digit = rip_digit(text[i]);
+
+		if (digit < 0)
+			return false;
+		number = number * 36 + digit;
+	}
+	*value = number;
+	return true;
+}
+
+static char
+rip_ascii_upper(char ch)
+{
+	return ch >= 'a' && ch <= 'z' ? (char)(ch - 'a' + 'A') : ch;
+}
+
+static bool
+rip_variable_name_equal(const char *left, const char *right)
+{
+	while (*left != '\0' && *right != '\0') {
+		if (rip_ascii_upper(*left++) != rip_ascii_upper(*right++))
+			return false;
+	}
+	return *left == *right;
+}
+
+static bool
+rip_variable_token_equal(const char *text, size_t length,
+	const char *name)
+{
+	for (size_t i = 0; i < length; i++) {
+		if (name[i] == '\0'
+		    || rip_ascii_upper(text[i]) != rip_ascii_upper(name[i]))
+			return false;
+	}
+	return name[length] == '\0';
+}
+
+static int rip_host_command(void *context, int level, int sublevel,
+	uint8_t code, const char *arguments);
+
+static int
+rip_save_text_window(st_cterm_t *terminal)
+{
+	struct cterm_rip_raster *raster = &terminal->rip_engine->raster;
+	bool visible;
+	enum st_console_cursor_shape shape;
+	int status = st_console_get_cursor(terminal->screen.console,
+	    &visible, &shape);
+
+	if (status != 0)
+		return status;
+	terminal->rip_saved_text.x = raster->x;
+	terminal->rip_saved_text.y = raster->y;
+	terminal->rip_saved_text.left = terminal->left_margin;
+	terminal->rip_saved_text.top = terminal->top_margin;
+	terminal->rip_saved_text.right = terminal->right_margin;
+	terminal->rip_saved_text.bottom = terminal->bottom_margin;
+	terminal->rip_saved_text.font_style = terminal->rip_text_font_style;
+	terminal->rip_saved_text.wrap =
+	    (terminal->extattr & CTERM_EXTATTR_AUTOWRAP) != 0;
+	terminal->rip_saved_text.disabled = terminal->rip_text_disabled;
+	terminal->rip_saved_text.cursor_visible = visible;
+	terminal->rip_saved_text.cursor_shape = shape;
+	terminal->rip_saved_text.attr = terminal->attr;
+	terminal->rip_saved_text.foreground = terminal->fg_color;
+	terminal->rip_saved_text.background = terminal->bg_color;
+	return 0;
+}
+
+static int
+rip_restore_text_window(st_cterm_t *terminal)
+{
+	struct cterm_rip_raster *raster = &terminal->rip_engine->raster;
+	bool window_changed = terminal->left_margin
+	    != terminal->rip_saved_text.left
+	    || terminal->top_margin != terminal->rip_saved_text.top
+	    || terminal->right_margin != terminal->rip_saved_text.right
+	    || terminal->bottom_margin != terminal->rip_saved_text.bottom
+	    || terminal->rip_text_font_style
+	    != terminal->rip_saved_text.font_style;
+	int status;
+
+	if (terminal->rip_text_font_style
+	    != terminal->rip_saved_text.font_style) {
+		status = rip_text_font(terminal,
+		    terminal->rip_saved_text.font_style);
+		if (status != 0)
+			return status;
+	}
+	terminal->left_margin = terminal->rip_saved_text.left < 1
+	    ? 1 : terminal->rip_saved_text.left;
+	terminal->top_margin = terminal->rip_saved_text.top < 1
+	    ? 1 : terminal->rip_saved_text.top;
+	terminal->right_margin = terminal->rip_saved_text.right < 1
+	    ? 1 : terminal->rip_saved_text.right;
+	terminal->bottom_margin = terminal->rip_saved_text.bottom < 1
+	    ? 1 : terminal->rip_saved_text.bottom;
+	if (terminal->left_margin > terminal->width)
+		terminal->left_margin = terminal->width;
+	if (terminal->top_margin > terminal->height)
+		terminal->top_margin = terminal->height;
+	if (terminal->right_margin > terminal->width)
+		terminal->right_margin = terminal->width;
+	if (terminal->bottom_margin > terminal->height)
+		terminal->bottom_margin = terminal->height;
+	if (terminal->rip_saved_text.wrap)
+		terminal->extattr |= CTERM_EXTATTR_AUTOWRAP;
+	else
+		terminal->extattr &= ~CTERM_EXTATTR_AUTOWRAP;
+	terminal->extattr |= CTERM_EXTATTR_ORIGINMODE;
+	terminal->rip_text_disabled = terminal->rip_saved_text.disabled
+	    || (terminal->rip_saved_text.left == 0
+	    && terminal->rip_saved_text.top == 0
+	    && terminal->rip_saved_text.right == 0
+	    && terminal->rip_saved_text.bottom == 0);
+	if (window_changed) {
+		cterm_apply_window(terminal);
+		cterm_set_position(terminal, 1, 1);
+	}
+	raster->x = terminal->rip_saved_text.x;
+	raster->y = terminal->rip_saved_text.y;
+	terminal->attr = terminal->rip_saved_text.attr;
+	terminal->fg_color = terminal->rip_saved_text.foreground;
+	terminal->bg_color = terminal->rip_saved_text.background;
+	cterm_render_set_attribute(terminal, terminal->attr);
+	cterm_render_set_colours(terminal, terminal->fg_color,
+	    terminal->bg_color);
+	status = cterm_render_take_error(terminal);
+	if (status != 0)
+		return status;
+	return st_console_set_cursor(terminal->screen.console,
+	    terminal->rip_saved_text.cursor_visible,
+	    terminal->rip_saved_text.cursor_shape);
+}
+
+enum { RIP_QUERY_VALUE_SIZE = 128 };
+
+/* The old RIP MUSIC/PHASER samples use a phase-continuous linear sweep. */
+static double
+rip_sweep(double phase, unsigned start, unsigned end, size_t frames,
+	int16_t *output)
+{
+	const double two_pi = 6.28318530717958647692;
+	const double scale = two_pi / AUDIO_SAMPLE_RATE;
+	double initial, delta;
+
+	if (start < end) {
+		initial = -scale * start;
+		delta = scale * (end - start) / frames;
+	}
+	else {
+		initial = scale * start;
+		delta = -scale * (start - end) / frames;
+	}
+	for (size_t i = 0; i < frames; i++) {
+		int16_t sample;
+
+		phase += initial + i * delta;
+		if (phase > two_pi)
+			phase -= two_pi;
+		sample = (int16_t)(sin(phase) * 8192.0);
+		output[2 * i] = sample;
+		output[2 * i + 1] = sample;
+	}
+	return phase;
+}
+
+static int
+rip_sound_variable(st_cterm_t *terminal, const char *name, size_t length,
+	bool *handled)
+{
+	const struct timespec beep_pause = {.tv_sec = 0, .tv_nsec = 75000000};
+	const struct timespec blip_pause = {.tv_sec = 0, .tv_nsec = 10000000};
+	int16_t *wave;
+	size_t frames;
+
+	*handled = true;
+	if (rip_variable_token_equal(name, length, "ALARM")) {
+		for (int i = 0; i < 3; i++) {
+			(void)cterm_play_fx_tone(terminal, 320, 200,
+			    AUDIO_WAVE_SINE);
+			(void)cterm_play_fx_tone(terminal, 160, 425,
+			    AUDIO_WAVE_SINE);
+		}
+		return 0;
+	}
+	if (rip_variable_token_equal(name, length, "BEEP")) {
+		(void)cterm_play_fx_tone(terminal, 1000, 75, AUDIO_WAVE_SINE);
+		(void)st_thread_sleep(&beep_pause, NULL);
+		return 0;
+	}
+	if (rip_variable_token_equal(name, length, "BLIP")) {
+		frames = AUDIO_SAMPLE_RATE * 25U / 1000U;
+		wave = malloc(frames * AUDIO_FRAME_SIZE);
+		if (wave == NULL)
+			return IO_ERROR_OUT_OF_MEMORY;
+		if (audio_generate_tone(wave, frames, 50, AUDIO_WAVE_SINE,
+		    false) == 0)
+			(void)cterm_play_fx(terminal, wave, frames);
+		free(wave);
+		(void)st_thread_sleep(&blip_pause, NULL);
+		return 0;
+	}
+	if (rip_variable_token_equal(name, length, "MUSIC")
+	    || rip_variable_token_equal(name, length, "PHASER")
+	    || rip_variable_token_equal(name, length, "REVPHASER")) {
+		bool music = rip_variable_token_equal(name, length, "MUSIC");
+
+		frames = music ? 15872 : 10760;
+		wave = malloc(frames * AUDIO_FRAME_SIZE);
+		if (wave == NULL)
+			return IO_ERROR_OUT_OF_MEMORY;
+		if (music) {
+			double phase = 0.0;
+
+			for (size_t i = 0; i < 4; i++) {
+				int16_t *part = wave + 2 * i * 3968;
+
+				phase = rip_sweep(phase, 1300, 700, 3086,
+				    part);
+				phase = rip_sweep(phase, 700, 850, 442,
+				    part + 2 * 3086);
+				phase = rip_sweep(phase, 850, 1300, 440,
+				    part + 2 * 3528);
+			}
+		}
+		else if (rip_variable_token_equal(name, length, "PHASER"))
+			(void)rip_sweep(0.0, 2500, 50, frames, wave);
+		else
+			(void)rip_sweep(0.0, 50, 2500, frames, wave);
+		(void)cterm_play_fx(terminal, wave, frames);
+		free(wave);
+		return 0;
+	}
+	*handled = false;
+	return 0;
+}
+
+static int
+rip_clock_variable(const char *name, size_t length,
+	char result[RIP_QUERY_VALUE_SIZE], bool *handled)
+{
+	static const char *const weekdays[7] = {
+		"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat",
+	};
+	static const char *const months[12] = {
+		"Jan", "Feb", "Mar", "Apr", "May", "Jun",
+		"Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+	};
+	struct tm local;
+	time_t now;
+	const char *format = NULL;
+
+	*handled = rip_variable_token_equal(name, length, "ADOW")
+	    || rip_variable_token_equal(name, length, "DATE")
+	    || rip_variable_token_equal(name, length, "DATETIME")
+	    || rip_variable_token_equal(name, length, "DAY")
+	    || rip_variable_token_equal(name, length, "DOW")
+	    || rip_variable_token_equal(name, length, "DOY")
+	    || rip_variable_token_equal(name, length, "MONTH")
+	    || rip_variable_token_equal(name, length, "MONTHNUM")
+	    || rip_variable_token_equal(name, length, "YEAR")
+	    || rip_variable_token_equal(name, length, "FYEAR")
+	    || rip_variable_token_equal(name, length, "WDAY")
+	    || rip_variable_token_equal(name, length, "WOY")
+	    || rip_variable_token_equal(name, length, "WOYM")
+	    || rip_variable_token_equal(name, length, "AMPM")
+	    || rip_variable_token_equal(name, length, "HOUR")
+	    || rip_variable_token_equal(name, length, "MHOUR")
+	    || rip_variable_token_equal(name, length, "MIN")
+	    || rip_variable_token_equal(name, length, "SEC")
+	    || rip_variable_token_equal(name, length, "TIME")
+	    || rip_variable_token_equal(name, length, "TIMEZONE");
+	if (!*handled)
+		return 0;
+	now = time(NULL);
+	if (now == (time_t)-1 || !cterm_rip_localtime(now, &local))
+		return IO_ERROR_IO;
+	if (rip_variable_token_equal(name, length, "DATE"))
+		(void)snprintf(result, RIP_QUERY_VALUE_SIZE, "%02d/%02d/%02d",
+		    local.tm_mon + 1, local.tm_mday, local.tm_year % 100);
+	else if (rip_variable_token_equal(name, length, "DATETIME")) {
+		if (local.tm_wday < 0 || local.tm_wday >= 7
+		    || local.tm_mon < 0 || local.tm_mon >= 12)
+			return IO_ERROR_OUT_OF_RANGE;
+		(void)snprintf(result, RIP_QUERY_VALUE_SIZE,
+		    "%s %s %2d %02d:%02d:%02d %04d\n",
+		    weekdays[local.tm_wday], months[local.tm_mon], local.tm_mday,
+		    local.tm_hour, local.tm_min, local.tm_sec,
+		    local.tm_year + 1900);
+	}
+	else if (rip_variable_token_equal(name, length, "DAY"))
+		(void)snprintf(result, RIP_QUERY_VALUE_SIZE, "%02d",
+		    local.tm_mday);
+	else if (rip_variable_token_equal(name, length, "DOY"))
+		(void)snprintf(result, RIP_QUERY_VALUE_SIZE, "%03d",
+		    local.tm_yday + 1);
+	else if (rip_variable_token_equal(name, length, "MONTHNUM"))
+		(void)snprintf(result, RIP_QUERY_VALUE_SIZE, "%02d",
+		    local.tm_mon + 1);
+	else if (rip_variable_token_equal(name, length, "YEAR"))
+		/* Preserve the legacy parser's month-index substitution. */
+		(void)snprintf(result, RIP_QUERY_VALUE_SIZE, "%02d",
+		    local.tm_mon % 100);
+	else if (rip_variable_token_equal(name, length, "FYEAR"))
+		(void)snprintf(result, RIP_QUERY_VALUE_SIZE, "%04d",
+		    local.tm_mon + 1900);
+	else if (rip_variable_token_equal(name, length, "WDAY"))
+		(void)snprintf(result, RIP_QUERY_VALUE_SIZE, "%02d",
+		    local.tm_wday);
+	else if (rip_variable_token_equal(name, length, "AMPM"))
+		strcpy(result, local.tm_hour < 12 ? "AM" : "PM");
+	else if (rip_variable_token_equal(name, length, "MHOUR"))
+		(void)snprintf(result, RIP_QUERY_VALUE_SIZE, "%02d",
+		    local.tm_hour);
+	else if (rip_variable_token_equal(name, length, "MIN"))
+		(void)snprintf(result, RIP_QUERY_VALUE_SIZE, "%02d",
+		    local.tm_min);
+	else if (rip_variable_token_equal(name, length, "SEC"))
+		(void)snprintf(result, RIP_QUERY_VALUE_SIZE, "%02d",
+		    local.tm_sec);
+	else if (rip_variable_token_equal(name, length, "TIME"))
+		(void)snprintf(result, RIP_QUERY_VALUE_SIZE, "%02d:%02d:%02d",
+		    local.tm_hour, local.tm_min, local.tm_sec);
+	else if (rip_variable_token_equal(name, length, "ADOW"))
+		format = "%a";
+	else if (rip_variable_token_equal(name, length, "DOW"))
+		format = "%A";
+	else if (rip_variable_token_equal(name, length, "MONTH"))
+		format = "%B";
+	else if (rip_variable_token_equal(name, length, "HOUR"))
+		format = "%I";
+	else if (rip_variable_token_equal(name, length, "WOY"))
+		format = "%U";
+	else if (rip_variable_token_equal(name, length, "WOYM"))
+		format = "%W";
+	else if (rip_variable_token_equal(name, length, "TIMEZONE"))
+		format = "%Z";
+	if (format != NULL) {
+		result[0] = '\0';
+		(void)strftime(result, RIP_QUERY_VALUE_SIZE, format, &local);
+	}
+	return 0;
+}
+
+static int
+rip_query_variable(st_cterm_t *terminal, const char *name,
+	size_t length, char result[RIP_QUERY_VALUE_SIZE], bool *handled)
+{
+	uint32_t cell_width, cell_height;
+	bool visible;
+	enum st_console_cursor_shape shape;
+	int x, y, value;
+	int status;
+
+	*handled = true;
+	status = rip_clock_variable(name, length, result, handled);
+	if (status != 0 || *handled)
+		return status;
+	*handled = true;
+	if (rip_variable_token_equal(name, length, "RIPVER")) {
+		memcpy(result, terminal->rip_engine->raster.version == 3
+		    ? "RIPSCRIP030001" : "RIPSCRIP015410", 15);
+		return 0;
+	}
+	if (rip_variable_token_equal(name, length, "TWIN")) {
+		strcpy(result, terminal->rip_text_disabled ? "NO" : "YES");
+		return 0;
+	}
+	if (rip_variable_token_equal(name, length, "STATBAR")) {
+		strcpy(result, terminal->status_display_type == 0
+		    ? "NO" : "YES");
+		return 0;
+	}
+	if (rip_variable_token_equal(name, length, "CURSOR")) {
+		status = st_console_get_cursor(terminal->screen.console,
+		    &visible, &shape);
+		if (status != 0)
+			return status;
+		strcpy(result, visible && !terminal->rip_text_disabled
+		    && !(terminal->left_margin == 1
+		    && terminal->top_margin == 1
+		    && terminal->right_margin == 1
+		    && terminal->bottom_margin == 1) ? "YES" : "NO");
+		return 0;
+	}
+	if (rip_variable_token_equal(name, length, "MSTAT")) {
+		strcpy(result, "YES");
+		return 0;
+	}
+	if (rip_variable_token_equal(name, length, "X")
+	    || rip_variable_token_equal(name, length, "Y")
+	    || rip_variable_token_equal(name, length, "XY")
+	    || rip_variable_token_equal(name, length, "XYM")
+	    || rip_variable_token_equal(name, length, "M")) {
+		struct cterm_rip_engine *engine = terminal->rip_engine;
+		int mx = engine->mouse_query.active ? engine->mouse_query.x
+		    : engine->last_mouse_x;
+		int my = engine->mouse_query.active ? engine->mouse_query.y
+		    : engine->last_mouse_y;
+		uint32_t buttons = engine->mouse_query.active
+		    ? engine->mouse_query.buttons : engine->last_mouse_buttons;
+		int width = engine->mouse_query.active && engine->mouse_query.text
+		    ? 2 : 4;
+
+		if (rip_variable_token_equal(name, length, "X"))
+			(void)snprintf(result, RIP_QUERY_VALUE_SIZE, "%0*d", width, mx);
+		else if (rip_variable_token_equal(name, length, "Y"))
+			(void)snprintf(result, RIP_QUERY_VALUE_SIZE, "%0*d", width, my);
+		else if (rip_variable_token_equal(name, length, "M"))
+			(void)snprintf(result, RIP_QUERY_VALUE_SIZE, "%u%u%u",
+			    (unsigned)(buttons & 1),
+			    (unsigned)((buttons >> 1) & 1),
+			    (unsigned)((buttons >> 2) & 1));
+		else if (rip_variable_token_equal(name, length, "XY"))
+			(void)snprintf(result, RIP_QUERY_VALUE_SIZE, "%0*x:%0*x",
+			    width, mx, width, my);
+		else
+			(void)snprintf(result, RIP_QUERY_VALUE_SIZE,
+			    "%0*x:%0*x:%u%u%u",
+			    width, mx, width, my,
+			    (unsigned)(buttons & 1),
+			    (unsigned)((buttons >> 1) & 1),
+			    (unsigned)((buttons >> 2) & 1));
+		return 0;
+	}
+	if (rip_variable_token_equal(name, length, "CURX")
+	    || rip_variable_token_equal(name, length, "CURY")) {
+		cterm_coord_get_xy(terminal, CTERM_COORD_CURR, &x, &y);
+		value = rip_variable_token_equal(name, length, "CURX")
+		    ? x - 1 : y - 1;
+	}
+	else if (rip_variable_token_equal(name, length, "TWFONT")) {
+		value = 0;
+		if (!terminal->rip_text_disabled) {
+			status = st_console_cell_pixel_size(
+			    terminal->screen.console, &cell_width, &cell_height);
+			if (status != 0)
+				return status;
+			if (cell_width == 8 && cell_height == 8)
+				value = 1;
+			else if (cell_width == 7 && cell_height == 8)
+				value = 2;
+			else if (cell_width == 8 && cell_height == 14)
+				value = 3;
+			else if (cell_width == 16 && cell_height == 14)
+				value = 4;
+			else if (cell_width == 7 && cell_height == 14)
+				value = 5;
+		}
+	}
+	else if (rip_variable_token_equal(name, length, "TWW"))
+		value = terminal->rip_text_disabled ? 0
+		    : terminal->right_margin - terminal->left_margin + 1;
+	else if (rip_variable_token_equal(name, length, "TWH"))
+		value = terminal->rip_text_disabled ? 0
+		    : terminal->bottom_margin - terminal->top_margin + 1;
+	else if (rip_variable_token_equal(name, length, "TWX0"))
+		value = terminal->rip_text_disabled ? 0
+		    : terminal->left_margin - 1;
+	else if (rip_variable_token_equal(name, length, "TWX1"))
+		value = terminal->rip_text_disabled ? 0
+		    : terminal->right_margin - 1;
+	else if (rip_variable_token_equal(name, length, "TWY0"))
+		value = terminal->rip_text_disabled ? 0
+		    : terminal->top_margin - 1;
+	else if (rip_variable_token_equal(name, length, "TWY1"))
+		value = terminal->rip_text_disabled ? 0
+		    : terminal->bottom_margin - 1;
+	else {
+		*handled = false;
+		result[0] = '\0';
+		return 0;
+	}
+	(void)snprintf(result, RIP_QUERY_VALUE_SIZE, "%d", value);
+	return 0;
+}
+
+static int
+rip_state_variable(st_cterm_t *terminal, const char *name,
+	size_t length, bool *handled)
+{
+	struct cterm_rip_raster *raster = &terminal->rip_engine->raster;
+	int status;
+
+	status = rip_sound_variable(terminal, name, length, handled);
+	if (status != 0 || *handled)
+		return status;
+	/* These legacy built-ins are present but have no implementation there. */
+	if ((length == 4 && rip_variable_token_equal(name, 3, "APP")
+	    && name[3] >= '0' && name[3] <= '9')
+	    || rip_variable_token_equal(name, length, "VT102ON")
+	    || rip_variable_token_equal(name, length, "VT102OFF")) {
+		*handled = true;
+		return 0;
+	}
+	if (rip_variable_token_equal(name, length, "COFF")
+	    || rip_variable_token_equal(name, length, "CON")) {
+		*handled = true;
+		return st_console_set_cursor(terminal->screen.console,
+		    rip_variable_token_equal(name, length, "CON"),
+		    ST_CONSOLE_CURSOR_UNDERLINE);
+	}
+	if (rip_variable_token_equal(name, length, "DTW")) {
+		*handled = true;
+		terminal->rip_text_disabled = true;
+		return 0;
+	}
+	if (rip_variable_token_equal(name, length, "DWAYON")
+	    || rip_variable_token_equal(name, length, "DWAYOFF")) {
+		*handled = true;
+		terminal->doorway_mode =
+		    rip_variable_token_equal(name, length, "DWAYON");
+		return 0;
+	}
+	if (rip_variable_token_equal(name, length, "HKEYON")
+	    || rip_variable_token_equal(name, length, "HKEYOFF")) {
+		*handled = true;
+		terminal->rip_engine->hotkeys_enabled =
+		    rip_variable_token_equal(name, length, "HKEYON");
+		return 0;
+	}
+	if (rip_variable_token_equal(name, length, "TABON")
+	    || rip_variable_token_equal(name, length, "TABOFF")) {
+		*handled = true;
+		terminal->rip_engine->tab_enabled =
+		    rip_variable_token_equal(name, length, "TABON");
+		if (!terminal->rip_engine->tab_enabled)
+			cterm_rip_engine_clear_tab(terminal->rip_engine);
+		return 0;
+	}
+	if (rip_variable_token_equal(name, length, "SBARON")
+	    || rip_variable_token_equal(name, length, "SBAROFF")) {
+		int old = terminal->status_display_type;
+		int wanted = rip_variable_token_equal(name, length, "SBARON")
+		    ? 1 : 0;
+
+		*handled = true;
+		terminal->status_display_type = wanted;
+		if (old != wanted)
+			status_display_changed(terminal, old, wanted, terminal);
+		return cterm_render_take_error(terminal);
+	}
+	if (rip_variable_token_equal(name, length, "STW")) {
+		*handled = true;
+		return rip_save_text_window(terminal);
+	}
+	if (rip_variable_token_equal(name, length, "RTW")) {
+		*handled = true;
+		return rip_restore_text_window(terminal);
+	}
+	if (rip_variable_token_equal(name, length, "SCB")) {
+		*handled = true;
+		return cterm_rip_raster_save_clipboard(raster);
+	}
+	if (rip_variable_token_equal(name, length, "RCB")) {
+		*handled = true;
+		return cterm_rip_raster_restore_clipboard(raster);
+	}
+	if (rip_variable_token_equal(name, length, "PCB")) {
+		*handled = true;
+		return cterm_rip_raster_paste_clipboard(raster);
+	}
+	if (rip_variable_token_equal(name, length, "EGW")) {
+		bool raster_handled;
+
+		*handled = true;
+		return cterm_rip_raster_command(raster, 0, 0, 'E', "",
+		    &raster_handled);
+	}
+	if (rip_variable_token_equal(name, length, "ETW")) {
+		*handled = true;
+		cterm_render_clear_window(terminal);
+		cterm_set_position(terminal, 1, 1);
+		return cterm_render_take_error(terminal);
+	}
+	if (rip_variable_token_equal(name, length, "RESET")) {
+		*handled = true;
+		return rip_host_command(terminal, 0, 0, '*', "");
+	}
+	if (rip_variable_token_equal(name, length, "SMF")) {
+		*handled = true;
+		return cterm_rip_engine_save_mouse(terminal->rip_engine);
+	}
+	if (rip_variable_token_equal(name, length, "RMF")) {
+		*handled = true;
+		return cterm_rip_engine_restore_mouse(terminal->rip_engine);
+	}
+	if (rip_variable_token_equal(name, length, "MKILL")) {
+		*handled = true;
+		cterm_rip_engine_clear_mouse(terminal->rip_engine);
+		return 0;
+	}
+	if (rip_variable_token_equal(name, length, "SAVEALL")) {
+		*handled = true;
+		status = rip_save_text_window(terminal);
+		if (status == 0)
+			status = cterm_rip_raster_save_clipboard(raster);
+		if (status == 0)
+			status = cterm_rip_engine_save_mouse(terminal->rip_engine);
+		if (status == 0)
+			status = cterm_rip_raster_save_screen(raster, 10);
+		return status;
+	}
+	if (rip_variable_token_equal(name, length, "RESTOREALL")) {
+		*handled = true;
+		status = rip_restore_text_window(terminal);
+		if (status == 0)
+			status = cterm_rip_raster_restore_clipboard(raster);
+		if (status == 0)
+			status = cterm_rip_engine_restore_mouse(
+			    terminal->rip_engine);
+		if (status == 0)
+			status = cterm_rip_raster_restore_screen(raster, 10, false);
+		return status;
+	}
+	if (rip_variable_token_equal(name, length, "SAVE")) {
+		*handled = true;
+		return cterm_rip_raster_save_screen(raster, 10);
+	}
+	if (rip_variable_token_equal(name, length, "RESTORE")) {
+		*handled = true;
+		return cterm_rip_raster_restore_screen(raster, 10, false);
+	}
+	if (length == 5 && name[4] >= '0' && name[4] <= '9'
+	    && rip_variable_token_equal(name, 4, "SAVE")) {
+		*handled = true;
+		return cterm_rip_raster_save_screen(raster, name[4] - '0');
+	}
+	if (length == 8 && name[7] >= '1' && name[7] <= '9'
+	    && rip_variable_token_equal(name, 7, "RESTORE")) {
+		*handled = true;
+		return cterm_rip_raster_restore_screen(
+		    &terminal->rip_engine->raster, name[7] - '0', true);
+	}
+	return 0;
+}
+
+static bool
+rip_variable_name_valid(const char *name, size_t length)
+{
+	if (length == 0 || length > 12)
+		return false;
+	for (size_t i = 0; i < length; i++) {
+		char ch = name[i];
+
+		if (!((ch >= 'A' && ch <= 'Z')
+		    || (ch >= 'a' && ch <= 'z')
+		    || (i != 0 && ((ch >= '0' && ch <= '9') || ch == '_'))))
+			return false;
+	}
+	return true;
+}
+
+static struct cterm_rip_user_var *
+rip_find_variable(struct cterm_rip_engine *engine, const char *name)
+{
+	for (struct cterm_rip_user_var *variable = engine->user_vars;
+	    variable != NULL; variable = variable->next) {
+		if (rip_variable_name_equal(variable->name, name))
+			return variable;
+	}
+	return NULL;
+}
+
+static int
+rip_set_variable(struct cterm_rip_engine *engine, const char *name,
+    const char *value, int width, bool persistent)
+{
+	struct cterm_rip_user_var *variable = rip_find_variable(engine, name);
+	char *copy = strdup(value);
+
+	if (copy == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	if (variable == NULL) {
+		variable = calloc(1, sizeof(*variable));
+		if (variable == NULL) {
+			free(copy);
+			return IO_ERROR_OUT_OF_MEMORY;
+		}
+		memcpy(variable->name, name, strlen(name) + 1);
+		variable->next = engine->user_vars;
+		engine->user_vars = variable;
+	}
+	free(variable->value);
+	variable->value = copy;
+	variable->field_width = width;
+	variable->persistent = persistent;
+	return 0;
+}
+
+static FILE *
+rip_open_variable_file(const char *directory)
+{
+	struct fs_info info;
+	char *path = cterm_rip_asset_path(directory, "variables.ini", false);
+	FILE *stream = NULL;
+
+	if (path != NULL
+	    && fs_get_link_info(&info, directory) == 0
+	    && info.kind == FS_ENTRY_DIRECTORY
+	    && fs_get_link_info(&info, path) == 0
+	    && info.kind == FS_ENTRY_FILE)
+		(void)fs_open(&stream, path, "rb");
+	free(path);
+	return stream;
+}
+
+static int
+rip_load_variables(st_cterm_t *terminal)
+{
+	ini_document_t *document = NULL;
+	ini_section_t *root;
+	FILE *stream;
+	int status = 0;
+
+	stream = rip_open_variable_file(terminal->rip_directory);
+	if (stream == NULL)
+		return 0;
+	if (ini_document_read(&document, stream) != 0) {
+		fclose(stream);
+		return 0;
+	}
+	fclose(stream);
+	root = ini_document_root(document);
+	for (size_t i = 0; i < ini_section_count(root); i++) {
+		const struct name_value *item = ini_section_at(root, i);
+
+		if (item == NULL || item->name == NULL || item->value == NULL
+		    || !rip_variable_name_valid(item->name,
+		    strlen(item->name)))
+			continue;
+		status = rip_set_variable(terminal->rip_engine, item->name,
+		    item->value, 60, true);
+		if (status != 0)
+			break;
+	}
+	ini_document_free(&document);
+	return status;
+}
+
+static void
+rip_save_variable(st_cterm_t *terminal, const char *name)
+{
+	struct cterm_rip_user_var *variable;
+	struct fs_info info;
+	ini_document_t *document = NULL;
+	ini_section_t *root;
+	char *path = NULL, *serialized = NULL;
+	FILE *stream = NULL;
+	size_t size;
+	int status;
+
+	variable = rip_find_variable(terminal->rip_engine, name);
+	if (variable == NULL)
+		return;
+	path = cterm_rip_asset_path(terminal->rip_directory,
+	    "variables.ini", false);
+	if (path == NULL)
+		return;
+	status = fs_get_link_info(&info, terminal->rip_directory);
+	if (status == IO_ERROR_NOT_FOUND) {
+		status = fs_create_directories(terminal->rip_directory);
+		if (status == 0)
+			status = fs_get_link_info(&info, terminal->rip_directory);
+	}
+	if (status != 0 || info.kind != FS_ENTRY_DIRECTORY)
+		goto done;
+	status = fs_get_link_info(&info, path);
+	if (status != IO_ERROR_NOT_FOUND
+	    && (status != 0 || info.kind != FS_ENTRY_FILE))
+		goto done;
+	if (status == 0) {
+		status = fs_open(&stream, path, "rb");
+		if (status != 0)
+			goto done;
+		status = ini_document_read(&document, stream);
+		fclose(stream);
+		stream = NULL;
+	}
+	else
+		status = ini_document_create(&document);
+	if (status != 0)
+		goto done;
+	root = ini_document_root(document);
+	status = ini_section_set_string(root, name, variable->value, NULL);
+	if (status == 0)
+		status = ini_document_serialize(document, &serialized, &size);
+	if (status == 0)
+		(void)fs_replace_file(path, serialized, size);
+done:
+	if (stream != NULL)
+		fclose(stream);
+	free(serialized);
+	ini_document_free(&document);
+	free(path);
+}
+
+/* 1: valid, 0: invalid definition, -1: allocation failure. */
+static int
+rip_parse_definition(const char *text, char name[13], int *width,
+    char **question, char **default_value)
+{
+	const char *colon = strchr(text, ':');
+	const char *comma;
+	size_t length;
+
+	*question = NULL;
+	*default_value = NULL;
+	*width = 60;
+	if (colon == NULL)
+		return false;
+	comma = memchr(text, ',', (size_t)(colon - text));
+	length = (size_t)((comma == NULL ? colon : comma) - text);
+	if (!rip_variable_name_valid(text, length))
+		return false;
+	memcpy(name, text, length);
+	name[length] = '\0';
+	if (comma != NULL) {
+		long requested = strtol(comma + 1, NULL, 10);
+
+		*width = requested < 1 ? 1 : requested > 1023 ? 1023
+		    : (int)requested;
+	}
+	text = colon + 1;
+	if (*text == '?') {
+		const char *end = strchr(text + 1, '?');
+
+		if (end != NULL) {
+			*question = strndup(text + 1, (size_t)(end - text - 1));
+			if (*question == NULL)
+				return -1;
+			text = end + 1;
+		}
+	}
+	if (*text != '\0') {
+		*default_value = strdup(text);
+		if (*default_value == NULL)
+			return -1;
+	}
+	return true;
+}
+
+static int
+rip_define_variable(st_cterm_t *terminal, const char *arguments)
+{
+	struct cterm_rip_engine *engine = terminal->rip_engine;
+	struct cterm_rip_user_var *existing;
+	char name[13], fallback[80], *question, *default_value, *entered = NULL;
+	char *normalized = NULL;
+	const char *initial, *prompt;
+	size_t normalized_size;
+	int flags, reserved, width, parsed, status = 0;
+	bool save = false, reject_blank, noninteractive;
+
+	if (strlen(arguments) < 5
+	    || !rip_number(arguments, 3, &flags)
+	    || !rip_number(arguments + 3, 2, &reserved))
+		return 0;
+	parsed = rip_parse_definition(arguments + 5, name, &width,
+	    &question, &default_value);
+	if (parsed == 0)
+		return 0;
+	if (parsed < 0) {
+		status = IO_ERROR_OUT_OF_MEMORY;
+		goto done;
+	}
+	save = (flags & 1) != 0;
+	reject_blank = (flags & 2) != 0;
+	noninteractive = (flags & 4) != 0;
+	existing = rip_find_variable(engine, name);
+	if (noninteractive && existing != NULL) {
+		if (default_value != NULL && default_value[0] != '\0')
+			status = rip_set_variable(engine, name, default_value,
+			    width, save);
+		goto done;
+	}
+	if (terminal->rip_prompt == NULL)
+		goto done;
+	initial = existing != NULL && existing->value != NULL
+	    ? existing->value : default_value != NULL ? default_value : "";
+	if (question != NULL)
+		prompt = question;
+	else {
+		snprintf(fallback, sizeof(fallback), "Please enter: \"%s\"", name);
+		prompt = fallback;
+	}
+	do {
+		free(entered);
+		entered = NULL;
+		free(normalized);
+		normalized = NULL;
+		status = terminal->rip_prompt(terminal->rip_prompt_context,
+		    prompt, initial, (size_t)width, reject_blank, &entered);
+		if (status != 0 || entered == NULL)
+			break;
+		status = st_unicode_text_normalize(&normalized,
+		    &normalized_size, entered, strlen(entered), NULL);
+		if (status != 0)
+			break;
+		size_t position = 0, characters = 0;
+
+		while (position < normalized_size && characters <= (size_t)width) {
+			uint32_t codepoint;
+			size_t consumed;
+
+			status = st_utf8_decode_one(&codepoint, &consumed,
+			    normalized + position, normalized_size - position);
+			if (status != 0)
+				break;
+			position += consumed;
+			characters++;
+		}
+		if (status != 0)
+			break;
+		if (characters <= (size_t)width
+		    && (!reject_blank || normalized_size != 0))
+			break;
+	} while (true);
+	if (status == 0 && normalized != NULL
+	    && (normalized_size != 0 || !reject_blank))
+		status = rip_set_variable(engine, name, normalized, width, save);
+done:
+	if (status == 0 && save)
+		rip_save_variable(terminal, name);
+	free(entered);
+	free(normalized);
+	free(question);
+	free(default_value);
+	return status;
+}
+
+static int
+rip_host_command(void *context, int level, int sublevel,
+    uint8_t code, const char *arguments)
+{
+	st_cterm_t *terminal = context;
+	struct cterm_rip_raster *raster = &terminal->rip_engine->raster;
+	int first, second, third, fourth;
+	int coords[4], wrap, style;
+	int mouse[9];
+	uint32_t previous_background;
+
+	if (level == 1 && sublevel == 0) {
+		switch (code) {
+		case 'D':
+			return rip_define_variable(terminal, arguments);
+		case 'F': {
+			char *response = NULL;
+			size_t response_size = 0;
+			int status = cterm_rip_file_query(&response,
+			    &response_size, terminal->rip_directory, arguments);
+
+			if (status != 0)
+				return status;
+			if (response != NULL && terminal->api_output != NULL)
+				terminal->api_output(terminal->api_output_context,
+				    ST_CTERM_OUTPUT_RESPONSE,
+				    (const uint8_t *)response, response_size);
+			free(response);
+			return 0;
+		}
+		case 0x1b: {
+			char **stored;
+			char *replacement;
+
+			if (strlen(arguments) < 4
+			    || !rip_number(arguments, 1, &first)
+			    || !rip_number(arguments + 1, 3, &second))
+				return 0;
+			if (first == 0)
+				return rip_send_mouse_command(terminal,
+				    arguments + 4);
+			if (first != 1 && first != 2)
+				return 0;
+			stored = first == 1
+			    ? &terminal->rip_engine->graphics_click
+			    : &terminal->rip_engine->text_click;
+			if (strcmp(arguments + 4, "$OFF$") == 0) {
+				free(*stored);
+				*stored = NULL;
+				return 0;
+			}
+			replacement = strdup(arguments + 4);
+			if (replacement == NULL)
+				return IO_ERROR_OUT_OF_MEMORY;
+			free(*stored);
+			*stored = replacement;
+			return 0;
+		}
+		case 'K':
+			cterm_rip_engine_clear_mouse(terminal->rip_engine);
+			return 0;
+		case 'M': {
+			static const uint8_t widths[9] = {
+				2, 2, 2, 2, 2, 1, 1, 4, 1
+			};
+			size_t offset = 0;
+
+			for (size_t i = 0; i < 9; i++) {
+				if (!rip_number(arguments + offset, widths[i],
+				    &mouse[i]))
+					return 0;
+				offset += widths[i];
+			}
+			if (mouse[3] > raster->viewport.ex
+			    - raster->viewport.sx
+			    || mouse[4] > raster->viewport.ey
+			    - raster->viewport.sy
+			    || mouse[5] > 1 || mouse[6] > 1
+			    || mouse[1] > mouse[3] || mouse[2] > mouse[4])
+				return 0;
+			return cterm_rip_engine_add_mouse(terminal->rip_engine,
+			    mouse[1] + raster->viewport.sx,
+			    mouse[2] + raster->viewport.sy,
+			    mouse[3] + raster->viewport.sx,
+			    mouse[4] + raster->viewport.sy,
+			    mouse[5] != 0, mouse[6] != 0,
+			    arguments + offset);
+		}
+		case 'U': {
+			static const uint8_t widths[7] = {2, 2, 2, 2, 2, 1, 1};
+			const struct cterm_rip_button_style *button_style =
+			    &raster->last_button_style;
+			int button[7];
+			size_t offset = 0;
+			const char *icon_end;
+			const char *label_start;
+			const char *label_end;
+			const char *command;
+			char *icon = NULL;
+			char *label = NULL;
+			int status;
+
+			if (strlen(arguments) < 12)
+				return 0;
+			for (size_t i = 0; i < 7; i++) {
+				if (!rip_number(arguments + offset, widths[i],
+				    &button[i]))
+					return 0;
+				offset += widths[i];
+			}
+			label_start = strstr(arguments + offset, "<>");
+			icon_end = label_start == NULL
+			    ? arguments + strlen(arguments) : label_start;
+			if (icon_end != arguments + offset) {
+				icon = strndup(arguments + offset,
+				    (size_t)(icon_end - (arguments + offset)));
+				if (icon == NULL)
+					return IO_ERROR_OUT_OF_MEMORY;
+			}
+			if (label_start != NULL)
+				label_start += 2;
+			command = label_start == NULL ? NULL
+			    : strstr(label_start, "<>");
+			label_end = command == NULL ? NULL : command;
+			command = command == NULL ? "" : command + 2;
+			if (label_start != NULL) {
+				if (label_end == NULL)
+					label_end = label_start + strlen(label_start);
+				if (label_end != label_start) {
+					size_t size = (size_t)(label_end - label_start);
+
+					label = malloc(size + 1);
+					if (label == NULL) {
+						free(icon);
+						return IO_ERROR_OUT_OF_MEMORY;
+					}
+					memcpy(label, label_start, size);
+					label[size] = '\0';
+				}
+			}
+			if ((button_style->flags & 1024) != 0) {
+				const struct cterm_rip_button_draw drawing = {
+					.style = *button_style,
+					.x1 = button[0] + raster->viewport.sx,
+					.y1 = button[1] + raster->viewport.sy,
+					.x2 = raster->last_button_x2,
+					.y2 = raster->last_button_y2,
+					.hotkey = button[4],
+					.font_number = raster->font_number,
+					.font_size = raster->font_size,
+					.font_vertical = raster->font_vertical,
+					.icon = icon,
+					.label = label,
+				};
+
+				status = cterm_rip_engine_add_button_mouse(
+				    terminal->rip_engine, &drawing,
+				    (button[5] & 1) != 0, command);
+				if (status != 0) {
+					free(icon);
+					free(label);
+					return status;
+				}
+			}
+			free(icon);
+			free(label);
+			if ((button[5] & 1) != 0 && command[0] != '\0')
+				return rip_send_mouse_command(terminal, command);
+			return 0;
+		}
+		default:
+			return IO_ERROR_NOT_SUPPORTED;
+		}
+	}
+	if (level != 0 || sublevel != 0)
+		return IO_ERROR_NOT_SUPPORTED;
+	switch (code) {
+	case '#':
+		return 0;
+	case '$': {
+		const char *end = strchr(arguments, '$');
+		char answer[RIP_QUERY_VALUE_SIZE];
+		bool handled;
+		int status;
+
+		if (end == NULL)
+			return 0;
+		status = rip_state_variable(terminal, arguments,
+		    (size_t)(end - arguments), &handled);
+		if (status != 0 || handled)
+			return status;
+
+		if (rip_variable_token_equal(arguments,
+		    (size_t)(end - arguments), "COMPAT"))
+			return rip_compat_frame(terminal);
+		status = rip_query_variable(terminal, arguments,
+		    (size_t)(end - arguments), answer, &handled);
+		if (status != 0 || handled)
+			return status;
+		/* Legacy variables not recognized by this client expand to empty. */
+		return 0;
+	}
+	case '*':
+		cterm_rip_engine_clear_mouse(terminal->rip_engine);
+		terminal->rip_engine->hotkeys_enabled = true;
+		terminal->rip_engine->tab_enabled = true;
+		{
+			int status = rip_text_font(terminal,
+			    raster->version == 3 ? RIP_TEXT_FONT_DEFAULT : 0);
+
+			if (status != 0)
+				return status;
+		}
+		terminal->rip_text_disabled = false;
+		terminal->left_margin = 1;
+		terminal->top_margin = 1;
+		terminal->right_margin = terminal->width;
+		terminal->bottom_margin = terminal->height;
+		terminal->extattr |= CTERM_EXTATTR_ORIGINMODE
+		    | CTERM_EXTATTR_AUTOWRAP;
+		terminal->attr = 15;
+		terminal->fg_color = raster->palette[15];
+		terminal->bg_color = raster->palette[0];
+		cterm_apply_window(terminal);
+		cterm_render_set_attribute(terminal, terminal->attr);
+		cterm_render_set_colours(terminal, terminal->fg_color,
+		    terminal->bg_color);
+		cterm_set_position(terminal, 1, 1);
+		cterm_render_clear_window(terminal);
+		return cterm_rip_raster_reset_windows(raster);
+	case 'H':
+		cterm_set_position(terminal, 1, 1);
+		return cterm_render_take_error(terminal);
+	case 'g':
+		if (strlen(arguments) < 4)
+			return 0;
+		first = rip_digit(arguments[0]);
+		second = rip_digit(arguments[1]);
+		third = rip_digit(arguments[2]);
+		fourth = rip_digit(arguments[3]);
+		if (first < 0 || second < 0 || third < 0 || fourth < 0)
+			return 0;
+		cterm_set_position(terminal, first * 36 + second + 1,
+		    third * 36 + fourth + 1);
+		return cterm_render_take_error(terminal);
+	case 'w':
+		if (strlen(arguments) < 10)
+			return 0;
+		for (size_t index = 0; index < 4; index++) {
+			first = rip_digit(arguments[index * 2]);
+			second = rip_digit(arguments[index * 2 + 1]);
+			if (first < 0 || second < 0)
+				return 0;
+			coords[index] = first * 36 + second;
+		}
+		wrap = rip_digit(arguments[8]);
+		style = rip_digit(arguments[9]);
+		if (coords[0] == 0 && coords[1] == 0
+		    && coords[2] == 0 && coords[3] == 0) {
+			terminal->rip_text_disabled = true;
+			return 0;
+		}
+		terminal->rip_text_disabled = false;
+		if (wrap > 1 || wrap < 0 || style > 4 || style < 0)
+			return 0;
+		{
+			int status = rip_text_font(terminal, style);
+
+			if (status != 0)
+				return status;
+		}
+		for (size_t index = 0; index < 4; index++) {
+			int maximum = index % 2 == 0
+			    ? terminal->width : terminal->height;
+			if (coords[index] >= maximum)
+				coords[index] = maximum - 1;
+		}
+		terminal->left_margin = coords[0] + 1;
+		terminal->top_margin = coords[1] + 1;
+		terminal->right_margin = coords[2] + 1;
+		terminal->bottom_margin = coords[3] + 1;
+		/* Legacy rip_text_window sets wrap before reinit_screen(),
+		 * which recreates CTerm and restores its default modes. */
+		terminal->extattr = CTERM_EXTATTR_AUTOWRAP
+		    | CTERM_EXTATTR_ORIGINMODE | CTERM_EXTATTR_SXSCROLL
+		    | CTERM_EXTATTR_DECBKM;
+		cterm_apply_window(terminal);
+		cterm_set_position(terminal, 1, 1);
+		return cterm_render_take_error(terminal);
+	case 'b': {
+		static const uint8_t widths[8] = {2, 2, 2, 2, 2, 2, 1, 4};
+		int extended[8];
+		int pixel_width, pixel_height, font_width, font_height;
+		int xoffset, yoffset, font_style;
+		size_t offset = 0;
+		int status;
+
+		if (strlen(arguments) < 17)
+			return 0;
+		for (size_t index = 0; index < 8; index++) {
+			if (!rip_number(arguments + offset, widths[index],
+			    &extended[index]))
+				return 0;
+			offset += widths[index];
+		}
+		extended[0] = cterm_rip_raster_map_x(raster, extended[0]);
+		extended[2] = cterm_rip_raster_map_x(raster, extended[2]);
+		extended[1] = cterm_rip_raster_map_y(raster, extended[1]);
+		extended[3] = cterm_rip_raster_map_y(raster, extended[3]);
+		pixel_width = extended[2] - extended[0] + 1;
+		pixel_height = extended[3] - extended[1] + 1;
+		if (pixel_width <= 0 || pixel_height <= 0
+		    || extended[4] <= 0 || extended[5] <= 0)
+			return 0;
+		font_width = 16;
+		if ((extended[7] & 0x10) == 0 && extended[6] != 4)
+			font_width = 8;
+		else if (pixel_width < font_width * extended[4])
+			font_width = 8;
+		if (pixel_width < font_width * extended[4])
+			font_width = 7;
+		font_height = 16;
+		if (font_width == 16)
+			font_height = 14;
+		else if (pixel_height < font_height * extended[5])
+			font_height = 14;
+		if (pixel_height < font_height * extended[5])
+			font_height = 8;
+		if (pixel_width < font_width * extended[4])
+			extended[4] = pixel_width / font_width;
+		if (pixel_height < font_height * extended[5])
+			extended[5] = pixel_height / font_height;
+		if (extended[4] <= 0 || extended[5] <= 0)
+			return 0;
+		if ((extended[7] & 0x10) == 0) {
+			switch (extended[6]) {
+			case 0:
+				if (font_height > 8) font_height = 8;
+				break;
+			case 1:
+				if (font_height > 8) font_height = 8;
+				if (font_width > 7) font_width = 7;
+				break;
+			case 3:
+				if (font_width > 7) font_width = 7;
+				break;
+			}
+		}
+		xoffset = ((pixel_width - font_width * extended[4]) / 2)
+		    / font_width;
+		yoffset = ((pixel_height - font_height * extended[5]) / 2)
+		    / font_height;
+		if (font_width == 16 && font_height == 14)
+			font_style = 4;
+		else if (font_width == 8 && font_height == 16)
+			font_style = 5;
+		else if (font_width == 8 && font_height == 14)
+			font_style = 2;
+		else if (font_width == 8 && font_height == 8)
+			font_style = 0;
+		else if (font_width == 7 && font_height == 14)
+			font_style = 3;
+		else
+			font_style = 1;
+		status = rip_text_font(terminal, font_style);
+		if (status != 0)
+			return status;
+		terminal->left_margin = extended[0] / font_width + xoffset;
+		terminal->top_margin = extended[1] / font_height + yoffset;
+		terminal->right_margin = terminal->left_margin + extended[4] - 1;
+		terminal->bottom_margin = terminal->top_margin + extended[5] - 1;
+		terminal->extattr |= CTERM_EXTATTR_ORIGINMODE;
+		if ((extended[7] & 1) != 0)
+			terminal->extattr |= CTERM_EXTATTR_AUTOWRAP;
+		else
+			terminal->extattr &= ~CTERM_EXTATTR_AUTOWRAP;
+		cterm_apply_window(terminal);
+		cterm_set_position(terminal, 1, 1);
+		if ((extended[7] & 0x20) != 0) {
+			int old_style = raster->fill_style;
+			int old_colour = raster->fill_colour;
+			uint8_t old_pattern[8];
+
+			memcpy(old_pattern, raster->fill_pattern,
+			    sizeof(old_pattern));
+			cterm_rip_raster_fill_style(raster, 1, 0);
+			cterm_rip_raster_bar(raster, extended[0], extended[1],
+			    extended[2], extended[3]);
+			raster->fill_style = old_style;
+			raster->fill_colour = old_colour;
+			memcpy(raster->fill_pattern, old_pattern,
+			    sizeof(old_pattern));
+		}
+		if (raster->error != 0)
+			return raster->error;
+		return cterm_render_take_error(terminal);
+	}
+	case 'e':
+		if (!terminal->rip_text_disabled) {
+			cterm_render_clear_window(terminal);
+			cterm_set_position(terminal, 1, 1);
+		}
+		return cterm_render_take_error(terminal);
+	case '>':
+		previous_background = terminal->bg_color;
+		terminal->bg_color = raster->palette[0];
+		cterm_clear_line(terminal);
+		terminal->bg_color = previous_background;
+		return cterm_render_take_error(terminal);
+	default:
+		return IO_ERROR_NOT_SUPPORTED;
+	}
+}
 
 static void
 emit_response(const char *bytes, size_t size, void *context)
@@ -123,6 +1714,43 @@ mouse_mode_query(int parameter, void *context)
 }
 
 static int
+prepare_rip_unicode_position(st_cterm_t *target, int *x, int *y)
+{
+	struct cterminal *cterm = target;
+	int right = TERM_MAXX;
+
+	if (target->rip_engine == NULL)
+		return 0;
+	cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_CURR,
+	    &right, NULL);
+	if ((target->last_column_flag & (CTERM_LCF_ENABLED | CTERM_LCF_SET))
+	    != (CTERM_LCF_ENABLED | CTERM_LCF_SET)
+	    || (*x != right && *x != CURR_MAXX))
+		return 0;
+	/* The console itself does not auto-wrap; RIP uses CTerm's deferred
+	 * last-column wrap before the next printable grapheme. */
+	cterm_advance_char(target, x, y, 1);
+	cterm_clear_lcf(target);
+	return cterm_render_take_error(target);
+}
+
+static void
+record_rip_unicode_position(st_cterm_t *target, int x, uint8_t columns)
+{
+	struct cterminal *cterm = target;
+	int right = TERM_MAXX;
+
+	if (target->rip_engine == NULL || columns == 0
+	    || (target->extattr & CTERM_EXTATTR_AUTOWRAP) == 0
+	    || (target->last_column_flag & CTERM_LCF_ENABLED) == 0)
+		return;
+	cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_CURR,
+	    &right, NULL);
+	if (x + columns - 1 >= right || x + columns - 1 >= CURR_MAXX)
+		target->last_column_flag |= CTERM_LCF_SET;
+}
+
+static int
 present_unicode(void *context,
 	const struct st_unicode_presentation_event *event)
 {
@@ -135,6 +1763,14 @@ present_unicode(void *context,
 	int y;
 	int status;
 
+	if (!target->started
+	    && event->kind != ST_UNICODE_PRESENTATION_COMMIT) {
+		cterm_start(target);
+		status = cterm_render_take_error(target);
+		if (status != 0)
+			return status;
+	}
+
 	switch (event->kind) {
 	case ST_UNICODE_PRESENTATION_BEGIN:
 		cterm_apply_window(target);
@@ -142,12 +1778,17 @@ present_unicode(void *context,
 		y = target->ypos;
 		cterm_coord_conv_xy(target, CTERM_COORD_ABSTERM,
 		    CTERM_COORD_CURR, &x, &y);
+		status = prepare_rip_unicode_position(target, &x, &y);
+		if (status != 0)
+			return status;
 		cterm_render_set_position(target, x, y);
 		if (st_console_get_position(console, &target->screen.provisional_x,
 		    &target->screen.provisional_y) != 0)
 			return IO_ERROR_IO;
 		status = st_console_write_utf8(console, (const char *)event->bytes,
 		    event->size);
+		if (status == 0)
+			record_rip_unicode_position(target, x, event->columns);
 		break;
 	case ST_UNICODE_PRESENTATION_REVISE:
 		cterm_apply_window(target);
@@ -165,8 +1806,13 @@ present_unicode(void *context,
 		y = target->ypos;
 		cterm_coord_conv_xy(target, CTERM_COORD_ABSTERM,
 		    CTERM_COORD_CURR, &x, &y);
+		status = prepare_rip_unicode_position(target, &x, &y);
+		if (status != 0)
+			return status;
 		cterm_render_set_position(target, x, y);
 		status = st_console_put_decode_error(console);
+		if (status == 0)
+			record_rip_unicode_position(target, x, 1);
 		break;
 	default:
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -190,27 +1836,22 @@ destroy_status_sub(st_cterm_t *terminal)
 static void
 clear_reserved_status(st_cterm_t *terminal)
 {
-	struct st_console_style style;
-	struct st_console_cell blank = {0};
+	struct st_console_cell blank = {
+		.foreground = ST_CONSOLE_COLOR_RGB_VALUE(170, 170, 170),
+		.background = ST_CONSOLE_COLOR_RGB_VALUE(0, 0, 0),
+		.font = terminal->screen.fonts.normal,
+		.glyph_font = terminal->screen.fonts.normal,
+	};
 	struct st_console_rect row;
 	uint8_t width;
 	int status;
 
-	if (st_console_get_style(terminal->screen.console, &style) != 0) {
-		cterm_render_record_error(terminal, IO_ERROR_IO);
-		return;
-	}
 	row = (struct st_console_rect){
 		.x = (uint32_t)(terminal->x - 1),
 		.y = (uint32_t)(terminal->y + terminal->height - 1),
 		.width = (uint32_t)terminal->width,
 		.height = 1,
 	};
-	blank.foreground = style.foreground;
-	blank.background = style.background;
-	blank.flags = style.flags;
-	blank.font = style.font;
-	blank.glyph_font = style.font;
 	status = st_console_font_lookup(
 	    terminal->screen.console, blank.font, ' ', &blank.glyph_font,
 	    &blank.glyph, &width);
@@ -434,6 +2075,10 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 	    || config->emulation > ST_CTERM_ATARI_ST_VT52
 	    || config->encoding < ST_CTERM_ENCODING_UTF8
 	    || config->encoding > ST_CTERM_ENCODING_CODEPAGE
+	    || config->rip_version < ST_CTERM_RIP_OFF
+	    || config->rip_version > ST_CTERM_RIP_3
+	    || (config->rip_version != ST_CTERM_RIP_OFF
+	        && config->emulation != ST_CTERM_ANSI_BBS)
 	    || config->codepage >= ST_CODEPAGE_COUNT
 	    || (config->encoding == ST_CTERM_ENCODING_UTF8
 	    && !utf8_supported(config->emulation))
@@ -498,11 +2143,15 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 		return status;
 	}
 	terminal->quiet = config->quiet;
+	if (config->rip_version != ST_CTERM_RIP_OFF)
+		terminal->last_column_flag = CTERM_LCF_FORCED | CTERM_LCF_ENABLED;
 	terminal->status_display_type = config->status_line ? 1 : 0;
 	terminal->api_reserved_rows = rows - terminal_rows - status_rows;
 	terminal->wire_encoding = config->encoding;
 	terminal->api_output = config->output;
 	terminal->api_output_context = config->output_context;
+	terminal->rip_prompt = config->rip_prompt;
+	terminal->rip_prompt_context = config->rip_prompt_context;
 	terminal->api_apc = config->apc;
 	terminal->api_apc_context = config->apc_context;
 	terminal->api_size_changed = config->size_changed;
@@ -546,6 +2195,62 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 		}
 		terminal->screen.hyperlink_root_registered = true;
 	}
+	if (config->rip_version != ST_CTERM_RIP_OFF) {
+		const struct cterm_rip_parser_sink sink = {
+			.context = terminal,
+			.passthrough = rip_passthrough,
+			.command = rip_host_command,
+			.control = rip_control,
+			.at_carriage_return_column = rip_at_column,
+			.text_disabled = rip_text_disabled,
+			.music_introducer = rip_music_introducer,
+		};
+
+		terminal->rip_engine = calloc(1, sizeof(*terminal->rip_engine));
+		if (terminal->rip_engine == NULL) {
+			st_cterm_destroy(&terminal);
+			return IO_ERROR_OUT_OF_MEMORY;
+		}
+		status = cterm_rip_engine_init(terminal->rip_engine,
+		    config->console, &sink);
+		if (status != 0) {
+			st_cterm_destroy(&terminal);
+			return status;
+		}
+		terminal->rip_engine->parser.utf8_input =
+		    config->encoding == ST_CTERM_ENCODING_UTF8;
+		status = st_console_set_full_surface_scroll(config->console, true);
+		if (status != 0) {
+			st_cterm_destroy(&terminal);
+			return status;
+		}
+		terminal->rip_engine->raster.version =
+		    config->rip_version == ST_CTERM_RIP_3 ? 3 : 1;
+		terminal->rip_engine->default_text.font_identifier = normal;
+		status = st_console_size(config->console,
+		    &terminal->rip_engine->default_text.columns,
+		    &terminal->rip_engine->default_text.rows);
+		if (status == 0)
+			status = st_console_cell_pixel_size(config->console,
+			    &terminal->rip_engine->default_text.cell_width,
+			    &terminal->rip_engine->default_text.cell_height);
+		if (status != 0) {
+			st_cterm_destroy(&terminal);
+			return status;
+		}
+		if (config->rip_version == ST_CTERM_RIP_3)
+			terminal->rip_text_font_style = RIP_TEXT_FONT_DEFAULT;
+		terminal->rip_engine->raster.text_codepage = config->codepage;
+		terminal->rip_engine->raster.unicode_text =
+		    config->encoding == ST_CTERM_ENCODING_UTF8;
+		terminal->rip_directory = config->rip_directory;
+		terminal->rip_engine->raster.rip_directory = config->rip_directory;
+		status = rip_load_variables(terminal);
+		if (status != 0) {
+			st_cterm_destroy(&terminal);
+			return status;
+		}
+	}
 	*result = terminal;
 	return 0;
 }
@@ -560,6 +2265,13 @@ st_cterm_destroy(st_cterm_t **terminal)
 	scrollback = (*terminal)->scrollback;
 	(void)st_cterm_finish(*terminal);
 	st_unicode_presentation_destroy(&(*terminal)->screen.unicode);
+	if ((*terminal)->rip_engine != NULL) {
+		cterm_rip_engine_destroy((*terminal)->rip_engine);
+		free((*terminal)->rip_engine);
+		(*terminal)->rip_engine = NULL;
+		(void)st_console_set_full_surface_scroll(
+		    (*terminal)->screen.console, false);
+	}
 	destroy_status_sub(*terminal);
 	(void)cterm_render_set_hold_update(*terminal, 0);
 	if ((*terminal)->screen.hyperlink_root_registered) {
@@ -605,8 +2317,8 @@ codepage_write(st_cterm_t *terminal, const uint8_t *bytes, size_t size,
 	return status;
 }
 
-int
-st_cterm_write(st_cterm_t *terminal, const void *bytes, size_t size,
+static int
+write_plain(st_cterm_t *terminal, const void *bytes, size_t size,
 	size_t *consumed)
 {
 	const uint8_t *input = bytes;
@@ -632,6 +2344,28 @@ st_cterm_write(st_cterm_t *terminal, const void *bytes, size_t size,
 		st_cterm_t *target = terminal->status_sub != NULL
 		    && terminal->status_display_active == 1
 		    ? terminal->status_sub : terminal;
+
+		if (byte >= 0x80
+		    && target->accumulator == cterm_accumulate_ecma_seq
+		    && target->seq_phase == SEQ_PHASE_C1
+		    && target->seq_key == SEQ_ESC
+		    && target->saved_accumulator == NULL) {
+			/* A non-ASCII scalar cannot complete a single-byte ESC
+			 * sequence.  Emit the literal ESC before feeding its UTF-8
+			 * bytes, including any continuation in a later write. */
+			char literal_escape[] = "\033";
+
+			target->accumulator = NULL;
+			target->seq_phase = SEQ_PHASE_IDLE;
+			target->sequence = 0;
+			cterm_apply_window(target);
+			cterm_uctputs(target, literal_escape);
+			cterm_coord_get_xy(target, CTERM_COORD_ABSTERM,
+			    &target->xpos, &target->ypos);
+			status = cterm_render_take_error(target);
+			if (status != 0)
+				break;
+		}
 
 		if (target->accumulator != NULL || byte < 0x20 || byte == 0x7f) {
 			size_t used;
@@ -673,14 +2407,29 @@ st_cterm_write(st_cterm_t *terminal, const void *bytes, size_t size,
 }
 
 int
+st_cterm_write(st_cterm_t *terminal, const void *bytes, size_t size,
+	size_t *consumed)
+{
+	if (terminal == NULL || consumed == NULL || (bytes == NULL && size != 0))
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (terminal->rip_engine != NULL)
+		return cterm_rip_engine_feed(terminal->rip_engine, bytes,
+		    size, consumed);
+	return write_plain(terminal, bytes, size, consumed);
+}
+
+int
 st_cterm_finish(st_cterm_t *terminal)
 {
 	int status;
 
 	if (terminal == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	status = terminal->screen.unicode == NULL ? 0
-	    : st_unicode_presentation_boundary(terminal->screen.unicode);
+	status = terminal->rip_engine == NULL ? 0
+	    : cterm_rip_engine_flush(terminal->rip_engine);
+	if (status == 0)
+		status = terminal->screen.unicode == NULL ? 0
+		    : st_unicode_presentation_boundary(terminal->screen.unicode);
 	if (status == 0)
 		status = cterm_render_take_error(terminal);
 	if (status == 0 && terminal->status_sub != NULL)
@@ -696,6 +2445,33 @@ st_cterm_reset_terminal(st_cterm_t *terminal)
 	if (status != 0)
 		return status;
 	cterm_reset(terminal);
+	if (terminal->rip_engine != NULL) {
+		struct cterm_rip_engine *engine = terminal->rip_engine;
+		struct cterm_rip_parser_sink host = engine->host;
+		int version = engine->raster.version;
+		enum st_codepage text_codepage = engine->raster.text_codepage;
+		bool unicode_text = engine->raster.unicode_text;
+
+		cterm_start(terminal);
+		status = cterm_render_take_error(terminal);
+		if (status != 0)
+			return status;
+		cterm_rip_engine_destroy(engine);
+		status = cterm_rip_engine_init(engine, terminal->screen.console,
+		    &host);
+		if (status != 0)
+			return status;
+		engine->parser.utf8_input =
+		    terminal->wire_encoding == ST_CTERM_ENCODING_UTF8;
+		engine->raster.version = version;
+		engine->raster.text_codepage = text_codepage;
+		engine->raster.unicode_text = unicode_text;
+		engine->raster.rip_directory = terminal->rip_directory;
+		status = rip_load_variables(terminal);
+		if (status != 0)
+			return status;
+		terminal->rip_text_disabled = false;
+	}
 	return cterm_render_take_error(terminal);
 }
 
@@ -873,6 +2649,13 @@ st_cterm_set_encoding(st_cterm_t *terminal, enum st_cterm_encoding encoding,
 		st_unicode_presentation_destroy(&terminal->screen.unicode);
 	terminal->wire_encoding = encoding;
 	terminal->screen.codepage = codepage;
+	if (terminal->rip_engine != NULL) {
+		terminal->rip_engine->raster.text_codepage = codepage;
+		terminal->rip_engine->raster.unicode_text =
+		    encoding == ST_CTERM_ENCODING_UTF8;
+		terminal->rip_engine->parser.utf8_input =
+		    encoding == ST_CTERM_ENCODING_UTF8;
+	}
 	return 0;
 }
 
@@ -927,12 +2710,34 @@ st_cterm_copy_history(st_cterm_t *terminal,
 }
 
 bool
-st_cterm_handle_key(st_cterm_t *terminal, uint16_t key_code)
+st_cterm_handle_key(st_cterm_t *terminal, uint16_t key_code,
+    uint32_t modifiers)
 {
+	struct cterm_rip_engine *engine;
 	int doorway_key;
 
 	if (terminal == NULL)
 		return false;
+	engine = terminal->rip_engine;
+	if (engine != NULL && engine->tab_enabled && key_code == '\t') {
+		/* The historical handler passes false for Tab, true for Backtab. */
+		cterm_rip_engine_next_tab(engine,
+		    (modifiers & ST_CONSOLE_MODIFIER_SHIFT) != 0);
+		return true;
+	}
+	if (engine != NULL && engine->tab_highlight != NULL) {
+		struct cterm_rip_mouse_field *field = engine->tab_highlight;
+
+		cterm_rip_engine_clear_tab(engine);
+		if (key_code == '\r' || key_code == '\n') {
+			cterm_render_record_error(terminal,
+			    rip_activate_field(terminal, field));
+			return true;
+		}
+	}
+	if (engine != NULL && key_code != 0 && key_code <= 0x7f
+	    && st_cterm_handle_rip_text(terminal, key_code))
+		return true;
 	switch (key_code) {
 	case ST_CONSOLE_KEY_UP: doorway_key = CTERM_KEY_DOS_UP; break;
 	case ST_CONSOLE_KEY_DOWN: doorway_key = CTERM_KEY_DOS_DOWN; break;
@@ -954,8 +2759,51 @@ st_cterm_handle_key(st_cterm_t *terminal, uint16_t key_code)
 }
 
 bool
+st_cterm_handle_rip_text(st_cterm_t *terminal, uint32_t codepoint)
+{
+	struct cterm_rip_engine *engine;
+
+	if (terminal == NULL || (engine = terminal->rip_engine) == NULL)
+		return false;
+	if (engine->tab_highlight != NULL) {
+		cterm_rip_engine_clear_tab(engine);
+		return false;
+	}
+	if (!engine->hotkeys_enabled)
+		return false;
+	if (codepoint >= 'a' && codepoint <= 'z')
+		codepoint -= 'a' - 'A';
+	for (struct cterm_rip_mouse_field *field = engine->mouse_fields;
+	    field != NULL; field = field->next) {
+		int hotkey = field->drawing.hotkey;
+		uint32_t decoded;
+
+		if (!field->is_button || hotkey < 0 || hotkey > 0xff)
+			continue;
+		if (hotkey >= 'a' && hotkey <= 'z')
+			hotkey -= 'a' - 'A';
+		decoded = hotkey < 0x80 ? (uint32_t)hotkey
+		    : st_codepage_to_unicode(terminal->screen.codepage,
+		    (uint8_t)hotkey, false);
+		if (decoded != codepoint)
+			continue;
+		cterm_render_record_error(terminal,
+		    rip_activate_field(terminal, field));
+		return true;
+	}
+	return false;
+}
+
+bool
 st_cterm_handle_doorway_key(st_cterm_t *terminal, uint8_t scan_code)
 {
+	if (terminal != NULL && terminal->rip_engine != NULL
+	    && terminal->rip_engine->tab_enabled && scan_code == 0x0f) {
+		cterm_rip_engine_next_tab(terminal->rip_engine, true);
+		return true;
+	}
+	if (terminal != NULL && terminal->rip_engine != NULL)
+		cterm_rip_engine_clear_tab(terminal->rip_engine);
 	return terminal != NULL
 	    && cterm_handle_key(terminal, (int)scan_code << 8)
 	    == CTERM_KEY_HANDLED;
@@ -998,6 +2846,336 @@ append_mouse_utf8(char *buffer, size_t offset, uint32_t value)
 	return count < 0 ? 0 : offset + (size_t)count;
 }
 
+static int
+rip_append_command_bytes(uint8_t **output, size_t *capacity,
+    size_t *used, const void *bytes, size_t size)
+{
+	if (size > SIZE_MAX - *used)
+		return IO_ERROR_OUT_OF_RANGE;
+	if (*used + size > *capacity) {
+		size_t grown = *capacity;
+		uint8_t *replacement;
+
+		while (grown < *used + size) {
+			if (grown > SIZE_MAX / 2) {
+				grown = *used + size;
+				break;
+			}
+			grown *= 2;
+		}
+		replacement = realloc(*output, grown);
+		if (replacement == NULL)
+			return IO_ERROR_OUT_OF_MEMORY;
+		*output = replacement;
+		*capacity = grown;
+	}
+	memcpy(*output + *used, bytes, size);
+	*used += size;
+	return 0;
+}
+
+static int
+rip_compat_frame(st_cterm_t *terminal)
+{
+	/* The legacy COMPAT variable resets the coordinate frame only. */
+	struct cterm_rip_raster *raster = &terminal->rip_engine->raster;
+	uint32_t width, height;
+	int status = st_console_pixel_size(raster->console, &width, &height);
+
+	if (status != 0)
+		return status;
+	raster->screen_width = width;
+	raster->screen_height = height;
+	raster->x_dim = 640;
+	raster->y_dim = 350;
+	raster->x_max = width < 640 ? (int)width : 640;
+	raster->y_max = height < 350 ? (int)height : 350;
+	raster->viewport.sx = 0;
+	raster->viewport.sy = 0;
+	raster->viewport.ex = 639;
+	raster->viewport.ey = 349;
+	return 0;
+}
+
+static int
+rip_send_mouse_command(st_cterm_t *terminal, const char *command)
+{
+	size_t length = strlen(command);
+	size_t capacity;
+	uint8_t *output;
+	size_t used = 0;
+	int status = 0;
+
+	if (length > (SIZE_MAX - 1) / 2)
+		return IO_ERROR_OUT_OF_RANGE;
+	capacity = length * 2 + 1;
+	output = malloc(capacity);
+	if (output == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	for (size_t i = 0; i < length; i++) {
+		uint8_t value = (uint8_t)command[i];
+
+		if (value == '$') {
+			const char *end = strchr(command + i + 1, '$');
+			size_t name_length;
+
+			if (end == NULL)
+				continue;
+			name_length = (size_t)(end - command - i - 1);
+			if (rip_variable_token_equal(command + i + 1,
+			    name_length, "COMPAT"))
+				status = rip_compat_frame(terminal);
+			else {
+				char name[13];
+				char answer[RIP_QUERY_VALUE_SIZE];
+				struct cterm_rip_user_var *variable = NULL;
+				bool handled;
+
+				status = rip_query_variable(terminal,
+				    command + i + 1, name_length, answer,
+				    &handled);
+				if (status != 0)
+					break;
+				if (handled)
+					status = rip_append_command_bytes(&output,
+					    &capacity, &used, answer,
+					    strlen(answer));
+				if (status != 0)
+					break;
+				if (!handled) {
+					status = rip_state_variable(terminal,
+					    command + i + 1, name_length, &handled);
+					if (status != 0)
+						break;
+					if (!handled && name_length >= 1
+					    && name_length <= 12) {
+						memcpy(name, command + i + 1,
+						    name_length);
+						name[name_length] = '\0';
+						variable = rip_find_variable(
+						    terminal->rip_engine, name);
+					}
+					if (!handled && variable != NULL
+					    && variable->value != NULL)
+						status = rip_append_command_bytes(&output,
+						    &capacity, &used, variable->value,
+						    strlen(variable->value));
+				}
+			}
+			if (status != 0)
+				break;
+			i = (size_t)(end - command);
+			continue;
+		}
+		if ((value == '^' || value == '`') && i + 1 < length) {
+			uint8_t next = (uint8_t)command[i + 1];
+
+			if (next == value) {
+				status = rip_append_command_bytes(&output,
+				    &capacity, &used, &value, 1);
+				if (status != 0)
+					break;
+				i++;
+				continue;
+			}
+			if (next >= 'a' && next <= 'z')
+				next -= 'a' - 'A';
+			if (next >= '@' && next <= '_') {
+				uint8_t control = next - '@';
+
+				status = rip_append_command_bytes(&output,
+				    &capacity, &used, &control, 1);
+				if (status != 0)
+					break;
+				i++;
+				continue;
+			}
+		}
+		status = rip_append_command_bytes(&output, &capacity,
+		    &used, &value, 1);
+		if (status != 0)
+			break;
+	}
+	if (status == 0 && used != 0)
+		emit_user((const char *)output, used, terminal);
+	free(output);
+	return status;
+}
+
+static int
+rip_activate_field(st_cterm_t *terminal,
+    const struct cterm_rip_mouse_field *field)
+{
+	bool reset_after = field->is_button && field->reset_after;
+	int status = rip_send_mouse_command(terminal, field->command);
+
+	/* The command can clear or replace the field list. */
+	if (status == 0 && reset_after
+	    && terminal->rip_engine->mouse_fields != NULL)
+		status = rip_host_command(terminal, 0, 0, '*', "");
+	return status;
+}
+
+static int
+rip_redraw_button(struct cterm_rip_engine *engine,
+    struct cterm_rip_mouse_field *field, bool inverted)
+{
+	int status = cterm_rip_raster_draw_button(&engine->raster,
+	    &field->drawing, inverted);
+
+	field->x2 = field->drawing.x2;
+	field->y2 = field->drawing.y2;
+	return status;
+}
+
+static bool
+rip_handle_mouse(st_cterm_t *terminal,
+    const struct st_console_event *event, uint32_t changed)
+{
+	struct cterm_rip_engine *engine = terminal->rip_engine;
+	struct cterm_rip_mouse_field *field;
+	uint32_t cell_width, cell_height;
+	int x = event->data.mouse.pixel_x;
+	int y = event->data.mouse.pixel_y;
+	int status;
+	bool text_query;
+	bool graphics_query;
+
+	if (engine == NULL)
+		return false;
+	if (x < 0 || y < 0) {
+		if (event->data.mouse.x < 0 || event->data.mouse.y < 0
+		    || st_console_cell_pixel_size(terminal->screen.console,
+		    &cell_width, &cell_height) != 0
+		    || cell_width == 0 || cell_height == 0
+		    || (uint32_t)event->data.mouse.x > INT_MAX / cell_width
+		    || (uint32_t)event->data.mouse.y > INT_MAX / cell_height)
+			return false;
+		x = (int)((uint32_t)event->data.mouse.x * cell_width);
+		y = (int)((uint32_t)event->data.mouse.y * cell_height);
+	}
+	x = cterm_rip_raster_unmap_x(&engine->raster, x);
+	y = cterm_rip_raster_unmap_y(&engine->raster, y);
+	engine->last_mouse_x = x;
+	engine->last_mouse_y = y;
+	engine->last_mouse_buttons = event->data.mouse.buttons;
+	if (event->data.mouse.action != ST_CONSOLE_MOUSE_BUTTON
+	    || (changed & ST_CONSOLE_MOUSE_BUTTON_LEFT) == 0)
+		return false;
+	text_query = engine->text_click != NULL
+	    && event->data.mouse.x >= terminal->x + terminal->left_margin - 1
+	    && event->data.mouse.x <= terminal->x + terminal->right_margin - 1
+	    && event->data.mouse.y >= terminal->y + terminal->top_margin - 1
+	    && event->data.mouse.y <= terminal->y + terminal->bottom_margin - 1;
+	graphics_query = engine->graphics_click != NULL
+	    && x >= engine->raster.viewport.sx
+	    && x <= engine->raster.viewport.ex
+	    && y >= engine->raster.viewport.sy
+	    && y <= engine->raster.viewport.ey;
+	if ((event->data.mouse.buttons & ST_CONSOLE_MOUSE_BUTTON_LEFT) != 0) {
+		for (field = engine->mouse_fields; field != NULL;
+		    field = field->next) {
+			if (x >= field->x1 && x <= field->x2
+			    && y >= field->y1 && y <= field->y2)
+				break;
+		}
+		engine->pressed_field = field;
+		if (field == NULL)
+			return text_query || graphics_query;
+		if (field->is_button) {
+			const int flags = field->drawing.style.flags;
+
+			if ((flags & 16384) != 0) {
+				for (struct cterm_rip_mouse_field *other =
+				    engine->mouse_fields; other != NULL;
+				    other = other->next) {
+					if (other == field || !other->is_button
+					    || !other->selected
+					    || (other->drawing.style.flags & 16384) == 0
+					    || other->drawing.style.group
+					    != field->drawing.style.group)
+						continue;
+					other->selected = false;
+					status = rip_redraw_button(engine, other,
+					    false);
+					cterm_render_record_error(terminal, status);
+				}
+				if (!field->selected) {
+					field->selected = true;
+					status = rip_redraw_button(engine, field,
+					    true);
+					cterm_render_record_error(terminal, status);
+				}
+			}
+			else if ((field->drawing.style.flags2 & 1) != 0) {
+				field->selected = !field->selected;
+				status = rip_redraw_button(engine, field,
+				    field->selected);
+				cterm_render_record_error(terminal, status);
+			}
+			else if (field->invert) {
+				status = rip_redraw_button(engine, field,
+				    !field->selected);
+				cterm_render_record_error(terminal, status);
+			}
+		}
+		else if (field->invert) {
+			status = cterm_rip_raster_invert_rectangle(
+			    &engine->raster, field->x1, field->y1,
+			    field->x2, field->y2);
+			cterm_render_record_error(terminal, status);
+		}
+		return true;
+	}
+	field = engine->pressed_field;
+	engine->pressed_field = NULL;
+	if (field == NULL) {
+		if (text_query) {
+			engine->mouse_query.x = event->data.mouse.x;
+			engine->mouse_query.y = event->data.mouse.y;
+			engine->mouse_query.buttons =
+			    event->data.mouse.buttons | ST_CONSOLE_MOUSE_BUTTON_LEFT;
+			engine->mouse_query.text = true;
+			engine->mouse_query.active = true;
+			status = rip_send_mouse_command(terminal,
+			    engine->text_click);
+			engine->mouse_query.active = false;
+			cterm_render_record_error(terminal, status);
+		}
+		if (graphics_query) {
+			engine->mouse_query.x = x;
+			engine->mouse_query.y = y;
+			engine->mouse_query.buttons =
+			    event->data.mouse.buttons | ST_CONSOLE_MOUSE_BUTTON_LEFT;
+			engine->mouse_query.text = false;
+			engine->mouse_query.active = true;
+			status = rip_send_mouse_command(terminal,
+			    engine->graphics_click);
+			engine->mouse_query.active = false;
+			cterm_render_record_error(terminal, status);
+		}
+		return text_query || graphics_query;
+	}
+	if (field->is_button && field->invert
+	    && (field->drawing.style.flags & 16384) == 0
+	    && (field->drawing.style.flags2 & 1) == 0) {
+		status = rip_redraw_button(engine, field, field->selected);
+		cterm_render_record_error(terminal, status);
+	}
+	else if (!field->is_button && field->invert) {
+		status = cterm_rip_raster_invert_rectangle(&engine->raster,
+		    field->x1, field->y1, field->x2, field->y2);
+		cterm_render_record_error(terminal, status);
+	}
+	status = rip_send_mouse_command(terminal, field->command);
+	cterm_render_record_error(terminal, status);
+	if (field->reset_after) {
+		status = rip_host_command(terminal, 0, 0, '*', "");
+		cterm_render_record_error(terminal, status);
+	}
+	return true;
+}
+
 bool
 st_cterm_handle_mouse(st_cterm_t *terminal,
 	const struct st_console_event *event)
@@ -1019,6 +3197,8 @@ st_cterm_handle_mouse(st_cterm_t *terminal,
 	modes = terminal->api_mouse_modes;
 	changed = terminal->api_mouse_buttons ^ event->data.mouse.buttons;
 	terminal->api_mouse_buttons = event->data.mouse.buttons;
+	if (rip_handle_mouse(terminal, event, changed))
+		return true;
 	if (event->data.mouse.action == ST_CONSOLE_MOUSE_WHEEL) {
 		if ((modes & (MOUSE_X10 | MOUSE_NORMAL | MOUSE_BUTTON | MOUSE_ANY))
 		    == 0 && (modes & MOUSE_ALT_SCROLL) != 0) {
