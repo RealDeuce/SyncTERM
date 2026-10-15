@@ -23,6 +23,7 @@
 #include "st_utf8.h"
 #include "st_threads.h"
 
+#include <errno.h>
 #include <limits.h>
 #include <math.h>
 #include <stdio.h>
@@ -31,7 +32,12 @@
 #include <time.h>
 
 static int write_plain(st_cterm_t *terminal, const void *bytes,
-    size_t size, size_t *consumed);
+    size_t size, size_t *consumed, bool semantic_utf8);
+static int filter_input_scalar(st_cterm_t *terminal, uint32_t scalar,
+    bool *consumed, char *replacement, size_t *replacement_size);
+static int present_filtered_scalar(void *context, uint32_t scalar,
+    bool *consumed);
+static int capture_scalar(st_cterm_t *terminal, uint32_t scalar);
 static int rip_send_mouse_command(st_cterm_t *terminal,
     const char *command);
 static int rip_activate_field(st_cterm_t *terminal,
@@ -194,7 +200,7 @@ rip_passthrough(void *context, const uint8_t *bytes, size_t size)
 {
 	st_cterm_t *terminal = context;
 	size_t consumed;
-	int status = write_plain(terminal, bytes, size, &consumed);
+	int status = write_plain(terminal, bytes, size, &consumed, false);
 
 	return status == 0 && consumed != size ? IO_ERROR_IO : status;
 }
@@ -1801,6 +1807,9 @@ present_unicode(void *context,
 	case ST_UNICODE_PRESENTATION_COMMIT:
 		return 0;
 	case ST_UNICODE_PRESENTATION_DECODE_ERROR:
+		status = capture_scalar(terminal, UINT32_C(0xfffd));
+		if (status != 0)
+			return status;
 		cterm_apply_window(target);
 		x = target->xpos;
 		y = target->ypos;
@@ -2148,6 +2157,12 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 	terminal->status_display_type = config->status_line ? 1 : 0;
 	terminal->api_reserved_rows = rows - terminal_rows - status_rows;
 	terminal->wire_encoding = config->encoding;
+	terminal->api_input_filter = config->input_filter;
+	terminal->api_input_filter_active = config->input_filter_active;
+	terminal->api_input_filter_context = config->input_filter_context;
+	terminal->api_capture = config->capture;
+	terminal->api_capture_active = config->capture_active;
+	terminal->api_capture_context = config->capture_context;
 	terminal->api_output = config->output;
 	terminal->api_output_context = config->output_context;
 	terminal->rip_prompt = config->rip_prompt;
@@ -2284,6 +2299,85 @@ st_cterm_destroy(st_cterm_t **terminal)
 	*terminal = NULL;
 }
 
+static bool
+input_filter_enabled(const st_cterm_t *terminal)
+{
+	return !terminal->api_input_filter_suppressed
+	    && terminal->api_input_filter != NULL
+	    && (terminal->api_input_filter_active == NULL
+	    || terminal->api_input_filter_active(
+	    terminal->api_input_filter_context));
+}
+
+static bool
+capture_enabled(const st_cterm_t *terminal)
+{
+	return terminal->api_capture != NULL
+	    && (terminal->api_capture_active == NULL
+	    || terminal->api_capture_active(terminal->api_capture_context));
+}
+
+static int
+capture_scalar(st_cterm_t *terminal, uint32_t scalar)
+{
+	char utf8[4];
+	ptrdiff_t size;
+
+	if (!capture_enabled(terminal))
+		return 0;
+	size = st_utf8_encode_one(utf8, sizeof(utf8), scalar);
+	if (size < 0)
+		return IO_ERROR_INVALID_ENCODING;
+	return terminal->api_capture(terminal->api_capture_context,
+	    utf8, (size_t)size);
+}
+
+static int
+filter_input_scalar(st_cterm_t *terminal, uint32_t scalar, bool *consumed,
+	char *replacement, size_t *replacement_size)
+{
+	int status;
+
+	*consumed = false;
+	*replacement_size = 0;
+	if (terminal->api_input_filter_suppressed
+	    || terminal->api_input_filter == NULL)
+		return 0;
+	status = terminal->api_input_filter(terminal->api_input_filter_context,
+	    scalar, consumed, replacement,
+	    ST_CTERM_INPUT_REPLACEMENT_CAPACITY, replacement_size);
+	if (status != 0)
+		return status;
+	return *replacement_size > ST_CTERM_INPUT_REPLACEMENT_CAPACITY
+	    || (!*consumed && *replacement_size != 0)
+	    ? IO_ERROR_INVALID_FORMAT : 0;
+}
+
+static int
+present_filtered_scalar(void *context, uint32_t scalar, bool *consumed)
+{
+	st_cterm_t *terminal = context;
+	char replacement[ST_CTERM_INPUT_REPLACEMENT_CAPACITY];
+	size_t replacement_size;
+	size_t written;
+	int status = 0;
+
+	*consumed = false;
+	if (input_filter_enabled(terminal))
+		status = filter_input_scalar(terminal, scalar, consumed,
+		    replacement, &replacement_size);
+
+	if (status != 0)
+		return status;
+	if (!*consumed)
+		return capture_scalar(terminal, scalar);
+	if (replacement_size == 0)
+		return 0;
+	status = st_cterm_write_utf8(terminal, replacement, replacement_size,
+	    &written);
+	return status == 0 && written != replacement_size ? IO_ERROR_IO : status;
+}
+
 static int
 codepage_write(st_cterm_t *terminal, const uint8_t *bytes, size_t size,
 	size_t *consumed)
@@ -2293,6 +2387,12 @@ codepage_write(st_cterm_t *terminal, const uint8_t *bytes, size_t size,
 	size_t offset = 0;
 
 	*consumed = 0;
+	if (terminal->screen.unicode != NULL) {
+		status = st_unicode_presentation_boundary(
+		    terminal->screen.unicode);
+		if (status != 0)
+			return status;
+	}
 
 	status = cterm_render_take_error(terminal);
 	if (status == 0 && terminal->status_sub != NULL)
@@ -2319,7 +2419,7 @@ codepage_write(st_cterm_t *terminal, const uint8_t *bytes, size_t size,
 
 static int
 write_plain(st_cterm_t *terminal, const void *bytes, size_t size,
-	size_t *consumed)
+	size_t *consumed, bool semantic_utf8)
 {
 	const uint8_t *input = bytes;
 	size_t offset = 0;
@@ -2327,8 +2427,65 @@ write_plain(st_cterm_t *terminal, const void *bytes, size_t size,
 
 	if (terminal == NULL || consumed == NULL || (bytes == NULL && size != 0))
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (terminal->wire_encoding == ST_CTERM_ENCODING_CODEPAGE) {
-		status = codepage_write(terminal, input, size, consumed);
+	if (!semantic_utf8
+	    && terminal->wire_encoding == ST_CTERM_ENCODING_CODEPAGE) {
+		bool filter_active = input_filter_enabled(terminal)
+		    || capture_enabled(terminal);
+
+		if (!filter_active)
+			status = codepage_write(terminal, input, size, consumed);
+		else {
+			size_t run_start = 0;
+			size_t handled = 0;
+
+			for (size_t i = 0; i < size; ++i) {
+				char replacement[ST_CTERM_INPUT_REPLACEMENT_CAPACITY];
+				size_t replacement_size;
+				size_t used;
+				bool filtered;
+				uint32_t scalar = st_codepage_to_unicode(
+				    terminal->screen.codepage, input[i], false);
+
+				filtered = false;
+				replacement_size = 0;
+				if (input_filter_enabled(terminal))
+					status = filter_input_scalar(terminal, scalar,
+					    &filtered, replacement, &replacement_size);
+				if (status != 0)
+					break;
+				if (!filtered) {
+					status = capture_scalar(terminal, scalar);
+					if (status != 0)
+						break;
+					continue;
+				}
+				if (i > run_start) {
+					status = codepage_write(terminal,
+					    input + run_start, i - run_start, &used);
+					handled = run_start + used;
+					if (status != 0)
+						break;
+				}
+				if (replacement_size != 0) {
+					status = st_cterm_write_utf8(terminal,
+					    replacement, replacement_size, &used);
+					if (status == 0 && used != replacement_size)
+						status = IO_ERROR_IO;
+					if (status != 0)
+						break;
+				}
+				run_start = i + 1;
+				handled = run_start;
+			}
+			if (status == 0 && run_start < size) {
+				size_t used;
+
+				status = codepage_write(terminal,
+				    input + run_start, size - run_start, &used);
+				handled = run_start + used;
+			}
+			*consumed = handled;
+		}
 		if (terminal->api_status_destroy_pending) {
 			destroy_status_sub(terminal);
 			terminal->api_status_destroy_pending = false;
@@ -2369,6 +2526,32 @@ write_plain(st_cterm_t *terminal, const void *bytes, size_t size,
 
 		if (target->accumulator != NULL || byte < 0x20 || byte == 0x7f) {
 			size_t used;
+			char replacement[ST_CTERM_INPUT_REPLACEMENT_CAPACITY];
+			size_t replacement_size = 0;
+			bool filtered = false;
+
+			if (byte < 0x80 && input_filter_enabled(terminal))
+				status = filter_input_scalar(terminal, byte,
+				    &filtered, replacement, &replacement_size);
+			if (status != 0)
+				break;
+			if (filtered) {
+				if (replacement_size != 0) {
+					status = st_cterm_write_utf8(terminal,
+					    replacement, replacement_size, &used);
+					if (status == 0 && used != replacement_size)
+						status = IO_ERROR_IO;
+				}
+				if (status != 0)
+					break;
+				++offset;
+				continue;
+			}
+			if (byte < 0x80) {
+				status = capture_scalar(terminal, byte);
+				if (status != 0)
+					break;
+			}
 
 			status = st_unicode_presentation_boundary(
 			    terminal->screen.unicode);
@@ -2387,8 +2570,20 @@ write_plain(st_cterm_t *terminal, const void *bytes, size_t size,
 			while (span < size - offset && input[offset + span] >= 0x20
 			    && input[offset + span] != 0x7f)
 				++span;
+			bool previous_filter = terminal->api_input_filter_installed;
+			bool enable_filter = input_filter_enabled(terminal)
+			    || capture_enabled(terminal);
+
+			terminal->api_input_filter_installed = enable_filter;
+			st_unicode_presentation_set_scalar_filter(
+			    terminal->screen.unicode,
+			    enable_filter ? present_filtered_scalar : NULL, terminal);
 			status = st_unicode_presentation_feed(terminal->screen.unicode,
 			    input + offset, span, &used);
+			terminal->api_input_filter_installed = previous_filter;
+			st_unicode_presentation_set_scalar_filter(
+			    terminal->screen.unicode,
+			    previous_filter ? present_filtered_scalar : NULL, terminal);
 			offset += used;
 			if (status != 0)
 				break;
@@ -2415,7 +2610,29 @@ st_cterm_write(st_cterm_t *terminal, const void *bytes, size_t size,
 	if (terminal->rip_engine != NULL)
 		return cterm_rip_engine_feed(terminal->rip_engine, bytes,
 		    size, consumed);
-	return write_plain(terminal, bytes, size, consumed);
+	return write_plain(terminal, bytes, size, consumed, false);
+}
+
+int
+st_cterm_write_utf8(st_cterm_t *terminal, const void *bytes, size_t size,
+	size_t *consumed)
+{
+	bool suppressed;
+	int status;
+
+	if (terminal == NULL || consumed == NULL || (bytes == NULL && size != 0))
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (terminal->screen.unicode == NULL) {
+		status = st_unicode_presentation_create(&terminal->screen.unicode,
+		    present_unicode, terminal);
+		if (status != 0)
+			return status;
+	}
+	suppressed = terminal->api_input_filter_suppressed;
+	terminal->api_input_filter_suppressed = true;
+	status = write_plain(terminal, bytes, size, consumed, true);
+	terminal->api_input_filter_suppressed = suppressed;
+	return status;
 }
 
 int
@@ -2611,6 +2828,212 @@ st_cterm_size(const st_cterm_t *terminal, uint32_t *columns, uint32_t *rows)
 	return 0;
 }
 
+int
+st_cterm_origin(const st_cterm_t *terminal, uint32_t *x, uint32_t *y)
+{
+	if (terminal == NULL || x == NULL || y == NULL
+	    || terminal->x < 1 || terminal->y < 1)
+		return IO_ERROR_INVALID_ARGUMENT;
+	*x = (uint32_t)terminal->x;
+	*y = (uint32_t)terminal->y;
+	return 0;
+}
+
+int
+st_cterm_state(const st_cterm_t *terminal, struct st_cterm_state *state)
+{
+	if (terminal == NULL || state == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	*state = (struct st_cterm_state){
+		.x = terminal->xpos,
+		.y = terminal->ypos,
+		.top_margin = terminal->top_margin,
+		.bottom_margin = terminal->bottom_margin,
+		.left_margin = terminal->left_margin,
+		.right_margin = terminal->right_margin,
+		.attr = terminal->attr,
+		.fg_color = terminal->fg_color & 0xFFFFFFu,
+		.bg_color = terminal->bg_color & 0xFFFFFFu,
+		.has_palette_override = terminal->has_palette_override,
+		.font_slot = terminal->font_slot,
+		.scrollback_lines = terminal->backlines,
+		.scrollback_width = terminal->backwidth,
+		.scrollback_pos = terminal->backpos,
+		.scrollback_start = terminal->backstart,
+		.emulation = (enum st_cterm_emulation)terminal->emulation,
+		.started = terminal->started != 0,
+		.skypix = terminal->skypix != 0,
+		.ext_attr = {
+			.auto_wrap = (terminal->extattr & CTERM_EXTATTR_AUTOWRAP) != 0,
+			.origin_mode = (terminal->extattr & CTERM_EXTATTR_ORIGINMODE) != 0,
+			.sx_scroll = (terminal->extattr & CTERM_EXTATTR_SXSCROLL) != 0,
+			.dec_lrmm = (terminal->extattr & CTERM_EXTATTR_DECLRMM) != 0,
+			.bracket_paste = (terminal->extattr & CTERM_EXTATTR_BRACKETPASTE) != 0,
+			.dec_bkm = (terminal->extattr & CTERM_EXTATTR_DECBKM) != 0,
+			.prestel_mosaic = (terminal->extattr & CTERM_EXTATTR_PRESTEL_MOSAIC) != 0,
+			.prestel_double_height = (terminal->extattr & CTERM_EXTATTR_PRESTEL_DOUBLE_HEIGHT) != 0,
+			.prestel_conceal = (terminal->extattr & CTERM_EXTATTR_PRESTEL_CONCEAL) != 0,
+			.prestel_separated = (terminal->extattr & CTERM_EXTATTR_PRESTEL_SEPARATED) != 0,
+			.prestel_hold = (terminal->extattr & CTERM_EXTATTR_PRESTEL_HOLD) != 0,
+			.alternate_keypad = (terminal->extattr & CTERM_EXTATTR_ALTERNATE_KEYPAD) != 0,
+		},
+		.last_column_flag = {
+			.set = (terminal->last_column_flag & CTERM_LCF_SET) != 0,
+			.enabled = (terminal->last_column_flag & CTERM_LCF_ENABLED) != 0,
+			.forced = (terminal->last_column_flag & CTERM_LCF_FORCED) != 0,
+		},
+	};
+	for (size_t i = 0; i < 4; ++i)
+		state->alt_fonts[i] = terminal->altfont[i];
+	if (terminal->has_palette_override) {
+		for (size_t i = 0; i < 16; ++i)
+			state->palette_override[i] = terminal->palette_override[i]
+			    & 0xFFFFFFu;
+	}
+	return 0;
+}
+
+int
+st_cterm_set_alt_font(st_cterm_t *terminal, uint8_t selector)
+{
+	if (terminal == NULL
+	    || !cterm_render_set_font_selector(terminal, selector, false, 1))
+		return IO_ERROR_INVALID_ARGUMENT;
+	terminal->altfont[0] = selector;
+	return 0;
+}
+
+int
+st_cterm_register_font(st_cterm_t *terminal, uint8_t selector,
+	const char *path, uint16_t *identifier)
+{
+	uint16_t registered;
+	int status;
+
+	if (terminal == NULL || path == NULL || *path == '\0'
+	    || identifier == NULL
+	    || selector < ST_FONT_CATALOG_FIRST_CUSTOM
+	    || terminal->screen.font_valid[selector])
+		return IO_ERROR_INVALID_ARGUMENT;
+	status = st_font_catalog_register_custom(terminal->screen.console, path,
+	    &registered);
+	if (status != 0)
+		return status;
+	terminal->screen.font_identifiers[selector] = registered;
+	terminal->screen.font_valid[selector] = true;
+	*identifier = registered;
+	return 0;
+}
+
+static void
+copy_sauce_field(uint8_t *destination, size_t width, const char *text)
+{
+	size_t length = text == NULL ? 0 : strlen(text);
+
+	memset(destination, ' ', width);
+	if (length > width)
+		length = width;
+	if (length != 0)
+		memcpy(destination, text, length);
+}
+
+int
+st_cterm_save_binary(st_cterm_t *terminal, FILE *stream,
+	bool with_sauce, const char *title, const char *author,
+	int *native_error)
+{
+	struct st_console_cell *cells;
+	uint8_t *encoded;
+	struct st_console_rect row;
+	size_t columns;
+	size_t rows;
+	int status = 0;
+
+	if (terminal == NULL || stream == NULL || native_error == NULL
+	    || terminal->width < 1 || terminal->height < 1
+	    || terminal->x < 1 || terminal->y < 1)
+		return IO_ERROR_INVALID_ARGUMENT;
+	*native_error = 0;
+	columns = (size_t)terminal->width;
+	rows = (size_t)terminal->height;
+	if (columns > SIZE_MAX / 2 || columns > SIZE_MAX / sizeof(*cells)
+	    || (with_sauce && (columns > UINT8_MAX * 2U
+	    || rows > UINT32_MAX / (columns * 2U))))
+		return IO_ERROR_OUT_OF_RANGE;
+	cells = malloc(columns * sizeof(*cells));
+	encoded = malloc(columns * 2U);
+	if (cells == NULL || encoded == NULL) {
+		free(cells);
+		free(encoded);
+		return IO_ERROR_OUT_OF_MEMORY;
+	}
+	row = (struct st_console_rect){
+		.x = (uint32_t)(terminal->x - 1),
+		.y = (uint32_t)(terminal->y - 1),
+		.width = (uint32_t)columns,
+		.height = 1,
+	};
+	for (size_t y = 0; y < rows; ++y) {
+		row.y = (uint32_t)(terminal->y - 1) + (uint32_t)y;
+		status = st_console_read_cells(terminal->screen.console, &row,
+		    cells, columns);
+		if (status != 0)
+			break;
+		for (size_t x = 0; x < columns; ++x) {
+			encoded[x * 2U] = cterm_render_cell_byte(terminal,
+			    &cells[x]);
+			encoded[x * 2U + 1U] = cterm_render_cell_attribute(terminal,
+			    &cells[x]);
+		}
+		if (fwrite(encoded, 1, columns * 2U, stream) != columns * 2U) {
+			*native_error = errno == 0 ? EIO : errno;
+			status = IO_ERROR_IO;
+			break;
+		}
+	}
+	free(cells);
+	free(encoded);
+	if (status != 0 || !with_sauce)
+		return status;
+	{
+		uint8_t sauce[129] = {0};
+		char date[9] = {0};
+		time_t now = time(NULL);
+		struct tm *local = localtime(&now);
+		long length = ftell(stream);
+		uint32_t file_size;
+
+		if (length < 0 || (unsigned long)length > UINT32_MAX) {
+			*native_error = errno == 0 ? ERANGE : errno;
+			return IO_ERROR_OUT_OF_RANGE;
+		}
+		file_size = (uint32_t)length;
+		sauce[0] = 0x1a;
+		memcpy(sauce + 1, "SAUCE00", 7);
+		copy_sauce_field(sauce + 8, 35, title);
+		copy_sauce_field(sauce + 43, 20, author);
+		copy_sauce_field(sauce + 63, 20, NULL);
+		if (local != NULL && strftime(date, sizeof(date), "%Y%m%d",
+		    local) == 8)
+			memcpy(sauce + 83, date, 8);
+		sauce[91] = (uint8_t)file_size;
+		sauce[92] = (uint8_t)(file_size >> 8);
+		sauce[93] = (uint8_t)(file_size >> 16);
+		sauce[94] = (uint8_t)(file_size >> 24);
+		sauce[95] = 5; /* BinaryText SAUCE data type. */
+		sauce[96] = (uint8_t)(columns / 2U);
+		if ((cterm_render_get_video_flags(terminal)
+		    & (ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND
+		    | ST_CONSOLE_VIDEO_NO_BLINK)) != 0)
+			sauce[106] = 1;
+		if (fwrite(sauce, 1, sizeof(sauce), stream) != sizeof(sauce)) {
+			*native_error = errno == 0 ? EIO : errno;
+			return IO_ERROR_IO;
+		}
+	}
+	return 0;
+}
+
 enum st_cterm_encoding
 st_cterm_encoding(const st_cterm_t *terminal)
 {
@@ -2622,6 +3045,84 @@ enum st_codepage
 st_cterm_codepage(const st_cterm_t *terminal)
 {
 	return terminal == NULL ? ST_CODEPAGE_CP437 : terminal->screen.codepage;
+}
+
+int
+st_cterm_status_display(const st_cterm_t *terminal)
+{
+	return terminal == NULL ? 0 : terminal->status_display_type;
+}
+
+bool
+st_cterm_doorway_mode(const st_cterm_t *terminal)
+{
+	return terminal != NULL && terminal->doorway_mode != 0;
+}
+
+void
+st_cterm_set_doorway_mode(st_cterm_t *terminal, bool enabled)
+{
+	if (terminal != NULL)
+		terminal->doorway_mode = enabled ? 1 : 0;
+}
+
+int
+st_cterm_music_mode(const st_cterm_t *terminal)
+{
+	return terminal == NULL ? CTERM_MUSIC_SYNCTERM
+	    : terminal->music_enable;
+}
+
+void
+st_cterm_set_music_mode(st_cterm_t *terminal, int mode)
+{
+	if (terminal == NULL)
+		return;
+	if (mode < CTERM_MUSIC_SYNCTERM)
+		mode = CTERM_MUSIC_SYNCTERM;
+	if (mode > CTERM_MUSIC_ENABLED)
+		mode = CTERM_MUSIC_ENABLED;
+	terminal->music_enable = (cterm_music_t)mode;
+}
+
+bool
+st_cterm_atascii_inverse(const st_cterm_t *terminal)
+{
+	return terminal != NULL && terminal->atascii_inverse;
+}
+
+int
+st_cterm_mouse_mode(const st_cterm_t *terminal)
+{
+	uint16_t modes;
+
+	if (terminal == NULL)
+		return 0;
+	if (terminal->rip_engine != NULL
+	    && (terminal->rip_engine->mouse_fields != NULL
+	    || terminal->rip_engine->text_click != NULL
+	    || terminal->rip_engine->graphics_click != NULL))
+		return 1;
+	modes = terminal->api_mouse_modes;
+	if ((modes & MOUSE_ANY) != 0) return 1003;
+	if ((modes & MOUSE_BUTTON) != 0) return 1002;
+	if ((modes & MOUSE_NORMAL) != 0) return 1000;
+	if ((modes & MOUSE_X10) != 0) return 9;
+	return 0;
+}
+
+bool
+st_cterm_mouse_sgr_pixels(const st_cterm_t *terminal)
+{
+	return terminal != NULL
+	    && (terminal->api_mouse_modes & MOUSE_SGR_PIXELS) != 0;
+}
+
+bool
+st_cterm_bracketed_paste(const st_cterm_t *terminal)
+{
+	return terminal != NULL
+	    && (terminal->extattr & CTERM_EXTATTR_BRACKETPASTE) != 0;
 }
 
 int
@@ -2707,6 +3208,59 @@ st_cterm_copy_history(st_cterm_t *terminal,
 	*columns = (uint32_t)terminal->width;
 	*rows = line_count;
 	return 0;
+}
+
+int
+st_cterm_scrollback_size(const st_cterm_t *terminal,
+	uint32_t *columns, size_t *rows)
+{
+	if (terminal == NULL || columns == NULL || rows == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	*columns = terminal->scrollback != NULL && terminal->backwidth > 0
+	    ? (uint32_t)terminal->backwidth : 0;
+	*rows = terminal->scrollback != NULL && terminal->backfilled > 0
+	    ? (size_t)terminal->backfilled : 0;
+	return 0;
+}
+
+int
+st_cterm_copy_scrollback_rows(const st_cterm_t *terminal,
+	struct st_console_cell *destination, uint32_t destination_columns,
+	size_t destination_rows, size_t source_row, size_t row_count,
+	size_t destination_row)
+{
+	size_t columns;
+	size_t available;
+
+	if (terminal == NULL || destination == NULL
+	    || (destination_rows != 0
+	    && destination_columns > SIZE_MAX / destination_rows)
+	    || terminal->backfilled < 0 || terminal->backlines < 0
+	    || terminal->backwidth < 0)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (terminal->scrollback == NULL || terminal->backlines == 0
+	    || terminal->backwidth == 0 || source_row >= (size_t)terminal->backfilled
+	    || destination_row >= destination_rows || row_count == 0)
+		return 0;
+	available = (size_t)terminal->backfilled - source_row;
+	if (row_count > available)
+		row_count = available;
+	available = destination_rows - destination_row;
+	if (row_count > available)
+		row_count = available;
+	columns = (size_t)terminal->backwidth < destination_columns
+	    ? (size_t)terminal->backwidth : destination_columns;
+	if (columns == 0)
+		return 0;
+	for (size_t row = 0; row < row_count; ++row) {
+		size_t physical = ((size_t)terminal->backstart + source_row + row)
+		    % (size_t)terminal->backlines;
+
+		memcpy(destination + (destination_row + row) * destination_columns,
+		    terminal->scrollback + physical * terminal->backwidth,
+		    columns * sizeof(*destination));
+	}
+	return (int)row_count;
 }
 
 bool

@@ -22,7 +22,183 @@
 	} \
 } while (0)
 
+static int
+test_paste_preparation(void)
+{
+	static const char input[] = "A\nB\r\n\x1b[201~\xc3\xa9";
+	static const char plain[] = "A\rB\r\x1b[201~\xc3\xa9";
+	static const char bracketed[] =
+	    "\x1b[200~A\rB\r\xc3\xa9\x1b[201~";
+	char *prepared = NULL;
+	size_t size = 0;
+
+	CHECK(st_term_prepare_paste(&prepared, &size, input,
+	    sizeof(input) - 1, false) == 0);
+	CHECK(size == sizeof(plain) - 1
+	    && memcmp(prepared, plain, size) == 0);
+	free(prepared);
+	prepared = NULL;
+	CHECK(st_term_prepare_paste(&prepared, &size, input,
+	    sizeof(input) - 1, true) == 0);
+	CHECK(size == sizeof(bracketed) - 1
+	    && memcmp(prepared, bracketed, size) == 0);
+	free(prepared);
+	return 0;
+}
+
 #if !SYNCTERM_PLATFORM_WINDOWS
+static int
+test_wire_filter(void *context, uint8_t byte, bool *consumed,
+	uint8_t *replacement, size_t capacity, size_t *replacement_size)
+{
+	(void)context;
+	*consumed = byte == 'A' || byte == '#' || byte == 'Z';
+	*replacement_size = 0;
+	if (byte == 'A') {
+		if (capacity < 1)
+			return IO_ERROR_OUT_OF_RANGE;
+		replacement[0] = 'C';
+		*replacement_size = 1;
+	}
+	else if (byte == '#') {
+		static const uint8_t colour[] = "\x1b[31m";
+
+		if (capacity < sizeof(colour) - 1)
+			return IO_ERROR_OUT_OF_RANGE;
+		memcpy(replacement, colour, sizeof(colour) - 1);
+		*replacement_size = sizeof(colour) - 1;
+	}
+	return 0;
+}
+
+static int
+test_shell_wire_filter(void)
+{
+	const struct st_console_display_config display = {
+		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	};
+	const struct st_console_config console_config = {
+		.columns = 80, .rows = 25, .cell_width = 8, .cell_height = 16,
+	};
+	struct st_profile profile;
+	st_console_t *console = NULL;
+	st_connection_t *connection = NULL;
+	st_font_catalog_t *fonts = NULL;
+	st_term_session_t *session = NULL;
+	struct st_console_rect row = {0, 0, 3, 1};
+	struct st_console_cell cells[3];
+	enum st_term_disposition disposition;
+	bool finished;
+	bool found = false;
+	char text[8];
+	size_t required;
+
+	CHECK(st_console_create(&console, &display, &console_config) == 0);
+	CHECK(st_font_catalog_create(&fonts, console) == 0);
+	st_profile_init(&profile);
+	profile.connection_type = ST_CONNECTION_SHELL;
+	profile.screen_mode = ST_SCREEN_MODE_80X25;
+	strcpy(profile.address, "printf 'A#XZ'; sleep 1");
+	CHECK(st_term_connect_profile(&connection, &profile, console, NULL,
+	    NULL) == 0);
+	const struct st_term_config config = {
+		.console = console,
+		.connection = connection,
+		.fonts = fonts,
+		.screen_mode = ST_SCREEN_MODE_80X25,
+		.encoding = ST_CTERM_ENCODING_UTF8,
+		.codepage = ST_CODEPAGE_CP437,
+		.font_selector = 0,
+		.hide_status = true,
+		.wire_filter = test_wire_filter,
+	};
+	CHECK(st_term_session_create(&session, &config) == 0);
+	for (size_t attempt = 0; attempt < 100 && !found; ++attempt) {
+		CHECK(st_term_session_pump(session, &disposition, &finished) == 0);
+		CHECK(st_console_read_cells(console, &row, cells, 3) == 0);
+		found = st_console_font_glyph_text(console, cells[0].glyph_font,
+		    cells[0].glyph, text, sizeof(text), &required) == 0
+		    && required == 1 && text[0] == 'C'
+		    && st_console_font_glyph_text(console, cells[1].glyph_font,
+		    cells[1].glyph, text, sizeof(text), &required) == 0
+		    && required == 1 && text[0] == 'X';
+	}
+	CHECK(found);
+	CHECK(cells[1].foreground == 17);
+	CHECK(st_console_font_glyph_text(console, cells[2].glyph_font,
+	    cells[2].glyph, text, sizeof(text), &required) == 0);
+	CHECK(required == 1 && text[0] == ' ');
+	st_term_session_destroy(&session);
+	CHECK(st_connection_close(connection) == 0);
+	st_profile_dispose(&profile);
+	st_font_catalog_destroy(fonts);
+	st_console_destroy(console);
+	return 0;
+}
+
+static int
+test_shell_throttle(void)
+{
+	const struct st_console_display_config display = {
+		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	};
+	const struct st_console_config console_config = {
+		.columns = 80, .rows = 25, .cell_width = 8, .cell_height = 16,
+	};
+	struct st_profile profile;
+	st_console_t *console = NULL;
+	st_connection_t *connection = NULL;
+	st_font_catalog_t *fonts = NULL;
+	st_term_session_t *session = NULL;
+	struct st_console_rect row = {0, 0, 4, 1};
+	struct st_console_cell cells[4];
+	enum st_term_disposition disposition;
+	bool finished;
+	bool first = false;
+	bool complete = false;
+
+	CHECK(st_console_create(&console, &display, &console_config) == 0);
+	CHECK(st_font_catalog_create(&fonts, console) == 0);
+	st_profile_init(&profile);
+	profile.connection_type = ST_CONNECTION_SHELL;
+	profile.screen_mode = ST_SCREEN_MODE_80X25;
+	strcpy(profile.address, "printf ABCD; sleep 1");
+	CHECK(st_term_connect_profile(&connection, &profile, console, NULL,
+	    NULL) == 0);
+	const struct st_term_config config = {
+		.console = console, .connection = connection, .fonts = fonts,
+		.screen_mode = ST_SCREEN_MODE_80X25,
+		.encoding = ST_CTERM_ENCODING_UTF8,
+		.codepage = ST_CODEPAGE_CP437,
+		.hide_status = true,
+		.throttle_supported = true,
+		.initial_throttle_bps = 300,
+	};
+	CHECK(st_term_session_create(&session, &config) == 0);
+	CHECK(st_term_session_throttle_speed(session) == 300);
+	for (size_t attempt = 0; attempt < 100 && !first; ++attempt) {
+		CHECK(st_term_session_pump(session, &disposition, &finished) == 0);
+		CHECK(st_console_read_cells(console, &row, cells, 4) == 0);
+		first = cells[0].glyph == 'A';
+	}
+	CHECK(first && cells[1].glyph != 'B');
+	st_term_session_set_throttle_speed(session, 0);
+	CHECK(st_term_session_throttle_speed(session) == 0);
+	for (size_t attempt = 0; attempt < 100 && !complete; ++attempt) {
+		CHECK(st_term_session_pump(session, &disposition, &finished) == 0);
+		CHECK(st_console_read_cells(console, &row, cells, 4) == 0);
+		complete = cells[0].glyph == 'A' && cells[1].glyph == 'B'
+		    && cells[2].glyph == 'C' && cells[3].glyph == 'D';
+	}
+	CHECK(complete);
+	st_term_session_destroy(&session);
+	CHECK(st_connection_close(connection) == 0);
+	st_profile_dispose(&profile);
+	st_font_catalog_destroy(fonts);
+	st_console_destroy(console);
+	return 0;
+}
+
 static int
 test_shell_utf8_boundary(void)
 {
@@ -87,6 +263,13 @@ test_shell_utf8_boundary(void)
 			found = true;
 	}
 	CHECK(found);
+	size_t queued_wire = 0;
+	CHECK(st_term_session_send_text_poll(session, "\xc3\xa9", 2,
+	    &queued_wire) == 0);
+	CHECK(queued_wire == 2);
+	st_term_session_request_end(session, false);
+	CHECK(st_term_session_pump(session, &disposition, &finished) == 0);
+	CHECK(finished && disposition == ST_TERM_RETURN_TO_PICKER);
 	st_term_session_destroy(&session);
 	CHECK(st_connection_close(connection) == 0);
 	st_profile_dispose(&profile);
@@ -325,6 +508,7 @@ test_shell_rip_cp437_query_output(void)
 int
 main(void)
 {
+	CHECK(test_paste_preparation() == 0);
 	const struct st_console_display_config display = {
 		.backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};
@@ -375,6 +559,8 @@ main(void)
 	st_profile_dispose(&profile);
 	st_console_destroy(console);
 #if !SYNCTERM_PLATFORM_WINDOWS
+	CHECK(test_shell_wire_filter() == 0);
+	CHECK(test_shell_throttle() == 0);
 	CHECK(test_shell_utf8_boundary() == 0);
 	CHECK(test_shell_rip_profile() == 0);
 	CHECK(test_shell_rip_cp437_boundary() == 0);

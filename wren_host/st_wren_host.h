@@ -10,6 +10,7 @@
 
 #include "st_profile.h"
 #include "st_hyperlink.h"
+#include "st_cterm.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -24,6 +25,8 @@ struct st_app_paths;
 struct st_audio_runtime;
 struct st_profile;
 struct st_session_history;
+struct st_connection;
+struct st_term_session;
 
 enum st_wren_sftp_operation {
 	ST_WREN_SFTP_REALPATH,
@@ -119,7 +122,13 @@ struct st_wren_connected_config {
 	st_wren_host_t *host;
 	st_console_t *console;
 	const struct st_profile *profile;
+	/* NULL for connections without an SFTP provider. */
 	const struct st_wren_sftp_provider *sftp;
+	/* Optional only for isolated binding tests. Borrowed for VM lifetime. */
+	st_cterm_t *cterm;
+	struct st_connection *connection;
+	struct st_term_session *session;
+	bool status_enabled;
 };
 
 struct st_wren_host_config {
@@ -181,9 +190,27 @@ int st_wren_connected_create(st_wren_connected_t **result,
 void st_wren_connected_destroy(st_wren_connected_t *connected);
 int st_wren_connected_pump(st_wren_connected_t *connected,
 	uint32_t timeout_ms);
+/* Paints the connected status row when enabled and a callable is installed. */
+int st_wren_connected_render_status(st_wren_connected_t *connected,
+	bool enabled);
 int st_wren_connected_interpret(st_wren_connected_t *connected,
 	const char *module, const char *source);
 int st_wren_connected_shell_closed(st_wren_connected_t *connected);
+int st_wren_connected_handle_key(st_wren_connected_t *connected,
+	uint16_t key, bool *consumed);
+int st_wren_connected_handle_event(st_wren_connected_t *connected,
+	const struct st_console_event *event, bool *consumed);
+int st_wren_connected_filter_wire_byte(st_wren_connected_t *connected,
+	uint8_t byte, bool *consumed, uint8_t *replacement, size_t capacity,
+	size_t *replacement_size);
+bool st_wren_connected_has_wire_hooks(const st_wren_connected_t *connected);
+int st_wren_connected_filter_input_scalar(st_wren_connected_t *connected,
+	uint32_t scalar, bool *consumed, char *replacement, size_t capacity,
+	size_t *replacement_size);
+bool st_wren_connected_has_input_hooks(const st_wren_connected_t *connected);
+bool st_wren_connected_capture_active(const st_wren_connected_t *connected);
+int st_wren_connected_capture_input(st_wren_connected_t *connected,
+	const char *utf8, size_t size);
 const char *st_wren_connected_last_error(
 	const st_wren_connected_t *connected);
 

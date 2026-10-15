@@ -6,14 +6,19 @@
  */
 
 #include "wren_host_internal.h"
+#include "wren_ansi_filter.h"
 
 #include "io_error.h"
 #include "st_profile.h"
 #include "st_time.h"
+#include "st_unicode_text.h"
+#include "st_utf8.h"
 #include "string_compat.h"
+#include "regexp.h"
 
 #include <errno.h>
 #include <math.h>
+#include <setjmp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -33,7 +38,26 @@ struct pending_timer {
 struct connected_hook {
 	WrenHandle *function;
 	int kind;
+	int filter;
+	uint64_t interval_ms;
+	uint64_t next_deadline_ms;
+	uint64_t call_count;
+	double total_runtime;
+	double min_runtime;
+	double max_runtime;
+	Prog *regex_prog;
+	PikeVM *regex_vm;
+	char *regex_buf;
+	size_t regex_buf_len;
+	size_t regex_pos;
+	int regex_groups;
+	enum ansi_state regex_ansi_state;
+	bool regex_clean;
 	struct connected_hook *next;
+};
+
+struct foreign_hook_handle {
+	struct connected_hook *hook;
 };
 
 struct st_wren_connected {
@@ -45,11 +69,45 @@ struct st_wren_connected {
 	struct pending_request *requests;
 	struct pending_timer *timers;
 	struct connected_hook *hooks;
+	FILE *capture_stream;
+	enum ansi_state capture_ansi_state;
+	bool capture_raw;
+	bool capture_paused;
 	char last_error[512];
 	bool shutting_down;
 };
 
 #define ST_WREN_SFTP_HANDLE_MAGIC UINT32_C(0x53544648)
+#define ST_WREN_REGEX_BUFFER_SIZE 4096
+#define ST_WREN_HOOK_MATCH 9
+
+static jmp_buf re1_jump;
+static char re1_error[256];
+
+static void
+trap_re1_fatal(const char *message)
+{
+	(void)snprintf(re1_error, sizeof(re1_error), "%s", message);
+	longjmp(re1_jump, 1);
+}
+
+static void
+free_regexp(Regexp *regexp)
+{
+	if (regexp == NULL)
+		return;
+	free_regexp(regexp->left);
+	free_regexp(regexp->right);
+	free(regexp);
+}
+
+static void
+free_regex_hook(struct connected_hook *hook)
+{
+	pikevm_free(hook->regex_vm);
+	free(hook->regex_prog);
+	free(hook->regex_buf);
+}
 
 struct foreign_sftp_handle {
 	uint32_t magic;
@@ -85,6 +143,96 @@ static struct st_wren_connected *
 connected_from_vm(WrenVM *vm)
 {
 	return st_wren_context_from_vm(vm)->connected;
+}
+
+static void
+allocate_hook_handle(WrenVM *vm)
+{
+	struct foreign_hook_handle *value = wrenSetSlotNewForeign(vm, 0, 0,
+	    sizeof(*value));
+	*value = (struct foreign_hook_handle){0};
+}
+
+static struct connected_hook *
+hook_from_handle(WrenVM *vm)
+{
+	struct foreign_hook_handle *value = wrenGetSlotForeign(vm, 0);
+	return value == NULL ? NULL : value->hook;
+}
+
+static void
+fn_hook_remove(WrenVM *vm)
+{
+	struct connected_hook *hook = hook_from_handle(vm);
+
+	if (hook != NULL && hook->function != NULL) {
+		wrenReleaseHandle(vm, hook->function);
+		hook->function = NULL;
+		/* A regex callback can remove itself while its matcher is
+		 * draining.  The session reclaims matcher storage at teardown. */
+	}
+	wrenSetSlotNull(vm, 0);
+}
+
+static void fn_hook_call_count(WrenVM *vm)
+{
+	struct connected_hook *hook = hook_from_handle(vm);
+	wrenSetSlotDouble(vm, 0, hook == NULL || hook->function == NULL
+	    ? 0 : (double)hook->call_count);
+}
+static void fn_hook_total_runtime(WrenVM *vm)
+{
+	struct connected_hook *hook = hook_from_handle(vm);
+	wrenSetSlotDouble(vm, 0, hook == NULL || hook->function == NULL
+	    ? 0 : hook->total_runtime);
+}
+static void fn_hook_min_runtime(WrenVM *vm)
+{
+	struct connected_hook *hook = hook_from_handle(vm);
+	wrenSetSlotDouble(vm, 0, hook == NULL || hook->function == NULL
+	    ? 0 : hook->min_runtime);
+}
+static void fn_hook_max_runtime(WrenVM *vm)
+{
+	struct connected_hook *hook = hook_from_handle(vm);
+	wrenSetSlotDouble(vm, 0, hook == NULL || hook->function == NULL
+	    ? 0 : hook->max_runtime);
+}
+static void fn_hook_to_string(WrenVM *vm)
+{
+	struct connected_hook *hook = hook_from_handle(vm);
+	wrenSetSlotString(vm, 0, hook == NULL || hook->function == NULL
+	    ? "HookHandle(removed)" : "HookHandle(active)");
+}
+
+static void
+record_hook_runtime(struct connected_hook *hook, uint64_t before)
+{
+	uint64_t after;
+	double elapsed = 0;
+
+	if (before != 0 && st_time_monotonic_ms(&after) == 0 && after >= before)
+		elapsed = (double)(after - before) / 1000.0;
+	if (hook->call_count == 0 || elapsed < hook->min_runtime)
+		hook->min_runtime = elapsed;
+	if (elapsed > hook->max_runtime)
+		hook->max_runtime = elapsed;
+	hook->total_runtime += elapsed;
+	hook->call_count++;
+}
+
+static void
+warn_observe_return(WrenVM *vm, const char *name)
+{
+	WrenType type = wrenGetSlotType(vm, 0);
+	char message[160];
+
+	if (type != WREN_TYPE_BOOL && type != WREN_TYPE_STRING)
+		return;
+	(void)snprintf(message, sizeof(message),
+	    "Hook.%s returned %s; observe-only return is ignored",
+	    name, type == WREN_TYPE_BOOL ? "Bool" : "String");
+	st_wren_log_append(vm, 2, message);
 }
 
 static void
@@ -228,7 +376,8 @@ submit_request(WrenVM *vm, const struct st_wren_sftp_request *request)
 	uint64_t id;
 	int status;
 
-	if (connected == NULL || connected->provider.submit == NULL) {
+	if (connected == NULL || connected->shutting_down
+	    || connected->provider.submit == NULL) {
 		push_error(vm, 0, IO_ERROR_NOT_SUPPORTED, 0,
 		    "SFTP is unavailable", true);
 		return false;
@@ -273,7 +422,8 @@ static void
 fn_sftp_available(WrenVM *vm)
 {
 	struct st_wren_connected *connected = connected_from_vm(vm);
-	bool available = connected != NULL && connected->provider.available != NULL
+	bool available = connected != NULL && !connected->shutting_down
+	    && connected->provider.available != NULL
 	    && connected->provider.available(connected->provider.context);
 	wrenSetSlotBool(vm, 0, available);
 }
@@ -546,36 +696,287 @@ static void fn_cterm_sftp_active_set(WrenVM *vm)
 	wrenSetSlotBool(vm, 0, st_wren_context_from_vm(vm)->cterm_sftp_active);
 }
 
-static void
-register_hook(WrenVM *vm, int function_slot, int kind)
+static struct connected_hook *
+register_hook(WrenVM *vm, int function_slot, int kind, int filter)
 {
 	struct st_wren_connected *connected = connected_from_vm(vm);
 	struct connected_hook *hook;
+	size_t count = 0;
 
 	if (connected == NULL) {
 		wrenSetSlotNull(vm, 0);
-		return;
+		return NULL;
+	}
+	for (struct connected_hook *existing = connected->hooks;
+	    existing != NULL; existing = existing->next) {
+		if (existing->kind == kind || ((kind == 8
+		    || kind == ST_WREN_HOOK_MATCH)
+		    && (existing->kind == 8
+		    || existing->kind == ST_WREN_HOOK_MATCH)))
+			++count;
+	}
+	if (count >= 256) {
+		wrenSetSlotNull(vm, 0);
+		return NULL;
 	}
 	hook = calloc(1, sizeof(*hook));
 	if (hook == NULL) {
 		st_wren_abort(vm, "Hook registration failed");
-		return;
+		return NULL;
 	}
 	hook->function = wrenGetSlotHandle(vm, function_slot);
 	if (hook->function == NULL) {
 		free(hook);
 		st_wren_abort(vm, "Hook registration failed");
-		return;
+		return NULL;
 	}
 	hook->kind = kind;
-	hook->next = connected->hooks;
-	connected->hooks = hook;
-	wrenSetSlotNull(vm, 0);
+	hook->filter = filter;
+	if (kind == 4) {
+		if (filter < 0)
+			connected->context.mouse_events |=
+			    (UINT64_C(1) << 50) - 1;
+		else
+			connected->context.mouse_events |= UINT64_C(1) << filter;
+	}
+	struct connected_hook **tail = &connected->hooks;
+	while (*tail != NULL)
+		tail = &(*tail)->next;
+	*tail = hook;
+	wrenEnsureSlots(vm, function_slot + 2);
+	wrenGetVariable(vm, "syncterm", "HookHandle", function_slot + 1);
+	struct foreign_hook_handle *handle = wrenSetSlotNewForeign(vm, 0,
+	    function_slot + 1, sizeof(*handle));
+	*handle = (struct foreign_hook_handle){.hook = hook};
+	return hook;
 }
-static void fn_hook_on_key(WrenVM *vm) { register_hook(vm, 1, 1); }
-static void fn_hook_on_key_value(WrenVM *vm) { register_hook(vm, 2, 1); }
-static void fn_hook_shell(WrenVM *vm) { register_hook(vm, 1, 2); }
-static void fn_hook_disconnect(WrenVM *vm) { register_hook(vm, 1, 3); }
+static void fn_hook_on_key(WrenVM *vm) { register_hook(vm, 1, 1, -1); }
+static void fn_hook_on_key_value(WrenVM *vm)
+{
+	double key;
+
+	if (wrenGetSlotType(vm, 1) != WREN_TYPE_NUM
+	    || (key = wrenGetSlotDouble(vm, 1)) < 0 || key > UINT16_MAX
+	    || key != (double)(uint16_t)key) {
+		st_wren_abort(vm, "Hook.onKey expects a 16-bit key code");
+		return;
+	}
+	register_hook(vm, 2, 1, (int)key);
+}
+static void fn_hook_shell(WrenVM *vm) { register_hook(vm, 1, 2, -1); }
+static void fn_hook_disconnect(WrenVM *vm) { register_hook(vm, 1, 3, -1); }
+static void fn_hook_on_wire(WrenVM *vm) { register_hook(vm, 1, 7, -1); }
+static void fn_hook_on_wire_value(WrenVM *vm)
+{
+	double byte;
+
+	if (wrenGetSlotType(vm, 1) != WREN_TYPE_NUM
+	    || !isfinite(byte = wrenGetSlotDouble(vm, 1))
+	    || byte < 0 || byte > UINT8_MAX || byte != floor(byte)) {
+		st_wren_abort(vm, "Hook.onWire expects a byte value");
+		return;
+	}
+	register_hook(vm, 2, 7, (int)byte);
+}
+static void fn_hook_on_input(WrenVM *vm) { register_hook(vm, 1, 8, -1); }
+static void fn_hook_on_input_value(WrenVM *vm)
+{
+	double scalar;
+
+	if (wrenGetSlotType(vm, 1) != WREN_TYPE_NUM
+	    || !isfinite(scalar = wrenGetSlotDouble(vm, 1))
+	    || scalar < 0 || scalar > 0x10ffff
+	    || (scalar >= 0xd800 && scalar <= 0xdfff)
+	    || scalar != floor(scalar)) {
+		st_wren_abort(vm, "Hook.onInput expects a Unicode scalar");
+		return;
+	}
+	register_hook(vm, 2, 8, (int)scalar);
+}
+
+static const char *
+regex_anchor_error(const Regexp *regexp)
+{
+	const char *error;
+
+	if (regexp == NULL)
+		return "empty pattern";
+	switch (regexp->type) {
+	case Lit:
+	case Dot:
+		return NULL;
+	case Cat:
+	case Paren:
+		return regex_anchor_error(regexp->left);
+	case Alt:
+		error = regex_anchor_error(regexp->left);
+		return error == NULL ? regex_anchor_error(regexp->right) : error;
+	case Star:
+	case Plus:
+	case Quest:
+		return "pattern must start with a fixed-character anchor";
+	default:
+		return "unknown regex node type";
+	}
+}
+
+static int
+regex_group_count(const Regexp *regexp)
+{
+	int left, right, own;
+
+	if (regexp == NULL)
+		return 0;
+	left = regex_group_count(regexp->left);
+	right = regex_group_count(regexp->right);
+	own = regexp->type == Paren ? regexp->n : 0;
+	if (left > own) own = left;
+	if (right > own) own = right;
+	return own;
+}
+
+static void
+register_match_hook(WrenVM *vm, bool clean)
+{
+	const char *pattern;
+	const char *error;
+	char *copy = NULL;
+	Regexp *regexp = NULL;
+	Prog *program = NULL;
+	PikeVM *pike = NULL;
+	char *buffer = NULL;
+	struct connected_hook *hook;
+	int length;
+	int groups;
+	char message[320];
+
+	if (connected_from_vm(vm) == NULL) {
+		wrenSetSlotNull(vm, 0);
+		return;
+	}
+	if (!st_wren_text_slot(vm, 1, &pattern, &length))
+		return;
+	if (length == 0 || length >= ST_WREN_REGEX_BUFFER_SIZE
+	    || memchr(pattern, '\0', (size_t)length) != NULL) {
+		st_wren_abort(vm, "Hook.onMatch requires a nonempty pattern under 4096 bytes without NUL");
+		return;
+	}
+	copy = malloc((size_t)length + 1);
+	if (copy == NULL) {
+		st_wren_abort(vm, "Hook.onMatch: out of memory");
+		return;
+	}
+	memcpy(copy, pattern, (size_t)length);
+	copy[length] = '\0';
+	re1_error[0] = '\0';
+	re1_fatal_handler = trap_re1_fatal;
+	if (setjmp(re1_jump) != 0) {
+		re1_fatal_handler = NULL;
+		(void)snprintf(message, sizeof(message), "Hook.onMatch: %s",
+		    re1_error);
+		free(copy);
+		st_wren_abort(vm, message);
+		return;
+	}
+	regexp = parse_unanchored(copy);
+	free(copy);
+	copy = NULL;
+	error = regex_anchor_error(regexp);
+	groups = regex_group_count(regexp);
+	if (error == NULL && groups > (MAXSUB / 2) - 1)
+		error = "pattern has more than nine capture groups";
+	if (error != NULL) {
+		re1_fatal_handler = NULL;
+		free_regexp(regexp);
+		st_wren_abort(vm, error);
+		return;
+	}
+	program = compile(regexp);
+	re1_fatal_handler = NULL;
+	free_regexp(regexp);
+	buffer = malloc(ST_WREN_REGEX_BUFFER_SIZE);
+	if (buffer != NULL)
+		pike = pikevm_new(program, MAXSUB);
+	if (buffer == NULL || pike == NULL) {
+		free(buffer);
+		free(program);
+		st_wren_abort(vm, "Hook.onMatch: out of memory");
+		return;
+	}
+	buffer[0] = '\0';
+	pikevm_start(pike, buffer);
+	hook = register_hook(vm, 2, ST_WREN_HOOK_MATCH, -1);
+	if (hook == NULL) {
+		pikevm_free(pike);
+		free(program);
+		free(buffer);
+		return;
+	}
+	hook->regex_prog = program;
+	hook->regex_vm = pike;
+	hook->regex_buf = buffer;
+	hook->regex_groups = groups;
+	hook->regex_clean = clean;
+}
+
+static void fn_hook_on_match(WrenVM *vm)
+{ register_match_hook(vm, false); }
+static void fn_hook_on_match_clean(WrenVM *vm)
+{ register_match_hook(vm, true); }
+static void fn_hook_on_mouse(WrenVM *vm) { register_hook(vm, 1, 4, -1); }
+static void fn_hook_on_mouse_value(WrenVM *vm)
+{
+	double event;
+
+	if (wrenGetSlotType(vm, 1) != WREN_TYPE_NUM
+	    || !isfinite(event = wrenGetSlotDouble(vm, 1))
+	    || event < 0 || event >= 50 || event != floor(event)) {
+		st_wren_abort(vm, "Hook.onMouse expects a mouse event code");
+		return;
+	}
+	register_hook(vm, 2, 4, (int)event);
+}
+static void fn_hook_on_physical_key(WrenVM *vm)
+{ register_hook(vm, 1, 5, -1); }
+static void fn_hook_on_physical_key_value(WrenVM *vm)
+{
+	double evdev;
+
+	if (wrenGetSlotType(vm, 1) != WREN_TYPE_NUM
+	    || !isfinite(evdev = wrenGetSlotDouble(vm, 1))
+	    || evdev < 0 || evdev > UINT16_MAX || evdev != floor(evdev)) {
+		st_wren_abort(vm, "Hook.onPhysicalKey expects an evdev code");
+		return;
+	}
+	register_hook(vm, 2, 5, (int)evdev);
+}
+static void
+fn_hook_every(WrenVM *vm)
+{
+	double interval;
+	uint64_t now;
+	struct connected_hook *hook;
+
+	if (wrenGetSlotType(vm, 1) != WREN_TYPE_NUM
+	    || !isfinite(interval = wrenGetSlotDouble(vm, 1))
+	    || interval < 1 || interval > UINT32_MAX
+	    || interval != floor(interval)) {
+		st_wren_abort(vm, "Hook.every expects a positive millisecond interval");
+		return;
+	}
+	if (st_time_monotonic_ms(&now) != 0) {
+		st_wren_abort(vm, "Hook.every: monotonic clock unavailable");
+		return;
+	}
+	register_hook(vm, 2, 6, -1);
+	if (wrenGetSlotType(vm, 0) != WREN_TYPE_FOREIGN)
+		return;
+	hook = hook_from_handle(vm);
+	if (hook == NULL)
+		return;
+	hook->interval_ms = (uint64_t)interval;
+	hook->next_deadline_ms = now + hook->interval_ms;
+}
 
 static const struct sftp_binding bindings[] = {
 	{"SFTP", true, "available", fn_sftp_available},
@@ -623,6 +1024,23 @@ static const struct sftp_binding bindings[] = {
 	{"Hook", true, "onKey(_,_)", fn_hook_on_key_value},
 	{"Hook", true, "onShellClose(_)", fn_hook_shell},
 	{"Hook", true, "onDisconnect(_)", fn_hook_disconnect},
+	{"Hook", true, "onWire(_)", fn_hook_on_wire},
+	{"Hook", true, "onWire(_,_)", fn_hook_on_wire_value},
+	{"Hook", true, "onInput(_)", fn_hook_on_input},
+	{"Hook", true, "onInput(_,_)", fn_hook_on_input_value},
+	{"Hook", true, "onMatch(_,_)", fn_hook_on_match},
+	{"Hook", true, "onMatchClean(_,_)", fn_hook_on_match_clean},
+	{"Hook", true, "onMouse(_)", fn_hook_on_mouse},
+	{"Hook", true, "onMouse(_,_)", fn_hook_on_mouse_value},
+	{"Hook", true, "onPhysicalKey(_)", fn_hook_on_physical_key},
+	{"Hook", true, "onPhysicalKey(_,_)", fn_hook_on_physical_key_value},
+	{"Hook", true, "every(_,_)", fn_hook_every},
+	{"HookHandle", false, "remove()", fn_hook_remove},
+	{"HookHandle", false, "callCount", fn_hook_call_count},
+	{"HookHandle", false, "totalRuntime", fn_hook_total_runtime},
+	{"HookHandle", false, "minRuntime", fn_hook_min_runtime},
+	{"HookHandle", false, "maxRuntime", fn_hook_max_runtime},
+	{"HookHandle", false, "toString", fn_hook_to_string},
 };
 
 WrenForeignMethodFn
@@ -657,6 +1075,8 @@ st_wren_sftp_bind_class(const char *class_name)
 		methods.allocate = allocate_error;
 		methods.finalize = finalize_error;
 	}
+	else if (strcmp(class_name, "HookHandle") == 0)
+		methods.allocate = allocate_hook_handle;
 	return methods;
 }
 
@@ -798,7 +1218,8 @@ deliver_timers(struct st_wren_connected *connected)
 		wrenEnsureSlots(connected->vm, 4);
 		wrenSetSlotHandle(connected->vm, 1, timer->fiber);
 		wrenGetVariable(connected->vm, "syncterm", "TimerElapsed", 3);
-		(void)wrenSetSlotNewForeign(connected->vm, 2, 3, 1);
+		/* The core foreign finalizer expects a generic payload header. */
+		st_wren_core_new_generic(connected->vm, 2, 3);
 		if (st_wren_wake_enqueue(connected->vm, 1, 2) != 0)
 			status = IO_ERROR_OUT_OF_MEMORY;
 		wrenReleaseHandle(connected->vm, timer->fiber);
@@ -834,14 +1255,15 @@ st_wren_connected_create(st_wren_connected_t **result,
 
 	if (result == NULL || config == NULL || config->host == NULL
 	    || config->console == NULL || config->profile == NULL
-	    || config->sftp == NULL || config->sftp->submit == NULL
-	    || config->sftp->poll == NULL)
+	    || (config->sftp != NULL && (config->sftp->submit == NULL
+	    || config->sftp->poll == NULL)))
 		return IO_ERROR_INVALID_ARGUMENT;
 	connected = calloc(1, sizeof(*connected));
 	if (connected == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	connected->host = config->host;
-	connected->provider = *config->sftp;
+	if (config->sftp != NULL)
+		connected->provider = *config->sftp;
 	st_profile_init(&connected->profile);
 	if (!st_profile_copy(&connected->profile, config->profile)) {
 		free(connected);
@@ -851,7 +1273,12 @@ st_wren_connected_create(st_wren_connected_t **result,
 	connected->context.console = config->console;
 	connected->context.connected = connected;
 	connected->context.profile = &connected->profile;
+	connected->context.cterm = config->cterm;
+	connected->context.connection = config->connection;
+	connected->context.session = config->session;
+	(void)st_time_monotonic_ms(&connected->context.connected_at_ms);
 	connected->context.event = "connected";
+	connected->context.status_enabled = config->status_enabled;
 	if (config->console == config->host->menu.console)
 		connected->context.fonts = config->host->menu.fonts;
 	else {
@@ -881,6 +1308,9 @@ st_wren_connected_create(st_wren_connected_t **result,
 		status = st_wren_input_context_init(connected->vm);
 	if (status == 0)
 		status = st_wren_interpret_event_scripts(connected->vm, "connected");
+	if (status == 0)
+		status = st_wren_interpret_profile_scripts(connected->vm,
+		    &connected->profile);
 	if (status != 0) {
 		st_wren_connected_destroy(connected);
 		return status;
@@ -892,19 +1322,27 @@ st_wren_connected_create(st_wren_connected_t **result,
 static int
 run_hooks(struct st_wren_connected *connected, int kind)
 {
-	WrenHandle *call = wrenMakeCallHandle(connected->vm, "call()");
+	WrenHandle *call = wrenMakeCallHandle(connected->vm, "dispatch_(_)");
 	int status = 0;
 
 	if (call == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	for (struct connected_hook *hook = connected->hooks; hook != NULL;
 	    hook = hook->next) {
-		if (hook->kind != kind)
+		uint64_t before = 0;
+
+		if (hook->kind != kind || hook->function == NULL)
 			continue;
-		wrenEnsureSlots(connected->vm, 1);
-		wrenSetSlotHandle(connected->vm, 0, hook->function);
+		wrenEnsureSlots(connected->vm, 2);
+		wrenGetVariable(connected->vm, "syncterm", "Hook", 0);
+		wrenSetSlotHandle(connected->vm, 1, hook->function);
+		(void)st_time_monotonic_ms(&before);
 		if (wrenCall(connected->vm, call) != WREN_RESULT_SUCCESS)
 			status = IO_ERROR_INVALID_FORMAT;
+		else
+			warn_observe_return(connected->vm,
+			    kind == 2 ? "onShellClose" : "onDisconnect");
+		record_hook_runtime(hook, before);
 	}
 	wrenReleaseHandle(connected->vm, call);
 	return status;
@@ -917,14 +1355,378 @@ st_wren_connected_shell_closed(st_wren_connected_t *connected)
 	    : run_hooks(connected, 2);
 }
 
+int
+st_wren_connected_handle_key(st_wren_connected_t *connected,
+	uint16_t key, bool *consumed)
+{
+	if (connected == NULL || consumed == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	*consumed = false;
+	for (struct connected_hook *hook = connected->hooks; hook != NULL;
+	    hook = hook->next) {
+		uint64_t before = 0;
+
+		if (hook->kind != 1 || (hook->filter >= 0
+		    && hook->filter != key) || hook->function == NULL)
+			continue;
+		wrenEnsureSlots(connected->vm, 3);
+		wrenSetSlotHandle(connected->vm, 0,
+		    connected->context.hook_class);
+		wrenSetSlotHandle(connected->vm, 1, hook->function);
+		wrenSetSlotDouble(connected->vm, 2, key);
+		(void)st_time_monotonic_ms(&before);
+		if (wrenCall(connected->vm,
+		    connected->context.hook_dispatch) != WREN_RESULT_SUCCESS) {
+			record_hook_runtime(hook, before);
+			continue;
+		}
+		record_hook_runtime(hook, before);
+		if (wrenGetSlotType(connected->vm, 0) == WREN_TYPE_BOOL
+		    && wrenGetSlotBool(connected->vm, 0)) {
+			*consumed = true;
+			break;
+		}
+	}
+	return 0;
+}
+
+bool
+st_wren_connected_has_wire_hooks(const st_wren_connected_t *connected)
+{
+	if (connected == NULL)
+		return false;
+	for (const struct connected_hook *hook = connected->hooks; hook != NULL;
+	    hook = hook->next) {
+		if (hook->kind == 7 && hook->function != NULL)
+			return true;
+	}
+	return false;
+}
+
+int
+st_wren_connected_filter_wire_byte(st_wren_connected_t *connected,
+	uint8_t byte, bool *consumed, uint8_t *replacement, size_t capacity,
+	size_t *replacement_size)
+{
+	if (connected == NULL || consumed == NULL || replacement_size == NULL
+	    || (replacement == NULL && capacity != 0))
+		return IO_ERROR_INVALID_ARGUMENT;
+	*consumed = false;
+	*replacement_size = 0;
+	for (struct connected_hook *hook = connected->hooks; hook != NULL;
+	    hook = hook->next) {
+		uint64_t before = 0;
+		int size;
+		const char *bytes;
+
+		if (hook->kind != 7 || hook->function == NULL
+		    || (hook->filter >= 0 && hook->filter != byte))
+			continue;
+		wrenEnsureSlots(connected->vm, 3);
+		wrenSetSlotHandle(connected->vm, 0,
+		    connected->context.hook_class);
+		wrenSetSlotHandle(connected->vm, 1, hook->function);
+		wrenSetSlotDouble(connected->vm, 2, byte);
+		(void)st_time_monotonic_ms(&before);
+		if (wrenCall(connected->vm,
+		    connected->context.hook_dispatch) != WREN_RESULT_SUCCESS) {
+			record_hook_runtime(hook, before);
+			continue;
+		}
+		record_hook_runtime(hook, before);
+		if (wrenGetSlotType(connected->vm, 0) == WREN_TYPE_BOOL
+		    && wrenGetSlotBool(connected->vm, 0)) {
+			*consumed = true;
+			break;
+		}
+		if (wrenGetSlotType(connected->vm, 0) != WREN_TYPE_STRING)
+			continue;
+		bytes = wrenGetSlotBytes(connected->vm, 0, &size);
+		if (size < 0 || (size_t)size > capacity) {
+			st_wren_log_append(connected->vm, 2,
+			    "Hook.onWire replacement exceeds wire buffer capacity");
+			continue;
+		}
+		if (size != 0)
+			memcpy(replacement, bytes, (size_t)size);
+		*replacement_size = (size_t)size;
+		*consumed = true;
+		break;
+	}
+	return 0;
+}
+
+bool
+st_wren_connected_has_input_hooks(const st_wren_connected_t *connected)
+{
+	if (connected == NULL)
+		return false;
+	for (const struct connected_hook *hook = connected->hooks; hook != NULL;
+	    hook = hook->next) {
+		if ((hook->kind == 8 || hook->kind == ST_WREN_HOOK_MATCH)
+		    && hook->function != NULL)
+			return true;
+	}
+	return false;
+}
+
+static void
+drain_match_hook(st_wren_connected_t *connected, struct connected_hook *hook)
+{
+	char *matches[MAXSUB];
+
+	while (hook->regex_pos < hook->regex_buf_len) {
+		int result = pikevm_step(hook->regex_vm,
+		    hook->regex_buf + hook->regex_pos);
+
+		if (result < 0) {
+			hook->regex_pos++;
+			continue;
+		}
+		if (result == 1) {
+			uint64_t before = 0;
+			size_t end;
+
+			pikevm_match(hook->regex_vm, matches);
+			wrenEnsureSlots(connected->vm, 4);
+			wrenSetSlotHandle(connected->vm, 0,
+			    connected->context.hook_class);
+			wrenSetSlotHandle(connected->vm, 1, hook->function);
+			wrenSetSlotNewList(connected->vm, 2);
+			for (int group = 0; group <= hook->regex_groups; ++group) {
+				char *start = matches[2 * group];
+				char *finish = matches[2 * group + 1];
+
+				if (start == NULL || finish == NULL)
+					wrenSetSlotNull(connected->vm, 3);
+				else
+					wrenSetSlotBytes(connected->vm, 3, start,
+					    (size_t)(finish - start));
+				wrenInsertInList(connected->vm, 2, -1, 3);
+			}
+			(void)st_time_monotonic_ms(&before);
+			if (wrenCall(connected->vm,
+			    connected->context.hook_dispatch) == WREN_RESULT_SUCCESS)
+				warn_observe_return(connected->vm,
+				    hook->regex_clean ? "onMatchClean" : "onMatch");
+			record_hook_runtime(hook, before);
+			end = matches[1] == NULL ? hook->regex_buf_len
+			    : (size_t)(matches[1] - hook->regex_buf);
+			if (end > hook->regex_buf_len)
+				end = hook->regex_buf_len;
+			memmove(hook->regex_buf, hook->regex_buf + end,
+			    hook->regex_buf_len - end);
+			hook->regex_buf_len -= end;
+		}
+		else {
+			memmove(hook->regex_buf, hook->regex_buf + 1,
+			    hook->regex_buf_len - 1);
+			hook->regex_buf_len--;
+		}
+		hook->regex_buf[hook->regex_buf_len] = '\0';
+		hook->regex_pos = 0;
+		pikevm_start(hook->regex_vm, hook->regex_buf);
+	}
+}
+
+static void
+feed_match_hook(st_wren_connected_t *connected, struct connected_hook *hook,
+	uint32_t scalar)
+{
+	char utf8[4];
+	ptrdiff_t count = st_utf8_encode_one(utf8, sizeof(utf8), scalar);
+
+	if (count <= 0)
+		return;
+	for (ptrdiff_t i = 0; i < count; ++i) {
+		uint8_t byte = (uint8_t)utf8[i];
+
+		if (hook->regex_clean
+		    && st_wren_ansi_keep_text(&byte, 1, &byte,
+		    &hook->regex_ansi_state) == 0)
+			continue;
+		if (hook->regex_buf_len + 1 >= ST_WREN_REGEX_BUFFER_SIZE) {
+			size_t drop = ST_WREN_REGEX_BUFFER_SIZE / 2 + 1;
+
+			memmove(hook->regex_buf, hook->regex_buf + drop,
+			    hook->regex_buf_len - drop);
+			hook->regex_buf_len -= drop;
+			hook->regex_pos = 0;
+			pikevm_start(hook->regex_vm, hook->regex_buf);
+		}
+		hook->regex_buf[hook->regex_buf_len++] = (char)byte;
+		hook->regex_buf[hook->regex_buf_len] = '\0';
+		drain_match_hook(connected, hook);
+	}
+}
+
+int
+st_wren_connected_filter_input_scalar(st_wren_connected_t *connected,
+	uint32_t scalar, bool *consumed, char *replacement, size_t capacity,
+	size_t *replacement_size)
+{
+	if (connected == NULL || consumed == NULL || replacement_size == NULL
+	    || (replacement == NULL && capacity != 0)
+	    || scalar > 0x10ffff || (scalar >= 0xd800 && scalar <= 0xdfff))
+		return IO_ERROR_INVALID_ARGUMENT;
+	*consumed = false;
+	*replacement_size = 0;
+	for (struct connected_hook *hook = connected->hooks; hook != NULL;
+	    hook = hook->next) {
+		uint64_t before = 0;
+		int size;
+		const char *bytes;
+		char *normalized = NULL;
+		size_t normalized_size = 0;
+		int status;
+
+		if (hook->kind == ST_WREN_HOOK_MATCH
+		    && hook->function != NULL) {
+			feed_match_hook(connected, hook, scalar);
+			continue;
+		}
+		if (hook->kind != 8 || hook->function == NULL
+		    || (hook->filter >= 0 && (uint32_t)hook->filter != scalar))
+			continue;
+		wrenEnsureSlots(connected->vm, 3);
+		wrenSetSlotHandle(connected->vm, 0,
+		    connected->context.hook_class);
+		wrenSetSlotHandle(connected->vm, 1, hook->function);
+		wrenSetSlotDouble(connected->vm, 2, (double)scalar);
+		(void)st_time_monotonic_ms(&before);
+		if (wrenCall(connected->vm,
+		    connected->context.hook_dispatch) != WREN_RESULT_SUCCESS) {
+			record_hook_runtime(hook, before);
+			continue;
+		}
+		record_hook_runtime(hook, before);
+		if (wrenGetSlotType(connected->vm, 0) == WREN_TYPE_BOOL
+		    && wrenGetSlotBool(connected->vm, 0)) {
+			*consumed = true;
+			break;
+		}
+		if (wrenGetSlotType(connected->vm, 0) != WREN_TYPE_STRING)
+			continue;
+		bytes = wrenGetSlotBytes(connected->vm, 0, &size);
+		status = size < 0 ? IO_ERROR_INVALID_ENCODING
+		    : st_unicode_text_normalize(&normalized, &normalized_size,
+		    bytes, (size_t)size, NULL);
+		if (status == IO_ERROR_OUT_OF_MEMORY)
+			return status;
+		if (status != 0 || normalized_size > capacity) {
+			st_wren_log_append(connected->vm, 2, status != 0
+			    ? "Hook.onInput replacement is not valid UTF-8"
+			    : "Hook.onInput replacement exceeds input buffer capacity");
+			free(normalized);
+			continue;
+		}
+		if (normalized_size != 0)
+			memcpy(replacement, normalized, normalized_size);
+		*replacement_size = normalized_size;
+		*consumed = true;
+		free(normalized);
+		break;
+	}
+	return 0;
+}
+
+int
+st_wren_connected_handle_event(st_wren_connected_t *connected,
+	const struct st_console_event *event, bool *consumed)
+{
+	int status;
+
+	if (connected == NULL || event == NULL || consumed == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	status = st_wren_input_dispatch_console_event(connected->vm, event,
+	    consumed);
+	if (status != 0 || *consumed)
+		return status;
+	uint16_t key = st_wren_input_key_code(event);
+	return key == 0 ? 0
+	    : st_wren_connected_handle_key(connected, key, consumed);
+}
+
+int
+st_wren_connected_handle_mouse_record(struct st_wren_connected *connected,
+	const struct st_wren_input_record *record, bool *consumed)
+{
+	if (connected == NULL || record == NULL || consumed == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	*consumed = false;
+	for (struct connected_hook *hook = connected->hooks; hook != NULL;
+	    hook = hook->next) {
+		uint64_t before = 0;
+
+		if (hook->kind != 4 || hook->function == NULL
+		    || (hook->filter >= 0
+		    && hook->filter != record->data.mouse.event))
+			continue;
+		wrenEnsureSlots(connected->vm, 4);
+		wrenSetSlotHandle(connected->vm, 0,
+		    connected->context.hook_class);
+		wrenSetSlotHandle(connected->vm, 1, hook->function);
+		st_wren_input_push_event(connected->vm, 2, record);
+		(void)st_time_monotonic_ms(&before);
+		if (wrenCall(connected->vm,
+		    connected->context.hook_dispatch) != WREN_RESULT_SUCCESS) {
+			record_hook_runtime(hook, before);
+			continue;
+		}
+		record_hook_runtime(hook, before);
+		if (wrenGetSlotType(connected->vm, 0) == WREN_TYPE_BOOL
+		    && wrenGetSlotBool(connected->vm, 0)) {
+			*consumed = true;
+			break;
+		}
+	}
+	return 0;
+}
+
+int
+st_wren_connected_handle_physical_record(
+	struct st_wren_connected *connected,
+	const struct st_wren_input_record *record, bool *consumed)
+{
+	if (connected == NULL || record == NULL || consumed == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	*consumed = false;
+	for (struct connected_hook *hook = connected->hooks; hook != NULL;
+	    hook = hook->next) {
+		uint64_t before = 0;
+
+		if (hook->kind != 5 || hook->function == NULL
+		    || (hook->filter >= 0
+		    && hook->filter != record->data.physical_key.evdev))
+			continue;
+		wrenEnsureSlots(connected->vm, 4);
+		wrenSetSlotHandle(connected->vm, 0,
+		    connected->context.hook_class);
+		wrenSetSlotHandle(connected->vm, 1, hook->function);
+		st_wren_input_push_event(connected->vm, 2, record);
+		(void)st_time_monotonic_ms(&before);
+		if (wrenCall(connected->vm,
+		    connected->context.hook_dispatch) != WREN_RESULT_SUCCESS) {
+			record_hook_runtime(hook, before);
+			continue;
+		}
+		record_hook_runtime(hook, before);
+		if (wrenGetSlotType(connected->vm, 0) == WREN_TYPE_BOOL
+		    && wrenGetSlotBool(connected->vm, 0)) {
+			*consumed = true;
+			break;
+		}
+	}
+	return 0;
+}
+
 void
 st_wren_connected_destroy(st_wren_connected_t *connected)
 {
 	if (connected == NULL)
 		return;
-	if (connected->vm != NULL)
-		(void)run_hooks(connected, 3);
 	connected->shutting_down = true;
+	st_wren_connected_capture_stop(connected);
 	if (connected->provider.cancel_all != NULL)
 		connected->provider.cancel_all(connected->provider.context);
 	while (connected->requests != NULL) {
@@ -941,20 +1743,140 @@ st_wren_connected_destroy(st_wren_connected_t *connected)
 		free(connected->timers);
 		connected->timers = next;
 	}
+	if (connected->vm != NULL)
+		(void)run_hooks(connected, 3);
 	while (connected->hooks != NULL) {
 		struct connected_hook *next = connected->hooks->next;
-		if (connected->vm != NULL)
+		free_regex_hook(connected->hooks);
+		if (connected->vm != NULL
+		    && connected->hooks->function != NULL)
 			wrenReleaseHandle(connected->vm, connected->hooks->function);
 		free(connected->hooks);
 		connected->hooks = next;
 	}
 	if (connected->vm != NULL) {
+		st_wren_status_dispose(connected->vm);
 		st_wren_input_context_dispose(connected->vm);
 		st_wren_log_dispose(connected->vm);
 		wrenFreeVM(connected->vm);
 	}
 	st_profile_dispose(&connected->profile);
 	free(connected);
+}
+
+bool
+st_wren_connected_capture_active(const st_wren_connected_t *connected)
+{
+	return connected != NULL && connected->capture_stream != NULL;
+}
+
+bool
+st_wren_connected_capture_paused(const st_wren_connected_t *connected)
+{
+	return st_wren_connected_capture_active(connected)
+	    && connected->capture_paused;
+}
+
+int
+st_wren_connected_capture_start(st_wren_connected_t *connected,
+	FILE *stream, bool raw)
+{
+	if (connected == NULL || stream == NULL || connected->capture_stream != NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	connected->capture_stream = stream;
+	connected->capture_raw = raw;
+	connected->capture_paused = false;
+	connected->capture_ansi_state = ANSI_STATE_NONE;
+	return 0;
+}
+
+void
+st_wren_connected_capture_stop(st_wren_connected_t *connected)
+{
+	if (connected == NULL || connected->capture_stream == NULL)
+		return;
+	if (fclose(connected->capture_stream) != 0 && connected->vm != NULL)
+		st_wren_log_append(connected->vm, 2, "Capture close failed");
+	connected->capture_stream = NULL;
+	connected->capture_paused = false;
+	connected->capture_ansi_state = ANSI_STATE_NONE;
+}
+
+void
+st_wren_connected_capture_pause(st_wren_connected_t *connected)
+{
+	if (st_wren_connected_capture_active(connected))
+		connected->capture_paused = true;
+}
+
+void
+st_wren_connected_capture_resume(st_wren_connected_t *connected)
+{
+	if (st_wren_connected_capture_active(connected))
+		connected->capture_paused = false;
+}
+
+int
+st_wren_connected_capture_input(st_wren_connected_t *connected,
+	const char *utf8, size_t size)
+{
+	uint8_t filtered[4];
+	const void *bytes = utf8;
+	size_t count = size;
+
+	if (!st_wren_connected_capture_active(connected)
+	    || connected->capture_paused || size == 0)
+		return 0;
+	if (!connected->capture_raw) {
+		if (size > sizeof(filtered))
+			return IO_ERROR_INVALID_ARGUMENT;
+		count = st_wren_ansi_keep_text((const uint8_t *)utf8, size,
+		    filtered, &connected->capture_ansi_state);
+		bytes = filtered;
+	}
+	if (count > 0 && fwrite(bytes, 1, count,
+	    connected->capture_stream) != count) {
+		if (connected->vm != NULL)
+			st_wren_log_append(connected->vm, 2, "Capture write failed");
+		st_wren_connected_capture_stop(connected);
+	}
+	return 0;
+}
+
+static int
+fire_interval_hooks(st_wren_connected_t *connected, uint64_t now)
+{
+	WrenHandle *call = NULL;
+	int status = 0;
+
+	for (struct connected_hook *hook = connected->hooks; hook != NULL;
+	    hook = hook->next) {
+		uint64_t before = 0;
+
+		if (hook->kind != 6 || hook->function == NULL
+		    || now < hook->next_deadline_ms)
+			continue;
+		if (call == NULL) {
+			call = wrenMakeCallHandle(connected->vm, "dispatch_(_)");
+			if (call == NULL)
+				return IO_ERROR_OUT_OF_MEMORY;
+		}
+		/* Do not replay missed ticks after a stalled event loop. */
+		hook->next_deadline_ms = now > UINT64_MAX - hook->interval_ms
+		    ? UINT64_MAX : now + hook->interval_ms;
+		wrenEnsureSlots(connected->vm, 2);
+		wrenGetVariable(connected->vm, "syncterm", "Hook", 0);
+		wrenSetSlotHandle(connected->vm, 1, hook->function);
+		(void)st_time_monotonic_ms(&before);
+		if (wrenCall(connected->vm, call) != WREN_RESULT_SUCCESS)
+			status = IO_ERROR_INVALID_FORMAT;
+		else
+			warn_observe_return(connected->vm, "every");
+		record_hook_runtime(hook, before);
+	}
+	if (call != NULL)
+		wrenReleaseHandle(connected->vm, call);
+	return status;
 }
 
 int
@@ -977,22 +1899,64 @@ st_wren_connected_pump(st_wren_connected_t *connected, uint32_t timeout_ms)
 				timeout_ms = (uint32_t)remaining;
 		}
 	}
-	do {
-		status = connected->provider.poll(connected->provider.context,
-		    &response, first ? timeout_ms : 0);
-		first = false;
-		if (status < 0)
-			return status;
-		if (status > 0) {
-			status = deliver_response(connected, &response);
-			if (status != 0)
-				return status;
+	if (st_time_monotonic_ms(&now) == 0) {
+		for (struct connected_hook *hook = connected->hooks; hook != NULL;
+		    hook = hook->next) {
+			uint64_t remaining;
+
+			if (hook->kind != 6 || hook->function == NULL)
+				continue;
+			remaining = hook->next_deadline_ms > now
+			    ? hook->next_deadline_ms - now : 0;
+			if (remaining < timeout_ms)
+				timeout_ms = (uint32_t)remaining;
 		}
-	} while (status > 0);
+	}
+	if (connected->provider.poll != NULL) {
+		do {
+			status = connected->provider.poll(connected->provider.context,
+			    &response, first ? timeout_ms : 0);
+			first = false;
+			if (status < 0)
+				return status;
+			if (status > 0) {
+				status = deliver_response(connected, &response);
+				if (status != 0)
+					return status;
+			}
+		} while (status > 0);
+	}
 	status = deliver_timers(connected);
 	if (status == 0)
 		status = st_wren_wake_drain(connected->vm);
+	if (status == 0 && st_time_monotonic_ms(&now) == 0)
+		status = fire_interval_hooks(connected, now);
+	if (status == 0 && connected->context.scrollback_requested) {
+		WrenHandle *run;
+
+		connected->context.scrollback_requested = false;
+		if (!wrenHasModule(connected->vm, "scrollback_view")
+		    || !wrenHasVariable(connected->vm, "scrollback_view",
+		    "ScrollbackView"))
+			return IO_ERROR_INVALID_FORMAT;
+		run = wrenMakeCallHandle(connected->vm, "run()");
+		if (run == NULL)
+			return IO_ERROR_OUT_OF_MEMORY;
+		wrenEnsureSlots(connected->vm, 1);
+		wrenGetVariable(connected->vm, "scrollback_view",
+		    "ScrollbackView", 0);
+		status = wrenCall(connected->vm, run) == WREN_RESULT_SUCCESS
+		    ? 0 : IO_ERROR_INVALID_FORMAT;
+		wrenReleaseHandle(connected->vm, run);
+	}
 	return status;
+}
+
+int
+st_wren_connected_render_status(st_wren_connected_t *connected, bool enabled)
+{
+	return connected == NULL ? IO_ERROR_INVALID_ARGUMENT
+	    : st_wren_status_render(connected->vm, enabled);
 }
 
 int

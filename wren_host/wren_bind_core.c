@@ -426,6 +426,63 @@ st_wren_push_surface_take(WrenVM *vm, struct st_console_cell *cells,
 	surface->storage = storage;
 }
 
+static struct surface_storage *
+status_surface_storage(WrenVM *vm, int slot, uint32_t width, uint32_t height)
+{
+	struct foreign_surface *surface;
+
+	if (wrenGetSlotType(vm, slot) != WREN_TYPE_FOREIGN)
+		return NULL;
+	surface = wrenGetSlotForeign(vm, slot);
+	if (surface == NULL || surface->header.kind != FOREIGN_SURFACE
+	    || surface->storage == NULL
+	    || surface->storage->width != width
+	    || surface->storage->height != height)
+		return NULL;
+	return surface->storage;
+}
+
+bool
+st_wren_surface_reset(WrenVM *vm, int slot,
+	const struct st_console_cell *blank, uint32_t width, uint32_t height)
+{
+	struct surface_storage *storage;
+
+	if (blank == NULL || (storage = status_surface_storage(vm, slot,
+	    width, height)) == NULL)
+		return false;
+	for (size_t i = 0; i < storage->count; ++i)
+		storage->cells[i] = *blank;
+	return true;
+}
+
+const struct st_console_cell *
+st_wren_surface_cells(WrenVM *vm, int slot, uint32_t width, uint32_t height)
+{
+	struct surface_storage *storage = status_surface_storage(vm, slot,
+	    width, height);
+
+	return storage == NULL ? NULL : storage->cells;
+}
+
+bool
+st_wren_surface_view(WrenVM *vm, int slot,
+	struct st_console_cell **cells, uint32_t *width, uint32_t *height)
+{
+	struct foreign_surface *surface;
+
+	if (wrenGetSlotType(vm, slot) != WREN_TYPE_FOREIGN)
+		return false;
+	surface = wrenGetSlotForeign(vm, slot);
+	if (surface == NULL || surface->header.kind != FOREIGN_SURFACE
+	    || surface->storage == NULL)
+		return false;
+	*cells = surface->storage->cells;
+	*width = surface->storage->width;
+	*height = surface->storage->height;
+	return true;
+}
+
 static struct st_console_cell *
 cell_value(WrenVM *vm, int slot)
 {
@@ -553,13 +610,19 @@ resolved_cell_columns(WrenVM *vm, const struct st_console_cell *cell)
 	return columns;
 }
 
+void
+st_wren_core_new_generic(WrenVM *vm, int slot, int class_slot)
+{
+	struct foreign_header *header = wrenSetSlotNewForeign(vm, slot,
+	    class_slot, sizeof(*header));
+
+	header->kind = FOREIGN_GENERIC;
+}
+
 static void
 allocate_generic(WrenVM *vm)
 {
-	struct foreign_header *header = wrenSetSlotNewForeign(vm, 0, 0,
-	    sizeof(*header));
-
-	header->kind = FOREIGN_GENERIC;
+	st_wren_core_new_generic(vm, 0, 0);
 }
 
 static void
@@ -889,6 +952,13 @@ make_input_event(WrenVM *vm, int slot,
 	}
 }
 
+void
+st_wren_input_push_event(WrenVM *vm, int slot,
+	const struct st_wren_input_record *record)
+{
+	make_input_event(vm, slot, record);
+}
+
 static struct st_wren_input_record
 mouse_record(const struct st_console_event *source, int code,
 	int32_t start_x, int32_t start_y, int32_t start_pixel_x,
@@ -924,16 +994,16 @@ mouse_add_if_enabled(struct st_wren_context *context,
 		records[(*count)++] = record;
 }
 
-static int
-queue_mouse_events(struct st_wren_context *context,
-	const struct st_console_event *source)
+static void
+collect_mouse_events(struct st_wren_context *context,
+	const struct st_console_event *source,
+	struct st_wren_input_record records[11], size_t *result_count)
 {
 	static const uint32_t masks[5] = {
 		ST_CONSOLE_MOUSE_BUTTON_LEFT, ST_CONSOLE_MOUSE_BUTTON_MIDDLE,
 		ST_CONSOLE_MOUSE_BUTTON_RIGHT, ST_CONSOLE_MOUSE_BUTTON_X1,
 		ST_CONSOLE_MOUSE_BUTTON_X2,
 	};
-	struct st_wren_input_record records[11];
 	size_t count = 0;
 
 	if (source->data.mouse.action == ST_CONSOLE_MOUSE_WHEEL) {
@@ -1042,6 +1112,17 @@ queue_mouse_events(struct st_wren_context *context,
 		}
 		context->mouse_buttons = source->data.mouse.buttons;
 	}
+	*result_count = count;
+}
+
+static int
+queue_mouse_events(struct st_wren_context *context,
+	const struct st_console_event *source)
+{
+	struct st_wren_input_record records[11];
+	size_t count;
+
+	collect_mouse_events(context, source, records, &count);
 	if (pending_reserve(context, count) != 0)
 		return IO_ERROR_OUT_OF_MEMORY;
 	for (size_t i = 0; i < count; ++i)
@@ -1633,6 +1714,119 @@ st_wren_input_dispatch(WrenVM *vm,
 	}
 	free(claims);
 	return status;
+}
+
+int
+st_wren_input_dispatch_console_event(WrenVM *vm,
+	const struct st_console_event *event, bool *consumed)
+{
+	struct st_wren_context *context;
+	struct st_wren_input_record record;
+	int status;
+
+	if (vm == NULL || event == NULL || consumed == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	*consumed = false;
+	context = st_wren_context_from_vm(vm);
+	switch (event->type) {
+	case ST_CONSOLE_EVENT_KEY_CODE:
+		record = compatibility_key_record(context, legacy_key_code(
+		    event->data.key.code, event->data.key.modifiers));
+		break;
+	case ST_CONSOLE_EVENT_TEXT: {
+		uint8_t byte;
+
+		record = (struct st_wren_input_record){
+			.type = ST_WREN_INPUT_KEY,
+			.data.key = {
+				.code = st_codepage_from_unicode(&byte,
+				    font_codepage(context->fonts.slots[0]),
+				    event->data.text.codepoint) ? byte : '?',
+				.codepoint = event->data.text.codepoint,
+				.has_codepoint = true,
+			},
+		};
+		break;
+	}
+	case ST_CONSOLE_EVENT_DOORWAY_KEY:
+		record = (struct st_wren_input_record){
+			.type = ST_WREN_INPUT_KEY,
+			.data.key.code =
+			    (uint16_t)event->data.doorway_key.scan_code << 8,
+		};
+		break;
+	case ST_CONSOLE_EVENT_PHYSICAL_KEY: {
+		uint16_t code = event->data.physical_key.pressed
+		    ? modified_physical_key(event->data.physical_key.evdev,
+		    event->data.physical_key.modifiers) : 0;
+
+		record = (struct st_wren_input_record){
+			.type = ST_WREN_INPUT_PHYSICAL_KEY,
+			.data.physical_key = {
+				.evdev = event->data.physical_key.evdev,
+				.modifiers = event->data.physical_key.modifiers,
+				.pressed = event->data.physical_key.pressed,
+				.repeat = event->data.physical_key.repeat,
+			},
+		};
+		status = st_wren_input_dispatch(vm, &record, consumed);
+		if (status != 0 || *consumed)
+			return status;
+		if (context->connected != NULL) {
+			status = st_wren_connected_handle_physical_record(
+			    context->connected, &record, consumed);
+			if (status != 0 || *consumed)
+				return status;
+		}
+		if (code == 0)
+			return 0;
+		record = compatibility_key_record(context, code);
+		break;
+	}
+	case ST_CONSOLE_EVENT_MOUSE: {
+		struct st_wren_input_record records[11];
+		size_t count;
+
+		collect_mouse_events(context, event, records, &count);
+		for (size_t i = 0; i < count; ++i) {
+			bool claimed = false;
+
+			status = st_wren_input_dispatch(vm, &records[i], &claimed);
+			if (status != 0)
+				return status;
+			if (!claimed && context->connected != NULL) {
+				status = st_wren_connected_handle_mouse_record(
+				    context->connected, &records[i], &claimed);
+				if (status != 0)
+					return status;
+			}
+			if (claimed)
+				*consumed = true;
+		}
+		return 0;
+	}
+	default:
+		return 0;
+	}
+	return st_wren_input_dispatch(vm, &record, consumed);
+}
+
+uint16_t
+st_wren_input_key_code(const struct st_console_event *event)
+{
+	if (event == NULL)
+		return 0;
+	if (event->type == ST_CONSOLE_EVENT_TEXT
+	    && event->data.text.codepoint < 0x80)
+		return (uint16_t)event->data.text.codepoint;
+	if (event->type == ST_CONSOLE_EVENT_KEY_CODE)
+		return legacy_key_code(event->data.key.code,
+		    event->data.key.modifiers);
+	if (event->type == ST_CONSOLE_EVENT_PHYSICAL_KEY
+	    && event->data.physical_key.pressed)
+		return modified_physical_key(event->data.physical_key.evdev,
+		    event->data.physical_key.modifiers);
+	return 0;
 }
 
 int
@@ -2740,9 +2934,17 @@ fn_font_name(WrenVM *vm)
 {
 	int64_t selector;
 	const char *name = NULL;
+	struct st_wren_context *context = st_wren_context_from_vm(vm);
+	char runtime_name[40];
 
 	if (!slot_integer(vm, 1, 0, UINT8_MAX, &selector))
 		return;
+	if (context->fonts.runtime_loaded[selector]) {
+		(void)snprintf(runtime_name, sizeof(runtime_name),
+		    "Loaded font %d", (int)selector);
+		wrenSetSlotString(vm, 0, runtime_name);
+		return;
+	}
 	if ((size_t)selector < ST_BUILTIN_FONT_COUNT)
 		name = st_builtin_font_name((size_t)selector);
 	else if ((size_t)selector - ST_BUILTIN_FONT_COUNT
@@ -2755,8 +2957,50 @@ fn_font_name(WrenVM *vm)
 static void
 fn_font_count(WrenVM *vm)
 {
-	wrenSetSlotDouble(vm, 0, (double)(ST_BUILTIN_FONT_COUNT
-	    + st_wren_context_from_vm(vm)->fonts.loaded_count));
+	struct st_wren_font_state *fonts =
+	    &st_wren_context_from_vm(vm)->fonts;
+	size_t count = ST_BUILTIN_FONT_COUNT + fonts->loaded_count;
+
+	for (size_t i = count; i <= UINT8_MAX; ++i) {
+		if (fonts->runtime_loaded[i])
+			count = i + 1;
+	}
+	wrenSetSlotDouble(vm, 0, (double)count);
+}
+
+static void
+fn_font_load(WrenVM *vm)
+{
+	struct st_wren_context *context = st_wren_context_from_vm(vm);
+	const char *path = st_wren_file_read_path(vm, 1);
+	uint32_t capabilities = 0;
+	uint16_t identifier;
+	size_t first;
+
+	if (path == NULL || context->cterm == NULL
+	    || st_console_capabilities(context->console, &capabilities) != 0
+	    || (capabilities & ST_CONSOLE_CAP_LOADABLE_FONTS) == 0) {
+		wrenSetSlotBool(vm, 0, false);
+		return;
+	}
+	first = ST_BUILTIN_FONT_COUNT + context->fonts.loaded_count;
+	if (first < ST_FONT_CATALOG_FIRST_CUSTOM)
+		first = ST_FONT_CATALOG_FIRST_CUSTOM;
+	for (size_t selector = first; selector <= UINT8_MAX; ++selector) {
+		if (context->fonts.catalog_valid[selector])
+			continue;
+		if (st_cterm_register_font(context->cterm, (uint8_t)selector,
+		    path, &identifier) != 0)
+			break;
+		context->fonts.catalog[selector] = identifier;
+		context->fonts.catalog_valid[selector] = true;
+		context->fonts.runtime_loaded[selector] = true;
+		context->fonts.selector_by_identifier[identifier] =
+		    (uint16_t)selector;
+		wrenSetSlotBool(vm, 0, true);
+		return;
+	}
+	wrenSetSlotBool(vm, 0, false);
 }
 
 static void
@@ -4334,6 +4578,7 @@ static const struct binding bindings[] = {
 	{"Font", true, "available(_)", fn_font_available},
 	{"Font", true, "codepage", fn_font_codepage},
 	{"Font", true, "codepageOf(_)", fn_font_codepage_of},
+	{"Font", true, "load(_)", fn_font_load},
 	{"Palette", true, "[_]", fn_palette_get},
 	{"Palette", true, "[_]=(_)", fn_palette_set},
 	{"Surface", false, "count", fn_surface_count},

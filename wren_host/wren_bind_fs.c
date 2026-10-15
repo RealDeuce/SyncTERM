@@ -939,6 +939,59 @@ st_wren_file_read_path(WrenVM *vm, int slot)
 	return file->path;
 }
 
+bool
+st_wren_file_claim_write(WrenVM *vm, int slot,
+	const char *operation, FILE **stream)
+{
+	struct st_wren_file *file;
+	const char *mode;
+	char message[112];
+
+	if (operation == NULL || stream == NULL)
+		return false;
+	if (wrenGetSlotType(vm, slot) != WREN_TYPE_FOREIGN) {
+		(void)snprintf(message, sizeof(message), "%s expects a File",
+		    operation);
+		st_wren_abort(vm, message);
+		return false;
+	}
+	file = wrenGetSlotForeign(vm, slot);
+	if (file == NULL || file->magic != ST_WREN_FILE_MAGIC
+	    || file->context != st_wren_context_from_vm(vm)
+	    || file->path == NULL || (file->rights & FILE_RIGHT_WRITE) == 0
+	    || file->stream != NULL || file->consumed) {
+		(void)snprintf(message, sizeof(message),
+		    "%s requires unused write consent", operation);
+		st_wren_abort(vm, message);
+		return false;
+	}
+	switch (file->disposition) {
+	case ST_WREN_PICKER_DISPOSITION_CREATE: mode = "wbx"; break;
+	case ST_WREN_PICKER_DISPOSITION_OVERWRITE: mode = "wb"; break;
+	case ST_WREN_PICKER_DISPOSITION_APPEND: mode = "ab"; break;
+	default:
+		(void)snprintf(message, sizeof(message),
+		    "%s requires save-path consent", operation);
+		st_wren_abort(vm, message);
+		return false;
+	}
+	if (fs_open(stream, file->path, mode) != 0) {
+		(void)snprintf(message, sizeof(message), "%s open failed",
+		    operation);
+		push_error(vm, 1, errno, message);
+		return false;
+	}
+	file->consumed = true;
+	return true;
+}
+
+void
+st_wren_file_write_error(WrenVM *vm, int native_error,
+	const char *message)
+{
+	push_error(vm, 2, native_error, message);
+}
+
 const char *
 st_wren_directory_path(WrenVM *vm, int slot)
 {

@@ -24,6 +24,8 @@ struct st_unicode_presentation {
 	size_t normalized_size;
 	st_unicode_presentation_callback_t callback;
 	void *context;
+	st_unicode_presentation_scalar_filter_t scalar_filter;
+	void *scalar_context;
 };
 
 static bool
@@ -272,6 +274,17 @@ st_unicode_presentation_create(st_unicode_presentation_t **result,
 }
 
 void
+st_unicode_presentation_set_scalar_filter(
+	st_unicode_presentation_t *presentation,
+	st_unicode_presentation_scalar_filter_t filter, void *context)
+{
+	if (presentation == NULL)
+		return;
+	presentation->scalar_filter = filter;
+	presentation->scalar_context = context;
+}
+
+void
 st_unicode_presentation_destroy(st_unicode_presentation_t **presentation)
 {
 	if (presentation == NULL || *presentation == NULL)
@@ -311,8 +324,16 @@ st_unicode_presentation_feed(st_unicode_presentation_t *presentation,
 		offset += used;
 		if (status != 0)
 			break;
-		if (event.kind == ST_UTF8_DECODE_EVENT_SCALAR)
-			status = accept(presentation, event.data.scalar);
+		if (event.kind == ST_UTF8_DECODE_EVENT_SCALAR) {
+			bool filtered = false;
+
+			if (presentation->scalar_filter != NULL)
+				status = presentation->scalar_filter(
+				    presentation->scalar_context, event.data.scalar,
+				    &filtered);
+			if (status == 0 && !filtered)
+				status = accept(presentation, event.data.scalar);
+		}
 		else if (event.kind == ST_UTF8_DECODE_EVENT_MALFORMED)
 			status = decode_error(presentation, &event);
 		if (status != 0)

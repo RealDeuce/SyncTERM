@@ -118,6 +118,14 @@ struct cterminal {
 	uint16_t rip_text_font_identifiers[6];
 	bool rip_text_font_registered[6];
 	enum st_cterm_encoding wire_encoding;
+	st_cterm_input_filter_t api_input_filter;
+	bool (*api_input_filter_active)(void *context);
+	void *api_input_filter_context;
+	bool api_input_filter_suppressed;
+	bool api_input_filter_installed;
+	st_cterm_capture_t api_capture;
+	bool (*api_capture_active)(void *context);
+	void *api_capture_context;
 	st_cterm_output_callback_t api_output;
 	void *api_output_context;
 	st_cterm_apc_callback_t api_apc;

@@ -50,6 +50,55 @@ feed(st_cterm_t *terminal, const void *bytes, size_t size)
 	CHECK(consumed == size);
 }
 
+struct input_filter_state {
+	uint32_t seen[16];
+	size_t count;
+	char captured[64];
+	size_t captured_size;
+};
+
+static bool
+input_filter_active(void *context)
+{
+	(void)context;
+	return true;
+}
+
+static int
+filter_input(void *context, uint32_t scalar, bool *consumed,
+	char *replacement, size_t capacity, size_t *replacement_size)
+{
+	struct input_filter_state *state = context;
+	const char *text = NULL;
+	size_t size = 0;
+
+	if (state->count < sizeof(state->seen) / sizeof(state->seen[0]))
+		state->seen[state->count++] = scalar;
+	*consumed = scalar == 'Q' || scalar == 0xe9 || scalar == '\n';
+	*replacement_size = 0;
+	if (scalar == 0xe9) { text = "X"; size = 1; }
+	if (scalar == '\n') { text = "\r\n"; size = 2; }
+	if (text != NULL) {
+		if (size > capacity)
+			return IO_ERROR_OUT_OF_RANGE;
+		memcpy(replacement, text, size);
+		*replacement_size = size;
+	}
+	return 0;
+}
+
+static int
+capture_input(void *context, const char *utf8, size_t size)
+{
+	struct input_filter_state *state = context;
+
+	if (size > sizeof(state->captured) - state->captured_size)
+		return IO_ERROR_OUT_OF_RANGE;
+	memcpy(state->captured + state->captured_size, utf8, size);
+	state->captured_size += size;
+	return 0;
+}
+
 static uint16_t
 crc16(const void *data, size_t size)
 {
@@ -105,6 +154,39 @@ main(void)
 		.quiet = true,
 	};
 	CHECK(st_cterm_create(&terminal, &config) == 0);
+	{
+		static const uint8_t blank_font[4096] = {0};
+		const char path[] = "st_cterm_test_runtime_font.f16";
+		struct st_cterm_state state;
+		uint16_t identifier = UINT16_MAX;
+		FILE *stream;
+
+		CHECK(st_cterm_state(terminal, &state) == 0);
+		CHECK(state.alt_fonts[0] == 0);
+		CHECK(st_cterm_register_font(terminal, 250,
+		    "missing-font-file", &identifier) == IO_ERROR_NOT_FOUND);
+		CHECK(identifier == UINT16_MAX);
+		stream = fopen(path, "wb");
+		CHECK(stream != NULL);
+		CHECK(fwrite(blank_font, 1, sizeof(blank_font), stream)
+		    == sizeof(blank_font));
+		CHECK(fclose(stream) == 0);
+		CHECK(st_cterm_register_font(terminal, 250, path,
+		    &identifier) == 0);
+		CHECK(identifier != UINT16_MAX);
+		CHECK(st_cterm_set_alt_font(terminal, 250) == 0);
+		CHECK(st_cterm_state(terminal, &state) == 0);
+		CHECK(state.alt_fonts[0] == 250);
+		CHECK(st_cterm_set_alt_font(terminal, 0) == 0);
+		CHECK(st_cterm_set_alt_font(terminal, 251)
+		    == IO_ERROR_INVALID_ARGUMENT);
+		CHECK(remove(path) == 0);
+	}
+	CHECK(!st_cterm_bracketed_paste(terminal));
+	feed(terminal, "\x1b[?2004h", 8);
+	CHECK(st_cterm_bracketed_paste(terminal));
+	feed(terminal, "\x1b[?2004l", 8);
+	CHECK(!st_cterm_bracketed_paste(terminal));
 
 	feed(terminal, "\x1b[31m", 5);
 	feed(terminal, "e", 1);
@@ -115,6 +197,29 @@ main(void)
 	CHECK(st_console_font_glyph_text(console, cell.glyph_font, cell.glyph,
 	    text, sizeof(text), &required) == 0);
 	CHECK(required == 1 && text[0] == 'e');
+	{
+		FILE *snapshot = tmpfile();
+		uint8_t bytes[129];
+		int native_error = -1;
+
+		CHECK(snapshot != NULL);
+		CHECK(st_cterm_save_binary(terminal, snapshot, true,
+		    "Board", "User", &native_error) == 0);
+		CHECK(native_error == 0 && ftell(snapshot) == 20 * 3 * 2 + 129);
+		CHECK(fseek(snapshot, 0, SEEK_SET) == 0);
+		CHECK(fread(bytes, 1, 2, snapshot) == 2);
+		CHECK(bytes[0] == 'e');
+		CHECK(fseek(snapshot, -(long)sizeof(bytes), SEEK_END) == 0);
+		CHECK(fread(bytes, 1, sizeof(bytes), snapshot)
+		    == sizeof(bytes));
+		CHECK(bytes[0] == 0x1a
+		    && memcmp(bytes + 1, "SAUCE00", 7) == 0
+		    && memcmp(bytes + 8, "Board", 5) == 0
+		    && memcmp(bytes + 43, "User", 4) == 0
+		    && bytes[91] == 120 && bytes[95] == 5
+		    && bytes[96] == 10);
+		CHECK(fclose(snapshot) == 0);
+	}
 	feed(terminal, "\xcc", 1);
 	feed(terminal, "\x81", 1);
 	CHECK(st_console_read_cells(console, &one, &cell, 1) == 0);
@@ -277,6 +382,77 @@ main(void)
 
 	st_cterm_destroy(&terminal);
 	CHECK(st_console_resize(console, 20, 4) == 0);
+	for (int encoding = ST_CTERM_ENCODING_UTF8;
+	    encoding <= ST_CTERM_ENCODING_CODEPAGE; ++encoding) {
+		struct input_filter_state state = {0};
+		const struct st_cterm_config filter_config = {
+			.console = console, .fonts = fonts,
+			.emulation = ST_CTERM_ANSI_BBS,
+			.encoding = (enum st_cterm_encoding)encoding,
+			.codepage = ST_CODEPAGE_CP437,
+			.quiet = true,
+			.input_filter = filter_input,
+			.input_filter_active = input_filter_active,
+			.input_filter_context = &state,
+			.capture = capture_input,
+			.capture_active = input_filter_active,
+			.capture_context = &state,
+		};
+		const struct st_console_rect first = {0, 0, 1, 1};
+		const struct st_console_rect next = {0, 1, 1, 1};
+		size_t consumed;
+
+		CHECK(st_cterm_create(&terminal, &filter_config) == 0);
+		if (encoding == ST_CTERM_ENCODING_UTF8) {
+			feed(terminal, "\xc3", 1);
+			CHECK(state.count == 0);
+			feed(terminal, "\xa9Q\nB", 4);
+		}
+		else {
+			feed(terminal, "\x82Q\nB", 4);
+		}
+		CHECK(state.count == 4 && state.seen[0] == 0xe9
+		    && state.seen[1] == 'Q' && state.seen[2] == '\n'
+		    && state.seen[3] == 'B');
+		CHECK(state.captured_size == 4
+		    && memcmp(state.captured, "X\r\nB", 4) == 0);
+		CHECK(st_console_read_cells(console, &first, &cell, 1) == 0
+		    && cell.glyph == 'X');
+		CHECK(st_console_read_cells(console, &next, &cell, 1) == 0
+		    && cell.glyph == 'B');
+		CHECK(st_cterm_write_utf8(terminal, "!", 1, &consumed) == 0
+		    && consumed == 1 && state.count == 4);
+		CHECK(state.captured_size == 5
+		    && memcmp(state.captured, "X\r\nB!", 5) == 0);
+		st_cterm_destroy(&terminal);
+	}
+	{
+		const struct st_cterm_config codepage_config = {
+			.console = console,
+			.fonts = fonts,
+			.emulation = ST_CTERM_ANSI_BBS,
+			.encoding = ST_CTERM_ENCODING_CODEPAGE,
+			.codepage = ST_CODEPAGE_CP437,
+			.quiet = true,
+		};
+		size_t consumed;
+		uint32_t utf8_glyph;
+		uint16_t utf8_font;
+
+		CHECK(st_cterm_create(&terminal, &codepage_config) == 0);
+		CHECK(st_cterm_write_utf8(terminal, "\xc3\xa9", 2,
+		    &consumed) == 0 && consumed == 2);
+		one = (struct st_console_rect){0, 0, 1, 1};
+		CHECK(st_console_read_cells(console, &one, &cell, 1) == 0);
+		utf8_glyph = cell.glyph;
+		utf8_font = cell.glyph_font;
+		st_cterm_destroy(&terminal);
+		CHECK(st_cterm_create(&terminal, &codepage_config) == 0);
+		feed(terminal, "\x82", 1);
+		CHECK(st_console_read_cells(console, &one, &cell, 1) == 0);
+		CHECK(cell.glyph == utf8_glyph && cell.glyph_font == utf8_font);
+		st_cterm_destroy(&terminal);
+	}
 	{
 		static const struct {
 			enum st_cterm_emulation emulation;
@@ -346,6 +522,20 @@ main(void)
 		CHECK(st_cterm_resize(terminal, 10, 5) == 0);
 		CHECK(st_cterm_copy_history(terminal, &history, &history_columns,
 		    &history_rows) == 0);
+		{
+			uint32_t ring_columns;
+			size_t ring_rows;
+			struct st_console_cell copied[20];
+
+			CHECK(st_cterm_scrollback_size(terminal, &ring_columns,
+			    &ring_rows) == 0);
+			CHECK(ring_columns == history_columns && ring_rows == 2);
+			CHECK(st_cterm_copy_scrollback_rows(terminal, copied,
+			    ring_columns, 2, 0, 2, 0) == 2);
+			CHECK(memcmp(copied, history, sizeof(copied)) == 0);
+			CHECK(st_cterm_copy_scrollback_rows(terminal, copied,
+			    ring_columns, 2, 2, 1, 0) == 0);
+		}
 		for (size_t i = 0; i < (size_t)history_columns * history_rows; ++i) {
 			if (st_console_font_glyph_text(console, history[i].glyph_font,
 			    history[i].glyph, text, sizeof(text), &required) == 0

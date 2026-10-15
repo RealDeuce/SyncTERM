@@ -64,9 +64,16 @@ struct st_unicode_presentation_event {
 
 typedef int (*st_unicode_presentation_callback_t)(void *context,
 	const struct st_unicode_presentation_event *event);
+/* Invoked for each decoded scalar before grapheme presentation.  A consumed
+ * scalar is not added to the current grapheme. */
+typedef int (*st_unicode_presentation_scalar_filter_t)(void *context,
+	uint32_t scalar, bool *consumed);
 
 int st_unicode_presentation_create(st_unicode_presentation_t **result,
 	st_unicode_presentation_callback_t callback, void *context);
+void st_unicode_presentation_set_scalar_filter(
+	st_unicode_presentation_t *presentation,
+	st_unicode_presentation_scalar_filter_t filter, void *context);
 void st_unicode_presentation_destroy(st_unicode_presentation_t **presentation);
 void st_unicode_presentation_reset(st_unicode_presentation_t *presentation);
 int st_unicode_presentation_feed(st_unicode_presentation_t *presentation,

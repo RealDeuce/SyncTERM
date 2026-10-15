@@ -639,6 +639,14 @@ st_wren_bind_method(WrenVM *vm, const char *module, const char *class_name,
 		    signature);
 	if (method == NULL && strcmp(module, "syncterm") == 0)
 		method = st_wren_sftp_bind_method(class_name, is_static, signature);
+	if (method == NULL && strcmp(module, "syncterm") == 0
+	    && st_wren_context_from_vm(vm)->connected != NULL)
+		method = st_wren_status_bind_method(class_name, is_static,
+		    signature);
+	if (method == NULL && strcmp(module, "syncterm") == 0
+	    && st_wren_context_from_vm(vm)->connected != NULL)
+		method = st_wren_session_bind_method(class_name, is_static,
+		    signature);
 	if (method == NULL)
 		method = st_wren_picker_bind_method(module, class_name, is_static,
 		    signature);
@@ -665,6 +673,9 @@ st_wren_bind_class(WrenVM *vm, const char *module, const char *class_name)
 		methods = st_wren_fs_bind_class(class_name);
 	if (methods.allocate == NULL && strcmp(module, "syncterm") == 0)
 		methods = st_wren_sftp_bind_class(class_name);
+	if (methods.allocate == NULL && strcmp(module, "syncterm") == 0
+	    && st_wren_context_from_vm(vm)->connected != NULL)
+		methods = st_wren_session_bind_class(class_name);
 	if (methods.allocate == NULL)
 		methods = st_wren_picker_bind_class(module, class_name);
 	if (methods.allocate != NULL)
@@ -729,7 +740,8 @@ st_wren_interpret_event_scripts(WrenVM *vm, const char *event)
 				break;
 			}
 		}
-		if (!overridden && wrenInterpret(vm, script->name, script->source)
+		if (!overridden && !wrenHasModule(vm, script->name)
+		    && wrenInterpret(vm, script->name, script->source)
 		    != WREN_RESULT_SUCCESS)
 			success = false;
 	}
@@ -765,6 +777,58 @@ embedded_script(const char *name)
 			return script;
 	}
 	return NULL;
+}
+
+int
+st_wren_interpret_profile_scripts(WrenVM *vm,
+	const struct st_profile *profile)
+{
+	const struct st_wren_host *host;
+	const char *next;
+
+	if (vm == NULL || profile == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	host = st_wren_host_from_vm(vm);
+	next = profile->wren_scripts;
+	while (*next != '\0') {
+		const char *comma = strchr(next, ',');
+		size_t length = comma == NULL ? strlen(next)
+		    : (size_t)(comma - next);
+		char name[ST_PROFILE_WREN_SCRIPTS_MAX + 1];
+		char *source;
+		const struct st_embedded_script *embedded;
+
+		if (length > ST_PROFILE_WREN_SCRIPTS_MAX)
+			return IO_ERROR_INVALID_FORMAT;
+		if (length != 0) {
+			for (size_t i = 0; i < length; ++i) {
+				unsigned char c = (unsigned char)next[i];
+
+				if (!((c >= 'a' && c <= 'z')
+				    || (c >= 'A' && c <= 'Z')
+				    || (c >= '0' && c <= '9') || c == '_'))
+					return IO_ERROR_INVALID_FORMAT;
+			}
+			memcpy(name, next, length);
+			name[length] = '\0';
+			if (!wrenHasModule(vm, name)) {
+				source = read_named_source(
+				    host->config.paths->scripts_directory, NULL, name);
+				embedded = source == NULL ? embedded_script(name) : NULL;
+				if (source == NULL && embedded == NULL)
+					return IO_ERROR_NOT_FOUND;
+				WrenInterpretResult interpreted = wrenInterpret(vm, name,
+				    source == NULL ? embedded->source : source);
+				free(source);
+				if (interpreted != WREN_RESULT_SUCCESS)
+					return IO_ERROR_INVALID_FORMAT;
+			}
+		}
+		if (comma == NULL)
+			break;
+		next = comma + 1;
+	}
+	return 0;
 }
 
 static WrenHandle *
@@ -1405,6 +1469,19 @@ st_wren_host_run_menu(st_wren_host_t *host, struct st_profile *selected,
 	if (host->selected_valid && !st_profile_copy(selected, &host->selected))
 		return IO_ERROR_OUT_OF_MEMORY;
 	return 0;
+}
+
+int
+st_wren_host_run_connected_menu(struct st_wren_host *host)
+{
+	if (host == NULL || host->vm == NULL || host->run_menu == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	wrenEnsureSlots(host->vm, 3);
+	wrenSetSlotHandle(host->vm, 0, host->main_menu);
+	wrenSetSlotNull(host->vm, 1);
+	wrenSetSlotBool(host->vm, 2, true);
+	return wrenCall(host->vm, host->run_menu) == WREN_RESULT_SUCCESS
+	    ? 0 : IO_ERROR_INVALID_FORMAT;
 }
 
 bool

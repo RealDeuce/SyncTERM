@@ -13,10 +13,13 @@
 #include "st_app_paths.h"
 #include "st_audio_runtime.h"
 #include "st_console.h"
+#include "st_cterm.h"
+#include "st_font_catalog.h"
 #include "st_profile.h"
 #include "st_settings.h"
 #include "st_session_history.h"
 #include "st_theme.h"
+#include "st_term.h"
 #include "st_threads.h"
 #include "st_time.h"
 #include "syncterm_config.h"
@@ -338,6 +341,675 @@ exercise_filesystem_path_handles(st_wren_connected_t *connected)
 
 	CHECK(fs_remove_file(external_file) == 0);
 	CHECK(fs_remove_directory(external_directory) == 0);
+	return 0;
+}
+
+static int
+exercise_connected_profile_scripts(st_wren_host_t *host,
+	st_console_t *console, const struct st_profile *profile,
+	const char *scripts_directory)
+{
+	struct st_profile selected = *profile;
+	struct st_wren_connected_config config = {
+		.host = host,
+		.console = console,
+		.profile = &selected,
+	};
+	st_wren_connected_t *connected = NULL;
+	char first[sizeof(ST_WREN_TEST_DIRECTORY) + 56];
+	char second[sizeof(ST_WREN_TEST_DIRECTORY) + 56];
+
+	CHECK(fs_create_directories(scripts_directory) == 0);
+	CHECK(snprintf(first, sizeof(first), "%s/profile_first.wren",
+	    scripts_directory) < (int)sizeof(first));
+	CHECK(snprintf(second, sizeof(second), "%s/profile_second.wren",
+	    scripts_directory) < (int)sizeof(second));
+	CHECK(write_file(first,
+	    "import \"syncterm\" for Status\n"
+	    "Status.details = Fn.new { \"first\" }\n") == 0);
+	CHECK(write_file(second,
+	    "import \"syncterm\" for Status\n"
+	    "if (Status.details.call() != \"first\") Fiber.abort(\"script order\")\n"
+	    "Status.details = Fn.new { \"second\" }\n") == 0);
+	(void)snprintf(selected.wren_scripts, sizeof(selected.wren_scripts),
+	    "profile_first,profile_second");
+	CHECK(st_wren_connected_create(&connected, &config) == 0);
+	CHECK(st_wren_connected_interpret(connected, "profile_script_assert",
+	    "import \"syncterm\" for Status, BBS\n"
+	    "if (Status.details.call() != \"second\") Fiber.abort(\"not loaded\")\n"
+	    "if (BBS.wrenScripts.count != 2 || BBS.wrenScripts[0] != \"profile_first\" || BBS.wrenScripts[1] != \"profile_second\") Fiber.abort(\"script order view\")\n") == 0);
+	st_wren_connected_destroy(connected);
+	connected = NULL;
+	(void)snprintf(selected.wren_scripts, sizeof(selected.wren_scripts),
+	    "../profile_first");
+	CHECK(st_wren_connected_create(&connected, &config)
+	    == IO_ERROR_INVALID_FORMAT);
+	CHECK(connected == NULL);
+	CHECK(fs_remove_file(first) == 0);
+	CHECK(fs_remove_file(second) == 0);
+	return 0;
+}
+
+static int
+exercise_connected_without_sftp(st_wren_host_t *host,
+	st_console_t *console, struct st_profile *profile)
+{
+	const struct st_wren_connected_config config = {
+		.host = host,
+		.console = console,
+		.profile = profile,
+		.status_enabled = true,
+	};
+	st_wren_connected_t *connected = NULL;
+	struct st_console_cell cells[3];
+	struct st_console_rect area;
+	uint32_t width, height;
+	bool consumed;
+
+	CHECK(st_wren_connected_create(&connected, &config) == 0);
+	CHECK(st_wren_connected_render_status(connected, true) == 0);
+	CHECK(st_wren_connected_last_error(connected) == NULL);
+	CHECK(st_wren_connected_interpret(connected, "no_sftp_provider",
+	    "import \"syncterm\" for SFTP, CTerm, Status, Conn, ConnError, ConnErr, Scrollback, Surface, BBS\n"
+	    "if (SFTP.available || CTerm.sftpActive || Conn.connected) Fiber.abort(\"unexpected provider\")\n"
+	    "if (BBS.name != \"Alpha\" || BBS.addr != \"alpha.example\" || BBS.connected != 100 || BBS.palette.count != BBS.paletteSize || BBS.sshFingerprint.count != BBS.sshFingerprintLen) Fiber.abort(\"connected profile view\")\n"
+	    "if (Scrollback.width != 0 || Scrollback.height != 0 || Scrollback.copyRowsTo(Surface.new(2, 2), 0, 2, 0) != 0) Fiber.abort(\"empty scrollback\")\n"
+	    "CTerm.suspended = true\n"
+	    "if (!CTerm.suspended) Fiber.abort(\"suspend state\")\n"
+	    "CTerm.suspended = false\n"
+	    "CTerm.mouseDisabled = true\n"
+	    "if (!CTerm.mouseDisabled) Fiber.abort(\"mouse state\")\n"
+	    "CTerm.mouseDisabled = false\n"
+	    "var sent = Conn.send(\"text\")\n"
+	    "if (!(sent is ConnError) || sent.code != ConnErr.notConnected || sent.bytesSent != 0) Fiber.abort(\"text send error\")\n"
+	    "sent = Conn.sendRaw(\"raw\")\n"
+	    "if (!(sent is ConnError) || sent.code != ConnErr.notConnected) Fiber.abort(\"raw send error\")\n"
+	    "if (Conn.paste() != null) Fiber.abort(\"disconnected paste\")\n")
+	    == 0);
+	CHECK(st_wren_connected_interpret(connected, "connected_key_test",
+	    "import \"syncterm\" for Hook\n"
+	    "class KeyHookState {\n"
+	    "  static handle { __hook }\n"
+	    "  static handle=(h) { __hook = h }\n"
+	    "}\n"
+	    "KeyHookState.handle = Hook.onKey(65, Fn.new {|k| k == 65 })\n"
+	    "Hook.onKey(90, Fn.new {|k| k == 90 })\n"
+	    "Hook.onMouse(1, Fn.new {|m| m.event == 1 })\n"
+	    "Hook.onPhysicalKey(30, Fn.new {|p| p.evdev == 30 })\n"
+	    "if (KeyHookState.handle == null || KeyHookState.handle.callCount != 0) Fiber.abort(\"hook handle\")\n") == 0);
+	CHECK(st_wren_connected_interpret(connected, "connected_wire_test",
+	    "import \"syncterm\" for Hook\n"
+	    "class WireState {\n"
+	    "  static calls { __calls }\n"
+	    "  static calls=(n) { __calls = n }\n"
+	    "}\n"
+	    "WireState.calls = 0\n"
+	    "Hook.onWire(65, Fn.new {|b| \"XY\" })\n"
+	    "Hook.onWire(66, Fn.new {|b| true })\n"
+	    "Hook.onWire(Fn.new {|b| WireState.calls = WireState.calls + 1 })\n") == 0);
+	uint8_t wire_replacement[256];
+	size_t wire_replacement_size;
+	CHECK(st_wren_connected_filter_wire_byte(connected, 'A', &consumed,
+	    wire_replacement, sizeof(wire_replacement),
+	    &wire_replacement_size) == 0);
+	CHECK(consumed && wire_replacement_size == 2
+	    && memcmp(wire_replacement, "XY", 2) == 0);
+	CHECK(st_wren_connected_filter_wire_byte(connected, 'B', &consumed,
+	    wire_replacement, sizeof(wire_replacement),
+	    &wire_replacement_size) == 0);
+	CHECK(consumed && wire_replacement_size == 0);
+	CHECK(st_wren_connected_filter_wire_byte(connected, 'C', &consumed,
+	    wire_replacement, sizeof(wire_replacement),
+	    &wire_replacement_size) == 0);
+	CHECK(!consumed && wire_replacement_size == 0);
+	CHECK(st_wren_connected_interpret(connected, "connected_wire_verify",
+	    "import \"connected_wire_test\" for WireState\n"
+	    "if (WireState.calls != 1) Fiber.abort(\"wire hook order\")\n") == 0);
+	CHECK(st_wren_connected_interpret(connected, "connected_input_test",
+	    "import \"syncterm\" for Hook\n"
+	    "class InputState {\n"
+	    "  static calls { __calls }\n"
+	    "  static calls=(n) { __calls = n }\n"
+	    "}\n"
+	    "InputState.calls = 0\n"
+	    "Hook.onInput(233, Fn.new {|c| String.fromCodePoint(101) + String.fromCodePoint(769) })\n"
+	    "Hook.onInput(10, Fn.new {|c| \"\\r\\n\" })\n"
+	    "Hook.onInput(81, Fn.new {|c| true })\n"
+	    "Hook.onInput(Fn.new {|c| InputState.calls = InputState.calls + 1 })\n") == 0);
+	char input_replacement[256];
+	size_t input_replacement_size;
+	CHECK(st_wren_connected_has_input_hooks(connected));
+	CHECK(st_wren_connected_filter_input_scalar(connected, 233,
+	    &consumed, input_replacement, sizeof(input_replacement),
+	    &input_replacement_size) == 0);
+	CHECK(consumed && input_replacement_size == 2
+	    && memcmp(input_replacement, "\xc3\xa9", 2) == 0);
+	CHECK(st_wren_connected_filter_input_scalar(connected, 10,
+	    &consumed, input_replacement, sizeof(input_replacement),
+	    &input_replacement_size) == 0);
+	CHECK(consumed && input_replacement_size == 2
+	    && memcmp(input_replacement, "\r\n", 2) == 0);
+	CHECK(st_wren_connected_filter_input_scalar(connected, 'Q',
+	    &consumed, input_replacement, sizeof(input_replacement),
+	    &input_replacement_size) == 0);
+	CHECK(consumed && input_replacement_size == 0);
+	CHECK(st_wren_connected_filter_input_scalar(connected, 'C',
+	    &consumed, input_replacement, sizeof(input_replacement),
+	    &input_replacement_size) == 0);
+	CHECK(!consumed && input_replacement_size == 0);
+	CHECK(st_wren_connected_interpret(connected, "connected_input_verify",
+	    "import \"connected_input_test\" for InputState\n"
+	    "if (InputState.calls != 1) Fiber.abort(\"input hook order\")\n") == 0);
+	CHECK(st_wren_connected_handle_key(connected, 66, &consumed) == 0);
+	CHECK(!consumed);
+	CHECK(st_wren_connected_handle_key(connected, 0x1800, &consumed) == 0);
+	CHECK(consumed);
+	CHECK(st_wren_connected_interpret(connected, "mouse_toggle_on",
+	    "import \"syncterm\" for CTerm\n"
+	    "if (!CTerm.mouseDisabled) Fiber.abort(\"Alt-O did not disable mouse\")\n") == 0);
+	CHECK(st_wren_connected_handle_key(connected, 0x1800, &consumed) == 0);
+	CHECK(consumed);
+	struct st_console_event text_z = {
+		.type = ST_CONSOLE_EVENT_TEXT,
+		.data.text = {.codepoint = 'Z'},
+	};
+	CHECK(st_wren_connected_handle_event(connected, &text_z,
+	    &consumed) == 0);
+	CHECK(consumed);
+	struct st_console_event physical_a = {
+		.type = ST_CONSOLE_EVENT_PHYSICAL_KEY,
+		.data.physical_key = {.evdev = 30, .pressed = true},
+	};
+	CHECK(st_wren_connected_handle_event(connected, &physical_a,
+	    &consumed) == 0);
+	CHECK(consumed);
+	struct st_console_event alt_l = {
+		.type = ST_CONSOLE_EVENT_PHYSICAL_KEY,
+		.data.physical_key = {
+			.evdev = 38,
+			.modifiers = ST_CONSOLE_MODIFIER_ALT,
+			.pressed = true,
+		},
+	};
+	CHECK(st_wren_connected_handle_event(connected, &alt_l,
+	    &consumed) == 0);
+	CHECK(consumed);
+	struct st_console_event mouse_press = {
+		.type = ST_CONSOLE_EVENT_MOUSE,
+		.data.mouse = {
+			.action = ST_CONSOLE_MOUSE_BUTTON,
+			.buttons = ST_CONSOLE_MOUSE_BUTTON_LEFT,
+			.x = 1,
+			.y = 1,
+		},
+	};
+	CHECK(st_wren_connected_handle_event(connected, &mouse_press,
+	    &consumed) == 0);
+	CHECK(consumed);
+	struct st_console_event escape = {
+		.type = ST_CONSOLE_EVENT_KEY_CODE,
+		.data.key = {.code = 27},
+	};
+	struct st_console_event alt_h = {
+		.type = ST_CONSOLE_EVENT_PHYSICAL_KEY,
+		.data.physical_key = {
+			.evdev = 35,
+			.modifiers = ST_CONSOLE_MODIFIER_ALT,
+			.pressed = true,
+		},
+	};
+	CHECK(st_wren_connected_handle_event(connected, &alt_h,
+	    &consumed) == 0);
+	CHECK(consumed);
+	CHECK(st_console_post_event(console, &escape) == 0);
+	CHECK(st_console_event_try(console, &escape) == 0);
+	CHECK(st_wren_connected_handle_event(connected, &escape, &consumed) == 0);
+	CHECK(consumed);
+	CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_last_error(connected) == NULL);
+	CHECK(st_wren_connected_handle_key(connected, 65, &consumed) == 0);
+	CHECK(consumed);
+	CHECK(st_wren_connected_interpret(connected, "connected_key_remove",
+	    "import \"connected_key_test\" for KeyHookState\n"
+	    "var h = KeyHookState.handle\n"
+	    "if (h.callCount != 1 || h.totalRuntime < 0) Fiber.abort(\"hook metrics\")\n"
+	    "h.remove()\n"
+	    "if (h.callCount != 0) Fiber.abort(\"hook removal\")\n") == 0);
+	CHECK(st_wren_connected_handle_key(connected, 65, &consumed) == 0);
+	CHECK(!consumed);
+	CHECK(st_wren_connected_interpret(connected, "status_render_test",
+	    "import \"syncterm\" for Status\n"
+	    "if (!Status.enabled) Fiber.abort(\"status disabled\")\n"
+	    "Status.callable = Fn.new {|s|\n"
+	    "  s[0].chByte = 65\n"
+	    "  s[1].chByte = 66\n"
+	    "  s[2].chByte = 67\n"
+	    "}\n"
+	    "Status.details = Fn.new { \"A B C\" }\n"
+	    "if (Status.callable == null || Status.details == null) Fiber.abort(\"status handles\")\n")
+	    == 0);
+	CHECK(st_wren_connected_render_status(connected, true) == 0);
+	CHECK(st_console_size(console, &width, &height) == 0);
+	area = (struct st_console_rect){0, height - 1, 3, 1};
+	CHECK(st_console_read_cells(console, &area, cells, 3) == 0);
+	CHECK(cells[0].glyph == 'A' && cells[1].glyph == 'B'
+	    && cells[2].glyph == 'C');
+	CHECK(cells[0].background == ST_CONSOLE_COLOR_RGB_VALUE(0, 0, 168));
+	CHECK(st_wren_connected_render_status(connected, false) == 0);
+	CHECK(st_wren_connected_interpret(connected, "status_disabled_test",
+	    "import \"syncterm\" for Status\n"
+	    "if (Status.enabled) Fiber.abort(\"status still enabled\")\n") == 0);
+	CHECK(st_wren_connected_interpret(connected, "connected_interval_test",
+	    "import \"syncterm\" for Hook\n"
+	    "class IntervalState {\n"
+	    "  static fires { __fires }\n"
+	    "  static fires=(n) { __fires = n }\n"
+	    "  static handle { __handle }\n"
+	    "  static handle=(h) { __handle = h }\n"
+	    "}\n"
+	    "IntervalState.fires = 0\n"
+	    "IntervalState.handle = Hook.every(1, Fn.new { IntervalState.fires = IntervalState.fires + 1 })\n") == 0);
+	struct timespec interval_delay = {.tv_nsec = 15000000L};
+	(void)st_thread_sleep(&interval_delay, NULL);
+	CHECK(st_wren_connected_pump(connected, 0) == 0);
+	(void)st_thread_sleep(&interval_delay, NULL);
+	CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "connected_interval_verify",
+	    "import \"connected_interval_test\" for IntervalState\n"
+	    "if (IntervalState.fires != 2 || IntervalState.handle.callCount != 2) Fiber.abort(\"timer cadence\")\n"
+	    "IntervalState.handle.remove()\n") == 0);
+	(void)st_thread_sleep(&interval_delay, NULL);
+	CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "connected_interval_removed",
+	    "import \"connected_interval_test\" for IntervalState\n"
+	    "if (IntervalState.fires != 2) Fiber.abort(\"removed timer fired\")\n") == 0);
+	CHECK(st_wren_connected_interpret(connected, "shell_close_hook_test",
+	    "import \"syncterm\" for Hook\n"
+	    "class ShellState {\n"
+	    "  static closed { __closed }\n"
+	    "  static closed=(v) { __closed = v }\n"
+	    "}\n"
+	    "ShellState.closed = false\n"
+	    "Hook.onShellClose(Fn.new { ShellState.closed = true })\n") == 0);
+	CHECK(st_wren_connected_shell_closed(connected) == 0);
+	CHECK(st_wren_connected_interpret(connected, "shell_close_hook_verify",
+	    "import \"shell_close_hook_test\" for ShellState\n"
+	    "if (!ShellState.closed) Fiber.abort(\"shell hook not called\")\n") == 0);
+	st_wren_connected_destroy(connected);
+	return 0;
+}
+
+static bool
+connected_input_active(void *context)
+{
+	return st_wren_connected_has_input_hooks(
+	    *(st_wren_connected_t **)context);
+}
+
+#if !SYNCTERM_PLATFORM_WINDOWS
+static int
+exercise_connected_throttle(st_wren_host_t *host, st_console_t *console)
+{
+	struct st_profile profile;
+	st_connection_t *connection = NULL;
+	st_font_catalog_t *fonts = NULL;
+	st_term_session_t *session = NULL;
+	st_wren_connected_t *connected = NULL;
+
+	CHECK(st_font_catalog_create(&fonts, console) == 0);
+	st_profile_init(&profile);
+	profile.connection_type = ST_CONNECTION_SHELL;
+	profile.screen_mode = ST_SCREEN_MODE_80X25;
+	strcpy(profile.address, "printf ready; sleep 1");
+	CHECK(st_term_connect_profile(&connection, &profile, console, NULL,
+	    NULL) == 0);
+	const struct st_term_config term_config = {
+		.console = console, .connection = connection, .fonts = fonts,
+		.screen_mode = ST_SCREEN_MODE_80X25,
+		.encoding = ST_CTERM_ENCODING_UTF8,
+		.codepage = ST_CODEPAGE_CP437,
+		.hide_status = true,
+		.throttle_supported = true,
+		.initial_throttle_bps = 300,
+	};
+	CHECK(st_term_session_create(&session, &term_config) == 0);
+	const struct st_wren_connected_config wren_config = {
+		.host = host, .console = console, .profile = &profile,
+		.connection = connection, .session = session,
+		.cterm = st_term_session_cterm(session),
+	};
+	CHECK(st_wren_connected_create(&connected, &wren_config) == 0);
+	CHECK(st_wren_connected_interpret(connected, "throttle_binding_test",
+	    "import \"syncterm\" for CTerm, Host\n"
+	    "var rates = Host.outputRates\n"
+	    "var names = Host.outputRateNames\n"
+	    "if (rates.count != 12 || names.count != 12 || rates[0] != 300 || rates[10] != 115200 || rates[11] != 0 || names[11] != \"Current\") Fiber.abort(\"rate ladder\")\n"
+	    "if (CTerm.throttleSpeed != 300) Fiber.abort(\"initial rate\")\n"
+	    "CTerm.throttleSpeedDown()\n"
+	    "if (CTerm.throttleSpeed != 0) Fiber.abort(\"rate down\")\n"
+	    "CTerm.throttleSpeedUp()\n"
+	    "if (CTerm.throttleSpeed != 300) Fiber.abort(\"rate up\")\n"
+	    "CTerm.throttleSpeed = 9600\n"
+	    "CTerm.throttleSpeedUp()\n"
+	    "if (CTerm.throttleSpeed != 19200) Fiber.abort(\"rate step up\")\n"
+	    "CTerm.throttleSpeedDown()\n"
+	    "if (CTerm.throttleSpeed != 9600) Fiber.abort(\"rate step down\")\n") == 0);
+	CHECK(st_term_session_throttle_speed(session) == 9600);
+	CHECK(st_wren_connected_interpret(connected, "throttle_hotkey_reset",
+	    "import \"syncterm\" for CTerm\n"
+	    "CTerm.throttleSpeed = 0\n") == 0);
+	bool consumed = false;
+	CHECK(st_wren_connected_handle_key(connected, 0x9800,
+	    &consumed) == 0 && consumed);
+	CHECK(st_term_session_throttle_speed(session) == 300);
+	consumed = false;
+	CHECK(st_wren_connected_handle_key(connected, 0xa000,
+	    &consumed) == 0 && consumed);
+	CHECK(st_term_session_throttle_speed(session) == 0);
+	st_wren_connected_destroy(connected);
+	st_term_session_destroy(&session);
+	CHECK(st_connection_close(connection) == 0);
+	st_profile_dispose(&profile);
+	st_font_catalog_destroy(fonts);
+	return 0;
+}
+#endif
+
+static int
+connected_input_filter(void *context, uint32_t scalar, bool *consumed,
+	char *replacement, size_t capacity, size_t *replacement_size)
+{
+	return st_wren_connected_filter_input_scalar(
+	    *(st_wren_connected_t **)context, scalar, consumed, replacement,
+	    capacity, replacement_size);
+}
+
+static bool
+connected_capture_active(void *context)
+{
+	return st_wren_connected_capture_active(
+	    *(st_wren_connected_t **)context);
+}
+
+static int
+connected_capture_input(void *context, const char *utf8, size_t size)
+{
+	return st_wren_connected_capture_input(
+	    *(st_wren_connected_t **)context, utf8, size);
+}
+
+static int
+exercise_connected_scrollback(st_wren_host_t *host,
+	st_console_t *console, struct st_profile *profile)
+{
+	st_font_catalog_t *fonts = NULL;
+	st_cterm_t *cterm = NULL;
+	st_wren_connected_t *connected = NULL;
+	struct st_profile session_profile;
+	char font_path[sizeof(ST_WREN_TEST_DIRECTORY) + 40];
+	struct st_console_event escape = {
+		.type = ST_CONSOLE_EVENT_KEY_CODE,
+		.data.key = {.code = 27},
+	};
+	size_t consumed;
+	uint32_t width, height;
+
+	CHECK(st_font_catalog_create(&fonts, console) == 0);
+	st_profile_init(&session_profile);
+	CHECK(st_profile_copy(&session_profile, profile));
+	free(session_profile.download_directory);
+	session_profile.download_directory = strdup(ST_WREN_TEST_DIRECTORY);
+	CHECK(session_profile.download_directory != NULL);
+	CHECK(snprintf(font_path, sizeof(font_path),
+	    "%s/wren-session-font.f16", ST_WREN_TEST_DIRECTORY)
+	    < (int)sizeof(font_path));
+	(void)fs_remove_file(font_path);
+	struct st_cterm_config terminal_config = {
+		.console = console,
+		.fonts = fonts,
+		.emulation = ST_CTERM_ANSI_BBS,
+		.encoding = ST_CTERM_ENCODING_UTF8,
+		.rip_version = ST_CTERM_RIP_1,
+		.codepage = ST_CODEPAGE_CP437,
+		.scrollback_lines = 2,
+		.quiet = true,
+		.input_filter = connected_input_filter,
+		.input_filter_active = connected_input_active,
+		.input_filter_context = &connected,
+		.capture = connected_capture_input,
+		.capture_active = connected_capture_active,
+		.capture_context = &connected,
+	};
+	CHECK(st_cterm_create(&cterm, &terminal_config) == 0);
+	CHECK(st_cterm_write(cterm, "!|$SBARON$\r", 11, &consumed) == 0);
+	CHECK(consumed == 11 && st_cterm_status_display(cterm) == 1);
+	CHECK(st_cterm_size(cterm, &width, &height) == 0);
+	for (uint32_t row = 0; row < height + 3; ++row) {
+		CHECK(st_cterm_write(cterm, "X\r\n", 3, &consumed) == 0);
+		CHECK(consumed == 3);
+	}
+	struct st_wren_connected_config connected_config = {
+		.host = host,
+		.console = console,
+		.profile = &session_profile,
+		.cterm = cterm,
+	};
+	CHECK(st_wren_connected_create(&connected, &connected_config) == 0);
+	CHECK(st_wren_connected_render_status(connected, true) == 0);
+	CHECK(st_wren_connected_last_error(connected) == NULL);
+	CHECK(st_wren_connected_interpret(connected, "font_grant",
+	    "import \"syncterm\" for Download\n"
+	    "class FontGrant {\n"
+	    "  static file { __file }\n"
+	    "  static prepare() {\n"
+	    "    __file = Download.create(\"wren-session-font.f16\")\n"
+	    "  }\n"
+	    "}\n"
+	    "FontGrant.prepare()\n") == 0);
+	{
+		static const uint8_t font_image[4096] = {0};
+		FILE *stream = fopen(font_path, "wb");
+
+		CHECK(stream != NULL);
+		CHECK(fwrite(font_image, 1, sizeof(font_image), stream)
+		    == sizeof(font_image));
+		CHECK(fclose(stream) == 0);
+	}
+	CHECK(st_wren_connected_interpret(connected, "font_load_consent",
+	    "import \"syncterm\" for CTerm, Font, ScreenSupports\n"
+	    "import \"font_grant\" for FontGrant\n"
+	    "if (ScreenSupports.fontSelection) {\n"
+	    "  if (FontGrant.file == null || !Font.load(FontGrant.file)) Fiber.abort(\"font load\")\n"
+	    "  var selector = Font.count - 1\n"
+	    "  if (!Font.available(selector) || Font.name(selector) == \"\") Fiber.abort(\"loaded font listing\")\n"
+	    "  CTerm.altFont = selector\n"
+	    "  if (CTerm.altFont != selector) Fiber.abort(\"loaded font select\")\n"
+	    "  CTerm.altFont = 0\n"
+	    "}\n") == 0);
+	CHECK(st_wren_connected_interpret(connected, "cterm_state_view",
+	    "import \"syncterm\" for CTerm, Font, ScreenSupports\n"
+	    "if (CTerm.x < 1 || CTerm.y < 1 || CTerm.width < 1 || CTerm.height < 1) Fiber.abort(\"cursor\")\n"
+	    "if (CTerm.topMargin < 1 || CTerm.bottomMargin > CTerm.height || CTerm.leftMargin < 1 || CTerm.rightMargin > CTerm.width) Fiber.abort(\"margins\")\n"
+	    "if (CTerm.attr < 0 || CTerm.fgColor < 0 || CTerm.bgColor < 0) Fiber.abort(\"colors\")\n"
+	    "if (CTerm.altFonts.count != 4 || CTerm.fontSlot < 0 || CTerm.altFont != CTerm.altFonts[0]) Fiber.abort(\"fonts\")\n"
+	    "if (Font.load(\"not a File\")) Fiber.abort(\"font consent\")\n"
+	    "if (!(Fiber.new { CTerm.saveScreenshot(\"not a File\", true) }.try() is String)) Fiber.abort(\"screenshot consent\")\n"
+	    "if (ScreenSupports.fontSelection) {\n"
+	    "  var before = CTerm.altFont\n"
+	    "  CTerm.altFont = before\n"
+	    "  if (CTerm.altFont != before) Fiber.abort(\"font setter\")\n"
+	    "}\n"
+	    "if (CTerm.hasPaletteOverride || CTerm.paletteOverride.count != 0) Fiber.abort(\"palette\")\n"
+	    "if (CTerm.scrollbackLines != 2 || CTerm.scrollbackWidth != CTerm.width) Fiber.abort(\"scrollback\")\n"
+	    "if (CTerm.emulation != 0 || !CTerm.started || CTerm.skypix) Fiber.abort(\"mode\")\n"
+	    "var ea = CTerm.extAttr\n"
+	    "var lc = CTerm.lastColumnFlag\n"
+	    "if ((ea.autoWrap != true && ea.autoWrap != false) || (ea.alternateKeypad != true && ea.alternateKeypad != false)) Fiber.abort(\"ext attr\")\n"
+	    "if ((lc.set != true && lc.set != false) || (lc.enabled != true && lc.enabled != false) || (lc.forced != true && lc.forced != false)) Fiber.abort(\"last column\")\n") == 0);
+	CHECK(st_console_post_event(console, &escape) == 0);
+	CHECK(st_wren_connected_interpret(connected, "connected_menu_handoff",
+	    "import \"syncterm\" for Host, CTerm\n"
+	    "Host.editBBSList()\n"
+	    "if (CTerm.suspended) Fiber.abort(\"menu left terminal suspended\")\n") == 0);
+	CHECK(st_wren_connected_interpret(connected, "font_picker_cancel",
+	    "import \"font_pick\" for FontApp\n"
+	    "FontApp.run()\n") == 0);
+	bool font_claimed = false;
+	CHECK(st_wren_connected_handle_event(connected, &escape,
+	    &font_claimed) == 0 && font_claimed);
+	CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_last_error(connected) == NULL);
+	CHECK(st_wren_connected_interpret(connected, "font_modal_state",
+	    "import \"syncterm\" for CTerm\n"
+	    "if (CTerm.suspended) Fiber.abort(\"font modal did not restore\")\n") == 0);
+	CHECK(st_wren_connected_interpret(connected, "rip_input_filter",
+	    "import \"syncterm\" for Hook\n"
+	    "Hook.onInput(233, Fn.new {|scalar| \"X\" })\n") == 0);
+	CHECK(st_cterm_write(cterm, "\x1b[H\xc3\xa9", 5,
+	    &consumed) == 0 && consumed == 5);
+	struct st_console_rect filtered_cell = {0, 0, 1, 1};
+	struct st_console_cell filtered_value;
+	CHECK(st_console_read_cells(console, &filtered_cell,
+	    &filtered_value, 1) == 0 && filtered_value.glyph == 'X');
+	CHECK(st_wren_connected_interpret(connected, "scrollback_contract",
+	    "import \"syncterm\" for Scrollback, Surface, CTerm, Conn\n"
+	    "if (Scrollback.width != CTerm.width || Scrollback.height != 2) Fiber.abort(\"ring geometry\")\n"
+	    "var surface = Surface.new(CTerm.width, 2)\n"
+	    "if (Scrollback.copyRowsTo(surface, 0, 2, 0) != 2) Fiber.abort(\"ring copy\")\n"
+	    "Conn.scrollback()\n") == 0);
+	CHECK(st_console_post_event(console, &escape) == 0);
+	CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_last_error(connected) == NULL);
+	bool claimed = false;
+	CHECK(st_console_post_event(console, &escape) == 0);
+	CHECK(st_wren_connected_handle_key(connected, 0x3000,
+	    &claimed) == 0);
+	CHECK(claimed && st_wren_connected_last_error(connected) == NULL);
+	CHECK(st_wren_connected_interpret(connected, "music_menu_probe",
+	    "import \"music_menu\" for MusicMenu\n"
+	    "MusicMenu.run()\n") == 0);
+	CHECK(st_wren_connected_last_error(connected) == NULL);
+	claimed = false;
+	CHECK(st_wren_connected_handle_event(connected, &escape,
+	    &claimed) == 0);
+	CHECK(claimed);
+	CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_last_error(connected) == NULL);
+	claimed = false;
+	CHECK(st_wren_connected_handle_key(connected, 0x2e00,
+	    &claimed) == 0 && claimed);
+	claimed = false;
+	CHECK(st_wren_connected_handle_event(connected, &escape,
+	    &claimed) == 0 && claimed);
+	CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_last_error(connected) == NULL);
+	CHECK(st_wren_connected_interpret(connected, "capture_modal_state",
+	    "import \"syncterm\" for CTerm\n"
+	    "if (CTerm.suspended) Fiber.abort(\"capture modal did not restore\")\n") == 0);
+	claimed = false;
+	CHECK(st_wren_connected_handle_key(connected, 0x2c00, &claimed) == 0);
+	CHECK(claimed);
+	claimed = false;
+	CHECK(st_wren_connected_handle_event(connected, &escape,
+	    &claimed) == 0);
+	CHECK(claimed);
+	CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_last_error(connected) == NULL);
+	claimed = false;
+	CHECK(st_console_post_event(console, &escape) == 0);
+	CHECK(st_wren_connected_handle_key(connected, 0x29e0,
+	    &claimed) == 0);
+	CHECK(claimed && st_wren_connected_last_error(connected) == NULL);
+	CHECK(st_wren_connected_interpret(connected, "cterm_write_probe",
+	    "import \"syncterm\" for CTerm\n"
+	    "CTerm.write(String.fromCodePoint(27) + \"[HXY\")\n") == 0);
+	struct st_console_rect written = {0, 0, 2, 1};
+	struct st_console_cell written_cells[2];
+	CHECK(st_console_read_cells(console, &written, written_cells, 2) == 0);
+	CHECK(written_cells[0].glyph == 'X' && written_cells[1].glyph == 'Y');
+	CHECK(st_wren_connected_interpret(connected, "match_registration",
+	    "import \"syncterm\" for Hook, CTerm\n"
+	    "Hook.onMatchClean(\"W(e)lcome\", Fn.new {|m| CTerm.music = (m.count == 2 && m[0] == \"Welcome\" && m[1] == \"e\") ? 2 : 0 })\n"
+	    "Hook.onMatch(\"W(e)lcome\", Fn.new {|m| CTerm.music = 3 })\n"
+	    "Hook.onMatch(\"foo\", Fn.new {|m| CTerm.music = 1 })\n"
+	    "var bad = Fiber.new { Hook.onMatch(\".*bad\", Fn.new {}) }\n"
+	    "bad.try()\n"
+	    "if (bad.error == null) Fiber.abort(\"unanchored pattern accepted\")\n") == 0);
+	const char *coloured_match = "W\x1b[1;33melcome";
+	CHECK(st_cterm_write(cterm, coloured_match, strlen(coloured_match),
+	    &consumed) == 0 && consumed == strlen(coloured_match));
+	CHECK(st_cterm_music_mode(cterm) == 2);
+	CHECK(st_cterm_write(cterm, "foo", 3, &consumed) == 0 && consumed == 3);
+	CHECK(st_cterm_music_mode(cterm) == 1);
+	CHECK(st_wren_connected_interpret(connected, "match_unicode",
+	    "import \"syncterm\" for Hook, CTerm\n"
+	    "Hook.onMatch(\"世\", Fn.new {|m| CTerm.music = 2 })\n"
+	    "var self = null\n"
+	    "self = Hook.onMatch(\"bar\", Fn.new {|m|\n"
+	    "  self.remove()\n"
+	    "  CTerm.music = 1\n"
+	    "})\n") == 0);
+	CHECK(st_cterm_write(cterm, "\xe4\xb8", 2, &consumed) == 0 && consumed == 2);
+	CHECK(st_cterm_music_mode(cterm) == 1);
+	CHECK(st_cterm_write(cterm, "\x96", 1, &consumed) == 0 && consumed == 1);
+	CHECK(st_cterm_music_mode(cterm) == 2);
+	CHECK(st_cterm_write(cterm, "bar", 3, &consumed) == 0 && consumed == 3);
+	CHECK(st_cterm_music_mode(cterm) == 1);
+	CHECK(st_wren_connected_interpret(connected, "match_reset_music",
+	    "import \"syncterm\" for CTerm\nCTerm.music = 0\n") == 0);
+	CHECK(st_cterm_write(cterm, "bar", 3, &consumed) == 0 && consumed == 3);
+	CHECK(st_cterm_music_mode(cterm) == 0);
+	FILE *plain = tmpfile();
+	char captured[32] = {0};
+	CHECK(plain != NULL);
+	CHECK(st_wren_connected_capture_start(connected, plain, false) == 0);
+	CHECK(st_wren_connected_interpret(connected, "capture_plain_active",
+	    "import \"syncterm\" for Capture\n"
+	    "if (!Capture.active || Capture.paused) Fiber.abort(\"capture start\")\n"
+	    "Capture.pause()\n"
+	    "if (!Capture.paused) Fiber.abort(\"capture pause\")\n"
+	    "Capture.resume()\n") == 0);
+	CHECK(st_cterm_write(cterm, "A\x1b[31m\xc3\xa9", 8,
+	    &consumed) == 0 && consumed == 8);
+	CHECK(st_wren_connected_interpret(connected, "capture_pause",
+	    "import \"syncterm\" for Capture\nCapture.pause()\n") == 0);
+	CHECK(st_cterm_write(cterm, "B", 1, &consumed) == 0);
+	CHECK(st_wren_connected_interpret(connected, "capture_resume",
+	    "import \"syncterm\" for Capture\nCapture.resume()\n") == 0);
+	CHECK(st_cterm_write(cterm, "C", 1, &consumed) == 0);
+	CHECK(fflush(plain) == 0 && fseek(plain, 0, SEEK_SET) == 0);
+	CHECK(fread(captured, 1, 3, plain) == 3);
+	CHECK(memcmp(captured, "AXC", 3) == 0);
+	CHECK(st_wren_connected_interpret(connected, "capture_stop",
+	    "import \"syncterm\" for Capture\n"
+	    "Capture.stop()\nCapture.stop()\n"
+	    "if (Capture.active || Capture.paused) Fiber.abort(\"capture stop\")\n") == 0);
+	FILE *raw = tmpfile();
+	CHECK(raw != NULL);
+	CHECK(st_wren_connected_capture_start(connected, raw, true) == 0);
+	CHECK(st_cterm_write(cterm, "D\x1b[32mE", 7,
+	    &consumed) == 0 && consumed == 7);
+	CHECK(fflush(raw) == 0 && fseek(raw, 0, SEEK_SET) == 0);
+	CHECK(fread(captured, 1, 7, raw) == 7);
+	CHECK(memcmp(captured, "D\x1b[32mE", 7) == 0);
+	st_wren_connected_destroy(connected);
+	connected = NULL;
+	st_cterm_destroy(&cterm);
+	terminal_config.encoding = ST_CTERM_ENCODING_CODEPAGE;
+	terminal_config.rip_version = ST_CTERM_RIP_OFF;
+	CHECK(st_cterm_create(&cterm, &terminal_config) == 0);
+	connected_config.cterm = cterm;
+	CHECK(st_wren_connected_create(&connected, &connected_config) == 0);
+	CHECK(st_wren_connected_interpret(connected, "match_codepage",
+	    "import \"syncterm\" for Hook, CTerm\n"
+	    "Hook.onMatch(\"£\", Fn.new {|m| CTerm.music = 2 })\n") == 0);
+	CHECK(st_cterm_write(cterm, "\x9c", 1, &consumed) == 0 && consumed == 1);
+	CHECK(st_cterm_music_mode(cterm) == 2);
+	st_wren_connected_destroy(connected);
+	st_cterm_destroy(&cterm);
+	st_font_catalog_destroy(fonts);
+	CHECK(fs_remove_file(font_path) == 0);
+	st_profile_dispose(&session_profile);
 	return 0;
 }
 
@@ -3007,7 +3679,14 @@ main(void)
 	CHECK(title_cell.background == ST_CONSOLE_COLOR_RGB_VALUE(0xaa, 0xaa,
 	    0xaa));
 	CHECK(strcmp(selected.name, "Alpha") == 0);
+	CHECK(exercise_connected_profile_scripts(host, console, &selected,
+	    scripts) == 0);
+	CHECK(exercise_connected_without_sftp(host, console, &selected) == 0);
+#if !SYNCTERM_PLATFORM_WINDOWS
+	CHECK(exercise_connected_throttle(host, console) == 0);
+#endif
 	CHECK(exercise_connected_sftp(host, console, &selected) == 0);
+	CHECK(exercise_connected_scrollback(host, console, &selected) == 0);
 	st_profile_dispose(&selected);
 	CHECK(wrenInterpret(((struct st_wren_host *)host)->vm,
 	    "alt_shortcut_contract",

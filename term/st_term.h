@@ -24,6 +24,12 @@ enum st_term_disposition {
 	ST_TERM_EXIT_APPLICATION,
 };
 
+#define ST_TERM_WIRE_REPLACEMENT_CAPACITY 256
+
+typedef int (*st_term_wire_filter_t)(void *context, uint8_t byte,
+	bool *consumed, uint8_t *replacement, size_t capacity,
+	size_t *replacement_size);
+
 struct st_term_config {
 	/* Borrowed for the session lifetime. */
 	st_console_t *console;
@@ -41,8 +47,29 @@ struct st_term_config {
 	enum st_codepage codepage;
 	uint8_t font_selector;
 	bool hide_status;
+	/* BPS receive pacing for non-serial sessions; zero disables it. */
+	bool throttle_supported;
+	uint32_t initial_throttle_bps;
 	st_cterm_rip_prompt_callback_t rip_prompt;
 	void *rip_prompt_context;
+	/* Called before built-in event handling; true consumes the event. */
+	int (*event_hook)(void *context, const struct st_console_event *event,
+	    bool *consumed);
+	void *event_hook_context;
+	/* Exact received bytes, before RIP/CTerm parsing. Replacement bytes are
+	 * reclassified by CTerm in order, without revisiting this filter. */
+	st_term_wire_filter_t wire_filter;
+	/* Optional fast path when no wire hooks are registered. */
+	bool (*wire_filter_active)(void *context);
+	void *wire_filter_context;
+	/* Semantic input after CTerm's shared UTF-8 decoder or codepage map.
+	 * Replacements bypass both the wire hook and RIP parser. */
+	st_cterm_input_filter_t input_filter;
+	bool (*input_filter_active)(void *context);
+	void *input_filter_context;
+	st_cterm_capture_t capture;
+	bool (*capture_active)(void *context);
+	void *capture_context;
 };
 
 int st_term_connect_profile(st_connection_t **result,
@@ -56,6 +83,15 @@ enum st_cterm_rip_version st_term_profile_rip_version(
 int st_term_session_create(st_term_session_t **result,
 	const struct st_term_config *config);
 void st_term_session_destroy(st_term_session_t **session);
+/* Borrowed until session destruction; the caller must not write through it. */
+st_cterm_t *st_term_session_cterm(st_term_session_t *session);
+void st_term_session_request_end(st_term_session_t *session, bool exit_app);
+void st_term_session_set_suspended(st_term_session_t *session, bool suspended);
+void st_term_session_set_mouse_disabled(st_term_session_t *session,
+	bool disabled);
+uint32_t st_term_session_throttle_speed(const st_term_session_t *session);
+void st_term_session_set_throttle_speed(st_term_session_t *session,
+	uint32_t bps);
 
 /*
  * Runs until disconnect or a local command. The caller owns and closes the
@@ -73,6 +109,12 @@ int st_term_session_pump(st_term_session_t *session,
  */
 int st_term_session_send_text(st_term_session_t *session,
 	const char *utf8, size_t size);
+/* Nonblocking variant for Wren; queued_wire counts final encoded bytes. */
+int st_term_session_send_text_poll(st_term_session_t *session,
+	const char *utf8, size_t size, size_t *queued_wire);
+/* Allocates clipboard text with legacy newline and bracketed-paste rules. */
+int st_term_prepare_paste(char **result, size_t *result_size,
+	const char *utf8, size_t size, bool bracketed);
 
 /* RIP wire-byte boundary: preserve ASCII protocol bytes, transcode high
  * codepage bytes to UTF-8. result_size excludes any terminator (none is

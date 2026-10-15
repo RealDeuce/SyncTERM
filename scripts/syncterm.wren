@@ -1482,6 +1482,10 @@ class Hook {
   foreign static onKey(key, fn)
   foreign static onPhysicalKey(fn)
   foreign static onPhysicalKey(evdev, fn)
+  // Exact post-transport bytes before CTerm classifies controls or text.
+  // Use this only for wire protocols; onInput is Unicode text.
+  foreign static onWire(fn)
+  foreign static onWire(byte, fn)
   foreign static onInput(fn)
   foreign static onInput(byte, fn)
   foreign static onMatch(pattern, fn)
@@ -1497,8 +1501,8 @@ class Hook {
   // passthrough-only.  Mapping a cleaned-byte match span back to
   // the raw byte stream (escapes interleaved through it) has no
   // unambiguous answer for "consume", so v1 doesn't try; the
-  // matched text always reaches the terminal.  Use onMatch when
-  // you need to drop bytes off the wire.
+  // matched text always reaches the terminal.  Use onInput to drop
+  // decoded scalars, or onWire to drop wire bytes.
   foreign static onMatchClean(pattern, fn)
 
   foreign static onMouse(fn)
@@ -1755,7 +1759,12 @@ class Host {
 
   // Suspend the active terminal and enter the trusted persistent menu VM.
   // The connected VM receives no menu objects or capabilities.
-  foreign static editBBSList()
+  static editBBSList() {
+    Screen.modalRun(Fn.new { editBBSList_() })
+    Input.setupMouseEvents()
+    CTerm.refreshStatus()
+  }
+  foreign static editBBSList_()
 
   // Wren console activity since the user last visited the REPL.
   // logUnread covers any non-empty append (script print output, hook

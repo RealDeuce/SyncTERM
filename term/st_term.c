@@ -11,6 +11,8 @@
 #include "io_error.h"
 #include "st_unicode_text.h"
 #include "st_utf8.h"
+#include "st_time.h"
+#include "st_threads.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -19,6 +21,13 @@ struct st_term_session {
 	struct st_term_config config;
 	st_cterm_t *cterm;
 	int output_error;
+	bool end_requested;
+	bool exit_requested;
+	bool suspended;
+	bool mouse_disabled;
+	uint32_t throttle_bps;
+	uint64_t throttle_last_ms;
+	uint64_t throttle_credit;
 };
 
 static enum st_cterm_emulation
@@ -76,19 +85,28 @@ profile_petscii_machine(enum st_screen_mode mode)
 }
 
 static int
-send_all(st_connection_t *connection, const uint8_t *bytes, size_t size)
+send_all_count(st_connection_t *connection, const uint8_t *bytes, size_t size,
+	int64_t timeout_ms, size_t *queued_wire)
 {
 	while (size != 0) {
-		ssize_t sent = st_connection_send(connection, bytes, size, -1);
+		ssize_t sent = st_connection_send(connection, bytes, size, timeout_ms);
 
 		if (sent < 0)
 			return (int)sent;
 		if (sent == 0)
 			return IO_ERROR_NOT_CONNECTED;
+		if (queued_wire != NULL)
+			*queued_wire += (size_t)sent;
 		bytes += (size_t)sent;
 		size -= (size_t)sent;
 	}
 	return 0;
+}
+
+static int
+send_all(st_connection_t *connection, const uint8_t *bytes, size_t size)
+{
+	return send_all_count(connection, bytes, size, -1, NULL);
 }
 
 static void
@@ -206,6 +224,9 @@ st_term_session_create(st_term_session_t **result,
 	if (session == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	session->config = *config;
+	if (config->throttle_supported)
+		session->throttle_bps = config->initial_throttle_bps;
+	session->throttle_credit = UINT64_C(10000);
 	mode = st_screen_mode_get(config->screen_mode);
 	if (mode != NULL)
 		st_screen_mode_palette_mapping(mode, palette_mapping);
@@ -233,6 +254,12 @@ st_term_session_create(st_term_session_t **result,
 		.size_context = session,
 		.rip_prompt = config->rip_prompt,
 		.rip_prompt_context = config->rip_prompt_context,
+		.input_filter = config->input_filter,
+		.input_filter_active = config->input_filter_active,
+		.input_filter_context = config->input_filter_context,
+		.capture = config->capture,
+		.capture_active = config->capture_active,
+		.capture_context = config->capture_context,
 	};
 	status = st_cterm_create(&session->cterm, &cterm_config);
 	if (status != 0) {
@@ -278,6 +305,54 @@ st_term_session_destroy(st_term_session_t **session)
 	*session = NULL;
 }
 
+st_cterm_t *
+st_term_session_cterm(st_term_session_t *session)
+{
+	return session == NULL ? NULL : session->cterm;
+}
+
+void
+st_term_session_request_end(st_term_session_t *session, bool exit_app)
+{
+	if (session == NULL)
+		return;
+	session->end_requested = true;
+	session->exit_requested = exit_app;
+}
+
+void
+st_term_session_set_suspended(st_term_session_t *session, bool suspended)
+{
+	if (session != NULL) {
+		if (session->suspended != suspended)
+			session->throttle_last_ms = 0;
+		session->suspended = suspended;
+	}
+}
+
+void
+st_term_session_set_mouse_disabled(st_term_session_t *session, bool disabled)
+{
+	if (session != NULL)
+		session->mouse_disabled = disabled;
+}
+
+uint32_t
+st_term_session_throttle_speed(const st_term_session_t *session)
+{
+	return session != NULL ? session->throttle_bps : 0;
+}
+
+void
+st_term_session_set_throttle_speed(st_term_session_t *session, uint32_t bps)
+{
+	if (session == NULL || !session->config.throttle_supported)
+		return;
+	session->throttle_bps = bps;
+	session->throttle_last_ms = 0;
+	session->throttle_credit = UINT64_C(10000);
+}
+
 static void
 beep(st_term_session_t *session)
 {
@@ -288,9 +363,9 @@ beep(st_term_session_t *session)
 	(void)audio_beep(engine, 440.0, 100);
 }
 
-int
-st_term_session_send_text(st_term_session_t *session,
-	const char *utf8, size_t size)
+static int
+send_text(st_term_session_t *session, const char *utf8, size_t size,
+	int64_t timeout_ms, size_t *queued_wire)
 {
 	st_unicode_text_t *text = NULL;
 	struct st_unicode_text_item item;
@@ -299,6 +374,8 @@ st_term_session_send_text(st_term_session_t *session,
 
 	if (session == NULL || (utf8 == NULL && size != 0))
 		return IO_ERROR_INVALID_ARGUMENT;
+	if (queued_wire != NULL)
+		*queued_wire = 0;
 	status = st_unicode_text_create(&text, ST_UNICODE_TEXT_GRAPHEMES);
 	if (status == 0)
 		status = st_unicode_text_feed(text, utf8, size, &consumed);
@@ -311,8 +388,8 @@ st_term_session_send_text(st_term_session_t *session,
 			beep(session);
 		}
 		else if (session->config.encoding == ST_CTERM_ENCODING_UTF8)
-			status = send_all(session->config.connection, item.bytes,
-			    item.size);
+			status = send_all_count(session->config.connection, item.bytes,
+			    item.size, timeout_ms, queued_wire);
 		else {
 			uint32_t scalar;
 			size_t scalar_size;
@@ -322,7 +399,8 @@ st_term_session_send_text(st_term_session_t *session,
 			    item.size) == 0 && scalar_size == item.size
 			    && st_codepage_from_unicode(&encoded,
 			    session->config.codepage, scalar))
-				status = send_all(session->config.connection, &encoded, 1);
+				status = send_all_count(session->config.connection, &encoded, 1,
+				    timeout_ms, queued_wire);
 			else
 				beep(session);
 		}
@@ -333,16 +411,98 @@ st_term_session_send_text(st_term_session_t *session,
 	return status;
 }
 
+int
+st_term_session_send_text(st_term_session_t *session,
+	const char *utf8, size_t size)
+{
+	return send_text(session, utf8, size, -1, NULL);
+}
+
+int
+st_term_session_send_text_poll(st_term_session_t *session,
+	const char *utf8, size_t size, size_t *queued_wire)
+{
+	if (queued_wire == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	return send_text(session, utf8, size, 0, queued_wire);
+}
+
+int
+st_term_prepare_paste(char **result, size_t *result_size,
+	const char *utf8, size_t size, bool bracketed)
+{
+	static const char begin[] = "\x1b[200~";
+	static const char end[] = "\x1b[201~";
+	char *prepared;
+	size_t used = 0;
+
+	if (result == NULL || result_size == NULL
+	    || (utf8 == NULL && size != 0))
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (size > SIZE_MAX - (bracketed ? 13 : 1))
+		return IO_ERROR_OUT_OF_RANGE;
+	prepared = malloc(size + (bracketed ? 13 : 1));
+	if (prepared == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	if (bracketed) {
+		memcpy(prepared, begin, 6);
+		used = 6;
+	}
+	for (size_t i = 0; i < size; ++i) {
+		if (bracketed && size - i >= 6
+		    && memcmp(utf8 + i, end, 6) == 0) {
+			i += 5;
+			continue;
+		}
+		if (utf8[i] == '\n') {
+			if (i == 0 || utf8[i - 1] != '\r')
+				prepared[used++] = '\r';
+		}
+		else
+			prepared[used++] = utf8[i];
+	}
+	if (bracketed) {
+		memcpy(prepared + used, end, 6);
+		used += 6;
+	}
+	prepared[used] = '\0';
+	*result = prepared;
+	*result_size = used;
+	return 0;
+}
+
 static bool
-local_command(const struct st_console_event *event,
+local_command(st_console_t *console, const struct st_console_event *event,
 	enum st_term_disposition *disposition)
 {
 	uint16_t code;
 	uint32_t modifiers;
+	uint32_t capabilities = 0;
 
 	if (event->type == ST_CONSOLE_EVENT_CLOSE) {
 		*disposition = ST_TERM_EXIT_APPLICATION;
 		return true;
+	}
+	if (event->type == ST_CONSOLE_EVENT_PHYSICAL_KEY
+	    && event->data.physical_key.pressed) {
+		uint32_t physical_modifiers =
+		    event->data.physical_key.modifiers;
+		uint16_t evdev = event->data.physical_key.evdev;
+
+		if ((physical_modifiers & (ST_CONSOLE_MODIFIER_ALT
+		    | ST_CONSOLE_MODIFIER_GUI)) != 0
+		    && (evdev == 35 || evdev == 45)) {
+			*disposition = evdev == 45 ? ST_TERM_EXIT_APPLICATION
+			    : ST_TERM_RETURN_TO_PICKER;
+			return true;
+		}
+		if ((physical_modifiers & ST_CONSOLE_MODIFIER_CONTROL) != 0
+		    && evdev == 16
+		    && st_console_capabilities(console, &capabilities) == 0
+		    && (capabilities & ST_CONSOLE_CAP_LOCAL_CONTROL_KEYS) != 0) {
+			*disposition = ST_TERM_RETURN_TO_PICKER;
+			return true;
+		}
 	}
 	if (event->type != ST_CONSOLE_EVENT_KEY_CODE)
 		return false;
@@ -356,7 +516,9 @@ local_command(const struct st_console_event *event,
 	if (((modifiers & ST_CONSOLE_MODIFIER_ALT) != 0
 	    && (code == 'h' || code == 'H'))
 	    || ((modifiers & ST_CONSOLE_MODIFIER_CONTROL) != 0
-	    && (code == 'q' || code == 'Q' || code == 17))) {
+	    && (code == 'q' || code == 'Q' || code == 17)
+	    && st_console_capabilities(console, &capabilities) == 0
+	    && (capabilities & ST_CONSOLE_CAP_LOCAL_CONTROL_KEYS) != 0)) {
 		*disposition = ST_TERM_RETURN_TO_PICKER;
 		return true;
 	}
@@ -382,6 +544,51 @@ write_wire(st_term_session_t *session, const uint8_t *bytes, size_t size)
 		return status;
 	status = st_cterm_write(session->cterm, unicode, converted, &consumed);
 	return status == 0 && consumed != converted ? IO_ERROR_IO : status;
+}
+
+static int
+write_wire_filtered(st_term_session_t *session, const uint8_t *bytes,
+	size_t size)
+{
+	uint8_t replacement[ST_TERM_WIRE_REPLACEMENT_CAPACITY];
+	size_t run_start = 0;
+	int status;
+
+	if (session->config.wire_filter == NULL
+	    || (session->config.wire_filter_active != NULL
+	    && !session->config.wire_filter_active(
+	    session->config.wire_filter_context)))
+		return write_wire(session, bytes, size);
+	for (size_t i = 0; i < size; ++i) {
+		bool consumed = false;
+		size_t replacement_size = 0;
+
+		status = session->config.wire_filter(
+		    session->config.wire_filter_context, bytes[i], &consumed,
+		    replacement, sizeof(replacement), &replacement_size);
+		if (status != 0)
+			return status;
+		if (replacement_size > sizeof(replacement)
+		    || (!consumed && replacement_size != 0))
+			return IO_ERROR_INVALID_FORMAT;
+		if (!consumed)
+			continue;
+		if (i > run_start) {
+			status = write_wire(session, bytes + run_start,
+			    i - run_start);
+			if (status != 0)
+				return status;
+		}
+		if (replacement_size != 0) {
+			status = write_wire(session, replacement,
+			    replacement_size);
+			if (status != 0)
+				return status;
+		}
+		run_start = i + 1;
+	}
+	return run_start < size ? write_wire(session, bytes + run_start,
+	    size - run_start) : 0;
 }
 
 int
@@ -416,7 +623,15 @@ handle_event(st_term_session_t *session,
 	const struct st_console_event *event,
 	enum st_term_disposition *disposition, bool *finished)
 {
-	if (local_command(event, disposition)) {
+	if (session->config.event_hook != NULL) {
+		bool consumed;
+		int status = session->config.event_hook(
+		    session->config.event_hook_context, event, &consumed);
+
+		if (status != 0 || consumed)
+			return status;
+	}
+	if (local_command(session->config.console, event, disposition)) {
 		*finished = true;
 		return 0;
 	}
@@ -444,7 +659,8 @@ handle_event(st_term_session_t *session,
 		    event->data.doorway_key.scan_code);
 		return session->output_error;
 	case ST_CONSOLE_EVENT_MOUSE:
-		(void)st_cterm_handle_mouse(session->cterm, event);
+		if (!session->mouse_disabled)
+			(void)st_cterm_handle_mouse(session->cterm, event);
 		return session->output_error;
 	case ST_CONSOLE_EVENT_FOCUS:
 		(void)st_cterm_handle_focus(session->cterm,
@@ -470,19 +686,69 @@ st_term_session_pump(st_term_session_t *session,
 {
 	uint8_t bytes[4096];
 	struct st_console_event event;
-	ssize_t received;
+	ssize_t received = IO_ERROR_WOULD_BLOCK;
+	size_t read_size = sizeof(bytes);
 	int status;
 
 	if (session == NULL || disposition == NULL || finished == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	*finished = false;
-	received = st_connection_receive(session->config.connection, bytes,
-	    sizeof(bytes), 20);
+	if (session->end_requested) {
+		*disposition = session->exit_requested
+		    ? ST_TERM_EXIT_APPLICATION : ST_TERM_RETURN_TO_PICKER;
+		*finished = true;
+		return 0;
+	}
+	if (!session->suspended && session->throttle_bps != 0) {
+		uint64_t now;
+		/* Credits are BPS*milliseconds: ten bits per character makes
+		 * 10,000 credits one received byte.  Retain at most 100 ms of
+		 * catch-up after an occupied UI tick. */
+		uint64_t cap = (uint64_t)session->throttle_bps * 100;
+
+		status = st_time_monotonic_ms(&now);
+		if (status != 0)
+			return status;
+		if (cap < UINT64_C(10000))
+			cap = UINT64_C(10000);
+		if (session->throttle_last_ms != 0
+		    && now >= session->throttle_last_ms) {
+			uint64_t elapsed = now - session->throttle_last_ms;
+
+			if (elapsed > 100)
+				elapsed = 100;
+			session->throttle_credit += elapsed
+			    * session->throttle_bps;
+			if (session->throttle_credit > cap)
+				session->throttle_credit = cap;
+		}
+		session->throttle_last_ms = now;
+		/* Idling does not bank a burst for the next remote write. */
+		if (st_connection_pending_raw(session->config.connection) == 0
+		    && session->throttle_credit > UINT64_C(10000))
+			session->throttle_credit = UINT64_C(10000);
+		read_size = (size_t)(session->throttle_credit / UINT64_C(10000));
+		if (read_size > sizeof(bytes))
+			read_size = sizeof(bytes);
+	}
+	if (!session->suspended && read_size != 0) {
+		received = st_connection_receive(session->config.connection, bytes,
+		    read_size, 20);
+		if (received > 0 && session->throttle_bps != 0)
+			session->throttle_credit -= (uint64_t)received
+			    * UINT64_C(10000);
+	}
+	else if (!session->suspended
+	    && st_connection_is_connected(session->config.connection)) {
+		const struct timespec pause = {.tv_nsec = 10000000L};
+
+		(void)st_thread_sleep(&pause, NULL);
+	}
 	if (received < 0 && received != IO_ERROR_TIMED_OUT
 	    && received != IO_ERROR_WOULD_BLOCK)
 		return (int)received;
 	if (received > 0) {
-		status = write_wire(session, bytes, (size_t)received);
+		status = write_wire_filtered(session, bytes, (size_t)received);
 		if (status != 0)
 			return status;
 	}
@@ -491,11 +757,18 @@ st_term_session_pump(st_term_session_t *session,
 		status = handle_event(session, &event, disposition, finished);
 		if (status != 0 || *finished)
 			return status;
+		if (session->end_requested) {
+			*disposition = session->exit_requested
+			    ? ST_TERM_EXIT_APPLICATION : ST_TERM_RETURN_TO_PICKER;
+			*finished = true;
+			return 0;
+		}
 	}
 	if (status != IO_ERROR_WOULD_BLOCK)
 		return status;
-	if (!st_connection_is_connected(session->config.connection)
-	    && received == 0) {
+	if (!session->suspended
+	    && !st_connection_is_connected(session->config.connection)
+	    && st_connection_pending_raw(session->config.connection) == 0) {
 		*disposition = ST_TERM_RETURN_TO_PICKER;
 		*finished = true;
 	}

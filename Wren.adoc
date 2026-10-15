@@ -1471,8 +1471,8 @@ return value does.
 | C1 — replaceable
 | `true` consumes the event (no later hook sees it; SyncTERM's
   default handling is bypassed).  `String` replaces the event's data
-  with the bytes of the string where that's meaningful (currently
-  only `onInput` byte replacement).  Any other return — `false`,
+  where meaningful: raw bytes for `onWire`, semantic UTF-8 text for
+  `onInput`.  Any other return — `false`,
   `null`, a number, an instance, … — is a passthrough: the next
   hook in the chain sees the unmodified event, and SyncTERM's
   default handling proceeds.
@@ -1489,8 +1489,8 @@ return value does.
 `onKey`, `onPhysicalKey`, and `onMouse` use C1 but have no meaningful
 interpretation for `String` returns (a 16-bit key code, a
 `PhysicalKeyEvent`, or a `MouseEvent` isn't a byte stream), so a `String`
-return from those is silently treated as passthrough.  Use `onInput` if
-you need byte-level replacement.
+return from those is silently treated as passthrough.  Use `onWire` for
+wire-byte replacement, or `onInput` for Unicode text replacement.
 
 [options="header",cols="2,3,1"]
 |===
@@ -1506,12 +1506,25 @@ you need byte-level replacement.
 | C1
 
 | `Hook.onInput { \|b\| ... }`
-| `b`: one byte received from the remote
-| C1.  String replacements are capped at 256 bytes — larger ones log
-  a runtime error and the original byte passes through.
+| `b`: one decoded Unicode scalar, independent of wire encoding
+| C1.  String replacements are NFC-normalized semantic UTF-8 text,
+  capped at 256 bytes.  Invalid UTF-8 or an oversized replacement
+  logs an error and passes through the original scalar.
 
 | `Hook.onInput(byte, fn)`
-| Filtered: `fn(b)` only fires when `b == byte`.  C-side filter.
+| Filtered: `fn(b)` only fires when `b == byte` (a Unicode scalar).
+| C1
+
+| `Hook.onWire { \|b\| ... }`
+| `b`: one exact post-transport wire byte (0..255), before protocol
+  classification or Unicode decoding
+| C1.  A returned String contributes its exact bytes to the parser,
+  without revisiting wire hooks.  Replacements are capped at 256 bytes;
+  an oversized replacement logs an error and passes through the
+  original byte.
+
+| `Hook.onWire(byte, fn)`
+| Filtered: `fn(b)` fires only when the wire byte equals `byte`.
 | C1
 
 | `Hook.onPhysicalKey { \|ev\| ... }`
@@ -1530,7 +1543,7 @@ you need byte-level replacement.
 | C2.  An "honor `true`-means-drop" semantics would require holding
   every input byte until every potential pattern resolves — not
   feasible for a streaming terminal.  Use `Hook.onInput` for
-  byte-granular drops.
+  scalar-granular drops.
 
 | `Hook.onMatchClean(pattern, fn)`
 | Same as `onMatch`, but bytes are pre-filtered through SyncTERM's
@@ -1574,23 +1587,18 @@ Filtered variants share the same per-event registration array as the
 unfiltered forms, so dispatch order = registration order regardless
 of which form was used.
 
-`Hook.onInput` (and `Hook.onMatch`) fires on every byte off the wire,
-*before* RIPscrip parsing, ZMODEM/OOII detection, or the cterm
-emulator.  Scripts see the raw stream and can drop bytes that would
-otherwise be consumed by those layers, or expand a single byte into
-multiple bytes by returning a String — the canonical example is
-LF→CRLF normalization for hosts that send only LF.  Bytes are
-dispatched in bulk right after `conn_recv_upto`, so there is no
-speed-emulation gating — parse_rip already eats RIP escapes in bulk
-regardless of the emulated bps rate, so gating only the Wren hook
-would be inconsistent.
+`Hook.onWire` fires on post-transport bytes before RIPscrip or CTerm
+classifies controls and text.  It is the explicit byte-oriented hook
+for wire protocols; a returned String remains raw bytes.  The default
+`Hook.onInput` and streaming match hooks are Unicode-facing: they see
+decoded text independent of whether the remote uses UTF-8 or a legacy
+codepage.  Their replacements stay in the semantic text path rather
+than being re-encoded as if they had arrived from the remote.
 
-Hooks run in registration order; the first one that returns Bool
-true (drop) or a String (replace) wins, and later hooks don't see
-that byte.  When a replacement won't fit in the post-filter buffer,
-the filter pauses on that input byte; the unprocessed wire-side
-tail stays parked until the next `recv_bytes()` call drains
-something out and frees room for it.
+Hooks run in registration order; the first one that returns Bool true
+(drop) or a String (replace) wins, and later hooks don't see that unit.
+An `onWire` replacement is emitted before the next received byte,
+without recursively invoking the wire-hook chain.
 
 `Hook.every` fires from the main-loop deadline check just before the
 sleep call.  If the loop stalls long enough that more than one
@@ -1603,8 +1611,8 @@ into a `Surface` the host hands it.
 
 === Streaming regex hooks
 
-`Hook.onMatch(pattern, fn)` registers a regex against the inbound
-byte stream.  Each input byte is fed to a streaming Pike VM (Russ
+`Hook.onMatch(pattern, fn)` registers a regex against the decoded
+UTF-8 input stream.  Each decoded byte is fed to a streaming Pike VM (Russ
 Cox's NFA simulation, vendored under `re1/`); when a match completes,
 `fn` is called with a Wren List:
 
@@ -1627,13 +1635,13 @@ capture groups in registration order.  Both `onMatch` and
 `onMatchClean` are passthrough-only: the callback's return value is
 ignored, and the matched text always reaches the terminal.  Matching
 completes only after preceding bytes have passed through cterm, so these
-hooks cannot drop a complete matched span.  Use the byte-granular
+hooks cannot drop a complete matched span.  Use the scalar-granular
 `Hook.onInput` hook when input must be dropped before reaching cterm.
 
 `Hook.onMatchClean(pattern, fn)` is the escape-aware variant — the
-byte stream feeding the regex VM is pre-filtered through SyncTERM's
-shared ANSI parser (`ansi_filter` in `ansi_filter.[ch]`, the same
-state machine `ripper.c` uses to find ANSI envelopes inside RIP).
+byte stream feeding the regex VM is pre-filtered through the
+stateful ANSI parser in `wren_host/wren_ansi_filter.[ch]`, adapted
+from the parser used by the legacy RIP renderer.
 The filter strips ESC, CSI sequences (`ESC [ ... <final>`), DCS / OSC /
 PM / APC strings (`ESC P|]|^|_ ... ESC \`), and SOS-style strings
 (`ESC X ... ESC \`).  The cleaned bytes reach the regex VM in the

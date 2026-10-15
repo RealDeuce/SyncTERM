@@ -17,6 +17,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 
 typedef struct cterminal st_cterm_t;
 
@@ -63,6 +64,16 @@ typedef int (*st_cterm_rip_prompt_callback_t)(void *context,
 	const char *question, const char *initial, size_t field_width,
 	bool reject_blank, char **result);
 
+#define ST_CTERM_INPUT_REPLACEMENT_CAPACITY 256
+/* Decoded Unicode scalar from received terminal text, including controls.
+ * A replacement is semantic UTF-8 and bypasses the wire/RIP parser and this
+ * filter.  Returning consumed with an empty replacement drops the scalar. */
+typedef int (*st_cterm_input_filter_t)(void *context, uint32_t scalar,
+	bool *consumed, char *replacement, size_t capacity,
+	size_t *replacement_size);
+typedef int (*st_cterm_capture_t)(void *context, const char *utf8,
+	size_t size);
+
 struct st_cterm_config {
 	/* All pointers are borrowed and must outlive the terminal. */
 	st_console_t *console;
@@ -96,6 +107,13 @@ struct st_cterm_config {
 	/* Without a callback, interactive RIP_DEFINE leaves the variable unchanged. */
 	st_cterm_rip_prompt_callback_t rip_prompt;
 	void *rip_prompt_context;
+	st_cterm_input_filter_t input_filter;
+	bool (*input_filter_active)(void *context);
+	void *input_filter_context;
+	/* Effective decoded input after semantic hooks, before text parsing. */
+	st_cterm_capture_t capture;
+	bool (*capture_active)(void *context);
+	void *capture_context;
 };
 
 /*
@@ -113,6 +131,10 @@ void st_cterm_destroy(st_cterm_t **terminal);
  */
 int st_cterm_write(st_cterm_t *terminal, const void *bytes, size_t size,
 	size_t *consumed);
+/* Direct semantic UTF-8 input, bypassing RIP and wire-byte filters and
+ * independent of the configured wire encoding. */
+int st_cterm_write_utf8(st_cterm_t *terminal, const void *bytes, size_t size,
+	size_t *consumed);
 /* Disconnect/reset boundary: replacement for a truncated UTF-8 sequence. */
 int st_cterm_finish(st_cterm_t *terminal);
 int st_cterm_reset_terminal(st_cterm_t *terminal);
@@ -121,9 +143,76 @@ int st_cterm_reset_terminal(st_cterm_t *terminal);
 int st_cterm_resize(st_cterm_t *terminal, uint32_t columns, uint32_t rows);
 int st_cterm_size(const st_cterm_t *terminal, uint32_t *columns,
 	uint32_t *rows);
+int st_cterm_origin(const st_cterm_t *terminal, uint32_t *x, uint32_t *y);
+
+/* Read-only parser state for connected Wren scripts. Values are a snapshot;
+ * callers never receive pointers into the terminal. */
+struct st_cterm_state {
+	int x;
+	int y;
+	int top_margin;
+	int bottom_margin;
+	int left_margin;
+	int right_margin;
+	unsigned int attr;
+	uint32_t fg_color;
+	uint32_t bg_color;
+	bool has_palette_override;
+	uint32_t palette_override[16];
+	int font_slot;
+	int alt_fonts[4];
+	int scrollback_lines;
+	int scrollback_width;
+	int scrollback_pos;
+	int scrollback_start;
+	enum st_cterm_emulation emulation;
+	bool started;
+	bool skypix;
+	struct {
+		bool auto_wrap;
+		bool origin_mode;
+		bool sx_scroll;
+		bool dec_lrmm;
+		bool bracket_paste;
+		bool dec_bkm;
+		bool prestel_mosaic;
+		bool prestel_double_height;
+		bool prestel_conceal;
+		bool prestel_separated;
+		bool prestel_hold;
+		bool alternate_keypad;
+	} ext_attr;
+	struct {
+		bool set;
+		bool enabled;
+		bool forced;
+	} last_column_flag;
+};
+int st_cterm_state(const st_cterm_t *terminal, struct st_cterm_state *state);
+/* Selects an already registered font for ordinary (non-bold/non-blink) cells.
+ * The change affects future output; retained cells keep their resolved glyphs. */
+int st_cterm_set_alt_font(st_cterm_t *terminal, uint8_t selector);
+/* Register a user-approved 256-glyph font for this terminal's console. */
+int st_cterm_register_font(st_cterm_t *terminal, uint8_t selector,
+	const char *path, uint16_t *identifier);
+/* Writes the visible terminal rectangle as BinaryText; optional SAUCE uses
+ * the supplied UTF-8 profile name and user as bounded metadata. */
+int st_cterm_save_binary(st_cterm_t *terminal, FILE *stream,
+	bool with_sauce, const char *title, const char *author,
+	int *native_error);
 
 enum st_cterm_encoding st_cterm_encoding(const st_cterm_t *terminal);
 enum st_codepage st_cterm_codepage(const st_cterm_t *terminal);
+/* Live state consumed by the connected-session status script. */
+int st_cterm_status_display(const st_cterm_t *terminal);
+bool st_cterm_doorway_mode(const st_cterm_t *terminal);
+void st_cterm_set_doorway_mode(st_cterm_t *terminal, bool enabled);
+int st_cterm_music_mode(const st_cterm_t *terminal);
+void st_cterm_set_music_mode(st_cterm_t *terminal, int mode);
+bool st_cterm_atascii_inverse(const st_cterm_t *terminal);
+int st_cterm_mouse_mode(const st_cterm_t *terminal);
+bool st_cterm_mouse_sgr_pixels(const st_cterm_t *terminal);
+bool st_cterm_bracketed_paste(const st_cterm_t *terminal);
 int st_cterm_set_encoding(st_cterm_t *terminal,
 	enum st_cterm_encoding encoding, enum st_codepage codepage);
 
@@ -134,6 +223,14 @@ int st_cterm_set_encoding(st_cterm_t *terminal,
  */
 int st_cterm_copy_history(st_cterm_t *terminal,
 	struct st_console_cell **cells, uint32_t *columns, size_t *rows);
+
+/* Logical, oldest-first access to the retained scrollback ring only. */
+int st_cterm_scrollback_size(const st_cterm_t *terminal,
+	uint32_t *columns, size_t *rows);
+int st_cterm_copy_scrollback_rows(const st_cterm_t *terminal,
+	struct st_console_cell *destination, uint32_t destination_columns,
+	size_t destination_rows, size_t source_row, size_t row_count,
+	size_t destination_row);
 
 /* Encoded key bytes are delivered with ST_CTERM_OUTPUT_USER origin. */
 bool st_cterm_handle_key(st_cterm_t *terminal, uint16_t key_code,

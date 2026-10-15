@@ -19,6 +19,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 
 struct st_app_paths;
 struct st_bbs_list;
@@ -73,6 +74,7 @@ struct st_wren_font_state {
 	size_t loaded_count;
 	uint16_t catalog[UINT8_MAX + 1U];
 	bool catalog_valid[UINT8_MAX + 1U];
+	bool runtime_loaded[UINT8_MAX + 1U];
 	uint16_t selector_by_identifier[UINT16_MAX + 1U];
 	uint16_t slots[5];
 };
@@ -174,8 +176,21 @@ struct st_wren_context {
 	uint64_t seen_errors;
 	struct st_wren_connected *connected;
 	const struct st_profile *profile;
+	st_cterm_t *cterm;
+	struct st_connection *connection;
+	struct st_term_session *session;
+	uint64_t connected_at_ms;
 	const char *event;
 	bool cterm_sftp_active;
+	bool status_enabled;
+	bool cterm_suspended;
+	bool scrollback_requested;
+	bool cterm_mouse_disabled;
+	WrenHandle *status_callable;
+	WrenHandle *status_details;
+	WrenHandle *status_surface;
+	WrenHandle *status_call;
+	uint32_t status_surface_width;
 };
 
 struct st_embedded_script {
@@ -223,6 +238,7 @@ struct st_wren_host {
 
 struct st_wren_host *st_wren_host_from_vm(WrenVM *vm);
 struct st_wren_context *st_wren_context_from_vm(WrenVM *vm);
+int st_wren_host_run_connected_menu(struct st_wren_host *host);
 void st_wren_abort(WrenVM *vm, const char *message);
 bool st_wren_text_slot(WrenVM *vm, int slot, const char **text, int *length);
 void st_wren_log_append(WrenVM *vm, int source, const char *text);
@@ -231,10 +247,23 @@ void st_wren_log_error(WrenVM *vm, WrenErrorType type, const char *module,
 void st_wren_log_dispose(WrenVM *vm);
 void st_wren_push_surface_take(WrenVM *vm, struct st_console_cell *cells,
 	uint32_t width, uint32_t height);
+bool st_wren_surface_reset(WrenVM *vm, int slot,
+	const struct st_console_cell *blank, uint32_t width, uint32_t height);
+const struct st_console_cell *st_wren_surface_cells(WrenVM *vm, int slot,
+	uint32_t width, uint32_t height);
+bool st_wren_surface_view(WrenVM *vm, int slot,
+	struct st_console_cell **cells, uint32_t *width, uint32_t *height);
 int st_wren_mark_surface_hyperlinks(struct st_wren_host *host,
 	st_hyperlink_mark_fn mark, void *mark_context);
 WrenForeignMethodFn st_wren_repl_bind_method(const char *class_name,
 	bool is_static, const char *signature);
+WrenForeignMethodFn st_wren_status_bind_method(const char *class_name,
+	bool is_static, const char *signature);
+WrenForeignMethodFn st_wren_session_bind_method(const char *class_name,
+	bool is_static, const char *signature);
+WrenForeignClassMethods st_wren_session_bind_class(const char *class_name);
+int st_wren_status_render(WrenVM *vm, bool enabled);
+void st_wren_status_dispose(WrenVM *vm);
 
 WrenForeignMethodFn st_wren_core_bind_method(const char *class_name,
 	bool is_static, const char *signature);
@@ -273,7 +302,17 @@ bool st_wren_picker_host_run(struct st_wren_host *host,
 	struct st_wren_picker_call *call);
 void st_wren_picker_call_dispose(struct st_wren_picker_call *call);
 const char *st_wren_file_read_path(WrenVM *vm, int slot);
+bool st_wren_file_claim_write(WrenVM *vm, int slot,
+	const char *operation, FILE **stream);
+void st_wren_file_write_error(WrenVM *vm, int native_error,
+	const char *message);
 const char *st_wren_directory_path(WrenVM *vm, int slot);
+bool st_wren_connected_capture_paused(const struct st_wren_connected *connected);
+int st_wren_connected_capture_start(struct st_wren_connected *connected,
+	FILE *stream, bool raw);
+void st_wren_connected_capture_stop(struct st_wren_connected *connected);
+void st_wren_connected_capture_pause(struct st_wren_connected *connected);
+void st_wren_connected_capture_resume(struct st_wren_connected *connected);
 
 int st_wren_script_inventory(const char *directory, const char *event,
 	struct st_wren_directory_entries *entries);
@@ -297,6 +336,16 @@ int st_wren_input_context_init(WrenVM *vm);
 void st_wren_input_context_dispose(WrenVM *vm);
 int st_wren_input_dispatch(WrenVM *vm,
 	const struct st_wren_input_record *event, bool *consumed);
+int st_wren_input_dispatch_console_event(WrenVM *vm,
+	const struct st_console_event *event, bool *consumed);
+uint16_t st_wren_input_key_code(const struct st_console_event *event);
+void st_wren_input_push_event(WrenVM *vm, int slot,
+	const struct st_wren_input_record *record);
+int st_wren_connected_handle_mouse_record(struct st_wren_connected *connected,
+	const struct st_wren_input_record *record, bool *consumed);
+int st_wren_connected_handle_physical_record(
+	struct st_wren_connected *connected,
+	const struct st_wren_input_record *record, bool *consumed);
 int st_wren_wake_drain(WrenVM *vm);
 int st_wren_wake_enqueue(WrenVM *vm, int fiber_slot, int value_slot);
 WrenForeignMethodFn st_wren_sftp_bind_method(const char *class_name,
@@ -311,5 +360,7 @@ void st_wren_write_output(WrenVM *vm, const char *text);
 void st_wren_report_error(WrenVM *vm, WrenErrorType type,
 	const char *module, int line, const char *message);
 int st_wren_interpret_event_scripts(WrenVM *vm, const char *event);
+int st_wren_interpret_profile_scripts(WrenVM *vm,
+	const struct st_profile *profile);
 
 #endif

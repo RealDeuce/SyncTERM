@@ -29,6 +29,7 @@
 #include "st_syncterm_icon.h"
 #include "st_terminfo.h"
 #include "st_term.h"
+#include "st_time.h"
 #include "st_wren_host.h"
 
 #include <locale.h>
@@ -199,6 +200,65 @@ run_rip_prompt(void *context, const char *question, const char *initial,
 }
 
 static int
+run_wren_event_hook(void *context, const struct st_console_event *event,
+	bool *consumed)
+{
+	st_wren_connected_t *connected = *(st_wren_connected_t **)context;
+
+	if (connected == NULL) {
+		*consumed = false;
+		return 0;
+	}
+	return st_wren_connected_handle_event(connected, event, consumed);
+}
+
+static bool
+wren_wire_filter_active(void *context)
+{
+	return st_wren_connected_has_wire_hooks(
+	    *(st_wren_connected_t **)context);
+}
+
+static int
+run_wren_wire_filter(void *context, uint8_t byte, bool *consumed,
+	uint8_t *replacement, size_t capacity, size_t *replacement_size)
+{
+	return st_wren_connected_filter_wire_byte(
+	    *(st_wren_connected_t **)context, byte, consumed, replacement,
+	    capacity, replacement_size);
+}
+
+static bool
+wren_input_filter_active(void *context)
+{
+	return st_wren_connected_has_input_hooks(
+	    *(st_wren_connected_t **)context);
+}
+
+static int
+run_wren_input_filter(void *context, uint32_t scalar, bool *consumed,
+	char *replacement, size_t capacity, size_t *replacement_size)
+{
+	return st_wren_connected_filter_input_scalar(
+	    *(st_wren_connected_t **)context, scalar, consumed, replacement,
+	    capacity, replacement_size);
+}
+
+static bool
+wren_capture_active(void *context)
+{
+	return st_wren_connected_capture_active(
+	    *(st_wren_connected_t **)context);
+}
+
+static int
+run_wren_capture_input(void *context, const char *utf8, size_t size)
+{
+	return st_wren_connected_capture_input(
+	    *(st_wren_connected_t **)context, utf8, size);
+}
+
+static int
 run_selected(st_wren_host_t *host, st_console_display_t *display,
 	st_console_t *console, const struct st_profile *profile,
 	const struct st_app_paths *paths,
@@ -211,6 +271,7 @@ run_selected(st_wren_host_t *host, st_console_display_t *display,
 	st_font_catalog_t *fonts = NULL;
 	st_connection_t *connection = NULL;
 	st_term_session_t *session = NULL;
+	st_wren_connected_t *connected = NULL;
 	char *rip_directory = NULL;
 	struct st_connection_error error = {0};
 	uint8_t selector = 0;
@@ -266,13 +327,80 @@ run_selected(st_wren_host_t *host, st_console_display_t *display,
 		.codepage = st_font_catalog_codepage(fonts, selector),
 		.font_selector = selector,
 		.hide_status = profile->hide_status,
+		.throttle_supported = profile->connection_type != ST_CONNECTION_SERIAL
+		    && profile->connection_type != ST_CONNECTION_SERIAL_3WIRE,
+		.initial_throttle_bps = profile->bps_rate,
 		.rip_prompt = run_rip_prompt,
 		.rip_prompt_context = host,
+		.event_hook = run_wren_event_hook,
+		.event_hook_context = &connected,
+		.wire_filter = run_wren_wire_filter,
+		.wire_filter_active = wren_wire_filter_active,
+		.wire_filter_context = &connected,
+		.input_filter = run_wren_input_filter,
+		.input_filter_active = wren_input_filter_active,
+		.input_filter_context = &connected,
+		.capture = run_wren_capture_input,
+		.capture_active = wren_capture_active,
+		.capture_context = &connected,
 	};
 	status = st_term_session_create(&session, &config);
-	if (status == 0)
-		status = st_term_session_run(session, disposition);
+	if (status == 0) {
+		const struct st_wren_connected_config wren_config = {
+			.host = host,
+			.console = console,
+			.profile = profile,
+			.cterm = st_term_session_cterm(session),
+			.connection = connection,
+			.session = session,
+			.status_enabled = !profile->hide_status,
+		};
+
+		status = st_wren_connected_create(&connected, &wren_config);
+		if (status != 0) {
+			fprintf(stderr,
+			    "SyncTERM: connected Wren initialization failed (%d); "
+			    "continuing without scripts\n", status);
+			status = st_term_session_run(session, disposition);
+			goto finished;
+		}
+	}
+	if (status == 0) {
+		bool finished = false;
+		bool shell_close_notified = false;
+		uint64_t last_status_ms = 0;
+
+		while (!finished && status == 0) {
+			uint64_t now;
+			bool show_status;
+
+			status = st_term_session_pump(session, disposition, &finished);
+			if (!shell_close_notified
+			    && profile->connection_type == ST_CONNECTION_SHELL
+			    && !st_connection_is_connected(connection)) {
+				int hook_status = st_wren_connected_shell_closed(connected);
+
+				shell_close_notified = true;
+				if (status == 0)
+					status = hook_status;
+			}
+			if (status == 0)
+				status = st_wren_connected_pump(connected, 0);
+			if (status != 0 || finished)
+				break;
+			if (st_time_monotonic_ms(&now) != 0)
+				continue;
+			if (last_status_ms != 0 && now - last_status_ms < 100)
+				continue;
+			last_status_ms = now;
+			show_status = st_cterm_status_display(
+			    st_term_session_cterm(session)) == 1;
+			status = st_wren_connected_render_status(connected,
+			    show_status);
+		}
+	}
 finished:
+	st_wren_connected_destroy(connected);
 	st_term_session_destroy(&session);
 	if (connection != NULL) {
 		int close_status = st_connection_close(connection);
