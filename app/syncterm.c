@@ -620,7 +620,12 @@ main(int argc, char **argv)
 		}
 		st_profile_dispose(&selected);
 		st_profile_init(&selected);
-		(void)st_console_display_activate(display, picker_console);
+		status = st_console_display_activate(display, console);
+		if (status != 0) {
+			fprintf(stderr, "SyncTERM: cannot return to the menu (%d)\n",
+			    status);
+			break;
+		}
 	}
 
 finished:
