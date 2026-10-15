@@ -591,9 +591,8 @@ class App {
       return true
     }
     if (me.event == Mouse.button1DragStart) {
-      // Force rectangular select while a Wren App owns the screen.
-      // Line-mode select makes no sense across widget chrome / cell-
-      // aligned UI; users almost always want a rectangle.
+      // Default to rectangular selection across widget chrome;
+      // Alt at press time lets the user choose line selection.
       Input.mousedrag(true)
       _dragHandedOff = true
       return true

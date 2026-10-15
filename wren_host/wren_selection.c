@@ -306,6 +306,9 @@ st_wren_mouse_drag_select(struct st_wren_context *context, bool rectangular)
 	gesture = &context->mouse_gestures[0];
 	if (!gesture->pressed || !gesture->dragging)
 		return 0;
+	/* The gesture keeps press-time modifiers, so the mode stays fixed. */
+	selection.rectangular = rectangular
+	    != ((gesture->modifiers & ST_CONSOLE_MODIFIER_ALT) != 0);
 	result = st_console_size(context->console, &selection.columns,
 	    &selection.rows);
 	if (result != 0 || selection.columns == 0 || selection.rows == 0)

@@ -2753,8 +2753,10 @@ Unified blocking and nonblocking reader for keyboard and mouse events.
 | `Input.mousedrag()`, `Input.mousedrag(forceRect)`
 | Hand off to SyncTERM's full-screen drag-select gesture.  This uses the
   current screen dimensions and does not depend on a connected terminal.
-  `forceRect=true` forces rectangular select (line-mode select makes no
-  sense across Wren UI chrome).
+  The default is line selection; `forceRect=true` makes rectangular selection
+  the default for Wren UI chrome.  Holding Alt when pressing button one
+  inverts that default for the drag, so Alt+Drag selects a block in line mode
+  or lines in rectangular mode.  Changing Alt after the press has no effect.
 
 | `Input.mouseVisible=(b)`
 | Show or hide the mouse cursor.  Setter only — there is no ciolib
@@ -4308,7 +4310,8 @@ one line, Page Up/Page Down move by the physical screen height, H/L move by
 the terminal content height, the mouse wheel moves one line, F1 opens the
 Markdown help, and Escape returns to the directory.  Clicking opens OSC 8 or
 detected plain-text URLs, hovering shows an OSC 8 URL in the status row, and
-button-one drag invokes SyncTERM's line-mode text selection.
+button-one drag invokes SyncTERM's line-mode text selection; Alt at button
+press switches that drag to rectangular selection.
 
 `MenuReadStatus` constants are `ok`, `passwordRequired`,
 `decryptFailed`, `readFailed`, `migrationListOpenFailed`,

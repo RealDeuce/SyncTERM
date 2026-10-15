@@ -2946,8 +2946,10 @@ exercise_repl_style(struct st_wren_host *host, st_console_t *console)
 struct selection_observer {
 	st_console_t *console;
 	struct st_console_rect area;
+	struct st_console_rect probe_area;
 	struct st_console_event release;
 	struct st_console_cell highlighted[6];
+	bool probe_selected;
 };
 
 static int
@@ -2960,9 +2962,13 @@ observe_selection(void *argument)
 
 	for (unsigned int attempt = 0; attempt < 5000; ++attempt) {
 		bool highlighted = true;
+		struct st_console_cell probe;
 
 		if (st_console_read_cells(observer->console, &observer->area,
 		    observer->highlighted, observer->area.width) != 0)
+			break;
+		if (st_console_read_cells(observer->console,
+		    &observer->probe_area, &probe, 1) != 0)
 			break;
 		for (size_t index = 0; index < 6; ++index) {
 			if (observer->highlighted[index].background
@@ -2971,7 +2977,8 @@ observe_selection(void *argument)
 				break;
 			}
 		}
-		if (highlighted) {
+		if (highlighted && (probe.background == 4)
+		    == observer->probe_selected) {
 			result = 0;
 			break;
 		}
@@ -2986,8 +2993,24 @@ static int
 exercise_mouse_drag_selection(struct st_wren_host *host,
 	st_console_t *console)
 {
+	static const struct {
+		bool rectangular;
+		uint32_t press_modifiers;
+		uint32_t move_modifiers;
+		bool probe_selected;
+	} cases[] = {
+		{true, 0, 0, false},
+		{true, ST_CONSOLE_MODIFIER_ALT, 0, true},
+		{false, 0, 0, true},
+		{false, ST_CONSOLE_MODIFIER_ALT, 0, false},
+		{true, 0, ST_CONSOLE_MODIFIER_ALT, false},
+	};
 	const uint32_t selection_blue = UINT32_C(0x0000a8);
 	const struct st_console_rect area = {1, 1, 3, 2};
+	const struct st_console_rect probe_area = {4, 1, 1, 1};
+	const struct st_console_cell probe_cell = {
+		.glyph = 'G', .foreground = 7, .background = 1,
+	};
 	struct st_console_cell cells[6] = {
 		{.glyph = 'A',
 		    .foreground = ST_CONSOLE_COLOR_RGB_VALUE(255, 255, 255),
@@ -3006,7 +3029,7 @@ exercise_mouse_drag_selection(struct st_wren_host *host,
 	st_thread_t observer_thread;
 	int observer_result;
 	WrenInterpretResult interpret_result;
-	const struct st_console_event press = {
+	struct st_console_event press = {
 		.type = ST_CONSOLE_EVENT_MOUSE,
 		.data.mouse = {
 			.x = 1, .y = 1,
@@ -3015,7 +3038,7 @@ exercise_mouse_drag_selection(struct st_wren_host *host,
 			.action = ST_CONSOLE_MOUSE_BUTTON,
 		},
 	};
-	const struct st_console_event move = {
+	struct st_console_event move = {
 		.type = ST_CONSOLE_EVENT_MOUSE,
 		.data.mouse = {
 			.x = 3, .y = 2,
@@ -3032,7 +3055,7 @@ exercise_mouse_drag_selection(struct st_wren_host *host,
 			.action = ST_CONSOLE_MOUSE_BUTTON,
 		},
 	};
-	static const char source[] =
+	static const char source_prefix[] =
 	    "import \"syncterm\" for Input, Mouse, MouseEvent\n"
 	    "Input.mouseEvents = 0\n"
 	    "Input.enableMouseEvent(Mouse.wheelDown)\n"
@@ -3044,45 +3067,60 @@ exercise_mouse_drag_selection(struct st_wren_host *host,
 	    "if (!(press is MouseEvent) || press.event != Mouse.button1Press || press.startX != 2 || press.startY != 2 || press.startPixelX != 8 || press.startPixelY != 16) Fiber.abort(\"mouse press\")\n"
 	    "var drag = Input.next()\n"
 	    "if (!(drag is MouseEvent) || drag.event != Mouse.button1DragStart || drag.startX != 2 || drag.startY != 2 || drag.endX != 4 || drag.endY != 3 || drag.startPixelX != 8 || drag.startPixelY != 16 || drag.endPixelX != 24 || drag.endPixelY != 32) Fiber.abort(\"mouse drag\")\n"
-	    "Input.mousedrag(true)\n";
+	    "Input.mousedrag(";
+	char source[sizeof(source_prefix) + sizeof("true)\n")];
+	char module[40];
 
 	CHECK(st_console_set_palette(console, 500, &selection_blue, 1) == 0);
 	CHECK(st_console_write_cells(console, &area, cells, 3) == 0);
+	CHECK(st_console_write_cells(console, &probe_area, &probe_cell, 1) == 0);
 	CHECK(st_console_present(console) == 0);
 	CHECK(st_console_read_cells(console, &area, before, 3) == 0);
-	CHECK(st_console_post_event(console, &press) == 0);
-	CHECK(st_console_post_event(console, &move) == 0);
-	observer = (struct selection_observer){
-		.console = console,
-		.area = area,
-		.release = release,
-	};
-	CHECK(st_thread_create(&observer_thread, observe_selection, &observer)
-	    == ST_THREAD_SUCCESS);
-	interpret_result = wrenInterpret(host->vm, "mouse_drag_selection", source);
-	CHECK(st_thread_join(observer_thread, &observer_result)
-	    == ST_THREAD_SUCCESS);
-	CHECK(interpret_result == WREN_RESULT_SUCCESS);
-	CHECK(observer_result == 0);
-	CHECK(observer.highlighted[0].foreground
-	    == ST_CONSOLE_COLOR_RGB_VALUE(255, 255, 255));
-	CHECK(observer.highlighted[1].foreground == 12);
-	CHECK(observer.highlighted[4].foreground == 7);
-	CHECK((observer.highlighted[4].flags & ST_CONSOLE_CELL_REVERSE) == 0);
-	CHECK(observer.highlighted[5].foreground == 1);
-	CHECK(st_console_read_cells(console, &area, after, 3) == 0);
-	for (size_t index = 0; index < 6; ++index) {
-		CHECK(before[index].glyph == after[index].glyph);
-		CHECK(before[index].glyph_font == after[index].glyph_font);
-		CHECK(before[index].foreground == after[index].foreground);
-		CHECK(before[index].background == after[index].background);
-		CHECK((before[index].flags & ST_CONSOLE_CELL_PUBLIC_FLAGS)
-		    == (after[index].flags & ST_CONSOLE_CELL_PUBLIC_FLAGS));
-		CHECK(before[index].font == after[index].font);
-		CHECK(before[index].hyperlink == after[index].hyperlink);
+	for (size_t case_index = 0; case_index < sizeof(cases)
+	    / sizeof(cases[0]); ++case_index) {
+		press.data.mouse.modifiers = cases[case_index].press_modifiers;
+		move.data.mouse.modifiers = cases[case_index].move_modifiers;
+		CHECK(snprintf(source, sizeof(source), "%s%s)\n", source_prefix,
+		    cases[case_index].rectangular ? "true" : "") > 0);
+		CHECK(snprintf(module, sizeof(module), "mouse_drag_selection_%zu",
+		    case_index) > 0);
+		CHECK(st_console_post_event(console, &press) == 0);
+		CHECK(st_console_post_event(console, &move) == 0);
+		observer = (struct selection_observer){
+			.console = console,
+			.area = area,
+			.probe_area = probe_area,
+			.release = release,
+			.probe_selected = cases[case_index].probe_selected,
+		};
+		CHECK(st_thread_create(&observer_thread, observe_selection,
+		    &observer) == ST_THREAD_SUCCESS);
+		interpret_result = wrenInterpret(host->vm, module, source);
+		CHECK(st_thread_join(observer_thread, &observer_result)
+		    == ST_THREAD_SUCCESS);
+		CHECK(interpret_result == WREN_RESULT_SUCCESS);
+		CHECK(observer_result == 0);
+		CHECK(observer.highlighted[0].foreground
+		    == ST_CONSOLE_COLOR_RGB_VALUE(255, 255, 255));
+		CHECK(observer.highlighted[1].foreground == 12);
+		CHECK(observer.highlighted[4].foreground == 7);
+		CHECK((observer.highlighted[4].flags
+		    & ST_CONSOLE_CELL_REVERSE) == 0);
+		CHECK(observer.highlighted[5].foreground == 1);
+		CHECK(st_console_read_cells(console, &area, after, 3) == 0);
+		for (size_t index = 0; index < 6; ++index) {
+			CHECK(before[index].glyph == after[index].glyph);
+			CHECK(before[index].glyph_font == after[index].glyph_font);
+			CHECK(before[index].foreground == after[index].foreground);
+			CHECK(before[index].background == after[index].background);
+			CHECK((before[index].flags & ST_CONSOLE_CELL_PUBLIC_FLAGS)
+			    == (after[index].flags & ST_CONSOLE_CELL_PUBLIC_FLAGS));
+			CHECK(before[index].font == after[index].font);
+			CHECK(before[index].hyperlink == after[index].hyperlink);
+		}
+		CHECK(!host->menu.mouse_gestures[0].pressed);
+		CHECK(!host->menu.mouse_gestures[0].dragging);
 	}
-	CHECK(!host->menu.mouse_gestures[0].pressed);
-	CHECK(!host->menu.mouse_gestures[0].dragging);
 	return 0;
 }
 
