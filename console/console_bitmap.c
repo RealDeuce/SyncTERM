@@ -624,9 +624,18 @@ cache_console_state(struct st_console_bitmap_presenter *presenter,
 {
 	enum st_console_scaling_mode scaling_mode = presenter->software_scaling_only
 	    ? ST_CONSOLE_SCALING_INTERNAL : console->scaling_mode;
+	struct st_console_cell cursor_style = {
+		.foreground = console->style.foreground,
+		.background = console->style.background,
+		.flags = console->style.flags,
+	};
+	struct st_console_cell effective_cursor_style;
+
+	st_console_effective_cell_locked(console, &cursor_style,
+	    &effective_cursor_style);
 	uint32_t cursor_colour = console->blink_mode == ST_CONSOLE_BLINK_PRESTEL
 	    ? ST_CONSOLE_COLOR_RGB_VALUE(255, 255, 255)
-	    : console->style.foreground;
+	    : effective_cursor_style.foreground;
 	uint32_t cursor_draw_x;
 	uint32_t cursor_columns;
 	bool changed;

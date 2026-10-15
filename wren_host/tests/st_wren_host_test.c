@@ -795,6 +795,25 @@ exercise_connected_scrollback(st_wren_host_t *host,
 		.cterm = cterm,
 	};
 	CHECK(st_wren_connected_create(&connected, &connected_config) == 0);
+	CHECK(st_wren_connected_interpret(connected, "scrollback_paint_cursor",
+	    "import \"syncterm\" for Scrollback, Surface, Screen, CTerm\n"
+	    "import \"scrollback_view\" for ScrollbackView\n"
+	    "var saved = Screen.save()\n"
+	    "var x = CTerm.originX\n"
+	    "var y = CTerm.originY\n"
+	    "var width = Scrollback.width\n"
+	    "var height = CTerm.height\n"
+	    "var live = Screen.readRect(x, y, x + width - 1, y + height - 1)\n"
+	    "var viewport = Surface.new(width, height)\n"
+	    "ScrollbackView.blankSurroundings_()\n"
+	    "Screen.cursor.visible = false\n"
+	    "ScrollbackView.paint_(viewport, live, Scrollback.height, Scrollback.height, x, y)\n"
+	    "if (Screen.window.position[0] != x || Screen.window.position[1] != y) Fiber.abort(\"scrollback cursor position\")\n"
+	    "if (Screen.cursor.visible) Fiber.abort(\"scrollback hidden cursor\")\n"
+	    "Screen.cursor.visible = true\n"
+	    "ScrollbackView.paint_(viewport, live, Scrollback.height, Scrollback.height, x, y)\n"
+	    "if (!Screen.cursor.visible) Fiber.abort(\"scrollback visible cursor\")\n"
+	    "Screen.restore(saved)\n") == 0);
 	CHECK(st_wren_connected_render_status(connected, true) == 0);
 	CHECK(st_wren_connected_last_error(connected) == NULL);
 	CHECK(st_wren_connected_interpret(connected, "font_grant",

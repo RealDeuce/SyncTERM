@@ -493,6 +493,45 @@ test_default_cursor_scanlines(void)
 }
 
 static void
+test_legacy_bright_cursor_colour(void)
+{
+	const struct st_console_display_config display = {
+		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	};
+	const struct st_console_config config = {
+		.columns = 1, .rows = 1,
+		.cell_width = 1, .cell_height = 1,
+		.scaling_mode = ST_CONSOLE_SCALING_EXTERNAL,
+	};
+	const struct st_console_style style = {
+		.foreground = 3,
+		.background = 1,
+		.flags = ST_CONSOLE_CELL_LEGACY_FOREGROUND
+		    | ST_CONSOLE_CELL_BRIGHT,
+	};
+	struct st_console_bitmap_presenter *presenter = NULL;
+	struct st_console_bitmap_frame frame;
+	struct upload_log log = {0};
+	st_console_t *console = NULL;
+
+	CHECK(st_console_create(&console, &display, &config) == 0);
+	CHECK(st_console_set_style(console, &style) == 0);
+	CHECK(st_console_set_cursor(console, true,
+	    ST_CONSOLE_CURSOR_BLOCK) == 0);
+	CHECK(st_console_bitmap_presenter_create(&presenter, console) == 0);
+	CHECK(st_console_bitmap_presenter_frame(presenter, console, 1, 1, 0,
+	    record_upload, &log, &frame) == 0);
+	CHECK(frame.pixels->pixels[0] == UINT32_C(0xffff54));
+	CHECK(st_console_set_video_flags(console,
+	    ST_CONSOLE_VIDEO_NO_BRIGHT) == 0);
+	CHECK(st_console_bitmap_presenter_frame(presenter, console, 1, 1, 0,
+	    record_upload, &log, &frame) == 0);
+	CHECK(frame.pixels->pixels[0] == UINT32_C(0xa85400));
+	st_console_bitmap_presenter_destroy(presenter);
+	st_console_destroy(console);
+}
+
+static void
 test_wide_glyph_cursor(void)
 {
 	static const uint8_t bitmap[4] = {0};
@@ -842,6 +881,7 @@ main(void)
 	test_initial_window_geometry();
 	test_mouse_coordinates();
 	test_default_cursor_scanlines();
+	test_legacy_bright_cursor_colour();
 	test_wide_glyph_cursor();
 	test_vga_ninth_column();
 	test_upload_retry();

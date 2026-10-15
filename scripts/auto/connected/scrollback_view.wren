@@ -99,6 +99,7 @@ class ScrollbackView {
       Screen.window.position = [x + width - 10, y]
       Screen.window.print("Scrollback")
     }
+    Screen.window.position = [x, y]
   }
 
   static showHelp_() {
