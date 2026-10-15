@@ -739,6 +739,118 @@ connected_capture_input(void *context, const char *utf8, size_t size)
 }
 
 static int
+exercise_connected_copy_paste_mouse(st_wren_connected_t *connected,
+	st_console_t *console, st_cterm_t *cterm)
+{
+	const struct st_console_event left_press = {
+		.type = ST_CONSOLE_EVENT_MOUSE,
+		.data.mouse = {
+			.action = ST_CONSOLE_MOUSE_BUTTON,
+			.buttons = ST_CONSOLE_MOUSE_BUTTON_LEFT,
+			.x = 1, .y = 1,
+		},
+	};
+	const struct st_console_event left_move = {
+		.type = ST_CONSOLE_EVENT_MOUSE,
+		.data.mouse = {
+			.action = ST_CONSOLE_MOUSE_MOVE,
+			.buttons = ST_CONSOLE_MOUSE_BUTTON_LEFT,
+			.x = 3, .y = 1,
+		},
+	};
+	const struct st_console_event left_release = {
+		.type = ST_CONSOLE_EVENT_MOUSE,
+		.data.mouse = {
+			.action = ST_CONSOLE_MOUSE_BUTTON,
+			.x = 3, .y = 1,
+		},
+	};
+	struct st_console_event button = {
+		.type = ST_CONSOLE_EVENT_MOUSE,
+		.data.mouse = {
+			.action = ST_CONSOLE_MOUSE_BUTTON,
+			.x = 1, .y = 1,
+		},
+	};
+	bool consumed;
+	size_t written;
+
+	CHECK(st_cterm_mouse_mode(cterm) == 0);
+	consumed = false;
+	CHECK(st_wren_connected_handle_key(connected, 0x0500,
+	    &consumed) == 0 && consumed);
+	consumed = true;
+	CHECK(st_wren_connected_handle_event(connected, &left_press,
+	    &consumed) == 0 && !consumed);
+	CHECK(st_console_post_event(console, &left_release) == 0);
+	consumed = false;
+	CHECK(st_wren_connected_handle_event(connected, &left_move,
+	    &consumed) == 0 && consumed);
+	CHECK(st_wren_connected_last_error(connected) == NULL);
+	for (uint32_t mask = ST_CONSOLE_MOUSE_BUTTON_MIDDLE;
+	    mask <= ST_CONSOLE_MOUSE_BUTTON_RIGHT; mask <<= 1) {
+		button.data.mouse.buttons = mask;
+		consumed = true;
+		CHECK(st_wren_connected_handle_event(connected, &button,
+		    &consumed) == 0 && !consumed);
+		CHECK(!st_cterm_handle_mouse(cterm, &button));
+		button.data.mouse.buttons = 0;
+		consumed = false;
+		CHECK(st_wren_connected_handle_event(connected, &button,
+		    &consumed) == 0 && consumed);
+	}
+	CHECK(st_cterm_write(cterm, "\x1b[?1000h", 8, &written) == 0
+	    && written == 8 && st_cterm_mouse_mode(cterm) == 1000);
+	button.data.mouse.buttons = ST_CONSOLE_MOUSE_BUTTON_MIDDLE;
+	consumed = false;
+	CHECK(st_wren_connected_handle_event(connected, &button,
+	    &consumed) == 0 && !consumed);
+	CHECK(st_cterm_handle_mouse(cterm, &button));
+	(void)st_cterm_handle_mouse(cterm, &left_release);
+	button.data.mouse.buttons = 0;
+	CHECK(st_wren_connected_handle_event(connected, &button,
+	    &consumed) == 0 && !consumed);
+	CHECK(st_wren_connected_handle_event(connected, &left_press,
+	    &consumed) == 0 && !consumed);
+	CHECK(st_wren_connected_handle_event(connected, &left_move,
+	    &consumed) == 0 && !consumed);
+	CHECK(st_wren_connected_handle_event(connected, &left_release,
+	    &consumed) == 0 && !consumed);
+	CHECK(st_wren_connected_interpret(connected, "copy_paste_mouse_off",
+	    "import \"syncterm\" for CTerm\n"
+	    "CTerm.mouseDisabled = true\n") == 0);
+	button.data.mouse.buttons = ST_CONSOLE_MOUSE_BUTTON_MIDDLE;
+	CHECK(st_wren_connected_handle_event(connected, &button,
+	    &consumed) == 0 && !consumed);
+	button.data.mouse.buttons = 0;
+	CHECK(st_wren_connected_handle_event(connected, &button,
+	    &consumed) == 0 && consumed);
+	CHECK(st_wren_connected_interpret(connected, "copy_paste_mouse_on",
+	    "import \"syncterm\" for CTerm\n"
+	    "CTerm.mouseDisabled = false\n") == 0);
+	CHECK(st_cterm_write(cterm, "\x1b[?1000l\x1b[?9h", 13,
+	    &written) == 0 && written == 13 && st_cterm_mouse_mode(cterm) == 9);
+	CHECK(st_wren_connected_handle_event(connected, &left_press,
+	    &consumed) == 0 && !consumed);
+	CHECK(st_cterm_handle_mouse(cterm, &left_press));
+	CHECK(st_console_post_event(console, &left_release) == 0);
+	consumed = false;
+	CHECK(st_wren_connected_handle_event(connected, &left_move,
+	    &consumed) == 0 && consumed);
+	CHECK(st_cterm_handle_mouse(cterm, &left_press));
+	(void)st_cterm_handle_mouse(cterm, &left_release);
+	button.data.mouse.buttons = ST_CONSOLE_MOUSE_BUTTON_RIGHT;
+	CHECK(st_wren_connected_handle_event(connected, &button,
+	    &consumed) == 0 && !consumed);
+	button.data.mouse.buttons = 0;
+	CHECK(st_wren_connected_handle_event(connected, &button,
+	    &consumed) == 0 && !consumed);
+	CHECK(st_cterm_write(cterm, "\x1b[?9l", 5, &written) == 0
+	    && written == 5 && st_cterm_mouse_mode(cterm) == 0);
+	return 0;
+}
+
+static int
 exercise_connected_scrollback(st_wren_host_t *host,
 	st_console_t *console, struct st_profile *profile)
 {
@@ -795,6 +907,7 @@ exercise_connected_scrollback(st_wren_host_t *host,
 		.cterm = cterm,
 	};
 	CHECK(st_wren_connected_create(&connected, &connected_config) == 0);
+	CHECK(exercise_connected_copy_paste_mouse(connected, console, cterm) == 0);
 	CHECK(st_wren_connected_interpret(connected, "scrollback_paint_cursor",
 	    "import \"syncterm\" for Scrollback, Surface, Screen, CTerm\n"
 	    "import \"scrollback_view\" for ScrollbackView\n"

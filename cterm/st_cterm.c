@@ -3837,6 +3837,13 @@ st_cterm_handle_mouse(st_cterm_t *terminal,
 	return true;
 }
 
+void
+st_cterm_sync_mouse_buttons(st_cterm_t *terminal, uint32_t buttons)
+{
+	if (terminal != NULL)
+		terminal->api_mouse_buttons = buttons;
+}
+
 bool
 st_cterm_handle_focus(st_cterm_t *terminal, bool focused)
 {

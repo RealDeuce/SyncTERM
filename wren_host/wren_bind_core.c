@@ -12,6 +12,7 @@
 #include "st_builtin_fonts.h"
 #include "st_console.h"
 #include "st_codepage.h"
+#include "st_cterm.h"
 #include "st_settings.h"
 #include "st_theme.h"
 #include "st_time.h"
@@ -1803,6 +1804,10 @@ st_wren_input_dispatch_console_event(WrenVM *vm,
 			if (claimed)
 				*consumed = true;
 		}
+		/* A drag hook may have consumed a later release while running. */
+		if (*consumed)
+			st_cterm_sync_mouse_buttons(context->cterm,
+			    context->mouse_buttons);
 		return 0;
 	}
 	default:

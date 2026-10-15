@@ -9,6 +9,7 @@
 
 #include "io_error.h"
 #include "st_console.h"
+#include "st_cterm.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -367,6 +368,8 @@ st_wren_mouse_drag_select(struct st_wren_context *context, bool rectangular)
 		else if (event.data.mouse.action == ST_CONSOLE_MOUSE_BUTTON
 		    && (event.data.mouse.buttons
 		    & ST_CONSOLE_MOUSE_BUTTON_LEFT) == 0) {
+			st_cterm_sync_mouse_buttons(context->cterm,
+			    event.data.mouse.buttons);
 			selection.end_x = event.data.mouse.x;
 			selection.end_y = event.data.mouse.y;
 			gesture->end_x = event.data.mouse.x;

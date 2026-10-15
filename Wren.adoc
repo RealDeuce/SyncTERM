@@ -810,7 +810,11 @@ The currently embedded scripts are:
   Alt+X / Alt+H and — ANSI/ncurses only — Ctrl+Q route to
   `DisconnectFlow.run`; Alt+O toggles
   mouse-event reporting; Alt+Up / Alt+Down walk the network throttle
-  rate; Shift+Insert pastes from the clipboard; Alt+B opens the
+  rate; Shift+Insert pastes from the clipboard.  With remote mouse
+  tracking off or locally disabled, left-drag selects text to copy
+  and middle- or right-click pastes.  X10 tracking retains local drag
+  selection but sends button clicks to the remote; other tracking
+  modes leave the gestures to the remote.  Alt+B opens the
   scrollback viewer; Alt+C delegates to `CaptureMenu.run`; Alt+M
   delegates to `MusicMenu.run`.
 

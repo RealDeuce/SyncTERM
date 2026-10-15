@@ -242,6 +242,8 @@ bool st_cterm_handle_physical_keys(st_cterm_t *terminal,
 	const struct st_console_event *events, size_t count);
 bool st_cterm_handle_mouse(st_cterm_t *terminal,
 	const struct st_console_event *event);
+/* A local selection consumed a button event before CTerm could see it. */
+void st_cterm_sync_mouse_buttons(st_cterm_t *terminal, uint32_t buttons);
 bool st_cterm_handle_focus(st_cterm_t *terminal, bool focused);
 
 #endif
