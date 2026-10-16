@@ -50,6 +50,9 @@ Do not add or repair legacy makefiles.  Capability checks and generated
 configuration headers belong in the build tree, and a new target must set
 `C_STANDARD 17`, `C_STANDARD_REQUIRED YES`, and `C_EXTENSIONS NO`.
 
+For CPU-time benchmarks, pixel-equivalence checks, and the scrolling/rendering
+baseline, see link:docs/performance.adoc[Performance verification].
+
 == Component model
 
 Each component owns one responsibility, its allocation boundary, and its

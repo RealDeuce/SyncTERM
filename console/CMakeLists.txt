@@ -353,7 +353,8 @@ if(ST_CONSOLE_HAVE_SDL)
 	list(APPEND _st_console_sources console_sdl.c)
 endif()
 if(ST_CONSOLE_HAVE_X11)
-	list(APPEND _st_console_sources console_x11.c console_x11_keys.c)
+	list(APPEND _st_console_sources console_x11.c console_x11_keys.c
+		console_x11_pixels.c)
 endif()
 if(ST_CONSOLE_HAVE_WAYLAND)
 	list(APPEND _st_console_sources console_wayland.c
@@ -574,6 +575,16 @@ if(BUILD_TESTING)
 			TIMEOUT 20)
 	endif()
 	if(ST_CONSOLE_HAVE_X11)
+		add_executable(st_console_x11_pixels_test
+			tests/st_console_x11_pixels_test.c)
+		target_include_directories(st_console_x11_pixels_test PRIVATE
+			${CMAKE_CURRENT_SOURCE_DIR})
+		target_link_libraries(st_console_x11_pixels_test PRIVATE st_console
+			X11::X11 st_time)
+		set_target_properties(st_console_x11_pixels_test PROPERTIES
+			C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		st_console_warnings(st_console_x11_pixels_test)
+		add_test(NAME st_console_x11_pixels COMMAND st_console_x11_pixels_test)
 		add_executable(st_console_x11_test tests/st_console_x11_test.c)
 		target_include_directories(st_console_x11_test PRIVATE
 			${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}

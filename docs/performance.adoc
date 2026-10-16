@@ -1,0 +1,112 @@
+= Performance verification
+:toc:
+
+== Measuring CPU work
+
+Use an out-of-source optimized build with symbols. Do not change the user's
+running build or attach profilers to their live session:
+
+[source,sh]
+----
+cmake -S . -B build-perf -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCRYPTO_BACKEND=OpenSSL
+cmake --build build-perf --target st_console_benchmark st_cterm_benchmark st_console_x11_pixels_test
+build-perf/console/st_console_benchmark
+build-perf/cterm/st_cterm_benchmark 500
+build-perf/console/st_console_x11_pixels_test --benchmark
+----
+
+The X11 packing target is available when X11 support is built. Its synthetic
+tests and benchmark require no display. Live X11 tests must use a dedicated
+Xvfb display, never the user's desktop.
+
+Timings measure cumulative process CPU, including user/kernel time from all
+threads, using `st_time_process_cpu_ns()`. POSIX uses the probed process CPU
+clock, with `clock()` as its fallback; Windows uses `GetProcessTimes()` rather
+than Windows' elapsed-time `clock()`. Resolution is platform-dependent.
+Wall-clock CTest durations are not benchmark results. CPU time excludes
+descheduling but does not eliminate cache contention or frequency changes;
+compare alternating baseline/modified runs and report medians.
+
+The console benchmark measures retained-cell writes, rasterization, full
+scrolling, and scrolling with a stationary last row. The CTerm benchmark
+measures actual ANSI parser-to-raster input in CP437 and UTF-8, with and without
+a reserved status row, in 4096-byte and one-byte writes. The stream includes
+non-ASCII characters and colour changes. It checks identical final cells and
+both pixel planes across chunk sizes; it is also registered as
+`cterm_stream_consistency` with a smaller input.
+
+The X11 benchmark compares the previous per-pixel byte-packing loop with the
+new native 32-bit row-copy path in the same process. Test unusual masks,
+opposite byte orders, 8/16/24/32-bit pixels, generic fallback, padded rows,
+and partial damage against Xlib's generic pixel writer before trusting a fast
+path. Do not infer end-to-end application speed from this isolated ratio.
+
+== 2026-10-16 baseline
+
+FreeBSD amd64, Clang 19.1.7, CMake RelWithDebInfo, Unifont enabled.
+The baseline is commit `149df5c`, with CPU-time benchmark instrumentation but
+without the optimizations. The saved baseline executable used POSIX `clock()`
+with approximately 7.8 ms resolution; final measurements use the higher
+resolution process CPU clock. These are medians of three paired runs, rounded
+to avoid implying more baseline precision than was available.
+
+[cols="3,1,1,1",options="header"]
+|===
+| Console workload | Before CPU ms | After CPU ms | Speedup
+| 200 retained-cell updates | 234 | 35 | 6.8x
+| 200 narrow-font rasters | 398 | 180 | 2.2x
+| 200 wide-font rasters | 914 | 696 | 1.3x
+| 2000 full scroll-and-render operations | 305 | 124 | 2.5x
+| 2000 scroll-and-render operations with a stationary row | 656 | 145 | 4.5x
+|===
+
+[cols="3,1,1,1",options="header"]
+| CTerm workload (500 lines) | Before CPU ms | After CPU ms | Speedup
+| UTF-8, no status, 4096-byte writes | 1609 | 678 | 2.4x
+| UTF-8, status, 4096-byte writes | 1742 | 684 | 2.5x
+| CP437, no status, 4096-byte writes | 47 | 21 | approximately 2.2x
+| CP437, status, 4096-byte writes | 133 | 26 | approximately 5.1x
+| CP437, no status, one-byte writes | 1164 | 600 | 1.9x
+| CP437, status, one-byte writes | 1289 | 606 | 2.1x
+|===
+
+All baseline/modified framebuffer checksums matched. Two X11 packing runs
+measured about 4294-4315 CPU ms for the old loop versus 93-95 CPU ms for
+1000 native 640x400 row-copy uploads, approximately 45-46x less CPU work in
+that conversion step. This does not include X server or compositor CPU.
+
+== Correctness and profiling
+
+Circular storage is private: retained cells, drawn metadata, and row-scale
+state share a logical-row mapping. Public rectangles and snapshots remain
+linear in logical screen order. Resize and snapshot restoration canonicalize
+cell storage. Full-width move-and-clear rotates origins; correction copies
+preserve status and other outside rows. Plain moves retain their source
+pixels, so they must not use a destructive origin rotation.
+
+The console tests compare hundreds of overlapping/non-overlapping moves in
+both directions with a straightforward copy-and-fill model. They compare
+cached and forced text rasters, exercise wide cells, repeated wraparound,
+snapshots, and resize. Separate gradient fixtures compare both pixel planes,
+including untouched status rows and extra right/bottom margins. Existing RIP
+v1.10a pixel regressions remain required.
+
+Keep samples and external corpus files outside the repository. Preserve any
+user-provided profiles; do not rerun a capture script that overwrites them.
+DTrace sampling requires additional privileges on this host. When unavailable,
+Callgrind can inspect the owned headless benchmark without privileged tracing:
+
+[source,sh]
+----
+valgrind --tool=callgrind --callgrind-out-file=/tmp/st-perf.callgrind build-perf/cterm/st_cterm_benchmark 64
+callgrind_annotate --auto=no --inclusive=yes /tmp/st-perf.callgrind
+----
+
+Callgrind reports instruction counts, not native CPU durations. Never use its
+instrumented benchmark timings as performance results.
+
+Paired 64-line runs (including startup and all eight stream variants) executed
+6,077,678,192 instructions before versus 2,428,122,442 after, about 60% fewer.
+The remaining instruction-heavy path is retained-cell raster comparison,
+particularly with one-byte writes; font-registry searching and full retained-
+screen scrolling copies are no longer required in the optimized paths.

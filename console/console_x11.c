@@ -8,6 +8,7 @@
 #include "console_internal.h"
 #include "console_config.h"
 #include "console_x11_keys.h"
+#include "console_x11_pixels.h"
 
 #include "dynamic_library.h"
 #include "io_error.h"
@@ -324,6 +325,7 @@ struct x11_state {
 	unsigned long red_values[256];
 	unsigned long green_values[256];
 	unsigned long blue_values[256];
+	struct st_x11_pixel_writer pixel_writer;
 	bool damage_valid;
 	bool destination_valid;
 	bool pointer_visible;
@@ -963,6 +965,7 @@ ensure_image(struct x11_state *state, uint32_t width, uint32_t height)
 		destroy_image(state);
 		return IO_ERROR_OUT_OF_MEMORY;
 	}
+	st_x11_pixel_writer_init(&state->pixel_writer, state->image);
 	return 0;
 }
 
@@ -1027,21 +1030,7 @@ upload_pixels(void *context, const struct st_rgb_buffer *pixels,
 
 	if (status != 0)
 		return status;
-	for (uint32_t y = 0; y < rectangle->height; ++y) {
-		const uint32_t *source = &pixels->pixels[
-		    (size_t)(rectangle->y + y) * pixels->width + rectangle->x];
-
-		for (uint32_t x = 0; x < rectangle->width; ++x) {
-			unsigned long pixel = native_pixel(state, source[x]);
-			uint32_t destination_x = rectangle->x + x;
-			uint32_t destination_y = rectangle->y + y;
-
-			if (!store_native_pixel(state->image, destination_x,
-			    destination_y, pixel))
-				XPutPixel(state->image, (int)destination_x,
-				    (int)destination_y, pixel);
-		}
-	}
+	st_x11_pixel_writer_upload(&state->pixel_writer, state->image, pixels, rectangle);
 	add_damage(state, rectangle);
 	return 0;
 }
