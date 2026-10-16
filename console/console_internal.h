@@ -27,6 +27,10 @@ struct st_console_backend_ops {
 	/* Per-console preparation; must not change the physical display. */
 	int (*attach)(st_console_t *console);
 	int (*present)(st_console_t *console);
+	/* columns/rows specify the requested grid. Console cell dimensions,
+	 * raster margins and aspect ratio are staged before resize; reconfigure
+	 * has not yet replaced the console's grid, cells or pixels.
+	 * The caller holds the console state lock and display backend mutex. */
 	int (*resize)(st_console_t *console, uint32_t columns, uint32_t rows);
 	void (*palette_changed)(st_console_t *console, uint16_t first,
 	    const uint32_t *colours, uint32_t count);

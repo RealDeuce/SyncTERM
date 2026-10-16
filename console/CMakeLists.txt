@@ -438,6 +438,14 @@ if(BUILD_TESTING)
 		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	st_console_warnings(st_console_regrid_test)
 	add_test(NAME st_console_regrid COMMAND st_console_regrid_test)
+	add_executable(st_console_reconfigure_test
+		tests/st_console_reconfigure_test.c)
+	target_link_libraries(st_console_reconfigure_test PRIVATE st_console
+		syncterm_array_list)
+	set_target_properties(st_console_reconfigure_test PROPERTIES
+		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	st_console_warnings(st_console_reconfigure_test)
+	add_test(NAME st_console_reconfigure COMMAND st_console_reconfigure_test)
 	set_tests_properties(st_console PROPERTIES
 		ENVIRONMENT "TERM=xterm"
 		TIMEOUT 20)
@@ -598,6 +606,10 @@ if(BUILD_TESTING)
 			C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 		st_console_warnings(st_console_x11_test)
 		add_test(NAME st_console_x11 COMMAND st_console_x11_test)
+		add_test(NAME st_console_x11_mode_changes
+			COMMAND st_console_x11_test --mode-changes)
+		set_tests_properties(st_console_x11_mode_changes PROPERTIES
+			SKIP_RETURN_CODE 77 TIMEOUT 60)
 		set_tests_properties(st_console_x11 PROPERTIES
 			SKIP_RETURN_CODE 77
 			TIMEOUT 20)

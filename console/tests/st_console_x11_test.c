@@ -213,6 +213,79 @@ fill_pixels(st_console_t *console, uint32_t colour)
 	return status;
 }
 
+static int
+check_mode_changes(void)
+{
+	static const char title[] = "st_console X11 mode changes";
+	/* Ordinary PC, Prestel, and aspect-only LCD mode changes. */
+	const struct st_console_config modes[] = {
+		{.columns = 80, .rows = 25, .cell_width = 8, .cell_height = 16,
+		 .aspect_width = 4, .aspect_height = 3},
+		{.columns = 40, .rows = 25, .cell_width = 12, .cell_height = 20,
+		 .aspect_width = 3077, .aspect_height = 2400},
+		{.columns = 80, .rows = 25, .cell_width = 8, .cell_height = 16,
+		 .aspect_width = 8, .aspect_height = 5},
+	};
+	const unsigned int sequence[] = {1, 0, 2, 0};
+	const double scales[] = {1.0, 1.25};
+	const uint32_t colour = ST_PIXEL_COLOR_RGB_VALUE(0x40, 0x90, 0xe0);
+
+	for (size_t scale = 0; scale < sizeof(scales) / sizeof(scales[0]); ++scale) {
+		const struct st_console_display_config display_config = {
+			.backend = ST_CONSOLE_BACKEND_X11,
+			.initial_scaling = scales[scale],
+		};
+		st_console_t *console = NULL;
+		int status = st_console_create(&console, &display_config, &modes[0]);
+
+		if (status == IO_ERROR_NOT_FOUND || status == IO_ERROR_NOT_SUPPORTED)
+			return 77;
+		CHECK(status == 0);
+		CHECK(st_console_set_title(console, title) == 0);
+		Display *display = XOpenDisplay(NULL);
+		CHECK(display != NULL);
+		Window window = wait_named_window(display, DefaultRootWindow(display), title);
+		CHECK(window != None);
+		for (unsigned int cycle = 0; cycle < 3; ++cycle) {
+			for (size_t step = 0; step < sizeof(sequence) / sizeof(sequence[0]); ++step) {
+				const struct st_console_config *mode = &modes[sequence[step]];
+				uint32_t width, height;
+				XWindowAttributes attributes;
+				XSizeHints hints;
+				long supplied = 0;
+
+				CHECK(st_console_scaled_window_size(mode->columns * mode->cell_width,
+				    mode->rows * mode->cell_height, mode->aspect_width,
+				    mode->aspect_height, scales[scale], &width, &height) == 0);
+				CHECK(st_console_reconfigure(console, mode) == 0);
+				CHECK(st_console_set_cursor(console, false, ST_CONSOLE_CURSOR_BLOCK) == 0);
+				CHECK(fill_pixels(console, colour) == 0);
+				CHECK(st_console_present(console) == 0);
+				CHECK(XGetWindowAttributes(display, window, &attributes) != 0);
+				CHECK(attributes.width == (int)width && attributes.height == (int)height);
+				CHECK(XGetWMNormalHints(display, window, &hints, &supplied) != 0);
+				CHECK((hints.flags & PAspect) != 0);
+				CHECK(hints.min_aspect.x == (int)mode->aspect_width
+				    && hints.min_aspect.y == (int)mode->aspect_height);
+				unsigned long pixel = visual_pixel(attributes.visual, colour);
+				/* One-pixel aspect rounding is not a letterbox. Check just
+				 * inside every edge against the actual displayed pixels. */
+				CHECK(wait_window_pixel(display, window, (int)width, (int)height,
+				    1, (int)height / 2, pixel) == 0);
+				CHECK(wait_window_pixel(display, window, (int)width, (int)height,
+				    (int)width - 2, (int)height / 2, pixel) == 0);
+				CHECK(wait_window_pixel(display, window, (int)width, (int)height,
+				    (int)width / 2, 1, pixel) == 0);
+				CHECK(wait_window_pixel(display, window, (int)width, (int)height,
+				    (int)width / 2, (int)height - 2, pixel) == 0);
+			}
+		}
+		(void)XCloseDisplay(display);
+		st_console_destroy(console);
+	}
+	return 0;
+}
+
 #if ST_CONSOLE_HAVE_XRENDER
 static int
 check_external_scaling_pixels(void)
@@ -900,6 +973,8 @@ main(int argc, char **argv)
 
 	(void)setlocale(LC_CTYPE, "");
 	CHECK(check_keys() == 0);
+	if (argc == 2 && strcmp(argv[1], "--mode-changes") == 0)
+		return check_mode_changes();
 	if (argc == 2 && strcmp(argv[1], "--xrender-pixels") == 0)
 		return check_external_scaling_pixels();
 	status = st_console_create(&first, &config_display, &config);
