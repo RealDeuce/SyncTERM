@@ -2,6 +2,7 @@
  * Copyright (c) 2026 Stephen Hurd
  * SPDX-License-Identifier: BSD-2-Clause */
 #include "connection_stream.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -31,11 +32,27 @@ struct telnet_transport {
 	int error;
 };
 
+static void
+log_command(struct telnet_transport *t, const char *direction, uint8_t cmd, uint8_t option)
+{
+	const char *name = option == TN_BINARY ? "Binary Transmission"
+	    : option == TN_ECHO ? "Echo" : option == TN_SGA ? "Suppress Go Ahead"
+	    : option == TN_TYPE ? "Terminal Type" : option == TN_NAWS ? "Negotiate About Window Size" : NULL;
+	char unknown[32];
+	if (name == NULL) {
+		(void)snprintf(unknown, sizeof(unknown), "Unknown option %u", option);
+		name = unknown;
+	}
+	st_connection_log(t->connection, ST_CONNECTION_LOG_INFO, "%s: %s %s", direction,
+	    cmd == TN_WILL ? "WILL" : cmd == TN_WONT ? "WONT" : cmd == TN_DO ? "DO" : "DONT", name);
+}
+
 static int
 command(struct telnet_transport *t, uint8_t cmd, uint8_t option)
 {
 	const uint8_t packet[] = {TN_IAC, cmd, option};
 	ssize_t n = st_connection_queue_output_atomic(t->connection, packet, 3, -1);
+	if (n == 3) log_command(t, "TX", cmd, option);
 	return n == 3 ? 0 : n < 0 ? (int)n : IO_ERROR_IO;
 }
 
@@ -109,8 +126,11 @@ window_size(struct telnet_transport *t)
 	uint8_t bytes[] = {TN_NAWS,
 	    (uint8_t)(t->geometry.columns >> 8), (uint8_t)t->geometry.columns,
 	    (uint8_t)(t->geometry.rows >> 8), (uint8_t)t->geometry.rows};
-	return enabled(&t->local[TN_NAWS])
-	    ? subnegotiation(t, bytes, sizeof(bytes)) : 0;
+	if (!enabled(&t->local[TN_NAWS])) return 0;
+	int status = subnegotiation(t, bytes, sizeof(bytes));
+	if (status == 0) st_connection_log(t->connection, ST_CONNECTION_LOG_INFO,
+	    "TX: Window Size is %u x %u", t->geometry.columns, t->geometry.rows);
+	return status;
 }
 
 static int
@@ -124,6 +144,7 @@ negotiate(struct telnet_transport *t, uint8_t cmd, uint8_t option)
 	    || (!local && option == TN_ECHO);
 	int status = 0;
 
+	log_command(t, "RX", cmd, option);
 	if (positive) {
 		switch (q->state) {
 		case Q_NO:
@@ -184,6 +205,8 @@ finish_sub(struct telnet_transport *t)
 		bytes[1] = 0;
 		memcpy(bytes + 2, t->terminal, length);
 		status = subnegotiation(t, bytes, length + 2);
+		if (status == 0) st_connection_log(t->connection, ST_CONNECTION_LOG_INFO,
+		    "TX: Terminal Type is %s", t->terminal);
 		if (status == 0) status = request(t, true, TN_NAWS, true);
 	}
 	return status;

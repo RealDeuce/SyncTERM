@@ -56,6 +56,8 @@ struct diagnostic_capture {
 	int status;
 	bool fatal;
 	char message[128];
+	unsigned debug_records, warning_records;
+	bool handshake;
 };
 
 static SSL_CTX *make_server_context(enum st_tls_protocol_version version, bool use_psk);
@@ -110,6 +112,10 @@ capture_diagnostic(const struct st_tls_diagnostic *record, void *context)
 {
 	struct diagnostic_capture *capture = context;
 
+	if (record->level == ST_TLS_LOG_DEBUG) ++capture->debug_records;
+	if (record->level == ST_TLS_LOG_WARNING) ++capture->warning_records;
+	if (strstr(record->message, "handshake completed:") != NULL) capture->handshake = true;
+	if (!record->fatal) return;
 	capture->status = record->status;
 	capture->fatal = record->fatal;
 	(void)snprintf(capture->message, sizeof(capture->message), "%s",
@@ -283,7 +289,7 @@ fail:
 
 static int
 run_case(enum st_tls_protocol_version version, bool matching_secret,
-    bool server_uses_psk)
+    bool server_uses_psk, enum st_tls_log_level log_level)
 {
 	const unsigned char *client_secret = matching_secret
 	    ? expected_secret : wrong_secret;
@@ -302,6 +308,7 @@ run_case(enum st_tls_protocol_version version, bool matching_secret,
 		.handshake_timeout_ms = 3000,
 		.diagnostic = capture_diagnostic,
 		.diagnostic_context = &diagnostic,
+		.diagnostic_level = log_level,
 	};
 	struct server_state server = {
 		.listener = SOCKET_HANDLE_INVALID,
@@ -332,7 +339,9 @@ run_case(enum st_tls_protocol_version version, bool matching_secret,
 		goto cleanup;
 	if (server_uses_psk && matching_secret) {
 		if (status != 0 || session == NULL || server.result != 1
-		    || st_tls_protocol_version(session) != version) {
+		    || st_tls_protocol_version(session) != version
+		    || st_tls_error(session)[0] != '\0'
+		    || (log_level == ST_TLS_LOG_DEBUG && !diagnostic.handshake)) {
 			fprintf(stderr, "TLS %s PSK status=%d server=%d error=%lu\n",
 			    version == ST_TLS_PROTOCOL_1_2 ? "1.2" : "1.3",
 			    status, server.result, server.error);
@@ -358,6 +367,8 @@ run_case(enum st_tls_protocol_version version, bool matching_secret,
 			goto cleanup;
 		client = SOCKET_HANDLE_INVALID;
 	}
+	if (log_level < ST_TLS_LOG_DEBUG && diagnostic.debug_records != 0) goto cleanup;
+	if (log_level == ST_TLS_LOG_ERROR && diagnostic.warning_records != 0) goto cleanup;
 	result = 0;
 
 cleanup:
@@ -383,30 +394,32 @@ main(void)
 #endif
 	CHECK(socket_runtime_init() == 0);
 	CHECK(untrusted_certificate() == 0);
-	if (run_case(ST_TLS_PROTOCOL_1_2, true, true) != 0) {
+	if (run_case(ST_TLS_PROTOCOL_1_2, true, true, ST_TLS_LOG_DEBUG) != 0) {
 		fprintf(stderr, "TLS 1.2 matching PSK failed\n");
 		result = 1;
 	}
-	if (run_case(ST_TLS_PROTOCOL_1_2, false, true) != 0) {
+	if (run_case(ST_TLS_PROTOCOL_1_2, false, true, ST_TLS_LOG_DEBUG) != 0) {
 		fprintf(stderr, "TLS 1.2 wrong-secret rejection failed\n");
 		result = 1;
 	}
-	if (run_case(ST_TLS_PROTOCOL_1_2, true, false) != 0) {
+	if (run_case(ST_TLS_PROTOCOL_1_2, true, false, ST_TLS_LOG_DEBUG) != 0) {
 		fprintf(stderr, "TLS 1.2 certificate fallback rejection failed\n");
 		result = 1;
 	}
-	if (run_case(ST_TLS_PROTOCOL_1_3, true, true) != 0) {
+	if (run_case(ST_TLS_PROTOCOL_1_3, true, true, ST_TLS_LOG_DEBUG) != 0) {
 		fprintf(stderr, "TLS 1.3 matching PSK failed\n");
 		result = 1;
 	}
-	if (run_case(ST_TLS_PROTOCOL_1_3, false, true) != 0) {
+	if (run_case(ST_TLS_PROTOCOL_1_3, false, true, ST_TLS_LOG_DEBUG) != 0) {
 		fprintf(stderr, "TLS 1.3 wrong-secret rejection failed\n");
 		result = 1;
 	}
-	if (run_case(ST_TLS_PROTOCOL_1_3, true, false) != 0) {
+	if (run_case(ST_TLS_PROTOCOL_1_3, true, false, ST_TLS_LOG_DEBUG) != 0) {
 		fprintf(stderr, "TLS 1.3 certificate fallback rejection failed\n");
 		result = 1;
 	}
+	CHECK(run_case(ST_TLS_PROTOCOL_1_3, true, true, ST_TLS_LOG_ERROR) == 0);
+	CHECK(run_case(ST_TLS_PROTOCOL_1_2, true, true, ST_TLS_LOG_WARNING) == 0);
 	CHECK(socket_runtime_cleanup() == 0);
 	return result;
 }

@@ -710,6 +710,9 @@ st_connection_connect_ssh(st_connection_t **result, const struct st_profile *pro
 	if (status == 0) status = dssh_session_set_banner_cb(t->session, auth_banner, t);
 	if (status == 0) status = dssh_session_set_debug_cb(t->session, debug_message, t);
 	if (status == 0) status = dssh_session_set_log_cb(t->session, ssh_diagnostic, t);
+	if (status == 0) status = dssh_session_set_log_level(t->session,
+	    profile->protocol_log_level <= ST_PROFILE_LOG_ERROR ? DSSH_LOG_ERROR
+	    : profile->protocol_log_level < ST_PROFILE_LOG_DEBUG ? DSSH_LOG_WARNING : DSSH_LOG_DEBUG);
 	if (status == 0 && !profile->ssh_allow_aes128_cbc)
 		status = dssh_session_set_enc_filter(t->session, allowed, 1);
 	if (status == 0) status = dssh_transport_handshake(t->session);

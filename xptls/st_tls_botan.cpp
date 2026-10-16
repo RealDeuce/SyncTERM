@@ -40,6 +40,7 @@
 #include <botan/tls_callbacks.h>
 #include <botan/tls_client.h>
 #include <botan/tls_external_psk.h>
+#include <botan/tls_handshake_msg.h>
 #include <botan/tls_policy.h>
 #include <botan/tls_server_info.h>
 #include <botan/tls_session.h>
@@ -245,20 +246,28 @@ struct st_tls_session {
 	std::vector<std::vector<uint8_t>> peer_certificates;
 	st_tls_diagnostic_fn diagnostic = nullptr;
 	void *diagnostic_context = nullptr;
+	enum st_tls_log_level diagnostic_level = ST_TLS_LOG_ERROR;
 	st_tls_peer_chain_fn peer_chain = nullptr;
 	void *peer_chain_context = nullptr;
 };
 
 static void
-report(st_tls_session *session, int status, bool fatal, const char *message)
+diagnose(st_tls_session *session, enum st_tls_log_level level,
+	int status, bool fatal, const char *message)
 {
-	session->error = message;
-	if (session->diagnostic != nullptr) {
+	if (status < 0) session->error = message;
+	if (session->diagnostic != nullptr && level <= session->diagnostic_level) {
 		const struct st_tls_diagnostic record = {
-			status, 0, fatal, "Botan", session->error.c_str()
+			status, 0, fatal, "Botan", message, level
 		};
 		session->diagnostic(&record, session->diagnostic_context);
 	}
+}
+
+static void
+report(st_tls_session *session, int status, bool fatal, const char *message)
+{
+	diagnose(session, ST_TLS_LOG_ERROR, status, fatal, message);
 }
 
 static std::string
@@ -293,6 +302,14 @@ public:
 			session_->version = ST_TLS_PROTOCOL_1_2;
 		else if (summary.version() == Botan::TLS::Protocol_Version::TLS_V13)
 			session_->version = ST_TLS_PROTOCOL_1_3;
+		std::string message = "handshake completed: " + summary.version().to_string()
+		    + ", " + session_->cipher;
+		diagnose(session_, ST_TLS_LOG_DEBUG, 0, false, message.c_str());
+	}
+	void tls_inspect_handshake_msg(const Botan::TLS::Handshake_Message& message) override
+	{
+		std::string text = "handshake message: " + message.type_string();
+		diagnose(session_, ST_TLS_LOG_DEBUG, 0, false, text.c_str());
 	}
 	void tls_alert(Botan::TLS::Alert alert) override
 	{
@@ -300,9 +317,12 @@ public:
 			session_->peer_closed = true;
 		if (alert.is_fatal()) {
 			session_->fatal = true;
-			report(session_, IO_ERROR_PROTOCOL, true,
-			    alert.type_string().c_str());
 		}
+		enum st_tls_log_level level = alert.type() == Botan::TLS::AlertType::CloseNotify
+		    ? ST_TLS_LOG_DEBUG : alert.is_fatal() ? ST_TLS_LOG_ERROR : ST_TLS_LOG_WARNING;
+		std::string message = "received alert: " + alert.type_string();
+		diagnose(session_, level, alert.is_fatal() ? IO_ERROR_PROTOCOL : 0,
+		    alert.is_fatal(), message.c_str());
 	}
 	void tls_verify_cert_chain(
 	    const std::vector<Botan::X509_Certificate>& certificates,
@@ -436,6 +456,8 @@ st_tls_client_open(st_tls_session_t **result, socket_handle_t socket,
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (static_cast<unsigned>(options->server_auth) > ST_TLS_SERVER_AUTH_UNTRUSTED)
 		return IO_ERROR_INVALID_ARGUMENT;
+	if (static_cast<unsigned>(options->diagnostic_level) > ST_TLS_LOG_DEBUG)
+		return IO_ERROR_INVALID_ARGUMENT;
 	*result = nullptr;
 	psk = options->psk != nullptr || options->psk_size != 0
 	    || options->psk_identity != nullptr;
@@ -462,6 +484,7 @@ st_tls_client_open(st_tls_session_t **result, socket_handle_t socket,
 		session->socket = socket;
 		session->diagnostic = options->diagnostic;
 		session->diagnostic_context = options->diagnostic_context;
+		session->diagnostic_level = options->diagnostic_level;
 		session->peer_chain = options->peer_chain;
 		session->peer_chain_context = options->peer_chain_context;
 		session->random = std::make_shared<Botan::AutoSeeded_RNG>();
@@ -492,7 +515,7 @@ st_tls_client_open(st_tls_session_t **result, socket_handle_t socket,
 	} catch (const std::exception& exception) {
 		if (options->diagnostic != nullptr) {
 			const struct st_tls_diagnostic diagnostic = {
-				IO_ERROR_PROTOCOL, 0, true, "Botan", exception.what()
+				IO_ERROR_PROTOCOL, 0, true, "Botan", exception.what(), ST_TLS_LOG_ERROR
 			};
 			options->diagnostic(&diagnostic, options->diagnostic_context);
 		}

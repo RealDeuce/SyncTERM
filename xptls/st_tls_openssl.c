@@ -41,6 +41,7 @@ struct st_tls_session {
 	size_t peer_certificate_count;
 	st_tls_diagnostic_fn diagnostic;
 	void *diagnostic_context;
+	enum st_tls_log_level diagnostic_level;
 	st_tls_peer_chain_fn peer_chain;
 	void *peer_chain_context;
 	bool terminating;
@@ -166,15 +167,51 @@ capture_peer_certificates(st_tls_session_t *session)
 }
 
 static void
-report(st_tls_session_t *session, int status, bool fatal, const char *message)
+diagnose(st_tls_session_t *session, enum st_tls_log_level level,
+	int status, bool fatal, const char *message)
 {
-	unsigned long native = ERR_peek_last_error();
-	(void)snprintf(session->error, sizeof(session->error), "%s", message);
-	if (session->diagnostic != NULL) {
+	unsigned long native = status < 0 ? ERR_peek_last_error() : 0;
+	if (status < 0)
+		(void)snprintf(session->error, sizeof(session->error), "%s", message);
+	if (session->diagnostic != NULL && level <= session->diagnostic_level) {
 		const struct st_tls_diagnostic diagnostic = {
-			status, native, fatal, "OpenSSL", session->error
+			status, native, fatal, "OpenSSL", message, level
 		};
 		session->diagnostic(&diagnostic, session->diagnostic_context);
+	}
+}
+
+static void
+report(st_tls_session_t *session, int status, bool fatal, const char *message)
+{
+	diagnose(session, ST_TLS_LOG_ERROR, status, fatal, message);
+}
+
+static void
+openssl_diagnostic(const SSL *ssl, int where, int value)
+{
+	st_tls_session_t *session = SSL_get_app_data(ssl);
+	if (session == NULL) return;
+	if ((where & SSL_CB_ALERT) != 0) {
+		bool fatal = ((value >> 8) & 255) == SSL3_AL_FATAL;
+		enum st_tls_log_level level = (value & 255) == SSL_AD_CLOSE_NOTIFY
+		    ? ST_TLS_LOG_DEBUG : fatal ? ST_TLS_LOG_ERROR : ST_TLS_LOG_WARNING;
+		char message[256];
+		(void)snprintf(message, sizeof(message), "%s %s alert: %s",
+		    (where & SSL_CB_WRITE) != 0 ? "sent" : "received",
+		    SSL_alert_type_string_long(value), SSL_alert_desc_string_long(value));
+		diagnose(session, level, 0, fatal, message);
+		return;
+	}
+	if ((where & SSL_CB_HANDSHAKE_START) != 0)
+		diagnose(session, ST_TLS_LOG_DEBUG, 0, false, "handshake started");
+	if ((where & SSL_CB_LOOP) != 0)
+		diagnose(session, ST_TLS_LOG_DEBUG, 0, false, SSL_state_string_long(ssl));
+	if ((where & SSL_CB_HANDSHAKE_DONE) != 0) {
+		char message[256];
+		(void)snprintf(message, sizeof(message), "handshake completed: %s, %s",
+		    SSL_get_version(ssl), SSL_get_cipher_name(ssl));
+		diagnose(session, ST_TLS_LOG_DEBUG, 0, false, message);
 	}
 }
 
@@ -286,6 +323,8 @@ st_tls_client_open(st_tls_session_t **result, socket_handle_t socket,
 		return IO_ERROR_INVALID_ARGUMENT;
 	if ((unsigned)options->server_auth > ST_TLS_SERVER_AUTH_UNTRUSTED)
 		return IO_ERROR_INVALID_ARGUMENT;
+	if ((unsigned)options->diagnostic_level > ST_TLS_LOG_DEBUG)
+		return IO_ERROR_INVALID_ARGUMENT;
 	*result = NULL;
 	psk = options->psk != NULL || options->psk_size != 0
 	    || options->psk_identity != NULL;
@@ -312,6 +351,7 @@ st_tls_client_open(st_tls_session_t **result, socket_handle_t socket,
 	session->socket = socket;
 	session->diagnostic = options->diagnostic;
 	session->diagnostic_context = options->diagnostic_context;
+	session->diagnostic_level = options->diagnostic_level;
 	session->peer_chain = options->peer_chain;
 	session->peer_chain_context = options->peer_chain_context;
 	session->context = SSL_CTX_new(TLS_client_method());
@@ -384,6 +424,7 @@ st_tls_client_open(st_tls_session_t **result, socket_handle_t socket,
 		goto fail;
 	}
 	SSL_set_app_data(session->ssl, session);
+	SSL_set_info_callback(session->ssl, openssl_diagnostic);
 	if (options->server_name != NULL && options->server_name[0] != '\0') {
 		if (!SSL_set_tlsext_host_name(session->ssl, options->server_name)
 		    || (!psk && options->server_auth != ST_TLS_SERVER_AUTH_NONE

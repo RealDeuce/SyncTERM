@@ -39,12 +39,19 @@ enum st_tls_psk_policy {
 	ST_TLS_PSK_TLS12_COMPATIBILITY,
 };
 
+enum st_tls_log_level {
+	ST_TLS_LOG_ERROR,
+	ST_TLS_LOG_WARNING,
+	ST_TLS_LOG_DEBUG,
+};
+
 struct st_tls_diagnostic {
 	int status;
 	unsigned long provider_status;
 	bool fatal;
 	const char *provider;
 	const char *message;
+	enum st_tls_log_level level;
 };
 
 typedef void (*st_tls_diagnostic_fn)(const struct st_tls_diagnostic *record,
@@ -79,6 +86,9 @@ struct st_tls_client_options {
 	int64_t handshake_timeout_ms;
 	st_tls_diagnostic_fn diagnostic;
 	void *diagnostic_context;
+	/* Defaults to errors only. Debug includes handshake progress and alerts,
+	 * never record payloads, private keys, or PSK material. */
+	enum st_tls_log_level diagnostic_level;
 	st_tls_peer_chain_fn peer_chain;
 	void *peer_chain_context;
 };

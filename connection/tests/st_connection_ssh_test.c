@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <poll.h>
 #include <signal.h>
+#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -18,6 +19,34 @@ struct ui_state {
 	bool invalid;
 	struct st_profile *profile;
 };
+
+struct log_capture {
+	atomic_uint errors, warnings, debug, handshakes, authentications, demux_starts;
+	atomic_bool invalid;
+};
+
+static void
+capture_log(void *context, enum st_connection_log_level level,
+	const char *source, const char *message)
+{
+	struct log_capture *log = context;
+	if (source == NULL || strcmp(source, "SSH") != 0) return;
+	if (message == NULL || strstr(message, "secret") != NULL
+	    || strstr(message, "654321") != NULL) {
+		atomic_store(&log->invalid, true);
+		return;
+	}
+	if (level == ST_CONNECTION_LOG_ERROR) atomic_fetch_add(&log->errors, 1);
+	else if (level == ST_CONNECTION_LOG_WARNING) atomic_fetch_add(&log->warnings, 1);
+	else if (level == ST_CONNECTION_LOG_DEBUG) atomic_fetch_add(&log->debug, 1);
+	else atomic_store(&log->invalid, true);
+	if (strstr(message, "Handshake complete:") != NULL)
+		atomic_fetch_add(&log->handshakes, 1);
+	if (strstr(message, "Authentication operation completed successfully") != NULL)
+		atomic_fetch_add(&log->authentications, 1);
+	if (strstr(message, "Connection demultiplexer started") != NULL)
+		atomic_fetch_add(&log->demux_starts, 1);
+}
 static void
 alert(void *context, const char *title, const char *message)
 {
@@ -97,17 +126,26 @@ read_text(st_connection_t *connection, const char *expected)
 	return 0;
 }
 static int
-run(const char *fixture, unsigned test)
+run(const char *fixture, unsigned test, int log_level)
 {
 	int pipefd[2], child_status;
 	pid_t child;
 	char port[16];
 	size_t used = 0;
 	struct st_profile profile;
+	struct log_capture log;
+	atomic_init(&log.errors, 0);
+	atomic_init(&log.warnings, 0);
+	atomic_init(&log.debug, 0);
+	atomic_init(&log.handshakes, 0);
+	atomic_init(&log.authentications, 0);
+	atomic_init(&log.demux_starts, 0);
+	atomic_init(&log.invalid, false);
 	struct ui_state ui = {.selection = test == 3 ? 2 : test == 4 ? 1 : 0, .profile = &profile, .test = test};
 	struct st_connection_hooks hooks = {
 		.choice = choice, .remember_hostkey = save_key, .ui_context = &ui, .alert = alert,
 		.prompt = prompt,
+		.log = capture_log, .log_context = &log,
 	};
 	const struct st_screen_geometry screen = {80,25,640,400}, resized = {120,40,960,640};
 	struct st_connection_error error = {0};
@@ -120,7 +158,7 @@ run(const char *fixture, unsigned test)
 		execl(fixture, fixture, test == 1 ? "none" : test == 2 ? "keyboard"
 		    : test == 8 ? "rekey" : test == 9 ? "keyboard-otp" : test == 10 ? "keyboard-repeat"
 		    : test == 11 ? "banner" : test == 12 || test == 13 || test == 15 ? "weak"
-		    : test == 14 ? "retry" : "password", (char *)NULL);
+		    : test == 14 ? "retry" : test == 16 ? "bad-handshake" : "password", (char *)NULL);
 		_exit(127);
 	}
 	fixture_child = child;
@@ -139,16 +177,23 @@ run(const char *fixture, unsigned test)
 	strcpy(profile.terminal_name, "ansi");
 	strcpy(profile.password, test == 6 || test == 14 ? "wrong" : "secret");
 	profile.hide_popups = test == 15;
+	profile.protocol_log_level = log_level;
 	profile.port = (uint16_t)strtoul(port, NULL, 10);
 	if (test >= 3 && test <= 5) {
 		memset(profile.ssh_fingerprint, 0xa5, 32);
 		profile.ssh_fingerprint_size = 32;
 	}
 	int status = st_connection_connect_ssh(&connection, &profile, &screen, &hooks, &error);
-	if ((test >= 5 && test <= 7) || test == 13 || test == 15) CHECK(status < 0 && connection == NULL);
+	if ((test >= 5 && test <= 7) || test == 13 || test == 15 || test == 16)
+		CHECK(status < 0 && connection == NULL);
 	else {
 		if (status != 0) fprintf(stderr, "connect %u: %d %s\n", test, status, error.detail);
 		CHECK(status == 0 && connection != NULL);
+		if (log_level == ST_PROFILE_LOG_DEBUG) {
+			CHECK(atomic_load(&log.handshakes) > 0);
+			CHECK(atomic_load(&log.authentications) > 0);
+			CHECK(atomic_load(&log.demux_starts) > 0);
+		}
 		CHECK(read_text(connection, "hello") == 0);
 		CHECK(st_connection_update_terminal_size(connection, &resized) == 0);
 		CHECK(st_connection_send(connection, keys, sizeof(keys), 5000) == (ssize_t)sizeof(keys));
@@ -160,10 +205,16 @@ run(const char *fixture, unsigned test)
 	fixture_child = 0;
 	CHECK(!ui.invalid);
 	CHECK(ui.choices == ((test >= 3 && test <= 5) || test == 12 || test == 13 ? 1 : 0));
-	CHECK(ui.saves == (test == 3 || test == 5 || test == 13 || test == 15 ? 0 : 1));
+	CHECK(ui.saves == (test == 3 || test == 5 || test == 13 || test == 15 || test == 16 ? 0 : 1));
 	CHECK(ui.prompts == (test == 9 || test == 10 ? 1 : test == 14 ? 2 : test == 6 ? 1 : 0));
 	CHECK(ui.alerts == (test == 2 || test == 9 || test == 11 ? 1 : test == 10 ? 2 : 0));
-	CHECK(ui.errors == (test == 6 || test == 7 ? 1 : 0));
+	CHECK(ui.errors == (test == 6 || test == 7 || test == 16 ? 1 : 0));
+	CHECK(!atomic_load(&log.invalid));
+	if (log_level < ST_PROFILE_LOG_DEBUG) CHECK(atomic_load(&log.debug) == 0);
+	if (log_level <= ST_PROFILE_LOG_ERROR) CHECK(atomic_load(&log.warnings) == 0);
+	else if (test == 14) CHECK(atomic_load(&log.warnings) > 0);
+	if (test == 6 && log_level >= ST_PROFILE_LOG_WARNING) CHECK(atomic_load(&log.warnings) > 0);
+	if (test == 16) CHECK(atomic_load(&log.errors) > 0);
 	st_profile_dispose(&profile);
 	return 0;
 }
@@ -173,9 +224,17 @@ main(int argc, char **argv)
 	(void)signal(SIGPIPE, SIG_IGN);
 	CHECK(atexit(cleanup_fixture) == 0);
 	CHECK(argc == 2);
-	for (unsigned test = 0; test < 16; ++test) {
+	for (unsigned test = 0; test < 17; ++test) {
 		fprintf(stderr, "SSH fixture %u\n", test);
-		CHECK(run(argv[1], test) == 0);
+		CHECK(run(argv[1], test, ST_PROFILE_LOG_DEBUG) == 0);
+	}
+	const int quieter_levels[] = {ST_PROFILE_LOG_ERROR, ST_PROFILE_LOG_WARNING,
+		ST_PROFILE_LOG_NOTICE, ST_PROFILE_LOG_INFO};
+	for (size_t i = 0; i < sizeof(quieter_levels) / sizeof(quieter_levels[0]); ++i) {
+		fprintf(stderr, "SSH logging threshold %d\n", quieter_levels[i]);
+		CHECK(run(argv[1], 14, quieter_levels[i]) == 0);
+		CHECK(run(argv[1], 6, quieter_levels[i]) == 0);
+		CHECK(run(argv[1], 16, quieter_levels[i]) == 0);
 	}
 	return 0;
 }

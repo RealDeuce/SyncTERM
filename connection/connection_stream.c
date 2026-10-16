@@ -23,8 +23,9 @@ capture_tls_diagnostic(const struct st_tls_diagnostic *record, void *context)
 		}
 	}
 	if (stream->hooks.log != NULL)
-		stream->hooks.log(stream->hooks.log_context, record->fatal
-		    ? ST_CONNECTION_LOG_ERROR : ST_CONNECTION_LOG_DEBUG,
+		stream->hooks.log(stream->hooks.log_context, record->level == ST_TLS_LOG_ERROR
+		    ? ST_CONNECTION_LOG_ERROR : record->level == ST_TLS_LOG_WARNING
+		    ? ST_CONNECTION_LOG_WARNING : ST_CONNECTION_LOG_DEBUG,
 		    "TLS", record->message == NULL ? "TLS diagnostic" : record->message);
 }
 
@@ -141,6 +142,9 @@ st_connection_stream_open(struct st_connection_stream *stream,
 				    ? "Activating Session" : tls.psk != NULL ? "Negotiating TLS-PSK" : "Negotiating TLS (cert)");
 			tls.diagnostic = capture_tls_diagnostic;
 			tls.diagnostic_context = stream;
+			tls.diagnostic_level = profile->protocol_log_level <= ST_PROFILE_LOG_ERROR
+			    ? ST_TLS_LOG_ERROR : profile->protocol_log_level < ST_PROFILE_LOG_DEBUG
+			    ? ST_TLS_LOG_WARNING : ST_TLS_LOG_DEBUG;
 			status = st_connection_stream_start_tls(stream, profile, &tls, error);
 			if (status != 0) {
 				st_connection_stream_close(stream);

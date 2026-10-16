@@ -164,6 +164,12 @@ policy.
 paths or PSK, version bounds, handshake timeout, and an optional diagnostic
 callback.  Option storage is borrowed only for open.  Diagnostic record
 strings are provider-owned and valid only during the callback.
+`diagnostic_level` defaults to `ST_TLS_LOG_ERROR`; WARNING also includes
+nonfatal alerts, while DEBUG includes backend handshake progress, negotiated
+version/cipher, and close-notify alerts. Each record's `level` is independent
+of `fatal` (a close-notify is normal debug output). Successful diagnostics do
+not replace `st_tls_error()`. No record contains application payloads, private
+keys, or PSK secrets.
 
 `ST_TLS_SERVER_AUTH_UNTRUSTED` validates without trust anchors: it rejects
 certificate sessions while still reporting the presented chain. It is not
@@ -543,6 +549,9 @@ Accept Once, Accept and Remember, or View Protocol Log before Telnet I/O.
 First/higher authenticated versions are remembered automatically; a saved
 version is not imposed as a pre-handshake minimum, which would prevent the
 downgrade decision.
+Telnet option RX/TX records, terminal-type replies, and NAWS window changes
+are logged at INFO, including for TLS-wrapped Telnet. Negotiation logging
+does not dump terminal input/output or subnegotiation payloads.
 
 | st_connection_connect_ssh(result, profile, current_screen, hooks, error)
 | Accepts SSH or SSH_NO_AUTH profiles. SSH probes none, then uses an Ed25519
@@ -560,6 +569,11 @@ messages are shown through owner-thread notices. Keyboard-interactive
 instructions are shown separately from the challenge. Only the exact
 single, non-echoing `Password: ` challenge uses a saved password, once per
 authentication attempt; OTP and subsequent prompts require user input.
+The profile's protocol-log threshold is applied to DeuceSSH before the
+handshake: ERROR and lower select errors, WARNING through INFO select
+warnings, and DEBUG enables successful handshakes (including negotiated
+algorithms), authentication results, and demultiplexer startup. The
+application still applies its configured severity filter to retained output.
 
 | st_connection_connect_ghost(result, profile, hooks, error)
 | Requires MBBS_GHOST. Probes with MBBS PING, requires the ERROR reply, sends

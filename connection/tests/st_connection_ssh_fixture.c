@@ -105,6 +105,8 @@ pty(dssh_channel ch, const struct dssh_chan_params *p, void *context)
 {
 	bool utf8 = false, flow = false;
 	(void)ch; (void)context;
+	if (strcmp(mode, "log-ui") == 0)
+		return p->cols == 80 && p->rows == 24 ? 0 : -1;
 	if (p->cols != 80 || p->rows != 24 || p->term == NULL || strcmp(p->term, "ansi") != 0)
 		return -1;
 	for (size_t i = 0; i < p->mode_count; ++i) {
@@ -173,6 +175,12 @@ main(int argc, char **argv)
 	printf("%u\n", (unsigned)ntohs(address.sin_port)); fflush(stdout);
 	descriptor = accept(listener, NULL, NULL); CHECK(descriptor >= 0);
 	close(listener);
+	if (strcmp(mode, "bad-handshake") == 0) {
+		static const char invalid[] = "SSH-1.5-fixture\r\n";
+		CHECK(send(descriptor, invalid, sizeof(invalid) - 1, 0) == (ssize_t)sizeof(invalid) - 1);
+		close(descriptor);
+		return 0;
+	}
 	session = dssh_session_init(false, 0); CHECK(session != NULL);
 	CHECK(dssh_session_set_timeout(session, 10000) == 0);
 	if (strcmp(mode, "rekey") == 0)
@@ -190,6 +198,16 @@ main(int argc, char **argv)
 	channel = dssh_chan_accept(session, &accept_callbacks, 10000);
 	CHECK(channel != NULL);
 	CHECK(send_text(channel, "hello") == 0);
+	if (strcmp(mode, "log-ui") == 0) {
+		/* Let the application finish constructing its terminal before the
+		 * peer closes. The UI driver acknowledges the rendered greeting. */
+		uint8_t acknowledged;
+		CHECK((dssh_chan_poll(channel, DSSH_POLL_READ, 10000) & DSSH_POLL_READ) != 0);
+		CHECK(dssh_chan_read(channel, 0, &acknowledged, 1) == 1);
+		CHECK(dssh_chan_close(channel, 0) == 0);
+		dssh_session_cleanup(session); close(descriptor);
+		return 0;
+	}
 	if (strcmp(mode, "rekey") == 0) {
 		const struct timespec delay = {1, 200000000};
 		(void)st_thread_sleep(&delay, NULL);

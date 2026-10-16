@@ -12,6 +12,7 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <signal.h>
+#include <stdatomic.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <unistd.h>
@@ -27,6 +28,35 @@ struct fixture { int listener, socket; SSL_CTX *ctx; SSL *ssl; enum protocol typ
 static const uint8_t text[] = {'A', '\r', 0, 'B', 255, 'C'};
 static const uint8_t keys[] = {'x', 3, 255, '\r', '\n'};
 static uint8_t large[9000];
+
+struct log_capture {
+	atomic_uint telnet_tx, telnet_rx, terminal_type, window_size, tls_handshake, tls_errors;
+	atomic_bool invalid;
+};
+
+static void
+capture_log(void *context, enum st_connection_log_level level,
+	const char *source, const char *message)
+{
+	struct log_capture *log = context;
+	if (source == NULL || message == NULL) { atomic_store(&log->invalid, true); return; }
+	if (strcmp(source, "TLS") == 0) {
+		if (level == ST_CONNECTION_LOG_ERROR) atomic_fetch_add(&log->tls_errors, 1);
+		if (strstr(message, "handshake completed:") != NULL) {
+			if (level != ST_CONNECTION_LOG_DEBUG || strstr(message, "TLS") == NULL)
+				atomic_store(&log->invalid, true);
+			atomic_fetch_add(&log->tls_handshake, 1);
+		}
+	} else if (strcmp(source, "Telnet") == 0 || strcmp(source, "Telnet/TLS") == 0) {
+		if (level != ST_CONNECTION_LOG_INFO) return; /* transport failures are errors */
+		if (strstr(message, "TX: WILL Suppress Go Ahead") != NULL) atomic_fetch_add(&log->telnet_tx, 1);
+		else if (strstr(message, "RX: DO Binary Transmission") != NULL) atomic_fetch_add(&log->telnet_rx, 1);
+		else if (strstr(message, "TX: Terminal Type is syncterm") != NULL) atomic_fetch_add(&log->terminal_type, 1);
+		else if (strstr(message, "TX: Window Size is") != NULL) atomic_fetch_add(&log->window_size, 1);
+		else if (strncmp(message, "TX: ", 4) != 0 && strncmp(message, "RX: ", 4) != 0)
+			atomic_store(&log->invalid, true);
+	}
+}
 
 static int
 read_exact(struct fixture *f, void *buffer, size_t size)
@@ -362,8 +392,14 @@ run(enum protocol type)
 	struct sockaddr_in address = {.sin_family = AF_INET, .sin_addr.s_addr = htonl(INADDR_LOOPBACK)};
 	socklen_t length = sizeof(address);
 	struct st_profile profile;
+	struct log_capture log;
+	atomic_init(&log.telnet_tx, 0); atomic_init(&log.telnet_rx, 0);
+	atomic_init(&log.terminal_type, 0); atomic_init(&log.window_size, 0);
+	atomic_init(&log.tls_handshake, 0); atomic_init(&log.tls_errors, 0);
+	atomic_init(&log.invalid, false);
 	struct st_screen_geometry screen = {80,25,640,400}, resized = {255,511,0,0};
-	struct st_connection_hooks hooks = {.choice = choose_node, .prompt = prompt, .ui_context = &type};
+	struct st_connection_hooks hooks = {.choice = choose_node, .prompt = prompt, .ui_context = &type,
+		.log = capture_log, .log_context = &log};
 	struct st_connection_error error = {0};
 	st_connection_t *connection = NULL;
 	st_thread_t thread;
@@ -390,6 +426,7 @@ run(enum protocol type)
 	}
 	CHECK(st_thread_create(&thread, server, &f) == ST_THREAD_SUCCESS);
 	st_profile_init(&profile);
+	profile.protocol_log_level = ST_PROFILE_LOG_DEBUG;
 	strcpy(profile.address, "127.0.0.1"); profile.port = ntohs(address.sin_port);
 	profile.connection_type = type == GHOST || type == GHOST_BAD ? ST_CONNECTION_MBBS_GHOST
 	    : mqtt ? ST_CONNECTION_MQTT
@@ -415,7 +452,8 @@ run(enum protocol type)
 	status = type == GHOST || type == GHOST_BAD
 	    ? st_connection_connect_ghost(&connection, &profile, NULL, &error)
 	    : mqtt ? st_connection_connect_mqtt(&connection, &profile, &hooks, &error)
-	    : st_connection_connect_telnet(&connection, &profile, &screen, NULL, &error);
+	    : st_connection_connect_telnet(&connection, &profile, &screen,
+	    type == TLS_BAD ? NULL : &hooks, &error);
 	if (type == GHOST_BAD || type == TLS_BAD || type == MQTT_BAD || type == MQTT_OVERSIZE || type == MQTT_CANCEL) {
 		CHECK(status < 0 && connection == NULL);
 		if (type == MQTT_BAD) CHECK(status == IO_ERROR_PROTOCOL);
@@ -447,6 +485,12 @@ run(enum protocol type)
 	}
 	if (connection == NULL)
 		CHECK(st_thread_join(thread, &thread_status) == ST_THREAD_SUCCESS && thread_status == 0);
+	CHECK(!atomic_load(&log.invalid));
+	if (type == TELNET || type == TELNET_TLS) {
+		CHECK(atomic_load(&log.telnet_tx) > 0 && atomic_load(&log.telnet_rx) > 0);
+		CHECK(atomic_load(&log.terminal_type) == 1 && atomic_load(&log.window_size) == 2);
+	}
+	if (type == TELNET_TLS || mqtt) CHECK(atomic_load(&log.tls_handshake) > 0);
 	close(f.listener); SSL_CTX_free(f.ctx); st_profile_dispose(&profile);
 	if (type == TELNET_TLS) CHECK(remove("connection-wire-trusted.pem") == 0);
 	return 0;
