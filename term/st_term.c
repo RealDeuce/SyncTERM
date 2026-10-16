@@ -58,7 +58,7 @@ enum st_cterm_encoding
 st_term_profile_encoding(const struct st_profile *profile)
 {
 	return profile != NULL
-	    && profile->connection_type == ST_CONNECTION_SHELL
+	    && profile->encoding == ST_PROFILE_ENCODING_UTF8
 	    ? ST_CTERM_ENCODING_UTF8 : ST_CTERM_ENCODING_CODEPAGE;
 }
 
@@ -171,7 +171,8 @@ st_term_connect_profile(st_connection_t **result,
 {
 	struct st_screen_geometry geometry;
 
-	if (result == NULL || profile == NULL || console == NULL)
+	if (result == NULL || profile == NULL || console == NULL
+	    || !st_profile_encoding_valid(profile->encoding))
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (st_console_size(console, &geometry.columns, &geometry.rows) != 0)
 		return IO_ERROR_IO;
@@ -194,7 +195,7 @@ st_term_connect_profile(st_connection_t **result,
 		return st_connection_connect_modem(result, profile, hooks, error);
 	case ST_CONNECTION_SHELL: {
 		const struct st_connection_shell_environment environment = {
-			.mm_charset = "UTF-8",
+			.mm_charset = st_profile_encoding_name(profile->encoding),
 		};
 		return st_connection_connect_shell(result, profile, &geometry,
 		    &environment, hooks, error);
@@ -309,6 +310,14 @@ st_cterm_t *
 st_term_session_cterm(st_term_session_t *session)
 {
 	return session == NULL ? NULL : session->cterm;
+}
+
+bool
+st_term_session_font_selector(const st_term_session_t *session,
+	uint16_t identifier, uint8_t *selector)
+{
+	return session != NULL && st_font_catalog_selector(
+	    session->config.fonts, identifier, selector);
 }
 
 void

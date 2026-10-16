@@ -117,6 +117,12 @@ Wren `String` values are UTF-8 text by default at the connected-session API.
 Their ability to expose and contain bytes does not make the default terminal
 hooks wire-encoding-dependent.
 
+The BBS entry's `Encoding` field chooses this wire boundary independently of
+its font. A legacy wire `0x7C` is decoded as U+007C for hooks and text sends;
+a built-in font whose glyph at that byte looks like a broken bar still copies
+visually as U+00A6. Prestel separated mosaics are a stream-selected G1 set,
+not a separate connection encoding.
+
 The binding shall expose these semantic categories; final names may refine the
 examples:
 

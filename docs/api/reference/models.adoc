@@ -224,6 +224,9 @@ paths, and returns false without changing it.  Default-port is pure and returns
 zero for invalid/non-network types.
 
 `st_profile_init(profile)` establishes defaults and owned fields;
+`encoding` defaults to CP437 and stores a canonical `st_codepage` value or
+`ST_PROFILE_ENCODING_UTF8`. The BBS INI `Encoding` key uses canonical names;
+missing keys retain the former font-derived encoding, or UTF-8 for Shell.
 `st_profile_dispose(profile)` frees its owned optional paths.  Call
 `st_profile_copy(result, source)` only with an initialized destination; it
 deep-copies owned fields and preserves the old destination on failure.

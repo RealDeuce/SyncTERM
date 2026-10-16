@@ -2525,6 +2525,65 @@ fn_menu_fonts_catalog(WrenVM *vm)
 }
 
 static void
+fn_menu_encodings(WrenVM *vm)
+{
+	wrenEnsureSlots(vm, 3);
+	wrenSetSlotNewList(vm, 0);
+	for (int i = 0; i < ST_CODEPAGE_COUNT; ++i) {
+		if (st_profile_encoding_valid(i))
+			push_row(vm, 0, 1, 2, (double)i,
+			    st_profile_encoding_name(i));
+	}
+	push_row(vm, 0, 1, 2, ST_PROFILE_ENCODING_UTF8, "UTF-8");
+}
+
+static void
+fn_menu_fonts_for_encoding(WrenVM *vm)
+{
+	int64_t encoding;
+
+	if (!slot_integer(vm, 1, 0, ST_PROFILE_ENCODING_UTF8, &encoding))
+		return;
+	if (!st_profile_encoding_valid((int)encoding)) {
+		st_wren_abort(vm, "invalid BBS encoding");
+		return;
+	}
+	wrenEnsureSlots(vm, 4);
+	wrenSetSlotNewList(vm, 0);
+	for (size_t i = 0; i < st_builtin_font_count(); ++i) {
+		const char *name = st_builtin_font_name(i);
+
+		if (encoding == ST_PROFILE_ENCODING_UTF8
+		    || st_profile_encoding_canonical(st_builtin_font_codepage(i))
+		    == encoding)
+			push_row(vm, 0, 2, 3, (double)i, name);
+	}
+	for (size_t i = 0; i < st_settings_font_count(); ++i) {
+		const char *name = st_settings_font_at(i)->name;
+
+		push_row(vm, 0, 2, 3,
+		    (double)(ST_BUILTIN_FONT_COUNT + i), name);
+	}
+}
+
+static void
+fn_menu_font_encoding(WrenVM *vm)
+{
+	const char *name;
+
+	if (!st_wren_text_slot(vm, 1, &name, NULL))
+		return;
+	for (size_t i = 0; i < st_builtin_font_count(); ++i) {
+		if (strcmp(name, st_builtin_font_name(i)) == 0) {
+			wrenSetSlotDouble(vm, 0, st_profile_encoding_canonical(
+			    st_builtin_font_codepage(i)));
+			return;
+		}
+	}
+	wrenSetSlotNull(vm, 0);
+}
+
+static void
 push_font(WrenVM *vm, int slot, int class_slot, size_t index)
 {
 	struct st_wren_host *host = st_wren_host_from_vm(vm);
@@ -3604,6 +3663,33 @@ BBS_FIXED_PROPERTY(password, password)
 BBS_FIXED_PROPERTY(syspass, system_password)
 BBS_FIXED_PROPERTY(term_name, terminal_name)
 BBS_FIXED_PROPERTY(font, font)
+
+static void
+fn_bbs_encoding(WrenVM *vm)
+{
+	struct foreign_bbs *bbs = bbs_value(vm, 0);
+
+	if (bbs != NULL)
+		wrenSetSlotDouble(vm, 0, bbs->record->profile.encoding);
+}
+
+static void
+fn_bbs_encoding_set(WrenVM *vm)
+{
+	struct foreign_bbs *bbs = bbs_value(vm, 0);
+	struct st_profile *profile = bbs_mutable_profile(vm, bbs);
+	int64_t value;
+
+	if (profile == NULL || !slot_integer(vm, 1, 0,
+	    ST_PROFILE_ENCODING_UTF8, &value))
+		return;
+	if (!st_profile_encoding_valid((int)value)) {
+		st_wren_abort(vm, "invalid BBS encoding");
+		return;
+	}
+	profile->encoding = (int)value;
+	bbs_changed(bbs);
+}
 BBS_FIXED_PROPERTY(ghost_program, ghost_program)
 BBS_FIXED_PROPERTY(tls_psk_identity, tls_psk_identity)
 BBS_FIXED_PROPERTY(tls_psk, tls_psk)
@@ -4099,6 +4185,9 @@ static const struct binding bindings[] = {
 	{"Menu", true, "parities", fn_menu_parities},
 	{"Menu", true, "paletteDefaults(_)", fn_menu_palette_defaults},
 	{"Menu", true, "fontsCatalog", fn_menu_fonts_catalog},
+	{"Menu", true, "encodings", fn_menu_encodings},
+	{"Menu", true, "fontsForEncoding(_)", fn_menu_fonts_for_encoding},
+	{"Menu", true, "fontEncoding(_)", fn_menu_font_encoding},
 	{"Menu", true, "logLevels", fn_menu_log_levels},
 	{"Menu", true, "screenModes", fn_menu_screen_modes},
 	{"Menu", true, "outputModes", fn_menu_output_modes},
@@ -4254,6 +4343,7 @@ static const struct binding bindings[] = {
 	BIND_GETSET("BBS", "screenMode", bbs_screen_mode),
 	BIND_GETSET("BBS", "bpsRate", bbs_bps_rate),
 	BIND_GETSET("BBS", "font", bbs_font),
+	BIND_GETSET("BBS", "encoding", bbs_encoding),
 	BIND_GETSET("BBS", "noStatus", bbs_no_status),
 	BIND_GETSET("BBS", "hidePopups", bbs_hide_popups),
 	BIND_GETSET("BBS", "yellowIsYellow", bbs_yellow_is_yellow),

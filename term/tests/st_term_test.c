@@ -229,6 +229,7 @@ test_shell_utf8_boundary(void)
 	st_profile_init(&profile);
 	profile.connection_type = ST_CONNECTION_SHELL;
 	profile.screen_mode = ST_SCREEN_MODE_80X25;
+	profile.encoding = ST_PROFILE_ENCODING_UTF8;
 	strcpy(profile.address, "printf '%s:' \"$MM_CHARSET\"; "
 	    "printf '\\303'; sleep 1; printf '\\251'; sleep 2");
 	CHECK(st_term_connect_profile(&connection, &profile, console, NULL, NULL)
@@ -304,6 +305,7 @@ test_shell_rip_profile(void)
 	st_profile_init(&profile);
 	profile.connection_type = ST_CONNECTION_SHELL;
 	profile.rip_version = ST_RIP_VERSION_1;
+	profile.encoding = ST_PROFILE_ENCODING_UTF8;
 	strcpy(profile.address, "printf '!|*\\r\\n!|X2S2S\\r'; sleep 2");
 	CHECK(st_term_connect_profile(&connection, &profile, console, NULL, NULL)
 	    == 0);
@@ -549,8 +551,14 @@ main(void)
 	profile.connection_type = ST_CONNECTION_TELNET;
 	CHECK(st_term_profile_encoding(&profile) == ST_CTERM_ENCODING_CODEPAGE);
 	profile.connection_type = ST_CONNECTION_SHELL;
+	CHECK(st_term_profile_encoding(&profile) == ST_CTERM_ENCODING_CODEPAGE);
+	profile.encoding = ST_PROFILE_ENCODING_UTF8;
 	CHECK(st_term_profile_encoding(&profile) == ST_CTERM_ENCODING_UTF8);
 	profile.connection_type = ST_CONNECTION_TELNET;
+	profile.encoding = ST_CODEPAGE_COUNT;
+	CHECK(st_term_connect_profile(&connection, &profile, console, NULL, NULL)
+	    == IO_ERROR_INVALID_ARGUMENT);
+	profile.encoding = ST_PROFILE_ENCODING_UTF8;
 	CHECK(st_term_connect_profile(&connection, &profile, console, NULL, NULL)
 	    == IO_ERROR_NOT_SUPPORTED);
 	CHECK(connection == NULL);

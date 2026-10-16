@@ -72,6 +72,9 @@ class Menu {
   // [minimumColorCount, sixteen mode-specific conio default colors].
   foreign static paletteDefaults(screenMode)
   foreign static fontsCatalog
+  foreign static encodings
+  foreign static fontsForEncoding(encoding)
+  foreign static fontEncoding(name)
   foreign static logLevels
   foreign static screenModes
   // Each build-dependent pair is [numeric value, display name].
@@ -298,6 +301,8 @@ foreign class BBS {
   foreign bpsRate
   foreign bpsRate=(value)
   foreign font
+  foreign encoding
+  foreign encoding=(value)
   foreign font=(value)
   foreign noStatus
   foreign noStatus=(value)

@@ -10,6 +10,8 @@
 #include "io_error.h"
 #include "st_console.h"
 #include "st_cterm.h"
+#include "st_builtin_fonts.h"
+#include "st_term.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -17,6 +19,7 @@
 #include <string.h>
 
 struct text_selection {
+	struct st_wren_context *context;
 	st_console_t *console;
 	struct st_console_cell *original;
 	struct st_console_cell *displayed;
@@ -174,22 +177,51 @@ paint_selection(struct text_selection *selection, bool clear)
 	return result;
 }
 
+static bool
+copy_broken_bar(struct st_wren_context *context,
+	const struct st_console_cell *cell)
+{
+	uint8_t selector;
+	uint16_t wren_selector;
+
+	if (cell->glyph != 0x7c)
+		return false;
+	if (context->session != NULL
+	    && st_term_session_font_selector(context->session,
+	    cell->glyph_font, &selector))
+		return st_builtin_font_broken_vertical(selector);
+	wren_selector = st_wren_font_selector(context, cell->glyph_font);
+	return wren_selector < ST_BUILTIN_FONT_COUNT
+	    && context->fonts.catalog_valid[wren_selector]
+	    && context->fonts.catalog[wren_selector] == cell->glyph_font
+	    && st_builtin_font_broken_vertical(wren_selector);
+}
+
 static int
 append_cell(st_console_t *console, char **text, size_t *capacity,
-	size_t *length, const struct st_console_cell *cell, bool *nonspace)
+	size_t *length, const struct st_console_cell *cell, bool *nonspace,
+	struct st_wren_context *context)
 {
 	static const char replacement[] = "\xef\xbf\xbd";
+	static const char broken_bar[] = "\xc2\xa6";
 	size_t amount;
 	int status;
+	bool broken;
 
 	*nonspace = false;
 	if ((cell->flags & ST_CONSOLE_CELL_CONTINUATION) != 0)
 		return 0;
-	status = st_console_font_glyph_text(console, cell->glyph_font,
-	    cell->glyph, NULL, 0, &amount);
-	if (status == IO_ERROR_NOT_FOUND)
+	broken = copy_broken_bar(context, cell);
+	if (broken) {
+		status = 0;
+		amount = sizeof(broken_bar) - 1;
+	} else {
+		status = st_console_font_glyph_text(console, cell->glyph_font,
+		    cell->glyph, NULL, 0, &amount);
+	}
+	if (!broken && status == IO_ERROR_NOT_FOUND)
 		amount = sizeof(replacement) - 1;
-	else if (status != IO_ERROR_OUT_OF_RANGE && status != 0)
+	else if (!broken && status != IO_ERROR_OUT_OF_RANGE && status != 0)
 		return status;
 	if (amount > SIZE_MAX - *length - 1)
 		return IO_ERROR_OUT_OF_RANGE;
@@ -210,7 +242,9 @@ append_cell(st_console_t *console, char **text, size_t *capacity,
 		*text = fresh;
 		*capacity = fresh_capacity;
 	}
-	if (status == IO_ERROR_NOT_FOUND)
+	if (broken)
+		memcpy(*text + *length, broken_bar, amount);
+	else if (status == IO_ERROR_NOT_FOUND)
 		memcpy(*text + *length, replacement, amount);
 	else {
 		status = st_console_font_glyph_text(console, cell->glyph_font,
@@ -245,7 +279,7 @@ copy_selection(struct text_selection *selection)
 				continue;
 			have_row = true;
 			result = append_cell(selection->console, &text, &capacity,
-			    &length, cell, &nonspace);
+			    &length, cell, &nonspace, selection->context);
 			if (result != 0)
 				goto done;
 			if (nonspace)
@@ -291,6 +325,7 @@ int
 st_wren_mouse_drag_select(struct st_wren_context *context, bool rectangular)
 {
 	struct text_selection selection = {
+		.context = context,
 		.console = context == NULL ? NULL : context->console,
 		.rectangular = rectangular,
 	};

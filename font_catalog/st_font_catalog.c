@@ -76,7 +76,16 @@ int
 st_font_catalog_register_custom(st_console_t *console, const char *path,
 	uint16_t *identifier)
 {
+	return st_font_catalog_register_custom_codepage(console, path,
+	    ST_CODEPAGE_CP437, identifier);
+}
+
+int
+st_font_catalog_register_custom_codepage(st_console_t *console,
+	const char *path, enum st_codepage codepage, uint16_t *identifier)
+{
 	struct st_console_font font;
+	struct st_console_font template;
 	uint8_t *bitmap;
 	FILE *stream;
 	uint32_t width;
@@ -87,6 +96,7 @@ st_font_catalog_register_custom(st_console_t *console, const char *path,
 	int status;
 
 	if (console == NULL || path == NULL || identifier == NULL
+	    || codepage < ST_CODEPAGE_CP437 || codepage >= ST_CODEPAGE_COUNT
 	    || st_console_cell_pixel_size(console, &width, &height) != 0)
 		return IO_ERROR_INVALID_ARGUMENT;
 	row_stride = ((size_t)width + 7) / 8;
@@ -122,6 +132,21 @@ st_font_catalog_register_custom(st_console_t *console, const char *path,
 		.row_stride = row_stride,
 		.glyph_stride = glyph_stride,
 	};
+	for (size_t i = 0; i < st_builtin_font_count(); ++i) {
+		if (st_builtin_font_codepage(i) != codepage
+		    || (!st_builtin_font_get(i, 8, 16, &template)
+		    && !st_builtin_font_get(i, 8, 14, &template)
+		    && !st_builtin_font_get(i, 8, 8, &template)
+		    && !st_builtin_font_get(i, 12, 20, &template)))
+			continue;
+		font.mapping = template.mapping;
+		font.mapping_count = template.mapping_count;
+		break;
+	}
+	if (font.mapping == NULL) {
+		free(bitmap);
+		return IO_ERROR_NOT_SUPPORTED;
+	}
 	status = st_console_register_font_copy(console, &font, identifier);
 	free(bitmap);
 	return status;
@@ -131,13 +156,21 @@ int
 st_font_catalog_load_custom(st_font_catalog_t *catalog, uint8_t selector,
 	const char *path)
 {
+	return st_font_catalog_load_custom_codepage(catalog, selector, path,
+	    ST_CODEPAGE_CP437);
+}
+
+int
+st_font_catalog_load_custom_codepage(st_font_catalog_t *catalog,
+	uint8_t selector, const char *path, enum st_codepage codepage)
+{
 	uint16_t identifier;
 	int status;
 
 	if (catalog == NULL || selector < ST_FONT_CATALOG_FIRST_CUSTOM)
 		return IO_ERROR_INVALID_ARGUMENT;
-	status = st_font_catalog_register_custom(catalog->console, path,
-	    &identifier);
+	status = st_font_catalog_register_custom_codepage(catalog->console,
+	    path, codepage, &identifier);
 	if (status != 0)
 		return status;
 	if (catalog->valid[selector])

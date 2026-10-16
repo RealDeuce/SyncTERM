@@ -12,10 +12,15 @@ if(NOT TARGET syncterm_string_compat)
 	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../string_compat"
 		"${CMAKE_CURRENT_BINARY_DIR}/string_compat")
 endif()
+if(NOT TARGET st_codepage)
+	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../codepage"
+		"${CMAKE_CURRENT_BINARY_DIR}/codepage")
+endif()
 
 add_library(st_profile STATIC st_profile.c)
 target_include_directories(st_profile PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(st_profile PRIVATE syncterm_string_compat)
+target_link_libraries(st_profile PUBLIC st_codepage PRIVATE
+	syncterm_string_compat)
 set_target_properties(st_profile PROPERTIES
 	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 

@@ -153,10 +153,13 @@ prepare_session_fonts(st_font_catalog_t **result, st_console_t *console,
 				    = st_settings_font_at(i);
 
 				if (font->path[slot] != NULL)
-					(void)st_font_catalog_load_custom(catalog,
+					(void)st_font_catalog_load_custom_codepage(catalog,
 					    (uint8_t)(i
 					    + ST_FONT_CATALOG_FIRST_CUSTOM),
-					    font->path[slot]);
+					    font->path[slot],
+					    profile->encoding == ST_PROFILE_ENCODING_UTF8
+					    ? ST_CODEPAGE_CP437
+					    : (enum st_codepage)profile->encoding);
 			}
 		}
 	}
@@ -324,7 +327,9 @@ run_selected(st_wren_host_t *host, st_console_display_t *display,
 		.encoding = st_term_profile_encoding(profile),
 		.rip_version = st_term_profile_rip_version(profile),
 		.rip_directory = rip_directory,
-		.codepage = st_font_catalog_codepage(fonts, selector),
+		.codepage = profile->encoding == ST_PROFILE_ENCODING_UTF8
+		    ? st_font_catalog_codepage(fonts, selector)
+		    : (enum st_codepage)profile->encoding,
 		.font_selector = selector,
 		.hide_status = profile->hide_status,
 		.throttle_supported = profile->connection_type != ST_CONNECTION_SERIAL

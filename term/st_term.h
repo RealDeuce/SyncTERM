@@ -75,7 +75,7 @@ struct st_term_config {
 int st_term_connect_profile(st_connection_t **result,
 	const struct st_profile *profile, st_console_t *console,
 	const struct st_connection_hooks *hooks, struct st_connection_error *error);
-/* Local PTY sessions exchange UTF-8; byte-oriented remote transports do not. */
+/* The profile's explicit encoding determines the wire boundary. */
 enum st_cterm_encoding st_term_profile_encoding(
 	const struct st_profile *profile);
 enum st_cterm_rip_version st_term_profile_rip_version(
@@ -85,6 +85,8 @@ int st_term_session_create(st_term_session_t **result,
 void st_term_session_destroy(st_term_session_t **session);
 /* Borrowed until session destruction; the caller must not write through it. */
 st_cterm_t *st_term_session_cterm(st_term_session_t *session);
+bool st_term_session_font_selector(const st_term_session_t *session,
+	uint16_t identifier, uint8_t *selector);
 void st_term_session_request_end(st_term_session_t *session, bool exit_app);
 void st_term_session_set_suspended(st_term_session_t *session, bool suspended);
 void st_term_session_set_mouse_disabled(st_term_session_t *session,

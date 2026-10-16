@@ -1443,6 +1443,8 @@ exercise_menu_contract(st_wren_host_t *public_host)
 	    "b.screenMode = 1\n"
 	    "b.bpsRate = 0\n"
 	    "b.font = \"Codepage 437 English\"\n"
+	    "b.encoding = 255\n"
+	    "if (b.encoding != 255) Fiber.abort(\"bbs encoding\")\n"
 	    "b.noStatus = false\n"
 	    "b.hidePopups = false\n"
 	    "b.yellowIsYellow = true\n"
@@ -1481,10 +1483,34 @@ exercise_menu_contract(st_wren_host_t *public_host)
 	    "  if (!Menu.setEncryption(7, 256, null) || Menu.encryptionAlgorithm != 7) Fiber.abort(\"reencrypt\")\n"
 	    "  if (!Menu.setEncryption(0, 0, null) || Menu.encryptionAlgorithm != 0) Fiber.abort(\"decrypt\")\n"
 	    "}\n";
+	static const char encoding_source[] =
+	    "import \"syncterm_menu\" for Menu\n"
+	    "import \"menu_bbs_editor\" for BbsEditor\n"
+	    "if (Menu.encodings.count < 20 || Menu.fontsForEncoding(255).count != Menu.fontsCatalog.count) Fiber.abort(\"encodings\")\n"
+	    "if (Menu.fontsForEncoding(12).count < 2 || Menu.fontEncoding(\"Codepage 850 Multilingual Latin I\") != 12) Fiber.abort(\"font encoding\")\n"
+	    "var linked = {\"screenMode\": 1, \"encoding\": 0, \"font\": Menu.fontsCatalog[0][1], \"rip\": 0, \"noStatus\": false}\n"
+	    "BbsEditor.changeEncoding_(linked, 24)\n"
+	    "if (linked[\"screenMode\"] != 17 || linked[\"font\"] != Menu.fontsCatalog[32][1]) Fiber.abort(\"PETSCII upper\")\n"
+	    "BbsEditor.changeFont_(linked, Menu.fontsCatalog[35][1])\n"
+	    "if (linked[\"screenMode\"] != 18 || linked[\"encoding\"] != 25) Fiber.abort(\"PETSCII lower\")\n"
+	    "BbsEditor.changeEncoding_(linked, 255)\n"
+	    "if (linked[\"screenMode\"] != 1 || linked[\"font\"] != Menu.fontsCatalog[0][1]) Fiber.abort(\"UTF-8 switch\")\n"
+	    "BbsEditor.changeFont_(linked, Menu.fontsCatalog[44][1])\n"
+	    "if (linked[\"screenMode\"] != 1 || linked[\"encoding\"] != 255) Fiber.abort(\"UTF-8 font\")\n"
+	    "BbsEditor.changeRip_(linked, 1)\n"
+	    "if (linked[\"screenMode\"] != 5 || linked[\"encoding\"] != 0 || linked[\"font\"] != Menu.fontsCatalog[45][1]) Fiber.abort(\"RIP v1\")\n"
+	    "BbsEditor.changeScreen_(linked, 25)\n"
+	    "if (linked[\"rip\"] != 0 || linked[\"encoding\"] != 26 || linked[\"font\"] != Menu.fontsCatalog[43][1]) Fiber.abort(\"Prestel\")\n";
 
 	if (wrenInterpret(host->vm, "menu_contract", source)
 	    != WREN_RESULT_SUCCESS) {
 		fprintf(stderr, "menu contract failed: %s\n", host->last_error);
+		return -1;
+	}
+	if (wrenInterpret(host->vm, "menu_encoding_contract", encoding_source)
+	    != WREN_RESULT_SUCCESS) {
+		fprintf(stderr, "menu encoding contract failed: %s\n",
+		    host->last_error);
 		return -1;
 	}
 	CHECK(host->bbs_model.count != 0);

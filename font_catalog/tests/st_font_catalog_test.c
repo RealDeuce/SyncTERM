@@ -34,6 +34,9 @@ main(void)
 	st_console_t *console = NULL;
 	st_font_catalog_t *catalog = NULL;
 	uint16_t identifier;
+	uint16_t glyph_font;
+	uint32_t glyph;
+	uint8_t columns;
 	uint8_t selector;
 	FILE *stream;
 
@@ -58,6 +61,16 @@ main(void)
 	    ST_FONT_CATALOG_FIRST_CUSTOM, path) == 0);
 	CHECK(st_font_catalog_identifier(catalog,
 	    ST_FONT_CATALOG_FIRST_CUSTOM, &identifier));
+	CHECK(st_console_font_lookup(console, identifier, 'A', &glyph_font,
+	    &glyph, &columns) == 0);
+	CHECK(glyph_font == identifier && glyph == 'A');
+	CHECK(st_font_catalog_load_custom_codepage(catalog,
+	    ST_FONT_CATALOG_FIRST_CUSTOM, path, ST_CODEPAGE_CP1251) == 0);
+	CHECK(st_font_catalog_identifier(catalog,
+	    ST_FONT_CATALOG_FIRST_CUSTOM, &identifier));
+	CHECK(st_console_font_lookup(console, identifier, UINT32_C(0x0410),
+	    &glyph_font, &glyph, &columns) == 0);
+	CHECK(glyph_font == identifier && glyph == 0xc0);
 	CHECK(st_font_catalog_selector(catalog, identifier, &selector)
 	    && selector == ST_FONT_CATALOG_FIRST_CUSTOM);
 	{

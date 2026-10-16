@@ -233,11 +233,11 @@ int st_term_rip_wire_to_utf8(char *result, size_t capacity,
 Shell connection creation.  Pointers are borrowed for the call; connection
 hooks follow `st_connection` lifetime rules after success.  Unsupported
 profile types return `IO_ERROR_NOT_SUPPORTED`.  Caller owns the connection.
-Shell children receive `MM_CHARSET=UTF-8`.
+Shell children receive `MM_CHARSET` set to the profile's encoding name.
 
 | st_term_profile_encoding(profile)
-| Returns UTF8 for a local Shell profile and CODEPAGE for remote byte
-transports (and for NULL). Use this result for the matching session config.
+| Returns UTF8 for a profile explicitly configured for UTF-8 and CODEPAGE
+otherwise (including NULL). Use this result for the matching session config.
 
 | st_term_profile_rip_version(profile)
 | Maps profile RIP version 1 or 3 to the matching CTerm mode. Returns

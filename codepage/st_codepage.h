@@ -54,7 +54,9 @@ bool st_codepage_broken_vertical(enum st_codepage codepage);
 /*
  * Convert one encoded byte to Unicode. When graphic_controls is true,
  * display glyphs are selected for control bytes where the codepage defines
- * them. An invalid codepage returns U+FFFD.
+ * them; a broken-bar font's 0x7C glyph is also U+00A6 in that mode. With
+ * graphic_controls false, 0x7C has its ASCII meaning U+007C. An invalid
+ * codepage returns U+FFFD.
  */
 uint32_t st_codepage_to_unicode(enum st_codepage codepage, uint8_t value,
 	bool graphic_controls);

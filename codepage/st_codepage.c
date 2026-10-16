@@ -2006,7 +2006,7 @@ st_codepage_to_unicode(enum st_codepage codepage, uint8_t value,
 		return record->normal[value];
 	if (value >= 0x80)
 		return record->normal[value - 0x80];
-	if (value == 0x7c && record->broken_vertical)
+	if (value == 0x7c && graphic_controls && record->broken_vertical)
 		return UINT32_C(0x00a6);
 	return value;
 }

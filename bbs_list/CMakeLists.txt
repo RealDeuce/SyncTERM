@@ -15,6 +15,10 @@ foreach(_dependency IN ITEMS profile list_crypto app_paths webget file_lock hex
 			"${CMAKE_CURRENT_BINARY_DIR}/${_dependency}")
 	endif()
 endforeach()
+if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR AND NOT TARGET st_fonts)
+	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../fonts"
+		"${CMAKE_CURRENT_BINARY_DIR}/fonts")
+endif()
 if(NOT TARGET syncterm_threads)
 	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../threads"
 		"${CMAKE_CURRENT_BINARY_DIR}/threads")
@@ -45,7 +49,7 @@ add_library(st_bbs_list STATIC ${ST_BBS_LIST_SOURCES})
 target_include_directories(st_bbs_list PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_bbs_list PUBLIC st_profile st_list_crypto st_app_paths
 	st_webget
-	syncterm_io_error PRIVATE st_file_lock st_settings syncterm_array_list
+	syncterm_io_error PRIVATE st_fonts st_file_lock st_settings syncterm_array_list
 	syncterm_file_map syncterm_filesystem syncterm_ini
 	syncterm_string_compat syncterm_path st_hex
 	syncterm_string_util st_consent_token xptls::crypto st_time
@@ -83,9 +87,9 @@ if(BUILD_TESTING)
 		${CMAKE_CURRENT_SOURCE_DIR}/tests)
 	target_compile_definitions(st_bbs_list_faultable PRIVATE
 		ST_BBS_LIST_TEST_ALLOCATOR=1)
-	target_link_libraries(st_bbs_list_faultable PUBLIC st_profile st_list_crypto
+target_link_libraries(st_bbs_list_faultable PUBLIC st_profile st_list_crypto
 		st_app_paths st_webget syncterm_io_error PRIVATE st_file_lock
-		st_settings syncterm_array_list syncterm_file_map
+		st_settings st_fonts syncterm_array_list syncterm_file_map
 		syncterm_filesystem syncterm_ini
 		syncterm_string_compat syncterm_path st_hex syncterm_string_util
 		st_consent_token xptls::crypto st_time syncterm_threads

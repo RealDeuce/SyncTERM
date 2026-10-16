@@ -30,14 +30,19 @@ void st_font_catalog_destroy(st_font_catalog_t *catalog);
 
 /*
  * Registers exactly 256 glyphs from an owned temporary file image. Width and
- * height must match the console cell. Custom fonts use CP437 semantic mapping.
+ * height must match the console cell. The default loader uses CP437 semantic
+ * mapping; the codepage variant maps each custom glyph for one session.
  * A failed load leaves the previous selector registration unchanged.
  */
 int st_font_catalog_load_custom(st_font_catalog_t *catalog, uint8_t selector,
 	const char *path);
+int st_font_catalog_load_custom_codepage(st_font_catalog_t *catalog,
+	uint8_t selector, const char *path, enum st_codepage codepage);
 /* Shared loader used by hosts that retain their own selector tables. */
 int st_font_catalog_register_custom(st_console_t *console, const char *path,
 	uint16_t *identifier);
+int st_font_catalog_register_custom_codepage(st_console_t *console,
+	const char *path, enum st_codepage codepage, uint16_t *identifier);
 bool st_font_catalog_identifier(const st_font_catalog_t *catalog,
 	uint8_t selector, uint16_t *identifier);
 bool st_font_catalog_selector(const st_font_catalog_t *catalog,

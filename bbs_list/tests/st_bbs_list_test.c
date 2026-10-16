@@ -121,6 +121,49 @@ check_profile_default_ports(void)
 }
 
 static int
+check_profile_encodings(void)
+{
+	static const struct {
+		const char *source;
+		int expected;
+		const char *saved;
+	} cases[] = {
+		{"[Entry]\nFont=Codepage 850 Multilingual Latin I\n",
+		    ST_CODEPAGE_CP850, "CP850"},
+		{"[Entry]\nConnectionType=Shell\n",
+		    ST_PROFILE_ENCODING_UTF8, "UTF-8"},
+		{"[Entry]\nConnectionType=Shell\nEncoding=CP1251\n",
+		    ST_CODEPAGE_CP1251, "CP1251"},
+		{"[Entry]\nEncoding=CP850B\n",
+		    ST_CODEPAGE_CP850, "CP850"},
+		{"[Entry]\nEncoding=PRESTEL-SEP\n",
+		    ST_CODEPAGE_PRESTEL, "PRESTEL"},
+		{"[Entry]\nEncoding=invalid\n",
+		    ST_CODEPAGE_CP437, "CP437"},
+	};
+
+	for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
+		ini_document_t *document = NULL;
+		ini_section_t *section;
+		struct st_profile profile;
+
+		CHECK(ini_document_parse(&document, cases[i].source,
+		    strlen(cases[i].source)) == 0);
+		section = ini_document_find_section(document, "Entry");
+		CHECK(section != NULL);
+		CHECK(st_bbs_decode_profile(&profile, section, "Entry", false,
+		    NULL) == 0);
+		CHECK(profile.encoding == cases[i].expected);
+		CHECK(st_bbs_encode_profile(section, &profile, false) == 0);
+		CHECK(strcmp(ini_section_find(section, "Encoding"),
+		    cases[i].saved) == 0);
+		st_profile_dispose(&profile);
+		ini_document_free(&document);
+	}
+	return 0;
+}
+
+static int
 check_prepared_sort(void)
 {
 	static const char *const names[] = {
@@ -209,6 +252,7 @@ main(void)
 	int status;
 
 	CHECK(check_profile_default_ports() == 0);
+	CHECK(check_profile_encodings() == 0);
 	CHECK(check_prepared_sort() == 0);
 	CHECK(st_bbs_name_equal("Stra\xc3\x9f" "e", "STRASSE"));
 	CHECK(st_bbs_name_equal("\xc3\x85", "A\xcc\x8a"));

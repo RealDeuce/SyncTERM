@@ -4340,7 +4340,7 @@ Menu `BBS` properties map directly to the real `struct bbslist`:
 
 | Display and emulation
 | Read/write `music`, `rip`, `comment`, `termName`, `screenMode`,
-  `bpsRate`, `font`, `noStatus`, `hidePopups`, `yellowIsYellow`,
+  `bpsRate`, `encoding`, `font`, `noStatus`, `hidePopups`, `yellowIsYellow`,
   `forceLcf`, `palette`, and `lfExpand`.
 
 | Paths and logging
@@ -4526,10 +4526,19 @@ duplicate platform-dependent enum tables:
 | Lists of display names indexed by the corresponding numeric setting.
 
 | `connectionTypes`, `addressFamilies`, `rates`, `musicModes`,
-  `ripModes`, `flowControls`, `parities`, `fontsCatalog`, `logLevels`
+  `ripModes`, `flowControls`, `parities`, `fontsCatalog`, `encodings`,
+  `logLevels`
 | Lists of `[value, displayName]` rows for directory-entry editors.
   `fontsCatalog` uses the loaded conio font index as `value`; a BBS's
-  `font` property remains the display-name String.
+  `font` property remains the display-name String. `encodings` omits
+  pipe-glyph variants and Prestel's separated G1 set; UTF-8 is value 255.
+
+| `fontsForEncoding(encoding)`, `fontEncoding(name)`
+| The former returns compatible `[selector, displayName]` rows, including
+  configured custom fonts for every encoding and every built-in font for
+  UTF-8. The latter returns a built-in font's canonical encoding number,
+  or `null` for a custom or unknown name. The editor coordinates these with
+  screen mode and RIP; setting the raw BBS properties individually does not.
 
 | `defaultPort(connectionType)`
 | Return the built-in default port for a connection-type value.  RLogin uses

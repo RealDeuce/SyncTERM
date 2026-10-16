@@ -8,6 +8,7 @@
 #include "st_bbs_list_internal.h"
 
 #include "io_error.h"
+#include "st_builtin_fonts.h"
 #include "st_hex.h"
 #include "string_compat.h"
 
@@ -92,6 +93,19 @@ decode_fingerprint(struct st_profile *profile, const ini_section_t *section)
 	profile->ssh_fingerprint_size = (uint8_t)bytes;
 }
 
+static int
+legacy_encoding(const struct st_profile *profile)
+{
+	if (profile->connection_type == ST_CONNECTION_SHELL)
+		return ST_PROFILE_ENCODING_UTF8;
+	for (size_t i = 0; i < st_builtin_font_count(); ++i) {
+		if (strcmp(profile->font, st_builtin_font_name(i)) == 0)
+			return st_profile_encoding_canonical(
+			    st_builtin_font_codepage(i));
+	}
+	return ST_CODEPAGE_CP437;
+}
+
 int
 st_bbs_decode_profile(struct st_profile *profile,
     const ini_section_t *section, const char *name, bool system,
@@ -148,6 +162,13 @@ st_bbs_decode_profile(struct st_profile *profile,
 	    "TerminalType", "");
 	copy_fixed(profile->font, sizeof(profile->font), section, "Font",
 	    "Codepage 437 English");
+	{
+		const char *name = ini_section_find(section, "Encoding");
+
+		if (name == NULL || !st_profile_encoding_parse(name,
+		    &profile->encoding))
+			profile->encoding = legacy_encoding(profile);
+	}
 	copy_fixed(profile->comment, sizeof(profile->comment), section, "Comment",
 	    "");
 	profile->data_bits = (uint16_t)bounded_int(section, "DataBits", 8, 7, 8);
@@ -247,7 +268,8 @@ st_bbs_encode_profile(ini_section_t *section,
 	size_t i;
 	int status;
 
-	if (section == NULL || profile == NULL)
+	if (section == NULL || profile == NULL
+	    || !st_profile_encoding_valid(profile->encoding))
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (!defaults)
 		ENCODE(ini_section_set_string(section, "Address", profile->address,
@@ -295,6 +317,8 @@ st_bbs_encode_profile(ini_section_t *section,
 	    &ini_default_style));
 	ENCODE(ini_section_set_string(section, "Font", profile->font,
 	    &ini_default_style));
+	ENCODE(ini_section_set_string(section, "Encoding",
+	    st_profile_encoding_name(profile->encoding), &ini_default_style));
 	for (i = 0; i < profile->palette_size && i < 16; ++i)
 		palette[i] = profile->palette[i];
 	if (i != 0)

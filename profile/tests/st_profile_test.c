@@ -37,6 +37,23 @@ main(void)
 	};
 	struct st_profile source;
 	struct st_profile copy;
+	int encoding = -1;
+
+	CHECK(st_profile_encoding_valid(ST_CODEPAGE_CP437));
+	CHECK(st_profile_encoding_valid(ST_PROFILE_ENCODING_UTF8));
+	CHECK(!st_profile_encoding_valid(ST_CODEPAGE_CP850_B));
+	CHECK(!st_profile_encoding_valid(ST_CODEPAGE_PRESTEL_SEPARATED));
+	CHECK(st_profile_encoding_parse("CP850B", &encoding)
+	    && encoding == ST_CODEPAGE_CP850);
+	CHECK(st_profile_encoding_parse("PRESTEL-SEP", &encoding)
+	    && encoding == ST_CODEPAGE_PRESTEL);
+	CHECK(st_profile_encoding_parse("UTF-8", &encoding)
+	    && encoding == ST_PROFILE_ENCODING_UTF8);
+	CHECK(!st_profile_encoding_parse("invalid", &encoding));
+	CHECK(strcmp(st_profile_encoding_name(ST_CODEPAGE_CP1251), "CP1251")
+	    == 0);
+	CHECK(strcmp(st_profile_encoding_name(ST_PROFILE_ENCODING_UTF8),
+	    "UTF-8") == 0);
 
 	for (size_t i = 0; i < sizeof(ports) / sizeof(ports[0]); ++i)
 		CHECK(st_connection_default_port((enum st_connection_type)i)
@@ -46,6 +63,8 @@ main(void)
 	    (ST_CONNECTION_MQTT + 1)) == 0);
 	st_profile_init(&source);
 	st_profile_init(&copy);
+	CHECK(source.encoding == ST_CODEPAGE_CP437);
+	source.encoding = ST_PROFILE_ENCODING_UTF8;
 	CHECK(source.port == st_connection_default_port(source.connection_type));
 	strcpy(source.name, "Example");
 	source.download_directory = strdup("downloads");
@@ -54,6 +73,7 @@ main(void)
 	CHECK(source.tls_client_key != NULL);
 	CHECK(st_profile_copy(&copy, &source));
 	CHECK(strcmp(copy.name, "Example") == 0);
+	CHECK(copy.encoding == ST_PROFILE_ENCODING_UTF8);
 	CHECK(strcmp(copy.download_directory, "downloads") == 0);
 	CHECK(copy.download_directory != source.download_directory);
 	CHECK(copy.upload_directory == NULL);

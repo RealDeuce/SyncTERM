@@ -441,6 +441,7 @@ class BbsEditor {
       "syspass": b.syspass,
       "addressFamily": b.addressFamily,
       "screenMode": b.screenMode,
+      "encoding": b.encoding,
       "termName": b.termName,
       "font": b.font,
       "music": b.music,
@@ -681,6 +682,7 @@ class BbsEditor {
     }
     text = text + helpItem_("LF Expand",
         "Treat each LF as though CR and LF were received") +
+        helpItem_("Encoding", "The remote wire character set") +
         helpItem_("Font", "The font used for this entry")
     if (ansi_(d["screenMode"])) {
       text = text + helpItem_("ANSI Music", "The ANSI music dialect") +
@@ -753,6 +755,7 @@ class BbsEditor {
     }
     if (key == "termName") return terminalTypeHelp_()
     if (key == "font") return fontHelp_()
+    if (key == "encoding") return encodingHelp_()
     if (key == "music") return ansiMusicHelp_()
     if (key == "dlDir") return "# Download Path\n\nEnter the directory where downloads will be placed."
     if (key == "ulDir") return "# Upload Path\n\nEnter the directory initially browsed for uploads."
@@ -875,6 +878,12 @@ class BbsEditor {
         "selects an appropriate mode."
   }
 
+  static encodingHelp_() {
+    return "# Encoding\n\nChoose the remote wire character set. " +
+        "UTF-8 can use any font; single-byte encodings use matching " +
+        "built-in fonts or a configured custom font."
+  }
+
   static commRateHelp_() {
     return "# Comm Rate\n\n" +
         "## TCP Connections\n\n" +
@@ -904,7 +913,8 @@ class BbsEditor {
   }
 
   static ripHelp_() {
-    return "# RIP Version\n\nRIP v1 requires EGA mode. RIP v3 works in any screen mode."
+    return "# RIP Version\n\nRIP v1 selects its EGA, CP437, and RIPterm " +
+        "preset. RIP v3 works with ANSI screen modes."
   }
 
   static logFileHelp_() {
@@ -971,30 +981,130 @@ class BbsEditor {
     }
   }
 
+  static family_(mode) {
+    if (mode >= 17 && mode <= 19) return 1
+    if (mode == 20 || mode == 21) return 2
+    if (mode == 25 || mode == 26) return 3
+    if (mode >= 27 && mode <= 29) return 4
+    return 0
+  }
+
+  static encodingFamily_(encoding) {
+    if (encoding == 24 || encoding == 25) return 1
+    if (encoding == 23) return 2
+    if (encoding == 26) return 3
+    if (encoding == 28) return 4
+    return 0
+  }
+
+  static familyMode_(family) {
+    if (family == 1) return 17
+    if (family == 2) return 20
+    if (family == 3) return 25
+    if (family == 4) return 28
+    return 1
+  }
+
+  static fontIndex_(name) {
+    for (row in Menu.fontsCatalog) {
+      if (row[1] == name) return row[0]
+    }
+    return null
+  }
+
+  static fixedFont_(mode, encoding) {
+    if (mode == 17) return encoding == 24 ? 32 : 33
+    if (mode == 18 || mode == 19) return encoding == 24 ? 34 : 35
+    if (mode == 20 || mode == 21) return 36
+    if (mode == 25 || mode == 26) return 43
+    return 44
+  }
+
+  static selectFont_(d, index) {
+    var fonts = Menu.fontsCatalog
+    if (index < fonts.count) d["font"] = fonts[index][1]
+  }
+
+  static changeEncoding_(d, encoding) {
+    if (encoding == d["encoding"]) return
+    d["encoding"] = encoding
+    var family = encodingFamily_(encoding)
+    if (family_(d["screenMode"]) != family) {
+      d["screenMode"] = familyMode_(family)
+      if (family == 0) d["noStatus"] = false
+    }
+    if (family != 0 || d["rip"] == 1) d["rip"] = 0
+    if (family != 0) {
+      selectFont_(d, fixedFont_(d["screenMode"], encoding))
+    } else {
+      var choices = Menu.fontsForEncoding(encoding)
+      if (choices.count > 0) d["font"] = choices[0][1]
+    }
+  }
+
   static changeScreen_(d, mode) {
     var old = d["screenMode"]
-    var fonts = Menu.fontsCatalog
+    var family = family_(mode)
     d["screenMode"] = mode
-    if (d["rip"] == 1 && mode != 23 && mode != 5) d["rip"] = 2
-    if (mode == 17 && fonts.count > 33) {
-      d["font"] = fonts[33][1]
-      d["noStatus"] = true
-    } else if ((mode == 18 || mode == 19) && fonts.count > 35) {
-      d["font"] = fonts[35][1]
-      d["noStatus"] = true
-    } else if ((mode == 20 || mode == 21) && fonts.count > 36) {
-      d["font"] = fonts[36][1]
-      d["noStatus"] = true
-    } else if ((mode == 25 || mode == 26) && fonts.count > 43) {
-      d["font"] = fonts[43][1]
-    } else if (mode >= 27 && mode <= 29 && fonts.count > 44) {
-      d["font"] = fonts[44][1]
-    } else if (old >= 27 && old <= 29 && fonts.count > 0) {
-      d["font"] = fonts[0][1]
-    } else if (((old >= 17 && old <= 21) || old == 25 || old == 26) &&
-        fonts.count > 0) {
-      d["font"] = fonts[0][1]
-      d["noStatus"] = false
+    if (family == 0) {
+      if (family_(old) != 0) {
+        d["encoding"] = 0
+        selectFont_(d, 0)
+        d["noStatus"] = false
+      }
+      if (d["rip"] == 1 && mode != 5) d["rip"] = 0
+      return
+    }
+    if (family == 1 && encodingFamily_(d["encoding"]) != 1) {
+      d["encoding"] = 25
+    } else if (family == 2) {
+      d["encoding"] = 23
+    } else if (family == 3) {
+      d["encoding"] = 26
+    } else if (family == 4) {
+      d["encoding"] = 28
+    }
+    selectFont_(d, fixedFont_(mode, d["encoding"]))
+    d["rip"] = 0
+    if (family == 1 || family == 2) d["noStatus"] = true
+  }
+
+  static changeFont_(d, name) {
+    if (name == d["font"]) return
+    var index = fontIndex_(name)
+    var encoding = Menu.fontEncoding(name)
+    if (encoding != null && d["encoding"] != 255) {
+      if (encoding != d["encoding"]) changeEncoding_(d, encoding)
+      if (index >= 32 && index <= 33) d["screenMode"] = 17
+      if (index >= 34 && index <= 35 &&
+          (d["screenMode"] < 18 || d["screenMode"] > 19)) {
+        d["screenMode"] = 18
+      }
+      if (index == 36 && family_(d["screenMode"]) != 2) {
+        d["screenMode"] = 20
+      }
+      if (index == 43 && family_(d["screenMode"]) != 3) {
+        d["screenMode"] = 25
+      }
+      if (index == 44 && family_(d["screenMode"]) != 4) {
+        d["screenMode"] = 28
+      }
+    }
+    d["font"] = name
+    if (d["rip"] == 1 && index != 45) d["rip"] = 0
+    if (family_(d["screenMode"]) != 0) d["rip"] = 0
+  }
+
+  static changeRip_(d, version) {
+    d["rip"] = version
+    if (version == 1) {
+      d["screenMode"] = 5
+      d["encoding"] = 0
+      selectFont_(d, 45)
+    } else if (version == 2 && !ansi_(d["screenMode"])) {
+      d["screenMode"] = 1
+      d["encoding"] = 0
+      selectFont_(d, 0)
     }
   }
 
@@ -1235,22 +1345,27 @@ class BbsEditor {
       }))
     }
     rows.add(boolRow_(d, "lfExpand", "LF Expand"))
-    var fontChoices = Menu.fontsCatalog.map {|row| [row[1], row[1]] }.toList
-    rows.add(choiceRow_(app, d, "font", "Font", fontChoices))
+    rows.add(row_("Encoding", MenuUi.rowName(Menu.encodings, d["encoding"]),
+        Fn.new {
+      var value = MenuUi.choice(app, "Encoding", Menu.encodings,
+          d["encoding"], encodingHelp_())
+      if (value != null) changeEncoding_(d, value)
+    }))
+    var fontChoices = Menu.fontsForEncoding(d["encoding"]).map {|row|
+      [row[1], row[1]]
+    }.toList
+    rows.add(row_("Font", d["font"], Fn.new {
+      var value = MenuUi.choice(app, "Font", fontChoices, d["font"],
+          fontHelp_())
+      if (value != null) changeFont_(d, value)
+    }))
     if (ansi_(d["screenMode"])) {
       rows.add(choiceRow_(app, d, "music", "ANSI Music", Menu.musicModes))
       rows.add(row_("RIP", MenuUi.rowName(Menu.ripModes, d["rip"]),
           Fn.new {
         var value = MenuUi.choice(app, "RIP", Menu.ripModes, d["rip"],
             ripHelp_())
-        if (value != null) {
-          d["rip"] = value
-          if (value == 1) {
-            d["screenMode"] = 5
-            var fonts = Menu.fontsCatalog
-            if (fonts.count > 45) d["font"] = fonts[45][1]
-          }
-        }
+        if (value != null) changeRip_(d, value)
       }))
       rows.add(boolRow_(d, "forceLcf", "Force LCF Mode"))
       rows.add(boolRow_(d, "yellowIsYellow", "Yellow is Yellow"))
@@ -1361,6 +1476,7 @@ class BbsEditor {
     b.screenMode = d["screenMode"]
     b.termName = d["termName"]
     b.font = d["font"]
+    b.encoding = d["encoding"]
     b.music = d["music"]
     b.rip = d["rip"]
     b.comment = d["comment"]

@@ -8,6 +8,8 @@
 #ifndef ST_PROFILE_H_
 #define ST_PROFILE_H_
 
+#include "st_codepage.h"
+
 #include <stdbool.h>
 #include <stdint.h>
 #include <time.h>
@@ -123,6 +125,14 @@ enum st_profile_music {
 	ST_PROFILE_MUSIC_ALL,
 };
 
+/* Other encoding values are canonical enum st_codepage values. */
+enum { ST_PROFILE_ENCODING_UTF8 = 255 };
+
+bool st_profile_encoding_valid(int encoding);
+int st_profile_encoding_canonical(int encoding);
+const char *st_profile_encoding_name(int encoding);
+bool st_profile_encoding_parse(const char *name, int *encoding);
+
 enum st_tls_version {
 	ST_TLS_VERSION_UNKNOWN,
 	ST_TLS_VERSION_1_2,
@@ -147,6 +157,7 @@ struct st_profile {
 	int source;
 	int identifier;
 	int screen_mode;
+	int encoding;
 	int transfer_log_level;
 	int protocol_log_level;
 	int music;

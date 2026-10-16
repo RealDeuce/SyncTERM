@@ -10,6 +10,56 @@
 #include <stdlib.h>
 #include <string.h>
 
+int
+st_profile_encoding_canonical(int encoding)
+{
+	switch (encoding) {
+	case ST_CODEPAGE_CP1251_B: return ST_CODEPAGE_CP1251;
+	case ST_CODEPAGE_CP850_B: return ST_CODEPAGE_CP850;
+	case ST_CODEPAGE_CP865_B: return ST_CODEPAGE_CP865;
+	case ST_CODEPAGE_PRESTEL_SEPARATED: return ST_CODEPAGE_PRESTEL;
+	default: return encoding;
+	}
+}
+
+bool
+st_profile_encoding_valid(int encoding)
+{
+	return encoding == ST_PROFILE_ENCODING_UTF8
+	    || (encoding >= ST_CODEPAGE_CP437
+	    && encoding < ST_CODEPAGE_COUNT
+	    && st_profile_encoding_canonical(encoding) == encoding);
+}
+
+const char *
+st_profile_encoding_name(int encoding)
+{
+	if (encoding == ST_PROFILE_ENCODING_UTF8)
+		return "UTF-8";
+	return st_profile_encoding_valid(encoding)
+	    ? st_codepage_name((enum st_codepage)encoding) : NULL;
+}
+
+bool
+st_profile_encoding_parse(const char *name, int *encoding)
+{
+	if (name == NULL || encoding == NULL)
+		return false;
+	if (strcmp(name, "UTF-8") == 0) {
+		*encoding = ST_PROFILE_ENCODING_UTF8;
+		return true;
+	}
+	for (int i = 0; i < ST_CODEPAGE_COUNT; ++i) {
+		const char *candidate = st_codepage_name((enum st_codepage)i);
+
+		if (candidate != NULL && strcmp(name, candidate) == 0) {
+			*encoding = st_profile_encoding_canonical(i);
+			return true;
+		}
+	}
+	return false;
+}
+
 static bool
 copy_path(char **result, const char *source)
 {
@@ -58,6 +108,7 @@ st_profile_init(struct st_profile *profile)
 		profile->connection_type = ST_CONNECTION_SSH;
 		profile->port = st_connection_default_port(ST_CONNECTION_SSH);
 		profile->screen_mode = ST_SCREEN_MODE_CURRENT;
+		profile->encoding = ST_CODEPAGE_CP437;
 		profile->flow_control = ST_PROFILE_FLOW_RTS_CTS;
 		profile->data_bits = 8;
 		profile->stop_bits = 1;
