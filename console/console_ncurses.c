@@ -833,11 +833,12 @@ sgr_present(st_console_t *console, struct curses_state *state)
 	for (uint32_t y = 0; y < visible_rows; ++y) {
 		for (uint32_t x = 0; x < visible_columns; ++x) {
 			size_t index = (size_t)y * console->columns + x;
-			const struct st_console_cell *source = &console->cells[index];
+			const struct st_console_cell *source = st_console_cell_at(console, index);
 			struct st_console_cell effective;
 			const struct st_console_cell *cell;
 
-			if (((source->flags & ST_CONSOLE_CELL_DIRTY) == 0 || initializing)
+			if ((((source->flags & ST_CONSOLE_CELL_DIRTY) == 0
+			    && !st_console_row_dirty(console, y)) || initializing)
 			    && st_console_cells_equal(source, &state->drawn[index]))
 				continue;
 			state->drawn[index] = *source;
@@ -858,7 +859,7 @@ sgr_present(st_console_t *console, struct curses_state *state)
 			output_x = x + 1;
 			output_y = y;
 			if (x + 1 < console->columns
-			    && (console->cells[index + 1].flags
+			    && (st_console_cell_at(console, index + 1)->flags
 			    & ST_CONSOLE_CELL_CONTINUATION) != 0)
 				++output_x;
 			position_known = output_x < visible_columns;
@@ -1102,7 +1103,7 @@ curses_present(st_console_t *console)
 	for (y = 0; y < visible_rows; ++y) {
 		for (x = 0; x < visible_columns; ++x) {
 			size_t index = (size_t)y * console->columns + x;
-			const struct st_console_cell *source = &console->cells[index];
+			const struct st_console_cell *source = st_console_cell_at(console, index);
 			struct st_console_cell effective;
 			const struct st_console_cell *cell;
 			int pair;
@@ -1111,6 +1112,7 @@ curses_present(st_console_t *console)
 			int write_result;
 
 			if ((source->flags & ST_CONSOLE_CELL_DIRTY) == 0
+			    && !st_console_row_dirty(console, y)
 			    && st_console_cells_equal(source, &state->drawn[index]))
 				continue;
 			if ((source->flags & ST_CONSOLE_CELL_CONTINUATION) != 0) {

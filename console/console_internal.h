@@ -117,6 +117,11 @@ struct st_console {
 	uint32_t columns;
 	uint32_t rows;
 	struct st_console_cell *cells;
+	/* Physical row corresponding to logical row zero. */
+	uint32_t cell_top;
+	/* Whole-row presentation damage; end == 0 means no row damage. */
+	uint32_t dirty_row_first;
+	uint32_t dirty_row_end;
 	uint32_t cell_width;
 	uint32_t cell_height;
 	uint32_t pixel_extra_width;
@@ -161,6 +166,49 @@ struct st_console {
 	bool pointer_visible;
 	enum st_console_pointer_shape pointer_shape;
 };
+
+static inline uint32_t
+st_console_row_index(const st_console_t *console, uint32_t y)
+{
+	return y >= console->rows - console->cell_top
+	    ? y - (console->rows - console->cell_top) : y + console->cell_top;
+}
+
+static inline size_t
+st_console_cell_index(const st_console_t *console, size_t index)
+{
+	size_t offset = (size_t)console->cell_top * console->columns + index;
+	size_t count = (size_t)console->columns * console->rows;
+	return offset >= count ? offset - count : offset;
+}
+
+static inline struct st_console_cell *
+st_console_cell_at(const st_console_t *console, size_t index)
+{
+	return console->cells + st_console_cell_index(console, index);
+}
+
+static inline struct st_console_cell *
+st_console_drawn_at(const st_console_t *console, size_t index)
+{
+	return console->drawn_cells + st_console_cell_index(console, index);
+}
+
+static inline bool
+st_console_row_dirty(const st_console_t *console, uint32_t y)
+{
+	return y >= console->dirty_row_first && y < console->dirty_row_end;
+}
+
+static inline void
+st_console_dirty_rows(st_console_t *console, uint32_t first, uint32_t end)
+{
+	if (console->dirty_row_end == 0 || first < console->dirty_row_first)
+		console->dirty_row_first = first;
+	if (end > console->dirty_row_end)
+		console->dirty_row_end = end;
+	console->changed = true;
+}
 
 static inline bool
 st_console_cells_equal(const struct st_console_cell *left,
@@ -315,6 +363,9 @@ void st_console_copy_pixels_locked(const st_console_t *console,
 	const struct st_console_rect *rectangle);
 int st_console_normalize_raster_locked(st_console_t *console);
 void st_console_move_raster_locked(st_console_t *console,
+	const struct st_console_rect *source, uint32_t destination_x,
+	uint32_t destination_y);
+void st_console_move_pixels_locked(st_console_t *console,
 	const struct st_console_rect *source, uint32_t destination_x,
 	uint32_t destination_y);
 

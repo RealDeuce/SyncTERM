@@ -1220,10 +1220,10 @@ set_cell_raw_locked(st_console_t *console, size_t index,
 	struct st_console_cell value = *source;
 
 	value.flags &= ST_CONSOLE_CELL_PUBLIC_FLAGS;
-	if (cells_equal(&console->cells[index], &value))
+	if (cells_equal(st_console_cell_at(console, index), &value))
 		return;
 	value.flags |= ST_CONSOLE_CELL_DIRTY;
-	console->cells[index] = value;
+	(*st_console_cell_at(console, index)) = value;
 	console->changed = true;
 	console->raster_current = false;
 }
@@ -1277,12 +1277,12 @@ st_console_cursor_span_locked(const st_console_t *console,
 	index = (size_t)console->cursor_y * console->columns
 	    + console->cursor_x;
 	if (console->cursor_x > 0
-	    && pair_matches(&console->cells[index - 1], &console->cells[index])) {
+	    && pair_matches(st_console_cell_at(console, index - 1), st_console_cell_at(console, index))) {
 		--*x;
 		*columns = 2;
 	}
 	else if (console->cursor_x + 1 < console->columns
-	    && pair_matches(&console->cells[index], &console->cells[index + 1]))
+	    && pair_matches(st_console_cell_at(console, index), st_console_cell_at(console, index + 1)))
 		*columns = 2;
 }
 
@@ -1387,9 +1387,9 @@ clear_boundary_pairs_locked(st_console_t *console, size_t first, size_t last)
 {
 	size_t count = (size_t)console->columns * console->rows;
 	bool left = first % console->columns != 0
-	    && (console->cells[first].flags & ST_CONSOLE_CELL_CONTINUATION) != 0;
+	    && (st_console_cell_at(console, first)->flags & ST_CONSOLE_CELL_CONTINUATION) != 0;
 	bool right = last + 1 < count && last % console->columns + 1
-	    < console->columns && (console->cells[last + 1].flags
+	    < console->columns && (st_console_cell_at(console, last + 1)->flags
 	    & ST_CONSOLE_CELL_CONTINUATION) != 0;
 
 	if (left || right) {
@@ -1411,7 +1411,7 @@ st_console_set_cell_locked(st_console_t *console, size_t index,
 	bool wide;
 
 	value = cell_for_storage(source);
-	if (cells_equal(&console->cells[index], &value))
+	if (cells_equal(st_console_cell_at(console, index), &value))
 		return;
 	wide = (value.flags & ST_CONSOLE_CELL_CONTINUATION) == 0
 	    && cell_is_wide_locked(console, &value)
@@ -1449,7 +1449,8 @@ present_locked(st_console_t *console, bool forced, bool backend_locked)
 		return 0;
 	if (!console->changed && !forced)
 		return 0;
-	status = st_console_rasterize_locked(console, false);
+	status = console->raster_current ? 0
+	    : st_console_rasterize_locked(console, false);
 	if (status != 0)
 		return status;
 	if (atomic_load_explicit(&display->active, memory_order_acquire)
@@ -1470,6 +1471,7 @@ present_locked(st_console_t *console, bool forced, bool backend_locked)
 	for (i = 0; i < count; ++i)
 		console->cells[i].flags &= ~ST_CONSOLE_CELL_DIRTY;
 	console->changed = false;
+	console->dirty_row_end = 0;
 	console->pixel_surface_dirty = false;
 	console->palette_dirty = false;
 	return 0;
@@ -1654,13 +1656,15 @@ st_console_resize(st_console_t *console, uint32_t columns, uint32_t rows)
 	copy_rows = rows < console->rows ? rows : console->rows;
 	for (y = 0; y < copy_rows; ++y)
 		memcpy(&cells[(size_t)y * columns],
-		    &console->cells[(size_t)y * console->columns],
+		    st_console_cell_at(console, (size_t)y * console->columns),
 		    (size_t)copy_columns * sizeof(*cells));
 	free(console->cells);
 	free(console->raster_rows);
 	free(console->drawn_cells);
 	st_pixel_buffer_destroy(console->pixels);
 	console->cells = cells;
+	console->cell_top = 0;
+	console->dirty_row_end = 0;
 	console->raster_rows = raster_rows;
 	console->drawn_cells = drawn_cells;
 	console->pixels = pixels;
@@ -1670,8 +1674,8 @@ st_console_resize(st_console_t *console, uint32_t columns, uint32_t rows)
 	for (uint32_t y = 0; y < rows; ++y) {
 		size_t last = (size_t)(y + 1) * columns - 1;
 
-		if ((console->cells[last].flags & ST_CONSOLE_CELL_CONTINUATION) == 0
-		    && cell_is_wide_locked(console, &console->cells[last])) {
+		if ((st_console_cell_at(console, last)->flags & ST_CONSOLE_CELL_CONTINUATION) == 0
+		    && cell_is_wide_locked(console, st_console_cell_at(console, last))) {
 			struct st_console_cell blank = st_console_blank_locked(console,
 			    ' ');
 
@@ -1774,6 +1778,8 @@ st_console_regrid_preserve_pixels(st_console_t *console,
 	free(console->drawn_cells);
 	free(console->raster_rows);
 	console->cells = cells;
+	console->cell_top = 0;
+	console->dirty_row_end = 0;
 	console->drawn_cells = drawn_cells;
 	console->raster_rows = raster_rows;
 	console->columns = columns;
@@ -1900,6 +1906,8 @@ st_console_reconfigure(st_console_t *console,
 	free(console->drawn_cells);
 	st_pixel_buffer_destroy(console->pixels);
 	console->cells = cells;
+	console->cell_top = 0;
+	console->dirty_row_end = 0;
 	console->raster_rows = raster_rows;
 	console->drawn_cells = drawn_cells;
 	console->pixels = pixels;
@@ -2055,9 +2063,9 @@ st_console_read_cells(st_console_t *console,
 	}
 	for (y = 0; y < source->height; ++y) {
 		for (x = 0; x < source->width; ++x) {
-			cells[(size_t)y * stride + x] = console->cells[
+			cells[(size_t)y * stride + x] = (*st_console_cell_at(console,
 			    (size_t)(source->y + y) * console->columns
-			    + source->x + x];
+			    + source->x + x));
 			cells[(size_t)y * stride + x].flags &=
 			    ~ST_CONSOLE_CELL_DIRTY;
 		}
@@ -2998,8 +3006,10 @@ st_console_snapshot_create(st_console_snapshot_t **result,
 	snapshot->blocky_scaling = console->blocky_scaling;
 	snapshot->pixel_top = console->pixel_top;
 	snapshot->full_surface_scroll = console->full_surface_scroll;
-	memcpy(snapshot->cells, console->cells,
-	    count * sizeof(snapshot->cells[0]));
+	for (uint32_t y = 0; y < console->rows; ++y)
+		memcpy(snapshot->cells + (size_t)y * console->columns,
+		    st_console_cell_at(console, (size_t)y * console->columns),
+		    (size_t)console->columns * sizeof(snapshot->cells[0]));
 	for (size_t i = 0; i < count; ++i)
 		snapshot->cells[i].flags &= ~ST_CONSOLE_CELL_DIRTY;
 	(void)st_rwlock_unlock(&console->state_lock);
@@ -3066,6 +3076,8 @@ st_console_snapshot_restore(st_console_t *console,
 	console->blink_mode = snapshot->blink_mode;
 	console->video_flags = snapshot->video_flags;
 	console->blocky_scaling = snapshot->blocky_scaling;
+	console->cell_top = 0;
+	console->dirty_row_end = 0;
 	memcpy(console->cells, snapshot->cells,
 	    count * sizeof(console->cells[0]));
 	if (console->pixels != NULL) {

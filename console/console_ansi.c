@@ -403,8 +403,8 @@ scroll_up_one(struct ansi_writer *writer, st_console_t *console,
 		return false;
 	row_size = (size_t)console->columns * sizeof(*state->drawn);
 	for (uint32_t y = 0; y + 1 < window->height; ++y) {
-		const struct st_console_cell *current = &console->cells[
-		    (size_t)(window->y + y) * console->columns];
+		const struct st_console_cell *current = st_console_cell_at(console,
+		    (size_t)(window->y + y) * console->columns);
 		const struct st_console_cell *previous = &state->drawn[
 		    (size_t)(window->y + y + 1) * console->columns];
 
@@ -468,11 +468,12 @@ ansi_present(st_console_t *console)
 	for (uint32_t y = 0; y < visible_rows; ++y) {
 		for (uint32_t x = 0; x < visible_columns; ++x) {
 			size_t index = (size_t)y * console->columns + x;
-			const struct st_console_cell *source = &console->cells[index];
+			const struct st_console_cell *source = st_console_cell_at(console, index);
 			struct st_console_cell effective;
 			const struct st_console_cell *cell;
 
-			if (((source->flags & ST_CONSOLE_CELL_DIRTY) == 0 || initializing)
+			if ((((source->flags & ST_CONSOLE_CELL_DIRTY) == 0
+			    && !st_console_row_dirty(console, y)) || initializing)
 			    && st_console_cells_equal(source, &state->drawn[index]))
 				continue;
 			state->drawn[index] = *source;
@@ -493,7 +494,7 @@ ansi_present(st_console_t *console)
 			output_x = x + 1;
 			output_y = y;
 			if (x + 1 < console->columns
-			    && (console->cells[index + 1].flags
+			    && (st_console_cell_at(console, index + 1)->flags
 			    & ST_CONSOLE_CELL_CONTINUATION) != 0)
 				++output_x;
 			position_known = output_x < visible_columns;

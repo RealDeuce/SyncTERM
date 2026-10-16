@@ -234,8 +234,8 @@ render_fast_cells(st_console_t *console, uint32_t x, uint32_t y,
 	if (count > FAST_CELL_COUNT)
 		count = FAST_CELL_COUNT;
 	while (prepared < count) {
-		const struct st_console_cell *cell = &console->cells[
-		    (size_t)y * console->columns + x + prepared];
+		const struct st_console_cell *cell = st_console_cell_at(console,
+		    (size_t)y * console->columns + x + prepared);
 
 		if (!prepare_fast_cell(console, cell, font_cache,
 		    &states[prepared]))
@@ -277,9 +277,9 @@ render_fast_cells(st_console_t *console, uint32_t x, uint32_t y,
 	for (size_t i = 0; i < prepared; ++i) {
 		size_t index = (size_t)y * console->columns + x + i;
 
-		console->drawn_cells[index] = console->cells[index];
-		console->drawn_cells[index].flags &= ~ST_CONSOLE_CELL_DIRTY;
-		console->cells[index].flags |= ST_CONSOLE_CELL_DIRTY;
+		(*st_console_drawn_at(console, index)) = (*st_console_cell_at(console, index));
+		st_console_drawn_at(console, index)->flags &= ~ST_CONSOLE_CELL_DIRTY;
+		st_console_cell_at(console, index)->flags |= ST_CONSOLE_CELL_DIRTY;
 	}
 	return prepared;
 }
@@ -295,7 +295,7 @@ render_cell(st_console_t *console, uint32_t x, uint32_t y,
 	enum row_scale row_scale, struct font_cache *font_cache)
 {
 	size_t index = (size_t)y * console->columns + x;
-	const struct st_console_cell *cell = &console->cells[index];
+	const struct st_console_cell *cell = st_console_cell_at(console, index);
 	const struct st_console_cell *source = cell;
 	struct st_console_cell effective;
 	const struct st_console_font *font;
@@ -311,8 +311,8 @@ render_cell(st_console_t *console, uint32_t x, uint32_t y,
 
 	if (row_scale == ROW_SCALE_BOTTOM) {
 		if ((cell->flags & ST_CONSOLE_CELL_TERMINAL_FONT) != 0)
-			source = &console->cells[(size_t)(y - 1)
-			    * console->columns + x];
+			source = st_console_cell_at(console, (size_t)(y - 1)
+			    * console->columns + x);
 		if ((source->flags & ST_CONSOLE_CELL_DOUBLE_HEIGHT) == 0)
 			draw_glyph = false;
 	}
@@ -499,8 +499,8 @@ render_cell(st_console_t *console, uint32_t x, uint32_t y,
 		}
 	}
 finished:
-	console->drawn_cells[index] = *cell;
-	console->drawn_cells[index].flags &= ~ST_CONSOLE_CELL_DIRTY;
+	(*st_console_drawn_at(console, index)) = *cell;
+	st_console_drawn_at(console, index)->flags &= ~ST_CONSOLE_CELL_DIRTY;
 }
 
 int
@@ -514,6 +514,10 @@ st_console_rasterize_locked(st_console_t *console, bool force)
 	for (uint32_t y = 0; y < console->rows; ++y) {
 		enum row_scale scale = ROW_SCALE_NORMAL;
 		bool row_changed;
+		struct st_console_cell *cells = st_console_cell_at(console,
+		    (size_t)y * console->columns);
+		struct st_console_cell *drawn = st_console_drawn_at(console,
+		    (size_t)y * console->columns);
 
 		if (previous_top) {
 			scale = ROW_SCALE_BOTTOM;
@@ -521,8 +525,7 @@ st_console_rasterize_locked(st_console_t *console, bool force)
 		}
 		else if (y + 1 < console->rows) {
 			for (uint32_t x = 0; x < console->columns; ++x) {
-				const struct st_console_cell *cell = &console->cells[
-				    (size_t)y * console->columns + x];
+				const struct st_console_cell *cell = &cells[x];
 
 				if ((cell->flags & (ST_CONSOLE_CELL_SAA5050
 				    | ST_CONSOLE_CELL_DOUBLE_HEIGHT))
@@ -534,28 +537,27 @@ st_console_rasterize_locked(st_console_t *console, bool force)
 				}
 			}
 		}
-		row_changed = console->raster_rows[y] != (uint8_t)scale;
+		row_changed = console->raster_rows[st_console_row_index(console, y)]
+		    != (uint8_t)scale;
 		for (uint32_t x = 0; x < console->columns;) {
-			size_t index = (size_t)y * console->columns + x;
-			const struct st_console_cell *cell = &console->cells[index];
+			const struct st_console_cell *cell = &cells[x];
 			uint32_t end;
 
 			if (!force && !row_changed
-			    && (console->drawn_cells[index].flags
+			    && (drawn[x].flags
 			    & ST_CONSOLE_CELL_DIRTY) == 0
-			    && st_console_cells_equal(cell, &console->drawn_cells[index])) {
+			    && st_console_cells_equal(cell, &drawn[x])) {
 				++x;
 				continue;
 			}
 			end = x + 1;
 			while (end < console->columns) {
-				index = (size_t)y * console->columns + end;
-				cell = &console->cells[index];
+				cell = &cells[end];
 				if (!force && !row_changed
-				    && (console->drawn_cells[index].flags
+				    && (drawn[end].flags
 				    & ST_CONSOLE_CELL_DIRTY) == 0
 				    && st_console_cells_equal(cell,
-				    &console->drawn_cells[index]))
+				    &drawn[end]))
 					break;
 				++end;
 			}
@@ -569,29 +571,42 @@ st_console_rasterize_locked(st_console_t *console, bool force)
 				}
 			}
 			render_cell(console, x, y, scale, &font_cache);
-			console->cells[(size_t)y * console->columns + x].flags
+			cells[x].flags
 			    |= ST_CONSOLE_CELL_DIRTY;
 			/* Prestel's lower half is derived from the upper cell. */
 			if (scale == ROW_SCALE_TOP && y + 1 < console->rows) {
 				size_t below = (size_t)(y + 1) * console->columns + x;
 
-				if ((console->cells[below].flags
+				if ((st_console_cell_at(console, below)->flags
 				    & ST_CONSOLE_CELL_TERMINAL_FONT) != 0)
-					console->drawn_cells[below].flags
+					st_console_drawn_at(console, below)->flags
 					    |= ST_CONSOLE_CELL_DIRTY;
 			}
 			++x;
 		}
-		console->raster_rows[y] = (uint8_t)scale;
+		console->raster_rows[st_console_row_index(console, y)] = (uint8_t)scale;
 	}
 	console->raster_current = true;
 	return 0;
 }
 
-void
-st_console_move_raster_locked(st_console_t *console,
+static void
+copy_pixel_row_locked(st_console_t *console, uint32_t from, uint32_t to,
+	size_t bytes)
+{
+	size_t source = st_console_pixel_position_locked(console, 0, from);
+	size_t target = st_console_pixel_position_locked(console, 0, to);
+
+	memmove(console->pixels->primary + target,
+	    console->pixels->primary + source, bytes);
+	memmove(console->pixels->alternate + target,
+	    console->pixels->alternate + source, bytes);
+}
+
+static void
+move_raster_locked(st_console_t *console,
 	const struct st_console_rect *source, uint32_t destination_x,
-	uint32_t destination_y)
+	uint32_t destination_y, bool metadata)
 {
 	bool backwards;
 	bool full_scroll_up;
@@ -615,7 +630,9 @@ st_console_move_raster_locked(st_console_t *console,
 	    && source->width == console->columns && source->y == 0
 	    && destination_y > 0
 	    && source->height == console->rows - destination_y;
-	if (full_scroll_up || full_scroll_down) {
+	/* Origin rotation is valid only for move-and-clear: a plain move must
+	 * retain the old exposed source pixels, including pixel graphics. */
+	if (!metadata && (full_scroll_up || full_scroll_down)) {
 		uint32_t text_height = console->full_surface_scroll
 		    ? console->pixels->height
 		    : console->rows * console->cell_height;
@@ -631,7 +648,38 @@ st_console_move_raster_locked(st_console_t *console,
 			console->pixel_top += text_height - shift;
 		else
 			console->pixel_top -= shift;
-		pixel_bytes = 0;
+		return;
+	}
+	if (!metadata && source->x == 0 && destination_x == 0
+	    && source->width == console->columns
+	    && (!console->full_surface_scroll
+	    || (console->pixel_extra_width == 0 && console->pixel_extra_height == 0))) {
+		uint32_t height = console->rows * console->cell_height;
+		uint32_t shift = (backwards ? destination_y - source->y
+		    : source->y - destination_y) * console->cell_height;
+		uint32_t first = (backwards ? source->y : destination_y)
+		    * console->cell_height;
+		uint32_t end = ((backwards ? destination_y : source->y)
+		    + source->height) * console->cell_height;
+
+		/* As with the cell ring, only rows outside the scroll region
+		 * require copying. Keep status rows and non-text margins fixed. */
+		if (!backwards) {
+			for (uint32_t y = first; y-- > 0;)
+				copy_pixel_row_locked(console, y, (y + shift) % height, pixel_bytes);
+			for (uint32_t y = height; y-- > end;)
+				copy_pixel_row_locked(console, y, (y + shift) % height, pixel_bytes);
+			console->pixel_top = (console->pixel_top + shift) % height;
+		} else {
+			for (uint32_t y = end; y < height; ++y)
+				copy_pixel_row_locked(console, y,
+				    (y + height - shift) % height, pixel_bytes);
+			for (uint32_t y = 0; y < first; ++y)
+				copy_pixel_row_locked(console, y,
+				    (y + height - shift) % height, pixel_bytes);
+			console->pixel_top = (console->pixel_top + height - shift) % height;
+		}
+		return;
 	}
 	for (uint32_t row_index = 0; row_index < source->height; ++row_index) {
 		uint32_t row = backwards ? source->height - row_index - 1 : row_index;
@@ -641,8 +689,14 @@ st_console_move_raster_locked(st_console_t *console,
 		size_t target_cell = (size_t)target_y * console->columns
 		    + destination_x;
 
-		memmove(&console->drawn_cells[target_cell],
-		    &console->drawn_cells[source_cell], cell_bytes);
+		if (metadata) {
+			memmove(st_console_drawn_at(console, target_cell),
+			    st_console_drawn_at(console, source_cell), cell_bytes);
+			if (source->x == 0 && destination_x == 0
+			    && source->width == console->columns)
+				console->raster_rows[st_console_row_index(console, target_y)]
+				    = console->raster_rows[st_console_row_index(console, source_y)];
+		}
 		for (uint32_t py = 0; pixel_bytes != 0
 		    && py < console->cell_height; ++py) {
 			size_t source_pixel = st_console_pixel_position_locked(console,
@@ -658,10 +712,22 @@ st_console_move_raster_locked(st_console_t *console,
 			    &console->pixels->alternate[source_pixel], pixel_bytes);
 		}
 	}
-	if (source->x == 0 && destination_x == 0
-	    && source->width == console->columns)
-		memmove(&console->raster_rows[destination_y],
-		    &console->raster_rows[source->y], source->height);
+}
+
+void
+st_console_move_raster_locked(st_console_t *console,
+	const struct st_console_rect *source, uint32_t destination_x,
+	uint32_t destination_y)
+{
+	move_raster_locked(console, source, destination_x, destination_y, true);
+}
+
+void
+st_console_move_pixels_locked(st_console_t *console,
+	const struct st_console_rect *source, uint32_t destination_x,
+	uint32_t destination_y)
+{
+	move_raster_locked(console, source, destination_x, destination_y, false);
 }
 
 static bool
@@ -744,9 +810,9 @@ mark_pixel_cells(st_console_t *console, int64_t left, int64_t top,
 		for (uint32_t x = first_x; x <= last_x; ++x) {
 			size_t index = (size_t)y * console->columns + x;
 
-			console->cells[index].flags |= ST_CONSOLE_CELL_PIXEL_GRAPHICS
+			st_console_cell_at(console, index)->flags |= ST_CONSOLE_CELL_PIXEL_GRAPHICS
 			    | ST_CONSOLE_CELL_DIRTY;
-			console->drawn_cells[index].flags
+			st_console_drawn_at(console, index)->flags
 			    |= ST_CONSOLE_CELL_PIXEL_GRAPHICS;
 		}
 	}

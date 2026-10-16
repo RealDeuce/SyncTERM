@@ -714,18 +714,24 @@ collect_cell_damage(struct st_console_bitmap_presenter *presenter,
 
 	for (uint32_t y = 0; y < console->rows; ++y) {
 		uint32_t x = 0;
+		if (st_console_row_dirty(console, y)) {
+			const struct st_console_rect row = {0, y * presenter->cell_height,
+			    console->columns * presenter->cell_width, presenter->cell_height};
+			st_console_rect_accumulate(&damage, &valid, &row);
+			continue;
+		}
 
 		while (x < console->columns) {
 			uint32_t first;
 			struct st_console_rect rectangle;
 
 			while (x < console->columns
-			    && (console->cells[(size_t)y * console->columns + x].flags
+			    && (st_console_cell_at(console, (size_t)y * console->columns + x)->flags
 			    & ST_CONSOLE_CELL_DIRTY) == 0)
 				++x;
 			first = x;
 			while (x < console->columns
-			    && (console->cells[(size_t)y * console->columns + x].flags
+			    && (st_console_cell_at(console, (size_t)y * console->columns + x)->flags
 			    & ST_CONSOLE_CELL_DIRTY) != 0)
 				++x;
 			if (first == x)

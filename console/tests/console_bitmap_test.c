@@ -256,7 +256,7 @@ test_full_surface_scroll_gap(void)
 	st_pixel_buffer_destroy(pixels);
 	{
 		const struct st_console_rect source = {0, 1, 1, 1};
-		const struct st_console_cell blank = console->cells[1];
+		const struct st_console_cell blank = (*st_console_cell_at(console, 1));
 
 		CHECK(st_console_set_pixel(console, 0, 0,
 		    ST_PIXEL_COLOR_RGB_TAG | UINT32_C(0xff0000)) == 0);
@@ -297,7 +297,7 @@ test_full_surface_scroll_right_strip(void)
 	CHECK(st_console_set_full_surface_scroll(console, true) == 0);
 	CHECK(st_console_set_pixel(console, 1, 0,
 	    ST_PIXEL_COLOR_RGB_TAG | UINT32_C(0xff0000)) == 0);
-	blank = console->cells[1];
+	blank = (*st_console_cell_at(console, 1));
 	CHECK(st_console_move_cells_clear(console, &source, 0, 0,
 	    &blank) == 0);
 	CHECK(st_console_get_pixels(&pixels, console, &pixels_rect, false) == 0);
@@ -786,7 +786,7 @@ main(void)
 		CHECK(width == 21 && height == 16);
 	}
 	fill_planes(console, red, blue);
-	console->cells[0].flags |= ST_CONSOLE_CELL_BLINK;
+	st_console_cell_at(console, 0)->flags |= ST_CONSOLE_CELL_BLINK;
 	console->cursor_visible = false;
 	CHECK(st_console_bitmap_presenter_create(&presenter, console) == 0);
 	CHECK(st_console_bitmap_presenter_frame(presenter, console, 100, 100,
@@ -815,8 +815,8 @@ main(void)
 
 	/* A one-cell change remains a one-cell upload with host scaling. */
 	console->pixels->primary[2] = ST_PIXEL_COLOR_RGB_VALUE(0, 255, 0);
-	console->cells[0].flags &= ~ST_CONSOLE_CELL_DIRTY;
-	console->cells[1].flags |= ST_CONSOLE_CELL_DIRTY;
+	st_console_cell_at(console, 0)->flags &= ~ST_CONSOLE_CELL_DIRTY;
+	st_console_cell_at(console, 1)->flags |= ST_CONSOLE_CELL_DIRTY;
 	log.calls = 0;
 	CHECK(st_console_bitmap_presenter_frame(presenter, console, 100, 100,
 	    1266, record_upload, &log, &frame) == 0);
@@ -825,7 +825,7 @@ main(void)
 	CHECK(log.rectangle.width == 2 && log.rectangle.height == 4);
 
 	/* Custom cursor scan lines are composed into the native frame. */
-	console->cells[1].flags &= ~ST_CONSOLE_CELL_DIRTY;
+	st_console_cell_at(console, 1)->flags &= ~ST_CONSOLE_CELL_DIRTY;
 	console->cursor_x = 1;
 	console->cursor_y = 0;
 	console->cursor_custom = true;
@@ -851,7 +851,7 @@ main(void)
 	/* Internal blocky scaling preserves a dirty cell as scaled damage. */
 	console->pixels->alternate[0] = ST_PIXEL_COLOR_RGB_VALUE(0x12, 0x34,
 	    0x56);
-	console->cells[0].flags |= ST_CONSOLE_CELL_DIRTY;
+	st_console_cell_at(console, 0)->flags |= ST_CONSOLE_CELL_DIRTY;
 	log.calls = 0;
 	CHECK(st_console_bitmap_presenter_frame(presenter, console, 10, 10,
 	    1266, record_upload, &log, &frame) == 0);

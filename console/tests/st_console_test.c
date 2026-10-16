@@ -1120,9 +1120,8 @@ test_partial_full_width_raster_scroll(void)
 	CHECK(st_console_write_complete_cells(console, &screen, cells, 1) == 0);
 	CHECK(st_console_move_cells_clear(console, &scroll_up, 0, 0,
 	    &fill) == 0);
-	/* A reserved row makes this a rectangular move, not a rotation of the
-	 * complete text raster. */
-	CHECK(console->pixel_top == 0);
+	/* Rotate the text raster, correcting the reserved fifth row in place. */
+	CHECK(console->pixel_top == 1);
 	CHECK(st_console_get_pixels(&pixels, console, &pixels_rect, false) == 0);
 	CHECK(pixels->primary[0] == 2);
 	CHECK(pixels->primary[1] == 3);
@@ -1223,13 +1222,13 @@ test_saa5050_double_height_raster(void)
 	CHECK(pixels->primary[16 + 7] == foreground);
 	CHECK(pixels->primary[24 + 7] == foreground);
 	st_pixel_buffer_destroy(pixels);
-	console->cells[0].flags &= ~ST_CONSOLE_CELL_DIRTY;
-	console->cells[1].flags &= ~ST_CONSOLE_CELL_DIRTY;
-	console->cells[0].flags &= ~ST_CONSOLE_CELL_DOUBLE_HEIGHT;
-	console->drawn_cells[0].flags |= ST_CONSOLE_CELL_DIRTY;
+	st_console_cell_at(console, 0)->flags &= ~ST_CONSOLE_CELL_DIRTY;
+	st_console_cell_at(console, 1)->flags &= ~ST_CONSOLE_CELL_DIRTY;
+	st_console_cell_at(console, 0)->flags &= ~ST_CONSOLE_CELL_DOUBLE_HEIGHT;
+	st_console_drawn_at(console, 0)->flags |= ST_CONSOLE_CELL_DIRTY;
 	CHECK(st_console_rasterize_locked(console, false) == 0);
-	CHECK((console->cells[0].flags & ST_CONSOLE_CELL_DIRTY) != 0);
-	CHECK((console->cells[1].flags & ST_CONSOLE_CELL_DIRTY) != 0);
+	CHECK((st_console_cell_at(console, 0)->flags & ST_CONSOLE_CELL_DIRTY) != 0);
+	CHECK((st_console_cell_at(console, 1)->flags & ST_CONSOLE_CELL_DIRTY) != 0);
 	CHECK(st_console_scroll(console, 1, ' ') == 0);
 	CHECK(st_console_get_pixels(&pixels, console, &pixels_rect, false) == 0);
 	CHECK(st_console_get_pixels(&forced, console, &pixels_rect, true) == 0);
@@ -2282,6 +2281,168 @@ test_cluster_font_mapping(void)
 }
 
 static void
+test_circular_row_moves(void)
+{
+	enum { WIDTH = 6, HEIGHT = 7, COUNT = WIDTH * HEIGHT };
+	static const uint8_t bitmap[256] = {0, 0x80, 0xff};
+	static const uint8_t wide_bitmap[2] = {0xaa, 0x55};
+	const struct st_console_font font = {
+		.bitmap = bitmap, .bitmap_size = sizeof(bitmap), .width = 8,
+		.height = 1, .glyph_count = 256, .row_stride = 1, .glyph_stride = 1,
+		.wide_bitmap = wide_bitmap, .wide_bitmap_size = sizeof(wide_bitmap),
+		.wide_glyph_count = 1, .wide_row_stride = 2, .wide_glyph_stride = 2,
+	};
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config config = {
+		.columns = WIDTH, .rows = HEIGHT, .cell_width = 8, .cell_height = 1,
+	};
+	const struct st_console_rect screen = {0, 0, WIDTH, HEIGHT};
+	const struct st_console_rect raster = {0, 0, WIDTH * 8, HEIGHT};
+	struct st_console_cell before[COUNT], expected[COUNT], actual[COUNT];
+	struct st_console_cell fill = {.glyph = ' ', .foreground = 7};
+	st_console_t *console = NULL;
+	uint32_t random = 17;
+
+	CHECK(st_console_create(&console, &display, &config) == 0);
+	CHECK(register_static_font(console, &font) == 0);
+	for (size_t i = 0; i < COUNT; ++i) {
+		before[i] = (struct st_console_cell){
+			.glyph = (uint32_t)(i % 3), .foreground = (uint32_t)(i % 16),
+			.background = (uint32_t)(i / WIDTH),
+			.flags = i % 2 == 0 ? ST_CONSOLE_CELL_BLINK : 0,
+		};
+	}
+	for (size_t y = 0; y < HEIGHT; ++y) {
+		before[y * WIDTH + 2].glyph = 256;
+		before[y * WIDTH + 3] = before[y * WIDTH + 2];
+		before[y * WIDTH + 3].flags |= ST_CONSOLE_CELL_CONTINUATION;
+	}
+	CHECK(st_console_write_complete_cells(console, &screen, before, WIDTH) == 0);
+	for (unsigned pass = 0; pass < 350; ++pass) {
+		struct st_console_rect source = {0, 1, WIDTH, HEIGHT - 2};
+		uint32_t to = 0;
+		bool clear = pass % 4 != 0;
+		if (pass % 3 == 0) {
+			random = random * UINT32_C(1664525) + UINT32_C(1013904223);
+			source.height = 1 + random % (HEIGHT - 1);
+			source.y = (random >> 8) % (HEIGHT - source.height + 1);
+			to = (random >> 16) % (HEIGHT - source.height + 1);
+		} else if (pass % 3 == 1) {
+			source.y = 0;
+			to = 1;
+		}
+		CHECK(st_console_read_cells(console, &screen, before, WIDTH) == 0);
+		memcpy(expected, before, sizeof(expected));
+		memcpy(expected + to * WIDTH, before + source.y * WIDTH,
+		    source.height * WIDTH * sizeof(before[0]));
+		if (clear) {
+			for (uint32_t y = source.y; y < source.y + source.height; ++y)
+				if (y < to || y >= to + source.height)
+					for (uint32_t x = 0; x < WIDTH; ++x)
+						expected[y * WIDTH + x] = fill;
+			CHECK(st_console_move_cells_clear(console, &source, 0, to, &fill) == 0);
+		} else {
+			CHECK(st_console_move_cells(console, &source, 0, to) == 0);
+		}
+		CHECK(st_console_read_cells(console, &screen, actual, WIDTH) == 0);
+		for (size_t i = 0; i < COUNT; ++i)
+			CHECK(st_console_cells_equal(&expected[i], &actual[i]));
+		struct st_pixel_buffer *cached = NULL, *forced = NULL;
+		CHECK(st_console_get_pixels(&cached, console, &raster, false) == 0);
+		CHECK(st_console_get_pixels(&forced, console, &raster, true) == 0);
+		CHECK(memcmp(cached->primary, forced->primary,
+		    WIDTH * 8 * HEIGHT * sizeof(uint32_t)) == 0);
+		CHECK(memcmp(cached->alternate, forced->alternate,
+		    WIDTH * 8 * HEIGHT * sizeof(uint32_t)) == 0);
+		st_pixel_buffer_destroy(cached);
+		st_pixel_buffer_destroy(forced);
+		/* Re-seed a row so repeated scrolling cannot turn this into a
+		 * vacuous comparison of all-blank screens. */
+		before[0].glyph = pass % 3;
+		before[0].background = pass % 16;
+		CHECK(st_console_write_complete_cells(console,
+		    &(const struct st_console_rect){0, HEIGHT - 2, 1, 1}, before, 1) == 0);
+	}
+	st_console_snapshot_t *snapshot = NULL;
+	CHECK(st_console_read_cells(console, &screen, before, WIDTH) == 0);
+	CHECK(st_console_snapshot_create(&snapshot, console) == 0);
+	CHECK(st_console_scroll(console, 2, ' ') == 0);
+	CHECK(st_console_snapshot_restore(console, snapshot) == 0);
+	CHECK(st_console_read_cells(console, &screen, actual, WIDTH) == 0);
+	CHECK(memcmp(before, actual, sizeof(before)) == 0);
+	st_console_snapshot_destroy(snapshot);
+	CHECK(st_console_set_window(console,
+	    &(const struct st_console_rect){0, 1, WIDTH, HEIGHT - 2}) == 0);
+	for (unsigned i = 0; i < HEIGHT * 3; ++i)
+		CHECK(st_console_scroll(console, i % 3 == 0 ? -1 : 1, ' ') == 0);
+	CHECK(st_console_read_cells(console, &screen, before, WIDTH) == 0);
+	CHECK(st_console_resize(console, WIDTH + 1, HEIGHT + 1) == 0);
+	CHECK(st_console_read_cells(console, &screen, actual, WIDTH) == 0);
+	CHECK(memcmp(before, actual, sizeof(before)) == 0);
+	st_console_destroy(console);
+}
+
+static void
+test_pixel_row_rotation_preserves_outside(void)
+{
+	static const uint8_t bitmap[2] = {0};
+	const struct st_console_font font = {
+		.bitmap = bitmap, .bitmap_size = 2, .width = 2, .height = 2,
+		.glyph_count = 1, .row_stride = 1, .glyph_stride = 2,
+	};
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config config = {
+		.columns = 4, .rows = 7, .cell_width = 2, .cell_height = 2,
+		.pixel_width = 10, .pixel_height = 17,
+	};
+	const struct st_console_rect full = {0, 0, 10, 17};
+	const struct st_console_cell fill = {
+		.background = ST_CONSOLE_COLOR_RGB_VALUE(0x12, 0x34, 0x56),
+	};
+	const struct st_pixel_blit blit = {.width = 10, .height = 17,
+		.scale_x = 1, .scale_y = 1};
+	struct st_pixel_buffer *input = NULL;
+	st_console_t *console = NULL;
+	CHECK(st_console_create(&console, &display, &config) == 0);
+	CHECK(register_static_font(console, &font) == 0);
+	CHECK(st_pixel_buffer_create(&input, 10, 17, true) == 0);
+	for (unsigned pass = 0; pass < 40; ++pass) {
+		bool down = pass % 2 != 0;
+		struct st_console_rect source = {0, down ? 1 : 2, 4, 4};
+		uint32_t target = down ? 2 : 1;
+		struct st_pixel_buffer *before = NULL, *after = NULL;
+		uint32_t expected[170];
+		/* Both pixel-origin policies, including extra right/bottom margins. */
+		CHECK(st_console_set_full_surface_scroll(console, pass >= 20) == 0);
+		for (size_t i = 0; i < 170; ++i) {
+			input->primary[i] = ST_CONSOLE_COLOR_RGB_VALUE(0, pass, i);
+			input->alternate[i] = ST_CONSOLE_COLOR_RGB_VALUE(pass, i, 0);
+		}
+		CHECK(st_console_blit_pixels(console, input, NULL, &blit) == 0);
+		CHECK(st_console_get_pixels(&before, console, &full, false) == 0);
+		CHECK(st_console_move_cells_clear(console, &source, 0, target, &fill) == 0);
+		CHECK(st_console_get_pixels(&after, console, &full, false) == 0);
+		for (unsigned plane = 0; plane < 2; ++plane) {
+			const uint32_t *old = plane == 0 ? before->primary : before->alternate;
+			const uint32_t *actual = plane == 0 ? after->primary : after->alternate;
+			memcpy(expected, old, sizeof(expected));
+			for (uint32_t y = 0; y < 8; ++y)
+				memcpy(expected + (target * 2 + y) * 10,
+				    old + (source.y * 2 + y) * 10, 8 * sizeof(uint32_t));
+			uint32_t cleared = down ? source.y : source.y + source.height - 1;
+			for (uint32_t y = cleared * 2; y < cleared * 2 + 2; ++y)
+				for (uint32_t x = 0; x < 8; ++x)
+					expected[y * 10 + x] = fill.background;
+			CHECK(memcmp(expected, actual, sizeof(expected)) == 0);
+		}
+		st_pixel_buffer_destroy(before);
+		st_pixel_buffer_destroy(after);
+	}
+	st_pixel_buffer_destroy(input);
+	st_console_destroy(console);
+}
+
+static void
 test_font_registration_preserves_cells(void)
 {
 	static const uint8_t bitmap[] = {0x00, 0x80};
@@ -2909,6 +3070,8 @@ main(void)
 	test_ascii_character_identity();
 	test_font_resolution_and_complete_cells();
 	test_cluster_font_mapping();
+	test_circular_row_moves();
+	test_pixel_row_rotation_preserves_outside();
 	test_zero_width_text();
 	test_font_registration_preserves_cells();
 	test_font_registry_lru_replacement();

@@ -357,7 +357,7 @@ st_console_set_video_flags(st_console_t *console, uint32_t flags)
 			st_console_mark_all_locked(console);
 			for (size_t i = 0; console->drawn_cells != NULL && i < count;
 			    ++i)
-				console->drawn_cells[i].flags
+				st_console_drawn_at(console, i)->flags
 				    |= ST_CONSOLE_CELL_DIRTY;
 		}
 	}
@@ -607,7 +607,7 @@ fill_line_locked(st_console_t *console, uint32_t y, uint32_t codepoint)
 		/* The pixel ring can expose graphics even when this cell's
 		 * contents already equal the fill cell. */
 		if (console->drawn_cells != NULL)
-			console->drawn_cells[index].flags |= ST_CONSOLE_CELL_DIRTY;
+			st_console_drawn_at(console, index)->flags |= ST_CONSOLE_CELL_DIRTY;
 	}
 }
 
@@ -652,10 +652,10 @@ clear_window_boundary_pairs_locked(st_console_t *console, uint32_t top,
 	for (uint32_t y = top; y < top + height; ++y) {
 		size_t row = (size_t)y * console->columns;
 
-		if (left != 0 && (console->cells[row + left].flags
+		if (left != 0 && (st_console_cell_at(console, row + left)->flags
 		    & ST_CONSOLE_CELL_CONTINUATION) != 0)
 			st_console_set_cell_locked(console, row + left, &blank);
-		if (right != console->columns && (console->cells[row + right].flags
+		if (right != console->columns && (st_console_cell_at(console, row + right)->flags
 		    & ST_CONSOLE_CELL_CONTINUATION) != 0)
 			st_console_set_cell_locked(console, row + right - 1, &blank);
 	}
@@ -690,12 +690,16 @@ move_row_block_locked(st_console_t *console, uint32_t source_y,
 		size_t to = (size_t)(destination_y + row) * console->columns
 		    + source.x;
 
-		memmove(&console->cells[to], &console->cells[from], bytes);
+		memmove(st_console_cell_at(console, to), st_console_cell_at(console, from), bytes);
 		for (uint32_t x = 0; x < source.width; ++x)
-			console->cells[to + x].flags |= ST_CONSOLE_CELL_DIRTY;
+			st_console_cell_at(console, to + x)->flags |= ST_CONSOLE_CELL_DIRTY;
 	}
 	console->changed = true;
 }
+
+static bool move_full_width_rows_locked(st_console_t *console,
+	const struct st_console_rect *source, uint32_t destination_x,
+	uint32_t destination_y, const struct st_console_cell *fill);
 
 static void
 scroll_locked(st_console_t *console, int32_t lines, uint32_t codepoint)
@@ -715,6 +719,16 @@ scroll_locked(st_console_t *console, int32_t lines, uint32_t codepoint)
 		for (row = top; row < bottom; ++row)
 			fill_line_locked(console, row, codepoint);
 		return;
+	}
+	if (console->window.x == 0 && console->window.width == console->columns) {
+		const struct st_console_rect source = {0,
+		    lines > 0 ? top + amount : top, console->columns,
+		    console->window.height - amount};
+		struct st_console_cell blank = st_console_blank_locked(console, codepoint);
+
+		if (move_full_width_rows_locked(console, &source, 0,
+		    lines > 0 ? top : top + amount, &blank))
+			return;
 	}
 	if (lines > 0) {
 		move_row_block_locked(console, top + amount, top,
@@ -1067,14 +1081,61 @@ normalize_saved_boundaries_locked(st_console_t *console,
 	}
 }
 
+static void
+copy_row_storage_locked(st_console_t *console, uint32_t from, uint32_t to)
+{
+	size_t bytes = (size_t)console->columns * sizeof(console->cells[0]);
+
+	memmove(st_console_cell_at(console, (size_t)to * console->columns),
+	    st_console_cell_at(console, (size_t)from * console->columns), bytes);
+	if (console->drawn_cells != NULL) {
+		memmove(st_console_drawn_at(console, (size_t)to * console->columns),
+		    st_console_drawn_at(console, (size_t)from * console->columns), bytes);
+		console->raster_rows[st_console_row_index(console, to)]
+		    = console->raster_rows[st_console_row_index(console, from)];
+	}
+}
+
+static bool
+rotate_rows_locked(st_console_t *console, const struct st_console_rect *source,
+	uint32_t destination_y)
+{
+	bool up = destination_y < source->y;
+	uint32_t shift = up ? source->y - destination_y : destination_y - source->y;
+	uint32_t first = up ? destination_y : source->y;
+	uint32_t end = (up ? source->y : destination_y) + source->height;
+
+	if (shift > source->height || source->height < console->rows / 2)
+		return false;
+	/* Move pixels, but not metadata: the latter follows the cell origin.
+	 * Outside rows need only a small correction copy (e.g. the status row).
+	 * Copy in dependency order before rotating, so no scratch buffer or
+	 * per-scroll allocation is needed even when the physical rows wrap. */
+	st_console_move_pixels_locked(console, source, 0, destination_y);
+	if (up) {
+		for (uint32_t y = first; y-- > 0;)
+			copy_row_storage_locked(console, y, (y + shift) % console->rows);
+		for (uint32_t y = console->rows; y-- > end;)
+			copy_row_storage_locked(console, y, (y + shift) % console->rows);
+		console->cell_top = (console->cell_top + shift) % console->rows;
+	} else {
+		for (uint32_t y = end; y < console->rows; ++y)
+			copy_row_storage_locked(console, y,
+			    (y + console->rows - shift) % console->rows);
+		for (uint32_t y = 0; y < first; ++y)
+			copy_row_storage_locked(console, y,
+			    (y + console->rows - shift) % console->rows);
+		console->cell_top = (console->cell_top + console->rows - shift)
+		    % console->rows;
+	}
+	return true;
+}
+
 static bool
 move_full_width_rows_locked(st_console_t *console,
 	const struct st_console_rect *source, uint32_t destination_x,
 	uint32_t destination_y, const struct st_console_cell *fill)
 {
-	size_t count;
-	size_t source_cell;
-	size_t destination_cell;
 	uint32_t exposed;
 	uint32_t fill_y;
 
@@ -1083,16 +1144,20 @@ move_full_width_rows_locked(st_console_t *console,
 		return false;
 	if (source->y == destination_y)
 		return true;
-	count = (size_t)source->width * source->height;
-	source_cell = (size_t)source->y * console->columns;
-	destination_cell = (size_t)destination_y * console->columns;
-	st_console_move_raster_locked(console, source, destination_x,
-	    destination_y);
-	memmove(&console->cells[destination_cell], &console->cells[source_cell],
-	    count * sizeof(console->cells[0]));
-	for (size_t i = 0; i < count; ++i)
-		console->cells[destination_cell + i].flags |= ST_CONSOLE_CELL_DIRTY;
-	console->changed = true;
+	if (fill == NULL || !rotate_rows_locked(console, source, destination_y)) {
+		bool backwards = destination_y > source->y;
+		size_t bytes = (size_t)console->columns * sizeof(console->cells[0]);
+
+		st_console_move_raster_locked(console, source, destination_x, destination_y);
+		for (uint32_t i = 0; i < source->height; ++i) {
+			uint32_t row = backwards ? source->height - i - 1 : i;
+			memmove(st_console_cell_at(console,
+			    (size_t)(destination_y + row) * console->columns),
+			    st_console_cell_at(console,
+			    (size_t)(source->y + row) * console->columns), bytes);
+		}
+	}
+	st_console_dirty_rows(console, destination_y, destination_y + source->height);
 	if (fill == NULL)
 		return true;
 	if (destination_y < source->y) {
@@ -1113,7 +1178,7 @@ move_full_width_rows_locked(st_console_t *console,
 
 			st_console_set_cell_locked(console, index, fill);
 			if (console->drawn_cells != NULL)
-				console->drawn_cells[index].flags
+				st_console_drawn_at(console, index)->flags
 				    |= ST_CONSOLE_CELL_DIRTY;
 		}
 	}
@@ -1168,8 +1233,8 @@ move_cells(st_console_t *console, const struct st_console_rect *source,
 	}
 	for (uint32_t y = 0; y < source->height; ++y)
 		memcpy(&saved[(size_t)y * source->width],
-		    &console->cells[(size_t)(source->y + y) * console->columns
-		    + source->x], (size_t)source->width * sizeof(saved[0]));
+		    st_console_cell_at(console, (size_t)(source->y + y) * console->columns
+		    + source->x), (size_t)source->width * sizeof(saved[0]));
 	normalize_saved_boundaries_locked(console, saved, source->width,
 	    source->height);
 	/* Keep the resolved raster in step with the cells.  The destination
@@ -1199,7 +1264,7 @@ move_cells(st_console_t *console, const struct st_console_rect *source,
 
 					st_console_set_cell_locked(console, index, fill);
 					if (console->drawn_cells != NULL)
-						console->drawn_cells[index].flags
+						st_console_drawn_at(console, index)->flags
 						    |= ST_CONSOLE_CELL_DIRTY;
 				}
 			}

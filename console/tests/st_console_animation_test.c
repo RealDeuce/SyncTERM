@@ -107,7 +107,7 @@ check_warm_scaled_cache(void)
 	CHECK(frame.pixels == primary && frame.generation == generation);
 	console->pixels->primary[0] = ST_PIXEL_COLOR_RGB_VALUE(7, 8, 9);
 	console->pixels->alternate[0] = ST_PIXEL_COLOR_RGB_VALUE(10, 11, 12);
-	console->cells[0].flags |= ST_CONSOLE_CELL_DIRTY;
+	st_console_cell_at(console, 0)->flags |= ST_CONSOLE_CELL_DIRTY;
 	CHECK(st_console_bitmap_presenter_frame(presenter, console, 4, 4, 1532,
 	    NULL, NULL, &frame) == 0);
 	CHECK(frame.generation == generation + 1);
