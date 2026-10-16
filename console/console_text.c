@@ -1046,14 +1046,8 @@ text_cell_wide_locked(st_console_t *console,
 	uint16_t glyph_font = st_console_cell_glyph_font(cell);
 	const struct st_console_font *font = st_console_font_locked(console,
 	    glyph_font);
-	const uint8_t *bitmap;
-	uint32_t width;
-	size_t row_stride;
-
-	if (font != NULL && st_console_font_glyph_locked(console,
-	    glyph_font, cell->glyph, &bitmap, &width, &row_stride))
-		return width == font->width * 2;
-	return false;
+	return font != NULL && cell->glyph >= font->glyph_count
+	    && cell->glyph - font->glyph_count < font->wide_glyph_count;
 }
 
 static void

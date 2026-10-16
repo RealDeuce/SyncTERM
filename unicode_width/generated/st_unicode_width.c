@@ -3826,6 +3826,8 @@ st_unicode_columns(uint32_t codepoint)
 	size_t left = 0;
 	size_t right = sizeof(wide_ranges) / sizeof(wide_ranges[0]);
 
+	if (codepoint >= 0x20 && codepoint <= 0x7e)
+		return 1;
 	if (!scalar(codepoint) || zero_width(codepoint))
 		return 0;
 	while (left < right) {

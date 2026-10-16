@@ -292,6 +292,9 @@ void st_console_set_cell_locked(st_console_t *console, size_t index,
 	const struct st_console_cell *source);
 const struct st_console_font *st_console_font_locked(st_console_t *console,
 	uint16_t identifier);
+bool st_console_font_glyph(const struct st_console_font *font,
+	uint32_t glyph, const uint8_t **bitmap, uint32_t *width,
+	size_t *row_stride);
 bool st_console_font_glyph_locked(st_console_t *console, uint16_t identifier,
 	uint32_t glyph, const uint8_t **bitmap, uint32_t *width,
 	size_t *row_stride);

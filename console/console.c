@@ -1231,16 +1231,12 @@ set_cell_raw_locked(st_console_t *console, size_t index,
 static bool
 cell_is_wide_locked(st_console_t *console, const struct st_console_cell *cell)
 {
-	const uint8_t *bitmap;
-	uint32_t width;
-	size_t row_stride;
 	uint16_t glyph_font = st_console_cell_glyph_font(cell);
 	const struct st_console_font *font = st_console_font_locked(console,
 	    glyph_font);
 
-	return font != NULL && st_console_font_glyph_locked(console,
-	    glyph_font, cell->glyph, &bitmap, &width, &row_stride)
-	    && width == font->width * 2;
+	return font != NULL && cell->glyph >= font->glyph_count
+	    && cell->glyph - font->glyph_count < font->wide_glyph_count;
 }
 
 static struct st_console_cell
@@ -1387,21 +1383,23 @@ make_clipped_blank_locked(st_console_t *console, struct st_console_cell *cell)
 }
 
 static void
-clear_pair_locked(st_console_t *console, size_t index)
+clear_boundary_pairs_locked(st_console_t *console, size_t first, size_t last)
 {
-	struct st_console_cell blank = st_console_blank_locked(console, ' ');
 	size_t count = (size_t)console->columns * console->rows;
-	struct st_console_cell *cell = &console->cells[index];
+	bool left = first % console->columns != 0
+	    && (console->cells[first].flags & ST_CONSOLE_CELL_CONTINUATION) != 0;
+	bool right = last + 1 < count && last % console->columns + 1
+	    < console->columns && (console->cells[last + 1].flags
+	    & ST_CONSOLE_CELL_CONTINUATION) != 0;
 
-	if ((cell->flags & ST_CONSOLE_CELL_CONTINUATION) != 0
-	    && index % console->columns != 0)
-		set_cell_raw_locked(console, index - 1, &blank);
-	else if (index + 1 < count && index % console->columns + 1
-	    < console->columns
-	    && (console->cells[index + 1].flags
-	    & ST_CONSOLE_CELL_CONTINUATION) != 0)
-		set_cell_raw_locked(console, index + 1, &blank);
-	set_cell_raw_locked(console, index, &blank);
+	if (left || right) {
+		struct st_console_cell blank = st_console_blank_locked(console, ' ');
+
+		if (left)
+			set_cell_raw_locked(console, first - 1, &blank);
+		if (right)
+			set_cell_raw_locked(console, last + 1, &blank);
+	}
 }
 
 void
@@ -1410,18 +1408,19 @@ st_console_set_cell_locked(st_console_t *console, size_t index,
 {
 	struct st_console_cell value = *source;
 	struct st_console_cell continuation;
+	bool wide;
 
 	value = cell_for_storage(source);
 	if (cells_equal(&console->cells[index], &value))
 		return;
-	clear_pair_locked(console, index);
-	set_cell_raw_locked(console, index, &value);
-	if ((value.flags & ST_CONSOLE_CELL_CONTINUATION) == 0
+	wide = (value.flags & ST_CONSOLE_CELL_CONTINUATION) == 0
 	    && cell_is_wide_locked(console, &value)
-	    && index % console->columns + 1 < console->columns) {
+	    && index % console->columns + 1 < console->columns;
+	clear_boundary_pairs_locked(console, index, index + (wide ? 1 : 0));
+	set_cell_raw_locked(console, index, &value);
+	if (wide) {
 		continuation = value;
 		continuation.flags |= ST_CONSOLE_CELL_CONTINUATION;
-		clear_pair_locked(console, index + 1);
 		set_cell_raw_locked(console, index + 1, &continuation);
 	}
 }
@@ -2023,9 +2022,7 @@ st_console_write_complete_cells(st_console_t *console,
 		    + destination->x;
 		size_t last = first + destination->width - 1;
 
-		clear_pair_locked(console, first);
-		if (last != first)
-			clear_pair_locked(console, last);
+		clear_boundary_pairs_locked(console, first, last);
 		for (uint32_t x = 0; x < destination->width; ++x) {
 			struct st_console_cell value = cells[(size_t)y * stride + x];
 
@@ -2243,16 +2240,6 @@ st_console_get_palette(st_console_t *console, uint16_t first,
 	return 0;
 }
 
-static int
-compare_font_registration(const void *left, const void *right)
-{
-	const struct st_console_font_registration *left_font = left;
-	const struct st_console_font_registration *right_font = right;
-
-	return left_font->identifier < right_font->identifier ? -1
-	    : left_font->identifier > right_font->identifier ? 1 : 0;
-}
-
 static bool
 font_bank_valid(const uint8_t *bitmap, size_t bitmap_size, uint32_t width,
 	uint32_t height, uint32_t glyph_count, size_t row_stride,
@@ -2359,12 +2346,11 @@ font_valid(const struct st_console_font *font)
 static bool
 find_font(st_console_t *console, uint16_t identifier, size_t *index)
 {
-	const struct st_console_font_registration key = {
-		.identifier = identifier,
-	};
-
-	return array_list_sorted_find(console->fonts, &key,
-	    compare_font_registration, index);
+	/* IDs are append positions; eviction replaces the same position. */
+	if ((size_t)identifier >= array_list_count(console->fonts))
+		return false;
+	*index = identifier;
+	return true;
 }
 
 const struct st_console_font *
@@ -2389,7 +2375,13 @@ st_console_font_glyph_locked(st_console_t *console, uint16_t identifier,
 {
 	const struct st_console_font *font = st_console_font_locked(console,
 	    identifier);
+	return st_console_font_glyph(font, glyph, bitmap, width, row_stride);
+}
 
+bool
+st_console_font_glyph(const struct st_console_font *font, uint32_t glyph,
+	const uint8_t **bitmap, uint32_t *width, size_t *row_stride)
+{
 	if (font == NULL)
 		return false;
 	if (glyph < font->glyph_count) {
@@ -2480,40 +2472,75 @@ font_lookup_fallback_locked(st_console_t *console, uint16_t identifier,
 	return true;
 }
 
+static bool
+font_lookup_text_exact(const struct st_console_font *font, bool scalar,
+	uint32_t codepoint, const char *text, size_t text_size, uint32_t *glyph)
+{
+	uint8_t columns;
+	char encoded[4];
+
+	if (scalar && font_lookup_exact(font, codepoint, glyph, &columns))
+		return true;
+	if (font->cluster_mapping_count == 0)
+		return false;
+	if (text == NULL) {
+		ptrdiff_t size = st_utf8_encode_one(encoded, sizeof(encoded), codepoint);
+		if (size < 0)
+			return false;
+		text = encoded;
+		text_size = (size_t)size;
+	}
+	return font_lookup_cluster_exact(font, text, text_size, glyph);
+}
+
+static const struct st_console_font *
+font_lookup_text_locked(st_console_t *console, uint16_t identifier,
+	bool scalar, uint32_t codepoint, const char *text, size_t text_size,
+	uint8_t columns, uint16_t *glyph_font, uint32_t *glyph)
+{
+	const struct st_console_font *selected = st_console_font_locked(console,
+	    identifier);
+	const struct st_console_font *font;
+	uint16_t owner = identifier;
+
+	if (selected != NULL && font_lookup_text_exact(selected, scalar,
+	    codepoint, text, text_size, glyph)) {
+		*glyph_font = identifier;
+		return selected;
+	}
+	font = identifier == 0 ? selected : st_console_font_locked(console, 0);
+	if (font != NULL && (selected == NULL
+	    || (font->width == selected->width && font->height == selected->height))) {
+		owner = 0;
+		if (font != selected && font_lookup_text_exact(font, scalar,
+		    codepoint, text, text_size, glyph)) {
+			*glyph_font = owner;
+			return font;
+		}
+	}
+	else
+		font = selected;
+	if (font == NULL || (columns != 1 && columns != 2)
+	    || (columns == 2 && font->wide_fallback_glyph
+	    == ST_CONSOLE_FONT_NO_WIDE_FALLBACK))
+		return NULL;
+	*glyph_font = owner;
+	*glyph = columns == 2 ? font->wide_fallback_glyph : font->fallback_glyph;
+	return font;
+}
+
 bool
 st_console_font_lookup_cluster_locked(st_console_t *console,
 	uint16_t identifier, const char *text, size_t text_size, uint8_t columns,
 	uint16_t *glyph_font, uint32_t *glyph)
 {
-	const struct st_console_font *font = st_console_font_locked(console,
-	    identifier);
-	uint16_t fallback_identifier = identifier;
-	uint32_t codepoint;
+	uint32_t codepoint = 0;
 	size_t consumed;
 	bool scalar = st_utf8_decode_one(&codepoint, &consumed, text,
 	    text_size) == 0 && consumed == text_size;
-	uint8_t ignored_columns;
 
-#define LOOKUP_EXACT(candidate) \
-	((scalar && font_lookup_exact((candidate), codepoint, glyph, \
-	    &ignored_columns)) || font_lookup_cluster_exact((candidate), text, \
-	    text_size, glyph))
-
-	if (font != NULL && LOOKUP_EXACT(font)) {
-		*glyph_font = identifier;
-		return true;
-	}
-	font = fallback_font_locked(console, identifier, &fallback_identifier);
-	if (font == NULL)
-		return false;
-	if (fallback_identifier == 0 && LOOKUP_EXACT(font)) {
-		*glyph_font = 0;
-		return true;
-	}
-#undef LOOKUP_EXACT
-	return (columns == 1 || columns == 2)
-	    && font_lookup_fallback_locked(console, identifier, columns,
-	    glyph_font, glyph);
+	return font_lookup_text_locked(console, identifier, scalar, codepoint,
+	    text, text_size, columns, glyph_font, glyph) != NULL;
 }
 
 bool
@@ -2522,20 +2549,18 @@ st_console_font_lookup_locked(st_console_t *console, uint16_t identifier,
 	uint8_t *columns)
 {
 	const struct st_console_font *font;
-	char encoded[4];
-	ptrdiff_t size = st_utf8_encode_one(encoded, sizeof(encoded), codepoint);
 
-	if (size < 0)
+	if (codepoint > UINT32_C(0x10ffff)
+	    || (codepoint >= UINT32_C(0xd800) && codepoint <= UINT32_C(0xdfff)))
 		return false;
 	*columns = st_unicode_columns(codepoint);
 	if (*columns == 0)
 		*columns = 1;
-	if (!st_console_font_lookup_cluster_locked(console, identifier,
-	    encoded, (size_t)size, *columns, glyph_font, glyph))
+	font = font_lookup_text_locked(console, identifier, true, codepoint,
+	    NULL, 0, *columns, glyph_font, glyph);
+	if (font == NULL)
 		return false;
-	font = st_console_font_locked(console, *glyph_font);
-	if (font != NULL)
-		*columns = *glyph < font->glyph_count ? 1 : 2;
+	*columns = *glyph < font->glyph_count ? 1 : 2;
 	return true;
 }
 
@@ -2899,7 +2924,7 @@ st_console_font_glyph_columns(st_console_t *console, uint16_t identifier,
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	font = st_console_font_locked(console, identifier);
-	if (font == NULL || !st_console_font_glyph_locked(console, identifier,
+	if (font == NULL || !st_console_font_glyph(font,
 	    glyph, &bitmap, &width, &row_stride))
 		result = IO_ERROR_NOT_FOUND;
 	else {

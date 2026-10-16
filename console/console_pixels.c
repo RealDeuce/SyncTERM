@@ -200,8 +200,8 @@ prepare_fast_cell(st_console_t *console, const struct st_console_cell *cell,
 	uint32_t foreground = cell->foreground;
 	uint32_t background = cell->background;
 
-	if (font == NULL || !st_console_font_glyph_locked(console,
-	    glyph_font, cell->glyph, &glyph, &glyph_width, &row_stride)
+	if (font == NULL || !st_console_font_glyph(font,
+	    cell->glyph, &glyph, &glyph_width, &row_stride)
 	    || glyph_width != 8 || font->height != console->cell_height
 	    || console->cell_width != 8
 	    || (cell->flags & (ST_CONSOLE_CELL_SEPARATED
@@ -320,8 +320,8 @@ render_cell(st_console_t *console, uint32_t x, uint32_t y,
 	source = &effective;
 	glyph_font = st_console_cell_glyph_font(source);
 	font = draw_glyph ? cached_font(console, font_cache, glyph_font) : NULL;
-	if (font != NULL && !st_console_font_glyph_locked(console,
-	    glyph_font, source->glyph, &glyph, &glyph_width,
+	if (font != NULL && !st_console_font_glyph(font,
+	    source->glyph, &glyph, &glyph_width,
 	    &glyph_row_stride))
 		font = NULL;
 	if (font != NULL && glyph_width == font->width * 2

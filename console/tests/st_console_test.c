@@ -2205,6 +2205,8 @@ test_cluster_font_mapping(void)
 		{'?', 0}, {'A', 1},
 	};
 	static const struct st_console_font_cluster_mapping clusters[] = {
+		{"A", 1, 0},
+		{"B", 1, 1},
 		{waving_hand_tone, sizeof(waving_hand_tone) - 1, 2},
 	};
 	static const struct st_console_font font = {
@@ -2237,10 +2239,19 @@ test_cluster_font_mapping(void)
 	uint16_t owner;
 	uint16_t identifier;
 	uint32_t glyph;
+	uint8_t columns;
 
 	CHECK(st_console_create(&console, &display, &config) == 0);
 	identifier = register_static_font(console, &font);
 	CHECK(identifier == 0);
+	/* Scalar mappings win over single-scalar cluster mappings, but a
+	 * cluster mapping remains usable when the scalar table has no entry. */
+	CHECK(st_console_font_lookup(console, identifier, 'A', &owner,
+	    &glyph, &columns) == 0);
+	CHECK(owner == identifier && glyph == 1 && columns == 1);
+	CHECK(st_console_font_lookup(console, identifier, 'B', &owner,
+	    &glyph, &columns) == 0);
+	CHECK(owner == identifier && glyph == 1 && columns == 1);
 	CHECK(st_console_font_lookup_cluster(console, identifier,
 	    waving_hand_tone, sizeof(waving_hand_tone) - 1, 2, &owner,
 	    &glyph) == 0);
