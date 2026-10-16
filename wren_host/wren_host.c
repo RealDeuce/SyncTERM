@@ -308,8 +308,73 @@ st_wren_host_set_screen_mode(struct st_wren_host *host,
 		status = install_mode_state(&host->picker, mode, true);
 	else if (status == 0)
 		host->picker.fonts = host->menu.fonts;
-	if (status == 0)
+	if (status == 0) {
 		host->current_screen_mode = selected;
+		host->current_mode = *mode;
+	}
+	return status;
+}
+
+int
+st_wren_host_begin_session_mode(st_wren_host_t *host,
+	enum st_screen_mode selected)
+{
+	struct st_console_config *config;
+	int status;
+
+	if (host == NULL || host->session_mode_active)
+		return IO_ERROR_INVALID_ARGUMENT;
+	host->menu_mode = host->current_mode;
+	host->menu_mode_identity = host->current_screen_mode;
+	/* CURRENT can represent a grid resized by the window manager rather
+	 * than any named mode. Keep its actual geometry and inherited palette. */
+	config = &host->menu_mode.console;
+	status = st_console_size(host->menu.console, &config->columns,
+	    &config->rows);
+	if (status == 0)
+		status = st_console_cell_pixel_size(host->menu.console,
+		    &config->cell_width, &config->cell_height);
+	config->pixel_width = 0;
+	config->pixel_height = 0;
+	if (status == 0 && config->cell_width != 0)
+		status = st_console_pixel_size(host->menu.console,
+		    &config->pixel_width, &config->pixel_height);
+	if (status == 0)
+		status = st_console_get_aspect_ratio(host->menu.console,
+		    &config->aspect_width, &config->aspect_height);
+	if (status == 0)
+		status = st_console_get_default_cursor(host->menu.console,
+		    &config->default_cursor);
+	if (status != 0)
+		return status;
+	host->session_mode_active = true;
+	if (selected == ST_SCREEN_MODE_CURRENT)
+		return 0;
+	status = st_wren_host_set_screen_mode(host, selected);
+	if (status != 0)
+		(void)st_wren_host_end_session_mode(host);
+	return status;
+}
+
+int
+st_wren_host_end_session_mode(st_wren_host_t *host)
+{
+	int status;
+
+	if (host == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (!host->session_mode_active)
+		return 0;
+	status = install_mode_state(&host->menu, &host->menu_mode, true);
+	if (status == 0 && host->picker.console != host->menu.console)
+		status = install_mode_state(&host->picker, &host->menu_mode, true);
+	else if (status == 0)
+		host->picker.fonts = host->menu.fonts;
+	if (status == 0) {
+		host->current_mode = host->menu_mode;
+		host->current_screen_mode = host->menu_mode_identity;
+		host->session_mode_active = false;
+	}
 	return status;
 }
 
@@ -1637,6 +1702,8 @@ st_wren_host_create(st_wren_host_t **result,
 			status = install_mode_state(&host->menu, mode, false);
 		if (status == 0 && host->picker.console != host->menu.console)
 			status = install_mode_state(&host->picker, mode, false);
+		if (status == 0)
+			host->current_mode = *mode;
 	}
 	if (status != 0) {
 		st_wren_host_destroy(host);

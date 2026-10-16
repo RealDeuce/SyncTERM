@@ -435,7 +435,7 @@ run_wren_capture_input(void *context, const char *utf8, size_t size)
 }
 
 static int
-run_selected(st_wren_host_t *host, st_console_display_t *display,
+run_session(st_wren_host_t *host, st_console_display_t *display,
 	st_console_t *console, struct st_profile *profile,
 	const struct st_app_paths *paths,
 	st_audio_runtime_t *audio, st_hyperlink_registry_t *hyperlinks,
@@ -469,13 +469,7 @@ run_selected(st_wren_host_t *host, st_console_display_t *display,
 	uint8_t selector = 0;
 	int status;
 
-	if (profile->screen_mode != ST_SCREEN_MODE_CURRENT) {
-		status = st_wren_host_set_screen_mode(host,
-		    (enum st_screen_mode)profile->screen_mode);
-		if (status != 0)
-			return status;
-	}
-	else {
+	if (profile->screen_mode == ST_SCREEN_MODE_CURRENT) {
 		status = st_wren_host_get_screen_mode(host, &session_mode);
 		if (status != 0)
 			return status;
@@ -649,6 +643,28 @@ finished:
 	st_font_catalog_destroy(fonts);
 	free(rip_directory);
 	return status;
+}
+
+static int
+run_selected(st_wren_host_t *host, st_console_display_t *display,
+	st_console_t *console, struct st_profile *profile,
+	const struct st_app_paths *paths,
+	st_audio_runtime_t *audio, st_hyperlink_registry_t *hyperlinks,
+	st_session_history_t *history, enum st_term_disposition *disposition)
+{
+	int status = st_wren_host_begin_session_mode(host,
+	    (enum st_screen_mode)profile->screen_mode);
+	int restore_status;
+
+	if (status == 0)
+		status = run_session(host, display, console, profile, paths, audio,
+		    hyperlinks, history, disposition);
+	/* Restore after disconnect notices and CTerm destruction, even when
+	 * connection setup failed or the session requested application exit. */
+	restore_status = st_wren_host_end_session_mode(host);
+	if (restore_status != 0)
+		*disposition = ST_TERM_EXIT_APPLICATION;
+	return restore_status != 0 ? restore_status : status;
 }
 
 int

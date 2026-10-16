@@ -65,6 +65,26 @@ if(BUILD_TESTING)
 			-Wall -Wextra -Wpedantic -Werror)
 	endif()
 	add_test(NAME app_startup COMMAND st_app_startup_test)
+	if(NOT WIN32)
+		add_executable(st_app_session_mode_test
+			tests/st_app_session_mode_test.c st_syncterm_icon.c st_terminfo.c)
+		target_link_libraries(st_app_session_mode_test PRIVATE st_wren_host
+			st_settings st_app_startup st_audio st_fonts st_font_catalog st_term
+			st_session_history st_hyperlink st_bbs_list st_time syncterm_threads
+			syncterm_filesystem)
+		target_compile_definitions(st_app_session_mode_test PRIVATE
+			ST_APP_SESSION_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/session-mode-test")
+		if(SYNCTERM_ENABLE_UNIFONT)
+			target_link_libraries(st_app_session_mode_test PRIVATE st_unifont)
+			target_compile_definitions(st_app_session_mode_test PRIVATE ST_HAVE_UNIFONT=1)
+		endif()
+		set_target_properties(st_app_session_mode_test PROPERTIES
+			C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		target_compile_options(st_app_session_mode_test PRIVATE
+			-Wall -Wextra -Wpedantic -Werror)
+		add_test(NAME app_session_mode COMMAND st_app_session_mode_test)
+		set_tests_properties(app_session_mode PROPERTIES TIMEOUT 60)
+	endif()
 	add_executable(st_command_line_empty_backend_test
 		tests/st_command_line_empty_backend_test.c)
 	target_link_libraries(st_command_line_empty_backend_test PRIVATE

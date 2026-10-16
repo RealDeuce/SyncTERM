@@ -205,6 +205,15 @@ int st_wren_host_set_screen_mode(st_wren_host_t *host,
 	enum st_screen_mode selected);
 int st_wren_host_get_screen_mode(const st_wren_host_t *host,
 	enum st_screen_mode *result);
+/* Bracket the entire connection attempt, including dialogs and teardown.
+ * Begin saves the menu's current mode/geometry before applying selected;
+ * CURRENT keeps that mode. Nested begins are rejected. End clears the
+ * session surface and restores the menu mode, fonts, palette and cursor.
+ * End is harmless without a successful begin. Both return an IO_ERROR on
+ * failure; a failed begin also attempts to restore the saved menu mode. */
+int st_wren_host_begin_session_mode(st_wren_host_t *host,
+	enum st_screen_mode selected);
+int st_wren_host_end_session_mode(st_wren_host_t *host);
 const char *st_wren_host_last_error(const st_wren_host_t *host);
 
 /* Connected Wren lifetime; application connection wiring is deliberately

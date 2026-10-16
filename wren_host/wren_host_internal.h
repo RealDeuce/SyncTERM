@@ -231,6 +231,10 @@ struct st_wren_host {
 	struct st_settings_font_draft font_draft;
 	uint64_t settings_generation;
 	enum st_screen_mode current_screen_mode;
+	struct st_screen_mode_descriptor current_mode;
+	struct st_screen_mode_descriptor menu_mode;
+	enum st_screen_mode menu_mode_identity;
+	bool session_mode_active;
 	struct st_wren_context menu;
 	struct st_wren_context picker;
 	struct st_profile selected;

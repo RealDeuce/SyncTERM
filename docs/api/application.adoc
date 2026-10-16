@@ -37,6 +37,17 @@ destination profile must already be initialized and is replaced only when
 the Wren quick-connect path.  Screen-mode and last-error queries are borrowed
 observations of host state.
 
+`st_wren_host_begin_session_mode(host, selected)` saves the menu's current
+mode and actual geometry, then applies the profile's mode (`CURRENT` leaves
+it unchanged). It rejects nesting. Pair every successful begin with
+`st_wren_host_end_session_mode(host)` after connection dialogs, disconnect
+notices, and session destruction, including connection failures and application
+exit. End clears the session surface and reinstalls the saved menu mode on
+both menu and picker consoles, including fonts, palette, and configured cursor.
+This restores menu-selected, custom, and externally resized modes rather than
+assuming the startup mode. Both calls return zero on success or an `IO_ERROR`;
+a failed begin attempts restoration, and end without an active scope is a no-op.
+
 Each `st_wren_connected_t` is a fresh connected-session VM associated with one
 profile and logical console.  It borrows its host, console, profile, and
 optional SFTP provider for its lifetime.  Pumping dispatches queued host work;
