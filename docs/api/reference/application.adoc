@@ -161,6 +161,15 @@ int st_wren_host_prompt_masked(st_wren_host_t *host, const char *title,
 	bool masked, char **result);
 int st_wren_host_choice(st_wren_host_t *host, const char *title,
 	const char *question, const char *const *choices, size_t count);
+int st_wren_host_alert(st_wren_host_t *host, const char *title, const char *message);
+int st_wren_host_help(st_wren_host_t *host, const char *title, const char *body);
+int st_wren_host_status(st_wren_host_t *host, const char *title, const char *message);
+bool st_wren_host_can_trust_tls(st_wren_host_t *host, const struct st_profile *profile);
+int st_wren_host_trust_tls(st_wren_host_t *host, const struct st_profile *profile,
+	const char *pem, char **filename);
+int st_wren_host_remember_tls_version(st_wren_host_t *host,
+	const struct st_profile *profile, int version);
+void st_wren_host_apply_tls_version(st_wren_host_t *host, struct st_profile *profile);
 int st_wren_host_remember_ssh_key(st_wren_host_t *host,
 	const struct st_profile *profile, const uint8_t fingerprint[32],
 	bool explicit_update);
@@ -286,6 +295,45 @@ Preserves the entry's current settings rather than overwriting them with a
 stale session profile. Safe mode returns zero without writing. Returns zero
 or a negative persistence error, including password-required if an unopened
 encrypted list cannot be read. Call on the owner/UI thread.
+
+| st_wren_host_alert(host, title, message), st_wren_host_help(host, title, body)
+| Required strings are borrowed for a synchronous alert or scrollable help
+viewer. Both preserve the screen and enforce the same input barriers and
+close/resize forwarding as prompt. Return zero or a negative error. Call on
+the owner thread outside an active call into the menu VM.
+
+| st_wren_host_status(host, title, message)
+| Draws nonblocking progress, taking a complete console snapshot on the first
+update. NULL message clears and restores that snapshot; title may be NULL
+only when clearing. Does not claim or discard input. Returns zero or a
+negative error; host destruction clears an outstanding overlay.
+
+| st_wren_host_can_trust_tls(host, profile)
+| Borrows an entry-identifying profile. True only for an existing personal
+entry outside safe mode whose address, port, and trust policy still match.
+External, quick-connect, and stale-session entries remain view-only.
+
+| st_wren_host_trust_tls(host, profile, pem, filename)
+| All pointers required; profile and PEM are borrowed. Writes a new,
+non-overwriting `tls-<sanitized entry name>.pem` beside the configuration,
+selects it as the entry's sole certificate trust, disables Web PKI, and resets
+the remembered TLS version. Returns zero and a caller-owned filename or a
+negative error with output unchanged. Failed writes/entry updates remove the
+new file; pre-existing certificate files are never overwritten or removed.
+Only available for entries accepted by can_trust_tls.
+
+| st_wren_host_remember_tls_version(host, profile, version)
+| Borrows profile and accepts TLS 1.2 or 1.3 enum values. Updates the current
+personal entry without overwriting unrelated changes with a stale profile.
+Returns zero or a persistence error. Safe mode and nonpersonal entries do not
+write. Unsaved observations survive directory reloads until host destruction.
+
+| st_wren_host_apply_tls_version(host, profile)
+| Before connecting, reapplies a remembered but unsaved TLS version to an
+initialized profile. Both pointers are borrowed. An observation is used only
+when entry name, address, port, trust policy, and the original disk version
+still match; explicit trust/version edits are not overridden. No file write
+occurs.
 
 | st_wren_host_select_url(host, url, default_connection_type, selected)
 | Builds the same temporary profile as Wren `Menu.quickConnect`; explicit URL

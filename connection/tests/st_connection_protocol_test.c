@@ -8,6 +8,7 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <openssl/x509.h>
+#include <openssl/pem.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <signal.h>
@@ -20,7 +21,8 @@
 
 #define CHECK(e) do { if (!(e)) { fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, #e); return 1; } } while (0)
 enum protocol { TELNET, NVT, TELNET_TLS, GHOST, GHOST_BAD,
-	MQTT, MQTT_BAD, MQTT_OVERSIZE, MQTT_CERT, TLS_BAD };
+	MQTT, MQTT_BAD, MQTT_OVERSIZE, MQTT_SYSTEM_PROMPT, MQTT_MANUAL, MQTT_BBSID,
+	MQTT_CANCEL, MQTT_CERT, TLS_BAD };
 struct fixture { int listener, socket; SSL_CTX *ctx; SSL *ssl; enum protocol type; };
 static const uint8_t text[] = {'A', '\r', 0, 'B', 255, 'C'};
 static const uint8_t keys[] = {'x', 3, 255, '\r', '\n'};
@@ -213,7 +215,7 @@ mqtt_server(struct fixture *f)
 		return write_exact(f, header, n);
 	}
 	CHECK(mq_subscription(f, false, "sbbs/+/version") == 0);
-	CHECK(mq_publish(f, "sbbs/TEST/version", "1.0", 3) == 0);
+	if (f->type != MQTT_BBSID) CHECK(mq_publish(f, "sbbs/TEST/version", "1.0", 3) == 0);
 	CHECK(mq_subscription(f, true, "sbbs/+/version") == 0);
 	CHECK(mq_subscription(f, false, "sbbs/TEST/node/+/status") == 0);
 	CHECK(mq_publish(f, "sbbs/TEST/node/3/status", "3", 1) == 0);
@@ -269,6 +271,7 @@ server(void *context)
 	int status;
 	f->socket = accept(f->listener, NULL, NULL);
 	CHECK(f->socket >= 0);
+	if (f->type == MQTT_BBSID) timeout.tv_sec = 20;
 	(void)setsockopt(f->socket, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
 	(void)setsockopt(f->socket, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
 	(void)socket_set_no_delay(f->socket, true);
@@ -295,6 +298,11 @@ server(void *context)
 		}
 		CHECK(status == 1);
 	}
+	if (f->type == MQTT_CANCEL) {
+		char byte;
+		CHECK(SSL_read(f->ssl, &byte, 1) <= 0);
+		SSL_free(f->ssl); f->ssl = NULL; close(f->socket); return 0;
+	}
 	status = f->type >= MQTT && f->type <= MQTT_CERT ? mqtt_server(f)
 	    : f->type == NVT ? nvt_server(f)
 	    : f->type == GHOST || f->type == GHOST_BAD ? ghost_server(f)
@@ -307,9 +315,33 @@ static int
 choose_node(void *context, const char *title, const char *message,
 	const char *const *choices, size_t count)
 {
-	(void)context; (void)message;
-	CHECK(strcmp(title, "MQTT nodes") == 0 && count == 2
+	(void)message;
+	if (strncmp(title, "MQTT", 4) == 0 && count == 1) return 0;
+	CHECK(strcmp(title, "Active Nodes") == 0 && count == 2
 	    && strstr(choices[0], "Node 3") != NULL);
+	return *(const enum protocol *)context == MQTT_MANUAL ? 1 : 0;
+}
+static int
+prompt(void *context, const char *title, const char *message, const char *initial,
+	size_t limit, bool masked, char **result)
+{
+	enum protocol type = *(const enum protocol *)context;
+	const char *answer;
+	(void)message;
+	if (type == MQTT_SYSTEM_PROMPT || type == MQTT_CANCEL) {
+		CHECK(strcmp(title, "System Password") == 0 && masked && limit == ST_PROFILE_SYSTEM_PASSWORD_MAX);
+		if (type == MQTT_CANCEL) { *result = NULL; return 0; }
+		answer = "System";
+	} else if (type == MQTT_MANUAL) {
+		CHECK(strcmp(title, "Node Number") == 0 && !masked && strcmp(initial, "1") == 0 && limit == 7);
+		answer = "3";
+	} else {
+		CHECK(type == MQTT_BBSID && strcmp(title, "BBSID") == 0 && !masked);
+		answer = "test";
+	}
+	*result = malloc(strlen(answer) + 1);
+	CHECK(*result != NULL);
+	strcpy(*result, answer);
 	return 0;
 }
 static int
@@ -331,7 +363,7 @@ run(enum protocol type)
 	socklen_t length = sizeof(address);
 	struct st_profile profile;
 	struct st_screen_geometry screen = {80,25,640,400}, resized = {255,511,0,0};
-	struct st_connection_hooks hooks = {.choice = choose_node};
+	struct st_connection_hooks hooks = {.choice = choose_node, .prompt = prompt, .ui_context = &type};
 	struct st_connection_error error = {0};
 	st_connection_t *connection = NULL;
 	st_thread_t thread;
@@ -346,7 +378,8 @@ run(enum protocol type)
 		if (mqtt && type != MQTT_CERT) {
 			CHECK(SSL_CTX_set_min_proto_version(f.ctx, TLS1_2_VERSION)
 			    && SSL_CTX_set_max_proto_version(f.ctx, TLS1_2_VERSION)
-			    && SSL_CTX_set_cipher_list(f.ctx, "DHE-PSK-AES128-GCM-SHA256")
+			    && SSL_CTX_set_cipher_list(f.ctx,
+			    "ECDHE-PSK-CHACHA20-POLY1305:DHE-PSK-AES128-GCM-SHA256")
 			    && SSL_CTX_set_dh_auto(f.ctx, 1));
 			SSL_CTX_set_psk_server_callback(f.ctx, psk);
 		} else {
@@ -363,20 +396,31 @@ run(enum protocol type)
 	    : type == TELNET_TLS || type == TLS_BAD ? ST_CONNECTION_TELNET_TLS : ST_CONNECTION_TELNET;
 	if (mqtt) {
 		strcpy(profile.username, "Guest"); strcpy(profile.password, "Password");
-		strcpy(profile.system_password, "System");
+		if (type != MQTT_SYSTEM_PROMPT && type != MQTT_CANCEL) strcpy(profile.system_password, "System");
 	} else strcpy(profile.username, "Test User");
 	strcpy(profile.ghost_program, "program");
 	profile.defer_telnet_negotiation = type == NVT;
 	profile.telnet_no_binary = type == NVT;
 	profile.tls_trust_web_pki = type == TLS_BAD;
+	if (type == TELNET_TLS) {
+		FILE *file = fopen("connection-wire-trusted.pem", "wb");
+		CHECK(file != NULL && PEM_write_X509(file, SSL_CTX_get0_certificate(f.ctx)) == 1
+		    && fclose(file) == 0);
+		strcpy(profile.address, "localhost");
+		profile.address_family = ST_ADDRESS_FAMILY_IPV4;
+		profile.tls_trusted_certificate = malloc(sizeof("connection-wire-trusted.pem"));
+		CHECK(profile.tls_trusted_certificate != NULL);
+		strcpy(profile.tls_trusted_certificate, "connection-wire-trusted.pem");
+	}
 	status = type == GHOST || type == GHOST_BAD
 	    ? st_connection_connect_ghost(&connection, &profile, NULL, &error)
 	    : mqtt ? st_connection_connect_mqtt(&connection, &profile, &hooks, &error)
 	    : st_connection_connect_telnet(&connection, &profile, &screen, NULL, &error);
-	if (type == GHOST_BAD || type == TLS_BAD || type == MQTT_BAD || type == MQTT_OVERSIZE) {
+	if (type == GHOST_BAD || type == TLS_BAD || type == MQTT_BAD || type == MQTT_OVERSIZE || type == MQTT_CANCEL) {
 		CHECK(status < 0 && connection == NULL);
 		if (type == MQTT_BAD) CHECK(status == IO_ERROR_PROTOCOL);
 		if (type == MQTT_OVERSIZE) CHECK(status == IO_ERROR_MESSAGE_TOO_LARGE);
+		if (type == MQTT_CANCEL) CHECK(status == IO_ERROR_CANCELLED);
 	}
 	else {
 		if (status != 0) fprintf(stderr, "connect %d: %d %s\n", type, status, error.detail);
@@ -404,6 +448,7 @@ run(enum protocol type)
 	if (connection == NULL)
 		CHECK(st_thread_join(thread, &thread_status) == ST_THREAD_SUCCESS && thread_status == 0);
 	close(f.listener); SSL_CTX_free(f.ctx); st_profile_dispose(&profile);
+	if (type == TELNET_TLS) CHECK(remove("connection-wire-trusted.pem") == 0);
 	return 0;
 }
 static enum st_connection_setup_action

@@ -14,6 +14,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+struct ssh_notice {
+	struct ssh_notice *next;
+	char title[32];
+	char message[];
+};
+
 struct ssh_transport {
 	struct st_connection_stream stream;
 	dssh_session session;
@@ -35,6 +41,10 @@ struct ssh_transport {
 	uint8_t fingerprint[32];
 	char algorithm[65];
 	unsigned key_bits;
+	bool used_saved_password;
+	bool hide_popups;
+	struct ssh_notice *notices, *last_notice;
+	size_t notice_count;
 };
 
 struct ssh_pty_mode {
@@ -211,6 +221,64 @@ ssh_terminated(dssh_session session, void *context)
 }
 static int confirm_hostkey(struct ssh_transport *t);
 
+static void
+ssh_notice(struct ssh_transport *t, const char *title, const uint8_t *message, size_t size)
+{
+	if (size == 0 || t->hide_popups) return;
+	if (size > SIZE_MAX - sizeof(struct ssh_notice) - 1) return;
+	struct ssh_notice *notice = malloc(sizeof(*notice) + size + 1);
+	if (notice == NULL) return;
+	notice->next = NULL;
+	(void)snprintf(notice->title, sizeof(notice->title), "%s", title);
+	memcpy(notice->message, message, size);
+	notice->message[size] = '\0';
+	if (!atomic_load(&t->setup_complete)) {
+		st_connection_notice(t->hooks, title, notice->message);
+		free(notice);
+		return;
+	}
+	(void)st_mutex_lock(&t->request_mutex);
+	if (!t->stopping && t->notice_count < 64) {
+		if (t->last_notice != NULL) t->last_notice->next = notice;
+		else t->notices = notice;
+		t->last_notice = notice;
+		++t->notice_count;
+		notice = NULL;
+	}
+	(void)st_mutex_unlock(&t->request_mutex);
+	free(notice);
+}
+
+static void
+auth_banner(const uint8_t *message, size_t size, const uint8_t *language,
+	size_t language_size, void *context)
+{
+	(void)language; (void)language_size;
+	ssh_notice(context, "SSH Banner", message, size);
+}
+
+static void
+debug_message(bool always, const uint8_t *message, size_t size, void *context)
+{
+	if (always) ssh_notice(context, "SSH Debug", message, size);
+}
+
+static dssh_log_action
+ssh_diagnostic(const struct dssh_log_record *record, void *context)
+{
+	struct ssh_transport *t = context;
+	if (t->hooks != NULL && t->hooks->log != NULL) {
+		char message[DSSH_LOG_MESSAGE_MAX + 1];
+		size_t size = record->message_len < sizeof(message) - 1
+		    ? record->message_len : sizeof(message) - 1;
+		memcpy(message, record->message, size); message[size] = '\0';
+		t->hooks->log(t->hooks->log_context, record->level == DSSH_LOG_ERROR
+		    ? ST_CONNECTION_LOG_ERROR : record->level == DSSH_LOG_WARNING
+		    ? ST_CONNECTION_LOG_WARNING : ST_CONNECTION_LOG_DEBUG, "SSH", message);
+	}
+	return DSSH_LOG_LOCAL_ONLY;
+}
+
 static dssh_hostkey_decision
 verify_hostkey(const char *algorithm, unsigned bits, const uint8_t *fingerprint,
 	const uint8_t *blob, size_t size, void *context)
@@ -288,12 +356,28 @@ confirm_hostkey(struct ssh_transport *t)
 		hex[2 * i + 1] = digits[t->fingerprint[i] & 15];
 	}
 	hex[64] = '\0';
+	if (profile->ssh_fingerprint_size == 0 && weak) {
+		const char *weak_choices[] = {"Disconnect", "Accept"};
+		char title[128];
+		(void)snprintf(title, sizeof(title), "Weak host key (%u-bit %s)", t->key_bits, t->algorithm);
+		(void)snprintf(message, sizeof(message), "The server presented a %u-bit %s host key. "
+		    "Keys below 2048 bits are considered weak today and within reach of a well-resourced attacker.\n\n"
+		    "This is the first time SyncTERM has seen this host, so there is no prior fingerprint to compare against. "
+		    "A genuine weak key and an active downgrade cannot be distinguished here.\n\nFingerprint: %s\n",
+		    t->key_bits, t->algorithm, hex);
+		if (hooks == NULL || hooks->choice == NULL || profile->hide_popups)
+			return IO_ERROR_PERMISSION_DENIED;
+		choice = hooks->choice(hooks->ui_context, title, message, weak_choices, 2);
+		if (choice != 1) return choice < 0 ? choice : IO_ERROR_PERMISSION_DENIED;
+		return hooks->remember_hostkey == NULL ? 0
+		    : hooks->remember_hostkey(hooks->ui_context, t->fingerprint, false);
+	}
 	for (size_t i = 0; i < profile->ssh_fingerprint_size && i < 32; ++i) {
 		previous[2 * i] = digits[profile->ssh_fingerprint[i] >> 4];
 		previous[2 * i + 1] = digits[profile->ssh_fingerprint[i] & 15];
 	}
 	previous[2 * (profile->ssh_fingerprint_size < 32 ? profile->ssh_fingerprint_size : 32)] = '\0';
-	if (hooks == NULL || hooks->choice == NULL) return IO_ERROR_PERMISSION_DENIED;
+	if (hooks == NULL || hooks->choice == NULL || profile->hide_popups) return IO_ERROR_PERMISSION_DENIED;
 	(void)snprintf(message, sizeof(message),
 	    "%s\nThis may indicate eavesdropping, or the server may have changed its key."
 	    "\nHost: %s\nKey: %s (%u bits)\nLast known fingerprint: %s\nFingerprint sent now (SHA-256): %s%s",
@@ -301,7 +385,10 @@ confirm_hostkey(struct ssh_transport *t)
 	    : "SSH HOST KEY HAS CHANGED or uses a legacy fingerprint",
 	    profile->address, t->algorithm, t->key_bits, previous, hex,
 	    weak ? "\nWARNING: this RSA key is weaker than 2048 bits." : "");
-	choice = hooks->choice(hooks->ui_context, "Fingerprint Changed", message, choices, 3);
+	char title[128] = "Fingerprint Changed";
+	if (weak) (void)snprintf(title, sizeof(title), "Fingerprint Changed - WEAK %u-bit %s key",
+	    t->key_bits, t->algorithm);
+	choice = hooks->choice(hooks->ui_context, title, message, choices, 3);
 	if (choice == 1)
 		return hooks->remember_hostkey == NULL ? 0
 		    : hooks->remember_hostkey(hooks->ui_context, t->fingerprint, true);
@@ -315,6 +402,19 @@ ssh_process_requests(void *state)
 	struct ssh_transport candidate = {0};
 	int status;
 	(void)st_mutex_lock(&t->request_mutex);
+	/* New arrivals wait for the next owner tick, so a stream of peer debug
+	 * messages cannot indefinitely postpone input/close handling. */
+	size_t notices = t->notice_count;
+	while (t->notices != NULL && !t->stopping && notices-- != 0) {
+		struct ssh_notice *notice = t->notices;
+		t->notices = notice->next;
+		if (t->notices == NULL) t->last_notice = NULL;
+		--t->notice_count;
+		(void)st_mutex_unlock(&t->request_mutex);
+		st_connection_notice(&t->ui_hooks, notice->title, notice->message);
+		free(notice);
+		(void)st_mutex_lock(&t->request_mutex);
+	}
 	if (!t->request_pending || t->stopping) {
 		(void)st_mutex_unlock(&t->request_mutex);
 		return 0;
@@ -340,15 +440,18 @@ ssh_process_requests(void *state)
 }
 
 static int
-prompt(struct ssh_transport *t, const char *message, const char *initial,
-	bool masked, char **answer)
+prompt(struct ssh_transport *t, const char *title, const char *message,
+	size_t limit, bool masked, char **answer)
 {
 	*answer = NULL;
-	if (t->hooks == NULL || t->hooks->prompt == NULL)
+	if (t->hide_popups || t->hooks == NULL || t->hooks->prompt == NULL)
 		return IO_ERROR_PASSWORD_REQUIRED;
-	int status = t->hooks->prompt(t->hooks->ui_context, "SSH authentication",
-	    message, initial, ST_PROFILE_PASSWORD_MAX, masked, answer);
-	if (status != 0) return status;
+	int status = t->hooks->prompt(t->hooks->ui_context, title,
+	    message, "", limit, masked, answer);
+	if (status != 0) {
+		if (status == IO_ERROR_CANCELLED) t->cancelled = true;
+		return status;
+	}
 	if (*answer == NULL) { t->cancelled = true; return IO_ERROR_CANCELLED; }
 	return 0;
 }
@@ -362,17 +465,27 @@ keyboard_interactive(const uint8_t *name, size_t name_size,
 	struct ssh_transport *t = context;
 	(void)name;
 	(void)name_size;
+	if (instruction_size != 0)
+		ssh_notice(t, "SSH Keyboard-Interactive", instruction, instruction_size);
 	for (uint32_t i = 0; i < count; ++i) {
 		char question[2048], *answer = NULL;
 		int status;
-		(void)snprintf(question, sizeof(question), "%.*s\n%.*s",
-		    (int)(instruction_size < 1024 ? instruction_size : 1024), instruction,
+		(void)snprintf(question, sizeof(question), "%.*s",
 		    (int)(prompt_sizes[i] < 1000 ? prompt_sizes[i] : 1000), prompts[i]);
-		if (count == 1 && !echo[i] && t->profile->password[0] != '\0')
+		if (count == 1 && !echo[i] && !t->used_saved_password
+		    && t->profile->password[0] != '\0' && prompt_sizes[i] == 10
+		    && memcmp(prompts[i], "Password: ", 10) == 0) {
 			answer = strdup(t->profile->password);
-		else {
-			status = prompt(t, question, "", !echo[i], &answer);
-			if (status != 0) return DSSH_ERROR_AUTH_REJECTED;
+			t->used_saved_password = true;
+		} else {
+			status = prompt(t, "SSH Keyboard-Interactive", question, ST_PROFILE_PASSWORD_MAX, !echo[i], &answer);
+			if (status != 0) {
+				for (uint32_t j = 0; j < i; ++j) {
+					xp_crypto_clear(responses[j], response_sizes[j]);
+					free(responses[j]); responses[j] = NULL; response_sizes[j] = 0;
+				}
+				return DSSH_ERROR_AUTH_REJECTED;
+			}
 		}
 		if (answer == NULL) return DSSH_ERROR_ALLOC;
 		responses[i] = (uint8_t *)answer;
@@ -391,10 +504,14 @@ authenticate(struct ssh_transport *t)
 	else if (t->profile->connection_type == ST_CONNECTION_SSH_NO_AUTH)
 		username = strdup("");
 	else {
-		status = prompt(t, "User name", "", false, &username);
+		status = prompt(t, "SSH User ID", "No user ID is stored for this entry.",
+		    ST_PROFILE_USER_MAX, false, &username);
 		if (status != 0) return status;
 	}
 	if (username == NULL) return IO_ERROR_OUT_OF_MEMORY;
+	if (username[0] == '\0' && t->profile->connection_type != ST_CONNECTION_SSH_NO_AUTH) {
+		free(username); t->cancelled = true; return IO_ERROR_CANCELLED;
+	}
 	status = dssh_auth_get_methods(t->session, username, methods, sizeof(methods));
 	if (status == DSSH_AUTH_NONE_ACCEPTED) { free(username); return 0; }
 	if (status < 0 || t->profile->connection_type == ST_CONNECTION_SSH_NO_AUTH) {
@@ -407,13 +524,13 @@ authenticate(struct ssh_transport *t)
 	if (status != 0 && strstr(methods, "password") != NULL) {
 		password = strdup(t->profile->password);
 		if (password == NULL) { free(username); return IO_ERROR_OUT_OF_MEMORY; }
+		if (password[0] != '\0')
+			status = dssh_auth_password(t->session, username, password, NULL, NULL);
 		for (int attempt = 0; attempt < 3 && status != 0; ++attempt) {
-			if (attempt != 0 || password[0] == '\0') {
-				xp_crypto_clear(password, strlen(password));
-				free(password);
-				password = NULL;
-				if (prompt(t, "Password", "", true, &password) != 0) break;
-			}
+			xp_crypto_clear(password, strlen(password)); free(password); password = NULL;
+			if (prompt(t, "SSH Password", attempt == 0 ? "Enter password."
+			    : "Incorrect password. Try again.", ST_PROFILE_PASSWORD_MAX, true, &password) != 0) break;
+			if (password[0] == '\0') { t->cancelled = true; break; }
 			status = dssh_auth_password(t->session, username, password, NULL, NULL);
 		}
 		if (password != NULL) { xp_crypto_clear(password, strlen(password)); free(password); }
@@ -473,6 +590,10 @@ ssh_destroy(void *state)
 	struct ssh_transport *t = state;
 	ssh_interrupt(t);
 	if (t->session != NULL) dssh_session_cleanup(t->session);
+	while (t->notices != NULL) {
+		struct ssh_notice *next = t->notices->next;
+		free(t->notices); t->notices = next;
+	}
 	st_connection_stream_close(&t->stream);
 	if (t->request_initialized) {
 		st_condition_destroy(&t->request_changed);
@@ -542,6 +663,7 @@ st_connection_connect_ssh(st_connection_t **result, const struct st_profile *pro
 	struct st_screen_geometry geometry;
 	struct dssh_chan_params params = {0};
 	int status;
+	bool key_rejected = false;
 	const char *detail = "SSH transport negotiation failed";
 	enum st_connection_setup_phase phase = ST_CONNECTION_SETUP_NEGOTIATING;
 	const char *allowed[] = {"aes256-ctr"};
@@ -573,6 +695,7 @@ st_connection_connect_ssh(st_connection_t **result, const struct st_profile *pro
 	atomic_init(&t->setup_complete, false);
 	atomic_init(&t->hostkey_verified, false);
 	t->profile = profile;
+	t->hide_popups = profile->hide_popups;
 	t->hooks = hooks;
 	status = st_connection_profile_geometry(profile, current, &geometry);
 	if (status == 0) status = st_connection_stream_open(&t->stream, profile,
@@ -584,6 +707,9 @@ st_connection_connect_ssh(st_connection_t **result, const struct st_profile *pro
 	if (status == 0) status = dssh_session_set_cbdata(t->session, t, t, t, t);
 	if (status == 0) status = dssh_session_set_hostkey_verify_cb(t->session, verify_hostkey, t);
 	if (status == 0) status = dssh_session_set_terminate_cb(t->session, ssh_terminated, t);
+	if (status == 0) status = dssh_session_set_banner_cb(t->session, auth_banner, t);
+	if (status == 0) status = dssh_session_set_debug_cb(t->session, debug_message, t);
+	if (status == 0) status = dssh_session_set_log_cb(t->session, ssh_diagnostic, t);
 	if (status == 0 && !profile->ssh_allow_aes128_cbc)
 		status = dssh_session_set_enc_filter(t->session, allowed, 1);
 	if (status == 0) status = dssh_transport_handshake(t->session);
@@ -591,6 +717,7 @@ st_connection_connect_ssh(st_connection_t **result, const struct st_profile *pro
 	if (status == 0) {
 		detail = "SSH host key was not accepted";
 		status = confirm_hostkey(t);
+		key_rejected = status != 0;
 	}
 	if (status == 0) atomic_store(&t->hostkey_verified, true);
 	if (status == 0 && st_connection_cancelled(hooks, ST_CONNECTION_SETUP_AUTHENTICATING))
@@ -604,6 +731,7 @@ st_connection_connect_ssh(st_connection_t **result, const struct st_profile *pro
 		memcpy(t->identity.ssh_fingerprint, t->fingerprint, 32);
 		t->identity.ssh_fingerprint_size = 32;
 		t->identity.source = profile->source;
+		t->identity.hide_popups = profile->hide_popups;
 		strcpy(t->identity.address, profile->address);
 		if (hooks != NULL) t->ui_hooks = *hooks;
 		t->hooks = &t->ui_hooks;
@@ -644,8 +772,11 @@ st_connection_connect_ssh(st_connection_t **result, const struct st_profile *pro
 	if (status != 0) {
 		bool cancelled = t->cancelled;
 		ssh_destroy(t);
-		return st_connection_fail(error, cancelled ? IO_ERROR_CANCELLED : status,
-		    phase, detail);
+		int result_status = st_connection_fail(error, cancelled ? IO_ERROR_CANCELLED : status, phase, detail);
+		bool presented = key_rejected || (!cancelled && status != IO_ERROR_CANCELLED
+		    && st_connection_error_dialog(hooks, "SSH error", detail));
+		if (error != NULL) error->presented = presented;
+		return result_status;
 	}
 	t->profile = &t->identity;
 	return st_connection_start(result, t, &operations, "SSH", hooks, NULL, error);

@@ -210,7 +210,7 @@ configure_file(st_connection_config.h.in st_connection_config.h @ONLY)
 
 add_library(st_connection STATIC
 	connection.c connection_network.c connection_serial.c
-	connection_stream.c connection_telnet.c connection_ghost.c connection_mqtt.c
+	connection_stream.c connection_tls.c connection_telnet.c connection_ghost.c connection_mqtt.c
 	${ST_CONNECTION_SSH_SOURCE}
 	${ST_CONNECTION_SHELL_SOURCE})
 if(CMAKE_C_COMPILER_ID STREQUAL "GNU" AND ST_CONNECTION_HAVE_CONPTY)
@@ -262,7 +262,7 @@ if(BUILD_TESTING)
 				C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 			st_connection_warnings(st_connection_ssh_fixture)
 			add_executable(st_connection_ssh_test tests/st_connection_ssh_test.c)
-			target_link_libraries(st_connection_ssh_test PRIVATE st_connection)
+			target_link_libraries(st_connection_ssh_test PRIVATE st_connection syncterm_string_compat)
 			set_target_properties(st_connection_ssh_test PROPERTIES
 				C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 			st_connection_warnings(st_connection_ssh_test)
@@ -287,6 +287,16 @@ if(BUILD_TESTING)
 			st_connection_warnings(st_connection_protocol_test)
 			add_test(NAME connection_protocols COMMAND st_connection_protocol_test)
 			set_tests_properties(connection_protocols PROPERTIES TIMEOUT 120)
+			if(ST_CONNECTION_HAVE_TLS)
+				add_executable(st_connection_tls_prompt_test tests/st_connection_tls_prompt_test.c)
+				target_link_libraries(st_connection_tls_prompt_test PRIVATE st_connection
+					st_settings syncterm_string_compat syncterm_threads OpenSSL::SSL)
+				set_target_properties(st_connection_tls_prompt_test PROPERTIES
+					C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+				st_connection_warnings(st_connection_tls_prompt_test)
+				add_test(NAME connection_tls_prompts COMMAND st_connection_tls_prompt_test)
+				set_tests_properties(connection_tls_prompts PROPERTIES TIMEOUT 120)
+			endif()
 		endif()
 	endif()
 	if(ST_CONNECTION_HAVE_FORKPTY OR ST_CONNECTION_HAVE_CONPTY)

@@ -15,6 +15,8 @@
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 #include <openssl/x509.h>
+#include <openssl/pem.h>
+#include <openssl/x509v3.h>
 
 #include <limits.h>
 #include <stdio.h>
@@ -39,8 +41,77 @@ struct st_tls_session {
 	size_t peer_certificate_count;
 	st_tls_diagnostic_fn diagnostic;
 	void *diagnostic_context;
+	st_tls_peer_chain_fn peer_chain;
+	void *peer_chain_context;
 	bool terminating;
 };
+
+static char *
+certificate_text(X509 *certificate, unsigned field)
+{
+	BIO *bio = BIO_new(BIO_s_mem());
+	char *result = NULL, *bytes = NULL;
+	long size;
+	if (bio == NULL) return NULL;
+	if (field < 2)
+		(void)X509_NAME_print_ex(bio, field == 0
+		    ? X509_get_subject_name(certificate) : X509_get_issuer_name(certificate),
+		    0, XN_FLAG_RFC2253);
+	else if (field < 4) {
+		struct tm value;
+		const ASN1_TIME *time = field == 2 ? X509_get0_notBefore(certificate)
+		    : X509_get0_notAfter(certificate);
+		if (ASN1_TIME_to_tm(time, &value) == 1)
+			(void)BIO_printf(bio, "%04d-%02d-%02d %02d:%02d:%02d UTC",
+			    value.tm_year + 1900, value.tm_mon + 1, value.tm_mday,
+			    value.tm_hour, value.tm_min, value.tm_sec);
+	} else if (field == 4) {
+		unsigned char hash[EVP_MAX_MD_SIZE];
+		unsigned length = 0;
+		if (X509_digest(certificate, EVP_sha256(), hash, &length) == 1)
+			for (unsigned i = 0; i < length; ++i)
+				(void)BIO_printf(bio, "%s%02X", i == 0 ? "" : ":", hash[i]);
+	} else
+		(void)PEM_write_bio_X509(bio, certificate);
+	size = BIO_get_mem_data(bio, &bytes);
+	if (size >= 0 && (unsigned long)size < SIZE_MAX) {
+		result = malloc((size_t)size + 1);
+		if (result != NULL) {
+			memcpy(result, bytes, (size_t)size);
+			result[size] = '\0';
+		}
+	}
+	BIO_free(bio);
+	return result;
+}
+
+static void
+report_peer_chain(st_tls_session_t *session)
+{
+	STACK_OF(X509) *chain = SSL_get_peer_cert_chain(session->ssl);
+	int count = chain == NULL ? 0 : sk_X509_num(chain);
+	struct st_tls_peer_certificate *records;
+	char **strings;
+	if (session->peer_chain == NULL || count <= 0) return;
+	records = calloc((size_t)count, sizeof(*records));
+	strings = calloc((size_t)count, 6 * sizeof(*strings));
+	if (records == NULL || strings == NULL) goto finished;
+	for (int i = 0; i < count; ++i) {
+		char **text = strings + (size_t)i * 6;
+		for (unsigned field = 0; field < 6; ++field) {
+			text[field] = certificate_text(sk_X509_value(chain, i), field);
+			if (text[field] == NULL) goto finished;
+		}
+		records[i] = (struct st_tls_peer_certificate){
+		    text[0], text[1], text[2], text[3], text[4], text[5]};
+	}
+	session->peer_chain(records, (size_t)count, session->peer_chain_context);
+finished:
+	if (strings != NULL)
+		for (size_t i = 0; i < (size_t)count * 6; ++i) free(strings[i]);
+	free(strings);
+	free(records);
+}
 
 static void
 free_peer_certificates(st_tls_session_t *session)
@@ -185,6 +256,22 @@ set_versions(SSL_CTX *context, enum st_tls_protocol_version minimum,
 	    ? 0 : IO_ERROR_PROTOCOL;
 }
 
+static int
+set_peer_name(SSL *ssl, const char *name)
+{
+	ASN1_OCTET_STRING *address = a2i_IPADDRESS(name);
+	int result;
+	if (address != NULL) {
+		result = X509_VERIFY_PARAM_set1_ip(SSL_get0_param(ssl),
+		    ASN1_STRING_get0_data(address), (size_t)ASN1_STRING_length(address));
+		ASN1_OCTET_STRING_free(address);
+	} else {
+		ERR_clear_error();
+		result = SSL_set1_host(ssl, name);
+	}
+	return result;
+}
+
 int
 st_tls_client_open(st_tls_session_t **result, socket_handle_t socket,
     const struct st_tls_client_options *options)
@@ -196,6 +283,8 @@ st_tls_client_open(st_tls_session_t **result, socket_handle_t socket,
 	int status;
 
 	if (result == NULL || options == NULL || !socket_handle_is_valid(socket))
+		return IO_ERROR_INVALID_ARGUMENT;
+	if ((unsigned)options->server_auth > ST_TLS_SERVER_AUTH_UNTRUSTED)
 		return IO_ERROR_INVALID_ARGUMENT;
 	*result = NULL;
 	psk = options->psk != NULL || options->psk_size != 0
@@ -223,6 +312,8 @@ st_tls_client_open(st_tls_session_t **result, socket_handle_t socket,
 	session->socket = socket;
 	session->diagnostic = options->diagnostic;
 	session->diagnostic_context = options->diagnostic_context;
+	session->peer_chain = options->peer_chain;
+	session->peer_chain_context = options->peer_chain_context;
 	session->context = SSL_CTX_new(TLS_client_method());
 	if (session->context == NULL) {
 		status = IO_ERROR_OUT_OF_MEMORY;
@@ -270,6 +361,10 @@ st_tls_client_open(st_tls_session_t **result, socket_handle_t socket,
 				goto fail;
 			}
 			SSL_CTX_set_verify(session->context, SSL_VERIFY_PEER, NULL);
+			(void)X509_VERIFY_PARAM_set_flags(SSL_CTX_get0_param(session->context),
+			    X509_V_FLAG_PARTIAL_CHAIN);
+		} else if (options->server_auth == ST_TLS_SERVER_AUTH_UNTRUSTED) {
+			SSL_CTX_set_verify(session->context, SSL_VERIFY_PEER, NULL);
 		} else
 			SSL_CTX_set_verify(session->context, SSL_VERIFY_NONE, NULL);
 		if (client_certificate) {
@@ -292,7 +387,7 @@ st_tls_client_open(st_tls_session_t **result, socket_handle_t socket,
 	if (options->server_name != NULL && options->server_name[0] != '\0') {
 		if (!SSL_set_tlsext_host_name(session->ssl, options->server_name)
 		    || (!psk && options->server_auth != ST_TLS_SERVER_AUTH_NONE
-		    && !SSL_set1_host(session->ssl, options->server_name))) {
+		    && !set_peer_name(session->ssl, options->server_name))) {
 			status = IO_ERROR_INVALID_ARGUMENT;
 			goto fail;
 		}
@@ -317,7 +412,18 @@ st_tls_client_open(st_tls_session_t **result, socket_handle_t socket,
 		ssl_error = SSL_get_error(session->ssl, result_code);
 		status = wait_for_ssl(session, ssl_error, &deadline);
 		if (status < 0) {
-			report(session, status, true, "TLS handshake failed");
+			long verification = SSL_get_verify_result(session->ssl);
+			char message[256];
+			unsigned long native = ERR_peek_last_error();
+			if (verification != X509_V_OK) {
+				status = IO_ERROR_PERMISSION_DENIED;
+				(void)snprintf(message, sizeof(message), "Certificate verification failed: %s",
+				    X509_verify_cert_error_string(verification));
+			} else if (native != 0)
+				ERR_error_string_n(native, message, sizeof(message));
+			else
+				(void)snprintf(message, sizeof(message), "TLS handshake failed (%d)", status);
+			report(session, status, true, message);
 			goto fail_blocking;
 		}
 	}
@@ -332,10 +438,14 @@ st_tls_client_open(st_tls_session_t **result, socket_handle_t socket,
 	status = capture_peer_certificates(session);
 	if (status < 0)
 		goto fail_blocking;
+	report_peer_chain(session);
+	session->peer_chain = NULL;
+	session->peer_chain_context = NULL;
 	*result = session;
 	return 0;
 
 fail_blocking:
+	if (session->ssl != NULL) report_peer_chain(session);
 	(void)socket_set_blocking(socket, true);
 fail:
 	if (session->ssl != NULL)
@@ -381,8 +491,13 @@ ssl_io(st_tls_session_t *session, bool writing, void *data, size_t size,
 		{
 			status = wait_for_ssl(session, ssl_error, &deadline);
 			if (status < 0) {
-				if (status != IO_ERROR_TIMED_OUT)
-					report(session, status, true, "TLS I/O failed");
+				if (status != IO_ERROR_TIMED_OUT) {
+					char message[256];
+					unsigned long native = ERR_peek_last_error();
+					if (native != 0) ERR_error_string_n(native, message, sizeof(message));
+					else (void)snprintf(message, sizeof(message), "TLS I/O failed (%d)", status);
+					report(session, status, true, message);
+				}
 				return status;
 			}
 		}

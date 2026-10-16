@@ -24,6 +24,35 @@ now_ms(void)
 	return now;
 }
 
+void
+st_connection_notice(const struct st_connection_hooks *hooks,
+	const char *title, const char *message)
+{
+	if (hooks == NULL) return;
+	if (hooks->status != NULL) hooks->status(hooks->ui_context, NULL);
+	if (hooks->alert != NULL) hooks->alert(hooks->ui_context, title, message);
+	else if (hooks->choice != NULL) {
+		const char *choices[] = {"OK"};
+		(void)hooks->choice(hooks->ui_context, title, message, choices, 1);
+	}
+}
+
+bool
+st_connection_error_dialog(const struct st_connection_hooks *hooks,
+	const char *title, const char *message)
+{
+	const char *choices[] = {"OK", "View Protocol Log"};
+	if (hooks == NULL || hooks->choice == NULL) return false;
+	if (hooks->status != NULL) hooks->status(hooks->ui_context, NULL);
+	for (;;) {
+		int choice = hooks->choice(hooks->ui_context, title, message, choices,
+		    hooks->help == NULL ? 1 : 2);
+		if (choice != 1 || hooks->help == NULL) break;
+		hooks->help(hooks->ui_context, title, message);
+	}
+	return true;
+}
+
 static struct timespec
 deadline_after(int64_t timeout_ms)
 {

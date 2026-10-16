@@ -766,8 +766,11 @@ st_term_session_pump(st_term_session_t *session,
 		(void)st_thread_sleep(&pause, NULL);
 	}
 	if (received < 0 && received != IO_ERROR_TIMED_OUT
-	    && received != IO_ERROR_WOULD_BLOCK)
+	    && received != IO_ERROR_WOULD_BLOCK) {
+		status = st_connection_process_requests(session->config.connection);
+		if (status != 0) return status;
 		return (int)received;
+	}
 	if (received > 0) {
 		status = write_wire_filtered(session, bytes, (size_t)received);
 		if (status != 0)
@@ -790,6 +793,8 @@ st_term_session_pump(st_term_session_t *session,
 	if (!session->suspended
 	    && !st_connection_is_connected(session->config.connection)
 	    && st_connection_pending_raw(session->config.connection) == 0) {
+		status = st_connection_process_requests(session->config.connection);
+		if (status != 0) return status;
 		*disposition = ST_TERM_RETURN_TO_PICKER;
 		*finished = true;
 	}

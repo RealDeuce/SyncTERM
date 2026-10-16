@@ -4,6 +4,7 @@
 #include "st_connection_config.h"
 #include "tcp_client.h"
 #include "st_time.h"
+#include "st_settings.h"
 #include <string.h>
 #include <stdio.h>
 
@@ -11,10 +12,20 @@ static void
 capture_tls_diagnostic(const struct st_tls_diagnostic *record, void *context)
 {
 	struct st_connection_stream *stream = context;
-	if (record->fatal)
+	if (record->fatal) {
 		(void)snprintf(stream->diagnostic, sizeof(stream->diagnostic), "%s: %s",
 		    record->provider == NULL ? "TLS" : record->provider,
 		    record->message == NULL ? "negotiation failed" : record->message);
+		if (stream->tls_ready) {
+			stream->error_pending = true;
+			(void)snprintf(stream->error_title, sizeof(stream->error_title),
+			    "TLS error %s data", stream->writing ? "sending" : "receiving");
+		}
+	}
+	if (stream->hooks.log != NULL)
+		stream->hooks.log(stream->hooks.log_context, record->fatal
+		    ? ST_CONNECTION_LOG_ERROR : ST_CONNECTION_LOG_DEBUG,
+		    "TLS", record->message == NULL ? "TLS diagnostic" : record->message);
 }
 
 static bool
@@ -48,20 +59,40 @@ st_connection_stream_open(struct st_connection_stream *stream,
 	};
 	struct st_tls_client_options tls = {
 		.server_name = profile->address,
-		.server_auth = profile->tls_trusted_certificate != NULL
-		    && profile->tls_trusted_certificate[0] != '\0'
-		    ? ST_TLS_SERVER_AUTH_CERTIFICATE
-		    : profile->tls_trust_web_pki ? ST_TLS_SERVER_AUTH_WEB_PKI
-		    : ST_TLS_SERVER_AUTH_NONE,
+		.server_auth = profile->tls_trust_web_pki ? ST_TLS_SERVER_AUTH_WEB_PKI
+		    : profile->tls_trusted_certificate != NULL && profile->tls_trusted_certificate[0] != '\0'
+		    ? ST_TLS_SERVER_AUTH_CERTIFICATE : ST_TLS_SERVER_AUTH_UNTRUSTED,
 		.trusted_certificate_file = profile->tls_trusted_certificate,
 		.client_certificate_file = profile->tls_client_certificate,
 		.client_key_file = profile->tls_client_key,
-		.minimum_version = tls_version(profile->tls_version_floor),
 		.handshake_timeout_ms = 15000,
 	};
 	int status;
 
 	memset(stream, 0, sizeof(*stream));
+	if (hooks != NULL) stream->hooks = *hooks;
+	if (profile->hide_popups) {
+		stream->hooks.alert = NULL;
+		stream->hooks.choice = NULL;
+		stream->hooks.help = NULL;
+		stream->hooks.status = NULL;
+		stream->hooks.trust_tls_certificate = NULL;
+	}
+	hooks = &stream->hooks;
+	/* MQTT v1.10a's certificate fallback is opportunistic; Telnet/TLS must
+	 * authenticate and offer certificate review when no trust is installed. */
+	if (profile->connection_type == ST_CONNECTION_MQTT && tls_options == NULL
+	    && !profile->tls_trust_web_pki && (profile->tls_trusted_certificate == NULL
+	    || profile->tls_trusted_certificate[0] == '\0'))
+		tls.server_auth = ST_TLS_SERVER_AUTH_NONE;
+	if ((tls.client_certificate_file == NULL || tls.client_certificate_file[0] == '\0')
+	    && (tls.client_key_file == NULL || tls.client_key_file[0] == '\0')) {
+		tls.client_certificate_file = st_settings.tls_client_certificate;
+		tls.client_key_file = st_settings.tls_client_key;
+	}
+	if (tls.client_certificate_file != NULL && tls.client_certificate_file[0] == '\0')
+		tls.client_certificate_file = NULL;
+	if (tls.client_key_file != NULL && tls.client_key_file[0] == '\0') tls.client_key_file = NULL;
 	stream->socket = SOCKET_HANDLE_INVALID;
 	if (encrypted && !ST_CONNECTION_HAVE_TLS)
 		return st_connection_fail(error, IO_ERROR_NOT_SUPPORTED,
@@ -97,16 +128,24 @@ st_connection_stream_open(struct st_connection_stream *stream,
 		if (st_connection_cancelled(hooks, ST_CONNECTION_SETUP_NEGOTIATING))
 			status = IO_ERROR_CANCELLED;
 		else {
-			if (tls_options == NULL && profile->tls_psk[0] != '\0') {
+			if (tls_options == NULL && (profile->tls_psk[0] != '\0'
+			    || profile->tls_psk_identity[0] != '\0')) {
 				tls.psk_identity = profile->tls_psk_identity;
 				tls.psk = profile->tls_psk;
 				tls.psk_size = strlen(profile->tls_psk);
 				tls.psk_version = tls_version(profile->tls_psk_version);
 			}
 			if (tls_options != NULL) tls = *tls_options;
+			if (hooks != NULL && hooks->status != NULL)
+				hooks->status(hooks->ui_context, profile->connection_type != ST_CONNECTION_MQTT
+				    ? "Activating Session" : tls.psk != NULL ? "Negotiating TLS-PSK" : "Negotiating TLS (cert)");
 			tls.diagnostic = capture_tls_diagnostic;
 			tls.diagnostic_context = stream;
-			status = st_tls_client_open(&stream->tls, stream->socket, &tls);
+			status = st_connection_stream_start_tls(stream, profile, &tls, error);
+			if (status != 0) {
+				st_connection_stream_close(stream);
+				return status;
+			}
 		}
 	}
 	if (status != 0) {
@@ -132,6 +171,7 @@ stream_io(struct st_connection_stream *stream, void *data, size_t size,
 	 * outside the mutex so a quiet receive cannot block the output worker. */
 	if (stream->tls != NULL) {
 		(void)st_mutex_lock(&stream->mutex);
+		stream->writing = sending;
 		status = st_tls_flush(stream->tls, 0);
 		pending = status == IO_ERROR_WOULD_BLOCK || status == IO_ERROR_TIMED_OUT;
 		if (status == 0 || status == IO_ERROR_WOULD_BLOCK

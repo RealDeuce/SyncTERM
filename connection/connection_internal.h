@@ -81,5 +81,9 @@ int st_connection_profile_geometry(const struct st_profile *profile,
 	const struct st_screen_geometry *current,
 	struct st_screen_geometry *result);
 const char *st_connection_terminal_name(const struct st_profile *profile);
+void st_connection_notice(const struct st_connection_hooks *hooks,
+	const char *title, const char *message);
+bool st_connection_error_dialog(const struct st_connection_hooks *hooks,
+	const char *title, const char *message);
 
 #endif

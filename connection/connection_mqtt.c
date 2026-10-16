@@ -304,8 +304,8 @@ select_node(struct mqtt_node *nodes, size_t count,
 	char labels[MQTT_NODE_LIMIT][64];
 	const char *choices[MQTT_NODE_LIMIT + 1];
 	static const char *const states[] = {
-		"WFC", "logon", "new user", "main", "transfer", "message",
-		"external", "in use", "quiet", "logout",
+		"WFC", "logon", "newuser", "main", "xfer", "msg",
+		"ext", "in use", "quiet", "logout",
 	};
 	int selected, status;
 	char *answer = NULL, *end;
@@ -313,20 +313,20 @@ select_node(struct mqtt_node *nodes, size_t count,
 	qsort(nodes, count, sizeof(*nodes), node_compare);
 	if (count != 0 && hooks != NULL && hooks->choice != NULL) {
 		for (size_t i = 0; i < count; ++i) {
-			(void)snprintf(labels[i], sizeof(labels[i]), "Node %u (%s)",
+			(void)snprintf(labels[i], sizeof(labels[i]), "Node %u  (%s)",
 			    nodes[i].number, nodes[i].status >= 0 && nodes[i].status < 10
-			    ? states[nodes[i].status] : "unknown");
+			    ? states[nodes[i].status] : "?");
 			choices[i] = labels[i];
 		}
-		choices[count] = "Enter node number manually";
-		selected = hooks->choice(hooks->ui_context, "MQTT nodes",
-		    "Select the node whose terminal stream should be attached.",
+		choices[count] = "(Enter node number manually)";
+		selected = hooks->choice(hooks->ui_context, "Active Nodes",
+		    "Choose a node whose input/output stream should be attached.",
 		    choices, count + 1);
 		if (selected < 0) return selected;
 		if ((size_t)selected < count) { *node = nodes[selected].number; return 0; }
 		if ((size_t)selected != count) return IO_ERROR_INVALID_ARGUMENT;
 	}
-	status = ask(hooks, "MQTT node", "Node number", "", 10, false, &answer);
+	status = ask(hooks, "Node Number", "Enter the BBS node number to connect to.", "1", 7, false, &answer);
 	if (status != 0) return status;
 	errno = 0;
 	number = strtoul(answer, &end, 10);
@@ -425,9 +425,16 @@ mqtt_destroy(void *state)
 	free(t->body);
 	free(t);
 }
+static int
+mqtt_process_requests(void *state)
+{
+	struct mqtt_transport *t = state;
+	return st_connection_stream_process_requests(&t->stream);
+}
 static const struct st_connection_transport_ops operations = {
 	.bind = mqtt_bind, .read = mqtt_read, .write = mqtt_write,
 	.interrupt = mqtt_interrupt, .destroy = mqtt_destroy,
+	.process_requests = mqtt_process_requests,
 };
 
 static void
@@ -448,7 +455,7 @@ st_connection_connect_mqtt(st_connection_t **result, const struct st_profile *pr
 	char identity[ST_PROFILE_USER_MAX + 1], secret[ST_PROFILE_PASSWORD_MAX + 1];
 	uint8_t connect[ST_PROFILE_USER_MAX + ST_PROFILE_PASSWORD_MAX
 	    + ST_PROFILE_SYSTEM_PASSWORD_MAX + 128];
-	char status_topic[160], *answer = NULL;
+	char status_topic[160], *answer = NULL, psk_error[1024] = "";
 	size_t used, count = 0;
 	unsigned node = 0;
 	int status;
@@ -489,6 +496,8 @@ st_connection_connect_mqtt(st_connection_t **result, const struct st_profile *pr
 	status = st_connection_stream_open(&t->stream, &copy, true, &tls, hooks, error);
 	xp_crypto_clear(secret, sizeof(secret));
 	if (status != 0 && status != IO_ERROR_CANCELLED && copy.tls_psk[0] == '\0') {
+		(void)snprintf(psk_error, sizeof(psk_error), "%s", error == NULL
+		    ? t->stream.diagnostic : error->detail);
 		psk = false;
 		status = st_connection_stream_open(&t->stream, &copy, true, NULL, hooks, error);
 	}
@@ -498,12 +507,14 @@ st_connection_connect_mqtt(st_connection_t **result, const struct st_profile *pr
 		goto failed;
 	}
 	if (psk && copy.system_password[0] == '\0') {
-		status = ask(hooks, "MQTT authentication", "BBS system password", "",
+		status = ask(hooks, "System Password", "The Synchronet internal MQTT broker authenticates with the BBS system password.", "",
 		    ST_PROFILE_SYSTEM_PASSWORD_MAX, true, &answer);
 		if (status != 0) goto failed;
 		(void)snprintf(copy.system_password, sizeof(copy.system_password), "%s", answer);
 		xp_crypto_clear(answer, strlen(answer)); free(answer); answer = NULL;
+		if (copy.system_password[0] == '\0') { status = IO_ERROR_CANCELLED; goto failed; }
 	}
+	if (hooks != NULL && hooks->status != NULL) hooks->status(hooks->ui_context, "Sending CONNECT");
 	used = put_string(connect, "MQTT");
 	connect[used++] = 5; /* MQTT 5.0 */
 	connect[used++] = 0xc2; /* clean start, username and password */
@@ -520,12 +531,14 @@ st_connection_connect_mqtt(st_connection_t **result, const struct st_profile *pr
 	if (status != 0) goto failed;
 	release_packet(t);
 	phase = ST_CONNECTION_SETUP_DISCOVERING;
+	if (hooks != NULL && hooks->status != NULL) hooks->status(hooks->ui_context, "Discovering BBSID");
 	status = subscribe(t, "sbbs/+/version", false, hooks);
 	if (status == 0) status = discover(t, nodes, &count, true, hooks);
 	if (status == 0) status = subscribe(t, "sbbs/+/version", true, hooks);
 	if (status != 0) goto failed;
 	if (t->bbsid[0] == '\0') {
-		status = ask(hooks, "MQTT BBSID", "BBS QWK ID", "", sizeof(t->bbsid) - 1, false, &answer);
+		status = ask(hooks, "BBSID", "Enter the upper-case BBSID (QWK ID) configured in SCFG under System Information.",
+		    "", sizeof(t->bbsid) - 1, false, &answer);
 		if (status != 0) goto failed;
 		(void)snprintf(t->bbsid, sizeof(t->bbsid), "%s", answer);
 		free(answer); answer = NULL;
@@ -538,6 +551,7 @@ st_connection_connect_mqtt(st_connection_t **result, const struct st_profile *pr
 	for (const unsigned char *p = (const unsigned char *)t->bbsid; *p != 0; ++p)
 		if (*p < 0x21 || *p > 0x7e) { status = IO_ERROR_PROTOCOL; goto failed; }
 	(void)snprintf(status_topic, sizeof(status_topic), "sbbs/%s/node/+/status", t->bbsid);
+	if (hooks != NULL && hooks->status != NULL) hooks->status(hooks->ui_context, "Discovering nodes");
 	status = subscribe(t, status_topic, false, hooks);
 	if (status == 0) status = discover(t, nodes, &count, false, hooks);
 	if (status == 0) status = select_node(nodes, count, hooks, &node);
@@ -550,6 +564,7 @@ st_connection_connect_mqtt(st_connection_t **result, const struct st_profile *pr
 	xp_crypto_clear(copy.system_password, sizeof(copy.system_password));
 	xp_crypto_clear(copy.tls_psk, sizeof(copy.tls_psk));
 	st_profile_dispose(&copy);
+	if (hooks != NULL && hooks->status != NULL) hooks->status(hooks->ui_context, NULL);
 	return st_connection_start(result, t, &operations, "MQTT", hooks, mqtt_send, error);
 failed:
 	if (answer != NULL) { xp_crypto_clear(answer, strlen(answer)); free(answer); }
@@ -558,7 +573,18 @@ failed:
 	xp_crypto_clear(copy.tls_psk, sizeof(copy.tls_psk));
 	st_profile_dispose(&copy);
 	mqtt_destroy(t);
-	if (stream_failed) return status;
-	return st_connection_fail(error, status, phase,
-	    "MQTT TLS, authentication, discovery, or node selection failed");
+	char message[2400];
+	if (stream_failed)
+		(void)snprintf(message, sizeof(message), "TLS handshake failed.\n%s%s%s%s",
+		    psk_error[0] == '\0' ? "" : "PSK leg: ", psk_error,
+		    psk_error[0] == '\0' ? "" : "\nCert leg: ",
+		    error == NULL ? "TLS connection failed" : error->detail);
+	else
+		(void)snprintf(message, sizeof(message), "MQTT authentication, discovery, or node selection failed (%d)", status);
+	st_connection_fail(error, status, phase, message);
+	if (status != IO_ERROR_CANCELLED) {
+		bool presented = st_connection_error_dialog(hooks, stream_failed ? "MQTT TLS Error" : "MQTT connection failed", message);
+		if (error != NULL) error->presented = presented;
+	}
+	return status;
 }

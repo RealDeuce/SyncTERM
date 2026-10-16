@@ -58,6 +58,53 @@ struct diagnostic_capture {
 	char message[128];
 };
 
+static SSL_CTX *make_server_context(enum st_tls_protocol_version version, bool use_psk);
+static int open_connected_socket(socket_handle_t *listener, socket_handle_t *client);
+static int server_thread(void *argument);
+
+static void
+capture_chain(const struct st_tls_peer_certificate *certificates, size_t count,
+    void *context)
+{
+	bool *captured = context;
+	*captured = count == 1 && certificates != NULL
+	    && strstr(certificates[0].subject, "localhost") != NULL
+	    && strstr(certificates[0].issuer, "localhost") != NULL
+	    && certificates[0].not_before[0] != '\0'
+	    && certificates[0].not_after[0] != '\0'
+	    && strlen(certificates[0].fingerprint_sha256) == 95
+	    && strstr(certificates[0].pem, "BEGIN CERTIFICATE") != NULL;
+}
+
+static int
+untrusted_certificate(void)
+{
+	bool captured = false;
+	struct st_tls_client_options options = {
+		.server_name = "localhost", .server_auth = ST_TLS_SERVER_AUTH_UNTRUSTED,
+		.handshake_timeout_ms = 3000, .peer_chain = capture_chain,
+		.peer_chain_context = &captured,
+	};
+	struct server_state server = {.listener = SOCKET_HANDLE_INVALID};
+	socket_handle_t client;
+	st_tls_session_t *session = NULL;
+	st_thread_t thread;
+	int result;
+	server.context = make_server_context(ST_TLS_PROTOCOL_1_3, false);
+	CHECK(server.context != NULL);
+	CHECK(open_connected_socket(&server.listener, &client));
+	CHECK(st_thread_create(&thread, server_thread, &server) == ST_THREAD_SUCCESS);
+	CHECK(st_tls_client_open(&session, client, &options) < 0 && session == NULL);
+	/* Failed open leaves the socket with us. Close before joining a peer
+	 * which may still be waiting for a handshake record or close alert. */
+	CHECK(socket_close(client) == 0);
+	CHECK(st_thread_join(thread, &result) == ST_THREAD_SUCCESS && result == 0);
+	CHECK(captured);
+	CHECK(socket_close(server.listener) == 0);
+	SSL_CTX_free(server.context);
+	return 0;
+}
+
 static void
 capture_diagnostic(const struct st_tls_diagnostic *record, void *context)
 {
@@ -276,6 +323,10 @@ run_case(enum st_tls_protocol_version version, bool matching_secret,
 	    != ST_THREAD_SUCCESS)
 		goto cleanup;
 	status = st_tls_client_open(&session, client, &options);
+	if (status < 0 && socket_handle_is_valid(client)) {
+		(void)socket_close(client);
+		client = SOCKET_HANDLE_INVALID;
+	}
 	if (st_thread_join(thread, &thread_result) != ST_THREAD_SUCCESS
 	    || thread_result != 0)
 		goto cleanup;
@@ -303,7 +354,7 @@ run_case(enum st_tls_protocol_version version, bool matching_secret,
 		    "TLS handshake did not select the configured PSK") != 0))
 			goto cleanup;
 #endif
-		if (socket_close(client) != 0)
+		if (socket_handle_is_valid(client) && socket_close(client) != 0)
 			goto cleanup;
 		client = SOCKET_HANDLE_INVALID;
 	}
@@ -331,6 +382,7 @@ main(void)
 	(void)signal(SIGPIPE, SIG_IGN);
 #endif
 	CHECK(socket_runtime_init() == 0);
+	CHECK(untrusted_certificate() == 0);
 	if (run_case(ST_TLS_PROTOCOL_1_2, true, true) != 0) {
 		fprintf(stderr, "TLS 1.2 matching PSK failed\n");
 		result = 1;

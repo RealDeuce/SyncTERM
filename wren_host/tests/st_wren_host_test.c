@@ -1797,6 +1797,66 @@ exercise_ssh_key_persistence(st_wren_host_t *public_host)
 	CHECK(st_bbs_list_reload(host->bbs_list) == 0);
 	entry = st_bbs_list_find(host->bbs_list, profile.name);
 	CHECK(entry != NULL && memcmp(entry->profile->ssh_fingerprint, fingerprint, 32) == 0);
+	CHECK(!st_wren_host_can_trust_tls(host, &profile));
+	CHECK(st_profile_copy(&profile, entry->profile));
+	CHECK(st_wren_host_can_trust_tls(host, &profile));
+	CHECK(st_wren_host_remember_tls_version(host, &profile, ST_TLS_VERSION_1_3) == 0);
+	CHECK(st_bbs_list_reload(host->bbs_list) == 0);
+	entry = st_bbs_list_find(host->bbs_list, profile.name);
+	CHECK(entry != NULL && entry->profile->tls_version_floor == ST_TLS_VERSION_1_3);
+	{
+		const char pem[] = "-----BEGIN CERTIFICATE-----\nfixture\n-----END CERTIFICATE-----\n";
+		char *first = NULL, *second = NULL;
+		CHECK(st_wren_host_trust_tls(host, &profile, pem, &first) == 0 && first != NULL);
+		CHECK(file_equals(first, pem));
+		CHECK(st_bbs_list_reload(host->bbs_list) == 0);
+		entry = st_bbs_list_find(host->bbs_list, profile.name);
+		CHECK(entry != NULL && !entry->profile->tls_trust_web_pki
+		    && entry->profile->tls_version_floor == ST_TLS_VERSION_UNKNOWN
+		    && strcmp(entry->profile->tls_trusted_certificate, first) == 0);
+		CHECK(st_profile_copy(&profile, entry->profile));
+		CHECK(st_wren_host_trust_tls(host, &profile, pem, &second) == 0 && second != NULL);
+		CHECK(strcmp(first, second) != 0 && file_equals(first, pem) && file_equals(second, pem));
+		entry = st_bbs_list_find(host->bbs_list, profile.name);
+		CHECK(entry != NULL && st_profile_copy(&profile, entry->profile));
+		uint64_t generation = st_bbs_list_generation(host->bbs_list);
+		host->config.safe_mode = true;
+		CHECK(!st_wren_host_can_trust_tls(host, &profile));
+		char *unused = NULL;
+		CHECK(st_wren_host_trust_tls(host, &profile, pem, &unused) == IO_ERROR_PERMISSION_DENIED);
+		CHECK(st_wren_host_remember_tls_version(host, &profile, ST_TLS_VERSION_1_2) == 0);
+		CHECK(st_bbs_list_generation(host->bbs_list) == generation && unused == NULL);
+		profile.tls_version_floor = ST_TLS_VERSION_UNKNOWN;
+		st_wren_host_apply_tls_version(host, &profile);
+		CHECK(profile.tls_version_floor == ST_TLS_VERSION_1_2);
+		CHECK(st_bbs_list_reload(host->bbs_list) == 0);
+		profile.tls_version_floor = ST_TLS_VERSION_UNKNOWN;
+		st_wren_host_apply_tls_version(host, &profile);
+		CHECK(profile.tls_version_floor == ST_TLS_VERSION_1_2);
+		/* A deliberate edit to trust/version policy invalidates the observation. */
+		profile.tls_version_floor = ST_TLS_VERSION_1_3;
+		st_wren_host_apply_tls_version(host, &profile);
+		CHECK(profile.tls_version_floor == ST_TLS_VERSION_1_3);
+		profile.tls_version_floor = ST_TLS_VERSION_UNKNOWN;
+		profile.tls_trust_web_pki = !profile.tls_trust_web_pki;
+		st_wren_host_apply_tls_version(host, &profile);
+		CHECK(profile.tls_version_floor == ST_TLS_VERSION_UNKNOWN);
+		profile.tls_trust_web_pki = !profile.tls_trust_web_pki;
+		generation = st_bbs_list_generation(host->bbs_list);
+		CHECK(st_bbs_list_generation(host->bbs_list) == generation && unused == NULL);
+		host->config.safe_mode = false;
+		struct st_app_paths failed_paths = *host->config.paths;
+		const struct st_app_paths *saved_paths = host->config.paths;
+		char blocked[1024];
+		CHECK(snprintf(blocked, sizeof(blocked), "%s/settings.ini", first) < (int)sizeof(blocked));
+		failed_paths.settings_file = blocked;
+		host->config.paths = &failed_paths;
+		CHECK(st_wren_host_trust_tls(host, &profile, pem, &unused) < 0 && unused == NULL);
+		CHECK(st_bbs_list_generation(host->bbs_list) == generation && file_equals(first, pem));
+		host->config.paths = saved_paths;
+		CHECK(fs_remove_file(first) == 0 && fs_remove_file(second) == 0);
+		free(first); free(second);
+	}
 	CHECK(st_bbs_list_remove(host->bbs_list, profile.name, NULL) == 0);
 	st_profile_dispose(&profile);
 	return 0;
@@ -2981,6 +3041,16 @@ exercise_menu_prompt(struct st_wren_host *host, st_console_t *console)
 		    == IO_ERROR_CANCELLED);
 		CHECK(st_thread_join(thread, &thread_result) == ST_THREAD_SUCCESS && thread_result == 0);
 	}
+	poster.finish = 13;
+	CHECK(st_thread_create(&thread, post_prompt_input, &poster) == ST_THREAD_SUCCESS);
+	CHECK(st_wren_host_alert(host, "SSH Banner", "Fixture banner") == 0);
+	CHECK(st_thread_join(thread, &thread_result) == ST_THREAD_SUCCESS && thread_result == 0);
+	poster.finish = 27;
+	CHECK(st_thread_create(&thread, post_prompt_input, &poster) == ST_THREAD_SUCCESS);
+	CHECK(st_wren_host_help(host, "TLS Certificate Error", "# Protocol Log\n\nFixture TLS error") == 0);
+	CHECK(st_thread_join(thread, &thread_result) == ST_THREAD_SUCCESS && thread_result == 0);
+	CHECK(st_wren_host_status(host, "Connecting", "Negotiating TLS") == 0);
+	CHECK(st_wren_host_status(host, NULL, NULL) == 0);
 	{
 		const struct st_console_event close = {
 			.type = ST_CONSOLE_EVENT_CLOSE,

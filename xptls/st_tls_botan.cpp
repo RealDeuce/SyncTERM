@@ -44,6 +44,7 @@
 #include <botan/tls_server_info.h>
 #include <botan/tls_session.h>
 #include <botan/tls_session_manager_noop.h>
+#include <botan/x509path.h>
 
 class ClientPolicy : public Botan::TLS::Policy {
 public:
@@ -244,6 +245,8 @@ struct st_tls_session {
 	std::vector<std::vector<uint8_t>> peer_certificates;
 	st_tls_diagnostic_fn diagnostic = nullptr;
 	void *diagnostic_context = nullptr;
+	st_tls_peer_chain_fn peer_chain = nullptr;
+	void *peer_chain_context = nullptr;
 };
 
 static void
@@ -258,10 +261,20 @@ report(st_tls_session *session, int status, bool fatal, const char *message)
 	}
 }
 
+static std::string
+readable_time(const Botan::ASN1_Time& time)
+{
+	auto text = time.readable_string();
+	if (text.size() >= 10 && text[4] == '/' && text[7] == '/') {
+		text[4] = '-'; text[7] = '-';
+	}
+	return text;
+}
+
 class Callbacks : public Botan::TLS::Callbacks {
 public:
-	Callbacks(st_tls_session *session, bool verify)
-	    : session_(session), verify_(verify) {}
+	Callbacks(st_tls_session *session, bool verify, bool partial_chain)
+	    : session_(session), verify_(verify), partial_chain_(partial_chain) {}
 	void tls_emit_data(std::span<const uint8_t> data) override
 	{
 		session_->ciphertext.insert(session_->ciphertext.end(), data.begin(),
@@ -302,13 +315,38 @@ public:
 		session_->peer_certificates.reserve(certificates.size());
 		for (const auto& certificate : certificates)
 			session_->peer_certificates.push_back(certificate.BER_encode());
-		if (verify_)
+		if (session_->peer_chain != nullptr) {
+			struct Text { std::string subject, issuer, before, after, fingerprint, pem; };
+			std::vector<Text> text;
+			std::vector<struct st_tls_peer_certificate> records;
+			text.reserve(certificates.size());
+			records.reserve(certificates.size());
+			for (const auto& certificate : certificates)
+				text.push_back({certificate.subject_dn().to_string(),
+				    certificate.issuer_dn().to_string(),
+				    readable_time(certificate.not_before()), readable_time(certificate.not_after()),
+				    certificate.fingerprint("SHA-256"), certificate.PEM_encode()});
+			for (const auto& item : text)
+				records.push_back({item.subject.c_str(), item.issuer.c_str(),
+				    item.before.c_str(), item.after.c_str(), item.fingerprint.c_str(), item.pem.c_str()});
+			session_->peer_chain(records.data(), records.size(), session_->peer_chain_context);
+		}
+		if (verify_ && partial_chain_) {
+			Botan::Path_Validation_Restrictions restrictions(
+			    policy.require_cert_revocation_info(), policy.minimum_signature_strength(),
+			    false, std::chrono::seconds::zero(),
+			    std::make_unique<Botan::Certificate_Store_In_Memory>(), false, false);
+			auto result = Botan::x509_path_validate(certificates, restrictions, roots, hostname,
+			    usage, std::chrono::system_clock::now(), std::chrono::milliseconds(0), ocsp);
+			if (!result.successful_validation()) throw std::runtime_error(result.result_string());
+		} else if (verify_)
 			Botan::TLS::Callbacks::tls_verify_cert_chain(certificates, ocsp,
 			    roots, usage, hostname, policy);
 	}
 private:
 	st_tls_session *session_;
 	bool verify_;
+	bool partial_chain_;
 };
 
 class Deadline {
@@ -396,6 +434,8 @@ st_tls_client_open(st_tls_session_t **result, socket_handle_t socket,
 	if (result == nullptr || options == nullptr
 	    || !socket_handle_is_valid(socket))
 		return IO_ERROR_INVALID_ARGUMENT;
+	if (static_cast<unsigned>(options->server_auth) > ST_TLS_SERVER_AUTH_UNTRUSTED)
+		return IO_ERROR_INVALID_ARGUMENT;
 	*result = nullptr;
 	psk = options->psk != nullptr || options->psk_size != 0
 	    || options->psk_identity != nullptr;
@@ -422,6 +462,8 @@ st_tls_client_open(st_tls_session_t **result, socket_handle_t socket,
 		session->socket = socket;
 		session->diagnostic = options->diagnostic;
 		session->diagnostic_context = options->diagnostic_context;
+		session->peer_chain = options->peer_chain;
+		session->peer_chain_context = options->peer_chain_context;
 		session->random = std::make_shared<Botan::AutoSeeded_RNG>();
 		session->sessions =
 		    std::make_shared<Botan::TLS::Session_Manager_Noop>();
@@ -433,7 +475,8 @@ st_tls_client_open(st_tls_session_t **result, socket_handle_t socket,
 			session->policy = std::make_shared<ClientPolicy>(
 			    options->minimum_version, options->maximum_version);
 		session->callbacks = std::make_shared<Callbacks>(session.get(),
-		    !psk && options->server_auth != ST_TLS_SERVER_AUTH_NONE);
+		    !psk && options->server_auth != ST_TLS_SERVER_AUTH_NONE,
+		    !psk && options->server_auth == ST_TLS_SERVER_AUTH_CERTIFICATE);
 		Botan::TLS::Server_Information server(options->server_name == nullptr
 		    ? "" : options->server_name);
 		Botan::TLS::Protocol_Version offered =
@@ -478,6 +521,8 @@ st_tls_client_open(st_tls_session_t **result, socket_handle_t socket,
 		(void)socket_set_blocking(socket, true);
 		return IO_ERROR_PROTOCOL;
 	}
+	session->peer_chain = nullptr;
+	session->peer_chain_context = nullptr;
 	*result = session.release();
 	return 0;
 }

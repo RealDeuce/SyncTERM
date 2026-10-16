@@ -30,6 +30,7 @@
 #include "st_terminfo.h"
 #include "st_term.h"
 #include "st_time.h"
+#include "st_threads.h"
 #include "st_wren_host.h"
 
 #include <locale.h>
@@ -205,9 +206,103 @@ run_rip_prompt(void *context, const char *question, const char *initial,
 struct connection_ui {
 	st_wren_host_t *host;
 	st_console_t *console;
-	const struct st_profile *profile;
+	struct st_profile *profile;
 	bool closed;
+	enum st_connection_setup_phase phase;
+	st_mutex_t log_mutex;
+	char *log;
+	size_t log_size;
+	size_t log_capacity;
 };
+
+static void
+connection_status(void *context, const char *message)
+{
+	struct connection_ui *ui = context;
+	if (!ui->profile->hide_popups)
+		(void)st_wren_host_status(ui->host, "Connecting", message);
+}
+
+static void
+connection_log(void *context, enum st_connection_log_level level,
+	const char *source, const char *message)
+{
+	struct connection_ui *ui = context;
+	const int priorities[] = {3, 4, 6, 7};
+	char line[2048];
+	if ((unsigned)level >= sizeof(priorities) / sizeof(priorities[0])
+	    || priorities[level] > ui->profile->protocol_log_level) return;
+	int count = snprintf(line, sizeof(line), "%s %s: %s\n", source == NULL ? "Protocol" : source,
+	    level == ST_CONNECTION_LOG_ERROR ? "Error" : level == ST_CONNECTION_LOG_WARNING
+	    ? "Warning" : level == ST_CONNECTION_LOG_INFO ? "Info" : "Debug", message == NULL ? "" : message);
+	if (count < 0) return;
+	size_t length = (size_t)count < sizeof(line) ? (size_t)count : sizeof(line) - 1;
+	/* Never render terminal escapes or embedded controls from a remote log. */
+	for (size_t i = 0; i < length; ++i)
+		if ((unsigned char)line[i] < 32 && line[i] != '\n' && line[i] != '\t') line[i] = '?';
+	(void)st_mutex_lock(&ui->log_mutex);
+	if (ui->log_size < 1024U * 1024U) {
+		size_t remaining = 1024U * 1024U - ui->log_size;
+		if (length > remaining) length = remaining;
+		size_t needed = ui->log_size + length + 1;
+		if (needed > ui->log_capacity) {
+			size_t capacity = ui->log_capacity == 0 ? 4096 : ui->log_capacity;
+			while (capacity < needed) capacity *= 2;
+			if (capacity > 1024U * 1024U + 1) capacity = 1024U * 1024U + 1;
+			char *next = realloc(ui->log, capacity);
+			if (next != NULL) { ui->log = next; ui->log_capacity = capacity; }
+		}
+		if (needed <= ui->log_capacity) {
+			memcpy(ui->log + ui->log_size, line, length);
+			ui->log_size += length;
+			ui->log[ui->log_size] = '\0';
+		}
+	}
+	(void)st_mutex_unlock(&ui->log_mutex);
+}
+
+static void
+connection_alert(void *context, const char *title, const char *message)
+{
+	struct connection_ui *ui = context;
+	connection_status(ui, NULL);
+	if (!ui->profile->hide_popups) (void)st_wren_host_alert(ui->host, title, message);
+}
+
+static void
+connection_help(void *context, const char *title, const char *details)
+{
+	struct connection_ui *ui = context;
+	if (ui->profile->hide_popups) return;
+	connection_status(ui, NULL);
+	(void)st_mutex_lock(&ui->log_mutex);
+	size_t size = strlen(details) + ui->log_size + 160;
+	char *body = malloc(size);
+	if (body != NULL)
+		(void)snprintf(body, size, "%s\n\n# Protocol Log\n\n```\n%s\n```\n", details,
+		    ui->log_size == 0 ? "No protocol messages at the selected log level." : ui->log);
+	(void)st_mutex_unlock(&ui->log_mutex);
+	if (body != NULL) {
+		(void)st_wren_host_help(ui->host, title, body);
+		free(body);
+	}
+}
+
+static int
+remember_tls_version(void *context, int version)
+{
+	struct connection_ui *ui = context;
+	int status = st_wren_host_remember_tls_version(ui->host, ui->profile, version);
+	ui->profile->tls_version_floor = version;
+	return status;
+}
+
+static int
+trust_tls_certificate(void *context, const char *pem, char **filename)
+{
+	struct connection_ui *ui = context;
+	return st_wren_host_trust_tls(ui->host, ui->profile, pem, filename);
+}
 
 static enum st_connection_setup_action
 connection_setup(void *context, enum st_connection_setup_phase phase)
@@ -215,7 +310,14 @@ connection_setup(void *context, enum st_connection_setup_phase phase)
 	struct connection_ui *ui = context;
 	struct st_console_event event, resize = {0};
 	bool resized = false, cancel = ui->closed;
-	(void)phase;
+	if (phase != ui->phase) {
+		const char *messages[] = {NULL, "Looking up host", "Connecting...",
+		    "Opening device", "Initializing...", "Dialing...", "Starting shell",
+		    "Activating Session", "Authenticating", "Discovering nodes"};
+		ui->phase = phase;
+		if ((unsigned)phase < sizeof(messages) / sizeof(messages[0]))
+			connection_status(ui, messages[phase]);
+	}
 	while (!ui->closed && st_console_event_try(ui->console, &event) == 0) {
 		if (event.type == ST_CONSOLE_EVENT_CLOSE) {
 			ui->closed = true;
@@ -239,6 +341,7 @@ connection_prompt(void *context, const char *title, const char *message,
 	const char *initial, size_t max_length, bool masked, char **result)
 {
 	struct connection_ui *ui = context;
+	connection_status(ui, NULL);
 	if (ui->profile->hide_popups) {
 		*result = NULL;
 		return IO_ERROR_PASSWORD_REQUIRED;
@@ -252,6 +355,7 @@ connection_choice(void *context, const char *title, const char *message,
 	const char *const *choices, size_t count)
 {
 	struct connection_ui *ui = context;
+	connection_status(ui, NULL);
 	if (ui->profile->hide_popups) return IO_ERROR_PERMISSION_DENIED;
 	return st_wren_host_choice(ui->host, title, message, choices, count);
 }
@@ -325,7 +429,7 @@ run_wren_capture_input(void *context, const char *utf8, size_t size)
 
 static int
 run_selected(st_wren_host_t *host, st_console_display_t *display,
-	st_console_t *console, const struct st_profile *profile,
+	st_console_t *console, struct st_profile *profile,
 	const struct st_app_paths *paths,
 	st_audio_runtime_t *audio, st_hyperlink_registry_t *hyperlinks,
 	st_session_history_t *history, enum st_term_disposition *disposition)
@@ -347,6 +451,11 @@ run_selected(st_wren_host_t *host, st_console_display_t *display,
 		.prompt = connection_prompt, .choice = connection_choice,
 		.ui_context = &connection_ui, .ssh_key_file = paths->keys_file,
 		.remember_hostkey = profile->name[0] != '\0' ? remember_hostkey : NULL,
+		.alert = connection_alert, .help = connection_help, .status = connection_status,
+		.log = connection_log, .log_context = &connection_ui,
+		.remember_tls_version = remember_tls_version,
+		.trust_tls_certificate = st_wren_host_can_trust_tls(host, profile)
+		    ? trust_tls_certificate : NULL,
 	};
 	uint8_t selector = 0;
 	int status;
@@ -366,6 +475,9 @@ run_selected(st_wren_host_t *host, st_console_display_t *display,
 	if (status != 0)
 		return status;
 	mode = st_screen_mode_get(session_mode);
+	st_wren_host_apply_tls_version(host, profile);
+	if (st_mutex_init(&connection_ui.log_mutex, ST_MUTEX_PLAIN) != ST_THREAD_SUCCESS)
+		return IO_ERROR_OUT_OF_MEMORY;
 	if (mode != NULL)
 		selector = mode->font_selector;
 	status = prepare_session_fonts(&fonts, console, profile, selector,
@@ -374,15 +486,16 @@ run_selected(st_wren_host_t *host, st_console_display_t *display,
 		goto finished;
 	status = st_term_connect_profile(&connection, profile, console, &connection_hooks,
 	    &error);
+	connection_status(&connection_ui, NULL);
 	if (status != 0) {
 		fprintf(stderr, "SyncTERM: connection failed (%d)%s%s\n", status,
 		    error.detail[0] == '\0' ? "" : ": ",
 		    error.detail[0] == '\0' ? "" : error.detail);
-		if (status != IO_ERROR_CANCELLED && !profile->hide_popups) {
-			const char *choices[] = {"OK"};
-			(void)st_wren_host_choice(host, "Connection failed",
-			    error.detail[0] == '\0' ? "Unable to establish the connection."
-			    : error.detail, choices, 1);
+		if (status != IO_ERROR_CANCELLED && !profile->hide_popups && !error.presented) {
+			const char *choices[] = {"OK", "View Protocol Log"};
+			const char *detail = error.detail[0] == '\0' ? "Unable to establish the connection." : error.detail;
+			while (connection_choice(&connection_ui, "Connection failed", detail, choices, 2) == 1)
+				connection_help(&connection_ui, "Connection failed", detail);
 		}
 		goto finished;
 	}
@@ -490,6 +603,9 @@ finished:
 		if (status == 0)
 			status = close_status;
 	}
+	connection_status(&connection_ui, NULL);
+	free(connection_ui.log);
+	st_mutex_destroy(&connection_ui.log_mutex);
 	st_font_catalog_destroy(fonts);
 	free(rip_directory);
 	return status;

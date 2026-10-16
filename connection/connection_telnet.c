@@ -348,10 +348,18 @@ telnet_binary(void *state, bool enabled)
 	return status;
 }
 
+static int
+telnet_process_requests(void *state)
+{
+	struct telnet_transport *t = state;
+	return st_connection_stream_process_requests(&t->stream);
+}
+
 static const struct st_connection_transport_ops operations = {
 	.bind = telnet_bind, .read = telnet_read, .write = telnet_write,
 	.interrupt = telnet_interrupt, .destroy = telnet_destroy,
 	.update_terminal_size = telnet_resize, .set_binary_mode = telnet_binary,
+	.process_requests = telnet_process_requests,
 };
 
 int

@@ -165,6 +165,17 @@ paths or PSK, version bounds, handshake timeout, and an optional diagnostic
 callback.  Option storage is borrowed only for open.  Diagnostic record
 strings are provider-owned and valid only during the callback.
 
+`ST_TLS_SERVER_AUTH_UNTRUSTED` validates without trust anchors: it rejects
+certificate sessions while still reporting the presented chain. It is not
+`NONE`, which deliberately permits unauthenticated sessions. The optional
+`peer_chain(chain, count, peer_chain_context)` callback runs during open on
+success or certificate failure, before the temporary session is destroyed.
+Each borrowed `st_tls_peer_certificate` supplies subject, issuer, readable
+validity dates, SHA-256 fingerprint, and PEM. Copy data needed after return;
+the callback cannot accept a rejected handshake. Explicit certificate trust
+permits a leaf or intermediate anchor while retaining hostname, validity,
+usage, and cryptographic checks below it.
+
 [source,c]
 ----
 int st_tls_client_open(st_tls_session_t **result, socket_handle_t socket,
@@ -426,6 +437,22 @@ choice passes true. The application automatically persists personal entries;
 Update can also save a personal copy of an external or quick-connect entry.
 Safe mode accepts the decision for this session without writing the list.
 
+`alert(ui_context, title, message)` displays an informational notice;
+`help(ui_context, title, details)` opens those details with the retained
+protocol log. `status(ui_context, message)` updates nonblocking progress;
+NULL clears/restores it without consuming input. All three run on the owner
+thread; runtime TLS failures and SSH debug notices are serviced by
+`st_connection_process_requests()`, never by a protocol worker.
+`remember_tls_version(ui_context, version)` accepts an `ST_TLS_VERSION_*`
+value and returns zero or a persistence error. Saving failure warns but does
+not reject an authenticated session. `trust_tls_certificate(ui_context, pem,
+filename)` is present only for writable personal entries. It installs the
+selected PEM and updates that entry, returning a malloc-owned filename on
+success or a negative error with old trust unchanged. Installation does not
+resume the failed handshake: the user reconnects. The error's `presented`
+flag tells the application that a protocol-specific dialog already handled
+the failure, avoiding a second generic dialog.
+
 [source,c]
 ----
 int st_connection_connect_raw(st_connection_t **result,
@@ -507,6 +534,15 @@ expands to CRLF with CRLF handling preserved across sends. Incoming nonbinary
 CR-NUL becomes CR. Deferred negotiation waits for a peer command;
 `telnet_no_binary` omits the initial binary requests. TLS uses the profile's
 certificate trust, client certificate/key, PSK, and version settings.
+Without configured trust, certificate authentication fails into chain review
+rather than silently accepting the peer. The reviewer can inspect each
+certificate, view protocol diagnostics, or install eligible per-entry trust.
+Missing per-entry client identity uses the global certificate/key settings.
+An authenticated version below the remembered version offers Disconnect,
+Accept Once, Accept and Remember, or View Protocol Log before Telnet I/O.
+First/higher authenticated versions are remembered automatically; a saved
+version is not imposed as a pre-handshake minimum, which would prevent the
+downgrade decision.
 
 | st_connection_connect_ssh(result, profile, current_screen, hooks, error)
 | Accepts SSH or SSH_NO_AUTH profiles. SSH probes none, then uses an Ed25519
@@ -518,6 +554,12 @@ First contact records the SHA-256 fingerprint. A changed key offers the
 v1.10a choices Disconnect, Update (persist and continue), and Ignore (continue
 for this session). Legacy MD5-based fingerprints are recognized and upgraded.
 Ordinary rekeying with the same host key continues without a dialog.
+First-contact weak RSA keys offer Disconnect/Accept, with no silent trust
+when popups are disabled. Authentication banners and always-display debug
+messages are shown through owner-thread notices. Keyboard-interactive
+instructions are shown separately from the challenge. Only the exact
+single, non-echoing `Password: ` challenge uses a saved password, once per
+authentication attempt; OTP and subsequent prompts require user input.
 
 | st_connection_connect_ghost(result, profile, hooks, error)
 | Requires MBBS_GHOST. Probes with MBBS PING, requires the ERROR reply, sends

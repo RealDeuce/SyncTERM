@@ -174,6 +174,18 @@ int st_wren_host_prompt_masked(st_wren_host_t *host, const char *title,
 /* Returns a choice index, or IO_ERROR_CANCELLED when dismissed. */
 int st_wren_host_choice(st_wren_host_t *host, const char *title,
 	const char *question, const char *const *choices, size_t count);
+int st_wren_host_alert(st_wren_host_t *host, const char *title, const char *message);
+int st_wren_host_help(st_wren_host_t *host, const char *title, const char *body);
+/* Nonblocking progress; NULL message clears and restores the saved screen. */
+int st_wren_host_status(st_wren_host_t *host, const char *title, const char *message);
+bool st_wren_host_can_trust_tls(st_wren_host_t *host, const struct st_profile *profile);
+int st_wren_host_trust_tls(st_wren_host_t *host, const struct st_profile *profile,
+	const char *pem, char **filename);
+int st_wren_host_remember_tls_version(st_wren_host_t *host,
+	const struct st_profile *profile, int version);
+/* Reapplies session-only observations after a directory reload, but never
+ * across changed peer/trust settings or an explicitly edited version floor. */
+void st_wren_host_apply_tls_version(st_wren_host_t *host, struct st_profile *profile);
 int st_wren_host_remember_ssh_key(st_wren_host_t *host,
 	const struct st_profile *profile, const uint8_t fingerprint[32],
 	bool explicit_update);

@@ -891,7 +891,7 @@ static int
 host_dialog(st_wren_host_t *host, const char *title,
 	const char *question, const char *initial, size_t max_length,
 	bool masked, char **result, const char *const *choices, size_t count,
-	int *selected)
+	int *selected, const char *method)
 {
 	st_console_snapshot_t *snapshot = NULL;
 	struct st_console_event resize = {0};
@@ -907,6 +907,8 @@ host_dialog(st_wren_host_t *host, const char *title,
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (host->menu_ui_class == NULL || host->menu_prompt == NULL)
 		return IO_ERROR_NOT_SUPPORTED;
+	status = st_wren_host_status(host, NULL, NULL);
+	if (status != 0) return status;
 	*result = NULL;
 	closed = host->exit_requested;
 	status = st_console_snapshot_create(&snapshot, host->config.console);
@@ -920,7 +922,9 @@ host_dialog(st_wren_host_t *host, const char *title,
 	wrenSetSlotHandle(host->vm, 0, host->menu_ui_class);
 	wrenSetSlotString(host->vm, 1, title);
 	wrenSetSlotString(host->vm, 2, question);
-	if (choices != NULL) {
+	if (method != NULL)
+		choice_call = wrenMakeCallHandle(host->vm, method);
+	else if (choices != NULL) {
 		choice_call = wrenMakeCallHandle(host->vm, "choice(_,_,_,_)");
 		wrenSetSlotNewList(host->vm, 3);
 		for (size_t i = 0; i < count; ++i) {
@@ -991,7 +995,7 @@ st_wren_host_prompt(st_wren_host_t *host, const char *title,
 	const char *question, const char *initial, size_t max_length, char **result)
 {
 	return host_dialog(host, title, question, initial, max_length, false,
-	    result, NULL, 0, NULL);
+	    result, NULL, 0, NULL, NULL);
 }
 
 int
@@ -1000,7 +1004,7 @@ st_wren_host_prompt_masked(st_wren_host_t *host, const char *title,
 	bool masked, char **result)
 {
 	return host_dialog(host, title, question, initial, max_length, masked,
-	    result, NULL, 0, NULL);
+	    result, NULL, 0, NULL, NULL);
 }
 
 int
@@ -1012,8 +1016,206 @@ st_wren_host_choice(st_wren_host_t *host, const char *title,
 	if (choices == NULL || count == 0 || count > INT_MAX)
 		return IO_ERROR_INVALID_ARGUMENT;
 	status = host_dialog(host, title, question, "", 0, false, &unused,
-	    choices, count, &selected);
+	    choices, count, &selected, NULL);
 	return status == 0 ? selected : status;
+}
+
+int
+st_wren_host_alert(st_wren_host_t *host, const char *title, const char *message)
+{
+	char *unused = NULL;
+	int status = host_dialog(host, title, message, "", 0, false, &unused,
+	    NULL, 0, NULL, "alert(_,_)");
+	free(unused);
+	return status;
+}
+
+int
+st_wren_host_help(st_wren_host_t *host, const char *title, const char *body)
+{
+	char *unused = NULL;
+	int status = host_dialog(host, title, body, "", 0, false, &unused,
+	    NULL, 0, NULL, "help(_,_)");
+	free(unused);
+	return status;
+}
+
+int
+st_wren_host_status(st_wren_host_t *host, const char *title, const char *message)
+{
+	if (host == NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (message == NULL) {
+		if (host->status_snapshot == NULL) return 0;
+		menu_status_clear(host);
+		int status = st_console_snapshot_restore(host->config.console, host->status_snapshot);
+		st_console_snapshot_destroy(host->status_snapshot);
+		host->status_snapshot = NULL;
+		return status;
+	}
+	if (title == NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (host->status_snapshot == NULL) {
+		int status = st_console_snapshot_create(&host->status_snapshot, host->config.console);
+		if (status != 0) return status;
+	}
+	if (menu_status(host, title, &message, 1)) return 0;
+	(void)st_wren_host_status(host, NULL, NULL);
+	return IO_ERROR_IO;
+}
+
+bool
+st_wren_host_can_trust_tls(st_wren_host_t *host, const struct st_profile *profile)
+{
+	if (host == NULL || profile == NULL || host->config.safe_mode || profile->name[0] == '\0')
+		return false;
+	const struct st_bbs_entry *entry = st_bbs_list_find(host->bbs_list, profile->name);
+	return entry != NULL && entry->source == ST_BBS_SOURCE_PERSONAL
+	    && strcmp(entry->profile->address, profile->address) == 0
+	    && entry->profile->port == profile->port
+	    && entry->profile->tls_trust_web_pki == profile->tls_trust_web_pki
+	    && strcmp(entry->profile->tls_trusted_certificate == NULL ? "" : entry->profile->tls_trusted_certificate,
+	    profile->tls_trusted_certificate == NULL ? "" : profile->tls_trusted_certificate) == 0;
+}
+
+/* Retain unsaved TLS security decisions across directory reloads.
+ * Successful persistence removes the observation. */
+struct st_wren_tls_observation {
+	struct st_wren_tls_observation *next;
+	char name[ST_PROFILE_NAME_MAX + 1];
+	char address[ST_PROFILE_ADDRESS_MAX + 1];
+	uint16_t port;
+	bool web_pki;
+	char *certificate;
+	int baseline, version;
+};
+
+static bool
+same_tls_peer(const struct st_wren_tls_observation *observation, const struct st_profile *profile)
+{
+	return strcmp(observation->name, profile->name) == 0
+	    && strcmp(observation->address, profile->address) == 0 && observation->port == profile->port
+	    && observation->web_pki == profile->tls_trust_web_pki
+	    && strcmp(observation->certificate, profile->tls_trusted_certificate == NULL
+	    ? "" : profile->tls_trusted_certificate) == 0;
+}
+
+void
+st_wren_host_apply_tls_version(st_wren_host_t *host, struct st_profile *profile)
+{
+	if (host == NULL || profile == NULL) return;
+	for (const struct st_wren_tls_observation *item = host->tls_observations; item != NULL; item = item->next)
+		if (same_tls_peer(item, profile) && item->baseline == profile->tls_version_floor) {
+			profile->tls_version_floor = item->version;
+			return;
+		}
+}
+
+static void
+forget_tls_observation(st_wren_host_t *host, const struct st_wren_tls_observation *selected)
+{
+	struct st_wren_tls_observation **next = &host->tls_observations;
+	while (*next != NULL) {
+		struct st_wren_tls_observation *item = *next;
+		if (selected == NULL || item == selected) {
+			*next = item->next;
+			free(item->certificate); free(item);
+		} else next = &item->next;
+	}
+}
+
+int
+st_wren_host_remember_tls_version(st_wren_host_t *host,
+	const struct st_profile *profile, int version)
+{
+	if (host == NULL || profile == NULL || (version != ST_TLS_VERSION_1_2
+	    && version != ST_TLS_VERSION_1_3)) return IO_ERROR_INVALID_ARGUMENT;
+	const struct st_bbs_entry *entry = st_bbs_list_find(host->bbs_list, profile->name);
+	struct st_wren_tls_observation *item;
+	for (item = host->tls_observations; item != NULL; item = item->next)
+		if (same_tls_peer(item, profile)) break;
+	if (item == NULL) {
+		item = calloc(1, sizeof(*item));
+		if (item == NULL) return IO_ERROR_OUT_OF_MEMORY;
+		item->certificate = strdup(profile->tls_trusted_certificate == NULL ? "" : profile->tls_trusted_certificate);
+		if (item->certificate == NULL) { free(item); return IO_ERROR_OUT_OF_MEMORY; }
+		(void)snprintf(item->name, sizeof(item->name), "%s", profile->name);
+		(void)snprintf(item->address, sizeof(item->address), "%s", profile->address);
+		item->port = profile->port; item->web_pki = profile->tls_trust_web_pki;
+		item->next = host->tls_observations; host->tls_observations = item;
+	}
+	item->baseline = entry == NULL ? profile->tls_version_floor : entry->profile->tls_version_floor;
+	item->version = version;
+	if (!st_wren_host_can_trust_tls(host, profile)) return 0;
+	struct st_profile copy;
+	st_profile_init(&copy);
+	if (!st_profile_copy(&copy, entry->profile)) return IO_ERROR_OUT_OF_MEMORY;
+	copy.tls_version_floor = version;
+	int status = st_bbs_list_update(host->bbs_list, copy.name, &copy, NULL);
+	st_profile_dispose(&copy);
+	if (status == 0) forget_tls_observation(host, item);
+	return status;
+}
+
+int
+st_wren_host_trust_tls(st_wren_host_t *host, const struct st_profile *profile,
+	const char *pem, char **filename)
+{
+	struct st_profile copy;
+	char base[sizeof(profile->name) + 32], *directory = NULL, *path = NULL;
+	FILE *file = NULL;
+	int status = IO_ERROR_PERMISSION_DENIED;
+	if (filename == NULL || pem == NULL || strstr(pem, "-----BEGIN CERTIFICATE-----") != pem)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (!st_wren_host_can_trust_tls(host, profile)) return status;
+	struct st_wren_tls_observation *observation;
+	for (observation = host->tls_observations; observation != NULL; observation = observation->next)
+		if (same_tls_peer(observation, profile)) break;
+	const struct st_bbs_entry *entry = st_bbs_list_find(host->bbs_list, profile->name);
+	st_profile_init(&copy);
+	if (!st_profile_copy(&copy, entry->profile)) return IO_ERROR_OUT_OF_MEMORY;
+	ptrdiff_t length = path_parent(NULL, 0, host->config.paths->settings_file);
+	if (length < 0) { status = (int)length; goto finished; }
+	directory = malloc((size_t)length + 1);
+	if (directory == NULL) { status = IO_ERROR_OUT_OF_MEMORY; goto finished; }
+	(void)path_parent(directory, (size_t)length + 1, host->config.paths->settings_file);
+	char name[sizeof(profile->name)];
+	(void)snprintf(name, sizeof(name), "%s", profile->name);
+	for (unsigned char *p = (unsigned char *)name; *p != 0; ++p)
+		if (*p < 0x20 || strchr("<>:\"/\\|?*", *p) != NULL) *p = '_';
+	size_t used = strlen(name);
+	while (used > 0 && (name[used - 1] == ' ' || name[used - 1] == '.')) name[--used] = '\0';
+	for (unsigned suffix = 0; suffix < 10000; ++suffix) {
+		if (suffix == 0) (void)snprintf(base, sizeof(base), "tls-%s.pem", used == 0 ? "certificate" : name);
+		else (void)snprintf(base, sizeof(base), "tls-%s(%u).pem", used == 0 ? "certificate" : name, suffix);
+		free(path); path = NULL;
+		status = path_join_alloc(&path, directory[0] == '\0' ? "." : directory, base);
+		if (status != 0) goto finished;
+		status = fs_create_parent_directories(path);
+		if (status != 0) goto finished;
+		status = fs_open(&file, path, "wbx");
+		if (status != IO_ERROR_ALREADY_EXISTS) break;
+	}
+	if (status != 0) goto finished;
+	if (fwrite(pem, 1, strlen(pem), file) != strlen(pem)) status = IO_ERROR_IO;
+	if (fclose(file) != 0) status = IO_ERROR_IO;
+	file = NULL;
+	if (status == 0) {
+		free(copy.tls_trusted_certificate);
+		copy.tls_trusted_certificate = strdup(path);
+		copy.tls_trust_web_pki = false;
+		copy.tls_version_floor = ST_TLS_VERSION_UNKNOWN;
+		status = copy.tls_trusted_certificate == NULL ? IO_ERROR_OUT_OF_MEMORY
+		    : st_bbs_list_update(host->bbs_list, copy.name, &copy, NULL);
+	}
+	if (status != 0) (void)fs_remove_file(path);
+	else {
+		*filename = path; path = NULL;
+		if (observation != NULL) forget_tls_observation(host, observation);
+	}
+finished:
+	free(directory);
+	free(path);
+	st_profile_dispose(&copy);
+	return status;
 }
 
 int
@@ -1497,6 +1699,8 @@ st_wren_host_destroy(st_wren_host_t *host)
 {
 	if (host == NULL)
 		return;
+	(void)st_wren_host_status(host, NULL, NULL);
+	forget_tls_observation(host, NULL);
 	if (host->hyperlink_root_registered) {
 		st_hyperlink_registry_unregister_root(host->config.hyperlinks,
 		    mark_host_hyperlinks, host);

@@ -85,6 +85,15 @@ struct st_connection_hooks {
 	 * Runs during setup or owner-thread process_requests, never on a worker. */
 	int (*remember_hostkey)(void *context, const uint8_t fingerprint[32],
 		bool explicit_update);
+	/* UI callbacks run only on the owner thread. Help opens the retained
+	 * protocol log with these details; status(NULL) clears progress. */
+	void (*alert)(void *context, const char *title, const char *message);
+	void (*help)(void *context, const char *title, const char *details);
+	void (*status)(void *context, const char *message);
+	int (*remember_tls_version)(void *context, int version);
+	/* Present only when this entry may persist trust. Returns a malloc-owned
+	 * saved filename on success; failure must leave the old trust intact. */
+	int (*trust_tls_certificate)(void *context, const char *pem, char **filename);
 };
 
 struct st_connection_error {
@@ -93,6 +102,7 @@ struct st_connection_error {
 	uint32_t native_error;
 	bool has_native_error;
 	char detail[1024];
+	bool presented;
 };
 
 /*

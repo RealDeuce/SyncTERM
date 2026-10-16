@@ -1325,7 +1325,8 @@ palette, fonts, video flags, and cursor state saved when the first update
 was shown.
 
 The embedded `menu_host_ui` module exports class `MenuHostUI` with static
-methods `alert(title, message)`, `confirm(title, message)`,
+methods `alert(title, message)`, `alertWithHelp(title, message, helpText)`,
+`help(title, body)`, `confirm(title, message)`,
 `prompt(title, message, initial, maxLen, masked)`,
 `choice(title, message, options, current)`, `status(title, lines)`, and
 `statusClear()`.  It is a host-controller ABI rather than a public menu

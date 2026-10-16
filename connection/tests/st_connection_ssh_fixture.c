@@ -21,6 +21,7 @@
 #define CHECK(e) do { if (!(e)) { fprintf(stderr, "SSH fixture %d: %s\n", __LINE__, #e); return 1; } } while (0)
 static int descriptor = -1;
 static const char *mode;
+static unsigned auth_round, password_attempts;
 static int
 io(uint8_t *data, size_t size, dssh_session session, bool sending)
 {
@@ -64,6 +65,7 @@ auth_password(const uint8_t *user, size_t user_size, const uint8_t *password,
 	size_t password_size, uint8_t **change, size_t *change_size, void *context)
 {
 	(void)change; (void)change_size; (void)context;
+	if (strcmp(mode, "retry") == 0 && ++password_attempts <= 2) return DSSH_AUTH_FAILURE;
 	return user_size == 5 && memcmp(user, "guest", 5) == 0
 	    && password_size == 6 && memcmp(password, "secret", 6) == 0
 	    ? DSSH_AUTH_SUCCESS : DSSH_AUTH_FAILURE;
@@ -83,14 +85,17 @@ auth_keyboard(const uint8_t *user, size_t user_size, uint32_t count,
 	void *context)
 {
 	(void)user; (void)user_size; (void)context;
-	if (count != 0)
-		return count == 1 && sizes[0] == 6 && memcmp(responses[0], "secret", 6) == 0
-		    ? DSSH_AUTH_SUCCESS : DSSH_AUTH_FAILURE;
+	if (count != 0) {
+		const char *expected = strcmp(mode, "keyboard-otp") == 0 || auth_round != 0 ? "654321" : "secret";
+		if (count != 1 || sizes[0] != 6 || memcmp(responses[0], expected, 6) != 0)
+			return DSSH_AUTH_FAILURE;
+		if (strcmp(mode, "keyboard-repeat") != 0 || auth_round++ != 0) return DSSH_AUTH_SUCCESS;
+	}
 	*name = copy_text("Fixture");
 	*instruction = copy_text("Authentication");
 	*prompts = calloc(1, sizeof(**prompts));
 	*echo = calloc(1, sizeof(**echo));
-	if (*prompts != NULL) (*prompts)[0] = copy_text("Password");
+	if (*prompts != NULL) (*prompts)[0] = copy_text(strcmp(mode, "keyboard-otp") == 0 ? "OTP: " : "Password: ");
 	*prompt_count = 1;
 	return *name != NULL && *instruction != NULL && *prompts != NULL
 	    && (*prompts)[0] != NULL && *echo != NULL ? DSSH_AUTH_KBI_PROMPT : DSSH_AUTH_FAILURE;
@@ -154,11 +159,12 @@ main(int argc, char **argv)
 	CHECK(argc == 2); mode = argv[1];
 	(void)signal(SIGPIPE, SIG_IGN);
 	CHECK(dssh_register_curve25519_sha256() == 0);
-	CHECK(dssh_register_ssh_ed25519() == 0);
+	bool weak = strncmp(mode, "weak", 4) == 0;
+	CHECK((weak ? dssh_register_rsa_sha2_256() : dssh_register_ssh_ed25519()) == 0);
 	CHECK(dssh_register_aes256_ctr() == 0);
 	CHECK(dssh_register_hmac_sha2_256() == 0);
 	CHECK(dssh_register_none_comp() == 0);
-	CHECK(dssh_ed25519_generate_key() == 0);
+	CHECK((weak ? dssh_rsa_sha2_256_generate_key(1024) : dssh_ed25519_generate_key()) == 0);
 	CHECK(dssh_transport_set_callbacks(tx, rx, NULL, NULL) == 0);
 	listener = socket(AF_INET, SOCK_STREAM, 0);
 	CHECK(listener >= 0 && bind(listener, (struct sockaddr *)&address, sizeof(address)) == 0
@@ -173,7 +179,8 @@ main(int argc, char **argv)
 		CHECK(dssh_session_set_rekey_seconds(session, 1) == 0);
 	CHECK(dssh_session_set_terminate_cb(session, terminate, NULL) == 0);
 	CHECK(dssh_transport_handshake(session) == 0);
-	auth.methods_str = strcmp(mode, "keyboard") == 0 ? "keyboard-interactive" : "password";
+	if (strcmp(mode, "banner") == 0) CHECK(dssh_auth_set_banner(session, "Fixture banner", "en") == 0);
+	auth.methods_str = strncmp(mode, "keyboard", 8) == 0 ? "keyboard-interactive" : "password";
 	status = dssh_auth_server(session, &auth, NULL, NULL);
 	if (status != 0) {
 		dssh_session_cleanup(session); close(descriptor);

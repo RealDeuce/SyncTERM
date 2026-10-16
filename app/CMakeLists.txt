@@ -26,7 +26,7 @@ target_compile_definitions(syncterm_app PRIVATE
 target_link_libraries(syncterm_app PRIVATE st_wren_host st_settings
 	st_app_startup st_audio st_fonts st_font_catalog st_term
 	st_session_history st_hyperlink st_bbs_list)
-target_link_libraries(syncterm_app PRIVATE st_time)
+target_link_libraries(syncterm_app PRIVATE st_time syncterm_threads)
 if(SYNCTERM_ENABLE_UNIFONT)
 	target_link_libraries(syncterm_app PRIVATE st_unifont)
 	target_compile_definitions(syncterm_app PRIVATE ST_HAVE_UNIFONT=1)

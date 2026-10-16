@@ -24,6 +24,8 @@ enum st_tls_server_auth {
 	ST_TLS_SERVER_AUTH_NONE,
 	ST_TLS_SERVER_AUTH_WEB_PKI,
 	ST_TLS_SERVER_AUTH_CERTIFICATE,
+	/* Validate with no trust anchors; reject but report the presented chain. */
+	ST_TLS_SERVER_AUTH_UNTRUSTED,
 };
 
 enum st_tls_protocol_version {
@@ -48,6 +50,19 @@ struct st_tls_diagnostic {
 typedef void (*st_tls_diagnostic_fn)(const struct st_tls_diagnostic *record,
     void *context);
 
+/* Display metadata and PEM are borrowed only during the callback. The
+ * unauthenticated chain is reported even when certificate validation fails. */
+struct st_tls_peer_certificate {
+	const char *subject;
+	const char *issuer;
+	const char *not_before;
+	const char *not_after;
+	const char *fingerprint_sha256;
+	const char *pem;
+};
+typedef void (*st_tls_peer_chain_fn)(const struct st_tls_peer_certificate *chain,
+    size_t count, void *context);
+
 struct st_tls_client_options {
 	const char *server_name;
 	enum st_tls_server_auth server_auth;
@@ -64,6 +79,8 @@ struct st_tls_client_options {
 	int64_t handshake_timeout_ms;
 	st_tls_diagnostic_fn diagnostic;
 	void *diagnostic_context;
+	st_tls_peer_chain_fn peer_chain;
+	void *peer_chain_context;
 };
 
 /*

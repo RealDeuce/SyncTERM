@@ -213,6 +213,8 @@ struct st_wren_host {
 	WrenHandle *menu_prompt;
 	WrenHandle *menu_status;
 	WrenHandle *menu_status_clear;
+	st_console_snapshot_t *status_snapshot;
+	struct st_wren_tls_observation *tls_observations;
 	WrenHandle *picker_bootstrap;
 	WrenHandle *picker_class;
 	WrenHandle *picker_run;
