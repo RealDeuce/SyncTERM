@@ -887,10 +887,11 @@ drain_prompt_input(st_console_t *console, bool *closed,
 	return status == IO_ERROR_WOULD_BLOCK ? 0 : status;
 }
 
-int
-st_wren_host_prompt(st_wren_host_t *host, const char *title,
+static int
+host_dialog(st_wren_host_t *host, const char *title,
 	const char *question, const char *initial, size_t max_length,
-	char **result)
+	bool masked, char **result, const char *const *choices, size_t count,
+	int *selected)
 {
 	st_console_snapshot_t *snapshot = NULL;
 	struct st_console_event resize = {0};
@@ -899,6 +900,7 @@ st_wren_host_prompt(st_wren_host_t *host, const char *title,
 	};
 	bool closed, resized = false;
 	int status, restore_status;
+	WrenHandle *choice_call = NULL;
 
 	if (host == NULL || title == NULL || question == NULL || initial == NULL
 	    || result == NULL || max_length > INT_MAX)
@@ -918,12 +920,29 @@ st_wren_host_prompt(st_wren_host_t *host, const char *title,
 	wrenSetSlotHandle(host->vm, 0, host->menu_ui_class);
 	wrenSetSlotString(host->vm, 1, title);
 	wrenSetSlotString(host->vm, 2, question);
-	wrenSetSlotString(host->vm, 3, initial);
-	wrenSetSlotDouble(host->vm, 4, (double)max_length);
-	wrenSetSlotBool(host->vm, 5, false);
-	if (wrenCall(host->vm, host->menu_prompt) != WREN_RESULT_SUCCESS)
+	if (choices != NULL) {
+		choice_call = wrenMakeCallHandle(host->vm, "choice(_,_,_,_)");
+		wrenSetSlotNewList(host->vm, 3);
+		for (size_t i = 0; i < count; ++i) {
+			wrenSetSlotString(host->vm, 5, choices[i]);
+			wrenInsertInList(host->vm, 3, -1, 5);
+		}
+		wrenSetSlotDouble(host->vm, 4, 0);
+	} else {
+		wrenSetSlotString(host->vm, 3, initial);
+		wrenSetSlotDouble(host->vm, 4, (double)max_length);
+		wrenSetSlotBool(host->vm, 5, masked);
+	}
+	if (wrenCall(host->vm, choice_call != NULL ? choice_call : host->menu_prompt)
+	    != WREN_RESULT_SUCCESS)
 		status = IO_ERROR_IO;
-	else if (wrenGetSlotType(host->vm, 0) == WREN_TYPE_STRING) {
+	else if (choices != NULL && wrenGetSlotType(host->vm, 0) == WREN_TYPE_NUM) {
+		double value = wrenGetSlotDouble(host->vm, 0);
+		if (!(value >= 0 && value < (double)count) || value != (double)(int)value)
+			status = IO_ERROR_INVALID_FORMAT;
+		else
+			*selected = (int)value;
+	} else if (choices == NULL && wrenGetSlotType(host->vm, 0) == WREN_TYPE_STRING) {
 		*result = strdup(wrenGetSlotString(host->vm, 0));
 		if (*result == NULL)
 			status = IO_ERROR_OUT_OF_MEMORY;
@@ -931,6 +950,8 @@ st_wren_host_prompt(st_wren_host_t *host, const char *title,
 	else if (wrenGetSlotType(host->vm, 0) != WREN_TYPE_NULL)
 		status = IO_ERROR_INVALID_FORMAT;
 finished:
+	if (choice_call != NULL)
+		wrenReleaseHandle(host->vm, choice_call);
 	{
 		int drain_status = drain_prompt_input(host->config.console,
 		    &closed, &resized, &resize);
@@ -962,6 +983,67 @@ finished:
 		free(*result);
 		*result = NULL;
 	}
+	return status;
+}
+
+int
+st_wren_host_prompt(st_wren_host_t *host, const char *title,
+	const char *question, const char *initial, size_t max_length, char **result)
+{
+	return host_dialog(host, title, question, initial, max_length, false,
+	    result, NULL, 0, NULL);
+}
+
+int
+st_wren_host_prompt_masked(st_wren_host_t *host, const char *title,
+	const char *question, const char *initial, size_t max_length,
+	bool masked, char **result)
+{
+	return host_dialog(host, title, question, initial, max_length, masked,
+	    result, NULL, 0, NULL);
+}
+
+int
+st_wren_host_choice(st_wren_host_t *host, const char *title,
+	const char *question, const char *const *choices, size_t count)
+{
+	char *unused = NULL;
+	int selected = IO_ERROR_CANCELLED, status;
+	if (choices == NULL || count == 0 || count > INT_MAX)
+		return IO_ERROR_INVALID_ARGUMENT;
+	status = host_dialog(host, title, question, "", 0, false, &unused,
+	    choices, count, &selected);
+	return status == 0 ? selected : status;
+}
+
+int
+st_wren_host_remember_ssh_key(st_wren_host_t *host,
+	const struct st_profile *profile, const uint8_t fingerprint[32],
+	bool explicit_update)
+{
+	struct st_profile copy;
+	const struct st_bbs_entry *entry;
+	int status;
+	if (host == NULL || profile == NULL || fingerprint == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (host->config.safe_mode) return 0;
+	if (host->bbs_list == NULL) {
+		if (!explicit_update) return 0;
+		status = st_bbs_list_open(&host->bbs_list, host->config.paths, NULL, 0);
+		if (status != 0) return status;
+	}
+	entry = st_bbs_list_find(host->bbs_list, profile->name);
+	if (!explicit_update && (entry == NULL || entry->source != ST_BBS_SOURCE_PERSONAL))
+		return 0;
+	st_profile_init(&copy);
+	if (!st_profile_copy(&copy, entry == NULL ? profile : entry->profile))
+		return IO_ERROR_OUT_OF_MEMORY;
+	memcpy(copy.ssh_fingerprint, fingerprint, 32);
+	copy.ssh_fingerprint_size = 32;
+	status = entry != NULL && entry->source == ST_BBS_SOURCE_PERSONAL
+	    ? st_bbs_list_update(host->bbs_list, copy.name, &copy, NULL)
+	    : st_bbs_list_add(host->bbs_list, &copy, NULL);
+	st_profile_dispose(&copy);
 	return status;
 }
 

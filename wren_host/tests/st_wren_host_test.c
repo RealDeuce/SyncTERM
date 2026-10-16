@@ -1484,6 +1484,8 @@ exercise_menu_contract(st_wren_host_t *public_host)
 	    "  if (!Menu.setEncryption(0, 0, null) || Menu.encryptionAlgorithm != 0) Fiber.abort(\"decrypt\")\n"
 	    "}\n";
 	static const char encoding_source[] =
+	    "import \"syncterm\" for ConnType\n"
+	    "if (ConnType.mqtt != 13) Fiber.abort(\"MQTT connection type\")\n"
 	    "import \"syncterm_menu\" for Menu\n"
 	    "import \"menu_bbs_editor\" for BbsEditor\n"
 	    "if (Menu.encodings.count < 20 || Menu.fontsForEncoding(255).count != Menu.fontsCatalog.count) Fiber.abort(\"encodings\")\n"
@@ -1760,6 +1762,43 @@ exercise_bbs_model_contract(st_wren_host_t *public_host,
 	    "Fiber.abort(\"restore\")\n") == 0);
 	st_settings.list_path = saved_list_path;
 	st_settings.download_system_list = saved_download_system_list;
+	return 0;
+}
+
+static int
+exercise_ssh_key_persistence(st_wren_host_t *public_host)
+{
+	struct st_wren_host *host = public_host;
+	struct st_profile profile;
+	const struct st_bbs_entry *entry;
+	uint8_t fingerprint[32];
+	st_profile_init(&profile);
+	strcpy(profile.name, "SSH key fixture");
+	strcpy(profile.address, "ssh.example");
+	memset(fingerprint, 0xa5, sizeof(fingerprint));
+	/* First contact must not silently create a personal directory entry. */
+	CHECK(st_wren_host_remember_ssh_key(host, &profile, fingerprint, false) == 0);
+	CHECK(st_bbs_list_find(host->bbs_list, profile.name) == NULL);
+	CHECK(st_wren_host_remember_ssh_key(host, &profile, fingerprint, true) == 0);
+	CHECK(st_bbs_list_reload(host->bbs_list) == 0);
+	entry = st_bbs_list_find(host->bbs_list, profile.name);
+	CHECK(entry != NULL && entry->source == ST_BBS_SOURCE_PERSONAL);
+	CHECK(entry->profile->ssh_fingerprint_size == 32
+	    && memcmp(entry->profile->ssh_fingerprint, fingerprint, 32) == 0);
+	/* Recording a key must preserve edits made since the session started. */
+	strcpy(profile.address, "stale.example");
+	memset(fingerprint, 0x5a, sizeof(fingerprint));
+	CHECK(st_wren_host_remember_ssh_key(host, &profile, fingerprint, false) == 0);
+	entry = st_bbs_list_find(host->bbs_list, profile.name);
+	CHECK(entry != NULL && strcmp(entry->profile->address, "ssh.example") == 0
+	    && memcmp(entry->profile->ssh_fingerprint, fingerprint, 32) == 0);
+	memset(fingerprint, 0x3c, sizeof(fingerprint));
+	CHECK(st_wren_host_remember_ssh_key(host, &profile, fingerprint, true) == 0);
+	CHECK(st_bbs_list_reload(host->bbs_list) == 0);
+	entry = st_bbs_list_find(host->bbs_list, profile.name);
+	CHECK(entry != NULL && memcmp(entry->profile->ssh_fingerprint, fingerprint, 32) == 0);
+	CHECK(st_bbs_list_remove(host->bbs_list, profile.name, NULL) == 0);
+	st_profile_dispose(&profile);
 	return 0;
 }
 
@@ -2596,6 +2635,12 @@ exercise_url_selection(st_wren_host_t *host)
 	    ST_CONNECTION_RLOGIN, &profile) == 0);
 	CHECK(profile.connection_type == ST_CONNECTION_SSH);
 	CHECK(profile.port == 22);
+	CHECK(st_wren_host_select_url(host, "sshna://example.com",
+	    ST_CONNECTION_RLOGIN, &profile) == 0);
+	CHECK(profile.connection_type == ST_CONNECTION_SSH_NO_AUTH && profile.port == 22);
+	CHECK(st_wren_host_select_url(host, "telnets://example.com",
+	    ST_CONNECTION_RLOGIN, &profile) == 0);
+	CHECK(profile.connection_type == ST_CONNECTION_TELNET_TLS && profile.port == 992);
 	CHECK(st_wren_host_select_url(host, "raw://example.com",
 	    ST_CONNECTION_RLOGIN, &profile) == 0);
 	CHECK(profile.connection_type == ST_CONNECTION_RAW);
@@ -2915,6 +2960,27 @@ exercise_menu_prompt(struct st_wren_host *host, st_console_t *console)
 	CHECK(answer != NULL && strcmp(answer, "\xc3\xa9") == 0);
 	free(answer);
 	answer = NULL;
+	poster.text = "secret";
+	poster.codepoint = 0;
+	CHECK(st_thread_create(&thread, post_prompt_input, &poster) == ST_THREAD_SUCCESS);
+	CHECK(st_wren_host_prompt_masked(host, "SSH authentication", "Password",
+	    "", 128, true, &answer) == 0);
+	CHECK(st_thread_join(thread, &thread_result) == ST_THREAD_SUCCESS && thread_result == 0);
+	CHECK(answer != NULL && strcmp(answer, "secret") == 0);
+	free(answer);
+	answer = NULL;
+	{
+		const char *choices[] = {"Disconnect", "Update", "Ignore"};
+		poster.text = "";
+		CHECK(st_thread_create(&thread, post_prompt_input, &poster) == ST_THREAD_SUCCESS);
+		CHECK(st_wren_host_choice(host, "Fingerprint Changed", "Select", choices, 3) == 0);
+		CHECK(st_thread_join(thread, &thread_result) == ST_THREAD_SUCCESS && thread_result == 0);
+		poster.finish = 27;
+		CHECK(st_thread_create(&thread, post_prompt_input, &poster) == ST_THREAD_SUCCESS);
+		CHECK(st_wren_host_choice(host, "Fingerprint Changed", "Select", choices, 3)
+		    == IO_ERROR_CANCELLED);
+		CHECK(st_thread_join(thread, &thread_result) == ST_THREAD_SUCCESS && thread_result == 0);
+	}
 	{
 		const struct st_console_event close = {
 			.type = ST_CONSOLE_EVENT_CLOSE,
@@ -3506,6 +3572,16 @@ exercise_safe_mode_persistence_contract(st_wren_host_t *public_host,
 	CHECK(file_equals(settings, settings_contents));
 	CHECK(wrenInterpret(host->vm, "safe_mode_persistence_contract", source)
 	    == WREN_RESULT_SUCCESS);
+	{
+		struct st_profile profile;
+		uint8_t fingerprint[32] = {1};
+		uint64_t generation = st_bbs_list_generation(host->bbs_list);
+		st_profile_init(&profile);
+		strcpy(profile.name, "Alpha");
+		CHECK(st_wren_host_remember_ssh_key(host, &profile, fingerprint, true) == 0);
+		CHECK(st_bbs_list_generation(host->bbs_list) == generation);
+		st_profile_dispose(&profile);
+	}
 	CHECK(file_equals(personal, personal_contents));
 	CHECK(file_equals(settings, settings_contents));
 	CHECK(fs_get_info(&info, cache_sentinel) == 0
@@ -3708,6 +3784,7 @@ main(void)
 		.hyperlinks = hyperlinks,
 	};
 	CHECK(st_wren_host_create(&host, &host_config) == 0);
+	CHECK(exercise_ssh_key_persistence(host) == 0);
 	CHECK(exercise_menu_prompt(host, console) == 0);
 	CHECK(wrenInterpret(((struct st_wren_host *)host)->vm,
 	    "hyperlink_contract",

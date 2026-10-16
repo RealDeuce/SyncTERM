@@ -32,6 +32,8 @@ struct st_connection_transport_ops {
 	int (*update_terminal_size)(void *state,
 		const struct st_screen_geometry *geometry);
 	void (*destroy)(void *state);
+	int (*set_binary_mode)(void *state, bool enabled);
+	int (*process_requests)(void *state);
 };
 
 typedef ssize_t (*st_connection_send_filter_fn)(st_connection_t *connection,
@@ -78,5 +80,6 @@ int st_connection_fail(struct st_connection_error *error, int code,
 int st_connection_profile_geometry(const struct st_profile *profile,
 	const struct st_screen_geometry *current,
 	struct st_screen_geometry *result);
+const char *st_connection_terminal_name(const struct st_profile *profile);
 
 #endif

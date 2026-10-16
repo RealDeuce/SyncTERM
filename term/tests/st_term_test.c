@@ -554,14 +554,25 @@ main(void)
 	CHECK(st_term_profile_encoding(&profile) == ST_CTERM_ENCODING_CODEPAGE);
 	profile.encoding = ST_PROFILE_ENCODING_UTF8;
 	CHECK(st_term_profile_encoding(&profile) == ST_CTERM_ENCODING_UTF8);
-	profile.connection_type = ST_CONNECTION_TELNET;
+	profile.connection_type = ST_CONNECTION_UNKNOWN;
 	profile.encoding = ST_CODEPAGE_COUNT;
 	CHECK(st_term_connect_profile(&connection, &profile, console, NULL, NULL)
 	    == IO_ERROR_INVALID_ARGUMENT);
 	profile.encoding = ST_PROFILE_ENCODING_UTF8;
 	CHECK(st_term_connect_profile(&connection, &profile, console, NULL, NULL)
-	    == IO_ERROR_NOT_SUPPORTED);
+	    == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(connection == NULL);
+	{
+		const int types[] = {ST_CONNECTION_TELNET, ST_CONNECTION_TELNET_TLS,
+		    ST_CONNECTION_SSH, ST_CONNECTION_SSH_NO_AUTH,
+		    ST_CONNECTION_MBBS_GHOST, ST_CONNECTION_MQTT};
+		for (size_t i = 0; i < sizeof(types) / sizeof(types[0]); ++i) {
+			profile.connection_type = types[i];
+			CHECK(st_term_connect_profile(&connection, &profile, console, NULL, NULL)
+			    == IO_ERROR_INVALID_ARGUMENT);
+			CHECK(connection == NULL);
+		}
+	}
 	CHECK(st_term_session_create(&session, NULL)
 	    == IO_ERROR_INVALID_ARGUMENT && session == NULL);
 	st_profile_dispose(&profile);

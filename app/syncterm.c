@@ -70,7 +70,7 @@ usage(FILE *stream, const char *program)
 	    "  --help        show this help\n\n"
 	    "Options accepting values also accept attached values (for example,\n"
 	    "-isf, -l43, and -b/path/to/list). Option letters are case-insensitive.\n"
-	    "URL: [(rlogin|telnet|ssh|raw|mqtts)://][user[:password]@]host[:port]\n",
+	    "URL: [(rlogin|telnet|telnets|ssh|sshna|raw|ghost|mqtts)://][user[:password]@]host[:port]\n",
 	    program);
 }
 
@@ -202,6 +202,68 @@ run_rip_prompt(void *context, const char *question, const char *initial,
 	    field_width, result);
 }
 
+struct connection_ui {
+	st_wren_host_t *host;
+	st_console_t *console;
+	const struct st_profile *profile;
+	bool closed;
+};
+
+static enum st_connection_setup_action
+connection_setup(void *context, enum st_connection_setup_phase phase)
+{
+	struct connection_ui *ui = context;
+	struct st_console_event event, resize = {0};
+	bool resized = false, cancel = ui->closed;
+	(void)phase;
+	while (!ui->closed && st_console_event_try(ui->console, &event) == 0) {
+		if (event.type == ST_CONSOLE_EVENT_CLOSE) {
+			ui->closed = true;
+			cancel = true;
+			(void)st_console_post_event(ui->console, &event);
+		} else if (event.type == ST_CONSOLE_EVENT_RESIZE) {
+			resize = event;
+			resized = true;
+		} else if ((event.type == ST_CONSOLE_EVENT_KEY_CODE
+		    && event.data.key.code == 27)
+		    || (event.type == ST_CONSOLE_EVENT_TEXT
+		    && event.data.text.codepoint == 27))
+			cancel = true;
+	}
+	if (resized) (void)st_console_post_event(ui->console, &resize);
+	return cancel ? ST_CONNECTION_SETUP_CANCEL : ST_CONNECTION_SETUP_CONTINUE;
+}
+
+static int
+connection_prompt(void *context, const char *title, const char *message,
+	const char *initial, size_t max_length, bool masked, char **result)
+{
+	struct connection_ui *ui = context;
+	if (ui->profile->hide_popups) {
+		*result = NULL;
+		return IO_ERROR_PASSWORD_REQUIRED;
+	}
+	return st_wren_host_prompt_masked(ui->host, title, message, initial,
+	    max_length, masked, result);
+}
+
+static int
+connection_choice(void *context, const char *title, const char *message,
+	const char *const *choices, size_t count)
+{
+	struct connection_ui *ui = context;
+	if (ui->profile->hide_popups) return IO_ERROR_PERMISSION_DENIED;
+	return st_wren_host_choice(ui->host, title, message, choices, count);
+}
+
+static int
+remember_hostkey(void *context, const uint8_t fingerprint[32], bool explicit_update)
+{
+	struct connection_ui *ui = context;
+	return st_wren_host_remember_ssh_key(ui->host, ui->profile, fingerprint,
+	    explicit_update);
+}
+
 static int
 run_wren_event_hook(void *context, const struct st_console_event *event,
 	bool *consumed)
@@ -277,6 +339,15 @@ run_selected(st_wren_host_t *host, st_console_display_t *display,
 	st_wren_connected_t *connected = NULL;
 	char *rip_directory = NULL;
 	struct st_connection_error error = {0};
+	struct connection_ui connection_ui = {
+		.host = host, .console = console, .profile = profile,
+	};
+	struct st_connection_hooks connection_hooks = {
+		.setup = connection_setup, .setup_context = &connection_ui,
+		.prompt = connection_prompt, .choice = connection_choice,
+		.ui_context = &connection_ui, .ssh_key_file = paths->keys_file,
+		.remember_hostkey = profile->name[0] != '\0' ? remember_hostkey : NULL,
+	};
 	uint8_t selector = 0;
 	int status;
 
@@ -301,12 +372,18 @@ run_selected(st_wren_host_t *host, st_console_display_t *display,
 	    &selector);
 	if (status != 0)
 		goto finished;
-	status = st_term_connect_profile(&connection, profile, console, NULL,
+	status = st_term_connect_profile(&connection, profile, console, &connection_hooks,
 	    &error);
 	if (status != 0) {
 		fprintf(stderr, "SyncTERM: connection failed (%d)%s%s\n", status,
 		    error.detail[0] == '\0' ? "" : ": ",
 		    error.detail[0] == '\0' ? "" : error.detail);
+		if (status != IO_ERROR_CANCELLED && !profile->hide_popups) {
+			const char *choices[] = {"OK"};
+			(void)st_wren_host_choice(host, "Connection failed",
+			    error.detail[0] == '\0' ? "Unable to establish the connection."
+			    : error.detail, choices, 1);
+		}
 		goto finished;
 	}
 	if (st_term_profile_rip_version(profile) != ST_CTERM_RIP_OFF

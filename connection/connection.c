@@ -504,6 +504,33 @@ st_connection_is_connected(st_connection_t *connection)
 	return connection != NULL && atomic_load(&connection->connected);
 }
 
+int
+st_connection_process_requests(st_connection_t *connection)
+{
+	if (connection == NULL) return IO_ERROR_INVALID_ARGUMENT;
+	return connection->operations->process_requests == NULL ? 0
+	    : connection->operations->process_requests(connection->transport);
+}
+
+const char *
+st_connection_terminal_name(const struct st_profile *profile)
+{
+	if (profile->terminal_name[0] != '\0') return profile->terminal_name;
+	switch ((enum st_screen_mode)profile->screen_mode) {
+	case ST_SCREEN_MODE_C64:
+	case ST_SCREEN_MODE_C128_40:
+	case ST_SCREEN_MODE_C128_80: return "PETSCII";
+	case ST_SCREEN_MODE_ATARI:
+	case ST_SCREEN_MODE_ATARI_XEP80: return "ATASCII";
+	case ST_SCREEN_MODE_PRESTEL: return "Prestel";
+	case ST_SCREEN_MODE_BEEB: return "Beeb7";
+	case ST_SCREEN_MODE_ATARIST_40X25:
+	case ST_SCREEN_MODE_ATARIST_80X25:
+	case ST_SCREEN_MODE_ATARIST_80X25_MONO: return "AtariST+VT52";
+	default: return "syncterm";
+	}
+}
+
 uint64_t
 st_connection_elapsed_ms(st_connection_t *connection)
 {
@@ -521,6 +548,9 @@ st_connection_set_binary_mode(st_connection_t *connection, bool enabled)
 {
 	if (connection == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
+	if (connection->operations->set_binary_mode != NULL)
+		return connection->operations->set_binary_mode(
+		    connection->transport, enabled);
 	atomic_store(&connection->binary_mode, enabled);
 	if (enabled)
 		st_connection_pause_input(connection, false);

@@ -441,8 +441,7 @@ connect_network(st_connection_t **result, const struct st_profile *profile,
 		char terminal[ST_PROFILE_TERMINAL_NAME_MAX + 32];
 
 		(void)snprintf(terminal, sizeof(terminal), "%s/%u",
-		    profile->terminal_name[0] != '\0'
-		    ? profile->terminal_name : "ansi",
+		    st_connection_terminal_name(profile),
 		    profile->bps_rate != 0 ? profile->bps_rate : 115200U);
 		status = send_direct(socket, &nul, 1, hooks);
 		if (status == 0)

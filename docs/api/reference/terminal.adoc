@@ -229,10 +229,13 @@ int st_term_rip_wire_to_utf8(char *result, size_t capacity,
 | Function | Parameters, result, constraints, and effect
 
 | st_term_connect_profile(result, profile, console, hooks, error)
-| Reads current console geometry and dispatches Raw, RLogin, Serial, Modem, or
-Shell connection creation.  Pointers are borrowed for the call; connection
-hooks follow `st_connection` lifetime rules after success.  Unsupported
-profile types return `IO_ERROR_NOT_SUPPORTED`.  Caller owns the connection.
+| Reads current console geometry and dispatches Raw, RLogin (both orders),
+Telnet, Telnet/TLS, SSH (authenticated or none), GHost, MQTT, Serial (including
+three-wire), Modem, or Shell creation. Pointers are borrowed for the call;
+connection hooks follow `st_connection` lifetime rules after success.
+Unknown types or invalid encodings return `IO_ERROR_INVALID_ARGUMENT`;
+encrypted providers unavailable in this build return `IO_ERROR_NOT_SUPPORTED`.
+Caller owns the connection.
 Shell children receive `MM_CHARSET` set to the profile's encoding name.
 
 | st_term_profile_encoding(profile)

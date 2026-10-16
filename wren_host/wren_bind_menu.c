@@ -478,7 +478,9 @@ parse_quick_connect(struct st_profile *profile, const char *value,
 	} schemes[] = {
 		{"rlogin://", ST_CONNECTION_RLOGIN},
 		{"ssh://", ST_CONNECTION_SSH},
+		{"sshna://", ST_CONNECTION_SSH_NO_AUTH},
 		{"telnet://", ST_CONNECTION_TELNET},
+		{"telnets://", ST_CONNECTION_TELNET_TLS},
 		{"raw://", ST_CONNECTION_RAW},
 		{"ghost://", ST_CONNECTION_MBBS_GHOST},
 		{"mqtts://", ST_CONNECTION_MQTT},
@@ -1506,7 +1508,7 @@ fn_menu_build_options(WrenVM *vm)
 	wrenSetSlotNewList(vm, 0);
 	push_build_option(vm, "License",
 	    "GPLv2+ binary (GNU Unifont-derived data)", unifont);
-	push_build_option(vm, "Crypto", "DeuceSSH (SSH)", false);
+	push_build_option(vm, "Crypto", "DeuceSSH (SSH)", strcmp(crypto, "none") != 0);
 	push_build_option(vm, "Crypto",
 	    "OpenSSL (TLS, symmetric ciphers)", strcmp(crypto, "OpenSSL") == 0);
 	push_build_option(vm, "Crypto", "Botan 3 (TLS, symmetric ciphers)",

@@ -408,6 +408,24 @@ contexts remain borrowed until close, and the log hook may run on either
 worker.  `st_connection_error` reports the high-level status, failed setup
 phase, optional native code, and bounded detail.
 
+The optional `hooks.prompt(ui_context, title, message, initial, max_length,
+masked, result)` callback returns zero with a malloc-owned accepted string,
+zero with NULL on cancellation, or an `IO_ERROR_*`. The caller consumes the
+string. Secret prompts set `masked=true`. The optional
+`hooks.choice(ui_context, title, message, choices, count)` returns a zero-based
+choice index or a negative error/cancellation. Labels and strings are borrowed
+only during the callback. Setup invokes these callbacks on the connecting
+thread; live SSH key changes invoke them only from
+`st_connection_process_requests()` on the owner/UI thread.
+The optional `ssh_key_file` is the Ed25519 private-key path used by the first
+SSH connection; a missing key is generated and saved there. It is borrowed
+only during setup. `remember_hostkey(ui_context, sha256, explicit_update)`
+records the 32-byte fingerprint and returns zero or an `IO_ERROR_*`.
+Automatic first contact or legacy migration passes false; the user's Update
+choice passes true. The application automatically persists personal entries;
+Update can also save a personal copy of an external or quick-connect entry.
+Safe mode accepts the decision for this session without writing the list.
+
 [source,c]
 ----
 int st_connection_connect_raw(st_connection_t **result,
@@ -418,6 +436,20 @@ int st_connection_connect_rlogin(st_connection_t **result,
     const struct st_screen_geometry *current_screen,
     const struct st_connection_hooks *hooks, struct st_connection_error *error);
 int st_connection_connect_serial(st_connection_t **result,
+    const struct st_profile *profile, const struct st_connection_hooks *hooks,
+    struct st_connection_error *error);
+int st_connection_connect_telnet(st_connection_t **result,
+    const struct st_profile *profile,
+    const struct st_screen_geometry *current_screen,
+    const struct st_connection_hooks *hooks, struct st_connection_error *error);
+int st_connection_connect_ssh(st_connection_t **result,
+    const struct st_profile *profile,
+    const struct st_screen_geometry *current_screen,
+    const struct st_connection_hooks *hooks, struct st_connection_error *error);
+int st_connection_connect_ghost(st_connection_t **result,
+    const struct st_profile *profile, const struct st_connection_hooks *hooks,
+    struct st_connection_error *error);
+int st_connection_connect_mqtt(st_connection_t **result,
     const struct st_profile *profile, const struct st_connection_hooks *hooks,
     struct st_connection_error *error);
 int st_connection_connect_modem(st_connection_t **result,
@@ -441,6 +473,7 @@ ssize_t st_connection_peek_raw(st_connection_t *connection, void *data,
 size_t st_connection_pending_raw(st_connection_t *connection);
 size_t st_connection_queued(st_connection_t *connection);
 bool st_connection_is_connected(st_connection_t *connection);
+int st_connection_process_requests(st_connection_t *connection);
 uint64_t st_connection_elapsed_ms(st_connection_t *connection);
 int st_connection_set_binary_mode(st_connection_t *connection, bool enabled);
 int st_connection_update_terminal_size(st_connection_t *connection,
@@ -466,6 +499,44 @@ it and requires all concurrent callers stopped.
 | st_connection_connect_rlogin(result, profile, current_screen, hooks, error)
 | Opens RLogin with current/fixed terminal geometry and status-row policy.
 
+| st_connection_connect_telnet(result, profile, current_screen, hooks, error)
+| Accepts TELNET or TELNET_TLS profiles. Negotiates binary, echo, suppress-GA,
+terminal type, and window size. Negotiation and subnegotiation may cross any
+receive boundary. Outgoing application IAC bytes are doubled; nonbinary CR
+expands to CRLF with CRLF handling preserved across sends. Incoming nonbinary
+CR-NUL becomes CR. Deferred negotiation waits for a peer command;
+`telnet_no_binary` omits the initial binary requests. TLS uses the profile's
+certificate trust, client certificate/key, PSK, and version settings.
+
+| st_connection_connect_ssh(result, profile, current_screen, hooks, error)
+| Accepts SSH or SSH_NO_AUTH profiles. SSH probes none, then uses an Ed25519
+client key, password, or keyboard-interactive authentication as offered.
+SSH_NO_AUTH sends only none authentication. Opens a PTY shell using the
+terminal name, usable geometry, legacy terminal modes, and encoding-derived
+IUTF8 flag. CBC and early channel data follow their profile opt-ins.
+First contact records the SHA-256 fingerprint. A changed key offers the
+v1.10a choices Disconnect, Update (persist and continue), and Ignore (continue
+for this session). Legacy MD5-based fingerprints are recognized and upgraded.
+Ordinary rekeying with the same host key continues without a dialog.
+
+| st_connection_connect_ghost(result, profile, hooks, error)
+| Requires MBBS_GHOST. Probes with MBBS PING, requires the ERROR reply, sends
+the version-2 launch request using the program and user, and requires OK.
+Only then starts a transparent stream. Empty programs and line/quote injection
+in launch fields are rejected; each response has a bounded length and deadline.
+
+| st_connection_connect_mqtt(result, profile, hooks, error)
+| Requires MQTT. Opens MQTT 5 over TLS. The default Synchronet PSK identity
+and secret are lower-case login credentials; explicit profile PSK fields
+override them. Without an explicit PSK, failure retries certificate TLS on a
+new socket using profile trust settings. PSK sessions use the BBS system
+password for MQTT; certificate sessions use the login password.
+Discovers the BBS ID and retained node status topics, then asks which node to
+attach (manual entry is available). Missing credentials or undiscovered IDs
+use prompt callbacks. Subscribes to that node's output and publishes input,
+preserving arbitrary payload bytes. Packet allocations are capped at 1 MiB;
+keepalives and broker disconnects are handled by the transport.
+
 | st_connection_connect_serial(result, profile, hooks, error)
 | Opens/configures the profile serial device.
 
@@ -486,7 +557,9 @@ optional TERM/TERMCAP/MM_CHARSET values are borrowed for setup.
 | Receives protocol-processed application bytes.
 
 | st_connection_receive_raw(connection, data, size, timeout_ms)
-| Receives underlying raw bytes.
+| Reads the same receive queue as receive, without Unicode conversion or Wren
+processing. Transport framing has already been removed, including Telnet
+negotiation and MQTT packet headers.
 
 | st_connection_peek_raw(connection, data, size)
 | Copies currently queued raw bytes without consuming them.
@@ -496,6 +569,12 @@ optional TERM/TERMCAP/MM_CHARSET values are borrowed for setup.
 
 | st_connection_is_connected(connection)
 | Reports live transport state.
+
+| st_connection_process_requests(connection)
+| Services pending protocol dialogs on the owner/UI thread and returns zero
+or an error. Call regularly even without incoming bytes. SSH's protocol worker
+waits for the decision without holding its request mutex. Close cancels any
+pending decision and joins workers before freeing the transport.
 
 | st_connection_elapsed_ms(connection)
 | Returns monotonic milliseconds since successful connection establishment.

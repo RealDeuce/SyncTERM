@@ -26,6 +26,9 @@ enum st_connection_setup_phase {
 	ST_CONNECTION_SETUP_INITIALIZING_MODEM,
 	ST_CONNECTION_SETUP_DIALING,
 	ST_CONNECTION_SETUP_STARTING_SHELL,
+	ST_CONNECTION_SETUP_NEGOTIATING,
+	ST_CONNECTION_SETUP_AUTHENTICATING,
+	ST_CONNECTION_SETUP_DISCOVERING,
 };
 
 enum st_connection_setup_action {
@@ -69,6 +72,19 @@ struct st_connection_hooks {
 	void *setup_context;
 	st_connection_log_fn log;
 	void *log_context;
+	/* Setup UI runs on the connecting thread. Prompt returns a malloc-owned
+	 * string, or NULL on cancel. Choice returns an index or IO_ERROR_*. */
+	int (*prompt)(void *context, const char *title, const char *message,
+		const char *initial, size_t max_length, bool masked, char **result);
+	int (*choice)(void *context, const char *title, const char *message,
+		const char *const *choices, size_t count);
+	void *ui_context;
+	/* Optional Ed25519 client key path, borrowed during setup. */
+	const char *ssh_key_file;
+	/* Records first contact/migration or the user's explicit Update choice.
+	 * Runs during setup or owner-thread process_requests, never on a worker. */
+	int (*remember_hostkey)(void *context, const uint8_t fingerprint[32],
+		bool explicit_update);
 };
 
 struct st_connection_error {
@@ -105,6 +121,20 @@ int st_connection_connect_serial(st_connection_t **result,
 	const struct st_profile *profile,
 	const struct st_connection_hooks *hooks,
 	struct st_connection_error *error);
+int st_connection_connect_telnet(st_connection_t **result,
+	const struct st_profile *profile,
+	const struct st_screen_geometry *current_screen,
+	const struct st_connection_hooks *hooks, struct st_connection_error *error);
+int st_connection_connect_ssh(st_connection_t **result,
+	const struct st_profile *profile,
+	const struct st_screen_geometry *current_screen,
+	const struct st_connection_hooks *hooks, struct st_connection_error *error);
+int st_connection_connect_ghost(st_connection_t **result,
+	const struct st_profile *profile,
+	const struct st_connection_hooks *hooks, struct st_connection_error *error);
+int st_connection_connect_mqtt(st_connection_t **result,
+	const struct st_profile *profile,
+	const struct st_connection_hooks *hooks, struct st_connection_error *error);
 int st_connection_connect_modem(st_connection_t **result,
 	const struct st_profile *profile,
 	const struct st_connection_hooks *hooks,
@@ -134,6 +164,9 @@ ssize_t st_connection_peek_raw(st_connection_t *connection, void *data,
 size_t st_connection_pending_raw(st_connection_t *connection);
 size_t st_connection_queued(st_connection_t *connection);
 bool st_connection_is_connected(st_connection_t *connection);
+/* Runs pending protocol UI on the owner/UI thread, never a worker thread.
+ * Terminal loops call this even when no input bytes are available. */
+int st_connection_process_requests(st_connection_t *connection);
 uint64_t st_connection_elapsed_ms(st_connection_t *connection);
 int st_connection_set_binary_mode(st_connection_t *connection, bool enabled);
 /* Geometry here is the usable terminal area after any status-row change. */

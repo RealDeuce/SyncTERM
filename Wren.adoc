@@ -3665,15 +3665,16 @@ Connection-level send and receive.
 | Member | Description
 
 | `Conn.send(s)`
-| Send bytes through the full path: telnet IAC escaping, then on-wire.
+| Send Unicode text through the session's input hook, selected wire encoding,
+  and transport processing (including Telnet IAC escaping or MQTT framing).
   Returns `null` on success or a <<connerror,`ConnError`>> on failure
   (connection down, outbuf full / partial queue).  Most scripts ignore
   the return; ones that care can `is ConnError` and inspect
   `.bytesSent` to retry.
 
 | `Conn.sendRaw(s)`
-| Send bytes raw, bypassing IAC escaping.  Same return contract as
-  `send`.
+| Send the string's bytes directly, bypassing Unicode conversion and transport
+  framing, including IAC escaping. Same return contract as `send`.
 
 | `Conn.close()`
 | Close the connection.
@@ -4887,6 +4888,7 @@ choice list.
 | `mbbsGhost`       | 11   | MajorBBS / Worldgroup "GHost" client
                               interface.
 | `telnets`         | 12   | Telnet over TLS (TCP/992).
+| `mqtt`            | 13   | Synchronet node terminal stream over MQTT 5/TLS.
 |===
 
 ==== Emulation

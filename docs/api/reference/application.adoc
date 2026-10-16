@@ -156,6 +156,14 @@ int st_wren_host_run_menu(st_wren_host_t *host,
 int st_wren_host_prompt(st_wren_host_t *host, const char *title,
 	const char *question, const char *initial, size_t max_length,
 	char **result);
+int st_wren_host_prompt_masked(st_wren_host_t *host, const char *title,
+	const char *question, const char *initial, size_t max_length,
+	bool masked, char **result);
+int st_wren_host_choice(st_wren_host_t *host, const char *title,
+	const char *question, const char *const *choices, size_t count);
+int st_wren_host_remember_ssh_key(st_wren_host_t *host,
+	const struct st_profile *profile, const uint8_t fingerprint[32],
+	bool explicit_update);
 
 /*
  * Creates the same temporary profile as Menu.quickConnect(). An UNKNOWN
@@ -257,6 +265,27 @@ On success, `*result` is either NULL for cancel or a `malloc`-owned UTF-8
 string for the caller to free. Close and resize events are reposted after
 the prompt. Returns zero or negative `IO_ERROR_*`; unsupported menu UI
 returns `IO_ERROR_NOT_SUPPORTED`.
+
+| st_wren_host_prompt_masked(host, title, question, initial, max_length, masked, result)
+| Same contract as prompt; `masked` hides the entered text for credential
+questions. Call on the owner/UI thread, outside an active call into this VM.
+
+| st_wren_host_choice(host, title, question, choices, count)
+| Shows a synchronous choice dialog, preserving the connected screen and
+reposting close/resize events as prompt does. Required strings and labels
+are borrowed for the call; `count` is 1 through `INT_MAX`. Returns the
+zero-based selected index or a negative error (`IO_ERROR_CANCELLED` on
+dismissal). Call on the owner/UI thread, outside an active call into this VM.
+
+| st_wren_host_remember_ssh_key(host, profile, fingerprint, explicit_update)
+| Borrows a profile identifying the directory entry by name and a 32-byte
+SHA-256 fingerprint. Automatic recording (`explicit_update=false`) updates
+only an existing personal entry. Explicit Update also creates a personal
+copy of an external/quick-connect profile, opening the list if necessary.
+Preserves the entry's current settings rather than overwriting them with a
+stale session profile. Safe mode returns zero without writing. Returns zero
+or a negative persistence error, including password-required if an unopened
+encrypted list cannot be read. Call on the owner/UI thread.
 
 | st_wren_host_select_url(host, url, default_connection_type, selected)
 | Builds the same temporary profile as Wren `Menu.quickConnect`; explicit URL

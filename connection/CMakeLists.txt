@@ -46,6 +46,19 @@ if(NOT TARGET st_time)
 	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../time"
 		"${CMAKE_CURRENT_BINARY_DIR}/time")
 endif()
+if(NOT TARGET st_tls)
+	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../xptls"
+		"${CMAKE_CURRENT_BINARY_DIR}/xptls")
+endif()
+get_property(ST_TLS_PROVIDER TARGET xptls_crypto PROPERTY XPTLS_CRYPTO_PROVIDER)
+if(NOT ST_TLS_PROVIDER STREQUAL "none")
+	set(ST_CONNECTION_HAVE_TLS TRUE)
+	include("${CMAKE_CURRENT_LIST_DIR}/../cmake/DeuceSSH.cmake")
+	set(ST_CONNECTION_SSH_SOURCE connection_ssh.c)
+else()
+	set(ST_CONNECTION_HAVE_TLS FALSE)
+	set(ST_CONNECTION_SSH_SOURCE connection_ssh_stub.c)
+endif()
 if(WIN32 AND NOT TARGET st_windows_utf)
 	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../windows_utf"
 		"${CMAKE_CURRENT_BINARY_DIR}/windows_utf")
@@ -197,6 +210,8 @@ configure_file(st_connection_config.h.in st_connection_config.h @ONLY)
 
 add_library(st_connection STATIC
 	connection.c connection_network.c connection_serial.c
+	connection_stream.c connection_telnet.c connection_ghost.c connection_mqtt.c
+	${ST_CONNECTION_SSH_SOURCE}
 	${ST_CONNECTION_SHELL_SOURCE})
 if(CMAKE_C_COMPILER_ID STREQUAL "GNU" AND ST_CONNECTION_HAVE_CONPTY)
 	set_source_files_properties(connection_shell_windows.c PROPERTIES
@@ -213,7 +228,11 @@ target_link_libraries(st_connection
 	PUBLIC syncterm_io_error st_profile
 	PRIVATE syncterm_socket syncterm_tcp_client st_serial
 		syncterm_threads st_settings st_time
+		st_tls xptls_crypto syncterm_string_compat
 	PRIVATE ${ST_CONNECTION_PLATFORM_LIBRARIES})
+if(ST_DEUCESSH_TARGET)
+	target_link_libraries(st_connection PRIVATE ${ST_DEUCESSH_TARGET})
+endif()
 if(WIN32)
 	target_link_libraries(st_connection PRIVATE st_windows_utf)
 endif()
@@ -234,6 +253,42 @@ endfunction()
 st_connection_warnings(st_connection)
 
 if(BUILD_TESTING)
+	if(NOT WIN32)
+		if(ST_DEUCESSH_TARGET)
+			add_executable(st_connection_ssh_fixture tests/st_connection_ssh_fixture.c)
+			target_link_libraries(st_connection_ssh_fixture PRIVATE
+				${ST_DEUCESSH_TARGET} syncterm_threads)
+			set_target_properties(st_connection_ssh_fixture PROPERTIES
+				C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+			st_connection_warnings(st_connection_ssh_fixture)
+			add_executable(st_connection_ssh_test tests/st_connection_ssh_test.c)
+			target_link_libraries(st_connection_ssh_test PRIVATE st_connection)
+			set_target_properties(st_connection_ssh_test PROPERTIES
+				C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+			st_connection_warnings(st_connection_ssh_test)
+			if(ST_CONNECTION_DEFINITIONS)
+				target_compile_definitions(st_connection_ssh_fixture PRIVATE ${ST_CONNECTION_DEFINITIONS})
+				target_compile_definitions(st_connection_ssh_test PRIVATE ${ST_CONNECTION_DEFINITIONS})
+			endif()
+			add_dependencies(st_connection_ssh_test st_connection_ssh_fixture)
+			add_test(NAME connection_ssh COMMAND st_connection_ssh_test
+				$<TARGET_FILE:st_connection_ssh_fixture>)
+			set_tests_properties(connection_ssh PROPERTIES TIMEOUT 180)
+		endif()
+		find_package(OpenSSL 3.0 QUIET)
+		if(OpenSSL_FOUND)
+			add_executable(st_connection_protocol_test tests/st_connection_protocol_test.c)
+			target_link_libraries(st_connection_protocol_test PRIVATE st_connection
+				syncterm_socket syncterm_threads OpenSSL::SSL)
+			target_compile_definitions(st_connection_protocol_test PRIVATE
+				ST_CONNECTION_TEST_HAVE_TLS=$<BOOL:${ST_CONNECTION_HAVE_TLS}>)
+			set_target_properties(st_connection_protocol_test PROPERTIES
+				C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+			st_connection_warnings(st_connection_protocol_test)
+			add_test(NAME connection_protocols COMMAND st_connection_protocol_test)
+			set_tests_properties(connection_protocols PROPERTIES TIMEOUT 120)
+		endif()
+	endif()
 	if(ST_CONNECTION_HAVE_FORKPTY OR ST_CONNECTION_HAVE_CONPTY)
 		set(ST_CONNECTION_TEST_HAVE_SHELL TRUE)
 	else()

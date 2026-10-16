@@ -1315,6 +1315,7 @@ class ConnType {
   static shell          { 10 }
   static mbbsGhost      { 11 }
   static telnets        { 12 }
+  static mqtt           { 13 }
 }
 class Emulation {
   static ansiBbs   { 0 }

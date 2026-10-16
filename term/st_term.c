@@ -184,6 +184,16 @@ st_term_connect_profile(st_connection_t **result,
 	switch ((enum st_connection_type)profile->connection_type) {
 	case ST_CONNECTION_RAW:
 		return st_connection_connect_raw(result, profile, hooks, error);
+	case ST_CONNECTION_TELNET:
+	case ST_CONNECTION_TELNET_TLS:
+		return st_connection_connect_telnet(result, profile, &geometry, hooks, error);
+	case ST_CONNECTION_SSH:
+	case ST_CONNECTION_SSH_NO_AUTH:
+		return st_connection_connect_ssh(result, profile, &geometry, hooks, error);
+	case ST_CONNECTION_MBBS_GHOST:
+		return st_connection_connect_ghost(result, profile, hooks, error);
+	case ST_CONNECTION_MQTT:
+		return st_connection_connect_mqtt(result, profile, hooks, error);
 	case ST_CONNECTION_RLOGIN:
 	case ST_CONNECTION_RLOGIN_REVERSED:
 		return st_connection_connect_rlogin(result, profile, &geometry,
@@ -201,7 +211,7 @@ st_term_connect_profile(st_connection_t **result,
 		    &environment, hooks, error);
 	}
 	default:
-		return IO_ERROR_NOT_SUPPORTED;
+		return IO_ERROR_INVALID_ARGUMENT;
 	}
 }
 
@@ -702,6 +712,8 @@ st_term_session_pump(st_term_session_t *session,
 	if (session == NULL || disposition == NULL || finished == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	*finished = false;
+	status = st_connection_process_requests(session->config.connection);
+	if (status != 0) return status;
 	if (session->end_requested) {
 		*disposition = session->exit_requested
 		    ? ST_TERM_EXIT_APPLICATION : ST_TERM_RETURN_TO_PICKER;

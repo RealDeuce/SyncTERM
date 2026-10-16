@@ -168,6 +168,15 @@ int st_wren_host_run_menu(st_wren_host_t *host,
 int st_wren_host_prompt(st_wren_host_t *host, const char *title,
 	const char *question, const char *initial, size_t max_length,
 	char **result);
+int st_wren_host_prompt_masked(st_wren_host_t *host, const char *title,
+	const char *question, const char *initial, size_t max_length,
+	bool masked, char **result);
+/* Returns a choice index, or IO_ERROR_CANCELLED when dismissed. */
+int st_wren_host_choice(st_wren_host_t *host, const char *title,
+	const char *question, const char *const *choices, size_t count);
+int st_wren_host_remember_ssh_key(st_wren_host_t *host,
+	const struct st_profile *profile, const uint8_t fingerprint[32],
+	bool explicit_update);
 
 /*
  * Creates the same temporary profile as Menu.quickConnect(). An UNKNOWN
