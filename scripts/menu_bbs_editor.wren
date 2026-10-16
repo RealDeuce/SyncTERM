@@ -1352,7 +1352,7 @@ class BbsEditor {
       if (value != null) changeEncoding_(d, value)
     }))
     var fontChoices = Menu.fontsForEncoding(d["encoding"]).map {|row|
-      [row[1], row[1]]
+      return [row[1], row[1]]
     }.toList
     rows.add(row_("Font", d["font"], Fn.new {
       var value = MenuUi.choice(app, "Font", fontChoices, d["font"],
