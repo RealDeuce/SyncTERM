@@ -29,6 +29,15 @@ struct mqtt_publish {
 };
 struct mqtt_node { unsigned number; int status; };
 
+static const char *
+packet_name(uint8_t header)
+{
+	static const char *const names[] = {"reserved", "CONNECT", "CONNACK", "PUBLISH",
+		"PUBACK", "PUBREC", "PUBREL", "PUBCOMP", "SUBSCRIBE", "SUBACK",
+		"UNSUBSCRIBE", "UNSUBACK", "PINGREQ", "PINGRESP", "DISCONNECT", "AUTH"};
+	return names[header >> 4];
+}
+
 static uint64_t
 now_ms(void)
 {
@@ -83,6 +92,8 @@ packet(struct mqtt_transport *t, uint8_t type, const void *data, size_t size,
 	int status;
 	ssize_t n;
 	if (size > MQTT_PACKET_LIMIT) return IO_ERROR_MESSAGE_TOO_LARGE;
+	st_connection_log_hooks(&t->stream.hooks, "MQTT", ST_CONNECTION_LOG_DEBUG,
+	    "sending %s packet bytes=%zu (sensitive fields omitted)", packet_name(type), size);
 	wire = malloc(size + 5);
 	if (wire == NULL) return IO_ERROR_OUT_OF_MEMORY;
 	wire[0] = type;
@@ -139,6 +150,8 @@ receive_packet(struct mqtt_transport *t, int64_t timeout)
 		t->body_used += (size_t)n;
 	}
 	t->ready = true;
+	st_connection_log_hooks(&t->stream.hooks, "MQTT", ST_CONNECTION_LOG_DEBUG,
+	    "received %s packet bytes=%zu", packet_name(t->header[0]), t->body_size);
 	return 0;
 }
 
@@ -201,6 +214,8 @@ subscribe(struct mqtt_transport *t, const char *topic, bool remove,
 	body[2] = 0; /* empty properties */
 	used += put_string(body + used, topic);
 	if (!remove) body[used++] = 0; /* QoS 0, deliver retained data */
+	st_connection_log_hooks(&t->stream.hooks, "MQTT", ST_CONNECTION_LOG_DEBUG,
+	    "sending %s packet-id=%u topic-bytes=%zu", remove ? "UNSUBSCRIBE" : "SUBSCRIBE", id, strlen(topic));
 	return packet(t, remove ? 0xa2 : 0x82, body, used, hooks);
 }
 
@@ -208,7 +223,12 @@ static int
 control_packet(struct mqtt_transport *t)
 {
 	uint8_t type = t->header[0] >> 4;
-	if (type == 14) return IO_ERROR_NOT_CONNECTED;
+	if (type == 14) {
+		unsigned reason = t->body_size == 0 ? 0 : t->body[0];
+		st_connection_log_hooks(&t->stream.hooks, "MQTT", reason == 0
+		    ? ST_CONNECTION_LOG_INFO : ST_CONNECTION_LOG_WARNING, "broker DISCONNECT reason=0x%02X", reason);
+		return IO_ERROR_NOT_CONNECTED;
+	}
 	if (type == 13) {
 		if (t->header[0] != 0xd0 || t->body_size != 0) return IO_ERROR_PROTOCOL;
 		t->ping_pending = false;
@@ -217,8 +237,11 @@ control_packet(struct mqtt_transport *t)
 		if (t->header[0] != 0x90 || t->body_size < 4
 		    || read_varint(t->body + 2, t->body_size - 2, &properties, &used) != 0
 		    || properties >= t->body_size - 2 - used) return IO_ERROR_PROTOCOL;
-		for (size_t i = 2 + used + properties; i < t->body_size; ++i)
+		for (size_t i = 2 + used + properties; i < t->body_size; ++i) {
+			st_connection_log_hooks(&t->stream.hooks, "MQTT", t->body[i] >= 128
+			    ? ST_CONNECTION_LOG_ERROR : ST_CONNECTION_LOG_DEBUG, "SUBACK reason=0x%02X", t->body[i]);
 			if (t->body[i] >= 128) return IO_ERROR_PERMISSION_DENIED;
+		}
 	} else if (type != 11) return IO_ERROR_PROTOCOL;
 	return 0;
 }
@@ -394,6 +417,8 @@ mqtt_send(st_connection_t *connection, const void *data, size_t size, int64_t ti
 	memcpy(wire + used, data, consumed);
 	used += consumed;
 	n = st_connection_queue_output_atomic(connection, wire, used, timeout);
+	if (n == (ssize_t)used) st_connection_log(connection, ST_CONNECTION_LOG_DEBUG,
+	    "sending PUBLISH topic-bytes=%zu payload-bytes=%zu", strlen(t->input_topic), consumed);
 	return n == (ssize_t)used ? (ssize_t)consumed : n < 0 ? n : IO_ERROR_IO;
 }
 
@@ -421,6 +446,7 @@ static void
 mqtt_destroy(void *state)
 {
 	struct mqtt_transport *t = state;
+	st_connection_log_hooks(&t->stream.hooks, "MQTT", ST_CONNECTION_LOG_DEBUG, "closing MQTT session");
 	st_connection_stream_close(&t->stream);
 	free(t->body);
 	free(t);
@@ -493,12 +519,14 @@ st_connection_connect_mqtt(st_connection_t **result, const struct st_profile *pr
 	tls.psk_policy = copy.tls_psk[0] == '\0' ? ST_TLS_PSK_TLS12_COMPATIBILITY
 	    : ST_TLS_PSK_MODERN;
 	tls.handshake_timeout_ms = 15000;
+	st_connection_log_hooks(hooks, "MQTT", ST_CONNECTION_LOG_INFO, "starting TLS-PSK negotiation");
 	status = st_connection_stream_open(&t->stream, &copy, true, &tls, hooks, error);
 	xp_crypto_clear(secret, sizeof(secret));
 	if (status != 0 && status != IO_ERROR_CANCELLED && copy.tls_psk[0] == '\0') {
 		(void)snprintf(psk_error, sizeof(psk_error), "%s", error == NULL
 		    ? t->stream.diagnostic : error->detail);
 		psk = false;
+		st_connection_log_hooks(hooks, "MQTT", ST_CONNECTION_LOG_INFO, "starting certificate TLS negotiation");
 		status = st_connection_stream_open(&t->stream, &copy, true, NULL, hooks, error);
 	}
 	if (status != 0) {
@@ -506,6 +534,8 @@ st_connection_connect_mqtt(st_connection_t **result, const struct st_profile *pr
 		phase = error == NULL ? ST_CONNECTION_SETUP_NEGOTIATING : error->phase;
 		goto failed;
 	}
+	st_connection_log_hooks(hooks, "MQTT", ST_CONNECTION_LOG_INFO,
+	    "TLS established using %s authentication", psk ? "PSK" : "certificate");
 	if (psk && copy.system_password[0] == '\0') {
 		status = ask(hooks, "System Password", "The Synchronet internal MQTT broker authenticates with the BBS system password.", "",
 		    ST_PROFILE_SYSTEM_PASSWORD_MAX, true, &answer);
@@ -529,6 +559,7 @@ st_connection_connect_mqtt(st_connection_t **result, const struct st_profile *pr
 	if (status == 0 && (t->header[0] != 0x20 || t->body_size < 3
 	    || t->body[0] != 0 || t->body[1] != 0)) status = IO_ERROR_PERMISSION_DENIED;
 	if (status != 0) goto failed;
+	st_connection_log_hooks(hooks, "MQTT", ST_CONNECTION_LOG_INFO, "broker accepted CONNECT");
 	release_packet(t);
 	phase = ST_CONNECTION_SETUP_DISCOVERING;
 	if (hooks != NULL && hooks->status != NULL) hooks->status(hooks->ui_context, "Discovering BBSID");
@@ -550,6 +581,7 @@ st_connection_connect_mqtt(st_connection_t **result, const struct st_profile *pr
 	}
 	for (const unsigned char *p = (const unsigned char *)t->bbsid; *p != 0; ++p)
 		if (*p < 0x21 || *p > 0x7e) { status = IO_ERROR_PROTOCOL; goto failed; }
+	st_connection_log_hooks(hooks, "MQTT", ST_CONNECTION_LOG_INFO, "BBSID selected (value omitted)");
 	(void)snprintf(status_topic, sizeof(status_topic), "sbbs/%s/node/+/status", t->bbsid);
 	if (hooks != NULL && hooks->status != NULL) hooks->status(hooks->ui_context, "Discovering nodes");
 	status = subscribe(t, status_topic, false, hooks);
@@ -560,6 +592,7 @@ st_connection_connect_mqtt(st_connection_t **result, const struct st_profile *pr
 	(void)snprintf(t->output_topic, sizeof(t->output_topic), "sbbs/%s/node/%u/output", t->bbsid, node);
 	if (status == 0) status = subscribe(t, t->output_topic, false, hooks);
 	if (status != 0) goto failed;
+	st_connection_log_hooks(hooks, "MQTT", ST_CONNECTION_LOG_INFO, "node %u selected", node);
 	xp_crypto_clear(copy.password, sizeof(copy.password));
 	xp_crypto_clear(copy.system_password, sizeof(copy.system_password));
 	xp_crypto_clear(copy.tls_psk, sizeof(copy.tls_psk));
@@ -567,6 +600,9 @@ st_connection_connect_mqtt(st_connection_t **result, const struct st_profile *pr
 	if (hooks != NULL && hooks->status != NULL) hooks->status(hooks->ui_context, NULL);
 	return st_connection_start(result, t, &operations, "MQTT", hooks, mqtt_send, error);
 failed:
+	st_connection_log_hooks(hooks, "MQTT", status == IO_ERROR_CANCELLED
+	    ? ST_CONNECTION_LOG_INFO : ST_CONNECTION_LOG_ERROR,
+	    "MQTT setup %s (%d)", status == IO_ERROR_CANCELLED ? "cancelled" : "failed", status);
 	if (answer != NULL) { xp_crypto_clear(answer, strlen(answer)); free(answer); }
 	xp_crypto_clear(copy.password, sizeof(copy.password));
 	xp_crypto_clear(copy.system_password, sizeof(copy.system_password));

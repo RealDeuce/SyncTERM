@@ -311,9 +311,12 @@ input_worker(void *argument)
 		    || received == IO_ERROR_WOULD_BLOCK)
 			continue;
 		if (received <= 0) {
-			if (received < 0)
+			if (received < 0 && !atomic_load(&connection->stopping))
 				st_connection_log(connection, ST_CONNECTION_LOG_ERROR,
 				    "input failed (%d)", (int)received);
+			else if (received == 0 && !atomic_load(&connection->stopping))
+				st_connection_log_hooks(&connection->hooks, "Connection",
+				    ST_CONNECTION_LOG_INFO, "%s peer closed input", connection->log_source);
 			stop_connection(connection, received == 0);
 			break;
 		}
@@ -361,7 +364,7 @@ output_worker(void *argument)
 			    || result == IO_ERROR_WOULD_BLOCK)
 				continue;
 			if (result <= 0) {
-				if (result < 0)
+				if (result < 0 && !atomic_load(&connection->stopping))
 					st_connection_log(connection,
 					    ST_CONNECTION_LOG_ERROR,
 					    "output failed (%d)", (int)result);
@@ -451,6 +454,8 @@ st_connection_start(st_connection_t **result, void *transport,
 		    ST_CONNECTION_SETUP_NONE, "unable to start output worker");
 	}
 	connection->output_thread_started = true;
+	st_connection_log_hooks(&connection->hooks, "Connection", ST_CONNECTION_LOG_INFO,
+	    "%s session established", connection->log_source);
 	*result = connection;
 	return 0;
 }
@@ -619,12 +624,26 @@ st_connection_pause_input(st_connection_t *connection, bool paused)
 }
 
 void
+st_connection_log_hooks(const struct st_connection_hooks *hooks,
+	const char *source, enum st_connection_log_level level, const char *format, ...)
+{
+	char message[1024];
+	va_list arguments;
+
+	if (hooks == NULL || hooks->log == NULL)
+		return;
+	va_start(arguments, format);
+	(void)vsnprintf(message, sizeof(message), format, arguments);
+	va_end(arguments);
+	hooks->log(hooks->log_context, level, source, message);
+}
+
+void
 st_connection_log(st_connection_t *connection,
 	enum st_connection_log_level level, const char *format, ...)
 {
 	char message[1024];
 	va_list arguments;
-
 	if (connection == NULL || connection->hooks.log == NULL)
 		return;
 	va_start(arguments, format);
@@ -634,13 +653,26 @@ st_connection_log(st_connection_t *connection,
 	    connection->log_source, message);
 }
 
+void
+st_connection_socket_diagnostic(const struct st_connection_hooks *hooks,
+	const char *option, int status)
+{
+	if (status != 0)
+		st_connection_log_hooks(hooks, "TCP", ST_CONNECTION_LOG_WARNING,
+		    "socket %s configuration failed (%d)", option, status);
+}
+
 bool
 st_connection_cancelled(const struct st_connection_hooks *hooks,
 	enum st_connection_setup_phase phase)
 {
-	return hooks != NULL && hooks->setup != NULL
+	bool cancelled = hooks != NULL && hooks->setup != NULL
 	    && hooks->setup(hooks->setup_context, phase)
 	    == ST_CONNECTION_SETUP_CANCEL;
+	if (cancelled)
+		st_connection_log_hooks(hooks, "Connection", ST_CONNECTION_LOG_INFO,
+		    "setup cancelled at phase %d", (int)phase);
+	return cancelled;
 }
 
 int
@@ -732,14 +764,22 @@ st_connection_profile_geometry(const struct st_profile *profile,
 int
 st_connection_close(st_connection_t *connection)
 {
+	bool connected;
 	if (connection == NULL)
 		return 0;
+	connected = atomic_load(&connection->connected);
+	st_connection_log_hooks(&connection->hooks, "Connection",
+	    connected ? ST_CONNECTION_LOG_DEBUG : ST_CONNECTION_LOG_INFO,
+	    "%s %s", connection->log_source, connected
+	    ? "local session teardown requested" : "closing after peer or I/O teardown");
 	stop_connection(connection, false);
 	if (connection->input_thread_started)
 		(void)st_thread_join(connection->input_thread, NULL);
 	if (connection->output_thread_started)
 		(void)st_thread_join(connection->output_thread, NULL);
 	connection->operations->destroy(connection->transport);
+	st_connection_log_hooks(&connection->hooks, "Connection", ST_CONNECTION_LOG_DEBUG,
+	    "%s provider closed", connection->log_source);
 	st_condition_destroy(&connection->state_changed);
 	st_mutex_destroy(&connection->state_mutex);
 	queue_destroy(&connection->output);

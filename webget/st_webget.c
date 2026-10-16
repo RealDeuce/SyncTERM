@@ -810,7 +810,7 @@ connect_transport(struct transport *transport, const struct parsed_url *url,
 {
 	struct tcp_client_options options = {
 		TCP_CLIENT_ADDRESS_ANY, request->connect_timeout_ms,
-		tcp_cancel, (void *)request
+		tcp_cancel, (void *)request, NULL, NULL
 	};
 	int status;
 

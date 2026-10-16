@@ -73,6 +73,10 @@ void st_connection_clear_input(st_connection_t *connection);
 void st_connection_pause_input(st_connection_t *connection, bool paused);
 void st_connection_log(st_connection_t *connection,
 	enum st_connection_log_level level, const char *format, ...);
+void st_connection_log_hooks(const struct st_connection_hooks *hooks,
+	const char *source, enum st_connection_log_level level, const char *format, ...);
+void st_connection_socket_diagnostic(const struct st_connection_hooks *hooks,
+	const char *option, int status);
 bool st_connection_cancelled(const struct st_connection_hooks *hooks,
 	enum st_connection_setup_phase phase);
 int st_connection_fail(struct st_connection_error *error, int code,

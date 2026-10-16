@@ -6,15 +6,40 @@
  */
 
 #include "connection_internal.h"
+#include "connection_tcp.h"
 
 #include "io_error.h"
 #include "socket.h"
-#include "tcp_client.h"
 
 #include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+void
+st_connection_tcp_diagnostic(void *context, enum tcp_client_event event,
+	enum tcp_client_address_family family, int status)
+{
+	const struct st_connection_hooks *hooks = context;
+	const char *name = family == TCP_CLIENT_ADDRESS_IPV4 ? "IPv4"
+	    : family == TCP_CLIENT_ADDRESS_IPV6 ? "IPv6" : "any";
+	if (event == TCP_CLIENT_RESOLVING)
+		st_connection_log_hooks(hooks, "TCP", ST_CONNECTION_LOG_DEBUG,
+		    "resolving remote endpoint family=%s", name);
+	else if (event == TCP_CLIENT_ATTEMPT)
+		st_connection_log_hooks(hooks, "TCP", ST_CONNECTION_LOG_DEBUG,
+		    "trying address family=%s", name);
+	else if (event == TCP_CLIENT_ATTEMPT_FAILED)
+		st_connection_log_hooks(hooks, "TCP", ST_CONNECTION_LOG_WARNING,
+		    "address attempt failed family=%s error=%d", name, status);
+	else if (event == TCP_CLIENT_CONNECTED)
+		st_connection_log_hooks(hooks, "TCP", ST_CONNECTION_LOG_INFO,
+		    "connection established family=%s", name);
+	else
+		st_connection_log_hooks(hooks, "TCP", status == IO_ERROR_CANCELLED
+		    ? ST_CONNECTION_LOG_INFO : ST_CONNECTION_LOG_ERROR,
+		    "connection setup failed (%d)", status);
+}
 
 struct network_transport {
 	st_connection_t *connection;
@@ -84,8 +109,11 @@ send_window(struct network_transport *transport,
 	packet[11] = (uint8_t)height;
 	result = st_connection_queue_output_atomic(transport->connection, packet,
 	    sizeof(packet), -1);
-	if (result == (ssize_t)sizeof(packet))
+	if (result == (ssize_t)sizeof(packet)) {
+		st_connection_log(transport->connection, ST_CONNECTION_LOG_DEBUG,
+		    "sending window size rows=%u columns=%u pixels=%ux%u", rows, columns, width, height);
 		return 0;
+	}
 	return result < 0 ? (int)result : IO_ERROR_IO;
 }
 
@@ -95,6 +123,7 @@ handle_urgent(struct network_transport *transport, uint8_t control)
 	st_connection_t *connection = transport->connection;
 	int result = 0;
 
+	st_connection_log(connection, ST_CONNECTION_LOG_DEBUG, "received RFC 1282 urgent control=0x%02X", control);
 	switch (control) {
 	case 0x02:
 		break;
@@ -337,6 +366,8 @@ rlogin_send(st_connection_t *connection, const void *data, size_t size,
 				return (ssize_t)(start + (size_t)result);
 		}
 		if (consumed < size) {
+			st_connection_log(connection, ST_CONNECTION_LOG_DEBUG,
+			    "local %s consumed", bytes[consumed] == 0x13 ? "XOFF" : "XON");
 			st_connection_pause_input(connection, bytes[consumed] == 0x13);
 			++consumed;
 		}
@@ -419,6 +450,8 @@ connect_network(st_connection_t **result, const struct st_profile *profile,
 	options.timeout_ms = -1;
 	options.cancel = cancel_connect;
 	options.cancel_context = &cancel;
+	options.diagnostic = st_connection_tcp_diagnostic;
+	options.diagnostic_context = (void *)hooks;
 	port = profile->port != 0 ? profile->port : (rlogin ? 513 : 23);
 	status = tcp_client_connect(&socket, NULL, profile->address, port,
 	    &options);
@@ -427,9 +460,9 @@ connect_network(st_connection_t **result, const struct st_profile *profile,
 		return st_connection_fail(error, status,
 		    ST_CONNECTION_SETUP_CONNECTING, "unable to connect to host");
 	}
-	(void)socket_set_keepalive(socket, true);
-	(void)socket_set_send_buffer_size(socket, 1024U * 1024U);
-	(void)socket_set_receive_buffer_size(socket, 1024U * 1024U);
+	st_connection_socket_diagnostic(hooks, "keepalive", socket_set_keepalive(socket, true));
+	st_connection_socket_diagnostic(hooks, "send buffer", socket_set_send_buffer_size(socket, 1024U * 1024U));
+	st_connection_socket_diagnostic(hooks, "receive buffer", socket_set_receive_buffer_size(socket, 1024U * 1024U));
 	if (rlogin) {
 		const char nul = '\0';
 		const char *first = profile->connection_type
@@ -443,6 +476,8 @@ connect_network(st_connection_t **result, const struct st_profile *profile,
 		(void)snprintf(terminal, sizeof(terminal), "%s/%u",
 		    st_connection_terminal_name(profile),
 		    profile->bps_rate != 0 ? profile->bps_rate : 115200U);
+		st_connection_log_hooks(hooks, "RLogin", ST_CONNECTION_LOG_INFO,
+		    "sending RFC 1282 handshake (login fields omitted)");
 		status = send_direct(socket, &nul, 1, hooks);
 		if (status == 0)
 			status = send_c_string(socket, first, hooks);
@@ -451,15 +486,23 @@ connect_network(st_connection_t **result, const struct st_profile *profile,
 		if (status == 0)
 			status = send_c_string(socket, terminal, hooks);
 		if (status != 0) {
+			st_connection_log_hooks(hooks, "RLogin", status == IO_ERROR_CANCELLED
+			    ? ST_CONNECTION_LOG_INFO : ST_CONNECTION_LOG_ERROR,
+			    "RLogin negotiation failed (%d)", status);
 			(void)socket_close(socket);
 			(void)socket_runtime_cleanup();
 			return st_connection_fail(error, status,
 			    ST_CONNECTION_SETUP_CONNECTING,
 			    "RLogin negotiation failed");
 		}
+		st_connection_log_hooks(hooks, "RLogin", ST_CONNECTION_LOG_DEBUG,
+		    "sent terminal parameters emulation=%s rate=%u", st_connection_terminal_name(profile),
+		    profile->bps_rate != 0 ? profile->bps_rate : 115200U);
 	}
 	status = socket_set_blocking(socket, false);
 	if (status != 0) {
+		st_connection_log_hooks(hooks, "TCP", ST_CONNECTION_LOG_ERROR,
+		    "nonblocking socket configuration failed (%d)", status);
 		(void)socket_close(socket);
 		(void)socket_runtime_cleanup();
 		return st_connection_fail(error, status,

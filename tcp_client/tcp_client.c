@@ -23,6 +23,14 @@ struct tcp_client_attempt {
 	bool active;
 };
 
+static void
+diagnose(const struct tcp_client_options *options, enum tcp_client_event event,
+    enum tcp_client_address_family family, int status)
+{
+	if (options->diagnostic != NULL)
+		options->diagnostic(options->diagnostic_context, event, family, status);
+}
+
 static int
 tcp_client_error_rank(int error)
 {
@@ -162,9 +170,12 @@ tcp_client_connect(socket_handle_t *result,
 	    options->family != TCP_CLIENT_ADDRESS_IPV4 &&
 	    options->family != TCP_CLIENT_ADDRESS_IPV6))
 		return IO_ERROR_INVALID_ARGUMENT;
+	diagnose(options, TCP_CLIENT_RESOLVING, options->family, 0);
 	error = tcp_client_resolve(&addresses, host, port, options->family);
-	if (error != 0)
+	if (error != 0) {
+		diagnose(options, TCP_CLIENT_FAILED, options->family, error);
 		return error;
+	}
 	if (addresses.count == 0) {
 		error = IO_ERROR_NOT_FOUND;
 		goto done;
@@ -218,20 +229,26 @@ tcp_client_connect(socket_handle_t *result,
 			socket_handle_t candidate = SOCKET_HANDLE_INVALID;
 			size_t index = next_address++;
 
+			diagnose(options, TCP_CLIENT_ATTEMPT, addresses.items[index].family, 0);
 			error = socket_internal_start_connect(
 			    addresses.items[index].storage,
 			    addresses.items[index].length,
 			    addresses.items[index].native_family, &candidate,
 			    &complete);
-			if (error != 0)
+			if (error != 0) {
+				diagnose(options, TCP_CLIENT_ATTEMPT_FAILED, addresses.items[index].family, error);
 				tcp_client_remember_error(&saved_error, error);
+			}
 			else if (complete) {
 				error = tcp_client_finish(candidate, attempts,
 				    addresses.count, &addresses, index, result,
 				    connected_family);
-				if (error == 0)
+				if (error == 0) {
+					diagnose(options, TCP_CLIENT_CONNECTED, addresses.items[index].family, 0);
 					goto done;
+				}
 				(void)socket_close(candidate);
+				diagnose(options, TCP_CLIENT_ATTEMPT_FAILED, addresses.items[index].family, error);
 				tcp_client_remember_error(&saved_error, error);
 			}
 			else {
@@ -285,12 +302,17 @@ tcp_client_connect(socket_handle_t *result,
 				    attempts, addresses.count, &addresses,
 				    attempts[index].address_index, result,
 				    connected_family);
-				if (error == 0)
+				if (error == 0) {
+					diagnose(options, TCP_CLIENT_CONNECTED, addresses.items[index].family, 0);
 					goto done;
+				}
+				diagnose(options, TCP_CLIENT_ATTEMPT_FAILED, addresses.items[index].family, error);
 				tcp_client_remember_error(&saved_error, error);
 			}
-			else
+			else {
+				diagnose(options, TCP_CLIENT_ATTEMPT_FAILED, addresses.items[index].family, connect_error);
 				tcp_client_remember_error(&saved_error, connect_error);
+			}
 			(void)socket_close(attempts[index].socket);
 			attempts[index].active = false;
 			active--;
@@ -298,6 +320,7 @@ tcp_client_connect(socket_handle_t *result,
 	}
 
 done:
+	if (error != 0) diagnose(options, TCP_CLIENT_FAILED, options->family, error);
 	if (attempts != NULL)
 		tcp_client_close_attempts(attempts, addresses.count,
 		    error == 0 ? *result : SOCKET_HANDLE_INVALID);

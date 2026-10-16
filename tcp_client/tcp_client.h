@@ -21,12 +21,25 @@ enum tcp_client_address_family {
 
 typedef bool (*tcp_client_cancel_fn)(void *context);
 
+enum tcp_client_event {
+	TCP_CLIENT_RESOLVING,
+	TCP_CLIENT_ATTEMPT,
+	TCP_CLIENT_ATTEMPT_FAILED,
+	TCP_CLIENT_CONNECTED,
+	TCP_CLIENT_FAILED,
+};
+
 struct tcp_client_options {
 	enum tcp_client_address_family family;
 	/* Overall connection-racing deadline; -1 waits indefinitely. */
 	int64_t timeout_ms;
 	tcp_client_cancel_fn cancel;
 	void *cancel_context;
+	/* Synchronous, optional metadata only; never exposes resolved addresses,
+	 * application data, or credentials. Status is zero except on failures. */
+	void (*diagnostic)(void *context, enum tcp_client_event event,
+	    enum tcp_client_address_family family, int status);
+	void *diagnostic_context;
 };
 
 /*

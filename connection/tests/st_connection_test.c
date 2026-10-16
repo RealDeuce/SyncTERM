@@ -38,6 +38,16 @@ struct server_state {
 struct log_state {
 	atomic_uint entries;
 	atomic_int last_error;
+	atomic_uint events;
+	atomic_bool leaked;
+	atomic_int exit_status;
+};
+
+enum log_event {
+	LOG_RESOLVE = 1, LOG_ATTEMPT = 2, LOG_CONNECTED = 4,
+	LOG_HANDSHAKE = 8, LOG_URGENT = 16, LOG_WINDOW = 32,
+	LOG_XOFF = 64, LOG_XON = 128, LOG_CLOSED = 256,
+	LOG_SHELL_START = 512, LOG_SHELL_EXIT = 1024, LOG_EOF = 2048
 };
 
 static const uint8_t rlogin_handshake[] = {
@@ -53,7 +63,26 @@ test_log(void *context, enum st_connection_log_level level,
 	struct log_state *state = context;
 
 	(void)source;
-	(void)message;
+	unsigned events = 0;
+	if (strstr(message, "secret") || strstr(message, "shell-test")
+	    || strstr(message, "printf ") || strstr(message, "cmd.exe"))
+		atomic_store(&state->leaked, true);
+	if (strstr(message, "resolving remote endpoint")) events |= LOG_RESOLVE;
+	if (strstr(message, "trying address family=")) events |= LOG_ATTEMPT;
+	if (strstr(message, "connection established family=")) events |= LOG_CONNECTED;
+	if (strstr(message, "sending RFC 1282 handshake")) events |= LOG_HANDSHAKE;
+	if (strstr(message, "urgent control=")) events |= LOG_URGENT;
+	if (strstr(message, "sending window size")) events |= LOG_WINDOW;
+	if (strstr(message, "local XOFF consumed")) events |= LOG_XOFF;
+	if (strstr(message, "local XON consumed")) events |= LOG_XON;
+	if (strstr(message, "provider closed")) events |= LOG_CLOSED;
+	if (strstr(message, "starting PTY shell") || strstr(message, "starting ConPTY shell")) events |= LOG_SHELL_START;
+	if (strstr(message, "shell exited status=") || strstr(message, "shell terminated signal=")) events |= LOG_SHELL_EXIT;
+	int exit_status;
+	if (sscanf(message, "shell exited status=%d", &exit_status) == 1)
+		atomic_store(&state->exit_status, exit_status);
+	if (strstr(message, "peer closed input")) events |= LOG_EOF;
+	atomic_fetch_or(&state->events, events);
 	(void)atomic_fetch_add(&state->entries, 1);
 	if (level == ST_CONNECTION_LOG_ERROR)
 		atomic_store(&state->last_error, 1);
@@ -301,6 +330,7 @@ cancel_setup(void *context, enum st_connection_setup_phase phase)
 static int
 test_raw(void)
 {
+	struct log_state log = {0};
 	struct server_state server;
 	struct st_profile profile;
 	struct st_connection_hooks hooks = {0};
@@ -321,7 +351,9 @@ test_raw(void)
 	profile.address_family = ST_ADDRESS_FAMILY_IPV4;
 	strcpy(profile.address, "127.0.0.1");
 	profile.port = port;
-	CHECK(st_connection_connect_raw(&connection, &profile, NULL, &error) == 0);
+	hooks.log = test_log;
+	hooks.log_context = &log;
+	CHECK(st_connection_connect_raw(&connection, &profile, &hooks, &error) == 0);
 	CHECK(st_connection_send(connection, "", 1, -2)
 	    == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_connection_send(connection, "one", 3, 1000) == 3);
@@ -341,6 +373,8 @@ test_raw(void)
 	CHECK(thread_result == 0);
 	CHECK(socket_close(server.listener) == 0);
 	CHECK(socket_runtime_cleanup() == 0);
+	CHECK(atomic_load(&log.events) == (LOG_RESOLVE | LOG_ATTEMPT | LOG_CONNECTED | LOG_CLOSED | LOG_EOF));
+	CHECK(!atomic_load(&log.leaked) && !atomic_load(&log.last_error));
 
 	connection = (st_connection_t *)(uintptr_t)1;
 	hooks.setup = cancel_setup;
@@ -359,7 +393,7 @@ test_rlogin(void)
 	struct st_profile profile;
 	struct st_screen_geometry geometry = {80, 25, 0, 0};
 	struct st_connection_error error;
-	struct log_state log_state;
+	struct log_state log_state = {0};
 	struct st_connection_hooks hooks = {0};
 	st_connection_t *connection = NULL;
 	st_thread_t thread;
@@ -413,6 +447,11 @@ test_rlogin(void)
 	CHECK(socket_close(server.listener) == 0);
 	CHECK(socket_runtime_cleanup() == 0);
 	CHECK(atomic_load(&log_state.entries) >= 1);
+	CHECK((atomic_load(&log_state.events) & (LOG_RESOLVE | LOG_ATTEMPT | LOG_CONNECTED
+	    | LOG_HANDSHAKE | LOG_URGENT | LOG_WINDOW | LOG_XOFF | LOG_XON | LOG_CLOSED))
+	    == (LOG_RESOLVE | LOG_ATTEMPT | LOG_CONNECTED | LOG_HANDSHAKE
+	    | LOG_URGENT | LOG_WINDOW | LOG_XOFF | LOG_XON | LOG_CLOSED));
+	CHECK(!atomic_load(&log_state.leaked));
 	st_profile_dispose(&profile);
 	return 0;
 }
@@ -472,6 +511,8 @@ test_rlogin_flush(void)
 static int
 test_shell(void)
 {
+	struct log_state log = {0};
+	struct st_connection_hooks hooks = {.log = test_log, .log_context = &log};
 	struct st_profile profile;
 	struct st_screen_geometry geometry = {80, 25, 0, 0};
 	struct st_connection_error error;
@@ -489,7 +530,7 @@ test_shell(void)
 #endif
 #if ST_CONNECTION_TEST_HAVE_SHELL
 	count = st_connection_connect_shell(&connection, &profile, &geometry,
-	    NULL, NULL, &error);
+	    NULL, &hooks, &error);
 #if SYNCTERM_PLATFORM_WINDOWS
 	if (count == IO_ERROR_NOT_SUPPORTED) {
 		st_profile_dispose(&profile);
@@ -503,10 +544,27 @@ test_shell(void)
 	count = st_connection_receive(connection, buffer, sizeof(buffer), 1000);
 	CHECK(count == 10);
 	CHECK(memcmp(buffer, "shell-test", 10) == 0);
+	CHECK(st_connection_receive(connection, buffer, sizeof(buffer), 1000) == 0);
 	CHECK(st_connection_close(connection) == 0);
+	CHECK((atomic_load(&log.events) & (LOG_SHELL_START | LOG_SHELL_EXIT | LOG_CLOSED))
+	    == (LOG_SHELL_START | LOG_SHELL_EXIT | LOG_CLOSED));
+	CHECK(!atomic_load(&log.leaked));
+	CHECK(atomic_load(&log.exit_status) == 0);
+	atomic_store(&log.events, 0);
+#if SYNCTERM_PLATFORM_WINDOWS
+	strcpy(profile.address, "cmd.exe /d /c exit 7");
+#else
+	strcpy(profile.address, "exit 7");
+#endif
+	CHECK(st_connection_connect_shell(&connection, &profile, &geometry,
+	    NULL, &hooks, &error) == 0);
+	CHECK(st_connection_receive(connection, buffer, sizeof(buffer), 1000) == 0);
+	CHECK(st_connection_close(connection) == 0);
+	CHECK((atomic_load(&log.events) & LOG_SHELL_EXIT) != 0);
+	CHECK(atomic_load(&log.exit_status) == 7 && !atomic_load(&log.leaked));
 #else
 	count = st_connection_connect_shell(&connection, &profile, &geometry,
-	    NULL, NULL, &error);
+	    NULL, &hooks, &error);
 	CHECK(count == IO_ERROR_NOT_SUPPORTED);
 #endif
 	st_profile_dispose(&profile);

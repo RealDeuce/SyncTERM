@@ -38,7 +38,7 @@ int
 main(void)
 {
 	struct tcp_client_options options = {
-		TCP_CLIENT_ADDRESS_IPV4, 2000, NULL, NULL
+		TCP_CLIENT_ADDRESS_IPV4, 2000, NULL, NULL, NULL, NULL
 	};
 	struct sockaddr_in address = {0};
 	test_socklen_t address_size = (test_socklen_t)sizeof(address);

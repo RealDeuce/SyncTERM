@@ -93,16 +93,23 @@ st_connection_connect_ghost(st_connection_t **result,
 		ghost_destroy(stream);
 		return status;
 	}
+	st_connection_log_hooks(hooks, "GHost", ST_CONNECTION_LOG_INFO, "probing GHost service");
 	status = st_connection_stream_send_all(stream, probe, sizeof(probe) - 1, hooks);
 	if (status == 0) status = response(stream, "ERROR\r\n", hooks);
-	if (status == 0)
+	if (status == 0) {
+		st_connection_log_hooks(hooks, "GHost", ST_CONNECTION_LOG_INFO,
+		    "sending GHost launch request (program and user omitted)");
 		status = st_connection_stream_send_all(stream, launch, (size_t)length, hooks);
+	}
 	if (status == 0) status = response(stream, "OK\r\n", hooks);
 	if (status != 0) {
+		st_connection_log_hooks(hooks, "GHost", status == IO_ERROR_CANCELLED
+		    ? ST_CONNECTION_LOG_INFO : ST_CONNECTION_LOG_ERROR, "GHost launch failed (%d)", status);
 		ghost_destroy(stream);
 		return st_connection_fail(error, status,
 		    ST_CONNECTION_SETUP_NEGOTIATING, "GHost launch failed");
 	}
+	st_connection_log_hooks(hooks, "GHost", ST_CONNECTION_LOG_INFO, "GHost launch accepted");
 	return st_connection_start(result, stream, &operations, "GHost",
 	    hooks, NULL, error);
 }

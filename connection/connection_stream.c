@@ -1,6 +1,7 @@
 /* Copyright (c) 2026 Stephen Hurd
  * SPDX-License-Identifier: BSD-2-Clause */
 #include "connection_stream.h"
+#include "connection_tcp.h"
 #include "st_connection_config.h"
 #include "tcp_client.h"
 #include "st_time.h"
@@ -57,6 +58,8 @@ st_connection_stream_open(struct st_connection_stream *stream,
 		.timeout_ms = 60000,
 		.cancel = cancel_connect,
 		.cancel_context = (void *)hooks,
+		.diagnostic = st_connection_tcp_diagnostic,
+		.diagnostic_context = (void *)hooks,
 	};
 	struct st_tls_client_options tls = {
 		.server_name = profile->address,
@@ -120,11 +123,14 @@ st_connection_stream_open(struct st_connection_stream *stream,
 		return st_connection_fail(error, status,
 		    ST_CONNECTION_SETUP_CONNECTING, "unable to connect to host");
 	}
-	(void)socket_set_keepalive(stream->socket, true);
-	(void)socket_set_no_delay(stream->socket, true);
-	(void)socket_set_send_buffer_size(stream->socket, 1024U * 1024U);
-	(void)socket_set_receive_buffer_size(stream->socket, 1024U * 1024U);
+	st_connection_socket_diagnostic(hooks, "keepalive", socket_set_keepalive(stream->socket, true));
+	st_connection_socket_diagnostic(hooks, "no delay", socket_set_no_delay(stream->socket, true));
+	st_connection_socket_diagnostic(hooks, "send buffer", socket_set_send_buffer_size(stream->socket, 1024U * 1024U));
+	st_connection_socket_diagnostic(hooks, "receive buffer", socket_set_receive_buffer_size(stream->socket, 1024U * 1024U));
 	status = socket_set_blocking(stream->socket, false);
+	if (status != 0)
+		st_connection_log_hooks(hooks, "TCP", ST_CONNECTION_LOG_ERROR,
+		    "nonblocking socket configuration failed (%d)", status);
 	if (status == 0 && encrypted) {
 		if (st_connection_cancelled(hooks, ST_CONNECTION_SETUP_NEGOTIATING))
 			status = IO_ERROR_CANCELLED;

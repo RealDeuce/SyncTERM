@@ -22,6 +22,7 @@ typedef HRESULT (WINAPI *resize_pseudo_console_fn)(HPCON, COORD);
 typedef void (WINAPI *close_pseudo_console_fn)(HPCON);
 
 struct shell_transport {
+	struct st_connection_hooks hooks;
 	resize_pseudo_console_fn resize_console;
 	close_pseudo_console_fn close_console;
 	HANDLE pipe;
@@ -43,11 +44,14 @@ shell_wait_timeout(int64_t timeout_ms)
 }
 
 static ssize_t
-shell_io_error(DWORD error, bool reading)
+shell_io_error(struct shell_transport *transport, DWORD error, bool reading)
 {
 	if (error == ERROR_BROKEN_PIPE || error == ERROR_PIPE_NOT_CONNECTED
 	    || error == ERROR_NO_DATA)
 		return reading ? 0 : IO_ERROR_NOT_CONNECTED;
+	st_connection_log_hooks(&transport->hooks, "Shell", ST_CONNECTION_LOG_ERROR,
+	    "ConPTY %s failed Windows error=%lu", reading ? "read" : "write",
+	    (unsigned long)error);
 	return IO_ERROR_IO;
 }
 
@@ -73,7 +77,7 @@ shell_overlapped_io(struct shell_transport *transport, void *data,
 	overlapped.hEvent = reading ? transport->read_event
 	    : transport->write_event;
 	if (!ResetEvent(overlapped.hEvent))
-		return IO_ERROR_IO;
+		return shell_io_error(transport, GetLastError(), reading);
 	requested = size > UINT32_MAX ? UINT32_MAX : (DWORD)size;
 	if (reading ? ReadFile(transport->pipe, data, requested, &transferred,
 	    &overlapped) : WriteFile(transport->pipe, data, requested,
@@ -81,24 +85,28 @@ shell_overlapped_io(struct shell_transport *transport, void *data,
 		return (ssize_t)transferred;
 	error = GetLastError();
 	if (error != ERROR_IO_PENDING)
-		return shell_io_error(error, reading);
+		return shell_io_error(transport, error, reading);
 	handles[0] = overlapped.hEvent;
 	handles[1] = transport->stop_event;
 	wait_result = WaitForMultipleObjects(2, handles, FALSE,
 	    shell_wait_timeout(timeout_ms));
+	if (wait_result == WAIT_FAILED)
+		st_connection_log_hooks(&transport->hooks, "Shell", ST_CONNECTION_LOG_ERROR,
+		    "ConPTY I/O wait failed Windows error=%lu", (unsigned long)GetLastError());
 	if (wait_result == WAIT_OBJECT_0) {
 		if (GetOverlappedResult(transport->pipe, &overlapped,
 		    &transferred, TRUE))
 			return (ssize_t)transferred;
-		return shell_io_error(GetLastError(), reading);
+		return shell_io_error(transport, GetLastError(), reading);
 	}
 	stopped = wait_result == WAIT_OBJECT_0 + 1;
 	timed_out = wait_result == WAIT_TIMEOUT;
 	if (!CancelIoEx(transport->pipe, &overlapped)
 	    && GetLastError() != ERROR_NOT_FOUND) {
+		error = GetLastError();
 		(void)GetOverlappedResult(transport->pipe, &overlapped,
 		    &transferred, TRUE);
-		return IO_ERROR_IO;
+		return shell_io_error(transport, error, reading);
 	}
 	if (GetOverlappedResult(transport->pipe, &overlapped,
 	    &transferred, TRUE)) {
@@ -112,7 +120,7 @@ shell_overlapped_io(struct shell_transport *transport, void *data,
 	if (timed_out && error == ERROR_OPERATION_ABORTED)
 		return timeout_ms == 0 ? IO_ERROR_WOULD_BLOCK
 		    : IO_ERROR_TIMED_OUT;
-	return shell_io_error(error, reading);
+	return shell_io_error(transport, error, reading);
 }
 
 static ssize_t
@@ -139,8 +147,11 @@ shell_interrupt(void *state)
 {
 	struct shell_transport *transport = state;
 
-	if (transport->stop_event != NULL)
+	if (transport->stop_event != NULL) {
+		st_connection_log_hooks(&transport->hooks, "Shell", ST_CONNECTION_LOG_DEBUG,
+		    "requesting ConPTY shutdown");
 		(void)SetEvent(transport->stop_event);
+	}
 }
 
 static int
@@ -177,11 +188,24 @@ shell_destroy(void *state)
 		transport->console = NULL;
 	}
 	if (transport->process != NULL) {
+		DWORD exit_code;
 		if (WaitForSingleObject(transport->process, 10000)
 		    == WAIT_TIMEOUT) {
+			st_connection_log_hooks(&transport->hooks, "Shell", ST_CONNECTION_LOG_WARNING,
+			    "shell did not exit after ConPTY close; terminating process");
 			(void)TerminateProcess(transport->process, 1);
 			(void)WaitForSingleObject(transport->process, INFINITE);
 		}
+		if (GetExitCodeProcess(transport->process, &exit_code)) {
+			if (exit_code != STILL_ACTIVE)
+				st_connection_log_hooks(&transport->hooks, "Shell", ST_CONNECTION_LOG_INFO,
+				    "shell exited status=%lu", (unsigned long)exit_code);
+			else
+				st_connection_log_hooks(&transport->hooks, "Shell", ST_CONNECTION_LOG_WARNING,
+				    "shell process still active after shutdown");
+		} else
+			st_connection_log_hooks(&transport->hooks, "Shell", ST_CONNECTION_LOG_ERROR,
+			    "GetExitCodeProcess failed Windows error=%lu", (unsigned long)GetLastError());
 		(void)CloseHandle(transport->process);
 	}
 	if (transport->read_event != NULL)
@@ -317,6 +341,7 @@ st_connection_connect_shell(st_connection_t **result,
 	COORD resize_probe;
 	HMODULE kernel;
 	bool attributes_initialized = false;
+	HRESULT console_status;
 	int status;
 
 	(void)shell_environment;
@@ -337,6 +362,8 @@ st_connection_connect_shell(st_connection_t **result,
 	    ST_CONNECTION_SETUP_STARTING_SHELL))
 		return st_connection_fail(error, IO_ERROR_CANCELLED,
 		    ST_CONNECTION_SETUP_STARTING_SHELL, "connection cancelled");
+	st_connection_log_hooks(hooks, "Shell", ST_CONNECTION_LOG_INFO,
+	    "starting ConPTY shell (command and environment omitted)");
 	kernel = GetModuleHandleW(L"kernel32.dll");
 	if (kernel == NULL)
 		return st_connection_fail(error, IO_ERROR_NOT_SUPPORTED,
@@ -359,6 +386,7 @@ st_connection_connect_shell(st_connection_t **result,
 		    ST_CONNECTION_SETUP_STARTING_SHELL,
 		    "unable to allocate ConPTY shell state");
 	transport->resize_console = resize_console;
+	if (hooks != NULL) transport->hooks = *hooks;
 	transport->close_console = close_console;
 	transport->pipe = INVALID_HANDLE_VALUE;
 	transport->read_event = CreateEventW(NULL, TRUE, FALSE, NULL);
@@ -370,9 +398,13 @@ st_connection_connect_shell(st_connection_t **result,
 		goto failed;
 	size.X = (SHORT)geometry.columns;
 	size.Y = (SHORT)geometry.rows;
-	if (FAILED(create_console(size, conpty_pipe, conpty_pipe, 0,
-	    &transport->console)))
+	console_status = create_console(size, conpty_pipe, conpty_pipe, 0,
+	    &transport->console);
+	if (FAILED(console_status)) {
+		st_connection_log_hooks(hooks, "Shell", ST_CONNECTION_LOG_ERROR,
+		    "CreatePseudoConsole failed HRESULT=0x%08lX", (unsigned long)console_status);
 		goto failed;
+	}
 	/* Resize support is part of this provider's contract, not optional. */
 	resize_probe = size;
 	resize_probe.X += resize_probe.X < INT16_MAX ? 1 : -1;
@@ -400,8 +432,11 @@ st_connection_connect_shell(st_connection_t **result,
 	startup.lpAttributeList = attributes;
 	if (!CreateProcessW(NULL, command, NULL, NULL, FALSE,
 	    EXTENDED_STARTUPINFO_PRESENT, NULL, NULL, &startup.StartupInfo,
-	    &process))
+	    &process)) {
+		st_connection_log_hooks(hooks, "Shell", ST_CONNECTION_LOG_ERROR,
+		    "CreateProcessW failed Windows error=%lu", (unsigned long)GetLastError());
 		goto failed;
+	}
 	transport->process = process.hProcess;
 	(void)CloseHandle(process.hThread);
 	(void)CloseHandle(conpty_pipe);
@@ -420,6 +455,8 @@ st_connection_connect_shell(st_connection_t **result,
 	return status;
 
 unsupported:
+	st_connection_log_hooks(hooks, "Shell", ST_CONNECTION_LOG_ERROR,
+	    "ConPTY resize support is unavailable");
 	if (conpty_pipe != INVALID_HANDLE_VALUE)
 		(void)CloseHandle(conpty_pipe);
 	shell_destroy(transport);
@@ -428,6 +465,8 @@ unsupported:
 	    "ConPTY resize support is not available on this Windows system");
 
 failed:
+	st_connection_log_hooks(hooks, "Shell", ST_CONNECTION_LOG_ERROR,
+	    "ConPTY setup failed");
 	free(command);
 	if (attributes != NULL) {
 		if (attributes_initialized)

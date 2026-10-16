@@ -80,6 +80,15 @@ Flags may request peek or urgent data.
 | Resolves and races addresses according to family and overall timeout.
 `options->cancel` runs synchronously on the caller.  Success installs a
 blocking connected socket and optional actual family; failure changes neither.
+The optional `options->diagnostic(diagnostic_context, event, family, status)`
+observer runs synchronously on this same caller thread. The context remains
+borrowed until connect returns; callbacks must not reenter this operation.
+Events are RESOLVING, ATTEMPT, ATTEMPT_FAILED, CONNECTED, and FAILED, prefixed
+`TCP_CLIENT_`. Attempt/connected events report the actual address family;
+resolving/final failure report the requested family. Status is zero except
+for attempt/final failure, which carry the negative `IO_ERROR_*`. A failed
+address attempt may precede a successful connection. Invalid arguments return
+without events. The observer receives no endpoint strings or application data.
 |===
 
 ==== Crypto provider
@@ -422,7 +431,12 @@ entries.  Enumeration does not guarantee that this device accepts every rate.
 
 Connect functions borrow profiles and setup inputs only during the call.  Hook
 contexts remain borrowed until close, and the log hook may run on either
-worker.  `st_connection_error` reports the high-level status, failed setup
+worker as well as the connecting/closing thread; log callbacks must be
+thread-safe. Every provider reports establishment, EOF or I/O failure, and
+teardown. Shared TCP diagnostics report resolution, address-family attempts,
+failed attempts, success, and socket-configuration warnings. No application
+payloads or credentials are included. The application's configured severity
+threshold controls which records it retains. `st_connection_error` reports the high-level status, failed setup
 phase, optional native code, and bounded detail.
 
 The optional `hooks.prompt(ui_context, title, message, initial, max_length,
@@ -531,6 +545,8 @@ it and requires all concurrent callers stopped.
 
 | st_connection_connect_rlogin(result, profile, current_screen, hooks, error)
 | Opens RLogin with current/fixed terminal geometry and status-row policy.
+Logs the handshake at INFO with login fields omitted. Terminal parameters,
+urgent control bytes, window sizes, and locally consumed XON/XOFF are DEBUG.
 
 | st_connection_connect_telnet(result, profile, current_screen, hooks, error)
 | Accepts TELNET or TELNET_TLS profiles. Negotiates binary, echo, suppress-GA,
@@ -580,6 +596,8 @@ application still applies its configured severity filter to retained output.
 the version-2 launch request using the program and user, and requires OK.
 Only then starts a transparent stream. Empty programs and line/quote injection
 in launch fields are rejected; each response has a bounded length and deadline.
+Logs the probe, launch request, and acceptance at INFO, and negotiation failure
+at ERROR (cancellation is INFO). Program/user fields are omitted.
 
 | st_connection_connect_mqtt(result, profile, hooks, error)
 | Requires MQTT. Opens MQTT 5 over TLS. The default Synchronet PSK identity
@@ -592,16 +610,29 @@ attach (manual entry is available). Missing credentials or undiscovered IDs
 use prompt callbacks. Subscribes to that node's output and publishes input,
 preserving arbitrary payload bytes. Packet allocations are capped at 1 MiB;
 keepalives and broker disconnects are handled by the transport.
+INFO records identify TLS authentication mode, accepted CONNECT, BBS-ID
+selection (value omitted), and chosen node. DEBUG records contain packet
+types, sizes, subscription IDs, SUBACK reasons, and publish byte counts.
+Broker DISCONNECT reasons are INFO for normal closure and WARNING otherwise.
+No topic strings, credentials, PSK material, or terminal payloads are logged.
 
 | st_connection_connect_serial(result, profile, hooks, error)
 | Opens/configures the profile serial device.
+Logs serial settings at INFO and DSR loss at INFO. Device paths are omitted;
+lowering DTR and closing the interface are DEBUG records.
 
 | st_connection_connect_modem(result, profile, hooks, error)
 | Opens the modem device, runs initialization, and dials.
+Logs initialization/dial progress, recognized OK/CONNECT results, carrier
+establishment and loss at INFO, and setup failure at ERROR. Initialization
+strings, dial commands, and telephone numbers are omitted.
 
 | st_connection_connect_shell(result, profile, current_screen, environment, hooks, error)
 | Starts the platform shell transport.  POSIX may execute `/bin/sh -c`; the
 optional TERM/TERMCAP/MM_CHARSET values are borrowed for setup.
+Setup and child exit status/signal are logged at INFO, native I/O failures at
+ERROR, shutdown at DEBUG, and forced termination at WARNING. Command lines
+and environment values are omitted.
 
 | st_connection_send(connection, data, size, timeout_ms)
 | Sends through protocol processing; returns short count or negative error.

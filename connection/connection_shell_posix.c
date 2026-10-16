@@ -41,6 +41,7 @@
 extern char **environ;
 
 struct shell_transport {
+	struct st_connection_hooks hooks;
 	st_mutex_t mutex;
 	int descriptor;
 	pid_t child;
@@ -61,8 +62,11 @@ shell_read_transport(void *state, void *data, size_t size,
 	} while (result < 0 && errno == EINTR);
 	if (result == 0)
 		return IO_ERROR_TIMED_OUT;
-	if (result < 0)
+	if (result < 0) {
+		st_connection_log_hooks(&transport->hooks, "Shell", ST_CONNECTION_LOG_ERROR,
+		    "PTY input poll failed errno=%d", errno);
 		return IO_ERROR_IO;
+	}
 	if ((item.revents & POLLNVAL) != 0)
 		return IO_ERROR_NOT_CONNECTED;
 	if ((item.revents & (POLLIN | POLLHUP)) != 0) {
@@ -73,6 +77,9 @@ shell_read_transport(void *state, void *data, size_t size,
 		} while (count < 0 && errno == EINTR);
 		if (count < 0 && errno == EIO && (item.revents & POLLHUP) != 0)
 			return 0;
+		if (count < 0)
+			st_connection_log_hooks(&transport->hooks, "Shell", ST_CONNECTION_LOG_ERROR,
+			    "PTY read failed errno=%d", errno);
 		return count < 0 ? IO_ERROR_IO : count;
 	}
 	return IO_ERROR_IO;
@@ -94,11 +101,18 @@ shell_write_transport(void *state, const void *data, size_t size,
 	} while (result < 0 && errno == EINTR);
 	if (result == 0)
 		return IO_ERROR_TIMED_OUT;
-	if (result < 0 || (item.revents & (POLLERR | POLLNVAL | POLLHUP)) != 0)
+	if (result < 0 || (item.revents & (POLLERR | POLLNVAL | POLLHUP)) != 0) {
+		st_connection_log_hooks(&transport->hooks, "Shell", ST_CONNECTION_LOG_ERROR,
+		    "PTY output poll failed errno=%d events=0x%X",
+		    result < 0 ? errno : 0, (unsigned)item.revents);
 		return IO_ERROR_IO;
+	}
 	do {
 		count = write(transport->descriptor, data, size);
 	} while (count < 0 && errno == EINTR);
+	if (count < 0)
+		st_connection_log_hooks(&transport->hooks, "Shell", ST_CONNECTION_LOG_ERROR,
+		    "PTY write failed errno=%d", errno);
 	return count < 0 ? IO_ERROR_IO : count;
 }
 
@@ -107,6 +121,8 @@ shell_interrupt(void *state)
 {
 	struct shell_transport *transport = state;
 
+	st_connection_log_hooks(&transport->hooks, "Shell", ST_CONNECTION_LOG_DEBUG,
+	    "requesting shell shutdown with SIGHUP");
 	(void)kill(transport->child, SIGHUP);
 }
 
@@ -139,22 +155,34 @@ shell_destroy(void *state)
 	struct shell_transport *transport = state;
 	unsigned attempts;
 	int status;
-	pid_t waited;
+	pid_t waited = 0;
 	struct timespec pause = {0, 100000000L};
 
 	for (attempts = 0; attempts < 100; ++attempts) {
-		pid_t result = waitpid(transport->child, &status, WNOHANG);
+		waited = waitpid(transport->child, &status, WNOHANG);
 
-		if (result == transport->child || (result < 0 && errno == ECHILD))
+		if (waited == transport->child || (waited < 0 && errno == ECHILD))
 			break;
 		(void)st_thread_sleep(&pause, NULL);
 	}
 	if (attempts == 100) {
+		st_connection_log_hooks(&transport->hooks, "Shell", ST_CONNECTION_LOG_WARNING,
+		    "shell did not exit after SIGHUP; sending SIGKILL");
 		(void)kill(transport->child, SIGKILL);
 		do {
 			waited = waitpid(transport->child, &status, 0);
 		} while (waited < 0 && errno == EINTR);
 	}
+	if (waited == transport->child) {
+		if (WIFEXITED(status))
+			st_connection_log_hooks(&transport->hooks, "Shell", ST_CONNECTION_LOG_INFO,
+			    "shell exited status=%d", WEXITSTATUS(status));
+		else if (WIFSIGNALED(status))
+			st_connection_log_hooks(&transport->hooks, "Shell", ST_CONNECTION_LOG_INFO,
+			    "shell terminated signal=%d", WTERMSIG(status));
+	} else if (waited < 0 && errno != ECHILD)
+		st_connection_log_hooks(&transport->hooks, "Shell", ST_CONNECTION_LOG_ERROR,
+		    "waitpid failed errno=%d", errno);
 	(void)close(transport->descriptor);
 	st_mutex_destroy(&transport->mutex);
 	free(transport);
@@ -307,6 +335,7 @@ st_connection_connect_shell(st_connection_t **result,
 	pid_t child;
 	int master;
 	int status;
+	int fork_error;
 	size_t i;
 
 	if (result == NULL || profile == NULL
@@ -332,6 +361,8 @@ st_connection_connect_shell(st_connection_t **result,
 	command = explicit_command ? profile->address : getenv("SHELL");
 	if (command == NULL || command[0] == '\0')
 		command = "/bin/sh";
+	st_connection_log_hooks(hooks, "Shell", ST_CONNECTION_LOG_INFO,
+	    "starting PTY shell (command and environment omitted)");
 	environment = make_environment(profile, &geometry, shell_environment,
 	    owned_environment);
 	if (environment == NULL)
@@ -353,13 +384,17 @@ st_connection_connect_shell(st_connection_t **result,
 			execle(command, command, (char *)NULL, environment);
 		_exit(127);
 	}
+	fork_error = errno;
 	for (i = 0; i < 5; ++i)
 		free(owned_environment[i]);
 	free(environment);
-	if (child < 0)
+	if (child < 0) {
+		st_connection_log_hooks(hooks, "Shell", ST_CONNECTION_LOG_ERROR,
+		    "forkpty failed errno=%d", fork_error);
 		return st_connection_fail(error, IO_ERROR_IO,
 		    ST_CONNECTION_SETUP_STARTING_SHELL,
 		    "unable to create pseudo-terminal");
+	}
 	(void)fcntl(master, F_SETFD, fcntl(master, F_GETFD) | FD_CLOEXEC);
 	transport = calloc(1, sizeof(*transport));
 	if (transport == NULL) {
@@ -371,6 +406,7 @@ st_connection_connect_shell(st_connection_t **result,
 		    "unable to allocate shell transport");
 	}
 	transport->descriptor = master;
+	if (hooks != NULL) transport->hooks = *hooks;
 	transport->child = child;
 	if (st_mutex_init(&transport->mutex, ST_MUTEX_PLAIN)
 	    != ST_THREAD_SUCCESS) {

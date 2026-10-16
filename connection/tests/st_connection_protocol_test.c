@@ -23,7 +23,7 @@
 #define CHECK(e) do { if (!(e)) { fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, #e); return 1; } } while (0)
 enum protocol { TELNET, NVT, TELNET_TLS, GHOST, GHOST_BAD,
 	MQTT, MQTT_BAD, MQTT_OVERSIZE, MQTT_SYSTEM_PROMPT, MQTT_MANUAL, MQTT_BBSID,
-	MQTT_CANCEL, MQTT_CERT, TLS_BAD };
+	MQTT_CANCEL, MQTT_DENIED, MQTT_CERT, TLS_BAD };
 struct fixture { int listener, socket; SSL_CTX *ctx; SSL *ssl; enum protocol type; };
 static const uint8_t text[] = {'A', '\r', 0, 'B', 255, 'C'};
 static const uint8_t keys[] = {'x', 3, 255, '\r', '\n'};
@@ -31,6 +31,11 @@ static uint8_t large[9000];
 
 struct log_capture {
 	atomic_uint telnet_tx, telnet_rx, terminal_type, window_size, tls_handshake, tls_errors;
+	atomic_uint tcp_resolve, tcp_attempt, tcp_connected, session_closed;
+	atomic_uint ghost_probe, ghost_launch, ghost_accepted, ghost_failed;
+	atomic_uint mqtt_connect, mqtt_accepted, mqtt_subscribe, mqtt_publish_tx, mqtt_publish_rx;
+	atomic_uint mqtt_id, mqtt_node, mqtt_failed;
+	atomic_uint mqtt_disconnect, mqtt_rejected;
 	atomic_bool invalid;
 };
 
@@ -40,6 +45,39 @@ capture_log(void *context, enum st_connection_log_level level,
 {
 	struct log_capture *log = context;
 	if (source == NULL || message == NULL) { atomic_store(&log->invalid, true); return; }
+	if (strstr(message, "Test User") || strstr(message, "Password")
+	    || strstr(message, "Guest") || strstr(message, "System") || strstr(message, "password")
+	    || strstr(message, "sbbs/TEST/") || strstr(message, "MBBS: program"))
+		atomic_store(&log->invalid, true);
+	if (strcmp(source, "TCP") == 0) {
+		if (strstr(message, "resolving remote endpoint")) atomic_fetch_add(&log->tcp_resolve, 1);
+		if (strstr(message, "trying address family=")) atomic_fetch_add(&log->tcp_attempt, 1);
+		if (strstr(message, "connection established family=")) atomic_fetch_add(&log->tcp_connected, 1);
+	} else if (strcmp(source, "Connection") == 0) {
+		if (strstr(message, "provider closed")) atomic_fetch_add(&log->session_closed, 1);
+	} else if (strcmp(source, "GHost") == 0) {
+		if (strstr(message, "probing GHost service")) atomic_fetch_add(&log->ghost_probe, 1);
+		if (strstr(message, "sending GHost launch request")) atomic_fetch_add(&log->ghost_launch, 1);
+		if (strstr(message, "GHost launch accepted")) atomic_fetch_add(&log->ghost_accepted, 1);
+		if (level == ST_CONNECTION_LOG_ERROR) atomic_fetch_add(&log->ghost_failed, 1);
+	} else if (strcmp(source, "MQTT") == 0) {
+		if (strstr(message, "sending CONNECT packet")) atomic_fetch_add(&log->mqtt_connect, 1);
+		if (strstr(message, "broker accepted CONNECT")) atomic_fetch_add(&log->mqtt_accepted, 1);
+		if (strstr(message, "sending SUBSCRIBE packet-id=")) atomic_fetch_add(&log->mqtt_subscribe, 1);
+		if (strstr(message, "sending PUBLISH")) atomic_fetch_add(&log->mqtt_publish_tx, 1);
+		if (strstr(message, "received PUBLISH")) atomic_fetch_add(&log->mqtt_publish_rx, 1);
+		if (strstr(message, "BBSID selected (value omitted)")) atomic_fetch_add(&log->mqtt_id, 1);
+		if (strstr(message, "node 3 selected")) atomic_fetch_add(&log->mqtt_node, 1);
+		if (strstr(message, "MQTT setup")) atomic_fetch_add(&log->mqtt_failed, 1);
+		if (strstr(message, "broker DISCONNECT reason=0x00")) {
+			if (level != ST_CONNECTION_LOG_INFO) atomic_store(&log->invalid, true);
+			atomic_fetch_add(&log->mqtt_disconnect, 1);
+		}
+		if (strstr(message, "SUBACK reason=0x87")) {
+			if (level != ST_CONNECTION_LOG_ERROR) atomic_store(&log->invalid, true);
+			atomic_fetch_add(&log->mqtt_rejected, 1);
+		}
+	}
 	if (strcmp(source, "TLS") == 0) {
 		if (level == ST_CONNECTION_LOG_ERROR) atomic_fetch_add(&log->tls_errors, 1);
 		if (strstr(message, "handshake completed:") != NULL) {
@@ -234,6 +272,10 @@ mqtt_server(struct fixture *f)
 	else
 		CHECK(size == sizeof(connect) && memcmp(body, connect, size) == 0);
 	CHECK(mq_send(f, 0x20, "\0\0\0", 3) == 0);
+	if (f->type == MQTT_DENIED) {
+		CHECK(mq_receive(f, 0x82, body, &size) == 0);
+		return mq_send(f, 0x90, "\0\1\0\x87", 4);
+	}
 	if (f->type == MQTT_BAD) {
 		CHECK(mq_receive(f, 0x82, body, &size) == 0);
 		return mq_send(f, 0x90, "\0\1\x80", 3);
@@ -392,7 +434,7 @@ run(enum protocol type)
 	struct sockaddr_in address = {.sin_family = AF_INET, .sin_addr.s_addr = htonl(INADDR_LOOPBACK)};
 	socklen_t length = sizeof(address);
 	struct st_profile profile;
-	struct log_capture log;
+	struct log_capture log = {0};
 	atomic_init(&log.telnet_tx, 0); atomic_init(&log.telnet_rx, 0);
 	atomic_init(&log.terminal_type, 0); atomic_init(&log.window_size, 0);
 	atomic_init(&log.tls_handshake, 0); atomic_init(&log.tls_errors, 0);
@@ -450,15 +492,17 @@ run(enum protocol type)
 		strcpy(profile.tls_trusted_certificate, "connection-wire-trusted.pem");
 	}
 	status = type == GHOST || type == GHOST_BAD
-	    ? st_connection_connect_ghost(&connection, &profile, NULL, &error)
+	    ? st_connection_connect_ghost(&connection, &profile, &hooks, &error)
 	    : mqtt ? st_connection_connect_mqtt(&connection, &profile, &hooks, &error)
 	    : st_connection_connect_telnet(&connection, &profile, &screen,
 	    type == TLS_BAD ? NULL : &hooks, &error);
-	if (type == GHOST_BAD || type == TLS_BAD || type == MQTT_BAD || type == MQTT_OVERSIZE || type == MQTT_CANCEL) {
+	if (type == GHOST_BAD || type == TLS_BAD || type == MQTT_BAD || type == MQTT_OVERSIZE
+	    || type == MQTT_CANCEL || type == MQTT_DENIED) {
 		CHECK(status < 0 && connection == NULL);
 		if (type == MQTT_BAD) CHECK(status == IO_ERROR_PROTOCOL);
 		if (type == MQTT_OVERSIZE) CHECK(status == IO_ERROR_MESSAGE_TOO_LARGE);
 		if (type == MQTT_CANCEL) CHECK(status == IO_ERROR_CANCELLED);
+		if (type == MQTT_DENIED) CHECK(status == IO_ERROR_PERMISSION_DENIED);
 	}
 	else {
 		if (status != 0) fprintf(stderr, "connect %d: %d %s\n", type, status, error.detail);
@@ -469,6 +513,7 @@ run(enum protocol type)
 				ssize_t n = st_connection_send(connection, large + used, sizeof(large) - used, 5000);
 				CHECK(n > 0); used += (size_t)n;
 			}
+			CHECK(st_connection_receive(connection, large, 1, 5000) == 0);
 		} else if (type == NVT) {
 			CHECK(connection_read(connection, "A\rB", 3) == 0);
 			CHECK(!atomic_load(&connection->binary_mode));
@@ -486,6 +531,28 @@ run(enum protocol type)
 	if (connection == NULL)
 		CHECK(st_thread_join(thread, &thread_status) == ST_THREAD_SUCCESS && thread_status == 0);
 	CHECK(!atomic_load(&log.invalid));
+	if (type != TLS_BAD) {
+		CHECK(atomic_load(&log.tcp_resolve) > 0 && atomic_load(&log.tcp_attempt) > 0);
+		CHECK(atomic_load(&log.tcp_connected) > 0);
+		if (connection != NULL) CHECK(atomic_load(&log.session_closed) == 1);
+	}
+	if (type == GHOST || type == GHOST_BAD) {
+		CHECK(atomic_load(&log.ghost_probe) == 1);
+		CHECK(atomic_load(&log.ghost_launch) == (type == GHOST ? 1U : 0U));
+		CHECK(atomic_load(&log.ghost_accepted) == (type == GHOST ? 1U : 0U));
+		CHECK(atomic_load(&log.ghost_failed) == (type == GHOST_BAD ? 1U : 0U));
+	}
+	if (mqtt) {
+		CHECK(atomic_load(&log.mqtt_failed) == (connection == NULL ? 1U : 0U));
+		CHECK(atomic_load(&log.mqtt_rejected) == (type == MQTT_DENIED ? 1U : 0U));
+		if (connection != NULL) {
+			CHECK(atomic_load(&log.mqtt_connect) == 1 && atomic_load(&log.mqtt_accepted) == 1);
+			CHECK(atomic_load(&log.mqtt_subscribe) >= 3 && atomic_load(&log.mqtt_publish_rx) > 0);
+			CHECK(atomic_load(&log.mqtt_publish_tx) > 0);
+			CHECK(atomic_load(&log.mqtt_id) == 1 && atomic_load(&log.mqtt_node) == 1);
+			CHECK(atomic_load(&log.mqtt_disconnect) == 1);
+		} else CHECK(atomic_load(&log.mqtt_id) == 0 && atomic_load(&log.mqtt_node) == 0);
+	}
 	if (type == TELNET || type == TELNET_TLS) {
 		CHECK(atomic_load(&log.telnet_tx) > 0 && atomic_load(&log.telnet_rx) > 0);
 		CHECK(atomic_load(&log.terminal_type) == 1 && atomic_load(&log.window_size) == 2);
