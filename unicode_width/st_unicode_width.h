@@ -24,10 +24,14 @@ enum st_unicode_east_asian_width {
 enum st_unicode_east_asian_width st_unicode_east_asian_width(
 	uint32_t codepoint);
 bool st_unicode_emoji_presentation(uint32_t codepoint);
+/* UCD properties; false for non-scalars. Nonspacing marks are Mn or Me. */
+bool st_unicode_default_ignorable(uint32_t codepoint);
+bool st_unicode_nonspacing_mark(uint32_t codepoint);
 
 /*
- * Returns zero for a non-scalar value, otherwise one or two columns using
- * SyncTERM's Unicode East Asian Width plus Emoji_Presentation policy.
+ * Returns zero for non-scalars, default ignorables, Mn, Me, Cf and Cc.
+ * Otherwise returns one or two using East Asian Width plus Emoji_Presentation.
+ * This scalar advance is not the presentation width of an isolated mark.
  */
 uint8_t st_unicode_columns(uint32_t codepoint);
 

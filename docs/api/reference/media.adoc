@@ -541,6 +541,8 @@ int st_console_font_lookup(st_console_t *console, uint16_t identifier,
 int st_console_font_lookup_cluster(st_console_t *console, uint16_t identifier,
 	const char *text, size_t text_size, uint8_t columns,
 	uint16_t *glyph_font, uint32_t *glyph);
+int st_console_font_lookup_fallback(st_console_t *console, uint16_t identifier,
+	uint8_t columns, uint16_t *glyph_font, uint32_t *glyph);
 int st_console_font_glyph_text(st_console_t *console, uint16_t identifier,
 	uint32_t glyph, char *text, size_t text_size, size_t *required);
 int st_console_font_glyph_columns(st_console_t *console,
@@ -800,6 +802,15 @@ xterm cube/greys, and legacy C64/Atari/Atari-ST tail.
 | Resolve semantic text using fallback before constructing a cell.  The scalar
 form determines columns; the cluster form accepts the caller's one- or
 two-column grapheme width.
+
+| st_console_font_lookup_fallback(console, identifier, columns, glyph_font, glyph)
+| Selects a drawable missing glyph without Unicode mapping lookup. `columns`
+must be 1 or 2; output pointers and console must be non-null. Uses font zero
+if its cell dimensions match the selected font (or no selected font exists),
+otherwise the selected font. Returns zero on success, INVALID_ARGUMENT for
+invalid inputs, NOT_FOUND for absent font/fallback, or IO for a lock failure.
+Outputs are unchanged on failure. The selected font in a retained cell is
+not changed; `glyph_font` identifies the actual owner.
 
 | st_console_font_glyph_text(console, identifier, glyph, text, text_size, required), st_console_font_glyph_columns(console, identifier, glyph, columns)
 | Query a representative registered mapping and width for a concrete font

@@ -38,6 +38,9 @@ struct st_unicode_text_item {
 	const uint8_t *bytes;
 	size_t size;
 	bool rgi_emoji;
+	/* Grapheme presentation hint: 0 suppresses drawing; isolated visible
+	 * marks use 1 even when their scalar advance is zero. Normalize mode
+	 * does not compute widths and always reports 0. */
 	uint8_t columns;
 };
 
@@ -59,6 +62,8 @@ struct st_unicode_presentation_event {
 	const uint8_t *bytes;
 	size_t size;
 	bool rgi_emoji;
+	/* 0, 1 or 2. Zero retains the bytes and provisional event lifecycle,
+	 * but must not look up a glyph, move the cursor or trigger wrapping. */
 	uint8_t columns;
 };
 

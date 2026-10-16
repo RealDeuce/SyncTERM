@@ -2325,6 +2325,66 @@ exercise_rectangle_contract(st_wren_host_t *public_host)
 }
 
 static int
+exercise_zero_width_contract(st_wren_host_t *public_host)
+{
+	struct st_wren_host *host = public_host;
+	static const char source[] =
+	    "import \"syncterm\" for Cell, Screen, Surface\n"
+	    "import \"ui_draw\" for Painter\n"
+	    "import \"ui_style\" for Style\n"
+	    "var z = \"\\u2060\\ufeff\"\n"
+	    "if (Screen.textWidth(z, 0) != 0 || Screen.textWidth(\"A\" + z + \"B\", 0) != 2) Fiber.abort(\"zero width measurement\")\n"
+	    "var s = Surface.new(4, 1)\n"
+	    "for (x in 0...4) s.cellAt(x, 0).ch = \"X\"\n"
+	    "var style = Style.new(0, 0x1f, 0xffffff, 0x0000a8)\n"
+	    "Painter.text(s, 0, 0, z, style)\n"
+	    "Painter.text(s, 0, 0, z, style, 3)\n"
+	    "Painter.hline(s, 0, 0, 4, \"\\u2060\", style)\n"
+	    "for (x in 0...4) {\n"
+	    "  if (s.cellAt(x, 0).ch != \"X\" || s.cellAt(x, 0).legacyAttr == 0x1f) Fiber.abort(\"zero text mutated cells\")\n"
+	    "}\n"
+	    "Painter.text(s, 0, 0, \"A\" + z + \"B\", style)\n"
+	    "if (s.cellAt(0, 0).ch != \"A\" || s.cellAt(1, 0).ch != \"B\" || s.cellAt(2, 0).ch != \"X\") Fiber.abort(\"zero text layout\")\n"
+	    "var single = Cell.new()\n"
+	    "single.ch = \"\\u2060\"\n"
+	    "if (single.columns != 1 || single.ch != \"?\") Fiber.abort(\"standalone diagnostic tofu\")\n"
+	    "single.ch = \"\\ufeff\"\n"
+	    "if (single.columns != 1 || single.ch != \"\\ufeff\") Fiber.abort(\"narrow diagnostic mapping\")\n"
+	    "single.ch = \"\\u2061\"\n"
+	    "if (single.columns != 1 || single.ch != \"?\") Fiber.abort(\"missing diagnostic tofu\")\n"
+	    "single.ch = \"\\u0000\"\n"
+	    "if (single.chByte != 0 || single.columns != 1) Fiber.abort(\"explicit NUL mapping\")\n"
+	    "single.chByte = 0\n"
+	    "if (single.chByte != 0 || single.columns != 1) Fiber.abort(\"raw glyph zero\")\n"
+	    "var cell = s.cellAt(1, 0)\n"
+	    "cell.font = 0\n"
+	    "cell.legacyAttr = 0x1f\n"
+	    "cell.fgRgb = 0x123456\n"
+	    "cell.bgRgb = 0x654321\n"
+	    "cell.blink = true\n"
+	    "cell.hyperlinkId = 1\n"
+	    "cell.ch = \"\\u2060\"\n"
+	    "if (cell.columns != 2 || cell.ch != \"\\u2060\" || s.cellAt(2, 0).columns != 0) Fiber.abort(\"wide diagnostic pair\")\n"
+	    "if (cell.font != 0 || cell.fgRgb != 0x123456 || cell.bgRgb != 0x654321 || !cell.blink || cell.hyperlinkId != 1) Fiber.abort(\"diagnostic attributes\")\n"
+	    "cell.ch = \"\\ufeff\"\n"
+	    "if (cell.columns != 1 || s.cellAt(2, 0).columns != 1 || s.cellAt(2, 0).ch != \" \") Fiber.abort(\"old diagnostic pair repair\")\n"
+	    "s.cellAt(2, 0).ch = \"\\u2060\"\n"
+	    "cell.ch = \"\\u2060\"\n"
+	    "if (cell.columns != 2 || s.cellAt(2, 0).columns != 0 || s.cellAt(3, 0).columns != 1) Fiber.abort(\"overwritten pair repair\")\n"
+	    "s.cellAt(3, 0).ch = \"\\u2060\"\n"
+	    "if (s.cellAt(3, 0).columns != 1 || s.cellAt(3, 0).ch != \"?\") Fiber.abort(\"edge diagnostic tofu\")\n"
+	    "var rows = Surface.new(2, 2)\n"
+	    "rows.cellAt(1, 0).ch = \"\\u2060\"\n"
+	    "if (rows.cellAt(1, 0).columns != 1 || rows.cellAt(1, 0).ch != \"?\" || rows.cellAt(0, 1).ch != \" \") Fiber.abort(\"diagnostic crossed row boundary\")\n";
+
+	if (wrenInterpret(host->vm, "zero_width_contract", source) != WREN_RESULT_SUCCESS) {
+		fprintf(stderr, "zero width contract failed: %s\n", host->last_error);
+		return -1;
+	}
+	return 0;
+}
+
+static int
 exercise_core_value_contracts(st_wren_host_t *public_host,
 	st_console_t *console)
 {
@@ -3739,8 +3799,9 @@ int
 main(void)
 {
 	static const uint8_t default_bitmap[128 * 16] = {0};
-	static const uint8_t default_wide_bitmap[32] = {0};
+	static const uint8_t default_wide_bitmap[64] = {0};
 	static const struct st_console_font_mapping default_mapping[] = {
+		{0, 0},
 		{0x20, 0x20}, {0x21, 0x21}, {0x22, 0x22}, {0x23, 0x23},
 		{0x24, 0x24}, {0x25, 0x25}, {0x26, 0x26}, {0x27, 0x27},
 		{0x28, 0x28}, {0x29, 0x29}, {0x2a, 0x2a}, {0x2b, 0x2b},
@@ -3767,7 +3828,9 @@ main(void)
 		{0x7c, 0x7c}, {0x7d, 0x7d}, {0x7e, 0x7e},
 		{UINT32_C(0x00e9), 31},
 		{UINT32_C(0x03a9), 127},
+		{UINT32_C(0x2060), 129},
 		{UINT32_C(0x4e00), 128},
+		{UINT32_C(0xfeff), 30},
 	};
 	static const struct st_console_font default_font = {
 		.bitmap = default_bitmap,
@@ -3779,7 +3842,7 @@ main(void)
 		.glyph_stride = 16,
 		.wide_bitmap = default_wide_bitmap,
 		.wide_bitmap_size = sizeof(default_wide_bitmap),
-		.wide_glyph_count = 1,
+		.wide_glyph_count = 2,
 		.wide_row_stride = 2,
 		.wide_glyph_stride = 32,
 		.mapping = default_mapping,
@@ -4009,6 +4072,7 @@ main(void)
 	CHECK(exercise_surface_cell_retarget_contract(host) == 0);
 	CHECK(exercise_rectangle_contract(host) == 0);
 	CHECK(exercise_core_value_contracts(host, console) == 0);
+	CHECK(exercise_zero_width_contract(host) == 0);
 	CHECK(exercise_pixel_contract(host) == 0);
 	CHECK(exercise_web_refresh_overlay(host, console) == 0);
 	CHECK(exercise_cursor_contract(host) == 0);

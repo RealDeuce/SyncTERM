@@ -212,6 +212,13 @@ wrapping enabled, a wide glyph at the final column wraps before it is written.
 The current tentative no-wrap rule draws nothing and clamps the cursor to the
 final column.
 
+Normal text skips zero-column graphemes before lookup or mutation. Scalar
+zero-width properties (default ignorables and Mn/Me/Cf/Cc) override positive
+width data, but an isolated non-ignorable combining mark retains a drawable
+one-column fallback hint. Text controls keep their existing actions. Explicit
+glyph lookup and retained cells remain drawable, independent of scalar advance;
+`st_console_font_lookup_fallback()` selects tofu without a mapping lookup.
+
 Supplying both `cell_width` and `cell_height` enables the software pixel
 planes.  Supplying only one is invalid; leaving both zero avoids allocating a
 pixel surface for text-only instances.  By default the raster is exactly the

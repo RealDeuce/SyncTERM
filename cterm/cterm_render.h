@@ -88,6 +88,7 @@ struct cterm_render_state {
 	st_unicode_presentation_t *unicode;
 	uint32_t provisional_x;
 	uint32_t provisional_y;
+	bool provisional_drawn;
 };
 
 struct cterminal;

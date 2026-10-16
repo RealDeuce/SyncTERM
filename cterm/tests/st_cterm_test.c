@@ -170,10 +170,81 @@ test_disconnect_row(void)
 	}
 }
 
+static void
+test_zero_width_text(void)
+{
+	enum { COLUMNS = 80, ROWS = 43, CELLS = COLUMNS * ROWS };
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config geometry = {
+		.columns = COLUMNS, .rows = ROWS, .cell_width = 8, .cell_height = 8,
+		.pixel_width = 640, .pixel_height = 350,
+	};
+	const struct st_console_rect full = {0, 0, COLUMNS, ROWS};
+	st_console_t *console = NULL;
+	st_font_catalog_t *fonts = NULL;
+	st_cterm_t *terminal = NULL;
+	struct input_filter_state captured = {0};
+	struct st_console_cell before[CELLS], after[CELLS];
+	struct st_cterm_state state;
+	uint32_t x, y;
+
+	CHECK(st_console_create(&console, &display, &geometry) == 0);
+	CHECK(st_font_catalog_create(&fonts, console) == 0);
+	const struct st_cterm_config config = {
+		.console = console, .fonts = fonts, .emulation = ST_CTERM_ANSI_BBS,
+		.encoding = ST_CTERM_ENCODING_UTF8, .codepage = ST_CODEPAGE_CP437,
+		.quiet = true, .capture = capture_input,
+		.rip_version = ST_CTERM_RIP_1,
+		.input_filter = filter_input, .input_filter_active = input_filter_active,
+		.input_filter_context = &captured,
+		.capture_active = input_filter_active, .capture_context = &captured,
+	};
+	CHECK(st_cterm_create(&terminal, &config) == 0);
+	static const char input[] = "A\xe2\x81\xa0\xef\xbb\xbf" "B";
+	for (size_t i = 0; i < sizeof(input) - 1; ++i)
+		feed(terminal, input + i, 1);
+	CHECK(st_console_get_position(console, &x, &y) == 0 && x == 2 && y == 0);
+	CHECK(captured.captured_size == sizeof(input) - 1
+	    && memcmp(captured.captured, input, sizeof(input) - 1) == 0);
+	CHECK(captured.count == 4 && captured.seen[0] == 'A'
+	    && captured.seen[1] == 0x2060 && captured.seen[2] == 0xfeff
+	    && captured.seen[3] == 'B');
+	/* Preserve the pending ANSI wrap even at the bottom-right corner. */
+	feed(terminal, "\x1b[43;80HZ", 9);
+	CHECK(st_cterm_state(terminal, &state) == 0 && state.last_column_flag.set);
+	CHECK(st_console_read_cells(console, &full, before, COLUMNS) == 0);
+	static const char zero[] = "\xe2\x81\xa0\xef\xbb\xbf\0";
+	for (size_t i = 0; i < sizeof(zero) - 1; ++i)
+		feed(terminal, zero + i, 1);
+	CHECK(st_console_get_position(console, &x, &y) == 0 && x == COLUMNS - 1 && y == ROWS - 1);
+	CHECK(st_cterm_state(terminal, &state) == 0 && state.last_column_flag.set);
+	CHECK(st_console_read_cells(console, &full, after, COLUMNS) == 0);
+	CHECK(memcmp(before, after, sizeof(before)) == 0);
+	/* Prepend U+0600 is initially zero width. A following base revises the
+	 * same cluster and must draw at the current position, not a stale one. */
+	feed(terminal, "\x1b[1;2H", 6);
+	feed(terminal, "\xd8\x80", 2);
+	CHECK(st_console_get_position(console, &x, &y) == 0 && x == 1 && y == 0);
+	feed(terminal, "A", 1);
+	CHECK(st_console_get_position(console, &x, &y) == 0 && x == 2 && y == 0);
+	/* Doorway literal-byte cells bypass Unicode text suppression. */
+	static const char doorway[] = "\x1b[1;1H\x1b[=255h\0\0";
+	feed(terminal, doorway, sizeof(doorway) - 1);
+	const struct st_console_rect first = {0, 0, 1, 1};
+	struct st_console_cell literal;
+	CHECK(st_console_read_cells(console, &first, &literal, 1) == 0);
+	CHECK(literal.glyph == 0 && (literal.flags & ST_CONSOLE_CELL_CONTINUATION) == 0);
+	CHECK(st_console_get_position(console, &x, &y) == 0 && x == 1 && y == 0);
+	st_cterm_destroy(&terminal);
+	st_font_catalog_destroy(fonts);
+	st_console_destroy(console);
+}
+
 int
 main(void)
 {
 	test_disconnect_row();
+	test_zero_width_text();
 	const struct st_console_display_config display = {
 		.backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};

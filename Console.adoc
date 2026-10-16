@@ -283,6 +283,16 @@ Mapped width comes from font data; missing-scalar width comes from generated
 Unicode East Asian Width and Emoji Presentation tables, never the process
 locale or `wcwidth()`.
 
+Normal text suppresses zero-column graphemes before font lookup, cursor
+movement, or wrapping, even if a font has a visible diagnostic mapping.
+Default ignorables and categories Mn, Me, Cf, and Cc have zero scalar advance;
+isolated non-ignorable combining marks retain a visible one-column grapheme
+fallback. Attached marks, selectors, and joiners remain in their grapheme.
+CR, LF, TAB, and BS keep their text-control actions. Explicit glyph cells and
+font lookup are not text output: they can still select diagnostic or blank
+glyphs, including glyph zero. `st_console_font_lookup_fallback()` selects a
+width-matched missing glyph directly, without trying any Unicode mapping.
+
 An eight-pixel glyph occupies one cell and a sixteen-pixel glyph occupies two.
 The second cell is marked `ST_CONSOLE_CELL_CONTINUATION`, and region mutations
 preserve complete pairs.  A wide glyph at the final column wraps before being

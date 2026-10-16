@@ -6,6 +6,7 @@
  */
 
 #include "st_unicode_text.h"
+#include "cluster_columns.h"
 
 #include "io_error.h"
 #include "st_unicode_grapheme.h"
@@ -246,7 +247,7 @@ emit_cluster(st_unicode_text_t *text)
 	uint8_t encoded[4];
 	struct byte_buffer bytes = {0};
 	bool rgi;
-	uint8_t columns = 1;
+	uint8_t columns;
 	int status = 0;
 
 	if (text->cluster.count == 0)
@@ -266,20 +267,8 @@ emit_cluster(st_unicode_text_t *text)
 	    text->cluster.count) == text->cluster.count;
 	if (rgi)
 		columns = 2;
-	else {
-		for (size_t i = 0; i < text->cluster.count; ++i) {
-			enum st_unicode_grapheme_break property
-			    = st_unicode_grapheme_break(text->cluster.values[i]);
-
-			if (property != ST_UNICODE_GRAPHEME_EXTEND
-			    && property != ST_UNICODE_GRAPHEME_ZWJ) {
-				columns = st_unicode_columns(text->cluster.values[i]);
-				if (columns == 0)
-					columns = 1;
-				break;
-			}
-		}
-	}
+	else
+		columns = cluster_columns(bytes.values, bytes.count);
 	status = queue_bytes(text, ST_UNICODE_TEXT_ITEM_TEXT, bytes.values,
 	    bytes.count, rgi, columns);
 	if (status == 0)

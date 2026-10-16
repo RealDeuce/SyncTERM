@@ -411,6 +411,7 @@ struct presentation_log {
 	struct {
 		enum st_unicode_presentation_event_kind kind;
 		uint8_t bytes[8];
+		uint8_t columns;
 		size_t size;
 	} events[8];
 	size_t count;
@@ -426,9 +427,62 @@ record_presentation(void *context,
 	    || event->size > sizeof(log->events[0].bytes))
 		return IO_ERROR_OUT_OF_RANGE;
 	log->events[log->count].kind = event->kind;
+	log->events[log->count].columns = event->columns;
 	log->events[log->count].size = event->size;
 	memcpy(log->events[log->count].bytes, event->bytes, event->size);
 	++log->count;
+	return 0;
+}
+
+static int
+check_zero_width(void)
+{
+	static const struct {
+		const char *bytes;
+		uint8_t columns;
+	} cases[] = {
+		{"\xe2\x81\xa0", 0}, {"\xef\xbb\xbf", 0},
+		{"\xef\xb8\x8f", 0}, {"\xe2\x80\x8d", 0},
+		{"\xcc\x81", 1}, {"\xe2\x83\x9d", 1},
+		{"A\xcc\x81", 1},
+		{"\xe1\x84\x80\xe1\x85\xa0", 2},
+		{"\xd8\x80" "A", 1},
+		{"\xf0\x9f\x8f\xbd", 2},
+		{"\xe0\xa6\xbe", 1},
+	};
+	for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
+		st_unicode_text_t *text = NULL;
+		st_unicode_presentation_t *presentation = NULL;
+		struct st_unicode_text_item item;
+		struct presentation_log log = {0};
+		size_t size = strlen(cases[i].bytes);
+		size_t consumed;
+
+		CHECK(st_unicode_text_create(&text, ST_UNICODE_TEXT_GRAPHEMES) == 0);
+		CHECK(st_unicode_text_feed(text, cases[i].bytes, size, &consumed) == 0);
+		CHECK(consumed == size && st_unicode_text_finish(text) == 0);
+		CHECK(st_unicode_text_peek(text, &item) == 0);
+		CHECK(item.columns == cases[i].columns);
+		CHECK(st_unicode_presentation_create(&presentation,
+		    record_presentation, &log) == 0);
+		for (size_t j = 0; j < size; ++j) {
+			CHECK(st_unicode_presentation_feed(presentation,
+			    cases[i].bytes + j, 1, &consumed) == 0 && consumed == 1);
+		}
+		CHECK(log.count > 0);
+		CHECK(log.events[log.count - 1].columns == item.columns);
+		CHECK(log.events[log.count - 1].size == item.size);
+		CHECK(memcmp(log.events[log.count - 1].bytes, item.bytes, item.size) == 0);
+		if (i == 8) {
+			CHECK(log.count == 2 && log.events[0].columns == 0);
+			CHECK(log.events[1].kind == ST_UNICODE_PRESENTATION_REVISE);
+		}
+		CHECK(st_unicode_text_consume(text) == 0);
+		CHECK(st_unicode_text_peek(text, &item) != 0);
+		CHECK(st_unicode_presentation_boundary(presentation) == 0);
+		st_unicode_presentation_destroy(&presentation);
+		st_unicode_text_destroy(&text);
+	}
 	return 0;
 }
 
@@ -478,6 +532,7 @@ main(void)
 	CHECK(check_graphemes() == 0);
 	CHECK(check_errors() == 0);
 	CHECK(check_provisional_presentation() == 0);
+	CHECK(check_zero_width() == 0);
 	CHECK(check_normalization_conformance() == 0);
 	CHECK(check_grapheme_conformance() == 0);
 	return EXIT_SUCCESS;

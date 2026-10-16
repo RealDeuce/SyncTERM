@@ -3230,6 +3230,14 @@ what storage that object refers to; it does not copy cell contents.
   one valid cluster, normalizes it to NFC, then resolves one drawable glyph in
   the selected font and Unicode fallback font. An unsupported cluster is one
   missing glyph, including emoji modifier sequences that do not use ZWJ.
++
+Unlike ordinary text output and `Screen.textWidth`, an explicit zero-width
+cluster assignment requests a diagnostic glyph. A narrow mapping is used as
+is (including a blank NUL mapping). A wide diagnostic is allowed only when
+this Cell refers to a Surface with another column available in the same row;
+otherwise a narrow missing glyph is used. Missing mappings also use narrow
+tofu. Assignment preserves the selected font, colours, attributes, and
+hyperlink, and repairs overwritten wide pairs. This does not affect `chByte`.
 
 | `chByte`, `chByte=(n)`
 | Exact legacy glyph byte interpreted through this cell's selected font

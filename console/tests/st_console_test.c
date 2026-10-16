@@ -2096,6 +2096,105 @@ test_font_resolution_and_complete_cells(void)
 }
 
 static void
+test_zero_width_text(void)
+{
+	static const uint8_t bitmap[4] = {0, 0x80, 0x40, 0xff};
+	static const uint8_t wide_bitmap[2] = {0xff, 0xff};
+	static const struct st_console_font_mapping mapping[] = {
+		{0, 0}, {' ', 0}, {'?', 3}, {'A', 1}, {'B', 2},
+		{0x2060, 4}, {0xfeff, 4},
+	};
+	static const struct st_console_font font = {
+		.bitmap = bitmap, .bitmap_size = sizeof(bitmap),
+		.width = 8, .height = 1, .glyph_count = 4,
+		.row_stride = 1, .glyph_stride = 1,
+		.wide_bitmap = wide_bitmap, .wide_bitmap_size = sizeof(wide_bitmap),
+		.wide_glyph_count = 1, .wide_row_stride = 2, .wide_glyph_stride = 2,
+		.mapping = mapping, .mapping_count = sizeof(mapping) / sizeof(mapping[0]),
+		.fallback_glyph = 3, .wide_fallback_glyph = 4,
+	};
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config config = {
+		.columns = 4, .rows = 2, .cell_width = 8, .cell_height = 1, .wrap = true,
+	};
+	const struct st_console_rect full = {0, 0, 4, 2};
+	struct st_console_cell before[8], after[8];
+	st_console_t *console = NULL;
+	uint16_t owner;
+	uint32_t glyph, x, y;
+	uint8_t columns;
+
+	CHECK(st_console_create(&console, &display, &config) == 0);
+	owner = 123;
+	glyph = 456;
+	CHECK(st_console_font_lookup_fallback(console, 0, 1, &owner, &glyph)
+	    == IO_ERROR_NOT_FOUND);
+	CHECK(owner == 123 && glyph == 456);
+	CHECK(register_static_font(console, &font) == 0);
+	CHECK(st_console_clear_window(console, ' ') == 0);
+	CHECK(st_console_font_lookup(console, 0, 0x2060, &owner, &glyph, &columns) == 0);
+	CHECK(columns == 2 && glyph == 4);
+	CHECK(st_console_font_lookup_fallback(console, 0, 1, &owner, &glyph) == 0);
+	CHECK(owner == 0 && glyph == 3);
+	CHECK(st_console_font_lookup_fallback(console, 0, 2, &owner, &glyph) == 0);
+	CHECK(glyph == 4);
+	owner = 123;
+	glyph = 456;
+	CHECK(st_console_font_lookup_fallback(console, 0, 0, &owner, &glyph)
+	    == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(owner == 123 && glyph == 456);
+	CHECK(st_console_write_utf8(console, "A\xe2\x81\xa0\xef\xbb\xbf" "B", 8) == 0);
+	CHECK(st_console_get_position(console, &x, &y) == 0 && x == 2 && y == 0);
+	CHECK(st_console_read_cells(console, &full, before, 4) == 0);
+	CHECK(before[0].glyph == 1 && before[1].glyph == 2);
+	for (size_t i = 0; i < 8; ++i)
+		CHECK((before[i].flags & ST_CONSOLE_CELL_CONTINUATION) == 0);
+	CHECK(st_console_set_position(console, 3, 1) == 0);
+	CHECK(st_console_write_utf8(console, "\xe2\x81\xa0\xef\xbb\xbf\0", 7) == 0);
+	CHECK(st_console_put_codepoint(console, 0x2060) == 0);
+	CHECK(st_console_get_position(console, &x, &y) == 0 && x == 3 && y == 1);
+	CHECK(st_console_read_cells(console, &full, after, 4) == 0);
+	CHECK(memcmp(before, after, sizeof(before)) == 0);
+	CHECK(st_console_font_lookup(console, 0, 0, &owner, &glyph, &columns) == 0);
+	CHECK(glyph == 0 && columns == 1);
+	CHECK(st_console_set_position(console, 2, 0) == 0);
+	CHECK(st_console_write_utf8(console, "\xcc\x81", 2) == 0);
+	CHECK(st_console_get_position(console, &x, &y) == 0 && x == 3 && y == 0);
+	CHECK(read_cell(console, 2, 0).glyph == 3);
+	CHECK(st_console_set_position(console, 0, 1) == 0);
+	CHECK(st_console_put_codepoint(console, 0x301) == 0);
+	CHECK(st_console_get_position(console, &x, &y) == 0 && x == 1 && y == 1);
+	CHECK(st_console_set_position(console, 2, 0) == 0);
+	CHECK(st_console_write_utf8(console, "\r\nB", 3) == 0);
+	CHECK(st_console_get_position(console, &x, &y) == 0 && x == 1 && y == 1);
+	CHECK(read_cell(console, 0, 1).glyph == 2);
+	{
+		static const uint8_t tall_bitmap[8] = {0};
+		static const uint8_t tall_wide[4] = {0};
+		struct st_console_font tall = font;
+		tall.height = 2;
+		tall.bitmap = tall_bitmap;
+		tall.bitmap_size = sizeof(tall_bitmap);
+		tall.glyph_stride = 2;
+		tall.wide_bitmap = tall_wide;
+		tall.wide_bitmap_size = sizeof(tall_wide);
+		tall.wide_glyph_stride = 4;
+		tall.wide_fallback_glyph = ST_CONSOLE_FONT_NO_WIDE_FALLBACK;
+		uint16_t identifier = register_static_font(console, &tall);
+		CHECK(identifier != 0);
+		CHECK(st_console_font_lookup_fallback(console, identifier, 1, &owner, &glyph) == 0);
+		CHECK(owner == identifier && glyph == 3);
+		owner = 123;
+		glyph = 456;
+		CHECK(st_console_font_lookup_fallback(console, identifier, 2, &owner, &glyph)
+		    == IO_ERROR_NOT_FOUND);
+		CHECK(owner == 123 && glyph == 456);
+		/* Borrowed registration remains live until console destruction. */
+		st_console_destroy(console);
+	}
+}
+
+static void
 test_cluster_font_mapping(void)
 {
 	static const char waving_hand_tone[] =
@@ -2799,6 +2898,7 @@ main(void)
 	test_ascii_character_identity();
 	test_font_resolution_and_complete_cells();
 	test_cluster_font_mapping();
+	test_zero_width_text();
 	test_font_registration_preserves_cells();
 	test_font_registry_lru_replacement();
 	test_multiple_consoles_one_display();

@@ -565,25 +565,39 @@ set_cell_cluster(WrenVM *vm, struct foreign_cell *foreign, const char *text,
 	size_t text_size, uint8_t columns, bool raw, uint8_t raw_glyph)
 {
 	struct st_console_cell value = foreign->storage->cells[foreign->index];
+	st_console_t *console = st_wren_context_from_vm(vm)->console;
+	bool diagnostic = !raw && columns == 0;
+	bool fits_wide = foreign->storage->width != 0
+	    && foreign->index % foreign->storage->width + 1
+	    < foreign->storage->width;
 
-	clear_cell_pair(vm, foreign);
 	value.flags &= ~ST_CONSOLE_CELL_CONTINUATION;
 	if (raw) {
 		value.glyph = raw_glyph;
 		value.glyph_font = value.font;
-		(void)st_console_font_glyph_columns(
-		    st_wren_context_from_vm(vm)->console, value.glyph_font,
-		    value.glyph, &columns);
 	}
-	else if (st_console_font_lookup_cluster(
-	    st_wren_context_from_vm(vm)->console, value.font, text, text_size,
-	    columns, &value.glyph_font, &value.glyph) != 0) {
+	else if (st_console_font_lookup_cluster(console, value.font, text, text_size,
+	    diagnostic ? 1 : columns, &value.glyph_font, &value.glyph) != 0) {
 		return;
 	}
+	if (st_console_font_glyph_columns(console, value.glyph_font, value.glyph,
+	    &columns) != 0)
+		return;
+	if (diagnostic && columns == 2 && !fits_wide) {
+		if (st_console_font_lookup_fallback(console, value.font, 1,
+		    &value.glyph_font, &value.glyph) != 0)
+			return;
+		columns = 1;
+	}
+	clear_cell_pair(vm, foreign);
+	/* Replacing the next cell must also repair a wide pair starting there. */
+	if (columns == 2 && fits_wide) {
+		struct foreign_cell next = *foreign;
+		++next.index;
+		clear_cell_pair(vm, &next);
+	}
 	foreign->storage->cells[foreign->index] = value;
-	if (columns == 2 && foreign->storage->width != 0
-	    && foreign->index % foreign->storage->width + 1
-	    < foreign->storage->width) {
+	if (columns == 2 && fits_wide) {
 		value.flags |= ST_CONSOLE_CELL_CONTINUATION;
 		foreign->storage->cells[foreign->index + 1] = value;
 	}
@@ -2852,6 +2866,10 @@ fn_screen_text_width(WrenVM *vm)
 		uint16_t glyph_font;
 		uint8_t columns = item.columns;
 
+		if (columns == 0) {
+			(void)st_unicode_text_consume(graphemes);
+			continue;
+		}
 		if (st_console_font_lookup_cluster(
 		    st_wren_context_from_vm(vm)->console, identifier,
 		    (const char *)item.bytes, item.size, item.columns, &glyph_font,

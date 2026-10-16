@@ -131,6 +131,8 @@ int st_utf8_decoder_flush(struct st_utf8_decoder *decoder,
 enum st_unicode_east_asian_width st_unicode_east_asian_width(
     uint32_t codepoint);
 bool st_unicode_emoji_presentation(uint32_t codepoint);
+bool st_unicode_default_ignorable(uint32_t codepoint);
+bool st_unicode_nonspacing_mark(uint32_t codepoint);
 uint8_t st_unicode_columns(uint32_t codepoint);
 uint8_t st_unicode_canonical_combining_class(uint32_t codepoint);
 size_t st_unicode_canonical_decompose(uint32_t codepoint, uint32_t *output,
@@ -205,7 +207,13 @@ not silently discard pending input.
 | Reports the generated Emoji_Presentation property.
 
 | st_unicode_columns(codepoint)
-| Returns zero for a non-scalar, otherwise one or two fixed display columns.
+| Returns zero for a non-scalar, Default_Ignorable_Code_Point, or general
+category Mn, Me, Cf, Cc. Otherwise returns two for EAW W/F or Emoji_Presentation,
+one for other scalars. This is scalar advance, not isolated-mark cluster width.
+
+| st_unicode_default_ignorable(codepoint), st_unicode_nonspacing_mark(codepoint)
+| Reports the pinned UCD Default_Ignorable_Code_Point property or membership
+in Mn/Me respectively. Both return false for non-scalars.
 
 | st_unicode_canonical_combining_class(codepoint)
 | Returns the canonical combining class; unassigned/non-combining values use
@@ -336,6 +344,9 @@ grapheme, REVISE replaces that same grapheme with the supplied NFC bytes,
 COMMIT makes it final, and DECODE_ERROR describes the malformed maximal
 subpart.  `columns` is the current display width and `rgi_emoji` identifies a
 complete recognized emoji sequence.
+Zero-column events retain their bytes and lifecycle but suppress drawing,
+lookup, cursor movement, and wrapping. Non-ignorable isolated marks retain a
+one-column fallback hint; attached marks/selectors/joiners stay in the cluster.
 
 [cols="3m,7"]
 |===

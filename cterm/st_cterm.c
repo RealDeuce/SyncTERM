@@ -1768,6 +1768,20 @@ present_unicode(void *context,
 	int x;
 	int y;
 	int status;
+	enum st_unicode_presentation_event_kind kind = event->kind;
+
+	if (kind == ST_UNICODE_PRESENTATION_COMMIT) {
+		target->screen.provisional_drawn = false;
+		return 0;
+	}
+	if (kind == ST_UNICODE_PRESENTATION_BEGIN)
+		target->screen.provisional_drawn = false;
+	if ((kind == ST_UNICODE_PRESENTATION_BEGIN
+	    || kind == ST_UNICODE_PRESENTATION_REVISE) && event->columns == 0)
+		return 0;
+	if (kind == ST_UNICODE_PRESENTATION_REVISE
+	    && !target->screen.provisional_drawn)
+		kind = ST_UNICODE_PRESENTATION_BEGIN;
 
 	if (!target->started
 	    && event->kind != ST_UNICODE_PRESENTATION_COMMIT) {
@@ -1777,7 +1791,7 @@ present_unicode(void *context,
 			return status;
 	}
 
-	switch (event->kind) {
+	switch (kind) {
 	case ST_UNICODE_PRESENTATION_BEGIN:
 		cterm_apply_window(target);
 		x = target->xpos;
@@ -1793,8 +1807,10 @@ present_unicode(void *context,
 			return IO_ERROR_IO;
 		status = st_console_write_utf8(console, (const char *)event->bytes,
 		    event->size);
-		if (status == 0)
+		if (status == 0) {
+			target->screen.provisional_drawn = true;
 			record_rip_unicode_position(target, x, event->columns);
+		}
 		break;
 	case ST_UNICODE_PRESENTATION_REVISE:
 		cterm_apply_window(target);

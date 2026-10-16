@@ -2448,14 +2448,45 @@ font_lookup_cluster_exact(const struct st_console_font *font,
 	return false;
 }
 
+static const struct st_console_font *
+fallback_font_locked(st_console_t *console, uint16_t identifier,
+	uint16_t *fallback_identifier)
+{
+	const struct st_console_font *selected = st_console_font_locked(console,
+	    identifier);
+	const struct st_console_font *font = st_console_font_locked(console, 0);
+
+	*fallback_identifier = identifier;
+	if (font == NULL || (selected != NULL
+	    && (font->width != selected->width || font->height != selected->height)))
+		return selected;
+	*fallback_identifier = 0;
+	return font;
+}
+
+static bool
+font_lookup_fallback_locked(st_console_t *console, uint16_t identifier,
+	uint8_t columns, uint16_t *glyph_font, uint32_t *glyph)
+{
+	uint16_t owner;
+	const struct st_console_font *font = fallback_font_locked(console,
+	    identifier, &owner);
+
+	if (font == NULL || (columns == 2 && font->wide_fallback_glyph
+	    == ST_CONSOLE_FONT_NO_WIDE_FALLBACK))
+		return false;
+	*glyph = columns == 2 ? font->wide_fallback_glyph : font->fallback_glyph;
+	*glyph_font = owner;
+	return true;
+}
+
 bool
 st_console_font_lookup_cluster_locked(st_console_t *console,
 	uint16_t identifier, const char *text, size_t text_size, uint8_t columns,
 	uint16_t *glyph_font, uint32_t *glyph)
 {
-	const struct st_console_font *selected = st_console_font_locked(console,
+	const struct st_console_font *font = st_console_font_locked(console,
 	    identifier);
-	const struct st_console_font *font = selected;
 	uint16_t fallback_identifier = identifier;
 	uint32_t codepoint;
 	size_t consumed;
@@ -2472,36 +2503,17 @@ st_console_font_lookup_cluster_locked(st_console_t *console,
 		*glyph_font = identifier;
 		return true;
 	}
-	if (identifier != 0)
-		font = st_console_font_locked(console, 0);
-	if (font == NULL || (selected != NULL
-	    && (font->width != selected->width || font->height != selected->height))) {
-		font = selected;
-		if (font == NULL)
-			return false;
-	}
-	else if (identifier != 0)
-		fallback_identifier = 0;
+	font = fallback_font_locked(console, identifier, &fallback_identifier);
 	if (font == NULL)
 		return false;
 	if (fallback_identifier == 0 && LOOKUP_EXACT(font)) {
 		*glyph_font = 0;
 		return true;
 	}
-	if (columns == 2) {
-		if (font->wide_fallback_glyph
-		    == ST_CONSOLE_FONT_NO_WIDE_FALLBACK)
-			return false;
-		*glyph = font->wide_fallback_glyph;
-	}
-	else if (columns == 1)
-		*glyph = font->fallback_glyph;
-	else
-		return false;
-	*glyph_font = fallback_identifier;
-
 #undef LOOKUP_EXACT
-	return true;
+	return (columns == 1 || columns == 2)
+	    && font_lookup_fallback_locked(console, identifier, columns,
+	    glyph_font, glyph);
 }
 
 bool
@@ -2516,6 +2528,8 @@ st_console_font_lookup_locked(st_console_t *console, uint16_t identifier,
 	if (size < 0)
 		return false;
 	*columns = st_unicode_columns(codepoint);
+	if (*columns == 0)
+		*columns = 1;
 	if (!st_console_font_lookup_cluster_locked(console, identifier,
 	    encoded, (size_t)size, *columns, glyph_font, glyph))
 		return false;
@@ -2804,6 +2818,23 @@ st_console_font_lookup(st_console_t *console, uint16_t identifier,
 		return IO_ERROR_IO;
 	found = st_console_font_lookup_locked(console, identifier, codepoint,
 	    glyph_font, glyph, columns);
+	(void)st_rwlock_unlock(&console->state_lock);
+	return found ? 0 : IO_ERROR_NOT_FOUND;
+}
+
+int
+st_console_font_lookup_fallback(st_console_t *console, uint16_t identifier,
+	uint8_t columns, uint16_t *glyph_font, uint32_t *glyph)
+{
+	bool found;
+
+	if (console == NULL || glyph_font == NULL || glyph == NULL
+	    || (columns != 1 && columns != 2))
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (st_rwlock_read_lock(&console->state_lock) != ST_THREAD_SUCCESS)
+		return IO_ERROR_IO;
+	found = font_lookup_fallback_locked(console, identifier, columns,
+	    glyph_font, glyph);
 	(void)st_rwlock_unlock(&console->state_lock);
 	return found ? 0 : IO_ERROR_NOT_FOUND;
 }

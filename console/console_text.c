@@ -788,6 +788,10 @@ put_codepoint_locked(st_console_t *console, uint32_t codepoint)
 	default:
 		break;
 	}
+	if (st_unicode_columns(codepoint) == 0
+	    && !(st_unicode_nonspacing_mark(codepoint)
+	    && !st_unicode_default_ignorable(codepoint)))
+		return;
 	cell = style_cell_locked(console, codepoint, &columns);
 	if (columns == 2 && console->cursor_x + 1 >= right) {
 		if (!console->wrap) {
@@ -819,7 +823,15 @@ put_cluster_locked(st_console_t *console, const char *text, size_t text_size,
 	struct st_console_cell cell;
 	uint32_t right = console->window.x + console->window.width;
 
+	if (columns == 0)
+		return;
 	cell = style_cluster_locked(console, text, text_size, columns);
+	{
+		const struct st_console_font *font = st_console_font_locked(console,
+		    cell.glyph_font);
+		if (font != NULL)
+			columns = cell.glyph < font->glyph_count ? 1 : 2;
+	}
 	if (columns == 2 && console->cursor_x + 1 >= right) {
 		if (!console->wrap) {
 			console->cursor_x = right - 1;
@@ -935,7 +947,13 @@ st_console_write_utf8(st_console_t *console, const char *text, size_t length)
 	while (st_unicode_text_peek(unicode, &item) == 0) {
 		uint32_t codepoint;
 
-		if (st_utf8_decode_one(&codepoint, &consumed, item.bytes,
+		/* UAX #29 groups CRLF into one zero-column grapheme; both
+		 * controls still act on the text window rather than being drawn. */
+		if (item.size == 2 && item.bytes[0] == '\r' && item.bytes[1] == '\n') {
+			put_codepoint_locked(console, '\r');
+			put_codepoint_locked(console, '\n');
+		}
+		else if (st_utf8_decode_one(&codepoint, &consumed, item.bytes,
 		    item.size) == 0 && consumed == item.size)
 			put_codepoint_locked(console, codepoint);
 		else

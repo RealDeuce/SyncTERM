@@ -615,6 +615,12 @@ int st_console_font_lookup(st_console_t *console, uint16_t identifier,
 int st_console_font_lookup_cluster(st_console_t *console, uint16_t identifier,
 	const char *text, size_t text_size, uint8_t columns,
 	uint16_t *glyph_font, uint32_t *glyph);
+/* Select tofu without mapping lookup. columns must be 1 or 2. Uses font zero
+ * when size-compatible, otherwise the selected font. Outputs unchanged on
+ * failure (INVALID_ARGUMENT, IO, or NOT_FOUND); returns zero on success.
+ */
+int st_console_font_lookup_fallback(st_console_t *console, uint16_t identifier,
+	uint8_t columns, uint16_t *glyph_font, uint32_t *glyph);
 /*
  * Returns a representative mapping, not the text which originally selected
  * the glyph.

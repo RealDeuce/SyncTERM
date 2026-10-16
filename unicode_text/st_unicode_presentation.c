@@ -6,6 +6,7 @@
  */
 
 #include "st_unicode_text.h"
+#include "cluster_columns.h"
 
 #include "io_error.h"
 #include "st_unicode_grapheme.h"
@@ -147,9 +148,8 @@ publish(st_unicode_presentation_t *presentation,
 	struct st_unicode_presentation_event event = {.kind = kind};
 	char *source;
 	size_t source_size = 0;
-	size_t offset = 0;
 	bool changed;
-	uint8_t columns = 1;
+	uint8_t columns;
 	bool rgi;
 	int status;
 
@@ -181,27 +181,9 @@ publish(st_unicode_presentation_t *presentation,
 	    presentation->count) == presentation->count;
 	if (rgi)
 		columns = 2;
-	else {
-		while (offset < presentation->normalized_size) {
-			uint32_t scalar;
-			size_t consumed;
-			enum st_unicode_grapheme_break property;
-
-			if (st_utf8_decode_one(&scalar, &consumed,
-			    presentation->normalized + offset,
-			    presentation->normalized_size - offset) != 0)
-				break;
-			offset += consumed;
-			property = st_unicode_grapheme_break(scalar);
-			if (property != ST_UNICODE_GRAPHEME_EXTEND
-			    && property != ST_UNICODE_GRAPHEME_ZWJ) {
-				columns = st_unicode_columns(scalar);
-				if (columns == 0)
-					columns = 1;
-				break;
-			}
-		}
-	}
+	else
+		columns = cluster_columns(presentation->normalized,
+		    presentation->normalized_size);
 	event.bytes = presentation->normalized;
 	event.size = presentation->normalized_size;
 	event.rgi_emoji = rgi;
