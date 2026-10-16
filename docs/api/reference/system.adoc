@@ -31,8 +31,8 @@ elapsed time; never interpret them as wall-clock values.
 | Write cumulative process CPU time in nanoseconds, including all threads'
 user and kernel CPU. Subtract readings to benchmark CPU consumption; waiting
 and scheduling delays do not count. Clock resolution is platform-dependent
-and may be coarser than one nanosecond. Unavailable readings return
-`IO_ERROR_IO`; an unrepresentable reading returns `IO_ERROR_OUT_OF_RANGE`.
+and may be coarser than one nanosecond. Platform clock failures return
+negative `IO_ERROR_*`; an unrepresentable reading returns `IO_ERROR_OUT_OF_RANGE`.
 
 | st_deadline_start(result, timeout_ms)
 | Captures a monotonic deadline.  `-1` is infinite, zero is already expired,

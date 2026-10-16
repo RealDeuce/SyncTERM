@@ -110,3 +110,20 @@ Paired 64-line runs (including startup and all eight stream variants) executed
 The remaining instruction-heavy path is retained-cell raster comparison,
 particularly with one-byte writes; font-registry searching and full retained-
 screen scrolling copies are no longer required in the optimized paths.
+
+== Verification configurations
+
+* FreeBSD amd64 Clang Debug: full project build and 66 relevant headless
+  CTest cases passed, including the existing RIP v1.10a pixel regressions.
+* Private Xvfb `:190`: synthetic packing, live X11, and XRender checks passed.
+  One live backend run failed its existing 50 ms window-centering assertion;
+  the immediate rerun passed without changing that test or its expectations.
+* FreeBSD GCC 13.5 Debug: console, CPU-clock, and synthetic X11 packing tests
+  passed. The optimized GCC attempt was blocked by the existing
+  `pixels/st_scaler.c` `centers` maybe-uninitialized warning; that file and
+  warning policy were not changed.
+* MinGW-w64: console (including Win32/GDI row consumers) and CPU-clock test
+  executable cross-compiled successfully; Windows runtime and MSVC were not
+  exercised.
+* Forced POSIX CPU-clock capability-absent configuration: all three standalone
+  time/error tests passed using the `clock()` fallback.
