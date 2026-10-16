@@ -29,6 +29,10 @@ main(void)
 	CHECK(second_ns >= first_ns);
 	CHECK(st_time_monotonic_ms(NULL) == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_time_monotonic_ns(NULL) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_time_process_cpu_ns(NULL) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_time_process_cpu_ns(&first_ns) == 0);
+	CHECK(st_time_process_cpu_ns(&second_ns) == 0);
+	CHECK(second_ns >= first_ns);
 	CHECK(st_deadline_start(&deadline, -1) == 0);
 	CHECK(st_deadline_remaining_ms(&deadline, &remaining) == 0);
 	CHECK(remaining == -1);

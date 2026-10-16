@@ -23,13 +23,13 @@ fail(const char *operation, int status)
 }
 
 static uint64_t
-monotonic_ns(void)
+process_cpu_ns(void)
 {
 	uint64_t result;
-	int status = st_time_monotonic_ns(&result);
+	int status = st_time_process_cpu_ns(&result);
 
 	if (status != 0)
-		fail("st_time_monotonic_ns", status);
+		fail("st_time_process_cpu_ns", status);
 	return result;
 }
 
@@ -122,6 +122,8 @@ main(void)
 	uint16_t wide_font_identifier;
 	int status;
 
+	puts("Timings measure total process CPU, including all threads (not wall time).");
+
 	for (uint32_t glyph = 0; glyph < GLYPHS; ++glyph)
 		for (uint32_t y = 0; y < FONT_HEIGHT; ++y)
 			bitmap[(size_t)glyph * FONT_HEIGHT + y]
@@ -153,7 +155,7 @@ main(void)
 	status = st_console_begin_update(console);
 	if (status != 0)
 		fail("st_console_begin_update", status);
-	start = monotonic_ns();
+	start = process_cpu_ns();
 	for (uint32_t pass = 0; pass < raster_passes; ++pass) {
 		for (size_t i = 0; i < (size_t)COLUMNS * ROWS; ++i)
 			screen[i].glyph = (uint32_t)((i + pass) & 255U);
@@ -161,7 +163,7 @@ main(void)
 		if (status != 0)
 			fail("cell update", status);
 	}
-	end = monotonic_ns();
+	end = process_cpu_ns();
 	update_milliseconds = milliseconds(start, end) / raster_passes;
 	status = st_console_end_update(console);
 	if (status != 0)
@@ -170,7 +172,7 @@ main(void)
 	    "(%.3f ms/frame)\n", update_milliseconds * raster_passes,
 	    raster_passes, update_milliseconds);
 
-	start = monotonic_ns();
+	start = process_cpu_ns();
 	for (uint32_t pass = 0; pass < raster_passes; ++pass) {
 		for (size_t i = 0; i < (size_t)COLUMNS * ROWS; ++i)
 			screen[i].glyph = (uint32_t)((i + pass) & 255U);
@@ -178,7 +180,7 @@ main(void)
 		if (status != 0)
 			fail("full raster", status);
 	}
-	end = monotonic_ns();
+	end = process_cpu_ns();
 	printf("font: %.3f ms for %u 80x25 rasters (%.3f ms/frame)\n",
 	    milliseconds(start, end), raster_passes,
 	    milliseconds(start, end) / raster_passes);
@@ -198,7 +200,7 @@ main(void)
 		screen[i + 1] = screen[i];
 		screen[i + 1].flags = ST_CONSOLE_CELL_CONTINUATION;
 	}
-	start = monotonic_ns();
+	start = process_cpu_ns();
 	for (uint32_t pass = 0; pass < raster_passes; ++pass) {
 		uint32_t glyph = (pass & 1U) == 0 ? 1 : 2;
 
@@ -208,7 +210,7 @@ main(void)
 		if (status != 0)
 			fail("wide font raster", status);
 	}
-	end = monotonic_ns();
+	end = process_cpu_ns();
 	printf("wide font: %.3f ms for %u 80x25 rasters "
 	    "(%.3f ms/frame)\n", milliseconds(start, end), raster_passes,
 	    milliseconds(start, end) / raster_passes);
@@ -232,7 +234,7 @@ main(void)
 
 	for (uint32_t x = 0; x < COLUMNS; ++x)
 		line[x] = screen[x];
-	start = monotonic_ns();
+	start = process_cpu_ns();
 	for (uint32_t pass = 0; pass < scroll_passes; ++pass) {
 		for (uint32_t x = 0; x < COLUMNS; ++x)
 			line[x].glyph = (pass + x) & 255U;
@@ -246,12 +248,12 @@ main(void)
 		if (status != 0)
 			fail("scroll", status);
 	}
-	end = monotonic_ns();
+	end = process_cpu_ns();
 	printf("scroll: %.3f ms for %u scroll-and-render operations "
 	    "(%.3f us/line)\n", milliseconds(start, end), scroll_passes,
 	    milliseconds(start, end) * 1000.0 / scroll_passes);
 
-	start = monotonic_ns();
+	start = process_cpu_ns();
 	for (uint32_t pass = 0; pass < scroll_passes; ++pass) {
 		for (uint32_t x = 0; x < COLUMNS; ++x)
 			line[x].glyph = (pass + x) & 255U;
@@ -267,7 +269,7 @@ main(void)
 		if (status != 0)
 			fail("rectangular scroll", status);
 	}
-	end = monotonic_ns();
+	end = process_cpu_ns();
 	printf("rectangular scroll: %.3f ms for %u move-and-render operations "
 	    "(%.3f us/line)\n", milliseconds(start, end), scroll_passes,
 	    milliseconds(start, end) * 1000.0 / scroll_passes);

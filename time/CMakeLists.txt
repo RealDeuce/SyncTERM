@@ -38,6 +38,12 @@ int main(void) { struct timespec value; return clock_gettime(CLOCK_MONOTONIC, &v
 			set(ST_TIME_PLATFORM_LIBRARIES rt)
 		endif()
 	endif()
+	set(CMAKE_REQUIRED_LIBRARIES ${_st_time_saved_required_libraries}
+		${ST_TIME_PLATFORM_LIBRARIES})
+	syncterm_check_c17_source([=[
+#include <time.h>
+int main(void) { struct timespec value; return clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &value); }
+]=] ST_TIME_HAVE_PROCESS_CPU_CLOCK)
 	set(CMAKE_REQUIRED_LIBRARIES ${_st_time_saved_required_libraries})
 	set(CMAKE_REQUIRED_DEFINITIONS ${_st_time_saved_required_definitions})
 	if(NOT ST_TIME_HAVE_MONOTONIC AND NOT ST_TIME_HAVE_MONOTONIC_WITH_RT)
@@ -47,8 +53,10 @@ int main(void) { struct timespec value; return clock_gettime(CLOCK_MONOTONIC, &v
 	set(ST_TIME_PLATFORM_SOURCE st_time_posix.c)
 endif()
 
+configure_file(st_time_config.h.in st_time_config.h)
 add_library(st_time STATIC st_time.c ${ST_TIME_PLATFORM_SOURCE})
 target_include_directories(st_time PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(st_time PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_link_libraries(st_time PUBLIC syncterm_io_error
 	PRIVATE ${ST_TIME_PLATFORM_LIBRARIES})
 target_compile_definitions(st_time PRIVATE ${ST_TIME_DEFINITIONS})

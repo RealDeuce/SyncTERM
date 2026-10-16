@@ -19,6 +19,8 @@ struct st_deadline {
 
 int st_time_monotonic_ms(uint64_t *result);
 int st_time_monotonic_ns(uint64_t *result);
+/* Total CPU consumed by all process threads, excluding time spent waiting. */
+int st_time_process_cpu_ns(uint64_t *result);
 /* timeout_ms is -1 for infinity or a nonnegative relative duration. */
 int st_deadline_start(struct st_deadline *result, int64_t timeout_ms);
 /* Returns -1 through result for an infinite deadline. */

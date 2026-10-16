@@ -80,6 +80,18 @@ else()
 endif()
 
 if(BUILD_TESTING)
+	add_executable(st_cterm_benchmark tests/st_cterm_benchmark.c)
+	target_link_libraries(st_cterm_benchmark PRIVATE st_cterm st_time)
+	set_target_properties(st_cterm_benchmark PROPERTIES C_STANDARD 17
+		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_cterm_benchmark PRIVATE /W4 /WX)
+	else()
+		target_compile_options(st_cterm_benchmark PRIVATE
+			-Wall -Wextra -Wpedantic -Werror)
+	endif()
+	add_test(NAME cterm_stream_consistency COMMAND st_cterm_benchmark 100)
+
 	add_executable(st_cterm_rip_icon_file_test
 		tests/st_cterm_rip_icon_file_test.c)
 	target_link_libraries(st_cterm_rip_icon_file_test PRIVATE st_cterm)

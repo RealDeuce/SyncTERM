@@ -1,0 +1,4 @@
+#ifndef ST_TIME_CONFIG_H_
+#define ST_TIME_CONFIG_H_
+#cmakedefine01 ST_TIME_HAVE_PROCESS_CPU_CLOCK
+#endif

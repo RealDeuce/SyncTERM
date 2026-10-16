@@ -13,6 +13,30 @@
 #include <windows.h>
 
 int
+st_time_process_cpu_ns(uint64_t *result)
+{
+	FILETIME created, exited, kernel, user;
+	ULARGE_INTEGER kernel_ticks, user_ticks;
+	uint64_t ticks;
+
+	if (result == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (!GetProcessTimes(GetCurrentProcess(), &created, &exited, &kernel, &user))
+		return IO_ERROR_IO;
+	kernel_ticks.LowPart = kernel.dwLowDateTime;
+	kernel_ticks.HighPart = kernel.dwHighDateTime;
+	user_ticks.LowPart = user.dwLowDateTime;
+	user_ticks.HighPart = user.dwHighDateTime;
+	if (kernel_ticks.QuadPart > UINT64_MAX - user_ticks.QuadPart)
+		return IO_ERROR_OUT_OF_RANGE;
+	ticks = kernel_ticks.QuadPart + user_ticks.QuadPart;
+	if (ticks > UINT64_MAX / 100)
+		return IO_ERROR_OUT_OF_RANGE;
+	*result = ticks * 100;
+	return 0;
+}
+
+int
 st_time_monotonic_ms(uint64_t *result)
 {
 	if (result == NULL)

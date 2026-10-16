@@ -7,6 +7,7 @@
 ----
 int st_time_monotonic_ms(uint64_t *result);
 int st_time_monotonic_ns(uint64_t *result);
+int st_time_process_cpu_ns(uint64_t *result);
 int st_deadline_start(struct st_deadline *result, int64_t timeout_ms);
 int st_deadline_remaining_ms(const struct st_deadline *deadline,
     int64_t *result);
@@ -25,6 +26,13 @@ represent infinity; smaller values are invalid.
 | st_time_monotonic_ms(result), st_time_monotonic_ns(result)
 | Write an arbitrary-origin monotonic timestamp.  Subtract timestamps for
 elapsed time; never interpret them as wall-clock values.
+
+| st_time_process_cpu_ns(result)
+| Write cumulative process CPU time in nanoseconds, including all threads'
+user and kernel CPU. Subtract readings to benchmark CPU consumption; waiting
+and scheduling delays do not count. Clock resolution is platform-dependent
+and may be coarser than one nanosecond. Unavailable readings return
+`IO_ERROR_IO`; an unrepresentable reading returns `IO_ERROR_OUT_OF_RANGE`.
 
 | st_deadline_start(result, timeout_ms)
 | Captures a monotonic deadline.  `-1` is infinite, zero is already expired,
