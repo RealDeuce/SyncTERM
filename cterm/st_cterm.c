@@ -2655,6 +2655,39 @@ st_cterm_finish(st_cterm_t *terminal)
 }
 
 int
+st_cterm_prepare_disconnect(st_cterm_t *terminal)
+{
+	int status = st_cterm_finish(terminal);
+	if (status != 0) return status;
+	terminal->top_margin = terminal->left_margin = 1;
+	terminal->bottom_margin = terminal->height;
+	terminal->right_margin = terminal->width;
+	if (terminal->status_display_type == 0)
+		cterm_scrollup(terminal);
+	else {
+		int old_type = terminal->status_display_type;
+		terminal->status_display_active = 0;
+		terminal->status_display_type = 0;
+		terminal->size_change_cb = NULL;
+		status_display_changed(terminal, old_type, 0, terminal);
+		if (terminal->api_status_destroy_pending) {
+			destroy_status_sub(terminal);
+			terminal->api_status_destroy_pending = false;
+		}
+		struct st_console_cell blank;
+		cterm_render_make_current_cell(terminal, &blank, ' ', 0);
+		const struct st_console_rect row = {
+			(uint32_t)(terminal->x - 1), (uint32_t)(terminal->y + terminal->height - 2),
+			(uint32_t)terminal->width, 1,
+		};
+		cterm_render_record_error(terminal,
+		    st_console_fill(terminal->screen.console, &row, &blank));
+	}
+	cterm_apply_window(terminal);
+	return cterm_render_take_error(terminal);
+}
+
+int
 st_cterm_reset_terminal(st_cterm_t *terminal)
 {
 	int status = st_cterm_finish(terminal);

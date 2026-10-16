@@ -269,12 +269,9 @@ connection_alert(void *context, const char *title, const char *message)
 	if (!ui->profile->hide_popups) (void)st_wren_host_alert(ui->host, title, message);
 }
 
-static void
-connection_help(void *context, const char *title, const char *details)
+static char *
+connection_help_body(struct connection_ui *ui, const char *details)
 {
-	struct connection_ui *ui = context;
-	if (ui->profile->hide_popups) return;
-	connection_status(ui, NULL);
 	(void)st_mutex_lock(&ui->log_mutex);
 	size_t size = strlen(details) + ui->log_size + 160;
 	char *body = malloc(size);
@@ -282,6 +279,16 @@ connection_help(void *context, const char *title, const char *details)
 		(void)snprintf(body, size, "%s\n\n# Protocol Log\n\n```\n%s\n```\n", details,
 		    ui->log_size == 0 ? "No protocol messages at the selected log level." : ui->log);
 	(void)st_mutex_unlock(&ui->log_mutex);
+	return body;
+}
+
+static void
+connection_help(void *context, const char *title, const char *details)
+{
+	struct connection_ui *ui = context;
+	if (ui->profile->hide_popups) return;
+	connection_status(ui, NULL);
+	char *body = connection_help_body(ui, details);
 	if (body != NULL) {
 		(void)st_wren_host_help(ui->host, title, body);
 		free(body);
@@ -442,6 +449,8 @@ run_selected(st_wren_host_t *host, st_console_display_t *display,
 	st_term_session_t *session = NULL;
 	st_wren_connected_t *connected = NULL;
 	char *rip_directory = NULL;
+	char *disconnect_details = NULL;
+	bool notify_disconnect;
 	struct st_connection_error error = {0};
 	struct connection_ui connection_ui = {
 		.host = host, .console = console, .profile = profile,
@@ -595,14 +604,45 @@ run_selected(st_wren_host_t *host, st_console_display_t *display,
 		}
 	}
 finished:
+	if (session != NULL) {
+		int finish_status = st_cterm_finish(st_term_session_cterm(session));
+		if (status == 0) status = finish_status;
+	}
+	notify_disconnect = st_term_session_remote_closed(session)
+	    && !profile->hide_popups && *disposition != ST_TERM_EXIT_APPLICATION
+	    && !st_wren_host_exit_requested(host);
+	if (notify_disconnect)
+		disconnect_details = st_wren_connected_status_details(connected);
 	st_wren_connected_destroy(connected);
-	st_term_session_destroy(&session);
+	connected = NULL;
 	if (connection != NULL) {
 		int close_status = st_connection_close(connection);
 
+		connection = NULL;
 		if (status == 0)
 			status = close_status;
 	}
+	/* Close first: the log viewer must include final transport diagnostics.
+	 * Retain CTerm until the notice is dismissed and offline history saved. */
+	if (notify_disconnect && st_term_session_prepare_disconnect(session) == 0) {
+		const char *reason = "Remote host dropped connection";
+		size_t size = strlen(reason) + (disconnect_details == NULL ? 0 : strlen(disconnect_details)) + 4;
+		char *message = malloc(size);
+		char *body = NULL;
+		if (message != NULL) {
+			(void)snprintf(message, size, "%s%s%s", reason,
+			    disconnect_details == NULL ? "" : "\n\n",
+			    disconnect_details == NULL ? "" : disconnect_details);
+			body = connection_help_body(&connection_ui, message);
+		}
+		int notice_status = st_wren_host_disconnected(host, body != NULL ? body
+		    : message != NULL ? message : reason);
+		if (status == 0) status = notice_status;
+		if (st_wren_host_exit_requested(host)) *disposition = ST_TERM_EXIT_APPLICATION;
+		free(body); free(message);
+	}
+	free(disconnect_details);
+	st_term_session_destroy(&session);
 	connection_status(&connection_ui, NULL);
 	free(connection_ui.log);
 	st_mutex_destroy(&connection_ui.log_mutex);

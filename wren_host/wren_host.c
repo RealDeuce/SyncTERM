@@ -1041,6 +1041,16 @@ st_wren_host_help(st_wren_host_t *host, const char *title, const char *body)
 }
 
 int
+st_wren_host_disconnected(st_wren_host_t *host, const char *details)
+{
+	char *unused = NULL;
+	int status = host_dialog(host, "Disconnected", details, "", 0, false, &unused,
+	    NULL, 0, NULL, "disconnected(_,_)");
+	free(unused);
+	return status;
+}
+
+int
 st_wren_host_status(st_wren_host_t *host, const char *title, const char *message)
 {
 	if (host == NULL) return IO_ERROR_INVALID_ARGUMENT;

@@ -408,6 +408,9 @@ exercise_connected_without_sftp(st_wren_host_t *host,
 
 	CHECK(st_wren_connected_create(&connected, &config) == 0);
 	CHECK(st_wren_connected_render_status(connected, true) == 0);
+	char *details = st_wren_connected_status_details(connected);
+	CHECK(details != NULL && strstr(details, "BBS: Alpha") != NULL);
+	free(details);
 	CHECK(st_wren_connected_last_error(connected) == NULL);
 	CHECK(st_wren_connected_interpret(connected, "no_sftp_provider",
 	    "import \"syncterm\" for SFTP, CTerm, Status, Conn, ConnError, ConnErr, Scrollback, Surface, BBS\n"
@@ -589,6 +592,13 @@ exercise_connected_without_sftp(st_wren_host_t *host,
 	    "if (Status.callable == null || Status.details == null) Fiber.abort(\"status handles\")\n")
 	    == 0);
 	CHECK(st_wren_connected_render_status(connected, true) == 0);
+	details = st_wren_connected_status_details(connected);
+	CHECK(details != NULL && strcmp(details, "A B C") == 0);
+	CHECK(st_wren_connected_interpret(connected, "status_details_clear",
+	    "import \"syncterm\" for Status\nStatus.details = null\n") == 0);
+	CHECK(st_wren_connected_status_details(connected) == NULL);
+	CHECK(strcmp(details, "A B C") == 0);
+	free(details);
 	CHECK(st_console_size(console, &width, &height) == 0);
 	area = (struct st_console_rect){0, height - 1, 3, 1};
 	CHECK(st_console_read_cells(console, &area, cells, 3) == 0);
@@ -2938,6 +2948,56 @@ post_prompt_input(void *argument)
 }
 
 static int
+wait_for_screen_text(st_console_t *console, const char *needle)
+{
+	const struct timespec pause = {0, 20000000};
+	for (unsigned attempt = 0; attempt < 500; ++attempt) {
+		uint32_t width, height;
+		CHECK(st_console_size(console, &width, &height) == 0);
+		struct st_console_cell *cells = calloc(width, sizeof(*cells));
+		char *line = malloc((size_t)width + 1);
+		CHECK(cells != NULL && line != NULL);
+		bool found = false;
+		for (uint32_t y = 0; y < height && !found; ++y) {
+			const struct st_console_rect row = {0, y, width, 1};
+			CHECK(st_console_read_cells(console, &row, cells, width) == 0);
+			for (uint32_t x = 0; x < width; ++x) {
+				char text[8];
+				size_t required;
+				line[x] = st_console_font_glyph_text(console, cells[x].glyph_font,
+				    cells[x].glyph, text, sizeof(text), &required) == 0 && required == 1
+				    ? text[0] : '?';
+			}
+			line[width] = '\0';
+			found = strstr(line, needle) != NULL;
+		}
+		free(cells); free(line);
+		if (found) return 0;
+		(void)st_thread_sleep(&pause, NULL);
+	}
+	/* Never leave the owner blocked when a rendering assertion fails. */
+	const struct st_console_event close = {.type = ST_CONSOLE_EVENT_CLOSE};
+	(void)st_console_post_event(console, &close);
+	return 1;
+}
+
+static int
+post_disconnect_input(void *argument)
+{
+	st_console_t *console = argument;
+	const struct st_console_event f1 = {
+		.type = ST_CONSOLE_EVENT_KEY_CODE, .data.key.code = 0x3b00,
+	};
+	CHECK(wait_for_screen_text(console, "Disconnected: Enter exits, F1 details") == 0);
+	CHECK(st_console_post_event(console, &f1) == 0);
+	CHECK(wait_for_screen_text(console, "fixture teardown diagnostics") == 0);
+	CHECK(queue_text(console, "\x1b") == 0);
+	CHECK(wait_for_screen_text(console, "Disconnected: Enter exits, F1 details") == 0);
+	CHECK(queue_text(console, "\r") == 0);
+	return 0;
+}
+
+static int
 exercise_prompt_close_during(struct st_wren_host *host,
 	st_console_t *console)
 {
@@ -2956,6 +3016,13 @@ exercise_prompt_close_during(struct st_wren_host *host,
 	CHECK(st_wren_host_exit_requested(host));
 	CHECK(st_console_event_try(console, &forwarded) == 0);
 	CHECK(forwarded.type == ST_CONSOLE_EVENT_CLOSE);
+	host->exit_requested = false;
+	CHECK(st_thread_create(&thread, post_prompt_input, &poster) == ST_THREAD_SUCCESS);
+	CHECK(st_wren_host_disconnected(host, "Connection closed") == 0);
+	CHECK(st_thread_join(thread, &thread_result) == ST_THREAD_SUCCESS && thread_result == 0);
+	CHECK(st_wren_host_exit_requested(host));
+	CHECK(st_console_event_try(console, &forwarded) == 0
+	    && forwarded.type == ST_CONSOLE_EVENT_CLOSE);
 	return 0;
 }
 
@@ -3051,6 +3118,15 @@ exercise_menu_prompt(struct st_wren_host *host, st_console_t *console)
 	CHECK(st_thread_join(thread, &thread_result) == ST_THREAD_SUCCESS && thread_result == 0);
 	CHECK(st_wren_host_status(host, "Connecting", "Negotiating TLS") == 0);
 	CHECK(st_wren_host_status(host, NULL, NULL) == 0);
+	CHECK(queue_text(console, "stale\r") == 0);
+	CHECK(st_thread_create(&thread, post_disconnect_input, console) == ST_THREAD_SUCCESS);
+	CHECK(st_wren_host_disconnected(host,
+	    "Remote host dropped connection\n\nConnected: 00:00:12\n\n"
+	    "# Protocol Log\n\n```\nfixture teardown diagnostics\n```\n") == 0);
+	CHECK(st_thread_join(thread, &thread_result) == ST_THREAD_SUCCESS && thread_result == 0);
+	CHECK(st_console_get_position(console, &x, &y) == 0 && x == 7 && y == 8);
+	CHECK(st_console_get_cursor(console, &cursor_visible, &cursor_shape) == 0);
+	CHECK(!cursor_visible && cursor_shape == ST_CONSOLE_CURSOR_BLOCK);
 	{
 		const struct st_console_event close = {
 			.type = ST_CONSOLE_EVENT_CLOSE,

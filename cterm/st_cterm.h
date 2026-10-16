@@ -137,6 +137,10 @@ int st_cterm_write_utf8(st_cterm_t *terminal, const void *bytes, size_t size,
 	size_t *consumed);
 /* Disconnect/reset boundary: replacement for a truncated UTF-8 sequence. */
 int st_cterm_finish(st_cterm_t *terminal);
+/* After disconnect only: expose a terminal-style blank bottom row for local
+ * chrome, preserving host rows through the normal scrollback path. No size
+ * notification is sent to the closed connection. */
+int st_cterm_prepare_disconnect(st_cterm_t *terminal);
 int st_cterm_reset_terminal(st_cterm_t *terminal);
 
 /* Resizes the owned console geometry and preserves visible and saved cells. */

@@ -96,6 +96,7 @@ void st_cterm_destroy(st_cterm_t **terminal);
 int st_cterm_write(st_cterm_t *terminal, const void *bytes, size_t size,
     size_t *consumed);
 int st_cterm_finish(st_cterm_t *terminal);
+int st_cterm_prepare_disconnect(st_cterm_t *terminal);
 int st_cterm_reset_terminal(st_cterm_t *terminal);
 int st_cterm_resize(st_cterm_t *terminal, uint32_t columns, uint32_t rows);
 int st_cterm_size(const st_cterm_t *terminal, uint32_t *columns,
@@ -139,6 +140,13 @@ failure it identifies the resume offset.  A call boundary is not EOF.
 | Dispatches a pending RIP command at end of stream, commits a pending
 grapheme, and reports an incomplete UTF-8 prefix once as a decode error.
 Safe to call again without duplicating the command or error.
+
+| st_cterm_prepare_disconnect(terminal)
+| After remote teardown only, finishes pending input, resets margins, and
+exposes a terminal-style blank bottom row for local chrome. Disables an
+indicator/host-writable status row; without one, scrolls once through normal
+scrollback so host text is retained. Does not notify the closed peer of the
+local geometry change. Returns zero or a negative rendering error.
 
 | st_cterm_reset_terminal(terminal)
 | Finishes the RIP and Unicode boundaries, then applies the emulation reset.
@@ -217,6 +225,8 @@ int st_term_session_run(st_term_session_t *session,
     enum st_term_disposition *disposition);
 int st_term_session_pump(st_term_session_t *session,
     enum st_term_disposition *disposition, bool *finished);
+bool st_term_session_remote_closed(const st_term_session_t *session);
+int st_term_session_prepare_disconnect(st_term_session_t *session);
 int st_term_session_send_text(st_term_session_t *session,
     const char *utf8, size_t size);
 int st_term_rip_wire_to_utf8(char *result, size_t capacity,
@@ -271,6 +281,17 @@ EXIT_APPLICATION and returns zero, or stops at the first `IO_ERROR_*`.
 | Performs one bounded connection receive and drains currently queued console
 events.  `finished` is always initialized false and becomes true on a terminal
 condition.  Caller repeats while zero and not finished.
+
+| st_term_session_remote_closed(session)
+| True when pumping ended on a drained remote connection, not a local
+hangup/exit command. NULL returns false. Read before destruction to decide
+whether to show the remote-disconnect notice.
+
+| st_term_session_prepare_disconnect(session)
+| After closing the connection, delegates to CTerm's disconnect preparation
+and marks the exposed row as main-display content for offline history. The
+caller must remove local chrome before destruction publishes that history.
+Returns zero or a negative error. Does not access the borrowed connection.
 
 | st_term_session_send_text(session, utf8, size)
 | Strictly validates and NFC-normalizes the counted UTF-8, then sends each

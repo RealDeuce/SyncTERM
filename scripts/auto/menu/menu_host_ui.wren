@@ -1,9 +1,12 @@
-import "syncterm" for CustomCursor, Screen
+import "syncterm" for CustomCursor, Screen, Surface, Input, Key, KeyEvent
 import "menu_ui" for MenuUi
 import "ui_app" for App
 import "ui_help" for Help
 import "ui_pane" for Pane
 import "ui_progress" for ProgressText
+import "ui_draw" for Painter
+import "ui_widget" for Rect
+import "ui_style" for Theme
 
 class MenuHostUI {
   static statusWidth_(screenWidth, title, lines) {
@@ -30,6 +33,32 @@ class MenuHostUI {
     p.onDismiss = Fn.new { |v| app.quit() }
     app.pushModal(p)
     app.runSync()
+  }
+
+  static disconnected(title, details) {
+    var notice = "Disconnected: Enter exits, F1 details"
+    while (true) {
+      var size = Screen.size
+      var width = (size[0] - 1).max(0).min(notice.count)
+      var start = ((size[0] - width) / 2).floor
+      var row = Surface.new(size[0], 1)
+      var style = Theme.current.style("disconnected")
+      Painter.fill(row, Rect.new(0, 0, size[0], 1), " ", style)
+      Painter.text(row, start, 0, notice, style, width)
+      Screen.putRect(row, 1, size[1])
+      Screen.window.bounds = [1, 1, size[0], size[1]]
+      Screen.window.position = [start + width + 1, size[1]]
+      CustomCursor.normal.apply()
+      var event = Input.next(100)
+      if (!(event is KeyEvent)) continue
+      var key = event.code
+      if (key == 13 || key == 10 || key == Key.quit) return
+      if (key == Key.f1) {
+        var saved = Screen.save()
+        help(title, details)
+        Screen.restore(saved)
+      }
+    }
   }
 
   static confirm(title, message) {

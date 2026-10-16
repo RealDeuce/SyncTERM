@@ -271,8 +271,65 @@ test_shell_utf8_boundary(void)
 	st_term_session_request_end(session, false);
 	CHECK(st_term_session_pump(session, &disposition, &finished) == 0);
 	CHECK(finished && disposition == ST_TERM_RETURN_TO_PICKER);
+	CHECK(!st_term_session_remote_closed(session));
 	st_term_session_destroy(&session);
 	CHECK(st_connection_close(connection) == 0);
+	st_profile_dispose(&profile);
+	st_font_catalog_destroy(fonts);
+	st_console_destroy(console);
+	return 0;
+}
+
+static int
+test_remote_disconnect(void)
+{
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config geometry = {
+		.columns = 40, .rows = 4, .cell_width = 8, .cell_height = 16,
+	};
+	struct st_profile profile;
+	st_console_t *console = NULL;
+	st_connection_t *connection = NULL;
+	st_font_catalog_t *fonts = NULL;
+	st_term_session_t *session = NULL;
+	st_session_history_t *history = NULL;
+	CHECK(st_console_create(&console, &display, &geometry) == 0);
+	CHECK(st_font_catalog_create(&fonts, console) == 0);
+	CHECK(st_session_history_create(&history, 20) == 0);
+	st_profile_init(&profile);
+	profile.connection_type = ST_CONNECTION_SHELL;
+	strcpy(profile.address, "printf 'completed session'");
+	CHECK(st_term_connect_profile(&connection, &profile, console, NULL, NULL) == 0);
+	const struct st_term_config config = {
+		.console = console, .connection = connection, .fonts = fonts, .history = history,
+		.screen_mode = ST_SCREEN_MODE_80X25, .encoding = ST_CTERM_ENCODING_UTF8,
+		.codepage = ST_CODEPAGE_CP437,
+	};
+	CHECK(st_term_session_create(&session, &config) == 0);
+	enum st_term_disposition disposition;
+	bool finished = false;
+	for (unsigned attempt = 0; attempt < 500 && !finished; ++attempt)
+		CHECK(st_term_session_pump(session, &disposition, &finished) == 0);
+	CHECK(finished && disposition == ST_TERM_RETURN_TO_PICKER);
+	CHECK(st_term_session_remote_closed(session));
+	struct st_console_cell *before = NULL, *after = NULL;
+	uint32_t before_columns;
+	size_t before_rows;
+	CHECK(st_cterm_copy_history(st_term_session_cterm(session), &before,
+	    &before_columns, &before_rows) == 0);
+	CHECK(st_connection_close(connection) == 0);
+	/* Preparation and history publication must not touch the freed connection. */
+	CHECK(st_term_session_prepare_disconnect(session) == 0);
+	st_term_session_destroy(&session);
+	uint32_t columns;
+	size_t rows;
+	enum st_screen_mode mode;
+	bool has_status;
+	CHECK(st_session_history_copy(history, &after, &columns, &rows, &mode, &has_status) == 0);
+	CHECK(columns == before_columns && rows == before_rows + 1 && !has_status);
+	CHECK(memcmp(before, after, before_rows * columns * sizeof(*before)) == 0);
+	free(before); free(after);
+	st_session_history_destroy(history);
 	st_profile_dispose(&profile);
 	st_font_catalog_destroy(fonts);
 	st_console_destroy(console);
@@ -581,6 +638,7 @@ main(void)
 	CHECK(test_shell_wire_filter() == 0);
 	CHECK(test_shell_throttle() == 0);
 	CHECK(test_shell_utf8_boundary() == 0);
+	CHECK(test_remote_disconnect() == 0);
 	CHECK(test_shell_rip_profile() == 0);
 	CHECK(test_shell_rip_cp437_boundary() == 0);
 	CHECK(test_shell_rip_cp437_query_output() == 0);

@@ -115,9 +115,65 @@ crc16(const void *data, size_t size)
 	return crc;
 }
 
+static void
+test_disconnect_row(void)
+{
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config geometry = {
+		.columns = 40, .rows = 4, .cell_width = 8, .cell_height = 16,
+	};
+	for (int status_type = 0; status_type <= 2; ++status_type) {
+		st_console_t *console = NULL;
+		st_font_catalog_t *fonts = NULL;
+		st_cterm_t *terminal = NULL;
+		struct output output = {0};
+		struct st_console_cell *before = NULL, *after = NULL;
+		uint32_t before_width, after_width;
+		size_t before_rows, after_rows;
+		CHECK(st_console_create(&console, &display, &geometry) == 0);
+		CHECK(st_font_catalog_create(&fonts, console) == 0);
+		const struct st_cterm_config config = {
+			.console = console, .fonts = fonts, .emulation = ST_CTERM_ANSI_BBS,
+			.encoding = ST_CTERM_ENCODING_UTF8, .codepage = ST_CODEPAGE_CP437,
+			.terminal_rows = 4, .scrollback_lines = 10,
+			.output = capture, .output_context = &output, .quiet = true,
+		};
+		CHECK(st_cterm_create(&terminal, &config) == 0);
+		if (status_type == 1) feed(terminal, "\x1b[1$~", 5);
+		if (status_type == 2) feed(terminal, "\x1b[2$~", 5);
+		uint32_t columns, rows;
+		CHECK(st_cterm_size(terminal, &columns, &rows) == 0);
+		for (uint32_t y = 0; y < rows; ++y) {
+			CHECK(st_console_set_position(console, 0, y) == 0);
+			CHECK(st_console_put_codepoint(console, 'A' + y) == 0);
+		}
+		/* Host-set margins must not constrain the disconnect scroll. */
+		feed(terminal, "\x1b[2;2r", 6);
+		CHECK(st_cterm_copy_history(terminal, &before, &before_width, &before_rows) == 0);
+		size_t output_size = output.size;
+		CHECK(st_cterm_prepare_disconnect(terminal) == 0);
+		CHECK(output.size == output_size && st_cterm_status_display(terminal) == 0);
+		CHECK(st_cterm_copy_history(terminal, &after, &after_width, &after_rows) == 0);
+		CHECK(before_width == 40 && after_width == 40 && after_rows == before_rows + 1);
+		CHECK(memcmp(before, after, before_rows * 40 * sizeof(*before)) == 0);
+		for (uint32_t x = 0; x < 40; ++x) {
+			char text[4];
+			size_t required;
+			struct st_console_cell *cell = &after[(after_rows - 1) * 40 + x];
+			CHECK(st_console_font_glyph_text(console, cell->glyph_font, cell->glyph,
+			    text, sizeof(text), &required) == 0 && required == 1 && text[0] == ' ');
+		}
+		free(before); free(after);
+		st_cterm_destroy(&terminal);
+		st_font_catalog_destroy(fonts);
+		st_console_destroy(console);
+	}
+}
+
 int
 main(void)
 {
+	test_disconnect_row();
 	const struct st_console_display_config display = {
 		.backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};

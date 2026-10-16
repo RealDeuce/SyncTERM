@@ -163,6 +163,8 @@ int st_wren_host_choice(st_wren_host_t *host, const char *title,
 	const char *question, const char *const *choices, size_t count);
 int st_wren_host_alert(st_wren_host_t *host, const char *title, const char *message);
 int st_wren_host_help(st_wren_host_t *host, const char *title, const char *body);
+int st_wren_host_disconnected(st_wren_host_t *host, const char *details);
+char *st_wren_connected_status_details(st_wren_connected_t *connected);
 int st_wren_host_status(st_wren_host_t *host, const char *title, const char *message);
 bool st_wren_host_can_trust_tls(st_wren_host_t *host, const struct st_profile *profile);
 int st_wren_host_trust_tls(st_wren_host_t *host, const struct st_profile *profile,
@@ -308,6 +310,14 @@ update. NULL message clears and restores that snapshot; title may be NULL
 only when clearing. Does not claim or discard input. Returns zero or a
 negative error; host destruction clears an outstanding overlay.
 
+| st_wren_host_disconnected(host, details)
+| Required borrowed details include the snapshotted session status and final
+protocol log. After terminal disconnect preparation, displays the themed
+bottom-row notice until Enter or process close; F1 opens those details.
+Preserves the underlying terminal and restores the blank notice row before
+offline history is captured. Uses trusted menu-VM input barriers, does not
+invoke connected scripts, and returns zero or a negative UI error.
+
 | st_wren_host_can_trust_tls(host, profile)
 | Borrows an entry-identifying profile. True only for an existing personal
 entry outside safe mode whose address, port, and trust policy still match.
@@ -366,6 +376,12 @@ caller-owned.
 
 | st_wren_connected_interpret(connected, module, source)
 | Compiles/runs source under the named module in this connected VM.
+
+| st_wren_connected_status_details(connected)
+| Calls `Status.details` once on the owner thread and copies its returned
+string for the disconnect notice. Caller frees the result. NULL context,
+absent callable, script failure, non-string return, or allocation failure
+returns NULL; the notice still has the default disconnect reason.
 
 | st_wren_connected_shell_closed(connected)
 | Delivers the shell-closed lifecycle event exactly through host dispatch.

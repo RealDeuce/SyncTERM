@@ -88,6 +88,12 @@ st_cterm_t *st_term_session_cterm(st_term_session_t *session);
 bool st_term_session_font_selector(const st_term_session_t *session,
 	uint16_t identifier, uint8_t *selector);
 void st_term_session_request_end(st_term_session_t *session, bool exit_app);
+/* True only when the pump ended on a drained remote connection, not a local
+ * hangup/exit request. Available until destruction. */
+bool st_term_session_remote_closed(const st_term_session_t *session);
+/* After closing the connection, make room for a local disconnect notice.
+ * Its row becomes a blank main-display row in the published history. */
+int st_term_session_prepare_disconnect(st_term_session_t *session);
 void st_term_session_set_suspended(st_term_session_t *session, bool suspended);
 void st_term_session_set_mouse_disabled(st_term_session_t *session,
 	bool disabled);

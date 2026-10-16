@@ -23,6 +23,7 @@ struct st_term_session {
 	int output_error;
 	bool end_requested;
 	bool exit_requested;
+	bool remote_closed;
 	bool suspended;
 	bool mouse_disabled;
 	uint32_t throttle_bps;
@@ -337,6 +338,21 @@ st_term_session_request_end(st_term_session_t *session, bool exit_app)
 		return;
 	session->end_requested = true;
 	session->exit_requested = exit_app;
+}
+
+bool
+st_term_session_remote_closed(const st_term_session_t *session)
+{
+	return session != NULL && session->remote_closed;
+}
+
+int
+st_term_session_prepare_disconnect(st_term_session_t *session)
+{
+	if (session == NULL) return IO_ERROR_INVALID_ARGUMENT;
+	int status = st_cterm_prepare_disconnect(session->cterm);
+	if (status == 0) session->config.hide_status = true;
+	return status;
 }
 
 void
@@ -767,6 +783,7 @@ st_term_session_pump(st_term_session_t *session,
 	}
 	if (received < 0 && received != IO_ERROR_TIMED_OUT
 	    && received != IO_ERROR_WOULD_BLOCK) {
+		session->remote_closed = !st_connection_is_connected(session->config.connection);
 		status = st_connection_process_requests(session->config.connection);
 		if (status != 0) return status;
 		return (int)received;
@@ -793,6 +810,7 @@ st_term_session_pump(st_term_session_t *session,
 	if (!session->suspended
 	    && !st_connection_is_connected(session->config.connection)
 	    && st_connection_pending_raw(session->config.connection) == 0) {
+		session->remote_closed = true;
 		status = st_connection_process_requests(session->config.connection);
 		if (status != 0) return status;
 		*disposition = ST_TERM_RETURN_TO_PICKER;

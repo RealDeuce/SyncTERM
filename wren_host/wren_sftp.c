@@ -1959,6 +1959,23 @@ st_wren_connected_render_status(st_wren_connected_t *connected, bool enabled)
 	    : st_wren_status_render(connected->vm, enabled);
 }
 
+char *
+st_wren_connected_status_details(st_wren_connected_t *connected)
+{
+	if (connected == NULL || connected->context.status_details == NULL) return NULL;
+	WrenVM *vm = connected->vm;
+	WrenHandle *call = wrenMakeCallHandle(vm, "call()");
+	if (call == NULL) return NULL;
+	wrenEnsureSlots(vm, 1);
+	wrenSetSlotHandle(vm, 0, connected->context.status_details);
+	char *result = NULL;
+	if (wrenCall(vm, call) == WREN_RESULT_SUCCESS
+	    && wrenGetSlotType(vm, 0) == WREN_TYPE_STRING)
+		result = strdup(wrenGetSlotString(vm, 0));
+	wrenReleaseHandle(vm, call);
+	return result;
+}
+
 int
 st_wren_connected_interpret(st_wren_connected_t *connected,
 	const char *module, const char *source)

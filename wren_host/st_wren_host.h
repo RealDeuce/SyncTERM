@@ -176,6 +176,9 @@ int st_wren_host_choice(st_wren_host_t *host, const char *title,
 	const char *question, const char *const *choices, size_t count);
 int st_wren_host_alert(st_wren_host_t *host, const char *title, const char *message);
 int st_wren_host_help(st_wren_host_t *host, const char *title, const char *body);
+/* Terminal remains visible until Enter/close; F1 opens the supplied details
+ * and protocol log. Caller must first expose a blank bottom terminal row. */
+int st_wren_host_disconnected(st_wren_host_t *host, const char *details);
 /* Nonblocking progress; NULL message clears and restores the saved screen. */
 int st_wren_host_status(st_wren_host_t *host, const char *title, const char *message);
 bool st_wren_host_can_trust_tls(st_wren_host_t *host, const struct st_profile *profile);
@@ -214,6 +217,9 @@ int st_wren_connected_pump(st_wren_connected_t *connected,
 /* Paints the connected status row when enabled and a callable is installed. */
 int st_wren_connected_render_status(st_wren_connected_t *connected,
 	bool enabled);
+/* Snapshots Status.details once. Returns a malloc-owned string, or NULL
+ * when no callable/string is available (including a script error). */
+char *st_wren_connected_status_details(st_wren_connected_t *connected);
 int st_wren_connected_interpret(st_wren_connected_t *connected,
 	const char *module, const char *source);
 int st_wren_connected_shell_closed(st_wren_connected_t *connected);
