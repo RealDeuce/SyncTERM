@@ -910,7 +910,7 @@ fn_menu_sort_fields(WrenVM *vm)
 {
 	wrenEnsureSlots(vm, 4);
 	wrenSetSlotNewList(vm, 0);
-	for (int field = ST_BBS_SORT_NAME; field <= ST_BBS_SORT_LF_EXPAND;
+	for (int field = ST_BBS_SORT_NAME; field <= ST_BBS_SORT_ENCODING;
 	    ++field) {
 		const char *name = st_bbs_sort_field_name(field);
 
@@ -979,7 +979,7 @@ slot_sort_order(WrenVM *vm, int slot, int *fields, size_t *count,
 		return false;
 	}
 	list_count = wrenGetListCount(vm, slot);
-	if (list_count < 0 || list_count > 30) {
+	if (list_count < 0 || list_count > 32) {
 		st_wren_abort(vm, "sort order has too many fields");
 		return false;
 	}
@@ -990,7 +990,8 @@ slot_sort_order(WrenVM *vm, int slot, int *fields, size_t *count,
 		int length;
 
 		wrenGetListElement(vm, slot, i, slot + 1);
-		if (!slot_integer(vm, slot + 1, -31, 31, &value))
+		if (!slot_integer(vm, slot + 1, -ST_BBS_SORT_ENCODING,
+		    ST_BBS_SORT_ENCODING, &value))
 			return false;
 		normalized = st_bbs_sort_field_normalize((int)value);
 		if (normalized == 0) {
@@ -1075,7 +1076,7 @@ static void
 fn_menu_add_sort_profile(WrenVM *vm)
 {
 	int64_t index;
-	int fields[30];
+	int fields[32];
 	size_t count;
 	char order[256];
 	const char *name;
@@ -1096,7 +1097,7 @@ static void
 fn_menu_update_sort_profile(WrenVM *vm)
 {
 	int64_t index;
-	int fields[30];
+	int fields[32];
 	size_t count;
 	char order[256];
 	const char *name;

@@ -25,7 +25,7 @@ static const char *profile_keys[] = {
 	"Password", "SystemPassword", "ConnectionType", "FlowControl",
 	"ScreenMode", "NoStatus", "DownloadPath", "UploadPath", "LogFile",
 	"TransferLogLevel", "ProtocolLogLevel", "AppendLogFile", "BPSRate",
-	"ANSIMusic", "AddressFamily", "Font", "HidePopups", "RIP", "Comment",
+	"ANSIMusic", "AddressFamily", "Font", "Encoding", "HidePopups", "RIP", "Comment",
 	"WrenScripts", "ForceLCF", "YellowIsYellow", "TerminalType", "LFExpand",
 	"TelnetBrokenTextmode", "TelnetDeferNegotiate", "TLSTrustWebPKI",
 	"TLSTrustedCertificate", "TLSClientCertificate", "TLSClientKey",
@@ -143,6 +143,20 @@ merge_profile_sections(ini_section_t *remote,
     const ini_section_t *remote_compare, const ini_section_t *base,
     const ini_section_t *local)
 {
+	/* Preserve the remote's decoded legacy encoding before changing the
+	 * font or transport used to infer it. Explicit local encoding edits
+	 * still go through the normal three-way merge below. */
+	if (ini_section_find(remote, "Encoding") == NULL) {
+		const char *encoding = ini_section_find(remote_compare, "Encoding");
+		int status;
+
+		if (encoding != NULL) {
+			status = ini_section_set_string(remote, "Encoding", encoding,
+			    &ini_default_style);
+			if (status < 0)
+				return status;
+		}
+	}
 	for (size_t i = 0; i < sizeof(profile_keys) / sizeof(profile_keys[0]); ++i) {
 		const char *key = profile_keys[i];
 		const char *base_value = base == NULL ? NULL

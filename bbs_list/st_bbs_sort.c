@@ -40,7 +40,8 @@ st_bbs_sort_field_normalize(int field)
 		magnitude = ST_BBS_SORT_EXPLICIT;
 	if ((magnitude >= ST_BBS_SORT_NAME
 	    && magnitude <= ST_BBS_SORT_EXPLICIT)
-	    || magnitude == ST_BBS_SORT_LF_EXPAND)
+	    || magnitude == ST_BBS_SORT_LF_EXPAND
+	    || magnitude == ST_BBS_SORT_ENCODING)
 		return sign * magnitude;
 	return ST_BBS_SORT_NONE;
 }
@@ -63,6 +64,8 @@ st_bbs_sort_field_name(int field)
 
 	if (magnitude == ST_BBS_SORT_LF_EXPAND)
 		return "LF Expand";
+	if (magnitude == ST_BBS_SORT_ENCODING)
+		return "Encoding";
 	if (magnitude <= ST_BBS_SORT_EXPLICIT)
 		return names[magnitude];
 	return NULL;
@@ -161,6 +164,8 @@ compare_field(const struct st_profile *a, enum st_bbs_source a_source,
 		return COMPARE_VALUE(a->sort_order, b->sort_order);
 	case ST_BBS_SORT_LF_EXPAND:
 		return COMPARE_VALUE(a->expand_lf, b->expand_lf);
+	case ST_BBS_SORT_ENCODING:
+		return COMPARE_VALUE(a->encoding, b->encoding);
 	default: return 0;
 	}
 }

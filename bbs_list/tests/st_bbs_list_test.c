@@ -164,6 +164,120 @@ check_profile_encodings(void)
 }
 
 static int
+check_encoding_persistence(const struct st_app_paths *base_paths)
+{
+	char personal[sizeof(ST_BBS_TEST_DIRECTORY) + 32];
+	struct st_app_paths paths = *base_paths;
+	st_bbs_list_t *first = NULL;
+	st_bbs_list_t *second = NULL;
+	struct st_profile profile, other;
+	const struct st_profile *saved;
+
+	(void)snprintf(personal, sizeof(personal), "%s/encodings.lst",
+	    ST_BBS_TEST_DIRECTORY);
+	paths.personal_list = personal;
+	CHECK(write_text(personal,
+	    "Encoding=CP437\n[EncodingEntry]\nConnectionType=SSH\nPort=22\n"
+	    "Font=Codepage 437 English\nScreenMode=80x50\nNoStatus=true\n"
+	    "[LegacyShell]\nConnectionType=Shell\nFont=Codepage 437 English\n") == 0);
+	CHECK(st_bbs_list_open(&first, &paths, NULL, 0) == 0);
+	st_profile_init(&profile);
+	st_profile_init(&other);
+	CHECK(copy_named(&profile, first, "EncodingEntry") == 0);
+	CHECK(profile.encoding == ST_CODEPAGE_CP437);
+	profile.encoding = ST_PROFILE_ENCODING_UTF8;
+	CHECK(st_bbs_list_update(first, "EncodingEntry", &profile, NULL) == 0);
+	CHECK(st_bbs_list_reload(first) == 0);
+	CHECK(st_bbs_list_find(first, "EncodingEntry")->profile->encoding
+	    == ST_PROFILE_ENCODING_UTF8);
+	CHECK(strcmp(ini_section_find(ini_document_find_section(
+	    first->personal_document, "EncodingEntry"), "Encoding"), "UTF-8") == 0);
+
+	/* A transport-only edit must retain the independently saved display. */
+	profile.connection_type = ST_CONNECTION_TELNET;
+	profile.port = 23;
+	CHECK(st_bbs_list_update(first, "EncodingEntry", &profile, NULL) == 0);
+	st_bbs_list_close(first);
+	CHECK(st_bbs_list_open(&first, &paths, NULL, 0) == 0);
+	saved = st_bbs_list_find(first, "EncodingEntry")->profile;
+	CHECK(saved->connection_type == ST_CONNECTION_TELNET && saved->port == 23);
+	CHECK(saved->encoding == ST_PROFILE_ENCODING_UTF8);
+	CHECK(strcmp(saved->font, "Codepage 437 English") == 0);
+	CHECK(saved->screen_mode == ST_SCREEN_MODE_80X50 && saved->hide_status);
+
+	/* A stale writer changing another field preserves the remote encoding. */
+	CHECK(st_bbs_list_open(&second, &paths, NULL, 0) == 0);
+	CHECK(copy_named(&profile, first, "EncodingEntry") == 0);
+	CHECK(copy_named(&other, second, "EncodingEntry") == 0);
+	profile.encoding = ST_CODEPAGE_CP850;
+	CHECK(st_bbs_list_update(first, "EncodingEntry", &profile, NULL) == 0);
+	(void)strcpy(other.comment, "concurrent comment");
+	CHECK(st_bbs_list_update(second, "EncodingEntry", &other, NULL) == 0);
+	CHECK(st_bbs_list_reload(first) == 0);
+	saved = st_bbs_list_find(first, "EncodingEntry")->profile;
+	CHECK(saved->encoding == ST_CODEPAGE_CP850);
+	CHECK(strcmp(saved->comment, "concurrent comment") == 0);
+
+	/* Competing encoding edits use the same conflict rules as other fields. */
+	CHECK(copy_named(&profile, first, "EncodingEntry") == 0);
+	CHECK(copy_named(&other, second, "EncodingEntry") == 0);
+	profile.encoding = ST_CODEPAGE_CP1251;
+	other.encoding = ST_CODEPAGE_CP865;
+	CHECK(st_bbs_list_update(first, "EncodingEntry", &profile, NULL) == 0);
+	CHECK(st_bbs_list_update(second, "EncodingEntry", &other, NULL)
+	    == IO_ERROR_CONFLICT);
+	CHECK(st_bbs_list_reload(second) == 0);
+	CHECK(st_bbs_list_find(second, "EncodingEntry")->profile->encoding
+	    == ST_CODEPAGE_CP1251);
+
+	/* Defaults use the same merge path, including encoding conflicts. */
+	CHECK(st_profile_copy(&profile, st_bbs_list_defaults(first)));
+	profile.encoding = ST_PROFILE_ENCODING_UTF8;
+	CHECK(st_bbs_list_set_defaults(first, &profile) == 0);
+	CHECK(st_bbs_list_reload(first) == 0);
+	CHECK(st_bbs_list_defaults(first)->encoding == ST_PROFILE_ENCODING_UTF8);
+	CHECK(strcmp(ini_section_find(ini_document_root(first->personal_document),
+	    "Encoding"), "UTF-8") == 0);
+	CHECK(st_bbs_list_reload(second) == 0);
+	CHECK(st_profile_copy(&profile, st_bbs_list_defaults(first)));
+	CHECK(st_profile_copy(&other, st_bbs_list_defaults(second)));
+	profile.encoding = ST_CODEPAGE_CP850;
+	CHECK(st_bbs_list_set_defaults(first, &profile) == 0);
+	(void)strcpy(other.terminal_name, "concurrent-defaults");
+	CHECK(st_bbs_list_set_defaults(second, &other) == 0);
+	CHECK(st_bbs_list_reload(first) == 0);
+	CHECK(st_bbs_list_defaults(first)->encoding == ST_CODEPAGE_CP850);
+	CHECK(strcmp(st_bbs_list_defaults(first)->terminal_name,
+	    "concurrent-defaults") == 0);
+	CHECK(st_profile_copy(&profile, st_bbs_list_defaults(first)));
+	CHECK(st_profile_copy(&other, st_bbs_list_defaults(second)));
+	profile.encoding = ST_CODEPAGE_CP1251;
+	other.encoding = ST_PROFILE_ENCODING_UTF8;
+	CHECK(st_bbs_list_set_defaults(first, &profile) == 0);
+	CHECK(st_bbs_list_set_defaults(second, &other) == IO_ERROR_CONFLICT);
+	CHECK(st_bbs_list_reload(second) == 0);
+	CHECK(st_bbs_list_defaults(second)->encoding == ST_CODEPAGE_CP1251);
+	CHECK(st_bbs_list_find(second, "EncodingEntry")->profile->encoding
+	    == ST_CODEPAGE_CP1251);
+
+	/* Freeze an implicit legacy encoding before a transport edit can alter
+	 * its inference, even when the encoding itself was not edited. */
+	CHECK(copy_named(&profile, first, "LegacyShell") == 0);
+	CHECK(profile.encoding == ST_PROFILE_ENCODING_UTF8);
+	profile.connection_type = ST_CONNECTION_TELNET;
+	profile.port = 23;
+	CHECK(st_bbs_list_update(first, "LegacyShell", &profile, NULL) == 0);
+	CHECK(st_bbs_list_reload(first) == 0);
+	CHECK(st_bbs_list_find(first, "LegacyShell")->profile->encoding
+	    == ST_PROFILE_ENCODING_UTF8);
+	st_profile_dispose(&profile);
+	st_profile_dispose(&other);
+	st_bbs_list_close(first);
+	st_bbs_list_close(second);
+	return 0;
+}
+
+static int
 check_prepared_sort(void)
 {
 	static const char *const names[] = {
@@ -175,11 +289,14 @@ check_prepared_sort(void)
 		ST_BBS_SORT_CALLS, ST_BBS_SORT_ADDRESS, ST_BBS_SORT_NAME
 	};
 	static const int by_source[] = {-ST_BBS_SORT_SOURCE};
+	static const int by_encoding[] = {ST_BBS_SORT_ENCODING};
+	static const int by_encoding_descending[] = {-ST_BBS_SORT_ENCODING};
 	static const struct {
 		const int *fields;
 		size_t count;
 	} orders[] = {
-		{NULL, 0}, {by_name, 2}, {by_calls, 3}, {by_source, 1}
+		{NULL, 0}, {by_name, 2}, {by_calls, 3}, {by_source, 1},
+		{by_encoding, 1}, {by_encoding_descending, 1}
 	};
 	struct st_profile profiles[sizeof(names) / sizeof(names[0])];
 	struct st_bbs_sort_record records[sizeof(profiles) / sizeof(profiles[0])];
@@ -189,6 +306,8 @@ check_prepared_sort(void)
 		(void)strcpy(profiles[i].name, names[i]);
 		(void)strcpy(profiles[i].address, i % 2 == 0 ? "omega" : "alpha");
 		profiles[i].calls = (uint32_t)(i % 3);
+		profiles[i].encoding = i % 3 == 0 ? ST_PROFILE_ENCODING_UTF8
+		    : i % 3 == 1 ? ST_CODEPAGE_CP850 : ST_CODEPAGE_CP437;
 	}
 	for (size_t order = 0; order < sizeof(orders) / sizeof(orders[0]);
 	    ++order) {
@@ -204,11 +323,16 @@ check_prepared_sort(void)
 		    orders[order].count) == 0);
 		for (size_t i = 0; i < sizeof(records) / sizeof(records[0]); ++i) {
 			CHECK(records[i].value == records[i].profile);
-			if (i != 0)
+			if (i != 0) {
 				CHECK(st_bbs_compare_profiles(records[i - 1].profile,
 				    records[i - 1].source, records[i].profile,
 				    records[i].source, orders[order].fields,
 				    orders[order].count) <= 0);
+				if (orders[order].fields == by_encoding)
+					CHECK(records[i - 1].profile->encoding <= records[i].profile->encoding);
+				if (orders[order].fields == by_encoding_descending)
+					CHECK(records[i - 1].profile->encoding >= records[i].profile->encoding);
+			}
 		}
 	}
 	for (size_t i = 0; i < sizeof(profiles) / sizeof(profiles[0]); ++i)
@@ -280,6 +404,7 @@ main(void)
 	paths.system_cache_directory = system_cache;
 	paths.cached_system_list = system_list;
 	paths.download_directory = ST_BBS_TEST_DIRECTORY;
+	CHECK(check_encoding_persistence(&paths) == 0);
 
 	status = st_bbs_list_open(&first, &paths, NULL, 0);
 	CHECK(status == 0);
@@ -324,6 +449,11 @@ main(void)
 	CHECK(st_bbs_sort_field_normalize(30) == ST_BBS_SORT_EXPLICIT);
 	CHECK(st_bbs_sort_field_normalize(ST_BBS_SORT_LF_EXPAND)
 	    == ST_BBS_SORT_LF_EXPAND);
+	CHECK(st_bbs_sort_field_normalize(ST_BBS_SORT_ENCODING) == ST_BBS_SORT_ENCODING);
+	CHECK(st_bbs_sort_field_normalize(-ST_BBS_SORT_ENCODING) == -ST_BBS_SORT_ENCODING);
+	CHECK(st_bbs_sort_field_normalize(ST_BBS_SORT_ENCODING + 1) == ST_BBS_SORT_NONE);
+	CHECK(strcmp(st_bbs_sort_field_name(ST_BBS_SORT_ENCODING), "Encoding") == 0);
+	CHECK(!st_bbs_sort_field_reversed(ST_BBS_SORT_ENCODING));
 
 	st_profile_init(&profile);
 	(void)strcpy(profile.name, "Beta");

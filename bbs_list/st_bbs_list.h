@@ -185,6 +185,7 @@ enum st_bbs_sort_field {
 	ST_BBS_SORT_EXPLICIT = 29,
 	/* 30 is accepted as the historical shifted explicit-field alias. */
 	ST_BBS_SORT_LF_EXPAND = 31,
+	ST_BBS_SORT_ENCODING = 32,
 };
 
 int st_bbs_sort_field_normalize(int field);

@@ -227,6 +227,8 @@ zero for invalid/non-network types.
 `encoding` defaults to CP437 and stores a canonical `st_codepage` value or
 `ST_PROFILE_ENCODING_UTF8`. The BBS INI `Encoding` key uses canonical names;
 missing keys retain the former font-derived encoding, or UTF-8 for Shell.
+Saving an existing entry or defaults writes that inferred encoding explicitly,
+so changing transport or font does not silently change the encoding on reload.
 `st_profile_dispose(profile)` frees its owned optional paths.  Call
 `st_profile_copy(result, source)` only with an initialized destination; it
 deep-copies owned fields and preserves the old destination on failure.
@@ -737,7 +739,10 @@ progress callback runs on the caller.
 | Startup cache-only refresh which does not open a personal directory.
 
 | st_bbs_sort_field_normalize(field), st_bbs_sort_field_name(field), st_bbs_sort_field_reversed(field)
-| Normalize persisted aliases and query display/direction policy.
+| Normalize persisted aliases and query display/direction policy. Encoding
+is `ST_BBS_SORT_ENCODING` (32), ascending by canonical encoding number;
+UTF-8 (255) follows the legacy encodings. Negative 32 reverses that order.
+Existing IDs, including the historical explicit-sort alias 30, stay valid.
 
 | st_bbs_compare_profiles(left, left_source, right, right_source, fields, count)
 | Applies the validated multi-field ordering and returns comparison sign.

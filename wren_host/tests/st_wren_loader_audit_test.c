@@ -340,7 +340,9 @@ main(int argc, char **argv)
 	}
 	const struct st_wren_host_config host_config = {
 		.console = console, .paths = &paths,
-		.application_title = "Loader audit", .safe_mode = true,
+		.application_title = "Loader audit",
+		/* BBS setter tests also save/reload their owned directory fixture. */
+		.safe_mode = strcmp(argv[2], "bbs-setters") != 0,
 		.hyperlinks = hyperlinks,
 	};
 	status = st_wren_host_create(&host, &host_config);
@@ -447,6 +449,23 @@ main(int argc, char **argv)
 		    "if (bad.error == null || entry.wrenScripts.count != 1 || "
 		    "entry.wrenScripts[0] != \"original\" || entry.dirty) "
 		    "Fiber.abort(\"oversized scripts changed entry\")\n",
+		    "import \"syncterm_menu\" for Menu\n"
+		    "var entry = Menu.entries[0]\n"
+		    "entry.encoding = 255\n"
+		    "if (!entry.save() || Menu.load(null) != 0 || Menu.entries[0].encoding != 255) Fiber.abort(\"entry encoding persistence\")\n"
+		    "var defaults = Menu.defaults\n"
+		    "defaults.encoding = 12\n"
+		    "if (!defaults.save() || Menu.load(null) != 0 || Menu.defaults.encoding != 12) Fiber.abort(\"default encoding persistence\")\n",
+		    "import \"syncterm_menu\" for Menu\n"
+		    "var encoding = Menu.sortFields.where {|row| row[0] == 32 }.toList\n"
+		    "if (encoding.count != 1 || encoding[0][1] != \"Encoding\" || encoding[0][2]) Fiber.abort(\"encoding sort catalog\")\n"
+		    "var index = Menu.sortProfiles.count\n"
+		    "if (!Menu.addSortProfile(index, \"Encoding\", [32, 1])) Fiber.abort(\"encoding sort add\")\n"
+		    "if (!Menu.setActiveSortProfile(index)) Fiber.abort(\"encoding sort select\")\n"
+		    "if (!Menu.updateSortProfile(index, \"Encoding\", [-32, 1]) || Menu.sortProfiles[index][1][0] != -32) Fiber.abort(\"encoding sort reverse\")\n"
+		    "var all = Menu.sortFields.where {|row| row[0] != 30 }.map {|row| row[0] }.toList\n"
+		    "if (all.count != 31 || !Menu.updateSortProfile(index, \"Encoding\", all)) Fiber.abort(\"all sort fields\")\n"
+		    "if (!Menu.deleteSortProfile(index)) Fiber.abort(\"encoding sort cleanup\")\n",
 		};
 		CHECK(status == 0);
 		passed = true;

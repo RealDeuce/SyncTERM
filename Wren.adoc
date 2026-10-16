@@ -4282,6 +4282,8 @@ available in a connected VM.
 | Return fresh `[fieldId, displayName, defaultReversed]` rows from the
   host sort-field registry.  Field IDs are positive.  The Boolean says
   that the field's normal profile direction is descending.
+  Encoding is field 32, ordered by canonical encoding number (UTF-8 is 255);
+  `-32` reverses it. Existing field IDs and persisted aliases are unchanged.
 
 | Menu.sortProfiles
 | Return fresh `[name, order]` rows.  `order` is a List of unique signed
