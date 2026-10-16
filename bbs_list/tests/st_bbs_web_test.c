@@ -46,6 +46,7 @@ struct server_group {
 	st_condition_t changed;
 	size_t required;
 	size_t accepted;
+	bool release;
 	bool barrier_failed;
 };
 
@@ -60,6 +61,7 @@ struct progress_capture {
 	size_t count;
 	size_t calls;
 	bool saw_active;
+	struct server_group *release_group;
 };
 
 static int
@@ -82,6 +84,7 @@ server_group_init(struct server_group *group, size_t required)
 {
 	memset(group, 0, sizeof(*group));
 	group->required = required;
+	group->release = true;
 	if (st_mutex_init(&group->mutex, ST_MUTEX_PLAIN) != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	if (st_condition_init(&group->changed) != ST_THREAD_SUCCESS) {
@@ -117,7 +120,8 @@ server_thread(void *argument)
 	if (st_time_utc_deadline_after_ms(&deadline, 3000) != 0) {
 		group->barrier_failed = true;
 	}
-	while (group->accepted < group->required && !group->barrier_failed) {
+	while ((group->accepted < group->required || !group->release)
+	    && !group->barrier_failed) {
 		int status = st_condition_timedwait(&group->changed, &group->mutex,
 		    &deadline);
 
@@ -200,6 +204,14 @@ capture_progress(const struct st_bbs_web_refresh_item *items, size_t count,
 		if (items[i].state == ST_BBS_WEB_REFRESH_ACTIVE)
 			capture->saw_active = true;
 	}
+	if (capture->saw_active && capture->release_group != NULL) {
+		struct server_group *group = capture->release_group;
+
+		(void)st_mutex_lock(&group->mutex);
+		group->release = true;
+		(void)st_condition_broadcast(&group->changed);
+		(void)st_mutex_unlock(&group->mutex);
+	}
 }
 
 static void
@@ -232,6 +244,8 @@ run_pair(const struct st_app_paths *paths, const char *first_body,
 	make_response(responses[0], sizeof(responses[0]), first_body);
 	make_response(responses[1], sizeof(responses[1]), second_body);
 	CHECK(server_group_init(&group, 2) == 0);
+	/* Loopback responses must remain pending until progress observes ACTIVE. */
+	group.release = false;
 	CHECK(start_server(&servers[0], &group, responses[0], &ports[0],
 	    &threads[0]) == 0);
 	CHECK(start_server(&servers[1], &group, responses[1], &ports[1],
@@ -243,7 +257,9 @@ run_pair(const struct st_app_paths *paths, const char *first_body,
 	CHECK(st_settings_web_download_set(0, "One", urls[0]) == 0);
 	CHECK(st_settings_web_download_set(1, "Two", urls[1]) == 0);
 	memset(capture, 0, sizeof(*capture));
+	capture->release_group = &group;
 	status = st_bbs_web_cache_refresh(paths, capture_progress, capture);
+	capture->release_group = NULL;
 	CHECK(st_thread_join(threads[0], &thread_result) == ST_THREAD_SUCCESS);
 	CHECK(thread_result == 0);
 	CHECK(st_thread_join(threads[1], &thread_result) == ST_THREAD_SUCCESS);
