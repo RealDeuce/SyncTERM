@@ -14,6 +14,7 @@ set(_st_wren_scripts
 	${CMAKE_CURRENT_SOURCE_DIR}/../scripts/picker_bootstrap.wren
 	${CMAKE_CURRENT_SOURCE_DIR}/../scripts/wren_console.wren
 	${CMAKE_CURRENT_SOURCE_DIR}/../scripts/sftp_queue.wren
+	${CMAKE_CURRENT_SOURCE_DIR}/../scripts/sftp_activity.wren
 	${CMAKE_CURRENT_SOURCE_DIR}/../scripts/sftp_app.wren
 	${CMAKE_CURRENT_SOURCE_DIR}/../scripts/pixel_vm_test.wren
 	${CMAKE_CURRENT_SOURCE_DIR}/../scripts/menu_bbs_editor.wren
@@ -59,6 +60,7 @@ set(_st_wren_scripts
 	${CMAKE_CURRENT_SOURCE_DIR}/../scripts/auto/connected/online_menu.wren
 	${CMAKE_CURRENT_SOURCE_DIR}/../scripts/auto/connected/scrollback_view.wren
 	${CMAKE_CURRENT_SOURCE_DIR}/../scripts/auto/connected/sftp_queue_init.wren
+	${CMAKE_CURRENT_SOURCE_DIR}/../scripts/auto/connected/sftp_pubkey.wren
 	${CMAKE_CURRENT_SOURCE_DIR}/../scripts/auto/connected/status_default.wren)
 
 set(_st_wren_embedded ${CMAKE_CURRENT_BINARY_DIR}/embedded_wren.c)
@@ -102,7 +104,7 @@ target_include_directories(st_wren_host SYSTEM PRIVATE
 	${CMAKE_CURRENT_SOURCE_DIR}/../wren_vm/vm)
 target_link_libraries(st_wren_host
 	PUBLIC st_console st_cterm st_app_paths st_profile st_screen_mode st_session_history
-		st_hyperlink
+		st_hyperlink st_sftp_client
 	PRIVATE st_wren_vm st_re1 st_term st_connection st_codepage st_utf8 st_unicode_text st_unicode_width
 		st_unicode_compare
 		st_bbs_list st_audio
@@ -176,6 +178,14 @@ int main(void)
 			-Wall -Wextra -Wpedantic -Werror)
 	endif()
 	add_test(NAME wren_host COMMAND st_wren_host_test)
+	if(TARGET st_connection_ssh_fixture)
+		target_sources(st_wren_host_test PRIVATE tests/st_wren_sftp_live_test.c)
+		target_compile_definitions(st_wren_host_test PRIVATE ST_WREN_HAVE_LIVE_SFTP=1)
+		target_link_libraries(st_wren_host_test PRIVATE syncterm_string_compat st_consent_token st_list_crypto)
+		add_dependencies(st_wren_host_test st_connection_ssh_fixture)
+		add_test(NAME wren_sftp_live COMMAND st_wren_host_test $<TARGET_FILE:st_connection_ssh_fixture>)
+		set_tests_properties(wren_sftp_live wren_host PROPERTIES RESOURCE_LOCK wren_host_files TIMEOUT 600)
+	endif()
 
 	add_executable(st_wren_loader_audit_test
 		tests/st_wren_loader_audit_test.c)

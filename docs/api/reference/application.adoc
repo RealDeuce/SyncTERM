@@ -11,8 +11,9 @@ normally reaches it only through `st_wren_host`; direct VM consumers link
 
 ==== SFTP provider contract
 
-The complete project-owned Wren-host C surface, including callback and data
-types, is:
+The transport-neutral SFTP types live in `sftp_client/st_sftp.h`, shared by
+the connection provider and Wren host without a reverse dependency. The
+Wren-host C surface and its provider types include:
 [source,c]
 ----
 
@@ -26,25 +27,26 @@ struct st_audio_runtime;
 struct st_profile;
 struct st_session_history;
 
-enum st_wren_sftp_operation {
-	ST_WREN_SFTP_REALPATH,
-	ST_WREN_SFTP_STAT,
-	ST_WREN_SFTP_OPENDIR,
-	ST_WREN_SFTP_READDIR,
-	ST_WREN_SFTP_CLOSE,
-	ST_WREN_SFTP_OPEN,
-	ST_WREN_SFTP_READ,
-	ST_WREN_SFTP_WRITE,
-	ST_WREN_SFTP_MKDIR,
-	ST_WREN_SFTP_RMDIR,
-	ST_WREN_SFTP_REMOVE,
-	ST_WREN_SFTP_RENAME,
-	ST_WREN_SFTP_SET_MTIME,
-	ST_WREN_SFTP_DESCRIPTIONS,
+enum st_sftp_operation {
+	ST_SFTP_START,
+	ST_SFTP_REALPATH,
+	ST_SFTP_STAT,
+	ST_SFTP_OPENDIR,
+	ST_SFTP_READDIR,
+	ST_SFTP_CLOSE,
+	ST_SFTP_OPEN,
+	ST_SFTP_READ,
+	ST_SFTP_WRITE,
+	ST_SFTP_MKDIR,
+	ST_SFTP_RMDIR,
+	ST_SFTP_REMOVE,
+	ST_SFTP_RENAME,
+	ST_SFTP_SET_MTIME,
+	ST_SFTP_DESCRIPTIONS,
 };
 
-struct st_wren_sftp_request {
-	enum st_wren_sftp_operation operation;
+struct st_sftp_request {
+	enum st_sftp_operation operation;
 	const char *path;
 	const char *second_path;
 	uint64_t handle;
@@ -55,7 +57,7 @@ struct st_wren_sftp_request {
 	size_t size;
 };
 
-struct st_wren_sftp_stat {
+struct st_sftp_stat {
 	uint64_t size;
 	int64_t modified_time;
 	int64_t accessed_time;
@@ -64,36 +66,37 @@ struct st_wren_sftp_stat {
 	uint32_t gid;
 };
 
-struct st_wren_sftp_entry {
+struct st_sftp_entry {
 	const char *name;
 	const char *long_name;
-	struct st_wren_sftp_stat stat;
+	struct st_sftp_stat stat;
 	bool directory;
 	bool has_long_description;
 	const void *hash;
 	size_t hash_size;
 };
 
-enum st_wren_sftp_result_kind {
-	ST_WREN_SFTP_RESULT_OK,
-	ST_WREN_SFTP_RESULT_EOF,
-	ST_WREN_SFTP_RESULT_STRING,
-	ST_WREN_SFTP_RESULT_BYTES,
-	ST_WREN_SFTP_RESULT_HANDLE,
-	ST_WREN_SFTP_RESULT_STAT,
-	ST_WREN_SFTP_RESULT_ENTRIES,
-	ST_WREN_SFTP_RESULT_ERROR,
+enum st_sftp_result_kind {
+	ST_SFTP_RESULT_STARTED,
+	ST_SFTP_RESULT_OK,
+	ST_SFTP_RESULT_EOF,
+	ST_SFTP_RESULT_STRING,
+	ST_SFTP_RESULT_BYTES,
+	ST_SFTP_RESULT_HANDLE,
+	ST_SFTP_RESULT_STAT,
+	ST_SFTP_RESULT_ENTRIES,
+	ST_SFTP_RESULT_ERROR,
 };
 
-/* Response pointers remain borrowed only for the duration of poll(). */
-struct st_wren_sftp_response {
+/* Response pointers remain borrowed until the next poll or teardown. */
+struct st_sftp_response {
 	uint64_t request_id;
-	enum st_wren_sftp_result_kind kind;
+	enum st_sftp_result_kind kind;
 	const void *data;
 	size_t size;
 	uint64_t handle;
-	struct st_wren_sftp_stat stat;
-	const struct st_wren_sftp_entry *entries;
+	struct st_sftp_stat stat;
+	const struct st_sftp_entry *entries;
 	size_t entry_count;
 	int error_code;
 	uint32_t server_status;
@@ -101,17 +104,17 @@ struct st_wren_sftp_response {
 	bool transient;
 };
 
-struct st_wren_sftp_provider {
+struct st_sftp_provider {
 	void *context;
 	bool (*available)(void *context);
 	const char *(*public_directory)(void *context);
-	const char *(*long_name_extension)(void *context);
+	bool (*long_name_extension)(void *context);
 	/* submit() must copy every borrowed request pointer before returning and
 	 * return an ID unique among requests that have not yet been polled. */
-	int (*submit)(void *context, const struct st_wren_sftp_request *request,
+	int (*submit)(void *context, const struct st_sftp_request *request,
 		uint64_t *request_id);
 	/* Returns one for a response, zero when none is ready, or an error. */
-	int (*poll)(void *context, struct st_wren_sftp_response *response,
+	int (*poll)(void *context, struct st_sftp_response *response,
 		uint32_t timeout_ms);
 	void (*cancel_all)(void *context);
 };
@@ -120,7 +123,11 @@ struct st_wren_connected_config {
 	st_wren_host_t *host;
 	st_console_t *console;
 	const struct st_profile *profile;
-	const struct st_wren_sftp_provider *sftp;
+	const struct st_sftp_provider *sftp;
+	st_cterm_t *cterm;
+	struct st_connection *connection;
+	struct st_term_session *session;
+	bool status_enabled;
 };
 
 struct st_wren_host_config {
@@ -200,6 +207,7 @@ int st_wren_connected_pump(st_wren_connected_t *connected,
 int st_wren_connected_interpret(st_wren_connected_t *connected,
 	const char *module, const char *source);
 int st_wren_connected_shell_closed(st_wren_connected_t *connected);
+bool st_wren_connected_auxiliary_active(const st_wren_connected_t *connected);
 const char *st_wren_connected_last_error(
 	const st_wren_connected_t *connected);
 ----
@@ -209,12 +217,13 @@ outputs are required unless described as optional and are changed only on a
 successful zero return.  Host/connected functions return zero or negative
 `IO_ERROR_*`; provider poll uses one/zero/negative as described below.
 
-`st_wren_sftp_request` is a borrowed submission record.  The provider's
+`st_sftp_request` is a borrowed submission record.  The provider's
 `submit` callback copies every referenced path/data byte before it returns and
 produces an ID unique among requests not yet returned by `poll`.
 
-`st_wren_sftp_response` may contain a borrowed byte string, status message,
-stat, or borrowed array of entries; every pointer expires when `poll` returns.
+`st_sftp_response` may contain a borrowed byte string, status message,
+stat, or borrowed array of entries; pointers expire at the next `poll` call
+or provider destruction, not when the current call returns.
 Result kind selects which fields are meaningful.  `transient` tells Wren-side
 queue policy whether retry may be useful.
 
@@ -223,13 +232,14 @@ queue policy whether retry may be useful.
 | Provider callback | Parameters, result, and effect
 
 | available(context)
-| Reports whether the connected transport currently has usable SFTP.
+| Reports whether the connected transport currently has negotiated, usable
+SFTP. Never starts negotiation.
 
 | public_directory(context)
 | Returns a provider-owned advertised public directory or NULL.
 
 | long_name_extension(context)
-| Returns provider-owned extension identity/details or NULL.
+| Returns true when the friendly-name extension was negotiated.
 
 | submit(context, request, request_id)
 | Copies the request and queues it; returns zero or `IO_ERROR_*` and writes the
@@ -239,7 +249,8 @@ unique ID only on success.
 | Returns one with a response, zero with none ready, or a negative error.
 
 | cancel_all(context)
-| Cancels/drains all outstanding provider requests during shutdown.
+| Requests cancellation during VM shutdown. Transport close interrupts any
+blocked channel setup and joins the worker before freeing its session.
 |===
 
 ==== Wren host and connected context

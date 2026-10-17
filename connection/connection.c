@@ -317,7 +317,11 @@ input_worker(void *argument)
 			else if (received == 0 && !atomic_load(&connection->stopping))
 				st_connection_log_hooks(&connection->hooks, "Connection",
 				    ST_CONNECTION_LOG_INFO, "%s peer closed input", connection->log_source);
-			stop_connection(connection, received == 0);
+			if (received == 0 && connection->operations->retain_after_eof) {
+				atomic_store(&connection->connected, false);
+				queue_stop(&connection->input, true);
+				queue_stop(&connection->output, false);
+			} else stop_connection(connection, received == 0);
 			break;
 		}
 		/* A write that fills the queue may return after partial progress.
@@ -342,6 +346,20 @@ input_worker(void *argument)
 	return 0;
 }
 
+const struct st_sftp_provider *
+st_connection_sftp(st_connection_t *connection)
+{
+	return connection == NULL || connection->operations->sftp == NULL ? NULL
+	    : connection->operations->sftp(connection->transport);
+}
+bool
+st_connection_auxiliary_alive(st_connection_t *connection)
+{
+	return connection != NULL && !atomic_load(&connection->stopping)
+	    && connection->operations->auxiliary_alive != NULL
+	    && connection->operations->auxiliary_alive(connection->transport);
+}
+
 static int
 output_worker(void *argument)
 {
@@ -353,7 +371,10 @@ output_worker(void *argument)
 		    sizeof(buffer), -1, false);
 		size_t sent = 0;
 
-		if (count < 0)
+		if (count <= 0)
+			break;
+		if (connection->operations->retain_after_eof
+		    && !atomic_load(&connection->connected))
 			break;
 		while (sent < (size_t)count
 		    && !atomic_load(&connection->stopping)) {
@@ -364,6 +385,15 @@ output_worker(void *argument)
 			    || result == IO_ERROR_WOULD_BLOCK)
 				continue;
 			if (result <= 0) {
+				/* A closed SSH shell is not a closed SSH session. The
+				 * reader still drains terminal data; auxiliary channels
+				 * remain owned by the application until explicit close. */
+				if (connection->operations->retain_after_eof
+				    && connection->operations->auxiliary_alive != NULL
+				    && connection->operations->auxiliary_alive(connection->transport)) {
+					queue_stop(&connection->output, false);
+					return 0;
+				}
 				if (result < 0 && !atomic_load(&connection->stopping))
 					st_connection_log(connection,
 					    ST_CONNECTION_LOG_ERROR,

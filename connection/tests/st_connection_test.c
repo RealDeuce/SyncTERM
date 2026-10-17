@@ -1080,10 +1080,63 @@ test_partial_input(void)
 	return failures;
 }
 
+struct auxiliary_state {
+	atomic_bool write_failed, eof, interrupted, destroyed;
+};
+static ssize_t auxiliary_read(void *context, void *data, size_t size, int64_t timeout)
+{
+	struct auxiliary_state *s = context;
+	(void)data; (void)size; (void)timeout;
+	if (atomic_load(&s->eof)) return 0;
+	const struct timespec pause = {.tv_nsec = 1000000};
+	(void)st_thread_sleep(&pause, NULL);
+	return IO_ERROR_WOULD_BLOCK;
+}
+static ssize_t auxiliary_write(void *context, const void *data, size_t size, int64_t timeout)
+{
+	(void)data; (void)size; (void)timeout;
+	atomic_store(&((struct auxiliary_state *)context)->write_failed, true);
+	return IO_ERROR_CONNECTION_RESET;
+}
+static bool auxiliary_alive(void *context)
+{ return !atomic_load(&((struct auxiliary_state *)context)->interrupted); }
+static void auxiliary_interrupt(void *context)
+{ atomic_store(&((struct auxiliary_state *)context)->interrupted, true); }
+static void auxiliary_destroy(void *context)
+{ atomic_store(&((struct auxiliary_state *)context)->destroyed, true); }
+static int test_auxiliary_close(void)
+{
+	struct auxiliary_state state;
+	atomic_init(&state.write_failed, false); atomic_init(&state.eof, false);
+	atomic_init(&state.interrupted, false); atomic_init(&state.destroyed, false);
+	const struct st_connection_transport_ops operations = {
+		.retain_after_eof = true, .auxiliary_alive = auxiliary_alive,
+		.read = auxiliary_read, .write = auxiliary_write,
+		.interrupt = auxiliary_interrupt, .destroy = auxiliary_destroy,
+	};
+	st_connection_t *connection = NULL;
+	CHECK(st_connection_start(&connection, &state, &operations, "auxiliary test", NULL, NULL, NULL) == 0);
+	CHECK(st_connection_send(connection, "x", 1, 1000) == 1);
+	const struct timespec pause = {.tv_nsec = 1000000};
+	for (unsigned i = 0; i < 3000 && !atomic_load(&state.write_failed); ++i)
+		(void)st_thread_sleep(&pause, NULL);
+	CHECK(atomic_load(&state.write_failed) && !atomic_load(&state.interrupted));
+	atomic_store(&state.eof, true);
+	for (unsigned i = 0; i < 3000 && st_connection_is_connected(connection); ++i)
+		(void)st_thread_sleep(&pause, NULL);
+	CHECK(!st_connection_is_connected(connection) && st_connection_auxiliary_alive(connection));
+	CHECK(!atomic_load(&state.interrupted));
+	CHECK(st_connection_close(connection) == 0);
+	CHECK(atomic_load(&state.interrupted) && atomic_load(&state.destroyed));
+	return 0;
+}
+
 int
 main(int argc, char **argv)
 {
 	const char *fixture = NULL;
+	if (argc == 2 && strcmp(argv[1], "--auxiliary-close") == 0)
+		return test_auxiliary_close();
 
 	if (argc == 2 && strcmp(argv[1], "--partial-input") == 0)
 		return test_partial_input() != 0;
@@ -1113,5 +1166,6 @@ main(int argc, char **argv)
 #endif
 	failures += test_shell_interactive(fixture);
 	failures += test_partial_input();
+	failures += test_auxiliary_close();
 	return failures != 0;
 }

@@ -24,6 +24,7 @@ struct st_term_session {
 	bool end_requested;
 	bool exit_requested;
 	bool remote_closed;
+	bool auxiliary_active;
 	bool suspended;
 	bool mouse_disabled;
 	uint32_t throttle_bps;
@@ -117,7 +118,8 @@ cterm_output(void *context, enum st_cterm_output_origin origin,
 	st_term_session_t *session = context;
 	(void)origin;
 
-	if (session->output_error != 0)
+	if (session->output_error != 0
+	    || !st_connection_is_connected(session->config.connection))
 		return;
 	if (session->config.rip_version != ST_CTERM_RIP_OFF
 	    && session->config.encoding == ST_CTERM_ENCODING_CODEPAGE)
@@ -126,6 +128,10 @@ cterm_output(void *context, enum st_cterm_output_origin origin,
 	else
 		session->output_error = send_all(session->config.connection,
 		    bytes, size);
+	if (!st_connection_is_connected(session->config.connection)
+	    || (session->output_error == IO_ERROR_NOT_CONNECTED
+	    && st_connection_auxiliary_alive(session->config.connection)))
+		session->output_error = 0;
 }
 
 static void
@@ -140,9 +146,13 @@ cterm_size(void *context, uint32_t columns, uint32_t rows,
 		.pixel_height = pixel_height,
 	};
 
-	if (session->output_error == 0)
+	if (session->output_error == 0
+	    && st_connection_is_connected(session->config.connection)) {
 		session->output_error = st_connection_update_terminal_size(
 		    session->config.connection, &geometry);
+		if (!st_connection_is_connected(session->config.connection))
+			session->output_error = 0;
+	}
 }
 
 static int
@@ -802,6 +812,10 @@ st_term_session_pump(st_term_session_t *session,
 		if (status != 0)
 			return status;
 	}
+	if (received == 0 && session->auxiliary_active) {
+		const struct timespec pause = {.tv_nsec = 10000000L};
+		(void)st_thread_sleep(&pause, NULL);
+	}
 	while ((status = st_console_event_try(session->config.console,
 	    &event)) == 0) {
 		status = handle_event(session, &event, disposition, finished);
@@ -823,9 +837,15 @@ st_term_session_pump(st_term_session_t *session,
 		status = st_connection_process_requests(session->config.connection);
 		if (status != 0) return status;
 		*disposition = ST_TERM_RETURN_TO_PICKER;
-		*finished = true;
+		*finished = !session->auxiliary_active;
 	}
 	return session->output_error;
+}
+
+void
+st_term_session_set_auxiliary_active(st_term_session_t *session, bool active)
+{
+	if (session != NULL) session->auxiliary_active = active;
 }
 
 int

@@ -6,6 +6,7 @@
 #include <deucessh-auth.h>
 #include <deucessh-conn.h>
 #include "st_threads.h"
+#include "st_base64.h"
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -20,7 +21,9 @@
 
 #define CHECK(e) do { if (!(e)) { fprintf(stderr, "SSH fixture %d: %s\n", __LINE__, #e); return 1; } } while (0)
 static int descriptor = -1;
+int st_connection_sftp_fixture(dssh_session session, dssh_channel shell, const char *mode);
 static const char *mode;
+static const char *authorized_line;
 static unsigned auth_round, password_attempts;
 static int
 io(uint8_t *data, size_t size, dssh_session session, bool sending)
@@ -69,6 +72,20 @@ auth_password(const uint8_t *user, size_t user_size, const uint8_t *password,
 	return user_size == 5 && memcmp(user, "guest", 5) == 0
 	    && password_size == 6 && memcmp(password, "secret", 6) == 0
 	    ? DSSH_AUTH_SUCCESS : DSSH_AUTH_FAILURE;
+}
+static int
+auth_publickey(const uint8_t *user, size_t user_size, const char *algorithm,
+	const uint8_t *blob, size_t blob_size, bool signed_request, void *context)
+{
+	(void)signed_request; (void)context;
+	char encoded[512]; size_t length;
+	if (authorized_line == NULL || user_size != 5 || memcmp(user, "guest", 5) != 0
+	    || strcmp(algorithm, "ssh-ed25519") != 0
+	    || strncmp(authorized_line, "ssh-ed25519 ", 12) != 0
+	    || !st_base64_encoded_size(blob_size, &length) || length + 1 > sizeof(encoded)
+	    || !st_base64_encode(encoded, sizeof(encoded), blob, blob_size)) return DSSH_AUTH_FAILURE;
+	return strncmp(authorized_line + 12, encoded, length) == 0
+	    && authorized_line[12 + length] == ' ' ? DSSH_AUTH_SUCCESS : DSSH_AUTH_FAILURE;
 }
 static char *
 copy_text(const char *text)
@@ -149,6 +166,7 @@ main(int argc, char **argv)
 	dssh_channel channel;
 	struct dssh_auth_server_cbs auth = {
 		.none_cb = auth_none, .password_cb = auth_password,
+		.publickey_cb = auth_publickey,
 		.keyboard_interactive_cb = auth_keyboard,
 	};
 	const struct dssh_chan_accept_cbs accept_callbacks = {
@@ -158,7 +176,8 @@ main(int argc, char **argv)
 	uint8_t received[5];
 	size_t used = 0;
 	static const uint8_t expected[] = {'x',3,255,'\r','\n'};
-	CHECK(argc == 2); mode = argv[1];
+	CHECK(argc == 2 || argc == 3); mode = argv[1];
+	if (argc == 3) authorized_line = argv[2];
 	(void)signal(SIGPIPE, SIG_IGN);
 	CHECK(dssh_register_curve25519_sha256() == 0);
 	bool weak = strncmp(mode, "weak", 4) == 0;
@@ -188,7 +207,8 @@ main(int argc, char **argv)
 	CHECK(dssh_session_set_terminate_cb(session, terminate, NULL) == 0);
 	CHECK(dssh_transport_handshake(session) == 0);
 	if (strcmp(mode, "banner") == 0) CHECK(dssh_auth_set_banner(session, "Fixture banner", "en") == 0);
-	auth.methods_str = strncmp(mode, "keyboard", 8) == 0 ? "keyboard-interactive" : "password";
+	auth.methods_str = authorized_line != NULL ? "publickey"
+	    : strncmp(mode, "keyboard", 8) == 0 ? "keyboard-interactive" : "password";
 	status = dssh_auth_server(session, &auth, NULL, NULL);
 	if (status != 0) {
 		dssh_session_cleanup(session); close(descriptor);
@@ -198,6 +218,18 @@ main(int argc, char **argv)
 	channel = dssh_chan_accept(session, &accept_callbacks, 10000);
 	CHECK(channel != NULL);
 	CHECK(send_text(channel, "hello") == 0);
+	if (authorized_line != NULL) {
+		uint8_t done;
+		CHECK((dssh_chan_poll(channel, DSSH_POLL_READ, 10000) & DSSH_POLL_READ) != 0);
+		CHECK(dssh_chan_read(channel, 0, &done, 1) == 1 && done == 'q');
+		CHECK(send_text(channel, "ok") == 0);
+		dssh_session_cleanup(session); close(descriptor); return 0;
+	}
+	if (strncmp(mode, "sftp", 4) == 0) {
+		status = st_connection_sftp_fixture(session, channel, mode);
+		dssh_session_cleanup(session); close(descriptor);
+		return status;
+	}
 	if (strcmp(mode, "log-ui") == 0) {
 		/* Let the application finish constructing its terminal before the
 		 * peer closes. The UI driver acknowledges the rendered greeting. */

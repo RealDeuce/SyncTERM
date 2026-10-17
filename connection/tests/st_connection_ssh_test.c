@@ -1,6 +1,8 @@
 /* Copyright (c) 2026 Stephen Hurd
  * SPDX-License-Identifier: BSD-2-Clause */
 #include "st_connection.h"
+#include "st_sftp.h"
+#include "st_threads.h"
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -126,6 +128,103 @@ read_text(st_connection_t *connection, const char *expected)
 	return 0;
 }
 static int
+await_sftp(st_connection_t *connection, const struct st_sftp_provider *p,
+	struct st_sftp_response *response)
+{
+	for (unsigned i = 0; i < 200; ++i) {
+		CHECK(st_connection_process_requests(connection) == 0);
+		int n = p->poll(p->context, response, 25);
+		CHECK(n >= 0);
+		if (n == 1) return 0;
+	}
+	CHECK(false); return 1;
+}
+static int
+sftp_rpc(st_connection_t *connection, const struct st_sftp_provider *p,
+	struct st_sftp_request request, struct st_sftp_response *response)
+{
+	uint64_t id;
+	CHECK(p->submit(p->context, &request, &id) == 0);
+	CHECK(await_sftp(connection, p, response) == 0);
+	CHECK(response->request_id == id);
+	return 0;
+}
+static int
+exercise_sftp(st_connection_t *connection, unsigned test)
+{
+	const struct st_sftp_provider *p = st_connection_sftp(connection);
+	struct st_sftp_response r;
+	uint64_t first, second, handle;
+	CHECK(p != NULL && !p->available(p->context));
+	CHECK(p->public_directory(p->context) == NULL && !p->long_name_extension(p->context));
+	/* The server rejects any subsystem request during this idle window. */
+	CHECK(read_text(connection, "idle") == 0);
+	char *key = st_connection_ssh_public_key();
+	CHECK(key != NULL && strncmp(key, "ssh-ed25519 ", 12) == 0); free(key);
+	struct st_sftp_request q = {.operation = ST_SFTP_START};
+	CHECK(p->submit(p->context, &q, &first) == 0);
+	if (test == 20) {
+		CHECK(read_text(connection, "init") == 0);
+		p->cancel_all(p->context);
+		CHECK(!p->available(p->context));
+		return 0;
+	}
+	if (test != 19) CHECK(p->submit(p->context, &q, &second) == 0);
+	CHECK(await_sftp(connection, p, &r) == 0 && r.request_id == first);
+	if (test == 19) {
+		CHECK(r.kind == ST_SFTP_RESULT_ERROR && !p->available(p->context));
+		CHECK(p->submit(p->context, &q, &second) == IO_ERROR_NOT_CONNECTED);
+		CHECK(read_text(connection, "usable") == 0);
+		CHECK(st_connection_send(connection, "q", 1, 1000) == 1);
+		return 0;
+	}
+	CHECK(r.kind == ST_SFTP_RESULT_STARTED);
+	CHECK(await_sftp(connection, p, &r) == 0 && r.request_id == second && r.kind == ST_SFTP_RESULT_STARTED);
+	CHECK(p->available(p->context) && p->long_name_extension(p->context));
+	CHECK(strcmp(p->public_directory(p->context), "/public") == 0);
+	if (test == 21) {
+		CHECK(sftp_rpc(connection, p, (struct st_sftp_request){.operation = ST_SFTP_OPEN, .path = "/remote.bin", .flags = 1}, &r) == 0 && r.kind == ST_SFTP_RESULT_HANDLE);
+		handle = r.handle;
+		CHECK(sftp_rpc(connection, p, (struct st_sftp_request){.operation = ST_SFTP_READ, .handle = handle, .size = 32}, &r) == 0);
+		CHECK(r.kind == ST_SFTP_RESULT_ERROR && r.transient);
+		return 0;
+	}
+	CHECK(sftp_rpc(connection, p, (struct st_sftp_request){.operation = ST_SFTP_REALPATH, .path = "."}, &r) == 0);
+	CHECK(r.kind == ST_SFTP_RESULT_STRING && r.size == 1 && memcmp(r.data, "/", 1) == 0);
+	CHECK(sftp_rpc(connection, p, (struct st_sftp_request){.operation = ST_SFTP_OPENDIR, .path = "/"}, &r) == 0);
+	CHECK(r.kind == ST_SFTP_RESULT_HANDLE); handle = r.handle;
+	CHECK(sftp_rpc(connection, p, (struct st_sftp_request){.operation = ST_SFTP_READDIR, .handle = handle}, &r) == 0);
+	CHECK(r.kind == ST_SFTP_RESULT_ENTRIES && r.entry_count == 1);
+	CHECK(strcmp(r.entries[0].name, "remote.bin") == 0 && strcmp(r.entries[0].long_name, "Friendly fixture") == 0);
+	CHECK(r.entries[0].hash_size == 20 && r.entries[0].has_long_description && r.entries[0].stat.size == 90000);
+	CHECK(sftp_rpc(connection, p, (struct st_sftp_request){.operation = ST_SFTP_READDIR, .handle = handle}, &r) == 0 && r.kind == ST_SFTP_RESULT_EOF);
+	CHECK(sftp_rpc(connection, p, (struct st_sftp_request){.operation = ST_SFTP_CLOSE, .handle = handle}, &r) == 0 && r.kind == ST_SFTP_RESULT_OK);
+	CHECK(sftp_rpc(connection, p, (struct st_sftp_request){.operation = ST_SFTP_READDIR, .handle = handle}, &r) == 0 && r.kind == ST_SFTP_RESULT_ERROR);
+	CHECK(sftp_rpc(connection, p, (struct st_sftp_request){.operation = ST_SFTP_DESCRIPTIONS, .path = "/remote.bin"}, &r) == 0);
+	CHECK(r.kind == ST_SFTP_RESULT_STRING && r.size == 16 && memcmp(r.data, "Long description", 16) == 0);
+	CHECK(sftp_rpc(connection, p, (struct st_sftp_request){.operation = ST_SFTP_OPEN, .path = "/new.bin", .flags = 1|2|8|16}, &r) == 0 && r.kind == ST_SFTP_RESULT_HANDLE);
+	handle = r.handle;
+	const uint8_t bytes[] = {0,255,127,'x'};
+	CHECK(sftp_rpc(connection, p, (struct st_sftp_request){.operation = ST_SFTP_WRITE, .handle = handle, .data = bytes, .size = sizeof(bytes)}, &r) == 0 && r.kind == ST_SFTP_RESULT_OK);
+	CHECK(sftp_rpc(connection, p, (struct st_sftp_request){.operation = ST_SFTP_READ, .handle = handle, .size = 32}, &r) == 0);
+	CHECK(r.kind == ST_SFTP_RESULT_BYTES && r.size == sizeof(bytes) && memcmp(r.data, bytes, sizeof(bytes)) == 0);
+	CHECK(sftp_rpc(connection, p, (struct st_sftp_request){.operation = ST_SFTP_CLOSE, .handle = handle}, &r) == 0);
+	CHECK(sftp_rpc(connection, p, (struct st_sftp_request){.operation = ST_SFTP_SET_MTIME, .path = "/new.bin", .modified_time = 123456}, &r) == 0 && r.kind == ST_SFTP_RESULT_OK);
+	CHECK(sftp_rpc(connection, p, (struct st_sftp_request){.operation = ST_SFTP_STAT, .path = "/new.bin"}, &r) == 0 && r.stat.modified_time == 123456 && r.stat.size == 4);
+	CHECK(sftp_rpc(connection, p, (struct st_sftp_request){.operation = ST_SFTP_RENAME, .path = "/new.bin", .second_path = "/renamed.bin"}, &r) == 0 && r.kind == ST_SFTP_RESULT_OK);
+	CHECK(sftp_rpc(connection, p, (struct st_sftp_request){.operation = ST_SFTP_REMOVE, .path = "/renamed.bin"}, &r) == 0 && r.kind == ST_SFTP_RESULT_OK);
+	CHECK(sftp_rpc(connection, p, (struct st_sftp_request){.operation = ST_SFTP_STAT, .path = "/renamed.bin"}, &r) == 0 && r.kind == ST_SFTP_RESULT_ERROR && r.error_code == 0 && r.server_status == 2);
+	CHECK(sftp_rpc(connection, p, (struct st_sftp_request){.operation = ST_SFTP_MKDIR, .path = "/dir"}, &r) == 0 && r.kind == ST_SFTP_RESULT_OK);
+	CHECK(sftp_rpc(connection, p, (struct st_sftp_request){.operation = ST_SFTP_RMDIR, .path = "/dir"}, &r) == 0 && r.kind == ST_SFTP_RESULT_OK);
+	if (test == 18) {
+		for (unsigned i = 0; i < 100 && st_connection_is_connected(connection); ++i) {
+			const struct timespec delay = {.tv_nsec = 10000000}; (void)st_thread_sleep(&delay, NULL);
+		}
+		CHECK(!st_connection_is_connected(connection) && st_connection_auxiliary_alive(connection));
+	}
+	return 0;
+}
+static int
 run(const char *fixture, unsigned test, int log_level)
 {
 	int pipefd[2], child_status;
@@ -158,7 +257,10 @@ run(const char *fixture, unsigned test, int log_level)
 		execl(fixture, fixture, test == 1 ? "none" : test == 2 ? "keyboard"
 		    : test == 8 ? "rekey" : test == 9 ? "keyboard-otp" : test == 10 ? "keyboard-repeat"
 		    : test == 11 ? "banner" : test == 12 || test == 13 || test == 15 ? "weak"
-		    : test == 14 ? "retry" : test == 16 ? "bad-handshake" : "password", (char *)NULL);
+		    : test == 14 ? "retry" : test == 16 ? "bad-handshake"
+		    : test == 17 ? "sftp" : test == 18 ? "sftp-shell-close"
+		    : test == 19 ? "sftp-unsupported" : test == 20 ? "sftp-no-version"
+		    : test == 21 ? "sftp-drop" : "password", (char *)NULL);
 		_exit(127);
 	}
 	fixture_child = child;
@@ -195,9 +297,13 @@ run(const char *fixture, unsigned test, int log_level)
 			CHECK(atomic_load(&log.demux_starts) > 0);
 		}
 		CHECK(read_text(connection, "hello") == 0);
+		if (test >= 17) {
+			CHECK(exercise_sftp(connection, test) == 0);
+		} else {
 		CHECK(st_connection_update_terminal_size(connection, &resized) == 0);
 		CHECK(st_connection_send(connection, keys, sizeof(keys), 5000) == (ssize_t)sizeof(keys));
 		CHECK(read_text(connection, "bye") == 0);
+		}
 		CHECK(st_connection_close(connection) == 0);
 	}
 	CHECK(waitpid(child, &child_status, 0) == child
@@ -224,7 +330,7 @@ main(int argc, char **argv)
 	(void)signal(SIGPIPE, SIG_IGN);
 	CHECK(atexit(cleanup_fixture) == 0);
 	CHECK(argc == 2);
-	for (unsigned test = 0; test < 17; ++test) {
+	for (unsigned test = 0; test < 22; ++test) {
 		fprintf(stderr, "SSH fixture %u\n", test);
 		CHECK(run(argv[1], test, ST_PROFILE_LOG_DEBUG) == 0);
 	}

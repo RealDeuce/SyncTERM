@@ -21,7 +21,7 @@
 // CTerm.sftpActive clears as part of suspend(), so is_connected goes
 // false and the term.c disconnect path can run normally.
 
-import "syncterm" for CTerm, Download, File, Format, Host, Key, Text,
+import "syncterm" for Conn, CTerm, Download, File, Format, Host, Key, Text,
                        KeyEvent, Screen, SFTP, SFTPError
 import "ui_app"    for App
 import "ui_pane"   for Pane
@@ -391,7 +391,16 @@ class SftpApp is App {
 	_qLastProgressGen = -1
 
     // Mode-switch hotkeys — bound once, valid in either mode.
-    bind(Key.altS, Fn.new {|k| setMode("browser") })
+    bind(Key.altS, Fn.new {|k|
+      var ready = runChild(Fn.new {
+        return SFTP.start(Fiber.current) || Fiber.yield()
+      })
+      if (ready is SFTPError) {
+        Alert.show(this, "Cannot start SFTP:\n" + ready.toString)
+      } else {
+        setMode("browser")
+      }
+    })
     bind(Key.altQ, Fn.new {|k| setMode("queue") })
     bind(Key.escape, Fn.new {|k| dismiss_() })
 
@@ -409,7 +418,10 @@ class SftpApp is App {
       if (_mode == "queue") cancelSelected_()
     })
 
-    setMode(mode)
+    // Browser setup performs remote I/O through runChild(), which needs
+    // the App's run-fiber and input claim. Constructors have neither.
+    _initialMode = mode == "browser" ? mode : null
+    if (_initialMode == null) setMode(mode)
   }
 
   mode { _mode }
@@ -460,7 +472,10 @@ class SftpApp is App {
   // jobs; load_ on the next session converts them back to QUEUED
   // and resumes from `done`.
   dismiss_() {
-    if (_shellClosed) SftpQueue.suspend()
+    if (_shellClosed) {
+      SftpQueue.suspend()
+      Conn.close()
+    }
     quit()
   }
 
@@ -472,6 +487,19 @@ class SftpApp is App {
   // state change in place (queued -> active -> done) without
   // navigating to the queue.
   onTick_() {
+    // A lost SSH session cannot finish side-band work. Leave the modal so
+    // term.c can take its normal disconnect path rather than staying suspended.
+    if (!Conn.connected && !SFTP.available) {
+      SftpQueue.suspend()
+      quit()
+      return
+    }
+    if (_initialMode != null) {
+      var mode = _initialMode
+      _initialMode = null
+      setMode(mode)
+      return
+    }
     if (_mode == "queue") {
       if (_qPane == null) return
       var g = SftpQueue.gen

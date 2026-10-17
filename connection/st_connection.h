@@ -17,6 +17,13 @@
 #include <stdint.h>
 
 typedef struct st_connection st_connection_t;
+struct st_sftp_provider;
+
+/* Borrowed for the connection lifetime; querying never opens a channel. */
+const struct st_sftp_provider *st_connection_sftp(st_connection_t *connection);
+/* malloc-owned OpenSSH public-key line, or NULL. Never generates a key. */
+char *st_connection_ssh_public_key(void);
+bool st_connection_auxiliary_alive(st_connection_t *connection);
 
 enum st_connection_setup_phase {
 	ST_CONNECTION_SETUP_NONE,

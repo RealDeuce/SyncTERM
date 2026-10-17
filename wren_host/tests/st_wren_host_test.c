@@ -136,7 +136,7 @@ discard_ansi_output(void *context, const void *data, size_t size)
 }
 
 struct fake_sftp_response {
-	struct st_wren_sftp_response response;
+	struct st_sftp_response response;
 	unsigned char bytes[32];
 };
 
@@ -167,7 +167,7 @@ static const char *fake_sftp_public_directory(void *context)
 }
 
 static int
-fake_sftp_submit(void *context, const struct st_wren_sftp_request *request,
+fake_sftp_submit(void *context, const struct st_sftp_request *request,
 	uint64_t *request_id)
 {
 	struct fake_sftp *fake = context;
@@ -183,20 +183,23 @@ fake_sftp_submit(void *context, const struct st_wren_sftp_request *request,
 	stored->response.request_id = ++fake->next_id;
 	*request_id = stored->response.request_id;
 	switch (request->operation) {
-	case ST_WREN_SFTP_STAT:
-		stored->response.kind = ST_WREN_SFTP_RESULT_STAT;
+	case ST_SFTP_START:
+		stored->response.kind = ST_SFTP_RESULT_STARTED;
+		break;
+	case ST_SFTP_STAT:
+		stored->response.kind = ST_SFTP_RESULT_STAT;
 		stored->response.stat.size = fake->remote_size;
 		stored->response.stat.modified_time = fake->modified;
 		break;
-	case ST_WREN_SFTP_OPEN:
-		stored->response.kind = ST_WREN_SFTP_RESULT_HANDLE;
+	case ST_SFTP_OPEN:
+		stored->response.kind = ST_SFTP_RESULT_HANDLE;
 		stored->response.handle = 1;
 		break;
-	case ST_WREN_SFTP_READ: {
+	case ST_SFTP_READ: {
 		if (fake->transient_read && !fake->transient_sent
 		    && request->offset >= fake->transient_offset) {
 			fake->transient_sent = true;
-			stored->response.kind = ST_WREN_SFTP_RESULT_ERROR;
+			stored->response.kind = ST_SFTP_RESULT_ERROR;
 			stored->response.error_code = IO_ERROR_IO;
 			stored->response.message = "injected transport loss";
 			stored->response.transient = true;
@@ -209,8 +212,8 @@ fake_sftp_submit(void *context, const struct st_wren_sftp_request *request,
 		/* Deliberately exercise successful short reads. */
 		if (amount > 7)
 			amount = 7;
-		stored->response.kind = amount == 0 ? ST_WREN_SFTP_RESULT_EOF
-		    : ST_WREN_SFTP_RESULT_BYTES;
+		stored->response.kind = amount == 0 ? ST_SFTP_RESULT_EOF
+		    : ST_SFTP_RESULT_BYTES;
 		if (amount != 0) {
 			memcpy(stored->bytes, fake->remote + request->offset, amount);
 			stored->response.data = stored->bytes;
@@ -218,21 +221,21 @@ fake_sftp_submit(void *context, const struct st_wren_sftp_request *request,
 		}
 		break;
 	}
-	case ST_WREN_SFTP_CLOSE:
+	case ST_SFTP_CLOSE:
 		if (fake->close_error) {
-			stored->response.kind = ST_WREN_SFTP_RESULT_ERROR;
+			stored->response.kind = ST_SFTP_RESULT_ERROR;
 			stored->response.error_code = IO_ERROR_IO;
 			stored->response.message = "injected close failure";
 			break;
 		}
-		stored->response.kind = ST_WREN_SFTP_RESULT_OK;
+		stored->response.kind = ST_SFTP_RESULT_OK;
 		break;
-	case ST_WREN_SFTP_REMOVE:
-	case ST_WREN_SFTP_SET_MTIME:
-		stored->response.kind = ST_WREN_SFTP_RESULT_OK;
+	case ST_SFTP_REMOVE:
+	case ST_SFTP_SET_MTIME:
+		stored->response.kind = ST_SFTP_RESULT_OK;
 		break;
 	default:
-		stored->response.kind = ST_WREN_SFTP_RESULT_ERROR;
+		stored->response.kind = ST_SFTP_RESULT_ERROR;
 		stored->response.error_code = IO_ERROR_NOT_SUPPORTED;
 		stored->response.message = "fake operation is not supported";
 		break;
@@ -242,7 +245,7 @@ fake_sftp_submit(void *context, const struct st_wren_sftp_request *request,
 }
 
 static int
-fake_sftp_poll(void *context, struct st_wren_sftp_response *response,
+fake_sftp_poll(void *context, struct st_sftp_response *response,
 	uint32_t timeout_ms)
 {
 	struct fake_sftp *fake = context;
@@ -413,8 +416,9 @@ exercise_connected_without_sftp(st_wren_host_t *host,
 	free(details);
 	CHECK(st_wren_connected_last_error(connected) == NULL);
 	CHECK(st_wren_connected_interpret(connected, "no_sftp_provider",
-	    "import \"syncterm\" for SFTP, CTerm, Status, Conn, ConnError, ConnErr, Scrollback, Surface, BBS\n"
+	    "import \"syncterm\" for SFTP, SFTPError, Host, CTerm, Status, Conn, ConnError, ConnErr, Scrollback, Surface, BBS\n"
 	    "if (SFTP.available || CTerm.sftpActive || Conn.connected) Fiber.abort(\"unexpected provider\")\n"
+	    "if (Host.sshPublicKey != null || !(SFTP.start(Fiber.current) is SFTPError)) Fiber.abort(\"unexpected SSH capability\")\n"
 	    "if (BBS.name != \"Alpha\" || BBS.addr != \"alpha.example\" || BBS.connected != 100 || BBS.palette.count != BBS.paletteSize || BBS.sshFingerprint.count != BBS.sshFingerprintLen) Fiber.abort(\"connected profile view\")\n"
 	    "if (Scrollback.width != 0 || Scrollback.height != 0 || Scrollback.copyRowsTo(Surface.new(2, 2), 0, 2, 0) != 0) Fiber.abort(\"empty scrollback\")\n"
 	    "CTerm.suspended = true\n"
@@ -1180,7 +1184,7 @@ exercise_connected_sftp(st_wren_host_t *host, st_console_t *console,
 		.remote_size = sizeof(remote) - 1,
 		.modified = INT64_C(1700000123),
 	};
-	const struct st_wren_sftp_provider provider = {
+	const struct st_sftp_provider provider = {
 		.context = &fake,
 		.available = fake_sftp_available,
 		.public_directory = fake_sftp_public_directory,
@@ -1209,6 +1213,18 @@ exercise_connected_sftp(st_wren_host_t *host, st_console_t *console,
 	(void)fs_remove_file(queue_path);
 	CHECK(st_wren_connected_create(&connected, &config) == 0);
 	CHECK(exercise_filesystem_path_handles(connected) == 0);
+	CHECK(st_wren_connected_interpret(connected, "sftp_batch",
+	    "import \"syncterm\" for SFTP\n"
+	    "class Batch {\n"
+	    "  static count { __count }\n"
+	    "  static count=(n) { __count = n }\n"
+	    "}\n"
+	    "Batch.count = 0\n"
+	    "for (i in 0...3) SFTP.stat(Fiber.new {|r| Batch.count = Batch.count + 1 }, \"/remote.bin\")\n") == 0);
+	CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "sftp_batch_result",
+	    "import \"sftp_batch\" for Batch\n"
+	    "if (Batch.count != 3) Fiber.abort(\"SFTP replies were not drained as a batch\")\n") == 0);
 	CHECK(st_wren_connected_interpret(connected, "connected_hyperlinks",
 	    "import \"syncterm\" for Hyperlinks\n"
 	    "if (!Hyperlinks.containsKey(1) || Hyperlinks[1] != "
@@ -3890,9 +3906,14 @@ exercise_safe_mode_persistence_contract(st_wren_host_t *public_host,
 	return 0;
 }
 
+#ifdef ST_WREN_HAVE_LIVE_SFTP
+int st_wren_test_live_sftp(st_wren_host_t *host, st_console_t *console,
+	const char *directory, const char *fixture);
+#endif
 int
-main(void)
+main(int argc, char **argv)
 {
+	(void)argc; (void)argv;
 	static const uint8_t default_bitmap[128 * 16] = {0};
 	static const uint8_t default_wide_bitmap[64] = {0};
 	static const struct st_console_font_mapping default_mapping[] = {
@@ -4264,6 +4285,10 @@ main(void)
 	CHECK(exercise_connected_throttle(host, console) == 0);
 #endif
 	CHECK(exercise_connected_sftp(host, console, &selected) == 0);
+#ifdef ST_WREN_HAVE_LIVE_SFTP
+	if (argc == 2) CHECK(st_wren_test_live_sftp(host, console,
+	    ST_WREN_TEST_DIRECTORY, argv[1]) == 0);
+#endif
 	CHECK(exercise_connected_scrollback(host, console, &selected) == 0);
 	st_profile_dispose(&selected);
 	CHECK(wrenInterpret(((struct st_wren_host *)host)->vm,

@@ -3947,7 +3947,11 @@ emulation-aware logic.
   pumping (Wren VM, paint, drainOnce_) while the flag is true even
   after the shell channel dies — letting transfers finish in the
   background workers and disconnecting cleanly when they're done.
-  Generic — any SFTP-using script can hold the session up.
+  Generic — any SFTP-using script can hold the session up. The bundled queue
+  and key installer aggregate their independent holds through
+  `sftp_activity`, so finishing one cannot release the other's hold.
+  Explicit disconnect overrides the flag. Actual SSH session loss ends the
+  hold and preserves resumable queue work.
 
 | `CTerm.refreshStatus()`
 | Force a SyncTERM status-bar repaint on the next `update_status`
@@ -6107,8 +6111,8 @@ if (elapsed > 0) {
 
 SSH-channel side-band file transfer.  The full surface follows the
 fiber-arg async pattern (see <<async-pattern,Async Ops>> below): the
-foreign primitive captures a fiber and queues work on the SSH
-session's recv thread; the result lands on the framework's queue and
+foreign primitive captures a fiber and queues work on a connection-owned
+SFTP worker; the result lands on the framework's queue and
 the standard drainer resumes the fiber.
 
 `SFTP.<op>(fiber, args...)` returns `null` when the request was
@@ -6120,8 +6124,20 @@ site).
 |===
 | Method | Description
 
+| `SFTP.start(fiber)`
+| Lazily open and negotiate the SSH SFTP subsystem. Resumes with `true`
+  or `SFTPError`; the immediate return follows the normal async convention.
+  Concurrent calls share one negotiation, and calls after success do not
+  open another channel. A failed startup is retained until reconnect.
+  Call before other operations. Non-SSH connections return `SFTPError`.
+
 | `SFTP.available`
-| `true` while the SSH connection has a usable SFTP subsystem.
+| `true` while the SSH connection has a negotiated, usable SFTP subsystem.
+  This getter, `pubdir`, and `lname` never start negotiation. An idle SSH
+  session opens no SFTP channel; the browser, pending transfer work, or
+  enabled public-key installer requests startup when needed. Viewing an
+  empty transfer queue does not negotiate SFTP. The entry's SFTP Public Key
+  toggle controls only automatic key installation, not interactive SFTP.
 
 | `SFTP.pubdir`
 | The remote `pubdir@syncterm.net` path advertised by the server, or
@@ -6182,8 +6198,8 @@ site).
 | `SFTP.descs(fiber, path)`
 | Fetch the server's long description for `path` via the
   `descs@syncterm.net` extension.  Resumes with the description
-  String, `null` if there's no description (or the extension wasn't
-  negotiated), or `SFTPError`.  `SFTPEntry.hasLongDesc` is a
+  String (possibly empty) or `SFTPError`, including when the server does
+  not support the extension. `SFTPEntry.hasLongDesc` is a
   per-entry hint — server-asserted presence — that lets browsers
   decide whether to mark a row as having a long description
   available without paying the round-trip cost on every selection.
@@ -6272,7 +6288,9 @@ layers — distinguish via `code`:
                    library / transport-level failure (`OOM`,
                    `ABORTED`, `SEND_FAILED`, …); zero means the
                    server returned a STATUS reply with an error
-                   code, in which case `serverStatus` carries it.
+                   code, in which case `serverStatus` carries it. Negative
+                   `IO_ERROR_*` values identify host/provider-boundary
+                   failures before or outside a protocol reply.
 | `serverStatus` | `SSH_FX_*` wire status (e.g. `SSH_FX_NO_SUCH_FILE`,
                    `SSH_FX_PERMISSION_DENIED`).  Meaningful only
                    when `code == 0`.

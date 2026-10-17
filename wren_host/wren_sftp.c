@@ -10,6 +10,7 @@
 
 #include "io_error.h"
 #include "st_profile.h"
+#include "st_connection.h"
 #include "st_time.h"
 #include "st_unicode_text.h"
 #include "st_utf8.h"
@@ -65,7 +66,7 @@ struct st_wren_connected {
 	struct st_wren_host *host;
 	WrenVM *vm;
 	struct st_profile profile;
-	struct st_wren_sftp_provider provider;
+	struct st_sftp_provider provider;
 	struct pending_request *requests;
 	struct pending_timer *timers;
 	struct connected_hook *hooks;
@@ -77,7 +78,7 @@ struct st_wren_connected {
 	bool shutting_down;
 };
 
-#define ST_WREN_SFTP_HANDLE_MAGIC UINT32_C(0x53544648)
+#define ST_SFTP_HANDLE_MAGIC UINT32_C(0x53544648)
 #define ST_WREN_REGEX_BUFFER_SIZE 4096
 #define ST_WREN_HOOK_MATCH 9
 
@@ -115,13 +116,13 @@ struct foreign_sftp_handle {
 	uint64_t value;
 	bool active;
 };
-struct foreign_sftp_stat { struct st_wren_sftp_stat value; };
+struct foreign_sftp_stat { struct st_sftp_stat value; };
 struct foreign_sftp_entry {
 	char *name;
 	char *long_name;
 	char *hash;
 	size_t hash_size;
-	struct st_wren_sftp_stat stat;
+	struct st_sftp_stat stat;
 	bool directory;
 	bool has_long_description;
 };
@@ -241,7 +242,7 @@ allocate_handle(WrenVM *vm)
 	struct foreign_sftp_handle *value = wrenSetSlotNewForeign(vm, 0, 0,
 	    sizeof(*value));
 	*value = (struct foreign_sftp_handle){
-		.magic = ST_WREN_SFTP_HANDLE_MAGIC,
+		.magic = ST_SFTP_HANDLE_MAGIC,
 	};
 }
 
@@ -249,14 +250,14 @@ static void
 finalize_handle(void *data)
 {
 	struct foreign_sftp_handle *handle = data;
-	struct st_wren_sftp_request request;
+	struct st_sftp_request request;
 	uint64_t request_id;
 
-	if (handle->magic == ST_WREN_SFTP_HANDLE_MAGIC && handle->active
+	if (handle->magic == ST_SFTP_HANDLE_MAGIC && handle->active
 	    && handle->connected != NULL && !handle->connected->shutting_down
 	    && handle->connected->provider.submit != NULL) {
-		request = (struct st_wren_sftp_request){
-			.operation = ST_WREN_SFTP_CLOSE,
+		request = (struct st_sftp_request){
+			.operation = ST_SFTP_CLOSE,
 			.handle = handle->value,
 		};
 		(void)handle->connected->provider.submit(
@@ -344,7 +345,7 @@ slot_handle(WrenVM *vm, int slot, uint64_t *result)
 	if (wrenGetSlotType(vm, slot) != WREN_TYPE_FOREIGN)
 		return false;
 	handle = wrenGetSlotForeign(vm, slot);
-	if (handle == NULL || handle->magic != ST_WREN_SFTP_HANDLE_MAGIC
+	if (handle == NULL || handle->magic != ST_SFTP_HANDLE_MAGIC
 	    || handle->connected != connected_from_vm(vm) || !handle->active)
 		return false;
 	*result = handle->value;
@@ -369,7 +370,7 @@ push_error(WrenVM *vm, int slot, int code, uint32_t server_status,
 }
 
 static bool
-submit_request(WrenVM *vm, const struct st_wren_sftp_request *request)
+submit_request(WrenVM *vm, const struct st_sftp_request *request)
 {
 	struct st_wren_connected *connected = connected_from_vm(vm);
 	struct pending_request *pending;
@@ -384,6 +385,12 @@ submit_request(WrenVM *vm, const struct st_wren_sftp_request *request)
 	}
 	pending = calloc(1, sizeof(*pending));
 	if (pending == NULL) {
+		push_error(vm, 0, IO_ERROR_OUT_OF_MEMORY, 0, "Out of memory", true);
+		return false;
+	}
+	pending->fiber = wrenGetSlotHandle(vm, 1);
+	if (pending->fiber == NULL) {
+		free(pending);
 		push_error(vm, 0, IO_ERROR_OUT_OF_MEMORY, 0, "Out of memory", true);
 		return false;
 	}
@@ -404,12 +411,6 @@ submit_request(WrenVM *vm, const struct st_wren_sftp_request *request)
 			    "SFTP provider reused a pending request ID", true);
 			return false;
 		}
-	}
-	pending->fiber = wrenGetSlotHandle(vm, 1);
-	if (pending->fiber == NULL) {
-		free(pending);
-		push_error(vm, 0, IO_ERROR_OUT_OF_MEMORY, 0, "Out of memory", true);
-		return false;
 	}
 	pending->id = id;
 	pending->next = connected->requests;
@@ -448,14 +449,40 @@ static void fn_sftp_pubdir(WrenVM *vm)
 static void fn_sftp_lname(WrenVM *vm)
 {
 	struct st_wren_connected *c = connected_from_vm(vm);
-	provider_string(vm, c == NULL ? NULL : c->provider.long_name_extension);
+	wrenSetSlotBool(vm, 0, c != NULL && c->provider.long_name_extension != NULL
+	    && c->provider.long_name_extension(c->provider.context));
+}
+
+static void fn_sftp_start(WrenVM *vm)
+{
+	const struct st_sftp_request request = {.operation = ST_SFTP_START};
+	(void)submit_request(vm, &request);
+}
+
+static void fn_host_ssh_public_key(WrenVM *vm)
+{
+	char *key = st_connection_ssh_public_key();
+	char *blob = key == NULL ? NULL : strchr(key, ' ');
+	if (blob == NULL) { free(key); wrenSetSlotNull(vm, 0); return; }
+	*blob++ = '\0';
+	char *end = strpbrk(blob, " \r\n");
+	if (end != NULL) *end = '\0';
+	wrenEnsureSlots(vm, 3);
+	wrenSetSlotNewMap(vm, 0);
+	wrenSetSlotString(vm, 1, "algo");
+	wrenSetSlotString(vm, 2, key);
+	wrenSetMapValue(vm, 0, 1, 2);
+	wrenSetSlotString(vm, 1, "blob");
+	wrenSetSlotString(vm, 2, blob);
+	wrenSetMapValue(vm, 0, 1, 2);
+	free(key);
 }
 
 static bool
-begin_path_request(WrenVM *vm, enum st_wren_sftp_operation operation,
+begin_path_request(WrenVM *vm, enum st_sftp_operation operation,
 	int path_slot)
 {
-	struct st_wren_sftp_request request = {.operation = operation};
+	struct st_sftp_request request = {.operation = operation};
 
 	if (!slot_path(vm, path_slot, &request.path)) {
 		st_wren_abort(vm, "SFTP: expected a path String without NUL");
@@ -465,24 +492,24 @@ begin_path_request(WrenVM *vm, enum st_wren_sftp_operation operation,
 }
 
 static void fn_sftp_realpath(WrenVM *vm)
-{ (void)begin_path_request(vm, ST_WREN_SFTP_REALPATH, 2); }
+{ (void)begin_path_request(vm, ST_SFTP_REALPATH, 2); }
 static void fn_sftp_stat(WrenVM *vm)
-{ (void)begin_path_request(vm, ST_WREN_SFTP_STAT, 2); }
+{ (void)begin_path_request(vm, ST_SFTP_STAT, 2); }
 static void fn_sftp_opendir(WrenVM *vm)
-{ (void)begin_path_request(vm, ST_WREN_SFTP_OPENDIR, 2); }
+{ (void)begin_path_request(vm, ST_SFTP_OPENDIR, 2); }
 static void fn_sftp_mkdir(WrenVM *vm)
-{ (void)begin_path_request(vm, ST_WREN_SFTP_MKDIR, 2); }
+{ (void)begin_path_request(vm, ST_SFTP_MKDIR, 2); }
 static void fn_sftp_rmdir(WrenVM *vm)
-{ (void)begin_path_request(vm, ST_WREN_SFTP_RMDIR, 2); }
+{ (void)begin_path_request(vm, ST_SFTP_RMDIR, 2); }
 static void fn_sftp_remove(WrenVM *vm)
-{ (void)begin_path_request(vm, ST_WREN_SFTP_REMOVE, 2); }
+{ (void)begin_path_request(vm, ST_SFTP_REMOVE, 2); }
 static void fn_sftp_descs(WrenVM *vm)
-{ (void)begin_path_request(vm, ST_WREN_SFTP_DESCRIPTIONS, 2); }
+{ (void)begin_path_request(vm, ST_SFTP_DESCRIPTIONS, 2); }
 
 static void
 fn_sftp_open(WrenVM *vm)
 {
-	struct st_wren_sftp_request request = {.operation = ST_WREN_SFTP_OPEN};
+	struct st_sftp_request request = {.operation = ST_SFTP_OPEN};
 	uint64_t flags;
 
 	if (!slot_path(vm, 2, &request.path) || !slot_u64(vm, 3, &flags)
@@ -495,9 +522,9 @@ fn_sftp_open(WrenVM *vm)
 }
 
 static void
-fn_sftp_handle_only(WrenVM *vm, enum st_wren_sftp_operation operation)
+fn_sftp_handle_only(WrenVM *vm, enum st_sftp_operation operation)
 {
-	struct st_wren_sftp_request request = {.operation = operation};
+	struct st_sftp_request request = {.operation = operation};
 	struct foreign_sftp_handle *handle;
 
 	if (!slot_handle(vm, 2, &request.handle)) {
@@ -505,18 +532,18 @@ fn_sftp_handle_only(WrenVM *vm, enum st_wren_sftp_operation operation)
 		return;
 	}
 	handle = wrenGetSlotForeign(vm, 2);
-	if (submit_request(vm, &request) && operation == ST_WREN_SFTP_CLOSE)
+	if (submit_request(vm, &request) && operation == ST_SFTP_CLOSE)
 		handle->active = false;
 }
 static void fn_sftp_readdir(WrenVM *vm)
-{ fn_sftp_handle_only(vm, ST_WREN_SFTP_READDIR); }
+{ fn_sftp_handle_only(vm, ST_SFTP_READDIR); }
 static void fn_sftp_close(WrenVM *vm)
-{ fn_sftp_handle_only(vm, ST_WREN_SFTP_CLOSE); }
+{ fn_sftp_handle_only(vm, ST_SFTP_CLOSE); }
 
 static void
 fn_sftp_read(WrenVM *vm)
 {
-	struct st_wren_sftp_request request = {.operation = ST_WREN_SFTP_READ};
+	struct st_sftp_request request = {.operation = ST_SFTP_READ};
 	uint64_t count;
 
 	if (!slot_handle(vm, 2, &request.handle)
@@ -532,7 +559,7 @@ fn_sftp_read(WrenVM *vm)
 static void
 fn_sftp_write(WrenVM *vm)
 {
-	struct st_wren_sftp_request request = {.operation = ST_WREN_SFTP_WRITE};
+	struct st_sftp_request request = {.operation = ST_SFTP_WRITE};
 	int size;
 
 	if (!slot_handle(vm, 2, &request.handle)
@@ -553,7 +580,7 @@ fn_sftp_write(WrenVM *vm)
 static void
 fn_sftp_rename(WrenVM *vm)
 {
-	struct st_wren_sftp_request request = {.operation = ST_WREN_SFTP_RENAME};
+	struct st_sftp_request request = {.operation = ST_SFTP_RENAME};
 
 	if (!slot_path(vm, 2, &request.path)
 	    || !slot_path(vm, 3, &request.second_path)) {
@@ -566,8 +593,8 @@ fn_sftp_rename(WrenVM *vm)
 static void
 fn_sftp_set_mtime(WrenVM *vm)
 {
-	struct st_wren_sftp_request request = {
-		.operation = ST_WREN_SFTP_SET_MTIME,
+	struct st_sftp_request request = {
+		.operation = ST_SFTP_SET_MTIME,
 	};
 
 	if (!slot_path(vm, 2, &request.path)
@@ -598,8 +625,9 @@ static void fn_stat_gid(WrenVM *vm)
 static void fn_stat_string(WrenVM *vm)
 {
 	char value[96];
-	(void)snprintf(value, sizeof(value), "SFTPStat(size=%llu)",
-	    (unsigned long long)stat_value(vm)->value.size);
+	const struct st_sftp_stat *s = &stat_value(vm)->value;
+	(void)snprintf(value, sizeof(value), "SFTPStat(size=%llu, mode=0%o, mtime=%lld)",
+	    (unsigned long long)s->size, (unsigned)s->mode, (long long)s->modified_time);
 	wrenSetSlotString(vm, 0, value);
 }
 
@@ -627,7 +655,11 @@ static void fn_entry_hash(WrenVM *vm)
 	else wrenSetSlotBytes(vm, 0, entry->hash, entry->hash_size);
 }
 static void fn_entry_string(WrenVM *vm)
-{ wrenSetSlotString(vm, 0, entry_value(vm)->name); }
+{
+	struct foreign_sftp_entry *e = entry_value(vm);
+	wrenSetSlotString(vm, 0, e->long_name != NULL && e->long_name[0] != '\0'
+	    ? e->long_name : e->name != NULL && e->name[0] != '\0' ? e->name : "SFTPEntry");
+}
 
 static struct foreign_sftp_error *
 error_value(WrenVM *vm) { return wrenGetSlotForeign(vm, 0); }
@@ -646,9 +678,10 @@ static void fn_error_string(WrenVM *vm)
 {
 	struct foreign_sftp_error *error = error_value(vm);
 	char value[256];
-	(void)snprintf(value, sizeof(value), "SFTPError %d/%u: %s",
-	    error->code, error->server_status,
-	    error->message == NULL ? "operation failed" : error->message);
+	const char *name = st_sftp_error_name(error->code, error->server_status);
+	(void)snprintf(value, sizeof(value), "SFTPError: %s%s%s", name,
+	    error->message == NULL || error->message[0] == '\0' ? "" : ": ",
+	    error->message == NULL ? "" : error->message);
 	wrenSetSlotString(vm, 0, value);
 }
 
@@ -980,6 +1013,8 @@ fn_hook_every(WrenVM *vm)
 
 static const struct sftp_binding bindings[] = {
 	{"SFTP", true, "available", fn_sftp_available},
+	{"SFTP", true, "start(_)", fn_sftp_start},
+	{"Host", true, "sshPublicKey", fn_host_ssh_public_key},
 	{"SFTP", true, "pubdir", fn_sftp_pubdir},
 	{"SFTP", true, "lname", fn_sftp_lname},
 	{"SFTP", true, "realpath(_,_)", fn_sftp_realpath},
@@ -1098,34 +1133,37 @@ take_request(struct st_wren_connected *connected, uint64_t id)
 
 static bool
 push_response(WrenVM *vm, int slot,
-	const struct st_wren_sftp_response *response)
+	const struct st_sftp_response *response)
 {
 	switch (response->kind) {
-	case ST_WREN_SFTP_RESULT_OK:
+	case ST_SFTP_RESULT_STARTED:
+		wrenSetSlotBool(vm, slot, true);
+		return true;
+	case ST_SFTP_RESULT_OK:
 		wrenSetSlotNull(vm, slot);
 		return true;
-	case ST_WREN_SFTP_RESULT_EOF:
+	case ST_SFTP_RESULT_EOF:
 		wrenSetSlotNull(vm, slot);
 		return true;
-	case ST_WREN_SFTP_RESULT_STRING:
-	case ST_WREN_SFTP_RESULT_BYTES:
+	case ST_SFTP_RESULT_STRING:
+	case ST_SFTP_RESULT_BYTES:
 		wrenSetSlotBytes(vm, slot, response->data, response->size);
 		return true;
-	case ST_WREN_SFTP_RESULT_HANDLE: {
+	case ST_SFTP_RESULT_HANDLE: {
 		struct foreign_sftp_handle *handle;
 		wrenEnsureSlots(vm, slot + 2);
 		wrenGetVariable(vm, "syncterm", "SFTPHandle", slot + 1);
 		handle = wrenSetSlotNewForeign(vm, slot, slot + 1,
 		    sizeof(*handle));
 		*handle = (struct foreign_sftp_handle){
-			.magic = ST_WREN_SFTP_HANDLE_MAGIC,
+			.magic = ST_SFTP_HANDLE_MAGIC,
 			.connected = connected_from_vm(vm),
 			.value = response->handle,
 			.active = true,
 		};
 		return true;
 	}
-	case ST_WREN_SFTP_RESULT_STAT: {
+	case ST_SFTP_RESULT_STAT: {
 		struct foreign_sftp_stat *stat;
 		wrenEnsureSlots(vm, slot + 2);
 		wrenGetVariable(vm, "syncterm", "SFTPStat", slot + 1);
@@ -1133,11 +1171,11 @@ push_response(WrenVM *vm, int slot,
 		stat->value = response->stat;
 		return true;
 	}
-	case ST_WREN_SFTP_RESULT_ENTRIES:
+	case ST_SFTP_RESULT_ENTRIES:
 		wrenEnsureSlots(vm, slot + 3);
 		wrenSetSlotNewList(vm, slot);
 		for (size_t i = 0; i < response->entry_count; ++i) {
-			const struct st_wren_sftp_entry *source = &response->entries[i];
+			const struct st_sftp_entry *source = &response->entries[i];
 			struct foreign_sftp_entry *entry;
 			wrenGetVariable(vm, "syncterm", "SFTPEntry", slot + 2);
 			entry = wrenSetSlotNewForeign(vm, slot + 1, slot + 2,
@@ -1166,7 +1204,7 @@ push_response(WrenVM *vm, int slot,
 			wrenInsertInList(vm, slot, -1, slot + 1);
 		}
 		return true;
-	case ST_WREN_SFTP_RESULT_ERROR:
+	case ST_SFTP_RESULT_ERROR:
 		push_error(vm, slot, response->error_code, response->server_status,
 		    response->message, response->transient);
 		return true;
@@ -1176,7 +1214,7 @@ push_response(WrenVM *vm, int slot,
 
 static int
 deliver_response(struct st_wren_connected *connected,
-	const struct st_wren_sftp_response *response)
+	const struct st_sftp_response *response)
 {
 	struct pending_request *pending = take_request(connected,
 	    response->request_id);
@@ -1765,6 +1803,13 @@ st_wren_connected_destroy(st_wren_connected_t *connected)
 }
 
 bool
+st_wren_connected_auxiliary_active(const st_wren_connected_t *connected)
+{
+	return connected != NULL && !connected->shutting_down
+	    && (connected->context.cterm_sftp_active || connected->requests != NULL);
+}
+
+bool
 st_wren_connected_capture_active(const st_wren_connected_t *connected)
 {
 	return connected != NULL && connected->capture_stream != NULL;
@@ -1882,7 +1927,7 @@ fire_interval_hooks(st_wren_connected_t *connected, uint64_t now)
 int
 st_wren_connected_pump(st_wren_connected_t *connected, uint32_t timeout_ms)
 {
-	struct st_wren_sftp_response response;
+	struct st_sftp_response response;
 	int status;
 	bool first = true;
 	uint64_t now;
@@ -1913,18 +1958,17 @@ st_wren_connected_pump(st_wren_connected_t *connected, uint32_t timeout_ms)
 		}
 	}
 	if (connected->provider.poll != NULL) {
-		do {
-			status = connected->provider.poll(connected->provider.context,
+		/* Drain a bounded batch without replacing poll's readiness result
+		 * with deliver_response's zero-on-success status. */
+		for (unsigned batch = 0; batch < 256; ++batch) {
+			int polled = connected->provider.poll(connected->provider.context,
 			    &response, first ? timeout_ms : 0);
 			first = false;
-			if (status < 0)
-				return status;
-			if (status > 0) {
-				status = deliver_response(connected, &response);
-				if (status != 0)
-					return status;
-			}
-		} while (status > 0);
+			if (polled < 0) return polled;
+			if (polled == 0) break;
+			status = deliver_response(connected, &response);
+			if (status != 0) return status;
+		}
 	}
 	status = deliver_timers(connected);
 	if (status == 0)

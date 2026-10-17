@@ -459,6 +459,16 @@ test_remote_disconnect(void)
 		CHECK(st_term_session_pump(session, &disposition, &finished) == 0);
 	CHECK(finished && disposition == ST_TERM_RETURN_TO_PICKER);
 	CHECK(st_term_session_remote_closed(session));
+	/* Auxiliary work can retain a terminal after EOF, and releasing its
+	 * owner-thread hold must take the ordinary return-to-picker path. */
+	st_term_session_set_auxiliary_active(session, true);
+	/* A final queued terminal query has no shell to reply to. It must not
+	 * turn EOF into an output failure that kills side-band work. */
+	size_t written;
+	CHECK(st_cterm_write(st_term_session_cterm(session), "\x1b[5n", 4, &written) == 0 && written == 4);
+	CHECK(st_term_session_pump(session, &disposition, &finished) == 0 && !finished);
+	st_term_session_set_auxiliary_active(session, false);
+	CHECK(st_term_session_pump(session, &disposition, &finished) == 0 && finished);
 	struct st_console_cell *before = NULL, *after = NULL;
 	uint32_t before_columns;
 	size_t before_rows;

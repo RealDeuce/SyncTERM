@@ -24,6 +24,10 @@ struct st_connection_queue {
 };
 
 struct st_connection_transport_ops {
+	/* SSH may retain side-band channels after its terminal EOF. */
+	bool retain_after_eof;
+	const struct st_sftp_provider *(*sftp)(void *state);
+	bool (*auxiliary_alive)(void *state);
 	void (*bind)(void *state, st_connection_t *connection);
 	ssize_t (*read)(void *state, void *data, size_t size, int64_t timeout_ms);
 	ssize_t (*write)(void *state, const void *data, size_t size,

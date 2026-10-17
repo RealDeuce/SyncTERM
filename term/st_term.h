@@ -18,6 +18,8 @@
 #include <stddef.h>
 
 typedef struct st_term_session st_term_session_t;
+/* Owner-thread keep-alive for side-band work after terminal EOF. */
+void st_term_session_set_auxiliary_active(st_term_session_t *session, bool active);
 
 enum st_term_disposition {
 	ST_TERM_RETURN_TO_PICKER,

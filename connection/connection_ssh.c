@@ -6,6 +6,7 @@
 #include "string_compat.h"
 #include "xp_crypto.h"
 #include "xp_digest.h"
+#include "client.h"
 #include <deucessh.h>
 #include <deucessh-algorithms.h>
 #include <deucessh-auth.h>
@@ -24,6 +25,8 @@ struct ssh_transport {
 	struct st_connection_stream stream;
 	dssh_session session;
 	dssh_channel channel;
+	dssh_channel sftp_channel; /* SFTP worker only; session cleanup owns storage */
+	struct st_sftp_client *sftp;
 	const struct st_profile *profile; /* setup only */
 	const struct st_connection_hooks *hooks; /* setup only */
 	atomic_bool setup_complete;
@@ -589,6 +592,7 @@ ssh_destroy(void *state)
 {
 	struct ssh_transport *t = state;
 	ssh_interrupt(t);
+	st_sftp_client_destroy(t->sftp);
 	if (t->session != NULL) dssh_session_cleanup(t->session);
 	while (t->notices != NULL) {
 		struct ssh_notice *next = t->notices->next;
@@ -609,7 +613,79 @@ ssh_resize(void *state, const struct st_screen_geometry *geometry)
 	    geometry->rows, geometry->pixel_width, geometry->pixel_height) == 0
 	    ? 0 : IO_ERROR_IO;
 }
+static int
+sftp_open_channel(void *context)
+{
+	struct ssh_transport *t = context;
+	struct dssh_chan_params params = {0};
+	int status = dssh_chan_params_init(&params, DSSH_CHAN_SUBSYSTEM);
+	if (status == 0) status = dssh_chan_params_set_subsystem(&params, "sftp");
+	if (status == 0) t->sftp_channel = dssh_chan_open(t->session, &params);
+	dssh_chan_params_free(&params);
+	return t->sftp_channel == NULL ? IO_ERROR_NOT_SUPPORTED : 0;
+}
+static ssize_t
+sftp_read_channel(void *context, void *data, size_t size, int timeout)
+{
+	struct ssh_transport *t = context;
+	int events = dssh_chan_poll(t->sftp_channel, DSSH_POLL_READ, timeout);
+	if (events < 0) return IO_ERROR_CONNECTION_RESET;
+	if ((events & DSSH_POLL_READ) == 0) return IO_ERROR_WOULD_BLOCK;
+	int64_t n = dssh_chan_read(t->sftp_channel, 0, data, size);
+	return n == DSSH_ERROR_NOMORE ? IO_ERROR_WOULD_BLOCK
+	    : n < 0 ? IO_ERROR_CONNECTION_RESET : (ssize_t)n;
+}
+static ssize_t
+sftp_send_channel(void *context, const void *data, size_t size)
+{
+	struct ssh_transport *t = context;
+	int events = dssh_chan_poll(t->sftp_channel, DSSH_POLL_WRITE, 0);
+	if (events < 0) return IO_ERROR_CONNECTION_RESET;
+	if ((events & DSSH_POLL_WRITE) == 0) return IO_ERROR_WOULD_BLOCK;
+	int64_t n = dssh_chan_write(t->sftp_channel, 0, data, size);
+	return n < 0 ? IO_ERROR_CONNECTION_RESET : (ssize_t)n;
+}
+static void
+sftp_close_channel(void *context)
+{
+	struct ssh_transport *t = context;
+	(void)dssh_chan_close(t->sftp_channel, -1);
+	t->sftp_channel = NULL;
+}
+static void
+sftp_log(void *context, const char *message)
+{
+	struct ssh_transport *t = context;
+	st_connection_log_hooks(&t->ui_hooks, "SFTP", ST_CONNECTION_LOG_DEBUG, "%s", message);
+}
+static const struct st_sftp_provider *
+ssh_sftp(void *state)
+{ return st_sftp_client_provider(((struct ssh_transport *)state)->sftp); }
+static bool
+ssh_auxiliary_alive(void *state)
+{ return !dssh_session_is_terminated(((struct ssh_transport *)state)->session); }
+char *
+st_connection_ssh_public_key(void)
+{
+	st_call_once(&init_once, initialize_mutex);
+	if (!init_mutex_valid) return NULL;
+	(void)st_mutex_lock(&init_mutex);
+	if (!algorithms_ready || initialization_status != 0) {
+		(void)st_mutex_unlock(&init_mutex);
+		return NULL;
+	}
+	int size = dssh_ed25519_get_pub_str(NULL, 0);
+	char *key = size <= 0 ? NULL : malloc((size_t)size + 1);
+	if (key != NULL) {
+		if (dssh_ed25519_get_pub_str(key, (size_t)size + 1) < 0) { free(key); key = NULL; }
+		else key[size] = '\0';
+	}
+	(void)st_mutex_unlock(&init_mutex);
+	return key;
+}
 static const struct st_connection_transport_ops operations = {
+	.retain_after_eof = true, .sftp = ssh_sftp,
+	.auxiliary_alive = ssh_auxiliary_alive,
 	.read = ssh_read, .write = ssh_write, .interrupt = ssh_interrupt,
 	.destroy = ssh_destroy, .update_terminal_size = ssh_resize,
 	.process_requests = ssh_process_requests,
@@ -782,5 +858,10 @@ st_connection_connect_ssh(st_connection_t **result, const struct st_profile *pro
 		return result_status;
 	}
 	t->profile = &t->identity;
+	const struct st_sftp_io sftp_io = {.context = t, .open = sftp_open_channel,
+	    .read = sftp_read_channel, .write = sftp_send_channel,
+	    .close = sftp_close_channel, .log = sftp_log};
+	status = st_sftp_client_create(&t->sftp, &sftp_io);
+	if (status != 0) { ssh_destroy(t); return status; }
 	return st_connection_start(result, t, &operations, "SSH", hooks, NULL, error);
 }

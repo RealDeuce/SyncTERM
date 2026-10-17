@@ -14,28 +14,42 @@
 // these hooks are entry-only; mode switching while the App is up
 // is handled inside SftpApp.
 
-import "syncterm"  for Hook, Key, SFTP
+import "syncterm"  for BBS, ConnType, Hook, Key, Screen, SFTP, SFTPError
+import "ui_app" for App
+import "ui_popup" for Alert
 import "sftp_queue" for SftpQueue
 import "sftp_app"  for SftpApp
 
-if (SFTP.available) {
+if (SFTP.available || BBS.connType == ConnType.ssh || BBS.connType == ConnType.sshNoAuth) {
   SftpQueue.start()
+  var browserOpening = false
 
   // Alt-S → enter SFTP UI in browser mode.  Spawned in its own
   // fiber so the hook callback returns synchronously (Hook.dispatch_
   // contract); the spawned fiber pushes its own input claim and
   // parks until the user exits.
   Hook.onKey(Key.altS) {|k|
-    if (!SFTP.available) return false
     if (SftpApp.current != null) return false
-    Fiber.new { SftpApp.new("browser").run() }.call()
+    if (browserOpening) return true
+    browserOpening = true
+    Fiber.new {
+      var ready = SFTP.start(Fiber.current) || Fiber.yield()
+      browserOpening = false
+      if (SftpApp.current != null) return
+      if (ready is SFTPError) {
+        Screen.modalRun(Fn.new {
+          Alert.runStandalone(App.new(), "SFTP", ready.toString)
+        })
+      } else {
+        SftpApp.new("browser").run()
+      }
+    }.call()
     return true
   }
 
   // Alt-Q → enter SFTP UI in queue mode.  Same shape as Alt-S;
   // only the initial mode differs.
   Hook.onKey(Key.altQ) {|k|
-    if (!SFTP.available) return false
     if (SftpApp.current != null) return false
     Fiber.new { SftpApp.new("queue").run() }.call()
     return true

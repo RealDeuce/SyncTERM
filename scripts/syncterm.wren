@@ -1951,6 +1951,8 @@ foreign class TimerElapsed {}
 // readdir returns null at EOF; call SFTP.close yourself when done
 // with a handle.
 class SFTP {
+  // Opens the subsystem only on demand; queued completion is true or SFTPError.
+  foreign static start(fiber)
   foreign static available
   foreign static pubdir
   foreign static lname

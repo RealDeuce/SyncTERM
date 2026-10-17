@@ -549,6 +549,7 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 			.host = host,
 			.console = console,
 			.profile = profile,
+			.sftp = st_connection_sftp(connection),
 			.cterm = st_term_session_cterm(session),
 			.connection = connection,
 			.session = session,
@@ -573,9 +574,15 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 			uint64_t now;
 			bool show_status;
 
+			st_term_session_set_auxiliary_active(session,
+			    st_connection_auxiliary_alive(connection)
+			    && st_wren_connected_auxiliary_active(connected));
 			status = st_term_session_pump(session, disposition, &finished);
 			if (!shell_close_notified
-			    && profile->connection_type == ST_CONNECTION_SHELL
+			    && (profile->connection_type == ST_CONNECTION_SHELL
+			    || ((profile->connection_type == ST_CONNECTION_SSH
+			    || profile->connection_type == ST_CONNECTION_SSH_NO_AUTH)
+			    && st_connection_auxiliary_alive(connection)))
 			    && !st_connection_is_connected(connection)) {
 				int hook_status = st_wren_connected_shell_closed(connected);
 

@@ -1,6 +1,12 @@
 /* Copyright (c) 2026 Stephen Hurd
  * SPDX-License-Identifier: BSD-2-Clause */
 #include "connection_internal.h"
+
+char *st_connection_ssh_public_key(void)
+{
+	return NULL;
+}
+
 int
 st_connection_connect_ssh(st_connection_t **result,
 	const struct st_profile *profile, const struct st_screen_geometry *current,

@@ -59,7 +59,7 @@ The provider-neutral SFTP interface is asynchronous:
 * `submit` must copy every request pointer before returning and issue an ID
   unique among unpolled requests.
 * `poll` returns one response, no response, or an error.  Every pointer in a
-  response is borrowed only for that `poll` call.
+  response is borrowed until the next `poll` call or provider destruction.
 * `cancel_all` is the shutdown boundary.  The provider context remains owned
   by the connection layer.
 

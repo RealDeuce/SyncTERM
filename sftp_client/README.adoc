@@ -1,0 +1,16 @@
+= SFTP client extraction
+
+The internal packet, string, attribute, extension, outcome, and asynchronous
+request engine comes from Synchronet's `src/sftp` implementation by Stephen
+Hurd, the implementation used by the SyncTERM v1.10a reference. The original
+source had no separate per-file license notices. No server dispatcher or
+legacy portability implementation is included here.
+
+The extraction retains wire formats and request semantics. It uses
+`st_threads.h`, explicit byte-order conversion, checked packet bounds, and
+client-only teardown. `client.c` adds connection-owned queued operation and
+completion ownership; `st_sftp.h` is shared by the SSH transport and Wren host
+without making either subsystem depend on the other.
+
+See `HACKING.adoc`'s networking API chapter and `Wren.adoc`'s SFTP chapter for
+ownership, lazy startup, and lifecycle contracts.

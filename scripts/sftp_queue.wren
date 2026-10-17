@@ -19,6 +19,7 @@
 import "syncterm" for Cache, CTerm, Download, File, FileError, FileFlag,
                        Format, Host, SFTP, SFTPError, SFTPStat, Timer,
 					   Wake, WON, WONError
+import "sftp_activity" for SftpActivity
 
 // One in-flight or terminal-state job.  Mutable in place; serialized
 // from `persistNow_()`.  `cancel` is the volatile flag the workers
@@ -321,6 +322,7 @@ class SftpQueue {
 	__nextId      = 1
 	__fatal       = false
     __running     = true
+    __workersStarted = false
     __suspended   = false
     __shellClosed = false
     // Adaptive sizing state.  Null until the first chunk completes
@@ -335,7 +337,6 @@ class SftpQueue {
 	  return
 	}
     signalActive_()
-    spawnWorkers_()
   }
 
   // Save and clear.  Called from the disconnect path; subsequent
@@ -352,7 +353,7 @@ class SftpQueue {
     __jobs        = []
     Host.uploadArrow   = false
     Host.downloadArrow = false
-    CTerm.sftpActive   = false
+    SftpActivity.set("queue", false)
   }
 
   // Halt workers without touching job state.  Workers see __suspended
@@ -391,10 +392,21 @@ class SftpQueue {
   // and we want the disconnect path to proceed.
   static signalActive_() {
     if (__suspended) {
-      CTerm.sftpActive = false
+      SftpActivity.set("queue", false)
       return
     }
-    CTerm.sftpActive = hasWork
+    SftpActivity.set("queue", hasWork)
+    if (hasWork && !__workersStarted && !__fatal) {
+      __workersStarted = true
+      Fiber.new {
+        var ready = SFTP.start(Fiber.current) || Fiber.yield()
+        if (ready is SFTPError) {
+          suspend()
+          return
+        }
+        if (__running && !__suspended) spawnWorkers_()
+      }.call()
+    }
   }
 
   // ----- public state queries ----------------------------------------

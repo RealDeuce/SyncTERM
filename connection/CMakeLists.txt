@@ -46,6 +46,10 @@ if(NOT TARGET st_time)
 	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../time"
 		"${CMAKE_CURRENT_BINARY_DIR}/time")
 endif()
+if(NOT TARGET st_sftp_client)
+	add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/../sftp_client"
+		"${CMAKE_CURRENT_BINARY_DIR}/sftp_client")
+endif()
 if(NOT TARGET st_tls)
 	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../xptls"
 		"${CMAKE_CURRENT_BINARY_DIR}/xptls")
@@ -225,7 +229,7 @@ target_include_directories(st_connection
 		${PROJECT_BINARY_DIR}
 	PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_link_libraries(st_connection
-	PUBLIC syncterm_io_error st_profile
+	PUBLIC syncterm_io_error st_profile st_sftp_client
 	PRIVATE syncterm_socket syncterm_tcp_client st_serial
 		syncterm_threads st_settings st_time
 		st_tls xptls_crypto syncterm_string_compat
@@ -255,14 +259,18 @@ st_connection_warnings(st_connection)
 if(BUILD_TESTING)
 	if(NOT WIN32)
 		if(ST_DEUCESSH_TARGET)
-			add_executable(st_connection_ssh_fixture tests/st_connection_ssh_fixture.c)
+			if(NOT TARGET st_base64)
+				add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/../base64" "${CMAKE_CURRENT_BINARY_DIR}/base64")
+			endif()
+			add_executable(st_connection_ssh_fixture tests/st_connection_ssh_fixture.c
+				tests/st_connection_sftp_fixture.c)
 			target_link_libraries(st_connection_ssh_fixture PRIVATE
-				${ST_DEUCESSH_TARGET} syncterm_threads)
+				${ST_DEUCESSH_TARGET} syncterm_threads st_base64)
 			set_target_properties(st_connection_ssh_fixture PROPERTIES
 				C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 			st_connection_warnings(st_connection_ssh_fixture)
 			add_executable(st_connection_ssh_test tests/st_connection_ssh_test.c)
-			target_link_libraries(st_connection_ssh_test PRIVATE st_connection syncterm_string_compat)
+			target_link_libraries(st_connection_ssh_test PRIVATE st_connection syncterm_string_compat syncterm_threads)
 			set_target_properties(st_connection_ssh_test PROPERTIES
 				C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 			st_connection_warnings(st_connection_ssh_test)
@@ -339,6 +347,8 @@ if(BUILD_TESTING)
 	set_tests_properties(connection PROPERTIES TIMEOUT 15)
 	add_test(NAME connection_partial_input
 		COMMAND st_connection_test --partial-input)
+	add_test(NAME connection_auxiliary_close
+		COMMAND st_connection_test --auxiliary-close)
 	set_tests_properties(connection_partial_input PROPERTIES TIMEOUT 15)
 	if(WIN32 AND ST_CONNECTION_HAVE_CONPTY)
 		add_test(NAME connection_shell_shutdown

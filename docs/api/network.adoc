@@ -121,3 +121,46 @@ The connection library is a transport/service component; it does not itself
 run the terminal parser or connected-session application loop.  Keep screen
 geometry updates, Wren connected contexts, and terminal emulation coordinated
 by the application layer.
+
+=== Asynchronous SFTP client
+
+`st_sftp_client` owns the client-only SFTP v3 codec extracted from Synchronet
+and the queued provider contract in link:sftp_client/st_sftp.h[st_sftp.h].
+It has no SFTP server or Wren dependency. Its internal transport interface is
+link:sftp_client/client.h[client.h]; SSH channels remain private to
+`st_connection` and the external DeuceSSH dependency is unchanged.
+
+`st_connection_sftp(connection)` returns a borrowed provider for SSH, or NULL
+for other transports. It performs no I/O. Submitting `ST_SFTP_START` starts
+one owned worker and lazily opens the subsystem. Concurrent starts share the
+same negotiation; failure is retained for that connection. Other operations
+require successful startup. `available`, `public_directory`, and
+`long_name_extension` are synchronized, non-negotiating metadata queries.
+
+`submit(context, request, &id)` returns zero and an outstanding-request-unique
+ID, or `IO_ERROR_*`. It copies borrowed paths and write bytes before returning.
+`poll(context, &response, timeout_ms)` returns one completion, zero on timeout,
+or a negative error. Timeout zero polls; positive values bound the wait.
+Response pointers remain valid until the next poll or provider destruction.
+Call submit/poll/cancel on the owner thread; workers never enter the consumer.
+Opaque remote handles are represented by client-owned IDs, not pointers or
+Unicode strings. Writes must fit the 256 KiB packet bound including the
+21-byte body overhead and remote handle bytes. Read counts fit a wire uint32;
+servers may return shorter reads, and replies are bounded to 256 KiB packets.
+The shipped queue uses at most 30 KiB chunks.
+
+Creation starts neither a thread nor network I/O. Shutdown marks cancellation,
+interrupts the containing transport to release blocked channel setup, and
+joins the worker before destroying the SSH session. Terminal-channel EOF does
+not itself interrupt the SSH session; the application may continue side-band
+work until its activity holds drain. Explicit disconnect and session loss
+still terminate normally. Tests: `sftp_protocol`, `connection_ssh`, and
+`wren_sftp_live`, alongside the mock-provider queue tests in `wren_host`.
+
+`st_connection_ssh_public_key()` returns a malloc-owned OpenSSH
+public-key line for the key already loaded by SSH, or NULL; it never generates
+a key and returns NULL before key loading or in crypto-disabled builds.
+`st_connection_auxiliary_alive(connection)` reports whether SSH can still
+carry side-band work after terminal EOF, and is false for non-SSH transports.
+`st_sftp_error_name(code, server_status)` returns a
+static symbolic diagnostic name; it transfers no ownership.

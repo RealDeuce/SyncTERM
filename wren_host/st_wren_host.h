@@ -11,6 +11,7 @@
 #include "st_profile.h"
 #include "st_hyperlink.h"
 #include "st_cterm.h"
+#include "st_sftp.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -28,102 +29,13 @@ struct st_session_history;
 struct st_connection;
 struct st_term_session;
 
-enum st_wren_sftp_operation {
-	ST_WREN_SFTP_REALPATH,
-	ST_WREN_SFTP_STAT,
-	ST_WREN_SFTP_OPENDIR,
-	ST_WREN_SFTP_READDIR,
-	ST_WREN_SFTP_CLOSE,
-	ST_WREN_SFTP_OPEN,
-	ST_WREN_SFTP_READ,
-	ST_WREN_SFTP_WRITE,
-	ST_WREN_SFTP_MKDIR,
-	ST_WREN_SFTP_RMDIR,
-	ST_WREN_SFTP_REMOVE,
-	ST_WREN_SFTP_RENAME,
-	ST_WREN_SFTP_SET_MTIME,
-	ST_WREN_SFTP_DESCRIPTIONS,
-};
-
-struct st_wren_sftp_request {
-	enum st_wren_sftp_operation operation;
-	const char *path;
-	const char *second_path;
-	uint64_t handle;
-	uint64_t offset;
-	uint64_t modified_time;
-	uint32_t flags;
-	const void *data;
-	size_t size;
-};
-
-struct st_wren_sftp_stat {
-	uint64_t size;
-	int64_t modified_time;
-	int64_t accessed_time;
-	uint32_t mode;
-	uint32_t uid;
-	uint32_t gid;
-};
-
-struct st_wren_sftp_entry {
-	const char *name;
-	const char *long_name;
-	struct st_wren_sftp_stat stat;
-	bool directory;
-	bool has_long_description;
-	const void *hash;
-	size_t hash_size;
-};
-
-enum st_wren_sftp_result_kind {
-	ST_WREN_SFTP_RESULT_OK,
-	ST_WREN_SFTP_RESULT_EOF,
-	ST_WREN_SFTP_RESULT_STRING,
-	ST_WREN_SFTP_RESULT_BYTES,
-	ST_WREN_SFTP_RESULT_HANDLE,
-	ST_WREN_SFTP_RESULT_STAT,
-	ST_WREN_SFTP_RESULT_ENTRIES,
-	ST_WREN_SFTP_RESULT_ERROR,
-};
-
-/* Response pointers remain borrowed only for the duration of poll(). */
-struct st_wren_sftp_response {
-	uint64_t request_id;
-	enum st_wren_sftp_result_kind kind;
-	const void *data;
-	size_t size;
-	uint64_t handle;
-	struct st_wren_sftp_stat stat;
-	const struct st_wren_sftp_entry *entries;
-	size_t entry_count;
-	int error_code;
-	uint32_t server_status;
-	const char *message;
-	bool transient;
-};
-
-struct st_wren_sftp_provider {
-	void *context;
-	bool (*available)(void *context);
-	const char *(*public_directory)(void *context);
-	const char *(*long_name_extension)(void *context);
-	/* submit() must copy every borrowed request pointer before returning and
-	 * return an ID unique among requests that have not yet been polled. */
-	int (*submit)(void *context, const struct st_wren_sftp_request *request,
-		uint64_t *request_id);
-	/* Returns one for a response, zero when none is ready, or an error. */
-	int (*poll)(void *context, struct st_wren_sftp_response *response,
-		uint32_t timeout_ms);
-	void (*cancel_all)(void *context);
-};
 
 struct st_wren_connected_config {
 	st_wren_host_t *host;
 	st_console_t *console;
 	const struct st_profile *profile;
 	/* NULL for connections without an SFTP provider. */
-	const struct st_wren_sftp_provider *sftp;
+	const struct st_sftp_provider *sftp;
 	/* Optional only for isolated binding tests. Borrowed for VM lifetime. */
 	st_cterm_t *cterm;
 	struct st_connection *connection;
@@ -232,6 +144,7 @@ char *st_wren_connected_status_details(st_wren_connected_t *connected);
 int st_wren_connected_interpret(st_wren_connected_t *connected,
 	const char *module, const char *source);
 int st_wren_connected_shell_closed(st_wren_connected_t *connected);
+bool st_wren_connected_auxiliary_active(const st_wren_connected_t *connected);
 int st_wren_connected_handle_key(st_wren_connected_t *connected,
 	uint16_t key, bool *consumed);
 int st_wren_connected_handle_event(st_wren_connected_t *connected,
