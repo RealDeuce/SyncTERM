@@ -1705,9 +1705,9 @@ static int process(struct state *s, struct command *c)
 		    || s->maximized
 		    ? s->windowed_height : s->window_height;
 
-		if (st_console_preserve_geometry_scale(&s->window_geometry, &next,
+		if (st_console_mode_change_size(&s->window_geometry, &next,
 		    current_width,
-		    current_height, &width, &height,
+		    current_height, s->bounds_width, s->bounds_height, &width, &height,
 		    &minimum_width, &minimum_height) != 0
 		    || width > INT32_MAX || height > INT32_MAX)
 			return IO_ERROR_OUT_OF_RANGE;

@@ -310,6 +310,14 @@ st_console_scaled_window_size(uint32_t source_width,
 	    aspect_width, aspect_height, width, height);
 }
 
+static bool
+geometry_width_controls(const struct st_console_bitmap_geometry *geometry)
+{
+	return geometry->aspect_width == 0
+	    || ((uint64_t)geometry->height * geometry->aspect_width
+	    + geometry->aspect_height / 2U) / geometry->aspect_height <= geometry->width;
+}
+
 int
 st_console_snap_geometry_size(const struct st_console_bitmap_geometry *geometry,
 	uint32_t current_width, uint32_t current_height, bool larger,
@@ -321,8 +329,8 @@ st_console_snap_geometry_size(const struct st_console_bitmap_geometry *geometry,
 	uint32_t scale;
 	uint32_t candidate_width;
 	uint32_t candidate_height;
-	uint64_t width_scale;
-	uint64_t height_scale;
+	uint32_t current;
+	uint32_t source;
 	uint32_t source_width;
 	uint32_t source_height;
 	uint32_t aspect_width;
@@ -340,10 +348,12 @@ st_console_snap_geometry_size(const struct st_console_bitmap_geometry *geometry,
 	    aspect_width, aspect_height, &minimum_width, &minimum_height);
 	if (status != 0)
 		return status;
-	width_scale = current_width / minimum_width;
-	height_scale = current_height / minimum_height;
-	scale = (uint32_t)(width_scale < height_scale
-	    ? width_scale : height_scale);
+	/* The controlling raster axis is exact at integer scales. Dividing
+	 * both axes by rounded 1x dimensions makes C64's 640x533 report 1x
+	 * (533 / 267), preventing the next snap from ever reaching 3x. */
+	current = geometry_width_controls(geometry) ? current_width : current_height;
+	source = geometry_width_controls(geometry) ? source_width : source_height;
+	scale = current / source;
 	if (scale < 1)
 		scale = 1;
 	if (larger) {
@@ -352,13 +362,7 @@ st_console_snap_geometry_size(const struct st_console_bitmap_geometry *geometry,
 		++scale;
 	}
 	else {
-		status = st_console_scaled_window_size(source_width,
-		    source_height, aspect_width, aspect_height, scale,
-		    &candidate_width, &candidate_height);
-		if (status != 0)
-			return status;
-		if (scale > 1 && candidate_width >= current_width
-		    && candidate_height >= current_height)
+		if (scale > 1 && current % source == 0)
 			--scale;
 	}
 	status = st_console_scaled_window_size(source_width, source_height,
@@ -374,6 +378,95 @@ st_console_snap_geometry_size(const struct st_console_bitmap_geometry *geometry,
 	}
 	*width = candidate_width;
 	*height = candidate_height;
+	return 0;
+}
+
+static long double
+window_diagonal_squared(uint32_t width, uint32_t height)
+{
+	return (long double)width * width + (long double)height * height;
+}
+
+int
+st_console_mode_change_size(const struct st_console_bitmap_geometry *previous,
+	const struct st_console_bitmap_geometry *next,
+	uint32_t current_width, uint32_t current_height,
+	uint32_t maximum_width, uint32_t maximum_height,
+	uint32_t *width, uint32_t *height,
+	uint32_t *minimum_width, uint32_t *minimum_height)
+{
+	uint32_t old_width, old_height, lower_width, lower_height;
+	uint32_t upper_width, upper_height;
+	uint64_t first, last, quantum;
+	double old_scale, delta;
+	long double target, lower_score, upper_score;
+	int status;
+
+	if (previous == NULL || next == NULL || current_width == 0
+	    || current_height == 0 || width == NULL || height == NULL
+	    || minimum_width == NULL || minimum_height == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	status = st_console_aspect_correct_size(previous->width, previous->height,
+	    previous->aspect_width, previous->aspect_height, &old_width, &old_height);
+	if (status == 0)
+		status = st_console_aspect_correct_size(next->width, next->height,
+		    next->aspect_width, next->aspect_height, minimum_width, minimum_height);
+	if (status != 0)
+		return status;
+	old_scale = geometry_width_controls(previous)
+	    ? (double)current_width / previous->width
+	    : (double)current_height / previous->height;
+	delta = old_scale - (uint64_t)(old_scale + 0.5);
+	if (delta < 0)
+		delta = -delta;
+	/* v1.10a retains integer/fractional scaling preference and chooses
+	 * the closest squared window diagonal, not the old pixel multiplier.
+	 * Its fractional search terminates at a 2^-15 scale step. */
+	quantum = delta < 0.0125 ? 1 : UINT64_C(32768);
+	first = quantum;
+	last = (uint64_t)UINT32_MAX * quantum;
+	if (maximum_width != 0 && maximum_width < *minimum_width)
+		maximum_width = *minimum_width;
+	if (maximum_height != 0 && maximum_height < *minimum_height)
+		maximum_height = *minimum_height;
+	target = window_diagonal_squared(current_width, current_height);
+	/* Search the scale grid without a loop proportional to the requested
+	 * window size. Rounding the aspect-corrected dimensions stays monotone. */
+	while (first < last) {
+		uint64_t middle = first + (last - first + 1) / 2;
+		uint32_t w, h;
+		status = st_console_scaled_window_size(next->width, next->height,
+		    next->aspect_width, next->aspect_height, (double)middle / quantum, &w, &h);
+		if (status == 0 && (maximum_width == 0 || w <= maximum_width)
+		    && (maximum_height == 0 || h <= maximum_height)
+		    && window_diagonal_squared(w, h) <= target)
+			first = middle;
+		else
+			last = middle - 1;
+	}
+	status = st_console_scaled_window_size(next->width, next->height,
+	    next->aspect_width, next->aspect_height, (double)first / quantum,
+	    &lower_width, &lower_height);
+	if (status != 0)
+		return status;
+	lower_score = window_diagonal_squared(lower_width, lower_height) - target;
+	if (lower_score < 0)
+		lower_score = -lower_score;
+	status = st_console_scaled_window_size(next->width, next->height,
+	    next->aspect_width, next->aspect_height, (double)(first + 1) / quantum,
+	    &upper_width, &upper_height);
+	if (status == 0 && (maximum_width == 0 || upper_width <= maximum_width)
+	    && (maximum_height == 0 || upper_height <= maximum_height)) {
+		upper_score = window_diagonal_squared(upper_width, upper_height) - target;
+		if (upper_score < 0)
+			upper_score = -upper_score;
+		if (upper_score < lower_score) {
+			lower_width = upper_width;
+			lower_height = upper_height;
+		}
+	}
+	*width = lower_width;
+	*height = lower_height;
 	return 0;
 }
 

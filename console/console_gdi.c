@@ -806,13 +806,28 @@ process_command(struct gdi_state *state, struct command *command)
 			state->console->aspect_width, state->console->aspect_height};
 		uint32_t width;
 		uint32_t height;
+		uint32_t maximum_width = 0, maximum_height = 0;
+		MONITORINFO information = {.cbSize = sizeof(information)};
+		RECT border = {0};
+		DWORD window_style = state->fullscreen ? state->style
+		    : (DWORD)GetWindowLongPtrW(state->window, GWL_STYLE);
 		uint32_t current_width = state->fullscreen || state->maximized
 		    ? state->windowed_client_width : state->client_width;
 		uint32_t current_height = state->fullscreen || state->maximized
 		    ? state->windowed_client_height : state->client_height;
 
-		if (st_console_preserve_geometry_scale(&state->window_geometry, &next,
-		    current_width, current_height, &width, &height,
+		if (GetMonitorInfoW(MonitorFromWindow(state->window,
+		    MONITOR_DEFAULTTONEAREST), &information)
+		    && AdjustWindowRectEx(&border, window_style, FALSE, 0)) {
+			LONG w = information.rcWork.right - information.rcWork.left
+			    - (border.right - border.left);
+			LONG h = information.rcWork.bottom - information.rcWork.top
+			    - (border.bottom - border.top);
+			if (w > 0) maximum_width = (uint32_t)w;
+			if (h > 0) maximum_height = (uint32_t)h;
+		}
+		if (st_console_mode_change_size(&state->window_geometry, &next,
+		    current_width, current_height, maximum_width, maximum_height, &width, &height,
 		    &state->minimum_client_width,
 		    &state->minimum_client_height) != 0
 		    || width > LONG_MAX || height > LONG_MAX) {

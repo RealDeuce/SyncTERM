@@ -424,6 +424,38 @@ test_initial_window_geometry(void)
 	CHECK(st_console_snap_geometry_size(&geometry, 1280, 960, true, 1500, 1000,
 	    &width, &height) == 0);
 	CHECK(width == 1280 && height == 960);
+	{
+		const struct st_console_bitmap_geometry c64 = {320, 200, 6, 5};
+		double scaling;
+		CHECK(st_console_scaled_window_size(320, 200, 6, 5, 1,
+		    &width, &height) == 0 && width == 320 && height == 267);
+		CHECK(st_console_scaled_window_size(320, 200, 6, 5, 2,
+		    &width, &height) == 0 && width == 640 && height == 533);
+		CHECK(st_console_snap_geometry_size(&c64, 640, 533, true,
+		    1920, 1080, &width, &height) == 0);
+		if (width != 960 || height != 800)
+			fprintf(stderr, "C64 2x -> 3x: expected 960x800, got %ux%u\n", width, height);
+		CHECK(width == 960 && height == 800);
+		CHECK(st_console_snap_geometry_size(&c64, 960, 800, true,
+		    1920, 1080, &width, &height) == 0 && width == 1280 && height == 1067);
+		CHECK(st_console_snap_geometry_size(&c64, 1280, 1067, false,
+		    1920, 1080, &width, &height) == 0 && width == 960 && height == 800);
+		CHECK(st_console_snap_geometry_size(&c64, 960, 800, true,
+		    1920, 1040, &width, &height) == 0 && width == 960 && height == 800);
+		CHECK(st_console_snap_geometry_size(&c64, 800, 667, false,
+		    1920, 1080, &width, &height) == 0 && width == 640 && height == 533);
+		CHECK(st_console_bitmap_geometry_scaling(&c64, 640, 533, &scaling) == 0
+		    && scaling == 2.0);
+		CHECK(st_console_bitmap_geometry_scaling(&c64, 960, 800, &scaling) == 0
+		    && scaling == 3.0);
+	}
+	{
+		const struct st_console_bitmap_geometry portrait = {200, 320, 5, 6};
+		CHECK(st_console_snap_geometry_size(&portrait, 533, 640, true,
+		    1080, 1920, &width, &height) == 0 && width == 800 && height == 960);
+		CHECK(st_console_snap_geometry_size(&portrait, 800, 960, false,
+		    1080, 1920, &width, &height) == 0 && width == 533 && height == 640);
+	}
 	st_console_destroy(console);
 	config_display.initial_scaling = 0;
 	config_display.initial_window_width = 700;
@@ -432,6 +464,51 @@ test_initial_window_geometry(void)
 	CHECK(console->display->initial_window_width == 700);
 	CHECK(console->display->initial_window_height == 480);
 	st_console_destroy(console);
+}
+
+static void
+test_mode_change_geometry(void)
+{
+	const struct st_console_bitmap_geometry pc = {640, 400, 4, 3};
+	const struct st_console_bitmap_geometry c64 = {320, 200, 6, 5};
+	const struct st_console_bitmap_geometry prestel = {480, 500, 3077, 2400};
+	const struct st_console_bitmap_geometry lcd = {640, 400, 8, 5};
+	const struct {
+		const struct st_console_bitmap_geometry *previous, *next;
+		uint32_t current_width, current_height, maximum_width, maximum_height;
+		uint32_t width, height;
+	} cases[] = {
+		{&pc, &c64, 640, 480, 1920, 1080, 640, 533},
+		{&pc, &c64, 1280, 960, 1920, 1200, 1280, 1067},
+		{&pc, &c64, 1280, 960, 1920, 1040, 960, 800},
+		{&c64, &pc, 640, 533, 1920, 1080, 640, 480},
+		{&pc, &prestel, 640, 480, 1024, 768, 641, 500},
+		{&pc, &lcd, 640, 480, 1024, 768, 640, 400},
+		{&pc, &prestel, 800, 600, 1024, 768, 788, 615},
+		{&prestel, &pc, 788, 615, 1024, 768, 800, 600},
+		{&pc, &lcd, 800, 600, 1024, 768, 848, 530},
+		{&lcd, &pc, 848, 530, 1024, 768, 800, 600},
+		{&pc, &c64, 800, 600, 1024, 768, 768, 640},
+		{&c64, &pc, 768, 640, 1024, 768, 800, 600},
+		{&pc, &c64, 640, 480, 0, 0, 640, 533},
+		{&pc, &c64, 640, 480, 100, 100, 320, 267},
+	};
+
+	for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
+		uint32_t width, height, minimum_width, minimum_height;
+		CHECK(st_console_mode_change_size(cases[i].previous, cases[i].next,
+		    cases[i].current_width, cases[i].current_height,
+		    cases[i].maximum_width, cases[i].maximum_height, &width, &height,
+		    &minimum_width, &minimum_height) == 0);
+		if (width != cases[i].width || height != cases[i].height)
+			fprintf(stderr, "mode case %zu: expected %ux%u, got %ux%u\n", i,
+			    cases[i].width, cases[i].height, width, height);
+		CHECK(width == cases[i].width && height == cases[i].height);
+		CHECK(st_console_aspect_correct_size(cases[i].next->width,
+		    cases[i].next->height, cases[i].next->aspect_width,
+		    cases[i].next->aspect_height, &width, &height) == 0);
+		CHECK(width == minimum_width && height == minimum_height);
+	}
 }
 
 static void
@@ -879,6 +956,7 @@ main(void)
 	test_full_surface_scroll_right_strip();
 	test_indexed_pixel_palette_change();
 	test_initial_window_geometry();
+	test_mode_change_geometry();
 	test_mouse_coordinates();
 	test_default_cursor_scanlines();
 	test_legacy_bright_cursor_colour();

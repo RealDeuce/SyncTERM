@@ -1218,6 +1218,8 @@ process_command(struct sdl_command *command)
 		uint32_t height;
 		uint32_t minimum_width;
 		uint32_t minimum_height;
+		uint32_t maximum_width;
+		uint32_t maximum_height;
 
 		if (state->fullscreen || state->maximized) {
 			output_width = (int)state->windowed_width;
@@ -1227,9 +1229,10 @@ process_command(struct sdl_command *command)
 		    &output_width, &output_height) != 0 || output_width <= 0
 		    || output_height <= 0)
 			return IO_ERROR_IO;
-		if (st_console_preserve_geometry_scale(&state->window_geometry, &next,
+		display_pixel_bounds(state, &maximum_width, &maximum_height, NULL);
+		if (st_console_mode_change_size(&state->window_geometry, &next,
 		    (uint32_t)output_width,
-		    (uint32_t)output_height, &width, &height, &minimum_width,
+		    (uint32_t)output_height, maximum_width, maximum_height, &width, &height, &minimum_width,
 		    &minimum_height) != 0)
 			return IO_ERROR_OUT_OF_RANGE;
 		state->windowed_width = width;

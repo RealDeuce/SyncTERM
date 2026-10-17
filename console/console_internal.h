@@ -420,6 +420,14 @@ int st_console_preserve_geometry_scale(
 	uint32_t current_width, uint32_t current_height,
 	uint32_t *width, uint32_t *height,
 	uint32_t *minimum_width, uint32_t *minimum_height);
+/* Mode changes retain approximate physical size, as opposed to the
+ * continuous-resize fitting helper above. Zero limits mean unrestricted. */
+int st_console_mode_change_size(const struct st_console_bitmap_geometry *previous,
+	const struct st_console_bitmap_geometry *next,
+	uint32_t current_width, uint32_t current_height,
+	uint32_t maximum_width, uint32_t maximum_height,
+	uint32_t *width, uint32_t *height,
+	uint32_t *minimum_width, uint32_t *minimum_height);
 int st_console_bitmap_geometry_scaling(
 	const struct st_console_bitmap_geometry *geometry,
 	uint32_t output_width, uint32_t output_height, double *scaling);

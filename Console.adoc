@@ -532,6 +532,13 @@ maximization, and fullscreen.  Wayland also consumes Alt+left-drag for
 interactive movement.  These commands are not also delivered as application
 keys.
 
+Changing bitmap modes retains approximately the same window diagonal, choosing
+the closest scale that fits the current monitor.  Integer-scaled windows stay
+integer-scaled; manually sized windows retain fractional scaling.  The scale
+multiplier itself is not preserved across different native raster sizes.
+Scale shortcuts use the native raster's controlling axis, avoiding
+rounding errors in aspect-corrected dimensions such as C64's 640-by-533 2x size.
+
 Title and pointer visibility are retained per console and restored on
 activation.  Clipboard, URL, and fullscreen operations belong to the physical
 display; the single-console convenience calls forward to that display.  Each

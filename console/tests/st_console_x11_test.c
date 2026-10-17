@@ -106,8 +106,8 @@ wait_named_window(Display *display, Window parent, const char *wanted)
 }
 
 static int
-check_window_size(const char *title, int width, int height,
-	int minimum_width, int minimum_height)
+check_window_geometry(const char *title, int width, int height,
+	int minimum_width, int minimum_height, int aspect_width, int aspect_height)
 {
 	Display *display = XOpenDisplay(NULL);
 	Window window;
@@ -130,9 +130,17 @@ check_window_size(const char *title, int width, int height,
 	CHECK(hints.min_width == minimum_width
 	    && hints.min_height == minimum_height);
 	CHECK((hints.flags & PAspect) != 0);
-	CHECK(hints.min_aspect.x == 4 && hints.min_aspect.y == 3);
+	CHECK(hints.min_aspect.x == aspect_width && hints.min_aspect.y == aspect_height);
 	(void)XCloseDisplay(display);
 	return 0;
+}
+
+static int
+check_window_size(const char *title, int width, int height,
+	int minimum_width, int minimum_height)
+{
+	return check_window_geometry(title, width, height, minimum_width,
+	    minimum_height, 4, 3);
 }
 
 static unsigned long
@@ -213,11 +221,51 @@ fill_pixels(st_console_t *console, uint32_t colour)
 	return status;
 }
 
+static int send_key_with_state(Display *, Window, KeySym, bool,
+	unsigned int);
+
+static int
+check_fractional_aspect_snap(void)
+{
+	static const char title[] = "st_console X11 C64 aspect snap";
+	const struct st_console_display_config display_config = {
+		.backend = ST_CONSOLE_BACKEND_X11, .initial_scaling = 2.0,
+	};
+	/* A small raster with C64's aspect and rounding, fitting a private
+	 * 1024x768 Xvfb even at 3x. Real C64 3x is covered by the math test. */
+	const struct st_console_config config = {
+		.columns = 10, .rows = 6, .cell_width = 8, .cell_height = 8,
+		.aspect_width = 6, .aspect_height = 5,
+	};
+	st_console_t *console = NULL;
+	int status = st_console_create(&console, &display_config, &config);
+	if (status == IO_ERROR_NOT_FOUND || status == IO_ERROR_NOT_SUPPORTED)
+		return 77;
+	CHECK(status == 0);
+	CHECK(st_console_set_title(console, title) == 0);
+	Display *display = XOpenDisplay(NULL);
+	CHECK(display != NULL);
+	Window window = wait_named_window(display, DefaultRootWindow(display), title);
+	CHECK(window != None);
+	CHECK(check_window_geometry(title, 160, 133, 80, 67, 6, 5) == 0);
+	CHECK(send_key_with_state(display, window, XK_Right, true, Mod1Mask) == 0);
+	CHECK(send_key_with_state(display, window, XK_Right, false, Mod1Mask) == 0);
+	(void)XFlush(display);
+	CHECK(check_window_geometry(title, 240, 200, 80, 67, 6, 5) == 0);
+	CHECK(send_key_with_state(display, window, XK_Left, true, Mod1Mask) == 0);
+	CHECK(send_key_with_state(display, window, XK_Left, false, Mod1Mask) == 0);
+	(void)XFlush(display);
+	CHECK(check_window_geometry(title, 160, 133, 80, 67, 6, 5) == 0);
+	(void)XCloseDisplay(display);
+	st_console_destroy(console);
+	return 0;
+}
+
 static int
 check_mode_changes(void)
 {
 	static const char title[] = "st_console X11 mode changes";
-	/* Ordinary PC, Prestel, and aspect-only LCD mode changes. */
+	/* Ordinary PC, Prestel, aspect-only LCD, and C64 mode changes. */
 	const struct st_console_config modes[] = {
 		{.columns = 80, .rows = 25, .cell_width = 8, .cell_height = 16,
 		 .aspect_width = 4, .aspect_height = 3},
@@ -225,9 +273,17 @@ check_mode_changes(void)
 		 .aspect_width = 3077, .aspect_height = 2400},
 		{.columns = 80, .rows = 25, .cell_width = 8, .cell_height = 16,
 		 .aspect_width = 8, .aspect_height = 5},
+		{.columns = 40, .rows = 25, .cell_width = 8, .cell_height = 8,
+		 .aspect_width = 6, .aspect_height = 5},
 	};
-	const unsigned int sequence[] = {1, 0, 2, 0};
+	const unsigned int sequence[] = {1, 0, 2, 0, 3, 0};
 	const double scales[] = {1.0, 1.25};
+	/* Closest squared diagonal, with integer/fractional preference retained;
+	 * do not preserve the native-pixel multiplier across different modes. */
+	const uint32_t expected[][6][2] = {
+		{{641, 500}, {640, 480}, {640, 400}, {640, 480}, {640, 533}, {640, 480}},
+		{{788, 615}, {800, 600}, {848, 530}, {800, 600}, {768, 640}, {800, 600}},
+	};
 	const uint32_t colour = ST_PIXEL_COLOR_RGB_VALUE(0x40, 0x90, 0xe0);
 
 	for (size_t scale = 0; scale < sizeof(scales) / sizeof(scales[0]); ++scale) {
@@ -254,14 +310,17 @@ check_mode_changes(void)
 				XSizeHints hints;
 				long supplied = 0;
 
-				CHECK(st_console_scaled_window_size(mode->columns * mode->cell_width,
-				    mode->rows * mode->cell_height, mode->aspect_width,
-				    mode->aspect_height, scales[scale], &width, &height) == 0);
+				width = expected[scale][step][0];
+				height = expected[scale][step][1];
 				CHECK(st_console_reconfigure(console, mode) == 0);
 				CHECK(st_console_set_cursor(console, false, ST_CONSOLE_CURSOR_BLOCK) == 0);
 				CHECK(fill_pixels(console, colour) == 0);
 				CHECK(st_console_present(console) == 0);
 				CHECK(XGetWindowAttributes(display, window, &attributes) != 0);
+				if (attributes.width != (int)width || attributes.height != (int)height)
+					fprintf(stderr, "scale %g cycle %u step %zu: expected %ux%u, got %dx%d\n",
+					    scales[scale], cycle, step, width, height,
+					    attributes.width, attributes.height);
 				CHECK(attributes.width == (int)width && attributes.height == (int)height);
 				CHECK(XGetWMNormalHints(display, window, &hints, &supplied) != 0);
 				CHECK((hints.flags & PAspect) != 0);
@@ -283,7 +342,7 @@ check_mode_changes(void)
 		(void)XCloseDisplay(display);
 		st_console_destroy(console);
 	}
-	return 0;
+	return check_fractional_aspect_snap();
 }
 
 #if ST_CONSOLE_HAVE_XRENDER
@@ -615,9 +674,6 @@ window_position(Display *display, Window window, int *x, int *y)
 	return XTranslateCoordinates(display, window,
 	    DefaultRootWindow(display), 0, 0, x, y, &child) == 0;
 }
-
-static int send_key_with_state(Display *, Window, KeySym, bool,
-	unsigned int);
 
 static int
 check_current_monitor_centering(Display *display, Window window)
@@ -1098,7 +1154,9 @@ main(int argc, char **argv)
 		CHECK(st_console_set_title(second, "st_console X11 small") == 0);
 		for (unsigned int i = 0; i < 4; ++i) {
 			CHECK(st_console_display_activate(display, second) == 0);
-			CHECK(check_window_size("st_console X11 small", 85, 64,
+			/* Switching to a smaller raster keeps the window, not the
+			 * native-pixel multiplier (4x small equals 2x large). */
+			CHECK(check_window_size("st_console X11 small", 171, 128,
 			    43, 32) == 0);
 			CHECK(st_console_display_activate(display, first) == 0);
 			CHECK(check_window_size("st_console X11 large", 171, 128,

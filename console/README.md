@@ -358,6 +358,12 @@ modifier is Option, with Command accepted as a native-Mac alias.
 Wayland also consumes Alt+left-button press to request an interactive window
 move from the compositor with the pointer event's serial.
 
+Bitmap mode changes choose the closest window diagonal within the current
+display's usable bounds, retaining integer or fractional scaling preference
+instead of the old native-pixel multiplier.  Integer scale shortcuts derive
+the current scale from the controlling native raster axis, not rounded 1x
+aspect-corrected dimensions (important for C64's 6:5 aspect ratio).
+
 Title, clipboard, URL, pointer, and fullscreen operations remain methods on the
 console because the object represents the desktop/host connection as well as
 the cell grid.  They return `IO_ERROR_NOT_SUPPORTED` independently when the

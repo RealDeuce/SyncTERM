@@ -1020,6 +1020,7 @@ process_command(struct quartz_command *command)
 		uint32_t height;
 		uint32_t current_width;
 		uint32_t current_height;
+		uint32_t maximum_width = 0, maximum_height = 0;
 		NSSize current = state->view.bounds.size;
 
 		if (scale <= 0)
@@ -1028,8 +1029,16 @@ process_command(struct quartz_command *command)
 		    : (uint32_t)(current.width * scale);
 		current_height = state->fullscreen ? state->windowed_pixel_height
 		    : (uint32_t)(current.height * scale);
-		if (st_console_preserve_geometry_scale(&state->window_geometry, &next,
-		    current_width, current_height, &width, &height,
+		if (state->window.screen != nil) {
+			NSRect available = [NSWindow contentRectForFrameRect:
+			    state->window.screen.visibleFrame styleMask:state->window.styleMask];
+			if (available.size.width > 0 && available.size.height > 0) {
+				maximum_width = (uint32_t)(available.size.width * scale);
+				maximum_height = (uint32_t)(available.size.height * scale);
+			}
+		}
+		if (st_console_mode_change_size(&state->window_geometry, &next,
+		    current_width, current_height, maximum_width, maximum_height, &width, &height,
 		    &state->minimum_pixel_width,
 		    &state->minimum_pixel_height) != 0)
 			return IO_ERROR_OUT_OF_RANGE;

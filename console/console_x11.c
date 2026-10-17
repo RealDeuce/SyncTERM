@@ -655,26 +655,32 @@ center_window(struct x11_state *state)
 }
 
 static void
-snap_window(struct x11_state *state, bool larger)
+window_pixel_bounds(struct x11_state *state, uint32_t *width, uint32_t *height)
 {
 	struct x11_geometry area;
-	long left;
-	long right;
-	long top;
-	long bottom;
+	long left, right, top, bottom;
+
+	*width = *height = 0;
+	available_monitor_geometry(state, &area);
+	window_frame_extents(state, &left, &right, &top, &bottom);
+	if (area.width > left + right && area.width - left - right <= UINT32_MAX)
+		*width = (uint32_t)(area.width - left - right);
+	if (area.height > top + bottom && area.height - top - bottom <= UINT32_MAX)
+		*height = (uint32_t)(area.height - top - bottom);
+}
+
+static void
+snap_window(struct x11_state *state, bool larger)
+{
 	uint32_t width;
 	uint32_t height;
-	long maximum_width;
-	long maximum_height;
+	uint32_t maximum_width;
+	uint32_t maximum_height;
 
 	if (state->fullscreen || state->maximized)
 		return;
-	available_monitor_geometry(state, &area);
-	window_frame_extents(state, &left, &right, &top, &bottom);
-	maximum_width = area.width - left - right;
-	maximum_height = area.height - top - bottom;
-	if (maximum_width <= 0 || maximum_height <= 0
-	    || maximum_width > UINT32_MAX || maximum_height > UINT32_MAX)
+	window_pixel_bounds(state, &maximum_width, &maximum_height);
+	if (maximum_width == 0 || maximum_height == 0)
 		return;
 	if (st_console_snap_geometry_size(&state->window_geometry, state->windowed_width,
 	    state->windowed_height, larger, (uint32_t)maximum_width,
@@ -2156,12 +2162,15 @@ process_command(struct x11_state *state, struct x11_command *command)
 		uint32_t height;
 		uint32_t minimum_width;
 		uint32_t minimum_height;
+		uint32_t maximum_width;
+		uint32_t maximum_height;
 
-		if (st_console_preserve_geometry_scale(&state->window_geometry, &next,
+		window_pixel_bounds(state, &maximum_width, &maximum_height);
+		if (st_console_mode_change_size(&state->window_geometry, &next,
 		    state->fullscreen || state->maximized
 		    ? state->windowed_width : state->window_width,
 		    state->fullscreen || state->maximized ? state->windowed_height
-		    : state->window_height, &width, &height,
+		    : state->window_height, maximum_width, maximum_height, &width, &height,
 		    &minimum_width, &minimum_height) != 0
 		    || width > UINT_MAX || height > UINT_MAX)
 			return IO_ERROR_OUT_OF_RANGE;
