@@ -35,6 +35,7 @@
 
 #include <locale.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -270,14 +271,73 @@ connection_alert(void *context, const char *title, const char *message)
 }
 
 static char *
+connection_help_escape(char *output, const char *text, size_t length,
+	bool hard_breaks)
+{
+	for (size_t i = 0; i < length; ++i) {
+		char c = text[i];
+		if (c == '\r')
+			continue;
+		if (c == '\n' && hard_breaks) {
+			*output++ = ' ';
+			*output++ = ' ';
+		}
+		if (c == '\\' || c == '*' || c == '`')
+			*output++ = '\\';
+		*output++ = c;
+	}
+	return output;
+}
+
+static char *
 connection_help_body(struct connection_ui *ui, const char *details)
 {
+	static const char details_heading[] = "# Connection Details\n\n";
+	static const char log_heading[] = "# Protocol Session Log\n\n";
+	const size_t overhead = sizeof(details_heading) + sizeof(log_heading) + 4;
+	size_t details_size = details == NULL ? 0 : strlen(details);
+	char *body = NULL;
+
 	(void)st_mutex_lock(&ui->log_mutex);
-	size_t size = strlen(details) + ui->log_size + 160;
-	char *body = malloc(size);
-	if (body != NULL)
-		(void)snprintf(body, size, "%s\n\n# Protocol Log\n\n```\n%s\n```\n", details,
-		    ui->log_size == 0 ? "No protocol messages at the selected log level." : ui->log);
+	/* Escaping expands a byte to at most three bytes (a hard break,
+	 * or a log newline plus the next bullet).  Reserve the headings,
+	 * section separator, final bullet prefix and terminator as well. */
+	if (details_size > SIZE_MAX - ui->log_size
+	    || details_size + ui->log_size > (SIZE_MAX - overhead) / 3)
+		goto done;
+	if (details_size == 0 && ui->log_size == 0)
+		goto done;
+	body = malloc(3 * (details_size + ui->log_size) + overhead);
+	if (body == NULL)
+		goto done;
+	char *output = body;
+	if (details_size != 0) {
+		memcpy(output, details_heading, sizeof(details_heading) - 1);
+		output += sizeof(details_heading) - 1;
+		output = connection_help_escape(output, details, details_size, true);
+	}
+	if (ui->log_size != 0) {
+		if (output != body) {
+			*output++ = '\n';
+			*output++ = '\n';
+		}
+		memcpy(output, log_heading, sizeof(log_heading) - 1);
+		output += sizeof(log_heading) - 1;
+		const char *line = ui->log;
+		while (*line != '\0') {
+			const char *end = strchr(line, '\n');
+			size_t length = end == NULL ? strlen(line) : (size_t)(end - line);
+			*output++ = '-';
+			*output++ = ' ';
+			output = connection_help_escape(output, line, length, false);
+			*output++ = '\n';
+			if (end == NULL)
+				break;
+			line = end + 1;
+		}
+	}
+	*output = '\0';
+done:
 	(void)st_mutex_unlock(&ui->log_mutex);
 	return body;
 }

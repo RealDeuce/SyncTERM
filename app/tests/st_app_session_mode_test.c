@@ -18,6 +18,47 @@
 } while (false)
 
 static int
+check_connection_help(void)
+{
+	struct connection_ui ui = {0};
+	char *body;
+
+	CHECK(st_mutex_init(&ui.log_mutex, ST_MUTEX_PLAIN) == ST_THREAD_SUCCESS);
+	body = connection_help_body(&ui, "Remote *host*\r\nCipher: `aes`\\path");
+	CHECK(body != NULL);
+	CHECK(strcmp(body, "# Connection Details\n\nRemote \\*host\\*  \n"
+	    "Cipher: \\`aes\\`\\\\path") == 0);
+	free(body);
+	ui.log = "SSH Info: **literal** `key`\\path\r\n"
+	    "\n# not a heading\n: not a definition\nlast";
+	ui.log_size = strlen(ui.log);
+	body = connection_help_body(&ui, "Closed\nConnected: 00:00:12");
+	CHECK(body != NULL);
+	CHECK(strcmp(body, "# Connection Details\n\nClosed  \nConnected: 00:00:12"
+	    "\n\n# Protocol Session Log\n\n"
+	    "- SSH Info: \\*\\*literal\\*\\* \\`key\\`\\\\path\n"
+	    "- \n- # not a heading\n- : not a definition\n- last\n") == 0);
+	free(body);
+	body = connection_help_body(&ui, NULL);
+	CHECK(body != NULL && strncmp(body, "# Protocol Session Log\n\n", 24) == 0);
+	free(body);
+	ui.log = "line\n\n";
+	ui.log_size = strlen(ui.log);
+	body = connection_help_body(&ui, "");
+	CHECK(body != NULL && strcmp(body,
+	    "# Protocol Session Log\n\n- line\n- \n") == 0);
+	free(body);
+	ui.log_size = SIZE_MAX;
+	CHECK(connection_help_body(&ui, "overflow") == NULL);
+	ui.log = NULL;
+	ui.log_size = 0;
+	CHECK(connection_help_body(&ui, "") == NULL);
+	CHECK(connection_help_body(&ui, NULL) == NULL);
+	st_mutex_destroy(&ui.log_mutex);
+	return 0;
+}
+
+static int
 check_legacy_c128_shell(st_wren_host_t *host, st_console_display_t *display,
 	st_console_t *console, const struct st_app_paths *paths,
 	st_hyperlink_registry_t *hyperlinks)
@@ -117,6 +158,7 @@ main(void)
 	enum st_term_disposition disposition = ST_TERM_RETURN_TO_PICKER;
 	FILE *file;
 
+	CHECK(check_connection_help() == 0);
 	CHECK(fs_create_directories(ST_APP_SESSION_TEST_DIRECTORY) == 0);
 	file = fopen(paths.settings_file, "wb");
 	CHECK(file != NULL);

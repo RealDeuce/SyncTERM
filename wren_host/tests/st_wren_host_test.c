@@ -3135,6 +3135,7 @@ post_disconnect_input(void *argument)
 	CHECK(wait_for_screen_text(console, "Disconnected: Enter exits, F1 details") == 0);
 	CHECK(st_console_post_event(console, &f1) == 0);
 	CHECK(wait_for_screen_text(console, "fixture teardown diagnostics") == 0);
+	CHECK(wait_for_screen_text(console, "literal `key` **value** \\path") == 0);
 	CHECK(queue_text(console, "\x1b") == 0);
 	CHECK(wait_for_screen_text(console, "Disconnected: Enter exits, F1 details") == 0);
 	CHECK(queue_text(console, "\r") == 0);
@@ -3265,8 +3266,10 @@ exercise_menu_prompt(struct st_wren_host *host, st_console_t *console)
 	CHECK(queue_text(console, "stale\r") == 0);
 	CHECK(st_thread_create(&thread, post_disconnect_input, console) == ST_THREAD_SUCCESS);
 	CHECK(st_wren_host_disconnected(host,
-	    "Remote host dropped connection\n\nConnected: 00:00:12\n\n"
-	    "# Protocol Log\n\n```\nfixture teardown diagnostics\n```\n") == 0);
+	    "# Connection Details\n\nRemote host dropped connection  \n"
+	    "Connected: 00:00:12\n\n# Protocol Session Log\n\n"
+	    "- fixture teardown diagnostics\n"
+	    "- literal \\`key\\` \\*\\*value\\*\\* \\\\path\n") == 0);
 	CHECK(st_thread_join(thread, &thread_result) == ST_THREAD_SUCCESS && thread_result == 0);
 	CHECK(st_console_get_position(console, &x, &y) == 0 && x == 7 && y == 8);
 	CHECK(st_console_get_cursor(console, &cursor_visible, &cursor_shape) == 0);

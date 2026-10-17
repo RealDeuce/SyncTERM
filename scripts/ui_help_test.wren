@@ -42,6 +42,7 @@ class UiHelpTest {
     testSplitLinesNoTrailing_()
     testConstruction_()
     testMenuDefinitionListFormatting_()
+    testProtocolLogFormatting_()
     testUnmatchedInlineMarkersRemainLiteral_()
     testPreformattedUsesHardLines_()
     testPreformattedPreservesInlineMarkup_()
@@ -254,6 +255,28 @@ class UiHelpTest {
     }
     check_(lines.count == 1 && text == "Ctrl-` and **literal" && ordinary,
            "Markdown: unmatched inline markers remain literal")
+  }
+
+  static testProtocolLogFormatting_() {
+    var lines = Markdown.layout(Markdown.parse(
+        "# Connection Details\n\nClosed  \nConnected: 00:00:12\n\n" +
+        "# Protocol Session Log\n\n" +
+        "- SSH Info: \\`key\\` \\*\\*value\\*\\* \\\\path\n" +
+        "- # literal heading\n- : literal definition"), 80)
+    check_(lines.count == 10 &&
+        lineText_(lines[0]) == " Connection Details " &&
+        lineText_(lines[2]) == "Closed" &&
+        lineText_(lines[3]) == "Connected: 00:00:12" &&
+        lineText_(lines[5]) == " Protocol Session Log " &&
+        lineText_(lines[7]) == "• SSH Info: `key` **value** \\path" &&
+        lineText_(lines[8]) == "• # literal heading" &&
+        lineText_(lines[9]) == "• : literal definition",
+        "Help: v1.10a protocol log format preserves lines and literal markup")
+    var literal = true
+    for (run in lines[7].runs) {
+      if (run.role != MdRole.text && run.role != MdRole.bullet) literal = false
+    }
+    check_(literal, "Help: protocol log content is not styled as Markdown")
   }
 
   static testPreformattedUsesHardLines_() {
