@@ -676,7 +676,7 @@ handle_event(st_term_session_t *session,
 		ptrdiff_t size = st_utf8_encode_one(utf8, sizeof(utf8),
 		    event->data.text.codepoint);
 
-		if (st_cterm_handle_rip_text(session->cterm,
+		if (st_cterm_handle_text_key(session->cterm,
 		    event->data.text.codepoint))
 			return session->output_error;
 		return size < 0 ? IO_ERROR_INVALID_ENCODING

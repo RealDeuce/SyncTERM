@@ -3312,6 +3312,58 @@ st_cterm_copy_scrollback_rows(const st_cterm_t *terminal,
 	return (int)row_count;
 }
 
+static int
+mapped_key(uint16_t key, uint32_t modifiers)
+{
+	bool shift = (modifiers & ST_CONSOLE_MODIFIER_SHIFT) != 0;
+	bool control = (modifiers & ST_CONSOLE_MODIFIER_CONTROL) != 0;
+	bool alt = (modifiers & (ST_CONSOLE_MODIFIER_ALT
+	    | ST_CONSOLE_MODIFIER_GUI)) != 0;
+
+	if (key >= ST_CONSOLE_KEY_F1 && key <= ST_CONSOLE_KEY_F12) {
+		int number = key - ST_CONSOLE_KEY_F1 + 1;
+
+		return alt ? CTERM_KEY_DOS_ALT_F(number)
+		    : control ? CTERM_KEY_DOS_CTRL_F(number)
+		    : shift ? CTERM_KEY_DOS_SHIFT_F(number) : CTERM_KEY_DOS_F(number);
+	}
+	/* Other Alt combinations are host shortcuts or have no reference key. */
+	if (alt && key != ST_CONSOLE_KEY_UP && key != ST_CONSOLE_KEY_DOWN
+	    && key != ST_CONSOLE_KEY_INSERT && key != ST_CONSOLE_KEY_DELETE)
+		return 0xffff;
+	switch (key) {
+	case ST_CONSOLE_KEY_UP:
+		return alt ? 0x9800 : control ? CTERM_KEY_DOS_CTRL_UP
+		    : shift ? CTERM_KEY_DOS_SHIFT_UP : CTERM_KEY_DOS_UP;
+	case ST_CONSOLE_KEY_DOWN:
+		return alt ? 0xa000 : control ? CTERM_KEY_DOS_CTRL_DOWN
+		    : shift ? CTERM_KEY_DOS_SHIFT_DOWN : CTERM_KEY_DOS_DOWN;
+	case ST_CONSOLE_KEY_LEFT:
+		return control ? CTERM_KEY_DOS_CTRL_LEFT
+		    : shift ? CTERM_KEY_DOS_SHIFT_LEFT : CTERM_KEY_DOS_LEFT;
+	case ST_CONSOLE_KEY_RIGHT:
+		return control ? CTERM_KEY_DOS_CTRL_RIGHT
+		    : shift ? CTERM_KEY_DOS_SHIFT_RIGHT : CTERM_KEY_DOS_RIGHT;
+	case ST_CONSOLE_KEY_INSERT:
+		return alt ? 0xa200 : control ? 0x0400 : shift ? 0x0500 : CTERM_KEY_DOS_IC;
+	case ST_CONSOLE_KEY_DELETE:
+		return alt ? 0xa300 : control ? 0x0600 : shift ? 0x0700 : CTERM_KEY_DOS_DC;
+	case ST_CONSOLE_KEY_HOME:
+		return control ? 0x7700 : shift ? 0x3700 : CTERM_KEY_DOS_HOME;
+	case ST_CONSOLE_KEY_END:
+		return control ? CTERM_KEY_DOS_CTRL_END
+		    : shift ? CTERM_KEY_DOS_SHIFT_END : CTERM_KEY_DOS_END;
+	case ST_CONSOLE_KEY_PAGE_UP:
+		return control ? 0x8400 : shift ? 0x3900 : CTERM_KEY_DOS_PPAGE;
+	case ST_CONSOLE_KEY_PAGE_DOWN:
+		return control ? 0x7600 : shift ? 0x3300 : CTERM_KEY_DOS_NPAGE;
+	case '\t': return control ? 0xffff : shift ? CTERM_KEY_DOS_BACKTAB : key;
+	case '\r': return control ? '\n' : key;
+	case '\b': return control ? 0x7f : key;
+	default: return key;
+	}
+}
+
 bool
 st_cterm_handle_key(st_cterm_t *terminal, uint16_t key_code,
     uint32_t modifiers)
@@ -3341,24 +3393,43 @@ st_cterm_handle_key(st_cterm_t *terminal, uint16_t key_code,
 	if (engine != NULL && key_code != 0 && key_code <= 0x7f
 	    && st_cterm_handle_rip_text(terminal, key_code))
 		return true;
-	switch (key_code) {
-	case ST_CONSOLE_KEY_UP: doorway_key = CTERM_KEY_DOS_UP; break;
-	case ST_CONSOLE_KEY_DOWN: doorway_key = CTERM_KEY_DOS_DOWN; break;
-	case ST_CONSOLE_KEY_LEFT: doorway_key = CTERM_KEY_DOS_LEFT; break;
-	case ST_CONSOLE_KEY_RIGHT: doorway_key = CTERM_KEY_DOS_RIGHT; break;
-	case ST_CONSOLE_KEY_INSERT: doorway_key = CTERM_KEY_DOS_IC; break;
-	case ST_CONSOLE_KEY_DELETE: doorway_key = CTERM_KEY_DOS_DC; break;
-	case ST_CONSOLE_KEY_HOME: doorway_key = CTERM_KEY_DOS_HOME; break;
-	case ST_CONSOLE_KEY_END: doorway_key = CTERM_KEY_DOS_END; break;
-	case ST_CONSOLE_KEY_PAGE_UP: doorway_key = CTERM_KEY_DOS_PPAGE; break;
-	case ST_CONSOLE_KEY_PAGE_DOWN: doorway_key = CTERM_KEY_DOS_NPAGE; break;
-	default:
-		if (key_code >= ST_CONSOLE_KEY_F1 && key_code <= ST_CONSOLE_KEY_F12)
-			doorway_key = CTERM_KEY_DOS_F(key_code - ST_CONSOLE_KEY_F1 + 1);
-		else
-			doorway_key = key_code;
+	doorway_key = mapped_key(key_code, modifiers);
+	if (doorway_key >= 0 && doorway_key < 32
+	    && (modifiers & (ST_CONSOLE_MODIFIER_CONTROL | ST_CONSOLE_MODIFIER_ALT
+	    | ST_CONSOLE_MODIFIER_GUI)) == 0
+	    && terminal->wire_encoding == ST_CTERM_ENCODING_CODEPAGE) {
+		uint8_t byte;
+
+		/* Ordinary control keys arrive as Unicode C0 values, whereas the
+		 * reference byte-key tables expect e.g. ATASCII Return as 0x9b.
+		 * Explicit Ctrl combinations retain their control-key identity. */
+		if (st_codepage_from_unicode(&byte, terminal->screen.codepage,
+		    (uint32_t)doorway_key))
+			doorway_key = byte;
 	}
 	return cterm_handle_key(terminal, doorway_key) == CTERM_KEY_HANDLED;
+}
+
+bool
+st_cterm_handle_text_key(st_cterm_t *terminal, uint32_t codepoint)
+{
+	uint8_t byte;
+
+	if (terminal == NULL)
+		return false;
+	if (st_cterm_handle_rip_text(terminal, codepoint))
+		return true;
+	if (terminal->wire_encoding == ST_CTERM_ENCODING_UTF8) {
+		if (codepoint >= 0x80)
+			return false;
+		byte = (uint8_t)codepoint;
+	}
+	else if (!st_codepage_from_unicode(&byte, terminal->screen.codepage, codepoint))
+		return false;
+	/* An encodable byte rejected by this emulation is deliberately silent,
+	 * not an invitation to bypass its keyboard policy with a raw send. */
+	(void)cterm_handle_key(terminal, byte);
+	return true;
 }
 
 bool

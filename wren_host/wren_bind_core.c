@@ -710,6 +710,9 @@ legacy_key_code(uint16_t key, uint32_t modifiers)
 		return alt ? alt_f[index] : control ? control_f[index] :
 		    shift ? shift_f[index] : plain_f[index];
 	}
+	if (alt && key != ST_CONSOLE_KEY_UP && key != ST_CONSOLE_KEY_DOWN
+	    && key != ST_CONSOLE_KEY_INSERT && key != ST_CONSOLE_KEY_DELETE)
+		return 0xffff;
 	switch (key) {
 	case ST_CONSOLE_KEY_UP:
 		return alt ? 0x9800 : control ? 0x8d00 :
@@ -727,12 +730,14 @@ legacy_key_code(uint16_t key, uint32_t modifiers)
 	case ST_CONSOLE_KEY_DELETE:
 		return alt ? 0xa300 : control ? 0x0600 :
 		    shift ? 0x0700 : 0x5300;
-	case ST_CONSOLE_KEY_HOME: return 0x4700;
+	case ST_CONSOLE_KEY_HOME: return control ? 0x7700 : shift ? 0x3700 : 0x4700;
 	case ST_CONSOLE_KEY_END:
 		return control ? 0x7500 : shift ? 0x95e0 : 0x4f00;
-	case ST_CONSOLE_KEY_PAGE_UP: return 0x4900;
-	case ST_CONSOLE_KEY_PAGE_DOWN: return 0x5100;
-	case 9: return shift ? 0x0f00 : 9;
+	case ST_CONSOLE_KEY_PAGE_UP: return control ? 0x8400 : shift ? 0x3900 : 0x4900;
+	case ST_CONSOLE_KEY_PAGE_DOWN: return control ? 0x7600 : shift ? 0x3300 : 0x5100;
+	case 9: return control ? 0xffff : shift ? 0x0f00 : 9;
+	case 13: return control ? 10 : 13;
+	case 8: return control ? 127 : 8;
 	default: return key;
 	}
 }

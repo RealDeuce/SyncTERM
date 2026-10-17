@@ -1718,6 +1718,51 @@ test_wide_window_cached_scroll(void)
 }
 
 static void
+test_ansi_reveal(void)
+{
+	static const uint8_t bitmap[24] = {0};
+	static const struct st_console_font_mapping mapping[] = {
+		{'A', 0}, {'B', 1}, {'C', 2},
+	};
+	const struct st_console_font font = {
+		.bitmap = bitmap, .bitmap_size = sizeof(bitmap),
+		.width = 8, .height = 8, .glyph_count = 3,
+		.row_stride = 1, .glyph_stride = 8,
+		.mapping = mapping, .mapping_count = 3,
+	};
+	struct output output = {0};
+	const struct st_console_ansi_io io = {.write = write_output, .context = &output};
+	const struct st_console_display_config display = {
+		.backend = ST_CONSOLE_BACKEND_ANSI, .ansi_io = &io,
+	};
+	const struct st_console_config config = {
+		.columns = 3, .rows = 1, .cell_width = 8, .cell_height = 8,
+	};
+	const struct st_console_rect area = {0, 0, 3, 1};
+	struct st_console_cell cells[3], readback[3];
+	st_console_t *console = NULL;
+	uint16_t identifier;
+
+	CHECK(st_console_create(&console, &display, &config) == 0);
+	CHECK(st_console_register_static_font(console, &font, &identifier) == 0);
+	CHECK(st_console_present(console) == 0);
+	output.length = 0;
+	for (unsigned i = 0; i < 3; ++i)
+		cells[i] = (struct st_console_cell){
+			.font = identifier, .glyph_font = identifier, .glyph = i,
+			.foreground = 7, .flags = ST_CONSOLE_CELL_CONCEAL
+			    | (i == 1 ? ST_CONSOLE_CELL_REVEAL : 0),
+		};
+	CHECK(st_console_write_complete_cells(console, &area, cells, 3) == 0);
+	CHECK(st_console_present(console) == 0);
+	CHECK(count_bytes(output.data, output.length, (const unsigned char *)"\x1b[8m", 4) == 2);
+	CHECK(st_console_read_cells(console, &area, readback, 3) == 0);
+	CHECK((readback[1].flags & (ST_CONSOLE_CELL_CONCEAL | ST_CONSOLE_CELL_REVEAL))
+	    == (ST_CONSOLE_CELL_CONCEAL | ST_CONSOLE_CELL_REVEAL));
+	st_console_destroy(console);
+}
+
+static void
 test_ansi_wide_cell_output(void)
 {
 	static const uint8_t narrow_bitmap[1] = {0};
@@ -3065,6 +3110,7 @@ main(void)
 	test_wide_window_row_operations();
 	test_wide_window_cached_scroll();
 	test_ansi_wide_cell_output();
+	test_ansi_reveal();
 	test_ansi_output_modes();
 	test_ansi_cp437_output();
 	test_ascii_character_identity();

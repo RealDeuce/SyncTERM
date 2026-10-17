@@ -236,9 +236,14 @@ int st_cterm_copy_scrollback_rows(const st_cterm_t *terminal,
 	size_t destination_rows, size_t source_row, size_t row_count,
 	size_t destination_row);
 
-/* Encoded key bytes are delivered with ST_CTERM_OUTPUT_USER origin. */
+/* Normalized console keys, including event-time modifiers. Encoded bytes
+ * have ST_CTERM_OUTPUT_USER origin; true also includes local-only actions. */
 bool st_cterm_handle_key(st_cterm_t *terminal, uint16_t key_code,
 	uint32_t modifiers);
+/* Unicode keyboard text: RIP hotkeys first, then codepage and emulation
+ * keyboard mappings. False leaves semantic transmission (UTF-8 text or an
+ * unmappable character) to the session. Not for paste or scripted sends. */
+bool st_cterm_handle_text_key(st_cterm_t *terminal, uint32_t codepoint);
 /* RIP hotkeys may consume printable text before it is sent to the wire. */
 bool st_cterm_handle_rip_text(st_cterm_t *terminal, uint32_t codepoint);
 bool st_cterm_handle_doorway_key(st_cterm_t *terminal, uint8_t scan_code);

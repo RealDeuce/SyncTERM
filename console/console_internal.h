@@ -248,6 +248,10 @@ st_console_effective_cell_locked(const st_console_t *console,
 	const struct st_console_cell *source, struct st_console_cell *effective)
 {
 	*effective = *source;
+	/* Reveal overrides conceal for every presenter, not just bitmap glyphs.
+	 * Keep the retained flags intact so conceal can be restored later. */
+	if ((source->flags & ST_CONSOLE_CELL_REVEAL) != 0)
+		effective->flags &= ~ST_CONSOLE_CELL_CONCEAL;
 	if ((source->flags & ST_CONSOLE_CELL_LEGACY_FOREGROUND) != 0
 	    && !ST_CONSOLE_COLOR_IS_RGB(source->foreground)
 	    && source->foreground < 8

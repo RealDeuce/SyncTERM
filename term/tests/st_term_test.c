@@ -47,6 +47,95 @@ test_paste_preparation(void)
 }
 
 #if !SYNCTERM_PLATFORM_WINDOWS
+static bool
+screen_contains(st_console_t *console, const char *wanted, bool diagnose)
+{
+	const struct st_console_rect area = {0, 0, 40, 4};
+	struct st_console_cell cells[160];
+	char text[161];
+
+	if (st_console_read_cells(console, &area, cells, 40) != 0)
+		return false;
+	for (size_t i = 0; i < 160; ++i) {
+		char glyph[8];
+		size_t size;
+
+		text[i] = st_console_font_glyph_text(console, cells[i].glyph_font,
+		    cells[i].glyph, glyph, sizeof(glyph), &size) == 0 && size == 1 && glyph[0] != '\0'
+		    ? glyph[0] : ' ';
+	}
+	text[160] = '\0';
+	if (diagnose && strstr(text, wanted) == NULL)
+		fprintf(stderr, "terminal contents: [%s]\n", text);
+	return strstr(text, wanted) != NULL;
+}
+
+static int
+test_prestel_keyboard_session(void)
+{
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config geometry = {
+		.columns = 40, .rows = 4, .cell_width = 8, .cell_height = 16,
+	};
+	st_console_t *console = NULL;
+	st_font_catalog_t *fonts = NULL;
+	st_connection_t *connection = NULL;
+	st_term_session_t *session = NULL;
+	struct st_profile profile;
+	enum st_term_disposition disposition;
+	bool finished = false;
+
+	CHECK(st_console_create(&console, &display, &geometry) == 0);
+	CHECK(st_font_catalog_create(&fonts, console) == 0);
+	st_profile_init(&profile);
+	profile.connection_type = ST_CONNECTION_SHELL;
+	profile.encoding = ST_CODEPAGE_PRESTEL;
+	strcpy(profile.address, "stty raw -echo; printf 'READY\\r\\n'; od -An -tx1 -N 6 | tr -d ' \\n'");
+	CHECK(st_term_connect_profile(&connection, &profile, console, NULL, NULL) == 0);
+	const struct st_term_config config = {
+		.console = console, .connection = connection, .fonts = fonts,
+		.screen_mode = ST_SCREEN_MODE_PRESTEL,
+		.encoding = ST_CTERM_ENCODING_CODEPAGE, .codepage = ST_CODEPAGE_PRESTEL,
+		.hide_status = true,
+	};
+	CHECK(st_term_session_create(&session, &config) == 0);
+	const uint8_t concealed[] = {0x1b, 'X', 'A'};
+	size_t consumed;
+	CHECK(st_cterm_write(st_term_session_cterm(session), concealed,
+	    sizeof(concealed), &consumed) == 0 && consumed == sizeof(concealed));
+	for (unsigned attempt = 0; attempt < 500 && !screen_contains(console, "READY", false); ++attempt)
+		CHECK(st_term_session_pump(session, &disposition, &finished) == 0 && !finished);
+	CHECK(screen_contains(console, "READY", true));
+	const struct st_console_event events[] = {
+		{.type = ST_CONSOLE_EVENT_TEXT, .data.text.codepoint = '#'},
+		{.type = ST_CONSOLE_EVENT_TEXT, .data.text.codepoint = '_'},
+		{.type = ST_CONSOLE_EVENT_TEXT, .data.text.codepoint = '`'},
+		{.type = ST_CONSOLE_EVENT_KEY_CODE, .data.key.code = '\r'},
+		{.type = ST_CONSOLE_EVENT_KEY_CODE,
+		 .data.key = {.code = '\r', .modifiers = ST_CONSOLE_MODIFIER_CONTROL}},
+		{.type = ST_CONSOLE_EVENT_KEY_CODE,
+		 .data.key = {.code = ST_CONSOLE_KEY_F1, .modifiers = ST_CONSOLE_MODIFIER_SHIFT}},
+		{.type = ST_CONSOLE_EVENT_KEY_CODE, .data.key.code = ST_CONSOLE_KEY_F3},
+	};
+	for (size_t i = 0; i < sizeof(events) / sizeof(events[0]); ++i)
+		CHECK(st_console_post_event(console, &events[i]) == 0);
+	for (unsigned attempt = 0; attempt < 500 && !finished; ++attempt)
+		CHECK(st_term_session_pump(session, &disposition, &finished) == 0);
+	CHECK(finished && disposition == ST_TERM_RETURN_TO_PICKER);
+	CHECK(screen_contains(console, "5f60235f0d91", true));
+	const struct st_console_rect concealed_cell = {1, 0, 1, 1};
+	struct st_console_cell cell;
+	CHECK(st_console_read_cells(console, &concealed_cell, &cell, 1) == 0);
+	CHECK((cell.flags & (ST_CONSOLE_CELL_CONCEAL | ST_CONSOLE_CELL_REVEAL))
+	    == (ST_CONSOLE_CELL_CONCEAL | ST_CONSOLE_CELL_REVEAL));
+	st_term_session_destroy(&session);
+	CHECK(st_connection_close(connection) == 0);
+	st_profile_dispose(&profile);
+	st_font_catalog_destroy(fonts);
+	st_console_destroy(console);
+	return 0;
+}
+
 static int
 test_wire_filter(void *context, uint8_t byte, bool *consumed,
 	uint8_t *replacement, size_t capacity, size_t *replacement_size)
@@ -635,6 +724,7 @@ main(void)
 	st_profile_dispose(&profile);
 	st_console_destroy(console);
 #if !SYNCTERM_PLATFORM_WINDOWS
+	CHECK(test_prestel_keyboard_session() == 0);
 	CHECK(test_shell_wire_filter() == 0);
 	CHECK(test_shell_throttle() == 0);
 	CHECK(test_shell_utf8_boundary() == 0);

@@ -405,6 +405,7 @@ verify_key_tables(void)
 	CHECK_SORTED(atascii_keys);
 	CHECK_SORTED(petscii_keys);
 	CHECK_SORTED(prestel_keys);
+	CHECK_SORTED(prestel_keys_cursor);
 	CHECK_SORTED(beeb_keys);
 	CHECK_SORTED(vt52_keys);
 	CHECK_SORTED(ansi_keys);
@@ -443,7 +444,7 @@ cterm_encode_key_ex(struct cterminal *cterm, int key, bool emit)
 		case CTERM_EMULATION_ATASCII:
 			if (key == 96) {
 				cterm->atascii_inverse = !cterm->atascii_inverse;
-				return 0;
+				return -1; /* Consumed locally, without encoded bytes. */
 			}
 			table = atascii_keys;
 			table_count = KEY_MAP_SIZE(atascii_keys);
@@ -457,7 +458,7 @@ cterm_encode_key_ex(struct cterminal *cterm, int key, bool emit)
 			/* PRESTEL and BEEB: F3 or PgDn toggles reveal. */
 			if (key == CTERM_KEY_DOS_F(3) || key == CTERM_KEY_DOS_NPAGE) {
 				toggle_prestel_reveal(cterm);
-				return 0;
+				return -1;
 			}
 			switch (cterm->emulation) {
 				case CTERM_EMULATION_PRESTEL:
@@ -528,7 +529,9 @@ cterm_encode_key_ex(struct cterminal *cterm, int key, bool emit)
 int
 cterm_encode_key(struct cterminal *cterm, int key)
 {
-	return cterm_encode_key_ex(cterm, key, true);
+	int count = cterm_encode_key_ex(cterm, key, true);
+
+	return count < 0 ? 0 : count;
 }
 
 enum cterm_key_result
@@ -537,7 +540,7 @@ cterm_handle_key(struct cterminal *cterm, int key)
 	int n = cterm_encode_key_ex(cterm, key,
 	    !cterm->suppress_translated_keys);
 
-	return n > 0 ? CTERM_KEY_HANDLED : CTERM_KEY_UNHANDLED;
+	return n != 0 ? CTERM_KEY_HANDLED : CTERM_KEY_UNHANDLED;
 }
 
 static bool

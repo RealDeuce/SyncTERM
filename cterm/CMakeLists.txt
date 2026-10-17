@@ -141,6 +141,17 @@ if(BUILD_TESTING)
 			-Wall -Wextra -Wpedantic -Werror)
 	endif()
 	add_test(NAME cterm COMMAND st_cterm_test)
+	add_executable(st_cterm_keyboard_test tests/st_cterm_keyboard_test.c)
+	target_link_libraries(st_cterm_keyboard_test PRIVATE st_cterm)
+	set_target_properties(st_cterm_keyboard_test PROPERTIES C_STANDARD 17
+		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_cterm_keyboard_test PRIVATE /W4 /WX)
+	else()
+		target_compile_options(st_cterm_keyboard_test PRIVATE
+			-Wall -Wextra -Wpedantic -Werror)
+	endif()
+	add_test(NAME cterm_keyboard COMMAND st_cterm_keyboard_test)
 
 	add_executable(st_cterm_rip_parser_test tests/st_cterm_rip_parser_test.c)
 	target_link_libraries(st_cterm_rip_parser_test PRIVATE st_cterm)

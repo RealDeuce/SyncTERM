@@ -893,12 +893,18 @@ check_escape_event(st_console_t *console)
 	CHECK(send_key_with_state(display, window, XK_Home, false, Mod1Mask)
 	    == 0);
 	(void)XSync(display, False);
-	(void)nanosleep(&(struct timespec){0, 50000000}, NULL);
 	{
 		int x;
 		int y;
 
-		CHECK(window_position(display, window, &x, &y) == 0);
+		/* XSync on the sending connection does not wait for the input
+		 * worker to handle the shortcut on its own X connection. */
+		for (unsigned attempt = 0; attempt < 100; ++attempt) {
+			CHECK(window_position(display, window, &x, &y) == 0);
+			if (x > 0 && y > 0)
+				break;
+			(void)nanosleep(&(struct timespec){0, 10000000}, NULL);
+		}
 		CHECK(x > 0 && y > 0);
 	}
 	CHECK(check_current_monitor_centering(display, window) == 0);

@@ -57,6 +57,20 @@ internally because the parser's coordinate arithmetic is signed.
 Protocol responses and encoded local input are distinguished by
 `enum st_cterm_output_origin`, although the minimal session sends both through
 the active connection.  BEL is local: it may beep but emits no wire bytes.
+
+`st_cterm_handle_key()` accepts normalized console keys plus event-time
+modifiers and applies emulation-specific function/navigation/control mappings.
+Unmodified C0 keys use the selected codepage before translation (including
+ATASCII Return/Backspace/Tab); explicit Ctrl combinations keep their control
+identity. In Prestel and BBC, Reveal is bound to F3 and Page Down, not Tab.
+Its Boolean result includes consumed local actions such as Reveal and ATASCII
+inverse. `st_cterm_handle_text_key()` accepts a Unicode keyboard scalar, checks
+RIP hotkeys, then applies codepage encoding and the emulation's key table. A
+false result leaves Unicode transmission or unmappable-character handling to
+the session. Paste and scripted sends use semantic text transmission directly,
+not keyboard remapping. Connected Wren key hooks retain v1.10a's precedence
+before CTerm translation.
+
 DEC mouse/focus reporting, a reserved host-writable DEC status row, remote
 fonts, pixels, hyperlinks, and audio are handled inside CTerm.  DECCKSR computes
 its CRC over the selected row-major array of modern 24-byte cells; the explicit

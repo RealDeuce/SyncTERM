@@ -519,6 +519,20 @@ exercise_connected_without_sftp(st_wren_host_t *host,
 	CHECK(st_wren_connected_handle_event(connected, &text_z,
 	    &consumed) == 0);
 	CHECK(consumed);
+	CHECK(st_wren_connected_interpret(connected, "modified_key_hook",
+	    "import \"syncterm\" for Hook\n"
+	    "Hook.onKey(10, Fn.new {|key| true })\n") == 0);
+	const struct st_console_event ctrl_enter = {
+		.type = ST_CONSOLE_EVENT_KEY_CODE,
+		.data.key = {.code = 13, .modifiers = ST_CONSOLE_MODIFIER_CONTROL},
+	};
+	CHECK(st_wren_connected_handle_event(connected, &ctrl_enter, &consumed) == 0);
+	CHECK(consumed);
+	const struct st_console_event reveal = {
+		.type = ST_CONSOLE_EVENT_KEY_CODE, .data.key.code = ST_CONSOLE_KEY_F3,
+	};
+	CHECK(st_wren_connected_handle_event(connected, &reveal, &consumed) == 0);
+	CHECK(!consumed);
 	struct st_console_event physical_a = {
 		.type = ST_CONSOLE_EVENT_PHYSICAL_KEY,
 		.data.physical_key = {.evdev = 30, .pressed = true},
@@ -3605,6 +3619,33 @@ exercise_input_value_contract(struct st_wren_host *host,
 	CHECK(st_console_post_event(console, &wheel) == 0);
 	CHECK(wrenInterpret(host->vm, "mouse_input_contract", mouse_source)
 	    == WREN_RESULT_SUCCESS);
+	const struct {
+		uint16_t key;
+		uint32_t modifiers;
+		uint16_t expected;
+	} modified[] = {
+		{13, ST_CONSOLE_MODIFIER_CONTROL, 10},
+		{8, ST_CONSOLE_MODIFIER_CONTROL, 127},
+		{ST_CONSOLE_KEY_HOME, ST_CONSOLE_MODIFIER_SHIFT, 0x3700},
+		{ST_CONSOLE_KEY_HOME, ST_CONSOLE_MODIFIER_CONTROL, 0x7700},
+		{ST_CONSOLE_KEY_PAGE_UP, ST_CONSOLE_MODIFIER_SHIFT, 0x3900},
+		{ST_CONSOLE_KEY_PAGE_UP, ST_CONSOLE_MODIFIER_CONTROL, 0x8400},
+		{ST_CONSOLE_KEY_PAGE_DOWN, ST_CONSOLE_MODIFIER_SHIFT, 0x3300},
+		{ST_CONSOLE_KEY_PAGE_DOWN, ST_CONSOLE_MODIFIER_CONTROL, 0x7600},
+	};
+	for (size_t i = 0; i < sizeof(modified) / sizeof(modified[0]); ++i) {
+		const struct st_console_event event = {
+			.type = ST_CONSOLE_EVENT_KEY_CODE,
+			.data.key = {.code = modified[i].key, .modifiers = modified[i].modifiers},
+		};
+		CHECK(st_wren_input_key_code(&event) == modified[i].expected);
+		CHECK(st_console_post_event(console, &event) == 0);
+	}
+	CHECK(wrenInterpret(host->vm, "modified_input_contract",
+	    "import \"syncterm\" for Input\n"
+	    "for (expected in [10, 127, 14080, 30464, 14592, 33792, 13056, 30208]) {\n"
+	    "  if (Input.poll().code != expected) Fiber.abort(\"modified key mapping\")\n"
+	    "}\n") == WREN_RESULT_SUCCESS);
 	return 0;
 }
 
