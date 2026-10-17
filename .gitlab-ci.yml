@@ -1,0 +1,105 @@
+# Copyright (c) 2026 Stephen Hurd
+# SPDX-License-Identifier: BSD-2-Clause
+
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_TAG'
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS'
+      when: never
+    - if: '$CI_COMMIT_BRANCH'
+
+stages: [check, build-test]
+
+variables:
+  CMAKE_BUILD_PARALLEL_LEVEL: "4"
+  CTEST_PARALLEL_LEVEL: "1"
+  CI_BUILD_TYPE: RelWithDebInfo
+  CI_PROFILE: native
+  # This is an acknowledged coverage gap, not a successful Haiku build.
+  SYNCTERM_CI_HAIKU: "0"
+
+default:
+  interruptible: true
+  cache:
+    key: "ccache-$CI_JOB_NAME_SLUG"
+    paths: [.ci-cache/ccache/]
+  artifacts:
+    name: "syncterm-$CI_JOB_NAME_SLUG-$CI_COMMIT_SHORT_SHA"
+    when: always
+    expire_in: 1 week
+    paths:
+      - build-ci/reports/
+      - build-ci/artifacts/
+    reports:
+      junit: build-ci/reports/junit.xml
+
+include:
+  - local: .gitlab/ci/posix.yml
+    inputs: {name: linux-gcc, tag: Linux, cc: gcc, cxx: g++}
+  - local: .gitlab/ci/posix.yml
+    inputs: {name: linux-clang, tag: Linux, cc: clang, cxx: clang++}
+  - local: .gitlab/ci/posix.yml
+    inputs: {name: alpine-linux, tag: alpine-linux}
+  - local: .gitlab/ci/posix.yml
+    inputs: {name: linux-arm64, tag: RaspberryPi}
+  - local: .gitlab/ci/posix.yml
+    inputs: {name: freebsd, tag: FreeBSD}
+  - local: .gitlab/ci/posix.yml
+    inputs: {name: openbsd, tag: OpenBSD}
+  - local: .gitlab/ci/posix.yml
+    inputs: {name: netbsd, tag: NetBSD}
+  - local: .gitlab/ci/posix.yml
+    inputs: {name: macos-arm64, tag: macOS-aarch64}
+  - local: .gitlab/ci/posix.yml
+    inputs: {name: macos-x86, tag: macOS-x86}
+  - local: .gitlab/ci/posix.yml
+    inputs: {name: linux-minimal, tag: Linux, cc: gcc, cxx: g++, profile: minimal}
+  - local: .gitlab/ci/posix.yml
+    inputs: {name: linux-sanitizers, tag: Linux, cc: clang, cxx: clang++, profile: sanitizers}
+  - local: .gitlab/ci/posix.yml
+    inputs: {name: mingw32-cross, tag: FreeBSD, profile: mingw32-cross}
+  - local: .gitlab/ci/posix.yml
+    inputs: {name: mingw64-cross, tag: FreeBSD, profile: mingw64-cross}
+  - local: .gitlab/ci/windows.yml
+
+ci-driver-tests:
+  stage: check
+  timeout: 2 hours
+  tags: [Linux]
+  rules:
+    - when: on_success
+  script:
+    - cmake -S ci/tests -B build-ci
+    - cmake --build build-ci
+    - ctest --test-dir build-ci --output-on-failure --no-tests=error --output-junit "$CI_PROJECT_DIR/build-ci/reports/junit.xml"
+
+# Job artifacts replace (rather than merge with) default artifacts. These
+# jobs intentionally have no JUnit report because target code is not run.
+.cross-artifacts:
+  artifacts:
+    name: "syncterm-$CI_JOB_NAME_SLUG-$CI_COMMIT_SHORT_SHA"
+    when: always
+    expire_in: 1 week
+    paths: [build-ci/reports/, build-ci/artifacts/]
+
+mingw32-cross:
+  extends: .cross-artifacts
+
+mingw64-cross:
+  extends: .cross-artifacts
+
+macos-arm64:
+  resource_group: macos-arm64-native-ui
+
+macos-x86:
+  resource_group: macos-x86-native-ui
+
+haiku:
+  stage: build-test
+  timeout: 2 hours
+  tags: [Haiku]
+  rules:
+    - if: '$SYNCTERM_CI_HAIKU == "1"'
+  script:
+    - sh ci/posix.sh

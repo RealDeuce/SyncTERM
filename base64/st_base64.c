@@ -122,12 +122,11 @@ st_base64_decode(void *destination, size_t destination_capacity,
 		uint8_t a, b, c = 0, d = 0;
 		uint32_t block;
 
-		(void)value((unsigned char)source[i], &a);
-		(void)value((unsigned char)source[i + 1], &b);
-		if (source[i + 2] != '=')
-			(void)value((unsigned char)source[i + 2], &c);
-		if (source[i + 3] != '=')
-			(void)value((unsigned char)source[i + 3], &d);
+		if (!value((unsigned char)source[i], &a)
+		    || !value((unsigned char)source[i + 1], &b)
+		    || (source[i + 2] != '=' && !value((unsigned char)source[i + 2], &c))
+		    || (source[i + 3] != '=' && !value((unsigned char)source[i + 3], &d)))
+			return false;
 		block = ((uint32_t)a << 18) | ((uint32_t)b << 12)
 		    | ((uint32_t)c << 6) | d;
 		if (position < decoded)

@@ -1,0 +1,65 @@
+# Copyright (c) 2026 Stephen Hurd
+# SPDX-License-Identifier: BSD-2-Clause
+cmake_minimum_required(VERSION 3.22)
+get_filename_component(_ci "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
+if(NOT DEFINED TEST_ROOT)
+	message(FATAL_ERROR "TEST_ROOT is required")
+endif()
+
+function(check_case name failure extra profile)
+	set(_build "${TEST_ROOT}/${name}")
+	execute_process(COMMAND "${CMAKE_COMMAND}" -E env
+		"CI_EXTRA_CMAKE_ARGS=${extra}" "CMAKE_BUILD_PARALLEL_LEVEL=2"
+		"CTEST_PARALLEL_LEVEL=1"
+		"${CMAKE_COMMAND}" "-DCI_SOURCE_DIR=${CMAKE_CURRENT_LIST_DIR}/fixture"
+		"-DCI_BUILD_DIR=${_build}" "-DCI_PROFILE=${profile}"
+		-P "${_ci}/run.cmake"
+		RESULT_VARIABLE _result OUTPUT_VARIABLE _out ERROR_VARIABLE _err)
+	if(failure STREQUAL "")
+		if(NOT "${_result}" STREQUAL "0")
+			message(FATAL_ERROR "${name}: ${_out}\n${_err}")
+		endif()
+		file(READ "${_build}/reports/junit.xml" _junit)
+		if(NOT _junit MATCHES "fixture_unavailable" OR NOT _junit MATCHES "skipped")
+			message(FATAL_ERROR "${name}: skipped test was lost from JUnit")
+		endif()
+		file(GLOB _app "${_build}/artifacts/syncterm*")
+		if(NOT _app)
+			message(FATAL_ERROR "${name}: missing application artifact")
+		endif()
+	else()
+		if("${_result}" STREQUAL "0" OR NOT "${_out}\n${_err}" MATCHES "CI ${failure} failed")
+			message(FATAL_ERROR "${name}: expected ${failure} failure, got ${_result}\n${_out}\n${_err}")
+		endif()
+		if(NOT EXISTS "${_build}/reports/${failure}.log")
+			message(FATAL_ERROR "${name}: failure log was not retained")
+		endif()
+	endif()
+endfunction()
+
+check_case(success "" "" native)
+check_case(success "" "-DBUILD_TESTING:STRING=true" native)
+check_case(minimal "" "" minimal)
+file(STRINGS "${TEST_ROOT}/minimal/CMakeCache.txt" _crypto REGEX "^CRYPTO_BACKEND:")
+if(NOT _crypto STREQUAL "CRYPTO_BACKEND:UNINITIALIZED=none")
+	message(FATAL_ERROR "Minimal profile failed to disable crypto")
+endif()
+check_case(configure-failure configure "-DCI_FIXTURE_CONFIGURE_FAIL=ON" native)
+check_case(build-failure build "-DCI_FIXTURE_BUILD_FAIL=ON" native)
+check_case(test-failure test "-DCI_FIXTURE_TEST_FAIL=ON" native)
+check_case(no-tests test "-DCI_FIXTURE_NO_TESTS=ON" native)
+
+# Pinning and architecture information must exist for both Windows jobs.
+file(READ "${_ci}/mingw-toolchains.json" _manifest)
+foreach(_arch IN ITEMS x86 x64)
+	string(JSON _hash GET "${_manifest}" ${_arch} sha256)
+	string(LENGTH "${_hash}" _hash_length)
+	if(NOT _hash_length EQUAL 64 OR NOT _hash MATCHES "^[0-9a-f]+$")
+		message(FATAL_ERROR "Invalid pinned MinGW SHA256 for ${_arch}")
+	endif()
+	string(JSON _archive GET "${_manifest}" ${_arch} archive)
+	if(NOT _archive MATCHES "^winlibs-.*-posix-.*-gcc-.*mingw-w64ucrt-.*\\.zip$")
+		message(FATAL_ERROR "Unexpected MinGW archive: ${_archive}")
+	endif()
+endforeach()
+message(STATUS "CI driver success, failure propagation, empty suites, skips and manifests verified")

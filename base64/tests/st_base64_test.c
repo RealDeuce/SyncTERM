@@ -50,6 +50,10 @@ main(void)
 	check_vector("fo", 2, "Zm8=");
 	check_vector("foo", 3, "Zm9v");
 	check_vector("foobar", 6, "Zm9vYmFy");
+	char in_place[] = "Zm9vYmFy";
+	CHECK(st_base64_decode(in_place, sizeof(in_place), in_place, 8));
+	CHECK(memcmp(in_place, "foobar", 6) == 0);
+	CHECK(in_place[6] == 'F' && in_place[7] == 'y' && in_place[8] == '\0');
 	CHECK(st_base64_encode(empty, sizeof(empty), NULL, 0));
 	CHECK(empty[0] == '\0');
 	CHECK(!st_base64_decoded_size("Zg=", 3, &size));
@@ -57,6 +61,24 @@ main(void)
 	CHECK(!st_base64_decoded_size("Zg=A", 4, &size));
 	CHECK(!st_base64_decoded_size("Z g=", 4, &size));
 	CHECK(!st_base64_decoded_size("Zm9*", 4, &size));
+	/* Reject invalid bytes anywhere, including a later block, before
+	 * publishing any decoded prefix to the destination. */
+	for (unsigned value = 0; value <= 255; ++value) {
+		bool valid = (value >= 'A' && value <= 'Z')
+		    || (value >= 'a' && value <= 'z')
+		    || (value >= '0' && value <= '9') || value == '+' || value == '/';
+		if (valid)
+			continue;
+		for (size_t offset = 0; offset < 8; ++offset) {
+			char input[] = "Zm9vYmFy";
+			unsigned char output[8];
+			memset(output, 0xa5, sizeof(output));
+			input[offset] = (char)(unsigned char)value;
+			CHECK(!st_base64_decode(output, sizeof(output), input, 8));
+			for (size_t i = 0; i < sizeof(output); ++i)
+				CHECK(output[i] == 0xa5);
+		}
+	}
 	CHECK(!st_base64_encode(empty, 0, NULL, 0));
 	return failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }

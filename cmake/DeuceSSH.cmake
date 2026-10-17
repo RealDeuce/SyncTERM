@@ -19,3 +19,16 @@ elseif(TARGET deucessh::deucessh_static)
 else()
 	set(ST_DEUCESSH_TARGET deucessh::deucessh_shared)
 endif()
+
+# DeuceSSH exposes a C ABI, but its Botan archive contains C++ objects.
+# A C-only consumer (including the standalone SSH fixture) needs the runtime
+# of the selected C++ compiler even without a dependency on xptls_crypto.
+if(ST_TLS_PROVIDER STREQUAL "Botan")
+	enable_language(CXX)
+	add_library(st_deucessh INTERFACE)
+	target_link_libraries(st_deucessh INTERFACE ${ST_DEUCESSH_TARGET}
+		${CMAKE_CXX_IMPLICIT_LINK_LIBRARIES})
+	target_link_directories(st_deucessh INTERFACE
+		${CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES})
+	set(ST_DEUCESSH_TARGET st_deucessh)
+endif()

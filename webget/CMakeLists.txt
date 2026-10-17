@@ -57,7 +57,9 @@ if(BUILD_TESTING)
 			-Wall -Wextra -Wpedantic -Werror)
 	endif()
 	add_test(NAME webget COMMAND st_webget_test)
-	set_tests_properties(webget PROPERTIES TIMEOUT 10)
+	# Several loopback requests each allow two seconds, in addition to cache
+	# writes and validation. The whole test needs more than one request's budget.
+	set_tests_properties(webget PROPERTIES TIMEOUT 60)
 
 	add_executable(st_webget_transport_test
 		tests/st_webget_transport_test.c)

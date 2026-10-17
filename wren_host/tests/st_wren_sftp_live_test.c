@@ -94,7 +94,15 @@ static int drain(st_wren_connected_t *vm)
 		CHECK(st_time_monotonic_ms(&now) == 0);
 		if (st_wren_connected_auxiliary_active(vm)) quiet_since = 0;
 		else if (quiet_since == 0) quiet_since = now;
-		else if (now - quiet_since >= 250) return 0;
+		else if (now - quiet_since >= 250) {
+			/* A reply callback can run past a UI timer's deadline after
+			 * pump has dispatched timers. Dispatch those overdue timers
+			 * before treating the auxiliary quiet interval as completion. */
+			CHECK(st_wren_connected_pump(vm, 0) == 0);
+			CHECK(st_wren_connected_last_error(vm) == NULL);
+			if (!st_wren_connected_auxiliary_active(vm)) return 0;
+			quiet_since = 0;
+		}
 	} while (now - start < 30000);
 	CHECK(false); return 1;
 }
@@ -252,7 +260,7 @@ static int run_case(st_wren_host_t *host, st_console_t *console,
 		    "import \"syncterm\" for CTerm\n"
 		    "import \"sftp_app\" for SftpApp\n"
 		    "import \"sftp_queue\" for SftpQueue\n"
-		    "if (!SftpQueue.suspended || CTerm.sftpActive || CTerm.suspended || SftpApp.current != null) Fiber.abort(\"network loss left modal alive\")\n") == 0);
+		    "if (!SftpQueue.suspended || CTerm.sftpActive || CTerm.suspended || SftpApp.current != null) Fiber.abort(\"network loss state: queue suspended=%(SftpQueue.suspended), active=%(CTerm.sftpActive), terminal suspended=%(CTerm.suspended), app=%(SftpApp.current)\")\n") == 0);
 	} else if (test >= 3 && test <= 7) {
 		CHECK(st_wren_connected_interpret(vm, "failure_cleanup",
 		    "import \"syncterm\" for CTerm, SFTP\n"

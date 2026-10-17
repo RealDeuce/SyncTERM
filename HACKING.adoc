@@ -53,6 +53,100 @@ configuration headers belong in the build tree, and a new target must set
 For CPU-time benchmarks, pixel-equivalence checks, and the scrolling/rendering
 baseline, see link:docs/performance.adoc[Performance verification].
 
+=== GitLab CI
+
+link:.gitlab-ci.yml[The pipeline] uses the same runner tags as Synchronet,
+but configures this standalone project with CMake. Each job builds the
+application and all applicable test targets, then runs CTest in the same
+checkout. Configured build trees are neither cached nor moved between jobs:
+tests contain absolute source and fixture paths.
+
+[cols="1,2",options="header"]
+|===
+| Runner tag | Coverage
+| `Linux` | GCC, Clang, minimal optional features, combined ASan/UBSan
+| `alpine-linux` | Native musl build and tests
+| `RaspberryPi` | Native ARM64 build and tests
+| `FreeBSD` | Native build/tests; Win32 and Win64 MinGW cross-compilation
+| `OpenBSD`, `NetBSD` | Native build and tests, including slower runners
+| `macOS-aarch64`, `macOS-x86` | Native build and tests on each runner
+| `Windows` | MSVC and MinGW, each with native Win32 and Win64 tests
+| `Haiku` | No runner currently; explicitly untested. Enable the job only
+after registering a runner with this tag and setting `SYNCTERM_CI_HAIKU=1`.
+|===
+
+Native jobs retain ordinary feature and crypto auto-detection. CI does not
+install optional application libraries or change the runtime-loading policy.
+Configure logs and `capabilities.txt` show which paths were actually built;
+CTest's JUnit report records skips, which are not successful backend tests.
+Tests currently restricted to POSIX, such as the SSH/SFTP live fixture, do not
+become Windows coverage merely because the Windows application builds.
+
+Runners need Git, CMake/CTest 3.22 or newer, a C17 compiler and its native
+build tool. Jobs request a two-hour limit, subject to the runner's own cap.
+Provide a matching C++20 compiler when Botan is detected, and
+Objective-C/Apple SDK tools on macOS. Windows MSVC jobs use Visual Studio
+2022's Win32/x64 C++ tools; its bundled CMake is accepted. MinGW Windows jobs
+download the release pinned in link:ci/mingw-toolchains.json[the toolchain
+manifest], verify its SHA256 even on cache hits, and extract it into the job
+workspace. The toolchain's runtime DLL directory remains on the test PATH.
+Only compiler tools are bootstrapped, not application libraries.
+
+FreeBSD cross-builds use `/home/admin/mingw-w32` and
+`/home/admin/mingw-w64`; `CI_MINGW_ROOT` can override the selected root.
+They explicitly select `CRYPTO_BACKEND=none` unless overridden, constrain
+library/header/package discovery to the target, and build test executables
+without running them. Their `execution.txt` records this distinction and they
+do not publish a JUnit report.
+Additional target SDK roots can be supplied with `CMAKE_FIND_ROOT_PATH`.
+The toolchain restricts pkg-config metadata to `lib/pkgconfig` and
+`share/pkgconfig` beneath those roots, clearing inherited host search paths.
+
+Useful job variables:
+
+* `CMAKE_BUILD_PARALLEL_LEVEL`: build concurrency, default `4`.
+* `CTEST_PARALLEL_LEVEL`: test concurrency, default `1`; existing CTest
+  resource locks remain active.
+* `CI_BUILD_TYPE`: default `RelWithDebInfo`; sanitizer jobs use `Debug`.
+* `CI_EXTRA_CMAKE_ARGS`: semicolon-separated CMake arguments, not shell
+  code. For example, `-DCRYPTO_BACKEND=OpenSSL;-DCMAKE_PREFIX_PATH=/opt/target`.
+  Native jobs otherwise leave the provider unset. Do not put secrets here:
+  configure diagnostics are retained as artifacts.
+
+POSIX jobs clear inherited display selections, start their own Xvfb and
+headless Weston when those tools are installed, and stop only those child
+processes on success, failure, or interruption. X11/Wayland tests never use an
+inherited desktop. Native Quartz/GDI tests instead require the runner's
+native graphics session: use a dedicated CI login/session, not a developer's
+desktop. Unavailable environment-dependent tests retain their explicit CTest
+skip behavior. SDL's existing dummy-driver tests remain headless. Optional
+`ccache` uses a project-local cache; toolchain downloads and compiler-cache
+data are cached separately from build trees.
+GitLab resource groups serialize Windows jobs and jobs for each macOS runner
+tag within this project, protecting native-window tests from overlapping
+pipelines. Other projects sharing those sessions need the same runner-level
+isolation; resource groups are not cross-project locks.
+
+Job artifacts under `build-ci/reports/` retain configure/build/test logs,
+detected capabilities and JUnit results even on failure. Application binaries
+are under `build-ci/artifacts/`; these are build outputs, not self-contained
+release packages with every optional runtime library. Pipeline creation
+covers merge requests, branch pushes, tags, schedules and manual pipelines,
+without duplicating a push pipeline when an MR pipeline is already requested.
+
+The common driver has isolated success/error-path tests:
+
+[source,sh]
+----
+cmake -S ci/tests -B build-ci-check
+ctest --test-dir build-ci-check --output-on-failure --no-tests=error
+----
+
+To exercise a native CI job locally, use `sh ci/posix.sh`. Select
+`CI_PROFILE=minimal` or `CI_PROFILE=sanitizers` and a separate `CI_BUILD_DIR`
+for those variants. The CI helper does not push commits, register runners,
+install system packages or change GitLab project settings.
+
 == Component model
 
 Each component owns one responsibility, its allocation boundary, and its

@@ -224,7 +224,7 @@ make_raw_absolute(wchar_t *path, wchar_t **result)
 		return 0;
 	}
 
-	wchar_t *base;
+	wchar_t *base = NULL;
 	const wchar_t *suffix = path;
 	bool suffix_rooted = false;
 	int error;
@@ -235,7 +235,7 @@ make_raw_absolute(wchar_t *path, wchar_t **result)
 	}
 	else {
 		error = windows_current_directory(&base);
-		if (wide_is_separator(path[0])) {
+		if (base != NULL && wide_is_separator(path[0])) {
 			suffix_rooted = true;
 			if (error == 0 && wide_is_separator(base[0]) &&
 			    wide_is_separator(base[1])) {
@@ -252,6 +252,9 @@ make_raw_absolute(wchar_t *path, wchar_t **result)
 	}
 	if (error < 0)
 		return error;
+	/* A failed native query must not become success if GetLastError is zero. */
+	if (base == NULL)
+		return IO_ERROR_IO;
 	wchar_t *joined;
 	error = join_wide(base, suffix, suffix_rooted, &joined);
 	free(base);

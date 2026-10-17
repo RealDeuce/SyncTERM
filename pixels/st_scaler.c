@@ -792,6 +792,9 @@ execute_stage_region(const struct scaler_stage *stage,
 			    (int)stage->input_width, (int)stage->input_height,
 			    centers.x, centers.y, centers.width, centers.height);
 		break;
+	default:
+		/* Stages are constructed internally; an unknown tag is a bug. */
+		abort();
 	}
 	*output_damage = (struct st_pixel_rect){
 		.x = centers.x * multiplier,

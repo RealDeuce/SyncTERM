@@ -64,12 +64,23 @@ exercise(bool first_exclusive, bool second_exclusive, bool should_block)
 	    first_exclusive) == 0);
 	CHECK(st_thread_create(&thread, acquire_lock, &attempt)
 	    == ST_THREAD_SUCCESS);
-	while (!atomic_load(&attempt.started))
-		st_thread_yield();
-	CHECK(st_thread_sleep(&delay, NULL) == ST_THREAD_SUCCESS);
-	CHECK(atomic_load(&attempt.acquired) != should_block);
-	st_file_lock_release(first);
-	CHECK(st_thread_join(thread, &thread_status) == ST_THREAD_SUCCESS);
+	if (should_block) {
+		bool acquired_while_held;
+
+		while (!atomic_load(&attempt.started))
+			st_thread_yield();
+		CHECK(st_thread_sleep(&delay, NULL) == ST_THREAD_SUCCESS);
+		acquired_while_held = atomic_load(&attempt.acquired);
+		st_file_lock_release(first);
+		CHECK(st_thread_join(thread, &thread_status) == ST_THREAD_SUCCESS);
+		CHECK(!acquired_while_held);
+	}
+	else {
+		/* Shared acquisition must complete while the first lock is held;
+		 * it need not finish within an arbitrary scheduling interval. */
+		CHECK(st_thread_join(thread, &thread_status) == ST_THREAD_SUCCESS);
+		st_file_lock_release(first);
+	}
 	CHECK(thread_status == 0 && attempt.status == 0);
 	CHECK(atomic_load(&attempt.acquired));
 	return 0;

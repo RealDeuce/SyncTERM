@@ -1,0 +1,37 @@
+# Copyright (c) 2026 Stephen Hurd
+# SPDX-License-Identifier: BSD-2-Clause
+.windows:
+  stage: build-test
+  timeout: 2 hours
+  tags: [Windows]
+  # GDI tests use native window titles/focus in one runner session.
+  resource_group: windows-native-ui
+  rules:
+    - when: on_success
+  variables:
+    MSBUILDDISABLENODEREUSE: "1"
+  script:
+    - |
+      & powershell -NoProfile -ExecutionPolicy Bypass -File ci/windows.ps1 -Compiler $env:CI_WINDOWS_COMPILER -Architecture $env:CI_WINDOWS_ARCH
+      if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+windows-msvc:
+  extends: .windows
+  variables:
+    CI_WINDOWS_COMPILER: msvc
+  parallel:
+    matrix:
+      - CI_WINDOWS_ARCH: [x86, x64]
+
+windows-mingw:
+  extends: .windows
+  variables:
+    CI_WINDOWS_COMPILER: mingw
+  parallel:
+    matrix:
+      - CI_WINDOWS_ARCH: [x86, x64]
+  cache:
+    key:
+      prefix: "mingw-$CI_WINDOWS_ARCH"
+      files: [ci/mingw-toolchains.json]
+    paths: [.ci-cache/toolchains/]

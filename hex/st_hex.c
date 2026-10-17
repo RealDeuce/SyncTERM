@@ -69,8 +69,9 @@ st_hex_decode(void *destination, size_t destination_capacity,
 		uint8_t high;
 		uint8_t low;
 
-		(void)st_hex_digit_value((unsigned char)source[i * 2], &high);
-		(void)st_hex_digit_value((unsigned char)source[i * 2 + 1], &low);
+		if (!st_hex_digit_value((unsigned char)source[i * 2], &high)
+		    || !st_hex_digit_value((unsigned char)source[i * 2 + 1], &low))
+			return false;
 		bytes[i] = (unsigned char)(high * 16U + low);
 	}
 	return true;

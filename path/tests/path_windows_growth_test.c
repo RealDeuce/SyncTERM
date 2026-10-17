@@ -10,7 +10,9 @@
 
 #include "path.h"
 #include "path_windows.h"
+#include "io_error.h"
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -26,6 +28,7 @@
 
 static unsigned int current_directory_calls;
 static unsigned int full_path_calls;
+static bool fail_query;
 
 static DWORD WINAPI
 test_get_current_directory(DWORD size, LPWSTR buffer)
@@ -33,6 +36,10 @@ test_get_current_directory(DWORD size, LPWSTR buffer)
 	static const wchar_t value[] = L"C:\\long";
 
 	current_directory_calls++;
+	if (fail_query) {
+		SetLastError(ERROR_SUCCESS);
+		return 0;
+	}
 	if (size == 0)
 		return 4;
 	if (size < sizeof(value) / sizeof(value[0]))
@@ -49,6 +56,10 @@ test_get_full_path_name(LPCWSTR path, DWORD size, LPWSTR buffer,
 
 	(void)path;
 	full_path_calls++;
+	if (fail_query) {
+		SetLastError(ERROR_SUCCESS);
+		return 0;
+	}
 	if (file_part != NULL)
 		*file_part = NULL;
 	if (size == 0)
@@ -84,5 +95,10 @@ main(void)
 	CHECK(wcscmp(extended, L"\\\\?\\C:\\long\\child") == 0);
 	CHECK(current_directory_calls == 3);
 	free(extended);
+
+	fail_query = true;
+	CHECK(path_make_absolute(absolute, sizeof(absolute), "child") == IO_ERROR_IO);
+	CHECK(path_make_absolute(absolute, sizeof(absolute), "\\child") == IO_ERROR_IO);
+	CHECK(path_make_absolute(absolute, sizeof(absolute), "D:child") == IO_ERROR_IO);
 	return 0;
 }

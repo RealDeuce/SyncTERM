@@ -1,0 +1,13 @@
+{
+  "release": "15.2.0posix-13.0.0-ucrt-r6",
+  "x86": {
+    "archive": "winlibs-i686-posix-dwarf-gcc-15.2.0-mingw-w64ucrt-13.0.0-r6.zip",
+    "sha256": "40419c9fe7d8cb8aae0899bd5ff2e65831d620accc7118f84bfba4b721102b01",
+    "directory": "mingw32"
+  },
+  "x64": {
+    "archive": "winlibs-x86_64-posix-seh-gcc-15.2.0-mingw-w64ucrt-13.0.0-r6.zip",
+    "sha256": "9f3ee66dd11f1c40a85850976ab9a740469cd3bc43a234a2e9f91c04c92c4f57",
+    "directory": "mingw64"
+  }
+}

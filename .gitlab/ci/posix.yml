@@ -1,0 +1,25 @@
+# Copyright (c) 2026 Stephen Hurd
+# SPDX-License-Identifier: BSD-2-Clause
+spec:
+  inputs:
+    name:
+    tag:
+    cc:
+      default: cc
+    cxx:
+      default: c++
+    profile:
+      default: native
+---
+"$[[ inputs.name ]]":
+  stage: build-test
+  timeout: 2 hours
+  tags: ["$[[ inputs.tag ]]"]
+  rules:
+    - when: on_success
+  variables:
+    CC: "$[[ inputs.cc ]]"
+    CXX: "$[[ inputs.cxx ]]"
+    CI_PROFILE: "$[[ inputs.profile ]]"
+  script:
+    - sh ci/posix.sh
