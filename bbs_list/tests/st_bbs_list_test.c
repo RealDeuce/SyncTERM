@@ -131,6 +131,17 @@ check_profile_encodings(void)
 		{"[Entry]\nFont=Codepage 850 Multilingual Latin I\n",
 		    ST_CODEPAGE_CP850, "CP850"},
 		{"[Entry]\nConnectionType=Shell\n",
+		    ST_CODEPAGE_CP437, "CP437"},
+		{"[Entry]\nConnectionType=Shell\nScreenMode=80x25\n"
+		    "Font=Codepage 850 Multilingual Latin I\n",
+		    ST_CODEPAGE_CP850, "CP850"},
+		{"[Entry]\nConnectionType=Shell\nScreenMode=AtariST80x25\n"
+		    "Font=Codepage 850 Multilingual Latin I\n",
+		    ST_CODEPAGE_CP850, "CP850"},
+		{"[Entry]\nConnectionType=Shell\nFont=Custom font\n",
+		    ST_CODEPAGE_CP437, "CP437"},
+		{"[Entry]\nConnectionType=Shell\nEncoding=UTF-8\n"
+		    "Font=Codepage 850 Multilingual Latin I\n",
 		    ST_PROFILE_ENCODING_UTF8, "UTF-8"},
 		{"[Entry]\nConnectionType=Shell\nEncoding=CP1251\n",
 		    ST_CODEPAGE_CP1251, "CP1251"},
@@ -158,7 +169,7 @@ check_profile_encodings(void)
 		{"[Entry]\nConnectionType=Shell\nScreenMode=BBCMicro7\nFont=Prestel\n",
 		    ST_CODEPAGE_PRESTEL, "PRESTEL"},
 		{"[Entry]\nConnectionType=Shell\nScreenMode=AtariST80x25\n",
-		    ST_PROFILE_ENCODING_UTF8, "UTF-8"},
+		    ST_CODEPAGE_CP437, "CP437"},
 		{"[Entry]\nEncoding=CP850B\n",
 		    ST_CODEPAGE_CP850, "CP850"},
 		{"[Entry]\nEncoding=PRESTEL-SEP\n",
@@ -288,16 +299,18 @@ check_encoding_persistence(const struct st_app_paths *base_paths)
 	CHECK(st_bbs_list_find(second, "EncodingEntry")->profile->encoding
 	    == ST_CODEPAGE_CP1251);
 
-	/* Freeze an implicit legacy encoding before a transport edit can alter
-	 * its inference, even when the encoding itself was not edited. */
+	/* A transport edit preserves the font-derived encoding and makes it
+	 * explicit on disk even when encoding itself was not edited. */
 	CHECK(copy_named(&profile, first, "LegacyShell") == 0);
-	CHECK(profile.encoding == ST_PROFILE_ENCODING_UTF8);
+	CHECK(profile.encoding == ST_CODEPAGE_CP437);
 	profile.connection_type = ST_CONNECTION_TELNET;
 	profile.port = 23;
 	CHECK(st_bbs_list_update(first, "LegacyShell", &profile, NULL) == 0);
 	CHECK(st_bbs_list_reload(first) == 0);
 	CHECK(st_bbs_list_find(first, "LegacyShell")->profile->encoding
-	    == ST_PROFILE_ENCODING_UTF8);
+	    == ST_CODEPAGE_CP437);
+	CHECK(strcmp(ini_section_find(ini_document_find_section(
+	    first->personal_document, "LegacyShell"), "Encoding"), "CP437") == 0);
 	st_profile_dispose(&profile);
 	st_profile_dispose(&other);
 	st_bbs_list_close(first);

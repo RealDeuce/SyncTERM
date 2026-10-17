@@ -226,9 +226,9 @@ zero for invalid/non-network types.
 `st_profile_init(profile)` establishes defaults and owned fields;
 `encoding` defaults to CP437 and stores a canonical `st_codepage` value or
 `ST_PROFILE_ENCODING_UTF8`. The BBS INI `Encoding` key uses canonical names;
-missing keys retain the former font-derived encoding. Shell defaults to UTF-8
-only in ANSI-compatible and Atari-ST VT52 modes; its fixed-byte PETSCII,
-ATASCII, Prestel, and BBC modes retain the saved font's encoding as well.
+missing keys infer the encoding from the saved built-in font, falling back to
+CP437 for unknown or custom fonts. This rule is independent of transport and
+screen mode; Shell does not imply UTF-8. An explicit valid `Encoding` wins.
 Saving an existing entry or defaults writes that inferred encoding explicitly,
 so changing transport or font does not silently change the encoding on reload.
 `st_profile_dispose(profile)` frees its owned optional paths.  Call

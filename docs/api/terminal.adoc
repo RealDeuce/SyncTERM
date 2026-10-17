@@ -109,9 +109,9 @@ encoding.  In a legacy encoding, an unmappable grapheme beeps locally and only
 that grapheme is omitted.  Raw CTerm responses bypass text conversion.  There
 is no simulated baud throttling. Local shell PTYs advertise the selected
 encoding in `MM_CHARSET` and consume that encoding, just like remote
-transports. Entries imported without `Encoding` default to UTF-8 for
-ANSI-compatible Shell sessions, but retain font-derived byte encodings for
-PETSCII, ATASCII, Prestel, and BBC sessions.
+transports. Entries imported without `Encoding` infer it from the saved
+built-in font, falling back to CP437 for unknown or custom fonts, regardless
+of transport or screen mode. UTF-8 must be selected explicitly.
 
 When status is visible, the bottom console row is reserved and excluded from
 reported terminal geometry.  CTerm's staged scrollback ring plus visible rows
