@@ -134,6 +134,31 @@ check_profile_encodings(void)
 		    ST_PROFILE_ENCODING_UTF8, "UTF-8"},
 		{"[Entry]\nConnectionType=Shell\nEncoding=CP1251\n",
 		    ST_CODEPAGE_CP1251, "CP1251"},
+		{"[Entry]\nConnectionType=Shell\nScreenMode=C128-40col\n"
+		    "Font=Commodore 128 (Lower)\n",
+		    ST_CODEPAGE_PETSCII_LOWER, "PETSCIIL"},
+		{"[Entry]\nConnectionType=Shell\nScreenMode=C64\n"
+		    "Font=Commodore 64 (UPPER)\n",
+		    ST_CODEPAGE_PETSCII_UPPER, "PETSCIIU"},
+		{"[Entry]\nConnectionType=Shell\nScreenMode=C64\n"
+		    "Font=Commodore 64 (Lower)\n",
+		    ST_CODEPAGE_PETSCII_LOWER, "PETSCIIL"},
+		{"[Entry]\nConnectionType=Shell\nScreenMode=C128-40col\n"
+		    "Font=Commodore 128 (UPPER)\n",
+		    ST_CODEPAGE_PETSCII_UPPER, "PETSCIIU"},
+		{"[Entry]\nConnectionType=Shell\nScreenMode=C128-80col\n"
+		    "Font=Commodore 128 (Lower)\n",
+		    ST_CODEPAGE_PETSCII_LOWER, "PETSCIIL"},
+		{"[Entry]\nConnectionType=Shell\nScreenMode=Atari\nFont=Atari\n",
+		    ST_CODEPAGE_ATASCII, "ATASCII"},
+		{"[Entry]\nConnectionType=Shell\nScreenMode=Atari-XEP80\nFont=Atari\n",
+		    ST_CODEPAGE_ATASCII, "ATASCII"},
+		{"[Entry]\nConnectionType=Shell\nScreenMode=Prestel\nFont=Prestel\n",
+		    ST_CODEPAGE_PRESTEL, "PRESTEL"},
+		{"[Entry]\nConnectionType=Shell\nScreenMode=BBCMicro7\nFont=Prestel\n",
+		    ST_CODEPAGE_PRESTEL, "PRESTEL"},
+		{"[Entry]\nConnectionType=Shell\nScreenMode=AtariST80x25\n",
+		    ST_PROFILE_ENCODING_UTF8, "UTF-8"},
 		{"[Entry]\nEncoding=CP850B\n",
 		    ST_CODEPAGE_CP850, "CP850"},
 		{"[Entry]\nEncoding=PRESTEL-SEP\n",
@@ -153,8 +178,11 @@ check_profile_encodings(void)
 		CHECK(section != NULL);
 		CHECK(st_bbs_decode_profile(&profile, section, "Entry", false,
 		    NULL) == 0);
+		CHECK(strcmp(profile.font, ini_section_get_string(section, "Font",
+		    "Codepage 437 English")) == 0);
 		CHECK(profile.encoding == cases[i].expected);
 		CHECK(st_bbs_encode_profile(section, &profile, false) == 0);
+		CHECK(strcmp(ini_section_find(section, "Font"), profile.font) == 0);
 		CHECK(strcmp(ini_section_find(section, "Encoding"),
 		    cases[i].saved) == 0);
 		st_profile_dispose(&profile);

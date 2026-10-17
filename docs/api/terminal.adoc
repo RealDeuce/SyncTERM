@@ -107,8 +107,11 @@ audio, hyperlink, and history services.  It receives ordered wire bytes into
 CTerm and converts console text events from Unicode to the selected wire
 encoding.  In a legacy encoding, an unmappable grapheme beeps locally and only
 that grapheme is omitted.  Raw CTerm responses bypass text conversion.  There
-is no simulated baud throttling. Local shell PTYs advertise and consume UTF-8;
-remote transports retain the configured byte codepage.
+is no simulated baud throttling. Local shell PTYs advertise the selected
+encoding in `MM_CHARSET` and consume that encoding, just like remote
+transports. Entries imported without `Encoding` default to UTF-8 for
+ANSI-compatible Shell sessions, but retain font-derived byte encodings for
+PETSCII, ATASCII, Prestel, and BBC sessions.
 
 When status is visible, the bottom console row is reserved and excluded from
 reported terminal geometry.  CTerm's staged scrollback ring plus visible rows

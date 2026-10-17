@@ -18,6 +18,45 @@
 } while (false)
 
 static int
+check_legacy_c128_shell(st_wren_host_t *host, st_console_display_t *display,
+	st_console_t *console, const struct st_app_paths *paths,
+	st_hyperlink_registry_t *hyperlinks)
+{
+	struct st_app_paths legacy_paths = *paths;
+	st_bbs_list_t *list = NULL;
+	const struct st_bbs_entry *entry;
+	struct st_profile profile;
+	enum st_term_disposition disposition = ST_TERM_EXIT_APPLICATION;
+	FILE *file;
+
+	legacy_paths.personal_list = ST_APP_SESSION_TEST_DIRECTORY "/legacy-c128.lst";
+	file = fopen(legacy_paths.personal_list, "wb");
+	CHECK(file != NULL);
+	CHECK(fputs("[C64 Shell]\nConnectionType=Shell\n"
+	    "ScreenMode=C128-40col\nFont=Commodore 128 (Lower)\n"
+	    "Address=printf 'completed session'\nNoStatus=true\nHidePopups=true\n",
+	    file) >= 0);
+	CHECK(fclose(file) == 0);
+	/* Isolate the fixture from the menu's configured ListPath. */
+	CHECK(st_bbs_list_open_replacement(&list, NULL, &legacy_paths, NULL) == 0);
+	entry = st_bbs_list_find(list, "C64 Shell");
+	CHECK(entry != NULL);
+	st_profile_init(&profile);
+	CHECK(st_profile_copy(&profile, entry->profile));
+	CHECK(profile.encoding == ST_CODEPAGE_PETSCII_LOWER);
+	CHECK(profile.screen_mode == ST_SCREEN_MODE_C128_40);
+	CHECK(strcmp(profile.font, "Commodore 128 (Lower)") == 0);
+	CHECK(run_selected(host, display, console, &profile, &legacy_paths, NULL,
+	    hyperlinks, NULL, &disposition) == 0);
+	CHECK(disposition == ST_TERM_RETURN_TO_PICKER);
+	CHECK(profile.screen_mode == ST_SCREEN_MODE_C128_40
+	    && strcmp(profile.font, "Commodore 128 (Lower)") == 0);
+	st_profile_dispose(&profile);
+	st_bbs_list_close(list);
+	return 0;
+}
+
+static int
 check_mode(st_wren_host_t *host, st_console_t *console,
 	st_console_t *picker, enum st_screen_mode expected,
 	uint32_t columns, uint32_t rows, uint32_t cell_height)
@@ -119,6 +158,8 @@ main(void)
 	CHECK(check_mode(host, console, picker, ST_SCREEN_MODE_80X28, 80, 28, 14) == 0);
 	CHECK(run_selected(host, display, console, &profile, &paths, NULL,
 	    hyperlinks, NULL, &disposition) != 0);
+	CHECK(check_mode(host, console, picker, ST_SCREEN_MODE_80X28, 80, 28, 14) == 0);
+	CHECK(check_legacy_c128_shell(host, display, console, &paths, hyperlinks) == 0);
 	CHECK(check_mode(host, console, picker, ST_SCREEN_MODE_80X28, 80, 28, 14) == 0);
 
 	/* A real remote close goes through connected Wren and CTerm teardown. */

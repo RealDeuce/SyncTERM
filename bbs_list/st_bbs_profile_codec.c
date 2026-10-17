@@ -96,8 +96,22 @@ decode_fingerprint(struct st_profile *profile, const ini_section_t *section)
 static int
 legacy_encoding(const struct st_profile *profile)
 {
-	if (profile->connection_type == ST_CONNECTION_SHELL)
-		return ST_PROFILE_ENCODING_UTF8;
+	if (profile->connection_type == ST_CONNECTION_SHELL) {
+		/* UTF-8 is the legacy Shell default only for emulations that
+		 * accept it. Fixed-byte parsers still use the saved font's table. */
+		switch (profile->screen_mode) {
+		case ST_SCREEN_MODE_C64:
+		case ST_SCREEN_MODE_C128_40:
+		case ST_SCREEN_MODE_C128_80:
+		case ST_SCREEN_MODE_ATARI:
+		case ST_SCREEN_MODE_ATARI_XEP80:
+		case ST_SCREEN_MODE_PRESTEL:
+		case ST_SCREEN_MODE_BEEB:
+			break;
+		default:
+			return ST_PROFILE_ENCODING_UTF8;
+		}
+	}
 	for (size_t i = 0; i < st_builtin_font_count(); ++i) {
 		if (strcmp(profile->font, st_builtin_font_name(i)) == 0)
 			return st_profile_encoding_canonical(
