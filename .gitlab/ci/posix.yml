@@ -14,6 +14,7 @@ spec:
 "$[[ inputs.name ]]":
   stage: build-test
   timeout: 2 hours
+  dependencies: []
   tags: ["$[[ inputs.tag ]]"]
   rules:
     - when: on_success

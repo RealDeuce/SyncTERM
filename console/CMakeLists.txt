@@ -3,8 +3,11 @@
 
 cmake_minimum_required(VERSION 3.22)
 
+include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermAtomics.cmake")
+
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	project(STConsole LANGUAGES C)
+	include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCStandard.cmake")
 	include(CTest)
 endif()
 
@@ -396,13 +399,16 @@ if(ST_CONSOLE_HAVE_QUARTZ)
 	target_link_libraries(st_console PRIVATE ${ST_CONSOLE_APPKIT_FRAMEWORK}
 		${ST_CONSOLE_CARBON_FRAMEWORK})
 	set_target_properties(st_console PROPERTIES
-		OBJC_STANDARD 17 OBJC_STANDARD_REQUIRED YES OBJC_EXTENSIONS NO)
+		OBJC_STANDARD ${SYNCTERM_C_STANDARD} OBJC_STANDARD_REQUIRED YES OBJC_EXTENSIONS NO)
 endif()
+syncterm_target_atomics(st_console)
 set_target_properties(st_console PROPERTIES
-	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 
 function(st_console_warnings target)
 	if(MSVC)
+		# Use the portable C runtime APIs, not Microsoft-only _s replacements.
+		target_compile_definitions(${target} PRIVATE _CRT_SECURE_NO_WARNINGS)
 		target_compile_options(${target} PRIVATE /W4 /WX)
 	else()
 		target_compile_options(${target} PRIVATE
@@ -419,7 +425,7 @@ if(ST_CONSOLE_HAVE_SDL OR ST_CONSOLE_HAVE_QUARTZ)
 	target_compile_definitions(st_console_main INTERFACE
 		main=st_console_application_main)
 	set_target_properties(st_console_main PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	st_console_warnings(st_console_main)
 endif()
 
@@ -427,23 +433,25 @@ if(BUILD_TESTING)
 	add_executable(st_console_test tests/st_console_test.c)
 	target_link_libraries(st_console_test PRIVATE st_console
 		syncterm_array_list)
+	syncterm_target_atomics(st_console_test)
 	set_target_properties(st_console_test PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	st_console_warnings(st_console_test)
 	add_test(NAME st_console COMMAND st_console_test)
 	add_executable(st_console_regrid_test
 		tests/st_console_regrid_test.c)
 	target_link_libraries(st_console_regrid_test PRIVATE st_console)
 	set_target_properties(st_console_regrid_test PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	st_console_warnings(st_console_regrid_test)
 	add_test(NAME st_console_regrid COMMAND st_console_regrid_test)
 	add_executable(st_console_reconfigure_test
 		tests/st_console_reconfigure_test.c)
 	target_link_libraries(st_console_reconfigure_test PRIVATE st_console
 		syncterm_array_list)
+	syncterm_target_atomics(st_console_reconfigure_test)
 	set_target_properties(st_console_reconfigure_test PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	st_console_warnings(st_console_reconfigure_test)
 	add_test(NAME st_console_reconfigure COMMAND st_console_reconfigure_test)
 	set_tests_properties(st_console PROPERTIES
@@ -485,7 +493,7 @@ if(BUILD_TESTING)
 				ST_CONSOLE_TEST_HAVE_UTIL_H=$<BOOL:${ST_CONSOLE_TEST_HAVE_UTIL_H}>
 				ST_CONSOLE_TEST_HAVE_LIBUTIL_H=$<BOOL:${ST_CONSOLE_TEST_HAVE_LIBUTIL_H}>)
 			set_target_properties(st_console_ansi_test PROPERTIES
-				C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+				C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 			st_console_warnings(st_console_ansi_test)
 			add_test(NAME st_console_ansi COMMAND st_console_ansi_test)
 			set_tests_properties(st_console_ansi PROPERTIES
@@ -502,7 +510,7 @@ if(BUILD_TESTING)
 				ST_CONSOLE_TEST_HAVE_UTIL_H=$<BOOL:${ST_CONSOLE_TEST_HAVE_UTIL_H}>
 				ST_CONSOLE_TEST_HAVE_LIBUTIL_H=$<BOOL:${ST_CONSOLE_TEST_HAVE_LIBUTIL_H}>)
 			set_target_properties(st_console_ncurses_test PROPERTIES
-				C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+				C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 			st_console_warnings(st_console_ncurses_test)
 			add_test(NAME st_console_ncurses COMMAND st_console_ncurses_test)
 			set_tests_properties(st_console_ncurses PROPERTIES
@@ -530,8 +538,9 @@ if(BUILD_TESTING)
 		${CMAKE_CURRENT_SOURCE_DIR})
 	target_link_libraries(st_console_bitmap_test PRIVATE st_console
 		syncterm_array_list)
+	syncterm_target_atomics(st_console_bitmap_test)
 	set_target_properties(st_console_bitmap_test PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	st_console_warnings(st_console_bitmap_test)
 	add_test(NAME st_console_bitmap COMMAND st_console_bitmap_test)
 	foreach(test IN ITEMS animation scheduler saa_damage saa_modes saa_blink
@@ -546,21 +555,22 @@ if(BUILD_TESTING)
 			target_include_directories(st_console_${test}_test PRIVATE
 				${CMAKE_CURRENT_SOURCE_DIR}/../time)
 		endif()
+		syncterm_target_atomics(st_console_${test}_test)
 		set_target_properties(st_console_${test}_test PROPERTIES
-			C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+			C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 		st_console_warnings(st_console_${test}_test)
 		add_test(NAME st_console_${test} COMMAND st_console_${test}_test)
 	endforeach()
 	add_executable(st_console_libretro_test tests/st_console_libretro_test.c)
 	target_link_libraries(st_console_libretro_test PRIVATE st_console)
 	set_target_properties(st_console_libretro_test PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	st_console_warnings(st_console_libretro_test)
 	add_test(NAME st_console_libretro COMMAND st_console_libretro_test)
 	add_executable(st_console_benchmark tests/st_console_benchmark.c)
 	target_link_libraries(st_console_benchmark PRIVATE st_console st_time)
 	set_target_properties(st_console_benchmark PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	st_console_warnings(st_console_benchmark)
 	if(ST_CONSOLE_HAVE_SDL)
 		add_executable(st_console_sdl_test tests/st_console_sdl_test.c)
@@ -573,7 +583,7 @@ if(BUILD_TESTING)
 		target_link_libraries(st_console_sdl_test PRIVATE st_console_main
 			syncterm_dynamic_library)
 		set_target_properties(st_console_sdl_test PROPERTIES
-			C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+			C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 		st_console_warnings(st_console_sdl_test)
 		add_test(NAME st_console_sdl COMMAND st_console_sdl_test)
 		set_tests_properties(st_console_sdl PROPERTIES
@@ -590,7 +600,7 @@ if(BUILD_TESTING)
 		target_link_libraries(st_console_x11_pixels_test PRIVATE st_console
 			X11::X11 st_time)
 		set_target_properties(st_console_x11_pixels_test PROPERTIES
-			C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+			C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 		st_console_warnings(st_console_x11_pixels_test)
 		add_test(NAME st_console_x11_pixels COMMAND st_console_x11_pixels_test)
 		add_executable(st_console_x11_test tests/st_console_x11_test.c)
@@ -602,8 +612,9 @@ if(BUILD_TESTING)
 		if(ST_CONSOLE_HAVE_XRANDR)
 			target_link_libraries(st_console_x11_test PRIVATE X11::Xrandr)
 		endif()
+		syncterm_target_atomics(st_console_x11_test)
 		set_target_properties(st_console_x11_test PROPERTIES
-			C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+			C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 		st_console_warnings(st_console_x11_test)
 		add_test(NAME st_console_x11 COMMAND st_console_x11_test)
 		add_test(NAME st_console_x11_mode_changes
@@ -630,8 +641,9 @@ if(BUILD_TESTING)
 		target_link_libraries(st_console_wayland_internal_test PRIVATE
 			st_console syncterm_array_list syncterm_dynamic_library
 			st_time)
+		syncterm_target_atomics(st_console_wayland_internal_test)
 		set_target_properties(st_console_wayland_internal_test PROPERTIES
-			C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+			C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 		st_console_warnings(st_console_wayland_internal_test)
 		if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
 			target_compile_options(st_console_wayland_internal_test PRIVATE
@@ -645,7 +657,7 @@ if(BUILD_TESTING)
 			tests/st_console_wayland_test.c)
 		target_link_libraries(st_console_wayland_test PRIVATE st_console)
 		set_target_properties(st_console_wayland_test PROPERTIES
-			C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+			C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 		st_console_warnings(st_console_wayland_test)
 		add_test(NAME st_console_wayland COMMAND st_console_wayland_test)
 		set_tests_properties(st_console_wayland PROPERTIES
@@ -657,7 +669,7 @@ if(BUILD_TESTING)
 		target_link_libraries(st_console_quartz_test PRIVATE
 			st_console_main)
 		set_target_properties(st_console_quartz_test PROPERTIES
-			C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+			C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 		st_console_warnings(st_console_quartz_test)
 		add_test(NAME st_console_quartz COMMAND st_console_quartz_test)
 		set_tests_properties(st_console_quartz PROPERTIES
@@ -667,7 +679,7 @@ if(BUILD_TESTING)
 		add_executable(st_console_gdi_test tests/st_console_gdi_test.c)
 		target_link_libraries(st_console_gdi_test PRIVATE st_console)
 		set_target_properties(st_console_gdi_test PROPERTIES
-			C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+			C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 		st_console_warnings(st_console_gdi_test)
 		add_test(NAME st_console_gdi COMMAND st_console_gdi_test)
 		set_tests_properties(st_console_gdi PROPERTIES
@@ -678,7 +690,7 @@ if(BUILD_TESTING)
 			tests/st_console_win32_test.c)
 		target_link_libraries(st_console_win32_test PRIVATE st_console)
 		set_target_properties(st_console_win32_test PROPERTIES
-			C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+			C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 		st_console_warnings(st_console_win32_test)
 		add_test(NAME st_console_win32 COMMAND st_console_win32_test)
 		set_tests_properties(st_console_win32 PROPERTIES
@@ -687,7 +699,7 @@ if(BUILD_TESTING)
 			tests/st_console_ansi_windows_test.c)
 		target_link_libraries(st_console_ansi_windows_test PRIVATE st_console)
 		set_target_properties(st_console_ansi_windows_test PROPERTIES
-			C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+			C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 		st_console_warnings(st_console_ansi_windows_test)
 		add_test(NAME st_console_ansi_windows
 			COMMAND st_console_ansi_windows_test)

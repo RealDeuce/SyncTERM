@@ -30,6 +30,15 @@ if(CI_SOURCE_DIR STREQUAL CI_BUILD_DIR)
 endif()
 set(_reports "${CI_BUILD_DIR}/reports")
 file(MAKE_DIRECTORY "${_reports}")
+# Do not publish results or binaries left by an earlier attempt in this tree.
+file(REMOVE "${_reports}/junit.xml" "${_reports}/execution.txt"
+	"${_reports}/capabilities.txt" "${_reports}/build.log" "${_reports}/test.log"
+	"${_reports}/CMakeConfigureLog.yaml" "${_reports}/CMakeError.log"
+	"${_reports}/CMakeOutput.log")
+file(GLOB _old_apps "${CI_BUILD_DIR}/artifacts/syncterm*")
+if(_old_apps)
+	file(REMOVE ${_old_apps})
+endif()
 file(WRITE "${_reports}/environment.txt"
 	"Host: ${CMAKE_HOST_SYSTEM_NAME} ${CMAKE_HOST_SYSTEM_VERSION}\n"
 	"CMake: ${CMAKE_VERSION}\nProfile: ${CI_PROFILE}\n"
@@ -53,12 +62,21 @@ function(ci_command name)
 	endif()
 	foreach(_result IN LISTS _results)
 		if(NOT "${_result}" STREQUAL "0")
+			if(name STREQUAL configure)
+				# CMake moved probe diagnostics to YAML in 3.26. Keep either
+				# format even when configure fails before capabilities exist.
+				foreach(_log IN ITEMS CMakeConfigureLog.yaml CMakeError.log CMakeOutput.log)
+					if(EXISTS "${CI_BUILD_DIR}/CMakeFiles/${_log}")
+						file(COPY "${CI_BUILD_DIR}/CMakeFiles/${_log}" DESTINATION "${_reports}")
+					endif()
+				endforeach()
+			endif()
 			message(FATAL_ERROR "CI ${name} failed (${_result})")
 		endif()
 	endforeach()
 endfunction()
 
-set(_options -DBUILD_TESTING=ON)
+set(_options -DBUILD_TESTING=ON -DST_CTERM_TEST_EXTERNAL_ASSETS=OFF)
 set(_cross FALSE)
 if(CI_PROFILE STREQUAL minimal)
 	list(APPEND _options -DCRYPTO_BACKEND=none -DSYNCTERM_ENABLE_UNIFONT=OFF

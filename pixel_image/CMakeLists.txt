@@ -5,6 +5,7 @@ cmake_minimum_required(VERSION 3.22)
 
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	project(STPixelImage LANGUAGES C)
+	include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCStandard.cmake")
 	include(CTest)
 endif()
 
@@ -99,7 +100,7 @@ if(_st_pixel_image_have_jxl)
 	endif()
 endif()
 set_target_properties(st_pixel_image PROPERTIES
-	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 
 if(MSVC)
 	target_compile_options(st_pixel_image PRIVATE /W4 /WX)
@@ -112,7 +113,7 @@ if(BUILD_TESTING)
 	add_executable(st_pixel_image_test tests/st_pixel_image_test.c)
 	target_link_libraries(st_pixel_image_test PRIVATE st_pixel_image)
 	set_target_properties(st_pixel_image_test PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
 		target_compile_options(st_pixel_image_test PRIVATE /W4 /WX)
 	else()

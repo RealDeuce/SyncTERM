@@ -5,6 +5,7 @@ cmake_minimum_required(VERSION 3.22)
 
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	project(STTLS LANGUAGES C)
+	include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCStandard.cmake")
 	include(CTest)
 endif()
 
@@ -45,7 +46,7 @@ target_include_directories(st_tls PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_tls PUBLIC syncterm_io_error syncterm_socket
 	PRIVATE xptls_crypto syncterm_string_compat ${ST_TLS_LIBRARY})
 target_link_libraries(st_tls PRIVATE st_time)
-set_target_properties(st_tls PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES
+set_target_properties(st_tls PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES
 	C_EXTENSIONS NO)
 if(ST_TLS_PROVIDER STREQUAL "Botan")
 	set_target_properties(st_tls PROPERTIES CXX_STANDARD 20
@@ -67,7 +68,7 @@ if(BUILD_TESTING AND NOT ST_TLS_PROVIDER STREQUAL "none")
 		add_executable(st_tls_psk_test tests/st_tls_psk_required_test.c)
 		target_link_libraries(st_tls_psk_test PRIVATE st_tls
 			syncterm_threads OpenSSL::SSL)
-		set_target_properties(st_tls_psk_test PROPERTIES C_STANDARD 17
+		set_target_properties(st_tls_psk_test PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
 			C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 		if(ST_TLS_PROVIDER STREQUAL "OpenSSL")
 			target_compile_definitions(st_tls_psk_test PRIVATE

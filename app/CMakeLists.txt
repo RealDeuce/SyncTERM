@@ -5,6 +5,7 @@ cmake_minimum_required(VERSION 3.22)
 
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	project(SyncTERMApplication LANGUAGES C)
+	include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCStandard.cmake")
 endif()
 
 add_library(st_app_startup STATIC
@@ -15,12 +16,12 @@ target_include_directories(st_app_startup PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_app_startup PUBLIC st_console st_profile st_settings
 	st_screen_mode syncterm_io_error)
 set_target_properties(st_app_startup PROPERTIES
-	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 
 add_executable(syncterm_app syncterm.c st_syncterm_icon.c st_terminfo.c)
 set_target_properties(syncterm_app PROPERTIES
 	OUTPUT_NAME syncterm
-	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 target_compile_definitions(syncterm_app PRIVATE
 	$<$<CONFIG:Debug>:ST_DEBUG_BUILD>)
 target_link_libraries(syncterm_app PRIVATE st_wren_host st_settings
@@ -35,6 +36,8 @@ if(TARGET st_console_main)
 	target_link_libraries(syncterm_app PRIVATE st_console_main)
 endif()
 if(MSVC)
+	# Use the portable C runtime APIs, not Microsoft-only _s replacements.
+	target_compile_definitions(st_app_startup PRIVATE _CRT_SECURE_NO_WARNINGS)
 	target_compile_options(st_app_startup PRIVATE /W4 /WX)
 	target_compile_options(syncterm_app PRIVATE /W4 /WX)
 else()
@@ -57,8 +60,9 @@ if(BUILD_TESTING)
 	add_executable(st_app_startup_test tests/st_app_startup_test.c)
 	target_link_libraries(st_app_startup_test PRIVATE st_app_startup)
 	set_target_properties(st_app_startup_test PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
+		target_compile_definitions(st_app_startup_test PRIVATE _CRT_SECURE_NO_WARNINGS)
 		target_compile_options(st_app_startup_test PRIVATE /W4 /WX)
 	else()
 		target_compile_options(st_app_startup_test PRIVATE
@@ -79,7 +83,7 @@ if(BUILD_TESTING)
 			target_compile_definitions(st_app_session_mode_test PRIVATE ST_HAVE_UNIFONT=1)
 		endif()
 		set_target_properties(st_app_session_mode_test PROPERTIES
-			C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+			C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 		target_compile_options(st_app_session_mode_test PRIVATE
 			-Wall -Wextra -Wpedantic -Werror)
 		add_test(NAME app_session_mode COMMAND st_app_session_mode_test)
@@ -90,7 +94,7 @@ if(BUILD_TESTING)
 	target_link_libraries(st_command_line_empty_backend_test PRIVATE
 		st_app_startup)
 	set_target_properties(st_command_line_empty_backend_test PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
 		target_compile_options(st_command_line_empty_backend_test PRIVATE
 			/W4 /WX)

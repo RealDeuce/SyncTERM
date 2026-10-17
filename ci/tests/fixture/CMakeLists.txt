@@ -2,14 +2,17 @@
 # SPDX-License-Identifier: BSD-2-Clause
 cmake_minimum_required(VERSION 3.22)
 project(CIDriverFixture C)
+include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/SynctermCStandard.cmake")
 include(CTest)
 if(CI_FIXTURE_CONFIGURE_FAIL)
+	file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/CMakeFiles")
+	file(WRITE "${CMAKE_BINARY_DIR}/CMakeFiles/CMakeError.log" "fixture probe diagnostic\n")
 	message(FATAL_ERROR "fixture configure failure")
 endif()
 add_executable(syncterm_app main.c)
 set_target_properties(syncterm_app PROPERTIES
 	OUTPUT_NAME syncterm RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/app"
-	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 if(CI_FIXTURE_BUILD_FAIL)
 	add_custom_target(fail_build ALL COMMAND "${CMAKE_COMMAND}" -E false)
 endif()

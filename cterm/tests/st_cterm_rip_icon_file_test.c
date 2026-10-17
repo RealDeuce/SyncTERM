@@ -23,7 +23,7 @@ main(void)
 {
 	/* Four one-pixel planes in BGI's high-to-low storage order. */
 	static const uint8_t tiny[] = {0, 0, 0, 0, 0x80, 0x80, 0, 0};
-	uint8_t *pixels = NULL, *encoded = NULL, *copy = NULL;
+	uint8_t *pixels = NULL, *encoded = NULL;
 	uint32_t width = 0, height = 0;
 	size_t encoded_size;
 
@@ -55,6 +55,7 @@ main(void)
 	}
 #ifdef RIP_ICON_PATH
 	{
+		uint8_t *copy = NULL;
 		uint8_t source[4096];
 		size_t size;
 		FILE *stream = fopen(RIP_ICON_PATH, "rb");

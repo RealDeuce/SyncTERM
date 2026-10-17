@@ -13,6 +13,7 @@ if(POLICY CMP0179)
 endif()
 
 project(SyncTERM LANGUAGES C)
+include("${CMAKE_CURRENT_LIST_DIR}/cmake/SynctermCStandard.cmake")
 
 option(SYNCTERM_ENABLE_UNIFONT
 	"Build and use the GPLv2+ GNU Unifont-derived composite" ON)

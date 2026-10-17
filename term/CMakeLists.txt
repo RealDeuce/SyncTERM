@@ -7,9 +7,11 @@ target_link_libraries(st_term PUBLIC st_connection st_cterm st_font_catalog
 	st_session_history PRIVATE st_audio st_unicode_text st_utf8 st_time
 	syncterm_threads
 	syncterm_io_error)
-set_target_properties(st_term PROPERTIES C_STANDARD 17
+set_target_properties(st_term PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
 	C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 if(MSVC)
+	# Use the portable C runtime APIs, not Microsoft-only _s replacements.
+	target_compile_definitions(st_term PRIVATE _CRT_SECURE_NO_WARNINGS)
 	target_compile_options(st_term PRIVATE /W4 /WX)
 else()
 	target_compile_options(st_term PRIVATE -Wall -Wextra -Wpedantic -Werror)
@@ -19,9 +21,10 @@ if(BUILD_TESTING)
 	add_executable(st_term_rip_encoding_consistency
 		tests/st_term_rip_encoding_consistency.c)
 	target_link_libraries(st_term_rip_encoding_consistency PRIVATE st_term)
-	set_target_properties(st_term_rip_encoding_consistency PROPERTIES C_STANDARD 17
+	set_target_properties(st_term_rip_encoding_consistency PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
 		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
+		target_compile_definitions(st_term_rip_encoding_consistency PRIVATE _CRT_SECURE_NO_WARNINGS)
 		target_compile_options(st_term_rip_encoding_consistency PRIVATE /W4 /WX)
 	else()
 		target_compile_options(st_term_rip_encoding_consistency PRIVATE
@@ -34,9 +37,10 @@ if(BUILD_TESTING)
 	target_link_libraries(st_term_test PRIVATE st_term)
 	target_compile_definitions(st_term_test PRIVATE
 		ST_TERM_APC_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/apc-test-cache")
-	set_target_properties(st_term_test PROPERTIES C_STANDARD 17
+	set_target_properties(st_term_test PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
 		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
+		target_compile_definitions(st_term_test PRIVATE _CRT_SECURE_NO_WARNINGS)
 		target_compile_options(st_term_test PRIVATE /W4 /WX)
 	else()
 		target_compile_options(st_term_test PRIVATE
@@ -54,7 +58,7 @@ if(BUILD_TESTING)
 		target_compile_definitions(st_term_rip_historical_wire_test PRIVATE
 			RIP_SURFER1_PATH="${CMAKE_SOURCE_DIR}/cterm/tests/data/legacy_surfer1.rip")
 		set_target_properties(st_term_rip_historical_wire_test PROPERTIES
-			C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+			C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 		target_compile_options(st_term_rip_historical_wire_test PRIVATE
 			-Wall -Wextra -Wpedantic -Werror)
 		add_test(NAME term_rip_v110a_wire

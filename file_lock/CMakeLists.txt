@@ -3,8 +3,11 @@
 
 cmake_minimum_required(VERSION 3.22)
 
+include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermAtomics.cmake")
+
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	project(SyncTERMFileLock LANGUAGES C)
+	include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCStandard.cmake")
 	include(CTest)
 endif()
 
@@ -49,7 +52,7 @@ target_link_libraries(st_file_lock PUBLIC syncterm_io_error PRIVATE
 if(WIN32)
 	target_link_libraries(st_file_lock PRIVATE syncterm_path)
 endif()
-set_target_properties(st_file_lock PROPERTIES C_STANDARD 17
+set_target_properties(st_file_lock PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
 	C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 if(MSVC)
 	target_compile_options(st_file_lock PRIVATE /W4 /WX)
@@ -67,7 +70,8 @@ if(BUILD_TESTING)
 		syncterm_filesystem syncterm_threads)
 	target_compile_definitions(st_file_lock_test PRIVATE
 		ST_FILE_LOCK_TEST_PATH="${CMAKE_CURRENT_BINARY_DIR}/coordination")
-	set_target_properties(st_file_lock_test PROPERTIES C_STANDARD 17
+	syncterm_target_atomics(st_file_lock_test)
+	set_target_properties(st_file_lock_test PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
 		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
 		target_compile_options(st_file_lock_test PRIVATE /W4 /WX)
@@ -85,7 +89,7 @@ if(BUILD_TESTING)
 		target_link_libraries(st_file_lock_error_test PRIVATE
 			syncterm_io_error)
 		set_target_properties(st_file_lock_error_test PROPERTIES
-			C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+			C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 		if(MSVC)
 			target_compile_options(st_file_lock_error_test PRIVATE /W4 /WX)
 		else()

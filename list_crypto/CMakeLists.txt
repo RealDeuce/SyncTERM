@@ -5,6 +5,7 @@ cmake_minimum_required(VERSION 3.22)
 
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	project(STListCrypto LANGUAGES C)
+	include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCStandard.cmake")
 	include(CTest)
 endif()
 
@@ -32,7 +33,7 @@ target_link_libraries(st_list_crypto
 	PUBLIC syncterm_ini syncterm_io_error
 	PRIVATE st_hex syncterm_file_map xptls::crypto)
 set_target_properties(st_list_crypto PROPERTIES
-	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 
 function(st_list_crypto_warnings target)
 	if(MSVC)
@@ -48,7 +49,7 @@ if(BUILD_TESTING)
 	add_executable(st_list_crypto_test tests/st_list_crypto_test.c)
 	target_link_libraries(st_list_crypto_test PRIVATE st_list_crypto)
 	set_target_properties(st_list_crypto_test PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	st_list_crypto_warnings(st_list_crypto_test)
 	add_test(NAME list_crypto COMMAND st_list_crypto_test)
 endif()

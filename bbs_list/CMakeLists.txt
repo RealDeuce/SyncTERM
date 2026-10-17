@@ -5,6 +5,7 @@ cmake_minimum_required(VERSION 3.22)
 
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	project(STBBSList LANGUAGES C)
+	include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCStandard.cmake")
 	include(CTest)
 endif()
 
@@ -57,9 +58,11 @@ target_link_libraries(st_bbs_list PUBLIC st_profile st_list_crypto st_app_paths
 if(WIN32)
 	target_link_libraries(st_bbs_list PRIVATE st_windows_utf)
 endif()
-set_target_properties(st_bbs_list PROPERTIES C_STANDARD 17
+set_target_properties(st_bbs_list PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
 	C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 if(MSVC)
+	# Use the portable C runtime APIs, not Microsoft-only _s replacements.
+	target_compile_definitions(st_bbs_list PRIVATE _CRT_SECURE_NO_WARNINGS)
 	target_compile_options(st_bbs_list PRIVATE /W4 /WX)
 else()
 	target_compile_options(st_bbs_list PRIVATE -Wall -Wextra -Wpedantic -Werror)
@@ -71,9 +74,10 @@ if(BUILD_TESTING)
 		syncterm_filesystem)
 	target_compile_definitions(st_bbs_list_test PRIVATE
 		ST_BBS_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/list-test")
-	set_target_properties(st_bbs_list_test PROPERTIES C_STANDARD 17
+	set_target_properties(st_bbs_list_test PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
 		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
+		target_compile_definitions(st_bbs_list_test PRIVATE _CRT_SECURE_NO_WARNINGS)
 		target_compile_options(st_bbs_list_test PRIVATE /W4 /WX)
 	else()
 		target_compile_options(st_bbs_list_test PRIVATE
@@ -97,9 +101,10 @@ target_link_libraries(st_bbs_list_faultable PUBLIC st_profile st_list_crypto
 	if(WIN32)
 		target_link_libraries(st_bbs_list_faultable PRIVATE st_windows_utf)
 	endif()
-	set_target_properties(st_bbs_list_faultable PROPERTIES C_STANDARD 17
+	set_target_properties(st_bbs_list_faultable PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
 		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
+		target_compile_definitions(st_bbs_list_faultable PRIVATE _CRT_SECURE_NO_WARNINGS)
 		target_compile_options(st_bbs_list_faultable PRIVATE /W4 /WX)
 	else()
 		target_compile_options(st_bbs_list_faultable PRIVATE
@@ -114,9 +119,10 @@ target_link_libraries(st_bbs_list_faultable PUBLIC st_profile st_list_crypto
 		syncterm_filesystem)
 	target_compile_definitions(st_bbs_failure_test PRIVATE
 		ST_BBS_FAILURE_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/failure-test")
-	set_target_properties(st_bbs_failure_test PROPERTIES C_STANDARD 17
+	set_target_properties(st_bbs_failure_test PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
 		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
+		target_compile_definitions(st_bbs_failure_test PRIVATE _CRT_SECURE_NO_WARNINGS)
 		target_compile_options(st_bbs_failure_test PRIVATE /W4 /WX)
 	else()
 		target_compile_options(st_bbs_failure_test PRIVATE
@@ -130,9 +136,10 @@ target_link_libraries(st_bbs_list_faultable PUBLIC st_profile st_list_crypto
 		syncterm_filesystem)
 	target_compile_definitions(st_bbs_cache_safety_test PRIVATE
 		ST_BBS_CACHE_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/cache-safety-test")
-	set_target_properties(st_bbs_cache_safety_test PROPERTIES C_STANDARD 17
+	set_target_properties(st_bbs_cache_safety_test PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
 		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
+		target_compile_definitions(st_bbs_cache_safety_test PRIVATE _CRT_SECURE_NO_WARNINGS)
 		target_compile_options(st_bbs_cache_safety_test PRIVATE /W4 /WX)
 	else()
 		target_compile_options(st_bbs_cache_safety_test PRIVATE
@@ -145,9 +152,10 @@ target_link_libraries(st_bbs_list_faultable PUBLIC st_profile st_list_crypto
 		st_time syncterm_filesystem syncterm_socket syncterm_threads)
 	target_compile_definitions(st_bbs_web_test PRIVATE
 		ST_BBS_WEB_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/web-test")
-	set_target_properties(st_bbs_web_test PROPERTIES C_STANDARD 17
+	set_target_properties(st_bbs_web_test PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
 		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
+		target_compile_definitions(st_bbs_web_test PRIVATE _CRT_SECURE_NO_WARNINGS)
 		target_compile_options(st_bbs_web_test PRIVATE /W4 /WX)
 	else()
 		target_compile_options(st_bbs_web_test PRIVATE

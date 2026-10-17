@@ -12,13 +12,17 @@
 
 #include <stddef.h>
 
+#if !SYNCTERM_PLATFORM_WINDOWS
+	#include <sys/socket.h>
+#endif
+
 struct tcp_client_address {
 	enum tcp_client_address_family family;
 	int native_family;
 	size_t length;
 	union {
-		max_align_t alignment;
-		unsigned char storage[128];
+		struct sockaddr_storage alignment;
+		unsigned char storage[sizeof(struct sockaddr_storage)];
 	};
 };
 

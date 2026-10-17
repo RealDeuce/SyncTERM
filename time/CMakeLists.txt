@@ -5,6 +5,7 @@ cmake_minimum_required(VERSION 3.22)
 
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	project(STTime LANGUAGES C)
+	include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCStandard.cmake")
 	include(CTest)
 endif()
 
@@ -61,7 +62,7 @@ target_link_libraries(st_time PUBLIC syncterm_io_error
 	PRIVATE ${ST_TIME_PLATFORM_LIBRARIES})
 target_compile_definitions(st_time PRIVATE ${ST_TIME_DEFINITIONS})
 set_target_properties(st_time PROPERTIES
-	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 if(MSVC)
 	target_compile_options(st_time PRIVATE /W4 /WX)
 else()
@@ -76,9 +77,9 @@ if(BUILD_TESTING)
 		${CMAKE_CURRENT_SOURCE_DIR}
 		${CMAKE_CURRENT_SOURCE_DIR}/../io_error)
 	set_target_properties(st_time_test PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	set_target_properties(st_time_fault_test PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
 		target_compile_options(st_time_test PRIVATE /W4 /WX)
 		target_compile_options(st_time_fault_test PRIVATE /W4 /WX)
@@ -90,4 +91,16 @@ if(BUILD_TESTING)
 	endif()
 	add_test(NAME time COMMAND st_time_test)
 	add_test(NAME time_fault COMMAND st_time_fault_test)
+	if(NOT WIN32)
+		add_executable(st_time_posix_test tests/st_time_posix_test.c)
+		target_include_directories(st_time_posix_test PRIVATE
+			${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
+		target_link_libraries(st_time_posix_test PRIVATE syncterm_io_error)
+		target_compile_definitions(st_time_posix_test PRIVATE ${ST_TIME_DEFINITIONS})
+		set_target_properties(st_time_posix_test PROPERTIES
+			C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		target_compile_options(st_time_posix_test PRIVATE
+			-Wall -Wextra -Wpedantic -Werror)
+		add_test(NAME time_posix_failure COMMAND st_time_posix_test)
+	endif()
 endif()

@@ -5,6 +5,7 @@ cmake_minimum_required(VERSION 3.22)
 
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	project(STUnicodeText LANGUAGES C)
+	include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCStandard.cmake")
 	include(CTest)
 	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../io_error"
 		"${CMAKE_CURRENT_BINARY_DIR}/io_error")
@@ -25,8 +26,10 @@ target_link_libraries(st_unicode_text PUBLIC
 	syncterm_io_error st_utf8 st_unicode_width st_unicode_normalization
 	st_unicode_grapheme)
 set_target_properties(st_unicode_text PROPERTIES
-	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 if(MSVC)
+	# Use the portable C runtime APIs, not Microsoft-only _s replacements.
+	target_compile_definitions(st_unicode_text PRIVATE _CRT_SECURE_NO_WARNINGS)
 	target_compile_options(st_unicode_text PRIVATE /W4 /WX)
 else()
 	target_compile_options(st_unicode_text PRIVATE
@@ -40,8 +43,9 @@ if(BUILD_TESTING)
 		ST_UNICODE_GRAPHEME_TEST_PATH="${CMAKE_CURRENT_SOURCE_DIR}/tests/data/GraphemeBreakTest-18.0.0.txt")
 	target_link_libraries(st_unicode_text_test PRIVATE st_unicode_text)
 	set_target_properties(st_unicode_text_test PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
+		target_compile_definitions(st_unicode_text_test PRIVATE _CRT_SECURE_NO_WARNINGS)
 		target_compile_options(st_unicode_text_test PRIVATE /W4 /WX)
 	else()
 		target_compile_options(st_unicode_text_test PRIVATE

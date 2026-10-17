@@ -5,6 +5,7 @@ cmake_minimum_required(VERSION 3.22)
 
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	project(STTheme LANGUAGES C)
+	include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCStandard.cmake")
 	include(CTest)
 endif()
 
@@ -60,9 +61,11 @@ if(WIN32)
 	target_link_libraries(st_theme PRIVATE st_windows_utf)
 endif()
 set_target_properties(st_theme PROPERTIES
-	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 
 if(MSVC)
+	# Use the portable C runtime APIs, not Microsoft-only _s replacements.
+	target_compile_definitions(st_theme PRIVATE _CRT_SECURE_NO_WARNINGS)
 	target_compile_options(st_theme PRIVATE /W4 /WX)
 else()
 	target_compile_options(st_theme PRIVATE -Wall -Wextra -Wpedantic -Werror)
@@ -75,8 +78,9 @@ if(BUILD_TESTING)
 	target_compile_definitions(st_theme_test PRIVATE
 		ST_THEME_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/theme-test")
 	set_target_properties(st_theme_test PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
+		target_compile_definitions(st_theme_test PRIVATE _CRT_SECURE_NO_WARNINGS)
 		target_compile_options(st_theme_test PRIVATE /W4 /WX)
 	else()
 		target_compile_options(st_theme_test PRIVATE

@@ -5,6 +5,7 @@ cmake_minimum_required(VERSION 3.22)
 
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	project(SyncTERMPath LANGUAGES C)
+	include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCStandard.cmake")
 	include(CTest)
 endif()
 
@@ -30,12 +31,14 @@ if(WIN32)
 	target_link_libraries(syncterm_path PRIVATE st_windows_utf)
 endif()
 set_target_properties(syncterm_path PROPERTIES
-	C_STANDARD 17
+	C_STANDARD ${SYNCTERM_C_STANDARD}
 	C_STANDARD_REQUIRED YES
 	C_EXTENSIONS NO)
 
 function(syncterm_path_warnings target)
 	if(MSVC)
+		# Use the portable C runtime APIs, not Microsoft-only _s replacements.
+		target_compile_definitions(${target} PRIVATE _CRT_SECURE_NO_WARNINGS)
 		target_compile_options(${target} PRIVATE /W4 /WX)
 	else()
 		target_compile_options(${target} PRIVATE
@@ -49,7 +52,7 @@ if(BUILD_TESTING)
 	add_executable(path_test tests/path_test.c)
 	target_link_libraries(path_test PRIVATE syncterm_path)
 	set_target_properties(path_test PROPERTIES
-		C_STANDARD 17
+		C_STANDARD ${SYNCTERM_C_STANDARD}
 		C_STANDARD_REQUIRED YES
 		C_EXTENSIONS NO)
 	syncterm_path_warnings(path_test)
@@ -65,7 +68,7 @@ if(BUILD_TESTING)
 		target_link_libraries(path_windows_growth_test PRIVATE
 			st_windows_utf syncterm_io_error)
 		set_target_properties(path_windows_growth_test PROPERTIES
-			C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+			C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 		syncterm_path_warnings(path_windows_growth_test)
 		add_test(NAME path_windows_growth COMMAND
 			path_windows_growth_test)

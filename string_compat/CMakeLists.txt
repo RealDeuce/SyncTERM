@@ -5,6 +5,7 @@ cmake_minimum_required(VERSION 3.22)
 
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	project(SyncTERMStringCompat LANGUAGES C)
+	include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCStandard.cmake")
 	include(CTest)
 endif()
 
@@ -99,7 +100,7 @@ target_include_directories(syncterm_string_compat PUBLIC
 target_compile_definitions(syncterm_string_compat PUBLIC
 	${STRING_COMPAT_COMPILE_DEFINITIONS})
 set_target_properties(syncterm_string_compat PROPERTIES
-	C_STANDARD 17
+	C_STANDARD ${SYNCTERM_C_STANDARD}
 	C_STANDARD_REQUIRED YES
 	C_EXTENSIONS NO)
 
@@ -118,7 +119,7 @@ if(BUILD_TESTING)
 	add_executable(string_compat_test tests/string_compat_test.c)
 	target_link_libraries(string_compat_test PRIVATE syncterm_string_compat)
 	set_target_properties(string_compat_test PROPERTIES
-		C_STANDARD 17
+		C_STANDARD ${SYNCTERM_C_STANDARD}
 		C_STANDARD_REQUIRED YES
 		C_EXTENSIONS NO)
 	syncterm_string_compat_warnings(string_compat_test)
@@ -135,7 +136,7 @@ if(BUILD_TESTING)
 			${STRING_COMPAT_COMPILE_DEFINITIONS}
 			STRING_COMPAT_FORCE_FALLBACKS=1)
 		set_target_properties(string_compat_fallback_test PROPERTIES
-			C_STANDARD 17
+			C_STANDARD ${SYNCTERM_C_STANDARD}
 			C_STANDARD_REQUIRED YES
 			C_EXTENSIONS NO)
 		syncterm_string_compat_warnings(string_compat_fallback_test)

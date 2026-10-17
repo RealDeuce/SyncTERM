@@ -3,6 +3,7 @@
 .windows:
   stage: build-test
   timeout: 2 hours
+  dependencies: []
   tags: [Windows]
   # GDI tests use native window titles/focus in one runner session.
   resource_group: windows-native-ui

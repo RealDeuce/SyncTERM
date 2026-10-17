@@ -5,6 +5,7 @@ cmake_minimum_required(VERSION 3.22)
 
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	project(STConsentToken LANGUAGES C)
+	include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCStandard.cmake")
 	include(CTest)
 	if(NOT TARGET st_base64)
 		add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../base64"
@@ -25,9 +26,11 @@ target_include_directories(st_consent_token PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_consent_token PUBLIC xptls::crypto
 	PRIVATE st_base64 syncterm_file_map)
 set_target_properties(st_consent_token PROPERTIES
-	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 
 if(MSVC)
+	# Use the portable C runtime APIs, not Microsoft-only _s replacements.
+	target_compile_definitions(st_consent_token PRIVATE _CRT_SECURE_NO_WARNINGS)
 	target_compile_options(st_consent_token PRIVATE /W4 /WX)
 else()
 	target_compile_options(st_consent_token PRIVATE
@@ -41,8 +44,9 @@ if(BUILD_TESTING)
 	target_compile_definitions(st_consent_token_test PRIVATE
 		ST_CONSENT_TOKEN_TEST_DIRECTORY=\"${CMAKE_CURRENT_BINARY_DIR}/token-test\")
 	set_target_properties(st_consent_token_test PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
+		target_compile_definitions(st_consent_token_test PRIVATE _CRT_SECURE_NO_WARNINGS)
 		target_compile_options(st_consent_token_test PRIVATE /W4 /WX)
 	else()
 		target_compile_options(st_consent_token_test PRIVATE

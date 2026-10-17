@@ -5,6 +5,7 @@ cmake_minimum_required(VERSION 3.22)
 
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	project(STSettings LANGUAGES C)
+	include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCStandard.cmake")
 	include(CTest)
 endif()
 
@@ -39,10 +40,12 @@ target_link_libraries(st_settings PUBLIC
 	st_file_lock syncterm_filesystem syncterm_ini syncterm_string_compat
 	syncterm_string_util st_unicode_compare)
 set_target_properties(st_settings PROPERTIES
-	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 
 function(st_settings_warnings target)
 	if(MSVC)
+		# Use the portable C runtime APIs, not Microsoft-only _s replacements.
+		target_compile_definitions(${target} PRIVATE _CRT_SECURE_NO_WARNINGS)
 		target_compile_options(${target} PRIVATE /W4 /WX)
 	else()
 		target_compile_options(${target} PRIVATE
@@ -56,7 +59,7 @@ if(BUILD_TESTING)
 	target_link_libraries(st_settings_test PRIVATE
 		st_settings syncterm_string_compat)
 	set_target_properties(st_settings_test PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	st_settings_warnings(st_settings_test)
 	add_test(NAME settings COMMAND st_settings_test)
 
@@ -66,7 +69,7 @@ if(BUILD_TESTING)
 	target_compile_definitions(st_settings_store_test PRIVATE
 		ST_SETTINGS_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/store-test")
 	set_target_properties(st_settings_store_test PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	st_settings_warnings(st_settings_store_test)
 	add_test(NAME settings_store COMMAND st_settings_store_test)
 
@@ -82,7 +85,7 @@ if(BUILD_TESTING)
 		st_file_lock syncterm_filesystem syncterm_ini
 		syncterm_string_compat syncterm_string_util st_unicode_compare)
 	set_target_properties(st_settings_faultable PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	st_settings_warnings(st_settings_faultable)
 
 	add_executable(st_settings_failure_test
@@ -95,7 +98,7 @@ if(BUILD_TESTING)
 	target_compile_definitions(st_settings_failure_test PRIVATE
 		ST_SETTINGS_FAILURE_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/failure-test")
 	set_target_properties(st_settings_failure_test PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	st_settings_warnings(st_settings_failure_test)
 	add_test(NAME settings_failures COMMAND st_settings_failure_test)
 endif()

@@ -5,6 +5,7 @@ cmake_minimum_required(VERSION 3.22)
 
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	project(SyncTERMFileMap LANGUAGES C)
+	include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCStandard.cmake")
 	include(CTest)
 endif()
 
@@ -88,7 +89,7 @@ if(SYNCTERM_FILE_MAP_DEFINITIONS)
 		${SYNCTERM_FILE_MAP_DEFINITIONS})
 endif()
 set_target_properties(syncterm_file_map PROPERTIES
-	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 
 function(syncterm_file_map_warnings target)
 	if(MSVC)
@@ -109,7 +110,7 @@ if(BUILD_TESTING)
 			${SYNCTERM_FILE_MAP_DEFINITIONS})
 	endif()
 	set_target_properties(file_map_test PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	syncterm_file_map_warnings(file_map_test)
 	add_test(NAME file_map COMMAND file_map_test)
 	set_tests_properties(file_map PROPERTIES TIMEOUT 10)

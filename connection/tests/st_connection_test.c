@@ -517,7 +517,6 @@ test_shell(void)
 	struct st_screen_geometry geometry = {80, 25, 0, 0};
 	struct st_connection_error error;
 	st_connection_t *connection = NULL;
-	char buffer[64];
 	ssize_t count;
 
 	st_profile_init(&profile);
@@ -529,6 +528,8 @@ test_shell(void)
 	strcpy(profile.address, "printf shell-test");
 #endif
 #if ST_CONNECTION_TEST_HAVE_SHELL
+	char buffer[64];
+
 	count = st_connection_connect_shell(&connection, &profile, &geometry,
 	    NULL, &hooks, &error);
 #if SYNCTERM_PLATFORM_WINDOWS

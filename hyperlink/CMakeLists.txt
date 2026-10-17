@@ -5,6 +5,7 @@ cmake_minimum_required(VERSION 3.22)
 
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	project(STHyperlink LANGUAGES C)
+	include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCStandard.cmake")
 	include(CTest)
 endif()
 
@@ -23,7 +24,7 @@ target_link_libraries(st_hyperlink
 	PUBLIC syncterm_io_error
 	PRIVATE syncterm_threads)
 set_target_properties(st_hyperlink PROPERTIES
-	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 
 function(st_hyperlink_warnings target)
 	if(MSVC)
@@ -40,7 +41,7 @@ if(BUILD_TESTING)
 	target_link_libraries(st_hyperlink_test PRIVATE st_hyperlink
 		syncterm_threads)
 	set_target_properties(st_hyperlink_test PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	st_hyperlink_warnings(st_hyperlink_test)
 	add_test(NAME hyperlink COMMAND st_hyperlink_test)
 	set_tests_properties(hyperlink PROPERTIES TIMEOUT 20)

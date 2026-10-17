@@ -5,6 +5,7 @@ cmake_minimum_required(VERSION 3.22)
 
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	project(SyncTERMDynamicLibrary LANGUAGES C)
+	include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCStandard.cmake")
 	include(CTest)
 endif()
 
@@ -70,7 +71,7 @@ if(APPLE)
 		SYNCTERM_DYNAMIC_LIBRARY_DYLIB_NAMES=1)
 endif()
 set_target_properties(syncterm_dynamic_library PROPERTIES
-	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 
 function(syncterm_dynamic_library_warnings target)
 	if(MSVC)
@@ -121,12 +122,12 @@ if(BUILD_TESTING)
 	    dynamic_library_bare_fixture
 	    dynamic_library_provider_fixture)
 		set_target_properties(${_fixture} PROPERTIES
-			C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+			C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 		syncterm_dynamic_library_warnings(${_fixture})
 	endforeach()
 	if(TARGET dynamic_library_consumer_fixture)
 		set_target_properties(dynamic_library_consumer_fixture PROPERTIES
-			C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+			C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 		syncterm_dynamic_library_warnings(
 			dynamic_library_consumer_fixture)
 	endif()
@@ -143,7 +144,7 @@ if(BUILD_TESTING)
 			SYNCTERM_DYNAMIC_LIBRARY_TEST_POSIX=1)
 	endif()
 	set_target_properties(dynamic_library_test PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO
 		BUILD_RPATH "$<TARGET_FILE_DIR:dynamic_library_fixture>")
 	syncterm_dynamic_library_warnings(dynamic_library_test)
 	add_dependencies(dynamic_library_test

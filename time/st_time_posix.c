@@ -22,8 +22,11 @@ st_time_process_cpu_ns(uint64_t *result)
 
 	if (result == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &now) != 0)
-		return io_error_from_errno(errno);
+	if (clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &now) != 0) {
+		int status = io_error_from_errno(errno);
+
+		return status != 0 ? status : IO_ERROR_IO;
+	}
 	if (now.tv_sec < 0 || now.tv_nsec < 0 || now.tv_nsec >= 1000000000L
 	    || (uint64_t)now.tv_sec >= UINT64_MAX / UINT64_C(1000000000))
 		return IO_ERROR_OUT_OF_RANGE;
@@ -56,8 +59,11 @@ st_time_monotonic_ns(uint64_t *result)
 
 	if (result == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (clock_gettime(CLOCK_MONOTONIC, &now) != 0)
-		return io_error_from_errno(errno);
+	if (clock_gettime(CLOCK_MONOTONIC, &now) != 0) {
+		int status = io_error_from_errno(errno);
+
+		return status != 0 ? status : IO_ERROR_IO;
+	}
 	if (now.tv_sec < 0 || now.tv_nsec < 0 || now.tv_nsec >= 1000000000L
 	    || (uint64_t)now.tv_sec > UINT64_MAX / UINT64_C(1000000000)
 	    || ((uint64_t)now.tv_sec

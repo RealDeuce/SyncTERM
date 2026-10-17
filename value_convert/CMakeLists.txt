@@ -5,6 +5,7 @@ cmake_minimum_required(VERSION 3.22)
 
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	project(SyncTERMValueConvert LANGUAGES C)
+	include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCStandard.cmake")
 	include(CTest)
 endif()
 
@@ -75,10 +76,12 @@ if(SYNCTERM_VALUE_CONVERT_POSIX_DEFINITIONS)
 		${SYNCTERM_VALUE_CONVERT_POSIX_DEFINITIONS})
 endif()
 set_target_properties(syncterm_value_convert PROPERTIES
-	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 
 function(syncterm_value_convert_warnings target)
 	if(MSVC)
+		# Use the portable C runtime APIs, not Microsoft-only _s replacements.
+		target_compile_definitions(${target} PRIVATE _CRT_SECURE_NO_WARNINGS)
 		target_compile_options(${target} PRIVATE /W4 /WX)
 	else()
 		target_compile_options(${target} PRIVATE
@@ -91,7 +94,7 @@ if(BUILD_TESTING)
 	add_executable(value_convert_test tests/value_convert_test.c)
 	target_link_libraries(value_convert_test PRIVATE syncterm_value_convert)
 	set_target_properties(value_convert_test PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	syncterm_value_convert_warnings(value_convert_test)
 	add_test(NAME value_convert COMMAND value_convert_test)
 	set_tests_properties(value_convert PROPERTIES TIMEOUT 30)
@@ -99,7 +102,7 @@ if(BUILD_TESTING)
 	add_executable(value_estimate_test tests/value_estimate_test.c)
 	target_link_libraries(value_estimate_test PRIVATE syncterm_value_convert)
 	set_target_properties(value_estimate_test PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	syncterm_value_convert_warnings(value_estimate_test)
 	add_test(NAME value_estimate COMMAND value_estimate_test)
 	set_tests_properties(value_estimate PROPERTIES TIMEOUT 30)

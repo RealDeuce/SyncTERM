@@ -3,8 +3,11 @@
 
 cmake_minimum_required(VERSION 3.22)
 
+include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermAtomics.cmake")
+
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	project(SyncTERMThreads LANGUAGES C)
+	include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCStandard.cmake")
 	include(CTest)
 endif()
 
@@ -13,7 +16,7 @@ include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCheckC17Source.cmake")
 set(_st_threads_saved_c_standard ${CMAKE_C_STANDARD})
 set(_st_threads_saved_c_standard_required ${CMAKE_C_STANDARD_REQUIRED})
 set(_st_threads_saved_c_extensions ${CMAKE_C_EXTENSIONS})
-set(CMAKE_C_STANDARD 17)
+set(CMAKE_C_STANDARD ${SYNCTERM_C_STANDARD})
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 set(_st_threads_saved_required_definitions ${CMAKE_REQUIRED_DEFINITIONS})
@@ -209,8 +212,9 @@ if(ST_THREADS_COMPILE_DEFINITIONS)
 	target_compile_definitions(syncterm_threads PUBLIC
 		${ST_THREADS_COMPILE_DEFINITIONS})
 endif()
+syncterm_target_atomics(syncterm_threads)
 set_target_properties(syncterm_threads PROPERTIES
-	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 
 function(st_threads_warnings target)
 	if(MSVC)
@@ -226,7 +230,7 @@ if(BUILD_TESTING)
 	add_executable(st_threads_test tests/st_threads_test.c)
 	target_link_libraries(st_threads_test PRIVATE syncterm_threads)
 	set_target_properties(st_threads_test PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	st_threads_warnings(st_threads_test)
 	add_test(NAME st_threads COMMAND st_threads_test)
 	set_tests_properties(st_threads PROPERTIES TIMEOUT 20)

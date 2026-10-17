@@ -3,8 +3,11 @@
 
 cmake_minimum_required(VERSION 3.22)
 
+include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermAtomics.cmake")
+
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	project(STAudio LANGUAGES C)
+	include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCStandard.cmake")
 	include(CTest)
 endif()
 
@@ -292,8 +295,9 @@ endif()
 if(ST_AUDIO_MIXER_MATH_IN_LIBM)
 	target_link_libraries(st_audio PRIVATE m)
 endif()
+syncterm_target_atomics(st_audio)
 set_target_properties(st_audio PROPERTIES
-	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 
 function(st_audio_warnings target)
 	if(MSVC)
@@ -312,8 +316,9 @@ if(BUILD_TESTING)
 		${CMAKE_CURRENT_SOURCE_DIR})
 	target_compile_definitions(st_audio_test PRIVATE ST_AUDIO_TESTING=1)
 	target_link_libraries(st_audio_test PRIVATE st_audio)
+	syncterm_target_atomics(st_audio_test)
 	set_target_properties(st_audio_test PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	st_audio_warnings(st_audio_test)
 	add_test(NAME st_audio COMMAND st_audio_test)
 	set_tests_properties(st_audio PROPERTIES TIMEOUT 20)
@@ -323,6 +328,6 @@ if(ST_AUDIO_BUILD_AUDIBLE_SMOKE_TEST)
 	add_executable(st_audio_audible_smoke tests/audio_audible_smoke.c)
 	target_link_libraries(st_audio_audible_smoke PRIVATE st_audio)
 	set_target_properties(st_audio_audible_smoke PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	st_audio_warnings(st_audio_audible_smoke)
 endif()

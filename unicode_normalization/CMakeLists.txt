@@ -5,6 +5,7 @@ cmake_minimum_required(VERSION 3.22)
 
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	project(STUnicodeNormalization LANGUAGES C)
+	include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCStandard.cmake")
 	include(CTest)
 endif()
 
@@ -13,7 +14,7 @@ add_library(st_unicode_normalization STATIC
 target_include_directories(st_unicode_normalization PUBLIC
 	${CMAKE_CURRENT_SOURCE_DIR})
 set_target_properties(st_unicode_normalization PROPERTIES
-	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 if(MSVC)
 	target_compile_options(st_unicode_normalization PRIVATE /W4 /WX)
 else()
@@ -27,7 +28,7 @@ if(BUILD_TESTING)
 	target_link_libraries(st_unicode_normalization_test PRIVATE
 		st_unicode_normalization)
 	set_target_properties(st_unicode_normalization_test PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
 		target_compile_options(st_unicode_normalization_test PRIVATE /W4 /WX)
 	else()

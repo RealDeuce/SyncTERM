@@ -18,6 +18,8 @@ variables:
   CI_PROFILE: native
   # This is an acknowledged coverage gap, not a successful Haiku build.
   SYNCTERM_CI_HAIKU: "0"
+  # Enable only on a Linux runner provisioned with Clang.
+  SYNCTERM_CI_CLANG: "0"
 
 default:
   interruptible: true
@@ -56,7 +58,7 @@ include:
   - local: .gitlab/ci/posix.yml
     inputs: {name: linux-minimal, tag: Linux, cc: gcc, cxx: g++, profile: minimal}
   - local: .gitlab/ci/posix.yml
-    inputs: {name: linux-sanitizers, tag: Linux, cc: clang, cxx: clang++, profile: sanitizers}
+    inputs: {name: linux-sanitizers, tag: Linux, cc: gcc, cxx: g++, profile: sanitizers}
   - local: .gitlab/ci/posix.yml
     inputs: {name: mingw32-cross, tag: FreeBSD, profile: mingw32-cross}
   - local: .gitlab/ci/posix.yml
@@ -89,6 +91,10 @@ mingw32-cross:
 mingw64-cross:
   extends: .cross-artifacts
 
+linux-clang:
+  rules:
+    - if: '$SYNCTERM_CI_CLANG == "1"'
+
 macos-arm64:
   resource_group: macos-arm64-native-ui
 
@@ -98,6 +104,7 @@ macos-x86:
 haiku:
   stage: build-test
   timeout: 2 hours
+  dependencies: []
   tags: [Haiku]
   rules:
     - if: '$SYNCTERM_CI_HAIKU == "1"'

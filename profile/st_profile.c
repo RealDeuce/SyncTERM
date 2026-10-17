@@ -120,7 +120,7 @@ st_profile_init(struct st_profile *profile)
 		profile->tls_psk_version = ST_TLS_VERSION_1_3;
 		profile->append_log = true;
 		profile->sort_order = INT32_MAX;
-		(void)strcpy(profile->font, "Codepage 437 English");
+		(void)strlcpy(profile->font, "Codepage 437 English", sizeof(profile->font));
 	}
 }
 

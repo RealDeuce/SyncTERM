@@ -5,6 +5,7 @@ cmake_minimum_required(VERSION 3.22)
 
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	project(SyncTERMINI LANGUAGES C)
+	include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCStandard.cmake")
 	include(CTest)
 endif()
 
@@ -52,10 +53,12 @@ target_link_libraries(syncterm_ini
 		syncterm_string_util syncterm_value_convert st_unicode_text
 		st_unicode_compare)
 set_target_properties(syncterm_ini PROPERTIES
-	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 
 function(syncterm_ini_warnings target)
 	if(MSVC)
+		# Use the portable C runtime APIs, not Microsoft-only _s replacements.
+		target_compile_definitions(${target} PRIVATE _CRT_SECURE_NO_WARNINGS)
 		target_compile_options(${target} PRIVATE /W4 /WX)
 	else()
 		target_compile_options(${target} PRIVATE
@@ -68,14 +71,14 @@ if(BUILD_TESTING)
 	add_executable(ini_test tests/ini_test.c)
 	target_link_libraries(ini_test PRIVATE syncterm_ini)
 	set_target_properties(ini_test PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	syncterm_ini_warnings(ini_test)
 	add_test(NAME ini COMMAND ini_test)
 
 	add_executable(ini_interface_test tests/ini_interface_test.c)
 	target_link_libraries(ini_interface_test PRIVATE syncterm_ini)
 	set_target_properties(ini_interface_test PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	syncterm_ini_warnings(ini_interface_test)
 	add_test(NAME ini_interface COMMAND ini_interface_test)
 endif()

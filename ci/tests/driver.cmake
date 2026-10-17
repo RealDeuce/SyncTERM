@@ -8,6 +8,10 @@ endif()
 
 function(check_case name failure extra profile)
 	set(_build "${TEST_ROOT}/${name}")
+	# Simulate inherited artifacts and a retry of a previously successful job.
+	file(MAKE_DIRECTORY "${_build}/reports" "${_build}/artifacts")
+	file(WRITE "${_build}/reports/junit.xml" "stale result")
+	file(WRITE "${_build}/artifacts/syncterm-stale" "stale binary")
 	execute_process(COMMAND "${CMAKE_COMMAND}" -E env
 		"CI_EXTRA_CMAKE_ARGS=${extra}" "CMAKE_BUILD_PARALLEL_LEVEL=2"
 		"CTEST_PARALLEL_LEVEL=1"
@@ -34,6 +38,16 @@ function(check_case name failure extra profile)
 		if(NOT EXISTS "${_build}/reports/${failure}.log")
 			message(FATAL_ERROR "${name}: failure log was not retained")
 		endif()
+		if((failure STREQUAL configure OR failure STREQUAL build)
+		    AND EXISTS "${_build}/reports/junit.xml")
+			message(FATAL_ERROR "${name}: published stale test results")
+		endif()
+		if(failure STREQUAL configure AND NOT EXISTS "${_build}/reports/CMakeError.log")
+			message(FATAL_ERROR "${name}: lost failed probe diagnostics")
+		endif()
+	endif()
+	if(EXISTS "${_build}/artifacts/syncterm-stale")
+		message(FATAL_ERROR "${name}: published a stale binary")
 	endif()
 endfunction()
 

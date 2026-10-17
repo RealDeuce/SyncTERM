@@ -5,6 +5,7 @@ cmake_minimum_required(VERSION 3.22)
 
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	project(SyncTERMNameValueList LANGUAGES C)
+	include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCStandard.cmake")
 	include(CTest)
 endif()
 
@@ -36,7 +37,7 @@ target_link_libraries(syncterm_name_value_list PUBLIC syncterm_array_list
 	PRIVATE syncterm_string_compat syncterm_string_util st_unicode_compare
 		syncterm_io_error)
 set_target_properties(syncterm_name_value_list PROPERTIES
-	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 
 function(syncterm_name_value_list_warnings target)
 	if(MSVC)
@@ -53,7 +54,7 @@ if(BUILD_TESTING)
 	target_link_libraries(name_value_list_test PRIVATE
 		syncterm_name_value_list)
 	set_target_properties(name_value_list_test PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	syncterm_name_value_list_warnings(name_value_list_test)
 	add_test(NAME name_value_list COMMAND name_value_list_test)
 endif()

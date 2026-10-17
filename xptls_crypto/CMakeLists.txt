@@ -5,6 +5,7 @@ cmake_minimum_required(VERSION 3.22)
 
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	project(XPTLSCrypto LANGUAGES C)
+	include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCStandard.cmake")
 	include(CTest)
 endif()
 
@@ -23,7 +24,7 @@ endif()
 set(_xptls_saved_required_definitions ${CMAKE_REQUIRED_DEFINITIONS})
 set(CMAKE_REQUIRED_DEFINITIONS ${_xptls_saved_required_definitions}
 	${_xptls_crypto_probe_definitions})
-set(CMAKE_C_STANDARD 17)
+set(CMAKE_C_STANDARD ${SYNCTERM_C_STANDARD})
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 syncterm_check_c17_source([=[
@@ -162,7 +163,7 @@ target_include_directories(xptls_crypto PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(xptls_crypto PRIVATE ${_xptls_crypto_library})
 target_compile_definitions(xptls_crypto PRIVATE ${_xptls_crypto_definitions})
 set_target_properties(xptls_crypto PROPERTIES
-	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 if(_xptls_crypto_backend STREQUAL "Botan")
 	set_target_properties(xptls_crypto PROPERTIES
 		CXX_STANDARD 20 CXX_STANDARD_REQUIRED YES CXX_EXTENSIONS NO
@@ -187,7 +188,7 @@ if(BUILD_TESTING)
 	add_executable(xp_crypto_test tests/xp_crypto_test.c)
 	target_link_libraries(xp_crypto_test PRIVATE xptls_crypto)
 	set_target_properties(xp_crypto_test PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
 		target_compile_options(xp_crypto_test PRIVATE /W4 /WX)
 	else()
@@ -203,7 +204,7 @@ if(BUILD_TESTING)
 		target_include_directories(xp_crypto_clear_fallback_test PRIVATE
 			${CMAKE_CURRENT_SOURCE_DIR})
 		set_target_properties(xp_crypto_clear_fallback_test PROPERTIES
-			C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+			C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 		if(MSVC)
 			target_compile_options(xp_crypto_clear_fallback_test PRIVATE /W4 /WX)
 		else()

@@ -3,8 +3,11 @@
 
 cmake_minimum_required(VERSION 3.22)
 
+include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermAtomics.cmake")
+
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	project(STAudioMixer LANGUAGES C)
+	include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCStandard.cmake")
 include(CTest)
 endif()
 
@@ -53,7 +56,7 @@ int main(void)
 	target_link_libraries(st_audio_mixer PRIVATE m)
 endif()
 set_target_properties(st_audio_mixer PROPERTIES
-	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 
 function(st_audio_mixer_warnings target)
 	if(MSVC)
@@ -68,8 +71,9 @@ st_audio_mixer_warnings(st_audio_mixer)
 if(BUILD_TESTING)
 	add_executable(st_audio_mixer_test tests/audio_mixer_test.c)
 	target_link_libraries(st_audio_mixer_test PRIVATE st_audio_mixer)
+	syncterm_target_atomics(st_audio_mixer_test)
 	set_target_properties(st_audio_mixer_test PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	st_audio_mixer_warnings(st_audio_mixer_test)
 	add_test(NAME st_audio_mixer COMMAND st_audio_mixer_test)
 	set_tests_properties(st_audio_mixer PROPERTIES TIMEOUT 20)

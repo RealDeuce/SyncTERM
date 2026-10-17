@@ -5,6 +5,7 @@ cmake_minimum_required(VERSION 3.22)
 
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	project(STWebGet LANGUAGES C)
+	include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCStandard.cmake")
 	include(CTest)
 endif()
 
@@ -30,7 +31,7 @@ target_link_libraries(st_webget PUBLIC syncterm_io_error st_tls PRIVATE
 	st_file_lock syncterm_filesystem syncterm_ini syncterm_socket
 	syncterm_string_compat syncterm_string_util syncterm_path
 	syncterm_tcp_client)
-set_target_properties(st_webget PROPERTIES C_STANDARD 17
+set_target_properties(st_webget PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
 	C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 if(MSVC)
 	target_compile_options(st_webget PRIVATE /W4 /WX)
@@ -48,7 +49,7 @@ if(BUILD_TESTING)
 		syncterm_filesystem syncterm_socket syncterm_threads)
 	target_compile_definitions(st_webget_test PRIVATE
 		ST_WEBGET_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/webget-test")
-	set_target_properties(st_webget_test PROPERTIES C_STANDARD 17
+	set_target_properties(st_webget_test PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
 		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
 		target_compile_options(st_webget_test PRIVATE /W4 /WX)
@@ -67,7 +68,7 @@ if(BUILD_TESTING)
 		syncterm_filesystem syncterm_tcp_client)
 	target_compile_definitions(st_webget_transport_test PRIVATE
 		ST_WEBGET_TRANSPORT_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/webget-transport-test")
-	set_target_properties(st_webget_transport_test PROPERTIES C_STANDARD 17
+	set_target_properties(st_webget_transport_test PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
 		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
 		target_compile_options(st_webget_transport_test PRIVATE /W4 /WX)

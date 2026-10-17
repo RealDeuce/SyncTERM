@@ -11,7 +11,8 @@ without losing ownership, failure, or concurrency invariants.
 
 == Build and test
 
-SyncTERM is a C17 CMake project.  Configure it independently of the legacy
+SyncTERM uses C17 with CMake, falling back to C11 on macOS x86 when the
+selected compiler has no C17 mode. Configure it independently of the legacy
 Synchronet tree and always use an out-of-source build:
 
 [source,sh]
@@ -48,7 +49,9 @@ ctest --test-dir build --output-on-failure -R '^theme$'
 
 Do not add or repair legacy makefiles.  Capability checks and generated
 configuration headers belong in the build tree, and a new target must set
-`C_STANDARD 17`, `C_STANDARD_REQUIRED YES`, and `C_EXTENSIONS NO`.
+`C_STANDARD ${SYNCTERM_C_STANDARD}`, `C_STANDARD_REQUIRED YES`, and
+`C_EXTENSIONS NO`. The shared `cmake/SynctermCStandard.cmake` selector is
+also included by standalone component projects.
 
 For CPU-time benchmarks, pixel-equivalence checks, and the scrolling/rendering
 baseline, see link:docs/performance.adoc[Performance verification].
@@ -64,7 +67,7 @@ tests contain absolute source and fixture paths.
 [cols="1,2",options="header"]
 |===
 | Runner tag | Coverage
-| `Linux` | GCC, Clang, minimal optional features, combined ASan/UBSan
+| `Linux` | GCC, minimal optional features, combined ASan/UBSan; optional Clang job
 | `alpine-linux` | Native musl build and tests
 | `RaspberryPi` | Native ARM64 build and tests
 | `FreeBSD` | Native build/tests; Win32 and Win64 MinGW cross-compilation
@@ -81,9 +84,16 @@ Configure logs and `capabilities.txt` show which paths were actually built;
 CTest's JUnit report records skips, which are not successful backend tests.
 Tests currently restricted to POSIX, such as the SSH/SFTP live fixture, do not
 become Windows coverage merely because the Windows application builds.
+The Clang job is disabled unless `SYNCTERM_CI_CLANG=1`; enable it only after
+provisioning that compiler on the Linux runner. Sanitizers use GCC and do not
+require Clang. The macOS x86 job uses CMake's compiler capability list to select
+C11 only when C17 mode is unavailable; other platforms still require C17.
+The pinned standalone DeuceSSH uses the same language-mode fallback; its
+runtime capability requirements remain unchanged.
 
-Runners need Git, CMake/CTest 3.22 or newer, a C17 compiler and its native
-build tool. Jobs request a two-hour limit, subject to the runner's own cap.
+Runners need Git, CMake/CTest 3.22 or newer, a C17 compiler (or C11 on older
+macOS x86) and its native build tool. Jobs request a two-hour limit, subject
+to the runner's own cap.
 Provide a matching C++20 compiler when Botan is detected, and
 Objective-C/Apple SDK tools on macOS. Windows MSVC jobs use Visual Studio
 2022's Win32/x64 C++ tools; its bundled CMake is accepted. MinGW Windows jobs
@@ -133,6 +143,12 @@ are under `build-ci/artifacts/`; these are build outputs, not self-contained
 release packages with every optional runtime library. Pipeline creation
 covers merge requests, branch pushes, tags, schedules and manual pipelines,
 without duplicating a push pipeline when an MR pipeline is already requested.
+Jobs do not download upstream job artifacts. A new attempt removes its own
+stale results and application artifacts; configure failures retain CMake's
+probe diagnostics as well as the configure log. CI disables the optional
+external RIP test fixtures, exercising the self-contained tests even when
+those fixtures happen to exist on a shell runner. Local builds can make the
+same selection with `ST_CTERM_TEST_EXTERNAL_ASSETS=OFF`.
 
 The common driver has isolated success/error-path tests:
 

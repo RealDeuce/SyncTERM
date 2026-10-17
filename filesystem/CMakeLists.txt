@@ -3,8 +3,11 @@
 
 cmake_minimum_required(VERSION 3.22)
 
+include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermAtomics.cmake")
+
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	project(SyncTERMFilesystem LANGUAGES C)
+	include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCStandard.cmake")
 	include(CTest)
 endif()
 
@@ -97,13 +100,16 @@ if(SYNCTERM_FILESYSTEM_POSIX_DEFINITIONS)
 	target_compile_definitions(syncterm_filesystem PRIVATE
 		${SYNCTERM_FILESYSTEM_POSIX_DEFINITIONS})
 endif()
+syncterm_target_atomics(syncterm_filesystem)
 set_target_properties(syncterm_filesystem PROPERTIES
-	C_STANDARD 17
+	C_STANDARD ${SYNCTERM_C_STANDARD}
 	C_STANDARD_REQUIRED YES
 	C_EXTENSIONS NO)
 
 function(syncterm_filesystem_warnings target)
 	if(MSVC)
+		# Use the portable C runtime APIs, not Microsoft-only _s replacements.
+		target_compile_definitions(${target} PRIVATE _CRT_SECURE_NO_WARNINGS)
 		target_compile_options(${target} PRIVATE /W4 /WX)
 	else()
 		target_compile_options(${target} PRIVATE
@@ -121,7 +127,7 @@ if(BUILD_TESTING)
 			${SYNCTERM_FILESYSTEM_POSIX_DEFINITIONS})
 	endif()
 	set_target_properties(filesystem_test PROPERTIES
-		C_STANDARD 17
+		C_STANDARD ${SYNCTERM_C_STANDARD}
 		C_STANDARD_REQUIRED YES
 		C_EXTENSIONS NO)
 	syncterm_filesystem_warnings(filesystem_test)
@@ -132,7 +138,7 @@ if(BUILD_TESTING)
 		target_link_libraries(filesystem_windows_root_test PRIVATE
 			syncterm_filesystem)
 		set_target_properties(filesystem_windows_root_test PROPERTIES
-			C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+			C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 		syncterm_filesystem_warnings(filesystem_windows_root_test)
 		add_test(NAME filesystem_windows_root COMMAND
 			filesystem_windows_root_test)

@@ -231,7 +231,7 @@ test_digest_padding(void)
 	CHECK(xp_digest(XP_DIGEST_SHA256, NULL, 0, digest, sizeof(digest))
 	    == XP_CRYPTO_OK);
 	CHECK(memcmp(digest, empty_expected, sizeof(digest)) == 0);
-	CHECK(sizeof(boundary) - 1 == 56);
+	_Static_assert(sizeof(boundary) - 1 == 56, "SHA-256 padding boundary fixture");
 	CHECK(xp_digest(XP_DIGEST_SHA256, boundary, sizeof(boundary) - 1,
 	    digest, sizeof(digest)) == XP_CRYPTO_OK);
 	CHECK(memcmp(digest, boundary_expected, sizeof(digest)) == 0);

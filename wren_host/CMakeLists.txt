@@ -3,8 +3,11 @@
 
 cmake_minimum_required(VERSION 3.22)
 
+include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermAtomics.cmake")
+
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	project(STWrenHost LANGUAGES C)
+	include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCStandard.cmake")
 endif()
 
 set(_st_wren_scripts
@@ -119,9 +122,11 @@ if(WIN32)
 	target_link_libraries(st_wren_host PRIVATE st_windows_utf)
 endif()
 set_target_properties(st_wren_host PROPERTIES
-	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 
 if(MSVC)
+	# Use the portable C runtime APIs, not Microsoft-only _s replacements.
+	target_compile_definitions(st_wren_host PRIVATE _CRT_SECURE_NO_WARNINGS)
 	target_compile_options(st_wren_host PRIVATE /W4 /WX)
 else()
 	target_compile_options(st_wren_host PRIVATE
@@ -170,8 +175,9 @@ int main(void)
 			ST_HAVE_UNIFONT=1)
 	endif()
 	set_target_properties(st_wren_host_test PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
+		target_compile_definitions(st_wren_host_test PRIVATE _CRT_SECURE_NO_WARNINGS)
 		target_compile_options(st_wren_host_test PRIVATE /W4 /WX)
 	else()
 		target_compile_options(st_wren_host_test PRIVATE
@@ -196,8 +202,9 @@ int main(void)
 	target_include_directories(st_wren_loader_audit_test SYSTEM PRIVATE
 		${CMAKE_CURRENT_SOURCE_DIR}/../wren_vm/vm)
 	set_target_properties(st_wren_loader_audit_test PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
+		target_compile_definitions(st_wren_loader_audit_test PRIVATE _CRT_SECURE_NO_WARNINGS)
 		target_compile_options(st_wren_loader_audit_test PRIVATE /W4 /WX)
 	else()
 		target_compile_options(st_wren_loader_audit_test PRIVATE
@@ -258,7 +265,7 @@ int main(void)
 				st_utf8 syncterm_filesystem syncterm_path
 				syncterm_string_compat syncterm_io_error)
 			set_target_properties("st_wren_${_test}_test" PROPERTIES
-				C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+				C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 			if(CMAKE_C_COMPILER_ID MATCHES "Clang|GNU")
 				target_compile_options("st_wren_${_test}_test" PRIVATE
 					-Wall -Wextra -Wpedantic -Werror)
@@ -280,9 +287,11 @@ int main(void)
 		syncterm_array_list)
 	target_compile_definitions(st_wren_picker_test PRIVATE
 		ST_WREN_PICKER_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/picker-test")
+	syncterm_target_atomics(st_wren_picker_test)
 	set_target_properties(st_wren_picker_test PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
+		target_compile_definitions(st_wren_picker_test PRIVATE _CRT_SECURE_NO_WARNINGS)
 		target_compile_options(st_wren_picker_test PRIVATE /W4 /WX)
 	else()
 		target_compile_options(st_wren_picker_test PRIVATE

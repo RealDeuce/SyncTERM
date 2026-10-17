@@ -6,6 +6,7 @@ cmake_minimum_required(VERSION 3.22)
 
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	project(STWrenVM LANGUAGES C)
+	include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCStandard.cmake")
 	include(CTest)
 endif()
 
@@ -73,10 +74,15 @@ if(_st_wren_vm_math_libraries)
 	target_link_libraries(st_wren_vm PRIVATE ${_st_wren_vm_math_libraries})
 endif()
 set_target_properties(st_wren_vm PROPERTIES
-	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 
 if(MSVC)
+	# Use the portable C runtime APIs, not Microsoft-only _s replacements.
+	target_compile_definitions(st_wren_vm PRIVATE _CRT_SECURE_NO_WARNINGS)
 	target_compile_options(st_wren_vm PRIVATE /W4 /WX /wd4100)
+	# Flexible array members and READ_SHORT's sequenced comma expression
+	# are intentional C idioms in the upstream VM, not language extensions.
+	target_compile_options(st_wren_vm PRIVATE /wd4200 /wd4709)
 else()
 	target_compile_options(st_wren_vm PRIVATE
 		-Wall -Wextra -Wpedantic -Werror -Wno-unused-parameter
@@ -87,8 +93,9 @@ if(BUILD_TESTING)
 	add_executable(st_wren_vm_link_test tests/st_wren_vm_link_test.c)
 	target_link_libraries(st_wren_vm_link_test PRIVATE st_wren_vm)
 	set_target_properties(st_wren_vm_link_test PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
+		target_compile_definitions(st_wren_vm_link_test PRIVATE _CRT_SECURE_NO_WARNINGS)
 		target_compile_options(st_wren_vm_link_test PRIVATE /W4 /WX)
 	else()
 		target_compile_options(st_wren_vm_link_test PRIVATE

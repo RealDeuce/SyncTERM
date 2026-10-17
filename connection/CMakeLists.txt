@@ -3,11 +3,14 @@
 
 cmake_minimum_required(VERSION 3.22)
 
+include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermAtomics.cmake")
+
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	project(STConnection LANGUAGES C)
+	include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCStandard.cmake")
 	include(CTest)
 	include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCheckC17Source.cmake")
-	set(CMAKE_C_STANDARD 17)
+	set(CMAKE_C_STANDARD ${SYNCTERM_C_STANDARD})
 	set(CMAKE_C_STANDARD_REQUIRED ON)
 	set(CMAKE_C_EXTENSIONS OFF)
 	if(WIN32)
@@ -86,7 +89,7 @@ set(_st_connection_saved_required_definitions ${CMAKE_REQUIRED_DEFINITIONS})
 if(WIN32)
 	set(CMAKE_REQUIRED_LIBRARIES
 		${_st_connection_saved_required_libraries} bcrypt)
-	syncterm_check_c17_source([=[
+	set(_st_conpty_probe [=[
 #include <windows.h>
 #include <bcrypt.h>
 int main(void)
@@ -124,9 +127,26 @@ int main(void)
 	(void)GetProcAddress(kernel, "CreatePseudoConsole");
 	return (int)PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE;
 }
-]=] ST_CONNECTION_CONPTY_PROGRAMMING_ENVIRONMENT)
+]=])
+	syncterm_check_c17_source("${_st_conpty_probe}"
+		ST_CONNECTION_CONPTY_PROGRAMMING_ENVIRONMENT)
 	set(ST_CONNECTION_HAVE_CONPTY
 		${ST_CONNECTION_CONPTY_PROGRAMMING_ENVIRONMENT})
+	if(NOT ST_CONNECTION_HAVE_CONPTY)
+		# Some SDKs hide the attribute constant behind the RS5 namespace.
+		# ConPTY functions are still resolved dynamically at runtime.
+		set(_st_conpty_definitions _WIN32_WINNT=0x0A00 NTDDI_VERSION=0x0A000006)
+		foreach(_definition IN LISTS _st_conpty_definitions)
+			list(APPEND CMAKE_REQUIRED_DEFINITIONS "-D${_definition}")
+		endforeach()
+		syncterm_check_c17_source("${_st_conpty_probe}"
+			ST_CONNECTION_CONPTY_EXTENDED_ENVIRONMENT)
+		set(ST_CONNECTION_HAVE_CONPTY ${ST_CONNECTION_CONPTY_EXTENDED_ENVIRONMENT})
+		if(ST_CONNECTION_HAVE_CONPTY)
+			set_source_files_properties(connection_shell_windows.c PROPERTIES
+				COMPILE_DEFINITIONS "${_st_conpty_definitions}")
+		endif()
+	endif()
 	if(ST_CONNECTION_HAVE_CONPTY)
 		set(ST_CONNECTION_SHELL_SOURCE connection_shell_windows.c)
 		list(APPEND ST_CONNECTION_PLATFORM_LIBRARIES bcrypt)
@@ -243,11 +263,14 @@ endif()
 if(ST_CONNECTION_DEFINITIONS)
 	target_compile_definitions(st_connection PRIVATE ${ST_CONNECTION_DEFINITIONS})
 endif()
+syncterm_target_atomics(st_connection)
 set_target_properties(st_connection PROPERTIES
-	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 
 function(st_connection_warnings target)
 	if(MSVC)
+		# Use the portable C runtime APIs, not Microsoft-only _s replacements.
+		target_compile_definitions(${target} PRIVATE _CRT_SECURE_NO_WARNINGS)
 		target_compile_options(${target} PRIVATE /W4 /WX)
 	else()
 		target_compile_options(${target} PRIVATE
@@ -255,6 +278,10 @@ function(st_connection_warnings target)
 	endif()
 endfunction()
 st_connection_warnings(st_connection)
+if(MSVC)
+	# SSH's queued log records use a standard C flexible array member.
+	target_compile_options(st_connection PRIVATE /wd4200)
+endif()
 
 if(BUILD_TESTING)
 	if(NOT WIN32)
@@ -267,12 +294,13 @@ if(BUILD_TESTING)
 			target_link_libraries(st_connection_ssh_fixture PRIVATE
 				${ST_DEUCESSH_TARGET} syncterm_threads st_base64)
 			set_target_properties(st_connection_ssh_fixture PROPERTIES
-				C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+				C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 			st_connection_warnings(st_connection_ssh_fixture)
 			add_executable(st_connection_ssh_test tests/st_connection_ssh_test.c)
 			target_link_libraries(st_connection_ssh_test PRIVATE st_connection syncterm_string_compat syncterm_threads)
+			syncterm_target_atomics(st_connection_ssh_test)
 			set_target_properties(st_connection_ssh_test PROPERTIES
-				C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+				C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 			st_connection_warnings(st_connection_ssh_test)
 			if(ST_CONNECTION_DEFINITIONS)
 				target_compile_definitions(st_connection_ssh_fixture PRIVATE ${ST_CONNECTION_DEFINITIONS})
@@ -290,8 +318,9 @@ if(BUILD_TESTING)
 				syncterm_socket syncterm_threads OpenSSL::SSL)
 			target_compile_definitions(st_connection_protocol_test PRIVATE
 				ST_CONNECTION_TEST_HAVE_TLS=$<BOOL:${ST_CONNECTION_HAVE_TLS}>)
+			syncterm_target_atomics(st_connection_protocol_test)
 			set_target_properties(st_connection_protocol_test PROPERTIES
-				C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+				C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 			st_connection_warnings(st_connection_protocol_test)
 			add_test(NAME connection_protocols COMMAND st_connection_protocol_test)
 			set_tests_properties(connection_protocols PROPERTIES TIMEOUT 120)
@@ -300,7 +329,7 @@ if(BUILD_TESTING)
 				target_link_libraries(st_connection_tls_prompt_test PRIVATE st_connection
 					st_settings syncterm_string_compat syncterm_threads OpenSSL::SSL)
 				set_target_properties(st_connection_tls_prompt_test PROPERTIES
-					C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+					C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 				st_connection_warnings(st_connection_tls_prompt_test)
 				add_test(NAME connection_tls_prompts COMMAND st_connection_tls_prompt_test)
 				set_tests_properties(connection_tls_prompts PROPERTIES TIMEOUT 120)
@@ -315,8 +344,9 @@ if(BUILD_TESTING)
 	add_executable(st_connection_test tests/st_connection_test.c)
 	target_link_libraries(st_connection_test PRIVATE
 		st_connection syncterm_socket syncterm_threads)
+	syncterm_target_atomics(st_connection_test)
 	set_target_properties(st_connection_test PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	st_connection_warnings(st_connection_test)
 	target_compile_definitions(st_connection_test PRIVATE
 		ST_CONNECTION_TEST_HAVE_SHELL=$<BOOL:${ST_CONNECTION_TEST_HAVE_SHELL}>)
@@ -330,7 +360,7 @@ if(BUILD_TESTING)
 		target_include_directories(st_connection_shell_fixture PRIVATE
 			${CMAKE_CURRENT_BINARY_DIR})
 		set_target_properties(st_connection_shell_fixture PROPERTIES
-			C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+			C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 		st_connection_warnings(st_connection_shell_fixture)
 		if(ST_CONNECTION_DEFINITIONS)
 			target_compile_definitions(st_connection_shell_fixture PRIVATE
@@ -373,8 +403,9 @@ if(BUILD_TESTING)
 	target_link_libraries(st_connection_serial_test PRIVATE
 		syncterm_io_error syncterm_string_compat syncterm_threads
 		st_profile st_settings st_time)
+	syncterm_target_atomics(st_connection_serial_test)
 	set_target_properties(st_connection_serial_test PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	st_connection_warnings(st_connection_serial_test)
 	add_test(NAME connection_serial COMMAND st_connection_serial_test)
 	set_tests_properties(connection_serial PROPERTIES TIMEOUT 15)

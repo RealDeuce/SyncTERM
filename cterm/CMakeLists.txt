@@ -24,7 +24,13 @@ else()
 	set(ST_CTERM_RIP_LOOKUP_SOURCE cterm_rip_asset_lookup_posix.c)
 	set(ST_CTERM_RIP_TIME_SOURCE cterm_rip_time_posix.c)
 	set(_st_cterm_saved_required_definitions ${CMAKE_REQUIRED_DEFINITIONS})
-	list(APPEND CMAKE_REQUIRED_DEFINITIONS -D_POSIX_C_SOURCE=200809L)
+	# Darwin hides O_NOFOLLOW and older NetBSD headers expose dirfd only
+	# in their extended namespaces. Probe exactly the environment we compile.
+	set(_st_cterm_apc_definitions _POSIX_C_SOURCE=200809L
+		_DARWIN_C_SOURCE _NETBSD_SOURCE)
+	foreach(_definition IN LISTS _st_cterm_apc_definitions)
+		list(APPEND CMAKE_REQUIRED_DEFINITIONS "-D${_definition}")
+	endforeach()
 	syncterm_check_c17_source([=[
 #include <dirent.h>
 #include <fcntl.h>
@@ -66,7 +72,7 @@ int main(void)
 	set_source_files_properties(cterm_rip_time_posix.c PROPERTIES
 		COMPILE_DEFINITIONS _POSIX_C_SOURCE=200809L)
 	set_source_files_properties(cterm_apc_cache_posix.c PROPERTIES
-		COMPILE_DEFINITIONS _POSIX_C_SOURCE=200809L)
+		COMPILE_DEFINITIONS "${_st_cterm_apc_definitions}")
 endif()
 
 add_library(st_cterm STATIC
@@ -104,20 +110,24 @@ target_link_libraries(st_cterm PRIVATE st_fonts syncterm_threads
 if(WIN32)
 	target_link_libraries(st_cterm PRIVATE st_windows_utf)
 endif()
-set_target_properties(st_cterm PROPERTIES C_STANDARD 17
+set_target_properties(st_cterm PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
 	C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 if(MSVC)
+	# Use the portable C runtime APIs, not Microsoft-only _s replacements.
+	target_compile_definitions(st_cterm PRIVATE _CRT_SECURE_NO_WARNINGS)
 	target_compile_options(st_cterm PRIVATE /W4 /WX)
 else()
 	target_compile_options(st_cterm PRIVATE -Wall -Wextra -Wpedantic -Werror)
 endif()
 
 if(BUILD_TESTING)
+	option(ST_CTERM_TEST_EXTERNAL_ASSETS "Use optional external RIP test assets" ON)
 	add_executable(st_cterm_apc_replay tests/st_cterm_apc_replay.c)
 	target_link_libraries(st_cterm_apc_replay PRIVATE st_cterm)
 	set_target_properties(st_cterm_apc_replay PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
+		target_compile_definitions(st_cterm_apc_replay PRIVATE _CRT_SECURE_NO_WARNINGS)
 		target_compile_options(st_cterm_apc_replay PRIVATE /W4 /WX)
 	else()
 		target_compile_options(st_cterm_apc_replay PRIVATE -Wall -Wextra -Wpedantic -Werror)
@@ -131,8 +141,9 @@ if(BUILD_TESTING)
 			ST_APC_TEST_POSIX=1 _POSIX_C_SOURCE=200809L)
 	endif()
 	set_target_properties(st_cterm_apc_test PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
+		target_compile_definitions(st_cterm_apc_test PRIVATE _CRT_SECURE_NO_WARNINGS)
 		target_compile_options(st_cterm_apc_test PRIVATE /W4 /WX)
 	else()
 		target_compile_options(st_cterm_apc_test PRIVATE -Wall -Wextra -Wpedantic -Werror)
@@ -143,8 +154,9 @@ if(BUILD_TESTING)
 	target_compile_definitions(st_cterm_apc_audio_test PRIVATE
 		ST_APC_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/apc-audio-test-cache")
 	set_target_properties(st_cterm_apc_audio_test PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
+		target_compile_definitions(st_cterm_apc_audio_test PRIVATE _CRT_SECURE_NO_WARNINGS)
 		target_compile_options(st_cterm_apc_audio_test PRIVATE /W4 /WX)
 	else()
 		target_compile_options(st_cterm_apc_audio_test PRIVATE -Wall -Wextra -Wpedantic -Werror)
@@ -152,9 +164,10 @@ if(BUILD_TESTING)
 	add_test(NAME cterm_apc_audio COMMAND st_cterm_apc_audio_test)
 	add_executable(st_cterm_benchmark tests/st_cterm_benchmark.c)
 	target_link_libraries(st_cterm_benchmark PRIVATE st_cterm st_time)
-	set_target_properties(st_cterm_benchmark PROPERTIES C_STANDARD 17
+	set_target_properties(st_cterm_benchmark PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
 		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
+		target_compile_definitions(st_cterm_benchmark PRIVATE _CRT_SECURE_NO_WARNINGS)
 		target_compile_options(st_cterm_benchmark PRIVATE /W4 /WX)
 	else()
 		target_compile_options(st_cterm_benchmark PRIVATE
@@ -167,13 +180,14 @@ if(BUILD_TESTING)
 	target_link_libraries(st_cterm_rip_icon_file_test PRIVATE st_cterm)
 	# The external RIP assets are optional test inputs, not a configuration
 	# prerequisite. SyncTERM v1.10a is the rendering reference.
-	if(EXISTS "/synchronet/tmp/ripterm/ICONS/RLIB.ICN")
+	if(ST_CTERM_TEST_EXTERNAL_ASSETS AND EXISTS "/synchronet/tmp/ripterm/ICONS/RLIB.ICN")
 		target_compile_definitions(st_cterm_rip_icon_file_test PRIVATE
 			RIP_ICON_PATH="/synchronet/tmp/ripterm/ICONS/RLIB.ICN")
 	endif()
-	set_target_properties(st_cterm_rip_icon_file_test PROPERTIES C_STANDARD 17
+	set_target_properties(st_cterm_rip_icon_file_test PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
 		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
+		target_compile_definitions(st_cterm_rip_icon_file_test PRIVATE _CRT_SECURE_NO_WARNINGS)
 		target_compile_options(st_cterm_rip_icon_file_test PRIVATE /W4 /WX)
 	else()
 		target_compile_options(st_cterm_rip_icon_file_test PRIVATE
@@ -186,13 +200,14 @@ if(BUILD_TESTING)
 		syncterm_filesystem syncterm_path)
 	target_compile_definitions(st_cterm_rip_assets_test PRIVATE
 		RIP_ASSET_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/rip-assets-test")
-	if(EXISTS "/synchronet/tmp/ripterm/ICONS/RLIB.ICN")
+	if(ST_CTERM_TEST_EXTERNAL_ASSETS AND EXISTS "/synchronet/tmp/ripterm/ICONS/RLIB.ICN")
 		target_compile_definitions(st_cterm_rip_assets_test PRIVATE
 			RIP_ICON_PATH="/synchronet/tmp/ripterm/ICONS/RLIB.ICN")
 	endif()
-	set_target_properties(st_cterm_rip_assets_test PROPERTIES C_STANDARD 17
+	set_target_properties(st_cterm_rip_assets_test PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
 		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
+		target_compile_definitions(st_cterm_rip_assets_test PRIVATE _CRT_SECURE_NO_WARNINGS)
 		target_compile_options(st_cterm_rip_assets_test PRIVATE /W4 /WX)
 	else()
 		target_compile_options(st_cterm_rip_assets_test PRIVATE
@@ -202,9 +217,10 @@ if(BUILD_TESTING)
 
 	add_executable(st_cterm_test tests/st_cterm_test.c)
 	target_link_libraries(st_cterm_test PRIVATE st_cterm)
-	set_target_properties(st_cterm_test PROPERTIES C_STANDARD 17
+	set_target_properties(st_cterm_test PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
 		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
+		target_compile_definitions(st_cterm_test PRIVATE _CRT_SECURE_NO_WARNINGS)
 		target_compile_options(st_cterm_test PRIVATE /W4 /WX)
 	else()
 		target_compile_options(st_cterm_test PRIVATE
@@ -213,9 +229,10 @@ if(BUILD_TESTING)
 	add_test(NAME cterm COMMAND st_cterm_test)
 	add_executable(st_cterm_keyboard_test tests/st_cterm_keyboard_test.c)
 	target_link_libraries(st_cterm_keyboard_test PRIVATE st_cterm)
-	set_target_properties(st_cterm_keyboard_test PROPERTIES C_STANDARD 17
+	set_target_properties(st_cterm_keyboard_test PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
 		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
+		target_compile_definitions(st_cterm_keyboard_test PRIVATE _CRT_SECURE_NO_WARNINGS)
 		target_compile_options(st_cterm_keyboard_test PRIVATE /W4 /WX)
 	else()
 		target_compile_options(st_cterm_keyboard_test PRIVATE
@@ -225,9 +242,10 @@ if(BUILD_TESTING)
 
 	add_executable(st_cterm_rip_parser_test tests/st_cterm_rip_parser_test.c)
 	target_link_libraries(st_cterm_rip_parser_test PRIVATE st_cterm)
-	set_target_properties(st_cterm_rip_parser_test PROPERTIES C_STANDARD 17
+	set_target_properties(st_cterm_rip_parser_test PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
 		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
+		target_compile_definitions(st_cterm_rip_parser_test PRIVATE _CRT_SECURE_NO_WARNINGS)
 		target_compile_options(st_cterm_rip_parser_test PRIVATE /W4 /WX)
 	else()
 		target_compile_options(st_cterm_rip_parser_test PRIVATE
@@ -237,9 +255,10 @@ if(BUILD_TESTING)
 
 	add_executable(st_cterm_rip_engine_test tests/st_cterm_rip_engine_test.c)
 	target_link_libraries(st_cterm_rip_engine_test PRIVATE st_cterm)
-	set_target_properties(st_cterm_rip_engine_test PROPERTIES C_STANDARD 17
+	set_target_properties(st_cterm_rip_engine_test PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
 		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
+		target_compile_definitions(st_cterm_rip_engine_test PRIVATE _CRT_SECURE_NO_WARNINGS)
 		target_compile_options(st_cterm_rip_engine_test PRIVATE /W4 /WX)
 	else()
 		target_compile_options(st_cterm_rip_engine_test PRIVATE
@@ -249,9 +268,10 @@ if(BUILD_TESTING)
 
 	add_executable(st_cterm_rip_raster_test tests/st_cterm_rip_raster_test.c)
 	target_link_libraries(st_cterm_rip_raster_test PRIVATE st_cterm)
-	set_target_properties(st_cterm_rip_raster_test PROPERTIES C_STANDARD 17
+	set_target_properties(st_cterm_rip_raster_test PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
 		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
+		target_compile_definitions(st_cterm_rip_raster_test PRIVATE _CRT_SECURE_NO_WARNINGS)
 		target_compile_options(st_cterm_rip_raster_test PRIVATE /W4 /WX)
 	else()
 		target_compile_options(st_cterm_rip_raster_test PRIVATE
@@ -261,9 +281,10 @@ if(BUILD_TESTING)
 
 	add_executable(st_cterm_rip_live_test tests/st_cterm_rip_live_test.c)
 	target_link_libraries(st_cterm_rip_live_test PRIVATE st_cterm)
-	set_target_properties(st_cterm_rip_live_test PROPERTIES C_STANDARD 17
+	set_target_properties(st_cterm_rip_live_test PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
 		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
+		target_compile_definitions(st_cterm_rip_live_test PRIVATE _CRT_SECURE_NO_WARNINGS)
 		target_compile_options(st_cterm_rip_live_test PRIVATE /W4 /WX)
 	else()
 		target_compile_options(st_cterm_rip_live_test PRIVATE
@@ -277,9 +298,10 @@ if(BUILD_TESTING)
 		syncterm_filesystem syncterm_ini syncterm_path)
 	target_compile_definitions(st_cterm_rip_variables_test PRIVATE
 		RIP_VARIABLES_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/rip-variables-test")
-	set_target_properties(st_cterm_rip_variables_test PROPERTIES C_STANDARD 17
+	set_target_properties(st_cterm_rip_variables_test PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
 		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
+		target_compile_definitions(st_cterm_rip_variables_test PRIVATE _CRT_SECURE_NO_WARNINGS)
 		target_compile_options(st_cterm_rip_variables_test PRIVATE /W4 /WX)
 	else()
 		target_compile_options(st_cterm_rip_variables_test PRIVATE
@@ -290,9 +312,10 @@ if(BUILD_TESTING)
 	add_executable(st_cterm_rip_unicode_text_test
 		tests/st_cterm_rip_unicode_text_test.c)
 	target_link_libraries(st_cterm_rip_unicode_text_test PRIVATE st_cterm)
-	set_target_properties(st_cterm_rip_unicode_text_test PROPERTIES C_STANDARD 17
+	set_target_properties(st_cterm_rip_unicode_text_test PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
 		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
+		target_compile_definitions(st_cterm_rip_unicode_text_test PRIVATE _CRT_SECURE_NO_WARNINGS)
 		target_compile_options(st_cterm_rip_unicode_text_test PRIVATE /W4 /WX)
 	else()
 		target_compile_options(st_cterm_rip_unicode_text_test PRIVATE
@@ -303,7 +326,7 @@ if(BUILD_TESTING)
 
 	# A local v1.10a capture can verify the external corpus input without
 	# adding either the RIP file or its derived frame to this source tree.
-	if(EXISTS "/synchronet/tmp/ripterm/rips/gl-morfr.rip"
+	if(ST_CTERM_TEST_EXTERNAL_ASSETS AND EXISTS "/synchronet/tmp/ripterm/rips/gl-morfr.rip"
 		AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/data/v110a_gl_morfr_expected.h")
 		add_executable(st_cterm_rip_v110a_live_test
 			tests/st_cterm_rip_v110a_live_test.c)
@@ -311,8 +334,9 @@ if(BUILD_TESTING)
 		target_compile_definitions(st_cterm_rip_v110a_live_test PRIVATE
 			RIP_V110A_GLMORFR_PATH="/synchronet/tmp/ripterm/rips/gl-morfr.rip")
 		set_target_properties(st_cterm_rip_v110a_live_test PROPERTIES
-			C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+			C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 		if(MSVC)
+			target_compile_definitions(st_cterm_rip_v110a_live_test PRIVATE _CRT_SECURE_NO_WARNINGS)
 			target_compile_options(st_cterm_rip_v110a_live_test PRIVATE /W4 /WX)
 		else()
 			target_compile_options(st_cterm_rip_v110a_live_test PRIVATE
@@ -326,8 +350,9 @@ if(BUILD_TESTING)
 		tests/st_cterm_rip_corpus_inventory.c)
 	target_link_libraries(st_cterm_rip_corpus_inventory PRIVATE st_cterm)
 	set_target_properties(st_cterm_rip_corpus_inventory PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
+		target_compile_definitions(st_cterm_rip_corpus_inventory PRIVATE _CRT_SECURE_NO_WARNINGS)
 		target_compile_options(st_cterm_rip_corpus_inventory PRIVATE /W4 /WX)
 	else()
 		target_compile_options(st_cterm_rip_corpus_inventory PRIVATE
@@ -338,8 +363,9 @@ if(BUILD_TESTING)
 		tests/st_cterm_rip_corpus_replay.c)
 	target_link_libraries(st_cterm_rip_corpus_replay PRIVATE st_term)
 	set_target_properties(st_cterm_rip_corpus_replay PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
+		target_compile_definitions(st_cterm_rip_corpus_replay PRIVATE _CRT_SECURE_NO_WARNINGS)
 		target_compile_options(st_cterm_rip_corpus_replay PRIVATE /W4 /WX)
 	else()
 		target_compile_options(st_cterm_rip_corpus_replay PRIVATE
