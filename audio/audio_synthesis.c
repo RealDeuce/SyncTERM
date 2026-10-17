@@ -46,7 +46,7 @@ audio_generate_tone(int16_t *result, size_t frame_count, double frequency,
 	int16_t *mono;
 
 	if (result == NULL || frame_count == 0 || !isfinite(frequency)
-	    || frequency < 0.0 || frequency > AUDIO_SAMPLE_RATE / 2.0
+	    || frequency < 0.0
 	    || !valid_shape(shape))
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (frame_count > SIZE_MAX / AUDIO_FRAME_SIZE)
@@ -57,6 +57,11 @@ audio_generate_tone(int16_t *result, size_t frame_count, double frequency,
 	}
 	midpoint = frame_count / 2;
 	increment = AUDIO_TWO_PI * frequency / AUDIO_SAMPLE_RATE;
+	if (!isfinite(increment)
+	    || !isfinite(increment * (double)(frame_count - 1))
+	    || ((shape == AUDIO_WAVE_SINE_HARM || shape == AUDIO_WAVE_SINE_SAW_HARM)
+	    && !isfinite(increment * 3.0 * (double)(frame_count - 1))))
+		return IO_ERROR_OUT_OF_RANGE;
 	mono = result;
 	for (i = 0; i < frame_count; i++) {
 		double position = fmod(increment * (double)i, AUDIO_TWO_PI);
@@ -119,7 +124,10 @@ audio_generate_tone(int16_t *result, size_t frame_count, double frequency,
 
 	if (clean_edges) {
 		bool ending_high = mono[frame_count - 1] > 0;
-		size_t crossings_needed = (size_t)(frequency / 100.0);
+		/* Saturate before conversion: a finite protocol frequency can
+		 * still exceed size_t. Such a long cleanup yields only silence. */
+		size_t crossings_needed = frequency / 100.0 >= (double)SIZE_MAX
+		    ? SIZE_MAX : (size_t)(frequency / 100.0);
 
 		i = frame_count - 1;
 		if (mono[i] != 0) {
@@ -141,8 +149,10 @@ audio_generate_tone(int16_t *result, size_t frame_count, double frequency,
 				    && i > 2 && ++crossings >= crossings_needed)
 					break;
 				divisor = crossings_needed - crossings;
-				mono[i] = (int16_t)(mono[i]
-				    / (int64_t)(divisor * divisor));
+				/* 182 squared already exceeds every S16 magnitude.
+				 * Avoid overflow without changing integer attenuation. */
+				mono[i] = divisor >= 182 ? 0
+				    : (int16_t)(mono[i] / (int)(divisor * divisor));
 			}
 			crossings = 0;
 			for (i = frame_count - 1; i > 0; i--) {
@@ -153,8 +163,8 @@ audio_generate_tone(int16_t *result, size_t frame_count, double frequency,
 				    && i > 2 && ++crossings >= crossings_needed)
 					break;
 				divisor = crossings_needed - crossings;
-				mono[i] = (int16_t)(mono[i]
-				    / (int64_t)(divisor * divisor));
+				mono[i] = divisor >= 182 ? 0
+				    : (int16_t)(mono[i] / (int)(divisor * divisor));
 			}
 		}
 	}

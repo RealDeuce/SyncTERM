@@ -17,13 +17,14 @@ struct pnm_reader {
 	const uint8_t *data;
 	size_t length;
 	size_t position;
+	bool cterm;
 };
 
 static bool
-pnm_whitespace(uint8_t value)
+pnm_whitespace(const struct pnm_reader *reader, uint8_t value)
 {
 	return value == ' ' || value == '\t' || value == '\r'
-	    || value == '\n' || value == '\v' || value == '\f';
+	    || value == '\n' || (!reader->cterm && (value == '\v' || value == '\f'));
 }
 
 static bool
@@ -34,7 +35,7 @@ pnm_skip_space(struct pnm_reader *reader)
 	while (reader->position < reader->length) {
 		uint8_t value = reader->data[reader->position];
 
-		if (pnm_whitespace(value)) {
+		if (pnm_whitespace(reader, value)) {
 			reader->position++;
 			skipped = true;
 			continue;
@@ -120,10 +121,10 @@ pnm_raw_separator(struct pnm_reader *reader)
 	uint8_t first;
 
 	if (reader->position >= reader->length
-	    || !pnm_whitespace(reader->data[reader->position]))
+	    || !pnm_whitespace(reader, reader->data[reader->position]))
 		return false;
 	first = reader->data[reader->position++];
-	if (first == '\r' && reader->position < reader->length
+	if (!reader->cterm && first == '\r' && reader->position < reader->length
 	    && reader->data[reader->position] == '\n')
 		reader->position++;
 	return true;
@@ -246,9 +247,9 @@ decode_ppm(struct st_pixel_buffer **result, struct pnm_reader *reader,
 static int
 decode_pnm(struct st_pixel_buffer **pixel_result,
 	struct st_pixel_mask **mask_result, const void *data, size_t length,
-	bool bitmap)
+	bool bitmap, bool cterm)
 {
-	struct pnm_reader reader = {data, length, 0};
+	struct pnm_reader reader = {.data = data, .length = length, .cterm = cterm};
 	uintmax_t width;
 	uintmax_t height;
 	uintmax_t maximum = 1;
@@ -271,7 +272,7 @@ decode_pnm(struct st_pixel_buffer **pixel_result,
 	    &count))
 		return IO_ERROR_INVALID_FORMAT;
 	if (!bitmap && (!pnm_read_number(&reader, &maximum) || maximum == 0
-	    || maximum > UINT16_MAX))
+	    || maximum > (cterm ? UINT8_MAX : UINT16_MAX)))
 		return IO_ERROR_INVALID_FORMAT;
 	raw = kind == '4' || kind == '6';
 	if (raw && !pnm_raw_separator(&reader))
@@ -287,12 +288,26 @@ int
 st_pixel_image_decode_ppm(struct st_pixel_buffer **result, const void *data,
 	size_t length)
 {
-	return decode_pnm(result, NULL, data, length, false);
+	return decode_pnm(result, NULL, data, length, false, false);
 }
 
 int
 st_pixel_image_decode_pbm(struct st_pixel_mask **result, const void *data,
 	size_t length)
 {
-	return decode_pnm(NULL, result, data, length, true);
+	return decode_pnm(NULL, result, data, length, true, false);
+}
+
+int
+st_pixel_image_decode_cterm_ppm(struct st_pixel_buffer **result,
+	const void *data, size_t length)
+{
+	return decode_pnm(result, NULL, data, length, false, true);
+}
+
+int
+st_pixel_image_decode_cterm_pbm(struct st_pixel_mask **result,
+	const void *data, size_t length)
+{
+	return decode_pnm(NULL, result, data, length, true, true);
 }

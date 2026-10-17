@@ -8,6 +8,7 @@
 #include "st_cterm.h"
 
 #include "cterm.h"
+#include "cterm_apc.h"
 #include "cterm_internal.h"
 #include "cterm_rip_engine.h"
 #include "cterm_rip_asset.h"
@@ -1635,15 +1636,6 @@ emit_user(const char *bytes, size_t size, void *context)
 }
 
 static void
-emit_apc(char *text, size_t size, void *context)
-{
-	st_cterm_t *terminal = context;
-
-	if (terminal->api_apc != NULL)
-		terminal->api_apc(terminal->api_apc_context, text, size);
-}
-
-static void
 emit_size(struct cterminal *terminal, int columns, int rows,
 	int pixel_width, int pixel_height, void *context)
 {
@@ -2185,14 +2177,21 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 	terminal->rip_prompt_context = config->rip_prompt_context;
 	terminal->api_apc = config->apc;
 	terminal->api_apc_context = config->apc_context;
+	if (config->apc_directory != NULL) {
+		terminal->apc = calloc(1, sizeof(*terminal->apc));
+		if (terminal->apc == NULL) {
+			st_cterm_destroy(&terminal);
+			return IO_ERROR_OUT_OF_MEMORY;
+		}
+		terminal->apc->directory = config->apc_directory;
+		terminal->apc->version = config->application_version;
+	}
 	terminal->api_size_changed = config->size_changed;
 	terminal->api_size_context = config->size_context;
 	terminal->response_cb = emit_response;
 	terminal->response_cbdata = terminal;
 	terminal->keystroke_cb = emit_user;
 	terminal->keystroke_cbdata = terminal;
-	terminal->apc_handler = config->apc == NULL ? NULL : emit_apc;
-	terminal->apc_handler_data = terminal;
 	terminal->size_change_cb = config->size_changed == NULL ? NULL : emit_size;
 	terminal->size_change_cbdata = terminal;
 	terminal->status_display_cb = status_display_changed;
@@ -2630,6 +2629,15 @@ st_cterm_write(st_cterm_t *terminal, const void *bytes, size_t size,
 }
 
 int
+st_cterm_poll(st_cterm_t *terminal)
+{
+	if (terminal == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	cterm_apc_poll(terminal);
+	return 0;
+}
+
+int
 st_cterm_write_utf8(st_cterm_t *terminal, const void *bytes, size_t size,
 	size_t *consumed)
 {
@@ -2782,6 +2790,8 @@ resize_parser_geometry(st_cterm_t *terminal, int columns, int rows,
 	int old_rows = terminal->height;
 	uint32_t last_x = (uint32_t)(terminal->x - 1 + columns - 1);
 	uint32_t last_y = (uint32_t)(terminal->y - 1 + rows - 1);
+
+	cterm_render_refresh_remote_fonts(terminal);
 
 	terminal->width = columns;
 	terminal->height = rows;

@@ -89,11 +89,13 @@ enum prestel_prog_states {
 #define PRESTEL_MEM_SLOT_SIZE 16
 
 struct cterm_rip_engine;
+struct cterm_apc_state;
 
 struct cterminal {
 	/* Rendering state */
 	struct cterm_render_state screen;
 	struct cterm_rip_engine *rip_engine;
+	struct cterm_apc_state *apc;
 	const char *rip_directory;
 	st_cterm_rip_prompt_callback_t rip_prompt;
 	void *rip_prompt_context;
@@ -228,13 +230,6 @@ struct cterminal {
 	int					musicfore;
 	audio_stream_t		*music_stream;
 	audio_stream_t		*fx_stream;
-	/* Callback for the CSI = 7 n ext-state query (audio channel / feature
-	 * query DSR).  cterm parses the sequence and hands the sub-parameters
-	 * to the callback; the callback is responsible for formatting and
-	 * emitting the response via cterm_respond*.  NULL = no-op.  Registered
-	 * by syncterm (audio_apc.c) during session init. */
-	void (*ext_state_7_cb)(struct cterminal *cterm, int nparams,
-	                       const uint64_t *params);
 	int					backpos; // Position where new lines will be added
 	int					backstart; // First line of scrollback
 	int					xpos;
@@ -290,9 +285,6 @@ struct cterminal {
 	struct st_pixel_mask	*sx_mask;
 	int					sx_orig_cursor;	// Original value of cterm->cursor
 
-	/* APC Handler */
-	void				(*apc_handler)(char *strbuf, size_t strlen, void *cbdata);
-	void				*apc_handler_data;
 
 	/* Mouse state change callback */
 	void (*mouse_state_change)(int parameter, int enable, void *cbdata);

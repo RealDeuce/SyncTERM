@@ -89,6 +89,37 @@ hex_digit(char value)
 }
 
 static int
+test_cterm_pnm(void)
+{
+	static const char ppm[] = "P6\n1 1\n255\r\n\xff\0\0";
+	static const char mask_data[] = "P4\n8 1\r\n\xa0";
+	static const char sixteen_bit[] = "P3\n1 1\n65535\n0 0 0\n";
+	static const char extended_space[] = "P3\f1 1 255 0 0 0";
+	struct st_pixel_buffer *image = NULL;
+	struct st_pixel_mask *mask = NULL;
+
+	/* APC consumes exactly one separator byte, even when it is CR.
+	 * The following LF is an image sample, not another separator. */
+	CHECK(st_pixel_image_decode_cterm_ppm(&image, ppm, sizeof(ppm) - 1) == 0);
+	CHECK(image->primary[0] == ST_PIXEL_COLOR_RGB_VALUE(23, 255, 0));
+	st_pixel_buffer_destroy(image); image = NULL;
+	CHECK(st_pixel_image_decode_ppm(&image, ppm, sizeof(ppm) - 1) == 0);
+	CHECK(image->primary[0] == ST_PIXEL_COLOR_RGB_VALUE(255, 0, 0));
+	st_pixel_buffer_destroy(image); image = NULL;
+	CHECK(st_pixel_image_decode_cterm_pbm(&mask, mask_data, sizeof(mask_data) - 1) == 0);
+	CHECK(mask->bits[0] == 0x0a);
+	st_pixel_mask_destroy(mask); mask = NULL;
+	CHECK(st_pixel_image_decode_pbm(&mask, mask_data, sizeof(mask_data) - 1) == 0);
+	CHECK(mask->bits[0] == 0xa0);
+	st_pixel_mask_destroy(mask);
+	CHECK(st_pixel_image_decode_cterm_ppm(&image, sixteen_bit, sizeof(sixteen_bit) - 1) == IO_ERROR_INVALID_FORMAT);
+	CHECK(st_pixel_image_decode_cterm_ppm(&image, extended_space, sizeof(extended_space) - 1) == IO_ERROR_INVALID_FORMAT);
+	CHECK(st_pixel_image_decode_ppm(&image, sixteen_bit, sizeof(sixteen_bit) - 1) == 0);
+	st_pixel_buffer_destroy(image);
+	return 0;
+}
+
+static int
 test_jxl(void)
 {
 	static const char encoded[] =
@@ -129,7 +160,8 @@ test_jxl(void)
 int
 main(void)
 {
-	if (test_ppm() != 0 || test_pbm() != 0 || test_jxl() != 0)
+	if (test_ppm() != 0 || test_pbm() != 0 || test_jxl() != 0
+	    || test_cterm_pnm() != 0)
 		return 1;
 	CHECK(st_pixel_image_jxl_supported() == true
 	    || st_pixel_image_jxl_supported() == false);

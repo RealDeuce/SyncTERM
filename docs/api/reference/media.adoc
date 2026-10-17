@@ -190,6 +190,40 @@ exist to stop it.
 | Lazily creates and returns a borrowed engine valid through runtime destroy.
 |===
 
+==== Audio file decoding
+
+[source,c]
+----
+bool st_audio_file_available(void);
+bool st_audio_file_format_available(uint32_t major, uint32_t subtype);
+int st_audio_file_decode_memory(int16_t **frames, size_t *frame_count,
+    const void *data, size_t size);
+int st_audio_file_decode_stream(int16_t **frames, size_t *frame_count,
+    FILE *stream);
+----
+
+Availability is detected once, thread-safely; absent headers, disabled build
+policy, missing runtime, or missing required symbols yield false.
+`format_available` takes an unshifted libsndfile container ID (1..0x0fff) and
+encoding ID (1..0xffff), and queries `sf_format_check()` at 44100 Hz stereo.
+False includes an invalid pair or unavailable decoder.
+
+Both decode operations require result pointers and leave both unchanged on
+failure. Success transfers a `malloc`-owned interleaved native-endian
+`int16_t` stereo allocation to `*frames`; `*frame_count` counts 44100-Hz
+frames, not samples or bytes. Free the allocation with `free()`. Mono samples
+are duplicated; inputs with more than two channels use the first two. Linear
+interpolation uses the reference's 32.32 fractions and signed floor rounding.
+The rounded output length is at least one frame for nonempty decoded input.
+
+Memory decoding borrows non-NULL `data` for `size` bytes (at most `INT64_MAX`).
+Stream decoding borrows a non-NULL seekable binary `FILE`, seeks to offset
+zero, decodes the whole file, and does not close it; final position is
+unspecified. Do not race other access to that stream. Independent decode
+calls are safe concurrently. Results are zero on success or negative
+`IO_ERROR_*`, including INVALID_ARGUMENT, INVALID_FORMAT, OUT_OF_RANGE,
+OUT_OF_MEMORY, stream I/O errors, and NOT_SUPPORTED without the decoder.
+
 ==== Pixel buffers, masks, and scaler
 
 [source,c]
@@ -285,6 +319,10 @@ int st_pixel_image_decode_ppm(struct st_pixel_buffer **result,
     const void *data, size_t length);
 int st_pixel_image_decode_pbm(struct st_pixel_mask **result,
     const void *data, size_t length);
+int st_pixel_image_decode_cterm_ppm(struct st_pixel_buffer **result,
+    const void *data, size_t length);
+int st_pixel_image_decode_cterm_pbm(struct st_pixel_mask **result,
+    const void *data, size_t length);
 bool st_pixel_image_jxl_supported(void);
 int st_pixel_image_decode_jxl(struct st_pixel_buffer **result,
     const void *data, size_t length);
@@ -305,6 +343,13 @@ format violations rather than returning a partial image.
 
 | st_pixel_image_decode_pbm(result, data, length)
 | Strictly decodes counted PBM bytes into an owned bit mask.
+
+| st_pixel_image_decode_cterm_ppm(result, data, length), st_pixel_image_decode_cterm_pbm(result, data, length)
+| APC-compatible P3/P6 or P1/P4 decoding with the same ownership/error rules.
+Whitespace is space, tab, CR, or LF; exactly one byte separates raw data from
+the header (CRLF leaves LF as data). PPM maximum samples are 1..255. Samples
+are BT.709 encoded, converted through linear light to sRGB; PBM remains
+MSB-first. The general PNM functions retain their broader grammar.
 
 | st_pixel_image_jxl_supported()
 | Reports whether the optional runtime JPEG XL decoder is usable.

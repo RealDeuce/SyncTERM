@@ -83,7 +83,7 @@ void cterm_handle_sts(struct cterminal *cterm, int *speed);
  * APC) + the ST terminator.  The framing itself is ECMA-48; the string
  * CONTENTS are dispatched to per-standard finishers (cterm_dec_dcs_*
  * in cterm_dec.c, cterm_cterm_osc_finish in cterm_cterm.c, user-
- * supplied cterm->apc_handler for APC). */
+ * CTerm's application-command dispatcher for APC). */
 void cterm_handle_dcs_start(struct cterminal *cterm, int *speed);
 void cterm_handle_sos_start(struct cterminal *cterm, int *speed);
 void cterm_handle_osc_start(struct cterminal *cterm, int *speed);

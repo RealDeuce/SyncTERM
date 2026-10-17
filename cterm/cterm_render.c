@@ -11,6 +11,7 @@
 
 #include "io_error.h"
 #include "st_base64.h"
+#include "st_builtin_fonts.h"
 #include "st_time.h"
 #include "st_utf8.h"
 
@@ -568,21 +569,58 @@ cterm_render_map_rgb(uint16_t red, uint16_t green, uint16_t blue)
 	return ST_CONSOLE_COLOR_RGB_VALUE(red >> 8, green >> 8, blue >> 8);
 }
 
+static int
+font_variant(uint32_t width, uint32_t height)
+{
+	if (width == 12 && height == 20) return 3;
+	if (width != 8) return -1;
+	if (height == 8) return 0;
+	if (height == 14) return 1;
+	if (height == 16) return 2;
+	return -1;
+}
+
+void
+cterm_render_refresh_remote_fonts(struct cterminal *cterm)
+{
+	uint32_t width, height;
+	int variant;
+
+	if (!render_succeeded(cterm, st_console_cell_pixel_size(cterm->screen.console, &width, &height)))
+		return;
+	variant = font_variant(width, height);
+	for (size_t selector = 0; selector < 256; ++selector) {
+		if (cterm->screen.remote_fonts[selector].present == 0) continue;
+		if (variant >= 0 && (cterm->screen.remote_fonts[selector].present & (1U << variant)) != 0) {
+			cterm->screen.font_identifiers[selector] = cterm->screen.remote_fonts[selector].identifiers[variant];
+			cterm->screen.font_valid[selector] = true;
+		}
+		else {
+			cterm->screen.font_identifiers[selector] = cterm->screen.remote_fonts[selector].original;
+			cterm->screen.font_valid[selector] = cterm->screen.remote_fonts[selector].original_valid;
+		}
+	}
+}
+
 void
 cterm_render_replace_font(struct cterminal *cterm, uint8_t selector,
 	char *name, void *data, size_t size)
 {
-	uint32_t width;
-	uint32_t height;
+	uint32_t width = 8, height;
 	uint16_t identifier;
-	struct st_console_font font;
+	struct st_console_font font, mapping;
+	int variant;
 
 	(void)name;
-	if (size == 0 || size % 256 != 0)
-		goto done;
-	if (!render_succeeded(cterm, st_console_cell_pixel_size(
-	    cterm->screen.console, &width, &height)))
-		goto done;
+	while (cterm->parent != NULL) cterm = cterm->parent;
+	switch (size) {
+	case 2048: height = 8; break;
+	case 3584: height = 14; break;
+	case 4096: height = 16; break;
+	case 10240: width = 12; height = 20; break;
+	default: goto done;
+	}
+	variant = font_variant(width, height);
 	font = (struct st_console_font){
 		.bitmap = data,
 		.bitmap_size = size,
@@ -592,13 +630,33 @@ cterm_render_replace_font(struct cterminal *cterm, uint8_t selector,
 		.row_stride = ((size_t)width + 7) / 8,
 		.glyph_stride = size / 256,
 	};
-	if (font.row_stride * height != font.glyph_stride)
-		goto done;
+	/* Remote fonts retain byte-glyph order, but the console's Unicode
+	 * lookup still needs the active codepage's semantic mapping. */
+	for (size_t i = 0; i < st_builtin_font_count(); ++i) {
+		if (st_builtin_font_codepage(i) != cterm->screen.codepage
+		    || (!st_builtin_font_get(i, 8, 16, &mapping)
+		    && !st_builtin_font_get(i, 8, 14, &mapping)
+		    && !st_builtin_font_get(i, 8, 8, &mapping)
+		    && !st_builtin_font_get(i, 12, 20, &mapping))) continue;
+		font.mapping = mapping.mapping;
+		font.mapping_count = mapping.mapping_count;
+		break;
+	}
+	if (font.mapping == NULL) goto done;
 	if (!render_succeeded(cterm, st_console_register_font_copy(
 	    cterm->screen.console, &font, &identifier)))
 		goto done;
-	cterm->screen.font_identifiers[selector] = identifier;
-	cterm->screen.font_valid[selector] = true;
+	if (cterm->screen.remote_fonts[selector].present == 0) {
+		cterm->screen.remote_fonts[selector].original = cterm->screen.font_identifiers[selector];
+		cterm->screen.remote_fonts[selector].original_valid = cterm->screen.font_valid[selector];
+	}
+	cterm->screen.remote_fonts[selector].identifiers[variant] = identifier;
+	cterm->screen.remote_fonts[selector].present |= (uint8_t)(1U << variant);
+	cterm_render_refresh_remote_fonts(cterm);
+	if (cterm->status_sub != NULL) {
+		cterm->status_sub->screen.remote_fonts[selector] = cterm->screen.remote_fonts[selector];
+		cterm_render_refresh_remote_fonts(cterm->status_sub);
+	}
 done:
 	free(data);
 	free(name);

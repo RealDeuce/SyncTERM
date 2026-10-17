@@ -39,6 +39,7 @@
 #include "cterm_render.h"
 
 #include "cterm.h"
+#include "cterm_apc.h"
 #include "cterm_internal.h"
 #include "cterm_ecma48.h"
 #include "cterm_dec.h"
@@ -1958,7 +1959,6 @@ struct cterminal* cterm_init(int height, int width, int xpos, int ypos,
 	cterm->last_column_flag = 0;
 	cterm->music_stream = NULL;
 	cterm->fx_stream = NULL;
-	cterm->ext_state_7_cb = NULL;  /* registered by syncterm after cterm_init */
 	/* Install the per-emulation dispatcher and its dispatch table.
 	 * The dispatcher handles single bytes outside sequence state; the
 	 * dispatch table is searched (via bsearch) when a sequence or C1
@@ -2444,6 +2444,7 @@ void cterm_end(struct cterminal *cterm, int free_fonts)
 	(void)free_fonts;
 
 	if(cterm) {
+		cterm_apc_destroy(cterm);
 		cterm_closelog(cterm);
 		if (cterm->music_stream != NULL) {
 			audio_stream_destroy(cterm->music_stream);

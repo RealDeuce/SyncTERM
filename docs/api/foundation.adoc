@@ -28,6 +28,13 @@ unchanged.  Test: `hex`.
 | Strict RFC 4648 sizing, encoding, and decoding.  Encoded output includes a
 terminating NUL; decoded output is binary and has the validated size.  Use the
 size helpers before allocating.  Test: `base64`.
+
+| `st_md5`
+| link:md5/st_md5.h[st_md5.h]
+| Caller-owned streaming MD5 for protocol-required cache checksums. Does not
+depend on an optional TLS/crypto provider. Not suitable for authentication
+or security decisions. Derived from the RSA Data Security, Inc. MD5
+Message-Digest Algorithm; see link:md5/LICENSE[md5/LICENSE]. Test: `md5`.
 |===
 
 === UTF-8 and Unicode

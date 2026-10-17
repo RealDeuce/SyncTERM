@@ -9,6 +9,8 @@
 
 #include "io_error.h"
 #include "st_pixels.h"
+#include "cterm.h"
+#include "cterm_apc.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -68,6 +70,62 @@ screen_contains(st_console_t *console, const char *wanted, bool diagnose)
 	if (diagnose && strstr(text, wanted) == NULL)
 		fprintf(stderr, "terminal contents: [%s]\n", text);
 	return strstr(text, wanted) != NULL;
+}
+
+static int
+test_shell_apc(void)
+{
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config geometry = {.columns = 40, .rows = 4, .cell_width = 8, .cell_height = 16};
+	st_console_t *console = NULL;
+	st_font_catalog_t *fonts = NULL;
+	st_connection_t *connection = NULL;
+	st_term_session_t *session = NULL;
+	struct st_profile profile;
+	enum st_term_disposition disposition;
+	bool finished = false;
+
+	CHECK(st_console_create(&console, &display, &geometry) == 0);
+	CHECK(st_font_catalog_create(&fonts, console) == 0);
+	st_profile_init(&profile);
+	profile.connection_type = ST_CONNECTION_SHELL;
+	strcpy(profile.address, "stty raw -echo; printf '\\033_SyncTERM:VER\\033\\\\'; "
+	    "dd bs=1 count=18 2>/dev/null | od -An -tx1 | tr -d ' \\n'; "
+	    "printf '\\r\\nREADY'; dd bs=1 count=9 2>/dev/null | od -An -tx1 | tr -d ' \\n'");
+	CHECK(st_term_connect_profile(&connection, &profile, console, NULL, NULL) == 0);
+	const struct st_term_config config = {
+		.console = console, .connection = connection, .fonts = fonts,
+		.screen_mode = ST_SCREEN_MODE_80X25, .encoding = ST_CTERM_ENCODING_UTF8,
+		.codepage = ST_CODEPAGE_CP437, .hide_status = true,
+		.apc_directory = ST_TERM_APC_TEST_DIRECTORY, .application_version = "X",
+	};
+	CHECK(st_term_session_create(&session, &config) == 0);
+	for (unsigned attempt = 0; attempt < 500 && !screen_contains(console, "READY", false); ++attempt)
+		CHECK(st_term_session_pump(session, &disposition, &finished) == 0 && !finished);
+	CHECK(screen_contains(console, "1b5f53796e635445524d3a5645523b581b5c", true));
+	CHECK(screen_contains(console, "READY", true));
+	/* White-box completion setup: an observed running channel has just
+	 * stopped. No incoming data remains to trigger another parser write.
+	 * The suspended session must nevertheless poll and send its report. */
+	st_cterm_t *terminal = st_term_session_cterm(session);
+	terminal->apc->notify[2] = terminal->apc->was_running[2] = true;
+	st_term_session_set_suspended(session, true);
+	CHECK(st_term_session_pump(session, &disposition, &finished) == 0 && !finished);
+	CHECK(!terminal->apc->notify[2]);
+	st_term_session_set_suspended(session, false);
+	for (unsigned attempt = 0; attempt < 500 && !finished; ++attempt)
+		CHECK(st_term_session_pump(session, &disposition, &finished) == 0);
+	CHECK(finished && disposition == ST_TERM_RETURN_TO_PICKER);
+	CHECK(screen_contains(console, "1b5b3d373b323b306e", true));
+	/* An already-closed peer must not turn a due notification into a
+	 * send error, even if the owner pumps again during disconnect UI. */
+	CHECK(!st_connection_is_connected(connection));
+	terminal->apc->notify[2] = terminal->apc->was_running[2] = true;
+	CHECK(st_term_session_pump(session, &disposition, &finished) == 0 && finished);
+	st_term_session_destroy(&session);
+	CHECK(st_connection_close(connection) == 0);
+	st_profile_dispose(&profile); st_font_catalog_destroy(fonts); st_console_destroy(console);
+	return 0;
 }
 
 static int
@@ -724,6 +782,7 @@ main(void)
 	st_profile_dispose(&profile);
 	st_console_destroy(console);
 #if !SYNCTERM_PLATFORM_WINDOWS
+	CHECK(test_shell_apc() == 0);
 	CHECK(test_prestel_keyboard_session() == 0);
 	CHECK(test_shell_wire_filter() == 0);
 	CHECK(test_shell_throttle() == 0);

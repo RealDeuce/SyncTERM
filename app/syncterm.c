@@ -448,7 +448,7 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 	st_connection_t *connection = NULL;
 	st_term_session_t *session = NULL;
 	st_wren_connected_t *connected = NULL;
-	char *rip_directory = NULL;
+	char *cache_directory = NULL;
 	char *disconnect_details = NULL;
 	bool notify_disconnect;
 	struct st_connection_error error = {0};
@@ -502,9 +502,8 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 		}
 		goto finished;
 	}
-	if (st_term_profile_rip_version(profile) != ST_CTERM_RIP_OFF
-	    && st_bbs_name_valid(profile->name)) {
-		status = st_bbs_cache_path_for_name(&rip_directory,
+	if (st_bbs_name_valid(profile->name)) {
+		status = st_bbs_cache_path_for_name(&cache_directory,
 		    paths->cache_directory, profile->name);
 		if (status != 0)
 			goto finished;
@@ -519,7 +518,9 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 		.screen_mode = session_mode,
 		.encoding = st_term_profile_encoding(profile),
 		.rip_version = st_term_profile_rip_version(profile),
-		.rip_directory = rip_directory,
+		.rip_directory = cache_directory,
+		.apc_directory = cache_directory,
+		.application_version = application_title,
 		.codepage = profile->encoding == ST_PROFILE_ENCODING_UTF8
 		    ? st_font_catalog_codepage(fonts, selector)
 		    : (enum st_codepage)profile->encoding,
@@ -641,7 +642,7 @@ finished:
 	free(connection_ui.log);
 	st_mutex_destroy(&connection_ui.log_mutex);
 	st_font_catalog_destroy(fonts);
-	free(rip_directory);
+	free(cache_directory);
 	return status;
 }
 

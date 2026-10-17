@@ -83,6 +83,20 @@ and `reject_blank` flag. It returns zero with a NULL `*result` to cancel, or
 zero with a `malloc`-owned string to accept; a nonzero result reports an error.
 `rip_prompt_context` is passed to that callback unchanged.
 
+`apc_directory` enables built-in APC handling independently of `rip_version`.
+It is a borrowed UTF-8 per-BBS cache path, valid through destruction; NULL
+leaves APC handling to `apc`/`apc_context`. CTerm creates the directory on use
+and confines remote paths to it, rejecting traversal, links, and platform
+device names. Failure to initialize the cache silently consumes APCs, as in
+v1.10a. `application_version` is a borrowed NUL-terminated string used verbatim
+in `SyncTERM:VER` replies; NULL suppresses that reply. The application must
+supply a protocol-safe string without embedded controls. Recognized built-in
+commands consume the APC; unknown ones reach the existing synchronous `apc`
+callback. All response bytes use `output` with origin `ST_CTERM_OUTPUT_RESPONSE`.
+APC buffers, masks, patches, and dedicated audio streams are terminal-owned;
+they survive resets and are released on destruction. Registered font bitmaps
+are copied into, and owned by, the console.
+
 `$SBARON$` changes the reserved status row, but the connected-session
 contents of that row belong to the Wren application UI, not RIP drawing.
 The minimal terminal session does not render those contents; their port is
@@ -96,6 +110,7 @@ void st_cterm_destroy(st_cterm_t **terminal);
 int st_cterm_write(st_cterm_t *terminal, const void *bytes, size_t size,
     size_t *consumed);
 int st_cterm_finish(st_cterm_t *terminal);
+int st_cterm_poll(st_cterm_t *terminal);
 int st_cterm_prepare_disconnect(st_cterm_t *terminal);
 int st_cterm_reset_terminal(st_cterm_t *terminal);
 int st_cterm_resize(st_cterm_t *terminal, uint32_t columns, uint32_t rows);
@@ -140,6 +155,14 @@ failure it identifies the resume offset.  A call boundary is not EOF.
 | Dispatches a pending RIP command at end of stream, commits a pending
 grapheme, and reports an incomplete UTF-8 prefix once as a decode error.
 Safe to call again without duplicating the command or error.
+
+| st_cterm_poll(terminal)
+| On the terminal owner thread, checks armed audio channels and sends one
+idle report after an observed running-to-stopped transition. Idle-at-arm is
+not immediate completion. Call repeatedly even with no incoming bytes; it
+does not finish input or block for playback. Returns zero for a live terminal,
+`IO_ERROR_INVALID_ARGUMENT` for NULL. Serialize with writes, reset, resize,
+and destruction; callbacks run synchronously and must not reenter CTerm.
 
 | st_cterm_prepare_disconnect(terminal)
 | After remote teardown only, finishes pending input, resets margins, and
@@ -267,7 +290,8 @@ on failure. `rip_version` selects the RIP parser; `rip_directory` and
 above. For a codepage RIP connection, the session translates incoming wire
 bytes to UTF-8 before CTerm and translates outgoing Unicode back to the
 configured codepage. CTerm and the RIP parser therefore see Unicode regardless
-of the remote wire encoding.
+of the remote wire encoding. `apc_directory` and `application_version` are
+forwarded unchanged with the CTerm borrowing rules above, independently of RIP.
 
 | st_term_session_destroy(session_ptr)
 | Finishes RIP and Unicode, publishes history when configured, releases CTerm, and
@@ -279,7 +303,10 @@ EXIT_APPLICATION and returns zero, or stops at the first `IO_ERROR_*`.
 
 | st_term_session_pump(session, disposition, finished)
 | Performs one bounded connection receive and drains currently queued console
-events.  `finished` is always initialized false and becomes true on a terminal
+events. Polls APC audio notifications on a live connection even when suspended
+or no input arrives. Once the peer has closed, drains input without attempting
+asynchronous reports to the closed transport.
+`finished` is always initialized false and becomes true on a terminal
 condition.  Caller repeats while zero and not finished.
 
 | st_term_session_remote_closed(session)

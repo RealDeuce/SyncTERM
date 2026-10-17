@@ -44,6 +44,8 @@ struct st_term_config {
 	enum st_cterm_encoding encoding;
 	enum st_cterm_rip_version rip_version;
 	const char *rip_directory;
+	const char *apc_directory;
+	const char *application_version;
 	enum st_codepage codepage;
 	uint8_t font_selector;
 	bool hide_status;

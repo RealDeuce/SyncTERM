@@ -86,6 +86,26 @@ checking.
 | Writes the exact validated bytes; binary output is not NUL-terminated.
 |===
 
+==== Protocol MD5 checksums
+
+[source,c]
+----
+void st_md5_init(struct st_md5 *context);
+void st_md5_update(struct st_md5 *context, const void *data, size_t size);
+void st_md5_finish(struct st_md5 *context, uint8_t digest[16]);
+----
+
+`context` is required caller-owned storage. Initialize it before updates;
+`data` is a borrowed byte span, NULL only at zero `size`. Updates can use any
+chunk boundaries and accumulate the byte count modulo 2^64. `finish` writes
+exactly 16 binary digest bytes to required, nonoverlapping caller storage and
+consumes the context; initialize again before reuse. These operations allocate
+nothing, cannot fail for valid arguments, and must not race on one context.
+Use `st_hex_encode()` for the wire's lowercase hexadecimal representation.
+MD5 exists here solely for legacy protocol interoperability, not security.
+The implementation is derived from the RSA Data Security, Inc. MD5
+Message-Digest Algorithm; its retained notice is in link:md5/LICENSE[md5/LICENSE].
+
 ==== UTF-8 and Unicode properties
 
 [source,c]

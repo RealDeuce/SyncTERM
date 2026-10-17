@@ -4,6 +4,7 @@
 include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCheckC17Source.cmake")
 
 if(WIN32)
+	set(ST_CTERM_APC_CACHE_SOURCE cterm_apc_cache_windows.c)
 	set(ST_CTERM_RIP_LOOKUP_SOURCE cterm_rip_asset_lookup_windows.c)
 	set(ST_CTERM_RIP_TIME_SOURCE cterm_rip_time_windows.c)
 	syncterm_check_c17_source([=[
@@ -19,10 +20,35 @@ int main(void)
 		message(FATAL_ERROR "The Windows C library must provide localtime_s for RIP file queries")
 	endif()
 else()
+	set(ST_CTERM_APC_CACHE_SOURCE cterm_apc_cache_posix.c)
 	set(ST_CTERM_RIP_LOOKUP_SOURCE cterm_rip_asset_lookup_posix.c)
 	set(ST_CTERM_RIP_TIME_SOURCE cterm_rip_time_posix.c)
 	set(_st_cterm_saved_required_definitions ${CMAKE_REQUIRED_DEFINITIONS})
 	list(APPEND CMAKE_REQUIRED_DEFINITIONS -D_POSIX_C_SOURCE=200809L)
+	syncterm_check_c17_source([=[
+#include <dirent.h>
+#include <fcntl.h>
+#include <fnmatch.h>
+#include <stdio.h>
+#include <sys/stat.h>
+#include <unistd.h>
+int main(void)
+{
+	struct stat info;
+	int fd = open(".", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+	int child = openat(fd, "a", O_RDONLY | O_NOFOLLOW | O_NONBLOCK, 0600);
+	DIR *directory = fdopendir(fd);
+	(void)fstatat(dirfd(directory), "a", &info, AT_SYMLINK_NOFOLLOW);
+	(void)mkdirat(fd, "b", 0700);
+	(void)ftruncate(child, 0);
+	(void)fdopen(child, "rb");
+	(void)close(child);
+	return fnmatch("*", "a", FNM_PERIOD) + closedir(directory);
+}
+]=] ST_CTERM_HAVE_CONFINED_APC_CACHE)
+	if(NOT ST_CTERM_HAVE_CONFINED_APC_CACHE)
+		message(FATAL_ERROR "The POSIX APC cache requires confined directory-relative file access and fnmatch")
+	endif()
 	syncterm_check_c17_source([=[
 #include <time.h>
 int main(void)
@@ -39,10 +65,16 @@ int main(void)
 	endif()
 	set_source_files_properties(cterm_rip_time_posix.c PROPERTIES
 		COMPILE_DEFINITIONS _POSIX_C_SOURCE=200809L)
+	set_source_files_properties(cterm_apc_cache_posix.c PROPERTIES
+		COMPILE_DEFINITIONS _POSIX_C_SOURCE=200809L)
 endif()
 
 add_library(st_cterm STATIC
 	cterm.c
+	cterm_apc.c
+	cterm_apc_audio.c
+	cterm_apc_cache.c
+	${ST_CTERM_APC_CACHE_SOURCE}
 	cterm_atascii.c
 	cterm_cterm.c
 	cterm_dec.c
@@ -66,6 +98,7 @@ target_include_directories(st_cterm PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_cterm PUBLIC st_console st_codepage st_font_catalog st_hyperlink
 	st_audio st_base64 st_time st_utf8 st_unicode_text)
 target_link_libraries(st_cterm PRIVATE st_fonts syncterm_threads
+	st_audio_file st_pixel_image st_md5 st_hex
 	syncterm_string_compat syncterm_filesystem
 	syncterm_path syncterm_ini)
 if(WIN32)
@@ -80,6 +113,43 @@ else()
 endif()
 
 if(BUILD_TESTING)
+	add_executable(st_cterm_apc_replay tests/st_cterm_apc_replay.c)
+	target_link_libraries(st_cterm_apc_replay PRIVATE st_cterm)
+	set_target_properties(st_cterm_apc_replay PROPERTIES
+		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_cterm_apc_replay PRIVATE /W4 /WX)
+	else()
+		target_compile_options(st_cterm_apc_replay PRIVATE -Wall -Wextra -Wpedantic -Werror)
+	endif()
+	add_executable(st_cterm_apc_test tests/st_cterm_apc_test.c)
+	target_link_libraries(st_cterm_apc_test PRIVATE st_cterm st_audio_file st_pixel_image st_md5)
+	target_compile_definitions(st_cterm_apc_test PRIVATE
+		ST_APC_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/apc-test-cache")
+	if(NOT WIN32)
+		target_compile_definitions(st_cterm_apc_test PRIVATE
+			ST_APC_TEST_POSIX=1 _POSIX_C_SOURCE=200809L)
+	endif()
+	set_target_properties(st_cterm_apc_test PROPERTIES
+		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_cterm_apc_test PRIVATE /W4 /WX)
+	else()
+		target_compile_options(st_cterm_apc_test PRIVATE -Wall -Wextra -Wpedantic -Werror)
+	endif()
+	add_test(NAME cterm_apc COMMAND st_cterm_apc_test)
+	add_executable(st_cterm_apc_audio_test tests/st_cterm_apc_audio_test.c)
+	target_link_libraries(st_cterm_apc_audio_test PRIVATE st_cterm)
+	target_compile_definitions(st_cterm_apc_audio_test PRIVATE
+		ST_APC_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/apc-audio-test-cache")
+	set_target_properties(st_cterm_apc_audio_test PROPERTIES
+		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_cterm_apc_audio_test PRIVATE /W4 /WX)
+	else()
+		target_compile_options(st_cterm_apc_audio_test PRIVATE -Wall -Wextra -Wpedantic -Werror)
+	endif()
+	add_test(NAME cterm_apc_audio COMMAND st_cterm_apc_audio_test)
 	add_executable(st_cterm_benchmark tests/st_cterm_benchmark.c)
 	target_link_libraries(st_cterm_benchmark PRIVATE st_cterm st_time)
 	set_target_properties(st_cterm_benchmark PROPERTIES C_STANDARD 17

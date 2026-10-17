@@ -11,6 +11,7 @@
 #include "st_threads.h"
 
 #include <stdatomic.h>
+#include <float.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -370,6 +371,13 @@ test_synthesis(void)
 	    true) == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(audio_generate_tone(frames, 400, -1.0, AUDIO_WAVE_SINE,
 	    true) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(audio_generate_tone(frames, 400, 30000.0, AUDIO_WAVE_SQUARE,
+	    true) == 0);
+	CHECK(audio_generate_tone(frames, 400, 1e100, AUDIO_WAVE_SINE_SAW_HARM,
+	    true) == 0);
+	for (i = 0; i < 800; ++i) CHECK(frames[i] == 0);
+	CHECK(audio_generate_tone(frames, 400, DBL_MAX, AUDIO_WAVE_SINE,
+	    true) == IO_ERROR_OUT_OF_RANGE);
 	CHECK(audio_generate_tone(frames, 400, 440.0,
 	    (enum audio_wave_shape)100, true) == IO_ERROR_INVALID_ARGUMENT);
 	return 0;

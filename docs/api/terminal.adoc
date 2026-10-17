@@ -76,6 +76,24 @@ fonts, pixels, hyperlinks, and audio are handled inside CTerm.  DECCKSR computes
 its CRC over the selected row-major array of modern 24-byte cells; the explicit
 reserved field is zero, making the byte representation deterministic.
 
+Built-in SyncTERM APC handling is enabled by `apc_directory`, independently
+of RIP. CTerm owns dispatch, confined cache access, two graphics buffers, one
+mask, remote font variants, 256 audio patches, and 16 channel controls. These
+objects survive a terminal reset but not destruction/reconnection. The host
+supplies the borrowed cache directory and application version; it must call
+`st_cterm_poll()` on the serialized terminal owner thread even while no input
+arrives, to deliver armed audio completion reports. The session pump does this
+automatically, including while suspended. Audio workers never emit protocol
+responses. Unknown APCs retain the configured application callback fallback;
+a NULL directory retains callback-only operation.
+
+Wire syntax, defaults, replies, and audio options are documented in
+link:cterm.adoc#_application_program_commands[cterm.adoc]. PPM samples
+are BT.709 encoded and converted through linear light to sRGB; this corrects
+the old renderer's nonlinear-branch gamma error. Coordinates, masks, and
+command/state behavior retain v1.10a semantics, including `SetFont`'s active
+download-slot target rather than its validated slot argument.
+
 === Minimal connected session
 
 Header: link:term/st_term.h[st_term.h].  This first `term.c` replacement handles
@@ -100,6 +118,11 @@ application.  A direct URL exits after its one session, while an interactive
 selection may return to the persistent picker.
 
 Focused CTest names are `unicode_text`, `font_catalog`, `cterm`, and `term`.
+APC coverage adds `cterm_apc`, `cterm_apc_audio`, `audio_file`, and `md5`.
+The optional live comparator `cterm/tests/compare_legacy_apc_live.py` requires
+an explicit private Xvfb display and the unmodified v1.10a binary. It compares
+unchanged self-authored streams, response bytes, native pixels, buffers,
+masks, and pre-playback PCM; `--chunk-size 1` checks every-byte writes.
 The CTerm test exercises every emulation family at least as a parser smoke
 case and covers split UTF-8, provisional revision, BEL silence on the wire,
 status routing, mouse reporting, deterministic DECCKSR, and history snapshots.

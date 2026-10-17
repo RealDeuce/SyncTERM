@@ -2627,6 +2627,12 @@ SOURCE: https://gist.github.com/egmontkob/eb114294efbcd5adb1944c9f3cb5feda
 An Application Program Command begins with an `APC` and ends with a `ST`
 SyncTERM implements the following APC commands:
 
+The cache is scoped to the current BBS. Graphics buffers, the buffered mask,
+audio patches, and dedicated audio channels belong to the current terminal:
+they survive terminal resets but are released when that terminal is destroyed.
+Cache operations reject paths outside that cache and do not follow links;
+only regular files are opened for reading, writing, or checksumming.
+
 === `APC SyncTERM:VER ST` Get SyncTERM Version (`CTSV`)
 SyncTERM responds with
 an `APC` string of the form `APC SyncTERM:VER;version ST` where
@@ -2634,7 +2640,7 @@ an `APC` string of the form `APC SyncTERM:VER;version ST` where
 `SyncTERM 1.7rc1` for release builds or `SyncTERM 1.7b Debug (Sep 27 2025)`
 for debug builds
 
-=== `APC SyncTERM:C;S Ps1 Ps2 ST` Store file (`CTSFI`)
+=== `APC SyncTERM:C;S;Ps1;Ps2 ST` Store file (`CTSFI`)
 Where `Ps1` is a filename and `Ps2` is the base64 encoded
 contents of the file.  The named file is stored in the
 cache directory for the current connection.
@@ -2650,9 +2656,12 @@ matching file, a line in the form
 (ie: "coolfont.fnt\t595f44fec1e92a71d3e9e77456ba80d1\n")
 
 === `APC SyncTERM:C;SetFont; Pn ; Ps ST` Set Font (`CTSF`)
-Where `Pn` is a font slot number (max 255) and `Ps` is a
-filename in the cache.  This sets font slot `Pn` to use
-the specified font file.
+`Pn` must be a font slot number from 46 through 255; `Ps` is a filename
+in the cache. As in v1.10a, this replaces the active font-download slot,
+which may differ from the validated `Pn` argument.
+Files must contain exactly 2048, 3584, 4096, or 10240
+bytes (8x8, 8x14, 8x16, or 12x20 respectively); variants are retained and the
+one matching the current cell dimensions is selected.
 
 === `APC SyncTERM:C;DrawPPM Ps... Ps1 ST` Draw a PPM from Cache (`CTDPFC`)
 Draws a PPM from the cache directory on the screen. +
@@ -2734,8 +2743,11 @@ negative.  Default = 0.
 
 The PPM file may be raw (preferred) or text.  SyncTERM
 does not support more than 255 values per colour channel
-and assumes it is correctly using the BT.709 gamma
-transfer.  `ZX` and `ZY` must be non-zero.  Zoom and flip are applied
+and assumes it is correctly using the BT.709 transfer function. Samples are
+decoded to linear light and re-encoded as sRGB for display; this corrects the
+nonlinear-branch conversion error in v1.10a. The APC decoder retains its
+single-byte raw-data separator, including when that byte is CR in CRLF.
+`ZX` and `ZY` must be non-zero.  Zoom and flip are applied
 to the source image and mask sampling.  If the destination area extends
 past the screen, the off-screen portion is clipped.
 

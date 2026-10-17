@@ -74,6 +74,12 @@ struct cterm_render_state {
 	struct st_console_font_selection fonts;
 	uint16_t font_identifiers[UINT8_MAX + 1U];
 	bool font_valid[UINT8_MAX + 1U];
+	struct {
+		uint16_t identifiers[4];
+		uint16_t original;
+		uint8_t present;
+		bool original_valid;
+	} remote_fonts[UINT8_MAX + 1U];
 	uint16_t selectors[5];
 	uint16_t current_hyperlink;
 	uint32_t mode_palette[16];
@@ -145,6 +151,8 @@ uint32_t cterm_render_map_rgb(uint16_t red, uint16_t green,
 	uint16_t blue);
 void cterm_render_replace_font(struct cterminal *cterm, uint8_t selector,
 	char *name, void *data, size_t size);
+/* Rebind retained remote size variants after a cell-geometry change. */
+void cterm_render_refresh_remote_fonts(struct cterminal *cterm);
 int cterm_render_get_modepalette(struct cterminal *cterm,
 	uint32_t *palette);
 int cterm_render_font_selector(struct cterminal *cterm, int slot);

@@ -32,6 +32,8 @@ if(BUILD_TESTING)
 
 	add_executable(st_term_test tests/st_term_test.c)
 	target_link_libraries(st_term_test PRIVATE st_term)
+	target_compile_definitions(st_term_test PRIVATE
+		ST_TERM_APC_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/apc-test-cache")
 	set_target_properties(st_term_test PROPERTIES C_STANDARD 17
 		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)

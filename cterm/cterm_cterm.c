@@ -35,6 +35,7 @@
 #include <string.h>
 #include "cterm_render.h"
 #include "cterm.h"
+#include "cterm_apc.h"
 #include "cterm_internal.h"
 #include "cterm_cterm.h"
 #include "cterm_ecma48.h"	/* cterm_handle_sm/rm chained from SyncTERM ext */
@@ -295,14 +296,8 @@ cterm_handle_ext_state_query(struct cterminal *cterm, int *speed)	/* CSI = n */
 			sprintf(tmp, "\x1b[=6;%dn", true ? 1 : 0);
 			break;
 		case 7:
-			/* Audio channel / feature query DSR.  cterm doesn't own
-			 * audio state — forward the sub-params to syncterm's
-			 * registered callback, which emits the response itself. */
-			if (cterm->ext_state_7_cb != NULL) {
-				cterm->ext_state_7_cb(cterm,
-				    cterm->seq_param_count,
-				    cterm->seq_param_int);
-			}
+			cterm_apc_audio_query(cterm, cterm->seq_param_count,
+			    cterm->seq_param_int);
 			break;
 	}
 	if (*tmp)

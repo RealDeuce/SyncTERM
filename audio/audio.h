@@ -133,6 +133,8 @@ int audio_engine_play_u8_mono_22050(audio_engine_t *engine,
 	const uint8_t *samples, size_t sample_count,
 	const struct audio_buffer_options *options);
 
+/* Nonnegative finite frequencies above Nyquist retain the reference
+ * generator's aliased waveform. Unrepresentable phase ranges fail. */
 int audio_generate_tone(int16_t *result, size_t frame_count,
 	double frequency, enum audio_wave_shape shape, bool clean_edges);
 

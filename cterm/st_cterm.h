@@ -86,6 +86,12 @@ struct st_cterm_config {
 	enum st_cterm_rip_version rip_version;
 	/* Optional per-BBS RIP asset directory; borrowed for terminal lifetime. */
 	const char *rip_directory;
+	/* Enables built-in SyncTERM APC commands independently of RIP. Both
+	 * strings are borrowed through destruction. NULL directory retains
+	 * callback-only handling. Version is NUL-terminated and control-free;
+	 * NULL version suppresses the version reply. */
+	const char *apc_directory;
+	const char *application_version;
 	enum st_codepage codepage;
 	/* Optional 16-entry attribute-to-canonical-palette mapping. */
 	const uint16_t *palette_mapping;
@@ -137,6 +143,10 @@ int st_cterm_write_utf8(st_cterm_t *terminal, const void *bytes, size_t size,
 	size_t *consumed);
 /* Disconnect/reset boundary: replacement for a truncated UTF-8 sequence. */
 int st_cterm_finish(st_cterm_t *terminal);
+/* Nonblocking asynchronous APC notification polling. Call on the same
+ * serialized owner as write(), even when no input arrives. Responses use
+ * the synchronous output callback. NULL is IO_ERROR_INVALID_ARGUMENT. */
+int st_cterm_poll(st_cterm_t *terminal);
 /* After disconnect only: expose a terminal-style blank bottom row for local
  * chrome, preserving host rows through the normal scrollback path. No size
  * notification is sent to the closed connection. */

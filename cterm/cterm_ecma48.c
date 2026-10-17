@@ -36,6 +36,7 @@
 
 #include "cterm_render.h"
 #include "cterm.h"
+#include "cterm_apc.h"
 #include "cterm_internal.h"
 #include "cterm_ecma48.h"
 #include "cterm_cterm.h"	/* ANSI-music / SyncTERM DA hooks called from here */
@@ -729,7 +730,7 @@ cterm_handle_ris(struct cterminal *cterm, int *speed)	/* ESC c — Reset to Init
  *    DCS -> cterm_dec_dcs_finish     (sixel, DECDMAC, DECRQSS,
  *                                     CTerm:Font via cterm_cterm)
  *    OSC -> cterm_cterm_osc_finish   (XTerm palette, OSC 8 hyperlinks)
- *    APC -> user-registered cterm->apc_handler
+ *    APC -> CTerm's SyncTERM dispatcher, then the optional host callback
  *    SOS -> nothing (ECMA-48 defines no registered semantics)
  *    PM  -> nothing
  * ------------------------------------------------------------------------ */
@@ -804,11 +805,16 @@ cterm_handle_st(struct cterminal *cterm, int *speed)	/* ESC \ (String Terminator
 	}
 	cterm->strbuf[cterm->strbuflen] = 0;
 	switch (cterm->string) {
-		case CTERM_STRING_APC:
-			if (cterm->apc_handler)
-				cterm->apc_handler(cterm->strbuf, cterm->strbuflen,
-				    cterm->apc_handler_data);
+		case CTERM_STRING_APC: {
+			struct cterminal *owner = cterm;
+
+			while (owner->parent != NULL) owner = owner->parent;
+			if (!cterm_apc_dispatch(owner, cterm->strbuf, cterm->strbuflen)
+			    && owner->api_apc != NULL)
+				owner->api_apc(owner->api_apc_context,
+				    cterm->strbuf, cterm->strbuflen);
 			break;
+		}
 		case CTERM_STRING_DCS:
 			cterm_dec_dcs_finish(cterm);
 			break;

@@ -7,6 +7,10 @@ version 2 or later. The executable must then be distributed under GPLv2-or-
 later terms. See `unifont/UPSTREAM.md` and
 `unifont/LICENSE.GPL-2.0-or-later`.
 
+The protocol-checksum component in md5/ is derived from the RSA Data
+Security, Inc. MD5 Message-Digest Algorithm and retains that component's
+separate notice in md5/LICENSE.
+
 Copyright (c) 2026 Stephen Hurd
 All rights reserved.
 

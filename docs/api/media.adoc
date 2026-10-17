@@ -35,6 +35,14 @@ Test: `st_audio`; optional audible smoke testing is not part of CTest.
 returns a borrowed engine valid until runtime destruction.  The allowed mask
 controls lazy creation only while no engine exists; changing it does not
 replace an existing engine or transfer caller ownership.
+
+| `st_audio_file`
+| link:audio_file/st_audio_file.h[st_audio_file.h]
+| Optional runtime libsndfile decoding from memory or a borrowed seekable
+stream into owned native S16 stereo at 44100 Hz. Mono duplicates L/R;
+multichannel uses the first two channels. Fixed-point interpolation preserves
+legacy resampling. `ST_AUDIO_FILE_SNDFILE=AUTO/ON/OFF` selects build policy;
+runtime availability must still be queried. Test: `audio_file`.
 |===
 
 === Pixels and images
@@ -61,6 +69,9 @@ a pixel buffer and PBM into a mask, and optionally decodes JPEG XL when the
 runtime library is available.  Result pointers remain unchanged on failure;
 query `st_pixel_image_jxl_supported()` before promising JXL support.  Test:
 `pixel_image`.
+The `decode_cterm_ppm/pbm` variants retain the APC protocol's narrower PNM
+grammar and one-byte raw separator. Both PPM paths convert BT.709-encoded
+samples through linear light into sRGB; APC limits the maximum sample to 255.
 
 === Fonts
 

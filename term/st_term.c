@@ -252,6 +252,8 @@ st_term_session_create(st_term_session_t **result,
 		    ? ST_CTERM_ENCODING_UTF8 : config->encoding,
 		.rip_version = config->rip_version,
 		.rip_directory = config->rip_directory,
+		.apc_directory = config->apc_directory,
+		.application_version = config->application_version,
 		.codepage = config->codepage,
 		.palette_mapping = mode == NULL ? NULL : palette_mapping,
 		.petscii_machine = profile_petscii_machine(config->screen_mode),
@@ -735,6 +737,13 @@ st_term_session_pump(st_term_session_t *session,
 		    ? ST_TERM_EXIT_APPLICATION : ST_TERM_RETURN_TO_PICKER;
 		*finished = true;
 		return 0;
+	}
+	/* A stopped transport has no recipient for asynchronous reports.
+	 * Still drain its received bytes and take the normal disconnect path. */
+	if (st_connection_is_connected(session->config.connection)) {
+		status = st_cterm_poll(session->cterm);
+		if (status != 0 || session->output_error != 0)
+			return status != 0 ? status : session->output_error;
 	}
 	if (!session->suspended && session->throttle_bps != 0) {
 		uint64_t now;
