@@ -232,6 +232,21 @@ if(BUILD_TESTING)
 	add_test(NAME socket_half_close COMMAND socket_test --half-close)
 	set_tests_properties(socket_half_close PROPERTIES TIMEOUT 10)
 	set_tests_properties(socket PROPERTIES TIMEOUT 10)
+	if(WIN32)
+		add_executable(socket_windows_boundary_test
+			tests/socket_windows_boundary_test.c)
+		target_link_libraries(socket_windows_boundary_test PRIVATE
+			syncterm_socket syncterm_threads)
+		set_target_properties(socket_windows_boundary_test PROPERTIES
+			C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		syncterm_socket_warnings(socket_windows_boundary_test)
+		foreach(_mode pending peek taken overlapped)
+			add_test(NAME socket_windows_boundary_${_mode}
+				COMMAND socket_windows_boundary_test ${_mode})
+			set_tests_properties(socket_windows_boundary_${_mode}
+				PROPERTIES TIMEOUT 15)
+		endforeach()
+	endif()
 	if(NOT WIN32)
 		add_executable(socket_poll_error_test tests/socket_poll_error_test.c)
 		target_include_directories(socket_poll_error_test PRIVATE
