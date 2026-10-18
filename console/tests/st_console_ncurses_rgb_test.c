@@ -6,6 +6,33 @@
 /* Exercise colour mapping without opening a terminal or loading curses. */
 #include "../console_ncurses.c"
 
+#if ST_CONSOLE_HAVE_CURSES_H
+static unsigned resize_requests;
+
+static int
+notify_resize(int rows, int columns)
+{
+	(void)rows;
+	(void)columns;
+	++resize_requests;
+	return OK;
+}
+
+static WINDOW *
+dimension_window(int rows, int columns, int y, int x)
+{
+	(void)rows;
+	(void)columns;
+	(void)y;
+	(void)x;
+	return malloc(1); /* Opaque token; only the fake accessors use it. */
+}
+
+static int dimension_columns(WINDOW *window) { (void)window; return 101; }
+static int dimension_rows(WINDOW *window) { (void)window; return 43; }
+static int dimension_delete(WINDOW *window) { free(window); return OK; }
+#endif
+
 int
 main(void)
 {
@@ -20,6 +47,18 @@ main(void)
 	int indexed_colours[UINT16_MAX + 1U];
 	int indexed;
 	int direct;
+	uint32_t columns = 0, rows = 0;
+
+	state.api.call_newwin = dimension_window;
+	state.api.call_delwin = dimension_delete;
+	state.api.call_getmaxx = dimension_columns;
+	state.api.call_getmaxy = dimension_rows;
+	state.api.call_resizeterm = notify_resize;
+	/* NetBSD resizeterm() queues KEY_RESIZE even for an unchanged size.
+	 * Reading dimensions in response must not trigger the next resize. */
+	if (!terminal_dimensions(&state, &columns, &rows)
+	    || columns != 101 || rows != 43 || resize_requests != 0)
+		return EXIT_FAILURE;
 
 	state.indexed_colours = indexed_colours;
 	/* Both indexed and direct colours resolve through their logical RGB. */

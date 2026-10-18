@@ -977,8 +977,8 @@ terminal_dimensions(struct curses_state *state, uint32_t *columns,
 	WINDOW *probe;
 	bool result;
 
-	if (state->api.call_resizeterm != NULL)
-		(void)state->api.call_resizeterm(0, 0);
+	/* getch/get_wch has already applied the resize before reporting it.
+	 * resizeterm() here can queue another KEY_RESIZE, even at the same size. */
 	probe = state->api.call_newwin(0, 0, 0, 0);
 	if (probe == NULL)
 		return false;
@@ -1603,7 +1603,13 @@ curses_attach(st_console_t *console)
 int
 st_console_ncurses_init(st_console_t *console)
 {
+	/* Attribute masks and key codes come from the build-time header; a
+	 * different curses implementation need not use the same ABI values. */
+#ifdef NCURSES_VERSION
 	static const char *const names[] = {"ncursesw", "ncurses", "curses"};
+#else
+	static const char *const names[] = {"curses"};
+#endif
 	struct curses_state *state;
 	size_t count;
 	uint32_t terminal_columns;
