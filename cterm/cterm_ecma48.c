@@ -28,7 +28,6 @@
  * from the SEQ_* keys declared in cterm_internal.h.
  */
 
-#include <ctype.h>
 #include <limits.h>
 #include <stdarg.h>
 #include <stdlib.h>

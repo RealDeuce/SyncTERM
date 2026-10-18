@@ -581,7 +581,9 @@ initial destination length plus complete source length.
 ----
 bool ascii_is_space(unsigned char character);
 bool ascii_is_printable(unsigned char character);
+bool ascii_is_digit(unsigned char character);
 unsigned char ascii_to_lower(unsigned char character);
+unsigned char ascii_to_upper(unsigned char character);
 int ascii_case_compare(const char *left, const char *right);
 int ascii_case_ncompare(const char *left, const char *right, size_t length);
 bool ascii_case_starts_with(const char *text, const char *prefix);
@@ -625,8 +627,10 @@ half-open range inside borrowed input.
 |===
 | Function group | Parameters, result, and effect
 
-| ascii_is_space(character), ascii_is_printable(character), ascii_to_lower(character)
+| ascii_is_space(character), ascii_is_printable(character), ascii_is_digit(character), ascii_to_lower(character), ascii_to_upper(character)
 | Locale-independent classification/conversion of one `unsigned char`.
+Digits are exactly `0`–`9`; case conversion changes only ASCII letters and
+leaves all other bytes unchanged.
 
 | ascii_case_compare(left, right), ascii_case_ncompare(left, right, length)
 | Negative/zero/positive ASCII-case-insensitive ordering for whole strings or

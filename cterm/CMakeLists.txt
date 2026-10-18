@@ -105,7 +105,7 @@ target_link_libraries(st_cterm PUBLIC st_console st_codepage st_font_catalog st_
 	st_audio st_base64 st_time st_utf8 st_unicode_text)
 target_link_libraries(st_cterm PRIVATE st_fonts syncterm_threads
 	st_audio_file st_pixel_image st_md5 st_hex
-	syncterm_string_compat syncterm_filesystem
+	syncterm_string_compat syncterm_string_util syncterm_filesystem
 	syncterm_path syncterm_ini)
 if(WIN32)
 	target_link_libraries(st_cterm PRIVATE st_windows_utf)

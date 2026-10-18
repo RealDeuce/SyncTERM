@@ -30,7 +30,6 @@
  * silently drops them (matches the legacy "drop" behaviour).
  */
 
-#include <ctype.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>

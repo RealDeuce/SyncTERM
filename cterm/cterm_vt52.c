@@ -28,7 +28,6 @@
  * no conflicts — one shared table covers both.
  */
 
-#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 

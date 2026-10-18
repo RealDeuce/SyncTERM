@@ -25,7 +25,6 @@
  * CLEAR TAB (158) / TAB (127) are thin wrappers.
  */
 
-#include <ctype.h>
 #include <limits.h>
 #include <string.h>
 

@@ -29,7 +29,6 @@
  * Handlers share the cterm_handle_* signature used by the dispatch table.
  */
 
-#include <ctype.h>
 #include <limits.h>
 #include <stdarg.h>
 #include <stdlib.h>

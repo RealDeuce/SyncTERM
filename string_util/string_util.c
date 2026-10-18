@@ -23,6 +23,20 @@ ascii_is_printable(unsigned char character)
 }
 
 unsigned char
+ascii_to_upper(unsigned char character)
+{
+	if (character >= 'a' && character <= 'z')
+		return (unsigned char)(character - ('a' - 'A'));
+	return character;
+}
+
+bool
+ascii_is_digit(unsigned char character)
+{
+	return character >= '0' && character <= '9';
+}
+
+unsigned char
 ascii_to_lower(unsigned char character)
 {
 	if (character >= 'A' && character <= 'Z')

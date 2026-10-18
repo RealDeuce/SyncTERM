@@ -27,7 +27,6 @@
  * here plug into the two-check byte-loop form in cterm_write.
  */
 
-#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

@@ -13,7 +13,9 @@
 
 bool ascii_is_space(unsigned char character);
 bool ascii_is_printable(unsigned char character);
+bool ascii_is_digit(unsigned char character);
 unsigned char ascii_to_lower(unsigned char character);
+unsigned char ascii_to_upper(unsigned char character);
 int ascii_case_compare(const char *left, const char *right);
 int ascii_case_ncompare(const char *left, const char *right, size_t length);
 bool ascii_case_starts_with(const char *text, const char *prefix);

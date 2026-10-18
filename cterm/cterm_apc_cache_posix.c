@@ -77,7 +77,7 @@ struct pending_directory {
 static int
 compare_entries(const void *left, const void *right)
 {
-	return strcoll(*(const char *const *)left, *(const char *const *)right);
+	return strcmp(*(const char *const *)left, *(const char *const *)right);
 }
 
 int

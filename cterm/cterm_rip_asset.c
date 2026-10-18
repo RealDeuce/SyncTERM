@@ -12,7 +12,7 @@
 #include "io_error.h"
 #include "path.h"
 
-#include <ctype.h>
+#include "string_util.h"
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -40,7 +40,7 @@ cterm_rip_asset_path(const char *directory, const char *filename,
 			return NULL;
 	}
 	for (size_t i = 0; i < 4 && i < length && filename[i] != '.'; i++)
-		base[i] = (char)toupper((unsigned char)filename[i]);
+		base[i] = (char)ascii_to_upper((unsigned char)filename[i]);
 	if (strcmp(base, "CON") == 0 || strcmp(base, "PRN") == 0
 	    || strcmp(base, "AUX") == 0 || strcmp(base, "NUL") == 0
 	    || ((memcmp(base, "COM", 3) == 0

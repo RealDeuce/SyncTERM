@@ -27,7 +27,6 @@
  */
 
 #include <assert.h>
-#include <ctype.h>
 #include <limits.h>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -2015,7 +2014,7 @@ struct cterminal* cterm_init(int height, int width, int xpos, int ypos,
 	out=strchr(cterm->DA, 0);
 	if(out != NULL) {
 		for(in=revision; *in; in++) {
-			if(isdigit(*in))
+			if(*in >= '0' && *in <= '9')
 				*(out++)=*in;
 			if(*in=='.')
 				*(out++)=';';

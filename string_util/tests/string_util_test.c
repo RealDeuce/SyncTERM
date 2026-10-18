@@ -2,6 +2,7 @@
 
 #include "string_util.h"
 
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -39,10 +40,26 @@ main(void)
 		CHECK(ascii_is_printable((unsigned char)byte)
 		    == (byte >= 32 && byte <= 126));
 		CHECK(ascii_to_lower((unsigned char)byte) == lower);
+		CHECK(ascii_to_upper((unsigned char)byte)
+		    == (byte >= 97 && byte <= 122 ? byte - 32 : byte));
+		CHECK(ascii_is_digit((unsigned char)byte) == (byte >= 48 && byte <= 57));
 		string_ascii_trim_span(span, sizeof(span), &begin, &end);
 		CHECK(begin == (space ? 3U : 1U));
 		CHECK(end == (space ? 3U : 2U));
 	}
+	const char *const locales[] = {
+		"C", "", "tr_TR.UTF-8", "tr_TR.ISO8859-9", "en_US.ISO8859-1",
+	};
+	for (size_t i = 0; i < sizeof(locales) / sizeof(locales[0]); ++i) {
+		if (setlocale(LC_CTYPE, locales[i]) == NULL)
+			continue;
+		for (unsigned int byte = 0; byte < 256; ++byte) {
+			CHECK(ascii_is_digit((unsigned char)byte) == (byte >= 48 && byte <= 57));
+			CHECK(ascii_to_upper((unsigned char)byte)
+			    == (byte >= 97 && byte <= 122 ? byte - 32 : byte));
+		}
+	}
+	CHECK(setlocale(LC_CTYPE, "C") != NULL);
 	string_ascii_trim_span("", 0, &begin, &end);
 	CHECK(begin == 0 && end == 0);
 	CHECK(ascii_case_starts_with("", ""));

@@ -17,7 +17,7 @@
 #include "st_pixels.h"
 #include "st_utf8.h"
 
-#include <ctype.h>
+#include "string_util.h"
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -1230,7 +1230,7 @@ draw_missing_icon(struct cterm_rip_raster *rip, int x, int y,
 	else
 		(void)snprintf(label, sizeof(label), "Icon %s", filename);
 	for (char *name = label + 5; *name != '\0'; name++)
-		*name = (char)toupper((unsigned char)*name);
+		*name = (char)ascii_to_upper((unsigned char)*name);
 	rip->font_number = 2;
 	rip->font_size = 4;
 	rip->font_vertical = 0;
@@ -3351,8 +3351,8 @@ draw_button_label(struct cterm_rip_raster *rip,
 	}
 	if ((style->flags & 2048) != 0 || (style->flags2 & 2) != 0) {
 		for (int i = 0; label[i] != '\0'; i++) {
-			if (toupper((unsigned char)label[i])
-			    == toupper((unsigned char)hotkey)) {
+			if (ascii_to_upper((unsigned char)label[i])
+			    == ascii_to_upper((unsigned char)hotkey)) {
 				hotkey_position = i;
 				break;
 			}

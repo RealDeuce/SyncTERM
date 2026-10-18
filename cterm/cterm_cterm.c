@@ -28,7 +28,7 @@
  * cterm_ansi_dispatch[] via keys from cterm_internal.h.
  */
 
-#include <ctype.h>
+#include "string_util.h"
 #include <limits.h>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -962,7 +962,7 @@ static void play_music(struct cterminal *cterm)
 
 	p=cterm->musicbuf;
 	if(cterm->music==1) {
-		switch(toupper(*p)) {
+		switch(ascii_to_upper((unsigned char)*p)) {
 			case 'F':
 				cterm->musicfore=true;
 				p++;
@@ -972,7 +972,7 @@ static void play_music(struct cterminal *cterm)
 				p++;
 				break;
 			case 'N':
-				if(!isdigit(*(p+1))) {
+				if(!ascii_is_digit((unsigned char)*(p+1))) {
 					cterm->noteshape=CTERM_MUSIC_NORMAL;
 					p++;
 				}
@@ -990,10 +990,10 @@ static void play_music(struct cterminal *cterm)
 	for(;*p;p++) {
 		notenum=0;
 		offset=0;
-		switch(toupper(*p)) {
+		switch(ascii_to_upper((unsigned char)*p)) {
 			case 'M':
 				p++;
-				switch(toupper(*p)) {
+				switch(ascii_to_upper((unsigned char)*p)) {
 					case 'F':
 						cterm->musicfore=true;
 						break;
@@ -1015,7 +1015,7 @@ static void play_music(struct cterminal *cterm)
 				break;
 			case 'T':						/* Tempo */
 				out=numbuf;
-				while(isdigit(*(p+1)))
+				while(ascii_is_digit((unsigned char)*(p+1)))
 					*(out++)=*(++p);
 				*out=0;
 				cterm->tempo=strtoul(numbuf,NULL,10);
@@ -1026,7 +1026,7 @@ static void play_music(struct cterminal *cterm)
 				break;
 			case 'O':						/* Octave */
 				out=numbuf;
-				while(isdigit(*(p+1)))
+				while(ascii_is_digit((unsigned char)*(p+1)))
 					*(out++)=*(++p);
 				*out=0;
 				cterm->octave=strtoul(numbuf,NULL,10);
@@ -1035,7 +1035,7 @@ static void play_music(struct cterminal *cterm)
 				break;
 			case 'L':
 				out=numbuf;
-				while(isdigit(*(p+1)))
+				while(ascii_is_digit((unsigned char)*(p+1)))
 					*(out++)=*(++p);
 				*out=0;
 				cterm->notelen=strtoul(numbuf,NULL,10);
@@ -1045,9 +1045,9 @@ static void play_music(struct cterminal *cterm)
 					cterm->notelen=64;
 				break;
 			case 'N':						/* Note by number */
-				if(isdigit(*(p+1))) {
+				if(ascii_is_digit((unsigned char)*(p+1))) {
 					out=numbuf;
-					while(isdigit(*(p+1))) {
+					while(ascii_is_digit((unsigned char)*(p+1))) {
 						*(out++)=*(p+1);
 						p++;
 					}
@@ -1067,7 +1067,7 @@ static void play_music(struct cterminal *cterm)
 			case 'F':
 			case 'G':
 			case 'P':
-				note=toupper(*p);
+				note=ascii_to_upper((unsigned char)*p);
 				notelen=cterm->notelen;
 				dotted=0;
 				i=1;
@@ -1088,9 +1088,9 @@ static void play_music(struct cterminal *cterm)
 						p++;
 						i=1;
 					}
-					if(isdigit(*(p+1))) {
+					if(ascii_is_digit((unsigned char)*(p+1))) {
 						out=numbuf;
-						while(isdigit(*(p+1))) {
+						while(ascii_is_digit((unsigned char)*(p+1))) {
 							*(out++)=*(p+1);
 							p++;
 						}
