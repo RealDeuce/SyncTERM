@@ -11,6 +11,8 @@ ci_xvfb_pid=
 ci_weston_pid=
 ci_runtime=
 cleanup() {
+	ci_exit_status=$?
+	trap - EXIT
 	# Only these child processes belong to this job. Never use a shared desktop
 	# display or stop another pipeline's X server/compositor.
 	if [ -n "$ci_weston_pid" ]; then
@@ -21,8 +23,17 @@ cleanup() {
 		kill "$ci_xvfb_pid" 2>/dev/null || :
 		wait "$ci_xvfb_pid" 2>/dev/null || :
 	fi
-	# A private, empty runtime directory can be removed without recursion.
-	if [ -n "$ci_runtime" ]; then rmdir "$ci_runtime" 2>/dev/null || :; fi
+	# Preserve unexpected contents for inspection rather than deleting them.
+	if [ -n "$ci_runtime" ]; then
+		ci_cleanup_log="$CI_BUILD_DIR/reports/runtime-cleanup.log"
+		printf 'Runtime directory: %s\n' "$ci_runtime" >"$ci_cleanup_log"
+		if ! rmdir "$ci_runtime" 2>>"$ci_cleanup_log"; then
+			ls -la "$ci_runtime" >>"$ci_cleanup_log" 2>&1 || :
+			cat "$ci_cleanup_log" >&2
+			if [ "$ci_exit_status" -eq 0 ]; then ci_exit_status=1; fi
+		fi
+	fi
+	exit "$ci_exit_status"
 }
 trap cleanup EXIT
 trap 'exit 130' INT
@@ -92,6 +103,10 @@ if command -v ccache >/dev/null 2>&1; then
 	CMAKE_C_COMPILER_LAUNCHER=$(command -v ccache)
 	CMAKE_CXX_COMPILER_LAUNCHER=$CMAKE_C_COMPILER_LAUNCHER
 	CCACHE_DIR="$ci_root/.ci-cache/ccache"
-	export CMAKE_C_COMPILER_LAUNCHER CMAKE_CXX_COMPILER_LAUNCHER CCACHE_DIR
+	# ccache otherwise puts its temporary directory in XDG_RUNTIME_DIR,
+	# preventing removal of the job's private display runtime directory.
+	CCACHE_TEMPDIR="$CI_BUILD_DIR/ccache-tmp"
+	mkdir -p "$CCACHE_TEMPDIR"
+	export CMAKE_C_COMPILER_LAUNCHER CMAKE_CXX_COMPILER_LAUNCHER CCACHE_DIR CCACHE_TEMPDIR
 fi
 cmake -P "$ci_root/ci/run.cmake"

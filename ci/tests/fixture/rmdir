@@ -1,0 +1,9 @@
+#!/bin/sh
+# Copyright (c) 2026 Stephen Hurd
+# SPDX-License-Identifier: BSD-2-Clause
+set -eu
+if [ "${CI_TEST_FAIL_RUNTIME_CLEANUP:-0}" = 1 ]; then
+	echo 'fixture: forced runtime cleanup failure' >&2
+	exit 1
+fi
+exec "$CI_TEST_REAL_RMDIR" "$@"
