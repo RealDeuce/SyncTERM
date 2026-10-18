@@ -10,7 +10,7 @@
 #include <string.h>
 
 static size_t normal_size, prefix_size, read_position, urgent_ready_after;
-static uint8_t control;
+static uint8_t scripted_control;
 static bool control_consumed, fail_read;
 
 static ssize_t
@@ -22,7 +22,7 @@ scripted_receive(socket_handle_t socket, void *data, size_t size, unsigned flags
 			return IO_ERROR_INVALID_ARGUMENT;
 		if (read_position < urgent_ready_after)
 			return IO_ERROR_WOULD_BLOCK;
-		*(uint8_t *)data = control;
+		*(uint8_t *)data = scripted_control;
 		control_consumed = true;
 		return 1;
 	}
@@ -97,17 +97,17 @@ check_case(unsigned scenario)
 	read_position = 0;
 	control_consumed = false;
 	fail_read = scenario == 4;
-	control = scenario == 0 ? 0x01 : scenario == 1 ? 0x10 : 0x02;
+	scripted_control = scenario == 0 ? 0x01 : scenario == 1 ? 0x10 : 0x02;
 	if (scenario == 3) {
 		normal_size = prefix_size = urgent_ready_after = 2 * PENDING_URGENT_INPUT_LIMIT;
-		control = 0x01;
+		scripted_control = 0x01;
 	} else if (scenario == 5) {
 		normal_size = 8192;
 		prefix_size = normal_size + 1;
 		urgent_ready_after = normal_size + 2;
 	} else if (scenario == 6) {
 		urgent_ready_after = prefix_size + 1;
-		control = 0x01;
+		scripted_control = 0x01;
 	}
 	CHECK(process_urgent(&transport, &handled, &discard) == IO_ERROR_WOULD_BLOCK);
 	CHECK(!handled && !discard);

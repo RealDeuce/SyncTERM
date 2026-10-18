@@ -158,8 +158,8 @@ cterm_size(void *context, uint32_t columns, uint32_t rows,
 static int
 update_connection_geometry(st_term_session_t *session)
 {
-	uint32_t cell_width;
-	uint32_t cell_height;
+	uint32_t cell_width = 0;
+	uint32_t cell_height = 0;
 	struct st_screen_geometry geometry;
 	int status;
 
@@ -416,7 +416,7 @@ send_text(st_term_session_t *session, const char *utf8, size_t size,
 {
 	st_unicode_text_t *text = NULL;
 	struct st_unicode_text_item item;
-	size_t consumed;
+	size_t consumed = 0;
 	int status;
 
 	if (session == NULL || (utf8 == NULL && size != 0))

@@ -291,7 +291,7 @@ main(void)
 			if (terminal->macro_lens[0] != (bytes[i] == 0x7f ? 0U : 1U))
 				fprintf(stderr, "macro byte=%02x length=%zu state=%d\n",
 				    bytes[i], terminal->macro_lens[0], terminal->macro);
-			CHECK(terminal->macro_lens[0] == (bytes[i] == 0x7f ? 0 : 1));
+			CHECK(terminal->macro_lens[0] == (bytes[i] == 0x7f ? 0U : 1U));
 			if (bytes[i] != 0x7f)
 				CHECK((uint8_t)terminal->macros[0][0] == bytes[i]);
 			st_cterm_destroy(&terminal);
