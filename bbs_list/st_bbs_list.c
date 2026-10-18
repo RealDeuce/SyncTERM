@@ -203,8 +203,12 @@ static struct st_bbs_owned_entry *
 find_owned_by_key(const struct st_bbs_view *view,
 	const struct st_bbs_owned_entry *key)
 {
+	size_t count = array_list_count((array_list_t)view->names);
+
+	if (count == 0)
+		return NULL;
 	struct st_bbs_owned_entry **found = bsearch(key, view->names,
-	    array_list_count((array_list_t)view->names), sizeof(*view->names),
+	    count, sizeof(*view->names),
 	    compare_key_to_entry);
 
 	return found == NULL ? NULL : *found;

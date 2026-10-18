@@ -32,6 +32,9 @@ unset DISPLAY WAYLAND_DISPLAY XAUTHORITY XDG_RUNTIME_DIR
 case ${CI_PROFILE:-native} in
 mingw32-cross|mingw64-cross|minimal) ;;
 *)
+	ci_runtime=$(mktemp -d "${TMPDIR:-/tmp}/syncterm-ci.XXXXXXXX")
+	XDG_RUNTIME_DIR=$ci_runtime
+	export XDG_RUNTIME_DIR
 	if command -v Xvfb >/dev/null 2>&1; then
 		# -displayfd atomically chooses a free display; a fixed :N races with
 		# other jobs on shell runners. No inherited Xauthority is used.
@@ -56,8 +59,6 @@ mingw32-cross|mingw64-cross|minimal) ;;
 		export DISPLAY
 	fi
 	if command -v weston >/dev/null 2>&1; then
-		ci_runtime=$(mktemp -d "${TMPDIR:-/tmp}/syncterm-ci.XXXXXXXX")
-		XDG_RUNTIME_DIR=$ci_runtime
 		WAYLAND_DISPLAY=syncterm-ci
 		export XDG_RUNTIME_DIR WAYLAND_DISPLAY
 		weston --backend=headless-backend.so --socket="$WAYLAND_DISPLAY" \
@@ -77,6 +78,14 @@ mingw32-cross|mingw64-cross|minimal) ;;
 	fi
 	;;
 esac
+
+if [ "${CI_PROFILE:-native}" = sanitizers ]; then
+	# Preserve complete reports outside GitLab's bounded console trace. Slow
+	# allocation unwinding also covers uninstrumented display libraries.
+	ASAN_OPTIONS="${ASAN_OPTIONS:+$ASAN_OPTIONS:}log_path=$CI_BUILD_DIR/reports/asan:log_exe_name=1:fast_unwind_on_malloc=0:print_module_map=2"
+	UBSAN_OPTIONS="${UBSAN_OPTIONS:+$UBSAN_OPTIONS:}log_path=$CI_BUILD_DIR/reports/ubsan:log_exe_name=1:print_stacktrace=1"
+	export ASAN_OPTIONS UBSAN_OPTIONS
+fi
 
 if command -v ccache >/dev/null 2>&1; then
 	# Launchers preserve CC/CXX identity for capability checks and C++ linking.

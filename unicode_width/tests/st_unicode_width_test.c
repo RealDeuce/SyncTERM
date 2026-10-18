@@ -87,7 +87,7 @@ main(void)
 	for (uint32_t cp = 0; cp <= UINT32_C(0x10ffff); ++cp) {
 		enum st_unicode_east_asian_width eaw = st_unicode_east_asian_width(cp);
 		bool emoji = st_unicode_emoji_presentation(cp);
-		bool zero = st_unicode_default_ignorable(cp)
+		bool zero_width = st_unicode_default_ignorable(cp)
 		    || st_unicode_nonspacing_mark(cp) || control_or_format(cp);
 		if (cp >= UINT32_C(0xd800) && cp <= UINT32_C(0xdfff)) {
 			CHECK(eaw == ST_UNICODE_EAW_INVALID);
@@ -95,7 +95,7 @@ main(void)
 			CHECK(st_unicode_columns(cp) == 0);
 		} else {
 			CHECK(eaw != ST_UNICODE_EAW_INVALID);
-			CHECK(st_unicode_columns(cp) == (zero ? 0 : (emoji
+			CHECK(st_unicode_columns(cp) == (zero_width ? 0 : (emoji
 			    || eaw == ST_UNICODE_EAW_WIDE
 			    || eaw == ST_UNICODE_EAW_FULLWIDTH) ? 2 : 1));
 		}

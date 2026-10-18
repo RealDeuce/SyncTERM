@@ -47,6 +47,7 @@ if(BUILD_TESTING)
 			-Wall -Wextra -Wpedantic -Werror)
 	endif()
 	add_test(NAME term COMMAND st_term_test)
+	configure_file(tests/term-fixture.sh term-fixture.sh COPYONLY)
 
 	if(NOT WIN32
 		AND EXISTS "${CMAKE_SOURCE_DIR}/cterm/tests/data/legacy_surfer1.rip"

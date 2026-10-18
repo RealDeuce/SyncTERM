@@ -26,8 +26,14 @@ main(void)
 		root[0] = (char)('A' + index);
 		if (fs_get_info(&info, root) == 0
 		    && info.kind == FS_ENTRY_DIRECTORY) {
-			if (fs_create_directories(root) != 0) {
-				fprintf(stderr, "rejected existing root %s\n", root);
+			int status = fs_create_directories(root);
+			if (status != 0) {
+				DWORD attributes = GetFileAttributesA(root);
+				DWORD native_error = attributes == INVALID_FILE_ATTRIBUTES
+				    ? GetLastError() : 0;
+				fprintf(stderr, "rejected existing root %s: status=%d"
+				    " attributes=%08lx native-error=%lu drives=%08lx\n",
+				    root, status, attributes, native_error, drives);
 				return 1;
 			}
 			existing_checked = true;

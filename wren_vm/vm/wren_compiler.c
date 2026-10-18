@@ -3939,7 +3939,8 @@ void wrenBindMethodCode(ObjClass* classObj, ObjFn* fn)
         // Shift this class's fields down past the inherited ones. We don't
         // check for overflow here because we'll see if the number of fields
         // overflows when the subclass is created.
-        fn->code.data[ip + 1] += classObj->superclass->numFields;
+        fn->code.data[ip + 1] = (uint8_t)(fn->code.data[ip + 1]
+            + classObj->superclass->numFields);
         break;
 
       case CODE_SUPER_0:
@@ -4104,9 +4105,9 @@ static void emitAttributes(Compiler* compiler, ObjMap* attributes)
       callMethod(compiler, 0, "new()", 5);
       // Add the items to the key list
       ObjList* items = AS_LIST(itemEntry->value);
-      for(int itemIdx = 0; itemIdx < items->elements.count; ++itemIdx)
+      for(int elementIdx = 0; elementIdx < items->elements.count; ++elementIdx)
       {
-        emitConstant(compiler, items->elements.data[itemIdx]);
+        emitConstant(compiler, items->elements.data[elementIdx]);
         callMethod(compiler, 1, "addCore_(_)", 11);
       }
       // Add the list to the map

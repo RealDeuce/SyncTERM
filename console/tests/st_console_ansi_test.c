@@ -16,6 +16,7 @@
 #endif
 
 #include <fcntl.h>
+#include <errno.h>
 #include <poll.h>
 #include <signal.h>
 #include <stdio.h>
@@ -25,6 +26,8 @@
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
+
+#include "pty_diagnostics.h"
 
 static unsigned char terminal_output[65536];
 static size_t terminal_output_size;
@@ -92,7 +95,10 @@ wait_text(int master, const char *text)
 				save_output(bytes, (size_t)count);
 		}
 	}
-	return output_contains(text);
+	bool found = output_contains(text);
+	if (!found)
+		fprintf(stderr, "ANSI timed out waiting for text [%s]\n", text);
+	return found;
 }
 
 static bool
@@ -349,11 +355,15 @@ static int
 wait_byte(int descriptor, unsigned char expected)
 {
 	struct pollfd poll_descriptor = {.fd = descriptor, .events = POLLIN};
-	unsigned char value;
+	unsigned char value = '?';
 
 	if (poll(&poll_descriptor, 1, 5000) <= 0
-	    || read(descriptor, &value, 1) != 1 || value != expected)
+	    || read(descriptor, &value, 1) != 1 || value != expected) {
+		fprintf(stderr, "ANSI redirected report expected=%c actual=%c"
+		    " revents=%x errno=%d\n", expected, value,
+		    (unsigned short)poll_descriptor.revents, errno);
 		return -1;
+	}
 	return 0;
 }
 
@@ -440,6 +450,7 @@ run_redirected_case(enum redirected_case test, const void *data, size_t size)
 	    && WEXITSTATUS(status) == 0;
 
 failed:
+	fprintf(stderr, "ANSI redirected case=%d failed\n", test);
 	if (input_write >= 0)
 		(void)close(input_write);
 	(void)close(reports[0]);
@@ -458,8 +469,14 @@ wait_report(int descriptor, int master, unsigned char expected)
 	unsigned char buffer[4096];
 
 	for (;;) {
-		if (poll(descriptors, 2, 5000) <= 0)
+		int status = poll(descriptors, 2, 5000);
+		if (status <= 0) {
+			fprintf(stderr, "ANSI report expected=%c poll=%d errno=%d"
+			    " report-events=%x PTY-events=%x\n", expected,
+			    status, status < 0 ? errno : 0, (unsigned short)descriptors[0].revents,
+			    (unsigned short)descriptors[1].revents);
 			return -1;
+		}
 		if ((descriptors[1].revents & POLLIN) != 0)
 		{
 			ssize_t count = read(master, buffer, sizeof(buffer));
@@ -471,10 +488,14 @@ wait_report(int descriptor, int master, unsigned char expected)
 			unsigned char value = '?';
 
 			if (read(descriptor, &value, 1) != 1 || value != expected) {
-				fprintf(stderr, "ANSI child failed at stage %c\n", value);
+				fprintf(stderr, "ANSI child report expected=%c actual=%c\n", expected, value);
 				return -1;
 			}
 			return 0;
+		}
+		if ((descriptors[0].revents & (POLLHUP | POLLERR | POLLNVAL)) != 0) {
+			fprintf(stderr, "ANSI child report closed before stage %c\n", expected);
+			return -1;
 		}
 	}
 }
@@ -568,6 +589,7 @@ failed:
 	(void)close(reports[0]);
 
 failed_after_report:
+	dump_terminal_output(terminal_output, terminal_output_size);
 	(void)kill(child, SIGKILL);
 	(void)waitpid(child, &child_status, 0);
 	(void)close(master);

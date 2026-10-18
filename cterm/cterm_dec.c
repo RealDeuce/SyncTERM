@@ -1906,7 +1906,8 @@ cterm_parse_macro_string(struct cterminal *cterm, bool finish)
 		return;
 	}
 	if (cterm->macro_encoding == MACRO_ENCODING_ASCII) {
-		if ((*end >= ' ' && *end <= '\x7e') || (*end >= '\xa0' && *end <= '\xff')) {
+		unsigned char byte = (unsigned char)*end;
+		if ((byte >= 0x20 && byte <= 0x7e) || byte >= 0xa0) {
 			if (finish)
 				goto all_done;
 			return;

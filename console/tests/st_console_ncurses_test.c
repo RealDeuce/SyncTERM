@@ -27,6 +27,8 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "pty_diagnostics.h"
+
 static unsigned char terminal_output[65536];
 static size_t terminal_output_size;
 
@@ -58,6 +60,50 @@ output_contains_byte(unsigned char byte)
 	for (size_t i = 0; i < terminal_output_size; ++i)
 		if (terminal_output[i] == byte)
 			return true;
+	return false;
+}
+
+static bool
+output_selects_colour(unsigned index)
+{
+	char sequence[40];
+
+	(void)snprintf(sequence, sizeof(sequence), "\033[38;5;%um", index);
+	if (output_contains(sequence))
+		return true;
+	if (index < 16) {
+		(void)snprintf(sequence, sizeof(sequence), "\033[%um",
+		    index < 8 ? 30 + index : 90 + index - 8);
+		if (output_contains(sequence))
+			return true;
+	}
+	return false;
+}
+
+static bool
+output_programs_colour(unsigned red, unsigned green, unsigned blue)
+{
+	for (size_t i = 0; i + 4 < terminal_output_size; ++i) {
+		char command[80];
+		unsigned index, r, g, b;
+		size_t size = terminal_output_size - i - 4;
+
+		if (memcmp(terminal_output + i, "\033]4;", 4) != 0)
+			continue;
+		if (size >= sizeof(command))
+			size = sizeof(command) - 1;
+		memcpy(command, terminal_output + i + 4, size);
+		command[size] = '\0';
+		/* xterm initc converts ncurses' 0..1000 channels back to 0..255;
+		 * allow its one-unit rounding, but still require the programmed
+		 * slot to be selected for output. */
+		if (sscanf(command, "%u;rgb:%2x/%2x/%2x", &index, &r, &g, &b) == 4
+		    && abs((int)r - (int)red) <= 1
+		    && abs((int)g - (int)green) <= 1
+		    && abs((int)b - (int)blue) <= 1
+		    && output_selects_colour(index))
+			return true;
+	}
 	return false;
 }
 
@@ -375,12 +421,13 @@ main(int argc, char **argv)
 		goto failed;
 	if (wait_report(report[0], master, 'O') != 0)
 		goto failed;
-	if ((!direct_colour && (!output_contains("\033[38;5;203m")
-	    || !output_contains("\033[38;5;43m")))
+	if ((!direct_colour
+	    && ((!output_selects_colour(203) && !output_programs_colour(255, 84, 84))
+	    || (!output_selects_colour(43) && !output_programs_colour(0, 215, 175))))
 	    || (direct_colour
 	    && (!output_contains("\033[38;2;255;84;84m")
 	    || !output_contains("\033[38;2;0;215;175m")))
-	    || !output_contains("\033[1m")
+	    || (!output_contains("\033[1m") && !output_contains("\033[0;1m"))
 	    || (cp437 && !output_contains_byte(direct_colour ? 0x82 : 'Z'))) {
 		fprintf(stderr, "ncurses emitted the wrong cell representation\n");
 		goto failed;
@@ -419,6 +466,7 @@ main(int argc, char **argv)
 failed:
 	(void)close(report[0]);
 failed_after_report:
+	dump_terminal_output(terminal_output, terminal_output_size);
 	(void)kill(child, SIGKILL);
 	(void)waitpid(child, &child_status, 0);
 	(void)close(master);

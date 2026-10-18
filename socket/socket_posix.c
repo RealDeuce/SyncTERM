@@ -306,7 +306,9 @@ socket_poll_events(struct socket_wait_item *item, short events)
 			item->error = socket_internal_map_error(errno);
 		}
 	}
-	if ((events & (POLLERR | POLLNVAL)) != 0) {
+	/* recv() can consume SO_ERROR. Do not replace that specific error with
+	 * EIO after a second read of the now-cleared socket error. */
+	if ((events & (POLLERR | POLLNVAL)) != 0 && item->error == 0) {
 		if (getsockopt(item->socket, SOL_SOCKET, SO_ERROR, &socket_error,
 		    &error_size) != 0)
 			socket_error = errno;

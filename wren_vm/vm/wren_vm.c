@@ -1396,7 +1396,6 @@ static WrenInterpretResult runInterpreter(WrenVM* vm, register ObjFiber* fiber)
   // We should only exit this function from an explicit return from CODE_RETURN
   // or a runtime error.
   UNREACHABLE();
-  return WREN_RESULT_RUNTIME_ERROR;
 
   #undef READ_BYTE
   #undef READ_SHORT

@@ -55,6 +55,9 @@ if(BUILD_TESTING)
 	add_executable(st_app_paths_test tests/st_app_paths_test.c)
 	target_link_libraries(st_app_paths_test PRIVATE st_app_paths
 		syncterm_filesystem)
+	if(WIN32)
+		target_link_libraries(st_app_paths_test PRIVATE shell32 ole32)
+	endif()
 	target_compile_definitions(st_app_paths_test PRIVATE
 		ST_APP_PATHS_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/paths-test")
 	set_target_properties(st_app_paths_test PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}

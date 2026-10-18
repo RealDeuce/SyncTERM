@@ -190,4 +190,18 @@ if(BUILD_TESTING)
 	syncterm_socket_warnings(socket_test)
 	add_test(NAME socket COMMAND socket_test)
 	set_tests_properties(socket PROPERTIES TIMEOUT 10)
+	if(NOT WIN32)
+		add_executable(socket_poll_error_test tests/socket_poll_error_test.c)
+		target_include_directories(socket_poll_error_test PRIVATE
+			${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}
+			${CMAKE_CURRENT_SOURCE_DIR}/.. ${PROJECT_BINARY_DIR})
+		target_link_libraries(socket_poll_error_test PRIVATE
+			syncterm_io_error st_time)
+		target_compile_definitions(socket_poll_error_test PRIVATE
+			${SYNCTERM_SOCKET_DEFINITIONS})
+		set_target_properties(socket_poll_error_test PROPERTIES
+			C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		syncterm_socket_warnings(socket_poll_error_test)
+		add_test(NAME socket_poll_errors COMMAND socket_poll_error_test)
+	endif()
 endif()

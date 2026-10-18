@@ -151,6 +151,17 @@ external RIP test fixtures, exercising the self-contained tests even when
 those fixtures happen to exist on a shell runner. Local builds can make the
 same selection with `ST_CTERM_TEST_EXTERNAL_ASSETS=OFF`.
 
+For unresolved native failures, inspect the reports rather than only the job
+trace: sanitizer jobs retain complete per-process `asan.*` and `ubsan.*`
+reports, plus Linux loader `loader.*` traces with module bases before unload.
+These do not suppress leaks or change library unloading. MinGW jobs retain
+`mingw-tools.txt` with compiler/assembler identities and search paths; an
+unknown `.uleb128` assembler failure also saves a verbose reproduction and
+the generated assembly. PTY failures report the expected handshake stage and
+a bounded hexadecimal capture; TCP refusal failures include event timing and
+an independent native socket probe. Native display jobs always use a private
+runtime directory, including when Weston is unavailable.
+
 The common driver has isolated success/error-path tests:
 
 [source,sh]

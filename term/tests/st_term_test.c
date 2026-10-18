@@ -89,9 +89,7 @@ test_shell_apc(void)
 	CHECK(st_font_catalog_create(&fonts, console) == 0);
 	st_profile_init(&profile);
 	profile.connection_type = ST_CONNECTION_SHELL;
-	strcpy(profile.address, "stty raw -echo; printf '\\033_SyncTERM:VER\\033\\\\'; "
-	    "dd bs=1 count=18 2>/dev/null | od -An -tx1 | tr -d ' \\n'; "
-	    "printf '\\r\\nREADY'; dd bs=1 count=9 2>/dev/null | od -An -tx1 | tr -d ' \\n'");
+	strcpy(profile.address, "sh term-fixture.sh apc");
 	CHECK(st_term_connect_profile(&connection, &profile, console, NULL, NULL) == 0);
 	const struct st_term_config config = {
 		.console = console, .connection = connection, .fonts = fonts,
@@ -148,7 +146,7 @@ test_prestel_keyboard_session(void)
 	st_profile_init(&profile);
 	profile.connection_type = ST_CONNECTION_SHELL;
 	profile.encoding = ST_CODEPAGE_PRESTEL;
-	strcpy(profile.address, "stty raw -echo; printf 'READY\\r\\n'; od -An -tx1 -N 6 | tr -d ' \\n'");
+	strcpy(profile.address, "sh term-fixture.sh prestel");
 	CHECK(st_term_connect_profile(&connection, &profile, console, NULL, NULL) == 0);
 	const struct st_term_config config = {
 		.console = console, .connection = connection, .fonts = fonts,
@@ -377,8 +375,7 @@ test_shell_utf8_boundary(void)
 	profile.connection_type = ST_CONNECTION_SHELL;
 	profile.screen_mode = ST_SCREEN_MODE_80X25;
 	profile.encoding = ST_PROFILE_ENCODING_UTF8;
-	strcpy(profile.address, "printf '%s:' \"$MM_CHARSET\"; "
-	    "printf '\\303'; sleep 1; printf '\\251'; sleep 2");
+	strcpy(profile.address, "sh term-fixture.sh utf8");
 	CHECK(st_term_connect_profile(&connection, &profile, console, NULL, NULL)
 	    == 0);
 	const struct st_term_config config = {
@@ -685,8 +682,7 @@ test_shell_rip_cp437_query_output(void)
 	st_profile_init(&profile);
 	profile.connection_type = ST_CONNECTION_SHELL;
 	profile.rip_version = ST_RIP_VERSION_1;
-	strcpy(profile.address,
-	    "stty raw -echo;printf '!|1\\0330000\\202^M\\r\\n';head -c2");
+	strcpy(profile.address, "sh term-fixture.sh rip-query");
 	CHECK(st_term_connect_profile(&connection, &profile, console, NULL,
 	    NULL) == 0);
 	const struct st_term_config config = {

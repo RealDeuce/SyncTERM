@@ -35,6 +35,11 @@ file(REMOVE "${_reports}/junit.xml" "${_reports}/execution.txt"
 	"${_reports}/capabilities.txt" "${_reports}/build.log" "${_reports}/test.log"
 	"${_reports}/CMakeConfigureLog.yaml" "${_reports}/CMakeError.log"
 	"${_reports}/CMakeOutput.log")
+file(GLOB _old_sanitizer_reports "${_reports}/asan.*" "${_reports}/ubsan.*"
+	"${_reports}/loader.*")
+if(_old_sanitizer_reports)
+	file(REMOVE ${_old_sanitizer_reports})
+endif()
 file(GLOB _old_apps "${CI_BUILD_DIR}/artifacts/syncterm*")
 if(_old_apps)
 	file(REMOVE ${_old_apps})
@@ -44,6 +49,9 @@ file(WRITE "${_reports}/environment.txt"
 	"CMake: ${CMAKE_VERSION}\nProfile: ${CI_PROFILE}\n"
 	"CC: $ENV{CC}\nCXX: $ENV{CXX}\nDISPLAY: $ENV{DISPLAY}\n"
 	"WAYLAND_DISPLAY: $ENV{WAYLAND_DISPLAY}\n")
+file(APPEND "${_reports}/environment.txt"
+	"TERM: $ENV{TERM}\nTERMINFO: $ENV{TERMINFO}\n"
+	"XDG_RUNTIME_DIR: $ENV{XDG_RUNTIME_DIR}\n")
 
 function(ci_command name)
 	message(STATUS "CI ${name}")
@@ -162,6 +170,13 @@ else()
 	find_program(_ctest NAMES ctest HINTS "${_cmake_bin}" REQUIRED)
 	if("$ENV{CTEST_PARALLEL_LEVEL}" STREQUAL "")
 		set(ENV{CTEST_PARALLEL_LEVEL} 1)
+	endif()
+	if(CI_PROFILE STREQUAL sanitizers AND CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
+		# glibc's loader records module bases before dlclose(), when LSan
+		# can no longer symbolize those allocation frames. Other loaders
+		# may ignore this optional diagnostic; it never alters unloading.
+		set(ENV{LD_DEBUG} files)
+		set(ENV{LD_DEBUG_OUTPUT} "${_reports}/loader")
 	endif()
 	ci_command(test "${_ctest}" --test-dir "${CI_BUILD_DIR}"
 		-C "${CI_BUILD_TYPE}" --parallel "$ENV{CTEST_PARALLEL_LEVEL}"

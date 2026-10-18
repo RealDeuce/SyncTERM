@@ -690,7 +690,7 @@ st_unicode_text_normalize(char **result, size_t *result_size,
 	st_unicode_text_t *text = NULL;
 	struct st_unicode_text_item item;
 	char *normalized = NULL;
-	size_t consumed;
+	size_t consumed = 0;
 	int status;
 
 	if (result == NULL || result_size == NULL

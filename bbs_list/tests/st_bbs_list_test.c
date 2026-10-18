@@ -4,6 +4,7 @@
 
 #include "filesystem.h"
 #include "io_error.h"
+#include "path.h"
 #include "st_app_paths.h"
 
 #include <stdio.h>
@@ -384,6 +385,10 @@ check_prepared_sort(void)
 int
 main(void)
 {
+	/* bsearch() requires a non-NULL base even for an empty list. Keep a
+	 * direct empty-view lookup in the UBSan test path. */
+	const st_bbs_list_t empty = {0};
+	CHECK(st_bbs_list_find(&empty, "missing") == NULL);
 	static const char personal_text[] =
 	    "; personal comment\n[Alpha]\nAddress=old.example\nUnknown=keep\n"
 	    "[Alpha]\nAddress=personal.example\n"
@@ -453,9 +458,10 @@ main(void)
 	    &picker_key_available) == 0);
 	CHECK(!picker_key_available);
 	CHECK(st_bbs_list_cache_path(&public_cache_path, first, "Beta") == 0);
-	(void)snprintf(cache_item, sizeof(cache_item),
-	    "%s/[u18-f44e64e75f3948e9f73f8dfa94721c4ce8cbb4f265c4790c702b2d41cfbf2753]",
-	    cache);
+	CHECK(path_append_separator(cache_item, sizeof(cache_item), cache) > 0);
+	size_t prefix_size = strlen(cache_item);
+	(void)snprintf(cache_item + prefix_size, sizeof(cache_item) - prefix_size,
+	    "[u18-f44e64e75f3948e9f73f8dfa94721c4ce8cbb4f265c4790c702b2d41cfbf2753]");
 	CHECK(strcmp(public_cache_path, cache_item) == 0);
 	free(public_cache_path);
 	public_cache_path = NULL;

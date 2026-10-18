@@ -8,6 +8,7 @@
 #include "st_time.h"
 
 #include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -117,12 +118,12 @@ benchmark_interpolate_height(const uint32_t *source, uint32_t *destination,
 }
 
 static uint64_t
-monotonic_ns(void)
+cpu_ns(void)
 {
 	uint64_t result;
 
-	if (st_time_monotonic_ns(&result) != 0) {
-		fprintf(stderr, "monotonic clock failed\n");
+	if (st_time_process_cpu_ns(&result) != 0) {
+		fprintf(stderr, "process CPU clock failed\n");
 		exit(EXIT_FAILURE);
 	}
 	return result;
@@ -152,7 +153,7 @@ run_case(st_pixel_scaler_t *scaler, const struct st_pixel_buffer *source,
 		fprintf(stderr, "scaler warmup failed\n");
 		exit(EXIT_FAILURE);
 	}
-	start = monotonic_ns();
+	start = cpu_ns();
 	for (unsigned long i = 0; i < iterations; ++i) {
 		if (st_pixel_scaler_scale(scaler, &result, &input, width, height,
 		    policy) != 0) {
@@ -162,7 +163,7 @@ run_case(st_pixel_scaler_t *scaler, const struct st_pixel_buffer *source,
 		checksum += result->pixels[(size_t)(i % height) * width
 		    + i % width];
 	}
-	finish = monotonic_ns();
+	finish = cpu_ns();
 	elapsed = seconds(start, finish);
 	printf("%-8s %ux%u -> %ux%u: %8.3f ms/frame, %8.1f Mpixel/s"
 	    "  checksum=%llu\n",
@@ -203,12 +204,12 @@ run_legacy_case(const struct st_pixel_buffer *source, uint32_t width,
 	if (first == NULL || second == NULL)
 		exit(EXIT_FAILURE);
 	legacy_full_frame(source, first, second, height, pointy);
-	start = monotonic_ns();
+	start = cpu_ns();
 	for (unsigned long i = 0; i < iterations; ++i) {
 		legacy_full_frame(source, first, second, height, pointy);
 		checksum += first[(size_t)(i % height) * width + i % width];
 	}
-	finish = monotonic_ns();
+	finish = cpu_ns();
 	elapsed = seconds(start, finish);
 	printf("%-8s %ux%u -> %ux%u: %8.3f ms/frame, %8.1f Mpixel/s"
 	    "  checksum=%llu\n", pointy ? "old-point" : "old-block",
@@ -228,7 +229,7 @@ run_damage_case(st_pixel_scaler_t *scaler, struct st_pixel_buffer *source,
 	const struct st_rgb_buffer input = {source->primary, source->width,
 	    source->height};
 	const struct st_rgb_buffer *result = NULL;
-	struct st_pixel_rect output_damage;
+	struct st_pixel_rect output_damage = {0};
 	uint64_t start;
 	uint64_t finish;
 	uint64_t checksum = 0;
@@ -237,7 +238,7 @@ run_damage_case(st_pixel_scaler_t *scaler, struct st_pixel_buffer *source,
 	if (st_pixel_scaler_scale(scaler, &result, &input, width, height,
 	    policy) != 0)
 		exit(EXIT_FAILURE);
-	start = monotonic_ns();
+	start = cpu_ns();
 	for (unsigned long i = 0; i < iterations; ++i) {
 		size_t changed = (size_t)damage.y * source->width + damage.x;
 
@@ -248,7 +249,7 @@ run_damage_case(st_pixel_scaler_t *scaler, struct st_pixel_buffer *source,
 		checksum += result->pixels[(size_t)output_damage.y * width
 		    + output_damage.x];
 	}
-	finish = monotonic_ns();
+	finish = cpu_ns();
 	elapsed = seconds(start, finish);
 	printf("%-8s %-9s: %8.3f us/update, output damage %ux%u"
 	    "  checksum=%llu\n",
@@ -270,7 +271,8 @@ main(int argc, char **argv)
 	if (argc == 2) {
 		errno = 0;
 		iterations = strtoul(argv[1], &end, 10);
-		if (errno != 0 || end == argv[1] || *end != 0 || iterations == 0) {
+		if (errno != 0 || end == argv[1] || *end != 0 || iterations == 0
+		    || iterations > ULONG_MAX / 100) {
 			fprintf(stderr, "usage: %s [iterations]\n", argv[0]);
 			return EXIT_FAILURE;
 		}

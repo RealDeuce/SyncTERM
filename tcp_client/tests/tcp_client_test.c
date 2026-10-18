@@ -8,6 +8,21 @@
 #include "io_error.h"
 
 #include <stdio.h>
+#include <inttypes.h>
+#include <errno.h>
+#include "socket_internal.h"
+
+static void
+diagnose(void *context, enum tcp_client_event event,
+	enum tcp_client_address_family family, int status)
+{
+	int64_t now = 0;
+	int clock_status = socket_internal_now_ms(&now);
+
+	(void)context;
+	fprintf(stderr, "TCP event=%d family=%d status=%d at=%" PRId64
+	    "ms clock-status=%d\n", event, family, status, now, clock_status);
+}
 
 #if SYNCTERM_PLATFORM_WINDOWS
 	#include <ws2tcpip.h>
@@ -16,8 +31,72 @@
 	#include <arpa/inet.h>
 	#include <netinet/in.h>
 	#include <sys/socket.h>
+	#include <sys/select.h>
 	typedef socklen_t test_socklen_t;
 #endif
+
+static int
+native_error(void)
+{
+#if SYNCTERM_PLATFORM_WINDOWS
+	return WSAGetLastError();
+#else
+	return errno;
+#endif
+}
+
+static void
+probe_refusal(const struct sockaddr_in *address)
+{
+	socket_handle_t probe = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	fd_set readers, writers, exceptions;
+	struct timeval timeout = {.tv_sec = 1, .tv_usec = 0};
+	int pending = 0;
+	test_socklen_t length = (test_socklen_t)sizeof(pending);
+
+	if (!socket_handle_is_valid(probe)) {
+		fprintf(stderr, "native refusal probe socket failed: %d\n", native_error());
+		return;
+	}
+#if !SYNCTERM_PLATFORM_WINDOWS
+	if (probe >= FD_SETSIZE) {
+		fprintf(stderr, "native refusal probe fd=%d exceeds select capacity\n", probe);
+		(void)socket_close(probe);
+		return;
+	}
+#endif
+	int status = socket_set_blocking(probe, false);
+	if (status != 0) {
+		fprintf(stderr, "native refusal probe nonblocking failed: %d\n", status);
+		(void)socket_close(probe);
+		return;
+	}
+	int connected = connect(probe, (const struct sockaddr *)address,
+	    (test_socklen_t)sizeof(*address));
+	int connect_error = connected == 0 ? 0 : native_error();
+	FD_ZERO(&readers);
+	FD_ZERO(&writers);
+	FD_ZERO(&exceptions);
+	FD_SET(probe, &readers);
+	FD_SET(probe, &writers);
+	FD_SET(probe, &exceptions);
+#if SYNCTERM_PLATFORM_WINDOWS
+	int ready = select(0, &readers, &writers, &exceptions, &timeout);
+	int wait_error = ready < 0 ? native_error() : 0;
+	int queried = getsockopt(probe, SOL_SOCKET, SO_ERROR, (char *)&pending, &length);
+#else
+	int ready = select(probe + 1, &readers, &writers, &exceptions, &timeout);
+	int wait_error = ready < 0 ? native_error() : 0;
+	int queried = getsockopt(probe, SOL_SOCKET, SO_ERROR, &pending, &length);
+#endif
+	int query_error = queried == 0 ? 0 : native_error();
+	fprintf(stderr, "native refusal probe: connect=%d error=%d select=%d"
+	    " error=%d readable=%d writable=%d exception=%d SO_ERROR=%d"
+	    " query=%d error=%d\n", connected, connect_error, ready, wait_error,
+	    FD_ISSET(probe, &readers) != 0, FD_ISSET(probe, &writers) != 0,
+	    FD_ISSET(probe, &exceptions) != 0, pending, queried, query_error);
+	(void)socket_close(probe);
+}
 
 #define CHECK(expression) do { \
 	if (!(expression)) { \
@@ -93,8 +172,13 @@ main(void)
 	connected = SOCKET_HANDLE_INVALID;
 	family = TCP_CLIENT_ADDRESS_ANY;
 	options.timeout_ms = 2000;
+	options.diagnostic = diagnose;
+	fprintf(stderr, "refusal test: bound non-listening loopback port=%u timeout=%" PRId64 "ms\n",
+	    (unsigned)ntohs(address.sin_port), options.timeout_ms);
 	int refused = tcp_client_connect(&connected, &family, "127.0.0.1",
 	    ntohs(address.sin_port), &options);
+	if (refused != IO_ERROR_CONNECTION_REFUSED)
+		probe_refusal(&address);
 	CHECK(socket_close(listener) == 0);
 	if (refused == 0)
 		(void)socket_close(connected);

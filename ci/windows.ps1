@@ -6,6 +6,14 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+function Save-NativeDiagnostic {
+    param([string]$Report, [string]$Program, [string[]]$CommandArguments)
+    # Windows PowerShell wraps native stderr in ErrorRecords, even for a
+    # successful `gcc -v`. Retain it without treating it as a script error.
+    $ErrorActionPreference = 'Continue'
+    & $Program @CommandArguments 2>&1 | Out-File -Append $Report
+    return $LASTEXITCODE
+}
 $projectRoot = Split-Path $PSScriptRoot -Parent
 if (-not $env:CI_BUILD_DIR) { $env:CI_BUILD_DIR = Join-Path $projectRoot 'build-ci' }
 $reports = Join-Path $env:CI_BUILD_DIR 'reports'
@@ -66,9 +74,49 @@ if ($Compiler -eq 'msvc') {
     # Also puts libwinpthread/libgcc runtime DLLs on the test process PATH.
     & $env:CC --version | Out-File (Join-Path $reports 'mingw-version.txt')
     if ($LASTEXITCODE -ne 0) { throw 'MinGW compiler could not run' }
+    $toolReport = Join-Path $reports 'mingw-tools.txt'
+    if (Test-Path -LiteralPath $toolReport) { Clear-Content $toolReport }
+    $null = Save-NativeDiagnostic $toolReport $env:CC @('-v')
+    $null = Save-NativeDiagnostic $toolReport $env:CC @('-print-search-dirs')
+    $null = Save-NativeDiagnostic $toolReport $env:CC @('-dumpmachine')
+    $assembler = & $env:CC -print-prog-name=as
+    if ($LASTEXITCODE -ne 0) { throw 'Could not resolve the compiler assembler' }
+    "Compiler-selected assembler: $assembler" | Out-File -Append $toolReport
+    if ((Save-NativeDiagnostic $toolReport $assembler @('--version')) -ne 0) {
+        throw 'Compiler-selected assembler could not run'
+    }
+    Get-Command gcc.exe, as.exe -All -ErrorAction SilentlyContinue | Select-Object Name, Source |
+        Format-Table | Out-File -Append $toolReport
+    # Keep the precise compile invocation for a failed target. The x86
+    # assembler failure also needs its generated assembly, not just stderr.
+    $env:CI_EXTRA_CMAKE_ARGS += ';-DCMAKE_EXPORT_COMPILE_COMMANDS=ON'
 }
 
 # Do not inherit an interactive session's display selection.
 Remove-Item Env:DISPLAY, Env:WAYLAND_DISPLAY -ErrorAction SilentlyContinue
 & cmake.exe -P (Join-Path $PSScriptRoot 'run.cmake')
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+$buildResult = $LASTEXITCODE
+if ($buildResult -ne 0 -and $Compiler -eq 'mingw') {
+    $commands = Join-Path $env:CI_BUILD_DIR 'compile_commands.json'
+    if (Test-Path -LiteralPath $commands) {
+        Copy-Item -LiteralPath $commands -Destination $reports
+        $failedSource = Get-Content -Raw $commands | ConvertFrom-Json |
+            Where-Object { $_.file -match '[/\\]bbs_list[/\\]st_bbs_list\.c$' } |
+            Select-Object -First 1
+        $buildLog = Join-Path $reports 'build.log'
+        if ($failedSource -and (Test-Path -LiteralPath $buildLog) -and
+            (Select-String -LiteralPath $buildLog -Pattern 'unknown pseudo-op.*uleb128' -Quiet)) {
+            Push-Location $failedSource.directory
+            try {
+                $reproResult = Save-NativeDiagnostic (Join-Path $reports 'mingw-assembly-repro.txt') cmd.exe @('/d', '/c', ($failedSource.command + ' -v -save-temps=obj'))
+                "Reproduction exit: $reproResult" |
+                    Out-File -Append (Join-Path $reports 'mingw-assembly-repro.txt')
+                Get-ChildItem (Join-Path $env:CI_BUILD_DIR 'bbs_list/CMakeFiles/st_bbs_list.dir') -Filter '*.s' -Recurse |
+                    Copy-Item -Destination $reports
+            } finally {
+                Pop-Location
+            }
+        }
+    }
+}
+exit $buildResult

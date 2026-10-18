@@ -91,7 +91,7 @@ main(void)
 	CHECK(strcmp(absolute, "\\\\server\\share\\two") == 0);
 	CHECK(path_make_absolute(absolute, sizeof(absolute), "C:.") > 0);
 	CHECK(absolute[1] == ':' && absolute[2] == '\\');
-	const char invalid[] = {(char)0xc0, (char)0xaf, '\0'};
+	const char invalid[] = "\xc0\xaf";
 	CHECK(path_make_absolute(NULL, 0, invalid) == IO_ERROR_INVALID_ENCODING);
 #else
 	CHECK(path_is_separator('/'));

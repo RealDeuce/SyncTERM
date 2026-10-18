@@ -17,7 +17,7 @@ int
 main(void)
 {
 	static const char text[] = "A\xe2\x82\xac\xf0\x9f\x98\x80";
-	static const char invalid[] = {(char)0xc0, (char)0x80, 0};
+	static const char invalid[] = "\xc0\x80";
 	static const wchar_t invalid_wide[] = {0xd800, 0};
 	wchar_t *wide = NULL;
 	char *roundtrip = NULL;

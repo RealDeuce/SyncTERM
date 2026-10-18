@@ -4,6 +4,8 @@
  */
 
 #include "st_cterm.h"
+#include "cterm.h"
+#include "cterm_dec.h"
 
 #include "io_error.h"
 
@@ -267,6 +269,34 @@ main(void)
 
 	CHECK(st_console_create(&console, &display, &console_config) == 0);
 	CHECK(st_font_catalog_create(&fonts, console) == 0);
+	/* DECDMAC's body parser must not depend on plain-char signedness.
+	 * Isolate it from the outer command-string framer's 7-bit restrictions. */
+	{
+		const struct st_cterm_config macro_config = {
+			.console = console, .fonts = fonts,
+			.emulation = ST_CTERM_ANSI_BBS,
+			.encoding = ST_CTERM_ENCODING_CODEPAGE,
+			.codepage = ST_CODEPAGE_CP437, .quiet = true,
+		};
+		static const uint8_t bytes[] = {0x20, 0x7e, 0xa0, 0xff, 0x7f};
+		for (size_t i = 0; i < sizeof(bytes); ++i) {
+			CHECK(st_cterm_create(&terminal, &macro_config) == 0);
+			feed(terminal, "\033P0;0;0!z", sizeof("\033P0;0;0!z") - 1);
+			CHECK(terminal->macro == MACRO_STARTED);
+			terminal->strbuf[0] = (char)bytes[i];
+			terminal->strbuf[1] = '\0';
+			terminal->strbuflen = 1;
+			cterm_dec_dcs_byte(terminal);
+			cterm_dec_dcs_finish(terminal);
+			if (terminal->macro_lens[0] != (bytes[i] == 0x7f ? 0U : 1U))
+				fprintf(stderr, "macro byte=%02x length=%zu state=%d\n",
+				    bytes[i], terminal->macro_lens[0], terminal->macro);
+			CHECK(terminal->macro_lens[0] == (bytes[i] == 0x7f ? 0 : 1));
+			if (bytes[i] != 0x7f)
+				CHECK((uint8_t)terminal->macros[0][0] == bytes[i]);
+			st_cterm_destroy(&terminal);
+		}
+	}
 	const struct st_cterm_config config = {
 		.console = console,
 		.fonts = fonts,

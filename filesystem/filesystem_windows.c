@@ -475,6 +475,18 @@ fs_create_directories(const char *path)
 	size_t length = wcslen(wide);
 	while (length > root && wide[length - 1] == L'\\')
 		wide[--length] = L'\0';
+	/* A volume/share root cannot be created. In particular, Windows may
+	 * reject CreateDirectory(root) without reporting ALREADY_EXISTS. */
+	if (length == root) {
+		DWORD attributes = GetFileAttributesW(wide);
+		if (attributes == INVALID_FILE_ATTRIBUTES)
+			error = fs_windows_error(GetLastError());
+		else
+			error = (attributes & FILE_ATTRIBUTE_DIRECTORY) != 0 ? 0
+			    : IO_ERROR_NOT_DIRECTORY;
+		free(wide);
+		return error;
+	}
 	for (wchar_t *current = wide + root; *current != L'\0'; current++) {
 		if (*current != L'\\')
 			continue;

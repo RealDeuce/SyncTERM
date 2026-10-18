@@ -23,8 +23,12 @@ known_folder(REFKNOWNFOLDERID identifier)
 	PWSTR wide = NULL;
 	char *result = NULL;
 
-	if (SHGetKnownFolderPath(identifier, 0, NULL, &wide) != S_OK)
+	/* Path discovery must not require lazy-created folders to exist (for
+	 * example Downloads in a service account's new profile). */
+	if (SHGetKnownFolderPath(identifier, KF_FLAG_DONT_VERIFY, NULL, &wide) != S_OK) {
+		CoTaskMemFree(wide);
 		return NULL;
+	}
 	(void)st_windows_utf16_to_utf8(&result, wide);
 	CoTaskMemFree(wide);
 	return result;

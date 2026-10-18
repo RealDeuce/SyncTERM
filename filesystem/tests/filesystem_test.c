@@ -257,7 +257,7 @@ main(void)
 			break;
 		*slash = '\0';
 	}
-	const char invalid[] = {(char)0xc0, (char)0xaf, '\0'};
+	const char invalid[] = "\xc0\xaf";
 	CHECK(fs_get_info(&info, invalid) == IO_ERROR_INVALID_ENCODING);
 #endif
 

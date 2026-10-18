@@ -528,7 +528,8 @@ test_shell(void)
 	strcpy(profile.address, "printf shell-test");
 #endif
 #if ST_CONNECTION_TEST_HAVE_SHELL
-	char buffer[64];
+	char buffer[4096];
+	size_t received = 0;
 
 	count = st_connection_connect_shell(&connection, &profile, &geometry,
 	    NULL, &hooks, &error);
@@ -542,10 +543,33 @@ test_shell(void)
 	geometry.rows = 24;
 	CHECK(st_connection_update_terminal_size(connection, &geometry) == 0
 	    || !st_connection_is_connected(connection));
-	count = st_connection_receive(connection, buffer, sizeof(buffer), 1000);
-	CHECK(count == 10);
-	CHECK(memcmp(buffer, "shell-test", 10) == 0);
-	CHECK(st_connection_receive(connection, buffer, sizeof(buffer), 1000) == 0);
+	/* Pipes and PTYs are streams, not one-write/one-read records. ConPTY
+	 * can also emit terminal setup sequences around the command output. */
+	for (unsigned attempt = 0; attempt < 50; ++attempt) {
+		count = st_connection_receive(connection, buffer + received,
+		    sizeof(buffer) - 1 - received, 100);
+		if (count == IO_ERROR_TIMED_OUT)
+			continue;
+		if (count <= 0)
+			break;
+		received += (size_t)count;
+		if (received == sizeof(buffer) - 1)
+			break;
+	}
+	buffer[received] = '\0';
+	if (count != 0 || strstr(buffer, "shell-test") == NULL) {
+		fprintf(stderr, "shell output: last read=%zd bytes=%zu data=",
+		    count, received);
+		for (size_t i = 0; i < received; ++i)
+			fprintf(stderr, "%02x ", (unsigned char)buffer[i]);
+		fputc('\n', stderr);
+	}
+	CHECK(count == 0);
+#if SYNCTERM_PLATFORM_WINDOWS
+	CHECK(strstr(buffer, "shell-test") != NULL);
+#else
+	CHECK(received == 10 && memcmp(buffer, "shell-test", 10) == 0);
+#endif
 	CHECK(st_connection_close(connection) == 0);
 	CHECK((atomic_load(&log.events) & (LOG_SHELL_START | LOG_SHELL_EXIT | LOG_CLOSED))
 	    == (LOG_SHELL_START | LOG_SHELL_EXIT | LOG_CLOSED));

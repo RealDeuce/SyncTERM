@@ -28,6 +28,27 @@
 	} \
 } while (0)
 
+static void
+diagnose_urgent_mark(socket_handle_t socket, const char *stage, bool at_mark)
+{
+#if SYNCTERM_PLATFORM_WINDOWS
+	u_long mark = 0;
+	u_long available = 0;
+	int mark_status = ioctlsocket(socket, SIOCATMARK, &mark);
+	int mark_error = mark_status == 0 ? 0 : WSAGetLastError();
+	int available_status = ioctlsocket(socket, FIONREAD, &available);
+	int available_error = available_status == 0 ? 0 : WSAGetLastError();
+
+	fprintf(stderr, "urgent stage=%s portable-mark=%d SIOCATMARK=%lu"
+	    " status=%d error=%d FIONREAD=%lu status=%d error=%d\n",
+	    stage, at_mark, mark, mark_status, mark_error, available,
+	    available_status, available_error);
+#else
+	(void)socket;
+	fprintf(stderr, "urgent stage=%s portable-mark=%d\n", stage, at_mark);
+#endif
+}
+
 int
 main(void)
 {
@@ -82,6 +103,7 @@ main(void)
 	CHECK(socket_wait(client, SOCKET_WAIT_URGENT, 1000, &events) == 0);
 	CHECK((events & SOCKET_WAIT_URGENT) != 0);
 	CHECK(socket_at_urgent_mark(client, &at_mark) == 0);
+	diagnose_urgent_mark(client, "before pre", at_mark);
 	CHECK(!at_mark);
 	CHECK(socket_receive(client, received, 1,
 	    SOCKET_RECEIVE_PEEK | SOCKET_RECEIVE_URGENT) == 1);
@@ -89,6 +111,7 @@ main(void)
 	CHECK(socket_receive(client, received, 3, SOCKET_RECEIVE_NONE) == 3);
 	CHECK(memcmp(received, "pre", 3) == 0);
 	CHECK(socket_at_urgent_mark(client, &at_mark) == 0);
+	diagnose_urgent_mark(client, "after pre", at_mark);
 	CHECK(at_mark);
 	CHECK(socket_receive(client, received, 1, SOCKET_RECEIVE_URGENT) == 1);
 	CHECK(received[0] == 0x02);

@@ -11,6 +11,7 @@ function(check_case name failure extra profile)
 	# Simulate inherited artifacts and a retry of a previously successful job.
 	file(MAKE_DIRECTORY "${_build}/reports" "${_build}/artifacts")
 	file(WRITE "${_build}/reports/junit.xml" "stale result")
+	file(WRITE "${_build}/reports/asan.stale.123" "stale sanitizer result")
 	file(WRITE "${_build}/artifacts/syncterm-stale" "stale binary")
 	execute_process(COMMAND "${CMAKE_COMMAND}" -E env
 		"CI_EXTRA_CMAKE_ARGS=${extra}" "CMAKE_BUILD_PARALLEL_LEVEL=2"
@@ -48,6 +49,9 @@ function(check_case name failure extra profile)
 	endif()
 	if(EXISTS "${_build}/artifacts/syncterm-stale")
 		message(FATAL_ERROR "${name}: published a stale binary")
+	endif()
+	if(EXISTS "${_build}/reports/asan.stale.123")
+		message(FATAL_ERROR "${name}: published a stale sanitizer report")
 	endif()
 endfunction()
 
