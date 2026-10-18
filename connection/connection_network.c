@@ -73,6 +73,8 @@ network_bind(void *state, st_connection_t *connection)
 	struct network_transport *transport = state;
 
 	transport->connection = connection;
+	if (transport->rlogin)
+		(void)st_connection_set_binary_mode(connection, false);
 }
 
 static int
@@ -145,13 +147,15 @@ handle_urgent(struct network_transport *transport, uint8_t control)
 }
 
 static int
-process_urgent(struct network_transport *transport, bool *handled)
+process_urgent(struct network_transport *transport, bool *handled,
+	bool *discard_input)
 {
 	uint8_t control;
 	ssize_t received;
 	int result;
 
 	*handled = false;
+	*discard_input = false;
 	if (!transport->urgent_control_known) {
 		bool at_mark = false;
 
@@ -173,6 +177,7 @@ process_urgent(struct network_transport *transport, bool *handled)
 		 * FLUSHWRITE never drains fresh data after that boundary. */
 		if (transport->urgent_control == 0x02) {
 			st_connection_clear_input(transport->connection);
+			*discard_input = true;
 			transport->urgent_flush_pending = !at_mark;
 		}
 	}
@@ -213,10 +218,11 @@ network_read(void *state, void *data, size_t size, int64_t timeout_ms)
 	unsigned interests = SOCKET_WAIT_READABLE;
 	unsigned events;
 	bool urgent_handled = false;
+	bool discard_input = false;
 	int result;
 
 	if (transport->urgent_pending) {
-		result = process_urgent(transport, &urgent_handled);
+		result = process_urgent(transport, &urgent_handled, &discard_input);
 		if (result != 0 && result != IO_ERROR_WOULD_BLOCK
 		    && result != IO_ERROR_INVALID_ARGUMENT)
 			return result;
@@ -230,8 +236,12 @@ network_read(void *state, void *data, size_t size, int64_t timeout_ms)
 		return IO_ERROR_IO;
 	if (!urgent_handled && ((events & SOCKET_WAIT_URGENT) != 0
 	    || transport->urgent_pending)) {
-		result = process_urgent(transport, &urgent_handled);
+		result = process_urgent(transport, &urgent_handled, &discard_input);
 		if (result == IO_ERROR_INVALID_ARGUMENT) {
+			/* An exception can remain asserted at the last urgent mark
+			 * after its byte was consumed. It must not mask stream EOF. */
+			if ((events & SOCKET_WAIT_CLOSED) != 0)
+				return 0;
 			transport->urgent_pending = transport->urgent_pending
 			    || (events & SOCKET_WAIT_READABLE) != 0;
 			if ((events & SOCKET_WAIT_URGENT) != 0)
@@ -315,10 +325,52 @@ network_destroy(void *state)
 	free(transport);
 }
 
+static int
+network_poll_input_control(void *state)
+{
+	struct network_transport *transport = state;
+	unsigned events = 0;
+	bool handled, discard_input;
+	int status;
+
+	status = socket_wait(transport->socket,
+	    SOCKET_WAIT_READABLE | SOCKET_WAIT_URGENT, 0, &events);
+	if (status != 0 && status != IO_ERROR_TIMED_OUT)
+		return status;
+	if ((events & SOCKET_WAIT_ERROR) != 0)
+		return IO_ERROR_IO;
+	if ((events & SOCKET_WAIT_URGENT) != 0 || transport->urgent_pending) {
+		status = process_urgent(transport, &handled, &discard_input);
+		if (status == IO_ERROR_INVALID_ARGUMENT && (events & SOCKET_WAIT_CLOSED) != 0)
+			return ST_CONNECTION_INPUT_CONTROL_EOF;
+		if (status == IO_ERROR_WOULD_BLOCK || status == IO_ERROR_INVALID_ARGUMENT) {
+			transport->urgent_pending = true;
+			return discard_input ? ST_CONNECTION_INPUT_CONTROL_DISCARD
+			    : ST_CONNECTION_INPUT_CONTROL_NONE;
+		}
+		if (status != 0)
+			return status;
+		return discard_input ? ST_CONNECTION_INPUT_CONTROL_DISCARD
+		    : ST_CONNECTION_INPUT_CONTROL_NONE;
+	}
+	return (events & SOCKET_WAIT_CLOSED) != 0 ? ST_CONNECTION_INPUT_CONTROL_EOF
+	    : ST_CONNECTION_INPUT_CONTROL_NONE;
+}
+
 static const struct st_connection_transport_ops network_operations = {
 	.bind = network_bind,
 	.read = network_read,
 	.write = network_write,
+	.interrupt = network_interrupt,
+	.update_terminal_size = network_update_terminal_size,
+	.destroy = network_destroy,
+};
+
+static const struct st_connection_transport_ops rlogin_operations = {
+	.bind = network_bind,
+	.read = network_read,
+	.write = network_write,
+	.poll_input_control = network_poll_input_control,
 	.interrupt = network_interrupt,
 	.update_terminal_size = network_update_terminal_size,
 	.destroy = network_destroy,
@@ -351,9 +403,15 @@ rlogin_send(st_connection_t *connection, const void *data, size_t size,
 				return (ssize_t)(start + (size_t)result);
 		}
 		if (consumed < size) {
-			st_connection_log(connection, ST_CONNECTION_LOG_DEBUG,
-			    "local %s consumed", bytes[consumed] == 0x13 ? "XOFF" : "XON");
-			st_connection_pause_input(connection, bytes[consumed] == 0x13);
+			if (st_connection_consume_flow_control(connection, bytes[consumed]))
+				st_connection_log(connection, ST_CONNECTION_LOG_DEBUG,
+				    "local %s consumed", bytes[consumed] == 0x13 ? "XOFF" : "XON");
+			else {
+				result = st_connection_queue_output(connection, bytes + consumed,
+				    1, timeout_ms);
+				if (result != 1)
+					return consumed != 0 ? (ssize_t)consumed : result;
+			}
 			++consumed;
 		}
 	}
@@ -392,6 +450,28 @@ send_c_string(socket_handle_t socket, const char *string,
 	const struct st_connection_hooks *hooks)
 {
 	return send_direct(socket, string, strlen(string) + 1, hooks);
+}
+
+static int
+rlogin_acknowledge(socket_handle_t socket, const struct st_connection_hooks *hooks)
+{
+	for (;;) {
+		unsigned events;
+		uint8_t status_byte = 0;
+		if (st_connection_cancelled(hooks, ST_CONNECTION_SETUP_NEGOTIATING))
+			return IO_ERROR_CANCELLED;
+		int status = socket_wait(socket, SOCKET_WAIT_READABLE, 100, &events);
+		if (status == IO_ERROR_TIMED_OUT)
+			continue;
+		if (status != 0)
+			return status;
+		ssize_t count = socket_receive(socket, &status_byte, 1, SOCKET_RECEIVE_NONE);
+		if (count < 0)
+			return (int)count;
+		if (count == 0)
+			return IO_ERROR_CONNECTION_RESET;
+		return status_byte == 0 ? 0 : IO_ERROR_PERMISSION_DENIED;
+	}
 }
 
 static int
@@ -470,6 +550,8 @@ connect_network(st_connection_t **result, const struct st_profile *profile,
 			status = send_c_string(socket, second, hooks);
 		if (status == 0)
 			status = send_c_string(socket, terminal, hooks);
+		if (status == 0)
+			status = rlogin_acknowledge(socket, hooks);
 		if (status != 0) {
 			st_connection_log_hooks(hooks, "RLogin", status == IO_ERROR_CANCELLED
 			    ? ST_CONNECTION_LOG_INFO : ST_CONNECTION_LOG_ERROR,
@@ -477,8 +559,9 @@ connect_network(st_connection_t **result, const struct st_profile *profile,
 			(void)socket_close(socket);
 			(void)socket_runtime_cleanup();
 			return st_connection_fail(error, status,
-			    ST_CONNECTION_SETUP_CONNECTING,
-			    "RLogin negotiation failed");
+			    ST_CONNECTION_SETUP_NEGOTIATING,
+			    status == IO_ERROR_PERMISSION_DENIED ? "RLogin server rejected the login"
+			    : "RLogin negotiation failed");
 		}
 		st_connection_log_hooks(hooks, "RLogin", ST_CONNECTION_LOG_DEBUG,
 		    "sent terminal parameters emulation=%s rate=%u", st_connection_terminal_name(profile),
@@ -523,7 +606,8 @@ connect_network(st_connection_t **result, const struct st_profile *profile,
 			    "invalid initial terminal geometry");
 		}
 	}
-	status = st_connection_start(result, transport, &network_operations,
+	status = st_connection_start(result, transport,
+	    rlogin ? &rlogin_operations : &network_operations,
 	    rlogin ? "RLogin" : "Raw", hooks, rlogin ? rlogin_send : NULL,
 	    error);
 	if (status == 0)

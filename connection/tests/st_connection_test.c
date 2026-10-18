@@ -209,6 +209,8 @@ rlogin_server_worker(void *argument)
 	if (receive_exact(client, buffer, sizeof(rlogin_handshake)) != 0
 	    || memcmp(buffer, rlogin_handshake, sizeof(rlogin_handshake)) != 0)
 		goto failed;
+	if (socket_send(client, "", 1) != 1)
+		goto failed;
 	atomic_store(&state->stage, 2);
 	while (!atomic_load(&state->allow_urgent))
 		st_thread_yield();
@@ -261,6 +263,8 @@ rlogin_flush_server_worker(void *argument)
 		return 1;
 	if (receive_exact(client, buffer, sizeof(rlogin_handshake)) != 0
 	    || memcmp(buffer, rlogin_handshake, sizeof(rlogin_handshake)) != 0)
+		goto failed;
+	if (socket_send(client, "", 1) != 1)
 		goto failed;
 	if (socket_send(client, "stale!!", 7) != 7)
 		goto failed;
@@ -423,6 +427,7 @@ test_rlogin(void)
 	strcpy(profile.terminal_name, "ansi");
 	CHECK(st_connection_connect_rlogin(&connection, &profile, &geometry,
 	    &hooks, &error) == 0);
+	CHECK(!atomic_load(&connection->binary_mode));
 	geometry.columns = 100;
 	geometry.rows = 30;
 	CHECK(st_connection_update_terminal_size(connection, &geometry) == 0);
@@ -436,7 +441,6 @@ test_rlogin(void)
 	CHECK(connection_receive_exact(connection, buffer, 1) == 0);
 	CHECK(buffer[0] == 'y');
 	atomic_store(&server.allow_flush, true);
-	CHECK(st_connection_set_binary_mode(connection, false) == 0);
 	CHECK(connection_receive_exact(connection, buffer, 6) == 0);
 	CHECK(memcmp(buffer, "cooked", 6) == 0);
 	CHECK(st_connection_send(connection, "\x13" "AB" "\x11", 4, 1000)
@@ -507,6 +511,334 @@ test_rlogin_flush(void)
 	CHECK(socket_close(server.listener) == 0);
 	CHECK(socket_runtime_cleanup() == 0);
 	st_profile_dispose(&profile);
+	return 0;
+}
+
+static int
+wait_for_binary(st_connection_t *connection, bool binary)
+{
+	const struct timespec pause = {0, 1000000L};
+	for (unsigned attempt = 0; attempt < 3000; ++attempt) {
+		if (atomic_load(&connection->binary_mode) == binary)
+			return 0;
+		(void)st_thread_sleep(&pause, NULL);
+	}
+	fprintf(stderr, "RLogin did not switch to %s mode\n", binary ? "raw" : "cooked");
+	return 1;
+}
+
+static int
+rlogin_flow_server(void *argument)
+{
+	struct server_state *state = argument;
+	socket_handle_t client = accept(state->listener, NULL, NULL);
+	uint8_t bytes[64];
+	static const uint8_t window[] = {
+		0xff, 0xff, 's', 's', 0, 25, 0, 80, 0, 0, 0, 0,
+	};
+	if (!socket_handle_is_valid(client))
+		return 1;
+	if (receive_exact(client, bytes, sizeof(rlogin_handshake)) != 0
+	    || memcmp(bytes, rlogin_handshake, sizeof(rlogin_handshake)) != 0
+	    || socket_send(client, "\0start", 6) != 6)
+		goto failed;
+	while (!atomic_load(&state->allow_urgent))
+		st_thread_yield();
+	if (socket_send(client, "held", 4) != 4 || send_urgent(client, 0x80) != 0
+	    || receive_exact(client, bytes, sizeof(window)) != 0
+	    || memcmp(bytes, window, sizeof(window)) != 0)
+		goto failed;
+	atomic_store(&state->stage, 3);
+	if (receive_exact(client, bytes, 1) != 0 || bytes[0] != 'A'
+	    || socket_send(client, "post", 4) != 4
+	    || receive_exact(client, bytes, 1) != 0 || bytes[0] != 'Z'
+	    || send_urgent(client, 0x01) != 0
+	    || socket_send(client, "unknown", 7) != 7
+	    || receive_exact(client, bytes, 1) != 0 || bytes[0] != 'B'
+	    || send_urgent(client, 0x10) != 0
+	    || receive_exact(client, bytes, 3) != 0
+	    || memcmp(bytes, "\x13R\x11", 3) != 0
+	    || send_urgent(client, 0x20) != 0
+	    || receive_exact(client, bytes, 1) != 0 || bytes[0] != 'C'
+	    || socket_send(client, "again", 5) != 5
+	    || send_urgent(client, 0x10) != 0
+	    || receive_exact(client, bytes, 1) != 0 || bytes[0] != 'D')
+		goto failed;
+	atomic_store(&state->stage, 5);
+	(void)socket_close(client);
+	return 0;
+failed:
+	(void)socket_close(client);
+	return 1;
+}
+
+static int
+rlogin_backpressure_server(void *argument)
+{
+	struct server_state *state = argument;
+	socket_handle_t client = accept(state->listener, NULL, NULL);
+	uint8_t bytes[1024];
+	static const uint8_t window[] = {
+		0xff, 0xff, 's', 's', 0, 25, 0, 80, 0, 0, 0, 0,
+	};
+	if (!socket_handle_is_valid(client))
+		return 1;
+	if (receive_exact(client, bytes, sizeof(rlogin_handshake)) != 0
+	    || memcmp(bytes, rlogin_handshake, sizeof(rlogin_handshake)) != 0
+	    || socket_send(client, "", 1) != 1)
+		goto failed;
+	while (!atomic_load(&state->allow_urgent))
+		st_thread_yield();
+	memset(bytes, 'x', sizeof(bytes));
+	/* More than the queue plus the worker's staged chunk: stale bytes must
+	 * remain in the native socket when FLUSHWRITE arrives. */
+	for (size_t sent = 0; sent < 3 * ST_CONNECTION_BUFFER_SIZE;) {
+		ssize_t count = socket_send(client, bytes, sizeof(bytes));
+		if (count <= 0)
+			goto failed;
+		sent += (size_t)count;
+	}
+	while (!atomic_load(&state->allow_flush))
+		st_thread_yield();
+	if (send_urgent(client, 0x80) != 0
+	    || receive_exact(client, bytes, 12) != 0
+	    || memcmp(bytes, window, sizeof(window)) != 0)
+		goto failed;
+	atomic_store(&state->stage, 4);
+	while (!atomic_load(&state->allow_postmark))
+		st_thread_yield();
+	if (send_urgent(client, 0x02) != 0)
+		goto failed;
+	atomic_store(&state->stage, 5);
+	if (receive_exact(client, bytes, 1) != 0 || bytes[0] != 'K'
+	    || socket_send(client, "fresh", 5) != 5
+	    || receive_exact(client, bytes, 1) != 0 || bytes[0] != 'D')
+		goto failed;
+	(void)socket_close(client);
+	return 0;
+failed:
+	(void)socket_close(client);
+	return 1;
+}
+
+static int
+test_rlogin_flow(bool backpressure)
+{
+	struct server_state server;
+	struct log_state log = {0};
+	const struct st_connection_hooks hooks = {.log = test_log, .log_context = &log};
+	struct st_profile profile;
+	struct st_screen_geometry geometry = {80, 25, 0, 0};
+	st_connection_t *connection = NULL;
+	st_thread_t thread;
+	char bytes[8];
+	uint16_t port;
+	int thread_result;
+	CHECK(socket_runtime_init() == 0);
+	CHECK(create_listener(&server, &port) == 0);
+	CHECK(st_thread_create(&thread, backpressure ? rlogin_backpressure_server
+	    : rlogin_flow_server, &server) == ST_THREAD_SUCCESS);
+	st_profile_init(&profile);
+	profile.connection_type = ST_CONNECTION_RLOGIN;
+	profile.address_family = ST_ADDRESS_FAMILY_IPV4;
+	profile.screen_mode = ST_SCREEN_MODE_CURRENT;
+	profile.hide_status = true;
+	profile.port = port;
+	strcpy(profile.address, "127.0.0.1");
+	strcpy(profile.username, "user");
+	strcpy(profile.password, "secret");
+	strcpy(profile.terminal_name, "ansi");
+	CHECK(st_connection_connect_rlogin(&connection, &profile, &geometry,
+	    &hooks, NULL) == 0);
+	CHECK(!atomic_load(&connection->binary_mode));
+	if (!backpressure) {
+		CHECK(connection_receive_exact(connection, bytes, 5) == 0);
+		CHECK(memcmp(bytes, "start", 5) == 0); /* ACK must not reach data. */
+	}
+	CHECK(st_connection_send(connection, "\x13", 1, 1000) == 1);
+	atomic_store(&server.allow_urgent, true);
+	if (backpressure) {
+		CHECK(wait_for_pending(connection, ST_CONNECTION_BUFFER_SIZE) == 0);
+		atomic_store(&server.allow_flush, true);
+		CHECK(wait_for_stage(&server, 4) == 0); /* Window request while full. */
+	} else {
+		CHECK(wait_for_stage(&server, 3) == 0);
+		CHECK(wait_for_pending(connection, 4) == 0);
+	}
+	CHECK(st_connection_receive(connection, bytes, 1, 0) == IO_ERROR_WOULD_BLOCK);
+	CHECK(st_connection_peek_raw(connection, bytes, 1) == IO_ERROR_WOULD_BLOCK);
+	if (backpressure) {
+		atomic_store(&server.allow_postmark, true);
+		CHECK(wait_for_stage(&server, 5) == 0);
+		CHECK(wait_for_pending(connection, 0) == 0);
+		CHECK(st_connection_send(connection, "K", 1, 1000) == 1);
+		CHECK(wait_for_pending(connection, 5) == 0);
+		CHECK(st_connection_receive(connection, bytes, 1, 0) == IO_ERROR_WOULD_BLOCK);
+	}
+	CHECK(st_connection_send(connection, "\x11", 1, 1000) == 1);
+	CHECK(connection_receive_exact(connection, bytes, backpressure ? 5 : 4) == 0);
+	CHECK(memcmp(bytes, backpressure ? "fresh" : "held", backpressure ? 5 : 4) == 0);
+	if (!backpressure) {
+		CHECK(st_connection_send(connection, "A", 1, 1000) == 1);
+		CHECK(connection_receive_exact(connection, bytes, 4) == 0);
+		CHECK(memcmp(bytes, "post", 4) == 0);
+		CHECK(st_connection_send(connection, "Z", 1, 1000) == 1);
+		CHECK(connection_receive_exact(connection, bytes, 7) == 0);
+		CHECK(memcmp(bytes, "unknown", 7) == 0);
+		CHECK(!atomic_load(&connection->binary_mode));
+		CHECK(st_connection_send(connection, "B", 1, 1000) == 1);
+		CHECK(wait_for_binary(connection, true) == 0);
+		CHECK(st_connection_send(connection, "\x13R\x11", 3, 1000) == 3);
+		CHECK(wait_for_binary(connection, false) == 0);
+		CHECK(st_connection_send(connection, "\x13" "C", 2, 1000) == 2);
+		CHECK(wait_for_binary(connection, true) == 0); /* Raw resumes XOFF. */
+		CHECK(connection_receive_exact(connection, bytes, 5) == 0);
+		CHECK(memcmp(bytes, "again", 5) == 0);
+	}
+	CHECK(st_connection_send(connection, "D", 1, 1000) == 1);
+	ssize_t final_read = st_connection_receive(connection, bytes, 1, 3000);
+	if (final_read != 0)
+		fprintf(stderr, "RLogin final read=%zd server-stage=%d connected=%d queued=%zu\n",
+		    final_read, atomic_load(&server.stage), st_connection_is_connected(connection),
+		    st_connection_pending_raw(connection));
+	CHECK(final_read == 0);
+	CHECK(st_connection_close(connection) == 0);
+	CHECK(st_thread_join(thread, &thread_result) == ST_THREAD_SUCCESS);
+	CHECK(thread_result == 0);
+	CHECK(socket_close(server.listener) == 0);
+	CHECK(socket_runtime_cleanup() == 0);
+	st_profile_dispose(&profile);
+	return 0;
+}
+
+enum rlogin_setup_case {
+	RLOGIN_REJECT, RLOGIN_EARLY_EOF, RLOGIN_CANCEL,
+	RLOGIN_STOPPED_CLOSE, RLOGIN_STOPPED_EOF,
+};
+
+struct rlogin_setup_state {
+	struct server_state server;
+	enum rlogin_setup_case mode;
+};
+
+static int
+rlogin_setup_server(void *argument)
+{
+	struct rlogin_setup_state *state = argument;
+	socket_handle_t client = accept(state->server.listener, NULL, NULL);
+	uint8_t bytes[1024];
+	ssize_t received;
+	int result = 1;
+	if (!socket_handle_is_valid(client))
+		return 1;
+	if (receive_exact(client, bytes, sizeof(rlogin_handshake)) != 0
+	    || memcmp(bytes, rlogin_handshake, sizeof(rlogin_handshake)) != 0)
+		goto done;
+	if (state->mode == RLOGIN_REJECT) {
+		result = socket_send(client, "\1Rejected\n", 10) == 10 ? 0 : 1;
+		goto done;
+	}
+	if (state->mode == RLOGIN_EARLY_EOF) {
+		result = 0;
+		goto done;
+	}
+	if (state->mode == RLOGIN_STOPPED_CLOSE || state->mode == RLOGIN_STOPPED_EOF) {
+		if (socket_send(client, "", 1) != 1)
+			goto done;
+		memset(bytes, 'x', sizeof(bytes));
+		for (size_t sent = 0; sent < ST_CONNECTION_BUFFER_SIZE + 4096;) {
+			ssize_t count = socket_send(client, bytes, sizeof(bytes));
+			if (count <= 0)
+				goto done;
+			sent += (size_t)count;
+		}
+		atomic_store(&state->server.stage, 3);
+		if (state->mode == RLOGIN_STOPPED_EOF) {
+			while (!atomic_load(&state->server.allow_flush))
+				st_thread_yield();
+			result = 0;
+			goto done;
+		}
+	}
+	/* Cancellation during ACK wait and local close while stopped must both
+	 * close the transport and release the peer, not strand a worker. */
+	received = socket_receive(client, bytes, 1, SOCKET_RECEIVE_NONE);
+	result = received == 0 || (state->mode == RLOGIN_STOPPED_CLOSE
+	    && received == IO_ERROR_CONNECTION_RESET) ? 0 : 1;
+done:
+	(void)socket_close(client);
+	return result;
+}
+
+static enum st_connection_setup_action
+cancel_rlogin_ack(void *context, enum st_connection_setup_phase phase)
+{
+	(void)context;
+	return phase == ST_CONNECTION_SETUP_NEGOTIATING
+	    ? ST_CONNECTION_SETUP_CANCEL : ST_CONNECTION_SETUP_CONTINUE;
+}
+
+static int
+test_rlogin_setup(void)
+{
+	for (int mode = RLOGIN_REJECT; mode <= RLOGIN_STOPPED_EOF; ++mode) {
+		struct rlogin_setup_state state;
+		struct st_profile profile;
+		struct st_screen_geometry geometry = {80, 25, 0, 0};
+		struct st_connection_error error;
+		struct st_connection_hooks hooks = {0};
+		st_connection_t *connection = NULL;
+		st_thread_t thread;
+		uint16_t port;
+		int thread_result;
+		CHECK(socket_runtime_init() == 0);
+		CHECK(create_listener(&state.server, &port) == 0);
+		state.mode = (enum rlogin_setup_case)mode;
+		CHECK(st_thread_create(&thread, rlogin_setup_server, &state) == ST_THREAD_SUCCESS);
+		st_profile_init(&profile);
+		profile.connection_type = ST_CONNECTION_RLOGIN;
+		profile.address_family = ST_ADDRESS_FAMILY_IPV4;
+		profile.screen_mode = ST_SCREEN_MODE_CURRENT;
+		profile.port = port;
+		strcpy(profile.address, "127.0.0.1");
+		strcpy(profile.username, "user");
+		strcpy(profile.password, "secret");
+		strcpy(profile.terminal_name, "ansi");
+		if (mode == RLOGIN_CANCEL)
+			hooks.setup = cancel_rlogin_ack;
+		int status = st_connection_connect_rlogin(&connection, &profile, &geometry,
+		    &hooks, &error);
+		if (mode == RLOGIN_STOPPED_CLOSE || mode == RLOGIN_STOPPED_EOF) {
+			CHECK(status == 0);
+			CHECK(st_connection_send(connection, "\x13", 1, 1000) == 1);
+			CHECK(wait_for_pending(connection, ST_CONNECTION_BUFFER_SIZE) == 0);
+			CHECK(wait_for_stage(&state.server, 3) == 0);
+			if (mode == RLOGIN_STOPPED_EOF) {
+				uint8_t bytes[1024];
+				size_t received = 0;
+				ssize_t count;
+				atomic_store(&state.server.allow_flush, true);
+				while ((count = st_connection_receive(connection, bytes, sizeof(bytes), 2000)) > 0) {
+					for (ssize_t i = 0; i < count; ++i)
+						CHECK(bytes[i] == 'x');
+					received += (size_t)count;
+				}
+				CHECK(count == 0 && received == ST_CONNECTION_BUFFER_SIZE + 4096);
+			}
+			CHECK(st_connection_close(connection) == 0);
+		} else {
+			int expected = mode == RLOGIN_REJECT ? IO_ERROR_PERMISSION_DENIED
+			    : mode == RLOGIN_EARLY_EOF ? IO_ERROR_CONNECTION_RESET : IO_ERROR_CANCELLED;
+			CHECK(status == expected && error.code == expected);
+			CHECK(error.phase == ST_CONNECTION_SETUP_NEGOTIATING);
+			CHECK(connection == NULL);
+		}
+		CHECK(st_thread_join(thread, &thread_result) == ST_THREAD_SUCCESS);
+		CHECK(thread_result == 0);
+		CHECK(socket_close(state.server.listener) == 0);
+		CHECK(socket_runtime_cleanup() == 0);
+		st_profile_dispose(&profile);
+	}
 	return 0;
 }
 
@@ -1227,6 +1559,12 @@ main(int argc, char **argv)
 		return test_shell_shutdown() != 0;
 	if (argc == 2 && strcmp(argv[1], "--shell-drain") == 0)
 		return test_shell_drain() != 0;
+	if (argc == 2 && strcmp(argv[1], "--rlogin-flow") == 0)
+		return test_rlogin_flow(false);
+	if (argc == 2 && strcmp(argv[1], "--rlogin-backpressure") == 0)
+		return test_rlogin_flow(true);
+	if (argc == 2 && strcmp(argv[1], "--rlogin-setup") == 0)
+		return test_rlogin_setup();
 #if !SYNCTERM_PLATFORM_WINDOWS && ST_CONNECTION_TEST_HAVE_SHELL
 	if (argc == 2)
 		fixture = argv[1];
@@ -1236,7 +1574,8 @@ main(int argc, char **argv)
 #endif
 	{
 		fprintf(stderr,
-		    "usage: %s [--partial-input|--shell-shutdown|--shell-drain] "
+		    "usage: %s [--partial-input|--shell-shutdown|--shell-drain|"
+		    "--rlogin-flow|--rlogin-backpressure|--rlogin-setup] "
 		    "[shell-fixture]\n", argv[0]);
 		return 1;
 	}

@@ -21,6 +21,13 @@ struct st_connection_queue {
 	size_t count;
 	bool stopped;
 	bool eof;
+	bool paused; /* Holds delivery, never transport/control processing. */
+};
+
+enum st_connection_input_control {
+	ST_CONNECTION_INPUT_CONTROL_NONE,
+	ST_CONNECTION_INPUT_CONTROL_DISCARD,
+	ST_CONNECTION_INPUT_CONTROL_EOF,
 };
 
 struct st_connection_transport_ops {
@@ -32,6 +39,12 @@ struct st_connection_transport_ops {
 	ssize_t (*read)(void *state, void *data, size_t size, int64_t timeout_ms);
 	ssize_t (*write)(void *state, const void *data, size_t size,
 		int64_t timeout_ms);
+	/* Input worker only, while its bounded queue is full. Must not read
+	 * ordinary data except to discard through a protocol flush boundary.
+	 * Returns an input-control result or negative IO_ERROR_*. DISCARD drops
+	 * the worker's not-yet-queued suffix; EOF releases local flow control but
+	 * preserves that suffix for delivery before the ordinary read sees EOF. */
+	int (*poll_input_control)(void *state);
 	void (*interrupt)(void *state);
 	int (*update_terminal_size)(void *state,
 		const struct st_screen_geometry *geometry);
@@ -49,8 +62,6 @@ struct st_connection {
 	struct st_connection_hooks hooks;
 	struct st_connection_queue input;
 	struct st_connection_queue output;
-	st_mutex_t state_mutex;
-	st_condition_t state_changed;
 	st_thread_t input_thread;
 	st_thread_t output_thread;
 	uint64_t started_ms;
@@ -59,7 +70,6 @@ struct st_connection {
 	atomic_bool connected;
 	atomic_bool stopping;
 	atomic_bool binary_mode;
-	bool input_paused;
 	bool input_thread_started;
 	bool output_thread_started;
 };
@@ -74,7 +84,8 @@ ssize_t st_connection_queue_output(st_connection_t *connection,
 ssize_t st_connection_queue_output_atomic(st_connection_t *connection,
 	const void *data, size_t size, int64_t timeout_ms);
 void st_connection_clear_input(st_connection_t *connection);
-void st_connection_pause_input(st_connection_t *connection, bool paused);
+bool st_connection_consume_flow_control(st_connection_t *connection,
+	uint8_t byte);
 void st_connection_log(st_connection_t *connection,
 	enum st_connection_log_level level, const char *format, ...);
 void st_connection_log_hooks(const struct st_connection_hooks *hooks,

@@ -88,6 +88,8 @@ queue_stop(struct st_connection_queue *queue, bool eof)
 	(void)st_mutex_lock(&queue->mutex);
 	queue->stopped = true;
 	queue->eof = queue->eof || eof;
+	/* A dead connection cannot require a local START to deliver final EOF. */
+	queue->paused = false;
 	(void)st_condition_broadcast(&queue->changed);
 	(void)st_mutex_unlock(&queue->mutex);
 }
@@ -223,7 +225,7 @@ queue_read(struct st_connection_queue *queue, void *data, size_t size,
 	if (timeout_ms > 0)
 		deadline = deadline_after(timeout_ms);
 	(void)st_mutex_lock(&queue->mutex);
-	while (queue->count == 0 && !queue->eof && !queue->stopped) {
+	while ((queue->count == 0 || queue->paused) && !queue->eof && !queue->stopped) {
 		if (timeout_ms == 0) {
 			(void)st_mutex_unlock(&queue->mutex);
 			return IO_ERROR_WOULD_BLOCK;
@@ -281,9 +283,6 @@ stop_connection(st_connection_t *connection, bool eof)
 	atomic_store(&connection->connected, false);
 	queue_stop(&connection->input, eof);
 	queue_stop(&connection->output, false);
-	(void)st_mutex_lock(&connection->state_mutex);
-	(void)st_condition_broadcast(&connection->state_changed);
-	(void)st_mutex_unlock(&connection->state_mutex);
 	if (!was_stopping && connection->operations->interrupt != NULL)
 		connection->operations->interrupt(connection->transport);
 }
@@ -297,14 +296,6 @@ input_worker(void *argument)
 	while (!atomic_load(&connection->stopping)) {
 		ssize_t received;
 
-		(void)st_mutex_lock(&connection->state_mutex);
-		while (connection->input_paused
-		    && !atomic_load(&connection->stopping))
-			(void)st_condition_wait(&connection->state_changed,
-			    &connection->state_mutex);
-		(void)st_mutex_unlock(&connection->state_mutex);
-		if (atomic_load(&connection->stopping))
-			break;
 		received = connection->operations->read(connection->transport,
 		    buffer, sizeof(buffer), 100);
 		if (received == IO_ERROR_TIMED_OUT
@@ -328,7 +319,8 @@ input_worker(void *argument)
 		 * Retain that transport chunk until its complete suffix is queued. */
 		for (size_t queued = 0; queued < (size_t)received;) {
 			ssize_t result = queue_write(&connection->input,
-			    buffer + queued, (size_t)received - queued, -1);
+			    buffer + queued, (size_t)received - queued,
+			    connection->operations->poll_input_control != NULL ? 100 : -1);
 
 			if (result > 0) {
 				queued += (size_t)result;
@@ -337,6 +329,26 @@ input_worker(void *argument)
 			if (atomic_load(&connection->stopping)
 			    || result == IO_ERROR_NOT_CONNECTED)
 				return 0;
+			if (result == IO_ERROR_TIMED_OUT
+			    && connection->operations->poll_input_control != NULL) {
+				int status = connection->operations->poll_input_control(
+				    connection->transport);
+				if (status < 0) {
+					st_connection_log(connection, ST_CONNECTION_LOG_ERROR,
+					    "input control failed (%d)", status);
+					stop_connection(connection, false);
+					return 0;
+				}
+				if (status == ST_CONNECTION_INPUT_CONTROL_DISCARD)
+					break;
+				if (status == ST_CONNECTION_INPUT_CONTROL_EOF) {
+					(void)st_mutex_lock(&connection->input.mutex);
+					connection->input.paused = false;
+					(void)st_condition_broadcast(&connection->input.changed);
+					(void)st_mutex_unlock(&connection->input.mutex);
+				}
+				continue;
+			}
 			st_connection_log(connection, ST_CONNECTION_LOG_ERROR,
 			    "input queue failed (%d)", (int)result);
 			stop_connection(connection, false);
@@ -445,24 +457,6 @@ st_connection_start(st_connection_t **result, void *transport,
 		free(connection);
 		return st_connection_fail(error, IO_ERROR_OUT_OF_MEMORY,
 		    ST_CONNECTION_SETUP_NONE, "unable to initialize output queue");
-	}
-	if (st_mutex_init(&connection->state_mutex, ST_MUTEX_PLAIN)
-	    != ST_THREAD_SUCCESS) {
-		operations->destroy(transport);
-		queue_destroy(&connection->output);
-		queue_destroy(&connection->input);
-		free(connection);
-		return st_connection_fail(error, IO_ERROR_OUT_OF_MEMORY,
-		    ST_CONNECTION_SETUP_NONE, "unable to initialize connection state");
-	}
-	if (st_condition_init(&connection->state_changed) != ST_THREAD_SUCCESS) {
-		operations->destroy(transport);
-		st_mutex_destroy(&connection->state_mutex);
-		queue_destroy(&connection->output);
-		queue_destroy(&connection->input);
-		free(connection);
-		return st_connection_fail(error, IO_ERROR_OUT_OF_MEMORY,
-		    ST_CONNECTION_SETUP_NONE, "unable to initialize connection state");
 	}
 	atomic_init(&connection->connected, true);
 	atomic_init(&connection->stopping, false);
@@ -615,9 +609,15 @@ st_connection_set_binary_mode(st_connection_t *connection, bool enabled)
 	if (connection->operations->set_binary_mode != NULL)
 		return connection->operations->set_binary_mode(
 		    connection->transport, enabled);
+	/* Serialize a raw-mode resume with local XOFF: a racing sender must
+	 * not leave delivery paused after the server has selected raw mode. */
+	(void)st_mutex_lock(&connection->input.mutex);
 	atomic_store(&connection->binary_mode, enabled);
-	if (enabled)
-		st_connection_pause_input(connection, false);
+	if (enabled) {
+		connection->input.paused = false;
+		(void)st_condition_broadcast(&connection->input.changed);
+	}
+	(void)st_mutex_unlock(&connection->input.mutex);
 	return 0;
 }
 
@@ -644,13 +644,18 @@ st_connection_clear_input(st_connection_t *connection)
 	(void)st_mutex_unlock(&connection->input.mutex);
 }
 
-void
-st_connection_pause_input(st_connection_t *connection, bool paused)
+bool
+st_connection_consume_flow_control(st_connection_t *connection, uint8_t byte)
 {
-	(void)st_mutex_lock(&connection->state_mutex);
-	connection->input_paused = paused;
-	(void)st_condition_broadcast(&connection->state_changed);
-	(void)st_mutex_unlock(&connection->state_mutex);
+	bool consumed = false;
+	(void)st_mutex_lock(&connection->input.mutex);
+	if (!atomic_load(&connection->binary_mode) && (byte == 0x11 || byte == 0x13)) {
+		connection->input.paused = byte == 0x13;
+		(void)st_condition_broadcast(&connection->input.changed);
+		consumed = true;
+	}
+	(void)st_mutex_unlock(&connection->input.mutex);
+	return consumed;
 }
 
 void
@@ -810,8 +815,6 @@ st_connection_close(st_connection_t *connection)
 	connection->operations->destroy(connection->transport);
 	st_connection_log_hooks(&connection->hooks, "Connection", ST_CONNECTION_LOG_DEBUG,
 	    "%s provider closed", connection->log_source);
-	st_condition_destroy(&connection->state_changed);
-	st_mutex_destroy(&connection->state_mutex);
 	queue_destroy(&connection->output);
 	queue_destroy(&connection->input);
 	free(connection);

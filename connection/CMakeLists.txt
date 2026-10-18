@@ -379,6 +379,12 @@ if(BUILD_TESTING)
 		COMMAND st_connection_test --partial-input)
 	add_test(NAME connection_auxiliary_close
 		COMMAND st_connection_test --auxiliary-close)
+	add_test(NAME connection_rlogin_flow COMMAND st_connection_test --rlogin-flow)
+	add_test(NAME connection_rlogin_backpressure COMMAND st_connection_test --rlogin-backpressure)
+	add_test(NAME connection_rlogin_setup COMMAND st_connection_test --rlogin-setup)
+	set_tests_properties(connection_rlogin_flow connection_rlogin_backpressure
+		connection_rlogin_setup
+		PROPERTIES TIMEOUT 30)
 	set_tests_properties(connection_partial_input PROPERTIES TIMEOUT 15)
 	if(WIN32 AND ST_CONNECTION_HAVE_CONPTY)
 		add_test(NAME connection_shell_shutdown
