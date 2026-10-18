@@ -25,6 +25,8 @@
 typedef void (SDLCALL *sdl_set_main_ready_fn)(void);
 typedef int (SDLCALL *sdl_init_subsystem_fn)(Uint32);
 typedef void (SDLCALL *sdl_quit_subsystem_fn)(Uint32);
+typedef void (SDLCALL *sdl_quit_fn)(void);
+typedef Uint32 (SDLCALL *sdl_was_init_fn)(Uint32);
 typedef SDL_Window *(SDLCALL *sdl_create_window_fn)(const char *, int, int,
 	int, int, Uint32);
 typedef void (SDLCALL *sdl_destroy_window_fn)(SDL_Window *);
@@ -81,6 +83,8 @@ struct sdl_api {
 	void (SDLCALL *set_main_ready)(void);
 	int (SDLCALL *init_subsystem)(Uint32);
 	void (SDLCALL *quit_subsystem)(Uint32);
+	void (SDLCALL *quit)(void);
+	Uint32 (SDLCALL *was_init)(Uint32);
 	SDL_Window *(SDLCALL *create_window)(const char *, int, int, int, int,
 	    Uint32);
 	void (SDLCALL *destroy_window)(SDL_Window *);
@@ -263,6 +267,8 @@ load_sdl(void)
 	    "SDL_InitSubSystem")
 	    || !LOAD_REQUIRED(&manager.api, manager.library, quit_subsystem,
 	    "SDL_QuitSubSystem")
+	    || !LOAD_REQUIRED(&manager.api, manager.library, quit, "SDL_Quit")
+	    || !LOAD_REQUIRED(&manager.api, manager.library, was_init, "SDL_WasInit")
 	    || !LOAD_REQUIRED(&manager.api, manager.library, create_window,
 	    "SDL_CreateWindow")
 	    || !LOAD_REQUIRED(&manager.api, manager.library, destroy_window,
@@ -1399,6 +1405,10 @@ shutdown_sdl(void)
 		destroy_state(manager.states);
 	manager.api.stop_text_input();
 	manager.api.quit_subsystem(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
+	/* Subsystem teardown leaves process-wide hints, TLS and event storage.
+	 * Release those before unloading, without stopping another SDL consumer. */
+	if (manager.api.was_init(0) == 0)
+		manager.api.quit();
 	(void)dynamic_library_close(manager.library);
 	manager.library = NULL;
 	manager.initialized = false;

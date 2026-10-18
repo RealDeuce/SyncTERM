@@ -13,12 +13,14 @@
 #include <poll.h>
 #include <stdlib.h>
 #include <sys/ioctl.h>
+#include <sys/stat.h>
 #include <termios.h>
 #include <unistd.h>
 
 struct st_console_ansi_system {
 	struct termios original;
 	bool restore_input;
+	bool regular_input;
 };
 
 static bool
@@ -40,6 +42,7 @@ st_console_ansi_system_open(struct st_console_ansi_system **result,
 {
 	struct st_console_ansi_system *system;
 	struct termios raw;
+	struct stat input_status;
 
 	(void)utf8;
 
@@ -49,6 +52,8 @@ st_console_ansi_system_open(struct st_console_ansi_system **result,
 	if (system == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	*input_available = false;
+	system->regular_input = fstat(STDIN_FILENO, &input_status) == 0
+	    && S_ISREG(input_status.st_mode);
 	if (isatty(STDIN_FILENO)) {
 		if (tcgetattr(STDIN_FILENO, &system->original) != 0) {
 			free(system);
@@ -88,12 +93,14 @@ st_console_ansi_system_read(struct st_console_ansi_system *system,
 	if (system == NULL || buffer == NULL || size == 0 || received == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	*received = 0;
-	status = poll(&descriptor, 1, timeout);
+	/* A regular file cannot block. Some poll implementations stop reporting
+	 * readability at EOF, which would otherwise hide the terminal close. */
+	status = system->regular_input ? 1 : poll(&descriptor, 1, timeout);
 	if (status == 0)
 		return 0;
 	if (status < 0)
 		return errno == EINTR ? 0 : io_error_from_errno(errno);
-	if ((descriptor.revents & POLLIN) == 0) {
+	if (!system->regular_input && (descriptor.revents & POLLIN) == 0) {
 		if ((descriptor.revents & POLLHUP) != 0)
 			return IO_ERROR_NOT_CONNECTED;
 		return (descriptor.revents & (POLLERR | POLLNVAL)) != 0
