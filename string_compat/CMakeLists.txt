@@ -58,6 +58,17 @@ int main(void)
 ]=] STRING_COMPAT_ENV_HAVE_STRNDUP)
 
 syncterm_check_c17_source([=[
+#include <string.h>
+int main(void)
+{
+	char *(*tokenize)(char *, const char *, char **) = strtok_r;
+	char text[] = "a:b";
+	char *state = 0;
+	return tokenize(text, ":", &state) == 0;
+}
+]=] STRING_COMPAT_ENV_HAVE_STRTOK_R)
+
+syncterm_check_c17_source([=[
 #include <stddef.h>
 #include <string.h>
 
@@ -88,6 +99,7 @@ unset(_string_compat_probe_definitions)
 
 set(STRING_COMPAT_HAVE_STRDUP ${STRING_COMPAT_ENV_HAVE_STRDUP})
 set(STRING_COMPAT_HAVE_STRNDUP ${STRING_COMPAT_ENV_HAVE_STRNDUP})
+set(STRING_COMPAT_HAVE_STRTOK_R ${STRING_COMPAT_ENV_HAVE_STRTOK_R})
 set(STRING_COMPAT_HAVE_STRLCPY ${STRING_COMPAT_ENV_HAVE_STRLCPY})
 set(STRING_COMPAT_HAVE_STRLCAT ${STRING_COMPAT_ENV_HAVE_STRLCAT})
 

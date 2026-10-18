@@ -253,8 +253,8 @@ test_cell_and_regions(void)
 	uint32_t columns;
 	uint32_t rows;
 
-	CHECK(sizeof(struct st_console_cell) == 24);
-	CHECK(offsetof(struct st_console_cell, reserved) == 22);
+	_Static_assert(sizeof(struct st_console_cell) == 24, "cell ABI size");
+	_Static_assert(offsetof(struct st_console_cell, reserved) == 22, "cell ABI reserved offset");
 	source[0].reserved = UINT16_MAX;
 	CHECK(st_console_size(console, &columns, &rows) == 0);
 	CHECK(columns == 70000 && rows == 2);

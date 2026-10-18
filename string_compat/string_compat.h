@@ -33,4 +33,9 @@ size_t syncterm_strlcat(char *destination, const char *source, size_t size);
 	#define strlcat syncterm_strlcat
 #endif
 
+#if !STRING_COMPAT_HAVE_STRTOK_R || defined(STRING_COMPAT_FORCE_FALLBACKS)
+char *syncterm_strtok_r(char *string, const char *delimiters, char **state);
+	#define strtok_r syncterm_strtok_r
+#endif
+
 #endif

@@ -579,7 +579,17 @@ cterm_handle_decmacro(struct cterminal *cterm, int *speed)	/* CSI Pn * z */
 	cterm->sequence = 0;
 	cterm->accumulator = NULL;
 	cterm->in_macro |= (UINT64_C(1) << n);
-	cterm_write(cterm, cterm->macros[n], cterm->macro_lens[n], speed);
+	/* The parser accepts int-sized writes; a stored macro may be larger. */
+	size_t remaining = cterm->macro_lens[n];
+	const char *bytes = cterm->macros[n];
+	while (remaining != 0) {
+		int chunk = remaining > INT_MAX ? INT_MAX : (int)remaining;
+		size_t consumed = cterm_write(cterm, bytes, chunk, speed);
+		if (consumed == 0)
+			break;
+		bytes += consumed;
+		remaining -= consumed;
+	}
 	cterm->in_macro &= ~(UINT64_C(1) << n);
 }
 
@@ -1874,7 +1884,7 @@ get_hexstr(char *str, char *end, char *out)
 				return;
 			if (!is_hex(*(str+1)))
 				return;
-			*(out++) = nibble_val(*str) << 4 | nibble_val(*(str + 1));
+			*(out++) = (char)(nibble_val(*str) << 4 | nibble_val(*(str + 1)));
 			str++;
 		}
 		else

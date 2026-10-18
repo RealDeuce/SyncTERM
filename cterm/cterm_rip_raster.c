@@ -1764,7 +1764,7 @@ static const int16_t bgi_sin_table[91] = {
 	0x6ED9, 0x6FF3, 0x7104, 0x720C, 0x730B, 0x7401, 0x74EF, 0x75D3, 0x76AD, 0x777F,
 	0x7847, 0x7906, 0x79BC, 0x7A68, 0x7B0A, 0x7BA3, 0x7C32, 0x7CB8, 0x7D33, 0x7DA5,
 	0x7E0E, 0x7E6C, 0x7EC1, 0x7F0B, 0x7F4C, 0x7F83, 0x7FB0, 0x7FD3, 0x7FEC, 0x7FFB,
-	(int16_t)0x8000,
+	INT16_MIN,
 };
 
 static int32_t
@@ -2113,10 +2113,10 @@ draw_bezier(struct cterm_rip_raster *rip, const int *points, int segments)
 		double remainder_cubed = remainder_squared * remainder;
 		double second = 3.0 * t * remainder_squared;
 		double third = 3.0 * squared * remainder;
-		int x = remainder_cubed * points[0] + second * points[2]
-		    + third * points[4] + cubed * points[6];
-		int y = remainder_cubed * points[1] + second * points[3]
-		    + third * points[5] + cubed * points[7];
+		int x = (int)(remainder_cubed * points[0] + second * points[2]
+		    + third * points[4] + cubed * points[6]);
+		int y = (int)(remainder_cubed * points[1] + second * points[3]
+		    + third * points[5] + cubed * points[7]);
 
 		pattern_position = 0;
 		draw_line_to(rip, x, y, &pattern_position);

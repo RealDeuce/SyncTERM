@@ -66,7 +66,7 @@ rip_text_font(st_cterm_t *terminal, int style)
 	uint32_t cell_width, cell_height, columns, rows, old_width, old_height;
 	uint32_t old_cell_width, old_cell_height;
 	uint32_t status_rows;
-	uint16_t identifier;
+	uint16_t identifier = 0;
 	int status;
 
 	if (style < 0 || style > RIP_TEXT_FONT_DEFAULT)
@@ -1019,7 +1019,7 @@ rip_save_variable(st_cterm_t *terminal, const char *name)
 	ini_section_t *root;
 	char *path = NULL, *serialized = NULL;
 	FILE *stream = NULL;
-	size_t size;
+	size_t size = 0;
 	int status;
 
 	variable = rip_find_variable(terminal->rip_engine, name);
@@ -1120,7 +1120,7 @@ rip_define_variable(st_cterm_t *terminal, const char *arguments)
 	char name[13], fallback[80], *question, *default_value, *entered = NULL;
 	char *normalized = NULL;
 	const char *initial, *prompt;
-	size_t normalized_size;
+	size_t normalized_size = 0;
 	int flags, reserved, width, parsed, status = 0;
 	bool save = false, reject_blank, noninteractive;
 
@@ -2373,7 +2373,7 @@ present_filtered_scalar(void *context, uint32_t scalar, bool *consumed)
 {
 	st_cterm_t *terminal = context;
 	char replacement[ST_CTERM_INPUT_REPLACEMENT_CAPACITY];
-	size_t replacement_size;
+	size_t replacement_size = 0;
 	size_t written;
 	int status = 0;
 

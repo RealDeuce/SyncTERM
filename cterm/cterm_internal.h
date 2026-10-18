@@ -370,7 +370,7 @@ extern const size_t cterm_ansi_dispatch_len;
 /* SkyPix palette translation — a no-op when cterm->skypix is clear,
  * otherwise remaps ANSI colour indices to SkyPix palette positions.
  * Called inline from the ECMA-48 SGR handler (cases 30-37 / 40-47). */
-int cterm_skypix_color(struct cterminal *cterm, int color);
+unsigned char cterm_skypix_color(struct cterminal *cterm, unsigned char color);
 
 /* Fg / bg attribute setters defined in cterm.c.  Honour cterm->negative
  * (swap fg/bg) and update cterm->fg_color / cterm->bg_color via

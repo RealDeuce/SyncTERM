@@ -107,7 +107,7 @@ cterm_prestel_apply_ctrl_before(struct cterminal *cterm, uint8_t ch)
 }
 
 void
-cterm_prestel_colour(struct cterminal *cterm, bool alpha, int colour)
+cterm_prestel_colour(struct cterminal *cterm, bool alpha, unsigned char colour)
 {
 	cterm->attr &= 0xF7;
 	cterm_set_fgattr(cterm, colour);

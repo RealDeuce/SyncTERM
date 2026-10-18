@@ -338,8 +338,8 @@ cterm_render_write_byte(struct cterminal *cterm, int value)
 	struct st_console_rect window;
 	struct st_console_rect destination;
 	struct st_console_cell cell;
-	uint32_t x;
-	uint32_t y;
+	uint32_t x = 0;
+	uint32_t y = 0;
 	uint32_t right;
 	uint32_t bottom;
 	int status;

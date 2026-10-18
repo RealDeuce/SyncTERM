@@ -62,7 +62,7 @@ atascii_literal_byte(struct cterminal *cterm, unsigned char byte, int *speed)
 		else if (k < 224)
 			k -= 32;
 		/* k < 256: no translation */
-		ch[0] = k;
+		ch[0] = (unsigned char)k; /* ATASCII translation stays in 0..255. */
 		ch[1] = cterm->attr;
 		SCR_XY(&sx, &sy);
 		{

@@ -39,7 +39,10 @@ test_duplication(void)
 	free(short_copy);
 	free(copy);
 	const char bounded[] = {'a', 'b', 'c'};
-	copy = strndup(bounded, sizeof(bounded));
+	/* Exercise the actual bounded facility: Clang 19 incorrectly folds a
+	 * direct call on this unterminated constant array into strdup(). */
+	char *(*volatile bounded_duplicate)(const char *, size_t) = strndup;
+	copy = bounded_duplicate(bounded, sizeof(bounded));
 	if (copy == NULL || strcmp(copy, "abc") != 0)
 		fprintf(stderr, "bounded strndup: source-size=%zu result=%s length=%zu\n",
 		    sizeof(bounded), copy == NULL ? "(null)" : copy,
@@ -84,10 +87,33 @@ test_append(void)
 	return true;
 }
 
+static bool
+test_tokenize(void)
+{
+	char outer[] = ";;a/b;;c/d;";
+	char *outer_state = NULL, *inner_state = NULL;
+	char *first = strtok_r(outer, ";", &outer_state);
+	CHECK(first != NULL && strcmp(first, "a/b") == 0);
+	CHECK(strcmp(strtok_r(first, "/", &inner_state), "a") == 0);
+	CHECK(strcmp(strtok_r(NULL, "/", &inner_state), "b") == 0);
+	CHECK(strtok_r(NULL, "/", &inner_state) == NULL);
+	CHECK(strtok_r(NULL, "/", &inner_state) == NULL);
+	CHECK(strcmp(strtok_r(NULL, ";", &outer_state), "c/d") == 0);
+	CHECK(strtok_r(NULL, ";", &outer_state) == NULL);
+	char text[] = "a:b/c";
+	CHECK(strcmp(strtok_r(text, ":", &outer_state), "a") == 0);
+	CHECK(strcmp(strtok_r(NULL, "/", &outer_state), "b") == 0);
+	CHECK(strcmp(strtok_r(NULL, "", &outer_state), "c") == 0);
+	CHECK(strtok_r(NULL, "", &outer_state) == NULL);
+	char empty[] = "";
+	CHECK(strtok_r(empty, ":", &outer_state) == NULL);
+	return true;
+}
+
 int
 main(void)
 {
-	if (!test_duplication() || !test_copy() || !test_append())
+	if (!test_duplication() || !test_copy() || !test_append() || !test_tokenize())
 		return EXIT_FAILURE;
 	return EXIT_SUCCESS;
 }

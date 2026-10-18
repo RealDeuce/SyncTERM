@@ -535,7 +535,7 @@ UTF-16.  Result is unchanged on `IO_ERROR_*` failure.
 ==== String and value conversion
 
 `string_compat.h` conditionally maps the standard names `strdup`, `strndup`,
-`strlcpy`, and `strlcat` to project fallbacks.  Whether each fallback symbol
+`strlcpy`, `strlcat`, and `strtok_r` to project fallbacks.  Whether each fallback symbol
 exists is a generated capability decision.
 
 [source,c]
@@ -544,6 +544,7 @@ char *syncterm_strdup(const char *string);
 char *syncterm_strndup(const char *string, size_t maximum);
 size_t syncterm_strlcpy(char *destination, const char *source, size_t size);
 size_t syncterm_strlcat(char *destination, const char *source, size_t size);
+char *syncterm_strtok_r(char *string, const char *delimiters, char **state);
 ----
 
 `string` and `source` must be valid NUL-terminated strings.  The duplicate
@@ -575,6 +576,14 @@ nonzero, and returns the complete source length.
 | syncterm_strlcat(destination, source, size)
 | Appends as much as fits, terminates when space exists, and returns the
 initial destination length plus complete source length.
+
+| syncterm_strtok_r(string, delimiters, state)
+| Splits a mutable NUL-terminated string on any byte in `delimiters`, skipping
+empty tokens. Returns a token within the input, overwriting its delimiter
+with NUL, or NULL when exhausted. Pass the input on the first call and NULL
+on subsequent calls; `state` points to caller-owned continuation storage.
+`delimiters` is NUL-terminated and may change between calls. Separate state
+pointers allow nested or concurrent tokenization without global state.
 |===
 
 [source,c]

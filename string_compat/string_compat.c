@@ -87,5 +87,24 @@ syncterm_strlcat(char *destination, const char *source, size_t size)
 }
 #endif
 
+#if !STRING_COMPAT_HAVE_STRTOK_R || defined(STRING_COMPAT_FORCE_FALLBACKS)
+char *
+syncterm_strtok_r(char *string, const char *delimiters, char **state)
+{
+	char *token = string != NULL ? string : *state;
+
+	token += strspn(token, delimiters);
+	if (*token == '\0') {
+		*state = token;
+		return NULL;
+	}
+	char *end = token + strcspn(token, delimiters);
+	*state = *end == '\0' ? end : end + 1;
+	if (*end != '\0')
+		*end = '\0';
+	return token;
+}
+#endif
+
 /* Keep the translation unit valid when the target supplies every facility. */
 typedef int string_compat_translation_unit_is_not_empty;

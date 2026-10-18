@@ -161,9 +161,9 @@ st_bbs_decode_profile(struct st_profile *profile,
 	copy_fixed(profile->font, sizeof(profile->font), section, "Font",
 	    "Codepage 437 English");
 	{
-		const char *name = ini_section_find(section, "Encoding");
+		const char *encoding_name = ini_section_find(section, "Encoding");
 
-		if (name == NULL || !st_profile_encoding_parse(name,
+		if (encoding_name == NULL || !st_profile_encoding_parse(encoding_name,
 		    &profile->encoding))
 			profile->encoding = legacy_encoding(profile);
 	}

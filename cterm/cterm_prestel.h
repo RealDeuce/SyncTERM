@@ -34,7 +34,7 @@ void cterm_prestel_new_line(struct cterminal *cterm);
 void cterm_prestel_apply_ctrl_before(struct cterminal *cterm, uint8_t ch);
 void cterm_prestel_apply_ctrl_after(struct cterminal *cterm, uint8_t ch);
 void cterm_prestel_apply_ctrl(struct cterminal *cterm, uint8_t ch);
-void cterm_prestel_colour(struct cterminal *cterm, bool alpha, int colour);
+void cterm_prestel_colour(struct cterminal *cterm, bool alpha, unsigned char colour);
 void cterm_prestel_get_state(struct cterminal *cterm);
 void cterm_prestel_move(struct cterminal *cterm, int xadj, int yadj);
 void cterm_prestel_send_memory(struct cterminal *cterm, uint8_t mem,

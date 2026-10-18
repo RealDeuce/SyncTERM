@@ -36,9 +36,9 @@ main(void)
 	st_console_t *console = NULL;
 	st_console_t *second = NULL;
 	HANDLE original_output = GetStdHandle(STD_OUTPUT_HANDLE);
-	CONSOLE_CURSOR_INFO cursor_before;
+	CONSOLE_CURSOR_INFO cursor_before = {0};
 	CONSOLE_CURSOR_INFO cursor_after;
-	CONSOLE_SCREEN_BUFFER_INFO screen_before;
+	CONSOLE_SCREEN_BUFFER_INFO screen_before = {0};
 	CONSOLE_SCREEN_BUFFER_INFO screen_after;
 	uint32_t capabilities;
 	bool cursor_known = original_output != INVALID_HANDLE_VALUE

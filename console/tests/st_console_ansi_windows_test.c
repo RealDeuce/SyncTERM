@@ -200,7 +200,7 @@ pipe_case(bool stop_only, bool cp437)
 	    || !SetHandleInformation(input_write, HANDLE_FLAG_INHERIT, 0))
 		return false;
 	if (!stop_only) {
-		if (!WriteFile(input_write, data, size, &count, NULL)
+		if (!WriteFile(input_write, data, (DWORD)size, &count, NULL)
 		    || count != (DWORD)size) {
 			(void)CloseHandle(input_read);
 			(void)CloseHandle(input_write);

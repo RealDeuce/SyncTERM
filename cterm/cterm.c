@@ -1556,8 +1556,8 @@ cterm_clear_lcf(struct cterminal *cterm)
  * interacts with the base attribute path rather than sitting cleanly
  * inside one standard.
  * ------------------------------------------------------------------------ */
-int
-cterm_skypix_color(struct cterminal *cterm, int color)
+unsigned char
+cterm_skypix_color(struct cterminal *cterm, unsigned char color)
 {
 	if (!cterm->skypix)
 		return color;

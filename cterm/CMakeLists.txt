@@ -138,7 +138,7 @@ if(BUILD_TESTING)
 		ST_APC_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/apc-test-cache")
 	if(NOT WIN32)
 		target_compile_definitions(st_cterm_apc_test PRIVATE
-			ST_APC_TEST_POSIX=1 _POSIX_C_SOURCE=200809L)
+			ST_APC_TEST_POSIX=1 ${_st_cterm_apc_definitions})
 	endif()
 	set_target_properties(st_cterm_apc_test PROPERTIES
 		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)

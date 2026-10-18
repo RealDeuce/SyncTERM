@@ -81,7 +81,7 @@ write_personal(st_bbs_list_t *list, const ini_document_t *document,
     size_t password_size)
 {
 	FILE *prepared = tmpfile();
-	FILE *output;
+	FILE *output = NULL;
 	unsigned char buffer[16384];
 	size_t count;
 	int status;
@@ -125,7 +125,7 @@ documents_equal(bool *equal, const ini_document_t *left,
 {
 	char *left_bytes = NULL;
 	char *right_bytes = NULL;
-	size_t left_size, right_size;
+	size_t left_size = 0, right_size = 0;
 	int status = ini_document_serialize(left, &left_bytes, &left_size);
 
 	if (status == 0)
@@ -263,7 +263,7 @@ st_bbs_list_add(st_bbs_list_t *list, const struct st_profile *profile,
     struct st_bbs_mutation_result *result)
 {
 	ini_document_t *remote = NULL;
-	ini_section_t *section;
+	ini_section_t *section = NULL;
 	struct st_list_crypto_info info;
 	struct st_profile value;
 	struct st_bbs_view view = {0};

@@ -29,6 +29,7 @@
  */
 
 #include "string_util.h"
+#include "string_compat.h"
 #include <limits.h>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -661,7 +662,7 @@ cterm_cterm_handle_font_dcs(struct cterminal *cterm)
 		p2 = malloc(i);
 		if (p2) {
 			memcpy(p2, cterm->fontbuf, i);
-			cterm_render_replace_font(cterm, cterm->font_slot,
+			cterm_render_replace_font(cterm, (uint8_t)cterm->font_slot,
 			    strdup("Remote Defined Font"), p2, i);
 		}
 	}
@@ -1111,7 +1112,7 @@ static void play_music(struct cterminal *cterm)
 					}
 					else {
 						notenum=cterm->octave*12+1;
-						notenum+=(out-octave);
+						notenum+=(int)(out-octave); /* Index in the 12-note octave. */
 					}
 				}
 				notenum+=offset;
@@ -1487,7 +1488,7 @@ cterm_accumulate_font(struct cterminal *cterm, unsigned char byte, int *speed)
 			memcpy(buf2, cterm->fontbuf, cterm->font_size);
 			if (cterm->font_slot >= CTERM_FIRST_DYNAMIC_FONT
 			    && cterm->font_slot < 256)
-				cterm_render_replace_font(cterm, cterm->font_slot,
+				cterm_render_replace_font(cterm, (uint8_t)cterm->font_slot,
 				    strdup("Remote Defined Font"),
 				    buf2, cterm->font_size);
 			else

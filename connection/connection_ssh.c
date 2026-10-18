@@ -11,6 +11,7 @@
 #include <deucessh-algorithms.h>
 #include <deucessh-auth.h>
 #include <deucessh-conn.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -544,11 +545,18 @@ authenticate(struct ssh_transport *t)
 	return status == 0 ? 0 : t->cancelled ? IO_ERROR_CANCELLED : IO_ERROR_PERMISSION_DENIED;
 }
 
+static int
+ssh_poll_timeout(int64_t timeout)
+{
+	return timeout < 0 ? -1 : timeout > INT_MAX ? INT_MAX : (int)timeout;
+}
+
 static ssize_t
 ssh_read(void *state, void *data, size_t size, int64_t timeout)
 {
 	struct ssh_transport *t = state;
-	int events = dssh_chan_poll(t->channel, DSSH_POLL_READ | DSSH_POLL_READEXT, timeout);
+	int events = dssh_chan_poll(t->channel, DSSH_POLL_READ | DSSH_POLL_READEXT,
+	    ssh_poll_timeout(timeout));
 	if (events < 0) return IO_ERROR_CONNECTION_RESET;
 	if ((events & DSSH_POLL_READEXT) != 0) {
 		uint8_t discarded[4096];
@@ -565,7 +573,7 @@ static ssize_t
 ssh_write(void *state, const void *data, size_t size, int64_t timeout)
 {
 	struct ssh_transport *t = state;
-	int events = dssh_chan_poll(t->channel, DSSH_POLL_WRITE, timeout);
+	int events = dssh_chan_poll(t->channel, DSSH_POLL_WRITE, ssh_poll_timeout(timeout));
 	if (events < 0) return IO_ERROR_CONNECTION_RESET;
 	if ((events & DSSH_POLL_WRITE) != 0) {
 		int64_t n = dssh_chan_write(t->channel, 0, data, size);
@@ -674,11 +682,15 @@ st_connection_ssh_public_key(void)
 		(void)st_mutex_unlock(&init_mutex);
 		return NULL;
 	}
-	int size = dssh_ed25519_get_pub_str(NULL, 0);
+	int64_t size = dssh_ed25519_get_pub_str(NULL, 0);
+	if (size > 0 && (uint64_t)size >= SIZE_MAX) {
+		(void)st_mutex_unlock(&init_mutex);
+		return NULL;
+	}
 	char *key = size <= 0 ? NULL : malloc((size_t)size + 1);
 	if (key != NULL) {
 		if (dssh_ed25519_get_pub_str(key, (size_t)size + 1) < 0) { free(key); key = NULL; }
-		else key[size] = '\0';
+		else key[(size_t)size] = '\0';
 	}
 	(void)st_mutex_unlock(&init_mutex);
 	return key;
