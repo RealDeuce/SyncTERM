@@ -32,7 +32,38 @@ struct shell_transport {
 	HANDLE stop_event;
 	HPCON console;
 	HANDLE process;
+	st_mutex_t console_mutex; /* Protects console ownership and resize. */
+	bool console_mutex_initialized;
+	st_thread_t lifecycle_thread;
+	bool lifecycle_started;
 };
+
+/* The process handle and stop event outlive this thread. On natural exit,
+ * close ConPTY while the input worker still drains its final output. On a
+ * local stop, destruction closes the pipe endpoints before joining us, so
+ * an older blocking ClosePseudoConsole cannot wait for an abandoned reader.
+ * Only this thread or destruction (after joining it) closes the console. */
+static int
+shell_lifecycle(void *state)
+{
+	struct shell_transport *transport = state;
+	HANDLE handles[2] = {transport->stop_event, transport->process};
+	DWORD result = WaitForMultipleObjects(2, handles, FALSE, INFINITE);
+	HPCON console = NULL;
+
+	if (result == WAIT_OBJECT_0 + 1) {
+		(void)st_mutex_lock(&transport->console_mutex);
+		console = transport->console;
+		transport->console = NULL;
+		(void)st_mutex_unlock(&transport->console_mutex);
+		transport->close_console(console);
+	} else if (result == WAIT_FAILED) {
+		st_connection_log_hooks(&transport->hooks, "Shell", ST_CONNECTION_LOG_ERROR,
+		    "ConPTY process wait failed Windows error=%lu", (unsigned long)GetLastError());
+		(void)SetEvent(transport->stop_event);
+	}
+	return 0;
+}
 
 static DWORD
 shell_wait_timeout(int64_t timeout_ms)
@@ -167,8 +198,14 @@ shell_update_terminal_size(void *state,
 		return IO_ERROR_OUT_OF_RANGE;
 	size.X = (SHORT)geometry->columns;
 	size.Y = (SHORT)geometry->rows;
-	return SUCCEEDED(transport->resize_console(transport->console, size))
+	(void)st_mutex_lock(&transport->console_mutex);
+	/* An exited shell has no remaining screen to resize. Its final output
+	 * may still be draining before the connection reports EOF. */
+	int status = transport->console == NULL ? 0
+	    : SUCCEEDED(transport->resize_console(transport->console, size))
 	    ? 0 : IO_ERROR_IO;
+	(void)st_mutex_unlock(&transport->console_mutex);
+	return status;
 }
 
 static void
@@ -189,6 +226,8 @@ shell_destroy(void *state)
 		(void)CloseHandle(transport->output_pipe);
 		transport->output_pipe = INVALID_HANDLE_VALUE;
 	}
+	if (transport->lifecycle_started)
+		(void)st_thread_join(transport->lifecycle_thread, NULL);
 	if (transport->console != NULL) {
 		transport->close_console(transport->console);
 		transport->console = NULL;
@@ -220,6 +259,8 @@ shell_destroy(void *state)
 		(void)CloseHandle(transport->write_event);
 	if (transport->stop_event != NULL)
 		(void)CloseHandle(transport->stop_event);
+	if (transport->console_mutex_initialized)
+		st_mutex_destroy(&transport->console_mutex);
 	free(transport);
 }
 
@@ -397,6 +438,9 @@ st_connection_connect_shell(st_connection_t **result,
 	transport->close_console = close_console;
 	transport->input_pipe = INVALID_HANDLE_VALUE;
 	transport->output_pipe = INVALID_HANDLE_VALUE;
+	if (st_mutex_init(&transport->console_mutex, ST_MUTEX_PLAIN) != ST_THREAD_SUCCESS)
+		goto failed;
+	transport->console_mutex_initialized = true;
 	transport->read_event = CreateEventW(NULL, TRUE, FALSE, NULL);
 	transport->write_event = CreateEventW(NULL, TRUE, FALSE, NULL);
 	transport->stop_event = CreateEventW(NULL, TRUE, FALSE, NULL);
@@ -464,6 +508,10 @@ st_connection_connect_shell(st_connection_t **result,
 	attributes_initialized = false;
 	free(attributes);
 	attributes = NULL;
+	if (st_thread_create(&transport->lifecycle_thread, shell_lifecycle,
+	    transport) != ST_THREAD_SUCCESS)
+		goto failed;
+	transport->lifecycle_started = true;
 	status = st_connection_start(result, transport, &shell_operations,
 	    "Shell", hooks, NULL, error);
 	if (status == 0)

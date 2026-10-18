@@ -343,7 +343,7 @@ if(BUILD_TESTING)
 	endif()
 	add_executable(st_connection_test tests/st_connection_test.c)
 	target_link_libraries(st_connection_test PRIVATE
-		st_connection syncterm_socket syncterm_threads)
+		st_connection syncterm_socket syncterm_threads st_time)
 	syncterm_target_atomics(st_connection_test)
 	set_target_properties(st_connection_test PROPERTIES
 		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
@@ -384,6 +384,9 @@ if(BUILD_TESTING)
 		add_test(NAME connection_shell_shutdown
 			COMMAND st_connection_test --shell-shutdown)
 		set_tests_properties(connection_shell_shutdown PROPERTIES TIMEOUT 30)
+		add_test(NAME connection_shell_drain
+			COMMAND st_connection_test --shell-drain)
+		set_tests_properties(connection_shell_drain PROPERTIES TIMEOUT 30)
 	endif()
 
 	add_executable(st_connection_serial_test

@@ -9,6 +9,7 @@
 #include "io_error.h"
 #include "socket.h"
 #include "st_threads.h"
+#include "st_time.h"
 
 #include <stdio.h>
 #include <stdatomic.h>
@@ -524,7 +525,9 @@ test_shell(void)
 	profile.connection_type = ST_CONNECTION_SHELL;
 	profile.screen_mode = ST_SCREEN_MODE_CURRENT;
 #if SYNCTERM_PLATFORM_WINDOWS
-	strcpy(profile.address, "cmd.exe /d /c <nul set /p =shell-test");
+	/* SET /P writes without a newline but returns failure on its NUL input.
+	 * Make this successful-output fixture explicitly exit successfully. */
+	strcpy(profile.address, "cmd.exe /d /c <nul set /p =shell-test & exit /b 0");
 #else
 	strcpy(profile.address, "printf shell-test");
 #endif
@@ -594,6 +597,60 @@ test_shell(void)
 	CHECK(count == IO_ERROR_NOT_SUPPORTED);
 #endif
 	st_profile_dispose(&profile);
+	return 0;
+}
+
+static int
+test_shell_drain(void)
+{
+#if SYNCTERM_PLATFORM_WINDOWS && ST_CONNECTION_TEST_HAVE_SHELL
+	struct st_screen_geometry geometry = {80, 25, 0, 0};
+	struct st_profile profile;
+	st_connection_t *connection = NULL;
+	struct st_deadline deadline;
+	char tail[8192] = {0};
+	size_t used = 0;
+	bool marker_seen = false;
+	ssize_t count = -1;
+
+	st_profile_init(&profile);
+	profile.connection_type = ST_CONNECTION_SHELL;
+	profile.screen_mode = ST_SCREEN_MODE_CURRENT;
+	strcpy(profile.address, "cmd.exe /d /q /c "
+	    "for /L %i in (1,1,4096) do @echo 0123456789abcdef0123456789abcdef"
+	    " & echo drain-complete");
+	int status = st_connection_connect_shell(&connection, &profile,
+	    &geometry, NULL, NULL, NULL);
+	if (status == IO_ERROR_NOT_SUPPORTED) {
+		st_profile_dispose(&profile);
+		return 0;
+	}
+	CHECK(status == 0);
+	CHECK(st_deadline_start(&deadline, 15000) == 0);
+	for (;;) {
+		int64_t remaining;
+		CHECK(st_deadline_remaining_ms(&deadline, &remaining) == 0);
+		if (remaining == 0)
+			break;
+		count = st_connection_receive(connection, tail + used,
+		    sizeof(tail) - 1 - used, remaining);
+		if (count <= 0)
+			break;
+		used += (size_t)count;
+		tail[used] = '\0';
+		marker_seen |= strstr(tail, "drain-complete") != NULL;
+		if (used > sizeof(tail) / 2) {
+			/* Preserve a marker split across receive boundaries. */
+			memmove(tail, tail + used - 32, 32);
+			used = 32;
+		}
+	}
+	if (count != 0 || !marker_seen)
+		fprintf(stderr, "ConPTY final output: read=%zd marker=%d\n", count, marker_seen);
+	CHECK(st_connection_close(connection) == 0);
+	st_profile_dispose(&profile);
+	CHECK(count == 0 && marker_seen);
+#endif
 	return 0;
 }
 
@@ -1168,6 +1225,8 @@ main(int argc, char **argv)
 		return test_partial_input() != 0;
 	if (argc == 2 && strcmp(argv[1], "--shell-shutdown") == 0)
 		return test_shell_shutdown() != 0;
+	if (argc == 2 && strcmp(argv[1], "--shell-drain") == 0)
+		return test_shell_drain() != 0;
 #if !SYNCTERM_PLATFORM_WINDOWS && ST_CONNECTION_TEST_HAVE_SHELL
 	if (argc == 2)
 		fixture = argv[1];
@@ -1177,7 +1236,7 @@ main(int argc, char **argv)
 #endif
 	{
 		fprintf(stderr,
-		    "usage: %s [--partial-input|--shell-shutdown] "
+		    "usage: %s [--partial-input|--shell-shutdown|--shell-drain] "
 		    "[shell-fixture]\n", argv[0]);
 		return 1;
 	}
