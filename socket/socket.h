@@ -62,7 +62,9 @@ int socket_set_no_delay(socket_handle_t socket, bool enabled);
 int socket_set_send_buffer_size(socket_handle_t socket, size_t size);
 int socket_set_receive_buffer_size(socket_handle_t socket, size_t size);
 
-/* Returns a byte count, zero for an empty send or receive EOF, or IO_ERROR_*. */
+/* Returns a byte count, zero for an empty send or receive EOF, or IO_ERROR_*.
+ * PEEK and URGENT are mutually exclusive; combining them is invalid on all
+ * platforms. A native urgent peek need not preserve the TCP stream mark. */
 ssize_t socket_send(socket_handle_t socket, const void *buffer, size_t size);
 ssize_t socket_receive(socket_handle_t socket, void *buffer, size_t size,
     unsigned flags);

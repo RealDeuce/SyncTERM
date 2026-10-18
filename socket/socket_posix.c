@@ -232,6 +232,10 @@ socket_receive(socket_handle_t socket, void *buffer, size_t size,
 	if ((buffer == NULL && size != 0) ||
 	    (flags & ~(SOCKET_RECEIVE_PEEK | SOCKET_RECEIVE_URGENT)) != 0)
 		return IO_ERROR_INVALID_ARGUMENT;
+	/* Native urgent peeks can consume the stream mark (Darwin). Do not
+	 * expose a supposedly non-consuming operation with that side effect. */
+	if (flags == (SOCKET_RECEIVE_PEEK | SOCKET_RECEIVE_URGENT))
+		return IO_ERROR_INVALID_ARGUMENT;
 	if (size > (size_t)PTRDIFF_MAX)
 		size = (size_t)PTRDIFF_MAX;
 	if ((flags & SOCKET_RECEIVE_PEEK) != 0)

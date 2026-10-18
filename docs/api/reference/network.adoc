@@ -67,7 +67,10 @@ Short sends are successful progress.
 
 | socket_receive(socket, buffer, size, flags)
 | Returns bytes received, zero for EOF/empty request, or negative error.
-Flags may request peek or urgent data.
+Flags may request ordinary-data peek or urgent receive, but not both.
+Combining `SOCKET_RECEIVE_PEEK | SOCKET_RECEIVE_URGENT` returns
+`IO_ERROR_INVALID_ARGUMENT` without receiving data on every platform: native
+urgent peeks can change the stream mark even when the byte is not consumed.
 
 | socket_at_urgent_mark(socket, at_mark)
 | Reports whether the next normal byte follows the urgent-data mark.

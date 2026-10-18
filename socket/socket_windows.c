@@ -216,6 +216,9 @@ socket_receive(socket_handle_t socket, void *buffer, size_t size,
 	if ((buffer == NULL && size != 0) ||
 	    (flags & ~(SOCKET_RECEIVE_PEEK | SOCKET_RECEIVE_URGENT)) != 0)
 		return IO_ERROR_INVALID_ARGUMENT;
+	/* Keep the receive contract identical to the POSIX implementation. */
+	if (flags == (SOCKET_RECEIVE_PEEK | SOCKET_RECEIVE_URGENT))
+		return IO_ERROR_INVALID_ARGUMENT;
 	if (size > INT_MAX)
 		size = INT_MAX;
 	if ((flags & SOCKET_RECEIVE_PEEK) != 0)

@@ -44,12 +44,20 @@ diagnose_urgent_mark(socket_handle_t socket, const char *stage, bool at_mark)
 	int inline_status = getsockopt(socket, SOL_SOCKET, SO_OOBINLINE,
 	    (char *)&inline_oob, &inline_size);
 	int inline_error = inline_status == 0 ? 0 : WSAGetLastError();
+	char peek[8];
+	int peek_count = recv(socket, peek, sizeof(peek), MSG_PEEK);
+	int peek_error = peek_count < 0 ? WSAGetLastError() : 0;
 
 	fprintf(stderr, "urgent stage=%s portable-mark=%d SIOCATMARK=%lu"
 	    " status=%d error=%d FIONREAD=%lu status=%d error=%d"
 	    " SO_OOBINLINE=%d status=%d error=%d\n",
 	    stage, at_mark, mark, mark_status, mark_error, available,
 	    available_status, available_error, inline_oob, inline_status, inline_error);
+	fprintf(stderr, "urgent normal peek stage=%s count=%d error=%d data=",
+	    stage, peek_count, peek_error);
+	for (int i = 0; i < peek_count; ++i)
+		fprintf(stderr, "%02x ", (unsigned char)peek[i]);
+	fputc('\n', stderr);
 #else
 	(void)socket;
 	fprintf(stderr, "urgent stage=%s portable-mark=%d\n", stage, at_mark);
@@ -74,6 +82,45 @@ receive_urgent(socket_handle_t socket, void *data, unsigned flags)
 	    flags, result, native_error, before, before_status, after, after_status);
 	return result;
 }
+
+#if SYNCTERM_PLATFORM_WINDOWS
+/* Record inline behavior on the actual Windows runner, independently of
+ * non-inline OOB. In particular, a true SIOCATMARK before ordinary prefix
+ * data would rule out using it to identify inline control bytes. */
+static int
+probe_inline_urgent(socket_handle_t client, socket_handle_t sender)
+{
+	int enabled = 1;
+	char bytes[4];
+	unsigned events;
+	bool mark;
+
+	CHECK(setsockopt(client, SOL_SOCKET, SO_OOBINLINE,
+	    (const char *)&enabled, sizeof(enabled)) == 0);
+	CHECK(socket_send(sender, "pre", 3) == 3);
+	CHECK(send(sender, "!", 1, MSG_OOB) == 1);
+	CHECK(socket_send(sender, "post", 4) == 4);
+	CHECK(socket_wait(client, SOCKET_WAIT_READABLE, 1000, &events) == 0);
+	CHECK(socket_at_urgent_mark(client, &mark) == 0);
+	diagnose_urgent_mark(client, "inline before pre", mark);
+	CHECK(socket_receive(client, bytes, 3, SOCKET_RECEIVE_NONE) == 3);
+	CHECK(memcmp(bytes, "pre", 3) == 0);
+	CHECK(socket_wait(client, SOCKET_WAIT_READABLE, 1000, &events) == 0);
+	CHECK(socket_at_urgent_mark(client, &mark) == 0);
+	diagnose_urgent_mark(client, "inline at control", mark);
+	CHECK(socket_receive(client, bytes, 1, SOCKET_RECEIVE_NONE) == 1);
+	CHECK(bytes[0] == '!');
+	CHECK(socket_wait(client, SOCKET_WAIT_READABLE, 1000, &events) == 0);
+	CHECK(socket_at_urgent_mark(client, &mark) == 0);
+	diagnose_urgent_mark(client, "inline after control", mark);
+	CHECK(socket_receive(client, bytes, 4, SOCKET_RECEIVE_NONE) == 4);
+	CHECK(memcmp(bytes, "post", 4) == 0);
+	enabled = 0;
+	CHECK(setsockopt(client, SOL_SOCKET, SO_OOBINLINE,
+	    (const char *)&enabled, sizeof(enabled)) == 0);
+	return 0;
+}
+#endif
 
 int
 main(void)
@@ -122,6 +169,9 @@ main(void)
 	CHECK(socket_receive(client, received, 3, SOCKET_RECEIVE_NONE) == 3);
 	CHECK(memcmp(received, "abc", 3) == 0);
 	CHECK(socket_at_urgent_mark(client, NULL) == IO_ERROR_INVALID_ARGUMENT);
+#if SYNCTERM_PLATFORM_WINDOWS
+	CHECK(probe_inline_urgent(client, accepted) == 0);
+#endif
 	CHECK(socket_send(accepted, "pre", 3) == 3);
 	received[0] = 0x02;
 	CHECK(send(accepted, received, 1, MSG_OOB) == 1);
@@ -131,8 +181,8 @@ main(void)
 	CHECK(socket_at_urgent_mark(client, &at_mark) == 0);
 	diagnose_urgent_mark(client, "before pre", at_mark);
 	CHECK(!at_mark);
-	CHECK(receive_urgent(client, received,
-	    SOCKET_RECEIVE_PEEK | SOCKET_RECEIVE_URGENT) == 1);
+	CHECK(socket_receive(client, received, 1,
+	    SOCKET_RECEIVE_PEEK | SOCKET_RECEIVE_URGENT) == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(received[0] == 0x02);
 	CHECK(socket_receive(client, received, 3, SOCKET_RECEIVE_NONE) == 3);
 	CHECK(memcmp(received, "pre", 3) == 0);
@@ -146,9 +196,9 @@ main(void)
 	CHECK(send(accepted, "?", 1, MSG_OOB) == 1);
 	CHECK(socket_wait(client, SOCKET_WAIT_URGENT, 1000, &events) == 0);
 	CHECK((events & SOCKET_WAIT_URGENT) != 0);
-	CHECK(receive_urgent(client, received,
-	    SOCKET_RECEIVE_PEEK | SOCKET_RECEIVE_URGENT) == 1);
-	CHECK(received[0] == '?');
+	CHECK(socket_receive(client, received, 1,
+	    SOCKET_RECEIVE_PEEK | SOCKET_RECEIVE_URGENT) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(memcmp(received, "post", 4) == 0);
 	CHECK(receive_urgent(client, received, SOCKET_RECEIVE_URGENT) == 1);
 	CHECK(received[0] == '?');
 	CHECK(socket_shutdown(accepted, SOCKET_SHUTDOWN_WRITE) == 0);
