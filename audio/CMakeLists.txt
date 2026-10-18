@@ -322,6 +322,37 @@ if(BUILD_TESTING)
 	st_audio_warnings(st_audio_test)
 	add_test(NAME st_audio COMMAND st_audio_test)
 	set_tests_properties(st_audio PROPERTIES TIMEOUT 20)
+	if(NOT TARGET st_md5)
+		add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../md5"
+			"${CMAKE_CURRENT_BINARY_DIR}/md5")
+	endif()
+	# Exercise the same PCM oracle with normal evaluation and, when supported,
+	# x87 excess precision even on an otherwise SSE-based build host.
+	set(_st_audio_saved_required_flags "${CMAKE_REQUIRED_FLAGS}")
+	set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -mfpmath=387")
+	syncterm_check_c17_source([=[
+#include <float.h>
+#if FLT_EVAL_METHOD != 2
+#error Extended floating-point evaluation is unavailable
+#endif
+int main(void) { return 0; }
+]=] ST_AUDIO_TEST_HAVE_X87)
+	set(CMAKE_REQUIRED_FLAGS "${_st_audio_saved_required_flags}")
+	set(_st_audio_synthesis_tests st_audio_synthesis)
+	if(ST_AUDIO_TEST_HAVE_X87)
+		list(APPEND _st_audio_synthesis_tests st_audio_synthesis_x87)
+	endif()
+	foreach(_test IN LISTS _st_audio_synthesis_tests)
+		add_executable(${_test}_test tests/audio_synthesis_test.c audio_synthesis.c)
+		target_link_libraries(${_test}_test PRIVATE st_audio st_md5)
+		set_target_properties(${_test}_test PROPERTIES
+			C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		if(_test STREQUAL st_audio_synthesis_x87)
+			target_compile_options(${_test}_test PRIVATE -mfpmath=387)
+		endif()
+		st_audio_warnings(${_test}_test)
+		add_test(NAME ${_test} COMMAND ${_test}_test)
+	endforeach()
 endif()
 
 if(ST_AUDIO_BUILD_AUDIBLE_SMOKE_TEST)

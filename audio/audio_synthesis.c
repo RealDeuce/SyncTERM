@@ -8,13 +8,16 @@
 
 #include "io_error.h"
 
+#include <float.h>
 #include <math.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
 
-#define AUDIO_PI 3.14159265358979323846
-#define AUDIO_TWO_PI 6.28318530717958647692
+/* Exact binary64 constants: FLT_EVAL_METHOD=2 must not reinterpret decimal
+ * pi literals at extended precision and change the reference PCM. */
+#define AUDIO_PI 0x1.921fb54442d18p+1
+#define AUDIO_TWO_PI 0x1.921fb54442d18p+2
 
 static bool
 valid_shape(enum audio_wave_shape shape)
@@ -36,6 +39,20 @@ wrap_u8(double value)
 	return (uint8_t)(int)value;
 }
 
+/* The reference PCM uses double rounding between operations. A volatile
+ * store also enforces that rounding when x87 retains wider intermediates. */
+static double
+round_to_double(double value)
+{
+#if FLT_EVAL_METHOD == 0
+	return value;
+#else
+	volatile double rounded = value;
+
+	return rounded;
+#endif
+}
+
 int
 audio_generate_tone(int16_t *result, size_t frame_count, double frequency,
     enum audio_wave_shape shape, bool clean_edges)
@@ -51,20 +68,23 @@ audio_generate_tone(int16_t *result, size_t frame_count, double frequency,
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (frame_count > SIZE_MAX / AUDIO_FRAME_SIZE)
 		return IO_ERROR_OUT_OF_RANGE;
+	if (frequency > DBL_MAX / AUDIO_TWO_PI)
+		return IO_ERROR_OUT_OF_RANGE;
 	if (frequency == 0.0) {
 		memset(result, 0, frame_count * AUDIO_FRAME_SIZE);
 		return 0;
 	}
 	midpoint = frame_count / 2;
-	increment = AUDIO_TWO_PI * frequency / AUDIO_SAMPLE_RATE;
+	increment = round_to_double(round_to_double(AUDIO_TWO_PI * frequency)
+	    / AUDIO_SAMPLE_RATE);
 	if (!isfinite(increment)
-	    || !isfinite(increment * (double)(frame_count - 1))
+	    || !isfinite(round_to_double(increment * (double)(frame_count - 1)))
 	    || ((shape == AUDIO_WAVE_SINE_HARM || shape == AUDIO_WAVE_SINE_SAW_HARM)
-	    && !isfinite(increment * 3.0 * (double)(frame_count - 1))))
+	    && !isfinite(round_to_double(increment * 3.0 * (double)(frame_count - 1)))))
 		return IO_ERROR_OUT_OF_RANGE;
 	mono = result;
 	for (i = 0; i < frame_count; i++) {
-		double position = fmod(increment * (double)i, AUDIO_TWO_PI);
+		double position = fmod(round_to_double(increment * (double)i), AUDIO_TWO_PI);
 
 		if (noisy_shape(shape)) {
 			uint8_t sample = 0;
@@ -108,8 +128,8 @@ audio_generate_tone(int16_t *result, size_t frame_count, double frequency,
 				value = sin(position) * 32767.0;
 				break;
 			case AUDIO_WAVE_SAWTOOTH:
-				value = 32767.0
-				    - position / AUDIO_TWO_PI * 65535.0;
+				value = round_to_double(32767.0 - round_to_double(
+				    round_to_double(position / AUDIO_TWO_PI) * 65535.0));
 				break;
 			case AUDIO_WAVE_SQUARE:
 				value = position < AUDIO_PI ? 32767.0 : -32768.0;
