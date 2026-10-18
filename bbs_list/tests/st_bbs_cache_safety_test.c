@@ -29,7 +29,7 @@ fixture_path(char *result, size_t result_size, const char *relative)
 static int
 write_text(const char *path, const char *text)
 {
-	FILE *stream;
+	FILE *stream = NULL;
 	int status = fs_create_parent_directories(path);
 
 	if (status == 0)

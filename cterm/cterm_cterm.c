@@ -646,7 +646,8 @@ void
 cterm_cterm_handle_font_dcs(struct cterminal *cterm)
 {
 	char *p, *p2;
-	ssize_t i;
+	int decoded;
+	size_t size;
 
 	cterm->font_slot = strtoul(cterm->strbuf + 11, &p, 10);
 	if (cterm->font_slot < CTERM_FIRST_DYNAMIC_FONT)
@@ -655,15 +656,16 @@ cterm_cterm_handle_font_dcs(struct cterminal *cterm)
 		return;
 	if (p && *p == ':') {
 		p++;
-		i = cterm_render_base64_decode(cterm->fontbuf,
+		decoded = cterm_render_base64_decode(cterm->fontbuf,
 		    sizeof(cterm->fontbuf), p);
-		if (i < 0)
+		if (decoded < 0)
 			return;
-		p2 = malloc(i);
+		size = (size_t)decoded;
+		p2 = malloc(size);
 		if (p2) {
-			memcpy(p2, cterm->fontbuf, i);
+			memcpy(p2, cterm->fontbuf, size);
 			cterm_render_replace_font(cterm, (uint8_t)cterm->font_slot,
-			    strdup("Remote Defined Font"), p2, i);
+			    strdup("Remote Defined Font"), p2, size);
 		}
 	}
 }
