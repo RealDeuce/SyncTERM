@@ -11,6 +11,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 #if SYNCTERM_PLATFORM_WINDOWS
 	#include <ws2tcpip.h>
@@ -50,13 +51,6 @@ diagnose_urgent_mark(socket_handle_t socket, const char *stage, bool at_mark)
 	int tcp_mark_status = getsockopt(socket, IPPROTO_TCP, TCP_ATMARK,
 	    (char *)&tcp_mark, &tcp_mark_size);
 	int tcp_mark_error = tcp_mark_status == 0 ? 0 : WSAGetLastError();
-	char peek[8];
-	WSABUF buffer = {.len = sizeof(peek), .buf = peek};
-	DWORD peek_count = 0;
-	DWORD peek_flags = MSG_PEEK;
-	int peek_status = WSARecv(socket, &buffer, 1, &peek_count, &peek_flags,
-	    NULL, NULL);
-	int peek_error = peek_status == 0 ? 0 : WSAGetLastError();
 
 	fprintf(stderr, "urgent stage=%s portable-mark=%d SIOCATMARK=%lu"
 	    " status=%d error=%d FIONREAD=%lu status=%d error=%d"
@@ -65,13 +59,6 @@ diagnose_urgent_mark(socket_handle_t socket, const char *stage, bool at_mark)
 	    available_status, available_error, inline_oob, inline_status, inline_error);
 	fprintf(stderr, "urgent TCP_ATMARK stage=%s value=%lu size=%d status=%d error=%d\n",
 	    stage, tcp_mark, tcp_mark_size, tcp_mark_status, tcp_mark_error);
-	fprintf(stderr, "urgent WSARecv peek stage=%s count=%lu flags=0x%lx status=%d error=%d data=",
-	    stage, peek_count, peek_flags, peek_status, peek_error);
-	if (peek_status == 0) {
-		for (DWORD i = 0; i < peek_count; ++i)
-			fprintf(stderr, "%02x ", (unsigned char)peek[i]);
-	}
-	fputc('\n', stderr);
 #else
 	(void)socket;
 	fprintf(stderr, "urgent stage=%s portable-mark=%d\n", stage, at_mark);
@@ -99,7 +86,7 @@ receive_urgent(socket_handle_t socket, void *data, unsigned flags)
 
 #if SYNCTERM_PLATFORM_WINDOWS
 static void
-report_enabled_mark(socket_handle_t socket, const char *stage)
+report_tcp_mark(socket_handle_t socket, const char *stage)
 {
 	u_long mark = 0;
 	DWORD option = 0;
@@ -109,48 +96,66 @@ report_enabled_mark(socket_handle_t socket, const char *stage)
 	int option_status = getsockopt(socket, IPPROTO_TCP, TCP_ATMARK,
 	    (char *)&option, &size);
 	int option_error = option_status == 0 ? 0 : WSAGetLastError();
-	fprintf(stderr, "urgent enabled TCP_ATMARK stage=%s option=%lu size=%d status=%d error=%d"
+	fprintf(stderr, "urgent unpeeked TCP_ATMARK stage=%s option=%lu size=%d status=%d error=%d"
 	    " SIOCATMARK=%lu status=%d error=%d\n", stage, option, size,
 	    option_status, option_error, mark, mark_status, mark_error);
 }
 
-/* Determine whether TCP_ATMARK is an opt-in mode, not a mark query. Keep
- * this separate from the strict portable contract test and restore the
- * option before that test runs. Do not probe past an unread urgent mark. */
-static int
-probe_enabled_tcp_atmark(socket_handle_t client, socket_handle_t sender)
+static ssize_t
+diagnostic_receive(socket_handle_t socket, char *bytes, DWORD size,
+	DWORD flags, const char *stage)
 {
-	DWORD original = 0, enabled = 1;
-	int size = sizeof(original);
+	WSABUF buffer = {.len = size, .buf = bytes};
+	const struct timespec pause = {0, 1000000L};
+	DWORD requested_flags = flags;
+	DWORD count = 0;
+	int status = SOCKET_ERROR, error = 0;
+
+	/* The pointer can precede its byte, or the preceding urgent indication
+	 * can remain set briefly. This fixture has just sent a fresh OOB byte. */
+	for (unsigned attempt = 0; attempt < 1000; ++attempt) {
+		flags = requested_flags;
+		status = WSARecv(socket, &buffer, 1, &count, &flags, NULL, NULL);
+		error = status == 0 ? 0 : WSAGetLastError();
+		if (status == 0 || (error != WSAEWOULDBLOCK
+		    && (requested_flags != MSG_OOB || error != WSAEINVAL)))
+			break;
+		(void)st_thread_sleep(&pause, NULL);
+	}
+
+	fprintf(stderr, "urgent unpeeked WSARecv stage=%s count=%lu flags=0x%lx status=%d error=%d data=",
+	    stage, count, flags, status, error);
+	if (status == 0) {
+		for (DWORD i = 0; i < count; ++i)
+			fprintf(stderr, "%02x ", (unsigned char)bytes[i]);
+	}
+	fputc('\n', stderr);
+	return status == 0 ? (ssize_t)count : -1;
+}
+
+/* Query TCP_ATMARK without a normal peek or an attempted option write.
+ * Receive OOB first, as RLogin does, then query the normal stream boundary.
+ * Do not assume that SIOCATMARK's pending-data indication locates it. */
+static int
+probe_unpeeked_tcp_atmark(socket_handle_t client, socket_handle_t sender)
+{
 	unsigned events;
 	char bytes[4];
-	int status = getsockopt(client, IPPROTO_TCP, TCP_ATMARK,
-	    (char *)&original, &size);
-	if (status != 0) {
-		fprintf(stderr, "urgent TCP_ATMARK option unavailable error=%d\n", WSAGetLastError());
-		return 0;
-	}
-	status = setsockopt(client, IPPROTO_TCP, TCP_ATMARK,
-	    (const char *)&enabled, sizeof(enabled));
-	fprintf(stderr, "urgent enabling TCP_ATMARK status=%d error=%d\n",
-	    status, status == 0 ? 0 : WSAGetLastError());
-	if (status != 0)
-		return 0;
+
 	CHECK(socket_send(sender, "pre", 3) == 3);
 	CHECK(send(sender, "!", 1, MSG_OOB) == 1);
 	CHECK(socket_send(sender, "post", 4) == 4);
 	CHECK(socket_wait(client, SOCKET_WAIT_URGENT, 1000, &events) == 0);
-	report_enabled_mark(client, "before pre");
-	CHECK(socket_receive(client, bytes, 3, SOCKET_RECEIVE_NONE) == 3);
-	CHECK(memcmp(bytes, "pre", 3) == 0);
-	report_enabled_mark(client, "at control");
-	CHECK(socket_receive(client, bytes, 1, SOCKET_RECEIVE_URGENT) == 1);
+	report_tcp_mark(client, "noninline before OOB and pre");
+	CHECK(diagnostic_receive(client, bytes, 1, MSG_OOB, "noninline OOB first") == 1);
 	CHECK(bytes[0] == '!');
-	report_enabled_mark(client, "after control");
-	CHECK(socket_receive(client, bytes, 4, SOCKET_RECEIVE_NONE) == 4);
+	report_tcp_mark(client, "noninline after OOB, before pre");
+	CHECK(diagnostic_receive(client, bytes, 3, 0, "noninline pre") == 3);
+	CHECK(memcmp(bytes, "pre", 3) == 0);
+	report_tcp_mark(client, "noninline at consumed control");
+	CHECK(diagnostic_receive(client, bytes, 4, 0, "noninline post") == 4);
 	CHECK(memcmp(bytes, "post", 4) == 0);
-	CHECK(setsockopt(client, IPPROTO_TCP, TCP_ATMARK,
-	    (const char *)&original, sizeof(original)) == 0);
+	report_tcp_mark(client, "noninline after post");
 	return 0;
 }
 
@@ -158,32 +163,43 @@ probe_enabled_tcp_atmark(socket_handle_t client, socket_handle_t sender)
  * non-inline OOB. In particular, a true SIOCATMARK before ordinary prefix
  * data would rule out using it to identify inline control bytes. */
 static int
+wait_unpeeked_readable(socket_handle_t socket)
+{
+	WSAPOLLFD item = {.fd = socket, .events = POLLRDNORM};
+	/* socket_wait() classifies EOF with MSG_PEEK. At an inline urgent byte
+	 * that would interfere with the mark-only measurement below. */
+	int status = WSAPoll(&item, 1, 1000);
+	int error = status == SOCKET_ERROR ? WSAGetLastError() : 0;
+	if (status != 1 || (item.revents & POLLRDNORM) == 0) {
+		fprintf(stderr, "urgent unpeeked wait status=%d revents=0x%x error=%d\n",
+		    status, (unsigned)item.revents, error);
+		return 1;
+	}
+	return 0;
+}
+
+static int
 probe_inline_urgent(socket_handle_t client, socket_handle_t sender)
 {
 	int enabled = 1;
 	char bytes[4];
-	unsigned events;
-	bool mark;
 
 	CHECK(setsockopt(client, SOL_SOCKET, SO_OOBINLINE,
 	    (const char *)&enabled, sizeof(enabled)) == 0);
 	CHECK(socket_send(sender, "pre", 3) == 3);
 	CHECK(send(sender, "!", 1, MSG_OOB) == 1);
 	CHECK(socket_send(sender, "post", 4) == 4);
-	CHECK(socket_wait(client, SOCKET_WAIT_READABLE, 1000, &events) == 0);
-	CHECK(socket_at_urgent_mark(client, &mark) == 0);
-	diagnose_urgent_mark(client, "inline before pre", mark);
-	CHECK(socket_receive(client, bytes, 3, SOCKET_RECEIVE_NONE) == 3);
+	CHECK(wait_unpeeked_readable(client) == 0);
+	report_tcp_mark(client, "inline before pre");
+	CHECK(diagnostic_receive(client, bytes, 3, 0, "inline pre") == 3);
 	CHECK(memcmp(bytes, "pre", 3) == 0);
-	CHECK(socket_wait(client, SOCKET_WAIT_READABLE, 1000, &events) == 0);
-	CHECK(socket_at_urgent_mark(client, &mark) == 0);
-	diagnose_urgent_mark(client, "inline at control", mark);
-	CHECK(socket_receive(client, bytes, 1, SOCKET_RECEIVE_NONE) == 1);
+	CHECK(wait_unpeeked_readable(client) == 0);
+	report_tcp_mark(client, "inline at control");
+	CHECK(diagnostic_receive(client, bytes, 1, 0, "inline control") == 1);
 	CHECK(bytes[0] == '!');
-	CHECK(socket_wait(client, SOCKET_WAIT_READABLE, 1000, &events) == 0);
-	CHECK(socket_at_urgent_mark(client, &mark) == 0);
-	diagnose_urgent_mark(client, "inline after control", mark);
-	CHECK(socket_receive(client, bytes, 4, SOCKET_RECEIVE_NONE) == 4);
+	CHECK(wait_unpeeked_readable(client) == 0);
+	report_tcp_mark(client, "inline after control");
+	CHECK(diagnostic_receive(client, bytes, 4, 0, "inline post") == 4);
 	CHECK(memcmp(bytes, "post", 4) == 0);
 	enabled = 0;
 	CHECK(setsockopt(client, SOL_SOCKET, SO_OOBINLINE,
@@ -279,7 +295,7 @@ main(int argc, char **argv)
 	CHECK(socket_at_urgent_mark(client, NULL) == IO_ERROR_INVALID_ARGUMENT);
 #if SYNCTERM_PLATFORM_WINDOWS
 	CHECK(probe_inline_urgent(client, accepted) == 0);
-	CHECK(probe_enabled_tcp_atmark(client, accepted) == 0);
+	CHECK(probe_unpeeked_tcp_atmark(client, accepted) == 0);
 #endif
 	CHECK(socket_send(accepted, "pre", 3) == 3);
 	received[0] = 0x02;
