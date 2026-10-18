@@ -78,6 +78,9 @@ urgent peeks can change the stream mark even when the byte is not consumed.
 | socket_wait(socket, interests, timeout_ms, events)
 | Waits for readable/writable/urgent interest; `-1` is infinite.  Clears
 `events` before waiting and may add closed/error bits.  Timeout is an error.
+Handle reported URGENT before normal reads: when it accompanies READABLE,
+EOF classification may be deferred until the urgent byte is handled, preserving
+the unread urgent mark rather than probing past it with an ordinary peek.
 
 | tcp_client_connect(result, connected_family, host, port, options)
 | Resolves and races addresses according to family and overall timeout.
@@ -550,9 +553,12 @@ it and requires all concurrent callers stopped.
 | Opens RLogin with current/fixed terminal geometry and status-row policy.
 Consumes the server's zero acknowledgement before starting data workers;
 rejection or EOF fails setup without publishing a connection. The acknowledgement
-wait is cancellable through the NEGOTIATING setup hook. Starts in cooked mode:
-local XOFF holds delivery of received data, not the transport reader, and XON
-resumes it. Urgent raw-mode selection also resumes held delivery. A full input
+wait is cancellable through the NEGOTIATING setup hook. SyncTERM's terminal
+policy starts raw, forwarding all application bytes including XON/XOFF unchanged,
+rather than using the RFC's conventional cooked startup. An explicit server
+urgent `0x20` selects cooked mode: local XOFF holds delivery of received data,
+not the transport reader, and XON resumes it. Server urgent `0x10` restores raw
+immediately and resumes held delivery. A full input
 queue still services urgent controls; FLUSHWRITE drops queued bytes and the
 reader's staged suffix as well as draining to the urgent boundary. Raw mode
 forwards XON/XOFF unchanged. Peer EOF releases a local delivery hold, preserving

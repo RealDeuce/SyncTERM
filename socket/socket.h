@@ -76,7 +76,9 @@ int socket_at_urgent_mark(socket_handle_t socket, bool *at_mark);
  * Interests contains at least one of READABLE, WRITABLE, and URGENT. CLOSED
  * may accompany a READABLE wait, and ERROR may accompany any wait. Timeout is
  * in milliseconds; -1 waits indefinitely. Events is cleared before waiting.
- * A timeout returns IO_ERROR_TIMED_OUT.
+ * A timeout returns IO_ERROR_TIMED_OUT. When URGENT is reported, handle it
+ * before normal reads; READABLE may then indicate data or EOF, whose CLOSED
+ * classification is deferred to avoid disturbing an unread urgent mark.
  */
 int socket_wait(socket_handle_t socket, unsigned interests,
     int64_t timeout_ms, unsigned *events);

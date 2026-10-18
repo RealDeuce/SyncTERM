@@ -189,6 +189,11 @@ main(void)
 	CHECK(socket_at_urgent_mark(client, &at_mark) == 0);
 	diagnose_urgent_mark(client, "after pre", at_mark);
 	CHECK(at_mark);
+	/* Waiting at the boundary must not skip the unread urgent byte while
+	 * probing ordinary readability of the post-mark data. */
+	CHECK(socket_wait(client, SOCKET_WAIT_READABLE | SOCKET_WAIT_URGENT,
+	    1000, &events) == 0);
+	CHECK((events & SOCKET_WAIT_URGENT) != 0);
 	CHECK(receive_urgent(client, received, SOCKET_RECEIVE_URGENT) == 1);
 	CHECK(received[0] == 0x02);
 	CHECK(socket_receive(client, received, 4, SOCKET_RECEIVE_NONE) == 4);

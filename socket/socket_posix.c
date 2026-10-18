@@ -295,9 +295,15 @@ socket_poll_events(struct socket_wait_item *item, short events)
 	    (item->interests & SOCKET_WAIT_WRITABLE) != 0)
 		item->events |= SOCKET_WAIT_WRITABLE;
 	if ((events & POLLPRI) != 0 &&
-	    (item->interests & SOCKET_WAIT_URGENT) != 0)
+	    (item->interests & SOCKET_WAIT_URGENT) != 0) {
 		item->events |= SOCKET_WAIT_URGENT;
-	if ((events & (POLLIN | POLLHUP)) != 0) {
+		/* Even an ordinary MSG_PEEK can clear the urgent mark on BSD.
+		 * Let the caller consume OOB before classifying data versus EOF. */
+		if ((events & POLLIN) != 0 &&
+		    (item->interests & SOCKET_WAIT_READABLE) != 0)
+			item->events |= SOCKET_WAIT_READABLE;
+	}
+	else if ((events & (POLLIN | POLLHUP)) != 0) {
 		received = recv(item->socket, &byte, 1, MSG_PEEK | MSG_DONTWAIT);
 		if (received > 0) {
 			if ((item->interests & SOCKET_WAIT_READABLE) != 0)

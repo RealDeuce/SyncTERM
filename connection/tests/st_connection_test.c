@@ -200,7 +200,7 @@ rlogin_server_worker(void *argument)
 		0xff, 0xff, 's', 's', 0, 40, 0, 120, 0, 0, 0, 0,
 	};
 	socket_handle_t client;
-	uint8_t buffer[64];
+	uint8_t buffer[256];
 
 	client = accept(state->listener, NULL, NULL);
 	if (!socket_handle_is_valid(client))
@@ -210,6 +210,14 @@ rlogin_server_worker(void *argument)
 	    || memcmp(buffer, rlogin_handshake, sizeof(rlogin_handshake)) != 0)
 		goto failed;
 	if (socket_send(client, "", 1) != 1)
+		goto failed;
+	if (receive_exact(client, buffer, sizeof(buffer)) != 0)
+		goto failed;
+	for (size_t i = 0; i < sizeof(buffer); ++i) {
+		if (buffer[i] != (uint8_t)i)
+			goto failed;
+	}
+	if (socket_send(client, buffer, sizeof(buffer)) != (ssize_t)sizeof(buffer))
 		goto failed;
 	atomic_store(&state->stage, 2);
 	while (!atomic_load(&state->allow_urgent))
@@ -234,7 +242,7 @@ rlogin_server_worker(void *argument)
 	atomic_store(&state->stage, 6);
 	while (!atomic_load(&state->allow_flush))
 		st_thread_yield();
-	if (socket_send(client, "cooked", 6) != 6)
+	if (send_urgent(client, 0x20) != 0 || socket_send(client, "cooked", 6) != 6)
 		goto failed;
 	if (receive_exact(client, buffer, 2) != 0
 	    || memcmp(buffer, "AB", 2) != 0)
@@ -393,6 +401,19 @@ test_raw(void)
 }
 
 static int
+wait_for_binary(st_connection_t *connection, bool binary)
+{
+	const struct timespec pause = {0, 1000000L};
+	for (unsigned attempt = 0; attempt < 3000; ++attempt) {
+		if (atomic_load(&connection->binary_mode) == binary)
+			return 0;
+		(void)st_thread_sleep(&pause, NULL);
+	}
+	fprintf(stderr, "RLogin did not switch to %s mode\n", binary ? "raw" : "cooked");
+	return 1;
+}
+
+static int
 test_rlogin(void)
 {
 	struct server_state server;
@@ -403,7 +424,7 @@ test_rlogin(void)
 	struct st_connection_hooks hooks = {0};
 	st_connection_t *connection = NULL;
 	st_thread_t thread;
-	char buffer[8];
+	uint8_t buffer[256];
 	uint16_t port;
 	int thread_result;
 
@@ -427,7 +448,15 @@ test_rlogin(void)
 	strcpy(profile.terminal_name, "ansi");
 	CHECK(st_connection_connect_rlogin(&connection, &profile, &geometry,
 	    &hooks, &error) == 0);
-	CHECK(!atomic_load(&connection->binary_mode));
+	CHECK(atomic_load(&connection->binary_mode));
+	for (size_t i = 0; i < sizeof(buffer); ++i)
+		buffer[i] = (uint8_t)i;
+	CHECK(st_connection_send(connection, buffer, sizeof(buffer), 1000)
+	    == (ssize_t)sizeof(buffer));
+	memset(buffer, 0, sizeof(buffer));
+	CHECK(connection_receive_exact(connection, buffer, sizeof(buffer)) == 0);
+	for (size_t i = 0; i < sizeof(buffer); ++i)
+		CHECK(buffer[i] == (uint8_t)i);
 	geometry.columns = 100;
 	geometry.rows = 30;
 	CHECK(st_connection_update_terminal_size(connection, &geometry) == 0);
@@ -443,6 +472,7 @@ test_rlogin(void)
 	atomic_store(&server.allow_flush, true);
 	CHECK(connection_receive_exact(connection, buffer, 6) == 0);
 	CHECK(memcmp(buffer, "cooked", 6) == 0);
+	CHECK(wait_for_binary(connection, false) == 0);
 	CHECK(st_connection_send(connection, "\x13" "AB" "\x11", 4, 1000)
 	    == 4);
 	CHECK(connection_receive_exact(connection, buffer, 5) == 0);
@@ -515,19 +545,6 @@ test_rlogin_flush(void)
 }
 
 static int
-wait_for_binary(st_connection_t *connection, bool binary)
-{
-	const struct timespec pause = {0, 1000000L};
-	for (unsigned attempt = 0; attempt < 3000; ++attempt) {
-		if (atomic_load(&connection->binary_mode) == binary)
-			return 0;
-		(void)st_thread_sleep(&pause, NULL);
-	}
-	fprintf(stderr, "RLogin did not switch to %s mode\n", binary ? "raw" : "cooked");
-	return 1;
-}
-
-static int
 rlogin_flow_server(void *argument)
 {
 	struct server_state *state = argument;
@@ -541,6 +558,9 @@ rlogin_flow_server(void *argument)
 	if (receive_exact(client, bytes, sizeof(rlogin_handshake)) != 0
 	    || memcmp(bytes, rlogin_handshake, sizeof(rlogin_handshake)) != 0
 	    || socket_send(client, "\0start", 6) != 6)
+		goto failed;
+	if (receive_exact(client, bytes, 1) != 0 || bytes[0] != 'I'
+	    || send_urgent(client, 0x20) != 0)
 		goto failed;
 	while (!atomic_load(&state->allow_urgent))
 		st_thread_yield();
@@ -586,6 +606,9 @@ rlogin_backpressure_server(void *argument)
 	if (receive_exact(client, bytes, sizeof(rlogin_handshake)) != 0
 	    || memcmp(bytes, rlogin_handshake, sizeof(rlogin_handshake)) != 0
 	    || socket_send(client, "", 1) != 1)
+		goto failed;
+	if (receive_exact(client, bytes, 1) != 0 || bytes[0] != 'I'
+	    || send_urgent(client, 0x20) != 0)
 		goto failed;
 	while (!atomic_load(&state->allow_urgent))
 		st_thread_yield();
@@ -650,11 +673,13 @@ test_rlogin_flow(bool backpressure)
 	strcpy(profile.terminal_name, "ansi");
 	CHECK(st_connection_connect_rlogin(&connection, &profile, &geometry,
 	    &hooks, NULL) == 0);
-	CHECK(!atomic_load(&connection->binary_mode));
+	CHECK(atomic_load(&connection->binary_mode));
 	if (!backpressure) {
 		CHECK(connection_receive_exact(connection, bytes, 5) == 0);
 		CHECK(memcmp(bytes, "start", 5) == 0); /* ACK must not reach data. */
 	}
+	CHECK(st_connection_send(connection, "I", 1, 1000) == 1);
+	CHECK(wait_for_binary(connection, false) == 0);
 	CHECK(st_connection_send(connection, "\x13", 1, 1000) == 1);
 	atomic_store(&server.allow_urgent, true);
 	if (backpressure) {
@@ -743,7 +768,7 @@ rlogin_setup_server(void *argument)
 		goto done;
 	}
 	if (state->mode == RLOGIN_STOPPED_CLOSE || state->mode == RLOGIN_STOPPED_EOF) {
-		if (socket_send(client, "", 1) != 1)
+		if (socket_send(client, "", 1) != 1 || send_urgent(client, 0x20) != 0)
 			goto done;
 		memset(bytes, 'x', sizeof(bytes));
 		for (size_t sent = 0; sent < ST_CONNECTION_BUFFER_SIZE + 4096;) {
@@ -786,7 +811,8 @@ test_rlogin_setup(void)
 		struct st_profile profile;
 		struct st_screen_geometry geometry = {80, 25, 0, 0};
 		struct st_connection_error error;
-		struct st_connection_hooks hooks = {0};
+		struct log_state log = {0};
+		struct st_connection_hooks hooks = {.log = test_log, .log_context = &log};
 		st_connection_t *connection = NULL;
 		st_thread_t thread;
 		uint16_t port;
@@ -810,6 +836,7 @@ test_rlogin_setup(void)
 		    &hooks, &error);
 		if (mode == RLOGIN_STOPPED_CLOSE || mode == RLOGIN_STOPPED_EOF) {
 			CHECK(status == 0);
+			CHECK(wait_for_binary(connection, false) == 0);
 			CHECK(st_connection_send(connection, "\x13", 1, 1000) == 1);
 			CHECK(wait_for_pending(connection, ST_CONNECTION_BUFFER_SIZE) == 0);
 			CHECK(wait_for_stage(&state.server, 3) == 0);

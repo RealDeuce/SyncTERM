@@ -310,16 +310,25 @@ socket_internal_wait_many(struct socket_wait_item *items, size_t count,
 		if (FD_ISSET(items[index].socket, &write_set))
 			items[index].events |= SOCKET_WAIT_WRITABLE;
 		if (FD_ISSET(items[index].socket, &read_set)) {
-			received = recv(items[index].socket, &byte, 1, MSG_PEEK);
-			if (received > 0 &&
-			    (items[index].interests & SOCKET_WAIT_READABLE) != 0)
-				items[index].events |= SOCKET_WAIT_READABLE;
-			else if (received == 0)
-				items[index].events |= SOCKET_WAIT_CLOSED;
-			else if (received == SOCKET_ERROR) {
-				items[index].events |= SOCKET_WAIT_ERROR;
-				items[index].error = socket_internal_map_error(
-				    WSAGetLastError());
+			/* Match the common urgent-first contract: classify EOF only
+			 * after the caller has handled pending OOB. */
+			if (FD_ISSET(items[index].socket, &except_set) &&
+			    (items[index].interests & SOCKET_WAIT_URGENT) != 0) {
+				if ((items[index].interests & SOCKET_WAIT_READABLE) != 0)
+					items[index].events |= SOCKET_WAIT_READABLE;
+			}
+			else {
+				received = recv(items[index].socket, &byte, 1, MSG_PEEK);
+				if (received > 0 &&
+				    (items[index].interests & SOCKET_WAIT_READABLE) != 0)
+					items[index].events |= SOCKET_WAIT_READABLE;
+				else if (received == 0)
+					items[index].events |= SOCKET_WAIT_CLOSED;
+				else if (received == SOCKET_ERROR) {
+					items[index].events |= SOCKET_WAIT_ERROR;
+					items[index].error = socket_internal_map_error(
+					    WSAGetLastError());
+				}
 			}
 		}
 		if (FD_ISSET(items[index].socket, &except_set)) {

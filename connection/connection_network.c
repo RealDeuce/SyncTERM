@@ -73,8 +73,10 @@ network_bind(void *state, st_connection_t *connection)
 	struct network_transport *transport = state;
 
 	transport->connection = connection;
+	/* Prefer a transparent terminal from startup; an explicit server 0x20
+	 * still enables cooked XON/XOFF processing. */
 	if (transport->rlogin)
-		(void)st_connection_set_binary_mode(connection, false);
+		(void)st_connection_set_binary_mode(connection, true);
 }
 
 static int
@@ -244,7 +246,7 @@ network_read(void *state, void *data, size_t size, int64_t timeout_ms)
 				return 0;
 			transport->urgent_pending = transport->urgent_pending
 			    || (events & SOCKET_WAIT_READABLE) != 0;
-			if ((events & SOCKET_WAIT_URGENT) != 0)
+			if ((events & SOCKET_WAIT_READABLE) == 0)
 				return IO_ERROR_WOULD_BLOCK;
 			result = IO_ERROR_WOULD_BLOCK;
 		}
@@ -343,6 +345,18 @@ network_poll_input_control(void *state)
 		status = process_urgent(transport, &handled, &discard_input);
 		if (status == IO_ERROR_INVALID_ARGUMENT && (events & SOCKET_WAIT_CLOSED) != 0)
 			return ST_CONNECTION_INPUT_CONTROL_EOF;
+		if (status == IO_ERROR_INVALID_ARGUMENT && (events & SOCKET_WAIT_READABLE) != 0) {
+			uint8_t byte;
+			/* The last urgent byte is already consumed. It is now safe
+			 * to peek past its stale mark to detect EOF without taking
+			 * any normal data away from a full input queue. */
+			ssize_t count = socket_receive(transport->socket, &byte, 1,
+			    SOCKET_RECEIVE_PEEK);
+			if (count == 0)
+				return ST_CONNECTION_INPUT_CONTROL_EOF;
+			if (count < 0 && count != IO_ERROR_WOULD_BLOCK)
+				return (int)count;
+		}
 		if (status == IO_ERROR_WOULD_BLOCK || status == IO_ERROR_INVALID_ARGUMENT) {
 			transport->urgent_pending = true;
 			return discard_input ? ST_CONNECTION_INPUT_CONTROL_DISCARD

@@ -129,6 +129,8 @@ int st_connection_connect_raw(st_connection_t **result,
 	const struct st_profile *profile,
 	const struct st_connection_hooks *hooks,
 	struct st_connection_error *error);
+/* RLogin starts raw after the server acknowledgement. Server urgent 0x20
+ * selects cooked local XON/XOFF handling; 0x10 restores raw immediately. */
 int st_connection_connect_rlogin(st_connection_t **result,
 	const struct st_profile *profile,
 	const struct st_screen_geometry *current_screen,
