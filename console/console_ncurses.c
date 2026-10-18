@@ -1420,6 +1420,20 @@ curses_capabilities(const st_console_t *console)
 
 static int curses_attach(st_console_t *console);
 
+static int
+curses_start_input(st_console_display_t *display)
+{
+	struct curses_state *state = display->backend_state;
+
+	if (atomic_load_explicit(&display->input_active, memory_order_acquire) == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (st_thread_create(&state->input_thread, curses_input, state)
+	    != ST_THREAD_SUCCESS)
+		return IO_ERROR_IO;
+	state->input_started = true;
+	return 0;
+}
+
 static const struct st_console_backend_ops curses_ops = {
 	.attach = curses_attach,
 	.deferred_present = true,
@@ -1428,6 +1442,7 @@ static const struct st_console_backend_ops curses_ops = {
 	.palette_changed = curses_palette_changed,
 	.capabilities = curses_capabilities,
 	.destroy = curses_destroy,
+	.start_input = curses_start_input,
 };
 
 static bool
@@ -1796,14 +1811,6 @@ st_console_ncurses_init(st_console_t *console)
 			return result;
 		}
 	}
-	result = st_thread_create(&state->input_thread, curses_input, state);
-	if (result != ST_THREAD_SUCCESS) {
-		curses_destroy(console->display);
-		console->display->backend_state = NULL;
-		console->display->backend_ops = NULL;
-		return IO_ERROR_IO;
-	}
-	state->input_started = true;
 	return 0;
 }
 

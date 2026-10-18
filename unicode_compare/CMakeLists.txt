@@ -54,6 +54,8 @@ if(BUILD_TESTING)
 	set_target_properties(st_unicode_collation_conformance PROPERTIES
 		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
+		target_compile_definitions(st_unicode_collation_conformance PRIVATE
+			_CRT_SECURE_NO_WARNINGS)
 		target_compile_options(st_unicode_collation_conformance PRIVATE
 			/W4 /WX)
 	else()

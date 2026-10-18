@@ -594,7 +594,7 @@ test_key_name_grammar(void)
 		NULL, "", " leading", "trailing ", "bad=key", "bad:key",
 		";comment", "[section]",
 	};
-	static const char non_ascii_name[] = {'b', (char)0x80, 'd', '\0'};
+	static const char non_ascii_name[] = "b\x80" "d";
 	ini_document_t *document = NULL;
 	ini_document_t *parsed = NULL;
 	char *text = NULL;

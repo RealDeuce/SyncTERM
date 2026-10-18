@@ -618,7 +618,7 @@ st_list_crypto_write(FILE *stream, const ini_document_t *document,
 	uint8_t key[32];
 	uint8_t *ciphertext = NULL;
 	size_t serialized_size = 0;
-	size_t padded_size;
+	size_t padded_size = 0;
 	size_t cipher_iv_size;
 	uint32_t key_bits;
 	int error;

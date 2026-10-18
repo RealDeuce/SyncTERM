@@ -46,6 +46,8 @@ struct st_console_backend_ops {
 	int (*get_scaling)(st_console_display_t *display, double *scaling);
 	/* Synchronously transfer the backend thread's retained console pointer. */
 	int (*activate)(st_console_t *console);
+	/* Start readers only after the first console is an input destination. */
+	int (*start_input)(st_console_display_t *display);
 	void (*destroy)(st_console_display_t *display);
 };
 
@@ -60,7 +62,8 @@ struct st_console_display {
 	/* Pinned by the worker under presentation_mutex until a frame finishes. */
 	st_console_t *presentation_active;
 	_Atomic(st_console_t *) active;
-	/* Published selection; unchanged until activation finishes successfully. */
+	/* Published before initial readers start; later activation changes this
+	 * selection only after the new display state is installed successfully. */
 	_Atomic(st_console_t *) input_active;
 	st_console_t *consoles;
 	/* Removed consoles retained while a failed backend may still reference them. */

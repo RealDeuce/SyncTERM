@@ -240,8 +240,8 @@ presentation_worker(void *argument)
 		uint64_t now = 0;
 		uint64_t next;
 		bool animate;
-		bool animation_due;
-		bool content_due;
+		bool animation_due = false;
+		bool content_due = false;
 		bool repaint;
 		int present_status = 0;
 		int status;
@@ -425,8 +425,8 @@ create_console(st_console_t **result, st_console_display_t *display,
 	uint32_t pixel_height;
 	uint32_t pixel_extra_width;
 	uint32_t pixel_extra_height;
-	uint32_t minimum_width;
-	uint32_t minimum_height;
+	uint32_t minimum_width = 0;
+	uint32_t minimum_height = 0;
 	bool configured_default_cursor;
 	int status;
 
@@ -706,14 +706,29 @@ create_console(st_console_t **result, st_console_display_t *display,
 		status = 0;
 	else
 		status = IO_ERROR_NOT_SUPPORTED;
+	if (status == 0) {
+		atomic_store_explicit(&display->input_active, console,
+		    memory_order_release);
+		if (display->backend_ops != NULL
+		    && display->backend_ops->start_input != NULL)
+			status = display->backend_ops->start_input(display);
+	}
 	if (status == 0)
 		status = st_console_start_presentation_worker(console);
 	if (status != 0) {
+		/* Detach and drain deliveries before stopping readers or freeing the
+		 * failed console. Reader shutdown must not hold input_mutex. */
+		(void)st_mutex_lock(&display->input_mutex);
+		atomic_store_explicit(&display->input_active, NULL,
+		    memory_order_release);
+		(void)st_mutex_unlock(&display->input_mutex);
 		if (console->display->backend_ops != NULL
 		    && console->display->backend_ops->destroy != NULL)
 			console->display->backend_ops->destroy(console->display);
 		display->backend_ops = NULL;
 		display->backend_state = NULL;
+		/* Readers may have queued input before a later startup failure. */
+		free(console->events);
 		st_condition_destroy(&console->event_ready);
 		st_mutex_destroy(&console->event_mutex);
 		(void)st_rwlock_destroy(&console->state_lock);
@@ -727,7 +742,6 @@ create_console(st_console_t **result, st_console_display_t *display,
 		return status;
 	}
 	display->backend_initialized = true;
-	atomic_store_explicit(&display->input_active, console, memory_order_release);
 	console->next_display = display->consoles;
 	display->consoles = console;
 	++display->console_count;
@@ -3682,7 +3696,7 @@ st_console_display_set_fullscreen(st_console_display_t *display,
 int
 st_console_display_get_scaling(st_console_display_t *display, double *result)
 {
-	double scaling;
+	double scaling = 0;
 	int status;
 
 	if (display == NULL || result == NULL)

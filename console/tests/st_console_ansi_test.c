@@ -293,7 +293,8 @@ redirected_child(int descriptor, enum redirected_case test)
 		.wrap = true,
 	};
 	st_console_t *console = NULL;
-	struct st_console_event event;
+	struct st_console_event event = {0};
+	const char *stage = "input";
 
 	if (st_console_create(&console, &display_config, &console_config) != 0) {
 		report(descriptor, 'C');
@@ -338,14 +339,21 @@ redirected_child(int descriptor, enum redirected_case test)
 		    || event.data.text.codepoint != 'B')
 			goto failed;
 	}
-	if (!next_event(console, &event) || event.type != ST_CONSOLE_EVENT_CLOSE
-	    || st_console_event_try(console, &event) != IO_ERROR_WOULD_BLOCK)
+	stage = "close";
+	if (!next_event(console, &event) || event.type != ST_CONSOLE_EVENT_CLOSE)
+		goto failed;
+	stage = "queue after close";
+	if (st_console_event_try(console, &event) != IO_ERROR_WOULD_BLOCK)
 		goto failed;
 	st_console_destroy(console);
 	report(descriptor, 'X');
 	_exit(0);
 
 failed:
+	fprintf(stderr, "ANSI redirected case=%d stage=%s last-event=%d"
+	    " text=U+%04x key=%u\n", test, stage, event.type,
+	    event.type == ST_CONSOLE_EVENT_TEXT ? (unsigned)event.data.text.codepoint : 0,
+	    event.type == ST_CONSOLE_EVENT_KEY_CODE ? (unsigned)event.data.key.code : 0);
 	st_console_destroy(console);
 	report(descriptor, 'F');
 	_exit(1);

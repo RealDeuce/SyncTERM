@@ -438,6 +438,16 @@ if(BUILD_TESTING)
 		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	st_console_warnings(st_console_test)
 	add_test(NAME st_console COMMAND st_console_test)
+	add_executable(st_console_input_startup_test
+		tests/st_console_input_startup_test.c)
+	target_link_libraries(st_console_input_startup_test PRIVATE st_console
+		syncterm_array_list)
+	syncterm_target_atomics(st_console_input_startup_test)
+	set_target_properties(st_console_input_startup_test PROPERTIES
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	st_console_warnings(st_console_input_startup_test)
+	add_test(NAME st_console_input_startup COMMAND st_console_input_startup_test)
+	set_tests_properties(st_console_input_startup PROPERTIES TIMEOUT 10)
 	add_executable(st_console_regrid_test
 		tests/st_console_regrid_test.c)
 	target_link_libraries(st_console_regrid_test PRIVATE st_console)

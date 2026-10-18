@@ -41,6 +41,7 @@ struct ansi_state {
 	unsigned int utf8_idle;
 	unsigned int doorway_phase;
 	bool doorway_enabled;
+	bool input_available;
 	bool input_started;
 	bool initialized;
 	bool last_was_carriage_return;
@@ -967,11 +968,28 @@ ansi_destroy(st_console_display_t *display)
 	free(state);
 }
 
+static int
+ansi_start_input(st_console_display_t *display)
+{
+	struct ansi_state *state = display->backend_state;
+
+	if (!state->input_available)
+		return 0;
+	if (atomic_load_explicit(&display->input_active, memory_order_acquire) == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (st_thread_create(&state->input_thread, ansi_input, state)
+	    != ST_THREAD_SUCCESS)
+		return IO_ERROR_IO;
+	state->input_started = true;
+	return 0;
+}
+
 static const struct st_console_backend_ops ansi_ops = {
 	.present = ansi_present,
 	.resize = ansi_resize,
 	.palette_changed = ansi_palette_changed,
 	.capabilities = ansi_capabilities,
+	.start_input = ansi_start_input,
 	.destroy = ansi_destroy,
 };
 
@@ -981,6 +999,7 @@ static const struct st_console_backend_ops ansi_deferred_ops = {
 	.resize = ansi_resize,
 	.palette_changed = ansi_palette_changed,
 	.capabilities = ansi_capabilities,
+	.start_input = ansi_start_input,
 	.destroy = ansi_destroy,
 };
 
@@ -1052,13 +1071,7 @@ st_console_ansi_init(st_console_t *console,
 		    memory_order_release);
 		result = st_console_resize(console, columns, rows);
 	}
-	if (result == 0 && input_available) {
-		result = st_thread_create(&state->input_thread, ansi_input, state);
-		if (result == ST_THREAD_SUCCESS)
-			state->input_started = true;
-		else
-			result = IO_ERROR_IO;
-	}
+	state->input_available = input_available;
 	if (result != 0) {
 		ansi_destroy(console->display);
 		console->display->backend_ops = NULL;

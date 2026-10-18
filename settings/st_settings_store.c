@@ -1129,7 +1129,7 @@ st_settings_persist_scaling_factor(double scaling_factor)
 {
 	st_file_lock_t *lock = NULL;
 	ini_document_t *document = NULL;
-	ini_section_t *section;
+	ini_section_t *section = NULL;
 	int status;
 
 	if (!baseline_initialized || settings_path == NULL
