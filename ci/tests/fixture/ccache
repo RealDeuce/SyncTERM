@@ -1,9 +1,10 @@
 #!/bin/sh
 # Copyright (c) 2026 Stephen Hurd
 # SPDX-License-Identifier: BSD-2-Clause
-# Model ccache's documented XDG_RUNTIME_DIR default without requiring it on
-# the test host. The compiler itself still runs normally.
+# ccache initializes its default directory before applying environment
+# overrides. Model that side effect as well as the selected temporary path.
 set -eu
+mkdir -p "$XDG_RUNTIME_DIR/ccache-tmp"
 ci_cache_tmp=${CCACHE_TEMPDIR:-"$XDG_RUNTIME_DIR/ccache-tmp"}
 mkdir -p "$ci_cache_tmp"
 printf 'invoked\n' >>"$ci_cache_tmp/fixture-invocations.log"

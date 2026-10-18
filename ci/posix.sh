@@ -27,6 +27,11 @@ cleanup() {
 	if [ -n "$ci_runtime" ]; then
 		ci_cleanup_log="$CI_BUILD_DIR/reports/runtime-cleanup.log"
 		printf 'Runtime directory: %s\n' "$ci_runtime" >"$ci_cleanup_log"
+		# ccache initializes its default directory before reading CCACHE_TEMPDIR.
+		# Remove only that empty directory; preserve unexpected files below it.
+		if [ -d "$ci_runtime/ccache-tmp" ]; then
+			rmdir "$ci_runtime/ccache-tmp" 2>>"$ci_cleanup_log" || :
+		fi
 		if ! rmdir "$ci_runtime" 2>>"$ci_cleanup_log"; then
 			ls -la "$ci_runtime" >>"$ci_cleanup_log" 2>&1 || :
 			cat "$ci_cleanup_log" >&2

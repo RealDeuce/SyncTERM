@@ -80,7 +80,8 @@ foreach(_case IN ITEMS native invalid cleanup-failure)
 			message(FATAL_ERROR "Unexpected fixture runtime directory: ${_runtime}")
 		endif()
 		# Only the empty, freshly-created fixture directory; no recursion.
-		execute_process(COMMAND "${_rmdir}" "${_runtime}" RESULT_VARIABLE _removed)
+		execute_process(COMMAND "${_rmdir}" "${_runtime}/ccache-tmp" "${_runtime}"
+			RESULT_VARIABLE _removed)
 		if(NOT "${_removed}" STREQUAL "0")
 			message(FATAL_ERROR "Could not remove failed-cleanup fixture ${_runtime}")
 		endif()
