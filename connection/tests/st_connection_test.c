@@ -13,6 +13,7 @@
 
 #include <stdio.h>
 #include <stdatomic.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -120,10 +121,16 @@ static int
 wait_for_stage(struct server_state *state, int stage)
 {
 	const struct timespec pause = {0, 1000000L};
+	struct st_deadline deadline;
+	int64_t remaining;
 
-	for (unsigned attempts = 0; attempts < 3000; ++attempts) {
+	CHECK(st_deadline_start(&deadline, 3000) == 0);
+	for (;;) {
 		if (atomic_load(&state->stage) >= stage)
 			return 0;
+		CHECK(st_deadline_remaining_ms(&deadline, &remaining) == 0);
+		if (remaining == 0)
+			break;
 		(void)st_thread_sleep(&pause, NULL);
 	}
 	fprintf(stderr, "server stage is %d, expected %d\n",
@@ -153,10 +160,18 @@ static int
 wait_for_pending(st_connection_t *connection, size_t count)
 {
 	const struct timespec pause = {0, 1000000L};
+	struct st_deadline deadline;
+	int64_t remaining;
 
-	for (unsigned attempts = 0; attempts < 3000; ++attempts) {
+	/* A sleep request is not an elapsed-time measurement: native Windows
+	 * may round each millisecond sleep up to its timer resolution. */
+	CHECK(st_deadline_start(&deadline, 3000) == 0);
+	for (;;) {
 		if (st_connection_pending_raw(connection) == count)
 			return 0;
+		CHECK(st_deadline_remaining_ms(&deadline, &remaining) == 0);
+		if (remaining == 0)
+			break;
 		(void)st_thread_sleep(&pause, NULL);
 	}
 	fprintf(stderr, "pending input is %zu, expected %zu (connected=%d)\n",
@@ -404,9 +419,16 @@ static int
 wait_for_binary(st_connection_t *connection, bool binary)
 {
 	const struct timespec pause = {0, 1000000L};
-	for (unsigned attempt = 0; attempt < 3000; ++attempt) {
+	struct st_deadline deadline;
+	int64_t remaining;
+
+	CHECK(st_deadline_start(&deadline, 3000) == 0);
+	for (;;) {
 		if (atomic_load(&connection->binary_mode) == binary)
 			return 0;
+		CHECK(st_deadline_remaining_ms(&deadline, &remaining) == 0);
+		if (remaining == 0)
+			break;
 		(void)st_thread_sleep(&pause, NULL);
 	}
 	fprintf(stderr, "RLogin did not switch to %s mode\n", binary ? "raw" : "cooked");
