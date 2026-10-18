@@ -72,7 +72,9 @@ tests contain absolute source and fixture paths.
 | `RaspberryPi` | Native ARM64 build and tests
 | `FreeBSD` | Native build/tests; Win32 and Win64 MinGW cross-compilation
 | `OpenBSD`, `NetBSD` | Native build and tests, including slower runners
-| `macOS-aarch64`, `macOS-x86` | Native build and tests on each runner
+| `macOS-aarch64` | Native build and tests
+| `macOS-x86` | Not built or tested: the current runner's SDK lacks the
+`timespec_get()` / `TIME_UTC` support required by DeuceSSH.
 | `Windows` | MSVC and MinGW, each with native Win32 and Win64 tests
 | `Haiku` | No runner currently; explicitly untested. Enable the job only
 after registering a runner with this tag and setting `SYNCTERM_CI_HAIKU=1`.
@@ -86,14 +88,13 @@ Tests currently restricted to POSIX, such as the SSH/SFTP live fixture, do not
 become Windows coverage merely because the Windows application builds.
 The Clang job is disabled unless `SYNCTERM_CI_CLANG=1`; enable it only after
 provisioning that compiler on the Linux runner. Sanitizers use GCC and do not
-require Clang. The macOS x86 job uses CMake's compiler capability list to select
-C11 only when C17 mode is unavailable; other platforms still require C17.
+require Clang. Local macOS x86 builds use CMake's compiler capability list to
+select C11 only when C17 mode is unavailable; other platforms still require C17.
 The pinned standalone DeuceSSH uses the same language-mode fallback; its
 runtime capability requirements remain unchanged.
 
-Runners need Git, CMake/CTest 3.22 or newer, a C17 compiler (or C11 on older
-macOS x86) and its native build tool. Jobs request a two-hour limit, subject
-to the runner's own cap.
+Runners need Git, CMake/CTest 3.22 or newer, a C17 compiler and its native
+build tool. Jobs request a two-hour limit, subject to the runner's own cap.
 Provide a matching C++20 compiler when Botan is detected, and
 Objective-C/Apple SDK tools on macOS. Windows MSVC jobs use Visual Studio
 2022's Win32/x64 C++ tools; its bundled CMake is accepted. MinGW Windows jobs
