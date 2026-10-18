@@ -44,19 +44,32 @@ diagnose_urgent_mark(socket_handle_t socket, const char *stage, bool at_mark)
 	int inline_status = getsockopt(socket, SOL_SOCKET, SO_OOBINLINE,
 	    (char *)&inline_oob, &inline_size);
 	int inline_error = inline_status == 0 ? 0 : WSAGetLastError();
+	DWORD tcp_mark = 0;
+	int tcp_mark_size = sizeof(tcp_mark);
+	int tcp_mark_status = getsockopt(socket, IPPROTO_TCP, TCP_ATMARK,
+	    (char *)&tcp_mark, &tcp_mark_size);
+	int tcp_mark_error = tcp_mark_status == 0 ? 0 : WSAGetLastError();
 	char peek[8];
-	int peek_count = recv(socket, peek, sizeof(peek), MSG_PEEK);
-	int peek_error = peek_count < 0 ? WSAGetLastError() : 0;
+	WSABUF buffer = {.len = sizeof(peek), .buf = peek};
+	DWORD peek_count = 0;
+	DWORD peek_flags = MSG_PEEK;
+	int peek_status = WSARecv(socket, &buffer, 1, &peek_count, &peek_flags,
+	    NULL, NULL);
+	int peek_error = peek_status == 0 ? 0 : WSAGetLastError();
 
 	fprintf(stderr, "urgent stage=%s portable-mark=%d SIOCATMARK=%lu"
 	    " status=%d error=%d FIONREAD=%lu status=%d error=%d"
 	    " SO_OOBINLINE=%d status=%d error=%d\n",
 	    stage, at_mark, mark, mark_status, mark_error, available,
 	    available_status, available_error, inline_oob, inline_status, inline_error);
-	fprintf(stderr, "urgent normal peek stage=%s count=%d error=%d data=",
-	    stage, peek_count, peek_error);
-	for (int i = 0; i < peek_count; ++i)
-		fprintf(stderr, "%02x ", (unsigned char)peek[i]);
+	fprintf(stderr, "urgent TCP_ATMARK stage=%s value=%lu size=%d status=%d error=%d\n",
+	    stage, tcp_mark, tcp_mark_size, tcp_mark_status, tcp_mark_error);
+	fprintf(stderr, "urgent WSARecv peek stage=%s count=%lu flags=0x%lx status=%d error=%d data=",
+	    stage, peek_count, peek_flags, peek_status, peek_error);
+	if (peek_status == 0) {
+		for (DWORD i = 0; i < peek_count; ++i)
+			fprintf(stderr, "%02x ", (unsigned char)peek[i]);
+	}
 	fputc('\n', stderr);
 #else
 	(void)socket;
