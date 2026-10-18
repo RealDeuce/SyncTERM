@@ -39,8 +39,9 @@ struct st_connection_transport_ops {
 	ssize_t (*read)(void *state, void *data, size_t size, int64_t timeout_ms);
 	ssize_t (*write)(void *state, const void *data, size_t size,
 		int64_t timeout_ms);
-	/* Input worker only, while its bounded queue is full. Must not read
-	 * ordinary data except to discard through a protocol flush boundary.
+	/* Input worker only, while its bounded queue is full. Ordinary reads
+	 * must either discard through a protocol flush boundary or retain data
+	 * in bounded transport-owned staging to make a pending control readable.
 	 * Returns an input-control result or negative IO_ERROR_*. DISCARD drops
 	 * the worker's not-yet-queued suffix; EOF releases local flow control but
 	 * preserves that suffix for delivery before the ordinary read sees EOF. */

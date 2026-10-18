@@ -259,6 +259,20 @@ socket_internal_now_ms(int64_t *result)
 	return 0;
 }
 
+int
+socket_peer_write_closed(socket_handle_t socket, bool *closed)
+{
+	WSAPOLLFD item = {.fd = socket, .events = POLLRDNORM};
+	if (closed == NULL || !socket_handle_is_valid(socket))
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (WSAPoll(&item, 1, 0) == SOCKET_ERROR)
+		return socket_internal_map_error(WSAGetLastError());
+	if ((item.revents & POLLNVAL) != 0)
+		return IO_ERROR_INVALID_ARGUMENT;
+	*closed = (item.revents & POLLHUP) != 0;
+	return 0;
+}
+
 size_t
 socket_internal_wait_capacity(void)
 {

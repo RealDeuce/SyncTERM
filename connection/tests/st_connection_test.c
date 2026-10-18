@@ -620,9 +620,12 @@ rlogin_backpressure_server(void *argument)
 		if (count <= 0)
 			goto failed;
 		sent += (size_t)count;
+		if (sent % ST_CONNECTION_BUFFER_SIZE == 0)
+			fprintf(stderr, "RLogin backpressure peer queued=%zu bytes\n", sent);
 	}
 	while (!atomic_load(&state->allow_flush))
 		st_thread_yield();
+	fprintf(stderr, "RLogin backpressure peer sending window control\n");
 	if (send_urgent(client, 0x80) != 0
 	    || receive_exact(client, bytes, 12) != 0
 	    || memcmp(bytes, window, sizeof(window)) != 0)
@@ -771,7 +774,7 @@ rlogin_setup_server(void *argument)
 		if (socket_send(client, "", 1) != 1 || send_urgent(client, 0x20) != 0)
 			goto done;
 		memset(bytes, 'x', sizeof(bytes));
-		for (size_t sent = 0; sent < ST_CONNECTION_BUFFER_SIZE + 4096;) {
+		for (size_t sent = 0; sent < 3 * ST_CONNECTION_BUFFER_SIZE;) {
 			ssize_t count = socket_send(client, bytes, sizeof(bytes));
 			if (count <= 0)
 				goto done;
@@ -850,7 +853,11 @@ test_rlogin_setup(void)
 						CHECK(bytes[i] == 'x');
 					received += (size_t)count;
 				}
-				CHECK(count == 0 && received == ST_CONNECTION_BUFFER_SIZE + 4096);
+				if (count != 0 || received != 3 * ST_CONNECTION_BUFFER_SIZE)
+					fprintf(stderr, "held EOF read=%zd received=%zu queued=%zu connected=%d\n",
+					    count, received, st_connection_pending_raw(connection),
+					    st_connection_is_connected(connection));
+				CHECK(count == 0 && received == 3 * ST_CONNECTION_BUFFER_SIZE);
 			}
 			CHECK(st_connection_close(connection) == 0);
 		} else {
@@ -946,7 +953,24 @@ test_shell(void)
 #endif
 	CHECK(st_connection_connect_shell(&connection, &profile, &geometry,
 	    NULL, &hooks, &error) == 0);
-	CHECK(st_connection_receive(connection, buffer, sizeof(buffer), 1000) == 0);
+	received = 0;
+	/* ConPTY may emit terminal setup/teardown even for a command that
+	 * writes nothing. Drain that stream, but still require actual EOF. */
+	for (unsigned attempt = 0; attempt < 50; ++attempt) {
+		count = st_connection_receive(connection, buffer, sizeof(buffer), 100);
+		if (count == IO_ERROR_TIMED_OUT)
+			continue;
+		if (count <= 0)
+			break;
+		received += (size_t)count;
+	}
+	if (count != 0)
+		fprintf(stderr, "exit-only shell: last read=%zd bytes=%zu connected=%d\n",
+		    count, received, st_connection_is_connected(connection));
+	CHECK(count == 0);
+#if !SYNCTERM_PLATFORM_WINDOWS
+	CHECK(received == 0);
+#endif
 	CHECK(st_connection_close(connection) == 0);
 	CHECK((atomic_load(&log.events) & LOG_SHELL_EXIT) != 0);
 	CHECK(atomic_load(&log.exit_status) == 7 && !atomic_load(&log.leaked));

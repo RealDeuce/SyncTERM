@@ -382,6 +382,14 @@ if(BUILD_TESTING)
 	add_test(NAME connection_rlogin_flow COMMAND st_connection_test --rlogin-flow)
 	add_test(NAME connection_rlogin_backpressure COMMAND st_connection_test --rlogin-backpressure)
 	add_test(NAME connection_rlogin_setup COMMAND st_connection_test --rlogin-setup)
+	add_executable(st_connection_rlogin_control_test tests/st_connection_rlogin_control_test.c)
+	target_link_libraries(st_connection_rlogin_control_test PRIVATE
+		st_connection syncterm_tcp_client syncterm_threads st_settings)
+	syncterm_target_atomics(st_connection_rlogin_control_test)
+	set_target_properties(st_connection_rlogin_control_test PROPERTIES
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	st_connection_warnings(st_connection_rlogin_control_test)
+	add_test(NAME connection_rlogin_control COMMAND st_connection_rlogin_control_test)
 	set_tests_properties(connection_rlogin_flow connection_rlogin_backpressure
 		connection_rlogin_setup
 		PROPERTIES TIMEOUT 30)

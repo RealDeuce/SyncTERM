@@ -23,6 +23,7 @@ ssize_t socket_send(socket_handle_t socket, const void *buffer, size_t size);
 ssize_t socket_receive(socket_handle_t socket, void *buffer, size_t size,
     unsigned flags);
 int socket_at_urgent_mark(socket_handle_t socket, bool *at_mark);
+int socket_peer_write_closed(socket_handle_t socket, bool *closed);
 int socket_wait(socket_handle_t socket, unsigned interests,
     int64_t timeout_ms, unsigned *events);
 int tcp_client_connect(socket_handle_t *result,
@@ -74,6 +75,17 @@ urgent peeks can change the stream mark even when the byte is not consumed.
 
 | socket_at_urgent_mark(socket, at_mark)
 | Reports whether the next normal byte follows the urgent-data mark.
+
+| socket_peer_write_closed(socket, closed)
+| Non-consuming query for peer write-half closure or connection hangup, even
+when normal data remains unread. On success stores the result in nonnull `closed`;
+does not close the local write direction or consume buffered data or urgent
+marks. Returns `IO_ERROR_NOT_SUPPORTED` if the native environment cannot expose
+this state, or another `IO_ERROR_*` on failure; leaves `closed` unchanged on
+failure. A true result does not distinguish orderly EOF from a reset; ordinary
+receives still drain buffered data and report the final stream condition.
+POSIX uses capability-detected `POLLRDHUP` or kqueue `EV_EOF`;
+Windows uses `WSAPoll` hangup notification.
 
 | socket_wait(socket, interests, timeout_ms, events)
 | Waits for readable/writable/urgent interest; `-1` is infinite.  Clears
@@ -563,6 +575,11 @@ queue still services urgent controls; FLUSHWRITE drops queued bytes and the
 reader's staged suffix as well as draining to the urgent boundary. Raw mode
 forwards XON/XOFF unchanged. Peer EOF releases a local delivery hold, preserving
 already received bytes before EOF, including a staged suffix behind a full queue.
+If the urgent pointer arrives before its byte while the queue is full, the
+reader retains up to 64 KiB of normal input to free receive-window space for
+that byte. This bounded staging is delivered in stream order, or discarded
+along with other pre-mark data on FLUSHWRITE. A non-consuming native FIN query
+also detects peer closure behind unread kernel data, allowing held data to drain.
 Platform-specific socket implementations must
 preserve this common contract.
 Logs the handshake at INFO with login fields omitted. Terminal parameters,

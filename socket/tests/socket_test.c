@@ -6,6 +6,7 @@
 #include "socket.h"
 
 #include "io_error.h"
+#include "st_threads.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -97,6 +98,62 @@ receive_urgent(socket_handle_t socket, void *data, unsigned flags)
 }
 
 #if SYNCTERM_PLATFORM_WINDOWS
+static void
+report_enabled_mark(socket_handle_t socket, const char *stage)
+{
+	u_long mark = 0;
+	DWORD option = 0;
+	int size = sizeof(option);
+	int mark_status = ioctlsocket(socket, SIOCATMARK, &mark);
+	int mark_error = mark_status == 0 ? 0 : WSAGetLastError();
+	int option_status = getsockopt(socket, IPPROTO_TCP, TCP_ATMARK,
+	    (char *)&option, &size);
+	int option_error = option_status == 0 ? 0 : WSAGetLastError();
+	fprintf(stderr, "urgent enabled TCP_ATMARK stage=%s option=%lu size=%d status=%d error=%d"
+	    " SIOCATMARK=%lu status=%d error=%d\n", stage, option, size,
+	    option_status, option_error, mark, mark_status, mark_error);
+}
+
+/* Determine whether TCP_ATMARK is an opt-in mode, not a mark query. Keep
+ * this separate from the strict portable contract test and restore the
+ * option before that test runs. Do not probe past an unread urgent mark. */
+static int
+probe_enabled_tcp_atmark(socket_handle_t client, socket_handle_t sender)
+{
+	DWORD original = 0, enabled = 1;
+	int size = sizeof(original);
+	unsigned events;
+	char bytes[4];
+	int status = getsockopt(client, IPPROTO_TCP, TCP_ATMARK,
+	    (char *)&original, &size);
+	if (status != 0) {
+		fprintf(stderr, "urgent TCP_ATMARK option unavailable error=%d\n", WSAGetLastError());
+		return 0;
+	}
+	status = setsockopt(client, IPPROTO_TCP, TCP_ATMARK,
+	    (const char *)&enabled, sizeof(enabled));
+	fprintf(stderr, "urgent enabling TCP_ATMARK status=%d error=%d\n",
+	    status, status == 0 ? 0 : WSAGetLastError());
+	if (status != 0)
+		return 0;
+	CHECK(socket_send(sender, "pre", 3) == 3);
+	CHECK(send(sender, "!", 1, MSG_OOB) == 1);
+	CHECK(socket_send(sender, "post", 4) == 4);
+	CHECK(socket_wait(client, SOCKET_WAIT_URGENT, 1000, &events) == 0);
+	report_enabled_mark(client, "before pre");
+	CHECK(socket_receive(client, bytes, 3, SOCKET_RECEIVE_NONE) == 3);
+	CHECK(memcmp(bytes, "pre", 3) == 0);
+	report_enabled_mark(client, "at control");
+	CHECK(socket_receive(client, bytes, 1, SOCKET_RECEIVE_URGENT) == 1);
+	CHECK(bytes[0] == '!');
+	report_enabled_mark(client, "after control");
+	CHECK(socket_receive(client, bytes, 4, SOCKET_RECEIVE_NONE) == 4);
+	CHECK(memcmp(bytes, "post", 4) == 0);
+	CHECK(setsockopt(client, IPPROTO_TCP, TCP_ATMARK,
+	    (const char *)&original, sizeof(original)) == 0);
+	return 0;
+}
+
 /* Record inline behavior on the actual Windows runner, independently of
  * non-inline OOB. In particular, a true SIOCATMARK before ordinary prefix
  * data would rule out using it to identify inline control bytes. */
@@ -135,8 +192,39 @@ probe_inline_urgent(socket_handle_t client, socket_handle_t sender)
 }
 #endif
 
+static int
+test_half_close(socket_handle_t client, socket_handle_t sender)
+{
+	const struct timespec pause = {0, 1000000L};
+	char bytes[4];
+	bool closed = true;
+	CHECK(socket_peer_write_closed(client, NULL) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(socket_peer_write_closed(SOCKET_HANDLE_INVALID, &closed) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(closed);
+	CHECK(socket_peer_write_closed(client, &closed) == 0 && !closed);
+	CHECK(socket_send(sender, "tail", 4) == 4);
+	CHECK(socket_shutdown(sender, SOCKET_SHUTDOWN_WRITE) == 0);
+	for (unsigned attempt = 0; attempt < 2000; ++attempt) {
+		CHECK(socket_peer_write_closed(client, &closed) == 0);
+		if (closed)
+			break;
+		(void)st_thread_sleep(&pause, NULL);
+	}
+	CHECK(closed);
+	CHECK(socket_receive(client, bytes, sizeof(bytes), SOCKET_RECEIVE_PEEK) == 4);
+	CHECK(memcmp(bytes, "tail", 4) == 0);
+	CHECK(socket_receive(client, bytes, sizeof(bytes), SOCKET_RECEIVE_NONE) == 4);
+	CHECK(memcmp(bytes, "tail", 4) == 0);
+	CHECK(socket_receive(client, bytes, sizeof(bytes), SOCKET_RECEIVE_NONE) == 0);
+	/* A peer write shutdown does not close the reverse stream. */
+	CHECK(socket_send(client, "back", 4) == 4);
+	CHECK(socket_receive(sender, bytes, sizeof(bytes), SOCKET_RECEIVE_NONE) == 4);
+	CHECK(memcmp(bytes, "back", 4) == 0);
+	return 0;
+}
+
 int
-main(void)
+main(int argc, char **argv)
 {
 	socket_handle_t listener;
 	socket_handle_t client;
@@ -146,6 +234,9 @@ main(void)
 	unsigned events = 99;
 	char received[5] = {0};
 	bool at_mark;
+	bool half_close = argc == 2 && strcmp(argv[1], "--half-close") == 0;
+
+	CHECK(argc == 1 || half_close);
 
 	CHECK(socket_runtime_init() == 0);
 	CHECK(!socket_handle_is_valid(SOCKET_HANDLE_INVALID));
@@ -181,9 +272,14 @@ main(void)
 	CHECK(received[0] == 'a');
 	CHECK(socket_receive(client, received, 3, SOCKET_RECEIVE_NONE) == 3);
 	CHECK(memcmp(received, "abc", 3) == 0);
+	if (half_close) {
+		CHECK(test_half_close(client, accepted) == 0);
+		goto finished;
+	}
 	CHECK(socket_at_urgent_mark(client, NULL) == IO_ERROR_INVALID_ARGUMENT);
 #if SYNCTERM_PLATFORM_WINDOWS
 	CHECK(probe_inline_urgent(client, accepted) == 0);
+	CHECK(probe_enabled_tcp_atmark(client, accepted) == 0);
 #endif
 	CHECK(socket_send(accepted, "pre", 3) == 3);
 	received[0] = 0x02;
@@ -225,6 +321,7 @@ main(void)
 	CHECK(socket_receive(client, received, sizeof(received),
 	    SOCKET_RECEIVE_NONE) == 0);
 
+finished:
 	CHECK(socket_close(accepted) == 0);
 	CHECK(socket_close(client) == 0);
 	CHECK(socket_close(listener) == 0);

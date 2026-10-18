@@ -21,6 +21,9 @@
 #include <sys/socket.h>
 #include <time.h>
 #include <unistd.h>
+#if SYNCTERM_SOCKET_HAVE_KQUEUE && !SYNCTERM_SOCKET_HAVE_POLLRDHUP
+	#include <sys/event.h>
+#endif
 
 int
 socket_internal_map_error(int error)
@@ -275,6 +278,42 @@ socket_internal_now_ms(int64_t *result)
 		return status;
 	*result = now > INT64_MAX ? INT64_MAX : (int64_t)now;
 	return 0;
+}
+
+int
+socket_peer_write_closed(socket_handle_t socket, bool *closed)
+{
+	if (closed == NULL || !socket_handle_is_valid(socket))
+		return IO_ERROR_INVALID_ARGUMENT;
+#if SYNCTERM_SOCKET_HAVE_POLLRDHUP
+	struct pollfd item = {.fd = socket, .events = POLLRDHUP};
+	if (poll(&item, 1, 0) < 0)
+		return socket_internal_map_error(errno);
+	if ((item.revents & POLLNVAL) != 0)
+		return IO_ERROR_INVALID_ARGUMENT;
+	*closed = (item.revents & (POLLRDHUP | POLLHUP)) != 0;
+	return 0;
+#elif SYNCTERM_SOCKET_HAVE_KQUEUE
+	struct kevent change, event;
+	const struct timespec timeout = {0};
+	int descriptor = kqueue();
+	if (descriptor < 0)
+		return socket_internal_map_error(errno);
+	EV_SET(&change, (uintptr_t)socket, EVFILT_READ, EV_ADD | EV_ONESHOT,
+	    0, 0, NULL);
+	int count = kevent(descriptor, &change, 1, &event, 1, &timeout);
+	int error = count < 0 ? socket_internal_map_error(errno) : 0;
+	(void)close(descriptor);
+	if (error != 0)
+		return error;
+	if (count != 0 && (event.flags & EV_ERROR) != 0)
+		return socket_internal_map_error((int)event.data);
+	*closed = count != 0 && (event.flags & EV_EOF) != 0;
+	return 0;
+#else
+	(void)socket;
+	return IO_ERROR_NOT_SUPPORTED;
+#endif
 }
 
 size_t

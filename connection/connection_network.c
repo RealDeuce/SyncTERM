@@ -52,7 +52,14 @@ struct network_transport {
 	bool urgent_control_known;
 	bool urgent_flush_pending;
 	uint8_t urgent_control;
+	uint8_t *pending_input;
+	size_t pending_input_size;
+	size_t pending_input_head;
 };
+
+/* Free receive-window space for a pending urgent byte without turning the
+ * bounded application queue into unbounded transport-owned buffering. */
+#define PENDING_URGENT_INPUT_LIMIT (UINT16_MAX + 1U)
 
 struct connect_cancel_context {
 	const struct st_connection_hooks *hooks;
@@ -179,6 +186,8 @@ process_urgent(struct network_transport *transport, bool *handled,
 		 * FLUSHWRITE never drains fresh data after that boundary. */
 		if (transport->urgent_control == 0x02) {
 			st_connection_clear_input(transport->connection);
+			transport->pending_input_size = 0;
+			transport->pending_input_head = 0;
 			*discard_input = true;
 			transport->urgent_flush_pending = !at_mark;
 		}
@@ -221,17 +230,23 @@ network_read(void *state, void *data, size_t size, int64_t timeout_ms)
 	unsigned events;
 	bool urgent_handled = false;
 	bool discard_input = false;
+	bool awaiting_urgent_byte = false;
 	int result;
 
 	if (transport->urgent_pending) {
 		result = process_urgent(transport, &urgent_handled, &discard_input);
+		awaiting_urgent_byte = result == IO_ERROR_WOULD_BLOCK
+		    && !transport->urgent_control_known;
 		if (result != 0 && result != IO_ERROR_WOULD_BLOCK
 		    && result != IO_ERROR_INVALID_ARGUMENT)
 			return result;
 	}
 	if (transport->rlogin)
 		interests |= SOCKET_WAIT_URGENT;
-	result = socket_wait(transport->socket, interests, timeout_ms, &events);
+	result = socket_wait(transport->socket, interests,
+	    transport->pending_input_size != 0 ? 0 : timeout_ms, &events);
+	if (result == IO_ERROR_TIMED_OUT && transport->pending_input_size != 0)
+		result = 0;
 	if (result != 0)
 		return result;
 	if ((events & SOCKET_WAIT_ERROR) != 0)
@@ -239,14 +254,16 @@ network_read(void *state, void *data, size_t size, int64_t timeout_ms)
 	if (!urgent_handled && ((events & SOCKET_WAIT_URGENT) != 0
 	    || transport->urgent_pending)) {
 		result = process_urgent(transport, &urgent_handled, &discard_input);
+		awaiting_urgent_byte = result == IO_ERROR_WOULD_BLOCK
+		    && !transport->urgent_control_known;
 		if (result == IO_ERROR_INVALID_ARGUMENT) {
 			/* An exception can remain asserted at the last urgent mark
 			 * after its byte was consumed. It must not mask stream EOF. */
-			if ((events & SOCKET_WAIT_CLOSED) != 0)
+			if ((events & SOCKET_WAIT_CLOSED) != 0 && transport->pending_input_size == 0)
 				return 0;
 			transport->urgent_pending = transport->urgent_pending
 			    || (events & SOCKET_WAIT_READABLE) != 0;
-			if ((events & SOCKET_WAIT_READABLE) == 0)
+			if ((events & SOCKET_WAIT_READABLE) == 0 && transport->pending_input_size == 0)
 				return IO_ERROR_WOULD_BLOCK;
 			result = IO_ERROR_WOULD_BLOCK;
 		}
@@ -256,7 +273,24 @@ network_read(void *state, void *data, size_t size, int64_t timeout_ms)
 		if (result != 0 && result != IO_ERROR_WOULD_BLOCK)
 			return result;
 	}
+	if (transport->pending_input_size != 0) {
+		size_t count = size < transport->pending_input_size ? size : transport->pending_input_size;
+		memcpy(data, transport->pending_input + transport->pending_input_head, count);
+		transport->pending_input_head += count;
+		transport->pending_input_size -= count;
+		if (transport->pending_input_size == 0)
+			transport->pending_input_head = 0;
+		return (ssize_t)count;
+	}
 	if ((events & SOCKET_WAIT_READABLE) != 0 || urgent_handled) {
+		if (awaiting_urgent_byte) {
+			bool at_mark;
+			result = socket_at_urgent_mark(transport->socket, &at_mark);
+			if (result != 0)
+				return result;
+			if (at_mark)
+				return IO_ERROR_WOULD_BLOCK;
+		}
 		ssize_t received = socket_receive(transport->socket, data, size,
 		    SOCKET_RECEIVE_NONE);
 
@@ -324,7 +358,57 @@ network_destroy(void *state)
 	(void)socket_close(transport->socket);
 	(void)socket_runtime_cleanup();
 	st_mutex_destroy(&transport->mutex);
+	free(transport->pending_input);
 	free(transport);
+}
+
+static int
+buffer_pending_urgent(struct network_transport *transport)
+{
+	if (transport->pending_input == NULL) {
+		transport->pending_input = malloc(PENDING_URGENT_INPUT_LIMIT);
+		if (transport->pending_input == NULL)
+			return IO_ERROR_OUT_OF_MEMORY;
+		st_connection_log(transport->connection, ST_CONNECTION_LOG_DEBUG,
+		    "retaining normal input to make a pending urgent byte readable");
+	}
+	if (transport->pending_input_head != 0) {
+		memmove(transport->pending_input,
+		    transport->pending_input + transport->pending_input_head,
+		    transport->pending_input_size);
+		transport->pending_input_head = 0;
+	}
+	while (transport->pending_input_size < PENDING_URGENT_INPUT_LIMIT) {
+		bool handled, discard;
+		bool at_mark;
+		int status = socket_at_urgent_mark(transport->socket, &at_mark);
+		if (status != 0)
+			return status;
+		/* Do not skip an unread urgent byte if it arrives between the
+		 * OOB probe and the next ordinary receive. */
+		if (at_mark)
+			return ST_CONNECTION_INPUT_CONTROL_NONE;
+		size_t available = PENDING_URGENT_INPUT_LIMIT - transport->pending_input_size;
+		ssize_t count = socket_receive(transport->socket,
+		    transport->pending_input + transport->pending_input_size,
+		    available, SOCKET_RECEIVE_NONE);
+		if (count == IO_ERROR_WOULD_BLOCK)
+			return ST_CONNECTION_INPUT_CONTROL_NONE;
+		if (count < 0)
+			return (int)count;
+		if (count == 0)
+			return ST_CONNECTION_INPUT_CONTROL_EOF;
+		transport->pending_input_size += (size_t)count;
+		status = process_urgent(transport, &handled, &discard);
+		if (discard)
+			return status == 0 || status == IO_ERROR_WOULD_BLOCK
+			    ? ST_CONNECTION_INPUT_CONTROL_DISCARD : status;
+		if (status == 0 || status == IO_ERROR_INVALID_ARGUMENT)
+			return ST_CONNECTION_INPUT_CONTROL_NONE;
+		if (status != IO_ERROR_WOULD_BLOCK)
+			return status;
+	}
+	return ST_CONNECTION_INPUT_CONTROL_NONE;
 }
 
 static int
@@ -343,6 +427,12 @@ network_poll_input_control(void *state)
 		return IO_ERROR_IO;
 	if ((events & SOCKET_WAIT_URGENT) != 0 || transport->urgent_pending) {
 		status = process_urgent(transport, &handled, &discard_input);
+		if (status == IO_ERROR_WOULD_BLOCK && !transport->urgent_control_known) {
+			int action = buffer_pending_urgent(transport);
+			if (action != ST_CONNECTION_INPUT_CONTROL_NONE)
+				return action;
+			status = 0;
+		}
 		if (status == IO_ERROR_INVALID_ARGUMENT && (events & SOCKET_WAIT_CLOSED) != 0)
 			return ST_CONNECTION_INPUT_CONTROL_EOF;
 		if (status == IO_ERROR_INVALID_ARGUMENT && (events & SOCKET_WAIT_READABLE) != 0) {
@@ -359,16 +449,21 @@ network_poll_input_control(void *state)
 		}
 		if (status == IO_ERROR_WOULD_BLOCK || status == IO_ERROR_INVALID_ARGUMENT) {
 			transport->urgent_pending = true;
-			return discard_input ? ST_CONNECTION_INPUT_CONTROL_DISCARD
-			    : ST_CONNECTION_INPUT_CONTROL_NONE;
-		}
-		if (status != 0)
+		} else if (status != 0)
 			return status;
-		return discard_input ? ST_CONNECTION_INPUT_CONTROL_DISCARD
-		    : ST_CONNECTION_INPUT_CONTROL_NONE;
+		if (discard_input)
+			return ST_CONNECTION_INPUT_CONTROL_DISCARD;
 	}
-	return (events & SOCKET_WAIT_CLOSED) != 0 ? ST_CONNECTION_INPUT_CONTROL_EOF
-	    : ST_CONNECTION_INPUT_CONTROL_NONE;
+	if ((events & SOCKET_WAIT_CLOSED) != 0)
+		return ST_CONNECTION_INPUT_CONTROL_EOF;
+	/* FIN can sit behind unread kernel data while local XOFF holds a full
+	 * application queue. A normal peek cannot distinguish that from a live
+	 * peer. Observe the half-close without consuming or dropping that data. */
+	bool closed = false;
+	status = socket_peer_write_closed(transport->socket, &closed);
+	if (status != 0 && status != IO_ERROR_NOT_SUPPORTED)
+		return status;
+	return closed ? ST_CONNECTION_INPUT_CONTROL_EOF : ST_CONNECTION_INPUT_CONTROL_NONE;
 }
 
 static const struct st_connection_transport_ops network_operations = {

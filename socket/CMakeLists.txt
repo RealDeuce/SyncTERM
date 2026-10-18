@@ -65,6 +65,23 @@ endif()
 if(WIN32)
 	set(SYNCTERM_SOCKET_PLATFORM_SOURCE socket_windows.c)
 	set(SYNCTERM_SOCKET_PLATFORM_LIBRARIES ws2_32)
+	set(_socket_saved_required_libraries ${CMAKE_REQUIRED_LIBRARIES})
+	set(CMAKE_REQUIRED_LIBRARIES ${_socket_saved_required_libraries} ws2_32)
+	syncterm_check_c17_source([=[
+#include <winsock2.h>
+int main(void) {
+	WSADATA data;
+	WSAPOLLFD item = {INVALID_SOCKET, POLLRDNORM, 0};
+	(void)WSAStartup(MAKEWORD(2, 2), &data);
+	int result = WSAPoll(&item, 1, 0);
+	(void)WSACleanup();
+	return result;
+}
+]=] SYNCTERM_SOCKET_HAVE_WSAPOLL)
+	set(CMAKE_REQUIRED_LIBRARIES ${_socket_saved_required_libraries})
+	if(NOT SYNCTERM_SOCKET_HAVE_WSAPOLL)
+		message(FATAL_ERROR "The Windows socket environment must provide WSAPoll")
+	endif()
 else()
 	set(SYNCTERM_SOCKET_PLATFORM_SOURCE socket_posix.c)
 	set(_socket_saved_required_definitions ${CMAKE_REQUIRED_DEFINITIONS})
@@ -131,6 +148,25 @@ int main(void)
 		endif()
 	endif()
 	set(CMAKE_REQUIRED_LIBRARIES ${_socket_saved_required_libraries})
+	syncterm_check_c17_source([=[
+#include <poll.h>
+int main(void) { struct pollfd p = {0, POLLRDHUP, 0}; return poll(&p, 1, 0); }
+]=] SYNCTERM_SOCKET_HAVE_POLLRDHUP)
+	syncterm_check_c17_source([=[
+#include <sys/types.h>
+#include <sys/event.h>
+#include <time.h>
+#include <unistd.h>
+int main(void) {
+	struct kevent change, event;
+	struct timespec timeout = {0};
+	int descriptor = kqueue();
+	EV_SET(&change, 0, EVFILT_READ, EV_ADD | EV_ONESHOT, 0, 0, 0);
+	int result = kevent(descriptor, &change, 1, &event, 1, &timeout);
+	(void)close(descriptor);
+	return result > 0 && (event.flags & EV_EOF) != 0;
+}
+]=] SYNCTERM_SOCKET_HAVE_KQUEUE)
 	if(NOT SYNCTERM_SOCKET_POSIX_BASELINE AND
 	    NOT SYNCTERM_SOCKET_POSIX_BASELINE_WITH_RT)
 		message(FATAL_ERROR
@@ -179,8 +215,12 @@ endfunction()
 syncterm_socket_warnings(syncterm_socket)
 
 if(BUILD_TESTING)
+	if(NOT TARGET syncterm_threads)
+		add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../threads"
+			"${CMAKE_CURRENT_BINARY_DIR}/threads")
+	endif()
 	add_executable(socket_test tests/socket_test.c)
-	target_link_libraries(socket_test PRIVATE syncterm_socket)
+	target_link_libraries(socket_test PRIVATE syncterm_socket syncterm_threads)
 	if(SYNCTERM_SOCKET_DEFINITIONS)
 		target_compile_definitions(socket_test PRIVATE
 			${SYNCTERM_SOCKET_DEFINITIONS})
@@ -189,6 +229,8 @@ if(BUILD_TESTING)
 		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	syncterm_socket_warnings(socket_test)
 	add_test(NAME socket COMMAND socket_test)
+	add_test(NAME socket_half_close COMMAND socket_test --half-close)
+	set_tests_properties(socket_half_close PROPERTIES TIMEOUT 10)
 	set_tests_properties(socket PROPERTIES TIMEOUT 10)
 	if(NOT WIN32)
 		add_executable(socket_poll_error_test tests/socket_poll_error_test.c)

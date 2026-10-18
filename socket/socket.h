@@ -72,6 +72,11 @@ ssize_t socket_receive(socket_handle_t socket, void *buffer, size_t size,
 /* Reports whether the next normal byte follows the urgent-data mark. */
 int socket_at_urgent_mark(socket_handle_t socket, bool *at_mark);
 
+/* Non-consuming FIN query, including when ordinary data remains unread.
+ * Does not mean the local write direction is closed. Returns IO_ERROR_*;
+ * implementations without this capability return IO_ERROR_NOT_SUPPORTED. */
+int socket_peer_write_closed(socket_handle_t socket, bool *closed);
+
 /*
  * Interests contains at least one of READABLE, WRITABLE, and URGENT. CLOSED
  * may accompany a READABLE wait, and ERROR may accompany any wait. Timeout is
