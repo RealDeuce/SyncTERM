@@ -237,9 +237,7 @@ socket_at_urgent_mark(socket_handle_t socket, bool *at_mark)
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (ioctlsocket(socket, SIOCATMARK, &value) != 0)
 		return socket_internal_map_error(WSAGetLastError());
-	/* Winsock's result sense is opposite to sockatmark() for
-	 * out-of-line urgent data. */
-	*at_mark = value == 0;
+	*at_mark = value != 0;
 	return 0;
 }
 

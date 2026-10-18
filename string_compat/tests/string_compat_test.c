@@ -40,6 +40,10 @@ test_duplication(void)
 	free(copy);
 	const char bounded[] = {'a', 'b', 'c'};
 	copy = strndup(bounded, sizeof(bounded));
+	if (copy == NULL || strcmp(copy, "abc") != 0)
+		fprintf(stderr, "bounded strndup: source-size=%zu result=%s length=%zu\n",
+		    sizeof(bounded), copy == NULL ? "(null)" : copy,
+		    copy == NULL ? 0 : strlen(copy));
 	CHECK(copy != NULL && strcmp(copy, "abc") == 0);
 	free(copy);
 	return true;

@@ -7,6 +7,7 @@
 
 #include "io_error.h"
 
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -47,6 +48,21 @@ diagnose_urgent_mark(socket_handle_t socket, const char *stage, bool at_mark)
 	(void)socket;
 	fprintf(stderr, "urgent stage=%s portable-mark=%d\n", stage, at_mark);
 #endif
+}
+
+static ssize_t
+receive_urgent(socket_handle_t socket, void *data, unsigned flags)
+{
+	ssize_t result = socket_receive(socket, data, 1, flags);
+#if SYNCTERM_PLATFORM_WINDOWS
+	int native_error = result < 0 ? WSAGetLastError() : 0;
+#else
+	int native_error = result < 0 ? errno : 0;
+#endif
+
+	fprintf(stderr, "urgent receive flags=%u result=%zd native-error=%d\n",
+	    flags, result, native_error);
+	return result;
 }
 
 int
@@ -105,7 +121,7 @@ main(void)
 	CHECK(socket_at_urgent_mark(client, &at_mark) == 0);
 	diagnose_urgent_mark(client, "before pre", at_mark);
 	CHECK(!at_mark);
-	CHECK(socket_receive(client, received, 1,
+	CHECK(receive_urgent(client, received,
 	    SOCKET_RECEIVE_PEEK | SOCKET_RECEIVE_URGENT) == 1);
 	CHECK(received[0] == 0x02);
 	CHECK(socket_receive(client, received, 3, SOCKET_RECEIVE_NONE) == 3);
@@ -113,17 +129,17 @@ main(void)
 	CHECK(socket_at_urgent_mark(client, &at_mark) == 0);
 	diagnose_urgent_mark(client, "after pre", at_mark);
 	CHECK(at_mark);
-	CHECK(socket_receive(client, received, 1, SOCKET_RECEIVE_URGENT) == 1);
+	CHECK(receive_urgent(client, received, SOCKET_RECEIVE_URGENT) == 1);
 	CHECK(received[0] == 0x02);
 	CHECK(socket_receive(client, received, 4, SOCKET_RECEIVE_NONE) == 4);
 	CHECK(memcmp(received, "post", 4) == 0);
 	CHECK(send(accepted, "?", 1, MSG_OOB) == 1);
 	CHECK(socket_wait(client, SOCKET_WAIT_URGENT, 1000, &events) == 0);
 	CHECK((events & SOCKET_WAIT_URGENT) != 0);
-	CHECK(socket_receive(client, received, 1,
+	CHECK(receive_urgent(client, received,
 	    SOCKET_RECEIVE_PEEK | SOCKET_RECEIVE_URGENT) == 1);
 	CHECK(received[0] == '?');
-	CHECK(socket_receive(client, received, 1, SOCKET_RECEIVE_URGENT) == 1);
+	CHECK(receive_urgent(client, received, SOCKET_RECEIVE_URGENT) == 1);
 	CHECK(received[0] == '?');
 	CHECK(socket_shutdown(accepted, SOCKET_SHUTDOWN_WRITE) == 0);
 	CHECK(socket_wait(client, SOCKET_WAIT_READABLE, 1000, &events) == 0);

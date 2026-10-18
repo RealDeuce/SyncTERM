@@ -50,7 +50,6 @@ struct network_transport {
 	bool window_enabled;
 	bool urgent_pending;
 	bool urgent_control_known;
-	bool urgent_control_consumed;
 	bool urgent_flush_pending;
 	uint8_t urgent_control;
 };
@@ -155,17 +154,7 @@ process_urgent(struct network_transport *transport, bool *handled)
 	*handled = false;
 	if (!transport->urgent_control_known) {
 		received = socket_receive(transport->socket,
-		    &transport->urgent_control, 1,
-		    SOCKET_RECEIVE_PEEK | SOCKET_RECEIVE_URGENT);
-		if (received == IO_ERROR_INVALID_ARGUMENT) {
-			/* Some stacks signal the exceptional condition before an OOB
-			 * peek succeeds. Remember a directly consumed control so a
-			 * flush can still drain the normal stream to its mark. */
-			received = socket_receive(transport->socket,
-			    &transport->urgent_control, 1, SOCKET_RECEIVE_URGENT);
-			if (received == 1)
-				transport->urgent_control_consumed = true;
-		}
+		    &transport->urgent_control, 1, SOCKET_RECEIVE_URGENT);
 		if (received == IO_ERROR_WOULD_BLOCK)
 			transport->urgent_pending = true;
 		if (received < 0)
@@ -174,6 +163,8 @@ process_urgent(struct network_transport *transport, bool *handled)
 			return IO_ERROR_CONNECTION_RESET;
 		transport->urgent_control_known = true;
 		transport->urgent_pending = true;
+		/* Save the control once. Receiving it does not advance the normal
+		 * stream past its urgent mark; a flush still drains to that mark. */
 		if (transport->urgent_control == 0x02) {
 			st_connection_clear_input(transport->connection);
 			transport->urgent_flush_pending = true;
@@ -199,21 +190,9 @@ process_urgent(struct network_transport *transport, bool *handled)
 			return IO_ERROR_CONNECTION_RESET;
 		}
 	}
-	if (transport->urgent_control_consumed)
-		control = transport->urgent_control;
-	else {
-		received = socket_receive(transport->socket, &control, 1,
-		    SOCKET_RECEIVE_URGENT);
-		if (received == IO_ERROR_INVALID_ARGUMENT)
-			return IO_ERROR_WOULD_BLOCK;
-		if (received < 0)
-			return (int)received;
-		if (received != 1)
-			return IO_ERROR_CONNECTION_RESET;
-	}
+	control = transport->urgent_control;
 	transport->urgent_pending = false;
 	transport->urgent_control_known = false;
-	transport->urgent_control_consumed = false;
 	transport->urgent_flush_pending = false;
 	result = handle_urgent(transport, control);
 	if (result == 0)

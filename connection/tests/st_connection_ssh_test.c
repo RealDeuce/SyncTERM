@@ -306,8 +306,11 @@ run(const char *fixture, unsigned test, int log_level)
 		}
 		CHECK(st_connection_close(connection) == 0);
 	}
-	CHECK(waitpid(child, &child_status, 0) == child
-	    && WIFEXITED(child_status) && WEXITSTATUS(child_status) == 0);
+	pid_t waited = waitpid(child, &child_status, 0);
+	if (waited != child || !WIFEXITED(child_status) || WEXITSTATUS(child_status) != 0)
+		fprintf(stderr, "SSH fixture %u: waitpid=%ld child=%ld status=0x%x\n",
+		    test, (long)waited, (long)child, waited == child ? child_status : 0);
+	CHECK(waited == child && WIFEXITED(child_status) && WEXITSTATUS(child_status) == 0);
 	fixture_child = 0;
 	CHECK(!ui.invalid);
 	CHECK(ui.choices == ((test >= 3 && test <= 5) || test == 12 || test == 13 ? 1 : 0));

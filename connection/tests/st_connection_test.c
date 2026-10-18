@@ -63,6 +63,7 @@ test_log(void *context, enum st_connection_log_level level,
 	struct log_state *state = context;
 
 	(void)source;
+	fprintf(stderr, "connection log [%d] %s: %s\n", (int)level, source, message);
 	unsigned events = 0;
 	if (strstr(message, "secret") || strstr(message, "shell-test")
 	    || strstr(message, "printf ") || strstr(message, "cmd.exe"))

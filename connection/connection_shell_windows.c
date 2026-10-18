@@ -25,7 +25,8 @@ struct shell_transport {
 	struct st_connection_hooks hooks;
 	resize_pseudo_console_fn resize_console;
 	close_pseudo_console_fn close_console;
-	HANDLE pipe;
+	HANDLE input_pipe;
+	HANDLE output_pipe;
 	HANDLE read_event;
 	HANDLE write_event;
 	HANDLE stop_event;
@@ -60,6 +61,7 @@ shell_overlapped_io(struct shell_transport *transport, void *data,
 	size_t size, int64_t timeout_ms, bool reading)
 {
 	OVERLAPPED overlapped = {0};
+	HANDLE pipe = reading ? transport->output_pipe : transport->input_pipe;
 	HANDLE handles[2];
 	DWORD transferred = 0;
 	DWORD requested;
@@ -79,8 +81,8 @@ shell_overlapped_io(struct shell_transport *transport, void *data,
 	if (!ResetEvent(overlapped.hEvent))
 		return shell_io_error(transport, GetLastError(), reading);
 	requested = size > UINT32_MAX ? UINT32_MAX : (DWORD)size;
-	if (reading ? ReadFile(transport->pipe, data, requested, &transferred,
-	    &overlapped) : WriteFile(transport->pipe, data, requested,
+	if (reading ? ReadFile(pipe, data, requested, &transferred,
+	    &overlapped) : WriteFile(pipe, data, requested,
 	    &transferred, &overlapped))
 		return (ssize_t)transferred;
 	error = GetLastError();
@@ -94,21 +96,21 @@ shell_overlapped_io(struct shell_transport *transport, void *data,
 		st_connection_log_hooks(&transport->hooks, "Shell", ST_CONNECTION_LOG_ERROR,
 		    "ConPTY I/O wait failed Windows error=%lu", (unsigned long)GetLastError());
 	if (wait_result == WAIT_OBJECT_0) {
-		if (GetOverlappedResult(transport->pipe, &overlapped,
+		if (GetOverlappedResult(pipe, &overlapped,
 		    &transferred, TRUE))
 			return (ssize_t)transferred;
 		return shell_io_error(transport, GetLastError(), reading);
 	}
 	stopped = wait_result == WAIT_OBJECT_0 + 1;
 	timed_out = wait_result == WAIT_TIMEOUT;
-	if (!CancelIoEx(transport->pipe, &overlapped)
+	if (!CancelIoEx(pipe, &overlapped)
 	    && GetLastError() != ERROR_NOT_FOUND) {
 		error = GetLastError();
-		(void)GetOverlappedResult(transport->pipe, &overlapped,
+		(void)GetOverlappedResult(pipe, &overlapped,
 		    &transferred, TRUE);
 		return shell_io_error(transport, error, reading);
 	}
-	if (GetOverlappedResult(transport->pipe, &overlapped,
+	if (GetOverlappedResult(pipe, &overlapped,
 	    &transferred, TRUE)) {
 		if (stopped)
 			return IO_ERROR_NOT_CONNECTED;
@@ -179,9 +181,13 @@ shell_destroy(void *state)
 	/* The connection layer has joined both workers before normal destruction.
 	 * Closing the host endpoint first also prevents old ClosePseudoConsole
 	 * implementations from waiting for output that nobody can drain. */
-	if (transport->pipe != INVALID_HANDLE_VALUE) {
-		(void)CloseHandle(transport->pipe);
-		transport->pipe = INVALID_HANDLE_VALUE;
+	if (transport->input_pipe != INVALID_HANDLE_VALUE) {
+		(void)CloseHandle(transport->input_pipe);
+		transport->input_pipe = INVALID_HANDLE_VALUE;
+	}
+	if (transport->output_pipe != INVALID_HANDLE_VALUE) {
+		(void)CloseHandle(transport->output_pipe);
+		transport->output_pipe = INVALID_HANDLE_VALUE;
 	}
 	if (transport->console != NULL) {
 		transport->close_console(transport->console);
@@ -333,7 +339,8 @@ st_connection_connect_shell(st_connection_t **result,
 	create_pseudo_console_fn create_console;
 	resize_pseudo_console_fn resize_console;
 	close_pseudo_console_fn close_console;
-	HANDLE conpty_pipe = INVALID_HANDLE_VALUE;
+	HANDLE conpty_input = INVALID_HANDLE_VALUE;
+	HANDLE conpty_output = INVALID_HANDLE_VALUE;
 	SIZE_T attributes_size = 0;
 	LPPROC_THREAD_ATTRIBUTE_LIST attributes = NULL;
 	wchar_t *command = NULL;
@@ -388,17 +395,21 @@ st_connection_connect_shell(st_connection_t **result,
 	transport->resize_console = resize_console;
 	if (hooks != NULL) transport->hooks = *hooks;
 	transport->close_console = close_console;
-	transport->pipe = INVALID_HANDLE_VALUE;
+	transport->input_pipe = INVALID_HANDLE_VALUE;
+	transport->output_pipe = INVALID_HANDLE_VALUE;
 	transport->read_event = CreateEventW(NULL, TRUE, FALSE, NULL);
 	transport->write_event = CreateEventW(NULL, TRUE, FALSE, NULL);
 	transport->stop_event = CreateEventW(NULL, TRUE, FALSE, NULL);
 	if (transport->read_event == NULL || transport->write_event == NULL
 	    || transport->stop_event == NULL
-	    || create_conpty_pipe(&transport->pipe, &conpty_pipe) != 0)
+	    || create_conpty_pipe(&transport->input_pipe, &conpty_input) != 0
+	    || create_conpty_pipe(&transport->output_pipe, &conpty_output) != 0)
 		goto failed;
 	size.X = (SHORT)geometry.columns;
 	size.Y = (SHORT)geometry.rows;
-	console_status = create_console(size, conpty_pipe, conpty_pipe, 0,
+	/* Synchronous I/O on one handle is serialized by Windows. Sharing a
+	 * duplex handle here lets ConPTY's pending input read block its output. */
+	console_status = create_console(size, conpty_input, conpty_output, 0,
 	    &transport->console);
 	if (FAILED(console_status)) {
 		st_connection_log_hooks(hooks, "Shell", ST_CONNECTION_LOG_ERROR,
@@ -439,8 +450,10 @@ st_connection_connect_shell(st_connection_t **result,
 	}
 	transport->process = process.hProcess;
 	(void)CloseHandle(process.hThread);
-	(void)CloseHandle(conpty_pipe);
-	conpty_pipe = INVALID_HANDLE_VALUE;
+	(void)CloseHandle(conpty_input);
+	conpty_input = INVALID_HANDLE_VALUE;
+	(void)CloseHandle(conpty_output);
+	conpty_output = INVALID_HANDLE_VALUE;
 	free(command);
 	command = NULL;
 	DeleteProcThreadAttributeList(attributes);
@@ -457,8 +470,10 @@ st_connection_connect_shell(st_connection_t **result,
 unsupported:
 	st_connection_log_hooks(hooks, "Shell", ST_CONNECTION_LOG_ERROR,
 	    "ConPTY resize support is unavailable");
-	if (conpty_pipe != INVALID_HANDLE_VALUE)
-		(void)CloseHandle(conpty_pipe);
+	if (conpty_input != INVALID_HANDLE_VALUE)
+		(void)CloseHandle(conpty_input);
+	if (conpty_output != INVALID_HANDLE_VALUE)
+		(void)CloseHandle(conpty_output);
 	shell_destroy(transport);
 	return st_connection_fail(error, IO_ERROR_NOT_SUPPORTED,
 	    ST_CONNECTION_SETUP_STARTING_SHELL,
@@ -473,8 +488,10 @@ failed:
 			DeleteProcThreadAttributeList(attributes);
 		free(attributes);
 	}
-	if (conpty_pipe != INVALID_HANDLE_VALUE)
-		(void)CloseHandle(conpty_pipe);
+	if (conpty_input != INVALID_HANDLE_VALUE)
+		(void)CloseHandle(conpty_input);
+	if (conpty_output != INVALID_HANDLE_VALUE)
+		(void)CloseHandle(conpty_output);
 	shell_destroy(transport);
 	return st_connection_fail(error, IO_ERROR_IO,
 	    ST_CONNECTION_SETUP_STARTING_SHELL,

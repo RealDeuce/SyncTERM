@@ -10,7 +10,7 @@ if(NOT TARGET deucessh::deucessh_static AND NOT TARGET deucessh::deucessh_shared
 	set(DEUCESSH_CRYPTO_BACKEND "${ST_TLS_PROVIDER}")
 	FetchContent_Declare(deucessh
 		GIT_REPOSITORY https://github.com/RealDeuce/DeuceSSH.git
-		GIT_TAG 5d1ef711f7aa0fa8f77ce9b97107816cfbd04241)
+		GIT_TAG 09b9e868db61dc468630e9c406f6e6000192e4a2)
 	FetchContent_MakeAvailable(deucessh)
 	set(ST_DEUCESSH_TARGET deucessh_static)
 	set_target_properties(deucessh_static PROPERTIES C_EXTENSIONS NO)

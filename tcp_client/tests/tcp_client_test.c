@@ -161,25 +161,25 @@ main(void)
 	CHECK(connected == listener);
 
 	CHECK(socket_close(listener) == 0);
-	/* Reserve a local port without listening, so refusal cannot be confused
-	 * with another process reusing a just-closed listener's port. */
+	/* Choose an unused loopback port, then release it. Some stacks leave
+	 * connections to a bound, non-listening socket pending until listen(). */
 	listener = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	CHECK(socket_handle_is_valid(listener));
 	address.sin_port = 0;
 	CHECK(bind(listener, (const struct sockaddr *)&address,
 	    (test_socklen_t)sizeof(address)) == 0);
 	CHECK(getsockname(listener, (struct sockaddr *)&address, &address_size) == 0);
+	CHECK(socket_close(listener) == 0);
 	connected = SOCKET_HANDLE_INVALID;
 	family = TCP_CLIENT_ADDRESS_ANY;
 	options.timeout_ms = 2000;
 	options.diagnostic = diagnose;
-	fprintf(stderr, "refusal test: bound non-listening loopback port=%u timeout=%" PRId64 "ms\n",
+	fprintf(stderr, "refusal test: closed loopback port=%u timeout=%" PRId64 "ms\n",
 	    (unsigned)ntohs(address.sin_port), options.timeout_ms);
 	int refused = tcp_client_connect(&connected, &family, "127.0.0.1",
 	    ntohs(address.sin_port), &options);
 	if (refused != IO_ERROR_CONNECTION_REFUSED)
 		probe_refusal(&address);
-	CHECK(socket_close(listener) == 0);
 	if (refused == 0)
 		(void)socket_close(connected);
 	if (refused != IO_ERROR_CONNECTION_REFUSED)
