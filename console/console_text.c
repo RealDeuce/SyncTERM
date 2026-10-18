@@ -934,7 +934,7 @@ st_console_write_utf8(st_console_t *console, const char *text, size_t length)
 {
 	st_unicode_text_t *unicode = NULL;
 	struct st_unicode_text_item item;
-	size_t consumed;
+	size_t consumed = 0;
 	int result;
 
 	if (console == NULL || (text == NULL && length != 0))

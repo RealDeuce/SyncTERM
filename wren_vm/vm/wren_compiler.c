@@ -3020,7 +3020,6 @@ static int getByteCountForArguments(const uint8_t* bytecode,
   }
 
   UNREACHABLE();
-  return 0;
 }
 
 // Marks the beginning of a loop. Keeps track of the current instruction so we

@@ -1671,15 +1671,15 @@ st_console_resize(st_console_t *console, uint32_t columns, uint32_t rows)
 	console->pixel_top = 0;
 	console->columns = columns;
 	console->rows = rows;
-	for (uint32_t y = 0; y < rows; ++y) {
+	for (y = 0; y < rows; ++y) {
 		size_t last = (size_t)(y + 1) * columns - 1;
 
 		if ((st_console_cell_at(console, last)->flags & ST_CONSOLE_CELL_CONTINUATION) == 0
 		    && cell_is_wide_locked(console, st_console_cell_at(console, last))) {
-			struct st_console_cell blank = st_console_blank_locked(console,
+			struct st_console_cell edge_blank = st_console_blank_locked(console,
 			    ' ');
 
-			set_cell_raw_locked(console, last, &blank);
+			set_cell_raw_locked(console, last, &edge_blank);
 		}
 	}
 	console->window = (struct st_console_rect){0, 0, columns, rows};

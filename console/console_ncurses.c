@@ -19,6 +19,14 @@
 
 #if ST_CONSOLE_HAVE_CURSES_H
 	#include <curses.h>
+	/* X/Open curses uses short here. ncurses exposes macros for builds with
+	 * different parameter types; other implementations need not define them. */
+	#ifndef NCURSES_COLOR_T
+		#define NCURSES_COLOR_T short
+	#endif
+	#ifndef NCURSES_PAIRS_T
+		#define NCURSES_PAIRS_T short
+	#endif
 	#if ST_CONSOLE_HAVE_CURSES_WIDE
 		#include <wchar.h>
 	#endif

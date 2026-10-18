@@ -276,8 +276,8 @@ st_unicode_caseless_key(char **result, size_t *result_size,
 	const void *bytes, size_t size)
 {
 	struct scalar_list folded = {0};
-	char *key;
-	size_t key_size;
+	char *key = NULL;
+	size_t key_size = 0;
 	int status;
 
 	if (result == NULL || result_size == NULL
@@ -313,8 +313,8 @@ st_unicode_caseless_compare(int *comparison,
 {
 	char *left_key = NULL;
 	char *right_key = NULL;
-	size_t left_key_size;
-	size_t right_key_size;
+	size_t left_key_size = 0;
+	size_t right_key_size = 0;
 	int status;
 
 	if (comparison == NULL)
@@ -635,7 +635,7 @@ folded_clusters_create(struct folded_clusters *clusters,
 {
 	st_unicode_text_t *graphemes = NULL;
 	struct st_unicode_text_item item;
-	size_t consumed;
+	size_t consumed = 0;
 	int status = st_unicode_text_create(&graphemes, ST_UNICODE_TEXT_GRAPHEMES);
 
 	if (status == 0)
@@ -890,7 +890,7 @@ name_valid(const char *name, size_t maximum_scalars,
 	bool known_normalized)
 {
 	char *normalized = NULL;
-	size_t normalized_size;
+	size_t normalized_size = 0;
 	size_t length;
 	size_t offset = 0;
 	size_t scalars = 0;
