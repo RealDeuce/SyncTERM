@@ -75,9 +75,11 @@ it with `st_file_lock_release()`.  Tests: `file_lock` and `file_lock_error`.
 | link:dynamic_library/dynamic_library.h[dynamic_library.h]
 | Loads a library by safe ASCII filename fragments and descending supported
 major versions, with local or global symbol visibility.  It does not accept an
-arbitrary path.  Symbol pointers are borrowed until close; the caller casts
-them to the declaration used by the complete capability probe.  Close consumes
-the handle even if native cleanup fails.  Test: `dynamic_library`.
+arbitrary path.  Successfully resolved libraries and symbol pointers remain
+valid for the process lifetime; the caller casts symbols to the declaration
+used by the complete capability probe.  Close is only for a tentative load
+whose required symbols could not be resolved, never for normal teardown or
+later initialization failures.  Test: `dynamic_library`.
 |===
 
 === Threads and synchronization

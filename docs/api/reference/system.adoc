@@ -303,9 +303,13 @@ int dynamic_library_close(dynamic_library_t *library);
 ----
 
 `names` is a borrowed array of `name_count` borrowed NUL-terminated fragments;
-each must be nonempty safe ASCII and not a path.  Open installs an owned handle
-on zero.  Symbol takes a required live handle/name and returns a borrowed
-pointer or NULL.  Close consumes even when it reports negative cleanup error.
+each must be nonempty safe ASCII and not a path.  Open installs an opaque
+native-loader handle on zero and leaves `result` unchanged on failure.
+After required symbols resolve, the library and its symbols remain valid for
+the process lifetime.  Discarding the handle requires no allocation cleanup.
+Close is only for rejecting a tentative load when required symbol resolution
+fails; initialization failures and normal shutdown must not close resolved
+libraries.  Library-owned objects still require their ordinary cleanup.
 
 [cols="3m,7"]
 |===
@@ -320,7 +324,9 @@ the preferred major and descending.  Visibility is local or process-global.
 declaration tested by CMake.
 
 | dynamic_library_close(library)
-| Consumes the handle, returning zero or `IO_ERROR_*`; NULL succeeds.
+| Rejects one tentative load reference after required symbol resolution fails,
+returning zero or `IO_ERROR_*`; NULL succeeds.  Consumes the reference even on
+error.  Never call for a successfully resolved feature.
 |===
 
 ==== Threads

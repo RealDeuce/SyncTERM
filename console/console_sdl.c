@@ -360,7 +360,6 @@ load_sdl(void)
 	    manager.library, "SDL_GetWindowBordersSize");
 	manager.api.set_main_ready();
 	if (manager.api.init_subsystem(SDL_INIT_VIDEO | SDL_INIT_EVENTS) != 0) {
-		(void)dynamic_library_close(manager.library);
 		manager.library = NULL;
 		memset(&manager.api, 0, sizeof(manager.api));
 		return IO_ERROR_NOT_SUPPORTED;
@@ -1406,10 +1405,9 @@ shutdown_sdl(void)
 	manager.api.stop_text_input();
 	manager.api.quit_subsystem(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
 	/* Subsystem teardown leaves process-wide hints, TLS and event storage.
-	 * Release those before unloading, without stopping another SDL consumer. */
+	 * Release those without stopping another SDL consumer. */
 	if (manager.api.was_init(0) == 0)
 		manager.api.quit();
-	(void)dynamic_library_close(manager.library);
 	manager.library = NULL;
 	manager.initialized = false;
 	memset(&manager.api, 0, sizeof(manager.api));

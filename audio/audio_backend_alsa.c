@@ -77,7 +77,6 @@ alsa_available(void)
 	dynamic_library_t *library = NULL;
 	bool result = load_alsa(&library, &api) == 0;
 
-	(void)dynamic_library_close(library);
 	return result;
 }
 
@@ -99,7 +98,6 @@ alsa_open(void **result, const struct audio_backend_callbacks *callbacks)
 	    1, 50000) < 0) {
 		if (state->pcm != NULL)
 			(void)state->api.pcm_close(state->pcm);
-		(void)dynamic_library_close(state->library);
 		free(state);
 		return status != 0 ? status : IO_ERROR_IO;
 	}
@@ -115,7 +113,6 @@ alsa_close(void *opaque)
 	if (state == NULL)
 		return;
 	(void)state->api.pcm_close(state->pcm);
-	(void)dynamic_library_close(state->library);
 	free(state);
 }
 

@@ -157,8 +157,11 @@ terminal_colour_capabilities(void)
 	call_tigetnum = (tigetnum_fn)dynamic_library_symbol(library, "tigetnum");
 	call_tigetflag = (tigetflag_fn)dynamic_library_symbol(library,
 	    "tigetflag");
-	if (call_setupterm != NULL && call_tigetnum != NULL
-	    && call_setupterm(NULL, 1, &error) == 0) {
+	if (call_setupterm == NULL || call_tigetnum == NULL) {
+		(void)dynamic_library_close(library);
+		return result;
+	}
+	if (call_setupterm(NULL, 1, &error) == 0) {
 		int colours = call_tigetnum("colors");
 
 		if (colours > 0)
@@ -167,7 +170,6 @@ terminal_colour_capabilities(void)
 		if (call_tigetflag != NULL && call_tigetflag("RGB") > 0)
 			result.direct_colour = true;
 	}
-	(void)dynamic_library_close(library);
 	return result;
 }
 

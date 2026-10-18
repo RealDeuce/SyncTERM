@@ -78,10 +78,8 @@ load_jxl(void)
 	const char *cms_names[] = {"jxl_cms"};
 
 	if (dynamic_library_open(&jxl_library, base_names, 1,
-	    JPEGXL_MAJOR_VERSION, DYNAMIC_LIBRARY_LOCAL) != 0
-	    || dynamic_library_open(&jxl_cms_library, cms_names, 1,
 	    JPEGXL_MAJOR_VERSION, DYNAMIC_LIBRARY_LOCAL) != 0)
-		goto failed;
+		return;
 	LOAD_REQUIRED(jxl_library, decoder_create,
 	    JxlDecoder *(*)(const JxlMemoryManager *), JxlDecoderCreate);
 	LOAD_REQUIRED(jxl_library, decoder_destroy, void (*)(JxlDecoder *),
@@ -111,8 +109,16 @@ load_jxl(void)
 	    const uint8_t *, size_t), JxlDecoderSetOutputColorProfile);
 	LOAD_REQUIRED(jxl_library, colour_srgb,
 	    void (*)(JxlColorEncoding *, JXL_BOOL), JxlColorEncodingSetToSRGB);
-	LOAD_REQUIRED(jxl_cms_library, default_cms,
-	    const JxlCmsInterface *(*)(void), JxlGetDefaultCms);
+	if (dynamic_library_open(&jxl_cms_library, cms_names, 1,
+	    JPEGXL_MAJOR_VERSION, DYNAMIC_LIBRARY_LOCAL) != 0)
+		return;
+	jxl.default_cms = (const JxlCmsInterface *(*)(void))
+	    dynamic_library_symbol(jxl_cms_library, "JxlGetDefaultCms");
+	if (jxl.default_cms == NULL) {
+		(void)dynamic_library_close(jxl_cms_library);
+		jxl_cms_library = NULL;
+		return;
+	}
 
 #if defined(ST_PIXEL_IMAGE_HAVE_JXL_THREADS)
 	{
@@ -152,13 +158,7 @@ load_jxl(void)
 	return;
 
 failed:
-#if defined(ST_PIXEL_IMAGE_HAVE_JXL_THREADS)
-	(void)dynamic_library_close(jxl_threads_library);
-	jxl_threads_library = NULL;
-#endif
-	(void)dynamic_library_close(jxl_cms_library);
 	(void)dynamic_library_close(jxl_library);
-	jxl_cms_library = NULL;
 	jxl_library = NULL;
 }
 

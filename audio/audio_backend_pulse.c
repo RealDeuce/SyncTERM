@@ -72,7 +72,6 @@ pulse_available(void)
 	dynamic_library_t *library = NULL;
 	bool result = load_pulse(&library, &api) == 0;
 
-	(void)dynamic_library_close(library);
 	return result;
 }
 
@@ -95,7 +94,6 @@ pulse_open(void **result, const struct audio_backend_callbacks *callbacks)
 		    PA_STREAM_PLAYBACK, NULL, "audio", &specification, NULL,
 		    NULL, &error);
 	if (status != 0 || state->stream == NULL) {
-		(void)dynamic_library_close(state->library);
 		free(state);
 		return status != 0 ? status : IO_ERROR_IO;
 	}
@@ -111,7 +109,6 @@ pulse_close(void *opaque)
 	if (state == NULL)
 		return;
 	state->api.simple_free(state->stream);
-	(void)dynamic_library_close(state->library);
 	free(state);
 }
 

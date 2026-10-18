@@ -76,7 +76,6 @@ sdl_available(void)
 	dynamic_library_t *library = NULL;
 	bool result = load_sdl(&library, &api) == 0;
 
-	(void)dynamic_library_close(library);
 	return result;
 }
 
@@ -136,7 +135,6 @@ fail_subsystem:
 	if (state->owns_audio_subsystem)
 		state->api.quit_subsystem(SDL_INIT_AUDIO);
 fail:
-	(void)dynamic_library_close(state->library);
 	free(state);
 	return status;
 }
@@ -151,7 +149,6 @@ sdl_close(void *opaque)
 	state->api.close_audio_device(state->device);
 	if (state->owns_audio_subsystem)
 		state->api.quit_subsystem(SDL_INIT_AUDIO);
-	(void)dynamic_library_close(state->library);
 	free(state);
 }
 

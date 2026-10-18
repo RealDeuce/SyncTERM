@@ -107,7 +107,6 @@ pipewire_available(void)
 	dynamic_library_t *library = NULL;
 	bool result = load_pipewire(&library, &api) == 0;
 
-	(void)dynamic_library_close(library);
 	return result;
 }
 
@@ -218,7 +217,6 @@ fail:
 		state->api.thread_loop_destroy(state->loop);
 	if (state->initialized)
 		state->api.deinit();
-	(void)dynamic_library_close(state->library);
 	free(state);
 	return status;
 }
@@ -236,7 +234,6 @@ pipewire_close(void *opaque)
 	state->api.stream_destroy(state->stream);
 	state->api.thread_loop_destroy(state->loop);
 	state->api.deinit();
-	(void)dynamic_library_close(state->library);
 	free(state);
 }
 

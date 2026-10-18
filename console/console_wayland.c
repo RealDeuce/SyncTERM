@@ -221,8 +221,11 @@ static int load_xkb(struct state *state)
 	    !XKB_LOAD(state, state_key_get_utf32, "xkb_state_key_get_utf32") ||
 	    !XKB_LOAD(state,
 		      state_mod_name_is_active,
-		      "xkb_state_mod_name_is_active"))
+		      "xkb_state_mod_name_is_active")) {
+		(void)dynamic_library_close(state->xkb_library);
+		state->xkb_library = NULL;
 		return IO_ERROR_NOT_SUPPORTED;
+	}
 	state->xkb_context = state->xkb.context_new(XKB_CONTEXT_NO_FLAGS);
 	return state->xkb_context == NULL ? IO_ERROR_IO : 0;
 }
@@ -1533,7 +1536,6 @@ static void objects_destroy(struct state *s)
 		wl_registry_destroy(s->registry);
 	if (s->display)
 		wl_display_disconnect(s->display);
-	(void)dynamic_library_close(s->xkb_library);
 	free(s->clipboard);
 }
 

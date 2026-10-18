@@ -1321,7 +1321,6 @@ curses_destroy(st_console_display_t *display)
 		}
 		state->api.call_delscreen(state->screen);
 	}
-	(void)dynamic_library_close(state->library);
 	free(state->drawn);
 	free(state->drawn_foreground);
 	free(state->drawn_background);
@@ -1636,7 +1635,6 @@ st_console_ncurses_init(st_console_t *console)
 #endif
 	state->screen = state->api.call_newterm(NULL, stdout, stdin);
 	if (state->screen == NULL) {
-		(void)dynamic_library_close(state->library);
 		free(state);
 		atomic_flag_clear_explicit(&curses_in_use, memory_order_release);
 		return IO_ERROR_NOT_SUPPORTED;
@@ -1648,7 +1646,6 @@ st_console_ncurses_init(st_console_t *console)
 			(void)state->api.call_delwin(state->window);
 		(void)state->api.call_endwin();
 		state->api.call_delscreen(state->screen);
-		(void)dynamic_library_close(state->library);
 		free(state);
 		atomic_flag_clear_explicit(&curses_in_use, memory_order_release);
 		return IO_ERROR_OUT_OF_RANGE;
@@ -1668,7 +1665,6 @@ st_console_ncurses_init(st_console_t *console)
 		(void)state->api.call_delwin(state->window);
 		(void)state->api.call_endwin();
 		state->api.call_delscreen(state->screen);
-		(void)dynamic_library_close(state->library);
 		free(state->drawn);
 		free(state->drawn_foreground);
 		free(state->drawn_background);
@@ -1685,7 +1681,6 @@ st_console_ncurses_init(st_console_t *console)
 		(void)state->api.call_delwin(state->window);
 		(void)state->api.call_endwin();
 		state->api.call_delscreen(state->screen);
-		(void)dynamic_library_close(state->library);
 		free(state->drawn);
 		free(state->drawn_foreground);
 		free(state->drawn_background);

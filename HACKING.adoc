@@ -153,8 +153,10 @@ same selection with `ST_CTERM_TEST_EXTERNAL_ASSETS=OFF`.
 
 For unresolved native failures, inspect the reports rather than only the job
 trace: sanitizer jobs retain complete per-process `asan.*` and `ubsan.*`
-reports, plus Linux loader `loader.*` traces with module bases before unload.
-These do not suppress leaks or change library unloading. MinGW jobs retain
+reports, plus Linux loader `loader.*` traces with runtime module bases.
+These do not suppress leaks or alter library lifetime: successfully resolved
+runtime libraries remain mapped until process exit; only failed required-symbol
+resolution permits closing a tentative load. MinGW jobs retain
 `mingw-tools.txt` with compiler/assembler identities and search paths; an
 unknown `.uleb128` assembler failure also saves a verbose reproduction and
 the generated assembly. PTY failures report the expected handshake stage and

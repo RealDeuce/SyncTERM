@@ -22,6 +22,9 @@
 typedef int (*binary_function_t)(int, int);
 typedef int (*value_function_t)(void);
 
+static binary_function_t retained_add;
+static int *retained_value;
+
 static binary_function_t
 binary_function_from_symbol(void *symbol)
 {
@@ -96,7 +99,54 @@ test_symbols_and_names(void)
 	CHECK(dynamic_library_symbol(library, "missing_symbol") == NULL);
 	CHECK(dynamic_library_symbol(library, "") == NULL);
 	CHECK(dynamic_library_symbol(library, NULL) == NULL);
+	retained_add = add;
+	retained_value = value;
+	*retained_value = 74;
+	return 0;
+}
+
+static int
+test_retained_loads(void)
+{
+	const char *names[] = {"dynamic_library_fixture"};
+
+	/* Successful callers discard their local handle without unloading symbols
+	 * or leaving a heap-allocated handle wrapper behind (checked by LSan). */
+	CHECK(retained_add(19, 23) == 42);
+	CHECK(*retained_value == 74);
+	for (unsigned int i = 0; i < 256; ++i) {
+		dynamic_library_t *library = NULL;
+
+		CHECK(dynamic_library_open(&library, names, 1, 0,
+		    DYNAMIC_LIBRARY_LOCAL) == 0);
+		CHECK(binary_function_from_symbol(dynamic_library_symbol(library,
+		    "dynamic_library_fixture_add")) == retained_add);
+		CHECK(dynamic_library_symbol(library,
+		    "dynamic_library_fixture_value") == retained_value);
+		CHECK(*retained_value == 74);
+	}
+	return 0;
+}
+
+static int
+test_rejected_resolution(void)
+{
+	const char *names[] = {"dynamic_library_bare_fixture"};
+	const char *retained_names[] = {"dynamic_library_fixture"};
+	dynamic_library_t *library = NULL;
+
+	CHECK(dynamic_library_open(&library, names, 1, 0,
+	    DYNAMIC_LIBRARY_LOCAL) == 0);
+	CHECK(dynamic_library_symbol(library, "missing_required_symbol") == NULL);
 	CHECK(dynamic_library_close(library) == 0);
+	library = NULL;
+	/* Rejecting a separate load reference must not unload a retained feature. */
+	CHECK(dynamic_library_open(&library, retained_names, 1, 0,
+	    DYNAMIC_LIBRARY_LOCAL) == 0);
+	CHECK(dynamic_library_symbol(library, "missing_required_symbol") == NULL);
+	CHECK(dynamic_library_close(library) == 0);
+	CHECK(retained_add(19, 23) == 42);
+	CHECK(*retained_value == 74);
 	return 0;
 }
 
@@ -109,15 +159,15 @@ test_filename_fallbacks(void)
 
 	CHECK(dynamic_library_open(&library, versioned, 1, 2,
 	    DYNAMIC_LIBRARY_LOCAL) == 0);
-	CHECK(dynamic_library_close(library) == 0);
+	CHECK(dynamic_library_symbol(library, "dynamic_library_fixture_add") != NULL);
 	library = NULL;
 	CHECK(dynamic_library_open(&library, versioned, 1, 4,
 	    DYNAMIC_LIBRARY_LOCAL) == 0);
-	CHECK(dynamic_library_close(library) == 0);
+	CHECK(dynamic_library_symbol(library, "dynamic_library_fixture_add") != NULL);
 	library = NULL;
 	CHECK(dynamic_library_open(&library, bare, 1, 0,
 	    DYNAMIC_LIBRARY_LOCAL) == 0);
-	CHECK(dynamic_library_close(library) == 0);
+	CHECK(dynamic_library_symbol(library, "dynamic_library_fixture_add") != NULL);
 	return 0;
 }
 
@@ -149,7 +199,6 @@ test_visibility_and_eager_loading(void)
 	    DYNAMIC_LIBRARY_LOCAL) == 0);
 	CHECK(dynamic_library_open(&consumer, consumer_name, 1, 0,
 	    DYNAMIC_LIBRARY_LOCAL) == IO_ERROR_NOT_FOUND);
-	CHECK(dynamic_library_close(provider) == 0);
 	provider = NULL;
 	CHECK(dynamic_library_open(&provider, provider_name, 1, 0,
 	    DYNAMIC_LIBRARY_GLOBAL) == 0);
@@ -159,8 +208,6 @@ test_visibility_and_eager_loading(void)
 	    "dynamic_library_consumer_value"));
 	CHECK(value != NULL);
 	CHECK(value() == 91);
-	CHECK(dynamic_library_close(consumer) == 0);
-	CHECK(dynamic_library_close(provider) == 0);
 	return 0;
 }
 #endif
@@ -170,6 +217,8 @@ main(void)
 {
 	CHECK(test_arguments() == 0);
 	CHECK(test_symbols_and_names() == 0);
+	CHECK(test_retained_loads() == 0);
+	CHECK(test_rejected_resolution() == 0);
 	CHECK(test_filename_fallbacks() == 0);
 	CHECK(test_missing_library() == 0);
 #if defined(SYNCTERM_DYNAMIC_LIBRARY_TEST_POSIX)

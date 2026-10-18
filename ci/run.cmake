@@ -172,9 +172,9 @@ else()
 		set(ENV{CTEST_PARALLEL_LEVEL} 1)
 	endif()
 	if(CI_PROFILE STREQUAL sanitizers AND CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
-		# glibc's loader records module bases before dlclose(), when LSan
-		# can no longer symbolize those allocation frames. Other loaders
-		# may ignore this optional diagnostic; it never alters unloading.
+		# Record module bases for allocation frames in runtime-loaded libraries,
+		# including tentative loads rejected after symbol resolution fails.
+		# This optional diagnostic does not alter library lifetime.
 		set(ENV{LD_DEBUG} files)
 		set(ENV{LD_DEBUG_OUTPUT} "${_reports}/loader")
 	endif()

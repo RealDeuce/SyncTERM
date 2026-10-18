@@ -788,10 +788,12 @@ load_xlib(struct x11_state *state)
 	    || !LOAD_REQUIRED(state, undefine_cursor, "XUndefineCursor")
 	    || !LOAD_REQUIRED(state, free_cursor, "XFreeCursor")
 	    || !LOAD_REQUIRED(state, free_pixmap, "XFreePixmap")
-	    || !LOAD_REQUIRED(state, create_pixmap, "XCreatePixmap"))
+	    || !LOAD_REQUIRED(state, create_pixmap, "XCreatePixmap")
+	    || !LOAD_REQUIRED(state, xkb_lookup_keysym, "XkbLookupKeySym")) {
+		(void)dynamic_library_close(state->library);
+		state->library = NULL;
 		return IO_ERROR_NOT_SUPPORTED;
-	if (!LOAD_REQUIRED(state, xkb_lookup_keysym, "XkbLookupKeySym"))
-		return IO_ERROR_NOT_SUPPORTED;
+	}
 	(void)LOAD_REQUIRED(state, xkb_get_keyboard, "XkbGetKeyboard");
 	(void)LOAD_REQUIRED(state, xkb_free_keyboard, "XkbFreeKeyboard");
 	return 0;
@@ -2630,16 +2632,6 @@ x11_destroy(st_console_display_t *display)
 	(void)st_thread_join(state->thread, NULL);
 	st_console_bitmap_presenter_destroy(state->presenter);
 	free(state->clipboard);
-#if ST_CONSOLE_HAVE_XRENDER
-	(void)dynamic_library_close(state->render_library);
-#endif
-#if ST_CONSOLE_HAVE_XRANDR
-	(void)dynamic_library_close(state->xrandr_library);
-#endif
-#if ST_CONSOLE_HAVE_XINERAMA
-	(void)dynamic_library_close(state->xinerama_library);
-#endif
-	(void)dynamic_library_close(state->library);
 	close(state->wake_pipe[0]);
 	close(state->wake_pipe[1]);
 	st_condition_destroy(&state->changed);
@@ -2741,16 +2733,6 @@ st_console_x11_init(st_console_t *console)
 			st_condition_destroy(&state->changed);
 			st_mutex_destroy(&state->mutex);
 		}
-#if ST_CONSOLE_HAVE_XRENDER
-		(void)dynamic_library_close(state->render_library);
-#endif
-#if ST_CONSOLE_HAVE_XRANDR
-		(void)dynamic_library_close(state->xrandr_library);
-#endif
-#if ST_CONSOLE_HAVE_XINERAMA
-		(void)dynamic_library_close(state->xinerama_library);
-#endif
-		(void)dynamic_library_close(state->library);
 		free(state);
 		return status;
 	}

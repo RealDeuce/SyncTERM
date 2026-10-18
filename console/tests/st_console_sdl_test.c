@@ -149,7 +149,6 @@ main(int argc, char **argv)
 	++deadline.tv_sec;
 	CHECK(wait_for_close(first, &deadline) == 0);
 	CHECK(wait_for_close(second, &deadline) == 0);
-	CHECK(dynamic_library_close(library) == 0);
 	st_console_destroy(first);
 	st_console_display_destroy(first_display);
 	st_console_destroy(second);

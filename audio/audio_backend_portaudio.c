@@ -79,7 +79,6 @@ portaudio_available(void)
 	dynamic_library_t *library = NULL;
 	bool result = load_portaudio(&library, &api) == 0;
 
-	(void)dynamic_library_close(library);
 	return result;
 }
 
@@ -110,7 +109,6 @@ portaudio_open(void **result,
 	state->callbacks = *callbacks;
 	status = load_portaudio(&state->library, &state->api);
 	if (status != 0 || state->api.initialize() != paNoError) {
-		(void)dynamic_library_close(state->library);
 		free(state);
 		return status != 0 ? status : IO_ERROR_IO;
 	}
@@ -121,7 +119,6 @@ portaudio_open(void **result,
 		if (state->stream != NULL)
 			(void)state->api.close_stream(state->stream);
 		(void)state->api.terminate();
-		(void)dynamic_library_close(state->library);
 		free(state);
 		return IO_ERROR_IO;
 	}
@@ -139,7 +136,6 @@ portaudio_close(void *opaque)
 	(void)state->api.stop_stream(state->stream);
 	(void)state->api.close_stream(state->stream);
 	(void)state->api.terminate();
-	(void)dynamic_library_close(state->library);
 	free(state);
 }
 

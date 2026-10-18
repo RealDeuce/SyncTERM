@@ -14,10 +14,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-struct dynamic_library {
-	void *handle;
-};
-
 static bool
 dynamic_library_name_valid(const char *name)
 {
@@ -63,7 +59,6 @@ dynamic_library_open(dynamic_library_t **result, const char *const names[],
     size_t name_count, unsigned preferred_major,
     enum dynamic_library_visibility visibility)
 {
-	dynamic_library_t *library;
 	size_t maximum_name = 0;
 	size_t i;
 	unsigned version;
@@ -122,13 +117,7 @@ dynamic_library_open(dynamic_library_t **result, const char *const names[],
 	free(filename);
 	if (handle == NULL)
 		return IO_ERROR_NOT_FOUND;
-	library = malloc(sizeof(*library));
-	if (library == NULL) {
-		(void)dlclose(handle);
-		return IO_ERROR_OUT_OF_MEMORY;
-	}
-	library->handle = handle;
-	*result = library;
+	*result = handle;
 	return 0;
 }
 
@@ -137,17 +126,13 @@ dynamic_library_symbol(const dynamic_library_t *library, const char *name)
 {
 	if (library == NULL || name == NULL || *name == '\0')
 		return NULL;
-	return dlsym(library->handle, name);
+	return dlsym((void *)library, name);
 }
 
 int
 dynamic_library_close(dynamic_library_t *library)
 {
-	int result;
-
 	if (library == NULL)
 		return 0;
-	result = dlclose(library->handle) == 0 ? 0 : IO_ERROR_IO;
-	free(library);
-	return result;
+	return dlclose((void *)library) == 0 ? 0 : IO_ERROR_IO;
 }
