@@ -50,7 +50,7 @@ probe_refusal(const struct sockaddr_in *address)
 {
 	socket_handle_t probe = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	fd_set readers, writers, exceptions;
-	struct timeval timeout = {.tv_sec = 1, .tv_usec = 0};
+	struct timeval timeout = {.tv_sec = 10, .tv_usec = 0};
 	int pending = 0;
 	test_socklen_t length = (test_socklen_t)sizeof(pending);
 
@@ -92,7 +92,7 @@ probe_refusal(const struct sockaddr_in *address)
 	int query_error = queried == 0 ? 0 : native_error();
 	fprintf(stderr, "native refusal probe: connect=%d error=%d select=%d"
 	    " error=%d readable=%d writable=%d exception=%d SO_ERROR=%d"
-	    " query=%d error=%d\n", connected, connect_error, ready, wait_error,
+	    " query=%d error=%d wait-budget=10000ms\n", connected, connect_error, ready, wait_error,
 	    FD_ISSET(probe, &readers) != 0, FD_ISSET(probe, &writers) != 0,
 	    FD_ISSET(probe, &exceptions) != 0, pending, queried, query_error);
 	(void)socket_close(probe);
@@ -172,7 +172,10 @@ main(void)
 	CHECK(socket_close(listener) == 0);
 	connected = SOCKET_HANDLE_INVALID;
 	family = TCP_CLIENT_ADDRESS_ANY;
-	options.timeout_ms = 2000;
+	/* Native Windows TCP can retry a refused loopback connect before
+	 * reporting WSAECONNREFUSED. Deadline behavior is tested separately;
+	 * this integration case checks the eventual refusal, not retry timing. */
+	options.timeout_ms = 10000;
 	options.diagnostic = diagnose;
 	fprintf(stderr, "refusal test: closed loopback port=%u timeout=%" PRId64 "ms\n",
 	    (unsigned)ntohs(address.sin_port), options.timeout_ms);

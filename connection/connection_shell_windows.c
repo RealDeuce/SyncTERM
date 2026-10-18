@@ -440,6 +440,10 @@ st_connection_connect_shell(st_connection_t **result,
 	memset(&startup, 0, sizeof(startup));
 	memset(&process, 0, sizeof(process));
 	startup.StartupInfo.cb = sizeof(startup);
+	/* Null standard handles plus this flag force connection to ConPTY.
+	 * Without it Windows can copy the parent's redirected standard handles
+	 * even with bInheritHandles FALSE, bypassing our pipes entirely. */
+	startup.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
 	startup.lpAttributeList = attributes;
 	if (!CreateProcessW(NULL, command, NULL, NULL, FALSE,
 	    EXTENDED_STARTUPINFO_PRESENT, NULL, NULL, &startup.StartupInfo,

@@ -153,6 +153,11 @@ process_urgent(struct network_transport *transport, bool *handled)
 
 	*handled = false;
 	if (!transport->urgent_control_known) {
+		bool at_mark = false;
+
+		result = socket_at_urgent_mark(transport->socket, &at_mark);
+		if (result != 0)
+			return result;
 		received = socket_receive(transport->socket,
 		    &transport->urgent_control, 1, SOCKET_RECEIVE_URGENT);
 		if (received == IO_ERROR_WOULD_BLOCK)
@@ -163,11 +168,12 @@ process_urgent(struct network_transport *transport, bool *handled)
 			return IO_ERROR_CONNECTION_RESET;
 		transport->urgent_control_known = true;
 		transport->urgent_pending = true;
-		/* Save the control once. Receiving it does not advance the normal
-		 * stream past its urgent mark; a flush still drains to that mark. */
+		/* Darwin clears its at-mark flag when receiving OOB, even though the
+		 * normal stream has not advanced. Preserve a mark already reached so
+		 * FLUSHWRITE never drains fresh data after that boundary. */
 		if (transport->urgent_control == 0x02) {
 			st_connection_clear_input(transport->connection);
-			transport->urgent_flush_pending = true;
+			transport->urgent_flush_pending = !at_mark;
 		}
 	}
 	if (transport->urgent_flush_pending) {

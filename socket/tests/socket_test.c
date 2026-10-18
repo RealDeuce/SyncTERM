@@ -35,15 +35,21 @@ diagnose_urgent_mark(socket_handle_t socket, const char *stage, bool at_mark)
 #if SYNCTERM_PLATFORM_WINDOWS
 	u_long mark = 0;
 	u_long available = 0;
+	int inline_oob = -1;
+	int inline_size = sizeof(inline_oob);
 	int mark_status = ioctlsocket(socket, SIOCATMARK, &mark);
 	int mark_error = mark_status == 0 ? 0 : WSAGetLastError();
 	int available_status = ioctlsocket(socket, FIONREAD, &available);
 	int available_error = available_status == 0 ? 0 : WSAGetLastError();
+	int inline_status = getsockopt(socket, SOL_SOCKET, SO_OOBINLINE,
+	    (char *)&inline_oob, &inline_size);
+	int inline_error = inline_status == 0 ? 0 : WSAGetLastError();
 
 	fprintf(stderr, "urgent stage=%s portable-mark=%d SIOCATMARK=%lu"
-	    " status=%d error=%d FIONREAD=%lu status=%d error=%d\n",
+	    " status=%d error=%d FIONREAD=%lu status=%d error=%d"
+	    " SO_OOBINLINE=%d status=%d error=%d\n",
 	    stage, at_mark, mark, mark_status, mark_error, available,
-	    available_status, available_error);
+	    available_status, available_error, inline_oob, inline_status, inline_error);
 #else
 	(void)socket;
 	fprintf(stderr, "urgent stage=%s portable-mark=%d\n", stage, at_mark);
@@ -53,15 +59,19 @@ diagnose_urgent_mark(socket_handle_t socket, const char *stage, bool at_mark)
 static ssize_t
 receive_urgent(socket_handle_t socket, void *data, unsigned flags)
 {
+	bool before = false, after = false;
+	int before_status = socket_at_urgent_mark(socket, &before);
 	ssize_t result = socket_receive(socket, data, 1, flags);
 #if SYNCTERM_PLATFORM_WINDOWS
 	int native_error = result < 0 ? WSAGetLastError() : 0;
 #else
 	int native_error = result < 0 ? errno : 0;
 #endif
+	int after_status = socket_at_urgent_mark(socket, &after);
 
-	fprintf(stderr, "urgent receive flags=%u result=%zd native-error=%d\n",
-	    flags, result, native_error);
+	fprintf(stderr, "urgent receive flags=%u result=%zd native-error=%d"
+	    " before-mark=%d status=%d after-mark=%d status=%d\n",
+	    flags, result, native_error, before, before_status, after, after_status);
 	return result;
 }
 

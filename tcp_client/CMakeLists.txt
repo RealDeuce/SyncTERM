@@ -129,7 +129,7 @@ if(BUILD_TESTING)
 		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	syncterm_tcp_client_warnings(tcp_client_test)
 	add_test(NAME tcp_client COMMAND tcp_client_test)
-	set_tests_properties(tcp_client PROPERTIES TIMEOUT 10)
+	set_tests_properties(tcp_client PROPERTIES TIMEOUT 30)
 
 	add_executable(tcp_client_algorithm_test
 		tcp_client.c tests/tcp_client_algorithm_test.c
