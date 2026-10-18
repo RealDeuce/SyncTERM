@@ -269,14 +269,14 @@ fn_conn_paste(WrenVM *vm)
 static void
 fn_conn_pending(WrenVM *vm)
 {
-	wrenSetSlotDouble(vm, 0, st_connection_pending_raw(
+	wrenSetSlotDouble(vm, 0, (double)st_connection_pending_raw(
 	    st_wren_context_from_vm(vm)->connection));
 }
 
 static void
 fn_conn_queued(WrenVM *vm)
 {
-	wrenSetSlotDouble(vm, 0, st_connection_queued(
+	wrenSetSlotDouble(vm, 0, (double)st_connection_queued(
 	    st_wren_context_from_vm(vm)->connection));
 }
 
@@ -454,7 +454,7 @@ fn_conn_elapsed_seconds(WrenVM *vm)
 
 	if (context->connection != NULL) {
 		wrenSetSlotDouble(vm, 0,
-		    st_connection_elapsed_ms(context->connection) / 1000);
+		    (double)(st_connection_elapsed_ms(context->connection) / 1000));
 		return;
 	}
 	if (context->connected_at_ms == 0 || st_time_monotonic_ms(&now) != 0
@@ -703,7 +703,9 @@ fn_cterm_alt_fonts(WrenVM *vm)
 static void
 fn_cterm_alt_font(WrenVM *vm)
 {
-	wrenSetSlotDouble(vm, 0, cterm_state(vm).alt_fonts[0]);
+	struct st_cterm_state state = cterm_state(vm);
+
+	wrenSetSlotDouble(vm, 0, state.alt_fonts[0]);
 }
 
 static void

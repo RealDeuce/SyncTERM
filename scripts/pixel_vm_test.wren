@@ -51,9 +51,33 @@ class PixelVmTest {
     blit.scaleX = 3
     blit.flipY = true
     check.call(blit.destinationX == -2 && blit.scaleX == 3 && blit.flipY)
-    bad = Fiber.new { PixelBlit.new().scaleX = 0 }
+    bad = Fiber.new { blit.scaleX = 0 }
     bad.try()
-    check.call(bad.error != null)
+    check.call(bad.error != null && blit.scaleX == 3)
+    bad = Fiber.new { blit.scaleY = 0 }
+    bad.try()
+    check.call(bad.error != null && blit.scaleY == 1)
+    blit.sourceX = 0
+    blit.sourceY = 0
+    blit.sourceWidth = 0
+    blit.sourceHeight = 0
+    blit.maskX = 0
+    blit.maskY = 0
+    check.call(blit.sourceX == 0 && blit.sourceY == 0 &&
+        blit.sourceWidth == 0 && blit.sourceHeight == 0 &&
+        blit.maskX == 0 && blit.maskY == 0)
+    blit.scaleX = 4294967295
+    blit.scaleY = 4294967295
+    check.call(blit.scaleX == 4294967295 && blit.scaleY == 4294967295)
+    bad = Fiber.new { blit.scaleX = 4294967296 }
+    bad.try()
+    check.call(bad.error != null && blit.scaleX == 4294967295)
+    bad = Fiber.new { blit.sourceX = -1 }
+    bad.try()
+    check.call(bad.error != null && blit.sourceX == 0)
+    bad = Fiber.new { blit.scaleY = 1.5 }
+    bad.try()
+    check.call(bad.error != null && blit.scaleY == 4294967295)
 
     var ppm = PixelBuffer.fromPpm("P3\n2 1\n255\n0 0 0 255 255 255\n")
     check.call(ppm is PixelBuffer && PixelColor.toRgb(ppm[0]) == 0 &&

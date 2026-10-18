@@ -2832,7 +2832,7 @@ fn_screen_text_width(WrenVM *vm)
 	int length;
 	int64_t selector;
 	uint16_t identifier;
-	size_t consumed;
+	size_t consumed = 0;
 	uint64_t width = 0;
 	int status;
 
@@ -3449,7 +3449,7 @@ fn_cell_ch_set(WrenVM *vm)
 	char *normalized = NULL;
 	size_t normalized_size = 0;
 	uint8_t columns = 1;
-	size_t consumed;
+	size_t consumed = 0;
 	int length;
 	int status;
 

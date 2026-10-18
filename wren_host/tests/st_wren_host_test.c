@@ -1523,6 +1523,49 @@ exercise_menu_contract(st_wren_host_t *public_host)
 	    "  if (!Menu.setEncryption(7, 256, null) || Menu.encryptionAlgorithm != 7) Fiber.abort(\"reencrypt\")\n"
 	    "  if (!Menu.setEncryption(0, 0, null) || Menu.encryptionAlgorithm != 0) Fiber.abort(\"decrypt\")\n"
 	    "}\n";
+	static const char numeric_source[] =
+	    "import \"syncterm_menu\" for Menu\n"
+	    "var s = Menu.settings\n"
+	    "s.audioModes = 4294967295\n"
+	    "s.modemRate = 4294967295\n"
+	    "s.scrollbackLines = 2147483647\n"
+	    "s.frameColor = 16\n"
+	    "if (s.audioModes != 4294967295 || s.modemRate != 4294967295 || s.scrollbackLines != 2147483647 || s.frameColor != 16) Fiber.abort(\"settings numeric maxima\")\n"
+	    "var bad = Fiber.new { s.audioModes = 4294967296 }\n"
+	    "bad.try()\n"
+	    "if (bad.error == null || s.audioModes != 4294967295) Fiber.abort(\"settings overflow\")\n"
+	    "bad = Fiber.new { s.scrollbackLines = 0 }\n"
+	    "bad.try()\n"
+	    "if (bad.error == null || s.scrollbackLines != 2147483647) Fiber.abort(\"settings minimum\")\n"
+	    "bad = Fiber.new { s.modemRate = 0.5 }\n"
+	    "bad.try()\n"
+	    "if (bad.error == null || s.modemRate != 4294967295) Fiber.abort(\"settings fractional\")\n"
+	    "s.audioModes = 0\n"
+	    "s.modemRate = 0\n"
+	    "s.scrollbackLines = 1\n"
+	    "if (s.audioModes != 0 || s.modemRate != 0 || s.scrollbackLines != 1) Fiber.abort(\"settings numeric minima\")\n"
+	    "var b = Menu.entries[0]\n"
+	    "var saved = [b.port, b.bpsRate, b.sortOrder]\n"
+	    "b.port = 65535\n"
+	    "b.bpsRate = 4294967295\n"
+	    "b.sortOrder = -2147483648\n"
+	    "if (b.port != 65535 || b.bpsRate != 4294967295 || b.sortOrder != -2147483648) Fiber.abort(\"bbs numeric bounds\")\n"
+	    "bad = Fiber.new { b.port = 65536 }\n"
+	    "bad.try()\n"
+	    "if (bad.error == null || b.port != 65535) Fiber.abort(\"bbs port overflow\")\n"
+	    "bad = Fiber.new { b.bpsRate = 4294967296 }\n"
+	    "bad.try()\n"
+	    "if (bad.error == null || b.bpsRate != 4294967295) Fiber.abort(\"bbs rate overflow\")\n"
+	    "bad = Fiber.new { b.sortOrder = -2147483649 }\n"
+	    "bad.try()\n"
+	    "if (bad.error == null || b.sortOrder != -2147483648) Fiber.abort(\"bbs sort underflow\")\n"
+	    "b.port = 0\n"
+	    "b.bpsRate = 0\n"
+	    "b.sortOrder = 2147483647\n"
+	    "if (b.port != 0 || b.bpsRate != 0 || b.sortOrder != 2147483647) Fiber.abort(\"bbs numeric opposite bounds\")\n"
+	    "b.port = saved[0]\n"
+	    "b.bpsRate = saved[1]\n"
+	    "b.sortOrder = saved[2]\n";
 	static const char encoding_source[] =
 	    "import \"syncterm\" for ConnType\n"
 	    "if (ConnType.mqtt != 13) Fiber.abort(\"MQTT connection type\")\n"
@@ -1601,6 +1644,12 @@ exercise_menu_contract(st_wren_host_t *public_host)
 	if (wrenInterpret(host->vm, "menu_contract", source)
 	    != WREN_RESULT_SUCCESS) {
 		fprintf(stderr, "menu contract failed: %s\n", host->last_error);
+		return -1;
+	}
+	if (wrenInterpret(host->vm, "menu_numeric_contract", numeric_source)
+	    != WREN_RESULT_SUCCESS) {
+		fprintf(stderr, "menu numeric contract failed: %s\n",
+		    host->last_error);
 		return -1;
 	}
 	if (wrenInterpret(host->vm, "menu_encoding_contract", encoding_source)

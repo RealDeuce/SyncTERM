@@ -627,7 +627,7 @@ file_read_at(WrenVM *vm, bool explicit_offset)
 {
 	struct st_wren_file *file = checked_file(vm, true, FILE_RIGHT_READ);
 	uint64_t count;
-	uint64_t offset;
+	uint64_t offset = 0;
 	char *data;
 	size_t got;
 	int64_t saved = -1;
@@ -705,7 +705,7 @@ file_write_at(WrenVM *vm, bool explicit_offset)
 	struct st_wren_file *file = checked_file(vm, true, FILE_RIGHT_WRITE);
 	const char *data;
 	size_t size;
-	uint64_t offset;
+	uint64_t offset = 0;
 	int64_t saved = -1;
 	bool write_failed;
 	int write_error = 0;

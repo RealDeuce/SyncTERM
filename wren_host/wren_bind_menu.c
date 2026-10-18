@@ -1054,7 +1054,7 @@ slot_profile_name(WrenVM *vm, int slot, size_t except, const char **name)
 static void
 fn_menu_active_sort_profile(WrenVM *vm)
 {
-	wrenSetSlotDouble(vm, 0, st_settings_active_sort_profile());
+	wrenSetSlotDouble(vm, 0, (double)st_settings_active_sort_profile());
 }
 
 static void
@@ -3169,12 +3169,12 @@ fn_menu_settings(WrenVM *vm)
 		} \
 	}
 
-#define SETTINGS_NUM_PROPERTY(name, field, minimum, maximum) \
+#define SETTINGS_NUM_PROPERTY(name, field, type, minimum, maximum) \
 	static void fn_settings_##name(WrenVM *vm) \
 	{ \
 		struct foreign_settings *settings = settings_value(vm); \
 		if (settings != NULL) \
-			wrenSetSlotDouble(vm, 0, settings->settings.field); \
+			wrenSetSlotDouble(vm, 0, (double)settings->settings.field); \
 	} \
 	static void fn_settings_##name##_set(WrenVM *vm) \
 	{ \
@@ -3182,7 +3182,7 @@ fn_menu_settings(WrenVM *vm)
 		int64_t value; \
 		if (settings != NULL && slot_integer(vm, 1, minimum, maximum, \
 		    &value)) { \
-			settings->settings.field = value; \
+			settings->settings.field = (type)value; \
 			settings->dirty = true; \
 		} \
 	}
@@ -3197,26 +3197,26 @@ SETTINGS_OWNED_PROPERTY(list_path, stored_list_path)
 SETTINGS_FIXED_PROPERTY(shell_term, terminal_type)
 SETTINGS_OWNED_PROPERTY(tls_client_cert, tls_client_certificate)
 SETTINGS_OWNED_PROPERTY(tls_client_key, tls_client_key)
-SETTINGS_NUM_PROPERTY(startup_mode, startup_mode, ST_SCREEN_MODE_CURRENT,
+SETTINGS_NUM_PROPERTY(startup_mode, startup_mode, int, ST_SCREEN_MODE_CURRENT,
     ST_SCREEN_MODE_ATARIST_80X25_MONO)
-SETTINGS_NUM_PROPERTY(output_mode, output_mode, 0, INT_MAX)
-SETTINGS_NUM_PROPERTY(cursor_style, default_cursor, ST_CURSOR_DEFAULT,
+SETTINGS_NUM_PROPERTY(output_mode, output_mode, int, 0, INT_MAX)
+SETTINGS_NUM_PROPERTY(cursor_style, default_cursor, int, ST_CURSOR_DEFAULT,
     ST_CURSOR_SOLID_BLOCK)
-SETTINGS_NUM_PROPERTY(audio_modes, audio_output_modes, 0, UINT32_MAX)
-SETTINGS_NUM_PROPERTY(scrollback_lines, scrollback_lines, 1, INT_MAX)
-SETTINGS_NUM_PROPERTY(modem_rate, modem_rate, 0, UINT32_MAX)
-SETTINGS_NUM_PROPERTY(custom_rows, custom_rows, 14, 1000)
-SETTINGS_NUM_PROPERTY(custom_columns, custom_columns, 40, 1000)
-SETTINGS_NUM_PROPERTY(custom_font_height, custom_font_height, 8, 64)
-SETTINGS_NUM_PROPERTY(custom_aspect_width, custom_aspect_width, 1, INT_MAX)
-SETTINGS_NUM_PROPERTY(custom_aspect_height, custom_aspect_height, 1, INT_MAX)
-SETTINGS_NUM_PROPERTY(frame_color, theme_frame_color, 0, 16)
-SETTINGS_NUM_PROPERTY(text_color, theme_text_color, 0, 16)
-SETTINGS_NUM_PROPERTY(background_color, theme_background_color, 0, 8)
-SETTINGS_NUM_PROPERTY(inverse_color, theme_inverse_color, 0, 8)
-SETTINGS_NUM_PROPERTY(lightbar_color, theme_lightbar_color, 0, 16)
+SETTINGS_NUM_PROPERTY(audio_modes, audio_output_modes, uint32_t, 0, UINT32_MAX)
+SETTINGS_NUM_PROPERTY(scrollback_lines, scrollback_lines, int, 1, INT_MAX)
+SETTINGS_NUM_PROPERTY(modem_rate, modem_rate, uint32_t, 0, UINT32_MAX)
+SETTINGS_NUM_PROPERTY(custom_rows, custom_rows, int, 14, 1000)
+SETTINGS_NUM_PROPERTY(custom_columns, custom_columns, int, 40, 1000)
+SETTINGS_NUM_PROPERTY(custom_font_height, custom_font_height, int, 8, 64)
+SETTINGS_NUM_PROPERTY(custom_aspect_width, custom_aspect_width, int, 1, INT_MAX)
+SETTINGS_NUM_PROPERTY(custom_aspect_height, custom_aspect_height, int, 1, INT_MAX)
+SETTINGS_NUM_PROPERTY(frame_color, theme_frame_color, unsigned, 0, 16)
+SETTINGS_NUM_PROPERTY(text_color, theme_text_color, unsigned, 0, 16)
+SETTINGS_NUM_PROPERTY(background_color, theme_background_color, unsigned, 0, 8)
+SETTINGS_NUM_PROPERTY(inverse_color, theme_inverse_color, unsigned, 0, 8)
+SETTINGS_NUM_PROPERTY(lightbar_color, theme_lightbar_color, unsigned, 0, 16)
 SETTINGS_NUM_PROPERTY(lightbar_background_color,
-    theme_lightbar_background_color, 0, 8)
+    theme_lightbar_background_color, unsigned, 0, 8)
 
 static void
 fn_settings_scaling_mode(WrenVM *vm)
@@ -3624,12 +3624,12 @@ fn_settings_reload(WrenVM *vm)
 			bbs_changed(bbs); \
 	}
 
-#define BBS_NUM_PROPERTY(name, field, minimum, maximum) \
+#define BBS_NUM_PROPERTY(name, field, type, minimum, maximum) \
 	static void fn_bbs_##name(WrenVM *vm) \
 	{ \
 		struct foreign_bbs *bbs = bbs_value(vm, 0); \
 		if (bbs != NULL) \
-			wrenSetSlotDouble(vm, 0, bbs->record->profile.field); \
+			wrenSetSlotDouble(vm, 0, (double)bbs->record->profile.field); \
 	} \
 	static void fn_bbs_##name##_set(WrenVM *vm) \
 	{ \
@@ -3637,7 +3637,7 @@ fn_settings_reload(WrenVM *vm)
 		struct st_profile *profile = bbs_mutable_profile(vm, bbs); \
 		int64_t value; \
 		if (profile != NULL && slot_integer(vm, 1, minimum, maximum, &value)) { \
-			profile->field = value; \
+			profile->field = (type)value; \
 			bbs_changed(bbs); \
 		} \
 	}
@@ -3703,32 +3703,32 @@ BBS_OWNED_PROPERTY(tls_trusted_cert, tls_trusted_certificate)
 BBS_OWNED_PROPERTY(tls_client_cert, tls_client_certificate)
 BBS_OWNED_PROPERTY(tls_client_key, tls_client_key)
 
-BBS_NUM_PROPERTY(port, port, 0, UINT16_MAX)
-BBS_NUM_PROPERTY(conn_type, connection_type, ST_CONNECTION_UNKNOWN,
+BBS_NUM_PROPERTY(port, port, uint16_t, 0, UINT16_MAX)
+BBS_NUM_PROPERTY(conn_type, connection_type, int, ST_CONNECTION_UNKNOWN,
     ST_CONNECTION_MQTT)
-BBS_NUM_PROPERTY(music, music, ST_PROFILE_MUSIC_SYNCTERM,
+BBS_NUM_PROPERTY(music, music, int, ST_PROFILE_MUSIC_SYNCTERM,
     ST_PROFILE_MUSIC_ALL)
-BBS_NUM_PROPERTY(rip, rip_version, ST_RIP_VERSION_NONE, ST_RIP_VERSION_3)
-BBS_NUM_PROPERTY(address_family, address_family,
+BBS_NUM_PROPERTY(rip, rip_version, int, ST_RIP_VERSION_NONE, ST_RIP_VERSION_3)
+BBS_NUM_PROPERTY(address_family, address_family, int,
     ST_ADDRESS_FAMILY_UNSPECIFIED, ST_ADDRESS_FAMILY_IPV6)
-BBS_NUM_PROPERTY(screen_mode, screen_mode, ST_SCREEN_MODE_CURRENT,
+BBS_NUM_PROPERTY(screen_mode, screen_mode, int, ST_SCREEN_MODE_CURRENT,
     ST_SCREEN_MODE_ATARIST_80X25_MONO)
-BBS_NUM_PROPERTY(bps_rate, bps_rate, 0, UINT32_MAX)
-BBS_NUM_PROPERTY(xfer_log_level, transfer_log_level,
+BBS_NUM_PROPERTY(bps_rate, bps_rate, uint32_t, 0, UINT32_MAX)
+BBS_NUM_PROPERTY(xfer_log_level, transfer_log_level, int,
     ST_PROFILE_LOG_EMERGENCY, ST_PROFILE_LOG_DEBUG)
-BBS_NUM_PROPERTY(protocol_log_level, protocol_log_level,
+BBS_NUM_PROPERTY(protocol_log_level, protocol_log_level, int,
     ST_PROFILE_LOG_EMERGENCY, ST_PROFILE_LOG_DEBUG)
-BBS_NUM_PROPERTY(stop_bits, stop_bits, 1, 2)
-BBS_NUM_PROPERTY(data_bits, data_bits, 7, 8)
-BBS_NUM_PROPERTY(parity, parity, ST_PROFILE_PARITY_NONE,
+BBS_NUM_PROPERTY(stop_bits, stop_bits, uint16_t, 1, 2)
+BBS_NUM_PROPERTY(data_bits, data_bits, uint16_t, 7, 8)
+BBS_NUM_PROPERTY(parity, parity, int, ST_PROFILE_PARITY_NONE,
     ST_PROFILE_PARITY_ODD)
-BBS_NUM_PROPERTY(flow_control, flow_control, ST_PROFILE_FLOW_RTS_CTS,
+BBS_NUM_PROPERTY(flow_control, flow_control, int, ST_PROFILE_FLOW_RTS_CTS,
     ST_PROFILE_FLOW_NONE)
-BBS_NUM_PROPERTY(tls_psk_version, tls_psk_version, ST_TLS_VERSION_UNKNOWN,
+BBS_NUM_PROPERTY(tls_psk_version, tls_psk_version, int, ST_TLS_VERSION_UNKNOWN,
     ST_TLS_VERSION_1_3)
-BBS_NUM_PROPERTY(tls_version_floor, tls_version_floor,
+BBS_NUM_PROPERTY(tls_version_floor, tls_version_floor, int,
     ST_TLS_VERSION_UNKNOWN, ST_TLS_VERSION_1_3)
-BBS_NUM_PROPERTY(sort_order, sort_order, INT32_MIN, INT32_MAX)
+BBS_NUM_PROPERTY(sort_order, sort_order, int32_t, INT32_MIN, INT32_MAX)
 
 BBS_BOOL_PROPERTY(no_status, hide_status)
 BBS_BOOL_PROPERTY(hide_popups, hide_popups)

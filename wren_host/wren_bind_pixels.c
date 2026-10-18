@@ -1113,6 +1113,19 @@ pixel_blit(WrenVM *vm)
 	return wrapper == NULL ? NULL : &wrapper->blit;
 }
 
+static bool
+slot_blit_uint32(WrenVM *vm, uint32_t *value, bool allow_zero,
+	const char *integer_error, const char *positive_error)
+{
+	if (!slot_uint32(vm, 1, value, integer_error))
+		return false;
+	if (!allow_zero && *value == 0) {
+		st_wren_abort(vm, positive_error);
+		return false;
+	}
+	return true;
+}
+
 #define BLIT_UINT_FIELD(name, field, allow_zero) \
 	static void fn_pixel_blit_##name(WrenVM *vm) \
 	{ \
@@ -1124,15 +1137,10 @@ pixel_blit(WrenVM *vm)
 	{ \
 		struct st_pixel_blit *blit = pixel_blit(vm); \
 		uint32_t value; \
-		if (blit == NULL || !slot_uint32(vm, 1, &value, \
-		    "PixelBlit." #name ": expected a non-negative integer")) \
-			return; \
-		if (!(allow_zero) && value == 0) { \
-			st_wren_abort(vm, \
-			    "PixelBlit." #name ": value must be positive"); \
-			return; \
-		} \
-		blit->field = value; \
+		if (blit != NULL && slot_blit_uint32(vm, &value, allow_zero, \
+		    "PixelBlit." #name ": expected a non-negative integer", \
+		    "PixelBlit." #name ": value must be positive")) \
+			blit->field = value; \
 	}
 
 #define BLIT_INT_FIELD(name, field) \
