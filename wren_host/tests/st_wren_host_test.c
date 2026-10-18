@@ -22,6 +22,7 @@
 #include "st_term.h"
 #include "st_threads.h"
 #include "st_time.h"
+#include "string_compat.h"
 #include "syncterm_config.h"
 
 #include <inttypes.h>

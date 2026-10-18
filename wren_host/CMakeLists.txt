@@ -162,7 +162,7 @@ int main(void)
 	add_executable(st_wren_host_test tests/st_wren_host_test.c)
 	target_link_libraries(st_wren_host_test PRIVATE st_wren_host
 		st_wren_vm st_settings st_theme st_time st_bbs_list st_audio st_term
-		syncterm_filesystem
+		syncterm_filesystem syncterm_string_compat
 		syncterm_threads)
 	target_compile_definitions(st_wren_host_test PRIVATE
 		ST_WREN_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/host-test"
@@ -187,7 +187,7 @@ int main(void)
 	if(TARGET st_connection_ssh_fixture)
 		target_sources(st_wren_host_test PRIVATE tests/st_wren_sftp_live_test.c)
 		target_compile_definitions(st_wren_host_test PRIVATE ST_WREN_HAVE_LIVE_SFTP=1)
-		target_link_libraries(st_wren_host_test PRIVATE syncterm_string_compat st_consent_token st_list_crypto)
+		target_link_libraries(st_wren_host_test PRIVATE st_consent_token st_list_crypto)
 		add_dependencies(st_wren_host_test st_connection_ssh_fixture)
 		add_test(NAME wren_sftp_live COMMAND st_wren_host_test $<TARGET_FILE:st_connection_ssh_fixture>)
 		set_tests_properties(wren_sftp_live wren_host PROPERTIES RESOURCE_LOCK wren_host_files TIMEOUT 600)

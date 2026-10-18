@@ -334,7 +334,7 @@ main(void)
 			CHECK(st_console_post_event(picker_console, &second) == 0);
 		CHECK(st_console_display_activate(display, console) == 0);
 		CHECK(st_wren_picker_host_run(host, &call));
-		CHECK(call.completed && call.path_count == (cancel ? 0 : 1));
+		CHECK(call.completed && call.path_count == (cancel ? 0U : 1U));
 		if (!cancel) {
 			CHECK(call.disposition == (scenario == 3
 			    ? ST_WREN_PICKER_DISPOSITION_OVERWRITE
