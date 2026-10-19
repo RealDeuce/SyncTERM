@@ -169,8 +169,9 @@ process_urgent(struct network_transport *transport, bool *handled,
 		bool at_mark = false;
 
 		result = socket_at_urgent_mark(transport->socket, &at_mark);
-		if (result != 0)
+		if (result != 0 && result != IO_ERROR_NOT_SUPPORTED)
 			return result;
+		bool mark_supported = result == 0;
 		received = socket_receive(transport->socket,
 		    &transport->urgent_control, 1, SOCKET_RECEIVE_URGENT);
 		if (received == IO_ERROR_WOULD_BLOCK)
@@ -189,7 +190,12 @@ process_urgent(struct network_transport *transport, bool *handled,
 			transport->pending_input_size = 0;
 			transport->pending_input_head = 0;
 			*discard_input = true;
-			transport->urgent_flush_pending = !at_mark;
+			/* Without a positional mark, only discard data we already own.
+			 * Draining the native socket could also destroy fresh output. */
+			transport->urgent_flush_pending = mark_supported && !at_mark;
+			if (!mark_supported)
+				st_connection_log(transport->connection, ST_CONNECTION_LOG_DEBUG,
+				    "FLUSHWRITE: clearing buffered input only; urgent stream mark unavailable");
 		}
 	}
 	if (transport->urgent_flush_pending) {
@@ -199,6 +205,8 @@ process_urgent(struct network_transport *transport, bool *handled,
 			bool at_mark;
 
 			result = socket_at_urgent_mark(transport->socket, &at_mark);
+			if (result == IO_ERROR_NOT_SUPPORTED)
+				break;
 			if (result != 0)
 				return result;
 			if (at_mark)
@@ -284,11 +292,11 @@ network_read(void *state, void *data, size_t size, int64_t timeout_ms)
 	}
 	if ((events & SOCKET_WAIT_READABLE) != 0 || urgent_handled) {
 		if (awaiting_urgent_byte) {
-			bool at_mark;
+			bool at_mark = false;
 			result = socket_at_urgent_mark(transport->socket, &at_mark);
-			if (result != 0)
+			if (result != 0 && result != IO_ERROR_NOT_SUPPORTED)
 				return result;
-			if (at_mark)
+			if (result == 0 && at_mark)
 				return IO_ERROR_WOULD_BLOCK;
 		}
 		ssize_t received = socket_receive(transport->socket, data, size,
@@ -380,13 +388,13 @@ buffer_pending_urgent(struct network_transport *transport)
 	}
 	while (transport->pending_input_size < PENDING_URGENT_INPUT_LIMIT) {
 		bool handled, discard;
-		bool at_mark;
+		bool at_mark = false;
 		int status = socket_at_urgent_mark(transport->socket, &at_mark);
-		if (status != 0)
+		if (status != 0 && status != IO_ERROR_NOT_SUPPORTED)
 			return status;
 		/* Do not skip an unread urgent byte if it arrives between the
 		 * OOB probe and the next ordinary receive. */
-		if (at_mark)
+		if (status == 0 && at_mark)
 			return ST_CONNECTION_INPUT_CONTROL_NONE;
 		size_t available = PENDING_URGENT_INPUT_LIMIT - transport->pending_input_size;
 		ssize_t count = socket_receive(transport->socket,

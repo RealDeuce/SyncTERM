@@ -249,7 +249,8 @@ main(int argc, char **argv)
 	test_socklen_t address_size = (test_socklen_t)sizeof(address);
 	unsigned events = 99;
 	char received[5] = {0};
-	bool at_mark;
+	bool at_mark = true;
+	int mark_status;
 	bool half_close = argc == 2 && strcmp(argv[1], "--half-close") == 0;
 
 	CHECK(argc == 1 || half_close);
@@ -293,9 +294,15 @@ main(int argc, char **argv)
 		goto finished;
 	}
 	CHECK(socket_at_urgent_mark(client, NULL) == IO_ERROR_INVALID_ARGUMENT);
+	mark_status = socket_at_urgent_mark(client, &at_mark);
 #if SYNCTERM_PLATFORM_WINDOWS
+	CHECK(mark_status == IO_ERROR_NOT_SUPPORTED);
+	CHECK(at_mark); /* An unsupported query must not invent a mark value. */
+	at_mark = false;
 	CHECK(probe_inline_urgent(client, accepted) == 0);
 	CHECK(probe_unpeeked_tcp_atmark(client, accepted) == 0);
+#else
+	CHECK(mark_status == 0);
 #endif
 	CHECK(socket_send(accepted, "pre", 3) == 3);
 	received[0] = 0x02;
@@ -303,17 +310,19 @@ main(int argc, char **argv)
 	CHECK(socket_send(accepted, "post", 4) == 4);
 	CHECK(socket_wait(client, SOCKET_WAIT_URGENT, 1000, &events) == 0);
 	CHECK((events & SOCKET_WAIT_URGENT) != 0);
-	CHECK(socket_at_urgent_mark(client, &at_mark) == 0);
+	CHECK(socket_at_urgent_mark(client, &at_mark) == mark_status);
 	diagnose_urgent_mark(client, "before pre", at_mark);
-	CHECK(!at_mark);
+	if (mark_status == 0)
+		CHECK(!at_mark);
 	CHECK(socket_receive(client, received, 1,
 	    SOCKET_RECEIVE_PEEK | SOCKET_RECEIVE_URGENT) == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(received[0] == 0x02);
 	CHECK(socket_receive(client, received, 3, SOCKET_RECEIVE_NONE) == 3);
 	CHECK(memcmp(received, "pre", 3) == 0);
-	CHECK(socket_at_urgent_mark(client, &at_mark) == 0);
+	CHECK(socket_at_urgent_mark(client, &at_mark) == mark_status);
 	diagnose_urgent_mark(client, "after pre", at_mark);
-	CHECK(at_mark);
+	if (mark_status == 0)
+		CHECK(at_mark);
 	/* Waiting at the boundary must not skip the unread urgent byte while
 	 * probing ordinary readability of the post-mark data. */
 	CHECK(socket_wait(client, SOCKET_WAIT_READABLE | SOCKET_WAIT_URGENT,

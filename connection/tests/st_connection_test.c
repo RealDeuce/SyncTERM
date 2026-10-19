@@ -49,7 +49,8 @@ enum log_event {
 	LOG_RESOLVE = 1, LOG_ATTEMPT = 2, LOG_CONNECTED = 4,
 	LOG_HANDSHAKE = 8, LOG_URGENT = 16, LOG_WINDOW = 32,
 	LOG_XOFF = 64, LOG_XON = 128, LOG_CLOSED = 256,
-	LOG_SHELL_START = 512, LOG_SHELL_EXIT = 1024, LOG_EOF = 2048
+	LOG_SHELL_START = 512, LOG_SHELL_EXIT = 1024, LOG_EOF = 2048,
+	LOG_FLUSH = 4096
 };
 
 static const uint8_t rlogin_handshake[] = {
@@ -75,6 +76,7 @@ test_log(void *context, enum st_connection_log_level level,
 	if (strstr(message, "connection established family=")) events |= LOG_CONNECTED;
 	if (strstr(message, "sending RFC 1282 handshake")) events |= LOG_HANDSHAKE;
 	if (strstr(message, "urgent control=")) events |= LOG_URGENT;
+	if (strstr(message, "urgent control=0x02")) events |= LOG_FLUSH;
 	if (strstr(message, "sending window size")) events |= LOG_WINDOW;
 	if (strstr(message, "local XOFF consumed")) events |= LOG_XOFF;
 	if (strstr(message, "local XON consumed")) events |= LOG_XON;
@@ -670,6 +672,59 @@ failed:
 }
 
 static int
+wait_for_log_event(struct log_state *state, unsigned event)
+{
+	const struct timespec pause = {0, 1000000L};
+	struct st_deadline deadline;
+	int64_t remaining;
+
+	CHECK(st_deadline_start(&deadline, 3000) == 0);
+	while ((atomic_load(&state->events) & event) == 0) {
+		CHECK(st_deadline_remaining_ms(&deadline, &remaining) == 0);
+		if (remaining == 0) {
+			fprintf(stderr, "missing connection log event 0x%x (events=0x%x)\n",
+			    event, atomic_load(&state->events));
+			return 1;
+		}
+		(void)st_thread_sleep(&pause, NULL);
+	}
+	return 0;
+}
+
+#if SYNCTERM_PLATFORM_WINDOWS
+static int
+receive_unpositioned_flush(st_connection_t *connection)
+{
+	static const char fresh[] = "fresh";
+	struct st_deadline deadline;
+	size_t stale = 0, matched = 0;
+	char bytes[1024];
+
+	CHECK(st_deadline_start(&deadline, 3000) == 0);
+	while (matched < sizeof(fresh) - 1) {
+		int64_t remaining;
+		CHECK(st_deadline_remaining_ms(&deadline, &remaining) == 0);
+		CHECK(remaining > 0);
+		ssize_t count = st_connection_receive(connection, bytes, sizeof(bytes), remaining);
+		CHECK(count > 0);
+		for (ssize_t i = 0; i < count; ++i) {
+			/* Windows cannot discard precisely to the native urgent mark.
+			 * Allow retained kernel input, but require every fresh byte in
+			 * order: a fallback must not drain away the suffix. */
+			if (matched == 0 && bytes[i] == 'x') {
+				CHECK(++stale <= 3 * ST_CONNECTION_BUFFER_SIZE);
+				continue;
+			}
+			CHECK(matched < sizeof(fresh) - 1 && bytes[i] == fresh[matched]);
+			++matched;
+		}
+	}
+	fprintf(stderr, "RLogin unpositioned flush retained=%zu native bytes; fresh suffix intact\n", stale);
+	return 0;
+}
+#endif
+
+static int
 test_rlogin_flow(bool backpressure)
 {
 	struct server_state server;
@@ -720,14 +775,26 @@ test_rlogin_flow(bool backpressure)
 	if (backpressure) {
 		atomic_store(&server.allow_postmark, true);
 		CHECK(wait_for_stage(&server, 5) == 0);
+		CHECK(wait_for_log_event(&log, LOG_FLUSH) == 0);
+#if !SYNCTERM_PLATFORM_WINDOWS
 		CHECK(wait_for_pending(connection, 0) == 0);
+#endif
 		CHECK(st_connection_send(connection, "K", 1, 1000) == 1);
+#if !SYNCTERM_PLATFORM_WINDOWS
 		CHECK(wait_for_pending(connection, 5) == 0);
+#endif
 		CHECK(st_connection_receive(connection, bytes, 1, 0) == IO_ERROR_WOULD_BLOCK);
 	}
 	CHECK(st_connection_send(connection, "\x11", 1, 1000) == 1);
-	CHECK(connection_receive_exact(connection, bytes, backpressure ? 5 : 4) == 0);
-	CHECK(memcmp(bytes, backpressure ? "fresh" : "held", backpressure ? 5 : 4) == 0);
+#if SYNCTERM_PLATFORM_WINDOWS
+	if (backpressure)
+		CHECK(receive_unpositioned_flush(connection) == 0);
+	else
+#endif
+	{
+		CHECK(connection_receive_exact(connection, bytes, backpressure ? 5 : 4) == 0);
+		CHECK(memcmp(bytes, backpressure ? "fresh" : "held", backpressure ? 5 : 4) == 0);
+	}
 	if (!backpressure) {
 		CHECK(st_connection_send(connection, "A", 1, 1000) == 1);
 		CHECK(connection_receive_exact(connection, bytes, 4) == 0);

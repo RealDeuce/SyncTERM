@@ -11,10 +11,11 @@
 #include <string.h>
 #include <time.h>
 
-/* Native Windows characterization, not an emulation of its receive rules.
+/* Native Windows OOB regression tests, not POSIX mark emulation.
  * In particular, every stream receive asks for MORE than the known prefix:
- * aligned reads cannot establish whether the provider preserves a boundary.
- * The duplicated control values rule out locating it by inspecting bytes.
+ * Windows need not preserve a boundary between normal bytes on either side
+ * of the OOB byte. Verify both channels without requiring that position.
+ * The duplicated control values must remain ordinary data, not be filtered.
  * Results (including successful tests) are retained in CI's JUnit system-out.
  * https://learn.microsoft.com/windows/win32/winsock/protocol-independent-out-of-band-data-2
  */
@@ -90,12 +91,11 @@ print_receive(const char *stage, DWORD count, DWORD flags, const char *bytes)
 }
 
 static int
-receive_stream(SOCKET reader, bool consumed)
+receive_stream(SOCKET reader, bool *consumed)
 {
 	const char expected[] = {'A', 0x02, 'B', 0x02, 'C', 0x02, 'D'};
 	size_t total = 0;
 	bool crossed = false;
-	bool released_barrier = false;
 
 	while (total < sizeof(expected)) {
 		char bytes[32];
@@ -109,17 +109,16 @@ receive_stream(SOCKET reader, bool consumed)
 		fprintf(stderr, "oversized receive request=%lu status=%d error=%d\n",
 		    buffer.len, status, error);
 		if (status != 0 && error == WSAEWOULDBLOCK
-		    && !consumed && !released_barrier) {
+		    && !*consumed) {
 			/* A provider may hold ordinary reads at an unread OOB block.
-			 * Check the actual byte and position before releasing it, then
-			 * prove that the suffix is still available and unmodified. */
+			 * Release it without assuming that its position is observable,
+			 * then verify all remaining normal data is unmodified. */
 			fprintf(stderr, "ordinary read blocked with queued suffix at offset=%zu\n",
 			    total);
-			if (total != sizeof(prefix)
-			    || urgent_receive(reader, true, "ordinary read blocked") != 0
+			if (urgent_receive(reader, true, "ordinary read blocked") != 0
 			    || urgent_receive(reader, false, "release ordinary read barrier") != 0)
 				return -1;
-			released_barrier = true;
+			*consumed = true;
 			continue;
 		}
 		if (status != 0)
@@ -133,11 +132,9 @@ receive_stream(SOCKET reader, bool consumed)
 			crossed = true;
 		total += count;
 	}
-	fprintf(stderr, "normal bytes=%zu receive-spanned-mark=%d OOB-consumed-first=%d\n",
-	    total, crossed, consumed);
-	/* Microsoft promises a receive cannot span a pending OOB block. Do not
-	 * assume that the provider retains this barrier after OOB is consumed. */
-	return !consumed && crossed ? -1 : 0;
+	fprintf(stderr, "normal bytes=%zu receive-spanned-mark=%d OOB-consumed=%d\n",
+	    total, crossed, *consumed);
+	return 0;
 }
 
 static int
@@ -159,14 +156,11 @@ pending_case(SOCKET reader, SOCKET writer, const char *mode)
 		REQUIRE(urgent_receive(reader, peek, "before normal reads") == 0);
 		snapshot(reader, "after initial urgent operation");
 	}
-	receive_status = receive_stream(reader, consumed);
+	receive_status = receive_stream(reader, &consumed);
 	if (!consumed) {
-		/* Observe whether crossing the boundary retires native OOB state.
-		 * This is the missing signal a retrospective buffered reader needs;
-		 * its presence is NOT assumed by the production implementation. */
-		(void)urgent_receive(reader, true, "after all normal bytes");
+		REQUIRE(urgent_receive(reader, true, "after all normal bytes") == 0);
 		snapshot(reader, "after final urgent peek");
-		(void)urgent_receive(reader, false, "after all normal bytes");
+		REQUIRE(urgent_receive(reader, false, "after all normal bytes") == 0);
 	}
 	REQUIRE(receive_status == 0);
 	result = 0;

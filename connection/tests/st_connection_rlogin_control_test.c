@@ -12,6 +12,7 @@
 static size_t normal_size, prefix_size, read_position, urgent_ready_after;
 static uint8_t scripted_control;
 static bool control_consumed, fail_read;
+static int mark_error;
 
 static ssize_t
 scripted_receive(socket_handle_t socket, void *data, size_t size, unsigned flags)
@@ -28,7 +29,8 @@ scripted_receive(socket_handle_t socket, void *data, size_t size, unsigned flags
 	}
 	if (fail_read)
 		return IO_ERROR_IO;
-	size_t end = read_position < prefix_size ? prefix_size : normal_size;
+	size_t end = mark_error == IO_ERROR_NOT_SUPPORTED ? normal_size
+	    : read_position < prefix_size ? prefix_size : normal_size;
 	if (end > normal_size) end = normal_size;
 	size_t count = end - read_position;
 	if (count > size) count = size;
@@ -44,6 +46,8 @@ static int
 scripted_mark(socket_handle_t socket, bool *at_mark)
 {
 	(void)socket;
+	if (mark_error != 0)
+		return mark_error;
 	*at_mark = read_position == prefix_size;
 	return 0;
 }
@@ -97,6 +101,7 @@ check_case(unsigned scenario)
 	read_position = 0;
 	control_consumed = false;
 	fail_read = scenario == 4;
+	mark_error = 0;
 	scripted_control = scenario == 0 ? 0x01 : scenario == 1 ? 0x10 : 0x02;
 	if (scenario == 3) {
 		normal_size = prefix_size = urgent_ready_after = 2 * PENDING_URGENT_INPUT_LIMIT;
@@ -159,10 +164,96 @@ check_case(unsigned scenario)
 	return 0;
 }
 
+static int
+check_unpositioned_control(uint8_t control, bool delayed)
+{
+	static const struct st_connection_transport_ops operations = {0};
+	st_connection_t connection = {.operations = &operations};
+	struct network_transport transport = {
+		.connection = &connection, .urgent_pending = true,
+	};
+	bool handled, discard;
+	uint8_t bytes[1024];
+	size_t delivered = 0;
+	size_t initial_staged = delayed ? 0 : 4;
+
+	CHECK(st_mutex_init(&connection.input.mutex, ST_MUTEX_PLAIN) == ST_THREAD_SUCCESS);
+	CHECK(st_condition_init(&connection.input.changed) == ST_THREAD_SUCCESS);
+	atomic_init(&connection.binary_mode, false);
+	connection.input.paused = true;
+	connection.input.count = 4;
+	normal_size = 12288;
+	prefix_size = 8192;
+	read_position = 0;
+	urgent_ready_after = delayed ? 4096 : 0;
+	control_consumed = fail_read = false;
+	mark_error = IO_ERROR_NOT_SUPPORTED;
+	scripted_control = control;
+	transport.pending_input = malloc(PENDING_URGENT_INPUT_LIMIT);
+	CHECK(transport.pending_input != NULL);
+	transport.pending_input_size = initial_staged;
+	memset(transport.pending_input, 0xaa, 4);
+
+	/* Capability absence is recoverable; an actual query failure is not. */
+	mark_error = IO_ERROR_IO;
+	CHECK(process_urgent(&transport, &handled, &discard) == IO_ERROR_IO);
+	CHECK(!handled && !discard && !control_consumed && read_position == 0);
+	mark_error = IO_ERROR_NOT_SUPPORTED;
+	int status = process_urgent(&transport, &handled, &discard);
+	if (delayed) {
+		CHECK(status == IO_ERROR_WOULD_BLOCK && !handled && !discard);
+		/* The ordinary reader must also tolerate the missing mark while
+		 * waiting for the urgent byte, without losing normal input. */
+		CHECK(network_read(&transport, bytes, sizeof(bytes), 0) == (ssize_t)sizeof(bytes));
+		for (size_t i = 0; i < sizeof(bytes); ++i)
+			CHECK(bytes[i] == (uint8_t)(i % 251));
+		delivered = sizeof(bytes);
+		CHECK(buffer_pending_urgent(&transport) == (control == 0x02
+		    ? ST_CONNECTION_INPUT_CONTROL_DISCARD : ST_CONNECTION_INPUT_CONTROL_NONE));
+	} else {
+		CHECK(status == 0 && handled && discard == (control == 0x02));
+		/* An unavailable mark must not cause any native input to be drained. */
+		CHECK(read_position == 0);
+	}
+	CHECK(control_consumed && !transport.urgent_flush_pending);
+	if (control == 0x02) {
+		CHECK(connection.input.count == 0 && transport.pending_input_size == 0);
+		CHECK(connection.input.paused);
+		CHECK(read_position == urgent_ready_after);
+		delivered = read_position;
+	} else {
+		CHECK(connection.input.count == 4);
+		CHECK(atomic_load(&connection.binary_mode));
+		CHECK(!connection.input.paused);
+		/* The non-flushing control retains the complete staged stream. */
+		CHECK(transport.pending_input_size == initial_staged + urgent_ready_after - delivered);
+		if (initial_staged != 0)
+			CHECK(memcmp(transport.pending_input, "\xaa\xaa\xaa\xaa", initial_staged) == 0);
+		transport.pending_input_head = initial_staged;
+		transport.pending_input_size -= initial_staged;
+	}
+	while (delivered < normal_size) {
+		ssize_t count = network_read(&transport, bytes, sizeof(bytes), 0);
+		CHECK(count > 0);
+		for (ssize_t i = 0; i < count; ++i)
+			CHECK(bytes[i] == (uint8_t)((delivered + (size_t)i) % 251));
+		delivered += (size_t)count;
+	}
+	CHECK(network_read(&transport, bytes, sizeof(bytes), 0) == 0);
+	free(transport.pending_input);
+	st_condition_destroy(&connection.input.changed);
+	st_mutex_destroy(&connection.input.mutex);
+	return 0;
+}
+
 int
 main(void)
 {
 	for (unsigned scenario = 0; scenario < 7; ++scenario)
 		CHECK(check_case(scenario) == 0);
+	CHECK(check_unpositioned_control(0x02, false) == 0);
+	CHECK(check_unpositioned_control(0x02, true) == 0);
+	CHECK(check_unpositioned_control(0x10, false) == 0);
+	CHECK(check_unpositioned_control(0x10, true) == 0);
 	return 0;
 }

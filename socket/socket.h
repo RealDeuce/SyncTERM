@@ -69,7 +69,11 @@ ssize_t socket_send(socket_handle_t socket, const void *buffer, size_t size);
 ssize_t socket_receive(socket_handle_t socket, void *buffer, size_t size,
     unsigned flags);
 
-/* Reports whether the next normal byte follows the urgent-data mark. */
+/* Reports whether the next normal byte follows the urgent-data mark.
+ * Returns IO_ERROR_NOT_SUPPORTED where the native API cannot locate that
+ * position (Windows). Urgent reception and readiness still work there, but
+ * ordinary receives need not stop at the OOB position. On failure, at_mark
+ * is unchanged; a NULL output is always IO_ERROR_INVALID_ARGUMENT. */
 int socket_at_urgent_mark(socket_handle_t socket, bool *at_mark);
 
 /* Non-consuming FIN query, including when ordinary data remains unread.

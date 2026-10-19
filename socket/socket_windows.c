@@ -234,14 +234,12 @@ socket_receive(socket_handle_t socket, void *buffer, size_t size,
 int
 socket_at_urgent_mark(socket_handle_t socket, bool *at_mark)
 {
-	u_long value;
-
 	if (at_mark == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (ioctlsocket(socket, SIOCATMARK, &value) != 0)
-		return socket_internal_map_error(WSAGetLastError());
-	*at_mark = value != 0;
-	return 0;
+	/* Winsock's SIOCATMARK reports pending OOB data, not its position in
+	 * the normal stream. Do not expose that as a POSIX-style stream mark. */
+	(void)socket;
+	return IO_ERROR_NOT_SUPPORTED;
 }
 
 int

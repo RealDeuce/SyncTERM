@@ -74,7 +74,12 @@ Combining `SOCKET_RECEIVE_PEEK | SOCKET_RECEIVE_URGENT` returns
 urgent peeks can change the stream mark even when the byte is not consumed.
 
 | socket_at_urgent_mark(socket, at_mark)
-| Reports whether the next normal byte follows the urgent-data mark.
+| Reports whether the next normal byte follows the urgent-data mark. Returns
+`IO_ERROR_NOT_SUPPORTED` when the native API cannot locate that position,
+including on Windows; leaves `at_mark` unchanged on failure. A null output is
+`IO_ERROR_INVALID_ARGUMENT`. Urgent-byte reception and readiness remain
+supported without positional marks. Ordinary receives on those platforms may
+combine normal bytes from both sides of an urgent byte.
 
 | socket_peer_write_closed(socket, closed)
 | Non-consuming query for peer write-half closure or connection hangup, even
@@ -572,16 +577,21 @@ urgent `0x20` selects cooked mode: local XOFF holds delivery of received data,
 not the transport reader, and XON resumes it. Server urgent `0x10` restores raw
 immediately and resumes held delivery. A full input
 queue still services urgent controls; FLUSHWRITE drops queued bytes and the
-reader's staged suffix as well as draining to the urgent boundary. Raw mode
+reader's staged suffix. Where positional urgent marks are supported, it also
+drains native input to the urgent boundary. On Windows, urgent data is treated
+as a separate channel: no native drain is attempted, since the missing boundary
+makes it impossible to distinguish stale kernel input from fresh output.
+Exact FLUSHWRITE-boundary handling is therefore not guaranteed on Windows;
+remaining kernel input is preserved in stream order. Raw mode
 forwards XON/XOFF unchanged. Peer EOF releases a local delivery hold, preserving
 already received bytes before EOF, including a staged suffix behind a full queue.
 If the urgent pointer arrives before its byte while the queue is full, the
 reader retains up to 64 KiB of normal input to free receive-window space for
 that byte. This bounded staging is delivered in stream order, or discarded
-along with other pre-mark data on FLUSHWRITE. A non-consuming native FIN query
+with the application queue on FLUSHWRITE. A non-consuming native FIN query
 also detects peer closure behind unread kernel data, allowing held data to drain.
-Platform-specific socket implementations must
-preserve this common contract.
+All platforms expose the same socket API; the transport selects the fallback
+when the mark query returns `IO_ERROR_NOT_SUPPORTED`.
 Logs the handshake at INFO with login fields omitted. Terminal parameters,
 urgent control bytes, window sizes, and locally consumed XON/XOFF are DEBUG.
 
