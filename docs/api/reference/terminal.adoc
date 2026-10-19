@@ -65,6 +65,9 @@ one console row for it. `terminal_rows == 0` selects every row not occupied by
 that status display; otherwise the difference remains reserved for the caller.
 The terminal and optional status row must fit the console.
 `scrollback_lines` is bounded by addressable allocation size.
+`expand_lf` enables the parser's LF-as-CR+LF policy; false (the default)
+retains the column on LF. This local policy survives terminal resets, does not
+add a second line advance to CR+LF input, and emits no output bytes.
 The font selector must be registered in the supplied catalog, and that catalog
 must belong to the supplied console. Geometry must fit the parser's signed
 coordinate representation. `palette_mapping`, when non-NULL, points to 16
@@ -292,6 +295,8 @@ bytes to UTF-8 before CTerm and translates outgoing Unicode back to the
 configured codepage. CTerm and the RIP parser therefore see Unicode regardless
 of the remote wire encoding. `apc_directory` and `application_version` are
 forwarded unchanged with the CTerm borrowing rules above, independently of RIP.
+`expand_lf` forwards the entry's LF Expand policy unchanged to CTerm; it does
+not rewrite wire bytes or the input observed by hooks.
 
 | st_term_session_destroy(session_ptr)
 | Finishes RIP and Unicode, publishes history when configured, releases CTerm, and

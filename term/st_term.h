@@ -51,6 +51,8 @@ struct st_term_config {
 	enum st_codepage codepage;
 	uint8_t font_selector;
 	bool hide_status;
+	/* Pass the entry's LF Expand setting through to CTerm. */
+	bool expand_lf;
 	/* BPS receive pacing for non-serial sessions; zero disables it. */
 	bool throttle_supported;
 	uint32_t initial_throttle_bps;

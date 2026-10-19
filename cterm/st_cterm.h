@@ -104,6 +104,8 @@ struct st_cterm_config {
 	bool status_line;
 	size_t scrollback_lines;
 	bool quiet;
+	/* Treat a received LF as CR+LF; false retains the current column. */
+	bool expand_lf;
 	st_cterm_output_callback_t output;
 	void *output_context;
 	st_cterm_apc_callback_t apc;

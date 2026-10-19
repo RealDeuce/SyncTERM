@@ -270,6 +270,7 @@ st_term_session_create(st_term_session_t **result,
 		.font_selector = config->font_selector,
 		.terminal_rows = config->hide_status ? rows : rows - 1,
 		.status_line = !config->hide_status,
+		.expand_lf = config->expand_lf,
 		.scrollback_lines = config->history == NULL ? 0
 		    : st_session_history_capacity(config->history),
 		.output = cterm_output,

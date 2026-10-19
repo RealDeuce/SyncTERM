@@ -586,6 +586,7 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 		    : (enum st_codepage)profile->encoding,
 		.font_selector = selector,
 		.hide_status = profile->hide_status,
+		.expand_lf = profile->expand_lf,
 		.throttle_supported = profile->connection_type != ST_CONNECTION_SERIAL
 		    && profile->connection_type != ST_CONNECTION_SERIAL_3WIRE,
 		.initial_throttle_bps = profile->bps_rate,

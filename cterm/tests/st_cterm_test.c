@@ -118,6 +118,63 @@ crc16(const void *data, size_t size)
 }
 
 static void
+test_lf_expand(void)
+{
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config geometry = {
+		.columns = 20, .rows = 4, .cell_width = 8, .cell_height = 16,
+	};
+	st_console_t *console = NULL;
+	st_font_catalog_t *fonts = NULL;
+	static const enum st_cterm_encoding encodings[] = {
+		ST_CTERM_ENCODING_UTF8, ST_CTERM_ENCODING_CODEPAGE,
+	};
+
+	CHECK(st_console_create(&console, &display, &geometry) == 0);
+	CHECK(st_font_catalog_create(&fonts, console) == 0);
+	for (size_t encoding = 0; encoding < sizeof(encodings) / sizeof(encodings[0]); ++encoding) {
+		for (unsigned enabled = 0; enabled < 2; ++enabled) {
+			st_cterm_t *terminal = NULL;
+			struct output output = {0};
+			const struct st_cterm_config config = {
+				.console = console, .fonts = fonts, .emulation = ST_CTERM_ANSI_BBS,
+				.encoding = encodings[encoding], .codepage = ST_CODEPAGE_CP437,
+				.expand_lf = enabled != 0, .quiet = true,
+				.output = capture, .output_context = &output,
+			};
+			CHECK(st_cterm_create(&terminal, &config) == 0);
+			for (unsigned split = 0; split < 2; ++split) {
+				static const char input[] = "AB\nC\r\nD";
+				struct st_cterm_state state;
+				struct st_console_cell cell;
+				const struct st_console_rect area = {enabled ? 0 : 2, 1, 1, 1};
+				char text[8];
+				size_t size;
+
+				/* Reset must retain this local entry policy. */
+				CHECK(st_cterm_reset_terminal(terminal) == 0);
+				feed(terminal, "\x1b[2J\x1b[H", 7);
+				if (split) {
+					for (size_t i = 0; i < sizeof(input) - 1; ++i)
+						feed(terminal, input + i, 1);
+				} else {
+					feed(terminal, input, sizeof(input) - 1);
+				}
+				CHECK(st_console_read_cells(console, &area, &cell, 1) == 0);
+				CHECK(st_console_font_glyph_text(console, cell.glyph_font, cell.glyph,
+				    text, sizeof(text), &size) == 0 && size == 1 && text[0] == 'C');
+				CHECK(st_cterm_state(terminal, &state) == 0);
+				CHECK(state.x == 2 && state.y == 3);
+				CHECK(output.size == 0);
+			}
+			st_cterm_destroy(&terminal);
+		}
+	}
+	st_font_catalog_destroy(fonts);
+	st_console_destroy(console);
+}
+
+static void
 test_disconnect_row(void)
 {
 	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
@@ -245,6 +302,7 @@ test_zero_width_text(void)
 int
 main(void)
 {
+	test_lf_expand();
 	test_disconnect_row();
 	test_zero_width_text();
 	const struct st_console_display_config display = {

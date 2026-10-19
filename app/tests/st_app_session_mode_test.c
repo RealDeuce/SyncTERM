@@ -98,6 +98,58 @@ check_legacy_c128_shell(st_wren_host_t *host, st_console_display_t *display,
 }
 
 static int
+check_lf_expand(st_wren_host_t *host, st_console_display_t *display,
+	st_console_t *console, const struct st_app_paths *paths,
+	st_hyperlink_registry_t *hyperlinks)
+{
+	st_session_history_t *history = NULL;
+	struct st_profile profile;
+
+	CHECK(st_session_history_create(&history, 100) == 0);
+	st_profile_init(&profile);
+	profile.connection_type = ST_CONNECTION_SHELL;
+	profile.screen_mode = ST_SCREEN_MODE_80X25;
+	profile.hide_status = true;
+	profile.hide_popups = true;
+	/* Disable PTY output processing so LF reaches the real session unchanged. */
+	strcpy(profile.address, "stty -opost; printf 'AB\\nC\\r\\nD'");
+	for (unsigned attempt = 0; attempt < 3; ++attempt) {
+		struct st_console_cell *cells = NULL;
+		uint32_t columns;
+		size_t rows;
+		enum st_screen_mode mode;
+		bool has_status;
+		enum st_term_disposition disposition = ST_TERM_EXIT_APPLICATION;
+		char text[8];
+		size_t size;
+
+		profile.expand_lf = attempt != 1;
+		CHECK(run_selected(host, display, console, &profile, paths, NULL,
+		    hyperlinks, history, &disposition) == 0);
+		CHECK(disposition == ST_TERM_RETURN_TO_PICKER);
+		CHECK(st_session_history_copy(history, &cells, &columns, &rows,
+		    &mode, &has_status) == 0);
+		if (columns != 80 || rows < 25 || has_status)
+			fprintf(stderr, "LF Expand history: columns=%lu rows=%zu status=%d mode=%d\n",
+			    (unsigned long)columns, rows, has_status, mode);
+		CHECK(columns == 80 && rows >= 25 && !has_status && mode == ST_SCREEN_MODE_80X25);
+		/* Startup saves the previous screen in scrollback. The final 25
+		 * rows are the visible screen produced by this connection. */
+		const struct st_console_cell *visible = cells + (rows - 25) * columns;
+		const struct st_console_cell *cell = &visible[columns + (profile.expand_lf ? 0 : 2)];
+		CHECK(st_console_font_glyph_text(console, cell->glyph_font, cell->glyph,
+		    text, sizeof(text), &size) == 0 && size == 1 && text[0] == 'C');
+		cell = &visible[2 * columns];
+		CHECK(st_console_font_glyph_text(console, cell->glyph_font, cell->glyph,
+		    text, sizeof(text), &size) == 0 && size == 1 && text[0] == 'D');
+		free(cells);
+	}
+	st_profile_dispose(&profile);
+	st_session_history_destroy(history);
+	return 0;
+}
+
+static int
 check_mode(st_wren_host_t *host, st_console_t *console,
 	st_console_t *picker, enum st_screen_mode expected,
 	uint32_t columns, uint32_t rows, uint32_t cell_height)
@@ -202,6 +254,8 @@ main(void)
 	    hyperlinks, NULL, &disposition) != 0);
 	CHECK(check_mode(host, console, picker, ST_SCREEN_MODE_80X28, 80, 28, 14) == 0);
 	CHECK(check_legacy_c128_shell(host, display, console, &paths, hyperlinks) == 0);
+	CHECK(check_mode(host, console, picker, ST_SCREEN_MODE_80X28, 80, 28, 14) == 0);
+	CHECK(check_lf_expand(host, display, console, &paths, hyperlinks) == 0);
 	CHECK(check_mode(host, console, picker, ST_SCREEN_MODE_80X28, 80, 28, 14) == 0);
 
 	/* A real remote close goes through connected Wren and CTerm teardown. */

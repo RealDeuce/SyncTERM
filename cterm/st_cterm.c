@@ -2160,6 +2160,7 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 		return status;
 	}
 	terminal->quiet = config->quiet;
+	terminal->lf_expand = config->expand_lf;
 	if (config->rip_version != ST_CTERM_RIP_OFF)
 		terminal->last_column_flag = CTERM_LCF_FORCED | CTERM_LCF_ENABLED;
 	terminal->status_display_type = config->status_line ? 1 : 0;
