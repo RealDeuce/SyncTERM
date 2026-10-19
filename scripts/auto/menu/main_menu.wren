@@ -306,6 +306,7 @@ class MainMenuEventApp is App {
 
 class MainMenuApp {
   construct new(current, connected) {
+    var view = MainMenu.view_(connected)
     _app = MainMenuEventApp.new(Fn.new { _consoleIndicator.refresh() })
     _connected = connected
     _current = current
@@ -316,6 +317,7 @@ class MainMenuApp {
     _clipboardType = null
     _confirmingExit = false
     _commentReturn = null
+    _restoreScrollTop = view == null ? null : view[2]
     _settingRows = SettingsMenu.rows(_connected)
 
     _backdrop = ClassicBackdrop.new()
@@ -415,7 +417,15 @@ class MainMenuApp {
     }
     for (command in MainMenu.commands_) bindCommand_(command)
     _app.root.focusedIndex = 1
-    refresh_(current)
+    var preferred = current
+    if (preferred == null && view != null) preferred = view[0]
+    var fallback = view == null || view[1] == null ? 0 : view[1]
+    refresh_(preferred, fallback)
+  }
+
+  view_ {
+    var name = _selected == null ? null : _selected.name
+    return [name, _list.selected, _list.scrollTop]
   }
 
   bindCommand_(command) {
@@ -653,6 +663,13 @@ class MainMenuApp {
     }
     _list.bounds = _directory.innerBounds
     _settingsList.bounds = _settings.innerBounds
+    // Restore only after layout gives scrollTop a real viewport to clamp to.
+    // A reordered or shortened directory must still leave selection visible.
+    if (_restoreScrollTop != null) {
+      _list.scrollTop = _restoreScrollTop
+      _list.ensureVisible_()
+      _restoreScrollTop = null
+    }
   }
 
   refresh_(preferred) { refresh_(preferred, 0) }
@@ -1105,6 +1122,19 @@ class MainMenu {
   static password { __password }
   static password=(value) { __password = value }
 
+  // Keep only owned names and numeric view state, never generation-bound BBS
+  // handles across prepare(). Connected editing must not replace the offline
+  // bookmark used when returning from a connection or failed dial attempt.
+  static view_(connected) { connected ? __connectedView : __offlineView }
+
+  static rememberView_(connected, view) {
+    if (connected) {
+      __connectedView = view
+    } else {
+      __offlineView = view
+    }
+  }
+
   // Trusted auto/menu extensions register before MainMenu.run constructs the
   // controller. callback receives the active App and whether this directory
   // is being shown over a connected session.
@@ -1195,7 +1225,10 @@ class MainMenu {
 
   static run(current, connected) {
     if (!prepare()) return null
-    return MainMenuApp.new(current, connected).run()
+    var menu = MainMenuApp.new(current, connected)
+    var result = menu.run()
+    rememberView_(connected, menu.view_)
+    return result
   }
 }
 

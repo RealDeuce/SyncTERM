@@ -1046,8 +1046,16 @@ the indicator is refreshed, and the main menu continues running.  This
 boundary does not hide layout or painting failures, which still abort
 `MainMenu.run` rather than repeatedly failing during every redraw.
 
-The shipped controller defines the main-menu interaction contract.  Tab from
-the directory enters the selected entry's comment field, then advances to the
+The shipped controller defines the main-menu interaction contract.
+After a connection or failed connection attempt, the offline directory restores
+its selected entry and viewport rather than returning to the first row. The
+selection follows the entry's name across reloads and sort changes; if that
+entry disappeared, the previous row is retained and clamped to the new list.
+Connected-directory editing keeps a separate bookmark and does not overwrite
+the offline return position. Viewports are clamped when the list or screen
+size changes so the selected row remains visible.
+
+Tab from the directory enters the selected entry's comment field, then advances to the
 simultaneously visible settings pane; Backtab traverses the same path in
 reverse.  Left and Right move directly between the directory and settings.
 The first completed left click in an inactive pane transfers focus without

@@ -11,6 +11,7 @@
 #include "st_presentation_font.h"
 
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -35,6 +36,20 @@ write_script(const char *path, const char *source)
 
 	CHECK(stream != NULL);
 	CHECK(fputs(source, stream) >= 0);
+	CHECK(fclose(stream) == 0);
+}
+
+static void
+write_position_entries(const char *path, size_t count, size_t omitted)
+{
+	FILE *stream = fopen(path, "wb");
+
+	CHECK(stream != NULL);
+	for (size_t i = 0; i < count; ++i) {
+		if (i == omitted) continue;
+		CHECK(fprintf(stream, "[Entry %02zu]\nAddress=entry%zu.example\n\n",
+		    i, i) > 0);
+	}
 	CHECK(fclose(stream) == 0);
 }
 
@@ -199,6 +214,7 @@ main(int argc, char **argv)
 	    || strcmp(argv[2], "palette-suite") == 0
 	    || strcmp(argv[2], "menu-suite") == 0
 	    || strcmp(argv[2], "main-menu-address") == 0
+	    || strcmp(argv[2], "main-menu-position") == 0
 	    || strcmp(argv[2], "logview-suite") == 0
 	    || strcmp(argv[2], "wren-console-suite") == 0
 	    || strcmp(argv[2], "auxiliary-scripts") == 0
@@ -263,6 +279,13 @@ main(int argc, char **argv)
 		(void)snprintf(cached, sizeof(cached), "%s/cached.ini", argv[1]);
 		write_script(personal, "[Audit]\nAddress=example.invalid\n"
 		    "Palette=1,2\nWrenScripts=original\n");
+		paths.personal_list = personal;
+		paths.cached_system_list = cached;
+	}
+	if (strcmp(argv[2], "main-menu-position") == 0) {
+		(void)snprintf(personal, sizeof(personal), "%s/personal.ini", argv[1]);
+		(void)snprintf(cached, sizeof(cached), "%s/cached.ini", argv[1]);
+		write_position_entries(personal, 40, SIZE_MAX);
 		paths.personal_list = personal;
 		paths.cached_system_list = cached;
 	}
@@ -557,6 +580,101 @@ main(int argc, char **argv)
 			fprintf(stderr, "core helper %zu: %s\n", i, ok ? "PASS" : "FAIL");
 			passed = passed && ok;
 		}
+	}
+	else if (strcmp(argv[2], "main-menu-position") == 0) {
+		struct st_profile selected;
+		bool has_selection = false;
+		const struct st_console_event capture = {
+			.type = ST_CONSOLE_EVENT_PHYSICAL_KEY,
+			.data.physical_key = {
+				.evdev = 21, .modifiers = ST_CONSOLE_MODIFIER_ALT,
+				.pressed = true,
+			},
+		};
+
+		CHECK(status == 0);
+		CHECK(wrenInterpret(host->vm, "menu_position_test",
+		    "import \"syncterm\" for Key\n"
+		    "import \"main_menu\" for MainMenu\n"
+		    "var snapshots = []\n"
+		    "var quitAfterCapture = false\n"
+		    "MainMenu.registerCommand(Key.altY, \"Alt-Y\", \"Capture position\", Fn.new {|app, connected|\n"
+		    "  var list = app.root.children[1].children[0]\n"
+		    "  snapshots.add([connected, list.selectedItem, list.selected, list.scrollTop])\n"
+		    "  if (quitAfterCapture) app.quit()\n"
+		    "})\n") == WREN_RESULT_SUCCESS);
+		for (unsigned i = 0; i < 30; ++i) post_key(console, ST_CONSOLE_KEY_DOWN);
+		for (unsigned i = 0; i < 3; ++i) post_key(console, ST_CONSOLE_KEY_UP);
+		CHECK(st_console_post_event(console, &capture) == 0);
+		post_key(console, '\r');
+		st_profile_init(&selected);
+		CHECK(st_wren_host_run_menu(host, &selected, &has_selection) == 0);
+		CHECK(has_selection && strcmp(selected.name, "Entry 27") == 0);
+		st_profile_dispose(&selected);
+
+		/* A second host invocation reloads the model, just as returning
+		 * from a session does. Neither a stale BBS handle nor a selected
+		 * index alone is sufficient to preserve the visible position. */
+		CHECK(st_console_post_event(console, &capture) == 0);
+		post_key(console, '\r');
+		st_profile_init(&selected);
+		CHECK(st_wren_host_run_menu(host, &selected, &has_selection) == 0);
+		CHECK(has_selection && strcmp(selected.name, "Entry 27") == 0);
+		st_profile_dispose(&selected);
+		CHECK(wrenInterpret(host->vm, "menu_position_test",
+		    "if (snapshots[0][3] <= 0) Fiber.abort(\"test did not scroll\")\n"
+		    "if (snapshots[0][2] != snapshots[1][2] || snapshots[0][3] != snapshots[1][3]) {\n"
+		    "  Fiber.abort(\"return changed the selected row or viewport\")\n"
+		    "}\n"
+		    "quitAfterCapture = true\n") == WREN_RESULT_SUCCESS);
+
+		/* Removing an earlier row moves the chosen entry's numeric index.
+		 * The bookmark follows its name, not whichever record inherited it. */
+		write_position_entries(personal, 40, 0);
+		CHECK(st_console_post_event(console, &capture) == 0);
+		st_profile_init(&selected);
+		CHECK(st_wren_host_run_menu(host, &selected, &has_selection) == 0);
+		CHECK(!has_selection);
+		st_profile_dispose(&selected);
+		CHECK(wrenInterpret(host->vm, "menu_position_test",
+		    "if (snapshots[2][1] != \"Entry 27\" || snapshots[2][2] != 26 ||\n"
+		    "    snapshots[2][3] != snapshots[0][3]) {\n"
+		    "  Fiber.abort(\"selection did not follow the entry across reload\")\n"
+		    "}\n") == WREN_RESULT_SUCCESS);
+		write_position_entries(personal, 40, SIZE_MAX);
+		post_key(console, ST_CONSOLE_KEY_DOWN);
+		CHECK(st_console_post_event(console, &capture) == 0);
+		CHECK(st_wren_host_run_connected_menu(host) == 0);
+		CHECK(st_console_post_event(console, &capture) == 0);
+		st_profile_init(&selected);
+		CHECK(st_wren_host_run_menu(host, &selected, &has_selection) == 0);
+		CHECK(!has_selection);
+		st_profile_dispose(&selected);
+		CHECK(wrenInterpret(host->vm, "menu_position_test",
+		    "if (!snapshots[3][0] || snapshots[4][0]) Fiber.abort(\"wrong menu contexts\")\n"
+		    "if (snapshots[4][1] != snapshots[0][1] || snapshots[4][3] != snapshots[0][3]) {\n"
+		    "  Fiber.abort(\"connected directory replaced offline position\")\n"
+		    "}\n") == WREN_RESULT_SUCCESS);
+
+		write_position_entries(personal, 40, 27);
+		CHECK(st_console_post_event(console, &capture) == 0);
+		CHECK(st_wren_host_run_menu(host, &selected, &has_selection) == 0);
+		CHECK(!has_selection);
+		CHECK(wrenInterpret(host->vm, "menu_position_test",
+		    "if (snapshots[5][1] != \"Entry 28\" || snapshots[5][2] != 27 ||\n"
+		    "    snapshots[5][3] != snapshots[0][3]) {\n"
+		    "  Fiber.abort(\"removed entry did not retain the nearest row\")\n"
+		    "}\n") == WREN_RESULT_SUCCESS);
+		write_position_entries(personal, 3, SIZE_MAX);
+		CHECK(st_console_post_event(console, &capture) == 0);
+		CHECK(st_wren_host_run_menu(host, &selected, &has_selection) == 0);
+		CHECK(!has_selection);
+		CHECK(wrenInterpret(host->vm, "menu_position_test",
+		    "if (snapshots[6][2] != 3 || snapshots[6][3] != 0) {\n"
+		    "  Fiber.abort(\"shorter directory did not clamp the view\")\n"
+		    "}\n") == WREN_RESULT_SUCCESS);
+		st_profile_dispose(&selected);
+		passed = true;
 	}
 	else if (strcmp(argv[2], "main-menu-address") == 0) {
 		static char source[128 * 1024];
