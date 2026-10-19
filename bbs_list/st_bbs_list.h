@@ -126,6 +126,11 @@ int st_bbs_list_remove(st_bbs_list_t *list, const char *name,
     struct st_bbs_mutation_result *result);
 int st_bbs_list_set_defaults(st_bbs_list_t *list,
     const struct st_profile *defaults);
+/* Increment the latest on-disk counter under the list lock, preserving other
+ * fields. Missing system entries are copied to personal; deleted personal
+ * entries are not recreated. Outputs change only on success. */
+int st_bbs_list_record_connection(st_bbs_list_t *list,
+	const struct st_profile *profile, time_t connected, uint32_t *calls);
 
 /*
  * A successful mutation publishes its complete new in-memory view and advances

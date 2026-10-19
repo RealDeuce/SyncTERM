@@ -25,6 +25,7 @@ main(void)
 	struct st_screen_mode_descriptor custom;
 	uint32_t console_palette[16];
 	uint16_t palette_mapping[16];
+	static const uint32_t palette[] = {0x123456, 0x789abc, 0xdef012};
 
 	CHECK(st_screen_mode_count() == ST_SCREEN_MODE_ATARIST_80X25_MONO + 1U);
 	for (size_t i = 0; i < st_screen_mode_count(); ++i) {
@@ -32,6 +33,22 @@ main(void)
 		CHECK(mode != NULL);
 		CHECK(mode->mode == (enum st_screen_mode)i);
 		CHECK(mode->name != NULL && mode->ini_name != NULL);
+		st_screen_mode_profile_palette(mode, palette, 3, console_palette);
+		for (size_t colour = 0; colour < 16; ++colour) {
+			size_t index = colour;
+			switch (mode->palette) {
+			case ST_SCREEN_PALETTE_ATARI:
+			case ST_SCREEN_PALETTE_MONO: index = colour != 0; break;
+			case ST_SCREEN_PALETTE_GREYSCALE:
+				index = colour == 0 ? 0 : colour < 8 ? 1 : colour == 8 ? 2 : 3;
+				break;
+			case ST_SCREEN_PALETTE_PRESTEL: index %= 8; break;
+			case ST_SCREEN_PALETTE_ATARI_ST_4: index %= 4; break;
+			case ST_SCREEN_PALETTE_ATARI_ST_2: index %= 2; break;
+			default: break;
+			}
+			CHECK(console_palette[colour] == palette[index % 3]);
+		}
 	}
 	CHECK(st_screen_mode_at(st_screen_mode_count()) == NULL);
 	CHECK(st_screen_mode_get((enum st_screen_mode)-1) == NULL);

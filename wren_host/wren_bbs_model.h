@@ -40,6 +40,7 @@ struct st_wren_bbs_model {
 	uint64_t source_generation;
 	size_t count;
 	size_t capacity;
+	int next_identifier;
 	struct st_wren_bbs_record defaults;
 	struct st_wren_bbs_record transient;
 	uint64_t generation;

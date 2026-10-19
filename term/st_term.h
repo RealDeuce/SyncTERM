@@ -53,6 +53,12 @@ struct st_term_config {
 	bool hide_status;
 	/* Pass the entry's LF Expand setting through to CTerm. */
 	bool expand_lf;
+	bool force_lcf;
+	bool yellow_is_yellow;
+	const uint32_t *palette;
+	size_t palette_size;
+	/* MQTT accepts user input but not automatic terminal replies. */
+	bool suppress_responses;
 	/* BPS receive pacing for non-serial sessions; zero disables it. */
 	bool throttle_supported;
 	uint32_t initial_throttle_bps;

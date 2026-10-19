@@ -27,7 +27,8 @@ target_compile_definitions(syncterm_app PRIVATE
 target_link_libraries(syncterm_app PRIVATE st_wren_host st_settings
 	st_app_startup st_audio st_fonts st_font_catalog st_term
 	st_session_history st_hyperlink st_bbs_list)
-target_link_libraries(syncterm_app PRIVATE st_time syncterm_threads)
+target_link_libraries(syncterm_app PRIVATE st_time syncterm_threads
+	syncterm_value_convert syncterm_filesystem)
 if(SYNCTERM_ENABLE_UNIFONT)
 	target_link_libraries(syncterm_app PRIVATE st_unifont)
 	target_compile_definitions(syncterm_app PRIVATE ST_HAVE_UNIFONT=1)
@@ -75,7 +76,7 @@ if(BUILD_TESTING)
 		target_link_libraries(st_app_session_mode_test PRIVATE st_wren_host
 			st_settings st_app_startup st_audio st_fonts st_font_catalog st_term
 			st_session_history st_hyperlink st_bbs_list st_time syncterm_threads
-			syncterm_filesystem)
+			syncterm_filesystem syncterm_value_convert)
 		target_compile_definitions(st_app_session_mode_test PRIVATE
 			ST_APP_SESSION_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/session-mode-test")
 		if(SYNCTERM_ENABLE_UNIFONT)

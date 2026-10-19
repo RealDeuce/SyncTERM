@@ -218,6 +218,32 @@ st_screen_mode_count(void)
 	return sizeof(modes) / sizeof(modes[0]);
 }
 
+void
+st_screen_mode_profile_palette(const struct st_screen_mode_descriptor *mode,
+	const uint32_t *palette, size_t count, uint32_t result[16])
+{
+	uint32_t expanded[16];
+	if (palette == NULL || count == 0 || count > 16 || result == NULL)
+		return;
+	for (size_t i = 0; i < 16; ++i)
+		expanded[i] = palette[i % count];
+	for (size_t i = 0; i < 16; ++i) {
+		size_t index = i;
+		switch (mode == NULL ? ST_SCREEN_PALETTE_COLOUR : mode->palette) {
+		case ST_SCREEN_PALETTE_MONO:
+		case ST_SCREEN_PALETTE_ATARI: index = i != 0; break;
+		case ST_SCREEN_PALETTE_GREYSCALE:
+			index = i == 0 ? 0 : i < 8 ? 1 : i == 8 ? 2 : 3;
+			break;
+		case ST_SCREEN_PALETTE_PRESTEL: index = i % 8; break;
+		case ST_SCREEN_PALETTE_ATARI_ST_4: index = i % 4; break;
+		case ST_SCREEN_PALETTE_ATARI_ST_2: index = i % 2; break;
+		default: break;
+		}
+		result[i] = expanded[index];
+	}
+}
+
 const struct st_screen_mode_descriptor *
 st_screen_mode_at(size_t index)
 {

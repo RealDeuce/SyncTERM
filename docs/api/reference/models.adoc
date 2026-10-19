@@ -216,6 +216,10 @@ void st_profile_init(struct st_profile *profile);
 void st_profile_dispose(struct st_profile *profile);
 bool st_profile_copy(struct st_profile *result,
     const struct st_profile *source);
+const char *st_profile_ghost_program(const struct st_profile *profile);
+bool st_profile_script_name_valid(const char *name, size_t length);
+bool st_profile_scripts_append(char *scripts, const char *name, size_t length);
+bool st_profile_scripts_parse(char *result, const char *input);
 ----
 
 Profile pointers address caller storage.  Initialize before copy/field use and
@@ -234,6 +238,15 @@ so changing transport or font does not silently change the encoding on reload.
 `st_profile_dispose(profile)` frees its owned optional paths.  Call
 `st_profile_copy(result, source)` only with an initialized destination; it
 deep-copies owned fields and preserves the old destination on failure.
+Identifiers default to -1; the menu assigns distinct saved-entry identifiers.
+`st_profile_ghost_program()` returns a borrowed transient URL override or the
+Password value for GHost (otherwise an empty string).
+`st_profile_script_name_valid()` checks a counted basename.
+`st_profile_scripts_append()` requires a canonical list in a 1024-byte buffer
+and appends only new valid names. `st_profile_scripts_parse()` requires a
+1024-byte result and NUL-terminated input; it trims, validates and deduplicates
+items. Both leave the destination unchanged on failure. Parsing supports
+input/output aliasing; empty input produces an empty list.
 `st_connection_default_port(type)` returns the inherent network port or zero
 for transports without one.
 
@@ -649,6 +662,8 @@ int st_bbs_list_update(st_bbs_list_t *, const char *old_name,
 int st_bbs_list_remove(st_bbs_list_t *, const char *name,
     struct st_bbs_mutation_result *result);
 int st_bbs_list_set_defaults(st_bbs_list_t *, const struct st_profile *);
+int st_bbs_list_record_connection(st_bbs_list_t *, const struct st_profile *,
+    time_t connected, uint32_t *calls);
 int st_bbs_list_rewrite_encryption(st_bbs_list_t *,
     const struct st_list_crypto_options *, const void *password, size_t);
 int st_bbs_list_rewrite_encryption_current_password(st_bbs_list_t *,

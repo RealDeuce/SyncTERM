@@ -4324,6 +4324,39 @@ fn_host_print(WrenVM *vm)
 }
 
 static void
+fn_host_log_level(WrenVM *vm)
+{
+	wrenSetSlotDouble(vm, 0, st_wren_context_from_vm(vm)->transfer_log_level);
+}
+
+static void
+fn_host_log_level_set(WrenVM *vm)
+{
+	double value;
+	if (wrenGetSlotType(vm, 1) != WREN_TYPE_NUM
+	    || !isfinite(value = wrenGetSlotDouble(vm, 1))) {
+		st_wren_abort(vm, "Host.logLevel expects a finite Number");
+		return;
+	}
+	st_wren_context_from_vm(vm)->transfer_log_level = value < 0 ? 0
+	    : value > 7 ? 7 : (int)value;
+}
+
+static void
+fn_host_log_level_names(WrenVM *vm)
+{
+	static const char *const names[] = {
+		"Emergency", "Alert", "Critical", "Error", "Warning", "Notice", "Info", "Debug"
+	};
+	wrenEnsureSlots(vm, 2);
+	wrenSetSlotNewList(vm, 0);
+	for (size_t i = 0; i < sizeof(names) / sizeof(names[0]); ++i) {
+		wrenSetSlotString(vm, 1, names[i]);
+		wrenInsertInList(vm, 0, -1, 1);
+	}
+}
+
+static void
 fn_timer_now(WrenVM *vm)
 {
 	uint64_t milliseconds;
@@ -4714,6 +4747,9 @@ static const struct binding bindings[] = {
 	{"Host", true, "altKeyName", fn_host_alt_name},
 	{"Host", true, "altKeyShort", fn_host_alt_short},
 	{"Host", true, "print(_)", fn_host_print},
+	{"Host", true, "logLevel", fn_host_log_level},
+	{"Host", true, "logLevel=(_)", fn_host_log_level_set},
+	{"Host", true, "logLevelNames", fn_host_log_level_names},
 	{"Timer", true, "now", fn_timer_now},
 	{"WON", true, "deserialize(_)", st_wren_won_deserialize},
 	{"WONError", false, "code", st_wren_won_error_code},

@@ -128,6 +128,8 @@ struct st_wren_connected_config {
 	struct st_connection *connection;
 	struct st_term_session *session;
 	bool status_enabled;
+	void (*transfer_log)(void *context, int level, const char *message);
+	void *transfer_log_context;
 };
 
 struct st_wren_host_config {
@@ -259,6 +261,21 @@ blocked channel setup and joins the worker before freeing its session.
 paths, title/script strings, history, audio runtime, and hyperlink registry for
 the host lifetime.  `st_wren_connected_config` borrows host, connected console,
 profile, and optional provider for one connected context.
+The profile is copied. `transfer_log` and its context are borrowed callbacks
+for owner-thread transfer diagnostics through connected-context destruction;
+`st_wren_connected_log_transfer(connected, level, message)` delivers only
+messages within the live VM-local Host.logLevel threshold. NULL handles/messages
+are ignored. Protocol hooks use their independent configured threshold.
+
+`st_wren_host_safe_mode(host)` returns true for a NULL host or safe mode.
+`st_wren_host_record_connection(host, profile)` requires both pointers, updates
+the active profile's timestamp/count, then persists saved entries when allowed.
+It returns zero or a negative IO_ERROR status; on persistence failure the active
+counter still advances. The locked list operation
+`st_bbs_list_record_connection(list, profile, connected, calls)` increments the
+latest stored count, changes only the two statistics keys for existing entries,
+and publishes `*calls` only on success. A missing system entry is copied to the
+personal directory; a missing personal entry returns IO_ERROR_NOT_FOUND.
 
 [cols="3m,7"]
 |===

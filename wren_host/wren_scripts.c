@@ -72,22 +72,5 @@ st_wren_script_inventory(const char *directory, const char *event,
 bool
 st_wren_bbs_script_name_valid(const char *name)
 {
-	size_t length;
-
-	if (name == NULL)
-		return false;
-	length = strlen(name);
-	if (length == 0 || length >= 256)
-		return false;
-	for (size_t i = 0; i < length; ++i) {
-		unsigned char value = (unsigned char)name[i];
-
-		if (!((value >= 'A' && value <= 'Z')
-		    || (value >= 'a' && value <= 'z')
-		    || (value >= '0' && value <= '9') || value == '_'))
-			return false;
-	}
-	return strcmp(name, "syncterm_menu") != 0
-	    && strcmp(name, "syncterm_picker") != 0
-	    && strcmp(name, "picker_bootstrap") != 0;
+	return name != NULL && st_profile_script_name_valid(name, strlen(name));
 }

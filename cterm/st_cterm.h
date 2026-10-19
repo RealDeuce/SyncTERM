@@ -75,7 +75,8 @@ typedef int (*st_cterm_capture_t)(void *context, const char *utf8,
 	size_t size);
 
 struct st_cterm_config {
-	/* All pointers are borrowed and must outlive the terminal. */
+	/* Pointers are borrowed through destruction, except palette arrays which
+	 * are copied during creation. */
 	st_console_t *console;
 	st_font_catalog_t *fonts;
 	st_audio_runtime_t *audio;
@@ -106,6 +107,10 @@ struct st_cterm_config {
 	bool quiet;
 	/* Treat a received LF as CR+LF; false retains the current column. */
 	bool expand_lf;
+	bool force_lcf;
+	bool yellow_is_yellow;
+	/* Optional 16-entry native-mode RGB override, copied at creation. */
+	const uint32_t *palette_override;
 	st_cterm_output_callback_t output;
 	void *output_context;
 	st_cterm_apc_callback_t apc;

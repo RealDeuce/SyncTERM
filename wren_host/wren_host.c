@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #define ST_WREN_MAX_MODULE_SIZE (4U * 1024U * 1024U)
 #define ST_WREN_FIRST_CUSTOM_FONT ST_BUILTIN_FONT_COUNT
@@ -866,14 +867,8 @@ st_wren_interpret_profile_scripts(WrenVM *vm,
 		if (length > ST_PROFILE_WREN_SCRIPTS_MAX)
 			return IO_ERROR_INVALID_FORMAT;
 		if (length != 0) {
-			for (size_t i = 0; i < length; ++i) {
-				unsigned char c = (unsigned char)next[i];
-
-				if (!((c >= 'a' && c <= 'z')
-				    || (c >= 'A' && c <= 'Z')
-				    || (c >= '0' && c <= '9') || c == '_'))
-					return IO_ERROR_INVALID_FORMAT;
-			}
+			if (!st_profile_script_name_valid(next, length))
+				return IO_ERROR_INVALID_FORMAT;
 			memcpy(name, next, length);
 			name[length] = '\0';
 			if (!wrenHasModule(vm, name)) {
@@ -1324,6 +1319,34 @@ st_wren_host_remember_ssh_key(st_wren_host_t *host,
 	return status;
 }
 
+bool
+st_wren_host_safe_mode(const st_wren_host_t *host)
+{
+	return host == NULL || host->config.safe_mode;
+}
+
+int
+st_wren_host_record_connection(st_wren_host_t *host, struct st_profile *profile)
+{
+	int status;
+	if (host == NULL || profile == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	profile->connected = time(NULL);
+	++profile->calls;
+	if (host->config.safe_mode || profile->identifier < 0)
+		return 0;
+	if (host->bbs_list == NULL) {
+		status = st_bbs_list_open(&host->bbs_list, host->config.paths, NULL, 0);
+		if (status != 0)
+			return status;
+	}
+	status = st_bbs_list_record_connection(host->bbs_list, profile,
+	    profile->connected, &profile->calls);
+	if (status == 0)
+		profile->source = ST_PROFILE_SOURCE_USER;
+	return status;
+}
+
 static const char *
 web_phase_name(enum st_webget_phase phase)
 {
@@ -1647,8 +1670,10 @@ st_wren_host_create(st_wren_host_t **result,
 		return IO_ERROR_OUT_OF_MEMORY;
 	host->config = *config;
 	host->menu.host = host;
+	host->menu.transfer_log_level = ST_PROFILE_LOG_INFO;
 	host->menu.console = config->console;
 	host->picker.host = host;
+	host->picker.transfer_log_level = ST_PROFILE_LOG_INFO;
 	host->picker.console = config->picker_console != NULL
 	    ? config->picker_console : config->console;
 	status = st_hyperlink_registry_register_root(config->hyperlinks,

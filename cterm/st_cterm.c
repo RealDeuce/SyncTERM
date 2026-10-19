@@ -1920,9 +1920,14 @@ status_display_changed(struct cterminal *terminal, int old_type,
 	screen.hold_update = 0;
 	screen.error = 0;
 	screen.hyperlink_root_registered = false;
+	const struct st_cterm_config initial = {
+		.yellow_is_yellow = terminal->yellow_is_yellow,
+		.palette_override = terminal->has_palette_override
+		    ? terminal->palette_override : NULL,
+	};
 	terminal->status_sub = cterm_init(1, terminal->width, terminal->x,
 	    terminal->y + terminal->height, 0, terminal->width, NULL,
-	    terminal->emulation, &screen);
+	    terminal->emulation, &screen, &initial);
 	if (terminal->status_sub == NULL) {
 		terminal->status_display_type = old_type;
 		cterm_resize_rows(terminal,
@@ -2148,7 +2153,7 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 		screen.selectors[slot] = config->font_selector;
 	terminal = cterm_init((int)terminal_rows, (int)columns, 1, 1,
 	    (int)config->scrollback_lines, (int)columns, scrollback,
-	    config->emulation, &screen);
+	    config->emulation, &screen, config);
 	if (terminal == NULL) {
 		free(scrollback);
 		return IO_ERROR_OUT_OF_MEMORY;

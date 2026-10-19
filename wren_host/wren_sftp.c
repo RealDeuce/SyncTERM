@@ -1283,6 +1283,17 @@ connected_report_error(WrenVM *vm, WrenErrorType type, const char *module,
 	    module == NULL ? "?" : module, line, message == NULL ? "" : message);
 }
 
+void
+st_wren_connected_log_transfer(st_wren_connected_t *connected,
+	int level, const char *message)
+{
+	if (connected != NULL && message != NULL && level >= 0
+	    && level <= connected->context.transfer_log_level
+	    && connected->context.transfer_log != NULL)
+		connected->context.transfer_log(connected->context.transfer_log_context,
+		    level, message);
+}
+
 int
 st_wren_connected_create(st_wren_connected_t **result,
 	const struct st_wren_connected_config *config)
@@ -1311,6 +1322,9 @@ st_wren_connected_create(st_wren_connected_t **result,
 	connected->context.console = config->console;
 	connected->context.connected = connected;
 	connected->context.profile = &connected->profile;
+	connected->context.transfer_log_level = config->profile->transfer_log_level;
+	connected->context.transfer_log = config->transfer_log;
+	connected->context.transfer_log_context = config->transfer_log_context;
 	connected->context.cterm = config->cterm;
 	connected->context.connection = config->connection;
 	connected->context.session = config->session;

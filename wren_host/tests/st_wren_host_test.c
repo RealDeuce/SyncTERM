@@ -394,15 +394,27 @@ exercise_connected_profile_scripts(st_wren_host_t *host,
 	return 0;
 }
 
+/* Transfer diagnostics are separate from the REPL's source/error counters. */
+static void
+count_transfer_logs(void *context, int level, const char *message)
+{
+	(void)level;
+	(void)message;
+	++*(size_t *)context;
+}
+
 static int
 exercise_connected_without_sftp(st_wren_host_t *host,
 	st_console_t *console, struct st_profile *profile)
 {
+	size_t transfer_logs = 0;
 	const struct st_wren_connected_config config = {
 		.host = host,
 		.console = console,
 		.profile = profile,
 		.status_enabled = true,
+		.transfer_log = count_transfer_logs,
+		.transfer_log_context = &transfer_logs,
 	};
 	st_wren_connected_t *connected = NULL;
 	struct st_console_cell cells[3];
@@ -411,11 +423,24 @@ exercise_connected_without_sftp(st_wren_host_t *host,
 	bool consumed;
 
 	CHECK(st_wren_connected_create(&connected, &config) == 0);
+	st_wren_connected_log_transfer(connected, ST_PROFILE_LOG_INFO, "info");
+	st_wren_connected_log_transfer(connected, ST_PROFILE_LOG_DEBUG, "debug");
+	CHECK(transfer_logs == 1);
 	CHECK(st_wren_connected_render_status(connected, true) == 0);
 	char *details = st_wren_connected_status_details(connected);
 	CHECK(details != NULL && strstr(details, "BBS: Alpha") != NULL);
 	free(details);
 	CHECK(st_wren_connected_last_error(connected) == NULL);
+	CHECK(st_wren_connected_interpret(connected, "live_log_level",
+	    "import \"syncterm\" for Host, BBS\n"
+	    "if (Host.logLevel != BBS.xferLogLevel || Host.logLevelNames.count != 8 || Host.logLevelNames[7] != \"Debug\") Fiber.abort(\"initial log level\")\n"
+	    "Host.logLevel = 99\n"
+	    "if (Host.logLevel != 7 || BBS.xferLogLevel == 7) Fiber.abort(\"clamp/persistence\")\n"
+	    "Host.logLevel = -4\n"
+	    "if (Host.logLevel != 0) Fiber.abort(\"negative clamp\")\n") == 0);
+	st_wren_connected_log_transfer(connected, ST_PROFILE_LOG_INFO, "hidden");
+	st_wren_connected_log_transfer(connected, ST_PROFILE_LOG_EMERGENCY, "visible");
+	CHECK(transfer_logs == 2);
 	CHECK(st_wren_connected_interpret(connected, "no_sftp_provider",
 	    "import \"syncterm\" for SFTP, SFTPError, Host, CTerm, Status, Conn, ConnError, ConnErr, Scrollback, Surface, BBS\n"
 	    "if (SFTP.available || CTerm.sftpActive || Conn.connected) Fiber.abort(\"unexpected provider\")\n"
@@ -1426,6 +1451,7 @@ exercise_menu_contract(st_wren_host_t *public_host)
 	    "if (Menu.currentScreenMode != 0) Fiber.abort(\"current mode\")\n"
 	    "if (!Menu.setScreenMode(3) || Menu.currentScreenMode != 3 || !Menu.setScreenMode(1)) Fiber.abort(\"set mode\")\n"
 	    "if (Menu.entries.count != 2 || Menu.entries[0].name != \"Zulu\" || Menu.entries[0].searchKey != \"zulu\") Fiber.abort(\"entries/sort\")\n"
+	    "if (Menu.entries[0].id == Menu.entries[1].id) Fiber.abort(\"duplicate IDs\")\n"
 	    "var q = Menu.quickConnect(\"ssh://guest:secret@[::1]:2222\")\n"
 	    "if (q == null || q.connType != 5 || q.addr != \"::1\" || q.port != 2222 || q.user != \"guest\" || q.password != \"secret\") Fiber.abort(\"quick\")\n"
 	    "if (Menu.fileLocations[\"configuration\"].count == 0) Fiber.abort(\"paths\")\n"
@@ -1515,7 +1541,7 @@ exercise_menu_contract(st_wren_host_t *public_host)
 	    "b.sshAllowAes128Cbc = false\n"
 	    "b.sshAcceptEarlyData = false\n"
 	    "b.palette = [0, 11184810]\n"
-	    "b.wrenScripts = [\"ui_list\", \"menu_bbs_editor\"]\n"
+	    "b.wrenScripts = [\"ui_list\", \"menu_bbs_editor\", \"ui_list\"]\n"
 	    "b.sortOrder = 4\n"
 	    "b.lfExpand = false\n"
 	    "if (!b.dirty || b.connTypeName.count == 0 || b.palette.count != 2 || b.wrenScripts.count != 2) Fiber.abort(\"bbs\")\n"

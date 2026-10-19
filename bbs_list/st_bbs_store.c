@@ -143,6 +143,17 @@ merge_profile_sections(ini_section_t *remote,
     const ini_section_t *remote_compare, const ini_section_t *base,
     const ini_section_t *local)
 {
+	/* Materialize aliases before removing them, including unchanged values. */
+	static const char *const canonical[] = { "ConnectionType", "ProtocolLogLevel" };
+	for (size_t i = 0; i < sizeof(canonical) / sizeof(canonical[0]); ++i) {
+		const char *value = ini_section_find(remote_compare, canonical[i]);
+		if (value != NULL) {
+			int status = ini_section_set_string(remote, canonical[i], value,
+			    &ini_default_style);
+			if (status < 0)
+				return status;
+		}
+	}
 	/* Preserve the remote's decoded legacy encoding before changing the
 	 * font or transport used to infer it. Explicit local encoding edits
 	 * still go through the normal three-way merge below. */
@@ -181,6 +192,8 @@ merge_profile_sections(ini_section_t *remote,
 		if (status < 0)
 			return status;
 	}
+	(void)ini_section_remove_key(remote, "BeDumb");
+	(void)ini_section_remove_key(remote, "TelnetLogLevel");
 	return 0;
 }
 
@@ -256,6 +269,74 @@ baseline_personal(const st_bbs_list_t *list, const char *name)
 
 	return entry != NULL && entry->source == ST_BBS_SOURCE_PERSONAL
 	    ? entry->profile : NULL;
+}
+
+int
+st_bbs_list_record_connection(st_bbs_list_t *list,
+	const struct st_profile *profile, time_t connected, uint32_t *calls)
+{
+	ini_document_t *remote = NULL;
+	ini_section_t *section = NULL;
+	struct st_profile value;
+	struct st_list_crypto_info info;
+	struct st_bbs_view view = {0};
+	st_file_lock_t *lock = NULL;
+	bool unchanged = false;
+	int status;
+
+	if (list == NULL || profile == NULL || calls == NULL
+	    || !st_bbs_name_valid(profile->name))
+		return IO_ERROR_INVALID_ARGUMENT;
+	st_profile_init(&value);
+	status = begin_write(list, &lock, &remote, &info);
+	if (status == 0) {
+		section = ini_document_find_section(remote, profile->name);
+		status = documents_equal(&unchanged, remote, list->personal_document);
+	}
+	if (status == 0 && section != NULL)
+		status = st_bbs_decode_profile(&value, section, profile->name,
+		    false, list->download_path);
+	else if (status == 0 && profile->source != ST_PROFILE_SOURCE_SYSTEM)
+		status = IO_ERROR_NOT_FOUND;
+	else if (status == 0) {
+		if (!st_profile_copy(&value, profile))
+			status = IO_ERROR_OUT_OF_MEMORY;
+		if (status == 0) {
+			value.source = ST_PROFILE_SOURCE_USER;
+			value.added = connected;
+			value.calls = 0;
+			status = ini_document_add_section(remote, profile->name,
+			    &ini_default_style, &section);
+		}
+		if (status == 0)
+			status = st_bbs_encode_profile(section, &value, false);
+	}
+	if (status == 0) {
+		++value.calls;
+		value.connected = connected;
+		status = ini_section_set_uint64(section, "TotalCalls", value.calls,
+		    &ini_default_style);
+	}
+	if (status == 0)
+		status = ini_section_set_datetime(section, "LastConnected", connected,
+		    true, &ini_default_style);
+	if (status == 0)
+		status = unchanged && baseline_personal(list, profile->name) != NULL
+		    ? st_bbs_view_prepare_update(list, profile->name,
+		    &value, remote, &view) : st_bbs_view_prepare(list, remote, &view);
+	if (status == 0)
+		status = write_personal(list, remote, &list->write_options,
+		    list->password, list->password_size);
+	if (status == 0) {
+		crypto_info_for_options(&info, &list->write_options);
+		install_document(list, &remote, &info, &view);
+		*calls = value.calls;
+	}
+	st_bbs_view_dispose(&view);
+	st_profile_dispose(&value);
+	ini_document_free(&remote);
+	st_file_lock_release(lock);
+	return status;
 }
 
 int

@@ -176,6 +176,9 @@ struct st_wren_context {
 	uint64_t seen_errors;
 	struct st_wren_connected *connected;
 	const struct st_profile *profile;
+	int transfer_log_level;
+	void (*transfer_log)(void *context, int level, const char *message);
+	void *transfer_log_context;
 	st_cterm_t *cterm;
 	struct st_connection *connection;
 	struct st_term_session *session;

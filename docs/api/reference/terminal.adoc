@@ -59,7 +59,8 @@ use CP437.  This query does not assert that the selector is registered.
 
 ==== CTerm
 
-`struct st_cterm_config` borrows every pointer through terminal destruction.
+`struct st_cterm_config` borrows pointers through terminal destruction except
+the two palette arrays, which are copied during creation.
 `status_line` initially selects the DEC indicator status display and reserves
 one console row for it. `terminal_rows == 0` selects every row not occupied by
 that status display; otherwise the difference remains reserved for the caller.
@@ -68,6 +69,13 @@ The terminal and optional status row must fit the console.
 `expand_lf` enables the parser's LF-as-CR+LF policy; false (the default)
 retains the column on LF. This local policy survives terminal resets, does not
 add a second line advance to CR+LF input, and emits no output bytes.
+`force_lcf` enables and forces the last-column flag across resets.
+`yellow_is_yellow` changes only this terminal's default brown palette entry.
+`palette_override` optionally points to 16 native-mode RGB colours, copied
+before the initial reset. The override wins over default colours and is
+reapplied after reset. Music initially remains BANSI for zero-initialized
+direct callers; the application calls `st_cterm_set_music_mode()` with the
+profile value before connected scripts or input. Terminal reset restores BANSI.
 The font selector must be registered in the supplied catalog, and that catalog
 must belong to the supplied console. Geometry must fit the parser's signed
 coordinate representation. `palette_mapping`, when non-NULL, points to 16
@@ -297,6 +305,12 @@ of the remote wire encoding. `apc_directory` and `application_version` are
 forwarded unchanged with the CTerm borrowing rules above, independently of RIP.
 `expand_lf` forwards the entry's LF Expand policy unchanged to CTerm; it does
 not rewrite wire bytes or the input observed by hooks.
+`force_lcf` and `yellow_is_yellow` also forward unchanged. `palette` plus
+`palette_size` (0..16) supplies an abbreviated profile palette; a nonzero size
+requires a non-NULL pointer. Creation cycles it to 16 colours, then expands the
+mode's mono/greyscale/Atari/Prestel/ST family mapping before copying to CTerm.
+`suppress_responses` discards only ST_CTERM_OUTPUT_RESPONSE emissions (MQTT),
+never user text, keys or mouse input. These fields default to disabled/empty.
 
 | st_term_session_destroy(session_ptr)
 | Finishes RIP and Unicode, publishes history when configured, releases CTerm, and

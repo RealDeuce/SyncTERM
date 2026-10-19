@@ -63,6 +63,18 @@ main(void)
 	    (ST_CONNECTION_MQTT + 1)) == 0);
 	st_profile_init(&source);
 	st_profile_init(&copy);
+	CHECK(source.identifier == -1);
+	{
+		char scripts[ST_PROFILE_WREN_SCRIPTS_MAX + 1] = "unchanged";
+		CHECK(st_profile_scripts_parse(scripts, " first,\tsecond ,first"));
+		CHECK(strcmp(scripts, "first,second") == 0);
+		CHECK(!st_profile_scripts_parse(scripts, "valid,syncterm_menu"));
+		CHECK(strcmp(scripts, "first,second") == 0);
+		CHECK(!st_profile_scripts_parse(scripts, "valid,bad-name"));
+		CHECK(!st_profile_scripts_append(scripts, "x\0y", 3));
+		CHECK(st_profile_scripts_parse(scripts, ""));
+		CHECK(scripts[0] == '\0');
+	}
 	CHECK(source.encoding == ST_CODEPAGE_CP437);
 	source.encoding = ST_PROFILE_ENCODING_UTF8;
 	CHECK(source.port == st_connection_default_port(source.connection_type));

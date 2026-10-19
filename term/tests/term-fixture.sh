@@ -4,6 +4,11 @@
 # Keep shell programs out of the deliberately bounded BBS address field.
 set -eu
 case "$1" in
+responses)
+	stty raw -echo
+	printf 'READY'
+	dd bs=1 count=1 2>/dev/null | od -An -tx1 | tr -d ' \n'
+	;;
 apc)
 	stty raw -echo
 	printf '\033_SyncTERM:VER\033\\'

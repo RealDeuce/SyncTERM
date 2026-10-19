@@ -127,6 +127,19 @@ main(void)
 	CHECK(strcmp(entry->profile->address, "personal.example") == 0);
 	CHECK(write_text(personal, personal_text) == 0);
 
+	/* Failed counter updates publish neither a new view nor output count. */
+	st_profile_init(&profile);
+	CHECK(st_profile_copy(&profile, entry->profile));
+	st_bbs_test_fail_after(0);
+	uint32_t calls = 123;
+	CHECK(st_bbs_list_record_connection(list, &profile, 1700000000, &calls)
+	    == IO_ERROR_OUT_OF_MEMORY);
+	st_bbs_test_disable_failure();
+	CHECK(calls == 123 && st_bbs_list_generation(list) == generation);
+	CHECK(st_bbs_list_find(list, "Alpha") == entry);
+	CHECK(file_equals(personal, personal_text));
+	st_profile_dispose(&profile);
+
 	st_profile_init(&profile);
 	(void)snprintf(profile.name, sizeof(profile.name), "%s", "Beta");
 	(void)snprintf(profile.address, sizeof(profile.address), "%s",

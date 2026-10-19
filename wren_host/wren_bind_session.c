@@ -357,7 +357,12 @@ BBS_FIXED_GETTER(addr, address)
 BBS_FIXED_GETTER(comment, comment)
 BBS_FIXED_GETTER(font, font)
 BBS_FIXED_GETTER(term_name, terminal_name)
-BBS_FIXED_GETTER(ghost_program, ghost_program)
+static void
+fn_bbs_ghost_program(WrenVM *vm)
+{
+	struct st_wren_context *context = st_wren_context_from_vm(vm);
+	wrenSetSlotString(vm, 0, st_profile_ghost_program(context->profile));
+}
 BBS_FIXED_GETTER(tls_psk_identity, tls_psk_identity)
 BBS_FIXED_GETTER(tls_psk, tls_psk)
 BBS_OWNED_GETTER(dl_dir, download_directory)

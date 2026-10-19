@@ -14,6 +14,7 @@
 #include "st_console.h"
 #include "st_console_startup.h"
 #include "st_connection.h"
+#include "filesystem.h"
 #include "st_font_catalog.h"
 #include "st_hyperlink.h"
 #include "io_error.h"
@@ -32,6 +33,7 @@
 #include "st_time.h"
 #include "st_threads.h"
 #include "st_wren_host.h"
+#include "value_convert_time.h"
 
 #include <locale.h>
 #include <stdbool.h>
@@ -214,7 +216,65 @@ struct connection_ui {
 	char *log;
 	size_t log_size;
 	size_t log_capacity;
+	FILE *log_file; /* Protected by log_mutex, like the viewer buffer. */
 };
+
+static bool
+connection_log_stamp(FILE *file, const char *message)
+{
+	static const char *const months[] = {
+		"Jan", "Feb", "Mar", "Apr", "May", "Jun",
+		"Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+	};
+	struct tm parts;
+	if (!value_convert_localtime(time(NULL), &parts)
+	    || parts.tm_mon < 0 || parts.tm_mon > 11)
+		return false;
+	return fprintf(file, "%s %2d %02d:%02d:%02d %s\n", months[parts.tm_mon],
+	    parts.tm_mday, parts.tm_hour, parts.tm_min, parts.tm_sec, message) >= 0;
+}
+
+static void
+connection_log_open(struct connection_ui *ui)
+{
+	if (ui->log_file != NULL || st_wren_host_safe_mode(ui->host) || ui->profile->log_path == NULL
+	    || ui->profile->log_path[0] == '\0')
+		return;
+	if (fs_open(&ui->log_file, ui->profile->log_path,
+	    ui->profile->append_log ? "a" : "w") != 0)
+		fprintf(stderr, "SyncTERM: unable to open connection log\n");
+	else if (!connection_log_stamp(ui->log_file, "Log opened"))
+		fprintf(stderr, "SyncTERM: unable to write connection log\n");
+}
+
+static void
+connection_log_close(struct connection_ui *ui)
+{
+	bool okay = true;
+	(void)st_mutex_lock(&ui->log_mutex);
+	if (ui->log_file != NULL) {
+		okay = connection_log_stamp(ui->log_file, "Log closed");
+		if (fputs("---------------\n", ui->log_file) == EOF)
+			okay = false;
+		if (fclose(ui->log_file) != 0)
+			okay = false;
+		ui->log_file = NULL;
+	}
+	(void)st_mutex_unlock(&ui->log_mutex);
+	if (!okay)
+		fprintf(stderr, "SyncTERM: unable to finish connection log\n");
+}
+
+static void
+connection_transfer_log(void *context, int level, const char *message)
+{
+	struct connection_ui *ui = context;
+	(void)level; /* The connected VM applies the live transfer threshold. */
+	(void)st_mutex_lock(&ui->log_mutex);
+	if (ui->log_file != NULL && !connection_log_stamp(ui->log_file, message))
+		fprintf(stderr, "SyncTERM: unable to write transfer log\n");
+	(void)st_mutex_unlock(&ui->log_mutex);
+}
 
 static void
 connection_status(void *context, const char *message)
@@ -242,6 +302,8 @@ connection_log(void *context, enum st_connection_log_level level,
 	for (size_t i = 0; i < length; ++i)
 		if ((unsigned char)line[i] < 32 && line[i] != '\n' && line[i] != '\t') line[i] = '?';
 	(void)st_mutex_lock(&ui->log_mutex);
+	if (ui->log_file != NULL && fwrite(line, 1, length, ui->log_file) != length)
+		fprintf(stderr, "SyncTERM: unable to write protocol log\n");
 	if (ui->log_size < 1024U * 1024U) {
 		size_t remaining = 1024U * 1024U - ui->log_size;
 		if (length > remaining) length = remaining;
@@ -541,6 +603,7 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 	st_wren_host_apply_tls_version(host, profile);
 	if (st_mutex_init(&connection_ui.log_mutex, ST_MUTEX_PLAIN) != ST_THREAD_SUCCESS)
 		return IO_ERROR_OUT_OF_MEMORY;
+	connection_log_open(&connection_ui);
 	if (mode != NULL)
 		selector = mode->font_selector;
 	status = prepare_session_fonts(&fonts, console, profile, selector,
@@ -561,6 +624,12 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 				connection_help(&connection_ui, "Connection failed", detail);
 		}
 		goto finished;
+	}
+	{
+		int stats_status = st_wren_host_record_connection(host, profile);
+		if (stats_status != 0)
+			fprintf(stderr, "SyncTERM: unable to save connection statistics (%d)\n",
+			    stats_status);
 	}
 	if (st_bbs_name_valid(profile->name)) {
 		status = st_bbs_cache_path_for_name(&cache_directory,
@@ -587,6 +656,11 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 		.font_selector = selector,
 		.hide_status = profile->hide_status,
 		.expand_lf = profile->expand_lf,
+		.force_lcf = profile->force_lcf,
+		.yellow_is_yellow = profile->yellow_is_yellow,
+		.palette = profile->palette,
+		.palette_size = profile->palette_size,
+		.suppress_responses = profile->connection_type == ST_CONNECTION_MQTT,
 		.throttle_supported = profile->connection_type != ST_CONNECTION_SERIAL
 		    && profile->connection_type != ST_CONNECTION_SERIAL_3WIRE,
 		.initial_throttle_bps = profile->bps_rate,
@@ -606,6 +680,7 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 	};
 	status = st_term_session_create(&session, &config);
 	if (status == 0) {
+		st_cterm_set_music_mode(st_term_session_cterm(session), profile->music);
 		const struct st_wren_connected_config wren_config = {
 			.host = host,
 			.console = console,
@@ -615,6 +690,8 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 			.connection = connection,
 			.session = session,
 			.status_enabled = !profile->hide_status,
+			.transfer_log = connection_transfer_log,
+			.transfer_log_context = &connection_ui,
 		};
 
 		status = st_wren_connected_create(&connected, &wren_config);
@@ -704,6 +781,7 @@ finished:
 		if (st_wren_host_exit_requested(host)) *disposition = ST_TERM_EXIT_APPLICATION;
 		free(body); free(message);
 	}
+	connection_log_close(&connection_ui);
 	free(disconnect_details);
 	st_term_session_destroy(&session);
 	connection_status(&connection_ui, NULL);

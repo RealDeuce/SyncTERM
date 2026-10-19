@@ -4357,6 +4357,10 @@ Menu `BBS` properties map directly to the real `struct bbslist`:
   `connTypeName`, and `dirty`; methods `rename(name)`, `save()`,
   `delete()`, and `toString`.
 
+  `id` is distinct per directory load and survives sorting/rename in that
+  model. Defaults, quick connections and unsaved drafts have -1; saving a
+  draft assigns an ID. IDs are not serialized.
+
 | Address and authentication
 | Read/write `addr`, `port`, `connType`, `user`, `password`,
   `syspass`, `addressFamily`, `sftpPublicKey`, `sshAllowAes128Cbc`,
@@ -4365,6 +4369,10 @@ Menu `BBS` properties map directly to the real `struct bbslist`:
   `tlsPskVersion` (`TLSVersion`), `tlsVersionFloor` (`TLSVersion`),
   and binary String `sshFingerprint`.  The
   fingerprint is empty, 20-byte SHA-1, or 32-byte SHA-256 data.
+
+  For GHost entries `ghostProgram` accesses the effective program stored in
+  Password. A quick URL's transient program override is folded into Password
+  when copied into a named entry. Editing Password clears an old override.
 
 | Display and emulation
 | Read/write `music`, `rip`, `comment`, `termName`, `screenMode`,
@@ -5274,8 +5282,9 @@ if (Host.launchScript != null && Host.launchScript.endsWith("foo.wren")) {
 | Transfer log threshold (`0` = Emergency, ..., `7` = Debug) and
   the matching display labels indexed by the same number.  Out-of-
   range values are clamped on write.  The `online_menu` Log Level
-  picker writes the setter; the transfer dialog reads via the
-  C-side `log_level` global.
+  picker writes the setter. Each connected VM starts from BBS.xferLogLevel;
+  live changes affect only that connection's transfer diagnostic callback,
+  not the stored entry or the independent protocol log threshold.
 
 | `Host.haveOOII`
 | `true` when the build has Operation Overkill ][ tone support

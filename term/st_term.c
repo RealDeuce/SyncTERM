@@ -116,7 +116,8 @@ cterm_output(void *context, enum st_cterm_output_origin origin,
 	const uint8_t *bytes, size_t size)
 {
 	st_term_session_t *session = context;
-	(void)origin;
+	if (origin == ST_CTERM_OUTPUT_RESPONSE && session->config.suppress_responses)
+		return;
 
 	if (session->output_error != 0
 	    || !st_connection_is_connected(session->config.connection))
@@ -234,6 +235,7 @@ st_term_session_create(st_term_session_t **result,
 	uint32_t columns;
 	uint32_t rows;
 	uint16_t palette_mapping[16];
+	uint32_t palette_override[16];
 	const struct st_screen_mode_descriptor *mode;
 	int status;
 
@@ -252,6 +254,12 @@ st_term_session_create(st_term_session_t **result,
 	mode = st_screen_mode_get(config->screen_mode);
 	if (mode != NULL)
 		st_screen_mode_palette_mapping(mode, palette_mapping);
+	if (config->palette_size > 16 || (config->palette_size != 0 && config->palette == NULL)) {
+		free(session);
+		return IO_ERROR_INVALID_ARGUMENT;
+	}
+	st_screen_mode_profile_palette(mode, config->palette, config->palette_size,
+	    palette_override);
 	const struct st_cterm_config cterm_config = {
 		.console = config->console,
 		.fonts = config->fonts,
@@ -271,6 +279,9 @@ st_term_session_create(st_term_session_t **result,
 		.terminal_rows = config->hide_status ? rows : rows - 1,
 		.status_line = !config->hide_status,
 		.expand_lf = config->expand_lf,
+		.force_lcf = config->force_lcf,
+		.yellow_is_yellow = config->yellow_is_yellow,
+		.palette_override = config->palette_size == 0 ? NULL : palette_override,
 		.scrollback_lines = config->history == NULL ? 0
 		    : st_session_history_capacity(config->history),
 		.output = cterm_output,

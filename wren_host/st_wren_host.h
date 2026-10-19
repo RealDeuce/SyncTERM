@@ -41,6 +41,10 @@ struct st_wren_connected_config {
 	struct st_connection *connection;
 	struct st_term_session *session;
 	bool status_enabled;
+	/* Owner-thread transfer diagnostics; protocol diagnostics retain their
+	 * independent connection-hook threshold. */
+	void (*transfer_log)(void *context, int level, const char *message);
+	void *transfer_log_context;
 };
 
 struct st_wren_host_config {
@@ -62,6 +66,12 @@ struct st_wren_host_config {
 int st_wren_host_create(st_wren_host_t **result,
 	const struct st_wren_host_config *config);
 void st_wren_host_destroy(st_wren_host_t *host);
+bool st_wren_host_safe_mode(const st_wren_host_t *host);
+/* Update session counters even in safe mode; persist only saved entries. */
+int st_wren_host_record_connection(st_wren_host_t *host,
+	struct st_profile *profile);
+void st_wren_connected_log_transfer(st_wren_connected_t *connected,
+	int level, const char *message);
 
 /* Refreshes configured web-list caches with the menu progress overlay. */
 int st_wren_host_refresh_web_lists(st_wren_host_t *host);

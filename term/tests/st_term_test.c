@@ -73,6 +73,49 @@ screen_contains(st_console_t *console, const char *wanted, bool diagnose)
 }
 
 static int
+test_response_policy(void)
+{
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config geometry = {.columns = 40, .rows = 4, .cell_width = 8, .cell_height = 16};
+	for (unsigned suppress = 0; suppress < 2; ++suppress) {
+		st_console_t *console = NULL;
+		st_font_catalog_t *fonts = NULL;
+		st_connection_t *connection = NULL;
+		st_term_session_t *session = NULL;
+		struct st_profile profile;
+		enum st_term_disposition disposition;
+		bool finished;
+		CHECK(st_console_create(&console, &display, &geometry) == 0);
+		CHECK(st_font_catalog_create(&fonts, console) == 0);
+		st_profile_init(&profile);
+		profile.connection_type = ST_CONNECTION_SHELL;
+		strcpy(profile.address, "sh term-fixture.sh responses");
+		CHECK(st_term_connect_profile(&connection, &profile, console, NULL, NULL) == 0);
+		const struct st_term_config config = {
+			.console = console, .connection = connection, .fonts = fonts,
+			.encoding = ST_CTERM_ENCODING_UTF8, .hide_status = true,
+			.suppress_responses = suppress != 0,
+		};
+		CHECK(st_term_session_create(&session, &config) == 0);
+		for (unsigned attempt = 0; attempt < 100 && !screen_contains(console, "READY", false); ++attempt)
+			CHECK(st_term_session_pump(session, &disposition, &finished) == 0);
+		CHECK(screen_contains(console, "READY", true));
+		size_t consumed;
+		CHECK(st_cterm_write(st_term_session_cterm(session), "\x1b[5n", 4, &consumed) == 0 && consumed == 4);
+		CHECK(st_term_session_send_text(session, "U", 1) == 0);
+		for (unsigned attempt = 0; attempt < 100 && !screen_contains(console, suppress ? "55" : "1b", false); ++attempt)
+			CHECK(st_term_session_pump(session, &disposition, &finished) == 0);
+		CHECK(screen_contains(console, suppress ? "55" : "1b", true));
+		st_term_session_destroy(&session);
+		CHECK(st_connection_close(connection) == 0);
+		st_profile_dispose(&profile);
+		st_font_catalog_destroy(fonts);
+		st_console_destroy(console);
+	}
+	return 0;
+}
+
+static int
 test_shell_apc(void)
 {
 	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
@@ -797,6 +840,7 @@ main(void)
 	CHECK(test_shell_rip_profile() == 0);
 	CHECK(test_shell_rip_cp437_boundary() == 0);
 	CHECK(test_shell_rip_cp437_query_output() == 0);
+	CHECK(test_response_policy() == 0);
 #endif
 	return EXIT_SUCCESS;
 }

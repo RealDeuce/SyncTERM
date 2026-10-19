@@ -1372,6 +1372,14 @@ cterm_resetpalette(struct cterminal *cterm, uint32_t entry)
 
 	if (!cterm_render_default_palette(entry, &red, &green, &blue))
 		return 0;
+	if (cterm->yellow_is_yellow && entry == 3) {
+		uint32_t defaults[3];
+		if (st_console_get_default_palette(0, defaults, 3) == 0) {
+			red = (uint8_t)(defaults[1] >> 16);
+			green = (uint8_t)(defaults[2] >> 8);
+			blue = (uint8_t)defaults[0];
+		}
+	}
 	return cterm_setpalette(cterm, entry + palette_offset,
 	    (uint16_t)red << 8 | red, (uint16_t)green << 8 | green,
 	    (uint16_t)blue << 8 | blue);
@@ -1927,7 +1935,8 @@ cterm_reset(struct cterminal *cterm)
 
 struct cterminal* cterm_init(int height, int width, int xpos, int ypos,
     int backlines, int backcols, struct st_console_cell *scrollback, int emulation,
-    const struct cterm_render_state *screen)
+    const struct cterm_render_state *screen,
+    const struct st_cterm_config *initial)
 {
 	static bool key_tables_verified = false;
 	char	*revision="$Revision: 1.332 $";
@@ -1955,7 +1964,16 @@ struct cterminal* cterm_init(int height, int width, int xpos, int ypos,
 	cterm->log=CTERM_LOG_NONE;
 	cterm->logfile=NULL;
 	cterm->emulation=emulation;
-	cterm->last_column_flag = 0;
+	if (initial != NULL) {
+		if (initial->force_lcf || initial->rip_version != ST_CTERM_RIP_OFF)
+			cterm->last_column_flag = CTERM_LCF_FORCED | CTERM_LCF_ENABLED;
+		cterm->yellow_is_yellow = initial->yellow_is_yellow;
+		if (initial->palette_override != NULL) {
+			cterm->has_palette_override = true;
+			memcpy(cterm->palette_override, initial->palette_override,
+			    sizeof(cterm->palette_override));
+		}
+	}
 	cterm->music_stream = NULL;
 	cterm->fx_stream = NULL;
 	/* Install the per-emulation dispatcher and its dispatch table.

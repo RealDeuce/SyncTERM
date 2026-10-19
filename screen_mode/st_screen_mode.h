@@ -51,5 +51,9 @@ void st_screen_mode_console_palette(
 /* Map DOS attribute nibbles to canonical console palette entries. */
 void st_screen_mode_palette_mapping(
 	const struct st_screen_mode_descriptor *mode, uint16_t result[16]);
+/* Expand an abbreviated profile palette in its mode's native colour order. */
+void st_screen_mode_profile_palette(
+	const struct st_screen_mode_descriptor *mode, const uint32_t *palette,
+	size_t count, uint32_t result[16]);
 
 #endif

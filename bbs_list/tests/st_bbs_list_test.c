@@ -59,6 +59,113 @@ copy_named(struct st_profile *result, const st_bbs_list_t *list,
 }
 
 static int
+check_complete_profile_roundtrip(void)
+{
+	for (unsigned nondefault = 0; nondefault < 2; ++nondefault) {
+		ini_document_t *document = NULL;
+		struct st_profile source, result;
+		st_profile_init(&source);
+		strcpy(source.name, "Roundtrip");
+		if (nondefault) {
+#define PROFILE_TEXT(member, value) strcpy(source.member, value)
+			PROFILE_TEXT(address, "bbs.example"); PROFILE_TEXT(username, "guest");
+			PROFILE_TEXT(password, "secret"); PROFILE_TEXT(system_password, "system");
+			PROFILE_TEXT(font, "Codepage 850 Multilingual Latin I");
+			PROFILE_TEXT(comment, "field coverage"); PROFILE_TEXT(wren_scripts, "one,two");
+			PROFILE_TEXT(tls_psk_identity, "identity"); PROFILE_TEXT(tls_psk, "0123");
+			PROFILE_TEXT(terminal_name, "ansi");
+#undef PROFILE_TEXT
+			source.download_directory = strdup("downloads");
+			source.upload_directory = strdup("uploads");
+			source.log_path = strdup("session.log");
+			source.tls_trusted_certificate = strdup("trusted.pem");
+			source.tls_client_certificate = strdup("client.pem");
+			source.tls_client_key = strdup("client.key");
+			CHECK(source.download_directory && source.upload_directory && source.log_path
+			    && source.tls_trusted_certificate && source.tls_client_certificate && source.tls_client_key);
+			source.added = 1700000000; source.connected = 1700000001;
+			source.calls = UINT32_MAX; source.bps_rate = UINT32_MAX;
+			source.sort_order = -123;
+			source.connection_type = ST_CONNECTION_TELNET_TLS;
+			source.screen_mode = ST_SCREEN_MODE_PRESTEL;
+			source.encoding = ST_PROFILE_ENCODING_UTF8;
+			source.transfer_log_level = ST_PROFILE_LOG_DEBUG;
+			source.protocol_log_level = ST_PROFILE_LOG_INFO;
+			source.music = ST_PROFILE_MUSIC_ALL;
+			source.address_family = ST_ADDRESS_FAMILY_IPV6;
+			source.rip_version = ST_RIP_VERSION_3;
+			source.flow_control = ST_PROFILE_FLOW_NONE;
+			source.tls_psk_version = ST_TLS_VERSION_1_2;
+			source.tls_version_floor = ST_TLS_VERSION_1_2;
+			source.parity = ST_PROFILE_PARITY_ODD;
+			source.port = 992; source.stop_bits = 2; source.data_bits = 7;
+			source.palette_size = 2; source.palette[0] = 0x123456; source.palette[1] = 0xabcdef;
+			source.ssh_fingerprint_size = 32;
+			memset(source.ssh_fingerprint, 0xa5, 32);
+			source.hide_status = source.hide_popups = source.force_lcf = true;
+			source.yellow_is_yellow = source.sftp_public_key = true;
+			source.ssh_allow_aes128_cbc = source.ssh_accept_early_data = true;
+			source.telnet_no_binary = source.defer_telnet_negotiation = true;
+			source.expand_lf = true;
+			source.append_log = source.tls_trust_web_pki = false;
+		}
+		CHECK(ini_document_create(&document) == 0);
+		CHECK(st_bbs_encode_profile(ini_document_root(document), &source, false) == 0);
+		CHECK(st_bbs_decode_profile(&result, ini_document_root(document), source.name, false, NULL) == 0);
+#define NUMBER(member) CHECK(result.member == source.member)
+		NUMBER(added); NUMBER(connected); NUMBER(calls); NUMBER(bps_rate);
+		NUMBER(sort_order); NUMBER(connection_type); NUMBER(source); NUMBER(identifier);
+		NUMBER(screen_mode); NUMBER(encoding); NUMBER(transfer_log_level); NUMBER(protocol_log_level);
+		NUMBER(music); NUMBER(address_family); NUMBER(rip_version); NUMBER(flow_control);
+		NUMBER(tls_psk_version); NUMBER(tls_version_floor); NUMBER(parity);
+		NUMBER(palette_size); NUMBER(port); NUMBER(stop_bits); NUMBER(data_bits);
+		NUMBER(ssh_fingerprint_size); NUMBER(hide_status); NUMBER(append_log); NUMBER(hide_popups);
+		NUMBER(force_lcf); NUMBER(yellow_is_yellow); NUMBER(sftp_public_key); NUMBER(ssh_allow_aes128_cbc);
+		NUMBER(ssh_accept_early_data); NUMBER(telnet_no_binary); NUMBER(defer_telnet_negotiation);
+		NUMBER(tls_trust_web_pki); NUMBER(expand_lf);
+#undef NUMBER
+#define STRING(member) CHECK(strcmp(result.member, source.member) == 0)
+		STRING(name); STRING(address); STRING(username); STRING(password); STRING(system_password);
+		STRING(font); STRING(ghost_program); STRING(comment); STRING(wren_scripts);
+		STRING(tls_psk_identity); STRING(tls_psk); STRING(terminal_name);
+#undef STRING
+#define PATH(member) CHECK(strcmp(result.member == NULL ? "" : result.member, \
+		    source.member == NULL ? "" : source.member) == 0)
+		PATH(download_directory); PATH(upload_directory); PATH(log_path);
+		PATH(tls_trusted_certificate); PATH(tls_client_certificate); PATH(tls_client_key);
+#undef PATH
+		CHECK(memcmp(source.palette, result.palette, source.palette_size * sizeof(source.palette[0])) == 0);
+		CHECK(memcmp(source.ssh_fingerprint, result.ssh_fingerprint, source.ssh_fingerprint_size) == 0);
+		st_profile_dispose(&source);
+		st_profile_dispose(&result);
+		ini_document_free(&document);
+	}
+	return 0;
+}
+
+static int
+check_script_codec(void)
+{
+	static const char *const lists[] = {
+		"one, two ,one", "good,bad-name", "syncterm_menu", ""
+	};
+	static const char *const expected[] = {"one,two", "", "", ""};
+	for (size_t i = 0; i < sizeof(lists) / sizeof(lists[0]); ++i) {
+		ini_document_t *document = NULL;
+		struct st_profile profile;
+		CHECK(ini_document_create(&document) == 0);
+		CHECK(ini_section_set_string(ini_document_root(document),
+		    "WrenScripts", lists[i], &ini_default_style) == 0);
+		CHECK(st_bbs_decode_profile(&profile, ini_document_root(document),
+		    "Example", false, NULL) == 0);
+		CHECK(strcmp(profile.wren_scripts, expected[i]) == 0);
+		st_profile_dispose(&profile);
+		ini_document_free(&document);
+	}
+	return 0;
+}
+
+static int
 check_profile_default_ports(void)
 {
 	static const struct {
@@ -200,6 +307,57 @@ check_profile_encodings(void)
 		st_profile_dispose(&profile);
 		ini_document_free(&document);
 	}
+	return 0;
+}
+
+static int
+check_connection_stats(const struct st_app_paths *base)
+{
+	struct st_app_paths paths = *base;
+	st_bbs_list_t *first = NULL, *second = NULL;
+	struct st_profile profile, other;
+	uint32_t calls = 0;
+	paths.personal_list = ST_BBS_TEST_DIRECTORY "/stats.lst";
+	CHECK(write_text(paths.personal_list,
+	    "BeDumb=true\nTelnetLogLevel=Debug\n"
+	    "[Counter]\nTotalCalls=7\nComment=original\nUnknown=retain\n"
+	    "BeDumb=true\nTelnetLogLevel=Debug\n") == 0);
+	CHECK(st_bbs_list_open(&first, &paths, NULL, 0) == 0);
+	CHECK(st_bbs_list_open(&second, &paths, NULL, 0) == 0);
+	st_profile_init(&profile);
+	st_profile_init(&other);
+	CHECK(copy_named(&profile, first, "Counter") == 0);
+	CHECK(copy_named(&other, second, "Counter") == 0);
+	strcpy(other.comment, "concurrent");
+	CHECK(st_bbs_list_update(second, other.name, &other, NULL) == 0);
+	CHECK(file_contains(paths.personal_list, "BeDumb"));
+	/* The root is not the affected section until defaults are saved. */
+	CHECK(st_profile_copy(&other, st_bbs_list_defaults(second)));
+	other.hide_status = true;
+	CHECK(st_bbs_list_set_defaults(second, &other) == 0);
+	CHECK(!file_contains(paths.personal_list, "TelnetLogLevel"));
+	CHECK(!file_contains(paths.personal_list, "BeDumb"));
+	CHECK(st_bbs_list_record_connection(first, &profile, 1700000000, &calls) == 0);
+	CHECK(calls == 8);
+	CHECK(st_bbs_list_record_connection(second, &profile, 1700000001, &calls) == 0);
+	CHECK(calls == 9);
+	CHECK(strcmp(st_bbs_list_find(second, "Counter")->profile->comment, "concurrent") == 0);
+	CHECK(st_bbs_list_find(second, "Counter")->profile->connected == 1700000001);
+	CHECK(file_contains(paths.personal_list, "Unknown=retain"));
+	/* System entries become personal without modifying their source. */
+	strcpy(profile.name, "Promoted");
+	profile.source = ST_PROFILE_SOURCE_SYSTEM;
+	profile.calls = 99;
+	CHECK(st_bbs_list_record_connection(first, &profile, 1700000002, &calls) == 0 && calls == 1);
+	CHECK(st_bbs_list_find(first, "Promoted")->source == ST_BBS_SOURCE_PERSONAL);
+	profile.source = ST_PROFILE_SOURCE_USER;
+	strcpy(profile.name, "Deleted");
+	CHECK(st_bbs_list_record_connection(first, &profile, 1700000003, &calls) == IO_ERROR_NOT_FOUND);
+	CHECK(calls == 1);
+	st_profile_dispose(&profile);
+	st_profile_dispose(&other);
+	st_bbs_list_close(first);
+	st_bbs_list_close(second);
 	return 0;
 }
 
@@ -422,6 +580,8 @@ main(void)
 	int status;
 
 	CHECK(check_profile_default_ports() == 0);
+	CHECK(check_script_codec() == 0);
+	CHECK(check_complete_profile_roundtrip() == 0);
 	CHECK(check_profile_encodings() == 0);
 	CHECK(check_prepared_sort() == 0);
 	CHECK(st_bbs_name_equal("Stra\xc3\x9f" "e", "STRASSE"));
@@ -451,6 +611,7 @@ main(void)
 	paths.cached_system_list = system_list;
 	paths.download_directory = ST_BBS_TEST_DIRECTORY;
 	CHECK(check_encoding_persistence(&paths) == 0);
+	CHECK(check_connection_stats(&paths) == 0);
 
 	status = st_bbs_list_open(&first, &paths, NULL, 0);
 	CHECK(status == 0);
@@ -509,7 +670,7 @@ main(void)
 	(void)strcpy(profile.password, "beta-password");
 	(void)strcpy(profile.system_password, "system-password");
 	(void)strcpy(profile.comment, "round trip");
-	(void)strcpy(profile.wren_scripts, "one.wren,two.wren");
+	(void)strcpy(profile.wren_scripts, "one,two");
 	(void)strcpy(profile.terminal_name, "xterm-test");
 	(void)strcpy(profile.tls_psk_identity, "client");
 	(void)strcpy(profile.tls_psk, "00112233");
@@ -535,7 +696,7 @@ main(void)
 	profile.ssh_accept_early_data = true;
 	profile.telnet_no_binary = true;
 	profile.defer_telnet_negotiation = true;
-	profile.bps_rate = 38400;
+	profile.bps_rate = UINT32_MAX;
 	profile.sort_order = 7;
 	profile.palette[0] = 0x112233;
 	profile.palette[1] = 0xabcdef;

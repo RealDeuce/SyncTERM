@@ -11,6 +11,17 @@ import "scrollback_view" for ScrollbackView
 import "wren_console" for WrenConsole
 
 class OnlineMenu {
+  static logLevel_() {
+    var picked = -1
+    Screen.modalRun(Fn.new {
+      picked = ListPicker.pickWithSelection("Log Level",
+          "# Log Level\n\nSelect the transfer diagnostic threshold for this connection.",
+          Host.logLevelNames, Host.logLevel)
+    })
+    Input.setupMouseEvents()
+    if (picked >= 0) Host.logLevel = picked
+  }
+
   static outputRate_() {
     var rates = Host.outputRates
     var names = Host.outputRateNames
@@ -33,6 +44,7 @@ class OnlineMenu {
       ["Capture Control", Fn.new { CaptureMenu.run() }],
       ["Font Setup", Fn.new { FontApp.run() }],
       ["Output Rate", Fn.new { outputRate_() }],
+      ["Log Level", Fn.new { logLevel_() }],
       ["Toggle Doorway Mode", Fn.new {
         CTerm.doorwayMode = !CTerm.doorwayMode
       }],

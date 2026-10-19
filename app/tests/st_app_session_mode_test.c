@@ -18,6 +18,115 @@
 } while (false)
 
 static int
+check_profile_runtime(const struct st_wren_host_config *base,
+	st_wren_host_t *safe_host, st_console_display_t *display, st_console_t *console,
+	const struct st_app_paths *paths, st_hyperlink_registry_t *hyperlinks)
+{
+	struct st_wren_host_config config = *base;
+	st_wren_host_t *host = NULL;
+	st_bbs_list_t *list = NULL;
+	struct st_profile profile;
+	enum st_term_disposition disposition = ST_TERM_RETURN_TO_PICKER;
+	char buffer[16384];
+	FILE *file = fopen(paths->personal_list, "wb");
+	CHECK(file != NULL);
+	CHECK(fputs("[Options]\nConnectionType=Shell\nScreenMode=80x25\n"
+	    "Address=stty -echo; read line; printf O\n"
+	    "NoStatus=true\nHidePopups=true\nForceLCF=true\nYellowIsYellow=true\n"
+	    "ANSIMusic=2\nPalette=66051,16448250\nTotalCalls=5\n"
+	    "ProtocolLogLevel=Debug\nTransferLogLevel=Debug\n"
+	    "WrenScripts= entry_options ,entry_options\n"
+	    "LogFile=" ST_APP_SESSION_TEST_DIRECTORY "/entry.log\nAppendLogFile=false\n", file) >= 0);
+	CHECK(fclose(file) == 0);
+	CHECK(fs_create_directories(paths->scripts_directory) == 0);
+	file = fopen(ST_APP_SESSION_TEST_DIRECTORY "/scripts/entry_options.wren", "wb");
+	CHECK(file != NULL);
+	CHECK(fputs("import \"syncterm\" for BBS, CTerm, Conn, Host\n"
+	    "if (CTerm.music != 2 || !CTerm.lastColumnFlag.forced || !CTerm.hasPaletteOverride || CTerm.paletteOverride[6] != 66051) Fiber.abort(\"presentation options\")\n"
+	    "if (BBS.calls != 6 || BBS.connected <= 0 || Host.logLevel != 7 || BBS.wrenScripts.count != 1) Fiber.abort(\"session options\")\n"
+	    "Conn.send(\"X\\n\")\n", file) >= 0);
+	CHECK(fclose(file) == 0);
+	config.safe_mode = false;
+	CHECK(st_wren_host_create(&host, &config) == 0);
+	CHECK(st_bbs_list_open_replacement(&list, NULL, paths, NULL) == 0);
+	st_profile_init(&profile);
+	CHECK(st_profile_copy(&profile, st_bbs_list_find(list, "Options")->profile));
+	profile.identifier = 0; /* A saved selection, not a quick-connect draft. */
+	st_bbs_list_close(list);
+	CHECK(run_selected(host, display, console, &profile, paths, NULL,
+	    hyperlinks, NULL, &disposition) == 0);
+	CHECK(profile.calls == 6 && profile.connected > 0);
+	CHECK(st_bbs_list_open_replacement(&list, NULL, paths, NULL) == 0);
+	CHECK(st_bbs_list_find(list, "Options")->profile->calls == 6);
+	st_bbs_list_close(list);
+	file = fopen(profile.log_path, "rb");
+	CHECK(file != NULL);
+	size_t size = fread(buffer, 1, sizeof(buffer) - 1, file);
+	CHECK(!ferror(file) && fclose(file) == 0);
+	buffer[size] = '\0';
+	CHECK(strstr(buffer, "Log opened\n") != NULL);
+	CHECK(strstr(buffer, "Shell Info: starting PTY shell") != NULL);
+	CHECK(strstr(buffer, "Log closed\n---------------\n") != NULL);
+	/* Append/truncate and transfer records share the same file ownership. */
+	struct connection_ui ui = {.host = host, .profile = &profile};
+	CHECK(st_mutex_init(&ui.log_mutex, ST_MUTEX_PLAIN) == ST_THREAD_SUCCESS);
+	profile.append_log = true;
+	connection_log_open(&ui);
+	connection_transfer_log(&ui, ST_PROFILE_LOG_INFO, "transfer record");
+	connection_log_close(&ui);
+	file = fopen(profile.log_path, "rb");
+	CHECK(file != NULL);
+	size = fread(buffer, 1, sizeof(buffer) - 1, file);
+	CHECK(!ferror(file) && fclose(file) == 0);
+	buffer[size] = '\0';
+	CHECK(strstr(buffer, "transfer record\n") != NULL);
+	CHECK(strstr(buffer, "starting PTY shell") != NULL);
+	profile.append_log = false;
+	connection_log_open(&ui);
+	connection_log_close(&ui);
+	file = fopen(profile.log_path, "rb");
+	CHECK(file != NULL);
+	size = fread(buffer, 1, sizeof(buffer) - 1, file);
+	CHECK(!ferror(file) && fclose(file) == 0);
+	buffer[size] = '\0';
+	CHECK(strstr(buffer, "Log opened") != NULL && strstr(buffer, "transfer record") == NULL);
+	/* Safe mode must not even truncate an existing log or persist counters. */
+	ui.host = safe_host;
+	connection_log_open(&ui);
+	CHECK(ui.log_file == NULL);
+	CHECK(st_wren_host_record_connection(safe_host, &profile) == 0 && profile.calls == 7);
+	CHECK(st_bbs_list_open_replacement(&list, NULL, paths, NULL) == 0);
+	CHECK(st_bbs_list_find(list, "Options")->profile->calls == 6);
+	st_bbs_list_close(list);
+	st_mutex_destroy(&ui.log_mutex);
+	/* Failed attempts still own/close their log, but do not count calls. */
+	profile.connection_type = ST_CONNECTION_UNKNOWN;
+	CHECK(run_selected(host, display, console, &profile, paths, NULL,
+	    hyperlinks, NULL, &disposition) != 0);
+	CHECK(profile.calls == 7);
+	file = fopen(profile.log_path, "rb");
+	CHECK(file != NULL);
+	size = fread(buffer, 1, sizeof(buffer) - 1, file);
+	CHECK(!ferror(file) && fclose(file) == 0);
+	buffer[size] = '\0';
+	CHECK(strstr(buffer, "Log closed\n---------------\n") != NULL);
+	/* A log open failure must not turn a successful connection into failure. */
+	profile.connection_type = ST_CONNECTION_SHELL;
+	profile.identifier = -1;
+	profile.wren_scripts[0] = '\0';
+	strcpy(profile.address, "printf O");
+	free(profile.log_path);
+	profile.log_path = strdup(paths->cache_directory);
+	CHECK(profile.log_path != NULL);
+	CHECK(run_selected(host, display, console, &profile, paths, NULL,
+	    hyperlinks, NULL, &disposition) == 0);
+	st_profile_dispose(&profile);
+	st_wren_host_destroy(host);
+	CHECK(fs_remove_file(ST_APP_SESSION_TEST_DIRECTORY "/scripts/entry_options.wren") == 0);
+	return 0;
+}
+
+static int
 check_connection_help(void)
 {
 	struct connection_ui ui = {0};
@@ -331,6 +440,7 @@ main(void)
 	CHECK(st_wren_host_end_session_mode(host) == 0);
 
 	st_profile_dispose(&profile);
+	CHECK(check_profile_runtime(&host_config, host, display, console, &paths, hyperlinks) == 0);
 	st_wren_host_destroy(host);
 	st_console_destroy(picker);
 	st_console_destroy(console);

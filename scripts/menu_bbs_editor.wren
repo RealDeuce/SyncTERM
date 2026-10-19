@@ -473,7 +473,6 @@ class BbsEditor {
       "tlsPsk": b.tlsPsk,
       "tlsPskVersion": b.tlsPskVersion,
       "tlsVersionFloor": b.tlsVersionFloor,
-      "ghostProgram": b.ghostProgram,
       "sftpPublicKey": b.sftpPublicKey,
       "sshAllowAes128Cbc": b.sshAllowAes128Cbc,
       "sshAcceptEarlyData": b.sshAcceptEarlyData,
@@ -1506,7 +1505,6 @@ class BbsEditor {
     b.tlsPsk = d["tlsPsk"]
     b.tlsPskVersion = d["tlsPskVersion"]
     b.tlsVersionFloor = d["tlsVersionFloor"]
-    b.ghostProgram = d["ghostProgram"]
     b.sftpPublicKey = d["sftpPublicKey"]
     b.sshAllowAes128Cbc = d["sshAllowAes128Cbc"]
     b.sshAcceptEarlyData = d["sshAcceptEarlyData"]

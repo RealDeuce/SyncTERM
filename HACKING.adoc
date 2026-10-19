@@ -295,6 +295,8 @@ include::docs/api/models.adoc[]
 
 include::docs/api/reference/models.adoc[]
 
+include::docs/api/bbs-entry-fields.adoc[]
+
 include::docs/api/media.adoc[]
 
 include::docs/api/reference/media.adoc[]

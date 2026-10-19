@@ -11,6 +11,7 @@
 #include "st_codepage.h"
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <time.h>
 
@@ -206,5 +207,13 @@ void st_profile_dispose(struct st_profile *profile);
 /* Result must previously have been initialized; it is replaced on success. */
 bool st_profile_copy(struct st_profile *result,
 	const struct st_profile *source);
+
+const char *st_profile_ghost_program(const struct st_profile *profile);
+bool st_profile_script_name_valid(const char *name, size_t length);
+/* Append one name to a canonical comma list, retaining first occurrence order.
+ * Failure leaves the list unchanged. */
+bool st_profile_scripts_append(char *scripts, const char *name, size_t length);
+/* ASCII whitespace is trimmed per item. Invalid input leaves result unchanged. */
+bool st_profile_scripts_parse(char *result, const char *input);
 
 #endif

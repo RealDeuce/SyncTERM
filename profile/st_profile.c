@@ -105,6 +105,7 @@ st_profile_init(struct st_profile *profile)
 {
 	if (profile != NULL) {
 		memset(profile, 0, sizeof(*profile));
+		profile->identifier = -1;
 		profile->connection_type = ST_CONNECTION_SSH;
 		profile->port = st_connection_default_port(ST_CONNECTION_SSH);
 		profile->screen_mode = ST_SCREEN_MODE_CURRENT;
@@ -167,5 +168,88 @@ st_profile_copy(struct st_profile *result, const struct st_profile *source)
 	}
 	st_profile_dispose(result);
 	*result = copy;
+	return true;
+}
+
+const char *
+st_profile_ghost_program(const struct st_profile *profile)
+{
+	return profile->ghost_program[0] != '\0' ? profile->ghost_program
+	    : profile->connection_type == ST_CONNECTION_MBBS_GHOST ? profile->password : "";
+}
+
+bool
+st_profile_script_name_valid(const char *name, size_t length)
+{
+	static const char *const reserved[] = {
+		"syncterm_menu", "syncterm_picker", "picker_bootstrap"
+	};
+	if (name == NULL || length == 0 || length > 255)
+		return false;
+	for (size_t i = 0; i < length; ++i) {
+		unsigned char c = (unsigned char)name[i];
+		if (!((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
+		    || (c >= '0' && c <= '9') || c == '_'))
+			return false;
+	}
+	for (size_t i = 0; i < sizeof(reserved) / sizeof(reserved[0]); ++i) {
+		if (strlen(reserved[i]) == length
+		    && memcmp(reserved[i], name, length) == 0)
+			return false;
+	}
+	return true;
+}
+
+bool
+st_profile_scripts_append(char *scripts, const char *name, size_t length)
+{
+	size_t used;
+	if (!st_profile_script_name_valid(name, length))
+		return false;
+	for (const char *next = scripts; *next != '\0';) {
+		const char *comma = strchr(next, ',');
+		size_t size = comma == NULL ? strlen(next) : (size_t)(comma - next);
+		if (size == length && memcmp(next, name, length) == 0)
+			return true;
+		if (comma == NULL)
+			break;
+		next = comma + 1;
+	}
+	used = strlen(scripts);
+	if (used + (used != 0) + length > ST_PROFILE_WREN_SCRIPTS_MAX)
+		return false;
+	if (used != 0)
+		scripts[used++] = ',';
+	memcpy(scripts + used, name, length);
+	scripts[used + length] = '\0';
+	return true;
+}
+
+static bool
+script_space(unsigned char c)
+{
+	return c == ' ' || (c >= '\t' && c <= '\r');
+}
+
+bool
+st_profile_scripts_parse(char *result, const char *input)
+{
+	char scripts[ST_PROFILE_WREN_SCRIPTS_MAX + 1] = "";
+	if (input == NULL)
+		return false;
+	for (const char *next = input; *next != '\0';) {
+		const char *comma = strchr(next, ',');
+		const char *end = comma == NULL ? next + strlen(next) : comma;
+		while (next < end && script_space((unsigned char)*next))
+			++next;
+		while (end > next && script_space((unsigned char)end[-1]))
+			--end;
+		if (!st_profile_scripts_append(scripts, next, (size_t)(end - next)))
+			return false;
+		if (comma == NULL)
+			break;
+		next = comma + 1;
+	}
+	strcpy(result, scripts);
 	return true;
 }

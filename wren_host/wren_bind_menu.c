@@ -3662,7 +3662,25 @@ fn_settings_reload(WrenVM *vm)
 
 BBS_FIXED_PROPERTY(addr, address)
 BBS_FIXED_PROPERTY(user, username)
-BBS_FIXED_PROPERTY(password, password)
+static void
+fn_bbs_password(WrenVM *vm)
+{
+	struct foreign_bbs *bbs = bbs_value(vm, 0);
+	if (bbs != NULL)
+		wrenSetSlotString(vm, 0, bbs->record->profile.password);
+}
+
+static void
+fn_bbs_password_set(WrenVM *vm)
+{
+	struct foreign_bbs *bbs = bbs_value(vm, 0);
+	struct st_profile *profile = bbs_mutable_profile(vm, bbs);
+	if (profile != NULL && slot_fixed_string(vm, 1, profile->password,
+	    sizeof(profile->password))) {
+		profile->ghost_program[0] = '\0';
+		bbs_changed(bbs);
+	}
+}
 BBS_FIXED_PROPERTY(syspass, system_password)
 BBS_FIXED_PROPERTY(term_name, terminal_name)
 BBS_FIXED_PROPERTY(font, font)
@@ -3693,7 +3711,28 @@ fn_bbs_encoding_set(WrenVM *vm)
 	profile->encoding = (int)value;
 	bbs_changed(bbs);
 }
-BBS_FIXED_PROPERTY(ghost_program, ghost_program)
+static void
+fn_bbs_ghost_program(WrenVM *vm)
+{
+	struct foreign_bbs *bbs = bbs_value(vm, 0);
+	if (bbs != NULL)
+		wrenSetSlotString(vm, 0,
+		    st_profile_ghost_program(&bbs->record->profile));
+}
+
+static void
+fn_bbs_ghost_program_set(WrenVM *vm)
+{
+	struct foreign_bbs *bbs = bbs_value(vm, 0);
+	struct st_profile *profile = bbs_mutable_profile(vm, bbs);
+	if (profile == NULL)
+		return;
+	if (profile->connection_type == ST_CONNECTION_MBBS_GHOST)
+		fn_bbs_password_set(vm);
+	else if (slot_fixed_string(vm, 1, profile->ghost_program,
+	    sizeof(profile->ghost_program)))
+		bbs_changed(bbs);
+}
 BBS_FIXED_PROPERTY(tls_psk_identity, tls_psk_identity)
 BBS_FIXED_PROPERTY(tls_psk, tls_psk)
 BBS_OWNED_PROPERTY(dl_dir, download_directory)
@@ -3889,21 +3928,6 @@ fn_bbs_palette_set(WrenVM *vm)
 	bbs_changed(bbs);
 }
 
-static bool
-script_name_valid(const char *name, size_t length)
-{
-	if (length == 0)
-		return false;
-	for (size_t i = 0; i < length; ++i) {
-		unsigned char c = (unsigned char)name[i];
-
-		if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
-		    || (c >= '0' && c <= '9') || c == '_'))
-			return false;
-	}
-	return true;
-}
-
 static void
 fn_bbs_wren_scripts(WrenVM *vm)
 {
@@ -3934,9 +3958,8 @@ fn_bbs_wren_scripts_set(WrenVM *vm)
 {
 	struct foreign_bbs *bbs = bbs_value(vm, 0);
 	struct st_profile *profile = bbs_mutable_profile(vm, bbs);
-	char scripts[ST_PROFILE_WREN_SCRIPTS_MAX + 1];
+	char scripts[ST_PROFILE_WREN_SCRIPTS_MAX + 1] = "";
 	int count;
-	size_t used = 0;
 
 	if (profile == NULL)
 		return;
@@ -3956,19 +3979,13 @@ fn_bbs_wren_scripts_set(WrenVM *vm)
 			return;
 		}
 		name = wrenGetSlotBytes(vm, 2, &length);
-		if (length < 0 || !script_name_valid(name, (size_t)length)
-		    || used + (used == 0 ? 0 : 1) + (size_t)length
-		    > ST_PROFILE_WREN_SCRIPTS_MAX) {
+		if (length < 0 || !st_profile_scripts_append(scripts, name,
+		    (size_t)length)) {
 			st_wren_abort(vm, "BBS.wrenScripts contains an invalid name");
 			return;
 		}
-		if (used != 0)
-			scripts[used++] = ',';
-		memcpy(scripts + used, name, (size_t)length);
-		used += (size_t)length;
 	}
-	scripts[used] = '\0';
-	memcpy(profile->wren_scripts, scripts, used + 1);
+	strcpy(profile->wren_scripts, scripts);
 	bbs_changed(bbs);
 }
 

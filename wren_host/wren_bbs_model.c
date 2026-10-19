@@ -205,6 +205,9 @@ st_wren_bbs_model_build(struct st_wren_bbs_model *model,
 
 		if ((record = copy_entry(entry)) == NULL)
 			return IO_ERROR_OUT_OF_MEMORY;
+		for (struct st_wren_bbs_record *next = record; next != NULL;
+		    next = next->shadowed)
+			next->profile.identifier = model->next_identifier++;
 		model->entries[model->count++] = record;
 	}
 	model->loaded = true;
@@ -383,6 +386,12 @@ st_wren_bbs_model_create(struct st_wren_bbs_model *model, const char *name,
 	(void)snprintf(record->profile.name, sizeof(record->profile.name), "%s",
 	    name);
 	record->profile.source = ST_PROFILE_SOURCE_USER;
+	record->profile.identifier = -1;
+	if (record->profile.connection_type == ST_CONNECTION_MBBS_GHOST) {
+		(void)snprintf(record->profile.password, sizeof(record->profile.password),
+		    "%s", st_profile_ghost_program(source));
+		record->profile.ghost_program[0] = '\0';
+	}
 	record->profile.added = time(NULL);
 	record->profile.connected = 0;
 	record->profile.calls = 0;
@@ -451,6 +460,8 @@ st_wren_bbs_model_saved(struct st_wren_bbs_model *model,
     struct st_wren_bbs_record *record, const int *fields,
     size_t field_count)
 {
+	if (record->profile.identifier < 0)
+		record->profile.identifier = model->next_identifier++;
 	if (record->shadowed != NULL
 	    && !st_bbs_name_equal(record->profile.name,
 	    record->shadowed->profile.name)) {

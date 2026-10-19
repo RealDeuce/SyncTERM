@@ -1,0 +1,100 @@
+[[bbs-entry-fields]]
+=== BBS entry field coverage
+
+The INI codec covers 50 canonical keys and 56 profile members. `bbs_list`
+tests default and non-default encode/decode values for every persisted member,
+including full-width BPS/call counters, optional paths, palettes and fingerprints.
+Six metadata/derived members below are not additional INI keys.
+
+[cols="2m,2m,2m,4",options="header"]
+|===
+| Profile member | INI key | Wren BBS property | Runtime consumer
+| address | Address | addr | Transport endpoint / shell command
+| port | Port | port | Network connection
+| added | Added | added | Directory display/sort; set on add
+| connected | LastConnected | connected | Successful-connection transaction; directory sort/status
+| calls | TotalCalls | calls | Successful-connection transaction; directory sort
+| username | UserName | user | SSH, RLogin, MQTT and connected auto-login
+| password | Password | password / ghostProgram | Authentication, auto-login and GHost program
+| system_password | SystemPassword | syspass | Connected auto-login
+| connection_type | ConnectionType | connType | Connection dispatch; MQTT response policy
+| flow_control | FlowControl | flowControl | Serial/modem configuration
+| screen_mode | ScreenMode | screenMode | Session geometry/emulation; picker mode restored afterward
+| hide_status | NoStatus | noStatus | Session usable rows and connected status renderer
+| download_directory | DownloadPath | dlDir | Connected/SFTP download destination
+| upload_directory | UploadPath | ulDir | Connected/SFTP upload picker
+| log_path | LogFile | logFile | Application-owned protocol/transfer log file
+| transfer_log_level | TransferLogLevel | xferLogLevel | Initial VM-local Host.logLevel transfer threshold
+| protocol_log_level | ProtocolLogLevel | protocolLogLevel | Connection diagnostic threshold
+| append_log | AppendLogFile | appendLogFile | Log file append/truncate mode
+| bps_rate | BPSRate | bpsRate | Serial speed or terminal receive pacing; full uint32 range
+| music | ANSIMusic | music | Initial CTerm mode before scripts/input; reset restores BANSI
+| address_family | AddressFamily | addressFamily | Network resolver/connect policy
+| font | Font | font | Session font catalog selection, independent of transport
+| encoding | Encoding | encoding | Terminal Unicode boundary; ConPTY UTF-8/codepage bridge
+| hide_popups | HidePopups | hidePopups | Connection progress/error/disconnect UI
+| rip_version | RIP | rip | CTerm RIP parser/canvas setup
+| comment | Comment | comment | Directory UI/sort
+| wren_scripts | WrenScripts | wrenScripts | Ordered connected-script imports
+| force_lcf | ForceLCF | forceLcf | CTerm last-column flag, including reset
+| yellow_is_yellow | YellowIsYellow | yellowIsYellow | Session-local default brown-to-yellow policy; custom palette wins
+| terminal_name | TerminalType | termName | Telnet/RLogin/shell terminal identity
+| expand_lf | LFExpand | lfExpand | CTerm LF-as-CR+LF policy
+| telnet_no_binary | TelnetBrokenTextmode | telnetNoBinary | Telnet binary negotiation
+| defer_telnet_negotiation | TelnetDeferNegotiate | deferTelnetNegotiation | Telnet initial negotiation policy
+| tls_trust_web_pki | TLSTrustWebPKI | tlsTrustWebPki | TLS peer verification
+| tls_trusted_certificate | TLSTrustedCertificate | tlsTrustedCert | TLS pinned certificate / trust prompt
+| tls_client_certificate | TLSClientCertificate | tlsClientCert | TLS client authentication
+| tls_client_key | TLSClientKey | tlsClientKey | TLS client authentication
+| tls_psk_identity | TLSPSKIdentity | tlsPskIdentity | TLS PSK authentication
+| tls_psk | TLSPSK | tlsPsk | TLS PSK authentication
+| tls_psk_version | TLSPSKVersion | tlsPskVersion | TLS PSK protocol selection
+| tls_version_floor | TLSVersionFloor | tlsVersionFloor | TLS downgrade policy and remembered observations
+| ssh_fingerprint | SSHFingerprint | sshFingerprint | SSH host-key verification/change prompt
+| sftp_public_key | SFTPPublicKey | sftpPublicKey | SSH SCP public-key upload option
+| ssh_allow_aes128_cbc | SSHAllowAES128CBC | sshAllowAes128Cbc | SSH cipher policy
+| ssh_accept_early_data | SSHAcceptEarlyData | sshAcceptEarlyData | SSH pre-authentication data policy
+| stop_bits | StopBits | stopBits | Serial/modem configuration
+| data_bits | DataBits | dataBits | Serial/modem configuration
+| parity | Parity | parity | Serial/modem configuration
+| palette | Palette | palette | Mode-family expansion; initial frame and terminal reset
+| sort_order | SortOrder | sortOrder | Directory explicit-order sort
+|===
+
+[cols="2m,2m,6",options="header"]
+|===
+| Metadata member | Wren property | Contract
+| name | name | INI section name; normalized once at INI/Wren text boundary
+| source | type | Personal/system provenance, not stored as a key
+| identifier | id | Distinct per menu load, stable across sort/rename; -1 for defaults/quick/unsaved records; assigned on successful save
+| ghost_program | ghostProgram | Transient URL override; named copies/save use Password, never a GHostProgram key
+| palette_size | paletteSize | Number of explicit Palette values (0..16)
+| ssh_fingerprint_size | sshFingerprintLen | Derived decoded fingerprint byte length (0, 20 or 32)
+|===
+
+`WrenScripts` items are ASCII-whitespace-trimmed, validated basenames (1..255
+ASCII letters/digits/underscores), deduplicated in first-occurrence order, and
+limited to 1023 serialized bytes. Reserved menu/bootstrap module names are
+rejected. Invalid stored lists are ignored; invalid Wren assignments leave the
+previous list intact. Names have no `.wren` suffix.
+
+Saving an affected entry or defaults materializes canonical ConnectionType and
+ProtocolLogLevel values before removing BeDumb and TelnetLogLevel aliases.
+Unrelated keys/sections and concurrent field edits remain intact.
+
+Statistics are recorded once after transport establishment, before connected
+scripts. The locked transaction increments the latest stored count rather than
+overwriting it from a stale menu snapshot. A system/web entry is copied to the
+personal directory on its first successful connection; its source is untouched.
+Quick connections are not persisted. Safe mode updates only the active profile,
+opening no log file and writing no directory. Write failures are nonfatal
+diagnostics, with no new blocking dialogs.
+
+`app_session_mode` exercises INI -> real application PTY session -> connected
+Wren/CTerm -> log/statistics -> reload. `wren_bbs-setters` exercises menu
+save/reload, script validation, GHost and BPS persistence. `cterm` and
+`screen_mode` cover palette families and reset semantics; `term` checks response
+suppression independently of user input. `connection_shell_codec` checks
+incremental conversion and partial I/O on every platform;
+`connection_conpty_encoding` exercises Wide Console input/output in native
+Windows CI (not Wine).

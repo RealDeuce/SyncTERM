@@ -321,6 +321,7 @@ struct cterminal {
 
 	/* Per-entry palette override (survives cterm_reset) */
 	bool				has_palette_override;
+	bool yellow_is_yellow;
 	uint32_t			palette_override[16];	// 0x00RRGGBB
 
 	/* Prestel data */
@@ -455,7 +456,8 @@ extern "C" {
 struct cterminal *cterm_init(int height, int width, int xpos, int ypos,
 	int backlines, int backcols, struct st_console_cell *scrollback,
 	int emulation,
-	const struct cterm_render_state *screen);
+	const struct cterm_render_state *screen,
+	const struct st_cterm_config *initial);
 size_t cterm_write(struct cterminal *cterm, const void *buf, int buflen,
 	int *speed);
 int cterm_openlog(struct cterminal *cterm, char *logfile, int logtype);

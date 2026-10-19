@@ -173,8 +173,8 @@ st_bbs_decode_profile(struct st_profile *profile,
 	profile->stop_bits = (uint16_t)bounded_int(section, "StopBits", 1, 1, 2);
 	profile->parity = (int)ini_section_get_enum_names(section, "Parity",
 	    ENUM_NAMES(parities), ST_PROFILE_PARITY_NONE);
-	profile->bps_rate = (uint32_t)bounded_int(section, "BPSRate", 0, 0,
-	    INT_MAX);
+	profile->bps_rate = (uint32_t)ini_section_get_bounded_int64(section,
+	    "BPSRate", 0, 0, UINT32_MAX);
 	profile->music = bounded_int(section, "ANSIMusic", ST_PROFILE_MUSIC_BANSI,
 	    ST_PROFILE_MUSIC_SYNCTERM, ST_PROFILE_MUSIC_ALL);
 	profile->address_family = (int)ini_section_get_enum_names(section,
@@ -211,8 +211,8 @@ st_bbs_decode_profile(struct st_profile *profile,
 		    "Password", "");
 		copy_fixed(profile->system_password, sizeof(profile->system_password),
 		    section, "SystemPassword", "");
-		copy_fixed(profile->wren_scripts, sizeof(profile->wren_scripts), section,
-		    "WrenScripts", "");
+		(void)st_profile_scripts_parse(profile->wren_scripts,
+		    ini_section_get_string(section, "WrenScripts", ""));
 		copy_fixed(profile->tls_psk_identity,
 		    sizeof(profile->tls_psk_identity), section, "TLSPSKIdentity", "");
 		copy_fixed(profile->tls_psk, sizeof(profile->tls_psk), section,
@@ -336,7 +336,9 @@ st_bbs_encode_profile(ini_section_t *section,
 		    profile->member == NULL ? "" : profile->member, &ini_default_style))
 		ENCODE(ini_section_set_string(section, "UserName", profile->username,
 		    &ini_default_style));
-		ENCODE(ini_section_set_string(section, "Password", profile->password,
+		ENCODE(ini_section_set_string(section, "Password",
+		    profile->connection_type == ST_CONNECTION_MBBS_GHOST
+		    ? st_profile_ghost_program(profile) : profile->password,
 		    &ini_default_style));
 		ENCODE(ini_section_set_string(section, "SystemPassword",
 		    profile->system_password, &ini_default_style));

@@ -118,6 +118,47 @@ crc16(const void *data, size_t size)
 }
 
 static void
+test_profile_presentation(void)
+{
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config geometry = {
+		.columns = 20, .rows = 4, .cell_width = 8, .cell_height = 16,
+	};
+	st_console_t *console = NULL;
+	st_font_catalog_t *fonts = NULL;
+	CHECK(st_console_create(&console, &display, &geometry) == 0);
+	CHECK(st_font_catalog_create(&fonts, console) == 0);
+	for (unsigned custom = 0; custom < 2; ++custom) {
+		st_cterm_t *terminal = NULL;
+		uint32_t palette[16];
+		uint32_t actual;
+		struct st_cterm_state state;
+		for (unsigned i = 0; i < 16; ++i)
+			palette[i] = 0x123400 + i;
+		const struct st_cterm_config config = {
+			.console = console, .fonts = fonts, .encoding = ST_CTERM_ENCODING_UTF8,
+			.force_lcf = true, .yellow_is_yellow = true,
+			.palette_override = custom ? palette : NULL,
+		};
+		CHECK(st_cterm_create(&terminal, &config) == 0);
+		for (unsigned reset = 0; reset < 2; ++reset) {
+			CHECK(st_cterm_state(terminal, &state) == 0);
+			CHECK(state.last_column_flag.forced && state.last_column_flag.enabled);
+			CHECK(state.has_palette_override == (custom != 0));
+			CHECK(st_console_get_palette(console, 19, &actual, 1) == 0);
+			CHECK(actual == (custom ? palette[6] : 0xa8a800));
+			CHECK(st_cterm_music_mode(terminal) == 1);
+			st_cterm_set_music_mode(terminal, 2);
+			CHECK(st_cterm_music_mode(terminal) == 2);
+			CHECK(st_cterm_reset_terminal(terminal) == 0);
+		}
+		st_cterm_destroy(&terminal);
+	}
+	st_font_catalog_destroy(fonts);
+	st_console_destroy(console);
+}
+
+static void
 test_lf_expand(void)
 {
 	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
@@ -303,6 +344,7 @@ int
 main(void)
 {
 	test_lf_expand();
+	test_profile_presentation();
 	test_disconnect_row();
 	test_zero_width_text();
 	const struct st_console_display_config display = {
