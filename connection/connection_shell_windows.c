@@ -6,6 +6,7 @@
  */
 
 #include "connection_internal.h"
+#include "connection_shell_codec.h"
 
 #include "io_error.h"
 #include "st_windows_utf.h"
@@ -36,6 +37,8 @@ struct shell_transport {
 	bool console_mutex_initialized;
 	st_thread_t lifecycle_thread;
 	bool lifecycle_started;
+	bool utf8;
+	struct st_shell_codec codec;
 };
 
 /* The process handle and stop event outlive this thread. On natural exit,
@@ -157,7 +160,7 @@ shell_overlapped_io(struct shell_transport *transport, void *data,
 }
 
 static ssize_t
-shell_read_transport(void *state, void *data, size_t size,
+shell_read_utf8(void *state, void *data, size_t size,
 	int64_t timeout_ms)
 {
 	struct shell_transport *transport = state;
@@ -166,13 +169,31 @@ shell_read_transport(void *state, void *data, size_t size,
 }
 
 static ssize_t
-shell_write_transport(void *state, const void *data, size_t size,
+shell_write_utf8(void *state, const void *data, size_t size,
 	int64_t timeout_ms)
 {
 	struct shell_transport *transport = state;
 
 	return shell_overlapped_io(transport, (void *)data, size, timeout_ms,
 	    false);
+}
+
+static ssize_t
+shell_read_transport(void *state, void *data, size_t size, int64_t timeout_ms)
+{
+	struct shell_transport *transport = state;
+	return transport->utf8 ? shell_read_utf8(state, data, size, timeout_ms)
+	    : st_shell_codec_read(&transport->codec, data, size, timeout_ms,
+	    shell_read_utf8, state);
+}
+
+static ssize_t
+shell_write_transport(void *state, const void *data, size_t size, int64_t timeout_ms)
+{
+	struct shell_transport *transport = state;
+	return transport->utf8 ? shell_write_utf8(state, data, size, timeout_ms)
+	    : st_shell_codec_write(&transport->codec, data, size, timeout_ms,
+	    shell_write_utf8, state);
 }
 
 static void
@@ -434,6 +455,8 @@ st_connection_connect_shell(st_connection_t **result,
 		    ST_CONNECTION_SETUP_STARTING_SHELL,
 		    "unable to allocate ConPTY shell state");
 	transport->resize_console = resize_console;
+	transport->utf8 = profile->encoding == ST_PROFILE_ENCODING_UTF8;
+	transport->codec.codepage = (enum st_codepage)profile->encoding;
 	if (hooks != NULL) transport->hooks = *hooks;
 	transport->close_console = close_console;
 	transport->input_pipe = INVALID_HANDLE_VALUE;

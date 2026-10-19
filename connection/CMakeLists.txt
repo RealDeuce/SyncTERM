@@ -49,6 +49,10 @@ if(NOT TARGET st_time)
 	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../time"
 		"${CMAKE_CURRENT_BINARY_DIR}/time")
 endif()
+if(NOT TARGET st_utf8)
+	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../utf8"
+		"${CMAKE_CURRENT_BINARY_DIR}/utf8")
+endif()
 if(NOT TARGET st_sftp_client)
 	add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/../sftp_client"
 		"${CMAKE_CURRENT_BINARY_DIR}/sftp_client")
@@ -237,6 +241,10 @@ add_library(st_connection STATIC
 	connection_stream.c connection_tls.c connection_telnet.c connection_ghost.c connection_mqtt.c
 	${ST_CONNECTION_SSH_SOURCE}
 	${ST_CONNECTION_SHELL_SOURCE})
+if(ST_CONNECTION_HAVE_CONPTY)
+	target_sources(st_connection PRIVATE connection_shell_codec.c)
+	target_link_libraries(st_connection PRIVATE st_utf8)
+endif()
 if(CMAKE_C_COMPILER_ID STREQUAL "GNU" AND ST_CONNECTION_HAVE_CONPTY)
 	set_source_files_properties(connection_shell_windows.c PROPERTIES
 		COMPILE_OPTIONS "-Wno-pedantic;-Wno-cast-function-type")
@@ -284,6 +292,22 @@ if(MSVC)
 endif()
 
 if(BUILD_TESTING)
+	add_executable(st_shell_codec_test tests/st_shell_codec_test.c connection_shell_codec.c)
+	target_link_libraries(st_shell_codec_test PRIVATE st_connection st_utf8 st_time)
+	set_target_properties(st_shell_codec_test PROPERTIES
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	st_connection_warnings(st_shell_codec_test)
+	add_test(NAME connection_shell_codec COMMAND st_shell_codec_test)
+	if(ST_CONNECTION_HAVE_CONPTY)
+		add_executable(st_conpty_encoding_test tests/st_conpty_encoding_test.c)
+		target_link_libraries(st_conpty_encoding_test PRIVATE st_connection st_time)
+		set_target_properties(st_conpty_encoding_test PROPERTIES
+			C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		st_connection_warnings(st_conpty_encoding_test)
+		add_test(NAME connection_conpty_encoding COMMAND st_conpty_encoding_test)
+		set_tests_properties(connection_conpty_encoding PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 45
+			WORKING_DIRECTORY $<TARGET_FILE_DIR:st_conpty_encoding_test>)
+	endif()
 	if(NOT WIN32)
 		if(ST_DEUCESSH_TARGET)
 			if(NOT TARGET st_base64)
