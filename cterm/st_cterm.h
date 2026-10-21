@@ -119,6 +119,13 @@ struct st_cterm_config {
 	void *apc_context;
 	st_cterm_size_callback_t size_changed;
 	void *size_context;
+	/* Optional session-owned emulated speed, in BPS (zero is unlimited).
+	 * DECRQSS queries the effective speed; DECSCS requests a change, which
+	 * the owner may ignore when throttling is unsupported. Without these
+	 * callbacks, the parser retains its own DECSCS state. */
+	uint32_t (*speed_query)(void *context);
+	void (*speed_changed)(void *context, uint32_t bps);
+	void *speed_context;
 	/* Without a callback, interactive RIP_DEFINE leaves the variable unchanged. */
 	st_cterm_rip_prompt_callback_t rip_prompt;
 	void *rip_prompt_context;

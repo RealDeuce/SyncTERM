@@ -324,8 +324,52 @@ test_shell_wire_filter(void)
 	return 0;
 }
 
+struct speed_response {
+	uint8_t bytes[64];
+	size_t size;
+};
+
+static void
+capture_speed_response(void *context, enum st_cterm_output_origin origin,
+	const uint8_t *bytes, size_t size)
+{
+	struct speed_response *response = context;
+
+	if (origin == ST_CTERM_OUTPUT_RESPONSE
+	    && size <= sizeof(response->bytes) - response->size) {
+		memcpy(response->bytes + response->size, bytes, size);
+		response->size += size;
+	}
+}
+
 static int
-test_shell_throttle(void)
+check_speed_reply(st_cterm_t *terminal, unsigned code)
+{
+	static const char query[] = "\x1bP$q*r\x1b\\";
+	struct speed_response response = {0};
+	st_cterm_output_callback_t saved_output = terminal->api_output;
+	void *saved_context = terminal->api_output_context;
+	char expected[32];
+	size_t consumed;
+	int length = snprintf(expected, sizeof(expected),
+	    "\x1bP1$r;%u*r\x1b\\", code);
+
+	CHECK(length > 0 && (size_t)length < sizeof(expected));
+	terminal->api_output = capture_speed_response;
+	terminal->api_output_context = &response;
+	for (size_t i = 0; i < sizeof(query) - 1; ++i) {
+		CHECK(st_cterm_write(terminal, query + i, 1, &consumed) == 0);
+		CHECK(consumed == 1);
+	}
+	terminal->api_output = saved_output;
+	terminal->api_output_context = saved_context;
+	CHECK(response.size == (size_t)length);
+	CHECK(memcmp(response.bytes, expected, response.size) == 0);
+	return 0;
+}
+
+static int
+test_shell_throttle(enum st_cterm_encoding encoding)
 {
 	const struct st_console_display_config display = {
 		.backend = ST_CONSOLE_BACKEND_HEADLESS,
@@ -350,20 +394,25 @@ test_shell_throttle(void)
 	st_profile_init(&profile);
 	profile.connection_type = ST_CONNECTION_SHELL;
 	profile.screen_mode = ST_SCREEN_MODE_80X25;
+	profile.bps_rate = 300;
 	strcpy(profile.address, "printf ABCD; sleep 1");
 	CHECK(st_term_connect_profile(&connection, &profile, console, NULL,
 	    NULL) == 0);
-	const struct st_term_config config = {
+	struct st_term_config config = {
 		.console = console, .connection = connection, .fonts = fonts,
 		.screen_mode = ST_SCREEN_MODE_80X25,
-		.encoding = ST_CTERM_ENCODING_UTF8,
+		.encoding = encoding,
 		.codepage = ST_CODEPAGE_CP437,
 		.hide_status = true,
 		.throttle_supported = true,
-		.initial_throttle_bps = 300,
+		.initial_throttle_bps = profile.bps_rate,
 	};
 	CHECK(st_term_session_create(&session, &config) == 0);
 	CHECK(st_term_session_throttle_speed(session) == 300);
+	st_cterm_t *terminal = st_term_session_cterm(session);
+	CHECK(check_speed_reply(terminal, 1) == 0);
+	CHECK(st_cterm_reset_terminal(terminal) == 0);
+	CHECK(check_speed_reply(terminal, 1) == 0);
 	for (size_t attempt = 0; attempt < 100 && !first; ++attempt) {
 		CHECK(st_term_session_pump(session, &disposition, &finished) == 0);
 		CHECK(st_console_read_cells(console, &row, cells, 4) == 0);
@@ -372,6 +421,7 @@ test_shell_throttle(void)
 	CHECK(first && cells[1].glyph != 'B');
 	st_term_session_set_throttle_speed(session, 0);
 	CHECK(st_term_session_throttle_speed(session) == 0);
+	CHECK(check_speed_reply(terminal, 0) == 0);
 	for (size_t attempt = 0; attempt < 100 && !complete; ++attempt) {
 		CHECK(st_term_session_pump(session, &disposition, &finished) == 0);
 		CHECK(st_console_read_cells(console, &row, cells, 4) == 0);
@@ -379,6 +429,47 @@ test_shell_throttle(void)
 		    && cells[2].glyph == 'C' && cells[3].glyph == 'D';
 	}
 	CHECK(complete);
+	static const uint32_t speeds[] = {
+		0, 300, 600, 1200, 2400, 4800, 9600, 19200, 38400,
+		57600, 76800, 115200,
+	};
+	for (size_t code = 0; code < sizeof(speeds) / sizeof(speeds[0]); ++code) {
+		st_term_session_set_throttle_speed(session, speeds[code]);
+		CHECK(check_speed_reply(terminal, (unsigned)code) == 0);
+	}
+	st_term_session_set_throttle_speed(session, UINT32_MAX);
+	CHECK(check_speed_reply(terminal, 0) == 0);
+	size_t consumed;
+	static const char set_speed[] = "\x1b[;2*r";
+	CHECK(st_cterm_write(terminal, set_speed, sizeof(set_speed) - 1,
+	    &consumed) == 0 && consumed == sizeof(set_speed) - 1);
+	CHECK(st_term_session_throttle_speed(session) == 600);
+	CHECK(check_speed_reply(terminal, 2) == 0);
+	static const char invalid[] = "\x1b[2;1*r\x1b[;12*r";
+	CHECK(st_cterm_write(terminal, invalid, sizeof(invalid) - 1,
+	    &consumed) == 0 && consumed == sizeof(invalid) - 1);
+	CHECK(st_term_session_throttle_speed(session) == 600);
+	CHECK(check_speed_reply(terminal, 2) == 0);
+	static const char status_display[] = "\x1b[2$~\x1b[1$}";
+	CHECK(st_cterm_write(terminal, status_display, sizeof(status_display) - 1,
+	    &consumed) == 0 && consumed == sizeof(status_display) - 1);
+	CHECK(check_speed_reply(terminal, 2) == 0);
+	static const char status_speed[] = "\x1b[;3*r\x1b[0$}";
+	CHECK(st_cterm_write(terminal, status_speed, sizeof(status_speed) - 1,
+	    &consumed) == 0 && consumed == sizeof(status_speed) - 1);
+	CHECK(st_term_session_throttle_speed(session) == 1200);
+	CHECK(check_speed_reply(terminal, 3) == 0);
+	st_term_session_destroy(&session);
+	/* Connections without emulated throttling must report their effective
+	 * speed even when the profile or peer requests emulation. */
+	config.throttle_supported = false;
+	CHECK(st_term_session_create(&session, &config) == 0);
+	terminal = st_term_session_cterm(session);
+	CHECK(check_speed_reply(terminal, 0) == 0);
+	CHECK(st_cterm_write(terminal, set_speed, sizeof(set_speed) - 1,
+	    &consumed) == 0 && consumed == sizeof(set_speed) - 1);
+	CHECK(st_term_session_throttle_speed(session) == 0);
+	CHECK(check_speed_reply(terminal, 0) == 0);
 	st_term_session_destroy(&session);
 	CHECK(st_connection_close(connection) == 0);
 	st_profile_dispose(&profile);
@@ -834,7 +925,8 @@ main(void)
 	CHECK(test_shell_apc() == 0);
 	CHECK(test_prestel_keyboard_session() == 0);
 	CHECK(test_shell_wire_filter() == 0);
-	CHECK(test_shell_throttle() == 0);
+	CHECK(test_shell_throttle(ST_CTERM_ENCODING_UTF8) == 0);
+	CHECK(test_shell_throttle(ST_CTERM_ENCODING_CODEPAGE) == 0);
 	CHECK(test_shell_utf8_boundary() == 0);
 	CHECK(test_remote_disconnect() == 0);
 	CHECK(test_shell_rip_profile() == 0);

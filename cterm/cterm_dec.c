@@ -2405,8 +2405,12 @@ cterm_dec_dcs_finish(struct cterminal *cterm)
 					cterm_respond(cterm, tmp, strlen(tmp));
 				}
 				else if (cterm->strbuf[3] == 'r' && cterm->strbuf[4] == 0) {
+					struct cterminal *owner = cterm->parent ? cterm->parent : cterm;
+					uint32_t bps = owner->api_speed_query != NULL
+					    ? owner->api_speed_query(owner->api_speed_context)
+					    : (uint32_t)owner->decscs_speed;
 					int ps2 = 0;
-					switch (cterm->decscs_speed) {
+					switch (bps) {
 						case 300:    ps2 = 1; break;
 						case 600:    ps2 = 2; break;
 						case 1200:   ps2 = 3; break;

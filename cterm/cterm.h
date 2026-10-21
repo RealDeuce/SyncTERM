@@ -133,6 +133,9 @@ struct cterminal {
 	void *api_apc_context;
 	st_cterm_size_callback_t api_size_changed;
 	void *api_size_context;
+	uint32_t (*api_speed_query)(void *context);
+	void (*api_speed_changed)(void *context, uint32_t bps);
+	void *api_speed_context;
 	uint16_t api_mouse_modes;
 	uint32_t api_mouse_buttons;
 	bool api_status_destroy_pending;

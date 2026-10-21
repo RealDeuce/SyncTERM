@@ -2084,6 +2084,9 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 	}
 	terminal->api_size_changed = config->size_changed;
 	terminal->api_size_context = config->size_context;
+	terminal->api_speed_query = config->speed_query;
+	terminal->api_speed_changed = config->speed_changed;
+	terminal->api_speed_context = config->speed_context;
 	terminal->response_cb = emit_response;
 	terminal->response_cbdata = terminal;
 	terminal->keystroke_cb = emit_user;

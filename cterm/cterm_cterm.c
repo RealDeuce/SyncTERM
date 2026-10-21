@@ -103,9 +103,14 @@ cterm_handle_decscs(struct cterminal *cterm, int *speed)	/* CSI Ps1;Ps2 * r — 
 			case 11: newspeed = 115200; break;
 		}
 	}
-	if (newspeed >= 0 && speed != NULL) {
-		*speed = newspeed;
-		cterm->decscs_speed = newspeed;
+	if (newspeed >= 0) {
+		struct cterminal *owner = cterm->parent ? cterm->parent : cterm;
+		if (speed != NULL)
+			*speed = newspeed;
+		owner->decscs_speed = newspeed;
+		if (owner->api_speed_changed != NULL)
+			owner->api_speed_changed(owner->api_speed_context,
+			    (uint32_t)newspeed);
 	}
 }
 

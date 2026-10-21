@@ -135,6 +135,18 @@ cterm_output(void *context, enum st_cterm_output_origin origin,
 		session->output_error = 0;
 }
 
+static uint32_t
+cterm_speed_query(void *context)
+{
+	return st_term_session_throttle_speed(context);
+}
+
+static void
+cterm_speed_changed(void *context, uint32_t bps)
+{
+	st_term_session_set_throttle_speed(context, bps);
+}
+
 static void
 cterm_size(void *context, uint32_t columns, uint32_t rows,
 	uint32_t pixel_width, uint32_t pixel_height)
@@ -288,6 +300,9 @@ st_term_session_create(st_term_session_t **result,
 		.output_context = session,
 		.size_changed = cterm_size,
 		.size_context = session,
+		.speed_query = cterm_speed_query,
+		.speed_changed = cterm_speed_changed,
+		.speed_context = session,
 		.rip_prompt = config->rip_prompt,
 		.rip_prompt_context = config->rip_prompt_context,
 		.input_filter = config->input_filter,

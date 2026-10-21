@@ -452,6 +452,30 @@ main(void)
 
 	CHECK(st_console_create(&console, &display, &console_config) == 0);
 	CHECK(st_font_catalog_create(&fonts, console) == 0);
+	/* Standalone parsers retain speed state without session callbacks;
+	 * both displays share the terminal's communication speed. */
+	for (unsigned encoding = 0; encoding < 2; ++encoding) {
+		const struct st_cterm_config speed_config = {
+			.console = console, .fonts = fonts,
+			.emulation = ST_CTERM_ANSI_BBS,
+			.encoding = encoding ? ST_CTERM_ENCODING_CODEPAGE : ST_CTERM_ENCODING_UTF8,
+			.codepage = ST_CODEPAGE_CP437, .quiet = true,
+			.output = capture, .output_context = &output,
+		};
+		static const char input[] =
+		    "\x1bP$q*r\x1b\\\x1b[;1*r\x1bP$q*r\x1b\\"
+		    "\x1b[2$~\x1b[1$}\x1bP$q*r\x1b\\"
+		    "\x1b[;3*r\x1b[0$}\x1bP$q*r\x1b\\";
+		static const char expected[] =
+		    "\x1bP1$r;0*r\x1b\\\x1bP1$r;1*r\x1b\\"
+		    "\x1bP1$r;1*r\x1b\\\x1bP1$r;3*r\x1b\\";
+		CHECK(st_cterm_create(&terminal, &speed_config) == 0);
+		feed(terminal, input, sizeof(input) - 1);
+		CHECK(output.size == sizeof(expected) - 1);
+		CHECK(memcmp(output.bytes, expected, output.size) == 0);
+		st_cterm_destroy(&terminal);
+		output = (struct output){0};
+	}
 	/* DECDMAC's body parser must not depend on plain-char signedness.
 	 * Isolate it from the outer command-string framer's 7-bit restrictions. */
 	{
