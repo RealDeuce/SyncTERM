@@ -332,14 +332,14 @@ cterm_dispatch_vt52(struct cterminal *cterm, unsigned char byte, int *speed)
 
 	switch (byte) {
 		case 7:		/* BEL */
-			cterm->lastch = 0;
+			cterm_text_forget(cterm);
 			cterm_uctputs(cterm, cterm->print_buf);
 			cterm->print_buf[0] = 0;
 			cterm->print_pos = cterm->print_buf;
 			if (cterm->log == CTERM_LOG_ASCII && cterm->logfile != NULL)
 				fputs("\x07", cterm->logfile);
 			if (!cterm->quiet) {
-				cterm_render_write_byte(cterm, 7);
+				cterm_render_beep(cterm);
 			}
 			break;
 		case 11:	/* VT — treated as LF */
@@ -371,7 +371,6 @@ cterm_dispatch_vt52(struct cterminal *cterm, unsigned char byte, int *speed)
 			/* Silently dropped. */
 			break;
 		default:
-			cterm->lastch = byte;
 			*cterm->print_pos++ = byte;
 			*cterm->print_pos = 0;
 	}

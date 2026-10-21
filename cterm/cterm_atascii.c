@@ -158,7 +158,7 @@ atascii_backspace(struct cterminal *cterm)	/* 126 — erase, no wrap */
 	if (x < CURR_MINX)
 		return;
 	cterm_render_set_position(cterm, x, y);
-	cterm_render_write_byte(cterm, 32);
+	cterm_text_literal(cterm, ' ');
 	cterm_render_set_position(cterm, x, y);
 }
 
@@ -215,7 +215,7 @@ static void
 atascii_bell(struct cterminal *cterm)	/* 253 */
 {
 	if (!cterm->quiet) {
-		cterm_render_write_byte(cterm, 7);
+		cterm_render_beep(cterm);
 	}
 }
 
@@ -250,7 +250,7 @@ atascii_insert_char(struct cterminal *cterm)	/* 255 */
 		cterm_coord_conv_xy(cterm, CTERM_COORD_CURR, CTERM_COORD_SCREEN, &ex, NULL);
 		cterm_render_move_cells(cterm, sx, sy, ex - 1, sy, sx + 1, sy);
 	}
-	cterm_render_write_byte(cterm, 32);
+	cterm_text_literal(cterm, ' ');
 	cterm_render_set_position(cterm, x, y);
 }
 

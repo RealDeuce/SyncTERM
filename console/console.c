@@ -2894,6 +2894,23 @@ st_console_font_lookup_fallback(st_console_t *console, uint16_t identifier,
 }
 
 int
+st_console_font_lookup_decode_error(st_console_t *console, uint32_t *glyph)
+{
+	const struct st_console_font *font;
+	bool found;
+	if (console == NULL || glyph == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (st_rwlock_read_lock(&console->state_lock) != ST_THREAD_SUCCESS)
+		return IO_ERROR_IO;
+	font = st_console_font_locked(console, 0);
+	found = font != NULL;
+	if (found)
+		*glyph = font->decode_error_glyph;
+	(void)st_rwlock_unlock(&console->state_lock);
+	return found ? 0 : IO_ERROR_NOT_FOUND;
+}
+
+int
 st_console_font_lookup_cluster(st_console_t *console, uint16_t identifier,
 	const char *text, size_t text_size, uint8_t columns,
 	uint16_t *glyph_font, uint32_t *glyph)

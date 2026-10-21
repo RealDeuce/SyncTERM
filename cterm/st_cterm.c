@@ -46,6 +46,7 @@ static int rip_activate_field(st_cterm_t *terminal,
 static int rip_compat_frame(st_cterm_t *terminal);
 static void status_display_changed(struct cterminal *terminal,
     int old_type, int new_type, void *context);
+static void input_cleanup(st_cterm_t *owner);
 static int resize_scrollback(st_cterm_t *terminal, uint32_t columns,
     struct st_console_cell **result);
 static void resize_parser_geometry(st_cterm_t *terminal, int columns,
@@ -204,6 +205,16 @@ rip_passthrough(void *context, const uint8_t *bytes, size_t size)
 	int status = write_plain(terminal, bytes, size, &consumed, false);
 
 	return status == 0 && consumed != size ? IO_ERROR_IO : status;
+}
+
+static int
+rip_text_boundary(void *context)
+{
+	st_cterm_t *terminal = context;
+	int status = cterm_text_boundary(terminal);
+	if (status == 0 && terminal->status_sub != NULL)
+		status = cterm_text_boundary(terminal->status_sub);
+	return status;
 }
 
 static int
@@ -1711,135 +1722,6 @@ mouse_mode_query(int parameter, void *context)
 	return (terminal->api_mouse_modes & mouse_mode_bit(parameter)) != 0;
 }
 
-static int
-prepare_rip_unicode_position(st_cterm_t *target, int *x, int *y)
-{
-	struct cterminal *cterm = target;
-	int right = TERM_MAXX;
-
-	if (target->rip_engine == NULL)
-		return 0;
-	cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_CURR,
-	    &right, NULL);
-	if ((target->last_column_flag & (CTERM_LCF_ENABLED | CTERM_LCF_SET))
-	    != (CTERM_LCF_ENABLED | CTERM_LCF_SET)
-	    || (*x != right && *x != CURR_MAXX))
-		return 0;
-	/* The console itself does not auto-wrap; RIP uses CTerm's deferred
-	 * last-column wrap before the next printable grapheme. */
-	cterm_advance_char(target, x, y, 1);
-	cterm_clear_lcf(target);
-	return cterm_render_take_error(target);
-}
-
-static void
-record_rip_unicode_position(st_cterm_t *target, int x, uint8_t columns)
-{
-	struct cterminal *cterm = target;
-	int right = TERM_MAXX;
-
-	if (target->rip_engine == NULL || columns == 0
-	    || (target->extattr & CTERM_EXTATTR_AUTOWRAP) == 0
-	    || (target->last_column_flag & CTERM_LCF_ENABLED) == 0)
-		return;
-	cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_CURR,
-	    &right, NULL);
-	if (x + columns - 1 >= right || x + columns - 1 >= CURR_MAXX)
-		target->last_column_flag |= CTERM_LCF_SET;
-}
-
-static int
-present_unicode(void *context,
-	const struct st_unicode_presentation_event *event)
-{
-	st_cterm_t *terminal = context;
-	st_cterm_t *target = terminal->status_sub != NULL
-	    && terminal->status_display_active == 1
-	    ? terminal->status_sub : terminal;
-	st_console_t *console = target->screen.console;
-	int x;
-	int y;
-	int status;
-	enum st_unicode_presentation_event_kind kind = event->kind;
-
-	if (kind == ST_UNICODE_PRESENTATION_COMMIT) {
-		target->screen.provisional_drawn = false;
-		return 0;
-	}
-	if (kind == ST_UNICODE_PRESENTATION_BEGIN)
-		target->screen.provisional_drawn = false;
-	if ((kind == ST_UNICODE_PRESENTATION_BEGIN
-	    || kind == ST_UNICODE_PRESENTATION_REVISE) && event->columns == 0)
-		return 0;
-	if (kind == ST_UNICODE_PRESENTATION_REVISE
-	    && !target->screen.provisional_drawn)
-		kind = ST_UNICODE_PRESENTATION_BEGIN;
-
-	if (!target->started
-	    && event->kind != ST_UNICODE_PRESENTATION_COMMIT) {
-		cterm_start(target);
-		status = cterm_render_take_error(target);
-		if (status != 0)
-			return status;
-	}
-
-	switch (kind) {
-	case ST_UNICODE_PRESENTATION_BEGIN:
-		cterm_apply_window(target);
-		x = target->xpos;
-		y = target->ypos;
-		cterm_coord_conv_xy(target, CTERM_COORD_ABSTERM,
-		    CTERM_COORD_CURR, &x, &y);
-		status = prepare_rip_unicode_position(target, &x, &y);
-		if (status != 0)
-			return status;
-		cterm_render_set_position(target, x, y);
-		if (st_console_get_position(console, &target->screen.provisional_x,
-		    &target->screen.provisional_y) != 0)
-			return IO_ERROR_IO;
-		status = st_console_write_utf8(console, (const char *)event->bytes,
-		    event->size);
-		if (status == 0) {
-			target->screen.provisional_drawn = true;
-			record_rip_unicode_position(target, x, event->columns);
-		}
-		break;
-	case ST_UNICODE_PRESENTATION_REVISE:
-		cterm_apply_window(target);
-		if (st_console_set_position(console, target->screen.provisional_x,
-		    target->screen.provisional_y) != 0)
-			return IO_ERROR_IO;
-		status = st_console_write_utf8(console, (const char *)event->bytes,
-		    event->size);
-		break;
-	case ST_UNICODE_PRESENTATION_COMMIT:
-		return 0;
-	case ST_UNICODE_PRESENTATION_DECODE_ERROR:
-		status = capture_scalar(terminal, UINT32_C(0xfffd));
-		if (status != 0)
-			return status;
-		cterm_apply_window(target);
-		x = target->xpos;
-		y = target->ypos;
-		cterm_coord_conv_xy(target, CTERM_COORD_ABSTERM,
-		    CTERM_COORD_CURR, &x, &y);
-		status = prepare_rip_unicode_position(target, &x, &y);
-		if (status != 0)
-			return status;
-		cterm_render_set_position(target, x, y);
-		status = st_console_put_decode_error(console);
-		if (status == 0)
-			record_rip_unicode_position(target, x, 1);
-		break;
-	default:
-		return IO_ERROR_INVALID_ARGUMENT;
-	}
-	if (status == 0)
-		cterm_coord_get_xy(target, CTERM_COORD_ABSTERM,
-		    &target->xpos, &target->ypos);
-	return status;
-}
-
 static void
 destroy_status_sub(st_cterm_t *terminal)
 {
@@ -1920,6 +1802,10 @@ status_display_changed(struct cterminal *terminal, int old_type,
 	cterm_coord_get_xy(terminal, CTERM_COORD_TERM, &saved_x, &saved_y);
 	screen = terminal->screen;
 	screen.unicode = NULL;
+	screen.provisional_drawn = false;
+	screen.provisional_discarded = false;
+	screen.provisional_cells = NULL;
+	screen.provisional_capacity = 0;
 	screen.hold_update = 0;
 	screen.error = 0;
 	screen.hyperlink_root_registered = false;
@@ -2218,9 +2104,8 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 			return status;
 		}
 	}
-	if (config->encoding == ST_CTERM_ENCODING_UTF8) {
-		status = st_unicode_presentation_create(&terminal->screen.unicode,
-		    present_unicode, terminal);
+	{
+		status = cterm_text_create(terminal);
 		if (status != 0) {
 			st_cterm_destroy(&terminal);
 			return status;
@@ -2238,6 +2123,7 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 	if (config->rip_version != ST_CTERM_RIP_OFF) {
 		const struct cterm_rip_parser_sink sink = {
 			.context = terminal,
+			.boundary = rip_text_boundary,
 			.passthrough = rip_passthrough,
 			.command = rip_host_command,
 			.control = rip_control,
@@ -2313,6 +2199,7 @@ st_cterm_destroy(st_cterm_t **terminal)
 		    (*terminal)->screen.console, false);
 	}
 	destroy_status_sub(*terminal);
+	input_cleanup(*terminal);
 	(void)cterm_render_set_hold_update(*terminal, 0);
 	if ((*terminal)->screen.hyperlink_root_registered) {
 		st_hyperlink_registry_unregister_root((*terminal)->screen.hyperlinks,
@@ -2403,66 +2290,185 @@ present_filtered_scalar(void *context, uint32_t scalar, bool *consumed)
 	return status == 0 && written != replacement_size ? IO_ERROR_IO : status;
 }
 
-static int
-codepage_write(st_cterm_t *terminal, const uint8_t *bytes, size_t size,
-	size_t *consumed)
+static st_cterm_t *
+input_owner(st_cterm_t *terminal)
 {
-	int speed = 0;
+	while (terminal->parent != NULL)
+		terminal = terminal->parent;
+	return terminal;
+}
+
+static st_cterm_t *
+input_display(st_cterm_t *owner)
+{
+	return owner->status_sub != NULL && owner->status_display_active == 1
+	    ? owner->status_sub : owner;
+}
+
+static void
+input_cleanup(st_cterm_t *owner)
+{
+	if (owner->api_status_destroy_pending) {
+		st_cterm_t *sub = owner->status_sub;
+		if (sub != NULL && sub->input_depth != 0) {
+			sub->retired_status_next = owner->retired_status;
+			owner->retired_status = sub;
+			owner->status_sub = NULL;
+		}
+		else
+			destroy_status_sub(owner);
+		owner->api_status_destroy_pending = false;
+		if (owner->status_display_type != 0)
+			clear_reserved_status(owner);
+	}
+	st_cterm_t **link = &owner->retired_status;
+	while (*link != NULL) {
+		st_cterm_t *sub = *link;
+		if (sub->input_depth != 0) {
+			link = &sub->retired_status_next;
+			continue;
+		}
+		*link = sub->retired_status_next;
+		cterm_render_record_error(owner, cterm_text_boundary(sub));
+		cterm_render_record_error(owner, cterm_render_take_error(sub));
+		cterm_end(sub, false);
+	}
+}
+
+int
+cterm_input_decode_error(struct cterminal *terminal)
+{
+	return terminal->screen.capture_decode_error
+	    ? capture_scalar(input_owner(terminal), UINT32_C(0xfffd)) : 0;
+}
+
+int
+cterm_input_write(struct cterminal *terminal, const void *bytes, size_t size,
+	size_t *consumed, enum cterm_input_source source)
+{
+	const uint8_t *input = bytes;
+	st_cterm_t *owner;
+	bool utf8;
+	bool hooks;
+	bool restore;
 	int status;
-	size_t offset = 0;
+	int speed = 0;
 
+	if (consumed == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
 	*consumed = 0;
-	if (terminal->screen.unicode != NULL) {
-		status = st_unicode_presentation_boundary(
-		    terminal->screen.unicode);
-		if (status != 0)
-			return status;
-	}
+	if (terminal == NULL || (bytes == NULL && size != 0))
+		return IO_ERROR_INVALID_ARGUMENT;
+	owner = input_owner(terminal);
+	restore = source == CTERM_INPUT_REPLAY && terminal->input_depth != 0;
+	utf8 = source == CTERM_INPUT_SEMANTIC_UTF8
+	    || owner->wire_encoding == ST_CTERM_ENCODING_UTF8;
+	hooks = source != CTERM_INPUT_REPLAY;
+	if (source == CTERM_INPUT_WIRE && owner->log == CTERM_LOG_RAW
+	    && owner->logfile != NULL && size != 0)
+		fwrite(bytes, size, 1, owner->logfile);
+	status = cterm_render_take_error(owner);
+	if (status == 0 && owner->status_sub != NULL)
+		status = cterm_render_take_error(owner->status_sub);
+	while (*consumed < size && status == 0) {
+		st_cterm_t *target = input_display(owner);
+		uint8_t byte = input[*consumed];
+		bool text_mode = utf8 || target->emulation == CTERM_EMULATION_ANSI_BBS
+		    || target->emulation == CTERM_EMULATION_ATARIST_VT52;
+		bool parser = !text_mode || target->accumulator != NULL
+		    || byte < 0x20 || byte == 0x7f;
 
-	status = cterm_render_take_error(terminal);
-	if (status == 0 && terminal->status_sub != NULL)
-		status = cterm_render_take_error(terminal->status_sub);
-	if (status != 0)
-		return status;
-
-	while (size != 0) {
-		int chunk = size > INT_MAX ? INT_MAX : (int)size;
-		st_cterm_t *target = terminal->status_sub != NULL
-		    && terminal->status_display_active == 1
-		    ? terminal->status_sub : terminal;
-
-		/* A status-display sequence can change the destination of the
-		 * following byte. Keep ANSI controls and their accumulators out
-		 * of printable batches so routing and deferred destruction finish
-		 * before the next display receives input. */
-		if (terminal->emulation == CTERM_EMULATION_ANSI_BBS) {
-			int span = 0;
-
-			if (target->accumulator == NULL) {
-				while (span < chunk && bytes[span] >= 0x20
-				    && (bytes[span] < 0x7f || bytes[span] >= 0xa0))
-					++span;
+		/* A non-ASCII scalar cannot finish a single-byte ESC command. */
+		if (utf8 && byte >= 0x80 && target->accumulator == cterm_accumulate_ecma_seq
+		    && target->seq_phase == SEQ_PHASE_C1 && target->seq_key == SEQ_ESC
+		    && target->saved_accumulator == NULL) {
+			target->accumulator = NULL;
+			target->seq_phase = SEQ_PHASE_IDLE;
+			target->sequence = 0;
+			cterm_text_literal(target, 0x1b);
+			parser = false;
+		}
+		if (parser) {
+			bool boundary = target->accumulator != NULL || byte < 0x20 || byte == 0x7f;
+			if (target->ctrl_bitmap != NULL)
+				boundary = (target->ctrl_bitmap[byte >> 3] & (1u << (byte & 7))) != 0;
+			if (target->emulation == CTERM_EMULATION_PRESTEL
+			    || target->emulation == CTERM_EMULATION_BEEB)
+				boundary = byte < 0x20 || (byte >= 0x7f && byte < 0xa0)
+				    || target->accumulator != NULL;
+			status = boundary ? cterm_text_boundary(target) : 0;
+			if (status != 0)
+				break;
+			if (input_display(owner) != target) {
+				input_cleanup(owner);
+				continue;
 			}
-			chunk = span != 0 ? span : 1;
+			/* Protocol accumulators own their original bytes, including
+			 * binary uploads and stored macro definitions. */
+			if (hooks && target->accumulator == NULL) {
+				bool filtered;
+				uint32_t scalar = utf8 ? byte : st_codepage_to_unicode(
+				    target->screen.codepage, byte, false);
+				++target->input_depth;
+				status = present_filtered_scalar(owner, scalar, &filtered);
+				--target->input_depth;
+				if (status != 0)
+					break;
+				if (filtered) {
+					++*consumed;
+					input_cleanup(owner);
+					continue;
+				}
+				target = input_display(owner);
+			}
+			++target->input_depth;
+			bool used = cterm_parse_byte(target, byte, &speed);
+			--target->input_depth;
+			if (used)
+				++*consumed;
+			status = cterm_render_take_error(target);
 		}
-		size_t used = cterm_write(terminal, bytes, chunk, &speed);
-
-		offset += used;
-		*consumed = offset;
-		if (used != (size_t)chunk)
-			return IO_ERROR_IO;
-		bytes += chunk;
-		size -= (size_t)chunk;
-		if (terminal->api_status_destroy_pending) {
-			destroy_status_sub(terminal);
-			terminal->api_status_destroy_pending = false;
-			if (terminal->status_display_type != 0)
-				clear_reserved_status(terminal);
+		else {
+			char decoded[4];
+			const void *text = &byte;
+			size_t text_size = 1;
+			size_t used;
+			if (!utf8) {
+				ptrdiff_t encoded = st_utf8_encode_one(decoded, sizeof(decoded),
+				    st_codepage_to_unicode(target->screen.codepage, byte, true));
+				if (encoded < 0) {
+					status = IO_ERROR_INVALID_ENCODING;
+					break;
+				}
+				text = decoded;
+				text_size = (size_t)encoded;
+			}
+			status = cterm_text_create(target);
+			if (status != 0)
+				break;
+			target->screen.capture_decode_error = hooks;
+			st_unicode_presentation_set_scalar_filter(target->screen.unicode,
+			    hooks ? present_filtered_scalar : NULL, owner);
+			++target->input_depth;
+			status = cterm_text_feed(target, text, text_size, &used);
+			st_unicode_presentation_set_scalar_filter(target->screen.unicode, NULL, NULL);
+			--target->input_depth;
+			if (used == text_size)
+				++*consumed;
 		}
+		input_cleanup(owner);
+		if (status == 0)
+			status = cterm_render_take_error(owner);
 	}
-	status = cterm_render_take_error(terminal);
-	if (status == 0 && terminal->status_sub != NULL)
-		status = cterm_render_take_error(terminal->status_sub);
+	input_cleanup(owner);
+	if (restore) {
+		/* Nested replay may select another display. Its caller's parser
+		 * still needs its own window and cursor while unwinding. */
+		cterm_apply_window(terminal);
+		int x = terminal->xpos, y = terminal->ypos;
+		cterm_coord_conv_xy(terminal, CTERM_COORD_ABSTERM, CTERM_COORD_CURR, &x, &y);
+		cterm_render_set_position(terminal, x, y);
+	}
 	return status;
 }
 
@@ -2470,190 +2476,17 @@ static int
 write_plain(st_cterm_t *terminal, const void *bytes, size_t size,
 	size_t *consumed, bool semantic_utf8)
 {
-	const uint8_t *input = bytes;
-	size_t offset = 0;
-	int status = 0;
-
-	if (terminal == NULL || consumed == NULL || (bytes == NULL && size != 0))
-		return IO_ERROR_INVALID_ARGUMENT;
-	if (!semantic_utf8
-	    && terminal->wire_encoding == ST_CTERM_ENCODING_CODEPAGE) {
-		bool filter_active = input_filter_enabled(terminal)
-		    || capture_enabled(terminal);
-
-		if (!filter_active)
-			status = codepage_write(terminal, input, size, consumed);
-		else {
-			size_t run_start = 0;
-			size_t handled = 0;
-
-			for (size_t i = 0; i < size; ++i) {
-				char replacement[ST_CTERM_INPUT_REPLACEMENT_CAPACITY];
-				size_t replacement_size;
-				size_t used;
-				bool filtered;
-				uint32_t scalar = st_codepage_to_unicode(
-				    terminal->screen.codepage, input[i], false);
-
-				filtered = false;
-				replacement_size = 0;
-				if (input_filter_enabled(terminal))
-					status = filter_input_scalar(terminal, scalar,
-					    &filtered, replacement, &replacement_size);
-				if (status != 0)
-					break;
-				if (!filtered) {
-					status = capture_scalar(terminal, scalar);
-					if (status != 0)
-						break;
-					continue;
-				}
-				if (i > run_start) {
-					status = codepage_write(terminal,
-					    input + run_start, i - run_start, &used);
-					handled = run_start + used;
-					if (status != 0)
-						break;
-				}
-				if (replacement_size != 0) {
-					status = st_cterm_write_utf8(terminal,
-					    replacement, replacement_size, &used);
-					if (status == 0 && used != replacement_size)
-						status = IO_ERROR_IO;
-					if (status != 0)
-						break;
-				}
-				run_start = i + 1;
-				handled = run_start;
-			}
-			if (status == 0 && run_start < size) {
-				size_t used;
-
-				status = codepage_write(terminal,
-				    input + run_start, size - run_start, &used);
-				handled = run_start + used;
-			}
-			*consumed = handled;
-		}
-		if (terminal->api_status_destroy_pending) {
-			destroy_status_sub(terminal);
-			terminal->api_status_destroy_pending = false;
-			if (terminal->status_display_type != 0)
-				clear_reserved_status(terminal);
-		}
-		if (status == 0)
-			status = cterm_render_take_error(terminal);
-		return status;
-	}
-	while (offset < size) {
-		uint8_t byte = input[offset];
-		st_cterm_t *target = terminal->status_sub != NULL
-		    && terminal->status_display_active == 1
-		    ? terminal->status_sub : terminal;
-
-		if (byte >= 0x80
-		    && target->accumulator == cterm_accumulate_ecma_seq
-		    && target->seq_phase == SEQ_PHASE_C1
-		    && target->seq_key == SEQ_ESC
-		    && target->saved_accumulator == NULL) {
-			/* A non-ASCII scalar cannot complete a single-byte ESC
-			 * sequence.  Emit the literal ESC before feeding its UTF-8
-			 * bytes, including any continuation in a later write. */
-			char literal_escape[] = "\033";
-
-			target->accumulator = NULL;
-			target->seq_phase = SEQ_PHASE_IDLE;
-			target->sequence = 0;
-			cterm_apply_window(target);
-			cterm_uctputs(target, literal_escape);
-			cterm_coord_get_xy(target, CTERM_COORD_ABSTERM,
-			    &target->xpos, &target->ypos);
-			status = cterm_render_take_error(target);
-			if (status != 0)
-				break;
-		}
-
-		if (target->accumulator != NULL || byte < 0x20 || byte == 0x7f) {
-			size_t used;
-			char replacement[ST_CTERM_INPUT_REPLACEMENT_CAPACITY];
-			size_t replacement_size = 0;
-			bool filtered = false;
-
-			if (byte < 0x80 && input_filter_enabled(terminal))
-				status = filter_input_scalar(terminal, byte,
-				    &filtered, replacement, &replacement_size);
-			if (status != 0)
-				break;
-			if (filtered) {
-				if (replacement_size != 0) {
-					status = st_cterm_write_utf8(terminal,
-					    replacement, replacement_size, &used);
-					if (status == 0 && used != replacement_size)
-						status = IO_ERROR_IO;
-				}
-				if (status != 0)
-					break;
-				++offset;
-				continue;
-			}
-			if (byte < 0x80) {
-				status = capture_scalar(terminal, byte);
-				if (status != 0)
-					break;
-			}
-
-			status = st_unicode_presentation_boundary(
-			    terminal->screen.unicode);
-			if (status == 0)
-				status = codepage_write(terminal, &byte, 1, &used);
-			else
-				used = 0;
-			offset += used;
-			if (status != 0)
-				break;
-		}
-		else {
-			size_t span = 1;
-			size_t used;
-
-			while (span < size - offset && input[offset + span] >= 0x20
-			    && input[offset + span] != 0x7f)
-				++span;
-			bool previous_filter = terminal->api_input_filter_installed;
-			bool enable_filter = input_filter_enabled(terminal)
-			    || capture_enabled(terminal);
-
-			terminal->api_input_filter_installed = enable_filter;
-			st_unicode_presentation_set_scalar_filter(
-			    terminal->screen.unicode,
-			    enable_filter ? present_filtered_scalar : NULL, terminal);
-			status = st_unicode_presentation_feed(terminal->screen.unicode,
-			    input + offset, span, &used);
-			terminal->api_input_filter_installed = previous_filter;
-			st_unicode_presentation_set_scalar_filter(
-			    terminal->screen.unicode,
-			    previous_filter ? present_filtered_scalar : NULL, terminal);
-			offset += used;
-			if (status != 0)
-				break;
-		}
-	}
-	if (terminal->api_status_destroy_pending) {
-		destroy_status_sub(terminal);
-		terminal->api_status_destroy_pending = false;
-		if (terminal->status_display_type != 0)
-			clear_reserved_status(terminal);
-	}
-	if (status == 0)
-		status = cterm_render_take_error(terminal);
-	*consumed = offset;
-	return status;
+	return cterm_input_write(terminal, bytes, size, consumed,
+	    semantic_utf8 ? CTERM_INPUT_SEMANTIC_UTF8 : CTERM_INPUT_WIRE);
 }
+
 
 int
 st_cterm_write(st_cterm_t *terminal, const void *bytes, size_t size,
 	size_t *consumed)
 {
+	if (consumed != NULL)
+		*consumed = 0;
 	if (terminal == NULL || consumed == NULL || (bytes == NULL && size != 0))
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (terminal->rip_engine != NULL)
@@ -2678,11 +2511,12 @@ st_cterm_write_utf8(st_cterm_t *terminal, const void *bytes, size_t size,
 	bool suppressed;
 	int status;
 
+	if (consumed != NULL)
+		*consumed = 0;
 	if (terminal == NULL || consumed == NULL || (bytes == NULL && size != 0))
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (terminal->screen.unicode == NULL) {
-		status = st_unicode_presentation_create(&terminal->screen.unicode,
-		    present_unicode, terminal);
+		status = cterm_text_create(terminal);
 		if (status != 0)
 			return status;
 	}
@@ -2703,8 +2537,10 @@ st_cterm_finish(st_cterm_t *terminal)
 	status = terminal->rip_engine == NULL ? 0
 	    : cterm_rip_engine_flush(terminal->rip_engine);
 	if (status == 0)
-		status = terminal->screen.unicode == NULL ? 0
-		    : st_unicode_presentation_boundary(terminal->screen.unicode);
+		status = cterm_text_boundary(terminal);
+	if (status == 0 && terminal->status_sub != NULL)
+		status = cterm_text_boundary(terminal->status_sub);
+	input_cleanup(terminal);
 	if (status == 0)
 		status = cterm_render_take_error(terminal);
 	if (status == 0 && terminal->status_sub != NULL)
@@ -2871,6 +2707,9 @@ st_cterm_resize(st_cterm_t *terminal, uint32_t columns, uint32_t rows)
 	if (rows <= terminal->api_reserved_rows + status_rows)
 		return IO_ERROR_OUT_OF_RANGE;
 	terminal_rows = rows - terminal->api_reserved_rows - status_rows;
+	status = st_cterm_finish(terminal);
+	if (status != 0)
+		return status;
 	if (terminal->backlines != 0) {
 		status = resize_scrollback(terminal, columns, &scrollback);
 		if (status != 0)
@@ -2989,8 +2828,12 @@ st_cterm_state(const st_cterm_t *terminal, struct st_cterm_state *state)
 int
 st_cterm_set_alt_font(st_cterm_t *terminal, uint8_t selector)
 {
-	if (terminal == NULL
-	    || !cterm_render_set_font_selector(terminal, selector, false, 1))
+	if (terminal == NULL || !terminal->screen.font_valid[selector])
+		return IO_ERROR_INVALID_ARGUMENT;
+	int status = st_cterm_finish(terminal);
+	if (status != 0)
+		return status;
+	if (!cterm_render_set_font_selector(terminal, selector, false, 1))
 		return IO_ERROR_INVALID_ARGUMENT;
 	terminal->altfont[0] = selector;
 	return 0;
@@ -3234,15 +3077,14 @@ st_cterm_set_encoding(st_cterm_t *terminal, enum st_cterm_encoding encoding,
 	if (status != 0)
 		return status;
 	if (encoding == ST_CTERM_ENCODING_UTF8 && terminal->screen.unicode == NULL) {
-		status = st_unicode_presentation_create(&terminal->screen.unicode,
-		    present_unicode, terminal);
+		status = cterm_text_create(terminal);
 		if (status != 0)
 			return status;
 	}
-	else if (encoding == ST_CTERM_ENCODING_CODEPAGE)
-		st_unicode_presentation_destroy(&terminal->screen.unicode);
 	terminal->wire_encoding = encoding;
 	terminal->screen.codepage = codepage;
+	if (terminal->status_sub != NULL)
+		terminal->status_sub->screen.codepage = codepage;
 	if (terminal->rip_engine != NULL) {
 		terminal->rip_engine->raster.text_codepage = codepage;
 		terminal->rip_engine->raster.unicode_text =

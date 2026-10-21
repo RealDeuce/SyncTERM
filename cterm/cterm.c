@@ -1177,7 +1177,8 @@ cterm_scrollup(struct cterminal *cterm)
 	cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_SCREEN, &maxx, &maxy);
 	cterm_line_to_scrollback(cterm, miny);
 	CURR_XY(&x, &y);
-	cterm_render_move_cells_clear(cterm, minx, miny + 1, maxx, maxy, minx, miny, &fill);
+	if (cterm_render_move_cells_clear(cterm, minx, miny + 1, maxx, maxy, minx, miny, &fill))
+		cterm_text_scrolled(cterm, miny, maxy);
 	cterm_render_set_position(cterm, x, y);
 }
 
@@ -1785,6 +1786,8 @@ const size_t cterm_ansi_dispatch_len = SEQ_ARRAY_SIZE(cterm_ansi_dispatch);
 void
 cterm_reset(struct cterminal *cterm)
 {
+	cterm_text_forget(cterm);
+	st_unicode_presentation_reset(cterm->screen.unicode);
 	int  i;
 
 	cterm->altfont[0] = cterm->altfont[1] = cterm->altfont[2] = cterm->altfont[3] = cterm_render_font_selector(cterm, 1);
@@ -2093,9 +2096,11 @@ void cterm_start(struct cterminal *cterm)
 void
 cterm_advance_char(struct cterminal *cterm, int *x, int *y, int move)
 {
-	int lm = cterm->left_margin;
-	int rm = cterm->right_margin;
-	int bm = cterm->bottom_margin;
+	int lm = TERM_MINX, rm = TERM_MAXX;
+	int tm = TERM_MINY, bm = TERM_MAXY;
+
+	cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_CURR, &lm, &tm);
+	cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_CURR, &rm, &bm);
 
 	if (cterm->emulation == CTERM_EMULATION_PRESTEL || cterm->emulation == CTERM_EMULATION_BEEB) {
 		cterm_prestel_fix_line(cterm, *x, *y, true, false);
@@ -2113,7 +2118,7 @@ cterm_advance_char(struct cterminal *cterm, int *x, int *y, int move)
 		}
 		else if(*y == bm && (*x == rm || *x == CURR_MAXX)) {
 			if (cterm->emulation == CTERM_EMULATION_PRESTEL) {
-				*y = cterm->top_margin;
+				*y = tm;
 				move = 1;
 				*x = lm;
 				cterm_prestel_new_line(cterm);
@@ -2149,91 +2154,28 @@ cterm_advance_char(struct cterminal *cterm, int *x, int *y, int move)
 void
 cterm_ctputs(struct cterminal *cterm, char *buf)
 {
-	char *outp;
-	char *p;
-	int		oldscroll;
-	int cx, cy;
-	int lm, rm, bm;
-
-	if (cterm->font_render) {
-		cterm->font_render(buf);
-		return;
-	}
-
-	outp = buf;
-	oldscroll = cterm->screen.wscroll;
-	cterm->screen.wscroll = 0;
-	CURR_XY(&cx, &cy);
-	if (cterm->log == CTERM_LOG_ASCII && cterm->logfile != NULL)
-		fputs(buf, cterm->logfile);
-	lm = TERM_MINX;
-	cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_CURR, &lm, NULL);
-	rm = TERM_MAXX;
-	bm = TERM_MAXY;
-	cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_CURR, &rm, &bm);
-	for (p = buf; *p; p++) {
-		switch(*p) {
-			case '\n':
-				cterm_clear_lcf(cterm);
-				*p = 0;
-				cterm_render_write_string(cterm, outp);
-				outp = p + 1;
-				cterm_adjust_currpos(cterm, 0, 1, 1);
-				CURR_XY(&cx, &cy);
-				if (cterm->lf_expand) {
-					cterm_adjust_currpos(cterm, INT_MIN, 0, 0);
-					CURR_XY(&cx, &cy);
-				}
-				break;
-			case '\r':
-				cterm_clear_lcf(cterm);
-				*p = 0;
-				cterm_render_write_string(cterm, outp);
-				outp = p + 1;
-				cterm_adjust_currpos(cterm, INT_MIN, 0, 0);
-				CURR_XY(&cx, &cy);
-				break;
-			case '\b':
-				cterm_clear_lcf(cterm);
-				*p=0;
-				cterm_render_write_string(cterm, outp);
-				outp = p + 1;
-				cterm_adjust_currpos(cterm, -1, 0, 0);
-				CURR_XY(&cx, &cy);
-				break;
-			case 7:		/* Bell */
-				break;
-			case '\t':
-				cterm_clear_lcf(cterm);
-				*p=0;
-				cterm_render_write_string(cterm, outp);
-				outp=p+1;
-				cterm_do_tab(cterm);
-				CURR_XY(&cx, &cy);
-				break;
-			default:
-				if ((cterm->last_column_flag & (CTERM_LCF_ENABLED | CTERM_LCF_SET)) == (CTERM_LCF_ENABLED | CTERM_LCF_SET)) {
-					if (cx == cterm->right_margin || cx == CURR_MAXX) {
-						cterm_advance_char(cterm, &cx, &cy, 1);
-						cterm_clear_lcf(cterm);
-					}
-				}
-				if (cx == cterm->right_margin || cx == CURR_MAXX) {
-					char ch;
-					ch = *(p + 1);
-					*(p + 1) = 0;
-					cterm_render_write_string(cterm, outp);
-					*(p+1) = ch;
-					outp = p + 1;
-				}
-				cterm_advance_char(cterm, &cx, &cy, 0);
-				break;
+	for (const unsigned char *p = (const unsigned char *)buf; *p; ++p) {
+		if (*p != '\n' && *p != '\r' && *p != '\b' && *p != '\t' && *p != 7) {
+			cterm_text_byte(cterm, *p);
+			continue;
 		}
+		cterm_render_record_error(cterm, cterm_text_boundary(cterm));
+		if (cterm->log == CTERM_LOG_ASCII && cterm->logfile != NULL)
+			fputc(*p, cterm->logfile);
+		cterm_clear_lcf(cterm);
+		switch (*p) {
+		case '\n':
+			cterm_adjust_currpos(cterm, 0, 1, 1);
+			if (cterm->lf_expand)
+				cterm_adjust_currpos(cterm, INT_MIN, 0, 0);
+			break;
+		case '\r': cterm_adjust_currpos(cterm, INT_MIN, 0, 0); break;
+		case '\b': cterm_adjust_currpos(cterm, -1, 0, 0); break;
+		case '\t': cterm_do_tab(cterm); break;
+		default: break;
+		}
+		ABS_XY(&cterm->xpos, &cterm->ypos);
 	}
-	cterm_render_write_string(cterm, outp);
-	if (cterm->emulation == CTERM_EMULATION_PRESTEL || cterm->emulation == CTERM_EMULATION_BEEB)
-		cterm_prestel_fix_line(cterm, cx, cy, true, false);
-	cterm->screen.wscroll=oldscroll;
 }
 
 /* ustrlen / cterm_uctputs / ustrcat live in cterm_internal.h */
@@ -2264,21 +2206,16 @@ cterm_dispatch_byte(struct cterminal *cterm, unsigned char byte, int *speed)
 		/* else: control byte with no handler — drop silently */
 	}
 	else {
-		struct st_console_cell cell;
-		uint8_t attribute;
-		uint32_t foreground;
-		uint32_t background;
-		int sx, sy, x, y;
-		attribute = cterm_c64_get_attr(cterm);
-		cterm_render_attribute_colours(cterm, attribute, &foreground,
-		    &background);
-		SCR_XY(&sx, &sy);
-		if (cterm_render_make_cell(cterm, &cell, byte, attribute,
-		    foreground, background, cterm_render_attribute_font(cterm, attribute),
-		    0, 0) == 0)
-			cterm_render_write_cells(cterm, sx, sy, sx, sy, &cell);
-		CURR_XY(&x, &y);
-		cterm_advance_char(cterm, &x, &y, 1);
+		uint8_t attribute = cterm_c64_get_attr(cterm);
+		uint8_t saved = cterm->attr;
+		uint32_t foreground = cterm->fg_color, background = cterm->bg_color;
+		cterm_render_set_attribute(cterm, attribute);
+		cterm_render_attribute_colours(cterm, attribute, &cterm->fg_color, &cterm->bg_color);
+		cterm_render_set_colours(cterm, cterm->fg_color, cterm->bg_color);
+		cterm_text_byte(cterm, byte);
+		cterm->attr = saved;
+		cterm->fg_color = foreground;
+		cterm->bg_color = background;
 	}
 }
 
@@ -2312,29 +2249,16 @@ cterm_accumulate_trailing(struct cterminal *cterm, unsigned char byte, int *spee
 	return true;
 }
 
- size_t cterm_write(struct cterminal * cterm, const void *vbuf, int buflen, int *speed)
+bool
+cterm_parse_byte(struct cterminal *cterm, unsigned char byte, int *speed)
 {
-	const unsigned char *buf = (unsigned char *)vbuf;
-	/* Alias the struct-resident print-batch buffer so the unified
-	 * accumulator signature (which touches cterm->print_buf / print_pos)
-	 * can share the batch with the still-inline normal-char path. */
-	unsigned char *prn = cterm->print_buf;
-	unsigned char *prnpos;
-	const unsigned char *prnlast = &prn[sizeof(cterm->print_buf)-sizeof(cterm->escbuf)-1];
-	int i, j, x, y;
-	int	olddmc;
+	bool consumed = true;
+	int i, x, y;
+	int olddmc;
 	uint32_t palette[16];
 	int mpalette;
 	int orig_fonts[4];
-	/* lastch is now cterm->lastch (persists across cterm_write calls) */
 	int palette_offset = 0;
-
-	/* DECSASD routing: when active display is the status line, forward
-	 * writes to the sub-cterm.  The sub's parser handles its own sequences;
-	 * status-display and terminal-global handlers bubble back via its
-	 * parent pointer. */
-	if (cterm->status_sub && cterm->status_display_active == 1)
-		return cterm_write(cterm->status_sub, vbuf, buflen, speed);
 
 	if(!cterm->started)
 		cterm_start(cterm);
@@ -2369,45 +2293,17 @@ cterm_accumulate_trailing(struct cterminal *cterm, unsigned char byte, int *spee
 	cterm_render_set_attribute(cterm, cterm->attr);
 	cterm_render_set_colours(cterm, cterm->fg_color, cterm->bg_color);
 	cterm_render_set_cursor(cterm, cterm->cursor);
-	if(buflen==-1)
-		buflen=ustrlen(buf);
-	switch(buflen) {
-		case 0:
-			break;
-		default:
-			if(cterm->log==CTERM_LOG_RAW && cterm->logfile != NULL)
-				fwrite(buf, buflen, 1, cterm->logfile);
-			prn[0]=0;
-			prnpos = prn;
-			if (cterm->emulation == CTERM_EMULATION_PRESTEL || cterm->emulation == CTERM_EMULATION_BEEB)
-				cterm_prestel_get_state(cterm);
-			for (j = 0; j < buflen; j++) {
-				if (prnpos >= prnlast) {
-					cterm_uctputs(cterm, prn);
-					prn[0] = 0;
-					prnpos = prn;
-				}
-
-				/* Canonical two-check byte-loop form.  The per-emulation
-				 * dispatcher is installed by cterm_init(); the accumulator
-				 * is installed at mode entry (ESC arrival, DCS/OSC start,
-				 * font load, music terminator, etc.) and cleared at mode
-				 * exit. */
-				cterm->print_pos = prnpos;
-				if (cterm->accumulator != NULL) {
-					if (cterm->accumulator(cterm, buf[j], speed)) {
-						prnpos = cterm->print_pos;
-						continue;
-					}
-				}
-				cterm->dispatch(cterm, buf[j], speed);
-				prnpos = cterm->print_pos;
-			}
-			cterm_uctputs(cterm, prn);
-			prn[0] = 0;
-			prnpos = prn;
-			break;
-	}
+	cterm->print_buf[0] = 0;
+	cterm->print_pos = cterm->print_buf;
+	if (cterm->emulation == CTERM_EMULATION_PRESTEL || cterm->emulation == CTERM_EMULATION_BEEB)
+		cterm_prestel_get_state(cterm);
+	if (cterm->accumulator != NULL)
+		consumed = cterm->accumulator(cterm, byte, speed);
+	else
+		cterm->dispatch(cterm, byte, speed);
+	cterm_uctputs(cterm, cterm->print_buf);
+	cterm->print_buf[0] = 0;
+	cterm->print_pos = cterm->print_buf;
 	ABS_XY(&cterm->xpos, &cterm->ypos);
 
 	(void)cterm_render_set_hold_update(cterm, olddmc);
@@ -2428,7 +2324,7 @@ cterm_accumulate_trailing(struct cterminal *cterm, unsigned char byte, int *spee
 	cterm_render_set_font_selector(cterm, orig_fonts[2], false, 3);
 	cterm_render_set_font_selector(cterm, orig_fonts[3], false, 4);
 
-	return buflen > 0 ? (size_t)buflen : 0;
+	return consumed;
 }
 
 int cterm_openlog(struct cterminal *cterm, char *logfile, int logtype)
@@ -2461,6 +2357,7 @@ void cterm_end(struct cterminal *cterm, int free_fonts)
 	(void)free_fonts;
 
 	if(cterm) {
+		cterm_text_destroy(cterm);
 		cterm_apc_destroy(cterm);
 		cterm_closelog(cterm);
 		if (cterm->music_stream != NULL) {

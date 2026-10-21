@@ -86,6 +86,7 @@ add_library(st_cterm STATIC
 	cterm_dec.c
 	cterm_ecma48.c
 	cterm_render.c
+	cterm_text.c
 	cterm_petscii.c
 	cterm_prestel.c
 	cterm_rip_asset.c
@@ -227,6 +228,18 @@ if(BUILD_TESTING)
 			-Wall -Wextra -Wpedantic -Werror)
 	endif()
 	add_test(NAME cterm COMMAND st_cterm_test)
+	add_executable(st_cterm_text_test tests/st_cterm_text_test.c)
+	target_link_libraries(st_cterm_text_test PRIVATE st_cterm st_fonts)
+	set_target_properties(st_cterm_text_test PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
+		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_definitions(st_cterm_text_test PRIVATE _CRT_SECURE_NO_WARNINGS)
+		target_compile_options(st_cterm_text_test PRIVATE /W4 /WX)
+	else()
+		target_compile_options(st_cterm_text_test PRIVATE
+			-Wall -Wextra -Wpedantic -Werror)
+	endif()
+	add_test(NAME cterm_text COMMAND st_cterm_text_test)
 	add_executable(st_cterm_keyboard_test tests/st_cterm_keyboard_test.c)
 	target_link_libraries(st_cterm_keyboard_test PRIVATE st_cterm)
 	set_target_properties(st_cterm_keyboard_test PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}

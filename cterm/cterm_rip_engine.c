@@ -272,6 +272,14 @@ forward_text(void *context, const uint8_t *bytes, size_t size)
 }
 
 static int
+forward_boundary(void *context)
+{
+	struct cterm_rip_engine *engine = context;
+	return engine->host.boundary == NULL ? 0
+	    : engine->host.boundary(engine->host.context);
+}
+
+static int
 forward_control(void *context, const uint8_t *bytes, size_t size)
 {
 	struct cterm_rip_engine *engine = context;
@@ -357,6 +365,7 @@ engine_sink(struct cterm_rip_engine *engine)
 {
 	return (struct cterm_rip_parser_sink){
 		.context = engine,
+		.boundary = forward_boundary,
 		.passthrough = forward_text,
 		.command = dispatch_command,
 		.control = forward_control,

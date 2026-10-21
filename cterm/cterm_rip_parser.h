@@ -30,6 +30,8 @@ struct cterm_rip_parser {
 struct cterm_rip_parser_sink {
 	void *context;
 	/* These callbacks run in wire order and must not retain borrowed data. */
+	/* Commit pending terminal text before a graphics command or control. */
+	int (*boundary)(void *context);
 	int (*passthrough)(void *context, const uint8_t *bytes, size_t size);
 	int (*command)(void *context, int level, int sublevel, uint8_t code,
 	    const char *arguments);

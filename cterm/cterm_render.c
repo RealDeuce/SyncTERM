@@ -332,103 +332,13 @@ cterm_render_set_custom_cursor(struct cterminal *cterm,
 	    st_console_set_custom_cursor(cterm->screen.console, cursor));
 }
 
-int
-cterm_render_write_byte(struct cterminal *cterm, int value)
+void
+cterm_render_beep(struct cterminal *cterm)
 {
-	struct st_console_rect window;
-	struct st_console_rect destination;
-	struct st_console_cell cell;
-	uint32_t x = 0;
-	uint32_t y = 0;
-	uint32_t right;
-	uint32_t bottom;
-	int status;
-
-	if (value == 7) {
-		audio_engine_t *engine = NULL;
-		if (cterm->screen.audio != NULL
-		    && st_audio_runtime_acquire(cterm->screen.audio, &engine) == 0)
-			(void)audio_beep(engine, 440.0, 100);
-		return value;
-	}
-	status = st_console_get_window(cterm->screen.console, &window);
-	if (status == 0)
-		status = st_console_get_position(cterm->screen.console, &x, &y);
-	if (!render_succeeded(cterm, status))
-		return -1;
-	right = window.x + window.width;
-	bottom = window.y + window.height;
-	switch ((uint8_t)value) {
-	case '\r':
-		status = st_console_set_position(cterm->screen.console, window.x, y);
-		break;
-	case '\n':
-		if (y + 1 < bottom)
-			status = st_console_set_position(cterm->screen.console, x, y + 1);
-		else if (cterm->screen.wscroll != 0)
-			status = st_console_scroll(cterm->screen.console, 1, ' ');
-		else
-			status = 0;
-		break;
-	case '\b':
-		if (x == window.x)
-			return value;
-		--x;
-		status = st_console_set_position(cterm->screen.console, x, y);
-		if (status != 0)
-			break;
-		status = cterm_render_make_current_cell(cterm, &cell, ' ',
-		    cterm->screen.current_hyperlink);
-		if (status == 0) {
-			destination = (struct st_console_rect){x, y, 1, 1};
-			status = st_console_write_complete_cells(cterm->screen.console,
-			    &destination, &cell, 1);
-		}
-		break;
-	case '\t': {
-		uint32_t spaces = 8 - ((x - window.x) % 8);
-
-		status = 0;
-		while (spaces-- != 0 && status == 0)
-			status = cterm_render_write_byte(cterm, ' ') < 0
-			    ? IO_ERROR_IO : 0;
-		break;
-	}
-	default:
-		status = cterm_render_make_current_cell(cterm, &cell,
-		    (uint8_t)value, cterm->screen.current_hyperlink);
-		if (status == 0) {
-			destination = (struct st_console_rect){x, y, 1, 1};
-			status = st_console_write_complete_cells(cterm->screen.console,
-			    &destination, &cell, 1);
-		}
-		if (status != 0)
-			break;
-		if (x + 1 < right)
-			status = st_console_set_position(cterm->screen.console, x + 1, y);
-		else if (y + 1 < bottom)
-			status = st_console_set_position(cterm->screen.console,
-			    window.x, y + 1);
-		else {
-			if (cterm->screen.wscroll != 0)
-				status = st_console_scroll(cterm->screen.console, 1, ' ');
-			if (status == 0)
-				status = st_console_set_position(cterm->screen.console,
-				    window.x, bottom - 1);
-		}
-		break;
-	}
-	return render_succeeded(cterm, status) ? value : -1;
-}
-
-int
-cterm_render_write_string(struct cterminal *cterm, const char *text)
-{
-	while (*text != '\0') {
-		if (cterm_render_write_byte(cterm, (uint8_t)*text++) < 0)
-			return -1;
-	}
-	return 0;
+	audio_engine_t *engine = NULL;
+	if (cterm->screen.audio != NULL
+	    && st_audio_runtime_acquire(cterm->screen.audio, &engine) == 0)
+		(void)audio_beep(engine, 440.0, 100);
 }
 
 void

@@ -66,6 +66,8 @@ typedef int (*st_cterm_rip_prompt_callback_t)(void *context,
 
 #define ST_CTERM_INPUT_REPLACEMENT_CAPACITY 256
 /* Decoded Unicode scalar from received terminal text, including controls.
+ * Protocol payloads and sequence parameters belong to their byte parser and
+ * bypass this text hook. Macro playback does not invoke receive hooks again.
  * A replacement is semantic UTF-8 and bypasses the wire/RIP parser and this
  * filter.  Returning consumed with an empty replacement drops the scalar. */
 typedef int (*st_cterm_input_filter_t)(void *context, uint32_t scalar,
@@ -141,6 +143,8 @@ void st_cterm_destroy(st_cterm_t **terminal);
  * Consumes wire bytes incrementally. UTF-8 decoder and grapheme state persist
  * across calls. C0 controls flush an incomplete sequence as one replacement
  * before the parser applies the control. consumed is always written.
+ * Codepage text is converted at the input boundary and shares UTF-8 text
+ * presentation. Counts refer to original input bytes, not converted UTF-8.
  */
 int st_cterm_write(st_cterm_t *terminal, const void *bytes, size_t size,
 	size_t *consumed);

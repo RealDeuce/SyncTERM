@@ -621,6 +621,9 @@ int st_console_font_lookup_cluster(st_console_t *console, uint16_t identifier,
  */
 int st_console_font_lookup_fallback(st_console_t *console, uint16_t identifier,
 	uint8_t columns, uint16_t *glyph_font, uint32_t *glyph);
+/* Resolve font zero's narrow invalid-input glyph without moving the cursor.
+ * Output is unchanged on failure. */
+int st_console_font_lookup_decode_error(st_console_t *console, uint32_t *glyph);
 /*
  * Returns a representative mapping, not the text which originally selected
  * the glyph.

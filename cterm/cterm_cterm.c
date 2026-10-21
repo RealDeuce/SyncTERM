@@ -1419,19 +1419,11 @@ void cterm_parse_extended_colour(struct cterminal *cterm, int *i, bool fg)
 bool
 cterm_accumulate_doorway(struct cterminal *cterm, unsigned char byte, int *speed)
 {
-	struct st_console_cell tmpvc[1] = {0};
-	int sx, sy, x, y;
 	(void)speed;
-
 	cterm_uctputs(cterm, cterm->print_buf);
 	cterm->print_buf[0] = 0;
 	cterm->print_pos = cterm->print_buf;
-	cterm_render_make_current_cell(cterm, &tmpvc[0], byte,
-	    cterm_render_get_hyperlink(cterm));
-	SCR_XY(&sx, &sy);
-	cterm_render_write_cells(cterm, sx, sy, sx, sy, tmpvc);
-	CURR_XY(&x, &y);
-	cterm_advance_char(cterm, &x, &y, 1);
+	cterm_text_literal(cterm, byte);
 	cterm->doorway_char = 0;
 	cterm->accumulator = NULL;
 	return true;

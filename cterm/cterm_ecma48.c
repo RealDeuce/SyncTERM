@@ -268,7 +268,7 @@ cterm_handle_ich(struct cterminal *cterm, int *speed)	/* CSI @ */
 	cterm_render_move_cells(cterm, col, row, max_col - (int)cterm->seq_param_int[0], row,
 	    col + (int)cterm->seq_param_int[0], row);
 	for (l = 0; l < (int)cterm->seq_param_int[0]; l++)
-		cterm_render_write_byte(cterm, ' ');
+		cterm_text_literal(cterm, ' ');
 	cterm_set_position(cterm, i, j);
 }
 
@@ -457,22 +457,10 @@ cterm_handle_ech(struct cterminal *cterm, int *speed)	/* CSI X */
 void
 cterm_handle_rep(struct cterminal *cterm, int *speed)	/* CSI b */
 {
-	int i;
-	char *p;
 	(void)speed;
-	if (cterm->lastch == 0)
-		return;
 	cterm_seq_default(cterm, 0, 1);
-	i = (int)cterm->seq_param_int[0];
-	if (i > 0) {
-		p = malloc(i + 1);
-		if (p) {
-			memset(p, cterm->lastch, i);
-			p[i] = 0;
-			cterm_ctputs(cterm, p);
-			free(p);
-		}
-	}
+	if (cterm->seq_param_int[0] <= SIZE_MAX)
+		cterm_text_repeat(cterm, (size_t)cterm->seq_param_int[0]);
 }
 
 void
@@ -915,13 +903,13 @@ cterm_accumulate_command_string(struct cterminal *cterm, unsigned char byte,
  *
  * ECMA-48 SOS captures any bytes until an ST (ESC \) or a matching SOS
  * (ESC X) reappears.  When the terminator fires, any pending ESC in the
- * buffer is replayed through cterm_write so it is parsed in its new
+ * buffer is replayed through the input driver so it is parsed in its new
  * (non-string) context.  Always returns true.
  * ------------------------------------------------------------------------ */
 bool
 cterm_accumulate_sos(struct cterminal *cterm, unsigned char byte, int *speed)
 {
-	unsigned char ch_byte = byte;
+	(void)speed;
 
 	if ((byte == 'X' || byte == '\\') &&
 	    cterm->strbuf && cterm->strbuflen &&
@@ -931,8 +919,10 @@ cterm_accumulate_sos(struct cterminal *cterm, unsigned char byte, int *speed)
 		cterm->accumulator = NULL;
 		CTERM_FREE_AND_CLEAR(cterm->strbuf);
 		cterm->strbuflen = cterm->strbufsize = 0;
-		cterm_write(cterm, "\x1b", 1, speed);
-		cterm_write(cterm, &ch_byte, 1, speed);
+		const uint8_t replay[] = {0x1b, byte};
+		size_t consumed;
+		cterm_render_record_error(cterm, cterm_input_write(cterm, replay,
+		    sizeof(replay), &consumed, CTERM_INPUT_REPLAY));
 		return true;
 	}
 	if (cterm->strbuf == NULL) {
@@ -994,25 +984,25 @@ cterm_dispatch_ecma(struct cterminal *cterm, unsigned char byte, int *speed)
 
 	switch (byte) {
 		case 0:
-			cterm->lastch = 0;
+			cterm_text_forget(cterm);
 			if (cterm->doorway_mode) {
 				cterm->doorway_char = 1;
 				cterm->accumulator = cterm_accumulate_doorway;
 			}
 			break;
 		case 7:		/* BEL */
-			cterm->lastch = 0;
+			cterm_text_forget(cterm);
 			cterm_uctputs(cterm, cterm->print_buf);
 			cterm->print_buf[0] = 0;
 			cterm->print_pos = cterm->print_buf;
 			if (cterm->log == CTERM_LOG_ASCII && cterm->logfile != NULL)
 				fputs("\x07", cterm->logfile);
 			if (!cterm->quiet) {
-				cterm_render_write_byte(cterm, 7);
+				cterm_render_beep(cterm);
 			}
 			break;
 		case 12:	/* FF — clear screen (CTerm legacy) */
-			cterm->lastch = 0;
+			cterm_text_forget(cterm);
 			cterm_uctputs(cterm, cterm->print_buf);
 			cterm->print_buf[0] = 0;
 			cterm->print_pos = cterm->print_buf;
@@ -1035,7 +1025,6 @@ cterm_dispatch_ecma(struct cterminal *cterm, unsigned char byte, int *speed)
 			cterm->seq_overflow = false;
 			break;
 		default:
-			cterm->lastch = byte;
 			*cterm->print_pos++ = byte;
 			*cterm->print_pos = 0;
 	}
@@ -1127,18 +1116,18 @@ cterm_accumulate_ecma_seq(struct cterminal *cterm, unsigned char byte, int *spee
 			cterm->seq_param_count = 0;
 			cterm->seq_phase = SEQ_PHASE_IDLE;
 			cterm->sequence = 0;
-			cterm->lastch = 0;
+			cterm_text_forget(cterm);
 			cterm->saved_accumulator = NULL;
 			cterm->accumulator = cterm_accumulate_trailing;
 			return true;
 		}
 		pre_handler = cterm->accumulator;
-		if (d != NULL && d->handler != NULL)
-			d->handler(cterm, speed);
 		cterm->seq_phase = SEQ_PHASE_IDLE;
 		cterm->sequence = 0;
-		cterm->lastch = 0;
-		if (cterm->accumulator == pre_handler) {
+		if (d != NULL && d->handler != NULL)
+			d->handler(cterm, speed);
+		/* A macro can leave the next sequence partially parsed. */
+		if (cterm->accumulator == pre_handler && cterm->seq_phase == SEQ_PHASE_IDLE) {
 			/* Handler didn't install a new mode.  Pop back to the
 			 * saved accumulator (string context we interrupted) or
 			 * clear to idle. */

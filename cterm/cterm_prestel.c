@@ -24,7 +24,7 @@
  * cterm_reset(), and cterm_adjust_currpos() all need to re-evaluate
  * Prestel line state after motion or reset — so they are non-static
  * with the canonical cterm_ prefix.  The accumulators / dispatchers
- * here plug into the two-check byte-loop form in cterm_write.
+ * here are called by cterm_parse_byte through the shared input driver.
  */
 
 #include <stdio.h>
@@ -747,7 +747,7 @@ cterm_dispatch_beeb(struct cterminal *cterm, unsigned char byte, int *speed)
 			cterm->print_buf[0] = 0;
 			cterm->print_pos = cterm->print_buf;
 			if (!cterm->quiet) {
-				cterm_render_write_byte(cterm, 7);
+				cterm_render_beep(cterm);
 			}
 			break;
 		case 8:		/* APB */

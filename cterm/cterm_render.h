@@ -17,6 +17,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -91,10 +92,18 @@ struct cterm_render_state {
 	int error;
 	bool prestel_reveal;
 	bool hyperlink_root_registered;
+	/* Owned per display, for all wire encodings. The saved row restores
+	 * adjacent wide cells when an incremental grapheme is revised. */
 	st_unicode_presentation_t *unicode;
 	uint32_t provisional_x;
 	uint32_t provisional_y;
 	bool provisional_drawn;
+	bool provisional_discarded;
+	bool capture_decode_error;
+	struct st_console_cell *provisional_cells;
+	size_t provisional_capacity;
+	uint32_t provisional_count;
+	int provisional_lcf;
 };
 
 struct cterminal;
@@ -127,8 +136,7 @@ bool cterm_render_get_custom_cursor(struct cterminal *cterm,
 	struct st_console_custom_cursor *cursor);
 bool cterm_render_set_custom_cursor(struct cterminal *cterm,
 	const struct st_console_custom_cursor *cursor);
-int cterm_render_write_byte(struct cterminal *cterm, int value);
-int cterm_render_write_string(struct cterminal *cterm, const char *text);
+void cterm_render_beep(struct cterminal *cterm);
 void cterm_render_clear_window(struct cterminal *cterm);
 void cterm_render_clear_line(struct cterminal *cterm);
 int cterm_render_write_cells(struct cterminal *cterm, int left, int top,

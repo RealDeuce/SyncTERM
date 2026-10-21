@@ -139,6 +139,9 @@ NFC, segments extended grapheme clusters, and resolves one drawable per
 cluster. A legacy decoder first uses `st_console_font_for_flags` to turn its
 normal/bright/blink selection and the cell attributes into `font`, then uses a
 scalar or grapheme-cluster font lookup to obtain `glyph_font` and `glyph`.
+`st_console_font_lookup_decode_error` resolves font zero's invalid-input
+drawable without cursor movement, allowing CTerm to apply terminal placement
+rules to malformed text through the same path as ordinary graphemes.
 
 The high bit of a colour selects direct RGB.  Without that tag, values from
 zero through 65,535 are palette indexes.  The same representation is used by

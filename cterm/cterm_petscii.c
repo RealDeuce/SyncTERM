@@ -113,7 +113,7 @@ static void
 petscii_bell(struct cterminal *cterm)	/* 7 */
 {
 	if (!cterm->quiet) {
-		cterm_render_write_byte(cterm, 7);
+		cterm_render_beep(cterm);
 	}
 }
 
@@ -268,7 +268,7 @@ petscii_insert(struct cterminal *cterm)	/* 148 — insert + erase under cursor *
 		cterm_coord_conv_xy(cterm, CTERM_COORD_CURR, CTERM_COORD_SCREEN, &ex, NULL);
 		cterm_render_move_cells(cterm, sx, sy, ex - 1, sy, sx + 1, sy);
 	}
-	cterm_render_write_byte(cterm, ' ');
+	cterm_text_literal(cterm, ' ');
 	cterm_render_set_position(cterm, x, y);
 }
 

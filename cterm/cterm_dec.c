@@ -40,6 +40,7 @@
 #include "cterm_dec.h"
 #include "cterm_ecma48.h"	/* cterm_handle_sm/rm chained from DECSM/DECRM */
 #include "cterm_cterm.h"	/* SyncTERM DECSM extensions chained from DEC */
+#include "io_error.h"
 
 void
 cterm_handle_decscusr(struct cterminal *cterm, int *speed)	/* CSI SP q */
@@ -568,6 +569,7 @@ cterm_handle_decrara(struct cterminal *cterm, int *speed)	/* CSI Pt;Pl;Pb;Pr;...
 void
 cterm_handle_decmacro(struct cterminal *cterm, int *speed)	/* CSI Pn * z */
 {
+	(void)speed;
 	if (cterm->seq_param_count <= 0 || cterm->seq_param_int[0] > 63)
 		return;
 	uint64_t n = cterm->seq_param_int[0];
@@ -575,21 +577,24 @@ cterm_handle_decmacro(struct cterminal *cterm, int *speed)	/* CSI Pn * z */
 		return;
 	if (cterm->in_macro & (UINT64_C(1) << n))
 		return;
+	size_t remaining = cterm->macro_lens[n];
+	if (remaining == 0)
+		return;
+	/* Playback can reset or redefine its own stored definition. */
+	char *copy = malloc(remaining);
+	if (copy == NULL) {
+		cterm_render_record_error(cterm, IO_ERROR_OUT_OF_MEMORY);
+		return;
+	}
+	memcpy(copy, cterm->macros[n], remaining);
 	cterm->escbuf[0] = 0;
 	cterm->sequence = 0;
 	cterm->accumulator = NULL;
 	cterm->in_macro |= (UINT64_C(1) << n);
-	/* The parser accepts int-sized writes; a stored macro may be larger. */
-	size_t remaining = cterm->macro_lens[n];
-	const char *bytes = cterm->macros[n];
-	while (remaining != 0) {
-		int chunk = remaining > INT_MAX ? INT_MAX : (int)remaining;
-		size_t consumed = cterm_write(cterm, bytes, chunk, speed);
-		if (consumed == 0)
-			break;
-		bytes += consumed;
-		remaining -= consumed;
-	}
+	size_t consumed;
+	int status = cterm_input_write(cterm, copy, remaining, &consumed, CTERM_INPUT_REPLAY);
+	cterm_render_record_error(cterm, status);
+	free(copy);
 	cterm->in_macro &= ~(UINT64_C(1) << n);
 }
 

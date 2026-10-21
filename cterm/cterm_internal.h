@@ -28,6 +28,9 @@
 #ifndef _CTERM_INTERNAL_H_
 #define _CTERM_INTERNAL_H_
 
+#include "cterm_text.h"
+#include "cterm_input.h"
+
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>

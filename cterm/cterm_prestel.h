@@ -43,7 +43,7 @@ void cterm_prestel_handle_escaped(struct cterminal *cterm, uint8_t ctrl);
 void cterm_prestel_fix_line(struct cterminal *cterm, int x, int y,
     bool restore, bool force);
 
-/* Accumulator + dispatchers plugged into the cterm_write byte loop.
+/* Accumulator + dispatchers called by cterm_parse_byte.
  * BEEB has no sequence accumulator — VDU 23 / VDU 28 install the generic
  * cterm_accumulate_trailing via cterm->seq_trailing_handler. */
 bool cterm_accumulate_prestel_seq(struct cterminal *cterm, unsigned char byte,

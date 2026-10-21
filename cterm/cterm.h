@@ -124,7 +124,6 @@ struct cterminal {
 	bool (*api_input_filter_active)(void *context);
 	void *api_input_filter_context;
 	bool api_input_filter_suppressed;
-	bool api_input_filter_installed;
 	st_cterm_capture_t api_capture;
 	bool (*api_capture_active)(void *context);
 	void *api_capture_context;
@@ -137,6 +136,9 @@ struct cterminal {
 	uint16_t api_mouse_modes;
 	uint32_t api_mouse_buttons;
 	bool api_status_destroy_pending;
+	unsigned int input_depth;
+	struct cterminal *retired_status;
+	struct cterminal *retired_status_next;
 	uint32_t api_reserved_rows;
 	int	x;		// X position of the left side on the screen
 	int	y;		// Y position of the top pn the screen
@@ -254,7 +256,8 @@ struct cterminal {
 	int					vtab_count;
 	uint8_t decsace;	/* DECSACE: 0/2=rectangle, 1=stream */
 	int					decscs_speed;	/* Last DECSCS speed value (bps, 0=default) */
-	char				lastch;			/* Last printable char (for REP) */
+	char               *last_text;
+	size_t              last_text_size;
 	uint32_t last_column_flag;
 #define CTERM_LCF_SET 1
 #define CTERM_LCF_ENABLED 2
@@ -311,7 +314,6 @@ struct cterminal {
 #define MACRO_ENCODING_HEX	1
 
 	/* Alternate font renderer */
-	void (*font_render)(char *str);
 	int skypix;
 	uint8_t prestel_last_mosaic;
 
@@ -415,13 +417,10 @@ struct cterminal {
 	bool				seq_consumed[MAX_SEQ_PARAMS];
 	bool				seq_consumed_any;
 
-	/* Print-batch buffer for cterm_write: printable bytes are coalesced
-	 * here, then flushed via cterm_uctputs when the buffer nears full or
-	 * a non-print event (sequence start, doorway cell, music, etc.) needs
-	 * the current cursor position to be accurate.  Lives on the struct so
-	 * accumulator/dispatcher functions share the canonical
-	 *   bool fn(struct cterminal *, unsigned char, int *speed)
-	 * signature instead of passing buf/pos in every call. */
+	/* Byte-handler emissions and literal sequence fallbacks are converted
+	 * to UTF-8 by cterm_uctputs before the next input byte is dispatched.
+	 * Struct storage lets dispatchers and accumulators share that scratch
+	 * buffer without adding buffer arguments to their common signature. */
 	unsigned char		print_buf[2048];
 	unsigned char		*print_pos;
 
@@ -458,8 +457,8 @@ struct cterminal *cterm_init(int height, int width, int xpos, int ypos,
 	int emulation,
 	const struct cterm_render_state *screen,
 	const struct st_cterm_config *initial);
-size_t cterm_write(struct cterminal *cterm, const void *buf, int buflen,
-	int *speed);
+/* False returns an unconsumed byte to the input decoder after a string abort. */
+bool cterm_parse_byte(struct cterminal *cterm, unsigned char byte, int *speed);
 int cterm_openlog(struct cterminal *cterm, char *logfile, int logtype);
 void cterm_closelog(struct cterminal *cterm);
 void cterm_end(struct cterminal *cterm, int free_fonts);

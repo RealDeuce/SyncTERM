@@ -169,7 +169,9 @@ dispatch_command(struct cterm_rip_parser *parser,
 		if (parser->command[i] == 0xff)
 			parser->command[i] = '|';
 	}
-	if (sink->command != NULL)
+	if (sink->boundary != NULL)
+		status = sink->boundary(sink->context);
+	if (status == 0 && sink->command != NULL)
 		status = sink->command(sink->context, level, sublevel, code,
 		    (const char *)&parser->command[index]);
 	clear_command(parser);
@@ -251,8 +253,9 @@ feed_escape(struct cterm_rip_parser *parser,
 	}
 	if (parser->escape_length >= 2 && byte == '!') {
 		parser->escape[parser->escape_length++] = byte;
-		status = sink->control == NULL ? 0 : sink->control(sink->context,
-		    parser->escape, parser->escape_length);
+		status = sink->boundary == NULL ? 0 : sink->boundary(sink->context);
+		if (status == 0 && sink->control != NULL)
+			status = sink->control(sink->context, parser->escape, parser->escape_length);
 		if (parser->escape_length == 4 && parser->escape[2] == '1')
 			parser->enabled = false;
 		parser->escape_length = 0;
