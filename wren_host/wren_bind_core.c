@@ -4436,6 +4436,16 @@ text_pair(WrenVM *vm, const char **left, int *left_size,
 }
 
 static void
+fn_text_normalized_byte_count(WrenVM *vm)
+{
+	const char *text;
+	int size;
+
+	if (st_wren_text_slot(vm, 1, &text, &size))
+		wrenSetSlotDouble(vm, 0, size);
+}
+
+static void
 fn_text_caseless_equal(WrenVM *vm)
 {
 	const char *left;
@@ -4542,6 +4552,7 @@ fn_cterm_status_display(WrenVM *vm)
 
 static const struct binding bindings[] = {
 	{"Platform", true, "name", fn_platform_name},
+	{"Text", true, "normalizedByteCount(_)", fn_text_normalized_byte_count},
 	{"Text", true, "caselessKey(_)", fn_text_caseless_key},
 	{"Text", true, "caselessEqual(_,_)", fn_text_caseless_equal},
 	{"Text", true, "caselessStartsWith(_,_)", fn_text_caseless_starts_with},

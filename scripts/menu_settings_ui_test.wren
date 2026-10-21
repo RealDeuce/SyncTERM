@@ -1,0 +1,296 @@
+// Drive shipped settings actions without a physical display or keyboard.
+import "syncterm" for Key, KeyEvent
+import "syncterm_menu" for Menu
+import "menu_settings_ui" for SettingsMenu
+import "menu_theme_editor" for ThemeEditor
+import "menu_bbs_editor" for BbsEditor
+import "menu_sort_profiles" for SortProfiles
+import "menu_ui" for MenuUi
+import "ui_app" for App
+import "ui_list" for ListView
+import "ui_popup" for Alert
+
+class SettingsTestApp is App {
+  construct new(actions) {
+    super()
+    _actions = actions
+    _alerts = 0
+  }
+  alerts { _alerts }
+  remaining { _actions.count }
+  modal(pane) {
+    pushModal(pane)
+    if (pane is Alert) {
+      _alerts = _alerts + 1
+      pane.dismissWith_(null)
+      return
+    }
+    if (_actions.count == 0) Fiber.abort("Unexpected dialog: %(pane.title)")
+    _actions.removeAt(0).call(pane)
+    if (modalStack.indexOf(pane) >= 0) popModal()
+  }
+}
+
+class SettingsMenuTest {
+  static check_(ok, message) {
+    if (!ok) Fiber.abort(message)
+  }
+  static list_(pane) {
+    for (child in pane.children) if (child is ListView) return child
+    Fiber.abort("No choice list in %(pane.title)")
+  }
+  static select_(pane, label) {
+    var list = list_(pane)
+    for (i in 0...list.items.count) {
+      if (list.items[i].startsWith(label)) {
+        list.selected = i
+        list.handle(KeyEvent.new(Key.enter))
+        return
+      }
+    }
+    Fiber.abort("Missing row: %(label) in %(pane.title)")
+  }
+  static row_(label) { Fn.new {|pane| select_(pane, label) } }
+  static answer_(value) { Fn.new {|pane| pane.dismissWith_(value) } }
+  static cancel_ { Fn.new {|pane| null } }
+  static run() {
+    testProgram_()
+    testConnectedMenu_()
+    testDefaults_()
+    testTlsPairs_()
+    testFileLocations_()
+    testInputLimits_()
+    testLongFontName_()
+    testInvalidNames_()
+    testEncryption_()
+    testThemeFilenames_()
+  }
+  static testProgram_() {
+    var before = Menu.settings
+    var confirm = before.confirmClose
+    var promptSave = before.promptSave
+    before.tlsClientCert = "client.pem"
+    before.tlsClientKey = "client.key"
+    check_(before.apply(), "prepare TLS file fields")
+    var actions = [
+      row_("Confirm Program Exit"), row_("Prompt to Save"),
+      row_("Startup Screen Mode"), row_(Menu.screenModes[3]),
+      row_("Video Output Mode"), row_(Menu.outputModes[0][1]),
+      row_("Default Cursor Style"), row_(Menu.cursorStyles[4])
+    ]
+    var audioBefore = Menu.settings.audioModes
+    var audioBit = 0
+    if (Menu.audioModes.count > 0) {
+      audioBit = Menu.audioModes[0][0]
+      actions.add(row_("Audio Output Mode"))
+      actions.add(row_("[X] " + Menu.audioModes[0][1]))
+      actions.add(cancel_)
+    }
+    for (edit in [
+      ["Scrollback Buffer Lines", 123],
+      ["Modem/Comm Device", "/dev/audit"],
+      ["Modem/Comm Rate", 9600],
+      ["Modem Init String", "ATZ"],
+      ["Modem Dial String", "ATDP"],
+      ["List Path", before.listPath],
+      ["TERM For Shell", "ansi"],
+      ["Key Derivation Shift", 8]
+    ]) {
+      actions.add(row_(edit[0]))
+      actions.add(answer_(edit[1].toString))
+    }
+    actions.add(row_("Scaling"))
+    actions.add(row_("Invert Mouse Wheel"))
+    actions.add(row_("Classic Theme Colours"))
+    for (edit in [["Frame Colour", "Blue"], ["Text Colour", "Green"],
+        ["Background Colour", "Cyan"], ["Inverse Colour", "Red"],
+        ["Lightbar Colour", "Yellow"], ["Lightbar Background", "Magenta"]]) {
+      actions.add(row_(edit[0]))
+      actions.add(row_(edit[1]))
+    }
+    actions.add(cancel_)
+    actions.add(row_("Custom Screen Mode"))
+    for (edit in [["Rows", 30], ["Columns", 100]]) {
+      actions.add(row_(edit[0]))
+      actions.add(answer_(edit[1].toString))
+    }
+    actions.add(row_("Font Size"))
+    actions.add(row_("8x8"))
+    for (edit in [["Aspect Ratio Width", 16], ["Aspect Ratio Height", 9]]) {
+      actions.add(row_(edit[0]))
+      actions.add(answer_(edit[1].toString))
+    }
+    actions.add(cancel_)
+    for (label in ["TLS Client Certificate", "TLS Client Key"]) {
+      actions.add(Fn.new {|pane|
+        var list = list_(pane)
+        for (i in 0...list.items.count) {
+          if (list.items[i].startsWith(label)) list.selected = i
+        }
+        pane.handle(KeyEvent.new(Key.delete))
+      })
+    }
+    actions.add(cancel_)
+    var app = SettingsTestApp.new(actions)
+    check_(SettingsMenu.program_(app, false), "program editor reports changes")
+    check_(app.remaining == 0 && app.alerts == 0, "all program controls accepted")
+    var s = Menu.settings
+    check_(s.confirmClose == !confirm && s.promptSave == !promptSave &&
+        s.startupMode == 3 && s.outputMode == 0 && s.cursorStyle == 4,
+        "program toggles and display choices")
+    check_(s.audioModes == (audioBefore ^ audioBit) &&
+        s.scrollbackLines == 123 && s.modemDevice == "/dev/audit" &&
+        s.modemRate == 9600 && s.modemInit == "ATZ" &&
+        s.modemDial == "ATDP" && s.shellTerm == "ansi",
+        "audio, scrollback, modem and shell edits")
+    check_(s.scalingMode == 1 && s.invertWheel && s.kdfShift == 8,
+        "scaling, wheel direction and KDF edits")
+    check_(s.frameColor == 1 && s.textColor == 2 &&
+        s.backgroundColor == 3 && s.inverseColor == 4 &&
+        s.lightbarColor == 14 && s.lightbarBackgroundColor == 5,
+        "all Classic Theme colours")
+    check_(s.customRows == 30 && s.customColumns == 100 &&
+        s.customFontHeight == 8 && s.customAspectWidth == 16 &&
+        s.customAspectHeight == 9 && s.tlsClientCert == "" &&
+        s.tlsClientKey == "", "custom geometry and clearing TLS files")
+  }
+  static testDefaults_() {
+    var b = Menu.defaults
+    var d = BbsEditor.draft_(b)
+    var changes = {
+      "connType": 12, "port": 992, "user": "guest", "password": "pass",
+      "syspass": "system", "addressFamily": 2, "screenMode": 3,
+      "encoding": 255, "termName": "ansi", "music": 0, "bpsRate": 9600,
+      "noStatus": true, "hidePopups": true, "yellowIsYellow": true,
+      "forceLcf": true, "lfExpand": true, "dlDir": "/downloads",
+      "ulDir": "/uploads", "logFile": "audit.log", "appendLogFile": false,
+      "xferLogLevel": 6, "protocolLogLevel": 7, "dataBits": 7,
+      "stopBits": 2, "parity": 2, "flowControl": 2,
+      "telnetNoBinary": true, "deferTelnetNegotiation": true,
+      "tlsTrustWebPki": false, "tlsTrustedCert": "server.pem",
+      "tlsClientCert": "client.pem", "tlsClientKey": "client.key",
+      "tlsPskIdentity": "identity", "tlsPsk": "secret", "tlsPskVersion": 1,
+      "sftpPublicKey": true, "sshAllowAes128Cbc": true,
+      "sshAcceptEarlyData": true
+    }
+    for (key in changes.keys) d[key] = changes[key]
+    var app = SettingsTestApp.new([])
+    check_(BbsEditor.update_(app, b, d, true) && b.save(),
+        "save every editable connection default")
+    check_(Menu.load(null) == 0, "reload defaults")
+    var actual = BbsEditor.draft_(Menu.defaults)
+    for (key in changes.keys) check_(actual[key] == changes[key],
+        "default did not persist: %(key)")
+    var entry = Menu.create("Inherited")
+    actual = BbsEditor.draft_(entry)
+    for (key in changes.keys) check_(actual[key] == changes[key],
+        "new entry did not inherit: %(key)")
+    check_(entry.delete(), "discard inherited test entry")
+  }
+  static testConnectedMenu_() {
+    for (row in SettingsMenu.rows(true)) {
+      check_(row[0] != 2 && row[0] != 8, "connected settings restrictions")
+    }
+    var app = SettingsTestApp.new([Fn.new {|pane|
+      for (label in list_(pane).items) {
+        check_(!label.startsWith("Custom Screen Mode"),
+            "connected program settings must omit custom geometry")
+      }
+    }])
+    check_(!SettingsMenu.program_(app, true), "cancel must not change settings")
+  }
+  static testTlsPairs_() {
+    var b = Menu.defaults
+    var app = null
+    app = SettingsTestApp.new([Fn.new {|pane|
+      select_(pane, "TLS PSK Identity")
+      check_(b.tlsPskIdentity == "", "first PSK edit must reach working entry")
+      check_(app.alerts == 0, "paired fields must be editable one at a time")
+      pane.handle(KeyEvent.new(Key.escape))
+      check_(app.modalStack.indexOf(pane) >= 0 && app.alerts == 1,
+          "an incomplete PSK pair must keep the editor open")
+      select_(pane, "TLS PSK (Text)")
+      pane.handle(KeyEvent.new(Key.escape))
+    }, answer_(""), answer_("")])
+    check_(BbsEditor.edit(app, b, true, false) &&
+        b.tlsPskIdentity == "" && b.tlsPsk == "", "completed PSK clear must save")
+    check_(app.remaining == 0, "TLS field actions consumed")
+  }
+  static testInputLimits_() {
+    var tooLong = (0...16).map {|i| "é" }.join()
+    var app = SettingsTestApp.new([answer_(tooLong), answer_("valid")])
+    var result = MenuUi.promptBytes(app, "Username", "Username", "", 30,
+        false, null)
+    check_(result == "valid" && app.alerts == 1 && app.remaining == 0,
+        "bounded fields must reject UTF-8 byte overflow without aborting")
+    app = SettingsTestApp.new([answer_(tooLong), answer_(null)])
+    check_(MenuUi.promptBytes(app, "Username", "Username", "", 30,
+        false, null) == null && app.alerts == 1,
+        "invalid byte-length input must remain cancellable")
+    var decomposed = (0...15).map {|i| "e\u0301" }.join()
+    app = SettingsTestApp.new([answer_(decomposed)])
+    check_(MenuUi.promptBytes(app, "Username", "Username", "", 30,
+        false, null) == decomposed && app.alerts == 0,
+        "byte limits must use the same NFC normalization as the setter")
+  }
+  static testFileLocations_() {
+    var s = Menu.settings
+    var original = s.listPath
+    s.listPath = original + ".alternate"
+    check_(s.apply(), "switch personal list")
+    check_(Menu.fileLocations["personalList"] == s.listPath,
+        "file locations must show the active personal list")
+    s.listPath = original
+    check_(s.apply(), "restore personal list")
+  }
+  static testEncryption_() {
+    if (!Menu.encryptionAvailable) return
+    for (choice in [["Encrypt Using ChaCha20", 7, 256],
+        ["Encrypt Using AES-128", 6, 128], ["Encrypt Using AES-256", 6, 256]]) {
+      var actions = [row_(choice[0])]
+      if (Menu.encryptionAlgorithm == 0) actions.add(answer_("audit password"))
+      var app = SettingsTestApp.new(actions)
+      check_(SettingsMenu.encryption_(app) && app.alerts == 0 &&
+          Menu.encryptionAlgorithm == choice[1] &&
+          Menu.encryptionKeySize == choice[2], "encryption choice: %(choice[0])")
+    }
+    var app = SettingsTestApp.new([row_("Change Password"), answer_("new password")])
+    check_(SettingsMenu.encryption_(app) && app.alerts == 0, "change list password")
+    app = SettingsTestApp.new([row_("Decrypt")])
+    check_(SettingsMenu.encryption_(app) && Menu.encryptionAlgorithm == 0,
+        "decrypt list")
+  }
+  static testInvalidNames_() {
+    var app = SettingsTestApp.new([answer_("\u00a0Font")])
+    var count = Menu.fonts.count
+    check_(!SettingsMenu.addFont_(app, Menu.fonts, count) &&
+        Menu.fonts.count == count && app.alerts == 1,
+        "invalid Unicode font name must report an error without aborting")
+    app = SettingsTestApp.new([answer_("\u00a0Sort"), cancel_])
+    count = Menu.sortProfiles.count
+    SortProfiles.new_(app, count)
+    check_(Menu.sortProfiles.count == count && app.alerts == 1,
+        "invalid Unicode sort name must report an error without aborting")
+  }
+  static testLongFontName_() {
+    var name = (0...45).map {|i| "é" }.join()
+    var font = Menu.createFont(name, 0)
+    check_(font != null, "create a valid long UTF-8 font name")
+    var entry = Menu.create("Long Font")
+    entry.font = name
+    check_(entry.save() && Menu.load(null) == 0, "persist a long font selection")
+    var saved = null
+    for (bbs in Menu.entries) if (bbs.name == "Long Font") saved = bbs
+    check_(saved != null && saved.font == name, "long font selection round trip")
+    check_(saved.delete() && font.delete() && Menu.saveFonts(), "discard long font fixtures")
+  }
+  static testThemeFilenames_() {
+    var document = Menu.newThemeDocument()
+    for (entry in [["é.ini", "é.ini"], ["界.INI", "界.INI"],
+        ["Thème", "Thème.ini"]]) {
+      var app = SettingsTestApp.new([answer_(entry[0])])
+      check_(ThemeEditor.filename_(app, document) == entry[1],
+          "theme filename must preserve its UTF-8 basename and existing extension")
+    }
+  }
+}

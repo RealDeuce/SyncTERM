@@ -1,6 +1,6 @@
 // Full-screen editor for C-owned SyncTERM theme documents.
 
-import "syncterm" for Cell, Color, Font, Key, KeyEvent, Mouse, MouseEvent, Screen
+import "syncterm" for Cell, Color, Font, Key, KeyEvent, Mouse, MouseEvent, Screen, Text
 import "syncterm_menu" for Menu
 import "ui_widget" for Container, Rect, Widget
 import "ui_pane" for Pane
@@ -1536,8 +1536,7 @@ class ThemeEditor {
     var value = MenuUi.prompt(app, "Save Theme As", "Filename", initial,
         Menu.maxPathLength, false)
     if (value == null) return null
-    var suffix = value.count < 4 ? "" : value[value.count - 4...value.count]
-    if (!MenuUi.namesEqual(suffix, ".ini")) {
+    if (!Text.caselessKey(value).endsWith(".ini")) {
       value = value + ".ini"
     }
     return value

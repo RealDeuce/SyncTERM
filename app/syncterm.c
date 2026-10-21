@@ -1016,6 +1016,13 @@ main(int argc, char **argv)
 		if (status != 0)
 			fprintf(stderr, "SyncTERM: session failed (%d)\n", status);
 		if (command.url != NULL || disposition == ST_TERM_EXIT_APPLICATION) {
+			bool saved;
+			int save_status = st_wren_host_offer_save_profile(host,
+			    &selected, &saved);
+
+			if (save_status != 0)
+				fprintf(stderr, "SyncTERM: cannot offer to save the URL entry (%d)\n",
+				    save_status);
 			result = status == 0 ? 0 : 1;
 			break;
 		}

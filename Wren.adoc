@@ -4428,6 +4428,11 @@ the in-memory `BBS` immediately; `save()` writes them as the comma-separated
 The fingerprint has no direct editor row; the shipped F5/F6 clipboard carries
 it through the draft so copying an entry preserves an accepted SSH host key.
 
+TLS certificate/key and PSK identity/secret pairs can be edited one field at
+a time. The editor validates complete pairs before saving and remains open
+when a pair is incomplete. C-backed text fields also enforce their UTF-8 byte
+limits before invoking a setter.
+
 Download Path and Upload Path remain direct entry rows.  Log Configuration
 opens the four intended logging controls: Log Filename, File Transfer Log
 Level, Protocol Log Level, and Append Log File.  Accepted values still
@@ -4476,6 +4481,13 @@ rewrite an encrypted BBS list during `apply()`.  Saving `syncterm.ini` is
 disabled in safe mode: `save()` returns `false` before applying the snapshot,
 and the snapshot remains dirty.
 
+The allowed audio-backend mask changes immediately. Backend selection occurs
+when the process first opens its audio engine; changing an already-open
+backend requires restarting SyncTERM. Startup screen and video output
+preferences also take effect on the next startup. In safe mode, applying a
+KDF change which would rewrite an encrypted directory returns `false` without
+changing the directory or installed settings.
+
 A successful `apply()` or `save()` advances the settings generation.
 The object which performed the operation remains valid and clean, but
 any other outstanding `Settings` handles become stale and abort when
@@ -4486,6 +4498,11 @@ The shipped Program Settings editor calls `apply()` after each accepted
 setting and calls `save()` once when the editor closes.  Thus settings
 with immediate effects change at field-confirmation time while the INI
 write remains grouped at the Program Settings screen-exit boundary.
+If the write fails, the screen remains open so saving can be retried.
+
+`promptSave` controls the save offer for a temporary URL connection when the
+application exits. The offer is suppressed in safe mode, when that entry has
+`hidePopups` set, and for entries already saved in the directory.
 
 The editor keeps Classic Theme Colours and Custom Screen Mode as nested groups instead
 of flattening their fields into Program Settings.  A connected invocation
@@ -4606,7 +4623,7 @@ duplicate platform-dependent enum tables:
 
 | `audioModes`
 | Build-dependent List of `[bit, displayName]` rows for selectable
-  audio backends.
+  audio backends, in the engine's preference order.
 
 | `buildOptions`
 | List of `[category, displayName, enabled]` rows describing this
@@ -4768,7 +4785,10 @@ memory.  `MenuEncryption` defines `none`, `aes`, and `chacha20`.
 
 `Menu.setEncryption(algorithm, keySize, password)` rewrites the current
 personal list and returns Bool.  AES accepts 128- or 256-bit keys;
-ChaCha20 and unencrypted lists require key size zero.  `password` may
+ChaCha20 accepts zero to select its fixed 256-bit key (explicit 256 is also
+accepted), and unencrypted lists use key size zero. The current `kdfShift`
+is used when encrypting, changing algorithms, or changing a password.
+`password` may
 be `null` to reuse the password already held by the host.  Enabling
 encryption fails if neither source supplies a non-empty password.  A
 successful rewrite updates the current algorithm, key size, and held
@@ -6001,6 +6021,10 @@ collation table and an identical tie-break for deterministic results.
 [options="header",cols="2,3"]
 |===
 | Method | Description
+
+| `Text.normalizedByteCount(text)`
+| Return the UTF-8 byte count after NFC normalization. Use this when checking
+  input against byte limits on C-backed text fields.
 
 | `Text.caselessKey(text)`
 | Return the NFD full-default-casefold key used by caseless equality. This is

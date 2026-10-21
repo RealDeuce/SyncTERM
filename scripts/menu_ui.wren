@@ -668,6 +668,17 @@ class MenuUi {
     return p.result
   }
 
+  // TextInput limits Unicode scalars; C-backed fields also have byte limits.
+  static promptBytes(app, title, message, initial, maximum, masked, helpText) {
+    var value = initial
+    while (true) {
+      value = prompt(app, title, message, value, maximum, masked, helpText)
+      if (value == null || Text.normalizedByteCount(value) <= maximum) return value
+      Alert.show(app, title,
+          "Enter at most %(maximum) UTF-8 bytes for this value.")
+    }
+  }
+
   static integer(app, title, message, initial, minimum, maximum) {
     return integer(app, title, message, initial, minimum, maximum, null)
   }

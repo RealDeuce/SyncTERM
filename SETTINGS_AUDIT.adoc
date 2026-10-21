@@ -1,0 +1,203 @@
+= Settings Menu Audit
+:toc:
+
+Audit date: 2026-10-21. Source baseline: `f886fca`.
+
+This review follows each shipped settings action from its Wren callback through
+the host binding, validation, persistence, and runtime consumer. Automated
+coverage combines the existing component tests with `wren_settings_menu`,
+which drives actual shipped widgets and callbacks using a headless console.
+Source review and automated execution are distinguished below; this is not a
+claim that every platform backend or external service was exercised.
+
+== Findings repaired
+
+[cols="1,3,3",options="header"]
+|===
+| Area | Defect | Result
+| Classic colours
+| Default foreground/background sentinel values indexed past the choice lists.
+| Both lists include Default; all six role choices remain independently editable.
+| Prompt to Save
+| The option was persisted, but application exit never called the save-offer flow.
+| Temporary URL profiles receive the existing offer on exit. Disabled prompting,
+  safe mode, hidden popups, and already-saved entries suppress it.
+| ChaCha20
+| The UI supplied the documented key size zero; the host rejected it.
+| Zero selects the fixed 256-bit key; explicit 256 remains accepted.
+| Encryption work factor
+| Encryption and password/algorithm changes ignored the configured KDF shift.
+| All rewrites use the configured shift.
+| Safe-mode KDF changes
+| Applying a work-factor change could rewrite an encrypted directory in safe mode.
+| The operation fails without modifying the directory or installed settings.
+| Default cursor
+| Applying an unrelated setting replaced mode-specific cursor geometry with an underline.
+| Default retains the active mode's cursor; explicit cursor styles still override it.
+| Web-list addition
+| Add reported success without downloading the directory.
+| Add fetches and validates the list. Failure rolls back the new configuration
+  entry while preserving previous edits and the dirty flag.
+| TLS pairs
+| Validation after each field prevented editing a certificate/key or PSK pair one field at a time.
+| Intermediate edits are allowed; save/close validates complete pairs and keeps
+  the editor open on failure.
+| Text limits
+| Scalar-count limits permitted UTF-8 strings that overflowed fixed C fields and aborted the menu fiber.
+| Bounded prompts check bytes after the same NFC normalization as the setters,
+  report overflow, and allow retry or cancellation.
+| Font and sort names
+| C-side Unicode name rejection escaped from menu callbacks as a fiber abort.
+| The menus display the validation failure and remain usable.
+| File Locations
+| Personal List always showed the original startup path.
+| It shows the current effective List Path.
+| Audio order
+| The displayed order differed from backend preference despite help promising that order.
+| The list follows engine preference; help explains when backend selection occurs.
+| Settings save failure
+| Program Settings closed after a failed write, preventing a direct retry.
+| The screen stays open and retries saving on the next close.
+| Long font names
+| Font management accepted 100-byte names while connection profiles could hold only 79 bytes.
+| Profiles accept the same 100-byte name limit and round-trip those selections.
+| Theme filenames
+| The extension check mixed Unicode scalar counts with byte slicing, duplicating extensions on Unicode names.
+| Unicode basenames preserve an existing case-insensitive .ini extension.
+|===
+
+== Menu inventory and evidence
+
+=== Root actions
+
+All nine actions were reviewed: Web Lists, Default Connection Settings,
+Current Screen Mode, Font Management, Program Settings, Themes,
+File Locations, Build Options, and List Encryption. Connected mode omits
+Current Screen Mode and List Encryption and removes custom geometry from
+Program Settings. Encryption visibility follows crypto availability.
+Safe mode retains runtime settings edits while suppressing persistent writes
+and font/encryption modification. The new regression test checks connected
+visibility and safe-mode encrypted-directory protection; `wren_menu_contract`
+executes the existing host menu and safe-mode contracts independently of the
+connected-session tests.
+
+=== Program Settings
+
+The new UI regression test edits every one of the 20 rows, checks the resulting
+settings, and reloads the saved configuration:
+
+* Confirm Program Exit and Prompt to Save.
+* Startup Screen Mode, Video Output Mode, Default Cursor Style, Audio Output Mode.
+* Scrollback Buffer Lines.
+* Modem/Comm Device, Modem/Comm Rate, Modem Init String, Modem Dial String.
+* List Path and TERM For Shell.
+* Scaling and Invert Mouse Wheel.
+* Key Derivation Shift.
+* Classic Theme Colours: Frame, Text, Background, Inverse, Lightbar,
+  and Lightbar Background, using distinct values to detect crossed bindings.
+* Custom Screen Mode: Rows, Columns, Font Size, Aspect Ratio Width and Height.
+* TLS Client Certificate and TLS Client Key, including Delete to clear them.
+
+Additional native checks inspect scrollback capacity and the audio permission
+mask, compare default cursor geometry against every concrete screen mode,
+and change active custom geometry and font height. Existing app, screen-mode,
+console, audio, and settings tests cover the consumers and persistence rules.
+The new test also forces a real settings-file write failure and checks reentry
+into the editor, and exercises both declining and accepting the URL save offer.
+
+Startup mode and video output are startup preferences. Modem, shell, and
+connection defaults affect subsequent uses. The audio engine is opened lazily
+and lives until process shutdown; the allowed-backend mask changes immediately,
+but selecting a different already-open backend requires a restart. This timing
+is now stated in the menu help and Wren API manual.
+
+=== Default Connection Settings
+
+Reviewed all draft/setter mappings, conditional visibility, clipboard handling,
+and save/new-entry inheritance. The new test updates the shared editor draft,
+saves, reloads, and checks inheritance for credentials; transport and address
+family; terminal type; screen mode and encoding; music and rate; status/popups;
+palette/font compatibility flags; line-ending behavior; transfer paths;
+logging filename, append mode and both log levels; serial data bits, stop bits,
+parity and flow control; Telnet negotiation flags; TLS trust, certificates,
+keys and PSK settings; and SSH/SFTP compatibility options.
+
+Existing host tests exercise font/encoding/RIP/screen linkage, serial control
+round trips, and editor operations. The new UI test specifically edits a PSK
+pair one field at a time, verifies an incomplete pair prevents closing, and
+then completes and saves it. Font selection now also round-trips a valid
+90-byte Unicode custom name. Physical modems and live remote endpoints were
+not used for this audit.
+
+=== Web Lists
+
+Reviewed add, edit URI, delete, insertion position, refresh, persistence,
+error handling and cache integration. A bounded loopback HTTP fixture checks
+that Add actually fetches a valid list and that its entries become available.
+It then checks URI editing, save/reload, deletion, failed-fetch rollback, and
+preservation of earlier unsaved edits. Existing BBS web tests cover refresh
+workers, progress, partial failures and cache behavior. No public endpoint is
+required for these tests.
+
+=== Font Management
+
+Reviewed add/rename/delete, INI name validation, the four
+font-size slots and their settings/catalog mappings, file validation, draft
+ownership and save/reload behavior. Existing settings/font catalog/host tests
+exercise the underlying draft and font-loading contracts. New UI tests cover
+invalid Unicode names without fiber termination and long-name profile selection.
+
+=== Themes
+
+Reviewed preview versus selection/cancel, local and package identity, creating
+and editing local copies, import/export, undo/redo, save/save-as/delete,
+metadata, style colours/attributes, glyph edits, cloud installation and cache
+error paths. Existing theme and Wren tests cover those components and UI
+contracts. New tests exercise Unicode filenames with lowercase, uppercase and
+absent .ini extensions. This audit did not make live theme-service requests.
+
+=== Other actions
+
+Current Screen Mode uses the shared descriptors and host reconfiguration path;
+the mode/cursor tests cover every concrete descriptor and active custom geometry.
+File Locations and Build Options are read-only views; their map/catalog bindings
+were reviewed, and File Locations has a new effective-path regression check.
+List Encryption has new UI coverage for AES-128, AES-256, ChaCha20, password
+changes and decryption, plus on-disk KDF and safe-mode checks. Sort Profiles,
+an adjacent directory menu, received the same invalid-name error handling as
+Font Management.
+
+== Verification and limits
+
+Native verification uses the independently configured CMake Debug build with
+Clang on FreeBSD 15.1 and a headless console. The application and test targets
+build with the project's strict warning settings and no new warnings.
+
+The focused menu tests, `wren_settings_menu` and `wren_menu_contract`, pass.
+The broader settings/BBS/theme/Wren/app/font/audio/history/screen-mode/terminal
+selection has 57 passing tests when the following two independently failing
+tests are excluded. Both failures also reproduce in a separately configured
+and built, untouched `f886fca` snapshot:
+
+* `wren_host`: `exercise_connected_scrollback`, clean matching of coloured
+  text at `st_wren_host_test.c:1127`. The text consolidation path gives the
+  matcher an ESC without the remaining sequence bytes, leaving its ANSI
+  stripping state pending. This connected-input regression remains open.
+* `term`: `test_shell_utf8_boundary`, expected U+00E9 at
+  `st_term_test.c:544`. It passed one isolated run but failed subsequent runs
+  in both trees. Its cause remains unconfirmed.
+
+The menu-only test retains the ordinary full-host test and its failure; it
+provides independent execution of all menu contracts, including the safe-mode
+checks which otherwise follow that connected-session assertion.
+
+[source,shell]
+----
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+cmake --build build -j 2
+ctest --test-dir build -R '(settings|bbs|theme|wren|app_|font_catalog|audio|session_history|screen_mode|^term|connection_serial|connection_protocol|tls_prompt)' -E '(^wren_host$|^term$|wren_sftp_live)' --output-on-failure -j 2
+----
+
+Windows toolchains, physical audio/serial devices, graphical presentation and
+live public services were not exercised. Automated callback tests and source
+review do not establish their platform-specific behavior.

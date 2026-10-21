@@ -134,6 +134,26 @@ else()
 endif()
 
 if(BUILD_TESTING)
+	add_executable(st_wren_settings_menu_test tests/st_wren_settings_menu_test.c)
+	target_include_directories(st_wren_settings_menu_test SYSTEM PRIVATE
+		${CMAKE_CURRENT_SOURCE_DIR}/../wren_vm/vm)
+	target_link_libraries(st_wren_settings_menu_test PRIVATE st_wren_host
+		st_wren_vm st_bbs_list st_settings st_fonts st_session_history st_audio
+		syncterm_threads syncterm_socket syncterm_filesystem)
+	target_compile_definitions(st_wren_settings_menu_test PRIVATE
+		ST_WREN_SETTINGS_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/settings-menu-test"
+		ST_WREN_SETTINGS_SOURCE_DIRECTORY="${CMAKE_CURRENT_SOURCE_DIR}/..")
+	set_target_properties(st_wren_settings_menu_test PROPERTIES
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_definitions(st_wren_settings_menu_test PRIVATE _CRT_SECURE_NO_WARNINGS)
+		target_compile_options(st_wren_settings_menu_test PRIVATE /W4 /WX)
+	else()
+		target_compile_options(st_wren_settings_menu_test PRIVATE -Wall -Wextra -Wpedantic -Werror)
+	endif()
+	add_test(NAME wren_settings_menu COMMAND st_wren_settings_menu_test)
+	set_tests_properties(wren_settings_menu PROPERTIES TIMEOUT 120)
+
 	include("${CMAKE_CURRENT_LIST_DIR}/../cmake/SynctermCheckC17Source.cmake")
 	set(_st_wren_saved_required_definitions ${CMAKE_REQUIRED_DEFINITIONS})
 	if(NOT WIN32)
@@ -184,6 +204,9 @@ int main(void)
 			-Wall -Wextra -Wpedantic -Werror)
 	endif()
 	add_test(NAME wren_host COMMAND st_wren_host_test)
+	add_test(NAME wren_menu_contract COMMAND st_wren_host_test --menu-only)
+	set_tests_properties(wren_host wren_menu_contract PROPERTIES
+		RESOURCE_LOCK wren_host_files TIMEOUT 600)
 	if(TARGET st_connection_ssh_fixture)
 		target_sources(st_wren_host_test PRIVATE tests/st_wren_sftp_live_test.c)
 		target_compile_definitions(st_wren_host_test PRIVATE ST_WREN_HAVE_LIVE_SFTP=1)

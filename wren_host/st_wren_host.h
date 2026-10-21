@@ -121,6 +121,11 @@ int st_wren_host_remember_ssh_key(st_wren_host_t *host,
  */
 int st_wren_host_select_url(st_wren_host_t *host, const char *url,
 	int default_connection_type, struct st_profile *selected);
+/* Offer a temporary URL entry at application exit. Respect PromptSave, safe
+ * mode and HidePopups. Prepare the directory before copying the borrowed
+ * profile into menu-owned storage. Cancellation is success with saved=false. */
+int st_wren_host_offer_save_profile(st_wren_host_t *host,
+	const struct st_profile *profile, bool *saved);
 
 bool st_wren_host_exit_requested(const st_wren_host_t *host);
 int st_wren_host_set_screen_mode(st_wren_host_t *host,

@@ -364,6 +364,10 @@ class BbsEditor {
       if (standalone) app.quit()
     }
     pane.onClose = Fn.new {
+      if (bbs.dirty && !validate_(app, draft)) {
+        state["navigate"] = 0
+        return
+      }
       if (!bbs.dirty || (isDefaults && Host.safeMode) || save_(app, bbs)) {
         state["saved"] = true
         dismiss.call()
@@ -531,7 +535,7 @@ class BbsEditor {
     if (displayMasked) shown = shown.count > 0 ? "********" : "<none>"
     return row_(label, shown,
         Fn.new {
-      var value = MenuUi.prompt(app, label, label, d[key], maxLen,
+      var value = MenuUi.promptBytes(app, label, label, d[key], maxLen,
           inputMasked, fieldHelp_(key, d))
       if (value != null) d[key] = value
     })
@@ -1338,7 +1342,7 @@ class BbsEditor {
       rows.add(row_("Terminal Type",
           d["termName"].count == 0 ? "<Automatic>" : d["termName"],
           Fn.new {
-        var value = MenuUi.prompt(app, "Terminal Type", "Terminal Type",
+        var value = MenuUi.promptBytes(app, "Terminal Type", "Terminal Type",
             d["termName"], 31, false, terminalTypeHelp_())
         if (value != null) d["termName"] = value
       }))
@@ -1410,6 +1414,7 @@ class BbsEditor {
   }
 
   static apply_(app, b, d, defaults) {
+    if (!validate_(app, d)) return false
     if (!update_(app, b, d, defaults)) return false
     return save_(app, b)
   }
@@ -1428,8 +1433,7 @@ class BbsEditor {
     return true
   }
 
-  static update_(app, b, d, defaults) {
-    if (sameDraft_(draft_(b), d)) return true
+  static validate_(app, d) {
     if (d["connType"] == ConnType.telnets) {
       if ((d["tlsPskIdentity"].count == 0) !=
           (d["tlsPsk"].count == 0)) {
@@ -1454,7 +1458,11 @@ class BbsEditor {
         return false
       }
     }
+    return true
+  }
 
+  static update_(app, b, d, defaults) {
+    if (sameDraft_(draft_(b), d)) return true
     var tlsIdentityChanged = d["addr"] != b.addr || d["port"] != b.port ||
         d["connType"] != b.connType ||
         d["tlsTrustWebPki"] != b.tlsTrustWebPki ||

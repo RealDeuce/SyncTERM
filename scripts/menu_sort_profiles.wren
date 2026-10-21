@@ -98,8 +98,9 @@ class SortProfiles {
       var profile = profiles[index]
       var result = editFields_(app, profile[0], profile[1].toList)
       if (!sameOrder_(result[0], profile[1]) &&
-          !Menu.updateSortProfile(index, profile[0], result[0])) {
-        failed_(app)
+          !change_(app, Fn.new {
+            return Menu.updateSortProfile(index, profile[0], result[0])
+          })) {
         return index
       }
       if (result[1] == 0) return index
@@ -117,7 +118,7 @@ class SortProfiles {
       Alert.show(app, "New Sort Profile", "Duplicate profile name.")
     }
     var result = editFields_(app, name, [1])
-    if (!Menu.addSortProfile(index, name, result[0])) failed_(app)
+    change_(app, Fn.new { Menu.addSortProfile(index, name, result[0]) })
   }
 
   static rename_(app, index, profile) {
@@ -129,7 +130,7 @@ class SortProfiles {
       Alert.show(app, "Rename Sort Profile", "Duplicate profile name.")
       return
     }
-    if (!Menu.updateSortProfile(index, name, profile[1])) failed_(app)
+    change_(app, Fn.new { Menu.updateSortProfile(index, name, profile[1]) })
   }
 
   static paste_(app, index, clipboard) {
@@ -143,7 +144,7 @@ class SortProfiles {
         Alert.show(app, "Paste Sort Profile", "Duplicate profile name.")
       }
     }
-    if (!Menu.addSortProfile(index, name, clipboard[1])) failed_(app)
+    change_(app, Fn.new { Menu.addSortProfile(index, name, clipboard[1]) })
   }
 
   static editFields_(app, name, order) {
@@ -206,6 +207,19 @@ class SortProfiles {
     var field = MenuUi.choice(app, "Add Sort Field", rows, null,
         addFieldHelp_())
     if (field != null) order.insert(index, field)
+  }
+
+  static change_(app, action) {
+    var succeeded = false
+    var failure = Fiber.new {
+      succeeded = action.call()
+    }.try()
+    if (failure is String) {
+      Alert.show(app, "Sort Profiles", failure)
+      return false
+    }
+    if (!succeeded) failed_(app)
+    return succeeded
   }
 
   static failed_(app) {

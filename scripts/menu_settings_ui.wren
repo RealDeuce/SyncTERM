@@ -473,8 +473,9 @@ class SettingsMenu {
 
   static programHelp_(connected) {
     var text = "# Program Settings\n\n" +
-        "Accepted changes are applied to the running program immediately. " +
-        "The configuration file is written when you leave this screen.\n\n" +
+        "Accepted changes update the running configuration immediately. " +
+        "Startup screen and video output choices take effect at the next " +
+        "startup. The configuration file is written when you leave this screen.\n\n" +
         helpItem_("Confirm Program Exit", "Prompt before exiting SyncTERM") +
         helpItem_("Prompt to Save", "Offer to save temporary URL entries") +
         helpItem_("Startup Screen Mode", "The initial screen size and mode") +
@@ -526,6 +527,7 @@ class SettingsMenu {
 
   static outputHelp_() {
     return "# Video Output Mode\n\n" +
+        "The selected output mode is used the next time SyncTERM starts.\n\n" +
         "Autodetect\n:  Try the available backends in preferred order\n" +
         "Curses\n:  Text output through the Curses library\n" +
         "Curses CP437\n:  Curses with a terminal configured for Code Page 437\n" +
@@ -634,7 +636,9 @@ class SettingsMenu {
 
   static audioHelp_() {
     return "# Audio Output Mode\n\nToggle the audio backends SyncTERM may " +
-        "use. Enabled backends are attempted in the order shown."
+        "use. Enabled backends are attempted in the order shown. Changes " +
+        "apply before audio is first used; restart SyncTERM to change an " +
+        "already-open audio backend."
   }
 
   static webListsHelp_() {
@@ -795,7 +799,7 @@ class SettingsMenu {
               2147483647, scrollbackHelp_())
           if (next != null) s.scrollbackLines = next
         } else if (value == 8) {
-          var next = MenuUi.prompt(app, "Modem/Comm Device", "Serial device",
+          var next = MenuUi.promptBytes(app, "Modem/Comm Device", "Serial device",
               s.modemDevice, 1024, false, modemDeviceHelp_())
           if (next != null) s.modemDevice = next
         } else if (value == 9) {
@@ -804,20 +808,20 @@ class SettingsMenu {
               modemRateHelp_())
           if (next != null) s.modemRate = next
         } else if (value == 10) {
-          var next = MenuUi.prompt(app, "Modem Init String",
+          var next = MenuUi.promptBytes(app, "Modem Init String",
               "Initialization string", s.modemInit, 1023, false,
               modemInitHelp_())
           if (next != null) s.modemInit = next
         } else if (value == 11) {
-          var next = MenuUi.prompt(app, "Modem Dial String", "Dial string",
+          var next = MenuUi.promptBytes(app, "Modem Dial String", "Dial string",
               s.modemDial, 1023, false, modemDialHelp_())
           if (next != null) s.modemDial = next
         } else if (value == 12) {
-          var next = MenuUi.prompt(app, "List Path", "Path or URI",
+          var next = MenuUi.promptBytes(app, "List Path", "Path or URI",
               s.listPath, Menu.maxPathLength, false, listPathHelp_())
           if (next != null) s.listPath = next
         } else if (value == 13) {
-          var next = MenuUi.prompt(app, "TERM For Shell", "Terminal name",
+          var next = MenuUi.promptBytes(app, "TERM For Shell", "Terminal name",
               s.shellTerm, 30, false, shellTermHelp_())
           if (next != null) s.shellTerm = next
         } else if (value == 14) {
@@ -847,7 +851,6 @@ class SettingsMenu {
         if (Host.safeMode || s.save()) return true
         Alert.show(app, "Program Settings",
             "The settings could not be saved.")
-        return true
       }
     }
   }
@@ -1166,9 +1169,17 @@ class SettingsMenu {
       Alert.show(app, "Font Management", error)
       return false
     }
-    if (Menu.createFont(name, index) == null) {
+    var created = null
+    var failure = Fiber.new {
+      created = Menu.createFont(name, index)
+    }.try()
+    if (failure is String) {
+      Alert.show(app, "Font Management", failure)
+      return false
+    }
+    if (created == null) {
       Alert.show(app, "Font Management",
-          "realloc() failure, cannot add font.")
+          "The font could not be added.")
       return false
     }
     return true
@@ -1228,7 +1239,10 @@ class SettingsMenu {
             Alert.show(app, "Font Management", error)
             return
           }
-          font.name = name
+          var failure = Fiber.new {
+            font.name = name
+          }.try()
+          if (failure is String) Alert.show(app, "Font Management", failure)
         } else {
           app.releaseFocus()
           var title = "%(fontSizeName_(value)) %(font.name)"

@@ -1460,9 +1460,7 @@ exercise_menu_contract(st_wren_host_t *public_host)
 	    "if (scalers.count != 3 || scalers[0] != \"Blocky\" || scalers[1] != \"Pointy\" || scalers[2] != \"External\") Fiber.abort(\"scaling catalog\")\n"
 	    "if (Menu.fontsCatalog.count == 0) Fiber.abort(\"fonts\")\n"
 	    "if (Menu.wrenScriptsMaxLength < 1 || Menu.maxPathLength < 1) Fiber.abort(\"limits\")\n"
-	    "if (Menu.addWebList(\"Test\", \"https://example.invalid/list\", 0) != null || !Menu.webListsDirty || Menu.webLists.count != 1) Fiber.abort(\"web add\")\n"
-	    "if (!Menu.updateWebList(0, \"https://example.invalid/next\") || Menu.webLists[0][1] != \"https://example.invalid/next\") Fiber.abort(\"web update\")\n"
-	    "if (!Menu.deleteWebList(0) || Menu.webLists.count != 0) Fiber.abort(\"web delete\")\n"
+	    "if (Menu.addWebList(\"Test\", \"invalid\", 0) == null || Menu.webListsDirty || Menu.webLists.count != 0) Fiber.abort(\"web add failure\")\n"
 	    "var s = Menu.settings\n"
 	    "s.confirmClose = true\n"
 	    "s.promptSave = true\n"
@@ -3992,7 +3990,7 @@ int st_wren_test_live_sftp(st_wren_host_t *host, st_console_t *console,
 int
 main(int argc, char **argv)
 {
-	(void)argc; (void)argv;
+	bool menu_only = argc == 2 && strcmp(argv[1], "--menu-only") == 0;
 	static const uint8_t default_bitmap[128 * 16] = {0};
 	static const uint8_t default_wide_bitmap[64] = {0};
 	static const struct st_console_font_mapping default_mapping[] = {
@@ -4357,18 +4355,20 @@ main(int argc, char **argv)
 	CHECK(title_cell.background == ST_CONSOLE_COLOR_RGB_VALUE(0xaa, 0xaa,
 	    0xaa));
 	CHECK(strcmp(selected.name, "Alpha") == 0);
-	CHECK(exercise_connected_profile_scripts(host, console, &selected,
-	    scripts) == 0);
-	CHECK(exercise_connected_without_sftp(host, console, &selected) == 0);
+	if (!menu_only) {
+		CHECK(exercise_connected_profile_scripts(host, console, &selected,
+		    scripts) == 0);
+		CHECK(exercise_connected_without_sftp(host, console, &selected) == 0);
 #if !SYNCTERM_PLATFORM_WINDOWS
-	CHECK(exercise_connected_throttle(host, console) == 0);
+		CHECK(exercise_connected_throttle(host, console) == 0);
 #endif
-	CHECK(exercise_connected_sftp(host, console, &selected) == 0);
+		CHECK(exercise_connected_sftp(host, console, &selected) == 0);
 #ifdef ST_WREN_HAVE_LIVE_SFTP
-	if (argc == 2) CHECK(st_wren_test_live_sftp(host, console,
-	    ST_WREN_TEST_DIRECTORY, argv[1]) == 0);
+		if (argc == 2) CHECK(st_wren_test_live_sftp(host, console,
+		    ST_WREN_TEST_DIRECTORY, argv[1]) == 0);
 #endif
-	CHECK(exercise_connected_scrollback(host, console, &selected) == 0);
+		CHECK(exercise_connected_scrollback(host, console, &selected) == 0);
+	}
 	st_profile_dispose(&selected);
 	CHECK(wrenInterpret(((struct st_wren_host *)host)->vm,
 	    "alt_shortcut_contract",
