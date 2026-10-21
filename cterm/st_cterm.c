@@ -1888,6 +1888,8 @@ status_display_changed(struct cterminal *terminal, int old_type,
 	uint32_t rows;
 	int available;
 	int new_rows;
+	int saved_x;
+	int saved_y;
 	(void)context;
 
 	if (st_console_size(terminal->screen.console, &columns, &rows) != 0) {
@@ -1915,6 +1917,7 @@ status_display_changed(struct cterminal *terminal, int old_type,
 	terminal->api_status_destroy_pending = false;
 	if (terminal->status_sub != NULL)
 		return;
+	cterm_coord_get_xy(terminal, CTERM_COORD_TERM, &saved_x, &saved_y);
 	screen = terminal->screen;
 	screen.unicode = NULL;
 	screen.hold_update = 0;
@@ -1943,6 +1946,7 @@ status_display_changed(struct cterminal *terminal, int old_type,
 	terminal->status_sub->keystroke_cbdata = terminal->keystroke_cbdata;
 	cterm_start(terminal->status_sub);
 	cterm_apply_window(terminal);
+	cterm_set_position(terminal, saved_x, saved_y);
 }
 
 static bool
@@ -2423,6 +2427,24 @@ codepage_write(st_cterm_t *terminal, const uint8_t *bytes, size_t size,
 
 	while (size != 0) {
 		int chunk = size > INT_MAX ? INT_MAX : (int)size;
+		st_cterm_t *target = terminal->status_sub != NULL
+		    && terminal->status_display_active == 1
+		    ? terminal->status_sub : terminal;
+
+		/* A status-display sequence can change the destination of the
+		 * following byte. Keep ANSI controls and their accumulators out
+		 * of printable batches so routing and deferred destruction finish
+		 * before the next display receives input. */
+		if (terminal->emulation == CTERM_EMULATION_ANSI_BBS) {
+			int span = 0;
+
+			if (target->accumulator == NULL) {
+				while (span < chunk && bytes[span] >= 0x20
+				    && (bytes[span] < 0x7f || bytes[span] >= 0xa0))
+					++span;
+			}
+			chunk = span != 0 ? span : 1;
+		}
 		size_t used = cterm_write(terminal, bytes, chunk, &speed);
 
 		offset += used;
@@ -2431,6 +2453,12 @@ codepage_write(st_cterm_t *terminal, const uint8_t *bytes, size_t size,
 			return IO_ERROR_IO;
 		bytes += chunk;
 		size -= (size_t)chunk;
+		if (terminal->api_status_destroy_pending) {
+			destroy_status_sub(terminal);
+			terminal->api_status_destroy_pending = false;
+			if (terminal->status_display_type != 0)
+				clear_reserved_status(terminal);
+		}
 	}
 	status = cterm_render_take_error(terminal);
 	if (status == 0 && terminal->status_sub != NULL)

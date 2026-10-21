@@ -340,9 +340,92 @@ test_zero_width_text(void)
 	st_console_destroy(console);
 }
 
+static void
+test_status_display_routing(void)
+{
+	static const struct {
+		const char *stream;
+		const char *main_text;
+		char status_text;
+		int type;
+	} cases[] = {
+		{"M\033[2$~\033[1$}S\033[0$}N", "MN", 'S', 2},
+		{"M\033[2$~\033[1$}S\033[1$~N", "MN", ' ', 1},
+		{"M\033[2$~\033[1$}S\033[0$~N\033[2$~\033[1$}T\033[0$}O",
+		    "MNO", 'T', 2},
+	};
+	const struct st_console_display_config display = {
+		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	};
+	const struct st_console_config geometry = {
+		.columns = 20, .rows = 4, .cell_width = 8, .cell_height = 16,
+	};
+	const enum st_cterm_encoding encodings[] = {
+		ST_CTERM_ENCODING_UTF8, ST_CTERM_ENCODING_CODEPAGE,
+	};
+
+	for (size_t encoding = 0; encoding < sizeof(encodings) / sizeof(encodings[0]); ++encoding) {
+		for (size_t scenario = 0; scenario < sizeof(cases) / sizeof(cases[0]); ++scenario) {
+			const char *stream = cases[scenario].stream;
+			size_t length = strlen(stream);
+			size_t main_length = strlen(cases[scenario].main_text);
+			for (size_t chunk = 1; chunk <= length; ++chunk) {
+				st_console_t *console = NULL;
+				st_font_catalog_t *fonts = NULL;
+				st_cterm_t *terminal = NULL;
+				struct st_console_cell cells[3];
+				const struct st_console_rect main_row = {0, 0, (uint32_t)main_length, 1};
+				const struct st_console_rect status_row = {0, 3, 1, 1};
+				char text[8];
+				size_t required;
+
+				CHECK(st_console_create(&console, &display, &geometry) == 0);
+				CHECK(st_font_catalog_create(&fonts, console) == 0);
+				const struct st_cterm_config config = {
+					.console = console, .fonts = fonts,
+					.emulation = ST_CTERM_ANSI_BBS, .encoding = encodings[encoding],
+					.codepage = ST_CODEPAGE_CP437, .status_line = true,
+					.quiet = true,
+				};
+				CHECK(st_cterm_create(&terminal, &config) == 0);
+				for (size_t offset = 0; offset < length;) {
+					size_t size = length - offset;
+
+					if (size > chunk)
+						size = chunk;
+					feed(terminal, stream + offset, size);
+					offset += size;
+				}
+				CHECK(st_cterm_finish(terminal) == 0);
+				CHECK(st_cterm_status_display(terminal) == cases[scenario].type);
+				CHECK(st_console_read_cells(console, &main_row, cells, main_length) == 0);
+				for (size_t i = 0; i < main_length; ++i) {
+					CHECK(st_console_font_glyph_text(console, cells[i].glyph_font,
+					    cells[i].glyph, text, sizeof(text), &required) == 0);
+					if (required != 1 || text[0] != cases[scenario].main_text[i])
+						fprintf(stderr, "status routing: encoding=%d scenario=%zu chunk=%zu column=%zu\n",
+						    (int)encodings[encoding], scenario, chunk, i);
+					CHECK(required == 1 && text[0] == cases[scenario].main_text[i]);
+				}
+				CHECK(st_console_read_cells(console, &status_row, cells, 1) == 0);
+				CHECK(st_console_font_glyph_text(console, cells[0].glyph_font,
+				    cells[0].glyph, text, sizeof(text), &required) == 0);
+				if (required != 1 || text[0] != cases[scenario].status_text)
+					fprintf(stderr, "status row: encoding=%d scenario=%zu chunk=%zu actual=%.*s\n",
+					    (int)encodings[encoding], scenario, chunk, (int)required, text);
+				CHECK(required == 1 && text[0] == cases[scenario].status_text);
+				st_cterm_destroy(&terminal);
+				st_font_catalog_destroy(fonts);
+				st_console_destroy(console);
+			}
+		}
+	}
+}
+
 int
 main(void)
 {
+	test_status_display_routing();
 	test_lf_expand();
 	test_profile_presentation();
 	test_disconnect_row();
