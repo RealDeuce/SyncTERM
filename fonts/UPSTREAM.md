@@ -77,8 +77,13 @@ This supplies tofu even when the startup font in console slot zero has a
 different height.
 
 Unicode fallback fonts append the size-matched emoji banks at 8x8, 8x14,
-and 8x16 and prefer the Noto-derived emoji artwork. Each console designates
-one shared fallback per pixel size, reusing it across catalog reloads.
+and 8x16. Monochrome uses the existing Unifont, UNSCII, or codepage glyph
+whenever available; Noto supplies missing monochrome glyphs and colour emoji.
+Native monochrome and Noto colour can share a Unicode presentation variant
+without replacing the original byte glyph or changing its cell width when
+colour is toggled. Colour artwork is sampled to that native width when needed.
+Each console designates one shared fallback per pixel size, reusing it across
+catalog reloads.
 BBS fonts retain native Unicode mappings and all original byte glyph indexes.
 Mode changes keep emoji and tofu available through a fallback with matching
 dimensions, even when font zero retains the startup mode's dimensions.

@@ -238,7 +238,7 @@ def write_source(path, entries, font, color_source):
             for index, (_, columns, color) in enumerate(keys):
                 if color is not None:
                     name = f"rgba_{height}_{color}_{columns}"
-                    out.write(f"\t{{{index}, {name}, sizeof({name}), {columns * 32}}},\n")
+                    out.write(f"\t{{{index}, {name}, sizeof({name}), {columns * 32}, 0}},\n")
             out.write("};\n\n")
         out.write("static const struct st_console_font_mapping emoji_mapping[] = {\n")
         for text, columns, glyph, color in entries:

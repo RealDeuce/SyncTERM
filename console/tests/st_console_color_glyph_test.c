@@ -19,7 +19,7 @@ pixels(st_console_t *console)
 }
 
 static void
-check_geometry(uint32_t cell_width, bool double_height)
+check_geometry(uint32_t cell_width, bool double_height, bool narrow_color)
 {
 	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
 	const struct st_console_config config = {
@@ -27,14 +27,18 @@ check_geometry(uint32_t cell_width, bool double_height)
 		.color_emoji = true, .video_flags = ST_CONSOLE_VIDEO_EXPAND,
 	};
 	uint8_t mono[2] = {0}, wide[4] = {0};
-	uint8_t rgba[128];
-	for (size_t i = 0; i < sizeof(rgba); i += 4) {
-		rgba[i] = i < 64 ? 255 : 0;
-		rgba[i + 1] = (i % 64) >= 32 ? 255 : 0;
-		rgba[i + 2] = 0;
-		rgba[i + 3] = 255;
-	}
-	const struct st_console_color_glyph color = {1, rgba, sizeof(rgba), 64};
+	uint8_t rgba[128] = {0};
+	uint32_t color_width = narrow_color ? 8 : 16;
+	for (uint32_t y = 0; y < 2; ++y)
+		for (uint32_t x = 0; x < color_width; ++x) {
+			size_t i = ((size_t)y * color_width + x) * 4;
+			rgba[i] = y == 0 ? 255 : 0;
+			rgba[i + 1] = x >= color_width / 2 ? 255 : 0;
+			rgba[i + 3] = 255;
+		}
+	const struct st_console_color_glyph color = {
+		1, rgba, color_width * 2 * 4, color_width * 4, color_width,
+	};
 	const struct st_console_font font = {
 		.bitmap = mono, .bitmap_size = sizeof(mono),
 		.width = 8, .height = 2, .glyph_count = 1, .row_stride = 1, .glyph_stride = 2,
@@ -80,7 +84,7 @@ int main(void)
 	};
 	uint8_t mono[2] = {0x80, 0x80};
 	uint8_t rgba[64] = {255, 0, 0, 255, 255, 0, 0, 128, 0, 255, 0, 0};
-	struct st_console_color_glyph color = {0, rgba, sizeof(rgba), 32};
+	struct st_console_color_glyph color = {0, rgba, sizeof(rgba), 32, 0};
 	struct st_console_font font = {
 		.bitmap = mono, .bitmap_size = sizeof(mono),
 		.width = 8, .height = 2, .glyph_count = 1,
@@ -168,6 +172,9 @@ int main(void)
 	color.row_stride = SIZE_MAX;
 	CHECK(st_console_register_static_font(console, &font, &id) == IO_ERROR_INVALID_ARGUMENT);
 	color.row_stride = 32;
+	color.width = 9;
+	CHECK(st_console_register_static_font(console, &font, &id) == IO_ERROR_INVALID_ARGUMENT);
+	color.width = 0;
 	const struct st_console_color_glyph duplicates[] = {color, color};
 	font.color_glyphs = duplicates;
 	font.color_glyph_count = 2;
@@ -184,10 +191,11 @@ int main(void)
 	CHECK(p->primary[0] == cell.foreground && p->primary[1] == cell.background);
 	st_pixel_buffer_destroy(p);
 	st_console_destroy(console);
-	check_geometry(8, false);
-	check_geometry(9, false);
-	check_geometry(16, false);
-	check_geometry(8, true);
+	check_geometry(8, false, false);
+	check_geometry(8, false, true);
+	check_geometry(9, false, false);
+	check_geometry(16, false, false);
+	check_geometry(8, true, false);
 	/* Text-only consoles have no raster or drawn-cell allocation. */
 	const struct st_console_config text_config = {.columns = 2, .rows = 1};
 	CHECK(st_console_create(&console, &display, &text_config) == 0);

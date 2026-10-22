@@ -118,17 +118,49 @@ main(void)
 		CHECK(st_console_create(&console, &config_display, &raster_config) == 0);
 		CHECK(st_console_register_static_font(console, &presentation.font,
 		    &composite) == 0 && composite == 0);
-		bool noto_smile = false;
-		for (size_t i = 0; i < st_emoji_16_font.mapping_count; ++i) {
-			if (st_emoji_16_font.mapping[i].codepoint != UINT32_C(0x1f642)) continue;
-			CHECK(st_console_font_lookup(console, 0, UINT32_C(0x1f642), &owner,
+		/* Adding Noto colour must preserve every native monochrome glyph. */
+		for (size_t i = 0; i < st_unifont_font.mapping_count; ++i) {
+			const struct st_console_font_mapping *entry = &st_unifont_font.mapping[i];
+			bool wide = entry->glyph >= st_unifont_font.glyph_count;
+			CHECK(st_console_font_lookup(console, 0, entry->codepoint, &owner,
 			    &replacement, &replacement_columns) == 0);
-			CHECK(owner == 0 && replacement_columns == 2);
+			CHECK(owner == 0 && replacement_columns == (wide ? 2 : 1));
 			CHECK(memcmp(glyph_bitmap(&presentation.font, replacement),
-			    glyph_bitmap(&st_emoji_16_font, st_emoji_16_font.mapping[i].glyph), 32) == 0);
-			noto_smile = true;
+			    glyph_bitmap(&st_unifont_font, entry->glyph), wide ? 32 : 16) == 0);
 		}
-		CHECK(noto_smile);
+		CHECK(st_console_font_lookup(console, 0, UINT32_C(0x1f4b0), &owner,
+		    &replacement, &replacement_columns) == 0);
+		const struct st_console_color_glyph *money_color = NULL;
+		for (size_t i = 0; i < presentation.font.color_glyph_count; ++i)
+			if (presentation.font.color_glyphs[i].glyph == replacement)
+				money_color = &presentation.font.color_glyphs[i];
+		CHECK(money_color != NULL);
+		bool noto_money = false;
+		for (size_t i = 0; i < st_emoji_16_font.mapping_count; ++i) {
+			if (st_emoji_16_font.mapping[i].codepoint != UINT32_C(0x1f4b0)) continue;
+			for (size_t j = 0; j < st_emoji_16_font.color_glyph_count; ++j) {
+				const struct st_console_color_glyph *source = &st_emoji_16_font.color_glyphs[j];
+				if (source->glyph != st_emoji_16_font.mapping[i].glyph) continue;
+				CHECK(money_color->size == source->size
+				    && memcmp(money_color->rgba, source->rgba, source->size) == 0);
+				noto_money = true;
+			}
+		}
+		CHECK(noto_money);
+		const struct st_console_rect money_pixels = {0, 0, 16, 16};
+		struct st_pixel_buffer *mono_money = NULL, *color_money = NULL, *restored_money = NULL;
+		CHECK(st_console_write_utf8(console, "\xf0\x9f\x92\xb0", 4) == 0);
+		CHECK(st_console_get_pixels(&mono_money, console, &money_pixels, false) == 0);
+		CHECK(st_console_set_color_emoji(console, true) == 0);
+		CHECK(st_console_get_pixels(&color_money, console, &money_pixels, false) == 0);
+		CHECK(memcmp(mono_money->primary, color_money->primary, 256 * sizeof(uint32_t)) != 0);
+		CHECK(st_console_set_color_emoji(console, false) == 0);
+		CHECK(st_console_get_pixels(&restored_money, console, &money_pixels, false) == 0);
+		CHECK(memcmp(mono_money->primary, restored_money->primary, 256 * sizeof(uint32_t)) == 0);
+		st_pixel_buffer_destroy(mono_money);
+		st_pixel_buffer_destroy(color_money);
+		st_pixel_buffer_destroy(restored_money);
+		CHECK(st_console_set_position(console, 0, 0) == 0);
 		CHECK(st_console_font_lookup(console, 0, UINT32_C(0xfffd), &owner,
 		    &replacement_character, &replacement_columns) == 0);
 		CHECK(owner == 0 && replacement_columns == 1

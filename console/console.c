@@ -2365,7 +2365,7 @@ font_valid(const struct st_console_font *font)
 		return false;
 	for (size_t i = 0; i < font->color_glyph_count; ++i) {
 		const struct st_console_color_glyph *color = &font->color_glyphs[i];
-		uint64_t width = (uint64_t)font->width
+		uint64_t width = color->width != 0 ? color->width : (uint64_t)font->width
 		    * (color->glyph < font->glyph_count ? 1 : 2);
 
 		if (color->glyph >= total || color->rgba == NULL

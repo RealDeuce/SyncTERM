@@ -508,10 +508,13 @@ render_cell(st_console_t *console, uint32_t x, uint32_t y,
 					    || (source->hyperlink != 0 && (px & 3U) == 0));
 
 					value = background;
-					if (!expansion_gap && font_y < font->height)
+					if (!expansion_gap && font_y < font->height) {
+						uint32_t color_x = color->width == 0 ? font_x
+						    : (uint32_t)((uint64_t)font_x * color->width / glyph_width);
 						value = composite_rgba(console, color->rgba
 						    + (size_t)font_y * color->row_stride
-						    + (size_t)font_x * 4, background);
+						    + (size_t)color_x * 4, background);
+					}
 					if (decoration)
 						value = foreground;
 				}

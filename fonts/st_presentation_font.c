@@ -9,6 +9,7 @@
 #include "st_emoji_fonts.h"
 
 #include "io_error.h"
+#include "st_utf8.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -97,14 +98,113 @@ compare_color(const void *left, const void *right)
 	return (a > b) - (a < b);
 }
 
+/* Keep byte glyphs unchanged. Unicode variants combine native monochrome
+ * artwork with Noto colour without changing any other alias of a glyph. */
+struct emoji_variant {
+	uint32_t native;
+	uint32_t emoji;
+	uint32_t glyph;
+};
+
+static const struct st_console_color_glyph *
+find_color(const struct st_console_font *font, uint32_t glyph)
+{
+	size_t left = 0, right = font->color_glyph_count;
+
+	while (left < right) {
+		size_t middle = left + (right - left) / 2;
+		uint32_t candidate = font->color_glyphs[middle].glyph;
+		if (candidate == glyph) return &font->color_glyphs[middle];
+		if (candidate < glyph) left = middle + 1;
+		else right = middle;
+	}
+	return NULL;
+}
+
+static bool
+find_scalar(const struct st_console_font *font, uint32_t scalar, uint32_t *glyph)
+{
+	size_t left = 0, right = font->mapping_count;
+
+	while (left < right) {
+		size_t middle = left + (right - left) / 2;
+		uint32_t candidate = font->mapping[middle].codepoint;
+		if (candidate == scalar) {
+			*glyph = font->mapping[middle].glyph;
+			return true;
+		}
+		if (candidate < scalar) left = middle + 1;
+		else right = middle;
+	}
+	return false;
+}
+
+static bool
+find_cluster(const struct st_console_font *font,
+	const struct st_console_font_cluster_mapping *cluster, uint32_t *glyph)
+{
+	for (size_t i = 0; i < font->cluster_mapping_count; ++i)
+		if (font->cluster_mapping[i].text_size == cluster->text_size
+		    && memcmp(font->cluster_mapping[i].text, cluster->text,
+		    cluster->text_size) == 0) {
+			*glyph = font->cluster_mapping[i].glyph;
+			return true;
+		}
+	return false;
+}
+
+static bool
+native_cluster(const struct st_console_font *font,
+	const struct st_console_font_cluster_mapping *cluster, uint32_t *glyph)
+{
+	uint32_t scalar;
+	size_t consumed;
+
+	if (find_cluster(font, cluster, glyph)) return true;
+	/* A presentation selector changes style, not the underlying character.
+	 * Never reduce a joined or skin-tone sequence to its first scalar. */
+	if (st_utf8_decode_one(&scalar, &consumed, cluster->text,
+	    cluster->text_size) != 0 || cluster->text_size - consumed != 3
+	    || (memcmp(cluster->text + consumed, "\xef\xb8\x8e", 3) != 0
+	    && memcmp(cluster->text + consumed, "\xef\xb8\x8f", 3) != 0))
+		return false;
+	return find_scalar(font, scalar, glyph);
+}
+
+static void
+add_variant(struct emoji_variant *variants, size_t *count,
+	const struct st_console_font *emoji, uint32_t native, uint32_t glyph)
+{
+	if (find_color(emoji, glyph) == NULL) return;
+	for (size_t i = 0; i < *count; ++i)
+		if (variants[i].native == native && variants[i].emoji == glyph)
+			return;
+	variants[(*count)++] = (struct emoji_variant){native, glyph, 0};
+}
+
+static uint32_t
+native_glyph(const struct st_console_font *base, uint32_t narrow_count,
+	const struct emoji_variant *variants, size_t count,
+	uint32_t native, uint32_t emoji)
+{
+	for (size_t i = 0; i < count; ++i)
+		if (variants[i].native == native && variants[i].emoji == emoji)
+			return variants[i].glyph;
+	return native < base->glyph_count ? native
+	    : native + (narrow_count - base->glyph_count);
+}
+
 static int
 create_presentation(struct st_presentation_font *result,
-	const struct st_console_font *base, bool prefer_emoji)
+	const struct st_console_font *base, bool include_emoji)
 {
 	struct st_presentation_font created = {0};
 	struct st_console_font_mapping *mapping = NULL;
 	struct st_console_font_cluster_mapping *clusters = NULL;
 	struct st_console_color_glyph *colors = NULL;
+	struct emoji_variant *variants = NULL;
+	size_t variant_count = 0;
+	uint32_t native_narrow = 0, native_wide = 0;
 	uint8_t *bitmap = NULL;
 	uint8_t *wide_bitmap = NULL;
 	uint32_t narrow_count;
@@ -122,13 +222,40 @@ create_presentation(struct st_presentation_font *result,
 	    || base->glyph_count > UINT32_MAX - 2
 	    || base->wide_glyph_count == UINT32_MAX)
 		return IO_ERROR_INVALID_ARGUMENT;
-	emoji = prefer_emoji ? emoji_font(base) : NULL;
-	uint64_t total_narrow = (uint64_t)base->glyph_count + 2
+	emoji = include_emoji ? emoji_font(base) : NULL;
+	if (emoji != NULL) {
+		if (emoji->mapping_count > SIZE_MAX - emoji->cluster_mapping_count)
+			return IO_ERROR_OUT_OF_MEMORY;
+		size_t capacity = emoji->mapping_count + emoji->cluster_mapping_count;
+		if (capacity > SIZE_MAX / sizeof(variants[0]))
+			return IO_ERROR_OUT_OF_MEMORY;
+		variants = malloc(capacity * sizeof(variants[0]));
+		if (variants == NULL) return IO_ERROR_OUT_OF_MEMORY;
+		for (size_t i = 0; i < emoji->mapping_count; ++i) {
+			uint32_t native;
+			if (find_scalar(base, emoji->mapping[i].codepoint, &native))
+				add_variant(variants, &variant_count, emoji, native,
+				    emoji->mapping[i].glyph);
+		}
+		for (size_t i = 0; i < emoji->cluster_mapping_count; ++i) {
+			uint32_t native;
+			if (native_cluster(base, &emoji->cluster_mapping[i], &native))
+				add_variant(variants, &variant_count, emoji, native,
+				    emoji->cluster_mapping[i].glyph);
+		}
+		for (size_t i = 0; i < variant_count; ++i) {
+			if (variants[i].native < base->glyph_count) ++native_narrow;
+			else ++native_wide;
+		}
+	}
+	uint64_t total_narrow = (uint64_t)base->glyph_count + 2 + native_narrow
 	    + (emoji == NULL ? 0 : emoji->glyph_count);
-	uint64_t total_wide = (uint64_t)base->wide_glyph_count + 1
+	uint64_t total_wide = (uint64_t)base->wide_glyph_count + 1 + native_wide
 	    + (emoji == NULL ? 0 : emoji->wide_glyph_count);
-	if (total_narrow + total_wide > UINT32_MAX)
+	if (total_narrow + total_wide > UINT32_MAX) {
+		free(variants);
 		return IO_ERROR_INVALID_ARGUMENT;
+	}
 	narrow_count = (uint32_t)total_narrow;
 	wide_count = (uint32_t)total_wide;
 	narrow_added = narrow_count - base->glyph_count;
@@ -136,7 +263,7 @@ create_presentation(struct st_presentation_font *result,
 	size_t emoji_clusters = emoji == NULL ? 0 : emoji->cluster_mapping_count;
 	if (base->mapping_count > SIZE_MAX - emoji_mappings
 	    || base->cluster_mapping_count > SIZE_MAX - emoji_clusters)
-		return IO_ERROR_OUT_OF_MEMORY;
+		goto out_of_memory;
 	cluster_count = base->cluster_mapping_count + emoji_clusters;
 	wide_row_stride = base->wide_glyph_count == 0
 	    ? ((size_t)base->width * 2 + 7) / 8 : base->wide_row_stride;
@@ -144,7 +271,7 @@ create_presentation(struct st_presentation_font *result,
 	    ? wide_row_stride * base->height : base->wide_glyph_stride;
 	if (!bank_size(narrow_count, base->glyph_stride, &bitmap_size)
 	    || !bank_size(wide_count, wide_glyph_stride, &wide_bitmap_size))
-		return IO_ERROR_OUT_OF_MEMORY;
+		goto out_of_memory;
 	bitmap = calloc(1, bitmap_size);
 	wide_bitmap = calloc(1, wide_bitmap_size);
 	if (bitmap == NULL || wide_bitmap == NULL)
@@ -177,6 +304,26 @@ create_presentation(struct st_presentation_font *result,
 				    emoji->wide_bitmap + (size_t)i * emoji->wide_glyph_stride
 				    + (size_t)y * emoji->wide_row_stride, 2);
 	}
+	uint32_t next_narrow = base->glyph_count + 2
+	    + (emoji == NULL ? 0 : emoji->glyph_count);
+	uint32_t next_wide = base->wide_glyph_count + 1
+	    + (emoji == NULL ? 0 : emoji->wide_glyph_count);
+	for (size_t i = 0; i < variant_count; ++i) {
+		uint32_t native = variants[i].native;
+		if (native < base->glyph_count) {
+			variants[i].glyph = next_narrow++;
+			memcpy(bitmap + (size_t)variants[i].glyph * base->glyph_stride,
+			    base->bitmap + (size_t)native * base->glyph_stride,
+			    base->glyph_stride);
+		}
+		else {
+			variants[i].glyph = narrow_count + next_wide++;
+			memcpy(wide_bitmap + (size_t)(variants[i].glyph - narrow_count)
+			    * wide_glyph_stride, base->wide_bitmap
+			    + (size_t)(native - base->glyph_count) * base->wide_glyph_stride,
+			    base->wide_glyph_stride);
+		}
+	}
 	size_t mapping_capacity = base->mapping_count + emoji_mappings;
 	if (mapping_capacity != 0) {
 		if (mapping_capacity > SIZE_MAX / sizeof(mapping[0]))
@@ -184,18 +331,20 @@ create_presentation(struct st_presentation_font *result,
 		mapping = malloc(mapping_capacity * sizeof(mapping[0]));
 		if (mapping == NULL)
 			goto out_of_memory;
-		/* Merge sorted maps. A selected BBS font keeps its native glyphs;
-		 * the Unicode font of last resort prefers the Noto emoji artwork. */
+		/* Merge maps, retaining native monochrome artwork and width. */
 		size_t i = 0, j = 0;
 		while (i < base->mapping_count || j < emoji_mappings) {
 			bool from_base = j == emoji_mappings || (i < base->mapping_count
 			    && base->mapping[i].codepoint < emoji->mapping[j].codepoint);
 			bool equal = i < base->mapping_count && j < emoji_mappings
 			    && base->mapping[i].codepoint == emoji->mapping[j].codepoint;
-			if (equal) from_base = !prefer_emoji;
+			if (equal) from_base = true;
 			struct st_console_font_mapping entry = from_base
 			    ? base->mapping[i] : emoji->mapping[j];
-			if (from_base) {
+			if (equal)
+				entry.glyph = native_glyph(base, narrow_count, variants,
+				    variant_count, entry.glyph, emoji->mapping[j].glyph);
+			else if (from_base) {
 				if (entry.glyph >= base->glyph_count)
 					entry.glyph += narrow_added;
 			}
@@ -216,13 +365,22 @@ create_presentation(struct st_presentation_font *result,
 		/* Exact cluster lookup uses the first match. Match scalar-map
 		 * precedence while borrowing the base's existing text strings. */
 		for (size_t pass = 0; pass < 2; ++pass) {
-			bool from_emoji = (pass == 0) == prefer_emoji;
+			bool from_emoji = pass == 1;
 			const struct st_console_font *source = from_emoji ? emoji : base;
 			if (source == NULL) continue;
 			for (size_t i = 0; i < source->cluster_mapping_count; ++i) {
 				struct st_console_font_cluster_mapping entry = source->cluster_mapping[i];
-				if (from_emoji)
-					entry.glyph = emoji_glyph(emoji, base, narrow_count, entry.glyph);
+				uint32_t native, colored;
+				if (from_emoji) {
+					if (native_cluster(base, &entry, &native))
+						entry.glyph = native_glyph(base, narrow_count,
+						    variants, variant_count, native, entry.glyph);
+					else
+						entry.glyph = emoji_glyph(emoji, base, narrow_count, entry.glyph);
+				}
+				else if (emoji != NULL && find_cluster(emoji, &entry, &colored))
+					entry.glyph = native_glyph(base, narrow_count, variants,
+					    variant_count, entry.glyph, colored);
 				else if (entry.glyph >= base->glyph_count)
 					entry.glyph += narrow_added;
 				clusters[used++] = entry;
@@ -233,6 +391,9 @@ create_presentation(struct st_presentation_font *result,
 	if (base->color_glyph_count > SIZE_MAX - emoji_colors)
 		goto out_of_memory;
 	size_t color_count = base->color_glyph_count + emoji_colors;
+	if (color_count > SIZE_MAX - variant_count)
+		goto out_of_memory;
+	color_count += variant_count;
 	if (color_count != 0) {
 		if (color_count > SIZE_MAX / sizeof(colors[0]))
 			goto out_of_memory;
@@ -248,6 +409,14 @@ create_presentation(struct st_presentation_font *result,
 			struct st_console_color_glyph entry = emoji->color_glyphs[i];
 			entry.glyph = emoji_glyph(emoji, base, narrow_count, entry.glyph);
 			colors[base->color_glyph_count + i] = entry;
+		}
+		for (size_t i = 0; i < variant_count; ++i) {
+			struct st_console_color_glyph entry = *find_color(emoji, variants[i].emoji);
+			if (entry.width == 0)
+				entry.width = emoji->width
+				    * (entry.glyph < emoji->glyph_count ? 1 : 2);
+			entry.glyph = variants[i].glyph;
+			colors[base->color_glyph_count + emoji_colors + i] = entry;
 		}
 		qsort(colors, color_count, sizeof(colors[0]), compare_color);
 	}
@@ -270,6 +439,7 @@ create_presentation(struct st_presentation_font *result,
 	created.font.decode_error_glyph = base->glyph_count + 1;
 	created.font.wide_fallback_glyph = narrow_count
 	    + base->wide_glyph_count;
+	free(variants);
 	*result = created;
 	return 0;
 out_of_memory:
@@ -278,6 +448,7 @@ out_of_memory:
 	free(mapping);
 	free(clusters);
 	free(colors);
+	free(variants);
 	return IO_ERROR_OUT_OF_MEMORY;
 }
 

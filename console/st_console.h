@@ -146,13 +146,15 @@ struct st_console_font_selection {
 };
 
 /* Optional intrinsic artwork: sorted unique glyph IDs, top-down straight RGBA.
- * Dimensions follow the matching monochrome bank. Pixels are immutable and
+ * Height follows the monochrome bank; width may differ. Pixels are immutable and
  * borrowed, except when registered with st_console_register_font_copy(). */
 struct st_console_color_glyph {
 	uint32_t glyph;
 	const uint8_t *rgba;
 	size_t size;
 	size_t row_stride;
+	/* Zero uses the monochrome bank width; otherwise scale this source width. */
+	uint32_t width;
 };
 
 /*
