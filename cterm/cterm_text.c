@@ -11,7 +11,35 @@
 #include "st_utf8.h"
 
 #include <stdlib.h>
+#include <inttypes.h>
+#include <stdio.h>
 #include <string.h>
+
+static void
+log_missing(struct cterminal *cterm, const struct st_unicode_presentation_event *event)
+{
+	char scalars[768];
+	size_t offset = 0, used = 0;
+	if (!cterm_log_enabled(cterm, ST_CTERM_LOG_DEBUG)) return;
+	while (offset < event->size && used + 16 < sizeof(scalars)) {
+		uint32_t scalar;
+		size_t consumed;
+		if (st_utf8_decode_one(&scalar, &consumed, event->bytes + offset,
+		    event->size - offset) != 0) break;
+		int length = snprintf(scalars + used, sizeof(scalars) - used,
+		    "%sU+%04" PRIX32, used == 0 ? "" : " ", scalar);
+		if (length < 0) break;
+		used += (size_t)length;
+		offset += consumed;
+	}
+	scalars[used] = '\0';
+	cterm_log(cterm, ST_CTERM_LOG_DEBUG,
+	    "Missing glyph (.noglyph): font=%u column=%u row=%u; %s%s (%zu UTF-8 bytes)",
+	    (unsigned)cterm->screen.missing_font,
+	    (unsigned)cterm->screen.provisional_x + 1,
+	    (unsigned)cterm->screen.provisional_y + 1,
+	    scalars, offset < event->size ? " ..." : "", event->size);
+}
 
 static int
 remember(struct cterminal *cterm, const uint8_t *bytes, size_t size)
@@ -35,6 +63,7 @@ place(struct cterminal *cterm, const struct st_unicode_presentation_event *event
 	uint8_t columns = event->columns;
 	int x, y, right = TERM_MAXX;
 	int status;
+	bool missing = false;
 
 	if (columns == 0)
 		return 0;
@@ -63,9 +92,9 @@ place(struct cterminal *cterm, const struct st_unicode_presentation_event *event
 		status = st_console_font_lookup_decode_error(cterm->screen.console, &cells[0].glyph);
 	}
 	else
-		status = st_console_font_lookup_cluster(cterm->screen.console,
+		status = st_console_font_lookup_cluster_ex(cterm->screen.console,
 		    cells[0].font, (const char *)event->bytes, event->size, columns,
-		    &cells[0].glyph_font, &cells[0].glyph);
+		    &cells[0].glyph_font, &cells[0].glyph, &missing);
 	if (status != 0)
 		return status;
 	status = st_console_font_glyph_columns(cterm->screen.console,
@@ -124,6 +153,13 @@ place(struct cterminal *cterm, const struct st_unicode_presentation_event *event
 	status = st_console_write_cells(cterm->screen.console, &area, cells, columns);
 	if (status != 0)
 		return status;
+	cterm->screen.missing_glyph = missing;
+	cterm->screen.missing_font = cells[0].font;
+	if (missing && !provisional) {
+		cterm->screen.provisional_x = area.x;
+		cterm->screen.provisional_y = area.y;
+		log_missing(cterm, event);
+	}
 	cterm->screen.provisional_drawn = provisional;
 	cterm_coord_get_xy(cterm, CTERM_COORD_CURR, &x, &y);
 	for (uint8_t i = 0; i < columns; ++i)
@@ -143,6 +179,9 @@ present(void *context, const struct st_unicode_presentation_event *event)
 	if (event->kind == ST_UNICODE_PRESENTATION_COMMIT) {
 		if (cterm->log == CTERM_LOG_ASCII && cterm->logfile != NULL)
 			fwrite(event->bytes, event->size, 1, cterm->logfile);
+		/* Report the final cluster once, never a temporary incomplete glyph. */
+		if (cterm->screen.provisional_drawn && cterm->screen.missing_glyph)
+			log_missing(cterm, event);
 		cterm->screen.provisional_drawn = false;
 		return 0;
 	}
@@ -153,6 +192,7 @@ present(void *context, const struct st_unicode_presentation_event *event)
 	if (event->columns == 0)
 		return 0;
 	if (event->kind == ST_UNICODE_PRESENTATION_DECODE_ERROR) {
+		cterm_log(cterm, ST_CTERM_LOG_WARNING, "Invalid UTF-8 input; displaying decode-error glyph");
 		cterm_text_forget(cterm);
 		status = cterm_input_decode_error(cterm);
 		if (status != 0)

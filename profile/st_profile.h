@@ -161,6 +161,7 @@ struct st_profile {
 	int encoding;
 	int transfer_log_level;
 	int protocol_log_level;
+	int cterm_log_level;
 	int music;
 	int address_family;
 	int rip_version;

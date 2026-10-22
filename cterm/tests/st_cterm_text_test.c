@@ -859,9 +859,102 @@ test_font_selection(void)
 	}
 }
 
+struct diagnostics {
+	unsigned count;
+	enum st_cterm_log_level level;
+	char text[8192];
+};
+
+static void
+diagnostic(void *context, enum st_cterm_log_level level, const char *message)
+{
+	struct diagnostics *log = context;
+	++log->count;
+	log->level = level;
+	size_t used = strlen(log->text);
+	CHECK(snprintf(log->text + used, sizeof(log->text) - used, "%s\n", message) > 0);
+}
+
+static void
+test_diagnostics(void)
+{
+	struct rig rig;
+	struct diagnostics log = {0};
+	open_rig(&rig, ST_CTERM_ENCODING_UTF8);
+	st_cterm_destroy(&rig.terminal);
+	const struct st_cterm_config config = {
+		.console = rig.console, .fonts = rig.fonts,
+		.emulation = ST_CTERM_ANSI_BBS, .encoding = ST_CTERM_ENCODING_UTF8,
+		.codepage = ST_CODEPAGE_CP437, .quiet = true,
+		.log_level = ST_CTERM_LOG_DEBUG, .diagnostic = diagnostic,
+		.diagnostic_context = &log,
+	};
+	CHECK(st_cterm_create(&rig.terminal, &config) == 0);
+	/* A mapped glyph may deliberately have the same index as .noglyph.
+	 * A font-zero match is also a real glyph, not a missing one. */
+	struct st_console_font font;
+	const struct st_console_font_mapping mapping[] = {{.codepoint = 'A', .glyph = 0}};
+	uint16_t identifier;
+	CHECK(st_builtin_font_get(0, 8, 16, &font));
+	font.mapping = mapping;
+	font.mapping_count = 1;
+	font.fallback_glyph = 0;
+	CHECK(st_console_register_static_font(rig.console, &font, &identifier) == 0);
+	rig.terminal->screen.font_identifiers[46] = identifier;
+	rig.terminal->screen.font_valid[46] = true;
+	feed(&rig, "\033[0;46 DAB", sizeof("\033[0;46 DAB") - 1);
+	CHECK(st_cterm_finish(rig.terminal) == 0 && log.count == 0);
+	const char missing[] = "\xf4\x8f\xbf\xbf\xcc\x81"; /* U+10FFFF + U+0301 */
+	for (size_t i = 0; i < sizeof(missing) - 1; ++i) feed(&rig, missing + i, 1);
+	CHECK(log.count == 0); /* provisional clusters do not create records */
+	CHECK(st_cterm_finish(rig.terminal) == 0);
+	CHECK(log.count == 1 && log.level == ST_CTERM_LOG_DEBUG);
+	CHECK(strstr(log.text, "Missing glyph (.noglyph)") != NULL);
+	CHECK(strstr(log.text, "U+10FFFF U+0301") != NULL);
+	CHECK(strstr(log.text, "column=3 row=1") != NULL);
+	log = (struct diagnostics){0};
+	/* Status subterminals route diagnostics to their parent's callback. */
+	feed(&rig, "\033[2$~\033[1$}", sizeof("\033[2$~\033[1$}") - 1);
+	feed(&rig, missing, sizeof(missing) - 1);
+	feed(&rig, "\033[0$}", sizeof("\033[0$}") - 1);
+	CHECK(log.count == 1 && strstr(log.text, "row=4") != NULL);
+	log = (struct diagnostics){0};
+	feed(&rig, "\033[12345;67~", sizeof("\033[12345;67~") - 1);
+	CHECK(log.level == ST_CTERM_LOG_WARNING);
+	CHECK(strstr(log.text, "Unsupported sequence: ESC [12345;67~") != NULL);
+	feed(&rig, "\033[1?m", sizeof("\033[1?m") - 1);
+	CHECK(strstr(log.text, "Invalid sequence") != NULL);
+	feed(&rig, "\033[0;99*r", sizeof("\033[0;99*r") - 1);
+	CHECK(strstr(log.text, "Invalid DECSCS parameters: ESC [0;99*r") != NULL);
+	feed(&rig, "\033[=999;1{", sizeof("\033[=999;1{") - 1);
+	CHECK(strstr(log.text, "Invalid font slot") != NULL);
+	char oversized[256];
+	memset(oversized, ';', sizeof(oversized));
+	memcpy(oversized, "\033[", 2);
+	oversized[sizeof(oversized) - 1] = 'm';
+	feed(&rig, oversized, sizeof(oversized));
+	CHECK(strstr(log.text, "Invalid sequence parameters (limit exceeded)") != NULL);
+	feed(&rig, "\xff", 1);
+	CHECK(strstr(log.text, "Invalid UTF-8 input") != NULL);
+	log = (struct diagnostics){0};
+	rig.terminal->api_log_level = ST_CTERM_LOG_ERROR;
+	feed(&rig, missing, sizeof(missing) - 1);
+	feed(&rig, "\033[12345~", sizeof("\033[12345~") - 1);
+	CHECK(st_cterm_finish(rig.terminal) == 0 && log.count == 0);
+	cterm_render_record_error(rig.terminal, IO_ERROR_OUT_OF_MEMORY);
+	CHECK(log.count == 1 && log.level == ST_CTERM_LOG_ERROR);
+	CHECK(cterm_render_take_error(rig.terminal) == IO_ERROR_OUT_OF_MEMORY);
+	rig.terminal->api_diagnostic = NULL;
+	cterm_render_record_error(rig.terminal, IO_ERROR_IO);
+	CHECK(log.count == 1);
+	CHECK(cterm_render_take_error(rig.terminal) == IO_ERROR_IO);
+	close_rig(&rig);
+}
+
 int
 main(void)
 {
+	test_diagnostics();
 	test_codepages();
 	test_scrollback_text();
 	test_scrollback_clears();

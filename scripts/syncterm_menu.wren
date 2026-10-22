@@ -324,6 +324,8 @@ foreign class BBS {
   foreign xferLogLevel=(value)
   foreign protocolLogLevel
   foreign protocolLogLevel=(value)
+  foreign ctermLogLevel
+  foreign ctermLogLevel=(value)
   foreign stopBits
   foreign stopBits=(value)
   foreign dataBits

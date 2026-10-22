@@ -34,7 +34,7 @@ check_profile_runtime(const struct st_wren_host_config *base,
 	    "Address=stty -echo; read line; printf O\n"
 	    "NoStatus=true\nHidePopups=true\nForceLCF=true\nYellowIsYellow=true\n"
 	    "ANSIMusic=2\nPalette=66051,16448250\nTotalCalls=5\n"
-	    "ProtocolLogLevel=Debug\nTransferLogLevel=Debug\n"
+	    "ProtocolLogLevel=Debug\nTransferLogLevel=Debug\nCTermLogLevel=Debug\n"
 	    "WrenScripts= entry_options ,entry_options\n"
 	    "LogFile=" ST_APP_SESSION_TEST_DIRECTORY "/entry.log\nAppendLogFile=false\n", file) >= 0);
 	CHECK(fclose(file) == 0);
@@ -43,7 +43,8 @@ check_profile_runtime(const struct st_wren_host_config *base,
 	CHECK(file != NULL);
 	CHECK(fputs("import \"syncterm\" for BBS, CTerm, Conn, Host\n"
 	    "if (CTerm.music != 2 || !CTerm.lastColumnFlag.forced || !CTerm.hasPaletteOverride || CTerm.paletteOverride[6] != 66051) Fiber.abort(\"presentation options\")\n"
-	    "if (BBS.calls != 6 || BBS.connected <= 0 || Host.logLevel != 7 || BBS.wrenScripts.count != 1) Fiber.abort(\"session options\")\n"
+	    "if (BBS.calls != 6 || BBS.connected <= 0 || Host.logLevel != 7 || BBS.ctermLogLevel != 7 || BBS.wrenScripts.count != 1) Fiber.abort(\"session options\")\n"
+	    "CTerm.write(\"\\U0010ffff\\n\")\n"
 	    "Conn.send(\"X\\n\")\n", file) >= 0);
 	CHECK(fclose(file) == 0);
 	config.safe_mode = false;
@@ -66,6 +67,8 @@ check_profile_runtime(const struct st_wren_host_config *base,
 	buffer[size] = '\0';
 	CHECK(strstr(buffer, "Log opened\n") != NULL);
 	CHECK(strstr(buffer, "Shell Info: starting PTY shell") != NULL);
+	CHECK(strstr(buffer, "CTerm Debug: Missing glyph (.noglyph)") != NULL);
+	CHECK(strstr(buffer, "U+10FFFF") != NULL);
 	CHECK(strstr(buffer, "Log closed\n---------------\n") != NULL);
 	/* Append/truncate and transfer records share the same file ownership. */
 	struct connection_ui ui = {.host = host, .profile = &profile};
@@ -144,18 +147,18 @@ check_connection_help(void)
 	body = connection_help_body(&ui, "Closed\nConnected: 00:00:12");
 	CHECK(body != NULL);
 	CHECK(strcmp(body, "# Connection Details\n\nClosed  \nConnected: 00:00:12"
-	    "\n\n# Protocol Session Log\n\n"
+	    "\n\n# Session Log\n\n"
 	    "- SSH Info: \\*\\*literal\\*\\* \\`key\\`\\\\path\n"
 	    "- \n- # not a heading\n- : not a definition\n- last\n") == 0);
 	free(body);
 	body = connection_help_body(&ui, NULL);
-	CHECK(body != NULL && strncmp(body, "# Protocol Session Log\n\n", 24) == 0);
+	CHECK(body != NULL && strncmp(body, "# Session Log\n\n", 15) == 0);
 	free(body);
 	ui.log = "line\n\n";
 	ui.log_size = strlen(ui.log);
 	body = connection_help_body(&ui, "");
 	CHECK(body != NULL && strcmp(body,
-	    "# Protocol Session Log\n\n- line\n- \n") == 0);
+	    "# Session Log\n\n- line\n- \n") == 0);
 	free(body);
 	ui.log_size = SIZE_MAX;
 	CHECK(connection_help_body(&ui, "overflow") == NULL);

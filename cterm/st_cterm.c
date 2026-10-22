@@ -1622,6 +1622,9 @@ rip_host_command(void *context, int level, int sublevel,
 		terminal->bg_color = previous_background;
 		return cterm_render_take_error(terminal);
 	default:
+		cterm_log(terminal, ST_CTERM_LOG_WARNING,
+		    "Unsupported RIP command: level=%d sublevel=%d code=0x%02X",
+		    level, sublevel, (unsigned)code);
 		return IO_ERROR_NOT_SUPPORTED;
 	}
 }

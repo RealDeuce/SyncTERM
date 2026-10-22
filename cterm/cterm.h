@@ -127,6 +127,9 @@ struct cterminal {
 	st_cterm_capture_t api_capture;
 	bool (*api_capture_active)(void *context);
 	void *api_capture_context;
+	int api_log_level;
+	st_cterm_log_callback_t api_diagnostic;
+	void *api_diagnostic_context;
 	st_cterm_output_callback_t api_output;
 	void *api_output_context;
 	st_cterm_apc_callback_t api_apc;

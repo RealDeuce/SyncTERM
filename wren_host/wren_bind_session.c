@@ -379,6 +379,7 @@ BBS_NUMBER_GETTER(address_family, address_family)
 BBS_NUMBER_GETTER(screen_mode, screen_mode)
 BBS_NUMBER_GETTER(xfer_log_level, transfer_log_level)
 BBS_NUMBER_GETTER(protocol_log_level, protocol_log_level)
+BBS_NUMBER_GETTER(cterm_log_level, cterm_log_level)
 BBS_NUMBER_GETTER(stop_bits, stop_bits)
 BBS_NUMBER_GETTER(data_bits, data_bits)
 BBS_NUMBER_GETTER(parity, parity)
@@ -1193,6 +1194,7 @@ static const struct session_binding bindings[] = {
 	{"BBS", "appendLogFile", fn_bbs_append_log_file},
 	{"BBS", "xferLogLevel", fn_bbs_xfer_log_level},
 	{"BBS", "protocolLogLevel", fn_bbs_protocol_log_level},
+	{"BBS", "ctermLogLevel", fn_bbs_cterm_log_level},
 	{"BBS", "stopBits", fn_bbs_stop_bits},
 	{"BBS", "dataBits", fn_bbs_data_bits},
 	{"BBS", "parity", fn_bbs_parity},

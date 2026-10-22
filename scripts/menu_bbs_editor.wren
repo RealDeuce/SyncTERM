@@ -463,6 +463,7 @@ class BbsEditor {
       "appendLogFile": b.appendLogFile,
       "xferLogLevel": b.xferLogLevel,
       "protocolLogLevel": b.protocolLogLevel,
+      "ctermLogLevel": b.ctermLogLevel,
       "stopBits": b.stopBits,
       "dataBits": b.dataBits,
       "parity": b.parity,
@@ -765,6 +766,7 @@ class BbsEditor {
     if (key == "logFile") return logFileHelp_()
     if (key == "xferLogLevel") return logLevelHelp_("File Transfer")
     if (key == "protocolLogLevel") return logLevelHelp_("Protocol")
+    if (key == "ctermLogLevel") return ctermLogHelp_()
     if (key == "tlsTrustedCert") {
       return "# Trusted TLS Certificate\n\nSelect a PEM certificate file " +
           "to trust for this connection. The certificate may be a CA or " +
@@ -934,7 +936,15 @@ class BbsEditor {
         helpItem_("Log Filename", "The optional session log filename") +
         helpItem_("File Transfer Log Level", "File-transfer log verbosity") +
         helpItem_("Protocol Log Level", "Telnet and SSH protocol-log verbosity") +
+        helpItem_("CTerm Log Level", "Terminal diagnostics; Debug identifies missing glyphs") +
         helpItem_("Append Log File", "Append instead of replacing the log")
+  }
+
+  static ctermLogHelp_() {
+    return logLevelHelp_("CTerm") + "\n\nCTerm reports terminal errors and " +
+        "detected invalid or unsupported sequences and parameters. Debug " +
+        "also identifies missing glyphs by Unicode code point and font. " +
+        "Records use the Log Filename configured above."
   }
 
   static paletteHelp_() {
@@ -1201,7 +1211,9 @@ class BbsEditor {
             MenuUi.rowName(Menu.logLevels, d["xferLogLevel"]))],
         [2, logLine_("Protocol Log Level",
             MenuUi.rowName(Menu.logLevels, d["protocolLogLevel"]))],
-        [3, logLine_("Append Log File", yesNo_(d["appendLogFile"]))]
+        [3, logLine_("CTerm Log Level",
+            MenuUi.rowName(Menu.logLevels, d["ctermLogLevel"]))],
+        [4, logLine_("Append Log File", yesNo_(d["appendLogFile"]))]
       ]
       var picked = MenuUi.choice(app, "Log Configuration", rows, selected,
           logHelp_(), Fn.new {|value|
@@ -1221,6 +1233,10 @@ class BbsEditor {
               logLevelHelp_("Protocol"))
           if (next != null) d["protocolLogLevel"] = next
         } else if (value == 3) {
+          var next = MenuUi.choice(app, "CTerm Log Level",
+              Menu.logLevels, d["ctermLogLevel"], ctermLogHelp_())
+          if (next != null) d["ctermLogLevel"] = next
+        } else if (value == 4) {
           d["appendLogFile"] = !d["appendLogFile"]
         }
         onChange.call()
@@ -1499,6 +1515,7 @@ class BbsEditor {
     b.appendLogFile = d["appendLogFile"]
     b.xferLogLevel = d["xferLogLevel"]
     b.protocolLogLevel = d["protocolLogLevel"]
+    b.ctermLogLevel = d["ctermLogLevel"]
     b.stopBits = d["stopBits"]
     b.dataBits = d["dataBits"]
     b.parity = d["parity"]

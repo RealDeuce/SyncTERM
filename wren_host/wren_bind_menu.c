@@ -3823,6 +3823,8 @@ BBS_NUM_PROPERTY(xfer_log_level, transfer_log_level, int,
     ST_PROFILE_LOG_EMERGENCY, ST_PROFILE_LOG_DEBUG)
 BBS_NUM_PROPERTY(protocol_log_level, protocol_log_level, int,
     ST_PROFILE_LOG_EMERGENCY, ST_PROFILE_LOG_DEBUG)
+BBS_NUM_PROPERTY(cterm_log_level, cterm_log_level, int,
+    ST_PROFILE_LOG_EMERGENCY, ST_PROFILE_LOG_DEBUG)
 BBS_NUM_PROPERTY(stop_bits, stop_bits, uint16_t, 1, 2)
 BBS_NUM_PROPERTY(data_bits, data_bits, uint16_t, 7, 8)
 BBS_NUM_PROPERTY(parity, parity, int, ST_PROFILE_PARITY_NONE,
@@ -4440,6 +4442,7 @@ static const struct binding bindings[] = {
 	BIND_GETSET("BBS", "appendLogFile", bbs_append_log_file),
 	BIND_GETSET("BBS", "xferLogLevel", bbs_xfer_log_level),
 	BIND_GETSET("BBS", "protocolLogLevel", bbs_protocol_log_level),
+	BIND_GETSET("BBS", "ctermLogLevel", bbs_cterm_log_level),
 	BIND_GETSET("BBS", "stopBits", bbs_stop_bits),
 	BIND_GETSET("BBS", "dataBits", bbs_data_bits),
 	BIND_GETSET("BBS", "parity", bbs_parity),

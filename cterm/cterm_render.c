@@ -8,6 +8,7 @@
 #define CTERM_RENDER_IMPLEMENTATION
 #include "cterm_render.h"
 #include "cterm.h"
+#include "cterm_internal.h"
 
 #include "io_error.h"
 #include "st_base64.h"
@@ -16,16 +17,64 @@
 #include "st_utf8.h"
 
 #include <limits.h>
+#include <inttypes.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 
+bool
+cterm_log_enabled(const struct cterminal *cterm, int level)
+{
+	if (cterm == NULL) return false;
+	while (cterm->parent != NULL) cterm = cterm->parent;
+	return cterm->api_diagnostic != NULL && level <= cterm->api_log_level;
+}
+
+void
+cterm_log(struct cterminal *cterm, int level, const char *format, ...)
+{
+	char message[1024];
+	va_list arguments;
+	if (!cterm_log_enabled(cterm, level)) return;
+	while (cterm->parent != NULL) cterm = cterm->parent;
+	va_start(arguments, format);
+	(void)vsnprintf(message, sizeof(message), format, arguments);
+	va_end(arguments);
+	cterm->api_diagnostic(cterm->api_diagnostic_context,
+	    (enum st_cterm_log_level)level, message);
+}
+
+void
+cterm_log_sequence(struct cterminal *cterm, const char *reason)
+{
+	char parameters[sizeof(cterm->seq_params)];
+	char intro[2] = {0}, intermediate[2] = {0}, final[2] = {0};
+	if (!cterm_log_enabled(cterm, ST_CTERM_LOG_WARNING)) return;
+	/* Handlers see parameters after ';' separators have become NULs. */
+	size_t length = (size_t)cterm->seq_param_len;
+	if (length >= sizeof(parameters)) length = sizeof(parameters) - 1;
+	for (size_t i = 0; i < length; ++i)
+		parameters[i] = cterm->seq_params[i] == '\0' ? ';' : cterm->seq_params[i];
+	parameters[length] = '\0';
+	unsigned value = (cterm->seq_key >> SEQ_INTRO_SHIFT) & SEQ_INTRO_MASK;
+	if (value >= 32) intro[0] = (char)(value + 0x20);
+	value = (cterm->seq_key >> SEQ_INTERM_SHIFT) & SEQ_INTERM_MASK;
+	if (value != 0) intermediate[0] = (char)(value + 0x1f);
+	value = (cterm->seq_key >> SEQ_FINAL_SHIFT) & SEQ_FINAL_MASK;
+	if (value != 0) final[0] = (char)(value + 0x2f);
+	cterm_log(cterm, ST_CTERM_LOG_WARNING,
+	    "%s: ESC %s%s%s%s (key=0x%08" PRIX32 ")",
+	    reason, intro, parameters, intermediate, final, cterm->seq_key);
+}
+
 void
 cterm_render_record_error(struct cterminal *cterm, int error)
 {
-	if (cterm != NULL && error != 0 && cterm->screen.error == 0)
+	if (cterm != NULL && error != 0 && cterm->screen.error == 0) {
 		cterm->screen.error = error;
+		cterm_log(cterm, ST_CTERM_LOG_ERROR, "Rendering failed (%d)", error);
+	}
 }
 
 int

@@ -1253,7 +1253,7 @@ cterm_clear2bol(struct cterminal * cterm)
 		free(buf);
 	}
 	else {
-		fprintf(stderr, "malloc() in cterm_clear2bol()\n");
+		cterm_log(cterm, ST_CTERM_LOG_ERROR, "Unable to allocate clear-to-beginning-of-line buffer");
 	}
 }
 
@@ -1973,6 +1973,9 @@ struct cterminal* cterm_init(int height, int width, int xpos, int ypos,
 	cterm->logfile=NULL;
 	cterm->emulation=emulation;
 	if (initial != NULL) {
+		cterm->api_log_level = initial->log_level;
+		cterm->api_diagnostic = initial->diagnostic;
+		cterm->api_diagnostic_context = initial->diagnostic_context;
 		if (initial->force_lcf || initial->rip_version != ST_CTERM_RIP_OFF)
 			cterm->last_column_flag = CTERM_LCF_FORCED | CTERM_LCF_ENABLED;
 		cterm->yellow_is_yellow = initial->yellow_is_yellow;

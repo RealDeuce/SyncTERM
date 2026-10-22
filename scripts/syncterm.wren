@@ -1275,6 +1275,7 @@ foreign class BBS {
   foreign static appendLogFile
   foreign static xferLogLevel
   foreign static protocolLogLevel
+  foreign static ctermLogLevel
   foreign static stopBits
   foreign static dataBits
   foreign static parity

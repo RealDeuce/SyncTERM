@@ -4143,7 +4143,7 @@ classes documented below.
 
 | File transfer
 | `dlDir`, `ulDir`, `xferLogLevel` (`LogLevel`),
-  `protocolLogLevel` (`LogLevel`)
+  `protocolLogLevel` (`LogLevel`), `ctermLogLevel` (`LogLevel`)
 
 | Logs
 | `logFile`, `appendLogFile`
@@ -4390,7 +4390,7 @@ Menu `BBS` properties map directly to the real `struct bbslist`:
 
 | Paths and logging
 | Read-only `cache`; read/write `dlDir`, `ulDir`, `logFile`, `appendLogFile`,
-  `xferLogLevel`, and `protocolLogLevel`.
+  `xferLogLevel`, `protocolLogLevel`, and `ctermLogLevel`.
 
 | Serial and protocol
 | Read/write `stopBits`, `dataBits`, `parity`, `flowControl`,
@@ -4443,8 +4443,8 @@ when a pair is incomplete. C-backed text fields also enforce their UTF-8 byte
 limits before invoking a setter.
 
 Download Path and Upload Path remain direct entry rows.  Log Configuration
-opens the four intended logging controls: Log Filename, File Transfer Log
-Level, Protocol Log Level, and Append Log File.  Accepted values still
+opens Log Filename, File Transfer Log Level, Protocol Log Level, CTerm Log
+Level, and Append Log File.  Accepted values still
 update the working `BBS` before the logging submenu closes.
 
 The persisted INI name is `ProtocolLogLevel`.  During the pre-release
@@ -4452,6 +4452,14 @@ rename, a missing `ProtocolLogLevel` falls back to the legacy
 `TelnetLogLevel` value; saving the entry writes the new name and removes
 the old one.  When neither global key exists, the default protocol log
 level is Error.
+
+`CTermLogLevel` is saved independently for each entry and connection default;
+its default is Error. CTerm diagnostics share the configured `LogFile` and
+append setting, with a `CTerm` source prefix. Warning includes detected
+unsupported or invalid sequences, rejected parameters, and malformed UTF-8.
+Debug also reports final missing grapheme clusters (`.noglyph`) with their
+Unicode code points, selected console font identifier, and screen position.
+An exact match supplied by compatible font zero is not a missing glyph.
 
 A successful full load, create, or delete advances the model
 generation.  Every previously obtained menu `BBS` handle then becomes

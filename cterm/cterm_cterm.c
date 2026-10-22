@@ -112,6 +112,8 @@ cterm_handle_decscs(struct cterminal *cterm, int *speed)	/* CSI Ps1;Ps2 * r — 
 			owner->api_speed_changed(owner->api_speed_context,
 			    (uint32_t)newspeed);
 	}
+	else
+		cterm_log_sequence(cterm, "Invalid DECSCS parameters");
 }
 
 void
@@ -355,8 +357,10 @@ cterm_handle_font_load(struct cterminal *cterm, int *speed)	/* CSI = { */
 	(void)speed;
 	cterm_seq_default(cterm, 0, 255);
 	cterm_seq_default(cterm, 1, 0);
-	if (cterm->seq_param_int[0] > 255)
+	if (cterm->seq_param_int[0] > 255) {
+		cterm_log_sequence(cterm, "Invalid font slot");
 		return;
+	}
 	cterm->font_read = 0;
 	cterm->font_slot = (int)cterm->seq_param_int[0];
 	switch (cterm->seq_param_int[1]) {
@@ -367,6 +371,8 @@ cterm_handle_font_load(struct cterminal *cterm, int *speed)	/* CSI = { */
 	}
 	if (cterm->font_size > 0)
 		cterm->accumulator = cterm_accumulate_font;
+	else
+		cterm_log_sequence(cterm, "Invalid font size parameter");
 }
 
 void

@@ -1531,7 +1531,7 @@ void cterm_parse_sixel_string(struct cterminal *cterm, bool finish)
 				}
 			}
 			if (cterm->sx_pixels == NULL) {
-				fprintf(stderr, "Error allocating memory for sixel data\n");
+				cterm_log(cterm, ST_CTERM_LOG_ERROR, "Unable to allocate sixel data");
 				return;
 			}
 			/* sx_pixels->width is uint32_t; the sum of our int coords
@@ -1774,7 +1774,7 @@ all_done:
 			free(px.primary);
 		}
 		else {
-			fprintf(stderr, "Error allocating memory for sixel data\n");
+			cterm_log(cterm, ST_CTERM_LOG_ERROR, "Unable to allocate sixel data");
 		}
 	}
 

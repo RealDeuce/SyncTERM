@@ -362,7 +362,7 @@ bool st_console_font_lookup_locked(st_console_t *console,
 	uint32_t *glyph, uint8_t *columns);
 bool st_console_font_lookup_cluster_locked(st_console_t *console,
 	uint16_t identifier, const char *text, size_t text_size, uint8_t columns,
-	uint16_t *glyph_font, uint32_t *glyph);
+	uint16_t *glyph_font, uint32_t *glyph, bool *missing);
 bool st_console_font_glyph_text_locked(st_console_t *console,
 	uint16_t identifier, uint32_t glyph, char *text, size_t text_size,
 	size_t *required);

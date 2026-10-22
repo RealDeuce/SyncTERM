@@ -57,6 +57,7 @@ class SettingsMenuTest {
     testProgram_()
     testConnectedMenu_()
     testDefaults_()
+    testCTermLog_()
     testTlsPairs_()
     testFileLocations_()
     testInputLimits_()
@@ -164,7 +165,7 @@ class SettingsMenuTest {
       "noStatus": true, "hidePopups": true, "yellowIsYellow": true,
       "forceLcf": true, "lfExpand": true, "dlDir": "/downloads",
       "ulDir": "/uploads", "logFile": "audit.log", "appendLogFile": false,
-      "xferLogLevel": 6, "protocolLogLevel": 7, "dataBits": 7,
+      "xferLogLevel": 6, "protocolLogLevel": 7, "ctermLogLevel": 5, "dataBits": 7,
       "stopBits": 2, "parity": 2, "flowControl": 2,
       "telnetNoBinary": true, "deferTelnetNegotiation": true,
       "tlsTrustWebPki": false, "tlsTrustedCert": "server.pem",
@@ -186,6 +187,18 @@ class SettingsMenuTest {
     for (key in changes.keys) check_(actual[key] == changes[key],
         "new entry did not inherit: %(key)")
     check_(entry.delete(), "discard inherited test entry")
+  }
+  static testCTermLog_() {
+    var b = Menu.defaults
+    var d = BbsEditor.draft_(b)
+    var app = SettingsTestApp.new([
+      row_("CTerm Log Level"), row_("Debug"), cancel_
+    ])
+    BbsEditor.editLog_(app, d, Fn.new { b.ctermLogLevel = d["ctermLogLevel"] })
+    check_(app.remaining == 0 && b.ctermLogLevel == 7,
+        "CTerm log submenu must apply the accepted level immediately")
+    check_(b.save() && Menu.load(null) == 0 && Menu.defaults.ctermLogLevel == 7,
+        "CTerm log submenu value must persist")
   }
   static testConnectedMenu_() {
     for (row in SettingsMenu.rows(true)) {

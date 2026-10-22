@@ -82,6 +82,9 @@ struct st_term_config {
 	st_cterm_capture_t capture;
 	bool (*capture_active)(void *context);
 	void *capture_context;
+	int cterm_log_level;
+	st_cterm_log_callback_t cterm_diagnostic;
+	void *cterm_diagnostic_context;
 };
 
 int st_term_connect_profile(st_connection_t **result,

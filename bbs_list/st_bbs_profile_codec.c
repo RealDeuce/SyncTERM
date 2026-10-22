@@ -232,6 +232,8 @@ st_bbs_decode_profile(struct st_profile *profile,
 		    "ProtocolLogLevel", ENUM_NAMES(log_levels),
 		    ini_section_get_enum_names(section, "TelnetLogLevel",
 		    ENUM_NAMES(log_levels), ST_PROFILE_LOG_ERROR));
+		profile->cterm_log_level = (int)ini_section_get_enum_names(section,
+		    "CTermLogLevel", ENUM_NAMES(log_levels), ST_PROFILE_LOG_ERROR);
 		status = replace_path(&profile->download_directory,
 		    ini_section_get_string(section, "DownloadPath", download_path));
 		if (status == 0)
@@ -357,6 +359,9 @@ st_bbs_encode_profile(ini_section_t *section,
 		ENCODE(ini_section_set_enum_names(section, "ProtocolLogLevel",
 		    ENUM_NAMES(log_levels), (size_t)profile->protocol_log_level,
 		    &ini_default_style));
+		ENCODE(ini_section_set_enum_names(section, "CTermLogLevel",
+		    ENUM_NAMES(log_levels), (size_t)profile->cterm_log_level,
+		    &ini_default_style));
 		(void)ini_section_remove_key(section, "TelnetLogLevel");
 		ENCODE(ini_section_set_string(section, "Comment", profile->comment,
 		    &ini_default_style));
@@ -420,6 +425,9 @@ st_bbs_encode_profile(ini_section_t *section,
 		    &ini_default_style));
 		ENCODE(ini_section_set_enum_names(section, "ProtocolLogLevel",
 		    ENUM_NAMES(log_levels), (size_t)profile->protocol_log_level,
+		    &ini_default_style));
+		ENCODE(ini_section_set_enum_names(section, "CTermLogLevel",
+		    ENUM_NAMES(log_levels), (size_t)profile->cterm_log_level,
 		    &ini_default_style));
 		ENCODE(ini_section_set_bool(section, "TLSTrustWebPKI",
 		    profile->tls_trust_web_pki, &ini_default_style));

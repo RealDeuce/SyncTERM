@@ -2525,12 +2525,13 @@ font_lookup_text_exact(const struct st_console_font *font, bool scalar,
 static const struct st_console_font *
 font_lookup_text_locked(st_console_t *console, uint16_t identifier,
 	bool scalar, uint32_t codepoint, const char *text, size_t text_size,
-	uint8_t columns, uint16_t *glyph_font, uint32_t *glyph)
+	uint8_t columns, uint16_t *glyph_font, uint32_t *glyph, bool *missing)
 {
 	const struct st_console_font *selected = st_console_font_locked(console,
 	    identifier);
 	const struct st_console_font *font;
 	uint16_t owner = identifier;
+	if (missing != NULL) *missing = false;
 
 	if (selected != NULL && font_lookup_text_exact(selected, scalar,
 	    codepoint, text, text_size, glyph)) {
@@ -2555,13 +2556,14 @@ font_lookup_text_locked(st_console_t *console, uint16_t identifier,
 		return NULL;
 	*glyph_font = owner;
 	*glyph = columns == 2 ? font->wide_fallback_glyph : font->fallback_glyph;
+	if (missing != NULL) *missing = true;
 	return font;
 }
 
 bool
 st_console_font_lookup_cluster_locked(st_console_t *console,
 	uint16_t identifier, const char *text, size_t text_size, uint8_t columns,
-	uint16_t *glyph_font, uint32_t *glyph)
+	uint16_t *glyph_font, uint32_t *glyph, bool *missing)
 {
 	uint32_t codepoint = 0;
 	size_t consumed;
@@ -2569,7 +2571,7 @@ st_console_font_lookup_cluster_locked(st_console_t *console,
 	    text_size) == 0 && consumed == text_size;
 
 	return font_lookup_text_locked(console, identifier, scalar, codepoint,
-	    text, text_size, columns, glyph_font, glyph) != NULL;
+	    text, text_size, columns, glyph_font, glyph, missing) != NULL;
 }
 
 bool
@@ -2586,7 +2588,7 @@ st_console_font_lookup_locked(st_console_t *console, uint16_t identifier,
 	if (*columns == 0)
 		*columns = 1;
 	font = font_lookup_text_locked(console, identifier, true, codepoint,
-	    NULL, 0, *columns, glyph_font, glyph);
+	    NULL, 0, *columns, glyph_font, glyph, NULL);
 	if (font == NULL)
 		return false;
 	*columns = *glyph < font->glyph_count ? 1 : 2;
@@ -2915,6 +2917,15 @@ st_console_font_lookup_cluster(st_console_t *console, uint16_t identifier,
 	const char *text, size_t text_size, uint8_t columns,
 	uint16_t *glyph_font, uint32_t *glyph)
 {
+	return st_console_font_lookup_cluster_ex(console, identifier, text,
+	    text_size, columns, glyph_font, glyph, NULL);
+}
+
+int
+st_console_font_lookup_cluster_ex(st_console_t *console, uint16_t identifier,
+	const char *text, size_t text_size, uint8_t columns,
+	uint16_t *glyph_font, uint32_t *glyph, bool *missing)
+{
 	int result;
 	bool found;
 
@@ -2926,7 +2937,7 @@ st_console_font_lookup_cluster(st_console_t *console, uint16_t identifier,
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	found = st_console_font_lookup_cluster_locked(console, identifier,
-	    text, text_size, columns, glyph_font, glyph);
+	    text, text_size, columns, glyph_font, glyph, missing);
 	(void)st_rwlock_unlock(&console->state_lock);
 	return found ? 0 : IO_ERROR_NOT_FOUND;
 }

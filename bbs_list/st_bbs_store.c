@@ -24,7 +24,7 @@ static const char *profile_keys[] = {
 	"Address", "Port", "Added", "LastConnected", "TotalCalls", "UserName",
 	"Password", "SystemPassword", "ConnectionType", "FlowControl",
 	"ScreenMode", "NoStatus", "DownloadPath", "UploadPath", "LogFile",
-	"TransferLogLevel", "ProtocolLogLevel", "AppendLogFile", "BPSRate",
+	"TransferLogLevel", "ProtocolLogLevel", "CTermLogLevel", "AppendLogFile", "BPSRate",
 	"ANSIMusic", "AddressFamily", "Font", "Encoding", "HidePopups", "RIP", "Comment",
 	"WrenScripts", "ForceLCF", "YellowIsYellow", "TerminalType", "LFExpand",
 	"TelnetBrokenTextmode", "TelnetDeferNegotiate", "TLSTrustWebPKI",

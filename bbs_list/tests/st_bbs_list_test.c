@@ -91,6 +91,7 @@ check_complete_profile_roundtrip(void)
 			source.encoding = ST_PROFILE_ENCODING_UTF8;
 			source.transfer_log_level = ST_PROFILE_LOG_DEBUG;
 			source.protocol_log_level = ST_PROFILE_LOG_INFO;
+			source.cterm_log_level = ST_PROFILE_LOG_DEBUG;
 			source.music = ST_PROFILE_MUSIC_ALL;
 			source.address_family = ST_ADDRESS_FAMILY_IPV6;
 			source.rip_version = ST_RIP_VERSION_3;
@@ -115,7 +116,7 @@ check_complete_profile_roundtrip(void)
 #define NUMBER(member) CHECK(result.member == source.member)
 		NUMBER(added); NUMBER(connected); NUMBER(calls); NUMBER(bps_rate);
 		NUMBER(sort_order); NUMBER(connection_type); NUMBER(source); NUMBER(identifier);
-		NUMBER(screen_mode); NUMBER(encoding); NUMBER(transfer_log_level); NUMBER(protocol_log_level);
+		NUMBER(screen_mode); NUMBER(encoding); NUMBER(transfer_log_level); NUMBER(protocol_log_level); NUMBER(cterm_log_level);
 		NUMBER(music); NUMBER(address_family); NUMBER(rip_version); NUMBER(flow_control);
 		NUMBER(tls_psk_version); NUMBER(tls_version_floor); NUMBER(parity);
 		NUMBER(palette_size); NUMBER(port); NUMBER(stop_bits); NUMBER(data_bits);

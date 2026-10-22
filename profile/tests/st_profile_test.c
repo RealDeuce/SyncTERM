@@ -64,6 +64,7 @@ main(void)
 	st_profile_init(&source);
 	st_profile_init(&copy);
 	CHECK(source.identifier == -1);
+	CHECK(source.cterm_log_level == ST_PROFILE_LOG_ERROR);
 	{
 		char scripts[ST_PROFILE_WREN_SCRIPTS_MAX + 1] = "unchanged";
 		CHECK(st_profile_scripts_parse(scripts, " first,\tsecond ,first"));

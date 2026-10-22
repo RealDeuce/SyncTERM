@@ -99,6 +99,8 @@ struct cterm_render_state {
 	uint32_t provisional_y;
 	bool provisional_drawn;
 	bool provisional_discarded;
+	bool missing_glyph;
+	uint16_t missing_font;
 	bool capture_decode_error;
 	struct st_console_cell *provisional_cells;
 	size_t provisional_capacity;
@@ -107,6 +109,10 @@ struct cterm_render_state {
 };
 
 struct cterminal;
+
+bool cterm_log_enabled(const struct cterminal *cterm, int level);
+void cterm_log(struct cterminal *cterm, int level, const char *format, ...);
+void cterm_log_sequence(struct cterminal *cterm, const char *reason);
 
 int cterm_render_make_cell(struct cterminal *cterm,
 	struct st_console_cell *cell, uint8_t byte, uint8_t attribute,

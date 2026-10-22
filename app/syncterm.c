@@ -285,17 +285,12 @@ connection_status(void *context, const char *message)
 }
 
 static void
-connection_log(void *context, enum st_connection_log_level level,
-	const char *source, const char *message)
+connection_log_message(struct connection_ui *ui, const char *source,
+	const char *severity, const char *message)
 {
-	struct connection_ui *ui = context;
-	const int priorities[] = {3, 4, 6, 7};
 	char line[2048];
-	if ((unsigned)level >= sizeof(priorities) / sizeof(priorities[0])
-	    || priorities[level] > ui->profile->protocol_log_level) return;
 	int count = snprintf(line, sizeof(line), "%s %s: %s\n", source == NULL ? "Protocol" : source,
-	    level == ST_CONNECTION_LOG_ERROR ? "Error" : level == ST_CONNECTION_LOG_WARNING
-	    ? "Warning" : level == ST_CONNECTION_LOG_INFO ? "Info" : "Debug", message == NULL ? "" : message);
+	    severity, message == NULL ? "" : message);
 	if (count < 0) return;
 	size_t length = (size_t)count < sizeof(line) ? (size_t)count : sizeof(line) - 1;
 	/* Never render terminal escapes or embedded controls from a remote log. */
@@ -303,7 +298,7 @@ connection_log(void *context, enum st_connection_log_level level,
 		if ((unsigned char)line[i] < 32 && line[i] != '\n' && line[i] != '\t') line[i] = '?';
 	(void)st_mutex_lock(&ui->log_mutex);
 	if (ui->log_file != NULL && fwrite(line, 1, length, ui->log_file) != length)
-		fprintf(stderr, "SyncTERM: unable to write protocol log\n");
+		fprintf(stderr, "SyncTERM: unable to write session log\n");
 	if (ui->log_size < 1024U * 1024U) {
 		size_t remaining = 1024U * 1024U - ui->log_size;
 		if (length > remaining) length = remaining;
@@ -322,6 +317,30 @@ connection_log(void *context, enum st_connection_log_level level,
 		}
 	}
 	(void)st_mutex_unlock(&ui->log_mutex);
+}
+
+static void
+connection_log(void *context, enum st_connection_log_level level,
+	const char *source, const char *message)
+{
+	struct connection_ui *ui = context;
+	const int priorities[] = {3, 4, 6, 7};
+	if ((unsigned)level >= sizeof(priorities) / sizeof(priorities[0])
+	    || priorities[level] > ui->profile->protocol_log_level) return;
+	connection_log_message(ui, source,
+	    level == ST_CONNECTION_LOG_ERROR ? "Error" : level == ST_CONNECTION_LOG_WARNING
+	    ? "Warning" : level == ST_CONNECTION_LOG_INFO ? "Info" : "Debug", message);
+}
+
+static void
+connection_cterm_log(void *context, enum st_cterm_log_level level,
+	const char *message)
+{
+	struct connection_ui *ui = context;
+	if ((int)level > ui->profile->cterm_log_level) return;
+	connection_log_message(ui, "CTerm", level == ST_CTERM_LOG_ERROR ? "Error"
+	    : level == ST_CTERM_LOG_WARNING ? "Warning"
+	    : level == ST_CTERM_LOG_INFO ? "Info" : "Debug", message);
 }
 
 static void
@@ -355,7 +374,7 @@ static char *
 connection_help_body(struct connection_ui *ui, const char *details)
 {
 	static const char details_heading[] = "# Connection Details\n\n";
-	static const char log_heading[] = "# Protocol Session Log\n\n";
+	static const char log_heading[] = "# Session Log\n\n";
 	const size_t overhead = sizeof(details_heading) + sizeof(log_heading) + 4;
 	size_t details_size = details == NULL ? 0 : strlen(details);
 	char *body = NULL;
@@ -678,6 +697,9 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 		.capture = run_wren_capture_input,
 		.capture_active = wren_capture_active,
 		.capture_context = &connected,
+		.cterm_log_level = profile->cterm_log_level,
+		.cterm_diagnostic = connection_cterm_log,
+		.cterm_diagnostic_context = &connection_ui,
 	};
 	status = st_term_session_create(&session, &config);
 	if (status == 0) {

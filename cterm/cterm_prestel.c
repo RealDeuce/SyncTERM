@@ -178,7 +178,7 @@ cterm_prestel_get_state(struct cterminal *cterm)
 	TERM_XY(&tx, &ty);
 	line = malloc(sizeof(*line) * tx);
 	if (line == NULL) {
-		fprintf(stderr, "malloc() in cterm_prestel_get_state()\n");
+		cterm_log(cterm, ST_CTERM_LOG_ERROR, "Unable to allocate Prestel state buffer");
 		return;
 	}
 	cterm_prestel_new_line(cterm);
@@ -227,7 +227,7 @@ cterm_prestel_fix_line(struct cterminal *cterm, int x, int y, bool restore, bool
 	ex = sx + TERM_MAXX - 1;
 	line = malloc(sizeof(*line) * (ex - sx + 1));
 	if (line == NULL) {
-		fprintf(stderr, "malloc() in cterm_prestel_fix_line()\n");
+		cterm_log(cterm, ST_CTERM_LOG_ERROR, "Unable to allocate Prestel line buffer");
 		return;
 	}
 	cterm_render_read_cells(cterm, sx, sy, ex, sy, line);

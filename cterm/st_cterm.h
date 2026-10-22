@@ -78,6 +78,17 @@ typedef int (*st_cterm_input_filter_t)(void *context, uint32_t scalar,
 typedef int (*st_cterm_capture_t)(void *context, const char *bytes,
 	size_t size, bool protocol);
 
+enum st_cterm_log_level {
+	ST_CTERM_LOG_ERROR = 3,
+	ST_CTERM_LOG_WARNING = 4,
+	ST_CTERM_LOG_INFO = 6,
+	ST_CTERM_LOG_DEBUG = 7,
+};
+/* Synchronous diagnostics on the serialized CTerm owner. The message is
+ * borrowed for the call; callbacks must not reenter the terminal. */
+typedef void (*st_cterm_log_callback_t)(void *context,
+	enum st_cterm_log_level level, const char *message);
+
 struct st_cterm_config {
 	/* Pointers are borrowed through destruction, except palette arrays which
 	 * are copied during creation. */
@@ -138,6 +149,10 @@ struct st_cterm_config {
 	st_cterm_capture_t capture;
 	bool (*capture_active)(void *context);
 	void *capture_context;
+	/* Syslog-style maximum priority (0..7). No callback disables logging. */
+	int log_level;
+	st_cterm_log_callback_t diagnostic;
+	void *diagnostic_context;
 };
 
 /*

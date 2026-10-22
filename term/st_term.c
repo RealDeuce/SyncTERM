@@ -314,6 +314,9 @@ st_term_session_create(st_term_session_t **result,
 		.capture = config->capture,
 		.capture_active = config->capture_active,
 		.capture_context = config->capture_context,
+		.log_level = config->cterm_log_level,
+		.diagnostic = config->cterm_diagnostic,
+		.diagnostic_context = config->cterm_diagnostic_context,
 	};
 	status = st_cterm_create(&session->cterm, &cterm_config);
 	if (status != 0) {

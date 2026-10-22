@@ -1068,6 +1068,9 @@ cterm_accumulate_ecma_seq(struct cterminal *cterm, unsigned char byte, int *spee
 		return true;
 
 	if (s == SEQ_BROKEN) {
+		cterm_log_sequence(cterm, cterm->seq_overflow
+		    ? "Invalid sequence parameters (limit exceeded)" : "Invalid sequence");
+		cterm_log(cterm, ST_CTERM_LOG_WARNING, "Sequence rejected at byte 0x%02X", (unsigned)byte);
 		*cterm->print_pos++ = '\033';
 		*cterm->print_pos++ = byte;
 		*cterm->print_pos = 0;
@@ -1134,6 +1137,8 @@ cterm_accumulate_ecma_seq(struct cterminal *cterm, unsigned char byte, int *spee
 		cterm->sequence = 0;
 		if (d != NULL && d->handler != NULL)
 			d->handler(cterm, speed);
+		else
+			cterm_log_sequence(cterm, "Unsupported sequence");
 		/* A macro can leave the next sequence partially parsed. */
 		if (cterm->accumulator == pre_handler && cterm->seq_phase == SEQ_PHASE_IDLE) {
 			/* Handler didn't install a new mode.  Pop back to the

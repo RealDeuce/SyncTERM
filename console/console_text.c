@@ -53,7 +53,7 @@ style_cluster_locked(const st_console_t *console, const char *text,
 	};
 
 	(void)st_console_font_lookup_cluster_locked((st_console_t *)console,
-	    cell.font, text, text_size, columns, &cell.glyph_font, &cell.glyph);
+	    cell.font, text, text_size, columns, &cell.glyph_font, &cell.glyph, NULL);
 	return cell;
 }
 

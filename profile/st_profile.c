@@ -116,6 +116,7 @@ st_profile_init(struct st_profile *profile)
 		profile->parity = ST_PROFILE_PARITY_NONE;
 		profile->transfer_log_level = ST_PROFILE_LOG_INFO;
 		profile->protocol_log_level = ST_PROFILE_LOG_ERROR;
+		profile->cterm_log_level = ST_PROFILE_LOG_ERROR;
 		profile->music = ST_PROFILE_MUSIC_BANSI;
 		profile->tls_trust_web_pki = true;
 		profile->tls_psk_version = ST_TLS_VERSION_1_3;
