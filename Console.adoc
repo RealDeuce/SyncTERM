@@ -277,7 +277,9 @@ source-bright/source-blink font selectors with
 codepoint)` pair.  These source bits are distinct from the bold style and
 remain in the stored cell after font selection.
 
-Lookup checks the selected font first, then font zero's Unicode fallback.  If
+Lookup checks the selected font first, then the designated Unicode fallback
+with matching pixel dimensions. Without a designated fallback it tries
+compatible font zero. If
 neither maps the scalar, font zero supplies a width-matched replacement.
 Mapped width comes from font data; missing-scalar width comes from generated
 Unicode East Asian Width and Emoji Presentation tables, never the process
@@ -369,6 +371,17 @@ matching glyphs; disabling `SYNCTERM_ENABLE_UNIFONT` uses UNSCII 8x16 alone.
 SyncTERM Unicode is distributed under SIL OFL 1.1. Its copyright notices and
 full license are available under SyncTERM Settings > Licenses; see also
 `unifont/LICENSE.OFL-1.1` and `unifont/UPSTREAM.md`.
+
+The 8x8, 8x14, and 8x16 Unicode fallback fonts also include SyncTERM Emoji,
+rasterized from monochrome Noto Emoji under SIL OFL 1.1. They support
+single emoji, skin tones, joined emoji, flags, keycaps, and presentation
+selectors covered by that source font. Double-column emoji use a 16-pixel
+bitmap. The Unicode font of last resort prefers these emoji, while selected
+BBS fonts keep their native glyphs. Each console shares one fallback font per
+pixel size, reused across catalog reloads. Size-matched emoji remain available after
+mode changes and when Unifont is disabled. Read the copyright notice and
+full license under SyncTERM Settings > Licenses or in
+`fonts/LICENSE.NOTO-EMOJI`; see `fonts/UPSTREAM.md` for regeneration details.
 
 == Stateful Text Operations
 

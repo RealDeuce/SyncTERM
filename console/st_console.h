@@ -602,6 +602,12 @@ int st_console_register_font_copy(st_console_t *console,
 	const struct st_console_font *font, uint16_t *identifier);
 int st_console_font_registered(st_console_t *console, uint16_t identifier,
 	bool *registered);
+/* Designate one registered fallback per pixel size. Later lookups search
+ * it after the selected font. Without one, compatible font zero is used. */
+int st_console_set_fallback_font(st_console_t *console, uint16_t identifier);
+/* Query an explicitly designated fallback; output unchanged on failure. */
+int st_console_get_fallback_font(st_console_t *console, uint32_t width,
+	uint32_t height, uint16_t *identifier);
 uint16_t st_console_font_for_flags(
 	const struct st_console_font_selection *selection, uint32_t cell_flags);
 /*
@@ -616,13 +622,13 @@ int st_console_font_lookup_cluster(st_console_t *console, uint16_t identifier,
 	const char *text, size_t text_size, uint8_t columns,
 	uint16_t *glyph_font, uint32_t *glyph);
 /* As above, with optional missing=true only when .noglyph was selected,
- * after searching both the requested font and compatible font zero.
+ * after searching both the requested font and its size-matched fallback.
  * A mapped glyph whose index equals the fallback is not missing. */
 int st_console_font_lookup_cluster_ex(st_console_t *console, uint16_t identifier,
 	const char *text, size_t text_size, uint8_t columns,
 	uint16_t *glyph_font, uint32_t *glyph, bool *missing);
-/* Select tofu without mapping lookup. columns must be 1 or 2. Uses font zero
- * when size-compatible, otherwise the selected font. Outputs unchanged on
+/* Select tofu without mapping lookup. columns must be 1 or 2. Uses a
+ * size-matched fallback, otherwise the selected font. Outputs unchanged on
  * failure (INVALID_ARGUMENT, IO, or NOT_FOUND); returns zero on success.
  */
 int st_console_font_lookup_fallback(st_console_t *console, uint16_t identifier,

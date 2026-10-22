@@ -38,9 +38,11 @@ check_small_font_tofu(uint32_t height)
 	CHECK(st_console_create(&console, &display, &config) == 0);
 	/* Mode changes retain the startup font in slot zero, so exercise an
 	 * incompatible 8x16 fallback rather than another small font. */
-	CHECK(st_builtin_font_get(0, 8, 16, &font));
+	CHECK(st_builtin_font_get(0, 8, height == 16 ? 8 : 16, &font));
 	CHECK(st_console_register_static_font(console, &font, &identifier) == 0 && identifier == 0);
 	CHECK(st_font_catalog_create(&catalog, console) == 0);
+	uint16_t fallback;
+	CHECK(st_console_get_fallback_font(console, 8, height, &fallback) == 0);
 	for (size_t selector = 0; selector < st_builtin_font_count(); ++selector) {
 		if (!st_builtin_font_get(selector, 8, height, &font)) continue;
 		CHECK(st_font_catalog_identifier(catalog, (uint8_t)selector, &identifier));
@@ -54,10 +56,18 @@ check_small_font_tofu(uint32_t height)
 		bool missing = false;
 		CHECK(st_console_font_lookup_cluster_ex(console, identifier,
 		    "\xf4\x8f\xbf\xbf", 4, 1, &owner, &glyph, &missing) == 0);
-		CHECK(owner == identifier && missing && glyph >= 256);
+		CHECK(owner == fallback && missing && glyph >= 256);
 		CHECK(st_console_font_lookup(console, identifier, UINT32_C(0x20000),
 		    &owner, &glyph, &columns) == 0);
-		CHECK(owner == identifier && columns == 2 && glyph >= 256);
+		CHECK(owner == fallback && columns == 2 && glyph >= 256);
+		CHECK(st_console_font_lookup(console, identifier, UINT32_C(0x1f642),
+		    &owner, &glyph, &columns) == 0);
+		CHECK(owner == fallback && columns == 2 && glyph >= 256);
+		missing = true;
+		CHECK(st_console_font_lookup_cluster_ex(console, identifier,
+		    "\xf0\x9f\x91\xa9\xf0\x9f\x8f\xbd\xe2\x80\x8d\xf0\x9f\x92\xbb",
+		    15, 2, &owner, &glyph, &missing) == 0);
+		CHECK(owner == fallback && !missing);
 		struct st_console_style style;
 		CHECK(st_console_get_style(console, &style) == 0);
 		style.font = identifier;
@@ -82,6 +92,11 @@ check_small_font_tofu(uint32_t height)
 		st_pixel_buffer_destroy(pixels);
 	}
 	st_font_catalog_destroy(catalog);
+	CHECK(st_font_catalog_create(&catalog, console) == 0);
+	uint16_t reused;
+	CHECK(st_console_get_fallback_font(console, 8, height, &reused) == 0
+	    && reused == fallback);
+	st_font_catalog_destroy(catalog);
 	st_console_destroy(console);
 	return 0;
 }
@@ -91,6 +106,7 @@ main(void)
 {
 	CHECK(check_small_font_tofu(8) == 0);
 	CHECK(check_small_font_tofu(14) == 0);
+	CHECK(check_small_font_tofu(16) == 0);
 	const struct st_console_display_config display = {
 		.backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};
@@ -132,6 +148,13 @@ main(void)
 	CHECK(st_console_font_lookup(console, identifier, 'A', &glyph_font,
 	    &glyph, &columns) == 0);
 	CHECK(glyph_font == identifier && glyph == 'A');
+	bool missing = true;
+	CHECK(st_console_font_lookup_cluster_ex(console, identifier,
+	    "\xf0\x9f\xa4\xb7\xf0\x9f\x8f\xbd", 8, 2,
+	    &glyph_font, &glyph, &missing) == 0);
+	uint16_t fallback;
+	CHECK(st_console_get_fallback_font(console, 8, 16, &fallback) == 0);
+	CHECK(glyph_font == fallback && !missing);
 	CHECK(st_font_catalog_load_custom_codepage(catalog,
 	    ST_FONT_CATALOG_FIRST_CUSTOM, path, ST_CODEPAGE_CP1251) == 0);
 	CHECK(st_font_catalog_identifier(catalog,

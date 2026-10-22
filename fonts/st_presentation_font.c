@@ -6,6 +6,7 @@
  */
 
 #include "st_presentation_font.h"
+#include "st_emoji_fonts.h"
 
 #include "io_error.h"
 
@@ -65,9 +66,30 @@ st_presentation_font_destroy(struct st_presentation_font *font)
 	memset(font, 0, sizeof(*font));
 }
 
-int
-st_presentation_font_create(struct st_presentation_font *result,
-	const struct st_console_font *base)
+static const struct st_console_font *
+emoji_font(const struct st_console_font *base)
+{
+	if (base->width != 8)
+		return NULL;
+	switch (base->height) {
+		case 8: return &st_emoji_8_font;
+		case 14: return &st_emoji_14_font;
+		case 16: return &st_emoji_16_font;
+		default: return NULL;
+	}
+}
+
+static uint32_t
+emoji_glyph(const struct st_console_font *emoji,
+	const struct st_console_font *base, uint32_t narrow_count, uint32_t glyph)
+{
+	return glyph < emoji->glyph_count ? base->glyph_count + 2 + glyph
+	    : narrow_count + base->wide_glyph_count + 1 + (glyph - emoji->glyph_count);
+}
+
+static int
+create_presentation(struct st_presentation_font *result,
+	const struct st_console_font *base, bool prefer_emoji)
 {
 	struct st_presentation_font created = {0};
 	struct st_console_font_mapping *mapping = NULL;
@@ -80,13 +102,31 @@ st_presentation_font_create(struct st_presentation_font *result,
 	size_t wide_bitmap_size;
 	size_t wide_row_stride;
 	size_t wide_glyph_stride;
+	const struct st_console_font *emoji;
+	size_t mapping_count = 0;
+	size_t cluster_count;
+	uint32_t narrow_added;
 
 	if (result == NULL || base == NULL || base->bitmap == NULL
 	    || base->glyph_count > UINT32_MAX - 2
 	    || base->wide_glyph_count == UINT32_MAX)
 		return IO_ERROR_INVALID_ARGUMENT;
-	narrow_count = base->glyph_count + 2;
-	wide_count = base->wide_glyph_count + 1;
+	emoji = prefer_emoji ? emoji_font(base) : NULL;
+	uint64_t total_narrow = (uint64_t)base->glyph_count + 2
+	    + (emoji == NULL ? 0 : emoji->glyph_count);
+	uint64_t total_wide = (uint64_t)base->wide_glyph_count + 1
+	    + (emoji == NULL ? 0 : emoji->wide_glyph_count);
+	if (total_narrow + total_wide > UINT32_MAX)
+		return IO_ERROR_INVALID_ARGUMENT;
+	narrow_count = (uint32_t)total_narrow;
+	wide_count = (uint32_t)total_wide;
+	narrow_added = narrow_count - base->glyph_count;
+	size_t emoji_mappings = emoji == NULL ? 0 : emoji->mapping_count;
+	size_t emoji_clusters = emoji == NULL ? 0 : emoji->cluster_mapping_count;
+	if (base->mapping_count > SIZE_MAX - emoji_mappings
+	    || base->cluster_mapping_count > SIZE_MAX - emoji_clusters)
+		return IO_ERROR_OUT_OF_MEMORY;
+	cluster_count = base->cluster_mapping_count + emoji_clusters;
 	wide_row_stride = base->wide_glyph_count == 0
 	    ? ((size_t)base->width * 2 + 7) / 8 : base->wide_row_stride;
 	wide_glyph_stride = base->wide_glyph_count == 0
@@ -113,29 +153,70 @@ st_presentation_font_create(struct st_presentation_font *result,
 	draw_box(wide_bitmap + (size_t)base->wide_glyph_count
 	    * wide_glyph_stride, wide_row_stride, base->width * 2,
 	    base->height, true);
-	if (base->mapping_count != 0) {
-		if (base->mapping_count > SIZE_MAX / sizeof(mapping[0]))
+	if (emoji != NULL) {
+		for (uint32_t i = 0; i < emoji->glyph_count; ++i)
+			for (uint32_t y = 0; y < base->height; ++y)
+				bitmap[(size_t)(base->glyph_count + 2 + i) * base->glyph_stride
+				    + (size_t)y * base->row_stride]
+				    = emoji->bitmap[(size_t)i * emoji->glyph_stride + y];
+		for (uint32_t i = 0; i < emoji->wide_glyph_count; ++i)
+			for (uint32_t y = 0; y < base->height; ++y)
+				memcpy(wide_bitmap + (size_t)(base->wide_glyph_count + 1 + i)
+				    * wide_glyph_stride + (size_t)y * wide_row_stride,
+				    emoji->wide_bitmap + (size_t)i * emoji->wide_glyph_stride
+				    + (size_t)y * emoji->wide_row_stride, 2);
+	}
+	size_t mapping_capacity = base->mapping_count + emoji_mappings;
+	if (mapping_capacity != 0) {
+		if (mapping_capacity > SIZE_MAX / sizeof(mapping[0]))
 			goto out_of_memory;
-		mapping = malloc(base->mapping_count * sizeof(mapping[0]));
+		mapping = malloc(mapping_capacity * sizeof(mapping[0]));
 		if (mapping == NULL)
 			goto out_of_memory;
-		memcpy(mapping, base->mapping,
-		    base->mapping_count * sizeof(mapping[0]));
-		for (size_t i = 0; i < base->mapping_count; ++i)
-			if (mapping[i].glyph >= base->glyph_count)
-				mapping[i].glyph += 2;
+		/* Merge sorted maps. A selected BBS font keeps its native glyphs;
+		 * the Unicode font of last resort prefers the Noto emoji artwork. */
+		size_t i = 0, j = 0;
+		while (i < base->mapping_count || j < emoji_mappings) {
+			bool from_base = j == emoji_mappings || (i < base->mapping_count
+			    && base->mapping[i].codepoint < emoji->mapping[j].codepoint);
+			bool equal = i < base->mapping_count && j < emoji_mappings
+			    && base->mapping[i].codepoint == emoji->mapping[j].codepoint;
+			if (equal) from_base = !prefer_emoji;
+			struct st_console_font_mapping entry = from_base
+			    ? base->mapping[i] : emoji->mapping[j];
+			if (from_base) {
+				if (entry.glyph >= base->glyph_count)
+					entry.glyph += narrow_added;
+			}
+			else
+				entry.glyph = emoji_glyph(emoji, base, narrow_count, entry.glyph);
+			mapping[mapping_count++] = entry;
+			if (from_base || equal) ++i;
+			if (!from_base || equal) ++j;
+		}
 	}
-	if (base->cluster_mapping_count != 0) {
-		if (base->cluster_mapping_count > SIZE_MAX / sizeof(clusters[0]))
+	if (cluster_count != 0) {
+		if (cluster_count > SIZE_MAX / sizeof(clusters[0]))
 			goto out_of_memory;
-		clusters = malloc(base->cluster_mapping_count * sizeof(clusters[0]));
+		clusters = malloc(cluster_count * sizeof(clusters[0]));
 		if (clusters == NULL)
 			goto out_of_memory;
-		memcpy(clusters, base->cluster_mapping,
-		    base->cluster_mapping_count * sizeof(clusters[0]));
-		for (size_t i = 0; i < base->cluster_mapping_count; ++i)
-			if (clusters[i].glyph >= base->glyph_count)
-				clusters[i].glyph += 2;
+		size_t used = 0;
+		/* Exact cluster lookup uses the first match. Match scalar-map
+		 * precedence while borrowing the base's existing text strings. */
+		for (size_t pass = 0; pass < 2; ++pass) {
+			bool from_emoji = (pass == 0) == prefer_emoji;
+			const struct st_console_font *source = from_emoji ? emoji : base;
+			if (source == NULL) continue;
+			for (size_t i = 0; i < source->cluster_mapping_count; ++i) {
+				struct st_console_font_cluster_mapping entry = source->cluster_mapping[i];
+				if (from_emoji)
+					entry.glyph = emoji_glyph(emoji, base, narrow_count, entry.glyph);
+				else if (entry.glyph >= base->glyph_count)
+					entry.glyph += narrow_added;
+				clusters[used++] = entry;
+			}
+		}
 	}
 	created.font = *base;
 	created.font.bitmap = bitmap;
@@ -147,7 +228,9 @@ st_presentation_font_create(struct st_presentation_font *result,
 	created.font.wide_row_stride = wide_row_stride;
 	created.font.wide_glyph_stride = wide_glyph_stride;
 	created.font.mapping = mapping;
+	created.font.mapping_count = mapping_count;
 	created.font.cluster_mapping = clusters;
+	created.font.cluster_mapping_count = cluster_count;
 	created.font.fallback_glyph = base->glyph_count;
 	created.font.decode_error_glyph = base->glyph_count + 1;
 	created.font.wide_fallback_glyph = narrow_count
@@ -160,4 +243,18 @@ out_of_memory:
 	free(mapping);
 	free(clusters);
 	return IO_ERROR_OUT_OF_MEMORY;
+}
+
+int
+st_presentation_font_create(struct st_presentation_font *result,
+	const struct st_console_font *base)
+{
+	return create_presentation(result, base, false);
+}
+
+int
+st_presentation_font_create_fallback(struct st_presentation_font *result,
+	const struct st_console_font *base)
+{
+	return create_presentation(result, base, true);
 }

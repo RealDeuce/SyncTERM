@@ -40,6 +40,8 @@ st_embed_license("RSA MD5" "${_st_license_root}/md5/LICENSE")
 st_embed_license("Unicode data (Unicode License v3)"
 	"${_st_license_root}/unicode_text/LICENSE.UNICODE")
 st_embed_license("UNSCII (Public domain)" "${_st_license_root}/fonts/LICENSE.UNSCII")
+st_embed_license("SyncTERM Emoji (SIL OFL 1.1)"
+	"${_st_license_root}/fonts/LICENSE.NOTO-EMOJI")
 if(SYNCTERM_ENABLE_UNIFONT)
 	st_embed_license("SyncTERM Unicode (SIL OFL 1.1)"
 		"${_st_license_root}/unifont/LICENSE.OFL-1.1")

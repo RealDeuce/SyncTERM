@@ -11,6 +11,7 @@
 #include "io_error.h"
 #include "st_builtin_fonts.h"
 #include "st_presentation_font.h"
+#include "st_unicode_fonts.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -49,8 +50,7 @@ st_font_catalog_create(st_font_catalog_t **result, st_console_t *console)
 			continue;
 		if (width == 8 && (height == 8 || height == 14)) {
 			struct st_presentation_font presentation = {0};
-			/* Font zero may still have the startup mode's cell height.
-			 * Give small fonts their own size-matched missing glyphs. */
+			/* Keep these fonts usable without a separately installed fallback. */
 			status = st_presentation_font_create(&presentation, &font);
 			if (status == 0)
 				status = st_console_register_font_copy(console,
@@ -67,6 +67,28 @@ st_font_catalog_create(st_font_catalog_t **result, st_console_t *console)
 		catalog->valid[selector] = true;
 		catalog->selector_by_identifier[identifier] = (uint8_t)selector;
 		catalog->identifier_valid[identifier] = true;
+	}
+	if (width == 8 && (height == 8 || height == 14 || height == 16)) {
+		uint16_t fallback;
+		int status = st_console_get_fallback_font(console, width, height, &fallback);
+		if (status == IO_ERROR_NOT_FOUND) {
+			struct st_presentation_font presentation = {0};
+			if (height == 8) font = st_unscii_8_font;
+			else if (height == 16) font = st_unscii_16_font;
+			else if (!st_builtin_font_get(0, width, height, &font)) {
+				free(catalog);
+				return IO_ERROR_NOT_SUPPORTED;
+			}
+			status = st_presentation_font_create_fallback(&presentation, &font);
+			if (status == 0)
+				status = st_console_register_font_copy(console, &presentation.font, &fallback);
+			st_presentation_font_destroy(&presentation);
+			if (status == 0) status = st_console_set_fallback_font(console, fallback);
+		}
+		if (status != 0) {
+			free(catalog);
+			return status;
+		}
 	}
 	if (!catalog->valid[0]) {
 		catalog->identifiers[0] = 0;

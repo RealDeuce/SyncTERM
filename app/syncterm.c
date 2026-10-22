@@ -983,7 +983,7 @@ main(int argc, char **argv)
 #else
 		    : &st_unscii_16_font;
 #endif
-	status = st_presentation_font_create(&presentation_font,
+	status = st_presentation_font_create_fallback(&presentation_font,
 	    application_font);
 	if (status != 0) {
 		fprintf(stderr,
@@ -994,6 +994,8 @@ main(int argc, char **argv)
 	application_font = &presentation_font.font;
 	status = st_console_register_static_font(console, application_font,
 	    &default_font);
+	if (status == 0)
+		status = st_console_set_fallback_font(console, default_font);
 	if (status != 0) {
 		fprintf(stderr, "SyncTERM: cannot install the default font (%d)\n",
 		    status);

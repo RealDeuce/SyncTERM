@@ -2469,6 +2469,18 @@ font_lookup_cluster_exact(const struct st_console_font *font,
 	return false;
 }
 
+static const struct st_console_font_registration *
+explicit_fallback_locked(st_console_t *console, uint32_t width, uint32_t height)
+{
+	for (size_t i = 0; i < array_list_count(console->fonts); ++i) {
+		const struct st_console_font_registration *registration = console->fonts[i];
+		if (registration->fallback && registration->font.width == width
+		    && registration->font.height == height)
+			return registration;
+	}
+	return NULL;
+}
+
 static const struct st_console_font *
 fallback_font_locked(st_console_t *console, uint16_t identifier,
 	uint16_t *fallback_identifier)
@@ -2476,6 +2488,15 @@ fallback_font_locked(st_console_t *console, uint16_t identifier,
 	const struct st_console_font *selected = st_console_font_locked(console,
 	    identifier);
 	const struct st_console_font *font = st_console_font_locked(console, 0);
+	const struct st_console_font *sized = selected == NULL ? font : selected;
+	if (sized != NULL) {
+		const struct st_console_font_registration *registration = explicit_fallback_locked(
+		    console, sized->width, sized->height);
+		if (registration != NULL) {
+			*fallback_identifier = registration->identifier;
+			return st_console_font_locked(console, registration->identifier);
+		}
+	}
 
 	*fallback_identifier = identifier;
 	if (font == NULL || (selected != NULL
@@ -2538,18 +2559,12 @@ font_lookup_text_locked(st_console_t *console, uint16_t identifier,
 		*glyph_font = identifier;
 		return selected;
 	}
-	font = identifier == 0 ? selected : st_console_font_locked(console, 0);
-	if (font != NULL && (selected == NULL
-	    || (font->width == selected->width && font->height == selected->height))) {
-		owner = 0;
-		if (font != selected && font_lookup_text_exact(font, scalar,
-		    codepoint, text, text_size, glyph)) {
-			*glyph_font = owner;
-			return font;
-		}
+	font = fallback_font_locked(console, identifier, &owner);
+	if (font != NULL && font != selected && font_lookup_text_exact(font, scalar,
+	    codepoint, text, text_size, glyph)) {
+		*glyph_font = owner;
+		return font;
 	}
-	else
-		font = selected;
 	if (font == NULL || (columns != 1 && columns != 2)
 	    || (columns == 2 && font->wide_fallback_glyph
 	    == ST_CONSOLE_FONT_NO_WIDE_FALLBACK))
@@ -2623,9 +2638,10 @@ st_console_font_glyph_text_locked(st_console_t *console,
 			memcpy(scalar_selected, encoded, (size_t)size);
 			selected = scalar_selected;
 			selected_size = (size_t)size;
+			break;
 		}
 	}
-	for (size_t i = 0; i < font->cluster_mapping_count; ++i) {
+	for (size_t i = 0; selected == NULL && i < font->cluster_mapping_count; ++i) {
 		const struct st_console_font_cluster_mapping *mapping
 		    = &font->cluster_mapping[i];
 
@@ -2832,6 +2848,45 @@ st_console_font_registered(st_console_t *console, uint16_t identifier,
 	*registered = find_font(console, identifier, &index);
 	(void)st_rwlock_unlock(&console->state_lock);
 	return 0;
+}
+
+int
+st_console_set_fallback_font(st_console_t *console, uint16_t identifier)
+{
+	if (console == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (st_rwlock_write_lock(&console->state_lock) != ST_THREAD_SUCCESS)
+		return IO_ERROR_IO;
+	size_t index;
+	int result = IO_ERROR_NOT_FOUND;
+	if (find_font(console, identifier, &index)) {
+		struct st_console_font_registration *selected = console->fonts[index];
+		for (size_t i = 0; i < array_list_count(console->fonts); ++i) {
+			struct st_console_font_registration *registration = console->fonts[i];
+			if (registration->font.width == selected->font.width
+			    && registration->font.height == selected->font.height)
+				registration->fallback = registration == selected;
+		}
+		result = 0;
+	}
+	(void)st_rwlock_unlock(&console->state_lock);
+	return result;
+}
+
+int
+st_console_get_fallback_font(st_console_t *console, uint32_t width,
+	uint32_t height, uint16_t *identifier)
+{
+	if (console == NULL || identifier == NULL || width == 0 || height == 0)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (st_rwlock_read_lock(&console->state_lock) != ST_THREAD_SUCCESS)
+		return IO_ERROR_IO;
+	const struct st_console_font_registration *registration = explicit_fallback_locked(
+	    console, width, height);
+	if (registration != NULL) *identifier = registration->identifier;
+	bool found = registration != NULL;
+	(void)st_rwlock_unlock(&console->state_lock);
+	return found ? 0 : IO_ERROR_NOT_FOUND;
 }
 
 uint16_t

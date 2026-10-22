@@ -2247,12 +2247,13 @@ test_cluster_font_mapping(void)
 	static const uint8_t bitmap[2] = {0};
 	static const uint8_t wide_bitmap[2] = {0};
 	static const struct st_console_font_mapping mapping[] = {
-		{'?', 0}, {'A', 1},
+		{'?', 0}, {'A', 1}, {'Z', 1},
 	};
 	static const struct st_console_font_cluster_mapping clusters[] = {
 		{"A", 1, 0},
 		{"B", 1, 1},
 		{waving_hand_tone, sizeof(waving_hand_tone) - 1, 2},
+		{"\xf0\x9f\x91\x8b\xf0\x9f\x8f\xbf", 8, 2},
 	};
 	static const struct st_console_font font = {
 		.bitmap = bitmap,
@@ -2323,6 +2324,12 @@ test_cluster_font_mapping(void)
 	    sizeof(copied), &copied_size) == 0);
 	CHECK(copied_size == sizeof(waving_hand_tone) - 1
 	    && memcmp(copied, waving_hand_tone, copied_size) == 0);
+	CHECK(st_console_font_glyph_text(console, identifier, 1, copied,
+	    sizeof(copied), &copied_size) == 0);
+	CHECK(copied_size == 1 && copied[0] == 'A');
+	CHECK(st_console_font_glyph_text(console, identifier, 0, copied,
+	    sizeof(copied), &copied_size) == 0);
+	CHECK(copied_size == 1 && copied[0] == '?');
 	st_console_destroy(console);
 }
 

@@ -1,6 +1,10 @@
 Except where a file contains a different license notice, original material in
 this directory is licensed as follows:
 
+All builds include SyncTERM Emoji, rasterized from Noto Emoji under the SIL
+Open Font License 1.1. Its copyright notice and full license are retained in
+`fonts/LICENSE.NOTO-EMOJI` and the in-program Licenses viewer.
+
 When `SYNCTERM_ENABLE_UNIFONT` is enabled, the executable includes the
 SyncTERM Unicode font, derived from GNU Unifont and UNSCII, under the SIL
 Open Font License 1.1. See `unifont/UPSTREAM.md` and

@@ -6,6 +6,7 @@
 
 #include "st_console.h"
 #include "st_presentation_font.h"
+#include "st_emoji_fonts.h"
 #include "st_pixels.h"
 
 #include <stdio.h>
@@ -108,7 +109,7 @@ main(void)
 			.columns = 4, .rows = 2, .cell_width = 8, .cell_height = 16,
 		};
 
-		CHECK(st_presentation_font_create(&presentation,
+		CHECK(st_presentation_font_create_fallback(&presentation,
 		    &st_unifont_font) == 0);
 		CHECK(presentation.font.fallback_glyph
 		    != presentation.font.decode_error_glyph);
@@ -117,6 +118,17 @@ main(void)
 		CHECK(st_console_create(&console, &config_display, &raster_config) == 0);
 		CHECK(st_console_register_static_font(console, &presentation.font,
 		    &composite) == 0 && composite == 0);
+		bool noto_smile = false;
+		for (size_t i = 0; i < st_emoji_16_font.mapping_count; ++i) {
+			if (st_emoji_16_font.mapping[i].codepoint != UINT32_C(0x1f642)) continue;
+			CHECK(st_console_font_lookup(console, 0, UINT32_C(0x1f642), &owner,
+			    &replacement, &replacement_columns) == 0);
+			CHECK(owner == 0 && replacement_columns == 2);
+			CHECK(memcmp(glyph_bitmap(&presentation.font, replacement),
+			    glyph_bitmap(&st_emoji_16_font, st_emoji_16_font.mapping[i].glyph), 32) == 0);
+			noto_smile = true;
+		}
+		CHECK(noto_smile);
 		CHECK(st_console_font_lookup(console, 0, UINT32_C(0xfffd), &owner,
 		    &replacement_character, &replacement_columns) == 0);
 		CHECK(owner == 0 && replacement_columns == 1
@@ -124,8 +136,8 @@ main(void)
 		    && replacement_character != presentation.font.decode_error_glyph);
 		CHECK(st_console_font_lookup_cluster(console, 0, toned_thumb,
 		    sizeof(toned_thumb) - 1, 2, &owner, &replacement) == 0);
-		CHECK(owner == 0
-		    && replacement == presentation.font.wide_fallback_glyph);
+		CHECK(owner == 0 && replacement >= presentation.font.glyph_count
+		    && replacement != presentation.font.wide_fallback_glyph);
 		CHECK(st_console_write_utf8(console, toned_thumb,
 		    sizeof(toned_thumb) - 1) == 0);
 		CHECK(st_console_read_cells(console, &row, presented, 2) == 0);

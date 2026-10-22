@@ -371,6 +371,8 @@ bool st_builtin_font_get(size_t selector, uint32_t width, uint32_t height,
     struct st_console_font *font);
 int st_presentation_font_create(struct st_presentation_font *result,
     const struct st_console_font *base);
+int st_presentation_font_create_fallback(struct st_presentation_font *result,
+    const struct st_console_font *base);
 void st_presentation_font_destroy(struct st_presentation_font *font);
 extern const struct st_console_font st_unscii_8_font;
 extern const struct st_console_font st_unscii_16_font;
@@ -381,7 +383,8 @@ Selectors must be below `st_builtin_font_count()`.  Static names/font storage
 are borrowed for process lifetime.  `st_builtin_font_get` writes a required
 descriptor only on true, and that descriptor borrows catalog storage.
 Presentation result is caller storage which owns allocations only after zero
-return and must then be destroyed once; `base` is borrowed during creation.
+return and must then be destroyed once. Base bitmap and scalar-mapping
+storage is copied; any base cluster strings remain borrowed.
 
 [cols="3m,7"]
 |===
@@ -398,7 +401,24 @@ return and must then be destroyed once; `base` is borrowed during creation.
 storage; requires exact supported cell dimensions.
 
 | st_presentation_font_create(result, base), st_presentation_font_destroy(font)
-| Build/free an owned augmented fallback-font descriptor.
+| Build/free an owned presentation font with tofu.
+Native mappings and original byte-glyph indexes are preserved. Existing
+base cluster strings remain borrowed and must outlive the result.
+
+| st_presentation_font_create_fallback(result, base)
+| Build the font of last resort, preferring bundled emoji over matching
+base Unicode mappings at 8x8, 8x14, and 8x16. Bitmap indexes of the base
+remain intact. Consoles share one designated fallback per pixel size.
+
+| st_console_set_fallback_font(console, identifier)
+| Designate a registered font as the fallback for its pixel dimensions,
+replacing the previous designation for that size. Affects subsequent
+lookups; retained cells do not change. Returns `IO_ERROR_NOT_FOUND` for an
+unregistered identifier.
+
+| st_console_get_fallback_font(console, width, height, identifier)
+| Query an explicitly designated size-matched fallback. Returns
+`IO_ERROR_NOT_FOUND` when absent and preserves the output on failure.
 
 | st_unscii_8_font, st_unscii_16_font, st_unifont_font
 | Process-lifetime static `st_console_font` objects; Unifont exists only in the

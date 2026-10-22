@@ -4650,6 +4650,9 @@ main(int argc, char **argv)
 	CHECK(st_console_register_static_font(console, &default_font,
 	    &default_identifier) == 0);
 	CHECK(default_identifier == 0);
+	/* Keep the diagnostic fixture as the designated fallback, matching
+	 * the application's explicit installation of its presentation font. */
+	CHECK(st_console_set_fallback_font(console, default_identifier) == 0);
 	struct st_console_cell history_cells[4] = {
 		{.glyph = 'A'}, {.glyph = 'B'},
 		{.glyph = 'C'}, {.glyph = 'D'},

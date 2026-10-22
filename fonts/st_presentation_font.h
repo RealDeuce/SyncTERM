@@ -16,6 +16,10 @@ struct st_presentation_font {
 
 int st_presentation_font_create(struct st_presentation_font *result,
 	const struct st_console_font *base);
+/* Unicode fallbacks prefer bundled emoji over base Unicode artwork. Both
+ * constructors retain original byte-glyph indexes and add tofu. */
+int st_presentation_font_create_fallback(struct st_presentation_font *result,
+	const struct st_console_font *base);
 void st_presentation_font_destroy(struct st_presentation_font *font);
 
 #endif

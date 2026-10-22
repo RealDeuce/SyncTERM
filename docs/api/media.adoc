@@ -88,7 +88,9 @@ process lifetime.
 | `st_fonts`
 | link:fonts/st_presentation_font.h[st_presentation_font.h]
 | Builds an owned presentation font by augmenting a base console font with
-drawable missing-text glyphs.  Destroy it with
+drawable missing-text glyphs. The fallback constructor also adds emoji at
+8x8, 8x14, and 8x16, preferring them over the base's Unicode artwork.
+The ordinary constructor retains native Unicode mappings. Destroy it with
 `st_presentation_font_destroy()`.
 
 | `st_fonts`
@@ -103,7 +105,7 @@ Distributed under SIL OFL 1.1; see `unifont/LICENSE.OFL-1.1` and the
 in-program SyncTERM Settings > Licenses viewer.
 |===
 
-Tests: `fonts` and, when enabled, `unifont`.
+Tests: `fonts`, `emoji`, and, when enabled, `unifont`.
 
 === Console
 

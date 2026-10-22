@@ -17,6 +17,7 @@ struct st_console_font_registration {
 	uint16_t identifier;
 	struct st_console_font font;
 	bool owned;
+	bool fallback;
 	atomic_uint_fast64_t last_used;
 };
 
