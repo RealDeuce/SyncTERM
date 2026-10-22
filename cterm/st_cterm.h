@@ -74,7 +74,9 @@ typedef int (*st_cterm_input_filter_t)(void *context, uint32_t scalar,
 	bool *consumed, char *replacement, size_t capacity,
 	size_t *replacement_size);
 /* Text is decoded UTF-8 after semantic hooks. With protocol=true, bytes are
- * opaque parser input, suitable only for raw capture. Playback is omitted. */
+ * opaque parser input for text-only consumers to omit. This is not a wire
+ * capture: observe original connection bytes before calling CTerm for that.
+ * Playback is omitted. */
 typedef int (*st_cterm_capture_t)(void *context, const char *bytes,
 	size_t size, bool protocol);
 

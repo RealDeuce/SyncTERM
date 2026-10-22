@@ -608,6 +608,13 @@ wren_capture_active(void *context)
 }
 
 static int
+run_wren_capture_wire(void *context, const uint8_t *bytes, size_t size)
+{
+	return st_wren_connected_capture_wire(
+	    *(st_wren_connected_t **)context, bytes, size);
+}
+
+static int
 run_wren_capture_input(void *context, const char *bytes, size_t size,
 	bool protocol)
 {
@@ -733,6 +740,7 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 		.input_filter = run_wren_input_filter,
 		.input_filter_active = wren_input_filter_active,
 		.input_filter_context = &connected,
+		.wire_capture = run_wren_capture_wire,
 		.capture = run_wren_capture_input,
 		.capture_active = wren_capture_active,
 		.capture_context = &connected,

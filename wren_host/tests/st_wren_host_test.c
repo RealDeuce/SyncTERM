@@ -1592,6 +1592,8 @@ exercise_connected_scrollback(st_wren_host_t *host,
 	    "Capture.pause()\n"
 	    "if (!Capture.paused) Fiber.abort(\"capture pause\")\n"
 	    "Capture.resume()\n") == 0);
+	CHECK(st_wren_connected_capture_wire(connected,
+	    (const uint8_t *)"A\x1b[31m\xc3\xa9", 8) == 0);
 	CHECK(st_cterm_write(cterm, "A\x1b[31m\xc3\xa9", 8,
 	    &consumed) == 0 && consumed == 8);
 	CHECK(st_wren_connected_interpret(connected, "capture_pause",
@@ -1610,11 +1612,21 @@ exercise_connected_scrollback(st_wren_host_t *host,
 	FILE *raw = tmpfile();
 	CHECK(raw != NULL);
 	CHECK(st_wren_connected_capture_start(connected, raw, true) == 0);
-	CHECK(st_cterm_write(cterm, "D\x1b[32mE", 7,
-	    &consumed) == 0 && consumed == 7);
+	st_wren_connected_capture_pause(connected);
+	CHECK(st_wren_connected_capture_wire(connected, (const uint8_t *)"H", 1) == 0);
+	CHECK(st_cterm_write(cterm, "H", 1, &consumed) == 0 && consumed == 1);
+	st_wren_connected_capture_resume(connected);
+	static const char raw_input[] = "D\x1b[32m\xc3\xa9\xff\xef\xbf\xbd\x00\xc3";
+	for (size_t i = 0; i < sizeof(raw_input) - 1; ++i) {
+		CHECK(st_wren_connected_capture_wire(connected,
+		    (const uint8_t *)raw_input + i, 1) == 0);
+		CHECK(st_cterm_write(cterm, raw_input + i, 1, &consumed) == 0 && consumed == 1);
+	}
+	CHECK(st_cterm_finish(cterm) == 0);
+	CHECK(st_cterm_write_utf8(cterm, "injected", 8, &consumed) == 0 && consumed == 8);
 	CHECK(fflush(raw) == 0 && fseek(raw, 0, SEEK_SET) == 0);
-	CHECK(fread(captured, 1, 7, raw) == 7);
-	CHECK(memcmp(captured, "D\x1b[32mE", 7) == 0);
+	CHECK(fread(captured, 1, sizeof(captured), raw) == sizeof(raw_input) - 1);
+	CHECK(memcmp(captured, raw_input, sizeof(raw_input) - 1) == 0);
 	st_wren_connected_destroy(connected);
 	connected = NULL;
 	st_cterm_destroy(&cterm);

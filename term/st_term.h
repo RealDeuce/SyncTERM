@@ -79,6 +79,10 @@ struct st_term_config {
 	st_cterm_input_filter_t input_filter;
 	bool (*input_filter_active)(void *context);
 	void *input_filter_context;
+	/* Original received bytes before wire hooks, RIP conversion, and decoding.
+	 * Both capture callbacks use capture_active and capture_context. */
+	int (*wire_capture)(void *context, const uint8_t *bytes, size_t size);
+	/* Decoded text after semantic hooks, with protocol bytes tagged. */
 	st_cterm_capture_t capture;
 	bool (*capture_active)(void *context);
 	void *capture_context;

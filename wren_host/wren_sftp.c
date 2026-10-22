@@ -1883,22 +1883,36 @@ st_wren_connected_capture_resume(st_wren_connected_t *connected)
 		connected->capture_paused = false;
 }
 
-int
-st_wren_connected_capture_input(st_wren_connected_t *connected,
-	const char *bytes, size_t size, bool protocol)
+static int
+capture_write(st_wren_connected_t *connected, const void *bytes, size_t size)
 {
-	if (!st_wren_connected_capture_active(connected)
-	    || connected->capture_paused || size == 0)
-		return 0;
-	if (!connected->capture_raw
-	    && (protocol || (size == 1 && (uint8_t)bytes[0] == 0x1b)))
-		return 0;
 	if (fwrite(bytes, 1, size, connected->capture_stream) != size) {
 		if (connected->vm != NULL)
 			st_wren_log_append(connected->vm, 2, "Capture write failed");
 		st_wren_connected_capture_stop(connected);
 	}
 	return 0;
+}
+
+int
+st_wren_connected_capture_wire(st_wren_connected_t *connected,
+	const uint8_t *bytes, size_t size)
+{
+	if (!st_wren_connected_capture_active(connected)
+	    || !connected->capture_raw || connected->capture_paused || size == 0)
+		return 0;
+	return capture_write(connected, bytes, size);
+}
+
+int
+st_wren_connected_capture_input(st_wren_connected_t *connected,
+	const char *bytes, size_t size, bool protocol)
+{
+	if (!st_wren_connected_capture_active(connected)
+	    || connected->capture_raw || connected->capture_paused || size == 0
+	    || protocol || (size == 1 && (uint8_t)bytes[0] == 0x1b))
+		return 0;
+	return capture_write(connected, bytes, size);
 }
 
 static int

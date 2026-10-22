@@ -12,11 +12,12 @@ emulations first interpret their controls and character-set transformations,
 then emit UTF-8 into the same presenter. Sequence parameters, font uploads,
 macro definitions, and other protocol payloads remain bytes. Receive filters
 and text capture see decoded text and controls, while raw payloads bypass them.
-Capture additionally receives explicitly tagged protocol bytes for raw logs;
-these bytes are observed without invoking Unicode filters or a second parser.
+The semantic capture callback also tags opaque protocol bytes so text-only
+consumers can omit them. ANSI capture instead observes the original connection
+bytes in the session layer before wire hooks, RIP conversion, and decoding.
 Semantic UTF-8 injection bypasses the receive filter; replay invokes neither
-receive filtering nor capture a second time. Raw logging records wire bytes;
-ASCII/text logging writes presented UTF-8 and terminal text controls.
+receive filtering nor capture a second time. CTerm's own raw log records its
+input bytes; ASCII/text logging writes presented UTF-8 and terminal text controls.
 
 Each display owns one incremental Unicode presenter regardless of its wire
 encoding. Receive-buffer boundaries preserve incomplete decoding and grapheme

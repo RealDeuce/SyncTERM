@@ -3852,10 +3852,15 @@ no-ops when no terminal is active.
 | `Capture.start(file, raw)`
 | Open a streaming log to the path authorized by `file` (a
   write-consent `File` from <<host-pickSavePath,`Host.pickSavePath`>>).
-  Text is captured as decoded UTF-8 after semantic input hooks.
-  `raw == true` also preserves original escape-sequence and opaque payload
-  bytes; `false` omits protocol bytes and ESC markers. Macro playback is not
-  captured a second time. Consumes the File's write consent.
+  `raw == true` captures the original received connection bytes before
+  wire hooks, RIP conversion, character decoding, and semantic input hooks.
+  This preserves codepage bytes, malformed or incomplete UTF-8, escape
+  sequences, and opaque payloads exactly. It captures the terminal stream
+  after transport processing (such as SSH decryption or Telnet negotiation).
+  `false` captures decoded UTF-8 after semantic input hooks and omits
+  protocol bytes and ESC markers. Macro playback is not captured a second
+  time; locally injected UTF-8 appears only in plain-text capture.
+  Consumes the File's write consent.
   Returns `null` on success or a <<fileerror,`FileError`>> on
   open failure (typically `errno = EEXIST` for `WFC_CREATE` if
   the path was created between pick and open).

@@ -33,5 +33,9 @@ rip-query)
 	printf '!|1\0330000\202^M\r\n'
 	dd bs=1 count=2 2>/dev/null
 	;;
+capture)
+	stty raw -echo
+	printf 'A#XZ\033[32m\200\377\000\357\277\275\303'
+	;;
 *) exit 1 ;;
 esac

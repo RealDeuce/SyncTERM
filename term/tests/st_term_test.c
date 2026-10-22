@@ -260,6 +260,71 @@ test_wire_filter(void *context, uint8_t byte, bool *consumed,
 	return 0;
 }
 
+struct wire_capture {
+	uint8_t bytes[64];
+	size_t size;
+};
+
+static int
+capture_wire(void *context, const uint8_t *bytes, size_t size)
+{
+	struct wire_capture *capture = context;
+	CHECK(size <= sizeof(capture->bytes) - capture->size);
+	memcpy(capture->bytes + capture->size, bytes, size);
+	capture->size += size;
+	return 0;
+}
+
+static int
+test_wire_capture(enum st_cterm_encoding encoding, bool rip)
+{
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config geometry = {
+		.columns = 80, .rows = 25, .cell_width = 8, .cell_height = 16,
+	};
+	static const uint8_t expected[] = "A#XZ\033[32m\x80\xff\x00\xef\xbf\xbd\xc3";
+	struct wire_capture captured = {0};
+	struct st_profile profile;
+	st_console_t *console = NULL;
+	st_connection_t *connection = NULL;
+	st_font_catalog_t *fonts = NULL;
+	st_term_session_t *session = NULL;
+	enum st_term_disposition disposition;
+	bool finished = false;
+
+	CHECK(st_console_create(&console, &display, &geometry) == 0);
+	CHECK(st_font_catalog_create(&fonts, console) == 0);
+	st_profile_init(&profile);
+	profile.connection_type = ST_CONNECTION_SHELL;
+	profile.encoding = encoding == ST_CTERM_ENCODING_UTF8
+	    ? ST_PROFILE_ENCODING_UTF8 : ST_CODEPAGE_CP437;
+	strcpy(profile.address, "sh term-fixture.sh capture");
+	CHECK(st_term_connect_profile(&connection, &profile, console, NULL, NULL) == 0);
+	const struct st_term_config config = {
+		.console = console, .connection = connection, .fonts = fonts,
+		.screen_mode = ST_SCREEN_MODE_80X25, .encoding = encoding,
+		.rip_version = rip ? ST_CTERM_RIP_1 : ST_CTERM_RIP_OFF,
+		.codepage = ST_CODEPAGE_CP437, .hide_status = true,
+		/* Replacements and drops must never change the captured wire. */
+		.wire_filter = rip ? test_wire_filter : NULL,
+		.wire_capture = capture_wire, .capture_context = &captured,
+		/* Exercise both bulk input and byte-at-a-time presentation. */
+		.throttle_supported = rip,
+	};
+	CHECK(st_term_session_create(&session, &config) == 0);
+	for (size_t attempt = 0; attempt < 100 && !finished; ++attempt)
+		CHECK(st_term_session_pump(session, &disposition, &finished) == 0);
+	CHECK(finished);
+	CHECK(captured.size == sizeof(expected) - 1
+	    && memcmp(captured.bytes, expected, sizeof(expected) - 1) == 0);
+	st_term_session_destroy(&session);
+	CHECK(st_connection_close(connection) == 0);
+	st_profile_dispose(&profile);
+	st_font_catalog_destroy(fonts);
+	st_console_destroy(console);
+	return 0;
+}
+
 static int
 test_shell_wire_filter(void)
 {
@@ -269,6 +334,7 @@ test_shell_wire_filter(void)
 	const struct st_console_config console_config = {
 		.columns = 80, .rows = 25, .cell_width = 8, .cell_height = 16,
 	};
+	struct wire_capture captured = {0};
 	struct st_profile profile;
 	st_console_t *console = NULL;
 	st_connection_t *connection = NULL;
@@ -300,6 +366,7 @@ test_shell_wire_filter(void)
 		.font_selector = 0,
 		.hide_status = true,
 		.wire_filter = test_wire_filter,
+		.wire_capture = capture_wire, .capture_context = &captured,
 	};
 	CHECK(st_term_session_create(&session, &config) == 0);
 	for (size_t attempt = 0; attempt < 100 && !found; ++attempt) {
@@ -313,6 +380,7 @@ test_shell_wire_filter(void)
 		    && required == 1 && text[0] == 'X';
 	}
 	CHECK(found);
+	CHECK(captured.size == 4 && memcmp(captured.bytes, "A#XZ", 4) == 0);
 	CHECK(cells[1].foreground == 17);
 	CHECK(st_console_font_glyph_text(console, cells[2].glyph_font,
 	    cells[2].glyph, text, sizeof(text), &required) == 0);
@@ -1003,6 +1071,10 @@ main(void)
 	CHECK(test_shell_apc() == 0);
 	CHECK(test_prestel_keyboard_session() == 0);
 	CHECK(test_shell_wire_filter() == 0);
+	CHECK(test_wire_capture(ST_CTERM_ENCODING_UTF8, false) == 0);
+	CHECK(test_wire_capture(ST_CTERM_ENCODING_CODEPAGE, false) == 0);
+	CHECK(test_wire_capture(ST_CTERM_ENCODING_UTF8, true) == 0);
+	CHECK(test_wire_capture(ST_CTERM_ENCODING_CODEPAGE, true) == 0);
 	CHECK(test_shell_throttle(ST_CTERM_ENCODING_UTF8) == 0);
 	CHECK(test_shell_throttle(ST_CTERM_ENCODING_CODEPAGE) == 0);
 	CHECK(test_remote_speed_transition(ST_CTERM_ENCODING_UTF8, false) == 0);

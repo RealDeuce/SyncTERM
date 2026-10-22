@@ -177,6 +177,9 @@ int st_wren_connected_filter_input_scalar(st_wren_connected_t *connected,
 	size_t *replacement_size);
 bool st_wren_connected_has_input_hooks(const st_wren_connected_t *connected);
 bool st_wren_connected_capture_active(const st_wren_connected_t *connected);
+/* Original connection bytes for ANSI capture; decoded input is plain text only. */
+int st_wren_connected_capture_wire(st_wren_connected_t *connected,
+	const uint8_t *bytes, size_t size);
 int st_wren_connected_capture_input(st_wren_connected_t *connected,
 	const char *bytes, size_t size, bool protocol);
 const char *st_wren_connected_last_error(

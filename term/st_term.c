@@ -634,6 +634,14 @@ write_wire_filtered(st_term_session_t *session, const uint8_t *bytes,
 	size_t run_start = 0;
 	int status;
 
+	if (session->config.wire_capture != NULL
+	    && (session->config.capture_active == NULL
+	    || session->config.capture_active(session->config.capture_context))) {
+		status = session->config.wire_capture(session->config.capture_context,
+		    bytes, size);
+		if (status != 0)
+			return status;
+	}
 	if (session->config.wire_filter == NULL
 	    || (session->config.wire_filter_active != NULL
 	    && !session->config.wire_filter_active(
