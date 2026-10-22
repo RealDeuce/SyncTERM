@@ -364,10 +364,11 @@ maps.  The Font Management screen filters them by the sizes actually present:
 |===
 
 For 8x8 modes, font zero is UNSCII 8x8.  For 8x16 modes, the default build
-uses GNU Unifont with UNSCII overlaid on matching glyphs; disabling
-`SYNCTERM_ENABLE_UNIFONT` uses UNSCII 8x16 alone.  Including the optional GNU
-Unifont-derived data makes the resulting executable GPL-2.0-or-later; see
-`LICENSE` and `unifont/UPSTREAM.md`.
+uses SyncTERM Unicode, derived from GNU Unifont with UNSCII overlaid on
+matching glyphs; disabling `SYNCTERM_ENABLE_UNIFONT` uses UNSCII 8x16 alone.
+SyncTERM Unicode is distributed under SIL OFL 1.1. Its copyright notices and
+full license are available under SyncTERM Settings > Licenses; see also
+`unifont/LICENSE.OFL-1.1` and `unifont/UPSTREAM.md`.
 
 == Stateful Text Operations
 

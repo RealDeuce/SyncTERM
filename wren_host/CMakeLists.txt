@@ -81,6 +81,8 @@ add_custom_command(OUTPUT ${_st_wren_embedded}
 		${CMAKE_CURRENT_SOURCE_DIR}/GenerateEmbeddedWren.cmake
 	VERBATIM)
 
+include("${CMAKE_CURRENT_SOURCE_DIR}/GenerateLicenses.cmake")
+
 add_library(st_wren_host STATIC
 	wren_host.c
 	wren_bbs_model.c
@@ -94,6 +96,7 @@ add_library(st_wren_host STATIC
 	wren_bind_pixels.c
 	wren_repl.c
 	wren_bind_menu.c
+	${_st_license_output}
 	wren_selection.c
 	wren_links.c
 	wren_directory.c

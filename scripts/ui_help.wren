@@ -28,7 +28,7 @@ import "ui_widget"   for Rect
 import "ui_pane"     for Pane
 import "ui_popup"    for Popup
 import "ui_draw"     for Painter
-import "ui_markdown" for Markdown, MdLine, MdRole
+import "ui_markdown" for Markdown, MdBlock, MdBlockKind, MdLine, MdRun, MdRole
 import "syncterm"    for KeyEvent, MouseEvent, Mouse, Key, Screen
 
 class Help is Popup {
@@ -48,6 +48,31 @@ class Help is Popup {
     _sbSide    = "right"        // "right" (default) or "left"
     _sbSep     = true           // separator between scrollbar and content
     _plain     = false
+    _literal   = false
+  }
+
+  // Legal notices must retain their punctuation and wrap at the viewport
+  // edge. Preformatted mode deliberately does not wrap long source lines.
+  literal { _literal }
+  literal=(value) {
+    if (_literal == value) return
+    _literal = value
+    _doc = value ? literalDocument_() : Markdown.parse(_body)
+    _layoutW = -1
+    markDirty()
+  }
+
+  literalDocument_() {
+    var blocks = []
+    for (line in Markdown.splitLines_(_body)) {
+      if (line.count == 0) {
+        blocks.add(MdBlock.new(MdBlockKind.blank, []))
+      } else {
+        blocks.add(MdBlock.new(MdBlockKind.paragraph,
+            [MdRun.new(line, MdRole.text)]))
+      }
+    }
+    return blocks
   }
 
   preformatted { _plain }
@@ -128,7 +153,8 @@ class Help is Popup {
   preformattedLines_() {
     var lines = []
     for (line in Markdown.splitLines_(_body)) {
-      lines.add(MdLine.new(Markdown.parseInline_(line, MdRole.text)))
+      var runs = _literal ? [MdRun.new(line, MdRole.text)] : Markdown.parseInline_(line, MdRole.text)
+      lines.add(MdLine.new(runs))
     }
     return lines
   }

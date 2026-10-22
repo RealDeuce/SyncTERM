@@ -132,13 +132,13 @@ For example:
 cmake -S . -B build -DST_CONSOLE_WAYLAND=ON -DST_CONSOLE_SDL=OFF
 ----
 
-`SYNCTERM_ENABLE_UNIFONT` is enabled by default.  It includes the modified
-GNU Unifont-derived Unicode fallback raster data, which is licensed under
-GPL-2.0-or-later; an executable containing that data must be distributed
-under GPL-2.0-or-later terms.  Configure with
-`-DSYNCTERM_ENABLE_UNIFONT=OFF` to omit that data.  The original SyncTERM
-material in this source tree remains under the two-clause BSD license; see
-`LICENSE` and `unifont/UPSTREAM.md` for the complete notices.
+`SYNCTERM_ENABLE_UNIFONT` is enabled by default. It includes SyncTERM Unicode,
+a modified GNU Unifont-derived font with an UNSCII overlay, distributed under
+the SIL Open Font License 1.1. Configure with
+`-DSYNCTERM_ENABLE_UNIFONT=OFF` to omit that data. Original SyncTERM material
+remains under the two-clause BSD license. The font copyright notices and full
+license are available under SyncTERM Settings > Licenses and in
+`unifont/LICENSE.OFL-1.1`; see `LICENSE` and `unifont/UPSTREAM.md`.
 
 == Running SyncTERM
 
@@ -1093,7 +1093,14 @@ that SyncTERM will access.
 Build Options::
 Shows which optional components SyncTERM was built to support, including the
 available console and audio backends.  It also reports whether the executable
-contains the GPL-2.0-or-later GNU Unifont-derived Unicode fallback data.
+contains the SyncTERM Unicode font under SIL OFL 1.1.
+
+Licenses::
+Displays bundled software and font copyright notices and full license texts.
+Select a component, then use the arrows, Page Up/Down, Home, or End to read
+its notice. Escape returns to the component list. The notices are embedded
+in the executable and are available offline, including in safe mode and
+from the connected settings menu.
 
 List Encryption::
 Allows you to encrypt or decrypt the BBS list. Choose the encryption type

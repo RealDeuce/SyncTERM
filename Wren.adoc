@@ -4664,6 +4664,12 @@ duplicate platform-dependent enum tables:
 | List of `[category, displayName, enabled]` rows describing this
   executable's crypto, terminal, video, and audio build features.
 
+| `licenses`
+| List of `[componentName, fullNoticeText]` rows embedded in this executable.
+  Available offline and in safe mode. The SyncTERM Unicode OFL notice is
+  included only when `SYNCTERM_ENABLE_UNIFONT` is enabled. Returned Lists
+  are independent copies; modifying them does not change the embedded notices.
+
 | `maxPathLength`
 | Build-specific `MAX_PATH` value used by menu-backed path fields.
 
@@ -7775,6 +7781,12 @@ call `app.run()` yourself, wire `onDismiss` to `app.quit()`; otherwise
 A modal scrollable text viewer for context help.  The body is parsed
 once as a markdown subset (see "Markdown subset" below) and laid out
 lazily — text wraps to the dialog width and reflows on resize.
+
+Set `literal = true` on a `Help` instance to display plain text with wrapping
+and scrolling, preserving punctuation such as Markdown markers. This mode is
+used for the embedded license notices. `preformatted = true` instead keeps
+source lines unwrapped; combining it with `literal` also disables inline
+Markdown parsing.
 
 [source,wren]
 ----

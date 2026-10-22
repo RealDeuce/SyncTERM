@@ -412,6 +412,11 @@ main(void)
 	CHECK(st_settings_reload() == 0);
 	CHECK(st_settings.scrollback_lines == 123 && st_settings.custom_rows == 30
 	    && st_settings.custom_columns == 100 && st_settings.theme_frame_color == 1);
+	host->config.safe_mode = true;
+	interpret(host, "settings_safe_licenses",
+	    "import \"menu_settings_ui_test\" for SettingsMenuTest\n"
+	    "SettingsMenuTest.testLicenses_()\n");
+	host->config.safe_mode = false;
 	test_default_cursor(host, console);
 	test_custom_mode(host, console);
 	test_save_retry(host, settings);

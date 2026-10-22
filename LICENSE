@@ -1,11 +1,11 @@
 Except where a file contains a different license notice, original material in
 this directory is licensed as follows:
 
-When `SYNCTERM_ENABLE_UNIFONT` is enabled, the resulting executable includes
-modified GNU Unifont-derived raster data under the GNU General Public License,
-version 2 or later. The executable must then be distributed under GPLv2-or-
-later terms. See `unifont/UPSTREAM.md` and
-`unifont/LICENSE.GPL-2.0-or-later`.
+When `SYNCTERM_ENABLE_UNIFONT` is enabled, the executable includes the
+SyncTERM Unicode font, derived from GNU Unifont and UNSCII, under the SIL
+Open Font License 1.1. See `unifont/UPSTREAM.md` and
+`unifont/LICENSE.OFL-1.1` for its copyright notices and full license.
+Bundled notices are available in the program under SyncTERM Settings > Licenses.
 
 The protocol-checksum component in md5/ is derived from the RSA Data
 Security, Inc. MD5 Message-Digest Algorithm and retains that component's

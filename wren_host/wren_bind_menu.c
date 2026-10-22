@@ -6,6 +6,7 @@
  */
 
 #include "wren_host_internal.h"
+#include "wren_licenses.h"
 
 #include "audio.h"
 #include "filesystem.h"
@@ -1546,6 +1547,22 @@ push_build_option(WrenVM *vm, const char *category, const char *name,
 }
 
 static void
+fn_menu_licenses(WrenVM *vm)
+{
+	wrenEnsureSlots(vm, 3);
+	wrenSetSlotNewList(vm, 0);
+	for (const struct st_wren_license *notice = st_wren_licenses;
+	    notice->name != NULL; ++notice) {
+		wrenSetSlotNewList(vm, 1);
+		wrenSetSlotString(vm, 2, notice->name);
+		wrenInsertInList(vm, 1, -1, 2);
+		wrenSetSlotBytes(vm, 2, (const char *)notice->text, notice->length);
+		wrenInsertInList(vm, 1, -1, 2);
+		wrenInsertInList(vm, 0, -1, 1);
+	}
+}
+
+static void
 fn_menu_build_options(WrenVM *vm)
 {
 	const char *crypto = xp_crypto_provider_name();
@@ -1560,7 +1577,7 @@ fn_menu_build_options(WrenVM *vm)
 	wrenEnsureSlots(vm, 3);
 	wrenSetSlotNewList(vm, 0);
 	push_build_option(vm, "License",
-	    "GPLv2+ binary (GNU Unifont-derived data)", unifont);
+	    "SyncTERM Unicode font (SIL OFL 1.1)", unifont);
 	push_build_option(vm, "Crypto", "DeuceSSH (SSH)", strcmp(crypto, "none") != 0);
 	push_build_option(vm, "Crypto",
 	    "OpenSSL (TLS, symmetric ciphers)", strcmp(crypto, "OpenSSL") == 0);
@@ -4282,6 +4299,7 @@ static const struct binding bindings[] = {
 	{"Menu", true, "cursorStyles", fn_menu_cursor_styles},
 	{"Menu", true, "audioModes", fn_menu_audio_modes},
 	{"Menu", true, "buildOptions", fn_menu_build_options},
+	{"Menu", true, "licenses", fn_menu_licenses},
 	{"Menu", true, "maxPathLength", fn_menu_max_path_length},
 	{"Menu", true, "scalingModes", fn_menu_scaling_modes},
 	{"Menu", true, "colors", fn_menu_colours},

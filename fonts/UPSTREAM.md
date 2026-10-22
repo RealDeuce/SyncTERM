@@ -4,6 +4,8 @@ The generated assets come from [UNSCII](https://github.com/viznut/unscii),
 commit `257b4dfeb50651510fe8b9cf4f151a148a4490e4`.  The project describes
 UNSCII as public domain or CC0.  Only `fontfiles/unscii-8.hex` and
 `fontfiles/unscii-16.hex` are used; `unscii-16-full` is deliberately excluded.
+SyncTERM uses the public-domain option; the upstream notice is retained in
+`LICENSE.UNSCII` and the in-program SyncTERM Settings > Licenses viewer.
 
 Exact source URLs and SHA-256 digests are recorded in `update_fonts.py`.
 

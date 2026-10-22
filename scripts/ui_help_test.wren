@@ -46,6 +46,7 @@ class UiHelpTest {
     testUnmatchedInlineMarkersRemainLiteral_()
     testPreformattedUsesHardLines_()
     testPreformattedPreservesInlineMarkup_()
+    testLiteralWraps_()
     testEscDismisses_()
     testEnterDismisses_()
     testQuitFallsThrough_()
@@ -81,6 +82,29 @@ class UiHelpTest {
       __fail = __fail + 1
       System.print("  FAIL %(label)")
     }
+  }
+
+  static testLiteralWraps_() {
+    var body = "# **Copyright** `Ælla`\n\n" +
+        "- " + (0...20).map {|i| "word" }.join(" ") + " END"
+    var help = Help.new("License", body)
+    help.literal = true
+    help.bounds = Rect.new(1, 1, 24, 8)
+    help.ensureLayout_()
+    var lines = Markdown.layout(help.literalDocument_(), help.viewportCols_)
+    var text = lines.map {|line| line.runs.map {|run| run.text }.join() }.join("\n")
+    check_(text.startsWith("# **Copyright**") && text.contains("`Ælla`"),
+        "Help: literal text preserves markup and UTF-8")
+    check_(text.endsWith("END") && lines.count > 6,
+        "Help: long literal lines wrap without losing the end")
+    for (line in lines) {
+      for (run in line.runs) check_(run.role == MdRole.text,
+          "Help: literal text has no Markdown styling")
+    }
+    help.handle(KeyEvent.new(Key.end))
+    check_(help.scrollTop > 0, "Help: literal text scrolls to its end")
+    help.handle(KeyEvent.new(Key.home))
+    check_(help.scrollTop == 0, "Help: literal text returns to its start")
   }
 
   static testCodeSpanKeepsLiteralMarkup_() {

@@ -172,9 +172,9 @@ def main():
     generated.mkdir(parents=True, exist_ok=True)
     write_font(generated / "st_unifont_data.c", "st_unifont_font",
                composite, 16,
-               f"GNU Unifont {UNIFONT_VERSION} modified in 2026 with an "
-               "UNSCII overlay; see unifont/UPSTREAM.md",
-               "st_unifont.h", "GPL-2.0-or-later")
+               f"SyncTERM Unicode: GNU Unifont {UNIFONT_VERSION} modified in 2026 with an "
+               "UNSCII overlay; see unifont/LICENSE.OFL-1.1",
+               "st_unifont.h", "OFL-1.1")
 
 
 if __name__ == "__main__":

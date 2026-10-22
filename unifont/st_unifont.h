@@ -1,4 +1,4 @@
-/* Optional GNU Unifont-derived composite font. */
+/* Optional SyncTERM Unicode font (GNU Unifont-derived; SIL OFL 1.1). */
 
 /*
  * Copyright (c) 2026 Stephen Hurd

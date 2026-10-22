@@ -23,9 +23,9 @@ ctest --test-dir build --output-on-failure
 ----
 
 `BUILD_TESTING`, inherited from CTest, controls test targets.  The
-`SYNCTERM_ENABLE_UNIFONT` option controls the optional GPLv2+-derived composite
-font and is enabled by default.  Less common test-only options live beside the
-component which uses them; inspect that component's `CMakeLists.txt` before
+`SYNCTERM_ENABLE_UNIFONT` option controls the optional SyncTERM Unicode font
+(SIL OFL 1.1) and is enabled by default. Less common test-only options live
+beside the component which uses them; inspect its `CMakeLists.txt` before
 enabling one.
 
 SSH uses the external https://github.com/RealDeuce/DeuceSSH/[DeuceSSH]

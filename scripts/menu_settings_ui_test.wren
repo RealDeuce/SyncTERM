@@ -60,6 +60,7 @@ class SettingsMenuTest {
     testCTermLog_()
     testTlsPairs_()
     testFileLocations_()
+    testLicenses_()
     testInputLimits_()
     testLongFontName_()
     testInvalidNames_()
@@ -256,6 +257,61 @@ class SettingsMenuTest {
     s.listPath = original
     check_(s.apply(), "restore personal list")
   }
+  static testLicenses_() {
+    var notices = Menu.licenses
+    var seen = {}
+    for (notice in notices) {
+      check_(notice.count == 2 && notice[1].count > 200,
+          "license entries contain a name and full notice")
+      check_(!seen.containsKey(notice[0]), "unique license names")
+      seen[notice[0]] = notice[1]
+    }
+    check_(seen["Wren (MIT)"].contains("Robert Nystrom") &&
+        seen["Wren (MIT)"].endsWith("OTHER DEALINGS IN THE\nSOFTWARE.\n"),
+        "embedded MIT notice includes attribution and final terms")
+    check_(seen["Unicode data (Unicode License v3)"].contains("Unicode, Inc.") &&
+        seen["UNSCII (Public domain)"].contains("unscii-16-full"),
+        "embedded Unicode and UNSCII notices")
+    var hasFont = false
+    for (row in Menu.buildOptions) {
+      if (row[1] == "SyncTERM Unicode font (SIL OFL 1.1)") hasFont = row[2]
+    }
+    var fontName = "SyncTERM Unicode (SIL OFL 1.1)"
+    check_(seen.containsKey(fontName) == hasFont,
+        "OFL notice is present exactly when the font is built")
+    if (hasFont) {
+      var text = seen[fontName]
+      check_(text.contains("Ælla Chiana Moskopp") &&
+          text.contains("SIL OPEN FONT LICENSE Version 1.1") &&
+          text.endsWith("OTHER DEALINGS IN THE FONT SOFTWARE.\n"),
+          "font notice retains upstream copyright and complete OFL")
+    }
+    notices[0][1] = "changed"
+    notices.clear()
+    check_(Menu.licenses[0][1].contains("Copyright (c) 2026 Stephen Hurd"),
+        "mutating a returned catalog cannot change embedded notices")
+    for (connected in [false, true]) {
+      var app = null
+      app = SettingsTestApp.new([
+        row_("Licenses"),
+        row_(hasFont ? fontName : "Wren (MIT)"),
+        Fn.new {|pane|
+          check_(app.modalStack[-2].title == "Licenses",
+              "license picker stays mounted beneath the notice")
+          check_(pane.literal && !pane.preformatted,
+              "license viewer uses literal wrapped text")
+          pane.handle(KeyEvent.new(Key.end))
+          check_(pane.scrollTop > 0, "license viewer reaches final terms")
+          pane.handle(KeyEvent.new(Key.home))
+          check_(pane.scrollTop == 0, "license viewer returns to copyright")
+          pane.handle(KeyEvent.new(Key.escape))
+        }, cancel_, cancel_
+      ])
+      check_(!SettingsMenu.run(app, connected) && app.remaining == 0 &&
+          app.alerts == 0, "licenses work in offline and connected settings")
+    }
+  }
+
   static testEncryption_() {
     if (!Menu.encryptionAvailable) return
     for (choice in [["Encrypt Using ChaCha20", 7, 256],

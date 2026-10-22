@@ -2535,7 +2535,7 @@ exercise_build_options_contract(st_wren_host_t *public_host)
 	    "Fiber.abort(\"build options\")\n"
 	    "if (options[\"JPEG XL support\"] != PixelBuffer.jxlSupported) "
 	    "Fiber.abort(\"JPEG XL build option\")\n"
-	    "if (options[\"GPLv2+ binary (GNU Unifont-derived data)\"] != "
+	    "if (options[\"SyncTERM Unicode font (SIL OFL 1.1)\"] != "
 	    ST_WREN_TEST_UNIFONT_ENABLED
 	    ") Fiber.abort(\"Unifont license option\")\n";
 

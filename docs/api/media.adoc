@@ -97,9 +97,10 @@ drawable missing-text glyphs.  Destroy it with
 
 | `st_unifont` (optional)
 | link:unifont/st_unifont.h[st_unifont.h]
-| Static GNU Unifont-derived composite console font, built only when
-`SYNCTERM_ENABLE_UNIFONT` is enabled.  Its licensing is distinct from the
-project's BSD-licensed code; see the root license notices.
+| Static SyncTERM Unicode composite console font, derived from GNU Unifont
+and UNSCII and built only when `SYNCTERM_ENABLE_UNIFONT` is enabled.
+Distributed under SIL OFL 1.1; see `unifont/LICENSE.OFL-1.1` and the
+in-program SyncTERM Settings > Licenses viewer.
 |===
 
 Tests: `fonts` and, when enabled, `unifont`.

@@ -3,6 +3,8 @@
 The Unicode text pipeline is generated and tested against Unicode 18.0.0.
 The Unicode Character Database files are distributed under the
 [Unicode License v3](https://www.unicode.org/license.txt).
+The full notice is retained in `LICENSE.UNICODE` and embedded in the
+program's SyncTERM Settings > Licenses viewer.
 
 Pinned test inputs:
 

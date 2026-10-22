@@ -23,7 +23,8 @@ class SettingsMenu {
         "Program Settings\n:  Configure hardware, display, and application behavior\n" +
         "Themes\n:  Preview and select the user-interface theme\n" +
         "File Locations\n:  Display configuration and data paths\n" +
-        "Build Options\n:  Display features selected at build time"
+        "Build Options\n:  Display features selected at build time\n" +
+        "Licenses\n:  Read bundled software and font license notices"
     if (!connected) {
       text = text + "\nAlt-B\n:  View scrollback of the last session"
     }
@@ -45,6 +46,7 @@ class SettingsMenu {
     rows.add([5, "Themes"])
     rows.add([6, "File Locations"])
     rows.add([7, "Build Options"])
+    rows.add([9, "Licenses"])
     if (!connected && Menu.encryptionAvailable) {
       rows.add([8, "List Encryption"])
     }
@@ -107,6 +109,10 @@ class SettingsMenu {
     }
     if (picked == 8 && !connected && Menu.encryptionAvailable) {
       return encryption_(app)
+    }
+    if (picked == 9) {
+      licenses_(app)
+      return false
     }
     return false
   }
@@ -998,6 +1004,26 @@ class SettingsMenu {
     viewer.preformatted = true
     viewer.fitToScreen(78, 21)
     app.modal(viewer)
+  }
+
+  static licenses_(app) {
+    var notices = Menu.licenses
+    var rows = []
+    for (i in 0...notices.count) rows.add([i, notices[i][0]])
+    var selected = 0
+    var view = ChoiceViewState.new()
+    while (true) {
+      var picked = MenuUi.choice(app, "Licenses", rows, selected,
+          "Read the copyright notices and license terms embedded in this executable.",
+          Fn.new {|index|
+        selected = index
+        var viewer = Help.new(notices[index][0], notices[index][1])
+        viewer.literal = true
+        viewer.fitToScreen(78, 21)
+        app.modal(viewer)
+      }, view)
+      if (picked == null) return
+    }
   }
 
   static buildOptions_(app) {
