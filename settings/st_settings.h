@@ -96,6 +96,7 @@ struct st_settings {
 	char terminal_type[ST_SETTINGS_VALUE_MAX + 1];
 	char key_derivation_iterations[ST_SETTINGS_KDF_MAX + 1];
 	bool invert_wheel;
+	bool color_emoji;
 	bool download_system_list;
 };
 

@@ -417,6 +417,36 @@ st_console_get_scaling_mode(st_console_t *console,
 }
 
 int
+st_console_set_color_emoji(st_console_t *console, bool enabled)
+{
+	int result;
+
+	if (console == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (st_rwlock_write_lock(&console->state_lock) != ST_THREAD_SUCCESS)
+		return IO_ERROR_IO;
+	if (console->color_emoji != enabled) {
+		console->color_emoji = enabled;
+		st_console_invalidate_text_locked(console);
+	}
+	result = st_console_finish_change_locked(console);
+	(void)st_rwlock_unlock(&console->state_lock);
+	return result;
+}
+
+int
+st_console_get_color_emoji(st_console_t *console, bool *enabled)
+{
+	if (console == NULL || enabled == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (st_rwlock_read_lock(&console->state_lock) != ST_THREAD_SUCCESS)
+		return IO_ERROR_IO;
+	*enabled = console->color_emoji;
+	(void)st_rwlock_unlock(&console->state_lock);
+	return 0;
+}
+
+int
 st_console_set_blocky_scaling(st_console_t *console, bool blocky)
 {
 	int result;

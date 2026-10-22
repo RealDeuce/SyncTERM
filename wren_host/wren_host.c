@@ -223,6 +223,7 @@ install_mode_state(struct st_wren_context *context,
 
 	config.scaling_mode = st_settings.external_scaling
 	    ? ST_CONSOLE_SCALING_EXTERNAL : ST_CONSOLE_SCALING_INTERNAL;
+	config.color_emoji = st_settings.color_emoji;
 	config.scaling_policy = st_settings.blocky_scaling
 	    ? ST_PIXEL_SCALING_BLOCKY : ST_PIXEL_SCALING_POINTY;
 	configure_cursor(&config, st_settings.default_cursor);

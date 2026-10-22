@@ -109,6 +109,7 @@ struct st_console_snapshot {
 	enum st_console_blink_mode blink_mode;
 	uint32_t video_flags;
 	bool blocky_scaling;
+	bool color_emoji;
 	uint32_t pixel_top;
 	bool full_surface_scroll;
 	struct st_console_cell *cells;
@@ -159,6 +160,7 @@ struct st_console {
 	uint32_t video_flags;
 	enum st_console_scaling_mode scaling_mode;
 	bool blocky_scaling;
+	bool color_emoji;
 	uint32_t aspect_width;
 	uint32_t aspect_height;
 	bool changed;
@@ -352,6 +354,9 @@ void st_console_set_cell_locked(st_console_t *console, size_t index,
 	const struct st_console_cell *source);
 const struct st_console_font *st_console_font_locked(st_console_t *console,
 	uint16_t identifier);
+const struct st_console_color_glyph *st_console_font_color_glyph(
+	const struct st_console_font *font, uint32_t glyph);
+void st_console_invalidate_text_locked(st_console_t *console);
 bool st_console_font_glyph(const struct st_console_font *font,
 	uint32_t glyph, const uint8_t **bitmap, uint32_t *width,
 	size_t *row_stride);

@@ -116,6 +116,7 @@ test_console_startup(void)
 	settings.custom_aspect_width = 4;
 	settings.custom_aspect_height = 3;
 	settings.blocky_scaling = true;
+	settings.color_emoji = true;
 	settings.scaling_factor = 2.0;
 	CHECK(st_console_startup_configure(&startup, &settings, &command) == 0);
 	CHECK(startup.config.columns == 80 && startup.config.rows == 28);
@@ -131,11 +132,14 @@ test_console_startup(void)
 	CHECK(startup.display_config.backend == ST_CONSOLE_BACKEND_SDL);
 	CHECK(startup.fullscreen);
 	CHECK(startup.config.scaling_policy == ST_PIXEL_SCALING_BLOCKY);
+	CHECK(startup.config.color_emoji);
+	settings.color_emoji = false;
 	CHECK(startup.display_config.initial_scaling == 2.0);
 	settings.window_width = 800;
 	settings.window_height = 600;
 	CHECK(st_console_startup_configure(&startup, &settings, &command) == 0);
 	CHECK(startup.display_config.initial_window_width == 800);
+	CHECK(!startup.config.color_emoji);
 	CHECK(startup.display_config.initial_window_height == 600);
 	settings.window_width = 0;
 	settings.window_height = 0;

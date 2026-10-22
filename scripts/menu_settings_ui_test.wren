@@ -69,6 +69,7 @@ class SettingsMenuTest {
   }
   static testProgram_() {
     var before = Menu.settings
+    var colorEmoji = before.colorEmoji
     var confirm = before.confirmClose
     var promptSave = before.promptSave
     before.tlsClientCert = "client.pem"
@@ -103,6 +104,7 @@ class SettingsMenuTest {
     }
     actions.add(row_("Scaling"))
     actions.add(row_("Invert Mouse Wheel"))
+    actions.add(row_("Colour Emoji"))
     actions.add(row_("Classic Theme Colours"))
     for (edit in [["Frame Colour", "Blue"], ["Text Colour", "Green"],
         ["Background Colour", "Cyan"], ["Inverse Colour", "Red"],
@@ -137,6 +139,7 @@ class SettingsMenuTest {
     check_(SettingsMenu.program_(app, false), "program editor reports changes")
     check_(app.remaining == 0 && app.alerts == 0, "all program controls accepted")
     var s = Menu.settings
+    check_(s.colorEmoji == !colorEmoji, "colour emoji setting applied")
     check_(s.confirmClose == !confirm && s.promptSave == !promptSave &&
         s.startupMode == 3 && s.outputMode == 0 && s.cursorStyle == 4,
         "program toggles and display choices")
@@ -272,6 +275,12 @@ class SettingsMenuTest {
     check_(seen["Unicode data (Unicode License v3)"].contains("Unicode, Inc.") &&
         seen["UNSCII (Public domain)"].contains("unscii-16-full"),
         "embedded Unicode and UNSCII notices")
+    var emoji = seen["SyncTERM Emoji (SIL OFL 1.1)"]
+    check_(emoji.contains("Copyright 2013 Google LLC") &&
+        emoji.contains("Copyright 2022 Google Inc.") &&
+        emoji.contains("Noto Color Emoji 2.051") &&
+        emoji.endsWith("OTHER DEALINGS IN THE FONT SOFTWARE.\n"),
+        "emoji notice retains both source copyrights and complete OFL")
     var hasFont = false
     for (row in Menu.buildOptions) {
       if (row[1] == "SyncTERM Unicode font (SIL OFL 1.1)") hasFont = row[2]

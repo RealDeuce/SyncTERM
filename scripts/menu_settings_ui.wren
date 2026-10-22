@@ -501,6 +501,7 @@ class SettingsMenu {
             "Select its unencrypted private key; Delete clears it") +
         helpItem_("Scaling", "Cycle the display scaling algorithm") +
         helpItem_("Invert Mouse Wheel", "Reverse wheel-up and wheel-down") +
+        helpItem_("Colour Emoji", "Use intrinsic emoji colours in graphical output; disable for monochrome") +
         helpItem_("Key Derivation Shift", "The scrypt cost used for list encryption") +
         helpItem_("Classic Theme Colours",
             "The colours used by the shipped menu and file picker")
@@ -765,6 +766,7 @@ class SettingsMenu {
       rows.add([13, settingsLine_("TERM For Shell", s.shellTerm)])
       rows.add([14, settingsLine_("Scaling", Menu.scalingModes[s.scalingMode])])
       rows.add([15, settingsLine_("Invert Mouse Wheel", yesNo_(s.invertWheel))])
+      rows.add([21, settingsLine_("Colour Emoji", yesNo_(s.colorEmoji))])
       rows.add([16, settingsLine_("Key Derivation Shift", s.kdfShift)])
       rows.add([17, "Classic Theme Colours"])
       if (!connected) rows.add([18, "Custom Screen Mode"])
@@ -834,6 +836,8 @@ class SettingsMenu {
           s.scalingMode = (s.scalingMode + 1) % Menu.scalingModes.count
         } else if (value == 15) {
           s.invertWheel = !s.invertWheel
+        } else if (value == 21) {
+          s.colorEmoji = !s.colorEmoji
         } else if (value == 16) {
           var next = MenuUi.integer(app, "Key Derivation Work Factor",
               "Exponent N for scrypt-Nn", s.kdfShift, 8, 20, kdfHelp_())

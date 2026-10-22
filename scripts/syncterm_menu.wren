@@ -200,6 +200,8 @@ foreign class Settings {
   foreign confirmClose=(value)
   foreign promptSave
   foreign promptSave=(value)
+  foreign colorEmoji
+  foreign colorEmoji=(value)
   foreign invertWheel
   foreign invertWheel=(value)
   foreign modemDevice

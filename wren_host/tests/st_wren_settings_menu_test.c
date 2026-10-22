@@ -352,6 +352,8 @@ main(void)
 		.columns = 80, .rows = 25, .cell_width = 8, .cell_height = 16,
 	};
 	st_console_t *console = NULL;
+	st_console_t *picker = NULL;
+	st_console_display_t *console_display = NULL;
 	st_wren_host_t *host = NULL;
 	st_hyperlink_registry_t *hyperlinks = NULL;
 	st_session_history_t *history = NULL;
@@ -381,15 +383,20 @@ main(void)
 	paths.system_cache_directory = (char *)directory;
 	paths.download_directory = (char *)directory;
 	CHECK(st_settings_load(&paths) == 0);
-	CHECK(st_console_create(&console, &display, &geometry) == 0);
+	CHECK(st_settings.color_emoji);
+	CHECK(st_console_display_create(&console_display, &display) == 0);
+	CHECK(st_console_create_on_display(&console, console_display, &geometry) == 0);
+	CHECK(st_console_create_on_display(&picker, console_display, &geometry) == 0);
 	CHECK(st_builtin_font_get(0, 8, 16, &builtin));
 	CHECK(st_presentation_font_create(&presentation, &builtin) == 0);
 	CHECK(st_console_register_static_font(console, &presentation.font, &font) == 0 && font == 0);
+	CHECK(st_console_register_static_font(picker, &presentation.font, &font) == 0 && font == 0);
 	CHECK(st_session_history_create(&history, 2000) == 0);
 	CHECK(st_hyperlink_registry_create(&hyperlinks) == 0);
 	CHECK(st_audio_runtime_create(&audio, UINT32_MAX) == 0);
 	const struct st_wren_host_config config = {
-		.console = console, .paths = &paths, .session_history = history,
+		.display = console_display, .console = console,
+		.picker_console = picker, .paths = &paths, .session_history = history,
 		.hyperlinks = hyperlinks,
 		.audio_runtime = audio,
 	};
@@ -407,18 +414,30 @@ main(void)
 	interpret(host, "settings_run",
 	    "import \"menu_settings_ui_test\" for SettingsMenuTest\n"
 	    "SettingsMenuTest.run()\n");
+	bool color = true;
+	CHECK(st_console_get_color_emoji(console, &color) == 0 && !color);
+	CHECK(st_console_get_color_emoji(picker, &color) == 0 && !color);
 	CHECK(st_session_history_capacity(history) == 123);
 	CHECK(st_audio_runtime_allowed(audio) == st_settings.audio_output_modes);
 	CHECK(st_settings_reload() == 0);
+	CHECK(!st_settings.color_emoji);
 	CHECK(st_settings.scrollback_lines == 123 && st_settings.custom_rows == 30
 	    && st_settings.custom_columns == 100 && st_settings.theme_frame_color == 1);
 	host->config.safe_mode = true;
 	interpret(host, "settings_safe_licenses",
 	    "import \"menu_settings_ui_test\" for SettingsMenuTest\n"
 	    "SettingsMenuTest.testLicenses_()\n");
+	interpret(host, "settings_colour_safe",
+	    "import \"syncterm_menu\" for Menu\n"
+	    "var s = Menu.settings\n"
+	    "s.colorEmoji = true\n"
+	    "if (!s.apply()) Fiber.abort(\"apply colour in safe mode\")\n");
+	CHECK(st_console_get_color_emoji(console, &color) == 0 && color);
+	CHECK(st_console_get_color_emoji(picker, &color) == 0 && color);
 	host->config.safe_mode = false;
 	test_default_cursor(host, console);
 	test_custom_mode(host, console);
+	CHECK(st_console_get_color_emoji(console, &color) == 0 && color);
 	test_save_retry(host, settings);
 	test_safe_kdf(host);
 	test_offer_save(host, console);
@@ -429,6 +448,8 @@ main(void)
 	st_audio_runtime_destroy(audio);
 	st_session_history_destroy(history);
 	st_console_destroy(console);
+	st_console_destroy(picker);
+	st_console_display_destroy(console_display);
 	st_presentation_font_destroy(&presentation);
 	st_hyperlink_registry_destroy(hyperlinks);
 	st_settings_shutdown();

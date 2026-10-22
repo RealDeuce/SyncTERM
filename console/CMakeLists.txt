@@ -608,7 +608,7 @@ if(BUILD_TESTING)
 	st_console_warnings(st_console_bitmap_test)
 	add_test(NAME st_console_bitmap COMMAND st_console_bitmap_test)
 	foreach(test IN ITEMS animation scheduler saa_damage saa_modes saa_blink
-		switch_geometry)
+		switch_geometry color_glyph)
 		add_executable(st_console_${test}_test
 			tests/st_console_${test}_test.c)
 		target_include_directories(st_console_${test}_test PRIVATE

@@ -12,7 +12,8 @@ Exact source URLs and SHA-256 digests are recorded in `update_fonts.py`.
 # SyncTERM Emoji
 
 `generated/st_emoji_data.c` contains **SyncTERM Emoji**, rasterized from the
-monochrome Noto Emoji 3.002 variable font at weight 700, under SIL OFL 1.1.
+monochrome Noto Emoji 3.002 variable font at weight 700 and the colour
+Noto Color Emoji 2.051 bitmap font, under SIL OFL 1.1.
 The copyright notice and full license are in `LICENSE.NOTO-EMOJI` and are
 always included in **SyncTERM Settings > Licenses**, including builds with
 Unifont disabled. Original SyncTERM code retains its existing BSD license.
@@ -21,20 +22,31 @@ The source is pinned to google/fonts commit
 `8b0a1d0f5983c89bc2b93f1b5fb55f9e252744b5`, file
 `ofl/notoemoji/NotoEmoji[wght].ttf`, SHA-256
 `de6c18832938afc99caf132b39d6a30a19bac7f2e812e28db2535b4608d27551`.
+The colour source is `googlefonts/noto-emoji`, tag `v2.051`, file
+`fonts/NotoColorEmoji.ttf`, SHA-256
+`72a635cb3d2f3524c51620cdde406b217204e8a6a06c6a096ff8ed4b5fd6e27b`.
+It is available locally on many systems as `NotoColorEmoji.ttf`.
 `update_emoji.py` shapes the Unicode 18 emoji repertoire with HarfBuzz and
 includes sequences resolving to a single supported source glyph, including
 skin tones, ZWJ sequences, flags, keycaps, and presentation selectors.
 Unicode input versions, URLs, and digests reuse the pinned width and grapheme
-generators; the Unicode License v3 notice is in `../unicode_text/LICENSE.UNICODE`.
+generators; official Unicode 18 variation sequences are pinned in
+`update_emoji.py`; the Unicode License v3 notice is in `../unicode_text/LICENSE.UNICODE`.
 
 The rasterizer crops the source ink, fits it proportionally to the cell,
 resamples with Lanczos, and thresholds coverage at 80/255. The 8-pixel font
 uses the entire cell; 14- and 16-pixel fonts reserve a one-pixel vertical
 margin, and double-column forms also reserve a one-pixel horizontal margin.
 Single-column forms use 8-pixel bitmaps and double-column forms use 16-pixel
-bitmaps. Identical shaped glyphs at the same presentation width share data.
+bitmaps. Colour PNGs are extracted from the source CBDT strike with fontTools and
+resampled in premultiplied RGBA before conversion to straight RGBA. Colour
+is attached to default emoji presentation, official VS16 sequences, and
+supported multi-character emoji; VS15 and default text presentation remain
+monochrome. Every glyph retains a monochrome bitmap for the runtime setting.
+Identical source artwork at the same presentation width shares pixel data;
+presentation mappings keep separate glyph IDs wherever colour differs.
 Ordinary builds consume the checked-in C arrays and need no font libraries
-or network access. To regenerate, install Pillow with RAQM support and a
+or network access. To regenerate, install fontTools, Pillow with RAQM support and a
 HarfBuzz shared library, then run:
 
 ```
@@ -42,6 +54,7 @@ python3 fonts/update_emoji.py
 ```
 
 Use `--font /path/to/NotoEmoji.ttf` for a matching local font and
+`--color-font /path/to/NotoColorEmoji.ttf` for the colour source and
 `--source-dir /path/to/unicode-inputs` for cached Unicode inputs. All inputs
 are checked against the pinned SHA-256 values. The generated raster output
 can also depend on the Pillow, FreeType, and HarfBuzz versions used; normal

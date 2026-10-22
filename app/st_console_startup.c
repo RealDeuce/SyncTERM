@@ -182,6 +182,7 @@ st_console_startup_configure(struct st_console_startup *result,
 	startup.config.wrap = true;
 	startup.config.scaling_mode = settings->external_scaling
 	    ? ST_CONSOLE_SCALING_EXTERNAL : ST_CONSOLE_SCALING_INTERNAL;
+	startup.config.color_emoji = settings->color_emoji;
 	startup.config.scaling_policy = settings->blocky_scaling
 	    ? ST_PIXEL_SCALING_BLOCKY : ST_PIXEL_SCALING_POINTY;
 	startup.display_config.initial_scaling = settings->scaling_factor;

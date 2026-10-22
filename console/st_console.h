@@ -145,6 +145,16 @@ struct st_console_font_selection {
 	bool blink_selects_font;
 };
 
+/* Optional intrinsic artwork: sorted unique glyph IDs, top-down straight RGBA.
+ * Dimensions follow the matching monochrome bank. Pixels are immutable and
+ * borrowed, except when registered with st_console_register_font_copy(). */
+struct st_console_color_glyph {
+	uint32_t glyph;
+	const uint8_t *rgba;
+	size_t size;
+	size_t row_stride;
+};
+
 /*
  * One-bit glyph rows are MSB-first.  The bitmap is borrowed and immutable;
  * it must remain valid until replacement, removal, or console destruction.
@@ -166,6 +176,8 @@ struct st_console_font {
 	size_t mapping_count;
 	const struct st_console_font_cluster_mapping *cluster_mapping;
 	size_t cluster_mapping_count;
+	const struct st_console_color_glyph *color_glyphs;
+	size_t color_glyph_count;
 	/* Replacement glyphs must belong to the matching bitmap bank. */
 	uint32_t fallback_glyph;
 	uint32_t wide_fallback_glyph;
@@ -294,6 +306,7 @@ struct st_console_config {
 	enum st_console_scaling_mode scaling_mode;
 	/* Zero initialization selects SyncTERM's traditional blocky default. */
 	enum st_pixel_scaling_policy scaling_policy;
+	bool color_emoji;
 	/* Zero in either member selects the native bitmap aspect ratio. */
 	uint32_t aspect_width;
 	uint32_t aspect_height;
@@ -548,6 +561,10 @@ int st_console_set_scaling_mode(st_console_t *console,
 	enum st_console_scaling_mode mode);
 int st_console_get_scaling_mode(st_console_t *console,
 	enum st_console_scaling_mode *mode);
+/* Changes intrinsic glyph rendering immediately, preserving layout and graphics.
+ * Snapshots restore text under the current preference rather than reverting it. */
+int st_console_set_color_emoji(st_console_t *console, bool enabled);
+int st_console_get_color_emoji(st_console_t *console, bool *enabled);
 int st_console_set_blocky_scaling(st_console_t *console, bool blocky);
 int st_console_get_blocky_scaling(st_console_t *console, bool *blocky);
 int st_console_set_aspect_ratio(st_console_t *console, uint32_t width,

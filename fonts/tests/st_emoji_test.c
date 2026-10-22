@@ -19,6 +19,15 @@
 	} \
 } while (false)
 
+static const struct st_console_color_glyph *
+color_glyph(const struct st_console_font *font, uint32_t glyph)
+{
+	for (size_t i = 0; i < font->color_glyph_count; ++i)
+		if (font->color_glyphs[i].glyph == glyph)
+			return &font->color_glyphs[i];
+	return NULL;
+}
+
 static void
 check_font(uint32_t height, bool fallback)
 {
@@ -80,6 +89,9 @@ check_font(uint32_t height, bool fallback)
 		for (size_t byte = 0; byte < emoji_font->wide_glyph_stride; ++byte)
 			visible |= emoji_font->wide_bitmap[offset + byte] != 0;
 		CHECK(visible);
+		const struct st_console_color_glyph *color = color_glyph(emoji_font, glyph);
+		CHECK(color != NULL && color->row_stride == 16 * 4
+		    && color->size == 16 * height * 4);
 		CHECK(st_console_set_position(console, 0, 0) == 0);
 		CHECK(st_console_write_utf8(console, sequences[i], strlen(sequences[i])) == 0);
 		struct st_console_cell cells[2];
@@ -89,6 +101,31 @@ check_font(uint32_t height, bool fallback)
 		    && (cells[0].flags & ST_CONSOLE_CELL_CONTINUATION) == 0
 		    && (cells[1].flags & ST_CONSOLE_CELL_CONTINUATION) != 0);
 	}
+	/* Default text and VS15 must not share a colour-bearing glyph ID. */
+	CHECK(st_console_font_lookup(console, identifier, UINT32_C(0x2764),
+	    &owner, &glyph, &columns) == 0);
+	CHECK(owner == fallback_identifier && color_glyph(emoji_font, glyph) == NULL);
+	uint32_t plain_heart = glyph;
+	const char *text_heart = "\xe2\x9d\xa4\xef\xb8\x8e";
+	CHECK(st_console_font_lookup_cluster(console, identifier, text_heart,
+	    strlen(text_heart), 1, &owner, &glyph) == 0);
+	CHECK(color_glyph(emoji_font, glyph) == NULL);
+	const char *emoji_heart = "\xe2\x9d\xa4\xef\xb8\x8f";
+	CHECK(st_console_font_lookup_cluster(console, identifier, emoji_heart,
+	    strlen(emoji_heart), 2, &owner, &glyph) == 0);
+	CHECK(glyph != plain_heart && color_glyph(emoji_font, glyph) != NULL);
+	/* Same monochrome outlines may have different intrinsic colours. */
+	const char *tones[] = {"\xf0\x9f\x91\x8d\xf0\x9f\x8f\xbb",
+	    "\xf0\x9f\x91\x8d\xf0\x9f\x8f\xbf"};
+	const struct st_console_color_glyph *tone[2];
+	for (size_t i = 0; i < 2; ++i) {
+		CHECK(st_console_font_lookup_cluster(console, identifier, tones[i],
+		    strlen(tones[i]), 2, &owner, &glyph) == 0);
+		tone[i] = color_glyph(emoji_font, glyph);
+		CHECK(tone[i] != NULL);
+	}
+	CHECK(tone[0]->glyph != tone[1]->glyph && tone[0]->size == tone[1]->size
+	    && memcmp(tone[0]->rgba, tone[1]->rgba, tone[0]->size) != 0);
 	bool missing = false;
 	CHECK(st_console_font_lookup_cluster_ex(console, identifier, "\xf4\x8f\xbf\xbf",
 	    4, 1, &owner, &glyph, &missing) == 0);
@@ -104,9 +141,40 @@ check_font(uint32_t height, bool fallback)
 	st_presentation_font_destroy(&shared);
 }
 
+static void
+check_color_rebasing(void)
+{
+	static const uint8_t mono[2] = {0};
+	static const uint8_t wide[4] = {0};
+	static const uint8_t narrow_rgba[64] = {255, 0, 0, 255};
+	static const uint8_t wide_rgba[128] = {0, 255, 0, 255};
+	static const struct st_console_color_glyph colors[] = {
+		{0, narrow_rgba, sizeof(narrow_rgba), 32},
+		{1, wide_rgba, sizeof(wide_rgba), 64},
+	};
+	const struct st_console_font base = {
+		.bitmap = mono, .bitmap_size = sizeof(mono),
+		.width = 8, .height = 2, .glyph_count = 1,
+		.row_stride = 1, .glyph_stride = 2,
+		.wide_bitmap = wide, .wide_bitmap_size = sizeof(wide),
+		.wide_glyph_count = 1, .wide_row_stride = 2, .wide_glyph_stride = 4,
+		.color_glyphs = colors, .color_glyph_count = 2,
+	};
+	struct st_presentation_font font = {0};
+	CHECK(st_presentation_font_create(&font, &base) == 0);
+	CHECK(font.font.color_glyph_count == 2);
+	CHECK(font.font.color_glyphs[0].glyph == 0
+	    && font.font.color_glyphs[0].rgba == narrow_rgba);
+	CHECK(font.font.color_glyphs[1].glyph == 3
+	    && font.font.color_glyphs[1].rgba == wide_rgba);
+	st_presentation_font_destroy(&font);
+	CHECK(narrow_rgba[0] == 255 && wide_rgba[1] == 255);
+}
+
 int
 main(void)
 {
+	check_color_rebasing();
 	for (size_t i = 0; i < 3; ++i) {
 		uint32_t height = i == 0 ? 8 : i == 1 ? 14 : 16;
 		check_font(height, false);

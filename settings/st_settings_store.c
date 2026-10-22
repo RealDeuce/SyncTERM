@@ -135,6 +135,7 @@ static const struct setting_key known_keys[] = {
 	{ "SyncTERM", "BlockyScaling" },
 	{ "SyncTERM", "ExternalScaling" },
 	{ "SyncTERM", "InvertMouseWheel" },
+	{ "SyncTERM", "ColorEmoji" },
 	{ "SyncTERM", "LeftJustify" },
 	{ "SyncTERM", "KeyDerivationIterations" },
 	{ "SyncTERM", "CustomRows" },
@@ -267,6 +268,7 @@ settings_defaults(struct st_settings *value, const char *personal_list)
 	value->custom_aspect_width = 4;
 	value->custom_aspect_height = 3;
 	value->blocky_scaling = true;
+	value->color_emoji = true;
 	value->theme_frame_color = 16;
 	value->theme_text_color = 16;
 	value->theme_background_color = 8;
@@ -363,6 +365,8 @@ decode_settings(struct st_settings *value, ini_document_t *document,
 		    true);
 		value->external_scaling = ini_section_get_bool(section,
 		    "ExternalScaling", false);
+		value->color_emoji = ini_section_get_bool(section, "ColorEmoji",
+		    value->color_emoji);
 		value->invert_wheel = ini_section_get_bool(section, "InvertMouseWheel",
 		    false);
 		value->left_justify = ini_section_get_bool(section, "LeftJustify", false);
@@ -698,6 +702,8 @@ encode_settings(ini_document_t *document, const struct st_settings *value)
 	    &ini_default_style));
 	SET(ini_section_set_bool(section, "ExternalScaling",
 	    value->external_scaling, &ini_default_style));
+	SET(ini_section_set_bool(section, "ColorEmoji", value->color_emoji,
+	    &ini_default_style));
 	SET(ini_section_set_bool(section, "InvertMouseWheel", value->invert_wheel,
 	    &ini_default_style));
 	SET(ini_section_set_bool(section, "LeftJustify", value->left_justify,

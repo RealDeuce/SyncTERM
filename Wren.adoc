@@ -4549,8 +4549,10 @@ when `Menu.encryptionAvailable` is false.
 |===
 | Property | Meaning
 
-| `confirmClose`, `promptSave`, `invertWheel`
-| Bool program options.
+| `confirmClose`, `promptSave`, `invertWheel`, `colorEmoji`
+| Bool program options. `colorEmoji` defaults to true and enables intrinsic
+  emoji colours in graphical output. Disabling it uses monochrome artwork
+  without changing sequence matching or cell widths.
 
 | `modemDevice`, `modemInit`, `modemDial`, `shellTerm`
 | Modem strings and the terminal name exported to local shell

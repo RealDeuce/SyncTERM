@@ -336,6 +336,7 @@ main(void)
 	CHECK(st_settings_load(&paths) == 0);
 	CHECK(st_settings.scrollback_lines == 100);
 	CHECK(st_settings.prompt_save);
+	CHECK(st_settings.color_emoji);
 	CHECK(st_settings.download_system_list);
 	CHECK(strcmp(st_settings.stored_list_path,
 	    "https://example.invalid/system.lst") == 0);
@@ -426,9 +427,11 @@ main(void)
 		st_settings_init(&candidate);
 		CHECK(st_settings_copy(&candidate, &st_settings));
 		candidate.confirm_close = !old_confirm;
+		candidate.color_emoji = false;
 		CHECK(st_settings.confirm_close == old_confirm);
 		CHECK(st_settings_save_value(&candidate) == 0);
 		CHECK(st_settings.confirm_close == !old_confirm);
+		CHECK(!st_settings.color_emoji);
 		CHECK(read_document(settings_path, &document) == 0);
 		CHECK(ini_section_get_bool(ini_document_find_section(document,
 		    "SyncTERM"), "ConfirmClose", old_confirm) == !old_confirm);

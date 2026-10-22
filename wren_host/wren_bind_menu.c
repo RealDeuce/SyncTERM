@@ -3281,6 +3281,7 @@ fn_menu_settings(WrenVM *vm)
 SETTINGS_BOOL_PROPERTY(confirm_close, confirm_close)
 SETTINGS_BOOL_PROPERTY(prompt_save, prompt_save)
 SETTINGS_BOOL_PROPERTY(invert_wheel, invert_wheel)
+SETTINGS_BOOL_PROPERTY(color_emoji, color_emoji)
 SETTINGS_OWNED_PROPERTY(modem_device, modem_device)
 SETTINGS_FIXED_PROPERTY(modem_init, modem_init_string)
 SETTINGS_FIXED_PROPERTY(modem_dial, modem_dial_string)
@@ -3396,6 +3397,7 @@ apply_console_settings(st_console_t *console, const struct st_settings *settings
 	    || settings->default_cursor == ST_CURSOR_SOLID_BLOCK)
 		cursor.blink = false;
 	(void)st_console_set_default_cursor(console, &cursor);
+	(void)st_console_set_color_emoji(console, settings->color_emoji);
 	(void)st_console_set_blocky_scaling(console,
 	    settings->blocky_scaling != 0);
 	(void)st_console_set_scaling_mode(console,
@@ -4383,6 +4385,7 @@ static const struct binding bindings[] = {
 	BIND_GETSET("Settings", "confirmClose", settings_confirm_close),
 	BIND_GETSET("Settings", "promptSave", settings_prompt_save),
 	BIND_GETSET("Settings", "invertWheel", settings_invert_wheel),
+	BIND_GETSET("Settings", "colorEmoji", settings_color_emoji),
 	BIND_GETSET("Settings", "modemDevice", settings_modem_device),
 	BIND_GETSET("Settings", "modemInit", settings_modem_init),
 	BIND_GETSET("Settings", "modemDial", settings_modem_dial),

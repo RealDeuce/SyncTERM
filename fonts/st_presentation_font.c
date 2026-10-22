@@ -63,6 +63,7 @@ st_presentation_font_destroy(struct st_presentation_font *font)
 	free((void *)font->font.wide_bitmap);
 	free((void *)font->font.mapping);
 	free((void *)font->font.cluster_mapping);
+	free((void *)font->font.color_glyphs);
 	memset(font, 0, sizeof(*font));
 }
 
@@ -88,12 +89,22 @@ emoji_glyph(const struct st_console_font *emoji,
 }
 
 static int
+compare_color(const void *left, const void *right)
+{
+	uint32_t a = ((const struct st_console_color_glyph *)left)->glyph;
+	uint32_t b = ((const struct st_console_color_glyph *)right)->glyph;
+
+	return (a > b) - (a < b);
+}
+
+static int
 create_presentation(struct st_presentation_font *result,
 	const struct st_console_font *base, bool prefer_emoji)
 {
 	struct st_presentation_font created = {0};
 	struct st_console_font_mapping *mapping = NULL;
 	struct st_console_font_cluster_mapping *clusters = NULL;
+	struct st_console_color_glyph *colors = NULL;
 	uint8_t *bitmap = NULL;
 	uint8_t *wide_bitmap = NULL;
 	uint32_t narrow_count;
@@ -218,6 +229,28 @@ create_presentation(struct st_presentation_font *result,
 			}
 		}
 	}
+	size_t emoji_colors = emoji == NULL ? 0 : emoji->color_glyph_count;
+	if (base->color_glyph_count > SIZE_MAX - emoji_colors)
+		goto out_of_memory;
+	size_t color_count = base->color_glyph_count + emoji_colors;
+	if (color_count != 0) {
+		if (color_count > SIZE_MAX / sizeof(colors[0]))
+			goto out_of_memory;
+		colors = malloc(color_count * sizeof(colors[0]));
+		if (colors == NULL)
+			goto out_of_memory;
+		for (size_t i = 0; i < base->color_glyph_count; ++i) {
+			colors[i] = base->color_glyphs[i];
+			if (colors[i].glyph >= base->glyph_count)
+				colors[i].glyph += narrow_added;
+		}
+		for (size_t i = 0; i < emoji_colors; ++i) {
+			struct st_console_color_glyph entry = emoji->color_glyphs[i];
+			entry.glyph = emoji_glyph(emoji, base, narrow_count, entry.glyph);
+			colors[base->color_glyph_count + i] = entry;
+		}
+		qsort(colors, color_count, sizeof(colors[0]), compare_color);
+	}
 	created.font = *base;
 	created.font.bitmap = bitmap;
 	created.font.bitmap_size = bitmap_size;
@@ -229,6 +262,8 @@ create_presentation(struct st_presentation_font *result,
 	created.font.wide_glyph_stride = wide_glyph_stride;
 	created.font.mapping = mapping;
 	created.font.mapping_count = mapping_count;
+	created.font.color_glyphs = colors;
+	created.font.color_glyph_count = color_count;
 	created.font.cluster_mapping = clusters;
 	created.font.cluster_mapping_count = cluster_count;
 	created.font.fallback_glyph = base->glyph_count;
@@ -242,6 +277,7 @@ out_of_memory:
 	free(wide_bitmap);
 	free(mapping);
 	free(clusters);
+	free(colors);
 	return IO_ERROR_OUT_OF_MEMORY;
 }
 

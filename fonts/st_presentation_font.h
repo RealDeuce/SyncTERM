@@ -14,6 +14,8 @@ struct st_presentation_font {
 	struct st_console_font font;
 };
 
+/* Owns bitmap banks and mapping descriptors; cluster strings and RGBA pixels
+ * remain borrowed from the base. Register a copy before releasing that data. */
 int st_presentation_font_create(struct st_presentation_font *result,
 	const struct st_console_font *base);
 /* Unicode fallbacks prefer bundled emoji over base Unicode artwork. Both

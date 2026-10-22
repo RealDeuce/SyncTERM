@@ -202,6 +202,8 @@ prepare_fast_cell(st_console_t *console, const struct st_console_cell *cell,
 
 	if (font == NULL || !st_console_font_glyph(font,
 	    cell->glyph, &glyph, &glyph_width, &row_stride)
+	    || (console->color_emoji
+	    && st_console_font_color_glyph(font, cell->glyph) != NULL)
 	    || glyph_width != 8 || font->height != console->cell_height
 	    || console->cell_width != 8
 	    || (cell->flags & (ST_CONSOLE_CELL_SEPARATED
@@ -290,6 +292,27 @@ row_bit(const uint8_t *row, uint32_t x)
 	return (row[x / 8] & (uint8_t)(UINT8_C(0x80) >> (x % 8))) != 0;
 }
 
+static uint32_t
+composite_rgba(st_console_t *console, const uint8_t *rgba, uint32_t background)
+{
+	uint32_t alpha = rgba[3];
+	uint32_t rgb;
+	uint32_t result = ST_CONSOLE_COLOR_RGB_TAG;
+
+	if (alpha == 0)
+		return background;
+	rgb = ST_CONSOLE_COLOR_IS_RGB(background) ? background
+	    : background <= UINT16_MAX ? console->palette[background] : 0;
+	for (unsigned channel = 0; channel < 3; ++channel) {
+		unsigned shift = (2 - channel) * 8;
+		uint32_t value = (rgba[channel] * alpha
+		    + ((rgb >> shift) & 255) * (255 - alpha) + 127) / 255;
+
+		result |= value << shift;
+	}
+	return result;
+}
+
 static void
 render_cell(st_console_t *console, uint32_t x, uint32_t y,
 	enum row_scale row_scale, struct font_cache *font_cache)
@@ -300,6 +323,7 @@ render_cell(st_console_t *console, uint32_t x, uint32_t y,
 	struct st_console_cell effective;
 	const struct st_console_font *font;
 	const uint8_t *glyph = NULL;
+	const struct st_console_color_glyph *color = NULL;
 	uint32_t glyph_width = 0;
 	uint32_t glyph_x = 0;
 	size_t glyph_row_stride = 0;
@@ -327,6 +351,8 @@ render_cell(st_console_t *console, uint32_t x, uint32_t y,
 	if (font != NULL && glyph_width == font->width * 2
 	    && (source->flags & ST_CONSOLE_CELL_CONTINUATION) != 0)
 		glyph_x = font->width;
+	if (console->color_emoji && font != NULL)
+		color = st_console_font_color_glyph(font, source->glyph);
 	foreground = source->foreground;
 	background = source->background;
 	if ((source->flags & ST_CONSOLE_CELL_REVERSE) != 0) {
@@ -370,7 +396,7 @@ render_cell(st_console_t *console, uint32_t x, uint32_t y,
 		}
 		goto finished;
 	}
-	if (row_scale == ROW_SCALE_NORMAL && font->width == 8
+	if (color == NULL && row_scale == ROW_SCALE_NORMAL && font->width == 8
 	    && glyph_width == 8
 	    && console->cell_width == 8 && font->height == console->cell_height
 	    && (source->flags & ST_CONSOLE_CELL_SEPARATED) == 0) {
@@ -452,7 +478,7 @@ render_cell(st_console_t *console, uint32_t x, uint32_t y,
 				set = !expansion_gap && font_row != NULL
 				    && row_bit(font_row, font_x);
 
-				if (!set && !expansion_gap && font_row != NULL
+				if (color == NULL && !set && !expansion_gap && font_row != NULL
 				    && (source->flags & ST_CONSOLE_CELL_BOLD) != 0
 				    && font_x != 0)
 					set = row_bit(font_row, font_x - 1);
@@ -475,12 +501,24 @@ render_cell(st_console_t *console, uint32_t x, uint32_t y,
 				    && py + 1 == console->cell_height
 				    && (px & 3U) == 0)
 					set = true;
-				console->pixels->primary[pixel + px]
-				    = set ? foreground : background;
+				uint32_t value = set ? foreground : background;
+				if (color != NULL) {
+					bool decoration = py + 1 == console->cell_height
+					    && (((source->flags & ST_CONSOLE_CELL_UNDERLINE) != 0)
+					    || (source->hyperlink != 0 && (px & 3U) == 0));
+
+					value = background;
+					if (!expansion_gap && font_y < font->height)
+						value = composite_rgba(console, color->rgba
+						    + (size_t)font_y * color->row_stride
+						    + (size_t)font_x * 4, background);
+					if (decoration)
+						value = foreground;
+				}
+				console->pixels->primary[pixel + px] = value;
 				console->pixels->alternate[pixel + px]
-				    = set
-				    && (source->flags & ST_CONSOLE_CELL_BLINK) == 0
-				    ? foreground : background;
+				    = (source->flags & ST_CONSOLE_CELL_BLINK) == 0
+				    ? value : background;
 				if (!expanded) {
 					font_x += x_step;
 					x_accumulator += x_remainder;

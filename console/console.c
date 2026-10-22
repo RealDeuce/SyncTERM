@@ -21,6 +21,7 @@
 static int present_locked(st_console_t *console, bool forced,
 	bool backend_locked);
 static void free_console(st_console_t *console);
+static void font_registration_free(struct st_console_font_registration *registration);
 static void free_retired_consoles(st_console_display_t *display);
 
 _Static_assert(sizeof(struct st_console_cell) == 24,
@@ -525,6 +526,7 @@ create_console(st_console_t **result, st_console_display_t *display,
 	console->blink_mode = config->blink_mode;
 	console->video_flags = config->video_flags;
 	console->scaling_mode = config->scaling_mode;
+	console->color_emoji = config->color_emoji;
 	console->blocky_scaling
 	    = config->scaling_policy == ST_PIXEL_SCALING_BLOCKY;
 	console->aspect_width = config->aspect_width;
@@ -1155,16 +1157,8 @@ free_console(st_console_t *console)
 	st_mutex_destroy(&console->event_mutex);
 	(void)st_rwlock_destroy(&console->state_lock);
 	free(console->events);
-	for (size_t i = 0; i < array_list_count(console->fonts); ++i) {
-		struct st_console_font_registration *registration = console->fonts[i];
-
-		if (registration->owned) {
-			free((void *)registration->font.bitmap);
-			free((void *)registration->font.wide_bitmap);
-			free((void *)registration->font.mapping);
-		}
-		free(registration);
-	}
+	for (size_t i = 0; i < array_list_count(console->fonts); ++i)
+		font_registration_free(console->fonts[i]);
 	array_list_free(&console->fonts);
 	st_pixel_buffer_destroy(console->pixels);
 	free(console->raster_rows);
@@ -1449,6 +1443,20 @@ st_console_mark_all_locked(st_console_t *console)
 		console->cells[i].flags |= ST_CONSOLE_CELL_DIRTY;
 	console->changed = true;
 	console->raster_current = false;
+}
+
+/* Preserve explicit pixel graphics; only retained text needs new compositing. */
+void
+st_console_invalidate_text_locked(st_console_t *console)
+{
+	size_t count = (size_t)console->columns * console->rows;
+
+	if (console->drawn_cells != NULL)
+		for (size_t i = 0; i < count; ++i)
+			if ((st_console_cell_at(console, i)->flags
+			    & ST_CONSOLE_CELL_PIXEL_GRAPHICS) == 0)
+				st_console_drawn_at(console, i)->flags |= ST_CONSOLE_CELL_DIRTY;
+	st_console_mark_all_locked(console);
 }
 
 static int
@@ -1967,6 +1975,7 @@ st_console_reconfigure(st_console_t *console,
 	console->blink_mode = config->blink_mode;
 	console->video_flags = config->video_flags;
 	console->scaling_mode = config->scaling_mode;
+	console->color_emoji = config->color_emoji;
 	console->blocky_scaling
 	    = config->scaling_policy == ST_PIXEL_SCALING_BLOCKY;
 	console->pixel_surface_dirty = pixels != NULL;
@@ -2246,6 +2255,8 @@ st_console_set_palette(st_console_t *console, uint16_t first,
 			    changed_count);
 		(void)st_mutex_unlock(&console->display->backend_mutex);
 	}
+	if (console->color_emoji)
+		st_console_invalidate_text_locked(console);
 	st_console_mark_all_locked(console);
 	result = st_console_finish_change_locked(console);
 	(void)st_rwlock_unlock(&console->state_lock);
@@ -2350,6 +2361,20 @@ font_valid(const struct st_console_font *font)
 	    && (font->wide_fallback_glyph < font->glyph_count
 	    || font->wide_fallback_glyph >= total)))
 		return false;
+	if (font->color_glyph_count != 0 && font->color_glyphs == NULL)
+		return false;
+	for (size_t i = 0; i < font->color_glyph_count; ++i) {
+		const struct st_console_color_glyph *color = &font->color_glyphs[i];
+		uint64_t width = (uint64_t)font->width
+		    * (color->glyph < font->glyph_count ? 1 : 2);
+
+		if (color->glyph >= total || color->rgba == NULL
+		    || width > SIZE_MAX / 4 || color->row_stride < width * 4
+		    || color->row_stride > SIZE_MAX / font->height
+		    || color->size < color->row_stride * font->height
+		    || (i != 0 && font->color_glyphs[i - 1].glyph >= color->glyph))
+			return false;
+	}
 	if (font->mapping_count != 0 && font->mapping == NULL)
 		return false;
 	for (size_t i = 0; i < font->mapping_count; ++i) {
@@ -2426,6 +2451,28 @@ st_console_font_glyph(const struct st_console_font *font, uint32_t glyph,
 	*width = font->width * 2;
 	*row_stride = font->wide_row_stride;
 	return true;
+}
+
+const struct st_console_color_glyph *
+st_console_font_color_glyph(const struct st_console_font *font, uint32_t glyph)
+{
+	size_t left = 0;
+	size_t right = font == NULL ? 0 : font->color_glyph_count;
+
+	if (right == 0 || glyph < font->color_glyphs[0].glyph)
+		return NULL;
+	while (left < right) {
+		size_t middle = left + (right - left) / 2;
+		uint32_t candidate = font->color_glyphs[middle].glyph;
+
+		if (candidate == glyph)
+			return &font->color_glyphs[middle];
+		if (candidate < glyph)
+			left = middle + 1;
+		else
+			right = middle;
+	}
+	return NULL;
 }
 
 static bool
@@ -2686,8 +2733,13 @@ font_registration_free(struct st_console_font_registration *registration)
 		return;
 	if (registration->owned) {
 		for (size_t i = 0;
-		    i < registration->font.cluster_mapping_count; ++i)
+		    registration->font.cluster_mapping != NULL
+		    && i < registration->font.cluster_mapping_count; ++i)
 			free((void *)registration->font.cluster_mapping[i].text);
+		for (size_t i = 0; registration->font.color_glyphs != NULL
+		    && i < registration->font.color_glyph_count; ++i)
+			free((void *)registration->font.color_glyphs[i].rgba);
+		free((void *)registration->font.color_glyphs);
 		free((void *)registration->font.bitmap);
 		free((void *)registration->font.wide_bitmap);
 		free((void *)registration->font.mapping);
@@ -2712,6 +2764,7 @@ font_registration_create(const struct st_console_font *font, bool copy)
 	registration->font.wide_bitmap = NULL;
 	registration->font.mapping = NULL;
 	registration->font.cluster_mapping = NULL;
+	registration->font.color_glyphs = NULL;
 	registration->font.bitmap = malloc(font->bitmap_size);
 	if (registration->font.bitmap == NULL)
 		goto failed;
@@ -2749,6 +2802,24 @@ font_registration_create(const struct st_console_font *font, bool copy)
 				goto failed;
 			memcpy((void *)mapping[i].text, font->cluster_mapping[i].text,
 			    mapping[i].text_size);
+		}
+	}
+	if (font->color_glyph_count != 0) {
+		struct st_console_color_glyph *colors;
+
+		if (font->color_glyph_count > SIZE_MAX / sizeof(colors[0]))
+			goto failed;
+		colors = calloc(font->color_glyph_count, sizeof(colors[0]));
+		if (colors == NULL)
+			goto failed;
+		registration->font.color_glyphs = colors;
+		for (size_t i = 0; i < font->color_glyph_count; ++i) {
+			colors[i] = font->color_glyphs[i];
+			colors[i].rgba = malloc(colors[i].size);
+			if (colors[i].rgba == NULL)
+				goto failed;
+			memcpy((void *)colors[i].rgba, font->color_glyphs[i].rgba,
+			    colors[i].size);
 		}
 	}
 	return registration;
@@ -3108,6 +3179,7 @@ st_console_snapshot_create(st_console_snapshot_t **result,
 	snapshot->blink_mode = console->blink_mode;
 	snapshot->video_flags = console->video_flags;
 	snapshot->blocky_scaling = console->blocky_scaling;
+	snapshot->color_emoji = console->color_emoji;
 	snapshot->pixel_top = console->pixel_top;
 	snapshot->full_surface_scroll = console->full_surface_scroll;
 	for (uint32_t y = 0; y < console->rows; ++y)
@@ -3198,6 +3270,8 @@ st_console_snapshot_restore(st_console_t *console,
 		console->full_surface_scroll = snapshot->full_surface_scroll;
 		console->pixel_surface_dirty = true;
 	}
+	if (snapshot->color_emoji != console->color_emoji)
+		st_console_invalidate_text_locked(console);
 	st_console_mark_all_locked(console);
 	result = st_console_finish_change_locked(console);
 	(void)st_rwlock_unlock(&console->state_lock);
