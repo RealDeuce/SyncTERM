@@ -206,6 +206,17 @@ cterm_text_boundary(struct cterminal *cterm)
 }
 
 int
+cterm_text_commit(struct cterminal *cterm)
+{
+	int status;
+	++cterm->input_depth;
+	status = cterm->screen.unicode == NULL ? 0
+	    : st_unicode_presentation_commit(cterm->screen.unicode);
+	--cterm->input_depth;
+	return status;
+}
+
+int
 cterm_text_feed(struct cterminal *cterm, const void *text, size_t size, size_t *consumed)
 {
 	int status = cterm_text_create(cterm);

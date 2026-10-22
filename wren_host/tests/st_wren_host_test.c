@@ -786,10 +786,11 @@ connected_capture_active(void *context)
 }
 
 static int
-connected_capture_input(void *context, const char *utf8, size_t size)
+connected_capture_input(void *context, const char *bytes, size_t size,
+	bool protocol)
 {
 	return st_wren_connected_capture_input(
-	    *(st_wren_connected_t **)context, utf8, size);
+	    *(st_wren_connected_t **)context, bytes, size, protocol);
 }
 
 static int
@@ -905,6 +906,67 @@ exercise_connected_copy_paste_mouse(st_wren_connected_t *connected,
 }
 
 static int
+exercise_match_stream(st_wren_connected_t *connected, st_cterm_t *cterm,
+	bool utf8)
+{
+	static const char *const sequences[] = {
+		"\033[1;33m", "\033]0;hidden\007", "\033]0;hidden\033\\",
+		"\033Phidden\033\\", "\033_hidden\033\\", "\033Xhidden\033\\",
+		"\033^hidden\033\\",
+	};
+	size_t matches = 0;
+	size_t consumed;
+	char source[256], module[48], input[128];
+
+	CHECK(st_wren_connected_interpret(connected, "match_stream",
+	    "import \"syncterm\" for Hook\n"
+	    "class MatchStreamProbe {\n"
+	    "  static reset() {\n"
+	    "    __clean = 0\n    __raw = 0\n    __hidden = 0\n  }\n"
+	    "  static clean(m) {\n"
+	    "    if (m.count == 2 && m[0] == \"AéZ\" && m[1] == \"é\") "
+	    "__clean = __clean + 1\n  }\n"
+	    "  static raw() { __raw = __raw + 1 }\n"
+	    "  static hidden() { __hidden = __hidden + 1 }\n"
+	    "  static check(n) {\n"
+	    "    if (__clean != n || __raw != 0 || __hidden != 0) "
+	    "Fiber.abort(\"match stream %(n): clean=%(__clean), raw=%(__raw), hidden=%(__hidden)\")\n  }\n}\n"
+	    "MatchStreamProbe.reset()\n"
+	    "Hook.onMatchClean(\"A(é)Z\", Fn.new {|m| MatchStreamProbe.clean(m) })\n"
+	    "Hook.onMatch(\"AéZ\", Fn.new {|m| MatchStreamProbe.raw() })\n"
+	    "Hook.onMatchClean(\"hidden\", Fn.new {|m| MatchStreamProbe.hidden() })\n") == 0);
+	for (size_t index = 0; index < sizeof(sequences) / sizeof(sequences[0]); ++index) {
+		int count = snprintf(input, sizeof(input), "A%s%sZ", sequences[index],
+		    utf8 ? "\xc3\xa9" : "\x82");
+		CHECK(count > 0 && (size_t)count < sizeof(input));
+		size_t length = (size_t)count;
+
+		/* Every split, then single-byte writes, including split UTF-8. */
+		for (size_t split = 0; split <= length + 1; ++split) {
+			if (split <= length) {
+				CHECK(st_cterm_write(cterm, input, split, &consumed) == 0
+				    && consumed == split);
+				CHECK(st_cterm_write(cterm, input + split, length - split,
+				    &consumed) == 0 && consumed == length - split);
+			}
+			else {
+				for (size_t byte = 0; byte < length; ++byte)
+					CHECK(st_cterm_write(cterm, input + byte, 1,
+					    &consumed) == 0 && consumed == 1);
+			}
+			++matches;
+			CHECK(snprintf(module, sizeof(module), "match_stream_check_%zu",
+			    matches) < (int)sizeof(module));
+			CHECK(snprintf(source, sizeof(source),
+			    "import \"match_stream\" for MatchStreamProbe\n"
+			    "MatchStreamProbe.check(%zu)\n", matches) < (int)sizeof(source));
+			CHECK(st_wren_connected_interpret(connected, module, source) == 0);
+		}
+	}
+	return 0;
+}
+
+static int
 exercise_connected_scrollback(st_wren_host_t *host,
 	st_console_t *console, struct st_profile *profile)
 {
@@ -961,6 +1023,7 @@ exercise_connected_scrollback(st_wren_host_t *host,
 		.cterm = cterm,
 	};
 	CHECK(st_wren_connected_create(&connected, &connected_config) == 0);
+	CHECK(exercise_match_stream(connected, cterm, true) == 0);
 	CHECK(exercise_connected_copy_paste_mouse(connected, console, cterm) == 0);
 	CHECK(st_wren_connected_interpret(connected, "scrollback_paint_cursor",
 	    "import \"syncterm\" for Scrollback, Surface, Screen, CTerm\n"
@@ -1186,6 +1249,7 @@ exercise_connected_scrollback(st_wren_host_t *host,
 	CHECK(st_cterm_create(&cterm, &terminal_config) == 0);
 	connected_config.cterm = cterm;
 	CHECK(st_wren_connected_create(&connected, &connected_config) == 0);
+	CHECK(exercise_match_stream(connected, cterm, false) == 0);
 	CHECK(st_wren_connected_interpret(connected, "match_codepage",
 	    "import \"syncterm\" for Hook, CTerm\n"
 	    "Hook.onMatch(\"£\", Fn.new {|m| CTerm.music = 2 })\n") == 0);
@@ -3992,7 +4056,7 @@ main(int argc, char **argv)
 {
 	bool menu_only = argc == 2 && strcmp(argv[1], "--menu-only") == 0;
 	static const uint8_t default_bitmap[128 * 16] = {0};
-	static const uint8_t default_wide_bitmap[64] = {0};
+	static const uint8_t default_wide_bitmap[96] = {0};
 	static const struct st_console_font_mapping default_mapping[] = {
 		{0, 0},
 		{0x20, 0x20}, {0x21, 0x21}, {0x22, 0x22}, {0x23, 0x23},
@@ -4023,6 +4087,7 @@ main(int argc, char **argv)
 		{UINT32_C(0x03a9), 127},
 		{UINT32_C(0x2060), 129},
 		{UINT32_C(0x4e00), 128},
+		{UINT32_C(0x4e16), 130},
 		{UINT32_C(0xfeff), 30},
 	};
 	static const struct st_console_font default_font = {
@@ -4035,7 +4100,7 @@ main(int argc, char **argv)
 		.glyph_stride = 16,
 		.wide_bitmap = default_wide_bitmap,
 		.wide_bitmap_size = sizeof(default_wide_bitmap),
-		.wide_glyph_count = 2,
+		.wide_glyph_count = 3,
 		.wide_row_stride = 2,
 		.wide_glyph_stride = 32,
 		.mapping = default_mapping,

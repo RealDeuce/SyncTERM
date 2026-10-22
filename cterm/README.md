@@ -11,7 +11,9 @@ Ordinary codepage text becomes UTF-8 at the input boundary. Byte-oriented
 emulations first interpret their controls and character-set transformations,
 then emit UTF-8 into the same presenter. Sequence parameters, font uploads,
 macro definitions, and other protocol payloads remain bytes. Receive filters
-and capture see decoded text and controls, while raw payloads bypass them.
+and text capture see decoded text and controls, while raw payloads bypass them.
+Capture additionally receives explicitly tagged protocol bytes for raw logs;
+these bytes are observed without invoking Unicode filters or a second parser.
 Semantic UTF-8 injection bypasses the receive filter; replay invokes neither
 receive filtering nor capture a second time. Raw logging records wire bytes;
 ASCII/text logging writes presented UTF-8 and terminal text controls.
@@ -19,7 +21,9 @@ ASCII/text logging writes presented UTF-8 and terminal text controls.
 Each display owns one incremental Unicode presenter regardless of its wire
 encoding. Receive-buffer boundaries preserve incomplete decoding and grapheme
 state. Controls, display/style changes, RIP commands, encoding changes,
-resizing, reset, and finish commit pending text. Unsupported wire encodings
+resizing, reset, and finish commit pending text. Resizing preserves an
+incomplete UTF-8 scalar and partial RIP command; it commits placement without
+ending the input stream. Unsupported wire encodings
 for byte emulations remain unsupported; internal UTF-8 does not change their
 wire protocols or add bidirectional-text handling.
 

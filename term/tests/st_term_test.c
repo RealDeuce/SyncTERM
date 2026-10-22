@@ -478,6 +478,31 @@ test_shell_throttle(enum st_cterm_encoding encoding)
 	return 0;
 }
 
+struct utf8_resize {
+	st_console_t *console;
+	bool posted;
+};
+
+static int
+resize_between_utf8_bytes(void *context, uint8_t byte, bool *consumed,
+	uint8_t *replacement, size_t capacity, size_t *replacement_size)
+{
+	struct utf8_resize *resize = context;
+	(void)replacement; (void)capacity;
+	*consumed = false;
+	*replacement_size = 0;
+	if (byte == 0xc3 && !resize->posted) {
+		const struct st_console_event event = {
+			.type = ST_CONSOLE_EVENT_RESIZE,
+			.data.resize = {.columns = 90, .rows = 30},
+		};
+		int status = st_console_post_event(resize->console, &event);
+		resize->posted = status == 0;
+		return status;
+	}
+	return 0;
+}
+
 static int
 test_shell_utf8_boundary(void)
 {
@@ -512,6 +537,7 @@ test_shell_utf8_boundary(void)
 	strcpy(profile.address, "sh term-fixture.sh utf8");
 	CHECK(st_term_connect_profile(&connection, &profile, console, NULL, NULL)
 	    == 0);
+	struct utf8_resize resize = {.console = console};
 	const struct st_term_config config = {
 		.console = console,
 		.connection = connection,
@@ -521,17 +547,12 @@ test_shell_utf8_boundary(void)
 		.codepage = ST_CODEPAGE_CP437,
 		.font_selector = 0,
 		.hide_status = true,
+		/* Queue resize after the first byte is received, so this pump
+		 * handles it while the decoder is waiting for the continuation. */
+		.wire_filter = resize_between_utf8_bytes,
+		.wire_filter_context = &resize,
 	};
 	CHECK(st_term_session_create(&session, &config) == 0);
-	const struct st_console_event resize = {
-		.type = ST_CONSOLE_EVENT_RESIZE,
-		.data.resize = {.columns = 90, .rows = 30},
-	};
-	CHECK(st_console_post_event(console, &resize) == 0);
-	CHECK(st_term_session_pump(session, &disposition, &finished) == 0);
-	CHECK(!finished);
-	CHECK(st_console_size(console, &columns, &rows) == 0);
-	CHECK(columns == 90 && rows == 30);
 	for (size_t attempt = 0; attempt < 100 && !found; ++attempt) {
 		status = st_term_session_pump(session, &disposition, &finished);
 		CHECK(status == 0);
@@ -542,6 +563,9 @@ test_shell_utf8_boundary(void)
 			found = true;
 	}
 	CHECK(found);
+	CHECK(resize.posted);
+	CHECK(st_console_size(console, &columns, &rows) == 0);
+	CHECK(columns == 90 && rows == 30);
 	size_t queued_wire = 0;
 	CHECK(st_term_session_send_text_poll(session, "\xc3\xa9", 2,
 	    &queued_wire) == 0);

@@ -174,7 +174,7 @@ int st_wren_connected_filter_input_scalar(st_wren_connected_t *connected,
 bool st_wren_connected_has_input_hooks(const st_wren_connected_t *connected);
 bool st_wren_connected_capture_active(const st_wren_connected_t *connected);
 int st_wren_connected_capture_input(st_wren_connected_t *connected,
-	const char *utf8, size_t size);
+	const char *bytes, size_t size, bool protocol);
 const char *st_wren_connected_last_error(
 	const st_wren_connected_t *connected);
 

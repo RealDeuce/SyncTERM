@@ -90,10 +90,12 @@ filter_input(void *context, uint32_t scalar, bool *consumed,
 }
 
 static int
-capture_input(void *context, const char *utf8, size_t size)
+capture_input(void *context, const char *utf8, size_t size, bool protocol)
 {
 	struct input_filter_state *state = context;
 
+	if (protocol)
+		return 0;
 	if (size > sizeof(state->captured) - state->captured_size)
 		return IO_ERROR_OUT_OF_RANGE;
 	memcpy(state->captured + state->captured_size, utf8, size);

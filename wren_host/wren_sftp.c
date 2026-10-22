@@ -6,7 +6,6 @@
  */
 
 #include "wren_host_internal.h"
-#include "wren_ansi_filter.h"
 
 #include "io_error.h"
 #include "st_profile.h"
@@ -52,7 +51,6 @@ struct connected_hook {
 	size_t regex_buf_len;
 	size_t regex_pos;
 	int regex_groups;
-	enum ansi_state regex_ansi_state;
 	bool regex_clean;
 	struct connected_hook *next;
 };
@@ -71,7 +69,6 @@ struct st_wren_connected {
 	struct pending_timer *timers;
 	struct connected_hook *hooks;
 	FILE *capture_stream;
-	enum ansi_state capture_ansi_state;
 	bool capture_raw;
 	bool capture_paused;
 	char last_error[512];
@@ -1588,15 +1585,15 @@ feed_match_hook(st_wren_connected_t *connected, struct connected_hook *hook,
 	char utf8[4];
 	ptrdiff_t count = st_utf8_encode_one(utf8, sizeof(utf8), scalar);
 
+	/* CTerm owns sequence bodies. ESC is only a boundary marker here,
+	 * so running a second ANSI parser would eat the next text scalar. */
+	if (hook->regex_clean && scalar == 0x1b)
+		return;
 	if (count <= 0)
 		return;
 	for (ptrdiff_t i = 0; i < count; ++i) {
 		uint8_t byte = (uint8_t)utf8[i];
 
-		if (hook->regex_clean
-		    && st_wren_ansi_keep_text(&byte, 1, &byte,
-		    &hook->regex_ansi_state) == 0)
-			continue;
 		if (hook->regex_buf_len + 1 >= ST_WREN_REGEX_BUFFER_SIZE) {
 			size_t drop = ST_WREN_REGEX_BUFFER_SIZE / 2 + 1;
 
@@ -1845,7 +1842,6 @@ st_wren_connected_capture_start(st_wren_connected_t *connected,
 	connected->capture_stream = stream;
 	connected->capture_raw = raw;
 	connected->capture_paused = false;
-	connected->capture_ansi_state = ANSI_STATE_NONE;
 	return 0;
 }
 
@@ -1858,7 +1854,6 @@ st_wren_connected_capture_stop(st_wren_connected_t *connected)
 		st_wren_log_append(connected->vm, 2, "Capture close failed");
 	connected->capture_stream = NULL;
 	connected->capture_paused = false;
-	connected->capture_ansi_state = ANSI_STATE_NONE;
 }
 
 void
@@ -1877,24 +1872,15 @@ st_wren_connected_capture_resume(st_wren_connected_t *connected)
 
 int
 st_wren_connected_capture_input(st_wren_connected_t *connected,
-	const char *utf8, size_t size)
+	const char *bytes, size_t size, bool protocol)
 {
-	uint8_t filtered[4];
-	const void *bytes = utf8;
-	size_t count = size;
-
 	if (!st_wren_connected_capture_active(connected)
 	    || connected->capture_paused || size == 0)
 		return 0;
-	if (!connected->capture_raw) {
-		if (size > sizeof(filtered))
-			return IO_ERROR_INVALID_ARGUMENT;
-		count = st_wren_ansi_keep_text((const uint8_t *)utf8, size,
-		    filtered, &connected->capture_ansi_state);
-		bytes = filtered;
-	}
-	if (count > 0 && fwrite(bytes, 1, count,
-	    connected->capture_stream) != count) {
+	if (!connected->capture_raw
+	    && (protocol || (size == 1 && (uint8_t)bytes[0] == 0x1b)))
+		return 0;
+	if (fwrite(bytes, 1, size, connected->capture_stream) != size) {
 		if (connected->vm != NULL)
 			st_wren_log_append(connected->vm, 2, "Capture write failed");
 		st_wren_connected_capture_stop(connected);

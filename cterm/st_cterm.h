@@ -73,8 +73,10 @@ typedef int (*st_cterm_rip_prompt_callback_t)(void *context,
 typedef int (*st_cterm_input_filter_t)(void *context, uint32_t scalar,
 	bool *consumed, char *replacement, size_t capacity,
 	size_t *replacement_size);
-typedef int (*st_cterm_capture_t)(void *context, const char *utf8,
-	size_t size);
+/* Text is decoded UTF-8 after semantic hooks. With protocol=true, bytes are
+ * opaque parser input, suitable only for raw capture. Playback is omitted. */
+typedef int (*st_cterm_capture_t)(void *context, const char *bytes,
+	size_t size, bool protocol);
 
 struct st_cterm_config {
 	/* Pointers are borrowed through destruction, except palette arrays which
@@ -132,7 +134,7 @@ struct st_cterm_config {
 	st_cterm_input_filter_t input_filter;
 	bool (*input_filter_active)(void *context);
 	void *input_filter_context;
-	/* Effective decoded input after semantic hooks, before text parsing. */
+	/* Observe effective text and original protocol bytes without filtering. */
 	st_cterm_capture_t capture;
 	bool (*capture_active)(void *context);
 	void *capture_context;

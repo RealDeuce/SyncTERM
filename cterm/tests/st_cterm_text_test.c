@@ -353,6 +353,9 @@ test_graphemes_and_boundaries(void)
 struct payload_hooks {
 	size_t calls;
 	size_t captured;
+	size_t protocol;
+	uint8_t bytes[2304];
+	size_t size;
 };
 
 static int
@@ -368,11 +371,16 @@ reject_payload(void *context, uint32_t scalar, bool *consumed,
 }
 
 static int
-capture_payload(void *context, const char *text, size_t size)
+capture_payload(void *context, const char *text, size_t size, bool protocol)
 {
 	struct payload_hooks *hooks = context;
-	(void)text;
-	hooks->captured += size;
+	CHECK(size <= sizeof(hooks->bytes) - hooks->size);
+	memcpy(hooks->bytes + hooks->size, text, size);
+	hooks->size += size;
+	if (protocol)
+		hooks->protocol += size;
+	else
+		hooks->captured += size;
 	return 0;
 }
 
@@ -401,10 +409,55 @@ test_raw_payloads(void)
 	CHECK(rig.terminal->macro_lens[0] == sizeof(expected));
 	CHECK(memcmp(rig.terminal->macros[0], expected, sizeof(expected)) == 0);
 	CHECK(hooks.calls == 2 && hooks.captured == 2);
+	CHECK(hooks.protocol == sizeof(intro) + sizeof(payload) + sizeof(macro) - 4);
+	CHECK(hooks.size == sizeof(intro) + sizeof(payload) + sizeof(macro) - 2);
+	CHECK(memcmp(hooks.bytes, intro, sizeof(intro) - 1) == 0);
+	CHECK(memcmp(hooks.bytes + sizeof(intro) - 1, payload, sizeof(payload)) == 0);
+	CHECK(memcmp(hooks.bytes + sizeof(intro) - 1 + sizeof(payload),
+	    macro, sizeof(macro) - 1) == 0);
 	feed(&rig, "QZ", 2);
 	CHECK(hooks.calls == 4 && hooks.captured == 3);
 	expect_text(&rig, 0, 0, "Z");
 	close_rig(&rig);
+}
+
+static void
+test_resize_pending_utf8(void)
+{
+	static const char *const scalars[] = {
+		"\xc3\xa9", "\xe2\x94\x80", "\xf0\x9d\x84\x9e",
+	};
+	for (size_t index = 0; index < sizeof(scalars) / sizeof(scalars[0]); ++index) {
+		size_t length = strlen(scalars[index]);
+		for (size_t split = 1; split < length; ++split) {
+			for (unsigned status = 0; status < 2; ++status) {
+				struct rig rig;
+				struct payload_hooks captured = {0};
+				open_rig(&rig, ST_CTERM_ENCODING_UTF8);
+				if (status != 0)
+					feed(&rig, "\033[2$~\033[1$}", 10);
+				rig.terminal->api_capture = capture_payload;
+				rig.terminal->api_capture_context = &captured;
+				feed(&rig, scalars[index], split);
+				CHECK(captured.size == 0);
+				CHECK(st_cterm_resize(rig.terminal, 24, 5) == 0);
+				CHECK(captured.size == 0);
+				feed(&rig, scalars[index] + split, length - split);
+				CHECK(st_cterm_finish(rig.terminal) == 0);
+				CHECK(captured.size == length && captured.protocol == 0);
+				CHECK(memcmp(captured.bytes, scalars[index], length) == 0);
+				close_rig(&rig);
+			}
+		}
+	}
+}
+
+static int
+fail_protocol_capture(void *context, const char *bytes, size_t size,
+	bool protocol)
+{
+	(void)context; (void)bytes; (void)size;
+	return protocol ? IO_ERROR_IO : 0;
 }
 
 static void
@@ -418,6 +471,14 @@ test_shutdown_and_errors(void)
 	uint32_t glyph = UINT32_MAX;
 	CHECK(st_console_font_lookup_decode_error(NULL, &glyph) == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(glyph == UINT32_MAX);
+	open_rig(&rig, ST_CTERM_ENCODING_UTF8);
+	rig.terminal->api_capture = fail_protocol_capture;
+	CHECK(st_cterm_write(rig.terminal, "\033[31mZ", 6, &consumed)
+	    == IO_ERROR_IO && consumed == 2);
+	rig.terminal->api_capture = NULL;
+	feed(&rig, "31mZ", 4);
+	expect_text(&rig, 0, 0, "Z");
+	close_rig(&rig);
 	open_rig(&rig, ST_CTERM_ENCODING_UTF8);
 	static const char status[] = "\033[2$~\033[1$}\xc3";
 	feed(&rig, status, sizeof(status) - 1);
@@ -501,6 +562,7 @@ main(void)
 	test_macro_retirement();
 	test_graphemes_and_boundaries();
 	test_raw_payloads();
+	test_resize_pending_utf8();
 	test_shutdown_and_errors();
 	test_reentrant_replacement();
 	test_font_selection();

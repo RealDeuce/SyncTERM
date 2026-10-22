@@ -550,10 +550,11 @@ wren_capture_active(void *context)
 }
 
 static int
-run_wren_capture_input(void *context, const char *utf8, size_t size)
+run_wren_capture_input(void *context, const char *bytes, size_t size,
+	bool protocol)
 {
 	return st_wren_connected_capture_input(
-	    *(st_wren_connected_t **)context, utf8, size);
+	    *(st_wren_connected_t **)context, bytes, size, protocol);
 }
 
 static int

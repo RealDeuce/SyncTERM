@@ -89,6 +89,9 @@ int st_unicode_presentation_feed(st_unicode_presentation_t *presentation,
  * reset, encoding change, or disconnect boundary, never at an ordinary read.
  */
 int st_unicode_presentation_boundary(st_unicode_presentation_t *presentation);
+/* Commit the provisional grapheme for a layout change, retaining incomplete
+ * UTF-8 input for the next feed. This does not end the encoded stream. */
+int st_unicode_presentation_commit(st_unicode_presentation_t *presentation);
 
 int st_unicode_text_create(st_unicode_text_t **result,
 	enum st_unicode_text_mode mode);

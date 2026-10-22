@@ -838,6 +838,14 @@ cterm_accumulate_command_string(struct cterminal *cterm, unsigned char byte,
 	if (byte == 0)
 		return true;	/* media-fill; ignore */
 
+	/* OSC also accepts BEL as its terminator. Consume it with the string
+	 * so it does not become a bell in the decoded text stream. */
+	if (byte == 7 && cterm->string == CTERM_STRING_OSC) {
+		cterm_handle_st(cterm, speed);
+		cterm->accumulator = NULL;
+		return true;
+	}
+
 	if (byte < 8 || (byte > 0x0d && byte < 0x20) || byte > 0x7e) {
 		if (byte == 27) {
 			/* ESC: may begin ST (ESC \) that closes the string.

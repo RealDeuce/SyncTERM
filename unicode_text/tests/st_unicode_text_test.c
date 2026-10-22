@@ -521,6 +521,20 @@ check_provisional_presentation(void)
 	    && log.events[3].size == 2);
 	CHECK(st_unicode_presentation_boundary(presentation) == 0
 	    && log.count == 4);
+	CHECK(st_unicode_presentation_feed(presentation, "e\xc3", 2,
+	    &consumed) == 0 && consumed == 2 && log.count == 5);
+	CHECK(st_unicode_presentation_commit(presentation) == 0
+	    && log.count == 6
+	    && log.events[5].kind == ST_UNICODE_PRESENTATION_COMMIT);
+	CHECK(st_unicode_presentation_feed(presentation, "\xa9", 1,
+	    &consumed) == 0 && consumed == 1 && log.count == 7);
+	CHECK(log.events[6].kind == ST_UNICODE_PRESENTATION_BEGIN
+	    && log.events[6].size == sizeof(composed)
+	    && memcmp(log.events[6].bytes, composed, sizeof(composed)) == 0);
+	CHECK(st_unicode_presentation_boundary(presentation) == 0
+	    && log.count == 8
+	    && log.events[7].kind == ST_UNICODE_PRESENTATION_COMMIT);
+	CHECK(st_unicode_presentation_commit(NULL) == IO_ERROR_INVALID_ARGUMENT);
 	st_unicode_presentation_destroy(&presentation);
 	return 0;
 }

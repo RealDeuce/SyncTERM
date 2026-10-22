@@ -11,6 +11,7 @@ struct cterminal;
 
 int cterm_text_create(struct cterminal *cterm);
 int cterm_text_boundary(struct cterminal *cterm);
+int cterm_text_commit(struct cterminal *cterm);
 int cterm_text_feed(struct cterminal *cterm, const void *text, size_t size,
 	size_t *consumed);
 void cterm_text_byte(struct cterminal *cterm, uint8_t byte);

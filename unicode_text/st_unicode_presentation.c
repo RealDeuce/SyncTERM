@@ -326,6 +326,12 @@ st_unicode_presentation_feed(st_unicode_presentation_t *presentation,
 }
 
 int
+st_unicode_presentation_commit(st_unicode_presentation_t *presentation)
+{
+	return presentation == NULL ? IO_ERROR_INVALID_ARGUMENT : commit(presentation);
+}
+
+int
 st_unicode_presentation_boundary(st_unicode_presentation_t *presentation)
 {
 	struct st_utf8_decode_event event;

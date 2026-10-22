@@ -1563,9 +1563,9 @@ wire-byte replacement, or `onInput` for Unicode text replacement.
   scalar-granular drops.
 
 | `Hook.onMatchClean(pattern, fn)`
-| Same as `onMatch`, but bytes are pre-filtered through SyncTERM's
-  shared ANSI parser so colour codes, cursor moves, and DCS / OSC
-  strings never split a literal pattern.  A pattern like `"Welcome"`
+| Same as `onMatch`, with escape markers omitted from the text stream.
+  CTerm owns sequence bodies, so colour codes, cursor moves, and DCS / OSC
+  strings never split a literal pattern. A pattern like `"Welcome"`
   matches even when the BBS sends `"We"` + `ESC[1;33m` + `"lcome"`.
 | C2
 
@@ -1611,6 +1611,9 @@ for wire protocols; a returned String remains raw bytes.  The default
 decoded text independent of whether the remote uses UTF-8 or a legacy
 codepage.  Their replacements stay in the semantic text path rather
 than being re-encoded as if they had arrived from the remote.
+Sequence parameters and opaque protocol payloads bypass these Unicode hooks.
+`onMatch` retains control markers such as ESC; use `onWire` to inspect entire
+protocol sequences, and `onMatchClean` to match text across them.
 
 Hooks run in registration order; the first one that returns Bool true
 (drop) or a String (replace) wins, and later hooks don't see that unit.
@@ -1655,15 +1658,12 @@ completes only after preceding bytes have passed through cterm, so these
 hooks cannot drop a complete matched span.  Use the scalar-granular
 `Hook.onInput` hook when input must be dropped before reaching cterm.
 
-`Hook.onMatchClean(pattern, fn)` is the escape-aware variant — the
-byte stream feeding the regex VM is pre-filtered through the
-stateful ANSI parser in `wren_host/wren_ansi_filter.[ch]`, adapted
-from the parser used by the legacy RIP renderer.
-The filter strips ESC, CSI sequences (`ESC [ ... <final>`), DCS / OSC /
-PM / APC strings (`ESC P|]|^|_ ... ESC \`), and SOS-style strings
-(`ESC X ... ESC \`).  The cleaned bytes reach the regex VM in the
-same per-byte-stream form as `onMatch`; what the user sees is what
-the matcher sees.
+`Hook.onMatchClean(pattern, fn)` omits ESC markers from CTerm's decoded text
+stream. CTerm already withholds sequence bodies and opaque payloads from
+Unicode hooks. The matcher does not run a second escape parser, so an escape
+cannot leave it waiting for bytes which CTerm has already consumed. UTF-8 and
+legacy-codepage text use the same matching path, including sequences and
+Unicode characters split across receive buffers.
 
 ==== Grammar
 
@@ -3827,8 +3827,10 @@ no-ops when no terminal is active.
 | `Capture.start(file, raw)`
 | Open a streaming log to the path authorized by `file` (a
   write-consent `File` from <<host-pickSavePath,`Host.pickSavePath`>>).
-  `raw == true` preserves ANSI escape sequences (post-decode);
-  `false` strips to plain text.  Consumes the File's write consent.
+  Text is captured as decoded UTF-8 after semantic input hooks.
+  `raw == true` also preserves original escape-sequence and opaque payload
+  bytes; `false` omits protocol bytes and ESC markers. Macro playback is not
+  captured a second time. Consumes the File's write consent.
   Returns `null` on success or a <<fileerror,`FileError`>> on
   open failure (typically `errno = EEXIST` for `WFC_CREATE` if
   the path was created between pick and open).

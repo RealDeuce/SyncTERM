@@ -173,29 +173,44 @@ Native verification uses the independently configured CMake Debug build with
 Clang on FreeBSD 15.1 and a headless console. The application and test targets
 build with the project's strict warning settings and no new warnings.
 
-The focused menu tests, `wren_settings_menu` and `wren_menu_contract`, pass.
-The broader settings/BBS/theme/Wren/app/font/audio/history/screen-mode/terminal
-selection has 57 passing tests when the following two independently failing
-tests are excluded. Both failures also reproduce in a separately configured
-and built, untouched `f886fca` snapshot:
+The original audit passed 57 selected tests and found two independent failures.
+Both also reproduced in a separately configured and built, untouched `f886fca`
+snapshot. The subsequent input-boundary review diagnosed and repaired them:
 
 * `wren_host`: `exercise_connected_scrollback`, clean matching of coloured
   text at `st_wren_host_test.c:1127`. The text consolidation path gives the
   matcher an ESC without the remaining sequence bytes, leaving its ANSI
-  stripping state pending. This connected-input regression remains open.
+  stripping state pending. Clean matching now omits the ESC marker and relies
+  on CTerm to parse the sequence. The redundant Wren ANSI parser is removed.
+  Plain capture uses the same boundary; raw capture receives tagged protocol
+  bytes without exposing them to semantic input filters. OSC accepts both
+  BEL and ST terminators in CTerm.
 * `term`: `test_shell_utf8_boundary`, expected U+00E9 at
-  `st_term_test.c:544`. It passed one isolated run but failed subsequent runs
-  in both trees. Its cause remains unconfirmed.
+  the original `st_term_test.c:544`. Resize called `st_cterm_finish` after the
+  fixture supplied UTF-8 byte C3 but before A9 arrived. That flushed C3 as an
+  incomplete character, then A9 produced another decode error. A debugger
+  trace captured the pending byte and call stack in the failing baseline.
+  Resize now commits placement while retaining pending UTF-8 and RIP input.
 
-The menu-only test retains the ordinary full-host test and its failure; it
-provides independent execution of all menu contracts, including the safe-mode
-checks which otherwise follow that connected-session assertion.
+The matching regression exercises UTF-8 and CP437 text across colour sequences
+and OSC/DCS/APC/SOS/PM strings, at every split and with single-byte writes.
+It checks capture groups, raw-versus-clean matching, and payload exclusion.
+Capture tests check original protocol bytes, pause/resume, semantic replacement
+and callback errors. Resize tests cover every partial split of two-, three-
+and four-byte scalars in the main and host-writable status displays. The shell
+test queues its resize after receiving the first UTF-8 byte. The host fixture
+now supplies the wide glyph used by its existing Unicode-matching assertion.
+
+The menu-only test remains available for independent execution of menu and
+safe-mode contracts. Final follow-up verification includes both previously
+failing full-host and terminal tests: all 62 selected CTests pass after a
+native CMake Debug build with Clang, with no new compiler warnings.
 
 [source,shell]
 ----
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
 cmake --build build -j 2
-ctest --test-dir build -R '(settings|bbs|theme|wren|app_|font_catalog|audio|session_history|screen_mode|^term|connection_serial|connection_protocol|tls_prompt)' -E '(^wren_host$|^term$|wren_sftp_live)' --output-on-failure -j 2
+ctest --test-dir build -R '(settings|bbs|theme|wren|app_|font_catalog|audio|session_history|screen_mode|^term|connection_serial|connection_protocol|tls_prompt|^unicode_text$|^cterm$|^cterm_text$)' -E wren_sftp_live --output-on-failure -j 2
 ----
 
 Windows toolchains, physical audio/serial devices, graphical presentation and

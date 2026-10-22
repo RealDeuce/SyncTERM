@@ -2244,7 +2244,7 @@ capture_scalar(st_cterm_t *terminal, uint32_t scalar)
 	if (size < 0)
 		return IO_ERROR_INVALID_ENCODING;
 	return terminal->api_capture(terminal->api_capture_context,
-	    utf8, (size_t)size);
+	    utf8, (size_t)size, false);
 }
 
 static int
@@ -2424,12 +2424,18 @@ cterm_input_write(struct cterminal *terminal, const void *bytes, size_t size,
 				}
 				target = input_display(owner);
 			}
+			bool protocol = target->accumulator != NULL;
 			++target->input_depth;
 			bool used = cterm_parse_byte(target, byte, &speed);
-			--target->input_depth;
-			if (used)
+			if (used) {
 				++*consumed;
-			status = cterm_render_take_error(target);
+				if (hooks && protocol && capture_enabled(owner))
+					status = owner->api_capture(owner->api_capture_context,
+					    (const char *)&byte, 1, true);
+			}
+			--target->input_depth;
+			if (status == 0)
+				status = cterm_render_take_error(target);
 		}
 		else {
 			char decoded[4];
@@ -2710,7 +2716,16 @@ st_cterm_resize(st_cterm_t *terminal, uint32_t columns, uint32_t rows)
 	if (rows <= terminal->api_reserved_rows + status_rows)
 		return IO_ERROR_OUT_OF_RANGE;
 	terminal_rows = rows - terminal->api_reserved_rows - status_rows;
-	status = st_cterm_finish(terminal);
+	/* Geometry commits the old placement, but is not end-of-input for
+	 * the UTF-8 decoder or the RIP command parser. */
+	status = cterm_text_commit(terminal);
+	if (status == 0 && terminal->status_sub != NULL)
+		status = cterm_text_commit(terminal->status_sub);
+	input_cleanup(terminal);
+	if (status == 0)
+		status = cterm_render_take_error(terminal);
+	if (status == 0 && terminal->status_sub != NULL)
+		status = cterm_render_take_error(terminal->status_sub);
 	if (status != 0)
 		return status;
 	if (terminal->backlines != 0) {
