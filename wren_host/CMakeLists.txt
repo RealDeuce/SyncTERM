@@ -62,6 +62,7 @@ set(_st_wren_scripts
 	${CMAKE_CURRENT_SOURCE_DIR}/../scripts/auto/connected/music_menu.wren
 	${CMAKE_CURRENT_SOURCE_DIR}/../scripts/auto/connected/online_menu.wren
 	${CMAKE_CURRENT_SOURCE_DIR}/../scripts/auto/connected/scrollback_view.wren
+	${CMAKE_CURRENT_SOURCE_DIR}/../scripts/auto/connected/session_log.wren
 	${CMAKE_CURRENT_SOURCE_DIR}/../scripts/auto/connected/sftp_queue_init.wren
 	${CMAKE_CURRENT_SOURCE_DIR}/../scripts/auto/connected/sftp_pubkey.wren
 	${CMAKE_CURRENT_SOURCE_DIR}/../scripts/auto/connected/status_default.wren)

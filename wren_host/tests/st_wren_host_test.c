@@ -445,6 +445,7 @@ exercise_connected_without_sftp(st_wren_host_t *host,
 	CHECK(st_wren_connected_interpret(connected, "no_sftp_provider",
 	    "import \"syncterm\" for SFTP, SFTPError, Host, CTerm, Status, Conn, ConnError, ConnErr, Scrollback, Surface, BBS\n"
 	    "if (SFTP.available || CTerm.sftpActive || Conn.connected) Fiber.abort(\"unexpected provider\")\n"
+	    "if (Conn.sessionLog != null) Fiber.abort(\"unexpected session log provider\")\n"
 	    "if (Host.sshPublicKey != null || !(SFTP.start(Fiber.current) is SFTPError)) Fiber.abort(\"unexpected SSH capability\")\n"
 	    "if (BBS.name != \"Alpha\" || BBS.addr != \"alpha.example\" || BBS.connected != 100 || BBS.palette.count != BBS.paletteSize || BBS.sshFingerprint.count != BBS.sshFingerprintLen) Fiber.abort(\"connected profile view\")\n"
 	    "if (Scrollback.width != 0 || Scrollback.height != 0 || Scrollback.copyRowsTo(Surface.new(2, 2), 0, 2, 0) != 0) Fiber.abort(\"empty scrollback\")\n"
@@ -699,6 +700,136 @@ connected_input_active(void *context)
 {
 	return st_wren_connected_has_input_hooks(
 	    *(st_wren_connected_t **)context);
+}
+
+struct session_log_fixture {
+	const char *text;
+	bool fail;
+};
+
+static int
+session_log_snapshot(void *context, char **text)
+{
+	struct session_log_fixture *fixture = context;
+	if (fixture->fail) return IO_ERROR_OUT_OF_MEMORY;
+	*text = strdup(fixture->text);
+	return *text == NULL ? IO_ERROR_OUT_OF_MEMORY : 0;
+}
+
+static int
+session_log_key(st_wren_connected_t *connected, uint16_t code)
+{
+	const struct st_console_event event = {
+		.type = ST_CONSOLE_EVENT_KEY_CODE, .data.key.code = code,
+	};
+	bool claimed;
+	CHECK(st_wren_connected_handle_event(connected, &event, &claimed) == 0 && claimed);
+	CHECK(st_wren_connected_pump(connected, 0) == 0);
+	return 0;
+}
+
+static int
+exercise_connected_session_log(st_wren_host_t *host, st_console_t *console,
+	struct st_profile *profile)
+{
+	char text[4096] = "OLDEST LOG RECORD\n";
+	size_t used = strlen(text);
+	for (unsigned i = 0; i < 40; ++i) {
+		int count = snprintf(text + used, sizeof(text) - used, "CTerm Debug: record %u\n", i);
+		CHECK(count > 0 && (size_t)count < sizeof(text) - used);
+		used += (size_t)count;
+	}
+	CHECK(snprintf(text + used, sizeof(text) - used, "LATEST LOG RECORD\n") > 0);
+	struct session_log_fixture fixture = {.text = text};
+	st_font_catalog_t *fonts = NULL;
+	st_cterm_t *cterm = NULL;
+	st_wren_connected_t *connected = NULL;
+	CHECK(st_font_catalog_create(&fonts, console) == 0);
+	const struct st_cterm_config terminal_config = {
+		.console = console, .fonts = fonts,
+		.emulation = ST_CTERM_ANSI_BBS, .encoding = ST_CTERM_ENCODING_UTF8,
+		.codepage = ST_CODEPAGE_CP437, .quiet = true,
+	};
+	CHECK(st_cterm_create(&cterm, &terminal_config) == 0);
+	const struct st_wren_connected_config config = {
+		.host = host, .console = console, .profile = profile, .cterm = cterm,
+		.session_log = session_log_snapshot, .session_log_context = &fixture,
+	};
+	CHECK(st_wren_connected_create(&connected, &config) == 0);
+	CHECK(st_wren_connected_interpret(connected, "session_log_contract",
+	    "import \"syncterm\" for Conn, Input\n"
+	    "import \"session_log\" for SessionLogView\n"
+	    "import \"ui_markdown\" for Markdown, MdBlockKind, MdRole\n"
+	    "var SavedMouse = Input.mouseEvents\n"
+	    "if (!Conn.sessionLog.startsWith(\"OLDEST LOG RECORD\")) Fiber.abort(\"log snapshot\")\n"
+	    "var literal = \"**literal** `code` \\\\path\\n# heading\\n: definition\"\n"
+	    "var doc = Markdown.parse(SessionLogView.body_(literal))\n"
+	    "for (block in doc) {\n"
+	    "  if (block.kind != MdBlockKind.bullet) Fiber.abort(\"log block markup\")\n"
+	    "  for (run in block.runs) if (run.role != MdRole.text) Fiber.abort(\"log inline markup\")\n"
+	    "}\n"
+	    "if (doc.map {|b| b.runs.map {|r| r.text }.join() }.join(\"\\n\") != literal) Fiber.abort(\"log literal text\")\n") == 0);
+	uint32_t width, height;
+	CHECK(st_console_size(console, &width, &height) == 0);
+	const struct st_console_rect full = {0, 0, width, height};
+	size_t bytes = (size_t)width * height * sizeof(struct st_console_cell);
+	struct st_console_cell *before = malloc(bytes), *after = malloc(bytes);
+	CHECK(before != NULL && after != NULL);
+	CHECK(st_console_read_cells(console, &full, before, width) == 0);
+	bool claimed;
+	CHECK(st_wren_connected_handle_key(connected, 0x2f00, &claimed) == 0 && claimed);
+	CHECK(st_wren_connected_interpret(connected, "session_log_visible",
+	    "import \"syncterm\" for CTerm, Screen\n"
+	    "var size = Screen.size\n"
+	    "var text = Screen.readRect(1, 1, size[0], size[1]).map {|c| c.ch }.join()\n"
+	    "if (!CTerm.suspended || !text.contains(\"Session Log\") || !text.contains(\"LATEST LOG RECORD\")) Fiber.abort(\"Alt-V log viewer\")\n") == 0);
+	CHECK(session_log_key(connected, ST_CONSOLE_KEY_HOME) == 0);
+	CHECK(st_wren_connected_interpret(connected, "session_log_oldest",
+	    "import \"syncterm\" for Screen\n"
+	    "var size = Screen.size\n"
+	    "if (!Screen.readRect(1, 1, size[0], size[1]).map {|c| c.ch }.join().contains(\"OLDEST LOG RECORD\")) Fiber.abort(\"log Home\")\n") == 0);
+	CHECK(session_log_key(connected, ST_CONSOLE_KEY_END) == 0);
+	CHECK(session_log_key(connected, 27) == 0);
+	CHECK(st_console_read_cells(console, &full, after, width) == 0);
+	CHECK(memcmp(before, after, bytes) == 0);
+	CHECK(st_wren_connected_interpret(connected, "session_log_restored",
+	    "import \"syncterm\" for Input, CTerm\n"
+	    "import \"session_log_contract\" for SavedMouse\n"
+	    "if (CTerm.suspended || Input.mouseEvents != SavedMouse) Fiber.abort(\"log restoration\")\n") == 0);
+	/* Select the advertised entry through the actual Alt-Z menu. */
+	CHECK(st_wren_connected_interpret(connected, "session_log_menu",
+	    "import \"online_menu\" for OnlineMenu\n"
+	    "var labels = OnlineMenu.entries_().map {|e| e[0] }.toList\n"
+	    "var entries = labels.where {|label| label.startsWith(\"View Session Log\") }.toList\n"
+	    "if (entries.count != 1) Fiber.abort(\"online log entry\")\n") == 0);
+	CHECK(st_wren_connected_handle_key(connected, 0x2c00, &claimed) == 0 && claimed);
+	const struct st_console_event select_log = {
+		.type = ST_CONSOLE_EVENT_TEXT, .data.text.codepoint = 'v',
+	};
+	CHECK(st_wren_connected_handle_event(connected, &select_log, &claimed) == 0 && claimed);
+	CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(session_log_key(connected, 13) == 0);
+	CHECK(st_wren_connected_interpret(connected, "session_log_menu_visible",
+	    "import \"syncterm\" for Screen\n"
+	    "var size = Screen.size\n"
+	    "if (!Screen.readRect(1, 1, size[0], size[1]).map {|c| c.ch }.join().contains(\"LATEST LOG RECORD\")) Fiber.abort(\"online log viewer\")\n") == 0);
+	CHECK(session_log_key(connected, 27) == 0);
+	fixture.text = "";
+	CHECK(st_wren_connected_handle_key(connected, 0x2f00, &claimed) == 0 && claimed);
+	CHECK(st_wren_connected_interpret(connected, "session_log_empty",
+	    "import \"syncterm\" for Screen\n"
+	    "var size = Screen.size\n"
+	    "if (!Screen.readRect(1, 1, size[0], size[1]).map {|c| c.ch }.join().contains(\"No session log messages\")) Fiber.abort(\"empty log viewer\")\n") == 0);
+	CHECK(session_log_key(connected, 27) == 0);
+	fixture.fail = true;
+	CHECK(st_wren_connected_interpret(connected, "session_log_failure",
+	    "import \"syncterm\" for Conn\nvar snapshot = Conn.sessionLog\n") != 0);
+	free(before);
+	free(after);
+	st_wren_connected_destroy(connected);
+	st_cterm_destroy(&cterm);
+	st_font_catalog_destroy(fonts);
+	return 0;
 }
 
 #if !SYNCTERM_PLATFORM_WINDOWS
@@ -4714,6 +4845,7 @@ main(int argc, char **argv)
 		CHECK(exercise_connected_profile_scripts(host, console, &selected,
 		    scripts) == 0);
 		CHECK(exercise_connected_without_sftp(host, console, &selected) == 0);
+		CHECK(exercise_connected_session_log(host, console, &selected) == 0);
 		CHECK(exercise_connected_link_hover(host, console, &selected) == 0);
 #if !SYNCTERM_PLATFORM_WINDOWS
 		CHECK(exercise_connected_throttle(host, console) == 0);

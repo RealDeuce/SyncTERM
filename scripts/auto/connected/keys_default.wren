@@ -7,6 +7,12 @@ import "scrollback_view" for ScrollbackView
 import "music_menu" for MusicMenu
 import "capture_menu" for CaptureMenu
 import "font_pick" for FontApp
+import "session_log" for SessionLogView
+
+Hook.onKey(Key.altV) { |key|
+  SessionLogView.run()
+  return true
+}
 
 Hook.onKey(Key.altX) { |key|
   DisconnectFlow.run(true)

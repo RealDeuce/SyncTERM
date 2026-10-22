@@ -1322,6 +1322,8 @@ st_wren_connected_create(st_wren_connected_t **result,
 	connected->context.transfer_log_level = config->profile->transfer_log_level;
 	connected->context.transfer_log = config->transfer_log;
 	connected->context.transfer_log_context = config->transfer_log_context;
+	connected->context.session_log = config->session_log;
+	connected->context.session_log_context = config->session_log_context;
 	connected->context.cterm = config->cterm;
 	connected->context.connection = config->connection;
 	connected->context.session = config->session;

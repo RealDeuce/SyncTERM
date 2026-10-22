@@ -45,6 +45,10 @@ struct st_wren_connected_config {
 	 * independent connection-hook threshold. */
 	void (*transfer_log)(void *context, int level, const char *message);
 	void *transfer_log_context;
+	/* Optional application-owned current-session log. On success return a
+	 * malloc-owned UTF-8 snapshot (empty is allowed), freed by the binding. */
+	int (*session_log)(void *context, char **text);
+	void *session_log_context;
 };
 
 struct st_wren_host_config {

@@ -9,6 +9,7 @@ import "capture_menu" for CaptureMenu
 import "font_pick" for FontApp
 import "scrollback_view" for ScrollbackView
 import "wren_console" for WrenConsole
+import "session_log" for SessionLogView
 
 class OnlineMenu {
   static logLevel_() {
@@ -45,6 +46,7 @@ class OnlineMenu {
       ["Font Setup", Fn.new { FontApp.run() }],
       ["Output Rate", Fn.new { outputRate_() }],
       ["Log Level", Fn.new { logLevel_() }],
+      ["View Session Log (%(Host.altKeyShort)-V)", Fn.new { SessionLogView.run() }],
       ["Toggle Doorway Mode", Fn.new {
         CTerm.doorwayMode = !CTerm.doorwayMode
       }],

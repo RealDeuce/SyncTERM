@@ -45,6 +45,7 @@ check_profile_runtime(const struct st_wren_host_config *base,
 	    "if (CTerm.music != 2 || !CTerm.lastColumnFlag.forced || !CTerm.hasPaletteOverride || CTerm.paletteOverride[6] != 66051) Fiber.abort(\"presentation options\")\n"
 	    "if (BBS.calls != 6 || BBS.connected <= 0 || Host.logLevel != 7 || BBS.ctermLogLevel != 7 || BBS.wrenScripts.count != 1) Fiber.abort(\"session options\")\n"
 	    "CTerm.write(\"\\U0010ffff\\n\")\n"
+	    "if (!Conn.sessionLog.contains(\"CTerm Debug: Missing glyph (.noglyph)\")) Fiber.abort(\"session log snapshot\")\n"
 	    "Conn.send(\"X\\n\")\n", file) >= 0);
 	CHECK(fclose(file) == 0);
 	config.safe_mode = false;
@@ -102,6 +103,7 @@ check_profile_runtime(const struct st_wren_host_config *base,
 	CHECK(st_bbs_list_find(list, "Options")->profile->calls == 6);
 	st_bbs_list_close(list);
 	st_mutex_destroy(&ui.log_mutex);
+	free(ui.log);
 	/* Failed attempts still own/close their log, but do not count calls. */
 	profile.connection_type = ST_CONNECTION_UNKNOWN;
 	CHECK(run_selected(host, display, console, &profile, paths, NULL,
@@ -126,6 +128,50 @@ check_profile_runtime(const struct st_wren_host_config *base,
 	st_profile_dispose(&profile);
 	st_wren_host_destroy(host);
 	CHECK(fs_remove_file(ST_APP_SESSION_TEST_DIRECTORY "/scripts/entry_options.wren") == 0);
+	return 0;
+}
+
+static int
+check_session_log(void)
+{
+	struct st_profile profile;
+	st_profile_init(&profile);
+	struct connection_ui ui = {.profile = &profile};
+	char *snapshot = NULL, *next = NULL;
+	CHECK(st_mutex_init(&ui.log_mutex, ST_MUTEX_PLAIN) == ST_THREAD_SUCCESS);
+	CHECK(connection_log_snapshot(&ui, &snapshot) == 0 && snapshot[0] == '\0');
+	free(snapshot);
+	connection_log(&ui, ST_CONNECTION_LOG_INFO, "SSH", "hidden");
+	connection_cterm_log(&ui, ST_CTERM_LOG_DEBUG, "hidden");
+	CHECK(ui.log_size == 0 && ui.log_file == NULL);
+	connection_log(&ui, ST_CONNECTION_LOG_ERROR, "SSH", "protocol fixture");
+	connection_cterm_log(&ui, ST_CTERM_LOG_ERROR, "CTerm fixture");
+	connection_transfer_log(&ui, ST_PROFILE_LOG_INFO, "**literal** `code` \\path");
+	CHECK(connection_log_snapshot(&ui, &snapshot) == 0);
+	CHECK(strstr(snapshot, "SSH Error: protocol fixture\n") != NULL);
+	CHECK(strstr(snapshot, "CTerm Error: CTerm fixture\n") != NULL);
+	CHECK(strstr(snapshot, "Transfer Info: **literal** `code` \\path\n") != NULL);
+	connection_cterm_log(&ui, ST_CTERM_LOG_ERROR, "next\033record");
+	CHECK(connection_log_snapshot(&ui, &next) == 0);
+	CHECK(strstr(next, "next?record") != NULL && strstr(snapshot, "next?record") == NULL);
+	free(snapshot);
+	free(next);
+	/* A full buffer must keep complete recent records and accept new ones. */
+	char record[1024];
+	memset(record, 'a', sizeof(record) - 1);
+	record[sizeof(record) - 1] = '\0';
+	for (unsigned i = 0; i < 1100; ++i)
+		connection_cterm_log(&ui, ST_CTERM_LOG_ERROR, record);
+	connection_cterm_log(&ui, ST_CTERM_LOG_ERROR, "latest fixture");
+	CHECK(connection_log_snapshot(&ui, &snapshot) == 0);
+	CHECK(strlen(snapshot) <= 1024U * 1024U);
+	CHECK(strncmp(snapshot, "CTerm Error: ", 13) == 0);
+	CHECK(strstr(snapshot, "protocol fixture") == NULL);
+	CHECK(strstr(snapshot, "CTerm Error: latest fixture\n") != NULL);
+	free(snapshot);
+	free(ui.log);
+	st_mutex_destroy(&ui.log_mutex);
+	st_profile_dispose(&profile);
 	return 0;
 }
 
@@ -323,6 +369,7 @@ main(void)
 	FILE *file;
 
 	CHECK(check_connection_help() == 0);
+	CHECK(check_session_log() == 0);
 	CHECK(fs_create_directories(ST_APP_SESSION_TEST_DIRECTORY) == 0);
 	file = fopen(paths.settings_file, "wb");
 	CHECK(file != NULL);

@@ -266,13 +266,68 @@ connection_log_close(struct connection_ui *ui)
 }
 
 static void
+connection_log_append(struct connection_ui *ui, char *line, size_t length)
+{
+	const size_t limit = 1024U * 1024U;
+	size_t drop = 0;
+	/* The caller holds log_mutex. Keep whole recent lines so a busy
+	 * debug session does not freeze the viewer at its first megabyte. */
+	for (size_t i = 0; i < length; ++i)
+		if ((unsigned char)line[i] < 32 && line[i] != '\n' && line[i] != '\t') line[i] = '?';
+	if (length > limit) return;
+	if (ui->log_size > limit - length) {
+		drop = ui->log_size - (limit - length);
+		const char *end = memchr(ui->log + drop, '\n', ui->log_size - drop);
+		drop = end == NULL ? ui->log_size : (size_t)(end - ui->log) + 1;
+	}
+	size_t needed = ui->log_size - drop + length + 1;
+	if (needed > ui->log_capacity) {
+		size_t capacity = ui->log_capacity == 0 ? 4096 : ui->log_capacity;
+		while (capacity < needed) capacity *= 2;
+		if (capacity > limit + 1) capacity = limit + 1;
+		char *next = realloc(ui->log, capacity);
+		if (next == NULL) return;
+		ui->log = next;
+		ui->log_capacity = capacity;
+	}
+	if (drop != 0) {
+		memmove(ui->log, ui->log + drop, ui->log_size - drop);
+		ui->log_size -= drop;
+	}
+	memcpy(ui->log + ui->log_size, line, length);
+	ui->log_size += length;
+	ui->log[ui->log_size] = '\0';
+}
+
+static int
+connection_log_snapshot(void *context, char **text)
+{
+	struct connection_ui *ui = context;
+	(void)st_mutex_lock(&ui->log_mutex);
+	char *copy = strdup(ui->log == NULL ? "" : ui->log);
+	(void)st_mutex_unlock(&ui->log_mutex);
+	if (copy == NULL) return IO_ERROR_OUT_OF_MEMORY;
+	*text = copy;
+	return 0;
+}
+
+static void
 connection_transfer_log(void *context, int level, const char *message)
 {
 	struct connection_ui *ui = context;
-	(void)level; /* The connected VM applies the live transfer threshold. */
+	static const char *const names[] = {
+		"Emergency", "Alert", "Critical", "Error", "Warning", "Notice", "Info", "Debug",
+	};
+	char line[2048];
+	/* The connected VM applies the live transfer threshold. */
+	int count = snprintf(line, sizeof(line), "Transfer %s: %s\n",
+	    (unsigned)level < sizeof(names) / sizeof(names[0]) ? names[level] : "Info",
+	    message == NULL ? "" : message);
 	(void)st_mutex_lock(&ui->log_mutex);
 	if (ui->log_file != NULL && !connection_log_stamp(ui->log_file, message))
 		fprintf(stderr, "SyncTERM: unable to write transfer log\n");
+	if (count > 0)
+		connection_log_append(ui, line, (size_t)count < sizeof(line) ? (size_t)count : sizeof(line) - 1);
 	(void)st_mutex_unlock(&ui->log_mutex);
 }
 
@@ -299,23 +354,7 @@ connection_log_message(struct connection_ui *ui, const char *source,
 	(void)st_mutex_lock(&ui->log_mutex);
 	if (ui->log_file != NULL && fwrite(line, 1, length, ui->log_file) != length)
 		fprintf(stderr, "SyncTERM: unable to write session log\n");
-	if (ui->log_size < 1024U * 1024U) {
-		size_t remaining = 1024U * 1024U - ui->log_size;
-		if (length > remaining) length = remaining;
-		size_t needed = ui->log_size + length + 1;
-		if (needed > ui->log_capacity) {
-			size_t capacity = ui->log_capacity == 0 ? 4096 : ui->log_capacity;
-			while (capacity < needed) capacity *= 2;
-			if (capacity > 1024U * 1024U + 1) capacity = 1024U * 1024U + 1;
-			char *next = realloc(ui->log, capacity);
-			if (next != NULL) { ui->log = next; ui->log_capacity = capacity; }
-		}
-		if (needed <= ui->log_capacity) {
-			memcpy(ui->log + ui->log_size, line, length);
-			ui->log_size += length;
-			ui->log[ui->log_size] = '\0';
-		}
-	}
+	connection_log_append(ui, line, length);
 	(void)st_mutex_unlock(&ui->log_mutex);
 }
 
@@ -715,6 +754,8 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 			.status_enabled = !profile->hide_status,
 			.transfer_log = connection_transfer_log,
 			.transfer_log_context = &connection_ui,
+			.session_log = connection_log_snapshot,
+			.session_log_context = &connection_ui,
 		};
 
 		status = st_wren_connected_create(&connected, &wren_config);

@@ -816,7 +816,7 @@ The currently embedded scripts are:
   selection but sends button clicks to the remote; other tracking
   modes leave the gestures to the remote.  Alt+B opens the
   scrollback viewer; Alt+C delegates to `CaptureMenu.run`; Alt+M
-  delegates to `MusicMenu.run`.
+  delegates to `MusicMenu.run`; Alt+V opens `SessionLogView.run`.
 
 | `disconnect_flow`
 | auto / connected
@@ -840,6 +840,14 @@ The currently embedded scripts are:
   in `keys_default` and the "ANSI Music Control" entry in
   `online_menu`.
 
+| `session_log`
+| auto / connected
+| `SessionLogView.run()` — current-session diagnostic viewer, reached by
+  Alt+V or View Session Log in the Online Menu. Opens at the newest record;
+  arrows, PageUp/PageDown, Home/End, and the mouse wheel scroll the snapshot.
+  Long records wrap, and log text is displayed literally. Escape returns
+  to the terminal with its screen and input state restored.
+
 | `online_menu`
 | auto / connected
 | `OnlineMenu.run()` — the SyncTERM "Online Menu" reached via
@@ -849,7 +857,8 @@ The currently embedded scripts are:
   (`Conn.scrollback`, `Conn.upload`, `Conn.download`, `CaptureMenu.run`,
   `MusicMenu.run`, ...).  The Output Rate and Log Level entries chain
   into a sub-list before closing, and the Wren Console entry opens the
-  connected VM's REPL.  Disconnect / Exit selections call
+  connected VM's REPL. View Session Log opens the same diagnostic viewer
+  as Alt+V. Disconnect / Exit selections call
   `Conn.endSession` directly — no Confirm popup, since selecting the
   entry IS the confirmation.
 
@@ -3766,6 +3775,15 @@ Connection-level send and receive.
   and local shell sessions record setup, lifecycle, and errors. Terminal
   traffic and sensitive setup values are not retained. The final snapshot
   remains available to `Hook.onDisconnect` handlers after transport teardown.
+
+| `Conn.sessionLog`
+| A String snapshot of the current application's session log, including
+  protocol, CTerm, and transfer messages accepted by their respective log
+  levels. It is independent of the optional log filename and contains only
+  this connection's diagnostics. The application retains up to 1 MiB of
+  recent records, discarding whole old lines when needed. An empty log is
+  `""`; hosts without a session-log provider return `null`. This is separate
+  from the Wren print/error console. Reopening the viewer takes a new snapshot.
 
 | `Conn.pending`
 | Bytes available to read right now (in the inbuf ring).

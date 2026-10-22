@@ -197,6 +197,8 @@ struct st_wren_context {
 	int transfer_log_level;
 	void (*transfer_log)(void *context, int level, const char *message);
 	void *transfer_log_context;
+	int (*session_log)(void *context, char **text);
+	void *session_log_context;
 	st_cterm_t *cterm;
 	struct st_connection *connection;
 	struct st_term_session *session;

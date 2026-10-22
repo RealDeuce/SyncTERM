@@ -453,6 +453,23 @@ fn_bbs_wren_scripts(WrenVM *vm)
 }
 
 static void
+fn_conn_session_log(WrenVM *vm)
+{
+	struct st_wren_context *context = st_wren_context_from_vm(vm);
+	char *text = NULL;
+	if (context->session_log == NULL) {
+		wrenSetSlotNull(vm, 0);
+		return;
+	}
+	int status = context->session_log(context->session_log_context, &text);
+	if (status != 0 || text == NULL)
+		st_wren_abort(vm, "Unable to copy session log");
+	else
+		wrenSetSlotString(vm, 0, text);
+	free(text);
+}
+
+static void
 fn_conn_elapsed_seconds(WrenVM *vm)
 {
 	struct st_wren_context *context = st_wren_context_from_vm(vm);
@@ -1220,6 +1237,7 @@ static const struct session_binding bindings[] = {
 	{"BBS", "connTypeName", fn_bbs_conn_type_name},
 	{"BBS", "bpsRate", fn_bbs_bps_rate},
 	{"Conn", "elapsedSeconds", fn_conn_elapsed_seconds},
+	{"Conn", "sessionLog", fn_conn_session_log},
 	{"Capture", "active", fn_capture_active},
 	{"Capture", "paused", fn_capture_paused},
 	{"Capture", "start(_,_)", fn_capture_start},
