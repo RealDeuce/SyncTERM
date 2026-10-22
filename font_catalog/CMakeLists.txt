@@ -18,7 +18,7 @@ endif()
 
 if(BUILD_TESTING)
 	add_executable(st_font_catalog_test tests/st_font_catalog_test.c)
-	target_link_libraries(st_font_catalog_test PRIVATE st_font_catalog)
+	target_link_libraries(st_font_catalog_test PRIVATE st_font_catalog st_fonts)
 	set_target_properties(st_font_catalog_test PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
 		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)

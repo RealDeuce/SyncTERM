@@ -12,3 +12,9 @@ catalog: selectors 0 through 45, every available 8x8, 8x14, 8x16, and 12x20
 bitmap, and the corresponding Unicode mappings. This is project-owned data
 carried forward from the legacy `conio/allfonts.c` and
 `conio/utf8_codepages.c`, not generated external data.
+
+When the catalog registers an 8x8 or 8x14 built-in font, it appends the
+presentation font's narrow and wide missing-glyph boxes and decode-error
+glyph. The original 256 byte glyphs and their mappings keep their indexes.
+This supplies tofu even when the startup font in console slot zero has a
+different height.

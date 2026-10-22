@@ -8,6 +8,8 @@
 #include "st_font_catalog.h"
 
 #include "io_error.h"
+#include "st_builtin_fonts.h"
+#include "st_pixels.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,9 +22,75 @@
 	} \
 } while (0)
 
+static int
+check_small_font_tofu(uint32_t height)
+{
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config config = {
+		.columns = 4, .rows = 1, .cell_width = 8, .cell_height = height,
+	};
+	st_console_t *console = NULL;
+	st_font_catalog_t *catalog = NULL;
+	struct st_console_font font;
+	uint16_t identifier, owner;
+	uint32_t glyph;
+	uint8_t columns;
+	CHECK(st_console_create(&console, &display, &config) == 0);
+	/* Mode changes retain the startup font in slot zero, so exercise an
+	 * incompatible 8x16 fallback rather than another small font. */
+	CHECK(st_builtin_font_get(0, 8, 16, &font));
+	CHECK(st_console_register_static_font(console, &font, &identifier) == 0 && identifier == 0);
+	CHECK(st_font_catalog_create(&catalog, console) == 0);
+	for (size_t selector = 0; selector < st_builtin_font_count(); ++selector) {
+		if (!st_builtin_font_get(selector, 8, height, &font)) continue;
+		CHECK(st_font_catalog_identifier(catalog, (uint8_t)selector, &identifier));
+		/* The original byte glyphs and their Unicode mappings retain indexes. */
+		for (size_t i = 0; i < font.mapping_count; ++i) {
+			if (font.mapping[i].codepoint != 'A') continue;
+			CHECK(st_console_font_lookup(console, identifier, 'A', &owner, &glyph, &columns) == 0);
+			CHECK(owner == identifier && glyph == font.mapping[i].glyph && columns == 1);
+			break;
+		}
+		bool missing = false;
+		CHECK(st_console_font_lookup_cluster_ex(console, identifier,
+		    "\xf4\x8f\xbf\xbf", 4, 1, &owner, &glyph, &missing) == 0);
+		CHECK(owner == identifier && missing && glyph >= 256);
+		CHECK(st_console_font_lookup(console, identifier, UINT32_C(0x20000),
+		    &owner, &glyph, &columns) == 0);
+		CHECK(owner == identifier && columns == 2 && glyph >= 256);
+		struct st_console_style style;
+		CHECK(st_console_get_style(console, &style) == 0);
+		style.font = identifier;
+		style.foreground = ST_CONSOLE_COLOR_RGB_VALUE(255, 255, 255);
+		style.background = ST_CONSOLE_COLOR_RGB_VALUE(0, 0, 0);
+		CHECK(st_console_set_style(console, &style) == 0);
+		CHECK(st_console_set_position(console, 0, 0) == 0);
+		CHECK(st_console_write_utf8(console, "\xf4\x8f\xbf\xbf\xf0\xa0\x80\x80", 8) == 0);
+		const struct st_console_rect area = {0, 0, 24, height};
+		struct st_pixel_buffer *pixels = NULL;
+		CHECK(st_console_get_pixels(&pixels, console, &area, false) == 0);
+		/* Both the narrow and double-cell tofu must have visible box edges
+		 * and an unfilled interior, not a question mark or solid block. */
+		for (uint32_t y = 0; y < height; ++y) {
+			for (uint32_t x = 0; x < 24; ++x) {
+				if (x == 0 || x == 7 || x == 8 || x == 23 || y == 0 || y == height - 1)
+					CHECK(pixels->primary[(size_t)y * 24 + x] == style.foreground);
+			}
+		}
+		CHECK(pixels->primary[24 + 6] == style.background);
+		CHECK(pixels->primary[24 + 12] == style.background);
+		st_pixel_buffer_destroy(pixels);
+	}
+	st_font_catalog_destroy(catalog);
+	st_console_destroy(console);
+	return 0;
+}
+
 int
 main(void)
 {
+	CHECK(check_small_font_tofu(8) == 0);
+	CHECK(check_small_font_tofu(14) == 0);
 	const struct st_console_display_config display = {
 		.backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};

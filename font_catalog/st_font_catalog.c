@@ -10,6 +10,7 @@
 #include "filesystem.h"
 #include "io_error.h"
 #include "st_builtin_fonts.h"
+#include "st_presentation_font.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -46,7 +47,18 @@ st_font_catalog_create(st_font_catalog_t **result, st_console_t *console)
 
 		if (!st_builtin_font_get(selector, width, height, &font))
 			continue;
-		status = st_console_register_static_font(console, &font, &identifier);
+		if (width == 8 && (height == 8 || height == 14)) {
+			struct st_presentation_font presentation = {0};
+			/* Font zero may still have the startup mode's cell height.
+			 * Give small fonts their own size-matched missing glyphs. */
+			status = st_presentation_font_create(&presentation, &font);
+			if (status == 0)
+				status = st_console_register_font_copy(console,
+				    &presentation.font, &identifier);
+			st_presentation_font_destroy(&presentation);
+		}
+		else
+			status = st_console_register_static_font(console, &font, &identifier);
 		if (status != 0) {
 			free(catalog);
 			return status;
