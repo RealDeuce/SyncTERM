@@ -30,6 +30,9 @@ struct st_term_session {
 	uint32_t throttle_bps;
 	uint64_t throttle_last_ms;
 	uint64_t throttle_credit;
+	uint8_t wire_pending[4096];
+	size_t wire_position;
+	size_t wire_size;
 };
 
 static enum st_cterm_emulation
@@ -758,10 +761,9 @@ int
 st_term_session_pump(st_term_session_t *session,
 	enum st_term_disposition *disposition, bool *finished)
 {
-	uint8_t bytes[4096];
 	struct st_console_event event;
 	ssize_t received = IO_ERROR_WOULD_BLOCK;
-	size_t read_size = sizeof(bytes);
+	size_t read_size = sizeof(session->wire_pending);
 	int status;
 
 	if (session == NULL || disposition == NULL || finished == NULL)
@@ -807,22 +809,22 @@ st_term_session_pump(st_term_session_t *session,
 		}
 		session->throttle_last_ms = now;
 		/* Idling does not bank a burst for the next remote write. */
-		if (st_connection_pending_raw(session->config.connection) == 0
+		if (session->wire_position == session->wire_size
+		    && st_connection_pending_raw(session->config.connection) == 0
 		    && session->throttle_credit > UINT64_C(10000))
 			session->throttle_credit = UINT64_C(10000);
 		read_size = (size_t)(session->throttle_credit / UINT64_C(10000));
-		if (read_size > sizeof(bytes))
-			read_size = sizeof(bytes);
+		if (read_size > sizeof(session->wire_pending))
+			read_size = sizeof(session->wire_pending);
 	}
-	if (!session->suspended && read_size != 0) {
-		received = st_connection_receive(session->config.connection, bytes,
+	if (!session->suspended && read_size != 0
+	    && session->wire_position == session->wire_size) {
+		received = st_connection_receive(session->config.connection, session->wire_pending,
 		    read_size, 20);
-		if (received > 0 && session->throttle_bps != 0)
-			session->throttle_credit -= (uint64_t)received
-			    * UINT64_C(10000);
 	}
-	else if (!session->suspended
-	    && st_connection_is_connected(session->config.connection)) {
+	else if (!session->suspended && read_size == 0
+	    && (st_connection_is_connected(session->config.connection)
+	    || session->wire_position < session->wire_size)) {
 		const struct timespec pause = {.tv_nsec = 10000000L};
 
 		(void)st_thread_sleep(&pause, NULL);
@@ -835,9 +837,25 @@ st_term_session_pump(st_term_session_t *session,
 		return (int)received;
 	}
 	if (received > 0) {
-		status = write_wire_filtered(session, bytes, (size_t)received);
+		session->wire_position = 0;
+		session->wire_size = (size_t)received;
+	}
+	/* A receive can contain both DECSCS transitions and their intervening
+	 * output. Pace presentation in wire order, retaining bytes already
+	 * received when a command enables throttling partway through them. */
+	while (!session->suspended && session->wire_position < session->wire_size) {
+		size_t count = session->config.throttle_supported ? 1
+		    : session->wire_size - session->wire_position;
+		if (session->throttle_bps != 0) {
+			if (session->throttle_credit < UINT64_C(10000))
+				break;
+			session->throttle_credit -= UINT64_C(10000);
+		}
+		status = write_wire_filtered(session,
+		    session->wire_pending + session->wire_position, count);
 		if (status != 0)
 			return status;
+		session->wire_position += count;
 	}
 	if (received == 0 && session->auxiliary_active) {
 		const struct timespec pause = {.tv_nsec = 10000000L};
@@ -859,6 +877,7 @@ st_term_session_pump(st_term_session_t *session,
 		return status;
 	if (!session->suspended
 	    && !st_connection_is_connected(session->config.connection)
+	    && session->wire_position == session->wire_size
 	    && st_connection_pending_raw(session->config.connection) == 0) {
 		session->remote_closed = true;
 		status = st_connection_process_requests(session->config.connection);

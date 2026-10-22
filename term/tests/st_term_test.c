@@ -11,6 +11,7 @@
 #include "st_pixels.h"
 #include "cterm.h"
 #include "cterm_apc.h"
+#include "st_time.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -365,6 +366,59 @@ check_speed_reply(st_cterm_t *terminal, unsigned code)
 	terminal->api_output_context = saved_context;
 	CHECK(response.size == (size_t)length);
 	CHECK(memcmp(response.bytes, expected, response.size) == 0);
+	return 0;
+}
+
+static int
+test_remote_speed_transition(enum st_cterm_encoding encoding, bool close_early)
+{
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config geometry = {
+		.columns = 80, .rows = 25, .cell_width = 8, .cell_height = 16,
+	};
+	st_console_t *console = NULL;
+	st_connection_t *connection = NULL;
+	st_font_catalog_t *fonts = NULL;
+	st_term_session_t *session = NULL;
+	struct st_profile profile;
+	struct speed_response response = {0};
+	CHECK(st_console_create(&console, &display, &geometry) == 0);
+	CHECK(st_font_catalog_create(&fonts, console) == 0);
+	st_profile_init(&profile);
+	profile.connection_type = ST_CONNECTION_SHELL;
+	profile.screen_mode = ST_SCREEN_MODE_80X25;
+	/* One write contains both speed changes and termtest's thirty NULs. */
+	int command_size = snprintf(profile.address, sizeof(profile.address),
+	    "printf '\\33[;1*r%%030d\\33[*r\\33[6n'|tr 0 '\\0'%s",
+	    close_early ? "" : "; sleep 3");
+	CHECK(command_size > 0 && (size_t)command_size < sizeof(profile.address));
+	CHECK(st_term_connect_profile(&connection, &profile, console, NULL, NULL) == 0);
+	const struct st_term_config config = {
+		.console = console, .connection = connection, .fonts = fonts,
+		.screen_mode = ST_SCREEN_MODE_80X25, .encoding = encoding,
+		.codepage = ST_CODEPAGE_CP437, .hide_status = true,
+		.throttle_supported = true,
+	};
+	CHECK(st_term_session_create(&session, &config) == 0);
+	st_cterm_t *terminal = st_term_session_cterm(session);
+	terminal->api_output = capture_speed_response;
+	terminal->api_output_context = &response;
+	uint64_t start, now;
+	CHECK(st_time_monotonic_ms(&start) == 0);
+	do {
+		enum st_term_disposition disposition;
+		bool finished;
+		CHECK(st_term_session_pump(session, &disposition, &finished) == 0);
+		CHECK(!finished || (close_early && response.size != 0));
+		CHECK(st_time_monotonic_ms(&now) == 0);
+	} while (response.size == 0 && now - start < 5000);
+	CHECK(response.size != 0 && now - start >= 800);
+	CHECK(st_term_session_throttle_speed(session) == 0);
+	st_term_session_destroy(&session);
+	CHECK(st_connection_close(connection) == 0);
+	st_profile_dispose(&profile);
+	st_font_catalog_destroy(fonts);
+	st_console_destroy(console);
 	return 0;
 }
 
@@ -951,6 +1005,10 @@ main(void)
 	CHECK(test_shell_wire_filter() == 0);
 	CHECK(test_shell_throttle(ST_CTERM_ENCODING_UTF8) == 0);
 	CHECK(test_shell_throttle(ST_CTERM_ENCODING_CODEPAGE) == 0);
+	CHECK(test_remote_speed_transition(ST_CTERM_ENCODING_UTF8, false) == 0);
+	CHECK(test_remote_speed_transition(ST_CTERM_ENCODING_CODEPAGE, false) == 0);
+	CHECK(test_remote_speed_transition(ST_CTERM_ENCODING_UTF8, true) == 0);
+	CHECK(test_remote_speed_transition(ST_CTERM_ENCODING_CODEPAGE, true) == 0);
 	CHECK(test_shell_utf8_boundary() == 0);
 	CHECK(test_remote_disconnect() == 0);
 	CHECK(test_shell_rip_profile() == 0);

@@ -251,6 +251,7 @@ struct cterminal {
 	bool				suppress_translated_keys;
 	uint8_t				pk_reported[CTERM_PK_MAX_EVDEV / 8];
 	int					cursor;			// Current cursor mode (Normal or None)
+	int					cursor_style;	/* DECSCUSR 1..4, or 0 for the configured default. */
 	char				*fg_tc_str;
 	char				*bg_tc_str;
 	int					*tabs;

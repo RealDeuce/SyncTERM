@@ -151,7 +151,6 @@ st_console_set_cursor(st_console_t *console, bool visible,
 		return IO_ERROR_IO;
 	cursor = console->default_cursor;
 	cursor.visible = visible;
-	cursor.blink = true;
 	if (shape == ST_CONSOLE_CURSOR_BLOCK) {
 		cursor.start = 0;
 		cursor.end = cursor.range - 1;
@@ -280,7 +279,6 @@ st_console_get_custom_cursor(st_console_t *console,
 	else {
 		*cursor = console->default_cursor;
 		cursor->visible = console->cursor_visible;
-		cursor->blink = true;
 		if (console->cursor_shape == ST_CONSOLE_CURSOR_BLOCK) {
 			cursor->start = 0;
 			cursor->end = cursor->range - 1;

@@ -24,7 +24,7 @@ struct phase {
 
 static void
 check_mode(enum st_console_blink_mode mode, const struct phase *phases,
-	size_t count)
+	size_t count, bool steady)
 {
 	const struct st_console_display_config display = {
 		.backend = ST_CONSOLE_BACKEND_HEADLESS,
@@ -54,11 +54,15 @@ check_mode(enum st_console_blink_mode mode, const struct phase *phases,
 	console->cursor_y = 0;
 	console->cursor_visible = true;
 	console->blink_mode = mode;
+	if (steady) {
+		console->cursor_custom = true;
+		console->custom_cursor.blink = false;
+	}
 	CHECK(st_console_bitmap_presenter_create(&presenter, console) == 0);
 	for (size_t i = 0; i < count; ++i) {
 		const st_console_t *source = i == 0 ? console : NULL;
 		uint32_t text = phases[i].alternate ? alternate : primary;
-		uint32_t cursor_pixel = phases[i].cursor ? cursor : text;
+		uint32_t cursor_pixel = (steady || phases[i].cursor) ? cursor : text;
 		CHECK(st_console_bitmap_presenter_frame(presenter, source, 2, 1,
 		    epoch + phases[i].elapsed, NULL, NULL, &frame) == 0);
 		if (i == 0)
@@ -178,15 +182,16 @@ main(void)
 		{1000, false, true},
 	};
 
-	check_mode(ST_CONSOLE_BLINK_PC, pc, sizeof(pc) / sizeof(pc[0]));
+	check_mode(ST_CONSOLE_BLINK_PC, pc, sizeof(pc) / sizeof(pc[0]), false);
+	check_mode(ST_CONSOLE_BLINK_PC, pc, sizeof(pc) / sizeof(pc[0]), true);
 	check_mode(ST_CONSOLE_BLINK_PRESTEL, prestel,
-	    sizeof(prestel) / sizeof(prestel[0]));
+	    sizeof(prestel) / sizeof(prestel[0]), false);
 	check_mode(ST_CONSOLE_BLINK_COMMODORE, commodore,
-	    sizeof(commodore) / sizeof(commodore[0]));
+	    sizeof(commodore) / sizeof(commodore[0]), false);
 	check_mode(ST_CONSOLE_BLINK_ATARI, atari,
-	    sizeof(atari) / sizeof(atari[0]));
+	    sizeof(atari) / sizeof(atari[0]), false);
 	check_mode(ST_CONSOLE_BLINK_ATARI_ST, atari_st,
-	    sizeof(atari_st) / sizeof(atari_st[0]));
+	    sizeof(atari_st) / sizeof(atari_st[0]), false);
 	check_warm_scaled_cache();
 	check_identical_planes_do_not_animate();
 	return EXIT_SUCCESS;

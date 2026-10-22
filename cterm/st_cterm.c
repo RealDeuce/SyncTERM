@@ -2598,6 +2598,7 @@ st_cterm_reset_terminal(st_cterm_t *terminal)
 	if (status != 0)
 		return status;
 	cterm_reset(terminal);
+	cterm_render_set_cursor(terminal, terminal->cursor);
 	if (terminal->rip_engine != NULL) {
 		struct cterm_rip_engine *engine = terminal->rip_engine;
 		struct cterm_rip_parser_sink host = engine->host;

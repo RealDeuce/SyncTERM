@@ -45,53 +45,14 @@
 void
 cterm_handle_decscusr(struct cterminal *cterm, int *speed)	/* CSI SP q */
 {
-	struct st_console_custom_cursor custom = {0};
 	(void)speed;
 	cterm_seq_default(cterm, 0, 1);
-	switch (cterm->seq_param_int[0]) {
-		case 0:
-		case 1:
-		default:
-			cterm->cursor = CTERM_CURSOR_BLOCK;
-			cterm_render_set_cursor(cterm, CTERM_CURSOR_BLOCK);
-			if (cterm->screen.capabilities & ST_CONSOLE_CAP_CUSTOM_CURSOR) {
-				cterm_render_get_custom_cursor(cterm, &custom);
-				custom.blink = true;
-				custom.visible = true;
-				cterm_render_set_custom_cursor(cterm, &custom);
-			}
-			break;
-		case 2:
-			cterm->cursor = CTERM_CURSOR_BLOCK;
-			cterm_render_set_cursor(cterm, CTERM_CURSOR_BLOCK);
-			if (cterm->screen.capabilities & ST_CONSOLE_CAP_CUSTOM_CURSOR) {
-				cterm_render_get_custom_cursor(cterm, &custom);
-				custom.blink = false;
-				custom.visible = true;
-				cterm_render_set_custom_cursor(cterm, &custom);
-			}
-			break;
-		case 3:
-			cterm->cursor = CTERM_CURSOR_UNDERLINE;
-			cterm_render_set_cursor(cterm, CTERM_CURSOR_UNDERLINE);
-			if (cterm->screen.capabilities & ST_CONSOLE_CAP_CUSTOM_CURSOR) {
-				cterm_render_get_custom_cursor(cterm, &custom);
-				custom.blink = true;
-				custom.visible = true;
-				cterm_render_set_custom_cursor(cterm, &custom);
-			}
-			break;
-		case 4:
-			cterm->cursor = CTERM_CURSOR_UNDERLINE;
-			cterm_render_set_cursor(cterm, CTERM_CURSOR_UNDERLINE);
-			if (cterm->screen.capabilities & ST_CONSOLE_CAP_CUSTOM_CURSOR) {
-				cterm_render_get_custom_cursor(cterm, &custom);
-				custom.blink = false;
-				custom.visible = true;
-				cterm_render_set_custom_cursor(cterm, &custom);
-			}
-			break;
-	}
+	uint64_t style = cterm->seq_param_int[0];
+	if (style < 1 || style > 4)
+		style = 1;
+	cterm->cursor_style = (int)style;
+	cterm->cursor = style <= 2 ? CTERM_CURSOR_BLOCK : CTERM_CURSOR_UNDERLINE;
+	cterm_render_set_cursor(cterm, cterm->cursor);
 }
 
 void

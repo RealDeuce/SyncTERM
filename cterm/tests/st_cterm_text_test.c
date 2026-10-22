@@ -336,7 +336,8 @@ struct rig {
 };
 
 static void
-open_history_rig(struct rig *rig, enum st_cterm_encoding encoding, size_t lines)
+open_mapped_rig(struct rig *rig, enum st_cterm_encoding encoding, size_t lines,
+	const uint16_t *palette)
 {
 	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
 	const struct st_console_config geometry = {
@@ -350,8 +351,15 @@ open_history_rig(struct rig *rig, enum st_cterm_encoding encoding, size_t lines)
 		.emulation = ST_CTERM_ANSI_BBS, .encoding = encoding,
 		.codepage = ST_CODEPAGE_CP437, .force_lcf = true, .quiet = true,
 		.scrollback_lines = lines,
+		.palette_mapping = palette,
 	};
 	CHECK(st_cterm_create(&rig->terminal, &config) == 0);
+}
+
+static void
+open_history_rig(struct rig *rig, enum st_cterm_encoding encoding, size_t lines)
+{
+	open_mapped_rig(rig, encoding, lines, NULL);
 }
 
 static void
@@ -374,6 +382,83 @@ feed(struct rig *rig, const void *bytes, size_t size)
 	size_t consumed;
 	CHECK(st_cterm_write(rig->terminal, bytes, size, &consumed) == 0);
 	CHECK(consumed == size);
+}
+
+static void
+test_cursor_and_blink_background(void)
+{
+	for (int encoding = ST_CTERM_ENCODING_UTF8; encoding <= ST_CTERM_ENCODING_CODEPAGE; ++encoding) {
+		struct rig rig;
+		open_rig(&rig, (enum st_cterm_encoding)encoding);
+		for (unsigned style = 1; style <= 4; ++style) {
+			char sequence[32];
+			int size = snprintf(sequence, sizeof(sequence), "\033[%u qPrompt\r\n", style);
+			CHECK(size > 0 && (size_t)size < sizeof(sequence));
+			feed(&rig, sequence, (size_t)size);
+			struct st_console_custom_cursor cursor;
+			CHECK(st_console_get_custom_cursor(rig.console, &cursor) == 0);
+			CHECK(cursor.visible && cursor.blink == (style % 2 != 0));
+			CHECK(cursor.start == (style <= 2 ? 0 : 14) && cursor.end == 15);
+		}
+		CHECK(st_cterm_reset_terminal(rig.terminal) == 0);
+		struct st_console_custom_cursor cursor;
+		CHECK(st_console_get_custom_cursor(rig.console, &cursor) == 0 && cursor.blink);
+		CHECK(st_console_get_default_cursor(rig.console, &cursor) == 0);
+		cursor.blink = false;
+		cursor.start = 0;
+		CHECK(st_console_set_default_cursor(rig.console, &cursor) == 0);
+		CHECK(st_cterm_reset_terminal(rig.terminal) == 0);
+		feed(&rig, "default", 7);
+		CHECK(st_console_get_custom_cursor(rig.console, &cursor) == 0 && !cursor.blink);
+		feed(&rig, "\033[4 qsteady", 11);
+		CHECK(st_console_get_custom_cursor(rig.console, &cursor) == 0);
+		CHECK(cursor.start == 14 && !cursor.blink);
+		close_rig(&rig);
+		struct result actual;
+		run(&actual, (enum st_cterm_encoding)encoding,
+		    "\033[0;5;41m \033[1;1;1;1;1;1*y"
+		    "\033[?33h\033[1;1H\033[0;5;41m \033[1;1;1;1;1;1*y"
+		    "\033[?33l\033[1;1H\033[0;5;41m \033[1;1;1;1;1;1*y", SIZE_MAX, false);
+		size_t reply = strlen("\033P1!~0000\033\\");
+		CHECK(actual.response_size == 3 * reply);
+		CHECK(memcmp(actual.response, actual.response + reply, reply) != 0);
+		CHECK(memcmp(actual.response, actual.response + 2 * reply, reply) == 0);
+	}
+}
+
+static void
+test_mapped_palette_policy(void)
+{
+	static const uint16_t palette[16] = {
+		63, 2, 181, 44, 207, 5, 98, 19, 109, 47, 31, 213, 11, 76, 148, 233,
+	};
+	for (int encoding = ST_CTERM_ENCODING_UTF8; encoding <= ST_CTERM_ENCODING_CODEPAGE; ++encoding) {
+		struct rig rig;
+		open_mapped_rig(&rig, (enum st_cterm_encoding)encoding, 4, palette);
+		const struct st_console_rect first = {0, 0, 1, 1};
+		struct st_console_cell normal, bright;
+		static const char base[] = "\033[0;5;41m ";
+		feed(&rig, base, sizeof(base) - 1);
+		CHECK(st_console_read_cells(rig.console, &first, &normal, 1) == 0);
+		static const char enable[] = "\033[?33h\033[1;1H ";
+		feed(&rig, enable, sizeof(enable) - 1);
+		CHECK(st_console_read_cells(rig.console, &first, &bright, 1) == 0);
+		/* Intensity selects another logical colour before mapping; physical
+		 * palette entries need not be adjacent or in any particular bank. */
+		CHECK((int)bright.background - (int)normal.background
+		    == (int)palette[12] - (int)palette[4]);
+		CHECK((bright.flags & (ST_CONSOLE_CELL_LEGACY_FOREGROUND
+		    | ST_CONSOLE_CELL_LEGACY_BACKGROUND)) == 0);
+		static const char disable[] = "\033[?33l\033[1;1H ";
+		feed(&rig, disable, sizeof(disable) - 1);
+		CHECK(st_console_read_cells(rig.console, &first, &bright, 1) == 0);
+		CHECK(bright.background == normal.background);
+		static const char rgb[] = "\033[48;2;9;17;33m\033[?33h\033[1;1H ";
+		feed(&rig, rgb, sizeof(rgb) - 1);
+		CHECK(st_console_read_cells(rig.console, &first, &bright, 1) == 0);
+		CHECK(bright.background == ST_CONSOLE_COLOR_RGB_VALUE(9, 17, 33));
+		close_rig(&rig);
+	}
 }
 
 static void
@@ -783,6 +868,8 @@ main(void)
 	test_scrollback_resets();
 	test_scrollback_termtest_reset();
 	test_scrollback_read_failure();
+	test_cursor_and_blink_background();
+	test_mapped_palette_policy();
 	test_emulations();
 	test_macro_retirement();
 	test_graphemes_and_boundaries();

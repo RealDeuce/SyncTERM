@@ -52,10 +52,18 @@ void
 cterm_render_attribute_colours(struct cterminal *cterm, uint8_t attribute,
 	uint32_t *foreground, uint32_t *background)
 {
+	int flags = cterm_render_get_video_flags(cterm);
+	unsigned fg = attribute & 15U;
+	unsigned bg = (attribute >> 4) & 15U;
+
+	if ((flags & ST_CONSOLE_VIDEO_NO_BRIGHT) != 0)
+		fg &= 7U;
+	if ((flags & ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND) == 0)
+		bg &= 7U;
 	if (foreground != NULL)
-		*foreground = cterm->screen.mode_palette[attribute & 15U];
+		*foreground = cterm->screen.mode_palette[fg];
 	if (background != NULL)
-		*background = cterm->screen.mode_palette[(attribute >> 4) & 7U];
+		*background = cterm->screen.mode_palette[bg];
 }
 
 static uint16_t
@@ -80,8 +88,7 @@ cterm_render_make_cell(struct cterminal *cterm,
 		return IO_ERROR_INVALID_ARGUMENT;
 	selected = font_identifier(cterm, font_selector);
 	scalar = st_codepage_to_unicode(cterm->screen.codepage, byte, true);
-	flags |= ST_CONSOLE_CELL_LEGACY_FOREGROUND
-	    | ST_CONSOLE_CELL_LEGACY_BACKGROUND;
+	/* CTerm has already resolved attributes through its mode palette. */
 	if ((flags & ST_CONSOLE_CELL_SAA5050) != 0
 	    && (attribute & 8U) != 0) {
 		flags |= ST_CONSOLE_CELL_CONCEAL;
@@ -295,7 +302,8 @@ cterm_render_set_colours(struct cterminal *cterm, uint32_t foreground,
 	style.flags &= ~(ST_CONSOLE_CELL_SAA5050
 	    | ST_CONSOLE_CELL_DOUBLE_HEIGHT | ST_CONSOLE_CELL_SEPARATED
 	    | ST_CONSOLE_CELL_TERMINAL_FONT | ST_CONSOLE_CELL_PIXEL_GRAPHICS
-	    | ST_CONSOLE_CELL_REVEAL | ST_CONSOLE_CELL_SAA5050_CONTROL_MASK);
+	    | ST_CONSOLE_CELL_REVEAL | ST_CONSOLE_CELL_SAA5050_CONTROL_MASK
+	    | ST_CONSOLE_CELL_LEGACY_FOREGROUND | ST_CONSOLE_CELL_LEGACY_BACKGROUND);
 	style.flags |= cterm->cell_flags;
 	(void)render_succeeded(cterm,
 	    st_console_set_style(cterm->screen.console, &style));
@@ -304,16 +312,25 @@ cterm_render_set_colours(struct cterminal *cterm, uint32_t foreground,
 void
 cterm_render_set_cursor(struct cterminal *cterm, int cursor)
 {
-	enum st_console_cursor_shape shape = ST_CONSOLE_CURSOR_BLOCK;
-	bool visible;
+	struct st_console_custom_cursor custom;
 
-	if (cursor == CTERM_CURSOR_UNDERLINE)
-		shape = ST_CONSOLE_CURSOR_UNDERLINE;
-	else if (cursor == CTERM_CURSOR_HIDDEN
-	    && st_console_get_cursor(cterm->screen.console, &visible, &shape) != 0)
-		shape = ST_CONSOLE_CURSOR_BLOCK;
-	(void)render_succeeded(cterm, st_console_set_cursor(cterm->screen.console,
-	    cursor != CTERM_CURSOR_HIDDEN, shape));
+	if (!render_succeeded(cterm,
+	    st_console_get_default_cursor(cterm->screen.console, &custom)))
+		return;
+	custom.visible = cursor != CTERM_CURSOR_HIDDEN;
+	if (cterm->cursor_style != 0)
+		custom.blink = (cterm->cursor_style & 1) != 0;
+	if (cterm->cursor_style == 3 || cterm->cursor_style == 4) {
+		custom.start = custom.range - (custom.range > 8 ? 2U : 1U);
+		custom.end = custom.range - 1;
+	}
+	else if (cursor == CTERM_CURSOR_BLOCK
+	    || cterm->cursor_style == 1 || cterm->cursor_style == 2) {
+		custom.start = 0;
+		custom.end = custom.range - 1;
+	}
+	(void)render_succeeded(cterm,
+	    st_console_set_custom_cursor(cterm->screen.console, &custom));
 }
 
 bool

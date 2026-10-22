@@ -170,10 +170,11 @@ test_default_cursor_geometry(void)
 	    ST_CONSOLE_CURSOR_UNDERLINE) == 0);
 	CHECK(st_console_get_custom_cursor(console, &cursor) == 0);
 	CHECK(cursor.start == 12 && cursor.end == 13 && cursor.range == 14
-	    && cursor.blink);
+	    && !cursor.blink);
 	CHECK(st_console_set_cursor(console, true, ST_CONSOLE_CURSOR_BLOCK) == 0);
 	CHECK(st_console_get_custom_cursor(console, &cursor) == 0);
 	CHECK(cursor.start == 0 && cursor.end == 13 && cursor.range == 14);
+	CHECK(!cursor.blink);
 	st_console_destroy(console);
 }
 
