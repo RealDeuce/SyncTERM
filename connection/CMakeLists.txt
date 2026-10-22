@@ -334,6 +334,9 @@ if(BUILD_TESTING)
 			add_test(NAME connection_ssh COMMAND st_connection_ssh_test
 				$<TARGET_FILE:st_connection_ssh_fixture>)
 			set_tests_properties(connection_ssh PROPERTIES TIMEOUT 180)
+			add_test(NAME connection_ssh_bulk COMMAND st_connection_ssh_test
+				$<TARGET_FILE:st_connection_ssh_fixture> bulk)
+			set_tests_properties(connection_ssh_bulk PROPERTIES TIMEOUT 60)
 		endif()
 		find_package(OpenSSL 3.0 QUIET)
 		if(OpenSSL_FOUND)

@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include "string_compat.h"
 
 #define CHECK(e) do { if (!(e)) { fprintf(stderr, "SSH client %d: %s\n", __LINE__, #e); return 1; } } while (0)
@@ -127,6 +128,30 @@ read_text(st_connection_t *connection, const char *expected)
 	CHECK(memcmp(buffer, expected, size) == 0);
 	return 0;
 }
+static int
+read_bulk(st_connection_t *connection)
+{
+	uint8_t bytes[4096];
+	const size_t size = 6 * 1024 * 1024;
+	/* Let SSH fill its receive buffer, then keep the application slower
+	 * than the peer so window replenishment must account for queued data. */
+	const struct timespec initial_delay = {0, 100000000};
+	const struct timespec delay = {0, 1000000};
+	(void)st_thread_sleep(&initial_delay, NULL);
+	for (size_t used = 0; used < size;) {
+		CHECK(st_connection_process_requests(connection) == 0);
+		ssize_t n = st_connection_receive(connection, bytes, sizeof(bytes), 5000);
+		CHECK(n > 0 && (size_t)n <= size - used);
+		for (size_t i = 0; i < (size_t)n; ++i) {
+			size_t offset = used + i;
+			CHECK(bytes[i] == (uint8_t)(offset ^ (offset >> 8) ^ (offset >> 16)));
+		}
+		used += (size_t)n;
+		(void)st_thread_sleep(&delay, NULL);
+	}
+	return 0;
+}
+
 static int
 await_sftp(st_connection_t *connection, const struct st_sftp_provider *p,
 	struct st_sftp_response *response)
@@ -260,7 +285,7 @@ run(const char *fixture, unsigned test, int log_level)
 		    : test == 14 ? "retry" : test == 16 ? "bad-handshake"
 		    : test == 17 ? "sftp" : test == 18 ? "sftp-shell-close"
 		    : test == 19 ? "sftp-unsupported" : test == 20 ? "sftp-no-version"
-		    : test == 21 ? "sftp-drop" : "password", (char *)NULL);
+		    : test == 21 ? "sftp-drop" : test == 22 ? "bulk" : "password", (char *)NULL);
 		_exit(127);
 	}
 	fixture_child = child;
@@ -297,7 +322,8 @@ run(const char *fixture, unsigned test, int log_level)
 			CHECK(atomic_load(&log.demux_starts) > 0);
 		}
 		CHECK(read_text(connection, "hello") == 0);
-		if (test >= 17) {
+		if (test == 22) CHECK(read_bulk(connection) == 0);
+		if (test >= 17 && test <= 21) {
 			CHECK(exercise_sftp(connection, test) == 0);
 		} else {
 		CHECK(st_connection_update_terminal_size(connection, &resized) == 0);
@@ -332,7 +358,11 @@ main(int argc, char **argv)
 {
 	(void)signal(SIGPIPE, SIG_IGN);
 	CHECK(atexit(cleanup_fixture) == 0);
-	CHECK(argc == 2);
+	CHECK(argc == 2 || argc == 3);
+	if (argc == 3) {
+		CHECK(strcmp(argv[2], "bulk") == 0);
+		return run(argv[1], 22, ST_PROFILE_LOG_DEBUG);
+	}
 	for (unsigned test = 0; test < 22; ++test) {
 		fprintf(stderr, "SSH fixture %u\n", test);
 		CHECK(run(argv[1], test, ST_PROFILE_LOG_DEBUG) == 0);

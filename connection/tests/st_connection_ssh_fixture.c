@@ -156,6 +156,28 @@ send_text(dssh_channel channel, const char *text)
 	}
 	return 0;
 }
+static int
+send_bulk(dssh_channel channel)
+{
+	uint8_t bytes[16384];
+	const size_t size = 6 * 1024 * 1024;
+	for (size_t used = 0; used < size;) {
+		for (size_t i = 0; i < sizeof(bytes); ++i) {
+			size_t offset = used + i;
+			bytes[i] = (uint8_t)(offset ^ (offset >> 8) ^ (offset >> 16));
+		}
+		size_t sent = 0;
+		while (sent < sizeof(bytes)) {
+			CHECK((dssh_chan_poll(channel, DSSH_POLL_WRITE, 10000) & DSSH_POLL_WRITE) != 0);
+			int64_t n = dssh_chan_write(channel, 0, bytes + sent, sizeof(bytes) - sent);
+			CHECK(n > 0);
+			sent += (size_t)n;
+		}
+		used += sizeof(bytes);
+	}
+	return 0;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -218,6 +240,7 @@ main(int argc, char **argv)
 	channel = dssh_chan_accept(session, &accept_callbacks, 10000);
 	CHECK(channel != NULL);
 	CHECK(send_text(channel, "hello") == 0);
+	if (strcmp(mode, "bulk") == 0) CHECK(send_bulk(channel) == 0);
 	if (authorized_line != NULL) {
 		uint8_t done;
 		CHECK((dssh_chan_poll(channel, DSSH_POLL_READ, 10000) & DSSH_POLL_READ) != 0);
