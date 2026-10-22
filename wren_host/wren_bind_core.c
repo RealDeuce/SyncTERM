@@ -134,7 +134,6 @@ struct foreign_claim_handle {
 
 #define ST_WREN_MOUSE_EVENT_MAX 49
 #define ST_WREN_MOUSE_MASK_MAX ((UINT64_C(1) << 50) - 1)
-#define ST_WREN_MOUSE_MOVE 0
 #define ST_WREN_MOUSE_WHEEL_UP 46
 #define ST_WREN_MOUSE_WHEEL_DOWN 47
 #define ST_WREN_MOUSE_WHEEL_LEFT 48
@@ -3395,6 +3394,21 @@ fn_surface_fill(WrenVM *vm)
 }
 
 static void
+fn_surface_url_at(WrenVM *vm)
+{
+	struct foreign_surface *surface = surface_value(vm, 0);
+	int64_t x, y;
+	if (surface == NULL || !slot_integer(vm, 1, INT32_MIN, INT32_MAX, &x)
+	    || !slot_integer(vm, 2, INT32_MIN, INT32_MAX, &y)) return;
+	char *uri = x < 0 || y < 0 ? NULL : st_wren_detect_url(
+	    st_wren_context_from_vm(vm)->console, surface->storage->cells,
+	    surface->storage->width, surface->storage->height, (uint32_t)x, (uint32_t)y);
+	if (uri == NULL) wrenSetSlotNull(vm, 0);
+	else wrenSetSlotString(vm, 0, uri);
+	free(uri);
+}
+
+static void
 fn_surface_to_string(WrenVM *vm)
 {
 	struct foreign_surface *surface = surface_value(vm, 0);
@@ -4665,6 +4679,7 @@ static const struct binding bindings[] = {
 	{"Surface", false, "putRect_(_,_,_,_,_,_,_)", fn_surface_put_partial},
 	{"Surface", false, "fill_(_,_,_,_,_)", fn_surface_fill},
 	{"Surface", false, "toString", fn_surface_to_string},
+	{"Surface", false, "urlAt(_,_)", fn_surface_url_at},
 	{"Cell", false, "ch", fn_cell_ch},
 	{"Cell", false, "ch=(_)", fn_cell_ch_set},
 	{"Cell", false, "chByte", fn_cell_byte},

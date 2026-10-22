@@ -132,6 +132,24 @@ struct st_wren_input_record {
 	} data;
 };
 
+enum st_wren_local_mouse_event {
+	ST_WREN_MOUSE_MOVE = 0,
+	ST_WREN_MOUSE_LEFT_PRESS = 1,
+	ST_WREN_MOUSE_LEFT_RELEASE = 2,
+	ST_WREN_MOUSE_LEFT_CLICK = 3,
+	ST_WREN_MOUSE_LEFT_QUAD_CLICK = 6,
+	ST_WREN_MOUSE_LEFT_DRAG_START = 7,
+	ST_WREN_MOUSE_LEFT_DRAG_MOVE = 8,
+	ST_WREN_MOUSE_LEFT_DRAG_END = 9,
+};
+#define ST_WREN_LINK_MOUSE_EVENTS ((UINT64_C(1) << ST_WREN_MOUSE_MOVE) \
+	| (UINT64_C(1) << ST_WREN_MOUSE_LEFT_PRESS) \
+	| (UINT64_C(1) << ST_WREN_MOUSE_LEFT_RELEASE) \
+	| (UINT64_C(1) << ST_WREN_MOUSE_LEFT_CLICK) \
+	| (UINT64_C(1) << ST_WREN_MOUSE_LEFT_DRAG_START) \
+	| (UINT64_C(1) << ST_WREN_MOUSE_LEFT_DRAG_MOVE) \
+	| (UINT64_C(1) << ST_WREN_MOUSE_LEFT_DRAG_END))
+
 struct st_wren_mouse_gesture {
 	int32_t start_x;
 	int32_t start_y;
@@ -186,6 +204,10 @@ struct st_wren_context {
 	const char *event;
 	bool cterm_sftp_active;
 	bool status_enabled;
+	bool link_hover_valid;
+	bool link_gesture;
+	int32_t link_hover_x;
+	int32_t link_hover_y;
 	bool cterm_suspended;
 	bool scrollback_requested;
 	bool cterm_mouse_disabled;
@@ -339,6 +361,12 @@ bool st_wren_font_identifier(struct st_wren_context *context, uint16_t selector,
 	uint16_t *identifier);
 uint16_t st_wren_font_selector(struct st_wren_context *context,
 	uint16_t identifier);
+char *st_wren_detect_url(st_console_t *console, const struct st_console_cell *cells,
+	uint32_t width, uint32_t height, uint32_t x, uint32_t y);
+bool st_wren_uri_openable(const char *uri);
+char *st_wren_hover_uri(struct st_wren_context *context);
+bool st_wren_link_mouse(struct st_wren_context *context,
+	const struct st_wren_input_record *record);
 int st_wren_mouse_drag_select(struct st_wren_context *context,
 	bool rectangular);
 int st_wren_input_context_init(WrenVM *vm);

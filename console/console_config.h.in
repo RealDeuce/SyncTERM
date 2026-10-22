@@ -18,4 +18,6 @@
 #cmakedefine01 ST_CONSOLE_HAVE_WIN32
 #cmakedefine01 ST_CONSOLE_HAVE_QUARTZ
 
+#cmakedefine01 ST_CONSOLE_HAVE_POSIX_URL
+
 #endif

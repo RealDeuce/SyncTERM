@@ -3398,6 +3398,13 @@ Both `rows` and `cols` are *lazy views* — they hold a reference
 to the Surface and fetch cells on demand via `cellAt`, so mutating
 a cell through `surf.rows[y][x]` mutates the underlying Surface.
 
+| `urlAt(x, y)`
+| Detect an ASCII HTTP, HTTPS, FTP, FTPS, or bare `www.` URL at a zero-based
+  cell position. Returns the URL or `null`; bare `www.` receives an
+  `https://` prefix. Detection follows text across a filled row boundary and
+  trims trailing punctuation while preserving balanced parentheses/brackets.
+  Cell text is resolved through its actual font mapping.
+
 | `putRect(src, dstX, dstY)`,
   `putRect(src, srcRect, dstX, dstY)`
 | Paste a source Surface into this Surface at `(dstX, dstY)` (0-based).
@@ -5871,6 +5878,16 @@ Status.callable = Fn.new { |surf|
 }
 ----
 
+In a connected terminal, a left click on an OSC 8 hyperlink activates its
+actual destination. Ctrl+click also detects plain-text URLs and remains a
+local action when the BBS has enabled mouse reporting; ordinary clicks then
+continue to the BBS. A locally activated gesture is consumed through release
+or drag end so it cannot open twice or send an unmatched mouse release.
+Opening uses the desktop URL handler for HTTP, HTTPS, FTP, and FTPS. Other
+schemes, unavailable handlers, and safe mode copy the URI to the clipboard
+and show a notice unless popups are hidden. These actions are attached to
+user input and do not grant connected scripts a URL-launch API.
+
 The default implementation lives at
 `scripts/auto/connected/status_default.wren`.  It uses the layout
 `name (flags) │ ConnType │ speed │ HH:MM:SS │ ALT-Z menu` with
@@ -5901,6 +5918,13 @@ host releases the previous handle when the callable changes.
   layouts remain available.  Set it to `null` to detach it.  A custom status
   renderer should replace both callables when its state differs from the
   default bar.
+
+| `Status.hoverUri`
+| The OSC 8 hyperlink destination under the last unclaimed mouse position,
+  or `null` outside the terminal, while suspended, or over an unlinked cell.
+  The destination is resolved against current screen cells, so a remote
+  redraw cannot leave a stale preview. The default bar centers this URI,
+  truncating with `...`, and restores the connection status on leaving it.
 
 | `Status.enabled`
 | `true` while the SyncTERM-managed status row is active; `false`

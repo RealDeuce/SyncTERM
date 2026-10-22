@@ -20,7 +20,7 @@
 // To override: drop a same-named file in your auto-load dir, or set
 // `Status.callable = ...` from any later script.
 
-import "syncterm" for Status, Surface, BBS, Capture, CTerm, Host, Conn, ConnType
+import "syncterm" for Status, Surface, Screen, BBS, Capture, CTerm, Host, Conn, ConnType
 
 class StatusDefault {
   // Cell colour palette (RGB; matches the C original's vmem_cell.fg
@@ -239,11 +239,46 @@ class StatusDefault {
     return total
   }
 
+  // The destination may differ from the visible label of an OSC 8 link.
+  // Clip in display columns so Unicode URLs cannot split a wide glyph.
+  static renderUri_(surf, uri) {
+    var room = (surf.width - 2).max(0)
+    if (room == 0) return
+    var font = surf[0].font
+    var truncated = Screen.textWidth(uri, font) > room
+    var limit = truncated && room >= 3 ? room - 3 : room
+    var shown = ""
+    var width = 0
+    for (ch in uri) {
+      var columns = Screen.textWidth(ch, font)
+      if (columns == 0) continue
+      if (width + columns > limit) break
+      shown = shown + ch
+      width = width + columns
+    }
+    if (truncated && room >= 3) {
+      shown = shown + "..."
+      width = width + 3
+    }
+    var x = 1 + ((room - width) / 2).floor
+    for (ch in shown) {
+      var columns = Screen.textWidth(ch, font)
+      if (columns == 0) continue
+      surf[x].ch = ch
+      x = x + columns
+    }
+  }
+
   // Render entry point: called by the host with a width×1 Surface
   // pre-filled to yellow-on-blue spaces.  Mutate in place.
   static render(surf) {
     if (!Status.enabled) return
     var w = surf.width
+    var uri = Status.hoverUri
+    if (uri != null) {
+      renderUri_(surf, uri)
+      return
+    }
     if (w < 8) return
 
     // Right-anchored slots after the name field.  At narrow widths

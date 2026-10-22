@@ -94,6 +94,7 @@ add_library(st_wren_host STATIC
 	wren_repl.c
 	wren_bind_menu.c
 	wren_selection.c
+	wren_links.c
 	wren_directory.c
 	wren_scripts.c
 	wren_picker.c

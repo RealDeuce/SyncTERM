@@ -72,6 +72,15 @@ fn_status_enabled(WrenVM *vm)
 	wrenSetSlotBool(vm, 0, st_wren_context_from_vm(vm)->status_enabled);
 }
 
+static void
+fn_status_hover_uri(WrenVM *vm)
+{
+	char *uri = st_wren_hover_uri(st_wren_context_from_vm(vm));
+	if (uri == NULL) wrenSetSlotNull(vm, 0);
+	else wrenSetSlotString(vm, 0, uri);
+	free(uri);
+}
+
 WrenForeignMethodFn
 st_wren_status_bind_method(const char *class_name, bool is_static,
 	const char *signature)
@@ -86,6 +95,8 @@ st_wren_status_bind_method(const char *class_name, bool is_static,
 		return fn_status_details;
 	if (strcmp(signature, "details=(_)") == 0)
 		return fn_status_details_set;
+	if (strcmp(signature, "hoverUri") == 0)
+		return fn_status_hover_uri;
 	if (strcmp(signature, "enabled") == 0)
 		return fn_status_enabled;
 	return NULL;

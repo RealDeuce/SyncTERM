@@ -279,6 +279,28 @@ if(NOT WIN32 AND NOT ST_CONSOLE_X11 STREQUAL "OFF")
 	endif()
 endif()
 
+set(ST_CONSOLE_HAVE_POSIX_URL 0)
+if(NOT WIN32)
+	syncterm_check_c17_source([=[
+#define _POSIX_C_SOURCE 200809L
+#include <spawn.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+extern char **environ;
+int main(void) {
+	pid_t child;
+	int status;
+	char *const arguments[] = {"sh", "-c", "exit 0", 0};
+	return posix_spawn(&child, "/bin/sh", 0, 0, arguments, environ)
+	    || waitpid(child, &status, 0) < 0 || !WIFEXITED(status);
+}
+]=] ST_CONSOLE_POSIX_URL_API)
+	if(ST_CONSOLE_POSIX_URL_API)
+		set(ST_CONSOLE_HAVE_POSIX_URL 1)
+	endif()
+endif()
+
 configure_file(console_config.h.in console_config.h @ONLY)
 
 if(NOT TARGET syncterm_io_error)
@@ -372,6 +394,11 @@ endif()
 if(ST_CONSOLE_HAVE_QUARTZ)
 	list(APPEND _st_console_sources console_quartz.m)
 endif()
+if(ST_CONSOLE_HAVE_POSIX_URL)
+	list(APPEND _st_console_sources console_posix_url.c)
+	set_source_files_properties(console_posix_url.c PROPERTIES
+		COMPILE_DEFINITIONS _POSIX_C_SOURCE=200809L)
+endif()
 add_library(st_console STATIC ${_st_console_sources})
 if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
 	set_source_files_properties(console_wayland_loader.c
@@ -430,6 +457,20 @@ if(ST_CONSOLE_HAVE_SDL OR ST_CONSOLE_HAVE_QUARTZ)
 endif()
 
 if(BUILD_TESTING)
+	if(ST_CONSOLE_HAVE_POSIX_URL)
+		file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/url-tests")
+		add_executable(st_console_url_test tests/st_console_url_test.c)
+		target_link_libraries(st_console_url_test PRIVATE st_console st_time
+			syncterm_string_compat)
+		target_compile_definitions(st_console_url_test PRIVATE
+			_POSIX_C_SOURCE=200809L
+			ST_URL_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/url-tests")
+		set_target_properties(st_console_url_test PROPERTIES
+			C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		st_console_warnings(st_console_url_test)
+		add_test(NAME st_console_url COMMAND st_console_url_test)
+		set_tests_properties(st_console_url PROPERTIES TIMEOUT 15)
+	endif()
 	add_executable(st_console_test tests/st_console_test.c)
 	target_link_libraries(st_console_test PRIVATE st_console
 		syncterm_array_list)

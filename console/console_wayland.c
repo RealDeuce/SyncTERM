@@ -6,6 +6,7 @@
  */
 
 #include "console_internal.h"
+#include "console_posix_url.h"
 #include "console_config.h"
 #include "console_wayland_loader.h"
 
@@ -1990,6 +1991,9 @@ static int attach(st_console_t *console)
 }
 
 static const struct st_console_backend_ops ops = {
+#if ST_CONSOLE_HAVE_POSIX_URL
+	.open_url = st_console_posix_open_url,
+#endif
 	.attach = attach,
     .presents_pixels = true,
     .deferred_present = true,

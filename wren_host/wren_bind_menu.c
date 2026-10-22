@@ -2456,20 +2456,6 @@ fn_menu_open_url(WrenVM *vm)
 	    && st_console_open_url(host->config.console, url) == 0);
 }
 
-static bool
-openable_uri(const char *uri)
-{
-	static const char *const prefixes[] = {
-		"http://", "https://", "ftp://", "ftps://",
-	};
-
-	for (size_t i = 0; i < sizeof(prefixes) / sizeof(prefixes[0]); ++i) {
-		if (ascii_case_starts_with(uri, prefixes[i]))
-			return true;
-	}
-	return false;
-}
-
 static void
 fn_menu_open_hyperlink(WrenVM *vm)
 {
@@ -2483,7 +2469,7 @@ fn_menu_open_hyperlink(WrenVM *vm)
 	if (!host->config.safe_mode
 	    && st_hyperlink_registry_copy(host->config.hyperlinks,
 	    (uint16_t)value, &hyperlink) == 0) {
-		if (openable_uri(hyperlink.uri))
+		if (st_wren_uri_openable(hyperlink.uri))
 			opened = st_console_open_url(host->config.console,
 			    hyperlink.uri) == 0;
 		st_hyperlink_dispose(&hyperlink);

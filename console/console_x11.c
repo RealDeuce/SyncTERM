@@ -6,6 +6,7 @@
  */
 
 #include "console_internal.h"
+#include "console_posix_url.h"
 #include "console_config.h"
 #include "console_x11_keys.h"
 #include "console_x11_pixels.h"
@@ -2653,6 +2654,9 @@ x11_attach(st_console_t *console)
 }
 
 static const struct st_console_backend_ops x11_ops = {
+#if ST_CONSOLE_HAVE_POSIX_URL
+	.open_url = st_console_posix_open_url,
+#endif
 	.attach = x11_attach,
 	.presents_pixels = true,
 	.deferred_present = true,

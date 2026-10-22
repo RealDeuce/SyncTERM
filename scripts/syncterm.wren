@@ -1811,6 +1811,7 @@ class Status {
   foreign static details
   foreign static details=(fn)
   foreign static enabled
+  foreign static hoverUri
 }
 
 // Transfer-window mailbox bridge.  The Wren TransferApp drives the

@@ -13,6 +13,7 @@
 #include "st_app_paths.h"
 #include "st_audio_runtime.h"
 #include "st_console.h"
+#include "console_internal.h"
 #include "st_cterm.h"
 #include "st_font_catalog.h"
 #include "st_profile.h"
@@ -701,6 +702,248 @@ connected_input_active(void *context)
 }
 
 #if !SYNCTERM_PLATFORM_WINDOWS
+static char opened_uri[4096], copied_uri[4096];
+static unsigned uri_open_count;
+static bool uri_open_fails;
+
+static int
+record_link_present(st_console_t *console)
+{
+	(void)console;
+	return 0;
+}
+
+static int
+record_open_uri(st_console_display_t *display, const char *uri)
+{
+	(void)display;
+	++uri_open_count;
+	(void)snprintf(opened_uri, sizeof(opened_uri), "%s", uri);
+	return uri_open_fails ? IO_ERROR_NOT_SUPPORTED : 0;
+}
+
+static int
+record_copy_uri(st_console_display_t *display, const char *uri)
+{
+	(void)display;
+	(void)snprintf(copied_uri, sizeof(copied_uri), "%s", uri);
+	return 0;
+}
+
+static int
+record_link_pointer(st_console_display_t *display, enum st_console_pointer_shape shape)
+{
+	(void)display;
+	(void)shape;
+	return 0;
+}
+
+static int
+link_click(st_wren_connected_t *connected, int32_t x, int32_t y,
+	uint32_t modifiers, bool expected_claimed)
+{
+	struct st_console_event event = {
+		.type = ST_CONSOLE_EVENT_MOUSE,
+		.data.mouse = {.action = ST_CONSOLE_MOUSE_BUTTON, .x = x, .y = y,
+		    .buttons = ST_CONSOLE_MOUSE_BUTTON_LEFT, .modifiers = modifiers},
+	};
+	bool claimed;
+	CHECK(st_wren_connected_handle_event(connected, &event, &claimed) == 0);
+	CHECK(claimed == expected_claimed);
+	event.data.mouse.buttons = 0;
+	CHECK(st_wren_connected_handle_event(connected, &event, &claimed) == 0);
+	CHECK(claimed == expected_claimed);
+	return 0;
+}
+
+static int
+link_text(st_cterm_t *cterm, const char *uri)
+{
+	char wire[4096];
+	size_t consumed;
+	int count = snprintf(wire, sizeof(wire), "\033[H\033]8;;%s\033\\link\033]8;;\033\\", uri);
+	CHECK(count > 0 && (size_t)count < sizeof(wire));
+	CHECK(st_cterm_write(cterm, wire, (size_t)count, &consumed) == 0);
+	CHECK(consumed == (size_t)count);
+	return 0;
+}
+
+static int
+exercise_connected_link_hover(st_wren_host_t *host, st_console_t *console,
+	struct st_profile *profile)
+{
+	struct st_profile session_profile;
+	st_profile_init(&session_profile);
+	CHECK(st_profile_copy(&session_profile, profile));
+	session_profile.hide_popups = true;
+	st_font_catalog_t *fonts = NULL;
+	st_cterm_t *cterm = NULL;
+	st_wren_connected_t *connected = NULL;
+	size_t consumed;
+	bool claimed;
+	uint32_t columns, rows;
+	const char text[] = "\033[1$~\033[H\033]8;;https://hover.invalid/path\033\\link\033]8;;\033\\";
+
+	CHECK(st_font_catalog_create(&fonts, console) == 0);
+	const struct st_cterm_config terminal_config = {
+		.console = console, .fonts = fonts,
+		.hyperlinks = host->config.hyperlinks,
+		.emulation = ST_CTERM_ANSI_BBS,
+		.encoding = ST_CTERM_ENCODING_UTF8,
+		.codepage = ST_CODEPAGE_CP437, .quiet = true,
+	};
+	CHECK(st_cterm_create(&cterm, &terminal_config) == 0);
+	CHECK(st_cterm_write(cterm, text, sizeof(text) - 1, &consumed) == 0);
+	CHECK(consumed == sizeof(text) - 1);
+	const struct st_wren_connected_config config = {
+		.host = host, .console = console, .profile = &session_profile,
+		.cterm = cterm, .status_enabled = true,
+	};
+	CHECK(st_wren_connected_create(&connected, &config) == 0);
+	const struct st_console_event move = {
+		.type = ST_CONSOLE_EVENT_MOUSE,
+		.data.mouse = {.action = ST_CONSOLE_MOUSE_MOVE, .x = 1, .y = 0},
+	};
+	CHECK(st_wren_connected_handle_event(connected, &move, &claimed) == 0);
+	CHECK(!claimed);
+	CHECK(st_wren_connected_render_status(connected, true) == 0);
+	CHECK(st_console_size(console, &columns, &rows) == 0);
+	CHECK(st_wren_connected_interpret(connected, "hover_status_test",
+	    "import \"syncterm\" for Screen\n"
+	    "var row = Screen.readRect(1, Screen.size[1], Screen.size[0], Screen.size[1])\n"
+	    "var text = row.map {|cell| cell.ch }.join()\n"
+	    "if (text.trim() != \"https://hover.invalid/path\") Fiber.abort(\"missing hover URI\")\n") == 0);
+	/* Destination persists across refreshes and clears when the pointer leaves. */
+	CHECK(st_wren_connected_render_status(connected, true) == 0);
+	struct st_console_event away = move;
+	away.data.mouse.x = 10;
+	CHECK(st_wren_connected_handle_event(connected, &away, &claimed) == 0 && !claimed);
+	CHECK(st_wren_connected_render_status(connected, true) == 0);
+	CHECK(st_wren_connected_interpret(connected, "hover_status_clear",
+	    "import \"syncterm\" for Screen, Status\n"
+	    "var size = Screen.size\n"
+	    "var text = Screen.readRect(1, size[1], size[0], size[1]).map {|c| c.ch }.join()\n"
+	    "if (Status.hoverUri != null || !text.contains(\"Alpha\")) Fiber.abort(\"hover restoration\")\n") == 0);
+	CHECK(st_wren_connected_handle_event(connected, &move, &claimed) == 0);
+	CHECK(st_cterm_write(cterm, "\033[HXX", 5, &consumed) == 0);
+	CHECK(st_wren_connected_interpret(connected, "hover_cell_replaced",
+	    "import \"syncterm\" for Status\n"
+	    "if (Status.hoverUri != null) Fiber.abort(\"stale hover\")\n") == 0);
+
+	char long_uri[256];
+	memset(long_uri, 'a', sizeof(long_uri) - 1);
+	memcpy(long_uri, "https://long.invalid/", 21);
+	long_uri[sizeof(long_uri) - 1] = '\0';
+	CHECK(link_text(cterm, long_uri) == 0);
+	CHECK(st_wren_connected_render_status(connected, true) == 0);
+	CHECK(st_wren_connected_interpret(connected, "hover_long_uri",
+	    "import \"syncterm\" for Screen\n"
+	    "var size = Screen.size\n"
+	    "var row = Screen.readRect(1, size[1], size[0], size[1])\n"
+	    "var text = row.map {|c| c.ch }.join()\n"
+	    "if (!text.startsWith(\" https://long.invalid/\") || !text.endsWith(\"... \")) Fiber.abort(\"long URI clipping\")\n") == 0);
+	/* Registry destinations can be Unicode even though wire OSC strings
+	 * retain the legacy ASCII framing rules. */
+	CHECK(st_wren_connected_interpret(connected, "unicode_link_cells",
+	    "import \"syncterm\" for Screen, Hyperlinks\n"
+	    "var id = Hyperlinks.add(\"https://unicode.invalid/é\", null)\n"
+	    "var label = Screen.readRect(1, 1, 4, 1)\n"
+	    "for (cell in label) cell.hyperlinkId = id\n"
+	    "Screen.putRect(label, 1, 1)\n") == 0);
+	CHECK(st_wren_connected_render_status(connected, true) == 0);
+	CHECK(st_wren_connected_interpret(connected, "hover_unicode_uri",
+	    "import \"syncterm\" for Screen\n"
+	    "var size = Screen.size\n"
+	    "var text = Screen.readRect(1, size[1], size[0], size[1]).map {|c| c.ch }.join()\n"
+	    "if (text.trim() != \"https://unicode.invalid/é\") Fiber.abort(\"Unicode URI preview\")\n") == 0);
+	const char host_status[] = "\033[2$~\033[1$}HOST STATUS\033[0$}";
+	CHECK(st_cterm_write(cterm, host_status, sizeof(host_status) - 1, &consumed) == 0);
+	CHECK(st_wren_connected_render_status(connected, st_cterm_status_display(cterm) == 1) == 0);
+	CHECK(st_wren_connected_interpret(connected, "hover_host_status",
+	    "import \"syncterm\" for Screen\n"
+	    "var row = Screen.readRect(1, Screen.size[1], 11, Screen.size[1])\n"
+	    "if (row.map {|c| c.ch }.join() != \"HOST STATUS\") Fiber.abort(\"host status overwritten\")\n") == 0);
+	CHECK(st_cterm_write(cterm, "\033[1$~", 5, &consumed) == 0);
+
+	const struct st_console_backend_ops recorder = {
+		.present = record_link_present,
+		.open_url = record_open_uri, .set_clipboard_text = record_copy_uri,
+		.set_pointer_shape = record_link_pointer,
+	};
+	const struct st_console_backend_ops *original = console->display->backend_ops;
+	console->display->backend_ops = &recorder;
+	uri_open_count = 0;
+	const char *uris[] = {"https://open.invalid/a?q='&x=$z", "HTTPS://open.invalid/", "ftp://open.invalid/file", "ftps://open.invalid/file"};
+	for (size_t i = 0; i < sizeof(uris) / sizeof(uris[0]); ++i) {
+		CHECK(link_text(cterm, uris[i]) == 0);
+		CHECK(link_click(connected, 1, 0, 0, true) == 0);
+		CHECK(uri_open_count == i + 1 && strcmp(opened_uri, uris[i]) == 0);
+	}
+	CHECK(st_cterm_write(cterm, "\033[?1000h", 8, &consumed) == 0);
+	CHECK(link_click(connected, 1, 0, 0, false) == 0);
+	CHECK(uri_open_count == 4);
+	CHECK(link_click(connected, 1, 0, ST_CONSOLE_MODIFIER_CONTROL, true) == 0);
+	CHECK(uri_open_count == 5 && strcmp(opened_uri, uris[3]) == 0);
+	const char plain[] = "\033[2;1HSee (www.example.invalid/a_(b)). ";
+	CHECK(st_cterm_write(cterm, plain, sizeof(plain) - 1, &consumed) == 0);
+	CHECK(link_click(connected, 10, 1, ST_CONSOLE_MODIFIER_CONTROL, true) == 0);
+	CHECK(uri_open_count == 6 && strcmp(opened_uri, "https://www.example.invalid/a_(b)") == 0);
+	CHECK(st_cterm_write(cterm, "\033[?1000l", 8, &consumed) == 0);
+	CHECK(link_click(connected, 10, 1, 0, false) == 0);
+	CHECK(uri_open_count == 6);
+	CHECK(st_wren_connected_interpret(connected, "link_input_claim",
+	    "import \"syncterm\" for Input\n"
+	    "class LinkClaim {\n"
+	    "  static start() {\n"
+	    "    __worker = Fiber.new {\n"
+	    "      __handle = Input.pushClaim(Fn.new {|event| true })\n"
+	    "      Fiber.yield()\n"
+	    "    }\n"
+	    "    __worker.call()\n"
+	    "  }\n"
+	    "  static stop() {\n"
+	    "    __handle.pop()\n"
+	    "    __worker.call()\n"
+	    "  }\n"
+	    "}\nLinkClaim.start()\n") == 0);
+	CHECK(link_click(connected, 1, 0, 0, true) == 0);
+	CHECK(uri_open_count == 6);
+	CHECK(st_wren_connected_interpret(connected, "link_input_release",
+	    "import \"link_input_claim\" for LinkClaim\nLinkClaim.stop()\n") == 0);
+	uri_open_fails = true;
+	CHECK(link_click(connected, 1, 0, 0, true) == 0);
+	CHECK(uri_open_count == 7 && strcmp(copied_uri, uris[3]) == 0);
+	uri_open_fails = false;
+	CHECK(link_text(cterm, "mailto:test@example.invalid") == 0);
+	CHECK(link_click(connected, 1, 0, 0, true) == 0);
+	CHECK(uri_open_count == 7 && strcmp(copied_uri, "mailto:test@example.invalid") == 0);
+	CHECK(link_text(cterm, uris[0]) == 0);
+	host->config.safe_mode = true;
+	CHECK(link_click(connected, 1, 0, 0, true) == 0);
+	CHECK(uri_open_count == 7 && strcmp(copied_uri, uris[0]) == 0);
+	host->config.safe_mode = false;
+	console->display->backend_ops = original;
+	CHECK(st_wren_connected_interpret(connected, "detected_surface_uri",
+	    "import \"syncterm\" for Surface\n"
+	    "var surface = Surface.new(10, 4)\n"
+	    "for (c in surface) c.ch = \" \"\n"
+	    "var url = \"HTTP://example.invalid/a_(b).\"\n"
+	    "for (i in 0...url.count) surface[i].ch = url[i]\n"
+	    "if (surface.urlAt(1, 1) != \"HTTP://example.invalid/a_(b)\" || surface.urlAt(-1, 0) != null || surface.urlAt(9, 3) != null) Fiber.abort(\"URL detection\")\n"
+	    "var large = Surface.new(32, 64)\n"
+	    "for (c in large) c.ch = \"a\"\n"
+	    "var prefix = \"https://\"\n"
+	    "for (i in 0...prefix.count) large[i].ch = prefix[i]\n"
+	    "if (large.urlAt(31, 63) != null || large.urlAt(0, 0) != null) Fiber.abort(\"oversized URL prefix\")\n"
+	    "large[2047].ch = \" \"\n"
+	    "if (large.urlAt(30, 63).count != 2047 || large.urlAt(0, 0).count != 2047) Fiber.abort(\"URL length boundary\")\n") == 0);
+	st_wren_connected_destroy(connected);
+	st_cterm_destroy(&cterm);
+	st_font_catalog_destroy(fonts);
+	st_profile_dispose(&session_profile);
+	return 0;
+}
+
 static int
 exercise_connected_throttle(st_wren_host_t *host, st_console_t *console)
 {
@@ -4471,6 +4714,7 @@ main(int argc, char **argv)
 		CHECK(exercise_connected_profile_scripts(host, console, &selected,
 		    scripts) == 0);
 		CHECK(exercise_connected_without_sftp(host, console, &selected) == 0);
+		CHECK(exercise_connected_link_hover(host, console, &selected) == 0);
 #if !SYNCTERM_PLATFORM_WINDOWS
 		CHECK(exercise_connected_throttle(host, console) == 0);
 #endif

@@ -1328,6 +1328,8 @@ st_wren_connected_create(st_wren_connected_t **result,
 	(void)st_time_monotonic_ms(&connected->context.connected_at_ms);
 	connected->context.event = "connected";
 	connected->context.status_enabled = config->status_enabled;
+	/* Local link gestures and hover remain available without remote tracking. */
+	connected->context.mouse_events |= ST_WREN_LINK_MOUSE_EVENTS;
 	if (config->console == config->host->menu.console)
 		connected->context.fonts = config->host->menu.fonts;
 	else {
@@ -1703,6 +1705,11 @@ st_wren_connected_handle_mouse_record(struct st_wren_connected *connected,
 	if (connected == NULL || record == NULL || consumed == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	*consumed = false;
+	if (connected->context.link_gesture
+	    && st_wren_link_mouse(&connected->context, record)) {
+		*consumed = true;
+		return 0;
+	}
 	for (struct connected_hook *hook = connected->hooks; hook != NULL;
 	    hook = hook->next) {
 		uint64_t before = 0;
@@ -1729,6 +1736,8 @@ st_wren_connected_handle_mouse_record(struct st_wren_connected *connected,
 			break;
 		}
 	}
+	if (!*consumed)
+		*consumed = st_wren_link_mouse(&connected->context, record);
 	return 0;
 }
 
@@ -1775,6 +1784,8 @@ st_wren_connected_destroy(st_wren_connected_t *connected)
 	if (connected == NULL)
 		return;
 	connected->shutting_down = true;
+	(void)st_console_set_pointer_shape(connected->context.console,
+	    ST_CONSOLE_POINTER_TEXT);
 	st_wren_connected_capture_stop(connected);
 	if (connected->provider.cancel_all != NULL)
 		connected->provider.cancel_all(connected->provider.context);
