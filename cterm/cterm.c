@@ -1141,6 +1141,19 @@ cterm_line_to_scrollback(struct cterminal *cterm, int row)
 	if(cterm->scrollback!=NULL) {
 		int getw;
 
+		getw = cterm->backwidth;
+		if (getw > cterm->width)
+			getw = cterm->width;
+		if (!cterm_render_read_cells(cterm, cterm->x, row,
+		    cterm->x + getw - 1, row,
+		    cterm->scrollback + cterm->backpos * cterm->backwidth))
+			return;
+		if (getw < cterm->backwidth) {
+			memset(cterm->scrollback + cterm->backpos * cterm->backwidth + getw,
+			    0, sizeof(*cterm->scrollback) * (cterm->backwidth - getw));
+		}
+		/* Publish only successfully captured rows; failed reads must not
+		 * make an old ring slot appear to be newly received output. */
 		cterm->backfilled++;
 		if (cterm->backfilled > cterm->backlines) {
 			cterm->backfilled--;
@@ -1148,14 +1161,6 @@ cterm_line_to_scrollback(struct cterminal *cterm, int row)
 			if (cterm->backstart == cterm->backlines)
 				cterm->backstart = 0;
 		}
-		getw = cterm->backwidth;
-		if (getw > cterm->width)
-			getw = cterm->width;
-		if (getw < cterm->backwidth) {
-			memset(cterm->scrollback + cterm->backpos * cterm->backwidth, 0, sizeof(*cterm->scrollback) * cterm->backwidth);
-		}
-		cterm_render_read_cells(cterm, cterm->x, row, cterm->x + getw - 1, row, cterm->scrollback + cterm->backpos * cterm->backwidth);
-
 		cterm->backpos++;
 		if (cterm->backpos == cterm->backlines)
 			cterm->backpos = 0;
@@ -1259,12 +1264,10 @@ cterm_clearscreen(struct cterminal *cterm, char attr)
 	if(!cterm->started)
 		cterm_start(cterm);
 
-	int minx = TERM_MINX;
-	int miny = TERM_MINY;
-	cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_SCREEN, &minx, &miny);
-
-	for (int i = 0; i < cterm->height; i++)
-		cterm_line_to_scrollback(cterm, miny + i);
+	/* Save a complete display snapshot from the terminal origin. Starting
+	 * at the scrolling margin shifts the page and reads past its bottom. */
+	for (int i = 0; i < cterm->height; ++i)
+		cterm_line_to_scrollback(cterm, cterm->y + i);
 	cterm_render_clear_window(cterm);
 	cterm_render_set_position(cterm, CURR_MINX, CURR_MINY);
 }
@@ -1786,6 +1789,8 @@ const size_t cterm_ansi_dispatch_len = SEQ_ARRAY_SIZE(cterm_ansi_dispatch);
 void
 cterm_reset(struct cterminal *cterm)
 {
+	/* Retained history and all three ring indices are session state;
+	 * resetting only the write position corrupts its chronological order. */
 	cterm_text_forget(cterm);
 	st_unicode_presentation_reset(cterm->screen.unicode);
 	int  i;
@@ -1819,7 +1824,6 @@ cterm_reset(struct cterminal *cterm)
 	cterm->notelen=4;
 	cterm->noteshape=CTERM_MUSIC_NORMAL;
 	cterm->musicfore=true;
-	cterm->backpos=0;
 	cterm->xpos = TERM_MINX;
 	cterm->ypos = TERM_MINY;
 	cterm->cursor=CTERM_CURSOR_UNDERLINE;
@@ -2088,7 +2092,8 @@ void cterm_start(struct cterminal *cterm)
 		cterm_render_set_cursor(cterm, cterm->cursor);
 		cterm->started=1;
 		cterm_apply_window(cterm);
-		cterm_clearscreen(cterm, cterm->attr);
+		/* The pre-session console is not received terminal history. */
+		cterm_render_clear_window(cterm);
 		cterm_set_position(cterm, 1, 1);
 	}
 }

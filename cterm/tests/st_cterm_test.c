@@ -883,8 +883,9 @@ main(void)
 		    strlen("\x1b[1;1;1;1;1$r"));
 		CHECK(st_console_read_cells(console, &one, &cell, 1) == 0);
 		CHECK(cell.foreground == (uint32_t)mapping[12] + 16);
-		feed(terminal, "\r\nB\r\nC\r\nD\r\nE",
-		    strlen("\r\nB\r\nC\r\nD\r\nE"));
+		/* Fill both history slots with received rows before resizing. */
+		feed(terminal, "\r\nB\r\nC\r\nD\r\nE\r\nF",
+		    strlen("\r\nB\r\nC\r\nD\r\nE\r\nF"));
 		CHECK(st_cterm_resize(terminal, 10, 5) == 0);
 		CHECK(st_cterm_copy_history(terminal, &history, &history_columns,
 		    &history_rows) == 0);

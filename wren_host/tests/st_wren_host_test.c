@@ -1255,6 +1255,53 @@ exercise_connected_scrollback(st_wren_host_t *host,
 	    "Hook.onMatch(\"£\", Fn.new {|m| CTerm.music = 2 })\n") == 0);
 	CHECK(st_cterm_write(cterm, "\x9c", 1, &consumed) == 0 && consumed == 1);
 	CHECK(st_cterm_music_mode(cterm) == 2);
+	CHECK(st_cterm_size(cterm, &width, &height) == 0);
+	for (uint32_t row = 0; row < height + 3; ++row)
+		CHECK(st_cterm_write(cterm, "\x82 history\r\n", 11, &consumed) == 0
+		    && consumed == 11);
+	CHECK(st_wren_connected_interpret(connected, "scrollback_codepage",
+	    "import \"syncterm\" for Scrollback, Surface, Screen, CTerm\n"
+	    "import \"scrollback_view\" for ScrollbackView\n"
+	    "var rows = Surface.new(Scrollback.width, 2)\n"
+	    "if (Scrollback.copyRowsTo(rows, 0, 2, 0) != 2 || "
+	    "rows.cellAt(0, 1).ch != \"é\") Fiber.abort(\"CP437 history cells\")\n"
+	    "Screen.modalRun(Fn.new {\n"
+	    "  var x = CTerm.originX\n  var y = CTerm.originY\n"
+	    "  var live = Screen.readRect(x, y, x + Scrollback.width - 1, y + CTerm.height - 1)\n"
+	    "  var viewport = Surface.new(Scrollback.width, CTerm.height)\n"
+	    "  ScrollbackView.blankSurroundings_()\n"
+	    "  ScrollbackView.paint_(viewport, live, Scrollback.height, 0, x, y)\n"
+	    "  var shown = Screen.readRect(x, y + 1, x + 8, y + 1)\n"
+	    "  if (shown.cellAt(0, 0).ch != \"é\" || shown.cellAt(2, 0).ch != \"h\") "
+	    "Fiber.abort(\"CP437 scrollback paint\")\n"
+	    "})\n") == 0);
+	struct st_wren_host *menu_host = host;
+	struct st_console_cell *saved_history = NULL;
+	struct st_console_cell *codepage_history = NULL;
+	uint32_t saved_columns;
+	size_t saved_rows, codepage_rows;
+	enum st_screen_mode saved_mode;
+	bool saved_status;
+	CHECK(st_session_history_copy(menu_host->config.session_history,
+	    &saved_history, &saved_columns, &saved_rows, &saved_mode, &saved_status) == 0);
+	CHECK(st_cterm_copy_history(cterm, &codepage_history, &width, &codepage_rows) == 0);
+	CHECK(st_session_history_publish(menu_host->config.session_history,
+	    codepage_history, width, codepage_rows, ST_SCREEN_MODE_80X25, false) == 0);
+	CHECK(wrenInterpret(menu_host->vm, "offline_scrollback_codepage",
+	    "import \"syncterm_menu\" for Menu\n"
+	    "import \"menu_scrollback\" for OfflineScrollbackCanvas\n"
+	    "import \"ui_widget\" for Rect\n"
+	    "var source = Menu.offlineScrollback\n"
+	    "var viewer = OfflineScrollbackCanvas.new(null, source, null, false, null)\n"
+	    "viewer.bounds = Rect.new(1, 1, source.width, source.height - 2)\n"
+	    "if (viewer.draw().cellAt(0, 1).ch != \"é\") Fiber.abort(\"CP437 offline newest\")\n"
+	    "viewer.move_(-source.height)\n"
+	    "if (viewer.draw().cellAt(0, 1).ch != \"é\") Fiber.abort(\"CP437 offline oldest\")\n")
+	    == WREN_RESULT_SUCCESS);
+	CHECK(st_session_history_publish(menu_host->config.session_history,
+	    saved_history, saved_columns, saved_rows, saved_mode, saved_status) == 0);
+	free(codepage_history);
+	free(saved_history);
 	st_wren_connected_destroy(connected);
 	st_cterm_destroy(&cterm);
 	st_font_catalog_destroy(fonts);

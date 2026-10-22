@@ -168,6 +168,131 @@ test_codepages(void)
 }
 
 static void
+test_scrollback_text(void)
+{
+	static const char *const input[] = {
+		"\xc3\xa9 one\r\n\xc3\xa9 two\r\n\xc3\xa9 three\r\n\xc3\xa9 four\r\n"
+		"\xc3\xa9 five\r\n\xc3\xa9 six\r\n\xc3\xa9 seven\r\n\xc3\xa9 eight",
+		"\x82 one\r\n\x82 two\r\n\x82 three\r\n\x82 four\r\n"
+		"\x82 five\r\n\x82 six\r\n\x82 seven\r\n\x82 eight",
+	};
+	static const char *const labels[] = {
+		"one", "two", "three", "four", "five", "six", "seven", "eight",
+	};
+	for (int encoding = ST_CTERM_ENCODING_UTF8; encoding <= ST_CTERM_ENCODING_CODEPAGE; ++encoding) {
+		struct result actual;
+		run(&actual, (enum st_cterm_encoding)encoding, "A", SIZE_MAX, false);
+		CHECK(actual.history_rows == 4); /* No pre-session console rows. */
+		run(&actual, (enum st_cterm_encoding)encoding,
+		    input[encoding == ST_CTERM_ENCODING_UTF8 ? 0 : 1], SIZE_MAX, false);
+		CHECK(actual.history_rows == 8);
+		for (size_t row = 0; row < 8; ++row) {
+			CHECK(actual.history[row * 20].glyph == 0x82);
+			for (size_t column = 0; column < strlen(labels[row]); ++column)
+				CHECK(actual.history[row * 20 + column + 2].glyph
+				    == (unsigned char)labels[row][column]);
+		}
+		char numbered[2048];
+		size_t used = 0;
+		for (unsigned line = 0; line < 45; ++line) {
+			int length = snprintf(numbered + used, sizeof(numbered) - used,
+			    "%s %02u%s", encoding == ST_CTERM_ENCODING_UTF8 ? "\xc3\xa9" : "\x82",
+			    line, line == 44 ? "" : "\r\n");
+			CHECK(length > 0 && (size_t)length < sizeof(numbered) - used);
+			used += (size_t)length;
+		}
+		run(&actual, (enum st_cterm_encoding)encoding, numbered, SIZE_MAX, false);
+		CHECK(actual.history_rows == 8);
+		for (size_t row = 0; row < 8; ++row) {
+			unsigned line = 37 + (unsigned)row;
+			CHECK(actual.history[row * 20 + 2].glyph == '0' + line / 10);
+			CHECK(actual.history[row * 20 + 3].glyph == '0' + line % 10);
+		}
+	}
+}
+
+static void
+test_scrollback_clears(void)
+{
+	for (int encoding = ST_CTERM_ENCODING_UTF8; encoding <= ST_CTERM_ENCODING_CODEPAGE; ++encoding) {
+		struct result actual;
+		/* Preserve whole cleared pages, including trailing blank rows. */
+		run(&actual, (enum st_cterm_encoding)encoding,
+		    "A\r\nB\033[2JC", SIZE_MAX, false);
+		CHECK(actual.history_rows == 8);
+		CHECK(actual.history[0].glyph == 'A');
+		CHECK(actual.history[20].glyph == 'B');
+		CHECK(actual.history[40].glyph == ' ');
+		CHECK(actual.history[60].glyph == ' ');
+		CHECK(actual.history[80].glyph == 'C');
+		/* Completely blank pages remain part of the captured stream. */
+		run(&actual, (enum st_cterm_encoding)encoding,
+		    "A\033[2J\033[2JC", SIZE_MAX, false);
+		CHECK(actual.history_rows == 8);
+		for (size_t row = 0; row < 4; ++row)
+			CHECK(actual.history[row * 20].glyph == ' ');
+		CHECK(actual.history[80].glyph == 'C');
+		/* Internal spacing also survives page archival. */
+		run(&actual, (enum st_cterm_encoding)encoding,
+		    "A\033[3;1HB\033[2JC", SIZE_MAX, false);
+		CHECK(actual.history_rows == 8);
+		CHECK(actual.history[0].glyph == 'A');
+		CHECK(actual.history[20].glyph == ' ');
+		CHECK(actual.history[40].glyph == 'B');
+		CHECK(actual.history[60].glyph == ' ');
+		CHECK(actual.history[80].glyph == 'C');
+		/* A scrolling margin alone does not move the display's origin. */
+		run(&actual, (enum st_cterm_encoding)encoding,
+		    "A\r\nB\r\nC\r\nD\033[2;3r\033[2JE", SIZE_MAX, false);
+		CHECK(actual.history_rows == 8);
+		for (size_t row = 0; row < 5; ++row)
+			CHECK(actual.history[row * 20].glyph == 'A' + row);
+		/* Origin mode must not shift or truncate the saved screen either. */
+		run(&actual, (enum st_cterm_encoding)encoding,
+		    "A\r\nB\r\nC\r\nD\033[2;3r\033[?6h\033[2JE", SIZE_MAX, false);
+		CHECK(actual.history_rows == 8);
+		for (size_t row = 0; row < 4; ++row)
+			CHECK(actual.history[row * 20].glyph == 'A' + row);
+		CHECK(actual.history[80].glyph == 'A');
+		CHECK(actual.history[100].glyph == 'E');
+		CHECK(actual.history[140].glyph == 'D');
+		/* Spaces with a different background can be meaningful ANSI art. */
+		run(&actual, (enum st_cterm_encoding)encoding,
+		    "\033[41m\033[2J\033[40m\033[2J", SIZE_MAX, false);
+		CHECK(actual.history_rows == 8);
+		CHECK(actual.history[0].background != actual.history[80].background);
+	}
+}
+
+static void
+test_scrollback_resets(void)
+{
+	for (int encoding = ST_CTERM_ENCODING_UTF8; encoding <= ST_CTERM_ENCODING_CODEPAGE; ++encoding) {
+		struct result actual;
+		/* RIS must preserve a partly filled ring's write position. Otherwise
+		 * F overwrites A and the reported history includes an unwritten row. */
+		run(&actual, (enum st_cterm_encoding)encoding,
+		    "A\r\nB\r\nC\r\nD\r\nE\033cF\r\nG\r\nH\r\nI\r\nJ", SIZE_MAX, false);
+		CHECK(actual.history_rows == 6);
+		CHECK(actual.history[0].glyph == 'A');
+		CHECK(actual.history[20].glyph == 'F');
+		for (size_t row = 2; row < 6; ++row)
+			CHECK(actual.history[row * 20].glyph == 'E' + row);
+		/* After wrap, resetting just the write position mixes older and
+		 * newer pages even though every retained slot contains real text. */
+		run(&actual, (enum st_cterm_encoding)encoding,
+		    "A\r\nB\r\nC\r\nD\r\nE\r\nF\r\nG\r\nH\r\nI"
+		    "\033cJ\r\nK\r\nL\r\nM\r\nN", SIZE_MAX, false);
+		CHECK(actual.history_rows == 8);
+		CHECK(actual.history[0].glyph == 'C');
+		CHECK(actual.history[20].glyph == 'D');
+		CHECK(actual.history[40].glyph == 'E');
+		for (size_t row = 3; row < 8; ++row)
+			CHECK(actual.history[row * 20].glyph == 'G' + row);
+	}
+}
+
+static void
 test_emulations(void)
 {
 	static const struct {
@@ -211,7 +336,7 @@ struct rig {
 };
 
 static void
-open_rig(struct rig *rig, enum st_cterm_encoding encoding)
+open_history_rig(struct rig *rig, enum st_cterm_encoding encoding, size_t lines)
 {
 	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
 	const struct st_console_config geometry = {
@@ -224,8 +349,15 @@ open_rig(struct rig *rig, enum st_cterm_encoding encoding)
 		.console = rig->console, .fonts = rig->fonts,
 		.emulation = ST_CTERM_ANSI_BBS, .encoding = encoding,
 		.codepage = ST_CODEPAGE_CP437, .force_lcf = true, .quiet = true,
+		.scrollback_lines = lines,
 	};
 	CHECK(st_cterm_create(&rig->terminal, &config) == 0);
+}
+
+static void
+open_rig(struct rig *rig, enum st_cterm_encoding encoding)
+{
+	open_history_rig(rig, encoding, 4);
 }
 
 static void
@@ -242,6 +374,94 @@ feed(struct rig *rig, const void *bytes, size_t size)
 	size_t consumed;
 	CHECK(st_cterm_write(rig->terminal, bytes, size, &consumed) == 0);
 	CHECK(consumed == size);
+}
+
+static void
+test_scrollback_termtest_reset(void)
+{
+	for (int encoding = ST_CTERM_ENCODING_UTF8; encoding <= ST_CTERM_ENCODING_CODEPAGE; ++encoding) {
+		struct rig rig;
+		open_history_rig(&rig, (enum st_cterm_encoding)encoding, 2000);
+		CHECK(st_cterm_resize(rig.terminal, 80, 25) == 0);
+		for (unsigned line = 0; line < 200; ++line) {
+			char text[32];
+			int size = snprintf(text, sizeof(text), "Test %03u\r\n", line);
+			CHECK(size > 0 && (size_t)size < sizeof(text));
+			feed(&rig, text, (size_t)size);
+		}
+		struct st_console_cell *before = NULL;
+		uint32_t columns;
+		size_t rows;
+		CHECK(st_cterm_copy_history(rig.terminal, &before, &columns, &rows) == 0);
+		CHECK(columns == 80 && rows == 201);
+		int filled = rig.terminal->backfilled;
+		int start = rig.terminal->backstart;
+		int position = rig.terminal->backpos;
+		/* termtest.js sends RIS after main(), then clears the display and
+		 * prints the summary. RIS itself must leave every history byte and
+		 * ring coordinate unchanged. The following clear is a real page. */
+		feed(&rig, "\033c", 2);
+		CHECK(rig.terminal->backfilled == filled);
+		CHECK(rig.terminal->backstart == start && rig.terminal->backpos == position);
+		CHECK(memcmp(rig.terminal->scrollback, before,
+		    (size_t)filled * columns * sizeof(*before)) == 0);
+		feed(&rig, "\033[2J", 4);
+		for (unsigned line = 0; line < 100; ++line) {
+			char text[32];
+			int size = snprintf(text, sizeof(text), "Summary %03u\r\n", line);
+			CHECK(size > 0 && (size_t)size < sizeof(text));
+			feed(&rig, text, (size_t)size);
+		}
+		struct st_console_cell *after = NULL;
+		CHECK(st_cterm_copy_history(rig.terminal, &after, &columns, &rows) == 0);
+		CHECK(rows == 302);
+		CHECK(memcmp(after, before, (size_t)filled * columns * sizeof(*before)) == 0);
+		for (size_t row = (size_t)filled; row < (size_t)filled + 25; ++row) {
+			for (size_t col = 0; col < columns; ++col)
+				CHECK(after[row * columns + col].glyph == ' ');
+		}
+		for (unsigned line = 0; line < 100; ++line) {
+			char text[32];
+			int size = snprintf(text, sizeof(text), "Summary %03u", line);
+			CHECK(size > 0 && (size_t)size < sizeof(text));
+			for (int col = 0; col < size; ++col)
+				CHECK(after[((size_t)filled + 25 + line) * columns + (size_t)col].glyph
+				    == (unsigned char)text[col]);
+		}
+		free(after);
+		free(before);
+		close_rig(&rig);
+	}
+}
+
+static void
+test_scrollback_read_failure(void)
+{
+	struct rig rig;
+	open_rig(&rig, ST_CTERM_ENCODING_CODEPAGE);
+	static const char text[] = "A\r\nB\r\nC\r\nD\r\nE\r\nF\r\nG\r\nH\r\nI";
+	feed(&rig, text, sizeof(text) - 1);
+	struct st_console_cell before[80];
+	CHECK(rig.terminal->backfilled == 4);
+	memcpy(before, rig.terminal->scrollback, sizeof(before));
+	int start = rig.terminal->backstart;
+	int position = rig.terminal->backpos;
+	CHECK(position != 0);
+	/* The local reset API preserves the same ring state as wire RIS. */
+	CHECK(st_cterm_reset_terminal(rig.terminal) == 0);
+	CHECK(rig.terminal->backfilled == 4);
+	CHECK(rig.terminal->backstart == start && rig.terminal->backpos == position);
+	CHECK(memcmp(before, rig.terminal->scrollback, sizeof(before)) == 0);
+	/* Simulate a console geometry change before CTerm's resize reaches it. */
+	CHECK(st_console_resize(rig.console, 20, 1) == 0);
+	rig.terminal->top_margin = 2;
+	cterm_scrollup(rig.terminal);
+	CHECK(rig.terminal->backfilled == 4);
+	CHECK(rig.terminal->backstart == start);
+	CHECK(rig.terminal->backpos == position);
+	CHECK(memcmp(before, rig.terminal->scrollback, sizeof(before)) == 0);
+	CHECK(st_cterm_finish(rig.terminal) == IO_ERROR_OUT_OF_RANGE);
+	close_rig(&rig);
 }
 
 static void
@@ -558,6 +778,11 @@ int
 main(void)
 {
 	test_codepages();
+	test_scrollback_text();
+	test_scrollback_clears();
+	test_scrollback_resets();
+	test_scrollback_termtest_reset();
+	test_scrollback_read_failure();
 	test_emulations();
 	test_macro_retirement();
 	test_graphemes_and_boundaries();
