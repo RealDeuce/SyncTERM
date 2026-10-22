@@ -52,9 +52,12 @@ st_font_catalog_create(st_font_catalog_t **result, st_console_t *console)
 			struct st_presentation_font presentation = {0};
 			/* Keep these fonts usable without a separately installed fallback. */
 			status = st_presentation_font_create(&presentation, &font);
-			if (status == 0)
-				status = st_console_register_font_copy(console,
-				    &presentation.font, &identifier);
+			if (status != 0) {
+				free(catalog);
+				return status;
+			}
+			status = st_console_register_font_copy(console,
+			    &presentation.font, &identifier);
 			st_presentation_font_destroy(&presentation);
 		}
 		else

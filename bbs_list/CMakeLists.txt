@@ -71,7 +71,7 @@ endif()
 if(BUILD_TESTING)
 	add_executable(st_bbs_list_test tests/st_bbs_list_test.c)
 	target_link_libraries(st_bbs_list_test PRIVATE st_bbs_list
-		syncterm_filesystem)
+		syncterm_filesystem syncterm_string_compat)
 	target_compile_definitions(st_bbs_list_test PRIVATE
 		ST_BBS_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/list-test")
 	set_target_properties(st_bbs_list_test PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}

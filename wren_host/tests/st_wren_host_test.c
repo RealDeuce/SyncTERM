@@ -832,7 +832,6 @@ exercise_connected_session_log(st_wren_host_t *host, st_console_t *console,
 	return 0;
 }
 
-#if !SYNCTERM_PLATFORM_WINDOWS
 static char opened_uri[4096], copied_uri[4096];
 static unsigned uri_open_count;
 static bool uri_open_fails;
@@ -1075,6 +1074,7 @@ exercise_connected_link_hover(st_wren_host_t *host, st_console_t *console,
 	return 0;
 }
 
+#if !SYNCTERM_PLATFORM_WINDOWS
 static int
 exercise_connected_throttle(st_wren_host_t *host, st_console_t *console)
 {

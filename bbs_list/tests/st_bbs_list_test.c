@@ -6,6 +6,7 @@
 #include "io_error.h"
 #include "path.h"
 #include "st_app_paths.h"
+#include "string_compat.h"
 
 #include <stdio.h>
 #include <stdlib.h>

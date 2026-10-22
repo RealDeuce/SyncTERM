@@ -161,6 +161,9 @@ DLL exports.
 
 ## Verification
 
+Do not test under Wine. Cross-compilation may verify Windows builds, but run
+Windows tests on Windows.
+
 For each change, configure and build through the SyncTERM CMake project and
 run the relevant tests with CTest or the test target defined by CMake. Add
 focused tests before changing behavior that is subtle, platform-dependent, or
