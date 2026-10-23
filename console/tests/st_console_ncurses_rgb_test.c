@@ -25,7 +25,7 @@ dimension_window(int rows, int columns, int y, int x)
 	(void)columns;
 	(void)y;
 	(void)x;
-	return malloc(1); /* Opaque token; only the fake accessors use it. */
+	return malloc(sizeof(WINDOW));
 }
 
 static int dimension_columns(WINDOW *window) { (void)window; return 101; }

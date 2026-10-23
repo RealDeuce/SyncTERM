@@ -398,7 +398,7 @@ test_cursor_and_blink_background(void)
 			struct st_console_custom_cursor cursor;
 			CHECK(st_console_get_custom_cursor(rig.console, &cursor) == 0);
 			CHECK(cursor.visible && cursor.blink == (style % 2 != 0));
-			CHECK(cursor.start == (style <= 2 ? 0 : 14) && cursor.end == 15);
+			CHECK(cursor.start == (style <= 2 ? 0U : 14U) && cursor.end == 15U);
 		}
 		CHECK(st_cterm_reset_terminal(rig.terminal) == 0);
 		struct st_console_custom_cursor cursor;

@@ -188,6 +188,7 @@ int main(void)
 		st_wren_vm st_settings st_theme st_time st_bbs_list st_audio st_term
 		syncterm_filesystem syncterm_string_compat
 		syncterm_threads)
+	syncterm_target_atomics(st_wren_host_test)
 	target_compile_definitions(st_wren_host_test PRIVATE
 		ST_WREN_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/host-test"
 		ST_WREN_TEST_HAVE_PTY=$<BOOL:${ST_WREN_TEST_HAVE_PTY}>)

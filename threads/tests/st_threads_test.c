@@ -19,7 +19,7 @@
 } while (false)
 
 static ST_THREAD_LOCAL int thread_local_value;
-static st_once_flag_t once_flag = ST_ONCE_FLAG_INIT;
+static st_once_flag_t initialization_once = ST_ONCE_FLAG_INIT;
 static int once_count;
 
 static struct timespec
@@ -245,8 +245,8 @@ static int
 once_worker(void *argument)
 {
 	(void)argument;
-	st_call_once(&once_flag, initialize_once);
-	st_call_once(&once_flag, initialize_once);
+	st_call_once(&initialization_once, initialize_once);
+	st_call_once(&initialization_once, initialize_once);
 	return 0;
 }
 
