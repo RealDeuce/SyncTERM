@@ -4,10 +4,23 @@
  */
 
 /* Exercise colour mapping without opening a terminal or loading curses. */
+#include <stddef.h>
+
+#include "console_config.h"
+
+#if ST_CONSOLE_HAVE_CURSES_H && defined(ST_CONSOLE_TEST_OPAQUE_WINDOW)
+#include <curses.h>
+/* Exercise opaque windows even when the host headers expose their layout. */
+#define WINDOW struct st_test_opaque_window
+#endif
+
 #include "../console_ncurses.c"
 
 #if ST_CONSOLE_HAVE_CURSES_H
 static unsigned resize_requests;
+static bool window_deleted;
+/* Only the fake API receives this aligned token; no WINDOW data is accessed. */
+static max_align_t window_token;
 
 static int
 notify_resize(int rows, int columns)
@@ -25,12 +38,20 @@ dimension_window(int rows, int columns, int y, int x)
 	(void)columns;
 	(void)y;
 	(void)x;
-	return malloc(sizeof(WINDOW));
+	window_deleted = false;
+	return (WINDOW *)(void *)&window_token;
 }
 
 static int dimension_columns(WINDOW *window) { (void)window; return 101; }
 static int dimension_rows(WINDOW *window) { (void)window; return 43; }
-static int dimension_delete(WINDOW *window) { free(window); return OK; }
+static int
+dimension_delete(WINDOW *window)
+{
+	if ((void *)window != &window_token)
+		return ERR;
+	window_deleted = true;
+	return OK;
+}
 #endif
 
 int
@@ -57,7 +78,8 @@ main(void)
 	/* NetBSD resizeterm() queues KEY_RESIZE even for an unchanged size.
 	 * Reading dimensions in response must not trigger the next resize. */
 	if (!terminal_dimensions(&state, &columns, &rows)
-	    || columns != 101 || rows != 43 || resize_requests != 0)
+	    || columns != 101 || rows != 43 || resize_requests != 0
+	    || !window_deleted)
 		return EXIT_FAILURE;
 
 	state.indexed_colours = indexed_colours;
