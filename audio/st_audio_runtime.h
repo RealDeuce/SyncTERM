@@ -15,6 +15,11 @@ typedef struct st_audio_runtime st_audio_runtime_t;
 
 int st_audio_runtime_create(st_audio_runtime_t **result,
 	uint32_t allowed_backends);
+/* Frontend-owned playback; settings never open a physical audio device. */
+int st_audio_runtime_create_pull(st_audio_runtime_t **result);
+int st_audio_runtime_pull(st_audio_runtime_t *runtime, int16_t *frames,
+	size_t frame_count);
+void st_audio_runtime_stop(st_audio_runtime_t *runtime);
 void st_audio_runtime_destroy(st_audio_runtime_t *runtime);
 void st_audio_runtime_set_allowed(st_audio_runtime_t *runtime,
 	uint32_t allowed_backends);

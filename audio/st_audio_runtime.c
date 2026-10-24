@@ -8,11 +8,14 @@
 #include "st_threads.h"
 
 #include <stdlib.h>
+#include <string.h>
 
 struct st_audio_runtime {
 	audio_engine_t *engine;
 	uint32_t allowed;
 	st_mutex_t mutex;
+	bool pull;
+	bool stopped;
 };
 
 int
@@ -32,6 +35,43 @@ st_audio_runtime_create(st_audio_runtime_t **result, uint32_t allowed_backends)
 	runtime->allowed = allowed_backends;
 	*result = runtime;
 	return 0;
+}
+
+int
+st_audio_runtime_create_pull(st_audio_runtime_t **result)
+{
+	int status = st_audio_runtime_create(result, 0);
+	if (status == 0)
+		(*result)->pull = true;
+	return status;
+}
+
+int
+st_audio_runtime_pull(st_audio_runtime_t *runtime, int16_t *frames,
+	size_t frame_count)
+{
+	int status = 0;
+	if (runtime == NULL || !runtime->pull || frames == NULL
+	    || frame_count > SIZE_MAX / AUDIO_FRAME_SIZE)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (st_mutex_lock(&runtime->mutex) != ST_THREAD_SUCCESS)
+		return IO_ERROR_IO;
+	if (runtime->engine == NULL)
+		memset(frames, 0, frame_count * AUDIO_FRAME_SIZE);
+	else
+		status = audio_engine_pull(runtime->engine, frames, frame_count);
+	(void)st_mutex_unlock(&runtime->mutex);
+	return status;
+}
+
+void
+st_audio_runtime_stop(st_audio_runtime_t *runtime)
+{
+	if (runtime == NULL || st_mutex_lock(&runtime->mutex) != ST_THREAD_SUCCESS)
+		return;
+	runtime->stopped = true;
+	audio_engine_stop(runtime->engine);
+	(void)st_mutex_unlock(&runtime->mutex);
 }
 
 void
@@ -75,8 +115,11 @@ st_audio_runtime_acquire(st_audio_runtime_t *runtime, audio_engine_t **result)
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (st_mutex_lock(&runtime->mutex) != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
-	if (runtime->engine == NULL)
-		status = audio_engine_create(&runtime->engine, runtime->allowed);
+	if (runtime->stopped)
+		status = IO_ERROR_CANCELLED;
+	else if (runtime->engine == NULL)
+		status = runtime->pull ? audio_engine_create_pull(&runtime->engine)
+		    : audio_engine_create(&runtime->engine, runtime->allowed);
 	if (status == 0)
 		*result = runtime->engine;
 	(void)st_mutex_unlock(&runtime->mutex);

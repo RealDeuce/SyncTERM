@@ -1589,7 +1589,7 @@ fn_menu_build_options(WrenVM *vm)
 	push_build_option(vm, "Terminal", "Operation Overkill ][ Terminal",
 	    true);
 	push_build_option(vm, "Terminal", "JPEG XL support",
-	    st_pixel_image_jxl_supported());
+	    st_pixel_image_jxl_compiled());
 	push_build_option(vm, "Video", "SDL",
 	    (console & ST_CONSOLE_BUILD_SDL) != 0);
 	push_build_option(vm, "Video", "X11 Support",

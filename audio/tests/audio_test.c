@@ -15,6 +15,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define CHECK(expression) do { \
 	if (!(expression)) { \
@@ -383,6 +384,50 @@ test_synthesis(void)
 	return 0;
 }
 
+static int
+test_pull_runtime(void)
+{
+	st_audio_runtime_t *runtime = NULL;
+	audio_engine_t *engine = NULL, *other = NULL;
+	audio_stream_t *stream = NULL;
+	int16_t frames[8];
+	const int16_t samples[] = {100, -100, 200, -200};
+	/* Preserve the mixer's Q15 gain and soft clipping. */
+	const int16_t expected[] = {98, -99, 198, -199};
+	const struct audio_buffer_options options = AUDIO_BUFFER_OPTIONS_INIT;
+	struct drain_context drain;
+	st_thread_t thread;
+
+	CHECK(st_audio_runtime_create_pull(&runtime) == 0);
+	memset(frames, 1, sizeof(frames));
+	CHECK(st_audio_runtime_pull(runtime, frames, 4) == 0);
+	for (size_t i = 0; i < 8; ++i) CHECK(frames[i] == 0);
+	st_audio_runtime_set_allowed(runtime, AUDIO_BACKEND_OSS);
+	CHECK(st_audio_runtime_acquire(runtime, &engine) == 0);
+	CHECK(audio_engine_backend(engine) == AUDIO_BACKEND_NONE);
+	CHECK(audio_engine_create_pull(&other) == IO_ERROR_BUSY && other == NULL);
+	CHECK(audio_stream_create(&stream, engine, 0, 0) == 0);
+	CHECK(audio_stream_append(stream, samples, 2, &options) == 0);
+	CHECK(st_audio_runtime_pull(runtime, frames, 4) == 0);
+	CHECK(memcmp(frames, expected, sizeof(expected)) == 0);
+	for (size_t i = 4; i < 8; ++i) CHECK(frames[i] == 0);
+	CHECK(audio_stream_drain(stream) == 0);
+	CHECK(audio_stream_append(stream, samples, 2, &options) == 0);
+	drain = (struct drain_context){.stream = stream};
+	CHECK(st_thread_create(&thread, drain_thread, &drain) == ST_THREAD_SUCCESS);
+	st_audio_runtime_stop(runtime);
+	CHECK(st_thread_join(thread, NULL) == ST_THREAD_SUCCESS);
+	CHECK(drain.result == IO_ERROR_CANCELLED);
+	CHECK(st_audio_runtime_acquire(runtime, &other) == IO_ERROR_CANCELLED);
+	audio_stream_destroy(stream);
+	st_audio_runtime_destroy(runtime);
+	CHECK(st_audio_runtime_create_pull(&runtime) == 0);
+	st_audio_runtime_stop(runtime);
+	CHECK(st_audio_runtime_acquire(runtime, &other) == IO_ERROR_CANCELLED);
+	st_audio_runtime_destroy(runtime);
+	return 0;
+}
+
 int
 main(void)
 {
@@ -406,5 +451,6 @@ main(void)
 	CHECK(test_clear_after_submission() == 0);
 	CHECK(test_one_shot_reclamation() == 0);
 	CHECK(test_synthesis() == 0);
+	CHECK(test_pull_runtime() == 0);
 	return 0;
 }

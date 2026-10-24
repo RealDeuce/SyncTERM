@@ -10,6 +10,11 @@ if(CI_FIXTURE_CONFIGURE_FAIL)
 	message(FATAL_ERROR "fixture configure failure")
 endif()
 add_executable(syncterm_app main.c)
+add_library(syncterm_core MODULE core.c)
+set_target_properties(syncterm_core PROPERTIES OUTPUT_NAME syncterm_libretro PREFIX ""
+	C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+file(GENERATE OUTPUT "${CMAKE_BINARY_DIR}/syncterm-artifacts-$<CONFIG>.txt"
+	CONTENT "$<TARGET_FILE:syncterm_app>\n$<TARGET_FILE:syncterm_core>\n")
 set_target_properties(syncterm_app PROPERTIES
 	OUTPUT_NAME syncterm RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/app"
 	C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)

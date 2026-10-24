@@ -8,6 +8,16 @@
 #include "io_error.h"
 #include "st_pixels.h"
 
+bool
+st_pixel_image_jxl_compiled(void)
+{
+#if defined(ST_PIXEL_IMAGE_HAVE_JXL)
+	return true;
+#else
+	return false;
+#endif
+}
+
 #if defined(ST_PIXEL_IMAGE_HAVE_JXL)
 
 #include "dynamic_library.h"

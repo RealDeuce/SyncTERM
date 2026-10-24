@@ -90,6 +90,11 @@ uint32_t audio_compiled_backends(void);
  * destroys any streams the caller has not already destroyed.
  */
 int audio_engine_create(audio_engine_t **result, uint32_t allowed_backends);
+/* Frontend-clocked PCM, with no physical device. Stop pulling before destroy. */
+int audio_engine_create_pull(audio_engine_t **result);
+int audio_engine_pull(audio_engine_t *engine, int16_t *frames, size_t frame_count);
+/* Cancels pending drains before the engine's users are joined. */
+void audio_engine_stop(audio_engine_t *engine);
 void audio_engine_destroy(audio_engine_t *engine);
 enum audio_backend audio_engine_backend(const audio_engine_t *engine);
 

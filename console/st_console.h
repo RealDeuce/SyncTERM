@@ -745,5 +745,9 @@ int st_console_display_libretro_frame_size(st_console_display_t *display,
 	uint32_t *width, uint32_t *height);
 int st_console_display_libretro_frame_copy(st_console_display_t *display,
 	uint32_t *destination, size_t destination_stride, size_t destination_rows);
+/* Convert coordinates in the retained frontend frame to console mouse cells
+ * and internal raster positions without borrowing an active console. */
+int st_console_display_libretro_map_pointer(st_console_display_t *display,
+	int32_t x, int32_t y, struct st_console_event *event);
 
 #endif

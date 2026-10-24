@@ -4669,7 +4669,9 @@ duplicate platform-dependent enum tables:
 
 | `buildOptions`
 | List of `[category, displayName, enabled]` rows describing this
-  executable's crypto, terminal, video, and audio build features.
+  executable's crypto, terminal, video, and audio build features. `enabled`
+  reports compiled support without probing runtime libraries or devices.
+  For decoder availability, use `PixelBuffer.jxlSupported` instead.
 
 | `licenses`
 | List of `[componentName, fullNoticeText]` rows embedded in this executable.

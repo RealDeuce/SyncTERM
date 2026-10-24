@@ -57,6 +57,10 @@ main(void)
 	}
 	CHECK(st_console_display_libretro_frame_size(display, &width, &height) == 0);
 	CHECK(width == 4 && height == 4);
+	struct st_console_event pointer = {.type = ST_CONSOLE_EVENT_MOUSE};
+	CHECK(st_console_display_libretro_map_pointer(display, 3, 2, &pointer) == 0);
+	CHECK(pointer.data.mouse.x == 1 && pointer.data.mouse.y == 1
+	    && pointer.data.mouse.pixel_x == 3 && pointer.data.mouse.pixel_y == 2);
 	CHECK(st_console_set_pixel(console, 1, 2,
 	    ST_CONSOLE_COLOR_RGB_VALUE(0x12, 0x34, 0x56)) == 0);
 	CHECK(st_console_display_libretro_frame_copy(display, pixels, 6, 8) == 0);
@@ -79,6 +83,8 @@ main(void)
 	CHECK(st_console_display_libretro_frame_copy(display, pixels, 6, 8) == 0);
 	CHECK(st_console_display_create(&headless, &headless_config) == 0);
 	CHECK(st_console_display_libretro_frame_size(headless, &width, &height)
+	    == IO_ERROR_NOT_SUPPORTED);
+	CHECK(st_console_display_libretro_map_pointer(headless, 0, 0, &pointer)
 	    == IO_ERROR_NOT_SUPPORTED);
 	st_console_display_destroy(headless);
 	st_console_destroy(peer);

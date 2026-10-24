@@ -1098,8 +1098,21 @@ that SyncTERM will access.
 
 Build Options::
 Shows which optional components SyncTERM was built to support, including the
-available console and audio backends.  It also reports whether the executable
-contains the SyncTERM Unicode font under SIL OFL 1.1.
+compiled console and audio backends.  It also reports whether the executable
+contains the SyncTERM Unicode font under SIL OFL 1.1.  A checked component
+may still require a runtime library, display server, or audio device.
+
+The build also supplies a loadable libretro core. On Windows, `syncterm.dll`
+is both that core and the application library used by the thin `syncterm.com`
+console and `syncterm.exe` graphical launchers. Keep all three files together.
+On Unix, the ordinary executable is accompanied by `syncterm_libretro.so`
+(`syncterm_libretro.dylib` on macOS).
+
+The core can start without content or open a `.lst` BBS list. When the frontend
+provides a save directory, SyncTERM keeps its configuration, lists, scripts,
+keys, downloads, and cache under a `syncterm` subdirectory there. Keyboard,
+mouse/pointer input, video, and stereo audio use the frontend. Unloading joins
+the application worker and closes connections without exiting the frontend.
 
 Licenses::
 Displays bundled software and font copyright notices and full license texts.

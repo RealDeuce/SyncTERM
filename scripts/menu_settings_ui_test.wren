@@ -272,6 +272,9 @@ class SettingsMenuTest {
     check_(seen["Wren (MIT)"].contains("Robert Nystrom") &&
         seen["Wren (MIT)"].endsWith("OTHER DEALINGS IN THE\nSOFTWARE.\n"),
         "embedded MIT notice includes attribution and final terms")
+    check_(seen["libretro API (MIT)"].contains("2010-2023 The RetroArch team") &&
+        seen["libretro API (MIT)"].contains("OTHER DEALINGS IN THE SOFTWARE."),
+        "libretro header attribution and terms")
     check_(seen["Unicode data (Unicode License v3)"].contains("Unicode, Inc.") &&
         seen["UNSCII (Public domain)"].contains("unscii-16-full"),
         "embedded Unicode and UNSCII notices")

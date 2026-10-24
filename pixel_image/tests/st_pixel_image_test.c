@@ -10,6 +10,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 #define CHECK(expression) do { \
 	if (!(expression)) { \
@@ -158,12 +159,14 @@ test_jxl(void)
 }
 
 int
-main(void)
+main(int argc, char **argv)
 {
+	CHECK(st_pixel_image_jxl_compiled() == (ST_PIXEL_IMAGE_TEST_HAVE_JXL != 0));
+	CHECK(!st_pixel_image_jxl_supported() || st_pixel_image_jxl_compiled());
+	if (argc == 2 && strcmp(argv[1], "--require-jxl") == 0)
+		CHECK(st_pixel_image_jxl_supported());
 	if (test_ppm() != 0 || test_pbm() != 0 || test_jxl() != 0
 	    || test_cterm_pnm() != 0)
 		return 1;
-	CHECK(st_pixel_image_jxl_supported() == true
-	    || st_pixel_image_jxl_supported() == false);
 	return 0;
 }

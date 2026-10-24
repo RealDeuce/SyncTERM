@@ -7,6 +7,7 @@
 
 #include "st_app_paths.h"
 #include "st_app_state.h"
+#include "st_application.h"
 #include "st_audio_runtime.h"
 #include "st_bbs_list.h"
 #include "st_builtin_fonts.h"
@@ -18,6 +19,7 @@
 #include "st_font_catalog.h"
 #include "st_hyperlink.h"
 #include "io_error.h"
+#include "path.h"
 #include "st_presentation_font.h"
 #include "st_unicode_fonts.h"
 #ifdef ST_HAVE_UNIFONT
@@ -41,6 +43,35 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdatomic.h>
+
+static atomic_bool application_running;
+
+static int
+application_paths(struct st_app_paths *paths, const struct st_command_line *command,
+	const struct st_application_host *frontend)
+{
+	struct st_app_path_overrides overrides = {0};
+	char *files[8] = {0};
+	int status = 0;
+	if (frontend != NULL && frontend->directory != NULL) {
+		const char *names[] = {"syncterm.ini", "syncterm.lst", "shared.lst",
+		    "cache", "downloads", "keys.ini", "scripts", "themes"};
+		for (size_t i = 0; i < 8 && status == 0; ++i)
+			status = path_join_alloc(&files[i], frontend->directory, names[i]);
+		overrides = (struct st_app_path_overrides){
+			.settings_file = files[0], .personal_list = files[1],
+			.shared_list = files[2], .cache_directory = files[3],
+			.download_directory = files[4], .keys_file = files[5],
+			.scripts_directory = files[6], .themes_directory = files[7],
+		};
+	}
+	if (command->settings_path != NULL) overrides.settings_file = command->settings_path;
+	if (command->list_path != NULL) overrides.personal_list = command->list_path;
+	if (status == 0) status = st_app_paths_init(paths, &overrides);
+	for (size_t i = 0; i < 8; ++i) free(files[i]);
+	return status;
+}
 
 static const char application_title[] = "SyncTERM 2.0a"
 #ifdef ST_DEBUG_BUILD
@@ -886,11 +917,10 @@ run_selected(st_wren_host_t *host, st_console_display_t *display,
 	return restore_status != 0 ? restore_status : status;
 }
 
-int
-main(int argc, char **argv)
+static int
+run_application(int argc, char **argv, const struct st_application_host *frontend)
 {
 	struct st_command_line command;
-	struct st_app_path_overrides overrides = {0};
 	struct st_app_paths paths = {0};
 	struct st_console_startup startup;
 	struct st_console_display_config display_config;
@@ -912,6 +942,7 @@ main(int argc, char **argv)
 	bool has_selection = false;
 	bool profile_initialized = false;
 	bool settings_loaded = false;
+	bool published = false;
 	int status;
 	int result = 1;
 
@@ -934,9 +965,7 @@ main(int argc, char **argv)
 	if (command.action == ST_COMMAND_TERMINFO)
 		return st_terminfo_write(stdout) == 0 ? 0 : 1;
 
-	overrides.settings_file = command.settings_path;
-	overrides.personal_list = command.list_path;
-	status = st_app_paths_init(&paths, &overrides);
+	status = application_paths(&paths, &command, frontend);
 	if (status != 0) {
 		fprintf(stderr, "SyncTERM: cannot select application paths (%d)\n",
 		    status);
@@ -953,8 +982,9 @@ main(int argc, char **argv)
 		status = st_session_history_create(&session_history,
 	    (size_t)st_settings.scrollback_lines);
 	if (status == 0)
-		status = st_audio_runtime_create(&audio_runtime,
-		    st_settings.audio_output_modes);
+		status = frontend != NULL && frontend->libretro
+		    ? st_audio_runtime_create_pull(&audio_runtime)
+		    : st_audio_runtime_create(&audio_runtime, st_settings.audio_output_modes);
 	if (status != 0) {
 		fprintf(stderr, "SyncTERM: cannot initialize runtime state (%d)\n",
 		    status);
@@ -966,6 +996,12 @@ main(int argc, char **argv)
 		goto finished;
 	}
 	display_config = startup.display_config;
+	if (frontend != NULL && frontend->libretro) {
+		display_config.backend = ST_CONSOLE_BACKEND_LIBRETRO;
+		startup.fullscreen = false;
+	} else if (frontend != NULL && frontend->console_mode
+	    && display_config.backend == ST_CONSOLE_BACKEND_AUTO)
+		display_config.backend = ST_CONSOLE_BACKEND_WIN32;
 	display_config.icon = &st_syncterm_icon;
 	status = st_console_display_create(&display, &display_config);
 	if (status == 0)
@@ -1050,10 +1086,21 @@ main(int argc, char **argv)
 		.hyperlinks = hyperlinks,
 		.safe_mode = command.safe_mode,
 	};
+	/* Auto-loaded Wren scripts may open a modal during host creation. The
+	 * frontend must already be able to present it and deliver input. */
+	if (frontend != NULL && frontend->ready != NULL) {
+		frontend->ready(frontend->context, display, audio_runtime);
+		published = true;
+	}
 	status = st_wren_host_create(&host, &host_config);
 	if (status != 0) {
 		fprintf(stderr, "SyncTERM: cannot initialize the menu (%d)\n",
 		    status);
+		goto finished;
+	}
+	if (frontend != NULL && frontend->stopping != NULL
+	    && frontend->stopping(frontend->context)) {
+		result = 0;
 		goto finished;
 	}
 	(void)st_wren_host_refresh_web_lists(host);
@@ -1061,6 +1108,11 @@ main(int argc, char **argv)
 	profile_initialized = true;
 	for (;;) {
 		enum st_term_disposition disposition = ST_TERM_RETURN_TO_PICKER;
+		if (frontend != NULL && frontend->stopping != NULL
+		    && frontend->stopping(frontend->context)) {
+			result = 0;
+			break;
+		}
 
 		has_selection = false;
 		if (command.url != NULL) {
@@ -1111,6 +1163,8 @@ main(int argc, char **argv)
 	}
 
 finished:
+	if (published && frontend->release != NULL)
+		frontend->release(frontend->context);
 	persist_window_scaling(host, display, result == 0, command.safe_mode);
 	if (profile_initialized)
 		st_profile_dispose(&selected);
@@ -1125,5 +1179,18 @@ finished:
 	if (settings_loaded)
 		st_settings_shutdown();
 	st_app_paths_dispose(&paths);
+	return result;
+}
+
+int
+st_application_run(int argc, char **argv, const struct st_application_host *frontend)
+{
+	bool expected = false;
+	int result;
+	if (!atomic_compare_exchange_strong_explicit(&application_running, &expected,
+	    true, memory_order_acq_rel, memory_order_acquire))
+		return 1;
+	result = run_application(argc, argv, frontend);
+	atomic_store_explicit(&application_running, false, memory_order_release);
 	return result;
 }

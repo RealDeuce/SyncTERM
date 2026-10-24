@@ -207,6 +207,20 @@ as an external boundary.  On Windows, internal component APIs are not DLL
 exports; only launcher-facing and libretro declarations cross the application
 DLL boundary.
 
+The Windows `syncterm_core` target produces `syncterm.dll`: it exports the
+libretro ABI and `st_application_main`, the sole desktop-launcher entry point.
+`syncterm_app` produces the GUI `syncterm.exe`; `syncterm_console` produces
+`syncterm.com`. Both launchers parse the native Unicode command line and call
+the same DLL. On POSIX, the normal executable retains its existing main-thread
+dispatcher, and `syncterm_core` builds a separate loadable module.
+
+The libretro frontend owns callbacks and its run loop. A joined application
+worker owns Wren and terminal state; borrowed display/audio handles are
+published and revoked under the core mutex. Core unload requests console
+closure and cancels pending audio drains before joining that worker. The
+`libretro_core` CTest loads the produced library through its ABI and exercises
+input, callbacks, reset, repeated unload/reload, and deinitialization.
+
 The legacy sources below `/synchronet` are read-only reference material.  New
 or extracted code belongs in this tree, one responsibility-focused directory
 and `CMakeLists.txt` per component.  Use tabs for C indentation, keep changes

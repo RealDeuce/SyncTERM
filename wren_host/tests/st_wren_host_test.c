@@ -13,6 +13,9 @@
 #include "st_app_paths.h"
 #include "st_audio_runtime.h"
 #include "st_audio_file.h"
+#include "st_pixel_image.h"
+#include "st_list_crypto.h"
+#include "xp_crypto.h"
 #include "st_console.h"
 #include "console_internal.h"
 #include "st_cterm.h"
@@ -2543,8 +2546,9 @@ exercise_build_options_contract(st_wren_host_t *public_host)
 {
 	struct st_wren_host *host = public_host;
 	static const char source[] =
-	    "import \"syncterm\" for PixelBuffer, Host\n"
+	    "import \"syncterm\" for Host\n"
 	    "import \"syncterm_menu\" for Menu\n"
+	    "var rows = Menu.buildOptions\n"
 	    "var options = {}\n"
 	    "for (row in Menu.buildOptions) options[row[1]] = row[2]\n"
 	    "if (Menu.buildOptions.count != 28 "
@@ -2556,8 +2560,6 @@ exercise_build_options_contract(st_wren_host_t *public_host)
 	    "|| !options.containsKey(\"Core Audio\") "
 	    "|| !options.containsKey(\"libsndfile\")) "
 	    "Fiber.abort(\"build options\")\n"
-	    "if (options[\"JPEG XL support\"] != PixelBuffer.jxlSupported) "
-	    "Fiber.abort(\"JPEG XL build option\")\n"
 	    "if (!options[\"Operation Overkill ][ Terminal\"] || !Host.haveOOII || Host.maxOOIIMode != 3) "
 	    "Fiber.abort(\"OOII build option\")\n"
 	    "var sndfile = options[\"libsndfile\"]\n"
@@ -2571,7 +2573,59 @@ exercise_build_options_contract(st_wren_host_t *public_host)
 		    host->last_error);
 		return -1;
 	}
-	wrenEnsureSlots(host->vm, 1);
+	uint32_t console = st_console_build_features(), audio = audio_compiled_backends();
+	const char *crypto = xp_crypto_provider_name();
+	const struct {
+		const char *category, *name;
+		bool enabled;
+	} expected[] = {
+		{"License", "SyncTERM Unicode font (SIL OFL 1.1)",
+		    strcmp(ST_WREN_TEST_UNIFONT_ENABLED, "true") == 0},
+		{"Crypto", "DeuceSSH (SSH)", strcmp(crypto, "none") != 0},
+		{"Crypto", "OpenSSL (TLS, symmetric ciphers)", strcmp(crypto, "OpenSSL") == 0},
+		{"Crypto", "Botan 3 (TLS, symmetric ciphers)", strcmp(crypto, "Botan") == 0},
+		{"Crypto", "Encrypted BBS lists", st_list_crypto_encryption_available()},
+		{"Terminal", "Operation Overkill ][ Terminal", true},
+		{"Terminal", "JPEG XL support", st_pixel_image_jxl_compiled()},
+		{"Video", "SDL", (console & ST_CONSOLE_BUILD_SDL) != 0},
+		{"Video", "X11 Support", (console & ST_CONSOLE_BUILD_X11) != 0},
+		{"Video", "Xinerama", (console & ST_CONSOLE_BUILD_XINERAMA) != 0},
+		{"Video", "XRandR", (console & ST_CONSOLE_BUILD_XRANDR) != 0},
+		{"Video", "XRender", (console & ST_CONSOLE_BUILD_XRENDER) != 0},
+		{"Video", "GDI", (console & ST_CONSOLE_BUILD_GDI) != 0},
+		{"Video", "Wayland", (console & ST_CONSOLE_BUILD_WAYLAND) != 0},
+		{"Video", "Quartz", (console & ST_CONSOLE_BUILD_QUARTZ) != 0},
+		{"Video", "Win32 Console", (console & ST_CONSOLE_BUILD_WIN32) != 0},
+		{"Video", "ncurses", (console & ST_CONSOLE_BUILD_NCURSES) != 0},
+		{"Video", "ANSI", true},
+		{"Video", "libretro", true},
+		{"Audio", "OSS", (audio & AUDIO_BACKEND_OSS) != 0},
+		{"Audio", "SDL", (audio & AUDIO_BACKEND_SDL) != 0},
+		{"Audio", "ALSA", (audio & AUDIO_BACKEND_ALSA) != 0},
+		{"Audio", "WASAPI", (audio & AUDIO_BACKEND_WASAPI) != 0},
+		{"Audio", "PortAudio", (audio & AUDIO_BACKEND_PORTAUDIO) != 0},
+		{"Audio", "PipeWire", (audio & AUDIO_BACKEND_PIPEWIRE) != 0},
+		{"Audio", "PulseAudio", (audio & AUDIO_BACKEND_PULSE_AUDIO) != 0},
+		{"Audio", "Core Audio", (audio & AUDIO_BACKEND_CORE_AUDIO) != 0},
+		{"Audio", "libsndfile", st_audio_file_supported()},
+	};
+	wrenEnsureSlots(host->vm, 3);
+	wrenGetVariable(host->vm, "build_options_contract", "rows", 0);
+	CHECK(wrenGetSlotType(host->vm, 0) == WREN_TYPE_LIST);
+	CHECK(wrenGetListCount(host->vm, 0) == (int)(sizeof(expected) / sizeof(expected[0])));
+	for (size_t i = 0; i < sizeof(expected) / sizeof(expected[0]); ++i) {
+		wrenGetListElement(host->vm, 0, (int)i, 1);
+		CHECK(wrenGetSlotType(host->vm, 1) == WREN_TYPE_LIST && wrenGetListCount(host->vm, 1) == 3);
+		wrenGetListElement(host->vm, 1, 0, 2);
+		CHECK(wrenGetSlotType(host->vm, 2) == WREN_TYPE_STRING
+		    && strcmp(wrenGetSlotString(host->vm, 2), expected[i].category) == 0);
+		wrenGetListElement(host->vm, 1, 1, 2);
+		CHECK(wrenGetSlotType(host->vm, 2) == WREN_TYPE_STRING
+		    && strcmp(wrenGetSlotString(host->vm, 2), expected[i].name) == 0);
+		wrenGetListElement(host->vm, 1, 2, 2);
+		CHECK(wrenGetSlotType(host->vm, 2) == WREN_TYPE_BOOL
+		    && wrenGetSlotBool(host->vm, 2) == expected[i].enabled);
+	}
 	wrenGetVariable(host->vm, "build_options_contract", "sndfile", 0);
 	CHECK(wrenGetSlotType(host->vm, 0) == WREN_TYPE_BOOL);
 	CHECK(wrenGetSlotBool(host->vm, 0) == st_audio_file_supported());

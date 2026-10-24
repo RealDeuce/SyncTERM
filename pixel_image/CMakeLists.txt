@@ -112,6 +112,8 @@ endif()
 if(BUILD_TESTING)
 	add_executable(st_pixel_image_test tests/st_pixel_image_test.c)
 	target_link_libraries(st_pixel_image_test PRIVATE st_pixel_image)
+	target_compile_definitions(st_pixel_image_test PRIVATE
+		ST_PIXEL_IMAGE_TEST_HAVE_JXL=$<BOOL:${_st_pixel_image_have_jxl}>)
 	set_target_properties(st_pixel_image_test PROPERTIES
 		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)

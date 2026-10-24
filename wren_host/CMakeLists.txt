@@ -187,7 +187,7 @@ int main(void)
 	target_link_libraries(st_wren_host_test PRIVATE st_wren_host
 		st_wren_vm st_settings st_theme st_time st_bbs_list st_audio st_term
 		syncterm_filesystem syncterm_string_compat
-		syncterm_threads st_audio_file)
+		syncterm_threads st_audio_file st_pixel_image st_list_crypto xptls::crypto)
 	syncterm_target_atomics(st_wren_host_test)
 	target_compile_definitions(st_wren_host_test PRIVATE
 		ST_WREN_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/host-test"

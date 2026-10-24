@@ -167,6 +167,21 @@ libretro_state_lock(st_console_display_t *display,
 }
 
 int
+st_console_display_libretro_map_pointer(st_console_display_t *display,
+	int32_t x, int32_t y, struct st_console_event *event)
+{
+	struct libretro_state *state;
+	int status;
+	if (event == NULL) return IO_ERROR_INVALID_ARGUMENT;
+	status = libretro_state_lock(display, &state);
+	if (status != 0) return status;
+	st_console_bitmap_mouse_position(&state->frame, x, y, event);
+	(void)st_mutex_unlock(&state->mutex);
+	(void)st_mutex_unlock(&display->backend_mutex);
+	return 0;
+}
+
+int
 st_console_display_libretro_frame_size(st_console_display_t *display,
 	uint32_t *width, uint32_t *height)
 {

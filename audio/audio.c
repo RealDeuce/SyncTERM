@@ -170,19 +170,13 @@ audio_available_backends(void)
 }
 
 int
-audio_engine_create_with_backends(audio_engine_t **result,
-    uint32_t allowed_backends,
-    const struct audio_backend_descriptor *const backends[],
-    size_t backend_count)
+audio_engine_create_pull(audio_engine_t **result)
 {
 	audio_engine_t *engine;
-	struct audio_backend_callbacks callbacks;
 	bool expected = false;
-	bool attempted = false;
-	size_t i;
 	int status;
 
-	if (result == NULL || allowed_backends == 0 || backends == NULL)
+	if (result == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (!atomic_compare_exchange_strong_explicit(&engine_exists, &expected,
 	    true, memory_order_acq_rel, memory_order_acquire))
@@ -201,11 +195,56 @@ audio_engine_create_with_backends(audio_engine_t **result,
 	status = audio_mixer_create(&engine->mixer);
 	if (status != 0)
 		goto fail_mutex;
+	*result = engine;
+	return 0;
+
+fail_mutex:
+	st_mutex_destroy(&engine->mutex);
+fail_engine:
+	free(engine);
+fail_existence:
+	atomic_store_explicit(&engine_exists, false, memory_order_release);
+	return status;
+}
+
+int
+audio_engine_pull(audio_engine_t *engine, int16_t *frames, size_t frame_count)
+{
+	if (engine == NULL || engine->backend != NULL || frames == NULL
+	    || frame_count > SIZE_MAX / AUDIO_FRAME_SIZE)
+		return IO_ERROR_INVALID_ARGUMENT;
+	(void)backend_pull(engine, frames, frame_count);
+	return 0;
+}
+
+void
+audio_engine_stop(audio_engine_t *engine)
+{
+	if (engine != NULL)
+		audio_mixer_stop(engine->mixer, IO_ERROR_CANCELLED);
+}
+
+int
+audio_engine_create_with_backends(audio_engine_t **result,
+    uint32_t allowed_backends,
+    const struct audio_backend_descriptor *const backends[],
+    size_t backend_count)
+{
+	audio_engine_t *engine;
+	struct audio_backend_callbacks callbacks;
+	bool attempted = false;
+	int status;
+
+	if (result == NULL || allowed_backends == 0 || backends == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	status = audio_engine_create_pull(&engine);
+	if (status != 0)
+		return status;
 	callbacks.context = engine;
 	callbacks.pull = backend_pull;
 	callbacks.failed = backend_failed;
 	status = IO_ERROR_NOT_SUPPORTED;
-	for (i = 0; i < backend_count; i++) {
+	for (size_t i = 0; i < backend_count; i++) {
 		const struct audio_backend_descriptor *backend = backends[i];
 
 		if ((allowed_backends & backend->backend) == 0)
@@ -221,29 +260,21 @@ audio_engine_create_with_backends(audio_engine_t **result,
 	}
 	if (status != 0) {
 		status = attempted ? IO_ERROR_IO : IO_ERROR_NOT_SUPPORTED;
-		goto fail_mixer;
+		goto failed;
 	}
 	if (engine->backend->write != NULL) {
 		if (st_thread_create(&engine->worker, device_worker, engine)
 		    != ST_THREAD_SUCCESS) {
 			status = IO_ERROR_IO;
-			goto fail_backend;
+			goto failed;
 		}
 		engine->worker_started = true;
 	}
 	*result = engine;
 	return 0;
 
-fail_backend:
-	engine->backend->close(engine->backend_state);
-fail_mixer:
-	audio_mixer_destroy(engine->mixer);
-fail_mutex:
-	st_mutex_destroy(&engine->mutex);
-fail_engine:
-	free(engine);
-fail_existence:
-	atomic_store_explicit(&engine_exists, false, memory_order_release);
+failed:
+	audio_engine_destroy(engine);
 	return status;
 }
 
@@ -264,7 +295,8 @@ audio_engine_destroy(audio_engine_t *engine)
 	audio_mixer_stop(engine->mixer, IO_ERROR_CANCELLED);
 	if (engine->worker_started)
 		(void)st_thread_join(engine->worker, NULL);
-	engine->backend->close(engine->backend_state);
+	if (engine->backend != NULL)
+		engine->backend->close(engine->backend_state);
 	while ((stream = engine->streams) != NULL) {
 		engine->streams = stream->next;
 		audio_mixer_stream_destroy(stream->mixer_stream);
@@ -279,7 +311,8 @@ audio_engine_destroy(audio_engine_t *engine)
 enum audio_backend
 audio_engine_backend(const audio_engine_t *engine)
 {
-	return engine == NULL ? AUDIO_BACKEND_NONE : engine->backend->backend;
+	return engine == NULL || engine->backend == NULL ? AUDIO_BACKEND_NONE
+	    : engine->backend->backend;
 }
 
 #if defined(ST_AUDIO_TESTING)
@@ -470,7 +503,8 @@ audio_stream_drain(audio_stream_t *stream)
 	status = audio_mixer_stream_drain(stream->mixer_stream);
 	if (status != 0)
 		return status;
-	latency = stream->engine->backend->latency_ms == NULL ? 0
+	latency = stream->engine->backend == NULL
+	    || stream->engine->backend->latency_ms == NULL ? 0
 	    : stream->engine->backend->latency_ms(
 	    stream->engine->backend_state);
 	if (latency > 0)
