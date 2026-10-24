@@ -286,7 +286,7 @@ class SettingsMenuTest {
         "emoji notice retains both source copyrights and complete OFL")
     var hasFont = false
     for (row in Menu.buildOptions) {
-      if (row[1] == "SyncTERM Unicode font (SIL OFL 1.1)") hasFont = row[2]
+      if (row[1] == "Unifont (SyncTERM Unicode)") hasFont = row[2]
     }
     var fontName = "SyncTERM Unicode (SIL OFL 1.1)"
     check_(seen.containsKey(fontName) == hasFont,

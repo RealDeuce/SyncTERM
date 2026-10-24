@@ -1577,8 +1577,10 @@ fn_menu_build_options(WrenVM *vm)
 
 	wrenEnsureSlots(vm, 3);
 	wrenSetSlotNewList(vm, 0);
-	push_build_option(vm, "License",
-	    "SyncTERM Unicode font (SIL OFL 1.1)", unifont);
+	push_build_option(vm, "Fonts", "Unifont (SyncTERM Unicode)", unifont);
+	push_build_option(vm, "Fonts", "UNSCII", true);
+	push_build_option(vm, "Fonts", "Noto Emoji", true);
+	push_build_option(vm, "Fonts", "Noto Color Emoji", true);
 	push_build_option(vm, "Crypto", "DeuceSSH (SSH)", strcmp(crypto, "none") != 0);
 	push_build_option(vm, "Crypto",
 	    "OpenSSL (TLS, symmetric ciphers)", strcmp(crypto, "OpenSSL") == 0);

@@ -1097,10 +1097,12 @@ Shows the paths to the various files and directories
 that SyncTERM will access.
 
 Build Options::
-Shows which optional components SyncTERM was built to support, including the
-compiled console and audio backends.  It also reports whether the executable
-contains the SyncTERM Unicode font under SIL OFL 1.1.  A checked component
-may still require a runtime library, display server, or audio device.
+Shows which components SyncTERM was built to support, including the compiled
+console and audio backends. The Fonts section lists Unifont (SyncTERM Unicode),
+UNSCII, Noto Emoji, and Noto Color Emoji. Unifont is optional; the other fonts
+are always included. Font license details are available under Licenses.
+A checked component may still require a runtime library, display server,
+or audio device.
 
 The build also supplies a loadable libretro core. On Windows, `syncterm.dll`
 is both that core and the application library used by the thin `syncterm.com`

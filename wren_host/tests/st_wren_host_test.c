@@ -2551,7 +2551,7 @@ exercise_build_options_contract(st_wren_host_t *public_host)
 	    "var rows = Menu.buildOptions\n"
 	    "var options = {}\n"
 	    "for (row in Menu.buildOptions) options[row[1]] = row[2]\n"
-	    "if (Menu.buildOptions.count != 28 "
+	    "if (Menu.buildOptions.count != 31 "
 	    "|| !options.containsKey(\"DeuceSSH (SSH)\") "
 	    "|| !options.containsKey(\"OpenSSL (TLS, symmetric ciphers)\") "
 	    "|| !options.containsKey(\"Operation Overkill ][ Terminal\") "
@@ -2563,9 +2563,9 @@ exercise_build_options_contract(st_wren_host_t *public_host)
 	    "if (!options[\"Operation Overkill ][ Terminal\"] || !Host.haveOOII || Host.maxOOIIMode != 3) "
 	    "Fiber.abort(\"OOII build option\")\n"
 	    "var sndfile = options[\"libsndfile\"]\n"
-	    "if (options[\"SyncTERM Unicode font (SIL OFL 1.1)\"] != "
+	    "if (options[\"Unifont (SyncTERM Unicode)\"] != "
 	    ST_WREN_TEST_UNIFONT_ENABLED
-	    ") Fiber.abort(\"Unifont license option\")\n";
+	    ") Fiber.abort(\"Unifont build option\")\n";
 
 	if (wrenInterpret(host->vm, "build_options_contract", source)
 	    != WREN_RESULT_SUCCESS) {
@@ -2579,8 +2579,11 @@ exercise_build_options_contract(st_wren_host_t *public_host)
 		const char *category, *name;
 		bool enabled;
 	} expected[] = {
-		{"License", "SyncTERM Unicode font (SIL OFL 1.1)",
+		{"Fonts", "Unifont (SyncTERM Unicode)",
 		    strcmp(ST_WREN_TEST_UNIFONT_ENABLED, "true") == 0},
+		{"Fonts", "UNSCII", true},
+		{"Fonts", "Noto Emoji", true},
+		{"Fonts", "Noto Color Emoji", true},
 		{"Crypto", "DeuceSSH (SSH)", strcmp(crypto, "none") != 0},
 		{"Crypto", "OpenSSL (TLS, symmetric ciphers)", strcmp(crypto, "OpenSSL") == 0},
 		{"Crypto", "Botan 3 (TLS, symmetric ciphers)", strcmp(crypto, "Botan") == 0},
