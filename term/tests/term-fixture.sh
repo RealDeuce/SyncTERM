@@ -9,6 +9,16 @@ responses)
 	printf 'READY'
 	dd bs=1 count=1 2>/dev/null | od -An -tx1 | tr -d ' \n'
 	;;
+ooii)
+	stty raw -echo
+	printf '\253?_2|'
+	if [ "$2" = normal ]; then
+		dd bs=1 count=3 2>/dev/null | od -An -tx1 | tr -d ' \n'
+	fi
+	printf '\253a|'
+	dd bs=1 count=1 2>/dev/null | od -An -tx1 | tr -d ' \n'
+	printf '\253\\|AFTER'
+	;;
 apc)
 	stty raw -echo
 	printf '\033_SyncTERM:VER\033\\'

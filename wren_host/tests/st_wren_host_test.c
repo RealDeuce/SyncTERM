@@ -12,6 +12,7 @@
 #include "io_error.h"
 #include "st_app_paths.h"
 #include "st_audio_runtime.h"
+#include "st_audio_file.h"
 #include "st_console.h"
 #include "console_internal.h"
 #include "st_cterm.h"
@@ -1107,6 +1108,16 @@ exercise_connected_throttle(st_wren_host_t *host, st_console_t *console)
 		.cterm = st_term_session_cterm(session),
 	};
 	CHECK(st_wren_connected_create(&connected, &wren_config) == 0);
+	CHECK(st_wren_connected_interpret(connected, "ooii_binding_test",
+	    "import \"syncterm\" for CTerm, Host\n"
+	    "if (!Host.haveOOII || Host.maxOOIIMode != 3 || CTerm.ooiiMode != 0) Fiber.abort(\"OOII initial\")\n"
+	    "CTerm.ooiiMode = 99\n"
+	    "if (CTerm.ooiiMode != 3) Fiber.abort(\"OOII upper clamp\")\n"
+	    "CTerm.ooiiMode = -1\n"
+	    "if (CTerm.ooiiMode != 0) Fiber.abort(\"OOII lower clamp\")\n"
+	    "CTerm.ooiiMode = 1\n"
+	    "if (CTerm.ooiiMode != 1) Fiber.abort(\"OOII enable\")\n"
+	    "CTerm.ooiiMode = 0\n") == 0);
 	CHECK(st_wren_connected_interpret(connected, "throttle_binding_test",
 	    "import \"syncterm\" for CTerm, Host\n"
 	    "var rates = Host.outputRates\n"
@@ -2532,7 +2543,7 @@ exercise_build_options_contract(st_wren_host_t *public_host)
 {
 	struct st_wren_host *host = public_host;
 	static const char source[] =
-	    "import \"syncterm\" for PixelBuffer\n"
+	    "import \"syncterm\" for PixelBuffer, Host\n"
 	    "import \"syncterm_menu\" for Menu\n"
 	    "var options = {}\n"
 	    "for (row in Menu.buildOptions) options[row[1]] = row[2]\n"
@@ -2547,6 +2558,9 @@ exercise_build_options_contract(st_wren_host_t *public_host)
 	    "Fiber.abort(\"build options\")\n"
 	    "if (options[\"JPEG XL support\"] != PixelBuffer.jxlSupported) "
 	    "Fiber.abort(\"JPEG XL build option\")\n"
+	    "if (!options[\"Operation Overkill ][ Terminal\"] || !Host.haveOOII || Host.maxOOIIMode != 3) "
+	    "Fiber.abort(\"OOII build option\")\n"
+	    "var sndfile = options[\"libsndfile\"]\n"
 	    "if (options[\"SyncTERM Unicode font (SIL OFL 1.1)\"] != "
 	    ST_WREN_TEST_UNIFONT_ENABLED
 	    ") Fiber.abort(\"Unifont license option\")\n";
@@ -2557,6 +2571,10 @@ exercise_build_options_contract(st_wren_host_t *public_host)
 		    host->last_error);
 		return -1;
 	}
+	wrenEnsureSlots(host->vm, 1);
+	wrenGetVariable(host->vm, "build_options_contract", "sndfile", 0);
+	CHECK(wrenGetSlotType(host->vm, 0) == WREN_TYPE_BOOL);
+	CHECK(wrenGetSlotBool(host->vm, 0) == st_audio_file_supported());
 	return 0;
 }
 

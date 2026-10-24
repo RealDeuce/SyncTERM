@@ -9,6 +9,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+bool
+st_audio_file_supported(void)
+{
+	return ST_AUDIO_FILE_HAVE_SNDFILE != 0;
+}
+
 #if ST_AUDIO_FILE_HAVE_SNDFILE
 #include "dynamic_library.h"
 #include "filesystem.h"

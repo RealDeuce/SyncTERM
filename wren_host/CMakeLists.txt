@@ -114,7 +114,7 @@ target_link_libraries(st_wren_host
 		st_hyperlink st_sftp_client
 	PRIVATE st_wren_vm st_re1 st_term st_connection st_codepage st_utf8 st_unicode_text st_unicode_width
 		st_unicode_compare
-		st_bbs_list st_audio
+		st_bbs_list st_audio st_audio_file st_ooii
 		st_fonts st_font_catalog st_settings st_theme st_time st_pixel_image st_serial
 		syncterm_io_error syncterm_path syncterm_file_map
 		syncterm_string_compat syncterm_filesystem
@@ -187,7 +187,7 @@ int main(void)
 	target_link_libraries(st_wren_host_test PRIVATE st_wren_host
 		st_wren_vm st_settings st_theme st_time st_bbs_list st_audio st_term
 		syncterm_filesystem syncterm_string_compat
-		syncterm_threads)
+		syncterm_threads st_audio_file)
 	syncterm_target_atomics(st_wren_host_test)
 	target_compile_definitions(st_wren_host_test PRIVATE
 		ST_WREN_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/host-test"

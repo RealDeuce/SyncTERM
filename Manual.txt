@@ -1396,7 +1396,7 @@ Toggle Remote Mouse::
 Same as kbd:[Alt+O]
 
 Toggle Operation Overkill ][ Mode::
-Turns on or off OO][ mode.
+Cycles through off, OOTerm, OOTerm1, and OOTerm2 modes.
 Can be used to recover from broken remote software.
 
 Exit::

@@ -13,6 +13,7 @@
 #include "st_console.h"
 #include "st_codepage.h"
 #include "st_cterm.h"
+#include "st_ooii.h"
 #include "st_settings.h"
 #include "st_theme.h"
 #include "st_time.h"
@@ -4564,7 +4565,21 @@ fn_cterm_status_display(WrenVM *vm)
 	wrenSetSlotDouble(vm, 0, 0);
 }
 
+static void
+fn_host_have_ooii(WrenVM *vm)
+{
+	wrenSetSlotBool(vm, 0, true);
+}
+
+static void
+fn_host_max_ooii_mode(WrenVM *vm)
+{
+	wrenSetSlotDouble(vm, 0, ST_OOII_MAX_MODE);
+}
+
 static const struct binding bindings[] = {
+	{"Host", true, "haveOOII", fn_host_have_ooii},
+	{"Host", true, "maxOOIIMode", fn_host_max_ooii_mode},
 	{"Platform", true, "name", fn_platform_name},
 	{"Text", true, "normalizedByteCount(_)", fn_text_normalized_byte_count},
 	{"Text", true, "caselessKey(_)", fn_text_caseless_key},

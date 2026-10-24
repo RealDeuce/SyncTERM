@@ -119,6 +119,8 @@ void st_term_session_set_mouse_disabled(st_term_session_t *session,
 uint32_t st_term_session_throttle_speed(const st_term_session_t *session);
 void st_term_session_set_throttle_speed(st_term_session_t *session,
 	uint32_t bps);
+int st_term_session_ooii_mode(const st_term_session_t *session);
+void st_term_session_set_ooii_mode(st_term_session_t *session, int mode);
 
 /*
  * Runs until disconnect or a local command. The caller owns and closes the

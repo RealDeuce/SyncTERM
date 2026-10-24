@@ -4024,11 +4024,11 @@ emulation-aware logic.
   used by door programs that want raw scancodes.
 
 | `CTerm.ooiiMode`, `CTerm.ooiiMode = n`
-| Read or write the Operation Overkill ][ tone-emulation mode
+| Read or write the Operation Overkill ][ terminal mode
   (`0` = off, `1`..`Host.maxOOIIMode` = the OOTerm modes).  Setting
-  out-of-range values is clamped.  The setter toggles the xptone
-  audio context to match.  Always reads `0` and is a no-op in
-  builds compiled with `WITHOUT_OOII`.
+  out-of-range integer values is clamped. Changing modes discards a partial
+  protocol command. Embedded sound effects use the terminal's shared SFX
+  stream and lazy audio runtime.
 
 | `CTerm.throttleSpeed`, `CTerm.throttleSpeed = bps`
 | Current network character-pacing rate in BPS.  `0` = unthrottled
@@ -5355,14 +5355,10 @@ if (Host.launchScript != null && Host.launchScript.endsWith("foo.wren")) {
   not the stored entry or the independent protocol log threshold.
 
 | `Host.haveOOII`
-| `true` when the build has Operation Overkill ][ tone support
-  compiled in (i.e. `WITHOUT_OOII` is not defined).  The
-  `online_menu` consults this to decide whether to expose the
-  "Toggle OOII" entry.
+| `true`: Operation Overkill ][ terminal support is part of the base build.
 
 | `Host.maxOOIIMode`
-| Highest valid OOII mode value (returns `0` in
-  `WITHOUT_OOII` builds).  The `online_menu` wraps the OOII
+| Highest valid OOII mode value (`3`). The `online_menu` wraps the OOII
   increment back to `0` when it exceeds this cap, so the mode cycle is
   `0` through `Host.maxOOIIMode`.
 

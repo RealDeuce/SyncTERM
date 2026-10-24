@@ -2517,10 +2517,9 @@ st_cterm_poll(st_cterm_t *terminal)
 }
 
 int
-st_cterm_write_utf8(st_cterm_t *terminal, const void *bytes, size_t size,
+st_cterm_write_utf8_input(st_cterm_t *terminal, const void *bytes, size_t size,
 	size_t *consumed)
 {
-	bool suppressed;
 	int status;
 
 	if (consumed != NULL)
@@ -2532,9 +2531,21 @@ st_cterm_write_utf8(st_cterm_t *terminal, const void *bytes, size_t size,
 		if (status != 0)
 			return status;
 	}
+	return write_plain(terminal, bytes, size, consumed, true);
+}
+
+int
+st_cterm_write_utf8(st_cterm_t *terminal, const void *bytes, size_t size,
+	size_t *consumed)
+{
+	bool suppressed;
+	int status;
+
+	if (terminal == NULL)
+		return st_cterm_write_utf8_input(terminal, bytes, size, consumed);
 	suppressed = terminal->api_input_filter_suppressed;
 	terminal->api_input_filter_suppressed = true;
-	status = write_plain(terminal, bytes, size, consumed, true);
+	status = st_cterm_write_utf8_input(terminal, bytes, size, consumed);
 	terminal->api_input_filter_suppressed = suppressed;
 	return status;
 }
@@ -2791,6 +2802,12 @@ st_cterm_origin(const st_cterm_t *terminal, uint32_t *x, uint32_t *y)
 	*x = (uint32_t)terminal->x;
 	*y = (uint32_t)terminal->y;
 	return 0;
+}
+
+bool
+st_cterm_play_fx_u8(st_cterm_t *terminal, const uint8_t *samples, size_t size)
+{
+	return cterm_play_fx_u8(terminal, samples, size);
 }
 
 int

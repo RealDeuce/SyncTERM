@@ -9,6 +9,7 @@
 
 #include "io_error.h"
 #include "st_connection.h"
+#include "st_ooii.h"
 #include "st_term.h"
 #include "st_time.h"
 
@@ -1002,9 +1003,25 @@ fn_input_setup_mouse_events(WrenVM *vm)
 }
 
 static void
-fn_zero(WrenVM *vm)
+fn_cterm_ooii_mode(WrenVM *vm)
 {
-	wrenSetSlotDouble(vm, 0, 0);
+	wrenSetSlotDouble(vm, 0, st_term_session_ooii_mode(
+	    st_wren_context_from_vm(vm)->session));
+}
+
+static void
+fn_cterm_ooii_mode_set(WrenVM *vm)
+{
+	struct st_term_session *session = st_wren_context_from_vm(vm)->session;
+	double mode;
+	if (wrenGetSlotType(vm, 1) != WREN_TYPE_NUM
+	    || !isfinite(mode = wrenGetSlotDouble(vm, 1)) || mode != floor(mode)) {
+		st_wren_abort(vm, "CTerm.ooiiMode expects an integer");
+		return;
+	}
+	st_term_session_set_ooii_mode(session, mode < 0 ? 0
+	    : mode > ST_OOII_MAX_MODE ? ST_OOII_MAX_MODE : (int)mode);
+	wrenSetSlotDouble(vm, 0, st_term_session_ooii_mode(session));
 }
 
 static const uint32_t output_rates[] = {
@@ -1288,7 +1305,8 @@ static const struct session_binding bindings[] = {
 	{"CTerm", "suspended", fn_cterm_suspended},
 	{"CTerm", "suspended=(_)", fn_cterm_suspended_set},
 	{"Input", "setupMouseEvents()", fn_input_setup_mouse_events},
-	{"CTerm", "ooiiMode", fn_zero},
+	{"CTerm", "ooiiMode", fn_cterm_ooii_mode},
+	{"CTerm", "ooiiMode=(_)", fn_cterm_ooii_mode_set},
 	{"CTerm", "throttleSpeed", fn_cterm_throttle_speed},
 	{"CTerm", "throttleSpeed=(_)", fn_cterm_throttle_speed_set},
 	{"CTerm", "throttleSpeedUp()", fn_cterm_throttle_up},

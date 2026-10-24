@@ -13,6 +13,7 @@
 #include "io_error.h"
 #include "st_app_paths.h"
 #include "st_audio_runtime.h"
+#include "st_audio_file.h"
 #include "st_bbs_list.h"
 #include "st_builtin_fonts.h"
 #include "st_console.h"
@@ -1586,7 +1587,7 @@ fn_menu_build_options(WrenVM *vm)
 	push_build_option(vm, "Crypto", "Encrypted BBS lists",
 	    st_list_crypto_encryption_available());
 	push_build_option(vm, "Terminal", "Operation Overkill ][ Terminal",
-	    false);
+	    true);
 	push_build_option(vm, "Terminal", "JPEG XL support",
 	    st_pixel_image_jxl_supported());
 	push_build_option(vm, "Video", "SDL",
@@ -1629,7 +1630,7 @@ fn_menu_build_options(WrenVM *vm)
 	    (audio & AUDIO_BACKEND_PULSE_AUDIO) != 0);
 	push_build_option(vm, "Audio", "Core Audio",
 	    (audio & AUDIO_BACKEND_CORE_AUDIO) != 0);
-	push_build_option(vm, "Audio", "libsndfile", false);
+	push_build_option(vm, "Audio", "libsndfile", st_audio_file_supported());
 }
 
 static void

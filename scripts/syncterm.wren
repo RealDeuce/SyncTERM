@@ -1180,9 +1180,8 @@ foreign class CTerm {
   foreign static saveScreenshot(file, withSauce)
   foreign static atasciiInverse
   foreign static ooiiMode
-  // Cycle the OOII mode.  Out-of-range values are clamped to
-  // 0..MAX_OOII_MODE; the binding also opens / closes the xptone
-  // audio context to match (open while non-zero, closed at 0).
+  // Select 0 (off) through Host.maxOOIIMode. Integers are clamped, and
+  // changing modes discards a partial command. Audio opens lazily for SFX.
   foreign static ooiiMode=(n)
   foreign static mouseMode
   foreign static mouseSgrPixels
@@ -1737,11 +1736,9 @@ class Host {
   //   }
   foreign static launchScript
 
-  // True when the build has Operation Overkill ][ tone support
-  // compiled in (i.e. WITHOUT_OOII is not defined).  Used by the
-  // online menu to decide whether to expose the OOII toggle entry.
+  // Operation Overkill ][ terminal support is part of the base build.
   foreign static haveOOII
-  // Highest valid OOII mode value (0 in WITHOUT_OOII builds).  The
+  // Highest valid OOII mode value (3). The
   // online menu wraps the OOII increment back to 0 when it exceeds
   // this cap, matching the historical SM_OOII cycle.
   foreign static maxOOIIMode

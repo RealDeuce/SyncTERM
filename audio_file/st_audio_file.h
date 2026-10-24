@@ -10,6 +10,8 @@
 #include <stdint.h>
 #include <stdio.h>
 
+/* Build support without attempting to load a runtime library. */
+bool st_audio_file_supported(void);
 bool st_audio_file_available(void);
 /* major is the unshifted libsndfile container ID; subtype is its encoding ID. */
 bool st_audio_file_format_available(uint32_t major, uint32_t subtype);

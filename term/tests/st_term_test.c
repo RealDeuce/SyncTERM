@@ -73,6 +73,89 @@ screen_contains(st_console_t *console, const char *wanted, bool diagnose)
 	return strstr(text, wanted) != NULL;
 }
 
+struct ooii_observed {
+	bool text;
+	bool wire_command;
+};
+
+static int
+ooii_text_observed(void *context, uint32_t scalar, bool *consumed,
+	char *replacement, size_t capacity, size_t *replacement_size)
+{
+	struct ooii_observed *observed = context;
+	(void)replacement;
+	(void)capacity;
+	if (scalar == 'S') observed->text = true;
+	*consumed = false;
+	*replacement_size = 0;
+	return 0;
+}
+
+static int
+ooii_wire_observed(void *context, const uint8_t *bytes, size_t size)
+{
+	struct ooii_observed *observed = context;
+	if (memchr(bytes, 0xab, size) != NULL) observed->wire_command = true;
+	return 0;
+}
+
+static int
+test_ooii_session(enum st_cterm_encoding encoding, bool suppress)
+{
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config geometry = {.columns = 80, .rows = 25, .cell_width = 8, .cell_height = 16};
+	st_console_t *console = NULL;
+	st_font_catalog_t *fonts = NULL;
+	st_connection_t *connection = NULL;
+	st_term_session_t *session = NULL;
+	struct st_profile profile;
+	enum st_term_disposition disposition;
+	bool finished = false;
+	struct ooii_observed observed = {0};
+	CHECK(st_console_create(&console, &display, &geometry) == 0);
+	CHECK(st_font_catalog_create(&fonts, console) == 0);
+	st_profile_init(&profile);
+	profile.connection_type = ST_CONNECTION_SHELL;
+	strcpy(profile.address, suppress ? "sh term-fixture.sh ooii suppress" : "sh term-fixture.sh ooii normal");
+	CHECK(st_term_connect_profile(&connection, &profile, console, NULL, NULL) == 0);
+	const struct st_term_config config = {
+		.console = console, .connection = connection, .fonts = fonts,
+		.encoding = encoding, .codepage = ST_CODEPAGE_CP437,
+		.hide_status = true, .suppress_responses = suppress,
+		.input_filter = ooii_text_observed, .input_filter_context = &observed,
+		.wire_capture = ooii_wire_observed, .capture_context = &observed,
+	};
+	CHECK(st_term_session_create(&session, &config) == 0);
+	st_term_session_set_ooii_mode(session, 1);
+	for (unsigned i = 0; i < 100 && !screen_contains(console, "Supply Room", false); ++i)
+		CHECK(st_term_session_pump(session, &disposition, &finished) == 0 && !finished);
+	CHECK(screen_contains(console, "Supply Room", true));
+	CHECK(st_term_session_ooii_mode(session) == 3);
+	CHECK(observed.text && observed.wire_command);
+	if (!suppress) CHECK(screen_contains(console, "af327c", true));
+	CHECK(st_term_session_send_text(session, "U", 1) == 0);
+	for (unsigned i = 0; i < 100 && !finished; ++i)
+		CHECK(st_term_session_pump(session, &disposition, &finished) == 0);
+	CHECK(finished && st_term_session_ooii_mode(session) == 0);
+	struct st_console_cell cells[80 * 25];
+	const struct st_console_rect area = {0, 0, 80, 25};
+	char text[80 * 25 + 1];
+	CHECK(st_console_read_cells(console, &area, cells, 80) == 0);
+	for (size_t i = 0; i < 80 * 25; ++i) {
+		char glyph[8]; size_t size;
+		text[i] = st_console_font_glyph_text(console, cells[i].glyph_font,
+		    cells[i].glyph, glyph, sizeof(glyph), &size) == 0 && size == 1 ? glyph[0] : ' ';
+	}
+	text[80 * 25] = 0;
+	CHECK(strstr(text, "55AFTER") != NULL);
+	st_term_session_destroy(&session);
+	CHECK(st_connection_close(connection) == 0);
+	st_profile_dispose(&profile);
+	st_font_catalog_destroy(fonts);
+	st_console_destroy(console);
+	return 0;
+}
+
 static int
 test_response_policy(void)
 {
@@ -1087,6 +1170,10 @@ main(void)
 	CHECK(test_shell_rip_cp437_boundary() == 0);
 	CHECK(test_shell_rip_cp437_query_output() == 0);
 	CHECK(test_response_policy() == 0);
+	CHECK(test_ooii_session(ST_CTERM_ENCODING_UTF8, false) == 0);
+	CHECK(test_ooii_session(ST_CTERM_ENCODING_CODEPAGE, false) == 0);
+	CHECK(test_ooii_session(ST_CTERM_ENCODING_UTF8, true) == 0);
+	CHECK(test_ooii_session(ST_CTERM_ENCODING_CODEPAGE, true) == 0);
 #endif
 	return EXIT_SUCCESS;
 }

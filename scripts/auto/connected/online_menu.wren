@@ -50,6 +50,9 @@ class OnlineMenu {
       ["Toggle Doorway Mode", Fn.new {
         CTerm.doorwayMode = !CTerm.doorwayMode
       }],
+      ["Toggle Operation Overkill ][ Mode", Fn.new {
+        CTerm.ooiiMode = (CTerm.ooiiMode + 1) % (Host.maxOOIIMode + 1)
+      }],
       ["Toggle Remote Mouse", Fn.new {
         CTerm.mouseDisabled = !CTerm.mouseDisabled
         Input.setupMouseEvents()

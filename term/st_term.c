@@ -9,6 +9,7 @@
 
 #include "audio.h"
 #include "io_error.h"
+#include "st_ooii.h"
 #include "st_unicode_text.h"
 #include "st_utf8.h"
 #include "st_time.h"
@@ -20,6 +21,7 @@
 struct st_term_session {
 	struct st_term_config config;
 	st_cterm_t *cterm;
+	st_ooii_t *ooii;
 	int output_error;
 	bool end_requested;
 	bool exit_requested;
@@ -34,6 +36,12 @@ struct st_term_session {
 	size_t wire_position;
 	size_t wire_size;
 };
+
+static int write_cterm_wire(void *context, const uint8_t *bytes, size_t size);
+static int ooii_render(void *context, const uint8_t *bytes, size_t size);
+static int ooii_reply(void *context, const uint8_t *bytes, size_t size);
+static void ooii_sound(void *context, const uint8_t *samples, size_t size);
+static unsigned ooii_attributes(void *context);
 
 static enum st_cterm_emulation
 profile_emulation(enum st_screen_mode mode)
@@ -329,6 +337,17 @@ st_term_session_create(st_term_session_t **result,
 		free(session);
 		return status;
 	}
+	const struct st_ooii_config ooii_config = {
+		.pass = write_cterm_wire, .render = ooii_render,
+		.reply = ooii_reply, .sound = ooii_sound,
+		.attributes = ooii_attributes, .context = session,
+	};
+	status = st_ooii_create(&session->ooii, &ooii_config);
+	if (status != 0) {
+		st_cterm_destroy(&session->cterm);
+		free(session);
+		return status;
+	}
 	*result = session;
 	return 0;
 }
@@ -357,6 +376,7 @@ st_term_session_destroy(st_term_session_t **session)
 		return;
 	(void)st_cterm_finish((*session)->cterm);
 	publish_history(*session);
+	st_ooii_destroy((*session)->ooii);
 	st_cterm_destroy(&(*session)->cterm);
 	free(*session);
 	*session = NULL;
@@ -606,8 +626,9 @@ local_command(st_console_t *console, const struct st_console_event *event,
 }
 
 static int
-write_wire(st_term_session_t *session, const uint8_t *bytes, size_t size)
+write_cterm_wire(void *context, const uint8_t *bytes, size_t size)
 {
+	st_term_session_t *session = context;
 	char unicode[4096 * 4];
 	size_t converted = 0;
 	size_t consumed;
@@ -624,6 +645,69 @@ write_wire(st_term_session_t *session, const uint8_t *bytes, size_t size)
 		return status;
 	status = st_cterm_write(session->cterm, unicode, converted, &consumed);
 	return status == 0 && consumed != converted ? IO_ERROR_IO : status;
+}
+
+static int
+ooii_render(void *context, const uint8_t *bytes, size_t size)
+{
+	st_term_session_t *session = context;
+	char unicode[4096];
+
+	/* Resource data is CP437 even when the connection uses another encoding. */
+	while (size != 0) {
+		size_t chunk = size > sizeof(unicode) / 4 ? sizeof(unicode) / 4 : size;
+		size_t converted, consumed;
+		int status = st_term_rip_wire_to_utf8(unicode, sizeof(unicode),
+		    &converted, bytes, chunk, ST_CODEPAGE_CP437);
+		if (status != 0) return status;
+		status = st_cterm_write_utf8_input(session->cterm, unicode, converted, &consumed);
+		if (status != 0 || consumed != converted)
+			return status == 0 ? IO_ERROR_IO : status;
+		bytes += chunk;
+		size -= chunk;
+	}
+	return 0;
+}
+
+static int
+ooii_reply(void *context, const uint8_t *bytes, size_t size)
+{
+	st_term_session_t *session = context;
+	if (session->config.suppress_responses) return 0;
+	return send_all(session->config.connection, bytes, size);
+}
+
+static void
+ooii_sound(void *context, const uint8_t *samples, size_t size)
+{
+	st_term_session_t *session = context;
+	(void)st_cterm_play_fx_u8(session->cterm, samples, size);
+}
+
+static unsigned
+ooii_attributes(void *context)
+{
+	struct st_cterm_state state;
+	st_term_session_t *session = context;
+	return st_cterm_state(session->cterm, &state) == 0 ? state.attr : 7;
+}
+
+int
+st_term_session_ooii_mode(const st_term_session_t *session)
+{
+	return session == NULL ? 0 : st_ooii_mode(session->ooii);
+}
+
+void
+st_term_session_set_ooii_mode(st_term_session_t *session, int mode)
+{
+	if (session != NULL) st_ooii_set_mode(session->ooii, mode);
+}
+
+static int
+write_wire(st_term_session_t *session, const uint8_t *bytes, size_t size)
+{
+	return st_ooii_write(session->ooii, bytes, size);
 }
 
 static int

@@ -178,6 +178,13 @@ int st_cterm_write(st_cterm_t *terminal, const void *bytes, size_t size,
  * independent of the configured wire encoding. */
 int st_cterm_write_utf8(st_cterm_t *terminal, const void *bytes, size_t size,
 	size_t *consumed);
+/* UTF-8 expanded by an outer protocol handler. Applies semantic input hooks
+ * and capture while bypassing RIP and the connection's wire encoding. */
+int st_cterm_write_utf8_input(st_cterm_t *terminal, const void *bytes,
+	size_t size, size_t *consumed);
+/* Queue legacy U8 mono 22050-Hz effects on the terminal's shared SFX stream.
+ * An unavailable audio device leaves terminal output unaffected. */
+bool st_cterm_play_fx_u8(st_cterm_t *terminal, const uint8_t *samples, size_t size);
 /* Disconnect/reset boundary: replacement for a truncated UTF-8 sequence. */
 int st_cterm_finish(st_cterm_t *terminal);
 /* Nonblocking asynchronous APC notification polling. Call on the same
