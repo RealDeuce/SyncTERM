@@ -94,7 +94,7 @@ check_complete_profile_roundtrip(void)
 			source.protocol_log_level = ST_PROFILE_LOG_INFO;
 			source.cterm_log_level = ST_PROFILE_LOG_DEBUG;
 			source.music = ST_PROFILE_MUSIC_ALL;
-			source.address_family = ST_ADDRESS_FAMILY_IPV6;
+			source.address_family = ST_ADDRESS_FAMILY_HAPPY_EYEBALLS;
 			source.rip_version = ST_RIP_VERSION_3;
 			source.flow_control = ST_PROFILE_FLOW_NONE;
 			source.tls_psk_version = ST_TLS_VERSION_1_2;
@@ -205,6 +205,7 @@ check_profile_default_ports(void)
 		CHECK(st_bbs_decode_profile(&profile, section, "Profile", false,
 		    NULL) == 0);
 		CHECK(profile.connection_type == cases[i].type);
+		CHECK(profile.address_family == ST_ADDRESS_FAMILY_UNSPECIFIED);
 		CHECK(profile.port == st_connection_default_port(
 		    (enum st_connection_type)cases[i].type));
 		st_profile_dispose(&profile);

@@ -34,6 +34,7 @@ struct st_tls_session {
 
 struct fake_state {
 	bool tls_success;
+	bool happy_eyeballs;
 	bool raw_closed;
 	size_t runtime_init_calls;
 	size_t runtime_cleanup_calls;
@@ -126,7 +127,7 @@ tcp_client_connect(socket_handle_t *result,
 {
 	(void)host;
 	(void)port;
-	(void)options;
+	fake.happy_eyeballs = options->happy_eyeballs;
 	fake.connect_calls++;
 	*result = FAKE_SOCKET;
 	if (connected_family != NULL)
@@ -230,6 +231,7 @@ main(void)
 	CHECK(run_request("tls-cancel", ST_WEBGET_TLS) == IO_ERROR_CANCELLED);
 	CHECK(fake.runtime_init_calls == 1 && fake.runtime_cleanup_calls == 1);
 	CHECK(fake.connect_calls == 1 && fake.tls_open_calls == 0);
+	CHECK(fake.happy_eyeballs);
 	CHECK(fake.raw_close_calls == 1 && fake.repeated_close_calls == 0);
 	CHECK(fake.tls_close_calls == 0);
 

@@ -2724,6 +2724,12 @@ exercise_menu_catalog_contract(st_wren_host_t *public_host)
 		{ST_PROFILE_FLOW_XON_XOFF, "XON/XOFF"},
 		{ST_PROFILE_FLOW_NONE, "None"},
 	};
+	static const struct catalog_row address_families[] = {
+		{ST_ADDRESS_FAMILY_UNSPECIFIED, "As per DNS"},
+		{ST_ADDRESS_FAMILY_IPV4, "IPv4 only"},
+		{ST_ADDRESS_FAMILY_IPV6, "IPv6 only"},
+		{ST_ADDRESS_FAMILY_HAPPY_EYEBALLS, "Happy Eyeballs"},
+	};
 	static const struct catalog_row output_modes[] = {
 		{0, "Automatic"},
 		{1, "Curses"}, {2, "Curses on cp437 Device"},
@@ -2758,6 +2764,7 @@ exercise_menu_catalog_contract(st_wren_host_t *public_host)
 	    "var ratesResult = Menu.rates\n"
 	    "var missingRatesResult = Menu.serialRates(\"/no/such/syncterm-device\")\n"
 	    "var noRtsResult = Menu.flowControlsNoRts\n"
+	    "var addressFamiliesResult = Menu.addressFamilies\n"
 	    "var outputModesResult = Menu.outputModes\n"
 	    "if (!(Fiber.new { Menu.serialRates(123) }.try() is String)) Fiber.abort(\"serial type validation\")\n"
 	    "if (!(Fiber.new { Menu.serialRates(\"bad\\u0000device\") }.try() is String)) Fiber.abort(\"serial NUL validation\")\n";
@@ -2797,6 +2804,8 @@ exercise_menu_catalog_contract(st_wren_host_t *public_host)
 	    "missingRatesResult", rates, sizeof(rates) / sizeof(rates[0])));
 	CHECK(catalog_matches(host->vm, "menu_catalog_contract", "noRtsResult",
 	    no_rts, sizeof(no_rts) / sizeof(no_rts[0])));
+	CHECK(catalog_matches(host->vm, "menu_catalog_contract", "addressFamiliesResult",
+	    address_families, sizeof(address_families) / sizeof(address_families[0])));
 	for (size_t i = 0; i < sizeof(output_modes) / sizeof(output_modes[0]);
 	    ++i) {
 		if (output_features[i] != 0

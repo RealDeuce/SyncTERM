@@ -38,7 +38,9 @@ static const char *log_levels[] = {
 	"Emergency", "Alert", "Critical", "Error", "Warning", "Notice",
 	"Info", "Debug", NULL
 };
-static const char *address_families[] = { "PerDNS", "IPv4", "IPv6", NULL };
+static const char *address_families[] = {
+	"PerDNS", "IPv4", "IPv6", "HappyEyeballs", NULL
+};
 static const char *rip_versions[] = { "Off", "RIPv1", "RIPv3", NULL };
 static const char *parities[] = { "None", "Even", "Odd", NULL };
 static const char *tls_versions[] = { "Unknown", "TLS1.2", "TLS1.3", NULL };

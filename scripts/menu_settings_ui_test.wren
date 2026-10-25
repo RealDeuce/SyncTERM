@@ -1,5 +1,5 @@
 // Drive shipped settings actions without a physical display or keyboard.
-import "syncterm" for Key, KeyEvent
+import "syncterm" for Key, KeyEvent, AddressFamily
 import "syncterm_menu" for Menu
 import "menu_settings_ui" for SettingsMenu
 import "menu_theme_editor" for ThemeEditor
@@ -56,6 +56,7 @@ class SettingsMenuTest {
   static run() {
     testProgram_()
     testConnectedMenu_()
+    testAddressFamily_()
     testDefaults_()
     testCTermLog_()
     testTlsPairs_()
@@ -164,7 +165,7 @@ class SettingsMenuTest {
     var d = BbsEditor.draft_(b)
     var changes = {
       "connType": 12, "port": 992, "user": "guest", "password": "pass",
-      "syspass": "system", "addressFamily": 2, "screenMode": 3,
+      "syspass": "system", "addressFamily": 3, "screenMode": 3,
       "encoding": 255, "termName": "ansi", "music": 0, "bpsRate": 9600,
       "noStatus": true, "hidePopups": true, "yellowIsYellow": true,
       "forceLcf": true, "lfExpand": true, "dlDir": "/downloads",
@@ -191,6 +192,31 @@ class SettingsMenuTest {
     for (key in changes.keys) check_(actual[key] == changes[key],
         "new entry did not inherit: %(key)")
     check_(entry.delete(), "discard inherited test entry")
+  }
+  static testAddressFamily_() {
+    check_(Menu.defaults.addressFamily == AddressFamily.unspec,
+        "factory defaults must use only the preferred address")
+    var names = ["As per DNS", "IPv4 only", "IPv6 only", "Happy Eyeballs"]
+    var b = Menu.create("Address Family Test")
+    check_(b.addressFamily == AddressFamily.unspec, "new entry uses DNS by default")
+    for (choice in [AddressFamily.happyEyeballs, AddressFamily.unspec]) {
+      var app = SettingsTestApp.new([Fn.new {|pane|
+        select_(pane, "Address Family")
+        pane.handle(KeyEvent.new(Key.escape))
+      }, Fn.new {|pane|
+        var items = list_(pane).items
+        check_(items.count == 4, "four address-family choices")
+        for (i in 0...names.count) check_(items[i] == names[i],
+            "address-family choice order")
+        select_(pane, names[choice])
+      }])
+      check_(BbsEditor.edit(app, b, false, false) && app.remaining == 0 &&
+          b.addressFamily == choice, "address-family UI applies selected mode")
+      check_(Menu.load(null) == 0, "reload address-family UI choice")
+      for (entry in Menu.entries) if (entry.name == "Address Family Test") b = entry
+      check_(b.addressFamily == choice, "address-family UI choice persists")
+    }
+    check_(b.delete(), "discard address-family test entry")
   }
   static testCTermLog_() {
     var b = Menu.defaults

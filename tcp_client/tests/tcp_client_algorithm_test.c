@@ -44,6 +44,13 @@ cancel_after_120_ms(void *context)
 	return tcp_client_fake_now() >= 120;
 }
 
+static bool
+cancel_after_370_ms(void *context)
+{
+	(void)context;
+	return tcp_client_fake_now() >= 370;
+}
+
 static int
 test_diagnostics(void)
 {
@@ -55,7 +62,8 @@ test_diagnostics(void)
 	struct diagnostics log = {0};
 	struct tcp_client_options options = {
 		.family = TCP_CLIENT_ADDRESS_ANY, .timeout_ms = 1000,
-		.diagnostic = capture_diagnostic, .diagnostic_context = &log
+		.diagnostic = capture_diagnostic, .diagnostic_context = &log,
+		.happy_eyeballs = true
 	};
 	socket_handle_t result = SOCKET_HANDLE_INVALID;
 	const enum tcp_client_event expected[] = {
@@ -95,7 +103,8 @@ test_interleaved_stagger(void)
 		{TCP_CLIENT_ADDRESS_IPV6, TCP_CLIENT_FAKE_PENDING_SUCCESS, 300, 0},
 	};
 	const struct tcp_client_options options = {
-		TCP_CLIENT_ADDRESS_ANY, 2000, NULL, NULL, NULL, NULL
+		.family = TCP_CLIENT_ADDRESS_ANY, .timeout_ms = 2000,
+		.happy_eyeballs = true
 	};
 	socket_handle_t result = SOCKET_HANDLE_INVALID;
 	enum tcp_client_address_family family = TCP_CLIENT_ADDRESS_ANY;
@@ -123,7 +132,8 @@ test_immediate_fallback(void)
 		{TCP_CLIENT_ADDRESS_IPV4, TCP_CLIENT_FAKE_IMMEDIATE_SUCCESS, 0, 0},
 	};
 	const struct tcp_client_options options = {
-		TCP_CLIENT_ADDRESS_IPV4, 1000, NULL, NULL, NULL, NULL
+		.family = TCP_CLIENT_ADDRESS_IPV4, .timeout_ms = 1000,
+		.happy_eyeballs = true
 	};
 	socket_handle_t result = SOCKET_HANDLE_INVALID;
 
@@ -141,18 +151,21 @@ test_cancel_poll_and_cleanup(void)
 {
 	const struct tcp_client_fake_address addresses[] = {
 		{TCP_CLIENT_ADDRESS_IPV4, TCP_CLIENT_FAKE_NEVER, 0, 0},
+		{TCP_CLIENT_ADDRESS_IPV6, TCP_CLIENT_FAKE_IMMEDIATE_SUCCESS, 0, 0},
 	};
 	const struct tcp_client_options options = {
-		TCP_CLIENT_ADDRESS_IPV4, 1000, cancel_after_120_ms, NULL, NULL, NULL
+		.family = TCP_CLIENT_ADDRESS_ANY, .timeout_ms = 1000,
+		.cancel = cancel_after_120_ms
 	};
 	socket_handle_t result = (socket_handle_t)77;
 
-	tcp_client_fake_reset(addresses, 1);
+	tcp_client_fake_reset(addresses, 2);
 	CHECK(tcp_client_connect(&result, NULL, "example", 23, &options) ==
 	    IO_ERROR_CANCELLED);
 	CHECK(result == (socket_handle_t)77);
 	CHECK(tcp_client_fake_now() == 150);
 	CHECK(tcp_client_fake_close_count() == 1);
+	CHECK(tcp_client_fake_start_count() == 1);
 	return 0;
 }
 
@@ -161,18 +174,20 @@ test_deadline_and_cleanup(void)
 {
 	const struct tcp_client_fake_address addresses[] = {
 		{TCP_CLIENT_ADDRESS_IPV4, TCP_CLIENT_FAKE_NEVER, 0, 0},
+		{TCP_CLIENT_ADDRESS_IPV6, TCP_CLIENT_FAKE_IMMEDIATE_SUCCESS, 0, 0},
 	};
 	const struct tcp_client_options options = {
-		TCP_CLIENT_ADDRESS_IPV4, 125, NULL, NULL, NULL, NULL
+		.family = TCP_CLIENT_ADDRESS_ANY, .timeout_ms = 1000
 	};
 	socket_handle_t result = (socket_handle_t)88;
 
-	tcp_client_fake_reset(addresses, 1);
+	tcp_client_fake_reset(addresses, 2);
 	CHECK(tcp_client_connect(&result, NULL, "example", 23, &options) ==
 	    IO_ERROR_TIMED_OUT);
 	CHECK(result == (socket_handle_t)88);
-	CHECK(tcp_client_fake_now() == 125);
+	CHECK(tcp_client_fake_now() == 1000);
 	CHECK(tcp_client_fake_close_count() == 1);
+	CHECK(tcp_client_fake_start_count() == 1);
 	return 0;
 }
 
@@ -186,7 +201,8 @@ test_specific_error_and_unchanged_outputs(void)
 		    IO_ERROR_HOST_UNREACHABLE},
 	};
 	const struct tcp_client_options options = {
-		TCP_CLIENT_ADDRESS_ANY, 1000, NULL, NULL, NULL, NULL
+		.family = TCP_CLIENT_ADDRESS_ANY, .timeout_ms = 1000,
+		.happy_eyeballs = true
 	};
 	socket_handle_t result = (socket_handle_t)66;
 	enum tcp_client_address_family family = TCP_CLIENT_ADDRESS_IPV4;
@@ -212,7 +228,8 @@ test_recorded_failure_does_not_suppress_success(void)
 		{TCP_CLIENT_ADDRESS_IPV6, TCP_CLIENT_FAKE_PENDING_SUCCESS, 300, 0},
 	};
 	const struct tcp_client_options options = {
-		TCP_CLIENT_ADDRESS_ANY, 1000, NULL, NULL, NULL, NULL
+		.family = TCP_CLIENT_ADDRESS_ANY, .timeout_ms = 1000,
+		.happy_eyeballs = true
 	};
 	socket_handle_t result = SOCKET_HANDLE_INVALID;
 	enum tcp_client_address_family family = TCP_CLIENT_ADDRESS_ANY;
@@ -233,9 +250,78 @@ test_recorded_failure_does_not_suppress_success(void)
 	return 0;
 }
 
+static int
+test_preferred_address_only(void)
+{
+	const struct tcp_client_options options = {
+		.family = TCP_CLIENT_ADDRESS_ANY, .timeout_ms = 2000
+	};
+	const struct tcp_client_fake_address first_addresses[] = {
+		{TCP_CLIENT_ADDRESS_IPV6, TCP_CLIENT_FAKE_PENDING_SUCCESS, 600, 0},
+		{TCP_CLIENT_ADDRESS_IPV6, TCP_CLIENT_FAKE_PENDING_FAILURE, 600,
+		    IO_ERROR_HOST_UNREACHABLE},
+		{TCP_CLIENT_ADDRESS_IPV6, TCP_CLIENT_FAKE_FAIL_START, 0,
+		    IO_ERROR_CONNECTION_REFUSED},
+	};
+
+	for (size_t i = 0; i < sizeof(first_addresses) / sizeof(first_addresses[0]); ++i) {
+		const struct tcp_client_fake_address addresses[] = {
+			first_addresses[i],
+			{TCP_CLIENT_ADDRESS_IPV4, TCP_CLIENT_FAKE_IMMEDIATE_SUCCESS, 0, 0},
+		};
+		socket_handle_t result = SOCKET_HANDLE_INVALID;
+		enum tcp_client_address_family family = TCP_CLIENT_ADDRESS_ANY;
+
+		tcp_client_fake_reset(addresses, 2);
+		CHECK(tcp_client_connect(&result, &family, "example", 23, &options)
+		    == first_addresses[i].error);
+		CHECK(tcp_client_fake_start_count() == 1);
+		CHECK(tcp_client_fake_started_address(0) == 0);
+		if (first_addresses[i].error == 0) {
+			CHECK(family == TCP_CLIENT_ADDRESS_IPV6);
+			CHECK(tcp_client_fake_now() == 600);
+			CHECK(socket_close(result) == 0);
+		} else {
+			CHECK(result == SOCKET_HANDLE_INVALID);
+			CHECK(family == TCP_CLIENT_ADDRESS_ANY);
+		}
+		CHECK(tcp_client_fake_close_count()
+		    == (first_addresses[i].behavior == TCP_CLIENT_FAKE_FAIL_START ? 0 : 1));
+	}
+	return 0;
+}
+
+static int
+test_racing_cleanup(void)
+{
+	const struct tcp_client_fake_address addresses[] = {
+		{TCP_CLIENT_ADDRESS_IPV6, TCP_CLIENT_FAKE_NEVER, 0, 0},
+		{TCP_CLIENT_ADDRESS_IPV4, TCP_CLIENT_FAKE_NEVER, 0, 0},
+	};
+	struct tcp_client_options options = {
+		.family = TCP_CLIENT_ADDRESS_ANY, .timeout_ms = 500,
+		.happy_eyeballs = true
+	};
+
+	for (unsigned cancel = 0; cancel < 2; ++cancel) {
+		socket_handle_t result = SOCKET_HANDLE_INVALID;
+		options.cancel = cancel ? cancel_after_370_ms : NULL;
+		tcp_client_fake_reset(addresses, 2);
+		CHECK(tcp_client_connect(&result, NULL, "example", 23, &options)
+		    == (cancel ? IO_ERROR_CANCELLED : IO_ERROR_TIMED_OUT));
+		CHECK(result == SOCKET_HANDLE_INVALID);
+		CHECK(tcp_client_fake_start_count() == 2);
+		CHECK(tcp_client_fake_close_count() == 2);
+		CHECK(tcp_client_fake_now() == (cancel ? 400 : 500));
+	}
+	return 0;
+}
+
 int
 main(void)
 {
+	CHECK(test_preferred_address_only() == 0);
+	CHECK(test_racing_cleanup() == 0);
 	CHECK(test_diagnostics() == 0);
 	CHECK(test_interleaved_stagger() == 0);
 	CHECK(test_immediate_fallback() == 0);

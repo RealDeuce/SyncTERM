@@ -630,6 +630,7 @@ connect_network(st_connection_t **result, const struct st_profile *profile,
 	    : profile->address_family == ST_ADDRESS_FAMILY_IPV6
 	    ? TCP_CLIENT_ADDRESS_IPV6 : TCP_CLIENT_ADDRESS_ANY;
 	options.timeout_ms = -1;
+	options.happy_eyeballs = profile->address_family == ST_ADDRESS_FAMILY_HAPPY_EYEBALLS;
 	options.cancel = cancel_connect;
 	options.cancel_context = &cancel;
 	options.diagnostic = st_connection_tcp_diagnostic;

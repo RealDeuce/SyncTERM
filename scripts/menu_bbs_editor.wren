@@ -614,7 +614,8 @@ class BbsEditor {
     }
     text = text + helpItem_("Connection Type", "The connection protocol")
     if (network_(d["connType"])) {
-      text = text + helpItem_("Address Family", "Use DNS, IPv4, or IPv6")
+      text = text + helpItem_("Address Family",
+          "Use DNS, IPv4, IPv6, or Happy Eyeballs")
     }
     if (serial_(d["connType"])) {
       text = text + helpItem_("Flow Control", "The flow control to use") +
@@ -847,9 +848,13 @@ class BbsEditor {
 
   static addressFamilyHelp_() {
     return "# Address Family\n\n" +
-        "As per DNS\n:  Use the addresses returned by DNS\n" +
-        "IPv4 only\n:  Resolve and connect only to IPv4 addresses\n" +
-        "IPv6 only\n:  Resolve and connect only to IPv6 addresses"
+        "As per DNS\n:  Connect only to the system resolver's preferred address\n" +
+        "IPv4 only\n:  Connect only to the preferred IPv4 address\n" +
+        "IPv6 only\n:  Connect only to the preferred IPv6 address\n" +
+        "Happy Eyeballs\n:  Try IPv4 and IPv6 addresses with overlapping " +
+        "connection attempts, staggered by 250 ms; use the first success. " +
+        "This can open extra BBS connections, allocating nodes or " +
+        "activating serial bridges. It is disabled by default."
   }
 
   static flowControlHelp_() {

@@ -1367,6 +1367,7 @@ class AddressFamily {
   static unspec { 0 }
   static inet   { 1 }
   static inet6  { 2 }
+  static happyEyeballs { 3 }
 }
 class MusicMode {
   static syncterm { 0 }

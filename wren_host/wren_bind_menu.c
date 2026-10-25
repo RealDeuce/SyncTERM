@@ -1311,7 +1311,9 @@ fn_menu_default_port(WrenVM *vm)
 static void
 fn_menu_address_families(WrenVM *vm)
 {
-	static const char *const names[] = {"As per DNS", "IPv4 only", "IPv6 only"};
+	static const char *const names[] = {
+		"As per DNS", "IPv4 only", "IPv6 only", "Happy Eyeballs"
+	};
 
 	push_rows(vm, names, sizeof(names) / sizeof(names[0]));
 }
@@ -3837,7 +3839,7 @@ BBS_NUM_PROPERTY(music, music, int, ST_PROFILE_MUSIC_SYNCTERM,
     ST_PROFILE_MUSIC_ALL)
 BBS_NUM_PROPERTY(rip, rip_version, int, ST_RIP_VERSION_NONE, ST_RIP_VERSION_3)
 BBS_NUM_PROPERTY(address_family, address_family, int,
-    ST_ADDRESS_FAMILY_UNSPECIFIED, ST_ADDRESS_FAMILY_IPV6)
+    ST_ADDRESS_FAMILY_UNSPECIFIED, ST_ADDRESS_FAMILY_HAPPY_EYEBALLS)
 BBS_NUM_PROPERTY(screen_mode, screen_mode, int, ST_SCREEN_MODE_CURRENT,
     ST_SCREEN_MODE_ATARIST_80X25_MONO)
 BBS_NUM_PROPERTY(bps_rate, bps_rate, uint32_t, 0, UINT32_MAX)

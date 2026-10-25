@@ -420,7 +420,7 @@ class WrenTest {
 
   static testAddressFamilyConstants_() {
     check_(AddressFamily.unspec == 0 && AddressFamily.inet == 1 &&
-           AddressFamily.inet6 == 2,
+           AddressFamily.inet6 == 2 && AddressFamily.happyEyeballs == 3,
            "AddressFamily constants")
   }
 

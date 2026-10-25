@@ -180,9 +180,16 @@ tcp_client_connect(socket_handle_t *result,
 		error = IO_ERROR_NOT_FOUND;
 		goto done;
 	}
-	error = tcp_client_interleave(&addresses);
-	if (error != 0)
-		goto done;
+	if (options->happy_eyeballs) {
+		error = tcp_client_interleave(&addresses);
+		if (error != 0)
+			goto done;
+	}
+	else {
+		/* A speculative connection can allocate a BBS node or open a
+		 * serial bridge. Use only the resolver's preferred address. */
+		addresses.count = 1;
+	}
 	attempts = calloc(addresses.count, sizeof(*attempts));
 	wait_items = calloc(addresses.count, sizeof(*wait_items));
 	wait_indices = calloc(addresses.count, sizeof(*wait_indices));

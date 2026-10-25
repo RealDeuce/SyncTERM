@@ -908,16 +908,18 @@ All ANSI Music Enabled:::
 Address Family::
 Selected IP address family for network connections.
 As per DNS:::
-	Allows both IPv4 and IPv6 addresses returned by the system resolver.
-	Starts with the resolver's preferred family and alternates families,
-	staggering connection attempts by 250 ms while earlier attempts are pending.
-	Uses the first successful connection.
+	Connects only to the system resolver's preferred address, which may be
+	IPv4 or IPv6. This is the default; no other address is tried if it fails.
 IPv4 only:::
-	Will only connect over an IPv4 address.  If none is
-	available, the connection will fail.
+	Connects only to the resolver's preferred IPv4 address.
 IPv6 only:::
-	Will only connect over an IPv6 address.  If none is
-	available, the connection will fail.
+	Connects only to the resolver's preferred IPv6 address.
+Happy Eyeballs:::
+	Allows both IPv4 and IPv6. Starts with the resolver's preferred family,
+	alternates families, and staggers additional connection attempts by 250 ms
+	while earlier attempts are pending. Uses the first successful connection
+	and closes the others. Extra connections can allocate BBS nodes or activate
+	serial bridges, so this mode must be selected explicitly.
  
 Font::
 Choses a font (and by implication, a codepage) for the connection.

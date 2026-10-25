@@ -1,4 +1,4 @@
-/* Blocking TCP client connection establishment with address racing. */
+/* Blocking TCP client connection establishment with optional address racing. */
 
 /*
  * Copyright (c) 2026 Stephen Hurd
@@ -31,7 +31,7 @@ enum tcp_client_event {
 
 struct tcp_client_options {
 	enum tcp_client_address_family family;
-	/* Overall connection-racing deadline; -1 waits indefinitely. */
+	/* Overall connection deadline; -1 waits indefinitely. */
 	int64_t timeout_ms;
 	tcp_client_cancel_fn cancel;
 	void *cancel_context;
@@ -40,6 +40,9 @@ struct tcp_client_options {
 	void (*diagnostic)(void *context, enum tcp_client_event event,
 	    enum tcp_client_address_family family, int status);
 	void *diagnostic_context;
+	/* False tries only the resolver's preferred address. True interleaves
+	 * families and races additional addresses after a 250 ms delay. */
+	bool happy_eyeballs;
 };
 
 /*

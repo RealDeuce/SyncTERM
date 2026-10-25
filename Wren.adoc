@@ -5081,11 +5081,14 @@ Standard modes encode their dimensions in the name (e.g. `c80x25` =
 [options="header",cols="2,1,4"]
 |===
 | Constant  | Code | Description
-| `unspec`  | 0    | As per DNS: allow both IPv4 and IPv6, starting with
-                     the resolver's preferred family and staggering attempts
-                     across families. Use the first successful connection.
-| `inet`    | 1    | IPv4 only.
-| `inet6`   | 2    | IPv6 only.
+| `unspec`  | 0    | As per DNS (default): connect only to the system
+                     resolver's preferred address, IPv4 or IPv6.
+| `inet`    | 1    | Connect only to the preferred IPv4 address.
+| `inet6`   | 2    | Connect only to the preferred IPv6 address.
+| `happyEyeballs` | 3 | Race IPv4 and IPv6 addresses with attempts staggered
+                     by 250 ms. Use the first successful connection and close
+                     the others. Extra connections can allocate BBS nodes or
+                     activate serial bridges; this mode is opt-in.
 |===
 
 ==== MusicMode

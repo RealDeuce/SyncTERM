@@ -56,6 +56,7 @@ st_connection_stream_open(struct st_connection_stream *stream,
 		    : profile->address_family == ST_ADDRESS_FAMILY_IPV6
 		    ? TCP_CLIENT_ADDRESS_IPV6 : TCP_CLIENT_ADDRESS_ANY,
 		.timeout_ms = 60000,
+		.happy_eyeballs = profile->address_family == ST_ADDRESS_FAMILY_HAPPY_EYEBALLS,
 		.cancel = cancel_connect,
 		.cancel_context = (void *)hooks,
 		.diagnostic = st_connection_tcp_diagnostic,

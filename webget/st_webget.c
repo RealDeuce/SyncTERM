@@ -809,8 +809,10 @@ connect_transport(struct transport *transport, const struct parsed_url *url,
     const struct st_webget_request *request)
 {
 	struct tcp_client_options options = {
-		TCP_CLIENT_ADDRESS_ANY, request->connect_timeout_ms,
-		tcp_cancel, (void *)request, NULL, NULL
+		.family = TCP_CLIENT_ADDRESS_ANY,
+		.timeout_ms = request->connect_timeout_ms,
+		.cancel = tcp_cancel, .cancel_context = (void *)request,
+		.happy_eyeballs = true
 	};
 	int status;
 
