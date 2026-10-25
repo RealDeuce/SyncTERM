@@ -5081,8 +5081,9 @@ Standard modes encode their dimensions in the name (e.g. `c80x25` =
 [options="header",cols="2,1,4"]
 |===
 | Constant  | Code | Description
-| `unspec`  | 0    | Don't care — let the resolver pick whichever
-                     family the host has.
+| `unspec`  | 0    | As per DNS: allow both IPv4 and IPv6, starting with
+                     the resolver's preferred family and staggering attempts
+                     across families. Use the first successful connection.
 | `inet`    | 1    | IPv4 only.
 | `inet6`   | 2    | IPv6 only.
 |===

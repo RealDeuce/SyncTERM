@@ -1311,7 +1311,7 @@ fn_menu_default_port(WrenVM *vm)
 static void
 fn_menu_address_families(WrenVM *vm)
 {
-	static const char *const names[] = {"Unspecified", "IPv4", "IPv6"};
+	static const char *const names[] = {"As per DNS", "IPv4 only", "IPv6 only"};
 
 	push_rows(vm, names, sizeof(names) / sizeof(names[0]));
 }
