@@ -23,7 +23,9 @@ import time
 
 def main():
     executable, mode = sys.argv[1:3]
-    layout = sys.argv[3] if len(sys.argv) > 3 else None
+    variant = sys.argv[3] if len(sys.argv) > 3 else None
+    layout = variant if variant in ("left", "center") else None
+    check_scaling = variant == "scaling"
     with tempfile.TemporaryDirectory(prefix="syncterm-text-") as directory:
         root = Path(directory)
         env = dict(os.environ)
@@ -38,6 +40,9 @@ def main():
             (root / "syncterm.ini").write_text(
                 "[SyncTERM]\nConfirmClose=false\nLeftJustify="
                 + str(layout == "left") + "\n")
+        if check_scaling:
+            (root / "syncterm.ini").write_text(
+                "[SyncTERM]\nConfirmClose=false\nScalingFactor=2.5\n")
         with socket.socket() as listener:
             listener.bind(("127.0.0.1", 0))
             listener.listen(1)
@@ -51,9 +56,10 @@ def main():
             fcntl.ioctl(slave, termios.TIOCSWINSZ,
                         struct.pack("HHHH", 37, 91, 0, 0))
             process = subprocess.Popen(
-                [executable, "-i" + mode, "-s", "-q",
+                [executable, "-i" + mode, "-q",
                  "-n", str(root / "syncterm.ini"),
                  "-b", str(root / "syncterm.lst")]
+                + ([] if check_scaling else ["-s"])
                 + (["raw://127.0.0.1:" + str(port)] if layout is None else []),
                 stdin=slave, stdout=slave, stderr=slave,
                 env=env, start_new_session=True)
@@ -125,6 +131,10 @@ def main():
                     raise RuntimeError(
                         f"-i{mode}: connected={connected}, exit={status}, "
                         f"terminal output={bytes(output[-4096:])!r}")
+                if check_scaling:
+                    saved = (root / "syncterm.ini").read_text()
+                    if saved != "[SyncTERM]\nConfirmClose=false\nScalingFactor=2.5\n":
+                        raise RuntimeError(f"-i{mode}: text output changed settings: {saved!r}")
             except subprocess.TimeoutExpired as error:
                 raise RuntimeError(
                     f"-i{mode}: startup/shutdown timed out; "

@@ -172,6 +172,12 @@ if(BUILD_TESTING)
 						$<TARGET_FILE:${_cli}> ${_mode})
 					set_tests_properties(syncterm_text_startup_${_mode}
 						PROPERTIES TIMEOUT 25)
+					add_test(NAME syncterm_text_scaling_${_mode}
+						COMMAND ${Python3_EXECUTABLE}
+						${CMAKE_CURRENT_SOURCE_DIR}/tests/st_text_startup_test.py
+						$<TARGET_FILE:${_cli}> ${_mode} scaling)
+					set_tests_properties(syncterm_text_scaling_${_mode}
+						PROPERTIES TIMEOUT 25)
 					foreach(_layout IN ITEMS center left)
 						add_test(NAME syncterm_text_${_layout}_${_mode}
 							COMMAND ${Python3_EXECUTABLE}
@@ -196,6 +202,20 @@ if(BUILD_TESTING)
 			-Wall -Wextra -Wpedantic -Werror)
 	endif()
 	add_test(NAME app_startup COMMAND st_app_startup_test)
+	if(TARGET st_console_x11_test)
+		find_package(X11 REQUIRED)
+		add_executable(st_app_scaling_test tests/st_app_scaling_test.c)
+		target_link_libraries(st_app_scaling_test PRIVATE st_application
+			X11::X11 syncterm_ini syncterm_filesystem syncterm_threads)
+		set_target_properties(st_app_scaling_test PROPERTIES
+			C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		target_compile_options(st_app_scaling_test PRIVATE
+			-Wall -Wextra -Wpedantic -Werror)
+		add_test(NAME app_scaling COMMAND st_app_scaling_test
+			${CMAKE_CURRENT_BINARY_DIR}/scaling-test)
+		set_tests_properties(app_scaling PROPERTIES TIMEOUT 30
+			SKIP_RETURN_CODE 77 RESOURCE_LOCK x11_display)
+	endif()
 	if(NOT WIN32)
 		add_executable(st_app_session_mode_test
 			tests/st_app_session_mode_test.c st_syncterm_icon.c st_terminfo.c)

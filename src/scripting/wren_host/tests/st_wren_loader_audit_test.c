@@ -215,6 +215,7 @@ main(int argc, char **argv)
 	    || strcmp(argv[2], "menu-suite") == 0
 	    || strcmp(argv[2], "main-menu-address") == 0
 	    || strcmp(argv[2], "main-menu-position") == 0
+	    || strcmp(argv[2], "main-menu-exit") == 0
 	    || strcmp(argv[2], "logview-suite") == 0
 	    || strcmp(argv[2], "wren-console-suite") == 0
 	    || strcmp(argv[2], "auxiliary-scripts") == 0
@@ -282,10 +283,12 @@ main(int argc, char **argv)
 		paths.personal_list = personal;
 		paths.cached_system_list = cached;
 	}
-	if (strcmp(argv[2], "main-menu-position") == 0) {
+	if (strcmp(argv[2], "main-menu-position") == 0
+	    || strcmp(argv[2], "main-menu-exit") == 0) {
 		(void)snprintf(personal, sizeof(personal), "%s/personal.ini", argv[1]);
 		(void)snprintf(cached, sizeof(cached), "%s/cached.ini", argv[1]);
-		write_position_entries(personal, 40, SIZE_MAX);
+		write_position_entries(personal,
+		    strcmp(argv[2], "main-menu-position") == 0 ? 40 : 1, SIZE_MAX);
 		paths.personal_list = personal;
 		paths.cached_system_list = cached;
 	}
@@ -607,6 +610,24 @@ main(int argc, char **argv)
 			fprintf(stderr, "core helper %zu: %s\n", i, ok ? "PASS" : "FAIL");
 			passed = passed && ok;
 		}
+	}
+	else if (strcmp(argv[2], "main-menu-exit") == 0) {
+		struct st_profile selected;
+		bool has_selection = false;
+
+		CHECK(status == 0);
+		st_settings.confirm_close = false;
+		/* Escape from the online menu returns to the connection. */
+		post_key(console, 27);
+		CHECK(st_wren_host_run_connected_menu(host) == 0);
+		CHECK(!st_wren_host_exit_requested(host));
+		/* The same key in the offline directory exits the application. */
+		st_profile_init(&selected);
+		post_key(console, 27);
+		CHECK(st_wren_host_run_menu(host, &selected, &has_selection) == 0);
+		CHECK(!has_selection && st_wren_host_exit_requested(host));
+		st_profile_dispose(&selected);
+		passed = true;
 	}
 	else if (strcmp(argv[2], "main-menu-position") == 0) {
 		struct st_profile selected;

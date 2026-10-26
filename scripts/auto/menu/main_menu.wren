@@ -1112,7 +1112,7 @@ class MainMenuApp {
     }
     if (confirmed) {
       if (!_app.closeModals()) return
-      if (quitApplication) Menu.quitApplication()
+      Menu.quitApplication()
       _app.quit()
     }
   }

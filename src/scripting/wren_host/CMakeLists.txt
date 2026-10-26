@@ -270,6 +270,11 @@ int main(void)
 	add_test(NAME wren_main_menu_position
 		COMMAND st_wren_loader_audit_test "${_directory}" main-menu-position)
 	set_tests_properties(wren_main_menu_position PROPERTIES TIMEOUT 30)
+	set(_directory "${CMAKE_CURRENT_BINARY_DIR}/main-menu-exit")
+	file(MAKE_DIRECTORY "${_directory}")
+	add_test(NAME wren_main_menu_exit
+		COMMAND st_wren_loader_audit_test "${_directory}" main-menu-exit)
+	set_tests_properties(wren_main_menu_exit PROPERTIES TIMEOUT 30)
 	set(_directory "${CMAKE_CURRENT_BINARY_DIR}/audit-logview-suite")
 	file(MAKE_DIRECTORY "${_directory}")
 	add_test(NAME wren_logview
