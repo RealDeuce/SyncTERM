@@ -41,6 +41,25 @@ opposite byte orders, 8/16/24/32-bit pixels, generic fallback, padded rows,
 and partial damage against Xlib's generic pixel writer before trusting a fast
 path. Do not infer end-to-end application speed from this isolated ratio.
 
+== Sanitizer CI runtime
+
+The sanitizer CI profile builds with ASan, UBSan, debug information, and frame
+pointers. Routine runs use ASan's default fast allocation stack unwinder.
+Slow unwinding can substantially increase the runtime of allocation-heavy
+tests; it provides more complete allocation stacks through external libraries
+that omit frame pointers. It does not enable additional memory checks.
+
+For a targeted diagnostic run in an existing sanitizer build:
+
+[source,sh]
+----
+ASAN_OPTIONS=fast_unwind_on_malloc=0 ctest --test-dir build-asan -R '^cterm_apc$' --output-on-failure
+----
+
+For a complete CI diagnostic run, set the job variable
+`ASAN_OPTIONS=fast_unwind_on_malloc=0`. The POSIX CI wrapper preserves this
+override while adding its report paths and module-map diagnostics.
+
 == 2026-10-16 baseline
 
 FreeBSD amd64, Clang 19.1.7, CMake RelWithDebInfo, Unifont enabled.

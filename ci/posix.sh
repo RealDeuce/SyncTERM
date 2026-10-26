@@ -96,9 +96,10 @@ mingw32-cross|mingw64-cross|minimal) ;;
 esac
 
 if [ "${CI_PROFILE:-native}" = sanitizers ]; then
-	# Preserve complete reports outside GitLab's bounded console trace. Slow
-	# allocation unwinding also covers uninstrumented display libraries.
-	ASAN_OPTIONS="${ASAN_OPTIONS:+$ASAN_OPTIONS:}log_path=$CI_BUILD_DIR/reports/asan:log_exe_name=1:fast_unwind_on_malloc=0:print_module_map=2"
+	# Preserve complete reports outside GitLab's bounded console trace. Keep
+	# ASan's fast allocation unwinding default; ASAN_OPTIONS can opt into
+	# fast_unwind_on_malloc=0 for diagnostics through external libraries.
+	ASAN_OPTIONS="${ASAN_OPTIONS:+$ASAN_OPTIONS:}log_path=$CI_BUILD_DIR/reports/asan:log_exe_name=1:print_module_map=2"
 	UBSAN_OPTIONS="${UBSAN_OPTIONS:+$UBSAN_OPTIONS:}log_path=$CI_BUILD_DIR/reports/ubsan:log_exe_name=1:print_stacktrace=1"
 	export ASAN_OPTIONS UBSAN_OPTIONS
 fi
