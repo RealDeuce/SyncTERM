@@ -63,12 +63,12 @@ int main(int argc, char **argv)
 				char path[2048]; FILE *file = NULL;
 				snprintf(path, sizeof(path), "%s/%s", config.directory, event.filename);
 				if (!event.success || fs_open(&file, path, "rb") != 0) { status = IO_ERROR_IO; break; }
-				uint8_t actual[4096]; size_t position = 0, size;
-				while ((size = fread(actual, 1, sizeof(actual), file)) != 0) {
-					if (size > received_size - position || memcmp(actual, received + position, size) != 0) {
+				uint8_t actual[4096]; size_t position = 0, actual_size;
+				while ((actual_size = fread(actual, 1, sizeof(actual), file)) != 0) {
+					if (actual_size > received_size - position || memcmp(actual, received + position, actual_size) != 0) {
 						status = IO_ERROR_INVALID_FORMAT; break;
 					}
-					position += size;
+					position += actual_size;
 				}
 				if (ferror(file) || position != received_size) status = IO_ERROR_IO;
 				fclose(file);

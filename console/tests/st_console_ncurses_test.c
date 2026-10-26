@@ -297,8 +297,10 @@ child_test(int report, bool cp437)
 	do {
 		status = st_console_event_timedwait(console, &event, &deadline);
 	} while (status == 0 && event.type != ST_CONSOLE_EVENT_KEY_CODE);
-	if (status != 0 || event.data.key.code != 13)
+	if (status != 0 || event.data.key.code != 13) {
+		child_result(report, 'I');
 		_exit(1);
+	}
 	st_console_destroy(console);
 	st_console_display_destroy(display);
 	child_result(report, 'F');
@@ -317,8 +319,13 @@ wait_report(int report, int master, unsigned char expected)
 	for (;;) {
 		int status = poll(descriptors, 2, 5000);
 
-		if (status <= 0)
+		if (status < 0 && errno == EINTR)
+			continue;
+		if (status <= 0) {
+			fprintf(stderr, "ncurses waiting for stage %c: poll=%d errno=%d\n",
+			    expected, status, status < 0 ? errno : 0);
 			return -1;
+		}
 		if ((descriptors[1].revents & POLLIN) != 0) {
 			ssize_t count = read(master, buffer, sizeof(buffer));
 
@@ -328,8 +335,10 @@ wait_report(int report, int master, unsigned char expected)
 		if ((descriptors[0].revents & POLLIN) != 0) {
 			unsigned char result;
 
-			if (read(report, &result, 1) != 1)
+			if (read(report, &result, 1) != 1) {
+				fprintf(stderr, "ncurses report ended before stage %c\n", expected);
 				return -1;
+			}
 			if (result == 'S')
 				return 77;
 			if (result != expected) {
@@ -350,8 +359,11 @@ wait_report(int report, int master, unsigned char expected)
 			}
 			return 0;
 		}
-		if ((descriptors[0].revents & (POLLERR | POLLHUP | POLLNVAL)) != 0)
+		if ((descriptors[0].revents & (POLLERR | POLLHUP | POLLNVAL)) != 0) {
+			fprintf(stderr, "ncurses report closed before stage %c: revents=%x\n",
+			    expected, (unsigned)descriptors[0].revents);
 			return -1;
+		}
 	}
 }
 
@@ -467,8 +479,20 @@ failed:
 	(void)close(report[0]);
 failed_after_report:
 	dump_terminal_output(terminal_output, terminal_output_size);
-	(void)kill(child, SIGKILL);
-	(void)waitpid(child, &child_status, 0);
+	/* Preserve a crash's exit status before killing a still-running child. */
+	{
+		pid_t result = waitpid(child, &child_status, WNOHANG);
+
+		if (result == child) {
+			if (WIFSIGNALED(child_status))
+				fprintf(stderr, "ncurses child died from signal %d\n", WTERMSIG(child_status));
+			else if (WIFEXITED(child_status))
+				fprintf(stderr, "ncurses child exited with status %d\n", WEXITSTATUS(child_status));
+		} else if (result == 0) {
+			(void)kill(child, SIGKILL);
+			(void)waitpid(child, &child_status, 0);
+		}
+	}
 	(void)close(master);
 	return EXIT_FAILURE;
 }

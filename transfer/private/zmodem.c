@@ -965,7 +965,8 @@ int zmodem_recv_data32(zmodem_t* zm, unsigned char * p, unsigned maxlen, unsigne
 			                            zm->rx_plain_tab)) != 0) {
 				crc = st_transfer_crc32_update(crc, p, got);
 				p += got;
-				*len += got;
+				/* recv_span copies at most maxlen - *len bytes. */
+				*len += (unsigned)got;
 				if (*len >= maxlen)
 					break;
 			}
@@ -1060,7 +1061,7 @@ int zmodem_recv_data16(zmodem_t* zm, register unsigned char* p, unsigned maxlen,
 	return subpkt_type;
 }
 
-int zmodem_recv_data(zmodem_t* zm, unsigned char* buf, size_t maxlen, unsigned* len, bool ack, int* type)
+int zmodem_recv_data(zmodem_t* zm, unsigned char* buf, unsigned maxlen, unsigned* len, bool ack, int* type)
 {
 	int      subpkt_type;
 	unsigned n = 0;
@@ -1725,7 +1726,7 @@ int zmodem_send_from(zmodem_t* zm, FILE* fp, uint64_t pos, uint64_t* sent)
 {
 	size_t   len;
 	uint8_t    tx_type;
-	unsigned buf_sent = 0;
+	size_t buf_sent = 0;
 	unsigned subpkts_sent = 0;
 	unsigned backchannel_wait = 0;
 	time_t   start = time(NULL);
