@@ -82,6 +82,25 @@ static const char application_title[] = "SyncTERM 2.0a"
 static void
 usage(FILE *stream, const char *program)
 {
+	static const struct {
+		uint32_t feature;
+		const char *mode;
+		const char *description;
+	} modes[] = {
+		{ST_CONSOLE_BUILD_ANSI, "A or AU", "ANSI terminal output using UTF-8"},
+		{ST_CONSOLE_BUILD_ANSI, "AC", "ANSI terminal output using CP437 bytes"},
+		{ST_CONSOLE_BUILD_NCURSES, "C", "ncurses terminal output using Unicode"},
+		{ST_CONSOLE_BUILD_NCURSES, "F", "ncurses terminal output using CP437 bytes"},
+		{ST_CONSOLE_BUILD_NCURSES, "I", "ncurses terminal output using ASCII"},
+		{ST_CONSOLE_BUILD_GDI, "G[W|F]", "Windows GDI graphics"},
+		{ST_CONSOLE_BUILD_QUARTZ, "Q[W|F]", "macOS Quartz graphics"},
+		{ST_CONSOLE_BUILD_SDL, "S[W|F]", "SDL graphics"},
+		{ST_CONSOLE_BUILD_WIN32, "W", "Windows text console"},
+		{ST_CONSOLE_BUILD_X11, "X[W|F]", "X11 graphics"},
+		{ST_CONSOLE_BUILD_WAYLAND, "Y[W|F]", "Wayland graphics"},
+	};
+	uint32_t features = st_console_build_features();
+
 	fprintf(stream,
 	    "usage: %s [options] [URL]\n\n"
 	    "options:\n"
@@ -90,23 +109,51 @@ usage(FILE *stream, const char *program)
 	    "  -b path       use path as the personal BBS list\n"
 	    "  -c            hide the status line\n"
 	    "  -h            use SSH when URL has no scheme\n"
-	    "  -iX           select A[U|C], C, F, I, G[W|F], Q[W|F], S[W|F],\n"
-	    "                W, X[W|F], or Y[W|F] output\n"
-	    "                A and AU are UTF-8 ANSI; AC is CP437 ANSI\n"
+	    "  -iX           select output mode X (default: configured or automatic)\n"
+	    "                Modes compiled into this build:\n", program);
+	for (size_t i = 0; i < sizeof(modes) / sizeof(modes[0]); ++i) {
+		if ((features & modes[i].feature) != 0)
+			fprintf(stream, "                  %-8s %s\n",
+			    modes[i].mode, modes[i].description);
+	}
+	if ((features & (ST_CONSOLE_BUILD_GDI | ST_CONSOLE_BUILD_QUARTZ
+	    | ST_CONSOLE_BUILD_SDL | ST_CONSOLE_BUILD_X11
+	    | ST_CONSOLE_BUILD_WAYLAND)) != 0)
+		fputs("                Graphics modes accept W for windowed or F for fullscreen;\n"
+		    "                the suffix is optional.\n", stream);
+	fputs(
 	    "  -l#           use 14, 21, 25, 28, 30, 43, 50, or 60 rows\n"
+	    "                (default: configured startup screen mode)\n"
 	    "  -n path       use path as the configuration file\n"
 	    "  -q            hide connection popups\n"
 	    "  -r            use rlogin when URL has no scheme\n"
 	    "  -s            prevent writing or browsing local files\n"
 	    "  -t            use telnet when URL has no scheme\n"
-	    "  -w script     load script on every connection\n"
-	    "  -T            as the only argument, write terminfo source\n"
-	    "  -v            as the only argument, write version information\n"
-	    "  --help        show this help\n\n"
-	    "Options accepting values also accept attached values (for example,\n"
-	    "-isf, -l43, and -b/path/to/list). Option letters are case-insensitive.\n"
-	    "URL: [(rlogin|telnet|telnets|ssh|sshna|raw|ghost|mqtts)://][user[:password]@]host[:port]\n",
-	    program);
+	    "  -w script     additionally load a Wren script on every connection,\n"
+	    "                after built-in and user auto-load scripts; load errors\n"
+	    "                are reported on standard error\n"
+	    "  -T            as the only argument, write terminfo source and exit\n"
+	    "  -v            as the only argument, write version information and exit\n"
+	    "  -?, --help    show this help and exit\n\n"
+	    "Attach values to -i and -l (for example, -iac and -l43). Paths for\n"
+	    "-b, -n, and -w may be attached or separate (for example, -b/path/to/list\n"
+	    "or -b /path/to/list). Option letters are case-insensitive, except for\n"
+	    "the standalone -T and -v actions above.\n\n"
+	    "URL format: [scheme://][user[:password]@]host[:port]\n"
+	    "Schemes: rlogin, telnet, telnets (TLS), ssh, sshna (no authentication),\n"
+	    "         raw, ghost (MajorBBS Ghost), mqtts (Synchronet MQTT sysop spy).\n"
+	    "raw:// URLs must include a port. shell:command runs a local command\n"
+	    "on POSIX systems. MQTT node selection follows authentication.\n"
+	    "A matching BBS list entry supplies connection settings; its name may\n"
+	    "also be used instead of a URL. With no URL, open the BBS list.\n\n"
+	    "Examples:\n"
+	    "  syncterm bbs.example.org\n"
+	    "  syncterm -l43 telnet://bbs.example.org\n"
+	    "  syncterm rlogin://user:password@bbs.example.org:513\n"
+	    "  syncterm raw://bbs.example.org:23\n"
+	    "  syncterm mqtts://user:password@bbs.example.org\n"
+	    "  syncterm shell:/bin/sh\n",
+	    stream);
 }
 
 static void

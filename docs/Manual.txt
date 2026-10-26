@@ -149,9 +149,10 @@ are available in SyncTERM Settings > Licenses and `src/media/fonts/LICENSE.NOTO-
 == Running SyncTERM
 
 SyncTERM supports command-line options to control behaviour.  Option letters
-are case-insensitive.  An option value may be attached to its letter (for
-example, `-isf`, `-l43`, or `-b/path/to/list`) or supplied as the next
-argument where applicable.
+are case-insensitive, except for the standalone `-T` and `-v` actions
+described below. Values for `-i` and `-l` must be attached to their letters
+(for example, `-isf` and `-l43`). Paths for `-b`, `-n`, and `-w` may be
+attached (for example, `-b/path/to/list`) or supplied as the next argument.
 
 -6::
 Specifying -6 forces SyncTERM to use IPv6 addresses when possible.
@@ -170,7 +171,8 @@ Use SSH mode when connecting.
 
 -I(A[U|C]|C|F|I|G[W|F]|Q[W|F]|S[W|F]|W|X[W|F]|Y[W|F])::
 Selects the output mode. Not all modes are available in all builds or
-on all platforms. Legal values are:
+on all platforms; `-?` lists the modes compiled into the current build.
+Legal values are:
 +
 --
 	A or AU:::
@@ -252,8 +254,9 @@ audited, and should therefore not be trusted.
 This option is case-sensitive.  When it is the only argument, causes
 SyncTERM to output its version on stdout and exit.
 
---help::
-Shows a concise command-line summary and exits.
+-?, --help::
+Shows command-line help, including output mode descriptions and URL examples,
+then exits.
 
 -W/path/to/script.wren::
 Loads the named Wren script in addition to the built-in and user
