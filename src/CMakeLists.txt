@@ -161,6 +161,21 @@ if(BUILD_TESTING)
 	add_test(NAME syncterm_terminfo COMMAND ${_cli} -T)
 	set_tests_properties(syncterm_terminfo PROPERTIES
 		PASS_REGULAR_EXPRESSION "syncterm\\|SyncTERM")
+	if(NOT WIN32)
+		find_package(Python3 QUIET COMPONENTS Interpreter)
+		if(Python3_Interpreter_FOUND)
+			foreach(_mode IN ITEMS A C F I)
+				if(_mode STREQUAL "A" OR ST_CONSOLE_HAVE_CURSES_H)
+					add_test(NAME syncterm_text_startup_${_mode}
+						COMMAND ${Python3_EXECUTABLE}
+						${CMAKE_CURRENT_SOURCE_DIR}/tests/st_text_startup_test.py
+						$<TARGET_FILE:${_cli}> ${_mode})
+					set_tests_properties(syncterm_text_startup_${_mode}
+						PROPERTIES TIMEOUT 25)
+				endif()
+			endforeach()
+		endif()
+	endif()
 	add_executable(st_app_startup_test tests/st_app_startup_test.c)
 	target_link_libraries(st_app_startup_test PRIVATE st_app_startup)
 	set_target_properties(st_app_startup_test PROPERTIES

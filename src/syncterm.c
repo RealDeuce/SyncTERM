@@ -1106,8 +1106,19 @@ run_application(int argc, char **argv, const struct st_application_host *fronten
 		goto finished;
 	}
 	picker_config = startup.config;
+	/* Text backends can adopt the host terminal's grid and discard the
+	 * pixel surface. Copy the initialized geometry rather than mixing that
+	 * grid with the configured startup pixel dimensions. */
 	status = st_console_size(console, &picker_config.columns,
 	    &picker_config.rows);
+	if (status == 0)
+		status = st_console_cell_pixel_size(console,
+		    &picker_config.cell_width, &picker_config.cell_height);
+	picker_config.pixel_width = 0;
+	picker_config.pixel_height = 0;
+	if (status == 0 && picker_config.cell_width != 0)
+		status = st_console_pixel_size(console, &picker_config.pixel_width,
+		    &picker_config.pixel_height);
 	if (status == 0)
 		status = st_console_create_on_display(&picker_console, display,
 		    &picker_config);
