@@ -32,6 +32,7 @@ def main():
         for key in ("XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME", "XDG_DOWNLOAD_DIR"):
             env[key] = directory
         env["TERM"] = "xterm-256color"
+        env["COLORTERM"] = ""
         if layout is not None:
             env["COLORTERM"] = "truecolor"
             (root / "syncterm.ini").write_text(

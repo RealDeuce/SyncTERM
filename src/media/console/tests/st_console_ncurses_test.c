@@ -18,6 +18,7 @@
 
 #include <errno.h>
 #include <locale.h>
+#include <limits.h>
 #include <poll.h>
 #include <signal.h>
 #include <stdint.h>
@@ -28,11 +29,29 @@
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
+#include <wchar.h>
 
 #include "pty_diagnostics.h"
 
 static unsigned char terminal_output[65536];
 static size_t terminal_output_size;
+
+static bool
+select_utf8_locale(void)
+{
+	static const char *const names[] = {"C.UTF-8", "en_US.UTF-8", "UTF-8"};
+
+	for (size_t i = 0; i < sizeof(names) / sizeof(names[0]); ++i) {
+		char text[MB_LEN_MAX];
+		mbstate_t state = {0};
+
+		if (setlocale(LC_CTYPE, names[i]) != NULL
+		    && wcrtomb(text, (wchar_t)UINT32_C(0x00e9), &state) == 2
+		    && memcmp(text, "\xc3\xa9", 2) == 0)
+			return true;
+	}
+	return false;
+}
 
 static void
 save_output(const unsigned char *data, size_t size)
@@ -210,6 +229,7 @@ child_result(int descriptor, unsigned char result)
 static void
 child_test(int report, bool cp437)
 {
+	size_t caller_mb_max = MB_CUR_MAX;
 	static const uint8_t bitmap[128] = {0};
 	static const uint8_t wide_bitmap[2] = {0};
 	static const char joystick[] = "\xf0\x9f\x95\xb9\xef\xb8\x8f";
@@ -225,6 +245,7 @@ child_test(int report, bool cp437)
 		{'U', 'U'}, {'V', 'V'}, {'W', 'W'}, {'X', 'X'}, {'Y', 'Y'},
 		{'Z', 'Z'},
 		{UINT32_C(0x00e9), 127},
+		{UINT32_C(0x2502), 126},
 	};
 	static const struct st_console_font font = {
 		.bitmap = bitmap,
@@ -259,8 +280,8 @@ child_test(int report, bool cp437)
 		    : ST_CONSOLE_TEXT_UNICODE,
 	};
 	struct st_console_event event;
-	const struct st_console_rect cells_rect = {0, 0, 6, 1};
-	struct st_console_cell cells[6] = {
+	const struct st_console_rect cells_rect = {0, 0, 7, 1};
+	struct st_console_cell cells[7] = {
 		{.glyph = 'A', .foreground = 9, .background = 0},
 		{.glyph = 'B',
 		    .foreground = ST_CONSOLE_COLOR_RGB_VALUE(0, 215, 175),
@@ -268,6 +289,7 @@ child_test(int report, bool cp437)
 		{.glyph = 'C', .foreground = 7, .background = 0,
 		    .flags = ST_CONSOLE_CELL_BOLD},
 		{.glyph = 127, .foreground = 7, .background = 0},
+		{.glyph = 126, .foreground = 7, .background = 0},
 		{.glyph = 128, .foreground = 7, .background = 0},
 		{.glyph = 128, .foreground = 7, .background = 0,
 		    .flags = ST_CONSOLE_CELL_CONTINUATION},
@@ -283,9 +305,6 @@ child_test(int report, bool cp437)
 	int status;
 	uint16_t font_identifier;
 
-	if (cp437 && !expect_direct)
-		cells[3].glyph = 'Z';
-
 	status = st_console_display_create(&display, &display_config);
 	if (status == 0)
 		status = st_console_create_on_display(&console, display, &config);
@@ -295,6 +314,10 @@ child_test(int report, bool cp437)
 	}
 	if (status != 0) {
 		child_result(report, 'C');
+		_exit(1);
+	}
+	if (MB_CUR_MAX != caller_mb_max) {
+		child_result(report, 'L');
 		_exit(1);
 	}
 	if (st_console_register_static_font(console, &font, &font_identifier) != 0
@@ -341,6 +364,15 @@ child_test(int report, bool cp437)
 		st_console_destroy(console);
 		_exit(1);
 	}
+	if (cp437) {
+		deadline_after(&deadline, 5);
+		status = st_console_event_timedwait(console, &event, &deadline);
+		if (status != 0 || event.type != ST_CONSOLE_EVENT_TEXT
+		    || event.data.text.codepoint != UINT32_C(0x00e9)) {
+			child_result(report, 'B');
+			_exit(1);
+		}
+	}
 	child_result(report, 'E');
 	{
 		const char text[] = "REPAINT";
@@ -354,7 +386,7 @@ child_test(int report, bool cp437)
 		if (st_console_write_cells(console, &rectangle, marker, 7) != 0)
 			_exit(1);
 	}
-	if (st_console_write_cells(console, &cells_rect, cells, 6) != 0) {
+	if (st_console_write_cells(console, &cells_rect, cells, 7) != 0) {
 		child_result(report, 'P');
 		st_console_destroy(console);
 		_exit(1);
@@ -362,6 +394,10 @@ child_test(int report, bool cp437)
 	if (st_console_present(console) != 0) {
 		child_result(report, 'Q');
 		st_console_destroy(console);
+		_exit(1);
+	}
+	if (MB_CUR_MAX != caller_mb_max) {
+		child_result(report, 'L');
 		_exit(1);
 	}
 	child_result(report, 'O');
@@ -391,6 +427,10 @@ child_test(int report, bool cp437)
 	}
 	st_console_destroy(console);
 	st_console_display_destroy(display);
+	if (MB_CUR_MAX != caller_mb_max) {
+		child_result(report, 'L');
+		_exit(1);
+	}
 	child_result(report, 'F');
 	_exit(0);
 }
@@ -502,8 +542,18 @@ main(int argc, char **argv)
 		cp437 = false;
 	else if (argc == 2 && strcmp(argv[1], "--cp437") == 0)
 		cp437 = true;
+	else if (argc == 2 && strcmp(argv[1], "--cp437-c-locale") == 0)
+		cp437 = true;
 	else
 		return EXIT_FAILURE;
+	if ((argc == 2 && strcmp(argv[1], "--cp437-c-locale") == 0)
+	    || (cp437 && !ST_CONSOLE_TEST_HAVE_THREAD_LOCALE)) {
+		(void)setlocale(LC_CTYPE, "C");
+	}
+	else if (!select_utf8_locale()) {
+		fprintf(stderr, "ncurses PTY test requires an installed UTF-8 locale\n");
+		return 77;
+	}
 
 	if (pipe(report) != 0)
 		return EXIT_FAILURE;
@@ -520,7 +570,8 @@ main(int argc, char **argv)
 		(void)waitpid(child, &child_status, 0);
 		return 77;
 	}
-	if (status != 0 || write(master, "\r", 1) != 1
+	if (status != 0 || write(master, cp437 ? "\r\x82" : "\r", cp437 ? 2 : 1)
+	    != (cp437 ? 2 : 1)
 	    || wait_report(report[0], master, 'E') != 0)
 		goto failed;
 	if (wait_report(report[0], master, 'O') != 0)
@@ -532,7 +583,9 @@ main(int argc, char **argv)
 	    && (!output_contains("\033[38;2;255;84;84m")
 	    || !output_contains("\033[38;2;0;215;175m")))
 	    || (!output_contains("\033[1m") && !output_contains("\033[0;1m"))
-	    || (cp437 && !output_contains_byte(direct_colour ? 0x82 : 'Z'))) {
+	    || (cp437 && (!output_contains_byte(0x82)
+	    || !output_contains_byte(0xb3)
+	    || output_contains("\xc2\x82") || output_contains("\xc2\xb3")))) {
 		fprintf(stderr, "ncurses emitted the wrong cell representation\n");
 		goto failed;
 	}

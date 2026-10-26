@@ -221,6 +221,19 @@ endif()
 set(CMAKE_TRY_COMPILE_TARGET_TYPE
 	${_st_console_saved_try_compile_target_type})
 
+syncterm_check_c17_source([=[
+#define _POSIX_C_SOURCE 200809L
+#include <locale.h>
+int main(void)
+{
+	locale_t locale = newlocale(LC_CTYPE_MASK, "C", (locale_t)0);
+	locale_t previous = uselocale(locale);
+	(void)uselocale(previous);
+	freelocale(locale);
+	return 0;
+}
+]=] ST_CONSOLE_HAVE_THREAD_LOCALE)
+
 set(ST_CONSOLE_HAVE_SDL 0)
 set(ST_CONSOLE_SDL_INCLUDE_DIRS)
 if(NOT ST_CONSOLE_SDL STREQUAL "OFF")
@@ -368,7 +381,12 @@ set(_st_console_sources
 	console_bitmap.c
 	console_libretro.c
 	console_ansi.c
+	console_curses_locale.c
 	console_ncurses.c)
+if(ST_CONSOLE_HAVE_THREAD_LOCALE)
+	set_source_files_properties(console_curses_locale.c PROPERTIES
+		COMPILE_DEFINITIONS _POSIX_C_SOURCE=200809L)
+endif()
 if(WIN32)
 	list(APPEND _st_console_sources console_ansi_windows.c)
 else()
@@ -494,7 +512,7 @@ if(BUILD_TESTING)
 		add_executable(${_test} tests/st_console_ncurses_rgb_test.c)
 		target_include_directories(${_test} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 		target_link_libraries(${_test} PRIVATE st_console
-			syncterm_array_list syncterm_dynamic_library st_utf8)
+			syncterm_array_list syncterm_dynamic_library st_utf8 st_codepage)
 		if(_variant STREQUAL "opaque")
 			target_compile_definitions(${_test} PRIVATE ST_CONSOLE_TEST_OPAQUE_WINDOW=1)
 		endif()
@@ -577,6 +595,7 @@ if(BUILD_TESTING)
 			endif()
 			target_compile_definitions(st_console_ncurses_test PRIVATE
 				ST_CONSOLE_TEST_HAVE_WIDE=$<BOOL:${ST_CONSOLE_HAVE_CURSES_WIDE}>
+				ST_CONSOLE_TEST_HAVE_THREAD_LOCALE=$<BOOL:${ST_CONSOLE_HAVE_THREAD_LOCALE}>
 				ST_CONSOLE_TEST_HAVE_PTY_H=$<BOOL:${ST_CONSOLE_TEST_HAVE_PTY_H}>
 				ST_CONSOLE_TEST_HAVE_UTIL_H=$<BOOL:${ST_CONSOLE_TEST_HAVE_UTIL_H}>
 				ST_CONSOLE_TEST_HAVE_LIBUTIL_H=$<BOOL:${ST_CONSOLE_TEST_HAVE_LIBUTIL_H}>)
@@ -598,6 +617,11 @@ if(BUILD_TESTING)
 			add_test(NAME st_console_ncurses_cp437
 				COMMAND st_console_ncurses_test --cp437)
 			set_tests_properties(st_console_ncurses_cp437 PROPERTIES
+				ENVIRONMENT "TERM=xterm-256color;COLORTERM="
+				SKIP_RETURN_CODE 77 TIMEOUT 20)
+			add_test(NAME st_console_ncurses_cp437_c_locale
+				COMMAND st_console_ncurses_test --cp437-c-locale)
+			set_tests_properties(st_console_ncurses_cp437_c_locale PROPERTIES
 				ENVIRONMENT "TERM=xterm-256color;COLORTERM="
 				SKIP_RETURN_CODE 77 TIMEOUT 20)
 			add_test(NAME st_console_ncurses_direct_cp437

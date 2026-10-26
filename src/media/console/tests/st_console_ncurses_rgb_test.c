@@ -17,6 +17,42 @@
 #include "../console_ncurses.c"
 
 #if ST_CONSOLE_HAVE_CURSES_H
+#include <locale.h>
+
+static int
+byte_locale_callback(void *argument)
+{
+#if ST_CONSOLE_HAVE_THREAD_LOCALE
+	if (MB_CUR_MAX != 1)
+		return IO_ERROR_INVALID_ENCODING;
+#endif
+	return *(int *)argument;
+}
+
+static bool
+test_locale_scope(void)
+{
+	struct st_curses_locale *locale = NULL;
+	size_t caller_mb_max;
+	int status = 0;
+	bool correct;
+
+	/* A UTF-8 caller must regain its locale even when the operation fails. */
+	if (setlocale(LC_CTYPE, "C.UTF-8") == NULL)
+		(void)setlocale(LC_CTYPE, "en_US.UTF-8");
+	caller_mb_max = MB_CUR_MAX;
+	if (st_curses_locale_create(&locale) != 0)
+		return false;
+	correct = st_curses_locale_call(locale, byte_locale_callback, &status) == 0
+	    && MB_CUR_MAX == caller_mb_max;
+	status = IO_ERROR_CANCELLED;
+	correct = correct
+	    && st_curses_locale_call(locale, byte_locale_callback, &status) == status
+	    && MB_CUR_MAX == caller_mb_max;
+	st_curses_locale_destroy(locale);
+	return correct;
+}
+
 static unsigned resize_requests;
 static bool window_deleted;
 /* Only the fake API receives this aligned token; no WINDOW data is accessed. */
@@ -246,6 +282,10 @@ int
 main(void)
 {
 #if ST_CONSOLE_HAVE_CURSES_H
+	if (!test_locale_scope()) {
+		fprintf(stderr, "curses byte locale leaked into the caller\n");
+		return EXIT_FAILURE;
+	}
 	struct curses_state state = {
 		.direct_colour = true,
 		.colour_count = 16777216,

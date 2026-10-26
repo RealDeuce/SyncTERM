@@ -7,9 +7,11 @@
 #include "console_text_layout.h"
 
 #include "console_config.h"
+#include "console_curses_locale.h"
 #include "dynamic_library.h"
 #include "io_error.h"
 #include "st_utf8.h"
+#include "st_codepage.h"
 
 #include <inttypes.h>
 #include <limits.h>
@@ -69,6 +71,7 @@ struct curses_api {
 	int (*call_tigetnum)(const char *);
 	char *(*call_tigetstr)(const char *);
 	int (*call_use_extended_names)(bool);
+	int (*call_use_legacy_coding)(int);
 	int (*call_attributes)(WINDOW *, attr_t, NCURSES_PAIRS_T, void *);
 	int (*call_getch)(WINDOW *);
 	int (*call_resizeterm)(int, int);
@@ -119,6 +122,7 @@ typedef int (*curses_call_tigetflag_fn)(const char *);
 typedef int (*curses_call_tigetnum_fn)(const char *);
 typedef char *(*curses_call_tigetstr_fn)(const char *);
 typedef int (*curses_call_use_extended_names_fn)(bool);
+typedef int (*curses_call_use_legacy_coding_fn)(int);
 typedef int (*curses_call_attributes_fn)(WINDOW *, attr_t, NCURSES_PAIRS_T,
 	void *);
 typedef int (*curses_call_getch_fn)(WINDOW *);
@@ -166,6 +170,7 @@ struct curses_state {
 	int colour_count;
 	int pair_count;
 	bool palette_mutable;
+	struct st_curses_locale *byte_locale;
 	enum st_console_text_presentation presentation;
 	int *indexed_colours;
 	struct {
@@ -1210,8 +1215,9 @@ paint_margins(st_console_t *console, struct curses_state *state,
 }
 
 static int
-curses_present(st_console_t *console)
+curses_present_inner(void *argument)
 {
+	st_console_t *console = argument;
 	struct curses_state *state = console->display->backend_state;
 	uint32_t x;
 	uint32_t y;
@@ -1318,7 +1324,16 @@ curses_present(st_console_t *console)
 }
 
 static int
-curses_input(void *argument)
+curses_present(st_console_t *console)
+{
+	struct curses_state *state = console->display->backend_state;
+
+	return st_curses_locale_call(state->byte_locale, curses_present_inner,
+	    console);
+}
+
+static int
+curses_input_inner(void *argument)
 {
 	struct curses_state *state = argument;
 	st_console_display_t *display = state->display;
@@ -1339,7 +1354,7 @@ curses_input(void *argument)
 		if (st_mutex_lock(&display->backend_mutex) != ST_THREAD_SUCCESS)
 			break;
 #if ST_CONSOLE_HAVE_CURSES_WIDE
-		if (state->wide) {
+		if (state->wide && state->presentation != ST_CONSOLE_TEXT_CP437) {
 			wint_t wide_value = 0;
 
 			value = state->api.call_get_wide(state->window, &wide_value);
@@ -1363,9 +1378,13 @@ curses_input(void *argument)
 #endif
 		{
 			value = state->api.call_getch(state->window);
-			if (value >= 0x20 && value < 0x7f) {
+			if ((value >= 0x20 && value < 0x7f)
+			    || (state->presentation == ST_CONSOLE_TEXT_CP437
+			    && value >= 0x80 && value <= 0xff)) {
 				have_text = true;
-				text_value = (uint32_t)value;
+				text_value = state->presentation == ST_CONSOLE_TEXT_CP437
+				    ? st_codepage_to_unicode(ST_CODEPAGE_CP437,
+				    (uint8_t)value, true) : (uint32_t)value;
 			}
 			else if (value >= 0 && value <= 0x7f) {
 				have_key = true;
@@ -1435,13 +1454,23 @@ curses_input(void *argument)
 	return 0;
 }
 
-static void
-curses_destroy(st_console_display_t *display)
+static int
+curses_input(void *argument)
 {
+	struct curses_state *state = argument;
+
+	return st_curses_locale_call(state->byte_locale, curses_input_inner,
+	    argument);
+}
+
+static int
+curses_destroy_inner(void *argument)
+{
+	st_console_display_t *display = argument;
 	struct curses_state *state = display->backend_state;
 
 	if (state == NULL)
-		return;
+		return 0;
 	atomic_store_explicit(&state->stop, true, memory_order_release);
 	if (state->input_started)
 		(void)st_thread_join(state->input_thread, NULL);
@@ -1480,6 +1509,17 @@ curses_destroy(st_console_display_t *display)
 	free(state->terminal_colours);
 	free(state);
 	atomic_flag_clear_explicit(&curses_in_use, memory_order_release);
+	return 0;
+}
+
+static void
+curses_destroy(st_console_display_t *display)
+{
+	struct curses_state *state = display->backend_state;
+	struct st_curses_locale *locale = state == NULL ? NULL : state->byte_locale;
+
+	(void)st_curses_locale_call(locale, curses_destroy_inner, display);
+	st_curses_locale_destroy(locale);
 }
 
 static void
@@ -1752,9 +1792,10 @@ curses_attach(st_console_t *console)
 	return 0;
 }
 
-int
-st_console_ncurses_init(st_console_t *console)
+static int
+curses_init_inner(void *argument)
 {
+	st_console_t *console = argument;
 	/* Attribute masks and key codes come from the build-time header; a
 	 * different curses implementation need not use the same ABI values. */
 #ifdef NCURSES_VERSION
@@ -1812,6 +1853,11 @@ st_console_ncurses_init(st_console_t *console)
 		atomic_flag_clear_explicit(&curses_in_use, memory_order_release);
 		return IO_ERROR_NOT_SUPPORTED;
 	}
+	/* CP437 output is an explicit byte encoding. Do not let ncurses expand
+	 * its high bytes as locale-dependent M- or control representations. */
+	if (state->presentation == ST_CONSOLE_TEXT_CP437
+	    && LOAD_OPTIONAL(state, call_use_legacy_coding, "use_legacy_coding"))
+		(void)state->api.call_use_legacy_coding(2);
 	state->window = state->api.call_newwin(0, 0, 0, 0);
 	if (state->window == NULL || !window_dimensions(state, state->window,
 	    &terminal_columns, &terminal_rows)) {
@@ -1970,6 +2016,27 @@ st_console_ncurses_init(st_console_t *console)
 		}
 	}
 	return 0;
+}
+
+int
+st_console_ncurses_init(st_console_t *console)
+{
+	struct st_curses_locale *locale = NULL;
+	int status;
+
+	if (console->display->config.text_presentation == ST_CONSOLE_TEXT_CP437) {
+		status = st_curses_locale_create(&locale);
+		if (status != 0)
+			return status;
+	}
+	status = st_curses_locale_call(locale, curses_init_inner, console);
+	if (status == 0) {
+		struct curses_state *state = console->display->backend_state;
+		state->byte_locale = locale;
+	}
+	else
+		st_curses_locale_destroy(locale);
+	return status;
 }
 
 #else

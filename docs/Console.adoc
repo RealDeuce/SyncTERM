@@ -128,6 +128,13 @@ locale-independent CP437 table and use `?` when it is not representable.
 Bitmap glyph indexes never select text-terminal characters.  Continuation
 cells for wide glyphs are skipped.
 
+Native curses' CP437 mode uses a scoped per-thread C locale where the target
+provides `newlocale` and `uselocale`, with ncurses' legacy-byte setting when
+available. Initialization, output, and input leave the caller's locale intact.
+On curses targets without per-thread locales, the caller supplies a byte
+locale for CP437 mode. Native Unicode curses uses the caller's Unicode locale;
+direct UTF-8 output does not depend on the C locale.
+
 ANSI direct-colour support and indexed-colour count are separate
 capabilities.  The ordinary terminal path reads terminfo and also accepts
 `COLORTERM=truecolor` or `COLORTERM=24bit` when terminfo does not advertise
