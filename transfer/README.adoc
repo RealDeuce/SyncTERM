@@ -59,6 +59,8 @@ The always-built CTest `transfer` checks CRC vectors, detector rejection,
 CET shifts/checksums/retries, short writes, cancellation, EOF and parked dialogs.
 It also checks the final YMODEM ACK, ACK followed immediately by EOF, retry of
 a NAKed batch terminator, and failure when the final ACK is absent.
+Truncated XMODEM checksums and binary ZMODEM CRC16/32 headers are rejected;
+full-width ZMODEM positions are decoded without signed shifts.
 The `term` and `wren_host` tests cover stream handoff, raw capture, binary-mode
 restoration, the real progress App, cancellation, VM teardown and auto-ZMODEM.
 `cterm_rip_transfer` checks request parsing and received-scene isolation.
@@ -68,7 +70,9 @@ an independent X/YMODEM RIP peer through all six file modes and upload
 acceptance/refusal, including the required CAN timing and live rendering.
 
 On native POSIX builds CMake discovers optional external peers through
-`ST_TRANSFER_SEXYZ`, `ST_TRANSFER_LSX` and `ST_TRANSFER_LRX`. When Python and
+`ST_TRANSFER_SEXYZ`, `ST_TRANSFER_LSX` and `ST_TRANSFER_LRX`, searching the
+host's PATH. For a native executable elsewhere, pass
+`-DST_TRANSFER_SEXYZ=/path/to/sexyz` explicitly. When Python and
 peers are available, CTest adds `transfer_interop_zmodem` and
 `transfer_interop_xymodem`. They compare binary payloads, batches, empty files,
 CRC16/32, both directions, and verified resume/complete-file skip/mismatched

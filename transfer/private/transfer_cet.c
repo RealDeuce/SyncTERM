@@ -13,6 +13,7 @@ struct cet_ts_state {
 	bool aborted;
 };
 
+enum { CET_TS_BLOCK_MAX = 4096 };
 struct cet_ts_block {
 	size_t  sz;
 	size_t  length;
@@ -20,7 +21,7 @@ struct cet_ts_block {
 	uint8_t block_num;
 	uint8_t block_cnt;
 	uint8_t ends_file;
-	char    data[];
+	char    data[CET_TS_BLOCK_MAX + 1];
 };
 
 static int
@@ -60,14 +61,14 @@ cet_append_fb(struct cet_ts_state *sp, int byte)
 		sp->frame_buffer = ra;
 		sp->fb_sz = newsz;
 	}
-	sp->frame_buffer[sp->fb_pos++] = byte;
+	sp->frame_buffer[sp->fb_pos++] = (uint8_t)byte;
 }
 
 static struct cet_ts_block *
 cet_telesoftware_try_get_block(struct cet_ts_state *sp)
 {
-	size_t max_len = 4096;
-	size_t sz = offsetof(struct cet_ts_block, data) + max_len + 1;
+	size_t max_len = CET_TS_BLOCK_MAX;
+	size_t sz = sizeof(struct cet_ts_block);
 	struct cet_ts_block *ret = malloc(sz);
 	if (ret == NULL)
 		return NULL;
@@ -173,7 +174,7 @@ cet_telesoftware_try_get_block(struct cet_ts_state *sp)
 							return NULL;
 						}
 						checkxor ^= b1;
-						ret->frame = b1;
+						ret->frame = (uint8_t)b1;
 						b1 = sp->recv_byte(sp, CET_TS_TIMEOUT_MS);
 						cet_append_fb(sp, b1);
 						if (((b1 < '0') || (b1 > '9')) && (b1 != '|')) {
@@ -186,7 +187,7 @@ cet_telesoftware_try_get_block(struct cet_ts_state *sp)
 						}
 						else {
 							checkxor ^= b1;
-							ret->block_num = b1 - '0';
+							ret->block_num = (uint8_t)(b1 - '0');
 							b1 = sp->recv_byte(sp, CET_TS_TIMEOUT_MS);
 							cet_append_fb(sp, b1);
 							if ((b1 < '0') || (b1 > '9')) {
@@ -194,7 +195,7 @@ cet_telesoftware_try_get_block(struct cet_ts_state *sp)
 								st_transfer_log_message(sp->transfer, LOG_ERR, "Invalid |G block id byte 0x%02x%s", b1, b1 == -1 ? " (timeout)" : "");
 								return NULL;
 							}
-							ret->block_cnt = b1 - '0';
+							ret->block_cnt = (uint8_t)(b1 - '0');
 							checkxor ^= b1;
 						}
 						break;
@@ -272,7 +273,7 @@ cet_telesoftware_try_get_block(struct cet_ts_state *sp)
 					got_escape = true;
 					break;
 				default: {
-					uint8_t nb = b + shift;
+					uint8_t nb = (uint8_t)(b + shift);
 					if (shift && b < 64) {
 						free(ret);
 						st_transfer_log_message(sp->transfer, LOG_ERR, "Illegal encoding, shift of %d with byte of %d", shift, b);

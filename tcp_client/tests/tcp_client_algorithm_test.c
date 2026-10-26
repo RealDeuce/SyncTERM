@@ -286,7 +286,7 @@ test_preferred_address_only(void)
 			CHECK(family == TCP_CLIENT_ADDRESS_ANY);
 		}
 		CHECK(tcp_client_fake_close_count()
-		    == (first_addresses[i].behavior == TCP_CLIENT_FAKE_FAIL_START ? 0 : 1));
+		    == (first_addresses[i].behavior == TCP_CLIENT_FAKE_FAIL_START ? 0U : 1U));
 	}
 	return 0;
 }

@@ -524,7 +524,7 @@ int zmodem_send_bin16_header(zmodem_t* zm, unsigned char * p)
 {
 	int          i;
 	int          result;
-	unsigned int crc;
+	uint16_t     crc;
 
 //	lprintf(zm, LOG_DEBUG, __func__ " %s", chr(*p));
 
@@ -693,7 +693,7 @@ int zmodem_send_pos_header(zmodem_t* zm, int type, uint32_t pos, bool hex)
 	uint8_t header[5];
 
 	lprintf(zm, LOG_DEBUG, "%lu %s %s", (unsigned long)pos, __func__, chr(type));
-	header[0]   = type;
+	header[0]   = (uint8_t)type;
 	header[ZP0] = (uint8_t) (pos        & 0xff);
 	header[ZP1] = (uint8_t)((pos >>  8) & 0xff);
 	header[ZP2] = (uint8_t)((pos >> 16) & 0xff);
@@ -910,6 +910,23 @@ int zmodem_rx(zmodem_t* zm)
 	return ABORTED;
 }
 
+/* CRC16 is big-endian; CRC32 is little-endian. A timeout, disconnect or
+ * escaped frame marker is not a CRC byte, even when narrowing it would
+ * happen to match the expected checksum. */
+static int recv_crc_bytes(zmodem_t *zm, bool crc32, uint32_t *result)
+{
+	uint32_t value = 0;
+	for (unsigned i = 0; i < (crc32 ? 4U : 2U); ++i) {
+		int byte = zmodem_rx(zm);
+		if (byte < 0) return byte;
+		if (byte > 0xff) return INVALIDSUBPKT;
+		unsigned shift = crc32 ? i * 8 : (1 - i) * 8;
+		value |= (uint32_t)byte << shift;
+	}
+	*result = value;
+	return 0;
+}
+
 /*
  * receive a data subpacket as dictated by the last received header.
  * return 2 with correct packet and end of frame
@@ -966,22 +983,20 @@ int zmodem_recv_data32(zmodem_t* zm, unsigned char * p, unsigned maxlen, unsigne
 			lprintf(zm, LOG_ERR, "%lu Subpacket OVERFLOW (%u >= %u)", (unsigned long)zm->ack_file_pos, *len, maxlen);
 			return SUBPKTOVERFLOW;
 		}
-		crc = st_transfer_crc32_byte(c, crc);
-		*p++ = c;
+		crc = st_transfer_crc32_byte((uint8_t)c, crc);
+		*p++ = (uint8_t)c;
 		(*len)++;
 	} while (1);
 
 	subpkt_type = c & 0xff;
 	*type = subpkt_type;
 
-	crc = st_transfer_crc32_byte(subpkt_type, crc);
+	crc = st_transfer_crc32_byte((uint8_t)subpkt_type, crc);
 
 	crc = ~crc;
 
-	rxd_crc  = zmodem_rx(zm);
-	rxd_crc |= (uint32_t)zmodem_rx(zm) << 8;
-	rxd_crc |= (uint32_t)zmodem_rx(zm) << 16;
-	rxd_crc |= (uint32_t)zmodem_rx(zm) << 24;
+	int status = recv_crc_bytes(zm, true, &rxd_crc);
+	if (status != 0) return status;
 
 	if (rxd_crc != crc) {
 		lprintf(zm, LOG_DEBUG, "%lu %s CRC ERROR (%08X, expected: %08X) Bytes=%u, subpacket type=%s"
@@ -1001,7 +1016,7 @@ int zmodem_recv_data16(zmodem_t* zm, register unsigned char* p, unsigned maxlen,
 	int            c;
 	int            subpkt_type;
 	unsigned short crc;
-	unsigned short rxd_crc;
+	uint32_t       rxd_crc;
 
 //	lprintf(zm, LOG_DEBUG, __func__);
 
@@ -1019,24 +1034,18 @@ int zmodem_recv_data16(zmodem_t* zm, register unsigned char* p, unsigned maxlen,
 
 		if (*len >= maxlen)
 			return SUBPKTOVERFLOW;
-		crc = st_transfer_crc16_byte(c, crc);
-		*p++ = c;
+		crc = st_transfer_crc16_byte((uint8_t)c, crc);
+		*p++ = (uint8_t)c;
 		(*len)++;
 	} while (1);
 
 	subpkt_type = c & 0xff;
 	*type = subpkt_type;
 
-	crc = st_transfer_crc16_byte(subpkt_type, crc);
+	crc = st_transfer_crc16_byte((uint8_t)subpkt_type, crc);
 
-	c = zmodem_rx(zm);
-	if (c < 0)
-		return c;
-	rxd_crc  = c << 8;
-	c = zmodem_rx(zm);
-	if (c < 0)
-		return c;
-	rxd_crc |= c;
+	int status = recv_crc_bytes(zm, false, &rxd_crc);
+	if (status != 0) return status;
 
 	if (rxd_crc != crc) {
 		lprintf(zm, LOG_DEBUG, "%lu %s CRC ERROR (%04hX, expected: %04hX) Bytes=%u, subpacket type=%s"
@@ -1202,7 +1211,7 @@ bool zmodem_recv_bin16_header(zmodem_t* zm)
 	int                c;
 	int                n;
 	unsigned short int crc;
-	unsigned short int rxd_crc;
+	uint32_t           rxd_crc;
 
 //	lprintf(zm ,LOG_DEBUG, __func__);
 
@@ -1210,17 +1219,16 @@ bool zmodem_recv_bin16_header(zmodem_t* zm)
 
 	for (n = 0; n < HDRLEN; n++) {
 		c = zmodem_rx(zm);
-		if (c < 0) {
+		if (c < 0 || c > 0xff) {
 			lprintf(zm, LOG_WARNING, "%lu %s ERROR: %s"
 			        , (unsigned long)zm->current_file_pos, __func__, chr(c));
 			return false;
 		}
-		crc = st_transfer_crc16_byte(c, crc);
-		zm->rxd_header[n] = c;
+		crc = st_transfer_crc16_byte((uint8_t)c, crc);
+		zm->rxd_header[n] = (uint8_t)c;
 	}
 
-	rxd_crc  = zmodem_rx(zm) << 8;
-	rxd_crc |= zmodem_rx(zm);
+	if (recv_crc_bytes(zm, false, &rxd_crc) != 0) return false;
 
 	if (rxd_crc != crc) {
 		lprintf(zm, LOG_WARNING, "%lu %s CRC ERROR: 0x%hX, expected: 0x%hX"
@@ -1266,9 +1274,9 @@ bool zmodem_recv_hex_header(zmodem_t* zm)
 		c = zmodem_recv_hex(zm);
 		if (c < 0)
 			return false;
-		crc = st_transfer_crc16_byte(c, crc);
+		crc = st_transfer_crc16_byte((uint8_t)c, crc);
 
-		zm->rxd_header[i] = c;
+		zm->rxd_header[i] = (uint8_t)c;
 	}
 
 	/*
@@ -1280,7 +1288,7 @@ bool zmodem_recv_hex_header(zmodem_t* zm)
 	if (c < 0)
 		return false;
 
-	rxd_crc = c << 8;
+	rxd_crc = (uint16_t)((unsigned)c << 8);
 
 	c = zmodem_recv_hex(zm);
 
@@ -1331,18 +1339,15 @@ bool zmodem_recv_bin32_header(zmodem_t* zm)
 
 	for (n = 0; n < HDRLEN; n++) {
 		c = zmodem_rx(zm);
-		if (c < 0)
+		if (c < 0 || c > 0xff)
 			return false;
-		crc = st_transfer_crc32_byte(c, crc);
-		zm->rxd_header[n] = c;
+		crc = st_transfer_crc32_byte((uint8_t)c, crc);
+		zm->rxd_header[n] = (uint8_t)c;
 	}
 
 	crc = ~crc;
 
-	rxd_crc  = zmodem_rx(zm);
-	rxd_crc |= (uint32_t)zmodem_rx(zm) << 8;
-	rxd_crc |= (uint32_t)zmodem_rx(zm) << 16;
-	rxd_crc |= (uint32_t)zmodem_rx(zm) << 24;
+	if (recv_crc_bytes(zm, true, &rxd_crc) != 0) return false;
 
 	if (rxd_crc != crc) {
 		lprintf(zm, LOG_WARNING, "%lu %s CRC ERROR (%08X, expected: %08X)"
@@ -1446,8 +1451,8 @@ int zmodem_recv_header_raw(zmodem_t* zm)
 
 	frame_type = zm->rxd_header[0];
 
-	zm->rxd_header_pos = zm->rxd_header[ZP0] | (zm->rxd_header[ZP1] << 8) |
-	                     (zm->rxd_header[ZP2] << 16) | (zm->rxd_header[ZP3] << 24);
+	zm->rxd_header_pos = (uint32_t)zm->rxd_header[ZP0] | ((uint32_t)zm->rxd_header[ZP1] << 8) |
+	                     ((uint32_t)zm->rxd_header[ZP2] << 16) | ((uint32_t)zm->rxd_header[ZP3] << 24);
 
 	switch (frame_type) {
 		case ZCRC:
@@ -1621,7 +1626,7 @@ int zmodem_send_zrinit(zmodem_t* zm)
 		zm->recv_bufsize = zm->max_block_size;
 
 	zrinit_header[ZP0] = zm->recv_bufsize & 0xff;
-	zrinit_header[ZP1] = zm->recv_bufsize >> 8;
+	zrinit_header[ZP1] = (uint8_t)(zm->recv_bufsize >> 8);
 
 	return zmodem_send_hex_header(zm, zrinit_header);
 }
@@ -1820,7 +1825,7 @@ int zmodem_send_from(zmodem_t* zm, FILE* fp, uint64_t pos, uint64_t* sent)
 					if (zm->can_full_duplex && zm->max_window_size) {
 						/* A window narrower than 4 blocks has no quarter-window
 						   interval to ACK on; clamp to 1 (GitLab #1197). */
-						unsigned interval = zm->max_window_size / zm->block_size / 4;
+						int64_t interval = zm->max_window_size / zm->block_size / 4;
 						if (interval < 1)
 							interval = 1;
 						tx_type = (subpkts_sent % interval) == 0 ? ZCRCQ : ZCRCG;

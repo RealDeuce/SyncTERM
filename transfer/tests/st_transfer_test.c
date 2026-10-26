@@ -208,6 +208,36 @@ static bool xy_connected(void *context)
 {
 	struct xy_wire *w = context; return w->position < w->size;
 }
+static void z_byte(struct xy_wire *wire, uint8_t byte)
+{
+	if ((byte & 0x60) == 0) { wire->bytes[wire->size++] = ZDLE; byte ^= 0x40; }
+	wire->bytes[wire->size++] = byte;
+}
+static int test_z_crc_truncation(void)
+{
+	for (unsigned bits = 16; bits <= 32; bits += 16) {
+		struct xy_wire complete = {.bytes = {ZPAD, ZDLE, 0}, .size = 3};
+		complete.bytes[2] = bits == 16 ? ZBIN : ZBIN32;
+		const uint8_t header[5] = {ZRPOS, 255, 255, 255, 255};
+		uint16_t crc16 = 0;
+		for (size_t i = 0; i < sizeof(header); ++i) {
+			z_byte(&complete, header[i]); crc16 = st_transfer_crc16_byte(header[i], crc16);
+		}
+		uint32_t crc32 = ~st_transfer_crc32_update(UINT32_MAX, header, sizeof(header));
+		for (unsigned i = 0; i < bits / 8; ++i)
+			z_byte(&complete, bits == 16 ? (uint8_t)(crc16 >> (8 * (1 - i))) : (uint8_t)(crc32 >> (8 * i)));
+		for (size_t cut = 0; cut <= complete.size; ++cut) {
+			struct xy_wire wire = complete;
+			wire.size = cut;
+			zmodem_t zm;
+			zmodem_init(&zm, &wire, NULL, NULL, xy_write, xy_read, xy_connected, NULL, NULL, NULL);
+			int result = zmodem_recv_header(&zm);
+			CHECK(cut == complete.size ? result == ZRPOS : result < 0);
+			if (cut == complete.size) CHECK(zm.rxd_header_pos == UINT32_MAX);
+		}
+	}
+	return 0;
+}
 static void xy_packet(struct xy_wire *w, uint8_t number, uint8_t payload, bool corrupt)
 {
 	uint16_t crc = 0;
@@ -230,6 +260,13 @@ static int test_xy_recovery(void)
 	CHECK(xmodem_get_block(&xm, block, 1) == SUCCESS);
 	memset(&wire, 0, sizeof(wire)); xy_packet(&wire, 1, 'A', false); --wire.size;
 	CHECK(xmodem_get_block(&xm, block, 1) == FAILURE);
+	/* Missing checksum is NOINP, not a received 0xff checksum. */
+	mode = XMODEM | RECV;
+	memset(&wire, 0, sizeof(wire)); xy_packet(&wire, 1, 0, false);
+	wire.bytes[3] = 255; wire.size = 3 + 128;
+	CHECK(xmodem_get_block(&xm, block, 1) == FAILURE);
+	wire.position = 0; wire.bytes[wire.size++] = 255;
+	CHECK(xmodem_get_block(&xm, block, 1) == SUCCESS);
 	return 0;
 }
 struct mailbox_output { struct output output; st_transfer_t *transfer; bool fed; };
@@ -304,6 +341,7 @@ static int test_received_mailbox(const char *existing)
 }
 int main(void)
 {
+	CHECK(test_z_crc_truncation() == 0);
 	CHECK(test_xy_recovery() == 0);
 	CHECK(test_detector() == 0);
 	CHECK(test_cet() == 0);

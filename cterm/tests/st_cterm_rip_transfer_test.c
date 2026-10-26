@@ -58,7 +58,7 @@ int main(void)
 	for (unsigned protocol = 0; protocol < 8; ++protocol) {
 		char wire[100];
 		if (protocol == 4) continue; /* No Kermit engine. */
-		snprintf(wire, sizeof(wire), "!|9\0330%u010000ASSET.RIP<>\r", protocol);
+		snprintf(wire, sizeof(wire), "!|9\x1b" "0%u010000ASSET.RIP<>\r", protocol);
 		unsigned before = capture.requests;
 		CHECK(feed(terminal, wire) == 0 && capture.requests == before + 1);
 		CHECK(!capture.upload && capture.protocol == protocol && capture.type == 1);
@@ -66,21 +66,21 @@ int main(void)
 	}
 	for (unsigned type = 0; type <= 5; ++type) {
 		char wire[100];
-		snprintf(wire, sizeof(wire), "!|9\033070%u0000<>\r", type);
+		snprintf(wire, sizeof(wire), "!|9\x1b" "070%u0000<>\r", type);
 		unsigned before = capture.requests;
 		CHECK(feed(terminal, wire) == 0 && capture.requests == before + 1);
 		CHECK(capture.type == type && capture.name[0] == '\0');
 	}
-	CHECK(feed(terminal, "!|9\03317ZZ0000ASSET.RIP<>\r") == 0);
+	CHECK(feed(terminal, "!|9\x1b" "17ZZ0000ASSET.RIP<>\r") == 0);
 	CHECK(capture.upload); /* File type ignored for uploads. */
 	unsigned before = capture.requests, cancellations = capture.cancellations;
 	const char *invalid[] = {
-	    "!|9\03307010000<>|#\r", /* CR is mandatory. */
-	    "!|9\03307010000\r", "!|9\0330701000<>\r", "!|9\03327010000<>\r",
-	    "!|9\03308010000<>\r", "!|9\03304010000FILE.RIP<>\r", "!|9\03307060000<>\r",
-	    "!|9\03300050000FILE.RIP<>\r", "!|9\03301010000<>\r", "!|9\03317010000<>\r",
-	    "!|9\03307010000../ESCAPE.RIP<>\r", "!|9\03307010000NUL.RIP<>\r",
-	    "!|9\03307010000FILE.RIP.<>\r", "!|9\03307010000SUB/FILE.RIP<>\r",
+	    "!|9\x1b" "07010000<>|#\r", /* CR is mandatory. */
+	    "!|9\x1b" "07010000\r", "!|9\x1b" "0701000<>\r", "!|9\x1b" "27010000<>\r",
+	    "!|9\x1b" "08010000<>\r", "!|9\x1b" "04010000FILE.RIP<>\r", "!|9\x1b" "07060000<>\r",
+	    "!|9\x1b" "00050000FILE.RIP<>\r", "!|9\x1b" "01010000<>\r", "!|9\x1b" "17010000<>\r",
+	    "!|9\x1b" "07010000../ESCAPE.RIP<>\r", "!|9\x1b" "07010000NUL.RIP<>\r",
+	    "!|9\x1b" "07010000FILE.RIP.<>\r", "!|9\x1b" "07010000SUB/FILE.RIP<>\r",
 	};
 	for (size_t i = 0; i < sizeof(invalid) / sizeof(invalid[0]); ++i) CHECK(feed(terminal, invalid[i]) == 0);
 	CHECK(capture.requests == before && capture.cancellations == cancellations + 10 * sizeof(invalid) / sizeof(invalid[0]));
@@ -88,7 +88,7 @@ int main(void)
 	 * recursively seize the network. A failed file never flushes its tail. */
 	CHECK(st_cterm_rip_receive_begin(terminal) == 0);
 	CHECK(st_cterm_rip_receive_begin(terminal) == IO_ERROR_BUSY);
-	const char *nested = "!|9\03307010000<>\r\n";
+	const char *nested = "!|9\x1b" "07010000<>\r\n";
 	CHECK(st_cterm_rip_receive_data(terminal, (const uint8_t *)nested, strlen(nested)) == 0);
 	CHECK(capture.requests == before);
 	size_t commands = terminal->rip_engine->commands_seen;
@@ -98,7 +98,7 @@ int main(void)
 	CHECK(st_cterm_rip_receive_data(terminal, (const uint8_t *)"!|c02", 5) == 0);
 	CHECK(st_cterm_rip_receive_end(terminal, false) == 0);
 	CHECK(terminal->rip_engine->commands_seen == commands + 1);
-	CHECK(feed(terminal, "!|9\03307000000<>\r") == 0 && capture.requests == before + 1);
+	CHECK(feed(terminal, "!|9\x1b" "07000000<>\r") == 0 && capture.requests == before + 1);
 	CHECK(st_cterm_rip_receive_begin(terminal) == 0);
 	CHECK(st_cterm_rip_receive_data(terminal, (const uint8_t *)"!|c03", 5) == 0);
 	CHECK(st_cterm_rip_receive_end(terminal, true) == 0);
@@ -109,7 +109,13 @@ int main(void)
 	CHECK(cterm_rip_asset_transfer_path(&path, RIP_TRANSFER_TEST_DIRECTORY, "Mixed.RIP", false) == 0);
 	CHECK(fs_replace_file(path, "!|c04\r", 6) == 0);
 	CHECK(cterm_rip_asset_transfer_path(&resolved, RIP_TRANSFER_TEST_DIRECTORY, "mixed.rip", true) == 0);
-	CHECK(strcmp(path, resolved) == 0); free(resolved);
+	/* A case-insensitive filesystem can preserve the caller's spelling.
+	 * Verify that lookup reaches the existing asset, not path spelling. */
+	FILE *stream = NULL;
+	char contents[7] = {0};
+	CHECK(fs_open(&stream, resolved, "rb") == 0);
+	CHECK(fread(contents, 1, sizeof(contents), stream) == 6 && fclose(stream) == 0);
+	CHECK(strcmp(contents, "!|c04\r") == 0); free(resolved);
 	CHECK(cterm_rip_asset_transfer_path(&resolved, RIP_TRANSFER_TEST_DIRECTORY, "missing.rip", true) == IO_ERROR_NOT_FOUND);
 	CHECK(cterm_rip_asset_transfer_path(&resolved, RIP_TRANSFER_TEST_DIRECTORY, "../escape.rip", false) != 0);
 	CHECK(cterm_rip_asset_transfer_path(&resolved, path, "asset.rip", false) != 0);

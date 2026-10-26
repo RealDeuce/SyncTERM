@@ -222,15 +222,15 @@ int xmodem_get_block(xmodem_t* xm, uint8_t* block, unsigned expected_block_num)
 		}
 		if ((i = getcom(xm->byte_timeout)) == NOINP)
 			break;
-		block_num = i;
+		block_num = (uint8_t)i;
 		if ((i = getcom(xm->byte_timeout)) == NOINP)
 			break;
-		block_inv = i;
+		block_inv = (uint8_t)i;
 		calc_crc = calc_chksum = 0;
 		for (b = 0; b < xm->block_size && is_connected(xm); b++) {
 			if ((i = getcom(xm->byte_timeout)) == NOINP)
 				break;
-			block[b] = i;
+			block[b] = (uint8_t)i;
 			if ((*xm->mode) & CRC)
 				calc_crc = st_transfer_crc16_byte(block[b], calc_crc);
 			else
@@ -248,8 +248,11 @@ int xmodem_get_block(xmodem_t* xm, uint8_t* block, unsigned expected_block_num)
 				break;
 			crc |= (uint16_t)i;
 		}
-		else
-			chksum = getcom(xm->byte_timeout);
+		else {
+			if ((i = getcom(xm->byte_timeout)) == NOINP)
+				break;
+			chksum = (uint8_t)i;
+		}
 
 		if (block_num != (uint8_t) ~block_inv) {
 			lprintf(xm, LOG_WARNING, "Block %u: Block number bit error (0x%02X vs 0x%02x)"

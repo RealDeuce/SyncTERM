@@ -210,7 +210,7 @@ if(BUILD_TESTING)
 	add_test(NAME cterm_rip_transfer COMMAND st_cterm_rip_transfer_test)
 	if(NOT WIN32)
 		target_compile_definitions(st_cterm_rip_transfer_test PRIVATE
-			ST_RIP_TRANSFER_TEST_POSIX=1 _POSIX_C_SOURCE=200809L)
+			ST_RIP_TRANSFER_TEST_POSIX=1 ${_st_cterm_apc_definitions})
 	endif()
 
 	add_executable(st_cterm_rip_assets_test

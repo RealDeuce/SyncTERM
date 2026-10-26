@@ -375,6 +375,7 @@ void        zmodem_parse_zfile_subpacket(zmodem_t* zm);
 int         zmodem_send_zfin(zmodem_t*);
 bool        zmodem_send_file(zmodem_t*, char* name, FILE* fp, bool request_init, time_t* start, uint64_t* bytes_sent);
 int         zmodem_recv_init(zmodem_t* zm);
+int         zmodem_recv_header(zmodem_t* zm);
 unsigned    zmodem_recv_file_data(zmodem_t*, FILE*, int64_t offset);
 int         zmodem_recv_file_frame(zmodem_t* zm, FILE* fp, int* type);
 int         zmodem_recv_header_and_check(zmodem_t* zm);
