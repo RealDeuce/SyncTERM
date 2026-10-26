@@ -562,21 +562,16 @@ clipped_blank(WrenVM *vm, const struct st_console_cell *source)
 
 static void
 set_cell_cluster(WrenVM *vm, struct foreign_cell *foreign, const char *text,
-	size_t text_size, uint8_t columns, bool raw, uint8_t raw_glyph)
+	size_t text_size, uint8_t columns, bool diagnostic)
 {
 	struct st_console_cell value = foreign->storage->cells[foreign->index];
 	st_console_t *console = st_wren_context_from_vm(vm)->console;
-	bool diagnostic = !raw && columns == 0;
 	bool fits_wide = foreign->storage->width != 0
 	    && foreign->index % foreign->storage->width + 1
 	    < foreign->storage->width;
 
 	value.flags &= ~ST_CONSOLE_CELL_CONTINUATION;
-	if (raw) {
-		value.glyph = raw_glyph;
-		value.glyph_font = value.font;
-	}
-	else if (st_console_font_lookup_cluster(console, value.font, text, text_size,
+	if (st_console_font_lookup_cluster(console, value.font, text, text_size,
 	    diagnostic ? 1 : columns, &value.glyph_font, &value.glyph) != 0) {
 		return;
 	}
@@ -605,14 +600,14 @@ set_cell_cluster(WrenVM *vm, struct foreign_cell *foreign, const char *text,
 
 static void
 set_cell_codepoint(WrenVM *vm, struct foreign_cell *foreign,
-	uint32_t codepoint, bool raw, uint8_t raw_glyph)
+	uint32_t codepoint)
 {
 	char encoded[4];
 	ptrdiff_t size = st_utf8_encode_one(encoded, sizeof(encoded), codepoint);
 
 	if (size > 0)
 		set_cell_cluster(vm, foreign, encoded, (size_t)size,
-		    st_unicode_columns(codepoint), raw, raw_glyph);
+		    1, false);
 }
 
 static uint8_t
@@ -3508,7 +3503,7 @@ fn_cell_ch_set(WrenVM *vm)
 	}
 	st_unicode_text_destroy(&unicode);
 	set_cell_cluster(vm, foreign, normalized, normalized_size, columns,
-	    false, 0);
+	    columns == 0);
 	free(normalized);
 }
 
@@ -3538,9 +3533,7 @@ fn_cell_byte(WrenVM *vm)
 	if (cell == NULL)
 		return;
 	selector = st_wren_font_selector(context, cell->font);
-	if (cell->glyph_font == cell->font && cell->glyph <= UINT8_MAX)
-		value = (uint8_t)cell->glyph;
-	else if (!cell_scalar(context, cell, &codepoint)
+	if (!cell_scalar(context, cell, &codepoint)
 	    || !st_codepage_from_unicode(&value, font_codepage(selector),
 	    codepoint))
 		value = '?';
@@ -3560,8 +3553,7 @@ fn_cell_byte_set(WrenVM *vm)
 		    foreign->storage->cells[foreign->index].font);
 		set_cell_codepoint(vm, foreign,
 		    st_codepage_to_unicode(font_codepage(selector),
-		    (uint8_t)value, true), true,
-		    (uint8_t)value);
+		    (uint8_t)value, true));
 	}
 }
 
@@ -3583,9 +3575,11 @@ fn_cell_font_set(WrenVM *vm)
 	struct st_wren_context *context = st_wren_context_from_vm(vm);
 	int64_t value;
 	uint16_t identifier;
-	uint16_t selector;
-	uint8_t byte;
-	uint32_t codepoint;
+	char local[32];
+	char *text = local;
+	size_t size;
+	uint8_t columns;
+	int status;
 
 	if (foreign != NULL && slot_integer(vm, 1, 0, UINT8_MAX, &value)) {
 		if (!st_wren_font_identifier(context,
@@ -3594,17 +3588,30 @@ fn_cell_font_set(WrenVM *vm)
 			return;
 		}
 		cell = &foreign->storage->cells[foreign->index];
-		selector = st_wren_font_selector(context, cell->font);
-		if (cell->glyph_font == cell->font && cell->glyph <= UINT8_MAX)
-			byte = (uint8_t)cell->glyph;
-		else if (!cell_scalar(context, cell, &codepoint)
-		    || !st_codepage_from_unicode(&byte, font_codepage(selector),
-		    codepoint))
-			byte = '?';
+		if (cell->font == identifier)
+			return;
+		status = st_console_font_glyph_text(context->console,
+		    cell->glyph_font, cell->glyph, local, sizeof(local), &size);
+		if (status == IO_ERROR_OUT_OF_RANGE) {
+			text = malloc(size);
+			if (text == NULL) {
+				st_wren_abort(vm, "out of memory");
+				return;
+			}
+			status = st_console_font_glyph_text(context->console,
+			    cell->glyph_font, cell->glyph, text, size, &size);
+		}
+		if (status != 0) {
+			if (text != local)
+				free(text);
+			st_wren_abort(vm, "cell glyph has no Unicode text");
+			return;
+		}
+		columns = resolved_cell_columns(vm, cell);
 		cell->font = identifier;
-		set_cell_codepoint(vm, foreign,
-		    st_codepage_to_unicode(font_codepage((uint16_t)value), byte,
-		    true), true, byte);
+		set_cell_cluster(vm, foreign, text, size, columns, false);
+		if (text != local)
+			free(text);
 	}
 }
 

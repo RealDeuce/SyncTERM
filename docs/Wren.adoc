@@ -3254,20 +3254,24 @@ is (including a blank NUL mapping). A wide diagnostic is allowed only when
 this Cell refers to a Surface with another column available in the same row;
 otherwise a narrow missing glyph is used. Missing mappings also use narrow
 tofu. Assignment preserves the selected font, colours, attributes, and
-hyperlink, and repairs overwritten wide pairs. This does not affect `chByte`.
+hyperlink, and repairs overwritten wide pairs.
 
 | `chByte`, `chByte=(n)`
-| Exact legacy glyph byte interpreted through this cell's selected font
-  codepage.  The setter stores that byte as the drawable glyph and updates
-  `ch` to its Unicode meaning.  The getter returns an existing drawable byte,
-  or encodes `ch` through the selected font codepage and returns `?` when it
-  cannot be represented.
+| Legacy character byte interpreted through this cell's selected font
+  codepage. The setter decodes the byte to Unicode and resolves a drawable
+  glyph through the same font lookup as `ch`, in every output mode. The
+  getter encodes the resolved glyph's Unicode text through the selected
+  font codepage and returns `?` when it cannot be represented. Drawable
+  glyph indices are opaque; they are not character bytes. This explicit
+  compatibility accessor is independent of the connection's wire encoding.
+  Cell creation and `ch` assignment perform no legacy byte conversion.
 
 | `font`, `font=(n)`
 | Font catalog selector at the Wren boundary. The selected and actual glyph
   font identifiers are retained separately in stored cells. Assignment
-  preserves the current `chByte`, then updates `ch` and the drawable glyph to
-  that byte's meaning in the new font's codepage.
+  resolves the current Unicode text in the new font and its fallback;
+  it does not reinterpret the text as a legacy byte. Legacy codepage
+  conversion occurs only when explicitly accessing `chByte`.
 
 | `legacyAttr`, `legacyAttr=(n)`
 | Legacy attribute byte (foreground in low nibble, background in
@@ -5906,15 +5910,18 @@ ignored.
 
 [source,wren]
 ----
-import "syncterm" for Status, Surface, BBS, CTerm
+import "syncterm" for Status, Surface, Screen, BBS, CTerm
 
 Status.callable = Fn.new { |surf|
   if (!Status.enabled) return
   var s = "%(BBS.name) | %(BBS.connTypeName) | %(BBS.bpsRate) bps"
-  var bytes = s.bytes
-  for (i in 0...bytes.count) {
-    if (i + 1 >= surf.width) break
-    surf[i + 1].chByte = bytes[i]
+  var x = 1
+  for (ch in s) {
+    var columns = Screen.textWidth(ch, surf[0].font)
+    if (columns == 0) continue
+    if (x + columns > surf.width) break
+    surf[x].ch = ch
+    x = x + columns
   }
 }
 ----

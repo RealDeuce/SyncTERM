@@ -3110,11 +3110,19 @@ exercise_unicode_fallback_contract(st_wren_host_t *public_host)
 {
 	struct st_wren_host *host = public_host;
 	static const char source[] =
-	    "import \"syncterm\" for Cell\n"
+	    "import \"syncterm\" for Cell, Surface\n"
 	    "var cell = Cell.new()\n"
 	    "cell.font = 46\n"
 	    "cell.ch = \"\\u4e00\"\n"
-	    "if (cell.columns != 2) Fiber.abort(\"Unicode fallback width\")\n";
+	    "if (cell.columns != 2) Fiber.abort(\"Unicode fallback width\")\n"
+	    "var surface = Surface.new(2, 1)\n"
+	    "cell = surface[0]\n"
+	    "var emoji = \"👩🏽‍❤️‍💋‍👩🏻\"\n"
+	    "cell.ch = emoji\n"
+	    "cell.font = 46\n"
+	    "if (cell.ch != emoji || cell.columns != 2 || surface[1].columns != 0) Fiber.abort(\"cluster font change\")\n"
+	    "cell.font = 1\n"
+	    "if (cell.ch != emoji || cell.columns != 2 || surface[1].columns != 0) Fiber.abort(\"cluster font round trip\")\n";
 
 	if (wrenInterpret(host->vm, "unicode_fallback_contract", source)
 	    != WREN_RESULT_SUCCESS) {
@@ -3382,10 +3390,12 @@ exercise_core_value_contracts(st_wren_host_t *public_host,
 	    "right.font = 0\n"
 	    "right.chByte = 192\n"
 	    "if (right.chByte != 192 || right.ch != \"\\u2514\") Fiber.abort(\"CP437 byte\")\n"
+	    "right.ch = \"\\u00a0\"\n"
+	    "if (right.chByte != 255) Fiber.abort(\"CP437 NBSP\")\n"
 	    "right.font = 1\n"
-	    "if (right.chByte != 192 || right.ch != \"\\u0410\") Fiber.abort(\"font byte reinterpretation\")\n"
+	    "if (right.chByte != 160 || right.ch != \"\\u00a0\") Fiber.abort(\"font Unicode preservation\")\n"
 	    "right.font = 0\n"
-	    "if (right.chByte != 192 || right.ch != \"\\u2514\") Fiber.abort(\"font byte round trip\")\n"
+	    "if (right.chByte != 255 || right.ch != \"\\u00a0\") Fiber.abort(\"font Unicode round trip\")\n"
 	    "right.chByte = 1\n"
 	    "if (right.chByte != 1 || right.ch != \"\\u263a\") Fiber.abort(\"graphic control byte\")\n"
 	    "var pixel = Screen.readRect(1, 1, 1, 1).cellAt(0, 0)\n"
@@ -4810,7 +4820,7 @@ main(int argc, char **argv)
 {
 	bool menu_only = argc == 2 && strcmp(argv[1], "--menu-only") == 0;
 	static const uint8_t default_bitmap[128 * 16] = {0};
-	static const uint8_t default_wide_bitmap[96] = {0};
+	static const uint8_t default_wide_bitmap[128] = {0};
 	static const struct st_console_font_mapping default_mapping[] = {
 		{0, 0},
 		{0x20, 0x20}, {0x21, 0x21}, {0x22, 0x22}, {0x23, 0x23},
@@ -4837,12 +4847,21 @@ main(int argc, char **argv)
 		{0x74, 0x74}, {0x75, 0x75}, {0x76, 0x76}, {0x77, 0x77},
 		{0x78, 0x78}, {0x79, 0x79}, {0x7a, 0x7a}, {0x7b, 0x7b},
 		{0x7c, 0x7c}, {0x7d, 0x7d}, {0x7e, 0x7e},
+		{UINT32_C(0x00b3), 29},
 		{UINT32_C(0x00e9), 31},
 		{UINT32_C(0x03a9), 127},
+		{UINT32_C(0x203c), 25},
 		{UINT32_C(0x2060), 129},
+		{UINT32_C(0x2191), 24},
+		{UINT32_C(0x2193), 23},
+		{UINT32_C(0x2502), 26},
 		{UINT32_C(0x4e00), 128},
 		{UINT32_C(0x4e16), 130},
 		{UINT32_C(0xfeff), 30},
+	};
+	static const struct st_console_font_cluster_mapping default_clusters[] = {
+		{.text = "👩🏽‍❤️‍💋‍👩🏻", .text_size = sizeof("👩🏽‍❤️‍💋‍👩🏻") - 1,
+		    .glyph = 131},
 	};
 	static const struct st_console_font default_font = {
 		.bitmap = default_bitmap,
@@ -4854,11 +4873,13 @@ main(int argc, char **argv)
 		.glyph_stride = 16,
 		.wide_bitmap = default_wide_bitmap,
 		.wide_bitmap_size = sizeof(default_wide_bitmap),
-		.wide_glyph_count = 3,
+		.wide_glyph_count = 4,
 		.wide_row_stride = 2,
 		.wide_glyph_stride = 32,
 		.mapping = default_mapping,
 		.mapping_count = sizeof(default_mapping) / sizeof(default_mapping[0]),
+		.cluster_mapping = default_clusters,
+		.cluster_mapping_count = sizeof(default_clusters) / sizeof(default_clusters[0]),
 		.fallback_glyph = 63,
 	};
 	char personal[sizeof(ST_WREN_TEST_DIRECTORY) + 32];
@@ -5228,13 +5249,61 @@ main(int argc, char **argv)
 	host = NULL;
 	console_config_display.backend = ST_CONSOLE_BACKEND_ANSI;
 	console_config_display.ansi_io = &ansi_io;
+	console_config.cell_width = 0;
+	console_config.cell_height = 0;
 	CHECK(st_console_create(&console, &console_config_display, &console_config) == 0);
 	uint32_t text_capabilities;
 	CHECK(st_console_capabilities(console, &text_capabilities) == 0);
 	CHECK((text_capabilities & ST_CONSOLE_CAP_TEXT_TERMINAL) != 0);
 	CHECK((text_capabilities & ST_CONSOLE_CAP_LOCAL_CONTROL_KEYS) != 0);
+	/* Text consoles use a Unicode presentation font, not a byte-indexed
+	 * codepage font. Keep its glyph indices distinct from CP437 bytes. */
+	CHECK(st_console_register_static_font(console, &default_font,
+	    &default_identifier) == 0 && default_identifier == 0);
 	host_config.console = console;
 	CHECK(st_wren_host_create(&host, &host_config) == 0);
+	CHECK(wrenInterpret(((struct st_wren_host *)host)->vm,
+	    "text_cell_byte_translation",
+	    "import \"syncterm\" for Surface\n"
+	    "var c = Surface.new(1, 1)[0]\n"
+	    "c.chByte = 0xb3\n"
+	    "if (c.ch != \"\\u2502\" || c.chByte != 0xb3) Fiber.abort(\"separator byte translation\")\n"
+	    "c.font = 0\n"
+	    "if (c.ch != \"\\u2502\" || c.chByte != 0xb3) Fiber.abort(\"font byte preservation\")\n"
+	    "c.ch = \"\\u00b3\"\n"
+	    "if (c.ch != \"\\u00b3\" || c.chByte != 63) Fiber.abort(\"superscript byte encoding\")\n"
+	    "for (pair in [[0x18, \"\\u2191\"], [0x19, \"\\u2193\"], [0x13, \"\\u203c\"]]) {\n"
+	    "  c.chByte = pair[0]\n"
+	    "  if (c.ch != pair[1] || c.chByte != pair[0]) Fiber.abort(\"indicator byte translation\")\n"
+	    "}\n") == WREN_RESULT_SUCCESS);
+	st_profile_init(&selected);
+	struct st_wren_connected_config text_connected_config = {
+		.host = host, .console = console, .profile = &selected,
+		.status_enabled = true,
+	};
+	(void)snprintf(selected.name, sizeof(selected.name), "é一");
+	selected.encoding = ST_PROFILE_ENCODING_UTF8;
+	st_wren_connected_t *text_connected = NULL;
+	CHECK(st_wren_connected_create(&text_connected, &text_connected_config) == 0);
+	CHECK(st_wren_connected_render_status(text_connected, true) == 0);
+	struct st_console_cell status_cells[80];
+	const struct st_console_rect status_row = {0, 24, 80, 1};
+	CHECK(st_console_read_cells(console, &status_row, status_cells, 80) == 0);
+	CHECK(status_cells[1].glyph == 31 && status_cells[2].glyph == 128
+	    && (status_cells[3].flags & ST_CONSOLE_CELL_CONTINUATION) != 0);
+	size_t separators = 0;
+	for (size_t i = 0; i < 80; ++i) {
+		char text[4];
+		size_t size;
+		CHECK(st_console_font_glyph_text(console, status_cells[i].glyph_font,
+		    status_cells[i].glyph, text, sizeof(text), &size) == 0);
+		CHECK(size != 2 || memcmp(text, "\xc2\xb3", 2) != 0);
+		if (size == 3 && memcmp(text, "\xe2\x94\x82", 3) == 0)
+			++separators;
+	}
+	CHECK(separators == 3);
+	st_wren_connected_destroy(text_connected);
+	st_profile_dispose(&selected);
 	CHECK(wrenInterpret(((struct st_wren_host *)host)->vm,
 	    "ansi_host_capabilities",
 	    "import \"syncterm\" for Host, PixelBlit, PixelBuffer, Screen\n"
@@ -5277,6 +5346,8 @@ main(int argc, char **argv)
 	host = NULL;
 	console_config_display.backend = ST_CONSOLE_BACKEND_HEADLESS;
 	console_config_display.ansi_io = NULL;
+	console_config.cell_width = 8;
+	console_config.cell_height = 16;
 	CHECK(st_console_create(&console, &console_config_display,
 	    &console_config) == 0);
 	CHECK(st_console_register_static_font(console, &default_font,

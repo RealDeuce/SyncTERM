@@ -29,38 +29,36 @@ class StatusDefault {
   static FG_NORMAL { 0xffff54 }       // bright yellow
   static FG_DIM    { 0x545454 }       // dim grey (mouse-disabled)
   static FG_RED    { 0xff5454 }       // bright red (log error)
-  static SEP_BYTE  { 0xb3 }           // CP437 │
-  static UP_BYTE   { 0x18 }           // CP437 ↑
-  static DOWN_BYTE { 0x19 }           // CP437 ↓
-  static LOG_BYTE  { 0x13 }           // CP437 ‼
-  static M_BYTE    { 0x4d }           // 'M'
+  static SEP_CHAR  { "│" }
+  static UP_CHAR   { "↑" }
+  static DOWN_CHAR { "↓" }
+  static LOG_CHAR  { "‼" }
+  static M_CHAR    { "M" }
 
   // Indicator block is 4 cells wide.  Pinned to the right end of the
   // name area (just before the " │ ConnType " separator) so it never
   // wastes space when the name is shorter than the available room.
 
-  // Write CP437 bytes from `s` into row 0 of `surf` starting at
-  // column `x`.  Stops at the right edge or the end of `s`.  Returns
-  // the number of cells actually written.
+  // Write Unicode text, clipping at the surface's right edge. Returns
+  // the number of display columns written.
   static writeStr_(surf, x, s) {
-    var w = surf.width
-    var bytes = s.bytes
-    var n = bytes.count
     var written = 0
-    for (i in 0...n) {
-      var col = x + i
-      if (col < 0 || col >= w) break
-      surf[col].chByte = bytes[i]
-      written = written + 1
+    for (ch in s) {
+      var col = x + written
+      if (col < 0 || col >= surf.width) break
+      var columns = Screen.textWidth(ch, surf[col].font)
+      if (columns == 0) continue
+      if (col + columns > surf.width) break
+      surf[col].ch = ch
+      written = written + columns
     }
     return written
   }
 
-  // Place a single CP437 byte at column `col`, leaving the cell's
-  // pre-filled colour intact.  No-op if out of bounds.
-  static putByte_(surf, col, byte) {
+  // Place one Unicode character, preserving the pre-filled colour.
+  static putChar_(surf, col, ch) {
     if (col < 0 || col >= surf.width) return
-    surf[col].chByte = byte
+    surf[col].ch = ch
   }
 
   // Write " │ " (space, separator, space) starting at `col`.  Returns
@@ -69,15 +67,15 @@ class StatusDefault {
     var w = surf.width
     var written = 0
     if (col < w) {
-      putByte_(surf, col, 0x20)
+      putChar_(surf, col, " ")
       written = 1
     }
     if (col + 1 < w) {
-      putByte_(surf, col + 1, StatusDefault.SEP_BYTE)
+      putChar_(surf, col + 1, StatusDefault.SEP_CHAR)
       written = 2
     }
     if (col + 2 < w) {
-      putByte_(surf, col + 2, 0x20)
+      putChar_(surf, col + 2, " ")
       written = 3
     }
     return written
@@ -168,23 +166,21 @@ class StatusDefault {
     return lines.join("\n")
   }
 
-  // Truncate ASCII string `s` to fit in `room` bytes, replacing the
-  // tail with "..." when truncation happens.  Returns "" when
-  // room < 1.
-  static truncate_(s, room) {
+  // Truncate text in display columns, reserving an ellipsis when it fits.
+  static truncate_(s, room, font) {
     if (room <= 0) return ""
-    var bs = s.bytes
-    var n = bs.count
-    if (n <= room) return s
-    if (room < 4) {
-      var t = ""
-      for (i in 0...room) t = t + String.fromCodePoint(bs[i])
-      return t
-    }
-    var keep = room - 3
+    if (Screen.textWidth(s, font) <= room) return s
+    var limit = room < 4 ? room : room - 3
     var t = ""
-    for (i in 0...keep) t = t + String.fromCodePoint(bs[i])
-    return t + "..."
+    var width = 0
+    for (ch in s) {
+      var columns = Screen.textWidth(ch, font)
+      if (columns == 0) continue
+      if (width + columns > limit) break
+      t = t + ch
+      width = width + columns
+    }
+    return room < 4 ? t : t + "..."
   }
 
   // Indicators painted near the right end of the name area, in the
@@ -198,8 +194,8 @@ class StatusDefault {
   static paintIndicators_(surf, nameEnd) {
     if (nameEnd < 5) return
     paintLog_(surf,    nameEnd - 4)
-    paintArrow_(surf,  nameEnd - 3, StatusDefault.UP_BYTE,   Host.uploadArrow)
-    paintArrow_(surf,  nameEnd - 2, StatusDefault.DOWN_BYTE, Host.downloadArrow)
+    paintArrow_(surf,  nameEnd - 3, StatusDefault.UP_CHAR,   Host.uploadArrow)
+    paintArrow_(surf,  nameEnd - 2, StatusDefault.DOWN_CHAR, Host.downloadArrow)
     paintMouse_(surf,  nameEnd - 1)
   }
 
@@ -207,23 +203,23 @@ class StatusDefault {
     if (col < 0 || col >= surf.width) return
     if (Host.logUnreadError) {
       var c = surf[col]
-      c.chByte = StatusDefault.LOG_BYTE
+      c.ch = StatusDefault.LOG_CHAR
       c.fgRgb = StatusDefault.FG_RED
       c.legacyAttr = 0x1c
     } else if (Host.logUnread) {
-      surf[col].chByte = StatusDefault.LOG_BYTE
+      surf[col].ch = StatusDefault.LOG_CHAR
     }
   }
 
-  static paintArrow_(surf, col, byte, lit) {
-    if (lit) putByte_(surf, col, byte)
+  static paintArrow_(surf, col, ch, lit) {
+    if (lit) putChar_(surf, col, ch)
   }
 
   static paintMouse_(surf, col) {
     if (col < 0 || col >= surf.width) return
     if (CTerm.mouseMode == 0) return
     var c = surf[col]
-    c.chByte = StatusDefault.M_BYTE
+    c.ch = StatusDefault.M_CHAR
     if (CTerm.mouseDisabled) {
       c.fgRgb = StatusDefault.FG_DIM
       c.legacyAttr = 0x18
@@ -232,10 +228,10 @@ class StatusDefault {
 
   // Compute total right-side slot width (each non-empty contributes
   // 3 chars for " │ " plus its content).
-  static rightWidth_(slots) {
+  static rightWidth_(slots, font) {
     var total = 0
     for (s in slots) {
-      if (s != "") total = total + 3 + s.bytes.count
+      if (s != "") total = total + 3 + Screen.textWidth(s, font)
     }
     return total
   }
@@ -275,6 +271,7 @@ class StatusDefault {
   static render(surf) {
     if (!Status.enabled) return
     var w = surf.width
+    var font = surf[0].font
     var uri = Status.hoverUri
     if (uri != null) {
       renderUri_(surf, uri)
@@ -297,23 +294,23 @@ class StatusDefault {
     // chars) before resorting to "..." -- the label is decoration,
     // the BBS name is information.
     var slots = [conn, time, menu]
-    var rightWidth = rightWidth_(slots)
+    var rightWidth = rightWidth_(slots, font)
     var nameWidth = w - rightWidth - 2
-    if (name.bytes.count > nameWidth && time != "") {
+    if (Screen.textWidth(name, font) > nameWidth && time != "") {
       time = elapsedString_()
       slots = [conn, time, menu]
-      rightWidth = rightWidth_(slots)
+      rightWidth = rightWidth_(slots, font)
       nameWidth = w - rightWidth - 2
     }
     if (nameWidth < 1) nameWidth = 1
 
-    name = truncate_(name, nameWidth)
+    name = truncate_(name, nameWidth, font)
 
     // Paint name and pad to nameWidth with spaces.
     var col = 1
     col = col + writeStr_(surf, col, name)
     while (col < 1 + nameWidth) {
-      putByte_(surf, col, 0x20)
+      putChar_(surf, col, " ")
       col = col + 1
     }
     // Right-side slots in order.
