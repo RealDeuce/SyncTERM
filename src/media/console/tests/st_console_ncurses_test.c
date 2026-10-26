@@ -17,6 +17,7 @@
 #endif
 
 #include <errno.h>
+#include <locale.h>
 #include <poll.h>
 #include <signal.h>
 #include <stdint.h>
@@ -210,6 +211,11 @@ static void
 child_test(int report, bool cp437)
 {
 	static const uint8_t bitmap[128] = {0};
+	static const uint8_t wide_bitmap[2] = {0};
+	static const char joystick[] = "\xf0\x9f\x95\xb9\xef\xb8\x8f";
+	static const struct st_console_font_cluster_mapping clusters[] = {
+		{joystick, sizeof(joystick) - 1, 128},
+	};
 	static const struct st_console_font_mapping mapping[] = {
 		{'?', '?'},
 		{'A', 'A'}, {'B', 'B'}, {'C', 'C'}, {'D', 'D'}, {'E', 'E'},
@@ -228,8 +234,15 @@ child_test(int report, bool cp437)
 		.glyph_count = 128,
 		.row_stride = 1,
 		.glyph_stride = 1,
+		.wide_bitmap = wide_bitmap,
+		.wide_bitmap_size = sizeof(wide_bitmap),
+		.wide_glyph_count = 1,
+		.wide_row_stride = 2,
+		.wide_glyph_stride = 2,
 		.mapping = mapping,
 		.mapping_count = sizeof(mapping) / sizeof(mapping[0]),
+		.cluster_mapping = clusters,
+		.cluster_mapping_count = 1,
 		.fallback_glyph = '?',
 	};
 	struct st_console_config config = {
@@ -246,8 +259,8 @@ child_test(int report, bool cp437)
 		    : ST_CONSOLE_TEXT_UNICODE,
 	};
 	struct st_console_event event;
-	const struct st_console_rect cells_rect = {0, 0, 4, 1};
-	struct st_console_cell cells[4] = {
+	const struct st_console_rect cells_rect = {0, 0, 6, 1};
+	struct st_console_cell cells[6] = {
 		{.glyph = 'A', .foreground = 9, .background = 0},
 		{.glyph = 'B',
 		    .foreground = ST_CONSOLE_COLOR_RGB_VALUE(0, 215, 175),
@@ -255,6 +268,9 @@ child_test(int report, bool cp437)
 		{.glyph = 'C', .foreground = 7, .background = 0,
 		    .flags = ST_CONSOLE_CELL_BOLD},
 		{.glyph = 127, .foreground = 7, .background = 0},
+		{.glyph = 128, .foreground = 7, .background = 0},
+		{.glyph = 128, .foreground = 7, .background = 0,
+		    .flags = ST_CONSOLE_CELL_CONTINUATION},
 	};
 	struct timespec deadline;
 	uint32_t columns;
@@ -338,7 +354,7 @@ child_test(int report, bool cp437)
 		if (st_console_write_cells(console, &rectangle, marker, 7) != 0)
 			_exit(1);
 	}
-	if (st_console_write_cells(console, &cells_rect, cells, 4) != 0) {
+	if (st_console_write_cells(console, &cells_rect, cells, 6) != 0) {
 		child_result(report, 'P');
 		st_console_destroy(console);
 		_exit(1);
@@ -478,6 +494,8 @@ main(int argc, char **argv)
 	int status;
 	bool cp437;
 
+	(void)setlocale(LC_CTYPE, "");
+
 	if (argc == 2 && strcmp(argv[1], "--fragmented-output") == 0)
 		return test_fragmented_output();
 	if (argc == 1)
@@ -516,6 +534,11 @@ main(int argc, char **argv)
 	    || (!output_contains("\033[1m") && !output_contains("\033[0;1m"))
 	    || (cp437 && !output_contains_byte(direct_colour ? 0x82 : 'Z'))) {
 		fprintf(stderr, "ncurses emitted the wrong cell representation\n");
+		goto failed;
+	}
+	if (!cp437 && (direct_colour || ST_CONSOLE_TEST_HAVE_WIDE)
+	    && !output_contains("\xf0\x9f\x95\xb9\xef\xb8\x8f")) {
+		fprintf(stderr, "ncurses lost the joystick emoji presentation selector\n");
 		goto failed;
 	}
 	size.ws_row = 43;

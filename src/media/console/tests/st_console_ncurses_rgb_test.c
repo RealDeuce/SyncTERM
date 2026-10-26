@@ -145,6 +145,101 @@ test_layout(void)
 	return terminal_colour_conflicts(&console, &state, 3, SIZE_MAX,
 	    UINT32_C(0xa80000));
 }
+
+#if ST_CONSOLE_HAVE_CURSES_WIDE
+static wchar_t written_text[64];
+static int written_count;
+static int
+record_wide(WINDOW *window, const wchar_t *text, int count)
+{
+	(void)window;
+	if (count < 0 || (size_t)count >= sizeof(written_text) / sizeof(written_text[0]))
+		return ERR;
+	memcpy(written_text, text, ((size_t)count + 1) * sizeof(*text));
+	written_count = count;
+	return OK;
+}
+#endif
+
+static bool
+test_emoji_text(void)
+{
+	static const char joystick[] = "\xf0\x9f\x95\xb9\xef\xb8\x8f";
+	static const char toned_hand[] = "\xf0\x9f\x91\x8b\xf0\x9f\x8f\xbd";
+	/* Longer than the output helper's small buffer, with ZWJ and selectors. */
+	static const char kiss[] = "\xf0\x9f\x91\xa9\xf0\x9f\x8f\xbd"
+	    "\xe2\x80\x8d\xe2\x9d\xa4\xef\xb8\x8f\xe2\x80\x8d"
+	    "\xf0\x9f\x92\x8b\xe2\x80\x8d\xf0\x9f\x91\xa8\xf0\x9f\x8f\xbd";
+	static const uint8_t bitmap[1] = {0}, wide_bitmap[6] = {0};
+	static const struct st_console_font_mapping mapping[] = {{'?', 0}};
+	static const struct st_console_font_cluster_mapping clusters[] = {
+		{joystick, sizeof(joystick) - 1, 1},
+		{toned_hand, sizeof(toned_hand) - 1, 2},
+		{kiss, sizeof(kiss) - 1, 3},
+	};
+	const struct st_console_font font = {
+		.bitmap = bitmap, .bitmap_size = sizeof(bitmap),
+		.width = 8, .height = 1, .glyph_count = 1,
+		.row_stride = 1, .glyph_stride = 1,
+		.wide_bitmap = wide_bitmap, .wide_bitmap_size = sizeof(wide_bitmap),
+		.wide_glyph_count = 3, .wide_row_stride = 2, .wide_glyph_stride = 2,
+		.mapping = mapping, .mapping_count = 1,
+		.cluster_mapping = clusters, .cluster_mapping_count = 3,
+	};
+	const struct st_console_display_config output = {
+		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	};
+	const struct st_console_config config = {.columns = 8, .rows = 2};
+	struct curses_state state = {.presentation = ST_CONSOLE_TEXT_UNICODE};
+	st_console_t *console = NULL;
+	uint16_t identifier;
+	bool correct = false;
+
+	if (st_console_create(&console, &output, &config) != 0)
+		return false;
+	if (st_console_register_static_font(console, &font, &identifier) != 0)
+		goto done;
+	for (size_t i = 0; i < 3; ++i) {
+		struct st_console_cell cell = {
+			.glyph_font = identifier, .glyph = clusters[i].glyph,
+		};
+		struct sgr_writer writer = {0};
+
+		sgr_character(&writer, console, &state, &cell);
+		if (writer.result != 0 || writer.length != clusters[i].text_size
+		    || memcmp(writer.data, clusters[i].text, writer.length) != 0)
+			goto done;
+#if ST_CONSOLE_HAVE_CURSES_WIDE
+		{
+			size_t offset = 0;
+			int count = 0;
+
+			state.wide = true;
+			state.api.call_add_wide = record_wide;
+			if (write_cell(console, &state, &cell) != OK)
+				goto done;
+			while (offset < clusters[i].text_size) {
+				uint32_t scalar;
+				size_t consumed;
+
+				if (st_utf8_decode_one(&scalar, &consumed,
+				    clusters[i].text + offset,
+				    clusters[i].text_size - offset) != 0
+				    || count >= written_count
+				    || written_text[count++] != (wchar_t)scalar)
+					goto done;
+				offset += consumed;
+			}
+			if (count != written_count || written_text[count] != 0)
+				goto done;
+		}
+#endif
+	}
+	correct = true;
+done:
+	st_console_destroy(console);
+	return correct;
+}
 #endif
 
 int
@@ -165,6 +260,10 @@ main(void)
 
 	if (!test_layout()) {
 		fprintf(stderr, "text layout, cursor, or mouse coordinates failed\n");
+		return EXIT_FAILURE;
+	}
+	if (!test_emoji_text()) {
+		fprintf(stderr, "curses lost an emoji sequence\n");
 		return EXIT_FAILURE;
 	}
 

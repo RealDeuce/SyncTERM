@@ -689,30 +689,95 @@ ascii_cell(st_console_t *console, const struct st_console_cell *cell)
 	return result;
 }
 
+/* The returned text uses local storage or is owned by the caller. */
+static char *
+cell_text(st_console_t *console, const struct st_console_cell *cell,
+	char *local, size_t local_size, size_t *length)
+{
+	char *text = local;
+
+	if (!st_console_font_glyph_text_locked(console, cell->glyph_font,
+	    cell->glyph, local, local_size, length)) {
+		*length = (size_t)st_utf8_encode_one(local, local_size,
+		    UINT32_C(0xfffd));
+	}
+	else if (*length > local_size) {
+		text = malloc(*length);
+		if (text == NULL)
+			return NULL;
+		if (!st_console_font_glyph_text_locked(console, cell->glyph_font,
+		    cell->glyph, text, *length, length)) {
+			free(text);
+			text = local;
+			*length = (size_t)st_utf8_encode_one(local, local_size,
+			    UINT32_C(0xfffd));
+		}
+	}
+	return text;
+}
+
+#if ST_CONSOLE_HAVE_CURSES_WIDE
+static int
+write_wide_cell(st_console_t *console, struct curses_state *state,
+	const struct st_console_cell *cell)
+{
+	char local_text[32];
+	wchar_t local_wide[32];
+	wchar_t *wide = local_wide;
+	size_t length, offset = 0;
+	char *text = cell_text(console, cell, local_text, sizeof(local_text),
+	    &length);
+	int count = 0, result = ERR;
+
+	if (text == NULL)
+		return ERR;
+	if (length >= sizeof(local_wide) / sizeof(local_wide[0])) {
+		if (length > INT_MAX || length >= SIZE_MAX / sizeof(*wide))
+			goto done;
+		wide = malloc((length + 1) * sizeof(*wide));
+		if (wide == NULL)
+			goto done;
+	}
+	while (offset < length) {
+		uint32_t scalar;
+		size_t consumed;
+
+		if (st_utf8_decode_one(&scalar, &consumed, text + offset,
+		    length - offset) != 0 || scalar > (uint32_t)WCHAR_MAX) {
+			wide[0] = (wchar_t)UINT32_C(0xfffd);
+			count = 1;
+			break;
+		}
+		wide[count++] = (wchar_t)scalar;
+		offset += consumed;
+	}
+	wide[count] = 0;
+	result = state->api.call_add_wide(state->window, wide, count);
+done:
+	if (wide != local_wide)
+		free(wide);
+	if (text != local_text)
+		free(text);
+	return result;
+}
+#endif
+
 static int
 write_cell(st_console_t *console, struct curses_state *state,
 	const struct st_console_cell *cell)
 {
-	uint32_t codepoint;
+	if (state->presentation == ST_CONSOLE_TEXT_CP437) {
+		uint32_t codepoint;
 
-	(void)st_console_cell_codepoint_locked(console, cell, &codepoint);
-	if (state->presentation == ST_CONSOLE_TEXT_CP437)
+		(void)st_console_cell_codepoint_locked(console, cell, &codepoint);
 		return state->api.call_addch(state->window,
 		    (chtype)st_console_cp437_character(codepoint));
+	}
 	if (state->presentation == ST_CONSOLE_TEXT_ASCII)
 		return state->api.call_addch(state->window, ascii_cell(console, cell));
 #if ST_CONSOLE_HAVE_CURSES_WIDE
-	if (state->wide) {
-		wchar_t value[2];
-
-		if (codepoint <= (uint32_t)WCHAR_MAX
-		    && !(codepoint >= UINT32_C(0xd800)
-		    && codepoint <= UINT32_C(0xdfff))) {
-			value[0] = (wchar_t)codepoint;
-			value[1] = 0;
-			return state->api.call_add_wide(state->window, value, 1);
-		}
-	}
+	if (state->wide)
+		return write_wide_cell(console, state, cell);
 #else
 	(void)state;
 #endif
@@ -754,14 +819,12 @@ static void
 sgr_character(struct sgr_writer *writer, st_console_t *console,
 	const struct curses_state *state, const struct st_console_cell *cell)
 {
-	char encoded[4];
-	ptrdiff_t length;
-	uint32_t codepoint;
-
-	(void)st_console_cell_codepoint_locked(console, cell, &codepoint);
-
 	if (state->presentation == ST_CONSOLE_TEXT_CP437) {
-		unsigned char character = st_console_cp437_character(codepoint);
+		uint32_t codepoint;
+		unsigned char character;
+
+		(void)st_console_cell_codepoint_locked(console, cell, &codepoint);
+		character = st_console_cp437_character(codepoint);
 
 		sgr_emit(writer, &character, 1);
 		return;
@@ -778,13 +841,19 @@ sgr_character(struct sgr_writer *writer, st_console_t *console,
 		return;
 	}
 
-	if (!st_unicode_scalar_valid(codepoint))
-		codepoint = UINT32_C(0xfffd);
-	length = st_utf8_encode_one(encoded, sizeof(encoded), codepoint);
-	if (length < 0)
-		writer->result = (int)length;
-	else
-		sgr_emit(writer, encoded, (size_t)length);
+	{
+		char local[32];
+		size_t length;
+		char *text = cell_text(console, cell, local, sizeof(local), &length);
+
+		if (text == NULL) {
+			writer->result = IO_ERROR_OUT_OF_MEMORY;
+			return;
+		}
+		sgr_emit(writer, text, length);
+		if (text != local)
+			free(text);
+	}
 }
 
 static bool
