@@ -413,7 +413,7 @@ class UiHelpTest {
     var sf = h.draw()
     var consumed = h.handle(
         MouseEvent.new(Mouse.button1Click, 29, 8, 29, 8))
-    check_(sf.cellAt(28, 1).chByte == 0x1E &&
+    check_(sf.cellAt(28, 1).ch == "▲" &&
            sf.cellAt(27, 1).ch == "│" && consumed && h.scrollTop == 1,
            "Help: right scrollbar draws and accepts its down arrow")
   }

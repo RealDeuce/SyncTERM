@@ -971,7 +971,7 @@ class WrenTest {
     var c = Cell.new()
     check_(!c.pixelGraphics, "Cell.new has no pixel graphics")
     c.ch = "A"
-    check_(c.ch == "A" && c.chByte == 65, "Cell.ch + chByte")
+    check_(c.ch == "A", "Cell.ch")
     c.legacyAttr = 0x1e
     check_(c.legacyAttr == 0x1e, "Cell.legacyAttr roundtrip")
     c.bright = true

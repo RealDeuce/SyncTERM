@@ -175,7 +175,7 @@ class UiLogviewTest {
     lv.handle(keyEvent_(Key.home))
     lv.handle(keyEvent_(Key.down))
     var sf = lv.draw()
-    check_(lv.scrollTop == null && sf.cellAt(0, 0).chByte == 0x20 &&
+    check_(lv.scrollTop == null && sf.cellAt(0, 0).ch == " " &&
            sf.cellAt(0, 1).ch == "x",
         "empty entries each retain one visual row")
   }
@@ -254,7 +254,7 @@ class UiLogviewTest {
     lv.bounds = Rect.new(1, 1, 20, 5)
     lv.append(LogView.LEVEL_INFO, "only")
     var sf = lv.draw()
-    check_(sf.cellAt(0, 0).ch == "o" && sf.cellAt(0, 1).chByte == 0x20,
+    check_(sf.cellAt(0, 0).ch == "o" && sf.cellAt(0, 1).ch == " ",
            "fewer entries than viewport: row 0 has data, row 1 blank")
   }
 
@@ -356,11 +356,11 @@ class UiLogviewTest {
     lv.append(LogView.LEVEL_INFO, "abc")
     lv.append(LogView.LEVEL_INFO, "def")
     var sf = lv.draw()
-    var rightCh = sf.cellAt(9, 0).chByte
+    var rightCh = sf.cellAt(9, 0).ch
     // Whatever it is, it should not be one of the four scrollbar
-    // glyphs (▲▼█░ → CP437 0x1E 0x1F 0xDB 0xB0).
-    var isSb = rightCh == 0x1E || rightCh == 0x1F ||
-               rightCh == 0xDB || rightCh == 0xB0
+    // glyphs (▲▼█░).
+    var isSb = rightCh == "▲" || rightCh == "▼" ||
+               rightCh == "█" || rightCh == "░"
     check_(!isSb,
            "no scrollbar drawn when count <= viewport")
   }
@@ -374,8 +374,8 @@ class UiLogviewTest {
       lv.append(LogView.LEVEL_INFO, "line %(i)")
     }
     var sf = lv.draw()
-    var topCh = sf.cellAt(9, 0).chByte
-    check_(topCh == 0x1E && sf.cellAt(8, 0).ch == "│" &&
+    var topCh = sf.cellAt(9, 0).ch
+    check_(topCh == "▲" && sf.cellAt(8, 0).ch == "│" &&
            sf.cellAt(0, 0).ch == "l",
            "right scrollbar has separator and leaves content at column 0")
   }

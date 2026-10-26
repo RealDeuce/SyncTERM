@@ -598,18 +598,6 @@ set_cell_cluster(WrenVM *vm, struct foreign_cell *foreign, const char *text,
 	}
 }
 
-static void
-set_cell_codepoint(WrenVM *vm, struct foreign_cell *foreign,
-	uint32_t codepoint)
-{
-	char encoded[4];
-	ptrdiff_t size = st_utf8_encode_one(encoded, sizeof(encoded), codepoint);
-
-	if (size > 0)
-		set_cell_cluster(vm, foreign, encoded, (size_t)size,
-		    1, false);
-}
-
 static uint8_t
 resolved_cell_columns(WrenVM *vm, const struct st_console_cell *cell)
 {
@@ -2954,6 +2942,22 @@ font_codepage(uint16_t selector)
 }
 
 static void
+fn_codepage_decode_byte(WrenVM *vm)
+{
+	int64_t codepage;
+	int64_t byte;
+	char text[4];
+	ptrdiff_t size;
+
+	if (!slot_integer(vm, 1, 0, ST_CODEPAGE_COUNT - 1, &codepage)
+	    || !slot_integer(vm, 2, 0, UINT8_MAX, &byte))
+		return;
+	size = st_utf8_encode_one(text, sizeof(text), st_codepage_to_unicode(
+	    (enum st_codepage)codepage, (uint8_t)byte, true));
+	wrenSetSlotBytes(vm, 0, text, (size_t)size);
+}
+
+static void
 fn_font_name(WrenVM *vm)
 {
 	int64_t selector;
@@ -3505,56 +3509,6 @@ fn_cell_ch_set(WrenVM *vm)
 	set_cell_cluster(vm, foreign, normalized, normalized_size, columns,
 	    columns == 0);
 	free(normalized);
-}
-
-static bool
-cell_scalar(struct st_wren_context *context,
-	const struct st_console_cell *cell, uint32_t *codepoint)
-{
-	char encoded[4];
-	size_t required;
-	size_t consumed;
-
-	return st_console_font_glyph_text(context->console, cell->glyph_font,
-	    cell->glyph, encoded, sizeof(encoded), &required) == 0
-	    && st_utf8_decode_one(codepoint, &consumed, encoded, required) == 0
-	    && consumed == required;
-}
-
-static void
-fn_cell_byte(WrenVM *vm)
-{
-	struct st_console_cell *cell = cell_value(vm, 0);
-	struct st_wren_context *context = st_wren_context_from_vm(vm);
-	uint16_t selector;
-	uint8_t value;
-	uint32_t codepoint;
-
-	if (cell == NULL)
-		return;
-	selector = st_wren_font_selector(context, cell->font);
-	if (!cell_scalar(context, cell, &codepoint)
-	    || !st_codepage_from_unicode(&value, font_codepage(selector),
-	    codepoint))
-		value = '?';
-	wrenSetSlotDouble(vm, 0, value);
-}
-
-static void
-fn_cell_byte_set(WrenVM *vm)
-{
-	struct foreign_cell *foreign = foreign_cell_value(vm, 0);
-	struct st_wren_context *context = st_wren_context_from_vm(vm);
-	int64_t value;
-	uint16_t selector;
-
-	if (foreign != NULL && slot_integer(vm, 1, 0, 255, &value)) {
-		selector = st_wren_font_selector(context,
-		    foreign->storage->cells[foreign->index].font);
-		set_cell_codepoint(vm, foreign,
-		    st_codepage_to_unicode(font_codepage(selector),
-		    (uint8_t)value, true));
-	}
 }
 
 static void
@@ -4682,6 +4636,7 @@ static const struct binding bindings[] = {
 	{"ScreenFonts", true, "[_]", fn_screen_font_get},
 	{"ScreenFonts", true, "[_]=(_)", fn_screen_font_set},
 	{"Codepage", true, "encodes_(_)", fn_codepage_encodes},
+	{"Codepage", true, "decodeByte(_,_)", fn_codepage_decode_byte},
 	{"Font", true, "name(_)", fn_font_name},
 	{"Font", true, "count", fn_font_count},
 	{"Font", true, "available(_)", fn_font_available},
@@ -4705,8 +4660,6 @@ static const struct binding bindings[] = {
 	{"Surface", false, "urlAt(_,_)", fn_surface_url_at},
 	{"Cell", false, "ch", fn_cell_ch},
 	{"Cell", false, "ch=(_)", fn_cell_ch_set},
-	{"Cell", false, "chByte", fn_cell_byte},
-	{"Cell", false, "chByte=(_)", fn_cell_byte_set},
 	{"Cell", false, "font", fn_cell_font},
 	{"Cell", false, "font=(_)", fn_cell_font_set},
 	{"Cell", false, "columns", fn_cell_columns},

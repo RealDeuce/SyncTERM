@@ -584,7 +584,7 @@ class UiListTest {
     // the separator and column 9 is the right-side scrollbar.
     var top = s.cellAt(9, 0)
     var bot = s.cellAt(9, 4)
-    check_(top.chByte != bot.chByte,
+    check_(top.ch != bot.ch,
            "ListView.draw: scrollbar drawn with distinct thumb / track glyphs")
     check_(s.cellAt(8, 0).ch == "│" && s.cellAt(1, 0).ch == "x",
            "ListView.draw: content starts at col 1, separator at col 8")
@@ -598,7 +598,7 @@ class UiListTest {
     l.bounds = Rect.new(1, 1, 10, 5)
     l.scrollbarSide = "left"
     var s = l.draw()
-    check_(s.cellAt(0, 0).chByte == 0x1E &&
+    check_(s.cellAt(0, 0).ch == "▲" &&
            s.cellAt(1, 0).ch == "│" && s.cellAt(2, 0).ch == "x",
            "ListView.draw: explicit left scrollbar override")
   }

@@ -55,8 +55,8 @@ class UiProgressTest {
     var ok = true
     for (y in 0...2) {
       for (x in 0...8) {
-        var expected = x < 2 ? 0xB1 : 0x20
-        if (sf.cellAt(x, y).chByte != expected) ok = false
+        var expected = x < 2 ? "▒" : " "
+        if (sf.cellAt(x, y).ch != expected) ok = false
       }
     }
     check_(ok, "decreasing progress clears old fill on every row")
@@ -117,7 +117,7 @@ class UiProgressTest {
   }
 
   // 0%: empty everywhere; cell 0 is space (no fill); first cell of the
-  // overlay (centered "0\%") shows '0'.  Light-shade byte (0xB1) must
+  // overlay (centered "0\%") shows '0'. Medium-shade fill (▒) must
   // not appear anywhere.
   static testZeroPercentEmpty_() {
     var p = ProgressBar.new()
@@ -126,9 +126,9 @@ class UiProgressTest {
     var sf = p.draw()
     var anyFilled = false
     for (i in 0...20) {
-      if (sf.cellAt(i, 0).chByte == 0xB1) anyFilled = true
+      if (sf.cellAt(i, 0).ch == "▒") anyFilled = true
     }
-    check_(!anyFilled, "0\% does not paint any 0xB1 cells")
+    check_(!anyFilled, "0\% does not paint any ▒ cells")
   }
 
   static testFullPercentFilled_() {
@@ -136,10 +136,10 @@ class UiProgressTest {
     p.bounds = Rect.new(1, 1, 20, 1)
     p.set(100, 100)
     var sf = p.draw()
-    // Cells 0 and 19 must be 0xB1 — the overlay only occupies the
+    // Cells 0 and 19 must be ▒ — the overlay only occupies the
     // middle 4 cells (label "100\%" = "100%"), so the edges remain
-    // light-shade.
-    check_(sf.cellAt(0, 0).chByte == 0xB1 && sf.cellAt(19, 0).chByte == 0xB1,
+    // medium-shade.
+    check_(sf.cellAt(0, 0).ch == "▒" && sf.cellAt(19, 0).ch == "▒",
            "100\% paints fill at the edges")
   }
 
@@ -150,10 +150,10 @@ class UiProgressTest {
     p.set(50, 100)
     var sf = p.draw()
     // floor(20 * 50 / 100) = 10 filled cells (indices 0..9).
-    var c9  = sf.cellAt(9, 0).chByte
-    var c10 = sf.cellAt(10, 0).chByte
-    check_(c9 == 0xB1 && c10 == 0x20,
-           "50\% fills cells 0..9, leaves cell 10 empty (chByte 0xB1 / 0x20)")
+    var c9  = sf.cellAt(9, 0).ch
+    var c10 = sf.cellAt(10, 0).ch
+    check_(c9 == "▒" && c10 == " ",
+           "50\% fills cells 0..9, leaves cell 10 empty (fill / space)")
   }
 
   static testZeroTotalEmpty_() {
@@ -163,7 +163,7 @@ class UiProgressTest {
     var sf = p.draw()
     var anyFilled = false
     for (i in 0...20) {
-      if (sf.cellAt(i, 0).chByte == 0xB1) anyFilled = true
+      if (sf.cellAt(i, 0).ch == "▒") anyFilled = true
     }
     check_(!anyFilled, "total=0 paints no fill (no div-by-zero, no overlay)")
   }
@@ -176,7 +176,7 @@ class UiProgressTest {
     var sf = p.draw()
     var anyFilled = false
     for (i in 0...20) {
-      if (sf.cellAt(i, 0).chByte == 0xB1) anyFilled = true
+      if (sf.cellAt(i, 0).ch == "▒") anyFilled = true
     }
     check_(!anyFilled, "total=null degenerates to empty")
   }
@@ -187,8 +187,8 @@ class UiProgressTest {
     p.set(200, 100)
     var sf = p.draw()
     // current > total clamps; expect all 10 cells filled (excluding
-    // the overlay).  Cells 0 and 9 should be 0xB1.
-    check_(sf.cellAt(0, 0).chByte == 0xB1 && sf.cellAt(9, 0).chByte == 0xB1,
+    // the overlay).  Cells 0 and 9 should be ▒.
+    check_(sf.cellAt(0, 0).ch == "▒" && sf.cellAt(9, 0).ch == "▒",
            "current > total clamped (full bar)")
   }
 
@@ -199,7 +199,7 @@ class UiProgressTest {
     var sf = p.draw()
     var anyFilled = false
     for (i in 0...10) {
-      if (sf.cellAt(i, 0).chByte == 0xB1) anyFilled = true
+      if (sf.cellAt(i, 0).ch == "▒") anyFilled = true
     }
     check_(!anyFilled, "current < 0 clamped (empty bar)")
   }
@@ -223,9 +223,9 @@ class UiProgressTest {
     p.showPercent = false
     p.set(50, 100)
     var sf = p.draw()
-    // Without overlay, cells 8..10 stay light-shade (within filled
-    // range) — verify cell 8 is still 0xB1.
-    check_(sf.cellAt(8, 0).chByte == 0xB1,
+    // Without overlay, cells 8..10 stay medium-shade (within filled
+    // range) — verify cell 8 is still ▒.
+    check_(sf.cellAt(8, 0).ch == "▒",
            "showPercent=false suppresses the overlay")
   }
 
@@ -236,8 +236,8 @@ class UiProgressTest {
     p.showPercent = false
     p.set(1, 3)
     var sf = p.draw()
-    check_(sf.cellAt(2, 0).chByte == 0xB1 &&
-           sf.cellAt(3, 0).chByte == 0x20,
+    check_(sf.cellAt(2, 0).ch == "▒" &&
+           sf.cellAt(3, 0).ch == " ",
            "1/3 over width 10 fills 3 cells (floor)")
   }
 
@@ -247,8 +247,8 @@ class UiProgressTest {
     p.showPercent = false
     p.set(100, 100)
     var sf = p.draw()
-    check_(sf.cellAt(0, 0).chByte == 0xB1 &&
-           sf.cellAt(0, 2).chByte == 0xB1,
+    check_(sf.cellAt(0, 0).ch == "▒" &&
+           sf.cellAt(0, 2).ch == "▒",
            "3-row bar: top and bottom rows both filled")
   }
 

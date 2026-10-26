@@ -244,11 +244,11 @@ class UiDrawTest {
     var s = Surface.new(1, 5)
     Painter.fill(s, Rect.new(0, 0, 1, 5), " ", testStyle_)
     Painter.vline(s, 0, 1, 3, "|", styleB_)
-    check_(s.cellAt(0, 0).chByte == 0x20 &&
-           s.cellAt(0, 1).chByte == 0x7C &&
-           s.cellAt(0, 2).chByte == 0x7C &&
-           s.cellAt(0, 3).chByte == 0x7C &&
-           s.cellAt(0, 4).chByte == 0x20,
+    check_(s.cellAt(0, 0).ch == " " &&
+           s.cellAt(0, 1).ch == "|" &&
+           s.cellAt(0, 2).ch == "|" &&
+           s.cellAt(0, 3).ch == "|" &&
+           s.cellAt(0, 4).ch == " ",
            "Painter.vline: starts at y, len cells, style applied")
   }
 

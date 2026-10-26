@@ -772,6 +772,7 @@ class Codepage {
   static atariSt      { 28 }
 
   foreign static encodes_(text)
+  foreign static decodeByte(codepage, byte)
 }
 class REPL {
   static eval(src) { eval("syncterm", src) }
@@ -836,8 +837,6 @@ foreign class Cell {
   construct new() {}
   foreign ch
   foreign ch=(s)
-  foreign chByte
-  foreign chByte=(n)
   foreign font
   foreign font=(n)
   foreign columns

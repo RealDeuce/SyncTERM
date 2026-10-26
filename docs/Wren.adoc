@@ -3164,11 +3164,21 @@ than scancodes from a real key.
 
 Enum-style class identifying a character-set encoding.  Returned by
 `Font.codepage` and `Font.codepageOf(i)` to tell scripts which
-encoding the bytes in a screen cell are in.
+legacy character encoding a selected font uses. Cells expose Unicode text;
+these values describe explicit conversions at a legacy byte boundary.
 
 `Codepage.encodes_(s)` accepts exactly one Unicode codepoint and reports
 whether the codepage of the selected primary font (`Screen.font[0]`) can
 encode it.  It does not consult the process locale.
+
+`Codepage.decodeByte(codepage, byte)` explicitly decodes one legacy display
+byte to a Unicode String. The codepage must be one of the constants below
+and the byte an integer from 0 through 255. It uses graphical character
+meanings for control positions: CP437 byte 1 becomes `☺`, byte `0xB3`
+becomes `│`, and byte 0 remains NUL. Invalid arguments abort the calling
+fiber. The result is independent of the selected font, connection encoding,
+locale, and output mode. For example, a CP437 character picker can assign
+`cell.ch = Codepage.decodeByte(Codepage.cp437, value)`.
 
 A `_b` suffix on a codepage name means "broken vertical" — the
 font variant draws box-drawing pipe characters with one-pixel gaps
@@ -3256,22 +3266,12 @@ otherwise a narrow missing glyph is used. Missing mappings also use narrow
 tofu. Assignment preserves the selected font, colours, attributes, and
 hyperlink, and repairs overwritten wide pairs.
 
-| `chByte`, `chByte=(n)`
-| Legacy character byte interpreted through this cell's selected font
-  codepage. The setter decodes the byte to Unicode and resolves a drawable
-  glyph through the same font lookup as `ch`, in every output mode. The
-  getter encodes the resolved glyph's Unicode text through the selected
-  font codepage and returns `?` when it cannot be represented. Drawable
-  glyph indices are opaque; they are not character bytes. This explicit
-  compatibility accessor is independent of the connection's wire encoding.
-  Cell creation and `ch` assignment perform no legacy byte conversion.
-
 | `font`, `font=(n)`
 | Font catalog selector at the Wren boundary. The selected and actual glyph
   font identifiers are retained separately in stored cells. Assignment
-  resolves the current Unicode text in the new font and its fallback;
-  it does not reinterpret the text as a legacy byte. Legacy codepage
-  conversion occurs only when explicitly accessing `chByte`.
+  resolves the current Unicode text in the new font and its fallback.
+  Cell creation, character assignment, and font changes perform no legacy
+  byte conversion.
 
 | `legacyAttr`, `legacyAttr=(n)`
 | Legacy attribute byte (foreground in low nibble, background in

@@ -39,7 +39,7 @@ class MenuTest {
     System.print("=== menu_theme_editor self-test starting ===")
 
     testGridGeometry_()
-    testGridPaintsRawCp437_()
+    testGridDecodesCp437_()
     testGridKeyboardWrap_()
     testGridMouseSelection_()
     testCascadeTrace_()
@@ -80,26 +80,26 @@ class MenuTest {
            "ThemeGlyphGrid: ASCII is a clamped 16 by 6 grid")
   }
 
-  static testGridPaintsRawCp437_() {
+  static testGridDecodesCp437_() {
     var cp437 = ThemeGlyphGrid.new("cp437", 0xdb)
     cp437.bounds = Rect.new(3, 4, 33, 16)
     var cpSurface = cp437.draw()
-    check_(cpSurface.cellAt(1, 0).chByte == 0 &&
+    check_(cpSurface.cellAt(1, 0).ch == "\u0000" &&
            cpSurface.cellAt(1, 0).font == Font.cp437English &&
-           cpSurface.cellAt(23, 13).chByte == 0xdb &&
-           cpSurface.cellAt(31, 15).chByte == 0xff &&
+           cpSurface.cellAt(23, 13).ch == "█" &&
+           cpSurface.cellAt(31, 15).ch == "\u00a0" &&
            cpSurface.cellAt(22, 13).legacyAttr ==
                cpSurface.cellAt(23, 13).legacyAttr &&
            cpSurface.cellAt(23, 13).legacyAttr ==
                cpSurface.cellAt(24, 13).legacyAttr,
-           "ThemeGlyphGrid: raw CP437 glyphs have symmetric shared highlights")
+           "ThemeGlyphGrid: decoded CP437 characters have symmetric shared highlights")
 
     var ascii = ThemeGlyphGrid.new("ascii", 0x7e)
     ascii.bounds = Rect.new(0, 0, 33, 6)
     var asciiSurface = ascii.draw()
-    check_(asciiSurface.cellAt(1, 0).chByte == 0x20 &&
-           asciiSurface.cellAt(29, 5).chByte == 0x7e &&
-           asciiSurface.cellAt(31, 5).chByte == 0x20,
+    check_(asciiSurface.cellAt(1, 0).ch == " " &&
+           asciiSurface.cellAt(29, 5).ch == "~" &&
+           asciiSurface.cellAt(31, 5).ch == " ",
            "ThemeGlyphGrid: ASCII leaves its unused final cell blank")
   }
 

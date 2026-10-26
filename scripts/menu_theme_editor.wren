@@ -1,6 +1,6 @@
 // Full-screen editor for C-owned SyncTERM theme documents.
 
-import "syncterm" for Cell, Color, Font, Key, KeyEvent, Mouse, MouseEvent, Screen, Text
+import "syncterm" for Cell, Codepage, Color, Font, Key, KeyEvent, Mouse, MouseEvent, Screen, Text
 import "syncterm_menu" for Menu
 import "ui_widget" for Container, Rect, Widget
 import "ui_pane" for Pane
@@ -103,7 +103,7 @@ class ThemeGlyphGrid is Widget {
       if (surface.cellAt(x + 1, y, cell)) {
         Painter.applyStyle(cell, st)
         cell.font = Font.cp437English
-        cell.chByte = value
+        cell.ch = Codepage.decodeByte(Codepage.cp437, value)
       }
       value = value + 1
     }
