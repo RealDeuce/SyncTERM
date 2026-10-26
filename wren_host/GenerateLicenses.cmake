@@ -34,6 +34,8 @@ endmacro()
 
 set(_st_license_root "${CMAKE_CURRENT_LIST_DIR}/..")
 st_embed_license("SyncTERM (BSD 2-Clause)" "${_st_license_root}/LICENSE")
+st_embed_license("XMODEM / YMODEM (BSD 2-Clause)" "${_st_license_root}/transfer/LICENSE.XMODEM")
+st_embed_license("ZMODEM (BSD 2-Clause)" "${_st_license_root}/transfer/LICENSE.ZMODEM")
 st_embed_license("Wren (MIT)" "${_st_license_root}/wren_vm/LICENSE")
 st_embed_license("libretro API (MIT)" "${_st_license_root}/app/LICENSE.LIBRETRO")
 st_embed_license("RE1 (BSD 3-Clause)" "${_st_license_root}/re1/LICENSE")

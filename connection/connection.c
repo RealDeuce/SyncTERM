@@ -601,6 +601,12 @@ st_connection_elapsed_ms(st_connection_t *connection)
 	    ? current - connection->started_ms : 0;
 }
 
+bool
+st_connection_binary_mode(st_connection_t *connection)
+{
+	return connection != NULL && atomic_load(&connection->binary_mode);
+}
+
 int
 st_connection_set_binary_mode(st_connection_t *connection, bool enabled)
 {

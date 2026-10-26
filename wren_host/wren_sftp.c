@@ -1448,6 +1448,7 @@ st_wren_connected_has_wire_hooks(const st_wren_connected_t *connected)
 {
 	if (connected == NULL)
 		return false;
+	if (st_wren_transfer_detect_enabled(&connected->context)) return true;
 	for (const struct connected_hook *hook = connected->hooks; hook != NULL;
 	    hook = hook->next) {
 		if (hook->kind == 7 && hook->function != NULL)
@@ -1466,6 +1467,9 @@ st_wren_connected_filter_wire_byte(st_wren_connected_t *connected,
 		return IO_ERROR_INVALID_ARGUMENT;
 	*consumed = false;
 	*replacement_size = 0;
+	int transfer_status = st_wren_transfer_filter(&connected->context, byte,
+	    consumed, replacement, capacity, replacement_size);
+	if (transfer_status != 0 || *consumed) return transfer_status;
 	for (struct connected_hook *hook = connected->hooks; hook != NULL;
 	    hook = hook->next) {
 		uint64_t before = 0;

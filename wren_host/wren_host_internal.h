@@ -165,6 +165,7 @@ struct st_wren_mouse_gesture {
 struct st_wren_input_claim;
 struct st_wren_wake;
 struct surface_storage;
+struct st_wren_transfer;
 
 /* VM lifetime state, shared by that VM's UI and REPL. */
 struct st_wren_context {
@@ -201,6 +202,7 @@ struct st_wren_context {
 	void *session_log_context;
 	st_cterm_t *cterm;
 	struct st_connection *connection;
+	struct st_wren_transfer *transfer;
 	struct st_term_session *session;
 	uint64_t connected_at_ms;
 	const char *event;
@@ -294,6 +296,13 @@ WrenForeignMethodFn st_wren_status_bind_method(const char *class_name,
 	bool is_static, const char *signature);
 WrenForeignMethodFn st_wren_session_bind_method(const char *class_name,
 	bool is_static, const char *signature);
+WrenForeignMethodFn st_wren_transfer_bind_method(const char *class_name,
+	bool is_static, const char *signature);
+void st_wren_transfer_dispose(struct st_wren_context *context);
+bool st_wren_transfer_detect_enabled(const struct st_wren_context *context);
+int st_wren_transfer_filter(struct st_wren_context *context, uint8_t byte,
+	bool *consumed, uint8_t *replacement, size_t capacity, size_t *size);
+bool st_wren_download_directory_allowed(const char *path);
 WrenForeignClassMethods st_wren_session_bind_class(const char *class_name);
 int st_wren_status_render(WrenVM *vm, bool enabled);
 void st_wren_status_dispose(WrenVM *vm);

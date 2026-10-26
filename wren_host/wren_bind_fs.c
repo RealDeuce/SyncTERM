@@ -1113,6 +1113,14 @@ dangerous_download(const char *path)
 	return result;
 }
 
+bool
+st_wren_download_directory_allowed(const char *path)
+{
+	struct fs_info info;
+	return !dangerous_download(path) && fs_get_info(&info, path) == 0
+	    && info.kind == FS_ENTRY_DIRECTORY;
+}
+
 static void
 fn_host_download(WrenVM *vm)
 {

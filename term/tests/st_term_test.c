@@ -12,6 +12,7 @@
 #include "cterm.h"
 #include "cterm_apc.h"
 #include "st_time.h"
+#include "st_threads.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -344,7 +345,7 @@ test_wire_filter(void *context, uint8_t byte, bool *consumed,
 }
 
 struct wire_capture {
-	uint8_t bytes[64];
+	uint8_t bytes[256];
 	size_t size;
 };
 
@@ -355,6 +356,77 @@ capture_wire(void *context, const uint8_t *bytes, size_t size)
 	CHECK(size <= sizeof(capture->bytes) - capture->size);
 	memcpy(capture->bytes + capture->size, bytes, size);
 	capture->size += size;
+	return 0;
+}
+
+struct transfer_handoff {
+	st_transfer_t *worker;
+	st_term_session_t *session;
+	st_connection_t *connection;
+	unsigned starts;
+	bool aborting;
+};
+static ssize_t transfer_write(void *context, const void *data, size_t size, int64_t timeout)
+{
+	return st_connection_send(context, data, size, timeout);
+}
+static int claim_transfer(void *context, uint8_t byte, bool *consumed,
+	uint8_t *replacement, size_t capacity, size_t *size)
+{
+	struct transfer_handoff *h = context;
+	(void)replacement; (void)capacity;
+	*consumed = byte == '~'; *size = 0;
+	if (byte != '~') return 0;
+	struct st_transfer_config config = {.protocol = ST_TRANSFER_ZMODEM,
+	    .directory = ".", .send = transfer_write, .send_context = h->connection};
+	CHECK(st_transfer_create(&h->worker, &config) == 0);
+	CHECK(st_term_session_begin_transfer(h->session, h->worker) == 0);
+	st_term_session_set_suspended(h->session, true);
+	CHECK(st_transfer_launch(h->worker) == 0);
+	if (h->aborting) CHECK(st_transfer_request_abort(h->worker));
+	++h->starts;
+	return 0;
+}
+static int test_transfer_handoff(bool aborting)
+{
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config geometry = {.columns = 40, .rows = 4, .cell_width = 8, .cell_height = 16};
+	st_console_t *console = NULL;
+	st_font_catalog_t *fonts = NULL;
+	struct st_profile profile;
+	struct transfer_handoff handoff = {.aborting = aborting};
+	struct wire_capture captured = {0};
+	CHECK(st_console_create(&console, &display, &geometry) == 0);
+	CHECK(st_font_catalog_create(&fonts, console) == 0);
+	st_profile_init(&profile); profile.connection_type = ST_CONNECTION_SHELL;
+	strcpy(profile.address, "sh term-fixture.sh transfer");
+	CHECK(st_term_connect_profile(&handoff.connection, &profile, console, NULL, NULL) == 0);
+	CHECK(st_connection_set_binary_mode(handoff.connection, false) == 0);
+	const struct st_term_config config = {.console = console, .connection = handoff.connection,
+	    .fonts = fonts, .encoding = ST_CTERM_ENCODING_UTF8, .hide_status = true,
+	    .wire_filter = claim_transfer, .wire_filter_context = &handoff,
+	    .wire_capture = capture_wire, .capture_context = &captured};
+	CHECK(st_term_session_create(&handoff.session, &config) == 0);
+	enum st_term_disposition disposition; bool finished = false;
+	for (unsigned i = 0; i < 500 && !finished; ++i) {
+		CHECK(st_term_session_pump(handoff.session, &disposition, &finished) == 0);
+		if (handoff.worker != NULL && st_transfer_done(handoff.worker)) {
+			CHECK(st_transfer_result(handoff.worker) == (aborting ? IO_ERROR_CANCELLED : 0));
+			CHECK(st_term_session_end_transfer(handoff.session) == 0);
+			CHECK(!st_connection_binary_mode(handoff.connection));
+			st_transfer_destroy(&handoff.worker);
+			st_term_session_set_suspended(handoff.session, false);
+		}
+		const struct timespec delay = {.tv_nsec = 1000000L};
+		(void)st_thread_sleep(&delay, NULL);
+	}
+	CHECK(finished && handoff.starts == (aborting ? 1U : 2U) && handoff.worker == NULL);
+	CHECK(screen_contains(console, aborting ? "BEFORE" : "BEFOREBETWEENAFTER", true));
+	static const char expected[] = "BEFORE~**\030B0800000000022d\r\nOOBETWEEN~**\030B0800000000022d\r\nOOAFTER";
+	CHECK(captured.size == sizeof(expected) - 1 && memcmp(captured.bytes, expected, captured.size) == 0);
+	st_term_session_destroy(&handoff.session);
+	CHECK(st_connection_close(handoff.connection) == 0);
+	st_profile_dispose(&profile); st_font_catalog_destroy(fonts); st_console_destroy(console);
 	return 0;
 }
 
@@ -1154,6 +1226,8 @@ main(void)
 	CHECK(test_shell_apc() == 0);
 	CHECK(test_prestel_keyboard_session() == 0);
 	CHECK(test_shell_wire_filter() == 0);
+	CHECK(test_transfer_handoff(false) == 0);
+	CHECK(test_transfer_handoff(true) == 0);
 	CHECK(test_wire_capture(ST_CTERM_ENCODING_UTF8, false) == 0);
 	CHECK(test_wire_capture(ST_CTERM_ENCODING_CODEPAGE, false) == 0);
 	CHECK(test_wire_capture(ST_CTERM_ENCODING_UTF8, true) == 0);

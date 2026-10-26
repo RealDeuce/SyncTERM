@@ -4,6 +4,18 @@
 # Keep shell programs out of the deliberately bounded BBS address field.
 set -eu
 case "$1" in
+auto-transfer)
+	stty raw -echo
+	printf 'BEFORE**\030B00000000000000\r\n\021'
+	dd bs=1 count=21 >/dev/null 2>&1
+	printf '**\030B0800000000022d\r\nOOAFTER'
+	sleep 6
+	;;
+transfer)
+	stty raw -echo
+	printf 'BEFORE~**\030B0800000000022d\r\nOOBETWEEN~**\030B0800000000022d\r\nOOAFTER'
+	sleep 1
+	;;
 responses)
 	stty raw -echo
 	printf 'READY'

@@ -19,6 +19,8 @@ set(_st_wren_scripts
 	${CMAKE_CURRENT_SOURCE_DIR}/../scripts/sftp_queue.wren
 	${CMAKE_CURRENT_SOURCE_DIR}/../scripts/sftp_activity.wren
 	${CMAKE_CURRENT_SOURCE_DIR}/../scripts/sftp_app.wren
+	${CMAKE_CURRENT_SOURCE_DIR}/../scripts/transfer_app.wren
+	${CMAKE_CURRENT_SOURCE_DIR}/../scripts/transfer_pick.wren
 	${CMAKE_CURRENT_SOURCE_DIR}/../scripts/pixel_vm_test.wren
 	${CMAKE_CURRENT_SOURCE_DIR}/../scripts/menu_bbs_editor.wren
 	${CMAKE_CURRENT_SOURCE_DIR}/../scripts/menu_palette_picker.wren
@@ -65,7 +67,8 @@ set(_st_wren_scripts
 	${CMAKE_CURRENT_SOURCE_DIR}/../scripts/auto/connected/session_log.wren
 	${CMAKE_CURRENT_SOURCE_DIR}/../scripts/auto/connected/sftp_queue_init.wren
 	${CMAKE_CURRENT_SOURCE_DIR}/../scripts/auto/connected/sftp_pubkey.wren
-	${CMAKE_CURRENT_SOURCE_DIR}/../scripts/auto/connected/status_default.wren)
+	${CMAKE_CURRENT_SOURCE_DIR}/../scripts/auto/connected/status_default.wren
+	${CMAKE_CURRENT_SOURCE_DIR}/../scripts/auto/connected/transfer_init.wren)
 
 set(_st_wren_embedded ${CMAKE_CURRENT_BINARY_DIR}/embedded_wren.c)
 if(WIN32)
@@ -93,6 +96,7 @@ add_library(st_wren_host STATIC
 	wren_sftp.c
 	wren_bind_status.c
 	wren_bind_session.c
+	wren_bind_xfer.c
 	wren_bind_pixels.c
 	wren_repl.c
 	wren_bind_menu.c
@@ -112,7 +116,7 @@ target_include_directories(st_wren_host SYSTEM PRIVATE
 target_link_libraries(st_wren_host
 	PUBLIC st_console st_cterm st_app_paths st_profile st_screen_mode st_session_history
 		st_hyperlink st_sftp_client
-	PRIVATE st_wren_vm st_re1 st_term st_connection st_codepage st_utf8 st_unicode_text st_unicode_width
+	PRIVATE st_wren_vm st_re1 st_transfer st_term st_connection st_codepage st_utf8 st_unicode_text st_unicode_width
 		st_unicode_compare
 		st_bbs_list st_audio st_audio_file st_ooii
 		st_fonts st_font_catalog st_settings st_theme st_time st_pixel_image st_serial

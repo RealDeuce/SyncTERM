@@ -1,0 +1,57 @@
+# Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
+add_library(st_transfer STATIC private/xmodem.c private/zmodem.c private/transfer_crc.c private/transfer_detect.c
+	st_transfer.c private/transfer_drivers.c private/transfer_cet.c)
+target_include_directories(st_transfer PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR})
+target_link_libraries(st_transfer PRIVATE syncterm_filesystem syncterm_path
+	syncterm_string_compat syncterm_threads st_time syncterm_io_error)
+set_target_properties(st_transfer PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
+	C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+if(MSVC)
+	target_compile_definitions(st_transfer PRIVATE _CRT_SECURE_NO_WARNINGS)
+	target_compile_options(st_transfer PRIVATE /W4 /WX)
+else()
+	target_compile_options(st_transfer PRIVATE -Wall -Wextra -Wpedantic -Werror)
+endif()
+if(BUILD_TESTING)
+	add_executable(st_transfer_test tests/st_transfer_test.c)
+	target_link_libraries(st_transfer_test PRIVATE st_transfer syncterm_filesystem
+		syncterm_path syncterm_string_compat syncterm_threads st_time syncterm_io_error)
+	set_target_properties(st_transfer_test PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
+		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	add_test(NAME transfer COMMAND st_transfer_test)
+	set_tests_properties(transfer PROPERTIES TIMEOUT 30)
+	add_executable(st_transfer_peer tests/st_transfer_peer.c)
+	target_link_libraries(st_transfer_peer PRIVATE st_transfer st_connection syncterm_threads st_time)
+	set_target_properties(st_transfer_peer PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
+		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	foreach(_test st_transfer_test st_transfer_peer)
+		if(MSVC)
+			target_compile_definitions(${_test} PRIVATE _CRT_SECURE_NO_WARNINGS)
+			target_compile_options(${_test} PRIVATE /W4 /WX)
+		else()
+			target_compile_options(${_test} PRIVATE -Wall -Wextra -Wpedantic -Werror)
+		endif()
+	endforeach()
+	if(NOT WIN32 AND NOT CMAKE_CROSSCOMPILING)
+		find_package(Python3 QUIET COMPONENTS Interpreter)
+		find_program(ST_TRANSFER_SEXYZ NAMES sexyz
+			HINTS /synchronet/src/sbbs/src/sbbs3/clang.freebsd.amd64.exe.release)
+		find_program(ST_TRANSFER_LSX NAMES lsx sx)
+		find_program(ST_TRANSFER_LRX NAMES lrx rx)
+		set(_peers)
+		foreach(_peer SEXYZ LSX LRX)
+			if(ST_TRANSFER_${_peer})
+				string(TOLOWER "${_peer}" _argument)
+				list(APPEND _peers "--${_argument}" "${ST_TRANSFER_${_peer}}")
+			endif()
+		endforeach()
+		if(Python3_Interpreter_FOUND AND _peers)
+			foreach(_case zmodem xymodem)
+				add_test(NAME transfer_interop_${_case}
+					COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_interop.py"
+					--driver $<TARGET_FILE:st_transfer_peer> --case ${_case} ${_peers})
+				set_tests_properties(transfer_interop_${_case} PROPERTIES TIMEOUT 180)
+			endforeach()
+		endif()
+	endif()
+endif()

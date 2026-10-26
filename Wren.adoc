@@ -5981,41 +5981,40 @@ treat `surf.width` as authoritative and clip your own loops.
 
 === Transfer [[transfer]]
 
-Mailbox bridge between SyncTERM's transfer-window UI (Wren-side) and
-the C protocol drivers running on a worker thread.  `beginSession`
-spawns the worker; the Wren-side `TransferApp` then drains log
-events, snapshots tick state, and watches the `done` flag in a tick
-loop until the transfer completes or the user aborts.
+Session-owned bridge between the Wren transfer UI and C protocol workers.
+`upload()`, `uploadBatch()` and `download()` start a worker and return `true`
+immediately. The terminal owner continues pumping protocol input while
+`TransferApp` renders progress and handles cancellation on a child fiber.
+Workers never call Wren or CTerm. Only one in-band transfer can own a
+session's stream at a time; SFTP uses its separate SSH channel.
 
 [source,wren]
 ----
 import "syncterm" for Transfer
+import "transfer_app" for TransferApp
 
-Transfer.beginSession("fake")        // start worker; throws if active
-while (!Transfer.done) {
-  for (entry in Transfer.drainLog()) System.print(entry[1])
-  if (Transfer.tickDirty) {
-    var snap = Transfer.snapshot()   // 13-element fixed-shape List
-    System.print("bytes: %(snap[1])")
-  }
-  // ... handle Esc → Transfer.requestAbort() ...
-}
-Transfer.endSession()
+Fiber.new {
+  Transfer.beginSession("fake")
+  TransferApp.new("Transfer demo").run()
+  Transfer.endSession()
+}.call()
 ----
 
-The Stage 2 build only wires `"fake"` (a 100-KiB synthetic stream
-that ticks every 100 ms with periodic log messages, useful for
-exercising the UI path).  Real protocol kinds (`"zmodem-recv"`,
-`"ymodem-send"`, `"xmodem-recv"`, `"cet-recv"`) land in Stage 4.
+The built-in upload/download flows are available through Alt-U, Alt-D and the
+online menu. ZMODEM startup detection validates the header CRC before taking
+over the connection. Downloads use the configured download directory;
+unsafe roots and existing non-file destinations are rejected. Existing files
+can be overwritten, skipped, or renamed. ZMODEM resumes a partial file only
+after checking its prefix CRC against the sender.
 
 [options="header",cols="2,3"]
 |===
 | Member | Description
 
 | `Transfer.beginSession(kind)`
-| Spawn the worker thread and reset the mailbox.  `kind` is a string
-  selecting the protocol.  Throws if a session is already active or
-  the kind is unknown.  Returns `true` on success.
+| Start the synthetic 100-KiB `"fake"` worker for UI testing. Use the
+  protocol dispatch methods below for real transfers. Throws if a session
+  is already active or the kind is unknown. Returns `true` on success.
 
 | `Transfer.endSession()`
 | Latch an abort if the worker hasn't already finished, join the
@@ -6030,19 +6029,17 @@ exercising the UI path).  Real protocol kinds (`"zmodem-recv"`,
   the user.  Empty list when no events pending.
 
 | `Transfer.tickDirty`
-| Atomic read+clear of the "tick state changed" flag.  Returns
+| Read the "tick state changed" flag under the mailbox mutex. `snapshot()`
+  clears it.  Returns
   `true` if a tick update has happened since the previous call;
   callers should follow with `snapshot()` only on a `true` return so
   the mutex is taken at most once per dirty frame.
 
 | `Transfer.snapshot()`
-| Return a 13-element fixed-shape `List` with the latest tick state
-  (filename, bytesCur, elapsed, cps, fileIndex, fileTotal,
-  bytesStart, bytesTotal, blockNum, blockSize, blockBits, frameNum,
-  frameTotal).  Optional fields are `null` when the protocol
-  doesn't populate them (e.g. CET's frame-count-unknown 999 sentinel
-  collapses to `null`).  Wrap in `TickStateView` for named-field
-  access (see `transfer_app.wren`).
+| Return `[line1, line2, line3, line4, bytesCurrent, bytesTotal]`.
+  The first four elements are display Strings. Byte counts are Numbers;
+  an unknown total is zero. Clears the dirty flag. `TickStateView` in
+  `transfer_app` provides named accessors.
 
 | `Transfer.done`
 | `true` when the worker has completed (success or abort).  The
@@ -6061,6 +6058,36 @@ exercising the UI path).  Real protocol kinds (`"zmodem-recv"`,
 | `Transfer.aborted`
 | Read the abort flag without modifying it.  `true` after a
   successful `requestAbort()`.
+| `Transfer.active`, `Transfer.uploading`, `Transfer.inlineUpload`
+| Whether a session owns a transfer, its direction, and whether it is an
+  ASCII/raw upload that keeps terminal output visible. An active transfer
+  retains its result until `endSession()`.
+
+| `Transfer.upload(kind, path, lastCh)`
+| Start one file using `"zmodem"`, `"ymodem"`, `"xmodem-1k"`,
+  `"xmodem-128"`, `"ascii"`, or `"raw"`. Paths are UTF-8. `lastCh` is
+  normally zero; an already-consumed X/YMODEM `C`, `G`, or NAK can seed
+  the initial handshake. ASCII normalizes LF to CRLF; raw preserves bytes.
+
+| `Transfer.uploadBatch(kind, paths, lastCh)`
+| Start a List of file paths using `"zmodem"` or `"ymodem"`.
+
+| `Transfer.download(kind, filename)`
+| Start `"zmodem"`, `"ymodem-g"`, `"ymodem"`, `"xmodem-crc"`,
+  `"xmodem-chksum"`, or `"cet"`. XMODEM requires a filename and keeps
+  final-block padding because its wire format carries no length. Other
+  kinds accept `null`. CET requires Prestel mode and starts from the
+  captured current frame; its final frame is replayed on the terminal owner.
+
+| `Transfer.dialogPending`, `Transfer.dialogFilename`
+| Pending worker decision: 0 for none, 1 for an existing file, 2 for an
+  XMODEM filename when a YMODEM receive falls back to XMODEM.
+
+| `Transfer.dialogRespond(response, newName)`
+| Answer a pending decision with 0 (overwrite/accept filename), 1 (skip),
+  or 2 (rename). The worker waits on a condition variable while the owner
+  continues pumping. Abort and disconnect also wake that wait.
+
 |===
 === Platform [[platform]]
 

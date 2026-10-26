@@ -706,6 +706,8 @@ st_wren_bind_method(WrenVM *vm, const char *module, const char *class_name,
 		    signature);
 	if (method == NULL && strcmp(module, "syncterm") == 0)
 		method = st_wren_sftp_bind_method(class_name, is_static, signature);
+	if (method == NULL && strcmp(module, "syncterm") == 0)
+		method = st_wren_transfer_bind_method(class_name, is_static, signature);
 	if (method == NULL && strcmp(module, "syncterm") == 0
 	    && st_wren_context_from_vm(vm)->connected != NULL)
 		method = st_wren_status_bind_method(class_name, is_static,

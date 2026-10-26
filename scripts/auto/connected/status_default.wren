@@ -20,6 +20,7 @@
 // To override: drop a same-named file in your auto-load dir, or set
 // `Status.callable = ...` from any later script.
 
+import "syncterm" for Transfer
 import "syncterm" for Status, Surface, Screen, BBS, Capture, CTerm, Host, Conn, ConnType
 
 class StatusDefault {
@@ -285,7 +286,7 @@ class StatusDefault {
     // (< 80) drop elapsed-time and menu-hint slots.  Conn type is
     // padded to 6 chars so its column doesn't drift when "SSH" gives
     // way to "Telnet".
-    var name = nameWithFlags_()
+    var name = (Transfer.active && Transfer.inlineUpload) ? Transfer.snapshot()[1] : nameWithFlags_()
     var conn = padTo_(BBS.connTypeName, 6)
     var time = w >= 80 ? "Connected: %(elapsedString_())" : ""
     var menu = w >= 80 ? "%(Host.altKeyShort)-Z menu" : ""

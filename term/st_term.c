@@ -35,6 +35,12 @@ struct st_term_session {
 	uint8_t wire_pending[4096];
 	size_t wire_position;
 	size_t wire_size;
+	st_transfer_t *transfer;
+	bool transfer_reserved, transfer_was_binary, wire_replaying;
+	uint8_t *returned_wire;
+	size_t returned_position, returned_size;
+	uint8_t prestel_frame[65536];
+	size_t prestel_frame_size;
 };
 
 static int write_cterm_wire(void *context, const uint8_t *bytes, size_t size);
@@ -127,7 +133,8 @@ cterm_output(void *context, enum st_cterm_output_origin origin,
 	const uint8_t *bytes, size_t size)
 {
 	st_term_session_t *session = context;
-	if (origin == ST_CTERM_OUTPUT_RESPONSE && session->config.suppress_responses)
+	if (origin == ST_CTERM_OUTPUT_RESPONSE && (session->config.suppress_responses
+	    || session->transfer != NULL || session->transfer_reserved))
 		return;
 
 	if (session->output_error != 0
@@ -374,10 +381,12 @@ st_term_session_destroy(st_term_session_t **session)
 {
 	if (session == NULL || *session == NULL)
 		return;
+	(void)st_term_session_end_transfer(*session);
 	(void)st_cterm_finish((*session)->cterm);
 	publish_history(*session);
 	st_ooii_destroy((*session)->ooii);
 	st_cterm_destroy(&(*session)->cterm);
+	free((*session)->returned_wire);
 	free(*session);
 	*session = NULL;
 }
@@ -718,7 +727,7 @@ write_wire_filtered(st_term_session_t *session, const uint8_t *bytes,
 	size_t run_start = 0;
 	int status;
 
-	if (session->config.wire_capture != NULL
+	if (!session->wire_replaying && session->config.wire_capture != NULL
 	    && (session->config.capture_active == NULL
 	    || session->config.capture_active(session->config.capture_context))) {
 		status = session->config.wire_capture(session->config.capture_context,
@@ -879,7 +888,7 @@ st_term_session_pump(st_term_session_t *session,
 		if (status != 0 || session->output_error != 0)
 			return status != 0 ? status : session->output_error;
 	}
-	if (!session->suspended && session->throttle_bps != 0) {
+	if (!session->suspended && session->transfer == NULL && session->throttle_bps != 0) {
 		uint64_t now;
 		/* Credits are BPS*milliseconds: ten bits per character makes
 		 * 10,000 credits one received byte.  Retain at most 100 ms of
@@ -912,12 +921,21 @@ st_term_session_pump(st_term_session_t *session,
 		if (read_size > sizeof(session->wire_pending))
 			read_size = sizeof(session->wire_pending);
 	}
-	if (!session->suspended && read_size != 0
+	bool protocol_input = session->transfer != NULL && st_transfer_needs_input(session->transfer);
+	if (session->transfer != NULL && st_transfer_done(session->transfer)) read_size = 0;
+	if (session->transfer_reserved) read_size = 0;
+	if (protocol_input) {
+		size_t space = st_transfer_input_space(session->transfer);
+		if (read_size > space) read_size = space;
+	}
+	if ((!session->suspended || protocol_input) && read_size != 0
+	    && session->returned_position == session->returned_size
 	    && session->wire_position == session->wire_size) {
 		received = st_connection_receive(session->config.connection, session->wire_pending,
 		    read_size, 20);
 	}
-	else if (!session->suspended && read_size == 0
+	else if ((!session->suspended || session->transfer != NULL || session->transfer_reserved)
+	    && read_size == 0
 	    && (st_connection_is_connected(session->config.connection)
 	    || session->wire_position < session->wire_size)) {
 		const struct timespec pause = {.tv_nsec = 10000000L};
@@ -926,31 +944,67 @@ st_term_session_pump(st_term_session_t *session,
 	}
 	if (received < 0 && received != IO_ERROR_TIMED_OUT
 	    && received != IO_ERROR_WOULD_BLOCK) {
+		if (session->transfer != NULL) {
+			st_transfer_eof(session->transfer);
+			received = IO_ERROR_WOULD_BLOCK;
+		} else {
 		session->remote_closed = !st_connection_is_connected(session->config.connection);
 		status = st_connection_process_requests(session->config.connection);
 		if (status != 0) return status;
 		return (int)received;
+		}
 	}
 	if (received > 0) {
 		session->wire_position = 0;
 		session->wire_size = (size_t)received;
 	}
-	/* A receive can contain both DECSCS transitions and their intervening
-	 * output. Pace presentation in wire order, retaining bytes already
-	 * received when a command enables throttling partway through them. */
-	while (!session->suspended && session->wire_position < session->wire_size) {
-		size_t count = session->config.throttle_supported ? 1
-		    : session->wire_size - session->wire_position;
-		if (session->throttle_bps != 0) {
-			if (session->throttle_credit < UINT64_C(10000))
-				break;
+	if (protocol_input && received == 0) st_transfer_eof(session->transfer);
+	/* A detector can claim the stream midway through this read. Recheck
+	 * ownership after each ordinary byte, retaining any suffix on backpressure. */
+	while ((!session->suspended || protocol_input) && !session->transfer_reserved
+	    && (session->returned_position < session->returned_size
+	    || session->wire_position < session->wire_size)) {
+		bool replay = session->returned_position < session->returned_size;
+		size_t *position = replay ? &session->returned_position : &session->wire_position;
+		size_t size = replay ? session->returned_size : session->wire_size;
+		uint8_t *bytes = replay ? session->returned_wire : session->wire_pending;
+		protocol_input = session->transfer != NULL && st_transfer_needs_input(session->transfer);
+		if (session->transfer != NULL && st_transfer_done(session->transfer)) break;
+		if (protocol_input) {
+			size_t count = size - *position, space = st_transfer_input_space(session->transfer);
+			if (count > space) count = space;
+			if (count == 0) break;
+			if (!replay && session->config.wire_capture != NULL
+			    && (session->config.capture_active == NULL
+			    || session->config.capture_active(session->config.capture_context))) {
+				status = session->config.wire_capture(session->config.capture_context, bytes + *position, count);
+				if (status != 0) return status;
+			}
+			*position += st_transfer_feed(session->transfer, bytes + *position, count);
+			continue;
+		}
+		if (session->transfer == NULL && session->throttle_bps != 0) {
+			if (session->throttle_credit < UINT64_C(10000)) break;
 			session->throttle_credit -= UINT64_C(10000);
 		}
-		status = write_wire_filtered(session,
-		    session->wire_pending + session->wire_position, count);
-		if (status != 0)
-			return status;
-		session->wire_position += count;
+		size_t count = 1;
+		bool filtering = session->config.wire_filter != NULL
+		    && (session->config.wire_filter_active == NULL
+		    || session->config.wire_filter_active(session->config.wire_filter_context));
+		if (!filtering && !session->config.throttle_supported && session->throttle_bps == 0
+		    && session->config.screen_mode != ST_SCREEN_MODE_PRESTEL)
+			count = size - *position;
+		if (!replay && session->config.screen_mode == ST_SCREEN_MODE_PRESTEL) {
+			if (bytes[*position] == 12) session->prestel_frame_size = 0;
+			if (session->prestel_frame_size < sizeof(session->prestel_frame))
+				session->prestel_frame[session->prestel_frame_size++] = bytes[*position];
+		}
+		session->wire_replaying = replay;
+		status = write_wire_filtered(session, bytes + *position, count);
+		session->wire_replaying = false;
+		if (status != 0) return status;
+		*position += count;
+		protocol_input = session->transfer != NULL && st_transfer_needs_input(session->transfer);
 	}
 	if (received == 0 && session->auxiliary_active) {
 		const struct timespec pause = {.tv_nsec = 10000000L};
@@ -971,6 +1025,7 @@ st_term_session_pump(st_term_session_t *session,
 	if (status != IO_ERROR_WOULD_BLOCK)
 		return status;
 	if (!session->suspended
+	    && session->returned_position == session->returned_size
 	    && !st_connection_is_connected(session->config.connection)
 	    && session->wire_position == session->wire_size
 	    && st_connection_pending_raw(session->config.connection) == 0) {
@@ -978,7 +1033,7 @@ st_term_session_pump(st_term_session_t *session,
 		status = st_connection_process_requests(session->config.connection);
 		if (status != 0) return status;
 		*disposition = ST_TERM_RETURN_TO_PICKER;
-		*finished = !session->auxiliary_active;
+		*finished = !session->auxiliary_active && session->transfer == NULL && !session->transfer_reserved;
 	}
 	return session->output_error;
 }
@@ -1005,4 +1060,72 @@ st_term_session_run(st_term_session_t *session,
 			return status;
 	}
 	return st_cterm_finish(session->cterm);
+}
+
+int
+st_term_session_begin_transfer(st_term_session_t *session, st_transfer_t *transfer)
+{
+	if (session == NULL || transfer == NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (session->transfer != NULL) return IO_ERROR_BUSY;
+	session->transfer_was_binary = st_connection_binary_mode(session->config.connection);
+	int status = st_transfer_needs_input(transfer)
+	    ? st_connection_set_binary_mode(session->config.connection, true) : 0;
+	if (status != 0) return status;
+	session->transfer = transfer;
+	session->transfer_reserved = false;
+	return 0;
+}
+int
+st_term_session_end_transfer(st_term_session_t *session)
+{
+	if (session == NULL || session->transfer == NULL) return 0;
+	st_transfer_t *transfer = session->transfer;
+	(void)st_transfer_join(transfer);
+	int status = 0;
+	if (st_transfer_needs_input(transfer)) {
+		if (st_transfer_result(transfer) == 0) {
+			/* Queued bytes precede any suffix not yet fed to the worker.
+			 * A second transfer can begin within returned terminal output. */
+			size_t remaining = session->returned_size - session->returned_position;
+			uint8_t *returned = malloc(65536 + remaining);
+			if (returned == NULL) status = IO_ERROR_OUT_OF_MEMORY;
+			else {
+				size_t count = st_transfer_take_input(transfer, returned, 65536);
+				if (remaining != 0) memcpy(returned + count,
+				    session->returned_wire + session->returned_position, remaining);
+				free(session->returned_wire);
+				session->returned_wire = returned;
+				session->returned_position = 0;
+				session->returned_size = count + remaining;
+			}
+		} else {
+			/* The unread suffix has not passed the capture callback yet.
+			 * Discarding protocol residue must not truncate ANSI capture. */
+			if (session->wire_position < session->wire_size
+			    && session->config.wire_capture != NULL
+			    && (session->config.capture_active == NULL
+			    || session->config.capture_active(session->config.capture_context)))
+				status = session->config.wire_capture(session->config.capture_context,
+				    session->wire_pending + session->wire_position,
+				    session->wire_size - session->wire_position);
+			session->wire_position = session->wire_size;
+			session->returned_position = session->returned_size;
+		}
+	}
+	session->transfer = NULL;
+	session->transfer_reserved = false;
+	int restored = st_connection_set_binary_mode(session->config.connection,
+	    session->transfer_was_binary);
+	return status != 0 ? status : restored;
+}
+void
+st_term_session_reserve_transfer(st_term_session_t *session, bool reserved)
+{
+	if (session != NULL) session->transfer_reserved = reserved;
+}
+const uint8_t *
+st_term_session_prestel_frame(st_term_session_t *session, size_t *size)
+{
+	*size = session == NULL ? 0 : session->prestel_frame_size;
+	return session == NULL ? NULL : session->prestel_frame;
 }

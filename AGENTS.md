@@ -164,6 +164,11 @@ DLL exports.
 Do not test under Wine. Cross-compilation may verify Windows builds, but run
 Windows tests on Windows.
 
+Never run graphical tests on the user's display. Use a private Xvfb server
+for X11 tests and headless backends where supported. Clear inherited
+`DISPLAY`, `WAYLAND_DISPLAY`, `XAUTHORITY`, and `XDG_RUNTIME_DIR` before
+starting the test display; do not inherit the interactive desktop session.
+
 For each change, configure and build through the SyncTERM CMake project and
 run the relevant tests with CTest or the test target defined by CMake. Add
 focused tests before changing behavior that is subtle, platform-dependent, or

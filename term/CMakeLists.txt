@@ -3,7 +3,7 @@
 
 add_library(st_term STATIC st_term.c)
 target_include_directories(st_term PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(st_term PUBLIC st_connection st_cterm st_font_catalog
+target_link_libraries(st_term PUBLIC st_connection st_cterm st_font_catalog st_transfer
 	st_session_history PRIVATE st_audio st_ooii st_unicode_text st_utf8 st_time
 	syncterm_threads
 	syncterm_io_error)

@@ -1681,12 +1681,12 @@ class Host {
   // reset to null/false when the VM is torn down on disconnect.
   // Setters call CTerm.refreshStatus() so the indicator updates on
   // the next render pass without the writer having to do it.
-  static uploadArrow { __upArrow ? true : false }
+  static uploadArrow { (__upArrow ? true : false) || (Transfer.active && !Transfer.done && Transfer.uploading) }
   static uploadArrow=(b) {
     __upArrow = b
     CTerm.refreshStatus()
   }
-  static downloadArrow { __downArrow ? true : false }
+  static downloadArrow { (__downArrow ? true : false) || (Transfer.active && !Transfer.done && !Transfer.uploading) }
   static downloadArrow=(b) {
     __downArrow = b
     CTerm.refreshStatus()
@@ -1830,10 +1830,15 @@ class Status {
 //   if (escapePressed) Transfer.requestAbort()
 //
 // snapshot() returns a fixed-shape List (see TickStateView in the
-// transfer_app module for a named-field wrapper).  Stage 2 only the
-// "fake" kind is wired; "zmodem-recv" / "ymodem-send" / "xmodem-recv"
-// / "cet-recv" land in Stage 4.
+// transfer_app module for a named-field wrapper): four text rows followed
+// by bytes-current and bytes-total. Protocol dispatch starts a worker and
+// returns immediately; the owner keeps pumping terminal and UI input.
 class Transfer {
+  foreign static active
+  foreign static uploading
+  foreign static inlineUpload
+  foreign static autoPending_
+  foreign static cancelAuto_()
   foreign static beginSession(kind)
   foreign static endSession()
   foreign static drainLog()
@@ -1852,6 +1857,7 @@ class Transfer {
   //
   //   XFER_DLG_NONE      = 0
   //   XFER_DLG_DUPLICATE = 1
+  //   XFER_DLG_FILENAME  = 2
   //
   //   XFER_DLG_OVERWRITE = 0   (duplicate response)
   //   XFER_DLG_SKIP      = 1
@@ -1865,13 +1871,12 @@ class Transfer {
   // `path` is an absolute filesystem path.  `lastCh` is the trailing
   // wire byte that biases the xmodem family's initial recv state
   // (irrelevant outside auto-detect; pass 0 for keyboard-driven
-  // uploads).  Blocks until the transfer (and TransferApp) finishes.
+  // uploads). Returns true after starting; run TransferApp to show progress.
   foreign static upload(kind, path, lastCh)
 
   // Multi-file upload dispatch.  `kind` is "zmodem" or "ymodem"
   // (xmodem-128 / 1k don't have a batch form).  `paths` is a List
-  // of absolute filesystem path strings.  Same blocking semantics
-  // as upload().
+  // of absolute filesystem path strings. Starts asynchronously, like upload().
   foreign static uploadBatch(kind, paths, lastCh)
 
   // Download dispatch.  `kind` is one of:

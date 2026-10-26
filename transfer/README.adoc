@@ -1,0 +1,55 @@
+= In-band file transfers
+
+This component owns the X/YMODEM, ZMODEM, CET telesoftware and ASCII/raw
+protocol workers. The terminal session remains the only connection reader.
+It feeds a bounded input queue, preserves a pending suffix on backpressure,
+and returns trailing terminal bytes after successful completion. Raw capture
+sees original connection bytes once, including bytes consumed by a transfer.
+
+Create a worker without I/O, establish stream ownership and binary mode, then
+launch it. The configuration and paths are copied. The send callback and its
+context remain borrowed until the worker is joined. Workers own their files
+and protocol state; a mutex protects input, completion, dialogs, progress and
+logs. Abort and EOF wake both input and dialog waits. The owner joins before
+releasing the transport or UI context. Wren and CTerm run only on the owner.
+
+The X/YMODEM engines were extracted from Synchronet after the BSD-2-Clause
+relicense in commit 6d9a2586cf. ZMODEM retains its BSD-2-Clause notices;
+CET was extracted from SyncTERM's terminal implementation. Private engine
+headers and constants are not public portability interfaces. CRC tables are
+computed directly from the protocol polynomials without the old hash library.
+Both engine notices are embedded in the program's license viewer.
+
+ZMODEM supports batch transfers, CRC16/32 and CRC-verified partial-file resume.
+Its position fields limit individual files to UINT32_MAX bytes. XMODEM has no
+wire length, so receive files retain final-block padding. YMODEM carries the
+length and trims padding. YMODEM-g cancels on corruption rather than retrying.
+ASCII normalizes LF to CRLF across chunk boundaries; raw uploads preserve bytes.
+CET accepts the current Prestel frame as its header seed, handles locking
+shifts and multiple blocks per frame, and returns its last frame for replay.
+
+== Verification
+
+The always-built CTest `transfer` checks CRC vectors, detector rejection,
+CET shifts/checksums/retries, short writes, cancellation, EOF and parked dialogs.
+It also checks the final YMODEM ACK, ACK followed immediately by EOF, retry of
+a NAKed batch terminator, and failure when the final ACK is absent.
+The `term` and `wren_host` tests cover stream handoff, raw capture, binary-mode
+restoration, the real progress App, cancellation, VM teardown and auto-ZMODEM.
+
+On native POSIX builds CMake discovers optional external peers through
+`ST_TRANSFER_SEXYZ`, `ST_TRANSFER_LSX` and `ST_TRANSFER_LRX`. When Python and
+peers are available, CTest adds `transfer_interop_zmodem` and
+`transfer_interop_xymodem`. They compare binary payloads, batches, empty files,
+CRC16/32, both directions, and verified resume/complete-file skip/mismatched
+prefix replacement. Cross builds compile the C fixtures without running them.
+Do not run Windows tests under Wine.
+
+The native sexyz master/6986ac66b7 used for interop has two independent defects:
+
+* Its sender rejects ZRPOS 0 for an empty ZMODEM file. Empty downloads are
+  covered against lrzsz; SyncTERM's extracted engine accepts this position.
+* Its default buffered YMODEM receiver exits without flushing the terminating
+  ACK. The YMODEM receive peer is invoked with `-s` to bypass that defect;
+  SyncTERM still requires the ACK. Wire-level investigation is recorded in
+  https://gitlab.synchro.net/main/sbbs/-/work_items/1300[Synchronet #1300].

@@ -10,6 +10,7 @@ import "font_pick" for FontApp
 import "scrollback_view" for ScrollbackView
 import "wren_console" for WrenConsole
 import "session_log" for SessionLogView
+import "transfer_pick" for TransferFlow
 
 class OnlineMenu {
   static logLevel_() {
@@ -41,6 +42,8 @@ class OnlineMenu {
       ["Scrollback", Fn.new { ScrollbackView.run() }],
       ["Disconnect", Fn.new { Conn.endSession(false) }],
       ["Send Login", Fn.new { Connected.sendLogin() }],
+      ["Upload", Fn.new { TransferFlow.upload() }],
+      ["Download", Fn.new { TransferFlow.download() }],
       ["ANSI Music Control", Fn.new { MusicMenu.run() }],
       ["Capture Control", Fn.new { CaptureMenu.run() }],
       ["Font Setup", Fn.new { FontApp.run() }],

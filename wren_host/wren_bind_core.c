@@ -1918,6 +1918,7 @@ st_wren_input_context_dispose(WrenVM *vm)
 	if (vm == NULL)
 		return;
 	context = st_wren_context_from_vm(vm);
+	st_wren_transfer_dispose(context);
 	while (context->claim_top != NULL) {
 		struct st_wren_input_claim *claim = context->claim_top;
 

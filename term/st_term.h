@@ -14,6 +14,7 @@
 #include "st_font_catalog.h"
 #include "st_profile.h"
 #include "st_session_history.h"
+#include "st_transfer.h"
 
 #include <stddef.h>
 
@@ -114,6 +115,12 @@ bool st_term_session_remote_closed(const st_term_session_t *session);
  * Its row becomes a blank main-display row in the published history. */
 int st_term_session_prepare_disconnect(st_term_session_t *session);
 void st_term_session_set_suspended(st_term_session_t *session, bool suspended);
+/* Owner-only handoff. The session remains the sole transport reader and
+ * feeds protocol input while a modal UI suspends ordinary terminal display. */
+int st_term_session_begin_transfer(st_term_session_t *session, st_transfer_t *transfer);
+int st_term_session_end_transfer(st_term_session_t *session);
+void st_term_session_reserve_transfer(st_term_session_t *session, bool reserved);
+const uint8_t *st_term_session_prestel_frame(st_term_session_t *session, size_t *size);
 void st_term_session_set_mouse_disabled(st_term_session_t *session,
 	bool disabled);
 uint32_t st_term_session_throttle_speed(const st_term_session_t *session);

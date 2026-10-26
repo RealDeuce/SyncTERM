@@ -399,6 +399,59 @@ exercise_connected_profile_scripts(st_wren_host_t *host,
 	return 0;
 }
 
+/* Exercise the real asynchronous progress App and VM-owned cancellation. */
+static int
+exercise_transfer_ui(st_wren_host_t *host, st_console_t *console,
+	struct st_profile *profile)
+{
+	const struct st_wren_connected_config config = {.host = host,
+	    .console = console, .profile = profile};
+	for (unsigned aborting = 0; aborting < 2; ++aborting) {
+		st_wren_connected_t *connected = NULL;
+		CHECK(st_wren_connected_create(&connected, &config) == 0);
+		CHECK(st_wren_connected_interpret(connected, "transfer_ui_probe",
+		    "import \"syncterm\" for Transfer, Input, CTerm\n"
+		    "import \"transfer_app\" for TransferApp\n"
+		    "class TransferProbe {\n"
+		    "  static done { __done }\n"
+		    "  static start() {\n"
+		    "    __done = false\n"
+		    "    Transfer.beginSession(\"fake\")\n"
+		    "    __fiber = Fiber.new {\n"
+		    "      var app = TransferApp.new(\"Transfer test\")\n"
+		    "      app.waitTimeoutMs = 0\n"
+		    "      app.run()\n"
+		    "      if (!Transfer.done || Transfer.snapshot().count != 6) Fiber.abort(\"completion shape\")\n"
+		    "      Transfer.endSession()\n"
+		    "      __done = true\n"
+		    "    }\n"
+		    "    __fiber.call()\n"
+		    "  }\n"
+		    "}\n"
+		    "TransferProbe.start()\n") == 0);
+		if (aborting) {
+			bool consumed;
+			const struct st_console_event event = {.type = ST_CONSOLE_EVENT_KEY_CODE,
+			    .data.key.code = 27};
+			CHECK(st_wren_connected_handle_event(connected, &event, &consumed) == 0 && consumed);
+		}
+		const struct timespec delay = {.tv_nsec = 10000000L};
+		for (unsigned i = 0; i < 150; ++i) {
+			(void)st_thread_sleep(&delay, NULL);
+			CHECK(st_wren_connected_pump(connected, 0) == 0);
+		}
+		CHECK(st_wren_connected_last_error(connected) == NULL);
+		CHECK(st_wren_connected_interpret(connected, "transfer_ui_result",
+		    "import \"transfer_ui_probe\" for TransferProbe\n"
+		    "import \"syncterm\" for Transfer, CTerm\n"
+		    "if (!TransferProbe.done || Transfer.active || CTerm.suspended) Fiber.abort(\"UI cleanup\")\n"
+		    "Transfer.beginSession(\"fake\")\n") == 0);
+		/* Teardown must join a still-running worker before releasing the VM. */
+		st_wren_connected_destroy(connected);
+	}
+	return 0;
+}
+
 /* Transfer diagnostics are separate from the REPL's source/error counters. */
 static void
 count_transfer_logs(void *context, int level, const char *message)
@@ -1079,6 +1132,57 @@ exercise_connected_link_hover(st_wren_host_t *host, st_console_t *console,
 }
 
 #if !SYNCTERM_PLATFORM_WINDOWS
+static int auto_transfer_filter(void *context, uint8_t byte, bool *consumed,
+	uint8_t *replacement, size_t capacity, size_t *size)
+{
+	st_wren_connected_t *connected = *(st_wren_connected_t **)context;
+	return st_wren_connected_filter_wire_byte(connected, byte, consumed, replacement, capacity, size);
+}
+static int exercise_auto_transfer(st_wren_host_t *host, st_console_t *console)
+{
+	st_font_catalog_t *fonts = NULL;
+	st_connection_t *connection = NULL;
+	st_term_session_t *session = NULL;
+	st_wren_connected_t *connected = NULL;
+	struct st_profile profile;
+	st_profile_init(&profile); profile.connection_type = ST_CONNECTION_SHELL;
+	strcpy(profile.address, "sh ../term/term-fixture.sh auto-transfer");
+	profile.download_directory = strdup(ST_WREN_TEST_DIRECTORY);
+	CHECK(profile.download_directory != NULL);
+	CHECK(st_font_catalog_create(&fonts, console) == 0);
+	CHECK(st_term_connect_profile(&connection, &profile, console, NULL, NULL) == 0);
+	const struct st_term_config term_config = {.console = console, .connection = connection,
+	    .fonts = fonts, .encoding = ST_CTERM_ENCODING_CODEPAGE, .codepage = ST_CODEPAGE_CP437,
+	    .hide_status = true, .wire_filter = auto_transfer_filter, .wire_filter_context = &connected};
+	CHECK(st_term_session_create(&session, &term_config) == 0);
+	size_t logs = 0;
+	const struct st_wren_connected_config wren_config = {.host = host, .console = console,
+	    .profile = &profile, .connection = connection, .session = session,
+	    .cterm = st_term_session_cterm(session), .transfer_log = count_transfer_logs,
+	    .transfer_log_context = &logs};
+	CHECK(st_wren_connected_create(&connected, &wren_config) == 0);
+	bool finished = false; enum st_term_disposition disposition;
+	uint64_t start = 0, now = 0; CHECK(st_time_monotonic_ms(&start) == 0);
+	now = start;
+	while (!finished && now - start < 10000) {
+		CHECK(st_term_session_pump(session, &disposition, &finished) == 0);
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+		CHECK(st_wren_connected_last_error(connected) == NULL);
+		CHECK(st_time_monotonic_ms(&now) == 0);
+	}
+	CHECK(finished && logs != 0);
+	CHECK(st_wren_connected_interpret(connected, "auto_transfer_result",
+	    "import \"syncterm\" for Transfer, CTerm, Screen\n"
+	    "if (Transfer.active || CTerm.suspended) Fiber.abort(\"auto cleanup\")\n"
+	    "var size = Screen.size\n"
+	    "var text = Screen.readRect(1, 1, size[0], size[1]).map {|c| c.ch }.join()\n"
+	    "if (!text.contains(\"BEFORE\") || !text.contains(\"AFTER\") || text.contains(\"0800000000\")) Fiber.abort(\"auto stream handoff\")\n") == 0);
+	st_wren_connected_destroy(connected); st_term_session_destroy(&session);
+	CHECK(st_connection_close(connection) == 0);
+	st_font_catalog_destroy(fonts); st_profile_dispose(&profile);
+	return 0;
+}
+
 static int
 exercise_connected_throttle(st_wren_host_t *host, st_console_t *console)
 {
@@ -4944,10 +5048,12 @@ main(int argc, char **argv)
 		CHECK(exercise_connected_profile_scripts(host, console, &selected,
 		    scripts) == 0);
 		CHECK(exercise_connected_without_sftp(host, console, &selected) == 0);
+		CHECK(exercise_transfer_ui(host, console, &selected) == 0);
 		CHECK(exercise_connected_session_log(host, console, &selected) == 0);
 		CHECK(exercise_connected_link_hover(host, console, &selected) == 0);
 #if !SYNCTERM_PLATFORM_WINDOWS
 		CHECK(exercise_connected_throttle(host, console) == 0);
+		CHECK(exercise_auto_transfer(host, console) == 0);
 #endif
 		CHECK(exercise_connected_sftp(host, console, &selected) == 0);
 #ifdef ST_WREN_HAVE_LIVE_SFTP

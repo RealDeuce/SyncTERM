@@ -191,6 +191,7 @@ bool st_connection_is_connected(st_connection_t *connection);
 int st_connection_process_requests(st_connection_t *connection);
 uint64_t st_connection_elapsed_ms(st_connection_t *connection);
 int st_connection_set_binary_mode(st_connection_t *connection, bool enabled);
+bool st_connection_binary_mode(st_connection_t *connection);
 /* Geometry here is the usable terminal area after any status-row change. */
 int st_connection_update_terminal_size(st_connection_t *connection,
 	const struct st_screen_geometry *geometry);
