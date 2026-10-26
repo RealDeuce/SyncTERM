@@ -188,6 +188,14 @@ int main(void)
 	set(CMAKE_REQUIRED_DEFINITIONS ${_st_wren_saved_required_definitions})
 
 	add_executable(st_wren_host_test tests/st_wren_host_test.c)
+	if(NOT WIN32 AND NOT CMAKE_CROSSCOMPILING)
+		find_package(Python3 QUIET COMPONENTS Interpreter)
+		if(Python3_Interpreter_FOUND)
+			configure_file(tests/rip-peer.py rip-peer.py COPYONLY)
+			target_compile_definitions(st_wren_host_test PRIVATE
+				ST_RIP_TEST_PYTHON="${Python3_EXECUTABLE}")
+		endif()
+	endif()
 	target_link_libraries(st_wren_host_test PRIVATE st_wren_host
 		st_wren_vm st_settings st_theme st_time st_bbs_list st_audio st_term
 		syncterm_filesystem syncterm_string_compat

@@ -25,6 +25,7 @@ struct cterm_rip_parser {
 	bool enabled;
 	bool suspended;
 	bool utf8_input;
+	bool command_terminated_cr;
 };
 
 struct cterm_rip_parser_sink {

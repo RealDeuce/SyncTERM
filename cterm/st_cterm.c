@@ -32,6 +32,27 @@
 #include <string.h>
 #include <time.h>
 
+int
+st_cterm_rip_receive_begin(st_cterm_t *terminal)
+{
+	return terminal == NULL || terminal->rip_engine == NULL ? IO_ERROR_NOT_SUPPORTED
+	    : cterm_rip_engine_receive_begin(terminal->rip_engine);
+}
+
+int
+st_cterm_rip_receive_data(st_cterm_t *terminal, const uint8_t *bytes, size_t size)
+{
+	return terminal == NULL || terminal->rip_engine == NULL || (bytes == NULL && size != 0)
+	    ? IO_ERROR_INVALID_ARGUMENT : cterm_rip_engine_receive_data(terminal->rip_engine, bytes, size);
+}
+
+int
+st_cterm_rip_receive_end(st_cterm_t *terminal, bool success)
+{
+	return terminal == NULL || terminal->rip_engine == NULL ? 0
+	    : cterm_rip_engine_receive_end(terminal->rip_engine, success);
+}
+
 static int write_plain(st_cterm_t *terminal, const void *bytes,
     size_t size, size_t *consumed, bool semantic_utf8);
 static int filter_input_scalar(st_cterm_t *terminal, uint32_t scalar,
@@ -1223,6 +1244,49 @@ rip_host_command(void *context, int level, int sublevel,
 	int mouse[9];
 	uint32_t previous_background;
 
+	if (level == 9 && sublevel == 0 && code == 0x1b) {
+		struct st_cterm_rip_transfer_request request = {0};
+		size_t length = strlen(arguments);
+		int mode, protocol, type, reserved;
+		int status = IO_ERROR_INVALID_ARGUMENT;
+		char *filename = NULL, *path = NULL;
+
+		if (!terminal->rip_engine->parser.command_terminated_cr
+		    || terminal->rip_engine->scene_depth != 0
+		    || length < 10 || strcmp(arguments + length - 2, "<>") != 0
+		    || !rip_number(arguments, 1, &mode) || mode > 1
+		    || !rip_number(arguments + 1, 1, &protocol) || protocol > 7
+		    || !rip_number(arguments + 2, 2, &type)
+		    || !rip_number(arguments + 4, 4, &reserved)
+		    || (mode == 0 && (type > 5 || (type >= 4 && protocol < 5)))
+		    || ((mode == 1 || protocol <= 4) && length == 10))
+			goto rip_transfer_rejected;
+		filename = malloc(length - 9);
+		if (filename == NULL) { status = IO_ERROR_OUT_OF_MEMORY; goto rip_transfer_rejected; }
+		memcpy(filename, arguments + 8, length - 10); filename[length - 10] = '\0';
+		if (*filename != '\0') {
+			path = cterm_rip_asset_path(terminal->rip_directory, filename, false);
+			if (path == NULL) goto rip_transfer_rejected;
+		}
+		if (protocol == 4 || terminal->rip_transfer == NULL) {
+			status = IO_ERROR_NOT_SUPPORTED; goto rip_transfer_rejected;
+		}
+		request.upload = mode == 1; request.protocol = (unsigned)protocol;
+		request.file_type = (unsigned)type;
+		request.directory = terminal->rip_directory; request.filename = filename;
+		status = terminal->rip_transfer(terminal->rip_transfer_context, &request);
+	rip_transfer_rejected:
+		free(filename); free(path);
+		if (status != 0) {
+			cterm_log(terminal, ST_CTERM_LOG_WARNING,
+			    "RIP block transfer rejected (%d)", status);
+			static const uint8_t cancel[10] = {24,24,24,24,24,24,24,24,24,24};
+			if (terminal->api_output != NULL && terminal->rip_engine->scene_depth == 0)
+				terminal->api_output(terminal->api_output_context, ST_CTERM_OUTPUT_RESPONSE, cancel, sizeof(cancel));
+		}
+		return 0;
+	}
+
 	if (level == 1 && sublevel == 0) {
 		switch (code) {
 		case 'D':
@@ -2074,6 +2138,8 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 	terminal->api_output_context = config->output_context;
 	terminal->rip_prompt = config->rip_prompt;
 	terminal->rip_prompt_context = config->rip_prompt_context;
+	terminal->rip_transfer = config->rip_transfer;
+	terminal->rip_transfer_context = config->rip_transfer_context;
 	terminal->api_apc = config->apc;
 	terminal->api_apc_context = config->apc_context;
 	if (config->apc_directory != NULL) {

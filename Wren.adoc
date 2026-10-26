@@ -6007,6 +6007,13 @@ unsafe roots and existing non-file destinations are rejected. Existing files
 can be overwritten, skipped, or renamed. ZMODEM resumes a partial file only
 after checking its prefix CRC against the sender.
 
+RIP block-transfer commands use that BBS's asset cache instead of the download
+directory. Display-only and active dynamic modes render validated blocks as
+they arrive, using status-row progress so a modal restore cannot erase the
+scene. Host-requested uploads always require confirmation and can read only
+one regular file in the BBS cache. RIP transfers use the same cancellation,
+completion and log APIs as manual transfers.
+
 [options="header",cols="2,3"]
 |===
 | Member | Description
@@ -6058,10 +6065,11 @@ after checking its prefix CRC against the sender.
 | `Transfer.aborted`
 | Read the abort flag without modifying it.  `true` after a
   successful `requestAbort()`.
-| `Transfer.active`, `Transfer.uploading`, `Transfer.inlineUpload`
-| Whether a session owns a transfer, its direction, and whether it is an
-  ASCII/raw upload that keeps terminal output visible. An active transfer
-  retains its result until `endSession()`.
+| `Transfer.active`, `Transfer.uploading`, `Transfer.inlineUpload`, `Transfer.inlineProgress`
+| Whether a session owns a transfer and its direction. `inlineUpload` marks
+  ASCII/raw uploads; `inlineProgress` also includes RIP downloads that display
+  scenes while receiving. An active transfer retains its result until
+  `endSession()`.
 
 | `Transfer.upload(kind, path, lastCh)`
 | Start one file using `"zmodem"`, `"ymodem"`, `"xmodem-1k"`,

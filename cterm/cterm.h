@@ -99,6 +99,8 @@ struct cterminal {
 	const char *rip_directory;
 	st_cterm_rip_prompt_callback_t rip_prompt;
 	void *rip_prompt_context;
+	st_cterm_rip_transfer_callback_t rip_transfer;
+	void *rip_transfer_context;
 	bool rip_text_disabled;
 	int rip_text_font_style;
 	struct {

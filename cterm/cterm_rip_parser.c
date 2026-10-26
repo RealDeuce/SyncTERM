@@ -332,11 +332,13 @@ feed_one(struct cterm_rip_parser *parser,
 			parser->command[--parser->length] = 0;
 			return 0;
 		}
+		parser->command_terminated_cr = true;
 		return dispatch_command(parser, sink);
 	}
 	if (byte == '|') {
 		if (trailing_backslashes(parser) & 1)
 			return push(parser, byte);
+		parser->command_terminated_cr = false;
 		status = dispatch_command(parser, sink);
 		return status == 0 ? push(parser, '|') : status;
 	}
@@ -388,5 +390,6 @@ cterm_rip_parser_flush(struct cterm_rip_parser *parser,
 {
 	if (parser == NULL || sink == NULL || sink->passthrough == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
+	parser->command_terminated_cr = false;
 	return parser->length == 0 ? 0 : dispatch_command(parser, sink);
 }

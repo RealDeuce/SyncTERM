@@ -100,6 +100,38 @@ resolve_read_path(char **result, struct fs_info *info,
 	return 0;
 }
 
+int
+cterm_rip_asset_transfer_path(char **result, const char *directory,
+    const char *filename, bool upload)
+{
+	struct fs_info info;
+	char *path = cterm_rip_asset_path(directory, filename, false);
+	int status;
+
+	if (path == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	status = fs_get_link_info(&info, directory);
+	if (status == 0 && info.kind != FS_ENTRY_DIRECTORY)
+		status = IO_ERROR_PERMISSION_DENIED;
+	if (status != 0) { free(path); return status; }
+	status = fs_get_link_info(&info, path);
+	if (status == IO_ERROR_NOT_FOUND) {
+		char *found = cterm_rip_asset_case_path(directory, filename);
+
+		if (found != NULL) {
+			free(path); path = found;
+			status = fs_get_link_info(&info, path);
+		}
+	}
+	if (status == 0 && info.kind != FS_ENTRY_FILE)
+		status = IO_ERROR_PERMISSION_DENIED;
+	if (status == IO_ERROR_NOT_FOUND && !upload)
+		status = 0;
+	if (status != 0) { free(path); return status; }
+	*result = path;
+	return 0;
+}
+
 FILE *
 cterm_rip_asset_open_read(const char *directory, const char *filename,
     bool append_icon_extension)

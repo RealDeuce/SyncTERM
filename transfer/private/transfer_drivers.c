@@ -74,12 +74,15 @@ static int xy_receive_file(st_transfer_t *t, xmodem_t *xm, long mode,
 	FILE *file = NULL;
 	int status = st_transfer_destination(t, name, &path, false);
 	if (status != 0) return status > 0 ? IO_ERROR_CANCELLED : status;
-	status = fs_open(&file, path, "wb");
+	if (t->config.discard) { file = tmpfile(); status = file == NULL ? IO_ERROR_IO : 0; }
+	else status = fs_open(&file, path, "wb");
 	if (status != 0) { free(path); return status; }
 	strlcpy(t->current_name, path_basename(path), sizeof(t->current_name));
 	int64_t received = 0;
 	unsigned block_number = 1, errors = 0;
 	uint8_t block[1025];
+	status = st_transfer_received(t, ST_TRANSFER_RECEIVE_BEGIN, NULL, 0, false);
+	if (status != 0) { fclose(file); free(path); return status; }
 	if (!have_first) xmodem_put_nak(xm, 1);
 	for (;;) {
 		if (!st_transfer_connected(t)) { status = IO_ERROR_NOT_CONNECTED; break; }
@@ -101,14 +104,18 @@ static int xy_receive_file(st_transfer_t *t, xmodem_t *xm, long mode,
 		if (size >= 0 && count > (uint64_t)(size - received)) count = (size_t)(size - received);
 		if (size >= 0 && received == size) { status = IO_ERROR_PROTOCOL; break; }
 		if (fwrite(block, 1, count, file) != count) { status = IO_ERROR_IO; break; }
+		status = st_transfer_received(t, ST_TRANSFER_RECEIVE_DATA, block, count, false);
+		if (status != 0) break;
 		received += (int64_t)count; ++block_number; errors = 0;
 		st_transfer_progress(t, received, size);
 		if (!(mode & GMODE)) { st_transfer_send_byte(t, ACK, 10); st_transfer_flush(t); }
 	}
 	int closed = file == NULL ? 0 : finish_file(&file);
 	if (status == 0) status = closed;
-	if (status == 0 && modified != 0) (void)fs_set_modified_time(path, (int64_t)modified);
-	if (status != 0 && received == 0) (void)fs_remove_file(path);
+	if (status == 0 && !t->config.discard && modified != 0) (void)fs_set_modified_time(path, (int64_t)modified);
+	if (status != 0 && received == 0 && !t->config.discard) (void)fs_remove_file(path);
+	int event_status = st_transfer_received(t, ST_TRANSFER_RECEIVE_END, NULL, 0, status == 0);
+	if (status == 0) status = event_status;
 	free(path);
 	return status;
 }
@@ -116,7 +123,7 @@ int st_transfer_run_xymodem(st_transfer_t *t)
 {
 	long mode = t->config.protocol == ST_TRANSFER_YMODEM || t->config.protocol == ST_TRANSFER_YMODEM_G ? YMODEM : XMODEM;
 	if (t->config.protocol != ST_TRANSFER_XMODEM_CHECKSUM) mode |= CRC;
-	if (t->config.protocol == ST_TRANSFER_YMODEM_G) mode |= GMODE;
+	if (t->config.protocol == ST_TRANSFER_YMODEM_G || t->config.protocol == ST_TRANSFER_XMODEM_G) mode |= GMODE;
 	mode |= t->config.upload ? SEND : RECV;
 	xmodem_t xm;
 	init_xy(t, &xm, &mode);
@@ -167,6 +174,10 @@ static void init_z(st_transfer_t *t, zmodem_t *zm)
 	    st_transfer_send_byte, st_transfer_recv, st_transfer_connected,
 	    st_transfer_cancelled, st_transfer_waiting, st_transfer_flush);
 	zm->recv_span = st_transfer_recv_span;
+}
+static int z_received(void *context, const uint8_t *bytes, size_t size)
+{
+	return st_transfer_received(context, ST_TRANSFER_RECEIVE_DATA, bytes, size, false);
 }
 static int z_send(st_transfer_t *t, zmodem_t *zm)
 {
@@ -228,7 +239,7 @@ static int z_receive(st_transfer_t *t, zmodem_t *zm)
 		int64_t offset = 0;
 		struct fs_info info;
 		status = fs_get_info(&info, path);
-		if (status == 0) {
+		if (status == 0 && !t->config.overwrite && !t->config.discard) {
 			bool matching = false;
 			if (info.size <= (uint64_t)zm->current_file_size && info.size != 0) {
 				status = fs_open(&file, path, "rb");
@@ -248,16 +259,22 @@ static int z_receive(st_transfer_t *t, zmodem_t *zm)
 				if (status > 0) { zmodem_send_zskip(zm); continue; }
 				if (status != 0) return status;
 			}
-		} else if (status != IO_ERROR_NOT_FOUND) { free(path); return status; }
-		status = fs_open(&file, path, offset == 0 ? "wb" : "r+b");
+		} else if (status != 0 && status != IO_ERROR_NOT_FOUND) { free(path); return status; }
+		if (t->config.discard) { file = tmpfile(); status = file == NULL ? IO_ERROR_IO : 0; }
+		else status = fs_open(&file, path, offset == 0 ? "wb" : "r+b");
 		if (status != 0) { free(path); return status; }
+		status = st_transfer_received(t, ST_TRANSFER_RECEIVE_BEGIN, NULL, 0, false);
+		if (status != 0) { fclose(file); free(path); return status; }
+		zm->received = t->config.receive_events ? z_received : NULL;
 		(void)zmodem_recv_file_data(zm, file, offset);
 		bool complete = zm->file_complete;
 		int64_t actual = fs_stream_size(file);
 		status = finish_file(&file);
 		if (status == 0 && !complete) status = IO_ERROR_PROTOCOL;
-		if (status == 0 && zm->current_file_time != 0) (void)fs_set_modified_time(path, zm->current_file_time);
-		if (status != 0 && actual == 0) (void)fs_remove_file(path);
+		if (status == 0 && !t->config.discard && zm->current_file_time != 0) (void)fs_set_modified_time(path, zm->current_file_time);
+		if (status != 0 && actual == 0 && !t->config.discard) (void)fs_remove_file(path);
+		int event_status = st_transfer_received(t, ST_TRANSFER_RECEIVE_END, NULL, 0, status == 0);
+		if (status == 0) status = event_status;
 		free(path);
 		if (status != 0) return status;
 		++t->file_number;

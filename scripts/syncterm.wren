@@ -1837,8 +1837,11 @@ class Transfer {
   foreign static active
   foreign static uploading
   foreign static inlineUpload
+  foreign static inlineProgress
   foreign static autoPending_
   foreign static cancelAuto_()
+  foreign static ripUploadName_
+  foreign static acceptRipUpload_()
   foreign static beginSession(kind)
   foreign static endSession()
   foreign static drainLog()

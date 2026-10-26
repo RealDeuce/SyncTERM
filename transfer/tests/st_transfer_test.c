@@ -232,6 +232,76 @@ static int test_xy_recovery(void)
 	CHECK(xmodem_get_block(&xm, block, 1) == FAILURE);
 	return 0;
 }
+struct mailbox_output { struct output output; st_transfer_t *transfer; bool fed; };
+static ssize_t mailbox_write(void *context, const void *bytes, size_t size, int64_t timeout)
+{
+	struct mailbox_output *o = context;
+	ssize_t count = write_output(&o->output, bytes, size, timeout);
+	if (!o->fed && count > 0 && *(const uint8_t *)bytes == 'G') {
+		o->fed = true;
+		for (unsigned i = 1; i <= 32; ++i) {
+			struct xy_wire wire = {0};
+			xy_packet(&wire, (uint8_t)i, (uint8_t)i, false);
+			(void)st_transfer_feed(o->transfer, wire.bytes, wire.size);
+		}
+		const uint8_t eot = 4;
+		(void)st_transfer_feed(o->transfer, &eot, 1);
+	}
+	return count;
+}
+static int test_received_mailbox(const char *existing)
+{
+	/* A slow renderer must backpressure a streaming receiver, and both
+	 * cancellation and EOF must wake it without requiring another drain. */
+	for (unsigned action = 0; action < 3; ++action) {
+		struct mailbox_output out = {0};
+		struct st_transfer_config config = {.protocol = ST_TRANSFER_XMODEM_G,
+		    .directory = ".", .filename = existing, .discard = true,
+		    .receive_events = true, .send = mailbox_write, .send_context = &out};
+		st_transfer_t *t = NULL;
+		CHECK(st_transfer_create(&t, &config) == 0);
+		out.transfer = t;
+		CHECK(st_transfer_launch(t) == 0);
+		bool full = false;
+		for (unsigned i = 0; i < 500 && !full; ++i) {
+			(void)st_mutex_lock(&t->mutex); full = t->received_size == 16; (void)st_mutex_unlock(&t->mutex);
+			st_transfer_sleep(2);
+		}
+		if (!full) {
+			struct st_transfer_log logs[32]; size_t count = st_transfer_drain_log(t, logs, 32);
+			for (size_t i = 0; i < count; ++i) fprintf(stderr, "%s\n", logs[i].text);
+			fprintf(stderr, "mailbox action %u: result %d\n", action, st_transfer_result(t));
+		}
+		CHECK(full && !st_transfer_done(t));
+		if (action != 0) {
+			if (action == 1) CHECK(st_transfer_request_abort(t));
+			else st_transfer_eof(t);
+			CHECK(wait_done(t) != 0);
+		} else {
+			unsigned blocks = 0, starts = 0, ends = 0;
+			for (unsigned i = 0; i < 1000; ++i) {
+				struct st_transfer_receive_event event;
+				while (st_transfer_take_received(t, &event)) {
+					if (event.kind == ST_TRANSFER_RECEIVE_BEGIN) ++starts;
+					else if (event.kind == ST_TRANSFER_RECEIVE_END) { CHECK(event.success); ++ends; }
+					else {
+						++blocks; CHECK(event.size == 128);
+						for (size_t b = 0; b < event.size; ++b) CHECK(event.bytes[b] == blocks);
+					}
+				}
+				if (st_transfer_done(t) && ends == 1) break;
+				st_transfer_sleep(2);
+			}
+			CHECK(st_transfer_done(t) && st_transfer_result(t) == 0);
+			CHECK(starts == 1 && blocks == 32 && ends == 1);
+			CHECK(out.output.size != 0 && out.output.bytes[0] == 'G');
+		}
+		st_transfer_destroy(&t);
+		struct fs_info info;
+		CHECK(fs_get_info(&info, existing) == 0 && info.size == 8200);
+	}
+	return 0;
+}
 int main(void)
 {
 	CHECK(test_xy_recovery() == 0);
@@ -257,6 +327,7 @@ int main(void)
 	FILE *stream = fopen(file, "wb"); CHECK(stream != NULL);
 	uint8_t data[8200]; memset(data, 'x', sizeof(data)); data[8191] = '\r'; data[8192] = '\n'; data[8193] = '\n'; data[8194] = 0;
 	CHECK(fwrite(data, 1, sizeof(data), stream) == sizeof(data) && fclose(stream) == 0);
+	CHECK(test_received_mailbox(file) == 0);
 	for (unsigned raw = 0; raw < 2; ++raw) {
 		out.size = 0;
 		config.protocol = raw ? ST_TRANSFER_RAW : ST_TRANSFER_ASCII;

@@ -2224,7 +2224,9 @@ void zmodem_parse_zfile_subpacket(zmodem_t* zm)
 	unsigned long serial = 0;
 	uintmax_t tmptime = 0;
 
-	strlcpy(zm->current_file_name, path_untrusted_basename((char*)zm->rx_data_subpacket), sizeof(zm->current_file_name));
+	/* Keep the original name until the destination policy has validated it. */
+	if (strlcpy(zm->current_file_name, (char*)zm->rx_data_subpacket, sizeof(zm->current_file_name)) >= sizeof(zm->current_file_name))
+		zm->current_file_name[0] = '\0';
 
 	zm->current_file_size = 0;
 	zm->current_file_time = 0;
@@ -2394,6 +2396,8 @@ int zmodem_recv_file_frame(zmodem_t* zm, FILE* fp, int* type)
 				zmodem_send_pos_header(zm, ZFERR, (uint32_t)fs_stream_position(fp), /* Hex? */ true);
 				return false;
 			}
+			if (zm->received != NULL && zm->received(zm->cbdata, zm->rx_data_subpacket, len) != 0)
+				return ZCAN;
 		}
 
 		if (result == FRAMEOK)

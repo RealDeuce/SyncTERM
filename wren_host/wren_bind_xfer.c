@@ -8,7 +8,10 @@
 #include "filesystem.h"
 #include "io_error.h"
 #include "string_compat.h"
+#include "string_util.h"
 #include "st_app_paths.h"
+#include "cterm_rip_asset.h"
+#include "st_time.h"
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
@@ -20,6 +23,11 @@ struct st_wren_transfer {
 	size_t prefix_size;
 	int automatic;
 	bool upload, inline_upload;
+	char *rip_directory, *rip_filename;
+	unsigned rip_protocol, rip_file_type;
+	bool rip_upload_pending, rip_scene;
+	unsigned cancel_remaining;
+	uint64_t cancel_next_ms;
 };
 static struct st_wren_transfer *state(struct st_wren_context *context)
 {
@@ -41,17 +49,18 @@ static void log_entry(struct st_wren_context *context, const struct st_transfer_
 	if (context->transfer_log != NULL && entry->level <= context->transfer_log_level)
 		context->transfer_log(context->transfer_log_context, entry->level, entry->text);
 }
-static int start(struct st_wren_context *context, struct st_transfer_config *config)
+static int start(struct st_wren_context *context, struct st_transfer_config *config, bool rip)
 {
 	struct st_wren_transfer *s = state(context);
 	if (s == NULL) return IO_ERROR_OUT_OF_MEMORY;
 	if (s->worker != NULL) return IO_ERROR_BUSY;
+	if (!rip && (s->rip_directory != NULL || s->cancel_remaining != 0)) return IO_ERROR_BUSY;
 	if (config->protocol != ST_TRANSFER_FAKE) {
 		if (context->host->config.safe_mode || context->connection == NULL || context->session == NULL
 		    || context->profile == NULL || context->profile->connection_type == ST_CONNECTION_MQTT)
 			return IO_ERROR_PERMISSION_DENIED;
 		config->send = send_bytes; config->send_context = context->connection;
-		config->directory = download_root(context);
+		if (!rip) config->directory = download_root(context);
 		if (!config->upload && config->directory == NULL) return IO_ERROR_PERMISSION_DENIED;
 	}
 	int status = st_transfer_create(&s->worker, config);
@@ -67,7 +76,8 @@ static int start(struct st_wren_context *context, struct st_transfer_config *con
 		return status;
 	}
 	s->upload = config->upload;
-	s->inline_upload = config->protocol == ST_TRANSFER_ASCII || config->protocol == ST_TRANSFER_RAW;
+	s->inline_upload = config->protocol == ST_TRANSFER_ASCII || config->protocol == ST_TRANSFER_RAW
+	    || (rip && !config->upload && (s->rip_file_type == 0 || s->rip_file_type == 5));
 	if (s->prefix_size != 0) {
 		(void)st_transfer_feed(s->worker, s->prefix, s->prefix_size); s->prefix_size = 0;
 	}
@@ -78,12 +88,146 @@ static int start(struct st_wren_context *context, struct st_transfer_config *con
 	}
 	return 0;
 }
+
+static bool rip_extension(const char *filename, const char *extension)
+{
+	size_t length = strlen(filename);
+	if (length < 4) return false;
+	for (size_t i = 0; i < 4; ++i)
+		if (ascii_to_upper((unsigned char)filename[length - 4 + i])
+		    != ascii_to_upper((unsigned char)extension[i])) return false;
+	return true;
+}
+
+static int rip_destination(void *context, const char *directory, const char *name, char **path)
+{
+	struct st_wren_transfer *s = context;
+	if (s->rip_file_type >= 4 && !rip_extension(name, ".rip") && !rip_extension(name, ".icn"))
+		return IO_ERROR_INVALID_ARGUMENT;
+	return cterm_rip_asset_transfer_path(path, directory, name, false);
+}
+
+static int start_rip(struct st_wren_context *context, bool upload)
+{
+	struct st_wren_transfer *s = context->transfer;
+	static const enum st_transfer_protocol protocols[8] = {
+		ST_TRANSFER_XMODEM_CHECKSUM, ST_TRANSFER_XMODEM_CRC, ST_TRANSFER_XMODEM_CRC,
+		ST_TRANSFER_XMODEM_G, ST_TRANSFER_FAKE, ST_TRANSFER_YMODEM,
+		ST_TRANSFER_YMODEM_G, ST_TRANSFER_ZMODEM
+	};
+	struct st_transfer_config config = {
+		.protocol = protocols[s->rip_protocol], .upload = upload,
+		.directory = s->rip_directory, .filename = s->rip_filename,
+		.destination = rip_destination, .destination_context = s,
+		.overwrite = true, .discard = !upload && s->rip_file_type == 0,
+		.receive_events = !upload && (s->rip_file_type == 0 || s->rip_file_type == 5),
+	};
+	char *source = NULL;
+	if (upload) {
+		int status = cterm_rip_asset_transfer_path(&source, s->rip_directory, s->rip_filename, true);
+		if (status != 0) return status;
+		config.paths = (const char *const *)&source; config.path_count = 1;
+		/* Sending XMODEM lets the peer select checksum or CRC. */
+		if (s->rip_protocol < 3) config.protocol = s->rip_protocol == 2
+		    ? ST_TRANSFER_XMODEM_1K : ST_TRANSFER_XMODEM_128;
+	}
+	int status = start(context, &config, true);
+	free(source);
+	return status;
+}
+
+int st_wren_transfer_rip_request(struct st_wren_context *context,
+	const struct st_cterm_rip_transfer_request *request)
+{
+	if (!st_wren_transfer_detect_enabled(context) || request == NULL || request->directory == NULL
+	    || !*request->directory || request->filename == NULL || request->protocol > 7
+	    || request->protocol == 4 || (!request->upload && request->file_type > 5))
+		return IO_ERROR_NOT_SUPPORTED;
+	struct st_wren_transfer *s = state(context);
+	if (s == NULL) return IO_ERROR_OUT_OF_MEMORY;
+	if (s->worker != NULL || s->automatic != 0 || s->rip_directory != NULL || s->cancel_remaining != 0)
+		return IO_ERROR_BUSY;
+	struct fs_info info;
+	int status = fs_get_link_info(&info, request->directory);
+	if (status == IO_ERROR_NOT_FOUND && !request->upload) status = fs_create_directories(request->directory);
+	else if (status == 0 && info.kind != FS_ENTRY_DIRECTORY) status = IO_ERROR_PERMISSION_DENIED;
+	if (status != 0) return status;
+	s->rip_directory = strdup(request->directory); s->rip_filename = strdup(request->filename);
+	if (s->rip_directory == NULL || s->rip_filename == NULL) { status = IO_ERROR_OUT_OF_MEMORY; goto fail; }
+	s->rip_protocol = request->protocol; s->rip_file_type = request->file_type;
+	st_term_session_reserve_rip_transfer(context->session);
+	if (request->upload) {
+		char *source = NULL;
+		status = cterm_rip_asset_transfer_path(&source, s->rip_directory, s->rip_filename, true);
+		free(source);
+		if (status != 0) goto fail;
+		s->rip_upload_pending = true; s->automatic = 4;
+	} else {
+		status = start_rip(context, false);
+		if (status != 0) goto fail;
+		s->automatic = 3;
+	}
+	return 0;
+fail:
+	st_term_session_reserve_transfer(context->session, false);
+	free(s->rip_directory); s->rip_directory = NULL;
+	free(s->rip_filename); s->rip_filename = NULL;
+	return status;
+}
+
+void st_wren_transfer_pump(struct st_wren_context *context)
+{
+	struct st_wren_transfer *s = context->transfer;
+	if (s == NULL) return;
+	if (s->cancel_remaining != 0) {
+		uint64_t now;
+		if (st_time_monotonic_ms(&now) == 0 && now >= s->cancel_next_ms) {
+			const uint8_t can = 24;
+			ssize_t sent = context->connection == NULL ? IO_ERROR_NOT_CONNECTED
+			    : st_connection_send(context->connection, &can, 1, 0);
+			s->cancel_next_ms = now + 100;
+			if (sent == 1) --s->cancel_remaining;
+			else if (sent != IO_ERROR_WOULD_BLOCK && sent != IO_ERROR_TIMED_OUT) s->cancel_remaining = 0;
+			if (s->cancel_remaining == 0) st_term_session_reserve_transfer(context->session, false);
+		}
+	}
+	struct st_transfer_receive_event event;
+	/* Bound renderer work so input/cancellation gets another dispatch turn
+	 * even when a fast sender continuously replenishes the mailbox. */
+	for (unsigned batch = 0; batch < 16 && st_transfer_take_received(s->worker, &event); ++batch) {
+		int status = 0;
+		switch (event.kind) {
+		case ST_TRANSFER_RECEIVE_BEGIN:
+			if (s->rip_file_type == 0 || rip_extension(event.filename, ".rip")) {
+				status = st_cterm_rip_receive_begin(context->cterm);
+				s->rip_scene = status == 0;
+			}
+			break;
+		case ST_TRANSFER_RECEIVE_DATA:
+			if (s->rip_scene) status = st_cterm_rip_receive_data(context->cterm, event.bytes, event.size);
+			break;
+		case ST_TRANSFER_RECEIVE_END:
+			if (s->rip_scene) status = st_cterm_rip_receive_end(context->cterm, event.success);
+			s->rip_scene = false;
+			break;
+		}
+		if (status != 0) {
+			struct st_transfer_log log = {.level = ST_CTERM_LOG_WARNING};
+			snprintf(log.text, sizeof(log.text), "RIP received scene failed (%d)", status);
+			log_entry(context, &log);
+			(void)st_transfer_request_abort(s->worker);
+			(void)st_cterm_rip_receive_end(context->cterm, false); s->rip_scene = false;
+		}
+	}
+}
 static void finish(struct st_wren_context *context)
 {
 	struct st_wren_transfer *s = context->transfer;
 	if (s == NULL) return;
 	if (s->worker != NULL) {
 		(void)st_transfer_join(s->worker);
+		st_wren_transfer_pump(context);
+		(void)st_cterm_rip_receive_end(context->cterm, false); s->rip_scene = false;
 		(void)st_term_session_end_transfer(context->session);
 		size_t replay_size;
 		const uint8_t *replay = st_transfer_replay(s->worker, &replay_size);
@@ -99,6 +243,9 @@ static void finish(struct st_wren_context *context)
 		st_transfer_destroy(&s->worker);
 	}
 	st_term_session_reserve_transfer(context->session, false);
+	free(s->rip_directory); s->rip_directory = NULL;
+	free(s->rip_filename); s->rip_filename = NULL;
+	s->rip_upload_pending = false; s->inline_upload = false; s->cancel_remaining = 0;
 	s->automatic = 0; s->prefix_size = 0; s->detector.size = 0;
 }
 void st_wren_transfer_dispose(struct st_wren_context *context)
@@ -117,7 +264,7 @@ int st_wren_transfer_filter(struct st_wren_context *context, uint8_t byte,
 	if (!st_wren_transfer_detect_enabled(context)) return 0;
 	struct st_wren_transfer *s = state(context);
 	if (s == NULL) return IO_ERROR_OUT_OF_MEMORY;
-	if (s->worker != NULL || s->automatic != 0) return 0;
+	if (s->worker != NULL || s->automatic != 0 || s->rip_directory != NULL || s->cancel_remaining != 0) return 0;
 	uint8_t output[33]; size_t count;
 	int event = st_transfer_detect(&s->detector, byte, output, &count);
 	if (event != 0) {
@@ -128,7 +275,7 @@ int st_wren_transfer_filter(struct st_wren_context *context, uint8_t byte,
 			memcpy(s->prefix, output, count); s->prefix_size = count; s->automatic = event;
 			if (event == 1) {
 				struct st_transfer_config config = {.protocol = ST_TRANSFER_ZMODEM};
-				int status = start(context, &config);
+				int status = start(context, &config, false);
 				if (status != 0) { s->automatic = 0; s->prefix_size = 0; return status; }
 			} else st_term_session_reserve_transfer(context->session, true);
 			*consumed = true; *size = 0; return 0;
@@ -153,6 +300,11 @@ static void uploading(WrenVM *vm)
 static void inline_upload(WrenVM *vm)
 {
 	struct st_wren_transfer *s = st_wren_context_from_vm(vm)->transfer;
+	wrenSetSlotBool(vm, 0, s != NULL && s->inline_upload && s->upload);
+}
+static void inline_progress(WrenVM *vm)
+{
+	struct st_wren_transfer *s = st_wren_context_from_vm(vm)->transfer;
 	wrenSetSlotBool(vm, 0, s != NULL && s->inline_upload);
 }
 static void begin(WrenVM *vm)
@@ -160,7 +312,7 @@ static void begin(WrenVM *vm)
 	const char *kind; int length;
 	if (!st_wren_text_slot(vm, 1, &kind, &length) || strcmp(kind, "fake") != 0) { st_wren_abort(vm, "Transfer.beginSession expects fake"); return; }
 	struct st_transfer_config config = {.protocol = ST_TRANSFER_FAKE};
-	if (start(st_wren_context_from_vm(vm), &config) != 0) st_wren_abort(vm, "Transfer already active or could not start");
+	if (start(st_wren_context_from_vm(vm), &config, false) != 0) st_wren_abort(vm, "Transfer already active or could not start");
 	else wrenSetSlotBool(vm, 0, true);
 }
 static void end(WrenVM *vm) { finish(st_wren_context_from_vm(vm)); wrenSetSlotNull(vm, 0); }
@@ -265,7 +417,7 @@ static void dispatch(WrenVM *vm, bool upload, bool batch)
 	} else if (config.protocol == ST_TRANSFER_XMODEM_CRC || config.protocol == ST_TRANSFER_XMODEM_CHECKSUM) {
 		if (!st_wren_text_slot(vm, 2, &config.filename, &length)) return;
 	}
-	if (start(context, &config) != 0) st_wren_abort(vm, "Transfer could not start (active, unsafe, or invalid configuration)");
+	if (start(context, &config, false) != 0) st_wren_abort(vm, "Transfer could not start (active, unsafe, or invalid configuration)");
 	else wrenSetSlotBool(vm, 0, true);
 finished:
 	for (size_t i = 0; i < config.path_count; ++i) free(paths[i]);
@@ -279,13 +431,34 @@ static void automatic(WrenVM *vm)
 	struct st_wren_transfer *s = st_wren_context_from_vm(vm)->transfer;
 	int event = s == NULL ? 0 : s->automatic;
 	if (s != NULL) s->automatic = 0;
-	if (event == 0) wrenSetSlotNull(vm, 0); else wrenSetSlotString(vm, 0, event == 1 ? "download" : "upload");
+	static const char *const names[] = {"", "download", "upload", "rip-download", "rip-upload"};
+	if (event == 0) wrenSetSlotNull(vm, 0); else wrenSetSlotString(vm, 0, names[event]);
+}
+static void rip_upload_name(WrenVM *vm)
+{
+	struct st_wren_transfer *s = st_wren_context_from_vm(vm)->transfer;
+	wrenSetSlotString(vm, 0, s == NULL || s->rip_filename == NULL ? "" : s->rip_filename);
+}
+static void accept_rip_upload(WrenVM *vm)
+{
+	struct st_wren_context *context = st_wren_context_from_vm(vm);
+	struct st_wren_transfer *s = context->transfer;
+	if (s == NULL || !s->rip_upload_pending || start_rip(context, true) != 0) {
+		st_wren_abort(vm, "Requested RIP upload could not start"); return;
+	}
+	s->rip_upload_pending = false;
+	wrenSetSlotNull(vm, 0);
 }
 static void cancel_automatic(WrenVM *vm)
 {
 	struct st_wren_context *context = st_wren_context_from_vm(vm);
 	struct st_wren_transfer *s = context->transfer;
-	if (s != NULL && s->worker == NULL && (s->automatic != 0 || s->prefix_size != 0)) {
+	if (s != NULL && s->worker == NULL && s->rip_upload_pending) {
+		s->rip_upload_pending = false; s->automatic = 0;
+		free(s->rip_directory); s->rip_directory = NULL;
+		free(s->rip_filename); s->rip_filename = NULL;
+		s->cancel_remaining = 10; s->cancel_next_ms = 0;
+	} else if (s != NULL && s->worker == NULL && (s->automatic != 0 || s->prefix_size != 0)) {
 		s->automatic = 0; s->prefix_size = 0;
 		st_term_session_reserve_transfer(context->session, false);
 		static const uint8_t cancel[] = {24,24,24,24,24,24,24,24};
@@ -298,12 +471,14 @@ WrenForeignMethodFn st_wren_transfer_bind_method(const char *class_name, bool is
 	if (!is_static || strcmp(class_name, "Transfer") != 0) return NULL;
 	static const struct { const char *signature; WrenForeignMethodFn method; } methods[] = {
 		{"active", active}, {"uploading", uploading}, {"inlineUpload", inline_upload},
+		{"inlineProgress", inline_progress},
 		{"beginSession(_)", begin}, {"endSession()", end}, {"done", done}, {"success", success},
 		{"aborted", aborted}, {"requestAbort()", abort_transfer}, {"tickDirty", tick_dirty},
 		{"snapshot()", snapshot}, {"drainLog()", drain_log}, {"dialogPending", dialog_pending},
 		{"dialogFilename", dialog_filename}, {"dialogRespond(_,_)", dialog_respond},
 		{"upload(_,_,_)", upload}, {"uploadBatch(_,_,_)", upload_batch}, {"download(_,_)", download},
-		{"autoPending_", automatic}, {"cancelAuto_()", cancel_automatic}
+		{"autoPending_", automatic}, {"cancelAuto_()", cancel_automatic},
+		{"ripUploadName_", rip_upload_name}, {"acceptRipUpload_()", accept_rip_upload}
 	};
 	for (size_t i = 0; i < sizeof(methods) / sizeof(methods[0]); ++i) if (strcmp(signature, methods[i].signature) == 0) return methods[i].method;
 	return NULL;

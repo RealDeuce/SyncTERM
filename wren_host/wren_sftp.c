@@ -1443,6 +1443,14 @@ st_wren_connected_handle_key(st_wren_connected_t *connected,
 	return 0;
 }
 
+int
+st_wren_connected_rip_transfer(st_wren_connected_t *connected,
+	const struct st_cterm_rip_transfer_request *request)
+{
+	return connected == NULL ? IO_ERROR_NOT_CONNECTED
+	    : st_wren_transfer_rip_request(&connected->context, request);
+}
+
 bool
 st_wren_connected_has_wire_hooks(const st_wren_connected_t *connected)
 {
@@ -1965,6 +1973,7 @@ st_wren_connected_pump(st_wren_connected_t *connected, uint32_t timeout_ms)
 
 	if (connected == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
+	st_wren_transfer_pump(&connected->context);
 	if (connected->timers != NULL && st_time_monotonic_ms(&now) == 0) {
 		for (struct pending_timer *timer = connected->timers; timer != NULL;
 		    timer = timer->next) {

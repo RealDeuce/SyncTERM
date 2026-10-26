@@ -299,6 +299,9 @@ WrenForeignMethodFn st_wren_session_bind_method(const char *class_name,
 WrenForeignMethodFn st_wren_transfer_bind_method(const char *class_name,
 	bool is_static, const char *signature);
 void st_wren_transfer_dispose(struct st_wren_context *context);
+int st_wren_transfer_rip_request(struct st_wren_context *context,
+	const struct st_cterm_rip_transfer_request *request);
+void st_wren_transfer_pump(struct st_wren_context *context);
 bool st_wren_transfer_detect_enabled(const struct st_wren_context *context);
 int st_wren_transfer_filter(struct st_wren_context *context, uint8_t byte,
 	bool *consumed, uint8_t *replacement, size_t capacity, size_t *size);

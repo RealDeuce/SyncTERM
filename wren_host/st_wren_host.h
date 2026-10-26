@@ -163,6 +163,9 @@ char *st_wren_connected_status_details(st_wren_connected_t *connected);
 int st_wren_connected_interpret(st_wren_connected_t *connected,
 	const char *module, const char *source);
 int st_wren_connected_shell_closed(st_wren_connected_t *connected);
+/* Synchronous CTerm owner callback; never enters the Wren VM. */
+int st_wren_connected_rip_transfer(st_wren_connected_t *connected,
+	const struct st_cterm_rip_transfer_request *request);
 bool st_wren_connected_auxiliary_active(const st_wren_connected_t *connected);
 int st_wren_connected_handle_key(st_wren_connected_t *connected,
 	uint16_t key, bool *consumed);

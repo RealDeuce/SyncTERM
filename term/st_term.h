@@ -65,6 +65,8 @@ struct st_term_config {
 	uint32_t initial_throttle_bps;
 	st_cterm_rip_prompt_callback_t rip_prompt;
 	void *rip_prompt_context;
+	st_cterm_rip_transfer_callback_t rip_transfer;
+	void *rip_transfer_context;
 	/* Called before built-in event handling; true consumes the event. */
 	int (*event_hook)(void *context, const struct st_console_event *event,
 	    bool *consumed);
@@ -120,6 +122,8 @@ void st_term_session_set_suspended(st_term_session_t *session, bool suspended);
 int st_term_session_begin_transfer(st_term_session_t *session, st_transfer_t *transfer);
 int st_term_session_end_transfer(st_term_session_t *session);
 void st_term_session_reserve_transfer(st_term_session_t *session, bool reserved);
+/* A RIP block-mode command ends with CR; its optional LF is framing. */
+void st_term_session_reserve_rip_transfer(st_term_session_t *session);
 const uint8_t *st_term_session_prestel_frame(st_term_session_t *session, size_t *size);
 void st_term_session_set_mouse_disabled(st_term_session_t *session,
 	bool disabled);

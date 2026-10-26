@@ -21,6 +21,13 @@
 
 typedef struct cterminal st_cterm_t;
 
+/* Owner-thread streaming of validated received RIP scene bytes. begin/end
+ * isolate file parsing from the live wire parser. end(false) discards an
+ * unfinished command after cancellation or an invalid transfer. */
+int st_cterm_rip_receive_begin(st_cterm_t *terminal);
+int st_cterm_rip_receive_data(st_cterm_t *terminal, const uint8_t *bytes, size_t size);
+int st_cterm_rip_receive_end(st_cterm_t *terminal, bool success);
+
 enum st_cterm_emulation {
 	ST_CTERM_ANSI_BBS,
 	ST_CTERM_PETSCII,
@@ -63,6 +70,17 @@ typedef void (*st_cterm_size_callback_t)(void *context, uint32_t columns,
 typedef int (*st_cterm_rip_prompt_callback_t)(void *context,
 	const char *question, const char *initial, size_t field_width,
 	bool reject_blank, char **result);
+
+struct st_cterm_rip_transfer_request {
+	bool upload;
+	unsigned protocol, file_type;
+	const char *directory, *filename;
+};
+/* Runs synchronously on the terminal owner at the terminating CR. Accepting
+ * must claim the connection before returning; borrowed strings cannot escape
+ * this callback. Protocol I/O and UI run outside the RIP parser. */
+typedef int (*st_cterm_rip_transfer_callback_t)(void *context,
+	const struct st_cterm_rip_transfer_request *request);
 
 #define ST_CTERM_INPUT_REPLACEMENT_CAPACITY 256
 /* Decoded Unicode scalar from received terminal text, including controls.
@@ -144,6 +162,8 @@ struct st_cterm_config {
 	/* Without a callback, interactive RIP_DEFINE leaves the variable unchanged. */
 	st_cterm_rip_prompt_callback_t rip_prompt;
 	void *rip_prompt_context;
+	st_cterm_rip_transfer_callback_t rip_transfer;
+	void *rip_transfer_context;
 	st_cterm_input_filter_t input_filter;
 	bool (*input_filter_active)(void *context);
 	void *input_filter_context;

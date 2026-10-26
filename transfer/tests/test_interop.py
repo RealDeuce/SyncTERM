@@ -8,9 +8,9 @@ import subprocess
 import tempfile
 
 KINDS = {'zmodem': 0, 'ymodem': 1, 'ymodem-g': 2, 'xmodem-1k': 3,
-         'xmodem-128': 4, 'xmodem-crc': 5, 'xmodem-chksum': 6}
+         'xmodem-128': 4, 'xmodem-crc': 5, 'xmodem-chksum': 6, 'xmodem-g': 11}
 
-def transfer(driver, executable, protocol, upload, source, destination, files, *, crc16=False):
+def transfer(driver, executable, protocol, upload, source, destination, files, *, crc16=False, receive_events=False):
     is_sexyz = Path(executable).name == 'sexyz'
     if upload:
         if protocol == 'zmodem': command = ['rz'] if is_sexyz else ['--zmodem', '-b', '-q']
@@ -32,7 +32,11 @@ def transfer(driver, executable, protocol, upload, source, destination, files, *
     with socket.socket() as listener, tempfile.TemporaryFile() as local_log, tempfile.TemporaryFile() as remote_log:
         listener.bind(('127.0.0.1', 0)); listener.listen(1); listener.settimeout(10)
         args[1] = str(listener.getsockname()[1])
-        local = subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=local_log)
+        environment = dict(os.environ)
+        environment.pop('ST_TRANSFER_RECEIVE_EVENTS', None)
+        if receive_events: environment['ST_TRANSFER_RECEIVE_EVENTS'] = '1'
+        local = subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                 stderr=local_log, env=environment)
         remote = None
         try:
             connection, _ = listener.accept()
@@ -84,12 +88,15 @@ def main():
                 if program: cases.append((program, 'zmodem', upload, files, False))
         if args.case in ('xymodem', 'all'):
             for upload in (False, True):
-                protocols = ('xmodem-128', 'xmodem-1k', 'ymodem', 'ymodem-g') if upload else ('xmodem-crc', 'xmodem-chksum', 'ymodem', 'ymodem-g')
+                protocols = ('xmodem-128', 'xmodem-1k', 'ymodem', 'ymodem-g') if upload else ('xmodem-crc', 'xmodem-chksum', 'xmodem-g', 'ymodem', 'ymodem-g')
                 for protocol in protocols:
                     batch = files if protocol.startswith('ymodem') else files[:1]
                     if args.sexyz: cases.append((args.sexyz, protocol, upload, batch, False))
                     program = args.lrx if upload else args.lsx
-                    if program and protocol != 'ymodem-g': cases.append((program, protocol, upload, batch, False))
+                    # Use sexyz for streaming X/YMODEM-g; the installed
+                    # lrzsz 0.12.20 peer fails these streaming exchanges.
+                    if program and protocol not in ('ymodem-g', 'xmodem-g'):
+                        cases.append((program, protocol, upload, batch, False))
         for number, (program, protocol, upload, selected, crc16) in enumerate(cases):
             # This native sexyz version rejects ZRPOS 0 for an empty source.
             # Exercise empty ZMODEM downloads against independent lrzsz instead.
@@ -101,6 +108,14 @@ def main():
         if args.case in ('zmodem', 'all'):
             for program in (args.sexyz, args.lsx):
                 if not program: continue
+                destination = root / (Path(program).name + '-events')
+                destination.mkdir()
+                print(f'{Path(program).name} zmodem receive events', flush=True)
+                # Events must describe exactly the written bytes, including
+                # split 8-KiB subpackets, rather than resuming past a prefix.
+                (destination / files[0]).write_bytes(b'old asset')
+                transfer(args.driver, program, 'zmodem', False, source, destination,
+                         files[::2], receive_events=True)
                 for mode in ('partial', 'complete', 'mismatch'):
                     destination = root / (Path(program).name + '-' + mode)
                     destination.mkdir()

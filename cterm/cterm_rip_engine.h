@@ -67,6 +67,7 @@ struct cterm_rip_engine {
 	struct cterm_rip_user_var *user_vars;
 	size_t commands_seen;
 	size_t scene_depth;
+	struct cterm_rip_parser *received_scene_parser;
 };
 
 int cterm_rip_engine_init(struct cterm_rip_engine *engine,
@@ -75,6 +76,10 @@ void cterm_rip_engine_destroy(struct cterm_rip_engine *engine);
 int cterm_rip_engine_feed(struct cterm_rip_engine *engine,
     const uint8_t *bytes, size_t size, size_t *consumed);
 int cterm_rip_engine_flush(struct cterm_rip_engine *engine);
+int cterm_rip_engine_receive_begin(struct cterm_rip_engine *engine);
+int cterm_rip_engine_receive_data(struct cterm_rip_engine *engine,
+    const uint8_t *bytes, size_t size);
+int cterm_rip_engine_receive_end(struct cterm_rip_engine *engine, bool success);
 void cterm_rip_engine_clear_mouse(struct cterm_rip_engine *engine);
 void cterm_rip_engine_clear_tab(struct cterm_rip_engine *engine);
 void cterm_rip_engine_next_tab(struct cterm_rip_engine *engine, bool forward);

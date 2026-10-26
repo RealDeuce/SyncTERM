@@ -15,6 +15,11 @@
 /* The returned path is allocated. Invalid remote names return NULL. */
 char *cterm_rip_asset_path(const char *directory, const char *filename,
     bool append_icon_extension);
+/* Resolve a download destination or upload source, with DOS case lookup.
+ * The root must be a real directory; existing entries must be regular files.
+ * An absent file is allowed only for a destination. */
+int cterm_rip_asset_transfer_path(char **result, const char *directory,
+    const char *filename, bool upload);
 /* Only regular files in the real asset directory are opened. */
 FILE *cterm_rip_asset_open_read(const char *directory,
     const char *filename, bool append_icon_extension);

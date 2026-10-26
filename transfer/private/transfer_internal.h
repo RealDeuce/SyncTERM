@@ -14,7 +14,8 @@ struct st_transfer {
 	st_thread_t thread;
 	bool thread_started;
 	/* Mutex owns queue, EOF/abort/completion, snapshots, logs and dialog.
-	 * changed means input arrived, EOF/abort occurred, or a dialog was answered.
+	 * changed means input arrived, EOF/abort occurred, a dialog was answered,
+	 * or the owner made space in the received-data mailbox.
 	 * The owner feeds input and drains mailboxes; the worker waits in loops. */
 	st_mutex_t mutex;
 	st_condition_t changed;
@@ -25,6 +26,8 @@ struct st_transfer {
 	struct st_transfer_snapshot snapshot;
 	struct st_transfer_log logs[ST_TRANSFER_LOG_CAPACITY];
 	size_t log_head, log_size, log_dropped;
+	struct st_transfer_receive_event received[16];
+	size_t received_head, received_size;
 	enum st_transfer_dialog dialog;
 	char dialog_name[1024], response_name[1024];
 	int response;
@@ -55,6 +58,8 @@ int st_transfer_send_bytes(st_transfer_t *t, const void *bytes, size_t size, uns
 int st_transfer_request_dialog(st_transfer_t *t, enum st_transfer_dialog kind, const char *name, char *new_name, size_t size);
 /* Returns 0 with a destination, 1 on skip, or an IO_ERROR. */
 int st_transfer_destination(st_transfer_t *t, const char *name, char **path, bool allow_existing);
+int st_transfer_received(st_transfer_t *t, enum st_transfer_receive_kind kind,
+	const uint8_t *bytes, size_t size, bool success);
 int st_transfer_run_zmodem(st_transfer_t *t);
 int st_transfer_run_xymodem(st_transfer_t *t);
 int st_transfer_run_cet(st_transfer_t *t);

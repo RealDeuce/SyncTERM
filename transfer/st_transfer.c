@@ -172,28 +172,68 @@ int st_transfer_request_dialog(st_transfer_t *t, enum st_transfer_dialog kind,
 }
 int st_transfer_destination(st_transfer_t *t, const char *name, char **path, bool allow_existing)
 {
-	const char *base = path_untrusted_basename(name);
+	const char *base = t->config.destination == NULL ? path_untrusted_basename(name) : name;
 	char renamed[1024];
 	if (!path_untrusted_component_valid(base)) return IO_ERROR_INVALID_ARGUMENT;
-	int status = path_join_alloc(path, t->directory, base);
+	int status = t->config.destination == NULL ? path_join_alloc(path, t->directory, base)
+	    : t->config.destination(t->config.destination_context, t->directory, base, path);
 	while (status == 0) {
 		struct fs_info info;
 		status = fs_get_link_info(&info, *path);
 		if (status == IO_ERROR_NOT_FOUND) return 0;
 		if (status != 0) break;
 		if (info.kind != FS_ENTRY_FILE) { status = IO_ERROR_INVALID_ARGUMENT; break; }
-		if (allow_existing) return 0;
+		if (allow_existing || t->config.overwrite || t->config.discard) return 0;
 		int response = st_transfer_request_dialog(t, ST_TRANSFER_DIALOG_DUPLICATE, base, renamed, sizeof(renamed));
 		if (st_transfer_cancelled(t)) { status = IO_ERROR_CANCELLED; break; }
 		if (response == ST_TRANSFER_SKIP) { status = 1; break; }
 		if (response == ST_TRANSFER_OVERWRITE) return 0;
 		if (!path_untrusted_component_valid(renamed)) { status = IO_ERROR_INVALID_ARGUMENT; break; }
 		free(*path); *path = NULL;
-		status = path_join_alloc(path, t->directory, renamed);
+		status = t->config.destination == NULL ? path_join_alloc(path, t->directory, renamed)
+		    : t->config.destination(t->config.destination_context, t->directory, renamed, path);
 		base = renamed;
 	}
 	free(*path); *path = NULL;
 	return status;
+}
+int st_transfer_received(st_transfer_t *t, enum st_transfer_receive_kind kind,
+	const uint8_t *bytes, size_t size, bool success)
+{
+	if (!t->config.receive_events) return 0;
+	do {
+		(void)st_mutex_lock(&t->mutex);
+		while (t->received_size == 16 && !t->abort && !t->eof)
+			(void)st_condition_wait(&t->changed, &t->mutex);
+		if (t->abort || t->eof) {
+			(void)st_mutex_unlock(&t->mutex);
+			return IO_ERROR_CANCELLED;
+		}
+		struct st_transfer_receive_event *event = &t->received[(t->received_head + t->received_size++) % 16];
+		event->kind = kind;
+		strlcpy(event->filename, t->current_name, sizeof(event->filename));
+		event->size = size > sizeof(event->bytes) ? sizeof(event->bytes) : size;
+		event->success = success;
+		if (event->size != 0) memcpy(event->bytes, bytes, event->size);
+		size_t count = event->size;
+		(void)st_mutex_unlock(&t->mutex);
+		if (size == 0) break;
+		bytes += count; size -= count;
+	} while (size != 0);
+	return 0;
+}
+bool st_transfer_take_received(st_transfer_t *t, struct st_transfer_receive_event *event)
+{
+	if (t == NULL || event == NULL) return false;
+	(void)st_mutex_lock(&t->mutex);
+	bool available = t->received_size != 0;
+	if (available) {
+		*event = t->received[t->received_head];
+		t->received_head = (t->received_head + 1) % 16; --t->received_size;
+		(void)st_condition_broadcast(&t->changed);
+	}
+	(void)st_mutex_unlock(&t->mutex);
+	return available;
 }
 static int worker(void *context)
 {
@@ -233,10 +273,12 @@ static int worker(void *context)
 int st_transfer_create(st_transfer_t **result, const struct st_transfer_config *config)
 {
 	if (result == NULL || config == NULL || config->protocol < ST_TRANSFER_ZMODEM
-	    || config->protocol > ST_TRANSFER_FAKE || (config->protocol != ST_TRANSFER_FAKE && config->send == NULL)
+	    || config->protocol > ST_TRANSFER_XMODEM_G || (config->protocol != ST_TRANSFER_FAKE && config->send == NULL)
 	    || (config->upload && (config->path_count == 0 || config->paths == NULL))
 	    || (!config->upload && config->protocol != ST_TRANSFER_FAKE && (config->directory == NULL || !*config->directory))) return IO_ERROR_INVALID_ARGUMENT;
 	if (config->path_count > 65536
+	    || (config->upload && (config->discard || config->receive_events))
+	    || (config->receive_events && config->protocol == ST_TRANSFER_ZMODEM && !config->overwrite && !config->discard)
 	    || config->last_ch < 0 || config->last_ch > 255
 	    || (config->upload && config->path_count != 1 && config->protocol != ST_TRANSFER_ZMODEM
 	    && config->protocol != ST_TRANSFER_YMODEM && config->protocol != ST_TRANSFER_YMODEM_G)

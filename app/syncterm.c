@@ -599,6 +599,12 @@ run_wren_event_hook(void *context, const struct st_console_event *event,
 	return st_wren_connected_handle_event(connected, event, consumed);
 }
 
+static int
+run_wren_rip_transfer(void *context, const struct st_cterm_rip_transfer_request *request)
+{
+	return st_wren_connected_rip_transfer(*(st_wren_connected_t **)context, request);
+}
+
 static bool
 wren_wire_filter_active(void *context)
 {
@@ -745,6 +751,8 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 		.encoding = st_term_profile_encoding(profile),
 		.rip_version = st_term_profile_rip_version(profile),
 		.rip_directory = cache_directory,
+		.rip_transfer = run_wren_rip_transfer,
+		.rip_transfer_context = &connected,
 		.apc_directory = cache_directory,
 		.application_version = application_title,
 		.codepage = profile->encoding == ST_PROFILE_ENCODING_UTF8

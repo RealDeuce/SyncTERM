@@ -375,15 +375,83 @@ engine_sink(struct cterm_rip_engine *engine)
 	};
 }
 
+/* Received and cached scenes contain codepage bytes, unlike the live
+ * terminal wire path which has already been translated to UTF-8. */
+static int
+feed_scene_bytes(struct cterm_rip_engine *engine, const uint8_t *bytes, size_t size)
+{
+	char unicode[4096 * 4];
+	while (size != 0) {
+		size_t count = size > 4096 ? 4096 : size, consumed;
+		const uint8_t *input = bytes;
+		size_t input_size = count;
+
+		if (engine->raster.unicode_text) {
+			input_size = 0;
+			for (size_t i = 0; i < count; ++i) {
+				uint32_t scalar = bytes[i] < 0x80 ? bytes[i]
+				    : st_codepage_to_unicode(engine->raster.text_codepage, bytes[i], false);
+				ptrdiff_t written = st_utf8_encode_one(unicode + input_size,
+				    sizeof(unicode) - input_size, scalar);
+				if (written < 0) return (int)written;
+				input_size += (size_t)written;
+			}
+			input = (const uint8_t *)unicode;
+		}
+		int status = cterm_rip_engine_feed(engine, input, input_size, &consumed);
+		if (status != 0) return status;
+		if (consumed != input_size) return IO_ERROR_IO;
+		bytes += count; size -= count;
+	}
+	return 0;
+}
+
+int
+cterm_rip_engine_receive_begin(struct cterm_rip_engine *engine)
+{
+	if (engine->received_scene_parser != NULL || engine->scene_depth != 0)
+		return IO_ERROR_BUSY;
+	engine->received_scene_parser = malloc(sizeof(engine->parser));
+	if (engine->received_scene_parser == NULL) return IO_ERROR_OUT_OF_MEMORY;
+	*engine->received_scene_parser = engine->parser;
+	cterm_rip_parser_init(&engine->parser, engine->parser.enabled);
+	engine->parser.utf8_input = engine->raster.unicode_text;
+	++engine->scene_depth;
+	return 0;
+}
+
+int
+cterm_rip_engine_receive_data(struct cterm_rip_engine *engine,
+    const uint8_t *bytes, size_t size)
+{
+	if (engine->received_scene_parser == NULL) return IO_ERROR_INVALID_ARGUMENT;
+	return feed_scene_bytes(engine, bytes, size);
+}
+
+int
+cterm_rip_engine_receive_end(struct cterm_rip_engine *engine, bool success)
+{
+	int status = 0;
+	if (engine->received_scene_parser == NULL) return 0;
+	if (success) {
+		struct cterm_rip_parser_sink sink = engine_sink(engine);
+		status = cterm_rip_parser_flush(&engine->parser, &sink);
+	}
+	cterm_rip_parser_destroy(&engine->parser);
+	engine->parser = *engine->received_scene_parser;
+	free(engine->received_scene_parser); engine->received_scene_parser = NULL;
+	--engine->scene_depth;
+	return status;
+}
+
 static int
 play_scene_file(struct cterm_rip_engine *engine, const char *filename)
 {
 	struct cterm_rip_parser saved;
 	struct cterm_rip_parser_sink sink;
 	uint8_t bytes[4096];
-	char unicode[sizeof(bytes) * 4];
 	FILE *stream;
-	size_t size, consumed;
+	size_t size;
 	int status = 0;
 
 	if (filename[0] == '\0' || engine->scene_depth >= 8)
@@ -397,38 +465,9 @@ play_scene_file(struct cterm_rip_engine *engine, const char *filename)
 	engine->parser.utf8_input = engine->raster.unicode_text;
 	engine->scene_depth++;
 	while ((size = fread(bytes, 1, sizeof(bytes), stream)) != 0) {
-		const uint8_t *input = bytes;
-		size_t input_size = size;
-
-		if (engine->raster.unicode_text) {
-			/* Saved scenes bypass term.c's wire boundary: translate
-			 * their codepage bytes before feeding the UTF-8 parser. */
-			input_size = 0;
-			for (size_t i = 0; i < size; i++) {
-				uint32_t scalar = bytes[i] < 0x80 ? bytes[i]
-				    : st_codepage_to_unicode(
-				    engine->raster.text_codepage, bytes[i], false);
-				ptrdiff_t written = st_utf8_encode_one(
-				    unicode + input_size,
-				    sizeof(unicode) - input_size, scalar);
-
-				if (written < 0) {
-					status = (int)written;
-					break;
-				}
-				input_size += (size_t)written;
-			}
-			if (status != 0)
-				break;
-			input = (const uint8_t *)unicode;
-		}
-		status = cterm_rip_engine_feed(engine, input, input_size,
-		    &consumed);
-		if (status != 0 || consumed != input_size) {
-			if (status == 0)
-				status = IO_ERROR_IO;
+		status = feed_scene_bytes(engine, bytes, size);
+		if (status != 0)
 			break;
-		}
 	}
 	if (status == 0) {
 		sink = engine_sink(engine);
@@ -467,6 +506,7 @@ cterm_rip_engine_destroy(struct cterm_rip_engine *engine)
 
 	if (engine == NULL)
 		return;
+	(void)cterm_rip_engine_receive_end(engine, false);
 	cterm_rip_parser_destroy(&engine->parser);
 	cterm_rip_engine_clear_mouse(engine);
 	free_mouse_fields(&engine->saved_mouse_fields);

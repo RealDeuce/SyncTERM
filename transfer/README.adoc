@@ -28,6 +28,31 @@ ASCII normalizes LF to CRLF across chunk boundaries; raw uploads preserve bytes.
 CET accepts the current Prestel frame as its header seed, handles locking
 shifts and multiple blocks per frame, and returns its last frame for replay.
 
+== RIP block transfers
+
+RIP_ENTER_BLOCK_MODE (`!|9<ESC>`) claims the stream at its terminating CR;
+one optional LF is framing, and subsequent bytes go directly to the worker.
+XMODEM checksum/CRC/1K/1K-g, YMODEM/YMODEM-g and ZMODEM requests are supported.
+Kermit requests are rejected with a diagnostic and cancellation.
+
+Downloads use the BBS asset cache, independent of the normal download directory.
+Names follow the same confined, DOS case-insensitive lookup as icon and scene
+reads; paths, reserved device names, links and non-file destinations are rejected.
+Existing cache assets are refreshed without collision prompts or partial resume.
+The normal manual/automatic download policy is unchanged.
+
+File type 0 displays received scenes using temporary storage, without retaining
+files. Types 1, 2 and 3 store scenes, icons and help files. Type 4 stores a batch
+of `.RIP`/`.ICN` files; type 5 also displays RIP data as validated blocks arrive.
+The existing renderer has no HLP viewer, so type 3 stores the file only.
+The owner drains a bounded receive mailbox and feeds a separate scene parser;
+workers never render. Failed files discard unfinished commands. Plain wire
+parsing resumes after the batch, and stored scenes cannot initiate transfers.
+Live display modes use status-row progress rather than a saved-screen modal.
+
+Every host-requested upload requires confirmation and is confined to one
+regular file in that BBS's cache. Refusal sends ten CAN bytes at 100-ms intervals.
+
 == Verification
 
 The always-built CTest `transfer` checks CRC vectors, detector rejection,
@@ -36,6 +61,11 @@ It also checks the final YMODEM ACK, ACK followed immediately by EOF, retry of
 a NAKed batch terminator, and failure when the final ACK is absent.
 The `term` and `wren_host` tests cover stream handoff, raw capture, binary-mode
 restoration, the real progress App, cancellation, VM teardown and auto-ZMODEM.
+`cterm_rip_transfer` checks request parsing and received-scene isolation.
+The transfer test also fills the receive mailbox and checks ordered delivery,
+backpressure, discard, abort and EOF. With Python available, `wren_host` drives
+an independent X/YMODEM RIP peer through all six file modes and upload
+acceptance/refusal, including the required CAN timing and live rendering.
 
 On native POSIX builds CMake discovers optional external peers through
 `ST_TRANSFER_SEXYZ`, `ST_TRANSFER_LSX` and `ST_TRANSFER_LRX`. When Python and

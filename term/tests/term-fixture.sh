@@ -4,6 +4,10 @@
 # Keep shell programs out of the deliberately bounded BBS address field.
 set -eu
 case "$1" in
+rip)
+	stty raw -echo
+	exec "$ST_RIP_TEST_PYTHON" ../wren_host/rip-peer.py "$2"
+	;;
 auto-transfer)
 	stty raw -echo
 	printf 'BEFORE**\030B00000000000000\r\n\021'

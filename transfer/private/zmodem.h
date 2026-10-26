@@ -232,6 +232,8 @@
 #define ZF0_ZCACK1      0x01    /* Acknowledge, then do command */
 
 typedef struct {
+	/* Validated, sequential received data, after writing. */
+	int (*received)(void *context, const uint8_t *bytes, size_t size);
 
 	uint8_t rxd_header[ZMAXHLEN];                                  /* last received header */
 	int rxd_header_len;                                         /* last received header size */

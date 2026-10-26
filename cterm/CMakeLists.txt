@@ -195,6 +195,24 @@ if(BUILD_TESTING)
 			-Wall -Wextra -Wpedantic -Werror)
 	endif()
 	add_test(NAME cterm_rip_icon_file COMMAND st_cterm_rip_icon_file_test)
+	add_executable(st_cterm_rip_transfer_test tests/st_cterm_rip_transfer_test.c)
+	target_link_libraries(st_cterm_rip_transfer_test PRIVATE st_cterm syncterm_filesystem)
+	target_compile_definitions(st_cterm_rip_transfer_test PRIVATE
+		RIP_TRANSFER_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/rip-transfer-test")
+	set_target_properties(st_cterm_rip_transfer_test PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
+		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_definitions(st_cterm_rip_transfer_test PRIVATE _CRT_SECURE_NO_WARNINGS)
+		target_compile_options(st_cterm_rip_transfer_test PRIVATE /W4 /WX)
+	else()
+		target_compile_options(st_cterm_rip_transfer_test PRIVATE -Wall -Wextra -Wpedantic -Werror)
+	endif()
+	add_test(NAME cterm_rip_transfer COMMAND st_cterm_rip_transfer_test)
+	if(NOT WIN32)
+		target_compile_definitions(st_cterm_rip_transfer_test PRIVATE
+			ST_RIP_TRANSFER_TEST_POSIX=1 _POSIX_C_SOURCE=200809L)
+	endif()
+
 	add_executable(st_cterm_rip_assets_test
 		tests/st_cterm_rip_assets_test.c)
 	target_link_libraries(st_cterm_rip_assets_test PRIVATE st_cterm

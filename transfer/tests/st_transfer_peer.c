@@ -5,6 +5,7 @@
 #include "st_threads.h"
 #include "st_time.h"
 #include "io_error.h"
+#include "filesystem/filesystem.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -26,15 +27,20 @@ int main(int argc, char **argv)
 	struct st_transfer_config config = {.upload = strcmp(argv[2], "send") == 0,
 	    .protocol = (enum st_transfer_protocol)strtol(argv[3], NULL, 10),
 	    .directory = argv[4], .send = send_bytes, .send_context = connection};
+	config.receive_events = !config.upload && getenv("ST_TRANSFER_RECEIVE_EVENTS") != NULL;
+	config.overwrite = config.receive_events;
 	if (config.upload) { config.paths = (const char *const *)(argv + 5); config.path_count = (size_t)argc - 5; }
 	else config.filename = argc > 5 ? argv[5] : NULL;
 	st_transfer_t *t = NULL;
 	int status = st_transfer_start(&t, &config);
+	uint8_t received[100000]; size_t received_size = 0;
+	bool receiving_file = false;
 	uint64_t start = 0, now = 0; st_time_monotonic_ms(&start);
-	while (status == 0 && !st_transfer_done(t)) {
+	while (status == 0) {
+		bool done = st_transfer_done(t);
 		uint8_t bytes[8192]; size_t size = st_transfer_input_space(t);
 		if (size > sizeof(bytes)) size = sizeof(bytes);
-		if (size != 0) {
+		if (!done && size != 0) {
 			ssize_t count = st_connection_receive(connection, bytes, size, 10);
 			if (count > 0) st_transfer_feed(t, bytes, (size_t)count);
 			else if (count == 0 || (count < 0 && count != IO_ERROR_TIMED_OUT && count != IO_ERROR_WOULD_BLOCK)) st_transfer_eof(t);
@@ -44,8 +50,38 @@ int main(int argc, char **argv)
 			st_transfer_respond(t, ST_TRANSFER_OVERWRITE, "");
 		struct st_transfer_log logs[32]; size_t count = st_transfer_drain_log(t, logs, 32);
 		for (size_t i = 0; i < count; ++i) if (logs[i].level <= 6 || getenv("ST_TRANSFER_DEBUG")) fprintf(stderr, "%d %s\n", logs[i].level, logs[i].text);
+		struct st_transfer_receive_event event;
+		while (st_transfer_take_received(t, &event)) {
+			if (event.kind == ST_TRANSFER_RECEIVE_BEGIN) {
+				if (receiving_file) { status = IO_ERROR_INVALID_FORMAT; break; }
+				receiving_file = true; received_size = 0;
+			}
+			else if (event.kind == ST_TRANSFER_RECEIVE_DATA) {
+				if (event.size > sizeof(received) - received_size) { status = IO_ERROR_OUT_OF_RANGE; break; }
+				memcpy(received + received_size, event.bytes, event.size); received_size += event.size;
+			} else {
+				char path[2048]; FILE *file = NULL;
+				snprintf(path, sizeof(path), "%s/%s", config.directory, event.filename);
+				if (!event.success || fs_open(&file, path, "rb") != 0) { status = IO_ERROR_IO; break; }
+				uint8_t actual[4096]; size_t position = 0, size;
+				while ((size = fread(actual, 1, sizeof(actual), file)) != 0) {
+					if (size > received_size - position || memcmp(actual, received + position, size) != 0) {
+						status = IO_ERROR_INVALID_FORMAT; break;
+					}
+					position += size;
+				}
+				if (ferror(file) || position != received_size) status = IO_ERROR_IO;
+				fclose(file);
+				receiving_file = false;
+			}
+		}
+		if (done) {
+			if (receiving_file) status = IO_ERROR_INVALID_FORMAT;
+			break;
+		}
 		st_time_monotonic_ms(&now);
-		if (now - start > 30000) { st_transfer_request_abort(t); status = IO_ERROR_TIMED_OUT; }
+		if (now - start > 30000) status = IO_ERROR_TIMED_OUT;
+		if (status != 0) st_transfer_request_abort(t);
 	}
 	if (status == 0) status = st_transfer_result(t);
 	fprintf(stderr, "transfer result=%d\n", status);

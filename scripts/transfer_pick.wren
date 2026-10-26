@@ -4,7 +4,7 @@ import "syncterm" for Transfer, Host, BBS, CTerm, Emulation, Screen, Input,
                        Key, KeyEvent, Timer, FilePickerOptions
 import "ui_app" for App
 import "ui_picker" for ListPicker
-import "ui_popup" for Alert, LinePrompt
+import "ui_popup" for Alert, LinePrompt, Confirm
 import "transfer_app" for TransferApp
 
 class TransferFlow {
@@ -26,7 +26,16 @@ class TransferFlow {
     if (busy || Host.safeMode) return
     __busy = true
     Fiber.new {
-      var result = Fiber.new { work.call() }.try()
+      var task = Fiber.new { work.call() }
+      task.try()
+      // try() returns on the first yield as well as on completion. Keep
+      // ownership until the UI/inline fiber actually finishes; its own
+      // input and timer sources resume it while this supervisor parks.
+      while (!task.isDone) {
+        Timer.trigger(Fiber.current, 25)
+        Fiber.yield()
+      }
+      var result = task.error
       if (Transfer.active) Transfer.endSession()
       Transfer.cancelAuto_()
       __busy = false
@@ -95,6 +104,28 @@ class TransferFlow {
       upload(true, 0)
     } else if (pending == "download") {
       launch_(Fn.new { TransferApp.new("ZMODEM Download").run() })
+    } else if (pending == "rip-download") {
+      launch_(Fn.new {
+        if (Transfer.inlineProgress) {
+          inline_()
+        } else {
+          var app = TransferApp.new("RIP Asset Download")
+          app.waitTimeoutMs = 0
+          app.run()
+        }
+      })
+    } else if (pending == "rip-upload") {
+      launch_(Fn.new {
+        var allow = false
+        Screen.modalRun(Fn.new {
+          allow = Confirm.runStandalone(App.new(), "The host requests an upload of cached RIP file %(Transfer.ripUploadName_). Allow?")
+        })
+        if (!allow) return
+        Transfer.acceptRipUpload_()
+        var app = TransferApp.new("RIP Asset Upload")
+        app.waitTimeoutMs = 0
+        app.run()
+      })
     }
   }
   static inline_() {
@@ -112,7 +143,7 @@ class TransferFlow {
     claim.pop()
     Transfer.endSession()
     if (!ok) Screen.modalRun(Fn.new {
-      Alert.runStandalone(App.new(), "Upload", "Upload failed or was cancelled. See the session log for details.")
+      Alert.runStandalone(App.new(), "File Transfer", "Transfer failed or was cancelled. See the session log for details.")
     })
   }
   static uploadHelp {

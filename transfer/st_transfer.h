@@ -12,7 +12,8 @@ enum st_transfer_protocol {
 	ST_TRANSFER_ZMODEM, ST_TRANSFER_YMODEM, ST_TRANSFER_YMODEM_G,
 	ST_TRANSFER_XMODEM_1K, ST_TRANSFER_XMODEM_128,
 	ST_TRANSFER_XMODEM_CRC, ST_TRANSFER_XMODEM_CHECKSUM,
-	ST_TRANSFER_ASCII, ST_TRANSFER_RAW, ST_TRANSFER_CET, ST_TRANSFER_FAKE
+	ST_TRANSFER_ASCII, ST_TRANSFER_RAW, ST_TRANSFER_CET, ST_TRANSFER_FAKE,
+	ST_TRANSFER_XMODEM_G
 };
 struct st_transfer_config {
 	enum st_transfer_protocol protocol;
@@ -22,6 +23,15 @@ struct st_transfer_config {
 	const char *directory;
 	const char *filename;
 	int last_ch;
+	/* Optional receive policy. The callback runs on the worker and returns
+	 * an allocated destination or an IO_ERROR. Borrowed until join. */
+	int (*destination)(void *context, const char *directory, const char *name, char **path);
+	void *destination_context;
+	bool overwrite; /* Explicit asset-refresh policy; disables ZMODEM resume. */
+	bool discard; /* Receive into a temporary stream instead of the destination. */
+	/* Owner must drain the bounded event mailbox. ZMODEM event consumers
+	 * select overwrite or discard, so playback always starts at offset zero. */
+	bool receive_events;
 	/* Borrowed until destroy joins the worker. Must honor the timeout and
 	 * short counts. No receive callback: the terminal owner feeds input. */
 	ssize_t (*send)(void *context, const void *bytes, size_t size, int64_t timeout_ms);
@@ -32,6 +42,16 @@ struct st_transfer_snapshot {
 	int64_t bytes_current, bytes_total;
 };
 struct st_transfer_log { int level; char text[480]; };
+enum st_transfer_receive_kind { ST_TRANSFER_RECEIVE_BEGIN, ST_TRANSFER_RECEIVE_DATA, ST_TRANSFER_RECEIVE_END };
+struct st_transfer_receive_event {
+	enum st_transfer_receive_kind kind;
+	char filename[1024];
+	uint8_t bytes[4096];
+	size_t size;
+	bool success; /* END only; failed files must not flush an incomplete scene. */
+};
+/* Nonblocking owner receive; wakes a producer waiting for mailbox capacity. */
+bool st_transfer_take_received(st_transfer_t *transfer, struct st_transfer_receive_event *event);
 enum st_transfer_dialog { ST_TRANSFER_DIALOG_NONE, ST_TRANSFER_DIALOG_DUPLICATE, ST_TRANSFER_DIALOG_FILENAME };
 enum st_transfer_response { ST_TRANSFER_OVERWRITE, ST_TRANSFER_SKIP, ST_TRANSFER_RENAME };
 

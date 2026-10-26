@@ -37,6 +37,7 @@ struct st_term_session {
 	size_t wire_size;
 	st_transfer_t *transfer;
 	bool transfer_reserved, transfer_was_binary, wire_replaying;
+	bool transfer_skip_lf;
 	uint8_t *returned_wire;
 	size_t returned_position, returned_size;
 	uint8_t prestel_frame[65536];
@@ -323,6 +324,8 @@ st_term_session_create(st_term_session_t **result,
 		.speed_context = session,
 		.rip_prompt = config->rip_prompt,
 		.rip_prompt_context = config->rip_prompt_context,
+		.rip_transfer = config->rip_transfer,
+		.rip_transfer_context = config->rip_transfer_context,
 		.input_filter = config->input_filter,
 		.input_filter_active = config->input_filter_active,
 		.input_filter_context = config->input_filter_context,
@@ -972,15 +975,18 @@ st_term_session_pump(st_term_session_t *session,
 		if (session->transfer != NULL && st_transfer_done(session->transfer)) break;
 		if (protocol_input) {
 			size_t count = size - *position, space = st_transfer_input_space(session->transfer);
-			if (count > space) count = space;
+			bool skip = session->transfer_skip_lf && bytes[*position] == '\n';
+			if (skip) count = 1;
+			if (!skip && count > space) count = space;
 			if (count == 0) break;
+			session->transfer_skip_lf = false;
 			if (!replay && session->config.wire_capture != NULL
 			    && (session->config.capture_active == NULL
 			    || session->config.capture_active(session->config.capture_context))) {
 				status = session->config.wire_capture(session->config.capture_context, bytes + *position, count);
 				if (status != 0) return status;
 			}
-			*position += st_transfer_feed(session->transfer, bytes + *position, count);
+			*position += skip ? count : st_transfer_feed(session->transfer, bytes + *position, count);
 			continue;
 		}
 		if (session->transfer == NULL && session->throttle_bps != 0) {
@@ -992,6 +998,7 @@ st_term_session_pump(st_term_session_t *session,
 		    && (session->config.wire_filter_active == NULL
 		    || session->config.wire_filter_active(session->config.wire_filter_context));
 		if (!filtering && !session->config.throttle_supported && session->throttle_bps == 0
+		    && session->config.rip_version == ST_CTERM_RIP_OFF
 		    && session->config.screen_mode != ST_SCREEN_MODE_PRESTEL)
 			count = size - *position;
 		if (!replay && session->config.screen_mode == ST_SCREEN_MODE_PRESTEL) {
@@ -1114,6 +1121,7 @@ st_term_session_end_transfer(st_term_session_t *session)
 	}
 	session->transfer = NULL;
 	session->transfer_reserved = false;
+	session->transfer_skip_lf = false;
 	int restored = st_connection_set_binary_mode(session->config.connection,
 	    session->transfer_was_binary);
 	return status != 0 ? status : restored;
@@ -1121,7 +1129,18 @@ st_term_session_end_transfer(st_term_session_t *session)
 void
 st_term_session_reserve_transfer(st_term_session_t *session, bool reserved)
 {
-	if (session != NULL) session->transfer_reserved = reserved;
+	if (session != NULL) {
+		session->transfer_reserved = reserved;
+		if (!reserved) session->transfer_skip_lf = false;
+	}
+}
+void
+st_term_session_reserve_rip_transfer(st_term_session_t *session)
+{
+	if (session != NULL) {
+		session->transfer_reserved = true;
+		session->transfer_skip_lf = true;
+	}
 }
 const uint8_t *
 st_term_session_prestel_frame(st_term_session_t *session, size_t *size)

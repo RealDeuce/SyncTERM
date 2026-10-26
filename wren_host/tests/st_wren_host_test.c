@@ -19,6 +19,9 @@
 #include "st_console.h"
 #include "console_internal.h"
 #include "st_cterm.h"
+#include "cterm.h"
+#include "cterm_rip_engine.h"
+#include "st_pixels.h"
 #include "st_font_catalog.h"
 #include "st_profile.h"
 #include "st_settings.h"
@@ -35,6 +38,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
+static int queue_text(st_console_t *console, const char *text);
 
 #if ST_WREN_TEST_HAVE_PTY
 #include <fcntl.h>
@@ -1182,6 +1187,134 @@ static int exercise_auto_transfer(st_wren_host_t *host, st_console_t *console)
 	st_font_catalog_destroy(fonts); st_profile_dispose(&profile);
 	return 0;
 }
+
+#ifdef ST_RIP_TEST_PYTHON
+struct rip_wire { uint8_t bytes[4096]; size_t size; };
+static int capture_rip_wire(void *context, const uint8_t *bytes, size_t size)
+{
+	struct rip_wire *wire = context;
+	if (size > sizeof(wire->bytes) - wire->size) return IO_ERROR_OUT_OF_RANGE;
+	memcpy(wire->bytes + wire->size, bytes, size); wire->size += size;
+	return 0;
+}
+static int rip_transfer_request(void *context, const struct st_cterm_rip_transfer_request *request)
+{
+	return st_wren_connected_rip_transfer(*(st_wren_connected_t **)context, request);
+}
+static int rip_transfer_event(void *context, const struct st_console_event *event, bool *consumed)
+{
+	return st_wren_connected_handle_event(*(st_wren_connected_t **)context, event, consumed);
+}
+static int exercise_rip_transfer(st_wren_host_t *host, st_console_t *console)
+{
+	CHECK(setenv("ST_RIP_TEST_PYTHON", ST_RIP_TEST_PYTHON, 1) == 0);
+	const char *cache = ST_WREN_TEST_DIRECTORY "/rip-cache";
+	CHECK(fs_create_directories(cache) == 0);
+	const char *files[] = {"upload.rip", "stored.rip", "asset.icn", "help.hlp", "scene.rip"};
+	for (size_t i = 0; i < sizeof(files) / sizeof(files[0]); ++i) {
+		char path[1024]; snprintf(path, sizeof(path), "%s/%s", cache, files[i]);
+		int removed = fs_remove_file(path);
+		CHECK(removed == 0 || removed == IO_ERROR_NOT_FOUND);
+	}
+	CHECK(fs_replace_file(ST_WREN_TEST_DIRECTORY "/rip-cache/upload.rip", "SECRET", 6) == 0);
+	for (unsigned mode = 0; mode < 8; ++mode) {
+		st_font_catalog_t *fonts = NULL;
+		st_connection_t *connection = NULL;
+		st_term_session_t *session = NULL;
+		st_wren_connected_t *connected = NULL;
+		struct st_profile profile;
+		struct rip_wire wire = {0};
+		st_profile_init(&profile); profile.connection_type = ST_CONNECTION_SHELL;
+		snprintf(profile.address, sizeof(profile.address), "sh ../term/term-fixture.sh rip %u", mode);
+		profile.download_directory = strdup(ST_WREN_TEST_DIRECTORY);
+		CHECK(profile.download_directory != NULL);
+		CHECK(st_font_catalog_create(&fonts, console) == 0);
+		CHECK(st_term_connect_profile(&connection, &profile, console, NULL, NULL) == 0);
+		bool binary = st_connection_binary_mode(connection);
+		const struct st_term_config term_config = {.console = console, .connection = connection,
+		    .fonts = fonts, .encoding = mode == 5 ? ST_CTERM_ENCODING_UTF8 : ST_CTERM_ENCODING_CODEPAGE,
+		    .codepage = ST_CODEPAGE_CP437, .hide_status = true, .rip_version = ST_CTERM_RIP_3,
+		    .rip_directory = cache, .rip_transfer = rip_transfer_request, .rip_transfer_context = &connected,
+		    .wire_filter = auto_transfer_filter, .wire_filter_context = &connected,
+		    .event_hook = rip_transfer_event, .event_hook_context = &connected,
+		    .wire_capture = capture_rip_wire, .capture_context = &wire};
+		CHECK(st_term_session_create(&session, &term_config) == 0);
+		st_cterm_t *cterm = st_term_session_cterm(session);
+		size_t logs = 0;
+		const struct st_wren_connected_config config = {.host = host, .console = console,
+		    .profile = &profile, .connection = connection, .session = session, .cterm = cterm,
+		    .transfer_log = count_transfer_logs, .transfer_log_context = &logs};
+		CHECK(st_wren_connected_create(&connected, &config) == 0);
+		uint64_t start, now;
+		CHECK(st_time_monotonic_ms(&start) == 0); now = start;
+		bool finished = false, answered = false, streamed = false;
+		enum st_term_disposition disposition;
+		while (!finished && now - start < 10000) {
+			CHECK(st_term_session_pump(session, &disposition, &finished) == 0);
+			CHECK(st_wren_connected_pump(connected, 0) == 0);
+			if (st_wren_connected_last_error(connected) != NULL) fprintf(stderr, "RIP mode %u: %s\n", mode, st_wren_connected_last_error(connected));
+			CHECK(st_wren_connected_last_error(connected) == NULL);
+			if (cterm->rip_engine->scene_depth != 0 && cterm->rip_engine->commands_seen > 1) streamed = true;
+			if (mode >= 6 && !answered && now - start > 350) {
+				CHECK(queue_text(console, mode == 6 ? "y" : "n") == 0); answered = true;
+			}
+			CHECK(st_time_monotonic_ms(&now) == 0);
+		}
+		if (!finished || st_connection_binary_mode(connection) != binary) {
+			fprintf(stderr, "RIP mode %u: finished=%d binary=%d/%d commands=%zu, wire:\n", mode, finished, st_connection_binary_mode(connection), binary, cterm->rip_engine->commands_seen);
+		}
+		CHECK(finished && st_connection_binary_mode(connection) == binary);
+		CHECK(st_wren_connected_interpret(connected, "rip_cleanup",
+		    "import \"syncterm\" for Transfer, CTerm\n"
+		    "import \"transfer_pick\" for TransferFlow\n"
+		    "if (Transfer.active || TransferFlow.busy || CTerm.suspended) Fiber.abort(\"RIP cleanup\")\n") == 0);
+		CHECK(cterm->rip_engine->scene_depth == 0);
+		if (streamed != (mode == 0 || mode == 5)) fprintf(stderr, "RIP mode %u: streamed=%d commands=%zu bytes=%zu\n", mode, streamed, cterm->rip_engine->commands_seen, wire.size);
+		CHECK(streamed == (mode == 0 || mode == 5));
+		if (mode == 0 || mode == 5) {
+			struct st_pixel_buffer *pixels = NULL;
+			const struct st_console_rect rect = {100, 100, 1, 1};
+			CHECK(st_console_get_pixels(&pixels, console, &rect, false) == 0);
+			CHECK(pixels->primary[0] == cterm->rip_engine->raster.palette[4]); st_pixel_buffer_destroy(pixels);
+		}
+		CHECK(wire.size >= 30 && memcmp(wire.bytes, "!|9\033", 4) == 0);
+		CHECK(memcmp(wire.bytes + wire.size - 11, "\r\nAFTER-RIP", 11) == 0);
+		/* Framing CRLF and binary SOH are retained exactly once in raw
+		 * capture, even though the protocol input skips the framing LF. */
+		if (mode < 6) {
+			CHECK(logs != 0);
+			size_t end = 0;
+			while (end + 3 < wire.size && !(wire.bytes[end] == '<' && wire.bytes[end + 1] == '>')) ++end;
+			CHECK(end + 4 < wire.size && memcmp(wire.bytes + end, "<>\r\n\1", 5) == 0);
+		}
+		struct fs_info info;
+		if (mode == 0) CHECK(fs_get_info(&info, ST_WREN_TEST_DIRECTORY "/rip-cache/scene.rip") == IO_ERROR_NOT_FOUND);
+		if (mode == 1) CHECK(fs_get_info(&info, ST_WREN_TEST_DIRECTORY "/rip-cache/stored.rip") == 0);
+		if (mode == 2 || mode == 4 || mode == 5) {
+			CHECK(fs_get_info(&info, ST_WREN_TEST_DIRECTORY "/rip-cache/asset.icn") == 0);
+			size_t consumed;
+			const char *load = "\r\n!|*|1I141400010ASSET.ICN\r";
+			CHECK(st_cterm_write(cterm, load, strlen(load), &consumed) == 0 && consumed == strlen(load));
+			struct st_pixel_buffer *pixels = NULL;
+			const struct st_console_rect rect = {40, 40, 1, 1};
+			CHECK(st_console_get_pixels(&pixels, console, &rect, false) == 0);
+			if (pixels->primary[0] != 0x1f) fprintf(stderr, "RIP icon mode %u: pixel=%" PRIx32 "\n", mode, pixels->primary[0]);
+			CHECK(pixels->primary[0] == 0x1f); st_pixel_buffer_destroy(pixels);
+		}
+		if (mode >= 4 && mode < 6) CHECK(fs_get_info(&info, ST_WREN_TEST_DIRECTORY "/rip-cache/scene.rip") == 0);
+		CHECK(fs_get_info(&info, ST_WREN_TEST_DIRECTORY "/scene.rip") == IO_ERROR_NOT_FOUND);
+		st_wren_connected_destroy(connected); st_term_session_destroy(&session);
+		CHECK(st_connection_close(connection) == 0);
+		st_font_catalog_destroy(fonts); st_profile_dispose(&profile);
+	}
+	for (size_t i = 0; i < sizeof(files) / sizeof(files[0]); ++i) {
+		char path[1024]; snprintf(path, sizeof(path), "%s/%s", cache, files[i]);
+		CHECK(fs_remove_file(path) == 0);
+	}
+	CHECK(fs_remove_directory(cache) == 0);
+	return 0;
+}
+#endif
 
 static int
 exercise_connected_throttle(st_wren_host_t *host, st_console_t *console)
@@ -5054,6 +5187,9 @@ main(int argc, char **argv)
 #if !SYNCTERM_PLATFORM_WINDOWS
 		CHECK(exercise_connected_throttle(host, console) == 0);
 		CHECK(exercise_auto_transfer(host, console) == 0);
+#ifdef ST_RIP_TEST_PYTHON
+		CHECK(exercise_rip_transfer(host, console) == 0);
+#endif
 #endif
 		CHECK(exercise_connected_sftp(host, console, &selected) == 0);
 #ifdef ST_WREN_HAVE_LIVE_SFTP
