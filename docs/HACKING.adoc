@@ -1,0 +1,335 @@
+= Hacking on SyncTERM
+:toc: left
+:toclevels: 4
+:source-highlighter: highlight.js
+
+This guide is the entry point for working on the modern SyncTERM source tree.
+It describes how the C components fit together and collects their API
+contracts in one document.  The declarations in the linked public headers
+remain authoritative; these chapters explain how to use those declarations
+without losing ownership, failure, or concurrency invariants.
+
+== Build and test
+
+SyncTERM uses C17 with CMake, falling back to C11 on macOS x86 when the
+selected compiler has no C17 mode. Configure it independently of the legacy
+Synchronet tree and always use an out-of-source build:
+
+[source,sh]
+----
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+cmake --build build
+ctest --test-dir build --output-on-failure
+----
+
+`BUILD_TESTING`, inherited from CTest, controls test targets.  The
+`SYNCTERM_ENABLE_UNIFONT` option controls the optional SyncTERM Unicode font
+(SIL OFL 1.1) and is enabled by default. Less common test-only options live
+beside the component which uses them; inspect its `CMakeLists.txt` before
+enabling one.
+
+SSH uses the external https://github.com/RealDeuce/DeuceSSH/[DeuceSSH]
+library. CMake first looks for its installed package, then uses FetchContent
+at a pinned revision. Fetched sources and builds live under the build tree;
+no DeuceSSH source is copied into SyncTERM. For an offline source checkout,
+set `FETCHCONTENT_SOURCE_DIR_DEUCESSH` to that checkout. An installed package
+can be selected with `deucessh_DIR` or `CMAKE_PREFIX_PATH`.
+The SSH backend follows the selected TLS crypto provider; `CRYPTO_BACKEND=none`
+keeps the unencrypted transports available and reports encrypted transports
+as unavailable.
+
+To iterate on a component, build its library or test target and select its
+CTest name:
+
+[source,sh]
+----
+cmake --build build --target st_theme_test
+ctest --test-dir build --output-on-failure -R '^theme$'
+----
+
+Do not add or repair legacy makefiles.  Capability checks and generated
+configuration headers belong in the build tree, and a new target must set
+`C_STANDARD ${SYNCTERM_C_STANDARD}`, `C_STANDARD_REQUIRED YES`, and
+`C_EXTENSIONS NO`. The shared `cmake/SynctermCStandard.cmake` selector is
+also included by standalone component projects.
+
+For CPU-time benchmarks, pixel-equivalence checks, and the scrolling/rendering
+baseline, see link:performance.adoc[Performance verification].
+
+=== GitLab CI
+
+link:../.gitlab-ci.yml[The pipeline] uses the same runner tags as Synchronet,
+but configures this standalone project with CMake. Each job builds the
+application and all applicable test targets, then runs CTest in the same
+checkout. Configured build trees are neither cached nor moved between jobs:
+tests contain absolute source and fixture paths.
+
+[cols="1,2",options="header"]
+|===
+| Runner tag | Coverage
+| `Linux` | GCC, minimal optional features, combined ASan/UBSan; optional Clang job
+| `alpine-linux` | Native musl build and tests
+| `RaspberryPi` | Native ARM64 build and tests
+| `FreeBSD` | Native build/tests; Win32 and Win64 MinGW cross-compilation
+| `OpenBSD`, `NetBSD` | Native build and tests, including slower runners
+| `macOS-aarch64` | Native build and tests
+| `macOS-x86` | Not built or tested: the current runner's SDK lacks the
+`timespec_get()` / `TIME_UTC` support required by DeuceSSH.
+| `Windows` | MSVC and MinGW, each with native Win32 and Win64 tests
+| `Haiku` | No runner currently; explicitly untested. Enable the job only
+after registering a runner with this tag and setting `SYNCTERM_CI_HAIKU=1`.
+|===
+
+Native jobs retain ordinary feature and crypto auto-detection. CI does not
+install optional application libraries or change the runtime-loading policy.
+Configure logs and `capabilities.txt` show which paths were actually built;
+CTest's JUnit report records skips, which are not successful backend tests.
+Tests currently restricted to POSIX, such as the SSH/SFTP live fixture, do not
+become Windows coverage merely because the Windows application builds.
+The Clang job is disabled unless `SYNCTERM_CI_CLANG=1`; enable it only after
+provisioning that compiler on the Linux runner. Sanitizers use GCC and do not
+require Clang. Local macOS x86 builds use CMake's compiler capability list to
+select C11 only when C17 mode is unavailable; other platforms still require C17.
+The pinned standalone DeuceSSH uses the same language-mode fallback; its
+runtime capability requirements remain unchanged.
+
+Runners need Git, CMake/CTest 3.22 or newer, a C17 compiler and its native
+build tool. Jobs request a two-hour limit, subject to the runner's own cap.
+Provide a matching C++20 compiler when Botan is detected, and
+Objective-C/Apple SDK tools on macOS. Windows MSVC jobs use Visual Studio
+2022's Win32/x64 C++ tools; its bundled CMake is accepted. MinGW Windows jobs
+download the release pinned in link:../ci/mingw-toolchains.json[the toolchain
+manifest], verify its SHA256 even on cache hits, and extract it into the job
+workspace. The toolchain's runtime DLL directory remains on the test PATH.
+Only compiler tools are bootstrapped, not application libraries.
+
+FreeBSD cross-builds use `/home/admin/mingw-w32` and
+`/home/admin/mingw-w64`; `CI_MINGW_ROOT` can override the selected root.
+They explicitly select `CRYPTO_BACKEND=none` unless overridden, constrain
+library/header/package discovery to the target, and build test executables
+without running them. Their `execution.txt` records this distinction and they
+do not publish a JUnit report.
+Additional target SDK roots can be supplied with `CMAKE_FIND_ROOT_PATH`.
+The toolchain restricts pkg-config metadata to `lib/pkgconfig` and
+`share/pkgconfig` beneath those roots, clearing inherited host search paths.
+
+Useful job variables:
+
+* `CMAKE_BUILD_PARALLEL_LEVEL`: build concurrency, default `4`.
+* `CTEST_PARALLEL_LEVEL`: test concurrency, default `1`; existing CTest
+  resource locks remain active.
+* `CI_BUILD_TYPE`: default `RelWithDebInfo`; sanitizer jobs use `Debug`.
+* `CI_EXTRA_CMAKE_ARGS`: semicolon-separated CMake arguments, not shell
+  code. For example, `-DCRYPTO_BACKEND=OpenSSL;-DCMAKE_PREFIX_PATH=/opt/target`.
+  Native jobs otherwise leave the provider unset. Do not put secrets here:
+  configure diagnostics are retained as artifacts.
+
+POSIX jobs clear inherited display selections, start their own Xvfb and
+headless Weston when those tools are installed, and stop only those child
+processes on success, failure, or interruption. X11/Wayland tests never use an
+inherited desktop. Native Quartz/GDI tests instead require the runner's
+native graphics session: use a dedicated CI login/session, not a developer's
+desktop. Unavailable environment-dependent tests retain their explicit CTest
+skip behavior. SDL's existing dummy-driver tests remain headless. Optional
+`ccache` uses a project-local cache; toolchain downloads and compiler-cache
+data are cached separately from build trees.
+GitLab resource groups serialize Windows jobs and jobs for each macOS runner
+tag within this project, protecting native-window tests from overlapping
+pipelines. Other projects sharing those sessions need the same runner-level
+isolation; resource groups are not cross-project locks.
+
+Job artifacts under `build-ci/reports/` retain configure/build/test logs,
+detected capabilities and JUnit results even on failure. Application binaries
+are under `build-ci/artifacts/`; these are build outputs, not self-contained
+release packages with every optional runtime library. Pipeline creation
+covers merge requests, branch pushes, tags, schedules and manual pipelines,
+without duplicating a push pipeline when an MR pipeline is already requested.
+Jobs do not download upstream job artifacts. A new attempt removes its own
+stale results and application artifacts; configure failures retain CMake's
+probe diagnostics as well as the configure log. CI disables the optional
+external RIP test fixtures, exercising the self-contained tests even when
+those fixtures happen to exist on a shell runner. Local builds can make the
+same selection with `ST_CTERM_TEST_EXTERNAL_ASSETS=OFF`.
+
+For unresolved native failures, inspect the reports rather than only the job
+trace: sanitizer jobs retain complete per-process `asan.*` and `ubsan.*`
+reports, plus Linux loader `loader.*` traces with runtime module bases.
+These do not suppress leaks or alter library lifetime: successfully resolved
+runtime libraries remain mapped until process exit; only failed required-symbol
+resolution permits closing a tentative load. MinGW jobs retain
+`mingw-tools.txt` with compiler/assembler identities and search paths; an
+unknown `.uleb128` assembler failure also saves a verbose reproduction and
+the generated assembly. PTY failures report the expected handshake stage and
+a bounded hexadecimal capture; TCP refusal failures include event timing and
+an independent native socket probe. Native display jobs always use a private
+runtime directory, including when Weston is unavailable.
+
+The common driver has isolated success/error-path tests:
+
+[source,sh]
+----
+cmake -S ci/tests -B build-ci-check
+ctest --test-dir build-ci-check --output-on-failure --no-tests=error
+----
+
+To exercise a native CI job locally, use `sh ci/posix.sh`. Select
+`CI_PROFILE=minimal` or `CI_PROFILE=sanitizers` and a separate `CI_BUILD_DIR`
+for those variants. The CI helper does not push commits, register runners,
+install system packages or change GitLab project settings.
+
+== Component model
+
+Each component owns one responsibility, its allocation boundary, and its
+platform mechanisms.  Consumers link its CMake target and include its public
+header; they do not reach into an `_internal.h` header or copy a native handle
+out of an opaque object.
+
+[source,text]
+----
+application and Wren host
+        |
+models: settings, themes, BBS lists, profiles, screen modes
+        |
+services: connections, web cache, TLS, audio, console
+        |
+mechanisms: files, sockets, threads, Unicode, containers
+        |
+POSIX or Windows implementation selected by capability
+----
+
+This is a dependency direction, not a rule that every upper component must use
+every lower one.  CMake expresses the actual edges with target-level
+`PUBLIC` and `PRIVATE` dependencies.
+
+Public headers are source-level component boundaries inside SyncTERM.  They
+are not a stable third-party ABI unless a declaration is explicitly identified
+as an external boundary.  On Windows, internal component APIs are not DLL
+exports; only launcher-facing and libretro declarations cross the application
+DLL boundary.
+
+The Windows `syncterm_core` target produces `syncterm.dll`: it exports the
+libretro ABI and `st_application_main`, the sole desktop-launcher entry point.
+`syncterm_app` produces the GUI `syncterm.exe`; `syncterm_console` produces
+`syncterm.com`. Both launchers parse the native Unicode command line and call
+the same DLL. On POSIX, the normal executable retains its existing main-thread
+dispatcher, and `syncterm_core` builds a separate loadable module.
+
+The libretro frontend owns callbacks and its run loop. A joined application
+worker owns Wren and terminal state; borrowed display/audio handles are
+published and revoked under the core mutex. Core unload requests console
+closure and cancels pending audio drains before joining that worker. The
+`libretro_core` CTest loads the produced library through its ABI and exercises
+input, callbacks, reset, repeated unload/reload, and deinitialization.
+
+The legacy sources below `/synchronet` are read-only reference material.  New
+or extracted code belongs in this tree, one responsibility-focused directory
+and `CMakeLists.txt` per component.  Use tabs for C indentation, keep changes
+reviewable, and avoid copying unused compatibility APIs merely because the
+legacy library provided them.  link:../AGENTS.md[AGENTS.md] contains the complete
+development rules followed by maintainers and coding agents.
+
+== Common API rules
+
+Most fallible project APIs return zero on success and a negative
+`IO_ERROR_*` value on failure.  Byte-count APIs use `ssize_t` so that
+nonnegative counts and negative errors share one result.  Important
+exceptions are called out in the component chapters: `st_threads` returns
+`ST_THREAD_*`, the crypto provider returns `XP_CRYPTO_*`, and some collection
+mutators return `bool` or `enum array_list_insert_result`.
+
+Unless a header says otherwise:
+
+* An opaque object returned through `T **result` is owned by the caller and is
+  released by that component's matching close, destroy, dispose, or free
+  operation.
+* A `const` pointer returned from an object is borrowed.  It normally remains
+  valid only until that object is mutated or destroyed.
+* “Result is unchanged on failure” is a transaction guarantee.  Do not clear
+  or free the old result before calling such an API.
+* A function which consumes an argument says so explicitly.  Do not use a
+  consumed object even when cleanup reports an error.
+* Destruction is not implicit synchronization.  Owners stop new calls, signal
+  shutdown where necessary, join workers, and only then destroy shared state.
+* UTF-8 text is validated where the public contract says it is text.  Counted
+  byte strings, passwords, wire data, and mapped files may contain NUL bytes.
+
+Use the generated `syncterm_config.h` only for capabilities established by
+CMake.  `syncterm_types.h` supplies the narrow Windows `ssize_t` compatibility
+definition; it is not a general portability umbrella.
+
+== Adding or changing an API
+
+Start from the consumer.  Add the smallest operation needed, identify who owns
+every input and result, and state which views a mutation invalidates.  For
+fallible mutation, decide whether the operation is transactional, partially
+committing, or consuming, then make the header and tests say the same thing.
+
+Keep platform policy in the common implementation and platform mechanisms
+behind a narrow internal interface.  Prefer a complete compile/link capability
+probe over compiler or operating-system guesses.  A public dependency belongs
+in `target_link_libraries(... PUBLIC ...)` only when the public header or the
+link interface requires it.
+
+Every component API change should normally include:
+
+* header documentation for ownership, valid ranges, invalidation, and errors;
+* focused success, boundary, and failure-path tests;
+* CMake registration under a stable CTest name;
+* both native and practical cross-toolchain verification when platform code
+  changes; and
+* an update to the relevant chapter below when the component's role or
+  composition contract changes.
+
+== API guide
+
+The following chapters cover all project-owned library targets.  Internal
+headers are implementation details and the vendored Wren VM retains its own
+upstream API.  Each component overview is followed by a callable reference:
+the C declaration gives the exact parameter and result types, and the adjacent
+contract states ownership, valid ranges, failure behavior, invalidation, and
+threading assumptions.
+
+include::api/foundation.adoc[]
+
+include::api/reference/foundation.adoc[]
+
+include::api/system.adoc[]
+
+include::api/reference/system.adoc[]
+
+include::api/network.adoc[]
+
+include::api/reference/network.adoc[]
+
+include::api/terminal.adoc[]
+
+include::api/reference/terminal.adoc[]
+
+include::api/models.adoc[]
+
+include::api/reference/models.adoc[]
+
+include::api/bbs-entry-fields.adoc[]
+
+include::api/media.adoc[]
+
+include::api/reference/media.adoc[]
+
+include::api/application.adoc[]
+
+include::api/reference/application.adoc[]
+
+== Product and scripting manuals
+
+* link:Manual.txt[SyncTERM user manual]
+* link:Console.adoc[console API and rendering semantics]
+* link:Themes.adoc[theme files, roles, glyphs, and editor behavior]
+* link:Wren.adoc[authoritative SyncTERM Wren API]
+* link:WREN_GUIDANCE.md[Wren implementation guidance]
+* link:cterm.adoc[retained CTerm protocol specification]
+* link:UnicodeBoundary.adoc[terminal wire and Unicode boundary design]
+
+Before editing Wren source or bindings, read both `WREN_GUIDANCE.md` and the
+relevant `Wren.adoc` sections.  Before moving legacy code, trace actual modern
+consumers and their transitive needs; this project does not aim to recreate
+general-purpose `xpdev`, `conio`, or `ciolib` libraries.

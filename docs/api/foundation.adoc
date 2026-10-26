@@ -12,29 +12,29 @@ collections used by the higher layers.
 | CMake target | Public header | Contract
 
 | `syncterm_io_error`
-| link:io_error/io_error.h[io_error.h]
+| link:../src/base/io_error/io_error.h[io_error.h]
 | Stable negative `IO_ERROR_*` values and native `errno`/Win32 translation.
 Existing numeric values are API and must not be renumbered.  Operation-specific
 native interpretations remain at the call site.  Test: `io_error`.
 
 | `st_hex`
-| link:hex/st_hex.h[st_hex.h]
+| link:../src/base/hex/st_hex.h[st_hex.h]
 | Strict lowercase encoding and case-insensitive decoding.  Source and
 destination may not overlap, and failed operations leave the destination
 unchanged.  Test: `hex`.
 
 | `st_base64`
-| link:base64/st_base64.h[st_base64.h]
+| link:../src/base/base64/st_base64.h[st_base64.h]
 | Strict RFC 4648 sizing, encoding, and decoding.  Encoded output includes a
 terminating NUL; decoded output is binary and has the validated size.  Use the
 size helpers before allocating.  Test: `base64`.
 
 | `st_md5`
-| link:md5/st_md5.h[st_md5.h]
+| link:../src/base/md5/st_md5.h[st_md5.h]
 | Caller-owned streaming MD5 for protocol-required cache checksums. Does not
 depend on an optional TLS/crypto provider. Not suitable for authentication
 or security decisions. Derived from the RSA Data Security, Inc. MD5
-Message-Digest Algorithm; see link:md5/LICENSE[md5/LICENSE]. Test: `md5`.
+Message-Digest Algorithm; see link:../src/base/md5/LICENSE[src/base/md5/LICENSE]. Test: `md5`.
 |===
 
 === UTF-8 and Unicode
@@ -49,32 +49,32 @@ oracles.  `st_unicode_text` composes them into a streaming text pipeline, and
 | Target | Header | Use and invariants
 
 | `st_utf8`
-| link:utf8/st_utf8.h[st_utf8.h]
+| link:../src/text/utf8/st_utf8.h[st_utf8.h]
 | Validate Unicode scalar values and decode or encode strict UTF-8.  The
 one-scalar operations serve finite buffers; the caller-owned incremental
 decoder retains prefixes across feeds and reports exact malformed maximal
 subparts without choosing replacement policy.  Test: `utf8`.
 
 | `st_unicode_width`
-| link:unicode_width/st_unicode_width.h[st_unicode_width.h]
+| link:../src/text/unicode_width/st_unicode_width.h[st_unicode_width.h]
 | Unicode East Asian Width and Emoji_Presentation lookup for fixed-cell
 display.  `st_unicode_columns()` returns zero for a non-scalar and otherwise
 one or two columns according to SyncTERM policy.  Test: `unicode_width`.
 
 | `st_unicode_normalization`
-| link:unicode_normalization/st_unicode_normalization.h[st_unicode_normalization.h]
+| link:../src/text/unicode_normalization/st_unicode_normalization.h[st_unicode_normalization.h]
 | Canonical combining classes, full canonical decomposition, and pairwise NFC
 composition.  Decomposition returns the required length even when the output
 buffer is too small.  Test: `unicode_normalization`.
 
 | `st_unicode_grapheme`
-| link:unicode_grapheme/st_unicode_grapheme.h[st_unicode_grapheme.h]
+| link:../src/text/unicode_grapheme/st_unicode_grapheme.h[st_unicode_grapheme.h]
 | Grapheme-break, Indic-conjunct, extended-pictographic, and longest RGI emoji
 prefix property queries.  It is an oracle; segmentation state lives in
 `st_unicode_text`.  Test: `unicode_grapheme`.
 
 | `st_unicode_text`
-| link:unicode_text/st_unicode_text.h[st_unicode_text.h]
+| link:../src/text/unicode_text/st_unicode_text.h[st_unicode_text.h]
 | Incremental strict UTF-8 validation and NFC normalization, optionally
 grouped into extended grapheme clusters.  Feed until `READY`, inspect the
 borrowed item with `peek`, then `consume`; call `finish` to resolve an
@@ -85,7 +85,7 @@ provisional grapheme display without flushing UTF-8 at feed boundaries.
 Test: `unicode_text`.
 
 | `st_unicode_compare`
-| link:unicode_compare/st_unicode_compare.h[st_unicode_compare.h]
+| link:../src/text/unicode_compare/st_unicode_compare.h[st_unicode_compare.h]
 | Canonical-caseless keys, comparison, grapheme-boundary search and wildcard
 matching, DUCET sort keys, and shared display-name validation.  Inputs are
 counted UTF-8 and may contain embedded NUL scalars; malformed input leaves
@@ -93,14 +93,14 @@ outputs unchanged.  Destroy sort keys with `st_unicode_sort_key_destroy()`.
 Tests: `unicode_compare` and the optional collation conformance target.
 
 | `st_codepage`
-| link:codepage/st_codepage.h[st_codepage.h]
+| link:../src/text/codepage/st_codepage.h[st_codepage.h]
 | One-byte legacy-codepage conversion.  Enumeration values are serialized and
 Wren-visible, so append deliberately and never renumber.  Names are borrowed
 for process lifetime.  Reverse lookup reports unmappable scalars rather than
 substituting.  Test: `codepage`.
 
 | `st_windows_utf` (Windows)
-| link:windows_utf/st_windows_utf.h[st_windows_utf.h]
+| link:../src/text/windows_utf/st_windows_utf.h[st_windows_utf.h]
 | Strict allocated conversion between NUL-terminated UTF-8 and UTF-16.
 Results use `malloc()`, remain unchanged on failure, and are freed by the
 caller.  Test on Windows: `windows_utf`.
@@ -117,20 +117,20 @@ change the Unicode version used by only one component.
 | Target | Header | Use and invariants
 
 | `syncterm_string_compat`
-| link:string_compat/string_compat.h[string_compat.h]
+| link:../src/base/string_compat/string_compat.h[string_compat.h]
 | Capability-selected fallbacks for `strdup`, `strndup`, `strlcpy`, and
 `strlcat`.  Consumers use the standard names after including the header; the
 generated configuration chooses native declarations or narrow replacements.
 Tests: `string_compat` and optional `string_compat_fallback`.
 
 | `syncterm_string_util`
-| link:string_util/string_util.h[string_util.h]
+| link:../src/base/string_util/string_util.h[string_util.h]
 | Locale-independent US-ASCII classification, case comparison, span checks,
 and in-place trimming.  These functions are for protocol/configuration ASCII,
 not Unicode user-visible comparison.  Test: `string_util`.
 
 | `syncterm_value_convert`
-| link:value_convert/value_convert.h[value_convert.h]
+| link:../src/base/value_convert/value_convert.h[value_convert.h]
 | Strict locale-independent parsing and formatting for integers, booleans,
 doubles, durations, byte estimates, and local dates/times.  Formatting returns
 false instead of truncating.  `decimal_double.h` is the exact decimal helper;
@@ -145,7 +145,7 @@ Tests: `value_convert` and `value_estimate`.
 | Target | Header | Ownership and invalidation
 
 | `syncterm_array_list`
-| link:array_list/array_list.h[array_list.h]
+| link:../src/base/array_list/array_list.h[array_list.h]
 | A nullable, library-allocated, NULL-sentinel pointer array.  The list owns
 only its storage, never its items.  Growth can relocate the handle, so do not
 retain copied handles or slot pointers across reserve/insert/append.  Sorted
@@ -154,14 +154,14 @@ macros provide call-site type checking over the pointer implementation.  Test:
 `array_list`.
 
 | `syncterm_str_list`
-| link:str_list/str_list.h[str_list.h]
+| link:../src/base/str_list/str_list.h[str_list.h]
 | An owning NULL-terminated string list.  Mutations may relocate the handle;
 `take` transfers one string, `remove` frees it, and `free` releases everything.
 Clone, split, and append operations preserve the destination on allocation
 failure.  Tests: `str_list` and `str_list_failures`.
 
 | `syncterm_name_value_list`
-| link:name_value_list/name_value_list.h[name_value_list.h]
+| link:../src/base/name_value_list/name_value_list.h[name_value_list.h]
 | Owning name/value items plus non-owning sorted indexes.  Library-created
 items own immutable name/value strings; change values with
 `name_value_set_value()`.  Remove an item from every borrowed index before

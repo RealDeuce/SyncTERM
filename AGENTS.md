@@ -194,8 +194,8 @@ publish changes unless explicitly requested.
 ## Source conventions
 
 Before editing or debugging Wren scripts or their C host bindings, read
-`WREN_GUIDANCE.md` and the relevant sections of `Wren.adoc`. The latter is the
-authoritative description of SyncTERM's Wren API.
+`docs/WREN_GUIDANCE.md` and the relevant sections of `docs/Wren.adoc`. The
+latter is the authoritative description of SyncTERM's Wren API.
 
 When extracting legacy code, preserve its dominant style unless the same
 change deliberately modernizes it. Use tabs for C indentation, avoid unrelated

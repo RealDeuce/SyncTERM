@@ -71,6 +71,35 @@ check_case(build-failure build "-DCI_FIXTURE_BUILD_FAIL=ON" native)
 check_case(test-failure test "-DCI_FIXTURE_TEST_FAIL=ON" native)
 check_case(no-tests test "-DCI_FIXTURE_NO_TESTS=ON" native)
 
+function(check_artifact_failure name option reason)
+	set(_build "${TEST_ROOT}/${name}")
+	execute_process(COMMAND "${CMAKE_COMMAND}" -E env
+		"CI_EXTRA_CMAKE_ARGS=-D${option}=ON" "CMAKE_BUILD_PARALLEL_LEVEL=2"
+		"${CMAKE_COMMAND}" "-DCI_SOURCE_DIR=${CMAKE_CURRENT_LIST_DIR}/fixture"
+		"-DCI_BUILD_DIR=${_build}" -DCI_PROFILE=native
+		-P "${_ci}/run.cmake"
+		RESULT_VARIABLE _result OUTPUT_VARIABLE _out ERROR_VARIABLE _err)
+	if("${_result}" STREQUAL "0" OR NOT "${_out}\n${_err}" MATCHES "${reason}")
+		message(FATAL_ERROR "${name}: expected artifact failure, got ${_result}\n${_out}\n${_err}")
+	endif()
+	file(GLOB _products "${_build}/artifacts/*")
+	if(_products)
+		message(FATAL_ERROR "${name}: published an incomplete product set")
+	endif()
+endfunction()
+check_artifact_failure(missing-manifest CI_FIXTURE_MISSING_MANIFEST "missing application manifest")
+check_artifact_failure(empty-manifest CI_FIXTURE_EMPTY_MANIFEST "empty application manifest")
+check_artifact_failure(missing-product CI_FIXTURE_MISSING_PRODUCT "application product was not built")
+
+# Exercise configuration-specific bin paths when this generator is available.
+find_program(_ninja ninja)
+if(_ninja)
+	set(_saved_generator "$ENV{CMAKE_GENERATOR}")
+	set(ENV{CMAKE_GENERATOR} "Ninja Multi-Config")
+	check_case(multi-config "" "" native)
+	set(ENV{CMAKE_GENERATOR} "${_saved_generator}")
+endif()
+
 # Pinning and architecture information must exist for both Windows jobs.
 file(READ "${_ci}/mingw-toolchains.json" _manifest)
 foreach(_arch IN ITEMS x86 x64)

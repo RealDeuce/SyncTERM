@@ -1,0 +1,30 @@
+# Copyright (c) 2026 Stephen Hurd
+# SPDX-License-Identifier: BSD-2-Clause
+
+cmake_minimum_required(VERSION 3.22)
+if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
+	project(STMD5 LANGUAGES C)
+	include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/SynctermCStandard.cmake")
+	include(CTest)
+endif()
+add_library(st_md5 STATIC st_md5.c)
+target_include_directories(st_md5 PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+set_target_properties(st_md5 PROPERTIES
+	C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+if(MSVC)
+	target_compile_options(st_md5 PRIVATE /W4 /WX)
+else()
+	target_compile_options(st_md5 PRIVATE -Wall -Wextra -Wpedantic -Werror)
+endif()
+if(BUILD_TESTING)
+	add_executable(st_md5_test tests/st_md5_test.c)
+	target_link_libraries(st_md5_test PRIVATE st_md5)
+	set_target_properties(st_md5_test PROPERTIES
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_md5_test PRIVATE /W4 /WX)
+	else()
+		target_compile_options(st_md5_test PRIVATE -Wall -Wextra -Wpedantic -Werror)
+	endif()
+	add_test(NAME md5 COMMAND st_md5_test)
+endif()

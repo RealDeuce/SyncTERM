@@ -9,7 +9,7 @@ the minimal connected loop.
 
 === Font catalog
 
-Header: link:font_catalog/st_font_catalog.h[st_font_catalog.h].  A catalog
+Header: link:../src/media/font_catalog/st_font_catalog.h[st_font_catalog.h].  A catalog
 borrows exactly one console.  It registers all built-in fonts compatible with
 that console's cell dimensions and maps the legacy selectors 0 through 45 to
 console font identifiers.  Custom selectors begin at 46, contain exactly 256
@@ -25,11 +25,11 @@ the catalog removes only selector tables.
 
 === CTerm
 
-Header: link:cterm/st_cterm.h[st_cterm.h].  The port retains the complete
+Header: link:../src/terminal/cterm/st_cterm.h[st_cterm.h].  The port retains the complete
 ECMA-48/DEC, SyncTERM, VT52, ATASCII, PETSCII, Prestel, and BBC handler family,
 but its public boundary is the small `st_cterm_*` interface.  The imported
 implementation and its renderer are private to target `st_cterm` and are
-licensed under BSD-2-Clause; link:cterm/LICENSE[cterm/LICENSE] contains the
+licensed under BSD-2-Clause; link:../src/terminal/cterm/LICENSE[src/terminal/cterm/LICENSE] contains the
 terms.
 
 Cells passed to the console are resolved glyph cells, never Unicode-codepoint
@@ -96,7 +96,7 @@ download-slot target rather than its validated slot argument.
 
 === Minimal connected session
 
-Header: link:term/st_term.h[st_term.h].  This first `term.c` replacement handles
+Header: link:../src/terminal/term/st_term.h[st_term.h].  This first `term.c` replacement handles
 Raw, RLogin (both username orders), Serial, 3-wire Serial, Modem, and Shell
 profiles.  Other connection types return `IO_ERROR_NOT_SUPPORTED`; Wren,
 transfers, RIP, and auxiliary connected applications remain outside this
@@ -122,7 +122,7 @@ selection may return to the persistent picker.
 
 Focused CTest names are `unicode_text`, `font_catalog`, `cterm`, and `term`.
 APC coverage adds `cterm_apc`, `cterm_apc_audio`, `audio_file`, and `md5`.
-The optional live comparator `cterm/tests/compare_legacy_apc_live.py` requires
+The optional live comparator `src/terminal/cterm/tests/compare_legacy_apc_live.py` requires
 an explicit private Xvfb display and the unmodified v1.10a binary. It compares
 unchanged self-authored streams, response bytes, native pixels, buffers,
 masks, and pre-playback PCM; `--chunk-size 1` checks every-byte writes.

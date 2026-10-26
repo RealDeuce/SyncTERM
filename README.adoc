@@ -1,0 +1,44 @@
+= SyncTERM
+
+SyncTERM is a terminal emulator for connecting to bulletin board systems.
+
+== Build
+
+Run from the repository root, using an out-of-source CMake build:
+
+[source,sh]
+----
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build
+ctest --test-dir build --output-on-failure
+----
+
+The executable and libretro core are in `build/bin/`. Multi-configuration
+generators use `build/bin/<configuration>/`. After the source reorganization,
+configure a fresh build directory rather than reusing a pre-move build tree.
+
+== Repository layout
+
+Application sources live directly in `src/`, with their tests in `src/tests/`.
+Libraries keep their own CMake targets, tests, licenses, and data under:
+
+[cols="1,3",options="header"]
+|===
+| Directory | Responsibility
+| `src/base/` | Collections, strings, conversions, threading, timing, and basic utilities
+| `src/text/` | UTF-8, codepages, and Unicode processing
+| `src/io/` | Files, paths, locking, mappings, and serial devices
+| `src/net/` | Sockets, connections, TLS, downloads, SFTP, and transfer protocols
+| `src/media/` | Audio, pixels, console rendering, images, and fonts
+| `src/terminal/` | Emulation, terminal sessions, screen modes, history, and hyperlinks
+| `src/config/` | Profiles, settings, BBS lists, themes, and configuration storage
+| `src/scripting/` | Wren integration and its VM and regular-expression dependencies
+|===
+
+`scripts/` contains runtime Wren modules. `cmake/` contains build helpers,
+and `ci/` contains CI drivers and their tests.
+
+See link:docs/Manual.txt[the user manual], link:docs/HACKING.adoc[the development
+guide], and link:docs/Wren.adoc[the Wren API manual]. Development rules are in
+link:AGENTS.md[AGENTS.md]. Licensing information is in link:LICENSE[LICENSE]
+and the component notices.

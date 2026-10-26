@@ -10,9 +10,9 @@ running build or attach profilers to their live session:
 ----
 cmake -S . -B build-perf -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCRYPTO_BACKEND=OpenSSL
 cmake --build build-perf --target st_console_benchmark st_cterm_benchmark st_console_x11_pixels_test
-build-perf/console/st_console_benchmark
-build-perf/cterm/st_cterm_benchmark 500
-build-perf/console/st_console_x11_pixels_test --benchmark
+build-perf/src/media/console/st_console_benchmark
+build-perf/src/terminal/cterm/st_cterm_benchmark 500
+build-perf/src/media/console/st_console_x11_pixels_test --benchmark
 ----
 
 The X11 packing target is available when X11 support is built. Its synthetic
@@ -117,7 +117,7 @@ Callgrind can inspect the owned headless benchmark without privileged tracing:
 
 [source,sh]
 ----
-valgrind --tool=callgrind --callgrind-out-file=/tmp/st-perf.callgrind build-perf/cterm/st_cterm_benchmark 64
+valgrind --tool=callgrind --callgrind-out-file=/tmp/st-perf.callgrind build-perf/src/terminal/cterm/st_cterm_benchmark 64
 callgrind_annotate --auto=no --inclusive=yes /tmp/st-perf.callgrind
 ----
 
@@ -139,7 +139,7 @@ screen scrolling copies are no longer required in the optimized paths.
   the immediate rerun passed without changing that test or its expectations.
 * FreeBSD GCC 13.5 Debug: console, CPU-clock, and synthetic X11 packing tests
   passed. The optimized GCC attempt was blocked by the existing
-  `pixels/st_scaler.c` `centers` maybe-uninitialized warning; that file and
+  `src/media/pixels/st_scaler.c` `centers` maybe-uninitialized warning; that file and
   warning policy were not changed.
 * MinGW-w64: console (including Win32/GDI row consumers) and CPU-clock test
   executable cross-compiled successfully; Windows runtime and MSVC were not

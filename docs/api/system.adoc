@@ -12,7 +12,7 @@ made by CMake; callers do not branch on compiler identity.
 | Target | Header | Contract
 
 | `st_time`
-| link:time/st_time.h[st_time.h]
+| link:../src/base/time/st_time.h[st_time.h]
 | Monotonic millisecond/nanosecond clocks, relative monotonic deadlines, and
 absolute `TIME_UTC` deadlines for condition variables.  `-1` means infinity
 where documented.  Keep elapsed-time decisions on the monotonic clock; use the
@@ -20,7 +20,7 @@ UTC helper only to satisfy the condition-variable interface.  Tests: `time`
 and `time_fault`.
 
 | `syncterm_path`
-| link:path/path.h[path.h]
+| link:../src/io/path/path.h[path.h]
 | Pure native-path parsing plus allocated join, parent, separator, absolute,
 and user-expansion operations.  Functions returning `ptrdiff_t` report the
 required byte count or a negative `IO_ERROR_*`; undersized buffers are
@@ -29,7 +29,7 @@ for names received from another system because they reject both separator
 styles, dot, and dot-dot.  Test: `path`.
 
 | `st_app_paths`
-| link:app_paths/st_app_paths.h[st_app_paths.h]
+| link:../src/config/app_paths/st_app_paths.h[st_app_paths.h]
 | Resolves all per-user configuration, cache, download, script, theme, and key
 locations, with optional borrowed overrides.  The resulting strings are owned
 by `struct st_app_paths` until `st_app_paths_dispose()`.  `prepare_*` creates
@@ -37,7 +37,7 @@ only the parent needed for the selected output.  Tests: `app_paths` and, on
 POSIX, `app_paths_xdg`.
 
 | `st_windows_utf` (Windows)
-| link:windows_utf/st_windows_utf.h[st_windows_utf.h]
+| link:../src/text/windows_utf/st_windows_utf.h[st_windows_utf.h]
 | The strict UTF-8/UTF-16 allocation boundary used by Windows mechanisms.  It
 is documented with the text APIs in <<api-foundation>>.
 |===
@@ -49,7 +49,7 @@ is documented with the text APIs in <<api-foundation>>.
 | Target | Header | Contract
 
 | `syncterm_filesystem`
-| link:filesystem/filesystem.h[filesystem.h]
+| link:../src/io/filesystem/filesystem.h[filesystem.h]
 | UTF-8 metadata, stream, directory, removal, rename, copy, and replacement
 operations.  Metadata distinguishes following a final link from inspecting
 the link itself.  `fs_replace_file()` writes and closes a sibling temporary
@@ -58,7 +58,7 @@ modification time.  Stream offsets and sizes are 64-bit and do not rely on
 `long`.  Test: `filesystem`.
 
 | `syncterm_file_map`
-| link:file_map/file_map.h[file_map.h]
+| link:../src/io/file_map/file_map.h[file_map.h]
 | Immutable whole-file byte views.  A successful empty mapping still has a
 non-NULL data pointer.  The source file must not be concurrently changed or
 truncated.  `file_map_open_stream()` borrows the stream only during the call
@@ -66,13 +66,13 @@ and preserves its position; pending writes must already be flushed.  Close
 consumes the map.  Test: `file_map`.
 
 | `st_file_lock`
-| link:file_lock/st_file_lock.h[st_file_lock.h]
+| link:../src/io/file_lock/st_file_lock.h[st_file_lock.h]
 | Blocking shared/exclusive advisory locks on a persistent `<path>.lock`
 sidecar.  Keep the lock for the entire read/merge/write transaction and release
 it with `st_file_lock_release()`.  Tests: `file_lock` and `file_lock_error`.
 
 | `syncterm_dynamic_library`
-| link:dynamic_library/dynamic_library.h[dynamic_library.h]
+| link:../src/base/dynamic_library/dynamic_library.h[dynamic_library.h]
 | Loads a library by safe ASCII filename fragments and descending supported
 major versions, with local or global symbol visibility.  It does not accept an
 arbitrary path.  Successfully resolved libraries and symbol pointers remain
@@ -94,7 +94,7 @@ Win32 implementation on Windows.
 | Target | Header | Contract
 
 | `syncterm_threads`
-| link:threads/st_threads.h[st_threads.h]
+| link:../src/base/threads/st_threads.h[st_threads.h]
 | Threads, plain/recursive/timed mutexes, condition variables, once flags,
 thread-local storage, sleep/yield, and reader/writer locks.  Operations return
 `ST_THREAD_*`, not `IO_ERROR_*`.  Condition waits release and reacquire the
@@ -103,14 +103,14 @@ write locks and read-to-write upgrades are not.  Join every joinable thread or
 explicitly detach it.  Test: `st_threads`.
 
 | `syncterm_event`
-| link:event/st_event.h[st_event.h]
+| link:../src/base/event/st_event.h[st_event.h]
 | Heap-owned binary auto-reset or manual-reset events built on
 `st_threads`.  Wait functions use `ST_THREAD_*`; timed waits take an absolute
 deadline.  No operation or waiter may remain active at destruction.  Test:
 `st_event`.
 
 | `syncterm_semaphore`
-| link:semaphore/st_semaphore.h[st_semaphore.h]
+| link:../src/base/semaphore/st_semaphore.h[st_semaphore.h]
 | Heap-owned bounded counting semaphores.  Posting at the configured maximum
 fails without changing the count.  As with events, timed waits use absolute
 deadlines and destruction requires external quiescence.  Test: `st_semaphore`.

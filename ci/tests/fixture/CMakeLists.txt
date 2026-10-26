@@ -13,10 +13,21 @@ add_executable(syncterm_app main.c)
 add_library(syncterm_core MODULE core.c)
 set_target_properties(syncterm_core PROPERTIES OUTPUT_NAME syncterm_libretro PREFIX ""
 	C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
-file(GENERATE OUTPUT "${CMAKE_BINARY_DIR}/syncterm-artifacts-$<CONFIG>.txt"
-	CONTENT "$<TARGET_FILE:syncterm_app>\n$<TARGET_FILE:syncterm_core>\n")
+set_target_properties(syncterm_core PROPERTIES
+	LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+set(_products "$<TARGET_FILE:syncterm_app>\n$<TARGET_FILE:syncterm_core>\n")
+if(CI_FIXTURE_MISSING_PRODUCT)
+	string(APPEND _products "${CMAKE_BINARY_DIR}/missing-product\n")
+elseif(CI_FIXTURE_EMPTY_MANIFEST)
+	set(_products "")
+endif()
+if(NOT CI_FIXTURE_MISSING_MANIFEST)
+	file(GENERATE OUTPUT "${CMAKE_BINARY_DIR}/syncterm-artifacts-$<CONFIG>.txt"
+		CONTENT "${_products}")
+endif()
 set_target_properties(syncterm_app PROPERTIES
-	OUTPUT_NAME syncterm RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/app"
+	OUTPUT_NAME syncterm RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
 	C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 if(CI_FIXTURE_BUILD_FAIL)
 	add_custom_target(fail_build ALL COMMAND "${CMAKE_COMMAND}" -E false)

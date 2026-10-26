@@ -104,7 +104,7 @@ nothing, cannot fail for valid arguments, and must not race on one context.
 Use `st_hex_encode()` for the wire's lowercase hexadecimal representation.
 MD5 exists here solely for legacy protocol interoperability, not security.
 The implementation is derived from the RSA Data Security, Inc. MD5
-Message-Digest Algorithm; its retained notice is in link:md5/LICENSE[md5/LICENSE].
+Message-Digest Algorithm; its retained notice is in link:../src/base/md5/LICENSE[src/base/md5/LICENSE].
 
 ==== UTF-8 and Unicode properties
 

@@ -4,14 +4,14 @@
 ==== Wren VM boundary
 
 The vendored VM's public embedding API is declared and documented upstream in
-link:wren_vm/include/wren.h[wren.h].  It is not a SyncTERM-owned compatibility
+link:../src/scripting/wren_vm/include/wren.h[wren.h].  It is not a SyncTERM-owned compatibility
 surface, so this guide does not restate each `wren*` function.  SyncTERM code
 normally reaches it only through `st_wren_host`; direct VM consumers link
 `st_wren_vm` and follow the upstream slot/handle/foreign-method lifetime rules.
 
 ==== SFTP provider contract
 
-The transport-neutral SFTP types live in `sftp_client/st_sftp.h`, shared by
+The transport-neutral SFTP types live in `src/net/sftp_client/st_sftp.h`, shared by
 the connection provider and Wren host without a reverse dependency. The
 Wren-host C surface and its provider types include:
 [source,c]

@@ -10,8 +10,8 @@ authoritatively documented in link:Wren.adoc[Wren.adoc].
 
 Target `st_wren_vm` is the vendored Wren interpreter with its meta and random
 optional modules.  Its public embedding header is
-link:wren_vm/include/wren.h[wren.h], and its upstream layout/license note
-is link:wren_vm/README.md[wren_vm/README.md].  SyncTERM keeps the vendor
+link:../src/scripting/wren_vm/include/wren.h[wren.h], and its upstream layout/license note
+is link:../src/scripting/wren_vm/README.md[src/scripting/wren_vm/README.md].  SyncTERM keeps the vendor
 implementation private and disables computed-goto extensions so it remains a
 portable C17 target.  The `st_wren_vm_link` test verifies the embedding link
 surface.
@@ -23,7 +23,7 @@ can be tested independently of the interpreter.
 === SyncTERM Wren host
 
 Target `st_wren_host`; C header:
-link:wren_host/st_wren_host.h[st_wren_host.h].
+link:../src/scripting/wren_host/st_wren_host.h[st_wren_host.h].
 
 `st_wren_host_t` owns the persistent menu VM and isolated picker support.  Its
 configuration borrows the display, menu console, optional picker console,
@@ -71,7 +71,7 @@ modules.  Follow link:WREN_GUIDANCE.md[WREN_GUIDANCE.md] before editing
 scripts or bindings.
 
 Tests include `wren_host`, the `wren_*` script suites, directory and picker
-tests, and the loader audit cases registered by `wren_host/CMakeLists.txt`.
+tests, and the loader audit cases registered by `src/scripting/wren_host/CMakeLists.txt`.
 
 === Startup policy
 
@@ -81,23 +81,23 @@ Target `st_app_startup` exposes three small policy headers:
 |===
 | Header | Contract
 
-| link:app/st_command_line.h[st_command_line.h]
+| link:../src/st_command_line.h[st_command_line.h]
 | Parses borrowed `argv` storage into an action, path/script/URL choices,
 backend and presentation policy, connection defaults, geometry, and safe-mode
 flags.  `invalid_argument` identifies rejected borrowed input.
 
-| link:app/st_console_startup.h[st_console_startup.h]
+| link:../src/st_console_startup.h[st_console_startup.h]
 | Merges settings and command-line policy into separate logical-console and
 physical-display configurations plus initial fullscreen state.
 
-| link:app/st_app_state.h[st_app_state.h]
+| link:../src/st_app_state.h[st_app_state.h]
 | Decides whether a clean normal exit may persist runtime scaling, accounting
 for safe mode and the startup/current screen modes.
 |===
 
 Tests: `app_startup` and `command_line_empty_backend`.
 
-`app/st_terminfo.h` is the narrow executable helper which writes SyncTERM's
+`src/st_terminfo.h` is the narrow executable helper which writes SyncTERM's
 terminfo source to a caller-owned stream.  It is exercised by
 `syncterm_terminfo` rather than exposed as a reusable library target.
 

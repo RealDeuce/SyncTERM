@@ -12,7 +12,7 @@ generation-scoped; a successful reload or mutation normally invalidates them.
 | Target | Header | Contract
 
 | `syncterm_ini`
-| link:ini/ini.h[ini.h]
+| link:../src/config/ini/ini.h[ini.h]
 | Round-trip-preserving INI documents with Unicode canonical-caseless lookup.
 Parsing retains repeated physical sections/keys, comments, and file order;
 lookup selects the last matching section block and last matching key in it.
@@ -23,7 +23,7 @@ apply an explicit write style.  Parse/clone/read replace results only after
 complete success.  Tests: `ini` and `ini_interface`.
 
 | `st_profile`
-| link:profile/st_profile.h[st_profile.h]
+| link:../src/config/profile/st_profile.h[st_profile.h]
 | Connection-profile value object, serialized enums, fixed-size user fields,
 and owned optional path strings.  Initialize before use, dispose once, and
 copy only into an initialized destination.  `st_profile_copy()` preserves the
@@ -46,13 +46,13 @@ not alter running state.  The font-draft API intentionally merges only
 `Font:` sections and has a separate baseline/reload lifecycle.
 
 Target: `st_settings`; header:
-link:settings/st_settings.h[st_settings.h].  Tests: `settings`,
+link:../src/config/settings/st_settings.h[st_settings.h].  Tests: `settings`,
 `settings_store`, and `settings_failures`.
 
 === Themes
 
 Target `st_theme` exposes two related lifetimes in
-link:theme/st_theme.h[st_theme.h]:
+link:../src/config/theme/st_theme.h[st_theme.h]:
 
 * A theme manager owns the compiled default, active theme, local catalog,
   online catalog/cache, and generation counter.  Catalog rows are borrowed
@@ -73,7 +73,7 @@ rules, and editor behavior are in link:Themes.adoc[Themes.adoc].  Test:
 === BBS directory
 
 Target `st_bbs_list`; header:
-link:bbs_list/st_bbs_list.h[st_bbs_list.h].
+link:../src/config/bbs_list/st_bbs_list.h[st_bbs_list.h].
 
 An `st_bbs_list_t` merges personal, shared, system-web, and named-web sources
 into one view.  The opened list copies and later clears password bytes.  Entry,
@@ -98,7 +98,7 @@ Tests: `bbs_list`, `bbs_failures`, `bbs_cache_safety`, and `bbs_web`.
 | Target | Header | Contract
 
 | `st_screen_mode`
-| link:screen_mode/st_screen_mode.h[st_screen_mode.h]
+| link:../src/terminal/screen_mode/st_screen_mode.h[st_screen_mode.h]
 | Authoritative built-in mode names, geometry, console configuration,
 palette, default attribute, and font selector.  Descriptor pointers are
 borrowed static data.  `st_screen_mode_custom()` validates and constructs the
@@ -106,14 +106,14 @@ custom mode; palette conversion translates DOS attribute order into console
 indexes.  Test: `screen_mode`.
 
 | `st_session_history`
-| link:session_history/st_session_history.h[st_session_history.h]
+| link:../src/terminal/session_history/st_session_history.h[st_session_history.h]
 | A synchronized, detached scrollback snapshot retained after a connected
 session ends.  Publish copies only the newest lines which fit capacity.  Copy
 returns caller-owned cell storage freed with `free()`; info returns metadata
 without the cell allocation.  Test: `session_history`.
 
 | `st_hyperlink`
-| link:hyperlink/st_hyperlink.h[st_hyperlink.h]
+| link:../src/terminal/hyperlink/st_hyperlink.h[st_hyperlink.h]
 | Application-lifetime registry mapping nonzero 16-bit identifiers to copied
 URI/parameter spans. Registered roots mark live IDs when the space is full;
 unreachable slots can then be reclaimed and reused. Copy returns owned strings
