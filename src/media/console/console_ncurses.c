@@ -4,6 +4,7 @@
  */
 
 #include "console_internal.h"
+#include "console_text_layout.h"
 
 #include "console_config.h"
 #include "dynamic_library.h"
@@ -154,6 +155,11 @@ struct curses_state {
 	bool direct_colour;
 	bool sgr_direct;
 	bool sgr_initialized;
+	bool margins_initialized;
+	bool margin_visible;
+	int margin_colour;
+	uint32_t margin_rgb;
+	struct st_console_rect viewport;
 	unsigned int red_bits;
 	unsigned int green_bits;
 	unsigned int blue_bits;
@@ -207,6 +213,7 @@ replace_window(struct curses_state *state, uint32_t columns, uint32_t rows)
 	(void)state->api.call_delwin(state->window);
 	state->window = window;
 	state->sgr_initialized = false;
+	state->margins_initialized = false;
 	return 0;
 }
 
@@ -356,6 +363,10 @@ terminal_colour_conflicts(st_console_t *console, struct curses_state *state,
 	int colour, size_t ignored, uint32_t rgb)
 {
 	size_t count = (size_t)console->columns * console->rows;
+
+	if (state->margin_visible && colour == state->margin_colour
+	    && rgb != state->margin_rgb)
+		return true;
 
 	for (size_t i = 0; i < count; ++i) {
 		if (i == ignored)
@@ -798,7 +809,9 @@ report_invalid_colour(struct curses_state *state)
 }
 
 static int
-sgr_present(st_console_t *console, struct curses_state *state)
+sgr_present(st_console_t *console, struct curses_state *state,
+	const struct st_console_rect *view, uint32_t host_columns,
+	uint32_t host_rows)
 {
 	struct sgr_writer writer = {0};
 	struct st_console_cell current_style = {0};
@@ -809,17 +822,9 @@ sgr_present(st_console_t *console, struct curses_state *state)
 	uint32_t output_y = 0;
 	uint32_t cursor_x;
 	uint32_t cursor_columns;
-	uint32_t visible_columns = atomic_load_explicit(&state->host_columns,
-	    memory_order_acquire);
-	uint32_t visible_rows = atomic_load_explicit(&state->host_rows,
-	    memory_order_acquire);
 
 	state->invalid_colour = false;
 
-	if (visible_columns == 0 || visible_columns > console->columns)
-		visible_columns = console->columns;
-	if (visible_rows == 0 || visible_rows > console->rows)
-		visible_rows = console->rows;
 	st_console_cursor_span_locked(console, &cursor_x, &cursor_columns);
 	(void)cursor_columns;
 
@@ -830,16 +835,43 @@ sgr_present(st_console_t *console, struct curses_state *state)
 			.background = 0,
 		};
 		static const char clear_and_hide[] = "\033[2J\033[?25l";
+		bool margins = view->width < host_columns || view->height < host_rows;
+		struct st_console_cell surround = blank;
 
-		sgr_style(console, state, &writer, &blank);
+		surround.foreground = surround.background
+		    = console->display->config.text_margin_colour;
+		sgr_style(console, state, &writer, margins ? &surround : &blank);
 		sgr_emit(&writer, clear_and_hide, sizeof(clear_and_hide) - 1);
+		if (margins) {
+			/* Paint explicitly even when erase does not honour background. */
+			for (uint32_t y = 0; y < host_rows; ++y) {
+				for (uint32_t x = 0; x < host_columns; ++x) {
+					if (y >= view->y && y - view->y < view->height
+					    && x >= view->x && x - view->x < view->width) {
+						x = view->x + view->width - 1;
+						continue;
+					}
+					if (x == 0 || x == view->x + view->width)
+						sgr_format(&writer, "\033[%" PRIu32 ";%" PRIu32 "H",
+						    y + 1, x + 1, 0);
+					sgr_emit(&writer, " ", 1);
+				}
+			}
+			sgr_style(console, state, &writer, &blank);
+			for (uint32_t y = 0; y < view->height; ++y) {
+				sgr_format(&writer, "\033[%" PRIu32 ";%" PRIu32 "H",
+				    view->y + y + 1, view->x + 1, 0);
+				for (uint32_t x = 0; x < view->width; ++x)
+					sgr_emit(&writer, " ", 1);
+			}
+		}
 		for (size_t index = 0;
 		    index < (size_t)console->columns * console->rows; ++index)
 			state->drawn[index] = blank;
 		state->sgr_initialized = true;
 	}
-	for (uint32_t y = 0; y < visible_rows; ++y) {
-		for (uint32_t x = 0; x < visible_columns; ++x) {
+	for (uint32_t y = 0; y < view->height; ++y) {
+		for (uint32_t x = 0; x < view->width; ++x) {
 			size_t index = (size_t)y * console->columns + x;
 			const struct st_console_cell *source = st_console_cell_at(console, index);
 			struct st_console_cell effective;
@@ -857,7 +889,7 @@ sgr_present(st_console_t *console, struct curses_state *state)
 				continue;
 			if (!position_known || output_x != x || output_y != y)
 				sgr_format(&writer, "\033[%" PRIu32 ";%" PRIu32 "H",
-				    y + 1, x + 1, 0);
+				    view->y + y + 1, view->x + x + 1, 0);
 			if (!style_known || !sgr_styles_equal(cell, &current_style)) {
 				sgr_style(console, state, &writer, cell);
 				current_style = *cell;
@@ -870,16 +902,16 @@ sgr_present(st_console_t *console, struct curses_state *state)
 			    && (st_console_cell_at(console, index + 1)->flags
 			    & ST_CONSOLE_CELL_CONTINUATION) != 0)
 				++output_x;
-			position_known = output_x < visible_columns;
+			position_known = output_x < view->width;
 		}
 	}
-	if (console->cursor_visible && cursor_x < visible_columns
-	    && console->cursor_y < visible_rows) {
+	if (console->cursor_visible && cursor_x < view->width
+	    && console->cursor_y < view->height) {
 		uint32_t shape = console->cursor_shape == ST_CONSOLE_CURSOR_BLOCK
 		    ? 2 : console->cursor_shape == ST_CONSOLE_CURSOR_UNDERLINE ? 4 : 6;
 
 		sgr_format(&writer, "\033[%" PRIu32 ";%" PRIu32 "H",
-		    console->cursor_y + 1, cursor_x + 1, 0);
+		    view->y + console->cursor_y + 1, view->x + cursor_x + 1, 0);
 		sgr_format(&writer, "\033[%" PRIu32 " q", shape, 0, 0);
 		sgr_emit(&writer, "\033[0m\033[?25h", 10);
 	}
@@ -1026,8 +1058,8 @@ mouse_event(struct curses_state *state, struct st_console_event *event)
 	*event = (struct st_console_event){
 		.type = ST_CONSOLE_EVENT_MOUSE,
 		.data.mouse = {
-			.x = mouse.x,
-			.y = mouse.y,
+			.x = mouse.x - (int)state->viewport.x,
+			.y = mouse.y - (int)state->viewport.y,
 			.pixel_x = -1,
 			.pixel_y = -1,
 			.buttons = state->mouse_buttons,
@@ -1064,6 +1096,51 @@ mouse_event(struct curses_state *state, struct st_console_event *event)
 #endif
 
 static int
+paint_margins(st_console_t *console, struct curses_state *state,
+	const struct st_console_rect *view, uint32_t host_columns,
+	uint32_t host_rows)
+{
+	struct st_console_cell surround = {
+		.glyph = ' ',
+		.foreground = console->display->config.text_margin_colour,
+		.background = console->display->config.text_margin_colour,
+	};
+	int foreground = -1, background = -1;
+	int pair;
+
+	state->margin_visible = false;
+	if (view->width >= host_columns && view->height >= host_rows) {
+		state->margins_initialized = true;
+		return 0;
+	}
+	pair = cell_pair(console, state, &surround, SIZE_MAX, &foreground,
+	    &background);
+	state->margin_colour = background;
+	state->margin_rgb = logical_rgb(console, state, surround.background);
+	state->margin_visible = true;
+	if (state->api.call_attributes(state->window, A_NORMAL,
+	    state->extended_pairs ? 0 : (NCURSES_PAIRS_T)pair,
+	    state->extended_pairs ? &pair : NULL) == ERR)
+		return IO_ERROR_IO;
+	for (uint32_t y = 0; y < host_rows; ++y) {
+		for (uint32_t x = 0; x < host_columns; ++x) {
+			if (y >= view->y && y - view->y < view->height
+			    && x >= view->x && x - view->x < view->width) {
+				x = view->x + view->width - 1;
+				continue;
+			}
+			if (state->api.call_move(state->window, (int)y, (int)x) == ERR)
+				return IO_ERROR_IO;
+			if (state->api.call_addch(state->window, ' ') == ERR
+			    && !(x + 1 == host_columns && y + 1 == host_rows))
+				return IO_ERROR_IO;
+		}
+	}
+	state->margins_initialized = true;
+	return 0;
+}
+
+static int
 curses_present(st_console_t *console)
 {
 	struct curses_state *state = console->display->backend_state;
@@ -1074,16 +1151,16 @@ curses_present(st_console_t *console)
 	int cursor;
 	bool resized = atomic_exchange_explicit(&state->host_resized, false,
 	    memory_order_acq_rel);
-	uint32_t visible_columns = atomic_load_explicit(&state->host_columns,
+	uint32_t host_columns = atomic_load_explicit(&state->host_columns,
 	    memory_order_acquire);
-	uint32_t visible_rows = atomic_load_explicit(&state->host_rows,
+	uint32_t host_rows = atomic_load_explicit(&state->host_rows,
 	    memory_order_acquire);
 	int status;
 
 	state->invalid_colour = false;
 
 	if (resized) {
-		status = replace_window(state, visible_columns, visible_rows);
+		status = replace_window(state, host_columns, host_rows);
 		if (status != 0) {
 			atomic_store_explicit(&state->host_resized, true,
 			    memory_order_release);
@@ -1098,18 +1175,23 @@ curses_present(st_console_t *console)
 		}
 	}
 
-	if (visible_columns == 0 || visible_columns > console->columns)
-		visible_columns = console->columns;
-	if (visible_rows == 0 || visible_rows > console->rows)
-		visible_rows = console->rows;
+	state->viewport = st_console_text_viewport(console->columns,
+	    console->rows, host_columns, host_rows,
+	    console->display->config.text_left_justify);
+	const struct st_console_rect *view = &state->viewport;
 	st_console_cursor_span_locked(console, &cursor_x, &cursor_columns);
 	(void)cursor_columns;
 
 	if (state->sgr_direct)
-		return sgr_present(console, state);
+		return sgr_present(console, state, view, host_columns, host_rows);
+	if (!state->margins_initialized) {
+		status = paint_margins(console, state, view, host_columns, host_rows);
+		if (status != 0)
+			return status;
+	}
 
-	for (y = 0; y < visible_rows; ++y) {
-		for (x = 0; x < visible_columns; ++x) {
+	for (y = 0; y < view->height; ++y) {
+		for (x = 0; x < view->width; ++x) {
 			size_t index = (size_t)y * console->columns + x;
 			const struct st_console_cell *source = st_console_cell_at(console, index);
 			struct st_console_cell effective;
@@ -1134,15 +1216,16 @@ curses_present(st_console_t *console)
 			cell = &effective;
 			pair = cell_pair(console, state, cell, index, &foreground,
 			    &background);
-			if (state->api.call_move(state->window, (int)y, (int)x) == ERR
+			if (state->api.call_move(state->window,
+			    (int)(view->y + y), (int)(view->x + x)) == ERR
 			    || state->api.call_attributes(state->window,
 				    cell_attributes(state, cell),
 			    state->extended_pairs ? 0 : (NCURSES_PAIRS_T)pair,
 			    state->extended_pairs ? &pair : NULL) == ERR)
 				return IO_ERROR_IO;
 			write_result = write_cell(console, state, cell);
-			if (write_result == ERR && !(x + 1 == visible_columns
-			    && y + 1 == visible_rows))
+			if (write_result == ERR && !(view->x + x + 1 == host_columns
+			    && view->y + y + 1 == host_rows))
 				return IO_ERROR_IO;
 			state->drawn[index] = *source;
 			state->drawn[index].flags &= ~ST_CONSOLE_CELL_DIRTY;
@@ -1150,13 +1233,13 @@ curses_present(st_console_t *console)
 			state->drawn_background[index] = background;
 		}
 	}
-	if (console->cursor_visible && cursor_x < visible_columns
-	    && console->cursor_y < visible_rows
-	    && state->api.call_move(state->window, (int)console->cursor_y,
-	    (int)cursor_x) == ERR)
+	if (console->cursor_visible && cursor_x < view->width
+	    && console->cursor_y < view->height
+	    && state->api.call_move(state->window,
+	    (int)(view->y + console->cursor_y), (int)(view->x + cursor_x)) == ERR)
 		return IO_ERROR_IO;
-	cursor = !console->cursor_visible || cursor_x >= visible_columns
-	    || console->cursor_y >= visible_rows ? 0
+	cursor = !console->cursor_visible || cursor_x >= view->width
+	    || console->cursor_y >= view->height ? 0
 	    : console->cursor_shape == ST_CONSOLE_CURSOR_BLOCK ? 2 : 1;
 	(void)state->api.call_cursor(cursor);
 	status = state->api.call_refresh(state->window) == ERR

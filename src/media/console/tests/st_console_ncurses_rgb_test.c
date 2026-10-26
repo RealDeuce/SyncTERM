@@ -52,6 +52,99 @@ dimension_delete(WINDOW *window)
 	window_deleted = true;
 	return OK;
 }
+
+static int last_row, last_column;
+static unsigned margin_cells;
+static int layout_move(WINDOW *window, int y, int x)
+{
+	(void)window;
+	last_row = y;
+	last_column = x;
+	return OK;
+}
+static int layout_add(WINDOW *window, chtype value)
+{
+	(void)window;
+	if ((value & A_CHARTEXT) == ' ')
+		++margin_cells;
+	return OK;
+}
+static int layout_refresh(WINDOW *window) { (void)window; return OK; }
+static int layout_cursor(int cursor) { (void)cursor; return OK; }
+static int layout_attributes(WINDOW *window, attr_t attributes,
+	NCURSES_PAIRS_T pair, void *extended)
+{
+	(void)window; (void)attributes; (void)pair; (void)extended;
+	return OK;
+}
+#ifdef KEY_MOUSE
+static int layout_mouse(MEVENT *event)
+{
+	memset(event, 0, sizeof(*event));
+	event->x = 3;
+	event->y = 3;
+	return OK;
+}
+#endif
+
+static bool
+test_layout(void)
+{
+	struct st_console_cell cells[8] = {0}, drawn[8] = {0};
+	int foreground[8], background[8];
+	struct curses_state state = {
+		.api = {.call_move = layout_move, .call_addch = layout_add,
+		    .call_attributes = layout_attributes,
+		    .call_refresh = layout_refresh, .call_cursor = layout_cursor},
+		.drawn = drawn, .drawn_foreground = foreground,
+		.drawn_background = background,
+		.presentation = ST_CONSOLE_TEXT_ASCII,
+	};
+	st_console_display_t display = {.backend_state = &state};
+	st_console_t console = {
+		.display = &display, .columns = 4, .rows = 2, .cells = cells,
+		.cursor_visible = true, .cursor_x = 1, .cursor_y = 1,
+	};
+
+	atomic_init(&state.host_columns, 8);
+	atomic_init(&state.host_rows, 6);
+	atomic_init(&state.host_resized, false);
+	for (size_t i = 0; i < 8; ++i) {
+		cells[i].glyph = 'A';
+		cells[i].foreground = 7;
+		cells[i].flags = ST_CONSOLE_CELL_DIRTY;
+		foreground[i] = background[i] = -1;
+	}
+	if (curses_present(&console) != 0 || last_row != 3 || last_column != 3
+	    || margin_cells != 40)
+		return false;
+#ifdef KEY_MOUSE
+	{
+		struct st_console_event event;
+
+		state.mouse_enabled = true;
+		state.api.call_getmouse = layout_mouse;
+		if (!mouse_event(&state, &event) || event.data.mouse.x != 1
+		    || event.data.mouse.y != 1)
+			return false;
+	}
+#endif
+	display.config.text_left_justify = true;
+	state.margins_initialized = false;
+	if (curses_present(&console) != 0 || last_row != 3 || last_column != 1)
+		return false;
+	atomic_store(&state.host_columns, 3);
+	atomic_store(&state.host_rows, 1);
+	if (curses_present(&console) != 0 || state.viewport.x != 0
+	    || state.viewport.y != 0 || state.viewport.width != 3
+	    || state.viewport.height != 1)
+		return false;
+	state.margin_visible = true;
+	state.margin_colour = 3;
+	state.margin_rgb = UINT32_C(0x0000a8);
+	return terminal_colour_conflicts(&console, &state, 3, SIZE_MAX,
+	    UINT32_C(0xa80000));
+}
 #endif
 
 int
@@ -69,6 +162,11 @@ main(void)
 	int indexed;
 	int direct;
 	uint32_t columns = 0, rows = 0;
+
+	if (!test_layout()) {
+		fprintf(stderr, "text layout, cursor, or mouse coordinates failed\n");
+		return EXIT_FAILURE;
+	}
 
 	state.api.call_newwin = dimension_window;
 	state.api.call_delwin = dimension_delete;

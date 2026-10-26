@@ -98,6 +98,13 @@ particularly useful on Haiku, but is no longer the primary graphical backend
 on platforms with a native implementation.  ANSI, ncurses, and the native
 Windows console provide non-bitmap output modes.
 
+In ANSI and ncurses modes, a fixed-size BBS screen is centred within a
+larger host terminal, with a blue surround. Resizing the host recentres the
+screen without changing the selected BBS screen size. `LeftJustify=true`
+in the configuration's `[SyncTERM]` section selects left alignment and a
+black surround; vertical alignment remains centred. A host terminal smaller
+than the BBS screen displays its upper-left portion.
+
 Audio output can use the native CoreAudio or WASAPI backend, or the optional
 PortAudio, PipeWire, PulseAudio, ALSA, OSS, and SDL backends.  CMake enables
 the usable choices it detects; most non-system backends are loaded at run

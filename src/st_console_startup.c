@@ -186,6 +186,10 @@ st_console_startup_configure(struct st_console_startup *result,
 	startup.config.scaling_policy = settings->blocky_scaling
 	    ? ST_PIXEL_SCALING_BLOCKY : ST_PIXEL_SCALING_POINTY;
 	startup.display_config.initial_scaling = settings->scaling_factor;
+	startup.display_config.text_left_justify = settings->left_justify;
+	startup.display_config.text_margin_colour = settings->left_justify
+	    ? ST_CONSOLE_COLOR_RGB_VALUE(0, 0, 0)
+	    : ST_CONSOLE_COLOR_RGB_VALUE(0, 0, 168);
 	if (settings->window_width > 0 && settings->window_height > 0) {
 		startup.display_config.initial_window_width
 		    = (uint32_t)settings->window_width;

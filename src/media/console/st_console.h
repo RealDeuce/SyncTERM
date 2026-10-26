@@ -328,6 +328,11 @@ struct st_console_display_config {
 	/* Both nonzero override initial_scaling, in drawable pixel units. */
 	uint32_t initial_window_width;
 	uint32_t initial_window_height;
+	/* Text terminals centre a smaller logical console within the host grid.
+	 * Left justification affects the horizontal position only. */
+	bool text_left_justify;
+	/* Cell colour used for the surrounding area. */
+	uint32_t text_margin_colour;
 };
 
 enum st_console_event_type {

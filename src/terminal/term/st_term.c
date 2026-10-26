@@ -851,8 +851,18 @@ handle_event(st_term_session_t *session,
 		    event->data.focus.focused);
 		return session->output_error;
 	case ST_CONSOLE_EVENT_RESIZE: {
+		uint32_t capabilities;
 		int status;
 
+		status = st_console_capabilities(session->config.console,
+		    &capabilities);
+		if (status != 0)
+			return status;
+		/* A host text-terminal resize moves a fixed BBS screen within the
+		 * surround; it does not change the remote terminal's selected mode. */
+		if ((capabilities & ST_CONSOLE_CAP_TEXT_TERMINAL) != 0
+		    && session->config.screen_mode != ST_SCREEN_MODE_CURRENT)
+			return 0;
 		status = st_cterm_resize(session->cterm,
 		    event->data.resize.columns, event->data.resize.rows);
 		if (status != 0)

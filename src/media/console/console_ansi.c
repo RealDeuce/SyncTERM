@@ -5,6 +5,7 @@
 
 #include "console_internal.h"
 #include "console_ansi_system.h"
+#include "console_text_layout.h"
 
 #include "dynamic_library.h"
 #include "io_error.h"
@@ -377,15 +378,43 @@ styles_equal(const struct st_console_cell *left,
 
 static void
 prepare_initial_screen(struct ansi_writer *writer, st_console_t *console,
-	struct ansi_state *state)
+	struct ansi_state *state, const struct st_console_rect *view,
+	uint32_t host_columns, uint32_t host_rows)
 {
 	const struct st_console_cell blank = {
 		.glyph = ' ', .foreground = 7, .background = 0,
 	};
 	static const char clear_and_hide[] = "\033[2J\033[H\033[?25l";
+	bool margins = view->width < host_columns || view->height < host_rows;
+	struct st_console_cell surround = blank;
 
-	emit_style(writer, console, &blank);
+	surround.foreground = surround.background
+	    = console->display->config.text_margin_colour;
+	emit_style(writer, console, margins ? &surround : &blank);
 	emit(writer, clear_and_hide, sizeof(clear_and_hide) - 1);
+	if (margins) {
+		/* Erasure need not use the selected background on every terminal. */
+		for (uint32_t y = 0; y < host_rows; ++y) {
+			for (uint32_t x = 0; x < host_columns; ++x) {
+				if (y >= view->y && y - view->y < view->height
+				    && x >= view->x && x - view->x < view->width) {
+					x = view->x + view->width - 1;
+					continue;
+				}
+				if (x == 0 || x == view->x + view->width)
+					emit_format(writer, "\033[%" PRIu32 ";%" PRIu32 "H",
+					    y + 1, x + 1, 0);
+				emit(writer, " ", 1);
+			}
+		}
+		emit_style(writer, console, &blank);
+		for (uint32_t y = 0; y < view->height; ++y) {
+			emit_format(writer, "\033[%" PRIu32 ";%" PRIu32 "H",
+			    view->y + y + 1, view->x + 1, 0);
+			for (uint32_t x = 0; x < view->width; ++x)
+				emit(writer, " ", 1);
+		}
+	}
 	for (size_t i = 0; i < (size_t)console->columns * console->rows; ++i)
 		state->drawn[i] = blank;
 	state->initialized = true;
@@ -393,16 +422,17 @@ prepare_initial_screen(struct ansi_writer *writer, st_console_t *console,
 
 static bool
 scroll_up_one(struct ansi_writer *writer, st_console_t *console,
-	struct ansi_state *state)
+	struct ansi_state *state, const struct st_console_rect *view,
+	uint32_t host_columns)
 {
 	const struct st_console_rect *window = &console->window;
-	uint32_t host_rows = atomic_load_explicit(&state->host_rows,
-	    memory_order_acquire);
 	size_t row_size;
 
-	if (!state->initialized || window->x != 0
+	/* ANSI vertical scrolling affects the full physical width. */
+	if (view->x != 0 || view->width != host_columns
+	    || !state->initialized || window->x != 0
 	    || window->width != console->columns || window->height < 2
-	    || (host_rows != 0 && window->y + window->height > host_rows))
+	    || window->y + window->height > view->height)
 		return false;
 	row_size = (size_t)console->columns * sizeof(*state->drawn);
 	for (uint32_t y = 0; y + 1 < window->height; ++y) {
@@ -416,7 +446,8 @@ scroll_up_one(struct ansi_writer *writer, st_console_t *console,
 				return false;
 	}
 	emit_format(writer, "\033[%" PRIu32 ";%" PRIu32 "r",
-	    window->y + 1, window->y + window->height, 0);
+	    view->y + window->y + 1,
+	    view->y + window->y + window->height, 0);
 	{
 		static const char scroll[] = "\033[1S\033[r";
 
@@ -445,10 +476,13 @@ ansi_present(st_console_t *console)
 	uint32_t cursor_columns;
 	bool resized = atomic_exchange_explicit(&state->host_resized, false,
 	    memory_order_acq_rel);
-	uint32_t visible_columns = atomic_load_explicit(&state->host_columns,
+	uint32_t host_columns = atomic_load_explicit(&state->host_columns,
 	    memory_order_acquire);
-	uint32_t visible_rows = atomic_load_explicit(&state->host_rows,
+	uint32_t host_rows = atomic_load_explicit(&state->host_rows,
 	    memory_order_acquire);
+	struct st_console_rect view = st_console_text_viewport(console->columns,
+	    console->rows, host_columns, host_rows,
+	    console->display->config.text_left_justify);
 
 	state->invalid_colour = false;
 	if (resized) {
@@ -457,19 +491,17 @@ ansi_present(st_console_t *console)
 		    * sizeof(*state->drawn));
 	}
 	initializing = !state->initialized;
-	if (visible_columns == 0 || visible_columns > console->columns)
-		visible_columns = console->columns;
-	if (visible_rows == 0 || visible_rows > console->rows)
-		visible_rows = console->rows;
 	st_console_cursor_span_locked(console, &cursor_x, &cursor_columns);
 	(void)cursor_columns;
 
 	if (initializing)
-		prepare_initial_screen(&writer, console, state);
+		prepare_initial_screen(&writer, console, state, &view,
+		    host_columns, host_rows);
 	else
-		(void)scroll_up_one(&writer, console, state);
-	for (uint32_t y = 0; y < visible_rows; ++y) {
-		for (uint32_t x = 0; x < visible_columns; ++x) {
+		(void)scroll_up_one(&writer, console, state, &view,
+		    host_columns == 0 ? console->columns : host_columns);
+	for (uint32_t y = 0; y < view.height; ++y) {
+		for (uint32_t x = 0; x < view.width; ++x) {
 			size_t index = (size_t)y * console->columns + x;
 			const struct st_console_cell *source = st_console_cell_at(console, index);
 			struct st_console_cell effective;
@@ -487,7 +519,7 @@ ansi_present(st_console_t *console)
 				continue;
 			if (!position_known || output_x != x || output_y != y)
 				emit_format(&writer, "\033[%" PRIu32 ";%" PRIu32 "H",
-				    y + 1, x + 1, 0);
+				    view.y + y + 1, view.x + x + 1, 0);
 			if (!style_known || !styles_equal(cell, &current_style)) {
 				emit_style(&writer, console, cell);
 				current_style = *cell;
@@ -500,16 +532,16 @@ ansi_present(st_console_t *console)
 			    && (st_console_cell_at(console, index + 1)->flags
 			    & ST_CONSOLE_CELL_CONTINUATION) != 0)
 				++output_x;
-			position_known = output_x < visible_columns;
+			position_known = output_x < view.width;
 		}
 	}
-	emit_format(&writer, "\033[%" PRIu32 ";%" PRIu32 "H",
-	    console->cursor_y + 1, cursor_x + 1, 0);
-	if (console->cursor_visible && cursor_x < visible_columns
-	    && console->cursor_y < visible_rows) {
+	if (console->cursor_visible && cursor_x < view.width
+	    && console->cursor_y < view.height) {
 		uint32_t shape = console->cursor_shape == ST_CONSOLE_CURSOR_BLOCK
 		    ? 2 : console->cursor_shape == ST_CONSOLE_CURSOR_UNDERLINE ? 4 : 6;
 
+		emit_format(&writer, "\033[%" PRIu32 ";%" PRIu32 "H",
+		    view.y + console->cursor_y + 1, view.x + cursor_x + 1, 0);
 		emit_format(&writer, "\033[%" PRIu32 " q", shape, 0, 0);
 		emit(&writer, "\033[0m\033[?25h", 10);
 	}

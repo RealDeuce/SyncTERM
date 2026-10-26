@@ -135,6 +135,15 @@ test_console_startup(void)
 	CHECK(startup.config.color_emoji);
 	settings.color_emoji = false;
 	CHECK(startup.display_config.initial_scaling == 2.0);
+	CHECK(!startup.display_config.text_left_justify);
+	CHECK(startup.display_config.text_margin_colour
+	    == ST_CONSOLE_COLOR_RGB_VALUE(0, 0, 168));
+	settings.left_justify = true;
+	CHECK(st_console_startup_configure(&startup, &settings, &command) == 0);
+	CHECK(startup.display_config.text_left_justify);
+	CHECK(startup.display_config.text_margin_colour
+	    == ST_CONSOLE_COLOR_RGB_VALUE(0, 0, 0));
+	settings.left_justify = false;
 	settings.window_width = 800;
 	settings.window_height = 600;
 	CHECK(st_console_startup_configure(&startup, &settings, &command) == 0);

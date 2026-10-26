@@ -172,6 +172,14 @@ if(BUILD_TESTING)
 						$<TARGET_FILE:${_cli}> ${_mode})
 					set_tests_properties(syncterm_text_startup_${_mode}
 						PROPERTIES TIMEOUT 25)
+					foreach(_layout IN ITEMS center left)
+						add_test(NAME syncterm_text_${_layout}_${_mode}
+							COMMAND ${Python3_EXECUTABLE}
+							${CMAKE_CURRENT_SOURCE_DIR}/tests/st_text_startup_test.py
+							$<TARGET_FILE:${_cli}> ${_mode} ${_layout})
+						set_tests_properties(syncterm_text_${_layout}_${_mode}
+							PROPERTIES TIMEOUT 25)
+					endforeach()
 				endif()
 			endforeach()
 		endif()
