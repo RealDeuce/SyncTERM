@@ -570,7 +570,7 @@ if(BUILD_TESTING)
 				ENVIRONMENT "TERM=xterm-256color;COLORTERM=" TIMEOUT 20)
 			add_executable(st_console_ncurses_test
 				tests/st_console_ncurses_test.c)
-			target_link_libraries(st_console_ncurses_test PRIVATE st_console)
+			target_link_libraries(st_console_ncurses_test PRIVATE st_console st_time)
 			if(ST_CONSOLE_TEST_UTIL_LIBRARY)
 				target_link_libraries(st_console_ncurses_test PRIVATE
 					${ST_CONSOLE_TEST_UTIL_LIBRARY})
@@ -583,6 +583,9 @@ if(BUILD_TESTING)
 				C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 			st_console_warnings(st_console_ncurses_test)
 			add_test(NAME st_console_ncurses COMMAND st_console_ncurses_test)
+			add_test(NAME st_console_ncurses_capture
+				COMMAND st_console_ncurses_test --fragmented-output)
+			set_tests_properties(st_console_ncurses_capture PROPERTIES TIMEOUT 20)
 			set_tests_properties(st_console_ncurses PROPERTIES
 				ENVIRONMENT "TERM=xterm-256color;COLORTERM="
 				SKIP_RETURN_CODE 77 TIMEOUT 20)

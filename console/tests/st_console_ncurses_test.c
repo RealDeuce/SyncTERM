@@ -6,6 +6,7 @@
 #include "st_console.h"
 
 #include "io_error.h"
+#include "st_time.h"
 
 #if ST_CONSOLE_TEST_HAVE_PTY_H
 	#include <pty.h>
@@ -52,6 +53,77 @@ output_contains(const char *text)
 		if (memcmp(&terminal_output[i], text, length) == 0)
 			return true;
 	return false;
+}
+
+static bool
+wait_for_output(int descriptor, const char *text, size_t read_size, int timeout_ms)
+{
+	unsigned char bytes[4096];
+	struct st_deadline deadline;
+
+	if (read_size == 0 || st_deadline_start(&deadline, timeout_ms) != 0)
+		return false;
+	if (read_size > sizeof(bytes))
+		read_size = sizeof(bytes);
+	/* Per-character flushes can make hundreds of reads immediately ready. */
+	while (!output_contains(text)) {
+		struct pollfd output = {.fd = descriptor, .events = POLLIN};
+		int64_t remaining;
+		int status;
+		ssize_t count;
+
+		if (st_deadline_remaining_ms(&deadline, &remaining) != 0 || remaining == 0)
+			return false;
+		status = poll(&output, 1, remaining > 50 ? 50 : (int)remaining);
+		if (status == 0 || (status < 0 && errno == EINTR))
+			continue;
+		if (status < 0 || (output.revents & POLLIN) == 0)
+			return false;
+		count = read(descriptor, bytes, read_size);
+		if (count < 0 && errno == EINTR)
+			continue;
+		if (count <= 0)
+			return false;
+		save_output(bytes, (size_t)count);
+	}
+	return true;
+}
+
+static int
+test_fragmented_output(void)
+{
+	char frame[135];
+
+	memset(frame, '?', sizeof(frame));
+	memcpy(frame + 128, "REPAINT", 7);
+	/* Exercise fragmented success, EOF before the marker, and an idle writer. */
+	for (unsigned scenario = 0; scenario < 3; ++scenario) {
+		int descriptors[2];
+		size_t size = scenario == 0 ? sizeof(frame) : scenario == 1 ? 128 : 0;
+
+		terminal_output_size = 0;
+		if (pipe(descriptors) != 0)
+			return EXIT_FAILURE;
+		if (size != 0 && write(descriptors[1], frame, size) != (ssize_t)size) {
+			(void)close(descriptors[0]);
+			(void)close(descriptors[1]);
+			return EXIT_FAILURE;
+		}
+		if (scenario != 2)
+			(void)close(descriptors[1]);
+		bool found = wait_for_output(descriptors[0], "REPAINT", 1,
+		    scenario == 2 ? 20 : 5000);
+		(void)close(descriptors[0]);
+		if (scenario == 2)
+			(void)close(descriptors[1]);
+		if (found != (scenario == 0) || terminal_output_size != size
+		    || memcmp(terminal_output, frame, size) != 0) {
+			fprintf(stderr, "fragmented repaint capture case %u: found=%d bytes=%zu\n",
+			    scenario, found, terminal_output_size);
+			return EXIT_FAILURE;
+		}
+	}
+	return EXIT_SUCCESS;
 }
 
 static bool
@@ -406,6 +478,8 @@ main(int argc, char **argv)
 	int status;
 	bool cp437;
 
+	if (argc == 2 && strcmp(argv[1], "--fragmented-output") == 0)
+		return test_fragmented_output();
 	if (argc == 1)
 		cp437 = false;
 	else if (argc == 2 && strcmp(argv[1], "--cp437") == 0)
@@ -450,18 +524,8 @@ main(int argc, char **argv)
 	if (ioctl(master, TIOCSWINSZ, &size) != 0 || kill(child, SIGWINCH) != 0
 	    || wait_report(report[0], master, 'Z') != 0)
 		goto failed;
-	for (unsigned int attempt = 0; attempt < 100
-	    && !output_contains("REPAINT"); ++attempt) {
-		struct pollfd output = {.fd = master, .events = POLLIN};
-		unsigned char bytes[4096];
-
-		if (poll(&output, 1, 50) > 0 && (output.revents & POLLIN) != 0) {
-			ssize_t count = read(master, bytes, sizeof(bytes));
-			if (count > 0)
-				save_output(bytes, (size_t)count);
-		}
-	}
-	if (!output_contains("REPAINT") || write(master, "\r", 1) != 1
+	if (!wait_for_output(master, "REPAINT", 4096, 5000)
+	    || write(master, "\r", 1) != 1
 	    || wait_report(report[0], master, 'F') != 0)
 		goto failed;
 	(void)close(report[0]);
