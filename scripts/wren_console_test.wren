@@ -56,19 +56,15 @@ class WrenConsoleTest {
         pasted[2] == pasted[1].bytes.count,
         "paste keeps Unicode and Tab while dropping invalid controls")
 
-    // The C harness queues actual text and editing events before this call.
+    // The process harness sends actual text and editing events during this call.
     WrenConsole.run("main_menu")
     check_(received.count == 6 && received[4] == "AΩZ" &&
         received[5] == "keep done",
         "interactive editing preserves codepoint boundaries")
     WrenConsole.unregister("edit")
 
-    WrenConsole.drawPrompt_(1, "m", "A一B", "A一".bytes.count)
-    var position = Screen.window.position
-    check_(position[0] == 14 && position[1] == 1,
-        "prompt cursor accounts for a wide glyph")
     WrenConsole.drawPrompt_(1, "m", "A\u0301B", "A\u0301".bytes.count)
-    position = Screen.window.position
+    var position = Screen.window.position
     check_(position[0] == 12 && position[1] == 1,
         "prompt cursor follows the NFC grapheme width")
     WrenConsole.drawPrompt_(1, "m", "A\tB", 2)
@@ -76,6 +72,17 @@ class WrenConsoleTest {
     check_(position[0] == 17 && position[1] == 1,
         "prompt cursor follows eight-column tab stops")
 
+    return [__pass, __fail]
+  }
+
+  // The prompt width check requires the synthetic C fixture's wide mapping.
+  static runSyntheticFontAudit() {
+    __pass = 0
+    __fail = 0
+    WrenConsole.drawPrompt_(1, "m", "A一B", "A一".bytes.count)
+    var position = Screen.window.position
+    check_(position[0] == 14 && position[1] == 1,
+        "prompt cursor accounts for a wide glyph")
     return [__pass, __fail]
   }
 }

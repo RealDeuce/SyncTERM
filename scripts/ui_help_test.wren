@@ -68,10 +68,17 @@ class UiHelpTest {
     testBulletHardBreakKeepsIndent_()
     testBulletHardBreakChain_()
     testBulletWithoutHardBreakDoesNotContinue_()
-    testThemeFontReflows_()
 
     var total = __pass + __fail
     System.print("=== ui_help: %(total) tests, %(__pass) pass, %(__fail) fail ===")
+    return [__pass, __fail]
+  }
+
+  // Requires the C fixture's synthetic double-width ASCII font in slot 255.
+  static runSyntheticFontAudit() {
+    __pass = 0
+    __fail = 0
+    testThemeFontReflows_()
     return [__pass, __fail]
   }
 

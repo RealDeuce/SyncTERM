@@ -2,8 +2,6 @@
 """End-to-end tests of the normal SyncTERM executable's testing bitmap driver."""
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 import binascii
-import contextlib
-import os
 from pathlib import Path
 import socket
 import struct
@@ -15,46 +13,11 @@ import threading
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools" / "testing"))
 from syncterm_control import ALT, SHIFT, Client, CommandError, Snapshot
-
-
-def environment():
-    env = dict(os.environ)
-    for name in ("DISPLAY", "WAYLAND_DISPLAY", "XAUTHORITY", "XDG_RUNTIME_DIR"):
-        env.pop(name, None)
-    return env
-
-
-@contextlib.contextmanager
-def fixture(executable, *, entries="", extra=(), script=None):
-    with tempfile.TemporaryDirectory(prefix="syncterm-control-") as directory:
-        root = Path(directory)
-        (root / "syncterm.ini").write_text("[SyncTERM]\nConfirmClose=false\nScalingFactor=1\n")
-        (root / "syncterm.lst").write_text(entries)
-        (root / "downloads").mkdir()
-        if script is not None:
-            scripts = root / "scripts" / "auto" / "connected"
-            scripts.mkdir(parents=True)
-            (scripts / "zzz_test_control.wren").write_text(script)
-        with Client(executable, ["--test-directory", root, "-q", *extra], env=environment(), timeout=15) as client:
-            yield client, root
-        assert client.process.returncode == 0, client.diagnostics()
-
-
-def click_text(client, snapshot, text):
-    for y, line in enumerate(snapshot.lines):
-        if text in line:
-            x = line.index(text) + 1
-            m = snapshot.metadata
-            px = m["destination_x"] + (x * m["cell_width"] + m["cell_width"] // 2) * m["destination_width"] // m["plane_width"]
-            py = m["destination_y"] + (y * m["cell_height"] + m["cell_height"] // 2 + m["pixel_top"]) * m["destination_height"] // m["plane_height"]
-            client.mouse(px, py, action=1, buttons=1)
-            client.mouse(px, py, action=1, buttons=0)
-            return
-    raise AssertionError(f"Missing {text!r}\n{snapshot.text}")
+from syncterm_fixture import application, environment, fixture, click_text, receive
 
 
 def basic(executable):
-    with fixture(executable) as (client, root):
+    with fixture(executable, settings="[Unrelated]\nPreserve=yes\n") as (client, root):
         first = client.wait_text("Build Options")
         assert client.hello[1] & (1 << 12)
         assert first.application["session_active"] == 0
@@ -93,17 +56,11 @@ def basic(executable):
         client.wait_text("Directory: Name")
         client.close()
         assert "ScalingFactor=2" in (root / "syncterm.ini").read_text()
-
-
-def receive(peer, expected):
-    peer.settimeout(10)
-    received = bytearray()
-    while expected not in received:
-        data = peer.recv(4096)
-        if not data:
-            raise AssertionError(f"Connection closed before {expected!r}; got {received!r}")
-        received.extend(data)
-    return received
+        assert "[Unrelated]" in (root / "syncterm.ini").read_text()
+        assert "Preserve=yes" in (root / "syncterm.ini").read_text()
+        with application(executable, root) as restarted:
+            frame = restarted.wait_text("Directory: Name")
+            assert frame.metadata["scaling_millionths"] == 2000000
 
 
 def session(executable, utf8):

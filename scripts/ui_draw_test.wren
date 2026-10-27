@@ -25,7 +25,6 @@ class UiDrawTest {
     testFillStyleApplied_()
     testText_()
     testTextTruncate_()
-    testWideText_()
     testRejectedCappedTextPreservesCell_()
     testRejectedEdgeTextPreservesCell_()
     testTextEmpty_()
@@ -54,6 +53,14 @@ class UiDrawTest {
 
     var total = __pass + __fail
     System.print("=== ui_draw: %(total) tests, %(__pass) pass, %(__fail) fail ===")
+    return [__pass, __fail]
+  }
+
+  // Requires a guaranteed two-column glyph from the synthetic C fixture.
+  static runSyntheticFontAudit() {
+    __pass = 0
+    __fail = 0
+    testWideText_()
     return [__pass, __fail]
   }
 

@@ -1,4 +1,5 @@
-/* Exercise the application's real connection-to-menu cleanup path. */
+/* Session-mode API invariants and private logging/error contracts.
+ * Application connection/cleanup workflows use the testing bitmap process harness. */
 /* Copyright (c) 2026 Stephen Hurd
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -16,120 +17,6 @@
 		return 1; \
 	} \
 } while (false)
-
-static int
-check_profile_runtime(const struct st_wren_host_config *base,
-	st_wren_host_t *safe_host, st_console_display_t *display, st_console_t *console,
-	const struct st_app_paths *paths, st_hyperlink_registry_t *hyperlinks)
-{
-	struct st_wren_host_config config = *base;
-	st_wren_host_t *host = NULL;
-	st_bbs_list_t *list = NULL;
-	struct st_profile profile;
-	enum st_term_disposition disposition = ST_TERM_RETURN_TO_PICKER;
-	char buffer[16384];
-	FILE *file = fopen(paths->personal_list, "wb");
-	CHECK(file != NULL);
-	CHECK(fputs("[Options]\nConnectionType=Shell\nScreenMode=80x25\n"
-	    "Address=stty -echo; read line; printf O\n"
-	    "NoStatus=true\nHidePopups=true\nForceLCF=true\nYellowIsYellow=true\n"
-	    "ANSIMusic=2\nPalette=66051,16448250\nTotalCalls=5\n"
-	    "ProtocolLogLevel=Debug\nTransferLogLevel=Debug\nCTermLogLevel=Debug\n"
-	    "WrenScripts= entry_options ,entry_options\n"
-	    "LogFile=" ST_APP_SESSION_TEST_DIRECTORY "/entry.log\nAppendLogFile=false\n", file) >= 0);
-	CHECK(fclose(file) == 0);
-	CHECK(fs_create_directories(paths->scripts_directory) == 0);
-	file = fopen(ST_APP_SESSION_TEST_DIRECTORY "/scripts/entry_options.wren", "wb");
-	CHECK(file != NULL);
-	CHECK(fputs("import \"syncterm\" for BBS, CTerm, Conn, Host\n"
-	    "if (CTerm.music != 2 || !CTerm.lastColumnFlag.forced || !CTerm.hasPaletteOverride || CTerm.paletteOverride[6] != 66051) Fiber.abort(\"presentation options\")\n"
-	    "if (BBS.calls != 6 || BBS.connected <= 0 || Host.logLevel != 7 || BBS.ctermLogLevel != 7 || BBS.wrenScripts.count != 1) Fiber.abort(\"session options\")\n"
-	    "CTerm.write(\"\\U0010ffff\\n\")\n"
-	    "if (!Conn.sessionLog.contains(\"CTerm Debug: Missing glyph (.noglyph)\")) Fiber.abort(\"session log snapshot\")\n"
-	    "Conn.send(\"X\\n\")\n", file) >= 0);
-	CHECK(fclose(file) == 0);
-	config.safe_mode = false;
-	CHECK(st_wren_host_create(&host, &config) == 0);
-	CHECK(st_bbs_list_open_replacement(&list, NULL, paths, NULL) == 0);
-	st_profile_init(&profile);
-	CHECK(st_profile_copy(&profile, st_bbs_list_find(list, "Options")->profile));
-	profile.identifier = 0; /* A saved selection, not a quick-connect draft. */
-	st_bbs_list_close(list);
-	CHECK(run_selected(host, display, console, &profile, paths, NULL,
-	    hyperlinks, NULL, &disposition) == 0);
-	CHECK(profile.calls == 6 && profile.connected > 0);
-	CHECK(st_bbs_list_open_replacement(&list, NULL, paths, NULL) == 0);
-	CHECK(st_bbs_list_find(list, "Options")->profile->calls == 6);
-	st_bbs_list_close(list);
-	file = fopen(profile.log_path, "rb");
-	CHECK(file != NULL);
-	size_t size = fread(buffer, 1, sizeof(buffer) - 1, file);
-	CHECK(!ferror(file) && fclose(file) == 0);
-	buffer[size] = '\0';
-	CHECK(strstr(buffer, "Log opened\n") != NULL);
-	CHECK(strstr(buffer, "Shell Info: starting PTY shell") != NULL);
-	CHECK(strstr(buffer, "CTerm Debug: Missing glyph (.noglyph)") != NULL);
-	CHECK(strstr(buffer, "U+10FFFF") != NULL);
-	CHECK(strstr(buffer, "Log closed\n---------------\n") != NULL);
-	/* Append/truncate and transfer records share the same file ownership. */
-	struct connection_ui ui = {.host = host, .profile = &profile};
-	CHECK(st_mutex_init(&ui.log_mutex, ST_MUTEX_PLAIN) == ST_THREAD_SUCCESS);
-	profile.append_log = true;
-	connection_log_open(&ui);
-	connection_transfer_log(&ui, ST_PROFILE_LOG_INFO, "transfer record");
-	connection_log_close(&ui);
-	file = fopen(profile.log_path, "rb");
-	CHECK(file != NULL);
-	size = fread(buffer, 1, sizeof(buffer) - 1, file);
-	CHECK(!ferror(file) && fclose(file) == 0);
-	buffer[size] = '\0';
-	CHECK(strstr(buffer, "transfer record\n") != NULL);
-	CHECK(strstr(buffer, "starting PTY shell") != NULL);
-	profile.append_log = false;
-	connection_log_open(&ui);
-	connection_log_close(&ui);
-	file = fopen(profile.log_path, "rb");
-	CHECK(file != NULL);
-	size = fread(buffer, 1, sizeof(buffer) - 1, file);
-	CHECK(!ferror(file) && fclose(file) == 0);
-	buffer[size] = '\0';
-	CHECK(strstr(buffer, "Log opened") != NULL && strstr(buffer, "transfer record") == NULL);
-	/* Safe mode must not even truncate an existing log or persist counters. */
-	ui.host = safe_host;
-	connection_log_open(&ui);
-	CHECK(ui.log_file == NULL);
-	CHECK(st_wren_host_record_connection(safe_host, &profile) == 0 && profile.calls == 7);
-	CHECK(st_bbs_list_open_replacement(&list, NULL, paths, NULL) == 0);
-	CHECK(st_bbs_list_find(list, "Options")->profile->calls == 6);
-	st_bbs_list_close(list);
-	st_mutex_destroy(&ui.log_mutex);
-	free(ui.log);
-	/* Failed attempts still own/close their log, but do not count calls. */
-	profile.connection_type = ST_CONNECTION_UNKNOWN;
-	CHECK(run_selected(host, display, console, &profile, paths, NULL,
-	    hyperlinks, NULL, &disposition) != 0);
-	CHECK(profile.calls == 7);
-	file = fopen(profile.log_path, "rb");
-	CHECK(file != NULL);
-	size = fread(buffer, 1, sizeof(buffer) - 1, file);
-	CHECK(!ferror(file) && fclose(file) == 0);
-	buffer[size] = '\0';
-	CHECK(strstr(buffer, "Log closed\n---------------\n") != NULL);
-	/* A log open failure must not turn a successful connection into failure. */
-	profile.connection_type = ST_CONNECTION_SHELL;
-	profile.identifier = -1;
-	profile.wren_scripts[0] = '\0';
-	strcpy(profile.address, "printf O");
-	free(profile.log_path);
-	profile.log_path = strdup(paths->cache_directory);
-	CHECK(profile.log_path != NULL);
-	CHECK(run_selected(host, display, console, &profile, paths, NULL,
-	    hyperlinks, NULL, &disposition) == 0);
-	st_profile_dispose(&profile);
-	st_wren_host_destroy(host);
-	CHECK(fs_remove_file(ST_APP_SESSION_TEST_DIRECTORY "/scripts/entry_options.wren") == 0);
-	return 0;
-}
 
 static int
 check_session_log(void)
@@ -217,93 +104,63 @@ check_connection_help(void)
 }
 
 static int
-check_legacy_c128_shell(st_wren_host_t *host, st_console_display_t *display,
-	st_console_t *console, const struct st_app_paths *paths,
-	st_hyperlink_registry_t *hyperlinks)
+check_log_policy(const struct st_wren_host_config *base,
+	st_wren_host_t *safe_host, st_console_display_t *display, st_console_t *console,
+	const struct st_app_paths *paths, st_hyperlink_registry_t *hyperlinks)
 {
-	struct st_app_paths legacy_paths = *paths;
-	st_bbs_list_t *list = NULL;
-	const struct st_bbs_entry *entry;
+	struct st_wren_host_config config = *base;
+	st_wren_host_t *host = NULL;
 	struct st_profile profile;
-	enum st_term_disposition disposition = ST_TERM_EXIT_APPLICATION;
-	FILE *file;
-
-	legacy_paths.personal_list = ST_APP_SESSION_TEST_DIRECTORY "/legacy-c128.lst";
-	file = fopen(legacy_paths.personal_list, "wb");
-	CHECK(file != NULL);
-	CHECK(fputs("[C64 Shell]\nConnectionType=Shell\n"
-	    "ScreenMode=C128-40col\nFont=Commodore 128 (Lower)\n"
-	    "Address=printf 'completed session'\nNoStatus=true\nHidePopups=true\n",
-	    file) >= 0);
-	CHECK(fclose(file) == 0);
-	/* Isolate the fixture from the menu's configured ListPath. */
-	CHECK(st_bbs_list_open_replacement(&list, NULL, &legacy_paths, NULL) == 0);
-	entry = st_bbs_list_find(list, "C64 Shell");
-	CHECK(entry != NULL);
+	char buffer[4096];
+	config.safe_mode = false;
+	CHECK(st_wren_host_create(&host, &config) == 0);
 	st_profile_init(&profile);
-	CHECK(st_profile_copy(&profile, entry->profile));
-	CHECK(profile.encoding == ST_CODEPAGE_PETSCII_LOWER);
-	CHECK(profile.screen_mode == ST_SCREEN_MODE_C128_40);
-	CHECK(strcmp(profile.font, "Commodore 128 (Lower)") == 0);
-	CHECK(run_selected(host, display, console, &profile, &legacy_paths, NULL,
-	    hyperlinks, NULL, &disposition) == 0);
-	CHECK(disposition == ST_TERM_RETURN_TO_PICKER);
-	CHECK(profile.screen_mode == ST_SCREEN_MODE_C128_40
-	    && strcmp(profile.font, "Commodore 128 (Lower)") == 0);
-	st_profile_dispose(&profile);
-	st_bbs_list_close(list);
-	return 0;
-}
-
-static int
-check_lf_expand(st_wren_host_t *host, st_console_display_t *display,
-	st_console_t *console, const struct st_app_paths *paths,
-	st_hyperlink_registry_t *hyperlinks)
-{
-	st_session_history_t *history = NULL;
-	struct st_profile profile;
-
-	CHECK(st_session_history_create(&history, 100) == 0);
-	st_profile_init(&profile);
-	profile.connection_type = ST_CONNECTION_SHELL;
-	profile.screen_mode = ST_SCREEN_MODE_80X25;
-	profile.hide_status = true;
-	profile.hide_popups = true;
-	/* Disable PTY output processing so LF reaches the real session unchanged. */
-	strcpy(profile.address, "stty -opost; printf 'AB\\nC\\r\\nD'");
-	for (unsigned attempt = 0; attempt < 3; ++attempt) {
-		struct st_console_cell *cells = NULL;
-		uint32_t columns;
-		size_t rows;
-		enum st_screen_mode mode;
-		bool has_status;
-		enum st_term_disposition disposition = ST_TERM_EXIT_APPLICATION;
-		char text[8];
-		size_t size;
-
-		profile.expand_lf = attempt != 1;
-		CHECK(run_selected(host, display, console, &profile, paths, NULL,
-		    hyperlinks, history, &disposition) == 0);
-		CHECK(disposition == ST_TERM_RETURN_TO_PICKER);
-		CHECK(st_session_history_copy(history, &cells, &columns, &rows,
-		    &mode, &has_status) == 0);
-		if (columns != 80 || rows < 25 || has_status)
-			fprintf(stderr, "LF Expand history: columns=%lu rows=%zu status=%d mode=%d\n",
-			    (unsigned long)columns, rows, has_status, mode);
-		CHECK(columns == 80 && rows >= 25 && !has_status && mode == ST_SCREEN_MODE_80X25);
-		/* Startup saves the previous screen in scrollback. The final 25
-		 * rows are the visible screen produced by this connection. */
-		const struct st_console_cell *visible = cells + (rows - 25) * columns;
-		const struct st_console_cell *cell = &visible[columns + (profile.expand_lf ? 0 : 2)];
-		CHECK(st_console_font_glyph_text(console, cell->glyph_font, cell->glyph,
-		    text, sizeof(text), &size) == 0 && size == 1 && text[0] == 'C');
-		cell = &visible[2 * columns];
-		CHECK(st_console_font_glyph_text(console, cell->glyph_font, cell->glyph,
-		    text, sizeof(text), &size) == 0 && size == 1 && text[0] == 'D');
-		free(cells);
+	strcpy(profile.name, "Test");
+	profile.log_path = strdup(ST_APP_SESSION_TEST_DIRECTORY "/helper.log");
+	CHECK(profile.log_path != NULL);
+	struct connection_ui ui = {.host = host, .profile = &profile};
+	CHECK(st_mutex_init(&ui.log_mutex, ST_MUTEX_PLAIN) == ST_THREAD_SUCCESS);
+	for (unsigned pass = 0; pass < 3; ++pass) {
+		profile.append_log = pass == 1;
+		connection_log_open(&ui);
+		CHECK(ui.log_file != NULL);
+		if (pass != 2)
+			connection_transfer_log(&ui, ST_PROFILE_LOG_INFO, "transfer record");
+		connection_log_close(&ui);
+		FILE *file = fopen(profile.log_path, "rb");
+		CHECK(file != NULL);
+		size_t size = fread(buffer, 1, sizeof(buffer) - 1, file);
+		CHECK(!ferror(file) && fclose(file) == 0);
+		buffer[size] = '\0';
+		CHECK(strstr(buffer, "Log opened\n") != NULL);
+		CHECK(strstr(buffer, "Log closed\n---------------\n") != NULL);
+		CHECK((strstr(buffer, "transfer record\n") != NULL) == (pass != 2));
 	}
+	ui.host = safe_host;
+	connection_log_open(&ui);
+	CHECK(ui.log_file == NULL);
+	CHECK(st_wren_host_record_connection(safe_host, &profile) == 0 && profile.calls == 1);
+	st_bbs_list_t *list = NULL;
+	CHECK(st_bbs_list_open_replacement(&list, NULL, paths, NULL) == 0);
+	CHECK(st_bbs_list_find(list, "Test")->profile->calls == 0);
+	st_bbs_list_close(list);
+	/* Invalid API input still closes its log without recording a call. */
+	profile.connection_type = ST_CONNECTION_UNKNOWN;
+	profile.hide_popups = true;
+	enum st_term_disposition disposition = ST_TERM_RETURN_TO_PICKER;
+	CHECK(run_selected(host, display, console, &profile, paths, NULL,
+	    hyperlinks, NULL, &disposition) != 0);
+	CHECK(profile.calls == 1);
+	FILE *file = fopen(profile.log_path, "rb");
+	CHECK(file != NULL);
+	size_t size = fread(buffer, 1, sizeof(buffer) - 1, file);
+	CHECK(!ferror(file) && fclose(file) == 0);
+	buffer[size] = '\0';
+	CHECK(strstr(buffer, "Log closed\n---------------\n") != NULL);
+	free(ui.log);
+	st_mutex_destroy(&ui.log_mutex);
 	st_profile_dispose(&profile);
-	st_session_history_destroy(history);
+	st_wren_host_destroy(host);
 	return 0;
 }
 
@@ -412,27 +269,10 @@ main(void)
 	CHECK(run_selected(host, display, console, &profile, &paths, NULL,
 	    hyperlinks, NULL, &disposition) != 0);
 	CHECK(check_mode(host, console, picker, ST_SCREEN_MODE_80X28, 80, 28, 14) == 0);
-	CHECK(check_legacy_c128_shell(host, display, console, &paths, hyperlinks) == 0);
-	CHECK(check_mode(host, console, picker, ST_SCREEN_MODE_80X28, 80, 28, 14) == 0);
-	CHECK(check_lf_expand(host, display, console, &paths, hyperlinks) == 0);
-	CHECK(check_mode(host, console, picker, ST_SCREEN_MODE_80X28, 80, 28, 14) == 0);
-
-	/* A real remote close goes through connected Wren and CTerm teardown. */
-	profile.connection_type = ST_CONNECTION_SHELL;
-	strcpy(profile.address, "printf 'completed session'");
-	CHECK(run_selected(host, display, console, &profile, &paths, NULL,
-	    hyperlinks, NULL, &disposition) == 0);
-	CHECK(disposition == ST_TERM_RETURN_TO_PICKER);
-	CHECK(check_mode(host, console, picker, ST_SCREEN_MODE_80X28, 80, 28, 14) == 0);
-	profile.screen_mode = ST_SCREEN_MODE_CURRENT;
-	CHECK(run_selected(host, display, console, &profile, &paths, NULL,
-	    hyperlinks, NULL, &disposition) == 0);
-	CHECK(check_mode(host, console, picker, ST_SCREEN_MODE_80X28, 80, 28, 14) == 0);
-
+	/* Component contract: restoring a non-ANSI mode restores its palette. */
 	CHECK(st_wren_host_set_screen_mode(host, ST_SCREEN_MODE_PRESTEL) == 0);
-	profile.screen_mode = ST_SCREEN_MODE_80X25;
-	CHECK(run_selected(host, display, console, &profile, &paths, NULL,
-	    hyperlinks, NULL, &disposition) == 0);
+	CHECK(st_wren_host_begin_session_mode(host, ST_SCREEN_MODE_80X25) == 0);
+	CHECK(st_wren_host_end_session_mode(host) == 0);
 	CHECK(check_mode(host, console, picker, ST_SCREEN_MODE_PRESTEL, 40, 25, 20) == 0);
 	uint32_t palette[16];
 	enum st_console_blink_mode blink;
@@ -472,8 +312,8 @@ main(void)
 	CHECK(st_wren_host_run_menu(host, &selected, &has_selection) == 0);
 	CHECK(has_selection && strcmp(selected.name, "Test") == 0);
 	st_profile_dispose(&selected);
-	CHECK(run_selected(host, display, console, &profile, &paths, NULL,
-	    hyperlinks, NULL, &disposition) == 0);
+	CHECK(st_wren_host_begin_session_mode(host, profile.screen_mode) == 0);
+	CHECK(st_wren_host_end_session_mode(host) == 0);
 	CHECK(check_mode(host, console, picker, ST_SCREEN_MODE_CURRENT, 93, 31, 14) == 0);
 	st_settings.custom_columns = 91;
 	st_settings.custom_rows = 27;
@@ -481,8 +321,8 @@ main(void)
 	st_settings.custom_aspect_width = 5;
 	st_settings.custom_aspect_height = 4;
 	CHECK(st_wren_host_set_screen_mode(host, ST_SCREEN_MODE_CUSTOM) == 0);
-	CHECK(run_selected(host, display, console, &profile, &paths, NULL,
-	    hyperlinks, NULL, &disposition) == 0);
+	CHECK(st_wren_host_begin_session_mode(host, profile.screen_mode) == 0);
+	CHECK(st_wren_host_end_session_mode(host) == 0);
 	CHECK(check_mode(host, console, picker, ST_SCREEN_MODE_CUSTOM, 91, 27, 8) == 0);
 	uint32_t aspect_width, aspect_height;
 	CHECK(st_console_get_aspect_ratio(console, &aspect_width, &aspect_height) == 0);
@@ -490,7 +330,7 @@ main(void)
 	CHECK(st_wren_host_end_session_mode(host) == 0);
 
 	st_profile_dispose(&profile);
-	CHECK(check_profile_runtime(&host_config, host, display, console, &paths, hyperlinks) == 0);
+	CHECK(check_log_policy(&host_config, host, display, console, &paths, hyperlinks) == 0);
 	st_wren_host_destroy(host);
 	st_console_destroy(picker);
 	st_console_destroy(console);

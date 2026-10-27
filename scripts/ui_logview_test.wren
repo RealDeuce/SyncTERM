@@ -36,11 +36,18 @@ class UiLogviewTest {
     testEvictedCapacityAnchor_()
     testCapacityShrinkBelowViewport_()
     testResizePreservesAnchor_()
-    testWideGlyphRows_()
     testEmptyEntryRows_()
 
     var total = __pass + __fail
     System.print("=== ui_logview: %(total) tests, %(__pass) pass, %(__fail) fail ===")
+    return [__pass, __fail]
+  }
+
+  // Requires a guaranteed two-column glyph from the synthetic C fixture.
+  static runSyntheticFontAudit() {
+    __pass = 0
+    __fail = 0
+    testWideGlyphRows_()
     return [__pass, __fail]
   }
 

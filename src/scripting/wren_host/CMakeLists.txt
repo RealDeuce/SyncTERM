@@ -147,7 +147,7 @@ if(BUILD_TESTING)
 		${CMAKE_CURRENT_SOURCE_DIR}/../wren_vm/vm)
 	target_link_libraries(st_wren_settings_menu_test PRIVATE st_wren_host
 		st_wren_vm st_bbs_list st_settings st_fonts st_session_history st_audio
-		syncterm_threads syncterm_socket syncterm_filesystem)
+		syncterm_filesystem)
 	target_compile_definitions(st_wren_settings_menu_test PRIVATE
 		ST_WREN_SETTINGS_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/settings-menu-test"
 		ST_WREN_SETTINGS_SOURCE_DIRECTORY="${CMAKE_CURRENT_SOURCE_DIR}/../../..")
@@ -159,8 +159,8 @@ if(BUILD_TESTING)
 	else()
 		target_compile_options(st_wren_settings_menu_test PRIVATE -Wall -Wextra -Wpedantic -Werror)
 	endif()
-	add_test(NAME wren_settings_menu COMMAND st_wren_settings_menu_test)
-	set_tests_properties(wren_settings_menu PROPERTIES TIMEOUT 120)
+	add_test(NAME wren_settings_runtime COMMAND st_wren_settings_menu_test)
+	set_tests_properties(wren_settings_runtime PROPERTIES TIMEOUT 120)
 
 	include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/SynctermCheckC17Source.cmake")
 	set(_st_wren_saved_required_definitions ${CMAKE_REQUIRED_DEFINITIONS})
@@ -250,54 +250,25 @@ int main(void)
 		target_compile_options(st_wren_loader_audit_test PRIVATE
 			-Wall -Wextra -Wpedantic -Werror)
 	endif()
-	foreach(_case autoload recovery menu-error script-catalog settings-stale
-			settings-save-failure settings-reload screen-mode bbs-setters
-			core-helpers)
+	foreach(_case script-catalog settings-stale settings-save-failure
+			settings-reload screen-mode core-helpers cell-colours)
 		set(_directory "${CMAKE_CURRENT_BINARY_DIR}/audit-${_case}")
 		file(MAKE_DIRECTORY "${_directory}")
 		add_test(NAME "wren_${_case}"
 			COMMAND st_wren_loader_audit_test "${_directory}" "${_case}")
 	endforeach()
-	set(_directory "${CMAKE_CURRENT_BINARY_DIR}/main-menu-address")
-	file(MAKE_DIRECTORY "${_directory}")
-	add_test(NAME wren_main_menu_address
-		COMMAND st_wren_loader_audit_test "${_directory}"
-			main-menu-address)
-	set_tests_properties(wren_main_menu_address PROPERTIES
-		WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../../..")
-	set(_directory "${CMAKE_CURRENT_BINARY_DIR}/main-menu-position")
-	file(MAKE_DIRECTORY "${_directory}")
-	add_test(NAME wren_main_menu_position
-		COMMAND st_wren_loader_audit_test "${_directory}" main-menu-position)
-	set_tests_properties(wren_main_menu_position PROPERTIES TIMEOUT 30)
-	set(_directory "${CMAKE_CURRENT_BINARY_DIR}/main-menu-exit")
-	file(MAKE_DIRECTORY "${_directory}")
-	add_test(NAME wren_main_menu_exit
-		COMMAND st_wren_loader_audit_test "${_directory}" main-menu-exit)
-	set_tests_properties(wren_main_menu_exit PROPERTIES TIMEOUT 30)
-	set(_directory "${CMAKE_CURRENT_BINARY_DIR}/audit-logview-suite")
-	file(MAKE_DIRECTORY "${_directory}")
-	add_test(NAME wren_logview
-		COMMAND st_wren_loader_audit_test "${_directory}" logview-suite)
-	set_tests_properties(wren_logview PROPERTIES
-		WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../../..")
-	set(_directory "${CMAKE_CURRENT_BINARY_DIR}/audit-wren-console-suite")
-	file(MAKE_DIRECTORY "${_directory}")
-	add_test(NAME wren_console
-		COMMAND st_wren_loader_audit_test "${_directory}"
-			wren-console-suite)
-	set_tests_properties(wren_console PROPERTIES
-		WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../../..")
-	foreach(_widget draw widget radio input form color menubar spinbox popup
-			help progress menu)
-		set(_directory
-			"${CMAKE_CURRENT_BINARY_DIR}/audit-${_widget}-suite")
+	foreach(_suite draw input logview popup help progress menu console)
+		set(_directory "${CMAKE_CURRENT_BINARY_DIR}/synthetic-${_suite}")
 		file(MAKE_DIRECTORY "${_directory}")
-		add_test(NAME "wren_${_widget}"
-			COMMAND st_wren_loader_audit_test "${_directory}"
-				"${_widget}-suite")
-		set_tests_properties("wren_${_widget}" PROPERTIES
-			WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../../..")
+		if(_suite STREQUAL "console")
+			set(_case "wren-console-suite")
+		else()
+			set(_case "${_suite}-suite")
+		endif()
+		add_test(NAME "wren_${_suite}_synthetic"
+			COMMAND st_wren_loader_audit_test "${_directory}" "${_case}")
+		set_tests_properties("wren_${_suite}_synthetic" PROPERTIES
+			WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../../.." TIMEOUT 30)
 	endforeach()
 
 	if(NOT WIN32)
@@ -333,8 +304,7 @@ int main(void)
 
 	add_executable(st_wren_picker_test tests/st_wren_picker_test.c)
 	target_link_libraries(st_wren_picker_test PRIVATE st_wren_host
-		st_wren_vm st_bbs_list st_settings syncterm_filesystem syncterm_path
-		syncterm_array_list)
+		st_wren_vm st_bbs_list st_settings syncterm_filesystem)
 	target_compile_definitions(st_wren_picker_test PRIVATE
 		ST_WREN_PICKER_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/picker-test")
 	syncterm_target_atomics(st_wren_picker_test)
@@ -347,5 +317,5 @@ int main(void)
 		target_compile_options(st_wren_picker_test PRIVATE
 			-Wall -Wextra -Wpedantic -Werror)
 	endif()
-	add_test(NAME wren_picker COMMAND st_wren_picker_test)
+	add_test(NAME wren_picker_contract COMMAND st_wren_picker_test)
 endif()

@@ -56,7 +56,6 @@ class UiInputTest {
     testBoundsResizeRevealsValueEnd_()
     testLongValueViewport_()
     testCursorPosVisible_()
-    testWideCursorAndPaint_()
     testCursorVisibleTrue_()
     testCursorAttr_()
     testMouseClickPositionsCursor_()
@@ -67,11 +66,19 @@ class UiInputTest {
     testDrawShowsValue_()
     testDrawMasksValue_()
     testDrawFocusedStyle_()
-    testMaskWidthUpdatesViewport_()
-    testRemovingWideMaskRebuildsViewport_()
 
     var total = __pass + __fail
     System.print("=== ui_input: %(total) tests, %(__pass) pass, %(__fail) fail ===")
+    return [__pass, __fail]
+  }
+
+  // Requires a guaranteed two-column glyph from the synthetic C fixture.
+  static runSyntheticFontAudit() {
+    __pass = 0
+    __fail = 0
+    testWideCursorAndPaint_()
+    testMaskWidthUpdatesViewport_()
+    testRemovingWideMaskRebuildsViewport_()
     return [__pass, __fail]
   }
 

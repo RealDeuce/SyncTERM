@@ -948,69 +948,6 @@ test_remote_disconnect(void)
 }
 
 static int
-test_shell_rip_profile(void)
-{
-	const struct st_console_display_config display = {
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
-	};
-	const struct st_console_config console_config = {
-		.columns = 80, .rows = 25, .cell_width = 8, .cell_height = 16,
-	};
-	const struct st_console_rect pixel = {100, 100, 1, 1};
-	struct st_profile profile;
-	st_console_t *console = NULL;
-	st_connection_t *connection = NULL;
-	st_font_catalog_t *fonts = NULL;
-	st_term_session_t *session = NULL;
-	struct st_pixel_buffer *pixels = NULL;
-	enum st_term_disposition disposition;
-	bool finished;
-	bool drawn = false;
-	uint32_t columns, rows, cell_width, cell_height;
-
-	CHECK(st_console_create(&console, &display, &console_config) == 0);
-	CHECK(st_font_catalog_create(&fonts, console) == 0);
-	st_profile_init(&profile);
-	profile.connection_type = ST_CONNECTION_SHELL;
-	profile.rip_version = ST_RIP_VERSION_1;
-	profile.encoding = ST_PROFILE_ENCODING_UTF8;
-	strcpy(profile.address, "printf '!|*\\r\\n!|X2S2S\\r'; sleep 2");
-	CHECK(st_term_connect_profile(&connection, &profile, console, NULL, NULL)
-	    == 0);
-	const struct st_term_config config = {
-		.console = console,
-		.connection = connection,
-		.fonts = fonts,
-		.screen_mode = ST_SCREEN_MODE_80X25,
-		.encoding = st_term_profile_encoding(&profile),
-		.rip_version = st_term_profile_rip_version(&profile),
-		.codepage = ST_CODEPAGE_CP437,
-		.font_selector = 0,
-		.hide_status = true,
-	};
-	CHECK(st_term_session_create(&session, &config) == 0);
-	for (size_t attempt = 0; attempt < 100 && !drawn; attempt++) {
-		CHECK(st_term_session_pump(session, &disposition, &finished) == 0);
-		CHECK(st_console_get_pixels(&pixels, console, &pixel, false) == 0);
-		drawn = pixels->primary[0] == 0x14;
-		st_pixel_buffer_destroy(pixels);
-		pixels = NULL;
-	}
-	CHECK(drawn);
-	CHECK(st_console_size(console, &columns, &rows) == 0);
-	CHECK(columns == 80 && rows == 43);
-	CHECK(st_console_cell_pixel_size(console, &cell_width,
-	    &cell_height) == 0);
-	CHECK(cell_width == 8 && cell_height == 8);
-	st_term_session_destroy(&session);
-	CHECK(st_connection_close(connection) == 0);
-	st_profile_dispose(&profile);
-	st_font_catalog_destroy(fonts);
-	st_console_destroy(console);
-	return 0;
-}
-
-static int
 test_shell_rip_cp437_boundary(void)
 {
 	const struct st_console_display_config display = {
@@ -1111,67 +1048,6 @@ test_shell_rip_cp437_boundary(void)
 	return 0;
 }
 
-static int
-test_shell_rip_cp437_query_output(void)
-{
-	const struct st_console_display_config display = {
-		.backend = ST_CONSOLE_BACKEND_HEADLESS,
-	};
-	const struct st_console_config screen = {
-		.columns = 80, .rows = 43,
-		.cell_width = 8, .cell_height = 8,
-		.pixel_width = 640, .pixel_height = 350,
-	};
-	const struct st_console_rect first = {0, 0, 1, 1};
-	struct st_profile profile;
-	st_console_t *console = NULL;
-	st_font_catalog_t *fonts = NULL;
-	st_connection_t *connection = NULL;
-	st_term_session_t *session = NULL;
-	struct st_console_cell cell;
-	enum st_term_disposition disposition;
-	char text[8] = {0};
-	size_t required;
-	bool finished, echoed = false;
-
-	CHECK(st_console_create(&console, &display, &screen) == 0);
-	CHECK(st_font_catalog_create(&fonts, console) == 0);
-	st_profile_init(&profile);
-	profile.connection_type = ST_CONNECTION_SHELL;
-	profile.rip_version = ST_RIP_VERSION_1;
-	strcpy(profile.address, "sh term-fixture.sh rip-query");
-	CHECK(st_term_connect_profile(&connection, &profile, console, NULL,
-	    NULL) == 0);
-	const struct st_term_config config = {
-		.console = console,
-		.connection = connection,
-		.fonts = fonts,
-		.screen_mode = ST_SCREEN_MODE_80X43,
-		.encoding = ST_CTERM_ENCODING_CODEPAGE,
-		.rip_version = ST_CTERM_RIP_1,
-		.codepage = ST_CODEPAGE_CP437,
-		.hide_status = true,
-	};
-	CHECK(st_term_session_create(&session, &config) == 0);
-	for (size_t attempt = 0; attempt < 100 && !echoed; attempt++) {
-		CHECK(st_term_session_pump(session, &disposition, &finished) == 0);
-		CHECK(st_console_read_cells(console, &first, &cell, 1) == 0);
-		echoed = st_console_font_glyph_text(console, cell.glyph_font,
-		    cell.glyph, text, sizeof(text), &required) == 0
-		    && required == 2 && memcmp(text, "\xc3\xa9", 2) == 0;
-	}
-	if (!echoed)
-		fprintf(stderr, "RIP query echo first glyph: font=%u glyph=%u text=%02x %02x\n",
-		    (unsigned)cell.glyph_font, (unsigned)cell.glyph,
-		    (unsigned)(uint8_t)text[0], (unsigned)(uint8_t)text[1]);
-	CHECK(echoed);
-	st_term_session_destroy(&session);
-	CHECK(st_connection_close(connection) == 0);
-	st_profile_dispose(&profile);
-	st_font_catalog_destroy(fonts);
-	st_console_destroy(console);
-	return 0;
-}
 #endif
 
 int
@@ -1262,9 +1138,7 @@ main(void)
 	CHECK(test_remote_speed_transition(ST_CTERM_ENCODING_CODEPAGE, true) == 0);
 	CHECK(test_shell_utf8_boundary() == 0);
 	CHECK(test_remote_disconnect() == 0);
-	CHECK(test_shell_rip_profile() == 0);
 	CHECK(test_shell_rip_cp437_boundary() == 0);
-	CHECK(test_shell_rip_cp437_query_output() == 0);
 	CHECK(test_response_policy() == 0);
 	CHECK(test_ooii_session(ST_CTERM_ENCODING_UTF8, false) == 0);
 	CHECK(test_ooii_session(ST_CTERM_ENCODING_CODEPAGE, false) == 0);

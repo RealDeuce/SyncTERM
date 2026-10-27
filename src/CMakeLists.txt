@@ -134,6 +134,26 @@ if(BUILD_TESTING)
 					$<TARGET_FILE:syncterm_app> ${_variant})
 				set_tests_properties(syncterm_control_${_variant} PROPERTIES TIMEOUT 90)
 			endforeach()
+			foreach(_case draw widget radio input form color menubar spinbox
+					popup help progress menu logview console main_menu_address settings
+					list style button checkbox date palette statusbar pixels
+					terminal_cp437 terminal_utf8 status_cp437 status_utf8
+					rendering_cp437 rendering_utf8 scrollback_cp437 scrollback_utf8
+					profile session_modes picker menu_exit menu_position autoload
+					recovery recovery_close menu_error web_list bbs_setters settings_ui
+					graphics_cp437 graphics_utf8 capture_cp437 capture_utf8)
+				add_test(NAME syncterm_behavior_${_case}
+					COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_migrated_control_test.py
+					$<TARGET_FILE:syncterm_app> ${_case}
+					--reports ${CMAKE_BINARY_DIR}/reports/test-control)
+				set_tests_properties(syncterm_behavior_${_case} PROPERTIES TIMEOUT 90)
+			endforeach()
+			if(SYNCTERM_ENABLE_UNIFONT)
+				add_test(NAME syncterm_behavior_emoji
+					COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_migrated_control_test.py
+					$<TARGET_FILE:syncterm_app> emoji --reports ${CMAKE_BINARY_DIR}/reports/test-control)
+				set_tests_properties(syncterm_behavior_emoji PROPERTIES TIMEOUT 90)
+			endif()
 			if(WIN32)
 				add_test(NAME syncterm_control_console
 					COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_test_control_test.py

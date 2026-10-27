@@ -165,3 +165,64 @@ Control handles do not pass to launched child programs.
 For native C tests, `st_console_test.h` exposes owned captures and a small
 owner-thread application-state callback. Callbacks copy state only; they must
 not call console APIs or reenter Wren while capture holds the display locks.
+
+## Regression suites and migration map
+
+With `ST_CONSOLE_TEST=ON`, CTest runs `syncterm_behavior_*` against the normal
+application executable. `syncterm_control_*` covers the driver, protocol,
+transfers, and initial application integration. Native Windows also exercises
+the ordinary `.com` launcher; application tests use the ordinary `.exe` and DLL.
+These suites require only standard-library Python and need no display server.
+The option remains OFF by default; migrated integration tests have no separate
+legacy-harness fallback when the driver is disabled.
+
+`tools/testing/syncterm_fixture.py` provides private application directories,
+loopback listeners, bounded wire reads, cell-aware clicks, and failure reports.
+All process fixtures clear inherited desktop environment variables. Tests wait
+for visible/state predicates, not sleeps or a global-idle condition. Wire writes
+do not prescribe decoder read boundaries; exact fragmentation remains a parser
+unit-test responsibility.
+
+| Previous coverage | Replacement / retained contract |
+| --- | --- |
+| Loader runner's drawing/widget/control suites | `syncterm_behavior_{draw,widget,radio,input,form,color,menubar,spinbox,popup,help,progress,menu,logview}`; original Wren assertions run through normal script imports. List, style, button, checkbox, date, palette, and status-bar suites also run this way. |
+| Synthetic wide-font assertions within those suites | `wren_{draw,input,logview,popup,help,progress,menu}_synthetic` runs only `runSyntheticFontAudit()`, retaining the C fixture's exact wide mapping and double-width ASCII font. These assertions run even without bundled fallback fonts. |
+| Loader runner's interactive Wren console | `syncterm_behavior_console` sends text/editing events to the running REPL; `wren_console_synthetic` retains its guaranteed wide-glyph prompt assertion. |
+| Loader runner's main-menu address, position, and exit cases | `syncterm_behavior_{main_menu_address,menu_position,menu_exit}`; position tests include reconnect, insertion/removal, short-list clamping, and independent online/offline bookmarks. |
+| Loader runner's auto-load order, menu failure, and picker recovery | `syncterm_behavior_{autoload,menu_error,recovery,recovery_close}` checks role-specific overrides, import ordering, exactly-once loading in both VMs, startup rejection, cancellation, and close from recovery. |
+| Loader runner's BBS setters | `syncterm_behavior_bbs_setters`, with the same transactional rejection, save/reload, identity, GHost, and sorting assertions moved to `src/tests/wren/bbs_setters.wren`. |
+| Settings UI runner and web-list server | `syncterm_behavior_settings` reuses the complete Wren settings-action suite; `syncterm_behavior_settings_ui` drives the real editor through a save failure, retry, and restart. `syncterm_behavior_web_list` uses a bounded local HTTP peer and retains fetch/save/edit/failure assertions. |
+| Settings runtime and private policy checks | `wren_settings_runtime` retains live application to both consoles, history capacity, audio policy, default cursors/modes, safe-mode KDF protection, and direct save/profile-offer policy checks. It no longer replays the complete settings UI suite or runs a web server. |
+| Picker interaction replay | `syncterm_behavior_picker` drives the shipped picker: read/cancel, multi-select/cancel, directory selection, overwrite/append, one-shot write consent, readable pixel-file decoding, write-only rejection, and restoration of the menu screen. |
+| Picker VM and injected restore failures | `wren_picker_contract` retains separate VM/font/mouse/context ownership and failed backend restoration. Its prequeued successful interaction replay is removed. |
+| Wren host's pixel suite in both VMs | `syncterm_behavior_pixels` runs the original pixel/blit/mask/codec assertions in the real menu and picker VMs. |
+| Application session replay | `syncterm_behavior_{session_modes,profile,terminal_cp437,terminal_utf8}` covers real disconnect/return, legacy C128 fonts, Current/custom modes, resize restoration, profile scripts/options/counters, logs, LF expansion, and initial-speed replies. `app_session_mode` retains direct API invariants, invalid arguments, logging helpers, and failure paths. |
+| Terminal text/status/rendering checks | `syncterm_behavior_{terminal,status,rendering}_{cp437,utf8}` exercises real wire input/replies, coherent state/cells, status routing, cursor styles, BlinkBG checksums, blink planes, and composed letterboxing. CTerm tests retain exact fragmentation, parser internals, mapped palettes, and ring/ownership contracts. |
+| Scrollback integration | `syncterm_behavior_scrollback_{cp437,utf8}` verifies online/offline viewers, ordering across reset, the live final screen, and preserved blank pages. Direct ring/finish/copy/error tests remain in C. |
+| Shell-based generic RIP drawing/query cases | `syncterm_behavior_graphics_{cp437,utf8}` covers actual RIP geometry/pixels/query wire bytes and OOII display/input/replies. PTY-specific boundaries, response-suppression callbacks, protocol units, transfer peers, and legacy/reference comparisons remain in their specialized harnesses. |
+| Raw capture callback checks | `syncterm_behavior_capture_{cp437,utf8}` additionally verifies the real ANSI capture file preserves wire bytes despite filtering/replacement and malformed/mixed input. Lower-level callback-order and parser-boundary assertions remain in C. |
+| Synthetic colour-glyph rendering | `st_console_color_glyph` now uses the testing driver's owned C capture for cells, planes, and palette. Synthetic font allocation/replacement and validation remain C checks; the explicit forced redraw in the replacement case is preserved. This suite requires the testing driver. |
+| Bundled emoji rendering | `syncterm_behavior_emoji` checks monochrome/colour output at 8×8, 8×14, and 8×16 when bundled fallback fonts are enabled. Synthetic glyph coverage remains independent of those optional fonts. |
+
+Component Wren suites override only the fixture's `MainMenu.run` through the
+documented script override mechanism. This starts them after picker construction
+without retaining directory-controller handles that their intentional
+`Menu.load()` calls invalidate. Shipped helper classes remain available. Suites
+publish an explicit completion token and assertion totals where applicable,
+then service input until a normal close. Application workflow tests use the
+unmodified shipped controllers.
+
+Backend-specific curses/ANSI/Win32, X11, SDL, Wayland, Quartz, GDI, and libretro
+tests remain. This includes native scaling/persistence and text centring/border
+checks: the testing driver cannot validate those backends' input translation or
+window behaviour. Presenter cache identity, upload retries, allocation faults,
+synthetic fonts, transport/transfer units, and private Wren API contracts also
+remain focused C tests.
+
+On failure, migrated suites save diagnostics under the build's
+`reports/test-control/`: the last coherent snapshot as JSON, its PPM image,
+stderr, fixture settings/list/log files, and available wire bytes. Startup
+failures save the startup error, including captured stderr. The existing CI
+report artifact includes this directory. Successful fixtures remove their
+temporary application directories, and local peer workers have bounded I/O and
+are joined on success and failure.

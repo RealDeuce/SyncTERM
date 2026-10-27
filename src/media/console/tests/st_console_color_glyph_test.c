@@ -1,6 +1,7 @@
 /* Copyright (c) 2026 Stephen Hurd
  * SPDX-License-Identifier: BSD-2-Clause */
 #include "console_internal.h"
+#include "st_console_test.h"
 #include "io_error.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,16 +13,19 @@
 static struct st_pixel_buffer *
 pixels(st_console_t *console)
 {
-	struct st_pixel_buffer *result = NULL;
-	const struct st_console_rect rect = {0, 0, 16, 2};
-	CHECK(st_console_get_pixels(&result, console, &rect, false) == 0);
+	struct st_console_test_capture *capture = NULL;
+	CHECK(st_console_test_capture(console->display, &capture) == 0);
+	CHECK(capture->columns == console->columns && capture->rows == console->rows);
+	struct st_pixel_buffer *result = capture->planes;
+	capture->planes = NULL;
+	st_console_test_capture_destroy(capture);
 	return result;
 }
 
 static void
 check_geometry(uint32_t cell_width, bool double_height, bool narrow_color)
 {
-	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_TEST};
 	const struct st_console_config config = {
 		.columns = 2, .rows = 2, .cell_width = cell_width, .cell_height = 4,
 		.color_emoji = true, .video_flags = ST_CONSOLE_VIDEO_EXPAND,
@@ -60,10 +64,9 @@ check_geometry(uint32_t cell_width, bool double_height, bool narrow_color)
 		for (size_t i = 0; i < 4; ++i)
 			cells[i].flags |= ST_CONSOLE_CELL_SAA5050 | ST_CONSOLE_CELL_DOUBLE_HEIGHT;
 	const struct st_console_rect grid = {0, 0, 2, 2};
-	const struct st_console_rect raster = {0, 0, cell_width * 2, 8};
 	struct st_pixel_buffer *p = NULL;
 	CHECK(st_console_write_cells(console, &grid, cells, 2) == 0);
-	CHECK(st_console_get_pixels(&p, console, &raster, false) == 0);
+	p = pixels(console);
 	CHECK(p->primary[0] == ST_CONSOLE_COLOR_RGB_VALUE(255, 0, 0));
 	CHECK(p->primary[cell_width] == ST_CONSOLE_COLOR_RGB_VALUE(255, 255, 0));
 	uint32_t bottom = p->primary[4 * cell_width * 2];
@@ -77,7 +80,7 @@ check_geometry(uint32_t cell_width, bool double_height, bool narrow_color)
 
 int main(void)
 {
-	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_TEST};
 	const struct st_console_config config = {
 		.columns = 2, .rows = 1, .cell_width = 8, .cell_height = 2,
 		.color_emoji = true,
@@ -186,8 +189,12 @@ int main(void)
 	font.color_glyphs = NULL;
 	font.color_glyph_count = 0;
 	CHECK(st_console_register_font_copy(console, &font, &id) == 0 && id == 0);
-	const struct st_console_rect raster = {0, 0, 16, 2};
-	CHECK(st_console_get_pixels(&p, console, &raster, true) == 0);
+	/* Replacing a font behind existing cells requires an explicit full raster
+	 * refresh before capturing the new frame. */
+	CHECK(st_console_begin_update(console) == 0);
+	CHECK(st_console_rasterize_locked(console, true) == 0);
+	CHECK(st_console_end_update(console) == 0);
+	p = pixels(console);
 	CHECK(p->primary[0] == cell.foreground && p->primary[1] == cell.background);
 	st_pixel_buffer_destroy(p);
 	st_console_destroy(console);
@@ -198,7 +205,10 @@ int main(void)
 	check_geometry(8, true, false);
 	/* Text-only consoles have no raster or drawn-cell allocation. */
 	const struct st_console_config text_config = {.columns = 2, .rows = 1};
-	CHECK(st_console_create(&console, &display, &text_config) == 0);
+	const struct st_console_display_config text_display = {
+		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	};
+	CHECK(st_console_create(&console, &text_display, &text_config) == 0);
 	CHECK(st_console_set_color_emoji(console, true) == 0);
 	CHECK(st_console_set_palette(console, 42, &blue, 1) == 0);
 	CHECK(st_console_get_color_emoji(console, &enabled) == 0 && enabled);

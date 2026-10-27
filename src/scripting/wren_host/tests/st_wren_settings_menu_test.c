@@ -1,4 +1,4 @@
-/* Settings-menu behavior through the shipped Wren UI and host bindings. */
+/* Settings host application, private failure injection, and save policy. */
 /*
  * Copyright (c) 2026 Stephen Hurd
  * SPDX-License-Identifier: BSD-2-Clause
@@ -7,27 +7,16 @@
 #include "wren_host_internal.h"
 #include "filesystem.h"
 #include "io_error.h"
-#include "socket.h"
 #include "st_app_paths.h"
 #include "st_audio_runtime.h"
 #include "st_builtin_fonts.h"
 #include "st_bbs_list.h"
 #include "st_presentation_font.h"
 #include "st_session_history.h"
-#include "st_threads.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#if SYNCTERM_PLATFORM_WINDOWS
-#include <ws2tcpip.h>
-#else
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <sys/select.h>
-#include <sys/socket.h>
-#endif
 
 #define CHECK(expression) do { \
 	if (!(expression)) { \
@@ -54,133 +43,6 @@ interpret(struct st_wren_host *host, const char *module, const char *source)
 		fprintf(stderr, "%s: %s\n", module, host->last_error);
 		exit(EXIT_FAILURE);
 	}
-}
-
-struct web_server {
-	/* Main owns the listener; the worker owns its accepted socket.
-	 * Configuration is immutable until main joins the worker. All socket
-	 * reads have finite waits, including the no-request failure path. */
-	socket_handle_t listener;
-	const char *body;
-};
-
-static int
-serve_web_list(void *argument)
-{
-	struct web_server *server = argument;
-	socket_handle_t client = SOCKET_HANDLE_INVALID;
-	unsigned events;
-	char request[2048];
-	char response[1024];
-	size_t used = 0;
-	size_t sent = 0;
-	int length;
-	int result = 1;
-	fd_set readable;
-	struct timeval timeout = {.tv_sec = 5};
-
-	/* socket_wait classifies connected sockets with recv(MSG_PEEK), which
-	 * cannot classify a listening socket. Use native accept readiness here. */
-	FD_ZERO(&readable);
-	FD_SET(server->listener, &readable);
-#if SYNCTERM_PLATFORM_WINDOWS
-	int ready = select(0, &readable, NULL, NULL, &timeout);
-#else
-	int ready = select(server->listener + 1, &readable, NULL, NULL, &timeout);
-#endif
-	if (ready <= 0)
-		return result;
-	client = accept(server->listener, NULL, NULL);
-	if (!socket_handle_is_valid(client))
-		return result;
-	while (used + 1 < sizeof(request)) {
-		if (socket_wait(client, SOCKET_WAIT_READABLE, 5000, &events) != 0)
-			goto finished;
-		ssize_t count = socket_receive(client, request + used,
-		    sizeof(request) - used - 1, SOCKET_RECEIVE_NONE);
-		if (count <= 0)
-			goto finished;
-		used += (size_t)count;
-		request[used] = '\0';
-		if (strstr(request, "\r\n\r\n") != NULL)
-			break;
-	}
-	length = snprintf(response, sizeof(response),
-	    "HTTP/1.1 200 OK\r\nContent-Length: %zu\r\nConnection: close\r\n\r\n%s",
-	    strlen(server->body), server->body);
-	if (length < 0 || (size_t)length >= sizeof(response))
-		goto finished;
-	while (sent < (size_t)length) {
-		ssize_t count = socket_send(client, response + sent,
-		    (size_t)length - sent);
-		if (count <= 0)
-			goto finished;
-		sent += (size_t)count;
-	}
-	result = 0;
-finished:
-	(void)socket_close(client);
-	return result;
-}
-
-static void
-test_web_add(struct st_wren_host *host)
-{
-	struct sockaddr_in address = {0};
-#if SYNCTERM_PLATFORM_WINDOWS
-	int address_size = (int)sizeof(address);
-#else
-	socklen_t address_size = (socklen_t)sizeof(address);
-#endif
-	struct web_server server = {
-		.listener = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP),
-		.body = "[Downloaded]\nAddress=downloaded.example\n",
-	};
-	st_thread_t worker;
-	int worker_result;
-	char source[1024];
-
-	CHECK(socket_handle_is_valid(server.listener));
-	address.sin_family = AF_INET;
-	address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-	CHECK(bind(server.listener, (const struct sockaddr *)&address,
-	    address_size) == 0);
-	CHECK(listen(server.listener, 1) == 0);
-	CHECK(getsockname(server.listener, (struct sockaddr *)&address,
-	    &address_size) == 0);
-	CHECK(st_thread_create(&worker, serve_web_list, &server) == ST_THREAD_SUCCESS);
-	CHECK(snprintf(source, sizeof(source),
-	    "import \"syncterm_menu\" for Menu\n"
-	    "if (Menu.addWebList(\"Fetched\", \"http://127.0.0.1:%u/list\", 0) != null) "
-	    "Fiber.abort(\"web add failed\")\n"
-	    "if (!Menu.webListsDirty || Menu.webLists.count != 1) "
-	    "Fiber.abort(\"web add state\")\n",
-	    (unsigned)ntohs(address.sin_port)) < (int)sizeof(source));
-	WrenInterpretResult interpreted = wrenInterpret(host->vm, "web_add", source);
-	CHECK(st_thread_join(worker, &worker_result) == ST_THREAD_SUCCESS);
-	CHECK(socket_close(server.listener) == 0);
-	if (interpreted != WREN_RESULT_SUCCESS || worker_result != 0)
-		fprintf(stderr, "web add: %s; server result %d\n", host->last_error, worker_result);
-	CHECK(interpreted == WREN_RESULT_SUCCESS);
-	CHECK(worker_result == 0);
-	CHECK(st_bbs_list_find(host->bbs_list, "Downloaded") != NULL);
-	interpret(host, "web_add_failure",
-	    "import \"syncterm_menu\" for Menu\n"
-	    "if (!Menu.saveWebLists() || Menu.webListsDirty) Fiber.abort(\"web save\")\n"
-	    "if (Menu.addWebList(\"Bad\", \"invalid\", 0) == null) Fiber.abort(\"fetch failure accepted\")\n"
-	    "if (Menu.webLists.count != 1 || Menu.webLists[0][0] != \"Fetched\" || "
-	    "Menu.webListsDirty) Fiber.abort(\"failed fetch changed configuration\")\n"
-	    "if (Menu.load(null) != 0) Fiber.abort(\"reload web directory\")\n"
-	    "var found = false\n"
-	    "for (entry in Menu.entries) if (entry.name == \"Downloaded\") found = true\n"
-	    "if (!found) Fiber.abort(\"downloaded list was not loaded\")\n"
-	    "if (!Menu.updateWebList(0, \"https://example.invalid/changed\") || "
-	    "!Menu.webListsDirty) Fiber.abort(\"web URI edit\")\n"
-	    "if (Menu.addWebList(\"Bad\", \"invalid\", 0) == null || "
-	    "!Menu.webListsDirty || Menu.webLists.count != 1) "
-	    "Fiber.abort(\"fetch failure lost earlier edits\")\n"
-	    "if (!Menu.deleteWebList(0) || Menu.webLists.count != 0 || "
-	    "!Menu.saveWebLists()) Fiber.abort(\"web delete/save\")\n");
 }
 
 static void
@@ -411,9 +273,16 @@ main(void)
 	CHECK(fclose(stream) == 0);
 	source[size] = '\0';
 	interpret(host, "menu_settings_ui_test", source);
-	interpret(host, "settings_run",
-	    "import \"menu_settings_ui_test\" for SettingsMenuTest\n"
-	    "SettingsMenuTest.run()\n");
+	interpret(host, "settings_apply",
+	    "import \"syncterm_menu\" for Menu\n"
+	    "var s = Menu.settings\n"
+	    "s.colorEmoji = false\n"
+	    "s.scrollbackLines = 123\n"
+	    "s.customRows = 30\n"
+	    "s.customColumns = 100\n"
+	    "s.frameColor = 1\n"
+	    "s.kdfShift = 8\n"
+	    "if (!s.save()) Fiber.abort(\"settings runtime apply\")\n");
 	bool color = true;
 	CHECK(st_console_get_color_emoji(console, &color) == 0 && !color);
 	CHECK(st_console_get_color_emoji(picker, &color) == 0 && !color);
@@ -441,9 +310,6 @@ main(void)
 	test_save_retry(host, settings);
 	test_safe_kdf(host);
 	test_offer_save(host, console);
-	CHECK(socket_runtime_init() == 0);
-	test_web_add(host);
-	CHECK(socket_runtime_cleanup() == 0);
 	st_wren_host_destroy(host);
 	st_audio_runtime_destroy(audio);
 	st_session_history_destroy(history);

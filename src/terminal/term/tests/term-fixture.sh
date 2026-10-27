@@ -54,11 +54,6 @@ utf8)
 	printf '\251'
 	sleep 2
 	;;
-rip-query)
-	stty raw -echo
-	printf '!|1\0330000\202^M\r\n'
-	dd bs=1 count=2 2>/dev/null
-	;;
 capture)
 	stty raw -echo
 	printf 'A#XZ\033[32m\200\377\000\357\277\275\303'

@@ -3084,29 +3084,6 @@ exercise_serial_catalog_contract(st_wren_host_t *public_host)
 #endif
 
 static int
-exercise_pixel_contract(st_wren_host_t *public_host)
-{
-	struct st_wren_host *host = public_host;
-	static const char source[] =
-	    "import \"pixel_vm_test\" for PixelVmTest\n"
-	    "var result = PixelVmTest.run()\n"
-	    "if (result[1] != 0) Fiber.abort(\"pixel contract failures: %(result[1])\")\n";
-	WrenVM *vms[] = {host->vm, host->picker_vm};
-
-	for (size_t i = 0; i < sizeof(vms) / sizeof(vms[0]); ++i) {
-		char module[48];
-
-		(void)snprintf(module, sizeof(module), "pixel_contract_%zu", i);
-		if (wrenInterpret(vms[i], module, source) != WREN_RESULT_SUCCESS) {
-			fprintf(stderr, "pixel contract failed in VM %zu: %s\n", i,
-			    host->last_error);
-			return -1;
-		}
-	}
-	return 0;
-}
-
-static int
 exercise_unicode_fallback_contract(st_wren_host_t *public_host)
 {
 	struct st_wren_host *host = public_host;
@@ -5117,7 +5094,6 @@ main(int argc, char **argv)
 	CHECK(exercise_rectangle_contract(host) == 0);
 	CHECK(exercise_core_value_contracts(host, console) == 0);
 	CHECK(exercise_zero_width_contract(host) == 0);
-	CHECK(exercise_pixel_contract(host) == 0);
 	CHECK(exercise_web_refresh_overlay(host, console) == 0);
 	CHECK(exercise_cursor_contract(host) == 0);
 	CHECK(exercise_video_colour_contract(host) == 0);

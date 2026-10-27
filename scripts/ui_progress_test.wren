@@ -28,10 +28,17 @@ class UiProgressTest {
     testTextRowsShareLeftEdge_()
     testRepaintAfterDecrease_()
     testTextRepaintAfterShrink_()
-    testTextWrapUsesPaintedFont_()
 
     var total = __pass + __fail
     System.print("=== ui_progress: %(total) tests, %(__pass) pass, %(__fail) fail ===")
+    return [__pass, __fail]
+  }
+
+  // Requires the C fixture's synthetic double-width ASCII font in slot 255.
+  static runSyntheticFontAudit() {
+    __pass = 0
+    __fail = 0
+    testTextWrapUsesPaintedFont_()
     return [__pass, __fail]
   }
 

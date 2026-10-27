@@ -1,4 +1,4 @@
-/* Integration test for the isolated Wren file-picker VM. */
+/* Picker VM isolation and injected backend restoration failures. */
 
 /*
  * Copyright (c) 2026 Stephen Hurd
@@ -8,7 +8,6 @@
 #include "wren_host_internal.h"
 
 #include "filesystem.h"
-#include "path.h"
 #include "st_app_paths.h"
 #include "st_console.h"
 #include "console_internal.h"
@@ -84,8 +83,6 @@ main(void)
 	char picker_scripts[sizeof(ST_WREN_PICKER_TEST_DIRECTORY) + 48];
 	char startup[sizeof(ST_WREN_PICKER_TEST_DIRECTORY) + 96];
 	char picked[sizeof(ST_WREN_PICKER_TEST_DIRECTORY) + 32];
-	char image[sizeof(ST_WREN_PICKER_TEST_DIRECTORY) + 32];
-	char *expected = NULL;
 	struct st_app_paths paths = {0};
 	struct st_console_config console_config = {
 		.columns = 80,
@@ -97,19 +94,10 @@ main(void)
 		.text_presentation = ST_CONSOLE_TEXT_UNICODE,
 	};
 	struct st_wren_host_config host_config;
-	struct st_console_event enter = {
-		.type = ST_CONSOLE_EVENT_KEY_CODE,
-		.data.key.code = 13,
-	};
 	struct st_console_event escape = {
 		.type = ST_CONSOLE_EVENT_KEY_CODE,
 		.data.key.code = 27,
 	};
-	const struct st_console_rect marker_rect = {7, 4, 1, 1};
-	const struct st_console_cell marker = {
-		.glyph = 'Z', .foreground = 3, .background = 4,
-	};
-	struct st_console_cell restored = {0};
 	struct st_wren_picker_call call;
 	st_console_t *console = NULL;
 	st_console_t *picker_console = NULL;
@@ -131,8 +119,6 @@ main(void)
 	    scripts);
 	(void)snprintf(picked, sizeof(picked), "%s/alpha.txt",
 	    ST_WREN_PICKER_TEST_DIRECTORY);
-	(void)snprintf(image, sizeof(image), "%s/pixel.ppm",
-	    ST_WREN_PICKER_TEST_DIRECTORY);
 	CHECK(fs_create_directories(picker_scripts) == 0);
 	(void)snprintf(startup, sizeof(startup), "%s/file_picker.wren",
 	    picker_scripts);
@@ -140,7 +126,6 @@ main(void)
 	CHECK(write_file(personal, "") == 0);
 	CHECK(write_file(shared, "") == 0);
 	CHECK(write_file(picked, "picked\n") == 0);
-	CHECK(write_file(image, "P3\n1 1\n255\n255 255 255\n") == 0);
 	paths.settings_file = settings;
 	paths.personal_list = personal;
 	paths.shared_list = shared;
@@ -170,7 +155,6 @@ main(void)
 	CHECK(wrenInterpret(host->picker_vm, "picker_hyperlink_contract",
 	    "import \"syncterm\" for Hyperlinks\n"
 	    "Hyperlinks.containsKey(1)\n") == WREN_RESULT_RUNTIME_ERROR);
-	CHECK(st_console_write_cells(console, &marker_rect, &marker, 1) == 0);
 	{
 		const struct st_console_rect origin = {0, 0, 1, 1};
 		struct st_console_cell cell;
@@ -218,136 +202,8 @@ main(void)
 	host->menu.fonts.slots[1] = 0;
 	host->picker.fonts.slots[1] = 0;
 	CHECK(st_console_display_activate(display, console) == 0);
-	call = (struct st_wren_picker_call){
-		.mode = ST_WREN_PICKER_FILE,
-		.title = "Pick",
-		.initial_path = ST_WREN_PICKER_TEST_DIRECTORY,
-		.mask = "alpha.txt",
-		.options = ST_WREN_PICKER_MASK_LOCKED,
-	};
-	CHECK(st_console_display_activate(display, picker_console) == 0);
-	CHECK(st_console_post_event(picker_console, &enter) == 0);
-	CHECK(st_console_display_activate(display, console) == 0);
-	CHECK(st_wren_picker_host_run(host, &call));
-	{
-		struct st_console_cell cells[80 * 25];
-		const struct st_console_rect screen = {0, 0, 80, 25};
-		bool drawn = false;
-		st_console_t *active = NULL;
-
-		CHECK(st_console_display_active(display, &active) == 0);
-		CHECK(active == console);
-		CHECK(st_console_read_cells(picker_console, &screen, cells, 80) == 0);
-		for (size_t i = 0; i < sizeof(cells) / sizeof(cells[0]); ++i)
-			if (cells[i].glyph != ' ' && cells[i].glyph != 0)
-				drawn = true;
-		CHECK(drawn);
-	}
-	CHECK(call.path_count == 1);
-	CHECK(path_make_absolute(NULL, 0, picked) > 0);
-	ptrdiff_t length = path_make_absolute(NULL, 0, picked);
-	expected = malloc((size_t)length + 1);
-	CHECK(expected != NULL);
-	CHECK(path_make_absolute(expected, (size_t)length + 1, picked) == length);
-	CHECK(strcmp(call.paths[0], expected) == 0);
-	free(expected);
-	expected = NULL;
-	st_wren_picker_call_dispose(&call);
-	CHECK(st_console_read_cells(console, &marker_rect, &restored, 1) == 0);
-	CHECK(restored.glyph == marker.glyph
-	    && restored.foreground == marker.foreground
-	    && restored.background == marker.background);
-	{
-		char source[sizeof(ST_WREN_PICKER_TEST_DIRECTORY) + 512];
-
-		CHECK(snprintf(source, sizeof(source),
-		    "import \"syncterm\" for Host, PixelBuffer, PixelColor\n"
-		    "var file = Host.pickFile(\"%s\", \"pixel.ppm\", 1)\n"
-		    "var image = PixelBuffer.fromPpm(file)\n"
-		    "if (image == null || image.width != 1 || "
-		    "PixelColor.toRgb(image[0]) != 0xffffff) "
-		    "Fiber.abort(\"readable File pixel decode\")\n",
-		    ST_WREN_PICKER_TEST_DIRECTORY) < (int)sizeof(source));
-		CHECK(st_console_post_event(picker_console, &enter) == 0);
-		CHECK(wrenInterpret(host->vm, "pixel_file_decode", source)
-		    == WREN_RESULT_SUCCESS);
-	}
-	{
-		char source[sizeof(ST_WREN_PICKER_TEST_DIRECTORY) + 512];
-		struct st_console_event overwrite = {
-			.type = ST_CONSOLE_EVENT_TEXT,
-			.data.text.codepoint = 'Y',
-		};
-
-		CHECK(snprintf(source, sizeof(source),
-		    "import \"syncterm\" for Host, PixelBuffer\n"
-		    "var file = Host.pickSavePath(\"%s\", \"pixel.ppm\")\n"
-		    "var rejected = Fiber.new { PixelBuffer.fromPpm(file) }\n"
-		    "rejected.try()\n"
-		    "if (rejected.error == null) "
-		    "Fiber.abort(\"write File accepted by pixel decoder\")\n",
-		    ST_WREN_PICKER_TEST_DIRECTORY) < (int)sizeof(source));
-		CHECK(st_console_post_event(picker_console, &enter) == 0);
-		CHECK(st_console_post_event(picker_console, &overwrite) == 0);
-		CHECK(wrenInterpret(host->vm, "pixel_file_rejection", source)
-		    == WREN_RESULT_SUCCESS);
-	}
-	call = (struct st_wren_picker_call){
-		.mode = ST_WREN_PICKER_FILE,
-		.title = "Cancel",
-		.initial_path = ST_WREN_PICKER_TEST_DIRECTORY,
-		.mask = "alpha.txt",
-	};
-	CHECK(st_console_display_activate(display, picker_console) == 0);
-	CHECK(st_console_post_event(picker_console, &escape) == 0);
-	CHECK(st_console_display_activate(display, console) == 0);
-	CHECK(st_wren_picker_host_run(host, &call));
-	CHECK(call.path_count == 0 && call.completed);
-	st_wren_picker_call_dispose(&call);
-	/* Exercise the shipped script's other completion paths without opening
-	 * any selected file or driving a physical window. */
-	for (unsigned scenario = 0; scenario < 5; ++scenario) {
-		fprintf(stderr, "picker completion scenario %u\n", scenario);
-		struct st_console_event first = enter;
-		struct st_console_event second = enter;
-		bool multiple = scenario < 2;
-		bool cancel = scenario == 1;
-
-		call = (struct st_wren_picker_call){
-			.mode = multiple ? ST_WREN_PICKER_MULTIPLE
-			    : scenario == 2 ? ST_WREN_PICKER_DIRECTORY
-			    : ST_WREN_PICKER_SAVE,
-			.title = "Completion audit",
-			.initial_path = ST_WREN_PICKER_TEST_DIRECTORY,
-			.mask = "alpha.txt",
-			.options = scenario >= 3 ? ST_WREN_PICKER_ALLOW_APPEND : 0,
-		};
-		first.data.key.code = multiple ? 1 : scenario == 2 ? 10 : 13;
-		second.data.key.code = cancel ? 27 : multiple ? 10 : 'O';
-		if (scenario >= 3) {
-			second.type = ST_CONSOLE_EVENT_TEXT;
-			second.data.text.codepoint = scenario == 3 ? 'O' : 'A';
-		}
-		CHECK(st_console_display_activate(display, picker_console) == 0);
-		CHECK(st_console_post_event(picker_console, &first) == 0);
-		if (scenario != 2)
-			CHECK(st_console_post_event(picker_console, &second) == 0);
-		CHECK(st_console_display_activate(display, console) == 0);
-		CHECK(st_wren_picker_host_run(host, &call));
-		CHECK(call.completed && call.path_count == (cancel ? 0U : 1U));
-		if (!cancel) {
-			CHECK(call.disposition == (scenario == 3
-			    ? ST_WREN_PICKER_DISPOSITION_OVERWRITE
-			    : scenario == 4 ? ST_WREN_PICKER_DISPOSITION_APPEND
-			    : ST_WREN_PICKER_DISPOSITION_READ));
-			struct fs_info info;
-
-			CHECK(fs_get_info(&info, call.paths[0]) == 0);
-			CHECK(info.kind == (scenario == 2
-			    ? FS_ENTRY_DIRECTORY : FS_ENTRY_FILE));
-		}
-		st_wren_picker_call_dispose(&call);
-	}
+	/* Successful picker workflows run through the normal executable.
+	 * Retain backend restoration fault injection at this unit boundary. */
 	{
 		const struct st_console_backend_ops failing = {
 			.present = fail_menu_present,

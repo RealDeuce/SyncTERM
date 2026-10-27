@@ -20,11 +20,18 @@ class MenuUiTest {
     testUnicodeNames_()
     testSortFieldLabels_()
     testSortOrderComparison_()
-    testChoiceMessageUsesPaintedFont_()
 
     var total = __pass + __fail
     System.print("=== menu_ui: %(total) tests, %(__pass) pass, " +
         "%(__fail) fail ===")
+    return [__pass, __fail]
+  }
+
+  // Requires the C fixture's synthetic double-width ASCII font in slot 255.
+  static runSyntheticFontAudit() {
+    __pass = 0
+    __fail = 0
+    testChoiceMessageUsesPaintedFont_()
     return [__pass, __fail]
   }
 
