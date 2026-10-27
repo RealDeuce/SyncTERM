@@ -12,6 +12,7 @@
 #include <stdatomic.h>
 
 #define ST_CONNECTION_BUFFER_SIZE 16384
+#define ST_CONNECTION_INPUT_CHUNK_SIZE 4096
 
 struct st_connection_queue {
 	st_mutex_t mutex;

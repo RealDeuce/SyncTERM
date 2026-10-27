@@ -29,6 +29,12 @@
 	return 1; \
 } } while (0)
 
+/* Fill the application queue and worker chunk, leaving one KiB before the
+ * urgent mark in the native stream. Excess backlog can close the TCP receive
+ * window and make urgent delivery depend on the host's persist timer. */
+#define RLOGIN_BACKPRESSURE_BYTES \
+	(ST_CONNECTION_BUFFER_SIZE + ST_CONNECTION_INPUT_CHUNK_SIZE + 1024U)
+
 struct server_state {
 	socket_handle_t listener;
 	atomic_bool allow_urgent;
@@ -639,19 +645,25 @@ rlogin_backpressure_server(void *argument)
 	memset(bytes, 'x', sizeof(bytes));
 	/* More than the queue plus the worker's staged chunk: stale bytes must
 	 * remain in the native socket when FLUSHWRITE arrives. */
-	for (size_t sent = 0; sent < 3 * ST_CONNECTION_BUFFER_SIZE;) {
-		ssize_t count = socket_send(client, bytes, sizeof(bytes));
+	for (size_t sent = 0; sent < RLOGIN_BACKPRESSURE_BYTES;) {
+		size_t chunk = RLOGIN_BACKPRESSURE_BYTES - sent;
+		if (chunk > sizeof(bytes)) chunk = sizeof(bytes);
+		ssize_t count = socket_send(client, bytes, chunk);
 		if (count <= 0)
 			goto failed;
 		sent += (size_t)count;
 		if (sent % ST_CONNECTION_BUFFER_SIZE == 0)
 			fprintf(stderr, "RLogin backpressure peer queued=%zu bytes\n", sent);
 	}
+	atomic_store(&state->stage, 2);
 	while (!atomic_load(&state->allow_flush))
 		st_thread_yield();
-	fprintf(stderr, "RLogin backpressure peer sending window control\n");
-	if (send_urgent(client, 0x80) != 0
-	    || receive_exact(client, bytes, 12) != 0
+	fprintf(stderr, "RLogin backpressure peer sending window control after %zu bytes\n",
+	    (size_t)RLOGIN_BACKPRESSURE_BYTES);
+	if (send_urgent(client, 0x80) != 0)
+		goto failed;
+	atomic_store(&state->stage, 3);
+	if (receive_exact(client, bytes, 12) != 0
 	    || memcmp(bytes, window, sizeof(window)) != 0)
 		goto failed;
 	atomic_store(&state->stage, 4);
@@ -712,7 +724,7 @@ receive_unpositioned_flush(st_connection_t *connection)
 			 * Allow retained kernel input, but require every fresh byte in
 			 * order: a fallback must not drain away the suffix. */
 			if (matched == 0 && bytes[i] == 'x') {
-				CHECK(++stale <= 3 * ST_CONNECTION_BUFFER_SIZE);
+				CHECK(++stale <= RLOGIN_BACKPRESSURE_BYTES);
 				continue;
 			}
 			CHECK(matched < sizeof(fresh) - 1 && bytes[i] == fresh[matched]);

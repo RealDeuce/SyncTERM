@@ -291,7 +291,7 @@ static int
 input_worker(void *argument)
 {
 	st_connection_t *connection = argument;
-	uint8_t buffer[4096];
+	uint8_t buffer[ST_CONNECTION_INPUT_CHUNK_SIZE];
 
 	while (!atomic_load(&connection->stopping)) {
 		ssize_t received;
