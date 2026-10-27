@@ -2788,7 +2788,7 @@ exercise_build_options_contract(st_wren_host_t *public_host)
 	    "var rows = Menu.buildOptions\n"
 	    "var options = {}\n"
 	    "for (row in Menu.buildOptions) options[row[1]] = row[2]\n"
-	    "if (Menu.buildOptions.count != 31 "
+	    "if (Menu.buildOptions.count != 32 "
 	    "|| !options.containsKey(\"DeuceSSH (SSH)\") "
 	    "|| !options.containsKey(\"OpenSSL (TLS, symmetric ciphers)\") "
 	    "|| !options.containsKey(\"Operation Overkill ][ Terminal\") "
@@ -2839,6 +2839,7 @@ exercise_build_options_contract(st_wren_host_t *public_host)
 		{"Video", "ncurses", (console & ST_CONSOLE_BUILD_NCURSES) != 0},
 		{"Video", "ANSI", true},
 		{"Video", "libretro", true},
+		{"Video", "Testing bitmap backend", (console & ST_CONSOLE_BUILD_TEST) != 0},
 		{"Audio", "OSS", (audio & AUDIO_BACKEND_OSS) != 0},
 		{"Audio", "SDL", (audio & AUDIO_BACKEND_SDL) != 0},
 		{"Audio", "ALSA", (audio & AUDIO_BACKEND_ALSA) != 0},

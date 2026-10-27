@@ -125,6 +125,23 @@ else()
 endif()
 
 if(BUILD_TESTING)
+	if(ST_CONSOLE_TEST)
+		find_package(Python3 REQUIRED COMPONENTS Interpreter)
+		if(Python3_Interpreter_FOUND)
+			foreach(_variant basic cp437 utf8 protocol transfer)
+				add_test(NAME syncterm_control_${_variant}
+					COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_test_control_test.py
+					$<TARGET_FILE:syncterm_app> ${_variant})
+				set_tests_properties(syncterm_control_${_variant} PROPERTIES TIMEOUT 90)
+			endforeach()
+			if(WIN32)
+				add_test(NAME syncterm_control_console
+					COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_test_control_test.py
+					$<TARGET_FILE:syncterm_console> basic)
+				set_tests_properties(syncterm_control_console PROPERTIES TIMEOUT 90)
+			endif()
+		endif()
+	endif()
 	add_executable(st_libretro_input_test tests/st_libretro_input_test.c st_libretro_input.c)
 	target_link_libraries(st_libretro_input_test PRIVATE st_console)
 	target_include_directories(st_libretro_input_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})

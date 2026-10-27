@@ -17,6 +17,10 @@ The executable and libretro core are in `build/bin/`. Multi-configuration
 generators use `build/bin/<configuration>/`. After the source reorganization,
 configure a fresh build directory rather than reusing a pre-move build tree.
 
+For process-controlled bitmap tests of the regular executable, configure with
+`-DST_CONSOLE_TEST=ON`. See link:docs/TEST_CONTROL.md[the testing driver guide]
+for the Python client, coherent cell/pixel captures, and pipe protocol.
+
 == Repository layout
 
 Application sources live directly in `src/`, with their tests in `src/tests/`.

@@ -6,6 +6,7 @@
  */
 
 #include "st_command_line.h"
+#include "st_console_test.h"
 #include "st_console_startup.h"
 #include "st_app_state.h"
 #include "st_settings.h"
@@ -81,6 +82,20 @@ test_command_line(void)
 	CHECK(st_command_line_parse(&command, 2, ansi_cp437, NULL) == 0
 	    && command.backend == ST_CONSOLE_BACKEND_ANSI
 	    && command.text_presentation == ST_CONSOLE_TEXT_CP437);
+	char *test[] = {"syncterm", "--test-control", "--test-directory", "/tmp/fixture"};
+	bool enabled = (st_console_build_features() & ST_CONSOLE_BUILD_TEST) != 0;
+	CHECK((st_command_line_parse(&command, 4, test, NULL) == 0) == enabled);
+	CHECK(st_console_test_requested(4, test) == enabled);
+	if (enabled) CHECK(command.test_control && command.backend == ST_CONSOLE_BACKEND_TEST
+	    && strcmp(command.test_directory, "/tmp/fixture") == 0);
+	char *script_value[] = {"syncterm", "-w", "--test-control"};
+	CHECK(!st_console_test_requested(3, script_value));
+	char *conflict[] = {"syncterm", "--test-control", "-iA"};
+	CHECK(st_command_line_parse(&command, 3, conflict, NULL) != 0);
+	char *reverse[] = {"syncterm", "-iA", "--test-control"};
+	CHECK(st_command_line_parse(&command, 3, reverse, NULL) != 0);
+	char *directory_only[] = {"syncterm", "--test-directory", "/tmp/fixture"};
+	CHECK(st_command_line_parse(&command, 3, directory_only, NULL) != 0);
 	return 0;
 }
 

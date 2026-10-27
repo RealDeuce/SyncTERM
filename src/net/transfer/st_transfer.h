@@ -83,6 +83,15 @@ void st_transfer_snapshot(st_transfer_t *transfer, struct st_transfer_snapshot *
 size_t st_transfer_drain_log(st_transfer_t *transfer, struct st_transfer_log *logs, size_t count);
 enum st_transfer_dialog st_transfer_dialog(st_transfer_t *transfer, char *filename, size_t capacity);
 int st_transfer_respond(st_transfer_t *transfer, int response, const char *new_name);
+/* Non-destructive, coherent progress/completion read; never clears UI dirty. */
+struct st_transfer_inspection {
+	struct st_transfer_snapshot progress;
+	enum st_transfer_protocol protocol;
+	enum st_transfer_dialog dialog;
+	bool upload, done, aborted;
+	int result;
+};
+void st_transfer_inspect(st_transfer_t *transfer, struct st_transfer_inspection *state);
 /* CET's final raw frame is borrowed after done and before destroy. */
 const uint8_t *st_transfer_replay(st_transfer_t *transfer, size_t *size);
 #endif

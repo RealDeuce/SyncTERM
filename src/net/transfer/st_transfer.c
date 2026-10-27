@@ -414,6 +414,16 @@ void st_transfer_snapshot(st_transfer_t *t, struct st_transfer_snapshot *snapsho
 {
 	(void)st_mutex_lock(&t->mutex); *snapshot = t->snapshot; t->dirty = false; (void)st_mutex_unlock(&t->mutex);
 }
+void st_transfer_inspect(st_transfer_t *t, struct st_transfer_inspection *state)
+{
+	(void)st_mutex_lock(&t->mutex);
+	*state = (struct st_transfer_inspection){
+		.progress = t->snapshot, .protocol = t->config.protocol,
+		.dialog = t->dialog, .upload = t->config.upload, .done = t->done,
+		.aborted = t->abort, .result = t->result,
+	};
+	(void)st_mutex_unlock(&t->mutex);
+}
 size_t st_transfer_drain_log(st_transfer_t *t, struct st_transfer_log *logs, size_t count)
 {
 	size_t used = 0;

@@ -7,6 +7,7 @@
 #define ST_CONSOLE_INTERNAL_H_
 
 #include "st_console.h"
+#include "st_console_test.h"
 #include "st_threads.h"
 
 #include "array_list.h"
@@ -123,6 +124,7 @@ struct st_console {
 	st_console_display_t *display;
 	st_console_t *next_display;
 	bool owns_display;
+	uint64_t test_identifier; /* Assigned only by the optional test driver. */
 	uint32_t columns;
 	uint32_t rows;
 	struct st_console_cell *cells;
@@ -176,6 +178,9 @@ struct st_console {
 	bool pointer_visible;
 	enum st_console_pointer_shape pointer_shape;
 };
+
+int st_console_test_init(st_console_t *console);
+void st_console_test_event_read(st_console_display_t *display);
 
 static inline uint32_t
 st_console_row_index(const st_console_t *console, uint32_t y)

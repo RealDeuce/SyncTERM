@@ -4675,6 +4675,7 @@ duplicate platform-dependent enum tables:
 | List of `[category, displayName, enabled]` rows describing this
   executable's fonts, crypto, terminal, video, and audio build features. `enabled`
   reports compiled support without probing runtime libraries or devices.
+  The Video rows include the optional testing bitmap backend.
   For decoder availability, use `PixelBuffer.jxlSupported` instead.
 
 | `licenses`

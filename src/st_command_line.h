@@ -23,6 +23,7 @@ enum st_command_action {
 
 struct st_command_line {
 	enum st_command_action action;
+	const char *test_directory;
 	const char *settings_path;
 	const char *list_path;
 	const char *wren_script;
@@ -33,6 +34,7 @@ struct st_command_line {
 	int connection_type;
 	uint32_t rows;
 	bool backend_set;
+	bool test_control;
 	bool fullscreen;
 	bool connection_type_set;
 	bool rows_set;

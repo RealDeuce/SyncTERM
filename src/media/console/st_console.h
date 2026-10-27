@@ -236,6 +236,7 @@ enum st_console_backend {
 	ST_CONSOLE_BACKEND_QUARTZ,
 	ST_CONSOLE_BACKEND_LIBRETRO,
 	ST_CONSOLE_BACKEND_HEADLESS,
+	ST_CONSOLE_BACKEND_TEST,
 };
 
 enum st_console_build_feature {
@@ -251,6 +252,7 @@ enum st_console_build_feature {
 	ST_CONSOLE_BUILD_WAYLAND = UINT32_C(1) << 9,
 	ST_CONSOLE_BUILD_QUARTZ = UINT32_C(1) << 10,
 	ST_CONSOLE_BUILD_LIBRETRO = UINT32_C(1) << 11,
+	ST_CONSOLE_BUILD_TEST = UINT32_C(1) << 12,
 };
 
 /* Returns the active backend selected during console creation. */

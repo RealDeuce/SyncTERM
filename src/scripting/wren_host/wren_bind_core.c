@@ -6,6 +6,7 @@
  */
 
 #include "wren_host_internal.h"
+#include "st_console_test.h"
 
 #include "io_error.h"
 #include "st_app_paths.h"
@@ -1222,6 +1223,7 @@ next_input_event(WrenVM *vm, bool wait, int64_t timeout_ms, bool at_exit)
 		deadline_pointer = &deadline;
 	}
 	for (;;) {
+		st_console_test_service(host->config.display);
 		if (host->exit_requested && !at_exit) {
 			record = (struct st_wren_input_record){
 				.type = ST_WREN_INPUT_KEY,

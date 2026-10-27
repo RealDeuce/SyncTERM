@@ -37,6 +37,8 @@
 #include "st_wren_host.h"
 #include "value_convert_time.h"
 
+#include "st_console_test.h"
+
 #include <locale.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -47,6 +49,52 @@
 
 static atomic_bool application_running;
 
+struct application_inspection {
+	st_term_session_t *session;
+	st_connection_t *connection;
+};
+
+static void inspect_application(void *context, struct st_console_test_application *app)
+{
+	struct application_inspection *owner = context;
+	struct st_cterm_state state;
+	st_console_test_number(app, "session_active", owner->session != NULL);
+	st_console_test_number(app, "connected", owner->connection != NULL && !st_term_session_remote_closed(owner->session));
+	if (owner->session == NULL || st_cterm_state(st_term_session_cterm(owner->session), &state) != 0) return;
+#define FIELD(name) st_console_test_number(app, "cterm." #name, state.name)
+	FIELD(x); FIELD(y); FIELD(top_margin); FIELD(bottom_margin); FIELD(left_margin); FIELD(right_margin);
+	FIELD(attr); FIELD(fg_color); FIELD(bg_color); FIELD(font_slot);
+	FIELD(scrollback_lines); FIELD(scrollback_width); FIELD(scrollback_pos); FIELD(scrollback_start);
+	FIELD(emulation); FIELD(started); FIELD(skypix);
+	FIELD(ext_attr.auto_wrap); FIELD(ext_attr.origin_mode); FIELD(ext_attr.sx_scroll); FIELD(ext_attr.dec_lrmm);
+	FIELD(ext_attr.bracket_paste); FIELD(ext_attr.dec_bkm); FIELD(ext_attr.alternate_keypad);
+	FIELD(ext_attr.prestel_mosaic); FIELD(ext_attr.prestel_double_height); FIELD(ext_attr.prestel_conceal);
+	FIELD(ext_attr.prestel_separated); FIELD(ext_attr.prestel_hold);
+	FIELD(last_column_flag.set); FIELD(last_column_flag.enabled); FIELD(last_column_flag.forced);
+#undef FIELD
+	st_console_test_number(app, "cterm.encoding", st_cterm_encoding(st_term_session_cterm(owner->session)));
+	st_console_test_number(app, "cterm.codepage", st_cterm_codepage(st_term_session_cterm(owner->session)));
+	st_console_test_number(app, "cterm.status_display", st_cterm_status_display(st_term_session_cterm(owner->session)));
+	struct st_transfer_inspection transfer;
+	bool reserved;
+	bool active = st_term_session_inspect_transfer(owner->session, &transfer, &reserved);
+	st_console_test_number(app, "transfer.active", active);
+	st_console_test_number(app, "transfer.reserved", reserved);
+	if (active) {
+#define TRANSFER(name, value) st_console_test_number(app, "transfer." name, value)
+		TRANSFER("protocol", transfer.protocol); TRANSFER("upload", transfer.upload);
+		TRANSFER("done", transfer.done); TRANSFER("aborted", transfer.aborted);
+		TRANSFER("result", transfer.result); TRANSFER("dialog", transfer.dialog);
+		TRANSFER("bytes_current", transfer.progress.bytes_current); TRANSFER("bytes_total", transfer.progress.bytes_total);
+#undef TRANSFER
+		st_console_test_text(app, "transfer.line1", transfer.progress.line1);
+		st_console_test_text(app, "transfer.line2", transfer.progress.line2);
+		st_console_test_text(app, "transfer.line3", transfer.progress.line3);
+		st_console_test_text(app, "transfer.line4", transfer.progress.line4);
+	}
+}
+
+
 static int
 application_paths(struct st_app_paths *paths, const struct st_command_line *command,
 	const struct st_application_host *frontend)
@@ -54,11 +102,13 @@ application_paths(struct st_app_paths *paths, const struct st_command_line *comm
 	struct st_app_path_overrides overrides = {0};
 	char *files[8] = {0};
 	int status = 0;
-	if (frontend != NULL && frontend->directory != NULL) {
+	const char *directory = command->test_directory != NULL ? command->test_directory
+	    : frontend == NULL ? NULL : frontend->directory;
+	if (directory != NULL) {
 		const char *names[] = {"syncterm.ini", "syncterm.lst", "shared.lst",
 		    "cache", "downloads", "keys.ini", "scripts", "themes"};
 		for (size_t i = 0; i < 8 && status == 0; ++i)
-			status = path_join_alloc(&files[i], frontend->directory, names[i]);
+			status = path_join_alloc(&files[i], directory, names[i]);
 		overrides = (struct st_app_path_overrides){
 			.settings_file = files[0], .personal_list = files[1],
 			.shared_list = files[2], .cache_directory = files[3],
@@ -121,6 +171,9 @@ usage(FILE *stream, const char *program)
 	    | ST_CONSOLE_BUILD_WAYLAND)) != 0)
 		fputs("                Graphics modes accept W for windowed or F for fullscreen;\n"
 		    "                the suffix is optional.\n", stream);
+	if ((features & ST_CONSOLE_BUILD_TEST) != 0)
+		fputs("  --test-control  use the testing bitmap driver with pipe input/output\n"
+		    "  --test-directory path  use private application paths with --test-control\n", stream);
 	fputs(
 	    "  -l#           use 14, 21, 25, 28, 30, 43, 50, or 60 rows\n"
 	    "                (default: configured startup screen mode)\n"
@@ -720,6 +773,7 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 	st_connection_t *connection = NULL;
 	st_term_session_t *session = NULL;
 	st_wren_connected_t *connected = NULL;
+	struct application_inspection inspection = {0};
 	char *cache_directory = NULL;
 	char *disconnect_details = NULL;
 	bool notify_disconnect;
@@ -836,6 +890,8 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 	};
 	status = st_term_session_create(&session, &config);
 	if (status == 0) {
+		inspection.session = session; inspection.connection = connection;
+		st_console_test_set_application_reader(display, inspect_application, &inspection);
 		st_cterm_set_music_mode(st_term_session_cterm(session), profile->music);
 		const struct st_wren_connected_config wren_config = {
 			.host = host,
@@ -914,6 +970,7 @@ finished:
 	st_wren_connected_destroy(connected);
 	connected = NULL;
 	if (connection != NULL) {
+		inspection.connection = NULL;
 		int close_status = st_connection_close(connection);
 
 		connection = NULL;
@@ -941,6 +998,7 @@ finished:
 	}
 	connection_log_close(&connection_ui);
 	free(disconnect_details);
+	st_console_test_set_application_reader(display, NULL, NULL);
 	st_term_session_destroy(&session);
 	connection_status(&connection_ui, NULL);
 	free(connection_ui.log);
@@ -1152,6 +1210,13 @@ run_application(int argc, char **argv, const struct st_application_host *fronten
 		.hyperlinks = hyperlinks,
 		.safe_mode = command.safe_mode,
 	};
+	if (command.test_control) {
+		status = st_console_test_start_control(display);
+		if (status != 0) {
+			fprintf(stderr, "SyncTERM: test control requires redirected pipe input/output (%d)\n", status);
+			goto finished;
+		}
+	}
 	/* Auto-loaded Wren scripts may open a modal during host creation. The
 	 * frontend must already be able to present it and deliver input. */
 	if (frontend != NULL && frontend->ready != NULL) {
@@ -1229,6 +1294,7 @@ run_application(int argc, char **argv, const struct st_application_host *fronten
 	}
 
 finished:
+	st_console_test_stop_control(display);
 	if (published && frontend->release != NULL)
 		frontend->release(frontend->context);
 	persist_window_scaling(host, display, result == 0, command.safe_mode);

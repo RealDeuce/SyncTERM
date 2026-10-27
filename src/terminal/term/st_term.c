@@ -44,6 +44,15 @@ struct st_term_session {
 	size_t prestel_frame_size;
 };
 
+bool st_term_session_inspect_transfer(st_term_session_t *session,
+	struct st_transfer_inspection *state, bool *reserved)
+{
+	*reserved = session != NULL && session->transfer_reserved;
+	if (session == NULL || session->transfer == NULL) return false;
+	st_transfer_inspect(session->transfer, state);
+	return true;
+}
+
 static int write_cterm_wire(void *context, const uint8_t *bytes, size_t size);
 static int ooii_render(void *context, const uint8_t *bytes, size_t size);
 static int ooii_reply(void *context, const uint8_t *bytes, size_t size);

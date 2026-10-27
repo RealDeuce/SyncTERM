@@ -1618,6 +1618,8 @@ fn_menu_build_options(WrenVM *vm)
 	    (console & ST_CONSOLE_BUILD_ANSI) != 0);
 	push_build_option(vm, "Video", "libretro",
 	    (console & ST_CONSOLE_BUILD_LIBRETRO) != 0);
+	push_build_option(vm, "Video", "Testing bitmap backend",
+	    (console & ST_CONSOLE_BUILD_TEST) != 0);
 	push_build_option(vm, "Audio", "OSS",
 	    (audio & AUDIO_BACKEND_OSS) != 0);
 	push_build_option(vm, "Audio", "SDL",

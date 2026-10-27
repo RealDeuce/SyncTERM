@@ -339,8 +339,31 @@ static int test_received_mailbox(const char *existing)
 	}
 	return 0;
 }
+static int test_inspection(void)
+{
+	struct st_transfer_config config = {.protocol = ST_TRANSFER_FAKE};
+	st_transfer_t *transfer = NULL;
+	CHECK(st_transfer_create(&transfer, &config) == 0);
+	st_transfer_progress(transfer, 128, 1024);
+	CHECK(st_transfer_tick_dirty(transfer));
+	struct st_transfer_inspection inspection;
+	st_transfer_inspect(transfer, &inspection);
+	CHECK(st_transfer_tick_dirty(transfer));
+	CHECK(inspection.protocol == ST_TRANSFER_FAKE && !inspection.done && !inspection.aborted);
+	CHECK(inspection.progress.bytes_current == 128 && inspection.progress.bytes_total == 1024);
+	struct st_transfer_snapshot ui;
+	st_transfer_snapshot(transfer, &ui);
+	CHECK(!st_transfer_tick_dirty(transfer));
+	CHECK(memcmp(&ui, &inspection.progress, sizeof(ui)) == 0);
+	CHECK(st_transfer_request_abort(transfer));
+	st_transfer_inspect(transfer, &inspection);
+	CHECK(inspection.aborted);
+	st_transfer_destroy(&transfer);
+	return 0;
+}
 int main(void)
 {
+	CHECK(test_inspection() == 0);
 	CHECK(test_z_crc_truncation() == 0);
 	CHECK(test_xy_recovery() == 0);
 	CHECK(test_detector() == 0);

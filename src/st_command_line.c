@@ -162,6 +162,19 @@ st_command_line_parse(struct st_command_line *result, int argc,
 
 		bad_argument = argument;
 
+		if (strcmp(argument, "--test-directory") == 0) {
+			if (++i >= argc || argv[i][0] == '\0') goto invalid;
+			parsed.test_directory = argv[i];
+			continue;
+		}
+		if (strcmp(argument, "--test-control") == 0) {
+			if ((st_console_build_features() & ST_CONSOLE_BUILD_TEST) == 0
+			    || parsed.backend_set) goto invalid;
+			parsed.test_control = true;
+			parsed.backend = ST_CONSOLE_BACKEND_TEST;
+			parsed.backend_set = true;
+			continue;
+		}
 		if (strcmp(argument, "--help") == 0 || strcmp(argument, "-?") == 0) {
 			parsed.action = ST_COMMAND_HELP;
 			continue;
@@ -200,6 +213,7 @@ st_command_line_parse(struct st_command_line *result, int argc,
 			parsed.connection_type_set = true;
 			break;
 		case 'I':
+			if (parsed.test_control) goto invalid;
 			if (!parse_backend(&parsed, argument + 2))
 				goto invalid;
 			break;
@@ -246,6 +260,7 @@ st_command_line_parse(struct st_command_line *result, int argc,
 			goto invalid;
 		}
 	}
+	if (parsed.test_directory != NULL && !parsed.test_control) goto invalid;
 	*result = parsed;
 	return 0;
 

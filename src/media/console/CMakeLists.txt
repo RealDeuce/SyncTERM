@@ -14,6 +14,8 @@ endif()
 include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/SynctermCheckC17Source.cmake")
 find_package(PkgConfig QUIET)
 
+option(ST_CONSOLE_TEST "Build the controllable testing bitmap backend" OFF)
+
 set(ST_CONSOLE_HAVE_QUARTZ 0)
 if(APPLE)
 	include(CheckLanguage)
@@ -314,6 +316,63 @@ int main(void) {
 	endif()
 endif()
 
+if(ST_CONSOLE_TEST)
+	include(CMakePushCheckState)
+	cmake_push_check_state(RESET)
+	if(WIN32)
+		syncterm_check_c17_source([=[
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <io.h>
+#include <fcntl.h>
+#include <stdint.h>
+int main(void) {
+	HANDLE input = GetStdHandle(STD_INPUT_HANDLE), copy = NULL;
+	DWORD count = 0;
+	char byte = 0;
+	(void)GetFileType(input);
+	(void)DuplicateHandle(GetCurrentProcess(), input, GetCurrentProcess(), &copy, 0, FALSE, DUPLICATE_SAME_ACCESS);
+	(void)SetHandleInformation(copy, HANDLE_FLAG_INHERIT, 0);
+	(void)PeekNamedPipe(copy, 0, 0, 0, &count, 0);
+	(void)ReadFile(copy, &byte, 1, &count, 0);
+	(void)WriteFile(copy, &byte, 1, &count, 0);
+	(void)CancelSynchronousIo(GetCurrentThread());
+	(void)SetStdHandle(STD_OUTPUT_HANDLE, copy);
+	(void)_dup2(_open_osfhandle((intptr_t)copy, _O_WRONLY | _O_BINARY), 1);
+	return !CloseHandle(copy);
+}
+]=] ST_CONSOLE_TEST_TRANSPORT_WORKS)
+	else()
+		find_package(Threads REQUIRED)
+		set(CMAKE_REQUIRED_LIBRARIES Threads::Threads)
+		syncterm_check_c17_source([=[
+#define _POSIX_C_SOURCE 200809L
+#include <unistd.h>
+#include <fcntl.h>
+#include <poll.h>
+#include <pthread.h>
+#include <signal.h>
+#include <sys/stat.h>
+int main(void) {
+	struct stat info;
+	struct pollfd event = {0, POLLIN, 0};
+	sigset_t blocked;
+	char byte = 0;
+	sigemptyset(&blocked); sigaddset(&blocked, SIGPIPE);
+	(void)pthread_sigmask(SIG_BLOCK, &blocked, 0);
+	(void)fstat(0, &info); (void)S_ISFIFO(info.st_mode);
+	(void)fcntl(0, F_SETFD, FD_CLOEXEC); (void)fcntl(0, F_SETFL, O_NONBLOCK);
+	(void)dup2(dup(1), 1); (void)poll(&event, 1, 0);
+	(void)read(0, &byte, 1); (void)write(1, &byte, 1);
+	return close(0);
+}
+]=] ST_CONSOLE_TEST_TRANSPORT_WORKS)
+	endif()
+	cmake_pop_check_state()
+	if(NOT ST_CONSOLE_TEST_TRANSPORT_WORKS)
+		message(FATAL_ERROR "ST_CONSOLE_TEST requires interruptible binary pipe transport support")
+	endif()
+endif()
 configure_file(console_config.h.in console_config.h @ONLY)
 
 if(NOT TARGET syncterm_io_error)
@@ -379,6 +438,8 @@ set(_st_console_sources
 	console_text_terminal.c
 	console_pixels.c
 	console_bitmap.c
+	console_test.c
+	console_test_control.c
 	console_libretro.c
 	console_ansi.c
 	console_curses_locale.c
@@ -415,6 +476,10 @@ endif()
 if(ST_CONSOLE_HAVE_POSIX_URL)
 	list(APPEND _st_console_sources console_posix_url.c)
 	set_source_files_properties(console_posix_url.c PROPERTIES
+		COMPILE_DEFINITIONS _POSIX_C_SOURCE=200809L)
+endif()
+if(ST_CONSOLE_TEST AND NOT WIN32)
+	set_source_files_properties(console_test_control.c PROPERTIES
 		COMPILE_DEFINITIONS _POSIX_C_SOURCE=200809L)
 endif()
 add_library(st_console STATIC ${_st_console_sources})
@@ -475,6 +540,15 @@ if(ST_CONSOLE_HAVE_SDL OR ST_CONSOLE_HAVE_QUARTZ)
 endif()
 
 if(BUILD_TESTING)
+	if(ST_CONSOLE_TEST)
+		add_executable(st_console_test_backend_test tests/st_console_test_backend_test.c)
+		target_link_libraries(st_console_test_backend_test PRIVATE st_console)
+		set_target_properties(st_console_test_backend_test PROPERTIES
+			C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		st_console_warnings(st_console_test_backend_test)
+		add_test(NAME st_console_test_backend COMMAND st_console_test_backend_test)
+		set_tests_properties(st_console_test_backend PROPERTIES TIMEOUT 20)
+	endif()
 	if(ST_CONSOLE_HAVE_POSIX_URL)
 		file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/url-tests")
 		add_executable(st_console_url_test tests/st_console_url_test.c)

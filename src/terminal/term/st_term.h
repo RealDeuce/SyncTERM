@@ -22,6 +22,10 @@ typedef struct st_term_session st_term_session_t;
 /* Owner-thread keep-alive for side-band work after terminal EOF. */
 void st_term_session_set_auxiliary_active(st_term_session_t *session, bool active);
 
+/* Serialized owner-only read. A false result means there is no transfer. */
+bool st_term_session_inspect_transfer(st_term_session_t *session,
+	struct st_transfer_inspection *state, bool *reserved);
+
 enum st_term_disposition {
 	ST_TERM_RETURN_TO_PICKER,
 	ST_TERM_EXIT_APPLICATION,

@@ -84,7 +84,7 @@ function(ci_command name)
 	endforeach()
 endfunction()
 
-set(_options -DBUILD_TESTING=ON -DST_CTERM_TEST_EXTERNAL_ASSETS=OFF)
+set(_options -DST_CONSOLE_TEST=ON -DBUILD_TESTING=ON -DST_CTERM_TEST_EXTERNAL_ASSETS=OFF)
 set(_cross FALSE)
 if(CI_PROFILE STREQUAL minimal)
 	list(APPEND _options -DCRYPTO_BACKEND=none -DSYNCTERM_ENABLE_UNIFONT=OFF

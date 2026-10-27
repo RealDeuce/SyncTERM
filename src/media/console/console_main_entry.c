@@ -6,6 +6,7 @@
  */
 
 #include "console_config.h"
+#include "st_console_test.h"
 
 int st_console_application_main(int argc, char **argv);
 int st_console_sdl_run_application(int argc, char **argv,
@@ -16,6 +17,8 @@ int st_console_quartz_run_application(int argc, char **argv,
 int
 main(int argc, char **argv)
 {
+	if (st_console_test_requested(argc, argv))
+		return st_console_application_main(argc, argv);
 #if ST_CONSOLE_HAVE_QUARTZ
 	return st_console_quartz_run_application(argc, argv,
 	    st_console_application_main);

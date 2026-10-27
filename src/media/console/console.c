@@ -704,6 +704,8 @@ create_console(st_console_t **result, st_console_display_t *display,
 	}
 	else if (display->config.backend == ST_CONSOLE_BACKEND_LIBRETRO)
 		status = st_console_libretro_init(console);
+	else if (display->config.backend == ST_CONSOLE_BACKEND_TEST)
+		status = st_console_test_init(console);
 	else if (display->config.backend == ST_CONSOLE_BACKEND_HEADLESS)
 		status = 0;
 	else
@@ -772,7 +774,7 @@ st_console_display_create(st_console_display_t **result,
 	if ((icon != NULL && (icon->stride < minimum_stride
 	    || icon->height > SIZE_MAX / icon->stride))
 	    || config->backend < ST_CONSOLE_BACKEND_AUTO
-	    || config->backend > ST_CONSOLE_BACKEND_HEADLESS
+	    || config->backend > ST_CONSOLE_BACKEND_TEST
 	    || config->text_presentation < ST_CONSOLE_TEXT_UNICODE
 	    || config->text_presentation > ST_CONSOLE_TEXT_ASCII
 	    || ((config->initial_window_width == 0)
@@ -1021,6 +1023,7 @@ st_console_backend_name(enum st_console_backend backend)
 		[ST_CONSOLE_BACKEND_QUARTZ] = "Quartz",
 		[ST_CONSOLE_BACKEND_LIBRETRO] = "Retro",
 		[ST_CONSOLE_BACKEND_HEADLESS] = "Headless",
+		[ST_CONSOLE_BACKEND_TEST] = "Test",
 	};
 
 	if (backend < ST_CONSOLE_BACKEND_AUTO
@@ -1033,6 +1036,10 @@ uint32_t
 st_console_build_features(void)
 {
 	uint32_t result = ST_CONSOLE_BUILD_ANSI | ST_CONSOLE_BUILD_LIBRETRO;
+
+#if ST_CONSOLE_TEST
+	result |= ST_CONSOLE_BUILD_TEST;
+#endif
 
 #if ST_CONSOLE_HAVE_CURSES_H
 	result |= ST_CONSOLE_BUILD_NCURSES;
@@ -3295,6 +3302,29 @@ event_take_locked(st_console_t *console, struct st_console_event *event,
 	int result = ST_THREAD_SUCCESS;
 
 	while (console->event_count == 0) {
+		if (console->display->backend == ST_CONSOLE_BACKEND_TEST) {
+			struct timespec control_deadline;
+			(void)st_mutex_unlock(&console->event_mutex);
+			st_console_test_service(console->display);
+			(void)st_mutex_lock(&console->event_mutex);
+			if (console->event_count != 0) break;
+			if (polling) return IO_ERROR_WOULD_BLOCK;
+			if (st_time_utc_deadline_after_ms(&control_deadline, 10) != 0)
+				return IO_ERROR_IO;
+			if (deadline != NULL && (deadline->tv_sec < control_deadline.tv_sec
+			    || (deadline->tv_sec == control_deadline.tv_sec
+			    && deadline->tv_nsec <= control_deadline.tv_nsec))) {
+				result = st_condition_timedwait(&console->event_ready,
+				    &console->event_mutex, deadline);
+				if (result == ST_THREAD_TIMED_OUT) return IO_ERROR_TIMED_OUT;
+			} else {
+				result = st_condition_timedwait(&console->event_ready,
+				    &console->event_mutex, &control_deadline);
+			}
+			if (result != ST_THREAD_SUCCESS && result != ST_THREAD_TIMED_OUT)
+				return IO_ERROR_IO;
+			continue;
+		}
 		if (polling)
 			return IO_ERROR_WOULD_BLOCK;
 		if (deadline == NULL)
@@ -3573,11 +3603,13 @@ event_take(st_console_t *console, struct st_console_event *event,
 
 	if (console == NULL || event == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
+	st_console_test_service(console->display);
 	result = st_mutex_lock(&console->event_mutex);
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	result = event_take_locked(console, event, deadline, polling);
 	(void)st_mutex_unlock(&console->event_mutex);
+	if (result == 0) st_console_test_event_read(console->display);
 	return result;
 }
 
