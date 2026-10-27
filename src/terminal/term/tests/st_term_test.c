@@ -389,6 +389,7 @@ static int claim_transfer(void *context, uint8_t byte, bool *consumed,
 }
 static int test_transfer_handoff(bool aborting)
 {
+	static const char expected[] = "BEFORE~**\030B0800000000022d\r\nOOBETWEEN~**\030B0800000000022d\r\nOOAFTER";
 	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
 	const struct st_console_config geometry = {.columns = 40, .rows = 4, .cell_width = 8, .cell_height = 16};
 	st_console_t *console = NULL;
@@ -407,8 +408,23 @@ static int test_transfer_handoff(bool aborting)
 	    .wire_filter = claim_transfer, .wire_filter_context = &handoff,
 	    .wire_capture = capture_wire, .capture_context = &captured};
 	CHECK(st_term_session_create(&handoff.session, &config) == 0);
+	/* This case tests handoff within one buffered read, including discard
+	 * of its suffix on cancellation. A shell printf can use several writes. */
+	struct st_deadline deadline;
+	int64_t remaining;
+	const struct timespec delay = {.tv_nsec = 1000000L};
+	CHECK(st_deadline_start(&deadline, 5000) == 0);
+	while (st_connection_pending_raw(handoff.connection) < sizeof(expected) - 1) {
+		CHECK(st_deadline_remaining_ms(&deadline, &remaining) == 0 && remaining != 0);
+		CHECK(st_connection_is_connected(handoff.connection));
+		(void)st_thread_sleep(&delay, NULL);
+	}
 	enum st_term_disposition disposition; bool finished = false;
-	for (unsigned i = 0; i < 500 && !finished; ++i) {
+	bool peer_released = false;
+	CHECK(st_deadline_start(&deadline, 5000) == 0);
+	while (!finished) {
+		CHECK(st_deadline_remaining_ms(&deadline, &remaining) == 0);
+		if (remaining == 0) break;
 		CHECK(st_term_session_pump(handoff.session, &disposition, &finished) == 0);
 		if (handoff.worker != NULL && st_transfer_done(handoff.worker)) {
 			CHECK(st_transfer_result(handoff.worker) == (aborting ? IO_ERROR_CANCELLED : 0));
@@ -417,12 +433,18 @@ static int test_transfer_handoff(bool aborting)
 			st_transfer_destroy(&handoff.worker);
 			st_term_session_set_suspended(handoff.session, false);
 		}
-		const struct timespec delay = {.tv_nsec = 1000000L};
+		if (!peer_released && handoff.worker == NULL
+		    && handoff.starts == (aborting ? 1U : 2U)) {
+			CHECK(st_connection_send(handoff.connection, "!", 1, 1000) == 1);
+			peer_released = true;
+		}
 		(void)st_thread_sleep(&delay, NULL);
 	}
+	if (!finished || handoff.starts != (aborting ? 1U : 2U) || handoff.worker != NULL)
+		fprintf(stderr, "transfer handoff: abort=%d finished=%d starts=%u worker_active=%d captured=%zu\n",
+		    aborting, finished, handoff.starts, handoff.worker != NULL, captured.size);
 	CHECK(finished && handoff.starts == (aborting ? 1U : 2U) && handoff.worker == NULL);
 	CHECK(screen_contains(console, aborting ? "BEFORE" : "BEFOREBETWEENAFTER", true));
-	static const char expected[] = "BEFORE~**\030B0800000000022d\r\nOOBETWEEN~**\030B0800000000022d\r\nOOAFTER";
 	CHECK(captured.size == sizeof(expected) - 1 && memcmp(captured.bytes, expected, captured.size) == 0);
 	st_term_session_destroy(&handoff.session);
 	CHECK(st_connection_close(handoff.connection) == 0);

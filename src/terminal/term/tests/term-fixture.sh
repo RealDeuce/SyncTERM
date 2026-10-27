@@ -18,7 +18,7 @@ auto-transfer)
 transfer)
 	stty raw -echo
 	printf 'BEFORE~**\030B0800000000022d\r\nOOBETWEEN~**\030B0800000000022d\r\nOOAFTER'
-	sleep 1
+	while [ "$(dd bs=1 count=1 2>/dev/null)" != '!' ]; do :; done
 	;;
 responses)
 	stty raw -echo
