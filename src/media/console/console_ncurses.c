@@ -71,6 +71,7 @@ struct curses_api {
 	int (*call_tigetnum)(const char *);
 	char *(*call_tigetstr)(const char *);
 	char *(*call_tiparm)(const char *, ...);
+	int (*call_tputs)(const char *, int, int (*)(int));
 	int (*call_use_extended_names)(bool);
 	int (*call_use_legacy_coding)(int);
 	int (*call_attributes)(WINDOW *, attr_t, NCURSES_PAIRS_T, void *);
@@ -123,6 +124,7 @@ typedef int (*curses_call_tigetflag_fn)(const char *);
 typedef int (*curses_call_tigetnum_fn)(const char *);
 typedef char *(*curses_call_tigetstr_fn)(const char *);
 typedef char *(*curses_call_tiparm_fn)(const char *, ...);
+typedef int (*curses_call_tputs_fn)(const char *, int, int (*)(int));
 typedef int (*curses_call_use_extended_names_fn)(bool);
 typedef int (*curses_call_use_legacy_coding_fn)(int);
 typedef int (*curses_call_attributes_fn)(WINDOW *, attr_t, NCURSES_PAIRS_T,
@@ -162,6 +164,7 @@ struct curses_state {
 	bool sgr_direct;
 	bool sgr_output;
 	bool sgr_initialized;
+	const char *initialize_colour;
 	bool margins_initialized;
 	bool margin_visible;
 	int margin_colour;
@@ -432,6 +435,15 @@ static int
 write_terminal_colour(struct curses_state *state, int colour, int red,
 	int green, int blue)
 {
+	if (state->sgr_output) {
+		char *expanded = state->api.call_tiparm(state->initialize_colour,
+		    colour, red, green, blue, 0, 0, 0, 0, 0);
+
+		/* init_color() may defer output until a curses refresh. This path
+		 * writes cells itself, so emit initc with its terminfo padding. */
+		return expanded == NULL ? ERR
+		    : state->api.call_tputs(expanded, 1, putchar);
+	}
 	if (state->extended_colours)
 		return state->api.call_init_extended_color(colour, red, green, blue);
 	if (colour <= SHRT_MAX)
@@ -801,6 +813,10 @@ sgr_colour(st_console_t *console, struct curses_state *state,
 
 		if (!state->colours)
 			return -1;
+		/* Palette programming writes to stdout through tputs. Keep it in
+		 * order with the cell bytes already buffered by this writer. */
+		if (state->palette_mutable)
+			sgr_flush(writer);
 		mapped = cell_colour(console, state, colour, index);
 		if (mapped < 8)
 			sgr_format(writer, "\033[%" PRIu32 "m",
@@ -1641,8 +1657,9 @@ curses_capabilities(const st_console_t *console)
 	else {
 		if (state->palette_mutable)
 			result |= ST_CONSOLE_CAP_PALETTE_CHANGE;
-		if (state->colour_count >= 65535 && state->extended_colours
-		    && state->extended_pairs)
+		if (state->colour_count >= 65535
+		    && (state->sgr_output || (state->extended_colours
+		    && state->extended_pairs)))
 			result |= ST_CONSOLE_CAP_EXTENDED_PALETTE;
 	}
 	if (state->direct_colour || state->sgr_direct
@@ -1868,6 +1885,26 @@ ansi_cell_output(struct curses_state *state)
 	    && ansi_capability(state, "setab", "\033[42m", 2, 0));
 }
 
+static void
+configure_colour_pairs(struct curses_state *state)
+{
+	/* The byte writer uses terminal colour indices directly, without
+	 * allocating curses pairs or inheriting their narrower limits. */
+	if (!state->colours || state->sgr_output || state->extended_pairs)
+		return;
+	int usable = state->colour_count < 16 ? state->colour_count : 16;
+
+	while (usable > 0 && usable * usable >= state->pair_count)
+		--usable;
+	state->colour_count = usable;
+	if (usable == 0)
+		state->colours = false;
+	for (int pair = 0; pair < usable * usable; ++pair)
+		(void)state->api.call_init_pair((NCURSES_PAIRS_T)(pair + 1),
+		    (NCURSES_COLOR_T)(pair / usable),
+		    (NCURSES_COLOR_T)(pair % usable));
+}
+
 static int
 curses_init_inner(void *argument)
 {
@@ -1913,6 +1950,7 @@ curses_init_inner(void *argument)
 		(void)state->api.call_use_extended_names(true);
 	(void)LOAD_OPTIONAL(state, call_resizeterm, "resizeterm");
 	(void)LOAD_OPTIONAL(state, call_tiparm, "tiparm");
+	(void)LOAD_OPTIONAL(state, call_tputs, "tputs");
 #if ST_CONSOLE_HAVE_CURSES_EXTENDED_COLOR
 	state->extended_colours =
 	    LOAD_OPTIONAL(state, call_extended_color_content,
@@ -2001,21 +2039,6 @@ curses_init_inner(void *argument)
 		state->palette_mutable = !state->direct_colour
 		    && state->colour_count > 0
 		    && state->api.call_can_change_color();
-		if (!state->extended_pairs) {
-			int usable = state->colour_count < 16
-			    ? state->colour_count : 16;
-
-			while (usable > 0 && usable * usable >= state->pair_count)
-				--usable;
-			state->colour_count = usable;
-			if (usable == 0)
-				state->colours = false;
-			for (int pair = 0; pair < usable * usable; ++pair)
-				(void)state->api.call_init_pair(
-				    (NCURSES_PAIRS_T)(pair + 1),
-				    (NCURSES_COLOR_T)(pair / usable),
-				    (NCURSES_COLOR_T)(pair % usable));
-		}
 	}
 	state->sgr_direct = !state->direct_colour
 	    && colorterm_direct_colour();
@@ -2027,6 +2050,14 @@ curses_init_inner(void *argument)
 	    && ansi_cell_output(state));
 	if (state->sgr_direct)
 		state->palette_mutable = false;
+	if (state->palette_mutable && state->sgr_output) {
+		state->initialize_colour = state->api.call_tigetstr("initc");
+		if (state->initialize_colour == NULL
+		    || state->initialize_colour == (char *)(intptr_t)-1
+		    || state->api.call_tputs == NULL)
+			state->palette_mutable = false;
+	}
+	configure_colour_pairs(state);
 	state->terminal_colour_count = state->direct_colour || state->sgr_direct
 	    ? 0 : state->colour_count > 65536 ? 65536 : state->colour_count;
 	if (state->terminal_colour_count < 0)

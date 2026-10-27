@@ -19,12 +19,24 @@
 #if ST_CONSOLE_HAVE_CURSES_H
 #include <locale.h>
 #include <stdarg.h>
+#include <wchar.h>
+
+static size_t
+decode_locale_character(void)
+{
+	mbstate_t state = {0};
+
+	return mbrtowc(NULL, "\xc3\xa9", 2, &state);
+}
 
 static int
 byte_locale_callback(void *argument)
 {
 #if ST_CONSOLE_HAVE_THREAD_LOCALE
-	if (MB_CUR_MAX != 1)
+	/* The C locale may reject high bytes or decode them individually. */
+	size_t decoded = decode_locale_character();
+
+	if (decoded != 1 && decoded != (size_t)-1)
 		return IO_ERROR_INVALID_ENCODING;
 #endif
 	return *(int *)argument;
@@ -34,22 +46,22 @@ static bool
 test_locale_scope(void)
 {
 	struct st_curses_locale *locale = NULL;
-	size_t caller_mb_max;
+	size_t caller_decoded;
 	int status = 0;
 	bool correct;
 
 	/* A UTF-8 caller must regain its locale even when the operation fails. */
 	if (setlocale(LC_CTYPE, "C.UTF-8") == NULL)
 		(void)setlocale(LC_CTYPE, "en_US.UTF-8");
-	caller_mb_max = (size_t)MB_CUR_MAX;
+	caller_decoded = decode_locale_character();
 	if (st_curses_locale_create(&locale) != 0)
 		return false;
 	correct = st_curses_locale_call(locale, byte_locale_callback, &status) == 0
-	    && (size_t)MB_CUR_MAX == caller_mb_max;
+	    && decode_locale_character() == caller_decoded;
 	status = IO_ERROR_CANCELLED;
 	correct = correct
 	    && st_curses_locale_call(locale, byte_locale_callback, &status) == status
-	    && (size_t)MB_CUR_MAX == caller_mb_max;
+	    && decode_locale_character() == caller_decoded;
 	st_curses_locale_destroy(locale);
 	return correct;
 }
@@ -180,6 +192,78 @@ test_sgr_palette(void)
 done:
 	free(state.terminal_colours);
 	return correct;
+}
+
+static unsigned initialized_pairs;
+
+static int
+initialize_test_pair(NCURSES_PAIRS_T pair, NCURSES_COLOR_T foreground,
+	NCURSES_COLOR_T background)
+{
+	(void)pair;
+	(void)foreground;
+	(void)background;
+	++initialized_pairs;
+	return OK;
+}
+
+static bool
+test_pair_limits(void)
+{
+	struct curses_state state = {
+		.colours = true, .colour_count = 256, .pair_count = 256,
+		.sgr_output = true,
+	};
+
+	state.api.call_init_pair = initialize_test_pair;
+	configure_colour_pairs(&state);
+	if (state.colour_count != 256 || initialized_pairs != 0)
+		return false;
+	state.sgr_output = false;
+	configure_colour_pairs(&state);
+	if (state.colour_count != 15 || initialized_pairs != 225)
+		return false;
+	state.extended_pairs = true;
+	state.colour_count = 256;
+	configure_colour_pairs(&state);
+	return state.colour_count == 256 && initialized_pairs == 225;
+}
+
+static bool expanded_initc, emitted_initc;
+
+static char *
+expand_test_initc(const char *capability, ...)
+{
+	va_list arguments;
+
+	va_start(arguments, capability);
+	expanded_initc = strcmp(capability, "initialize colour") == 0
+	    && va_arg(arguments, int) == 203
+	    && va_arg(arguments, int) == 1000
+	    && va_arg(arguments, int) == 329
+	    && va_arg(arguments, int) == 329;
+	va_end(arguments);
+	return expanded_initc ? (char *)"expanded colour$<1>" : NULL;
+}
+
+static int
+emit_test_initc(const char *text, int affected, int (*output)(int))
+{
+	emitted_initc = strcmp(text, "expanded colour$<1>") == 0
+	    && affected == 1 && output == putchar;
+	return emitted_initc ? OK : ERR;
+}
+
+static bool
+test_sgr_palette_programming(void)
+{
+	struct curses_state state = {.sgr_output = true};
+
+	state.initialize_colour = "initialize colour";
+	state.api.call_tiparm = expand_test_initc;
+	state.api.call_tputs = emit_test_initc;
+	return write_terminal_colour(&state, 203, 1000, 329, 329) == OK
+	    && expanded_initc && emitted_initc;
 }
 
 static unsigned resize_requests;
@@ -435,7 +519,8 @@ main(void)
 		fprintf(stderr, "curses lost an emoji sequence\n");
 		return EXIT_FAILURE;
 	}
-	if (!test_ansi_capabilities() || !test_sgr_palette()) {
+	if (!test_ansi_capabilities() || !test_sgr_palette()
+	    || !test_pair_limits() || !test_sgr_palette_programming()) {
 		fprintf(stderr, "curses ANSI capabilities or indexed output failed\n");
 		return EXIT_FAILURE;
 	}
