@@ -372,9 +372,12 @@ int main(void) {
 		syncterm_check_c17_source([=[
 #define _POSIX_C_SOURCE 200809L
 #define _DARWIN_C_SOURCE 1
+#define _NETBSD_SOURCE 1
 #include <fcntl.h>
 int main(void) { return fcntl(1, F_SETNOSIGPIPE, 1); }
-]=] ST_CONSOLE_TEST_HAVE_F_SETNOSIGPIPE)
+]=] ST_CONSOLE_TEST_HAVE_F_SETNOSIGPIPE_EXTENDED)
+		set(ST_CONSOLE_TEST_HAVE_F_SETNOSIGPIPE
+			${ST_CONSOLE_TEST_HAVE_F_SETNOSIGPIPE_EXTENDED})
 	endif()
 	cmake_pop_check_state()
 	if(NOT ST_CONSOLE_TEST_TRANSPORT_WORKS)
@@ -491,7 +494,7 @@ if(ST_CONSOLE_TEST AND NOT WIN32)
 		COMPILE_DEFINITIONS _POSIX_C_SOURCE=200809L)
 	if(ST_CONSOLE_TEST_HAVE_F_SETNOSIGPIPE)
 		set_property(SOURCE console_test_control.c APPEND PROPERTY
-			COMPILE_DEFINITIONS _DARWIN_C_SOURCE=1)
+			COMPILE_DEFINITIONS _DARWIN_C_SOURCE=1 _NETBSD_SOURCE=1)
 	endif()
 endif()
 add_library(st_console STATIC ${_st_console_sources})
