@@ -70,6 +70,7 @@ struct curses_api {
 	int (*call_tigetflag)(const char *);
 	int (*call_tigetnum)(const char *);
 	char *(*call_tigetstr)(const char *);
+	char *(*call_tiparm)(const char *, ...);
 	int (*call_use_extended_names)(bool);
 	int (*call_use_legacy_coding)(int);
 	int (*call_attributes)(WINDOW *, attr_t, NCURSES_PAIRS_T, void *);
@@ -121,6 +122,7 @@ typedef int (*curses_call_find_pair_fn)(int, int);
 typedef int (*curses_call_tigetflag_fn)(const char *);
 typedef int (*curses_call_tigetnum_fn)(const char *);
 typedef char *(*curses_call_tigetstr_fn)(const char *);
+typedef char *(*curses_call_tiparm_fn)(const char *, ...);
 typedef int (*curses_call_use_extended_names_fn)(bool);
 typedef int (*curses_call_use_legacy_coding_fn)(int);
 typedef int (*curses_call_attributes_fn)(WINDOW *, attr_t, NCURSES_PAIRS_T,
@@ -158,6 +160,7 @@ struct curses_state {
 	bool extended_colours;
 	bool direct_colour;
 	bool sgr_direct;
+	bool sgr_output;
 	bool sgr_initialized;
 	bool margins_initialized;
 	bool margin_visible;
@@ -789,24 +792,45 @@ write_cell(st_console_t *console, struct curses_state *state,
 	return state->api.call_addch(state->window, ascii_cell(console, cell));
 }
 
-static void
+static int
 sgr_colour(st_console_t *console, struct curses_state *state,
-	struct sgr_writer *writer, uint32_t colour, bool background)
+	struct sgr_writer *writer, uint32_t colour, bool background, size_t index)
 {
+	if (!state->sgr_direct && !state->direct_colour) {
+		int mapped;
+
+		if (!state->colours)
+			return -1;
+		mapped = cell_colour(console, state, colour, index);
+		if (mapped < 8)
+			sgr_format(writer, "\033[%" PRIu32 "m",
+			    (uint32_t)mapped + (background ? 40 : 30), 0, 0);
+		else if (mapped < 16)
+			sgr_format(writer, "\033[%" PRIu32 "m",
+			    (uint32_t)mapped - 8 + (background ? 100 : 90), 0, 0);
+		else
+			sgr_format(writer, background ? "\033[48;5;%" PRIu32 "m"
+			    : "\033[38;5;%" PRIu32 "m", (uint32_t)mapped, 0, 0);
+		return mapped;
+	}
 	colour = logical_rgb(console, state, colour);
 	sgr_format(writer, background ? "\033[48;2;%" PRIu32
 	    ";%" PRIu32 ";%" PRIu32 "m" : "\033[38;2;%" PRIu32
 	    ";%" PRIu32 ";%" PRIu32 "m", (colour >> 16) & 0xff,
 	    (colour >> 8) & 0xff, colour & 0xff);
+	return -1;
 }
 
 static void
 sgr_style(st_console_t *console, struct curses_state *state,
-	struct sgr_writer *writer, const struct st_console_cell *cell)
+	struct sgr_writer *writer, const struct st_console_cell *cell, size_t index,
+	int *foreground, int *background)
 {
 
 	sgr_emit(writer, "\033[0m", 4);
-	if ((cell->flags & ST_CONSOLE_CELL_BOLD) != 0)
+	if ((cell->flags & ST_CONSOLE_CELL_BOLD) != 0
+	    || (!state->sgr_direct && !state->direct_colour
+	    && (cell_attributes(state, cell) & A_BOLD) != 0))
 		sgr_emit(writer, "\033[1m", 4);
 	if ((cell->flags & ST_CONSOLE_CELL_UNDERLINE) != 0)
 		sgr_emit(writer, "\033[4m", 4);
@@ -816,8 +840,10 @@ sgr_style(st_console_t *console, struct curses_state *state,
 		sgr_emit(writer, "\033[7m", 4);
 	if ((cell->flags & ST_CONSOLE_CELL_CONCEAL) != 0)
 		sgr_emit(writer, "\033[8m", 4);
-	sgr_colour(console, state, writer, cell->foreground, false);
-	sgr_colour(console, state, writer, cell->background, true);
+	*foreground = sgr_colour(console, state, writer, cell->foreground, false,
+	    index);
+	*background = sgr_colour(console, state, writer, cell->background, true,
+	    index);
 }
 
 static void
@@ -896,6 +922,7 @@ sgr_present(st_console_t *console, struct curses_state *state,
 	uint32_t output_y = 0;
 	uint32_t cursor_x;
 	uint32_t cursor_columns;
+	int foreground = -1, background = -1;
 
 	state->invalid_colour = false;
 
@@ -914,7 +941,14 @@ sgr_present(st_console_t *console, struct curses_state *state,
 
 		surround.foreground = surround.background
 		    = console->display->config.text_margin_colour;
-		sgr_style(console, state, &writer, margins ? &surround : &blank);
+		sgr_style(console, state, &writer, margins ? &surround : &blank,
+		    SIZE_MAX, &foreground, &background);
+		state->margin_visible = margins;
+		if (margins) {
+			state->margin_colour = background;
+			state->margin_rgb = logical_rgb(console, state,
+			    surround.background);
+		}
 		sgr_emit(&writer, clear_and_hide, sizeof(clear_and_hide) - 1);
 		if (margins) {
 			/* Paint explicitly even when erase does not honour background. */
@@ -931,7 +965,8 @@ sgr_present(st_console_t *console, struct curses_state *state,
 					sgr_emit(&writer, " ", 1);
 				}
 			}
-			sgr_style(console, state, &writer, &blank);
+			sgr_style(console, state, &writer, &blank, SIZE_MAX,
+			    &foreground, &background);
 			for (uint32_t y = 0; y < view->height; ++y) {
 				sgr_format(&writer, "\033[%" PRIu32 ";%" PRIu32 "H",
 				    view->y + y + 1, view->x + 1, 0);
@@ -959,17 +994,23 @@ sgr_present(st_console_t *console, struct curses_state *state,
 			state->drawn[index].flags &= ~ST_CONSOLE_CELL_DIRTY;
 			st_console_effective_cell_locked(console, source, &effective);
 			cell = &effective;
-			if ((cell->flags & ST_CONSOLE_CELL_CONTINUATION) != 0)
+			if ((cell->flags & ST_CONSOLE_CELL_CONTINUATION) != 0) {
+				state->drawn_foreground[index] = -1;
+				state->drawn_background[index] = -1;
 				continue;
+			}
 			if (!position_known || output_x != x || output_y != y)
 				sgr_format(&writer, "\033[%" PRIu32 ";%" PRIu32 "H",
 				    view->y + y + 1, view->x + x + 1, 0);
 			if (!style_known || !sgr_styles_equal(cell, &current_style)) {
-				sgr_style(console, state, &writer, cell);
+				sgr_style(console, state, &writer, cell, index,
+				    &foreground, &background);
 				current_style = *cell;
 				style_known = true;
 			}
 			sgr_character(&writer, console, state, cell);
+			state->drawn_foreground[index] = foreground;
+			state->drawn_background[index] = background;
 			output_x = x + 1;
 			output_y = y;
 			if (x + 1 < console->columns
@@ -1257,7 +1298,7 @@ curses_present_inner(void *argument)
 	st_console_cursor_span_locked(console, &cursor_x, &cursor_columns);
 	(void)cursor_columns;
 
-	if (state->sgr_direct)
+	if (state->sgr_output)
 		return sgr_present(console, state, view, host_columns, host_rows);
 	if (!state->margins_initialized) {
 		status = paint_margins(console, state, view, host_columns, host_rows);
@@ -1489,10 +1530,10 @@ curses_destroy_inner(void *argument)
 		/* The normal curses path lets endwin() emit cnorm.  The direct-SGR
 		 * path changes visibility and shape behind curses' back, so restore
 		 * those explicitly after curses has returned to shell mode. */
-		if (!state->sgr_direct)
+		if (!state->sgr_output)
 			(void)state->api.call_cursor(1);
 		(void)state->api.call_endwin();
-		if (state->sgr_direct) {
+		if (state->sgr_output) {
 			static const char restore_cursor[] =
 			    "\033[0m\033[?25h\033[0 q";
 
@@ -1792,6 +1833,41 @@ curses_attach(st_console_t *console)
 	return 0;
 }
 
+static bool
+ansi_capability(struct curses_state *state, const char *name,
+	const char *expected, int first, int second)
+{
+	char *capability = state->api.call_tigetstr(name);
+	char *expanded;
+
+	if (capability == NULL || capability == (char *)(intptr_t)-1)
+		return false;
+	expanded = state->api.call_tiparm(capability, first, second,
+	    0, 0, 0, 0, 0, 0, 0);
+	return expanded != NULL && strcmp(expanded, expected) == 0;
+}
+
+static bool
+ansi_cell_output(struct curses_state *state)
+{
+	char *capability;
+
+	if (state->api.call_tiparm == NULL
+	    || !ansi_capability(state, "cup", "\033[2;3H", 1, 2))
+		return false;
+	capability = state->api.call_tigetstr("clear");
+	if (capability == NULL || capability == (char *)(intptr_t)-1
+	    || strstr(capability, "\033[2J") == NULL)
+		return false;
+	capability = state->api.call_tigetstr("sgr0");
+	if (capability == NULL || capability == (char *)(intptr_t)-1
+	    || strstr(capability, "\033[") == NULL)
+		return false;
+	return !state->colours
+	    || (ansi_capability(state, "setaf", "\033[32m", 2, 0)
+	    && ansi_capability(state, "setab", "\033[42m", 2, 0));
+}
+
 static int
 curses_init_inner(void *argument)
 {
@@ -1836,6 +1912,7 @@ curses_init_inner(void *argument)
 	if (LOAD_OPTIONAL(state, call_use_extended_names, "use_extended_names"))
 		(void)state->api.call_use_extended_names(true);
 	(void)LOAD_OPTIONAL(state, call_resizeterm, "resizeterm");
+	(void)LOAD_OPTIONAL(state, call_tiparm, "tiparm");
 #if ST_CONSOLE_HAVE_CURSES_EXTENDED_COLOR
 	state->extended_colours =
 	    LOAD_OPTIONAL(state, call_extended_color_content,
@@ -1942,6 +2019,12 @@ curses_init_inner(void *argument)
 	}
 	state->sgr_direct = !state->direct_colour
 	    && colorterm_direct_colour();
+	/* Curses implementations can decode high bytes or discard combining
+	 * characters during refresh. For ANSI-compatible entries retain our
+	 * cell bytes and use the same writer as the RGB fallback. */
+	state->sgr_output = state->sgr_direct
+	    || (state->presentation != ST_CONSOLE_TEXT_ASCII
+	    && ansi_cell_output(state));
 	if (state->sgr_direct)
 		state->palette_mutable = false;
 	state->terminal_colour_count = state->direct_colour || state->sgr_direct
@@ -1964,7 +2047,7 @@ curses_init_inner(void *argument)
 	read_terminal_colours(state);
 	rebuild_colour_maps(console);
 	if (state->presentation == ST_CONSOLE_TEXT_UNICODE && !state->wide
-	    && !state->sgr_direct)
+	    && !state->sgr_output)
 		state->presentation = ST_CONSOLE_TEXT_ASCII;
 	console->display->backend_ops = &curses_ops;
 #ifdef KEY_MOUSE

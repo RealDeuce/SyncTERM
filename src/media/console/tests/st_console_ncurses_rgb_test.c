@@ -18,6 +18,7 @@
 
 #if ST_CONSOLE_HAVE_CURSES_H
 #include <locale.h>
+#include <stdarg.h>
 
 static int
 byte_locale_callback(void *argument)
@@ -40,16 +41,144 @@ test_locale_scope(void)
 	/* A UTF-8 caller must regain its locale even when the operation fails. */
 	if (setlocale(LC_CTYPE, "C.UTF-8") == NULL)
 		(void)setlocale(LC_CTYPE, "en_US.UTF-8");
-	caller_mb_max = MB_CUR_MAX;
+	caller_mb_max = (size_t)MB_CUR_MAX;
 	if (st_curses_locale_create(&locale) != 0)
 		return false;
 	correct = st_curses_locale_call(locale, byte_locale_callback, &status) == 0
-	    && MB_CUR_MAX == caller_mb_max;
+	    && (size_t)MB_CUR_MAX == caller_mb_max;
 	status = IO_ERROR_CANCELLED;
 	correct = correct
 	    && st_curses_locale_call(locale, byte_locale_callback, &status) == status
-	    && MB_CUR_MAX == caller_mb_max;
+	    && (size_t)MB_CUR_MAX == caller_mb_max;
 	st_curses_locale_destroy(locale);
+	return correct;
+}
+
+static bool missing_clear, non_ansi_cursor, missing_colours;
+
+static char *
+ansi_test_capability(const char *name)
+{
+	if (strcmp(name, "clear") == 0)
+		return missing_clear ? NULL : (char *)"\033[H\033[2J";
+	if (strcmp(name, "sgr0") == 0)
+		return (char *)"\033(B\033[m";
+	if (strcmp(name, "setaf") == 0 || strcmp(name, "setab") == 0)
+		return missing_colours ? (char *)(intptr_t)-1 : (char *)name;
+	return (char *)name;
+}
+
+static char *
+ansi_test_expand(const char *capability, ...)
+{
+	va_list arguments;
+	int first, second;
+
+	va_start(arguments, capability);
+	first = va_arg(arguments, int);
+	second = va_arg(arguments, int);
+	va_end(arguments);
+	if (strcmp(capability, "cup") == 0 && first == 1 && second == 2)
+		return non_ansi_cursor ? (char *)"\033Y!\"" : (char *)"\033[2;3H";
+	if (strcmp(capability, "setaf") == 0 && first == 2)
+		return (char *)"\033[32m";
+	if (strcmp(capability, "setab") == 0 && first == 2)
+		return (char *)"\033[42m";
+	return NULL;
+}
+
+static bool
+test_ansi_capabilities(void)
+{
+	struct curses_state state = {.colours = true};
+
+	state.api.call_tigetstr = ansi_test_capability;
+	if (ansi_cell_output(&state))
+		return false;
+	state.api.call_tiparm = ansi_test_expand;
+	if (!ansi_cell_output(&state))
+		return false;
+	non_ansi_cursor = true;
+	if (ansi_cell_output(&state))
+		return false;
+	non_ansi_cursor = false;
+	missing_clear = true;
+	if (ansi_cell_output(&state))
+		return false;
+	missing_clear = false;
+	missing_colours = true;
+	if (ansi_cell_output(&state))
+		return false;
+	state.colours = false;
+	bool correct = ansi_cell_output(&state);
+	missing_colours = false;
+	return correct;
+}
+
+static bool
+test_sgr_palette(void)
+{
+	int indexed_colours[UINT16_MAX + 1U];
+	struct curses_state state = {
+		.colours = true, .colour_count = 256, .terminal_colour_count = 256,
+		.indexed_colours = indexed_colours,
+	};
+	st_console_display_t display = {.backend_state = &state};
+	st_console_t console = {.display = &display};
+	struct sgr_writer writer = {0};
+	struct st_console_cell cell = {
+		.foreground = ST_CONSOLE_COLOR_RGB_VALUE(255, 84, 84),
+		.background = 0, .flags = ST_CONSOLE_CELL_BOLD,
+	};
+	int foreground, background;
+	bool correct = false;
+	static const char indexed[] = "\033[0m\033[1m\033[38;5;203m\033[40m";
+	static const char basic[] = "\033[0m\033[1m\033[31m\033[104m";
+	static const char eight[] = "\033[0m\033[1m\033[31m\033[40m";
+	static const char rgb[] = "\033[0m\033[1m\033[38;2;128;0;0m\033[48;2;0;0;255m";
+
+	state.terminal_colours = calloc(256, sizeof(*state.terminal_colours));
+	if (state.terminal_colours == NULL)
+		return false;
+	for (unsigned i = 0; i < 256; ++i) {
+		xterm_terminal_colour(i, 256, &state.terminal_colours[i].red,
+		    &state.terminal_colours[i].green, &state.terminal_colours[i].blue);
+		state.terminal_colours[i].valid = true;
+	}
+	rebuild_colour_maps(&console);
+	sgr_style(&console, &state, &writer, &cell, SIZE_MAX, &foreground, &background);
+	if (foreground != 203 || background != 0 || writer.length != sizeof(indexed) - 1
+	    || memcmp(writer.data, indexed, sizeof(indexed) - 1) != 0)
+		goto done;
+	state.colour_count = state.terminal_colour_count = 16;
+	cell.foreground = ST_CONSOLE_COLOR_RGB_VALUE(128, 0, 0);
+	cell.background = ST_CONSOLE_COLOR_RGB_VALUE(0, 0, 255);
+	writer = (struct sgr_writer){0};
+	sgr_style(&console, &state, &writer, &cell, SIZE_MAX, &foreground, &background);
+	if (foreground != 1 || background != 12 || writer.length != sizeof(basic) - 1
+	    || memcmp(writer.data, basic, sizeof(basic) - 1) != 0)
+		goto done;
+	state.colour_count = state.terminal_colour_count = 8;
+	console.palette[9] = UINT32_C(0xff0000);
+	cell.foreground = 9;
+	cell.background = 0;
+	cell.flags = 0;
+	writer = (struct sgr_writer){0};
+	sgr_style(&console, &state, &writer, &cell, SIZE_MAX, &foreground, &background);
+	if (foreground != 1 || background != 0 || writer.length != sizeof(eight) - 1
+	    || memcmp(writer.data, eight, sizeof(eight) - 1) != 0)
+		goto done;
+	state.sgr_direct = true;
+	cell.foreground = ST_CONSOLE_COLOR_RGB_VALUE(128, 0, 0);
+	cell.background = ST_CONSOLE_COLOR_RGB_VALUE(0, 0, 255);
+	cell.flags = ST_CONSOLE_CELL_BOLD;
+	writer = (struct sgr_writer){0};
+	sgr_style(&console, &state, &writer, &cell, SIZE_MAX, &foreground, &background);
+	correct = foreground == -1 && background == -1
+	    && writer.length == sizeof(rgb) - 1
+	    && memcmp(writer.data, rgb, sizeof(rgb) - 1) == 0;
+done:
+	free(state.terminal_colours);
 	return correct;
 }
 
@@ -304,6 +433,10 @@ main(void)
 	}
 	if (!test_emoji_text()) {
 		fprintf(stderr, "curses lost an emoji sequence\n");
+		return EXIT_FAILURE;
+	}
+	if (!test_ansi_capabilities() || !test_sgr_palette()) {
+		fprintf(stderr, "curses ANSI capabilities or indexed output failed\n");
 		return EXIT_FAILURE;
 	}
 

@@ -229,7 +229,7 @@ child_result(int descriptor, unsigned char result)
 static void
 child_test(int report, bool cp437)
 {
-	size_t caller_mb_max = MB_CUR_MAX;
+	size_t caller_mb_max = (size_t)MB_CUR_MAX;
 	static const uint8_t bitmap[128] = {0};
 	static const uint8_t wide_bitmap[2] = {0};
 	static const char joystick[] = "\xf0\x9f\x95\xb9\xef\xb8\x8f";
@@ -316,7 +316,7 @@ child_test(int report, bool cp437)
 		child_result(report, 'C');
 		_exit(1);
 	}
-	if (MB_CUR_MAX != caller_mb_max) {
+	if ((size_t)MB_CUR_MAX != caller_mb_max) {
 		child_result(report, 'L');
 		_exit(1);
 	}
@@ -396,7 +396,7 @@ child_test(int report, bool cp437)
 		st_console_destroy(console);
 		_exit(1);
 	}
-	if (MB_CUR_MAX != caller_mb_max) {
+	if ((size_t)MB_CUR_MAX != caller_mb_max) {
 		child_result(report, 'L');
 		_exit(1);
 	}
@@ -427,7 +427,7 @@ child_test(int report, bool cp437)
 	}
 	st_console_destroy(console);
 	st_console_display_destroy(display);
-	if (MB_CUR_MAX != caller_mb_max) {
+	if ((size_t)MB_CUR_MAX != caller_mb_max) {
 		child_result(report, 'L');
 		_exit(1);
 	}

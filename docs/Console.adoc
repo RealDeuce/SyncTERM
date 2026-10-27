@@ -122,9 +122,10 @@ backpressure.
 === Text Backends
 
 Text backends display retained cells but cannot display arbitrary pixel-plane
-changes or registered bitmap fonts.  ANSI Unicode mode and wide ncurses emit
-the retained Unicode scalar; CP437 modes encode that scalar through the
-locale-independent CP437 table and use `?` when it is not representable.
+changes or registered bitmap fonts. ANSI Unicode mode and wide curses obtain
+the Unicode text associated with each retained glyph; CP437 modes encode its
+scalar through the locale-independent CP437 table and use `?` when it is not
+representable.
 Bitmap glyph indexes never select text-terminal characters.  Continuation
 cells for wide glyphs are skipped.
 
@@ -134,6 +135,13 @@ available. Initialization, output, and input leave the caller's locale intact.
 On curses targets without per-thread locales, the caller supplies a byte
 locale for CP437 mode. Native Unicode curses uses the caller's Unicode locale;
 direct UTF-8 output does not depend on the C locale.
+
+For Unicode and CP437, curses entries with standard ANSI cursor, erase, and
+colour capabilities use SyncTERM's byte writer. This preserves complete
+Unicode sequences and CP437 bytes through curses implementations that would
+decode or discard them. Indexed terminals retain their detected colour count
+and palette handling; RGB output still requires direct-colour support.
+Other entries retain native curses rendering.
 
 ANSI direct-colour support and indexed-colour count are separate
 capabilities.  The ordinary terminal path reads terminfo and also accepts
