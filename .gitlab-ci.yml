@@ -68,7 +68,21 @@ ci-driver-tests:
   timeout: 2 hours
   tags: [Linux]
   rules:
-    - when: on_success
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      changes: &ci_driver_paths
+        - .gitlab-ci.yml
+        - .gitlab/ci/**/*
+        - ci/**/*
+        - cmake/SynctermCStandard.cmake
+        - cmake/SynctermAtomics.cmake
+        - cmake/SynctermCheckC17Source.cmake
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH && $CI_COMMIT_BEFORE_SHA != "0000000000000000000000000000000000000000"'
+      changes: *ci_driver_paths
+    # Without an explicit base, changes always matches a new branch's first push.
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH && $CI_COMMIT_BEFORE_SHA == "0000000000000000000000000000000000000000"'
+      changes:
+        compare_to: 'refs/heads/$CI_DEFAULT_BRANCH'
+        paths: *ci_driver_paths
   script:
     - cmake -S ci/tests -B build-ci
     - cmake --build build-ci
