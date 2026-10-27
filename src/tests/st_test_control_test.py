@@ -198,10 +198,12 @@ def protocol(executable):
             # must also close the app, rather than killing it with SIGPIPE.
             process.stdin.write(frame(43, 2))
             process.stdin.flush()
+            size, = struct.unpack("<I", read_exact(process, 4))
+            assert size > 1024 * 1024  # ensure the snapshot writer has started
             process.stdout.close()
             process.stdin.close()
             process.wait(timeout=15)
-            assert process.returncode == 0, process.stderr.read().decode()
+            assert process.returncode == 0, (process.returncode, process.stderr.read().decode())
         finally:
             if process.poll() is None:
                 process.kill()

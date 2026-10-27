@@ -367,6 +367,14 @@ int main(void) {
 	return close(0);
 }
 ]=] ST_CONSOLE_TEST_TRANSPORT_WORKS)
+		# Some targets send pipe SIGPIPE to the process, so a worker-local
+		# signal mask cannot protect other threads. Prefer descriptor suppression.
+		syncterm_check_c17_source([=[
+#define _POSIX_C_SOURCE 200809L
+#define _DARWIN_C_SOURCE 1
+#include <fcntl.h>
+int main(void) { return fcntl(1, F_SETNOSIGPIPE, 1); }
+]=] ST_CONSOLE_TEST_HAVE_F_SETNOSIGPIPE)
 	endif()
 	cmake_pop_check_state()
 	if(NOT ST_CONSOLE_TEST_TRANSPORT_WORKS)
@@ -481,6 +489,10 @@ endif()
 if(ST_CONSOLE_TEST AND NOT WIN32)
 	set_source_files_properties(console_test_control.c PROPERTIES
 		COMPILE_DEFINITIONS _POSIX_C_SOURCE=200809L)
+	if(ST_CONSOLE_TEST_HAVE_F_SETNOSIGPIPE)
+		set_property(SOURCE console_test_control.c APPEND PROPERTY
+			COMPILE_DEFINITIONS _DARWIN_C_SOURCE=1)
+	endif()
 endif()
 add_library(st_console STATIC ${_st_console_sources})
 if(CMAKE_C_COMPILER_ID STREQUAL "GNU")

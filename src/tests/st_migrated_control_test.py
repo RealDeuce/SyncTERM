@@ -241,12 +241,13 @@ Conn.send("PROFILE-READY")
                         client.wait_text("LOG-SESSION")
                     client.wait_for(lambda s: s.application.get("session_active") == 0)
                 after = log.read_bytes()
+                opened_count = after.replace(b"\r\n", b"\n").count(b"Log opened\n")
                 if safe or invalid:
                     assert after == before
                 elif append:
-                    assert after.startswith(before) and after.count(b"Log opened\n") == 2
+                    assert after.startswith(before) and opened_count == 2
                 else:
-                    assert b"Missing glyph" not in after and after.count(b"Log opened\n") == 1
+                    assert b"Missing glyph" not in after and opened_count == 1
                 if safe:
                     assert (root / "syncterm.lst").read_text(encoding="utf-8") == value
 
@@ -330,7 +331,8 @@ def scrollback(executable, encoding, reports):
 
 def picker(executable, reports):
     def prepare(root):
-        (root / "downloads" / "alpha.txt").write_text("picked\n", encoding="utf-8")
+        # File.read() is binary; keep the expected LF on Windows too.
+        (root / "downloads" / "alpha.txt").write_bytes(b"picked\n")
         (root / "downloads" / "pixel.ppm").write_text("P3\n1 1\n255\n255 255 255\n", encoding="utf-8")
         # Call the public picker API, using the shipped picker and normal input.
         source = '''
@@ -659,7 +661,8 @@ Conn.send("CAPTURE-READY")
 '''
     with connection(executable, reports, encoding=encoding, script=source) as (client, root, peer, send):
         frame = client.wait_text("capture.ans")
-        click_text(client, frame, str(root / "downloads/capture.ans"))
+        # The picker scrolls long paths horizontally, including macOS TMPDIRs.
+        click_text(client, frame, str(Path("downloads") / "capture.ans"))
         client.key("enter")
         receive(peer, b"CAPTURE-READY", root / "wire.bin")
         expected = b"A#XZ\x1b[32m\x80\xff\x00\xef\xbf\xbd\xc3"

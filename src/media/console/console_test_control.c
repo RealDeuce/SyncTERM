@@ -185,8 +185,8 @@ static int control_worker(void *argument)
 	}
 	(void)st_mutex_lock(&c->mutex); c->native_thread = self; (void)st_mutex_unlock(&c->mutex);
 #else
-	/* A disappearing pipe peer must fail this worker's write, not terminate
-	 * the application. This mask affects only this st_threads-created thread. */
+	/* Suppress thread-directed SIGPIPE on targets without descriptor control.
+	 * This mask affects only this st_threads-created thread. */
 	sigset_t blocked;
 	sigemptyset(&blocked); sigaddset(&blocked, SIGPIPE);
 	if (pthread_sigmask(SIG_BLOCK, &blocked, NULL) != 0) {
@@ -249,6 +249,10 @@ static int initialize_transport(struct test_control *c)
 	if (c->input < 0 || c->output < 0) return IO_ERROR_IO;
 	if (fcntl(c->input, F_SETFD, FD_CLOEXEC) < 0 || fcntl(c->output, F_SETFD, FD_CLOEXEC) < 0
 	    || fcntl(c->input, F_SETFL, O_NONBLOCK) < 0 || fcntl(c->output, F_SETFL, O_NONBLOCK) < 0) return IO_ERROR_IO;
+#if ST_CONSOLE_TEST_HAVE_F_SETNOSIGPIPE
+	/* Process-directed SIGPIPE can bypass the worker's mask on some targets. */
+	if (fcntl(c->output, F_SETNOSIGPIPE, 1) < 0) return IO_ERROR_IO;
+#endif
 	/* stdout belongs exclusively to the protocol; incidental library output
 	 * now goes to diagnostics. The duplicated transport descriptor stays open. */
 	if (dup2(STDERR_FILENO, STDOUT_FILENO) < 0) return IO_ERROR_IO;
