@@ -329,8 +329,9 @@ the value is entered, release the kbd:[Alt] key.
 
 A unicode value is the Unicode codepoint number. On a UTF-8 connection,
 any valid Unicode character can be entered. On a codepage connection,
-the character must map to the current codepage. Codepage entries use
-that same codepage even on a UTF-8 connection; for example, with CP437,
+characters from any Unicode plane can be entered when they map to the
+current codepage. Codepage entries use that same codepage even on a UTF-8
+connection; for example, with CP437,
 kbd:[Alt+130] and kbd:[Alt+0233] both enter `é`.
 
 To enter a unicode value, ensure kbd:[NumLock] is on, and hold down an

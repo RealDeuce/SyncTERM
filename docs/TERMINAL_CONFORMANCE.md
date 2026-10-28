@@ -21,7 +21,8 @@ replies are exact. Pixel assertions cover downloaded fonts, conceal, copy/paste,
 blink planes and palette changes without assuming physical palette-bank numbers.
 
 The `keyboard` group also checks physical Alt+Keypad decimal entry: codepage
-bytes, leading-zero Unicode, non-BMP text on UTF-8 connections, duplicate native
+bytes, leading-zero Unicode, non-BMP text on UTF-8 connections and non-BMP
+mappings on ATASCII/PETSCII/Prestel codepage connections, duplicate native
 text suppression, invalid values and focus-loss cancellation. These expectations
 come from SyncTERM's documented input convention rather than termtest.js.
 Native X11 tests separately cover keypad aliases that could trigger window

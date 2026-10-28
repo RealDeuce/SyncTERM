@@ -453,10 +453,7 @@ def keyboard(t):
     payload = "paste é".encode("utf-8" if t.encoding == "UTF-8" else "cp437")
     t.input(ESC + b"[200~" + payload + ESC + b"[201~")
 
-
-
     # Numeric entry uses physical keypad positions; top-row digits are distinct.
-    keypad = (82, 79, 80, 81, 75, 76, 77, 71, 72, 73)
     numeric = ALT | 32  # Num Lock
     for digits, cp437, utf8 in (("130", b"\x82", b"\xc3\xa9"),
                                  ("0233", b"\x82", b"\xc3\xa9"),
@@ -466,13 +463,7 @@ def keyboard(t):
                                  ("256", b"", b""), ("055296", b"", b""),
                                  ("01114112", b"", b""), ("0", b"", b"")):
         t.case("alt-keypad-" + digits)
-        t.client.physical_key(56, True, numeric)
-        for digit in digits:
-            t.client.physical_key(keypad[int(digit)], True, numeric)
-            # Some native backends also receive translated text for the press.
-            t.client.text(digit, numeric)
-            t.client.physical_key(keypad[int(digit)], False, numeric)
-        t.client.physical_key(56, False, 32)
+        numeric_entry(t.client, digits)
         t.client.text("~")
         t.input((utf8 if t.encoding == "UTF-8" else cp437) + b"~")
     t.case("alt-keypad-focus-cancel")
@@ -484,6 +475,34 @@ def keyboard(t):
     t.client.physical_key(56, False, 32)
     t.client.text("~")
     t.input(b"~")
+
+
+def numeric_entry(client, digits):
+    keypad = (82, 79, 80, 81, 75, 76, 77, 71, 72, 73)
+    numeric = ALT | 32  # Num Lock
+    client.physical_key(56, True, numeric)
+    for digit in digits:
+        client.physical_key(keypad[int(digit)], True, numeric)
+        # Some native backends also receive translated text for the press.
+        client.text(digit, numeric)
+        client.physical_key(keypad[int(digit)], False, numeric)
+    client.physical_key(56, False, 32)
+
+
+def codepage_numeric(executable, reports):
+    # Fixed mapping expectations; supplementary characters must reach the
+    # actual wire byte, not merely survive the console's Unicode event queue.
+    for encoding, scalar, expected in (("ATASCII", 0x1f8b0, b"\x7d"),
+                                        ("PETSCIIU", 0x1fb8c, b"\x7c"),
+                                        ("PRESTEL", 0x1fb00, b"\xa1")):
+        with connection(executable, reports, encoding=encoding,
+                        settings="AudioModes=0\n") as (client, root, peer, send):
+            t = Terminal(client, root, peer, send)
+            t.case(f"alt-keypad-{encoding}-U+{scalar:X}")
+            t.exchange(reset=True)
+            numeric_entry(client, "0" + str(scalar))
+            client.text(" ")
+            t.input(expected + b" ")
 
 
 def recovery(t):
@@ -532,6 +551,8 @@ def main():
         required = {row["id"] for row in manifest["cases"] if row["suite"] == args.suite}
         assert required <= t.completed, ("Missing coverage", required - t.completed)
         print(f"Passed {len(t.completed)} cases ({args.suite}, {args.encoding})", flush=True)
+    if args.suite == "keyboard" and args.encoding == "CP437":
+        codepage_numeric(args.executable, args.reports)
 
 
 if __name__ == "__main__":
