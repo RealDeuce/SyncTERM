@@ -6,6 +6,7 @@
 #include "io_error.h"
 
 #include <errno.h>
+#include <signal.h>
 #include <spawn.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -28,7 +29,16 @@ st_console_posix_open_url(st_console_display_t *display, const char *url)
 	};
 	pid_t child;
 	int status;
-	int result = posix_spawn(&child, "/bin/sh", NULL, NULL, arguments, environ);
+	sigset_t defaults;
+	if (sigemptyset(&defaults) != 0 || sigaddset(&defaults, SIGPIPE) != 0)
+		return IO_ERROR_IO;
+	posix_spawnattr_t attributes;
+	int result = posix_spawnattr_init(&attributes);
+	if (result != 0) return IO_ERROR_IO;
+	result = posix_spawnattr_setsigdefault(&attributes, &defaults);
+	if (result == 0) result = posix_spawnattr_setflags(&attributes, POSIX_SPAWN_SETSIGDEF);
+	if (result == 0) result = posix_spawn(&child, "/bin/sh", NULL, &attributes, arguments, environ);
+	(void)posix_spawnattr_destroy(&attributes);
 	if (result != 0) return IO_ERROR_IO;
 	pid_t waited;
 	do {

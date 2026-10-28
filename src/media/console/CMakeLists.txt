@@ -298,6 +298,7 @@ set(ST_CONSOLE_HAVE_POSIX_URL 0)
 if(NOT WIN32)
 	syncterm_check_c17_source([=[
 #define _POSIX_C_SOURCE 200809L
+#include <signal.h>
 #include <spawn.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -306,12 +307,19 @@ extern char **environ;
 int main(void) {
 	pid_t child;
 	int status;
+	sigset_t defaults;
+	posix_spawnattr_t attributes;
 	char *const arguments[] = {"sh", "-c", "exit 0", 0};
-	return posix_spawn(&child, "/bin/sh", 0, 0, arguments, environ)
-	    || waitpid(child, &status, 0) < 0 || !WIFEXITED(status);
+	if (sigemptyset(&defaults) != 0 || sigaddset(&defaults, SIGPIPE) != 0
+	    || posix_spawnattr_init(&attributes) != 0) return 1;
+	int result = posix_spawnattr_setsigdefault(&attributes, &defaults)
+	    || posix_spawnattr_setflags(&attributes, POSIX_SPAWN_SETSIGDEF)
+	    || posix_spawn(&child, "/bin/sh", 0, &attributes, arguments, environ);
+	(void)posix_spawnattr_destroy(&attributes);
+	return result || waitpid(child, &status, 0) < 0 || !WIFEXITED(status);
 }
-]=] ST_CONSOLE_POSIX_URL_API)
-	if(ST_CONSOLE_POSIX_URL_API)
+]=] ST_CONSOLE_POSIX_URL_SPAWN_SIGNALS_API)
+	if(ST_CONSOLE_POSIX_URL_SPAWN_SIGNALS_API)
 		set(ST_CONSOLE_HAVE_POSIX_URL 1)
 	endif()
 endif()

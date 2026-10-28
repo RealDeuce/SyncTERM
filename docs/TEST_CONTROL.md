@@ -158,8 +158,10 @@ signed 64-bit integer; kind 1 is a string. Unknown section tags can be skipped.
 `scaling_millionths` is the window scale multiplied by one million.
 
 Transport code owns and joins its worker. It handles short reads/writes, keeps
-pipe I/O outside application/display locks, suppresses SIGPIPE only in the
-POSIX transport thread, and cancels blocked Windows I/O during shutdown.
+pipe I/O outside application/display locks, protects POSIX pipe writes with
+descriptor flags or a worker signal mask, and cancels blocked Windows I/O
+during shutdown. The standalone POSIX executable also ignores SIGPIPE
+process-wide.
 Control handles do not pass to launched child programs.
 
 For native C tests, `st_console_test.h` exposes owned captures and a small

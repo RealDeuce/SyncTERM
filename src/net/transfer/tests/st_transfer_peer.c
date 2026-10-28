@@ -13,6 +13,23 @@ static ssize_t send_bytes(void *context, const void *data, size_t size, int64_t 
 {
 	return st_connection_send(context, data, size, timeout);
 }
+static int wait_for_peer_close(st_connection_t *connection)
+{
+	struct st_deadline deadline;
+	int status = st_deadline_start(&deadline, 5000);
+	if (status != 0) return status;
+	for (;;) {
+		int64_t remaining;
+		status = st_deadline_remaining_ms(&deadline, &remaining);
+		if (status != 0) return status;
+		if (remaining == 0) return IO_ERROR_TIMED_OUT;
+		uint8_t bytes[4096];
+		ssize_t count = st_connection_receive(connection, bytes, sizeof(bytes), remaining);
+		if (count == 0) return 0;
+		if (count < 0 && count != IO_ERROR_TIMED_OUT && count != IO_ERROR_WOULD_BLOCK)
+			return (int)count;
+	}
+}
 int main(int argc, char **argv)
 {
 	if (argc < 5) return 2;
@@ -85,6 +102,13 @@ int main(int argc, char **argv)
 	}
 	if (status == 0) status = st_transfer_result(t);
 	fprintf(stderr, "transfer result=%d\n", status);
-	st_transfer_destroy(&t); st_connection_close(connection); st_profile_dispose(&profile);
+	st_transfer_destroy(&t);
+	/* send() queues data. Keep the connection workers alive for final ACK/OO
+	 * bytes and for any terminal restoration the CLI peer writes before exit. */
+	if (status == 0) {
+		status = wait_for_peer_close(connection);
+		if (status != 0) fprintf(stderr, "peer shutdown failed (%d)\n", status);
+	}
+	st_connection_close(connection); st_profile_dispose(&profile);
 	return status == 0 ? 0 : 1;
 }

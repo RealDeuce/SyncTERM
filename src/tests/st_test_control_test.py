@@ -2,7 +2,9 @@
 """End-to-end tests of the normal SyncTERM executable's testing bitmap driver."""
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 import binascii
+import os
 from pathlib import Path
+import signal
 import socket
 import struct
 import subprocess
@@ -21,6 +23,10 @@ def basic(executable):
         first = client.wait_text("Build Options")
         assert client.hello[1] & (1 << 12)
         assert first.application["session_active"] == 0
+        if os.name == "posix":
+            # Executable policy must cover process-directed signals too.
+            os.kill(client.process.pid, signal.SIGPIPE)
+            assert client.capture().application["session_active"] == 0
         original = bytes(first.primary)
         client.grid_resize(90, 30)
         client.wait_for(lambda snap: (snap.metadata["columns"], snap.metadata["rows"]) == (90, 30))

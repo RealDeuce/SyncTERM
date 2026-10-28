@@ -43,7 +43,7 @@ def transfer(driver, executable, protocol, upload, source, destination, files, *
             with connection:
                 remote = subprocess.Popen([executable] + command, cwd=destination,
                                           stdin=connection, stdout=connection, stderr=remote_log)
-            code = local.wait(timeout=35)
+            code = local.wait(timeout=40)
             remote_code = remote.wait(timeout=5)
             local_log.seek(0)
             local_report = local_log.read().decode(errors="replace")

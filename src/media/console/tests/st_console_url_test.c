@@ -7,6 +7,7 @@
 #include "string_compat.h"
 
 #include <stdint.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -20,6 +21,8 @@ main(int argc, char **argv)
 {
 	st_console_t *console = NULL;
 	CHECK(argc == 1 || (argc == 2 && strcmp(argv[1], "--x11") == 0));
+	void (*saved_sigpipe)(int) = signal(SIGPIPE, SIG_IGN);
+	CHECK(saved_sigpipe != SIG_ERR);
 	if (argc == 2) {
 		const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_X11};
 		const struct st_console_config geometry = {
@@ -44,7 +47,9 @@ main(int argc, char **argv)
 	(void)unlink(record);
 	stream = fopen(launcher, "wb");
 	CHECK(stream != NULL);
-	CHECK(fputs("#!/bin/sh\nprintf '%s' \"$1\" > \"$ST_URL_TEST_RECORD\"\nsleep 2\n", stream) >= 0);
+	CHECK(fputs("#!/bin/sh\n"
+	    "if /bin/sh -c 'kill -PIPE $$'; then exit 99; fi\n"
+	    "printf '%s' \"$1\" > \"$ST_URL_TEST_RECORD\"\nsleep 2\n", stream) >= 0);
 	CHECK(fclose(stream) == 0 && chmod(launcher, 0700) == 0);
 	CHECK(setenv("PATH", path, 1) == 0);
 	CHECK(setenv("ST_URL_TEST_RECORD", record, 1) == 0);
@@ -75,6 +80,7 @@ main(int argc, char **argv)
 	free(saved_path);
 	CHECK(unsetenv("ST_URL_TEST_RECORD") == 0);
 	CHECK(unlink(record) == 0);
+	CHECK(signal(SIGPIPE, saved_sigpipe) == SIG_IGN);
 	st_console_destroy(console);
 	return 0;
 }

@@ -376,6 +376,9 @@ st_connection_connect_shell(st_connection_t **result,
 	window.ws_ypixel = (unsigned short)geometry.pixel_height;
 	child = forkpty(&master, NULL, NULL, &window);
 	if (child == 0) {
+		/* Do not pass the terminal executable's ignored SIGPIPE to commands. */
+		if (signal(SIGPIPE, SIG_DFL) == SIG_ERR)
+			_exit(127);
 		configure_shell_terminal();
 		if (explicit_command)
 			execle("/bin/sh", "sh", "-c", command, (char *)NULL,

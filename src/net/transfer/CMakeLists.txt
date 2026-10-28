@@ -35,6 +35,12 @@ if(BUILD_TESTING)
 	endforeach()
 	if(NOT WIN32 AND NOT CMAKE_CROSSCOMPILING)
 		find_package(Python3 QUIET COMPONENTS Interpreter)
+		if(Python3_Interpreter_FOUND)
+			add_test(NAME transfer_peer_shutdown
+				COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_peer_shutdown.py"
+				$<TARGET_FILE:st_transfer_peer>)
+			set_tests_properties(transfer_peer_shutdown PROPERTIES TIMEOUT 30)
+		endif()
 		find_program(ST_TRANSFER_SEXYZ NAMES sexyz)
 		find_program(ST_TRANSFER_LSX NAMES lsx sx)
 		find_program(ST_TRANSFER_LRX NAMES lrx rx)

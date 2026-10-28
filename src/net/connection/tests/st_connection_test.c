@@ -20,6 +20,7 @@
 #if !SYNCTERM_PLATFORM_WINDOWS
 	#include <arpa/inet.h>
 	#include <netinet/in.h>
+	#include <signal.h>
 	#include <sys/socket.h>
 	#include <unistd.h>
 #endif
@@ -1047,6 +1048,21 @@ test_shell(void)
 	CHECK(!atomic_load(&log.leaked));
 	CHECK(atomic_load(&log.exit_status) == 0);
 	atomic_store(&log.events, 0);
+#if !SYNCTERM_PLATFORM_WINDOWS
+	/* The executable ignores SIGPIPE, but commands still need normal shell
+	 * pipeline semantics. An inherited SIG_IGN cannot be undone by sh. */
+	void (*saved_sigpipe)(int) = signal(SIGPIPE, SIG_IGN);
+	CHECK(saved_sigpipe != SIG_ERR);
+	strcpy(profile.address, "kill -PIPE $$; printf signal-ignored");
+	int connected = st_connection_connect_shell(&connection, &profile, &geometry,
+	    NULL, &hooks, &error);
+	CHECK(signal(SIGPIPE, saved_sigpipe) == SIG_IGN);
+	CHECK(connected == 0);
+	CHECK(st_connection_receive(connection, buffer, sizeof(buffer), 3000) == 0);
+	CHECK(st_connection_close(connection) == 0);
+	CHECK((atomic_load(&log.events) & LOG_SHELL_EXIT) != 0);
+	atomic_store(&log.events, 0);
+#endif
 #if SYNCTERM_PLATFORM_WINDOWS
 	strcpy(profile.address, "cmd.exe /d /c exit 7");
 #else
