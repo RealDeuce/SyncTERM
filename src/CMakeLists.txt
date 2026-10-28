@@ -128,6 +128,16 @@ if(BUILD_TESTING)
 	if(ST_CONSOLE_TEST)
 		find_package(Python3 REQUIRED COMPONENTS Interpreter)
 		if(Python3_Interpreter_FOUND)
+			foreach(_group ellipses raster buttons wire interaction)
+				foreach(_encoding CP437 UTF-8)
+					add_test(NAME syncterm_rip154_${_group}_${_encoding}
+						COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_rip154_conformance_test.py
+						$<TARGET_FILE:syncterm_app> ${_group} ${_encoding}
+						--reports ${CMAKE_BINARY_DIR}/reports/test-control)
+					set_tests_properties(syncterm_rip154_${_group}_${_encoding}
+						PROPERTIES TIMEOUT 90 LABELS "terminal;conformance;rip")
+				endforeach()
+			endforeach()
 			foreach(_group movement editing margins attributes queries extensions keyboard recovery)
 				foreach(_encoding CP437 UTF-8)
 					add_test(NAME syncterm_conformance_${_group}_${_encoding}

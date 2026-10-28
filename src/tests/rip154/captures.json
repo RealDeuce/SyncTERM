@@ -1,0 +1,580 @@
+{
+  "reference": "Historical DOSBox RIPterm 1.54 XWD captures; rip_test/ellipse_research.md and git history",
+  "width": 640,
+  "height": 350,
+  "pixel_format": "top-down row-major RGB, one byte per six-bit DAC channel, zlib",
+  "cases": [
+    {
+      "id": "test01_ellipses",
+      "group": "ellipses",
+      "description": "Thin/filled ellipses, circles, arcs and degenerate radii",
+      "source_capture": "test01_ellipses.xwd",
+      "source_title": "DOSBox 0.74-3, Cpu speed: max 100% cycles, Frameskip  0, Program:  RIPTERM",
+      "source_sha256": "5055a09c5bb32a98f13e3f56eb0f7bb86a104f27a61d6deba9f5abb24700aad7",
+      "input_sha256": "e885d996a9f9d66e0406af8a9b180c165f54e69fb8697df6516566fb3e521143",
+      "rgb6_sha256": "b9b1b970a221f8c1981d10450144aa66c3ad83fb57b1c6c11a56e011002e0d83",
+      "capture_ui_rectangles": [
+        [
+          0,
+          0,
+          24,
+          8
+        ]
+      ],
+      "capture_ui_context": [
+        "Legacy text-window '$' glyph and solid DOS text cursor"
+      ]
+    },
+    {
+      "id": "test01b_ellipse_sweep",
+      "group": "ellipses",
+      "description": "Small ellipse radius sweep",
+      "source_capture": "test01b_ellipse_sweep.xwd",
+      "source_title": "DOSBox 0.74-3, Cpu speed: max 100% cycles, Frameskip  0, Program:  RIPTERM",
+      "source_sha256": "a5a8f74004dc62ef5424a374810adece37d046a22a368202a5c9388ca5e74d36",
+      "input_sha256": "61514876362dfab2010e24c4503001daefae6bd7b11aeab190ba34f42745d3fa",
+      "rgb6_sha256": "4c4c930ebd555ab1d3672005d7802bbe90ba4445136f44d26a84e689b0196ebc",
+      "capture_ui_rectangles": [
+        [
+          0,
+          0,
+          24,
+          8
+        ]
+      ],
+      "capture_ui_context": [
+        "Legacy text-window '$' glyph and solid DOS text cursor"
+      ]
+    },
+    {
+      "id": "test01c_large_ellipses",
+      "group": "ellipses",
+      "description": "Large ellipse integer truncation",
+      "source_capture": "test01c_large_ellipses.xwd",
+      "source_title": "DOSBox 0.74-3, Cpu speed: max 100% cycles, Frameskip  0, Program:  RIPTERM",
+      "source_sha256": "d57f874586e19cc1af999c2300517a66928792481a88986a5a43a19751b080b5",
+      "input_sha256": "fe893cd1fd45f709d7511c79457b3d33ac42ec1bcb16d730c7259fff1903ab74",
+      "rgb6_sha256": "fa13e7dcb0509f9aa8f04d50f2fe2d1920c945387b5527ce63b5a2787dcf1eaa",
+      "capture_ui_rectangles": [
+        [
+          0,
+          0,
+          24,
+          8
+        ]
+      ],
+      "capture_ui_context": [
+        "Legacy text-window '$' glyph and solid DOS text cursor"
+      ]
+    },
+    {
+      "id": "test01d_tall_ellipses",
+      "group": "ellipses",
+      "description": "Tall ellipse transition rows",
+      "source_capture": "test01d_tall_ellipses.xwd",
+      "source_title": "DOSBox 0.74-3, Cpu speed: max 100% cycles, Frameskip  0, Program:  RIPTERM",
+      "source_sha256": "2ac4b628506e200c566a147e111e86ccd4b6fe9e004d3667c298d8e7d9878a2d",
+      "input_sha256": "214fdc447762f3e3347ef7fe1b31c7546d872e853f345e2414cb39538238bdaf",
+      "rgb6_sha256": "509dc9330942cf53f65b8cb902495b9cd8657b629edf6c10a07822234aeb3d46",
+      "capture_ui_rectangles": [
+        [
+          0,
+          0,
+          24,
+          8
+        ]
+      ],
+      "capture_ui_context": [
+        "Legacy text-window '$' glyph and solid DOS text cursor"
+      ]
+    },
+    {
+      "id": "test01e_wide_sweep",
+      "group": "ellipses",
+      "description": "Wide ellipses and one-pixel vertical radius",
+      "source_capture": "test01e_wide_sweep.xwd",
+      "source_title": "DOSBox 0.74-3, Cpu speed: max 100% cycles, Frameskip  0, Program:  RIPTERM",
+      "source_sha256": "f67f63a347bf76a4b59093c3a588de1cd2387c566633d51f2be90478a34617c4",
+      "input_sha256": "9ae38db3d5734da2eb0cecc46d83bbdd583642abe4284f17d5ab04adbbf94842",
+      "rgb6_sha256": "65805e1404392887c8d3bba6d37191a4a3835a853b327304d4934e0bc398f280",
+      "capture_ui_rectangles": [
+        [
+          0,
+          0,
+          24,
+          8
+        ]
+      ],
+      "capture_ui_context": [
+        "Legacy text-window '$' glyph and solid DOS text cursor"
+      ]
+    },
+    {
+      "id": "test01f_tall_sweep",
+      "group": "ellipses",
+      "description": "Tall ellipses and one-pixel horizontal radius",
+      "source_capture": "test01f_tall_sweep.xwd",
+      "source_title": "DOSBox 0.74-3, Cpu speed: max 100% cycles, Frameskip  0, Program:  RIPTERM",
+      "source_sha256": "5fa2545f083f10acdfd7729fb28b5b9c14bd073106022586e865a6064a3646c3",
+      "input_sha256": "a47c62415ff41d7210f5c24166a7f4ac3dafffb30a5ee774c866a21c7769540b",
+      "rgb6_sha256": "2af47e4cdb720f6933d604eb23787b93c902489754112cb5dbdb33f444fff455",
+      "capture_ui_rectangles": [
+        [
+          0,
+          0,
+          24,
+          8
+        ]
+      ],
+      "capture_ui_context": [
+        "Legacy text-window '$' glyph and solid DOS text cursor"
+      ]
+    },
+    {
+      "id": "test01g_xr2_sweep",
+      "group": "ellipses",
+      "description": "Two-pixel horizontal-radius sweep",
+      "source_capture": "test01g_xr2_sweep.xwd",
+      "source_title": "DOSBox 0.74-3, Cpu speed: max 100% cycles, Frameskip  0, Program:  RIPTERM",
+      "source_sha256": "1d706b20b28c6369bc52fad3d922fe88a7ca9e7619daa8b4f333ce3159e5c9c2",
+      "input_sha256": "b06a0078ffaf353201472171c56b44c18f1fb4538692710d987c3c5a5607d28e",
+      "rgb6_sha256": "d75b2126458acbc7dfaf6e2ea87f6245ac84deeb51eccbba7814be4e36408574",
+      "capture_ui_rectangles": [
+        [
+          0,
+          0,
+          24,
+          8
+        ]
+      ],
+      "capture_ui_context": [
+        "Legacy text-window '$' glyph and solid DOS text cursor"
+      ]
+    },
+    {
+      "id": "test01h_circles",
+      "group": "ellipses",
+      "description": "Circle radii and symmetry",
+      "source_capture": "test01h_circles.xwd",
+      "source_title": "DOSBox 0.74-3, Cpu speed: max 100% cycles, Frameskip  0, Program:  RIPTERM",
+      "source_sha256": "59cd0802d33de5527cf5143e5090f434c1e8bc1588c2dc4df43a8907200f7fe2",
+      "input_sha256": "f83aaec14f209f4cc43fd95c6218cf58827e1c6dc66147ecbec286999cb3c646",
+      "rgb6_sha256": "62d51f597019597cc6508808852dd792841e9ed94119ef0e3259fe0714e4c7a5",
+      "capture_ui_rectangles": [
+        [
+          0,
+          0,
+          24,
+          8
+        ]
+      ],
+      "capture_ui_context": [
+        "Legacy text-window '$' glyph and solid DOS text cursor"
+      ]
+    },
+    {
+      "id": "test02_lines",
+      "group": "raster",
+      "description": "Line octants, styles and thickness",
+      "source_capture": "test02_lines.xwd",
+      "source_title": "DOSBox 0.74-3, Cpu speed: max 100% cycles, Frameskip  0, Program:  RIPTERM",
+      "source_sha256": "8a5e2eb437fe6469a2ac4cfdfbd04a78cffb919e5c13a5e94e4f64c2974d6830",
+      "input_sha256": "0d9cbc941b5d46165bc6626b1b2ba515f251ce6b7214236774e4fae6a55fc779",
+      "rgb6_sha256": "2a173dbb78a0b71ae3d8e4e6b61c8b464a89543624bcc6dfa6b4c40f855fdae1",
+      "capture_ui_rectangles": [
+        [
+          0,
+          0,
+          24,
+          8
+        ]
+      ],
+      "capture_ui_context": [
+        "Legacy text-window '$' glyph and solid DOS text cursor"
+      ]
+    },
+    {
+      "id": "test03_floodfill",
+      "group": "raster",
+      "description": "Solid and patterned flood-fill boundaries",
+      "source_capture": "test03_floodfill.xwd",
+      "source_title": "DOSBox 0.74-3, Cpu speed: max 100% cycles, Frameskip  0, Program:  RIPTERM",
+      "source_sha256": "e8f5ae691c1bf6e977568c87f2669be9931235f87f2870dd9f0cd318dd264cd8",
+      "input_sha256": "b38f62ab4fa899b050df433e8bbb4cee8ed8146cb137e21b1ce389bff3922335",
+      "rgb6_sha256": "08190c975e12aa9d90ba9a1974e701c7c5697da740c0b9e375bc5eb8436b42d2",
+      "capture_ui_rectangles": [
+        [
+          0,
+          0,
+          24,
+          8
+        ],
+        [
+          639,
+          349,
+          1,
+          1
+        ]
+      ],
+      "capture_ui_context": [
+        "Legacy text-window '$' glyph and solid DOS text cursor",
+        "Historical DOS mouse-pointer tip; absent in paired SyncTERM capture"
+      ]
+    },
+    {
+      "id": "test04_polygons",
+      "group": "raster",
+      "description": "Open/closed, filled and degenerate polygons",
+      "source_capture": "test04_polygons.xwd",
+      "source_title": "DOSBox 0.74-3, Cpu speed: max 100% cycles, Frameskip  0, Program:  RIPTERM",
+      "source_sha256": "6df68f546395712fe53a06f0c86881d1b1ec95edcbbcbcdd408319967452dacc",
+      "input_sha256": "e381ce2e6376f0906930e80600bc71060cb4c9604a1cc5ff3b657302c48cd305",
+      "rgb6_sha256": "50b1f7b801f5595d87f1125588f6ec97b45913a1badc36f37f95a5bb3eaf041d",
+      "capture_ui_rectangles": [
+        [
+          0,
+          0,
+          24,
+          8
+        ]
+      ],
+      "capture_ui_context": [
+        "Legacy text-window '$' glyph and solid DOS text cursor"
+      ]
+    },
+    {
+      "id": "test05_patterns",
+      "group": "raster",
+      "description": "Built-in and user fill patterns",
+      "source_capture": "test05_patterns.xwd",
+      "source_title": "DOSBox 0.74-3, Cpu speed: max 100% cycles, Frameskip  0, Program:  RIPTERM",
+      "source_sha256": "11c16d6eb86eb876d6663c0cc92e02a61cb6612bfdbe10a737bc79b4a14f7105",
+      "input_sha256": "5b7513fcafdfad49e1b5d6ac7a3275f0db8ca508ceb0525f60bafd47afda2e13",
+      "rgb6_sha256": "adf9c73d37ad182961d2537c73c7e11beaeabf179011fcb68d92642e142814ba",
+      "capture_ui_rectangles": [
+        [
+          0,
+          0,
+          24,
+          8
+        ]
+      ],
+      "capture_ui_context": [
+        "Legacy text-window '$' glyph and solid DOS text cursor"
+      ]
+    },
+    {
+      "id": "test06_xor",
+      "group": "raster",
+      "description": "XOR intersections and repeated drawing",
+      "source_capture": "test06_xor.xwd",
+      "source_title": "DOSBox 0.74-3, Cpu speed: max 100% cycles, Frameskip  0, Program:  RIPTERM",
+      "source_sha256": "9586354149cfb3f7d872141af90cedc081e19403aa40cc5a51dbed3c306715a2",
+      "input_sha256": "b9c6b633cf2bad608b2f35f6d1c6b37219cd6da966b957fa4965b00cdedb9a5d",
+      "rgb6_sha256": "37b96ff80e3694a167d657dd12a7f7d0939a30486fd9c960fb91fc0bdd6a5e94",
+      "capture_ui_rectangles": [
+        [
+          0,
+          0,
+          24,
+          8
+        ]
+      ],
+      "capture_ui_context": [
+        "Legacy text-window '$' glyph and solid DOS text cursor"
+      ]
+    },
+    {
+      "id": "test07_pies",
+      "group": "raster",
+      "description": "Pie quadrants, partial arcs and ellipses",
+      "source_capture": "test07_pies.xwd",
+      "source_title": "DOSBox 0.74-3, Cpu speed: max 100% cycles, Frameskip  0, Program:  RIPTERM",
+      "source_sha256": "907da0ce249410533736805abf23235d4dd71566dbfbcd610afbd2c7b545b582",
+      "input_sha256": "6c77c212b3c1b9e1d6d0f61c9b491d14910b00fe7b60d32eab8c4facceaefd51",
+      "rgb6_sha256": "02e225e5dc09703ea8a2a3ceb3b3dd0ab7474cf7aaea93e11e1656676145e018",
+      "capture_ui_rectangles": [
+        [
+          0,
+          0,
+          24,
+          8
+        ]
+      ],
+      "capture_ui_context": [
+        "Legacy text-window '$' glyph and solid DOS text cursor"
+      ]
+    },
+    {
+      "id": "test08_bezier",
+      "group": "raster",
+      "description": "Accumulated Bezier parameter error and thickness",
+      "source_capture": "test08_bezier.xwd",
+      "source_title": "DOSBox 0.74-3, Cpu speed: max 100% cycles, Frameskip  0, Program:  RIPTERM",
+      "source_sha256": "b096d73b20510c4979b0ded5ac69feb277ee319f65fc992b2de48b9113737c38",
+      "input_sha256": "02542bf6e81f7b700e8735de199954a0a7587798812ea3452165347e2d3bce64",
+      "rgb6_sha256": "95bb0e735c8e3d6d4a00dc05c2f9ac8197408e3936f2fbead54b2022655dafc1",
+      "capture_ui_rectangles": [
+        [
+          0,
+          0,
+          24,
+          8
+        ]
+      ],
+      "capture_ui_context": [
+        "Legacy text-window '$' glyph and solid DOS text cursor"
+      ]
+    },
+    {
+      "id": "test09_rects",
+      "group": "raster",
+      "description": "Rectangle corners and fills",
+      "source_capture": "test09_rects.xwd",
+      "source_title": "DOSBox 0.74-3, Cpu speed: max 100% cycles, Frameskip  0, Program:  RIPTERM",
+      "source_sha256": "7ced511a62cdf71569a6256f5f7231e62ea7d1b1254643d6c15cd9c39a7039f6",
+      "input_sha256": "0ef89c1867e29ac1c94a21b5aa4257160ff9fe8ed4db162aba8d6ca96c88d47d",
+      "rgb6_sha256": "17a77551ed713b99c075db89dba2cfaab2596ad57a23ea33b93cbdcceb10fe58",
+      "capture_ui_rectangles": [
+        [
+          0,
+          0,
+          24,
+          8
+        ]
+      ],
+      "capture_ui_context": [
+        "Legacy text-window '$' glyph and solid DOS text cursor"
+      ]
+    },
+    {
+      "id": "test10_edges",
+      "group": "raster",
+      "description": "Zero-length lines, zero radii, thin polygons and reversed bounds",
+      "source_capture": "test10_edges.xwd",
+      "source_title": "DOSBox 0.74-3, Cpu speed: max 100% cycles, Frameskip  0, Program:  RIPTERM",
+      "source_sha256": "7bda02ecbf30509d2ada28a51a065ebdb58c9fa620c9e710f25c87badcd63a1d",
+      "input_sha256": "ce263d4246bb74f066f7ec40295aaa77efd3f5b68642c2f8c9ed6ac68047df2d",
+      "rgb6_sha256": "b0fbf174e160a2d38152d8d64233a3d222b01b6e8d246634736e3667d09349e3",
+      "capture_ui_rectangles": [
+        [
+          0,
+          0,
+          24,
+          8
+        ]
+      ],
+      "capture_ui_context": [
+        "Legacy text-window '$' glyph and solid DOS text cursor"
+      ]
+    },
+    {
+      "id": "test11_lines",
+      "group": "raster",
+      "description": "Line endpoint and tie-breaking sweep",
+      "source_capture": "test11_lines.xwd",
+      "source_title": "DOSBox 0.74-3, Cpu speed: max 100% cycles, Frameskip  0, Program:  RIPTERM",
+      "source_sha256": "2cd9765b0ba62abef2ecd226a83af13b7797abaf95929b84e1345cb2c6b18cca",
+      "input_sha256": "db6fdfdc3ce25c5cf6aa8e03fb6d1b073711b97bcff97731a7134ff81e66842f",
+      "rgb6_sha256": "65a60955bdcae47540bb8b911b5c0abfca9bfeb49f4144940a9fbcc0181871e4",
+      "capture_ui_rectangles": [
+        [
+          0,
+          0,
+          24,
+          8
+        ]
+      ],
+      "capture_ui_context": [
+        "Legacy text-window '$' glyph and solid DOS text cursor"
+      ]
+    },
+    {
+      "id": "test12_fillpoly",
+      "group": "raster",
+      "description": "Polygon scan conversion, XOR and colour-zero outline suppression",
+      "source_capture": "test12_fillpoly.xwd",
+      "source_title": "DOSBox 0.74-3, Cpu speed: max 100% cycles, Frameskip  0, Program:  RIPTERM",
+      "source_sha256": "4c3d49866e7e40d0fdd25147077f056ffd81f90dc6901af5fe824127c42e1d52",
+      "input_sha256": "5522a3d9211d2eecf85883b10713db229747c93602b68061651e11329e9f59f0",
+      "rgb6_sha256": "407430c596ef2cfa9343fc00e3627f7f318c3b1a842c5dde83bfa34838b1d34d",
+      "capture_ui_rectangles": [
+        [
+          0,
+          0,
+          24,
+          8
+        ]
+      ],
+      "capture_ui_context": [
+        "Legacy text-window '$' glyph and solid DOS text cursor"
+      ]
+    },
+    {
+      "id": "test13_thick_xor",
+      "group": "raster",
+      "description": "Three-pass thick-line XOR and Bezier start-point cancellation",
+      "source_capture": "test13_thick_xor.xwd",
+      "source_title": "DOSBox 0.74-3, Cpu speed: max 100% cycles, Frameskip  0, Program:  RIPTERM",
+      "source_sha256": "ab0624cc6db72c16f7c198ceb3db09b9f878eeccb70f02233103a972888fba27",
+      "input_sha256": "520c1ea629fc67bd48c1600ae7a2c4fc8a3295fc04ac1db0abf5724b7656ff87",
+      "rgb6_sha256": "f95f418a1fcdfb926a6e538496ba0493435594fc783eaef2f44dfee08fbf59e0",
+      "capture_ui_rectangles": [
+        [
+          0,
+          0,
+          24,
+          8
+        ]
+      ],
+      "capture_ui_context": [
+        "Legacy text-window '$' glyph and solid DOS text cursor"
+      ]
+    },
+    {
+      "id": "test14_thick_xor_ellipse",
+      "group": "raster",
+      "description": "Thick ellipse sweep and duplicate-point caps under XOR",
+      "source_capture": "test14_thick_xor_ellipse.xwd",
+      "source_title": "DOSBox 0.74-3, Cpu speed: max 100% cycles, Frameskip  0, Program:  RIPTERM",
+      "source_sha256": "0ef957dfea6397f70ba4a207731981424ca3bb11665bc172fb6f059517fe5fbe",
+      "input_sha256": "90af159f212ca74c4bcf5a4a54e883a264f747419a929020554019853b4f94f2",
+      "rgb6_sha256": "c337554615978f03cf1843ab57dc0ca260b4f3d7b1a5dcc009d89cf28eaff31c",
+      "capture_ui_rectangles": [
+        [
+          639,
+          349,
+          1,
+          1
+        ]
+      ],
+      "capture_ui_context": [
+        "Historical DOS mouse-pointer tip; absent in paired SyncTERM capture"
+      ]
+    },
+    {
+      "id": "test12_buttons",
+      "group": "buttons",
+      "description": "Button style, state, label and orientation combinations",
+      "source_capture": "test12_buttons.xwd",
+      "source_title": "DOSBox 0.74-3, Cpu speed: max 100% cycles, Frameskip  0, Program:  RIPTERM",
+      "source_sha256": "676d07e313788b58175f4bc49a75ed586781d8542db97579cc94a84ebc180f51",
+      "input_sha256": "a8edfee9682ffde563735ec8cb459cef09a363f629f4500930b8fc78bf411141",
+      "rgb6_sha256": "e90e370dbbdedca9bc012aaf848304fbef298daa892feed34e76265d572a1243",
+      "capture_ui_rectangles": [],
+      "capture_ui_context": []
+    },
+    {
+      "id": "test14_buttons_plain",
+      "group": "buttons",
+      "description": "Plain-button orientations and label metrics",
+      "source_capture": "test14_buttons_plain.xwd",
+      "source_title": "DOSBox 0.74-3, Cpu speed: max 100% cycles, Frameskip  0, Program:  RIPTERM",
+      "source_sha256": "aff73b2c37b3d816dd948ca80a86f5062f130509a86a3be09d848bf14309145d",
+      "input_sha256": "c060252283b011441d2a007a6d4b265faba56afde341bd9d65a537e5e5737796",
+      "rgb6_sha256": "303f2dcef33060c0616e8561cc22b09b4812cf30ffe01d36ad1fe119339d2e91",
+      "capture_ui_rectangles": [
+        [
+          0,
+          0,
+          24,
+          8
+        ],
+        [
+          0,
+          336,
+          640,
+          14
+        ]
+      ],
+      "capture_ui_context": [
+        "Legacy text-window '$' glyph and solid DOS text cursor",
+        "RIPterm application status bar, not RIP scene output"
+      ]
+    },
+    {
+      "id": "test15_buttons_bevel",
+      "group": "buttons",
+      "description": "Bevel extension and label placement",
+      "source_capture": "test15_buttons_bevel.xwd",
+      "source_title": "DOSBox 0.74-3, Cpu speed: max 100% cycles, Frameskip  0, Program:  RIPTERM",
+      "source_sha256": "fb3b2efbeac2c4e0b92640d3f4caa183793de1ebe5e2ef2a92c2709c93a7b45b",
+      "input_sha256": "5aeb80125f41a38295f390b8b3b33d37e92c16479552aed285811d32d7104df0",
+      "rgb6_sha256": "3073244754a1010dd095894b2d5b45ea9954fb89250c94190c6f2ae6c25fa48f",
+      "capture_ui_rectangles": [
+        [
+          0,
+          0,
+          24,
+          8
+        ],
+        [
+          0,
+          336,
+          640,
+          14
+        ]
+      ],
+      "capture_ui_context": [
+        "Legacy text-window '$' glyph and solid DOS text cursor",
+        "RIPterm application status bar, not RIP scene output"
+      ]
+    },
+    {
+      "id": "test16_buttons_colors",
+      "group": "buttons",
+      "description": "Button face, label, shadow and highlight colours",
+      "source_capture": "test16_buttons_colors.xwd",
+      "source_title": "DOSBox 0.74-3, Cpu speed: max 100% cycles, Frameskip  0, Program:  RIPTERM",
+      "source_sha256": "6f463681157a91df7770db47ada0f360bc4d35f8a16b487a270af138d1127052",
+      "input_sha256": "8d67aef00f198baffdf0b40fce931b7c4f3324455b8f47d49fc9ea1393153e0b",
+      "rgb6_sha256": "a997fae8f61f21f6b46ca4dfe2fca56c051a913defab84abd10c1aab7d2dbb53",
+      "capture_ui_rectangles": [
+        [
+          0,
+          0,
+          24,
+          8
+        ],
+        [
+          0,
+          336,
+          640,
+          14
+        ]
+      ],
+      "capture_ui_context": [
+        "Legacy text-window '$' glyph and solid DOS text cursor",
+        "RIPterm application status bar, not RIP scene output"
+      ]
+    },
+    {
+      "id": "test17_buttons_sizes",
+      "group": "buttons",
+      "description": "Fixed/dynamic button dimensions and exclusive edges",
+      "source_capture": "test17_buttons_sizes.xwd",
+      "source_title": "DOSBox 0.74-3, Cpu speed: max 100% cycles, Frameskip  0, Program:  RIPTERM",
+      "source_sha256": "5db0ebc05c2558ca52e47ba831cc2d1d5129298da670364117ad10ae98f27ba6",
+      "input_sha256": "80db845451819fdce05c457766d2f4ed622920f282f8fc3220c558ccb9e5579b",
+      "rgb6_sha256": "5f645430bd155b5f824bc7dd17e7b5c8ff7792f784d0d076715d74532774e306",
+      "capture_ui_rectangles": [
+        [
+          0,
+          0,
+          24,
+          8
+        ],
+        [
+          0,
+          336,
+          640,
+          14
+        ]
+      ],
+      "capture_ui_context": [
+        "Legacy text-window '$' glyph and solid DOS text cursor",
+        "RIPterm application status bar, not RIP scene output"
+      ]
+    }
+  ]
+}

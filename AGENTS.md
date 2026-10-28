@@ -181,9 +181,14 @@ Use the control bitmap backend for end-to-end behavior and one coherent capture
 for related cells, pixels and state; do not compare observations from separate
 captures while output is still changing. Cover CP437 and UTF-8 where applicable,
 including reset/recovery and boundary cases. Preserve focused parser split-input
-tests and native backend tests. Keep `docs/TERMINAL_CONFORMANCE.md` and
-`src/tests/terminal_conformance.json` accurate; do not weaken expectations to
-match a regression or claim auditory/native-device coverage from bitmap tests.
+tests and native backend tests. Keep `docs/TERMINAL_CONFORMANCE.md` and the
+relevant emulation inventories accurate: `src/tests/terminal_conformance.json`
+for ANSI, and `docs/RIP154_CONFORMANCE.md` plus `src/tests/rip154/captures.json`
+for RIP. Retain capture provenance and historical context when using reference
+images; distinguish application UI/cursor artifacts from scene output, and do
+not generate expected images from the emulator under test. Do not weaken
+expectations to match a regression or claim auditory/native-device coverage from
+bitmap tests.
 Disable physical audio output in headless fixtures (for example, with
 `AudioModes=0`); verify synthesized PCM separately from audible device tests.
 

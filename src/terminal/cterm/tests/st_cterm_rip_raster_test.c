@@ -448,6 +448,53 @@ test_poly_beziers(void)
 	return 0;
 }
 
+static int
+test_offset_viewport_line_clipping(void)
+{
+	const struct st_console_display_config display = {
+		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	};
+	const struct st_console_config config = {
+		.columns = 80, .rows = 43, .cell_width = 8, .cell_height = 8,
+		.pixel_width = 640, .pixel_height = 350,
+	};
+	const struct st_console_rect rect = {8, 8, 16, 6};
+
+	for (int width = 1; width <= 3; width += 2) {
+		st_console_t *console = NULL;
+		struct cterm_rip_raster rip;
+		struct st_pixel_buffer *pixels = NULL;
+		bool handled;
+
+		CHECK(st_console_create(&console, &display, &config) == 0);
+		CHECK(cterm_rip_raster_init(&rip, console) == 0);
+		CHECK(cterm_rip_raster_reset_windows(&rip) == 0);
+		CHECK(cterm_rip_raster_command(&rip, 0, 0, 'v',
+		    "0A0A0K0K", &handled) == 0 && handled);
+		rip.colour = 15;
+		rip.line_width = width;
+		/* BGI applies the viewport offset before clipping in screen
+		 * space. Clipping these relative coordinates must produce the
+		 * same result. A thick line's center can be completely outside
+		 * while one of its independently clipped side passes is visible. */
+		cterm_rip_raster_line(&rip, 0, width == 1 ? 0 : -1,
+		    30, width == 1 ? 0 : -1);
+		CHECK(st_console_get_pixels(&pixels, console, &rect, false) == 0);
+		for (uint32_t y = 0; y < rect.height; y++) {
+			for (uint32_t x = 0; x < rect.width; x++) {
+				uint32_t expected = y == 2 && x >= 2 && x <= 12
+				    ? rip.palette[15] : rip.palette[0];
+
+				CHECK(pixels->primary[y * rect.width + x] == expected);
+			}
+		}
+		st_pixel_buffer_destroy(pixels);
+		cterm_rip_raster_destroy(&rip);
+		st_console_destroy(console);
+	}
+	return 0;
+}
+
 int
 main(void)
 {
@@ -469,6 +516,7 @@ main(void)
 	size_t bitmap_size;
 	bool handled;
 
+	CHECK(test_offset_viewport_line_clipping() == 0);
 	CHECK(test_initial_borders() == 0);
 	CHECK(test_reserved_fields_required() == 0);
 	CHECK(test_empty_rip_text_advances() == 0);

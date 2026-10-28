@@ -35,6 +35,9 @@ RIP, APC, transfer, native backend and lifecycle tests.
 These headless fixtures set `AudioModes=0`, so they do not open physical audio
 devices. BEL/music cases check parsing only; silence here is not an audio pass.
 
+RIPterm 1.54 compatibility has a separate [historical regression inventory](RIP154_CONFORMANCE.md),
+including reference rasters, parser boundaries, button interaction and capture UI context.
+
 Failures print the case identifier and retain the outgoing input, exact reply
 bytes, case trace, coherent snapshot and PPM under the build's
 `reports/test-control` directory. Recovery IDs include seed and iteration.

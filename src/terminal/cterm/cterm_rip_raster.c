@@ -558,10 +558,13 @@ cs_clip_line(struct cterm_rip_raster *rip, int *x1p, int *y1p, int *x2p, int *y2
 {
 	int x1 = *x1p, y1 = *y1p;
 	int x2 = *x2p, y2 = *y2p;
-	int sx = rip->viewport.sx;
-	int sy = rip->viewport.sy;
-	int ex = rip->viewport.ex;
-	int ey = rip->viewport.ey;
+	/* Callers and draw_pixel use viewport-relative coordinates. BGI clips
+	 * after adding the viewport origin; translate its screen-space bounds
+	 * instead so that the origin is applied only once, by draw_pixel. */
+	int sx = 0;
+	int sy = 0;
+	int ex = rip->viewport.ex - rip->viewport.sx;
+	int ey = rip->viewport.ey - rip->viewport.sy;
 
 	for (;;) {
 		int oc1 = 0, oc2 = 0;

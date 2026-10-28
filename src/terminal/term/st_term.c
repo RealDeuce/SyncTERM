@@ -511,6 +511,12 @@ send_text(st_term_session_t *session, const char *utf8, size_t size,
 		else if (session->config.encoding == ST_CTERM_ENCODING_UTF8)
 			status = send_all_count(session->config.connection, item.bytes,
 			    item.size, timeout_ms, queued_wire);
+		else if (item.size == 2 && item.bytes[0] == '\r'
+		    && item.bytes[1] == '\n')
+			/* Unicode grapheme rule GB3 groups CRLF; both controls are
+			 * nevertheless distinct bytes in a codepage connection. */
+			status = send_all_count(session->config.connection, item.bytes,
+			    item.size, timeout_ms, queued_wire);
 		else {
 			uint32_t scalar;
 			size_t scalar_size;

@@ -177,6 +177,12 @@ and explicit audio/native-device limitations. Their fixtures disable physical
 audio output. Failures retain case traces and exact reply bytes alongside the
 normal snapshot and wire diagnostics.
 
+The `syncterm_rip154_*` suites add [RIPterm 1.54 historical raster, wire and
+interaction checks](RIP154_CONFORMANCE.md) in both encodings. Their independent
+reference captures include explicit provenance and UI-artifact exclusions;
+parser unit tests still exercise every input split without relying on TCP
+packet boundaries.
+
 With `ST_CONSOLE_TEST=ON`, CTest runs `syncterm_behavior_*` against the normal
 application executable. `syncterm_control_*` covers the driver, protocol,
 transfers, and initial application integration. Native Windows also exercises

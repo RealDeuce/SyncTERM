@@ -454,10 +454,86 @@ test_bare_lf_after_rip_cr(void)
 	return 0;
 }
 
+/* These expectations come from the RIPterm 1.54 disassembly notes in
+ * rip_test/cmd_parse.md, not from comparing one parser feed to another.
+ * Exercise every two-part split and a bytewise feed of each vector. */
+static int
+test_v154_dispatch_vectors(void)
+{
+	static const struct {
+		const char *name;
+		const char *wire;
+		const char *text;
+		const char *args;
+		unsigned commands;
+		uint8_t code;
+		int level;
+		int sublevel;
+		bool flush;
+	} cases[] = {
+		{"escaped pipe", "!|Tleft\\|right\r\nA", "A", "left|right", 1, 'T', 0, 0, false},
+		{"literal slash", "!|Tleft\\\\right\r\nA", "A", "left\\right", 1, 'T', 0, 0, false},
+		{"odd continuation", "!|Tleft\\\r\nright\r\nA", "A", "leftright", 1, 'T', 0, 0, false},
+		{"even slash CR", "!|Tleft\\\\\r\nA", "A", "left\\", 1, 'T', 0, 0, false},
+		{"triple continuation", "!|Tleft\\\\\\\r\nright\r\nA", "A", "left\\right", 1, 'T', 0, 0, false},
+		{"double bang literal", "!!|c0F\r\n", "!!|c0F\r\n", "", 0, 0, 0, 0, false},
+		{"lone bang CR", "!\r\n", "!\r\n", "", 0, 0, 0, 0, false},
+		{"unknown command EBC", "!|~ignored\r\nA", "A", "ignored", 1, '~', 0, 0, false},
+		{"C0 argument data", "!|T\a\b\t\v\f\x0e\x0f\x1a\x1b\r\nA", "A",
+		 "\a\b\t\v\f\x0e\x0f\x1a\x1b", 1, 'T', 0, 0, false},
+		{"no-more LF data", "!|#\nTRAIL\r\nA", "A", "TRAIL", 1, '#', 0, 0, false},
+		{"repeated no-more", "!|#|#|c0F\r\nA", "A", "0F", 3, 'c', 0, 0, false},
+		{"no-more new introducer", "!|#!|c0F\r\nA", "A", "0F", 2, 'c', 0, 0, false},
+		{"sublevel", "!|12qargs\r\nA", "A", "args", 1, 'q', 1, 2, false},
+		{"unfinished command", "!|Ttail", "", "", 0, 0, 0, 0, false},
+		{"flush final command", "!|Ttail", "", "tail", 1, 'T', 0, 0, true},
+	};
+
+	for (size_t index = 0; index < sizeof(cases) / sizeof(cases[0]); index++) {
+		size_t size = strlen(cases[index].wire);
+
+		for (size_t split = 0; split <= size + 1; split++) {
+			struct cterm_rip_parser parser;
+			struct capture capture = {0};
+			struct cterm_rip_parser_sink sink = sink_for(&capture);
+
+			cterm_rip_parser_init(&parser, true);
+			if (split == size + 1) {
+				for (size_t i = 0; i < size; i++)
+					CHECK(write_bytes(&parser, &capture,
+					    cases[index].wire + i, 1) == 0);
+			}
+			else {
+				CHECK(write_bytes(&parser, &capture, cases[index].wire, split) == 0);
+				CHECK(write_bytes(&parser, &capture, cases[index].wire + split, size - split) == 0);
+			}
+			if (cases[index].flush)
+				CHECK(cterm_rip_parser_flush(&parser, &sink) == 0);
+			if (capture.commands != cases[index].commands
+			    || capture.code != cases[index].code
+			    || capture.level != cases[index].level
+			    || capture.sublevel != cases[index].sublevel
+			    || strcmp(capture.args, cases[index].args) != 0
+			    || capture.text_size != strlen(cases[index].text)
+			    || memcmp(capture.text, cases[index].text, capture.text_size) != 0
+			    || capture.controls != 0) {
+				fprintf(stderr, "RIP 1.54 vector '%s', split %zu: commands=%u code=%u text=%zu args='%s'\n",
+				    cases[index].name, split, capture.commands, capture.code,
+				    capture.text_size, capture.args);
+				cterm_rip_parser_destroy(&parser);
+				return 1;
+			}
+			cterm_rip_parser_destroy(&parser);
+		}
+	}
+	return 0;
+}
+
 int
 main(void)
 {
-	if (test_split_and_ebc() != 0 || test_ansi_and_bol() != 0
+	if (test_v154_dispatch_vectors() != 0
+	    || test_split_and_ebc() != 0 || test_ansi_and_bol() != 0
 	    || test_bogus_introducer_batch() != 0
 	    || test_controls_and_disable() != 0
 	    || test_text_window_controls() != 0 || test_every_split() != 0
