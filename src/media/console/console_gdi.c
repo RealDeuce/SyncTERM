@@ -61,6 +61,7 @@ struct command {
 };
 
 struct gdi_state {
+	bool numeric_key; /* Skip native Windows Alt-numpad text synthesis. */
 	/* Only the backend thread changes or dereferences this pointer. */
 	st_console_t *console;
 	st_console_display_t *console_display;
@@ -686,8 +687,8 @@ post_key(struct gdi_state *state, UINT message, WPARAM key, LPARAM detail)
 	    & (ST_CONSOLE_MODIFIER_ALT | ST_CONSOLE_MODIFIER_GUI)) == 0)
 		control_key = st_console_control_key(control, &translated);
 
-	if (physical != 0)
-		(void)st_console_display_post_event(state->console_display,
+	if (physical != 0) {
+		if (st_console_display_post_key_event(state->console_display,
 		    &(struct st_console_event){
 			.type = ST_CONSOLE_EVENT_PHYSICAL_KEY,
 			.data.physical_key = {
@@ -696,7 +697,11 @@ post_key(struct gdi_state *state, UINT message, WPARAM key, LPARAM detail)
 				.pressed = down,
 				.repeat = down && (detail & (1L << 30)) != 0,
 			},
-		    });
+		    })) {
+			state->numeric_key = true;
+			return;
+		}
+	}
 	if (down && (key_modifiers & ST_CONSOLE_MODIFIER_ALT) != 0
 	    && (key_modifiers & ST_CONSOLE_MODIFIER_CONTROL) == 0) {
 		if (key == VK_RETURN && (detail & (1L << 30)) == 0) {
@@ -1132,8 +1137,12 @@ worker(void *argument)
 	if (state->window == NULL)
 		return 1;
 	while (GetMessageW(&message, NULL, 0, 0) > 0) {
-		(void)TranslateMessage(&message);
+		/* Numeric entry is owned by the shared console, including its
+		 * leading-zero Unicode convention rather than Windows' ANSI one. */
+		state->numeric_key = false;
 		(void)DispatchMessageW(&message);
+		if (!state->numeric_key)
+			(void)TranslateMessage(&message);
 	}
 	if (state->icon != NULL)
 		(void)DestroyIcon(state->icon);

@@ -144,6 +144,70 @@ main(int argc, char **argv)
 	symbol = dynamic_library_symbol(library, "SDL_PushEvent");
 	CHECK(symbol != NULL);
 	push_event = (int (SDLCALL *)(SDL_Event *))symbol;
+	SDL_Window *(SDLCALL *window_from_id)(Uint32) =
+	    (SDL_Window *(SDLCALL *)(Uint32))dynamic_library_symbol(library,
+	    "SDL_GetWindowFromID");
+	const char *(SDLCALL *window_title)(SDL_Window *) =
+	    (const char *(SDLCALL *)(SDL_Window *))dynamic_library_symbol(library,
+	    "SDL_GetWindowTitle");
+	CHECK(window_from_id != NULL && window_title != NULL);
+	Uint32 window_id = 0;
+	for (Uint32 i = 1; i < 32; ++i) {
+		SDL_Window *window = window_from_id(i);
+		if (window != NULL && strcmp(window_title(window), "st_console SDL test") == 0) {
+			window_id = i;
+			break;
+		}
+	}
+	CHECK(window_id != 0);
+	CHECK(st_console_events_clear(first) == 0);
+	const SDL_Scancode keys[] = {SDL_SCANCODE_LALT, SDL_SCANCODE_KP_1,
+	    SDL_SCANCODE_KP_3, SDL_SCANCODE_KP_0};
+	const SDL_Keycode syms[] = {SDLK_LALT, SDLK_KP_1, SDLK_KP_3, SDLK_KP_0};
+	for (size_t i = 0; i < 4; ++i) {
+		SDL_Event key = {.type = SDL_KEYDOWN};
+		key.key.windowID = window_id;
+		key.key.keysym.scancode = keys[i];
+		key.key.keysym.sym = syms[i];
+		key.key.keysym.mod = KMOD_ALT | KMOD_NUM;
+		CHECK(push_event(&key) == 1);
+		if (i != 0) {
+			key.type = SDL_KEYUP;
+			CHECK(push_event(&key) == 1);
+		}
+	}
+	SDL_Event release = {.type = SDL_KEYUP};
+	release.key.windowID = window_id;
+	release.key.keysym.scancode = SDL_SCANCODE_LALT;
+	release.key.keysym.sym = SDLK_LALT;
+	release.key.keysym.mod = KMOD_NUM;
+	CHECK(push_event(&release) == 1);
+	/* Emulate a host-generated numeric commit *after* the Alt release. */
+	SDL_Event duplicate = {.type = SDL_TEXTINPUT};
+	duplicate.text.windowID = window_id;
+	strcpy(duplicate.text.text, "\xc3\xa9");
+	CHECK(push_event(&duplicate) == 1);
+	SDL_Event marker = {.type = SDL_KEYDOWN};
+	marker.key.windowID = window_id;
+	marker.key.keysym.scancode = SDL_SCANCODE_F1;
+	marker.key.keysym.sym = SDLK_F1;
+	CHECK(push_event(&marker) == 1);
+	CHECK(timespec_get(&deadline, TIME_UTC) == TIME_UTC);
+	deadline.tv_sec += 2;
+	unsigned int composed = 0;
+	bool marked = false;
+	struct st_console_event event;
+	while (!marked && st_console_event_timedwait(first, &event, &deadline) == 0) {
+		if (event.type == ST_CONSOLE_EVENT_PHYSICAL_KEY) continue;
+		if (event.type == ST_CONSOLE_EVENT_KEY_CODE
+		    && event.data.key.code == ST_CONSOLE_KEY_F1) {
+			marked = true;
+			continue;
+		}
+		CHECK(event.type == ST_CONSOLE_EVENT_CODEPAGE_BYTE
+		    && event.data.codepage_byte == 130 && composed++ == 0);
+	}
+	CHECK(marked && composed == 1);
 	CHECK(push_event(&quit) == 1);
 	CHECK(timespec_get(&deadline, TIME_UTC) == TIME_UTC);
 	++deadline.tv_sec;

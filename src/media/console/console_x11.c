@@ -1433,7 +1433,8 @@ key_event(struct x11_state *state, XKeyEvent *source, bool pressed)
 			},
 		};
 
-		(void)st_console_display_post_event(state->console_display, &event);
+		if (st_console_display_post_key_event(state->console_display, &event))
+			return;
 	}
 	if (pressed && (source->state & Mod1Mask) != 0) {
 		if (!repeat && (physical_keysym == XK_Return

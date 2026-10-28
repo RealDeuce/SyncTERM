@@ -356,6 +356,9 @@ static int command(st_console_display_t *display, const uint8_t *p, size_t n, st
 			if (a > UINT16_MAX || c > 1 || d > 1) return IO_ERROR_OUT_OF_RANGE;
 			event.data.physical_key.evdev = (uint16_t)a; event.data.physical_key.modifiers = b;
 			event.data.physical_key.pressed = c != 0; event.data.physical_key.repeat = d != 0; break;
+		case ST_CONSOLE_EVENT_CODEPAGE_BYTE:
+			if (a > UINT8_MAX) return IO_ERROR_OUT_OF_RANGE;
+			event.data.codepage_byte = (uint8_t)a; break;
 		case ST_CONSOLE_EVENT_TEXT:
 			if (a > 0x10ffff || (a >= 0xd800 && a <= 0xdfff)) return IO_ERROR_INVALID_ENCODING;
 			event.data.text.codepoint = a; event.data.text.modifiers = b; break;

@@ -4450,7 +4450,13 @@ exercise_input_value_contract(struct st_wren_host *host,
 	    "if (unencodable.code != 0x3f || unencodable.codepoint != 0x4e00 || unencodable.text != String.fromCodePoint(0x4e00)) Fiber.abort(\"unencodable text\")\n"
 	    "var compatibility = Input.poll()\n"
 	    "if (compatibility.code != 0xc0 || compatibility.codepoint != 0x0410 || compatibility.text != String.fromCodePoint(0x0410)) Fiber.abort(\"compatibility codepage\")\n"
+	    "var numeric = Input.poll()\n"
+	    "if (numeric.code != 0xc0 || numeric.codepoint != 0x0410 || numeric.text != String.fromCodePoint(0x0410)) Fiber.abort(\"numeric codepage\")\n"
 	    "Screen.font[0] = original\n";
+	const struct st_console_event numeric = {
+		.type = ST_CONSOLE_EVENT_CODEPAGE_BYTE,
+		.data.codepage_byte = 0xc0,
+	};
 	const struct st_console_event encodable = {
 		.type = ST_CONSOLE_EVENT_TEXT,
 		.data.text.codepoint = UINT32_C(0x0410),
@@ -4517,6 +4523,7 @@ exercise_input_value_contract(struct st_wren_host *host,
 	CHECK(st_console_post_event(console, &encodable) == 0);
 	CHECK(st_console_post_event(console, &unencodable) == 0);
 	CHECK(st_console_post_event(console, &compatibility) == 0);
+	CHECK(st_console_post_event(console, &numeric) == 0);
 	CHECK(wrenInterpret(host->vm, "input_codepage_contract", codepage_source)
 	    == WREN_RESULT_SUCCESS);
 	CHECK(st_console_post_event(console, &press) == 0);

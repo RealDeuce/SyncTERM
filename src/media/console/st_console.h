@@ -348,6 +348,8 @@ enum st_console_event_type {
 	ST_CONSOLE_EVENT_FOCUS,
 	/* Host window closure or permanent terminal-input disconnection. */
 	ST_CONSOLE_EVENT_CLOSE,
+	/* Direct numeric entry, resolved by the consumer's current codepage. */
+	ST_CONSOLE_EVENT_CODEPAGE_BYTE,
 };
 
 /* Normalized non-text keys; ASCII control keys retain their byte values. */
@@ -412,6 +414,7 @@ struct st_console_event {
 			uint32_t codepoint;
 			uint32_t modifiers;
 		} text;
+		uint8_t codepage_byte;
 		struct {
 			uint8_t scan_code;
 			bool enhanced;

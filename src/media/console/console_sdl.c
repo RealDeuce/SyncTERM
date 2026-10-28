@@ -158,6 +158,7 @@ struct sdl_state {
 	int mouse_x;
 	int mouse_y;
 	uint32_t key_modifiers;
+	bool numeric_text;
 	bool texture_valid;
 	bool focused;
 	bool pointer_visible;
@@ -1008,8 +1009,10 @@ dispatch_event(const SDL_Event *source)
 		    || source->window.event == SDL_WINDOWEVENT_FOCUS_LOST) {
 			state->focused = source->window.event
 			    == SDL_WINDOWEVENT_FOCUS_GAINED;
-			if (!state->focused)
+			if (!state->focused) {
 				state->key_modifiers = 0;
+				state->numeric_text = false;
+			}
 			if (state->focused)
 				(void)manager.api.show_cursor(state->pointer_visible
 				    ? SDL_ENABLE : SDL_DISABLE);
@@ -1061,8 +1064,13 @@ dispatch_event(const SDL_Event *source)
 			event.data.physical_key.modifiers = state->key_modifiers;
 			event.data.physical_key.pressed = source->type == SDL_KEYDOWN;
 			event.data.physical_key.repeat = source->key.repeat != 0;
-			(void)st_console_display_post_event(state->console_display, &event);
+			if (st_console_display_post_key_event(state->console_display, &event)) {
+				state->numeric_text = true;
+				break;
+			}
 		}
+		if (source->type == SDL_KEYDOWN)
+			state->numeric_text = false;
 		if (source->type == SDL_KEYDOWN
 		    && (state->key_modifiers & ST_CONSOLE_MODIFIER_ALT) != 0) {
 			if ((source->key.keysym.scancode == SDL_SCANCODE_RETURN
@@ -1108,6 +1116,10 @@ dispatch_event(const SDL_Event *source)
 		break;
 	}
 	case SDL_TEXTINPUT: {
+		/* Windows may commit its own Alt-numpad text after Alt's release.
+		 * Shared composition already emitted the requested character. */
+		if (state->numeric_text)
+			break;
 		const unsigned char *text = (const unsigned char *)source->text.text;
 
 		while (*text != 0) {

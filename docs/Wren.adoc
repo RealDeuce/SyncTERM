@@ -2856,6 +2856,10 @@ a separate Unicode value.
 | UTF-8 form of `codepoint`, or `""` for extended keys.
 |===
 
+Alt+Keypad codepage entry produces a `KeyEvent` decoded through the selected
+font's current codepage. Leading-zero Unicode entry retains the entered
+Unicode value even when its compatibility `code` must use `?`.
+
 `Input.unget` stores the complete event record, including its separate Unicode
 value.  It does not split or reinterpret the 16-bit compatibility code.
 

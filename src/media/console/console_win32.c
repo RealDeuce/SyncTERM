@@ -403,7 +403,8 @@ post_key(struct win32_state *state, const KEY_EVENT_RECORD *record)
 				    && record->wRepeatCount > 1,
 			},
 		};
-		(void)st_console_display_post_event(state->display, &event);
+		if (st_console_display_post_key_event(state->display, &event))
+			return;
 	}
 	if (!record->bKeyDown)
 		return;

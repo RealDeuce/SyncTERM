@@ -714,7 +714,8 @@ emit_key(struct state *state, uint32_t key, bool pressed, bool repeat)
 		return;
 	mods = state->xkb_state == NULL ? 0 : modifiers(state);
 	event.data.physical_key.modifiers = mods;
-	(void)st_console_display_post_event(state->console_display, &event);
+	if (st_console_display_post_key_event(state->console_display, &event))
+		return;
 	if (!pressed || state->xkb_state == NULL)
 		return;
 	sym = state->xkb.state_key_get_one_sym(state->xkb_state, code);

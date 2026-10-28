@@ -78,6 +78,13 @@ struct st_console_display {
 	void *backend_state;
 	enum st_console_backend backend;
 	uint8_t physical_keys[(UINT16_MAX + 1U) / 8U];
+	/* Alt+Keypad composition and physical state are protected by input_mutex. */
+	st_console_t *alt_keypad_owner;
+	uint32_t alt_keypad_value;
+	bool alt_keypad_armed;
+	bool alt_keypad_digits;
+	bool alt_keypad_unicode;
+	bool alt_keypad_invalid;
 	size_t console_count;
 	bool backend_initialized;
 	/* Backend state could not be restored; only activation may recover it. */
@@ -322,6 +329,10 @@ st_console_rect_accumulate(struct st_console_rect *damage, bool *valid,
 
 int st_console_ansi_init(st_console_t *console,
 	const struct st_console_ansi_io *io);
+/* Posts a native physical edge and returns whether numeric entry owns it.
+ * A consumed edge must not also trigger native shortcuts or translated input. */
+bool st_console_display_post_key_event(st_console_display_t *display,
+	const struct st_console_event *event);
 bool st_console_control_key(uint32_t character, uint16_t *key);
 unsigned char st_console_ascii_character(st_console_t *console,
 	const struct st_console_cell *cell, bool *alternate);

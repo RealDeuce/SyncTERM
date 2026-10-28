@@ -11,6 +11,10 @@ physical_key(unsigned key)
 	};
 	if (key >= RETROK_a && key <= RETROK_z) return letters[key - RETROK_a];
 	if (key >= RETROK_1 && key <= RETROK_9) return (uint16_t)(key - RETROK_1 + 2);
+	if (key >= RETROK_KP0 && key <= RETROK_KP9) {
+		static const uint16_t keypad[] = {82, 79, 80, 81, 75, 76, 77, 71, 72, 73};
+		return keypad[key - RETROK_KP0];
+	}
 	if (key >= RETROK_F1 && key <= RETROK_F10) return (uint16_t)(key - RETROK_F1 + 59);
 	switch (key) {
 	case RETROK_0: return 11;

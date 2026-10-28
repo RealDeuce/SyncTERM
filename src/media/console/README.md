@@ -379,3 +379,15 @@ Backend capabilities which cannot yet be established reliably are listed in
 not belong in that list.
 
 <!-- Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause -->
+
+Alt+Keypad decimal entry is composed in the shared display input path under
+`input_mutex`. With Num Lock active, digits without a leading zero produce
+`ST_CONSOLE_EVENT_CODEPAGE_BYTE`; a leading zero produces Unicode `TEXT`.
+The consumer resolves a byte against its current codepage. Physical press,
+repeat and release events remain available. Window backends use
+`st_console_display_post_key_event()` before shortcuts or text translation so
+keypad navigation aliases cannot resize or centre the window during entry.
+The shared queue also suppresses duplicate native text while composing.
+Focus loss, console activation changes and other keys cancel partial entry;
+invalid/out-of-range entries produce no character. macOS native keypads are
+always numeric. ANSI/curses retain their host terminal's text composition.

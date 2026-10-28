@@ -136,7 +136,10 @@ Event type values follow `st_console_event_type`. KEY_CODE words are code and
 modifiers. PHYSICAL_KEY words are evdev code, modifiers, pressed, repeat. TEXT
 words are scalar and modifiers. MOUSE words are action, drawable x/y, buttons,
 modifiers, wheel x/y. RESIZE words are columns/rows; FOCUS's first word is a
-boolean. CLOSE has no union data. Unused words are zero. A normalized
+boolean. CLOSE has no union data. CODEPAGE_BYTE (type 8) has one byte value
+in its first word. Physical Alt+Keypad input exercises shared composition;
+CODEPAGE_BYTE can also be injected to test a consumer independently.
+Unused words are zero. A normalized
 KEY_CODE Alt-Left/Right is consumed by window scaling, as in a native driver.
 
 Snapshot sections each begin with u32 tag and u32 payload byte length:

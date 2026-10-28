@@ -20,6 +20,13 @@ optional capability replies have bounded format expectations; supported fixed
 replies are exact. Pixel assertions cover downloaded fonts, conceal, copy/paste,
 blink planes and palette changes without assuming physical palette-bank numbers.
 
+The `keyboard` group also checks physical Alt+Keypad decimal entry: codepage
+bytes, leading-zero Unicode, non-BMP text on UTF-8 connections, duplicate native
+text suppression, invalid values and focus-loss cancellation. These expectations
+come from SyncTERM's documented input convention rather than termtest.js.
+Native X11 tests separately cover keypad aliases that could trigger window
+shortcuts, and Wren tests check decoding under the current menu font's codepage.
+
 The additional `recovery` group runs 48 bounded cases with seed `0x43544552`,
 including overlong parameters, malformed strings, invalid UTF-8 and random bytes.
 Every case must recover known cells, margins and cursor coordinates and answer a

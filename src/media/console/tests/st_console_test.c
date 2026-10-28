@@ -627,6 +627,96 @@ test_event_order(void)
 }
 
 static void
+keypad_edge(st_console_t *console, uint16_t key, bool pressed, uint32_t mods)
+{
+	struct st_console_event event = {
+		.type = ST_CONSOLE_EVENT_PHYSICAL_KEY,
+		.data.physical_key = {.evdev = key, .pressed = pressed,
+		    .modifiers = mods},
+	};
+	CHECK(st_console_post_event(console, &event) == 0);
+}
+
+static void
+test_alt_keypad(void)
+{
+	st_console_t *console = create_headless(1, 1);
+	const uint16_t digits[] = {82, 79, 80, 81, 75, 76, 77, 71, 72, 73};
+	const char *entries[] = {"130", "0233", "0128093", "255", "256",
+	    "055296", "01114112", "0999999999999999999999", "0"};
+	const uint32_t expected[] = {130, 233, 128093, 255, 0, 0, 0, 0, 0};
+	const uint32_t mods = ST_CONSOLE_MODIFIER_ALT | ST_CONSOLE_MODIFIER_NUM_LOCK;
+	struct st_console_event event;
+	for (size_t i = 0; i < sizeof(entries) / sizeof(entries[0]); ++i) {
+		keypad_edge(console, 56, true, mods);
+		for (const char *p = entries[i]; *p != '\0'; ++p) {
+			keypad_edge(console, digits[*p - '0'], true, mods);
+			keypad_edge(console, digits[*p - '0'], false, mods);
+		}
+		keypad_edge(console, 56, false, ST_CONSOLE_MODIFIER_NUM_LOCK);
+		size_t composed = 0;
+		while (st_console_event_try(console, &event) == 0) {
+			if (event.type == ST_CONSOLE_EVENT_PHYSICAL_KEY) continue;
+			CHECK(expected[i] != 0 && composed++ == 0);
+			if (entries[i][0] == '0') {
+				CHECK(event.type == ST_CONSOLE_EVENT_TEXT);
+				CHECK(event.data.text.codepoint == expected[i]);
+				CHECK(event.data.text.modifiers == 0);
+			}
+			else {
+				CHECK(event.type == ST_CONSOLE_EVENT_CODEPAGE_BYTE);
+				CHECK(event.data.codepage_byte == expected[i]);
+			}
+		}
+		CHECK(composed == (expected[i] != 0 ? 1U : 0U));
+	}
+	/* No Num Lock, AltGr/control, top-row digits, and focus loss must not
+	 * accidentally complete a numeric entry. Both Alt keys are accepted. */
+	for (unsigned int mode = 0; mode < 6; ++mode) {
+		uint32_t current = mode == 0 ? ST_CONSOLE_MODIFIER_ALT
+		    : mode == 1 ? mods | ST_CONSOLE_MODIFIER_CONTROL : mods;
+		keypad_edge(console, 100, true, current);
+		keypad_edge(console, mode == 2 ? 2 : 79, true, current);
+		keypad_edge(console, mode == 2 ? 2 : 79, false, current);
+		if (mode == 3) {
+			event = (struct st_console_event){.type = ST_CONSOLE_EVENT_FOCUS,
+			    .data.focus.focused = false};
+			CHECK(st_console_post_event(console, &event) == 0);
+		}
+		if (mode == 4) {
+			keypad_edge(console, 30, true, current);
+			keypad_edge(console, 30, false, current);
+		}
+		if (mode == 5) {
+			CHECK(st_console_synthesize_physical_key(console, 100, false) == 0);
+			keypad_edge(console, 81, true, ST_CONSOLE_MODIFIER_NUM_LOCK);
+			keypad_edge(console, 81, false, ST_CONSOLE_MODIFIER_NUM_LOCK);
+		}
+		keypad_edge(console, 100, false, 0);
+		while (st_console_event_try(console, &event) == 0)
+			CHECK(event.type == ST_CONSOLE_EVENT_PHYSICAL_KEY
+			    || event.type == ST_CONSOLE_EVENT_FOCUS);
+	}
+	keypad_edge(console, 100, true, mods);
+	keypad_edge(console, 79, true, mods);
+	keypad_edge(console, 79, false, mods);
+	keypad_edge(console, 81, true, mods);
+	keypad_edge(console, 81, false, mods);
+	keypad_edge(console, 82, true, mods);
+	keypad_edge(console, 82, false, mods);
+	keypad_edge(console, 100, false, 0);
+	unsigned int composed = 0;
+	while (st_console_event_try(console, &event) == 0) {
+		if (event.type == ST_CONSOLE_EVENT_PHYSICAL_KEY) continue;
+		CHECK(event.type == ST_CONSOLE_EVENT_CODEPAGE_BYTE
+		    && event.data.codepage_byte == 130);
+		++composed;
+	}
+	CHECK(composed == 1);
+	st_console_destroy(console);
+}
+
+static void
 test_resize_palette_and_errors(void)
 {
 	st_console_t *console = create_headless(2, 2);
@@ -3107,6 +3197,7 @@ main(void)
 	test_snapshot_drains();
 	test_snapshot_state();
 	test_event_order();
+	test_alt_keypad();
 	test_resize_palette_and_errors();
 	test_pixels_and_font_rendering();
 	test_fast_font_attributes();

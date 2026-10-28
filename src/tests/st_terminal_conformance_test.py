@@ -454,6 +454,38 @@ def keyboard(t):
     t.input(ESC + b"[200~" + payload + ESC + b"[201~")
 
 
+
+    # Numeric entry uses physical keypad positions; top-row digits are distinct.
+    keypad = (82, 79, 80, 81, 75, 76, 77, 71, 72, 73)
+    numeric = ALT | 32  # Num Lock
+    for digits, cp437, utf8 in (("130", b"\x82", b"\xc3\xa9"),
+                                 ("0233", b"\x82", b"\xc3\xa9"),
+                                 ("179", b"\xb3", b"\xe2\x94\x82"),
+                                 ("0128377", b"", b"\xf0\x9f\x95\xb9"),
+                                 ("255", b"\xff", b"\xc2\xa0"),
+                                 ("256", b"", b""), ("055296", b"", b""),
+                                 ("01114112", b"", b""), ("0", b"", b"")):
+        t.case("alt-keypad-" + digits)
+        t.client.physical_key(56, True, numeric)
+        for digit in digits:
+            t.client.physical_key(keypad[int(digit)], True, numeric)
+            # Some native backends also receive translated text for the press.
+            t.client.text(digit, numeric)
+            t.client.physical_key(keypad[int(digit)], False, numeric)
+        t.client.physical_key(56, False, 32)
+        t.client.text("~")
+        t.input((utf8 if t.encoding == "UTF-8" else cp437) + b"~")
+    t.case("alt-keypad-focus-cancel")
+    t.client.physical_key(56, True, numeric)
+    t.client.physical_key(79, True, numeric)
+    t.client.physical_key(79, False, numeric)
+    t.client.event(6, 0)  # Focus loss cancels composition and releases held keys.
+    t.client.event(6, 1)
+    t.client.physical_key(56, False, 32)
+    t.client.text("~")
+    t.input(b"~")
+
+
 def recovery(t):
     seed = 0x43544552
     rng = random.Random(seed)

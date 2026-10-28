@@ -925,6 +925,45 @@ check_escape_event(st_console_t *console)
 	}
 	CHECK(marker);
 	CHECK(alt_b == 1);
+	const char *numeric_entries[] = {"130", "0233", "179"};
+	for (size_t i = 0; i < 3; ++i) {
+		CHECK(st_console_events_clear(console) == 0);
+		CHECK(send_key_with_state(display, window, XK_Alt_L, true, Mod2Mask) == 0);
+		for (const char *p = numeric_entries[i]; *p != '\0'; ++p) {
+			KeySym digit = XK_KP_0 + *p - '0';
+			CHECK(send_key_with_state(display, window, digit, true,
+			    Mod1Mask | Mod2Mask) == 0);
+			CHECK(send_key_with_state(display, window, digit, false,
+			    Mod1Mask | Mod2Mask) == 0);
+		}
+		CHECK(send_key_with_state(display, window, XK_Alt_L, false, Mod2Mask) == 0);
+		CHECK(send_key(display, window, XK_F1, true) == 0);
+		CHECK(send_key(display, window, XK_F1, false) == 0);
+		(void)XFlush(display);
+		CHECK(timespec_get(&deadline, TIME_UTC) == TIME_UTC);
+		deadline.tv_sec += 2;
+		marker = false;
+		unsigned int composed = 0;
+		while (!marker
+		    && st_console_event_timedwait(console, &event, &deadline) == 0) {
+			if (event.type == ST_CONSOLE_EVENT_PHYSICAL_KEY) continue;
+			if (event.type == ST_CONSOLE_EVENT_KEY_CODE
+			    && event.data.key.code == ST_CONSOLE_KEY_F1) {
+				marker = true;
+				continue;
+			}
+			CHECK(composed++ == 0);
+			if (i == 1) {
+				CHECK(event.type == ST_CONSOLE_EVENT_TEXT
+				    && event.data.text.codepoint == 233);
+			}
+			else {
+				CHECK(event.type == ST_CONSOLE_EVENT_CODEPAGE_BYTE
+				    && event.data.codepage_byte == (i == 0 ? 130 : 179));
+			}
+		}
+		CHECK(marker && composed == 1);
+	}
 	/* Backend shortcuts must not wait on a caller's logical-state lock. */
 	CHECK(st_rwlock_write_lock(&console->state_lock) == ST_THREAD_SUCCESS);
 	CHECK(send_key_with_state(display, window, XK_Right, true, Mod1Mask)

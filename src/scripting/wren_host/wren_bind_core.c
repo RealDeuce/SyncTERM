@@ -1149,6 +1149,10 @@ queue_console_event(struct st_wren_context *context,
 		records[count++] = compatibility_key_record(context, code);
 		break;
 	}
+	case ST_CONSOLE_EVENT_CODEPAGE_BYTE:
+		records[count++] = compatibility_key_record(context,
+		    event->data.codepage_byte);
+		break;
 	case ST_CONSOLE_EVENT_TEXT: {
 		uint8_t byte;
 
@@ -1738,6 +1742,9 @@ st_wren_input_dispatch_console_event(WrenVM *vm,
 		record = compatibility_key_record(context, legacy_key_code(
 		    event->data.key.code, event->data.key.modifiers));
 		break;
+	case ST_CONSOLE_EVENT_CODEPAGE_BYTE:
+		record = compatibility_key_record(context, event->data.codepage_byte);
+		break;
 	case ST_CONSOLE_EVENT_TEXT: {
 		uint8_t byte;
 
@@ -1828,6 +1835,8 @@ st_wren_input_key_code(const struct st_console_event *event)
 	if (event->type == ST_CONSOLE_EVENT_TEXT
 	    && event->data.text.codepoint < 0x80)
 		return (uint16_t)event->data.text.codepoint;
+	if (event->type == ST_CONSOLE_EVENT_CODEPAGE_BYTE)
+		return event->data.codepage_byte;
 	if (event->type == ST_CONSOLE_EVENT_KEY_CODE)
 		return legacy_key_code(event->data.key.code,
 		    event->data.key.modifiers);

@@ -21,6 +21,7 @@
 static int present_locked(st_console_t *console, bool forced,
 	bool backend_locked);
 static void free_console(st_console_t *console);
+static void alt_keypad_cancel(st_console_display_t *display);
 static void font_registration_free(struct st_console_font_registration *registration);
 static void free_retired_consoles(st_console_display_t *display);
 
@@ -981,8 +982,13 @@ activate_console(st_console_display_t *display, st_console_t *console)
 		display->backend_failed = restored != 0;
 		atomic_store_explicit(&display->active, previous, memory_order_release);
 	}
-	else
+	else {
+		(void)st_mutex_lock(&display->input_mutex);
+		if (previous != console)
+			alt_keypad_cancel(display);
 		atomic_store_explicit(&display->input_active, console, memory_order_release);
+		(void)st_mutex_unlock(&display->input_mutex);
+	}
 	(void)st_mutex_unlock(&display->backend_mutex);
 	if (previous != NULL && previous != console)
 		(void)st_rwlock_unlock(&previous->state_lock);
@@ -1116,6 +1122,8 @@ st_console_destroy(st_console_t *console)
 	}
 	/* Drain deliveries which selected this console before the switch. */
 	(void)st_mutex_lock(&display->input_mutex);
+	if (display->alt_keypad_owner == console)
+		alt_keypad_cancel(display);
 	(void)st_mutex_unlock(&display->input_mutex);
 	if (display->presentation_thread_started) {
 		(void)st_mutex_lock(&display->presentation_mutex);
@@ -3410,7 +3418,7 @@ static bool
 event_valid(const struct st_console_event *event)
 {
 	if (event == NULL || event->type < ST_CONSOLE_EVENT_KEY_CODE
-	    || event->type > ST_CONSOLE_EVENT_CLOSE)
+	    || event->type > ST_CONSOLE_EVENT_CODEPAGE_BYTE)
 		return false;
 	switch (event->type) {
 	case ST_CONSOLE_EVENT_TEXT:
@@ -3421,6 +3429,7 @@ event_valid(const struct st_console_event *event)
 	case ST_CONSOLE_EVENT_RESIZE:
 		return event->data.resize.columns != 0
 		    && event->data.resize.rows != 0;
+	case ST_CONSOLE_EVENT_CODEPAGE_BYTE:
 	case ST_CONSOLE_EVENT_KEY_CODE:
 	case ST_CONSOLE_EVENT_PHYSICAL_KEY:
 	case ST_CONSOLE_EVENT_DOORWAY_KEY:
@@ -3449,18 +3458,103 @@ st_console_control_key(uint32_t character, uint16_t *key)
 	return true;
 }
 
+static void
+alt_keypad_cancel(st_console_display_t *display)
+{
+	display->alt_keypad_armed = false;
+	display->alt_keypad_digits = false;
+	display->alt_keypad_owner = NULL;
+}
+
+/* Called with input_mutex held, before updating the physical-key bitmap. */
+static bool
+alt_keypad_edge(st_console_display_t *display, st_console_t *console,
+	const struct st_console_event *event, struct st_console_event *composed)
+{
+	uint16_t key = event->data.physical_key.evdev;
+	uint32_t mods = event->data.physical_key.modifiers;
+	bool down = event->data.physical_key.pressed;
+	bool alt = key == 56 || key == 100;
+	int digit = -1;
+
+	if (display->alt_keypad_owner != console)
+		alt_keypad_cancel(display);
+	if (alt && down && !physical_key_down(display, key)
+	    && !display->alt_keypad_armed
+	    && (mods & (ST_CONSOLE_MODIFIER_CONTROL | ST_CONSOLE_MODIFIER_GUI)) == 0) {
+		display->alt_keypad_owner = console;
+		display->alt_keypad_armed = true;
+		display->alt_keypad_value = 0;
+		display->alt_keypad_digits = false;
+		display->alt_keypad_unicode = false;
+		display->alt_keypad_invalid = false;
+		return false;
+	}
+	if (!display->alt_keypad_armed)
+		return false;
+	if (alt) {
+		if (down || physical_key_down(display, key == 56 ? 100 : 56))
+			return false;
+		bool consumed = display->alt_keypad_digits;
+		uint32_t value = display->alt_keypad_value;
+		if (consumed && !display->alt_keypad_invalid && value != 0) {
+			if (display->alt_keypad_unicode) {
+				if (st_unicode_scalar_valid(value)) {
+					composed->type = ST_CONSOLE_EVENT_TEXT;
+					composed->data.text.codepoint = value;
+				}
+			}
+			else {
+				composed->type = ST_CONSOLE_EVENT_CODEPAGE_BYTE;
+				composed->data.codepage_byte = (uint8_t)value;
+			}
+		}
+		alt_keypad_cancel(display);
+		return consumed;
+	}
+	if (key >= 71 && key <= 82) {
+		static const int digits[] = {7, 8, 9, -1, 4, 5, 6, -1, 1, 2, 3, 0};
+		digit = digits[key - 71];
+	}
+	/* Quartz keypads are always numeric and have no Num Lock state. */
+	bool numeric = (mods & ST_CONSOLE_MODIFIER_NUM_LOCK) != 0
+	    || display->backend == ST_CONSOLE_BACKEND_QUARTZ;
+	if (digit >= 0 && numeric
+	    && (physical_key_down(display, 56) || physical_key_down(display, 100))
+	    && (mods & (ST_CONSOLE_MODIFIER_CONTROL | ST_CONSOLE_MODIFIER_GUI)) == 0) {
+		if (down) {
+			if (!display->alt_keypad_digits)
+				display->alt_keypad_unicode = digit == 0;
+			display->alt_keypad_digits = true;
+			uint32_t limit = display->alt_keypad_unicode ? 0x10ffff : 255;
+			if (display->alt_keypad_value > (limit - (uint32_t)digit) / 10)
+				display->alt_keypad_invalid = true;
+			else if (!display->alt_keypad_invalid)
+				display->alt_keypad_value = display->alt_keypad_value * 10
+				    + (uint32_t)digit;
+		}
+		return true;
+	}
+	if (down)
+		alt_keypad_cancel(display);
+	return false;
+}
+
 static int
 post_event(st_console_display_t *display, st_console_t *console,
-	const struct st_console_event *event)
+	const struct st_console_event *source, bool *consumed)
 {
 	struct st_console_event release = {
 		.type = ST_CONSOLE_EVENT_PHYSICAL_KEY,
 		.data.physical_key = {.pressed = false},
 	};
+	struct st_console_event composed = {.type = ST_CONSOLE_EVENT_CLOSE};
+	const struct st_console_event *event = source;
 	size_t release_count = 0;
 	size_t added = 1;
 	int result;
 
+	if (consumed != NULL) *consumed = false;
 	if (display == NULL || !event_valid(event))
 		return IO_ERROR_INVALID_ARGUMENT;
 	result = st_mutex_lock(&display->input_mutex);
@@ -3469,6 +3563,7 @@ post_event(st_console_display_t *display, st_console_t *console,
 	if (console == NULL)
 		console = atomic_load_explicit(&display->input_active, memory_order_acquire);
 	if (console == NULL) {
+		alt_keypad_cancel(display);
 		if (event->type == ST_CONSOLE_EVENT_PHYSICAL_KEY)
 			set_physical_key(display, event->data.physical_key.evdev,
 			    event->data.physical_key.pressed);
@@ -3486,11 +3581,27 @@ post_event(st_console_display_t *display, st_console_t *console,
 			if (physical_key_down(display, (uint16_t)key))
 				++release_count;
 	}
-	result = reserve_events_locked(console, release_count + 1);
+	result = reserve_events_locked(console, release_count + 2);
 	if (result != 0) {
 		(void)st_mutex_unlock(&console->event_mutex);
 		(void)st_mutex_unlock(&display->input_mutex);
 		return result;
+	}
+	if (event->type == ST_CONSOLE_EVENT_FOCUS
+	    && !event->data.focus.focused)
+		alt_keypad_cancel(display);
+	if (event->type == ST_CONSOLE_EVENT_PHYSICAL_KEY) {
+		bool numeric = alt_keypad_edge(display, console, event, &composed);
+		if (consumed != NULL) *consumed = numeric;
+	}
+	else if (display->alt_keypad_owner == console
+	    && display->alt_keypad_armed && display->alt_keypad_digits
+	    && (event->type == ST_CONSOLE_EVENT_TEXT
+	    || event->type == ST_CONSOLE_EVENT_KEY_CODE)) {
+		if (consumed != NULL) *consumed = true;
+		(void)st_mutex_unlock(&console->event_mutex);
+		(void)st_mutex_unlock(&display->input_mutex);
+		return 0;
 	}
 	if (release_count != 0) {
 		for (unsigned int key = 0; key <= UINT16_MAX; ++key) {
@@ -3506,6 +3617,10 @@ post_event(st_console_display_t *display, st_console_t *console,
 		set_physical_key(display, event->data.physical_key.evdev,
 		    event->data.physical_key.pressed);
 	append_event_locked(console, event);
+	if (composed.type != ST_CONSOLE_EVENT_CLOSE) {
+		append_event_locked(console, &composed);
+		++added;
+	}
 	result = ST_THREAD_SUCCESS;
 	for (size_t i = 0; i < added && result == ST_THREAD_SUCCESS; ++i)
 		result = st_condition_signal(&console->event_ready);
@@ -3518,7 +3633,7 @@ int
 st_console_display_post_event(st_console_display_t *display,
 	const struct st_console_event *event)
 {
-	return post_event(display, NULL, event);
+	return post_event(display, NULL, event, NULL);
 }
 
 int
@@ -3526,7 +3641,16 @@ st_console_post_event(st_console_t *console,
 	const struct st_console_event *event)
 {
 	return console == NULL ? IO_ERROR_INVALID_ARGUMENT
-	    : post_event(console->display, console, event);
+	    : post_event(console->display, console, event, NULL);
+}
+
+bool
+st_console_display_post_key_event(st_console_display_t *display,
+	const struct st_console_event *event)
+{
+	bool consumed = false;
+	(void)post_event(display, NULL, event, &consumed);
+	return consumed;
 }
 
 int

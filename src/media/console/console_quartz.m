@@ -248,14 +248,14 @@ event_modifiers(NSEventModifierFlags flags)
 	return result;
 }
 
-static void
+static bool
 post_physical(struct quartz_state *state, NSEvent *source, bool pressed)
 {
 	uint16_t key = physical_key(source.keyCode);
 	struct st_console_event event;
 
 	if (key == 0)
-		return;
+		return false;
 	event = (struct st_console_event){
 		.type = ST_CONSOLE_EVENT_PHYSICAL_KEY,
 		.data.physical_key = {
@@ -265,7 +265,7 @@ post_physical(struct quartz_state *state, NSEvent *source, bool pressed)
 			.repeat = pressed && source.isARepeat,
 		},
 	};
-	(void)st_console_display_post_event(state->console_display, &event);
+	return st_console_display_post_key_event(state->console_display, &event);
 }
 
 static void
@@ -515,7 +515,8 @@ post_mouse(struct quartz_state *state, NSEvent *source,
 		[consoleState->window toggleFullScreen:nil];
 		return;
 	}
-	post_physical(consoleState, event, true);
+	if (post_physical(consoleState, event, true))
+		return;
 	if (command || option) {
 		if ((event.keyCode == kVK_Return
 		    || event.keyCode == kVK_ANSI_KeypadEnter) && !event.isARepeat) {
@@ -566,7 +567,7 @@ post_mouse(struct quartz_state *state, NSEvent *source,
 
 - (void)keyUp:(NSEvent *)event
 {
-	post_physical(consoleState, event, false);
+	(void)post_physical(consoleState, event, false);
 }
 
 - (void)flagsChanged:(NSEvent *)event
@@ -578,7 +579,7 @@ post_mouse(struct quartz_state *state, NSEvent *source,
 		return;
 	pressed = !consoleState->modifier_down[key];
 	consoleState->modifier_down[key] = pressed;
-	post_physical(consoleState, event, pressed);
+	(void)post_physical(consoleState, event, pressed);
 }
 
 - (void)mouseMoved:(NSEvent *)event

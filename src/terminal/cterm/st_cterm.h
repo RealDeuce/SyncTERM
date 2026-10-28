@@ -318,6 +318,8 @@ bool st_cterm_handle_key(st_cterm_t *terminal, uint16_t key_code,
  * keyboard mappings. False leaves semantic transmission (UTF-8 text or an
  * unmappable character) to the session. Not for paste or scripted sends. */
 bool st_cterm_handle_text_key(st_cterm_t *terminal, uint32_t codepoint);
+/* An explicitly entered byte in the terminal's current codepage. */
+bool st_cterm_handle_codepage_key(st_cterm_t *terminal, uint8_t byte);
 /* RIP hotkeys may consume printable text before it is sent to the wire. */
 bool st_cterm_handle_rip_text(st_cterm_t *terminal, uint32_t codepoint);
 bool st_cterm_handle_doorway_key(st_cterm_t *terminal, uint8_t scan_code);

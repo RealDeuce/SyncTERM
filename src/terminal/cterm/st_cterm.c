@@ -3402,6 +3402,18 @@ st_cterm_handle_key(st_cterm_t *terminal, uint16_t key_code,
 }
 
 bool
+st_cterm_handle_codepage_key(st_cterm_t *terminal, uint8_t byte)
+{
+	if (terminal == NULL)
+		return false;
+	if (st_cterm_handle_rip_text(terminal,
+	    st_codepage_to_unicode(terminal->screen.codepage, byte, false)))
+		return true;
+	(void)cterm_handle_key(terminal, byte);
+	return true;
+}
+
+bool
 st_cterm_handle_text_key(st_cterm_t *terminal, uint32_t codepoint)
 {
 	uint8_t byte;

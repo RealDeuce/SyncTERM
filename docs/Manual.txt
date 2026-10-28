@@ -327,14 +327,23 @@ kbd:[Alt] key, then enter the decimal value on the numeric keypad. Do
 not enter leading zeros, as that would indicate a unicode value.  Once
 the value is entered, release the kbd:[Alt] key.
 
-A unicode value is the Unicode codepoint number. Only unicode values that
-map to the current codepage can be passed through, so the majority of
-values can't be entered in a given mode.
+A unicode value is the Unicode codepoint number. On a UTF-8 connection,
+any valid Unicode character can be entered. On a codepage connection,
+the character must map to the current codepage. Codepage entries use
+that same codepage even on a UTF-8 connection; for example, with CP437,
+kbd:[Alt+130] and kbd:[Alt+0233] both enter `é`.
 
 To enter a unicode value, ensure kbd:[NumLock] is on, and hold down an
 kbd:[Alt] key, press the kbd:[0] key on the numeric keypad, then enter
 the decimal value on the numeric keypad. Once the value is entered,
 release the kbd:[Alt] key.
+
+This requires an input backend that receives physical key presses and
+releases. In curses and ANSI modes, character composition is handled by
+the host terminal. Native macOS keypads are numeric without a NumLock
+setting. Codepage entries must be between 1 and 255; Unicode entries
+must be nonzero valid Unicode scalar values. Out-of-range entries are
+ignored. Another key press or loss of focus cancels a partial entry.
 
 == The User Interface
 
