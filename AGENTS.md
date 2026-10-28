@@ -175,6 +175,18 @@ focused tests before changing behavior that is subtle, platform-dependent, or
 concurrent. Test both successful operations and shutdown/error paths for
 threaded code.
 
+When changing terminal emulation, add or update independent expected-result tests
+for the affected sequences, modes, cells, cursor state, colours and replies.
+Use the control bitmap backend for end-to-end behavior and one coherent capture
+for related cells, pixels and state; do not compare observations from separate
+captures while output is still changing. Cover CP437 and UTF-8 where applicable,
+including reset/recovery and boundary cases. Preserve focused parser split-input
+tests and native backend tests. Keep `docs/TERMINAL_CONFORMANCE.md` and
+`src/tests/terminal_conformance.json` accurate; do not weaken expectations to
+match a regression or claim auditory/native-device coverage from bitmap tests.
+Disable physical audio output in headless fixtures (for example, with
+`AudioModes=0`); verify synthesized PCM separately from audible device tests.
+
 When changing detection logic, verify both the capability-present and
 capability-absent paths where practical. Never claim a platform or toolchain
 was tested when it was not; state the configurations actually exercised.

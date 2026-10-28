@@ -38,7 +38,7 @@ def failure_report(client, root, reports):
         (target / "snapshot.json").write_text(
             json.dumps(snapshot.diagnostic(), ensure_ascii=False, indent=2), encoding="utf-8")
         snapshot.save_image(target / "screen.ppm")
-    for name in ("wire.bin", "syncterm.ini", "syncterm.lst", "session.log"):
+    for name in ("wire.bin", "replies.bin", "cases.txt", "syncterm.ini", "syncterm.lst", "session.log"):
         path = root / name
         if path.is_file():
             (target / name).write_bytes(path.read_bytes())

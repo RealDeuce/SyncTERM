@@ -170,6 +170,13 @@ not call console APIs or reenter Wren while capture holds the display locks.
 
 ## Regression suites and migration map
 
+The `syncterm_conformance_*` suites add independent expected-result terminal
+checks in CP437 and UTF-8, plus bounded seeded parser recovery. See
+[the termtest coverage inventory](TERMINAL_CONFORMANCE.md) for individual cases
+and explicit audio/native-device limitations. Their fixtures disable physical
+audio output. Failures retain case traces and exact reply bytes alongside the
+normal snapshot and wire diagnostics.
+
 With `ST_CONSOLE_TEST=ON`, CTest runs `syncterm_behavior_*` against the normal
 application executable. `syncterm_control_*` covers the driver, protocol,
 transfers, and initial application integration. Native Windows also exercises

@@ -1,0 +1,252 @@
+# Terminal conformance coverage
+
+`src/tests/st_terminal_conformance_test.py` runs the normal application through
+its control bitmap backend and a private loopback Raw connection, in CP437 and
+UTF-8. Each group is a separate CTest `syncterm_conformance_<group>_<encoding>`.
+Enable `ST_CONSOLE_TEST` and run `ctest --test-dir <build> -R syncterm_conformance`.
+
+This inventory tracks the local Synchronet termtest reference at SHA-256
+`a8bc360b2b1cd9c1b6041160d3e994a410132418fb568a369f3a10724915ab00`. It includes all 149 active output
+cases, its one commented historical regression, and all 59 keyboard cases.
+Repeated names have `.2` suffixes. The JSON manifest beside the runner is the
+machine-readable inventory; each group fails if it misses an assigned case.
+Update both inventories when adding or changing coverage.
+
+Expected cells, cursor coordinates, colours and replies are specified independently
+of the emulator. A terminal status reply fences input processing; a single control
+checkpoint then captures cells, palette, planes and application state together.
+Keys travel through the real application input and connection paths. Version and
+optional capability replies have bounded format expectations; supported fixed
+replies are exact. Pixel assertions cover downloaded fonts, conceal, copy/paste,
+blink planes and palette changes without assuming physical palette-bank numbers.
+
+The additional `recovery` group runs 48 bounded cases with seed `0x43544552`,
+including overlong parameters, malformed strings, invalid UTF-8 and random bytes.
+Every case must recover known cells, margins and cursor coordinates and answer a
+query. TCP write boundaries are not parser chunk boundaries: the existing
+`cterm_text` C tests retain exhaustive split/bytewise decoder coverage.
+
+Audibility and physical speed pacing are explicitly partial below. Real OS
+clipboard/window operations and native console/input integration remain backend
+tests. This inventory does not claim coverage of every sequence in cterm.adoc,
+or of terminal emulations other than ANSI-BBS. Keep the specialized CTerm, audio,
+RIP, APC, transfer, native backend and lifecycle tests.
+
+These headless fixtures set `AudioModes=0`, so they do not open physical audio
+devices. BEL/music cases check parsing only; silence here is not an audio pass.
+
+Failures print the case identifier and retain the outgoing input, exact reply
+bytes, case trace, coherent snapshot and PPM under the build's
+`reports/test-control` directory. Recovery IDs include seed and iteration.
+
+| Reference case | Line | Group | Assertion scope |
+| --- | ---: | --- | --- |
+| `NUL` | 209 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `BEL` | 214 | extensions | Partial: parsing/recovery only; audibility needs audio-device validation |
+| `BS` | 220 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `HT` | 228 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `LF` | 235 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `CR` | 240 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `NEL` | 245 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `HTS` | 250 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `RI` | 257 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `APC` | 262 | extensions | String consumption and surrounding visible text |
+| `DCS` | 267 | extensions | String consumption and surrounding visible text |
+| `PM` | 276 | extensions | String consumption and surrounding visible text |
+| `OSC` | 281 | extensions | String consumption and surrounding visible text |
+| `SOS` | 287 | extensions | String consumption and surrounding visible text |
+| `RIS` | 292 | movement | Cursor home after reset |
+| `ICH` | 298 | editing | Expected edited/scrolled cell contents and cursor coordinates |
+| `SL` | 314 | editing | Expected edited/scrolled cell contents and cursor coordinates |
+| `CUU` | 327 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `SR` | 340 | editing | Expected edited/scrolled cell contents and cursor coordinates |
+| `CUD` | 357 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `CUF` | 370 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `CUB` | 383 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `FNT` | 396 | extensions | Successful font selection report and changed glyph raster |
+| `CNL` | 414 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `CPL` | 429 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `CHA` | 444 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `CUP` | 457 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `CHT` | 484 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `ED` | 504 | editing | Expected edited/scrolled cell contents and cursor coordinates |
+| `EL` | 531 | editing | Expected edited/scrolled cell contents and cursor coordinates |
+| `IL` | 554 | editing | Expected edited/scrolled cell contents and cursor coordinates |
+| `DL` | 585 | editing | Expected edited/scrolled cell contents and cursor coordinates |
+| `CTSAM` | 607 | extensions | Partial: parsing/recovery only; audibility needs audio-device validation |
+| `BCAM` | 624 | extensions | Partial: parsing/recovery only; audibility needs audio-device validation |
+| `DCH` | 630 | editing | Expected edited/scrolled cell contents and cursor coordinates |
+| `SU` | 643 | editing | Expected edited/scrolled cell contents and cursor coordinates |
+| `XTSRGA` | 662 | queries | Exact reply; version and optional capability formats validated |
+| `SD` | 677 | editing | Expected edited/scrolled cell contents and cursor coordinates |
+| `ECH` | 696 | editing | Expected edited/scrolled cell contents and cursor coordinates |
+| `CVT` | 708 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `CBT` | 732 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `HPA` | 754 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `HPR` | 767 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `REP` | 780 | movement | Repeated graphic cells and resulting cursor |
+| `DA` | 795 | queries | Exact reply; version and optional capability formats validated |
+| `CTDA` | 804 | queries | Exact reply; version and optional capability formats validated |
+| `VPA` | 813 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `TSR` | 821 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `VPR` | 832 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `CUP.2` | 845 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `TBC` | 872 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `BCDM` | 894 | extensions | Doorway NUL quoting displays a literal CP437 control glyph |
+| `DECSET` | 900 | extensions | Exact X10 mouse button-down report from injected cell click |
+| `HPB` | 927 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `VPB` | 940 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `BCRST` | 953 | extensions | Leaving doorway mode restores cursor sequence parsing |
+| `DECRST` | 959 | margins | Expected cursor/cells or exact mode replies across margin/wrap transitions |
+| `SGR` | 970 | attributes | Logical RGB cell colours and rendered planes |
+| `DSR` | 992 | queries | Exact reply; version and optional capability formats validated |
+| `BCDSR` | 1004 | queries | Exact reply; version and optional capability formats validated |
+| `CTSMRR` | 1018 | queries | Font selection, cell dimensions and exact enabled-mode report; both mode-80 states |
+| `DECDSR` | 1039 | queries | Exact reply; version and optional capability formats validated |
+| `DECSTBM` | 1060 | margins | Expected cursor/cells or exact mode replies across margin/wrap transitions |
+| `DECSCS` | 1081 | queries | Partial: speed setting/report; physical pacing remains a timing test |
+| `CTSMS` | 1090 | margins | Expected cursor/cells or exact mode replies across margin/wrap transitions |
+| `DECSLRM` | 1123 | margins | Expected cursor/cells or exact mode replies across margin/wrap transitions |
+| `SCOSC` | 1145 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `DECSC` | 1153 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `CT24BC` | 1161 | attributes | Logical RGB cell colours and rendered planes |
+| `CTRMS` | 1177 | margins | Expected cursor/cells or exact mode replies across margin/wrap transitions |
+| `SCORC` | 1211 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `DECRC` | 1219 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `DECTABSR` | 1227 | queries | Exact reply; version and optional capability formats validated |
+| `DECRQCRA` | 1236 | queries | CRC-16 calculated independently over captured modern cell ABI |
+| `DECINVM` | 1243 | extensions | Defined cursor macro invocation reaches expected coordinates |
+| `CTOSF` | 1249 | extensions | All three font payload lengths consumed; exact downloaded 8x16 glyph raster |
+| `CTELCF` | 1272 | margins | Expected cursor/cells or exact mode replies across margin/wrap transitions |
+| `CTDLCF` | 1291 | margins | Expected cursor/cells or exact mode replies across margin/wrap transitions |
+| `OriginMode` | 1301 | margins | Expected cursor/cells or exact mode replies across margin/wrap transitions |
+| `CUUClamp` | 1330 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `CUDClamp` | 1336 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `CUFClamp` | 1342 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `CUBClamp` | 1348 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `HPBClamp` | 1354 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `VPBClamp` | 1360 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `DECRQSS_m` | 1366 | queries | Exact reply; version and optional capability formats validated |
+| `DECRQSS_r` | 1382 | queries | Exact reply; version and optional capability formats validated |
+| `DECRQSS_s` | 1395 | queries | Exact reply; version and optional capability formats validated |
+| `CTSMRR_4` | 1409 | queries | Exact reply; version and optional capability formats validated |
+| `CTSMRR_5` | 1429 | queries | Exact reply; version and optional capability formats validated |
+| `CTSV` | 1439 | queries | Exact reply; version and optional capability formats validated |
+| `CTQJS` | 1450 | queries | JPEG XL capability reply (not joystick) |
+| `SGR256FG` | 1461 | attributes | Logical RGB cell colours and rendered planes |
+| `SGR256BG` | 1479 | attributes | Logical RGB cell colours and rendered planes |
+| `SGRRGBFG` | 1497 | attributes | Logical RGB cell colours and rendered planes |
+| `SGRRGBBG` | 1515 | attributes | Logical RGB cell colours and rendered planes |
+| `SGRBright` | 1533 | attributes | Logical RGB cell colours and rendered planes |
+| `SGRNeg` | 1569 | attributes | Logical RGB cell colours and rendered planes |
+| `SGRConceal` | 1600 | attributes | Logical RGB cell colours and rendered planes |
+| `OSC4` | 1619 | attributes | Logical palette change and single-entry reset |
+| `OSC104All` | 1651 | attributes | Logical palette change and full palette reset |
+| `DECSCUSR` | 1676 | attributes | Block/underline raster extents and blink state for styles 1 through 4 |
+| `AutoWrap` | 1698 | margins | Expected cursor/cells or exact mode replies across margin/wrap transitions |
+| `RIScroll` | 1720 | editing | Expected edited/scrolled cell contents and cursor coordinates |
+| `LFScroll` | 1733 | editing | Expected edited/scrolled cell contents and cursor coordinates |
+| `DECSETBlinkBG` | 1747 | attributes | Logical RGB cell colours and rendered planes |
+| `CopyPaste` | 1769 | extensions | Exact pixel plane restored; text cells stay erased (not OS clipboard) |
+| `DECDMAC` | 1787 | extensions | Hex-encoded macro definition and invocation reaches expected coordinates |
+| `DECMSR` | 1809 | queries | Exact reply; version and optional capability formats validated |
+| `DECCKSR` | 1820 | queries | Empty and defined-macro CRC-16 with echoed request IDs |
+| `DECSTBMScroll` | 1831 | margins | Expected cursor/cells or exact mode replies across margin/wrap transitions |
+| `DECSLRMScroll` | 1852 | margins | Expected cursor/cells or exact mode replies across margin/wrap transitions |
+| `SGRDim` | 1866 | attributes | Logical RGB cell colours and rendered planes |
+| `CR.2` | 1884 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `LF.2` | 1896 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `BS.2` | 1909 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `HT.2` | 1922 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `NEL.2` | 1934 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `RI.2` | 1942 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `HVP` | 1950 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `HTS.2` | 1961 | movement | Exact report for explicitly installed tab stops |
+| `LCFFullLine` | 1987 | margins | Expected cursor/cells or exact mode replies across margin/wrap transitions |
+| `LCFDSR` | 2029 | margins | Expected cursor/cells or exact mode replies across margin/wrap transitions |
+| `Regressions` | 2045 | editing | Active regression here; commented out in reference |
+| `DECERA` | 2058 | editing | Expected edited/scrolled cell contents and cursor coordinates |
+| `DECFRA` | 2068 | editing | Expected edited/scrolled cell contents and cursor coordinates |
+| `DECCRA` | 2076 | editing | Expected edited/scrolled cell contents and cursor coordinates |
+| `DECIC` | 2084 | editing | Expected edited/scrolled cell contents and cursor coordinates |
+| `DECDC` | 2096 | editing | Expected edited/scrolled cell contents and cursor coordinates |
+| `DECSSDT_hide` | 2108 | extensions | Status type zero, main last-row text and cursor |
+| `DECSSDT_host` | 2119 | extensions | Host status text and main text routed to their respective rows |
+| `DECCARA` | 2134 | attributes | Logical RGB cell colours and rendered planes |
+| `DECRARA` | 2151 | attributes | Logical RGB cell colours and rendered planes |
+| `DECSACE` | 2168 | attributes | Stream versus rectangular attribute-change cell boundaries |
+| `CT24BC.2` | 2186 | attributes | Logical RGB cell colours and rendered planes |
+| `FETM` | 2201 | queries | Exact reply; version and optional capability formats validated |
+| `TTM` | 2212 | queries | Exact reply; version and optional capability formats validated |
+| `CVTwithVTS` | 2222 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `OriginMode.2` | 2235 | margins | Expected cursor/cells or exact mode replies across margin/wrap transitions |
+| `SLMargins` | 2246 | margins | Expected cursor/cells or exact mode replies across margin/wrap transitions |
+| `SRMargins` | 2256 | margins | Expected cursor/cells or exact mode replies across margin/wrap transitions |
+| `CTSMS_CTRMS` | 2267 | margins | Expected cursor/cells or exact mode replies across margin/wrap transitions |
+| `SGRNoBlink` | 2284 | attributes | Logical RGB cell colours and rendered planes |
+| `SGRNormInt` | 2296 | attributes | Logical RGB cell colours and rendered planes |
+| `SGRDefFG` | 2308 | attributes | Logical RGB cell colours and rendered planes |
+| `SGRDefBG` | 2320 | attributes | Logical RGB cell colours and rendered planes |
+| `SGRBrightBG` | 2332 | attributes | Logical RGB cell colours and rendered planes |
+| `DECRQSS_*x` | 2346 | queries | Exact reply; version and optional capability formats validated |
+| `DECRQSS_*r` | 2352 | queries | Exact reply; version and optional capability formats validated |
+| `OSC8` | 2359 | extensions | Hyperlink cell bounds and exact opened URI |
+| `IN:Up` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:Down` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:Right` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:Left` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:Home` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:End` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:PgUp` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:PgDn` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:Ins` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:Del` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:BkSp` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:S-Tab` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:F1` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:F2` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:F3` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:F4` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:F5` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:F6` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:F7` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:F8` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:F9` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:F10` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:F11` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:F12` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:S-F1` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:S-F2` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:S-F3` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:S-F4` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:S-F5` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:S-F6` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:S-F7` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:S-F8` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:S-F9` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:S-F10` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:S-F11` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:S-F12` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:C-F1` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:C-F2` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:C-F3` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:C-F4` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:C-F5` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:C-F6` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:C-F7` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:C-F8` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:C-F9` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:C-F10` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:C-F11` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:C-F12` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:A-F1` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:A-F2` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:A-F3` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:A-F5` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:A-F6` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:A-F7` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:A-F8` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:A-F9` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:A-F10` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:A-F11` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+| `IN:A-F12` | input_keys | keyboard | Exact encoded bytes from injected normalized key |

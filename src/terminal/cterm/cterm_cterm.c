@@ -260,7 +260,8 @@ cterm_handle_ext_state_query(struct cterminal *cterm, int *speed)	/* CSI = n */
 				strcat(tmp, ";35");
 			if (cterm->extattr & CTERM_EXTATTR_DECLRMM)
 				strcat(tmp, ";69");
-			if (cterm->extattr & CTERM_EXTATTR_SXSCROLL)
+			/* DEC mode 80 is set when sixel scrolling is disabled. */
+			if (!(cterm->extattr & CTERM_EXTATTR_SXSCROLL))
 				strcat(tmp, ";80");
 			if (cterm->mouse_state_query(1000, cterm->mouse_state_query_cbdata))
 				strcat(tmp, ";1000");
