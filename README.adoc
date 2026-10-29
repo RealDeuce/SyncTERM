@@ -46,3 +46,12 @@ See link:docs/Manual.txt[the user manual], link:docs/HACKING.adoc[the developmen
 guide], and link:docs/Wren.adoc[the Wren API manual]. Development rules are in
 link:AGENTS.md[AGENTS.md]. Licensing information is in link:LICENSE[LICENSE]
 and the component notices.
+
+== Before the v2.0 release
+
+* TODO: Provide a tool or explicit option to migrate v1.10b configuration
+  from its assumed CP437 encoding to v2.0's explicit UTF-8 encoding.
+  Cover configuration and BBS-list text, including names and string values.
+  Preserve the originals and avoid converting already-migrated UTF-8 data
+  a second time. This migration is required before shipping v2.0 and is
+  not implemented yet.
