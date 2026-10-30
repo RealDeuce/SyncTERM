@@ -70,7 +70,7 @@ behavior. Commit IDs below belong to the Synchronet reference repository.
 | --- | --- |
 | `679e5bae93`, `rip_test/ellipse_research.md` | BGI ellipses use decimal fixed-point scaling and truncation, not a mathematically smoother ellipse. Eight captured sweeps include 371 radius combinations, tall/wide and degenerate shapes. |
 | `d1c27d856b` | Arc clipping follows BGI's extracted trigonometric tables. Captured ellipse and pie scenes cover quadrants and partial arcs. |
-| `7e79e2c438` | Bezier evaluation accumulates the parameter increment, including its rounding error. `test08_bezier` and `test13_thick_xor` preserve those pixels. |
+| `7e79e2c438` | Bezier evaluation accumulates the parameter increment, including its rounding error. Arithmetic must retain double-precision rounding at each operation rather than fused multiply-add or excess register precision. `test08_bezier` and `test13_thick_xor` preserve those pixels; focused C tests also check the integer-boundary samples that exposed platform differences. |
 | `fadd8eb62f`, `rip_test/thick_xor_research.md` | Thick ellipses use a sweep of thick line segments, including duplicate-point caps. `test14_thick_xor_ellipse` checks the resulting XOR raster. |
 | `e4478e1d16`, `rip_test/polygon_notes.md` | Degenerate vertices, sub-polygon closure, colour-zero outline suppression, patterned fill and XOR ordering. Polygon, edge and fill-poly scenes check the complete graphics region. |
 | `e4478e1d16`, `rip_test/fill_notes.md` | BGI flood-fill quirks and pattern gating. The captured flood scene covers border openings and patterned fills; existing focused C tests retain additional flood expectations. |

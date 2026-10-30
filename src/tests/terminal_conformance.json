@@ -9,7 +9,7 @@
     {"id": "LF", "source_line": 235, "suite": "movement", "scope": "Expected cursor coordinates; defaults, clamping and tab stops"},
     {"id": "CR", "source_line": 240, "suite": "movement", "scope": "Expected cursor coordinates; defaults, clamping and tab stops"},
     {"id": "NEL", "source_line": 245, "suite": "movement", "scope": "Expected cursor coordinates; defaults, clamping and tab stops"},
-    {"id": "HTS", "source_line": 250, "suite": "movement", "scope": "Expected cursor coordinates; defaults, clamping and tab stops"},
+    {"id": "HTS", "source_line": 250, "suite": "movement", "scope": "Custom tab stops, sorted and duplicate insertion, reinsertion after clear; expected cursor coordinates"},
     {"id": "RI", "source_line": 257, "suite": "movement", "scope": "Expected cursor coordinates; defaults, clamping and tab stops"},
     {"id": "APC", "source_line": 262, "suite": "extensions", "scope": "String consumption and surrounding visible text"},
     {"id": "DCS", "source_line": 267, "suite": "extensions", "scope": "String consumption and surrounding visible text"},

@@ -2099,27 +2099,47 @@ draw_pie(struct cterm_rip_raster *rip, int xc, int yc,
 	free(arc.points);
 }
 
+static double
+bgi_round_double(double value)
+{
+	/* RIPterm stores double intermediates. Force that rounding even with
+	 * excess register precision, and keep operations separate from FMA. */
+	volatile double rounded = value;
+	return rounded;
+}
+
+static int
+bezier_coordinate(const int *points, size_t axis, const double weights[4])
+{
+	double result = bgi_round_double(weights[0] * points[axis]);
+
+	for (size_t i = 1; i < 4; ++i) {
+		double term = bgi_round_double(weights[i] * points[i * 2 + axis]);
+		result = bgi_round_double(result + term);
+	}
+	return (int)result;
+}
+
 static void
 draw_bezier(struct cterm_rip_raster *rip, const int *points, int segments)
 {
-	double step = 1.0 / segments;
+	double step = bgi_round_double(1.0 / segments);
 	int pattern_position = 0;
 
 	rip->x = points[0];
 	rip->y = points[1];
 	draw_line_to(rip, points[0], points[1], &pattern_position);
-	for (double t = step; t <= 1.0 && rip->error == 0; t += step) {
-		double squared = t * t;
-		double cubed = t * squared;
-		double remainder = 1.0 - t;
-		double remainder_squared = remainder * remainder;
-		double remainder_cubed = remainder_squared * remainder;
-		double second = 3.0 * t * remainder_squared;
-		double third = 3.0 * squared * remainder;
-		int x = (int)(remainder_cubed * points[0] + second * points[2]
-		    + third * points[4] + cubed * points[6]);
-		int y = (int)(remainder_cubed * points[1] + second * points[3]
-		    + third * points[5] + cubed * points[7]);
+	for (double t = step; t <= 1.0 && rip->error == 0; t = bgi_round_double(t + step)) {
+		double squared = bgi_round_double(t * t);
+		double cubed = bgi_round_double(t * squared);
+		double remainder = bgi_round_double(1.0 - t);
+		double remainder_squared = bgi_round_double(remainder * remainder);
+		double remainder_cubed = bgi_round_double(remainder_squared * remainder);
+		double second = bgi_round_double(bgi_round_double(3.0 * t) * remainder_squared);
+		double third = bgi_round_double(bgi_round_double(3.0 * squared) * remainder);
+		const double weights[4] = {remainder_cubed, second, third, cubed};
+		int x = bezier_coordinate(points, 0, weights);
+		int y = bezier_coordinate(points, 1, weights);
 
 		pattern_position = 0;
 		draw_line_to(rip, x, y, &pattern_position);

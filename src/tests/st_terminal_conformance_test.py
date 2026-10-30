@@ -166,6 +166,8 @@ def movement(t):
         for params, xy in ((b"", (1, 1)), (b";", (1, 1)), (b"2", (1, 2)),
                            (b"2;", (1, 2)), (b";2", (2, 1)), (b"2;2", (2, 2))):
             t.check(name, cup(5, 5) + ESC + b"[" + params + final, xy)
+    t.check("HTS-after-clear", ESC + b"[3g" + cup(5, 1) + ESC + b"H"
+            + ESC + b"[3g" + ESC + b"H" + cup(1, 1) + b"\t", (5, 1))
     t.check("REP", b"X" + ESC + b"[3b", (5, 1), ((1, 1, "XXXX"),))
     t.check("RIS", cup(10, 10) + ESC + b"[31m" + ESC + b"c", (1, 1))
     # The ASCII control cases above run in both encodings. Also exercise actual

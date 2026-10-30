@@ -28,6 +28,11 @@ come from SyncTERM's documented input convention rather than termtest.js.
 Native X11 tests separately cover keypad aliases that could trigger window
 shortcuts, and Wren tests check decoding under the current menu font's codepage.
 
+Tab-stop tests cover insertion at the end of the list, sorted insertion,
+duplicate stops, and reinsertion after clearing the list. The latter must not
+mistake stale allocation contents for an active stop; the focused C tests also
+run these cases under sanitizers.
+
 The additional `recovery` group runs 48 bounded cases with seed `0x43544552`,
 including overlong parameters, malformed strings, invalid UTF-8 and random bytes.
 Every case must recover known cells, margins and cursor coordinates and answer a
@@ -59,7 +64,7 @@ bytes, case trace, coherent snapshot and PPM under the build's
 | `LF` | 235 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
 | `CR` | 240 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
 | `NEL` | 245 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
-| `HTS` | 250 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
+| `HTS` | 250 | movement | Custom tab stops, sorted and duplicate insertion, reinsertion after clear; expected cursor coordinates |
 | `RI` | 257 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
 | `APC` | 262 | extensions | String consumption and surrounding visible text |
 | `DCS` | 267 | extensions | String consumption and surrounding visible text |

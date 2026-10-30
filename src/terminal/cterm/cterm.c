@@ -976,7 +976,7 @@ cterm_insert_tabstop(struct cterminal *cterm, int pos)
 	int *new_stops;
 
 	for (i = 0; i < cterm->tab_count && cterm->tabs[i] < pos; i++);
-	if (cterm->tabs[i] == pos)
+	if (i < cterm->tab_count && cterm->tabs[i] == pos)
 		return;
 
 	new_stops = realloc(cterm->tabs, (cterm->tab_count + 1) * sizeof(cterm->tabs[0]));

@@ -443,6 +443,20 @@ test_poly_beziers(void)
 	    &handled) == 0 && handled);
 	CHECK(rip.button_style.flags == 256);
 	CHECK(rip.poly_fill_marks == NULL && rip.error == 0);
+	/* Independent pixels from RIPterm's test08_bezier capture: these
+	 * integer-boundary samples distinguish double rounding from FMA and
+	 * extended-register evaluation. Neighbouring pixels stay clear. */
+	CHECK(cterm_rip_raster_reset_windows(&rip) == 0);
+	CHECK(cterm_rip_raster_command(&rip, 0, 0, 'c', "0E", &handled) == 0 && handled);
+	CHECK(cterm_rip_raster_command(&rip, 0, 0, 'Z',
+	    "1E7S5K5K1E5K5K7S0U", &handled) == 0 && handled);
+	CHECK(pixel(console, 193, 276, &colour) == 0 && colour == rip.palette[14]);
+	CHECK(pixel(console, 194, 276, &colour) == 0 && colour == rip.palette[0]);
+	CHECK(cterm_rip_raster_command(&rip, 0, 0, 'c', "0F", &handled) == 0 && handled);
+	CHECK(cterm_rip_raster_command(&rip, 0, 0, 'Z',
+	    "BO1EDW1EDW8CG48C0K", &handled) == 0 && handled);
+	CHECK(pixel(console, 484, 130, &colour) == 0 && colour == rip.palette[15]);
+	CHECK(pixel(console, 483, 130, &colour) == 0 && colour == rip.palette[0]);
 	cterm_rip_raster_destroy(&rip);
 	st_console_destroy(console);
 	return 0;

@@ -385,6 +385,29 @@ feed(struct rig *rig, const void *bytes, size_t size)
 }
 
 static void
+test_tabstop_insertion(void)
+{
+	for (int encoding = ST_CTERM_ENCODING_UTF8; encoding <= ST_CTERM_ENCODING_CODEPAGE; ++encoding) {
+		struct rig rig;
+		open_rig(&rig, (enum st_cterm_encoding)encoding);
+		/* Clear preserves the old allocation, including its former first
+		 * stop at column 9. That stale value must not suppress insertion. */
+		static const char first[] = "\033[3g\033[1;9H\033H";
+		feed(&rig, first, sizeof(first) - 1);
+		CHECK(rig.terminal->tab_count == 1 && rig.terminal->tabs[0] == 9);
+		static const char more[] = "\033[1;20H\033H\033[1;5H\033H\033[1;17H\033H\033H";
+		feed(&rig, more, sizeof(more) - 1);
+		CHECK(rig.terminal->tab_count == 4);
+		const int expected[] = {5, 9, 17, 20};
+		CHECK(memcmp(rig.terminal->tabs, expected, sizeof(expected)) == 0);
+		static const char clear[] = "\033[3g\033[1;5H\033H";
+		feed(&rig, clear, sizeof(clear) - 1);
+		CHECK(rig.terminal->tab_count == 1 && rig.terminal->tabs[0] == 5);
+		close_rig(&rig);
+	}
+}
+
+static void
 test_cursor_and_blink_background(void)
 {
 	for (int encoding = ST_CTERM_ENCODING_UTF8; encoding <= ST_CTERM_ENCODING_CODEPAGE; ++encoding) {
@@ -954,6 +977,7 @@ test_diagnostics(void)
 int
 main(void)
 {
+	test_tabstop_insertion();
 	test_diagnostics();
 	test_codepages();
 	test_scrollback_text();

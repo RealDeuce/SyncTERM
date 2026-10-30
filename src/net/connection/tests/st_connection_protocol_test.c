@@ -23,7 +23,7 @@
 #define CHECK(e) do { if (!(e)) { fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, #e); return 1; } } while (0)
 enum protocol { TELNET, NVT, TELNET_TLS, GHOST, GHOST_BAD,
 	MQTT, MQTT_BAD, MQTT_OVERSIZE, MQTT_SYSTEM_PROMPT, MQTT_MANUAL, MQTT_BBSID,
-	MQTT_CANCEL, MQTT_DENIED, MQTT_CERT, TLS_BAD };
+	MQTT_CANCEL, MQTT_DENIED, MQTT_CERT, MQTT_DELAYED_ACK, TLS_BAD };
 struct fixture { int listener, socket; SSL_CTX *ctx; SSL *ssl; enum protocol type; };
 static const uint8_t text[] = {'A', '\r', 0, 'B', 255, 'C'};
 static const uint8_t keys[] = {'x', 3, 255, '\r', '\n'};
@@ -289,6 +289,12 @@ mqtt_server(struct fixture *f)
 	CHECK(mq_subscription(f, false, "sbbs/+/version") == 0);
 	if (f->type != MQTT_BBSID) CHECK(mq_publish(f, "sbbs/TEST/version", "1.0", 3) == 0);
 	CHECK(mq_subscription(f, true, "sbbs/+/version") == 0);
+	if (f->type == MQTT_DELAYED_ACK) {
+		/* Retained-node discovery starts when SUBACK is received, not
+		 * while a slow broker is still accepting the subscription. */
+		const struct timespec delay = {2, 0};
+		CHECK(st_thread_sleep(&delay, NULL) == 0);
+	}
 	CHECK(mq_subscription(f, false, "sbbs/TEST/node/+/status") == 0);
 	CHECK(mq_publish(f, "sbbs/TEST/node/3/status", "3", 1) == 0);
 	CHECK(mq_subscription(f, true, "sbbs/TEST/node/+/status") == 0);
@@ -375,7 +381,7 @@ server(void *context)
 		CHECK(SSL_read(f->ssl, &byte, 1) <= 0);
 		SSL_free(f->ssl); f->ssl = NULL; close(f->socket); return 0;
 	}
-	status = f->type >= MQTT && f->type <= MQTT_CERT ? mqtt_server(f)
+	status = f->type >= MQTT && f->type <= MQTT_DELAYED_ACK ? mqtt_server(f)
 	    : f->type == NVT ? nvt_server(f)
 	    : f->type == GHOST || f->type == GHOST_BAD ? ghost_server(f)
 	    : telnet_server(f);
@@ -446,7 +452,7 @@ run(enum protocol type)
 	st_connection_t *connection = NULL;
 	st_thread_t thread;
 	int status, thread_status;
-	bool mqtt = type >= MQTT && type <= MQTT_CERT;
+	bool mqtt = type >= MQTT && type <= MQTT_DELAYED_ACK;
 	f.listener = socket(AF_INET, SOCK_STREAM, 0);
 	CHECK(f.listener >= 0 && bind(f.listener, (struct sockaddr *)&address, sizeof(address)) == 0
 	    && listen(f.listener, 1) == 0

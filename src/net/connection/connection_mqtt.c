@@ -250,7 +250,9 @@ static int
 discover(struct mqtt_transport *t, struct mqtt_node *nodes, size_t *count,
 	bool find_bbs, const struct st_connection_hooks *hooks)
 {
-	uint64_t end = now_ms() + (find_bbs ? 5000 : 1500);
+	const uint64_t window = find_bbs ? 5000 : 1500;
+	uint64_t end = now_ms() + 10000;
+	bool subscribed = false;
 	while (now_ms() < end) {
 		struct mqtt_publish p;
 		int status = wait_packet(t, hooks, end);
@@ -297,10 +299,18 @@ discover(struct mqtt_transport *t, struct mqtt_node *nodes, size_t *count,
 		} else {
 			status = control_packet(t);
 			if (status != 0) return status;
+			/* Broker acceptance can take longer than the retained-message
+			 * collection window. Start that window at this subscription's
+			 * SUBACK; older acknowledgements must not restart it. */
+			if (!subscribed && t->header[0] == 0x90
+			    && (((unsigned)t->body[0] << 8) | t->body[1]) == t->packet_id) {
+				subscribed = true;
+				end = now_ms() + window;
+			}
 		}
 		release_packet(t);
 	}
-	return 0;
+	return subscribed ? 0 : IO_ERROR_TIMED_OUT;
 }
 
 static int
