@@ -2849,16 +2849,20 @@ a separate Unicode value.
   `text`.
 
 | `codepoint`
-| Unicode value of the byte under the current `Font.codepage` for
-  non-extended keys; `null` for extended keys (high byte non-zero).
+| Unicode scalar for text input. Compatibility-only byte keys are decoded
+  under the current `Font.codepage`; extended keys have `null` here.
 
 | `text`
 | UTF-8 form of `codepoint`, or `""` for extended keys.
 |===
 
-Alt+Keypad codepage entry produces a `KeyEvent` decoded through the selected
-font's current codepage. Leading-zero Unicode entry retains the entered
-Unicode value even when its compatibility `code` must use `?`.
+Alt+Keypad entry without a leading zero produces a `KeyEvent` decoded through
+the connection's current encoding. In UTF-8 mode and menus, the entered value
+is its Unicode value; codepage connections decode the byte through their active
+codepage. This is independent of the selected display font. As with native
+Unicode text input, the compatibility `code` is encoded through the selected
+font's codepage and may use `?`. Leading-zero Unicode entry always retains the
+entered Unicode value.
 
 `Input.unget` stores the complete event record, including its separate Unicode
 value.  It does not split or reinterpret the 16-bit compatibility code.

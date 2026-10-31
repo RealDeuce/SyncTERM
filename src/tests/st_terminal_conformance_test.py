@@ -465,11 +465,12 @@ def keyboard(t):
 
     # Numeric entry uses physical keypad positions; top-row digits are distinct.
     numeric = ALT | 32  # Num Lock
-    for digits, cp437, utf8 in (("130", b"\x82", b"\xc3\xa9"),
+    for digits, cp437, utf8 in (("130", b"\x82", b"\xc2\x82"),
                                  ("0233", b"\x82", b"\xc3\xa9"),
-                                 ("179", b"\xb3", b"\xe2\x94\x82"),
+                                 ("179", b"\xb3", b"\xc2\xb3"),
                                  ("0128377", b"", b"\xf0\x9f\x95\xb9"),
-                                 ("255", b"\xff", b"\xc2\xa0"),
+                                 ("255", b"\xff", b"\xc3\xbf"),
+                                 ("0255", b"\x98", b"\xc3\xbf"),
                                  ("256", b"", b""), ("055296", b"", b""),
                                  ("01114112", b"", b""), ("0", b"", b"")):
         t.case("alt-keypad-" + digits)
@@ -500,6 +501,21 @@ def numeric_entry(client, digits):
 
 
 def codepage_numeric(executable, reports):
+    # These values distinguish the active codepage from CP437. Entering the
+    # byte and its Unicode scalar must produce the same byte on the wire.
+    for encoding, byte, scalar in (("CP1251", 192, 0x0410),
+                                    ("KOI8-R", 192, 0x044e),
+                                    ("CP850", 155, 0x00f8),
+                                    ("ISO-8859-1", 224, 0x00e0)):
+        with connection(executable, reports, encoding=encoding,
+                        settings="AudioModes=0\n") as (client, root, peer, send):
+            t = Terminal(client, root, peer, send)
+            t.exchange(reset=True)
+            for digits in (str(byte), "0" + str(scalar)):
+                t.case(f"alt-keypad-{encoding}-{digits}")
+                numeric_entry(client, digits)
+                client.text("~")
+                t.input(bytes((byte,)) + b"~")
     # Fixed mapping expectations; supplementary characters must reach the
     # actual wire byte, not merely survive the console's Unicode event queue.
     for encoding, scalar, expected in (("ATASCII", 0x1f8b0, b"\x7d"),

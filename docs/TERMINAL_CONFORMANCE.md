@@ -25,8 +25,13 @@ bytes, leading-zero Unicode, non-BMP text on UTF-8 connections and non-BMP
 mappings on ATASCII/PETSCII/Prestel codepage connections, duplicate native
 text suppression, invalid values and focus-loss cancellation. These expectations
 come from SyncTERM's documented input convention rather than termtest.js.
+UTF-8 checks require Alt+255 and Alt+0255 to send U+00FF identically.
+CP1251, KOI8-R, CP850 and ISO-8859-1 connections check both direct byte entry
+and the corresponding Unicode entry against fixed wire bytes. Wren tests also
+check queued and claimed input across encoding changes with an independent
+display font, including Unicode numeric input in menus.
 Native X11 tests separately cover keypad aliases that could trigger window
-shortcuts, and Wren tests check decoding under the current menu font's codepage.
+shortcuts. Wren compatibility-key tests retain their font-codepage decoding checks.
 
 Tab-stop tests cover insertion at the end of the list, sorted insertion,
 duplicate stops, and reinsertion after clearing the list. The latter must not

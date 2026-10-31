@@ -841,13 +841,12 @@ handle_event(st_term_session_t *session,
 			    event->data.codepage_byte);
 			return session->output_error;
 		}
-		/* UTF-8 connections encode the entered codepage character. */
+		/* In UTF-8 mode, the entered value is already a Unicode scalar. */
 		/* FALLTHROUGH */
 	case ST_CONSOLE_EVENT_TEXT: {
 		uint32_t codepoint = event->type == ST_CONSOLE_EVENT_TEXT
 		    ? event->data.text.codepoint
-		    : st_codepage_to_unicode(st_cterm_codepage(session->cterm),
-		    event->data.codepage_byte, false);
+		    : event->data.codepage_byte;
 		char utf8[4];
 		ptrdiff_t size = st_utf8_encode_one(utf8, sizeof(utf8), codepoint);
 

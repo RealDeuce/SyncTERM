@@ -4451,7 +4451,10 @@ exercise_input_value_contract(struct st_wren_host *host,
 	    "var compatibility = Input.poll()\n"
 	    "if (compatibility.code != 0xc0 || compatibility.codepoint != 0x0410 || compatibility.text != String.fromCodePoint(0x0410)) Fiber.abort(\"compatibility codepage\")\n"
 	    "var numeric = Input.poll()\n"
-	    "if (numeric.code != 0xc0 || numeric.codepoint != 0x0410 || numeric.text != String.fromCodePoint(0x0410)) Fiber.abort(\"numeric codepage\")\n"
+	    "if (numeric.code != 0x3f || numeric.codepoint != 0x00c0 || numeric.text != String.fromCodePoint(0x00c0)) Fiber.abort(\"numeric UTF-8 menu input\")\n"
+	    "var byte255 = Input.poll()\n"
+	    "var unicode255 = Input.poll()\n"
+	    "if (byte255.codepoint != 255 || byte255.text != \"ÿ\" || byte255.code != unicode255.code || byte255.text != unicode255.text) Fiber.abort(\"numeric UTF-8 equivalence\")\n"
 	    "Screen.font[0] = original\n";
 	const struct st_console_event numeric = {
 		.type = ST_CONSOLE_EVENT_CODEPAGE_BYTE,
@@ -4524,6 +4527,10 @@ exercise_input_value_contract(struct st_wren_host *host,
 	CHECK(st_console_post_event(console, &unencodable) == 0);
 	CHECK(st_console_post_event(console, &compatibility) == 0);
 	CHECK(st_console_post_event(console, &numeric) == 0);
+	CHECK(st_console_post_event(console, &(struct st_console_event){
+	    .type = ST_CONSOLE_EVENT_CODEPAGE_BYTE, .data.codepage_byte = 255}) == 0);
+	CHECK(st_console_post_event(console, &(struct st_console_event){
+	    .type = ST_CONSOLE_EVENT_TEXT, .data.text.codepoint = 255}) == 0);
 	CHECK(wrenInterpret(host->vm, "input_codepage_contract", codepage_source)
 	    == WREN_RESULT_SUCCESS);
 	CHECK(st_console_post_event(console, &press) == 0);
@@ -4559,6 +4566,89 @@ exercise_input_value_contract(struct st_wren_host *host,
 	    "for (expected in [10, 127, 14080, 30464, 14592, 33792, 13056, 30208]) {\n"
 	    "  if (Input.poll().code != expected) Fiber.abort(\"modified key mapping\")\n"
 	    "}\n") == WREN_RESULT_SUCCESS);
+	return 0;
+}
+
+static int
+exercise_numeric_encoding_contract(struct st_wren_host *host,
+	st_console_t *console)
+{
+	st_font_catalog_t *fonts = NULL;
+	st_cterm_t *terminal = NULL;
+	CHECK(host->menu.cterm == NULL);
+	CHECK(st_font_catalog_create(&fonts, console) == 0);
+	const struct st_cterm_config config = {
+		.console = console, .fonts = fonts, .emulation = ST_CTERM_ANSI_BBS,
+		.encoding = ST_CTERM_ENCODING_UTF8, .codepage = ST_CODEPAGE_CP1251,
+		.quiet = true,
+	};
+	CHECK(st_cterm_create(&terminal, &config) == 0);
+	host->menu.cterm = terminal;
+	CHECK(wrenInterpret(host->vm, "numeric_encoding_contract",
+	    "import \"syncterm\" for Input, KeyEvent, Screen\n"
+	    "class NumericProbe {\n"
+	    "  static start() {\n"
+	    "    __font = Screen.font[0]\n"
+	    "    Screen.font[0] = 0\n"
+	    "    __worker = Fiber.new {\n"
+	    "      var claim = Input.pushClaim(Fn.new {|event|\n"
+	    "        NumericProbe.check(event)\n"
+	    "        return true\n"
+	    "      })\n"
+	    "      Fiber.yield()\n"
+	    "      claim.pop()\n"
+	    "    }\n"
+	    "    __worker.call()\n"
+	    "  }\n"
+	    "  static expect(scalar) {\n"
+	    "    __expected = scalar\n"
+	    "    __seen = 0\n"
+	    "  }\n"
+	    "  static check(event) {\n"
+	    "    if (!(event is KeyEvent) || event.codepoint != __expected || event.text != String.fromCodePoint(__expected)) Fiber.abort(\"numeric input encoding\")\n"
+	    "    __seen = __seen + 1\n"
+	    "  }\n"
+	    "  static poll() { check(Input.poll()) }\n"
+	    "  static verify() {\n"
+	    "    if (__seen != 2) Fiber.abort(\"numeric queue and dispatch\")\n"
+	    "  }\n"
+	    "  static finish() {\n"
+	    "    __worker.call()\n"
+	    "    Screen.font[0] = __font\n"
+	    "  }\n"
+	    "}\n"
+	    "NumericProbe.start()\n") == WREN_RESULT_SUCCESS);
+	const struct {
+		enum st_cterm_encoding encoding;
+		enum st_codepage codepage;
+		unsigned int scalar;
+	} cases[] = {
+		{ST_CTERM_ENCODING_UTF8, ST_CODEPAGE_CP1251, 0x00e0},
+		{ST_CTERM_ENCODING_CODEPAGE, ST_CODEPAGE_CP1251, 0x0430},
+		{ST_CTERM_ENCODING_CODEPAGE, ST_CODEPAGE_KOI8_R, 0x042e},
+		{ST_CTERM_ENCODING_CODEPAGE, ST_CODEPAGE_CP850, 0x00d3},
+		{ST_CTERM_ENCODING_CODEPAGE, ST_CODEPAGE_ISO_8859_1, 0x00e0},
+		{ST_CTERM_ENCODING_CODEPAGE, ST_CODEPAGE_CP437, 0x03b1},
+		{ST_CTERM_ENCODING_UTF8, ST_CODEPAGE_CP437, 0x00e0},
+	};
+	const struct st_console_event event = {
+		.type = ST_CONSOLE_EVENT_CODEPAGE_BYTE, .data.codepage_byte = 224,
+	};
+	for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+		char source[128];
+		CHECK(st_cterm_set_encoding(terminal, cases[i].encoding, cases[i].codepage) == 0);
+		(void)snprintf(source, sizeof(source), "NumericProbe.expect(%u)\n", cases[i].scalar);
+		CHECK(wrenInterpret(host->vm, "numeric_encoding_contract", source) == WREN_RESULT_SUCCESS);
+		CHECK(st_console_post_event(console, &event) == 0);
+		CHECK(wrenInterpret(host->vm, "numeric_encoding_contract", "NumericProbe.poll()\n") == WREN_RESULT_SUCCESS);
+		bool consumed = false;
+		CHECK(st_wren_input_dispatch_console_event(host->vm, &event, &consumed) == 0 && consumed);
+		CHECK(wrenInterpret(host->vm, "numeric_encoding_contract", "NumericProbe.verify()\n") == WREN_RESULT_SUCCESS);
+	}
+	CHECK(wrenInterpret(host->vm, "numeric_encoding_contract", "NumericProbe.finish()\n") == WREN_RESULT_SUCCESS);
+	host->menu.cterm = NULL;
+	st_cterm_destroy(&terminal);
+	st_font_catalog_destroy(fonts);
 	return 0;
 }
 
@@ -5009,7 +5099,7 @@ main(int argc, char **argv)
 	    "history", 7, &history_hyperlink) == 0);
 	CHECK(history_hyperlink == 1);
 	history_cells[0].hyperlink = history_hyperlink;
-	CHECK(st_audio_runtime_create(&audio_runtime, UINT32_MAX) == 0);
+	CHECK(st_audio_runtime_create(&audio_runtime, menu_only ? 0 : UINT32_MAX) == 0);
 	CHECK(st_session_history_publish(session_history, history_cells, 2, 2,
 	    ST_SCREEN_MODE_CURRENT, true) == 0);
 	host_config = (struct st_wren_host_config){
@@ -5060,6 +5150,7 @@ main(int argc, char **argv)
 	CHECK(exercise_repl_style(host, console) == 0);
 	CHECK(exercise_mouse_drag_selection(host, console) == 0);
 	CHECK(exercise_input_value_contract(host, console) == 0);
+	CHECK(exercise_numeric_encoding_contract(host, console) == 0);
 	CHECK(exercise_claim_wake_contract(host) == 0);
 	CHECK(exercise_input_deadline_contract(host, console) == 0);
 	CHECK(exercise_repl_contract(host) == 0);

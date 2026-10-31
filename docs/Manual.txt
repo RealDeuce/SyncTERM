@@ -330,8 +330,9 @@ the value is entered, release the kbd:[Alt] key.
 A unicode value is the Unicode codepoint number. On a UTF-8 connection,
 any valid Unicode character can be entered. On a codepage connection,
 characters from any Unicode plane can be entered when they map to the
-current codepage. Codepage entries use that same codepage even on a UTF-8
-connection; for example, with CP437,
+current codepage. On a UTF-8 connection and in the menus, entries without
+a leading zero also use their Unicode value; for example, kbd:[Alt+255]
+and kbd:[Alt+0255] both enter `ÿ`. On a CP437 connection,
 kbd:[Alt+130] and kbd:[Alt+0233] both enter `é`.
 
 To enter a unicode value, ensure kbd:[NumLock] is on, and hold down an
@@ -342,9 +343,9 @@ release the kbd:[Alt] key.
 This requires an input backend that receives physical key presses and
 releases. In curses and ANSI modes, character composition is handled by
 the host terminal. Native macOS keypads are numeric without a NumLock
-setting. Codepage entries must be between 1 and 255; Unicode entries
-must be nonzero valid Unicode scalar values. Out-of-range entries are
-ignored. Another key press or loss of focus cancels a partial entry.
+setting. Entries without a leading zero must be between 1 and 255;
+Unicode entries must be nonzero valid Unicode scalar values. Out-of-range
+entries are ignored. Another key press or loss of focus cancels a partial entry.
 
 == The User Interface
 

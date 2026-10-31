@@ -348,7 +348,7 @@ enum st_console_event_type {
 	ST_CONSOLE_EVENT_FOCUS,
 	/* Host window closure or permanent terminal-input disconnection. */
 	ST_CONSOLE_EVENT_CLOSE,
-	/* Direct numeric entry, resolved by the consumer's current codepage. */
+	/* Direct numeric entry, resolved by the consumer's current encoding. */
 	ST_CONSOLE_EVENT_CODEPAGE_BYTE,
 };
 

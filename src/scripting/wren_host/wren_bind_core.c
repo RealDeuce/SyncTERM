@@ -162,6 +162,35 @@ struct binding {
 static enum st_codepage font_codepage(uint16_t selector);
 
 static struct st_wren_input_record
+unicode_key_record(struct st_wren_context *context, uint32_t codepoint)
+{
+	uint8_t byte;
+	return (struct st_wren_input_record){
+		.type = ST_WREN_INPUT_KEY,
+		.data.key = {
+			.code = st_codepage_from_unicode(&byte,
+			    font_codepage(context->fonts.slots[0]), codepoint) ? byte : '?',
+			.codepoint = codepoint,
+			.has_codepoint = true,
+		},
+	};
+}
+
+static struct st_wren_input_record
+numeric_key_record(struct st_wren_context *context, uint8_t value)
+{
+	uint32_t codepoint = value;
+
+	/* Menus use Unicode. A connected VM follows the current terminal
+	 * encoding, which is independent of the font selected by a script. */
+	if (context->cterm != NULL
+	    && st_cterm_encoding(context->cterm) == ST_CTERM_ENCODING_CODEPAGE)
+		codepoint = st_codepage_to_unicode(st_cterm_codepage(context->cterm),
+		    value, false);
+	return unicode_key_record(context, codepoint);
+}
+
+static struct st_wren_input_record
 compatibility_key_record(struct st_wren_context *context, uint16_t code)
 {
 	struct st_wren_input_record record = {
@@ -1150,25 +1179,12 @@ queue_console_event(struct st_wren_context *context,
 		break;
 	}
 	case ST_CONSOLE_EVENT_CODEPAGE_BYTE:
-		records[count++] = compatibility_key_record(context,
+		records[count++] = numeric_key_record(context,
 		    event->data.codepage_byte);
 		break;
-	case ST_CONSOLE_EVENT_TEXT: {
-		uint8_t byte;
-
-		records[count++] = (struct st_wren_input_record){
-			.type = ST_WREN_INPUT_KEY,
-			.data.key = {
-				.code = st_codepage_from_unicode(&byte,
-				    font_codepage(context->fonts.slots[0]),
-				    event->data.text.codepoint)
-				    ? byte : '?',
-				.codepoint = event->data.text.codepoint,
-				.has_codepoint = true,
-			},
-		};
+	case ST_CONSOLE_EVENT_TEXT:
+		records[count++] = unicode_key_record(context, event->data.text.codepoint);
 		break;
-	}
 	case ST_CONSOLE_EVENT_DOORWAY_KEY:
 		records[count++] = (struct st_wren_input_record){
 			.type = ST_WREN_INPUT_KEY,
@@ -1743,23 +1759,11 @@ st_wren_input_dispatch_console_event(WrenVM *vm,
 		    event->data.key.code, event->data.key.modifiers));
 		break;
 	case ST_CONSOLE_EVENT_CODEPAGE_BYTE:
-		record = compatibility_key_record(context, event->data.codepage_byte);
+		record = numeric_key_record(context, event->data.codepage_byte);
 		break;
-	case ST_CONSOLE_EVENT_TEXT: {
-		uint8_t byte;
-
-		record = (struct st_wren_input_record){
-			.type = ST_WREN_INPUT_KEY,
-			.data.key = {
-				.code = st_codepage_from_unicode(&byte,
-				    font_codepage(context->fonts.slots[0]),
-				    event->data.text.codepoint) ? byte : '?',
-				.codepoint = event->data.text.codepoint,
-				.has_codepoint = true,
-			},
-		};
+	case ST_CONSOLE_EVENT_TEXT:
+		record = unicode_key_record(context, event->data.text.codepoint);
 		break;
-	}
 	case ST_CONSOLE_EVENT_DOORWAY_KEY:
 		record = (struct st_wren_input_record){
 			.type = ST_WREN_INPUT_KEY,

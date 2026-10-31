@@ -383,8 +383,10 @@ not belong in that list.
 Alt+Keypad decimal entry is composed in the shared display input path under
 `input_mutex`. With Num Lock active, digits without a leading zero produce
 `ST_CONSOLE_EVENT_CODEPAGE_BYTE`; a leading zero produces Unicode `TEXT`.
-The consumer resolves a byte against its current codepage. Physical press,
-repeat and release events remain available. Window backends use
+The consumer resolves the value against the connection's current encoding:
+a legacy codepage byte, or the same Unicode value in UTF-8 mode. Menus use
+Unicode values; choosing a display font does not change input encoding.
+Physical press, repeat and release events remain available. Window backends use
 `st_console_display_post_key_event()` before shortcuts or text translation so
 keypad navigation aliases cannot resize or centre the window during entry.
 The shared queue also suppresses duplicate native text while composing.
