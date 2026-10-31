@@ -384,14 +384,126 @@ feed(struct rig *rig, const void *bytes, size_t size)
 	CHECK(consumed == size);
 }
 
+struct tab_report {
+	char expected[8192];
+	size_t size;
+	size_t received;
+};
+
+static void
+check_tab_report(void *context, enum st_cterm_output_origin origin,
+	const uint8_t *bytes, size_t size)
+{
+	struct tab_report *report = context;
+	CHECK(origin == ST_CTERM_OUTPUT_RESPONSE);
+	/* Validate every chunk against a separately constructed expected reply. */
+	CHECK(size <= report->size - report->received);
+	CHECK(memcmp(report->expected + report->received, bytes, size) == 0);
+	report->received += size;
+}
+
+static void
+test_default_tabstops(void)
+{
+	const int widths[] = {1, 8, 9, 20, 80, 132, 145, 160, 8192};
+	for (int encoding = ST_CTERM_ENCODING_UTF8; encoding <= ST_CTERM_ENCODING_CODEPAGE; ++encoding) {
+		struct rig rig;
+		open_rig(&rig, (enum st_cterm_encoding)encoding);
+		CHECK(rig.terminal->tab_count == 3);
+		for (size_t w = 0; w < sizeof(widths) / sizeof(widths[0]); w++) {
+			int width = widths[w];
+			CHECK(st_cterm_resize(rig.terminal, (uint32_t)width, 4) == 0);
+			CHECK(st_cterm_reset_terminal(rig.terminal) == 0);
+			CHECK(rig.terminal->tab_count == (width - 1) / 8 + 1);
+			for (int i = 0; i < rig.terminal->tab_count; i++)
+				CHECK(rig.terminal->tabs[i] == 1 + 8 * i);
+			struct tab_report report = {0};
+			report.size = (size_t)snprintf(report.expected,
+			    sizeof(report.expected), "\033P2$u");
+			for (int column = 1; column <= width; column += 8)
+				report.size += (size_t)snprintf(
+				    report.expected + report.size,
+				    sizeof(report.expected) - report.size,
+				    "%s%d", column == 1 ? "" : "/", column);
+			CHECK(report.size + 2 < sizeof(report.expected));
+			memcpy(report.expected + report.size, "\033\\", 2);
+			report.size += 2;
+			rig.terminal->api_output = check_tab_report;
+			rig.terminal->api_output_context = &report;
+			feed(&rig, "\033[2$w", 5);
+			CHECK(report.received == report.size);
+			rig.terminal->api_output = NULL;
+			rig.terminal->api_output_context = NULL;
+			char stream[64];
+			int length = snprintf(stream, sizeof(stream), "\033[1;%dH\t", width);
+			feed(&rig, stream, (size_t)length);
+			struct st_cterm_state state;
+			CHECK(st_cterm_state(rig.terminal, &state) == 0);
+			CHECK(state.x == 1 && state.y == 2);
+		}
+		/* Growth supplies defaults in new columns; shrink/grow must not
+		 * resurrect a deleted default or lose a custom stop. */
+		CHECK(st_cterm_resize(rig.terminal, 20, 4) == 0);
+		CHECK(st_cterm_reset_terminal(rig.terminal) == 0);
+		static const char customize[] = "\033[1;9H\033[g\033[1;13H\033H";
+		feed(&rig, customize, sizeof(customize) - 1);
+		CHECK(st_cterm_resize(rig.terminal, 40, 4) == 0);
+		const int expected[] = {1, 13, 17, 25, 33};
+		CHECK(rig.terminal->tab_count == 5);
+		CHECK(memcmp(rig.terminal->tabs, expected, sizeof(expected)) == 0);
+		CHECK(st_cterm_resize(rig.terminal, 8, 4) == 0);
+		CHECK(st_cterm_resize(rig.terminal, 40, 4) == 0);
+		CHECK(rig.terminal->tab_count == 5);
+		CHECK(memcmp(rig.terminal->tabs, expected, sizeof(expected)) == 0);
+		CHECK(st_cterm_resize(rig.terminal, 320, 4) == 0);
+		CHECK(rig.terminal->tab_count == 40);
+		CHECK(memcmp(rig.terminal->tabs, expected, sizeof(expected)) == 0);
+		CHECK(rig.terminal->tabs[5] == 41 && rig.terminal->tabs[39] == 313);
+		static const char wide_tab[] = "\033[1;305H\t";
+		feed(&rig, wide_tab, sizeof(wide_tab) - 1);
+		struct st_cterm_state state;
+		CHECK(st_cterm_state(rig.terminal, &state) == 0);
+		CHECK(state.x == 313 && state.y == 1);
+		CHECK(st_cterm_resize(rig.terminal, 40, 4) == 0);
+		for (int clear = 3; clear <= 5; clear += 2) {
+			CHECK(st_cterm_reset_terminal(rig.terminal) == 0);
+			char stream[16];
+			int length = snprintf(stream, sizeof(stream), "\033[%dg\033[1;5H\033H", clear);
+			feed(&rig, stream, (size_t)length);
+			CHECK(st_cterm_resize(rig.terminal, 80, 4) == 0);
+			CHECK(rig.terminal->tab_count == 1 && rig.terminal->tabs[0] == 5);
+			CHECK(st_cterm_resize(rig.terminal, 40, 4) == 0);
+		}
+		close_rig(&rig);
+	}
+	/* ATASCII shares these stops; they must not be stored in escbuf. */
+	struct rig rig;
+	open_rig(&rig, ST_CTERM_ENCODING_CODEPAGE);
+	st_cterm_destroy(&rig.terminal);
+	CHECK(st_console_resize(rig.console, 8192, 4) == 0);
+	const struct st_cterm_config config = {
+		.console = rig.console, .fonts = rig.fonts,
+		.emulation = ST_CTERM_ATASCII, .encoding = ST_CTERM_ENCODING_CODEPAGE,
+		.codepage = ST_CODEPAGE_ATASCII, .quiet = true,
+	};
+	CHECK(st_cterm_create(&rig.terminal, &config) == 0);
+	CHECK(st_cterm_reset_terminal(rig.terminal) == 0);
+	CHECK(rig.terminal->tab_count == 1024 && rig.terminal->tabs[1023] == 8185);
+	feed(&rig, "\177", 1);
+	struct st_cterm_state state;
+	CHECK(st_cterm_state(rig.terminal, &state) == 0);
+	CHECK(state.x == 9 && state.y == 1);
+	close_rig(&rig);
+}
+
 static void
 test_tabstop_insertion(void)
 {
 	for (int encoding = ST_CTERM_ENCODING_UTF8; encoding <= ST_CTERM_ENCODING_CODEPAGE; ++encoding) {
 		struct rig rig;
 		open_rig(&rig, (enum st_cterm_encoding)encoding);
-		/* Clear preserves the old allocation, including its former first
-		 * stop at column 9. That stale value must not suppress insertion. */
+		/* Clear preserves the old allocation. Inactive entries must not
+		 * suppress insertion or be read past the active list. */
 		static const char first[] = "\033[3g\033[1;9H\033H";
 		feed(&rig, first, sizeof(first) - 1);
 		CHECK(rig.terminal->tab_count == 1 && rig.terminal->tabs[0] == 9);
@@ -977,6 +1089,7 @@ test_diagnostics(void)
 int
 main(void)
 {
+	test_default_tabstops();
 	test_tabstop_insertion();
 	test_diagnostics();
 	test_codepages();

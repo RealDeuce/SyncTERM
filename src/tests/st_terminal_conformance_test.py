@@ -168,6 +168,14 @@ def movement(t):
             t.check(name, cup(5, 5) + ESC + b"[" + params + final, xy)
     t.check("HTS-after-clear", ESC + b"[3g" + cup(5, 1) + ESC + b"H"
             + ESC + b"[3g" + ESC + b"H" + cup(1, 1) + b"\t", (5, 1))
+    t.check("default-tab-report", ESC + b"[2$w", (1, 1),
+            expected=ESC + b"P2$u1/9/17/25/33/41/49/57/65/73" + ST)
+    t.check("HT-last-stop", cup(73, 1) + b"\t", (1, 2))
+    t.check("HT-last-column", cup(80, 1) + b"\t", (1, 2))
+    t.check("HT-bottom-scroll", cup(1, 25) + b"LAST" + cup(73, 25) + b"\t",
+            (1, 25), ((1, 24, "LAST"), (1, 25, "    ")))
+    t.check("CBT-last-column", cup(80, 1) + ESC + b"[Z", (73, 1))
+    t.check("RIS-restores-tabs", ESC + b"[3g" + ESC + b"c\t", (9, 1))
     t.check("REP", b"X" + ESC + b"[3b", (5, 1), ((1, 1, "XXXX"),))
     t.check("RIS", cup(10, 10) + ESC + b"[31m" + ESC + b"c", (1, 1))
     # The ASCII control cases above run in both encodings. Also exercise actual

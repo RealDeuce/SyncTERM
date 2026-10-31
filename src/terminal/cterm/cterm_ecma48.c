@@ -486,12 +486,14 @@ cterm_handle_tbc(struct cterminal *cterm, int *speed)	/* CSI g */
 			break;
 		case 3:
 			cterm->tab_count = 0;
+			cterm->default_tabs = false;
 			break;
 		case 4:
 			cterm->vtab_count = 0;
 			break;
 		case 5:
 			cterm->tab_count = 0;
+			cterm->default_tabs = false;
 			cterm->vtab_count = 0;
 			break;
 	}

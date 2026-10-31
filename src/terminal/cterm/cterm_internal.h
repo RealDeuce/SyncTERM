@@ -310,6 +310,7 @@ void cterm_fill_rect(struct cterminal *cterm, int left, int top, int right,
 void cterm_transmit_selected(struct cterminal *cterm);
 
 /* Tab stops */
+void cterm_extend_tabstops(struct cterminal *cterm, int width);
 void cterm_do_tab(struct cterminal *cterm);
 void cterm_do_vtab(struct cterminal *cterm);
 void cterm_do_backtab(struct cterminal *cterm);

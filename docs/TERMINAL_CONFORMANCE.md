@@ -32,6 +32,11 @@ Tab-stop tests cover insertion at the end of the list, sorted insertion,
 duplicate stops, and reinsertion after clearing the list. The latter must not
 mistake stale allocation contents for an active stop; the focused C tests also
 run these cases under sanitizers.
+Default-stop coverage checks widths 1, 8, 9, 20, 80, 132, 145, 160 and 8192,
+exact reports (including replies larger than the former fixed reply buffer),
+right-edge wrapping and bottom-row scrolling. Resize tests preserve custom and
+deleted stops across shrink/grow, extend defaults into new columns, and respect
+clear-all until reset. No stop beyond the initialized width is required.
 
 The additional `recovery` group runs 48 bounded cases with seed `0x43544552`,
 including overlong parameters, malformed strings, invalid UTF-8 and random bytes.

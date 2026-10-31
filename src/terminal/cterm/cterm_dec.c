@@ -101,22 +101,15 @@ void
 cterm_handle_dectabsr(struct cterminal *cterm, int *speed)	/* CSI Ps $ w — tab report */
 {
 	int i;
-	char tmp[3072];
-	char *p2;
 	(void)speed;
 	cterm_seq_default(cterm, 0, 0);
 	if (cterm->seq_param_int[0] != 2)
 		return;
-	strcpy(tmp, "\x1bP2$u");
-	p2 = strchr(tmp, 0);
+	cterm_respond(cterm, "\x1bP2$u", 5);
 	for (i = 0; i < cterm->tab_count && cterm->tabs[i] <= cterm->width; i++) {
-		if (i != 0)
-			*(p2++) = '/';
-		p2 += sprintf(p2, "%d", cterm->tabs[i]);
+		cterm_respond_printf(cterm, "%s%d", i == 0 ? "" : "/", cterm->tabs[i]);
 	}
-	strcat(p2, "\x1b\\");
-	if (*tmp)
-		cterm_respond(cterm, tmp, strlen(tmp));
+	cterm_respond(cterm, "\x1b\\", 2);
 }
 
 void

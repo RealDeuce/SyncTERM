@@ -72,8 +72,6 @@
  * VDU 23 / 28) — declared in cterm_internal.h so those handlers can
  * reach it. */
 
-const int cterm_tabs[]={1,9,17,25,33,41,49,57,65,73,81,89,97,105,113,121,129,137,145};
-
 /*
  * Send a parser-generated response to the host (DSR, DECRQM, STS, etc.).
  * If response_cb is set, calls it directly; otherwise the response is dropped.
@@ -970,6 +968,34 @@ cterm_crpos(struct cterminal *cterm)
 }
 
 void
+cterm_extend_tabstops(struct cterminal *cterm, int width)
+{
+	if (width <= cterm->tab_width)
+		return;
+	int first = cterm->tab_width == 0 ? 0 : (cterm->tab_width - 1) / 8 + 1;
+	/* Even if allocation fails, later growth must not append defaults
+	 * before custom stops subsequently set in these columns. */
+	cterm->tab_width = width;
+	if (cterm->default_tabs) {
+		int count = (width - 1) / 8 + 1 - first;
+		if (count > 0) {
+			size_t total = (size_t)cterm->tab_count + count;
+			if (total > SIZE_MAX / sizeof(*cterm->tabs))
+				return;
+			int *tabs = realloc(cterm->tabs,
+			    total * sizeof(*tabs));
+			if (tabs == NULL)
+				return;
+			cterm->tabs = tabs;
+			/* Stops in previously exposed columns are retained on shrink,
+			 * so every new default sorts after all existing stops. */
+			for (int i = 0; i < count; i++)
+				cterm->tabs[cterm->tab_count++] = 1 + 8 * (first + i);
+		}
+	}
+}
+
+void
 cterm_insert_tabstop(struct cterminal *cterm, int pos)
 {
 	int i;
@@ -1838,13 +1864,11 @@ cterm_reset(struct cterminal *cterm)
 	if (cterm->emulation == CTERM_EMULATION_ATARIST_VT52)
 		cterm->extattr &= ~CTERM_EXTATTR_AUTOWRAP;
 	CTERM_FREE_AND_CLEAR(cterm->tabs);
-	cterm->tabs = malloc(sizeof(cterm_tabs));
-	if (cterm->tabs) {
-		memcpy(cterm->tabs, cterm_tabs, sizeof(cterm_tabs));
-		cterm->tab_count = sizeof(cterm_tabs) / sizeof(cterm_tabs[0]);
-	}
-	else
-		cterm->tab_count = 0;
+	cterm->tab_count = 0;
+	cterm->tab_width = 0;
+	cterm->default_tabs = true;
+	/* Exhausting the list already wraps HT; no off-screen stop is needed. */
+	cterm_extend_tabstops(cterm, cterm->width);
 	CTERM_FREE_AND_CLEAR(cterm->vtabs);
 	cterm->vtab_count = 0;
 	cterm->decsace = 0;
@@ -1901,11 +1925,6 @@ cterm_reset(struct cterminal *cterm)
 	}
 	cterm_apply_window(cterm);
 
-	/* Set up tabs for ATASCII */
-	if(cterm->emulation == CTERM_EMULATION_ATASCII) {
-		for(i=0; i<cterm->tab_count; i++)
-			cterm->escbuf[cterm->tabs[i]]=1;
-	}
 	cterm->atascii_inverse = false;
 
 	/* Set up a shadow palette */

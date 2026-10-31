@@ -2755,6 +2755,7 @@ resize_parser_geometry(st_cterm_t *terminal, int columns, int rows,
 
 	terminal->width = columns;
 	terminal->height = rows;
+	cterm_extend_tabstops(terminal, columns);
 	if (terminal->right_margin == old_columns
 	    || terminal->right_margin > columns)
 		terminal->right_margin = columns;

@@ -5,7 +5,7 @@
     {"id": "NUL", "source_line": 209, "suite": "movement", "scope": "Expected cursor coordinates; defaults, clamping and tab stops"},
     {"id": "BEL", "source_line": 214, "suite": "extensions", "scope": "Partial: parsing/recovery only; audibility needs audio-device validation"},
     {"id": "BS", "source_line": 220, "suite": "movement", "scope": "Expected cursor coordinates; defaults, clamping and tab stops"},
-    {"id": "HT", "source_line": 228, "suite": "movement", "scope": "Expected cursor coordinates; defaults, clamping and tab stops"},
+    {"id": "HT", "source_line": 228, "suite": "movement", "scope": "Default stops and exact report, right-edge wrapping, bottom-row scrolling and reset recovery; focused C tests cover resize and wide reports"},
     {"id": "LF", "source_line": 235, "suite": "movement", "scope": "Expected cursor coordinates; defaults, clamping and tab stops"},
     {"id": "CR", "source_line": 240, "suite": "movement", "scope": "Expected cursor coordinates; defaults, clamping and tab stops"},
     {"id": "NEL", "source_line": 245, "suite": "movement", "scope": "Expected cursor coordinates; defaults, clamping and tab stops"},

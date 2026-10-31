@@ -261,6 +261,8 @@ struct cterminal {
 	char				*bg_tc_str;
 	int					*tabs;
 	int					tab_count;
+	int tab_width;	/* Widest initialized tab range; retained across shrink. */
+	bool default_tabs;	/* Extend defaults on growth until TBC clears all. */
 	int					*vtabs;
 	int					vtab_count;
 	uint8_t decsace;	/* DECSACE: 0/2=rectangle, 1=stream */

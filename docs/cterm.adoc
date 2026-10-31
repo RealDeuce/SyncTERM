@@ -58,6 +58,13 @@ first, in which case no operation is performed.
 SOURCE: <<ECMA-48>>
 
 === `0x09` Character Tabulation (`HT`)
+Default character tabulation stops are at columns 1, 9, 17, and every eight
+columns thereafter, through the current terminal width. Resizing retains
+existing stops, including stops temporarily outside the screen. Growing past
+the previously initialized width adds defaults in the new columns unless all
+character tabulation stops have been cleared with TBC. A reset restores defaults
+for the current width.
+
 Moves to the next character tabulation stop.  Does not overwrite
 any characters in between.  If there are no character tabulation stops
 left in the line, moves to the first position of the next line.
