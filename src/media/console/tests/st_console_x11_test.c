@@ -59,6 +59,19 @@ check_keys(void)
 	CHECK(st_console_x11_evdev_from_keysym(XK_a) == 30);
 	CHECK(st_console_x11_evdev_from_keysym(XK_A) == 30);
 	CHECK(st_console_x11_evdev_from_keysym(XK_KP_Divide) == 98);
+	CHECK(st_console_x11_evdev_from_keysym(XK_Home) == 102);
+	CHECK(st_console_x11_evdev_from_keysym(XK_Left) == 105);
+	CHECK(st_console_x11_evdev_from_keysym(XK_Right) == 106);
+	CHECK(st_console_x11_evdev_from_keysym(XK_Up) == 103);
+	CHECK(st_console_x11_evdev_from_keysym(XK_Down) == 108);
+	CHECK(st_console_x11_evdev_from_keysym(XK_Prior) == 104);
+	CHECK(st_console_x11_evdev_from_keysym(XK_Next) == 109);
+	CHECK(st_console_x11_evdev_from_keysym(XK_End) == 107);
+	CHECK(st_console_x11_evdev_from_keysym(XK_Insert) == 110);
+	CHECK(st_console_x11_evdev_from_keysym(XK_Delete) == 111);
+	CHECK(st_console_x11_evdev_from_keysym(XK_KP_Home) == 71);
+	CHECK(st_console_x11_evdev_from_keysym(XK_KP_Left) == 75);
+	CHECK(st_console_x11_evdev_from_keysym(XK_KP_Right) == 77);
 	CHECK(st_console_x11_evdev_from_keyname("AD01") == 16);
 	CHECK(st_console_x11_evdev_from_keyname("FK12") == 88);
 	CHECK(st_console_x11_evdev_from_keyname("KPEN") == 96);
@@ -964,45 +977,72 @@ check_escape_event(st_console_t *console)
 		}
 		CHECK(marker && composed == 1);
 	}
-	/* Backend shortcuts must not wait on a caller's logical-state lock. */
-	CHECK(st_rwlock_write_lock(&console->state_lock) == ST_THREAD_SUCCESS);
-	CHECK(send_key_with_state(display, window, XK_Right, true, Mod1Mask)
-	    == 0);
-	CHECK(send_key_with_state(display, window, XK_Right, false, Mod1Mask)
-	    == 0);
-	(void)XFlush(display);
-	(void)nanosleep(&(struct timespec){0, 50000000}, NULL);
-	CHECK(check_window_size(title, 171, 128, 85, 64) == 0);
-	CHECK(send_key_with_state(display, window, XK_Left, true, Mod1Mask)
-	    == 0);
-	CHECK(send_key_with_state(display, window, XK_Left, false, Mod1Mask)
-	    == 0);
-	(void)XFlush(display);
-	(void)nanosleep(&(struct timespec){0, 50000000}, NULL);
-	CHECK(check_window_size(title, 85, 64, 85, 64) == 0);
-	CHECK(st_rwlock_unlock(&console->state_lock) == ST_THREAD_SUCCESS);
-	CHECK(XMoveWindow(display, window, 0, 0) != 0);
-	(void)XSync(display, False);
-	CHECK(send_key_with_state(display, window, XK_Home, true, Mod1Mask)
-	    == 0);
-	CHECK(send_key_with_state(display, window, XK_Home, false, Mod1Mask)
-	    == 0);
-	(void)XSync(display, False);
-	{
-		int x;
-		int y;
+	for (unsigned int variant = 0; variant < 4; ++variant) {
+		unsigned int locks = (variant & 1U) != 0 ? Mod2Mask : 0;
+		unsigned int mods = Mod1Mask | locks;
+		KeySym alt = variant < 2 ? XK_Alt_L : XK_Alt_R;
+		/* Backend shortcuts must not wait on a caller's logical-state lock. */
+		CHECK(st_rwlock_write_lock(&console->state_lock) == ST_THREAD_SUCCESS);
+		CHECK(send_key_with_state(display, window, alt, true, locks) == 0);
+		CHECK(send_key_with_state(display, window, XK_Right, true, mods)
+		    == 0);
+		CHECK(send_key_with_state(display, window, XK_Right, false, mods)
+		    == 0);
+		CHECK(send_key_with_state(display, window, alt, false, locks) == 0);
+		(void)XFlush(display);
+		(void)nanosleep(&(struct timespec){0, 50000000}, NULL);
+		CHECK(check_window_size(title, 171, 128, 85, 64) == 0);
+		CHECK(send_key_with_state(display, window, alt, true, locks) == 0);
+		CHECK(send_key_with_state(display, window, XK_Left, true, mods)
+		    == 0);
+		CHECK(send_key_with_state(display, window, XK_Left, false, mods)
+		    == 0);
+		CHECK(send_key_with_state(display, window, alt, false, locks) == 0);
+		(void)XFlush(display);
+		(void)nanosleep(&(struct timespec){0, 50000000}, NULL);
+		CHECK(check_window_size(title, 85, 64, 85, 64) == 0);
+		CHECK(st_rwlock_unlock(&console->state_lock) == ST_THREAD_SUCCESS);
+		CHECK(XMoveWindow(display, window, 0, 0) != 0);
+		(void)XSync(display, False);
+		CHECK(send_key_with_state(display, window, alt, true, locks) == 0);
+		CHECK(send_key_with_state(display, window, XK_Home, true, mods)
+		    == 0);
+		CHECK(send_key_with_state(display, window, XK_Home, false, mods)
+		    == 0);
+		CHECK(send_key_with_state(display, window, alt, false, locks) == 0);
+		(void)XSync(display, False);
+		{
+			int x;
+			int y;
 
-		/* XSync on the sending connection does not wait for the input
-		 * worker to handle the shortcut on its own X connection. */
-		for (unsigned attempt = 0; attempt < 100; ++attempt) {
-			CHECK(window_position(display, window, &x, &y) == 0);
-			if (x > 0 && y > 0)
-				break;
-			(void)nanosleep(&(struct timespec){0, 10000000}, NULL);
+			/* XSync on the sending connection does not wait for the input
+			 * worker to handle the shortcut on its own X connection. */
+			for (unsigned attempt = 0; attempt < 100; ++attempt) {
+				CHECK(window_position(display, window, &x, &y) == 0);
+				if (x > 0 && y > 0)
+					break;
+				(void)nanosleep(&(struct timespec){0, 10000000}, NULL);
+			}
+			CHECK(x > 0 && y > 0);
 		}
-		CHECK(x > 0 && y > 0);
 	}
 	CHECK(check_current_monitor_centering(display, window) == 0);
+	/* Window shortcuts must not leak composed digits or translated keys. */
+	CHECK(send_key(display, window, XK_F1, true) == 0);
+	CHECK(send_key(display, window, XK_F1, false) == 0);
+	(void)XFlush(display);
+	CHECK(timespec_get(&deadline, TIME_UTC) == TIME_UTC);
+	deadline.tv_sec += 2;
+	marker = false;
+	while (!marker && st_console_event_timedwait(console, &event, &deadline) == 0) {
+		CHECK(event.type != ST_CONSOLE_EVENT_TEXT
+		    && event.type != ST_CONSOLE_EVENT_CODEPAGE_BYTE);
+		if (event.type == ST_CONSOLE_EVENT_KEY_CODE) {
+			CHECK(event.data.key.code == ST_CONSOLE_KEY_F1);
+			marker = true;
+		}
+	}
+	CHECK(marker);
 	CHECK(st_console_events_clear(console) == 0);
 	for (unsigned int i = 0; i < 200; ++i) {
 		XEvent configure = {0};

@@ -199,45 +199,47 @@ st_console_x11_evdev_from_keysym(KeySym keysym)
 	case XK_Num_Lock: return 69;
 	case XK_Scroll_Lock: return 70;
 	case XK_KP_7:
-	case XK_Home:
 	case XK_KP_Home: return 71;
 	case XK_KP_8:
-	case XK_Up:
 	case XK_KP_Up: return 72;
 	case XK_KP_9:
-	case XK_Prior:
 	case XK_KP_Prior: return 73;
 	case XK_KP_Subtract: return 74;
 	case XK_KP_4:
-	case XK_Left:
 	case XK_KP_Left: return 75;
 	case XK_KP_5:
 	case XK_Begin:
 	case XK_KP_Begin: return 76;
 	case XK_KP_6:
-	case XK_Right:
 	case XK_KP_Right: return 77;
 	case XK_KP_Add: return 78;
 	case XK_KP_1:
-	case XK_End:
 	case XK_KP_End: return 79;
 	case XK_KP_2:
-	case XK_Down:
 	case XK_KP_Down: return 80;
 	case XK_KP_3:
-	case XK_Next:
 	case XK_KP_Next: return 81;
 	case XK_KP_0:
-	case XK_Insert:
 	case XK_KP_Insert: return 82;
 	case XK_KP_Decimal:
-	case XK_Delete:
 	case XK_KP_Delete: return 83;
 	case XK_Control_R: return 97;
 	case XK_KP_Divide: return 98;
 	case XK_Print: return 99;
 	case XK_Alt_R:
 	case XK_Meta_R: return 100;
+	/* Numeric entry uses physical identity: dedicated navigation keys
+	 * must remain distinct from their keypad aliases. */
+	case XK_Home: return 102;
+	case XK_Up: return 103;
+	case XK_Prior: return 104;
+	case XK_Left: return 105;
+	case XK_Right: return 106;
+	case XK_End: return 107;
+	case XK_Down: return 108;
+	case XK_Next: return 109;
+	case XK_Insert: return 110;
+	case XK_Delete: return 111;
 	case XK_Pause: return 119;
 	case XK_Super_L: return 125;
 	case XK_Super_R: return 126;
