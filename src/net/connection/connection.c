@@ -509,7 +509,7 @@ st_connection_send(st_connection_t *connection, const void *data, size_t size,
 	if (connection == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (connection->send_filter != NULL)
-		return connection->send_filter(connection, data, size, timeout_ms);
+		return connection->send_filter(connection, data, size, timeout_ms, false);
 	return st_connection_queue_output(connection, data, size, timeout_ms);
 }
 
@@ -518,6 +518,25 @@ st_connection_send_raw(st_connection_t *connection, const void *data,
 	size_t size, int64_t timeout_ms)
 {
 	return st_connection_queue_output(connection, data, size, timeout_ms);
+}
+
+ssize_t
+st_connection_try_send_atomic(st_connection_t *connection,
+	const void *data, size_t size, bool raw)
+{
+	ssize_t result;
+
+	if (connection == NULL || (data == NULL && size != 0))
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (size > ST_CONNECTION_ATOMIC_SEND_MAX)
+		return IO_ERROR_MESSAGE_TOO_LARGE;
+	if (!st_connection_is_connected(connection))
+		return IO_ERROR_NOT_CONNECTED;
+	if (!raw && connection->send_filter != NULL)
+		result = connection->send_filter(connection, data, size, 0, true);
+	else
+		result = st_connection_queue_output_atomic(connection, data, size, 0);
+	return result >= 0 && (size_t)result != size ? IO_ERROR_IO : result;
 }
 
 ssize_t

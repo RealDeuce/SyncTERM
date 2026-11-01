@@ -412,7 +412,8 @@ mqtt_read(void *state, void *data, size_t size, int64_t timeout)
 }
 
 static ssize_t
-mqtt_send(st_connection_t *connection, const void *data, size_t size, int64_t timeout)
+mqtt_send(st_connection_t *connection, const void *data, size_t size, int64_t timeout,
+	bool atomic_write)
 {
 	struct mqtt_transport *t = connection->transport;
 	uint8_t wire[4400];
@@ -420,6 +421,8 @@ mqtt_send(st_connection_t *connection, const void *data, size_t size, int64_t ti
 	size_t topic = strlen(t->input_topic), body = 2 + topic + 1 + consumed;
 	size_t used = 1;
 	ssize_t n;
+	if (atomic_write && size > ST_CONNECTION_ATOMIC_SEND_MAX)
+		return IO_ERROR_MESSAGE_TOO_LARGE;
 	wire[0] = 0x30;
 	used += varint(wire + used, body);
 	used += put_string(wire + used, t->input_topic);

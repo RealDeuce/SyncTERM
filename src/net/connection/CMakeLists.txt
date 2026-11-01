@@ -404,6 +404,7 @@ if(BUILD_TESTING)
 		add_test(NAME connection COMMAND st_connection_test)
 	endif()
 	set_tests_properties(connection PROPERTIES TIMEOUT 15)
+	add_test(NAME connection_atomic_output COMMAND st_connection_test --atomic-output)
 	add_test(NAME connection_partial_input
 		COMMAND st_connection_test --partial-input)
 	add_test(NAME connection_auxiliary_close

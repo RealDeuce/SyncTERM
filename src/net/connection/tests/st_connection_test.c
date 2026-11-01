@@ -504,7 +504,7 @@ test_rlogin(void)
 	CHECK(connection_receive_exact(connection, buffer, 6) == 0);
 	CHECK(memcmp(buffer, "cooked", 6) == 0);
 	CHECK(wait_for_binary(connection, false) == 0);
-	CHECK(st_connection_send(connection, "\x13" "AB" "\x11", 4, 1000)
+	CHECK(st_connection_try_send_atomic(connection, "\x13" "AB" "\x11", 4, false)
 	    == 4);
 	CHECK(connection_receive_exact(connection, buffer, 5) == 0);
 	CHECK(memcmp(buffer, "ready", 5) == 0);
@@ -773,7 +773,7 @@ test_rlogin_flow(bool backpressure)
 	}
 	CHECK(st_connection_send(connection, "I", 1, 1000) == 1);
 	CHECK(wait_for_binary(connection, false) == 0);
-	CHECK(st_connection_send(connection, "\x13", 1, 1000) == 1);
+	CHECK(st_connection_try_send_atomic(connection, "\x13", 1, false) == 1);
 	atomic_store(&server.allow_urgent, true);
 	if (backpressure) {
 		CHECK(wait_for_pending(connection, ST_CONNECTION_BUFFER_SIZE) == 0);
@@ -1714,10 +1714,51 @@ static int test_auxiliary_close(void)
 	return 0;
 }
 
+static int
+test_atomic_output(void)
+{
+	struct st_connection connection = {0};
+	static const uint8_t character[] = {0xc3, 0xa9};
+	uint8_t oversized[4097] = {0};
+
+	atomic_init(&connection.connected, true);
+	CHECK(st_mutex_init(&connection.output.mutex, ST_MUTEX_PLAIN) == ST_THREAD_SUCCESS);
+	CHECK(st_condition_init(&connection.output.changed) == ST_THREAD_SUCCESS);
+	connection.output.count = ST_CONNECTION_BUFFER_SIZE - 1;
+	memset(connection.output.data, 'x', sizeof(connection.output.data));
+	CHECK(st_connection_try_send_atomic(&connection, character, sizeof(character), false)
+	    == IO_ERROR_WOULD_BLOCK);
+	CHECK(connection.output.count == ST_CONNECTION_BUFFER_SIZE - 1);
+	CHECK(connection.output.data[ST_CONNECTION_BUFFER_SIZE - 1] == 'x');
+	connection.output.count = ST_CONNECTION_BUFFER_SIZE - 2;
+	CHECK(st_connection_try_send_atomic(&connection, character, sizeof(character), false) == 2);
+	CHECK(connection.output.count == ST_CONNECTION_BUFFER_SIZE);
+	CHECK(memcmp(connection.output.data + ST_CONNECTION_BUFFER_SIZE - 2, character, 2) == 0);
+	CHECK(st_connection_try_send_atomic(&connection, oversized, sizeof(oversized), false)
+	    == IO_ERROR_MESSAGE_TOO_LARGE);
+	CHECK(st_connection_try_send_atomic(&connection, NULL, 1, false) == IO_ERROR_INVALID_ARGUMENT);
+	/* Ring wrap must preserve the complete unit, including arbitrary raw bytes. */
+	connection.output.head = ST_CONNECTION_BUFFER_SIZE - 1;
+	connection.output.count = 0;
+	CHECK(st_connection_try_send_atomic(&connection, character, 2, true) == 2);
+	CHECK(connection.output.data[ST_CONNECTION_BUFFER_SIZE - 1] == 0xc3);
+	CHECK(connection.output.data[0] == 0xa9 && connection.output.count == 2);
+	connection.output.stopped = true;
+	CHECK(st_connection_try_send_atomic(&connection, character, 2, true) == IO_ERROR_NOT_CONNECTED);
+	CHECK(connection.output.count == 2);
+	atomic_store(&connection.connected, false);
+	CHECK(st_connection_try_send_atomic(&connection, character, 2, false) == IO_ERROR_NOT_CONNECTED);
+	st_condition_destroy(&connection.output.changed);
+	st_mutex_destroy(&connection.output.mutex);
+	return 0;
+}
+
 int
 main(int argc, char **argv)
 {
 	const char *fixture = NULL;
+	if (argc == 2 && strcmp(argv[1], "--atomic-output") == 0)
+		return test_atomic_output();
 	if (argc == 2 && strcmp(argv[1], "--auxiliary-close") == 0)
 		return test_auxiliary_close();
 

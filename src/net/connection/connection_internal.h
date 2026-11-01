@@ -56,7 +56,7 @@ struct st_connection_transport_ops {
 };
 
 typedef ssize_t (*st_connection_send_filter_fn)(st_connection_t *connection,
-	const void *data, size_t size, int64_t timeout_ms);
+	const void *data, size_t size, int64_t timeout_ms, bool atomic_write);
 
 struct st_connection {
 	const struct st_connection_transport_ops *operations;

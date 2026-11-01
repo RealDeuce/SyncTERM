@@ -174,6 +174,12 @@ ssize_t st_connection_send(st_connection_t *connection, const void *data,
 	size_t size, int64_t timeout_ms);
 ssize_t st_connection_send_raw(st_connection_t *connection, const void *data,
 	size_t size, int64_t timeout_ms);
+/* Poll an indivisible input unit. Returns its full input size or an error,
+ * never a positive short count. raw bypasses transport framing. */
+#define ST_CONNECTION_ATOMIC_SEND_MAX 4096U
+ssize_t st_connection_try_send_atomic(st_connection_t *connection,
+	const void *data, size_t size, bool raw);
+
 /* Cooked RLogin XOFF holds receive and peek delivery, not the protocol
  * reader. pending_raw still counts held bytes. XON, raw mode, or teardown
  * releases the hold; teardown permits draining queued data and final EOF. */

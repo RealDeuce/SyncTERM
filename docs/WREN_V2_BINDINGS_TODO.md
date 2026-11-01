@@ -163,3 +163,11 @@ failed before the drain correction. The updated host suite passed ASan/UBSan
 with FreeBSD leak detection disabled. The native application linked; FreeBSD
 Clang/GCC host libraries and MinGW i686/x86_64 host libraries built without
 warnings. Windows runtime testing was not performed.
+
+Item 7 foundation: added an indivisible nonblocking transport write for
+complete encoded units, including Telnet/MQTT framing and RLogin cooked
+flow-control commits. Queue-pressure and ring-wrap regressions plus existing
+connection/RLogin suites passed on FreeBSD Clang (4 tests); the three focused
+atomic/RLogin tests also passed ASan/UBSan with leak detection disabled.
+GCC and MinGW i686/x86_64 connection-library builds passed without warnings.
+Windows runtime tests were not run. The owned Wren queue remains to implement.

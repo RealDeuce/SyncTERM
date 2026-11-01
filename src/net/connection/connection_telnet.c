@@ -282,7 +282,7 @@ telnet_read(void *state, void *data, size_t size, int64_t timeout_ms)
 
 static ssize_t
 telnet_send(st_connection_t *connection, const void *data, size_t size,
-	int64_t timeout_ms)
+	int64_t timeout_ms, bool atomic_write)
 {
 	struct telnet_transport *t = connection->transport;
 	const uint8_t *bytes = data;
@@ -291,6 +291,8 @@ telnet_send(st_connection_t *connection, const void *data, size_t size,
 	bool cr;
 	ssize_t sent;
 
+	if (atomic_write && size > ST_CONNECTION_ATOMIC_SEND_MAX)
+		return IO_ERROR_MESSAGE_TOO_LARGE;
 	(void)st_mutex_lock(&t->mutex);
 	cr = t->outgoing_cr;
 	for (size_t i = 0; i < consumed; ++i) {

@@ -493,15 +493,58 @@ static const struct st_connection_transport_ops rlogin_operations = {
 	.destroy = network_destroy,
 };
 
+/* Atomic polls commit local flow-control effects only after the entire
+ * remaining payload is accepted. input.mutex serializes a server raw-mode
+ * change; the output operation polls and never waits while holding it. */
+static ssize_t
+rlogin_send_atomic(st_connection_t *connection, const uint8_t *bytes, size_t size)
+{
+	uint8_t output[ST_CONNECTION_ATOMIC_SEND_MAX];
+	size_t used = 0;
+	ssize_t result;
+	bool cooked;
+	bool paused;
+
+	if (size > sizeof(output))
+		return IO_ERROR_MESSAGE_TOO_LARGE;
+	(void)st_mutex_lock(&connection->input.mutex);
+	cooked = !atomic_load(&connection->binary_mode);
+	paused = connection->input.paused;
+	for (size_t i = 0; i < size; ++i) {
+		if (cooked && (bytes[i] == 0x11 || bytes[i] == 0x13))
+			paused = bytes[i] == 0x13;
+		else
+			output[used++] = bytes[i];
+	}
+	result = st_connection_queue_output_atomic(connection, output, used, 0);
+	if (result == (ssize_t)used && cooked) {
+		connection->input.paused = paused;
+		(void)st_condition_broadcast(&connection->input.changed);
+	}
+	(void)st_mutex_unlock(&connection->input.mutex);
+	if (result != (ssize_t)used)
+		return result;
+	if (cooked) {
+		for (size_t i = 0; i < size; ++i) {
+			if (bytes[i] == 0x11 || bytes[i] == 0x13)
+				st_connection_log(connection, ST_CONNECTION_LOG_DEBUG,
+				    "local %s consumed", bytes[i] == 0x13 ? "XOFF" : "XON");
+		}
+	}
+	return (ssize_t)size;
+}
+
 static ssize_t
 rlogin_send(st_connection_t *connection, const void *data, size_t size,
-	int64_t timeout_ms)
+	int64_t timeout_ms, bool atomic_write)
 {
 	const uint8_t *bytes = data;
 	size_t consumed = 0;
 
 	if (timeout_ms < -1 || (data == NULL && size != 0))
 		return IO_ERROR_INVALID_ARGUMENT;
+	if (atomic_write)
+		return rlogin_send_atomic(connection, bytes, size);
 	if (atomic_load(&connection->binary_mode))
 		return st_connection_queue_output(connection, data, size, timeout_ms);
 	while (consumed < size) {
