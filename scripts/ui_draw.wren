@@ -14,7 +14,7 @@
 // Style application is field-wise: every Style field that is non-null
 // is written to the Cell, leaving null fields at their default.
 
-import "syncterm" for Cell, Screen, Surface
+import "syncterm" for Cell, Screen, Surface, Text
 
 class Painter {
   // Apply a Style to an existing Cell, leaving null fields untouched.
@@ -46,12 +46,12 @@ class Painter {
   }
 
   // Draw `str` on a single row starting at (x, y) in surface.
-  // Iterates codepoints, advancing by each registered glyph's column
+  // Iterates graphemes, advancing by each registered glyph's column
   // width.  No truncation in the 5-arg form; the 6-arg form caps at
   // maxW cells.  Cells past the surface bounds are silently skipped.
   static text(surface, x, y, str, style) {
     var cell = Cell.new()
-    for (c in str) {
+    for (c in Text.graphemes(str)) {
       if (!surface.cellAt(x, y, cell)) break
       var font = style.font == null ? cell.font : style.font
       var columns = Screen.textWidth(c, font)
@@ -67,7 +67,7 @@ class Painter {
     if (maxW <= 0) return
     var written = 0
     var cell = Cell.new()
-    for (c in str) {
+    for (c in Text.graphemes(str)) {
       if (written >= maxW) break
       if (!surface.cellAt(x, y, cell)) break
       var font = style.font == null ? cell.font : style.font

@@ -347,6 +347,27 @@ setting. Entries without a leading zero must be between 1 and 255;
 Unicode entries must be nonzero valid Unicode scalar values. Out-of-range
 entries are ignored. Another key press or loss of focus cancels a partial entry.
 
+=== Emoji Picker
+
+Press kbd:[Alt+P] in a local text field or on a UTF-8 connection to insert an
+emoji. ANSI and ncurses modes also provide kbd:[Ctrl+P] in local text fields.
+While viewing a connected terminal, kbd:[Ctrl+P] is sent to the remote system;
+use the Online Menu's *Insert Emoji...* entry if kbd:[Alt+P] is unavailable.
+The connected picker is available only on UTF-8 connections. Local fields in
+menus reached through kbd:[Alt+E] still support it on codepage connections.
+
+Type to filter by English name. The highlighted emoji's name appears below
+the grid. Use the arrow keys to browse, kbd:[F2] or *Variants* for gender and
+skin-tone variants, and kbd:[Return] or a click to insert. kbd:[Escape] returns
+from variants or cancels. The picker includes only emoji supported by the
+bundled fonts; joined sequences are inserted together and never truncated to
+fit a field. Opening it without a focused field does not copy to the clipboard.
+
+The 32 most recently used exact variants appear first and are saved as numbered
+UTF-8 strings in the `[RecentEmoji]` section of `syncterm.ini`. Safe mode keeps
+recents only for the current session. A failure to save recents is reported in
+the Wren console and does not undo a successful insertion.
+
 == The User Interface
 
 The following is the general behaviour of SyncTERM menus.
@@ -1397,6 +1418,9 @@ some less-common operations that don't have a keyboard shortcut.
 
 Scrollback::
 Same as kbd:[Alt+B]
+
+Insert Emoji...::
+Opens the emoji picker on UTF-8 connections. Same as kbd:[Alt+P].
 
 Disconnect::
 Same as kbd:[Alt+H]

@@ -9,6 +9,7 @@
 
 #include "st_settings_internal.h"
 #include "st_unicode_compare.h"
+#include "st_emoji_catalog.h"
 
 #include "filesystem.h"
 #include "ini.h"
@@ -21,8 +22,37 @@
 
 #include <limits.h>
 #include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+static size_t recent_emoji[ST_SETTINGS_RECENT_EMOJI_MAX];
+static size_t recent_emoji_count;
+static bool recent_emoji_loaded;
+
+static void
+emoji_append(size_t *ids, size_t *count, size_t id)
+{
+	if (id >= st_emoji_entry_count || *count >= ST_SETTINGS_RECENT_EMOJI_MAX)
+		return;
+	for (size_t i = 0; i < *count; i++)
+		if (ids[i] == id)
+			return;
+	ids[(*count)++] = id;
+}
+
+static void
+emoji_read(ini_document_t *document, size_t *ids, size_t *count)
+{
+	const ini_section_t *section = ini_document_find_section(document, "RecentEmoji");
+	if (section == NULL)
+		return;
+	for (size_t i = 1; i <= ST_SETTINGS_RECENT_EMOJI_MAX; i++) {
+		char key[16];
+		(void)snprintf(key, sizeof(key), "%zu", i);
+		emoji_append(ids, count, st_emoji_find(ini_section_get_string(section, key, "")));
+	}
+}
 
 static bool
 names_equal(const char *left, const char *right)
@@ -902,6 +932,7 @@ load_locked(const char *personal_list)
 	ini_document_free(&baseline_document);
 	baseline_document = document;
 	baseline_initialized = true;
+	recent_emoji_loaded = false;
 	return 0;
 }
 
@@ -1227,6 +1258,8 @@ st_settings_font_draft_save(struct st_settings_font_draft *draft)
 void
 st_settings_shutdown(void)
 {
+	recent_emoji_loaded = false;
+	recent_emoji_count = 0;
 	free(settings_path);
 	free(cached_system_list);
 	free(personal_list_path);
@@ -1237,6 +1270,81 @@ st_settings_shutdown(void)
 	st_settings_dispose(&baseline_settings);
 	st_settings_dispose(&st_settings);
 	baseline_initialized = false;
+}
+
+size_t
+st_settings_recent_emoji_count(void)
+{
+	if (!recent_emoji_loaded) {
+		recent_emoji_count = 0;
+		if (baseline_document != NULL)
+			emoji_read(baseline_document, recent_emoji, &recent_emoji_count);
+		recent_emoji_loaded = true;
+	}
+	return recent_emoji_count;
+}
+
+const char *
+st_settings_recent_emoji_at(size_t index)
+{
+	return index < st_settings_recent_emoji_count()
+	    ? st_emoji_entries[recent_emoji[index]].text : NULL;
+}
+
+int
+st_settings_remember_emoji(const char *text, bool persist)
+{
+	size_t id = st_emoji_find(text);
+	size_t merged[ST_SETTINGS_RECENT_EMOJI_MAX];
+	size_t count = 0;
+	ini_document_t *document = NULL;
+	ini_section_t *section = NULL;
+	st_file_lock_t *lock = NULL;
+	int status;
+
+	if (id == st_emoji_entry_count)
+		return IO_ERROR_INVALID_ARGUMENT;
+	(void)st_settings_recent_emoji_count();
+	emoji_append(merged, &count, id);
+	for (size_t i = 0; i < recent_emoji_count; i++)
+		emoji_append(merged, &count, recent_emoji[i]);
+	memcpy(recent_emoji, merged, count * sizeof(*merged));
+	recent_emoji_count = count;
+	if (!persist)
+		return 0;
+	if (settings_path == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	status = fs_create_parent_directories(settings_path);
+	if (status == 0)
+		status = st_file_lock_acquire(&lock, settings_path, true);
+	if (status == 0)
+		status = read_document(&document, settings_path);
+	if (status == 0) {
+		count = 0;
+		emoji_append(merged, &count, id);
+		emoji_read(document, merged, &count);
+		for (size_t i = 0; i < recent_emoji_count; i++)
+			emoji_append(merged, &count, recent_emoji[i]);
+		ini_section_t *old = ini_document_find_section(document, "RecentEmoji");
+		if (old != NULL)
+			(void)ini_document_remove_section(document, old);
+		status = ensure_section(document, "RecentEmoji", &section);
+	}
+	for (size_t i = 0; status == 0 && i < count; i++) {
+		char key[16];
+		(void)snprintf(key, sizeof(key), "%zu", i + 1);
+		status = ini_section_set_string(section, key, st_emoji_entries[merged[i]].text,
+		    &ini_default_style);
+	}
+	if (status == 0)
+		status = write_document(document, settings_path);
+	if (status == 0) {
+		memcpy(recent_emoji, merged, count * sizeof(*merged));
+		recent_emoji_count = count;
+	}
+	ini_document_free(&document);
+	st_file_lock_release(lock);
+	return status;
 }
 
 size_t

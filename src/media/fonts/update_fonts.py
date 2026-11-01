@@ -176,6 +176,10 @@ def main():
                "UNSCII overlay; see src/media/unifont/LICENSE.OFL-1.1",
                "st_unifont.h", "OFL-1.1")
 
+    # Keep picker names, variants and actual glyph coverage in step.
+    import runpy
+    runpy.run_path(str(args.root / "src/text/emoji/update_emoji_catalog.py"))["validate_repository"](args.root)
+
 
 if __name__ == "__main__":
     main()

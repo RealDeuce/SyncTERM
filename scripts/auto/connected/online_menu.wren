@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Stephen Hurd
 // SPDX-License-Identifier: BSD-2-Clause
 
-import "syncterm" for Conn, CTerm, Hook, Host, Input, Key, Screen
+import "syncterm" for Conn, CTerm, Hook, Host, Input, Key, Screen, Emoji
 import "ui_picker" for ListPicker
 import "connected" for Connected
 import "music_menu" for MusicMenu
@@ -11,6 +11,7 @@ import "scrollback_view" for ScrollbackView
 import "wren_console" for WrenConsole
 import "session_log" for SessionLogView
 import "transfer_pick" for TransferFlow
+import "emoji_pick" for EmojiFlow
 
 class OnlineMenu {
   static logLevel_() {
@@ -38,7 +39,7 @@ class OnlineMenu {
   }
 
   static entries_() {
-    return [
+    var entries = [
       ["Scrollback", Fn.new { ScrollbackView.run() }],
       ["Disconnect", Fn.new { Conn.endSession(false) }],
       ["Send Login", Fn.new { Connected.sendLogin() }],
@@ -64,6 +65,8 @@ class OnlineMenu {
       ["Edit Dialing Directory", Fn.new { Host.editBBSList() }],
       ["Exit", Fn.new { Conn.endSession(true) }],
     ]
+    if (Emoji.canSend) entries.insert(1, ["Insert Emoji...", Fn.new { EmojiFlow.run() }])
+    return entries
   }
 
   static run() {

@@ -2442,6 +2442,68 @@ exercise_menu_contract(st_wren_host_t *public_host)
 }
 
 static int
+exercise_emoji_contract(st_wren_host_t *public_host)
+{
+	struct st_wren_host *host = public_host;
+	static const char source[] =
+	    "import \"syncterm\" for Emoji, Text, Key, KeyEvent, Host, Cell, Surface, Screen\n"
+	    "import \"ui_input\" for TextInput\n"
+	    "import \"ui_app\" for App\n"
+	    "import \"ui_emoji_picker\" for EmojiPicker\n"
+	    "import \"ui_draw\" for Painter\n"
+	    "import \"ui_widget\" for Rect\n"
+	    "import \"ui_style\" for Theme\n"
+	    "var app = App.new()\n"
+	    "if ((app.binding(Key.ctrlP) != null) != Host.localControlKeys) Fiber.abort(\"local shortcut policy\")\n"
+	    "if (app.openEmojiPicker()) Fiber.abort(\"picker without focused field\")\n"
+	    "var matches = Emoji.search(\"MAN SHRUGGING: MEDIUM SKIN TONE\")\n"
+	    "var exact = matches.where {|e| e.name == \"man shrugging: medium skin tone\" }.toList\n"
+	    "if (exact.count != 1 || exact[0].text != \"🤷🏽‍♂️\") Fiber.abort(\"exact variant name search\")\n"
+	    "var variant = exact[0]\n"
+	    "if (variant.variants.count != 18) Fiber.abort(\"shrug gender and tone grouping\")\n"
+	    "if (Emoji.entries.any {|e| e.text == variant.text }) Fiber.abort(\"variants leaked into base grid\")\n"
+	    "if (Emoji.search(\"zzqq no emoji\").count != 0) Fiber.abort(\"empty search\")\n"
+	    "if (Text.graphemes(\"a\" + variant.text + \"b\").count != 3) Fiber.abort(\"joined segmentation\")\n"
+	    "var field = TextInput.new()\n"
+	    "field.bounds = Rect.new(1, 1, 30, 1)\n"
+	    "field.value = \"ab\"\n"
+	    "field.cursor = 1\n"
+	    "var changes = 0\n"
+	    "field.onChange = Fn.new {|s| changes = changes + 1 }\n"
+	    "field.maxLen = 6\n"
+	    "if (field.insertText(variant.text) || field.value != \"ab\" || field.cursor != 1 || changes != 0) Fiber.abort(\"non-atomic overflow\")\n"
+	    "field.maxLen = 7\n"
+	    "if (!field.insertText(variant.text) || field.value != \"a\" + variant.text + \"b\" || field.cursor != 6 || changes != 1) Fiber.abort(\"insert at cursor\")\n"
+	    "if (field.columnsBetween_(0, 6) != 3) Fiber.abort(\"joined cursor width\")\n"
+	    "if (field.indexAtColumn_(3) != 6) Fiber.abort(\"click after joined emoji\")\n"
+	    "field.maxLen = 4\n"
+	    "field.selectAll()\n"
+	    "if (field.insertText(variant.text) || !field.allSelected || changes != 1) Fiber.abort(\"failed selection insertion\")\n"
+	    "field.maxLen = 5\n"
+	    "if (!field.insertText(variant.text) || field.value != variant.text || field.allSelected || changes != 2) Fiber.abort(\"selection replacement\")\n"
+	    "field.value = \"abcdefg\"\n"
+	    "field.cursor = 1\n"
+	    "field.maxLen = 7\n"
+	    "field.insertMode = false\n"
+	    "if (!field.insertText(variant.text) || field.value != \"a\" + variant.text + \"g\" || changes != 3) Fiber.abort(\"overwrite\")\n"
+	    "field.insertMode = true\n"
+	    "if (field.insertText(\"\\n\") || changes != 3) Fiber.abort(\"control insertion\")\n"
+	    "// This cluster has an independent mapping in the synthetic font.\n"
+	    "var shaped = \"👩🏽‍❤️‍💋‍👩🏻\"\n"
+	    "var sf = Surface.new(4, 1)\n"
+	    "Painter.text(sf, 0, 0, shaped + \"!\", Theme.current.style(\"default\"), 4)\n"
+	    "if (sf[0].ch != shaped || sf[0].columns != 2 || sf[2].ch != \"!\") Fiber.abort(\"joined text painting\")\n"
+	    "var picker = EmojiPicker.new(null)\n"
+	    "picker.draw()\n"
+	    "picker.handle(KeyEvent.new(Key.f2))\n"
+	    "picker.finish()\n";
+	if (wrenInterpret(host->vm, "emoji_contract", source) != WREN_RESULT_SUCCESS) {
+		fprintf(stderr, "emoji contract failed: %s\n", host->last_error);
+		return -1;
+	}
+	return 0;
+}
+static int
 exercise_session_history_contract(st_wren_host_t *public_host)
 {
 	struct st_wren_host *host = public_host;
@@ -4834,9 +4896,11 @@ exercise_safe_mode_persistence_contract(st_wren_host_t *public_host,
 	    "[SyncTERM]\nConfirmClose=false\n"
 	    "[WebLists]\nAudit=https://example.invalid/original\n";
 	static const char source[] =
-	    "import \"syncterm\" for Host\n"
+	    "import \"syncterm\" for Host, Emoji\n"
 	    "import \"syncterm_menu\" for Menu\n"
 	    "if (!Host.safeMode || Menu.load(null) != 0) Fiber.abort(\"safe setup\")\n"
+	    "var grin = Emoji.search(\"grinning face\")[0]\n"
+	    "if (Emoji.recordUse(grin) != null || Emoji.recent[0].text != grin.text) Fiber.abort(\"safe emoji recent\")\n"
 	    "var count = Menu.entries.count\n"
 	    "var entry = Menu.entries[0]\n"
 	    "entry.comment = \"unsaved edit\"\n"
@@ -5211,6 +5275,7 @@ main(int argc, char **argv)
 	uint64_t theme_generation = st_theme_generation(
 	    ((struct st_wren_host *)host)->themes);
 	CHECK(exercise_menu_contract(host) == 0);
+	CHECK(exercise_emoji_contract(host) == 0);
 	CHECK(st_audio_runtime_allowed(audio_runtime) == 0);
 	CHECK(st_session_history_capacity(session_history) == 100);
 	CHECK(exercise_settings_save_contract(host) == 0);
@@ -5388,7 +5453,9 @@ main(int argc, char **argv)
 	st_profile_dispose(&selected);
 	CHECK(wrenInterpret(((struct st_wren_host *)host)->vm,
 	    "ansi_host_capabilities",
-	    "import \"syncterm\" for Host, PixelBlit, PixelBuffer, Screen\n"
+	    "import \"syncterm\" for Host, PixelBlit, PixelBuffer, Screen, Key\n"
+	    "import \"ui_app\" for App\n"
+	    "if (App.new().binding(Key.ctrlP) == null) Fiber.abort(\"ANSI emoji shortcut\")\n"
 	    "if (!Host.textTerminal || !Host.localControlKeys) "
 	    "Fiber.abort(\"ANSI host capabilities\")\n"
 	    "if (Screen.supports.pixels || Screen.pixelSize != null || "

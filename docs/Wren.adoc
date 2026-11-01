@@ -6140,6 +6140,10 @@ collation table and an identical tie-break for deterministic results.
 |===
 | Method | Description
 
+| `Text.graphemes(text)`
+| Return a List of NFC extended grapheme cluster Strings using the shared
+  Unicode text engine. Used by UI drawing so joined emoji resolve as one glyph.
+
 | `Text.normalizedByteCount(text)`
 | Return the UTF-8 byte count after NFC normalization. Use this when checking
   input against byte limits on C-backed text fields.
@@ -7325,6 +7329,35 @@ pane.add(list)
 pane.fitContentToScreen() // sized to list, constrained, and centered
 ----
 
+=== Emoji picker
+
+`import "syncterm" for Emoji, EmojiEntry` provides an offline catalog of
+canonical emoji supported by all three bundled emoji banks. `Emoji.entries`
+returns base representatives; `Emoji.search(query)` returns exact variants
+matching an English name substring, case-insensitively (an empty query returns
+the base list). Each `EmojiEntry` exposes `text`, `name`, and `variants`.
+`text` retains the fully-qualified sequence including joiners and selectors.
+Entry IDs ending in `_` are internal catalog indexes, not persistent values.
+
+`Emoji.recent` returns up to 32 exact entries, newest first.
+`Emoji.recordUse(entry)` promotes an entry and persists the merged recent list,
+returning `null` or an error String. Safe mode changes only session memory.
+`Emoji.canSend` reports whether this VM has a UTF-8 terminal connection; it
+does not restrict local text-field insertion in a menu VM.
+
+`App.openEmojiPicker()` opens `ui_emoji_picker` for its focused `TextInput`.
+The default bindings are Alt+P and, when `Host.localControlKeys` is true,
+Ctrl+P. It returns false without a running App and focused text field. Modal
+completion preserves the insertion target's cursor and selection. A changed
+or detached target is not written. A full field leaves the picker open with
+an explanation rather than inserting part of a sequence.
+
+The connected `emoji_pick` module uses `EmojiFlow.run()` for Alt+P and the
+Online Menu. It saves/restores the screen and mouse settings, suspends terminal
+output during the picker, and sends a successful selection with `Conn.send`.
+Ctrl+P is not a connected hook. Local Apps reached through Alt+E use their
+normal field bindings regardless of the parked connection's encoding.
+
 === TextInput [[ui-input]]
 
 Single-line text edit field.  Stores the value as a list of
@@ -7332,6 +7365,13 @@ codepoint strings, so editing indexes codepoints without splitting UTF-8.
 Cursor placement, scrolling, and painting use `Screen.textWidth`, which
 normalizes to NFC and resolves each extended grapheme cluster once. Full
 grapheme-cluster editing is not currently provided.
+
+`insertText(text)` inserts a complete String at the cursor (or replaces the
+whole-field selection). It respects insert/overwrite mode and the codepoint
+`maxLen`, returning false without changing the field if the entire payload
+does not fit or contains C0/DEL controls. Success returns true and emits one
+`onChange` callback when the value changes. The picker uses this preflight to
+preserve joined emoji.
 
 [source,wren]
 ----

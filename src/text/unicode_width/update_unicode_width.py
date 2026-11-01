@@ -256,6 +256,10 @@ def main():
     output.mkdir(parents=True, exist_ok=True)
     write_source(output / "st_unicode_width.c", *source_ranges(args.source_dir))
 
+    # Keep picker names, variants and actual glyph coverage in step.
+    import runpy
+    runpy.run_path(str(args.root / "src/text/emoji/update_emoji_catalog.py"))["validate_repository"](args.root)
+
 
 if __name__ == "__main__":
     main()

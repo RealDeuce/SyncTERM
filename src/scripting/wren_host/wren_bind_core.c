@@ -13,6 +13,8 @@
 #include "st_builtin_fonts.h"
 #include "st_console.h"
 #include "st_codepage.h"
+#include "st_emoji_catalog.h"
+#include "string_compat.h"
 #include "st_cterm.h"
 #include "st_ooii.h"
 #include "st_settings.h"
@@ -1224,7 +1226,8 @@ queue_console_event(struct st_wren_context *context,
 }
 
 static bool
-next_input_event(WrenVM *vm, bool wait, int64_t timeout_ms, bool at_exit)
+next_input_event(WrenVM *vm, bool wait, int64_t timeout_ms, bool at_exit,
+    bool wake_on_resize)
 {
 	struct st_wren_host *host = st_wren_host_from_vm(vm);
 	struct st_wren_context *context = st_wren_context_from_vm(vm);
@@ -1278,6 +1281,10 @@ next_input_event(WrenVM *vm, bool wait, int64_t timeout_ms, bool at_exit)
 		if (event.type == ST_CONSOLE_EVENT_RESIZE) {
 			st_wren_host_external_screen_resize(host, context->console,
 			    event.data.resize.columns, event.data.resize.rows);
+			if (wake_on_resize) {
+				wrenSetSlotNull(vm, 0);
+				return false;
+			}
 			continue;
 		}
 		status = queue_console_event(context, &event);
@@ -1291,7 +1298,7 @@ next_input_event(WrenVM *vm, bool wait, int64_t timeout_ms, bool at_exit)
 static void
 fn_input_next(WrenVM *vm)
 {
-	(void)next_input_event(vm, true, -1, false);
+	(void)next_input_event(vm, true, -1, false, false);
 }
 
 static void
@@ -1301,13 +1308,13 @@ fn_input_next_timed(WrenVM *vm)
 
 	if (!slot_integer(vm, 1, 0, INT_MAX, &milliseconds))
 		return;
-	(void)next_input_event(vm, true, milliseconds, false);
+	(void)next_input_event(vm, true, milliseconds, false, false);
 }
 
 static void
 fn_input_poll(WrenVM *vm)
 {
-	(void)next_input_event(vm, false, 0, false);
+	(void)next_input_event(vm, false, 0, false, false);
 }
 
 static void
@@ -1317,7 +1324,7 @@ fn_input_next_widget(WrenVM *vm)
 		st_wren_abort(vm, "Input.nextForWidget_ expects a Bool");
 		return;
 	}
-	(void)next_input_event(vm, true, -1, wrenGetSlotBool(vm, 1));
+	(void)next_input_event(vm, true, -1, wrenGetSlotBool(vm, 1), true);
 }
 
 static void
@@ -1331,7 +1338,7 @@ fn_input_next_widget_timed(WrenVM *vm)
 	}
 	if (!slot_integer(vm, 2, 0, INT_MAX, &milliseconds))
 		return;
-	(void)next_input_event(vm, true, milliseconds, wrenGetSlotBool(vm, 1));
+	(void)next_input_event(vm, true, milliseconds, wrenGetSlotBool(vm, 1), true);
 }
 
 static void
@@ -4428,6 +4435,40 @@ text_pair(WrenVM *vm, const char **left, int *left_size,
 }
 
 static void
+fn_text_graphemes(WrenVM *vm)
+{
+	const char *text;
+	int size;
+	st_unicode_text_t *graphemes = NULL;
+	struct st_unicode_text_item item;
+	size_t consumed = 0;
+	int status;
+
+	if (!st_wren_text_slot(vm, 1, &text, &size))
+		return;
+	status = st_unicode_text_create(&graphemes, ST_UNICODE_TEXT_GRAPHEMES);
+	if (status == 0)
+		status = st_unicode_text_feed(graphemes, text, (size_t)size, &consumed);
+	if (status == 0 && consumed != (size_t)size)
+		status = IO_ERROR_INVALID_ENCODING;
+	if (status == 0)
+		status = st_unicode_text_finish(graphemes);
+	if (status != 0) {
+		st_unicode_text_destroy(&graphemes);
+		st_wren_abort(vm, "could not segment text");
+		return;
+	}
+	wrenEnsureSlots(vm, 2);
+	wrenSetSlotNewList(vm, 0);
+	while (st_unicode_text_peek(graphemes, &item) == 0) {
+		wrenSetSlotBytes(vm, 1, (const char *)item.bytes, item.size);
+		wrenInsertInList(vm, 0, -1, 1);
+		(void)st_unicode_text_consume(graphemes);
+	}
+	st_unicode_text_destroy(&graphemes);
+}
+
+static void
 fn_text_normalized_byte_count(WrenVM *vm)
 {
 	const char *text;
@@ -4554,7 +4595,135 @@ fn_host_max_ooii_mode(WrenVM *vm)
 	wrenSetSlotDouble(vm, 0, ST_OOII_MAX_MODE);
 }
 
+static bool
+emoji_index(WrenVM *vm, size_t *index)
+{
+	int64_t value;
+	if (!slot_integer(vm, 1, 0, (int64_t)st_emoji_entry_count - 1, &value))
+		return false;
+	*index = (size_t)value;
+	return true;
+}
+
+static void
+emoji_add_id(WrenVM *vm, size_t id)
+{
+	wrenSetSlotDouble(vm, 1, (double)id);
+	wrenInsertInList(vm, 0, -1, 1);
+}
+
+static void
+fn_emoji_entries(WrenVM *vm)
+{
+	wrenEnsureSlots(vm, 2);
+	wrenSetSlotNewList(vm, 0);
+	for (size_t i = 0; i < st_emoji_entry_count; i++)
+		if (st_emoji_entries[i].base == i)
+			emoji_add_id(vm, i);
+}
+
+static void
+fn_emoji_search(WrenVM *vm)
+{
+	const char *query;
+	int size;
+	if (!st_wren_text_slot(vm, 1, &query, &size))
+		return;
+	char *copy = strndup(query, (size_t)size);
+	if (copy == NULL) {
+		st_wren_abort(vm, "out of memory");
+		return;
+	}
+	wrenEnsureSlots(vm, 2);
+	wrenSetSlotNewList(vm, 0);
+	for (size_t i = 0; i < st_emoji_entry_count; i++) {
+		bool match = false;
+		if (st_unicode_caseless_contains(&match, st_emoji_entries[i].name,
+		    strlen(st_emoji_entries[i].name), copy, (size_t)size) != 0) {
+			free(copy);
+			st_wren_abort(vm, "emoji search failed");
+			return;
+		}
+		if (match)
+			emoji_add_id(vm, i);
+	}
+	free(copy);
+}
+
+static void
+fn_emoji_text(WrenVM *vm)
+{
+	size_t id;
+	if (emoji_index(vm, &id))
+		wrenSetSlotString(vm, 0, st_emoji_entries[id].text);
+}
+
+static void
+fn_emoji_name(WrenVM *vm)
+{
+	size_t id;
+	if (emoji_index(vm, &id))
+		wrenSetSlotString(vm, 0, st_emoji_entries[id].name);
+}
+
+static void
+fn_emoji_variants(WrenVM *vm)
+{
+	size_t id;
+	if (!emoji_index(vm, &id))
+		return;
+	size_t base = st_emoji_entries[id].base;
+	wrenEnsureSlots(vm, 2);
+	wrenSetSlotNewList(vm, 0);
+	for (size_t i = 0; i < st_emoji_entry_count; i++)
+		if (st_emoji_entries[i].base == base)
+			emoji_add_id(vm, i);
+}
+
+static void
+fn_emoji_recent(WrenVM *vm)
+{
+	wrenEnsureSlots(vm, 2);
+	wrenSetSlotNewList(vm, 0);
+	for (size_t i = 0; i < st_settings_recent_emoji_count(); i++) {
+		size_t id = st_emoji_find(st_settings_recent_emoji_at(i));
+		if (id < st_emoji_entry_count)
+			emoji_add_id(vm, id);
+	}
+}
+
+static void
+fn_emoji_record(WrenVM *vm)
+{
+	size_t id;
+	if (!emoji_index(vm, &id))
+		return;
+	int status = st_settings_remember_emoji(st_emoji_entries[id].text,
+	    !st_wren_host_from_vm(vm)->config.safe_mode);
+	if (status == 0)
+		wrenSetSlotNull(vm, 0);
+	else
+		wrenSetSlotString(vm, 0, "Recent emoji could not be saved.");
+}
+
+static void
+fn_emoji_can_send(WrenVM *vm)
+{
+	struct st_wren_context *context = st_wren_context_from_vm(vm);
+	wrenSetSlotBool(vm, 0, context->cterm != NULL
+	    && st_cterm_encoding(context->cterm) == ST_CTERM_ENCODING_UTF8);
+}
+
 static const struct binding bindings[] = {
+	{"Text", true, "graphemes(_)", fn_text_graphemes},
+	{"Emoji", true, "entries_", fn_emoji_entries},
+	{"Emoji", true, "search_(_)", fn_emoji_search},
+	{"Emoji", true, "text_(_)", fn_emoji_text},
+	{"Emoji", true, "name_(_)", fn_emoji_name},
+	{"Emoji", true, "variants_(_)", fn_emoji_variants},
+	{"Emoji", true, "recent_", fn_emoji_recent},
+	{"Emoji", true, "recordUse_(_)", fn_emoji_record},
+	{"Emoji", true, "canSend", fn_emoji_can_send},
 	{"Host", true, "haveOOII", fn_host_have_ooii},
 	{"Host", true, "maxOOIIMode", fn_host_max_ooii_mode},
 	{"Platform", true, "name", fn_platform_name},

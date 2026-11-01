@@ -320,6 +320,10 @@ def main():
         color_shaper.close()
         color_source.close()
 
+    # Keep picker names, variants and actual glyph coverage in step.
+    import runpy
+    runpy.run_path(str(args.root / "src/text/emoji/update_emoji_catalog.py"))["refresh_repository"](args.root)
+
 
 if __name__ == "__main__":
     main()

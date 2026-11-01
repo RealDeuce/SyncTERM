@@ -62,6 +62,10 @@ builds do not rerasterize it.
 The checked-in data was generated with Pillow 12.3.0, FreeType 2.14.3,
 RAQM 0.11.0, and HarfBuzz 14.6.0.
 
+The emoji rasterizer also refreshes the picker coverage manifest and catalog.
+All font and Unicode update scripts check that the picker remains consistent;
+see `../../text/emoji/UPSTREAM.md` for pinned English names and regeneration.
+
 # Legacy built-in fonts
 
 `st_builtin_font_data.c` retains SyncTERM's complete legacy built-in font

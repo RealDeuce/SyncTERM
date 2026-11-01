@@ -290,6 +290,10 @@ def main():
     write_source(output / "st_unicode_grapheme.c", grapheme, incb,
                  pictographic, sequences)
 
+    # Keep picker names, variants and actual glyph coverage in step.
+    import runpy
+    runpy.run_path(str(args.root / "src/text/emoji/update_emoji_catalog.py"))["validate_repository"](args.root)
+
 
 if __name__ == "__main__":
     main()

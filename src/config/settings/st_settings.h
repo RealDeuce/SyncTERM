@@ -11,6 +11,7 @@
 #include "name_value_list.h"
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #define ST_SETTINGS_VALUE_MAX 1023
@@ -128,6 +129,12 @@ int st_settings_save(void);
  * Installed settings and the merge baseline are unchanged. */
 int st_settings_persist_scaling_factor(double scaling_factor);
 void st_settings_shutdown(void);
+
+#define ST_SETTINGS_RECENT_EMOJI_MAX 32
+size_t st_settings_recent_emoji_count(void);
+const char *st_settings_recent_emoji_at(size_t index);
+/* Always updates session recents; persist=false performs no file writes. */
+int st_settings_remember_emoji(const char *text, bool persist);
 
 size_t st_settings_web_download_count(void);
 const struct name_value *st_settings_web_download_at(size_t index);

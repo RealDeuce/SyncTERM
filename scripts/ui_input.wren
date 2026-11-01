@@ -147,22 +147,17 @@ class TextInput is Widget {
   displayChar_(index) { _mask == null ? _chars[index] : _mask }
 
   columnsBetween_(first, last) {
-    var columns = 0
-    var i = first
-    while (i < last) {
-      columns = columns + Screen.textWidth(displayChar_(i), displayFont_)
-      i = i + 1
-    }
-    return columns
+    var chars = []
+    for (i in first...last) chars.add(displayChar_(i))
+    return Screen.textWidth(chars.join(), displayFont_)
   }
 
   indexAtColumn_(column) {
     var i = _scrollOff
-    var used = 0
+    var chars = []
     while (i < _chars.count) {
-      var width = Screen.textWidth(displayChar_(i), displayFont_)
-      if (used + width > column) return i
-      used = used + width
+      chars.add(displayChar_(i))
+      if (Screen.textWidth(chars.join(), displayFont_) > column) return i
       i = i + 1
     }
     return i
@@ -179,6 +174,7 @@ class TextInput is Widget {
     if (_cursor < _scrollOff) {
       _scrollOff = _cursor
     } else {
+      if (columnsBetween_(_scrollOff, _cursor) < w) return
       // Walk the current suffix once.  Recomputing its complete width after
       // advancing _scrollOff by one makes assigning a long value quadratic.
       var first = _cursor
@@ -222,15 +218,9 @@ class TextInput is Widget {
     Painter.fill(sf, Rect.new(0, 0, bounds.w, bounds.h), " ", fillStyle_)
     var w = bounds.w
     var col = 0
-    var i = _scrollOff
-    while (col < w && i < _chars.count) {
-      var ch = displayChar_(i)
-      var columns = Screen.textWidth(ch, displayFont_)
-      if (col + columns > w) break
-      Painter.text(sf, col, 0, ch, st, columns)
-      col = col + columns
-      i = i + 1
-    }
+    var chars = []
+    for (i in _scrollOff..._chars.count) chars.add(displayChar_(i))
+    Painter.text(sf, col, 0, chars.join(), st, w)
   }
 
   // ----- Edit primitives ------------------------------------------
@@ -284,6 +274,23 @@ class TextInput is Widget {
       }
     }
     if (changed && _onChange != null) _onChange.call(value)
+  }
+
+  // Preflight the complete payload so a joined emoji cannot be truncated.
+  insertText(text) {
+    if (!(text is String)) return false
+    var chars = []
+    for (ch in text) {
+      var cp = ch.codePoints.toList[0]
+      if (cp < 0x20 || cp == 0x7f) return false
+      chars.add(ch)
+    }
+    var count = _chars.count.max(_cursor + chars.count)
+    if (insertMode) count = _chars.count + chars.count
+    if (_allSelected) count = chars.count
+    if (_maxLen != null && count > _maxLen) return false
+    insertText_(text)
+    return true
   }
 
   backspace_() {

@@ -1,0 +1,2 @@
+# Preserve the exact upstream bytes used by the emoji picker input pin.
+src/text/emoji/data/*.txt -text

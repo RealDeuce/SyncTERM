@@ -12,6 +12,7 @@
 class Error {}
 
 class Text {
+  foreign static graphemes(text)
   foreign static normalizedByteCount(text)
   foreign static caselessKey(text)
   foreign static caselessEqual(left, right)
@@ -2245,4 +2246,31 @@ class WONErr {
   static invalidKey    { 4 }
   static tooDeep       { 5 }
   static trailingData  { 6 }
+}
+
+// Canonical emoji metadata shared by menu, picker and connected VMs.
+class EmojiEntry {
+  construct from_(id) { _id = id }
+  id_ { _id }
+  text { Emoji.text_(_id) }
+  name { Emoji.name_(_id) }
+  variants { Emoji.variants_(_id).map {|id| EmojiEntry.from_(id) }.toList }
+}
+
+class Emoji {
+  foreign static canSend
+  foreign static entries_
+  foreign static search_(query)
+  foreign static text_(id)
+  foreign static name_(id)
+  foreign static variants_(id)
+  foreign static recent_
+  foreign static recordUse_(id)
+  static entries { entries_.map {|id| EmojiEntry.from_(id) }.toList }
+  static search(query) {
+    if (query.count == 0) return entries
+    return search_(query).map {|id| EmojiEntry.from_(id) }.toList
+  }
+  static recent { recent_.map {|id| EmojiEntry.from_(id) }.toList }
+  static recordUse(entry) { recordUse_(entry.id_) }
 }

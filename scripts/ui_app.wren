@@ -38,9 +38,11 @@ import "ui_widget" for Widget, Container, Rect
 import "ui_draw"   for Painter
 import "ui_popup"  for PopStatus
 import "ui_help"   for Help
+import "ui_input" for TextInput
+import "ui_emoji_picker" for EmojiPicker
 import "syncterm"  for Input, KeyEvent, MouseEvent, Mouse, Key, Timer,
                        TimerElapsed, Wake, Screen, Surface, CustomCursor, CTerm,
-                       REPL
+                       REPL, Host, Emoji
 
 // Sentinel passed into post() when the caller doesn't supply a value.
 // Identity-comparable so the App can recognise "just wake up, nothing
@@ -97,6 +99,35 @@ class App {
     _mouseRepeatTimer = null
     // F1 → context help; user can rebind / unbind freely.
     bind(Key.f1, Fn.new {|k| showHelp() })
+    bind(Key.altP, Fn.new {|k| openEmojiPicker() })
+    if (Host.localControlKeys) bind(Key.ctrlP, Fn.new {|k| openEmojiPicker() })
+  }
+
+  openEmojiPicker() {
+    var target = focusedLeaf_
+    if (!(target is TextInput) || !_running) return false
+    var cursor = target.cursor
+    var selected = target.allSelected
+    var original = target.value
+    var pane = EmojiPicker.new(Fn.new { popModal() })
+    while (_running) {
+      modal(pane)
+      pane.finish()
+      if (target.value != original) return true
+      var owner = target
+      while (owner is Widget) owner = owner.parent
+      if (owner != this) return true
+      target.cursor = cursor
+      if (selected) target.selectAll()
+      if (pane.result == null) return true
+      if (target.insertText(pane.result.text)) {
+        var error = Emoji.recordUse(pane.result)
+        if (error != null) System.print(error)
+        return true
+      }
+      pane.restart("That emoji does not fit in this field.")
+    }
+    return true
   }
 
   root        { _root        }

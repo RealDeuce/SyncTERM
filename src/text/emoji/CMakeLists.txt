@@ -1,0 +1,25 @@
+# Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
+cmake_minimum_required(VERSION 3.22)
+if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
+	project(STEmojiCatalog LANGUAGES C)
+	include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/SynctermCStandard.cmake")
+	include(CTest)
+endif()
+
+add_library(st_emoji_catalog STATIC st_emoji_catalog.c generated/st_emoji_catalog_data.c)
+target_include_directories(st_emoji_catalog PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+set_target_properties(st_emoji_catalog PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+if(MSVC)
+	target_compile_options(st_emoji_catalog PRIVATE /W4 /WX)
+else()
+	target_compile_options(st_emoji_catalog PRIVATE -Wall -Wextra -Wpedantic -Werror)
+endif()
+if(BUILD_TESTING)
+	find_package(Python3 COMPONENTS Interpreter QUIET)
+	if(Python3_Interpreter_FOUND)
+		add_test(NAME emoji_catalog_generated COMMAND ${Python3_EXECUTABLE}
+			${CMAKE_CURRENT_SOURCE_DIR}/update_emoji_catalog.py --check)
+		add_test(NAME emoji_catalog_generator COMMAND ${Python3_EXECUTABLE}
+			${CMAKE_CURRENT_SOURCE_DIR}/tests/test_generator.py)
+	endif()
+endif()

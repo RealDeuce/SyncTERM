@@ -35,13 +35,17 @@ if(NOT TARGET st_unicode_compare)
 	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../text/unicode_compare"
 		"${CMAKE_CURRENT_BINARY_DIR}/unicode_compare")
 endif()
+if(NOT TARGET st_emoji_catalog)
+	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../text/emoji"
+		"${CMAKE_CURRENT_BINARY_DIR}/emoji")
+endif()
 
 add_library(st_settings STATIC st_settings.c st_settings_store.c)
 target_include_directories(st_settings PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_settings PUBLIC
 	syncterm_name_value_list st_app_paths syncterm_io_error PRIVATE
 	st_file_lock syncterm_filesystem syncterm_ini syncterm_string_compat
-	syncterm_string_util st_unicode_compare)
+	syncterm_string_util st_unicode_compare st_emoji_catalog)
 set_target_properties(st_settings PROPERTIES
 	C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 
@@ -68,7 +72,7 @@ if(BUILD_TESTING)
 
 	add_executable(st_settings_store_test tests/st_settings_store_test.c)
 	target_link_libraries(st_settings_store_test PRIVATE st_settings
-		syncterm_filesystem syncterm_ini)
+		syncterm_filesystem syncterm_ini st_emoji_catalog)
 	target_compile_definitions(st_settings_store_test PRIVATE
 		ST_SETTINGS_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/store-test")
 	set_target_properties(st_settings_store_test PROPERTIES
@@ -86,7 +90,7 @@ if(BUILD_TESTING)
 	target_link_libraries(st_settings_faultable PUBLIC
 		syncterm_name_value_list st_app_paths syncterm_io_error PRIVATE
 		st_file_lock syncterm_filesystem syncterm_ini
-		syncterm_string_compat syncterm_string_util st_unicode_compare)
+		syncterm_string_compat syncterm_string_util st_unicode_compare st_emoji_catalog)
 	set_target_properties(st_settings_faultable PROPERTIES
 		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	st_settings_warnings(st_settings_faultable)

@@ -192,6 +192,13 @@ bitmap tests.
 Disable physical audio output in headless fixtures (for example, with
 `AudioModes=0`); verify synthesized PCM separately from audible device tests.
 
+When updating Unicode data or bundled fonts, keep the emoji picker in sync.
+The update scripts check its pinned names, variant groups, and shared glyph
+coverage. Regenerate with `src/text/emoji/update_emoji_catalog.py` (use
+`--refresh-coverage` after changing emoji rasters), run `--check`, and update
+the catalog and picker tests for new eligible emoji or changed variants.
+Do not add entries the bundled 8x8, 8x14, and 8x16 emoji banks cannot render.
+
 When changing detection logic, verify both the capability-present and
 capability-absent paths where practical. Never claim a platform or toolchain
 was tested when it was not; state the configurations actually exercised.

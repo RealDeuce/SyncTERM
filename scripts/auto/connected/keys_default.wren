@@ -8,6 +8,9 @@ import "music_menu" for MusicMenu
 import "capture_menu" for CaptureMenu
 import "font_pick" for FontApp
 import "session_log" for SessionLogView
+import "emoji_pick" for EmojiFlow
+
+Hook.onKey(Key.altP) {|key| EmojiFlow.run() }
 
 Hook.onKey(Key.altV) { |key|
   SessionLogView.run()

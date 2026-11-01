@@ -9,6 +9,20 @@ if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 endif()
 
 if(BUILD_TESTING)
+	# Catalog eligibility is an integration contract with all three font banks.
+	if(TARGET st_emoji_catalog)
+		add_executable(st_emoji_catalog_test tests/st_emoji_catalog_test.c)
+		target_link_libraries(st_emoji_catalog_test PRIVATE
+			st_emoji_catalog st_fonts st_utf8 st_unicode_grapheme)
+		set_target_properties(st_emoji_catalog_test PROPERTIES
+			C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+		if(MSVC)
+			target_compile_options(st_emoji_catalog_test PRIVATE /W4 /WX)
+		else()
+			target_compile_options(st_emoji_catalog_test PRIVATE -Wall -Wextra -Wpedantic -Werror)
+		endif()
+		add_test(NAME emoji_catalog COMMAND st_emoji_catalog_test)
+	endif()
 	add_executable(st_fonts_test tests/st_fonts_test.c)
 	target_link_libraries(st_fonts_test PRIVATE st_fonts)
 	set_target_properties(st_fonts_test PROPERTIES

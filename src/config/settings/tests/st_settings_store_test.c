@@ -1,6 +1,7 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 
 #include "st_settings.h"
+#include "st_emoji_catalog.h"
 
 #include "filesystem.h"
 #include "ini.h"
@@ -294,6 +295,53 @@ test_classic_external_migration(const char *path)
 	return 0;
 }
 
+static int
+test_recent_emoji(const struct st_app_paths *paths)
+{
+	const char *path = paths->settings_file;
+	const char *grin = "\xf0\x9f\x98\x80";
+	const char *smile = "\xf0\x9f\x98\x83";
+	CHECK(write_text(path, "[SyncTERM]\nScrollBackLines=7\nUnknown=keep\n"
+	    "[RecentEmoji]\n1=\xf0\x9f\x98\x80\n2=invalid\n3=\xf0\x9f\x98\x80\n4=\xf0\x9f\x98\x83\n") == 0);
+	CHECK(st_settings_load(paths) == 0);
+	CHECK(st_settings_recent_emoji_count() == 2);
+	CHECK(strcmp(st_settings_recent_emoji_at(0), grin) == 0);
+	CHECK(st_settings_remember_emoji(smile, false) == 0);
+	CHECK(strcmp(st_settings_recent_emoji_at(0), smile) == 0);
+	/* Safe/session-only use must not change the file's ordering. */
+	CHECK(st_settings_reload() == 0);
+	CHECK(strcmp(st_settings_recent_emoji_at(0), grin) == 0);
+	CHECK(st_settings_remember_emoji(smile, true) == 0);
+	/* A different instance writes a new recent and an unrelated setting. */
+	CHECK(write_text(path, "[SyncTERM]\nScrollBackLines=77\nUnknown=other\n"
+	    "[RecentEmoji]\n1=\xf0\x9f\x98\x84\n2=\xf0\x9f\x98\x80\n") == 0);
+	CHECK(st_settings_remember_emoji(smile, true) == 0);
+	CHECK(st_settings_recent_emoji_count() == 3);
+	CHECK(strcmp(st_settings_recent_emoji_at(0), smile) == 0);
+	CHECK(strcmp(st_settings_recent_emoji_at(1), "\xf0\x9f\x98\x84") == 0);
+	st_settings.confirm_close = false;
+	CHECK(st_settings_save() == 0);
+	CHECK(st_settings_reload() == 0 && st_settings.scrollback_lines == 77);
+	CHECK(strcmp(st_settings_recent_emoji_at(0), smile) == 0);
+	for (size_t i = 0; i < 40; i++)
+		CHECK(st_settings_remember_emoji(st_emoji_entries[i].text, false) == 0);
+	CHECK(st_settings_recent_emoji_count() == 32);
+	CHECK(st_settings_recent_emoji_at(32) == NULL);
+	CHECK(strcmp(st_settings_recent_emoji_at(0), st_emoji_entries[39].text) == 0);
+	CHECK(st_settings_remember_emoji(st_emoji_entries[39].text, true) == 0);
+	CHECK(st_settings_reload() == 0 && st_settings_recent_emoji_count() == 32);
+	CHECK(strcmp(st_settings_recent_emoji_at(0), st_emoji_entries[39].text) == 0);
+	CHECK(st_settings_remember_emoji("not emoji", true) == IO_ERROR_INVALID_ARGUMENT);
+	/* A real read/write failure retains the new in-memory entry. */
+	CHECK(fs_remove_file(path) == 0);
+	CHECK(fs_create_directory(path) == 0);
+	CHECK(st_settings_remember_emoji(grin, true) != 0);
+	CHECK(strcmp(st_settings_recent_emoji_at(0), grin) == 0);
+	CHECK(fs_remove_directory(path) == 0);
+	CHECK(write_text(path, "[SyncTERM]\nUnknown=other\n") == 0);
+	return 0;
+}
+
 int
 main(void)
 {
@@ -467,6 +515,7 @@ main(void)
 	failure += test_classic_color_bounds(settings_path);
 	failure += test_classic_per_key_fallback(settings_path);
 	failure += test_classic_external_migration(settings_path);
+	failure += test_recent_emoji(&paths);
 	st_settings_shutdown();
 	(void)fs_remove_file(settings_path);
 	(void)fs_remove_file(list_path);

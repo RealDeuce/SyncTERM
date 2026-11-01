@@ -128,6 +128,12 @@ if(BUILD_TESTING)
 	if(ST_CONSOLE_TEST)
 		find_package(Python3 REQUIRED COMPONENTS Interpreter)
 		if(Python3_Interpreter_FOUND)
+			foreach(_emoji_group menu connected)
+				add_test(NAME syncterm_emoji_${_emoji_group}
+					COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_emoji_picker_test.py
+					$<TARGET_FILE:syncterm_app> ${_emoji_group} --reports ${CMAKE_BINARY_DIR}/reports/test-control)
+				set_tests_properties(syncterm_emoji_${_emoji_group} PROPERTIES TIMEOUT 90)
+			endforeach()
 			foreach(_group ellipses raster buttons wire interaction)
 				foreach(_encoding CP437 UTF-8)
 					add_test(NAME syncterm_rip154_${_group}_${_encoding}
