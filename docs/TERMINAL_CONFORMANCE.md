@@ -49,6 +49,14 @@ Every case must recover known cells, margins and cursor coordinates and answer a
 query. TCP write boundaries are not parser chunk boundaries: the existing
 `cterm_text` C tests retain exhaustive split/bytewise decoder coverage.
 
+`syncterm_emoji_aspect` checks the independent grinning-face ink extents in
+square-pixel and 6:5 tall-pixel colour banks at 8, 14, and 16 pixels high,
+using a single control capture for related cells, both pixel planes and cursor
+state. It repeats after terminal reset. Native mode/aspect-only redraw,
+threshold selection, compressed-stream validation and copied font ownership
+are covered by the console colour-glyph tests. No auditory or native-display
+coverage is inferred from these bitmap checks.
+
 `syncterm_emoji_presentation` independently checks two-cell emoji presentation
 and single-cell text presentation across 8-, 14-, and 16-pixel fonts, with
 colour both enabled and disabled. It covers native narrow symbols such as

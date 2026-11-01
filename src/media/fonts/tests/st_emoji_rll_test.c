@@ -18,44 +18,53 @@
 #define SAMPLES 7U
 #define PASSES 40U
 
-struct packed_bank {
-	struct st_console_font font;
-	struct st_console_color_glyph *colors;
+struct comparison_bank {
+	struct st_console_font raw;
+	struct st_console_font packed;
+	struct st_console_color_glyph *raw_colors;
+	struct st_console_color_glyph *packed_colors;
 	uint8_t *data;
 	size_t raw_bytes;
 	size_t packed_bytes;
 };
 
-static struct packed_bank
-pack_bank(const struct st_console_font *source)
+static struct comparison_bank
+make_bank(const struct st_console_font *source, bool tall)
 {
-	struct packed_bank bank = {.font = *source};
-	size_t capacity = 0;
-	for (size_t i = 0; i < source->color_glyph_count; ++i)
-		capacity += source->color_glyphs[i].size + 2;
-	bank.colors = calloc(source->color_glyph_count, sizeof(*bank.colors));
+	struct comparison_bank bank = {.raw = *source, .packed = *source};
+	size_t capacity = source->color_glyph_count * source->width * 2 * source->height * 4;
+	bank.raw_colors = calloc(source->color_glyph_count, sizeof(*bank.raw_colors));
+	bank.packed_colors = calloc(source->color_glyph_count, sizeof(*bank.packed_colors));
 	bank.data = malloc(capacity);
-	CHECK(bank.colors != NULL && bank.data != NULL);
-	bank.font.color_glyphs = bank.colors;
+	CHECK(bank.raw_colors != NULL && bank.packed_colors != NULL && bank.data != NULL);
+	bank.raw.color_glyphs = bank.raw_colors;
+	bank.packed.color_glyphs = bank.packed_colors;
 	for (size_t i = 0; i < source->color_glyph_count; ++i) {
-		const struct st_console_color_glyph *raw = &source->color_glyphs[i];
-		struct st_console_color_glyph *packed = &bank.colors[i];
-		*packed = *raw;
-		packed->row_stride = 0;
-		size_t j = 0;
-		while (j < i && source->color_glyphs[j].rgba != raw->rgba)
-			++j;
-		if (j < i) {
-			packed->rgba = bank.colors[j].rgba;
-			packed->size = bank.colors[j].size;
-			continue;
+		struct st_console_color_glyph *packed = &bank.packed_colors[i];
+		struct st_console_color_glyph *raw = &bank.raw_colors[i];
+		*packed = source->color_glyphs[i];
+		CHECK(packed->row_stride == 0 && packed->tall_rgba != NULL);
+		if (tall) {
+			packed->rgba = packed->tall_rgba;
+			packed->size = packed->tall_size;
 		}
+		packed->tall_rgba = NULL;
+		packed->tall_size = 0;
+		*raw = *packed;
 		size_t width = raw->width != 0 ? raw->width : source->width
 		    * (raw->glyph < source->glyph_count ? 1U : 2U);
-		packed->rgba = bank.data + bank.packed_bytes;
-		packed->size = encode_color_rll(raw->rgba, raw->row_stride,
-		    width, source->height, bank.data + bank.packed_bytes);
-		CHECK(packed->size != 0);
+		raw->row_stride = width * 4;
+		raw->size = raw->row_stride * source->height;
+		size_t j = 0;
+		while (j < i && bank.packed_colors[j].rgba != packed->rgba)
+			++j;
+		if (j < i) {
+			raw->rgba = bank.raw_colors[j].rgba;
+			continue;
+		}
+		raw->rgba = bank.data + bank.raw_bytes;
+		CHECK(decode_color_rll(packed->rgba, packed->size, width,
+		    source->height, bank.data + bank.raw_bytes));
 		bank.raw_bytes += raw->size;
 		bank.packed_bytes += packed->size;
 	}
@@ -219,17 +228,21 @@ main(int argc, char **argv)
 		printf("Row-major half spans; headless 80x25; %u samples x %u frames; median [min,max]; "
 		    "alternating format order; total process CPU.\n", SAMPLES, PASSES);
 	for (size_t i = 0; i < sizeof(fonts) / sizeof(fonts[0]); ++i) {
-		struct packed_bank bank = pack_bank(fonts[i]);
-		verify(fonts[i], &bank.font);
-		printf("height=%u: %zu colour IDs verified; unique bytes RGBA=%zu RLL=%zu "
-		    "(%.2f%% saved, includes half offsets)\n", fonts[i]->height,
-		    fonts[i]->color_glyph_count, bank.raw_bytes, bank.packed_bytes,
-		    100.0 * (1.0 - (double)bank.packed_bytes / (double)bank.raw_bytes));
-		fflush(stdout);
-		if (profile)
-			benchmark(fonts[i], &bank.font);
-		free(bank.data);
-		free(bank.colors);
+		for (unsigned tall = 0; tall < 2; ++tall) {
+			struct comparison_bank bank = make_bank(fonts[i], tall != 0);
+			verify(&bank.raw, &bank.packed);
+			printf("height=%u aspect=%s: %zu colour IDs verified; unique bytes RGBA=%zu RLL=%zu "
+			    "(%.2f%% saved, includes half offsets)\n", fonts[i]->height,
+			    tall ? "6:5" : "1:1", fonts[i]->color_glyph_count,
+			    bank.raw_bytes, bank.packed_bytes,
+			    100.0 * (1.0 - (double)bank.packed_bytes / (double)bank.raw_bytes));
+			fflush(stdout);
+			if (profile)
+				benchmark(&bank.raw, &bank.packed);
+			free(bank.data);
+			free(bank.raw_colors);
+			free(bank.packed_colors);
+		}
 	}
 	return EXIT_SUCCESS;
 }

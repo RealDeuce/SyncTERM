@@ -41,7 +41,7 @@ check_geometry(uint32_t cell_width, bool double_height, uint32_t color_width, bo
 			rgba[i + 3] = 255;
 		}
 	struct st_console_color_glyph color = {
-		1, rgba, color_width * 2 * 4, color_width * 4, color_width,
+		1, rgba, color_width * 2 * 4, color_width * 4, color_width, NULL, 0,
 	};
 	uint8_t encoded[sizeof(rgba) + 2];
 	if (rll) {
@@ -94,7 +94,7 @@ check_pixels(bool rll)
 	};
 	uint8_t mono[2] = {0x80, 0x80};
 	uint8_t rgba[64] = {255, 0, 0, 255, 255, 0, 0, 128, 0, 255, 0, 0};
-	struct st_console_color_glyph color = {0, rgba, sizeof(rgba), 32, 0};
+	struct st_console_color_glyph color = {0, rgba, sizeof(rgba), 32, 0, NULL, 0};
 	/* Two literal pixels followed by transparent row spans in each half. */
 	uint8_t encoded[] = {12, 0, 255, 255, 0, 0, 128, 255, 0, 0, 0, 5, 0, 7};
 	if (rll) {
@@ -239,7 +239,7 @@ check_rll_validation(void)
 	const struct st_console_config config = {.columns = 1, .rows = 1};
 	uint8_t mono[32] = {0};
 	const uint8_t empty[] = {4, 0, 0, 127, 0, 127};
-	struct st_console_color_glyph color = {0, empty, sizeof(empty), 0, 0};
+	struct st_console_color_glyph color = {0, empty, sizeof(empty), 0, 0, NULL, 0};
 	struct st_console_font font = {
 		.bitmap = mono, .bitmap_size = sizeof(mono),
 		.width = 8, .height = 32, .glyph_count = 1, .row_stride = 1, .glyph_stride = 32,
@@ -303,8 +303,94 @@ check_rll_validation(void)
 	st_console_destroy(console);
 }
 
+static void
+check_aspect_selection(void)
+{
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_TEST};
+	const struct st_console_config config = {
+		.columns = 2, .rows = 1, .cell_width = 8, .cell_height = 16,
+		.color_emoji = true,
+	};
+	uint8_t mono[16] = {0};
+	uint8_t square[8 * 16 * 4] = {0}, tall[sizeof(square)] = {0};
+	square[0] = 255;
+	square[3] = 255;
+	tall[2] = 255;
+	tall[3] = 255;
+	uint8_t square_rll[sizeof(square) + 2], tall_rll[sizeof(tall) + 2];
+	for (unsigned packed = 0; packed < 2; ++packed) {
+		struct st_console_color_glyph color = {
+			.glyph = 0, .rgba = square, .size = sizeof(square), .row_stride = 32,
+			.tall_rgba = tall, .tall_size = sizeof(tall),
+		};
+		if (packed) {
+			color.size = encode_color_rll(square, 32, 8, 16, square_rll);
+			color.tall_size = encode_color_rll(tall, 32, 8, 16, tall_rll);
+			color.rgba = square_rll;
+			color.tall_rgba = tall_rll;
+			color.row_stride = 0;
+		}
+		const struct st_console_font font = {
+			.bitmap = mono, .bitmap_size = sizeof(mono),
+			.width = 8, .height = 16, .glyph_count = 1, .row_stride = 1, .glyph_stride = 16,
+			.color_glyphs = &color, .color_glyph_count = 1,
+		};
+		st_console_t *console = NULL;
+		uint16_t id;
+		CHECK(st_console_create(&console, &display, &config) == 0);
+		CHECK(st_console_register_font_copy(console, &font, &id) == 0);
+		/* A copied alternate must survive changes to the caller's pixels. */
+		if (packed)
+			tall_rll[5] = 0;
+		else
+			tall[2] = 0;
+		const struct st_console_rect rect = {0, 0, 1, 1};
+		const struct st_console_cell cell = {.glyph = 0, .font = id};
+		CHECK(st_console_write_cells(console, &rect, &cell, 1) == 0);
+		const uint32_t graphics = ST_CONSOLE_COLOR_RGB_VALUE(0, 255, 0);
+		CHECK(st_console_set_pixel(console, 8, 0, graphics) == 0);
+		/* The raster is 16x16. A 5:6 screen gives 6:5 tall pixels. */
+		const uint32_t aspects[][2] = {{1, 1}, {5, 6}, {10, 11}, {100, 109}, {0, 0}};
+		for (size_t i = 0; i < sizeof(aspects) / sizeof(aspects[0]); ++i) {
+			CHECK(st_console_set_aspect_ratio(console, aspects[i][0], aspects[i][1]) == 0);
+			struct st_pixel_buffer *p = pixels(console);
+			uint32_t expected = i == 1 || i == 2
+			    ? ST_CONSOLE_COLOR_RGB_VALUE(0, 0, 255) : ST_CONSOLE_COLOR_RGB_VALUE(255, 0, 0);
+			CHECK(p->primary[0] == expected && p->alternate[0] == expected);
+			CHECK(p->primary[8] == graphics);
+			st_pixel_buffer_destroy(p);
+		}
+		/* Reconfiguring a mode uses its destination geometry. The startup
+		 * font registration is reused even when cells are resized. */
+		struct st_console_config mode = config;
+		mode.columns = 3;
+		mode.aspect_width = 5;
+		mode.aspect_height = 4;
+		CHECK(st_console_reconfigure(console, &mode) == 0);
+		CHECK(st_console_write_cells(console, &rect, &cell, 1) == 0);
+		struct st_pixel_buffer *p = pixels(console);
+		CHECK(p->primary[0] == ST_CONSOLE_COLOR_RGB_VALUE(0, 0, 255));
+		st_pixel_buffer_destroy(p);
+		CHECK(st_console_reconfigure(console, &config) == 0);
+		CHECK(st_console_write_cells(console, &rect, &cell, 1) == 0);
+		p = pixels(console);
+		CHECK(p->primary[0] == ST_CONSOLE_COLOR_RGB_VALUE(255, 0, 0));
+		st_pixel_buffer_destroy(p);
+		/* Both borrowed and copied registrations validate the alternate stream. */
+		color.tall_size = 0;
+		CHECK(st_console_register_static_font(console, &font, &id) == IO_ERROR_INVALID_ARGUMENT);
+		const uint8_t invalid[] = {0, 0};
+		color.tall_rgba = invalid;
+		color.tall_size = sizeof(invalid);
+		CHECK(st_console_register_font_copy(console, &font, &id) == IO_ERROR_INVALID_ARGUMENT);
+		st_console_destroy(console);
+		tall[2] = 255;
+	}
+}
+
 int main(void)
 {
+	check_aspect_selection();
 	check_rll_validation();
 	check_pixels(false);
 	check_pixels(true);

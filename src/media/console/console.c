@@ -2014,7 +2014,9 @@ st_console_reconfigure(st_console_t *console,
 	    memory_order_acquire) == console)
 		st_console_display_reset_animation(console->display,
 		    console->blink_mode);
-	st_console_mark_all_locked(console);
+	/* A fresh raster has no valid drawn cells, even when a new cell equals
+	 * the zero-initialized contents of the drawn-cell allocation. */
+	st_console_invalidate_text_locked(console);
 	result = st_console_finish_change_locked(console);
 	(void)st_rwlock_unlock(&console->state_lock);
 	return result;
@@ -2400,16 +2402,21 @@ font_valid(const struct st_console_font *font)
 		    || width > SIZE_MAX / 4
 		    || (i != 0 && font->color_glyphs[i - 1].glyph >= color->glyph))
 			return false;
-		if (color->row_stride == 0) {
-			if (width > SIZE_MAX / font->height
-			    || !st_console_color_rll_valid(color->rgba, color->size,
-			    (size_t)width, font->height))
+		if ((color->tall_rgba == NULL) != (color->tall_size == 0))
+			return false;
+		for (unsigned variant = 0; variant < (color->tall_rgba == NULL ? 1U : 2U); ++variant) {
+			const uint8_t *data = variant == 0 ? color->rgba : color->tall_rgba;
+			size_t size = variant == 0 ? color->size : color->tall_size;
+			if (color->row_stride == 0) {
+				if (width > SIZE_MAX / font->height
+				    || !st_console_color_rll_valid(data, size, (size_t)width, font->height))
+					return false;
+			}
+			else if (color->row_stride < width * 4
+			    || color->row_stride > SIZE_MAX / font->height
+			    || size < color->row_stride * font->height)
 				return false;
 		}
-		else if (color->row_stride < width * 4
-		    || color->row_stride > SIZE_MAX / font->height
-		    || color->size < color->row_stride * font->height)
-			return false;
 	}
 	if (font->mapping_count != 0 && font->mapping == NULL)
 		return false;
@@ -2773,8 +2780,10 @@ font_registration_free(struct st_console_font_registration *registration)
 		    && i < registration->font.cluster_mapping_count; ++i)
 			free((void *)registration->font.cluster_mapping[i].text);
 		for (size_t i = 0; registration->font.color_glyphs != NULL
-		    && i < registration->font.color_glyph_count; ++i)
+		    && i < registration->font.color_glyph_count; ++i) {
 			free((void *)registration->font.color_glyphs[i].rgba);
+			free((void *)registration->font.color_glyphs[i].tall_rgba);
+		}
 		free((void *)registration->font.color_glyphs);
 		free((void *)registration->font.bitmap);
 		free((void *)registration->font.wide_bitmap);
@@ -2851,11 +2860,20 @@ font_registration_create(const struct st_console_font *font, bool copy)
 		registration->font.color_glyphs = colors;
 		for (size_t i = 0; i < font->color_glyph_count; ++i) {
 			colors[i] = font->color_glyphs[i];
+			colors[i].rgba = NULL;
+			colors[i].tall_rgba = NULL;
 			colors[i].rgba = malloc(colors[i].size);
 			if (colors[i].rgba == NULL)
 				goto failed;
 			memcpy((void *)colors[i].rgba, font->color_glyphs[i].rgba,
 			    colors[i].size);
+			if (font->color_glyphs[i].tall_rgba != NULL) {
+				colors[i].tall_rgba = malloc(colors[i].tall_size);
+				if (colors[i].tall_rgba == NULL)
+					goto failed;
+				memcpy((void *)colors[i].tall_rgba, font->color_glyphs[i].tall_rgba,
+				    colors[i].tall_size);
+			}
 		}
 	}
 	return registration;

@@ -39,12 +39,16 @@ uses the entire cell; 14- and 16-pixel fonts reserve a one-pixel vertical
 margin, and double-column forms also reserve a one-pixel horizontal margin.
 Single-column forms use 8-pixel bitmaps and double-column forms use 16-pixel
 bitmaps. Colour PNGs are extracted from the source CBDT strike with fontTools and
-resampled in premultiplied RGBA before conversion to straight RGBA. Colour
+resampled in premultiplied RGBA before conversion to straight RGBA. Each colour
+glyph has independent square-pixel and 6:5 tall-pixel projections, both
+resampled directly from the source artwork. Fitting happens in physical space
+before projection into pixels, so short cells can use more horizontal detail.
+Both versions use the transparent-background ARGB RLL format described below;
+identical encoded artwork shares storage across glyphs and aspect variants. Colour
 is attached to default emoji presentation, official VS16 sequences, and
 supported multi-character emoji; VS15 and default text presentation remain
 monochrome. Every glyph retains a monochrome bitmap for the runtime setting.
-Identical source artwork at the same presentation width shares pixel data;
-presentation mappings keep separate glyph IDs wherever colour differs.
+Presentation mappings keep separate glyph IDs wherever colour differs.
 Ordinary builds consume the checked-in C arrays and need no font libraries
 or network access. To regenerate, install fontTools, Pillow with RAQM support and a
 HarfBuzz shared library, then run:
@@ -66,10 +70,10 @@ The emoji rasterizer also refreshes the picker coverage manifest and catalog.
 All font and Unicode update scripts check that the picker remains consistent;
 see `../../text/emoji/UPSTREAM.md` for pinned English names and regeneration.
 
-## Colour RLL prototype
+## Colour RLL storage and profiling
 
-The console also accepts compressed colour glyphs when their `row_stride` is
-zero. Each glyph starts with a little-endian 16-bit byte offset, measured from
+The generated colour banks use compressed glyphs with `row_stride` zero.
+Each glyph starts with a little-endian 16-bit byte offset, measured from
 the glyph's first byte, to its right-half stream. The left stream follows the
 two-byte header. Each half traverses its row spans from left to right, then
 top to bottom. The left half contains `width / 2` columns; the right contains
@@ -85,13 +89,30 @@ lengths, and the half offset before the renderer uses them. Glyph lookup uses
 the existing sorted descriptors. Drawing streams directly from compressed
 data, with no expanded glyph allocation or cache.
 
-The checked-in font assets remain RGBA for this prototype. The CMake
-`st_emoji_rll_test` target encodes them in memory, preserving shared artwork,
-and compares both raster planes against RGBA for every colour glyph ID at
-heights 8, 14, and 16, including decorations and independent half redraws.
+Each colour descriptor has a square-pixel stream and an optional `tall_rgba`
+stream with its own byte count, using the same dimensions and encoding.
+Registration validates and, when copying fonts, owns both streams.
+The renderer selects the nearer projection using the effective physical pixel
+height/width ratio: native raster width times display aspect height, divided
+by native raster height times display aspect width. Ratios at least 11:10
+select the 6:5 bank; smaller ratios select the square bank. Disabling aspect
+correction selects square pixels. This covers normal 80x25 versus LCD 80x25
+and 80x30, and respects custom aspect settings. The two banks are an
+approximation for modes with other pixel shapes. Aspect-only changes
+invalidate retained text while preserving explicit pixel graphics.
+
+The CMake `st_emoji_rll_test` target independently expands each generated
+stream to a raw RGBA reference, preserving shared artwork, and compares both
+raster planes for every colour glyph ID at all three heights and both
+aspects, including decorations and independent half redraws.
 The console colour-glyph test separately checks expected colours, alpha
 blending, expansion gaps, horizontal/vertical scaling, odd source widths,
-double-height cells, copied font ownership, and malformed streams.
+double-height cells, copied font ownership, malformed streams, aspect-only
+redraw, mode reconfiguration and explicit graphics preservation. Generator
+unit tests independently check fit dimensions and RLL packet bytes; they are
+skipped when Pillow or fontTools is unavailable. `syncterm_emoji_aspect` checks
+source-derived expected grinning-face dimensions through coherent control
+captures at both pixel aspects and all three heights, including reset.
 
 From the repository root:
 
@@ -113,8 +134,29 @@ end-to-end cell update/raster timings comparing the existing row-major RGBA
 renderer with the half-span RLL renderer; they do not isolate token decode
 cost or measure GUI presentation.
 
-Measured on 2026-11-01, FreeBSD amd64, Intel Xeon D-1541 at 2.10 GHz, CMake
-Release builds with Clang 19.1.7 and GCC 13.5.0:
+The deployed dual-aspect banks contain 3,832 colour glyph IDs per height.
+Generation from the pinned inputs was reproduced byte for byte in a separate
+output tree. Every square-pixel visible RGBA sample, monochrome bitmap and
+scalar/cluster mapping was checked against the previous checked-in data.
+Only RGB beneath zero alpha is discarded by RLL. Picker names and eligibility
+are unchanged; its coverage fingerprint is regenerated with the font data.
+
+| Height | Previous single-aspect RGBA bytes | Both aspect banks, shared RLL bytes |
+|---|---:|---:|
+| 8 | 1,959,936 | 2,187,478 |
+| 14 | 3,429,888 | 4,185,248 |
+| 16 | 3,919,872 | 4,891,940 |
+| Total | 9,309,696 | 11,264,666 |
+
+These counts include half offsets and shared encoded payloads, excluding
+lookup descriptors and the monochrome banks. Both colour aspects together
+cost 21.0% more payload than the previous single uncompressed aspect.
+
+Historical prototype measurements below used the square-pixel bank before
+cross-artwork payload deduplication. They compare raw and compressed drawing;
+they do not include the later aspect-selection change. Measured on 2026-11-01,
+FreeBSD amd64, Intel Xeon D-1541 at 2.10 GHz, CMake Release builds with
+Clang 19.1.7 and GCC 13.5.0:
 
 | Raster | Unique RGBA bytes | Column RLL bytes | Half-span RLL bytes | Half-span saving |
 |---|---:|---:|---:|---:|

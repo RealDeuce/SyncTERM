@@ -6,6 +6,7 @@
 #include "st_presentation_font.h"
 #include "st_unicode_fonts.h"
 #include "io_error.h"
+#include "color_rll_fixture.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -91,8 +92,9 @@ check_font(uint32_t height, bool fallback)
 			visible |= emoji_font->wide_bitmap[offset + byte] != 0;
 		CHECK(visible);
 		const struct st_console_color_glyph *color = color_glyph(emoji_font, glyph);
-		CHECK(color != NULL && color->row_stride == 16 * 4
-		    && color->size == 16 * height * 4);
+		CHECK(color != NULL && color->row_stride == 0
+		    && color->size > 2 && color->size <= 16 * height * 4 + 2
+		    && color->tall_rgba != NULL && color->tall_size > 2);
 		CHECK(st_console_set_position(console, 0, 0) == 0);
 		CHECK(st_console_write_utf8(console, sequences[i], strlen(sequences[i])) == 0);
 		struct st_console_cell cells[2];
@@ -125,8 +127,11 @@ check_font(uint32_t height, bool fallback)
 		tone[i] = color_glyph(emoji_font, glyph);
 		CHECK(tone[i] != NULL);
 	}
-	CHECK(tone[0]->glyph != tone[1]->glyph && tone[0]->size == tone[1]->size
-	    && memcmp(tone[0]->rgba, tone[1]->rgba, tone[0]->size) != 0);
+	CHECK(tone[0]->glyph != tone[1]->glyph);
+	uint8_t tone_pixels[2][16 * 16 * 4];
+	for (unsigned i = 0; i < 2; ++i)
+		CHECK(decode_color_rll(tone[i]->rgba, tone[i]->size, 16, height, tone_pixels[i]));
+	CHECK(memcmp(tone_pixels[0], tone_pixels[1], 16 * height * 4) != 0);
 	bool missing = false;
 	CHECK(st_console_font_lookup_cluster_ex(console, identifier, "\xf4\x8f\xbf\xbf",
 	    4, 1, &owner, &glyph, &missing) == 0);
@@ -255,8 +260,8 @@ check_color_rebasing(void)
 	static const uint8_t narrow_rgba[64] = {255, 0, 0, 255};
 	static const uint8_t wide_rgba[128] = {0, 255, 0, 255};
 	static const struct st_console_color_glyph colors[] = {
-		{0, narrow_rgba, sizeof(narrow_rgba), 32, 0},
-		{1, wide_rgba, sizeof(wide_rgba), 64, 0},
+		{0, narrow_rgba, sizeof(narrow_rgba), 32, 0, NULL, 0},
+		{1, wide_rgba, sizeof(wide_rgba), 64, 0, NULL, 0},
 	};
 	const struct st_console_font base = {
 		.bitmap = mono, .bitmap_size = sizeof(mono),

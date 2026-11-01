@@ -9,6 +9,12 @@ if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 endif()
 
 if(BUILD_TESTING)
+	find_package(Python3 COMPONENTS Interpreter QUIET)
+	if(Python3_Interpreter_FOUND)
+		add_test(NAME emoji_raster_generator COMMAND ${Python3_EXECUTABLE}
+			${CMAKE_CURRENT_SOURCE_DIR}/tests/test_emoji_raster.py)
+		set_tests_properties(emoji_raster_generator PROPERTIES SKIP_RETURN_CODE 77)
+	endif()
 	# Catalog eligibility is an integration contract with all three font banks.
 	if(TARGET st_emoji_catalog)
 		add_executable(st_emoji_catalog_test tests/st_emoji_catalog_test.c)
@@ -46,6 +52,7 @@ if(BUILD_TESTING)
 	endif()
 	add_test(NAME emoji_rll COMMAND st_emoji_rll_test)
 	add_executable(st_emoji_test tests/st_emoji_test.c)
+	target_include_directories(st_emoji_test PRIVATE ../console/tests)
 	target_link_libraries(st_emoji_test PRIVATE st_fonts)
 	set_target_properties(st_emoji_test PROPERTIES
 		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)

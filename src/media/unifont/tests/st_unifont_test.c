@@ -151,6 +151,8 @@ main(void)
 				if (source->glyph != st_emoji_16_font.mapping[i].glyph) continue;
 				CHECK(money_color->size == source->size
 				    && memcmp(money_color->rgba, source->rgba, source->size) == 0);
+				CHECK(money_color->tall_size == source->tall_size
+				    && money_color->tall_rgba == source->tall_rgba);
 				noto_money = true;
 			}
 		}

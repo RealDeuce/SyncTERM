@@ -158,6 +158,7 @@ struct font_cache {
 	const struct st_console_font *font;
 	uint16_t identifier;
 	bool valid;
+	bool tall_pixels;
 };
 
 #define FAST_CELL_COUNT 128U
@@ -402,6 +403,7 @@ render_cell(st_console_t *console, uint32_t x, uint32_t y,
 	const struct st_console_font *font;
 	const uint8_t *glyph = NULL;
 	const struct st_console_color_glyph *color = NULL;
+	struct st_console_color_glyph selected_color;
 	uint32_t glyph_width = 0;
 	uint32_t glyph_x = 0;
 	size_t glyph_row_stride = 0;
@@ -431,6 +433,12 @@ render_cell(st_console_t *console, uint32_t x, uint32_t y,
 		glyph_x = font->width;
 	if (console->color_emoji && font != NULL)
 		color = st_console_font_color_glyph(font, source->glyph);
+	if (color != NULL && color->tall_rgba != NULL && font_cache->tall_pixels) {
+		selected_color = *color;
+		selected_color.rgba = color->tall_rgba;
+		selected_color.size = color->tall_size;
+		color = &selected_color;
+	}
 	foreground = source->foreground;
 	background = source->background;
 	if ((source->flags & ST_CONSOLE_CELL_REVERSE) != 0) {
@@ -636,6 +644,13 @@ st_console_rasterize_locked(st_console_t *console, bool force)
 
 	if (console->pixels == NULL)
 		return 0;
+	/* Choose the nearer of square pixels and 6:5 tall pixels. The midpoint
+	 * is 11:10; use the whole native raster, including mode margins. */
+	if (console->aspect_width != 0) {
+		double pixel_ratio = ((double)console->pixels->width * console->aspect_height)
+		    / ((double)console->pixels->height * console->aspect_width);
+		font_cache.tall_pixels = pixel_ratio >= 1.1;
+	}
 	for (uint32_t y = 0; y < console->rows; ++y) {
 		enum row_scale scale = ROW_SCALE_NORMAL;
 		bool row_changed;

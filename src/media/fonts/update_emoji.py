@@ -54,22 +54,57 @@ def variations(source_dir):
             if line.strip() and not line.startswith("#")}
 
 
-def color_raster(source, glyph, width, height):
+def raster_size(source_width, source_height, width, height, tall_pixels=False):
+    padding_x = 0 if width == 8 or height == 8 else 1
+    padding_y = 0 if height == 8 else 1
+    ratio = 6 / 5 if tall_pixels else 1
+    # Fit in physical space, then project directly into destination pixels.
+    scale = min((width - padding_x * 2) / source_width,
+                (height - padding_y * 2) * ratio / source_height)
+    return (max(1, round(source_width * scale)),
+            max(1, round(source_height * scale / ratio)))
+
+
+def color_raster(source, glyph, width, height, tall_pixels=False):
     name = source.getGlyphOrder()[glyph]
     image = Image.open(io.BytesIO(source["CBDT"].strikeData[0][name].imageData)).convert("RGBA")
     image = image.crop(image.getbbox())
-    padding_x = 0 if width == 8 or height == 8 else 1
-    padding_y = 0 if height == 8 else 1
-    scale = min((width - padding_x * 2) / image.width,
-                (height - padding_y * 2) / image.height)
-    # Resample premultiplied channels, then store straight RGBA. This
-    # prevents invisible RGB samples from leaving fringes around the art.
+    # Both projections are resampled from the original premultiplied source.
     image = image.convert("RGBa").resize(
-        (max(1, round(image.width * scale)), max(1, round(image.height * scale))),
+        raster_size(image.width, image.height, width, height, tall_pixels),
         Image.Resampling.LANCZOS).convert("RGBA")
     canvas = Image.new("RGBA", (width, height))
     canvas.paste(image, ((width - image.width) // 2, (height - image.height) // 2))
     return canvas.tobytes()
+
+
+def encode_color_rll(rgba, width, height):
+    if len(rgba) != width * height * 4:
+        raise ValueError("Unexpected colour raster size")
+    encoded = bytearray(2)
+    for half in range(2):
+        first_x = 0 if half == 0 else width // 2
+        span = width // 2 if half == 0 else width - width // 2
+        if half:
+            if len(encoded) > 0xffff:
+                raise ValueError("RLL half offset exceeds 16 bits")
+            encoded[:2] = len(encoded).to_bytes(2, "little")
+        pixel, end = 0, span * height
+        while pixel < end:
+            source = ((pixel // span) * width + first_x + pixel % span) * 4
+            if rgba[source + 3]:
+                encoded.extend((rgba[source + 3], *rgba[source:source + 3]))
+                pixel += 1
+            else:
+                run = 0
+                while pixel < end and run < 256:
+                    source = ((pixel // span) * width + first_x + pixel % span) * 4
+                    if rgba[source + 3]:
+                        break
+                    pixel += 1
+                    run += 1
+                encoded.extend((0, run - 1))
+    return bytes(encoded)
 
 
 def module(name, path):
@@ -231,14 +266,23 @@ def write_source(path, entries, font, color_source):
             # Colour glyphs can share pixels even when their monochrome
             # source or presentation aliases differ.
             colors = sorted({(color, columns) for _, columns, color in keys if color is not None})
+            payloads = {}
+            names = {}
             for color, columns in colors:
-                fonts.byte_array(out, f"rgba_{height}_{color}_{columns}",
-                                 color_raster(color_source, color, columns * 8, height))
+                for tall in (False, True):
+                    data = encode_color_rll(color_raster(color_source, color, columns * 8,
+                                                        height, tall), columns * 8, height)
+                    name = f"rll_{height}_{color}_{columns}" + ("_tall" if tall else "")
+                    if data not in payloads:
+                        payloads[data] = name
+                        fonts.byte_array(out, name, data)
+                    names[color, columns, tall] = payloads[data]
             out.write(f"static const struct st_console_color_glyph emoji_{height}_colors[] = {{\n")
             for index, (_, columns, color) in enumerate(keys):
                 if color is not None:
-                    name = f"rgba_{height}_{color}_{columns}"
-                    out.write(f"\t{{{index}, {name}, sizeof({name}), {columns * 32}, 0}},\n")
+                    name = names[color, columns, False]
+                    tall = names[color, columns, True]
+                    out.write(f"\t{{{index}, {name}, sizeof({name}), 0, 0, {tall}, sizeof({tall})}},\n")
             out.write("};\n\n")
         out.write("static const struct st_console_font_mapping emoji_mapping[] = {\n")
         for text, columns, glyph, color in entries:
@@ -322,7 +366,12 @@ def main():
 
     # Keep picker names, variants and actual glyph coverage in step.
     import runpy
-    runpy.run_path(str(args.root / "src/text/emoji/update_emoji_catalog.py"))["refresh_repository"](args.root)
+    catalog_dir = args.root / "src/text/emoji"
+    sys.path.insert(0, str(catalog_dir))
+    try:
+        runpy.run_path(str(catalog_dir / "update_emoji_catalog.py"))["refresh_repository"](args.root)
+    finally:
+        sys.path.pop(0)
 
 
 if __name__ == "__main__":

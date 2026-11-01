@@ -162,6 +162,10 @@ struct st_console_color_glyph {
 	size_t row_stride;
 	/* Zero uses the monochrome bank width; otherwise scale this source width. */
 	uint32_t width;
+	/* Optional independent artwork for pixels 6/5 as tall as wide. Uses the
+	 * same dimensions and encoding; absent artwork keeps the square version. */
+	const uint8_t *tall_rgba;
+	size_t tall_size;
 };
 
 /*

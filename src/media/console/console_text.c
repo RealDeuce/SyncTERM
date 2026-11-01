@@ -524,7 +524,7 @@ st_console_set_aspect_ratio(st_console_t *console, uint32_t width,
 			console->aspect_height = old_height;
 		}
 		else
-			console->changed = true;
+			st_console_invalidate_text_locked(console);
 	}
 	else
 		result = 0;

@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'tools/testing'))
 from syncterm_fixture import fixture, install_suite, click_text, click_cell, cell_at, write_script, SOURCE
 from syncterm_control import ALT
 from st_migrated_control_test import connection
-from st_terminal_conformance_test import Terminal, ESC
+from st_terminal_conformance_test import Terminal, ESC, tile
 
 
 def alt_key(client, evdev):
@@ -411,10 +411,44 @@ def presentation(executable, reports):
         assert frame.application['cterm.x'] == 3
 
 
+def aspect(executable, reports):
+    # Pinned Noto Color Emoji 2.051 u1F600 has a 117x112 alpha-ink crop
+    # (9,7)-(126,119) in its 136x128 CBDT image. These extents are calculated
+    # from that source ratio, cell margins, and 6:5 projection, independently
+    # of the generator and emulator. Observe each result in one capture.
+    expected = {8: ((8, 8), (10, 8)), 14: ((13, 12), (14, 11)),
+                16: ((14, 13), (14, 11))}
+    for height in (8, 14, 16):
+        for tall in (False, True):
+            aspect_x, aspect_y = (640 * 5, 25 * height * 6) if tall else (640, 25 * height)
+            settings = (f'AudioModes=0\nColorEmoji=true\nCustomRows=25\nCustomColumns=80\n'
+                        f'CustomFontHeight={height}\nCustomAspectWidth={aspect_x}\n'
+                        f'CustomAspectHeight={aspect_y}\n')
+            with connection(executable, reports, encoding='UTF-8', settings=settings,
+                            options='ScreenMode=Custom\n') as (client, root, peer, send):
+                terminal = Terminal(client, root, peer, send)
+                terminal.case(f'emoji-aspect-{height}-{tall}')
+                for _ in range(2):
+                    frame = terminal.exchange(ESC + b'[48;2;0;0;0m' + '😀'.encode(), reset=True)
+                    assert frame.metadata['cell_height'] == height
+                    assert frame.cell_text(cell_at(frame, 0, 0)) == '😀'
+                    assert cell_at(frame, 1, 0).flags & (1 << 19)
+                    assert (frame.application['cterm.x'], frame.application['cterm.y']) == (3, 1)
+                    left, right = tile(frame, 1, 1), tile(frame, 2, 1)
+                    ink = [(x, y) for y in range(height) for x in range(16)
+                           if ((left if x < 8 else right)[y * 8 + x % 8] & 0xffffff) != 0]
+                    assert ink
+                    bounds = (max(x for x, _ in ink) - min(x for x, _ in ink) + 1,
+                              max(y for _, y in ink) - min(y for _, y in ink) + 1)
+                    assert bounds == expected[height][tall], (height, tall, bounds)
+                    assert left == tile(frame, 1, 1, alternate=True)
+                    assert right == tile(frame, 2, 1, alternate=True)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('executable', type=Path)
-    parser.add_argument('group', choices=('menu', 'connected', 'presentation', 'localized'))
+    parser.add_argument('group', choices=('menu', 'connected', 'presentation', 'localized', 'aspect'))
     parser.add_argument('--reports', type=Path, required=True)
     args = parser.parse_args()
     globals()[args.group](args.executable, args.reports)
