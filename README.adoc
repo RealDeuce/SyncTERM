@@ -47,6 +47,15 @@ guide], and link:docs/Wren.adoc[the Wren API manual]. Development rules are in
 link:AGENTS.md[AGENTS.md]. Licensing information is in link:LICENSE[LICENSE]
 and the component notices.
 
+== Optional Wren interfaces
+
+link:addons/modern_ui/README.md[Modern UI] is an independently installed
+directory and settings frontend with a searchable directory, connection
+details, and graphical chrome. It uses the external main-menu override; its
+scripts are not embedded in SyncTERM. Build its installable ZIP with
+`cmake --build build --target syncterm_modern_ui_addon`. See its README for
+installation, removal, capabilities, and the current renderer limits.
+
 == Before the v2.0 release
 
 * TODO: Provide a tool or explicit option to migrate v1.10b configuration

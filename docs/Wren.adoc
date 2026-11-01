@@ -1046,6 +1046,10 @@ The host validates and copies a record returned by `run` while the menu
 VM is still selected, so the Wren foreign object itself never crosses
 into the connected VM.
 
+For an independently packaged frontend using this override contract, see
+link:../addons/modern_ui/README.md[Modern UI]. Its directory/settings scripts
+are installed into the user script directory and are not embedded in SyncTERM.
+
 The shipped controller binds Ctrl+&#96; to the menu VM's REPL in graphical
 and native-console backends, and Ctrl+Q in ANSI and ncurses modes.  A
 CP437 `‼` in the top-right corner reports unread output from that VM: yellow
