@@ -83,8 +83,9 @@ and message thread.
 |Quartz |Bitmap |Native macOS graphical output using AppKit and Core Graphics.
 It supports multiple windows and Retina backing scales without requiring SDL.
 |Wayland |Bitmap |Native Wayland output using an xdg toplevel and positioned
-video subsurface.  Alt+left-drag requests an interactive move when server-side
-decorations are absent.
+video subsurface. Requests server-side decorations when the optional
+xdg-decoration protocol is available at build time and supported by the
+compositor. Alt+left-drag requests an interactive move.
 |X11 |Bitmap |Native Xlib output.  XRender, XRandR, and Xinerama are used when
 present.  Copy and paste use the X11 primary selection, with the legacy
 clipboard fallback retained for ChromeOS Sommelier.

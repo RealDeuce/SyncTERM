@@ -22,6 +22,11 @@ static int test_munmap(void *, size_t);
 #include <sys/socket.h>
 #include <sys/wait.h>
 
+#if ST_CONSOLE_HAVE_WAYLAND_DECORATION
+#include "xdg-decoration-unstable-v1-client.h"
+#include <stdarg.h>
+#endif
+
 #define CHECK(expression) do { \
 	if (!(expression)) { \
 		fprintf(stderr, "check failed at %s:%d: %s\n", __FILE__, \
@@ -451,9 +456,169 @@ test_pointer_shapes(void)
 	return 0;
 }
 
+#if ST_CONSOLE_HAVE_WAYLAND_DECORATION
+static struct {
+	unsigned int binds, creates, listeners, modes, destroys;
+	uint32_t bind_version, mode;
+	bool fail_create, fail_listener, invalid;
+	struct wl_proxy *destroyed[3];
+	const struct zxdg_toplevel_decoration_v1_listener *listener;
+	void *listener_data;
+} decoration_calls;
+
+static struct wl_proxy *
+decoration_marshal(struct wl_proxy *proxy, uint32_t opcode,
+    const struct wl_interface *interface, uint32_t version, uint32_t flags,
+    ...)
+{
+	va_list args;
+	struct wl_proxy *result = NULL;
+
+	va_start(args, flags);
+	if (flags == WL_MARSHAL_FLAG_DESTROY) {
+		if (decoration_calls.destroys < 3)
+			decoration_calls.destroyed[decoration_calls.destroys++] = proxy;
+		else
+			decoration_calls.invalid = true;
+		if (opcode != 0 || interface != NULL)
+			decoration_calls.invalid = true;
+	}
+	else if (proxy == (struct wl_proxy *)(uintptr_t)1 && opcode == 0
+	    && interface == &zxdg_decoration_manager_v1_interface) {
+		++decoration_calls.binds;
+		decoration_calls.bind_version = version;
+		if (va_arg(args, uint32_t) != 42
+		    || strcmp(va_arg(args, const char *),
+		    "zxdg_decoration_manager_v1") != 0
+		    || va_arg(args, uint32_t) != 1
+		    || va_arg(args, void *) != NULL)
+			decoration_calls.invalid = true;
+		result = (struct wl_proxy *)(uintptr_t)2;
+	}
+	else if (proxy == (struct wl_proxy *)(uintptr_t)2 && opcode == 1
+	    && interface == &zxdg_toplevel_decoration_v1_interface) {
+		++decoration_calls.creates;
+		if (va_arg(args, void *) != NULL
+		    || va_arg(args, struct xdg_toplevel *)
+		    != (struct xdg_toplevel *)(uintptr_t)3)
+			decoration_calls.invalid = true;
+		if (!decoration_calls.fail_create)
+			result = (struct wl_proxy *)(uintptr_t)4;
+	}
+	else if (proxy == (struct wl_proxy *)(uintptr_t)4 && opcode == 1
+	    && interface == NULL) {
+		++decoration_calls.modes;
+		decoration_calls.mode = va_arg(args, uint32_t);
+	}
+	else
+		decoration_calls.invalid = true;
+	va_end(args);
+	return result;
+}
+
+static int
+decoration_add_listener(struct wl_proxy *proxy, void (**listener)(void),
+    void *data)
+{
+	++decoration_calls.listeners;
+	if (proxy != (struct wl_proxy *)(uintptr_t)4)
+		decoration_calls.invalid = true;
+	decoration_calls.listener =
+	    (const struct zxdg_toplevel_decoration_v1_listener *)listener;
+	decoration_calls.listener_data = data;
+	return decoration_calls.fail_listener ? -1 : 0;
+}
+
+static int
+test_decoration_binding(void)
+{
+	struct st_wayland_api saved = st_wayland_api;
+	const uint32_t versions[] = {1, 7};
+
+	st_wayland_api.proxy_marshal_flags = decoration_marshal;
+	st_wayland_api.proxy_get_version = fake_get_version;
+	for (size_t i = 0; i < sizeof(versions) / sizeof(versions[0]); ++i) {
+		struct state state = {0};
+
+		memset(&decoration_calls, 0, sizeof(decoration_calls));
+		registry_global(&state, (struct wl_registry *)(uintptr_t)1, 42,
+		    "zxdg_decoration_manager_v1", versions[i]);
+		CHECK(decoration_calls.binds == 1);
+		CHECK(decoration_calls.bind_version == 1);
+		CHECK(!decoration_calls.invalid);
+		CHECK(state.decoration_manager
+		    == (struct zxdg_decoration_manager_v1 *)(uintptr_t)2);
+	}
+	st_wayland_api = saved;
+	return 0;
+}
+
+static int
+test_decoration_lifecycle(void)
+{
+	struct st_wayland_api saved = st_wayland_api;
+
+	st_wayland_api.proxy_marshal_flags = decoration_marshal;
+	st_wayland_api.proxy_get_version = fake_get_version;
+	st_wayland_api.proxy_add_listener = decoration_add_listener;
+	for (unsigned int failure = 0; failure < 3; ++failure) {
+		struct state state = {
+			.decoration_manager =
+			    (struct zxdg_decoration_manager_v1 *)(uintptr_t)2,
+			.toplevel = (struct xdg_toplevel *)(uintptr_t)3,
+		};
+
+		memset(&decoration_calls, 0, sizeof(decoration_calls));
+		decoration_calls.fail_create = failure == 1;
+		decoration_calls.fail_listener = failure == 2;
+		CHECK(setup_decoration(&state) == (failure == 0 ? 0 : IO_ERROR_IO));
+		CHECK(decoration_calls.creates == 1);
+		CHECK(decoration_calls.listeners == (failure == 1 ? 0U : 1U));
+		CHECK(decoration_calls.modes == (failure == 0 ? 1U : 0U));
+		if (failure == 0) {
+			CHECK(decoration_calls.mode == 2); /* Protocol's server-side mode. */
+			CHECK(decoration_calls.listener_data == &state);
+			CHECK(decoration_calls.listener->configure != NULL);
+			/* Both an accepted and a declined preference are valid. */
+			decoration_calls.listener->configure(&state, state.decoration, 2);
+			decoration_calls.listener->configure(&state, state.decoration, 1);
+		}
+		objects_destroy(&state);
+		unsigned int offset = failure == 1 ? 0 : 1;
+
+		CHECK(decoration_calls.destroys == offset + 2);
+		if (offset != 0)
+			CHECK(decoration_calls.destroyed[0]
+			    == (struct wl_proxy *)(uintptr_t)4);
+		CHECK(decoration_calls.destroyed[offset]
+		    == (struct wl_proxy *)(uintptr_t)3);
+		CHECK(decoration_calls.destroyed[offset + 1]
+		    == (struct wl_proxy *)(uintptr_t)2);
+		CHECK(!decoration_calls.invalid);
+	}
+	{
+		struct state state = {.toplevel = (struct xdg_toplevel *)(uintptr_t)3};
+
+		memset(&decoration_calls, 0, sizeof(decoration_calls));
+		CHECK(setup_decoration(&state) == 0);
+		CHECK(decoration_calls.creates == 0);
+		objects_destroy(&state);
+		CHECK(decoration_calls.destroys == 1);
+		CHECK(decoration_calls.destroyed[0] == (struct wl_proxy *)(uintptr_t)3);
+		CHECK(!decoration_calls.invalid);
+	}
+	st_wayland_api = saved;
+	return 0;
+}
+#endif
+
 int
 main(void)
 {
+#if ST_CONSOLE_HAVE_WAYLAND_DECORATION
+	CHECK(test_decoration_binding() == 0);
+	CHECK(test_decoration_lifecycle() == 0);
+#endif
 	CHECK(test_mapping_cleanup() == 0);
 	CHECK(test_busy_buffers_skip() == 0);
 	CHECK(test_worker_failures() == 0);

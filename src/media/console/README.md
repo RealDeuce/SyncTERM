@@ -68,8 +68,12 @@ toplevel surface contains a positioned video subsurface, allowing viewporter
 scaling to preserve both the aspect-ratio offset and margins without composing
 a window-sized image in software.  Busy buffers retain their pending damage;
 release copies only that damage from the presenter's current image.  Wayland
-and xkbcommon are loaded at runtime.  Generated core, xdg-shell, and viewporter
-stubs are build-tree products of `wayland-scanner`, not checked-in sources.
+and xkbcommon are loaded at runtime. When the build's `wayland-protocols`
+package supplies xdg-decoration and the compositor advertises it, the backend
+requests server-side decorations before committing its toplevel. The compositor
+may decline the request; no client-side frame is drawn. Generated core,
+xdg-shell, viewporter, and optional extension stubs are build-tree products of
+`wayland-scanner`, not checked-in sources.
 
 The GDI backend owns a window and message thread per display.  Presenter
 damage becomes a clipped invalidation, while retained XRGB pixels let normal

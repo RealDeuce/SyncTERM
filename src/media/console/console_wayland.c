@@ -17,6 +17,9 @@
 #include "wayland-client.h"
 #include "xdg-shell-client.h"
 #include "viewporter-client.h"
+#if ST_CONSOLE_HAVE_WAYLAND_DECORATION
+#include "xdg-decoration-unstable-v1-client.h"
+#endif
 #if ST_CONSOLE_HAVE_WAYLAND_ICON
 #include "xdg-toplevel-icon-v1-client.h"
 #endif
@@ -157,6 +160,10 @@ struct state {
 	struct wl_pointer *pointer;
 	struct xdg_wm_base *wm_base;
 	struct wp_viewporter *viewporter;
+#if ST_CONSOLE_HAVE_WAYLAND_DECORATION
+	struct zxdg_decoration_manager_v1 *decoration_manager;
+	struct zxdg_toplevel_decoration_v1 *decoration;
+#endif
 #if ST_CONSOLE_HAVE_WAYLAND_ICON
 	struct xdg_toplevel_icon_manager_v1 *icon_manager;
 #endif
@@ -1425,6 +1432,37 @@ static const struct xdg_toplevel_listener top_listener = {
     .configure_bounds = top_bounds,
     .wm_capabilities = top_caps};
 
+#if ST_CONSOLE_HAVE_WAYLAND_DECORATION
+static void
+decoration_configure(void *data, struct zxdg_toplevel_decoration_v1 *decoration,
+    uint32_t mode)
+{
+	/* The bitmap has no client-side frame in either negotiated mode. */
+	(void)data;
+	(void)decoration;
+	(void)mode;
+}
+
+static const struct zxdg_toplevel_decoration_v1_listener decoration_listener = {
+	.configure = decoration_configure,
+};
+
+static int
+setup_decoration(struct state *s)
+{
+	if (s->decoration_manager == NULL)
+		return 0;
+	s->decoration = zxdg_decoration_manager_v1_get_toplevel_decoration(
+	    s->decoration_manager, s->toplevel);
+	if (s->decoration == NULL || zxdg_toplevel_decoration_v1_add_listener(
+	    s->decoration, &decoration_listener, s) != 0)
+		return IO_ERROR_IO;
+	zxdg_toplevel_decoration_v1_set_mode(s->decoration,
+	    ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
+	return 0;
+}
+#endif
+
 static void registry_global(void *data,
 			    struct wl_registry *registry,
 			    uint32_t name,
@@ -1452,6 +1490,10 @@ static void registry_global(void *data,
 		BIND(wm_base, xdg_wm_base, 6);
 	else if (strcmp(interface, wp_viewporter_interface.name) == 0)
 		BIND(viewporter, wp_viewporter, 1);
+#if ST_CONSOLE_HAVE_WAYLAND_DECORATION
+	else if (strcmp(interface, zxdg_decoration_manager_v1_interface.name) == 0)
+		BIND(decoration_manager, zxdg_decoration_manager_v1, 1);
+#endif
 #if ST_CONSOLE_HAVE_WAYLAND_ICON
 	else if (strcmp(interface,
 	    xdg_toplevel_icon_manager_v1_interface.name) == 0)
@@ -1506,6 +1548,11 @@ static void objects_destroy(struct state *s)
 		wl_surface_destroy(s->cursor_surface);
 	if (s->viewport)
 		wp_viewport_destroy(s->viewport);
+#if ST_CONSOLE_HAVE_WAYLAND_DECORATION
+	/* The decoration must be destroyed before its xdg_toplevel. */
+	if (s->decoration)
+		zxdg_toplevel_decoration_v1_destroy(s->decoration);
+#endif
 	if (s->toplevel)
 		xdg_toplevel_destroy(s->toplevel);
 	if (s->xdg_surface)
@@ -1522,6 +1569,10 @@ static void objects_destroy(struct state *s)
 		wl_data_device_manager_destroy(s->data_manager);
 	if (s->viewporter)
 		wp_viewporter_destroy(s->viewporter);
+#if ST_CONSOLE_HAVE_WAYLAND_DECORATION
+	if (s->decoration_manager)
+		zxdg_decoration_manager_v1_destroy(s->decoration_manager);
+#endif
 #if ST_CONSOLE_HAVE_WAYLAND_ICON
 	if (s->icon_manager)
 		xdg_toplevel_icon_manager_v1_destroy(s->icon_manager);
@@ -1582,6 +1633,13 @@ static int objects_create(struct state *s)
 		return IO_ERROR_IO;
 	(void)xdg_surface_add_listener(s->xdg_surface, &surface_listener, s);
 	(void)xdg_toplevel_add_listener(s->toplevel, &top_listener, s);
+#if ST_CONSOLE_HAVE_WAYLAND_DECORATION
+	/* Negotiate before the first surface commit or buffer attachment. */
+	int status = setup_decoration(s);
+
+	if (status != 0)
+		return status;
+#endif
 	xdg_toplevel_set_title(s->toplevel, "SyncTERM");
 	xdg_toplevel_set_app_id(s->toplevel, "syncterm");
 	set_toplevel_icon(s);
