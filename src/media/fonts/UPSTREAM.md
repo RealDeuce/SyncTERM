@@ -85,7 +85,9 @@ and 8x16. Monochrome uses the existing Unifont, UNSCII, or codepage glyph
 whenever available; Noto supplies missing monochrome glyphs and colour emoji.
 Native monochrome and Noto colour can share a Unicode presentation variant
 without replacing the original byte glyph or changing its cell width when
-colour is toggled. Colour artwork is sampled to that native width when needed.
+colour is toggled. Emoji presentation uses two cells; an eight-pixel native
+monochrome outline is centered in that space without stretching. Text
+presentation keeps its native width.
 Each console designates one shared fallback per pixel size, reusing it across
 catalog reloads.
 BBS fonts retain native Unicode mappings and all original byte glyph indexes.

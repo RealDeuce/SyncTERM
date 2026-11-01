@@ -143,6 +143,31 @@ check_font(uint32_t height, bool fallback)
 }
 
 static void
+check_native_bitmap(const struct st_console_font *base, uint32_t original,
+    const struct st_console_font *font, uint32_t glyph)
+{
+	bool source_wide = original >= base->glyph_count;
+	bool wide = glyph >= font->glyph_count;
+	const uint8_t *source = source_wide ? base->wide_bitmap
+	    + (size_t)(original - base->glyph_count) * base->wide_glyph_stride
+	    : base->bitmap + (size_t)original * base->glyph_stride;
+	const uint8_t *actual = wide ? font->wide_bitmap
+	    + (size_t)(glyph - font->glyph_count) * font->wide_glyph_stride
+	    : font->bitmap + (size_t)glyph * font->glyph_stride;
+	CHECK(!source_wide || wide);
+	if (wide == source_wide)
+		CHECK(memcmp(source, actual,
+		    wide ? base->wide_glyph_stride : base->glyph_stride) == 0);
+	else {
+		/* An eight-pixel native outline is centered, never replaced or scaled. */
+		for (uint32_t y = 0; y < base->height; ++y) {
+			CHECK(actual[y * font->wide_row_stride] == source[y * base->row_stride] >> 4);
+			CHECK(actual[y * font->wide_row_stride + 1] == (uint8_t)(source[y * base->row_stride] << 4));
+		}
+	}
+}
+
+static void
 check_native_monochrome(const struct st_console_font *base)
 {
 	struct st_presentation_font font = {0};
@@ -155,16 +180,7 @@ check_native_monochrome(const struct st_console_font *base)
 		CHECK(j < font.font.mapping_count
 		    && font.font.mapping[j].codepoint == entry->codepoint);
 		uint32_t glyph = font.font.mapping[j].glyph;
-		bool wide = entry->glyph >= base->glyph_count;
-		CHECK((glyph >= font.font.glyph_count) == wide);
-		const uint8_t *original = wide ? base->wide_bitmap
-		    + (size_t)(entry->glyph - base->glyph_count) * base->wide_glyph_stride
-		    : base->bitmap + (size_t)entry->glyph * base->glyph_stride;
-		const uint8_t *actual = wide ? font.font.wide_bitmap
-		    + (size_t)(glyph - font.font.glyph_count) * font.font.wide_glyph_stride
-		    : font.font.bitmap + (size_t)glyph * font.font.glyph_stride;
-		CHECK(memcmp(original, actual,
-		    wide ? base->wide_glyph_stride : base->glyph_stride) == 0);
+		check_native_bitmap(base, entry->glyph, &font.font, glyph);
 	}
 	st_presentation_font_destroy(&font);
 }
@@ -178,10 +194,10 @@ check_native_alias(uint32_t height)
 	static const char shrug[] = "\xf0\x9f\xa4\xb7\xe2\x80\x8d\xe2\x99\x80\xef\xb8\x8f";
 	const struct st_console_font_cluster_mapping clusters[] = {{shrug, sizeof(shrug) - 1, 'A'}};
 	const struct st_console_config config = {
-		.columns = 2, .rows = 1, .cell_width = 8, .cell_height = height,
+		.columns = 4, .rows = 1, .cell_width = 8, .cell_height = height,
 	};
 	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
-	const struct st_console_rect raster = {0, 0, 8, height};
+	const struct st_console_rect raster = {0, 0, 16, height};
 	st_console_t *console = NULL;
 	uint16_t id, owner;
 	uint32_t money, letter;
@@ -198,9 +214,8 @@ check_native_alias(uint32_t height)
 	CHECK(st_console_font_lookup(console, id, 'A', &owner, &letter, &columns) == 0);
 	CHECK(letter == 'A' && columns == 1 && color_glyph(&font.font, letter) == NULL);
 	CHECK(st_console_font_lookup(console, id, 0x1f4b0, &owner, &money, &columns) == 0);
-	CHECK(columns == 1 && money != letter && money < font.font.glyph_count);
-	CHECK(memcmp(font.font.bitmap + (size_t)money * font.font.glyph_stride,
-	    base.bitmap + (size_t)'A' * base.glyph_stride, base.glyph_stride) == 0);
+	CHECK(columns == 2 && money != letter && money >= font.font.glyph_count);
+	check_native_bitmap(&base, 'A', &font.font, money);
 	const struct st_console_color_glyph *rgba = color_glyph(&font.font, money);
 	CHECK(rgba != NULL && rgba->width == 16);
 	uint32_t glyph;
@@ -212,20 +227,19 @@ check_native_alias(uint32_t height)
 	CHECK(glyph == money);
 	CHECK(st_console_font_lookup_cluster(console, id, shrug,
 	    sizeof(shrug) - 1, 2, &owner, &glyph) == 0);
-	CHECK(glyph != money && glyph < font.font.glyph_count);
-	CHECK(memcmp(font.font.bitmap + (size_t)glyph * font.font.glyph_stride,
-	    base.bitmap + (size_t)'A' * base.glyph_stride, base.glyph_stride) == 0);
+	CHECK(glyph != money && glyph >= font.font.glyph_count);
+	check_native_bitmap(&base, 'A', &font.font, glyph);
 	CHECK(color_glyph(&font.font, glyph) != NULL);
 	CHECK(st_console_write_utf8(console, "\xf0\x9f\x92\xb0", 4) == 0);
 	CHECK(st_console_get_pixels(&mono, console, &raster, false) == 0);
 	CHECK(st_console_set_color_emoji(console, true) == 0);
 	CHECK(st_console_get_pixels(&color, console, &raster, false) == 0);
-	CHECK(memcmp(mono->primary, color->primary, 8 * height * sizeof(uint32_t)) != 0);
+	CHECK(memcmp(mono->primary, color->primary, 16 * height * sizeof(uint32_t)) != 0);
 	CHECK(st_console_set_color_emoji(console, false) == 0);
 	CHECK(st_console_get_pixels(&restored, console, &raster, false) == 0);
-	CHECK(memcmp(mono->primary, restored->primary, 8 * height * sizeof(uint32_t)) == 0);
+	CHECK(memcmp(mono->primary, restored->primary, 16 * height * sizeof(uint32_t)) == 0);
 	uint32_t x, y;
-	CHECK(st_console_get_position(console, &x, &y) == 0 && x == 1 && y == 0);
+	CHECK(st_console_get_position(console, &x, &y) == 0 && x == 2 && y == 0);
 	st_pixel_buffer_destroy(mono);
 	st_pixel_buffer_destroy(color);
 	st_pixel_buffer_destroy(restored);

@@ -1,6 +1,9 @@
 {
   "reference": "Synchronet xtrn/termtest/termtest.js",
   "sha256": "a8bc360b2b1cd9c1b6041160d3e994a410132418fb568a369f3a10724915ab00",
+  "supplemental": [
+    {"id": "emoji-presentation", "test": "syncterm_emoji_presentation", "scope": "Native-symbol emoji forms occupy two cells; text forms retain native widths; 8/14/16 pixel fonts, colour on/off, CP437, right-margin revision and reset recovery"}
+  ],
   "cases": [
     {"id": "NUL", "source_line": 209, "suite": "movement", "scope": "Expected cursor coordinates; defaults, clamping and tab stops"},
     {"id": "BEL", "source_line": 214, "suite": "extensions", "scope": "Partial: parsing/recovery only; audibility needs audio-device validation"},

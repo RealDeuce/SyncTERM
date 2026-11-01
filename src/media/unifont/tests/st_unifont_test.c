@@ -124,9 +124,17 @@ main(void)
 			bool wide = entry->glyph >= st_unifont_font.glyph_count;
 			CHECK(st_console_font_lookup(console, 0, entry->codepoint, &owner,
 			    &replacement, &replacement_columns) == 0);
-			CHECK(owner == 0 && replacement_columns == (wide ? 2 : 1));
-			CHECK(memcmp(glyph_bitmap(&presentation.font, replacement),
-			    glyph_bitmap(&st_unifont_font, entry->glyph), wide ? 32 : 16) == 0);
+			CHECK(owner == 0 && (replacement_columns == (wide ? 2 : 1)
+			    || (!wide && replacement_columns == 2)));
+			const uint8_t *source = glyph_bitmap(&st_unifont_font, entry->glyph);
+			const uint8_t *actual = glyph_bitmap(&presentation.font, replacement);
+			if (!wide && replacement_columns == 2) {
+				for (size_t y = 0; y < 16; ++y) {
+					CHECK(actual[2 * y] == source[y] >> 4);
+					CHECK(actual[2 * y + 1] == (uint8_t)(source[y] << 4));
+				}
+			} else
+				CHECK(memcmp(actual, source, wide ? 32 : 16) == 0);
 		}
 		CHECK(st_console_font_lookup(console, 0, UINT32_C(0x1f4b0), &owner,
 		    &replacement, &replacement_columns) == 0);

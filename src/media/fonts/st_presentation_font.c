@@ -104,6 +104,7 @@ struct emoji_variant {
 	uint32_t native;
 	uint32_t emoji;
 	uint32_t glyph;
+	bool wide;
 };
 
 static const struct st_console_color_glyph *
@@ -161,7 +162,7 @@ native_cluster(const struct st_console_font *font,
 	size_t consumed;
 
 	if (find_cluster(font, cluster, glyph)) return true;
-	/* A presentation selector changes style, not the underlying character.
+	/* Presentation selectors retain the underlying native artwork.
 	 * Never reduce a joined or skin-tone sequence to its first scalar. */
 	if (st_utf8_decode_one(&scalar, &consumed, cluster->text,
 	    cluster->text_size) != 0 || cluster->text_size - consumed != 3
@@ -173,13 +174,15 @@ native_cluster(const struct st_console_font *font,
 
 static void
 add_variant(struct emoji_variant *variants, size_t *count,
-	const struct st_console_font *emoji, uint32_t native, uint32_t glyph)
+	const struct st_console_font *base, const struct st_console_font *emoji,
+	uint32_t native, uint32_t glyph)
 {
 	if (find_color(emoji, glyph) == NULL) return;
 	for (size_t i = 0; i < *count; ++i)
 		if (variants[i].native == native && variants[i].emoji == glyph)
 			return;
-	variants[(*count)++] = (struct emoji_variant){native, glyph, 0};
+	variants[(*count)++] = (struct emoji_variant){native, glyph, 0,
+	    native >= base->glyph_count || glyph >= emoji->glyph_count};
 }
 
 static uint32_t
@@ -234,18 +237,18 @@ create_presentation(struct st_presentation_font *result,
 		for (size_t i = 0; i < emoji->mapping_count; ++i) {
 			uint32_t native;
 			if (find_scalar(base, emoji->mapping[i].codepoint, &native))
-				add_variant(variants, &variant_count, emoji, native,
+				add_variant(variants, &variant_count, base, emoji, native,
 				    emoji->mapping[i].glyph);
 		}
 		for (size_t i = 0; i < emoji->cluster_mapping_count; ++i) {
 			uint32_t native;
 			if (native_cluster(base, &emoji->cluster_mapping[i], &native))
-				add_variant(variants, &variant_count, emoji, native,
+				add_variant(variants, &variant_count, base, emoji, native,
 				    emoji->cluster_mapping[i].glyph);
 		}
 		for (size_t i = 0; i < variant_count; ++i) {
-			if (variants[i].native < base->glyph_count) ++native_narrow;
-			else ++native_wide;
+			if (variants[i].wide) ++native_wide;
+			else ++native_narrow;
 		}
 	}
 	uint64_t total_narrow = (uint64_t)base->glyph_count + 2 + native_narrow
@@ -310,7 +313,7 @@ create_presentation(struct st_presentation_font *result,
 	    + (emoji == NULL ? 0 : emoji->wide_glyph_count);
 	for (size_t i = 0; i < variant_count; ++i) {
 		uint32_t native = variants[i].native;
-		if (native < base->glyph_count) {
+		if (!variants[i].wide) {
 			variants[i].glyph = next_narrow++;
 			memcpy(bitmap + (size_t)variants[i].glyph * base->glyph_stride,
 			    base->bitmap + (size_t)native * base->glyph_stride,
@@ -318,10 +321,25 @@ create_presentation(struct st_presentation_font *result,
 		}
 		else {
 			variants[i].glyph = narrow_count + next_wide++;
-			memcpy(wide_bitmap + (size_t)(variants[i].glyph - narrow_count)
-			    * wide_glyph_stride, base->wide_bitmap
-			    + (size_t)(native - base->glyph_count) * base->wide_glyph_stride,
-			    base->wide_glyph_stride);
+			uint8_t *target = wide_bitmap
+			    + (size_t)(variants[i].glyph - narrow_count) * wide_glyph_stride;
+			if (native >= base->glyph_count)
+				memcpy(target, base->wide_bitmap
+				    + (size_t)(native - base->glyph_count) * base->wide_glyph_stride,
+				    base->wide_glyph_stride);
+			else {
+				/* Emoji presentation owns two cells even when its preferred
+				 * native monochrome outline occupies only one. Center that
+				 * outline without replacing it or stretching its pixels. */
+				const uint8_t *source = base->bitmap
+				    + (size_t)native * base->glyph_stride;
+				for (uint32_t y = 0; y < base->height; ++y)
+					for (uint32_t x = 0; x < base->width; ++x)
+						if (source[(size_t)y * base->row_stride + x / 8]
+						    & (0x80U >> (x % 8)))
+							set_pixel(target, wide_row_stride,
+							    x + base->width / 2, y);
+			}
 		}
 	}
 	size_t mapping_capacity = base->mapping_count + emoji_mappings;
@@ -331,7 +349,7 @@ create_presentation(struct st_presentation_font *result,
 		mapping = malloc(mapping_capacity * sizeof(mapping[0]));
 		if (mapping == NULL)
 			goto out_of_memory;
-		/* Merge maps, retaining native monochrome artwork and width. */
+		/* Merge maps, retaining native monochrome artwork. */
 		size_t i = 0, j = 0;
 		while (i < base->mapping_count || j < emoji_mappings) {
 			bool from_base = j == emoji_mappings || (i < base->mapping_count

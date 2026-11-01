@@ -128,7 +128,7 @@ if(BUILD_TESTING)
 	if(ST_CONSOLE_TEST)
 		find_package(Python3 REQUIRED COMPONENTS Interpreter)
 		if(Python3_Interpreter_FOUND)
-			foreach(_emoji_group menu connected)
+			foreach(_emoji_group menu connected presentation)
 				add_test(NAME syncterm_emoji_${_emoji_group}
 					COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_emoji_picker_test.py
 					$<TARGET_FILE:syncterm_app> ${_emoji_group} --reports ${CMAKE_BINARY_DIR}/reports/test-control)

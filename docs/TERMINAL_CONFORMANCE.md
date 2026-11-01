@@ -49,6 +49,16 @@ Every case must recover known cells, margins and cursor coordinates and answer a
 query. TCP write boundaries are not parser chunk boundaries: the existing
 `cterm_text` C tests retain exhaustive split/bytewise decoder coverage.
 
+`syncterm_emoji_presentation` independently checks two-cell emoji presentation
+and single-cell text presentation across 8-, 14-, and 16-pixel fonts, with
+colour both enabled and disabled. It covers native narrow symbols such as
+smiling faces, hearts, weather, vehicles, and the hut; repeated resets must
+preserve cell pairs and cursor advancement. A VS16 revision at the right margin
+must wrap the complete emoji without leaving its narrow prefix behind.
+CP437 byte output retains its
+original cell width. Font tests separately verify that native monochrome
+outlines remain unchanged, centered when emoji presentation needs two cells.
+
 Audibility and physical speed pacing are explicitly partial below. Real OS
 clipboard/window operations and native console/input integration remain backend
 tests. This inventory does not claim coverage of every sequence in cterm.adoc,

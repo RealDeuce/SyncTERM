@@ -153,6 +153,15 @@ class EmojiPicker is Pane {
     refresh_()
   }
 
+  footerActions_ {
+    var actions = [["Enter Insert", 0]]
+    if (_variants == null && highlighted != null && highlighted.variants.count > 1) {
+      actions.add(["F2 Variants", 1])
+    }
+    actions.add(["Esc Back", 2])
+    return actions
+  }
+
   draw() {
     var size = Screen.size
     if (size[0] != _screenW || size[1] != _screenH) {
@@ -162,7 +171,7 @@ class EmojiPicker is Pane {
       var h = (size[1] - 2).max(8).min(25)
       bounds = Rect.new(((size[0] - w) / 2).floor + 1,
           ((size[1] - h) / 2).floor + 1, w, h)
-      _columns = ((w - 2) / 4).floor.max(1)
+      _columns = ((w - 3) / 3).floor.max(1)
       refresh_()
     }
     return super.draw()
@@ -195,8 +204,7 @@ class EmojiPicker is Pane {
     Painter.text(sf, 1, 2, status, style("default"), width)
     var name = highlighted == null ? "No matching emoji" : highlighted.name
     var lines = nameLines_(name, width)
-    // Reserve a stable three-line name panel, including on 40-column screens.
-    var nameStart = (bounds.h - 5).max(4)
+    var nameStart = (bounds.h - 2 - lines.count).max(4)
     _visibleRows = (nameStart - 3).max(1)
     reveal_()
     for (y in 0..._visibleRows) {
@@ -206,11 +214,17 @@ class EmojiPicker is Pane {
         if (row is String) {
           Painter.text(sf, 1, 3 + y, row, style("title"), width)
         } else {
+          Painter.fill(sf, Rect.new(1, 3 + y, width, 1), " ", style("list.item"))
+          if (row.contains(_selected)) {
+            // Neighbours share one padding cell. Paint the highlight once,
+            // before drawing glyphs, so neither neighbour erases that space.
+            var column = row.indexOf(_selected)
+            Painter.fill(sf, Rect.new(1 + column * 3, 3 + y, 4, 1), " ", style("list.item.focused"))
+          }
           for (column in 0...row.count) {
             var index = row[column]
             var st = style(index == _selected ? "list.item.focused" : "list.item")
-            Painter.fill(sf, Rect.new(1 + column * 4, 3 + y, 4, 1), " ", st)
-            var cell = sf.cellAt(1 + column * 4, 3 + y)
+            var cell = sf.cellAt(2 + column * 3, 3 + y)
             Painter.applyStyle(cell, st)
             cell.ch = _items[index].text
           }
@@ -220,7 +234,13 @@ class EmojiPicker is Pane {
     for (i in 0...lines.count) {
       if (nameStart + i < bounds.h - 2) Painter.text(sf, 1, nameStart + i, lines[i], style("default"), width)
     }
-    Painter.text(sf, 1, bounds.h - 2, "Enter Insert  F2 Variants  Esc Back", style("classic.hint"), width)
+    var hint = style("classic.hint")
+    Painter.fill(sf, Rect.new(1, bounds.h - 2, width, 1), " ", hint)
+    var x = 1
+    for (action in footerActions_) {
+      Painter.text(sf, x, bounds.h - 2, action[0], hint, (bounds.w - 1 - x).max(0))
+      x = x + action[0].count + 2
+    }
   }
 
   handle(event) {
@@ -298,13 +318,16 @@ class EmojiPicker is Pane {
       }
       if (event.event == Mouse.button1Click && bounds.contains(event.startX, event.startY) &&
           event.startY == bounds.y + bounds.h - 2) {
-        var column = event.startX - bounds.x
-        if (column < 13) {
-          accept_()
-        } else if (column < 25) {
-          variants_()
-        } else {
-          cancel_()
+        var column = event.startX - bounds.x - 1
+        var x = 0
+        for (action in footerActions_) {
+          if (column >= x && column < x + action[0].count) {
+            if (action[1] == 0) accept_()
+            if (action[1] == 1) variants_()
+            if (action[1] == 2) cancel_()
+            return true
+          }
+          x = x + action[0].count + 2
         }
         return true
       }
@@ -314,7 +337,7 @@ class EmojiPicker is Pane {
       var rowIndex = _top + y
       if (x >= 0 && y >= 0 && y < _visibleRows && rowIndex < _rows.count) {
         var row = _rows[rowIndex]
-        var column = (x / 4).floor
+        var column = (x / 3).floor
         if (row is List && column < row.count) {
           if (_selected != row[column]) {
             _selected = row[column]

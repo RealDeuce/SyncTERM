@@ -5,7 +5,7 @@ import argparse
 from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'tools/testing'))
-from syncterm_fixture import fixture, install_suite, click_text, click_cell, write_script, SOURCE
+from syncterm_fixture import fixture, install_suite, click_text, click_cell, cell_at, write_script, SOURCE
 from syncterm_control import ALT
 from st_migrated_control_test import connection
 from st_terminal_conformance_test import Terminal, ESC
@@ -22,6 +22,29 @@ def break_picker(root):
     broken = (SOURCE / 'scripts/ui_emoji_picker.wren').read_text().replace(
         '    super.onPaint_()', '    super.onPaint_()\n    Fiber.abort("picker paint fixture")')
     write_script(root, 'ui_emoji_picker', broken)
+
+
+def check_footer(frame, variants, name):
+    y = next(i for i, line in enumerate(frame.lines) if 'Enter Insert' in line)
+    line = frame.lines[y]
+    left, right = line.index('Enter Insert'), line.rindex('║')
+    assert ('F2 Variants' in line) == variants
+    background = cell_at(frame, left, y).background
+    assert all(cell_at(frame, x, y).background == background for x in range(left, right))
+    assert name in frame.lines[y - 1], 'blank row below highlighted name'
+
+
+def check_grid_spacing(frame):
+    first = next(i for i, c in enumerate(frame.cells) if frame.cell_text(c) == '😀')
+    second = next(i for i, c in enumerate(frame.cells) if frame.cell_text(c) == '😃')
+    assert second - first == 3, 'more than one space between two-cell emoji'
+    assert frame.cell_text(frame.cells[first - 1]) == ' '
+    assert frame.cell_text(frame.cells[first + 2]) == ' '
+    assert frame.cells[first - 1].background == frame.cells[first].background
+    assert frame.cells[first + 2].background == frame.cells[first].background
+    x = first % frame.metadata['columns']
+    assert frame.cell_text(frame.cells[first - 2]) == '║', 'missing left padding'
+    assert x > 1
 
 
 def menu(executable, reports):
@@ -54,7 +77,9 @@ app.runSync()
     with fixture(executable, settings='AudioModes=0\n', prepare=prepare, reports=reports) as (client, root):
         client.wait_text('Emoji input fixture')
         alt_key(client, 25)
-        client.wait_text('Insert Emoji')
+        frame = client.wait_text('Insert Emoji')
+        check_footer(frame, False, 'grinning face')
+        check_grid_spacing(frame)
         client.text('grinning face')
         client.wait_text('grinning face')
         client.key('enter')
@@ -64,7 +89,8 @@ app.runSync()
         alt_key(client, 25)
         frame = client.wait_text('Recently used')
         client.text('no such emoji zzqq')
-        client.wait_text('No matching emoji')
+        frame = client.wait_text('No matching emoji')
+        check_footer(frame, False, 'No matching emoji')
         client.key('escape')
         client.wait_text('a😀b')
         # Exact gender/tone variants are searchable and remain a single glyph.
@@ -72,6 +98,7 @@ app.runSync()
         client.wait_text('Insert Emoji')
         client.text('MAN SHRUGGING: MEDIUM SKIN TONE')
         frame = client.wait_text('man shrugging: medium skin tone')
+        check_footer(frame, True, 'man shrugging: medium skin tone')
         # The reverse glyph map shares artwork with the spelling without VS16.
         assert any(frame.cell_text(c) == '🤷🏽‍♂' for c in frame.cells)
         index = next(i for i, c in enumerate(frame.cells) if frame.cell_text(c) == '🤷🏽‍♀')
@@ -95,9 +122,10 @@ app.runSync()
         client.wait_text('a😀🤷🏽‍♂b')
         # Reopening, then F2 and Escape, returns to the exact recent variant.
         alt_key(client, 25)
-        client.wait_text('Recently used')
-        client.key('f2')
-        client.wait_text('Variants')
+        frame = client.wait_text('Recently used')
+        check_footer(frame, True, 'man shrugging: medium skin tone')
+        click_text(client, frame, 'F2 Variants')
+        client.wait_for(lambda s: 'Variants' in s.text and 'F2 Variants' not in s.text)
         client.key('right')
         client.key('escape')
         client.wait_text('man shrugging: medium skin tone')
@@ -105,6 +133,16 @@ app.runSync()
         client.grid_resize(40, 14)
         frame = client.wait_for(lambda s: s.metadata['columns'] == 40 and 'man shrugging:' in s.text)
         assert 'medium skin tone' in frame.text
+        check_footer(frame, True, 'man shrugging: medium skin tone')
+        long_name = 'couple with heart: person, person, medium-light skin tone, medium-dark skin tone'
+        client.key(21)
+        client.text(long_name)
+        chunks = [long_name[i:i + 36] for i in range(0, len(long_name), 36)]
+        def wrapped_name(s):
+            footer = next((i for i, line in enumerate(s.lines) if 'Enter Insert' in line), None)
+            return footer is not None and all(chunk in s.lines[footer - len(chunks) + i]
+                                             for i, chunk in enumerate(chunks))
+        frame = client.wait_for(wrapped_name)
         click_text(client, frame, 'Esc Back')
         client.wait_text('a😀🤷🏽‍♂b')
         client.key('escape')
@@ -217,13 +255,53 @@ def connected(executable, reports):
         assert 'BEFOREAFTER' in frame.text and 'Insert Emoji' not in frame.text
 
 
+def presentation(executable, reports):
+    # Fixed expected presentation widths, independent of the font merger.
+    emoji = ['☺️', '☹️', '☠️', '❤️', '☝️', '🕴️', '🕷️', '🛖', '♨️', '🏎️', '✈️',
+             '☀️', '☁️', '🌩️', '⛈️', '☂️', '☔', '⚡', '☄️', '💰', '☃️', '⏱️']
+    text = ['☺︎', '☹︎', '❤︎', '☀︎']
+    payload = ''.join(s + '|' for s in emoji + text).encode()
+    for height in (8, 14, 16):
+        for colour in (False, True):
+            settings = (f'AudioModes=0\nCustomRows=25\nCustomColumns=80\nCustomFontHeight={height}\n'
+                        f"ColorEmoji={'true' if colour else 'false'}\n")
+            with connection(executable, reports, encoding='UTF-8', settings=settings,
+                            options='ScreenMode=Custom\n') as (client, root, peer, send):
+                terminal = Terminal(client, root, peer, send)
+                terminal.case(f'emoji-presentation-{height}-{colour}')
+                for _ in range(2):
+                    frame = terminal.exchange(payload, reset=True)
+                    assert frame.metadata['cell_height'] == height
+                    x = 0
+                    for i, sequence in enumerate(emoji + text):
+                        columns = 2 if i < len(emoji) else 1
+                        assert not cell_at(frame, x, 0).flags & (1 << 19), sequence
+                        if columns == 2:
+                            assert cell_at(frame, x + 1, 0).flags & (1 << 19), sequence
+                        assert frame.cell_text(cell_at(frame, x + columns, 0)) == '|', sequence
+                        x += columns + 1
+                    assert frame.application['cterm.x'] == x + 1
+                # VS16 widens a narrow native prefix at the right margin.
+                # Its provisional one-cell image must not remain behind.
+                frame = terminal.exchange(b'\x1b[1;80H' + '☺️B'.encode(), reset=True)
+                assert frame.cell_text(cell_at(frame, 79, 0)) == ' '
+                assert cell_at(frame, 1, 1).flags & (1 << 19)
+                assert frame.cell_text(cell_at(frame, 2, 1)) == 'B'
+                assert (frame.application['cterm.x'], frame.application['cterm.y']) == (4, 2)
+    with connection(executable, reports, encoding='CP437', settings='AudioModes=0\n') as (client, root, peer, send):
+        frame = Terminal(client, root, peer, send).exchange(b'\xb3A', reset=True)
+        assert frame.cell_text(cell_at(frame, 0, 0)) == '│'
+        assert frame.cell_text(cell_at(frame, 1, 0)) == 'A'
+        assert frame.application['cterm.x'] == 3
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('executable', type=Path)
-    parser.add_argument('group', choices=('menu', 'connected'))
+    parser.add_argument('group', choices=('menu', 'connected', 'presentation'))
     parser.add_argument('--reports', type=Path, required=True)
     args = parser.parse_args()
-    (menu if args.group == 'menu' else connected)(args.executable, args.reports)
+    globals()[args.group](args.executable, args.reports)
 
 if __name__ == '__main__':
     main()
