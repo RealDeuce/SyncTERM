@@ -175,7 +175,7 @@ class ModernDirectory {
       }
     }
     _list.items = labels
-    _list.subtitles = _visible.map {|entry| entry.addr }.toList
+    _list.addresses = _visible.map {|entry| entry.addr }.toList
     _list.emptyMessage = _entries.count == 0 ? "Your directory is empty." : "No matching connections."
     _list.focusable = labels.count > 0
     if (labels.count > 0) {
@@ -199,21 +199,20 @@ class ModernDirectory {
     _side = w >= 72 ? 17 : 0
     _contentX = _side + 3
     _contentW = (w - _contentX - 1).max(4)
-    _detailsW = w >= 80 ? 24 : 0
-    _listRect = Rect.new(_contentX, 11, (_contentW - _detailsW - (_detailsW > 0 ? 2 : 0)).max(4), (h - 16).max(1))
-    _detailsRect = Rect.new(_listRect.right + 3, _listRect.y, _detailsW, _listRect.h)
+    _listRect = Rect.new(_contentX, 10, _contentW, (h - 16).max(1))
+    _detailsRect = Rect.new(_contentX, h - 5, _contentW, 2)
     _directoryButton.bounds = Rect.new(2, 5, 15, 3)
     _settingsButton.bounds = Rect.new(2, 9, 15, 3)
     _exitButton.bounds = Rect.new(w - 11, 1, 10, 3)
     _quickButton.bounds = Rect.new(2, h - 5, 15, 3)
     _search.bounds = Rect.new(_contentX, 6, _contentW, 1)
     _list.bounds = _listRect
-    var buttonY = (h - 3).max(10)
-    _newButton.bounds = Rect.new(_contentX, 7, 8.min(_contentW), 3)
-    _sortButton.bounds = Rect.new(_contentX + 10, 7, 8.min(_contentW), 3)
-    _editButton.bounds = Rect.new(_contentX, buttonY, 9, 3)
-    _deleteButton.bounds = Rect.new(_contentX + 11, buttonY, 10, 3)
-    _connectButton.bounds = Rect.new((_contentX + _contentW - 13).max(_contentX), buttonY, 13.min(_contentW), 3)
+    var buttonY = (h - 2).max(10)
+    _newButton.bounds = Rect.new(_contentX, 7, 8.min(_contentW), 2)
+    _sortButton.bounds = Rect.new(_contentX + 10, 7, 8.min(_contentW), 2)
+    _editButton.bounds = Rect.new(_contentX, buttonY, 9, 2)
+    _deleteButton.bounds = Rect.new(_contentX + 11, buttonY, 10, 2)
+    _connectButton.bounds = Rect.new((_contentX + _contentW - 13).max(_contentX), buttonY, 13.min(_contentW), 2)
     for (widget in directoryWidgets) {
       widget.visible = !_settingsPage
       widget.focusable = !_settingsPage
@@ -254,22 +253,21 @@ class ModernDirectory {
       if (h >= 25) text_(sf, x, 4, "Configure SyncTERM and your connection defaults", ModernStyle.muted, ModernStyle.background, _contentW)
     } else {
       text_(sf, x, 4, "Search by name, address or comment", ModernStyle.muted, ModernStyle.background, _contentW)
+      text_(sf, x + 2, 8, "Name", ModernStyle.muted, ModernStyle.background, _list.columnX - 4)
+      text_(sf, x + _list.columnX, 8, "Address", ModernStyle.muted, ModernStyle.background, _contentW - _list.columnX)
       var entry = selected
-      if (_visible.count == 0) {
-        text_(sf, x + 1, 10, _entries.count == 0 ? "Your directory is empty." : "No matching connections.", ModernStyle.muted, ModernStyle.background, _listRect.w - 2)
-      }
-      if (_detailsW > 0) {
-        Painter.fill(sf, Rect.new(_detailsRect.x - 1, _detailsRect.y - 1, _detailsRect.w, _detailsRect.h), " ", ModernStyle.text(ModernStyle.ink, ModernStyle.panel))
-        var dx = _detailsRect.x
-        var dy = _detailsRect.y
-        text_(sf, dx, dy, entry == null ? "Connection details" : entry.name, ModernStyle.accent, ModernStyle.panel, _detailsW - 2)
-        if (entry != null) {
-          text_(sf, dx, dy + 2, entry.connTypeName, ModernStyle.muted, ModernStyle.panel, _detailsW - 2)
-          text_(sf, dx, dy + 3, entry.addr, ModernStyle.ink, ModernStyle.panel, _detailsW - 2)
-          text_(sf, dx, dy + 4, "Port %(entry.port)", ModernStyle.muted, ModernStyle.panel, _detailsW - 2)
-          text_(sf, dx, dy + 6, entry.comment, ModernStyle.muted, ModernStyle.panel, _detailsW - 2)
-          if (_detailsRect.h >= 9) text_(sf, dx, dy + 7, entry.type == 0 ? "PERSONAL DIRECTORY" : "SHARED DIRECTORY", ModernStyle.muted, ModernStyle.panel, _detailsW - 2)
-        }
+      var detailBg = 0xe8eef6
+      text_(sf, x + 2, _detailsRect.y - 2, "Selected connection", ModernStyle.muted, ModernStyle.background, _contentW - 4)
+      Painter.fill(sf, Rect.new(x, _detailsRect.y - 1, _detailsRect.w, 2), " ", ModernStyle.text(ModernStyle.ink, detailBg))
+      var dy = _detailsRect.y - 1
+      text_(sf, x + 2, dy, entry == null ? "Select a connection" : entry.name,
+          ModernStyle.accent, detailBg, _list.columnX - 4)
+      if (entry != null) {
+        var source = entry.type == 0 ? "Personal" : "Shared"
+        text_(sf, x + _list.columnX, dy, "%(entry.connTypeName) :%(entry.port) / %(source)",
+            ModernStyle.muted, detailBg, _contentW - _list.columnX - 2)
+        text_(sf, x + 2, dy + 1, entry.comment.count > 0 ? entry.comment : entry.addr,
+            ModernStyle.muted, detailBg, _contentW - 4)
       }
     }
     Painter.fill(sf, Rect.new(0, h - 1, w, 1), " ", ModernStyle.text(ModernStyle.muted, 0xe2e8f0))
@@ -285,7 +283,7 @@ class ModernDirectory {
   chrome_() {
     if (_small) return
     if (!_settingsPage) _list.chrome(_app)
-    if (!_settingsPage && _detailsW > 0) _app.round(_detailsRect, ModernStyle.panel, ModernStyle.background)
+    if (!_settingsPage) _app.round(_detailsRect, 0xe8eef6, ModernStyle.background)
     for (button in [_directoryButton, _settingsButton, _quickButton, _exitButton]) {
       button.chrome(_app, ModernStyle.dark)
     }

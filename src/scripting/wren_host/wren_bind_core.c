@@ -2378,6 +2378,45 @@ screen_put_rect(WrenVM *vm, bool partial)
 static void fn_screen_put_rect(WrenVM *vm) { screen_put_rect(vm, false); }
 static void fn_screen_put_rect_partial(WrenVM *vm) { screen_put_rect(vm, true); }
 
+struct screen_update_guard {
+	st_console_t *console;
+};
+
+static void
+allocate_screen_update(WrenVM *vm)
+{
+	struct screen_update_guard *guard = wrenSetSlotNewForeign(vm, 0, 0,
+	    sizeof(*guard));
+	st_console_t *console = st_wren_context_from_vm(vm)->console;
+
+	guard->console = NULL;
+	if (st_console_begin_update(console) != 0)
+		st_wren_abort(vm, "Screen.update could not begin composition");
+	else
+		guard->console = console;
+}
+
+static void
+finalize_screen_update(void *data)
+{
+	struct screen_update_guard *guard = data;
+
+	if (guard->console != NULL)
+		(void)st_console_end_update(guard->console);
+}
+
+static void
+fn_screen_update_finish(WrenVM *vm)
+{
+	struct screen_update_guard *guard = wrenGetSlotForeign(vm, 0);
+	st_console_t *console = guard->console;
+
+	/* End can report a presentation failure after closing the batch. */
+	guard->console = NULL;
+	if (console != NULL && st_console_end_update(console) != 0)
+		st_wren_abort(vm, "Screen.update could not finish composition");
+}
+
 static uint32_t
 legacy_colour(uint32_t colour)
 {
@@ -4824,6 +4863,7 @@ static const struct binding bindings[] = {
 	{"Screen", true, "readRect(_,_,_,_)", fn_screen_read_rect},
 	{"Screen", true, "putRect(_,_,_)", fn_screen_put_rect},
 	{"Screen", true, "putRect_(_,_,_,_,_,_,_)", fn_screen_put_rect_partial},
+	{"ScreenUpdate_", false, "finish_()", fn_screen_update_finish},
 	{"Screen", true, "attr", fn_screen_attr},
 	{"Screen", true, "attr=(_)", fn_screen_attr_set},
 	{"Screen", true, "pixelSize", fn_screen_pixel_size},
@@ -5007,6 +5047,10 @@ st_wren_core_bind_class(const char *class_name)
 		methods.allocate = allocate_cell;
 	else if (strcmp(class_name, "Surface") == 0)
 		methods.allocate = allocate_surface;
+	else if (strcmp(class_name, "ScreenUpdate_") == 0) {
+		methods.allocate = allocate_screen_update;
+		methods.finalize = finalize_screen_update;
+	}
 	else if (strcmp(class_name, "KeyEvent") == 0)
 		methods.allocate = allocate_key_event;
 	else if (strcmp(class_name, "PhysicalKeyEvent") == 0)

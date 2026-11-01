@@ -1491,6 +1491,57 @@ test_deferred_presentation(void)
 }
 
 static void
+test_deferred_batch_presentation(void)
+{
+	st_console_t *console = create_headless(2, 1);
+	st_console_display_t *display = console->display;
+	struct deferred_present_state state;
+	struct timespec deadline;
+	unsigned int before;
+
+	CHECK(st_mutex_init(&state.mutex, ST_MUTEX_PLAIN) == ST_THREAD_SUCCESS);
+	CHECK(st_condition_init(&state.changed) == ST_THREAD_SUCCESS);
+	state.calls = 0;
+	display->backend_ops = &deferred_present_ops;
+	display->backend_state = &state;
+	CHECK(st_console_start_presentation_worker(console) == 0);
+	st_console_display_request_repaint(display);
+	CHECK(timespec_get(&deadline, TIME_UTC) == TIME_UTC);
+	deadline.tv_sec += 5;
+	(void)st_mutex_lock(&state.mutex);
+	while (state.calls == 0)
+		CHECK(st_condition_timedwait(&state.changed, &state.mutex,
+		    &deadline) == ST_THREAD_SUCCESS);
+	(void)st_mutex_unlock(&state.mutex);
+	CHECK(st_console_begin_update(console) == 0);
+	(void)st_mutex_lock(&state.mutex);
+	before = state.calls;
+	(void)st_mutex_unlock(&state.mutex);
+	CHECK(st_console_write_utf8(console, "X", 1) == 0);
+	st_console_display_request_repaint(display);
+	/* Wait for the worker to consume that expose event while the batch is
+	 * still open. It must defer presentation and retain the repaint request. */
+	(void)st_mutex_lock(&display->presentation_mutex);
+	while (display->presentation_requested || display->presentation_active != NULL)
+		CHECK(st_condition_timedwait(&display->presentation_ready,
+		    &display->presentation_mutex, &deadline) == ST_THREAD_SUCCESS);
+	CHECK(display->repaint_requested);
+	(void)st_mutex_unlock(&display->presentation_mutex);
+	(void)st_mutex_lock(&state.mutex);
+	CHECK(state.calls == before);
+	(void)st_mutex_unlock(&state.mutex);
+	CHECK(st_console_end_update(console) == 0);
+	(void)st_mutex_lock(&state.mutex);
+	while (state.calls == before)
+		CHECK(st_condition_timedwait(&state.changed, &state.mutex,
+		    &deadline) == ST_THREAD_SUCCESS);
+	(void)st_mutex_unlock(&state.mutex);
+	st_console_destroy(console);
+	st_condition_destroy(&state.changed);
+	st_mutex_destroy(&state.mutex);
+}
+
+static void
 test_unicode_wide_cells(void)
 {
 	static const uint8_t narrow_bitmap[4] = {0, 0, 0xff, 0xff};
@@ -3206,6 +3257,7 @@ main(void)
 	test_saa5050_double_height_raster();
 	test_concurrent_writers();
 	test_deferred_presentation();
+	test_deferred_batch_presentation();
 	test_unicode_wide_cells();
 	test_wide_window_row_operations();
 	test_wide_window_cached_scroll();

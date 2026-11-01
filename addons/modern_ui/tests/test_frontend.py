@@ -41,7 +41,7 @@ def button_geometry(frame, rect, foreground=0x2563eb):
     left, top, width, height = (x - 1) * cw, (y - 1) * ch, w * cw, h * ch
     ink = [(px, py) for py in range(height) for px in range(width)
            if frame.primary[(top + py) * stride + left + px] & 0xffffff == foreground]
-    assert h == 3 and ink, (rect, 'missing label')
+    assert h in (2, 3) and ink, (rect, 'missing label')
     xs, ys = zip(*ink)
     assert abs(min(xs) + max(xs) + 1 - width) <= 2, (rect, 'horizontal', min(xs), max(xs))
     assert abs(min(ys) + max(ys) + 1 - height) <= 3, (rect, 'vertical', min(ys), max(ys))
@@ -57,7 +57,7 @@ def directory(executable, reports):
             # Wait for the post-composition raster chrome as well as text;
             # inspect both from the same coherent capture.
             m = frame.metadata
-            # Sort is the last control decorated, after all card/button ink.
+            # Sort is the last control decorated, after all table/button ink.
             corner = 6 * m['cell_height'] * m['plane_width'] + 29 * m['cell_width']
             return 'Connection directory' in frame.text and frame.primary[corner] == 0x80f1f5f9
         frame = client.wait_for(painted)
@@ -69,14 +69,22 @@ def directory(executable, reports):
         edge = frame.primary[py * m['plane_width'] + px] & 0xffffff
         assert edge not in (0xdbeafe, 0x0f172a), hex(edge)
         for rect in [(2, 5, 15, 3), (2, 9, 15, 3), (2, 20, 15, 3),
-                     (69, 1, 10, 3), (20, 7, 8, 3), (30, 7, 8, 3),
-                     (20, 22, 9, 3), (31, 22, 10, 3), (66, 22, 13, 3)]:
+                     (69, 1, 10, 3), (20, 7, 8, 2), (30, 7, 8, 2),
+                     (20, 23, 9, 2), (31, 23, 10, 2), (66, 23, 13, 2)]:
             button_geometry(frame, rect)
-        # Directory entries occupy distinct two-line cards separated by a
-        # full row, rather than a single-row terminal lightbar.
-        assert 'Alpha' in frame.lines[10] and 'alpha.example' in frame.lines[11]
-        assert 'München' in frame.lines[13] and 'second.example' in frame.lines[14]
-        assert not frame.lines[12][19:52].strip()
+        # Entries fill consecutive lines, with separate name/address columns;
+        # the selection's metadata and comment occupy exactly two bottom rows.
+        assert 'Name' in frame.lines[8] and 'Address' in frame.lines[8]
+        assert 'Alpha' in frame.lines[9][:48] and 'alpha.example' in frame.lines[9][48:]
+        assert 'München' in frame.lines[10][:48] and 'second.example' in frame.lines[10][48:]
+        assert 'Zulu' in frame.lines[11][:48] and 'zulu.example' in frame.lines[11][48:]
+        assert 'Selected connection' in frame.lines[18]
+        assert 'Alpha' in frame.lines[19] and 'SSH :22 / Personal' in frame.lines[19]
+        assert 'First connection' in frame.lines[20]
+        # A faint one-pixel separator occupies the row boundary, with no
+        # blank cell row reserved for it.
+        sep = (10 * m['cell_height'] - 1) * m['plane_width'] + 47 * m['cell_width']
+        assert frame.primary[sep] & 0xffffff == 0xe2e8f0
         reports.mkdir(parents=True, exist_ok=True)
         frame.save_image(reports / 'directory.ppm')
         click_text(client, frame, 'Zulu')
@@ -130,22 +138,29 @@ def directory(executable, reports):
                  reports=reports) as (client, root):
         frame = client.wait_text('Connection directory')
         client.key('end')
-        frame = client.wait_for(lambda f: 'Card 11' in f.lines[16])
-        assert 'Card 09' in frame.lines[10] and 'Card 10' in frame.lines[13]
+        frame = client.wait_for(lambda f: 'Card 11' in f.lines[17])
+        assert 'Card 03' in frame.lines[9] and 'Card 10' in frame.lines[16]
+        assert 'Selected connection' in frame.lines[18] and 'Card 11' in frame.lines[19]
+        m = frame.metadata
+        x = 20 * m['cell_width']
+        def colour(row):
+            return frame.primary[(row * m['cell_height']) * m['plane_width'] + x] & 0xffffff
+        assert colour(18) == 0xf1f5f9 and colour(19) == 0xe8eef6
+        frame.save_image(reports / 'directory-last-selected.ppm')
         client.key('home')
-        frame = client.wait_for(lambda f: 'Card 00' in f.lines[10])
+        frame = client.wait_for(lambda f: 'Card 00' in f.lines[9])
         m = frame.metadata
         px = m['destination_x'] + 22 * m['cell_width'] * m['destination_width'] // m['plane_width']
         py = m['destination_y'] + (11 * m['cell_height'] + m['pixel_top']) * m['destination_height'] // m['plane_height']
         client.mouse(px, py, action=2, wheel_y=-1)
-        frame = client.wait_for(lambda f: 'Card 01' in f.lines[10])
+        frame = client.wait_for(lambda f: 'Card 01' in f.lines[9])
         # Wheel scrolling preserves the selection, including its detail panel.
-        assert 'Card 00' in frame.lines[11][54:]
+        assert 'Card 00' in frame.lines[19]
         click_text(client, frame, 'Card 02')
-        frame = client.wait_for(lambda f: 'Card 02' in f.lines[11][54:])
+        frame = client.wait_for(lambda f: 'Card 02' in f.lines[19])
         assert frame.application['session_active'] == 0
         client.key('page_down')
-        client.wait_for(lambda f: 'Card 04' in f.text)
+        client.wait_for(lambda f: 'Card 10' in f.lines[19])
 
 
 def settings(executable, reports):
@@ -250,7 +265,27 @@ def recovery(executable, reports):
                 f'CustomFontHeight={font_height}\n')
         with fixture(executable, entries=ENTRIES, settings=mode, prepare=install,
                      reports=reports) as (client, root):
-            frame = client.wait_text('Connection directory')
+            def directory_painted(frame):
+                m = frame.metadata
+                corner = 6 * m['cell_height'] * m['plane_width'] + 29 * m['cell_width']
+                return 'Connection directory' in frame.text and frame.primary[corner] == 0x80f1f5f9
+            frame = client.wait_for(directory_painted)
+            assert 'Alpha' in frame.lines[9][:44] and 'alpha.example' in frame.lines[9][44:]
+            assert 'München' in frame.lines[10] and 'Zulu' in frame.lines[11]
+            assert 'Selected connection' in frame.lines[17]
+            assert 'Alpha' in frame.lines[18] and 'SSH :22 / Personal' in frame.lines[18]
+            assert 'First connection' in frame.lines[19] and '3 connections' in frame.lines[23]
+            for rect in [(20, 7, 8, 2), (30, 7, 8, 2), (20, 22, 9, 2),
+                         (31, 22, 10, 2), (58, 22, 13, 2)]:
+                button_geometry(frame, rect)
+            if font_height == 8:
+                # The p descender reaches the last scanline of this font.
+                # A separator must leave those foreground pixels intact.
+                m = frame.metadata
+                y = 10 * m['cell_height'] - 1
+                ink = [frame.primary[y * m['plane_width'] + x] & 0xffffff
+                       for x in range(21 * m['cell_width'], 26 * m['cell_width'])]
+                assert 0x2563eb in ink
             click_text(client, frame, 'Settings')
             def painted(frame):
                 m = frame.metadata
@@ -297,8 +332,7 @@ def web_list(executable, reports):
                                    and 'SyncTERM BBS List' not in s.text)
             click_text(client, frame, 'Directory')
             frame = client.wait_text('4 connections')
-            # Cards show fewer entries per page; find the fetched entry
-            # through the public search rather than assuming it is on page 1.
+            # Find the fetched entry through the public search after reload.
             client.key(6)
             client.text('Fetched web entry')
             frame = client.wait_text('1 connections')

@@ -85,6 +85,19 @@ class Palette {
   foreign static mode=(list)
 }
 foreign class Screen {
+
+  // Synchronous composition: cell, pixel and cursor changes become eligible
+  // for presentation together. The guard also closes on VM teardown.
+  static update(fn) {
+    if (!(fn is Fn)) Fiber.abort("Screen.update expects a function")
+    var guard = ScreenUpdate_.new()
+    var body = Fiber.new { fn.call() }
+    var result = body.try()
+    guard.finish_()
+    if (body.error != null) Fiber.abort(body.error)
+    if (!body.isDone) Fiber.abort("Screen.update callback must not yield")
+    return result
+  }
 	foreign static size
 	foreign static textWidth(text, font)
   foreign static save()
@@ -154,6 +167,12 @@ foreign class Screen {
   static cursor     { CustomCursor   }
   static videoFlags { VideoFlags     }
   static color      { Color          }
+}
+
+// Internal lifetime guard for Screen.update; do not retain across callbacks.
+foreign class ScreenUpdate_ {
+  construct new() {}
+  foreign finish_()
 }
 
 // Native pixel colours retain ciolib's RGB/palette discriminator so a

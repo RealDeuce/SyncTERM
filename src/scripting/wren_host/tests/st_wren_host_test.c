@@ -3434,6 +3434,90 @@ exercise_zero_width_contract(st_wren_host_t *public_host)
 	return 0;
 }
 
+struct update_presentations {
+	size_t count;
+	uint32_t colours[4];
+};
+
+static int
+record_update_presentation(st_console_t *console)
+{
+	struct update_presentations *state = console->display->backend_state;
+
+	CHECK(state->count < 4);
+	state->colours[state->count++] = console->pixels->primary[0];
+	return 0;
+}
+
+static int
+exercise_screen_update_contract(st_wren_host_t *public_host,
+	st_console_t *console)
+{
+	struct st_wren_host *host = public_host;
+	struct update_presentations state = {0};
+	const struct st_console_backend_ops *previous_ops = console->display->backend_ops;
+	void *previous_state = console->display->backend_state;
+	static const struct st_console_backend_ops ops = {
+		.presents_pixels = true,
+		.present = record_update_presentation,
+	};
+	static const char source[] =
+	    "import \"syncterm\" for Screen, ScreenUpdate_, Surface, PixelColor\n"
+	    "var s = Surface.new(1, 1)\n"
+	    "s.cellAt(0, 0).ch = \"T\"\n"
+	    "var result = Screen.update {\n"
+	    "  Screen.putRect(s, 1, 1)\n"
+	    "  Screen.update { Screen.setPixel(0, 0, PixelColor.rgb(0x123456)) }\n"
+	    "  return 42\n"
+	    "}\n"
+	    "if (result != 42 || Screen.readRect(1, 1, 1, 1)[0].ch != \"T\") Fiber.abort(\"update result/cells\")\n"
+	    "var failed = Fiber.new {\n"
+	    "  Screen.update {\n"
+	    "    Screen.putRect(s, 1, 1)\n"
+	    "    Screen.setPixel(0, 0, PixelColor.rgb(0x234567))\n"
+	    "    Fiber.abort(\"expected update failure\")\n"
+	    "  }\n"
+	    "}\n"
+	    "failed.try()\n"
+	    "if (failed.error != \"expected update failure\") Fiber.abort(\"update error propagation\")\n"
+	    "var yielded = Fiber.new {\n"
+	    "  Screen.update {\n"
+	    "    Screen.setPixel(0, 0, PixelColor.rgb(0x345678))\n"
+	    "    Fiber.yield()\n"
+	    "  }\n"
+	    "}\n"
+	    "yielded.try()\n"
+	    "if (yielded.error != \"Screen.update callback must not yield\") Fiber.abort(\"update yield guard\")\n"
+	    "var invalid = Fiber.new { Screen.update(null) }\n"
+	    "invalid.try()\n"
+	    "if (invalid.error == null) Fiber.abort(\"update function validation\")\n"
+	    "var closed = ScreenUpdate_.new()\n"
+	    "closed.finish_()\n"
+	    "closed.finish_()\n"
+	    "var abandoned = ScreenUpdate_.new()\n"
+	    "Screen.setPixel(0, 0, PixelColor.rgb(0x456789))\n"
+	    "abandoned = null\n"
+	    "System.gc()\n";
+	WrenInterpretResult result;
+
+	CHECK(!console->display->presentation_thread_started);
+	CHECK(st_console_present(console) == 0);
+	console->display->backend_ops = &ops;
+	console->display->backend_state = &state;
+	result = wrenInterpret(host->vm, "screen_update_contract", source);
+	console->display->backend_ops = previous_ops;
+	console->display->backend_state = previous_state;
+	if (result != WREN_RESULT_SUCCESS)
+		fprintf(stderr, "Screen.update contract failed: %s\n", host->last_error);
+	CHECK(result == WREN_RESULT_SUCCESS);
+	CHECK(console->update_depth == 0);
+	CHECK(state.count == 4);
+	for (size_t i = 0; i < 4; ++i)
+		CHECK(state.colours[i] == (UINT32_C(0x80000000)
+		    | (UINT32_C(0x123456) + (uint32_t)i * UINT32_C(0x111111))));
+	return 0;
+}
+
 static int
 exercise_core_value_contracts(st_wren_host_t *public_host,
 	st_console_t *console)
@@ -5283,6 +5367,7 @@ main(int argc, char **argv)
 	CHECK(exercise_surface_cell_retarget_contract(host) == 0);
 	CHECK(exercise_rectangle_contract(host) == 0);
 	CHECK(exercise_core_value_contracts(host, console) == 0);
+	CHECK(exercise_screen_update_contract(host, console) == 0);
 	CHECK(exercise_zero_width_contract(host) == 0);
 	CHECK(exercise_web_refresh_overlay(host, console) == 0);
 	CHECK(exercise_cursor_contract(host) == 0);

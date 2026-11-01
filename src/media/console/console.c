@@ -316,12 +316,24 @@ presentation_worker(void *argument)
 				schedule_animation_locked(display, console->blink_mode, now);
 				(void)st_mutex_unlock(&display->presentation_mutex);
 			}
-			if (repaint) {
-				st_console_mark_all_locked(console);
-				console->pixel_surface_dirty = true;
+			if (console->update_depth != 0) {
+				/* Blink and expose events must not publish an unfinished
+				 * batch. End-update will schedule the completed frame. */
+				console->changed = true;
+				if (repaint) {
+					(void)st_mutex_lock(&display->presentation_mutex);
+					display->repaint_requested = true;
+					(void)st_mutex_unlock(&display->presentation_mutex);
+				}
 			}
-			present_status = st_console_present_locked(console,
-			    repaint || animation_due);
+			else {
+				if (repaint) {
+					st_console_mark_all_locked(console);
+					console->pixel_surface_dirty = true;
+				}
+				present_status = st_console_present_locked(console,
+				    repaint || animation_due);
+			}
 			(void)st_rwlock_unlock(&console->state_lock);
 		}
 		(void)st_mutex_lock(&display->presentation_mutex);

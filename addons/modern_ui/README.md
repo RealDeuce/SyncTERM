@@ -11,10 +11,12 @@ searched with SyncTERM's canonical caseless Unicode comparison. Selection and
 search text survive a connection. Alt+E opens an edit-only directory during a
 connection. Safe mode retains the host's restrictions.
 
-The interface uses flat panels, a sidebar, light colours, and directory cards
-with names, addresses, and a separate selection marker. Buttons share one
-height. On graphical backends their bitmap captions are centered at pixel
-precision, and rounded edges use coverage anti-aliasing against the
+The interface uses flat panels, a sidebar, light colours, and a compact
+directory with name and address columns. Faint pixel separators divide its
+single-line entries. A labeled gutter and tinted two-row panel separate the
+selected connection's metadata/comment from the list. Directory action buttons
+are shorter than the workspace buttons. On graphical backends bitmap captions
+are centered at pixel precision, and rounded edges use coverage anti-aliasing against the
 surrounding colour. Its text uses SyncTERM's bitmap fonts;
 it does not provide proportional fonts or GPU rendering. On text-only backends
 the same controls work without rounded pixel chrome. At least 72 columns and
@@ -29,6 +31,9 @@ implementations. A persistent graphical frame around the live terminal is
 outside this first version's scope.
 
 ## Install
+
+Use a matching rebuilt SyncTERM executable: this frontend needs the
+`Screen.update` API to present its cell and pixel layers together.
 
 Quit SyncTERM, then run Python 3 with the actual **scripts directory**:
 

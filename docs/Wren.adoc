@@ -2257,6 +2257,11 @@ sends something.
 | `Screen.moveRect(sx, sy, ex, ey, dx, dy)`
 | Copy a rectangle to a new position.
 
+| `Screen.update(fn)`
+| Compose synchronous cell, pixel, and cursor updates in one presentation
+  batch. Returns the callback result; nesting is supported, yielding is not.
+  See <<pixel-screen,Pixel screen operations>> for error and cleanup behavior.
+
 | `Screen.pixelSize`
 | Internal raster size as `[width, height]`, or `null` when the current
   backend has no pixel surface.
@@ -2699,6 +2704,20 @@ coordinates, and zero scale by aborting the calling fiber.  Reusing a
 descriptor does not retain a source, mask, or screen reference.
 
 ==== Pixel screen operations [[pixel-screen]]
+
+`Screen.update(fn)` composes synchronous cell, pixel, and cursor changes as
+one presentation batch. The callback runs immediately, may nest another
+`Screen.update`, and returns its result. Ordinary presentation, including
+blink and expose repaint events, waits until the outermost update ends.
+The batch closes before a callback error is propagated; yielding from the
+callback is rejected and also closes it. This groups drawing; it does not
+roll back changes on error. Do not wait for input, open a modal, switch
+screen modes, or run an event loop inside the callback. Native code that
+explicitly forces a presentation can still bypass batching.
+
+Use this when text cells provide a graphical UI's metadata and base glyphs,
+with pixel operations completing its appearance. `Screen.readPixels` can
+inspect the composed raster inside the batch without presenting it.
 
 `Screen.readPixels(x, y, width, height)` captures a positive-sized rectangle
 and returns a new `PixelBuffer`.  Passing `force=true` first requests a full

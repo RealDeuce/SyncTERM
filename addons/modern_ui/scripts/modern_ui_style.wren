@@ -1,5 +1,5 @@
 // Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
-import "syncterm" for Host, Screen, PixelBuffer, PixelColor, PixelBlit, MouseEvent, Mouse
+import "syncterm" for Host, Screen, PixelBuffer, PixelColor, PixelBlit, PixelMask, MouseEvent, Mouse
 import "ui_style" for Theme, Style
 import "ui_widget" for Rect, Widget, Container
 import "ui_draw" for Painter
@@ -147,21 +147,23 @@ class ModernButton is Button {
   }
 }
 
-// Directory cards use ListView's keyboard/search contract, but own their
-// viewport in items rather than treating a terminal row as one item.
+// Keep ListView's keyboard/search contract, with a separate viewport so
+// wheel scrolling can leave the selected connection outside the viewport.
 class ModernList is ListView {
   construct new() {
     super()
-    _cardTop = 0
-    _subtitles = []
+    _rowTop = 0
+    _addresses = []
     _emptyMessage = ""
     _blit = PixelBlit.new()
     _indicator = null
     _scrollbar = null
     _scrollbarKey = null
+    _separator = null
+    _separatorMask = null
   }
-  subtitles=(value) {
-    _subtitles = value
+  addresses=(value) {
+    _addresses = value
     markDirty()
   }
   emptyMessage=(value) {
@@ -172,10 +174,10 @@ class ModernList is ListView {
     super.items = value
     scrollTop = scrollTop
   }
-  viewportRows_ { bounds == null ? 1 : (bounds.h / 3).floor.max(1) }
-  scrollTop { _cardTop }
+  viewportRows_ { bounds == null ? 1 : bounds.h.max(1) }
+  scrollTop { _rowTop }
   scrollTop=(value) {
-    _cardTop = value.max(0).min((count - viewportRows_).max(0))
+    _rowTop = value.max(0).min((count - viewportRows_).max(0))
     markDirty()
   }
   ensureVisible_() {
@@ -186,9 +188,10 @@ class ModernList is ListView {
   centerSelectedIfHidden_() { ensureVisible_() }
   cursorVisible { false }
   scrollbarVisible_ { count > viewportRows_ }
-  cardWidth { bounds.w - (scrollbarVisible_ ? 2 : 0) }
+  rowWidth { bounds.w - (scrollbarVisible_ ? 2 : 0) }
+  columnX { ((rowWidth - 4) / 2).floor + 2 }
   onPaint_() {
-    var base = ModernStyle.text(ModernStyle.ink, ModernStyle.background)
+    var base = ModernStyle.text(ModernStyle.ink, ModernStyle.panel)
     Painter.fill(surface, Rect.new(0, 0, bounds.w, bounds.h), " ", base)
     if (count == 0) {
       Painter.text(surface, 1, 1, _emptyMessage, base, (bounds.w - 2).max(0))
@@ -200,34 +203,54 @@ class ModernList is ListView {
       var bg = index == selected ? 0xdbeafe : ModernStyle.panel
       var title = ModernStyle.text(index == selected ? ModernStyle.accent : ModernStyle.ink, bg)
       var caption = ModernStyle.text(ModernStyle.muted, bg)
-      Painter.fill(surface, Rect.new(0, slot * 3, cardWidth, 2), " ", title)
-      Painter.text(surface, 2, slot * 3, items[index], title, (cardWidth - 4).max(0))
-      if (index < _subtitles.count) {
-        Painter.text(surface, 2, slot * 3 + 1, _subtitles[index], caption, (cardWidth - 4).max(0))
+      Painter.fill(surface, Rect.new(0, slot, rowWidth, 1), " ", title)
+      Painter.text(surface, 2, slot, items[index], title, (columnX - 4).max(0))
+      if (index < _addresses.count) {
+        Painter.text(surface, columnX, slot, _addresses[index], caption, (rowWidth - columnX - 2).max(0))
       }
     }
     if (scrollbarVisible_) {
+      Painter.fill(surface, Rect.new(rowWidth, 0, bounds.w - rowWidth, bounds.h), " ",
+          ModernStyle.text(ModernStyle.muted, ModernStyle.background))
       Painter.scrollbar(surface, bounds.w - 1, 0, bounds.h, scrollTop,
           count, viewportRows_, effectiveTheme.glyphs, style("scrollbar.track"), style("scrollbar.thumb"))
     }
   }
   chrome(app) {
     var size = Screen.cellPixelSize
+    var width = rowWidth * size[0]
+    if (_separator == null || _separator.width != width) {
+      _separator = PixelBuffer.new(width, 1, PixelColor.rgb(0xe2e8f0))
+      _separatorMask = PixelMask.new(width, 1)
+    }
     for (slot in 0...viewportRows_) {
       var index = scrollTop + slot
       if (index >= count) break
-      var rect = Rect.new(bounds.x, bounds.y + slot * 3, cardWidth, 2)
-      app.round(rect, index == selected ? 0xdbeafe : ModernStyle.panel, ModernStyle.background)
+      var rect = Rect.new(bounds.x, bounds.y + slot, rowWidth, 1)
+      // A boundary line must not overwrite descenders in short bitmap fonts.
+      // Inspect our freshly composed row before drawing any decorations.
+      var bottom = (rect.y - 1) * size[1] + size[1] - 1
+      var pixels = Screen.readPixels((rect.x - 1) * size[0], bottom, width, 1)
+      if (pixels != null && slot < viewportRows_ - 1) {
+        var bg = index == selected ? 0xdbeafe : ModernStyle.panel
+        for (x in 0...width) _separatorMask[x] = (pixels[x] & 0xffffff) == bg
+        _blit.destinationX = (rect.x - 1) * size[0]
+        _blit.destinationY = bottom
+        Screen.blitPixels(_separator, _separatorMask, _blit)
+      }
       if (index == selected) {
-        var height = 2 * size[1] - 12
+        var height = size[1] - 4
         if (_indicator == null || _indicator.height != height) {
           _indicator = PixelBuffer.new(3, height, PixelColor.rgb(ModernStyle.accent))
         }
         _blit.destinationX = (rect.x - 1) * size[0] + 6
-        _blit.destinationY = (rect.y - 1) * size[1] + 6
+        _blit.destinationY = (rect.y - 1) * size[1] + 2
         Screen.blitPixels(_indicator, _blit)
       }
     }
+    var first = selected == scrollTop ? 0xdbeafe : ModernStyle.panel
+    var last = selected == scrollTop + viewportRows_ - 1 ? 0xdbeafe : ModernStyle.panel
+    app.round(Rect.new(bounds.x, bounds.y, rowWidth, bounds.h), first, last, ModernStyle.background)
     if (!scrollbarVisible_) return
     var key = "%(bounds.h):%(size):%(count):%(scrollTop)"
     if (_scrollbarKey != key) {
@@ -262,8 +285,7 @@ class ModernList is ListView {
       return true
     }
     var row = event.startY - bounds.y
-    if (row % 3 == 2) return true
-    var index = scrollTop + (row / 3).floor
+    var index = scrollTop + row
     if (parent is Container) parent.focusedIndex = parent.children.indexOf(this)
     if (index >= 0 && index < count) selected = index
     return true
@@ -306,13 +328,18 @@ class ModernApp is App {
     return super.dispatchKey_(event)
   }
   drawAll_() {
+    Screen.update { drawFrame_() }
+  }
+  drawFrame_() {
     super.drawAll_()
     if (modalStack.count == 0 && _chrome != null && Screen.supports.pixels) {
       _chrome.call()
     }
   }
   round(rect, colour, outside) {
-    if (!Screen.supports.pixels || rect == null || rect.w < 2 || rect.h < 1) return
+    round(rect, colour, colour, outside)
+  }
+  corner_(colour, outside) {
     var key = "%(colour):%(outside)"
     var corner = _corners[key]
     if (corner == null) {
@@ -340,8 +367,13 @@ class ModernApp is App {
       }
       _corners[key] = corner
     }
+    return corner
+  }
+  round(rect, top, bottom, outside) {
+    if (!Screen.supports.pixels || rect == null || rect.w < 2 || rect.h < 1) return
     var size = Screen.cellPixelSize
     for (y in 0...2) {
+      var corner = corner_(y == 0 ? top : bottom, outside)
       for (x in 0...2) {
         _blit.destinationX = (rect.x - 1) * size[0] + (x == 0 ? 0 : rect.w * size[0] - 6)
         _blit.destinationY = (rect.y - 1) * size[1] + (y == 0 ? 0 : rect.h * size[1] - 6)
