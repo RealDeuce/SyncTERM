@@ -95,8 +95,8 @@ check_pixels(bool rll)
 	uint8_t mono[2] = {0x80, 0x80};
 	uint8_t rgba[64] = {255, 0, 0, 255, 255, 0, 0, 128, 0, 255, 0, 0};
 	struct st_console_color_glyph color = {0, rgba, sizeof(rgba), 32, 0};
-	/* Column-major halves, including a single transparent pixel after red. */
-	uint8_t encoded[] = {14, 0, 255, 255, 0, 0, 0, 0, 128, 255, 0, 0, 0, 4, 0, 7};
+	/* Two literal pixels followed by transparent row spans in each half. */
+	uint8_t encoded[] = {12, 0, 255, 255, 0, 0, 128, 255, 0, 0, 0, 5, 0, 7};
 	if (rll) {
 		color.rgba = encoded;
 		color.size = sizeof(encoded);
@@ -272,7 +272,7 @@ check_rll_validation(void)
 		color.size = invalid[i].size;
 		CHECK(st_console_register_static_font(console, &font, &id) == IO_ERROR_INVALID_ARGUMENT);
 	}
-	/* Check byte order and column traversal against independent bytes. */
+	/* Check byte order and half-row traversal against independent bytes. */
 	uint8_t data[33 * 8 * 4] = {0}, encoded[sizeof(data) + 2];
 	data[3] = 1;
 	data[11] = 255;
@@ -283,7 +283,7 @@ check_rll_validation(void)
 	font.bitmap_size = sizeof(taller_mono);
 	color.rgba = encoded;
 	color.size = encode_color_rll(data, 32, 8, 33, encoded);
-	const uint8_t expected[] = {14, 0, 1, 0, 0, 0, 0, 64, 255, 0, 0, 0, 0, 64, 0, 131};
+	const uint8_t expected[] = {14, 0, 1, 0, 0, 0, 0, 0, 255, 0, 0, 0, 0, 128, 0, 131};
 	CHECK(color.size == sizeof(expected) && memcmp(encoded, expected, sizeof(expected)) == 0);
 	CHECK(st_console_register_font_copy(console, &font, &id) == 0);
 	/* A 264-pixel half requires two runs, neither crossing halfway. */

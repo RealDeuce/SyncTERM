@@ -314,8 +314,7 @@ composite_rgb(st_console_t *console, const uint8_t *channels, uint32_t alpha,
 	return result;
 }
 
-/* Traverse the packed source by columns, matching its storage order. Keep
- * raw RGBA on the existing row-major path so it remains a useful baseline. */
+/* Each half stores short row spans, matching contiguous raster writes. */
 static void
 render_color_rll(st_console_t *console, uint32_t x, uint32_t y,
 	const struct st_console_cell *source, const struct st_console_font *font,
@@ -324,43 +323,46 @@ render_color_rll(st_console_t *console, uint32_t x, uint32_t y,
 	bool repeat_last, uint32_t foreground, uint32_t background)
 {
 	uint32_t width = color->width == 0 ? glyph_width : color->width;
-	size_t halfway = (size_t)(width / 2) * font->height;
-	struct st_console_color_rll_cursor cursor = {.next = color->rgba + 2};
-	struct st_console_color_rll_cursor column_cursor = cursor;
-	uint32_t previous_x = UINT32_MAX;
-	bool right = false;
+	uint32_t split = width / 2;
+	struct st_console_color_rll_cursor cursors[2] = {
+		{.next = color->rgba + 2},
+		{.next = color->rgba + st_console_color_rll_half_offset(color->rgba)},
+	};
+	struct st_console_color_rll_cursor row_cursors[2] = {0};
+	uint32_t previous_y = UINT32_MAX;
+	uint32_t font_y = first_y, y_accumulator = 0;
+	uint32_t y_step = y_span / console->cell_height;
+	uint32_t y_remainder = y_span % console->cell_height;
+	uint32_t x_step = font->width / console->cell_width;
+	uint32_t x_remainder = font->width % console->cell_width;
 
-	for (uint32_t px = 0; px < console->cell_width; ++px) {
-		uint32_t font_x = glyph_x + (expanded
-		    ? (px < font->width ? px : font->width - 1)
-		    : (uint32_t)((uint64_t)px * font->width / console->cell_width));
-		uint32_t color_x = color->width == 0 ? font_x
-		    : (uint32_t)((uint64_t)font_x * width / glyph_width);
-		bool gap = expanded && px == font->width && !repeat_last;
-		uint32_t font_y = first_y, accumulator = 0;
-		uint32_t step = y_span / console->cell_height;
-		uint32_t remainder = y_span % console->cell_height;
-
-		if (!right && color_x >= width / 2) {
-			cursor = (struct st_console_color_rll_cursor){
-				.next = color->rgba + st_console_color_rll_half_offset(color->rgba),
-				.end = halfway,
-			};
-			right = true;
+	for (uint32_t py = 0; py < console->cell_height; ++py) {
+		if (font_y == previous_y) {
+			cursors[0] = row_cursors[0];
+			cursors[1] = row_cursors[1];
 		}
-		if (color_x == previous_x)
-			cursor = column_cursor;
-		else
-			column_cursor = cursor;
-		previous_x = color_x;
-		for (uint32_t py = 0; py < console->cell_height; ++py) {
-			size_t pixel = st_console_pixel_position_locked(console,
-			    x * console->cell_width + px, y * console->cell_height + py);
+		else {
+			row_cursors[0] = cursors[0];
+			row_cursors[1] = cursors[1];
+		}
+		previous_y = font_y;
+		size_t pixel = st_console_pixel_position_locked(console,
+		    x * console->cell_width, y * console->cell_height + py);
+		uint32_t font_x = glyph_x, x_accumulator = 0;
+		for (uint32_t px = 0; px < console->cell_width; ++px) {
+			bool gap = expanded && px == font->width && !repeat_last;
 			uint32_t value = background;
 
+			if (expanded)
+				font_x = glyph_x + (px < font->width ? px : font->width - 1);
 			if (!gap && font_y < font->height) {
-				const uint8_t *argb = st_console_color_rll_seek(&cursor,
-				    (size_t)color_x * font->height + font_y);
+				uint32_t color_x = color->width == 0 ? font_x
+				    : (uint32_t)((uint64_t)font_x * width / glyph_width);
+				bool right = color_x >= split;
+				uint32_t span = right ? width - split : split;
+				uint32_t offset_x = right ? color_x - split : color_x;
+				const uint8_t *argb = st_console_color_rll_seek(&cursors[right],
+				    (size_t)font_y * span + offset_x);
 				if (argb != NULL)
 					value = composite_rgb(console, argb + 1, argb[0], background);
 			}
@@ -368,15 +370,23 @@ render_color_rll(st_console_t *console, uint32_t x, uint32_t y,
 			    && (((source->flags & ST_CONSOLE_CELL_UNDERLINE) != 0)
 			    || (source->hyperlink != 0 && (px & 3U) == 0)))
 				value = foreground;
-			console->pixels->primary[pixel] = value;
-			console->pixels->alternate[pixel]
+			console->pixels->primary[pixel + px] = value;
+			console->pixels->alternate[pixel + px]
 			    = (source->flags & ST_CONSOLE_CELL_BLINK) == 0 ? value : background;
-			font_y += step;
-			accumulator += remainder;
-			if (accumulator >= console->cell_height) {
-				accumulator -= console->cell_height;
-				++font_y;
+			if (!expanded) {
+				font_x += x_step;
+				x_accumulator += x_remainder;
+				if (x_accumulator >= console->cell_width) {
+					x_accumulator -= console->cell_width;
+					++font_x;
+				}
 			}
+		}
+		font_y += y_step;
+		y_accumulator += y_remainder;
+		if (y_accumulator >= console->cell_height) {
+			y_accumulator -= console->cell_height;
+			++font_y;
 		}
 	}
 }

@@ -216,7 +216,7 @@ main(int argc, char **argv)
 		&st_emoji_8_font, &st_emoji_14_font, &st_emoji_16_font,
 	};
 	if (profile)
-		printf("Headless 80x25; %u samples x %u frames; median [min,max]; "
+		printf("Row-major half spans; headless 80x25; %u samples x %u frames; median [min,max]; "
 		    "alternating format order; total process CPU.\n", SAMPLES, PASSES);
 	for (size_t i = 0; i < sizeof(fonts) / sizeof(fonts[0]); ++i) {
 		struct packed_bank bank = pack_bank(fonts[i]);

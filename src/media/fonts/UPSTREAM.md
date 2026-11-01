@@ -71,9 +71,11 @@ see `../../text/emoji/UPSTREAM.md` for pinned English names and regeneration.
 The console also accepts compressed colour glyphs when their `row_stride` is
 zero. Each glyph starts with a little-endian 16-bit byte offset, measured from
 the glyph's first byte, to its right-half stream. The left stream follows the
-two-byte header. Each half traverses columns from left to right, with pixels
-top to bottom within each column. The left half contains `width / 2` columns;
-the right contains the remaining columns. Runs must stop at the half boundary.
+two-byte header. Each half traverses its row spans from left to right, then
+top to bottom. The left half contains `width / 2` columns; the right contains
+the remaining columns. For the bundled wide glyphs these spans are eight
+pixels wide. Runs may cross rows within a half, but must stop at the half
+boundary.
 
 A nonzero alpha byte followed by red, green, and blue represents one pixel.
 Zero followed by a count byte represents `count + 1` transparent pixels, up to
@@ -108,40 +110,62 @@ cycle through the entire colour repertoire. Half redraws change background
 attributes on one side of a fixed screen of 1,000 emoji, leaving the other
 side unchanged. Both formats use the same cells and backgrounds. These are
 end-to-end cell update/raster timings comparing the existing row-major RGBA
-renderer with the column-major RLL renderer; they do not isolate token decode
+renderer with the half-span RLL renderer; they do not isolate token decode
 cost or measure GUI presentation.
 
 Measured on 2026-11-01, FreeBSD amd64, Intel Xeon D-1541 at 2.10 GHz, CMake
 Release builds with Clang 19.1.7 and GCC 13.5.0:
 
-| Raster | Unique RGBA bytes | RLL bytes, including offsets | Saving |
-|---|---:|---:|---:|
-| 16x8 | 1,959,936 | 932,418 | 52.43% |
-| 16x14 | 3,429,888 | 1,956,372 | 42.96% |
-| 16x16 | 3,919,872 | 2,464,218 | 37.14% |
+| Raster | Unique RGBA bytes | Column RLL bytes | Half-span RLL bytes | Half-span saving |
+|---|---:|---:|---:|---:|
+| 16x8 | 1,959,936 | 932,418 | 1,017,112 | 48.10% |
+| 16x14 | 3,429,888 | 1,956,372 | 2,027,048 | 40.90% |
+| 16x16 | 3,919,872 | 2,464,218 | 2,542,354 | 35.14% |
 
-Median CPU milliseconds per frame (RLL/RGBA ratio below 1 is faster):
+Both compressed sizes include the half offsets. The initial column-major
+prototype and its benchmark are retained in commit `08383a3`. The half-span
+prototype trades slightly larger data for contiguous raster writes.
+
+Median CPU milliseconds per frame for the half-span prototype:
 
 | Compiler | Raster | Redraw | RGBA ms | RLL ms | RLL/RGBA |
 |---|---|---|---:|---:|---:|
-| Clang | 16x8 | Full | 2.180 | 2.094 | 0.961 |
-| Clang | 16x8 | Left | 1.111 | 1.077 | 0.970 |
-| Clang | 16x8 | Right | 1.082 | 1.066 | 0.984 |
-| Clang | 16x14 | Full | 3.556 | 3.318 | 0.933 |
-| Clang | 16x14 | Left | 1.776 | 1.646 | 0.927 |
-| Clang | 16x14 | Right | 1.761 | 1.644 | 0.933 |
-| Clang | 16x16 | Full | 4.087 | 3.820 | 0.935 |
-| Clang | 16x16 | Left | 1.972 | 1.832 | 0.929 |
-| Clang | 16x16 | Right | 1.967 | 1.820 | 0.925 |
-| GCC | 16x8 | Full | 1.889 | 1.992 | 1.054 |
-| GCC | 16x8 | Left | 0.915 | 1.010 | 1.104 |
-| GCC | 16x8 | Right | 0.941 | 0.990 | 1.051 |
-| GCC | 16x14 | Full | 3.102 | 3.080 | 0.993 |
-| GCC | 16x14 | Left | 1.426 | 1.468 | 1.029 |
-| GCC | 16x14 | Right | 1.476 | 1.501 | 1.017 |
-| GCC | 16x16 | Full | 3.560 | 3.513 | 0.987 |
-| GCC | 16x16 | Left | 1.630 | 1.686 | 1.034 |
-| GCC | 16x16 | Right | 1.687 | 1.719 | 1.019 |
+| Clang | 16x8 | Full | 1.979 | 1.704 | 0.861 |
+| Clang | 16x8 | Left | 0.987 | 0.863 | 0.874 |
+| Clang | 16x8 | Right | 0.966 | 0.830 | 0.859 |
+| Clang | 16x14 | Full | 3.202 | 2.768 | 0.864 |
+| Clang | 16x14 | Left | 1.605 | 1.377 | 0.858 |
+| Clang | 16x14 | Right | 1.613 | 1.375 | 0.853 |
+| Clang | 16x16 | Full | 3.643 | 3.174 | 0.871 |
+| Clang | 16x16 | Left | 1.796 | 1.549 | 0.862 |
+| Clang | 16x16 | Right | 1.795 | 1.563 | 0.871 |
+| GCC | 16x8 | Full | 1.849 | 1.768 | 0.956 |
+| GCC | 16x8 | Left | 0.897 | 0.873 | 0.974 |
+| GCC | 16x8 | Right | 0.895 | 0.869 | 0.971 |
+| GCC | 16x14 | Full | 3.068 | 2.899 | 0.945 |
+| GCC | 16x14 | Left | 1.424 | 1.421 | 0.998 |
+| GCC | 16x14 | Right | 1.426 | 1.431 | 1.003 |
+| GCC | 16x16 | Full | 3.504 | 3.339 | 0.953 |
+| GCC | 16x16 | Left | 1.607 | 1.637 | 1.019 |
+| GCC | 16x16 | Right | 1.622 | 1.671 | 1.030 |
+
+Comparison of each layout against its own raw RGBA baseline. Each entry is
+the RLL/RGBA ratio for full / left / right redraws; below 1 is faster:
+
+| Compiler | Raster | Column ratios | Half-span ratios |
+|---|---|---|---|
+| Clang | 16x8 | 0.961 / 0.970 / 0.984 | 0.861 / 0.874 / 0.859 |
+| Clang | 16x14 | 0.933 / 0.927 / 0.933 | 0.864 / 0.858 / 0.853 |
+| Clang | 16x16 | 0.935 / 0.929 / 0.925 | 0.871 / 0.862 / 0.871 |
+| GCC | 16x8 | 1.054 / 1.104 / 1.051 | 0.956 / 0.974 / 0.971 |
+| GCC | 16x14 | 0.993 / 1.029 / 1.017 | 0.945 / 0.998 / 1.003 |
+| GCC | 16x16 | 0.987 / 1.034 / 1.019 | 0.953 / 1.019 / 1.030 |
+
+The half-span version improves GCC's 8-pixel bank from a 5–10% regression
+to a 3–4% improvement. Its 16-pixel full redraw is about 5% faster, while
+isolated half redraws remain about 2–3% slower. Clang improves about 13–15%
+across these workloads. This supports the contiguous-write layout, but does
+not establish which compiler optimization accounts for the difference.
 
 # Legacy built-in fonts
 

@@ -149,8 +149,9 @@ struct st_console_font_selection {
  * A zero row_stride instead selects packed ARGB RLL: nonzero alpha followed by
  * R, G, B is one pixel; zero followed by n skips n + 1 transparent pixels.
  * A little-endian 16-bit byte offset from rgba to the right half precedes two
- * independent column-major streams. The left half has width / 2 columns; the
- * right has the remainder. Runs may cross columns but never the half boundary.
+ * independent row-major half-width streams. The left half has width / 2
+ * columns; the right has the remainder. Runs may cross rows within a half,
+ * but never the half boundary.
  * size is the encoded byte count in this case; rgba points to the stream.
  * Height follows the monochrome bank; width may differ. Pixels are immutable and
  * borrowed, except when registered with st_console_register_font_copy(). */

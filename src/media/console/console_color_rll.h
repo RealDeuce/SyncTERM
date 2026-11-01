@@ -45,7 +45,7 @@ st_console_color_rll_valid(const uint8_t *data, size_t size, size_t width, size_
 }
 
 /* Registration validates both streams. Seek only moves forward; callers save
- * the cursor before a column to replay it when scaling repeats columns. */
+ * the cursors before a row to replay it when scaling repeats rows. */
 struct st_console_color_rll_cursor {
 	const uint8_t *next;
 	const uint8_t *pixel;
