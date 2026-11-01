@@ -1787,7 +1787,7 @@ var h = Hook.onKey { |k|
 }
 
 // ...later...
-h.remove()                  // tombstone: no further dispatch
+h.remove()                  // no further dispatch
 ----
 
 [options="header",cols="2,3"]
@@ -1795,10 +1795,10 @@ h.remove()                  // tombstone: no further dispatch
 | Member        | Meaning
 
 | `remove()`
-| Tombstone the hook.  Future dispatches skip it.  Safe to call from
-  inside the hook's own callback (the host removes by NULL-ing the
-  callable; in-flight dispatch finishes on the still-allocated
-  resources).  Returns `true` on first call, `false` thereafter.
+| Remove the hook from future dispatch. Safe to call from inside its
+  own callback; in-flight dispatch finishes before resources are reclaimed.
+  Returns `true` on first call, `false` thereafter. Removed registrations
+  do not count against the live per-event limit.
 
 | `callCount`
 | Number of times the host has invoked this hook.  Counts every
@@ -1807,8 +1807,7 @@ h.remove()                  // tombstone: no further dispatch
 
 | `totalRuntime`
 | Cumulative wall-clock seconds spent inside `wrenCall` for this
-  hook, measured with `xp_timer()` before and after each
-  invocation.
+  hook, measured with the monotonic clock before and after each invocation.
 
 | `minRuntime`, `maxRuntime`
 | Smallest / largest single invocation time in seconds.  Both read
@@ -1817,14 +1816,12 @@ h.remove()                  // tombstone: no further dispatch
 |===
 
 `HookHandle.remove()` is safe from inside the hook's own callback.
-The entry's `fn` handle is released immediately (dispatchers skip
-past the now-NULL slot on their next iteration), and the entry is
-linked onto a cleanup queue.  The host drains that queue once per
-main-loop iteration — outside any dispatcher — at which point the
-entry is removed from its dispatch array, regex resources (compiled
-program, match buffer, PikeVM state) are freed, and the entry
-struct itself is freed once the script has also dropped the
-`HookHandle` (Wren's GC fires the foreign-class finalizer).
+The callable handle is released immediately and subsequent dispatches
+skip the removed entry. Outside dispatch, the host unlinks removed entries
+and frees their regex resources before registration, on the next pump, or
+when a host interpretation returns. The metrics remain alive until the
+script also drops the `HookHandle` and its foreign finalizer runs.
+Dropping a handle alone leaves an active hook registered.
 Metric getters on a removed handle keep working until the script
 drops the handle.
 

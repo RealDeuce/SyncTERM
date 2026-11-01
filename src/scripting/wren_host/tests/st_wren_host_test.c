@@ -524,6 +524,42 @@ exercise_connected_without_sftp(st_wren_host_t *host,
 	    "if (!(sent is ConnError) || sent.code != ConnErr.notConnected) Fiber.abort(\"raw send error\")\n"
 	    "if (Conn.paste() != null) Fiber.abort(\"disconnected paste\")\n")
 	    == 0);
+	CHECK(st_wren_connected_interpret(connected, "hook_reclamation",
+	    "import \"syncterm\" for Hook\n"
+	    "for (i in 0...600) {\n"
+	    "  var h = Hook.onMatch(\"temporary\", Fn.new {|m| null })\n"
+	    "  if (h == null || !h.remove() || h.remove()) Fiber.abort(\"reclaimed registration\")\n"
+	    "}\n"
+	    "var live = []\n"
+	    "for (i in 0...256) {\n"
+	    "  var h = Hook.onMatch(\"limit\", Fn.new {|m| null })\n"
+	    "  if (h == null) Fiber.abort(\"premature live limit\")\n"
+	    "  live.add(h)\n"
+	    "}\n"
+	    "if (Hook.onMatch(\"overflow\", Fn.new {|m| null }) != null) Fiber.abort(\"missing live limit\")\n"
+	    "for (h in live) h.remove()\n"
+	    "var otherHook = null\n"
+	    "var selfHook = null\n"
+	    "selfHook = Hook.onKey(0xfefe, Fn.new {|k|\n"
+	    "  if (!selfHook.remove() || !otherHook.remove()) Fiber.abort(\"callback removal\")\n"
+	    "  // Registration must not free the active dispatcher's iterator.\n"
+	    "  for (i in 0...600) {\n"
+	    "    var h = Hook.onMatch(\"nested\", Fn.new {|m| null })\n"
+	    "    if (h == null || !h.remove()) Fiber.abort(\"nested registration\")\n"
+	    "  }\n"
+	    "  System.gc()\n"
+	    "  return true\n"
+	    "})\n"
+	    "otherHook = Hook.onKey(0xfefe, Fn.new {|k| Fiber.abort(\"removed hook fired\") })\n"
+	    "System.gc()\n"
+	    ) == 0);
+	CHECK(st_wren_connected_handle_key(connected, 0xfefe, &consumed) == 0 && consumed);
+	CHECK(st_wren_connected_interpret(connected, "hook_reclamation_metrics",
+	    "import \"hook_reclamation\" for selfHook, otherHook\n"
+	    "if (selfHook.callCount != 1 || otherHook.callCount != 0) Fiber.abort(\"removed metrics\")\n"
+	    "if (selfHook.remove() || otherHook.remove()) Fiber.abort(\"repeat removal\")\n"
+	    "System.gc()\n"
+	    ) == 0);
 	CHECK(st_wren_connected_interpret(connected, "connected_key_test",
 	    "import \"syncterm\" for Hook\n"
 	    "class KeyHookState {\n"
@@ -685,8 +721,7 @@ exercise_connected_without_sftp(st_wren_host_t *host,
 	    "import \"connected_key_test\" for KeyHookState\n"
 	    "var h = KeyHookState.handle\n"
 	    "if (h.callCount != 1 || h.totalRuntime < 0) Fiber.abort(\"hook metrics\")\n"
-	    "h.remove()\n"
-	    "if (h.callCount != 0) Fiber.abort(\"hook removal\")\n") == 0);
+	    "if (!h.remove() || h.remove() || h.callCount != 1) Fiber.abort(\"hook removal\")\n") == 0);
 	CHECK(st_wren_connected_handle_key(connected, 65, &consumed) == 0);
 	CHECK(!consumed);
 	CHECK(st_wren_connected_interpret(connected, "status_render_test",

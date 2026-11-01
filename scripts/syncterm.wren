@@ -1578,7 +1578,7 @@ class Hook {
 // constructor - the only path to a HookHandle is via a successful
 // registration, so scripts can't fabricate one to remove arbitrary
 // hooks.  `remove()` tombstones the underlying entry (a second call
-// is a no-op; metric getters read back zeros once removed).
+// returns false; metric getters retain their final values once removed).
 foreign class HookHandle {
   foreign remove()
   foreign callCount       // total invocations

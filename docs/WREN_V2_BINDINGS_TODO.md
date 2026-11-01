@@ -39,11 +39,11 @@ Starting points: `wren_sftp.c`, wake delivery in `wren_bind_core.c`, and
 
 ## 3 Reclaim removed hooks
 
-- [ ] Make removal idempotent with an explicit Bool result; retain readable
+- [x] Make removal idempotent with an explicit Bool result; retain readable
   metrics on a removed handle until that handle is collected.
-- [ ] Reclaim dispatch entries and regex resources once no dispatch uses them.
+- [x] Reclaim dispatch entries and regex resources once no dispatch uses them.
   Removed hooks must not consume the live registration limit.
-- [ ] Test repeated register/remove beyond the limit, live-limit exhaustion,
+- [x] Test repeated register/remove beyond the limit, live-limit exhaustion,
   self-removal, removal of another hook, regex removal, and VM teardown.
 
 Starting points: `connected_hook`, `foreign_hook_handle`, `register_hook`,
@@ -113,3 +113,13 @@ mouse/status manual. CMake rebuilt the host, loader, and picker test targets;
 `wren_host`, `wren_core-helpers`, `wren_picker_contract`, and the input, popup,
 and menu synthetic suites passed (6 tests, POSIX host). Existing host tests
 cover remote mouse gates, restoration, status, and disconnect.
+
+Item 3: dispatch-list and foreign-handle references now own hooks separately.
+Removed entries release regex storage outside dispatch and no longer consume
+the live limit; retained handles preserve metrics and removal returns Bool.
+The new regression failed before the fix and `wren_host` passed afterwards.
+It covers 600 register/remove cycles, 256 live regex hooks, overflow, removal
+of self/another hook, registration and GC inside a callback, and teardown.
+The FreeBSD Clang ASan/UBSan host test passed with leak detection disabled
+(unsupported by this platform). The Windows i686 and x86_64 MinGW host-library
+cross-builds passed without warnings; no Windows runtime tests were run.

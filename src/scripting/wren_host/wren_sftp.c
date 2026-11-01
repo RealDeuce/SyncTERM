@@ -36,6 +36,7 @@ struct pending_timer {
 };
 
 struct connected_hook {
+	size_t references;
 	WrenHandle *function;
 	int kind;
 	int filter;
@@ -68,6 +69,7 @@ struct st_wren_connected {
 	struct pending_request *requests;
 	struct pending_timer *timers;
 	struct connected_hook *hooks;
+	size_t hook_dispatch_depth;
 	FILE *capture_stream;
 	bool capture_raw;
 	bool capture_paused;
@@ -105,6 +107,61 @@ free_regex_hook(struct connected_hook *hook)
 	pikevm_free(hook->regex_vm);
 	free(hook->regex_prog);
 	free(hook->regex_buf);
+	hook->regex_vm = NULL;
+	hook->regex_prog = NULL;
+	hook->regex_buf = NULL;
+}
+
+/* The dispatch list and the foreign handle own independent references. */
+static void
+release_hook(struct connected_hook *hook)
+{
+	if (hook != NULL && --hook->references == 0) {
+		free_regex_hook(hook);
+		free(hook);
+	}
+}
+
+static void
+collect_removed_hooks(struct st_wren_connected *connected)
+{
+	struct connected_hook **cursor = &connected->hooks;
+
+	/* A callback can register/remove hooks while a dispatcher or matcher
+	 * still holds pointers into this list. Reclaim only outside that call. */
+	if (connected->hook_dispatch_depth != 0)
+		return;
+	while (*cursor != NULL) {
+		struct connected_hook *hook = *cursor;
+
+		if (hook->function != NULL) {
+			cursor = &hook->next;
+			continue;
+		}
+		*cursor = hook->next;
+		hook->next = NULL;
+		free_regex_hook(hook);
+		release_hook(hook);
+	}
+}
+
+static WrenInterpretResult
+connected_call(struct st_wren_connected *connected, WrenHandle *call)
+{
+	WrenInterpretResult result;
+
+	++connected->hook_dispatch_depth;
+	result = wrenCall(connected->vm, call);
+	--connected->hook_dispatch_depth;
+	return result;
+}
+
+static void
+finalize_hook_handle(void *data)
+{
+	struct foreign_hook_handle *handle = data;
+
+	release_hook(handle->hook);
 }
 
 struct foreign_sftp_handle {
@@ -163,37 +220,37 @@ fn_hook_remove(WrenVM *vm)
 {
 	struct connected_hook *hook = hook_from_handle(vm);
 
-	if (hook != NULL && hook->function != NULL) {
+	bool removed = hook != NULL && hook->function != NULL;
+
+	if (removed) {
 		wrenReleaseHandle(vm, hook->function);
 		hook->function = NULL;
-		/* A regex callback can remove itself while its matcher is
-		 * draining.  The session reclaims matcher storage at teardown. */
 	}
-	wrenSetSlotNull(vm, 0);
+	wrenSetSlotBool(vm, 0, removed);
 }
 
 static void fn_hook_call_count(WrenVM *vm)
 {
 	struct connected_hook *hook = hook_from_handle(vm);
-	wrenSetSlotDouble(vm, 0, hook == NULL || hook->function == NULL
+	wrenSetSlotDouble(vm, 0, hook == NULL
 	    ? 0 : (double)hook->call_count);
 }
 static void fn_hook_total_runtime(WrenVM *vm)
 {
 	struct connected_hook *hook = hook_from_handle(vm);
-	wrenSetSlotDouble(vm, 0, hook == NULL || hook->function == NULL
+	wrenSetSlotDouble(vm, 0, hook == NULL
 	    ? 0 : hook->total_runtime);
 }
 static void fn_hook_min_runtime(WrenVM *vm)
 {
 	struct connected_hook *hook = hook_from_handle(vm);
-	wrenSetSlotDouble(vm, 0, hook == NULL || hook->function == NULL
+	wrenSetSlotDouble(vm, 0, hook == NULL
 	    ? 0 : hook->min_runtime);
 }
 static void fn_hook_max_runtime(WrenVM *vm)
 {
 	struct connected_hook *hook = hook_from_handle(vm);
-	wrenSetSlotDouble(vm, 0, hook == NULL || hook->function == NULL
+	wrenSetSlotDouble(vm, 0, hook == NULL
 	    ? 0 : hook->max_runtime);
 }
 static void fn_hook_to_string(WrenVM *vm)
@@ -736,12 +793,13 @@ register_hook(WrenVM *vm, int function_slot, int kind, int filter)
 		wrenSetSlotNull(vm, 0);
 		return NULL;
 	}
+	collect_removed_hooks(connected);
 	for (struct connected_hook *existing = connected->hooks;
 	    existing != NULL; existing = existing->next) {
-		if (existing->kind == kind || ((kind == 8
+		if (existing->function != NULL && (existing->kind == kind || ((kind == 8
 		    || kind == ST_WREN_HOOK_MATCH)
 		    && (existing->kind == 8
-		    || existing->kind == ST_WREN_HOOK_MATCH)))
+		    || existing->kind == ST_WREN_HOOK_MATCH))))
 			++count;
 	}
 	if (count >= 256) {
@@ -759,6 +817,7 @@ register_hook(WrenVM *vm, int function_slot, int kind, int filter)
 		st_wren_abort(vm, "Hook registration failed");
 		return NULL;
 	}
+	hook->references = 2;
 	hook->kind = kind;
 	hook->filter = filter;
 	if (kind == 4) {
@@ -1105,8 +1164,10 @@ st_wren_sftp_bind_class(const char *class_name)
 		methods.allocate = allocate_error;
 		methods.finalize = finalize_error;
 	}
-	else if (strcmp(class_name, "HookHandle") == 0)
+	else if (strcmp(class_name, "HookHandle") == 0) {
 		methods.allocate = allocate_hook_handle;
+		methods.finalize = finalize_hook_handle;
+	}
 	return methods;
 }
 
@@ -1388,7 +1449,7 @@ run_hooks(struct st_wren_connected *connected, int kind)
 		wrenGetVariable(connected->vm, "syncterm", "Hook", 0);
 		wrenSetSlotHandle(connected->vm, 1, hook->function);
 		(void)st_time_monotonic_ms(&before);
-		if (wrenCall(connected->vm, call) != WREN_RESULT_SUCCESS)
+		if (connected_call(connected, call) != WREN_RESULT_SUCCESS)
 			status = IO_ERROR_INVALID_FORMAT;
 		else
 			warn_observe_return(connected->vm,
@@ -1426,7 +1487,7 @@ st_wren_connected_handle_key(st_wren_connected_t *connected,
 		wrenSetSlotHandle(connected->vm, 1, hook->function);
 		wrenSetSlotDouble(connected->vm, 2, key);
 		(void)st_time_monotonic_ms(&before);
-		if (wrenCall(connected->vm,
+		if (connected_call(connected,
 		    connected->context.hook_dispatch) != WREN_RESULT_SUCCESS) {
 			record_hook_runtime(hook, before);
 			continue;
@@ -1491,7 +1552,7 @@ st_wren_connected_filter_wire_byte(st_wren_connected_t *connected,
 		wrenSetSlotHandle(connected->vm, 1, hook->function);
 		wrenSetSlotDouble(connected->vm, 2, byte);
 		(void)st_time_monotonic_ms(&before);
-		if (wrenCall(connected->vm,
+		if (connected_call(connected,
 		    connected->context.hook_dispatch) != WREN_RESULT_SUCCESS) {
 			record_hook_runtime(hook, before);
 			continue;
@@ -1538,7 +1599,7 @@ drain_match_hook(st_wren_connected_t *connected, struct connected_hook *hook)
 {
 	char *matches[MAXSUB];
 
-	while (hook->regex_pos < hook->regex_buf_len) {
+	while (hook->function != NULL && hook->regex_pos < hook->regex_buf_len) {
 		int result = pikevm_step(hook->regex_vm,
 		    hook->regex_buf + hook->regex_pos);
 
@@ -1568,7 +1629,7 @@ drain_match_hook(st_wren_connected_t *connected, struct connected_hook *hook)
 				wrenInsertInList(connected->vm, 2, -1, 3);
 			}
 			(void)st_time_monotonic_ms(&before);
-			if (wrenCall(connected->vm,
+			if (connected_call(connected,
 			    connected->context.hook_dispatch) == WREN_RESULT_SUCCESS)
 				warn_observe_return(connected->vm,
 				    hook->regex_clean ? "onMatchClean" : "onMatch");
@@ -1657,7 +1718,7 @@ st_wren_connected_filter_input_scalar(st_wren_connected_t *connected,
 		wrenSetSlotHandle(connected->vm, 1, hook->function);
 		wrenSetSlotDouble(connected->vm, 2, (double)scalar);
 		(void)st_time_monotonic_ms(&before);
-		if (wrenCall(connected->vm,
+		if (connected_call(connected,
 		    connected->context.hook_dispatch) != WREN_RESULT_SUCCESS) {
 			record_hook_runtime(hook, before);
 			continue;
@@ -1736,7 +1797,7 @@ st_wren_connected_handle_mouse_record(struct st_wren_connected *connected,
 		wrenSetSlotHandle(connected->vm, 1, hook->function);
 		st_wren_input_push_event(connected->vm, 2, record);
 		(void)st_time_monotonic_ms(&before);
-		if (wrenCall(connected->vm,
+		if (connected_call(connected,
 		    connected->context.hook_dispatch) != WREN_RESULT_SUCCESS) {
 			record_hook_runtime(hook, before);
 			continue;
@@ -1775,7 +1836,7 @@ st_wren_connected_handle_physical_record(
 		wrenSetSlotHandle(connected->vm, 1, hook->function);
 		st_wren_input_push_event(connected->vm, 2, record);
 		(void)st_time_monotonic_ms(&before);
-		if (wrenCall(connected->vm,
+		if (connected_call(connected,
 		    connected->context.hook_dispatch) != WREN_RESULT_SUCCESS) {
 			record_hook_runtime(hook, before);
 			continue;
@@ -1823,7 +1884,8 @@ st_wren_connected_destroy(st_wren_connected_t *connected)
 		if (connected->vm != NULL
 		    && connected->hooks->function != NULL)
 			wrenReleaseHandle(connected->vm, connected->hooks->function);
-		free(connected->hooks);
+		connected->hooks->function = NULL;
+		release_hook(connected->hooks);
 		connected->hooks = next;
 	}
 	if (connected->vm != NULL) {
@@ -1950,7 +2012,7 @@ fire_interval_hooks(st_wren_connected_t *connected, uint64_t now)
 		wrenGetVariable(connected->vm, "syncterm", "Hook", 0);
 		wrenSetSlotHandle(connected->vm, 1, hook->function);
 		(void)st_time_monotonic_ms(&before);
-		if (wrenCall(connected->vm, call) != WREN_RESULT_SUCCESS)
+		if (connected_call(connected, call) != WREN_RESULT_SUCCESS)
 			status = IO_ERROR_INVALID_FORMAT;
 		else
 			warn_observe_return(connected->vm, "every");
@@ -1971,6 +2033,7 @@ st_wren_connected_pump(st_wren_connected_t *connected, uint32_t timeout_ms)
 
 	if (connected == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
+	collect_removed_hooks(connected);
 	st_wren_transfer_pump(&connected->context);
 	if (connected->timers != NULL && st_time_monotonic_ms(&now) == 0) {
 		for (struct pending_timer *timer = connected->timers; timer != NULL;
@@ -2027,7 +2090,7 @@ st_wren_connected_pump(st_wren_connected_t *connected, uint32_t timeout_ms)
 		wrenEnsureSlots(connected->vm, 1);
 		wrenGetVariable(connected->vm, "scrollback_view",
 		    "ScrollbackView", 0);
-		status = wrenCall(connected->vm, run) == WREN_RESULT_SUCCESS
+		status = connected_call(connected, run) == WREN_RESULT_SUCCESS
 		    ? 0 : IO_ERROR_INVALID_FORMAT;
 		wrenReleaseHandle(connected->vm, run);
 	}
@@ -2065,8 +2128,10 @@ st_wren_connected_interpret(st_wren_connected_t *connected,
 	if (connected == NULL || module == NULL || source == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	connected->last_error[0] = '\0';
-	return wrenInterpret(connected->vm, module, source) == WREN_RESULT_SUCCESS
-	    ? 0 : IO_ERROR_INVALID_FORMAT;
+	WrenInterpretResult result = wrenInterpret(connected->vm, module, source);
+
+	collect_removed_hooks(connected);
+	return result == WREN_RESULT_SUCCESS ? 0 : IO_ERROR_INVALID_FORMAT;
 }
 
 const char *
