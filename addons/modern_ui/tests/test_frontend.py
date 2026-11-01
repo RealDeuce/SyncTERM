@@ -33,6 +33,23 @@ def alt_key(client, evdev):
     client.physical_key(56, False)
 
 
+def button_geometry(frame, rect, foreground=0x2563eb):
+    """Check actual label ink and body pixels in one coherent capture."""
+    x, y, w, h = rect
+    m = frame.metadata
+    cw, ch, stride = m['cell_width'], m['cell_height'], m['plane_width']
+    left, top, width, height = (x - 1) * cw, (y - 1) * ch, w * cw, h * ch
+    ink = [(px, py) for py in range(height) for px in range(width)
+           if frame.primary[(top + py) * stride + left + px] & 0xffffff == foreground]
+    assert h == 3 and ink, (rect, 'missing label')
+    xs, ys = zip(*ink)
+    assert abs(min(xs) + max(xs) + 1 - width) <= 2, (rect, 'horizontal', min(xs), max(xs))
+    assert abs(min(ys) + max(ys) + 1 - height) <= 3, (rect, 'vertical', min(ys), max(ys))
+    for py in (0, height - 1):
+        colour = frame.primary[(top + py) * stride + left + width // 2] & 0xffffff
+        assert colour in (0xdbeafe, 0x2563eb), (rect, py, hex(colour))
+
+
 def directory(executable, reports):
     with fixture(executable, entries=ENTRIES, settings='AudioModes=0\n', prepare=install,
                  reports=reports) as (client, root):
@@ -40,10 +57,26 @@ def directory(executable, reports):
             # Wait for the post-composition raster chrome as well as text;
             # inspect both from the same coherent capture.
             m = frame.metadata
-            corner = 8 * m['cell_height'] * m['plane_width'] + 19 * m['cell_width']
+            # Sort is the last control decorated, after all card/button ink.
+            corner = 6 * m['cell_height'] * m['plane_width'] + 29 * m['cell_width']
             return 'Connection directory' in frame.text and frame.primary[corner] == 0x80f1f5f9
         frame = client.wait_for(painted)
         assert 'MODERN UI' in frame.text and 'Alpha' in frame.text
+        # Curved edges need coverage colours, rather than binary cut-outs.
+        m = frame.metadata
+        px = 1 * m['cell_width'] + 4
+        py = 4 * m['cell_height']
+        edge = frame.primary[py * m['plane_width'] + px] & 0xffffff
+        assert edge not in (0xdbeafe, 0x0f172a), hex(edge)
+        for rect in [(2, 5, 15, 3), (2, 9, 15, 3), (2, 20, 15, 3),
+                     (69, 1, 10, 3), (20, 7, 8, 3), (30, 7, 8, 3),
+                     (20, 22, 9, 3), (31, 22, 10, 3), (66, 22, 13, 3)]:
+            button_geometry(frame, rect)
+        # Directory entries occupy distinct two-line cards separated by a
+        # full row, rather than a single-row terminal lightbar.
+        assert 'Alpha' in frame.lines[10] and 'alpha.example' in frame.lines[11]
+        assert 'München' in frame.lines[13] and 'second.example' in frame.lines[14]
+        assert not frame.lines[12][19:52].strip()
         reports.mkdir(parents=True, exist_ok=True)
         frame.save_image(reports / 'directory.ppm')
         click_text(client, frame, 'Zulu')
@@ -92,13 +125,43 @@ def directory(executable, reports):
         client.wait_text('3 connections')
         assert '[Alpha]' not in (root / 'syncterm.lst').read_text(encoding='utf-8')
 
+    entries = ''.join(f'[Card {i:02}]\nAddress=card{i:02}.example\n' for i in range(12))
+    with fixture(executable, entries=entries, settings='AudioModes=0\n', prepare=install,
+                 reports=reports) as (client, root):
+        frame = client.wait_text('Connection directory')
+        client.key('end')
+        frame = client.wait_for(lambda f: 'Card 11' in f.lines[16])
+        assert 'Card 09' in frame.lines[10] and 'Card 10' in frame.lines[13]
+        client.key('home')
+        frame = client.wait_for(lambda f: 'Card 00' in f.lines[10])
+        m = frame.metadata
+        px = m['destination_x'] + 22 * m['cell_width'] * m['destination_width'] // m['plane_width']
+        py = m['destination_y'] + (11 * m['cell_height'] + m['pixel_top']) * m['destination_height'] // m['plane_height']
+        client.mouse(px, py, action=2, wheel_y=-1)
+        frame = client.wait_for(lambda f: 'Card 01' in f.lines[10])
+        # Wheel scrolling preserves the selection, including its detail panel.
+        assert 'Card 00' in frame.lines[11][54:]
+        click_text(client, frame, 'Card 02')
+        frame = client.wait_for(lambda f: 'Card 02' in f.lines[11][54:])
+        assert frame.application['session_active'] == 0
+        client.key('page_down')
+        client.wait_for(lambda f: 'Card 04' in f.text)
+
 
 def settings(executable, reports):
     with fixture(executable, entries=ENTRIES, settings='AudioModes=0\n', prepare=install,
                  reports=reports) as (client, root):
         frame = client.wait_text('Connection directory')
         click_text(client, frame, 'Settings')
-        frame = client.wait_text('Choose a settings category')
+        def painted_settings(frame):
+            m = frame.metadata
+            corner = 21 * m['cell_height'] * m['plane_width'] + 49 * m['cell_width']
+            return 'Choose a settings category' in frame.text and frame.primary[corner] == 0x80f1f5f9
+        frame = client.wait_for(painted_settings)
+        for row in range(5):
+            for col in range(2):
+                button_geometry(frame, (20 + col * 30, 6 + row * 4, 28, 3),
+                                0xffffff if row == col == 0 else 0x2563eb)
         reports.mkdir(parents=True, exist_ok=True)
         frame.save_image(reports / 'settings.ppm')
         click_text(client, frame, 'Program Settings')
@@ -182,6 +245,23 @@ def recovery(executable, reports):
         client.key('enter')
         client.wait_text('Connection directory')
         assert (root / 'syncterm.lst').read_bytes() == original
+    for font_height in (8, 14):
+        mode = ('AudioModes=0\nScreenMode=Custom\nCustomRows=24\nCustomColumns=72\n'
+                f'CustomFontHeight={font_height}\n')
+        with fixture(executable, entries=ENTRIES, settings=mode, prepare=install,
+                     reports=reports) as (client, root):
+            frame = client.wait_text('Connection directory')
+            click_text(client, frame, 'Settings')
+            def painted(frame):
+                m = frame.metadata
+                corner = 20 * m['cell_height'] * m['plane_width'] + 45 * m['cell_width']
+                return 'Choose a settings category' in frame.lines[23] and frame.primary[corner] == 0x80f1f5f9
+            frame = client.wait_for(painted)
+            for row in range(5):
+                for col in range(2):
+                    button_geometry(frame, (20 + col * 26, 5 + row * 4, 24, 3),
+                                    0xffffff if row == col == 0 else 0x2563eb)
+            assert 'Licenses' in frame.lines[21] and 'List Encryption' in frame.lines[21]
 
 
 def web_list(executable, reports):
@@ -217,6 +297,11 @@ def web_list(executable, reports):
                                    and 'SyncTERM BBS List' not in s.text)
             click_text(client, frame, 'Directory')
             frame = client.wait_text('4 connections')
+            # Cards show fewer entries per page; find the fetched entry
+            # through the public search rather than assuming it is on page 1.
+            client.key(6)
+            client.text('Fetched web entry')
+            frame = client.wait_text('1 connections')
             assert 'Fetched web entry' in frame.text and 'Error:' not in frame.text
             assert '[WebLists]' in (root / 'syncterm.ini').read_text(encoding='utf-8')
     finally:

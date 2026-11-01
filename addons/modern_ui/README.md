@@ -11,8 +11,11 @@ searched with SyncTERM's canonical caseless Unicode comparison. Selection and
 search text survive a connection. Alt+E opens an edit-only directory during a
 connection. Safe mode retains the host's restrictions.
 
-The interface uses flat panels, a sidebar, light colours and native pixel
-rounding on graphical backends. Its text follows SyncTERM's bitmap font grid;
+The interface uses flat panels, a sidebar, light colours, and directory cards
+with names, addresses, and a separate selection marker. Buttons share one
+height. On graphical backends their bitmap captions are centered at pixel
+precision, and rounded edges use coverage anti-aliasing against the
+surrounding colour. Its text uses SyncTERM's bitmap fonts;
 it does not provide proportional fonts or GPU rendering. On text-only backends
 the same controls work without rounded pixel chrome. At least 72 columns and
 24 rows are needed; smaller modes offer Enter to switch to 80x25, or Escape
@@ -70,7 +73,8 @@ SyncTERM to load the built-in frontend again.
 - Ctrl+F: focus and select the search field.
 - Enter in search: focus the result list; Enter in the list: connect or edit.
 - F2: edit the selected entry. Insert or Ctrl+N: create an entry.
-- Tab / Shift+Tab: move focus. Mouse wheel: scroll the directory.
+- Tab / Shift+Tab: move focus. Mouse wheel: scroll the directory viewport,
+  preserving the selection. Clicking a card selects it; Connect or Enter dials.
 - Escape: clear search, return from Settings, or quit/return to the terminal.
 - F1: help. Ctrl+grave: Wren console; ANSI/ncurses also support Ctrl+Q.
 - Alt+B: view the last session's scrollback while offline.

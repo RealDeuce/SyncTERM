@@ -108,7 +108,8 @@ class ModernDirectory {
     _categories = []
     for (row in SettingsMenu.rows(connected)) {
       var action = row[0]
-      _categories.add(button_(row[1], Fn.new { settings_(action) }))
+      var label = row[1] == "Default Connection Settings" ? "Connection Defaults" : row[1]
+      _categories.add(button_(label, Fn.new { settings_(action) }))
     }
     _app.onLayout = Fn.new {|w, h| layout_(w, h) }
     _app.chrome = Fn.new { chrome_() }
@@ -170,15 +171,16 @@ class ModernDirectory {
           Text.caselessContains(entry.addr, query) || Text.caselessContains(entry.comment, query)) {
         if (entry.name == _preferred) chosen = _visible.count
         _visible.add(entry)
-        labels.add(" " + entry.name)
+        labels.add(entry.name)
       }
     }
     _list.items = labels
+    _list.subtitles = _visible.map {|entry| entry.addr }.toList
+    _list.emptyMessage = _entries.count == 0 ? "Your directory is empty." : "No matching connections."
     _list.focusable = labels.count > 0
     if (labels.count > 0) {
       _list.selected = chosen
     } else {
-      _list.items = [_entries.count == 0 ? " Your directory is empty." : " No matching connections."]
       _list.selected = null
     }
     _canvas.markDirty()
@@ -198,20 +200,20 @@ class ModernDirectory {
     _contentX = _side + 3
     _contentW = (w - _contentX - 1).max(4)
     _detailsW = w >= 80 ? 24 : 0
-    _listRect = Rect.new(_contentX, 9, (_contentW - _detailsW - (_detailsW > 0 ? 2 : 0)).max(4), (h - 12).max(1))
-    _detailsRect = Rect.new(_listRect.right + 3, 9, _detailsW, _listRect.h)
-    _directoryButton.bounds = Rect.new(2, 5, 15, 2)
-    _settingsButton.bounds = Rect.new(2, 8, 15, 2)
+    _listRect = Rect.new(_contentX, 11, (_contentW - _detailsW - (_detailsW > 0 ? 2 : 0)).max(4), (h - 16).max(1))
+    _detailsRect = Rect.new(_listRect.right + 3, _listRect.y, _detailsW, _listRect.h)
+    _directoryButton.bounds = Rect.new(2, 5, 15, 3)
+    _settingsButton.bounds = Rect.new(2, 9, 15, 3)
     _exitButton.bounds = Rect.new(w - 11, 1, 10, 3)
-    _quickButton.bounds = Rect.new(2, h - 5, 15, 2)
+    _quickButton.bounds = Rect.new(2, h - 5, 15, 3)
     _search.bounds = Rect.new(_contentX, 6, _contentW, 1)
     _list.bounds = _listRect
-    var buttonY = (h - 2).max(10)
-    _newButton.bounds = Rect.new(_contentX, 8, 8.min(_contentW), 1)
-    _sortButton.bounds = Rect.new(_contentX + 10, 8, 8.min(_contentW), 1)
-    _editButton.bounds = Rect.new(_contentX, buttonY, 9, 1)
-    _deleteButton.bounds = Rect.new(_contentX + 11, buttonY, 10, 1)
-    _connectButton.bounds = Rect.new((_contentX + _contentW - 13).max(_contentX), buttonY, 13.min(_contentW), 1)
+    var buttonY = (h - 3).max(10)
+    _newButton.bounds = Rect.new(_contentX, 7, 8.min(_contentW), 3)
+    _sortButton.bounds = Rect.new(_contentX + 10, 7, 8.min(_contentW), 3)
+    _editButton.bounds = Rect.new(_contentX, buttonY, 9, 3)
+    _deleteButton.bounds = Rect.new(_contentX + 11, buttonY, 10, 3)
+    _connectButton.bounds = Rect.new((_contentX + _contentW - 13).max(_contentX), buttonY, 13.min(_contentW), 3)
     for (widget in directoryWidgets) {
       widget.visible = !_settingsPage
       widget.focusable = !_settingsPage
@@ -221,7 +223,7 @@ class ModernDirectory {
       var columns = _contentW >= 48 ? 2 : 1
       var width = ((_contentW - (columns - 1) * 2) / columns).floor
       _categories[i].bounds = Rect.new(_contentX + (i % columns) * (width + 2),
-          7 + (i / columns).floor * 3, width, 2)
+          (h >= 25 ? 6 : 5) + (i / columns).floor * 4, width, 3)
       _categories[i].visible = _settingsPage
       _categories[i].focusable = _settingsPage
     }
@@ -249,7 +251,7 @@ class ModernDirectory {
     var x = _contentX - 1
     text_(sf, x, 3, _settingsPage ? "Settings" : "Connection directory", ModernStyle.ink, ModernStyle.background, _contentW)
     if (_settingsPage) {
-      text_(sf, x, 4, "Configure SyncTERM and your connection defaults", ModernStyle.muted, ModernStyle.background, _contentW)
+      if (h >= 25) text_(sf, x, 4, "Configure SyncTERM and your connection defaults", ModernStyle.muted, ModernStyle.background, _contentW)
     } else {
       text_(sf, x, 4, "Search by name, address or comment", ModernStyle.muted, ModernStyle.background, _contentW)
       var entry = selected
@@ -263,10 +265,10 @@ class ModernDirectory {
         text_(sf, dx, dy, entry == null ? "Connection details" : entry.name, ModernStyle.accent, ModernStyle.panel, _detailsW - 2)
         if (entry != null) {
           text_(sf, dx, dy + 2, entry.connTypeName, ModernStyle.muted, ModernStyle.panel, _detailsW - 2)
-          text_(sf, dx, dy + 4, entry.addr, ModernStyle.ink, ModernStyle.panel, _detailsW - 2)
-          text_(sf, dx, dy + 5, "Port %(entry.port)", ModernStyle.muted, ModernStyle.panel, _detailsW - 2)
-          text_(sf, dx, dy + 7, entry.comment, ModernStyle.muted, ModernStyle.panel, _detailsW - 2)
-          text_(sf, dx, dy + 9, entry.type == 0 ? "PERSONAL DIRECTORY" : "SHARED DIRECTORY", ModernStyle.muted, ModernStyle.panel, _detailsW - 2)
+          text_(sf, dx, dy + 3, entry.addr, ModernStyle.ink, ModernStyle.panel, _detailsW - 2)
+          text_(sf, dx, dy + 4, "Port %(entry.port)", ModernStyle.muted, ModernStyle.panel, _detailsW - 2)
+          text_(sf, dx, dy + 6, entry.comment, ModernStyle.muted, ModernStyle.panel, _detailsW - 2)
+          if (_detailsRect.h >= 9) text_(sf, dx, dy + 7, entry.type == 0 ? "PERSONAL DIRECTORY" : "SHARED DIRECTORY", ModernStyle.muted, ModernStyle.panel, _detailsW - 2)
         }
       }
     }
@@ -282,15 +284,13 @@ class ModernDirectory {
   }
   chrome_() {
     if (_small) return
-    if (!_settingsPage && _visible.count > 0) _app.round(_listRect, ModernStyle.panel, ModernStyle.background)
+    if (!_settingsPage) _list.chrome(_app)
     if (!_settingsPage && _detailsW > 0) _app.round(_detailsRect, ModernStyle.panel, ModernStyle.background)
     for (button in [_directoryButton, _settingsButton, _quickButton, _exitButton]) {
-      var st = button.focused ? _app.theme.style("button.focused") : _app.theme.style("button")
-      _app.round(button.bounds, st.bgRgb, ModernStyle.dark)
+      button.chrome(_app, ModernStyle.dark)
     }
     for (button in _settingsPage ? _categories : [_newButton, _editButton, _deleteButton, _connectButton, _sortButton]) {
-      var st = button.focused ? _app.theme.style("button.focused") : _app.theme.style("button")
-      _app.round(button.bounds, st.bgRgb, ModernStyle.background)
+      button.chrome(_app, ModernStyle.background)
     }
   }
   shortcut_(event) {
