@@ -192,3 +192,15 @@ parked waiters. Terminal and host suites passed FreeBSD Clang ASan/UBSan
 (leak detection unsupported, disabled). The native application linked; GCC
 and MinGW i686/x86_64 host-library builds passed without warnings. Windows
 runtime tests were not run.
+
+Item 1 foundation: added `Fiber.tryScoped()` to retain cleanup/error
+continuations across cooperative yields and host wakes. Both scope links
+participate in GC and detach on return/abort. Transfers and VM suspension
+cannot bypass a live scope. Corrected the value-yield stack shape when
+returning directly to the host. The standalone regression failed before
+implementation, then passed with nested LIFO cleanup, exact error identity,
+outer/inner resumes, GC, ordinary children, and direct host/root resumes.
+All three VM tests and the existing host suite passed on FreeBSD Clang;
+scoped-fiber and moving-allocator regressions passed ASan/UBSan (leak
+detection disabled). GCC and MinGW i686/x86_64 VM-library builds passed
+without warnings. UI helpers and shutdown cleanup remain to migrate.

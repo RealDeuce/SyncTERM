@@ -426,12 +426,17 @@ static void runtimeError(WrenVM* vm)
     // is GC'd.
     closeUpvalues(current, current->stack);
 
+    wrenEndFiberScope(current);
+
     // If the caller ran this fiber using "try", give it the error and stop.
     if (current->state == FIBER_TRY)
     {
       // Make the caller's try method return the error message.
-      current->caller->stackTop[-1] = vm->fiber->error;
-      vm->fiber = current->caller;
+      ObjFiber* caller = current->caller;
+      current->caller = NULL;
+      current->state = FIBER_OTHER;
+      caller->stackTop[-1] = vm->fiber->error;
+      vm->fiber = caller;
       return;
     }
 
@@ -1244,6 +1249,7 @@ static WrenInterpretResult runInterpreter(WrenVM* vm, register ObjFiber* fiber)
       // If the fiber is complete, end it.
       if (fiber->numFrames == 0)
       {
+        wrenEndFiberScope(fiber);
         // See if there's another fiber to return to. If not, we're done.
         if (fiber->caller == NULL)
         {

@@ -657,12 +657,28 @@ First-class coroutines.
 | `f.transfer()`, `f.transfer(value)` | Like call, but does not record this fiber as the resumer; cannot be returned to via `Fiber.yield`.
 | `f.transferError(err)`        | Resume `f` with `err` raised inside it.
 | `f.try()`, `f.try(value)`     | Like `call`, but if `f` aborts the abort is caught and `f.error` is set.
+| `f.tryScoped()`             | SyncTERM extension for structured cleanup: retain the error boundary across cooperative yields, as described below.
 | `f.isDone`                    | True after the body returns or aborts.
 | `f.error`                     | The abort message if `try` caught one, else `null`.
 | `Fiber.yield()`               | Suspend; control returns to the most recent `.call()` caller.
 | `Fiber.yield(value)`          | …passing `value` as the return of that `.call()`.
 | `Fiber.abort(err)`            | Raise `err` in the current fiber.  Caller's `.try()` catches it.
 |===
+
+`tryScoped()` starts an uncalled child fiber and keeps its caller suspended
+until that child returns or aborts. A `Fiber.yield` inside the child passes
+through consecutive scoped callers to the outer ordinary caller. Resuming
+any fiber in that scope chain enters the innermost suspended child with the
+resume value, then runs the enclosing continuations as children finish.
+This also applies when the host resumes a callback after an Operation.
+Errors reach the child's retained `tryScoped` boundary after any number of
+yields. The caller can restore state and propagate the same error object.
+
+Ordinary `call`/`try` children retain their usual yield behavior. `transfer`,
+`transferError`, and `Fiber.suspend` cannot cross an active scoped call;
+use cooperative `Fiber.yield` or Operation awaits there. A scoped call owns
+its child until completion; it is not a detached background task. Pending
+native operations and shutdown still require their host's lifetime policy.
 
 === Fn
 
