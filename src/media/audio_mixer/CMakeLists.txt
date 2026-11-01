@@ -60,10 +60,10 @@ set_target_properties(st_audio_mixer PROPERTIES
 
 function(st_audio_mixer_warnings target)
 	if(MSVC)
-		target_compile_options(${target} PRIVATE /W4 /WX)
+		target_compile_options(${target} PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
 	else()
 		target_compile_options(${target} PRIVATE
-			-Wall -Wextra -Wpedantic -Werror)
+			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
 endfunction()
 st_audio_mixer_warnings(st_audio_mixer)

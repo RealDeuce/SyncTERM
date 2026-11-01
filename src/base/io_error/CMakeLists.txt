@@ -19,10 +19,10 @@ target_include_directories(syncterm_io_error PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 set_target_properties(syncterm_io_error PROPERTIES
 	C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 if(MSVC)
-	target_compile_options(syncterm_io_error PRIVATE /W4 /WX)
+	target_compile_options(syncterm_io_error PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
 else()
 	target_compile_options(syncterm_io_error PRIVATE
-		-Wall -Wextra -Wpedantic -Werror)
+		-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 endif()
 
 if(BUILD_TESTING)
@@ -31,10 +31,10 @@ if(BUILD_TESTING)
 	set_target_properties(io_error_test PROPERTIES
 		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
-		target_compile_options(io_error_test PRIVATE /W4 /WX)
+		target_compile_options(io_error_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
 	else()
 		target_compile_options(io_error_test PRIVATE
-			-Wall -Wextra -Wpedantic -Werror)
+			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
 	add_test(NAME io_error COMMAND io_error_test)
 endif()

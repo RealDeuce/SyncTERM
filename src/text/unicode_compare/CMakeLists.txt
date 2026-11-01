@@ -27,10 +27,10 @@ set_target_properties(st_unicode_compare PROPERTIES
 if(MSVC)
 	# Use the portable C runtime APIs, not Microsoft-only _s replacements.
 	target_compile_definitions(st_unicode_compare PRIVATE _CRT_SECURE_NO_WARNINGS)
-	target_compile_options(st_unicode_compare PRIVATE /W4 /WX)
+	target_compile_options(st_unicode_compare PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
 else()
 	target_compile_options(st_unicode_compare PRIVATE
-		-Wall -Wextra -Wpedantic -Werror)
+		-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 endif()
 
 if(BUILD_TESTING)
@@ -40,10 +40,10 @@ if(BUILD_TESTING)
 		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
 		target_compile_definitions(st_unicode_compare_test PRIVATE _CRT_SECURE_NO_WARNINGS)
-		target_compile_options(st_unicode_compare_test PRIVATE /W4 /WX)
+		target_compile_options(st_unicode_compare_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
 	else()
 		target_compile_options(st_unicode_compare_test PRIVATE
-			-Wall -Wextra -Wpedantic -Werror)
+			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
 	add_test(NAME unicode_compare COMMAND st_unicode_compare_test)
 
@@ -57,9 +57,9 @@ if(BUILD_TESTING)
 		target_compile_definitions(st_unicode_collation_conformance PRIVATE
 			_CRT_SECURE_NO_WARNINGS)
 		target_compile_options(st_unicode_collation_conformance PRIVATE
-			/W4 /WX)
+			/W4 $<$<CONFIG:Debug>:/WX>)
 	else()
 		target_compile_options(st_unicode_collation_conformance PRIVATE
-			-Wall -Wextra -Wpedantic -Werror)
+			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
 endif()

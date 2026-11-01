@@ -23,10 +23,10 @@ target_link_libraries(st_windows_utf PUBLIC syncterm_io_error)
 set_target_properties(st_windows_utf PROPERTIES
 	C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 if(MSVC)
-	target_compile_options(st_windows_utf PRIVATE /W4 /WX)
+	target_compile_options(st_windows_utf PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
 else()
 	target_compile_options(st_windows_utf PRIVATE
-		-Wall -Wextra -Wpedantic -Werror)
+		-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 endif()
 
 if(BUILD_TESTING)
@@ -35,10 +35,10 @@ if(BUILD_TESTING)
 	set_target_properties(st_windows_utf_test PROPERTIES
 		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
-		target_compile_options(st_windows_utf_test PRIVATE /W4 /WX)
+		target_compile_options(st_windows_utf_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
 	else()
 		target_compile_options(st_windows_utf_test PRIVATE
-			-Wall -Wextra -Wpedantic -Werror)
+			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
 	add_test(NAME windows_utf COMMAND st_windows_utf_test)
 endif()

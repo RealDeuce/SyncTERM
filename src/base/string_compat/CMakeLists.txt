@@ -118,10 +118,10 @@ set_target_properties(syncterm_string_compat PROPERTIES
 
 function(syncterm_string_compat_warnings target)
 	if(MSVC)
-		target_compile_options(${target} PRIVATE /W4 /WX)
+		target_compile_options(${target} PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
 	else()
 		target_compile_options(${target} PRIVATE
-			-Wall -Wextra -Wpedantic -Werror)
+			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
 endfunction()
 

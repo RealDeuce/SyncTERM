@@ -12,9 +12,9 @@ set_target_properties(st_term PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
 if(MSVC)
 	# Use the portable C runtime APIs, not Microsoft-only _s replacements.
 	target_compile_definitions(st_term PRIVATE _CRT_SECURE_NO_WARNINGS)
-	target_compile_options(st_term PRIVATE /W4 /WX)
+	target_compile_options(st_term PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
 else()
-	target_compile_options(st_term PRIVATE -Wall -Wextra -Wpedantic -Werror)
+	target_compile_options(st_term PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 endif()
 
 if(BUILD_TESTING)
@@ -25,10 +25,10 @@ if(BUILD_TESTING)
 		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
 		target_compile_definitions(st_term_rip_encoding_consistency PRIVATE _CRT_SECURE_NO_WARNINGS)
-		target_compile_options(st_term_rip_encoding_consistency PRIVATE /W4 /WX)
+		target_compile_options(st_term_rip_encoding_consistency PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
 	else()
 		target_compile_options(st_term_rip_encoding_consistency PRIVATE
-			-Wall -Wextra -Wpedantic -Werror)
+			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
 	add_test(NAME term_rip_encoding_consistency
 		COMMAND st_term_rip_encoding_consistency)
@@ -41,10 +41,10 @@ if(BUILD_TESTING)
 		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
 		target_compile_definitions(st_term_test PRIVATE _CRT_SECURE_NO_WARNINGS)
-		target_compile_options(st_term_test PRIVATE /W4 /WX)
+		target_compile_options(st_term_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
 	else()
 		target_compile_options(st_term_test PRIVATE
-			-Wall -Wextra -Wpedantic -Werror)
+			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
 	add_test(NAME term COMMAND st_term_test)
 	configure_file(tests/term-fixture.sh term-fixture.sh @ONLY)
@@ -61,7 +61,7 @@ if(BUILD_TESTING)
 		set_target_properties(st_term_rip_historical_wire_test PROPERTIES
 			C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 		target_compile_options(st_term_rip_historical_wire_test PRIVATE
-			-Wall -Wextra -Wpedantic -Werror)
+			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 		add_test(NAME term_rip_v110a_wire
 			COMMAND st_term_rip_historical_wire_test)
 	endif()

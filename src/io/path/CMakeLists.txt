@@ -39,10 +39,10 @@ function(syncterm_path_warnings target)
 	if(MSVC)
 		# Use the portable C runtime APIs, not Microsoft-only _s replacements.
 		target_compile_definitions(${target} PRIVATE _CRT_SECURE_NO_WARNINGS)
-		target_compile_options(${target} PRIVATE /W4 /WX)
+		target_compile_options(${target} PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
 	else()
 		target_compile_options(${target} PRIVATE
-			-Wall -Wextra -Wpedantic -Werror)
+			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
 endfunction()
 

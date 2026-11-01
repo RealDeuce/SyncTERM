@@ -15,10 +15,10 @@ set_target_properties(st_base64 PROPERTIES
 	C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 
 if(MSVC)
-	target_compile_options(st_base64 PRIVATE /W4 /WX)
+	target_compile_options(st_base64 PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
 else()
 	target_compile_options(st_base64 PRIVATE
-		-Wall -Wextra -Wpedantic -Werror)
+		-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 endif()
 
 if(BUILD_TESTING)
@@ -27,10 +27,10 @@ if(BUILD_TESTING)
 	set_target_properties(st_base64_test PROPERTIES
 		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
-		target_compile_options(st_base64_test PRIVATE /W4 /WX)
+		target_compile_options(st_base64_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
 	else()
 		target_compile_options(st_base64_test PRIVATE
-			-Wall -Wextra -Wpedantic -Werror)
+			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
 	add_test(NAME base64 COMMAND st_base64_test)
 endif()

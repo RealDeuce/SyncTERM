@@ -64,9 +64,9 @@ target_compile_definitions(st_time PRIVATE ${ST_TIME_DEFINITIONS})
 set_target_properties(st_time PROPERTIES
 	C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 if(MSVC)
-	target_compile_options(st_time PRIVATE /W4 /WX)
+	target_compile_options(st_time PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
 else()
-	target_compile_options(st_time PRIVATE -Wall -Wextra -Wpedantic -Werror)
+	target_compile_options(st_time PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 endif()
 
 if(BUILD_TESTING)
@@ -81,13 +81,13 @@ if(BUILD_TESTING)
 	set_target_properties(st_time_fault_test PROPERTIES
 		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
-		target_compile_options(st_time_test PRIVATE /W4 /WX)
-		target_compile_options(st_time_fault_test PRIVATE /W4 /WX)
+		target_compile_options(st_time_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
+		target_compile_options(st_time_fault_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
 	else()
 		target_compile_options(st_time_test PRIVATE
-			-Wall -Wextra -Wpedantic -Werror)
+			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 		target_compile_options(st_time_fault_test PRIVATE
-			-Wall -Wextra -Wpedantic -Werror)
+			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
 	add_test(NAME time COMMAND st_time_test)
 	add_test(NAME time_fault COMMAND st_time_fault_test)
@@ -100,7 +100,7 @@ if(BUILD_TESTING)
 		set_target_properties(st_time_posix_test PROPERTIES
 			C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 		target_compile_options(st_time_posix_test PRIVATE
-			-Wall -Wextra -Wpedantic -Werror)
+			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 		add_test(NAME time_posix_failure COMMAND st_time_posix_test)
 	endif()
 endif()

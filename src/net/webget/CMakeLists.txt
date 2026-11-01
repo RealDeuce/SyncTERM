@@ -35,9 +35,9 @@ target_link_libraries(st_webget PUBLIC syncterm_io_error st_tls PRIVATE
 set_target_properties(st_webget PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
 	C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 if(MSVC)
-	target_compile_options(st_webget PRIVATE /W4 /WX)
+	target_compile_options(st_webget PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
 else()
-	target_compile_options(st_webget PRIVATE -Wall -Wextra -Wpedantic -Werror)
+	target_compile_options(st_webget PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 endif()
 
 if(BUILD_TESTING)
@@ -53,10 +53,10 @@ if(BUILD_TESTING)
 	set_target_properties(st_webget_test PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
 		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
-		target_compile_options(st_webget_test PRIVATE /W4 /WX)
+		target_compile_options(st_webget_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
 	else()
 		target_compile_options(st_webget_test PRIVATE
-			-Wall -Wextra -Wpedantic -Werror)
+			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
 	add_test(NAME webget COMMAND st_webget_test)
 	# Several loopback requests each allow two seconds, in addition to cache
@@ -72,10 +72,10 @@ if(BUILD_TESTING)
 	set_target_properties(st_webget_transport_test PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
 		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
-		target_compile_options(st_webget_transport_test PRIVATE /W4 /WX)
+		target_compile_options(st_webget_transport_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
 	else()
 		target_compile_options(st_webget_transport_test PRIVATE
-			-Wall -Wextra -Wpedantic -Werror)
+			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
 	add_test(NAME webget_transport COMMAND st_webget_transport_test)
 endif()

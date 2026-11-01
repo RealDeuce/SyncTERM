@@ -75,10 +75,10 @@ set_target_properties(syncterm_dynamic_library PROPERTIES
 
 function(syncterm_dynamic_library_warnings target)
 	if(MSVC)
-		target_compile_options(${target} PRIVATE /W4 /WX)
+		target_compile_options(${target} PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
 	else()
 		target_compile_options(${target} PRIVATE
-		-Wall -Wextra -Wpedantic -Werror)
+		-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
 endfunction()
 syncterm_dynamic_library_warnings(syncterm_dynamic_library)

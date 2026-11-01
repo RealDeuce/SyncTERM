@@ -70,9 +70,9 @@ target_link_libraries(st_audio_file PUBLIC syncterm_io_error
 set_target_properties(st_audio_file PROPERTIES
 	C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 if(MSVC)
-	target_compile_options(st_audio_file PRIVATE /W4 /WX)
+	target_compile_options(st_audio_file PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
 else()
-	target_compile_options(st_audio_file PRIVATE -Wall -Wextra -Wpedantic -Werror)
+	target_compile_options(st_audio_file PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	# The runtime loader's platform contract permits the symbol-to-function
 	# pointer casts, as in the other dynamically loaded media backends.
 	set_source_files_properties(st_audio_file.c PROPERTIES COMPILE_OPTIONS -Wno-pedantic)
@@ -83,9 +83,9 @@ if(BUILD_TESTING)
 	set_target_properties(st_audio_file_test PROPERTIES
 		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
-		target_compile_options(st_audio_file_test PRIVATE /W4 /WX)
+		target_compile_options(st_audio_file_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
 	else()
-		target_compile_options(st_audio_file_test PRIVATE -Wall -Wextra -Wpedantic -Werror)
+		target_compile_options(st_audio_file_test PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
 	add_test(NAME audio_file COMMAND st_audio_file_test)
 endif()

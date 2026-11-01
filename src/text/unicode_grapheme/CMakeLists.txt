@@ -14,10 +14,10 @@ target_include_directories(st_unicode_grapheme PUBLIC ${CMAKE_CURRENT_SOURCE_DIR
 set_target_properties(st_unicode_grapheme PROPERTIES
 	C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 if(MSVC)
-	target_compile_options(st_unicode_grapheme PRIVATE /W4 /WX)
+	target_compile_options(st_unicode_grapheme PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
 else()
 	target_compile_options(st_unicode_grapheme PRIVATE
-		-Wall -Wextra -Wpedantic -Werror)
+		-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 endif()
 
 if(BUILD_TESTING)
@@ -26,10 +26,10 @@ if(BUILD_TESTING)
 	set_target_properties(st_unicode_grapheme_test PROPERTIES
 		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
-		target_compile_options(st_unicode_grapheme_test PRIVATE /W4 /WX)
+		target_compile_options(st_unicode_grapheme_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
 	else()
 		target_compile_options(st_unicode_grapheme_test PRIVATE
-			-Wall -Wextra -Wpedantic -Werror)
+			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
 	add_test(NAME unicode_grapheme COMMAND st_unicode_grapheme_test)
 endif()

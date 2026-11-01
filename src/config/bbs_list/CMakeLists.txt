@@ -66,9 +66,9 @@ set_target_properties(st_bbs_list PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
 if(MSVC)
 	# Use the portable C runtime APIs, not Microsoft-only _s replacements.
 	target_compile_definitions(st_bbs_list PRIVATE _CRT_SECURE_NO_WARNINGS)
-	target_compile_options(st_bbs_list PRIVATE /W4 /WX)
+	target_compile_options(st_bbs_list PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
 else()
-	target_compile_options(st_bbs_list PRIVATE -Wall -Wextra -Wpedantic -Werror)
+	target_compile_options(st_bbs_list PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 endif()
 
 if(BUILD_TESTING)
@@ -81,10 +81,10 @@ if(BUILD_TESTING)
 		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
 		target_compile_definitions(st_bbs_list_test PRIVATE _CRT_SECURE_NO_WARNINGS)
-		target_compile_options(st_bbs_list_test PRIVATE /W4 /WX)
+		target_compile_options(st_bbs_list_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
 	else()
 		target_compile_options(st_bbs_list_test PRIVATE
-			-Wall -Wextra -Wpedantic -Werror)
+			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
 	add_test(NAME bbs_list COMMAND st_bbs_list_test)
 
@@ -108,10 +108,10 @@ target_link_libraries(st_bbs_list_faultable PUBLIC st_profile st_list_crypto
 		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
 		target_compile_definitions(st_bbs_list_faultable PRIVATE _CRT_SECURE_NO_WARNINGS)
-		target_compile_options(st_bbs_list_faultable PRIVATE /W4 /WX)
+		target_compile_options(st_bbs_list_faultable PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
 	else()
 		target_compile_options(st_bbs_list_faultable PRIVATE
-			-Wall -Wextra -Wpedantic -Werror)
+			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
 
 	add_executable(st_bbs_failure_test tests/st_bbs_failure_test.c
@@ -126,10 +126,10 @@ target_link_libraries(st_bbs_list_faultable PUBLIC st_profile st_list_crypto
 		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
 		target_compile_definitions(st_bbs_failure_test PRIVATE _CRT_SECURE_NO_WARNINGS)
-		target_compile_options(st_bbs_failure_test PRIVATE /W4 /WX)
+		target_compile_options(st_bbs_failure_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
 	else()
 		target_compile_options(st_bbs_failure_test PRIVATE
-			-Wall -Wextra -Wpedantic -Werror)
+			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
 	add_test(NAME bbs_failures COMMAND st_bbs_failure_test)
 
@@ -143,10 +143,10 @@ target_link_libraries(st_bbs_list_faultable PUBLIC st_profile st_list_crypto
 		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
 		target_compile_definitions(st_bbs_cache_safety_test PRIVATE _CRT_SECURE_NO_WARNINGS)
-		target_compile_options(st_bbs_cache_safety_test PRIVATE /W4 /WX)
+		target_compile_options(st_bbs_cache_safety_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
 	else()
 		target_compile_options(st_bbs_cache_safety_test PRIVATE
-			-Wall -Wextra -Wpedantic -Werror)
+			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
 	add_test(NAME bbs_cache_safety COMMAND st_bbs_cache_safety_test)
 
@@ -159,10 +159,10 @@ target_link_libraries(st_bbs_list_faultable PUBLIC st_profile st_list_crypto
 		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
 		target_compile_definitions(st_bbs_web_test PRIVATE _CRT_SECURE_NO_WARNINGS)
-		target_compile_options(st_bbs_web_test PRIVATE /W4 /WX)
+		target_compile_options(st_bbs_web_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
 	else()
 		target_compile_options(st_bbs_web_test PRIVATE
-			-Wall -Wextra -Wpedantic -Werror)
+			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
 	add_test(NAME bbs_web COMMAND st_bbs_web_test)
 	set_tests_properties(bbs_web PROPERTIES TIMEOUT 15)

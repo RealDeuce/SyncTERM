@@ -30,10 +30,10 @@ set_target_properties(st_unicode_text PROPERTIES
 if(MSVC)
 	# Use the portable C runtime APIs, not Microsoft-only _s replacements.
 	target_compile_definitions(st_unicode_text PRIVATE _CRT_SECURE_NO_WARNINGS)
-	target_compile_options(st_unicode_text PRIVATE /W4 /WX)
+	target_compile_options(st_unicode_text PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
 else()
 	target_compile_options(st_unicode_text PRIVATE
-		-Wall -Wextra -Wpedantic -Werror)
+		-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 endif()
 
 if(BUILD_TESTING)
@@ -46,10 +46,10 @@ if(BUILD_TESTING)
 		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
 		target_compile_definitions(st_unicode_text_test PRIVATE _CRT_SECURE_NO_WARNINGS)
-		target_compile_options(st_unicode_text_test PRIVATE /W4 /WX)
+		target_compile_options(st_unicode_text_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
 	else()
 		target_compile_options(st_unicode_text_test PRIVATE
-			-Wall -Wextra -Wpedantic -Werror)
+			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
 	add_test(NAME unicode_text COMMAND st_unicode_text_test)
 endif()

@@ -31,10 +31,10 @@ set_target_properties(syncterm_str_list PROPERTIES
 
 function(syncterm_str_list_warnings target)
 	if(MSVC)
-		target_compile_options(${target} PRIVATE /W4 /WX)
+		target_compile_options(${target} PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
 	else()
 		target_compile_options(${target} PRIVATE
-			-Wall -Wextra -Wpedantic -Werror)
+			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
 endfunction()
 

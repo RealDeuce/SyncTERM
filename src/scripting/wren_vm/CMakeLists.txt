@@ -79,13 +79,13 @@ set_target_properties(st_wren_vm PROPERTIES
 if(MSVC)
 	# Use the portable C runtime APIs, not Microsoft-only _s replacements.
 	target_compile_definitions(st_wren_vm PRIVATE _CRT_SECURE_NO_WARNINGS)
-	target_compile_options(st_wren_vm PRIVATE /W4 /WX /wd4100)
+	target_compile_options(st_wren_vm PRIVATE /W4 $<$<CONFIG:Debug>:/WX> /wd4100)
 	# Flexible array members and READ_SHORT's sequenced comma expression
 	# are intentional C idioms in the upstream VM, not language extensions.
 	target_compile_options(st_wren_vm PRIVATE /wd4200 /wd4709)
 else()
 	target_compile_options(st_wren_vm PRIVATE
-		-Wall -Wextra -Wpedantic -Werror -Wno-unused-parameter
+		-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror> -Wno-unused-parameter
 		-Wno-overlength-strings)
 endif()
 
@@ -96,10 +96,10 @@ if(BUILD_TESTING)
 		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
 		target_compile_definitions(st_wren_vm_link_test PRIVATE _CRT_SECURE_NO_WARNINGS)
-		target_compile_options(st_wren_vm_link_test PRIVATE /W4 /WX)
+		target_compile_options(st_wren_vm_link_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
 	else()
 		target_compile_options(st_wren_vm_link_test PRIVATE
-			-Wall -Wextra -Wpedantic -Werror)
+			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
 	add_test(NAME st_wren_vm_link COMMAND st_wren_vm_link_test)
 endif()

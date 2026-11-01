@@ -10,10 +10,10 @@ set_target_properties(st_font_catalog PROPERTIES C_STANDARD ${SYNCTERM_C_STANDAR
 if(MSVC)
 	# Use the portable C runtime APIs, not Microsoft-only _s replacements.
 	target_compile_definitions(st_font_catalog PRIVATE _CRT_SECURE_NO_WARNINGS)
-	target_compile_options(st_font_catalog PRIVATE /W4 /WX)
+	target_compile_options(st_font_catalog PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
 else()
 	target_compile_options(st_font_catalog PRIVATE
-		-Wall -Wextra -Wpedantic -Werror)
+		-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 endif()
 
 if(BUILD_TESTING)
@@ -23,10 +23,10 @@ if(BUILD_TESTING)
 		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
 		target_compile_definitions(st_font_catalog_test PRIVATE _CRT_SECURE_NO_WARNINGS)
-		target_compile_options(st_font_catalog_test PRIVATE /W4 /WX)
+		target_compile_options(st_font_catalog_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
 	else()
 		target_compile_options(st_font_catalog_test PRIVATE
-			-Wall -Wextra -Wpedantic -Werror)
+			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
 	add_test(NAME font_catalog COMMAND st_font_catalog_test)
 endif()

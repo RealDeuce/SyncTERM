@@ -178,10 +178,10 @@ if(_xptls_crypto_backend STREQUAL "Botan")
 endif()
 
 if(MSVC)
-	target_compile_options(xptls_crypto PRIVATE /W4 /WX)
+	target_compile_options(xptls_crypto PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
 else()
 	target_compile_options(xptls_crypto PRIVATE
-		-Wall -Wextra -Wpedantic -Werror)
+		-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 endif()
 
 if(BUILD_TESTING)
@@ -190,10 +190,10 @@ if(BUILD_TESTING)
 	set_target_properties(xp_crypto_test PROPERTIES
 		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
-		target_compile_options(xp_crypto_test PRIVATE /W4 /WX)
+		target_compile_options(xp_crypto_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
 	else()
 		target_compile_options(xp_crypto_test PRIVATE
-			-Wall -Wextra -Wpedantic -Werror)
+			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
 	add_test(NAME xp_crypto COMMAND xp_crypto_test)
 
@@ -206,10 +206,10 @@ if(BUILD_TESTING)
 		set_target_properties(xp_crypto_clear_fallback_test PROPERTIES
 			C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 		if(MSVC)
-			target_compile_options(xp_crypto_clear_fallback_test PRIVATE /W4 /WX)
+			target_compile_options(xp_crypto_clear_fallback_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
 		else()
 			target_compile_options(xp_crypto_clear_fallback_test PRIVATE
-				-Wall -Wextra -Wpedantic -Werror)
+				-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 		endif()
 		add_test(NAME xp_crypto_clear_fallback
 			COMMAND xp_crypto_clear_fallback_test)

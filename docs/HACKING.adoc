@@ -22,6 +22,10 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ----
 
+Compiler warnings are enabled in all configurations and treated as errors only
+in `Debug`. `Release`, `RelWithDebInfo`, and `MinSizeRel` builds report warnings
+without making them fatal.
+
 `BUILD_TESTING`, inherited from CTest, controls test targets.  The
 `SYNCTERM_ENABLE_UNIFONT` option controls the optional SyncTERM Unicode font
 (SIL OFL 1.1) and is enabled by default. Less common test-only options live

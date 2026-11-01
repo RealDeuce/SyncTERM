@@ -103,10 +103,10 @@ set_target_properties(st_pixel_image PROPERTIES
 	C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 
 if(MSVC)
-	target_compile_options(st_pixel_image PRIVATE /W4 /WX)
+	target_compile_options(st_pixel_image PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
 else()
 	target_compile_options(st_pixel_image PRIVATE
-		-Wall -Wextra -Wpedantic -Werror)
+		-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 endif()
 
 if(BUILD_TESTING)
@@ -117,10 +117,10 @@ if(BUILD_TESTING)
 	set_target_properties(st_pixel_image_test PROPERTIES
 		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
-		target_compile_options(st_pixel_image_test PRIVATE /W4 /WX)
+		target_compile_options(st_pixel_image_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
 	else()
 		target_compile_options(st_pixel_image_test PRIVATE
-			-Wall -Wextra -Wpedantic -Werror)
+			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
 	add_test(NAME pixel_image COMMAND st_pixel_image_test)
 endif()
