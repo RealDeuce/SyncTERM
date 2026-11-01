@@ -48,7 +48,7 @@ emoji_read(ini_document_t *document, size_t *ids, size_t *count)
 	if (section == NULL)
 		return;
 	for (size_t i = 1; i <= ST_SETTINGS_RECENT_EMOJI_MAX; i++) {
-		char key[16];
+		char key[sizeof(size_t) * CHAR_BIT + 1];
 		(void)snprintf(key, sizeof(key), "%zu", i);
 		emoji_append(ids, count, st_emoji_find(ini_section_get_string(section, key, "")));
 	}
@@ -1331,7 +1331,8 @@ st_settings_remember_emoji(const char *text, bool persist)
 		status = ensure_section(document, "RecentEmoji", &section);
 	}
 	for (size_t i = 0; status == 0 && i < count; i++) {
-		char key[16];
+		/* One digit per value bit also bounds the decimal representation. */
+		char key[sizeof(size_t) * CHAR_BIT + 1];
 		(void)snprintf(key, sizeof(key), "%zu", i + 1);
 		status = ini_section_set_string(section, key, st_emoji_entries[merged[i]].text,
 		    &ini_default_style);

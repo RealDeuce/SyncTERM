@@ -20,7 +20,7 @@ def alt_key(client, evdev):
 
 
 def break_picker(root):
-    broken = (SOURCE / 'scripts/ui_emoji_picker.wren').read_text().replace(
+    broken = (SOURCE / 'scripts/ui_emoji_picker.wren').read_text(encoding='utf-8').replace(
         '    super.onPaint_()', '    super.onPaint_()\n    Fiber.abort("picker paint fixture")')
     write_script(root, 'ui_emoji_picker', broken)
 
@@ -144,7 +144,7 @@ app.runSync()
         client.key('enter')
         frame = client.wait_text('a😀b')
         assert 'Insert Emoji' not in frame.text
-        assert '😀' in (root / 'syncterm.ini').read_text()
+        assert '😀' in (root / 'syncterm.ini').read_text(encoding='utf-8')
         alt_key(client, 25)
         frame = client.wait_text('Recently used')
         client.text('no such emoji zzqq')
@@ -170,7 +170,7 @@ app.runSync()
         male = next(i for i, c in enumerate(frame.cells) if frame.cell_text(c) == '🤷🏽‍♂')
         click_cell(client, frame, male % m['columns'], male // m['columns'])
         frame = client.wait_text('a😀🤷🏽‍♂b')
-        assert '🤷🏽‍♂️' in (root / 'syncterm.ini').read_text()
+        assert '🤷🏽‍♂️' in (root / 'syncterm.ini').read_text(encoding='utf-8')
         alt_key(client, 25)
         client.wait_text('Insert Emoji')
         client.text('grinning face')
@@ -283,7 +283,7 @@ def connected(executable, reports):
             glyph = next(i for i, c in enumerate(frame.cells) if frame.cell_text(c) == '😀')
             click_cell(client, frame, glyph % frame.metadata['columns'], glyph // frame.metadata['columns'])
             terminal.input('😀'.encode())
-            assert '😀' in (root / 'syncterm.ini').read_text()
+            assert '😀' in (root / 'syncterm.ini').read_text(encoding='utf-8')
             frame = terminal.exchange()
             assert 'LIVE' in frame.text and 'Insert Emoji' not in frame.text
             # Reopening starts on the recent tile; Right reaches the same

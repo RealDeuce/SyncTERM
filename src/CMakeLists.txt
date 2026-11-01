@@ -137,6 +137,12 @@ if(BUILD_TESTING)
 					COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_emoji_picker_test.py
 					$<TARGET_FILE:syncterm_app> ${_emoji_group} --reports ${CMAKE_BINARY_DIR}/reports/test-control)
 				set_tests_properties(syncterm_emoji_${_emoji_group} PROPERTIES TIMEOUT 90)
+				if(Python3_VERSION VERSION_GREATER_EQUAL 3.10)
+					# Catch accidental use of a Windows legacy text encoding on
+					# every host, including ones whose default is already UTF-8.
+					set_tests_properties(syncterm_emoji_${_emoji_group} PROPERTIES
+						ENVIRONMENT "PYTHONWARNDEFAULTENCODING=1;PYTHONWARNINGS=error::EncodingWarning")
+				endif()
 			endforeach()
 			foreach(_group ellipses raster buttons wire interaction)
 				foreach(_encoding CP437 UTF-8)
