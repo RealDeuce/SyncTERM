@@ -102,4 +102,16 @@ if(BUILD_TESTING)
 			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
 	add_test(NAME st_wren_vm_link COMMAND st_wren_vm_link_test)
+	add_executable(st_wren_vm_foreign_stack_test tests/st_wren_vm_foreign_stack_test.c)
+	target_link_libraries(st_wren_vm_foreign_stack_test PRIVATE st_wren_vm)
+	set_target_properties(st_wren_vm_foreign_stack_test PROPERTIES
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_wren_vm_foreign_stack_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
+	else()
+		target_compile_options(st_wren_vm_foreign_stack_test PRIVATE
+			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
+	endif()
+	add_test(NAME st_wren_vm_foreign_stack COMMAND st_wren_vm_foreign_stack_test)
+
 endif()

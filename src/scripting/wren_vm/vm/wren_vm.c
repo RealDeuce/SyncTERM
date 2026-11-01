@@ -684,10 +684,14 @@ static void createForeign(WrenVM* vm, ObjFiber* fiber, Value* stack)
 
   // Pass the constructor arguments to the allocator as well.
   ASSERT(vm->apiStack == NULL, "Cannot already be in foreign call.");
+  int liveSlots = (int)(fiber->stackTop - stack);
   vm->apiStack = stack;
 
   method->as.foreign(vm);
 
+  // Allocator scratch slots must not become constructor operands. apiStack
+  // follows any relocation performed by wrenEnsureSlots().
+  fiber->stackTop = vm->apiStack + liveSlots;
   vm->apiStack = NULL;
 }
 
@@ -1087,7 +1091,11 @@ static WrenInterpretResult runInterpreter(WrenVM* vm, register ObjFiber* fiber)
           break;
 
         case METHOD_FOREIGN:
+          // The foreign method may relocate the fiber stack with
+          // wrenEnsureSlots(). Refresh cached frame pointers afterwards.
+          STORE_FRAME();
           callForeign(vm, fiber, method->as.foreign, numArgs);
+          LOAD_FRAME();
           if (wrenHasError(fiber)) RUNTIME_ERROR();
           break;
 
@@ -1276,7 +1284,9 @@ static WrenInterpretResult runInterpreter(WrenVM* vm, register ObjFiber* fiber)
 
     CASE_CODE(FOREIGN_CONSTRUCT):
       ASSERT(IS_CLASS(stackStart[0]), "'this' should be a class.");
+      STORE_FRAME();
       createForeign(vm, fiber, stackStart);
+      LOAD_FRAME();
       if (wrenHasError(fiber)) RUNTIME_ERROR();
       DISPATCH();
 

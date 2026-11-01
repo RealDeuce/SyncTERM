@@ -135,3 +135,11 @@ The manual and bundled tests match. All 13 host/menu/picker/settings and
 synthetic UI tests passed. ASan/UBSan core-helper and console tests passed
 (leak detection unsupported on FreeBSD); MinGW i686/x86_64 library builds
 passed without warnings. No Windows runtime execution was performed.
+
+Item 2 foundation: the new async cancellation test exposed stale interpreter
+stack pointers after foreign API slot growth. The VM now reloads frame
+pointers after foreign methods/constructors and discards allocator scratch
+slots. A standalone test with an allocator that always moves memory failed
+before the fix and passed afterwards, including ASan/UBSan. MinGW i686 and
+x86_64 VM-library builds passed; the native host regression also passed.
+The operation API and caller migration remain in progress.
