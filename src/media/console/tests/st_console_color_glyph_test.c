@@ -3,6 +3,7 @@
 #include "console_internal.h"
 #include "st_console_test.h"
 #include "io_error.h"
+#include "color_rll_fixture.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -23,7 +24,7 @@ pixels(st_console_t *console)
 }
 
 static void
-check_geometry(uint32_t cell_width, bool double_height, bool narrow_color)
+check_geometry(uint32_t cell_width, bool double_height, uint32_t color_width, bool rll)
 {
 	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_TEST};
 	const struct st_console_config config = {
@@ -32,7 +33,6 @@ check_geometry(uint32_t cell_width, bool double_height, bool narrow_color)
 	};
 	uint8_t mono[2] = {0}, wide[4] = {0};
 	uint8_t rgba[128] = {0};
-	uint32_t color_width = narrow_color ? 8 : 16;
 	for (uint32_t y = 0; y < 2; ++y)
 		for (uint32_t x = 0; x < color_width; ++x) {
 			size_t i = ((size_t)y * color_width + x) * 4;
@@ -40,9 +40,15 @@ check_geometry(uint32_t cell_width, bool double_height, bool narrow_color)
 			rgba[i + 1] = x >= color_width / 2 ? 255 : 0;
 			rgba[i + 3] = 255;
 		}
-	const struct st_console_color_glyph color = {
+	struct st_console_color_glyph color = {
 		1, rgba, color_width * 2 * 4, color_width * 4, color_width,
 	};
+	uint8_t encoded[sizeof(rgba) + 2];
+	if (rll) {
+		color.size = encode_color_rll(rgba, color.row_stride, color_width, 2, encoded);
+		color.rgba = encoded;
+		color.row_stride = 0;
+	}
 	const struct st_console_font font = {
 		.bitmap = mono, .bitmap_size = sizeof(mono),
 		.width = 8, .height = 2, .glyph_count = 1, .row_stride = 1, .glyph_stride = 2,
@@ -78,7 +84,8 @@ check_geometry(uint32_t cell_width, bool double_height, bool narrow_color)
 	st_console_destroy(console);
 }
 
-int main(void)
+static void
+check_pixels(bool rll)
 {
 	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_TEST};
 	const struct st_console_config config = {
@@ -88,6 +95,13 @@ int main(void)
 	uint8_t mono[2] = {0x80, 0x80};
 	uint8_t rgba[64] = {255, 0, 0, 255, 255, 0, 0, 128, 0, 255, 0, 0};
 	struct st_console_color_glyph color = {0, rgba, sizeof(rgba), 32, 0};
+	/* Column-major halves, including a single transparent pixel after red. */
+	uint8_t encoded[] = {14, 0, 255, 255, 0, 0, 0, 0, 128, 255, 0, 0, 0, 4, 0, 7};
+	if (rll) {
+		color.rgba = encoded;
+		color.size = sizeof(encoded);
+		color.row_stride = 0;
+	}
 	struct st_console_font font = {
 		.bitmap = mono, .bitmap_size = sizeof(mono),
 		.width = 8, .height = 2, .glyph_count = 1,
@@ -106,6 +120,7 @@ int main(void)
 	CHECK(st_console_register_font_copy(console, &font, &id) == 0);
 	cell.font = id;
 	memset(rgba, 0, sizeof(rgba)); /* Registered pixels must be owned. */
+	memset(encoded, 0, sizeof(encoded));
 	uint32_t blue = 0x0000ff;
 	CHECK(st_console_set_palette(console, 42, &blue, 1) == 0);
 	CHECK(st_console_write_cells(console, &rect, &cell, 1) == 0);
@@ -198,11 +213,13 @@ int main(void)
 	CHECK(p->primary[0] == cell.foreground && p->primary[1] == cell.background);
 	st_pixel_buffer_destroy(p);
 	st_console_destroy(console);
-	check_geometry(8, false, false);
-	check_geometry(8, false, true);
-	check_geometry(9, false, false);
-	check_geometry(16, false, false);
-	check_geometry(8, true, false);
+	check_geometry(8, false, 16, rll);
+	check_geometry(8, false, 8, rll);
+	check_geometry(9, false, 16, rll);
+	check_geometry(16, false, 16, rll);
+	check_geometry(8, true, 16, rll);
+	check_geometry(16, true, 7, rll);
+	check_geometry(9, false, 7, rll);
 	/* Text-only consoles have no raster or drawn-cell allocation. */
 	const struct st_console_config text_config = {.columns = 2, .rows = 1};
 	const struct st_console_display_config text_display = {
@@ -213,5 +230,83 @@ int main(void)
 	CHECK(st_console_set_palette(console, 42, &blue, 1) == 0);
 	CHECK(st_console_get_color_emoji(console, &enabled) == 0 && enabled);
 	st_console_destroy(console);
+}
+
+static void
+check_rll_validation(void)
+{
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config config = {.columns = 1, .rows = 1};
+	uint8_t mono[32] = {0};
+	const uint8_t empty[] = {4, 0, 0, 127, 0, 127};
+	struct st_console_color_glyph color = {0, empty, sizeof(empty), 0, 0};
+	struct st_console_font font = {
+		.bitmap = mono, .bitmap_size = sizeof(mono),
+		.width = 8, .height = 32, .glyph_count = 1, .row_stride = 1, .glyph_stride = 32,
+		.color_glyphs = &color, .color_glyph_count = 1,
+	};
+	st_console_t *console = NULL;
+	uint16_t id;
+	CHECK(st_console_create(&console, &display, &config) == 0);
+	CHECK(st_console_register_static_font(console, &font, &id) == 0);
+	const struct {
+		uint8_t data[10];
+		size_t size;
+	} invalid[] = {
+		{{0}, 0},                         /* Missing header. */
+		{{4}, 1},                         /* Truncated offset. */
+		{{1, 0, 0, 127, 0, 127}, 6},      /* Offset inside header. */
+		{{7, 0, 0, 127, 0, 127}, 6},      /* Offset past buffer. */
+		{{3, 0, 0, 0, 127}, 5},           /* Truncated left skip. */
+		{{5, 0, 255, 1, 2, 0, 127}, 7},   /* Truncated left literal. */
+		{{4, 0, 0, 126, 0, 127}, 6},      /* Underfilled left half. */
+		{{4, 0, 0, 128, 0, 126}, 6},      /* Run crosses halfway. */
+		{{4, 0, 0, 127, 0}, 5},           /* Truncated right skip. */
+		{{4, 0, 0, 127, 255, 1, 2}, 7},   /* Truncated right literal. */
+		{{4, 0, 0, 127, 0, 126}, 6},      /* Underfilled right half. */
+		{{4, 0, 0, 127, 0, 128}, 6},      /* Oversized right run. */
+		{{4, 0, 0, 127, 0, 127, 0, 0}, 8}, /* Trailing packet. */
+	};
+	for (size_t i = 0; i < sizeof(invalid) / sizeof(invalid[0]); ++i) {
+		color.rgba = invalid[i].data;
+		color.size = invalid[i].size;
+		CHECK(st_console_register_static_font(console, &font, &id) == IO_ERROR_INVALID_ARGUMENT);
+	}
+	/* Check byte order and column traversal against independent bytes. */
+	uint8_t data[33 * 8 * 4] = {0}, encoded[sizeof(data) + 2];
+	data[3] = 1;
+	data[11] = 255;
+	font.height = 33;
+	font.glyph_stride = 33;
+	uint8_t taller_mono[33] = {0};
+	font.bitmap = taller_mono;
+	font.bitmap_size = sizeof(taller_mono);
+	color.rgba = encoded;
+	color.size = encode_color_rll(data, 32, 8, 33, encoded);
+	const uint8_t expected[] = {14, 0, 1, 0, 0, 0, 0, 64, 255, 0, 0, 0, 0, 64, 0, 131};
+	CHECK(color.size == sizeof(expected) && memcmp(encoded, expected, sizeof(expected)) == 0);
+	CHECK(st_console_register_font_copy(console, &font, &id) == 0);
+	/* A 264-pixel half requires two runs, neither crossing halfway. */
+	uint8_t long_data[8 * 66 * 4] = {0}, long_encoded[sizeof(long_data) + 2];
+	const uint8_t long_expected[] = {6, 0, 0, 255, 0, 7, 0, 255, 0, 7};
+	size_t size = encode_color_rll(long_data, 32, 8, 66, long_encoded);
+	CHECK(size == sizeof(long_expected)
+	    && memcmp(long_encoded, long_expected, size) == 0);
+	uint8_t long_mono[66] = {0};
+	font.height = 66;
+	font.glyph_stride = 66;
+	font.bitmap = long_mono;
+	font.bitmap_size = sizeof(long_mono);
+	color.rgba = long_encoded;
+	color.size = size;
+	CHECK(st_console_register_static_font(console, &font, &id) == 0);
+	st_console_destroy(console);
+}
+
+int main(void)
+{
+	check_rll_validation();
+	check_pixels(false);
+	check_pixels(true);
 	return EXIT_SUCCESS;
 }

@@ -66,6 +66,83 @@ The emoji rasterizer also refreshes the picker coverage manifest and catalog.
 All font and Unicode update scripts check that the picker remains consistent;
 see `../../text/emoji/UPSTREAM.md` for pinned English names and regeneration.
 
+## Colour RLL prototype
+
+The console also accepts compressed colour glyphs when their `row_stride` is
+zero. Each glyph starts with a little-endian 16-bit byte offset, measured from
+the glyph's first byte, to its right-half stream. The left stream follows the
+two-byte header. Each half traverses columns from left to right, with pixels
+top to bottom within each column. The left half contains `width / 2` columns;
+the right contains the remaining columns. Runs must stop at the half boundary.
+
+A nonzero alpha byte followed by red, green, and blue represents one pixel.
+Zero followed by a count byte represents `count + 1` transparent pixels, up to
+256. Partially transparent pixels retain all four components; RGB beneath zero
+alpha is discarded. Registration validates both streams, their exact decoded
+lengths, and the half offset before the renderer uses them. Glyph lookup uses
+the existing sorted descriptors. Drawing streams directly from compressed
+data, with no expanded glyph allocation or cache.
+
+The checked-in font assets remain RGBA for this prototype. The CMake
+`st_emoji_rll_test` target encodes them in memory, preserving shared artwork,
+and compares both raster planes against RGBA for every colour glyph ID at
+heights 8, 14, and 16, including decorations and independent half redraws.
+The console colour-glyph test separately checks expected colours, alpha
+blending, expansion gaps, horizontal/vertical scaling, odd source widths,
+double-height cells, copied font ownership, and malformed streams.
+
+From the repository root:
+
+```
+cmake -S . -B build-rll -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DST_CONSOLE_TEST=ON
+cmake --build build-rll --target st_emoji_rll_test st_console_color_glyph_test
+ctest --test-dir build-rll -R '^(emoji_rll|st_console_color_glyph)$' --output-on-failure
+build-rll/src/media/fonts/st_emoji_rll_test --benchmark
+```
+
+The benchmark uses a headless 80x25 console, seven samples of forty frames,
+alternating which format runs first. It reports median and minimum/maximum
+process CPU time, including all process threads. Encoding, registration,
+warmup and correctness captures are outside the timed region. Full redraws
+cycle through the entire colour repertoire. Half redraws change background
+attributes on one side of a fixed screen of 1,000 emoji, leaving the other
+side unchanged. Both formats use the same cells and backgrounds. These are
+end-to-end cell update/raster timings comparing the existing row-major RGBA
+renderer with the column-major RLL renderer; they do not isolate token decode
+cost or measure GUI presentation.
+
+Measured on 2026-11-01, FreeBSD amd64, Intel Xeon D-1541 at 2.10 GHz, CMake
+Release builds with Clang 19.1.7 and GCC 13.5.0:
+
+| Raster | Unique RGBA bytes | RLL bytes, including offsets | Saving |
+|---|---:|---:|---:|
+| 16x8 | 1,959,936 | 932,418 | 52.43% |
+| 16x14 | 3,429,888 | 1,956,372 | 42.96% |
+| 16x16 | 3,919,872 | 2,464,218 | 37.14% |
+
+Median CPU milliseconds per frame (RLL/RGBA ratio below 1 is faster):
+
+| Compiler | Raster | Redraw | RGBA ms | RLL ms | RLL/RGBA |
+|---|---|---|---:|---:|---:|
+| Clang | 16x8 | Full | 2.180 | 2.094 | 0.961 |
+| Clang | 16x8 | Left | 1.111 | 1.077 | 0.970 |
+| Clang | 16x8 | Right | 1.082 | 1.066 | 0.984 |
+| Clang | 16x14 | Full | 3.556 | 3.318 | 0.933 |
+| Clang | 16x14 | Left | 1.776 | 1.646 | 0.927 |
+| Clang | 16x14 | Right | 1.761 | 1.644 | 0.933 |
+| Clang | 16x16 | Full | 4.087 | 3.820 | 0.935 |
+| Clang | 16x16 | Left | 1.972 | 1.832 | 0.929 |
+| Clang | 16x16 | Right | 1.967 | 1.820 | 0.925 |
+| GCC | 16x8 | Full | 1.889 | 1.992 | 1.054 |
+| GCC | 16x8 | Left | 0.915 | 1.010 | 1.104 |
+| GCC | 16x8 | Right | 0.941 | 0.990 | 1.051 |
+| GCC | 16x14 | Full | 3.102 | 3.080 | 0.993 |
+| GCC | 16x14 | Left | 1.426 | 1.468 | 1.029 |
+| GCC | 16x14 | Right | 1.476 | 1.501 | 1.017 |
+| GCC | 16x16 | Full | 3.560 | 3.513 | 0.987 |
+| GCC | 16x16 | Left | 1.630 | 1.686 | 1.034 |
+| GCC | 16x16 | Right | 1.687 | 1.719 | 1.019 |
+
 # Legacy built-in fonts
 
 `st_builtin_font_data.c` retains SyncTERM's complete legacy built-in font

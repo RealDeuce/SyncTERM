@@ -4,6 +4,7 @@
  */
 
 #include "console_internal.h"
+#include "console_color_rll.h"
 
 #include "console_config.h"
 #include "io_error.h"
@@ -2384,10 +2385,18 @@ font_valid(const struct st_console_font *font)
 		    * (color->glyph < font->glyph_count ? 1 : 2);
 
 		if (color->glyph >= total || color->rgba == NULL
-		    || width > SIZE_MAX / 4 || color->row_stride < width * 4
-		    || color->row_stride > SIZE_MAX / font->height
-		    || color->size < color->row_stride * font->height
+		    || width > SIZE_MAX / 4
 		    || (i != 0 && font->color_glyphs[i - 1].glyph >= color->glyph))
+			return false;
+		if (color->row_stride == 0) {
+			if (width > SIZE_MAX / font->height
+			    || !st_console_color_rll_valid(color->rgba, color->size,
+			    (size_t)width, font->height))
+				return false;
+		}
+		else if (color->row_stride < width * 4
+		    || color->row_stride > SIZE_MAX / font->height
+		    || color->size < color->row_stride * font->height)
 			return false;
 	}
 	if (font->mapping_count != 0 && font->mapping == NULL)

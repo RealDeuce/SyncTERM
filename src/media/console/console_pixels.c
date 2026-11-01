@@ -4,6 +4,7 @@
  */
 
 #include "console_internal.h"
+#include "console_color_rll.h"
 
 #include "io_error.h"
 
@@ -293,9 +294,9 @@ row_bit(const uint8_t *row, uint32_t x)
 }
 
 static uint32_t
-composite_rgba(st_console_t *console, const uint8_t *rgba, uint32_t background)
+composite_rgb(st_console_t *console, const uint8_t *channels, uint32_t alpha,
+	uint32_t background)
 {
-	uint32_t alpha = rgba[3];
 	uint32_t rgb;
 	uint32_t result = ST_CONSOLE_COLOR_RGB_TAG;
 
@@ -305,12 +306,79 @@ composite_rgba(st_console_t *console, const uint8_t *rgba, uint32_t background)
 	    : background <= UINT16_MAX ? console->palette[background] : 0;
 	for (unsigned channel = 0; channel < 3; ++channel) {
 		unsigned shift = (2 - channel) * 8;
-		uint32_t value = (rgba[channel] * alpha
+		uint32_t value = (channels[channel] * alpha
 		    + ((rgb >> shift) & 255) * (255 - alpha) + 127) / 255;
 
 		result |= value << shift;
 	}
 	return result;
+}
+
+/* Traverse the packed source by columns, matching its storage order. Keep
+ * raw RGBA on the existing row-major path so it remains a useful baseline. */
+static void
+render_color_rll(st_console_t *console, uint32_t x, uint32_t y,
+	const struct st_console_cell *source, const struct st_console_font *font,
+	const struct st_console_color_glyph *color, uint32_t glyph_width,
+	uint32_t glyph_x, uint32_t first_y, uint32_t y_span, bool expanded,
+	bool repeat_last, uint32_t foreground, uint32_t background)
+{
+	uint32_t width = color->width == 0 ? glyph_width : color->width;
+	size_t halfway = (size_t)(width / 2) * font->height;
+	struct st_console_color_rll_cursor cursor = {.next = color->rgba + 2};
+	struct st_console_color_rll_cursor column_cursor = cursor;
+	uint32_t previous_x = UINT32_MAX;
+	bool right = false;
+
+	for (uint32_t px = 0; px < console->cell_width; ++px) {
+		uint32_t font_x = glyph_x + (expanded
+		    ? (px < font->width ? px : font->width - 1)
+		    : (uint32_t)((uint64_t)px * font->width / console->cell_width));
+		uint32_t color_x = color->width == 0 ? font_x
+		    : (uint32_t)((uint64_t)font_x * width / glyph_width);
+		bool gap = expanded && px == font->width && !repeat_last;
+		uint32_t font_y = first_y, accumulator = 0;
+		uint32_t step = y_span / console->cell_height;
+		uint32_t remainder = y_span % console->cell_height;
+
+		if (!right && color_x >= width / 2) {
+			cursor = (struct st_console_color_rll_cursor){
+				.next = color->rgba + st_console_color_rll_half_offset(color->rgba),
+				.end = halfway,
+			};
+			right = true;
+		}
+		if (color_x == previous_x)
+			cursor = column_cursor;
+		else
+			column_cursor = cursor;
+		previous_x = color_x;
+		for (uint32_t py = 0; py < console->cell_height; ++py) {
+			size_t pixel = st_console_pixel_position_locked(console,
+			    x * console->cell_width + px, y * console->cell_height + py);
+			uint32_t value = background;
+
+			if (!gap && font_y < font->height) {
+				const uint8_t *argb = st_console_color_rll_seek(&cursor,
+				    (size_t)color_x * font->height + font_y);
+				if (argb != NULL)
+					value = composite_rgb(console, argb + 1, argb[0], background);
+			}
+			if (py + 1 == console->cell_height
+			    && (((source->flags & ST_CONSOLE_CELL_UNDERLINE) != 0)
+			    || (source->hyperlink != 0 && (px & 3U) == 0)))
+				value = foreground;
+			console->pixels->primary[pixel] = value;
+			console->pixels->alternate[pixel]
+			    = (source->flags & ST_CONSOLE_CELL_BLINK) == 0 ? value : background;
+			font_y += step;
+			accumulator += remainder;
+			if (accumulator >= console->cell_height) {
+				accumulator -= console->cell_height;
+				++font_y;
+			}
+		}
+	}
 }
 
 static void
@@ -458,6 +526,11 @@ render_cell(st_console_t *console, uint32_t x, uint32_t y,
 			font_y = 0;
 			y_span = font->height;
 		}
+		if (color != NULL && color->row_stride == 0) {
+			render_color_rll(console, x, y, source, font, color, glyph_width,
+			    glyph_x, font_y, y_span, expanded, repeat_last, foreground, background);
+			goto finished;
+		}
 		y_step = y_span / console->cell_height;
 		y_remainder = y_span % console->cell_height;
 		for (uint32_t py = 0; py < console->cell_height; ++py) {
@@ -511,9 +584,10 @@ render_cell(st_console_t *console, uint32_t x, uint32_t y,
 					if (!expansion_gap && font_y < font->height) {
 						uint32_t color_x = color->width == 0 ? font_x
 						    : (uint32_t)((uint64_t)font_x * color->width / glyph_width);
-						value = composite_rgba(console, color->rgba
+						const uint8_t *rgba = color->rgba
 						    + (size_t)font_y * color->row_stride
-						    + (size_t)color_x * 4, background);
+						    + (size_t)color_x * 4;
+						value = composite_rgb(console, rgba, rgba[3], background);
 					}
 					if (decoration)
 						value = foreground;
