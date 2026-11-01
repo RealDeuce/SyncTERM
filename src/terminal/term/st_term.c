@@ -114,28 +114,19 @@ profile_petscii_machine(enum st_screen_mode mode)
 }
 
 static int
-send_all_count(st_connection_t *connection, const uint8_t *bytes, size_t size,
-	int64_t timeout_ms, size_t *queued_wire)
+send_all(st_connection_t *connection, const uint8_t *bytes, size_t size)
 {
 	while (size != 0) {
-		ssize_t sent = st_connection_send(connection, bytes, size, timeout_ms);
+		ssize_t sent = st_connection_send(connection, bytes, size, -1);
 
 		if (sent < 0)
 			return (int)sent;
 		if (sent == 0)
 			return IO_ERROR_NOT_CONNECTED;
-		if (queued_wire != NULL)
-			*queued_wire += (size_t)sent;
 		bytes += (size_t)sent;
 		size -= (size_t)sent;
 	}
 	return 0;
-}
-
-static int
-send_all(st_connection_t *connection, const uint8_t *bytes, size_t size)
-{
-	return send_all_count(connection, bytes, size, -1, NULL);
 }
 
 static void
@@ -484,9 +475,9 @@ beep(st_term_session_t *session)
 	(void)audio_beep(engine, 440.0, 100);
 }
 
-static int
-send_text(st_term_session_t *session, const char *utf8, size_t size,
-	int64_t timeout_ms, size_t *queued_wire)
+int
+st_term_session_send_text(st_term_session_t *session,
+	const char *utf8, size_t size)
 {
 	st_unicode_text_t *text = NULL;
 	struct st_unicode_text_item item;
@@ -495,8 +486,6 @@ send_text(st_term_session_t *session, const char *utf8, size_t size,
 
 	if (session == NULL || (utf8 == NULL && size != 0))
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (queued_wire != NULL)
-		*queued_wire = 0;
 	status = st_unicode_text_create(&text, ST_UNICODE_TEXT_GRAPHEMES);
 	if (status == 0)
 		status = st_unicode_text_feed(text, utf8, size, &consumed);
@@ -509,14 +498,12 @@ send_text(st_term_session_t *session, const char *utf8, size_t size,
 			beep(session);
 		}
 		else if (session->config.encoding == ST_CTERM_ENCODING_UTF8)
-			status = send_all_count(session->config.connection, item.bytes,
-			    item.size, timeout_ms, queued_wire);
+			status = send_all(session->config.connection, item.bytes, item.size);
 		else if (item.size == 2 && item.bytes[0] == '\r'
 		    && item.bytes[1] == '\n')
 			/* Unicode grapheme rule GB3 groups CRLF; both controls are
 			 * nevertheless distinct bytes in a codepage connection. */
-			status = send_all_count(session->config.connection, item.bytes,
-			    item.size, timeout_ms, queued_wire);
+			status = send_all(session->config.connection, item.bytes, item.size);
 		else {
 			uint32_t scalar;
 			size_t scalar_size;
@@ -526,8 +513,7 @@ send_text(st_term_session_t *session, const char *utf8, size_t size,
 			    item.size) == 0 && scalar_size == item.size
 			    && st_codepage_from_unicode(&encoded,
 			    session->config.codepage, scalar))
-				status = send_all_count(session->config.connection, &encoded, 1,
-				    timeout_ms, queued_wire);
+				status = send_all(session->config.connection, &encoded, 1);
 			else
 				beep(session);
 		}
@@ -539,19 +525,49 @@ send_text(st_term_session_t *session, const char *utf8, size_t size,
 }
 
 int
-st_term_session_send_text(st_term_session_t *session,
-	const char *utf8, size_t size)
+st_term_session_encode_text(st_term_session_t *session,
+	const char *utf8, size_t size, struct st_term_encoded_text *result)
 {
-	return send_text(session, utf8, size, -1, NULL);
-}
+	char *normalized = NULL;
+	size_t normalized_size;
+	int status;
 
-int
-st_term_session_send_text_poll(st_term_session_t *session,
-	const char *utf8, size_t size, size_t *queued_wire)
-{
-	if (queued_wire == NULL)
+	if (session == NULL || result == NULL || (utf8 == NULL && size != 0))
 		return IO_ERROR_INVALID_ARGUMENT;
-	return send_text(session, utf8, size, 0, queued_wire);
+	status = st_unicode_text_normalize(&normalized, &normalized_size,
+	    utf8, size, NULL);
+	if (status != 0)
+		return status;
+	if (session->config.encoding == ST_CTERM_ENCODING_UTF8) {
+		*result = (struct st_term_encoded_text){
+			.bytes = (uint8_t *)normalized, .size = normalized_size,
+			.storage_size = normalized_size + 1, .utf8 = true,
+		};
+		return 0;
+	}
+	/* A codepage byte never expands its UTF-8 scalar. Convert in place;
+	 * reject the complete request before the caller submits any output. */
+	size_t used = 0;
+	for (size_t position = 0; position < normalized_size;) {
+		uint32_t scalar;
+		size_t scalar_size;
+		uint8_t encoded;
+
+		if (st_utf8_decode_one(&scalar, &scalar_size,
+		    (const uint8_t *)normalized + position,
+		    normalized_size - position) != 0
+		    || !st_codepage_from_unicode(&encoded, session->config.codepage, scalar)) {
+			free(normalized);
+			return IO_ERROR_INVALID_ENCODING;
+		}
+		normalized[used++] = (char)encoded;
+		position += scalar_size;
+	}
+	*result = (struct st_term_encoded_text){
+		.bytes = (uint8_t *)normalized, .size = used,
+		.storage_size = normalized_size + 1,
+	};
+	return 0;
 }
 
 int

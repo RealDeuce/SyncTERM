@@ -22,7 +22,7 @@
 
 struct foreign_conn_error {
 	int code;
-	size_t bytes_sent;
+	bool partial;
 	char message[96];
 };
 
@@ -55,19 +55,18 @@ st_wren_session_bind_class(const char *class_name)
 	return methods;
 }
 
+enum { CONN_DOWN = 1, CONN_IO, CONN_FULL, CONN_TEXT, CONN_BUSY };
+
 static void
-push_conn_error(WrenVM *vm, int code, size_t bytes_sent,
-	const char *message)
+push_conn_error(WrenVM *vm, int code, bool partial, const char *message)
 {
 	struct foreign_conn_error *error;
 
-	wrenEnsureSlots(vm, 2);
-	wrenGetVariable(vm, "syncterm", "ConnError", 1);
-	error = wrenSetSlotNewForeign(vm, 0, 1, sizeof(*error));
-	*error = (struct foreign_conn_error){
-		.code = code,
-		.bytes_sent = code == 2 ? bytes_sent : 0,
-	};
+	/* Slot zero may hold the returned Operation. */
+	wrenEnsureSlots(vm, 3);
+	wrenGetVariable(vm, "syncterm", "ConnError", 2);
+	error = wrenSetSlotNewForeign(vm, 1, 2, sizeof(*error));
+	*error = (struct foreign_conn_error){.code = code, .partial = partial};
 	(void)snprintf(error->message, sizeof(error->message), "%s", message);
 }
 
@@ -79,78 +78,231 @@ conn_error(WrenVM *vm)
 
 static void fn_conn_error_code(WrenVM *vm)
 { wrenSetSlotDouble(vm, 0, conn_error(vm)->code); }
-static void fn_conn_error_bytes_sent(WrenVM *vm)
-{ wrenSetSlotDouble(vm, 0, (double)conn_error(vm)->bytes_sent); }
+static void fn_conn_error_partial(WrenVM *vm)
+{ wrenSetSlotBool(vm, 0, conn_error(vm)->partial); }
 static void fn_conn_error_message(WrenVM *vm)
 { wrenSetSlotString(vm, 0, conn_error(vm)->message); }
 static void fn_conn_error_string(WrenVM *vm)
 {
 	struct foreign_conn_error *error = conn_error(vm);
+	static const char *const names[] = {
+		"UNKNOWN", "NOT_CONNECTED", "IO", "QUEUE_FULL", "INVALID_TEXT", "BUSY",
+	};
 	char formatted[160];
 
 	(void)snprintf(formatted, sizeof(formatted), "ConnError: %s: %s",
-	    error->code == 1 ? "NOT_CONNECTED" : "SHORT_SEND",
-	    error->message);
+	    error->code >= CONN_DOWN && error->code <= CONN_BUSY
+	    ? names[error->code] : names[0], error->message);
 	wrenSetSlotString(vm, 0, formatted);
 }
 
-static void
-fn_conn_send(WrenVM *vm)
-{
-	struct st_wren_context *context = st_wren_context_from_vm(vm);
-	const char *value;
-	int length;
-	size_t queued = 0;
-	int status;
+#define SEND_COUNT_MAX 64U
+#define SEND_STORAGE_MAX (1024U * 1024U)
 
-	if (wrenGetSlotType(vm, 1) != WREN_TYPE_STRING) {
-		st_wren_abort(vm, "Conn.send expects a String");
-		return;
-	}
-	value = wrenGetSlotBytes(vm, 1, &length);
-	if (context->session == NULL || context->connection == NULL
-	    || !st_connection_is_connected(context->connection)) {
-		push_conn_error(vm, 1, 0, "connection is down");
-		return;
-	}
-	status = st_term_session_send_text_poll(context->session, value,
-	    (size_t)length, &queued);
-	if (status == 0)
-		wrenSetSlotNull(vm, 0);
+struct st_wren_send {
+	struct st_wren_send *next;
+	struct st_wren_operation *operation;
+	struct st_term_encoded_text text;
+	size_t position;
+	bool raw;
+};
+
+static void
+send_remove(struct st_wren_context *context, struct st_wren_send *send,
+	struct st_wren_send *previous)
+{
+	if (previous == NULL)
+		context->send_head = send->next;
 	else
-		push_conn_error(vm, status == IO_ERROR_NOT_CONNECTED ? 1 : 2,
-		    queued, status == IO_ERROR_INVALID_ENCODING
-		    ? "invalid Unicode text" : "output queue could not accept all text");
+		previous->next = send->next;
+	if (context->send_tail == send)
+		context->send_tail = previous;
+	--context->send_count;
+	context->send_storage -= send->text.storage_size;
+	free(send->text.bytes);
+	free(send);
 }
 
 static void
-fn_conn_send_raw(WrenVM *vm)
+send_cancel(void *data, struct st_wren_operation *operation)
+{
+	struct st_wren_context *context = data;
+	struct st_wren_send *previous = NULL;
+
+	for (struct st_wren_send *send = context->send_head; send != NULL;
+	    previous = send, send = send->next) {
+		if (send->operation == operation) {
+			send_remove(context, send, previous);
+			return;
+		}
+	}
+}
+
+void
+st_wren_send_dispose(struct st_wren_context *context)
+{
+	while (context->send_head != NULL)
+		send_remove(context, context->send_head, NULL);
+}
+
+static bool
+send_busy(struct st_wren_context *context)
+{
+	struct st_transfer_inspection state;
+	bool reserved;
+
+	return st_term_session_inspect_transfer(context->session, &state, &reserved)
+	    || reserved;
+}
+
+int
+st_wren_send_pump(struct st_wren_context *context)
+{
+	WrenVM *vm = context->vm;
+
+	/* Bound work per terminal iteration. Each transport submission accepts
+	 * complete encoded scalars, and never a positive partial unit. */
+	for (unsigned batch = 0; batch < 64 && context->send_head != NULL; ++batch) {
+		struct st_wren_send *send = context->send_head;
+		struct st_wren_operation *operation = send->operation;
+		int code = 0;
+		const char *message = NULL;
+
+		if (!st_connection_is_connected(context->connection)) {
+			code = CONN_DOWN;
+			message = "connection is down";
+		}
+		else if (send_busy(context)) {
+			code = CONN_BUSY;
+			message = "a file transfer owns the connection";
+		}
+		else if (send->position < send->text.size) {
+			size_t amount = send->text.size - send->position;
+			if (amount > ST_CONNECTION_ATOMIC_SEND_MAX) {
+				amount = ST_CONNECTION_ATOMIC_SEND_MAX;
+				if (send->text.utf8) {
+					while ((send->text.bytes[send->position + amount] & 0xc0) == 0x80)
+						--amount;
+				}
+			}
+			ssize_t written = st_connection_try_send_atomic(context->connection,
+			    send->text.bytes + send->position, amount, send->raw);
+			if (written == IO_ERROR_WOULD_BLOCK)
+				return 0;
+			if (written == (ssize_t)amount) {
+				send->position += amount;
+				if (send->position < send->text.size)
+					continue;
+			}
+			else {
+				code = written == IO_ERROR_NOT_CONNECTED ? CONN_DOWN : CONN_IO;
+				message = "connection could not accept the remaining output";
+			}
+		}
+		wrenEnsureSlots(vm, 2);
+		if (code != 0)
+			push_conn_error(vm, code, send->position != 0, message);
+		else
+			wrenSetSlotNull(vm, 1);
+		/* Resolution queues wakes; no Wren callback runs inside this pump. */
+		send_remove(context, send, NULL);
+		int status = st_wren_operation_resolve(vm, operation, 1);
+		if (status != 0)
+			return status;
+	}
+	return 0;
+}
+
+static void
+send_reject(WrenVM *vm, int code, const char *message)
+{
+	struct st_wren_operation *operation = st_wren_operation_new(vm, 0);
+
+	push_conn_error(vm, code, false, message);
+	if (st_wren_operation_resolve(vm, operation, 1) != 0)
+		st_wren_abort(vm, "out of memory completing send");
+}
+
+static void
+conn_send(WrenVM *vm, bool raw)
 {
 	struct st_wren_context *context = st_wren_context_from_vm(vm);
-	const char *value;
+	struct st_term_encoded_text text = {0};
+	struct st_wren_send *send;
 	int length;
-	ssize_t queued;
+	const char *value;
 
 	if (wrenGetSlotType(vm, 1) != WREN_TYPE_STRING) {
-		st_wren_abort(vm, "Conn.sendRaw expects a String");
+		st_wren_abort(vm, "Conn.send/sendRaw expects a String");
 		return;
 	}
 	value = wrenGetSlotBytes(vm, 1, &length);
-	if (context->connection == NULL
+	if (context->connection == NULL || (!raw && context->session == NULL)
 	    || !st_connection_is_connected(context->connection)) {
-		push_conn_error(vm, 1, 0, "connection is down");
+		send_reject(vm, CONN_DOWN, "connection is down");
 		return;
 	}
-	queued = st_connection_send_raw(context->connection, value,
-	    (size_t)length, 0);
-	if (queued == length)
-		wrenSetSlotNull(vm, 0);
-	else if (queued == IO_ERROR_NOT_CONNECTED)
-		push_conn_error(vm, 1, 0, "connection is down");
+	if (send_busy(context)) {
+		send_reject(vm, CONN_BUSY, "a file transfer owns the connection");
+		return;
+	}
+	if (context->send_count >= SEND_COUNT_MAX || (size_t)length >= SEND_STORAGE_MAX) {
+		send_reject(vm, CONN_FULL, "script send queue limit reached");
+		return;
+	}
+	if (raw) {
+		text.bytes = malloc((size_t)length + 1);
+		if (text.bytes != NULL)
+			memcpy(text.bytes, value, (size_t)length);
+		text.size = (size_t)length;
+		text.storage_size = (size_t)length + 1;
+	}
+	else {
+		int status = st_term_session_encode_text(context->session, value,
+		    (size_t)length, &text);
+		if (status == IO_ERROR_INVALID_ENCODING) {
+			send_reject(vm, CONN_TEXT, "malformed or unmappable Unicode text");
+			return;
+		}
+		if (status != 0) {
+			st_wren_abort(vm, "could not encode script text");
+			return;
+		}
+	}
+	if (text.bytes == NULL) {
+		st_wren_abort(vm, "out of memory preparing send");
+		return;
+	}
+	if (text.storage_size > SEND_STORAGE_MAX - context->send_storage) {
+		free(text.bytes);
+		send_reject(vm, CONN_FULL, "script send storage limit reached");
+		return;
+	}
+	send = calloc(1, sizeof(*send));
+	if (send == NULL) {
+		free(text.bytes);
+		st_wren_abort(vm, "out of memory queueing send");
+		return;
+	}
+	/* Copy/encode before creating the Operation: slot one holds the caller's
+	 * String and operation allocation reuses it and can collect that String. */
+	send->text = text;
+	send->raw = raw;
+	send->operation = st_wren_operation_new(vm, 0);
+	st_wren_operation_on_cancel(send->operation, send_cancel, context);
+	if (context->send_tail == NULL)
+		context->send_head = send;
 	else
-		push_conn_error(vm, 2, queued > 0 ? (size_t)queued : 0,
-		    "output queue could not accept all bytes");
+		context->send_tail->next = send;
+	context->send_tail = send;
+	++context->send_count;
+	context->send_storage += text.storage_size;
+	if (st_wren_send_pump(context) != 0)
+		st_wren_abort(vm, "out of memory completing send");
 }
+
+static void fn_conn_send(WrenVM *vm) { conn_send(vm, false); }
+static void fn_conn_send_raw(WrenVM *vm) { conn_send(vm, true); }
 
 static void
 fn_conn_connected(WrenVM *vm)
@@ -1313,8 +1465,8 @@ st_wren_session_bind_method(const char *class_name, bool is_static,
 	if (!is_static && strcmp(class_name, "ConnError") == 0) {
 		if (strcmp(signature, "code") == 0)
 			return fn_conn_error_code;
-		if (strcmp(signature, "bytesSent") == 0)
-			return fn_conn_error_bytes_sent;
+		if (strcmp(signature, "partial") == 0)
+			return fn_conn_error_partial;
 		if (strcmp(signature, "message") == 0)
 			return fn_conn_error_message;
 		if (strcmp(signature, "toString") == 0)

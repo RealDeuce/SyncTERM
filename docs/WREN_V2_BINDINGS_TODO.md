@@ -87,12 +87,12 @@ in `wren_host.c`, and the `wren_core-helpers` contract test.
 
 ## 7 Make text sends safely retryable
 
-- [ ] Replace output-byte progress as an input-string retry offset with an
+- [x] Replace output-byte progress as an input-string retry offset with an
   owned queued send or progress in a precisely defined original-input unit.
   Define text normalization, codepage conversion, queue pressure, and failure
   behavior. Keep raw byte sends distinct.
-- [ ] Migrate `ConnError.bytesSent` callers and documentation as necessary.
-- [ ] Test partial queueing for UTF-8 multibyte and normalized text, codepage
+- [x] Migrate `ConnError.bytesSent` callers and documentation as necessary.
+- [x] Test partial queueing for UTF-8 multibyte and normalized text, codepage
   conversion, raw bytes, queue-full and disconnect paths; retries must neither
   duplicate nor skip input or corrupt an encoded character.
 
@@ -171,3 +171,24 @@ connection/RLogin suites passed on FreeBSD Clang (4 tests); the three focused
 atomic/RLogin tests also passed ASan/UBSan with leak detection disabled.
 GCC and MinGW i686/x86_64 connection-library builds passed without warnings.
 Windows runtime tests were not run. The owned Wren queue remains to implement.
+
+Item 7: `Conn.send` and `sendRaw` now return owned, cancellable Operations.
+The host retains encoded output and handles queue pressure internally, with
+64 pending requests and 1 MiB of owned storage as explicit bounds. Strict
+text conversion validates/NFC-normalizes the whole request, rejects malformed
+or unmappable text before output, and keeps raw bytes distinct. Transport
+polls never split encoded scalars. Removed `bytesSent`, `shortSend`, and the
+obsolete terminal poll/count interface; failures expose a diagnostic `partial`
+Bool instead of an unsafe retry offset. Login and emoji callers await sends;
+the public manual and Unicode boundary document describe the new contract.
+
+Verification for item 7: all 16 selected terminal, Wren host/menu/picker,
+settings, synthetic UI, and live SSH/SFTP tests passed. Deterministic output
+capacity tests cover normalization, UTF-8/CP437, multibyte chunk boundaries,
+FIFO completion, embedded NUL/raw bytes, malformed/unmappable input, both
+queue limits, cancellation after a prefix, dead awaiters, GC with dropped
+handles, transfer reservation, disconnect after a prefix, and shutdown with
+parked waiters. Terminal and host suites passed FreeBSD Clang ASan/UBSan
+(leak detection unsupported, disabled). The native application linked; GCC
+and MinGW i686/x86_64 host-library builds passed without warnings. Windows
+runtime tests were not run.

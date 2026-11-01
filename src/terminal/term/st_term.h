@@ -153,9 +153,19 @@ int st_term_session_pump(st_term_session_t *session,
  */
 int st_term_session_send_text(st_term_session_t *session,
 	const char *utf8, size_t size);
-/* Nonblocking variant for Wren; queued_wire counts final encoded bytes. */
-int st_term_session_send_text_poll(st_term_session_t *session,
-	const char *utf8, size_t size, size_t *queued_wire);
+/* Strict, finite conversion for owned scripted sends. Validates and NFC
+ * normalizes the whole input before returning allocated wire bytes. Any
+ * malformed/unmappable text fails without output or a local beep. The caller
+ * frees bytes. On error result is unchanged. utf8 selects scalar boundaries
+ * when submitting atomic output units; codepage output uses single bytes. */
+struct st_term_encoded_text {
+	uint8_t *bytes;
+	size_t size;
+	size_t storage_size;
+	bool utf8;
+};
+int st_term_session_encode_text(st_term_session_t *session,
+	const char *utf8, size_t size, struct st_term_encoded_text *result);
 /* Allocates clipboard text with legacy newline and bracketed-paste rules. */
 int st_term_prepare_paste(char **result, size_t *result_size,
 	const char *utf8, size_t size, bool bracketed);

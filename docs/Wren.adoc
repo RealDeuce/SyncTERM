@@ -2144,7 +2144,7 @@ Every concrete `Error` subclass guarantees the contract:
 |===
 
 Type-specific extras (`FileError.errno`, `WONError.offset`,
-`ConnError.bytesSent`, `SFTPError.serverStatus`,
+`ConnError.partial`, `SFTPError.serverStatus`,
 `SFTPError.isTransient`) live on the subclass.
 
 `Error` itself is empty by design: foreign subclasses (FileError
@@ -3720,16 +3720,19 @@ Connection-level send and receive.
 | Member | Description
 
 | `Conn.send(s)`
-| Send Unicode text through the session's input hook, selected wire encoding,
-  and transport processing (including Telnet IAC escaping or MQTT framing).
-  Returns `null` on success or a <<connerror,`ConnError`>> on failure
-  (connection down, outbuf full / partial queue).  Most scripts ignore
-  the return; ones that care can `is ConnError` and inspect
-  `.bytesSent` to retry.
+| Queue Unicode text using the session's wire encoding and transport
+  processing (including Telnet IAC escaping or MQTT framing). Returns an
+  <<operation,`Operation`>>; `.await()` returns `null` when all output has
+  entered the transport queue, or a <<connerror,`ConnError`>> on failure.
+  This acknowledges local queueing, not remote receipt. The whole input is
+  validated and NFC-normalized before output. Codepage sessions reject any
+  unmappable scalar; malformed or unmappable text sends nothing and does
+  not beep. UTF-8 and embedded NULs are preserved after normalization.
 
 | `Conn.sendRaw(s)`
-| Send the string's bytes directly, bypassing Unicode conversion and transport
-  framing, including IAC escaping. Same return contract as `send`.
+| Queue the string's exact bytes, bypassing Unicode conversion and transport
+  framing, including IAC escaping. Returns an Operation with the same
+  completion and cancellation contract as `send`.
 
 | `Conn.close()`
 | Close the connection.
@@ -3787,7 +3790,8 @@ Connection-level send and receive.
 | Bytes available to read right now (in the inbuf ring).
 
 | `Conn.queued`
-| Bytes queued to write that haven't gone out yet.
+| Bytes in the transport output ring that have not gone out yet. This does
+  not include the unsent storage owned by pending send Operations.
 
 | `Conn.peek(count)`
 | Look at up to `count` bytes from the inbuf without consuming.
@@ -3799,22 +3803,31 @@ Connection-level send and receive.
 
 ==== ConnError [[connerror]]
 
-Recoverable wire-side failure returned by `Conn.send` / `Conn.sendRaw`.
-Returned IN PLACE of `null` on failure; null still means success.
-Mirrors the `<<sftperror,SFTPError>>` / `<<fileerror,FileError>>` /
-`<<wonerror,WONError>>` shape.
+`Conn.send` and `Conn.sendRaw` own the remaining output and retry queue
+pressure internally. Requests run in FIFO order within the VM. At most 64
+pending requests and 1 MiB of owned encoded storage (including terminators)
+are allowed; an individual input must be smaller than 1 MiB. Oversized or
+excess requests complete immediately with `ConnErr.queueFull` and send
+nothing. Text is submitted in complete encoded scalar units. Other terminal
+writers may run between those units; await completion before sending a key
+or starting a protocol that must follow the text.
+
+Cancellation discards the unsent remainder and completes with the usual
+`OperationError`. Bytes already queued cannot be recalled. Dropping an
+Operation handle does not cancel its send. Shutdown cancels pending sends.
+File-transfer ownership rejects new or pending sends with `ConnErr.busy`.
+
+Recoverable connection failures complete the Operation with `ConnError`:
 
 [options="header",cols="2,3"]
 |===
 | Member | Description
-
-| `code`        | `ConnErr.*` enum value.
-| `bytesSent`   | For `ConnErr.shortSend`: number of bytes that *did*
-                 get queued before the outbuf ran out — the script can
-                 retry with `s[bytesSent..-1]` to send the remainder.
-                 `0` for other codes.
-| `message`     | Human-readable diagnostic, may be `null`.
-| `toString`    | `"ConnError: <CODE-NAME>: ..."`.
+| `code` | `ConnErr.*` enum value.
+| `partial` | Bool: some of this request was accepted before the failure.
+  This is diagnostic, not an input offset. Do not resend a whole request
+  after a partial failure unless duplication is acceptable.
+| `message` | Human-readable diagnostic.
+| `toString` | `"ConnError: <CODE-NAME>: ..."`.
 |===
 
 `ConnErr` constants:
@@ -3822,10 +3835,26 @@ Mirrors the `<<sftperror,SFTPError>>` / `<<fileerror,FileError>>` /
 [options="header",cols="2,1,3"]
 |===
 | Constant | Code | When emitted
-| `ConnErr.ok`           | 0 | Sentinel; never appears on a returned ConnError.
-| `ConnErr.notConnected` | 1 | Send attempted while `Conn.connected == false`.
-| `ConnErr.shortSend`    | 2 | Outbuf was full / send partially queued.
+| `ConnErr.notConnected` | 1 | The connection is down.
+| `ConnErr.io` | 2 | The transport rejected the remaining output.
+| `ConnErr.queueFull` | 3 | The script request/storage limit was reached.
+| `ConnErr.invalidText` | 4 | Malformed UTF-8 or text unrepresentable in the
+  session's codepage. No output from this request was queued.
+| `ConnErr.busy` | 5 | A file transfer owns or has reserved the connection.
 |===
+
+[source,wren]
+----
+var error = Conn.send("café").await()
+if (error == null) {
+  CTerm.sendKey(Key.enter)
+} else {
+  System.print(error)
+}
+----
+
+As with other Operations, a hook with a synchronous return contract must
+start a child Fiber to await completion; an App handler uses `app.runChild`.
 
 === Capture [[capture]]
 
@@ -6454,8 +6483,8 @@ failure.
 
 ===== Operation [[operation]]
 
-`SFTP` and timers return an owned `Operation` for each request. No caller
-supplies a target fiber, and immediate errors follow the same result contract
+`SFTP`, timers, and connection sends return an owned `Operation` for each
+request. No caller supplies a target fiber, and immediate errors follow the same result contract
 as asynchronous completion. Operations have object identity, so overlapping
 requests remain distinguishable even when their result types are identical.
 

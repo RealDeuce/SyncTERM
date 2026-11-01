@@ -30,6 +30,7 @@
 #include "st_session_history.h"
 #include "st_theme.h"
 #include "st_term.h"
+#include "connection_internal.h"
 #include "st_threads.h"
 #include "st_time.h"
 #include "string_compat.h"
@@ -640,9 +641,9 @@ exercise_connected_without_sftp(st_wren_host_t *host,
 	    "CTerm.mouseDisabled = true\n"
 	    "if (!CTerm.mouseDisabled) Fiber.abort(\"mouse state\")\n"
 	    "CTerm.mouseDisabled = false\n"
-	    "var sent = Conn.send(\"text\")\n"
-	    "if (!(sent is ConnError) || sent.code != ConnErr.notConnected || sent.bytesSent != 0) Fiber.abort(\"text send error\")\n"
-	    "sent = Conn.sendRaw(\"raw\")\n"
+	    "var sent = Conn.send(\"text\").result\n"
+	    "if (!(sent is ConnError) || sent.code != ConnErr.notConnected || sent.partial) Fiber.abort(\"text send error\")\n"
+	    "sent = Conn.sendRaw(\"raw\").result\n"
 	    "if (!(sent is ConnError) || sent.code != ConnErr.notConnected) Fiber.abort(\"raw send error\")\n"
 	    "if (Conn.paste() != null) Fiber.abort(\"disconnected paste\")\n")
 	    == 0);
@@ -1313,6 +1314,195 @@ exercise_connected_link_hover(st_wren_host_t *host, st_console_t *console,
 	st_cterm_destroy(&cterm);
 	st_font_catalog_destroy(fonts);
 	st_profile_dispose(&session_profile);
+	return 0;
+}
+
+/* No worker drains this connection: each pump observes precisely the free
+ * capacity arranged here, independent of scheduler or network timing. */
+static int
+exercise_owned_sends(st_wren_host_t *host, st_console_t *console)
+{
+	static const struct st_connection_transport_ops operations = {0};
+	struct st_connection connection = {.operations = &operations};
+	struct st_profile profile;
+	st_font_catalog_t *fonts = NULL;
+	st_console_snapshot_t *snapshot = NULL;
+
+	CHECK(st_console_snapshot_create(&snapshot, console) == 0);
+	CHECK(st_font_catalog_create(&fonts, console) == 0);
+	st_profile_init(&profile);
+	profile.screen_mode = ST_SCREEN_MODE_80X25;
+	atomic_init(&connection.connected, true);
+	atomic_init(&connection.binary_mode, false);
+	atomic_init(&connection.stopping, false);
+	CHECK(st_mutex_init(&connection.input.mutex, ST_MUTEX_PLAIN) == ST_THREAD_SUCCESS);
+	CHECK(st_condition_init(&connection.input.changed) == ST_THREAD_SUCCESS);
+	CHECK(st_mutex_init(&connection.output.mutex, ST_MUTEX_PLAIN) == ST_THREAD_SUCCESS);
+	CHECK(st_condition_init(&connection.output.changed) == ST_THREAD_SUCCESS);
+	for (unsigned mode = 0; mode < 2; ++mode) {
+		st_term_session_t *session = NULL;
+		st_wren_connected_t *connected = NULL;
+		const struct st_term_config term_config = {
+			.console = console, .connection = &connection, .fonts = fonts,
+			.screen_mode = ST_SCREEN_MODE_80X25, .hide_status = true,
+			.encoding = mode == 0 ? ST_CTERM_ENCODING_UTF8 : ST_CTERM_ENCODING_CODEPAGE,
+			.codepage = ST_CODEPAGE_CP437,
+		};
+		CHECK(st_term_session_create(&session, &term_config) == 0);
+		const struct st_wren_connected_config config = {
+			.host = host, .console = console, .profile = &profile,
+			.connection = &connection, .session = session,
+			.cterm = st_term_session_cterm(session),
+		};
+		CHECK(st_wren_connected_create(&connected, &config) == 0);
+		connection.output.head = 0;
+		connection.output.count = ST_CONNECTION_BUFFER_SIZE - 1;
+		memset(connection.output.data, 'x', sizeof(connection.output.data));
+		CHECK(st_wren_connected_interpret(connected, "owned_send",
+		    "import \"syncterm\" for Conn, ConnError, ConnErr, Operation, OperationError\n"
+		    "class SendText {\n"
+		    "  static repeat(ch, n) {\n"
+		    "    var text = ch\n"
+		    "    while (text.count < n) text = text + text\n"
+		    "    return text[0...n]\n"
+		    "  }\n"
+		    "}\n"
+		    "var send = Conn.send(\"e\\u0301\")\n"
+		    "var later = Conn.send(\"Z\")\n"
+		    "var received = false\n"
+		    "var waiter = Fiber.new {\n"
+		    "  if (send.await() != null || later.await() != null) Fiber.abort(\"await send\")\n"
+		    "  received = true\n"
+		    "}\n"
+		    "waiter.call()\n") == 0);
+		if (mode == 0) {
+			CHECK(connection.output.count == ST_CONNECTION_BUFFER_SIZE - 1);
+			CHECK(connection.output.data[ST_CONNECTION_BUFFER_SIZE - 1] == 'x');
+		}
+		else {
+			CHECK(connection.output.count == ST_CONNECTION_BUFFER_SIZE);
+			CHECK(connection.output.data[ST_CONNECTION_BUFFER_SIZE - 1] == 0x82);
+		}
+		/* A further native byte can never land between the two bytes of é. */
+		CHECK(st_connection_send_raw(&connection, "K", 1, 0)
+		    == (mode == 0 ? 1 : IO_ERROR_WOULD_BLOCK));
+		connection.output.count = 0;
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+		CHECK(connection.output.count == (mode == 0 ? 3 : 1));
+		CHECK(memcmp(connection.output.data, mode == 0 ? "\xc3\xa9Z" : "Z",
+		    connection.output.count) == 0);
+		CHECK(st_wren_connected_interpret(connected, "owned_send",
+		    "if (!send.isDone || !later.isDone || !received || !waiter.isDone) Fiber.abort(\"completion identity\")\n"
+		    "var bad = Conn.send(\"valid\" + String.fromByte(255)).result\n"
+		    "if (!(bad is ConnError) || bad.code != ConnErr.invalidText || bad.partial) Fiber.abort(\"invalid text\")\n") == 0);
+		CHECK(connection.output.count == (mode == 0 ? 3 : 1));
+		if (mode == 1) {
+			CHECK(st_wren_connected_interpret(connected, "owned_send",
+			    "bad = Conn.send(\"prefix中\").result\n"
+			    "if (!(bad is ConnError) || bad.code != ConnErr.invalidText || bad.partial) Fiber.abort(\"unmappable text\")\n") == 0);
+			CHECK(connection.output.count == 1);
+		}
+		connection.output.count = 0;
+		CHECK(st_wren_connected_interpret(connected, "owned_send",
+		    "var raw = Conn.sendRaw(String.fromByte(255) + String.fromByte(0) + \"e\\u0301\\r\\n\")\n"
+		    "if (!raw.isDone || raw.result != null) Fiber.abort(\"raw result\")\n") == 0);
+		CHECK(connection.output.count == 7);
+		CHECK(memcmp(connection.output.data, "\xff\0e\xcc\x81\r\n", 7) == 0);
+		if (mode == 0) {
+			connection.output.count = ST_CONNECTION_BUFFER_SIZE - 4096;
+			CHECK(st_wren_connected_interpret(connected, "owned_send",
+			    "var boundary = Conn.send(SendText.repeat(\"A\", 4095) + \"😀Z\")\n"
+			    "if (boundary.isDone) Fiber.abort(\"expected queue pressure\")\n") == 0);
+			CHECK(connection.output.count == ST_CONNECTION_BUFFER_SIZE - 1);
+			for (size_t i = ST_CONNECTION_BUFFER_SIZE - 4096;
+			    i < ST_CONNECTION_BUFFER_SIZE - 1; ++i)
+				CHECK(connection.output.data[i] == 'A');
+			connection.output.count = 0;
+			CHECK(st_wren_connected_pump(connected, 0) == 0);
+			CHECK(connection.output.count == 5);
+			CHECK(memcmp(connection.output.data, "\xf0\x9f\x98\x80Z", 5) == 0);
+			CHECK(st_wren_connected_interpret(connected, "owned_send",
+			    "if (!boundary.isDone || boundary.result != null) Fiber.abort(\"boundary completion\")\n") == 0);
+		}
+		/* Cancellation releases queue storage without injecting its suffix. */
+		connection.output.count = ST_CONNECTION_BUFFER_SIZE - 4096;
+		CHECK(st_wren_connected_interpret(connected, "owned_send",
+		    "var cancelled = Conn.sendRaw(SendText.repeat(\"C\", 5000))\n"
+		    "if (cancelled.isDone || !cancelled.cancel() || cancelled.cancel()) Fiber.abort(\"cancel send\")\n"
+		    "if (!(cancelled.result is OperationError)) Fiber.abort(\"cancel result\")\n") == 0);
+		CHECK(connection.output.count == ST_CONNECTION_BUFFER_SIZE);
+		connection.output.count = 0;
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+		CHECK(connection.output.count == 0);
+		connection.output.count = ST_CONNECTION_BUFFER_SIZE;
+		CHECK(st_wren_connected_interpret(connected, "owned_send",
+		    "var pending = []\n"
+		    "for (i in 0...64) pending.add(Conn.send(\"Q\"))\n"
+		    "var full = Conn.send(\"overflow\").result\n"
+		    "if (!(full is ConnError) || full.code != ConnErr.queueFull || full.partial) Fiber.abort(\"request limit\")\n"
+		    "for (op in pending) if (!op.cancel()) Fiber.abort(\"release limit\")\n"
+		    "var storage = Conn.sendRaw(SendText.repeat(\"a\", 600000))\n"
+		    "full = Conn.sendRaw(SendText.repeat(\"b\", 500000)).result\n"
+		    "if (!(full is ConnError) || full.code != ConnErr.queueFull || full.partial) Fiber.abort(\"storage limit\")\n"
+		    "storage.cancel()\n"
+		    "var oversized = Conn.sendRaw(SendText.repeat(\"c\", 1048576)).result\n"
+		    "if (!(oversized is ConnError) || oversized.code != ConnErr.queueFull) Fiber.abort(\"input limit\")\n"
+		    "var abandoned = Fiber.new {\n"
+		    "  Conn.send(\"abandoned\").await_(Fiber.current)\n"
+		    "  Fiber.abort(\"stop\")\n"
+		    "}\n"
+		    "abandoned.try()\n") == 0);
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+		connection.output.count = 0;
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+		CHECK(connection.output.count == 0);
+		connection.output.count = ST_CONNECTION_BUFFER_SIZE;
+		CHECK(st_wren_connected_interpret(connected, "owned_send",
+		    "Conn.send(\"owned\" + \" string\")\n"
+		    "System.gc()\n") == 0);
+		connection.output.count = 0;
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+		CHECK(connection.output.count == 12);
+		CHECK(memcmp(connection.output.data, "owned string", 12) == 0);
+		connection.output.count = ST_CONNECTION_BUFFER_SIZE;
+		CHECK(st_wren_connected_interpret(connected, "owned_send",
+		    "var interrupted = Conn.send(\"pending before transfer\")\n") == 0);
+		st_term_session_reserve_transfer(session, true);
+		CHECK(st_wren_connected_interpret(connected, "owned_send",
+		    "var busy = Conn.send(\"busy\").result\n"
+		    "if (!(busy is ConnError) || busy.code != ConnErr.busy || busy.partial) Fiber.abort(\"transfer reservation\")\n") == 0);
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+		CHECK(st_wren_connected_interpret(connected, "owned_send",
+		    "if (!interrupted.isDone || interrupted.result.code != ConnErr.busy || interrupted.result.partial) Fiber.abort(\"pending transfer reservation\")\n") == 0);
+		st_term_session_reserve_transfer(session, false);
+		/* A disconnect after a prefix is diagnostic, never a retry offset. */
+		connection.output.count = ST_CONNECTION_BUFFER_SIZE - 4096;
+		CHECK(st_wren_connected_interpret(connected, "owned_send",
+		    "var partial = Conn.sendRaw(SendText.repeat(\"P\", 5000))\n") == 0);
+		CHECK(connection.output.count == ST_CONNECTION_BUFFER_SIZE);
+		atomic_store(&connection.connected, false);
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+		CHECK(st_wren_connected_interpret(connected, "owned_send",
+		    "if (!partial.isDone || !(partial.result is ConnError) || !partial.result.partial || partial.result.code != ConnErr.notConnected) Fiber.abort(\"partial disconnect\")\n") == 0);
+		atomic_store(&connection.connected, true);
+		CHECK(st_wren_connected_interpret(connected, "owned_send",
+		    "var shutdown = Conn.send(\"pending at shutdown\")\n"
+		    "var observer = Fiber.new {\n"
+		    "  shutdown.await()\n"
+		    "  Fiber.abort(\"shutdown resumed send waiter\")\n"
+		    "}\n"
+		    "observer.call()\n") == 0);
+		st_wren_connected_destroy(connected);
+		st_term_session_destroy(&session);
+	}
+	st_condition_destroy(&connection.output.changed);
+	st_mutex_destroy(&connection.output.mutex);
+	st_condition_destroy(&connection.input.changed);
+	st_mutex_destroy(&connection.input.mutex);
+	st_profile_dispose(&profile);
+	st_font_catalog_destroy(fonts);
+	CHECK(st_console_snapshot_restore(console, snapshot) == 0);
+	st_console_snapshot_destroy(snapshot);
 	return 0;
 }
 
@@ -5699,6 +5889,7 @@ main(int argc, char **argv)
 		CHECK(exercise_connected_profile_scripts(host, console, &selected,
 		    scripts) == 0);
 		CHECK(exercise_connected_without_sftp(host, console, &selected) == 0);
+		CHECK(exercise_owned_sends(host, console) == 0);
 		CHECK(exercise_transfer_ui(host, console, &selected) == 0);
 		CHECK(exercise_connected_session_log(host, console, &selected) == 0);
 		CHECK(exercise_connected_link_hover(host, console, &selected) == 0);

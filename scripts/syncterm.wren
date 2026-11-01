@@ -3,7 +3,7 @@
 // catch any of them with a single `if (v is Error)` check instead of
 // listing each subclass.  Every concrete subclass guarantees the
 // shape `{ code: Num, message: String?, toString: String }` - the
-// type-specific extras (errno, offset, bytesSent, serverStatus,
+// type-specific extras (errno, offset, partial, serverStatus,
 // isTransient, …) live on the subclass.
 //
 // Empty by design: foreign Error subclasses (FileError etc.) need
@@ -1077,11 +1077,9 @@ class LogSource {
   static runtimeError { 2 }
   static stackFrame { 3 }
 }
-// send / sendRaw return null on success, ConnError on failure
-// (connection down, outbuf full / partial queue).  Most scripts will
-// ignore the return - failing to send a few bytes shouldn't kill
-// the whole script.  Scripts that care can demux with `is ConnError`
-// and inspect `.bytesSent` to retry the remainder.
+// send / sendRaw own queued output and return Operation. Await for null
+// success or ConnError. Queue pressure is handled by the host; callers
+// never retry a UTF-8 slice using a transformed wire-byte offset.
 class Conn {
   foreign static send(s)
   foreign static sendRaw(s)
@@ -1108,19 +1106,20 @@ class Conn {
   foreign static recv(count)
 }
 
-// Recoverable wire-side failure returned by Conn.send / Conn.sendRaw.
-// Null on success; ConnError on failure.
+// Conn.send / sendRaw Operation result: null on success, ConnError on failure.
 foreign class ConnError is Error {
   foreign code        // ConnErr.* enum
-  foreign bytesSent   // for SHORT_SEND: bytes queued before the buffer ran out
+  foreign partial     // some input was accepted before failure; no retry offset
   foreign message
   foreign toString
 }
 
 class ConnErr {
-  static ok           { 0 }
   static notConnected { 1 }
-  static shortSend    { 2 }
+  static io           { 2 }
+  static queueFull    { 3 }
+  static invalidText  { 4 }
+  static busy         { 5 }
 }
 
 // Streaming-log control for the active session. CaptureMenu drives the

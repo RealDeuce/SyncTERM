@@ -168,6 +168,7 @@ struct st_wren_input_claim;
 struct st_wren_wake;
 struct surface_storage;
 struct st_wren_transfer;
+struct st_wren_send;
 
 /* VM lifetime state, shared by that VM's UI and REPL. */
 struct st_wren_context {
@@ -185,6 +186,8 @@ struct st_wren_context {
 	struct st_wren_input_claim *claim_top;
 	uint64_t next_claim_id;
 	struct st_wren_operation *operations;
+	struct st_wren_send *send_head, *send_tail;
+	size_t send_count, send_storage;
 	struct st_wren_wake *wake_head;
 	struct st_wren_wake *wake_tail;
 	WrenHandle *hook_class;
@@ -306,6 +309,8 @@ void st_wren_transfer_dispose(struct st_wren_context *context);
 int st_wren_transfer_rip_request(struct st_wren_context *context,
 	const struct st_cterm_rip_transfer_request *request);
 void st_wren_transfer_pump(struct st_wren_context *context);
+int st_wren_send_pump(struct st_wren_context *context);
+void st_wren_send_dispose(struct st_wren_context *context);
 bool st_wren_transfer_detect_enabled(const struct st_wren_context *context);
 int st_wren_transfer_filter(struct st_wren_context *context, uint8_t byte,
 	bool *consumed, uint8_t *replacement, size_t capacity, size_t *size);

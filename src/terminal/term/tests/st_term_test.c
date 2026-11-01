@@ -865,10 +865,31 @@ test_shell_utf8_boundary(void)
 	CHECK(resize.posted);
 	CHECK(st_console_size(console, &columns, &rows) == 0);
 	CHECK(columns == 90 && rows == 30);
-	size_t queued_wire = 0;
-	CHECK(st_term_session_send_text_poll(session, "\xc3\xa9", 2,
-	    &queued_wire) == 0);
-	CHECK(queued_wire == 2);
+	struct st_term_encoded_text encoded = {0};
+	CHECK(st_term_session_encode_text(session, "e\xcc\x81\r\n\0Z", 7, &encoded) == 0);
+	CHECK(encoded.utf8 && encoded.size == 6);
+	CHECK(memcmp(encoded.bytes, "\xc3\xa9\r\n\0Z", 6) == 0);
+	free(encoded.bytes);
+	encoded = (struct st_term_encoded_text){.size = 99};
+	CHECK(st_term_session_encode_text(session, "\xc3", 1, &encoded)
+	    == IO_ERROR_INVALID_ENCODING);
+	CHECK(encoded.bytes == NULL && encoded.size == 99);
+	CHECK(st_term_session_encode_text(session, "A\xff", 2, &encoded)
+	    == IO_ERROR_INVALID_ENCODING);
+	CHECK(encoded.bytes == NULL && encoded.size == 99);
+	st_term_session_t *legacy = NULL;
+	struct st_term_config legacy_config = config;
+	legacy_config.encoding = ST_CTERM_ENCODING_CODEPAGE;
+	CHECK(st_term_session_create(&legacy, &legacy_config) == 0);
+	CHECK(st_term_session_encode_text(legacy, "e\xcc\x81\r\n\0Z", 7, &encoded) == 0);
+	CHECK(!encoded.utf8 && encoded.size == 5);
+	CHECK(memcmp(encoded.bytes, "\x82\r\n\0Z", 5) == 0);
+	free(encoded.bytes);
+	encoded = (struct st_term_encoded_text){.size = 99};
+	CHECK(st_term_session_encode_text(legacy, "A\xe4\xb8\xad", 4, &encoded)
+	    == IO_ERROR_INVALID_ENCODING);
+	CHECK(encoded.bytes == NULL && encoded.size == 99);
+	st_term_session_destroy(&legacy);
 	st_term_session_request_end(session, false);
 	CHECK(st_term_session_pump(session, &disposition, &finished) == 0);
 	CHECK(finished && disposition == ST_TERM_RETURN_TO_PICKER);

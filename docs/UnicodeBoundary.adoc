@@ -144,13 +144,16 @@ examples:
   bytes and re-enter protocol classification.
 
 | Text send, such as `Conn.send`
-| Accepts Unicode text and encodes it using the active outgoing wire encoding
-  before the transport performs protocol framing such as Telnet IAC escaping.
+| Validates and NFC-normalizes the complete input, then encodes it using the
+  active outgoing wire encoding before transport framing such as Telnet IAC
+  escaping. Malformed or unmappable text rejects the whole request. The
+  returned Operation owns queue-pressure retries; scripts never slice their
+  original UTF-8 string using a transformed output-byte count.
 
 | Explicit raw send, such as `Conn.sendRaw`
-| Sends caller-supplied bytes without character encoding.  Transport-level
-  behavior specified by the connection still applies unless the particular
-  raw operation explicitly bypasses it.
+| Queues the exact caller-supplied bytes without character encoding. The
+  returned Operation owns the unsent remainder. `Conn.sendRaw` explicitly
+  bypasses transport framing as well, including Telnet IAC escaping.
 
 | Raw connection inspection
 | Peek and receive operations intended to expose transport buffers are named

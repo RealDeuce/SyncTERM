@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Stephen Hurd
 // SPDX-License-Identifier: BSD-2-Clause
 
-import "syncterm" for Hook, Key, Mouse, Host, CTerm, Input, Conn
+import "syncterm" for Hook, Key, Mouse, Host, CTerm, Input, Conn, Emoji
 import "disconnect_flow" for DisconnectFlow
 import "scrollback_view" for ScrollbackView
 import "music_menu" for MusicMenu
@@ -10,7 +10,11 @@ import "font_pick" for FontApp
 import "session_log" for SessionLogView
 import "emoji_pick" for EmojiFlow
 
-Hook.onKey(Key.altP) {|key| EmojiFlow.run() }
+Hook.onKey(Key.altP) {|key|
+  if (!Emoji.canSend) return false
+  Fiber.new { EmojiFlow.run() }.call()
+  return true
+}
 
 Hook.onKey(Key.altV) { |key|
   SessionLogView.run()

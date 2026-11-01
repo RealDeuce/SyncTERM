@@ -2076,6 +2076,9 @@ st_wren_connected_pump(st_wren_connected_t *connected, uint32_t timeout_ms)
 	if (status != 0)
 		return status;
 	st_wren_transfer_pump(&connected->context);
+	status = st_wren_send_pump(&connected->context);
+	if (status != 0)
+		return status;
 	if (connected->timers != NULL && st_time_monotonic_ms(&now) == 0) {
 		for (struct pending_timer *timer = connected->timers; timer != NULL;
 		    timer = timer->next) {
