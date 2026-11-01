@@ -1904,6 +1904,8 @@ st_wren_connected_destroy(st_wren_connected_t *connected)
 		connected->provider.cancel_all(connected->provider.context);
 	if (connected->vm != NULL)
 		(void)st_wren_operation_cancel_all(connected->vm);
+	if (connected->vm != NULL)
+		st_wren_cleanup_shutdown(connected->vm);
 	while (connected->requests != NULL) {
 		struct pending_request *next = connected->requests->next;
 		free(connected->requests);

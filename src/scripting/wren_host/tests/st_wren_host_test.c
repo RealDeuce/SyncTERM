@@ -43,6 +43,8 @@
 #include <time.h>
 
 static int queue_text(st_console_t *console, const char *text);
+static bool console_has_text(st_console_t *console, uint32_t x, uint32_t y,
+	const char *text);
 
 #if ST_WREN_TEST_HAVE_PTY
 #include <fcntl.h>
@@ -1314,6 +1316,150 @@ exercise_connected_link_hover(st_wren_host_t *host, st_console_t *console,
 	st_cterm_destroy(&cterm);
 	st_font_catalog_destroy(fonts);
 	st_profile_dispose(&session_profile);
+	return 0;
+}
+
+static int
+exercise_cleanup_scopes(st_wren_host_t *host, st_console_t *console,
+	const struct st_profile *profile)
+{
+	st_wren_connected_t *connected = NULL;
+	st_console_snapshot_t *snapshot = NULL;
+	const struct st_wren_connected_config config = {
+		.host = host, .console = console, .profile = profile,
+	};
+
+	CHECK(st_console_snapshot_create(&snapshot, console) == 0);
+	CHECK(st_wren_connected_create(&connected, &config) == 0);
+	CHECK(st_wren_connected_interpret(connected, "cleanup_scopes",
+	    "import \"syncterm\" for Screen, CTerm, CustomCursor, VideoFlags, Timer, Hook, Cleanup_, Wake\n"
+	    "var attr = Screen.attr\n"
+	    "var cursor = CustomCursor.current\n"
+	    "var flags = VideoFlags.current\n"
+	    "var fonts = (0..4).map {|i| Screen.font[i] }.toList\n"
+	    "var error = [\"original error\"]\n"
+	    "var outer = Fiber.new {\n"
+	    "  Screen.modalRun(Fn.new {\n"
+	    "    if (!CTerm.suspended) Fiber.abort(\"modal not suspended\")\n"
+	    "    Screen.attr = 19\n"
+	    "    CustomCursor.preserve(Fn.new {\n"
+	    "      CustomCursor.visible = !cursor.visible\n"
+	    "      VideoFlags.preserve(Fn.new {\n"
+	    "        VideoFlags.noBlink = !flags.noBlink\n"
+	    "        Screen.modalRun(Fn.new {\n"
+	    "          Screen.attr = 71\n"
+	    "          Fiber.abort(error)\n"
+	    "        })\n"
+	    "      })\n"
+	    "    })\n"
+	    "  })\n"
+	    "}\n"
+	    "outer.try()\n"
+	    "if (outer.error != error || CTerm.suspended || Screen.attr != attr || CustomCursor.visible != cursor.visible || VideoFlags.noBlink != flags.noBlink) Fiber.abort(\"abort cleanup\")\n"
+	    "for (i in 0..4) if (Screen.font[i] != fonts[i]) Fiber.abort(\"font cleanup\")\n"
+	    "if (CustomCursor.preserve(Fn.new { 17 }) != 17 || VideoFlags.preserve(Fn.new { 19 }) != 19 || Screen.modalRun(Fn.new { 23 }) != 23) Fiber.abort(\"normal return\")\n"
+	    "CTerm.suspended = true\n"
+	    "Screen.modalRun(Fn.new { Screen.attr = 29 })\n"
+	    "if (!CTerm.suspended || Screen.attr != attr) Fiber.abort(\"previous suspension\")\n"
+	    "CTerm.suspended = false\n"
+	    "var paused = Fiber.new {\n"
+	    "  return Screen.modalRun(Fn.new {\n"
+	    "    Screen.attr = 31\n"
+	    "    return Fiber.yield(\"parked\")\n"
+	    "  })\n"
+	    "}\n"
+	    "if (paused.call() != \"parked\" || !CTerm.suspended || Screen.attr != 31) Fiber.abort(\"yield modal\")\n"
+	    "if (paused.call(37) != 37 || CTerm.suspended || Screen.attr != attr) Fiber.abort(\"resume modal\")\n"
+	    "var rejected = Fiber.new {\n"
+	    "  Screen.update(Fn.new {\n"
+	    "    Screen.modalRun(Fn.new {\n"
+	    "      Screen.attr = 71\n"
+	    "      Fiber.yield()\n"
+	    "    })\n"
+	    "  })\n"
+	    "}\n"
+	    "rejected.try()\n"
+	    "if (rejected.error != \"Screen.update callback must not yield\" || CTerm.suspended || Screen.attr != attr) Fiber.abort(\"rejected yield cleanup\")\n"
+	    "var asyncDone = false\n"
+	    "Fiber.new {\n"
+	    "  var body = Fiber.new {\n"
+	    "    Screen.modalRun(Fn.new {\n"
+	    "      CustomCursor.preserve(Fn.new {\n"
+	    "        CustomCursor.visible = !cursor.visible\n"
+	    "        VideoFlags.preserve(Fn.new {\n"
+	    "          VideoFlags.noBlink = !flags.noBlink\n"
+	    "          Timer.after(0).await()\n"
+	    "          Fiber.abort(error)\n"
+	    "        })\n"
+	    "      })\n"
+	    "    })\n"
+	    "  }\n"
+	    "  body.tryScoped()\n"
+	    "  if (body.error != error || CTerm.suspended || CustomCursor.visible != cursor.visible || VideoFlags.noBlink != flags.noBlink) Fiber.abort(\"async abort cleanup\")\n"
+	    "  asyncDone = true\n"
+	    "}.call()\n") == 0);
+	for (unsigned i = 0; i < 4; ++i)
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "cleanup_scopes",
+	    "if (!asyncDone) Fiber.abort(\"async cleanup not resumed\")\n"
+	    "var messages = []\n"
+	    "var inner = null\n"
+	    "var timer = Timer.after(0)\n"
+	    "var receiver = Fiber.new {\n"
+	    "  Screen.modalRun(Fn.new {\n"
+	    "    inner = Fiber.current\n"
+	    "    timer.await()\n"
+	    "    messages.add(Fiber.yield())\n"
+	    "    messages.add(Fiber.yield())\n"
+	    "  })\n"
+	    "}\n"
+	    "receiver.call()\n"
+	    "Wake.post(receiver, \"first\")\n"
+	    "Wake.post(inner, \"second\")\n") == 0);
+	for (unsigned i = 0; i < 4; ++i)
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "cleanup_scopes",
+	    "if (!receiver.isDone || messages.join(\",\") != \"first,second\" || CTerm.suspended) Fiber.abort(\"scoped await wake ordering\")\n"
+	    "var count = 0\n"
+	    "var failed = Fiber.new {\n"
+	    "  Cleanup_.run(Fn.new { Fiber.abort(error) }, Fn.new {\n"
+	    "    count = count + 1\n"
+	    "    Fiber.abort(\"cleanup failure\")\n"
+	    "  })\n"
+	    "}\n"
+	    "failed.try()\n"
+	    "if (failed.error != error || count != 1) Fiber.abort(\"original error priority\")\n"
+	    "var closed = []\n"
+	    "Fiber.new {\n"
+	    "  Cleanup_.run(Fn.new {\n"
+	    "    Screen.modalRun(Fn.new {\n"
+	    "      Screen.attr = 71\n"
+	    "      CustomCursor.preserve(Fn.new {\n"
+	    "        CustomCursor.visible = !cursor.visible\n"
+	    "        VideoFlags.preserve(Fn.new {\n"
+	    "          VideoFlags.noBlink = !flags.noBlink\n"
+	    "          Cleanup_.run(Fn.new {\n"
+	    "            Timer.after(60000).await()\n"
+	    "            Fiber.abort(\"shutdown resumed parked body\")\n"
+	    "          }, Fn.new {\n"
+	    "            closed.add(\"inner\")\n"
+	    "            Fiber.abort(\"expected shutdown cleanup failure\")\n"
+	    "          })\n"
+	    "        })\n"
+	    "      })\n"
+	    "    })\n"
+	    "  }, Fn.new { closed.add(\"outer\") })\n"
+	    "}.call()\n"
+	    "System.gc()\n"
+	    "Hook.onDisconnect {\n"
+	    "  var ok = closed.join(\",\") == \"inner,outer\" && !CTerm.suspended && Screen.attr == attr && CustomCursor.visible == cursor.visible && VideoFlags.noBlink == flags.noBlink\n"
+	    "  Screen.window.position = [1, 1]\n"
+	    "  Screen.window.print(ok ? \"+\" : \"-\")\n"
+	    "}\n") == 0);
+	st_wren_connected_destroy(connected);
+	CHECK(console_has_text(console, 0, 0, "+"));
+	CHECK(st_console_snapshot_restore(console, snapshot) == 0);
+	st_console_snapshot_destroy(snapshot);
 	return 0;
 }
 
@@ -5889,6 +6035,7 @@ main(int argc, char **argv)
 		CHECK(exercise_connected_profile_scripts(host, console, &selected,
 		    scripts) == 0);
 		CHECK(exercise_connected_without_sftp(host, console, &selected) == 0);
+		CHECK(exercise_cleanup_scopes(host, console, &selected) == 0);
 		CHECK(exercise_owned_sends(host, console) == 0);
 		CHECK(exercise_transfer_ui(host, console, &selected) == 0);
 		CHECK(exercise_connected_session_log(host, console, &selected) == 0);

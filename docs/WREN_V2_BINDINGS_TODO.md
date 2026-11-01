@@ -11,7 +11,7 @@ checks are complete. Commit coherent, verified changes as they are completed.
 
 ## 1 Restore UI state after errors
 
-- [ ] Make `Screen.modalRun`, `CustomCursor.preserve`, and
+- [x] Make `Screen.modalRun`, `CustomCursor.preserve`, and
   `VideoFlags.preserve` restore state after callback aborts and propagate the
   original error. Modal callbacks must continue supporting cooperative yields.
 - [ ] Ensure App shutdown restores cursor, mouse subscriptions, claims, and
@@ -204,3 +204,24 @@ All three VM tests and the existing host suite passed on FreeBSD Clang;
 scoped-fiber and moving-allocator regressions passed ASan/UBSan (leak
 detection disabled). GCC and MinGW i686/x86_64 VM-library builds passed
 without warnings. UI helpers and shutdown cleanup remain to migrate.
+
+Item 1 state helpers: `Screen.modalRun`, `CustomCursor.preserve`, and
+`VideoFlags.preserve` now retain their cleanup across errors, yields, async
+awaits, GC, and VM shutdown. Helpers return callback values and propagate the
+original error object even if cleanup itself fails. Native cleanup ownership
+runs retained functions in reverse entry order before disconnect hooks without
+resuming callback bodies. `abortScoped` unwinds a parked scope; `Screen.update`
+uses it when rejecting a yielding callback. Wake deferral and FIFO ordering
+recognize both a scoped caller and its body as the same suspended execution.
+
+All 16 selected VM, host/menu/picker, settings, synthetic UI, and live SFTP
+tests passed. Focused regressions cover successful returns, exact error
+identity, nested state/font/suspension restoration, manual yields, async
+errors, caller/body wake ordering, rejected-yield cleanup, and shutdown after
+GC with parked waiters. A further shutdown-failure regression confirms an
+aborting inner cleanup still permits older scopes and disconnect hooks to
+run. Native and ASan/UBSan host/scoped-fiber checks passed, including that
+shutdown failure; FreeBSD leak detection was disabled as unsupported. The
+application linked, and GCC plus MinGW i686/x86_64 host libraries built without
+warnings. Windows runtime tests were not run. App run/runSync cleanup,
+runChild error propagation/cancellation, and their focused tests remain.

@@ -239,6 +239,15 @@ fn_operation_wait(WrenVM *vm)
 	operation->awaited = true;
 }
 
+/* A scoped caller and its body share one suspended execution for wakes. */
+bool
+st_wren_fibers_same_scope(const WrenHandle *left, const WrenHandle *right)
+{
+	return IS_FIBER(left->value) && IS_FIBER(right->value)
+	    && wrenFiberScopeRoot(AS_FIBER(left->value))
+	    == wrenFiberScopeRoot(AS_FIBER(right->value));
+}
+
 /* While await is parked, arbitrary wake values stay in the VM queue. Only
  * this operation's identity may resume that fiber until its wait is removed. */
 enum st_wren_wake_action
@@ -253,7 +262,7 @@ st_wren_operation_wake_action(WrenVM *vm, WrenHandle *fiber,
 		    *cursor != NULL; cursor = &(*cursor)->next) {
 			struct operation_waiter *waiter = *cursor;
 
-			if (!wrenValuesSame(waiter->fiber->value, fiber->value))
+			if (!st_wren_fibers_same_scope(waiter->fiber, fiber))
 				continue;
 			if (source == NULL)
 				return ST_WREN_WAKE_DEFER;

@@ -1873,8 +1873,8 @@ st_wren_wake_drain(WrenVM *vm)
 			if (action == ST_WREN_WAKE_DELIVER && wake->operation == NULL) {
 				for (struct st_wren_wake *earlier = context->wake_head;
 				    earlier != wake; earlier = earlier->next) {
-					if (earlier->operation == NULL && wrenValuesSame(
-					    earlier->fiber->value, wake->fiber->value)) {
+					if (earlier->operation == NULL && st_wren_fibers_same_scope(
+					    earlier->fiber, wake->fiber)) {
 						action = ST_WREN_WAKE_DEFER;
 						break;
 					}
@@ -1941,6 +1941,7 @@ st_wren_input_context_dispose(WrenVM *vm)
 	if (vm == NULL)
 		return;
 	context = st_wren_context_from_vm(vm);
+	st_wren_cleanup_shutdown(vm);
 	st_wren_send_dispose(context);
 	st_wren_operation_dispose(vm);
 	st_wren_transfer_dispose(context);

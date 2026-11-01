@@ -93,7 +93,10 @@ class Screen {
     var result = body.try()
     guard.finish_()
     if (body.error != null) Fiber.abort(body.error)
-    if (!body.isDone) Fiber.abort("Screen.update callback must not yield")
+    if (!body.isDone) {
+      body.abortScoped("Screen.update callback must not yield")
+      Fiber.abort(body.error)
+    }
     return result
   }
 	foreign static size
@@ -123,27 +126,19 @@ class Screen {
   //     app.runSync()
   //   })
   //
-  // No Fiber.try wrapper: `fn` runs on the calling fiber so the
-  // App-level event loops (which Fiber.yield from drainOnce_) work
-  // unmodified.  An abort inside `fn` therefore skips cleanup and
-  // propagates - the same semantics as the manual pattern this
-  // helper replaces.  Bodies that need abort-safe cleanup should
-  // wrap themselves in a Fiber.try at the boundary they own.
+  // Cleanup survives callback errors, cooperative yields, and VM shutdown.
   static modalRun(fn) {
-    var saved        = Screen.save()
+    if (!(fn is Fn)) Fiber.abort("Screen.modalRun expects a function")
+    var saved = Screen.save()
     var wasSuspended = CTerm.suspended
-    CTerm.suspended  = true
-    // Force every external font selector to the normal UI font for the
-    // duration of the modal.  Terminal emulation may have selected
-    // ATASCII / PETSCII / Prestel / BEEB fonts in those selector slots;
-    // the menu must not inherit them.  Cell storage itself remains Unicode.
-    // Screen.save above captured the original fonts; Screen.restore
-    // below puts them back on exit.
-    for (i in 0..4) Screen.font[i] = 0
-    var result = fn.call()
-    CTerm.suspended  = wasSuspended
-    Screen.restore(saved)
-    return result
+    return Cleanup_.run(Fn.new {
+      CTerm.suspended = true
+      for (i in 0..4) Screen.font[i] = 0
+      return fn.call()
+    }, Fn.new {
+      CTerm.suspended = wasSuspended
+      Screen.restore(saved)
+    })
   }
   foreign static pixelSize
   foreign static cellPixelSize
@@ -163,6 +158,33 @@ class Screen {
   static cursor     { CustomCursor   }
   static videoFlags { VideoFlags     }
   static color      { Color          }
+}
+
+// Internal lifetime guard shared by UI state scopes. Native registration owns
+// cleanup while a callback is parked, and runs it without resuming the body
+// during VM shutdown. Ordinary exits retain the original error object.
+foreign class Cleanup_ {
+  construct new(fn) {}
+  foreign take_()
+  static run(fn, cleanup) {
+    if (!(fn is Fn) || !(cleanup is Fn)) Fiber.abort("cleanup scope expects functions")
+    var guard = new(cleanup)
+    var body = Fiber.new { fn.call() }
+    var result = body.tryScoped()
+    var after = guard.take_()
+    var closer = Fiber.new { after.call() }
+    closer.try()
+    if (body.error != null) Fiber.abort(body.error)
+    if (closer.error != null) Fiber.abort(closer.error)
+    if (!closer.isDone) Fiber.abort("cleanup must not yield")
+    return result
+  }
+  static runCleanup_(fn) {
+    var closer = Fiber.new { fn.call() }
+    closer.try()
+    if (closer.error != null) Fiber.abort(closer.error)
+    if (!closer.isDone) Fiber.abort("shutdown cleanup must not yield")
+  }
 }
 
 // Internal lifetime guard for Screen.update; do not retain across callbacks.
@@ -282,15 +304,10 @@ foreign class CustomCursor {
   static normal  { presetLegacy_(2) }
   static solid   { presetLegacy_(1) }
   static none    { presetLegacy_(0) }
-  // Snapshot the current cursor, run `fn`, then re-apply the
-  // snapshot - convenience for "temporarily set a cursor while
-  // doing something, restore it on exit".  No Fiber.try wrapper:
-  // an abort in `fn` skips the restore (matches Screen.modalRun).
-  // Bodies that need abort-safe restore should wrap themselves.
+  // Restore on return, abort, or shutdown; cooperative yields are allowed.
   static preserve(fn) {
     var saved = current
-    fn.call()
-    saved.apply()
+    return Cleanup_.run(fn, Fn.new { saved.apply() })
   }
   foreign static presetLegacy_(legacyType)
   foreign static startLine
@@ -326,8 +343,7 @@ foreign class VideoFlags {
   // CustomCursor.preserve.
   static preserve(fn) {
     var saved = current
-    fn.call()
-    saved.apply()
+    return Cleanup_.run(fn, Fn.new { saved.apply() })
   }
   foreign static altChars
   foreign static altChars=(b)

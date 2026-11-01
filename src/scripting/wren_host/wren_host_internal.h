@@ -169,6 +169,7 @@ struct st_wren_wake;
 struct surface_storage;
 struct st_wren_transfer;
 struct st_wren_send;
+struct st_wren_cleanup;
 
 /* VM lifetime state, shared by that VM's UI and REPL. */
 struct st_wren_context {
@@ -186,6 +187,8 @@ struct st_wren_context {
 	struct st_wren_input_claim *claim_top;
 	uint64_t next_claim_id;
 	struct st_wren_operation *operations;
+	struct st_wren_cleanup *cleanups;
+	bool cleanup_closing;
 	struct st_wren_send *send_head, *send_tail;
 	size_t send_count, send_storage;
 	struct st_wren_wake *wake_head;
@@ -319,6 +322,11 @@ WrenForeignClassMethods st_wren_session_bind_class(const char *class_name);
 int st_wren_status_render(WrenVM *vm, bool enabled);
 void st_wren_status_dispose(WrenVM *vm);
 
+void st_wren_cleanup_shutdown(WrenVM *vm);
+WrenForeignMethodFn st_wren_cleanup_bind_method(const char *class_name,
+	bool is_static, const char *signature);
+WrenForeignClassMethods st_wren_cleanup_bind_class(const char *class_name);
+
 /* Native work pins an Operation until resolve; result handles and waiters
  * are released by its finalizer, or explicitly before VM destruction. */
 struct st_wren_operation *st_wren_operation_new(WrenVM *vm, int slot);
@@ -332,6 +340,7 @@ enum st_wren_wake_action {
 	ST_WREN_WAKE_DEFER,
 	ST_WREN_WAKE_DISCARD,
 };
+bool st_wren_fibers_same_scope(const WrenHandle *left, const WrenHandle *right);
 enum st_wren_wake_action st_wren_operation_wake_action(WrenVM *vm,
 	WrenHandle *fiber, struct st_wren_operation *source);
 int st_wren_operation_collect(WrenVM *vm);

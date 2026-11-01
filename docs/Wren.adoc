@@ -658,6 +658,7 @@ First-class coroutines.
 | `f.transferError(err)`        | Resume `f` with `err` raised inside it.
 | `f.try()`, `f.try(value)`     | Like `call`, but if `f` aborts the abort is caught and `f.error` is set.
 | `f.tryScoped()`             | SyncTERM extension for structured cleanup: retain the error boundary across cooperative yields, as described below.
+| `f.abortScoped(error)`       | Abort a parked fiber through its scoped cleanup boundaries; catch a final unhandled error at this caller.
 | `f.isDone`                    | True after the body returns or aborts.
 | `f.error`                     | The abort message if `try` caught one, else `null`.
 | `Fiber.yield()`               | Suspend; control returns to the most recent `.call()` caller.
@@ -679,6 +680,14 @@ Ordinary `call`/`try` children retain their usual yield behavior. `transfer`,
 use cooperative `Fiber.yield` or Operation awaits there. A scoped call owns
 its child until completion; it is not a detached background task. Pending
 native operations and shutdown still require their host's lifetime policy.
+`abortScoped(error)` provides checked cancellation of a paused fiber: it
+raises a non-null error in the innermost scoped body, runs the enclosing
+cleanup continuations, and catches a final unhandled error at the cancelling
+caller. If an inner boundary handles the error, the fiber can return a normal
+result instead.
+It also works for an ordinary paused fiber. Calling it on a running, finished,
+or already aborted fiber is an error. `Screen.update` uses this to unwind a
+callback that incorrectly yields, including any state scopes inside it.
 
 === Fn
 
@@ -2226,13 +2235,13 @@ operations live under `Screen.window`.
   control: snapshot the screen + suspend `CTerm` before the call,
   unsuspend + restore the screen after.  The previous
   `CTerm.suspended` value is saved and restored, so nested
-  `modalRun` calls compose.  Returns whatever `fn` returned.  No
-  `Fiber.try` wrapper — `fn` runs on the calling fiber so the
-  async `App.run` event loop (which `Fiber.yield`s from
-  `drainOnce_`) works unmodified; an abort inside `fn` therefore
-  skips cleanup and propagates.  Bodies that need abort-safe
-  cleanup should wrap themselves in a `Fiber.try` at the boundary
-  they own.
+  `modalRun` calls compose. Returns the callback's result. Callback errors
+  restore the snapshot and the previous suspension state before propagating
+  the same error object. The callback runs in a scoped child fiber;
+  cooperative yields and Operation awaits keep the cleanup boundary intact.
+  During VM shutdown only retained cleanup functions run, in reverse entry
+  order; parked callback bodies and their waiters are not resumed. Cleanup
+  failure does not replace an earlier callback error.
 +
 [source,wren]
 ----
@@ -2427,9 +2436,10 @@ The class supports two usage modes:
 
 `CustomCursor.preserve(fn)` is a convenience for the common
 "snapshot, change, restore" pattern: snapshots the live cursor,
-runs `fn`, re-applies the snapshot.  Same fiber semantics as
-`Screen.modalRun` — no `Fiber.try` wrapper, an abort in `fn` skips
-the restore.
+runs `fn` in a scoped child fiber, then re-applies the snapshot. It returns
+`fn`'s result and restores state before propagating a callback error. Nested
+calls, cooperative yields, Operation awaits, and VM shutdown have the same
+cleanup semantics as `Screen.modalRun`.
 
 Properties (both static and instance): `startLine`, `endLine`,
 `range`, `blink`, `visible`.

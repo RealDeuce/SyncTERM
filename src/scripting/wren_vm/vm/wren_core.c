@@ -241,6 +241,19 @@ DEF_PRIMITIVE(fiber_tryScoped)
   return false;
 }
 
+// Abort a parked fiber through its scoped boundaries instead of transferring
+// past them. The checked call makes the final error return to this caller.
+DEF_PRIMITIVE(fiber_abortScoped)
+{
+  Value error = args[1];
+  if (IS_NULL(error)) RETURN_ERROR("abortScoped requires a non-null error.");
+  runFiber(vm, AS_FIBER(args[0]), args, true, true, "abort");
+  if (wrenHasError(vm->fiber)) return false;
+  wrenFiberScopeRoot(vm->fiber)->state = FIBER_TRY;
+  vm->fiber->error = error;
+  return false;
+}
+
 DEF_PRIMITIVE(fiber_yield)
 {
   ObjFiber* current = vm->fiber;
@@ -1355,6 +1368,7 @@ void wrenInitializeCore(WrenVM* vm)
   PRIMITIVE(vm->fiberClass, "transferError(_)", fiber_transferError);
   PRIMITIVE(vm->fiberClass, "try()", fiber_try);
   PRIMITIVE(vm->fiberClass, "tryScoped()", fiber_tryScoped);
+  PRIMITIVE(vm->fiberClass, "abortScoped(_)", fiber_abortScoped);
   PRIMITIVE(vm->fiberClass, "try(_)", fiber_try1);
 
   vm->fnClass = AS_CLASS(wrenFindVariable(vm, coreModule, "Fn"));
