@@ -808,7 +808,7 @@ class WrenConsole {
     }
   }
 
-  // Single-row scroll helpers: use Screen.moveRect to shift the
+  // Single-row scroll helpers: capture and blit to shift the
   // existing viewport content by one row and only repaint the
   // newly-exposed row.  Avoids the full clear/repaint that
   // paintViewport_ would do for an arrow-key step.
@@ -817,7 +817,7 @@ class WrenConsole {
   // decremented scrollTop, so rendered[scrollTop] is the new top row.
   static scrollViewportUp1_(rendered, scrollTop, viewportRows) {
     var w = Screen.size[0]
-    Screen.moveRect(1, 1, w, viewportRows - 1, 1, 2)
+    if (viewportRows > 1) Screen.putRect(Screen.readRect(1, 1, w, viewportRows - 1), 1, 2)
     Screen.window.position = [1, 1]
     Screen.window.clearToLineEnd()
     if (scrollTop >= 0 && scrollTop < rendered.count) {
@@ -830,7 +830,7 @@ class WrenConsole {
   // scrollTop + viewportRows - 1.
   static scrollViewportDown1_(rendered, scrollTop, viewportRows) {
     var w = Screen.size[0]
-    Screen.moveRect(1, 2, w, viewportRows, 1, 1)
+    if (viewportRows > 1) Screen.putRect(Screen.readRect(1, 2, w, viewportRows), 1, 1)
     Screen.window.position = [1, viewportRows]
     Screen.window.clearToLineEnd()
     var idx = scrollTop + viewportRows - 1

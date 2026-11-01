@@ -1,4 +1,4 @@
-import "syncterm" for Screen
+import "syncterm" for Screen, Surface
 import "wren_console" for WrenConsole
 
 class WrenConsoleTest {
@@ -83,6 +83,26 @@ class WrenConsoleTest {
     var position = Screen.window.position
     check_(position[0] == 14 && position[1] == 1,
         "prompt cursor accounts for a wide glyph")
+    var saved = Screen.save()
+    var width = Screen.size[0]
+    Screen.window.bounds = [1, 1, width, Screen.size[1]]
+    var original = Surface.new(width, 3)
+    original.cellAt(0, 0).ch = "A"
+    original.cellAt(0, 1).ch = "B"
+    original.cellAt(0, 2).ch = "C"
+    Screen.putRect(original, 1, 1)
+    WrenConsole.scrollViewportUp1_(["X", "A", "B", "C"], 0, 3)
+    var rows = Screen.readRect(1, 1, 1, 3)
+    check_(rows[0].ch == "X" && rows[1].ch == "A" && rows[2].ch == "B",
+        "scrolling up preserves existing viewport rows")
+    WrenConsole.scrollViewportDown1_(["X", "A", "B", "C"], 1, 3)
+    rows = Screen.readRect(1, 1, 1, 3)
+    check_(rows[0].ch == "A" && rows[1].ch == "B" && rows[2].ch == "C",
+        "scrolling down preserves existing viewport rows")
+    WrenConsole.scrollViewportUp1_(["Z"], 0, 1)
+    check_(Screen.readRect(1, 1, 1, 1)[0].ch == "Z",
+        "one-row viewport repaints without an empty capture")
+    Screen.restore(saved)
     return [__pass, __fail]
   }
 }

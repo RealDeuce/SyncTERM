@@ -2619,6 +2619,35 @@ refresh_screen_style_font(WrenVM *vm)
 }
 
 static void
+fn_screen_hyperlink(WrenVM *vm)
+{
+	struct st_console_style style;
+
+	if (st_console_get_style(st_wren_context_from_vm(vm)->console, &style) != 0) {
+		st_wren_abort(vm, "Screen.hyperlinkId read failed");
+		return;
+	}
+	wrenSetSlotDouble(vm, 0, style.hyperlink);
+}
+
+static void
+fn_screen_hyperlink_set(WrenVM *vm)
+{
+	struct st_console_style style;
+	int64_t value;
+
+	if (!slot_integer(vm, 1, 0, UINT16_MAX, &value))
+		return;
+	if (st_console_get_style(st_wren_context_from_vm(vm)->console, &style) != 0) {
+		st_wren_abort(vm, "Screen.hyperlinkId read failed");
+		return;
+	}
+	style.hyperlink = (uint16_t)value;
+	if (st_console_set_style(st_wren_context_from_vm(vm)->console, &style) != 0)
+		st_wren_abort(vm, "Screen.hyperlinkId update failed");
+}
+
+static void
 fn_screen_attr(WrenVM *vm)
 {
 	struct st_console_style style;
@@ -4351,6 +4380,17 @@ fn_host_alt_short(WrenVM *vm)
 }
 
 static void
+fn_host_launch_script(WrenVM *vm)
+{
+	const char *script = st_wren_host_from_vm(vm)->config.launch_script;
+
+	if (script == NULL)
+		wrenSetSlotNull(vm, 0);
+	else
+		wrenSetSlotString(vm, 0, script);
+}
+
+static void
 fn_host_print(WrenVM *vm)
 {
 	const char *text;
@@ -4864,6 +4904,8 @@ static const struct binding bindings[] = {
 	{"Screen", true, "putRect(_,_,_)", fn_screen_put_rect},
 	{"Screen", true, "putRect_(_,_,_,_,_,_,_)", fn_screen_put_rect_partial},
 	{"ScreenUpdate_", false, "finish_()", fn_screen_update_finish},
+	{"Screen", true, "hyperlinkId", fn_screen_hyperlink},
+	{"Screen", true, "hyperlinkId=(_)", fn_screen_hyperlink_set},
 	{"Screen", true, "attr", fn_screen_attr},
 	{"Screen", true, "attr=(_)", fn_screen_attr_set},
 	{"Screen", true, "pixelSize", fn_screen_pixel_size},
@@ -5011,6 +5053,7 @@ static const struct binding bindings[] = {
 	{"Host", true, "altKeyName", fn_host_alt_name},
 	{"Host", true, "altKeyShort", fn_host_alt_short},
 	{"Host", true, "print(_)", fn_host_print},
+	{"Host", true, "launchScript", fn_host_launch_script},
 	{"Host", true, "logLevel", fn_host_log_level},
 	{"Host", true, "logLevel=(_)", fn_host_log_level_set},
 	{"Host", true, "logLevelNames", fn_host_log_level_names},
@@ -5069,5 +5112,7 @@ st_wren_core_bind_class(const char *class_name)
 		methods.allocate = st_wren_won_error_allocate;
 		methods.finalize = st_wren_won_error_finalize;
 	}
+	else if (strcmp(class_name, "TimerElapsed") != 0)
+		methods = (WrenForeignClassMethods){NULL, NULL};
 	return methods;
 }

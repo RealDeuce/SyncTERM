@@ -4515,9 +4515,10 @@ st_wren_menu_bind_class(const char *class_name)
 	WrenForeignClassMethods methods = {allocate_generic,
 	    finalize_menu_foreign};
 
-	if (strcmp(class_name, "MenuFont") == 0) {
-		/* Handles are created by Menu.fonts and Menu.createFont(). */
-		methods.allocate = allocate_generic;
-	}
+	if (strcmp(class_name, "MenuFont") != 0
+	    && strcmp(class_name, "ThemeDocument") != 0
+	    && strcmp(class_name, "Settings") != 0
+	    && strcmp(class_name, "BBS") != 0)
+		methods = (WrenForeignClassMethods){NULL, NULL};
 	return methods;
 }

@@ -238,7 +238,6 @@ class WrenTest {
     // ------ read-only live bindings ---------------------------------
     testConnConnected_()
     testConnType_()
-    testConnProtocolLog_()
     testConnPending_()
     testConnQueued_()
     testScreenSize_()
@@ -851,12 +850,6 @@ class WrenTest {
     check_(t is Num && t >= 0, "Conn.type is a Num")
   }
 
-  static testConnProtocolLog_() {
-    var log = Conn.protocolLog
-    check_(log == null || log is String,
-        "Conn.protocolLog is null or a String snapshot")
-  }
-
   static testConnPending_() {
     var p = Conn.pending
     check_(p is Num && p >= 0, "Conn.pending is non-negative")
@@ -1038,18 +1031,18 @@ class WrenTest {
   static testScreenRectRoundtrip_() {
     // Save the whole screen so any test mutation is invisible.
     // readRect returns a Surface; mutate one cell through the view
-    // and hand the same Surface back to writeRect - no copy.
+    // and blit the same Surface with putRect.
     var ok
     Screen.modalRun(Fn.new {
       var surf = Screen.readRect(1, 1, 1, 1)
       surf[0].ch         = "Z"
       surf[0].legacyAttr = 0x07
-      Screen.writeRect(1, 1, 1, 1, surf)
+      Screen.putRect(surf, 1, 1)
       var rb = Screen.readRect(1, 1, 1, 1)
       ok = rb != null && rb.count == 1 && rb[0].ch == "Z" &&
            rb.width == 1 && rb.height == 1
     })
-    check_(ok, "Screen.read/writeRect roundtrip")
+    check_(ok, "Screen.readRect/putRect roundtrip")
   }
 
   // Build a 3×2 surface, stamp a known pattern via cellAt, then verify

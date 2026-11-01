@@ -152,6 +152,10 @@ main(void)
 	};
 	CHECK(st_wren_host_create(&public_host, &host_config) == 0);
 	host = public_host;
+	CHECK(wrenInterpret(host->picker_vm, "picker_unknown_foreign",
+	    "class Unknown { foreign static missing() }\n") == WREN_RESULT_RUNTIME_ERROR);
+	CHECK(wrenInterpret(host->picker_vm, "picker_forbidden_menu",
+	    "import \"syncterm_menu\" for Menu\n") == WREN_RESULT_RUNTIME_ERROR);
 	CHECK(wrenInterpret(host->picker_vm, "picker_hyperlink_contract",
 	    "import \"syncterm\" for Hyperlinks\n"
 	    "Hyperlinks.containsKey(1)\n") == WREN_RESULT_RUNTIME_ERROR);

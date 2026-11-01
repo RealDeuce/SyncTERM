@@ -74,12 +74,12 @@ Starting points: `wren_bind_session.c`, `wren_sftp.c`, and connected scripts.
 
 ## 6 Resolve foreign bindings strictly
 
-- [ ] Fail module loading for unknown foreign method declarations. Model
+- [x] Fail module loading for unknown foreign method declarations. Model
   intentionally unavailable capabilities explicitly so shared UI modules
   continue loading in each intended VM.
-- [ ] Resolve the declared/documented but unimplemented `Conn.protocolLog`
+- [x] Resolve the declared/documented but unimplemented `Conn.protocolLog`
   contract and reconcile stale declarations and manual entries.
-- [ ] Test unknown methods and classes, all built-in declarations, forbidden
+- [x] Test unknown methods and classes, all built-in declarations, forbidden
   menu/picker/session access, and supported shared modules in all three VMs.
 
 Starting points: `st_wren_bind_method`, `st_wren_bind_class`, module loading
@@ -123,3 +123,15 @@ of self/another hook, registration and GC inside a callback, and teardown.
 The FreeBSD Clang ASan/UBSan host test passed with leak detection disabled
 (unsupported by this platform). The Windows i686 and x86_64 MinGW host-library
 cross-builds passed without warnings; no Windows runtime tests were run.
+
+Item 6: unknown methods now fail module loading, while known unavailable
+capabilities use an explicit VM error. Unknown foreign constructors reject
+allocation safely instead of receiving a generic native payload. Namespace
+classes are ordinary Wren classes. Removed unused `Conn.protocolLog` and
+`Palette.mode` declarations, migrated `Screen.writeRect`/`moveRect` callers
+to surfaces, corrected numeric FlowControl constants, and implemented the
+useful declared `Host.launchScript` and `Screen.hyperlinkId` getters/setters.
+The manual and bundled tests match. All 13 host/menu/picker/settings and
+synthetic UI tests passed. ASan/UBSan core-helper and console tests passed
+(leak detection unsupported on FreeBSD); MinGW i686/x86_64 library builds
+passed without warnings. No Windows runtime execution was performed.

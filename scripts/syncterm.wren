@@ -81,10 +81,8 @@ class ScreenWindow {
 class Palette {
   foreign static [i]
   foreign static [i]=(c)
-  foreign static mode
-  foreign static mode=(list)
 }
-foreign class Screen {
+class Screen {
 
   // Synchronous composition: cell, pixel and cursor changes become eligible
   // for presentation together. The guard also closes on VM teardown.
@@ -103,7 +101,6 @@ foreign class Screen {
   foreign static save()
   foreign static restore(handle)
   foreign static readRect(sx, sy, ex, ey)         // returns a Surface
-  foreign static writeRect(sx, sy, ex, ey, surface)
   // Blit a Surface to the screen.  The 4-arg form takes a sub-rect of
   // the source; it unpacks the Rect into the 7-arg foreign primitive
   // `putRect_`.
@@ -148,7 +145,6 @@ foreign class Screen {
     Screen.restore(saved)
     return result
   }
-  foreign static moveRect(sx, sy, ex, ey, dx, dy)
   foreign static pixelSize
   foreign static cellPixelSize
   foreign static readPixels(x, y, width, height)
@@ -366,7 +362,7 @@ class Color {
   foreign static fromAttr(attr)
   foreign static toLegacyAttr(fg, bg)
 }
-foreign class Input {
+class Input {
   // Synchronous reads - block the entire VM via getch.  Useful when
   // a script has fully claimed the screen (e.g. the Wren console)
   // and wants the main loop completely idle.
@@ -748,7 +744,7 @@ class Key {
   static quit        { 0x7EE0 }
   static wrenConsole { 0x29E0 }
 }
-foreign class Clipboard {
+class Clipboard {
   foreign static text
   foreign static text=(s)
 }
@@ -1062,7 +1058,7 @@ class ConsoleEntries is Sequence {
   iterate(it)       { Console.iterate(it) }
   iteratorValue(it) { Console.iteratorValue(it) }
 }
-foreign class Console {
+class Console {
   foreign static count
   foreign static total
   foreign static [seq]
@@ -1086,7 +1082,7 @@ class LogSource {
 // ignore the return - failing to send a few bytes shouldn't kill
 // the whole script.  Scripts that care can demux with `is ConnError`
 // and inspect `.bytesSent` to retry the remainder.
-foreign class Conn {
+class Conn {
   foreign static send(s)
   foreign static sendRaw(s)
   foreign static close()
@@ -1105,7 +1101,6 @@ foreign class Conn {
   foreign static connected
   foreign static elapsedSeconds
   foreign static type
-  foreign static protocolLog
   foreign static sessionLog
   foreign static pending
   foreign static queued
@@ -1138,7 +1133,7 @@ class ConnErr {
 // to plain text.  Pause / resume toggle the PAUSED bit; data
 // continues to flow through the terminal but isn't written while
 // paused.
-foreign class Capture {
+class Capture {
   foreign static active
   foreign static paused
   foreign static start(file, raw)
@@ -1147,7 +1142,7 @@ foreign class Capture {
   foreign static resume()
 }
 
-foreign class CTerm {
+class CTerm {
   foreign static x
   foreign static y
   foreign static originX
@@ -1251,7 +1246,7 @@ class StatusDisplay {
   static indicator { 1 }
   static host      { 2 }
 }
-foreign class BBS {
+class BBS {
   foreign static name
   foreign static addr
   foreign static port
@@ -1394,9 +1389,11 @@ class Parity {
   static even { 1 }
   static odd  { 2 }
 }
-foreign class FlowControl {
-  foreign rtsCts
-  foreign xonOff
+class FlowControl {
+  static rtsCts { 0 }
+  static xonXoff { 1 }
+  static both { 2 }
+  static none { 3 }
 }
 class LogLevel {
   static emergency { 0 }

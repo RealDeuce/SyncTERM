@@ -3,7 +3,7 @@
 // Widget-level helpers that compose drawing into a Surface.  Every
 // primitive takes a Surface as its first argument and mutates the
 // cells in place (via Surface.cellAt or Surface.fill); no calls
-// reach Screen.writeRect from here.  The App's drawAll_ owns the
+// reach Screen.putRect from here.  The App's drawAll_ owns the
 // only path from a Surface to the screen, via Screen.putRect.
 //
 // Coordinates inside a Surface are 0-based (0..width-1, 0..height-1).

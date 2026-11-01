@@ -789,6 +789,10 @@ exercise_connected_without_sftp(st_wren_host_t *host,
 	CHECK(st_wren_connected_interpret(connected, "shell_close_hook_verify",
 	    "import \"shell_close_hook_test\" for ShellState\n"
 	    "if (!ShellState.closed) Fiber.abort(\"shell hook not called\")\n") == 0);
+	CHECK(st_wren_connected_interpret(connected, "connected_unknown_foreign",
+	    "class Unknown { foreign static missing() }\n") == IO_ERROR_INVALID_FORMAT);
+	CHECK(st_wren_connected_interpret(connected, "connected_forbidden_menu",
+	    "import \"syncterm_menu\" for Menu\n") == IO_ERROR_INVALID_FORMAT);
 	st_wren_connected_destroy(connected);
 	return 0;
 }

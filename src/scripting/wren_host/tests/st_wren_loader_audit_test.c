@@ -282,10 +282,19 @@ main(int argc, char **argv)
 		    "if (inclusive.count != 6 || inclusive[0] != 5 || inclusive[5] != 0) Fiber.abort(\"inclusive reverse range\")\n"
 		    "if (exclusive.count != 5 || exclusive[0] != 5 || exclusive[4] != 1) Fiber.abort(\"exclusive reverse range\")\n",
 		    "if (Object.supertype != null) Fiber.abort(\"Object supertype\")\n",
-		    "class UnsupportedProbe { foreign static call() }\n"
-		    "var unsupported = Fiber.new { UnsupportedProbe.call() }\n"
+		    "import \"syncterm\" for Host, FlowControl, Screen\n"
+		    "if (Host.launchScript != null) Fiber.abort(\"unexpected launch script\")\n"
+		    "if (FlowControl.rtsCts != 0 || FlowControl.xonXoff != 1 || FlowControl.both != 2 || FlowControl.none != 3) Fiber.abort(\"flow control constants\")\n"
+		    "var saved = Screen.save()\n"
+		    "Screen.window.position = [1, 1]\n"
+		    "Screen.hyperlinkId = 9\n"
+		    "Screen.window.print(\"A\")\n"
+		    "if (Screen.hyperlinkId != 9 || Screen.readRect(1, 1, 1, 1)[0].hyperlinkId != 9) Fiber.abort(\"window hyperlink style\")\n"
+		    "Screen.restore(saved)\n",
+		    "import \"syncterm\" for Conn\n"
+		    "var unsupported = Fiber.new { Conn.connected }\n"
 		    "unsupported.try()\n"
-		    "if (!(unsupported.error is String) || !unsupported.error.contains(\"not available\")) Fiber.abort(\"unsupported method fallback\")\n",
+		    "if (!(unsupported.error is String) || !unsupported.error.contains(\"not available\")) Fiber.abort(\"known unavailable capability\")\n",
 		};
 		CHECK(status == 0);
 		passed = true;
@@ -297,6 +306,20 @@ main(int argc, char **argv)
 			fprintf(stderr, "core helper %zu: %s\n", i, ok ? "PASS" : "FAIL");
 			passed = passed && ok;
 		}
+		passed = passed && wrenInterpret(host->vm, "unknown_foreign_method",
+		    "class UnsupportedProbe { foreign static call() }\n")
+		    == WREN_RESULT_RUNTIME_ERROR;
+		passed = passed && st_wren_bind_method(host->vm, "syncterm",
+		    "Screen", true, "misspelled()") == NULL;
+		WrenForeignClassMethods unknown = st_wren_bind_class(host->vm,
+		    "syncterm", "UnknownForeign");
+		passed = passed && unknown.allocate != NULL && unknown.finalize == NULL;
+		passed = passed && wrenInterpret(host->vm, "unknown_foreign_class",
+		    "foreign class Missing { construct new() {} }\n"
+		    "var bad = Fiber.new { Missing.new() }\n"
+		    "bad.try()\n"
+		    "if (!(bad.error is String) || !bad.error.contains(\"no registered allocator\")) Fiber.abort(\"unknown class constructed\")\n")
+		    == WREN_RESULT_SUCCESS;
 	}
 	else if (strcmp(argv[2], "cell-colours") == 0) {
 		CHECK(status == 0);

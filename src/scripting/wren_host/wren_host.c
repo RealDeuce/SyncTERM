@@ -730,7 +730,20 @@ st_wren_bind_method(WrenVM *vm, const char *module, const char *class_name,
 	else if (method == NULL && vm == host->vm
 	    && strcmp(module, "syncterm_menu") == 0)
 		method = st_wren_menu_bind_method(class_name, is_static, signature);
-	return method == NULL ? st_wren_unsupported : method;
+	/* Shared declarations may name a known capability owned by another VM.
+	 * An unknown declaration must remain NULL so Wren rejects the module. */
+	if (method == NULL && strcmp(module, "syncterm") == 0
+	    && (st_wren_session_bind_method(class_name, is_static, signature) != NULL
+	    || st_wren_status_bind_method(class_name, is_static, signature) != NULL
+	    || st_wren_hyperlink_bind_method(class_name, is_static, signature) != NULL))
+		return st_wren_unsupported;
+	return method;
+}
+
+static void
+unknown_foreign_class(WrenVM *vm)
+{
+	st_wren_abort(vm, "foreign class has no registered allocator in this VM");
 }
 
 WrenForeignClassMethods
@@ -758,6 +771,11 @@ st_wren_bind_class(WrenVM *vm, const char *module, const char *class_name)
 	}
 	else if (vm == host->vm && strcmp(module, "syncterm_menu") == 0)
 		methods = st_wren_menu_bind_class(class_name);
+	/* Wren requires an allocator for a foreign constructor and otherwise
+	 * asserts or dereferences an unbound method. Reject construction rather
+	 * than assigning an unrelated native payload to an unknown class. */
+	if (methods.allocate == NULL)
+		methods.allocate = unknown_foreign_class;
 	return methods;
 }
 
@@ -1653,7 +1671,7 @@ st_wren_abort(WrenVM *vm, const char *message)
 void
 st_wren_unsupported(WrenVM *vm)
 {
-	st_wren_abort(vm, "this capability is not available in the menu host");
+	st_wren_abort(vm, "this capability is not available in this VM");
 }
 
 int
