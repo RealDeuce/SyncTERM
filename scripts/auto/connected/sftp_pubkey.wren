@@ -30,15 +30,14 @@ class SftpPubkey {
 
   static upload_(algo, blob) {
     SftpActivity.set("key", true)
-    var ready = SFTP.start(Fiber.current) || Fiber.yield()
+    var ready = SFTP.start().await()
     if (ready is SFTPError) {
       SftpActivity.set("key", false)
       return
     }
     var flags = FileFlag.read | FileFlag.write |
                 FileFlag.append | FileFlag.creat
-    var h = SFTP.open(Fiber.current, ".ssh/authorized_keys", flags) ||
-            Fiber.yield()
+    var h = SFTP.open(".ssh/authorized_keys", flags).await()
     if (h is SFTPError) {
       SftpActivity.set("key", false)
       return
@@ -49,7 +48,7 @@ class SftpPubkey {
     var content = ""
     var off = 0
     while (true) {
-      var b = SFTP.read(Fiber.current, h, 4096, off) || Fiber.yield()
+      var b = SFTP.read(h, 4096, off).await()
       if (b == null) break
       if (b is SFTPError) break
       if (b.bytes.count == 0) break
@@ -67,9 +66,9 @@ class SftpPubkey {
       // APPEND flag means the server picks the offset; we pass 0
       // and let the underlying open semantics do the right thing.
       var ln = "%(algo) %(blob) Added by SyncTERM\n"
-      SFTP.write(Fiber.current, h, 0, ln) || Fiber.yield()
+      SFTP.write(h, 0, ln).await()
     }
-    SFTP.close(Fiber.current, h) || Fiber.yield()
+    SFTP.close(h).await()
     SftpActivity.set("key", false)
   }
 }

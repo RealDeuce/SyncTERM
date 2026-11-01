@@ -33,7 +33,7 @@ if (SFTP.available || BBS.connType == ConnType.ssh || BBS.connType == ConnType.s
     if (browserOpening) return true
     browserOpening = true
     Fiber.new {
-      var ready = SFTP.start(Fiber.current) || Fiber.yield()
+      var ready = SFTP.start().await()
       browserOpening = false
       if (SftpApp.current != null) return
       if (ready is SFTPError) {

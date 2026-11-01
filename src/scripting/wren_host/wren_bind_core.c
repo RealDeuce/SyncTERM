@@ -42,7 +42,6 @@
 #endif
 
 enum foreign_kind {
-	FOREIGN_GENERIC,
 	FOREIGN_CELL,
 	FOREIGN_SURFACE,
 	FOREIGN_SNAPSHOT,
@@ -126,6 +125,7 @@ struct st_wren_input_claim {
 };
 
 struct st_wren_wake {
+	struct st_wren_operation *operation;
 	WrenHandle *fiber;
 	WrenHandle *value;
 	struct st_wren_wake *next;
@@ -640,21 +640,6 @@ resolved_cell_columns(WrenVM *vm, const struct st_console_cell *cell)
 	(void)st_console_font_glyph_columns(st_wren_context_from_vm(vm)->console,
 	    cell->glyph_font, cell->glyph, &columns);
 	return columns;
-}
-
-void
-st_wren_core_new_generic(WrenVM *vm, int slot, int class_slot)
-{
-	struct foreign_header *header = wrenSetSlotNewForeign(vm, slot,
-	    class_slot, sizeof(*header));
-
-	header->kind = FOREIGN_GENERIC;
-}
-
-static void
-allocate_generic(WrenVM *vm)
-{
-	st_wren_core_new_generic(vm, 0, 0);
 }
 
 static void
@@ -1626,7 +1611,7 @@ fn_claim_pop(WrenVM *vm)
 static void
 fn_wake_post(WrenVM *vm)
 {
-	if (st_wren_wake_enqueue(vm, 1, 2) != 0) {
+	if (st_wren_wake_enqueue(vm, 1, 2, NULL) != 0) {
 		st_wren_abort(vm, "out of memory posting wake");
 		return;
 	}
@@ -1634,13 +1619,15 @@ fn_wake_post(WrenVM *vm)
 }
 
 int
-st_wren_wake_enqueue(WrenVM *vm, int fiber_slot, int value_slot)
+st_wren_wake_enqueue(WrenVM *vm, int fiber_slot, int value_slot,
+	struct st_wren_operation *source)
 {
 	struct st_wren_context *context = st_wren_context_from_vm(vm);
 	struct st_wren_wake *wake = calloc(1, sizeof(*wake));
 
 	if (wake == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
+	wake->operation = source;
 	wake->fiber = wrenGetSlotHandle(vm, fiber_slot);
 	wake->value = wrenGetSlotHandle(vm, value_slot);
 	if (wake->fiber == NULL || wake->value == NULL) {
@@ -1864,29 +1851,58 @@ int
 st_wren_wake_drain(WrenVM *vm)
 {
 	struct st_wren_context *context;
-	struct st_wren_wake *wake;
+	struct st_wren_wake *previous = NULL;
+	struct st_wren_wake *boundary;
+	struct st_wren_wake **cursor;
 	int status = 0;
 
 	if (vm == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	context = st_wren_context_from_vm(vm);
-	wake = context->wake_head;
-	context->wake_head = NULL;
-	context->wake_tail = NULL;
-	while (wake != NULL) {
-		struct st_wren_wake *next = wake->next;
+	boundary = context->wake_tail;
+	cursor = &context->wake_head;
+	while (*cursor != NULL) {
+		struct st_wren_wake *wake = *cursor;
+		bool last = wake == boundary;
+		enum st_wren_wake_action action = ST_WREN_WAKE_DISCARD;
 
 		if (!fiber_is_done(context, wake->fiber)) {
-			wrenEnsureSlots(vm, 2);
-			wrenSetSlotHandle(vm, 0, wake->fiber);
-			wrenSetSlotHandle(vm, 1, wake->value);
-			if (wrenCall(vm, context->fiber_call) != WREN_RESULT_SUCCESS)
-				status = IO_ERROR_INVALID_FORMAT;
+			action = st_wren_operation_wake_action(vm, wake->fiber, wake->operation);
+			/* Completion may bypass a parked fiber's messages; another
+			 * generic message must never overtake an earlier deferred one. */
+			if (action == ST_WREN_WAKE_DELIVER && wake->operation == NULL) {
+				for (struct st_wren_wake *earlier = context->wake_head;
+				    earlier != wake; earlier = earlier->next) {
+					if (earlier->operation == NULL && wrenValuesSame(
+					    earlier->fiber->value, wake->fiber->value)) {
+						action = ST_WREN_WAKE_DEFER;
+						break;
+					}
+				}
+			}
 		}
-		wrenReleaseHandle(vm, wake->value);
-		wrenReleaseHandle(vm, wake->fiber);
-		free(wake);
-		wake = next;
+		if (action == ST_WREN_WAKE_DEFER) {
+			previous = wake;
+			cursor = &wake->next;
+		}
+		else {
+			*cursor = wake->next;
+			if (context->wake_tail == wake)
+				context->wake_tail = previous;
+			if (action == ST_WREN_WAKE_DELIVER) {
+				wrenEnsureSlots(vm, 2);
+				wrenSetSlotHandle(vm, 0, wake->fiber);
+				wrenSetSlotHandle(vm, 1, wake->value);
+				if (wrenCall(vm, context->fiber_call) != WREN_RESULT_SUCCESS)
+					status = IO_ERROR_INVALID_FORMAT;
+			}
+			wrenReleaseHandle(vm, wake->value);
+			wrenReleaseHandle(vm, wake->fiber);
+			free(wake);
+		}
+		/* Callbacks may append more work. Drain only the original batch. */
+		if (last)
+			break;
 	}
 	return status;
 }
@@ -1925,6 +1941,7 @@ st_wren_input_context_dispose(WrenVM *vm)
 	if (vm == NULL)
 		return;
 	context = st_wren_context_from_vm(vm);
+	st_wren_operation_dispose(vm);
 	st_wren_transfer_dispose(context);
 	while (context->claim_top != NULL) {
 		struct st_wren_input_claim *claim = context->claim_top;
@@ -5084,7 +5101,7 @@ st_wren_core_bind_method(const char *class_name, bool is_static,
 WrenForeignClassMethods
 st_wren_core_bind_class(const char *class_name)
 {
-	WrenForeignClassMethods methods = {allocate_generic, finalize_foreign};
+	WrenForeignClassMethods methods = {NULL, finalize_foreign};
 
 	if (strcmp(class_name, "Cell") == 0)
 		methods.allocate = allocate_cell;
@@ -5112,7 +5129,7 @@ st_wren_core_bind_class(const char *class_name)
 		methods.allocate = st_wren_won_error_allocate;
 		methods.finalize = st_wren_won_error_finalize;
 	}
-	else if (strcmp(class_name, "TimerElapsed") != 0)
+	else
 		methods = (WrenForeignClassMethods){NULL, NULL};
 	return methods;
 }

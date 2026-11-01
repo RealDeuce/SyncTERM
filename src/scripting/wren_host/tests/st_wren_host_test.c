@@ -11,6 +11,7 @@
 #include "filesystem.h"
 #include "io_error.h"
 #include "st_app_paths.h"
+#include "st_bbs_list.h"
 #include "st_audio_runtime.h"
 #include "st_audio_file.h"
 #include "st_pixel_image.h"
@@ -153,13 +154,15 @@ struct fake_sftp_response {
 };
 
 struct fake_sftp {
-	struct fake_sftp_response responses[128];
+	struct fake_sftp_response responses[512];
 	size_t head;
 	size_t count;
 	uint64_t next_id;
 	const unsigned char *remote;
 	size_t remote_size;
 	int64_t modified;
+	bool submit_error;
+	size_t close_count;
 	bool close_error;
 	bool transient_read;
 	bool transient_sent;
@@ -186,6 +189,8 @@ fake_sftp_submit(void *context, const struct st_sftp_request *request,
 	struct fake_sftp_response *stored;
 	size_t index;
 
+	if (fake->submit_error)
+		return IO_ERROR_IO;
 	if (fake->count == sizeof(fake->responses) / sizeof(fake->responses[0]))
 		return IO_ERROR_OUT_OF_RANGE;
 	index = (fake->head + fake->count) %
@@ -201,7 +206,8 @@ fake_sftp_submit(void *context, const struct st_sftp_request *request,
 	case ST_SFTP_STAT:
 		stored->response.kind = ST_SFTP_RESULT_STAT;
 		stored->response.stat.size = fake->remote_size;
-		stored->response.stat.modified_time = fake->modified;
+		stored->response.stat.modified_time = strcmp(request->path, "/first") == 0 ? 111
+		    : strcmp(request->path, "/second") == 0 ? 222 : fake->modified;
 		break;
 	case ST_SFTP_OPEN:
 		stored->response.kind = ST_SFTP_RESULT_HANDLE;
@@ -234,6 +240,7 @@ fake_sftp_submit(void *context, const struct st_sftp_request *request,
 		break;
 	}
 	case ST_SFTP_CLOSE:
+		++fake->close_count;
 		if (fake->close_error) {
 			stored->response.kind = ST_SFTP_RESULT_ERROR;
 			stored->response.error_code = IO_ERROR_IO;
@@ -487,6 +494,121 @@ exercise_connected_without_sftp(st_wren_host_t *host,
 	bool consumed;
 
 	CHECK(st_wren_connected_create(&connected, &config) == 0);
+	CHECK(st_wren_connected_interpret(connected, "operation_contract",
+	    "import \"syncterm\" for Timer, Operation, OperationError, Wake\n"
+	    "class OperationProbe {\n"
+	    "  static events { __events }\n"
+	    "  static events=(v) { __events = v }\n"
+	    "  static waiter { __waiter }\n"
+	    "  static waiter=(v) { __waiter = v }\n"
+	    "  static pending { __pending }\n"
+	    "  static pending=(v) { __pending = v }\n"
+	    "}\n"
+	    "OperationProbe.events = []\n"
+	    "var first = Timer.after(0)\n"
+	    "var second = Timer.after(0)\n"
+	    "if (!(first is Operation) || first.isDone || first == second) Fiber.abort(\"operation identity\")\n"
+	    "var pending = Timer.after(60000)\n"
+	    "OperationProbe.pending = pending\n"
+	    "OperationProbe.waiter = Fiber.new {\n"
+	    "  if (first.await() != null || second.await() != null) Fiber.abort(\"timer completion\")\n"
+	    "  OperationProbe.events.add(\"timers\")\n"
+	    "  OperationProbe.events.add(Fiber.yield())\n"
+	    "  OperationProbe.events.add(Fiber.yield())\n"
+	    "}\n"
+	    "OperationProbe.waiter.call()\n"
+	    "Wake.post(OperationProbe.waiter, \"unrelated\")\n"
+	    "Wake.post(OperationProbe.waiter, first)\n"
+	    "var cancelled = Timer.after(60000)\n"
+	    "if (!cancelled.cancel() || cancelled.cancel() || !cancelled.isDone || !cancelled.cancelled) Fiber.abort(\"cancel state\")\n"
+	    "if (!(cancelled.await() is OperationError)) Fiber.abort(\"cancel result\")\n"
+	    "for (bad in [-1, 0.5, 4294967296, \"delay\"]) {\n"
+	    "  var f = Fiber.new { Timer.after(bad) }\n"
+	    "  f.try()\n"
+	    "  if (f.error == null) Fiber.abort(\"invalid delay accepted\")\n"
+	    "}\n"
+	    ) == 0);
+	CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "operation_verify",
+	    "import \"operation_contract\" for OperationProbe, first\n"
+	    "import \"syncterm\" for Timer\n"
+	    "if (OperationProbe.events.count != 3 || OperationProbe.events[2] != first || OperationProbe.events[0] != \"timers\" || OperationProbe.events[1] != \"unrelated\") Fiber.abort(\"unrelated wake stole a completion\")\n"
+	    "OperationProbe.pending.cancel()\n"
+	    "var live = []\n"
+	    "for (i in 0...32) live.add(Timer.after(60000))\n"
+	    "var full = Fiber.new { Timer.after(1) }\n"
+	    "full.try()\n"
+	    "if (full.error == null) Fiber.abort(\"timer limit\")\n"
+	    "for (op in live) op.cancel()\n"
+	    "for (i in 0...80) Timer.after(60000).cancel()\n"
+	    "System.gc()\n"
+	    ) == 0);
+	CHECK(st_wren_connected_interpret(connected, "operation_owners",
+	    "import \"syncterm\" for Timer, OperationError\n"
+	    "var completed = 0\n"
+	    "var shared = Timer.after(0)\n"
+	    "shared.then(Fn.new {|r| completed = completed + 1 })\n"
+	    "shared.then(Fn.new {|r| completed = completed + 1 })\n"
+	    "var doomed = Timer.after(60000)\n"
+	    "var owner = Fiber.new {\n"
+	    "  doomed.await_(Fiber.current)\n"
+	    "  Fiber.abort(\"abandoned owner\")\n"
+	    "}\n"
+	    "owner.try()\n"
+	    "var cancelledObserved = false\n"
+	    "var cancelled = Timer.after(60000)\n"
+	    "cancelled.then(Fn.new {|r| cancelledObserved = r is OperationError })\n"
+	    "cancelled.cancel()\n"
+	    "for (bad in [null, 12, Fiber.new {}]) {\n"
+	    "  var f = Fiber.new { shared.await_(bad) }\n"
+	    "  f.try()\n"
+	    "  if (f.error == null) Fiber.abort(\"invalid waiter accepted\")\n"
+	    "}\n"
+	    "var early = Fiber.new { shared.result }\n"
+	    "early.try()\n"
+	    "if (early.error == null) Fiber.abort(\"pending result accepted\")\n"
+	    ) == 0);
+	CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "operation_owners_verify",
+	    "import \"operation_owners\" for completed, doomed, cancelledObserved, shared\n"
+	    "if (completed != 2 || !doomed.cancelled || !cancelledObserved) Fiber.abort(\"operation ownership\")\n"
+	    "var immediate = false\n"
+	    "shared.then(Fn.new {|r| immediate = r == null })\n"
+	    "if (!immediate) Fiber.abort(\"completed callback\")\n"
+	    ) == 0);
+	CHECK(st_wren_connected_interpret(connected, "operation_app_quit",
+	    "import \"ui_app\" for App\n"
+	    "var app = App.new()\n"
+	    "var run = Fiber.new { app.run() }\n"
+	    "run.call()\n"
+	    "if (run.isDone) Fiber.abort(\"app did not park\")\n"
+	    "app.quit()\n") == 0);
+	CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "operation_app_quit_verify",
+	    "import \"operation_app_quit\" for run\n"
+	    "if (!run.isDone || run.error != null) Fiber.abort(\"app did not unwind after quit\")\n") == 0);
+	CHECK(st_wren_connected_interpret(connected, "operation_wake_order",
+	    "import \"syncterm\" for Timer, Wake\n"
+	    "var order = []\n"
+	    "var delay = Timer.after(60000)\n"
+	    "var worker = Fiber.new {\n"
+	    "  delay.await()\n"
+	    "  order.add(Fiber.yield())\n"
+	    "  order.add(Fiber.yield())\n"
+	    "}\n"
+	    "worker.call()\n"
+	    "Wake.post(worker, \"earlier\")\n"
+	    "delay.cancel()\n"
+	    "Wake.post(worker, \"later\")\n"
+	    ) == 0);
+	CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "operation_wake_order_verify",
+	    "import \"operation_wake_order\" for order, worker\n"
+	    "if (!worker.isDone || order.count != 2 || order[0] != \"earlier\" || order[1] != \"later\") Fiber.abort(\"operation reordered queued wakes\")\n"
+	    ) == 0);
 	st_wren_connected_log_transfer(connected, ST_PROFILE_LOG_INFO, "info");
 	st_wren_connected_log_transfer(connected, ST_PROFILE_LOG_DEBUG, "debug");
 	CHECK(transfer_logs == 1);
@@ -509,7 +631,7 @@ exercise_connected_without_sftp(st_wren_host_t *host,
 	    "import \"syncterm\" for SFTP, SFTPError, Host, CTerm, Status, Conn, ConnError, ConnErr, Scrollback, Surface, BBS\n"
 	    "if (SFTP.available || CTerm.sftpActive || Conn.connected) Fiber.abort(\"unexpected provider\")\n"
 	    "if (Conn.sessionLog != null) Fiber.abort(\"unexpected session log provider\")\n"
-	    "if (Host.sshPublicKey != null || !(SFTP.start(Fiber.current) is SFTPError)) Fiber.abort(\"unexpected SSH capability\")\n"
+	    "if (Host.sshPublicKey != null || !(SFTP.start().result is SFTPError)) Fiber.abort(\"unexpected SSH capability\")\n"
 	    "if (BBS.name != \"Alpha\" || BBS.addr != \"alpha.example\" || BBS.connected != 100 || BBS.palette.count != BBS.paletteSize || BBS.sshFingerprint.count != BBS.sshFingerprintLen) Fiber.abort(\"connected profile view\")\n"
 	    "if (Scrollback.width != 0 || Scrollback.height != 0 || Scrollback.copyRowsTo(Surface.new(2, 2), 0, 2, 0) != 0) Fiber.abort(\"empty scrollback\")\n"
 	    "CTerm.suspended = true\n"
@@ -793,7 +915,25 @@ exercise_connected_without_sftp(st_wren_host_t *host,
 	    "class Unknown { foreign static missing() }\n") == IO_ERROR_INVALID_FORMAT);
 	CHECK(st_wren_connected_interpret(connected, "connected_forbidden_menu",
 	    "import \"syncterm_menu\" for Menu\n") == IO_ERROR_INVALID_FORMAT);
+	char *operation_cache = NULL;
+	char operation_shutdown[1024];
+	CHECK(st_bbs_cache_path_for_name(&operation_cache,
+	    ((struct st_wren_host *)host)->config.paths->cache_directory, profile->name) == 0);
+	CHECK(snprintf(operation_shutdown, sizeof(operation_shutdown), "%s/operation-shutdown", operation_cache)
+	    < (int)sizeof(operation_shutdown));
+	free(operation_cache);
+	CHECK(st_wren_connected_interpret(connected, "operation_shutdown",
+	    "import \"syncterm\" for Timer, Hook, Cache\n"
+	    "if (Cache.replace(\"operation-shutdown\", \"armed\") != true) Fiber.abort(\"shutdown marker\")\n"
+	    "var pending = Timer.after(60000)\n"
+	    "pending.then(Fn.new {|result| Cache.replace(\"operation-shutdown\", \"resumed\") })\n"
+	    "Hook.onDisconnect(Fn.new {\n"
+	    "  Cache.replace(\"operation-shutdown\", pending.cancelled ? \"cancelled\" : \"pending\")\n"
+	    "})\n") == 0);
+	CHECK(file_equals(operation_shutdown, "armed"));
 	st_wren_connected_destroy(connected);
+	CHECK(file_equals(operation_shutdown, "cancelled"));
+	CHECK(fs_remove_file(operation_shutdown) == 0);
 	return 0;
 }
 
@@ -2026,6 +2166,64 @@ exercise_connected_sftp(st_wren_host_t *host, st_console_t *console,
 	    ST_WREN_TEST_DIRECTORY);
 	(void)fs_remove_file(queue_path);
 	CHECK(st_wren_connected_create(&connected, &config) == 0);
+	CHECK(st_wren_connected_interpret(connected, "operation_sftp_cancel",
+	    "import \"syncterm\" for SFTP, FileFlag, OperationError\n"
+	    "var cancelledOpen = SFTP.open(\"/cancelled.bin\", FileFlag.read)\n"
+	    "if (!cancelledOpen.cancel() || !(cancelledOpen.result is OperationError)) Fiber.abort(\"cancelled open\")\n"
+	    ) == 0);
+	CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(fake.close_count == 1);
+	fake.submit_error = true;
+	CHECK(st_wren_connected_interpret(connected, "operation_sftp_failure",
+	    "import \"syncterm\" for SFTP, SFTPError\n"
+	    "var failed = SFTP.stat(\"/failed\")\n"
+	    "if (!failed.isDone || !(failed.await() is SFTPError)) Fiber.abort(\"immediate provider failure\")\n"
+	    ) == 0);
+	fake.submit_error = false;
+	CHECK(st_wren_connected_interpret(connected, "operation_sftp_order",
+	    "import \"syncterm\" for SFTP, SFTPError\n"
+	    "class OperationSftpProbe {\n"
+	    "  static values { __values }\n"
+	    "  static values=(v) { __values = v }\n"
+	    "}\n"
+	    "var first = SFTP.stat(\"/first\")\n"
+	    "var second = SFTP.stat(\"/second\")\n"
+	    "Fiber.new {\n"
+	    "  var a = first.await()\n"
+	    "  var b = second.await()\n"
+	    "  OperationSftpProbe.values = [a.mtime, b.mtime]\n"
+	    "}.call()\n"
+	    ) == 0);
+	CHECK(fake.count == 2);
+	struct fake_sftp_response first_response = fake.responses[fake.head];
+	size_t second_response = (fake.head + 1) % (sizeof(fake.responses) / sizeof(fake.responses[0]));
+	fake.responses[fake.head] = fake.responses[second_response];
+	fake.responses[second_response] = first_response;
+	CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "operation_sftp_order_verify",
+	    "import \"operation_sftp_order\" for OperationSftpProbe\n"
+	    "import \"syncterm\" for SFTP, SFTPError\n"
+	    "if (OperationSftpProbe.values.count != 2 || OperationSftpProbe.values[0] != 111 || OperationSftpProbe.values[1] != 222) Fiber.abort(\"out of order SFTP results\")\n"
+	    "var operations = []\n"
+	    "for (i in 0...256) {\n"
+	    "  var op = SFTP.stat(\"/limit\")\n"
+	    "  if (op.isDone) Fiber.abort(\"premature request limit\")\n"
+	    "  operations.add(op)\n"
+	    "}\n"
+	    "if (!(SFTP.stat(\"/overflow\").result is SFTPError)) Fiber.abort(\"unbounded requests\")\n"
+	    "for (op in operations) op.cancel()\n"
+	    "if (!(SFTP.stat(\"/cancelled-pending\").result is SFTPError)) Fiber.abort(\"cancelled native requests lost their bound\")\n"
+	    ) == 0);
+	CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "operation_sftp_abandoned",
+	    "import \"syncterm\" for SFTP, FileFlag\n"
+	    "SFTP.open(\"/unclaimed.bin\", FileFlag.read)\n"
+	    "System.gc()\n") == 0);
+	CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "operation_sftp_abandoned_collect",
+	    "System.gc()\nSystem.gc()\n") == 0);
+	CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(fake.close_count == 2);
 	CHECK(exercise_filesystem_path_handles(connected) == 0);
 	CHECK(st_wren_connected_interpret(connected, "sftp_batch",
 	    "import \"syncterm\" for SFTP\n"
@@ -2034,7 +2232,7 @@ exercise_connected_sftp(st_wren_host_t *host, st_console_t *console,
 	    "  static count=(n) { __count = n }\n"
 	    "}\n"
 	    "Batch.count = 0\n"
-	    "for (i in 0...3) SFTP.stat(Fiber.new {|r| Batch.count = Batch.count + 1 }, \"/remote.bin\")\n") == 0);
+	    "for (i in 0...3) SFTP.stat(\"/remote.bin\").then(Fn.new {|r| Batch.count = Batch.count + 1 })\n") == 0);
 	CHECK(st_wren_connected_pump(connected, 0) == 0);
 	CHECK(st_wren_connected_interpret(connected, "sftp_batch_result",
 	    "import \"sftp_batch\" for Batch\n"

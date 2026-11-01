@@ -32,7 +32,7 @@ import "syncterm" for Hook, Conn, Console, Screen, CTerm, BBS, Key,
     RipVersion, LogMode, StatusDisplay, Color, Cell, Hyperlinks,
     REPL, Input, Wake, KeyEvent, PhysicalKeyEvent, MouseEvent, Mouse,
     Cache, Platform, Text,
-    Timer, TimerElapsed, WON, FileError, FileErr, WONError, WONErr,
+    Timer, Operation, WON, FileError, FileErr, WONError, WONErr,
     Error, ScriptError, Surface, Scrollback, Host, PixelColor,
     PixelBuffer, PixelMask, PixelBlit
 import "wren_console" for WrenConsole
@@ -85,13 +85,14 @@ class WrenTest {
       __nextEventResult = Fiber.yield()
       CTerm.suspended = false
     }
-    // Fiber that parks on Timer.trigger with ms=0; the next doterm()
+    // Fiber that parks on Timer.after with ms=0; the next doterm()
     // iteration's sweep marks it past-due, the drain resumes the
-    // fiber with a TimerElapsed.  Started at T06 so the wallclock
+    // fiber with the completed timer operation.  Started at T06 so the wallclock
     // sentinel sleep gives the sweep time to fire.
     __timerFiber       = Fiber.new {
-      Timer.trigger(Fiber.current, 0)
-      __timerResult = Fiber.yield()
+      var timer = Timer.after(0)
+      timer.await()
+      __timerResult = timer
     }
     // Fibers that park on plain `Fiber.yield()` (no registration on
     // the input or timer queues).  Wake.post should still be able
@@ -1668,7 +1669,7 @@ class WrenTest {
       Conn.send("sleep 0.2 && printf '__\%s_X_done_X__\\n' T06\r")
     } else if (__step == 7) {
       // Wake.post end-to-end.  Park two fibers on plain Fiber.yield
-      // (neither registered with Input.nextEvent or Timer.trigger),
+      // (neither registered with Input.nextEvent or Timer.after),
       // then fire wake on each with a different value type.  The
       // result-queue drain should resume both fibers with their
       // respective values before the wallclock sentinel returns.
@@ -1786,12 +1787,12 @@ class WrenTest {
     check_(CTerm.suspended == false,
            "CTerm.suspended cleared by fiber after Input.nextEvent")
 
-    // Timer.trigger(ms=0) parks the fiber; the next doterm() iteration
-    // sweeps it past-due, the drain resumes with a TimerElapsed.  By
+    // Timer.after(ms=0) parks the fiber; the next doterm() iteration
+    // sweeps it past-due, the drain resumes with the completed timer operation.  By
     // the time T06's wallclock sentinel arrives this has had plenty
     // of iterations to fire.
-    check_(__timerResult is TimerElapsed,
-           "Timer.trigger resumes fiber with TimerElapsed")
+    check_(__timerResult is Operation && __timerResult.isDone,
+           "Timer.after resumes fiber with its completed operation")
 
     // Hook.onInput String-replacement path: each LF off the wire
     // fires the LF->CRLF hook and runs through the C-side dispatcher's
@@ -1803,7 +1804,7 @@ class WrenTest {
            "Hook.onInput String return (LF->CRLF) fired off the wire")
 
     // Wake.post delivers a queued resumption to a parked fiber via
-    // the same result-queue path Input.nextEvent and Timer.trigger
+    // the same result-queue path Input.nextEvent and Timer.after
     // use.  Two probes: one with a foreign KeyEvent value (exercises
     // the WrenHandle pin/release across types), one with a plain
     // String.  By T07's wallclock sentinel the drain must have

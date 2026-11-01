@@ -25,13 +25,13 @@
 
 struct pending_request {
 	uint64_t id;
-	WrenHandle *fiber;
+	struct st_wren_operation *operation;
 	struct pending_request *next;
 };
 
 struct pending_timer {
 	uint64_t deadline;
-	WrenHandle *fiber;
+	struct st_wren_operation *operation;
 	struct pending_timer *next;
 };
 
@@ -423,6 +423,42 @@ push_error(WrenVM *vm, int slot, int code, uint32_t server_status,
 	};
 }
 
+static void
+cancel_native_operation(void *context, struct st_wren_operation *operation)
+{
+	struct st_wren_connected *connected = context;
+
+	for (struct pending_request *request = connected->requests;
+	    request != NULL; request = request->next) {
+		if (request->operation == operation) {
+			/* The provider cannot revoke one submitted request. Keep its
+			 * ID until the reply arrives, but release script ownership. */
+			request->operation = NULL;
+			return;
+		}
+	}
+	for (struct pending_timer **cursor = &connected->timers;
+	    *cursor != NULL; cursor = &(*cursor)->next) {
+		if ((*cursor)->operation == operation) {
+			struct pending_timer *timer = *cursor;
+
+			*cursor = timer->next;
+			free(timer);
+			return;
+		}
+	}
+}
+
+static bool
+request_error(WrenVM *vm, int code, const char *message)
+{
+	struct st_wren_operation *operation = st_wren_operation_new(vm, 0);
+
+	push_error(vm, 1, code, 0, message, true);
+	(void)st_wren_operation_resolve(vm, operation, 1);
+	return false;
+}
+
 static bool
 submit_request(WrenVM *vm, const struct st_sftp_request *request)
 {
@@ -430,46 +466,39 @@ submit_request(WrenVM *vm, const struct st_sftp_request *request)
 	struct pending_request *pending;
 	uint64_t id;
 	int status;
+	size_t count = 0;
 
 	if (connected == NULL || connected->shutting_down
-	    || connected->provider.submit == NULL) {
-		push_error(vm, 0, IO_ERROR_NOT_SUPPORTED, 0,
-		    "SFTP is unavailable", true);
-		return false;
-	}
+	    || connected->provider.submit == NULL)
+		return request_error(vm, IO_ERROR_NOT_SUPPORTED, "SFTP is unavailable");
+	for (struct pending_request *other = connected->requests; other != NULL;
+	    other = other->next)
+		++count;
+	if (count >= 256)
+		return request_error(vm, IO_ERROR_WOULD_BLOCK, "too many pending SFTP requests");
 	pending = calloc(1, sizeof(*pending));
-	if (pending == NULL) {
-		push_error(vm, 0, IO_ERROR_OUT_OF_MEMORY, 0, "Out of memory", true);
-		return false;
-	}
-	pending->fiber = wrenGetSlotHandle(vm, 1);
-	if (pending->fiber == NULL) {
-		free(pending);
-		push_error(vm, 0, IO_ERROR_OUT_OF_MEMORY, 0, "Out of memory", true);
-		return false;
-	}
-	status = connected->provider.submit(connected->provider.context,
-	    request, &id);
+	if (pending == NULL)
+		return request_error(vm, IO_ERROR_OUT_OF_MEMORY, "Out of memory");
+	/* Submit copies all borrowed arguments before creating the result object
+	 * reuses argument slots or triggers garbage collection. */
+	status = connected->provider.submit(connected->provider.context, request, &id);
 	if (status != 0) {
-		wrenReleaseHandle(vm, pending->fiber);
 		free(pending);
-		push_error(vm, 0, status, 0, "SFTP request was not queued", true);
-		return false;
+		return request_error(vm, status, "SFTP request was not queued");
 	}
 	for (struct pending_request *other = connected->requests; other != NULL;
 	    other = other->next) {
 		if (other->id == id) {
-			wrenReleaseHandle(vm, pending->fiber);
 			free(pending);
-			push_error(vm, 0, IO_ERROR_CONFLICT, 0,
-			    "SFTP provider reused a pending request ID", true);
-			return false;
+			return request_error(vm, IO_ERROR_CONFLICT,
+			    "SFTP provider reused a pending request ID");
 		}
 	}
 	pending->id = id;
+	pending->operation = st_wren_operation_new(vm, 0);
+	st_wren_operation_on_cancel(pending->operation, cancel_native_operation, connected);
 	pending->next = connected->requests;
 	connected->requests = pending;
-	wrenSetSlotNull(vm, 0);
 	return true;
 }
 
@@ -546,19 +575,19 @@ begin_path_request(WrenVM *vm, enum st_sftp_operation operation,
 }
 
 static void fn_sftp_realpath(WrenVM *vm)
-{ (void)begin_path_request(vm, ST_SFTP_REALPATH, 2); }
+{ (void)begin_path_request(vm, ST_SFTP_REALPATH, 1); }
 static void fn_sftp_stat(WrenVM *vm)
-{ (void)begin_path_request(vm, ST_SFTP_STAT, 2); }
+{ (void)begin_path_request(vm, ST_SFTP_STAT, 1); }
 static void fn_sftp_opendir(WrenVM *vm)
-{ (void)begin_path_request(vm, ST_SFTP_OPENDIR, 2); }
+{ (void)begin_path_request(vm, ST_SFTP_OPENDIR, 1); }
 static void fn_sftp_mkdir(WrenVM *vm)
-{ (void)begin_path_request(vm, ST_SFTP_MKDIR, 2); }
+{ (void)begin_path_request(vm, ST_SFTP_MKDIR, 1); }
 static void fn_sftp_rmdir(WrenVM *vm)
-{ (void)begin_path_request(vm, ST_SFTP_RMDIR, 2); }
+{ (void)begin_path_request(vm, ST_SFTP_RMDIR, 1); }
 static void fn_sftp_remove(WrenVM *vm)
-{ (void)begin_path_request(vm, ST_SFTP_REMOVE, 2); }
+{ (void)begin_path_request(vm, ST_SFTP_REMOVE, 1); }
 static void fn_sftp_descs(WrenVM *vm)
-{ (void)begin_path_request(vm, ST_SFTP_DESCRIPTIONS, 2); }
+{ (void)begin_path_request(vm, ST_SFTP_DESCRIPTIONS, 1); }
 
 static void
 fn_sftp_open(WrenVM *vm)
@@ -566,7 +595,7 @@ fn_sftp_open(WrenVM *vm)
 	struct st_sftp_request request = {.operation = ST_SFTP_OPEN};
 	uint64_t flags;
 
-	if (!slot_path(vm, 2, &request.path) || !slot_u64(vm, 3, &flags)
+	if (!slot_path(vm, 1, &request.path) || !slot_u64(vm, 2, &flags)
 	    || flags > UINT32_MAX) {
 		st_wren_abort(vm, "SFTP.open: invalid path or flags");
 		return;
@@ -580,14 +609,17 @@ fn_sftp_handle_only(WrenVM *vm, enum st_sftp_operation operation)
 {
 	struct st_sftp_request request = {.operation = operation};
 	struct foreign_sftp_handle *handle;
+	WrenHandle *keep_alive;
 
-	if (!slot_handle(vm, 2, &request.handle)) {
+	if (!slot_handle(vm, 1, &request.handle)) {
 		st_wren_abort(vm, "SFTP: invalid handle");
 		return;
 	}
-	handle = wrenGetSlotForeign(vm, 2);
+	handle = wrenGetSlotForeign(vm, 1);
+	keep_alive = wrenGetSlotHandle(vm, 1);
 	if (submit_request(vm, &request) && operation == ST_SFTP_CLOSE)
 		handle->active = false;
+	wrenReleaseHandle(vm, keep_alive);
 }
 static void fn_sftp_readdir(WrenVM *vm)
 { fn_sftp_handle_only(vm, ST_SFTP_READDIR); }
@@ -600,9 +632,9 @@ fn_sftp_read(WrenVM *vm)
 	struct st_sftp_request request = {.operation = ST_SFTP_READ};
 	uint64_t count;
 
-	if (!slot_handle(vm, 2, &request.handle)
-	    || !slot_u64(vm, 3, &count) || count > SIZE_MAX
-	    || !slot_u64(vm, 4, &request.offset)) {
+	if (!slot_handle(vm, 1, &request.handle)
+	    || !slot_u64(vm, 2, &count) || count > SIZE_MAX
+	    || !slot_u64(vm, 3, &request.offset)) {
 		st_wren_abort(vm, "SFTP.read: invalid handle, count, or offset");
 		return;
 	}
@@ -616,13 +648,13 @@ fn_sftp_write(WrenVM *vm)
 	struct st_sftp_request request = {.operation = ST_SFTP_WRITE};
 	int size;
 
-	if (!slot_handle(vm, 2, &request.handle)
-	    || !slot_u64(vm, 3, &request.offset)
-	    || wrenGetSlotType(vm, 4) != WREN_TYPE_STRING) {
+	if (!slot_handle(vm, 1, &request.handle)
+	    || !slot_u64(vm, 2, &request.offset)
+	    || wrenGetSlotType(vm, 3) != WREN_TYPE_STRING) {
 		st_wren_abort(vm, "SFTP.write: invalid handle, offset, or bytes");
 		return;
 	}
-	request.data = wrenGetSlotBytes(vm, 4, &size);
+	request.data = wrenGetSlotBytes(vm, 3, &size);
 	if (size < 0) {
 		st_wren_abort(vm, "SFTP.write: invalid bytes");
 		return;
@@ -636,8 +668,8 @@ fn_sftp_rename(WrenVM *vm)
 {
 	struct st_sftp_request request = {.operation = ST_SFTP_RENAME};
 
-	if (!slot_path(vm, 2, &request.path)
-	    || !slot_path(vm, 3, &request.second_path)) {
+	if (!slot_path(vm, 1, &request.path)
+	    || !slot_path(vm, 2, &request.second_path)) {
 		st_wren_abort(vm, "SFTP.rename: invalid path");
 		return;
 	}
@@ -651,8 +683,8 @@ fn_sftp_set_mtime(WrenVM *vm)
 		.operation = ST_SFTP_SET_MTIME,
 	};
 
-	if (!slot_path(vm, 2, &request.path)
-	    || !slot_u64(vm, 3, &request.modified_time)) {
+	if (!slot_path(vm, 1, &request.path)
+	    || !slot_u64(vm, 2, &request.modified_time)) {
 		st_wren_abort(vm, "SFTP.setMtime: invalid path or time");
 		return;
 	}
@@ -740,34 +772,35 @@ static void fn_error_string(WrenVM *vm)
 }
 
 static void
-fn_timer_trigger(WrenVM *vm)
+fn_timer_after(WrenVM *vm)
 {
 	struct st_wren_connected *connected = connected_from_vm(vm);
 	struct pending_timer *timer;
-	uint64_t milliseconds;
-	uint64_t now;
+	uint64_t milliseconds, now;
+	size_t count = 0;
 
-	if (connected == NULL || !slot_u64(vm, 2, &milliseconds)
+	if (connected == NULL || connected->shutting_down
+	    || !slot_u64(vm, 1, &milliseconds) || milliseconds > UINT32_MAX
 	    || st_time_monotonic_ms(&now) != 0) {
-		st_wren_abort(vm, "Timer.trigger: invalid fiber or delay");
+		st_wren_abort(vm, "Timer.after requires a live session and integer delay in 0..4294967295");
+		return;
+	}
+	for (timer = connected->timers; timer != NULL; timer = timer->next)
+		++count;
+	if (count >= 32) {
+		st_wren_abort(vm, "Timer.after: 32 timers already pending");
 		return;
 	}
 	timer = calloc(1, sizeof(*timer));
 	if (timer == NULL) {
-		st_wren_abort(vm, "Timer.trigger: out of memory");
+		st_wren_abort(vm, "Timer.after: out of memory");
 		return;
 	}
-	timer->fiber = wrenGetSlotHandle(vm, 1);
-	if (timer->fiber == NULL) {
-		free(timer);
-		st_wren_abort(vm, "Timer.trigger: out of memory");
-		return;
-	}
-	timer->deadline = UINT64_MAX - now < milliseconds ? UINT64_MAX
-	    : now + milliseconds;
+	timer->operation = st_wren_operation_new(vm, 0);
+	st_wren_operation_on_cancel(timer->operation, cancel_native_operation, connected);
+	timer->deadline = UINT64_MAX - now < milliseconds ? UINT64_MAX : now + milliseconds;
 	timer->next = connected->timers;
 	connected->timers = timer;
-	wrenSetSlotNull(vm, 0);
 }
 
 static void fn_cterm_sftp_active(WrenVM *vm)
@@ -1068,24 +1101,24 @@ fn_hook_every(WrenVM *vm)
 
 static const struct sftp_binding bindings[] = {
 	{"SFTP", true, "available", fn_sftp_available},
-	{"SFTP", true, "start(_)", fn_sftp_start},
+	{"SFTP", true, "start()", fn_sftp_start},
 	{"Host", true, "sshPublicKey", fn_host_ssh_public_key},
 	{"SFTP", true, "pubdir", fn_sftp_pubdir},
 	{"SFTP", true, "lname", fn_sftp_lname},
-	{"SFTP", true, "realpath(_,_)", fn_sftp_realpath},
-	{"SFTP", true, "stat(_,_)", fn_sftp_stat},
-	{"SFTP", true, "opendir(_,_)", fn_sftp_opendir},
-	{"SFTP", true, "readdir(_,_)", fn_sftp_readdir},
-	{"SFTP", true, "close(_,_)", fn_sftp_close},
-	{"SFTP", true, "open(_,_,_)", fn_sftp_open},
-	{"SFTP", true, "read(_,_,_,_)", fn_sftp_read},
-	{"SFTP", true, "write(_,_,_,_)", fn_sftp_write},
-	{"SFTP", true, "mkdir(_,_)", fn_sftp_mkdir},
-	{"SFTP", true, "rmdir(_,_)", fn_sftp_rmdir},
-	{"SFTP", true, "remove(_,_)", fn_sftp_remove},
-	{"SFTP", true, "rename(_,_,_)", fn_sftp_rename},
-	{"SFTP", true, "setMtime(_,_,_)", fn_sftp_set_mtime},
-	{"SFTP", true, "descs(_,_)", fn_sftp_descs},
+	{"SFTP", true, "realpath(_)", fn_sftp_realpath},
+	{"SFTP", true, "stat(_)", fn_sftp_stat},
+	{"SFTP", true, "opendir(_)", fn_sftp_opendir},
+	{"SFTP", true, "readdir(_)", fn_sftp_readdir},
+	{"SFTP", true, "close(_)", fn_sftp_close},
+	{"SFTP", true, "open(_,_)", fn_sftp_open},
+	{"SFTP", true, "read(_,_,_)", fn_sftp_read},
+	{"SFTP", true, "write(_,_,_)", fn_sftp_write},
+	{"SFTP", true, "mkdir(_)", fn_sftp_mkdir},
+	{"SFTP", true, "rmdir(_)", fn_sftp_rmdir},
+	{"SFTP", true, "remove(_)", fn_sftp_remove},
+	{"SFTP", true, "rename(_,_)", fn_sftp_rename},
+	{"SFTP", true, "setMtime(_,_)", fn_sftp_set_mtime},
+	{"SFTP", true, "descs(_)", fn_sftp_descs},
 	{"SFTPStat", false, "size", fn_stat_size},
 	{"SFTPStat", false, "mtime", fn_stat_mtime},
 	{"SFTPStat", false, "atime", fn_stat_atime},
@@ -1106,7 +1139,7 @@ static const struct sftp_binding bindings[] = {
 	{"SFTPError", false, "message", fn_error_message},
 	{"SFTPError", false, "isTransient", fn_error_transient},
 	{"SFTPError", false, "toString", fn_error_string},
-	{"Timer", true, "trigger(_,_)", fn_timer_trigger},
+	{"Timer", true, "after(_)", fn_timer_after},
 	{"CTerm", true, "sftpActive", fn_cterm_sftp_active},
 	{"CTerm", true, "sftpActive=(_)", fn_cterm_sftp_active_set},
 	{"Hook", true, "onKey(_)", fn_hook_on_key},
@@ -1268,26 +1301,37 @@ push_response(WrenVM *vm, int slot,
 	return false;
 }
 
+static void
+close_discarded_handle(struct st_wren_connected *connected,
+	const struct st_sftp_response *response)
+{
+	if (response->kind == ST_SFTP_RESULT_HANDLE && connected->provider.submit != NULL) {
+		const struct st_sftp_request close = {
+			.operation = ST_SFTP_CLOSE, .handle = response->handle,
+		};
+		uint64_t id;
+
+		(void)connected->provider.submit(connected->provider.context, &close, &id);
+	}
+}
+
 static int
 deliver_response(struct st_wren_connected *connected,
 	const struct st_sftp_response *response)
 {
-	struct pending_request *pending = take_request(connected,
-	    response->request_id);
+	struct pending_request *pending = take_request(connected, response->request_id);
 	WrenVM *vm = connected->vm;
 	int status;
 
-	if (pending == NULL)
-		return 0;
-	wrenEnsureSlots(vm, 3);
-	wrenSetSlotHandle(vm, 1, pending->fiber);
-	if (!push_response(vm, 2, response)) {
-		wrenReleaseHandle(vm, pending->fiber);
+	if (pending == NULL || pending->operation == NULL) {
+		close_discarded_handle(connected, response);
 		free(pending);
-		return IO_ERROR_INVALID_FORMAT;
+		return 0;
 	}
-	status = st_wren_wake_enqueue(vm, 1, 2);
-	wrenReleaseHandle(vm, pending->fiber);
+	wrenEnsureSlots(vm, 3);
+	if (!push_response(vm, 1, response))
+		push_error(vm, 1, IO_ERROR_OUT_OF_MEMORY, 0, "Out of memory decoding SFTP result", true);
+	status = st_wren_operation_resolve(vm, pending->operation, 1);
 	free(pending);
 	return status;
 }
@@ -1309,14 +1353,10 @@ deliver_timers(struct st_wren_connected *connected)
 			continue;
 		}
 		*cursor = timer->next;
-		wrenEnsureSlots(connected->vm, 4);
-		wrenSetSlotHandle(connected->vm, 1, timer->fiber);
-		wrenGetVariable(connected->vm, "syncterm", "TimerElapsed", 3);
-		/* The core foreign finalizer expects a generic payload header. */
-		st_wren_core_new_generic(connected->vm, 2, 3);
-		if (st_wren_wake_enqueue(connected->vm, 1, 2) != 0)
+		wrenEnsureSlots(connected->vm, 2);
+		wrenSetSlotNull(connected->vm, 1);
+		if (st_wren_operation_resolve(connected->vm, timer->operation, 1) != 0)
 			status = IO_ERROR_OUT_OF_MEMORY;
-		wrenReleaseHandle(connected->vm, timer->fiber);
 		free(timer);
 	}
 	return status;
@@ -1862,17 +1902,15 @@ st_wren_connected_destroy(st_wren_connected_t *connected)
 	st_wren_connected_capture_stop(connected);
 	if (connected->provider.cancel_all != NULL)
 		connected->provider.cancel_all(connected->provider.context);
+	if (connected->vm != NULL)
+		(void)st_wren_operation_cancel_all(connected->vm);
 	while (connected->requests != NULL) {
 		struct pending_request *next = connected->requests->next;
-		if (connected->vm != NULL)
-			wrenReleaseHandle(connected->vm, connected->requests->fiber);
 		free(connected->requests);
 		connected->requests = next;
 	}
 	while (connected->timers != NULL) {
 		struct pending_timer *next = connected->timers->next;
-		if (connected->vm != NULL)
-			wrenReleaseHandle(connected->vm, connected->timers->fiber);
 		free(connected->timers);
 		connected->timers = next;
 	}
@@ -2034,6 +2072,9 @@ st_wren_connected_pump(st_wren_connected_t *connected, uint32_t timeout_ms)
 	if (connected == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	collect_removed_hooks(connected);
+	status = st_wren_operation_collect(connected->vm);
+	if (status != 0)
+		return status;
 	st_wren_transfer_pump(&connected->context);
 	if (connected->timers != NULL && st_time_monotonic_ms(&now) == 0) {
 		for (struct pending_timer *timer = connected->timers; timer != NULL;

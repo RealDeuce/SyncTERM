@@ -41,7 +41,7 @@ import "ui_help"   for Help
 import "ui_input" for TextInput
 import "ui_emoji_picker" for EmojiPicker
 import "syncterm"  for Input, KeyEvent, MouseEvent, Mouse, Key, Timer,
-                       TimerElapsed, Wake, Screen, Surface, CustomCursor, CTerm,
+                       Wake, Screen, Surface, CustomCursor, CTerm,
                        REPL, Host, Emoji
 
 // Sentinel passed into post() when the caller doesn't supply a value.
@@ -60,6 +60,12 @@ class WakeOnly {
 class MouseRepeatWake {
   construct new(generation) { _generation = generation }
   generation { _generation }
+}
+
+// Tick messages retain the timer identity without reserving user post values.
+class AppTickWake {
+  construct new(timer) { _timer = timer }
+  timer { _timer }
 }
 
 class App {
@@ -88,7 +94,7 @@ class App {
     _onError       = null         // optional caught sync-handler error reporter
     _dragHandedOff = false        // see dispatchMouse_ for the belt this catches
     _claim         = null         // ClaimHandle; set by run(), popped on exit
-    _tickPending   = false        // true while a Timer.trigger is queued for _runFiber
+    _tickTimer     = null
     _released      = false        // true while releaseFocus is in effect
     _releasedFocus = null         // saved focusedIndex (may be null if nothing was focused)
     _mouseRepeatOwner = null
@@ -137,7 +143,11 @@ class App {
     markAllDirty_()
   }
   tickMs      { _tickMs      }
-  tickMs=(ms) { _tickMs = ms }
+  tickMs=(ms) {
+    if (_tickTimer != null) _tickTimer.cancel()
+    _tickTimer = null
+    _tickMs = ms
+  }
   running     { _running     }
   modalStack  { _modalStack  }
   onLayout=(fn) { _onLayout = fn }
@@ -238,7 +248,10 @@ class App {
 
   quit() {
     stopMouseRepeat_(null)
+    if (_tickTimer != null) _tickTimer.cancel()
+    _tickTimer = null
     _running = false
+    if (_runFiber != null) Wake.post(_runFiber, WakeOnly.instance)
   }
 
   // ----- Held mouse-button repetition -----------------------------
@@ -270,6 +283,8 @@ class App {
   stopMouseRepeat_(owner) {
     if (owner != null && owner != _mouseRepeatOwner) return false
     if (_mouseRepeatOwner == null) return false
+    if (_mouseRepeatTimer != null) _mouseRepeatTimer.cancel()
+    _mouseRepeatTimer = null
     _mouseRepeatOwner = null
     _mouseRepeatAction = null
     _mouseRepeatStarted = null
@@ -309,31 +324,24 @@ class App {
   ensureMouseRepeatTimer_() {
     if (_runMode != "async" || !_running || _mouseRepeatOwner == null ||
         _mouseRepeatTimer != null) return
-    var timer
-    timer = Fiber.new {
-      while (_running && _runMode == "async" &&
-          _mouseRepeatOwner != null) {
-        var wait = mouseRepeatWait_()
-        Timer.trigger(Fiber.current, wait)
-        Fiber.yield()
-        if (!_running || _runMode != "async" ||
-            _mouseRepeatOwner == null) break
-        if (repeatNow_ < _mouseRepeatDue) continue
-        var generation = _mouseRepeatGeneration
-        _mouseRepeatTimer = null
-        Wake.post(_runFiber, MouseRepeatWake.new(generation))
-        return
-      }
-      _mouseRepeatTimer = null
-    }
+    var timer = Timer.after(mouseRepeatWait_())
     _mouseRepeatTimer = timer
-    timer.call()
+    timer.then(Fn.new {|result|
+      if (timer.cancelled || _mouseRepeatTimer != timer) return
+      _mouseRepeatTimer = null
+      if (!_running || _runMode != "async" || _mouseRepeatOwner == null) return
+      if (repeatNow_ < _mouseRepeatDue) {
+        ensureMouseRepeatTimer_()
+      } else {
+        Wake.post(_runFiber, MouseRepeatWake.new(_mouseRepeatGeneration))
+      }
+    })
   }
 
   // ----- External wake-up ----------------------------------------
   //
   // post() / post(value) — wake the App's parked fiber from outside
-  // the Input.nextEvent / Timer.trigger paths.  The canonical use
+  // the Input.nextEvent / Timer.after paths.  The canonical use
   // case is a Hook.onInput callback that mutates a widget tree
   // (chat scrollback, ticker, etc.) and needs the App to repaint
   // even though the user hasn't pressed anything.  Hooks must run
@@ -358,7 +366,7 @@ class App {
 
   // Optional handler for posted values.  Called from drainOnce_
   // when the resumed value isn't a KeyEvent / MouseEvent /
-  // TimerElapsed and isn't the WakeOnly sentinel.  The App always
+  // a timer operation and isn't the WakeOnly sentinel.  The App always
   // redraws on a wake-up (drawAll_ runs at the top of each
   // drainOnce_), so onPost is only needed when the caller wants to
   // do extra work with the value.
@@ -369,13 +377,9 @@ class App {
   //
   // Spawn `fn` in a fresh fiber, pump the App's event loop from the
   // run-fiber until the child completes, return whatever `fn`
-  // returned.  The child is the only thing parked on its SFTP /
-  // Timer.trigger / Wake.post completions, so the wakes-meant-for-
-  // someone-else hazard the run-fiber has (key/mouse/tickMs all
-  // resume the run-fiber) doesn't apply here — only the child's own
-  // results land on the child.  Meanwhile the run-fiber's own
-  // events keep dispatching normally during the wait, so keystrokes,
-  // ticks, and repaints are unaffected.
+  // returned. While the child awaits its operations, the App continues
+  // dispatching input, ticks, and repaints from its run-fiber. Direct await
+  // in a handler is also safe, but postpones UI events until it completes.
   //
   // Caller MUST be the run-fiber (i.e., this is sync-shaped code in
   // the App's run loop).  Modal calls (Alert.show, Confirm.show)
@@ -799,19 +803,21 @@ class App {
   // nested pump.
   drainOnce_() {
     drawAll_()
-    // Only schedule a tick when one isn't already pending.  Without
-    // this gate, every non-tick wake (key, mouse, app.post()) would
-    // queue a fresh timer while the previous one is still in
-    // wren_host's pending-timer array, blowing past WREN_HOST_MAX_TIMERS
-    // within a few keystrokes.
-    if (_tickMs != null && !_tickPending) {
-      Timer.trigger(Fiber.current, _tickMs)
-      _tickPending = true
+    if (_tickMs != null && _tickTimer == null) {
+      var target = _runFiber
+      var timer = Timer.after(_tickMs)
+      _tickTimer = timer
+      timer.then(Fn.new {|result|
+        if (!timer.cancelled && _tickTimer == timer &&
+            _runFiber == target && _running) Wake.post(target, AppTickWake.new(timer))
+      })
     }
     var ev = Fiber.yield()
-    if (ev is TimerElapsed) {
-      _tickPending = false
-      onTick_()
+    if (ev is AppTickWake) {
+      if (ev.timer == _tickTimer) {
+        _tickTimer = null
+        onTick_()
+      }
       return
     }
     if (ev is KeyEvent) {
@@ -923,7 +929,7 @@ class App {
     _running     = true
     _backdrop    = null            // recapture screen on first paint
     _runFiber    = Fiber.current   // claim handler posts wakes here
-    _tickPending = false           // any prior run's timers fire to a dead fiber
+    _tickTimer = null
     // Push an input claim.  The handler runs synchronously in the
     // C dispatch frame (via Hook.dispatch_'s wrap, same as any
     // hook); it queries App state via shouldConsume_ to decide
@@ -943,6 +949,8 @@ class App {
     })
     while (_running) drainOnce_()
     stopMouseRepeat_(null)
+    if (_tickTimer != null) _tickTimer.cancel()
+    _tickTimer = null
     _claim.pop()
     _claim    = null
     _runMode  = null
@@ -956,7 +964,7 @@ class App {
   // parking a fiber.  Use when calling from a context where doterm
   // can't dispatch back to the App (e.g. the Wren console's REPL,
   // which itself runs inside a Hook.onKey handler that blocks the
-  // main loop until it returns).  Trade-off: Timer.trigger and
+  // main loop until it returns).  Trade-off: Timer.after and
   // Hook.every don't fire while runSync is in its inner loop, so
   // dynamic widgets that depend on ticks won't refresh.  Use the
   // async run() for long-lived UI sessions where doterm needs to

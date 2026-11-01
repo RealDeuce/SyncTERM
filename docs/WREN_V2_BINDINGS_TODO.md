@@ -24,14 +24,14 @@ snapshot and input ownership bindings in `wren_bind_core.c`.
 
 ## 2 Own asynchronous operations
 
-- [ ] Replace public fiber-argument SFTP and timer calls with owned operations
+- [x] Replace public fiber-argument SFTP and timer calls with owned operations
   whose completion identity, result, cancellation, and lifetime are explicit.
   Supply an ergonomic Wren await helper without the single-source restriction.
-- [ ] Validate targets and arguments before scheduling; enforce a bounded
+- [x] Validate targets and arguments before scheduling; enforce a bounded
   pending-timer policy and release cancelled/dead-owner resources.
-- [ ] Migrate SFTP queue/browser, public-key installer, App ticks and mouse
+- [x] Migrate SFTP queue/browser, public-key installer, App ticks and mouse
   repeat, and all remaining bundled callers and tests.
-- [ ] Test immediate and deferred success/error, overlapping completions,
+- [x] Test immediate and deferred success/error, overlapping completions,
   cancellation, limits, abandoned operations, and disconnect/shutdown.
 
 Starting points: `wren_sftp.c`, wake delivery in `wren_bind_core.c`, and
@@ -142,4 +142,24 @@ pointers after foreign methods/constructors and discards allocator scratch
 slots. A standalone test with an allocator that always moves memory failed
 before the fix and passed afterwards, including ASan/UBSan. MinGW i686 and
 x86_64 VM-library builds passed; the native host regression also passed.
-The operation API and caller migration remain in progress.
+
+Item 2: SFTP and `Timer.after` now return owned Operation objects with
+completion identity, retained results, multiple awaiters, `.then`, and
+idempotent cancellation. Native completion markers are distinct from ordinary
+wakes; deferred messages retain FIFO order. Timers are bounded at 32 and
+provider requests at 256. Dead await owners release their pending operations.
+Cancelled SFTP replies are drained and late open handles closed; collected
+unclaimed successful results also close their handles. Shutdown cancels
+operations before disconnect hooks and never resumes async callbacks during
+teardown. App ticks/mouse repeat hold cancellable timers, and quit explicitly
+wakes a parked App. Bundled scripts and the manual use the new API throughout.
+
+Verification for item 2: all 15 selected VM, host, menu, picker, settings,
+synthetic UI, and live SSH/SFTP tests passed. Focused regressions cover
+immediate/deferred errors and success, reversed provider replies, multiple
+waiters, cancellation, both limits, dead owners, forged completion values,
+message ordering, unclaimed handles, and shutdown. The ordering regression
+failed before the drain correction. The updated host suite passed ASan/UBSan
+with FreeBSD leak detection disabled. The native application linked; FreeBSD
+Clang/GCC host libraries and MinGW i686/x86_64 host libraries built without
+warnings. Windows runtime testing was not performed.

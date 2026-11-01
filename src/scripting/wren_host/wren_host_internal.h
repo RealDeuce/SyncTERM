@@ -163,6 +163,7 @@ struct st_wren_mouse_gesture {
 	bool dragging;
 };
 
+struct st_wren_operation;
 struct st_wren_input_claim;
 struct st_wren_wake;
 struct surface_storage;
@@ -183,6 +184,7 @@ struct st_wren_context {
 	size_t pending_input_capacity;
 	struct st_wren_input_claim *claim_top;
 	uint64_t next_claim_id;
+	struct st_wren_operation *operations;
 	struct st_wren_wake *wake_head;
 	struct st_wren_wake *wake_tail;
 	WrenHandle *hook_class;
@@ -312,10 +314,31 @@ WrenForeignClassMethods st_wren_session_bind_class(const char *class_name);
 int st_wren_status_render(WrenVM *vm, bool enabled);
 void st_wren_status_dispose(WrenVM *vm);
 
+/* Native work pins an Operation until resolve; result handles and waiters
+ * are released by its finalizer, or explicitly before VM destruction. */
+struct st_wren_operation *st_wren_operation_new(WrenVM *vm, int slot);
+void st_wren_operation_on_cancel(struct st_wren_operation *operation,
+	void (*cancel)(void *, struct st_wren_operation *), void *context);
+/* Resolving consumes scratch slots above result_slot. */
+int st_wren_operation_resolve(WrenVM *vm, struct st_wren_operation *operation,
+	int result_slot);
+enum st_wren_wake_action {
+	ST_WREN_WAKE_DELIVER,
+	ST_WREN_WAKE_DEFER,
+	ST_WREN_WAKE_DISCARD,
+};
+enum st_wren_wake_action st_wren_operation_wake_action(WrenVM *vm,
+	WrenHandle *fiber, struct st_wren_operation *source);
+int st_wren_operation_collect(WrenVM *vm);
+int st_wren_operation_cancel_all(WrenVM *vm);
+void st_wren_operation_dispose(WrenVM *vm);
+WrenForeignMethodFn st_wren_async_bind_method(const char *class_name,
+	bool is_static, const char *signature);
+WrenForeignClassMethods st_wren_async_bind_class(const char *class_name);
+
 WrenForeignMethodFn st_wren_core_bind_method(const char *class_name,
 	bool is_static, const char *signature);
 WrenForeignClassMethods st_wren_core_bind_class(const char *class_name);
-void st_wren_core_new_generic(WrenVM *vm, int slot, int class_slot);
 WrenForeignMethodFn st_wren_fs_bind_method(const char *class_name,
 	bool is_static, const char *signature);
 WrenForeignMethodFn st_wren_hyperlink_bind_method(const char *class_name,
@@ -400,7 +423,8 @@ int st_wren_connected_handle_physical_record(
 	struct st_wren_connected *connected,
 	const struct st_wren_input_record *record, bool *consumed);
 int st_wren_wake_drain(WrenVM *vm);
-int st_wren_wake_enqueue(WrenVM *vm, int fiber_slot, int value_slot);
+int st_wren_wake_enqueue(WrenVM *vm, int fiber_slot, int value_slot,
+	struct st_wren_operation *source);
 WrenForeignMethodFn st_wren_sftp_bind_method(const char *class_name,
 	bool is_static, const char *signature);
 WrenForeignClassMethods st_wren_sftp_bind_class(const char *class_name);

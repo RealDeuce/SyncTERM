@@ -184,7 +184,7 @@ class SftpFmt {
   static initialCwd() {
     var pd = SFTP.pubdir
     if (pd != null && pd.count > 0) return pd
-    var r = SFTP.realpath(Fiber.current, ".") || Fiber.yield()
+    var r = SFTP.realpath(".").await()
     if (r is String && r.count > 0) return r
     return "/"
   }
@@ -192,17 +192,17 @@ class SftpFmt {
   // Open `path`, drain readdir until EOF (null reply), close.
   // Returns a List<BrowserRow> or an SFTPError.
   static loadDir(path) {
-    var h = SFTP.opendir(Fiber.current, path) || Fiber.yield()
+    var h = SFTP.opendir(path).await()
     if (h is SFTPError) return h
 
     var entries = []
     var more = true
     while (more) {
-      var batch = SFTP.readdir(Fiber.current, h) || Fiber.yield()
+      var batch = SFTP.readdir(h).await()
       if (batch == null) {
         more = false
       } else if (batch is SFTPError) {
-        SFTP.close(Fiber.current, h) || Fiber.yield()
+        SFTP.close(h).await()
         return batch
       } else {
         for (e in batch) {
@@ -211,7 +211,7 @@ class SftpFmt {
       }
     }
 
-	var closed = SFTP.close(Fiber.current, h) || Fiber.yield()
+	var closed = SFTP.close(h).await()
 	if (closed is SFTPError) return closed
 
     entries.sort {|a, b|
@@ -393,7 +393,7 @@ class SftpApp is App {
     // Mode-switch hotkeys — bound once, valid in either mode.
     bind(Key.altS, Fn.new {|k|
       var ready = runChild(Fn.new {
-        return SFTP.start(Fiber.current) || Fiber.yield()
+        return SFTP.start().await()
       })
       if (ready is SFTPError) {
         Alert.show(this, "Cannot start SFTP:\n" + ready.toString)
@@ -699,7 +699,7 @@ class SftpApp is App {
     }
     var path = SftpFmt.joinPath(_bCwd, item.name)
     popStatus("Fetching description ...")
-    var d = runChild(Fn.new { SFTP.descs(Fiber.current, path) || Fiber.yield() })
+    var d = runChild(Fn.new { SFTP.descs(path).await() })
     popStatus(null)
     if (d is SFTPError) {
       Alert.show(this, "Cannot fetch description:\n" + d.toString)

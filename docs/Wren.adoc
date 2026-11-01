@@ -1436,9 +1436,8 @@ that yields up to the dispatcher would strand it with no value to
 act on.  `C2`-contract hooks ignore returns, but yielding still
 breaks the dispatch chain.
 
-If a hook callback yields its own fiber directly (e.g. fires an
-async op against `Fiber.current` and immediately calls
-`Fiber.yield()`), the dispatch wrapper detects the yield and logs:
+If a hook callback yields its own fiber directly (for example by awaiting
+an operation directly inside that callback), the dispatch wrapper detects the yield and logs:
 
 ----
 hook handler must not yield directly; wrap parking work in
@@ -1472,8 +1471,8 @@ The child's yield returns to the hook body — the immediate
 returns its Bool; the child resumes later via the framework's
 result-queue drain.
 
-The second option is to fire the async op against a `Fiber.new {|r|
-... }` whose body runs when the result arrives.  The hook returns
+The second option is to observe the operation with `.then(fn)`, whose
+callback runs when the result arrives.  The hook returns
 synchronously without ever yielding; the callback fiber is invoked
 later by the drainer:
 
@@ -1481,9 +1480,9 @@ later by the drainer:
 ----
 Hook.onKey { |k|
   if (k == Key.f2) {
-    SFTP.realpath(Fiber.new {|r|
+    SFTP.realpath(".").then(Fn.new {|r|
       // handle r …
-    }, ".")
+    })
     return true
   }
   return false
@@ -6164,64 +6163,24 @@ collation table and an identical tie-break for deterministic results.
 
 === Timer [[timer]]
 
-One-shot fiber resumption after a delay.  Registers a fiber to
-receive a `TimerElapsed` event after the requested number of
-milliseconds; the event lands on the result queue and the fiber is
-resumed by the standard drainer once doterm() reaches it.
+Timers are connected-session operations. `Timer.after(ms)` returns an
+<<operation,Operation>> that completes with `null` after the delay. The delay
+must be an integer from 0 through 4294967295 milliseconds. Invalid arguments,
+allocation failure, and exceeding the 32 pending timers per VM abort the
+calling fiber. Cancellation removes the timer immediately and frees its slot.
+A zero delay completes on the next owner-loop pump, never inside `after`.
 
-For recurring fire-and-forget callbacks (no fiber resume), use
-`Hook.every(ms, fn)` instead.
-
-[options="header",cols="2,3"]
-|===
-| Method | Description
-
-| `Timer.trigger(fiber, ms)`
-| Schedule `fiber` to be resumed with a `TimerElapsed` after `ms`
-  milliseconds.  Multiple pending entries per fiber are fine — each
-  fires independently.  Returns `null`.  Throws on a non-numeric or
-  negative `ms`, or when more than 32 timers are pending across the
-  whole VM.
-
-| `Timer.now`
-| Monotonic clock reading in seconds (a `Num`).  The absolute value is
-  arbitrary; only differences between two readings are meaningful.
-  Useful for measuring elapsed time around an async op or computing
-  throughput between snapshots.
-|===
-
-Common idiom — fire and immediately await:
+`Timer.now` returns monotonic seconds as a `Num`; only differences between
+readings are meaningful. For recurring callbacks, use `Hook.every(ms, fn)`.
 
 [source,wren]
 ----
 import "syncterm" for Timer
 
-Timer.trigger(Fiber.current, 250)
-Fiber.yield()
-// 250ms have passed, with the doterm() loop running normally
+var delay = Timer.after(250)
+var result = delay.await()
+// result is null, or OperationError if another owner cancelled the delay
 ----
-
-Multi-fire / event-loop dispatch:
-
-[source,wren]
-----
-import "syncterm" for Timer, TimerElapsed, SFTP, SFTPStat, SFTPError
-
-Timer.trigger(Fiber.current, 100)        // spinner tick
-SFTP.stat(Fiber.current, "/foo")          // stat in flight
-while (true) {
-  var x = Fiber.yield()
-  if (x is TimerElapsed) {
-    spinner.update()
-    Timer.trigger(Fiber.current, 100)    // re-arm
-  }
-  if (x is SFTPStat)  break
-  if (x is SFTPError) break
-}
-----
-
-`TimerElapsed` is a marker class with no fields — the caller already
-knows what it scheduled; just dispatch on type.
 
 === Format [[format]]
 
@@ -6266,27 +6225,24 @@ if (elapsed > 0) {
 
 === SFTP [[sftp]]
 
-SSH-channel side-band file transfer.  The full surface follows the
-fiber-arg async pattern (see <<async-pattern,Async Ops>> below): the
-foreign primitive captures a fiber and queues work on a connection-owned
-SFTP worker; the result lands on the framework's queue and
-the standard drainer resumes the fiber.
-
-`SFTP.<op>(fiber, args...)` returns `null` when the request was
-queued (yield to receive the result), or an `SFTPError` directly on
-synchronous failure (session is gone, OOM at the foreign-method
-site).
+SSH-channel side-band file transfer. Each operation queues work on the
+connection-owned SFTP worker and returns an <<operation,Operation>>.
+Both immediate and deferred recoverable failures are `SFTPError` result
+values; `.await()` obtains the result in either case. Arguments of the wrong
+type abort the calling fiber before work is submitted. Up to 256 provider
+requests may be outstanding; a full queue returns a completed operation with
+an `SFTPError` rather than accepting unbounded work.
 
 [options="header",cols="2,3"]
 |===
 | Method | Description
 
-| `SFTP.start(fiber)`
-| Lazily open and negotiate the SSH SFTP subsystem. Resumes with `true`
-  or `SFTPError`; the immediate return follows the normal async convention.
+| `SFTP.start()`
+| Lazily open and negotiate the SSH SFTP subsystem. Completes with `true`
+  or `SFTPError` through its operation result.
   Concurrent calls share one negotiation, and calls after success do not
   open another channel. A failed startup is retained until reconnect.
-  Call before other operations. Non-SSH connections return `SFTPError`.
+  Call before other operations. Non-SSH connections complete with `SFTPError`.
 
 | `SFTP.available`
 | `true` while the SSH connection has a negotiated, usable SFTP subsystem.
@@ -6307,54 +6263,54 @@ site).
   UI code can use this to decide whether to reserve a row for a
   description bar that would otherwise always be blank.
 
-| `SFTP.realpath(fiber, path)`
-| Resolve `path` to an absolute server path.  Resumes with `String`
+| `SFTP.realpath(path)`
+| Resolve `path` to an absolute server path.  Completes with `String`
   or `SFTPError`.
 
-| `SFTP.stat(fiber, path)`
-| Stat a remote path.  Resumes with `SFTPStat` or `SFTPError`.
+| `SFTP.stat(path)`
+| Stat a remote path.  Completes with `SFTPStat` or `SFTPError`.
 
-| `SFTP.opendir(fiber, path)`
-| Open a directory for iteration.  Resumes with `SFTPHandle` or
+| `SFTP.opendir(path)`
+| Open a directory for iteration.  Completes with `SFTPHandle` or
   `SFTPError`.
 
-| `SFTP.readdir(fiber, handle)`
+| `SFTP.readdir(handle)`
 | Read the next batch of entries from an open directory handle.
-  Resumes with `List<SFTPEntry>` or `null` (EOF) or `SFTPError`.
+  Completes with `List<SFTPEntry>` or `null` (EOF) or `SFTPError`.
   Loop until null, then call `SFTP.close`.
 
-| `SFTP.open(fiber, path, flags)`
+| `SFTP.open(path, flags)`
 | Open a file.  `flags` is a bitmask from `FileFlag` (see below).
-  Resumes with `SFTPHandle` or `SFTPError`.
+  Completes with `SFTPHandle` or `SFTPError`.
 
-| `SFTP.read(fiber, handle, count, offset)`
-| Read up to `count` bytes from `handle` at `offset`.  Resumes with
+| `SFTP.read(handle, count, offset)`
+| Read up to `count` bytes from `handle` at `offset`.  Completes with
   the bytes as a String, `null` at EOF, or `SFTPError`.  Argument
   order matches `File.readBytes(count, offset)`.
 
-| `SFTP.write(fiber, handle, offset, bytes)`
-| Write `bytes` to `handle` at `offset`.  All-or-nothing: resumes
+| `SFTP.write(handle, offset, bytes)`
+| Write `bytes` to `handle` at `offset`.  All-or-nothing: completes
   with `null` on success or `SFTPError`.
 
-| `SFTP.close(fiber, handle)`
-| Close a handle returned by `open` / `opendir`.  Resumes with
+| `SFTP.close(handle)`
+| Close a handle returned by `open` / `opendir`.  Completes with
   `null` or `SFTPError`.  After close, the handle is dead — further
   reads / writes / closes on it abort the calling fiber.
 
-| `SFTP.mkdir(fiber, path)`, `SFTP.rmdir(fiber, path)`,
-  `SFTP.remove(fiber, path)`, `SFTP.rename(fiber, oldpath, newpath)`
-| Mutation ops.  Each resumes with `null` on success or `SFTPError`.
+| `SFTP.mkdir(path)`, `SFTP.rmdir(path)`,
+  `SFTP.remove(path)`, `SFTP.rename(oldpath, newpath)`
+| Mutation ops.  Each completes with `null` on success or `SFTPError`.
 
-| `SFTP.setMtime(fiber, path, t)`
+| `SFTP.setMtime(path, t)`
 | Set both atime and mtime of `path` to `t` (POSIX seconds).  Used by
   the upload queue to stamp completed remotes with the local file's
   mtime so a subsequent browse shows `[==]` without depending on
-  hash extensions.  Resumes with `null` on success or `SFTPError`
+  hash extensions.  Completes with `null` on success or `SFTPError`
   (e.g. read-only mount).
 
-| `SFTP.descs(fiber, path)`
+| `SFTP.descs(path)`
 | Fetch the server's long description for `path` via the
-  `descs@syncterm.net` extension.  Resumes with the description
+  `descs@syncterm.net` extension.  Completes with the description
   String (possibly empty) or `SFTPError`, including when the server does
   not support the extension. `SFTPEntry.hasLongDesc` is a
   per-entry hint — server-asserted presence — that lets browsers
@@ -6401,7 +6357,7 @@ One entry from `SFTP.readdir`.
                   `descs@syncterm.net` extension.  Lets browsers
                   show a "+" marker on rows with descriptions
                   without paying the round-trip cost; fetch the
-                  actual text with `SFTP.descs(fiber, path)`.
+                  actual text with `SFTP.descs(path)`.
 | `hash`        | SHA-1 / MD5 digest bytes from `sha1s@syncterm.net`
                   / `md5s@syncterm.net`, or `null` if neither
                   extension was negotiated.  Compares directly
@@ -6496,79 +6452,67 @@ failure.
 
 ==== Async Ops [[async-pattern]]
 
-Every `SFTP.<op>(fiber, ...)` and `Timer.trigger(fiber, ms)` follow
-the same fiber-arg pattern.  The first argument is the fiber that
-will be resumed with the result.  The canonical idiom is the
-`||`-yield pattern:
+===== Operation [[operation]]
+
+`SFTP` and timers return an owned `Operation` for each request. No caller
+supplies a target fiber, and immediate errors follow the same result contract
+as asynchronous completion. Operations have object identity, so overlapping
+requests remain distinguishable even when their result types are identical.
+
+[options="header",cols="2,3"]
+|===
+| Member | Description
+| `isDone` | Bool indicating completion, including cancellation.
+| `cancelled` | Bool indicating explicit or abandoned-owner cancellation.
+| `result` | Completed value or typed `Error`; aborts before completion.
+| `await()` | Obtain the result, parking only when necessary. Multiple fibers
+  may await the same operation; each receives the same retained result.
+| `then(fn)` | Run `fn(result)` in a child fiber on completion and return the
+  operation. An already completed operation invokes the callback immediately.
+| `cancel()` | Return true on cancellation, false if already complete. The
+  result becomes an `OperationError` describing cancellation.
+|===
 
 [source,wren]
 ----
-var r = SFTP.realpath(Fiber.current, ".") || Fiber.yield()
-// r is String or SFTPError
-----
+var left = SFTP.stat("/a")
+var right = SFTP.stat("/b")
+var a = left.await()
+var b = right.await()
+// Either provider reply may arrive first; identity selects the right result.
 
-The `||` short-circuits when the foreign returned a synchronous
-error (no session, OOM): `r` is the `SFTPError` immediately, no
-yield happens.  Otherwise the foreign returned `null`, the yield
-fires, and the fiber resumes with the actual result (success or
-async error).
-
-===== The single-source rule
-
-This idiom is correct *iff* the calling fiber's only resume sources
-are the async-op completions it's making.  If the fiber has other
-things that can wake it (`Wake.post` from the host, the App's claim
-handler posting key/mouse/timer events to its run-fiber, etc.), the
-yield can return a value of the wrong type and the result-type check
-on the next line will see garbage.
-
-In practice, every script context that calls `SFTP.<op>` is already
-single-source by construction.  The three providers:
-
-* *Hook handler fibers* — the host invokes hooks (`onConnect`,
-  `onKey`, etc.) in a fresh fiber; nothing else can wake it.
-  `auto/connected/sftp_pubkey.wren` works this way.
-
-* *SftpQueue worker fibers* — the queue spawns one worker per
-  direction; each is the long-running parker for its own ops.
-  `sftp_queue.wren` works this way.
-
-* *App.runChild children* — an `App` handler runs in the App's
-  run-fiber, which IS multi-source.  Wrap `||`-yield work in
-  `<<ui-app-runchild,App.runChild>>` to get a single-source child
-  fiber while the run-fiber keeps dispatching events:
-+
-[source,wren]
-----
-var r = app.runChild(Fn.new {
-  return SFTP.realpath(Fiber.current, ".") || Fiber.yield()
+SFTP.realpath(".").then(Fn.new {|result|
+  if (result is Error) System.print(result.message)
+  else System.print(result)
 })
 ----
-+
-`sftp_app.wren` works this way — every `SFTP.<op>` call inside
-`SftpApp` ultimately runs in a `runChild` fiber.
 
-If you ever find yourself wanting to write `SFTP.<op>(Fiber.current,
-...) || Fiber.yield()` *directly inside* a key/mouse handler or
-other App-handler context, that's the multi-source-fiber footgun.
-Wrap it in `runChild`.
+Await registers the calling fiber with that specific operation. The owner
+loop delivers an operation notification to resume it. Unrelated `Wake.post`
+messages remain queued in arrival order until the operation wait completes;
+they cannot substitute for the result. Use `.await()` rather than a raw
+`Fiber.yield()` when waiting for an operation. A direct await in an App
+handler postpones that handler's UI events; `App.runChild` keeps dispatching
+those events while its child waits.
 
-===== Callback shape (no yield)
+Pending native work retains its operation even if the script drops the
+handle. Dropping a handle alone does not cancel the request. Dead or aborted
+awaiters are pruned at the next pump; when the last awaiting owner dies, its
+pending operation is cancelled. Completed result storage is released when
+its operation is collected. VM shutdown cancels pending operations before
+running disconnect hooks, then releases all roots and waiters without
+resuming asynchronous script code after teardown.
 
-For fire-and-forget — no need for an answer at all, or the result
-handler is naturally a closure — pass `Fiber.new {|r| ... }`
-instead of `Fiber.current`.  The calling fiber doesn't yield:
+Timer cancellation removes the native timer. SFTP cancellation abandons the
+script's interest in the reply; the provider may already have performed a
+remote side effect, and cancellation does not roll it back. Late replies are
+discarded, and late open results receive a best-effort close. A cancelled
+request ID continues counting toward the provider limit until its reply is
+drained. Explicitly close successful SFTP handles when finished.
 
-[source,wren]
-----
-SFTP.realpath(Fiber.new {|r|
-  // r is String or SFTPError
-}, ".")
-----
-
-The framework `.call`s the passed fiber with the result whenever
-the op completes.  Common in hooks that don't want to block on the
-result, and for fan-out where each result wants its own closure.
+`OperationError` inherits `Error` and exposes `code`, `message`, and `toString`.
+Programming errors, including an invalid private await target or non-Fn
+callback, abort the calling fiber rather than becoming result values.
 
 === WON [[won]]
 
@@ -6748,7 +6692,7 @@ Screen.restore(snap)
 `run()` parks a fiber on `Fiber.yield()` between events — claim
 handler posts each accepted event via `Wake.post`, the result
 queue resumes the fiber.  Inbound bytes flow normally,
-`Hook.every` and `Timer.trigger` keep firing.  `runSync()` blocks
+`Hook.every` and `Timer.after` keep firing.  `runSync()` blocks
 the VM on `Input.next()` instead; use it from contexts where
 doterm can't dispatch back into the App, e.g. the Wren console
 (whose REPL itself runs inside a `Hook.onKey`).
@@ -6906,24 +6850,18 @@ restoreFocus()
 
 ==== Async work in handlers [[ui-app-runchild]]
 
-`runChild` is the App-context provider for the single-source fiber
-that the `||`-yield SFTP idiom (see <<async-pattern>>) requires.
-A keymap or widget handler that needs to call `SFTP.<op>` can't do
-it directly: the App's run-fiber has multiple resume sources (the
-claim handler's `Wake.post` for keys/mouse, the `tickMs` timer,
-external `app.post(value)` calls), and any of them might wake the
-fiber before the SFTP result arrives.  The yield then returns the
-wrong type and the calling code sees garbage.
-
-`runChild(fn)` spawns a child fiber whose only resume sources are
-its own SFTP / `Wake.post` completions:
+`runChild(fn)` spawns a child fiber and pumps the App's event loop until
+that child finishes. Use it when a handler should keep input, ticks, and
+repaints responsive while awaiting an operation. Direct operation await is
+also safe: its wait defers unrelated wakes, but the handler does not dispatch
+those UI events until the operation completes.
 
 [source,wren]
 ----
 fetchDescAndShow_(path) {
   popStatus("Fetching ...")
   var d = runChild(Fn.new {
-    return SFTP.descs(Fiber.current, path) || Fiber.yield()
+    return SFTP.descs(path).await()
   })
   popStatus(null)
   if (d is SFTPError) Alert.show(this, "Failed: " + d.toString)

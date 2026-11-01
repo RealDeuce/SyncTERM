@@ -32,8 +32,7 @@ class TransferFlow {
       // ownership until the UI/inline fiber actually finishes; its own
       // input and timer sources resume it while this supervisor parks.
       while (!task.isDone) {
-        Timer.trigger(Fiber.current, 25)
-        Fiber.yield()
+        Timer.after(25).await()
       }
       var result = task.error
       if (Transfer.active) Transfer.endSession()
@@ -134,8 +133,7 @@ class TransferFlow {
     })
     while (!Transfer.done) {
       Transfer.drainLog()
-      Timer.trigger(Fiber.current, 50)
-      Fiber.yield()
+      Timer.after(50).await()
     }
     Transfer.drainLog()
     var ok = Transfer.success

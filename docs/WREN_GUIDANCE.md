@@ -58,11 +58,12 @@ details matter.
   Promise, thread scheduler, or background Wren execution.
 - `Fiber.new { ... }` creates a coroutine, `Fiber.yield(value)` returns to the
   immediate caller, and `.try()` catches `Fiber.abort`.
-- Host asynchronous APIs use fibers as resume tokens. The compact form
-  `SFTP.realpath(Fiber.current, ".") || Fiber.yield()` is safe only when that
-  fiber has no other resume source.
-- In UI handlers, use `app.runChild(Fn.new { ... })` rather than yielding the
-  app run-fiber directly.
+- SFTP and `Timer.after(ms)` return owned `Operation` objects. Use
+  `operation.await()` to obtain the result or `operation.then(fn)` to observe
+  completion. Cancellation is explicit and idempotent with `cancel()`.
+- Awaiting an operation defers unrelated wakes until its identifiable
+  completion is delivered. In UI handlers, use `app.runChild(Fn.new { ... })`
+  to continue dispatching UI events during the wait.
 - Hooks with return contracts must run synchronously and must not yield to the
   dispatcher.
 
@@ -94,7 +95,7 @@ details matter.
 - Do not use `for (key in map)` when actual key values are needed.
 - Do not use single-element lists as mutable closure cells; closures can
   reassign captured locals directly.
-- Do not yield directly from multi-source UI app handler fibers.
+- Do not use a raw `Fiber.yield()` to await an operation; call `.await()`.
 - Do not open `Alert`, `Confirm`, or `Prompt` on an unpumped fresh `App`.
 - Do not dismiss a repeating choice owner before an action opens nested UI;
   keep it on the modal stack behind its child.

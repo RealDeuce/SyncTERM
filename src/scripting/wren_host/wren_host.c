@@ -699,6 +699,8 @@ st_wren_bind_method(WrenVM *vm, const char *module, const char *class_name,
 	WrenForeignMethodFn method = NULL;
 
 	if (strcmp(module, "syncterm") == 0)
+		method = st_wren_async_bind_method(class_name, is_static, signature);
+	if (method == NULL && strcmp(module, "syncterm") == 0)
 		method = st_wren_fs_bind_method(class_name, is_static, signature);
 	if (method == NULL && strcmp(module, "syncterm") == 0
 	    && (st_wren_context_from_vm(vm)->event == NULL
@@ -753,6 +755,8 @@ st_wren_bind_class(WrenVM *vm, const char *module, const char *class_name)
 	WrenForeignClassMethods methods = {NULL, NULL};
 
 	if (strcmp(module, "syncterm") == 0)
+		methods = st_wren_async_bind_class(class_name);
+	if (methods.allocate == NULL && strcmp(module, "syncterm") == 0)
 		methods = st_wren_fs_bind_class(class_name);
 	if (methods.allocate == NULL && strcmp(module, "syncterm") == 0)
 		methods = st_wren_sftp_bind_class(class_name);

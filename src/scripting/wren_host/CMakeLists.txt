@@ -96,6 +96,7 @@ add_library(st_wren_host STATIC
 	wren_bind_fs.c
 	wren_bind_hyperlinks.c
 	wren_sftp.c
+	wren_async.c
 	wren_bind_status.c
 	wren_bind_session.c
 	wren_bind_xfer.c

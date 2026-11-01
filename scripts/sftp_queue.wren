@@ -399,7 +399,7 @@ class SftpQueue {
     if (hasWork && !__workersStarted && !__fatal) {
       __workersStarted = true
       Fiber.new {
-        var ready = SFTP.start(Fiber.current) || Fiber.yield()
+        var ready = SFTP.start().await()
         if (ready is SFTPError) {
           suspend()
           return
@@ -585,7 +585,7 @@ class SftpQueue {
   // ----- worker fibers -----------------------------------------------
 
   // Spawn one worker per direction.  Each fiber's first .call() runs
-  // it up to its first yield (the idle-poll Timer.trigger), so by
+  // it up to its first yield (the idle-poll Timer.after), so by
   // the time spawnWorkers_ returns the workers are parked on the
   // result queue, ready for the dispatcher to resume them.
   static spawnWorkers_() {
@@ -608,8 +608,7 @@ class SftpQueue {
       }
       var job = claimNext_(direction)
       if (job == null) {
-        Timer.trigger(Fiber.current, SftpQueue.IDLE_POLL_MS)
-        Fiber.yield()
+        Timer.after(SftpQueue.IDLE_POLL_MS).await()
       } else {
         runJob_(job)
       }
@@ -660,7 +659,7 @@ class SftpQueue {
 		  job.errMsg = "cancelled, but the local partial could not be removed"
 		}
 	  } else {
-		var removed = SFTP.remove(Fiber.current, job.remote) || Fiber.yield()
+		var removed = SFTP.remove(job.remote).await()
 		if (removed is SFTPError && removed.isTransient) {
 		  SftpQueue.suspend()
 		  return
@@ -709,7 +708,7 @@ class SftpQueue {
     }
 	// Every download begins with a source identity check.  A changed source
 	// invalidates the checkpoint and the partial destination.
-	var source = SFTP.stat(Fiber.current, job.remote) || Fiber.yield()
+	var source = SFTP.stat(job.remote).await()
 	if (!(source is SFTPStat)) {
 	  if (source is SFTPError && source.isTransient) {
 		SftpQueue.suspend()
@@ -767,8 +766,7 @@ class SftpQueue {
 		return
 	  }
 	}
-    var hSrc = SFTP.open(Fiber.current, job.remote, FileFlag.read) ||
-               Fiber.yield()
+    var hSrc = SFTP.open(job.remote, FileFlag.read).await()
     if (hSrc is SFTPError) {
 	  lf.close()
 	  if (hSrc.isTransient) {
@@ -791,7 +789,7 @@ class SftpQueue {
     }
     ctx.await()
 	var localClose = lf.close()
-	var remoteClose = SFTP.close(Fiber.current, hSrc) || Fiber.yield()
+	var remoteClose = SFTP.close(hSrc).await()
     if (ctx.err == "suspended") {
       // Worker is bailing per user request; leave the job ACTIVE so
       // it persists in that state and resumes on the next session.
@@ -817,7 +815,7 @@ class SftpQueue {
 	  job.status = SftpQueue.FAILED
 	  job.errMsg = "close remote: " + remoteClose.toString
 	} else {
-	  var finalSource = SFTP.stat(Fiber.current, job.remote) || Fiber.yield()
+	  var finalSource = SFTP.stat(job.remote).await()
 	  if (finalSource is SFTPError && finalSource.isTransient) {
 		SftpQueue.suspend()
 		return
@@ -854,8 +852,8 @@ class SftpQueue {
 	  var remaining = want
 	  while (remaining > 0) {
 		var t0 = Timer.now
-		var bytes = SFTP.read(Fiber.current, ctx.hRemote, remaining,
-			cursor) || Fiber.yield()
+		var bytes = SFTP.read(ctx.hRemote, remaining,
+			cursor).await()
 		var rtt = Timer.now - t0
 		if (bytes is SFTPError) {
 		  if (bytes.isTransient || SftpQueue.shellClosed) {
@@ -940,7 +938,7 @@ class SftpQueue {
 	}
 	job.sourceSize = totalSize
 	job.sourceMtime = localMtime
-	var remote = SFTP.stat(Fiber.current, job.remote) || Fiber.yield()
+	var remote = SFTP.stat(job.remote).await()
 	var restart = job.resume == 0
 	if (remote is SFTPStat) {
 	  if (remote.size < job.resume || remote.size > totalSize) restart = true
@@ -970,8 +968,7 @@ class SftpQueue {
 	}
 	var flags = FileFlag.write | FileFlag.creat
 	if (restart) flags = flags | FileFlag.trunc
-    var hDst  = SFTP.open(Fiber.current, job.remote, flags) ||
-                Fiber.yield()
+    var hDst  = SFTP.open(job.remote, flags).await()
     if (hDst is SFTPError) {
       lf.close()
 	  if (hDst.isTransient) {
@@ -991,14 +988,14 @@ class SftpQueue {
     }
     ctx.await()
 	var localClose = lf.close()
-	var remoteClose = SFTP.close(Fiber.current, hDst) || Fiber.yield()
+	var remoteClose = SFTP.close(hDst).await()
     if (ctx.err == "suspended") {
       // Worker is bailing per user request; leave the job ACTIVE so
       // it persists in that state and resumes on the next session.
       return
     }
     if (ctx.err == "cancelled") {
-	  var removed = SFTP.remove(Fiber.current, job.remote) || Fiber.yield()
+	  var removed = SFTP.remove(job.remote).await()
 	  if (removed is SFTPError && removed.isTransient) {
 		SftpQueue.suspend()
 		return
@@ -1033,7 +1030,7 @@ class SftpQueue {
       // non-fatal — if the server rejects setstat (e.g. read-only
       // mount), the chip falls back to "[<>]".
       if (localMtime > 0) {
-        SFTP.setMtime(Fiber.current, job.remote, localMtime) || Fiber.yield()
+        SFTP.setMtime(job.remote, localMtime).await()
       }
     }
   }
@@ -1063,8 +1060,7 @@ class SftpQueue {
 		  break
 		}
 		var t0 = Timer.now
-		var r = SFTP.write(Fiber.current, ctx.hRemote, cursor, chunk) ||
-			Fiber.yield()
+		var r = SFTP.write(ctx.hRemote, cursor, chunk).await()
 		var rtt = Timer.now - t0
 		if (r is SFTPError) {
 		  if (r.isTransient || SftpQueue.shellClosed) {

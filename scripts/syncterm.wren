@@ -1907,19 +1907,36 @@ class Platform {
   foreign static languages
 }
 
-// One-shot fiber resumption after a delay.  Register a fiber to
-// receive a TimerElapsed event after `ms` milliseconds:
-//
-//   Timer.trigger(Fiber.current, 250)
-//   var x = Fiber.yield()  // x is TimerElapsed
-//
-// Multiple pending timers per fiber are fine - each fires
-// independently and yields one TimerElapsed.  For recurring callbacks
-// that don't park a fiber, use Hook.every(ms, fn) instead.
+// Owned asynchronous completion. Native work retains the operation until it
+// finishes or is cancelled. Awaiting defers unrelated Wake.post messages.
+foreign class Operation {
+  foreign isDone
+  foreign cancelled
+  foreign result
+  foreign cancel()
+  foreign await_(fiber)
+  await() {
+    while (!isDone) {
+      await_(Fiber.current)
+      Fiber.yield()
+    }
+    return result
+  }
+  then(fn) {
+    if (!(fn is Fn)) Fiber.abort("Operation.then expects a Fn")
+    Fiber.new { fn.call(await()) }.call()
+    return this
+  }
+}
+foreign class OperationError is Error {
+  foreign code
+  foreign message
+  foreign toString
+}
+
 class Timer {
-  foreign static trigger(fiber, ms)
-  // Monotonic clock reading (seconds, Num).  Absolute value is
-  // arbitrary; only differences are meaningful.
+  // Returns an Operation completing with null. At most 32 pending per VM.
+  foreign static after(ms)
   foreign static now
 }
 
@@ -1931,62 +1948,30 @@ class Format {
   foreign static duration(seconds)
 }
 
-// Marker class returned via the result queue when a Timer.trigger
-// delay elapses.  Carries no fields - the caller already knows what
-// it scheduled; just dispatch on type.
-foreign class TimerElapsed {}
-
-// SFTP - SSH-channel side-band file transfer.  All methods are static
-// on the SFTP class itself.
-//
-// Every async op takes the fiber-to-resume as its first argument.
-// The op returns null when the request was queued (the caller will
-// receive the result via that fiber later) or an SFTPError directly
-// when the request couldn't be queued (session is gone, OOM).
-//
-// Common idiom - fire and immediately await:
-//   var r = SFTP.realpath(Fiber.current, ".") || Fiber.yield()
-//   // r is String or SFTPError
-//
-// Multi-fire / event-loop dispatch - fire several heterogeneous ops
-// against the same fiber, then yield in a loop and demux by type:
-//   SFTP.stat(Fiber.current, "/a")
-//   SFTP.stat(Fiber.current, "/b")
-//   Timer.trigger(Fiber.current, 100)
-//   while (true) {
-//     var x = Fiber.yield()
-//     if (x is SFTPStat) { ... }
-//     if (x is SFTPError) { break }
-//     if (x is TimerElapsed) { ... }
-//   }
-//
-// Hook-friendly callback pattern - pass a Fiber.new whose body runs
-// when the result arrives; the calling fiber doesn't yield at all:
-//   SFTP.realpath(Fiber.new {|r| ... }, ".")
-//
-// readdir returns null at EOF; call SFTP.close yourself when done
-// with a handle.
+// Every SFTP operation returns an Operation. Use .await() for its value or
+// .then(fn) to observe completion without parking the caller. Recoverable
+// failures, including immediate failures, are SFTPError result values.
 class SFTP {
   // Opens the subsystem only on demand; queued completion is true or SFTPError.
-  foreign static start(fiber)
+  foreign static start()
   foreign static available
   foreign static pubdir
   foreign static lname
 
-  foreign static realpath(fiber, path)
-  foreign static stat(fiber, path)
-  foreign static opendir(fiber, path)
-  foreign static readdir(fiber, handle)
-  foreign static close(fiber, handle)
-  foreign static open(fiber, path, flags)
-  foreign static read(fiber, handle, count, offset)
-  foreign static write(fiber, handle, offset, bytes)
-  foreign static mkdir(fiber, path)
-  foreign static rmdir(fiber, path)
-  foreign static remove(fiber, path)
-  foreign static rename(fiber, oldpath, newpath)
-  foreign static setMtime(fiber, path, mtime)
-  foreign static descs(fiber, path)
+  foreign static realpath(path)
+  foreign static stat(path)
+  foreign static opendir(path)
+  foreign static readdir(handle)
+  foreign static close(handle)
+  foreign static open(path, flags)
+  foreign static read(handle, count, offset)
+  foreign static write(handle, offset, bytes)
+  foreign static mkdir(path)
+  foreign static rmdir(path)
+  foreign static remove(path)
+  foreign static rename(oldpath, newpath)
+  foreign static setMtime(path, mtime)
+  foreign static descs(path)
 }
 
 // Open-flag bitmask for SFTP.open.  Values match the SSH_FXF_* wire
