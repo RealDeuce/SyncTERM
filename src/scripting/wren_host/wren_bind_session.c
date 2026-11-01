@@ -994,13 +994,6 @@ fn_cterm_suspended_set(WrenVM *vm)
 	wrenSetSlotBool(vm, 0, context->cterm_suspended);
 }
 
-static void
-fn_input_setup_mouse_events(WrenVM *vm)
-{
-	/* Console backends already deliver mouse events; CTerm's local gate
-	 * controls forwarding into the remote tracking protocol. */
-	wrenSetSlotNull(vm, 0);
-}
 
 static void
 fn_cterm_ooii_mode(WrenVM *vm)
@@ -1126,12 +1119,6 @@ fn_host_output_rate_names(WrenVM *vm)
 	}
 }
 
-static void
-fn_refresh_status(WrenVM *vm)
-{
-	/* The session pump renders status after input and output. */
-	wrenSetSlotNull(vm, 0);
-}
 
 static void
 fn_log_unread(WrenVM *vm)
@@ -1304,14 +1291,12 @@ static const struct session_binding bindings[] = {
 	{"CTerm", "mouseDisabled=(_)", fn_cterm_mouse_disabled_set},
 	{"CTerm", "suspended", fn_cterm_suspended},
 	{"CTerm", "suspended=(_)", fn_cterm_suspended_set},
-	{"Input", "setupMouseEvents()", fn_input_setup_mouse_events},
 	{"CTerm", "ooiiMode", fn_cterm_ooii_mode},
 	{"CTerm", "ooiiMode=(_)", fn_cterm_ooii_mode_set},
 	{"CTerm", "throttleSpeed", fn_cterm_throttle_speed},
 	{"CTerm", "throttleSpeed=(_)", fn_cterm_throttle_speed_set},
 	{"CTerm", "throttleSpeedUp()", fn_cterm_throttle_up},
 	{"CTerm", "throttleSpeedDown()", fn_cterm_throttle_down},
-	{"CTerm", "refreshStatus()", fn_refresh_status},
 	{"Host", "logUnread", fn_log_unread},
 	{"Host", "logUnreadError", fn_log_unread_error},
 	{"Host", "musicNames", fn_music_names},

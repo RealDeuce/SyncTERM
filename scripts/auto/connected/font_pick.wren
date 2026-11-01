@@ -42,7 +42,6 @@ class FontApp {
           CTerm.altFont = selectors[picked]
         }
       })
-      Input.setupMouseEvents()
     }.call()
   }
 }

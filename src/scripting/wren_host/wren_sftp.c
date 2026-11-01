@@ -713,7 +713,6 @@ fn_timer_trigger(WrenVM *vm)
 	wrenSetSlotNull(vm, 0);
 }
 
-static void fn_cterm_refresh(WrenVM *vm) { wrenSetSlotNull(vm, 0); }
 static void fn_cterm_sftp_active(WrenVM *vm)
 { wrenSetSlotBool(vm, 0, st_wren_context_from_vm(vm)->cterm_sftp_active); }
 static void fn_cterm_sftp_active_set(WrenVM *vm)
@@ -1049,7 +1048,6 @@ static const struct sftp_binding bindings[] = {
 	{"SFTPError", false, "isTransient", fn_error_transient},
 	{"SFTPError", false, "toString", fn_error_string},
 	{"Timer", true, "trigger(_,_)", fn_timer_trigger},
-	{"CTerm", true, "refreshStatus()", fn_cterm_refresh},
 	{"CTerm", true, "sftpActive", fn_cterm_sftp_active},
 	{"CTerm", true, "sftpActive=(_)", fn_cterm_sftp_active_set},
 	{"Hook", true, "onKey(_)", fn_hook_on_key},

@@ -2818,11 +2818,6 @@ Unified blocking and nonblocking reader for keyboard and mouse events.
 | `Input.enableMouseEvent(ev)`, `Input.disableMouseEvent(ev)`
 | Single-event toggles for the same mask.
 
-| `Input.setupMouseEvents()`
-| Reserved for the future connected CTerm host, where it will select the
-  events required by the negotiated remote mouse mode.  It is not available
-  in the current menu or picker hosts.
-
 | `Input.pushClaim(fn)`
 | Push `fn` onto the input claim stack as the *current* claim for
   the calling fiber.  `fn(ev)` is invoked by the C-side dispatcher
@@ -3971,9 +3966,8 @@ emulation-aware logic.
   1 = RIP, 9 = X10, 1000..1003 = the various tracking modes),
   `mouseSgrPixels` (Bool — true when DECSET 1016 SGR pixel-position
   reporting is active),
-  `mouseDisabled` / `mouseDisabled = b` (Bool — true when ciolib
-  has been told to stop delivering events even though a tracking
-  mode is set; setter pairs with `Input.setupMouseEvents()`)
+  `mouseDisabled` / `mouseDisabled = b` (Bool — disables forwarding
+  local mouse events to the remote tracking protocol)
 
 | Throttle
 | `throttleSpeed` (live network character-pacing rate, BPS;
@@ -4028,20 +4022,10 @@ emulation-aware logic.
   Explicit disconnect overrides the flag. Actual SSH session loss ends the
   hold and preserves resumable queue work.
 
-| `CTerm.refreshStatus()`
-| Force a SyncTERM status-bar repaint on the next `update_status`
-  pass.  Useful after `Screen.restore()` puts a stale snapshot on
-  the status row: this causes the bar's live state (speed, transfer
-  arrows, log indicators) to be re-emitted instead of showing
-  whatever was painted into the saved snapshot.  No-op when the
-  bar is disabled (`statusDisplay == 0`).
-
 | `CTerm.mouseDisabled`, `CTerm.mouseDisabled = b`
-| Read or toggle the `MS_FLAGS_DISABLED` bit on the live
-  `mouse_state`.  `true` stops ciolib from delivering motion / click
-  events even when a tracking mode is set; `false` re-enables them.
-  The reconfiguration doesn't take effect until you follow up with
-  `Input.setupMouseEvents()`.
+| Read or toggle the session gate for forwarding mouse events to the
+  remote tracking protocol. Changes take effect immediately; local UI
+  subscriptions remain controlled by `Input.mouseEvents`.
 
 | `CTerm.mouseMode`
 | Read-only enum int from the live `mouse_state` —
@@ -5305,9 +5289,8 @@ pre-bound from these at module load.
   can light them; the canonical user is the SFTP queue's worker
   fibers, but a Zmodem / HTTP fetcher / etc. could too.  Pure
   Wren-side state on the `Host` class: both default to `false` and
-  vanish with the VM at teardown, no C-side reset needed.  The
-  setter calls `CTerm.refreshStatus()` for you so the bar repaints
-  on the next pass without writers having to remember.
+  vanish with the VM at teardown, no C-side reset needed. The session
+  pump renders their current values on its next pass.
 
 | `Host.safeMode`
 | `true` when SyncTERM was started with `-s` (safe mode): no

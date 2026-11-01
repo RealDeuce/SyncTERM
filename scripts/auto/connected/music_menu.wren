@@ -12,7 +12,6 @@ class MusicMenu {
             Host.musicHelp, Host.musicNames, CTerm.music)
         if (picked >= 0) CTerm.music = picked
       })
-      Input.setupMouseEvents()
     }.call()
   }
 }

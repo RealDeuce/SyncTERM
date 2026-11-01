@@ -21,7 +21,6 @@ class OnlineMenu {
           "# Log Level\n\nSelect the transfer diagnostic threshold for this connection.",
           Host.logLevelNames, Host.logLevel)
     })
-    Input.setupMouseEvents()
     if (picked >= 0) Host.logLevel = picked
   }
 
@@ -34,7 +33,6 @@ class OnlineMenu {
           "# Output Rate\n\nLimit the remote display rate, or use Current for no limit.",
           names)
     })
-    Input.setupMouseEvents()
     if (picked >= 0) CTerm.throttleSpeed = rates[picked]
   }
 
@@ -59,7 +57,6 @@ class OnlineMenu {
       }],
       ["Toggle Remote Mouse", Fn.new {
         CTerm.mouseDisabled = !CTerm.mouseDisabled
-        Input.setupMouseEvents()
       }],
       ["Wren Console", Fn.new { WrenConsole.run() }],
       ["Edit Dialing Directory", Fn.new { Host.editBBSList() }],
@@ -78,7 +75,6 @@ class OnlineMenu {
             "# Online Menu\n\nChoose a connected-session control.",
             entries.map {|entry| entry[0] }.toList)
       })
-      Input.setupMouseEvents()
       if (picked >= 0) entries[picked][1].call()
     }.call()
   }

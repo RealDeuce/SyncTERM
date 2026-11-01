@@ -65,9 +65,9 @@ Starting points: input records in `wren_host_internal.h`, input bindings in
 
 ## 5 Remove obsolete mouse and status calls
 
-- [ ] Delete `Input.setupMouseEvents` and `CTerm.refreshStatus`, their bindings,
+- [x] Delete `Input.setupMouseEvents` and `CTerm.refreshStatus`, their bindings,
   and all bundled call sites and obsolete explanatory comments.
-- [ ] Verify automatic mouse subscription and status rendering across menus,
+- [x] Verify automatic mouse subscription and status rendering across menus,
   nested dialogs, suspended terminals, restoration, and disconnect.
 
 Starting points: `wren_bind_session.c`, `wren_sftp.c`, and connected scripts.
@@ -107,3 +107,9 @@ built `st_wren_host_test`, `st_wren_loader_audit_test`, and
 `wren_picker_contract`. Headless tests ran with desktop display variables
 cleared. Record change-specific checks and actual platforms below as work
 completes.
+
+Item 5: removed both no-op APIs and all bundled calls, and corrected the
+mouse/status manual. CMake rebuilt the host, loader, and picker test targets;
+`wren_host`, `wren_core-helpers`, `wren_picker_contract`, and the input, popup,
+and menu synthetic suites passed (6 tests, POSIX host). Existing host tests
+cover remote mouse gates, restoration, status, and disconnect.

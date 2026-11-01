@@ -49,7 +49,6 @@ Hook.onKey(Key.altF) { |key|
 
 Hook.onKey(Key.altO) { |key|
   CTerm.mouseDisabled = !CTerm.mouseDisabled
-  Input.setupMouseEvents()
   return true
 }
 

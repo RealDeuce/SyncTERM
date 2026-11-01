@@ -24,7 +24,6 @@ class CaptureMenu {
             "# Capture Control\n\nSave the remote display stream to a local file.",
             options)
       })
-      Input.setupMouseEvents()
       if (picked < 0) return
       if (active) {
         if (picked == 0) {
@@ -53,7 +52,6 @@ class CaptureMenu {
           Alert.runStandalone(App.new(), "Capture Control", result.toString)
         })
       }
-      Input.setupMouseEvents()
     }.call()
   }
 }

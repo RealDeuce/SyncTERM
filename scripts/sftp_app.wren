@@ -833,9 +833,5 @@ class SftpApp is App {
     __current = this
     Screen.modalRun(Fn.new { super.run() })
     __current = savedCurrent
-    // Screen.restore re-paints the saved buffer over the status row
-    // too — force a fresh status-bar repaint so live state (transfer
-    // arrows, log indicators, speed) replaces the stale snapshot.
-    CTerm.refreshStatus()
   }
 }

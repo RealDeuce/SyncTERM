@@ -30,7 +30,6 @@ class SessionLogView {
         app.pushModal(pane)
         app.run()
       })
-      Input.setupMouseEvents()
     }.call()
   }
 }

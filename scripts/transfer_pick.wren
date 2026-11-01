@@ -39,7 +39,6 @@ class TransferFlow {
       if (Transfer.active) Transfer.endSession()
       Transfer.cancelAuto_()
       __busy = false
-      Input.setupMouseEvents()
       if (result is String) Screen.modalRun(Fn.new {
         Alert.runStandalone(App.new(), "File Transfer", result)
       })

@@ -392,14 +392,6 @@ foreign class Input {
   foreign static enableMouseEvent(ev)
   foreign static disableMouseEvent(ev)
 
-  // Reconfigure ciolib to report the events appropriate for cterm's
-  // current mouse mode (MM_OFF disables; the various tracking modes
-  // each register their own button/move set), then call showmouse().
-  // Wraps the C-side setup_mouse_events(&ms) + showmouse() pair -
-  // call this after toggling CTerm.mouseDisabled or otherwise
-  // changing mouse_state from a Wren script.
-  foreign static setupMouseEvents()
-
   // Async event delivery - push a claim onto the input claim stack.
   // Each claim is a `Fn` taking a single event arg (KeyEvent,
   // PhysicalKeyEvent, or MouseEvent foreign) and returning a Bool (consumed).  The C
@@ -1216,7 +1208,6 @@ foreign class CTerm {
   foreign static throttleSpeedUp()
   foreign static throttleSpeedDown()
   foreign static statusDisplay
-  foreign static refreshStatus()
   // Wren-controlled flag the SSH driver reads to keep the session
   // alive when the shell channel closes (or wire goes idle) while
   // SFTP transfers are in flight.  SftpQueue raises it on enqueue
@@ -1698,17 +1689,14 @@ class Host {
   // (the SFTP queue is just the first user; future Zmodem / HTTP
   // fetcher / ftp client / etc. can too).  Pure Wren state: both
   // reset to null/false when the VM is torn down on disconnect.
-  // Setters call CTerm.refreshStatus() so the indicator updates on
-  // the next render pass without the writer having to do it.
+  // The session pump renders the current state on its next pass.
   static uploadArrow { (__upArrow ? true : false) || (Transfer.active && !Transfer.done && Transfer.uploading) }
   static uploadArrow=(b) {
     __upArrow = b
-    CTerm.refreshStatus()
   }
   static downloadArrow { (__downArrow ? true : false) || (Transfer.active && !Transfer.done && !Transfer.uploading) }
   static downloadArrow=(b) {
     __downArrow = b
-    CTerm.refreshStatus()
   }
   // First locally-configured SSH public key, as a Map
   // {"algo": String, "blob": String} (e.g. algo: "ssh-ed25519", blob:
@@ -1782,8 +1770,6 @@ class Host {
   // The connected VM receives no menu objects or capabilities.
   static editBBSList() {
     Screen.modalRun(Fn.new { editBBSList_() })
-    Input.setupMouseEvents()
-    CTerm.refreshStatus()
   }
   foreign static editBBSList_()
 

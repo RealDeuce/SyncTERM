@@ -14,7 +14,6 @@ class DisconnectFlow {
                       "Selecting Yes closes the connection."
         if (Confirm.runStandalone(app, message)) Conn.endSession(exitApp)
       })
-      Input.setupMouseEvents()
     }.call()
   }
 }
