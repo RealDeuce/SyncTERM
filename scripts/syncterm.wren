@@ -1899,6 +1899,10 @@ class Transfer {
 // process model) is exposed.
 class Platform {
   foreign static name
+  // Fresh ordered UI language preferences, e.g. ["fr-CA", "en"].
+  // Native Windows/macOS UI settings; locale environment on other POSIX hosts.
+  // Defaults to ["en"]. Does not alter the process locale or terminal encoding.
+  foreign static languages
 }
 
 // One-shot fiber resumption after a delay.  Register a fiber to

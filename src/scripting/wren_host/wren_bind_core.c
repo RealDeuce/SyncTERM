@@ -14,6 +14,7 @@
 #include "st_console.h"
 #include "st_codepage.h"
 #include "st_emoji_catalog.h"
+#include "st_language.h"
 #include "string_compat.h"
 #include "st_cterm.h"
 #include "st_ooii.h"
@@ -4426,6 +4427,24 @@ fn_platform_name(WrenVM *vm)
 #endif
 }
 
+static void
+fn_platform_languages(WrenVM *vm)
+{
+	struct st_language_preferences languages;
+
+	if (st_language_discover(&languages) != 0) {
+		st_wren_abort(vm, "Could not discover UI language preferences");
+		return;
+	}
+	wrenEnsureSlots(vm, 2);
+	wrenSetSlotNewList(vm, 0);
+	for (size_t i = 0; i < languages.count; i++) {
+		wrenSetSlotString(vm, 1, languages.tags[i]);
+		wrenInsertInList(vm, 0, -1, 1);
+	}
+	st_language_free(&languages);
+}
+
 static bool
 text_pair(WrenVM *vm, const char **left, int *left_size,
 	const char **right, int *right_size)
@@ -4727,6 +4746,7 @@ static const struct binding bindings[] = {
 	{"Host", true, "haveOOII", fn_host_have_ooii},
 	{"Host", true, "maxOOIIMode", fn_host_max_ooii_mode},
 	{"Platform", true, "name", fn_platform_name},
+	{"Platform", true, "languages", fn_platform_languages},
 	{"Text", true, "normalizedByteCount(_)", fn_text_normalized_byte_count},
 	{"Text", true, "caselessKey(_)", fn_text_caseless_key},
 	{"Text", true, "caselessEqual(_,_)", fn_text_caseless_equal},

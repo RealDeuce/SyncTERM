@@ -119,7 +119,7 @@ target_link_libraries(st_wren_host
 	PUBLIC st_console st_cterm st_app_paths st_profile st_screen_mode st_session_history
 		st_hyperlink st_sftp_client
 	PRIVATE st_wren_vm st_re1 st_transfer st_term st_connection st_codepage st_utf8 st_unicode_text st_unicode_width
-		st_unicode_compare st_emoji_catalog
+		st_unicode_compare st_emoji_catalog st_language
 		st_bbs_list st_audio st_audio_file st_ooii
 		st_fonts st_font_catalog st_settings st_theme st_time st_pixel_image st_serial
 		syncterm_io_error syncterm_path syncterm_file_map
@@ -199,7 +199,7 @@ int main(void)
 		endif()
 	endif()
 	target_link_libraries(st_wren_host_test PRIVATE st_wren_host
-		st_wren_vm st_settings st_theme st_time st_bbs_list st_audio st_term
+		st_wren_vm st_settings st_theme st_time st_bbs_list st_audio st_term st_language
 		syncterm_filesystem syncterm_string_compat
 		syncterm_threads st_audio_file st_pixel_image st_list_crypto xptls::crypto)
 	syncterm_target_atomics(st_wren_host_test)

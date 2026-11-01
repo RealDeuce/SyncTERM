@@ -6115,8 +6115,8 @@ completion and log APIs as manual transfers.
 |===
 === Platform [[platform]]
 
-OS identification.  No further OS surface (no shell exec, no stdio,
-no process model) is exposed.
+OS identification and preferred UI languages. No shell execution, stdio,
+or process model is exposed.
 
 [options="header",cols="2,3"]
 |===
@@ -6127,6 +6127,23 @@ no process model) is exposed.
   `uname(2)` `sysname` field on POSIX hosts (typically `"FreeBSD"`,
   `"Linux"`, `"Darwin"`, etc.); `"Unknown"` on anything else.  Win32
   is checked before POSIX, so Cygwin / MSYS report the native OS.
+
+| `Platform.languages`
+| Fresh, nonempty List of unique language-tag Strings in preference order,
+  such as `["fr-CA", "en"]` or `["zh-Hant-TW"]`. Windows uses the user's
+  preferred UI languages (falling back to their default UI language); macOS
+  uses its preferred language list. Other POSIX hosts use `LANGUAGE`'s
+  colon-separated message preferences, with the effective message locale
+  chosen from nonempty `LC_ALL`, `LC_MESSAGES`, then `LANG`. `LANGUAGE` is
+  ignored for `C`, `POSIX`, and their encoding-qualified forms. Missing or
+  unusable preferences default to `["en"]`.
+  POSIX encoding suffixes are removed and underscores become hyphens;
+  `@latin`, `@cyrillic`, and `@valencia` retain their script/variant meaning.
+  Other modifiers are ignored. Tags have conventional language/script/region
+  casing; this is not a full CLDR alias or translation-fallback resolver.
+  Discovery does not call `setlocale()` or change connection encoding.
+  Available in connected, menu, and picker VMs; allocation failure aborts
+  the calling fiber. This API discovers preferences; it does not translate UI.
 |===
 
 === Text [[text]]

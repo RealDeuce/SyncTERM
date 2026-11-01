@@ -15,6 +15,7 @@
 #include "st_audio_file.h"
 #include "st_pixel_image.h"
 #include "st_list_crypto.h"
+#include "st_language.h"
 #include "xp_crypto.h"
 #include "st_console.h"
 #include "console_internal.h"
@@ -3011,6 +3012,25 @@ serial_catalog_valid(WrenVM *vm, const char *module, const char *variable,
 #endif
 
 static int
+check_language_preferences(WrenVM *vm, const char *module)
+{
+	struct st_language_preferences expected;
+
+	CHECK(st_language_discover(&expected) == 0);
+	wrenEnsureSlots(vm, 2);
+	wrenGetVariable(vm, module, "languageResult", 0);
+	CHECK(wrenGetSlotType(vm, 0) == WREN_TYPE_LIST);
+	CHECK((size_t)wrenGetListCount(vm, 0) == expected.count);
+	for (size_t i = 0; i < expected.count; i++) {
+		wrenGetListElement(vm, 0, (int)i, 1);
+		CHECK(wrenGetSlotType(vm, 1) == WREN_TYPE_STRING);
+		CHECK(strcmp(wrenGetSlotString(vm, 1), expected.tags[i]) == 0);
+	}
+	st_language_free(&expected);
+	return 0;
+}
+
+static int
 exercise_menu_catalog_contract(st_wren_host_t *public_host)
 {
 	struct st_wren_host *host = public_host;
@@ -3061,6 +3081,10 @@ exercise_menu_catalog_contract(st_wren_host_t *public_host)
 	    "import \"syncterm\" for Platform\n"
 	    "import \"syncterm_menu\" for Menu\n"
 	    "var platformResult = Platform.name\n"
+	    "var languageResult = Platform.languages\n"
+	    "var scratchLanguages = Platform.languages\n"
+	    "scratchLanguages.clear()\n"
+	    "if (Platform.languages.count == 0) Fiber.abort(\"language list ownership\")\n"
 	    "var ratesResult = Menu.rates\n"
 	    "var missingRatesResult = Menu.serialRates(\"/no/such/syncterm-device\")\n"
 	    "var noRtsResult = Menu.flowControlsNoRts\n"
@@ -3070,7 +3094,8 @@ exercise_menu_catalog_contract(st_wren_host_t *public_host)
 	    "if (!(Fiber.new { Menu.serialRates(\"bad\\u0000device\") }.try() is String)) Fiber.abort(\"serial NUL validation\")\n";
 	static const char platform_source[] =
 	    "import \"syncterm\" for Platform\n"
-	    "var platformResult = Platform.name\n";
+	    "var platformResult = Platform.name\n"
+	    "var languageResult = Platform.languages\n";
 
 	if (wrenInterpret(host->vm, "menu_catalog_contract", source)
 	    != WREN_RESULT_SUCCESS) {
@@ -3098,6 +3123,9 @@ exercise_menu_catalog_contract(st_wren_host_t *public_host)
 	CHECK(wrenGetSlotType(host->picker_vm, 0) == WREN_TYPE_STRING);
 	CHECK(strcmp(wrenGetSlotString(host->picker_vm, 0), expected_platform)
 	    == 0);
+	CHECK(check_language_preferences(host->vm, "menu_catalog_contract") == 0);
+	CHECK(check_language_preferences(host->picker_vm,
+	    "picker_platform_contract") == 0);
 	CHECK(catalog_matches(host->vm, "menu_catalog_contract", "ratesResult",
 	    rates, sizeof(rates) / sizeof(rates[0])));
 	CHECK(catalog_matches(host->vm, "menu_catalog_contract",
