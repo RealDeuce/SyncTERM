@@ -1,5 +1,5 @@
 // Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
-import "syncterm" for Host, Screen, PixelBuffer, PixelColor, PixelBlit, PixelMask, MouseEvent, Mouse
+import "syncterm" for Host, Screen, PixelBuffer, PixelColor, PixelBlit, PixelMask, MouseEvent, Mouse, Text
 import "ui_style" for Theme, Style
 import "ui_widget" for Rect, Widget, Container
 import "ui_draw" for Painter
@@ -161,35 +161,141 @@ class ModernList is ListView {
     _scrollbarKey = null
     _separator = null
     _separatorMask = null
+    _visualRows = []
+    _starts = [0]
+    _layoutKey = null
   }
-  addresses=(value) {
-    _addresses = value
-    markDirty()
+  setEntries(names, addresses) {
+    _addresses = addresses
+    _layoutKey = null
+    super.items = names
+    scrollTop = _rowTop
   }
   emptyMessage=(value) {
     _emptyMessage = value
     markDirty()
   }
-  items=(value) {
-    super.items = value
-    scrollTop = scrollTop
+  items=(value) { setEntries(value, []) }
+  bounds=(rect) {
+    _layoutKey = null
+    super.bounds = rect
+  }
+  markInheritedThemeDirty_() {
+    _layoutKey = null
+    super.markInheritedThemeDirty_()
   }
   viewportRows_ { bounds == null ? 1 : bounds.h.max(1) }
-  scrollTop { _rowTop }
+  selected=(value) {
+    super.selected = value
+    // Home or a click on an already-selected continuation must still
+    // reveal the entry after independent wheel scrolling hid its start.
+    ensureVisible_()
+  }
+  scrollTop {
+    layoutRows_()
+    return _rowTop
+  }
   scrollTop=(value) {
-    _rowTop = value.max(0).min((count - viewportRows_).max(0))
+    layoutRows_()
+    _rowTop = value.max(0).min((_visualRows.count - viewportRows_).max(0))
     markDirty()
   }
   ensureVisible_() {
     if (bounds == null || selected == null) return
-    if (selected < scrollTop) scrollTop = selected
-    if (selected >= scrollTop + viewportRows_) scrollTop = selected - viewportRows_ + 1
+    layoutRows_()
+    var start = _starts[selected]
+    var end = _starts[selected + 1]
+    if (start < _rowTop || end - start > viewportRows_) {
+      scrollTop = start
+    } else if (end > _rowTop + viewportRows_) {
+      scrollTop = end - viewportRows_
+    }
   }
   centerSelectedIfHidden_() { ensureVisible_() }
   cursorVisible { false }
-  scrollbarVisible_ { count > viewportRows_ }
-  rowWidth { bounds.w - (scrollbarVisible_ ? 2 : 0) }
+  cursorPos {
+    if (bounds == null || selected == null) return null
+    layoutRows_()
+    var row = _starts[selected] - _rowTop
+    if (row < 0 || row >= viewportRows_) return null
+    return [bounds.x + 2, bounds.y + row]
+  }
+  scrollbarVisible_ {
+    layoutRows_()
+    return _visualRows.count > viewportRows_
+  }
+  rowWidth {
+    layoutRows_()
+    return _rowWidth
+  }
   columnX { ((rowWidth - 4) / 2).floor + 2 }
+  // Cached physical rows and prefix offsets are shared by painting, hit
+  // testing, paging, selection visibility and the scrollbar. Reserve its
+  // gutter only after measuring the full width; narrowing cannot reduce
+  // the number of rows, so the second pass has a stable scrollbar decision.
+  layoutRows_() {
+    if (bounds == null) return
+    var key = "%(bounds.w):%(bounds.h):%(Screen.font[0])"
+    if (_layoutKey == key) return
+    _rowWidth = bounds.w
+    buildRows_()
+    if (_visualRows.count > viewportRows_) {
+      _rowWidth = bounds.w - 2
+      buildRows_()
+    }
+    _rowTop = _rowTop.max(0).min((_visualRows.count - viewportRows_).max(0))
+    _layoutKey = key
+  }
+  buildRows_() {
+    _visualRows = []
+    _starts = []
+    var col = ((_rowWidth - 4) / 2).floor + 2
+    for (index in 0...count) {
+      _starts.add(_visualRows.count)
+      var name = items[index]
+      var address = index < _addresses.count ? _addresses[index] : ""
+      if (Screen.textWidth(name, 0) <= col - 4 &&
+          Screen.textWidth(address, 0) <= _rowWidth - col - 2) {
+        _visualRows.add([index, name, address])
+      } else {
+        for (line in wrap_(name, _rowWidth - 4)) _visualRows.add([index, line, null])
+        for (line in wrap_(address, _rowWidth - 4)) _visualRows.add([index, null, line])
+      }
+    }
+    _starts.add(_visualRows.count)
+  }
+  wrap_(text, width) {
+    var lines = []
+    var line = ""
+    var used = 0
+    for (cluster in Text.graphemes(text)) {
+      var cells = Screen.textWidth(cluster, 0)
+      if (used + cells > width && line.count > 0) {
+        lines.add(line)
+        line = ""
+        used = 0
+      }
+      line = line + cluster
+      used = used + cells
+    }
+    lines.add(line)
+    return lines
+  }
+  entryAt_(row) {
+    layoutRows_()
+    if (_visualRows.count == 0) return null
+    return _visualRows[row.max(0).min(_visualRows.count - 1)][0]
+  }
+  pageUp() {
+    if (selected == null) return
+    layoutRows_()
+    selected = entryAt_(_starts[selected] - viewportRows_ + 1)
+  }
+  pageDown() {
+    if (selected == null) return
+    layoutRows_()
+    selected = entryAt_(_starts[selected] + viewportRows_ - 1)
+  }
   onPaint_() {
     var base = ModernStyle.text(ModernStyle.ink, ModernStyle.panel)
     Painter.fill(surface, Rect.new(0, 0, bounds.w, bounds.h), " ", base)
@@ -198,22 +304,27 @@ class ModernList is ListView {
       return
     }
     for (slot in 0...viewportRows_) {
-      var index = scrollTop + slot
-      if (index >= count) break
+      var physical = scrollTop + slot
+      if (physical >= _visualRows.count) break
+      var row = _visualRows[physical]
+      var index = row[0]
       var bg = index == selected ? 0xdbeafe : ModernStyle.panel
       var title = ModernStyle.text(index == selected ? ModernStyle.accent : ModernStyle.ink, bg)
       var caption = ModernStyle.text(ModernStyle.muted, bg)
       Painter.fill(surface, Rect.new(0, slot, rowWidth, 1), " ", title)
-      Painter.text(surface, 2, slot, items[index], title, (columnX - 4).max(0))
-      if (index < _addresses.count) {
-        Painter.text(surface, columnX, slot, _addresses[index], caption, (rowWidth - columnX - 2).max(0))
+      if (row[1] != null && row[2] != null) {
+        Painter.text(surface, 2, slot, row[1], title, (columnX - 4).max(0))
+        Painter.text(surface, columnX, slot, row[2], caption, (rowWidth - columnX - 2).max(0))
+      } else {
+        Painter.text(surface, 2, slot, row[1] == null ? row[2] : row[1],
+            row[1] == null ? caption : title, (rowWidth - 4).max(0))
       }
     }
     if (scrollbarVisible_) {
       Painter.fill(surface, Rect.new(rowWidth, 0, bounds.w - rowWidth, bounds.h), " ",
           ModernStyle.text(ModernStyle.muted, ModernStyle.background))
       Painter.scrollbar(surface, bounds.w - 1, 0, bounds.h, scrollTop,
-          count, viewportRows_, effectiveTheme.glyphs, style("scrollbar.track"), style("scrollbar.thumb"))
+          _visualRows.count, viewportRows_, effectiveTheme.glyphs, style("scrollbar.track"), style("scrollbar.thumb"))
     }
   }
   chrome(app) {
@@ -224,22 +335,25 @@ class ModernList is ListView {
       _separatorMask = PixelMask.new(width, 1)
     }
     for (slot in 0...viewportRows_) {
-      var index = scrollTop + slot
-      if (index >= count) break
+      var physical = scrollTop + slot
+      if (physical >= _visualRows.count) break
+      var index = _visualRows[physical][0]
       var rect = Rect.new(bounds.x, bounds.y + slot, rowWidth, 1)
       // A boundary line must not overwrite descenders in short bitmap fonts.
       // Inspect our freshly composed row before drawing any decorations.
       var bottom = (rect.y - 1) * size[1] + size[1] - 1
       var pixels = Screen.readPixels((rect.x - 1) * size[0], bottom, width, 1)
-      if (pixels != null && slot < viewportRows_ - 1) {
+      var boundary = physical + 1 == _visualRows.count || _visualRows[physical + 1][0] != index
+      if (pixels != null && boundary && slot < viewportRows_ - 1) {
         var bg = index == selected ? 0xdbeafe : ModernStyle.panel
         for (x in 0...width) _separatorMask[x] = (pixels[x] & 0xffffff) == bg
         _blit.destinationX = (rect.x - 1) * size[0]
         _blit.destinationY = bottom
         Screen.blitPixels(_separator, _separatorMask, _blit)
       }
-      if (index == selected) {
-        var height = size[1] - 4
+      if (index == selected && (slot == 0 || _visualRows[physical - 1][0] != index)) {
+        var lines = (_starts[index + 1] - scrollTop).min(viewportRows_) - slot
+        var height = lines * size[1] - 4
         if (_indicator == null || _indicator.height != height) {
           _indicator = PixelBuffer.new(3, height, PixelColor.rgb(ModernStyle.accent))
         }
@@ -248,16 +362,17 @@ class ModernList is ListView {
         Screen.blitPixels(_indicator, _blit)
       }
     }
-    var first = selected == scrollTop ? 0xdbeafe : ModernStyle.panel
-    var last = selected == scrollTop + viewportRows_ - 1 ? 0xdbeafe : ModernStyle.panel
+    var first = count > 0 && entryAt_(scrollTop) == selected ? 0xdbeafe : ModernStyle.panel
+    var end = scrollTop + viewportRows_ - 1
+    var last = end < _visualRows.count && entryAt_(end) == selected ? 0xdbeafe : ModernStyle.panel
     app.round(Rect.new(bounds.x, bounds.y, rowWidth, bounds.h), first, last, ModernStyle.background)
     if (!scrollbarVisible_) return
-    var key = "%(bounds.h):%(size):%(count):%(scrollTop)"
+    var key = "%(bounds.h):%(size):%(_visualRows.count):%(scrollTop)"
     if (_scrollbarKey != key) {
       var height = bounds.h * size[1]
       _scrollbar = PixelBuffer.new(size[0], height, PixelColor.rgb(ModernStyle.background))
-      var thumbHeight = (height * viewportRows_ / count).floor.max(12)
-      var top = ((height - thumbHeight) * scrollTop / (count - viewportRows_)).round
+      var thumbHeight = (height * viewportRows_ / _visualRows.count).floor.max(12)
+      var top = ((height - thumbHeight) * scrollTop / (_visualRows.count - viewportRows_)).round
       var center = (size[0] / 2).floor
       for (y in 0...height) {
         for (x in (center - 1)...(center + 1)) _scrollbar.setPixel(x, y, PixelColor.rgb(0xcbd5e1))
@@ -281,11 +396,13 @@ class ModernList is ListView {
     }
     if (event.event != Mouse.button1Click) return false
     if (scrollbarVisible_ && event.startX >= bounds.x + bounds.w - 2) {
-      scrollTop = ((event.startY - bounds.y) * (count - viewportRows_) / (bounds.h - 1).max(1)).round
+      scrollTop = ((event.startY - bounds.y) * (_visualRows.count - viewportRows_) / (bounds.h - 1).max(1)).round
       return true
     }
     var row = event.startY - bounds.y
-    var index = scrollTop + row
+    var physical = scrollTop + row
+    if (physical >= _visualRows.count) return true
+    var index = entryAt_(physical)
     if (parent is Container) parent.focusedIndex = parent.children.indexOf(this)
     if (index >= 0 && index < count) selected = index
     return true

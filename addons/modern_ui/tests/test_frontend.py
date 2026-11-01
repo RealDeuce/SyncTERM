@@ -161,6 +161,108 @@ def directory(executable, reports):
         assert frame.application['session_active'] == 0
         client.key('page_down')
         client.wait_for(lambda f: 'Card 10' in f.lines[19])
+    adaptive_directory(executable, reports)
+
+
+def adaptive_directory(executable, reports):
+    long_name = 'B connection name with suffix'
+    long_address = 'long-address.for.this.connection.example:2222'
+    wide_address = 'unicode-' + '界' * 12 + '.example'
+    huge_address = 'e' * 52 + '.example'
+    records = [('A compact', 'a.example'), (long_name, 'b.example'),
+               ('C long address', long_address), ('D Unicode', wide_address),
+               ('E huge address', huge_address)]
+    records += [(f'F{i:02}', f'f{i:02}.example') for i in range(12)]
+    wrapped_wide = 'u' * 44 + '界' * 4 + '.example'
+    joined = '👨\u200d💻'
+    wrapped_joined = 'j' * 52 + joined + 'z'
+    records[5] = ('F00', wrapped_wide)
+    records[6] = ('F01 joined', wrapped_joined)
+    entries = ''.join(f'[{name}]\nAddress={address}\n'
+                      + ('Comment=Expandable entries\n' if i < 5 else '')
+                      for i, (name, address) in enumerate(records))
+    with fixture(executable, entries=entries, settings='AudioModes=0\n', prepare=install,
+                 reports=reports) as (client, root):
+        frame = client.wait_text('Connection directory')
+        assert 'A compact' in frame.lines[9] and 'a.example' in frame.lines[9]
+        assert long_name in frame.lines[10] and 'b.example' in frame.lines[11]
+        assert 'C long address' in frame.lines[12] and long_address in frame.lines[13]
+        assert 'D Unicode' in frame.lines[14] and wide_address in frame.lines[15]
+        click_text(client, frame, long_address)
+        frame = client.wait_for(lambda f: 'C long address' in f.lines[19])
+        click_text(client, frame, long_name)
+        frame = client.wait_for(lambda f: long_name in f.lines[19])
+        m = frame.metadata
+        for row in (10, 11):
+            pixel = (row * m['cell_height'] + m['cell_height'] // 2) * m['plane_width'] + 73 * m['cell_width']
+            assert frame.primary[pixel] & 0xffffff == 0xdbeafe
+        for row, colour in ((10, 0xdbeafe), (11, 0xe2e8f0)):
+            pixel = ((row + 1) * m['cell_height'] - 1) * m['plane_width'] + 60 * m['cell_width']
+            assert frame.primary[pixel] & 0xffffff == colour
+        client.key('home')
+        client.key('page_down')
+        frame = client.wait_for(lambda f: 'E huge address' in f.lines[19])
+        # An address longer than even the full list width uses continuation
+        # lines. Every byte survives; selecting it reveals the whole entry.
+        shown = ''.join(frame.lines[y][21:74].rstrip() for y in (16, 17))
+        assert shown == huge_address, repr(shown)
+        client.key('page_up')
+        frame = client.wait_for(lambda f: 'A compact' in f.lines[19])
+        m = frame.metadata
+        px = m['destination_x'] + 22 * m['cell_width'] * m['destination_width'] // m['plane_width']
+        py = m['destination_y'] + (10 * m['cell_height'] + m['pixel_top']) * m['destination_height'] // m['plane_height']
+        client.mouse(px, py, action=2, wheel_y=-2)
+        frame = client.wait_for(lambda f: 'b.example' in f.lines[9])
+        client.key('home')
+        frame = client.wait_for(lambda f: 'A compact' in f.lines[9])
+        client.mouse(px, py, action=2, wheel_y=-2)
+        frame = client.wait_for(lambda f: 'b.example' in f.lines[9])
+        # Clicking a continuation line selects the record, and makes its
+        # name visible again. Wheel movement itself preserves the selection.
+        assert 'A compact' in frame.lines[19]
+        click_text(client, frame, 'b.example')
+        frame = client.wait_for(lambda f: long_name in f.lines[9])
+        assert 'b.example' in frame.lines[10] and long_name in frame.lines[19]
+        reports.mkdir(parents=True, exist_ok=True)
+        frame.save_image(reports / 'directory-expanded.ppm')
+        client.key('end')
+        frame = client.wait_for(lambda f: 'F11' in f.lines[19])
+        assert 'F11' in frame.lines[17]
+        def content(frame, y):
+            # Slice by cells, so wide glyphs before the scrollbar cannot
+            # shift its metadata glyph into the text being verified.
+            width = frame.metadata['columns']
+            cells = frame.cells[y * width + 21:y * width + 74]
+            return ''.join(frame.cell_text(c) for c in cells if not c.flags & (1 << 19)).rstrip()
+        for steps, name, address in [(5, 'F00', wrapped_wide), (6, 'F01 joined', wrapped_joined)]:
+            client.key('home')
+            for _ in range(steps):
+                client.key('down')
+            frame = client.wait_for(lambda f: name in f.lines[19])
+            assert content(frame, 16) + content(frame, 17) == address
+        assert content(frame, 16) == 'j' * 52 and content(frame, 17) == joined + 'z'
+        client.key('home')
+        client.grid_resize(120, 25)
+        frame = client.wait_for(lambda f: f.metadata['columns'] == 120
+                               and long_name in f.lines[10] and 'b.example' in f.lines[10])
+        assert 'C long address' in frame.lines[11] and long_address in frame.lines[11]
+        assert 'D Unicode' in frame.lines[12] and wide_address in frame.lines[12]
+        client.grid_resize(80, 25)
+        client.wait_for(lambda f: f.metadata['columns'] == 80)
+        client.key(6)
+        client.text('Expandable')
+        frame = client.wait_text('5 connections')
+        # Five entries need ten physical rows. The scrollbar is based on
+        # rendered height, and its gutter must participate in measuring.
+        assert frame.lines[8].index('Address') == 47
+        assert long_name in frame.lines[10] and long_address in frame.lines[13]
+        client.key(6)
+        client.text('A compact')
+        frame = client.wait_text('1 connections')
+        assert frame.lines[8].index('Address') == 48
+        assert 'A compact' in frame.lines[9] and 'a.example' in frame.lines[9]
+        client.key('escape')
+        client.wait_text('17 connections')
 
 
 def settings(executable, reports):

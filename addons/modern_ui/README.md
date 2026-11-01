@@ -12,8 +12,11 @@ search text survive a connection. Alt+E opens an edit-only directory during a
 connection. Safe mode retains the host's restrictions.
 
 The interface uses flat panels, a sidebar, light colours, and a compact
-directory with name and address columns. Faint pixel separators divide its
-single-line entries. A labeled gutter and tinted two-row panel separate the
+directory with name and address columns. Entries stay on one line when both
+values fit their columns; otherwise the name and address use separate,
+full-width lines. Longer values wrap at Unicode grapheme boundaries without
+truncation. Faint pixel separators divide entries, including expanded ones.
+A labeled gutter and tinted two-row panel separate the
 selected connection's metadata/comment from the list. Directory action buttons
 are shorter than the workspace buttons. On graphical backends bitmap captions
 are centered at pixel precision, and rounded edges use coverage anti-aliasing against the

@@ -174,8 +174,7 @@ class ModernDirectory {
         labels.add(entry.name)
       }
     }
-    _list.items = labels
-    _list.addresses = _visible.map {|entry| entry.addr }.toList
+    _list.setEntries(labels, _visible.map {|entry| entry.addr }.toList)
     _list.emptyMessage = _entries.count == 0 ? "Your directory is empty." : "No matching connections."
     _list.focusable = labels.count > 0
     if (labels.count > 0) {
@@ -261,11 +260,16 @@ class ModernDirectory {
       Painter.fill(sf, Rect.new(x, _detailsRect.y - 1, _detailsRect.w, 2), " ", ModernStyle.text(ModernStyle.ink, detailBg))
       var dy = _detailsRect.y - 1
       text_(sf, x + 2, dy, entry == null ? "Select a connection" : entry.name,
-          ModernStyle.accent, detailBg, _list.columnX - 4)
+          ModernStyle.accent, detailBg, _contentW - 4)
       if (entry != null) {
         var source = entry.type == 0 ? "Personal" : "Shared"
-        text_(sf, x + _list.columnX, dy, "%(entry.connTypeName) :%(entry.port) / %(source)",
-            ModernStyle.muted, detailBg, _contentW - _list.columnX - 2)
+        var column = _list.columnX.max(Screen.textWidth(entry.name, 0) + 4)
+        var meta = "%(entry.connTypeName) :%(entry.port) / %(source)"
+        if (Screen.textWidth(meta, 0) > _contentW - column - 2) {
+          meta = "%(entry.connTypeName):%(entry.port) %(source)"
+        }
+        text_(sf, x + column, dy, meta,
+            ModernStyle.muted, detailBg, _contentW - column - 2)
         text_(sf, x + 2, dy + 1, entry.comment.count > 0 ? entry.comment : entry.addr,
             ModernStyle.muted, detailBg, _contentW - 4)
       }
