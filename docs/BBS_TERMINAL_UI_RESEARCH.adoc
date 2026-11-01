@@ -1,0 +1,1013 @@
+= BBS Terminal Directory and Settings UI Research
+:toc: left
+:toclevels: 3
+:sectnums:
+
+Research date: 2026-11-01.
+
+Terminal directories have developed along several useful paths: dense calling
+tables, connection documents, libraries with an adjacent inspector, and session
+managers that remain available beside a live terminal. Modern BBS clients still
+use all of these approaches. Both graphical and text interfaces span a broad
+range of information density and settings organization.
+
+For future SyncTERM layouts, the strongest direction is to share connection
+data and editing rules while offering different presentations. A compact table,
+a library with details, and an optional session drawer serve different tasks.
+Thumbnail cards are a useful additional browsing view, but provide less help
+when comparing addresses or compatibility settings. Saving, selection, and the
+scope of settings need consistent meanings across those presentations.
+
+== Scope and strength of evidence
+
+This survey concerns the terminal application's own dialing directory,
+connection editor, preferences, and navigation. Remote BBS ANSI artwork, RIP
+menus, and door-game screens are not evidence of the application's directory
+layout.
+
+The product notes distinguish three kinds of evidence:
+
+* *Visual*: an inspected published screenshot or a screenshot in an original
+  manual. Descriptions apply to that image, not every release of the product.
+* *Documented*: an original manual, help file, or versioned implementation
+  describes the interaction. Text-mode screen diagrams in manuals establish
+  structure, but do not establish exact colours or rendered pixel dimensions.
+* *Limited*: a distribution description or incomplete historical record. These
+  examples do not receive an invented screen reconstruction.
+
+Modern unversioned help pages and galleries are snapshots accessed on the
+research date. In particular, today's ZOC gallery does not establish what ZOC
+looked like in the 1990s. IcyTerm is pinned to release `IcyTerm0.9.1`, rather than
+its moving development branch. RGTerm's manual identifies version 1.04, while
+its web gallery does not independently label every image's revision.
+
+Original DOS documentation and Windows help were inspected through archive
+extraction. The historical applications were not executed. Screenshots below
+remain at their publishers' URLs; they are attributed references, not assets
+licensed for inclusion in SyncTERM.
+
+== Comparison at a glance
+
+“Settings” below distinguishes connection-specific controls from program-wide
+controls. An empty capability is not inferred from its absence in a screenshot.
+The product notes and source register provide the evidence for each row.
+
+[cols="2,3,3,3",options="header"]
+|===
+| Product and evidence | Directory presentation | Settings presentation | Particularly useful precedent
+
+| ProComm 2.4.1 DOS; documented
+| Numbered table and command prompt
+| Numbered category menus; explicit write to disk
+| Fast numeric dialing; temporary settings distinguished from saved defaults
+
+| Procomm Plus DOS; visual, surviving 1992 directory
+| Highlighted rows; alternate column display; large command legend
+| Directory revision action; settings screen not established by this image
+| Call statistics beside protocol and terminal type
+
+| Telix 3.51 DOS; documented
+| Table, bottom menu, optional quick-dial bar
+| Entry field list; separate configuration categories
+| Direct numeric queue entry and switchable columns
+
+| Qmodem 4.6 Test Drive DOS; documented
+| Table with alternate information and persistent tags
+| Setup menus and explicit save/abort actions
+| Searchable notes; a documented hidden-selection trap
+
+| Telemate 4.21 DOS; documented
+| Table and dialing queue within a windowed text UI
+| Grouped dialogs, multiple entry pages, Options categories
+| Radio groups and spatial grouping already present in a DOS UI
+
+| Terminate 5.00 DOS; documented
+| Table, horizontal information views, dense action strip
+| Large entry form; category menu and subsidiary forms
+| Bulk edits, opening hours, notes, cost accounting, overdue-call reminders
+
+| Procomm Plus Windows 4.8-era; visual settings, limited directory excerpt
+| Connection Directory and Add Directory Entry dialogs
+| Major tabs, icon category buttons, nested property dialogs
+| Separation of service entry, communications device, and transfer setup
+
+| RIPtel 3.1 Windows; documented
+| Bookmark list with two information views
+| Basic bookmark creation followed by a fuller editor; Setup defaults
+| Optional graphical offline home screen; promote the current connection
+
+| ZOC; current visual and help snapshot
+| Sections, folders, configurable table, action buttons
+| Tabbed entry editor and reusable category-based session profiles
+| Shared profiles, clone, visit reminders, per-entry identity
+
+| HyperTerminal Windows 95-era; visual and documented
+| Named connection documents reached through the operating system
+| Creation sequence and connection-specific dialogs
+| Easy desktop shortcuts; no rich in-app library in the examined workflow
+
+| Qodem; project screenshots and guide
+| Curses table with tag count and extensive command legend
+| Tall entry form with contextual help and picklists
+| Keyboard operation over a terminal connection
+
+| minicom; current manual snapshot
+| Curses directory, letter commands, tagged dialing
+| Lettered fields and category menus; named configuration files
+| Clear distinction between serial-device configuration and a called service
+
+| NetRunner 2.00 Beta 21; visual and documented
+| Custom DOS-style directory with prominent ANSI branding
+| Two-column entry pages; separate configuration and startup INI options
+| BBS-specific fields, import, scripts, keyboard and mouse interaction
+
+| RGTerm 1.04 manual and web gallery; visual and documented
+| Custom DOS-style Name/Host/Port/Term table
+| Grouped entry form; four global configuration pages
+| Field help, broad import, downloadable guide, live directory access
+
+| IcyTerm 0.9.1; versioned documentation and source
+| Searchable local/remote library, details, favorites, quick connect
+| Entry pages and global settings; Save/Discard drafts
+| Narrow-window adaptation and explicit remote-entry ownership
+
+| MuffinTerm; manual and publisher's store screenshots
+| Desktop list/details; touch list then details
+| Per-BBS detail form and separate User Preferences
+| Favorites, recent calls, notes, statistics, platform-specific navigation
+
+| TERMinator; publisher screenshots labelled 1.10
+| BBS thumbnail grid with Add/Edit/Delete/Connect/Sort/View
+| Scrollable grouped preferences with fixed Save/Cancel
+| Visual recognition of BBSes as an alternative to address comparison
+
+| PuTTY 0.85; documented
+| Saved-session list embedded in the configuration window
+| Category tree and property panels
+| Explicit Load/Save/Delete; comprehensive settings in one navigation shell
+
+| Tera Term 5-series; current manual snapshot
+| New Connection host history and transport controls
+| Setup commands and tabbed Additional Settings
+| Lightweight quick connect rather than a full BBS library
+
+| SecureCRT 9.7 gallery and current help
+| Dockable saved-session manager; distinct active-session manager
+| Session and global configuration
+| Filterable navigation while connected; saved and running sessions separated
+|===
+
+== DOS directories and settings
+
+=== ProComm and Procomm Plus
+
+ProComm 2.4.1's manual depicts a table of ten numbered entries, followed by a
+command area and modem/port information. Columns expose name, telephone number,
+line parameters, echo, and command file. Dialing and revision use entry numbers;
+search matches names or numbers. The revision workflow prompts through fields
+in sequence. Its Alt-S configuration uses six numbered categories and a separate
+Save Setup to Disk command. Unsaved configuration changes remain effective for
+the current program session. This is a deliberately supported temporary-state
+model, not an automatic-save failure. <<procomm241>>
+
+The surviving Procomm Plus directory published by Benj Edwards shows a later
+interaction: a highlighted row, arrow-key selection, Space marking, Enter
+dialing, and commands to revise, find, exchange directories, and toggle the
+display. Its visible columns emphasize total calls, last call, transfer
+protocol, terminal, and script. The account dates the saved directory to 1992;
+the screenshot does not identify the exact executable version. <<pcplusdos>>
+
+*Design implication:* preserve efficient scanning and alternate information
+views, but avoid making a visible row number the permanent identity of a BBS.
+Sorting and importing should not silently retarget shortcuts or scripts.
+
+=== Telix 3.51
+
+The manual describes a directory occupying most of the screen, showing at least
+15 entries, with commands along the bottom. A Toggle action changes the displayed
+fields. Selection supports arrows, paging, mouse clicks, and double-click dialing.
+The optional quick-dial bar appears before the full directory: users can enter
+entry numbers immediately, or press Return to reach the list. <<telix351>>
+
+Editing opens a list of fields. Return edits a field; Tab, Shift-Tab, arrows, or
+the mouse move between them. The manual describes aborting without changes and
+confirmation before writing changed data. Program preferences live separately;
+they include terminal, modem/dialing, and file-related settings. <<telix351>>
+
+*Design implication:* quick connect and full browsing can coexist. An extra
+startup prompt should be optional, since it adds a step for people who usually
+want to browse. Alternate columns are more economical than a permanently huge
+table, provided the active view has a visible name.
+
+=== Qmodem 4.6 Test Drive
+
+The manual's phonebook diagrams show a dense table above a command legend.
+Other Info changes the information displayed; attached notes participate in
+search. Explicit tags support repeated calling across entries. Setup is a
+separate menu system. This is the DOS Test Drive manual, not a description of
+QmodemPro for Windows. <<qmodem46>>
+
+*Design implication:* tags can be valuable, but the list highlight and the
+pending dial set are different states. The manual's FAQ records confusion when
+the pending set wins over the visible highlight; see <<documented-friction>>.
+
+=== Telemate 4.21
+
+Telemate combines a directory with a windowed text interface. The manual
+describes multiple directory files, horizontal access to additional columns,
+Space marking, and number-based dial lists. Mouse selection and double-click
+dialing supplement the keyboard. Insert clears the current dial list and dials
+the highlighted entry, a meaning quite different from “add record” in other
+clients. <<telemate421>>
+
+Its entry editor uses multiple pages. The second-page diagram groups terminal,
+connection, toggles, and protocol choices spatially, including radio-style
+choices and OK/Cancel buttons. Global Options has eight categories, including
+General, Mouse & Keyboard, Dial Setup, directories, terminal, communications,
+and protocols. Saving options and saving window positions are separate actions.
+<<telemate421>>
+
+*Design implication:* a modernized text UI can offer grouped forms and clear
+actions without abandoning keyboard efficiency. Historical hotkeys need
+careful treatment when the same key has incompatible meanings across products.
+
+=== Terminate 5.00
+
+The original English help contains diagrams of the phonebook, entry editor,
+autodialer, configuration root, and subsidiary menus. The phonebook has a file
+name/comment header, vertically navigated entries, horizontally selected
+information views, and a dense two-line command strip. It supports incremental
+search, tagged operations, range-based sorting, imports, and bulk field changes.
+Its “Global” directory action means editing multiple records, not opening
+program preferences. <<terminate500>>
+
+The entry diagram combines name/number/device/user profile with opening hours,
+terminal, login behavior, paths, keyboard mapping, capture, notes, colour, call
+statistics, transfer totals, and costs. Warn Days marks systems not contacted
+recently. The directory is saved after changes or dialing, with a backup of the
+previous phonebook. These are unusually rich personal-library functions for a
+DOS terminal. <<terminate500>>
+
+Program configuration is a category menu: display, communications, general
+options, toggles, modem/dialing, paths, protocols, emulation/keyboard, login,
+users/IEMSI, and additional host, point, cost, and fax facilities. Context help
+accompanies its forms. The breadth reflects a communications suite, not just a
+BBS caller. <<terminate500>>
+
+*Design implication:* notes, visit reminders, connection statistics, and batch
+editing remain relevant. A literal transplant of the whole suite would bury
+common settings. Labels such as Global need to state whether they mean all
+selected BBSes, every future connection, or the application itself.
+
+== Windows connection managers
+
+=== Procomm Plus for Windows
+
+Indexed excerpts of a service-provider guide describe File -> Connection
+Directory, Connection -> New Entry, a Data tab, and separate Basic Options and
+Port Settings. The complete guide could not be retrieved, so this is limited
+workflow evidence rather than an inspected directory screenshot. The excerpt
+does not identify the exact Procomm executable revision. <<pcplusdirectory>>
+
+A CNC communications guide explicitly covers the Windows 2.0-through-4.8 family
+and reproduces a 4.8-era Setup layout. Large System/Data/Fax/Internet tabs sit
+above icon category buttons on the left. The main panel selects a modem or
+connection; another Properties dialog edits its serial parameters. Data transfer
+uses another category. This is a useful example of nested settings ownership,
+even though the illustrated task is industrial serial communication. <<pcpluswin>>
+
+*Design implication:* top-level categories and a left-hand subcategory strip
+can organize many controls. Multiple nested OK/Cancel layers make the edited
+object and save boundary harder to follow; a SyncTERM version should show both.
+
+=== RIPterm and RIPtel
+
+The detailed Windows case here is *RIPtel Visual Telnet 3.1*, whose original
+1997 help survives in a later MSI repack. The vendor's help also names RIPterm
+3.0; an archive separately preserves RIPterm Pro 2.3. Application versions and
+RIPscrip protocol generations must not be conflated, nor should RIPtel's exact
+screens be attributed to every RIPterm release. <<riptel31>> <<ripfamily>>
+
+RIPtel's bookmark list has normal and alternate information views. The normal
+view presents system name, Internet address, and notes; the alternate adds
+account information and call statistics. New, Edit, Remove, View, Swap, Sort,
+and Connect provide library management. Multiple selection serves management
+operations, but the help explicitly disallows tagging multiple systems to
+connect. A quick bookmark action can capture the current connection before
+the user later opens the full editor. <<riptel31>>
+
+Basic entry creation asks for name/address/port and optional notes/login data.
+The fuller editor adds emulation, echo, line endings, backspace behavior,
+host-resource directory, and macro file. Setup supplies defaults and groups
+display, keyboard, and advanced controls. Its optional graphical offline
+System Menu provides a home screen with feature buttons and demonstrations;
+screen-wipe transitions and the home screen can be disabled. <<riptel31>>
+
+*Design implication:* a friendly launcher and an efficient directory can be
+separate routes into the same data. Promoting a successful ad-hoc connection
+avoids forcing people to finish a detailed form before trying a BBS. Decorative
+transitions should not delay navigation.
+
+=== ZOC
+
+The inspected gallery shows a Host Directory with section tabs, a column table,
+and Connect/New/Edit/Clone/Delete buttons at the right. A More menu contains
+folder, search, import/export, and management actions. The entry dialog uses
+Host/Login/Options/Shortcuts/Window/BBS/Info tabs. The session profile editor has
+a category list at left and settings at right. <<zocgallery>>
+
+Current help documents folders within sections and configurable columns.
+Connections can share a session profile; program settings and keyboard or
+translation profiles are separate concepts. Host-directory controls also support
+visit reminders. These layers make large collections manageable, but create
+more than one place that can affect a connection. <<zochost>> <<zocprofiles>>
+
+*Design implication:* reusable profiles reduce repeated work. A future SyncTERM
+inspector should make inherited values and explicit overrides visible, and
+offer a direct route to edit their source. Merely adding another Settings button
+would leave users guessing which object it changes.
+
+=== HyperTerminal
+
+The examined Windows 95-era instructions show a New Connection dialog asking
+for a name and icon, followed by telephone number, area/country code, and modem
+selection. The user reviews the connection, dials, and saves it for later use.
+Saved connections can be reached through the HyperTerminal folder or shortcuts.
+The operating system supplies much of the library navigation. <<hyperterminal>>
+
+*Design implication:* a connection document is approachable for a small set of
+targets, and integrates naturally with desktop launchers. A large BBS collection
+still benefits from an application-owned search, notes, statistics, and duplicate
+handling. File/shortcut navigation is a different model from a dense phonebook.
+
+== Current BBS-focused clients
+
+=== Qodem
+
+The published phonebook image uses a blue boxed table with Name,
+Address/Command/Number, Method, and Emulation columns. A total-tag count is in
+the header; a substantial lower region lists commands grouped by task. The
+entry image shows a tall form, optional resource files, statistics, contextual
+help, a picklist, and explicit save/abort shortcuts. <<qodemimages>>
+
+Qodem's guide preserves keyboard-oriented dialing and configuration. Its curses
+interface is useful on a console or through another terminal, making it a
+particularly relevant comparison for SyncTERM's nongraphical backends. These
+project images are layout evidence; they are not a verified capture of every
+screen in the release currently listed on its homepage. <<qodemguide>>
+
+*Design implication:* visible shortcuts and field help are valuable. A command
+legend can dominate an 80x25 screen; a concise always-visible row plus expanded
+help offers another density tradeoff.
+
+=== minicom
+
+The manual describes Ctrl-A D opening the dialing directory. Uppercase letters
+or horizontal cursor movement choose commands; arrows and paging navigate
+records. Space tags entries for round-robin calling. Editing is a lettered form
+covering name/number, dial string, script, login, terminal behavior, and line
+settings; call statistics are displayed separately. Ctrl-A O opens configuration
+categories such as paths, transfer programs, serial port, and modem/dialing.
+Named configuration files support different setups. <<minicom>>
+
+*Design implication:* the host terminal's own key conventions constrain a TUI.
+A persistent local-command prefix can work well, but the interface must make
+clear whether the next key is local or destined for the remote host. Serial
+device settings and per-BBS settings deserve separate labels.
+
+=== NetRunner 2.00 Beta 21
+
+Published setup screenshots show a custom DOS-style UI inside a Windows window.
+A large ANSI logo remains above both the directory and record editor. The
+editor divides identity/address/login fields and terminal/display/script fields
+into two columns, with rating/comment below and a keyboard legend at the bottom.
+The screenshot title identifies Beta 21. <<netrunnerimages>>
+
+The distribution manual documents mouse operation, an Alt-key command menu,
+multiple phonebooks, import from mTelnet and SyncTERM, and per-entry login
+scripts. Startup/video options also exist in `netrunner.ini`, outside the normal
+in-app configuration path. <<netrunner21>>
+
+*Design implication:* strong visual identity can make the client inviting, but
+the logo consumes space even during detailed editing. Branding could shrink in
+compact or editing layouts. Settings divided between an INI and the UI need an
+obvious explanation and a route to the effective values.
+
+=== RGTerm
+
+The gallery's directory is a black-and-blue pixel-font table with Name, Host,
+Port, and Term columns below a large logo. Its entry editor groups Connection,
+Display & Login, and Security, and presents contextual help and call information
+below. The configuration image says Page 1 of 4, grouping defaults, paths,
+compatibility options, and links to further settings. <<rgtermgallery>>
+
+Version 1.04's manual documents first-letter navigation, manual reordering,
+imports, a downloadable BBS guide, and directory/configuration access while a
+session is live. Global settings and the phonebook use separate files. The
+configuration screen explicitly uses Escape to save and return; it does not
+mean discard. A default terminal choice seeds new entries while existing entries
+retain their own values. <<rgterm104>>
+
+*Design implication:* traditional appearance can support current connection
+management. Two details deserve special attention: protocol is visually grouped
+under Security while host/port are in Connection, and Escape has a saving
+meaning. Both are understandable choices, but require clear, consistent labels.
+
+=== IcyTerm 0.9.1
+
+The release's documentation and directory implementation describe a searchable
+library with local/remote sources, favorites, sorting, quick connect, and entry
+details. Wide layouts show related panes; narrow layouts switch between list
+and entry views. Entry editing has Connection, Terminal, Login, Colors, and
+Notes pages with fixed Save/Discard actions. Global settings use a separate
+draft. Remote directory records are read-only; Duplicate produces a local
+editable copy. <<icy091>> <<icysource>>
+
+*Design implication:* source ownership belongs in the library presentation.
+An imported/public entry should not look identical to a personal editable one
+if the same edit command has a different effect. Responsive navigation is also
+more useful than shrinking the terminal's bitmap font until every pane fits.
+
+=== MuffinTerm
+
+The manual defines one directory model with two presentations: macOS places list
+and details side by side; iOS/iPadOS shows one at a time. Full list, favorites,
+and call history have distinct selectors. Lists retain their ordering, and
+history retains thirty calls. Per-BBS details include connection settings,
+compatibility controls, and call/transfer statistics. Program preferences are
+separate. The directory requires an offline terminal window; while connected,
+the documented alternatives are hanging up or opening another window.
+<<muffindirectory>> <<muffinpreferences>>
+
+The publisher's phone screenshots show a dense native list, with host/port and
+small statistics below each name. The detail page puts a large Connect button
+and call information above the form. It offers a useful counterexample to the
+idea that touch interfaces must use large cards for every saved connection.
+These store images contain 2022 example data and should not be treated as newly
+captured screens of the current store version. <<muffinstore>>
+
+*Design implication:* one model can support genuinely different layouts.
+Favorites, history, and notes make the directory a personal working library.
+The ability to browse or edit during an unrelated live connection is a separate
+product decision, rather than something automatically implied by a split view.
+
+=== TERMinator
+
+The publisher's Windows screenshots, labelled version 1.10, show a thumbnail
+phonebook with named BBS cards and a toolbar for Add/Edit/Delete/Connect/Sort/View.
+Preferences use a long scrollable form divided into Bell Sound, Terminal,
+Display, Modem, and multimedia groups. Save/Cancel stay at the bottom. The
+website offers newer downloads, so those images establish the pictured layout,
+not the exact contents of every later release. This is distinct from the DOS
+Terminate application. <<terminator>>
+
+*Design implication:* BBS imagery supports recognition and discovery, especially
+for small favorite lists. The pictured cards do not expose host/port for
+comparison. A table/list alternative, useful empty-image fallback, and keyboard
+focus are important if SyncTERM adopts a visual browsing view.
+
+== Adjacent terminal designs worth borrowing from
+
+=== PuTTY 0.85
+
+PuTTY's Session panel combines host/port/connection type with a saved-session
+list and Load/Save/Delete. A category tree exposes terminal, window, connection,
+and protocol settings. Loading changes the configuration being edited; saving
+stores it under a session name. Default Settings provides the starting
+configuration. This is a compact configuration-and-launch workflow rather than
+a BBS library with notes, call history, and favorites. <<putty085>>
+
+*Design implication:* one navigation shell can expose deep configuration while
+keeping connection launch close at hand. The selected saved name, the loaded
+configuration, and unsaved edits must remain distinguishable.
+
+=== Tera Term 5-series
+
+New Connection uses a host field/history together with TCP/IP, serial, and other
+connection controls. The current manual documents editing the host list and
+up to 500 saved host commands. A host command can also identify an alternative
+setup INI. Additional Settings organizes options in tabs. This is particularly
+useful for people who know the address they need, rather than browse a named BBS
+collection. <<teraterm5>> <<teratermsettings>>
+
+*Design implication:* quick connect should be a first-class route. Promoting an
+address to a saved BBS can be offered after it works. An address history and a
+curated personal directory should retain distinct purposes.
+
+=== SecureCRT
+
+The current product documentation offers a dockable or floating Session Manager,
+filtering, folders, and a classic Connect dialog. A separate Active Sessions
+Manager tracks running sessions. The inspected 9.7 macOS gallery image shows
+the active-session tree beside terminal tabs and output. The vendor's 7.3
+announcement dates the cross-platform dockable manager and filter bar to 2014;
+today's appearance should not be projected backwards onto earlier CRT releases.
+<<securecrt>> <<securecrt73>>
+
+*Design implication:* managing saved targets and managing open sessions are
+different jobs. A persistent drawer is useful for frequent switching, but
+should collapse when it would crowd an 80-column terminal.
+
+=== Other useful leads and limits
+
+* QmodemPro 2.21 for Windows is described in its archived distribution listing
+  as having an icon-based dialing directory and customizable toolbars. That
+  establishes an additional Windows-era direction, but not the exact settings
+  geometry. <<ripfamily>>
+* fTelnet's official site distinguishes an embedded terminal, an embed wizard,
+  and the standalone My fTelnet web client. Embedding allows the surrounding
+  website to provide navigation; that arrangement should not be confused with
+  evidence that every fTelnet deployment has the same directory. <<ftelnet>>
+* mTelnet and MagiTerm are useful candidates for a follow-up visual archive.
+  NetRunner and RGTerm document mTelnet-directory import, but import support
+  cannot establish mTelnet's screen layout. No detailed visual claim about
+  MagiTerm is made here.
+
+== Visual reference collection
+
+These examples were inspected for local application controls. Source pages
+and individual images are linked so that the reader can examine full-size
+text. Remote images require a network connection when rendering this document.
+
+=== Dense table and form
+
+.Qodem phonebook. Note the tag total, mixed address/command column, and large command legend. Source: Qodem project, screenshot revision unspecified.
+image::https://qodem.sourceforge.io/screenshots/phonebook1.png[Qodem phonebook table and keyboard command legend,width=720,link=https://qodem.sourceforge.io/screenshots/phonebook1.png]
+
+.Qodem entry editor. Context help and a side picklist accompany a tall field list. Source: Qodem project, screenshot revision unspecified.
+image::https://qodem.sourceforge.io/screenshots/phonebook_insert.png[Qodem entry editor with contextual help and a choice list,width=720,link=https://qodem.sourceforge.io/screenshots/phonebook_insert.png]
+
+.RGTerm entry editor. Compare the connection and security groups, help line, and Escape legend. Source: NewWave RGTerm gallery, image revision unspecified.
+image::https://www.rgbbs.info/images/rgterm2.png[RGTerm grouped entry editor,width=800,link=https://www.rgbbs.info/images/rgterm2.png]
+
+Additional inspected references:
+
+* https://arstechnica.com/information-technology/2022/12/my-secret-life-as-an-11-year-old-bbs-sysop/[Benj Edwards's Procomm Plus directory from 1992],
+  figure captioned “My brother's original Procomm Plus dialing directory from
+  1992.” The account preserves the directory's provenance; the application
+  version is unspecified.
+* https://www.canerduh.com/images/netrunner02.png[NetRunner Beta 21 directory]
+  and https://www.canerduh.com/images/netrunner03.png[record editor], published
+  in https://www.canerduh.com/bbs.html[a BBS connection tutorial].
+* https://www.rgbbs.info/images/rgterm1.png[RGTerm directory] and
+  https://www.rgbbs.info/images/rgterm3.png[configuration page 1 of 4].
+* Telix, ProComm, Qmodem, Telemate, and Terminate manuals listed below contain
+  screen descriptions or text diagrams; their colours are not reconstructed.
+
+=== Desktop library and category settings
+
+.ZOC Host Directory. Section tabs and a table coexist with a right-hand action strip. Source: EmTec's gallery; screenshot version unspecified.
+image::https://www.emtec.com/images/zoc/us/phonebk.png[ZOC Host Directory with sections and actions,width=720,link=https://www.emtec.com/images/zoc/us/phonebk.png]
+
+.ZOC session profile. The category list is separate from connection-type selection and protocol details. Source: EmTec's gallery; screenshot version unspecified.
+image::https://www.emtec.com/images/zoc/us/options1.png[ZOC session profile category and settings panels,width=720,link=https://www.emtec.com/images/zoc/us/options1.png]
+
+Additional inspected references:
+
+* https://www.emtec.com/images/zoc/us/phonebk1.png[ZOC tabbed entry editor].
+* https://cncusallc.com/assets/docs/ProComm_Settings.336161917.pdf[Procomm Plus
+  Windows setup screenshots], printed pages 3–5; especially page 4's major tabs,
+  category buttons, and subordinate modem-properties dialog.
+* https://www.nyct.net/support/shell/hypertrm/hyper3.gif[HyperTerminal name/icon]
+  and https://www.nyct.net/support/shell/hypertrm/hyper4.gif[number/modem]
+  dialogs from the NYCT setup guide.
+* https://www.vandyke.com/images/screenshots/securecrt/SCRT_9.7_Mac_SessionConfiguration.png[SecureCRT
+  9.7 active-session tree and terminal tabs]. Despite the image filename, the
+  visible pane is labelled Active Sessions; it is not a settings-dialog capture.
+
+=== Touch library and visual cards
+
+.TERMinator's thumbnail phonebook. The pictured window identifies version 1.10. Source: Dead Modem Society product gallery.
+image::https://deadmodemsociety.com/terminator/images/windows/phonebook.webp[TERMinator 1.10 BBS thumbnail grid,width=800,link=https://deadmodemsociety.com/terminator/images/windows/phonebook.webp]
+
+.TERMinator preferences. A scrollable central form uses grouped headings and fixed Save/Cancel actions. The pictured window identifies version 1.10. Source: Dead Modem Society product gallery.
+image::https://deadmodemsociety.com/terminator/images/windows/settings.webp[TERMinator 1.10 grouped preferences,width=800,link=https://deadmodemsociety.com/terminator/images/windows/settings.webp]
+
+.MuffinTerm's portrait directory and detail screens. Source: publisher's App Store gallery; example timestamps are from 2022, capture version unspecified.
+[cols="1a,1a",frame=none,grid=none]
+|===
+| image::https://is1-ssl.mzstatic.com/image/thumb/Purple116/v4/f5/57/f8/f557f852-e5db-b800-c375-abeee2949852/be189d0e-5cd4-47b5-9e6c-a852b645587e_ph_s_05_v.png/392x696bb.png[MuffinTerm portrait BBS Directory with compact statistics,width=392]
+| image::https://is1-ssl.mzstatic.com/image/thumb/Purple116/v4/b5/d9/d8/b5d9d865-5fcc-0f42-8339-54d7ee222571/7b6ae0f1-7436-4965-9355-2ba87287743b_ph_s_06_v.png/392x696bb.png[MuffinTerm portrait connection detail form,width=392]
+|===
+
+https://apps.apple.com/us/app/muffinterm/id1583236494[Publisher's gallery] and
+https://muffinterm.app/manual/directory[directory manual]. The list uses several
+compact information lines per BBS; the detail screen starts with call
+information and a large Connect button.
+
+[[documented-friction]]
+== Reported friction and design tradeoffs
+
+There is insufficient evidence here to call a layout universally popular or
+unpopular. The first group below contains documented problems or acknowledged
+costs. The second contains design judgments to test with SyncTERM users.
+
+=== Documented problems and acknowledged costs
+
+* *Qmodem's hidden dial set.* The 4.6 Test Drive FAQ explains why Enter can dial
+  something other than the highlighted entry: explicit tags elsewhere in the
+  directory take precedence. This is direct evidence of a confusing interaction,
+  not an inference from its appearance. <<qmodem46>>
+* *Procomm Plus persistence confusion.* A 2012 user report describes changed
+  serial parameters not surviving in version 4.8. The thread supplies no
+  confirmed cause or fix. It establishes one user's difficulty, not a proven
+  general software defect. Effective values, dirty state, save confirmation,
+  and the destination profile should all be observable. <<pcplussavereport>>
+* *RIPtel's decorative transitions had a cost.* Its own help recommends
+  disabling screen wipes or the System Menu when menu drawing is slow.
+  A launcher can be attractive while still making animation optional.
+  <<riptel31>>
+
+=== Choices with competing benefits
+
+[cols="2,3,3",options="header"]
+|===
+| Choice | Benefit | Cost or question for SyncTERM
+
+| Dense table versus BBS cards
+| Tables expose comparable attributes; cards aid visual recognition.
+| Cards need more space and image storage; tables can become walls of abbreviations.
+
+| Large command legend versus minimal chrome
+| A legend teaches commands without opening help.
+| It removes rows from small directories. Keep primary actions visible and offer expanded help.
+
+| Inline details versus modal editing
+| Adjacent details preserve browsing context; a modal form gives editing full attention.
+| Distinguish inspection from editing. Selecting another row must not silently save a half-edited record.
+
+| Tabs versus category list versus long form
+| Tabs work for a small number of peers; lists scale to many categories; long forms support scrolling and scanning.
+| Tabs overflow, lists consume width, and long forms hide actions or validation errors unless those remain visible.
+
+| Escape saves versus Escape discards
+| RGTerm makes leaving a form sufficient to persist changes; explicit drafts support reversible exploration.
+| Either behavior can surprise users trained on the other. Do not vary it by cosmetic theme or layout.
+
+| New-entry template versus live inheritance
+| A template is predictable after creation; live profiles make shared changes efficient.
+| Label copied defaults differently from inherited values. Show where an effective value came from.
+
+| Persistent session drawer versus directory-only screen
+| A drawer makes switching targets easy while connected.
+| It competes with terminal width. Collapsing it must not resize the remote terminal unexpectedly.
+
+| Offline-only directory versus live browsing
+| Offline-only operation simplifies session ownership.
+| MuffinTerm's documented workflow requires another window to browse while connected. Decide whether SyncTERM needs that restriction.
+
+| Shared/public directory versus personal library
+| Public lists simplify discovery and stay up to date.
+| Editing, refresh, duplicates, and private annotations need explicit ownership; remote metadata should not overwrite personal settings.
+
+| Retro styling versus native conventions
+| Pixel fonts, colour, and ANSI branding give continuity and identity.
+| Field readability, focus, scaling, and action semantics still need to work for unfamiliar users and accessibility tools.
+|===
+
+== Common structure beneath the different appearances
+
+The following synthesis is a design interpretation of the examples above.
+It is not a claim that every client implements every item.
+
+=== A directory entry is more than an address
+
+The useful recurring groups are:
+
+* *Identity*: display name, endpoint, transport, source, optional favorite/group.
+* *Compatibility*: emulation, codepage/font, geometry, echo, line endings,
+  backspace behavior, graphics, colour, and sound choices where supported.
+* *Login and automation*: user identity, credentials, script or login method.
+* *Personal context*: notes, last call, call count, duration, transfer totals,
+  and optional reminders.
+
+Keep the directory's normal row focused on identification and connection.
+Statistics and compatibility details can occupy an inspector or an alternate
+column view. Credentials should not be normal browsing columns: RIPtel's
+documented alternate view is a historical precedent to evaluate, not a reason
+to display secret values.
+
+=== Settings have at least three scopes
+
+[cols="2,3,3",options="header"]
+|===
+| Scope | Example | Suggested wording
+| Application
+| UI theme, window behavior, local paths, output device
+| Program Settings
+| Starting values for new entries
+| Default emulation or transfer preference copied when creating a record
+| New Connection Defaults
+| One saved connection
+| Host, login, font, geometry, compatibility exception
+| Edit BBS
+| Current connection only
+| Temporary display or keyboard adjustment during a call
+| Current Session; state explicitly whether it will also update the saved BBS
+| Optional shared profile
+| Reusable terminal/compatibility configuration
+| Profile name plus inherited/overridden indicators
+|===
+
+Scope should be visible in the title, not deduced from which menu opened the
+form. Category layout and settings ownership are independent: a tabbed form can
+have poor ownership rules, and a simple field list can have excellent ones.
+
+== Candidate SyncTERM layouts
+
+These are original schematic proposals, not screenshots or approved feature
+requirements. They can be tried independently of colour themes. A different
+layout should change presentation, not duplicate the directory or alter saving
+semantics.
+
+=== Compact calling table
+
+Best for an 80x25 console, keyboard-first use, large imported lists, and quick
+comparison. Draw from Telix, Qodem, minicom, and RGTerm. Use one compact action
+row and an expandable help panel. An optional detail area can replace some list
+rows rather than requiring horizontal scrolling everywhere.
+
+[literal]
+....
+Directory   [Personal v]   Find: [________________]   3 matches
+  Name                   Address                     Type   Term
+> Example BBS            bbs.example.test:2323        Telnet ANSI
+* Second BBS             second.example.test:22       SSH    ANSI
+  Atari Example          atari.example.test:23        Telnet ATASCII
+
+Selected: Example BBS     Last call: yesterday    Favorite: No
+Enter Connect   E Edit   A Add   / Find   V Columns   F1 Help
+....
+
+Normal Enter connects the highlighted record. If a dial queue exists, give it
+a separate visible count and action; filtering must not conceal which records
+the action will use. A field-list editor can remain available, but divide
+long forms into named groups and keep save/error actions visible.
+
+=== Library with adjacent details
+
+Best for a wide graphical window, frequent note reading, and configuration
+inspection. Draw from MuffinTerm, IcyTerm, and ZOC. Use a collapsible source
+selector, a searchable middle list, and a right-hand inspector. At narrow widths
+show list or details, with a Back action that preserves the search and selection.
+
+[literal]
+....
+Sources       Search [________________]    Example BBS
+Personal      Name              Last call bbs.example.test:2323
+Favorites     Example BBS       Yesterday [Connect] [Edit] [Duplicate]
+Recent        Second BBS        Monday
+Public list   Atari Example     Never     ANSI / CP437 / 80x25
+                                         Personal record
+                                         Notes and call history ...
+....
+
+The inspector is read-only until Edit is chosen. A public record should display
+its source and offer Add to Personal or Duplicate. Connection editing can use
+Identity/Connection, Terminal, Login, Appearance, and Notes pages, with an
+advanced group for less-used compatibility settings. Those groups are proposals
+to test, not a demand to mirror another client's exact tab labels.
+
+=== Terminal with an optional directory drawer
+
+Best for people who browse targets while connected or manage multiple windows.
+Draw from SecureCRT and RGTerm's live directory access. Keep Saved BBSes and
+Running Sessions visibly distinct. The drawer can overlay or collapse beside
+the terminal; opening it should not silently change the BBS's negotiated screen
+size.
+
+[literal]
+....
+[Saved BBSes | Running Sessions]     Current terminal
+Search [_______________]           +---------------------------+
+Example BBS                         |                           |
+Second BBS                          |     Remote BBS output     |
+Atari Example                       |                           |
+[Connect in new window]             +---------------------------+
+....
+
+Make the action explicit when a connection already exists: connect in a new
+session/window, or deliberately replace the current one. Local form input must
+stay local, and focus restoration must be predictable when the drawer closes.
+This layout does not itself require adding simultaneous-session support.
+
+=== Favorites launcher and thumbnail browsing
+
+Best for a small familiar collection, a large display, or pointer/touch use.
+Draw from TERMinator's cards and RIPtel's optional offline home screen. Offer
+Favorites, Recent, Quick Connect, and the full Directory. BBS thumbnails are
+optional; names and useful fallback icons still identify entries without art.
+
+Treat this as another view of the library, with a switch back to a list. A
+card's context actions should expose the same editor, notes, and source rules.
+Keep decoration out of the critical path from launch to connection.
+
+=== Settings presentation can vary independently
+
+A compact backend can use categories followed by a field grid and a help line.
+A wide graphical backend can use a left category list or a small set of tabs
+with grouped controls. Both should expose the same values, validation, help,
+and reset operations. A search result should name its scope and category,
+then reveal the setting in context.
+
+For draft editing, keep Save and Discard reachable, report a failed save without
+closing the editor, and make reset-to-default a separate operation. If live
+preview is offered for fonts or colours, discarding the draft should restore
+the previous presentation. Avoid changing Escape behavior simply because the
+user selected a different layout.
+
+== How to compare prototypes
+
+Evaluate the same tasks against the same directory data in each presentation:
+
+. Find and connect to a known BBS in lists of 10, 100, and 1,000 entries.
+. Locate an unfamiliar BBS by part of its address or a note; distinguish two
+  entries with the same name and different ports or transports.
+. Try an address without saving, then keep the successful connection with its
+  actual settings intact.
+. Change a compatibility option for one BBS; verify that neighboring entries
+  and new-entry defaults have the intended scope.
+. Make several edits, visit another category, then discard. Repeat with a
+  failed save and verify that retry is possible.
+. Filter a list containing selected or queued entries; predict exactly which
+  BBS Connect will call.
+. Refresh a public directory while preserving private notes, favorites,
+  credentials, and deliberate compatibility overrides.
+. Browse or edit while another session runs; confirm that local typing never
+  reaches the host and that focus returns to the expected control.
+. Resize the UI and change layouts at 80x25, a tall text mode, a narrow graphical
+  window, and a wide desktop size. Preserve selection and drafts; distinguish
+  local UI resizing from remote terminal geometry.
+. Repeat primary actions with keyboard only and pointer only; check long names,
+  IPv6/long endpoints, Unicode labels, missing thumbnails, and visible focus.
+
+Measure completion time, wrong-target connections, unintended persistence or
+discard, keystrokes/clicks, visible useful rows, and recovery success. Preference
+ratings alone will not reveal whether a handsome layout makes routine calls
+slower or saves settings to the wrong scope.
+
+== Source register and reproducibility
+
+Sources are grouped by the claim they support. Manuals hosted by an archive
+remain original documentation; archive descriptions and personal reports have
+the narrower roles stated below. No claim of live application testing follows
+from inspecting a manual or screenshot.
+
+[bibliography]
+* [[[procomm241]]] Datastorm, _ProComm 2.4.1 Reference Manual_ (1986), sections
+  3 and 5, especially pages 301 and 501–503.
+  https://aspectscripting.com/support/procomm/procomm241d.zip[Original documentation archive],
+  member `PROCOMM.DOC`;
+  https://aspectscripting.com/support.shtml[archive index].
+* [[[pcplusdos]]] Benj Edwards, _My secret life as an 11-year-old BBS sysop_
+  (2022), original-directory figure and first-person account of its use in 1992.
+  https://arstechnica.com/information-technology/2022/12/my-secret-life-as-an-11-year-old-bbs-sysop/[Article].
+  https://sysarmy.com/blog/assets/bbs-4.jpg[Inspected image mirror] in the
+  https://sysarmy.com/blog/posts/vida-secreta-operador-bbs/[Spanish translation].
+* [[[telix351]]] _Telix 3.51 User's Manual_, “Inside the Dialing Directory,”
+  pages 31–41, and configuration chapters.
+  https://files.mpoli.fi/unpacked/software/dos/communic/telix351.zip/_telix351.dat/telix.doc[Archive's manual view].
+* [[[qmodem46]]] Mustang Software, _Qmodem 4.6 Test Drive_ manual, phonebook
+  pages 76–78, configuration section, and FAQ page 262 about Enter dialing an
+  entry other than the highlighted one.
+  https://qodem.sourceforge.io/qmodem/qmodemtd.html[Original manual transcription].
+* [[[telemate421]]] White River Software, _Telemate 4.21_ documentation,
+  phone-directory chapter and Options pages 58–59.
+  https://files.mpoli.fi/software/DOS/COMMUNIC/TM421-3.ZIP[Original documentation archive],
+  member `TELEMATE.TXT`.
+* [[[terminate500]]] _Terminate 5.00_ English help, `PHONEBOO.HLP` and
+  `MAINCONF.HLP`, plus `CONTENTS.DOC` and `WHATSNEW.500`.
+  https://files.mpoli.fi/software/DOS/COMMUNIC/500TER.ZIP[Original distribution].
+  `TLAN_001.EXE` is an ACE archive containing the help. `500TER._XE` is an ACE
+  archive containing `DOCS.EXE`, a nested LZH archive. Static extraction used
+  https://github.com/droe/acefile[acefile] and 7-Zip; no DOS executable was run.
+* [[[pcplusdirectory]]] _Region D DMERC EDI Manual_, indexed excerpt labelled
+  revised June 2002, Stratus Network User Guide, page 5, ProComm Plus
+  connection-directory workflow.
+  https://www.manuallib.com/download/2023-10-18/Region%20D%20DMERC%20EDI%20Manual.pdf[Preserved provider manual].
+  Direct retrieval returned HTTP 403 and the complete text could not be
+  inspected. Only the indexed workflow excerpt supports the limited claim;
+  Windows settings geometry comes from the separately inspected CNC guide.
+* [[[pcpluswin]]] _Procomm Plus version 4.8 Configuration_, preserved extract
+  of `GFK2263.pdf`, printed pages 3–5, especially the Setup screenshot on page 4.
+  https://cncusallc.com/assets/docs/ProComm_Settings.336161917.pdf[PDF].
+* [[[riptel31]]] TeleGrafix, _RIPtel Visual Telnet 3.1_, `readme.txt` and
+  _RIPtel User's Guide_ (`riptel.hlp`, dated 1997-10-18): “The Bookmark System,”
+  “Changing the Bookmark Display,” “Adding New Bookmarks,” “Editing Bookmarks,”
+  “Setting Up RIPtel,” “Showing the System Menu,” and FAQ.
+  ftp://vert.synchro.net/main/comm/riptel.msi[Later MSI repack containing original help].
+  Extracted MSI -> `Data1.cab` -> help with 7-Zip; inspected text using
+  https://github.com/pmachapman/helpdeco[HelpDeco]. A browse-link reconstruction
+  warning occurred; the cited topic text was recovered, not a rebuilt running
+  help application. The repack also contains 2016 configuration/assets and is
+  not an untouched 1997 installer. The original
+  https://slbbs.org/files/clients/rtel3100.zip[3.1 distribution] is preserved
+  separately.
+* [[[ripfamily]]] https://slbbs.org/files/comm.html[SLBBS communications archive],
+  original distribution descriptions for RIPtel 3.1, RIPterm Pro 2.3, and
+  QmodemPro 2.21 for Windows. The RIPterm archive is
+  https://slbbs.org/files/slbbsrelated/rtrm2300.zip[`rtrm2300.zip`]. Descriptions
+  establish versions and advertised features, not unseen dialog geometry.
+* [[[zocgallery]]] EmTec,
+  https://www.emtec.com/zoc/screenshots.html[ZOC screenshot gallery]:
+  `phonebk.png`, `phonebk1.png`, `options1.png`. Individual images are not
+  version-labelled; inspected as published on the research date.
+* [[[zochost]]] EmTec, ZOC help:
+  https://www.emtec.com/zoc/help/en/19130/host-directory[Host Directory],
+  https://www.emtec.com/zoc/help/en/19131/configuring-a-host-directory-entry[Configuring an Entry],
+  https://www.emtec.com/zoc/help/en/19184/host-directory-settings[Host Directory Settings].
+* [[[zocprofiles]]] EmTec,
+  https://www.emtec.com/zoc/help/en/10410/session-profiles[Session Profiles]
+  and https://www.emtec.com/kb/en/1003/zoc-emulation-settings[Emulation settings and profiles].
+* [[[hyperterminal]]] NYCT support,
+  https://www.nyct.net/support/shell/hypertrm/[Connecting using HyperTerminal],
+  screenshot sequence `hyper3.gif` and `hyper4.gif` and the save workflow.
+* [[[qodemimages]]] Qodem project, original
+  https://qodem.sourceforge.io/screenshots/phonebook1.png[phonebook] and
+  https://qodem.sourceforge.io/screenshots/phonebook_insert.png[entry editor]
+  screenshots. Image revision unspecified.
+* [[[qodemguide]]] Qodem project,
+  https://qodem.sourceforge.io/getting_started/getting_started.html[Getting Started]
+  and https://qodem.sourceforge.io/[project overview].
+* [[[minicom]]] _minicom(1)_, author-maintained manual text reproduced by
+  https://www.man7.org/linux/man-pages/man1/minicom.1.html[man7], sections
+  Dialing Directory and Configuration. Unversioned online snapshot.
+* [[[netrunnerimages]]] Canerduh's
+  https://www.canerduh.com/bbs.html[BBS connection tutorial], original
+  `netrunner02.png` and `netrunner03.png`; pictured title says 2.00 Beta 21.
+* [[[netrunner21]]] Mystic BBS,
+  https://mysticbbs.com/downloads.html[NetRunner download index] and
+  https://mysticbbs.com/downloads/nr21_l64.zip[2.00 Beta 21 Linux archive],
+  members `netrunner.manual.txt` and `whatsnew.txt`. Some manual passages
+  describe earlier development plans; those are not treated as current limits.
+* [[[rgtermgallery]]] NewWave,
+  https://www.rgbbs.info/nw.html#rgterm[RGTerm gallery], images
+  `images/rgterm1.png`, `rgterm2.png`, and `rgterm3.png`.
+* [[[rgterm104]]] NewWave,
+  https://www.rgbbs.info/zip/RGTWV104.ZIP[RGTerm Windows 1.04 distribution],
+  `RGTERM.TXT`, sections 2–5 and version notes. The gallery may differ in
+  details from this manual's revision.
+* [[[icy091]]] IcyTerm,
+  https://github.com/mkrueger/icy_tools/blob/IcyTerm0.9.1/crates/icy_term/README.md[0.9.1 README],
+  egui Desktop Client section; release tag resolves to
+  `b2cce24e0de2fe5fcc4a2b87dcadc4914a6f9194`.
+* [[[icysource]]] IcyTerm 0.9.1,
+  https://github.com/mkrueger/icy_tools/blob/b2cce24e0de2fe5fcc4a2b87dcadc4914a6f9194/crates/icy_term/src/bin/icy_term_egui/dialing_directory.rs[directory implementation].
+  Source/documentation evidence, not a locally executed screenshot.
+* [[[muffindirectory]]] MuffinTerm,
+  https://muffinterm.app/manual/directory[Dialing Directory manual].
+* [[[muffinpreferences]]] MuffinTerm,
+  https://muffinterm.app/manual/preferences[User Preferences manual].
+* [[[muffinstore]]] MuffinTerm publisher's
+  https://apps.apple.com/us/app/muffinterm/id1583236494[App Store gallery],
+  portrait BBS Directory and detail images. The
+  https://itunes.apple.com/lookup?id=1583236494[public store metadata] returned
+  version 1.2.7, but that does not date the screenshot captures.
+* [[[terminator]]] Dead Modem Society,
+  https://deadmodemsociety.com/terminator/[TERMinator product gallery], Windows
+  `phonebook.webp` and `settings.webp`; both pictured windows identify 1.10.
+* [[[putty085]]] PuTTY authors,
+  https://the.earth.li/~sgtatham/putty/0.85/htmldoc/Chapter4.html[0.85 configuration manual],
+  especially section 4.1.2, Loading and Storing Saved Sessions.
+* [[[teraterm5]]] Tera Term project,
+  https://teratermproject.github.io/manual/5/en/menu/file-new.html[New Connection]
+  and https://teratermproject.github.io/manual/5/en/setup/teraterm-ini.html[Setup-file reference, Hosts section].
+  Moving 5-series manual; individual features are not attributed to every 5.x release.
+* [[[teratermsettings]]] Tera Term project,
+  https://teratermproject.github.io/manual/5/en/menu/setup-additional.html[Additional Settings categories].
+* [[[securecrt]]] VanDyke,
+  https://www.vandyke.com/products/securecrt/features.html[SecureCRT features]
+  and https://www.vandyke.com/products/securecrt/mac.html[macOS gallery],
+  inspected 9.7 session-manager image.
+* [[[securecrt73]]] VanDyke,
+  https://www.vandyke.com/aboutus/news/pressreleases/securecrt/securecrt73.html[SecureCRT 7.3 announcement],
+  2014-10-23; historical evidence for the cross-platform dockable manager/filter.
+* [[[ftelnet]]] Rick Parrish,
+  https://www.ftelnet.ca/[fTelnet] and
+  https://www.ftelnet.ca/demos/my-ftelnet/[My fTelnet introduction].
+* [[[pcplussavereport]]] Tek-Tips, telcomsal,
+  https://www.tek-tips.com/threads/saving-dialing-info-in-procomm-plus.1692624/[Saving dialing info in Procomm Plus],
+  2012-09-06. Unresolved first-person report, not a confirmed diagnosis.
+
+=== Download fingerprints
+
+These SHA-256 values identify the inspected archive bytes, including any
+archivist-added comments or later repackaging. They are evidence identifiers,
+not a recommendation to run historical installers.
+
+[cols="2,5",options="header"]
+|===
+| Distribution | SHA-256
+| `procomm241d.zip`
+| `897f48e7f0b92e138646482f21f416226ff8ef21beb542c33d82fc44c33a1dea`
+| `TM421-3.ZIP`
+| `faf507aca71bae9d9b6c0f9b1a53dcdecbd1cbe2b81c6c9052e78eb0b1e8a79b`
+| `500TER.ZIP`
+| `8a33f4156f68a43ac426c488d10b98aa05f60c5f1daad6833508932bd4d38b61`
+| `riptel.msi` later repack
+| `04915952dcb04013a164eae1b6f6c5f5335798053d4d0e69b3f4da24f812dd2c`
+| `RGTWV104.ZIP`
+| `b1dee9817704603ce3662026405dc5577938dc689f5e5e4ef1462c973033606f`
+| `nr21_l64.zip`
+| `751cfc3de23dca673cb6619525b251cbd463751b6c5e250faf30392986de8c86`
+|===
