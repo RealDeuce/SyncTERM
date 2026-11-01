@@ -166,17 +166,24 @@ class Screen {
 foreign class Cleanup_ {
   construct new(fn) {}
   foreign take_()
+  foreign static isCurrentScope_(fiber)
   static run(fn, cleanup) {
     if (!(fn is Fn) || !(cleanup is Fn)) Fiber.abort("cleanup scope expects functions")
     var guard = new(cleanup)
     var body = Fiber.new { fn.call() }
     var result = body.tryScoped()
     var after = guard.take_()
-    var closer = Fiber.new { after.call() }
-    closer.try()
+    var cleanupError = null
+    // Shutdown may have already taken this function before cancelling an
+    // enclosing child. The parked scope must not restore twice.
+    if (after != null) {
+      var closer = Fiber.new { after.call() }
+      closer.try()
+      cleanupError = closer.error
+      if (!closer.isDone && cleanupError == null) cleanupError = "cleanup must not yield"
+    }
     if (body.error != null) Fiber.abort(body.error)
-    if (closer.error != null) Fiber.abort(closer.error)
-    if (!closer.isDone) Fiber.abort("cleanup must not yield")
+    if (cleanupError != null) Fiber.abort(cleanupError)
     return result
   }
   static runCleanup_(fn) {

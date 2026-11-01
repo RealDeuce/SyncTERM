@@ -14,9 +14,9 @@ checks are complete. Commit coherent, verified changes as they are completed.
 - [x] Make `Screen.modalRun`, `CustomCursor.preserve`, and
   `VideoFlags.preserve` restore state after callback aborts and propagate the
   original error. Modal callbacks must continue supporting cooperative yields.
-- [ ] Ensure App shutdown restores cursor, mouse subscriptions, claims, and
+- [x] Ensure App shutdown restores cursor, mouse subscriptions, claims, and
   running state after failures. Propagate errors from `App.runChild`.
-- [ ] Cover normal return, abort, nested use, yield/resume, and shutdown in
+- [x] Cover normal return, abort, nested use, yield/resume, and shutdown in
   focused Wren host and UI tests.
 
 Starting points: `scripts/syncterm.wren`, `scripts/ui_app.wren`, and the
@@ -225,3 +225,27 @@ shutdown failure; FreeBSD leak detection was disabled as unsupported. The
 application linked, and GCC plus MinGW i686/x86_64 host libraries built without
 warnings. Windows runtime tests were not run. App run/runSync cleanup,
 runChild error propagation/cancellation, and their focused tests remain.
+
+Item 1 App lifecycle: both run modes now use one retained cleanup scope.
+Normal return, layout/handler/tick/reporter errors, nested use, cancellation,
+and shutdown restore cursor shape/position, attributes, and mouse masks,
+remove the input claim, release repeat/tick timers, and clear running state.
+`runChild` validates the active async caller, preserves immediate/deferred
+error identity, wakes the App when a child finishes, and unwinds unfinished
+children on stop or scope failure. A stopped modal loop exits promptly.
+Transfer dialogs stay on the event fiber; SFTP's foreground App reference
+restores on errors/shutdown. Already-taken cleanup functions never run twice.
+
+The new lifecycle regression failed before the implementation. All 16
+selected VM, host/menu/picker, settings, synthetic UI, and live SSH/SFTP tests
+passed. A final cursor-position/shutdown-callback check passed in the six
+host/menu/picker and synthetic input/popup/menu tests; the host suite also
+passed ASan/UBSan after that change (FreeBSD leak detection unsupported,
+disabled). Coverage includes sync and async failures, nested restoration,
+re-entry rejection, reuse, immediate/deferred child results and errors, UI
+responsiveness while awaiting, early-stop cancellation, modal stop, all 32
+timer slots available after repeat/tick teardown, and no parked callback
+resumption during shutdown. Native menu claim-list assertions prove removal
+before event dispatch or GC can conceal a stale claim. Native application
+linking and GCC plus MinGW i686/x86_64 host-library builds passed without
+warnings; Windows runtime testing was not performed.

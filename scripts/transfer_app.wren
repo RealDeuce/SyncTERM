@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Stephen Hurd
 // SPDX-License-Identifier: BSD-2-Clause
-import "syncterm" for Transfer, Screen, Key, KeyEvent, Timer
+import "syncterm" for Transfer, Screen, Key, KeyEvent, Timer, Cleanup_
 import "ui_app" for App
 import "ui_pane" for Pane
 import "ui_widget" for Rect
@@ -75,10 +75,8 @@ class TransferApp is App {
     }
     if (!_dialogActive && Transfer.dialogPending != 0) {
       _dialogActive = true
-      runChild(Fn.new {
-        dialog_(Transfer.dialogPending)
-        _dialogActive = false
-      })
+      Cleanup_.run(Fn.new { dialog_(Transfer.dialogPending) },
+          Fn.new { _dialogActive = false })
     }
     if (Transfer.done && _deadline == null) {
       _success = Transfer.success

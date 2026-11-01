@@ -21,7 +21,7 @@
 // CTerm.sftpActive clears as part of suspend(), so is_connected goes
 // false and the term.c disconnect path can run normally.
 
-import "syncterm" for Conn, CTerm, Download, File, Format, Host, Key, Text,
+import "syncterm" for Cleanup_, Conn, CTerm, Download, File, Format, Host, Key, Text,
                        KeyEvent, Screen, SFTP, SFTPError
 import "ui_app"    for App
 import "ui_pane"   for Pane
@@ -830,8 +830,9 @@ class SftpApp is App {
   // find us.
   run() {
     var savedCurrent = __current
-    __current = this
-    Screen.modalRun(Fn.new { super.run() })
-    __current = savedCurrent
+    Cleanup_.run(Fn.new {
+      __current = this
+      Screen.modalRun(Fn.new { super.run() })
+    }, Fn.new { __current = savedCurrent })
   }
 }

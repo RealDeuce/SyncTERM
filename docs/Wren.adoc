@@ -6830,21 +6830,23 @@ Confirm`, etc.  They're listed in <<ui-modules,UI Modules>>.
 
 Methods of interest:
 
-* `run()` / `runSync()` — enter the event loop.  Save/restore
-  mouse events and `CustomCursor` automatically.  `tickMs=`
-  schedules a periodic `onTick_` callback (overridable; no-op by
-  default).  Only one timer is queued at a time per App: the
-  `_tickPending` guard means non-tick events (keys, mouse,
-  external posts) don't accumulate timers behind the pending one.
+* `run()` / `runSync()` — enter the event loop in a cleanup scope.
+  Mouse subscriptions, cursor shape and position, and text attributes are restored after normal
+  return, a callback error, or VM shutdown. The input claim and timers are
+  released and `running` becomes false. Re-entering an active App is an error;
+  a stopped App can run again. `tickMs=` schedules a periodic `onTick_`
+  callback (overridable; no-op by default). Only one tick timer is pending
+  at a time; input and external posts do not accumulate additional timers.
   `runSync()` contains runtime errors raised by key and mouse handlers
-  as described above.
+  as described above. Errors from layout, painting, ticks, or an error
+  reporter propagate after cleanup, retaining the original error object.
 * `onError=(fn)` — replace `runSync()`'s default reporting for a failed
   event handler.  The callback receives the failed `Fiber`, whose
   `error` and `stackTrace` describe the abort.
 * `quit()` — break out of the loop.  Widgets and global handlers
   call this from their key/mouse handlers.
-* `modal(widget)` — push a modal, drain events until it pops, return
-  the widget so the caller can read its `result`.
+* `modal(widget)` — push a modal, drain events until it pops or the App
+  stops, then return the widget so the caller can read its `result`.
   A modal whose `closesOnOutsideClick(event)` method accepts a mouse
   event receives an Escape when that event occurs outside its bounds.
   List-style popups accept button 1 and right-click; Help accepts any
@@ -6888,9 +6890,10 @@ restoreFocus()
   repaint" below.
 * `onPost=(fn)` — handler for posted values that aren't the
   no-payload sentinel.  See below.
-* `runChild(fn)` — spawn `fn` in a fresh fiber, pump the App's
-  event loop from the run-fiber until the child completes, return
-  whatever `fn` returned.  See "Async work in handlers" below.
+* `runChild(fn)` — run `fn` in an owned child while pumping the async
+  App's events. Return its result or propagate its error, including errors
+  after an Operation await. Early exit cancels the child through its cleanup
+  scopes. See "Async work in handlers" below.
 * `onLayout=(fn)` — register a callback receiving `(width, height)` on
   the first paint and whenever the effective App area changes size.
   The root Container is resized before the callback runs, allowing the
@@ -6910,6 +6913,16 @@ that child finishes. Use it when a handler should keep input, ticks, and
 repaints responsive while awaiting an operation. Direct operation await is
 also safe: its wait defers unrelated wakes, but the handler does not dispatch
 those UI events until the operation completes.
+
+Call `runChild` from the active asynchronous App event fiber (including its
+scoped continuations). Calling from an inactive App, `runSync`, or an
+unrelated fiber is an error before the callback starts. Immediate and deferred
+callback failures propagate as the same error object. Child completion wakes
+the App even when it has no ticks or incoming input. If the App stops before
+the child finishes, `runChild` raises `"App stopped before child completed"`
+and cancels the child through its cleanup scopes; it cannot remain parked
+inside the stopped event loop. Operation ownership releases abandoned waits.
+VM shutdown runs retained cleanup without resuming the parked user callback.
 
 [source,wren]
 ----
@@ -8153,8 +8166,9 @@ Top level is a list of widget demos; pick one with Enter to launch
 it, Esc returns to the gallery.  Each demo runs its own App via
 `runSync` (the console blocks the main loop, so doterm can't
 dispatch through to a parked fiber); nesting is fine because every
-App save/restores Screen, mouse events, and CustomCursor on entry
-and exit.
+App restores mouse subscriptions, cursor shape/position, and text attributes.
+The caller uses `Screen.save`/`restore` or `Screen.modalRun` to restore screen
+contents.
 
 == Worked Example: Auto-respond to a Prompt
 

@@ -7,6 +7,7 @@
 #include "wren_value.h"
 #include "wren_vm.h"
 
+#include <stdbool.h>
 #include <string.h>
 
 struct st_wren_cleanup {
@@ -78,6 +79,18 @@ cleanup_take(WrenVM *vm)
 	cleanup_detach(cleanup);
 }
 
+static void
+cleanup_is_current_scope(WrenVM *vm)
+{
+	WrenHandle *fiber = wrenGetSlotHandle(vm, 1);
+	bool current = IS_FIBER(fiber->value)
+	    && wrenFiberScopeRoot(AS_FIBER(fiber->value))
+	    == wrenFiberScopeRoot(vm->fiber);
+
+	wrenReleaseHandle(vm, fiber);
+	wrenSetSlotBool(vm, 0, current);
+}
+
 void
 st_wren_cleanup_shutdown(WrenVM *vm)
 {
@@ -110,8 +123,11 @@ WrenForeignMethodFn
 st_wren_cleanup_bind_method(const char *class_name, bool is_static,
 	const char *signature)
 {
-	return !is_static && strcmp(class_name, "Cleanup_") == 0
-	    && strcmp(signature, "take_()") == 0 ? cleanup_take : NULL;
+	if (strcmp(class_name, "Cleanup_") != 0)
+		return NULL;
+	if (is_static && strcmp(signature, "isCurrentScope_(_)") == 0)
+		return cleanup_is_current_scope;
+	return !is_static && strcmp(signature, "take_()") == 0 ? cleanup_take : NULL;
 }
 
 WrenForeignClassMethods

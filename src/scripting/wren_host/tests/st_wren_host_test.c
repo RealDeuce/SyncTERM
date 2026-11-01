@@ -1320,6 +1320,304 @@ exercise_connected_link_hover(st_wren_host_t *host, st_console_t *console,
 }
 
 static int
+exercise_app_lifecycle(st_wren_host_t *host, st_console_t *console,
+	const struct st_profile *profile)
+{
+	const struct st_wren_connected_config config = {
+		.host = host, .console = console, .profile = profile,
+	};
+	st_wren_connected_t *connected = NULL;
+	st_console_snapshot_t *snapshot = NULL;
+
+	CHECK(st_console_snapshot_create(&snapshot, console) == 0);
+	CHECK(st_wren_connected_create(&connected, &config) == 0);
+	CHECK(st_wren_connected_interpret(connected, "app_lifecycle",
+	    "import \"syncterm\" for Input, Screen, CustomCursor, Timer, Hook, Cleanup_, Key, KeyEvent\n"
+	    "import \"ui_app\" for App\n"
+	    "import \"ui_widget\" for Widget, Rect\n"
+	    "var mouse = Input.mouseEvents\n"
+	    "var cursor = CustomCursor.current\n"
+	    "var attr = Screen.attr\n"
+	    "var position = Screen.window.position\n"
+	    "var error = [\"lifecycle error\"]\n"
+	    "var Check = Fn.new {|app|\n"
+	    "    if (app.running || Input.mouseEvents != mouse || Screen.attr != attr || CustomCursor.visible != cursor.visible || CustomCursor.blink != cursor.blink || CustomCursor.startLine != cursor.startLine || CustomCursor.endLine != cursor.endLine || CustomCursor.range != cursor.range || Screen.window.position[0] != position[0] || Screen.window.position[1] != position[1]) Fiber.abort(\"App state not restored\")\n"
+	    "}\n"
+	    "var sync = App.new()\n"
+	    "sync.onLayout = Fn.new {|w, h|\n"
+	    "  Screen.attr = 71\n"
+	    "  CustomCursor.visible = !cursor.visible\n"
+	    "  Screen.window.position = [position[0] == 1 ? 2 : 1, 1]\n"
+	    "  Fiber.abort(error)\n"
+	    "}\n"
+	    "var failed = Fiber.new { sync.runSync() }\n"
+	    "failed.try()\n"
+	    "if (failed.error != error) Fiber.abort(\"sync layout error identity\")\n"
+	    "Check.call(sync)\n"
+	    "var syncHandler = App.new()\n"
+	    "syncHandler.bind(Key.f12, Fn.new {|key| Fiber.abort(\"handler error\") })\n"
+	    "syncHandler.onError = Fn.new {|failed| Fiber.abort(error) }\n"
+	    "Input.unget(KeyEvent.new(Key.f12))\n"
+	    "failed = Fiber.new { syncHandler.runSync() }\n"
+	    "failed.try()\n"
+	    "if (failed.error != error) Fiber.abort(\"sync reporter error identity\")\n"
+	    "Check.call(syncHandler)\n"
+	    "var normal = App.new()\n"
+	    "normal.onLayout = Fn.new {|w, h| normal.quit() }\n"
+	    "normal.runSync()\n"
+	    "Check.call(normal)\n"
+	    "var app = App.new()\n"
+	    "var done = false\n"
+	    "app.onPost = Fn.new {|value| Fiber.abort(error) }\n"
+	    "Fiber.new {\n"
+	    "  var run = Fiber.new { app.run() }\n"
+	    "  run.tryScoped()\n"
+	    "  if (run.error != error) Fiber.abort(\"async handler error identity\")\n"
+	    "  Check.call(app)\n"
+	    "  done = true\n"
+	    "}.call()\n"
+	    "app.post(\"fail\")\n") == 0);
+	for (unsigned i = 0; i < 4; ++i)
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "app_lifecycle",
+	    "if (!done) Fiber.abort(\"async failure did not complete\")\n"
+	    "var success = App.new()\n"
+	    "var successDone = false\n"
+	    "var pings = 0\n"
+	    "success.onPost = Fn.new {|value|\n"
+	    "  if (value == \"ping\") { pings = pings + 1 } else {\n"
+	    "    var answer = success.runChild(Fn.new {\n"
+	    "      Timer.after(0).await()\n"
+	    "      return 42\n"
+	    "    })\n"
+	    "    if (answer != 42 || pings != 1) Fiber.abort(\"child result/event dispatch\")\n"
+	    "    success.quit()\n"
+	    "  }\n"
+	    "}\n"
+	    "Fiber.new {\n"
+	    "  success.run()\n"
+	    "  Check.call(success)\n"
+	    "  successDone = true\n"
+	    "}.call()\n"
+	    "success.post(\"start\")\n"
+	    "success.post(\"ping\")\n") == 0);
+	for (unsigned i = 0; i < 8; ++i)
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "app_lifecycle",
+	    "if (!successDone) Fiber.abort(\"runChild completion did not wake App\")\n"
+	    "var childApp = App.new()\n"
+	    "var childDone = false\n"
+	    "childApp.onPost = Fn.new {|value|\n"
+	    "  childApp.runChild(Fn.new {\n"
+	    "    Timer.after(0).await()\n"
+	    "    Fiber.abort(error)\n"
+	    "  })\n"
+	    "  Fiber.abort(\"child failure was swallowed\")\n"
+	    "}\n"
+	    "Fiber.new {\n"
+	    "  var run = Fiber.new { childApp.run() }\n"
+	    "  run.tryScoped()\n"
+	    "  if (run.error != error) Fiber.abort(\"deferred child error identity\")\n"
+	    "  Check.call(childApp)\n"
+	    "  childDone = true\n"
+	    "}.call()\n"
+	    "childApp.post(\"fail child\")\n") == 0);
+	for (unsigned i = 0; i < 8; ++i)
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "app_lifecycle",
+	    "if (!childDone) Fiber.abort(\"child error not propagated\")\n"
+	    "var stopping = App.new()\n"
+	    "var stopped = false\n"
+	    "var delay = null\n"
+	    "var resumed = false\n"
+	    "var closed = 0\n"
+	    "stopping.onPost = Fn.new {|value|\n"
+	    "  if (value == \"stop\") { stopping.quit() } else {\n"
+	    "    stopping.runChild(Fn.new {\n"
+	    "      Cleanup_.run(Fn.new {\n"
+	    "        delay = Timer.after(60000)\n"
+	    "        delay.await()\n"
+	    "        resumed = true\n"
+	    "      }, Fn.new { closed = closed + 1 })\n"
+	    "    })\n"
+	    "  }\n"
+	    "}\n"
+	    "Fiber.new {\n"
+	    "  var run = Fiber.new { stopping.run() }\n"
+	    "  run.tryScoped()\n"
+	    "  if (run.error != \"App stopped before child completed\") Fiber.abort(\"child stop error\")\n"
+	    "  Check.call(stopping)\n"
+	    "  stopped = true\n"
+	    "}.call()\n"
+	    "stopping.post(\"start\")\n"
+	    "stopping.post(\"stop\")\n") == 0);
+	for (unsigned i = 0; i < 8; ++i)
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "app_lifecycle",
+	    "if (!stopped || delay == null || !delay.cancelled || resumed || closed != 1) Fiber.abort(\"stopped child ownership\")\n"
+	    "var boundary = App.new()\n"
+	    "boundary.tickMs = 60000\n"
+	    "var repeatOwner = Widget.new()\n"
+	    "repeatOwner.bounds = Rect.new(1, 1, 1, 1)\n"
+	    "boundary.root.add(repeatOwner)\n"
+	    "var repeatCount = 0\n"
+	    "var boundaryDone = false\n"
+	    "boundary.onPost = Fn.new {|value|\n"
+	    "  var executed = false\n"
+	    "  var wrong = Fiber.new { boundary.runChild(Fn.new { executed = true }) }\n"
+	    "  wrong.try()\n"
+	    "  if (wrong.error == null || executed) Fiber.abort(\"foreign child caller accepted\")\n"
+	    "  var reentry = Fiber.new { boundary.run() }\n"
+	    "  reentry.try()\n"
+	    "  if (reentry.error != \"App is already running\" || !boundary.running) Fiber.abort(\"App reentry state\")\n"
+	    "  var immediate = Fiber.new { boundary.runChild(Fn.new { Fiber.abort(error) }) }\n"
+	    "  immediate.tryScoped()\n"
+	    "  if (immediate.error != error || !boundary.running) Fiber.abort(\"immediate child failure\")\n"
+	    "  var inlineValue = boundary.runChild(Fn.new { 43 })\n"
+	    "  if (inlineValue != 43) Fiber.abort(\"immediate child value\")\n"
+	    "  var oldMouse = Input.mouseEvents\n"
+	    "  var oldCursor = CustomCursor.current\n"
+	    "  var inner = App.new()\n"
+	    "  inner.onLayout = Fn.new {|w, h| inner.quit() }\n"
+	    "  inner.runSync()\n"
+	    "  if (inner.running || !boundary.running || Input.mouseEvents != oldMouse || CustomCursor.visible != oldCursor.visible || CustomCursor.startLine != oldCursor.startLine) Fiber.abort(\"nested App restoration\")\n"
+	    "  boundary.startMouseRepeat_(repeatOwner, Fn.new { repeatCount = repeatCount + 1 })\n"
+	    "  boundary.quit()\n"
+	    "}\n"
+	    "Fiber.new {\n"
+	    "  boundary.run()\n"
+	    "  Check.call(boundary)\n"
+	    "  boundaryDone = true\n"
+	    "}.call()\n"
+	    "boundary.post(\"boundaries\")\n") == 0);
+	for (unsigned i = 0; i < 4; ++i)
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "app_lifecycle",
+	    "if (!boundaryDone || repeatCount != 0) Fiber.abort(\"boundary App did not stop\")\n"
+	    "var rerunDone = false\n"
+	    "boundary.onPost = Fn.new {|value| boundary.quit() }\n"
+	    "Fiber.new {\n"
+	    "  boundary.run()\n"
+	    "  Check.call(boundary)\n"
+	    "  rerunDone = true\n"
+	    "}.call()\n"
+	    "boundary.post(\"stop again\")\n") == 0);
+	for (unsigned i = 0; i < 4; ++i)
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "app_lifecycle",
+	    "if (!rerunDone) Fiber.abort(\"App could not run again\")\n"
+	    "var timers = []\n"
+	    "for (i in 0...32) {\n"
+	    "  var timer = Timer.after(60000)\n"
+	    "  if (timer.isDone) Fiber.abort(\"App leaked a repeat/tick timer\")\n"
+	    "  timers.add(timer)\n"
+	    "}\n"
+	    "for (timer in timers) timer.cancel()\n"
+	    "class TickFailure is App {\n"
+	    "  construct new(error) {\n"
+	    "    super()\n"
+	    "    _error = error\n"
+	    "    tickMs = 0\n"
+	    "  }\n"
+	    "  onTick_() { Fiber.abort(_error) }\n"
+	    "}\n"
+	    "var ticking = TickFailure.new(error)\n"
+	    "var tickDone = false\n"
+	    "Fiber.new {\n"
+	    "  var run = Fiber.new { ticking.run() }\n"
+	    "  run.tryScoped()\n"
+	    "  if (run.error != error) Fiber.abort(\"tick error identity\")\n"
+	    "  Check.call(ticking)\n"
+	    "  tickDone = true\n"
+	    "}.call()\n") == 0);
+	for (unsigned i = 0; i < 8; ++i)
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "app_lifecycle",
+	    "if (!tickDone) Fiber.abort(\"tick failure not cleaned up\")\n"
+	    "var modalApp = App.new()\n"
+	    "var modalReturned = false\n"
+	    "var modalDone = false\n"
+	    "modalApp.onPost = Fn.new {|value|\n"
+	    "  if (value == \"stop\") { modalApp.quit() } else {\n"
+	    "    var pane = Widget.new()\n"
+	    "    pane.bounds = Rect.new(1, 1, 5, 3)\n"
+	    "    modalApp.modal(pane)\n"
+	    "    modalReturned = true\n"
+	    "  }\n"
+	    "}\n"
+	    "Fiber.new {\n"
+	    "  modalApp.run()\n"
+	    "  Check.call(modalApp)\n"
+	    "  modalDone = true\n"
+	    "}.call()\n"
+	    "modalApp.post(\"open\")\n"
+	    "modalApp.post(\"stop\")\n") == 0);
+	for (unsigned i = 0; i < 4; ++i)
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "app_lifecycle",
+	    "if (!modalDone || !modalReturned) Fiber.abort(\"quit did not leave modal loop\")\n"
+	    "var shutdown = App.new()\n"
+	    "var shutdownDelay = null\n"
+	    "var shutdownClosed = 0\n"
+	    "var shutdownResumed = false\n"
+	    "shutdown.onPost = Fn.new {|value|\n"
+	    "  shutdown.runChild(Fn.new {\n"
+	    "    Cleanup_.run(Fn.new {\n"
+	    "      shutdownDelay = Timer.after(60000)\n"
+	    "      shutdownDelay.await()\n"
+	    "      shutdownResumed = true\n"
+	    "      Fiber.abort(\"shutdown resumed user body\")\n"
+	    "    }, Fn.new { shutdownClosed = shutdownClosed + 1 })\n"
+	    "  })\n"
+	    "}\n"
+	    "Fiber.new { shutdown.run() }.call()\n"
+	    "shutdown.post(\"pending\")\n") == 0);
+	CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "app_lifecycle",
+	    "Hook.onDisconnect {\n"
+	    "  Check.call(shutdown)\n"
+	    "  var ok = shutdownDelay != null && shutdownDelay.cancelled && shutdownClosed == 1 && !shutdownResumed\n"
+	    "  Screen.window.position = [1, 1]\n"
+	    "  Screen.window.print(ok ? \"+\" : \"-\")\n"
+	    "}\n") == 0);
+	st_wren_connected_destroy(connected);
+	CHECK(console_has_text(console, 0, 0, "+"));
+	/* Check the menu VM's native claim list directly: no input dispatch or
+	 * GC can prune a stale claim and conceal missing lifecycle cleanup. */
+	for (unsigned failing = 0; failing < 2; ++failing) {
+		const char *module = failing ? "menu_app_error" : "menu_app_quit";
+		CHECK(host->menu.claim_top == NULL);
+		CHECK(wrenInterpret(host->vm, module,
+		    "import \"ui_app\" for App\n"
+		    "var app = App.new()\n"
+		    "var error = [\"menu App error\"]\n"
+		    "var expected = null\n"
+		    "var done = false\n"
+		    "app.onPost = Fn.new {|command|\n"
+		    "  if (command == \"stop\") { app.quit() } else { Fiber.abort(error) }\n"
+		    "}\n"
+		    "var run = Fiber.new { app.run() }\n"
+		    "Fiber.new {\n"
+		    "  run.tryScoped()\n"
+		    "  if (run.error != expected) Fiber.abort(\"menu App result\")\n"
+		    "  done = true\n"
+		    "}.call()\n") == WREN_RESULT_SUCCESS);
+		CHECK(host->menu.claim_top != NULL);
+		CHECK(wrenInterpret(host->vm, module, failing
+		    ? "expected = error\napp.post(\"fail\")\n"
+		    : "app.post(\"stop\")\n") == WREN_RESULT_SUCCESS);
+		CHECK(st_wren_wake_drain(host->vm) == 0);
+		CHECK(host->menu.claim_top == NULL);
+		CHECK(wrenInterpret(host->vm, module,
+		    "if (!done || app.running) Fiber.abort(\"menu App did not finish\")\n")
+		    == WREN_RESULT_SUCCESS);
+	}
+	CHECK(st_console_snapshot_restore(console, snapshot) == 0);
+	st_console_snapshot_destroy(snapshot);
+	return 0;
+}
+
+static int
 exercise_cleanup_scopes(st_wren_host_t *host, st_console_t *console,
 	const struct st_profile *profile)
 {
@@ -6035,6 +6333,7 @@ main(int argc, char **argv)
 		CHECK(exercise_connected_profile_scripts(host, console, &selected,
 		    scripts) == 0);
 		CHECK(exercise_connected_without_sftp(host, console, &selected) == 0);
+		CHECK(exercise_app_lifecycle(host, console, &selected) == 0);
 		CHECK(exercise_cleanup_scopes(host, console, &selected) == 0);
 		CHECK(exercise_owned_sends(host, console) == 0);
 		CHECK(exercise_transfer_ui(host, console, &selected) == 0);

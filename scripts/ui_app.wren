@@ -42,7 +42,7 @@ import "ui_input" for TextInput
 import "ui_emoji_picker" for EmojiPicker
 import "syncterm"  for Input, KeyEvent, MouseEvent, Mouse, Key, Timer,
                        Wake, Screen, Surface, CustomCursor, CTerm,
-                       REPL, Host, Emoji
+                       REPL, Host, Emoji, Cleanup_
 
 // Sentinel passed into post() when the caller doesn't supply a value.
 // Identity-comparable so the App can recognise "just wake up, nothing
@@ -82,6 +82,7 @@ class App {
     _layoutSize  = null           // [w, h] last passed through layout_
     _backdrop    = null           // Screen.readRect snapshot from first paint
     _savedCursor = null           // CustomCursor snapshot from entry; restored on exit
+    _savedPosition = null         // hardware cursor position in the caller's window
     _savedAttr   = null           // conio text attr also supplies bitmap cursor color
     _cursorShape = null           // mirrors last applied preset; null forces first apply
     _cursorAttr  = null           // last visible widget cursor attr
@@ -222,7 +223,7 @@ class App {
   modal(widget) {
     if (!_running) return widget
     pushModal(widget)
-    while (_modalStack.indexOf(widget) >= 0) {
+    while (_running && _modalStack.indexOf(widget) >= 0) {
       if (_runMode == "sync") {
         drainOnceSync_()
       } else {
@@ -381,17 +382,39 @@ class App {
   // dispatching input, ticks, and repaints from its run-fiber. Direct await
   // in a handler is also safe, but postpones UI events until it completes.
   //
-  // Caller MUST be the run-fiber (i.e., this is sync-shaped code in
+  // Immediate and deferred failures propagate to the caller. The child is
+  // cancelled when this scope exits early or the App/VM stops.
+  // Caller MUST be the async run-fiber (i.e., this is sync-shaped code in
   // the App's run loop).  Modal calls (Alert.show, Confirm.show)
   // belong on the run-fiber side after this returns; the child fiber
   // shouldn't try to push modals (its drainOnce_ would yield the
   // child, not the App).
   runChild(fn) {
+    if (!(fn is Fn)) Fiber.abort("App.runChild expects a function")
+    if (!_running || _runMode != "async" || !Cleanup_.isCurrentScope_(_runFiber)) {
+      Fiber.abort("App.runChild requires the active async App event fiber")
+    }
     var result = null
-    var f = Fiber.new { result = fn.call() }
-    f.try()
-    while (!f.isDone) drainOnce_()
-    return result
+    var failure = null
+    var parked = false
+    var target = _runFiber
+    var body = Fiber.new { result = fn.call() }
+    var child = Fiber.new {
+      body.tryScoped()
+      failure = body.error
+      if (parked && _running && _runFiber == target) Wake.post(target, WakeOnly.instance)
+    }
+    return Cleanup_.run(Fn.new {
+      child.call()
+      parked = !child.isDone
+      while (!child.isDone && _running) drainOnce_()
+      if (!child.isDone) Fiber.abort("App stopped before child completed")
+      if (failure != null) Fiber.abort(failure)
+      return result
+    }, Fn.new {
+      parked = false
+      if (!child.isDone) child.abortScoped("App stopped before child completed")
+    })
   }
 
   // ----- Status overlay ------------------------------------------
@@ -803,6 +826,7 @@ class App {
   // nested pump.
   drainOnce_() {
     drawAll_()
+    if (!_running) return
     if (_tickMs != null && _tickTimer == null) {
       var target = _runFiber
       var timer = Timer.after(_tickMs)
@@ -844,6 +868,7 @@ class App {
   // inside a runSync context.
   drainOnceSync_() {
     drawAll_()
+    if (!_running) return
     var wait = mouseRepeatWait_()
     var ev
     if (wait == null) {
@@ -876,17 +901,14 @@ class App {
     return false
   }
 
-  // Save the terminal's current mouse-events bitmask, REPLACE it with
-  // exactly the events a UI cares about (button-1 click + drag,
-  // middle-click paste, right-click cancel, and wheel up/down), and
-  // return the saved value so the caller restores on
-  // exit.  Replacing rather than ORing matters: any events the
+  // The run scope saves/restores the previous mouse mask. Replace it here
+  // with exactly the events the UI uses (click, drag, paste, cancel, wheel).
+  // Replacing rather than ORing matters: any events the
   // terminal had enabled for its own tracking would otherwise also
   // get queued during the App's run, which both adds dispatch noise
   // and changes how the terminal-side mouse-protocol parser sees
   // sequences (some events drive escape-sequence assembly).
   setupMouse_() {
-    var saved = Input.mouseEvents
     Input.mouseEvents = 0
     Input.enableMouseEvent(Mouse.button1Press)
     Input.enableMouseEvent(Mouse.button1Click)
@@ -897,7 +919,6 @@ class App {
     Input.enableMouseEvent(Mouse.button3Click)
     Input.enableMouseEvent(Mouse.wheelUp)
     Input.enableMouseEvent(Mouse.wheelDown)
-    return saved
   }
 
   // Snapshot the cursor and text attribute on entry so both geometry
@@ -907,6 +928,7 @@ class App {
   setupCursor_() {
     _savedCursor = CustomCursor.current
     _savedAttr = Screen.attr
+    _savedPosition = Screen.window.position
     _cursorShape = null
     _cursorAttr = null
   }
@@ -919,41 +941,49 @@ class App {
       _savedCursor.apply()
       _savedCursor = null
     }
+    if (_savedPosition != null) {
+      Screen.window.position = _savedPosition
+      _savedPosition = null
+    }
     _cursorAttr = null
   }
 
-  run() {
-    var savedMouse = setupMouse_()
-    setupCursor_()
-    _runMode     = "async"
-    _running     = true
-    _backdrop    = null            // recapture screen on first paint
-    _runFiber    = Fiber.current   // claim handler posts wakes here
-    _tickTimer = null
-    // Push an input claim.  The handler runs synchronously in the
-    // C dispatch frame (via Hook.dispatch_'s wrap, same as any
-    // hook); it queries App state via shouldConsume_ to decide
-    // whether to claim the event, posts the event to _runFiber via
-    // Wake.post when claimed, and returns the consumed bool the
-    // C dispatcher needs.  The handler does no widget work and
-    // never yields — actual dispatch happens in this fiber from
-    // drainOnce_, where handlers are free to yield.
-    //
-    // When run() exits, the claim is popped explicitly; the
-    // ClaimHandle's foreign finalizer pops on GC as a safety net
-    // if cleanup is ever skipped (aborted run, etc.).
-    _claim = Input.pushClaim(Fn.new {|ev|
-      if (!shouldConsume_(ev)) return false
-      Wake.post(_runFiber, ev)
-      return true
-    })
-    while (_running) drainOnce_()
+  run() { run_("async") }
+
+  run_(mode) {
+    if (_running || _runMode != null) Fiber.abort("App is already running")
+    var savedMouse = Input.mouseEvents
+    return Cleanup_.run(Fn.new {
+      setupMouse_()
+      setupCursor_()
+      _runMode = mode
+      _running = true
+      _backdrop = null
+      _tickTimer = null
+      if (mode == "async") {
+        _runFiber = Fiber.current
+        // Claims only decide consumption and queue wakes. Widget work runs
+        // here, inside the scope that restores state after an abort.
+        _claim = Input.pushClaim(Fn.new {|ev|
+          if (!shouldConsume_(ev)) return false
+          Wake.post(_runFiber, ev)
+          return true
+        })
+      }
+      while (_running) {
+        if (mode == "sync") { drainOnceSync_() } else { drainOnce_() }
+      }
+    }, Fn.new { finishRun_(savedMouse) })
+  }
+
+  finishRun_(savedMouse) {
+    _running = false
     stopMouseRepeat_(null)
     if (_tickTimer != null) _tickTimer.cancel()
     _tickTimer = null
-    _claim.pop()
-    _claim    = null
-    _runMode  = null
+    if (_claim != null) _claim.pop()
+    _claim = null
+    _runMode = null
     _backdrop = null
     _runFiber = null
     teardownCursor_()
@@ -970,19 +1000,7 @@ class App {
   // async run() for long-lived UI sessions where doterm needs to
   // keep flowing.  App's internal held-mouse repeat uses the input
   // wait deadline directly and therefore remains available here.
-  runSync() {
-    var savedMouse = setupMouse_()
-    setupCursor_()
-    _runMode  = "sync"
-    _running  = true
-    _backdrop = null            // recapture screen on first paint
-    while (_running) drainOnceSync_()
-    stopMouseRepeat_(null)
-    _runMode  = null
-    _backdrop = null
-    teardownCursor_()
-    Input.mouseEvents = savedMouse
-  }
+  runSync() { run_("sync") }
 
   // Default tick is a no-op.  Subclasses or App users override to
   // refresh dynamic content (transfer progress, blinking cursor, …).
