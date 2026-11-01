@@ -362,6 +362,8 @@ skin-tone variants, and kbd:[Return] or a click to insert. kbd:[Escape] returns
 from variants or cancels. The picker includes only emoji supported by the
 bundled fonts; joined sequences are inserted together and never truncated to
 fit a field. Opening it without a focused field does not copy to the clipboard.
+The mouse wheel scrolls the grid without changing the selected emoji.
+Keyboard navigation brings the selection back into view.
 
 The 32 most recently used exact variants appear first and are saved as numbered
 UTF-8 strings in the `[RecentEmoji]` section of `syncterm.ini`. Safe mode keeps

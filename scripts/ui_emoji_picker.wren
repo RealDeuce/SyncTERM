@@ -142,6 +142,13 @@ class EmojiPicker is Pane {
     markDirty()
   }
 
+  scroll_(rows) {
+    var next = (_top + rows).max(0).min((_rows.count - _visibleRows).max(0))
+    if (next == _top) return
+    _top = next
+    markDirty()
+  }
+
   variants_() {
     if (_variants != null || highlighted == null) return
     var entries = highlighted.variants
@@ -205,8 +212,14 @@ class EmojiPicker is Pane {
     var name = highlighted == null ? "No matching emoji" : highlighted.name
     var lines = nameLines_(name, width)
     var nameStart = (bounds.h - 2 - lines.count).max(4)
-    _visibleRows = (nameStart - 3).max(1)
-    reveal_()
+    var visibleRows = (nameStart - 3).max(1)
+    if (_visibleRows != visibleRows) {
+      _visibleRows = visibleRows
+      reveal_()
+    }
+    // Repainting must preserve wheel scrolling, even with the selection
+    // off screen. Navigation and layout changes reveal it explicitly.
+    _top = _top.max(0).min((_rows.count - _visibleRows).max(0))
     for (y in 0..._visibleRows) {
       var rowIndex = _top + y
       if (rowIndex < _rows.count) {
@@ -309,11 +322,11 @@ class EmojiPicker is Pane {
     }
     if (event is MouseEvent && bounds != null) {
       if (event.event == Mouse.wheelUp) {
-        move_(-_columns)
+        scroll_(-event.wheelY.abs.max(1))
         return true
       }
       if (event.event == Mouse.wheelDown) {
-        move_(_columns)
+        scroll_(event.wheelY.abs.max(1))
         return true
       }
       if (event.event == Mouse.button1Click && bounds.contains(event.startX, event.startY) &&

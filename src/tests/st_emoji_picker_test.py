@@ -24,6 +24,56 @@ def break_picker(root):
     write_script(root, 'ui_emoji_picker', broken)
 
 
+def wheel_over_search(client, frame, amount):
+    y = next(i for i, line in enumerate(frame.lines) if 'Search:' in line)
+    x = frame.lines[y].index('Search:')
+    m = frame.metadata
+    px = m['destination_x'] + (x * m['cell_width'] + m['cell_width'] // 2) * m['destination_width'] // m['plane_width']
+    py = m['destination_y'] + (y * m['cell_height'] + m['cell_height'] // 2 + m['pixel_top']) * m['destination_height'] // m['plane_height']
+    client.mouse(px, py, action=2, wheel_y=amount)
+
+
+def picker_row(frame, y):
+    search = next(line for line in frame.lines if 'Search:' in line)
+    footer = next(line for line in frame.lines if 'Enter Insert' in line)
+    return tuple(frame.cell_text(cell_at(frame, x, y))
+                 for x in range(search.index('Search:'), footer.rindex('║')))
+
+
+def scroll_picker(client, frame):
+    grid_y = next(i for i, line in enumerate(frame.lines) if 'All emoji' in line)
+    expected = picker_row(frame, grid_y + 1)
+    wheel_over_search(client, frame, -1)
+    frame = client.wait_for(lambda s: picker_row(s, grid_y) == expected)
+    check_footer(frame, False, 'grinning face')
+    # Respect the native magnitude and leave the logical selection alone,
+    # including when it has scrolled off screen.
+    expected = picker_row(frame, grid_y + 3)
+    wheel_over_search(client, frame, -3)
+    frame = client.wait_for(lambda s: picker_row(s, grid_y) == expected)
+    check_footer(frame, False, 'grinning face')
+    assert '😀' not in frame.text
+    # Keyboard navigation brings its selected item back into view.
+    client.key('right')
+    frame = client.wait_text('grinning face with big eyes')
+    assert '😀' in frame.text
+    client.key('home')
+    frame = client.wait_text('grinning face')
+    before = picker_row(frame, grid_y)
+    wheel_over_search(client, frame, -100)
+    frame = client.wait_for(lambda s: picker_row(s, grid_y) != before and '😀' not in s.text)
+    check_footer(frame, False, 'grinning face')
+    bottom = picker_row(frame, grid_y)
+    dequeued = frame.metadata['events_dequeued']
+    wheel_over_search(client, frame, -1)
+    frame = client.wait_for(lambda s: s.metadata['events_dequeued'] > dequeued)
+    assert picker_row(frame, grid_y) == bottom, 'wheel scrolled past the last full viewport'
+    wheel_over_search(client, frame, 100)
+    frame = client.wait_text('All emoji')
+    check_footer(frame, False, 'grinning face')
+    return frame
+
+
 def check_footer(frame, variants, name):
     y = next(i for i, line in enumerate(frame.lines) if 'Enter Insert' in line)
     line = frame.lines[y]
@@ -80,8 +130,16 @@ app.runSync()
         frame = client.wait_text('Insert Emoji')
         check_footer(frame, False, 'grinning face')
         check_grid_spacing(frame)
+        frame = scroll_picker(client, frame)
         client.text('grinning face')
-        client.wait_text('grinning face')
+        frame = client.wait_for(lambda s: 'Search: grinning face' in s.text and 'Search results' in s.text)
+        grid_y = next(i for i, line in enumerate(frame.lines) if 'Search results' in line)
+        footer_y = next(i for i, line in enumerate(frame.lines) if 'Enter Insert' in line)
+        before = frame.lines[grid_y:footer_y]
+        dequeued = frame.metadata['events_dequeued']
+        wheel_over_search(client, frame, -5)
+        frame = client.wait_for(lambda s: s.metadata['events_dequeued'] > dequeued)
+        assert frame.lines[grid_y:footer_y] == before, 'a short result list must not scroll or change selection'
         client.key('enter')
         frame = client.wait_text('a😀b')
         assert 'Insert Emoji' not in frame.text
@@ -216,10 +274,13 @@ def connected(executable, reports):
                 terminal.exchange()
                 continue
             alt_key(client, 25)
-            client.wait_text('Insert Emoji')
-            client.text('grinning face')
-            client.wait_text('grinning face')
-            client.key('enter')
+            frame = client.wait_text('Insert Emoji')
+            grid_y = next(i for i, line in enumerate(frame.lines) if 'All emoji' in line)
+            expected = picker_row(frame, grid_y + 1)
+            wheel_over_search(client, frame, -1)
+            frame = client.wait_for(lambda s: picker_row(s, grid_y) == expected)
+            glyph = next(i for i, c in enumerate(frame.cells) if frame.cell_text(c) == '😀')
+            click_cell(client, frame, glyph % frame.metadata['columns'], glyph // frame.metadata['columns'])
             terminal.input('😀'.encode())
             assert '😀' in (root / 'syncterm.ini').read_text()
             frame = terminal.exchange()
