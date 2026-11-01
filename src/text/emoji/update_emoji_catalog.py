@@ -105,6 +105,8 @@ def validate_repository(root=ROOT):
             raise ValueError(f"Unicode {component} and picker versions differ; update picker names, pins and tests")
     if (root / OUTPUT).read_text() != catalog(root, manifest):
         raise ValueError("Stale emoji picker catalog: regenerate update_emoji_catalog.py and review variant tests")
+    import update_emoji_locales
+    update_emoji_locales.validate_catalog(root)
 
 
 def refresh_repository(root=ROOT):
@@ -112,6 +114,8 @@ def refresh_repository(root=ROOT):
     manifest = font_coverage(root)
     (root / MANIFEST).write_text(json.dumps(manifest, indent=2) + "\n")
     (root / OUTPUT).write_text(catalog(root, manifest), encoding="ascii")
+    import update_emoji_locales
+    (root / update_emoji_locales.OUTPUT).write_text(update_emoji_locales.generated(root), encoding="ascii")
     validate_repository(root)
 
 
@@ -126,6 +130,8 @@ def main():
     if not args.check:
         manifest = json.loads((args.root / MANIFEST).read_text())
         (args.root / OUTPUT).write_text(catalog(args.root, manifest), encoding="ascii")
+        import update_emoji_locales
+        (args.root / update_emoji_locales.OUTPUT).write_text(update_emoji_locales.generated(args.root), encoding="ascii")
     validate_repository(args.root)
 
 

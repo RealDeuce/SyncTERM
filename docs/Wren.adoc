@@ -7351,8 +7351,16 @@ pane.fitContentToScreen() // sized to list, constrained, and centered
 `import "syncterm" for Emoji, EmojiEntry` provides an offline catalog of
 canonical emoji supported by all three bundled emoji banks. `Emoji.entries`
 returns base representatives; `Emoji.search(query)` returns exact variants
-matching an English name substring, case-insensitively (an empty query returns
-the base list). Each `EmojiEntry` exposes `text`, `name`, and `variants`.
+matching a localized name or CLDR keyword substring, using canonical caseless
+Unicode matching at grapheme boundaries (an empty query returns the base list).
+English names and keywords are also searchable. Each `EmojiEntry` exposes
+`text`, localized `name`, and `variants`. Language preferences are discovered
+once on first metadata lookup for a host, shared by its menu/picker VMs.
+Bundled CLDR 49 annotations and derived annotations supply names for joined,
+gender, skin-tone, and flag sequences. Locale aliases, likely scripts, and
+CLDR parent locales resolve regional/script preferences; missing fields fall
+through later preferences, then English. The lookup never changes the process
+locale or connection encoding and does not require network access.
 `text` retains the fully-qualified sequence including joiners and selectors.
 Entry IDs ending in `_` are internal catalog indexes, not persistent values.
 

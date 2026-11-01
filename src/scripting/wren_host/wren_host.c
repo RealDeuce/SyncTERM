@@ -15,6 +15,7 @@
 #include "st_builtin_fonts.h"
 #include "st_console.h"
 #include "st_font_catalog.h"
+#include "st_emoji_locale.h"
 #include "st_screen_mode.h"
 #include "st_session_history.h"
 #include "st_settings.h"
@@ -1830,6 +1831,7 @@ st_wren_host_destroy(st_wren_host_t *host)
 		wrenFreeVM(host->vm);
 		host->menu.vm = NULL;
 	}
+	st_emoji_locale_destroy(host->emoji_locale);
 	st_bbs_list_close(host->bbs_list);
 	st_wren_bbs_model_dispose(&host->bbs_model);
 	st_theme_manager_free(&host->themes);

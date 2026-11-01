@@ -2,10 +2,12 @@
 import importlib.util
 import json
 from pathlib import Path
+import sys
 import unittest
 from unittest.mock import patch
 
 path = Path(__file__).resolve().parents[1] / 'update_emoji_catalog.py'
+sys.path.insert(0, str(path.parent))
 spec = importlib.util.spec_from_file_location('catalog', path)
 catalog = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(catalog)

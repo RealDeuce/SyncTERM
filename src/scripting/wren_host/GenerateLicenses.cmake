@@ -42,6 +42,8 @@ st_embed_license("RE1 (BSD 3-Clause)" "${_st_license_root}/src/scripting/re1/LIC
 st_embed_license("RSA MD5" "${_st_license_root}/src/base/md5/LICENSE")
 st_embed_license("Unicode data (Unicode License v3)"
 	"${_st_license_root}/src/text/unicode_text/LICENSE.UNICODE")
+st_embed_license("CLDR emoji annotations (Unicode License v3)"
+	"${_st_license_root}/src/text/emoji/LICENSE.CLDR")
 st_embed_license("UNSCII (Public domain)" "${_st_license_root}/src/media/fonts/LICENSE.UNSCII")
 st_embed_license("SyncTERM Emoji (SIL OFL 1.1)"
 	"${_st_license_root}/src/media/fonts/LICENSE.NOTO-EMOJI")

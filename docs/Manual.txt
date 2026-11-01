@@ -356,8 +356,12 @@ use the Online Menu's *Insert Emoji...* entry if kbd:[Alt+P] is unavailable.
 The connected picker is available only on UTF-8 connections. Local fields in
 menus reached through kbd:[Alt+E] still support it on codepage connections.
 
-Type to filter by English name. The highlighted emoji's name appears below
-the grid. Use the arrow keys to browse, kbd:[F2] or *Variants* for gender and
+Type to filter by localized name or CLDR search keywords. The highlighted
+emoji's localized name appears below the grid. Language preferences come from
+Windows/macOS UI settings or the POSIX locale environment; regional and script
+fallbacks follow CLDR. Missing translations fall back to English, and English
+names and keywords are always searchable. All data is bundled for offline use.
+Use the arrow keys to browse, kbd:[F2] or *Variants* for gender and
 skin-tone variants, and kbd:[Return] or a click to insert. kbd:[Escape] returns
 from variants or cancels. The picker includes only emoji supported by the
 bundled fonts; joined sequences are inserted together and never truncated to

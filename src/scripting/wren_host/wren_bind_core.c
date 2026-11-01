@@ -14,6 +14,7 @@
 #include "st_console.h"
 #include "st_codepage.h"
 #include "st_emoji_catalog.h"
+#include "st_emoji_locale.h"
 #include "st_language.h"
 #include "string_compat.h"
 #include "st_cterm.h"
@@ -4641,32 +4642,48 @@ fn_emoji_entries(WrenVM *vm)
 			emoji_add_id(vm, i);
 }
 
+static bool
+emoji_localization(WrenVM *vm)
+{
+	struct st_wren_host *host = st_wren_host_from_vm(vm);
+	struct st_language_preferences preferences;
+	int status;
+
+	if (host->emoji_locale != NULL)
+		return true;
+	status = st_language_discover(&preferences);
+	if (status == 0)
+		status = st_emoji_locale_create(&host->emoji_locale,
+		    (const char *const *)preferences.tags, preferences.count);
+	st_language_free(&preferences);
+	if (status != 0) {
+		st_wren_abort(vm, "Could not load emoji language data");
+		return false;
+	}
+	return true;
+}
+
 static void
 fn_emoji_search(WrenVM *vm)
 {
 	const char *query;
 	int size;
+	struct st_wren_host *host = st_wren_host_from_vm(vm);
+	size_t *ids;
+	size_t count;
+	if (!emoji_localization(vm))
+		return;
 	if (!st_wren_text_slot(vm, 1, &query, &size))
 		return;
-	char *copy = strndup(query, (size_t)size);
-	if (copy == NULL) {
-		st_wren_abort(vm, "out of memory");
+	if (st_emoji_search(host->emoji_locale, query, (size_t)size, &ids, &count) != 0) {
+		st_wren_abort(vm, "emoji search failed");
 		return;
 	}
 	wrenEnsureSlots(vm, 2);
 	wrenSetSlotNewList(vm, 0);
-	for (size_t i = 0; i < st_emoji_entry_count; i++) {
-		bool match = false;
-		if (st_unicode_caseless_contains(&match, st_emoji_entries[i].name,
-		    strlen(st_emoji_entries[i].name), copy, (size_t)size) != 0) {
-			free(copy);
-			st_wren_abort(vm, "emoji search failed");
-			return;
-		}
-		if (match)
-			emoji_add_id(vm, i);
-	}
-	free(copy);
+	for (size_t i = 0; i < count; i++)
+		emoji_add_id(vm, ids[i]);
+	free(ids);
 }
 
 static void
@@ -4681,8 +4698,9 @@ static void
 fn_emoji_name(WrenVM *vm)
 {
 	size_t id;
-	if (emoji_index(vm, &id))
-		wrenSetSlotString(vm, 0, st_emoji_entries[id].name);
+	if (emoji_localization(vm) && emoji_index(vm, &id))
+		wrenSetSlotString(vm, 0, st_emoji_localized_name(
+		    st_wren_host_from_vm(vm)->emoji_locale, id));
 }
 
 static void

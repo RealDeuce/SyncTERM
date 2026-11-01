@@ -1,2 +1,3 @@
-# Preserve the exact upstream bytes used by the emoji picker input pin.
+# Preserve exact upstream bytes checked by emoji data and license pins.
 src/text/emoji/data/*.txt -text
+src/text/emoji/LICENSE.CLDR -text

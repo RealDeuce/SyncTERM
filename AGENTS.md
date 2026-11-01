@@ -198,6 +198,9 @@ coverage. Regenerate with `src/text/emoji/update_emoji_catalog.py` (use
 `--refresh-coverage` after changing emoji rasters), run `--check`, and update
 the catalog and picker tests for new eligible emoji or changed variants.
 Do not add entries the bundled 8x8, 8x14, and 8x16 emoji banks cannot render.
+Localized emoji metadata is pinned CLDR data. Regenerate/check it with
+`src/text/emoji/update_emoji_locales.py`; `--fetch` verifies the pinned upstream
+archive. Keep its locale tests, provenance, and bundled license notice in sync.
 
 When changing detection logic, verify both the capability-present and
 capability-absent paths where practical. Never claim a platform or toolchain

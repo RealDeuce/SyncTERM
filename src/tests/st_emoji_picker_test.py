@@ -2,6 +2,7 @@
 """Emoji picker UI and connected gating through coherent control captures."""
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 import argparse
+import os
 from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'tools/testing'))
@@ -316,6 +317,60 @@ def connected(executable, reports):
         assert 'BEFOREAFTER' in frame.text and 'Insert Emoji' not in frame.text
 
 
+def localized(executable, reports):
+    # This group exercises the POSIX environment-discovery path. Native Windows
+    # and macOS discovery is covered separately; locale lookup is tested in C
+    # with explicit preferences on every platform.
+    os.environ['LC_ALL'] = 'fr_CA.UTF-8'
+    os.environ['LANGUAGE'] = 'fr_CA:fr:en'
+    with connection(executable, reports, encoding='UTF-8', settings='AudioModes=0\n') as (client, root, peer, send):
+        terminal = Terminal(client, root, peer, send)
+        terminal.exchange(b'LIVE', reset=True)
+        alt_key(client, 25)
+        frame = client.wait_text('visage avec large sourire')
+        check_footer(frame, False, 'visage avec large sourire')
+        # Regional name override; missing regional names inherit from French.
+        client.text('MANETTE DE JEU')
+        client.wait_text('manette de jeu')
+        client.key('enter')
+        terminal.input('🕹️'.encode())
+        alt_key(client, 25)
+        client.wait_text('Insert Emoji')
+        client.text('GRINNING FACE')
+        client.wait_text('visage avec large sourire')
+        client.key('enter')
+        terminal.input('😀'.encode())
+        alt_key(client, 25)
+        client.wait_text('Insert Emoji')
+        client.text('MAN SHRUGGING: MEDIUM SKIN TONE')
+        frame = client.wait_text('peau légèrement mate')
+        check_footer(frame, True, 'peau légèrement mate')
+        client.key('enter')
+        terminal.input('🤷🏽‍♂️'.encode())
+    with connection(executable, reports, encoding='CP437', settings='AudioModes=0\n') as (client, root, peer, send):
+        terminal = Terminal(client, root, peer, send)
+        terminal.exchange(b'LIVE', reset=True)
+        alt_key(client, 18)
+        client.wait_text('Directory: Name')
+        client.key('f2')
+        client.wait_text('Edit Directory Entry')
+        client.key('home')
+        client.key('enter')
+        client.wait_text('Capture')
+        alt_key(client, 25)
+        client.wait_text('Insert Emoji')
+        client.text('MANETTE DE JEU')
+        client.wait_text('manette de jeu')
+        client.key('enter')
+        client.wait_text('🕹')
+        client.key('escape')
+        client.wait_text('Edit Directory Entry')
+        client.key('escape')
+        client.wait_text('Directory: Name')
+        client.key('escape')
+        terminal.exchange()
+
+
 def presentation(executable, reports):
     # Fixed expected presentation widths, independent of the font merger.
     emoji = ['☺️', '☹️', '☠️', '❤️', '☝️', '🕴️', '🕷️', '🛖', '♨️', '🏎️', '✈️',
@@ -359,7 +414,7 @@ def presentation(executable, reports):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('executable', type=Path)
-    parser.add_argument('group', choices=('menu', 'connected', 'presentation'))
+    parser.add_argument('group', choices=('menu', 'connected', 'presentation', 'localized'))
     parser.add_argument('--reports', type=Path, required=True)
     args = parser.parse_args()
     globals()[args.group](args.executable, args.reports)

@@ -26,6 +26,7 @@ struct st_bbs_list;
 struct st_profile;
 struct st_theme_manager;
 struct st_theme;
+struct st_emoji_locale;
 
 #define ST_WREN_PICKER_MASK_LOCKED       (1 << 0)
 #define ST_WREN_PICKER_MASK_CASE         (1 << 1)
@@ -232,6 +233,7 @@ extern const struct st_embedded_script st_wren_embedded_scripts[];
 
 struct st_wren_host {
 	WrenVM *vm;
+	struct st_emoji_locale *emoji_locale;
 	WrenVM *picker_vm;
 	struct st_wren_host_config config;
 	struct st_bbs_list *bbs_list;
