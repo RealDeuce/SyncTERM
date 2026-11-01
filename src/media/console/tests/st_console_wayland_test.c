@@ -34,11 +34,16 @@ main(void)
 	};
 	st_console_t *first = NULL;
 	st_console_t *second = NULL;
+	st_console_t *automatic = NULL;
 	st_console_t *peer = NULL;
 	st_console_display_t *display = NULL;
 	const struct st_console_display_config display_config = {
 		.backend = ST_CONSOLE_BACKEND_WAYLAND,
 	};
+	const struct st_console_display_config auto_config = {
+		.backend = ST_CONSOLE_BACKEND_AUTO,
+	};
+	enum st_console_backend backend;
 	uint32_t width;
 	uint32_t height;
 	int status = st_console_create(&first, &config_display, &config);
@@ -46,6 +51,9 @@ main(void)
 	if (status == IO_ERROR_NOT_FOUND || status == IO_ERROR_NOT_SUPPORTED)
 		return 77;
 	CHECK(status == 0);
+	CHECK(st_console_create(&automatic, &auto_config, &config) == 0);
+	CHECK(st_console_get_backend(automatic, &backend) == 0);
+	CHECK(backend == ST_CONSOLE_BACKEND_WAYLAND);
 	CHECK(st_console_create(&second, &config_display, &config) == 0);
 	CHECK(st_console_set_title(first, "st_console Wayland one") == 0);
 	CHECK(st_console_set_title(second, "st_console Wayland two") == 0);
@@ -77,6 +85,7 @@ main(void)
 	st_console_destroy(peer);
 	st_console_display_destroy(display);
 	st_console_destroy(second);
+	st_console_destroy(automatic);
 	st_console_destroy(first);
 	return 0;
 }
