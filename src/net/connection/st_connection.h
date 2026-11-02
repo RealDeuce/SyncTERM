@@ -172,19 +172,29 @@ int st_connection_connect_shell(st_connection_t **result,
  */
 ssize_t st_connection_send(st_connection_t *connection, const void *data,
 	size_t size, int64_t timeout_ms);
+/* Opaque payload bytes retain CR/LF/NUL and still receive transport framing. */
+ssize_t st_connection_send_bytes(st_connection_t *connection, const void *data,
+	size_t size, int64_t timeout_ms);
 ssize_t st_connection_send_raw(st_connection_t *connection, const void *data,
 	size_t size, int64_t timeout_ms);
+enum st_connection_send_kind {
+	ST_CONNECTION_SEND_TEXT,
+	ST_CONNECTION_SEND_BYTES,
+	ST_CONNECTION_SEND_WIRE,
+};
 /* Poll an indivisible input unit. Returns its full input size or an error,
- * never a positive short count. raw bypasses transport framing. */
+ * never a positive short count. WIRE bypasses transport payload framing;
+ * BYTES preserves the payload and TEXT applies transport text conventions. */
 #define ST_CONNECTION_ATOMIC_SEND_MAX 4096U
 ssize_t st_connection_try_send_atomic(st_connection_t *connection,
-	const void *data, size_t size, bool raw);
+	const void *data, size_t size, enum st_connection_send_kind kind);
 
-/* Cooked RLogin XOFF holds receive and peek delivery, not the protocol
- * reader. pending_raw still counts held bytes. XON, raw mode, or teardown
+/* Cooked RLogin XOFF holds ordinary receive delivery, not raw reads
+ * or peeks. pending_raw still counts held bytes. XON, raw mode, or teardown
  * releases the hold; teardown permits draining queued data and final EOF. */
 ssize_t st_connection_receive(st_connection_t *connection, void *data,
 	size_t size, int64_t timeout_ms);
+/* Transport-decoded input, bypassing local terminal delivery pause. */
 ssize_t st_connection_receive_raw(st_connection_t *connection, void *data,
 	size_t size, int64_t timeout_ms);
 ssize_t st_connection_peek_raw(st_connection_t *connection, void *data,

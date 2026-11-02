@@ -536,13 +536,16 @@ rlogin_send_atomic(st_connection_t *connection, const uint8_t *bytes, size_t siz
 
 static ssize_t
 rlogin_send(st_connection_t *connection, const void *data, size_t size,
-	int64_t timeout_ms, bool atomic_write)
+	int64_t timeout_ms, bool atomic_write, enum st_connection_send_kind kind)
 {
 	const uint8_t *bytes = data;
 	size_t consumed = 0;
 
 	if (timeout_ms < -1 || (data == NULL && size != 0))
 		return IO_ERROR_INVALID_ARGUMENT;
+	if (kind == ST_CONNECTION_SEND_BYTES)
+		return atomic_write ? st_connection_queue_output_atomic(connection, data, size, timeout_ms)
+		    : st_connection_queue_output(connection, data, size, timeout_ms);
 	if (atomic_write)
 		return rlogin_send_atomic(connection, bytes, size);
 	if (atomic_load(&connection->binary_mode))

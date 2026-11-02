@@ -7,7 +7,7 @@ import "syncterm" for Hook, Key, Conn, BBS, CTerm, ConnType, KeyEvent
 class Connected {
   static sendComponent_(value) {
     if (value.count == 0) return
-    var error = Conn.send(value).await()
+    var error = Conn.sendText(value).await()
     if (error != null) Fiber.abort(error)
     CTerm.sendKey(KeyEvent.new(Key.enter))
   }

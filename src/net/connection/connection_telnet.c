@@ -282,7 +282,7 @@ telnet_read(void *state, void *data, size_t size, int64_t timeout_ms)
 
 static ssize_t
 telnet_send(st_connection_t *connection, const void *data, size_t size,
-	int64_t timeout_ms, bool atomic_write)
+	int64_t timeout_ms, bool atomic_write, enum st_connection_send_kind kind)
 {
 	struct telnet_transport *t = connection->transport;
 	const uint8_t *bytes = data;
@@ -294,7 +294,7 @@ telnet_send(st_connection_t *connection, const void *data, size_t size,
 	if (atomic_write && size > ST_CONNECTION_ATOMIC_SEND_MAX)
 		return IO_ERROR_MESSAGE_TOO_LARGE;
 	(void)st_mutex_lock(&t->mutex);
-	cr = t->outgoing_cr;
+	cr = kind == ST_CONNECTION_SEND_TEXT && t->outgoing_cr;
 	for (size_t i = 0; i < consumed; ++i) {
 		uint8_t byte = bytes[i];
 		if (cr && byte == '\n') { cr = false; continue; }
@@ -302,8 +302,8 @@ telnet_send(st_connection_t *connection, const void *data, size_t size,
 		output[used++] = byte;
 		if (byte == TN_IAC) output[used++] = byte;
 		if (byte == '\r' && !enabled(&t->local[TN_BINARY])) {
-			output[used++] = '\n';
-			cr = true;
+			output[used++] = kind == ST_CONNECTION_SEND_TEXT ? '\n' : '\0';
+			cr = kind == ST_CONNECTION_SEND_TEXT;
 		}
 	}
 	sent = st_connection_queue_output_atomic(connection, output, used, timeout_ms);

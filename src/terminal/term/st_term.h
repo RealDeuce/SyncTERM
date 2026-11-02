@@ -125,9 +125,9 @@ void st_term_session_set_suspended(st_term_session_t *session, bool suspended);
  * feeds protocol input while a modal UI suspends ordinary terminal display. */
 int st_term_session_begin_transfer(st_term_session_t *session, st_transfer_t *transfer);
 int st_term_session_end_transfer(st_term_session_t *session);
-void st_term_session_reserve_transfer(st_term_session_t *session, bool reserved);
+int st_term_session_reserve_transfer(st_term_session_t *session, bool reserved);
 /* A RIP block-mode command ends with CR; its optional LF is framing. */
-void st_term_session_reserve_rip_transfer(st_term_session_t *session);
+int st_term_session_reserve_rip_transfer(st_term_session_t *session);
 const uint8_t *st_term_session_prestel_frame(st_term_session_t *session, size_t *size);
 void st_term_session_set_mouse_disabled(st_term_session_t *session,
 	bool disabled);
@@ -185,5 +185,17 @@ int st_term_prepare_paste(char **result, size_t *result_size,
 int st_term_rip_wire_to_utf8(char *result, size_t capacity,
 	size_t *result_size, const uint8_t *wire, size_t size,
 	enum st_codepage codepage);
+
+
+/* Exclusive terminal-channel byte access, after transport decoding. The owner
+ * is an opaque identity, used only on the terminal thread. Read-ahead and
+ * returned transfer input precede the connection queue. Peek never captures. */
+int st_term_session_claim_wire(st_term_session_t *session, const void *owner);
+bool st_term_session_release_wire(st_term_session_t *session, const void *owner);
+bool st_term_session_wire_owned(st_term_session_t *session);
+int st_term_session_wire_available(st_term_session_t *session,
+    const void *owner, size_t *size);
+ssize_t st_term_session_read_wire(st_term_session_t *session, const void *owner,
+    void *bytes, size_t size, bool consume);
 
 #endif

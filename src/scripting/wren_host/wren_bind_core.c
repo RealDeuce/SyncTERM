@@ -1907,6 +1907,7 @@ st_wren_input_context_dispose(WrenVM *vm)
 		return;
 	context = st_wren_context_from_vm(vm);
 	st_wren_cleanup_shutdown(vm);
+	st_wren_wire_dispose(context);
 	st_wren_send_dispose(context);
 	st_wren_operation_dispose(vm);
 	st_wren_transfer_dispose(context);

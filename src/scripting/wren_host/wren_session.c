@@ -58,8 +58,8 @@ allocate_lease(WrenVM *vm)
 	*lease = (struct st_wren_session_lease){0};
 }
 
-static struct st_wren_context *
-session_context(WrenVM *vm)
+struct st_wren_context *
+st_wren_session_context(WrenVM *vm)
 {
 	struct session_value *session = st_wren_foreign_require(vm, 0,
 	    "syncterm", "Session");
@@ -94,7 +94,7 @@ fn_session_current(WrenVM *vm)
 static void
 fn_session_hold(WrenVM *vm)
 {
-	struct st_wren_context *context = session_context(vm);
+	struct st_wren_context *context = st_wren_session_context(vm);
 	struct st_wren_session_lease *lease;
 
 	if (context == NULL)
@@ -117,7 +117,7 @@ fn_session_hold(WrenVM *vm)
 static void
 fn_session_hold_count(WrenVM *vm)
 {
-	struct st_wren_context *context = session_context(vm);
+	struct st_wren_context *context = st_wren_session_context(vm);
 	size_t count = 0;
 
 	if (context == NULL)

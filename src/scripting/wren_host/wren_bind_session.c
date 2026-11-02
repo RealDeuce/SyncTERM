@@ -26,6 +26,27 @@ struct foreign_conn_error {
 	char message[96];
 };
 
+struct st_wren_wire {
+	struct st_wren_context *context;
+};
+
+static void
+finalize_wire(void *data)
+{
+	struct st_wren_wire *wire = data;
+	if (wire->context != NULL) {
+		(void)st_term_session_release_wire(wire->context->session, wire);
+		wire->context->wire = NULL;
+		wire->context = NULL;
+	}
+}
+static void
+allocate_wire(WrenVM *vm)
+{
+	struct st_wren_wire *wire = wrenSetSlotNewForeign(vm, 0, 0, sizeof(*wire));
+	*wire = (struct st_wren_wire){0};
+}
+
 static void
 allocate_conn_error(WrenVM *vm)
 {
@@ -47,6 +68,8 @@ st_wren_session_bind_class(const char *class_name)
 {
 	WrenForeignClassMethods methods = {NULL, NULL};
 
+	if (strcmp(class_name, "WireLease") == 0)
+		return (WrenForeignClassMethods){allocate_wire, finalize_wire};
 	if (strcmp(class_name, "ConnError") == 0)
 		methods.allocate = allocate_conn_error;
 	else if (strcmp(class_name, "ExtAttr") == 0
@@ -104,7 +127,9 @@ struct st_wren_send {
 	struct st_wren_operation *operation;
 	struct st_term_encoded_text text;
 	size_t position;
-	bool raw;
+	enum st_connection_send_kind kind;
+	struct st_wren_wire *wire;
+	WrenHandle *owner;
 };
 
 static void
@@ -119,6 +144,7 @@ send_remove(struct st_wren_context *context, struct st_wren_send *send,
 		context->send_tail = previous;
 	--context->send_count;
 	context->send_storage -= send->text.storage_size;
+	if (send->owner != NULL) wrenReleaseHandle(context->vm, send->owner);
 	free(send->text.bytes);
 	free(send);
 }
@@ -143,6 +169,31 @@ st_wren_send_dispose(struct st_wren_context *context)
 {
 	while (context->send_head != NULL)
 		send_remove(context, context->send_head, NULL);
+}
+
+static bool
+release_wire(struct st_wren_wire *wire)
+{
+	struct st_wren_context *context = wire->context;
+	if (context == NULL) return false;
+	(void)st_term_session_release_wire(context->session, wire);
+	context->wire = NULL;
+	wire->context = NULL;
+	/* Cancelling removes each node. Its accepted prefix remains queued. */
+	for (;;) {
+		struct st_wren_send *send = context->send_head;
+		while (send != NULL && send->wire != wire) send = send->next;
+		if (send == NULL) break;
+		if (st_wren_operation_cancel(context->vm, send->operation) != 0) break;
+	}
+	return true;
+}
+
+void
+st_wren_wire_dispose(struct st_wren_context *context)
+{
+	/* Teardown separately cancels all Operations without resuming bodies. */
+	if (context->wire != NULL) finalize_wire(context->wire);
 }
 
 static bool
@@ -174,7 +225,7 @@ st_wren_send_pump(struct st_wren_context *context)
 		}
 		else if (send_busy(context)) {
 			code = CONN_BUSY;
-			message = "a file transfer owns the connection";
+			message = "connection input/output is owned";
 		}
 		else if (send->position < send->text.size) {
 			size_t amount = send->text.size - send->position;
@@ -186,7 +237,8 @@ st_wren_send_pump(struct st_wren_context *context)
 				}
 			}
 			ssize_t written = st_connection_try_send_atomic(context->connection,
-			    send->text.bytes + send->position, amount, send->raw);
+			    send->text.bytes + send->position, amount,
+			    send->kind);
 			if (written == IO_ERROR_WOULD_BLOCK)
 				return 0;
 			if (written == (ssize_t)amount) {
@@ -205,8 +257,17 @@ st_wren_send_pump(struct st_wren_context *context)
 		else
 			wrenSetSlotNull(vm, 1);
 		/* Resolution queues wakes; no Wren callback runs inside this pump. */
+		bool partial = send->position != 0;
+		WrenHandle *owner = send->owner;
+		struct st_wren_wire *wire = send->wire;
+		send->owner = NULL;
 		send_remove(context, send, NULL);
+		if (code != 0 && wire != NULL) {
+			(void)release_wire(wire);
+			push_conn_error(vm, code, partial, message);
+		}
 		int status = st_wren_operation_resolve(vm, operation, 1);
+		if (owner != NULL) wrenReleaseHandle(vm, owner);
 		if (status != 0)
 			return status;
 	}
@@ -214,8 +275,9 @@ st_wren_send_pump(struct st_wren_context *context)
 }
 
 static void
-send_reject(WrenVM *vm, int code, const char *message)
+send_reject(WrenVM *vm, struct st_wren_wire *wire, int code, const char *message)
 {
+	if (wire != NULL) (void)release_wire(wire);
 	struct st_wren_operation *operation = st_wren_operation_new(vm, 0);
 
 	push_conn_error(vm, code, false, message);
@@ -224,7 +286,7 @@ send_reject(WrenVM *vm, int code, const char *message)
 }
 
 static void
-conn_send(WrenVM *vm, bool raw)
+conn_send(WrenVM *vm, enum st_connection_send_kind kind, struct st_wren_wire *wire)
 {
 	struct st_wren_context *context = st_wren_context_from_vm(vm);
 	struct st_term_encoded_text text = {0};
@@ -233,24 +295,24 @@ conn_send(WrenVM *vm, bool raw)
 	const char *value;
 
 	if (wrenGetSlotType(vm, 1) != WREN_TYPE_STRING) {
-		st_wren_abort(vm, "Conn.send/sendRaw expects a String");
+		st_wren_abort(vm, "send expects a String");
 		return;
 	}
 	value = wrenGetSlotBytes(vm, 1, &length);
-	if (context->connection == NULL || (!raw && context->session == NULL)
+	if (context->connection == NULL || context->session == NULL
 	    || !st_connection_is_connected(context->connection)) {
-		send_reject(vm, CONN_DOWN, "connection is down");
+		send_reject(vm, wire, CONN_DOWN, "connection is down");
 		return;
 	}
-	if (send_busy(context)) {
-		send_reject(vm, CONN_BUSY, "a file transfer owns the connection");
+	if ((wire != NULL && wire->context != context) || (context->wire != NULL && context->wire != wire) || send_busy(context)) {
+		send_reject(vm, wire, CONN_BUSY, "connection input/output is owned");
 		return;
 	}
 	if (context->send_count >= SEND_COUNT_MAX || (size_t)length >= SEND_STORAGE_MAX) {
-		send_reject(vm, CONN_FULL, "script send queue limit reached");
+		send_reject(vm, wire, CONN_FULL, "script send queue limit reached");
 		return;
 	}
-	if (raw) {
+	if (kind != ST_CONNECTION_SEND_TEXT) {
 		text.bytes = malloc((size_t)length + 1);
 		if (text.bytes != NULL)
 			memcpy(text.bytes, value, (size_t)length);
@@ -261,7 +323,7 @@ conn_send(WrenVM *vm, bool raw)
 		int status = st_term_session_encode_text(context->session, value,
 		    (size_t)length, &text);
 		if (status == IO_ERROR_INVALID_ENCODING) {
-			send_reject(vm, CONN_TEXT, "malformed or unmappable Unicode text");
+			send_reject(vm, wire, CONN_TEXT, "malformed or unmappable Unicode text");
 			return;
 		}
 		if (status != 0) {
@@ -275,7 +337,7 @@ conn_send(WrenVM *vm, bool raw)
 	}
 	if (text.storage_size > SEND_STORAGE_MAX - context->send_storage) {
 		free(text.bytes);
-		send_reject(vm, CONN_FULL, "script send storage limit reached");
+		send_reject(vm, wire, CONN_FULL, "script send storage limit reached");
 		return;
 	}
 	send = calloc(1, sizeof(*send));
@@ -287,7 +349,9 @@ conn_send(WrenVM *vm, bool raw)
 	/* Copy/encode before creating the Operation: slot one holds the caller's
 	 * String and operation allocation reuses it and can collect that String. */
 	send->text = text;
-	send->raw = raw;
+	send->kind = kind;
+	send->wire = wire;
+	if (wire != NULL) send->owner = wrenGetSlotHandle(vm, 0);
 	send->operation = st_wren_operation_new(vm, 0);
 	st_wren_operation_on_cancel(send->operation, send_cancel, context);
 	if (context->send_tail == NULL)
@@ -301,8 +365,8 @@ conn_send(WrenVM *vm, bool raw)
 		st_wren_abort(vm, "out of memory completing send");
 }
 
-static void fn_conn_send(WrenVM *vm) { conn_send(vm, false); }
-static void fn_conn_send_raw(WrenVM *vm) { conn_send(vm, true); }
+static void fn_conn_send(WrenVM *vm) { conn_send(vm, ST_CONNECTION_SEND_TEXT, NULL); }
+static void fn_conn_send_bytes(WrenVM *vm) { conn_send(vm, ST_CONNECTION_SEND_BYTES, NULL); }
 
 static void
 fn_conn_connected(WrenVM *vm)
@@ -327,47 +391,108 @@ fn_conn_close(WrenVM *vm)
 	wrenSetSlotNull(vm, 0);
 }
 
-static void
-conn_inspect(WrenVM *vm, bool consume)
+static struct st_wren_wire *
+wire_value(WrenVM *vm)
 {
-	struct st_connection *connection = st_wren_context_from_vm(vm)->connection;
-	double requested;
-	size_t available;
-	uint8_t *buffer;
-	ssize_t read_count;
-
-	if (wrenGetSlotType(vm, 1) != WREN_TYPE_NUM
-	    || !isfinite(requested = wrenGetSlotDouble(vm, 1))
-	    || requested < 0 || requested != floor(requested)) {
-		st_wren_abort(vm, "Conn.peek/recv expects a nonnegative byte count");
-		return;
+	struct st_wren_wire *wire = st_wren_foreign_require(vm, 0, "syncterm", "WireLease");
+	if (wire != NULL && wire->context != NULL
+	    && wire->context != st_wren_context_from_vm(vm)) {
+		st_wren_abort(vm, "WireLease: invalid owner");
+		return NULL;
 	}
-	available = st_connection_pending_raw(connection);
-	if (requested < (double)available)
-		available = (size_t)requested;
-	if (available == 0) {
-		wrenSetSlotBytes(vm, 0, "", 0);
-		return;
-	}
-	buffer = malloc(available);
-	if (buffer == NULL) {
-		st_wren_abort(vm, "Conn.peek/recv: out of memory");
-		return;
-	}
-	read_count = consume
-	    ? st_connection_receive_raw(connection, buffer, available, 0)
-	    : st_connection_peek_raw(connection, buffer, available);
-	if (read_count >= 0)
-		wrenSetSlotBytes(vm, 0, (const char *)buffer, (size_t)read_count);
-	else if (read_count == IO_ERROR_WOULD_BLOCK)
-		wrenSetSlotBytes(vm, 0, "", 0);
-	else
-		st_wren_abort(vm, "Conn.peek/recv: input queue error");
-	free(buffer);
+	return wire;
 }
-
-static void fn_conn_peek(WrenVM *vm) { conn_inspect(vm, false); }
-static void fn_conn_recv(WrenVM *vm) { conn_inspect(vm, true); }
+static void fn_wire_release(WrenVM *vm)
+{
+	struct st_wren_wire *wire = wire_value(vm);
+	if (wire != NULL) wrenSetSlotBool(vm, 0, release_wire(wire));
+}
+static void fn_wire_released(WrenVM *vm)
+{
+	struct st_wren_wire *wire = wire_value(vm);
+	if (wire != NULL) wrenSetSlotBool(vm, 0, wire->context == NULL);
+}
+static void fn_wire_send_bytes(WrenVM *vm)
+{
+	struct st_wren_wire *wire = wire_value(vm);
+	if (wire != NULL) conn_send(vm, ST_CONNECTION_SEND_BYTES, wire);
+}
+static void fn_wire_send(WrenVM *vm)
+{
+	struct st_wren_wire *wire = wire_value(vm);
+	if (wire != NULL) conn_send(vm, ST_CONNECTION_SEND_WIRE, wire);
+}
+static void
+fn_claim_wire(WrenVM *vm)
+{
+	struct st_wren_context *context = st_wren_session_context(vm);
+	if (context == NULL) return;
+	if (context->cleanup_closing || !st_connection_is_connected(context->connection)) {
+		push_conn_error(vm, CONN_DOWN, false, "session is closing");
+		WrenHandle *result = wrenGetSlotHandle(vm, 1);
+		wrenSetSlotHandle(vm, 0, result);
+		wrenReleaseHandle(vm, result);
+		return;
+	}
+	if (context->wire != NULL || context->send_head != NULL) {
+		push_conn_error(vm, CONN_BUSY, false, "connection already has pending work or an owner");
+		WrenHandle *result = wrenGetSlotHandle(vm, 1);
+		wrenSetSlotHandle(vm, 0, result);
+		wrenReleaseHandle(vm, result);
+		return;
+	}
+	wrenEnsureSlots(vm, 2);
+	wrenGetVariable(vm, "syncterm", "WireLease", 1);
+	struct st_wren_wire *wire = wrenSetSlotNewForeign(vm, 0, 1, sizeof(*wire));
+	*wire = (struct st_wren_wire){0};
+	int status = st_term_session_claim_wire(context->session, wire);
+	if (status != 0) {
+		push_conn_error(vm, CONN_BUSY, false, "terminal input is owned or being dispatched");
+		WrenHandle *result = wrenGetSlotHandle(vm, 1);
+		wrenSetSlotHandle(vm, 0, result);
+		wrenReleaseHandle(vm, result);
+		return;
+	}
+	wire->context = context;
+	context->wire = wire;
+}
+static void
+wire_inspect(WrenVM *vm, bool consume, bool count_only)
+{
+	struct st_wren_wire *wire = wire_value(vm);
+	uint64_t requested = 0;
+	if (wire == NULL) return;
+	if (!count_only && (!st_wren_number_u64(vm, 1, &requested) || requested > 65536)) {
+		st_wren_abort(vm, "WireLease read count must be an integer from 0 through 65536");
+		return;
+	}
+	if (wire->context == NULL) {
+		push_conn_error(vm, CONN_DOWN, false, "wire lease is released");
+		WrenHandle *result = wrenGetSlotHandle(vm, 1);
+		wrenSetSlotHandle(vm, 0, result);
+		wrenReleaseHandle(vm, result);
+		return;
+	}
+	struct st_wren_context *context = wire->context;
+	size_t available;
+	(void)st_term_session_wire_available(context->session, wire, &available);
+	if (count_only) { st_wren_return_u64(vm, available); return; }
+	uint8_t buffer[65536];
+	ssize_t count = st_term_session_read_wire(context->session, wire, buffer, (size_t)requested, consume);
+	if (count == IO_ERROR_WOULD_BLOCK || requested == 0) wrenSetSlotBytes(vm, 0, "", 0);
+	else if (count == 0) { (void)release_wire(wire); wrenSetSlotNull(vm, 0); }
+	else if (count > 0) wrenSetSlotBytes(vm, 0, (const char *)buffer, (size_t)count);
+	else {
+		(void)release_wire(wire);
+		push_conn_error(vm, CONN_IO, false, "wire input failed");
+		WrenHandle *result = wrenGetSlotHandle(vm, 1);
+		wrenSetSlotHandle(vm, 0, result);
+		wrenReleaseHandle(vm, result);
+	}
+}
+static void fn_wire_read(WrenVM *vm) { wire_inspect(vm, true, false); }
+static void fn_wire_peek(WrenVM *vm) { wire_inspect(vm, false, false); }
+static void fn_wire_available(WrenVM *vm) { wire_inspect(vm, false, true); }
 
 static void
 fn_conn_end_session(WrenVM *vm)
@@ -412,18 +537,14 @@ fn_conn_paste(WrenVM *vm)
 	    strlen(clipboard), st_cterm_bracketed_paste(context->cterm));
 	free(clipboard);
 	if (status == 0)
-		status = st_term_session_send_text(context->session, prepared,
-		    prepared_size);
+		{
+		wrenEnsureSlots(vm, 2);
+		wrenSetSlotBytes(vm, 1, prepared, prepared_size);
+		conn_send(vm, ST_CONNECTION_SEND_TEXT, NULL);
+	}
 	free(prepared);
 	if (status != 0)
 		st_wren_abort(vm, "Conn.paste failed to send clipboard text");
-}
-
-static void
-fn_conn_pending(WrenVM *vm)
-{
-	wrenSetSlotDouble(vm, 0, (double)st_connection_pending_raw(
-	    st_wren_context_from_vm(vm)->connection));
 }
 
 static void
@@ -1329,18 +1450,15 @@ static const struct session_binding bindings[] = {
 	{"Scrollback", "width", fn_scrollback_width},
 	{"Scrollback", "height", fn_scrollback_height},
 	{"Scrollback", "copyRowsTo(_,_,_,_)", fn_scrollback_copy_rows},
-	{"Conn", "send(_)", fn_conn_send},
-	{"Conn", "sendRaw(_)", fn_conn_send_raw},
+	{"Conn", "sendText(_)", fn_conn_send},
+	{"Conn", "sendBytes(_)", fn_conn_send_bytes},
 	{"Conn", "close()", fn_conn_close},
 	{"Conn", "endSession(_)", fn_conn_end_session},
 	{"Conn", "scrollback()", fn_conn_scrollback},
 	{"Conn", "paste()", fn_conn_paste},
 	{"Conn", "connected", fn_conn_connected},
 	{"Conn", "type", fn_conn_type},
-	{"Conn", "pending", fn_conn_pending},
 	{"Conn", "queued", fn_conn_queued},
-	{"Conn", "peek(_)", fn_conn_peek},
-	{"Conn", "recv(_)", fn_conn_recv},
 	{"BBS", "name", fn_bbs_name},
 	{"BBS", "addr", fn_bbs_addr},
 	{"BBS", "port", fn_bbs_port},
@@ -1465,6 +1583,17 @@ WrenForeignMethodFn
 st_wren_session_bind_method(const char *class_name, bool is_static,
 	const char *signature)
 {
+	if (!is_static && strcmp(class_name, "Session") == 0
+	    && strcmp(signature, "claimWire()") == 0) return fn_claim_wire;
+	if (!is_static && strcmp(class_name, "WireLease") == 0) {
+		if (strcmp(signature, "release()") == 0) return fn_wire_release;
+		if (strcmp(signature, "released") == 0) return fn_wire_released;
+		if (strcmp(signature, "readBytes(_)") == 0) return fn_wire_read;
+		if (strcmp(signature, "peekBytes(_)") == 0) return fn_wire_peek;
+		if (strcmp(signature, "available") == 0) return fn_wire_available;
+		if (strcmp(signature, "sendBytes(_)") == 0) return fn_wire_send_bytes;
+		if (strcmp(signature, "sendWire(_)") == 0) return fn_wire_send;
+	}
 	if (!is_static && strcmp(class_name, "ConnError") == 0) {
 		if (strcmp(signature, "code") == 0)
 			return fn_conn_error_code;

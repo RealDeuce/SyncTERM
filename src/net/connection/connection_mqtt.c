@@ -413,8 +413,9 @@ mqtt_read(void *state, void *data, size_t size, int64_t timeout)
 
 static ssize_t
 mqtt_send(st_connection_t *connection, const void *data, size_t size, int64_t timeout,
-	bool atomic_write)
+	bool atomic_write, enum st_connection_send_kind kind)
 {
+	(void)kind;
 	struct mqtt_transport *t = connection->transport;
 	uint8_t wire[4400];
 	size_t consumed = size < 4096 ? size : 4096;

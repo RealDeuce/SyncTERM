@@ -183,6 +183,10 @@ nvt_server(struct fixture *f)
 	CHECK(expect(f, initial, sizeof(initial)) == 0);
 	CHECK(fragment(f, "A\r\0B", 4) == 0);
 	CHECK(expect(f, "x\r\ny", 4) == 0);
+	static const uint8_t binary[] = {255, 255, 0, '\r', 0, '\n', '\r', 0, 0, 255, 255};
+	static const uint8_t command[] = {255, 241};
+	CHECK(expect(f, binary, sizeof(binary)) == 0);
+	CHECK(expect(f, command, sizeof(command)) == 0);
 	CHECK(write_exact(f, "Z", 1) == 0);
 	return 0;
 }
@@ -516,7 +520,9 @@ run(enum protocol type)
 		if (mqtt) {
 			CHECK(connection_read(connection, large, sizeof(large)) == 0);
 			for (size_t used = 0; used < sizeof(large);) {
-				ssize_t n = st_connection_send(connection, large + used, sizeof(large) - used, 5000);
+				ssize_t n = used == 0
+				    ? st_connection_try_send_atomic(connection, large, 4096, ST_CONNECTION_SEND_BYTES)
+				    : st_connection_send_bytes(connection, large + used, sizeof(large) - used, 5000);
 				CHECK(n > 0); used += (size_t)n;
 			}
 			CHECK(st_connection_receive(connection, large, 1, 5000) == 0);
@@ -525,6 +531,11 @@ run(enum protocol type)
 			CHECK(!atomic_load(&connection->binary_mode));
 			CHECK(st_connection_send(connection, "x\r", 2, 1000) == 2);
 			CHECK(st_connection_send(connection, "\ny", 2, 1000) == 2);
+			static const uint8_t binary[] = {255, 0, '\r', '\n', '\r', 0, 255};
+			static const uint8_t command[] = {255, 241};
+			CHECK(st_connection_try_send_atomic(connection, binary, 3, ST_CONNECTION_SEND_BYTES) == 3);
+			CHECK(st_connection_send_bytes(connection, binary + 3, sizeof(binary) - 3, 1000) == (ssize_t)sizeof(binary) - 3);
+			CHECK(st_connection_try_send_atomic(connection, command, sizeof(command), ST_CONNECTION_SEND_WIRE) == (ssize_t)sizeof(command));
 		} else {
 			CHECK(connection_read(connection, text, sizeof(text)) == 0);
 			if (type != GHOST) CHECK(st_connection_update_terminal_size(connection, &resized) == 0);

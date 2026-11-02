@@ -143,25 +143,22 @@ examples:
 | Receives exact wire bytes before Unicode decoding.  Raw replacements remain
   bytes and re-enter protocol classification.
 
-| Text send, such as `Conn.send`
+| Text send, such as `Conn.sendText`
 | Validates and NFC-normalizes the complete input, then encodes it using the
   active outgoing wire encoding before transport framing such as Telnet IAC
   escaping. Malformed or unmappable text rejects the whole request. The
   returned Operation owns queue-pressure retries; scripts never slice their
   original UTF-8 string using a transformed output-byte count.
 
-| Explicit raw send, such as `Conn.sendRaw`
-| Queues the exact caller-supplied bytes without character encoding. The
-  returned Operation owns the unsent remainder. `Conn.sendRaw` explicitly
-  bypasses transport framing as well, including Telnet IAC escaping.
+| Binary payload send, such as `Conn.sendBytes`
+| Preserves the caller's bytes without character conversion or text newline
+  folding, applying transport framing. The Operation owns the unsent remainder.
 
-| Raw connection inspection
-| Peek and receive operations intended to expose transport buffers are named
-  and documented as raw.  They do not masquerade as decoded text.
+| Owned wire access, through `Session.current.claimWire()`
+| A WireLease exposes exact terminal-channel input after transport decoding,
+  including terminal read-ahead. Its sendWire bypasses transport framing;
+  sendBytes applies framing. Release preserves unread input for the terminal.
 
-| Direct terminal text, such as `CTerm.write`
-| Accepts UTF-8 semantic terminal input.  It does not depend on the remote
-  wire encoding.
 |===
 
 Existing ASCII-oriented scripts remain source-compatible because ASCII byte

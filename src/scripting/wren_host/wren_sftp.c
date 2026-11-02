@@ -2150,6 +2150,7 @@ st_wren_connected_destroy(st_wren_connected_t *connected)
 	if (connected == NULL)
 		return;
 	connected->shutting_down = true;
+	st_wren_wire_dispose(&connected->context);
 	(void)st_console_set_pointer_shape(connected->context.console,
 	    ST_CONSOLE_POINTER_TEXT);
 	st_wren_connected_capture_stop(connected);

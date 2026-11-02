@@ -1723,7 +1723,7 @@ Cox's NFA simulation, vendored under `re1/`); when a match completes,
 [source,wren]
 ----
 Hook.onMatch("login:") { |m|
-  Conn.send("user\r")
+  Conn.sendText("user\r")
   return false
 }
 
@@ -3738,7 +3738,7 @@ Connection-level send and receive.
 |===
 | Member | Description
 
-| `Conn.send(s)`
+| `Conn.sendText(s)`
 | Queue Unicode text using the session's wire encoding and transport
   processing (including Telnet IAC escaping or MQTT framing). Returns an
   <<operation,`Operation`>>; `.await()` returns `null` when all output has
@@ -3748,10 +3748,11 @@ Connection-level send and receive.
   unmappable scalar; malformed or unmappable text sends nothing and does
   not beep. UTF-8 and embedded NULs are preserved after normalization.
 
-| `Conn.sendRaw(s)`
-| Queue the string's exact bytes, bypassing Unicode conversion and transport
-  framing, including IAC escaping. Returns an Operation with the same
-  completion and cancellation contract as `send`.
+| `Conn.sendBytes(s)`
+| Queue the String's exact bytes, including malformed UTF-8, NUL and CR/LF,
+  applying transport framing (Telnet IAC and NVT CR escaping, MQTT framing).
+  No Unicode conversion, text newline folding or local XON/XOFF interpretation
+  occurs. Returns an Operation with the text send completion contract.
 
 | `Conn.close()`
 | Close the connection.
@@ -3805,24 +3806,52 @@ Connection-level send and receive.
   `""`; hosts without a session-log provider return `null`. This is separate
   from the Wren print/error console. Reopening the viewer takes a new snapshot.
 
-| `Conn.pending`
-| Bytes available to read right now (in the inbuf ring).
-
 | `Conn.queued`
 | Bytes in the transport output ring that have not gone out yet. This does
   not include the unsent storage owned by pending send Operations.
 
-| `Conn.peek(count)`
-| Look at up to `count` bytes from the inbuf without consuming.
-  Clamped to the actual ring size.
-
-| `Conn.recv(count)`
-| Read up to `count` bytes from the inbuf and consume them.
 |===
+
+==== Owned terminal-channel I/O
+
+`Session.current.claimWire()` returns a `WireLease`, or a `ConnError` when
+another owner, native transfer, transfer reservation, pending script send or
+active terminal input callback prevents acquisition. Await earlier sends before
+claiming. This is terminal-channel input after transport decoding, not access
+to encrypted network packets. Native terminal display and output, key forwarding
+and other script sends pause while it is owned. UI dispatch continues.
+`CTerm.suspended` is independent and retains its previous value.
+
+[options="header",cols="2,3"]
+|===
+| Member | Description
+| `available` | Number of available bytes in FIFO order: returned transfer
+  input, unread terminal read-ahead, then the connection queue.
+| `readBytes(count)` | Consume up to 65536 bytes; nonempty String on data,
+  `""` when nothing is ready, `null` at drained EOF, or ConnError on failure.
+  Zero returns `""` without reading. Consumed input is captured once.
+| `peekBytes(count)` | Same results and limits without consumption or capture.
+| `sendBytes(bytes)` | Framed binary payload Operation, as for Conn.sendBytes.
+| `sendWire(bytes)` | Deliberately bypass transport framing and text conversion.
+  Use only for a protocol that requires such bytes; MQTT payloads require sendBytes.
+| `release()` | Idempotent Bool; cancel pending owned sends and return unread
+  input to terminal processing in order. Already queued output stays queued.
+| `released` | Bool.
+| `use(fn)` | Call `fn` with this lease, releasing on return/error and across
+  cooperative yields, preserving the callback's result or error.
+|===
+
+Send failure, drained EOF, read failure, GC and VM/session teardown release the
+lease. An input capture failure can consume bytes before reporting its error.
+A pending send retains its owner until completion or cancellation.
+A released lease returns ConnError for input and failed Operations for output;
+claim a new lease for later work. A live lease alone does not keep a disconnected
+session alive; use Session.hold when auxiliary work must finish after EOF.
+The old unowned Conn receive/peek/pending and sendRaw entry points are removed.
 
 ==== ConnError [[connerror]]
 
-`Conn.send` and `Conn.sendRaw` own the remaining output and retry queue
+`Conn.sendText` and `Conn.sendBytes` own the remaining output and retry queue
 pressure internally. Requests run in FIFO order within the VM. At most 64
 pending requests and 1 MiB of owned encoded storage (including terminators)
 are allowed; an individual input must be smaller than 1 MiB. Oversized or
@@ -3835,6 +3864,7 @@ Cancellation discards the unsent remainder and completes with the usual
 `OperationError`. Bytes already queued cannot be recalled. Dropping an
 Operation handle does not cancel its send. Shutdown cancels pending sends.
 File-transfer ownership rejects new or pending sends with `ConnErr.busy`.
+A WireLease rejects sends from Conn; use the lease for protocol output.
 
 Recoverable connection failures complete the Operation with `ConnError`:
 
@@ -3859,12 +3889,12 @@ Recoverable connection failures complete the Operation with `ConnError`:
 | `ConnErr.queueFull` | 3 | The script request/storage limit was reached.
 | `ConnErr.invalidText` | 4 | Malformed UTF-8 or text unrepresentable in the
   session's codepage. No output from this request was queued.
-| `ConnErr.busy` | 5 | A file transfer owns or has reserved the connection.
+| `ConnErr.busy` | 5 | A wire lease or file transfer owns or has reserved the connection.
 |===
 
 [source,wren]
 ----
-var error = Conn.send("café").await()
+var error = Conn.sendText("café").await()
 if (error == null) {
   CTerm.sendKey(KeyEvent.new(Key.enter))
 } else {
@@ -7438,7 +7468,7 @@ reveals the selected entry again; mouse hit testing uses the scrolled rows.
 
 The connected `emoji_pick` module uses `EmojiFlow.run()` for Alt+P and the
 Online Menu. It saves/restores the screen and mouse settings, suspends terminal
-output during the picker, and sends a successful selection with `Conn.send`.
+output during the picker, and sends a successful selection with `Conn.sendText`.
 Ctrl+P is not a connected hook. Local Apps reached through Alt+E use their
 normal field bindings regardless of the parked connection's encoding.
 
@@ -8255,11 +8285,11 @@ callback on each match, no manual buffering required:
 import "syncterm" for Hook, Conn
 
 Hook.onMatch("Press any key to continue") { |m|
-  Conn.send("\r")
+  Conn.sendText("\r")
 }
 
 Hook.onMatch("Logon: ") { |m|
-  Conn.send("myhandle\r")
+  Conn.sendText("myhandle\r")
 }
 ----
 

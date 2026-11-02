@@ -199,6 +199,7 @@ struct st_wren_context {
 	struct st_wren_operation *operations;
 	struct st_wren_cleanup *cleanups;
 	bool cleanup_closing;
+	struct st_wren_wire *wire;
 	struct st_wren_send *send_head, *send_tail;
 	size_t send_count, send_storage;
 	struct st_wren_wake *wake_head;
@@ -483,5 +484,9 @@ void st_wren_report_error(WrenVM *vm, WrenErrorType type,
 int st_wren_interpret_event_scripts(WrenVM *vm, const char *event);
 int st_wren_interpret_profile_scripts(WrenVM *vm,
 	const struct st_profile *profile);
+
+struct st_wren_context *st_wren_session_context(WrenVM *vm);
+void st_wren_wire_dispose(struct st_wren_context *context);
+int st_wren_operation_cancel(WrenVM *vm, struct st_wren_operation *operation);
 
 #endif

@@ -42,7 +42,7 @@ static const char *download_root(struct st_wren_context *context)
 }
 static ssize_t send_bytes(void *context, const void *data, size_t size, int64_t timeout)
 {
-	return st_connection_send(context, data, size, timeout);
+	return st_connection_send_bytes(context, data, size, timeout);
 }
 static void log_entry(struct st_wren_context *context, const struct st_transfer_log *entry)
 {
@@ -51,6 +51,7 @@ static void log_entry(struct st_wren_context *context, const struct st_transfer_
 }
 static int start(struct st_wren_context *context, struct st_transfer_config *config, bool rip)
 {
+	if (st_term_session_wire_owned(context->session)) return IO_ERROR_BUSY;
 	struct st_wren_transfer *s = state(context);
 	if (s == NULL) return IO_ERROR_OUT_OF_MEMORY;
 	if (s->worker != NULL) return IO_ERROR_BUSY;
@@ -139,6 +140,7 @@ static int start_rip(struct st_wren_context *context, bool upload)
 int st_wren_transfer_rip_request(struct st_wren_context *context,
 	const struct st_cterm_rip_transfer_request *request)
 {
+	if (st_term_session_wire_owned(context->session)) return IO_ERROR_BUSY;
 	if (!st_wren_transfer_detect_enabled(context) || request == NULL || request->directory == NULL
 	    || !*request->directory || request->filename == NULL || request->protocol > 7
 	    || request->protocol == 4 || (!request->upload && request->file_type > 5))

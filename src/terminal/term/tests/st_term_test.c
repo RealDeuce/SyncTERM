@@ -429,6 +429,19 @@ static int test_transfer_handoff(bool aborting)
 		if (handoff.worker != NULL && st_transfer_done(handoff.worker)) {
 			CHECK(st_transfer_result(handoff.worker) == (aborting ? IO_ERROR_CANCELLED : 0));
 			CHECK(st_term_session_end_transfer(handoff.session) == 0);
+			if (!aborting) {
+				uint8_t peeked[128];
+				size_t available;
+				const char *suffix = handoff.starts == 1
+				    ? "BETWEEN~**\030B0800000000022d\r\nOOAFTER" : "AFTER";
+				CHECK(st_term_session_claim_wire(handoff.session, &handoff) == 0);
+				CHECK(st_term_session_wire_available(handoff.session, &handoff, &available) == 0);
+				CHECK(available == strlen(suffix));
+				CHECK(st_term_session_read_wire(handoff.session, &handoff,
+				    peeked, sizeof(peeked), false) == (ssize_t)available);
+				CHECK(memcmp(peeked, suffix, available) == 0);
+				CHECK(st_term_session_release_wire(handoff.session, &handoff));
+			}
 			CHECK(!st_connection_binary_mode(handoff.connection));
 			st_transfer_destroy(&handoff.worker);
 			st_term_session_set_suspended(handoff.session, false);

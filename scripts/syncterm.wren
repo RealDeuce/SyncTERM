@@ -1035,6 +1035,7 @@ foreign class Session {
   foreign static current
   foreign hold()
   foreign holdCount
+  foreign claimWire()
   hold(fn) {
     if (!(fn is Fn)) Fiber.abort("Session.hold expects a Fn")
     var lease = hold()
@@ -1046,12 +1047,27 @@ foreign class SessionLease {
   foreign release()
 }
 
-// send / sendRaw own queued output and return Operation. Await for null
+// Exclusive terminal-channel input and protocol output ownership.
+foreign class WireLease {
+  foreign released
+  foreign release()
+  foreign available
+  foreign readBytes(count)
+  foreign peekBytes(count)
+  foreign sendBytes(bytes)
+  foreign sendWire(bytes)
+  use(fn) {
+    if (!(fn is Fn)) Fiber.abort("WireLease.use expects a Fn")
+    return Cleanup_.run(Fn.new { fn.call(this) }, Fn.new { release() })
+  }
+}
+
+// sendText / sendBytes own queued output and return Operation. Await for null
 // success or ConnError. Queue pressure is handled by the host; callers
 // never retry a UTF-8 slice using a transformed wire-byte offset.
 class Conn {
-  foreign static send(s)
-  foreign static sendRaw(s)
+  foreign static sendText(s)
+  foreign static sendBytes(s)
   foreign static close()
   // End the BBS session.  Shows the "Disconnect... Are you sure?"
   // confirm; on yes, hangs up the connection.  When `exitApp` is
@@ -1069,13 +1085,10 @@ class Conn {
   foreign static elapsedSeconds
   foreign static type
   foreign static sessionLog
-  foreign static pending
   foreign static queued
-  foreign static peek(count)
-  foreign static recv(count)
 }
 
-// Conn.send / sendRaw Operation result: null on success, ConnError on failure.
+// Conn.sendText / sendBytes Operation result: null on success, ConnError on failure.
 foreign class ConnError is Error {
   foreign code        // ConnErr.* enum
   foreign partial     // some input was accepted before failure; no retry offset

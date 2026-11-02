@@ -193,7 +193,7 @@ if (CTerm.music != 2 || !CTerm.lastColumnFlag.forced || !CTerm.hasPaletteOverrid
 if (BBS.calls != 6 || BBS.connected <= 0 || Host.logLevel != 7 || BBS.ctermLogLevel != 7 || BBS.wrenScripts.count != 1) Fiber.abort("session options")
 CTerm.write("\\U0010ffff\\n")
 if (!Conn.sessionLog.contains("CTerm Debug: Missing glyph (.noglyph)")) Fiber.abort("session log snapshot")
-Conn.send("PROFILE-READY")
+Conn.sendText("PROFILE-READY")
 ''')
 
     with listener() as server:
@@ -665,7 +665,7 @@ var file = Host.pickSavePath(null, "capture.ans")
 if (file == null || Capture.start(file, true) != null) Fiber.abort("start raw capture")
 Hook.onWire(35, Fn.new {|byte| true })
 Hook.onWire(88, Fn.new {|byte| "REPLACED" })
-Conn.send("CAPTURE-READY")
+Conn.sendText("CAPTURE-READY")
 '''
     with connection(executable, reports, encoding=encoding, script=source) as (client, root, peer, send):
         frame = client.wait_text("capture.ans")

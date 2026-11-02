@@ -34,7 +34,7 @@ class EmojiFlow {
       return true
     }
     if (picked != null && Emoji.canSend) {
-      var error = Conn.send(picked.text).await()
+      var error = Conn.sendText(picked.text).await()
       if (error == null) {
         var saved = Emoji.recordUse(picked)
         if (saved != null) System.print(saved)

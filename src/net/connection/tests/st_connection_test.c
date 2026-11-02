@@ -271,6 +271,9 @@ rlogin_server_worker(void *argument)
 	if (receive_exact(client, buffer, 2) != 0
 	    || memcmp(buffer, "AB", 2) != 0)
 		goto failed;
+	if (receive_exact(client, buffer, 4) != 0
+	    || memcmp(buffer, "\x13" "CD" "\x11", 4) != 0)
+		goto failed;
 	if (socket_send(client, "ready", 5) != 5)
 		goto failed;
 	atomic_store(&state->stage, 7);
@@ -504,8 +507,9 @@ test_rlogin(void)
 	CHECK(connection_receive_exact(connection, buffer, 6) == 0);
 	CHECK(memcmp(buffer, "cooked", 6) == 0);
 	CHECK(wait_for_binary(connection, false) == 0);
-	CHECK(st_connection_try_send_atomic(connection, "\x13" "AB" "\x11", 4, false)
+	CHECK(st_connection_try_send_atomic(connection, "\x13" "AB" "\x11", 4, ST_CONNECTION_SEND_TEXT)
 	    == 4);
+	CHECK(st_connection_try_send_atomic(connection, "\x13" "CD" "\x11", 4, ST_CONNECTION_SEND_BYTES) == 4);
 	CHECK(connection_receive_exact(connection, buffer, 5) == 0);
 	CHECK(memcmp(buffer, "ready", 5) == 0);
 	CHECK(st_connection_close(connection) == 0);
@@ -773,7 +777,7 @@ test_rlogin_flow(bool backpressure)
 	}
 	CHECK(st_connection_send(connection, "I", 1, 1000) == 1);
 	CHECK(wait_for_binary(connection, false) == 0);
-	CHECK(st_connection_try_send_atomic(connection, "\x13", 1, false) == 1);
+	CHECK(st_connection_try_send_atomic(connection, "\x13", 1, ST_CONNECTION_SEND_TEXT) == 1);
 	atomic_store(&server.allow_urgent, true);
 	if (backpressure) {
 		CHECK(wait_for_pending(connection, ST_CONNECTION_BUFFER_SIZE) == 0);
@@ -784,7 +788,7 @@ test_rlogin_flow(bool backpressure)
 		CHECK(wait_for_pending(connection, 4) == 0);
 	}
 	CHECK(st_connection_receive(connection, bytes, 1, 0) == IO_ERROR_WOULD_BLOCK);
-	CHECK(st_connection_peek_raw(connection, bytes, 1) == IO_ERROR_WOULD_BLOCK);
+	if (!backpressure) CHECK(st_connection_peek_raw(connection, bytes, 1) == 1);
 	if (backpressure) {
 		atomic_store(&server.allow_postmark, true);
 		CHECK(wait_for_stage(&server, 5) == 0);
@@ -1726,28 +1730,28 @@ test_atomic_output(void)
 	CHECK(st_condition_init(&connection.output.changed) == ST_THREAD_SUCCESS);
 	connection.output.count = ST_CONNECTION_BUFFER_SIZE - 1;
 	memset(connection.output.data, 'x', sizeof(connection.output.data));
-	CHECK(st_connection_try_send_atomic(&connection, character, sizeof(character), false)
+	CHECK(st_connection_try_send_atomic(&connection, character, sizeof(character), ST_CONNECTION_SEND_TEXT)
 	    == IO_ERROR_WOULD_BLOCK);
 	CHECK(connection.output.count == ST_CONNECTION_BUFFER_SIZE - 1);
 	CHECK(connection.output.data[ST_CONNECTION_BUFFER_SIZE - 1] == 'x');
 	connection.output.count = ST_CONNECTION_BUFFER_SIZE - 2;
-	CHECK(st_connection_try_send_atomic(&connection, character, sizeof(character), false) == 2);
+	CHECK(st_connection_try_send_atomic(&connection, character, sizeof(character), ST_CONNECTION_SEND_TEXT) == 2);
 	CHECK(connection.output.count == ST_CONNECTION_BUFFER_SIZE);
 	CHECK(memcmp(connection.output.data + ST_CONNECTION_BUFFER_SIZE - 2, character, 2) == 0);
-	CHECK(st_connection_try_send_atomic(&connection, oversized, sizeof(oversized), false)
+	CHECK(st_connection_try_send_atomic(&connection, oversized, sizeof(oversized), ST_CONNECTION_SEND_TEXT)
 	    == IO_ERROR_MESSAGE_TOO_LARGE);
-	CHECK(st_connection_try_send_atomic(&connection, NULL, 1, false) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_connection_try_send_atomic(&connection, NULL, 1, ST_CONNECTION_SEND_TEXT) == IO_ERROR_INVALID_ARGUMENT);
 	/* Ring wrap must preserve the complete unit, including arbitrary raw bytes. */
 	connection.output.head = ST_CONNECTION_BUFFER_SIZE - 1;
 	connection.output.count = 0;
-	CHECK(st_connection_try_send_atomic(&connection, character, 2, true) == 2);
+	CHECK(st_connection_try_send_atomic(&connection, character, 2, ST_CONNECTION_SEND_WIRE) == 2);
 	CHECK(connection.output.data[ST_CONNECTION_BUFFER_SIZE - 1] == 0xc3);
 	CHECK(connection.output.data[0] == 0xa9 && connection.output.count == 2);
 	connection.output.stopped = true;
-	CHECK(st_connection_try_send_atomic(&connection, character, 2, true) == IO_ERROR_NOT_CONNECTED);
+	CHECK(st_connection_try_send_atomic(&connection, character, 2, ST_CONNECTION_SEND_WIRE) == IO_ERROR_NOT_CONNECTED);
 	CHECK(connection.output.count == 2);
 	atomic_store(&connection.connected, false);
-	CHECK(st_connection_try_send_atomic(&connection, character, 2, false) == IO_ERROR_NOT_CONNECTED);
+	CHECK(st_connection_try_send_atomic(&connection, character, 2, ST_CONNECTION_SEND_TEXT) == IO_ERROR_NOT_CONNECTED);
 	st_condition_destroy(&connection.output.changed);
 	st_mutex_destroy(&connection.output.mutex);
 	return 0;

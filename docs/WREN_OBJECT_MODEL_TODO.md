@@ -29,14 +29,14 @@ filesystem grants, menu handles and `slot_handle` in `wren_sftp.c`.
 
 ## 2 Separate payloads from owned wire access
 
-- [ ] Expose Unicode text sends, framed binary payload sends and deliberate
+- [x] Expose Unicode text sends, framed binary payload sends and deliberate
   protocol-wire sends as distinct operations. Binary payloads must preserve
   arbitrary bytes and apply Telnet/MQTT transport framing.
-- [ ] Require explicit ownership for destructive raw input and wire access.
+- [x] Require explicit ownership for destructive raw input and wire access.
   Respect terminal read-ahead, transfer reservations and pending operations;
   release ownership on explicit close, failure, GC and VM/session shutdown.
-- [ ] Migrate callers and remove ambiguous/unowned legacy entry points.
-- [ ] Verify IAC bytes, malformed UTF-8, NUL, queue pressure, ordered reads,
+- [x] Migrate callers and remove ambiguous/unowned legacy entry points.
+- [x] Verify IAC bytes, malformed UTF-8, NUL, queue pressure, ordered reads,
   handoff/replay, competing owners, native transfers and disconnect paths.
 
 Starting points: `wren_bind_session.c`, `st_term.c`, connection framing and
@@ -217,3 +217,26 @@ and protocol error details. Native host/menu/live-SFTP/core/picker checks passed
 ASan/UBSan host/core/picker checks passed. Six headless application/UI checks
 passed, including the picker in an NFD directory. Clang/GCC and MinGW i686/
 x86_64 builds were warning-free. Windows runtime tests were not run.
+
+Item 2: Conn.sendText validates/NFC-normalizes and encodes Unicode; sendBytes
+preserves arbitrary bytes while applying Telnet/MQTT framing. Telnet binary
+payloads use NVT CR escaping without text CR/LF folding; rlogin byte sends and
+raw reads bypass local text flow control. File-transfer output uses framed
+bytes. Unframed output and destructive input now require Session.claimWire's
+WireLease. It excludes native transfers/reservations, other owners, pending
+script sends and reentrant input dispatch. Input includes returned transfer
+bytes and terminal read-ahead before the connection ring. Release preserves
+unread input, captures consumed bytes once, cancels pending owned sends and
+retains the independent terminal suspension state. Owned sends retain their
+lease; failure, GC and teardown release it. Old Conn send/sendRaw/recv/peek/
+pending methods are removed; bundled scripts and manuals use the new contract.
+Clipboard sends share the owned output queue.
+
+Connection framing/flow-control, terminal handoff and Wren host/menu/core/picker
+checks passed. Regressions exercise malformed UTF-8, NUL, IAC, CR/LF, MQTT binary
+payloads, byte flow-control, read-ahead and returned-input ordering, peeks,
+competing owners, capture, native reservations, queue limits, cancellation,
+GC, failure and shutdown. Four ASan/UBSan checks and six headless application/UI
+checks passed; the final send-rejection change also passed host/ASan host and
+protocol checks. Clang/GCC and MinGW i686/x86_64 builds were warning-free.
+Windows runtime tests were not run.

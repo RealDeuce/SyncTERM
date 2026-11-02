@@ -26,7 +26,7 @@
 //   - Hook.onStatus: would replace the status bar for the test's
 //     duration and would never deregister.
 
-import "syncterm" for Hook, Conn, Console, Screen, CTerm, BBS, Key, Mod,
+import "syncterm" for Session, WireLease, ConnError, Hook, Conn, Console, Screen, CTerm, BBS, Key, Mod,
     Codepage, ConnType, Emulation, Font, LogSource, LogLevel,
     Parity, BBSListType, ScreenMode, AddressFamily, MusicMode,
     RipVersion, LogMode, StatusDisplay, Color, Cell, Hyperlinks,
@@ -846,8 +846,13 @@ class WrenTest {
   }
 
   static testConnPending_() {
-    var p = Conn.pending
-    check_(p is Num && p >= 0, "Conn.pending is non-negative")
+    var owner = Session.current.claimWire()
+    if (owner is WireLease) {
+      check_(owner.available is Num && owner.available >= 0, "wire available is non-negative")
+      owner.release()
+    } else {
+      check_(owner is ConnError, "wire claim reports conflict")
+    }
   }
 
   static testConnQueued_() {
@@ -1598,16 +1603,16 @@ class WrenTest {
     __step = __step + 1
     if (__step == 1) {
       __pending = "T01"
-      Conn.send("printf '__T01_X_HELLO_X__\\n'\r")
+      Conn.sendText("printf '__T01_X_HELLO_X__\\n'\r")
     } else if (__step == 2) {
       __pending = "T02"
-      Conn.send("printf '__T02_X_joe_X__\\n'\r")
+      Conn.sendText("printf '__T02_X_joe_X__\\n'\r")
     } else if (__step == 3) {
       __pending = "T03"
-      Conn.send("printf '__T03_X_a=1_X__\\n'\r")
+      Conn.sendText("printf '__T03_X_a=1_X__\\n'\r")
     } else if (__step == 4) {
       __pending = "T04"
-      Conn.send("printf '__T04_X_done_X__\\n'\r")
+      Conn.sendText("printf '__T04_X_done_X__\\n'\r")
     } else if (__step == 5) {
       // Deliberate ≥1 s wall-clock pause so the main loop's
       // dispatch_timer sees Hook.every(50)'s next_fire_s pass
@@ -1621,7 +1626,7 @@ class WrenTest {
       // immediately, sleep never gates the test, and the timer
       // assertion races.
       __pending = "T05"
-      Conn.send("sleep 1 && printf '__\%s_X_done_X__\\n' T05\r")
+      Conn.sendText("sleep 1 && printf '__\%s_X_done_X__\\n' T05\r")
     } else if (__step == 6) {
       // Result-queue framework end-to-end.  Register the fiber to
       // receive the next event via Input.nextEvent, yield, then
@@ -1649,7 +1654,7 @@ class WrenTest {
       __timerFiber.call()
       Input.unget(KeyEvent.new(0xFD00))
       __pending = "T06"
-      Conn.send("sleep 0.2 && printf '__\%s_X_done_X__\\n' T06\r")
+      Conn.sendText("sleep 0.2 && printf '__\%s_X_done_X__\\n' T06\r")
     } else if (__step == 7) {
       // Wake.post end-to-end.  Park two fibers on plain Fiber.yield
       // (neither registered with Input.nextEvent or Timer.after),
@@ -1661,7 +1666,7 @@ class WrenTest {
       Wake.post(__wakeFiber, KeyEvent.new(0xFC00))
       Wake.post(__wakeStringFiber, "wake-payload")
       __pending = "T07"
-      Conn.send("sleep 0.2 && printf '__\%s_X_done_X__\\n' T07\r")
+      Conn.sendText("sleep 0.2 && printf '__\%s_X_done_X__\\n' T07\r")
     } else if (__step == 8) {
       // Claim-stack newer-fiber-wins.  Push A's claim first, then
       // B's; B is on top of the stack (different fibers).  Unget
@@ -1673,7 +1678,7 @@ class WrenTest {
       __claimBFiber.call()
       Input.unget(KeyEvent.new(0xFB00))
       __pending = "T08"
-      Conn.send("sleep 0.2 && printf '__\%s_X_done_X__\\n' T08\r")
+      Conn.sendText("sleep 0.2 && printf '__\%s_X_done_X__\\n' T08\r")
     } else if (__step == 9) {
       // Pop B's claim; the older A claim is now on top.  Unget
       // another sentinel key - A's counter should bump this time.
@@ -1684,7 +1689,7 @@ class WrenTest {
       __claimBHandle.pop()
       Input.unget(KeyEvent.new(0xF900))
       __pending = "T09"
-      Conn.send("sleep 0.2 && printf '__\%s_X_done_X__\\n' T09\r")
+      Conn.sendText("sleep 0.2 && printf '__\%s_X_done_X__\\n' T09\r")
     } else if (__step == 10) {
       // Claim fall-through.  Pop A's claim so the fall-through claim
       // is the only one on the stack, then push it and unget 0xFA00.
@@ -1696,7 +1701,7 @@ class WrenTest {
       __fallthroughFiber.call()
       Input.unget(KeyEvent.new(0xFA00))
       __pending = "T10"
-      Conn.send("sleep 0.2 && printf '__\%s_X_done_X__\\n' T10\r")
+      Conn.sendText("sleep 0.2 && printf '__\%s_X_done_X__\\n' T10\r")
     } else {
       report_()
     }
@@ -1823,7 +1828,7 @@ class WrenTest {
     var grand = __sumPass + __sumFail
     print_("=== TOTAL: %(grand) tests, %(__sumPass) pass, %(__sumFail) fail ===")
     cleanup_()
-    if (Host.launchScript != null) Conn.send("exit\r")
+    if (Host.launchScript != null) Conn.sendText("exit\r")
   }
 
   // Accumulate a [pass, fail] pair returned by a nested test suite

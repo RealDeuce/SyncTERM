@@ -167,8 +167,8 @@ fn_operation_result(WrenVM *vm)
 	wrenSetSlotHandle(vm, 0, operation->result);
 }
 
-static int
-cancel_operation(WrenVM *vm, struct st_wren_operation *operation)
+int
+st_wren_operation_cancel(WrenVM *vm, struct st_wren_operation *operation)
 {
 	push_operation_error(vm, 1, IO_ERROR_CANCELLED, "operation cancelled");
 	operation->cancelled = true;
@@ -186,7 +186,7 @@ fn_operation_cancel(WrenVM *vm)
 		wrenSetSlotBool(vm, 0, false);
 		return;
 	}
-	if (cancel_operation(vm, operation) != 0) {
+	if (st_wren_operation_cancel(vm, operation) != 0) {
 		st_wren_abort(vm, "out of memory delivering cancellation");
 		return;
 	}
@@ -299,7 +299,7 @@ st_wren_operation_collect(WrenVM *vm)
 		if (operation->awaited && operation->waiters == NULL && !operation->done) {
 			wrenEnsureSlots(vm, 1);
 			wrenSetSlotHandle(vm, 0, operation->self);
-			if (cancel_operation(vm, operation) != 0)
+			if (st_wren_operation_cancel(vm, operation) != 0)
 				return IO_ERROR_OUT_OF_MEMORY;
 		}
 	}
@@ -317,7 +317,7 @@ st_wren_operation_cancel_all(WrenVM *vm)
 			continue;
 		wrenEnsureSlots(vm, 1);
 		wrenSetSlotHandle(vm, 0, operation->self);
-		if (cancel_operation(vm, operation) != 0)
+		if (st_wren_operation_cancel(vm, operation) != 0)
 			return IO_ERROR_OUT_OF_MEMORY;
 	}
 	return 0;

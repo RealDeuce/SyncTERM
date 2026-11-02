@@ -210,7 +210,7 @@ queue_write_atomic(struct st_connection_queue *queue, const void *data,
 
 static ssize_t
 queue_read(struct st_connection_queue *queue, void *data, size_t size,
-	int64_t timeout_ms, bool peek)
+	int64_t timeout_ms, bool peek, bool honor_pause)
 {
 	uint8_t *destination = data;
 	struct timespec deadline;
@@ -225,7 +225,7 @@ queue_read(struct st_connection_queue *queue, void *data, size_t size,
 	if (timeout_ms > 0)
 		deadline = deadline_after(timeout_ms);
 	(void)st_mutex_lock(&queue->mutex);
-	while ((queue->count == 0 || queue->paused) && !queue->eof && !queue->stopped) {
+	while ((queue->count == 0 || (honor_pause && queue->paused)) && !queue->eof && !queue->stopped) {
 		if (timeout_ms == 0) {
 			(void)st_mutex_unlock(&queue->mutex);
 			return IO_ERROR_WOULD_BLOCK;
@@ -380,7 +380,7 @@ output_worker(void *argument)
 
 	while (!atomic_load(&connection->stopping)) {
 		ssize_t count = queue_read(&connection->output, buffer,
-		    sizeof(buffer), -1, false);
+		    sizeof(buffer), -1, false, false);
 		size_t sent = 0;
 
 		if (count <= 0)
@@ -509,7 +509,19 @@ st_connection_send(st_connection_t *connection, const void *data, size_t size,
 	if (connection == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (connection->send_filter != NULL)
-		return connection->send_filter(connection, data, size, timeout_ms, false);
+		return connection->send_filter(connection, data, size, timeout_ms, false, ST_CONNECTION_SEND_TEXT);
+	return st_connection_queue_output(connection, data, size, timeout_ms);
+}
+
+ssize_t
+st_connection_send_bytes(st_connection_t *connection, const void *data,
+	size_t size, int64_t timeout_ms)
+{
+	if (connection == NULL || (data == NULL && size != 0) || timeout_ms < -1)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (connection->send_filter != NULL)
+		return connection->send_filter(connection, data, size, timeout_ms, false,
+		    ST_CONNECTION_SEND_BYTES);
 	return st_connection_queue_output(connection, data, size, timeout_ms);
 }
 
@@ -522,18 +534,19 @@ st_connection_send_raw(st_connection_t *connection, const void *data,
 
 ssize_t
 st_connection_try_send_atomic(st_connection_t *connection,
-	const void *data, size_t size, bool raw)
+	const void *data, size_t size, enum st_connection_send_kind kind)
 {
 	ssize_t result;
 
-	if (connection == NULL || (data == NULL && size != 0))
+	if (connection == NULL || (data == NULL && size != 0)
+	    || kind < ST_CONNECTION_SEND_TEXT || kind > ST_CONNECTION_SEND_WIRE)
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (size > ST_CONNECTION_ATOMIC_SEND_MAX)
 		return IO_ERROR_MESSAGE_TOO_LARGE;
 	if (!st_connection_is_connected(connection))
 		return IO_ERROR_NOT_CONNECTED;
-	if (!raw && connection->send_filter != NULL)
-		result = connection->send_filter(connection, data, size, 0, true);
+	if (kind != ST_CONNECTION_SEND_WIRE && connection->send_filter != NULL)
+		result = connection->send_filter(connection, data, size, 0, true, kind);
 	else
 		result = st_connection_queue_output_atomic(connection, data, size, 0);
 	return result >= 0 && (size_t)result != size ? IO_ERROR_IO : result;
@@ -543,7 +556,9 @@ ssize_t
 st_connection_receive(st_connection_t *connection, void *data, size_t size,
 	int64_t timeout_ms)
 {
-	return st_connection_receive_raw(connection, data, size, timeout_ms);
+	if (connection == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	return queue_read(&connection->input, data, size, timeout_ms, false, true);
 }
 
 ssize_t
@@ -552,7 +567,7 @@ st_connection_receive_raw(st_connection_t *connection, void *data,
 {
 	if (connection == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	return queue_read(&connection->input, data, size, timeout_ms, false);
+	return queue_read(&connection->input, data, size, timeout_ms, false, false);
 }
 
 ssize_t
@@ -560,7 +575,7 @@ st_connection_peek_raw(st_connection_t *connection, void *data, size_t size)
 {
 	if (connection == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	return queue_read(&connection->input, data, size, 0, true);
+	return queue_read(&connection->input, data, size, 0, true, false);
 }
 
 size_t

@@ -32,6 +32,8 @@ struct st_term_session {
 	uint32_t throttle_bps;
 	uint64_t throttle_last_ms;
 	uint64_t throttle_credit;
+	const void *wire_owner;
+	bool input_dispatching;
 	uint8_t wire_pending[4096];
 	size_t wire_position;
 	size_t wire_size;
@@ -134,6 +136,7 @@ cterm_output(void *context, enum st_cterm_output_origin origin,
 	const uint8_t *bytes, size_t size)
 {
 	st_term_session_t *session = context;
+	if (session->wire_owner != NULL) return;
 	if (origin == ST_CTERM_OUTPUT_RESPONSE && (session->config.suppress_responses
 	    || session->transfer != NULL || session->transfer_reserved))
 		return;
@@ -486,6 +489,7 @@ st_term_session_send_text(st_term_session_t *session,
 
 	if (session == NULL || (utf8 == NULL && size != 0))
 		return IO_ERROR_INVALID_ARGUMENT;
+	if (session->wire_owner != NULL) return IO_ERROR_BUSY;
 	status = st_unicode_text_create(&text, ST_UNICODE_TEXT_GRAPHEMES);
 	if (status == 0)
 		status = st_unicode_text_feed(text, utf8, size, &consumed);
@@ -840,6 +844,7 @@ st_term_session_send_key(st_term_session_t *session,
 	if (session == NULL || event == NULL || handled == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	*handled = false;
+	if (session->wire_owner != NULL) return 0;
 	switch (event->type) {
 	case ST_CONSOLE_EVENT_CODEPAGE_BYTE:
 		if (session->config.encoding == ST_CTERM_ENCODING_CODEPAGE
@@ -1006,7 +1011,7 @@ st_term_session_pump(st_term_session_t *session,
 	}
 	bool protocol_input = session->transfer != NULL && st_transfer_needs_input(session->transfer);
 	if (session->transfer != NULL && st_transfer_done(session->transfer)) read_size = 0;
-	if (session->transfer_reserved) read_size = 0;
+	if (session->transfer_reserved || session->wire_owner != NULL) read_size = 0;
 	if (protocol_input) {
 		size_t space = st_transfer_input_space(session->transfer);
 		if (read_size > space) read_size = space;
@@ -1044,7 +1049,7 @@ st_term_session_pump(st_term_session_t *session,
 	if (protocol_input && received == 0) st_transfer_eof(session->transfer);
 	/* A detector can claim the stream midway through this read. Recheck
 	 * ownership after each ordinary byte, retaining any suffix on backpressure. */
-	while ((!session->suspended || protocol_input) && !session->transfer_reserved
+	while (session->wire_owner == NULL && (!session->suspended || protocol_input) && !session->transfer_reserved
 	    && (session->returned_position < session->returned_size
 	    || session->wire_position < session->wire_size)) {
 		bool replay = session->returned_position < session->returned_size;
@@ -1087,7 +1092,9 @@ st_term_session_pump(st_term_session_t *session,
 				session->prestel_frame[session->prestel_frame_size++] = bytes[*position];
 		}
 		session->wire_replaying = replay;
+		session->input_dispatching = true;
 		status = write_wire_filtered(session, bytes + *position, count);
+		session->input_dispatching = false;
 		session->wire_replaying = false;
 		if (status != 0) return status;
 		*position += count;
@@ -1153,7 +1160,7 @@ int
 st_term_session_begin_transfer(st_term_session_t *session, st_transfer_t *transfer)
 {
 	if (session == NULL || transfer == NULL) return IO_ERROR_INVALID_ARGUMENT;
-	if (session->transfer != NULL) return IO_ERROR_BUSY;
+	if (session->transfer != NULL || session->wire_owner != NULL) return IO_ERROR_BUSY;
 	session->transfer_was_binary = st_connection_binary_mode(session->config.connection);
 	int status = st_transfer_needs_input(transfer)
 	    ? st_connection_set_binary_mode(session->config.connection, true) : 0;
@@ -1206,25 +1213,110 @@ st_term_session_end_transfer(st_term_session_t *session)
 	    session->transfer_was_binary);
 	return status != 0 ? status : restored;
 }
-void
+int
 st_term_session_reserve_transfer(st_term_session_t *session, bool reserved)
 {
 	if (session != NULL) {
+		if (reserved && session->wire_owner != NULL) return IO_ERROR_BUSY;
 		session->transfer_reserved = reserved;
 		if (!reserved) session->transfer_skip_lf = false;
 	}
+	return 0;
 }
-void
+int
 st_term_session_reserve_rip_transfer(st_term_session_t *session)
 {
 	if (session != NULL) {
+		if (session->wire_owner != NULL) return IO_ERROR_BUSY;
 		session->transfer_reserved = true;
 		session->transfer_skip_lf = true;
 	}
+	return 0;
 }
 const uint8_t *
 st_term_session_prestel_frame(st_term_session_t *session, size_t *size)
 {
 	*size = session == NULL ? 0 : session->prestel_frame_size;
 	return session == NULL ? NULL : session->prestel_frame;
+}
+
+int
+st_term_session_claim_wire(st_term_session_t *session, const void *owner)
+{
+	if (session == NULL || owner == NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (session->wire_owner != NULL || session->transfer != NULL
+	    || session->transfer_reserved || session->input_dispatching) return IO_ERROR_BUSY;
+	session->wire_owner = owner;
+	return 0;
+}
+bool
+st_term_session_release_wire(st_term_session_t *session, const void *owner)
+{
+	if (session == NULL || owner == NULL || session->wire_owner != owner) return false;
+	session->wire_owner = NULL;
+	return true;
+}
+bool
+st_term_session_wire_owned(st_term_session_t *session)
+{
+	return session != NULL && session->wire_owner != NULL;
+}
+int
+st_term_session_wire_available(st_term_session_t *session, const void *owner, size_t *size)
+{
+	if (session == NULL || owner == NULL || session->wire_owner != owner || size == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	*size = session->returned_size - session->returned_position
+	    + session->wire_size - session->wire_position
+	    + st_connection_pending_raw(session->config.connection);
+	return 0;
+}
+ssize_t
+st_term_session_read_wire(st_term_session_t *session, const void *owner,
+	void *bytes, size_t size, bool consume)
+{
+	size_t available;
+	int status = st_term_session_wire_available(session, owner, &available);
+	if (status != 0 || (bytes == NULL && size != 0)) return IO_ERROR_INVALID_ARGUMENT;
+	if (size == 0) return 0;
+	if (available == 0) return st_connection_is_connected(session->config.connection)
+	    ? IO_ERROR_WOULD_BLOCK : 0;
+	if (size > available) size = available;
+	size_t replay = session->returned_size - session->returned_position;
+	if (replay > size) replay = size;
+	size_t pending = session->wire_size - session->wire_position;
+	if (pending > size - replay) pending = size - replay;
+	uint8_t *destination = bytes;
+	if (replay != 0) memcpy(destination, session->returned_wire + session->returned_position, replay);
+	if (pending != 0) memcpy(destination + replay, session->wire_pending + session->wire_position, pending);
+	size_t queued = size - replay - pending;
+	if (queued != 0) {
+		/* Read once: a transport worker can flush its queue between calls
+		 * (rlogin urgent FLUSHWRITE). Never capture a peek then consume a
+		 * potentially different suffix. */
+		ssize_t count = consume
+		    ? st_connection_receive_raw(session->config.connection,
+		    destination + replay + pending, queued, 0)
+		    : st_connection_peek_raw(session->config.connection,
+		    destination + replay + pending, queued);
+		if (count == IO_ERROR_WOULD_BLOCK) count = 0;
+		if (count < 0) return count;
+		queued = (size_t)count;
+	}
+	if (consume) {
+		session->returned_position += replay;
+		session->wire_position += pending;
+		/* Returned input was already captured on entering its transfer.
+		 * A capture failure consumes this read and ends owned input. */
+		if (pending + queued != 0 && session->config.wire_capture != NULL
+		    && (session->config.capture_active == NULL
+		    || session->config.capture_active(session->config.capture_context))) {
+			status = session->config.wire_capture(session->config.capture_context,
+			    destination + replay, pending + queued);
+			if (status != 0) return status;
+		}
+	}
+	if (replay + pending + queued == 0 && st_connection_is_connected(session->config.connection))
+		return IO_ERROR_WOULD_BLOCK;
+	return (ssize_t)(replay + pending + queued);
 }
