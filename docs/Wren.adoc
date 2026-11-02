@@ -7330,6 +7330,8 @@ locale or connection encoding and does not require network access.
 Entry IDs ending in `_` are internal catalog indexes, not persistent values.
 The picker shows the highlighted name above a parenthesized keyword list,
 truncated to one line to fit the pane.
+It uses the screen dimensions with a one-cell margin on each side, reflowing
+the emoji grid and preserving the selected entry when the screen is resized.
 
 `Emoji.recent` returns up to 32 exact entries, newest first.
 `Emoji.recordUse(entry)` promotes an entry and persists the merged recent list,

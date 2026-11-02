@@ -103,6 +103,37 @@ def check_grid_spacing(frame):
     assert x > 1
 
 
+def resize_picker(client):
+    for columns, rows in ((132, 43), (160, 36), (80, 50), (40, 14), (80, 25)):
+        client.grid_resize(columns, rows)
+        frame = client.wait_for(lambda s: s.metadata['columns'] == columns
+                                and s.metadata['rows'] == rows and 'Insert Emoji' in s.text)
+        # One-cell margins on every side, independent of the terminal mode.
+        for x, y, glyph in ((1, 1, '╔'), (columns - 2, 1, '╗'),
+                            (1, rows - 2, '╚'), (columns - 2, rows - 2, '╝')):
+            assert frame.cell_text(cell_at(frame, x, y)) == glyph, (columns, rows, x, y)
+        check_footer(frame, False, 'grinning face')
+        check_grid_spacing(frame)
+        grid_y = next(i for i, line in enumerate(frame.lines) if 'All emoji' in line) + 1
+        glyphs = [x for x in range(2, columns - 2)
+                  if frame.cell_text(cell_at(frame, x, grid_y)) != ' '
+                  and not cell_at(frame, x, grid_y).flags & (1 << 19)]
+        assert len(glyphs) == (columns - 5) // 3, (columns, glyphs)
+        # A taller screen also expands the grid down to the metadata rows.
+        assert frame.cell_text(cell_at(frame, 3, rows - 6)) != ' '
+        # Hovering a tile beyond column 80 must select it after reflow.
+        x = glyphs[-1]
+        m = frame.metadata
+        px = m['destination_x'] + (x * m['cell_width'] + m['cell_width'] // 2) * m['destination_width'] // m['plane_width']
+        py = m['destination_y'] + (grid_y * m['cell_height'] + m['cell_height'] // 2 + m['pixel_top']) * m['destination_height'] // m['plane_height']
+        background = cell_at(frame, x, grid_y).background
+        client.mouse(px, py)
+        client.wait_for(lambda s: cell_at(s, x, grid_y).background != background)
+        client.key('home')
+        frame = client.wait_text('grinning face')
+    return frame
+
+
 def menu(executable, reports):
     source = '''
 import "syncterm" for Screen, Key, Emoji, Host
@@ -136,6 +167,7 @@ app.runSync()
         frame = client.wait_text('Insert Emoji')
         check_footer(frame, False, 'grinning face')
         check_grid_spacing(frame)
+        frame = resize_picker(client)
         frame = scroll_picker(client, frame)
         client.text('bikini')
         client.wait_text('Search: bikini')

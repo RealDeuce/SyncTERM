@@ -174,8 +174,8 @@ class EmojiPicker is Pane {
     if (size[0] != _screenW || size[1] != _screenH) {
       _screenW = size[0]
       _screenH = size[1]
-      var w = (size[0] - 2).max(8).min(78)
-      var h = (size[1] - 2).max(8).min(25)
+      var w = (size[0] - 2).max(8)
+      var h = (size[1] - 2).max(8)
       bounds = Rect.new(((size[0] - w) / 2).floor + 1,
           ((size[1] - h) / 2).floor + 1, w, h)
       _columns = ((w - 3) / 3).floor.max(1)
