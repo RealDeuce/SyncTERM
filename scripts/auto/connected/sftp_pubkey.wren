@@ -12,12 +12,12 @@
 // disconnect waits for us to finish before tearing down the SFTP
 // channel.
 
-import "syncterm" for BBS, FileFlag, Host, SFTP, SFTPError, Session
+import "syncterm" for Session, FileFlag, Host, SFTP, SFTPError
 
 class SftpPubkey {
   static run() {
     if (Host.safeMode) return
-    if (!BBS.sftpPublicKey) return
+    if (!Session.current.profile.sftpPublicKey) return
     var key = Host.sshPublicKey
     if (!(key is Map)) return
     var algo = key["algo"]

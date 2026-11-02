@@ -8,12 +8,12 @@ Six metadata/derived members below are not additional INI keys.
 
 [cols="2m,2m,2m,4",options="header"]
 |===
-| Profile member | INI key | Wren BBS property | Runtime consumer
+| Profile member | INI key | Wren property (Profile unless qualified) | Runtime consumer
 | address | Address | addr | Transport endpoint / shell command
 | port | Port | port | Network connection
-| added | Added | added | Directory display/sort; set on add
-| connected | LastConnected | connected | Successful-connection transaction; directory sort/status
-| calls | TotalCalls | calls | Successful-connection transaction; directory sort
+| added | Added | DirectoryEntry.added | Directory display/sort; set on add
+| connected | LastConnected | DirectoryEntry.connected | Successful-connection transaction; directory sort/status
+| calls | TotalCalls | DirectoryEntry.calls | Successful-connection transaction; directory sort
 | username | UserName | user | SSH, RLogin, MQTT and connected auto-login
 | password | Password | password / ghostProgram | Authentication, auto-login and GHost program
 | system_password | SystemPassword | syspass | Connected auto-login
@@ -58,18 +58,18 @@ Six metadata/derived members below are not additional INI keys.
 | data_bits | DataBits | dataBits | Serial/modem configuration
 | parity | Parity | parity | Serial/modem configuration
 | palette | Palette | palette | Mode-family expansion; initial frame and terminal reset
-| sort_order | SortOrder | sortOrder | Directory explicit-order sort
+| sort_order | SortOrder | DirectoryEntry.sortOrder | Directory explicit-order sort
 |===
 
 [cols="2m,2m,6",options="header"]
 |===
 | Metadata member | Wren property | Contract
-| name | name | INI section name; normalized once at INI/Wren text boundary
-| source | type | Personal/system provenance, not stored as a key
-| identifier | id | Distinct per menu load, stable across sort/rename; -1 for defaults/quick/unsaved records; assigned on successful save
+| name | DirectoryEntry.name / Session.name | INI section name; normalized once at INI/Wren text boundary
+| source | DirectoryEntry.type / Session.entrySource | Personal/system provenance, not stored as a key
+| identifier | DirectoryEntry.id / Session.entryId | Distinct per menu load, stable across sort/rename; -1 for defaults/quick/unsaved records; assigned on successful save
 | ghost_program | ghostProgram | Transient URL override; named copies/save use Password, never a GHostProgram key
-| palette_size | paletteSize | Number of explicit Palette values (0..16)
-| ssh_fingerprint_size | sshFingerprintLen | Derived decoded fingerprint byte length (0, 20 or 32)
+| palette_size | palette.count | Number of explicit Palette values (0..16)
+| ssh_fingerprint_size | sshFingerprint.bytes.count | Derived decoded fingerprint byte length (0, 20 or 32)
 |===
 
 `WrenScripts` items are ASCII-whitespace-trimmed, validated basenames (1..255

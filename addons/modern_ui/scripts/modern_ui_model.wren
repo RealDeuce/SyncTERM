@@ -4,7 +4,7 @@ import "syncterm_menu" for Menu, MenuReadStatus
 import "menu_ui" for MenuUi
 import "menu_bbs_editor" for BbsEditor
 
-// Own only password text across model loads; BBS handles are generation-bound.
+// Own only password text across model loads; entry views expire on a successful full load.
 class ModernModel {
   static password=(value) { __password = value }
   static prepare() {
@@ -31,9 +31,8 @@ class ModernModel {
     }
     return true
   }
-  static offerSave(source) {
+  static offerSave(source, name) {
     if (!MenuUi.confirmStandaloneAtExit("Save connection", "Save this connection to your directory?")) return false
-    var name = source.name
     while (!Menu.nameAvailable(name)) {
       name = MenuUi.promptStandaloneAtExit("Save connection", "Entry name", name, 30, false, null)
       if (name == null || name.count == 0) return false

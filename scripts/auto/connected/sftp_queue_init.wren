@@ -14,13 +14,13 @@
 // these hooks are entry-only; mode switching while the App is up
 // is handled inside SftpApp.
 
-import "syncterm"  for BBS, ConnType, Hook, Key, Screen, SFTP, SFTPError
+import "syncterm"  for Session, ConnType, Hook, Key, Screen, SFTP, SFTPError
 import "ui_app" for App
 import "ui_popup" for Alert
 import "sftp_queue" for SftpQueue
 import "sftp_app"  for SftpApp
 
-if (SFTP.available || BBS.connType == ConnType.ssh || BBS.connType == ConnType.sshNoAuth) {
+if (SFTP.available || Session.current.profile.connType == ConnType.ssh || Session.current.profile.connType == ConnType.sshNoAuth) {
   SftpQueue.start()
   var browserOpening = false
 

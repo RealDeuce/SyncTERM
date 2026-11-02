@@ -228,6 +228,7 @@ struct st_wren_context {
 	const char *event;
 	struct st_wren_session_lease *session_leases;
 	WrenHandle *session_value;
+	WrenHandle *profile_value;
 	bool status_enabled;
 	bool link_hover_valid;
 	bool link_gesture;
@@ -485,5 +486,11 @@ int st_wren_interpret_profile_scripts(WrenVM *vm,
 struct st_wren_context *st_wren_session_context(WrenVM *vm);
 void st_wren_wire_dispose(struct st_wren_context *context);
 int st_wren_operation_cancel(WrenVM *vm, struct st_wren_operation *operation);
+
+bool st_wren_profile_push(WrenVM *vm, int slot, const struct st_profile *profile, bool read_only);
+WrenForeignClassMethods st_wren_profile_bind_class(const char *class_name);
+WrenForeignMethodFn st_wren_profile_bind_method(const char *class_name, bool is_static, const char *signature);
+void st_wren_entry_cache_push(WrenVM *vm, const struct st_wren_bbs_record *record,
+    uint64_t generation, uint64_t identity);
 
 #endif

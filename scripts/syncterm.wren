@@ -1035,6 +1035,13 @@ foreign class Session {
   foreign static current
   foreign hold()
   foreign holdCount
+  foreign profile
+  foreign name
+  foreign entryId
+  foreign entrySource
+  foreign added
+  foreign lastConnected
+  foreign calls
   foreign claimWire()
   hold(fn) {
     if (!(fn is Fn)) Fiber.abort("Session.hold expects a Fn")
@@ -1123,6 +1130,11 @@ class Capture {
   foreign static resume()
 }
 
+class TerminalEncoding {
+  static utf8 { 0 }
+  static codepage { 1 }
+}
+
 class CTerm {
   foreign static x
   foreign static y
@@ -1151,6 +1163,8 @@ class CTerm {
   foreign static scrollbackPos
   foreign static scrollbackStart
   foreign static emulation
+  foreign static encoding
+  foreign static codepage
   // Send a local key through cterm's active emulation mapping.  Returns
   // true when cterm handles the key, false when it has no mapping.
   foreign static sendKey(key)
@@ -1176,7 +1190,7 @@ class CTerm {
   foreign static mouseDisabled=(b)
   // Network character-pacing rate in BPS (Alt-Up / Alt-Down walk it
   // up and down the rates ladder).  0 = unthrottled.  Always 0 on
-  // serial connections; the configured port speed lives in BBS.bpsRate.
+  // serial connections; the configured port speed lives in Session.current.profile.bpsRate.
   foreign static throttleSpeed
   // Set the throttle to a specific BPS value (0 = unthrottled).
   // No-op on serial connections.
@@ -1219,63 +1233,110 @@ class StatusDisplay {
   static indicator { 1 }
   static host      { 2 }
 }
-class BBS {
-  foreign static name
-  foreign static addr
-  foreign static port
-  foreign static connType
-  foreign static connTypeName
-  foreign static user
-  foreign static password
-  foreign static syspass
-  foreign static music
-  foreign static rip
-  foreign static comment
-  // Ordered profile-selected modules loaded for this connection.
-  foreign static wrenScripts
-  foreign static type
-  foreign static id
-  foreign static addressFamily
-  foreign static termName
-  foreign static screenMode
-  foreign static bpsRate
-  foreign static font
-  foreign static noStatus
-  foreign static hidePopups
-  foreign static yellowIsYellow
-  foreign static forceLcf
-  foreign static added
-  foreign static connected
-  foreign static calls
-  foreign static dlDir
-  foreign static ulDir
-  foreign static logFile
-  foreign static appendLogFile
-  foreign static xferLogLevel
-  foreign static protocolLogLevel
-  foreign static ctermLogLevel
-  foreign static stopBits
-  foreign static dataBits
-  foreign static parity
-  foreign static flowControl
-  foreign static telnetNoBinary
-  foreign static deferTelnetNegotiation
-  foreign static tlsTrustWebPki
-  foreign static tlsTrustedCert
-  foreign static tlsClientCert
-  foreign static tlsClientKey
-  foreign static tlsPskIdentity
-  foreign static tlsPsk
-  foreign static tlsPskVersion
-  foreign static tlsVersionFloor
-  foreign static ghostProgram
-  foreign static sftpPublicKey
-  foreign static sshFingerprint
-  foreign static sshFingerprintLen
-  foreign static palette
-  foreign static paletteSize
-  foreign static sortOrder
+// Configuration has one field contract in menu and connected VMs. Views
+// retain their source entry; copy() creates an independent editable value.
+foreign class Profile {
+  foreign readOnly
+  foreign copy()
+  foreign sshFingerprint
+  foreign sshFingerprint=(value)
+  foreign connTypeName
+  foreign addr
+  foreign addr=(value)
+  foreign port
+  foreign port=(value)
+  foreign connType
+  foreign connType=(value)
+  foreign user
+  foreign user=(value)
+  foreign password
+  foreign password=(value)
+  foreign syspass
+  foreign syspass=(value)
+  foreign music
+  foreign music=(value)
+  foreign rip
+  foreign rip=(value)
+  foreign comment
+  foreign comment=(value)
+  foreign addressFamily
+  foreign addressFamily=(value)
+  foreign termName
+  foreign termName=(value)
+  foreign screenMode
+  foreign screenMode=(value)
+  foreign bpsRate
+  foreign bpsRate=(value)
+  foreign font
+  foreign encoding
+  foreign encoding=(value)
+  foreign font=(value)
+  foreign noStatus
+  foreign noStatus=(value)
+  foreign hidePopups
+  foreign hidePopups=(value)
+  foreign yellowIsYellow
+  foreign yellowIsYellow=(value)
+  foreign forceLcf
+  foreign forceLcf=(value)
+  foreign dlDir
+  foreign dlDir=(value)
+  foreign ulDir
+  foreign ulDir=(value)
+  foreign logFile
+  foreign logFile=(value)
+  foreign appendLogFile
+  foreign appendLogFile=(value)
+  foreign xferLogLevel
+  foreign xferLogLevel=(value)
+  foreign protocolLogLevel
+  foreign protocolLogLevel=(value)
+  foreign ctermLogLevel
+  foreign ctermLogLevel=(value)
+  foreign stopBits
+  foreign stopBits=(value)
+  foreign dataBits
+  foreign dataBits=(value)
+  foreign parity
+  foreign parity=(value)
+  foreign flowControl
+  foreign flowControl=(value)
+  foreign telnetNoBinary
+  foreign telnetNoBinary=(value)
+  foreign deferTelnetNegotiation
+  foreign deferTelnetNegotiation=(value)
+  foreign tlsTrustWebPki
+  foreign tlsTrustWebPki=(value)
+  foreign tlsTrustedCert
+  foreign tlsTrustedCert=(value)
+  foreign tlsClientCert
+  foreign tlsClientCert=(value)
+  foreign tlsClientKey
+  foreign tlsClientKey=(value)
+  foreign tlsPskIdentity
+  foreign tlsPskIdentity=(value)
+  foreign tlsPsk
+  foreign tlsPsk=(value)
+  foreign tlsPskVersion
+  foreign tlsPskVersion=(value)
+  foreign tlsVersionFloor
+  foreign tlsVersionFloor=(value)
+  foreign ghostProgram
+  foreign ghostProgram=(value)
+  foreign sftpPublicKey
+  foreign sftpPublicKey=(value)
+  foreign sshAllowAes128Cbc
+  foreign sshAllowAes128Cbc=(value)
+  foreign sshAcceptEarlyData
+  foreign sshAcceptEarlyData=(value)
+  foreign palette
+  foreign palette=(value)
+  foreign wrenScripts
+  foreign wrenScripts=(value)
+  foreign lfExpand
+  foreign lfExpand=(value)
 }
+
 class TLSVersion {
   static unknown { 0 }
   static tls12   { 1 }
@@ -1587,8 +1648,9 @@ foreign class HookHandle {
 
 // Module-private bridge for state the host owns but Wren shouldn't
 // be able to construct directly.  `cacheDirectory` returns a fresh
-// Directory for the active BBS cache pathname; no Wren-visible
-// Directory constructor exists, so this is the only path to that root.
+// Directory for the active session cache pathname; no Wren-visible
+// Directory constructor exists. The menu also grants saved personal entry
+// caches through DirectoryEntry.cache.
 //
 // `downloadDir` returns a fresh Directory rooted at the BBS's
 // configured DownloadPath, with the relaxed filename predicate
@@ -1631,7 +1693,7 @@ class FilePickerOptions {
 // hatch for "upload from anywhere": invokes the isolated file picker and
 // returns a File foreign whose path is the absolute path the user
 // picked, or null on cancel.  initialDir / mask may be null
-// (defaults to BBS.ulDir / `*`).  opts combines FilePickerOptions values.
+// (defaults to Session.current.profile.ulDir / `*`).  opts combines FilePickerOptions values.
 // The returned File bypasses
 // the relaxed-name policy - the picker UI is the sandbox boundary,
 // since the user explicitly chose the path.
@@ -1648,7 +1710,7 @@ class Host {
   foreign static uploadPath
   // initialDir may be a String path, a Directory foreign (uses its
   // path; handles Cache lazy-resolve), or null (defaults to
-  // BBS.uldir).  Returns a File on OK with a non-null .token
+  // Session.current.profile.ulDir).  Returns a File on OK with a non-null .token
   // (when the picker-token signing key is loaded), or null on
   // cancel.  See pickFiles for the multi-select counterpart.
   foreign static pickFile(initialDir, mask, opts)

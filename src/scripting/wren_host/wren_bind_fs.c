@@ -35,9 +35,33 @@ enum file_rights {
 
 enum file_direction { FILE_IDLE, FILE_READING, FILE_WRITING };
 
+struct entry_cache_owner {
+	uint64_t generation, identity;
+	char name[ST_PROFILE_NAME_MAX + 1];
+};
+
+static bool
+cache_owner_valid(WrenVM *vm, const struct entry_cache_owner *owner)
+{
+	if (owner->identity == 0) return true;
+	struct st_wren_bbs_record *record = st_wren_bbs_model_find(
+	    &st_wren_host_from_vm(vm)->bbs_model, owner->generation, owner->identity);
+	return record != NULL && !record->new_entry
+	    && record->source == ST_BBS_SOURCE_PERSONAL
+	    && strcmp(record->persisted_name, owner->name) == 0;
+}
+static bool
+check_cache_owner(WrenVM *vm, const struct entry_cache_owner *owner)
+{
+	if (cache_owner_valid(vm, owner)) return true;
+	st_wren_abort(vm, "entry cache grant is stale");
+	return false;
+}
+
 struct st_wren_file {
 	uint32_t magic;
 	struct st_wren_context *context;
+	struct entry_cache_owner owner;
 	char *path;
 	char *token;
 	FILE *stream;
@@ -50,6 +74,7 @@ struct st_wren_file {
 struct st_wren_directory {
 	uint32_t magic;
 	struct st_wren_context *context;
+	struct entry_cache_owner owner;
 	char *path;
 	bool relaxed;
 };
@@ -309,6 +334,7 @@ checked_file(WrenVM *vm, bool require_open, unsigned int rights)
 		st_wren_abort(vm, "File: not open");
 		return NULL;
 	}
+	if (file->stream == NULL && !check_cache_owner(vm, &file->owner)) return NULL;
 	if (file->stream == NULL
 	    && !(file->disposition == ST_WREN_PICKER_DISPOSITION_CREATE
 	    && !file->consumed)) {
@@ -346,7 +372,7 @@ checked_directory(WrenVM *vm)
 	struct st_wren_directory *directory = directory_handle(vm);
 	struct fs_info info;
 
-	if (directory == NULL)
+	if (directory == NULL || !check_cache_owner(vm, &directory->owner))
 		return NULL;
 	errno = 0;
 	int status = fs_get_info(&info, directory->path);
@@ -378,7 +404,8 @@ directory_child(WrenVM *vm, char **path)
 
 static bool
 push_file_full(WrenVM *vm, int slot, const char *path, unsigned int rights,
-	enum st_wren_picker_disposition disposition, const char *token)
+	enum st_wren_picker_disposition disposition, const char *token,
+	const struct entry_cache_owner *owner)
 {
 	struct st_wren_file *file;
 
@@ -393,6 +420,7 @@ push_file_full(WrenVM *vm, int slot, const char *path, unsigned int rights,
 		.rights = rights,
 		.disposition = disposition,
 	};
+	if (owner != NULL) file->owner = *owner;
 	if (file->path == NULL || (token != NULL && file->token == NULL)) {
 		free(file->path);
 		free(file->token);
@@ -422,7 +450,7 @@ st_wren_file_push(WrenVM *vm, int slot, const char *path,
 	if (disposition != ST_WREN_PICKER_DISPOSITION_NONE
 	    && disposition != ST_WREN_PICKER_DISPOSITION_READ)
 		rights = FILE_RIGHT_WRITE;
-	bool result = push_file_full(vm, slot, path, rights, disposition, token);
+	bool result = push_file_full(vm, slot, path, rights, disposition, token, NULL);
 
 	st_crypto_clear(key, sizeof(key));
 	free(token);
@@ -430,7 +458,8 @@ st_wren_file_push(WrenVM *vm, int slot, const char *path,
 }
 
 static bool
-push_directory(WrenVM *vm, int slot, const char *path, bool relaxed)
+push_directory(WrenVM *vm, int slot, const char *path, bool relaxed,
+	const struct entry_cache_owner *owner)
 {
 	struct st_wren_directory *directory;
 	char *absolute = absolute_path(path);
@@ -447,6 +476,7 @@ push_directory(WrenVM *vm, int slot, const char *path, bool relaxed)
 		.path = absolute,
 		.relaxed = relaxed,
 	};
+	if (owner != NULL) directory->owner = *owner;
 	return true;
 }
 
@@ -521,11 +551,11 @@ fn_directory_list(WrenVM *vm)
 		}
 		wrenSetSlotString(vm, 1, entry->name);
 		if (info.kind == FS_ENTRY_DIRECTORY)
-			pushed = push_directory(vm, 2, path, directory->relaxed);
+			pushed = push_directory(vm, 2, path, directory->relaxed, &directory->owner);
 		else
 			pushed = push_file_full(vm, 2, path,
 			    FILE_RIGHT_READ | FILE_RIGHT_WRITE,
-			    ST_WREN_PICKER_DISPOSITION_NONE, NULL);
+			    ST_WREN_PICKER_DISPOSITION_NONE, NULL, &directory->owner);
 		free(path);
 		if (!pushed) {
 			push_error(vm, IO_ERROR_OUT_OF_MEMORY, 0, "Directory entry allocation failed");
@@ -556,7 +586,7 @@ fn_directory_create(WrenVM *vm)
 		if (fclose(stream) != 0)
 			push_errno_error(vm, errno, "New file close failed");
 		else if (!push_file_full(vm, 0, path, FILE_RIGHT_READ | FILE_RIGHT_WRITE,
-		    ST_WREN_PICKER_DISPOSITION_NONE, NULL))
+		    ST_WREN_PICKER_DISPOSITION_NONE, NULL, &directory->owner))
 			push_error(vm, IO_ERROR_OUT_OF_MEMORY, 0, "File grant allocation failed");
 	}
 	free(path);
@@ -575,7 +605,7 @@ fn_directory_create_dir(WrenVM *vm)
 	status = fs_create_directory(path);
 	if (status != 0)
 		push_error(vm, status, errno, "Directory creation failed");
-	else if (!push_directory(vm, 0, path, directory->relaxed))
+	else if (!push_directory(vm, 0, path, directory->relaxed, &directory->owner))
 		push_error(vm, IO_ERROR_OUT_OF_MEMORY, 0, "Directory grant allocation failed");
 	free(path);
 }
@@ -1077,7 +1107,7 @@ fn_file_mtime(WrenVM *vm)
 	struct st_wren_file *file = checked_file(vm, false, 0);
 	struct fs_info info;
 
-	if (file == NULL || !file_flush(vm, file))
+	if (file == NULL || !check_cache_owner(vm, &file->owner) || !file_flush(vm, file))
 		return;
 	errno = 0;
 	int status = fs_get_info(&info, file->path);
@@ -1101,7 +1131,7 @@ fn_file_mtime_set(WrenVM *vm)
 		return;
 	}
 	file = checked_file(vm, false, FILE_RIGHT_WRITE);
-	if (file == NULL || !file_flush(vm, file))
+	if (file == NULL || !check_cache_owner(vm, &file->owner) || !file_flush(vm, file))
 		return;
 	errno = 0;
 	int status = fs_set_modified_time(file->path, modified);
@@ -1150,7 +1180,8 @@ st_wren_file_read_path(WrenVM *vm, int slot)
 	file = wrenGetSlotForeign(vm, slot);
 	if (file == NULL || file->magic != ST_WREN_FILE_MAGIC
 	    || file->context != st_wren_context_from_vm(vm)
-	    || (file->rights & FILE_RIGHT_READ) == 0)
+	    || (file->rights & FILE_RIGHT_READ) == 0
+	    || !cache_owner_valid(vm, &file->owner))
 		return NULL;
 	return file->path;
 }
@@ -1219,7 +1250,8 @@ st_wren_directory_path(WrenVM *vm, int slot)
 		return NULL;
 	directory = wrenGetSlotForeign(vm, slot);
 	if (directory == NULL || directory->magic != ST_WREN_DIRECTORY_MAGIC
-	    || directory->context != st_wren_context_from_vm(vm))
+	    || directory->context != st_wren_context_from_vm(vm)
+	    || !cache_owner_valid(vm, &directory->owner))
 		return NULL;
 	return directory->path;
 }
@@ -1243,7 +1275,7 @@ file_digest(WrenVM *vm, enum st_digest_algorithm algorithm)
 	uint8_t digest[64];
 	size_t size = st_digest_size(algorithm);
 
-	if (file == NULL)
+	if (file == NULL || !check_cache_owner(vm, &file->owner))
 		return;
 	if (!file_flush(vm, file))
 		return;
@@ -1310,8 +1342,25 @@ fn_host_cache(WrenVM *vm)
 	if (host->bbs_list == NULL || profile == NULL
 	    || st_bbs_list_cache_path(&path, host->bbs_list,
 	    profile->name) != 0 || fs_create_directories(path) != 0
-	    || !push_directory(vm, 0, path, false))
+	    || !push_directory(vm, 0, path, false, NULL))
 		wrenSetSlotNull(vm, 0);
+	free(path);
+}
+
+void
+st_wren_entry_cache_push(WrenVM *vm, const struct st_wren_bbs_record *record,
+	uint64_t generation, uint64_t identity)
+{
+	if (record->source != ST_BBS_SOURCE_PERSONAL || record->new_entry
+	    || record->persisted_name[0] == '\0') { wrenSetSlotNull(vm, 0); return; }
+	struct entry_cache_owner owner = {.generation = generation, .identity = identity};
+	(void)snprintf(owner.name, sizeof(owner.name), "%s", record->persisted_name);
+	char *path = NULL;
+	int status = st_bbs_list_cache_path(&path, st_wren_host_from_vm(vm)->bbs_list, owner.name);
+	if (status == 0) status = fs_create_directories(path);
+	if (status != 0) push_error(vm, status, 0, "Entry cache unavailable");
+	else if (!push_directory(vm, 0, path, false, &owner))
+		push_error(vm, IO_ERROR_OUT_OF_MEMORY, 0, "Entry cache allocation failed");
 	free(path);
 }
 
@@ -1357,7 +1406,7 @@ fn_host_download(WrenVM *vm)
 	path = profile == NULL ? NULL : profile->download_directory;
 	if (profile == NULL || dangerous_download(path)
 	    || fs_get_info(&info, path) != 0 || info.kind != FS_ENTRY_DIRECTORY
-	    || !push_directory(vm, 0, path, true))
+	    || !push_directory(vm, 0, path, true, NULL))
 		wrenSetSlotNull(vm, 0);
 }
 
@@ -1397,7 +1446,7 @@ fn_host_open_local(WrenVM *vm)
 	token = wrenGetSlotString(vm, 1);
 	if (st_consent_token_verify(&path, key, token) != ST_CRYPTO_OK
 	    || !push_file_full(vm, 0, path, FILE_RIGHT_READ,
-	    ST_WREN_PICKER_DISPOSITION_READ, token))
+	    ST_WREN_PICKER_DISPOSITION_READ, token, NULL))
 		wrenSetSlotNull(vm, 0);
 
 finished:

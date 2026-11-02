@@ -173,13 +173,13 @@ class ModernDirectory {
     var query = _search.value
     for (entry in _entries) {
       if (query.count == 0 || Text.caselessContains(entry.name, query) ||
-          Text.caselessContains(entry.addr, query) || Text.caselessContains(entry.comment, query)) {
+          Text.caselessContains(entry.profile.addr, query) || Text.caselessContains(entry.profile.comment, query)) {
         if (entry.name == _preferred) chosen = _visible.count
         _visible.add(entry)
         labels.add(entry.name)
       }
     }
-    _list.setEntries(labels, _visible.map {|entry| entry.addr }.toList)
+    _list.setEntries(labels, _visible.map {|entry| entry.profile.addr }.toList)
     _list.emptyMessage = _entries.count == 0 ? "Your directory is empty." : "No matching connections."
     _list.focusable = labels.count > 0
     if (labels.count > 0) {
@@ -269,13 +269,13 @@ class ModernDirectory {
       if (entry != null) {
         var source = entry.type == 0 ? "Personal" : "Shared"
         var column = _list.columnX.max(Screen.textWidth(entry.name, 0) + 4)
-        var meta = "%(entry.connTypeName) :%(entry.port) / %(source)"
+        var meta = "%(entry.profile.connTypeName) :%(entry.profile.port) / %(source)"
         if (Screen.textWidth(meta, 0) > _contentW - column - 2) {
-          meta = "%(entry.connTypeName):%(entry.port) %(source)"
+          meta = "%(entry.profile.connTypeName):%(entry.profile.port) %(source)"
         }
         text_(sf, x + column, dy, meta,
             ModernStyle.muted, detailBg, _contentW - column - 2)
-        text_(sf, x + 2, dy + 1, entry.comment.count > 0 ? entry.comment : entry.addr,
+        text_(sf, x + 2, dy + 1, entry.profile.comment.count > 0 ? entry.profile.comment : entry.profile.addr,
             ModernStyle.muted, detailBg, _contentW - 4)
       }
     }
@@ -370,22 +370,22 @@ class ModernDirectory {
     _preferred = name
     _search.value = ""
     reload_()
-    var type = BbsEditor.chooseConnectionType(_app, entry.connType)
+    var type = BbsEditor.chooseConnectionType(_app, entry.profile.connType)
     if (type == null) {
       entry.delete()
       reload_()
       return
     }
-    entry.connType = type
+    entry.profile.connType = type
     var port = Menu.defaultPort(type)
-    if (port > 0) entry.port = port
-    var address = MenuUi.prompt(_app, "New connection", "Address / device / command", entry.addr, 64, false)
+    if (port > 0) entry.profile.port = port
+    var address = MenuUi.prompt(_app, "New connection", "Address / device / command", entry.profile.addr, 64, false)
     if (address == null || address.count == 0) {
       entry.delete()
       reload_()
       return
     }
-    entry.addr = address
+    entry.profile.addr = address
     if (!entry.save()) {
       Alert.show(_app, "New connection", "The entry could not be saved.")
       entry.delete()

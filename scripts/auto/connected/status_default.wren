@@ -21,7 +21,7 @@
 // `Status.callable = ...` from any later script.
 
 import "syncterm" for Transfer
-import "syncterm" for Status, Surface, Screen, BBS, Capture, CTerm, Host, Conn, ConnType
+import "syncterm" for Status, Surface, Screen, Session, Capture, CTerm, Host, Conn, ConnType
 
 class StatusDefault {
   // Cell colour palette (RGB; matches the C original's vmem_cell.fg
@@ -104,12 +104,12 @@ class StatusDefault {
   // throttleSpeed for network connections (Alt-Up/Down adjustable),
   // or the configured port rate for serial.
   static nameWithFlags_() {
-    var n = BBS.name
+    var n = Session.current.name
     if (Host.safeMode) n = n + " (SAFE)"
     if (Capture.active) n = n + " (Logging)"
-    var ct = BBS.connType
+    var ct = Session.current.profile.connType
     var isSerial = ct == ConnType.serial || ct == ConnType.serialNoRts
-    var rate = isSerial ? BBS.bpsRate : CTerm.throttleSpeed
+    var rate = isSerial ? Session.current.profile.bpsRate : CTerm.throttleSpeed
     if (rate > 0) n = n + " (%(rate))"
     if (CTerm.doorwayMode) n = n + " (DrWy)"
     var ooii = CTerm.ooiiMode
@@ -136,10 +136,10 @@ class StatusDefault {
   // snapshotted when the disconnect notice appears, so elapsed time does not
   // continue advancing while the user waits or reads the popup.
   static details() {
-    var lines = ["BBS: %(BBS.name)", "Connection: %(BBS.connTypeName)"]
-    var ct = BBS.connType
+    var lines = ["BBS: %(Session.current.name)", "Connection: %(Session.current.profile.connTypeName)"]
+    var ct = Session.current.profile.connType
     var isSerial = ct == ConnType.serial || ct == ConnType.serialNoRts
-    var rate = isSerial ? BBS.bpsRate : CTerm.throttleSpeed
+    var rate = isSerial ? Session.current.profile.bpsRate : CTerm.throttleSpeed
     if (rate > 0) lines.add("Speed: %(rate) bps")
     lines.add("Connected: %(elapsedString_())")
 
@@ -284,7 +284,7 @@ class StatusDefault {
     // padded to 6 chars so its column doesn't drift when "SSH" gives
     // way to "Telnet".
     var name = (Transfer.active && Transfer.inlineProgress) ? Transfer.snapshot()[1] : nameWithFlags_()
-    var conn = padTo_(BBS.connTypeName, 6)
+    var conn = padTo_(Session.current.profile.connTypeName, 6)
     var time = w >= 80 ? "Connected: %(elapsedString_())" : ""
     var menu = w >= 80 ? "%(Host.altKeyShort)-Z menu" : ""
 

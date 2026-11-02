@@ -1,8 +1,8 @@
 // Copyright (c) 2026 Stephen Hurd
 // SPDX-License-Identifier: BSD-2-Clause
-import "syncterm" for Hook, Key, Transfer, Host, BBS, ConnType, Mod
+import "syncterm" for Hook, Key, Transfer, Host, Session, ConnType, Mod
 import "transfer_pick" for TransferFlow
-if (!Host.safeMode && BBS.connType != ConnType.mqtt) {
+if (!Host.safeMode && Session.current.profile.connType != ConnType.mqtt) {
   Hook.onCommand_(117) {|key|
     TransferFlow.upload()
     return true

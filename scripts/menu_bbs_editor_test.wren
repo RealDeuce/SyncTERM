@@ -136,7 +136,7 @@ class MenuTest {
     if (defaults != null) fiber.try()
     check_(defaults != null && fiber.error != null &&
            defaults.wrenScripts.count == 0,
-           "BBS.wrenScripts: defaults cannot activate connection scripts")
+           "Profile.wrenScripts: defaults reject per-entry scripts")
   }
 
   static testEditorScripts_() {
@@ -152,7 +152,7 @@ class MenuTest {
     check_(scriptRows.count == 0, "defaults editor: scripts are omitted")
 
     var entry = Menu.create("Empty Scripts Test")
-    var profile = entry
+    var profile = entry.profile
     draft = BbsEditor.draft_(entry)
     rows = BbsEditor.rows_(app, entry, draft, false)
     scriptRows = rows.where {|row| row[0].startsWith("Wren Scripts") }.toList
@@ -173,23 +173,23 @@ class MenuTest {
     var assigned = false
     var saved = false
     if (created) {
-      entry.wrenScripts = ["ui_list", "menu_bbs_editor", "ui_list"]
-      entry.tlsTrustWebPki = false
-      entry.tlsTrustedCert = "/tls/bbs.pem"
-      entry.tlsClientCert = "/tls/client.pem"
-      entry.tlsClientKey = "/tls/client.key"
-      entry.tlsPskIdentity = "test identity"
-      entry.tlsPsk = "test shared secret"
-      entry.tlsPskVersion = TLSVersion.tls12
-      entry.tlsVersionFloor = TLSVersion.tls13
-      assigned = same_(entry.wrenScripts, ["ui_list", "menu_bbs_editor"]) &&
-          entry.tlsTrustedCert == "/tls/bbs.pem" &&
-          entry.tlsClientCert == "/tls/client.pem" &&
-          entry.tlsClientKey == "/tls/client.key" &&
-          entry.tlsPskIdentity == "test identity" &&
-          entry.tlsPsk == "test shared secret" &&
-          entry.tlsPskVersion == TLSVersion.tls12 &&
-          entry.tlsVersionFloor == TLSVersion.tls13
+      entry.profile.wrenScripts = ["ui_list", "menu_bbs_editor", "ui_list"]
+      entry.profile.tlsTrustWebPki = false
+      entry.profile.tlsTrustedCert = "/tls/bbs.pem"
+      entry.profile.tlsClientCert = "/tls/client.pem"
+      entry.profile.tlsClientKey = "/tls/client.key"
+      entry.profile.tlsPskIdentity = "test identity"
+      entry.profile.tlsPsk = "test shared secret"
+      entry.profile.tlsPskVersion = TLSVersion.tls12
+      entry.profile.tlsVersionFloor = TLSVersion.tls13
+      assigned = same_(entry.profile.wrenScripts, ["ui_list", "menu_bbs_editor"]) &&
+          entry.profile.tlsTrustedCert == "/tls/bbs.pem" &&
+          entry.profile.tlsClientCert == "/tls/client.pem" &&
+          entry.profile.tlsClientKey == "/tls/client.key" &&
+          entry.profile.tlsPskIdentity == "test identity" &&
+          entry.profile.tlsPsk == "test shared secret" &&
+          entry.profile.tlsPskVersion == TLSVersion.tls12 &&
+          entry.profile.tlsVersionFloor == TLSVersion.tls13
       saved = entry.save()
     }
 
@@ -201,20 +201,20 @@ class MenuTest {
         if (candidate.name == "Wren Script Test") found = candidate
       }
     }
-    var retained = found != null && same_(found.wrenScripts,
-        ["ui_list", "menu_bbs_editor"]) && !found.tlsTrustWebPki &&
-        found.tlsTrustedCert == "/tls/bbs.pem" &&
-        found.tlsClientCert == "/tls/client.pem" &&
-        found.tlsClientKey == "/tls/client.key" &&
-        found.tlsPskIdentity == "test identity" &&
-        found.tlsPsk == "test shared secret" &&
-        found.tlsPskVersion == TLSVersion.tls12 &&
-        found.tlsVersionFloor == TLSVersion.tls13
+    var retained = found != null && same_(found.profile.wrenScripts,
+        ["ui_list", "menu_bbs_editor"]) && !found.profile.tlsTrustWebPki &&
+        found.profile.tlsTrustedCert == "/tls/bbs.pem" &&
+        found.profile.tlsClientCert == "/tls/client.pem" &&
+        found.profile.tlsClientKey == "/tls/client.key" &&
+        found.profile.tlsPskIdentity == "test identity" &&
+        found.profile.tlsPsk == "test shared secret" &&
+        found.profile.tlsPskVersion == TLSVersion.tls12 &&
+        found.profile.tlsVersionFloor == TLSVersion.tls13
     if (!(loaded && created && assigned && saved && reloaded && retained)) {
       System.print("  persistence state: loaded=%(loaded), " +
           "created=%(created), assigned=%(assigned), saved=%(saved), " +
           "reloaded=%(reloaded), found=%(found != null), " +
-          "scripts=%(found == null ? [] : found.wrenScripts)")
+          "scripts=%(found == null ? [] : found.profile.wrenScripts)")
     }
     if (found != null) found.delete()
     check_(loaded && created && assigned && saved && reloaded && retained,

@@ -26,7 +26,7 @@
 //   - Hook.onStatus: would replace the status bar for the test's
 //     duration and would never deregister.
 
-import "syncterm" for Session, WireLease, ConnError, Hook, Conn, Console, Screen, CTerm, BBS, Key, Mod,
+import "syncterm" for Session, WireLease, ConnError, Hook, Conn, Console, Screen, CTerm, Key, Mod,
     Codepage, ConnType, Emulation, Font, LogSource, LogLevel,
     Parity, BBSListType, ScreenMode, AddressFamily, MusicMode,
     RipVersion, LogMode, StatusDisplay, Color, Cell, Hyperlinks,
@@ -908,8 +908,8 @@ class WrenTest {
   }
 
   static testBBS_() {
-    check_(BBS.name is String && BBS.name.count > 0 &&
-           BBS.connType is Num && BBS.wrenScripts is List,
+    check_(Session.current.name is String && Session.current.name.count > 0 &&
+           Session.current.profile.connType is Num && Session.current.profile.wrenScripts is List,
            "BBS identity fields and Wren script list are available")
   }
 

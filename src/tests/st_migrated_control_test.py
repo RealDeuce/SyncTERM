@@ -189,9 +189,9 @@ def rendering(executable, encoding, reports):
 def profile(executable, reports):
     def prepare(root):
         write_script(root, "entry_options", '''
-import "syncterm" for BBS, CTerm, Conn, Host
+import "syncterm" for Session, CTerm, Conn, Host
 if (CTerm.music != 2 || !CTerm.lastColumnFlag.forced || !CTerm.hasPaletteOverride || CTerm.paletteOverride[6] != 66051) Fiber.abort("presentation options")
-if (BBS.calls != 6 || BBS.connected <= 0 || Host.logLevel != 7 || BBS.ctermLogLevel != 7 || BBS.wrenScripts.count != 1) Fiber.abort("session options")
+if (Session.current.calls != 6 || Session.current.lastConnected <= 0 || Host.logLevel != 7 || Session.current.profile.ctermLogLevel != 7 || Session.current.profile.wrenScripts.count != 1) Fiber.abort("session options")
 CTerm.write("\\U0010ffff\\n")
 if (!Conn.sessionLog.contains("CTerm Debug: Missing glyph (.noglyph)")) Fiber.abort("session log snapshot")
 Conn.sendText("PROFILE-READY")

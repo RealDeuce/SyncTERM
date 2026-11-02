@@ -92,6 +92,36 @@ fn_session_current(WrenVM *vm)
 }
 
 static void
+fn_session_profile(WrenVM *vm)
+{
+	struct st_wren_context *context = st_wren_session_context(vm);
+	if (context == NULL) return;
+	if (context->profile_value == NULL) {
+		if (!st_wren_profile_push(vm, 0, context->profile, true)) {
+			st_wren_abort(vm, "could not snapshot session profile"); return;
+		}
+		context->profile_value = wrenGetSlotHandle(vm, 0);
+	}
+	else wrenSetSlotHandle(vm, 0, context->profile_value);
+}
+static void fn_session_name(WrenVM *vm)
+{
+	struct st_wren_context *context = st_wren_session_context(vm);
+	if (context != NULL) wrenSetSlotString(vm, 0, context->profile->name);
+}
+#define SESSION_METADATA(name, field) \
+	static void fn_session_##name(WrenVM *vm) { \
+		struct st_wren_context *context = st_wren_session_context(vm); \
+		if (context != NULL) st_wren_return_i64(vm, context->profile->field); \
+	}
+SESSION_METADATA(entry_id, identifier)
+SESSION_METADATA(entry_source, source)
+SESSION_METADATA(added, added)
+SESSION_METADATA(last_connected, connected)
+SESSION_METADATA(calls, calls)
+#undef SESSION_METADATA
+
+static void
 fn_session_hold(WrenVM *vm)
 {
 	struct st_wren_context *context = st_wren_session_context(vm);
@@ -175,6 +205,10 @@ st_wren_session_object_dispose(WrenVM *vm)
 	struct st_wren_context *context = st_wren_context_from_vm(vm);
 
 	st_wren_session_release_holds(vm);
+	if (context->profile_value != NULL) {
+		wrenReleaseHandle(vm, context->profile_value);
+		context->profile_value = NULL;
+	}
 	if (context->session_value != NULL) {
 		wrenReleaseHandle(vm, context->session_value);
 		context->session_value = NULL;
@@ -198,6 +232,15 @@ st_wren_session_object_bind_method(const char *class_name, bool is_static,
 	if (strcmp(class_name, "Session") == 0) {
 		if (is_static && strcmp(signature, "current") == 0)
 			return fn_session_current;
+		if (!is_static) {
+			if (strcmp(signature, "profile") == 0) return fn_session_profile;
+			if (strcmp(signature, "name") == 0) return fn_session_name;
+			if (strcmp(signature, "entryId") == 0) return fn_session_entry_id;
+			if (strcmp(signature, "entrySource") == 0) return fn_session_entry_source;
+			if (strcmp(signature, "added") == 0) return fn_session_added;
+			if (strcmp(signature, "lastConnected") == 0) return fn_session_last_connected;
+			if (strcmp(signature, "calls") == 0) return fn_session_calls;
+		}
 		if (!is_static && strcmp(signature, "hold()") == 0)
 			return fn_session_hold;
 		if (!is_static && strcmp(signature, "holdCount") == 0)

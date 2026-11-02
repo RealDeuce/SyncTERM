@@ -93,9 +93,8 @@ st_wren_bbs_model_init(struct st_wren_bbs_model *model)
 {
 	memset(model, 0, sizeof(*model));
 	st_profile_init(&model->defaults.profile);
-	st_profile_init(&model->transient.profile);
 	model->generation = 1;
-	model->transient_generation = 1;
+	model->next_identity = 1;
 }
 
 void
@@ -108,8 +107,6 @@ st_wren_bbs_model_dispose(struct st_wren_bbs_model *model)
 	free(model->entries);
 	st_profile_dispose(&model->defaults.profile);
 	free(model->defaults.name_key);
-	st_profile_dispose(&model->transient.profile);
-	free(model->transient.name_key);
 	memset(model, 0, sizeof(*model));
 }
 
@@ -206,8 +203,10 @@ st_wren_bbs_model_build(struct st_wren_bbs_model *model,
 		if ((record = copy_entry(entry)) == NULL)
 			return IO_ERROR_OUT_OF_MEMORY;
 		for (struct st_wren_bbs_record *next = record; next != NULL;
-		    next = next->shadowed)
+		    next = next->shadowed) {
 			next->profile.identifier = model->next_identifier++;
+			next->identity = model->next_identity++;
+		}
 		model->entries[model->count++] = record;
 	}
 	model->loaded = true;
@@ -219,13 +218,11 @@ st_wren_bbs_model_replace(struct st_wren_bbs_model *destination,
     struct st_wren_bbs_model *replacement)
 {
 	uint64_t generation = destination->generation + 1;
-	uint64_t transient_generation = destination->transient_generation + 1;
 
 	st_wren_bbs_model_dispose(destination);
 	*destination = *replacement;
 	memset(replacement, 0, sizeof(*replacement));
 	destination->generation = generation;
-	destination->transient_generation = transient_generation;
 }
 
 size_t
@@ -251,20 +248,26 @@ contains(const struct st_wren_bbs_model *model,
 	return false;
 }
 
+struct st_wren_bbs_record *
+st_wren_bbs_model_find(const struct st_wren_bbs_model *model,
+	uint64_t generation, uint64_t identity)
+{
+	if (model == NULL || !model->loaded || model->generation != generation) return NULL;
+	for (size_t i = 0; i < model->count; ++i) {
+		if (model->entries[i]->identity == identity) return model->entries[i];
+	}
+	return NULL;
+}
+
 bool
 st_wren_bbs_model_valid(const struct st_wren_bbs_model *model,
-    const struct st_wren_bbs_record *record, enum st_wren_bbs_kind kind,
-    uint64_t generation)
+	const struct st_wren_bbs_record *record, enum st_wren_bbs_kind kind,
+	uint64_t generation, uint64_t identity)
 {
-	if (model == NULL || record == NULL || !model->loaded)
-		return false;
+	if (model == NULL || record == NULL || !model->loaded) return false;
 	if (kind == ST_WREN_BBS_DEFAULTS)
 		return generation == model->generation && record == &model->defaults;
-	if (kind == ST_WREN_BBS_TRANSIENT)
-		return model->transient_valid
-		    && generation == model->transient_generation
-		    && record == &model->transient;
-	return generation == model->generation && contains(model, record);
+	return st_wren_bbs_model_find(model, generation, identity) == record;
 }
 
 bool
@@ -398,13 +401,13 @@ st_wren_bbs_model_create(struct st_wren_bbs_model *model, const char *name,
 	record->persisted_name[0] = '\0';
 	record->dirty = true;
 	record->new_entry = true;
+	record->identity = model->next_identity++;
 	record->shadowed = shadowed;
 	if (shadowed == NULL)
 		model->entries[model->count++] = record;
 	else
 		model->entries[shadowed_index] = record;
-	model->generation++;
-	st_wren_bbs_model_invalidate_transient(model);
+
 	st_wren_bbs_model_sort(model, fields, field_count);
 	return record;
 }
@@ -465,6 +468,7 @@ st_wren_bbs_model_saved(struct st_wren_bbs_model *model,
 	if (record->shadowed != NULL
 	    && !st_bbs_name_equal(record->profile.name,
 	    record->shadowed->profile.name)) {
+		record->shadowed->identity = model->next_identity++;
 		model->entries[model->count++] = record->shadowed;
 		record->shadowed = NULL;
 	}
@@ -485,6 +489,7 @@ st_wren_bbs_model_delete(struct st_wren_bbs_model *model,
 	if (index == SIZE_MAX)
 		return false;
 	if (record->shadowed != NULL) {
+		record->shadowed->identity = model->next_identity++;
 		model->entries[index] = record->shadowed;
 		record->shadowed = NULL;
 	}
@@ -494,47 +499,7 @@ st_wren_bbs_model_delete(struct st_wren_bbs_model *model,
 		model->count--;
 	}
 	free_record(record);
-	model->generation++;
-	st_wren_bbs_model_invalidate_transient(model);
+
 	st_wren_bbs_model_sort(model, fields, field_count);
 	return true;
-}
-
-bool
-st_wren_bbs_model_set_transient(struct st_wren_bbs_model *model,
-    const struct st_profile *profile)
-{
-	struct st_profile copy;
-	char *key;
-	size_t key_size;
-
-	st_profile_init(&copy);
-	if (!st_profile_copy(&copy, profile)
-	    || st_unicode_caseless_key(&key, &key_size, profile->name,
-	    strlen(profile->name)) != 0) {
-		st_profile_dispose(&copy);
-		return false;
-	}
-	st_profile_dispose(&model->transient.profile);
-	free(model->transient.name_key);
-	memset(&model->transient, 0, sizeof(model->transient));
-	model->transient.profile = copy;
-	model->transient.name_key = key;
-	model->transient.name_key_size = key_size;
-	model->transient.source = ST_BBS_SOURCE_PERSONAL;
-	model->transient_generation++;
-	model->transient_valid = true;
-	return true;
-}
-
-void
-st_wren_bbs_model_invalidate_transient(struct st_wren_bbs_model *model)
-{
-	st_profile_dispose(&model->transient.profile);
-	free(model->transient.name_key);
-	model->transient.name_key = NULL;
-	model->transient.name_key_size = 0;
-	st_profile_init(&model->transient.profile);
-	model->transient_generation++;
-	model->transient_valid = false;
 }

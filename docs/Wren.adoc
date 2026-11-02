@@ -832,7 +832,7 @@ The currently embedded scripts are:
 | `syncterm_menu`
 | library / menu only
 | Trusted main-menu data model: transactional BBS-list loading and
-  mutable `BBS` records, program settings, web lists, and custom-font
+  editable DirectoryEntry records, program settings, web lists, and custom-font
   configuration.  The connected loader rejects this module.
 
 | `syncterm_picker`
@@ -1077,9 +1077,10 @@ An override must export class `MainMenu` with these static methods:
   and returns a Bool indicating whether the model is ready.
 * `run(currentName, connected)` presents the directory. `currentName`
   is a String or `null`. When `connected` is false, return a current
-  menu `BBS` handle to start that connection or `null` to exit.
+  DirectoryEntry or Profile to start that connection or `null` to exit.
   Connected invocations are edit-only; their return value is ignored.
-* `offerSave(source)` receives a menu-owned transient `BBS` after a
+* `offerSave(source, name)` receives a detached Profile and a separate
+  suggested entry name after a
   command-line connection and returns whether it was saved. The host
   calls `prepare()` first, then copies the C record into menu storage;
   no connection-owned pointer or foreign value is passed into Wren.
@@ -1285,7 +1286,7 @@ markup is unsupported.
 
 The shipped editors distinguish accepting an edit from writing its backing
 file.  A confirmed entry field immediately
-updates the C-owned `BBS`, and a confirmed program setting is immediately
+updates the entry-backed Profile view, and a confirmed program setting is immediately
 applied to the running settings.  Their files are written when the owning
 entry or Program Settings editor closes.  Font changes stay in the font
 model until Font Management closes.  Sort-profile operations update the
@@ -1469,7 +1470,7 @@ imported separately:
 
 [source,wren]
 ----
-import "syncterm_menu" for Menu, BBS, Settings, MenuFont, MenuReadStatus, MenuEncryption, MenuFontSlot
+import "syncterm_menu" for Menu, DirectoryEntry, Settings, MenuFont, MenuReadStatus, MenuEncryption, MenuFontSlot
 ----
 
 `Cache` is injected into the `syncterm` module from C as a
@@ -3708,6 +3709,17 @@ belong to independent `SessionLease` objects, separately from terminal state.
 [options="header",cols="2,3"]
 |===
 | Member | Description
+| `Session.current.profile`
+| Stable read-only Profile snapshot of the connection configuration. Its
+  `copy()` creates an independent editable Profile.
+| `Session.current.name`
+| Captured connection name.
+| `entryId`, `entrySource`
+| Captured directory ID and `BBSListType` provenance. A transient connection
+  has ID -1.
+| `added`, `lastConnected`, `calls`
+| Captured entry timestamps and connection count. These are metadata, not
+  editable Profile fields.
 | `Session.current.hold()`
 | Acquire a lease that keeps the session pumping after shell EOF while its
   owner has auxiliary work. A lease cannot release another owner's hold.
@@ -3791,7 +3803,7 @@ Connection-level send and receive.
 | `Conn.elapsedSeconds`
 | Monotonic seconds since the connection provider reached the active
   connected state, clamped to `0`.  This is live connection/session
-  state; `BBS.connected` is the persisted wall-clock `LastConnected`
+  state; `Session.current.lastConnected` is the persisted wall-clock `LastConnected`
   timestamp from the BBS list.
 
 | `Conn.type`
@@ -4084,7 +4096,7 @@ emulation-aware logic.
 | `CTerm.throttleSpeed`, `CTerm.throttleSpeed = bps`
 | Current network character-pacing rate in BPS.  `0` = unthrottled
   (no per-byte sleep).  Always `0` on serial connections; the
-  configured port speed lives in `BBS.bpsRate`.  Default status bar
+  configured port speed lives in `Session.current.profile.bpsRate`.  Default status bar
   reads this to render the live rate; the `online_menu` Output Rate
   picker writes via the setter.
 
@@ -4170,77 +4182,76 @@ acting as.
                        direct writes to via DECSASD.
 |===
 
-=== Connected BBS [[bbs]]
+=== Profiles [[bbs]]
 
-Read-only window into the active `struct bbslist` entry.  Useful
-from `onConnect`-style top-level code that wants to behave
-differently per BBS.
+`Profile` in `syncterm` is the shared connection-configuration contract in all
+VMs. `DirectoryEntry.profile` and `Menu.defaults` are views into the working
+menu model. `Session.current.profile` is a cached, read-only snapshot of the
+configuration captured for this connection. `profile.copy()` returns an
+independently owned editable value, without a directory identity or statistics.
+Quick-connect configurations are independently owned values too; later quick
+connections and menu reloads do not overwrite or invalidate them.
 
-Most fields are direct getters that return the underlying value.
-Fields that index into enums are surfaced both as the integer (for
-direct comparison with the enum class) and through the typed enum
-classes documented below.
+`readOnly` identifies system/web views and session snapshots. Their setters
+abort. All other Profile fields below have getters and setters, except the
+derived display string `connTypeName`. Profiles have no rename/save/delete,
+entry IDs, statistics, or cache authority. Use Menu.copy(profile, name) to
+create an entry; selecting a Profile starts a transient connection without
+updating another entry's statistics.
 
 [options="header",cols="2,3"]
 |===
 | Group | Fields
 
-| Identity
-| `name`, `addr`, `port`, `connType` (`ConnType`),
-  `connTypeName` (display string for `connType`), `comment`,
-  `type` (`BBSListType`), `id`
+| Address
+| `addr`, `port`, `connType` (`ConnType`),
+  `connTypeName` (display string for `connType`), `comment`
 
 | Network
 | `addressFamily` (`AddressFamily`)
 
 | Auth
 | `user`, `password`, `syspass`, `sftpPublicKey`,
-  `sshFingerprint`, `sshFingerprintLen`, `tlsTrustWebPki`,
+  `sshFingerprint`, `sshAllowAes128Cbc`, `sshAcceptEarlyData`, `tlsTrustWebPki`,
   `tlsTrustedCert`, `tlsClientCert`, `tlsClientKey`, `tlsPskIdentity`,
-  `tlsPsk`, `tlsPskVersion` (`TLSVersion`), and `tlsVersionFloor`
-  (`TLSVersion`)
+  `tlsPsk`, `tlsPskVersion`, `tlsVersionFloor`, `ghostProgram`
 
-| Display
-| `termName`, `screenMode` (`ScreenMode`), `bpsRate`, `font`,
-  `noStatus`, `hidePopups`, `yellowIsYellow`, `forceLcf`,
-  `palette`, `paletteSize`
+| Presentation
+| `music`, `rip`, `termName`, `screenMode`, `font`, `encoding`,
+  `palette`, `noStatus`, `hidePopups`, `yellowIsYellow`, `forceLcf`, `lfExpand`
 
-| Modem / serial
-| `stopBits`, `dataBits`, `parity` (`Parity`),
-  `flowControl` (numeric `FlowControl` constant)
+| Files and logging
+| `dlDir`, `ulDir`, `logFile`, `appendLogFile`,
+  `xferLogLevel`, `protocolLogLevel`, `ctermLogLevel`
 
-| Telnet
-| `telnetNoBinary`, `deferTelnetNegotiation`, `ghostProgram`
-
-| RIP / music
-| `rip` (`RipVersion`), `music` (`MusicMode`)
-
-| File transfer
-| `dlDir`, `ulDir`, `xferLogLevel` (`LogLevel`),
-  `protocolLogLevel` (`LogLevel`), `ctermLogLevel` (`LogLevel`)
-
-| Logs
-| `logFile`, `appendLogFile`
-
-| Statistics
-| `added`, `connected`, `calls`, `sortOrder`
+| Serial and protocol
+| `bpsRate`, `stopBits`, `dataBits`, `parity`, `flowControl`,
+  `telnetNoBinary`, `deferTelnetNegotiation`
 
 | Scripts
-| `wrenScripts`, a fresh List of root module names selected for this
-  connection in load order
+| `wrenScripts`, the ordered List of entry-selected connection modules.
+  Defaults expose an empty List and reject assignments.
 |===
 
-`tlsPsk` contains the literal bytes of the configured text String.  SyncTERM
-does not interpret it as hexadecimal or Base64.
+Connection strings, credentials, paths, and comments use the normal strict
+UTF-8/NFC text boundary without NUL, with field-specific size limits.
+`tlsPsk` is literal text, without
+hexadecimal or Base64 decoding. `sshFingerprint` is an exact byte String of
+length 0, 20 or 32; use `.bytes.count` for its length. `palette` and
+`wrenScripts` return fresh Lists; their lengths replace the old redundant
+size getters. Invalid assignments leave existing values intact.
 
-This `BBS` class belongs to the shared `syncterm` module and always
-means the one active connection.  It is unrelated to the mutable menu
-`BBS` class below; the two classes live in different modules and VMs
-and no instance can cross between them.
+Configured `profile.encoding` uses the profile encoding catalog and remains
+unchanged when terminal decoding changes. `CTerm.encoding` reports the live
+`TerminalEncoding.utf8` (0) or `TerminalEncoding.codepage` (1);
+`CTerm.codepage` reports the live `Codepage` value. `Session.current.name`,
+`entryId`, `entrySource`, `added`, `lastConnected` and `calls` describe the
+session's captured identity and connection statistics. `Conn.elapsedSeconds`
+is live elapsed time. The former BBS classes and static namespace are removed.
 
 === Menu BBS Model [[menu-bbs-model]]
 
-The menu VM imports `Menu`, `BBS`, and `MenuReadStatus` from
+The menu VM imports `Menu`, `DirectoryEntry`, and `MenuReadStatus` from
 `syncterm_menu`.  `Menu` owns a C-side transactional view of the
 personal, installed system, and web-cache BBS lists.  It is not
 available in a connected VM.
@@ -4256,12 +4267,10 @@ available in a connected VM.
   failure leaves the current model and its generation unchanged.
 
 | Menu.quickConnect(url)
-| Parse a String using SyncTERM's normal quick-connect URL rules and
-  return an unsaved transient `BBS`, or `null` when no usable address
-  was produced.  A later `quickConnect` or successful `load` makes an
-  older transient handle stale.  It can be returned from
-  `MainMenu.run`, but `save()`, `rename()`, and `delete()` return
-  `false`; use `Menu.create` for a durable entry.
+| Parse a String using SyncTERM's normal URL rules and return an owned editable
+  Profile, or null for an unusable address. It remains valid across further
+  quick connections and reloads. It can be returned from MainMenu.run; use
+  Menu.copy(profile, name) to create a directory entry.
 
 | Menu.offlineScrollback
 | Return a detached `Surface` copy of the most recently completed
@@ -4310,14 +4319,14 @@ available in a connected VM.
 
 | Menu.timestamp
 | Return the current Unix timestamp as a Num.  Trusted offline applications
-  can use it to initialize date-oriented widgets without a connected `BBS`
+  can use it to initialize date-oriented widgets without a connected Session
   or `Conn` clock.
 
 | Menu.showEntry(entry)
 | Set the OS window title to the classic name/call-count/last-connected
-  summary for a current menu `BBS`.  Passing `null` restores the bare
+  summary for a current DirectoryEntry or Profile.  Passing `null` restores the bare
   SyncTERM version title.  The purpose-specific operation returns `true`;
-  stale, default, and non-BBS values abort.  It is menu-only so connected
+  stale views and values of unrelated classes abort.  It is menu-only so connected
   scripts do not gain arbitrary application-title authority.
 
 | Menu.statusMessage(status)
@@ -4329,7 +4338,7 @@ available in a connected VM.
   OS window-close requests set the same latch in the host.
 
 | Menu.entries
-| Return a new List of host-created menu `BBS` handles in current sort
+| Return a new List of host-created DirectoryEntry views in current sort
   order.  The records themselves remain C-owned.
 
 | Menu.canAppendEntry
@@ -4348,13 +4357,18 @@ available in a connected VM.
   shipped editor omits additions which would exceed it.
 
 | Menu.defaults
-| Return the mutable root-section defaults record, or `null` before a
-  successful load.  Its `save()` writes default fields rather than a
-  named BBS section.
+| Return the mutable defaults Profile view, or null before loading.
   Scripts are configured per entry: root-section WrenScripts is ignored,
   defaults expose an empty script list, and assigning scripts to defaults
   aborts. The defaults editor omits scripts. New entries start without scripts;
   entries without their own WrenScripts stay empty when edited.
+
+| Menu.defaultsDirty
+| Bool indicating unsaved default configuration changes.
+
+| Menu.saveDefaults()
+| Persist the working defaults to the root section. Bool success; false in
+  safe mode or on failure. Profiles themselves have no persistence methods.
 
 | Menu.nameAvailable(name)
 | Test whether a new personal entry name is valid and unused by another
@@ -4365,14 +4379,13 @@ available in a connected VM.
 
 | Menu.create(name)
 | Create an unsaved personal entry from `Menu.defaults`, reset its
-  statistics, insert it into the sorted working model, and return its `BBS`
-  handle.  Returns `null` for an invalid/duplicate name or allocation failure.
+  statistics, insert it into the sorted working model, and return its DirectoryEntry.  Returns `null` for an invalid/duplicate name or allocation failure.
 
 | Menu.copy(source, name)
 | Create an unsaved personal copy of `source`, with reset statistics
   and the supplied name, and insert it into the sorted working model.
-  `source` may be a current directory record or a valid transient produced by
-  `quickConnect` or the host command-line save flow. Returns `null` on failure.
+  `source` may be a current DirectoryEntry or a Profile, including defaults, detached copies
+  and quick-connect values. Returns `null` on failure.
 
 | Menu.sort()
 | Reapply the configured BBS-list sort profiles.
@@ -4433,84 +4446,39 @@ press switches that drag to rectangular selection.
 `migrationIniOpenFailed`, `migrationIniReadFailed`,
 `migrationListWriteFailed`, and `migrationIniWriteFailed`.
 
-Menu `BBS` properties map directly to the real `struct bbslist`:
+A DirectoryEntry owns `name`, `searchKey`, `type` (BBSListType), `id`, `added`,
+`connected` (persisted LastConnected timestamp), `calls`, `readOnly`, `dirty`,
+`profile` and `cache`. Only `sortOrder` has a property setter. `rename(name)`,
+`save()` and `delete()` return Bool; `toString` returns its name.
+`id` survives sorting, rename, save and unrelated model edits. An unsaved draft
+has -1 until its first successful save. IDs are local to a load and are not
+serialized. Native ownership also distinguishes replaced records independently
+of their names, addresses or numeric IDs.
 
-[options="header",cols="2,4"]
-|===
-| Group | Properties
+`searchKey` retains the NFD full-default-casefold form of the name. The shipped
+list uses it as a cheap search prefilter and verifies grapheme boundaries.
+Configuration lives on `entry.profile`; its setters share the working record
+and mark the entry dirty. Saving persists those edits and an in-memory rename
+together. Deleting a persisted entry updates disk before removing the record;
+deleting an unsaved draft only discards that draft. System/web views reject
+configuration setters; rename/save/delete return false. Menu.copy produces a
+personal editable entry. Safe mode permits working edits but rejects persistence.
 
-| Identity and state
-| Read-only `name`, `searchKey`, `type`, `id`, `added`, `connected`, `calls`,
-  `connTypeName`, and `dirty`; methods `rename(name)`, `save()`,
-  `delete()`, and `toString`.
-
-  `id` is distinct per directory load and survives sorting/rename in that
-  model. Defaults, quick connections and unsaved drafts have -1; saving a
-  draft assigns an ID. IDs are not serialized.
-
-| Address and authentication
-| Read/write `addr`, `port`, `connType`, `user`, `password`,
-  `syspass`, `addressFamily`, `sftpPublicKey`, `sshAllowAes128Cbc`,
-  `sshAcceptEarlyData`, `tlsTrustWebPki`, `tlsTrustedCert`,
-  `tlsClientCert`, `tlsClientKey`, `tlsPskIdentity`, `tlsPsk`,
-  `tlsPskVersion` (`TLSVersion`), `tlsVersionFloor` (`TLSVersion`),
-  and binary String `sshFingerprint`.  The
-  fingerprint is empty, 20-byte SHA-1, or 32-byte SHA-256 data.
-
-  For GHost entries `ghostProgram` accesses the effective program stored in
-  Password. A quick URL's transient program override is folded into Password
-  when copied into a named entry. Editing Password clears an old override.
-
-| Display and emulation
-| Read/write `music`, `rip`, `comment`, `termName`, `screenMode`,
-  `bpsRate`, `encoding`, `font`, `noStatus`, `hidePopups`, `yellowIsYellow`,
-  `forceLcf`, `palette`, and `lfExpand`.
-
-| Paths and logging
-| Read-only `cache`; read/write `dlDir`, `ulDir`, `logFile`, `appendLogFile`,
-  `xferLogLevel`, `protocolLogLevel`, and `ctermLogLevel`.
-
-| Serial and protocol
-| Read/write `stopBits`, `dataBits`, `parity`, `flowControl`,
-  `telnetNoBinary`, `deferTelnetNegotiation`, `ghostProgram`, and
-  `sortOrder`.
-
-| Scripts
-| Read/write `wrenScripts`, an ordered List of unique root module names.
-  It is supported only by personal named entries.
-|===
-
-`BBS.searchKey` is the retained NFD full-default-casefold form of `name`.
-The shipped directory supplies these keys to `ListView` as a cheap prefix and
-substring prefilter; grapheme-boundary-aware matching verifies every candidate.
-
-`BBS.cache` returns a fixed `Directory` rooted at that personal named entry's
-per-BBS cache, creating the cache directory through SyncTERM's normal cache
-resolver when necessary.  Defaults, system/web entries, and quick-connect
-transients abort instead.  This menu-only authority lets a trusted offline
-application select a personal entry and reuse the same saved state that its
-connected script sees; it does not expose arbitrary filesystem construction.
-
-Setters mutate the shared C-owned working record and set `dirty`; separately
-acquired handles for the same current record observe the change. `save()` is
-the persistence boundary and returns Bool.  A rename is likewise in-memory
-until `save()` performs the section rename and field update together.
-`delete()` removes a persisted personal entry from disk before removing it
-from the model; deleting an unsaved entry only discards that draft. System and
-web-cache records are
-read-only: setters abort, while `rename`, `save`, and `delete` return
-`false`.  Pass one to `Menu.copy` to obtain an editable personal copy.
-In safe mode, personal-entry and defaults setters still update their working
-`BBS`, but `save()` and deletion of a persisted entry return `false`. Deleting
-an unsaved draft remains available because it changes no persistent state.
-An unsaved working object otherwise remains dirty or new, and neither the
-persisted directory nor an entry cache is changed.
+`entry.cache` is a Directory for a saved personal entry, created through the
+normal cache resolver. It returns null for unsaved/system/web entries and a
+FileError on native failure. Before a pending rename is saved it refers to the
+persisted name's cache. Saving the rename uses the native cache move policy.
+Previously issued cache grants and their descendants become stale at that
+point, on removal/replacement, and on reload. They cannot access a later entry
+at the same name/path. An already open File retains its stream and can always
+be closed; path-based operations still require a current grant. Displayed
+paths confer no new authority. This adds no arbitrary filesystem constructor.
 
 The shipped entry editor invokes those setters, including `rename()`,
 after each nested field editor accepts a changed value.  It calls
 `save()` for a dirty entry when the entry editor closes.
 The Wren Scripts editor applies additions, deletions, and completed moves to
-the in-memory `BBS` immediately; `save()` writes them as the comma-separated
+the working Profile immediately; `save()` writes them as the comma-separated
 `WrenScripts` value in that entry's INI section.
 The fingerprint has no direct editor row; the shipped F5/F6 clipboard carries
 it through the draft so copying an entry preserves an accepted SSH host key.
@@ -4523,7 +4491,7 @@ limits before invoking a setter.
 Download Path and Upload Path remain direct entry rows.  Log Configuration
 opens Log Filename, File Transfer Log Level, Protocol Log Level, CTerm Log
 Level, and Append Log File.  Accepted values still
-update the working `BBS` before the logging submenu closes.
+update the working Profile before the logging submenu closes.
 
 The persisted INI name is `ProtocolLogLevel`.  During the pre-release
 rename, a missing `ProtocolLogLevel` falls back to the legacy
@@ -4539,14 +4507,11 @@ Debug also reports final missing grapheme clusters (`.noglyph`) with their
 Unicode code points, selected console font identifier, and screen position.
 An exact match supplied by compatible font zero is not a missing glyph.
 
-A successful full load, create, or delete advances the model
-generation.  Every previously obtained menu `BBS` handle then becomes
-stale; using one aborts with an instruction to reacquire it from
-`Menu.entries`.  This makes use-after-delete and references into a
-transactionally replaced list deterministic. A create or delete also expires
-the current quick-connect handle. Sorting, saving, and in-place renaming
-preserve handles. A failed load or mutation preserves the current model,
-generation, and handles.
+A successful full load invalidates entry/default views and cache grants from
+the replaced model. A failed load preserves them. Creating/deleting unrelated
+entries, sorting and saving preserve existing identities. Deleted or shadowed
+entries become stale; restoring a shadowed system record does not revive an
+old view of it. Detached Profile values and session snapshots remain valid.
 
 === Menu Program Settings [[menu-program-settings]]
 
@@ -5018,10 +4983,9 @@ the existing configuration.
 
 === Menu BBS Constants [[menu-bbs-constants]]
 
-The menu `BBS` properties use the following numeric constants.  Most
-are shared with the active-connection `BBS` API, but the catalogs
-returned by `Menu` should be preferred when constructing a user-facing
-choice list.
+Profile properties use the following numeric constants in both menu and
+connected VMs. Prefer the catalogs returned by Menu when constructing a
+user-facing choice list.
 
 ==== ConnType [[conntype]]
 
@@ -5185,7 +5149,7 @@ character).
 
 ==== FlowControl
 
-Constants for the numeric `BBS.flowControl` setting.
+Constants for the numeric `Profile.flowControl` setting.
 
 [options="header",cols="2,1,3"]
 |===
@@ -5273,7 +5237,7 @@ pre-bound from these at module load.
   The same error contract applies to `pickFiles` and `pickSavePath`.
   `initialPath` may be a String path, a `Directory` foreign (uses
   its path; handles `Cache` lazy-resolve), or `null` (defaults
-  to `BBS.ulDir`).  An existing file path opens its containing
+  to `Session.current.profile.ulDir`).  An existing file path opens its containing
   directory with that file selected.  `mask` may be `null` (defaults
   to `*`).
   `opts` combines the stable `FilePickerOptions` values documented
@@ -5413,7 +5377,7 @@ if (Host.launchScript != null && Host.launchScript.endsWith("foo.wren")) {
 | Transfer log threshold (`0` = Emergency, ..., `7` = Debug) and
   the matching display labels indexed by the same number.  Out-of-
   range values are clamped on write.  The `online_menu` Log Level
-  picker writes the setter. Each connected VM starts from BBS.xferLogLevel;
+  picker writes the setter. Each connected VM starts from Session.current.profile.xferLogLevel;
   live changes affect only that connection's transfer diagnostic callback,
   not the stored entry or the independent protocol log threshold.
 
@@ -5440,7 +5404,7 @@ if (Host.launchScript != null && Host.launchScript.endsWith("foo.wren")) {
   blob: "AAAA..."`), or `null` when none is available (no SSH
   backend, key not loaded, OOM).  Used by
   `scripts/auto/connected/sftp_pubkey.wren` to append the user's
-  `authorized_keys` entry on connect when `BBS.sftpPublicKey` is
+  `authorized_keys` entry on connect when `Session.current.profile.sftpPublicKey` is
   set.  Today only ed25519 is exposed; the structured shape lets
   future RSA / sntrup keys join without breaking consumers.
 |===
@@ -6011,11 +5975,11 @@ ignored.
 
 [source,wren]
 ----
-import "syncterm" for Status, Surface, Screen, BBS, CTerm
+import "syncterm" for Status, Surface, Screen, Session, CTerm
 
 Status.callable = Fn.new { |surf|
   if (!Status.enabled) return
-  var s = "%(BBS.name) | %(BBS.connTypeName) | %(BBS.bpsRate) bps"
+  var s = "%(Session.current.name) | %(Session.current.profile.connTypeName) | %(Session.current.profile.bpsRate) bps"
   var x = 1
   for (ch in s) {
     var columns = Screen.textWidth(ch, surf[0].font)

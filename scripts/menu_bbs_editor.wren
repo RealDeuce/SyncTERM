@@ -1,6 +1,6 @@
 import "syncterm" for ConnType, FilePickerOptions, Host, Key, KeyEvent, Mod,
-    MouseEvent, TLSVersion
-import "syncterm_menu" for Menu
+    MouseEvent, TLSVersion, Profile
+import "syncterm_menu" for Menu, DirectoryEntry
 import "menu_ui" for ChoiceViewState, MenuUi
 import "ui_app" for App
 import "ui_pane" for Pane
@@ -364,11 +364,12 @@ class BbsEditor {
       if (standalone) app.quit()
     }
     pane.onClose = Fn.new {
-      if (bbs.dirty && !validate_(app, draft)) {
+      var dirty = isDefaults ? Menu.defaultsDirty : bbs.dirty
+      if (dirty && !validate_(app, draft)) {
         state["navigate"] = 0
         return
       }
-      if (!bbs.dirty || (isDefaults && Host.safeMode) || save_(app, bbs)) {
+      if (!dirty || (isDefaults && Host.safeMode) || save_(app, bbs)) {
         state["saved"] = true
         dismiss.call()
       } else {
@@ -435,56 +436,57 @@ class BbsEditor {
   }
 
   static draft_(b) {
+    var p = b is DirectoryEntry ? b.profile : b
     return {
-      "name": b.name,
-      "addr": b.addr,
-      "port": b.port,
-      "connType": b.connType,
-      "user": b.user,
-      "password": b.password,
-      "syspass": b.syspass,
-      "addressFamily": b.addressFamily,
-      "screenMode": b.screenMode,
-      "encoding": b.encoding,
-      "termName": b.termName,
-      "font": b.font,
-      "music": b.music,
-      "rip": b.rip,
-      "comment": b.comment,
-      "bpsRate": b.bpsRate,
-      "noStatus": b.noStatus,
-      "hidePopups": b.hidePopups,
-      "yellowIsYellow": b.yellowIsYellow,
-      "forceLcf": b.forceLcf,
-      "lfExpand": b.lfExpand,
-      "dlDir": b.dlDir,
-      "ulDir": b.ulDir,
-      "logFile": b.logFile,
-      "appendLogFile": b.appendLogFile,
-      "xferLogLevel": b.xferLogLevel,
-      "protocolLogLevel": b.protocolLogLevel,
-      "ctermLogLevel": b.ctermLogLevel,
-      "stopBits": b.stopBits,
-      "dataBits": b.dataBits,
-      "parity": b.parity,
-      "flowControl": b.flowControl,
-      "telnetNoBinary": b.telnetNoBinary,
-      "deferTelnetNegotiation": b.deferTelnetNegotiation,
-      "tlsTrustWebPki": b.tlsTrustWebPki,
-      "tlsTrustedCert": b.tlsTrustedCert,
-      "tlsClientCert": b.tlsClientCert,
-      "tlsClientKey": b.tlsClientKey,
-      "tlsPskIdentity": b.tlsPskIdentity,
-      "tlsPsk": b.tlsPsk,
-      "tlsPskVersion": b.tlsPskVersion,
-      "tlsVersionFloor": b.tlsVersionFloor,
-      "sftpPublicKey": b.sftpPublicKey,
-      "sshAllowAes128Cbc": b.sshAllowAes128Cbc,
-      "sshAcceptEarlyData": b.sshAcceptEarlyData,
-      "sshFingerprint": b.sshFingerprint,
-      "wrenScripts": b.wrenScripts,
-      "palette": b.palette,
-      "sortOrder": b.sortOrder
+      "name": b is DirectoryEntry ? b.name : "",
+      "addr": p.addr,
+      "port": p.port,
+      "connType": p.connType,
+      "user": p.user,
+      "password": p.password,
+      "syspass": p.syspass,
+      "addressFamily": p.addressFamily,
+      "screenMode": p.screenMode,
+      "encoding": p.encoding,
+      "termName": p.termName,
+      "font": p.font,
+      "music": p.music,
+      "rip": p.rip,
+      "comment": p.comment,
+      "bpsRate": p.bpsRate,
+      "noStatus": p.noStatus,
+      "hidePopups": p.hidePopups,
+      "yellowIsYellow": p.yellowIsYellow,
+      "forceLcf": p.forceLcf,
+      "lfExpand": p.lfExpand,
+      "dlDir": p.dlDir,
+      "ulDir": p.ulDir,
+      "logFile": p.logFile,
+      "appendLogFile": p.appendLogFile,
+      "xferLogLevel": p.xferLogLevel,
+      "protocolLogLevel": p.protocolLogLevel,
+      "ctermLogLevel": p.ctermLogLevel,
+      "stopBits": p.stopBits,
+      "dataBits": p.dataBits,
+      "parity": p.parity,
+      "flowControl": p.flowControl,
+      "telnetNoBinary": p.telnetNoBinary,
+      "deferTelnetNegotiation": p.deferTelnetNegotiation,
+      "tlsTrustWebPki": p.tlsTrustWebPki,
+      "tlsTrustedCert": p.tlsTrustedCert,
+      "tlsClientCert": p.tlsClientCert,
+      "tlsClientKey": p.tlsClientKey,
+      "tlsPskIdentity": p.tlsPskIdentity,
+      "tlsPsk": p.tlsPsk,
+      "tlsPskVersion": p.tlsPskVersion,
+      "tlsVersionFloor": p.tlsVersionFloor,
+      "sftpPublicKey": p.sftpPublicKey,
+      "sshAllowAes128Cbc": p.sshAllowAes128Cbc,
+      "sshAcceptEarlyData": p.sshAcceptEarlyData,
+      "sshFingerprint": p.sshFingerprint,
+      "wrenScripts": p.wrenScripts,
+      "palette": p.palette,
+      "sortOrder": b is DirectoryEntry ? b.sortOrder : 0
     }
   }
 
@@ -1483,70 +1485,73 @@ class BbsEditor {
   }
 
   static update_(app, b, d, defaults) {
+    var p = defaults ? b : b.profile
     if (sameDraft_(draft_(b), d)) return true
-    var tlsIdentityChanged = d["addr"] != b.addr || d["port"] != b.port ||
-        d["connType"] != b.connType ||
-        d["tlsTrustWebPki"] != b.tlsTrustWebPki ||
-        d["tlsTrustedCert"] != b.tlsTrustedCert
+    var tlsIdentityChanged = d["addr"] != p.addr || d["port"] != p.port ||
+        d["connType"] != p.connType ||
+        d["tlsTrustWebPki"] != p.tlsTrustWebPki ||
+        d["tlsTrustedCert"] != p.tlsTrustedCert
     if (tlsIdentityChanged) d["tlsVersionFloor"] = TLSVersion.unknown
     if (!defaults && d["name"] != b.name && !b.rename(d["name"])) {
       showNameError(app, "Entry Name", d["name"])
       d["name"] = b.name
       return false
     }
-    b.addr = d["addr"]
-    b.port = d["port"]
-    b.connType = d["connType"]
-    b.user = d["user"]
-    b.password = d["password"]
-    b.syspass = d["syspass"]
-    b.addressFamily = d["addressFamily"]
-    b.screenMode = d["screenMode"]
-    b.termName = d["termName"]
-    b.font = d["font"]
-    b.encoding = d["encoding"]
-    b.music = d["music"]
-    b.rip = d["rip"]
-    b.comment = d["comment"]
-    b.bpsRate = d["bpsRate"]
-    b.noStatus = d["noStatus"]
-    b.hidePopups = d["hidePopups"]
-    b.yellowIsYellow = d["yellowIsYellow"]
-    b.forceLcf = d["forceLcf"]
-    b.lfExpand = d["lfExpand"]
-    b.dlDir = d["dlDir"]
-    b.ulDir = d["ulDir"]
-    b.logFile = d["logFile"]
-    b.appendLogFile = d["appendLogFile"]
-    b.xferLogLevel = d["xferLogLevel"]
-    b.protocolLogLevel = d["protocolLogLevel"]
-    b.ctermLogLevel = d["ctermLogLevel"]
-    b.stopBits = d["stopBits"]
-    b.dataBits = d["dataBits"]
-    b.parity = d["parity"]
-    b.flowControl = d["flowControl"]
-    b.telnetNoBinary = d["telnetNoBinary"]
-    b.deferTelnetNegotiation = d["deferTelnetNegotiation"]
-    b.tlsTrustWebPki = d["tlsTrustWebPki"]
-    b.tlsTrustedCert = d["tlsTrustedCert"]
-    b.tlsClientCert = d["tlsClientCert"]
-    b.tlsClientKey = d["tlsClientKey"]
-    b.tlsPskIdentity = d["tlsPskIdentity"]
-    b.tlsPsk = d["tlsPsk"]
-    b.tlsPskVersion = d["tlsPskVersion"]
-    b.tlsVersionFloor = d["tlsVersionFloor"]
-    b.sftpPublicKey = d["sftpPublicKey"]
-    b.sshAllowAes128Cbc = d["sshAllowAes128Cbc"]
-    b.sshAcceptEarlyData = d["sshAcceptEarlyData"]
-    b.sshFingerprint = d["sshFingerprint"]
-    if (!defaults) b.wrenScripts = d["wrenScripts"]
-    b.palette = d["palette"]
-    b.sortOrder = d["sortOrder"]
+    p.addr = d["addr"]
+    p.port = d["port"]
+    p.connType = d["connType"]
+    p.user = d["user"]
+    p.password = d["password"]
+    p.syspass = d["syspass"]
+    p.addressFamily = d["addressFamily"]
+    p.screenMode = d["screenMode"]
+    p.termName = d["termName"]
+    p.font = d["font"]
+    p.encoding = d["encoding"]
+    p.music = d["music"]
+    p.rip = d["rip"]
+    p.comment = d["comment"]
+    p.bpsRate = d["bpsRate"]
+    p.noStatus = d["noStatus"]
+    p.hidePopups = d["hidePopups"]
+    p.yellowIsYellow = d["yellowIsYellow"]
+    p.forceLcf = d["forceLcf"]
+    p.lfExpand = d["lfExpand"]
+    p.dlDir = d["dlDir"]
+    p.ulDir = d["ulDir"]
+    p.logFile = d["logFile"]
+    p.appendLogFile = d["appendLogFile"]
+    p.xferLogLevel = d["xferLogLevel"]
+    p.protocolLogLevel = d["protocolLogLevel"]
+    p.ctermLogLevel = d["ctermLogLevel"]
+    p.stopBits = d["stopBits"]
+    p.dataBits = d["dataBits"]
+    p.parity = d["parity"]
+    p.flowControl = d["flowControl"]
+    p.telnetNoBinary = d["telnetNoBinary"]
+    p.deferTelnetNegotiation = d["deferTelnetNegotiation"]
+    p.tlsTrustWebPki = d["tlsTrustWebPki"]
+    p.tlsTrustedCert = d["tlsTrustedCert"]
+    p.tlsClientCert = d["tlsClientCert"]
+    p.tlsClientKey = d["tlsClientKey"]
+    p.tlsPskIdentity = d["tlsPskIdentity"]
+    p.tlsPsk = d["tlsPsk"]
+    p.tlsPskVersion = d["tlsPskVersion"]
+    p.tlsVersionFloor = d["tlsVersionFloor"]
+    p.sftpPublicKey = d["sftpPublicKey"]
+    p.sshAllowAes128Cbc = d["sshAllowAes128Cbc"]
+    p.sshAcceptEarlyData = d["sshAcceptEarlyData"]
+    p.sshFingerprint = d["sshFingerprint"]
+    if (!defaults) p.wrenScripts = d["wrenScripts"]
+    p.palette = d["palette"]
+    if (!defaults) b.sortOrder = d["sortOrder"]
     return true
   }
 
   static save_(app, b) {
-    if (b.save()) return true
+    if (b is Profile) {
+      if (Menu.saveDefaults()) return true
+    } else if (b.save()) return true
     Alert.show(app, "Save Failed", "The directory entry could not be written.")
     return false
   }

@@ -339,7 +339,7 @@ class MainMenuApp {
       _selected = index != null && index >= 0 &&
           index < _entries.count ? _entries[index] : null
       updateWindowTitle_()
-      _footer.comment = _selected == null ? "" : _selected.comment
+      _footer.comment = _selected == null ? "" : _selected.profile.comment
     }
     _list.onSelect = Fn.new {|index, item|
       if (index == _entries.count) {
@@ -530,7 +530,7 @@ class MainMenuApp {
     _commentReturn = fallback == 0 ? _app.root.focusedChild : _directory
     _footer.keyHints = _commentReturn == _settings ?
         settingsHints_() : directoryHints_()
-    _footer.comment = _selected.comment
+    _footer.comment = _selected.profile.comment
     _footer.selectComment()
     _app.root.focusedIndex = 2
     return true
@@ -820,7 +820,7 @@ class MainMenuApp {
 
   finishComment_(value, destination) {
     var bbs = _selected
-    if (bbs != null && value != bbs.comment) {
+    if (bbs != null && value != bbs.profile.comment) {
       if (bbs.type != 0) {
         if (Confirm.show(_app, "Copy from system directory?",
             systemCopyHelp_())) {
@@ -830,10 +830,10 @@ class MainMenuApp {
         }
       }
       if (bbs == null) {
-        _footer.comment = _selected.comment
+        _footer.comment = _selected.profile.comment
       } else {
         var name = bbs.name
-        bbs.comment = value
+        bbs.profile.comment = value
         if (!bbs.save()) {
           Alert.show(_app, "Entry Comment",
               "The comment could not be saved.")
@@ -874,18 +874,18 @@ class MainMenuApp {
       return
     }
 
-    var type = BbsEditor.chooseConnectionType(_app, bbs.connType)
+    var type = BbsEditor.chooseConnectionType(_app, bbs.profile.connType)
     if (type == null) {
       bbs.delete()
       refresh_(preferred)
       return
     }
-    bbs.connType = type
+    bbs.profile.connType = type
     var port = Menu.defaultPort(type)
-    if (port >= 1 && port <= 65535) bbs.port = port
+    if (port >= 1 && port <= 65535) bbs.profile.port = port
 
     var label = addressLabel_(type)
-    var address = bbs.addr
+    var address = bbs.profile.addr
     while (true) {
       address = MenuUi.prompt(_app, "New Entry", label, address, 64,
           false, addAddressHelp_(type))
@@ -902,10 +902,10 @@ class MainMenuApp {
         continue
       }
       address = parsed[0]
-      if (parsed[1] != null) bbs.port = parsed[1]
+      if (parsed[1] != null) bbs.profile.port = parsed[1]
       break
     }
-    bbs.addr = address
+    bbs.profile.addr = address
     if (!bbs.save()) {
       Alert.show(_app, "New Entry",
           "The directory entry could not be written.")
@@ -1058,7 +1058,7 @@ class MainMenuApp {
 
   settingsAction_(picked) {
     var preferred = _selected == null ? null : _selected.name
-    var previousComment = _selected == null ? "" : _selected.comment
+    var previousComment = _selected == null ? "" : _selected.profile.comment
     SettingsMenu.begin()
     var changed = SettingsMenu.runAction(_app, picked, _connected,
         Fn.new {|value| _footer.comment = value })
@@ -1206,10 +1206,9 @@ class MainMenu {
     return true
   }
 
-  static offerSave(source) {
+  static offerSave(source, name) {
     if (!MenuUi.confirmStandaloneAtExit("Save Directory Entry",
         "Save this directory entry?")) return false
-    var name = source.name
     while (!Menu.nameAvailable(name)) {
       name = MenuUi.promptStandaloneAtExit("Save Directory Entry",
           "Personal entry name", name, 30, false,

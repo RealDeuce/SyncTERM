@@ -181,7 +181,7 @@ class SettingsMenuTest {
     }
     for (key in changes.keys) d[key] = changes[key]
     var app = SettingsTestApp.new([])
-    check_(BbsEditor.update_(app, b, d, true) && b.save(),
+    check_(BbsEditor.update_(app, b, d, true) && Menu.saveDefaults(),
         "save every editable connection default")
     check_(Menu.load(null) == 0, "reload defaults")
     var actual = BbsEditor.draft_(Menu.defaults)
@@ -198,7 +198,7 @@ class SettingsMenuTest {
         "factory defaults must use only the preferred address")
     var names = ["As per DNS", "IPv4 only", "IPv6 only", "Happy Eyeballs"]
     var b = Menu.create("Address Family Test")
-    check_(b.addressFamily == AddressFamily.unspec, "new entry uses DNS by default")
+    check_(b.profile.addressFamily == AddressFamily.unspec, "new entry uses DNS by default")
     for (choice in [AddressFamily.happyEyeballs, AddressFamily.unspec]) {
       var app = SettingsTestApp.new([Fn.new {|pane|
         select_(pane, "Address Family")
@@ -211,10 +211,10 @@ class SettingsMenuTest {
         select_(pane, names[choice])
       }])
       check_(BbsEditor.edit(app, b, false, false) && app.remaining == 0 &&
-          b.addressFamily == choice, "address-family UI applies selected mode")
+          b.profile.addressFamily == choice, "address-family UI applies selected mode")
       check_(Menu.load(null) == 0, "reload address-family UI choice")
       for (entry in Menu.entries) if (entry.name == "Address Family Test") b = entry
-      check_(b.addressFamily == choice, "address-family UI choice persists")
+      check_(b.profile.addressFamily == choice, "address-family UI choice persists")
     }
     check_(b.delete(), "discard address-family test entry")
   }
@@ -227,7 +227,7 @@ class SettingsMenuTest {
     BbsEditor.editLog_(app, d, Fn.new { b.ctermLogLevel = d["ctermLogLevel"] })
     check_(app.remaining == 0 && b.ctermLogLevel == 7,
         "CTerm log submenu must apply the accepted level immediately")
-    check_(b.save() && Menu.load(null) == 0 && Menu.defaults.ctermLogLevel == 7,
+    check_(Menu.saveDefaults() && Menu.load(null) == 0 && Menu.defaults.ctermLogLevel == 7,
         "CTerm log submenu value must persist")
   }
   static testConnectedMenu_() {
@@ -384,11 +384,11 @@ class SettingsMenuTest {
     var font = Menu.createFont(name, 0)
     check_(font != null, "create a valid long UTF-8 font name")
     var entry = Menu.create("Long Font")
-    entry.font = name
+    entry.profile.font = name
     check_(entry.save() && Menu.load(null) == 0, "persist a long font selection")
     var saved = null
     for (bbs in Menu.entries) if (bbs.name == "Long Font") saved = bbs
-    check_(saved != null && saved.font == name, "long font selection round trip")
+    check_(saved != null && saved.profile.font == name, "long font selection round trip")
     check_(saved.delete() && font.delete() && Menu.saveFonts(), "discard long font fixtures")
   }
   static testThemeFilenames_() {

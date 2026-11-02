@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Stephen Hurd
 // SPDX-License-Identifier: BSD-2-Clause
-import "syncterm" for Transfer, Host, BBS, CTerm, Emulation, Screen, Input, Mod,
+import "syncterm" for Transfer, Host, Session, CTerm, Emulation, Screen, Input, Mod,
                        Key, KeyEvent, Timer, FilePickerOptions
 import "ui_app" for App
 import "ui_picker" for ListPicker
@@ -56,9 +56,9 @@ class TransferFlow {
       var files = null
       Screen.modalRun(Fn.new {
         if (row[2]) {
-          files = Host.pickFiles(BBS.ulDir, null, 0)
+          files = Host.pickFiles(Session.current.profile.ulDir, null, 0)
         } else {
-          var file = Host.pickFile(BBS.ulDir, null, FilePickerOptions.allowEntry)
+          var file = Host.pickFile(Session.current.profile.ulDir, null, FilePickerOptions.allowEntry)
           if (file != null) files = [file]
         }
       })

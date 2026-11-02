@@ -266,7 +266,7 @@ static int run_case(st_wren_host_t *host, st_console_t *console,
 		    "if (Session.current.holdCount > 0 || !SFTP.available) Fiber.abort(\"key failure leaked activity\")\n") == 0);
 	} else {
 		CHECK(st_wren_connected_interpret(vm, "live_contract",
-		    "import \"syncterm\" for BBS, CTerm, SFTP, SFTPError, FileFlag, Host, Session\n"
+		    "import \"syncterm\" for Session, CTerm, SFTP, SFTPError, FileFlag, Host\n"
 		    "class Live {\n"
 		    "  static done { __done }\n"
 		    "  static run() {\n"
@@ -283,7 +283,7 @@ static int run_case(st_wren_host_t *host, st_console_t *console,
 		    "    var h = SFTP.open(\".ssh/authorized_keys\", FileFlag.read).await()\n"
 		    "    if (h is SFTPError) Fiber.abort(h.toString)\n"
 		    "    var content = h.readBytes(4096, 0).await()\n"
-		    "    if (Host.safeMode || !BBS.sftpPublicKey) {\n"
+		    "    if (Host.safeMode || !Session.current.profile.sftpPublicKey) {\n"
 		    "      if (content != null) Fiber.abort(\"unexpected key write\")\n"
 		    "    } else {\n"
 		    "      var key = Host.sshPublicKey\n"

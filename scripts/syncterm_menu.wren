@@ -40,6 +40,8 @@ class Menu {
   // Maximum byte length of the comma-separated WrenScripts INI value.
   foreign static wrenScriptsMaxLength
   foreign static defaults
+  foreign static defaultsDirty
+  foreign static saveDefaults()
   foreign static settings
   foreign static nameAvailable(name)
   // create/copy insert an unsaved personal record into the working model.
@@ -258,122 +260,24 @@ foreign class Settings {
   foreign lightbarBackgroundColor=(value)
 }
 
-// Instances are host-created views of real struct bbslist records.  A
-// reload, create, or delete invalidates handles from the older generation.
-foreign class BBS {
+// Entry identity survives unrelated insertion/deletion. Reload and removal
+// invalidate this entry and its profile views.
+foreign class DirectoryEntry {
   foreign name
   foreign searchKey
   foreign rename(name)
   foreign type
-  // Fixed Directory rooted at this personal entry's per-BBS cache.
+  foreign profile
+  foreign readOnly
   foreign cache
   foreign id
   foreign added
   foreign connected
   foreign calls
-  foreign sshFingerprint
-  foreign sshFingerprint=(value)
-  foreign connTypeName
   foreign dirty
   foreign save()
   foreign delete()
-
-  foreign addr
-  foreign addr=(value)
-  foreign port
-  foreign port=(value)
-  foreign connType
-  foreign connType=(value)
-  foreign user
-  foreign user=(value)
-  foreign password
-  foreign password=(value)
-  foreign syspass
-  foreign syspass=(value)
-  foreign music
-  foreign music=(value)
-  foreign rip
-  foreign rip=(value)
-  foreign comment
-  foreign comment=(value)
-  foreign addressFamily
-  foreign addressFamily=(value)
-  foreign termName
-  foreign termName=(value)
-  foreign screenMode
-  foreign screenMode=(value)
-  foreign bpsRate
-  foreign bpsRate=(value)
-  foreign font
-  foreign encoding
-  foreign encoding=(value)
-  foreign font=(value)
-  foreign noStatus
-  foreign noStatus=(value)
-  foreign hidePopups
-  foreign hidePopups=(value)
-  foreign yellowIsYellow
-  foreign yellowIsYellow=(value)
-  foreign forceLcf
-  foreign forceLcf=(value)
-  foreign dlDir
-  foreign dlDir=(value)
-  foreign ulDir
-  foreign ulDir=(value)
-  foreign logFile
-  foreign logFile=(value)
-  foreign appendLogFile
-  foreign appendLogFile=(value)
-  foreign xferLogLevel
-  foreign xferLogLevel=(value)
-  foreign protocolLogLevel
-  foreign protocolLogLevel=(value)
-  foreign ctermLogLevel
-  foreign ctermLogLevel=(value)
-  foreign stopBits
-  foreign stopBits=(value)
-  foreign dataBits
-  foreign dataBits=(value)
-  foreign parity
-  foreign parity=(value)
-  foreign flowControl
-  foreign flowControl=(value)
-  foreign telnetNoBinary
-  foreign telnetNoBinary=(value)
-  foreign deferTelnetNegotiation
-  foreign deferTelnetNegotiation=(value)
-  foreign tlsTrustWebPki
-  foreign tlsTrustWebPki=(value)
-  foreign tlsTrustedCert
-  foreign tlsTrustedCert=(value)
-  foreign tlsClientCert
-  foreign tlsClientCert=(value)
-  foreign tlsClientKey
-  foreign tlsClientKey=(value)
-  foreign tlsPskIdentity
-  foreign tlsPskIdentity=(value)
-  foreign tlsPsk
-  foreign tlsPsk=(value)
-  foreign tlsPskVersion
-  foreign tlsPskVersion=(value)
-  foreign tlsVersionFloor
-  foreign tlsVersionFloor=(value)
-  foreign ghostProgram
-  foreign ghostProgram=(value)
-  foreign sftpPublicKey
-  foreign sftpPublicKey=(value)
-  foreign sshAllowAes128Cbc
-  foreign sshAllowAes128Cbc=(value)
-  foreign sshAcceptEarlyData
-  foreign sshAcceptEarlyData=(value)
-  foreign palette
-  foreign palette=(value)
-  // Ordered root script modules loaded for this entry after auto/connected.
-  foreign wrenScripts
-  foreign wrenScripts=(value)
   foreign sortOrder
   foreign sortOrder=(value)
-  foreign lfExpand
-  foreign lfExpand=(value)
   foreign toString
 }

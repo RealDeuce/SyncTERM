@@ -6,7 +6,7 @@ import "modern_ui_model" for ModernModel
 class MainMenu {
   static prepare() { ModernModel.prepare() }
   static run(current, connected) { ModernUI.run(current, connected) }
-  static offerSave(source) { ModernModel.offerSave(source) }
+  static offerSave(source, name) { ModernModel.offerSave(source, name) }
   static registerCommand(key, modifiers, keyName, description, callback) {
     ModernUI.registerCommand(key, modifiers, keyName, description, callback)
   }

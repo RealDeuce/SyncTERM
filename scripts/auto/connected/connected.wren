@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 
 // Alt+L sends the credentials for the active directory entry.
-import "syncterm" for Hook, Key, Conn, BBS, CTerm, ConnType, KeyEvent
+import "syncterm" for Hook, Key, Conn, Session, CTerm, ConnType, KeyEvent
 
 class Connected {
   static sendComponent_(value) {
@@ -13,7 +13,7 @@ class Connected {
   }
 
   static sendLogin() {
-    var ct = BBS.connType
+    var ct = Session.current.profile.connType
     var sendUser = ct != ConnType.rlogin &&
                    ct != ConnType.rloginReversed &&
                    ct != ConnType.ssh &&
@@ -22,9 +22,9 @@ class Connected {
                    ct != ConnType.rloginReversed &&
                    ct != ConnType.ssh
 
-    if (sendUser) sendComponent_(BBS.user)
-    if (sendPass) sendComponent_(BBS.password)
-    sendComponent_(BBS.syspass)
+    if (sendUser) sendComponent_(Session.current.profile.user)
+    if (sendPass) sendComponent_(Session.current.profile.password)
+    sendComponent_(Session.current.profile.syspass)
   }
 }
 

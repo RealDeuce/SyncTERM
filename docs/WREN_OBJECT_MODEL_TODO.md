@@ -85,16 +85,16 @@ FileError/SFTPError documentation.
 
 ## 6 Separate profiles, entries and sessions
 
-- [ ] Replace the overloaded BBS models with distinct profile values/views,
+- [x] Replace the overloaded BBS models with distinct profile values/views,
   editable directory entries and connected-session state. Share profile field
   meanings and expose configured encoding separately from live terminal state.
-- [ ] Keep entry identity stable across unrelated insertion/deletion; reject
+- [x] Keep entry identity stable across unrelated insertion/deletion; reject
   deleted/replaced entries and stale snapshots without aliasing new records.
-- [ ] Implement the advertised personal-entry cache capability with existing
+- [x] Implement the advertised personal-entry cache capability with existing
   cache-path policy, readonly/system restrictions and consent boundaries.
-- [ ] Migrate menus, connected defaults, add-ons, scripts, tests and manual;
+- [x] Migrate menus, connected defaults, add-ons, scripts, tests and manual;
   remove obsolete namespaces and reacquisition workarounds.
-- [ ] Test create/copy/rename/delete/reload, unsaved and system entries,
+- [x] Test create/copy/rename/delete/reload, unsaved and system entries,
   profile/session isolation, cache ownership and persistent VM lifetimes.
 
 Starting points: the two BBS classes, `wren_bbs_model.c`, `wren_bind_menu.c`,
@@ -253,4 +253,38 @@ All 11 selected CTest cases passed both with the pending profile changes and in
 an isolated tree containing only these corrections: INI, BBS list, host, menu,
 settings runtime, core helpers, picker contract, and bitmap editor/settings/
 picker/setter application tests. Desktop environment variables were cleared.
-The broader goal remains paused; the disputed Fiber extensions remain unresolved.
+The broader goal has resumed. The disputed Fiber extensions still need removal;
+their behavior is not an approved Wren language change.
+
+Item 6: shared Profile values/views now carry connection configuration;
+DirectoryEntry owns menu identity, statistics, persistence and cache authority;
+Session exposes captured metadata and a read-only profile snapshot. Copies
+are independently owned. Live CTerm encoding/codepage are separate from the
+configured encoding. Reload/removal expire borrowed views, while unrelated
+insertions/deletions preserve entry identity. Menu entry cache grants propagate
+their owner to descendants and reject replaced, removed, reloaded or renamed
+owners before path access; existing streams can still be closed.
+
+Bundled menus, connected scripts, the modern UI add-on, tests, field inventory
+and manual use the new objects. The obsolete BBS namespaces and singleton
+quick-connect storage are removed. Defaults retain the corrected per-entry
+script policy and all configuration text retains NFC.
+
+Verification: 13 native CTest cases passed, including live SFTP and bitmap
+menu/editor/settings/profile/picker/setter/add-on application tests. Three
+ASan/UBSan checks passed with FreeBSD leak detection disabled. Final unloaded-
+defaults behavior passed native host/menu and ASan menu checks. Native Clang/GCC
+and MinGW i686/x86_64 host libraries build without warnings. Windows runtime
+tests were not run.
+
+## User-directed correction: preserve Wren language semantics
+
+- [ ] Remove the unapproved Fiber.tryScoped/abortScoped primitives and their
+  changes to ordinary Fiber call/yield/transfer/suspend behavior.
+- [ ] Migrate affected host wrappers and bundled callers using ordinary Wren
+  operations; retain native ownership and shutdown/error handling.
+- [ ] Verify standard Fiber semantics and affected host/application behavior.
+
+This correction follows the user's rejection of the VM language changes.
+The earlier assistant-authored cleanup checklist was not user approval for
+a language extension.

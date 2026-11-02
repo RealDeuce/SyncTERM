@@ -18,11 +18,11 @@
 enum st_wren_bbs_kind {
 	ST_WREN_BBS_MODEL_ENTRY,
 	ST_WREN_BBS_DEFAULTS,
-	ST_WREN_BBS_TRANSIENT,
 };
 
 struct st_wren_bbs_record {
 	struct st_profile profile;
+	uint64_t identity;
 	/* Borrowed until the source list's generation changes. */
 	const struct st_bbs_entry *source_entry;
 	char *name_key;
@@ -42,11 +42,9 @@ struct st_wren_bbs_model {
 	size_t capacity;
 	int next_identifier;
 	struct st_wren_bbs_record defaults;
-	struct st_wren_bbs_record transient;
 	uint64_t generation;
-	uint64_t transient_generation;
+	uint64_t next_identity;
 	bool loaded;
-	bool transient_valid;
 };
 
 void st_wren_bbs_model_init(struct st_wren_bbs_model *model);
@@ -63,7 +61,7 @@ struct st_wren_bbs_record *st_wren_bbs_model_at(
     const struct st_wren_bbs_model *model, size_t index);
 bool st_wren_bbs_model_valid(const struct st_wren_bbs_model *model,
     const struct st_wren_bbs_record *record, enum st_wren_bbs_kind kind,
-    uint64_t generation);
+    uint64_t generation, uint64_t identity);
 /* Name arguments are NFC text from the Wren host boundary. */
 bool st_wren_bbs_model_name_available(struct st_wren_bbs_model *model,
     const char *name);
@@ -85,8 +83,7 @@ bool st_wren_bbs_model_delete(struct st_wren_bbs_model *model,
 void st_wren_bbs_model_sort(struct st_wren_bbs_model *model,
     const int *fields, size_t field_count);
 
-bool st_wren_bbs_model_set_transient(struct st_wren_bbs_model *model,
-    const struct st_profile *profile);
-void st_wren_bbs_model_invalidate_transient(struct st_wren_bbs_model *model);
+struct st_wren_bbs_record *st_wren_bbs_model_find(
+    const struct st_wren_bbs_model *model, uint64_t generation, uint64_t identity);
 
 #endif

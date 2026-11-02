@@ -554,178 +554,6 @@ fn_conn_queued(WrenVM *vm)
 	    st_wren_context_from_vm(vm)->connection));
 }
 
-static const struct st_profile *
-profile(WrenVM *vm)
-{
-	static const struct st_profile empty = {0};
-	const struct st_profile *selected = st_wren_context_from_vm(vm)->profile;
-
-	return selected == NULL ? &empty : selected;
-}
-
-static void
-fn_bbs_name(WrenVM *vm)
-{
-	wrenSetSlotString(vm, 0, profile(vm)->name);
-}
-
-static void fn_bbs_user(WrenVM *vm)
-{ wrenSetSlotString(vm, 0, profile(vm)->username); }
-static void fn_bbs_password(WrenVM *vm)
-{ wrenSetSlotString(vm, 0, profile(vm)->password); }
-static void fn_bbs_syspass(WrenVM *vm)
-{ wrenSetSlotString(vm, 0, profile(vm)->system_password); }
-static void fn_bbs_ul_dir(WrenVM *vm)
-{
-	const char *value = profile(vm)->upload_directory;
-	if (value == NULL) wrenSetSlotNull(vm, 0);
-	else wrenSetSlotString(vm, 0, value);
-}
-
-static void
-fn_bbs_conn_type(WrenVM *vm)
-{
-	wrenSetSlotDouble(vm, 0, profile(vm)->connection_type);
-}
-
-static void
-fn_bbs_conn_type_name(WrenVM *vm)
-{
-	static const char *const names[] = {
-		"Unknown", "RLogin", "RLogin (reversed)", "Telnet", "Raw TCP",
-		"SSH", "SSH (no authentication)", "Modem", "Serial",
-		"Serial (no RTS/CTS)", "Shell", "MBBS GHOST", "Telnet TLS",
-		"MQTT",
-	};
-	int type = profile(vm)->connection_type;
-
-	wrenSetSlotString(vm, 0, type >= 0
-	    && (size_t)type < sizeof(names) / sizeof(names[0]) ? names[type]
-	    : names[0]);
-}
-
-static void
-fn_bbs_bps_rate(WrenVM *vm)
-{
-	wrenSetSlotDouble(vm, 0, profile(vm)->bps_rate);
-}
-
-#define BBS_FIXED_GETTER(name, field) \
-	static void fn_bbs_##name(WrenVM *vm) \
-	{ wrenSetSlotString(vm, 0, profile(vm)->field); }
-#define BBS_OWNED_GETTER(name, field) \
-	static void fn_bbs_##name(WrenVM *vm) \
-	{ \
-		const char *value = profile(vm)->field; \
-		if (value == NULL) wrenSetSlotNull(vm, 0); \
-		else wrenSetSlotString(vm, 0, value); \
-	}
-#define BBS_NUMBER_GETTER(name, field) \
-	static void fn_bbs_##name(WrenVM *vm) \
-	{ st_wren_return_i64(vm, profile(vm)->field); }
-#define BBS_BOOL_GETTER(name, field) \
-	static void fn_bbs_##name(WrenVM *vm) \
-	{ wrenSetSlotBool(vm, 0, profile(vm)->field); }
-
-BBS_FIXED_GETTER(addr, address)
-BBS_FIXED_GETTER(comment, comment)
-BBS_FIXED_GETTER(font, font)
-BBS_FIXED_GETTER(term_name, terminal_name)
-static void
-fn_bbs_ghost_program(WrenVM *vm)
-{
-	struct st_wren_context *context = st_wren_context_from_vm(vm);
-	wrenSetSlotString(vm, 0, st_profile_ghost_program(context->profile));
-}
-BBS_FIXED_GETTER(tls_psk_identity, tls_psk_identity)
-BBS_FIXED_GETTER(tls_psk, tls_psk)
-BBS_OWNED_GETTER(dl_dir, download_directory)
-BBS_OWNED_GETTER(log_file, log_path)
-BBS_OWNED_GETTER(tls_trusted_cert, tls_trusted_certificate)
-BBS_OWNED_GETTER(tls_client_cert, tls_client_certificate)
-BBS_OWNED_GETTER(tls_client_key, tls_client_key)
-BBS_NUMBER_GETTER(port, port)
-BBS_NUMBER_GETTER(music, music)
-BBS_NUMBER_GETTER(rip, rip_version)
-BBS_NUMBER_GETTER(type, source)
-BBS_NUMBER_GETTER(id, identifier)
-BBS_NUMBER_GETTER(address_family, address_family)
-BBS_NUMBER_GETTER(screen_mode, screen_mode)
-BBS_NUMBER_GETTER(xfer_log_level, transfer_log_level)
-BBS_NUMBER_GETTER(protocol_log_level, protocol_log_level)
-BBS_NUMBER_GETTER(cterm_log_level, cterm_log_level)
-BBS_NUMBER_GETTER(stop_bits, stop_bits)
-BBS_NUMBER_GETTER(data_bits, data_bits)
-BBS_NUMBER_GETTER(parity, parity)
-BBS_NUMBER_GETTER(flow_control, flow_control)
-BBS_NUMBER_GETTER(tls_psk_version, tls_psk_version)
-BBS_NUMBER_GETTER(tls_version_floor, tls_version_floor)
-BBS_NUMBER_GETTER(added, added)
-BBS_NUMBER_GETTER(connected, connected)
-BBS_NUMBER_GETTER(calls, calls)
-BBS_NUMBER_GETTER(sort_order, sort_order)
-BBS_NUMBER_GETTER(palette_size, palette_size)
-BBS_BOOL_GETTER(no_status, hide_status)
-BBS_BOOL_GETTER(hide_popups, hide_popups)
-BBS_BOOL_GETTER(yellow_is_yellow, yellow_is_yellow)
-BBS_BOOL_GETTER(force_lcf, force_lcf)
-BBS_BOOL_GETTER(append_log_file, append_log)
-BBS_BOOL_GETTER(telnet_no_binary, telnet_no_binary)
-BBS_BOOL_GETTER(defer_telnet_negotiation, defer_telnet_negotiation)
-BBS_BOOL_GETTER(tls_trust_web_pki, tls_trust_web_pki)
-BBS_BOOL_GETTER(sftp_public_key, sftp_public_key)
-
-static void
-fn_bbs_fingerprint(WrenVM *vm)
-{
-	const struct st_profile *selected = profile(vm);
-
-	wrenSetSlotBytes(vm, 0, (const char *)selected->ssh_fingerprint,
-	    selected->ssh_fingerprint_size);
-}
-
-static void
-fn_bbs_fingerprint_len(WrenVM *vm)
-{
-	wrenSetSlotDouble(vm, 0, profile(vm)->ssh_fingerprint_size);
-}
-
-static void
-fn_bbs_palette(WrenVM *vm)
-{
-	const struct st_profile *selected = profile(vm);
-
-	wrenEnsureSlots(vm, 2);
-	wrenSetSlotNewList(vm, 0);
-	for (unsigned i = 0; i < selected->palette_size && i < 16; ++i) {
-		wrenSetSlotDouble(vm, 1,
-		    selected->palette[i] & UINT32_C(0xffffff));
-		wrenInsertInList(vm, 0, -1, 1);
-	}
-}
-
-static void
-fn_bbs_wren_scripts(WrenVM *vm)
-{
-	const char *next = profile(vm)->wren_scripts;
-
-	wrenEnsureSlots(vm, 2);
-	wrenSetSlotNewList(vm, 0);
-	while (*next != '\0') {
-		const char *comma = strchr(next, ',');
-		size_t length = comma == NULL ? strlen(next)
-		    : (size_t)(comma - next);
-
-		if (length != 0) {
-			wrenSetSlotBytes(vm, 1, next, length);
-			wrenInsertInList(vm, 0, -1, 1);
-		}
-		if (comma == NULL)
-			break;
-		next = comma + 1;
-	}
-}
-
 static void
 fn_conn_session_log(WrenVM *vm)
 {
@@ -1446,6 +1274,11 @@ struct session_binding {
 	WrenForeignMethodFn method;
 };
 
+static void fn_cterm_encoding(WrenVM *vm)
+{ wrenSetSlotDouble(vm, 0, st_cterm_encoding(st_wren_context_from_vm(vm)->cterm)); }
+static void fn_cterm_codepage(WrenVM *vm)
+{ wrenSetSlotDouble(vm, 0, st_cterm_codepage(st_wren_context_from_vm(vm)->cterm)); }
+
 static const struct session_binding bindings[] = {
 	{"Scrollback", "width", fn_scrollback_width},
 	{"Scrollback", "height", fn_scrollback_height},
@@ -1459,60 +1292,6 @@ static const struct session_binding bindings[] = {
 	{"Conn", "connected", fn_conn_connected},
 	{"Conn", "type", fn_conn_type},
 	{"Conn", "queued", fn_conn_queued},
-	{"BBS", "name", fn_bbs_name},
-	{"BBS", "addr", fn_bbs_addr},
-	{"BBS", "port", fn_bbs_port},
-	{"BBS", "comment", fn_bbs_comment},
-	{"BBS", "type", fn_bbs_type},
-	{"BBS", "id", fn_bbs_id},
-	{"BBS", "addressFamily", fn_bbs_address_family},
-	{"BBS", "user", fn_bbs_user},
-	{"BBS", "password", fn_bbs_password},
-	{"BBS", "syspass", fn_bbs_syspass},
-	{"BBS", "music", fn_bbs_music},
-	{"BBS", "rip", fn_bbs_rip},
-	{"BBS", "wrenScripts", fn_bbs_wren_scripts},
-	{"BBS", "termName", fn_bbs_term_name},
-	{"BBS", "screenMode", fn_bbs_screen_mode},
-	{"BBS", "font", fn_bbs_font},
-	{"BBS", "noStatus", fn_bbs_no_status},
-	{"BBS", "hidePopups", fn_bbs_hide_popups},
-	{"BBS", "yellowIsYellow", fn_bbs_yellow_is_yellow},
-	{"BBS", "forceLcf", fn_bbs_force_lcf},
-	{"BBS", "added", fn_bbs_added},
-	{"BBS", "connected", fn_bbs_connected},
-	{"BBS", "calls", fn_bbs_calls},
-	{"BBS", "dlDir", fn_bbs_dl_dir},
-	{"BBS", "ulDir", fn_bbs_ul_dir},
-	{"BBS", "logFile", fn_bbs_log_file},
-	{"BBS", "appendLogFile", fn_bbs_append_log_file},
-	{"BBS", "xferLogLevel", fn_bbs_xfer_log_level},
-	{"BBS", "protocolLogLevel", fn_bbs_protocol_log_level},
-	{"BBS", "ctermLogLevel", fn_bbs_cterm_log_level},
-	{"BBS", "stopBits", fn_bbs_stop_bits},
-	{"BBS", "dataBits", fn_bbs_data_bits},
-	{"BBS", "parity", fn_bbs_parity},
-	{"BBS", "flowControl", fn_bbs_flow_control},
-	{"BBS", "telnetNoBinary", fn_bbs_telnet_no_binary},
-	{"BBS", "deferTelnetNegotiation", fn_bbs_defer_telnet_negotiation},
-	{"BBS", "tlsTrustWebPki", fn_bbs_tls_trust_web_pki},
-	{"BBS", "tlsTrustedCert", fn_bbs_tls_trusted_cert},
-	{"BBS", "tlsClientCert", fn_bbs_tls_client_cert},
-	{"BBS", "tlsClientKey", fn_bbs_tls_client_key},
-	{"BBS", "tlsPskIdentity", fn_bbs_tls_psk_identity},
-	{"BBS", "tlsPsk", fn_bbs_tls_psk},
-	{"BBS", "tlsPskVersion", fn_bbs_tls_psk_version},
-	{"BBS", "tlsVersionFloor", fn_bbs_tls_version_floor},
-	{"BBS", "ghostProgram", fn_bbs_ghost_program},
-	{"BBS", "sftpPublicKey", fn_bbs_sftp_public_key},
-	{"BBS", "sshFingerprint", fn_bbs_fingerprint},
-	{"BBS", "sshFingerprintLen", fn_bbs_fingerprint_len},
-	{"BBS", "palette", fn_bbs_palette},
-	{"BBS", "paletteSize", fn_bbs_palette_size},
-	{"BBS", "sortOrder", fn_bbs_sort_order},
-	{"BBS", "connType", fn_bbs_conn_type},
-	{"BBS", "connTypeName", fn_bbs_conn_type_name},
-	{"BBS", "bpsRate", fn_bbs_bps_rate},
 	{"Conn", "elapsedSeconds", fn_conn_elapsed_seconds},
 	{"Conn", "sessionLog", fn_conn_session_log},
 	{"Capture", "active", fn_capture_active},
@@ -1526,6 +1305,8 @@ static const struct session_binding bindings[] = {
 	{"CTerm", "originY", fn_cterm_y_origin},
 	{"CTerm", "width", fn_cterm_width},
 	{"CTerm", "height", fn_cterm_height},
+	{"CTerm", "encoding", fn_cterm_encoding},
+	{"CTerm", "codepage", fn_cterm_codepage},
 	{"CTerm", "x", fn_cterm_x},
 	{"CTerm", "y", fn_cterm_y},
 	{"CTerm", "topMargin", fn_cterm_top_margin},
