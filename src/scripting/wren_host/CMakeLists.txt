@@ -192,6 +192,8 @@ int main(void)
 	set(CMAKE_REQUIRED_DEFINITIONS ${_st_wren_saved_required_definitions})
 
 	add_executable(st_wren_host_test tests/st_wren_host_test.c)
+	target_include_directories(st_wren_host_test SYSTEM PRIVATE
+		"${CMAKE_CURRENT_SOURCE_DIR}/../wren_vm/vm")
 	if(NOT WIN32 AND NOT CMAKE_CROSSCOMPILING)
 		find_package(Python3 QUIET COMPONENTS Interpreter)
 		if(Python3_Interpreter_FOUND)

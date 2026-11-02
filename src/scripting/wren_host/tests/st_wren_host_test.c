@@ -7,6 +7,8 @@
 
 #include "st_wren_host.h"
 #include "wren_host_internal.h"
+#include "wren_vm.h"
+#include "wren_value.h"
 
 #include "filesystem.h"
 #include "io_error.h"
@@ -4357,6 +4359,67 @@ exercise_zero_width_contract(st_wren_host_t *public_host)
 	return 0;
 }
 
+static WrenFinalizerFn snapshot_finalizer;
+static size_t snapshot_finalizations;
+
+static void
+observe_snapshot_finalizer(void *data)
+{
+	++snapshot_finalizations;
+	snapshot_finalizer(data);
+}
+
+static int
+exercise_snapshot_lifetime_contract(st_wren_host_t *public_host)
+{
+	struct st_wren_host *host = public_host;
+	WrenVM *vms[] = {host->vm, host->picker_vm};
+
+	for (size_t i = 0; i < sizeof(vms) / sizeof(vms[0]); ++i) {
+		WrenVM *vm = vms[i];
+		wrenCollectGarbage(vm);
+		CHECK(wrenInterpret(vm, "snapshot_lifetime_contract",
+		    "import \"syncterm\" for Screen\n"
+		    "var saved = Screen.save()\n") == WREN_RESULT_SUCCESS);
+		wrenEnsureSlots(vm, 1);
+		wrenGetVariable(vm, "snapshot_lifetime_contract", "saved", 0);
+		CHECK(wrenGetSlotType(vm, 0) == WREN_TYPE_FOREIGN);
+		ObjClass *class_obj = wrenGetClass(vm, vm->apiStack[0]);
+		/* Native resources require a foreign class with its own finalizer,
+		 * even when no constructor is exposed to scripts. */
+		CHECK(class_obj->numFields == -1);
+		CHECK(strcmp(class_obj->name->value, "ScreenSnapshot") == 0);
+		int symbol = wrenSymbolTableFind(&vm->methodNames, "<finalize>", 10);
+		CHECK(symbol >= 0 && symbol < class_obj->methods.count);
+		Method original = class_obj->methods.data[symbol];
+		CHECK(original.type == METHOD_FOREIGN);
+		snapshot_finalizer = (WrenFinalizerFn)original.as.foreign;
+		snapshot_finalizations = 0;
+		class_obj->methods.data[symbol].as.foreign =
+		    (WrenForeignMethodFn)observe_snapshot_finalizer;
+		wrenSetSlotNull(vm, 0);
+		wrenCollectGarbage(vm);
+		CHECK(snapshot_finalizations == 0);
+		CHECK(wrenInterpret(vm, "snapshot_lifetime_contract",
+		    "Screen.restore(saved)\n"
+		    "Screen.restore(saved)\n"
+		    "saved = null\n"
+		    "System.gc()\n") == WREN_RESULT_SUCCESS);
+		CHECK(snapshot_finalizations == 1);
+		CHECK(wrenInterpret(vm, "snapshot_lifetime_contract",
+		    "for (i in 0...12) {\n"
+		    "  var temporary = Screen.save()\n"
+		    "  Screen.restore(temporary)\n"
+		    "}\n"
+		    "System.gc()\n") == WREN_RESULT_SUCCESS);
+		CHECK(snapshot_finalizations == 13);
+		wrenCollectGarbage(vm);
+		CHECK(snapshot_finalizations == 13);
+		class_obj->methods.data[symbol] = original;
+	}
+	return 0;
+}
+
 struct update_presentations {
 	size_t count;
 	uint32_t colours[4];
@@ -6348,6 +6411,7 @@ main(int argc, char **argv)
 	CHECK(exercise_surface_cell_retarget_contract(host) == 0);
 	CHECK(exercise_rectangle_contract(host) == 0);
 	CHECK(exercise_core_value_contracts(host, console) == 0);
+	CHECK(exercise_snapshot_lifetime_contract(host) == 0);
 	CHECK(exercise_screen_update_contract(host, console) == 0);
 	CHECK(exercise_zero_width_contract(host) == 0);
 	CHECK(exercise_web_refresh_overlay(host, console) == 0);

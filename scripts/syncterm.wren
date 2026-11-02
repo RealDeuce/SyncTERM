@@ -82,6 +82,10 @@ class Palette {
   foreign static [i]
   foreign static [i]=(c)
 }
+// Opaque, host-created owner of a saved console state. The native snapshot
+// is released when this value is collected; Screen remains a namespace.
+foreign class ScreenSnapshot {}
+
 class Screen {
 
   // Synchronous composition: cell, pixel and cursor changes become eligible

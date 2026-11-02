@@ -795,6 +795,15 @@ fn_key_from_doorway(WrenVM *vm)
 }
 
 static void
+allocate_snapshot(WrenVM *vm)
+{
+	struct foreign_snapshot *snapshot = wrenSetSlotNewForeign(vm, 0, 0,
+	    sizeof(*snapshot));
+
+	*snapshot = (struct foreign_snapshot){.header.kind = FOREIGN_SNAPSHOT};
+}
+
+static void
 allocate_physical_key_event(WrenVM *vm)
 {
 	struct foreign_physical_key_event *event = wrenSetSlotNewForeign(vm, 0,
@@ -2260,7 +2269,7 @@ fn_screen_save(WrenVM *vm)
 	st_console_snapshot_t *snapshot = NULL;
 
 	wrenEnsureSlots(vm, 2);
-	wrenGetVariable(vm, "syncterm", "Screen", 1);
+	wrenGetVariable(vm, "syncterm", "ScreenSnapshot", 1);
 	struct foreign_snapshot *foreign = wrenSetSlotNewForeign(vm, 0, 1,
 	    sizeof(*foreign));
 	foreign->header.kind = FOREIGN_SNAPSHOT;
@@ -5179,6 +5188,8 @@ st_wren_core_bind_class(const char *class_name)
 		methods.allocate = allocate_cell;
 	else if (strcmp(class_name, "Surface") == 0)
 		methods.allocate = allocate_surface;
+	else if (strcmp(class_name, "ScreenSnapshot") == 0)
+		methods.allocate = allocate_snapshot;
 	else if (strcmp(class_name, "ScreenUpdate_") == 0) {
 		methods.allocate = allocate_screen_update;
 		methods.finalize = finalize_screen_update;

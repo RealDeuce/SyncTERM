@@ -2241,10 +2241,14 @@ operations live under `Screen.window`.
 | `[width, height]` of the entire screen.
 
 | `Screen.save()`
-| Save the entire screen contents.  Returns an opaque handle.
+| Save the entire screen contents. Returns a host-created `ScreenSnapshot`.
+  The snapshot owns its saved cells, palette and pixel planes; garbage
+  collection releases those resources. Keep the value reachable while it is
+  needed. `ScreenSnapshot` has no public constructor, and the same snapshot
+  may be restored more than once.
 
 | `Screen.restore(handle)`
-| Restore a previously saved screen.
+| Restore a previously saved `ScreenSnapshot`.
 
 | `Screen.modalRun(fn)`
 | Run `fn` with the screen and the wire-byte pump under our own
