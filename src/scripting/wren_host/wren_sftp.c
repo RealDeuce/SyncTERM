@@ -23,9 +23,15 @@
 #include <stdlib.h>
 #include <string.h>
 
+struct foreign_remote;
+
 struct pending_request {
 	uint64_t id;
 	struct st_wren_operation *operation;
+	enum st_sftp_operation kind;
+	uint32_t flags;
+	struct foreign_remote *resource;
+	WrenHandle *owner;
 	struct pending_request *next;
 };
 
@@ -68,6 +74,7 @@ struct st_wren_connected {
 	struct st_profile profile;
 	struct st_sftp_provider provider;
 	struct pending_request *requests;
+	struct foreign_remote *resources;
 	struct pending_timer *timers;
 	struct connected_hook *hooks;
 	size_t hook_dispatch_depth;
@@ -165,11 +172,19 @@ finalize_hook_handle(void *data)
 	release_hook(handle->hook);
 }
 
-struct foreign_sftp_handle {
+enum remote_state { REMOTE_OPEN, REMOTE_CLOSING, REMOTE_CLOSED };
+
+struct foreign_remote {
 	uint32_t magic;
 	struct st_wren_connected *connected;
+	struct foreign_remote *previous;
+	struct foreign_remote *next;
 	uint64_t value;
-	bool active;
+	uint32_t flags;
+	bool directory;
+	enum remote_state state;
+	size_t pending_io;
+	WrenHandle *close_operation;
 };
 struct foreign_sftp_stat { struct st_sftp_stat value; };
 struct foreign_sftp_entry {
@@ -292,35 +307,55 @@ warn_observe_return(WrenVM *vm, const char *name)
 }
 
 static void
-allocate_handle(WrenVM *vm)
+allocate_resource(WrenVM *vm)
 {
-	struct foreign_sftp_handle *value = wrenSetSlotNewForeign(vm, 0, 0,
+	struct foreign_remote *value = wrenSetSlotNewForeign(vm, 0, 0,
 	    sizeof(*value));
-	*value = (struct foreign_sftp_handle){
-		.magic = ST_SFTP_HANDLE_MAGIC,
-	};
+	*value = (struct foreign_remote){.state = REMOTE_CLOSED};
 }
 
 static void
-finalize_handle(void *data)
+close_unowned_resource(struct st_wren_connected *connected, uint64_t handle)
 {
-	struct foreign_sftp_handle *handle = data;
-	struct st_sftp_request request;
-	uint64_t request_id;
+	if (connected->shutting_down || connected->provider.submit == NULL)
+		return;
+	struct pending_request *pending = calloc(1, sizeof(*pending));
+	const struct st_sftp_request request = {
+		.operation = ST_SFTP_CLOSE, .handle = handle,
+	};
+	uint64_t id;
 
-	if (handle->magic == ST_SFTP_HANDLE_MAGIC && handle->active
-	    && handle->connected != NULL && !handle->connected->shutting_down
-	    && handle->connected->provider.submit != NULL) {
-		request = (struct st_sftp_request){
-			.operation = ST_SFTP_CLOSE,
-			.handle = handle->value,
-		};
-		(void)handle->connected->provider.submit(
-		    handle->connected->provider.context, &request, &request_id);
+	if (connected->provider.submit(connected->provider.context, &request, &id) == 0
+	    && pending != NULL) {
+		pending->id = id;
+		pending->kind = ST_SFTP_CLOSE;
+		pending->next = connected->requests;
+		connected->requests = pending;
 	}
-	handle->active = false;
-	handle->connected = NULL;
-	handle->magic = 0;
+	else
+		free(pending);
+}
+
+static void
+finalize_resource(void *data)
+{
+	struct foreign_remote *resource = data;
+	struct st_wren_connected *connected = resource->connected;
+
+	if (connected == NULL)
+		return;
+	if (resource->previous == NULL)
+		connected->resources = resource->next;
+	else
+		resource->previous->next = resource->next;
+	if (resource->next != NULL)
+		resource->next->previous = resource->previous;
+	/* Pending resource operations root their receiver. A finalizer therefore
+	 * sees no outstanding I/O or close, and must never call the Wren API. */
+	if (resource->state == REMOTE_OPEN)
+		close_unowned_resource(connected, resource->value);
+	resource->connected = NULL;
+	resource->state = REMOTE_CLOSED;
 }
 
 static void
@@ -377,19 +412,29 @@ slot_path(WrenVM *vm, int slot, const char **result)
 	return true;
 }
 
-static bool
-slot_handle(WrenVM *vm, int slot, uint64_t *result)
+static struct foreign_remote *
+resource_value(WrenVM *vm, bool require_open)
 {
-	struct foreign_sftp_handle *handle;
+	struct foreign_remote *resource;
 
-	if (!st_wren_foreign_is(vm, slot, "syncterm", "SFTPHandle"))
-		return false;
-	handle = wrenGetSlotForeign(vm, slot);
-	if (handle == NULL || handle->magic != ST_SFTP_HANDLE_MAGIC
-	    || handle->connected != connected_from_vm(vm) || !handle->active)
-		return false;
-	*result = handle->value;
-	return true;
+	if (!st_wren_foreign_is(vm, 0, "syncterm", "RemoteFile")
+	    && !st_wren_foreign_is(vm, 0, "syncterm", "RemoteDirectory")) {
+		st_wren_abort(vm, "expected a remote file or directory");
+		return NULL;
+	}
+	resource = wrenGetSlotForeign(vm, 0);
+	if (resource->magic != ST_SFTP_HANDLE_MAGIC
+	    || resource->connected != connected_from_vm(vm)
+	    || resource->connected == NULL) {
+		st_wren_abort(vm, "Remote resource: invalid owner");
+		return NULL;
+	}
+	if (require_open && (resource->state != REMOTE_OPEN
+	    || resource->connected->shutting_down)) {
+		st_wren_abort(vm, "Remote resource: closed or closing");
+		return NULL;
+	}
+	return resource;
 }
 
 static void
@@ -446,7 +491,8 @@ request_error(WrenVM *vm, int code, const char *message)
 }
 
 static bool
-submit_request(WrenVM *vm, const struct st_sftp_request *request)
+submit_request(WrenVM *vm, const struct st_sftp_request *request,
+	struct foreign_remote *resource)
 {
 	struct st_wren_connected *connected = connected_from_vm(vm);
 	struct pending_request *pending;
@@ -481,7 +527,20 @@ submit_request(WrenVM *vm, const struct st_sftp_request *request)
 		}
 	}
 	pending->id = id;
+	pending->kind = request->operation;
+	pending->flags = request->flags;
+	pending->resource = resource;
+	if (resource != NULL)
+		pending->owner = wrenGetSlotHandle(vm, 0);
 	pending->operation = st_wren_operation_new(vm, 0);
+	if (resource != NULL) {
+		if (request->operation == ST_SFTP_CLOSE) {
+			resource->state = REMOTE_CLOSING;
+			resource->close_operation = wrenGetSlotHandle(vm, 0);
+		}
+		else
+			++resource->pending_io;
+	}
 	st_wren_operation_on_cancel(pending->operation, cancel_native_operation, connected);
 	pending->next = connected->requests;
 	connected->requests = pending;
@@ -525,7 +584,7 @@ static void fn_sftp_lname(WrenVM *vm)
 static void fn_sftp_start(WrenVM *vm)
 {
 	const struct st_sftp_request request = {.operation = ST_SFTP_START};
-	(void)submit_request(vm, &request);
+	(void)submit_request(vm, &request, NULL);
 }
 
 static void fn_host_ssh_public_key(WrenVM *vm)
@@ -557,7 +616,7 @@ begin_path_request(WrenVM *vm, enum st_sftp_operation operation,
 		st_wren_abort(vm, "SFTP: expected a path String without NUL");
 		return false;
 	}
-	return submit_request(vm, &request);
+	return submit_request(vm, &request, NULL);
 }
 
 static void fn_sftp_realpath(WrenVM *vm)
@@ -582,73 +641,152 @@ fn_sftp_open(WrenVM *vm)
 	uint64_t flags;
 
 	if (!slot_path(vm, 1, &request.path) || !st_wren_number_u64(vm, 2, &flags)
-	    || flags > UINT32_MAX) {
+	    || flags > 0x3f || (flags & 3) == 0
+	    || ((flags & 0x3c) != 0 && (flags & 2) == 0)
+	    || ((flags & 0x20) != 0 && (flags & 8) == 0)) {
 		st_wren_abort(vm, "SFTP.open: invalid path or flags");
 		return;
 	}
 	request.flags = (uint32_t)flags;
-	(void)submit_request(vm, &request);
+	(void)submit_request(vm, &request, NULL);
 }
 
 static void
-fn_sftp_handle_only(WrenVM *vm, enum st_sftp_operation operation)
+fn_remote_closed(WrenVM *vm)
 {
-	struct st_sftp_request request = {.operation = operation};
-	struct foreign_sftp_handle *handle;
-	WrenHandle *keep_alive;
+	struct foreign_remote *resource = resource_value(vm, false);
+	if (resource != NULL)
+		wrenSetSlotBool(vm, 0, resource->state == REMOTE_CLOSED
+		    || resource->connected->shutting_down);
+}
 
-	if (!slot_handle(vm, 1, &request.handle)) {
-		st_wren_abort(vm, "SFTP: invalid handle");
+static void
+fn_remote_closing(WrenVM *vm)
+{
+	struct foreign_remote *resource = resource_value(vm, false);
+	if (resource != NULL)
+		wrenSetSlotBool(vm, 0, resource->state == REMOTE_CLOSING
+		    && !resource->connected->shutting_down);
+}
+
+static void
+fn_remote_readable(WrenVM *vm)
+{
+	struct foreign_remote *resource = resource_value(vm, false);
+	if (resource != NULL)
+		wrenSetSlotBool(vm, 0, (resource->flags & 1) != 0);
+}
+
+static void
+fn_remote_writable(WrenVM *vm)
+{
+	struct foreign_remote *resource = resource_value(vm, false);
+	if (resource != NULL)
+		wrenSetSlotBool(vm, 0, (resource->flags & 2) != 0);
+}
+
+static void
+fn_remote_append_mode(WrenVM *vm)
+{
+	struct foreign_remote *resource = resource_value(vm, false);
+	if (resource != NULL)
+		wrenSetSlotBool(vm, 0, (resource->flags & 4) != 0);
+}
+
+static void
+fn_remote_close(WrenVM *vm)
+{
+	struct foreign_remote *resource = resource_value(vm, false);
+	if (resource == NULL)
+		return;
+	if (resource->state == REMOTE_CLOSING && resource->close_operation != NULL) {
+		wrenSetSlotHandle(vm, 0, resource->close_operation);
 		return;
 	}
-	handle = wrenGetSlotForeign(vm, 1);
-	keep_alive = wrenGetSlotHandle(vm, 1);
-	if (submit_request(vm, &request) && operation == ST_SFTP_CLOSE)
-		handle->active = false;
-	wrenReleaseHandle(vm, keep_alive);
+	if (resource->state == REMOTE_CLOSED || resource->connected->shutting_down) {
+		struct st_wren_operation *operation = st_wren_operation_new(vm, 0);
+		wrenSetSlotNull(vm, 1);
+		(void)st_wren_operation_resolve(vm, operation, 1);
+		return;
+	}
+	if (resource->pending_io != 0) {
+		(void)request_error(vm, IO_ERROR_WOULD_BLOCK, "Remote resource has pending I/O; await it before closing");
+		return;
+	}
+	const struct st_sftp_request request = {
+		.operation = ST_SFTP_CLOSE, .handle = resource->value,
+	};
+	(void)submit_request(vm, &request, resource);
 }
-static void fn_sftp_readdir(WrenVM *vm)
-{ fn_sftp_handle_only(vm, ST_SFTP_READDIR); }
-static void fn_sftp_close(WrenVM *vm)
-{ fn_sftp_handle_only(vm, ST_SFTP_CLOSE); }
 
 static void
-fn_sftp_read(WrenVM *vm)
+fn_remote_entries(WrenVM *vm)
 {
+	struct foreign_remote *resource = resource_value(vm, true);
+	if (resource == NULL)
+		return;
+	if (!resource->directory) {
+		st_wren_abort(vm, "RemoteDirectory.readEntries requires a directory");
+		return;
+	}
+	if (resource->pending_io != 0) {
+		(void)request_error(vm, IO_ERROR_WOULD_BLOCK, "Remote directory already has a pending read");
+		return;
+	}
+	const struct st_sftp_request request = {
+		.operation = ST_SFTP_READDIR, .handle = resource->value,
+	};
+	(void)submit_request(vm, &request, resource);
+}
+
+static void
+fn_remote_read(WrenVM *vm)
+{
+	struct foreign_remote *resource = resource_value(vm, true);
 	struct st_sftp_request request = {.operation = ST_SFTP_READ};
 	uint64_t count;
 
-	if (!slot_handle(vm, 1, &request.handle)
-	    || !st_wren_number_u64(vm, 2, &count) || count > SIZE_MAX
-	    || count > UINT32_MAX
-	    || !st_wren_number_u64(vm, 3, &request.offset)) {
-		st_wren_abort(vm, "SFTP.read: invalid handle, count, or offset");
+	if (resource == NULL)
+		return;
+	if (resource->directory || (resource->flags & 1) == 0
+	    || !st_wren_number_u64(vm, 1, &count) || count > SIZE_MAX
+	    || count > UINT32_MAX || !st_wren_number_u64(vm, 2, &request.offset)) {
+		st_wren_abort(vm, "RemoteFile.readBytes: invalid rights, count, or offset");
 		return;
 	}
+	request.handle = resource->value;
 	request.size = (size_t)count;
-	(void)submit_request(vm, &request);
+	(void)submit_request(vm, &request, resource);
 }
 
 static void
-fn_sftp_write(WrenVM *vm)
+remote_write(WrenVM *vm, bool append)
 {
+	struct foreign_remote *resource = resource_value(vm, true);
 	struct st_sftp_request request = {.operation = ST_SFTP_WRITE};
 	int size;
 
-	if (!slot_handle(vm, 1, &request.handle)
-	    || !st_wren_number_u64(vm, 2, &request.offset)
-	    || wrenGetSlotType(vm, 3) != WREN_TYPE_STRING) {
-		st_wren_abort(vm, "SFTP.write: invalid handle, offset, or bytes");
+	if (resource == NULL)
+		return;
+	if (resource->directory || (resource->flags & 2) == 0
+	    || ((resource->flags & 4) != 0) != append
+	    || (!append && !st_wren_number_u64(vm, 2, &request.offset))
+	    || wrenGetSlotType(vm, 1) != WREN_TYPE_STRING) {
+		st_wren_abort(vm, "RemoteFile: invalid write rights, offset, or bytes");
 		return;
 	}
-	request.data = wrenGetSlotBytes(vm, 3, &size);
+	request.handle = resource->value;
+	request.data = wrenGetSlotBytes(vm, 1, &size);
 	if (size < 0) {
-		st_wren_abort(vm, "SFTP.write: invalid bytes");
+		st_wren_abort(vm, "RemoteFile: invalid byte String");
 		return;
 	}
 	request.size = (size_t)size;
-	(void)submit_request(vm, &request);
+	(void)submit_request(vm, &request, resource);
 }
+
+static void fn_remote_write(WrenVM *vm) { remote_write(vm, false); }
+static void fn_remote_append(WrenVM *vm) { remote_write(vm, true); }
 
 static void
 fn_sftp_rename(WrenVM *vm)
@@ -660,7 +798,7 @@ fn_sftp_rename(WrenVM *vm)
 		st_wren_abort(vm, "SFTP.rename: invalid path");
 		return;
 	}
-	(void)submit_request(vm, &request);
+	(void)submit_request(vm, &request, NULL);
 }
 
 static void
@@ -676,7 +814,7 @@ fn_sftp_set_mtime(WrenVM *vm)
 		st_wren_abort(vm, "SFTP.setMtime: invalid path or time");
 		return;
 	}
-	(void)submit_request(vm, &request);
+	(void)submit_request(vm, &request, NULL);
 }
 
 static struct foreign_sftp_stat *
@@ -1091,17 +1229,26 @@ static const struct sftp_binding bindings[] = {
 	{"SFTP", true, "realpath(_)", fn_sftp_realpath},
 	{"SFTP", true, "stat(_)", fn_sftp_stat},
 	{"SFTP", true, "opendir(_)", fn_sftp_opendir},
-	{"SFTP", true, "readdir(_)", fn_sftp_readdir},
-	{"SFTP", true, "close(_)", fn_sftp_close},
 	{"SFTP", true, "open(_,_)", fn_sftp_open},
-	{"SFTP", true, "read(_,_,_)", fn_sftp_read},
-	{"SFTP", true, "write(_,_,_)", fn_sftp_write},
 	{"SFTP", true, "mkdir(_)", fn_sftp_mkdir},
 	{"SFTP", true, "rmdir(_)", fn_sftp_rmdir},
 	{"SFTP", true, "remove(_)", fn_sftp_remove},
 	{"SFTP", true, "rename(_,_)", fn_sftp_rename},
 	{"SFTP", true, "setMtime(_,_)", fn_sftp_set_mtime},
 	{"SFTP", true, "descs(_)", fn_sftp_descs},
+	{"RemoteFile", false, "readBytes(_,_)", fn_remote_read},
+	{"RemoteFile", false, "writeBytes(_,_)", fn_remote_write},
+	{"RemoteFile", false, "appendBytes(_)", fn_remote_append},
+	{"RemoteFile", false, "readable", fn_remote_readable},
+	{"RemoteFile", false, "writable", fn_remote_writable},
+	{"RemoteFile", false, "append", fn_remote_append_mode},
+	{"RemoteFile", false, "close()", fn_remote_close},
+	{"RemoteFile", false, "isClosed", fn_remote_closed},
+	{"RemoteFile", false, "isClosing", fn_remote_closing},
+	{"RemoteDirectory", false, "readEntries()", fn_remote_entries},
+	{"RemoteDirectory", false, "close()", fn_remote_close},
+	{"RemoteDirectory", false, "isClosed", fn_remote_closed},
+	{"RemoteDirectory", false, "isClosing", fn_remote_closing},
 	{"SFTPStat", false, "size", fn_stat_size},
 	{"SFTPStat", false, "mtime", fn_stat_mtime},
 	{"SFTPStat", false, "atime", fn_stat_atime},
@@ -1164,9 +1311,10 @@ st_wren_sftp_bind_class(const char *class_name)
 {
 	WrenForeignClassMethods methods = {NULL, NULL};
 
-	if (strcmp(class_name, "SFTPHandle") == 0) {
-		methods.allocate = allocate_handle;
-		methods.finalize = finalize_handle;
+	if (strcmp(class_name, "RemoteFile") == 0
+	    || strcmp(class_name, "RemoteDirectory") == 0) {
+		methods.allocate = allocate_resource;
+		methods.finalize = finalize_resource;
 	}
 	else if (strcmp(class_name, "SFTPStat") == 0)
 		methods.allocate = allocate_stat;
@@ -1209,10 +1357,36 @@ stat_exact(const struct st_sftp_stat *value)
 	    && st_wren_i64_exact(value->accessed_time);
 }
 
+static void close_discarded_handle(struct st_wren_connected *connected,
+	const struct st_sftp_response *response);
+
+static bool
+response_matches(enum st_sftp_operation operation, enum st_sftp_result_kind kind)
+{
+	if (kind == ST_SFTP_RESULT_ERROR)
+		return true;
+	switch (operation) {
+	case ST_SFTP_START: return kind == ST_SFTP_RESULT_STARTED;
+	case ST_SFTP_REALPATH:
+	case ST_SFTP_DESCRIPTIONS: return kind == ST_SFTP_RESULT_STRING;
+	case ST_SFTP_STAT: return kind == ST_SFTP_RESULT_STAT;
+	case ST_SFTP_OPEN:
+	case ST_SFTP_OPENDIR: return kind == ST_SFTP_RESULT_HANDLE;
+	case ST_SFTP_READ: return kind == ST_SFTP_RESULT_BYTES || kind == ST_SFTP_RESULT_EOF;
+	case ST_SFTP_READDIR: return kind == ST_SFTP_RESULT_ENTRIES || kind == ST_SFTP_RESULT_EOF;
+	default: return kind == ST_SFTP_RESULT_OK;
+	}
+}
+
 static bool
 push_response(WrenVM *vm, int slot,
-	const struct st_sftp_response *response)
+	const struct st_sftp_response *response, const struct pending_request *pending)
 {
+	if (!response_matches(pending->kind, response->kind)) {
+		close_discarded_handle(connected_from_vm(vm), response);
+		push_error(vm, slot, IO_ERROR_PROTOCOL, 0, "Unexpected SFTP result kind", false);
+		return true;
+	}
 	bool exact = response->kind != ST_SFTP_RESULT_STAT
 	    || stat_exact(&response->stat);
 
@@ -1240,17 +1414,26 @@ push_response(WrenVM *vm, int slot,
 		wrenSetSlotBytes(vm, slot, response->data, response->size);
 		return true;
 	case ST_SFTP_RESULT_HANDLE: {
-		struct foreign_sftp_handle *handle;
+		struct foreign_remote *resource;
+		struct st_wren_connected *connected = connected_from_vm(vm);
+		bool directory = pending->kind == ST_SFTP_OPENDIR;
+
+		if (!directory && pending->kind != ST_SFTP_OPEN) {
+			push_error(vm, slot, IO_ERROR_PROTOCOL, 0, "Unexpected SFTP handle result", false);
+			return true;
+		}
 		wrenEnsureSlots(vm, slot + 2);
-		wrenGetVariable(vm, "syncterm", "SFTPHandle", slot + 1);
-		handle = wrenSetSlotNewForeign(vm, slot, slot + 1,
-		    sizeof(*handle));
-		*handle = (struct foreign_sftp_handle){
-			.magic = ST_SFTP_HANDLE_MAGIC,
-			.connected = connected_from_vm(vm),
-			.value = response->handle,
-			.active = true,
+		wrenGetVariable(vm, "syncterm", directory ? "RemoteDirectory" : "RemoteFile", slot + 1);
+		resource = wrenSetSlotNewForeign(vm, slot, slot + 1, sizeof(*resource));
+		*resource = (struct foreign_remote){
+			.magic = ST_SFTP_HANDLE_MAGIC, .connected = connected,
+			.value = response->handle, .flags = pending->flags,
+			.directory = directory, .state = REMOTE_OPEN,
+			.next = connected->resources,
 		};
+		if (resource->next != NULL)
+			resource->next->previous = resource;
+		connected->resources = resource;
 		return true;
 	}
 	case ST_SFTP_RESULT_STAT: {
@@ -1306,14 +1489,16 @@ static void
 close_discarded_handle(struct st_wren_connected *connected,
 	const struct st_sftp_response *response)
 {
-	if (response->kind == ST_SFTP_RESULT_HANDLE && connected->provider.submit != NULL) {
-		const struct st_sftp_request close = {
-			.operation = ST_SFTP_CLOSE, .handle = response->handle,
-		};
-		uint64_t id;
+	if (response->kind == ST_SFTP_RESULT_HANDLE)
+		close_unowned_resource(connected, response->handle);
+}
 
-		(void)connected->provider.submit(connected->provider.context, &close, &id);
-	}
+static void
+release_pending_owner(WrenVM *vm, struct pending_request *pending)
+{
+	if (pending->owner != NULL)
+		wrenReleaseHandle(vm, pending->owner);
+	pending->owner = NULL;
 }
 
 static int
@@ -1322,17 +1507,33 @@ deliver_response(struct st_wren_connected *connected,
 {
 	struct pending_request *pending = take_request(connected, response->request_id);
 	WrenVM *vm = connected->vm;
-	int status;
+	int status = 0;
 
-	if (pending == NULL || pending->operation == NULL) {
+	if (pending == NULL) {
 		close_discarded_handle(connected, response);
-		free(pending);
 		return 0;
 	}
-	wrenEnsureSlots(vm, 3);
-	if (!push_response(vm, 1, response))
-		push_error(vm, 1, IO_ERROR_OUT_OF_MEMORY, 0, "Out of memory decoding SFTP result", true);
-	status = st_wren_operation_resolve(vm, pending->operation, 1);
+	if (pending->resource != NULL) {
+		struct foreign_remote *resource = pending->resource;
+		if (pending->kind == ST_SFTP_CLOSE) {
+			resource->state = response->kind == ST_SFTP_RESULT_OK ? REMOTE_CLOSED : REMOTE_OPEN;
+			wrenReleaseHandle(vm, resource->close_operation);
+			resource->close_operation = NULL;
+		}
+		else
+			--resource->pending_io;
+	}
+	if (pending->operation == NULL) {
+		if (pending->kind != ST_SFTP_CLOSE)
+			close_discarded_handle(connected, response);
+	}
+	else {
+		wrenEnsureSlots(vm, 3);
+		if (!push_response(vm, 1, response, pending))
+			push_error(vm, 1, IO_ERROR_OUT_OF_MEMORY, 0, "Out of memory decoding SFTP result", true);
+		status = st_wren_operation_resolve(vm, pending->operation, 1);
+	}
+	release_pending_owner(vm, pending);
 	free(pending);
 	return status;
 }
@@ -1912,8 +2113,18 @@ st_wren_connected_destroy(st_wren_connected_t *connected)
 		st_wren_cleanup_shutdown(connected->vm);
 	if (connected->vm != NULL)
 		st_wren_session_release_holds(connected->vm);
+	for (struct foreign_remote *resource = connected->resources;
+	    resource != NULL; resource = resource->next) {
+		resource->state = REMOTE_CLOSED;
+		resource->pending_io = 0;
+		if (resource->close_operation != NULL) {
+			wrenReleaseHandle(connected->vm, resource->close_operation);
+			resource->close_operation = NULL;
+		}
+	}
 	while (connected->requests != NULL) {
 		struct pending_request *next = connected->requests->next;
+		release_pending_owner(connected->vm, connected->requests);
 		free(connected->requests);
 		connected->requests = next;
 	}

@@ -251,6 +251,7 @@ fake_sftp_submit(void *context, const struct st_sftp_request *request,
 		    : strcmp(request->path, "/second") == 0 ? 222 : fake->modified;
 		break;
 	case ST_SFTP_OPEN:
+	case ST_SFTP_OPENDIR:
 		stored->response.kind = ST_SFTP_RESULT_HANDLE;
 		stored->response.handle = 1;
 		break;
@@ -280,6 +281,9 @@ fake_sftp_submit(void *context, const struct st_sftp_request *request,
 		}
 		break;
 	}
+	case ST_SFTP_READDIR:
+		stored->response.kind = ST_SFTP_RESULT_EOF;
+		break;
 	case ST_SFTP_CLOSE:
 		++fake->close_count;
 		if (fake->close_error) {
@@ -321,18 +325,244 @@ fake_sftp_poll(void *context, struct st_sftp_response *response,
 }
 
 static int
+exercise_remote_resource_contract(st_wren_connected_t *connected,
+	struct fake_sftp *fake)
+{
+	CHECK(st_wren_connected_interpret(connected, "remote_resources",
+	    "import \"syncterm\" for SFTP, SFTPError, RemoteFile, RemoteDirectory, FileFlag, OperationError, ScriptError\n"
+	    "class RemoteChecks {\n"
+	    "  static rejects(fn) {\n"
+	    "    var failed = Fiber.new { fn.call() }\n"
+	    "    failed.try()\n"
+	    "    if (failed.error == null) Fiber.abort(\"invalid remote operation accepted\")\n"
+	    "  }\n"
+	    "}\n"
+	    "var rwOpen = SFTP.open(\"/rw\", FileFlag.read | FileFlag.write)\n"
+	    "var readOpen = SFTP.open(\"/read\", FileFlag.read)\n"
+	    "var writeOpen = SFTP.open(\"/write\", FileFlag.write)\n"
+	    "var appendOpen = SFTP.open(\"/append\", FileFlag.read | FileFlag.write | FileFlag.append)\n"
+	    "var dirOpen = SFTP.opendir(\"/directory\")\n"
+	    ) == 0);
+	for (unsigned tick = 0; tick < 4; ++tick)
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+	uint64_t before = fake->next_id;
+	size_t closes = fake->close_count;
+	CHECK(st_wren_connected_interpret(connected, "remote_resources",
+	    "var rw = rwOpen.result\n"
+	    "var reader = readOpen.result\n"
+	    "var writer = writeOpen.result\n"
+	    "var appender = appendOpen.result\n"
+	    "var directory = dirOpen.result\n"
+	    "if (!(rw is RemoteFile) || !(directory is RemoteDirectory) || !rw.readable || !rw.writable || rw.append || reader.writable || writer.readable || !appender.append || rw.isClosed || directory.isClosing) Fiber.abort(\"remote type/rights metadata\")\n"
+	    "for (flags in [0, 64, FileFlag.creat, FileFlag.read | FileFlag.trunc, FileFlag.write | FileFlag.excl]) RemoteChecks.rejects(Fn.new { SFTP.open(\"/invalid\", flags) })\n"
+	    "for (action in [Fn.new { directory.readBytes(1, 0) }, Fn.new { rw.readEntries() }, Fn.new { reader.writeBytes(\"x\", 0) }, Fn.new { writer.readBytes(1, 0) }, Fn.new { appender.writeBytes(\"x\", 0) }, Fn.new { rw.appendBytes(\"x\") }]) RemoteChecks.rejects(action)\n"
+	    ) == 0);
+	CHECK(fake->next_id == before);
+	CHECK(st_wren_connected_interpret(connected, "remote_resources",
+	    "var reading = rw.readBytes(2, 0)\n"
+	    "var otherRead = rw.readBytes(2, 2)\n"
+	    "var busyClose = rw.close()\n"
+	    "if (!(busyClose.result is SFTPError) || rw.isClosing || rw.isClosed) Fiber.abort(\"close raced pending reads\")\n"
+	    "var listing = directory.readEntries()\n"
+	    "if (!(directory.readEntries().result is SFTPError)) Fiber.abort(\"concurrent directory cursor read\")\n"
+	    "System.gc()\n"
+	    ) == 0);
+	CHECK(fake->next_id == before + 3 && fake->close_count == closes);
+	for (unsigned tick = 0; tick < 4; ++tick)
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "remote_resources",
+	    "if (!(reading.result is String) || !(otherRead.result is String) || listing.result != null) Fiber.abort(\"pending resource completion\")\n"
+	    "var closeOne = rw.close()\n"
+	    "var closeTwo = rw.close()\n"
+	    "if (closeOne != closeTwo || !rw.isClosing || rw.isClosed) Fiber.abort(\"concurrent close identity\")\n"
+	    "RemoteChecks.rejects(Fn.new { rw.readBytes(1, 0) })\n"
+	    ) == 0);
+	CHECK(fake->close_count == closes + 1);
+	for (unsigned tick = 0; tick < 4; ++tick)
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "remote_resources",
+	    "if (!rw.isClosed || rw.isClosing || closeOne.result != null || rw.close().result != null || reader.isClosed) Fiber.abort(\"close ownership/idempotence\")\n"
+	    "RemoteChecks.rejects(Fn.new { rw.readBytes(1, 0) })\n"
+	    ) == 0);
+	CHECK(fake->close_count == closes + 1);
+	fake->close_error = true;
+	CHECK(st_wren_connected_interpret(connected, "remote_resources",
+	    "var failedClose = writer.close()\n"
+	    ) == 0);
+	for (unsigned tick = 0; tick < 4; ++tick)
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "remote_resources",
+	    "if (!(failedClose.result is SFTPError) || writer.isClosed || writer.isClosing) Fiber.abort(\"failed close lost ownership\")\n"
+	    ) == 0);
+	fake->close_error = false;
+	CHECK(st_wren_connected_interpret(connected, "remote_resources",
+	    "var retryClose = writer.close()\n"
+	    ) == 0);
+	for (unsigned tick = 0; tick < 4; ++tick)
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "remote_resources",
+	    "if (retryClose.result != null || !writer.isClosed) Fiber.abort(\"close retry\")\n"
+	    "var cancelledClose = appender.close()\n"
+	    "if (!cancelledClose.cancel() || !(cancelledClose.result is OperationError) || appender.close() != cancelledClose || !appender.isClosing) Fiber.abort(\"cancelled native close state\")\n"
+	    ) == 0);
+	for (unsigned tick = 0; tick < 4; ++tick)
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "remote_resources",
+	    "if (!appender.isClosed || appender.isClosing || appender.close().result != null) Fiber.abort(\"cancelled close not drained\")\n"
+	    "var cancelledRead = reader.readBytes(2, 0)\n"
+	    "if (!cancelledRead.cancel() || !(reader.close().result is SFTPError)) Fiber.abort(\"cancelled read released native ownership early\")\n"
+	    ) == 0);
+	for (unsigned tick = 0; tick < 4; ++tick)
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "remote_resources",
+	    "reader.close()\n"
+	    "directory.close()\n"
+	    "var orphanOpen = SFTP.open(\"/orphan\", FileFlag.read)\n"
+	    ) == 0);
+	for (unsigned tick = 0; tick < 4; ++tick)
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+	closes = fake->close_count;
+	CHECK(st_wren_connected_interpret(connected, "remote_resources",
+	    "var orphan = orphanOpen.result\n"
+	    "var orphanRead = orphan.readBytes(2, 0)\n"
+	    "orphanOpen = null\n"
+	    "orphan = null\n"
+	    "System.gc()\n"
+	    ) == 0);
+	CHECK(fake->close_count == closes);
+	for (unsigned tick = 0; tick < 4; ++tick)
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "remote_resources",
+	    "System.gc()\n"
+	    "System.gc()\n"
+	    ) == 0);
+	CHECK(fake->close_count == closes + 1);
+	for (unsigned tick = 0; tick < 4; ++tick)
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "remote_resources",
+	    "var normalOpen = SFTP.open(\"/normal-scope\", FileFlag.read)\n"
+	    "var errorOpen = SFTP.open(\"/error-scope\", FileFlag.read)\n"
+	    ) == 0);
+	for (unsigned tick = 0; tick < 4; ++tick)
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "remote_resources",
+	    "var normal = normalOpen.result\n"
+	    "var failed = errorOpen.result\n"
+	    "var normalResult = null\n"
+	    "var scopedFailure = ScriptError.new(63, \"resource scope failure\")\n"
+	    "var caught = null\n"
+	    "Fiber.new {\n"
+	    "  normalResult = normal.use(Fn.new {|file|\n"
+	    "    var bytes = file.readBytes(2, 0).await()\n"
+	    "    if (!(bytes is String)) Fiber.abort(\"scoped read\")\n"
+	    "    return 42\n"
+	    "  })\n"
+	    "}.call()\n"
+	    ) == 0);
+	for (unsigned tick = 0; tick < 4; ++tick)
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "remote_resources",
+	    "if (normalResult != 42 || !normal.isClosed) Fiber.abort(\"normal resource scope cleanup\")\n"
+	    "Fiber.new {\n"
+	    "  var task = Fiber.new {\n"
+	    "    failed.use(Fn.new {|file|\n"
+	    "      file.readBytes(2, 0).await()\n"
+	    "      Fiber.abort(scopedFailure)\n"
+	    "    })\n"
+	    "  }\n"
+	    "  task.tryScoped()\n"
+	    "  caught = task.error\n"
+	    "}.call()\n"
+	    ) == 0);
+	for (unsigned tick = 0; tick < 4; ++tick)
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "remote_resources",
+	    "if (caught != scopedFailure || !failed.isClosed) Fiber.abort(\"async failed resource scope cleanup\")\n"
+	    "var cancelledOpen = SFTP.open(\"/cancelled-scope\", FileFlag.read)\n"
+	    ) == 0);
+	for (unsigned tick = 0; tick < 4; ++tick)
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "remote_resources",
+	    "var cancelledFile = cancelledOpen.result\n"
+	    "var cancelledScope = null\n"
+	    "Fiber.new {\n"
+	    "  var task = Fiber.new {\n"
+	    "    cancelledFile.use(Fn.new {|file|\n"
+	    "      var operation = file.readBytes(2, 0)\n"
+	    "      operation.cancel()\n"
+	    "      var result = operation.await()\n"
+	    "      if (!(result is OperationError)) Fiber.abort(\"cancelled scope read\")\n"
+	    "      Fiber.abort(scopedFailure)\n"
+	    "    })\n"
+	    "  }\n"
+	    "  task.tryScoped()\n"
+	    "  cancelledScope = task.error\n"
+	    "}.call()\n"
+	    ) == 0);
+	for (unsigned tick = 0; tick < 4; ++tick)
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "remote_resources",
+	    "if (cancelledScope != scopedFailure || cancelledFile.isClosed || cancelledFile.isClosing) Fiber.abort(\"cancelled scope ownership\")\n"
+	    "cancelledFile.close()\n"
+	    ) == 0);
+	for (unsigned tick = 0; tick < 4; ++tick)
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "remote_resources",
+	    "var failureOpen = SFTP.open(\"/failed-scope-close\", FileFlag.read)\n"
+	    ) == 0);
+	for (unsigned tick = 0; tick < 4; ++tick)
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+	fake->close_error = true;
+	CHECK(st_wren_connected_interpret(connected, "remote_resources",
+	    "var closeFailedFile = failureOpen.result\n"
+	    "var closeFailure = null\n"
+	    "Fiber.new {\n"
+	    "  var task = Fiber.new { closeFailedFile.use(Fn.new {|file| 7 }) }\n"
+	    "  task.tryScoped()\n"
+	    "  closeFailure = task.error\n"
+	    "}.call()\n"
+	    ) == 0);
+	for (unsigned tick = 0; tick < 4; ++tick)
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "remote_resources",
+	    "if (!(closeFailure is SFTPError) || closeFailedFile.isClosed) Fiber.abort(\"scoped close failure hidden\")\n"
+	    "var originalFailure = null\n"
+	    "Fiber.new {\n"
+	    "  var task = Fiber.new { closeFailedFile.use(Fn.new {|file| Fiber.abort(scopedFailure) }) }\n"
+	    "  task.tryScoped()\n"
+	    "  originalFailure = task.error\n"
+	    "}.call()\n"
+	    ) == 0);
+	for (unsigned tick = 0; tick < 4; ++tick)
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "remote_resources",
+	    "if (originalFailure != scopedFailure || closeFailedFile.isClosed) Fiber.abort(\"close failure replaced callback failure\")\n"
+	    ) == 0);
+	fake->close_error = false;
+	CHECK(st_wren_connected_interpret(connected, "remote_resources",
+	    "closeFailedFile.close()\n"
+	    ) == 0);
+	for (unsigned tick = 0; tick < 4; ++tick)
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+	return 0;
+}
+
+
+static int
 exercise_sftp_integer_contract(st_wren_connected_t *connected,
 	struct fake_sftp *fake)
 {
 	CHECK(st_wren_connected_interpret(connected, "sftp_integer_contract",
 	    "import \"syncterm\" for SFTP, SFTPError, SFTPStat, FileFlag\n"
-	    "var opening = SFTP.open(\"/integers\", FileFlag.read)\n") == 0);
+	    "var opening = SFTP.open(\"/integers\", FileFlag.read | FileFlag.write)\n"
+	    "var openingDirectory = SFTP.opendir(\"/integers-dir\")\n") == 0);
 	CHECK(st_wren_connected_pump(connected, 0) == 0);
 	uint64_t before = fake->next_id;
 	CHECK(st_wren_connected_interpret(connected, "sftp_integer_contract",
 	    "var handle = opening.result\n"
+	    "var directory = openingDirectory.result\n"
 	    "for (n in [-1, 0.5, Num.nan, Num.infinity, -Num.infinity, 9007199254740992, 9223372036854775808, 18446744073709551616]) {\n"
-	    "  var actions = [Fn.new { SFTP.read(handle, n, 0) }, Fn.new { SFTP.read(handle, 0, n) }, Fn.new { SFTP.write(handle, n, \"\") }, Fn.new { SFTP.setMtime(\"/integers\", n) }, Fn.new { SFTP.open(\"/integers\", n) }]\n"
+	    "  var actions = [Fn.new { handle.readBytes(n, 0) }, Fn.new { handle.readBytes(0, n) }, Fn.new { handle.writeBytes(\"\", n) }, Fn.new { SFTP.setMtime(\"/integers\", n) }, Fn.new { SFTP.open(\"/integers\", n) }]\n"
 	    "  for (action in actions) {\n"
 	    "    var failed = Fiber.new { action.call() }\n"
 	    "    failed.try()\n"
@@ -341,7 +571,7 @@ exercise_sftp_integer_contract(st_wren_connected_t *connected,
 	    "}\n") == 0);
 	CHECK(fake->next_id == before && fake->count == 0);
 	CHECK(st_wren_connected_interpret(connected, "sftp_integer_contract",
-	    "var farRead = SFTP.read(handle, 0, 9007199254740991)\n") == 0);
+	    "var farRead = handle.readBytes(0, 9007199254740991)\n") == 0);
 	CHECK(fake->submitted_size == 0 && fake->submitted_offset == ST_WREN_MAX_INTEGER);
 	CHECK(st_wren_connected_interpret(connected, "sftp_integer_contract",
 	    "var zeroTime = SFTP.setMtime(\"/integers\", 0)\n"
@@ -363,12 +593,12 @@ exercise_sftp_integer_contract(st_wren_connected_t *connected,
 	/* SFTP v3 counts/times are 32-bit; file offsets retain the exact 53-bit range. */
 	before = fake->next_id;
 	CHECK(st_wren_connected_interpret(connected, "sftp_integer_contract",
-	    "for (action in [Fn.new { SFTP.read(handle, 4294967296, 0) }, Fn.new { SFTP.setMtime(\"/integers\", 4294967296) }]) {\n"
+	    "for (action in [Fn.new { handle.readBytes(4294967296, 0) }, Fn.new { SFTP.setMtime(\"/integers\", 4294967296) }]) {\n"
 	    "  var failed = Fiber.new { action.call() }\n"
 	    "  failed.try()\n"
 	    "  if (failed.error == null) Fiber.abort(\"SFTP v3 integer overflow\")\n"
 	    "}\n"
-	    "var largestRead = SFTP.read(handle, 4294967295, 0)\n") == 0);
+	    "var largestRead = handle.readBytes(4294967295, 0)\n") == 0);
 	CHECK(fake->next_id == before + 1 && fake->submitted_size == UINT32_MAX);
 	CHECK(st_wren_connected_pump(connected, 0) == 0);
 	const struct st_sftp_stat invalid[] = {
@@ -382,7 +612,8 @@ exercise_sftp_integer_contract(st_wren_connected_t *connected,
 	for (size_t i = 0; i < sizeof(invalid) / sizeof(invalid[0]); ++i) {
 		for (unsigned kind = 0; kind < 2; ++kind) {
 			CHECK(st_wren_connected_interpret(connected, "sftp_integer_contract",
-			    "metadata = SFTP.stat(\"/integers\")\n") == 0);
+			    kind == 0 ? "metadata = SFTP.stat(\"/integers\")\n"
+			    : "metadata = directory.readEntries()\n") == 0);
 			response = &fake->responses[fake->head].response;
 			struct st_sftp_entry entries[2] = {{.name = "small"},
 			    {.name = "unrepresentable", .stat = invalid[i]}};
@@ -399,7 +630,8 @@ exercise_sftp_integer_contract(st_wren_connected_t *connected,
 		}
 	}
 	CHECK(st_wren_connected_interpret(connected, "sftp_integer_contract",
-	    "var closing = SFTP.close(handle)\n") == 0);
+	    "var closing = handle.close()\n"
+	    "directory.close()\n") == 0);
 	CHECK(st_wren_connected_pump(connected, 0) == 0);
 	return 0;
 }
@@ -3040,6 +3272,52 @@ exercise_connected_scrollback(st_wren_host_t *host,
 }
 
 static int
+exercise_remote_shutdown(const struct st_wren_connected_config *config,
+	struct fake_sftp *fake)
+{
+	st_wren_connected_t *connected = NULL;
+	st_console_snapshot_t *snapshot = NULL;
+
+	CHECK(st_console_snapshot_create(&snapshot, config->console) == 0);
+	CHECK(st_wren_connected_create(&connected, config) == 0);
+	CHECK(st_wren_connected_interpret(connected, "remote_shutdown",
+	    "import \"syncterm\" for SFTP, FileFlag, Hook, Screen, OperationError\n"
+	    "var first = SFTP.open(\"/parked\", FileFlag.read)\n"
+	    "var second = SFTP.opendir(\"/closing\")\n") == 0);
+	CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "remote_shutdown",
+	    "var parked = first.result\n"
+	    "var closing = second.result\n"
+	    "var resumed = false\n"
+	    "Fiber.new {\n"
+	    "  parked.use(Fn.new {|file|\n"
+	    "    file.readBytes(2, 0).await()\n"
+	    "    resumed = true\n"
+	    "  })\n"
+	    "}.call()\n"
+	    "var closeOperation = closing.close()\n"
+	    "if (!closing.isClosing || parked.isClosed) Fiber.abort(\"shutdown resource setup\")\n"
+	    "Hook.onDisconnect {\n"
+	    "  if (resumed || !parked.isClosed || !closing.isClosed || closing.isClosing || !(closeOperation.result is OperationError)) Fiber.abort(\"resource shutdown state\")\n"
+	    "  if (parked.close().result != null) Fiber.abort(\"shutdown repeated close\")\n"
+	    "  var rejected = Fiber.new { parked.readBytes(1, 0) }\n"
+	    "  rejected.try()\n"
+	    "  if (rejected.error == null) Fiber.abort(\"shutdown resource reuse\")\n"
+	    "  var size = Screen.size\n"
+	    "  Screen.window.bounds = [1, 1, size[0], size[1]]\n"
+	    "  Screen.window.position = [1, 1]\n"
+	    "  Screen.window.print(\"REMOTE-END\")\n"
+	    "}\n") == 0);
+	uint64_t before = fake->next_id;
+	st_wren_connected_destroy(connected);
+	CHECK(fake->next_id == before);
+	CHECK(console_has_text(config->console, 0, 0, "REMOTE-END"));
+	CHECK(st_console_snapshot_restore(config->console, snapshot) == 0);
+	st_console_snapshot_destroy(snapshot);
+	return 0;
+}
+
+static int
 exercise_connected_sftp(st_wren_host_t *host, st_console_t *console,
 	struct st_profile *profile)
 {
@@ -3137,6 +3415,7 @@ exercise_connected_sftp(st_wren_host_t *host, st_console_t *console,
 	CHECK(st_wren_connected_pump(connected, 0) == 0);
 	CHECK(fake.close_count == 2);
 	CHECK(exercise_sftp_integer_contract(connected, &fake) == 0);
+	CHECK(exercise_remote_resource_contract(connected, &fake) == 0);
 	CHECK(exercise_filesystem_path_handles(connected) == 0);
 	CHECK(st_wren_connected_interpret(connected, "sftp_batch",
 	    "import \"syncterm\" for SFTP\n"
@@ -3287,6 +3566,7 @@ exercise_connected_sftp(st_wren_host_t *host, st_console_t *console,
 	st_wren_connected_destroy(connected);
 	CHECK(file_equals(queue_path, "{ malformed queue"));
 	CHECK(fs_remove_file(queue_path) == 0);
+	CHECK(exercise_remote_shutdown(&config, &fake) == 0);
 	return 0;
 }
 

@@ -6306,31 +6306,13 @@ an `SFTPError` rather than accepting unbounded work.
 | Stat a remote path.  Completes with `SFTPStat` or `SFTPError`.
 
 | `SFTP.opendir(path)`
-| Open a directory for iteration.  Completes with `SFTPHandle` or
-  `SFTPError`.
-
-| `SFTP.readdir(handle)`
-| Read the next batch of entries from an open directory handle.
-  Completes with `List<SFTPEntry>` or `null` (EOF) or `SFTPError`.
-  Loop until null, then call `SFTP.close`.
+| Open a directory cursor. Completes with `RemoteDirectory` or `SFTPError`.
 
 | `SFTP.open(path, flags)`
-| Open a file.  `flags` is a bitmask from `FileFlag` (see below).
-  Completes with `SFTPHandle` or `SFTPError`.
-
-| `SFTP.read(handle, count, offset)`
-| Read up to `count` bytes from `handle` at `offset`.  Completes with
-  the bytes as a String, `null` at EOF, or `SFTPError`.  Argument
-  order matches `File.readBytes(count, offset)`.
-
-| `SFTP.write(handle, offset, bytes)`
-| Write `bytes` to `handle` at `offset`.  All-or-nothing: completes
-  with `null` on success or `SFTPError`.
-
-| `SFTP.close(handle)`
-| Close a handle returned by `open` / `opendir`.  Completes with
-  `null` or `SFTPError`.  After close, the handle is dead — further
-  reads / writes / closes on it abort the calling fiber.
+| Open a file with explicit rights. Completes with `RemoteFile` or `SFTPError`.
+  `flags` is a bitmask from `FileFlag` below. At least one of read/write is
+  required. Append/create/truncate/exclusive require write; exclusive also
+  requires create. Unknown bits and inconsistent flags abort before submission.
 
 | `SFTP.mkdir(path)`, `SFTP.rmdir(path)`,
   `SFTP.remove(path)`, `SFTP.rename(oldpath, newpath)`
@@ -6372,7 +6354,7 @@ matches the corresponding `SSH_FXF_*` wire constant.
 
 ==== SFTPEntry
 
-One entry from `SFTP.readdir`.
+One entry from `RemoteDirectory.readEntries`.
 
 [options="header",cols="2,3"]
 |===
@@ -6415,13 +6397,64 @@ Result of `SFTP.stat`. Size and timestamps follow <<native-integer-limits>>.
 | `gid`   | Owner group ID.
 |===
 
-==== SFTPHandle
+==== RemoteFile and RemoteDirectory [[remote-resources]]
 
-Opaque server file/dir handle.  Only `SFTP.open` / `SFTP.opendir`
-produce one; only `SFTP.read` / `SFTP.write` / `SFTP.readdir` /
-`SFTP.close` consume one.  GC'd handles fire `SFTP.close`
-fire-and-forget as a safety net, but scripts should close
-explicitly.
+These host-created objects own a remote resource in one connected VM. They
+have no public constructor and cannot be used in another session. The SFTP
+namespace owns path operations; resource operations belong to these objects.
+
+[options="header",cols="2,3"]
+|===
+| Member | Description
+| `RemoteFile.readBytes(count, offset)`
+| Read at an absolute offset. Returns an Operation completing with a byte
+  String, `null` at EOF, or `SFTPError`. Requires read rights. Independent
+  reads/writes may run concurrently because their offsets are explicit.
+| `RemoteFile.writeBytes(bytes, offset)`
+| Write a byte String at an absolute offset; Operation completes with `null`
+  or `SFTPError`. Requires write rights and an open without append mode.
+  The argument order matches local `File.writeBytes(bytes, offset)`.
+| `RemoteFile.appendBytes(bytes)`
+| Append a byte String using the server's current end of file. Requires an
+  open with write and append flags; no misleading offset argument is accepted.
+| `RemoteFile.readable`, `writable`, `append`
+| The rights and append mode granted by the successful open.
+| `RemoteDirectory.readEntries()`
+| Read the next directory batch. Operation completes with `List<SFTPEntry>`,
+  `null` at EOF, or `SFTPError`. A second pending cursor read completes with
+  a busy `SFTPError`; await the first before reading another batch.
+| `resource.close()`
+| Returns an Operation completing with `null` or `SFTPError`. Concurrent
+  closes share one Operation and submit one native close. A successful close
+  is idempotent; repeated close completes immediately without native work.
+  Failed close keeps ownership and permits retry. Close while reads/writes
+  remain pending completes with a busy `SFTPError`; await those operations first.
+| `resource.isClosing`, `isClosed`
+| Explicit resource state. Reads/writes after close starts abort. Cancelling
+  a close Operation does not revoke the submitted native close: the object
+  remains closing until the provider reply establishes success or failure.
+| `resource.use(fn)`
+| Run `fn(resource)` in a cleanup scope. Returns its result and awaits close
+  on normal return or abort, including cooperative yields. Close failure
+  aborts with its `SFTPError`; an original callback error takes precedence.
+  The callback must await any I/O it starts before returning.
+|===
+
+Pending native operations retain their receiver, even after cancellation,
+until their replies are drained. Collecting an abandoned open resource submits
+a best-effort close and tracks its reply as auxiliary work. GC is a fallback;
+use an explicit close or scope when completion matters. VM shutdown cancels
+pending work, marks every resource closed and releases ownership without
+resuming parked user callbacks. Shutdown cleanup never waits on the network.
+The browser and public-key installer use scopes; the parallel transfer queue
+awaits its workers before closing each resource explicitly.
+
+[source,wren]
+----
+var file = SFTP.open(path, FileFlag.read).await()
+if (file is SFTPError) return file
+return file.use(Fn.new {|source| source.readBytes(4096, 0).await() })
+----
 
 ==== SFTPError
 

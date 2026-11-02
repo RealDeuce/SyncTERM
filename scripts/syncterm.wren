@@ -171,7 +171,11 @@ foreign class Cleanup_ {
   construct new(fn) {}
   foreign take_()
   foreign static isCurrentScope_(fiber)
-  static run(fn, cleanup) {
+  static run(fn, cleanup) { run_(fn, cleanup, false) }
+  // Remote resource cleanup awaits native close during normal execution.
+  // Shutdown still runs cleanup synchronously after native cancellation.
+  static runAsync_(fn, cleanup) { run_(fn, cleanup, true) }
+  static run_(fn, cleanup, asynchronous) {
     if (!(fn is Fn) || !(cleanup is Fn)) Fiber.abort("cleanup scope expects functions")
     var guard = new(cleanup)
     var body = Fiber.new { fn.call() }
@@ -182,7 +186,7 @@ foreign class Cleanup_ {
     // enclosing child. The parked scope must not restore twice.
     if (after != null) {
       var closer = Fiber.new { after.call() }
-      closer.try()
+      if (asynchronous) closer.tryScoped() else closer.try()
       cleanupError = closer.error
       if (!closer.isDone && cleanupError == null) cleanupError = "cleanup must not yield"
     }
@@ -1933,11 +1937,7 @@ class SFTP {
   foreign static realpath(path)
   foreign static stat(path)
   foreign static opendir(path)
-  foreign static readdir(handle)
-  foreign static close(handle)
   foreign static open(path, flags)
-  foreign static read(handle, count, offset)
-  foreign static write(handle, offset, bytes)
   foreign static mkdir(path)
   foreign static rmdir(path)
   foreign static remove(path)
@@ -1958,7 +1958,7 @@ class FileFlag {
   static excl   { 0x00000020 }
 }
 
-// One entry in a SFTP.readdir result.  `longname` is null when the
+// One entry in a RemoteDirectory.readEntries result.  `longname` is null when the
 // server didn't negotiate the lname@syncterm.net extension; `hash` is
 // null unless sha1s/md5s was advertised.
 foreign class SFTPEntry {
@@ -1984,10 +1984,38 @@ foreign class SFTPStat {
   foreign toString
 }
 
-// Opaque handle returned by SFTP.open / SFTP.opendir; consumed by
-// SFTP.read / SFTP.write / SFTP.close (and SFTP.readdir for opendir
-// handles).  No fields - the server-side bytes are not script-visible.
-foreign class SFTPHandle {}
+// Owned resources: pending operations root their receiver until native completion.
+foreign class RemoteFile {
+  foreign readBytes(count, offset)
+  foreign writeBytes(bytes, offset)
+  foreign appendBytes(bytes)
+  foreign readable
+  foreign writable
+  foreign append
+  foreign close()
+  foreign isClosed
+  foreign isClosing
+  use(fn) {
+    if (!(fn is Fn)) Fiber.abort("RemoteFile.use expects a Fn")
+    return Cleanup_.runAsync_(Fn.new { fn.call(this) }, Fn.new {
+      var result = close().await()
+      if (result is Error) Fiber.abort(result)
+    })
+  }
+}
+foreign class RemoteDirectory {
+  foreign readEntries()
+  foreign close()
+  foreign isClosed
+  foreign isClosing
+  use(fn) {
+    if (!(fn is Fn)) Fiber.abort("RemoteDirectory.use expects a Fn")
+    return Cleanup_.runAsync_(Fn.new { fn.call(this) }, Fn.new {
+      var result = close().await()
+      if (result is Error) Fiber.abort(result)
+    })
+  }
+}
 
 // Error result, surfaced in place of the typed result foreign when an
 // SFTP op fails.  Two error layers - distinguish via `code`:

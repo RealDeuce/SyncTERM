@@ -39,33 +39,37 @@ class SftpPubkey {
       if (h is SFTPError) {
         return
       }
-      // Read the file (typically a few KB) and look for our blob in
-      // any existing line — matches ssh.c key_not_present semantics:
-      // if any line contains the blob, treat as already authorized.
-      var content = ""
-      var off = 0
-      while (true) {
-        var b = SFTP.read(h, 4096, off).await()
-        if (b == null) break
-        if (b is SFTPError) break
-        if (b.bytes.count == 0) break
-        content = content + b
-        off = off + b.bytes.count
+      var install = Fiber.new {
+        h.use(Fn.new {|file|
+          // Read the file (typically a few KB) and look for our blob in
+          // any existing line — matches ssh.c key_not_present semantics:
+          // if any line contains the blob, treat as already authorized.
+          var content = ""
+          var off = 0
+          while (true) {
+            var b = file.readBytes(4096, off).await()
+            if (b == null) break
+            if (b is SFTPError) Fiber.abort(b)
+            if (b.bytes.count == 0) break
+            content = content + b
+            off = off + b.bytes.count
+          }
+          var found = false
+          for (line in content.split("\n")) {
+            if (line.contains(blob)) {
+              found = true
+              break
+            }
+          }
+          if (!found) {
+            // Append mode lets the server select the current end of file.
+            var ln = "%(algo) %(blob) Added by SyncTERM\n"
+            var result = file.appendBytes(ln).await()
+            if (result is SFTPError) Fiber.abort(result)
+          }
+        })
       }
-      var found = false
-      for (line in content.split("\n")) {
-        if (line.contains(blob)) {
-          found = true
-          break
-        }
-      }
-      if (!found) {
-        // APPEND flag means the server picks the offset; we pass 0
-        // and let the underlying open semantics do the right thing.
-        var ln = "%(algo) %(blob) Added by SyncTERM\n"
-        SFTP.write(h, 0, ln).await()
-      }
-      SFTP.close(h).await()
+      install.tryScoped()
     })
   }
 }

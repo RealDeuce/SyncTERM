@@ -196,23 +196,23 @@ class SftpFmt {
     if (h is SFTPError) return h
 
     var entries = []
-    var more = true
-    while (more) {
-      var batch = SFTP.readdir(h).await()
-      if (batch == null) {
-        more = false
-      } else if (batch is SFTPError) {
-        SFTP.close(h).await()
-        return batch
-      } else {
-        for (e in batch) {
-          if (e.name != "." && e.name != "..") entries.add(e)
+    var drain = Fiber.new {
+      h.use(Fn.new {|directory|
+        while (true) {
+          var batch = directory.readEntries().await()
+          if (batch == null) break
+          if (batch is SFTPError) Fiber.abort(batch)
+          for (e in batch) {
+            if (e.name != "." && e.name != "..") entries.add(e)
+          }
         }
-      }
+      })
     }
-
-	var closed = SFTP.close(h).await()
-	if (closed is SFTPError) return closed
+    drain.tryScoped()
+    if (drain.error != null) {
+      if (drain.error is SFTPError) return drain.error
+      Fiber.abort(drain.error)
+    }
 
     entries.sort {|a, b|
       if (a.isDir != b.isDir) return a.isDir

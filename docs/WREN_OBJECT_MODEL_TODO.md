@@ -57,13 +57,13 @@ in `src/syncterm.c` and `st_term_session_set_auxiliary_active`.
 
 ## 4 Model remote resources as owned objects
 
-- [ ] Replace undifferentiated `SFTPHandle` values with remote-file and
+- [x] Replace undifferentiated `SFTPHandle` values with remote-file and
   remote-directory objects recording owner, kind, access rights and close state.
-- [ ] Move handle operations onto their owning objects while retaining SFTP
+- [x] Move handle operations onto their owning objects while retaining SFTP
   namespace methods for path operations. Make close and scoped cleanup safe
   across success, failure, cancellation and disconnect.
-- [ ] Migrate browser, transfer queue, key installer, scripts and tests.
-- [ ] Test wrong-kind/wrong-owner use, rights, duplicate/concurrent close,
+- [x] Migrate browser, transfer queue, key installer, scripts and tests.
+- [x] Test wrong-kind/wrong-owner use, rights, duplicate/concurrent close,
   failed close, abandoned handles, pending operations and shutdown.
 
 Starting points: `foreign_sftp_handle`, `pending_request` and response
@@ -164,3 +164,26 @@ and preservation of malformed/out-of-range saved queues. Five native tests
 (including live SFTP), three ASan/UBSan tests and six headless application/UI
 tests passed. Native Clang/GCC and MinGW i686/x86_64 libraries built without
 warnings; Windows runtime and 32-bit runtime tests were not run.
+
+Item 4: SFTP.open/opendir now construct VM-owned RemoteFile/RemoteDirectory
+objects from retained request metadata. Methods enforce kind, read/write and
+append rights before submission. Pending I/O retains the receiver until its
+reply drains, including cancellation. Concurrent close shares one operation;
+success is idempotent and failure retains ownership for retry. Busy close and
+concurrent cursor reads return explicit errors. GC and abandoned-open cleanup
+track close replies as auxiliary work. Provider result kinds are validated.
+
+The browser/key installer now use asynchronous resource scopes; the queue
+awaits parallel workers before closing. Scoped cleanup can await close during
+normal execution, preserves original callback errors, and remains synchronous
+during teardown. Shutdown invalidates resources and releases pending roots
+without resuming parked bodies. The old SFTPHandle and static handle-operation
+entry points are gone.
+
+Five native tests (including live SFTP), three ASan/UBSan tests and six headless
+application/add-on tests passed. Regressions cover rights, independent resource
+state, directory cursor serialization, close races/retry/cancellation, pending
+I/O, GC fallback, async scope results/errors and shutdown. Native Clang/GCC and
+MinGW i686/x86_64 libraries built without warnings; Windows runtime tests were
+not run. Concurrent unrelated crypto work may affect later builds; preserve
+that work and distinguish its failures from Wren regressions.

@@ -793,7 +793,7 @@ class SftpQueue {
     }
     ctx.await()
 	var localClose = lf.close()
-	var remoteClose = SFTP.close(hSrc).await()
+	var remoteClose = hSrc.close().await()
     if (ctx.err == "suspended") {
       // Worker is bailing per user request; leave the job ACTIVE so
       // it persists in that state and resumes on the next session.
@@ -856,7 +856,7 @@ class SftpQueue {
 	  var remaining = want
 	  while (remaining > 0) {
 		var t0 = Timer.now
-		var bytes = SFTP.read(ctx.hRemote, remaining,
+		var bytes = ctx.hRemote.readBytes(remaining,
 			cursor).await()
 		var rtt = Timer.now - t0
 		if (bytes is SFTPError) {
@@ -992,7 +992,7 @@ class SftpQueue {
     }
     ctx.await()
 	var localClose = lf.close()
-	var remoteClose = SFTP.close(hDst).await()
+	var remoteClose = hDst.close().await()
     if (ctx.err == "suspended") {
       // Worker is bailing per user request; leave the job ACTIVE so
       // it persists in that state and resumes on the next session.
@@ -1041,7 +1041,7 @@ class SftpQueue {
 
   // One chunk worker for an upload job.  Symmetric with
   // downloadChunk_: claim an offset, pread the local slice, push it
-  // out via SFTP.write at that offset.  N parallel; out-of-order
+  // out via RemoteFile.writeBytes at that offset.  N parallel; out-of-order
   // remote writes are fine for SFTP write-by-offset.
   static uploadChunk_(ctx) {
     while (true) {
@@ -1064,7 +1064,7 @@ class SftpQueue {
 		  break
 		}
 		var t0 = Timer.now
-		var r = SFTP.write(ctx.hRemote, cursor, chunk).await()
+		var r = ctx.hRemote.writeBytes(chunk, cursor).await()
 		var rtt = Timer.now - t0
 		if (r is SFTPError) {
 		  if (r.isTransient || SftpQueue.shellClosed) {
