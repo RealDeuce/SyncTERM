@@ -205,10 +205,10 @@ class EmojiPicker is Pane {
     if (Screen.textWidth("(" + words + ")", 0) <= width) return "(" + words + ")"
     var line = "("
     for (ch in Text.graphemes(words)) {
-      if (Screen.textWidth(line + ch + "...)", 0) > width) break
+      if (Screen.textWidth(line + ch + "…)", 0) > width) break
       line = line + ch
     }
-    return line + "...)"
+    return line + "…)"
   }
 
   onPaint_() {

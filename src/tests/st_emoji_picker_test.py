@@ -202,7 +202,7 @@ app.runSync()
         client.wait_text('man shrugging: medium skin tone')
         # Compact layouts retain a wrapped highlighted name and clickable actions.
         client.grid_resize(40, 14)
-        frame = client.wait_for(lambda s: s.metadata['columns'] == 40 and 'man shrugging:' in s.text and '...)' in s.text)
+        frame = client.wait_for(lambda s: s.metadata['columns'] == 40 and 'man shrugging:' in s.text and '…)' in s.text)
         assert 'medium skin tone' in frame.text
         check_footer(frame, True, 'man shrugging: medium skin tone')
         long_name = 'couple with heart: person, person, medium-light skin tone, medium-dark skin tone'
