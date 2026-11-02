@@ -316,3 +316,84 @@ encryption scope. The disk-reload and emoji ledger rows were previously grouped
 with Settings results; their separate assessments prevent false closure. There
 are 45 original finding topics plus the documentation finding still open. Retain
 this temporary document and skill until the full burndown is complete.
+
+== Approved chunk 5: BBS loading (revision 1)
+
+Approval: the complete Plan-mode revision 1 was approved with "Implement the
+plan." Implementation began in Default mode on 2026-11-02.
+Phase: chunk complete; the next chunk requires an actual Plan-mode phase. Scope: bbs.load-status / model-mutation-results and bbs.diagnostics /
+bbs-diagnostics. The user selected one dismissible warning summary after each
+successful load. Existing native diagnostics require no new C API.
+
+Menu.load returns null/MenuError, preserving portable/native statuses and the
+failed loading/sorting/model-construction step. Preserve transactional replacement
+and existing password semantics. Remove MenuReadStatus and Menu.statusMessage,
+including unused migration codes, without aliases; migrate all callers/tests.
+
+Add menu-only Menu.loadDiagnostics: a fresh List, empty without a loaded model,
+of immutable host-created BBSLoadDiagnostic snapshots in native order. Expose
+source (BBSListSource.personal/shared/webSystem/webNamed = native 0..3), nullable
+sourceName and sectionName, and error (fresh MenuError with native portable status
+in both code fields). Copy native metadata/names only on request; create errors
+only on access. Own names, retain no list pointers or authority, survive GC and
+reloads, use strict UTF-8/NFC names, and raise MenuError on construction failure.
+No public constructor/setters. A failed candidate preserves installed diagnostics.
+
+Keep the password loop/cancellation using IOErr.passwordRequired/decryptionFailed;
+display other MenuError messages. After success, show one scrollable Directory
+Warnings popup with source, optional section and reason, using existing normal/
+exit-time paths. Continue after dismissal or diagnostic retrieval failure (report
+warnings unavailable). No automatic retries or native loading/storage changes.
+
+Establish regressions before behavior changes: failure reasons and retained model/
+views/grants, all source kinds and section/source warnings, native silent missing
+optional files, Unicode/null names, snapshots/GC/reloads/independent Lists/lazy
+errors, removed APIs/menu-only access/safe reading, actual menu password/cancel/
+error/summary/scroll/exit flows. Use existing fixtures and narrow test controls.
+Build with CMake; run bbs_list, bbs_failures, list_crypto, wren_host,
+wren_menu_contract and wren_settings_runtime; Clang/GCC, focused ASan/UBSan,
+no-crypto and MinGW64 cross-build (no Windows execution), headless/audio disabled.
+
+Update authoritative docs, ledger mappings, assessments/report/matrix and reviewed
+evidence/follow-up. Close only bbs.diagnostics and bbs.load-status; keep shared
+Settings disk-reload/emoji subclaims, entry provenance/shadow inspection and web
+progress open. Run coverage/diff checks and commit the complete verified chunk,
+without pushing. Retain the temporary plan/skill until full burndown completion.
+
+=== Completed verification
+
+The original binding failed the new successful-load regression (numeric status
+instead of null). The implemented contract passes with actual native warnings
+for invalid sections and an unreadable secondary source, plus narrow private
+return/copy controls for failure paths. Tests cover all four sources, native
+portable codes at each load stage, retained models/views/file grants, Unicode
+normalization and malformed names, copied immutable records, independent Lists,
+lazy error construction, no eager copying during loading, GC/reload survival,
+removed APIs, safe-mode reading and existing VM boundaries.
+
+The real menu passes warning retrieval failure, one-summary continuation,
+scrolling in both directions, normal and exit-time warning flows, password
+cancellation, fatal display, and actual encrypted-list wrong/correct password
+retry. No native API, storage, optional-source or cache policy was changed.
+Migrated application fixtures also remove their obsolete Boolean checks of
+already-approved chunk-4 methods; the web-list and BBS setter application tests
+pass with the current contracts.
+
+Clang Debug passed bbs_list, bbs_failures, list_crypto and seven Wren tests
+(host, menu, settings runtime, stale/save-failure/reload, core helpers). GCC Debug
+and Clang ASan/UBSan passed host/menu/settings runtime. Native no-crypto passed
+list_crypto/settings runtime. Final focused settings runtime passed all four
+configurations after the Unicode fixture/layout review. The application and final
+menu/web-list/BBS-setter application checks passed; menu synthetic also passed.
+MinGW64 Debug cross-built the application and host/settings/loader tests, with a
+final application/settings rebuild. No Windows runtime tests were performed.
+FreeBSD leak detection is unsupported and disabled; C++ vptr checks remain
+disabled for C-owned executables. No introduced warnings or sanitizer diagnostics.
+
+Coverage/diff checks pass: 80 public headers, 120 explicit exclusions, 2,447 native
+items, 157 assessments and 51 original finding topics. Four existing source-enum
+rows now have their own Covered assessment; native declarations/denominator are
+unchanged. All matrix counts match the ledger. bbs.diagnostics and bbs.load-status
+are resolved; 44 topics plus the documentation finding remain open, including
+Settings disk reload/emoji results, entry provenance and web refresh progress.
+Keep this temporary document and skill until the full burndown is complete.

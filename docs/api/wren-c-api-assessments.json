@@ -1006,7 +1006,7 @@
     "bbs.provenance": {
       "status": "partial",
       "wren": "DirectoryEntry.type / profile.source",
-      "reason": "Native PERSONAL/SHARED/WEB_SYSTEM/WEB_NAMED becomes personal versus system. source_name is not retained in the script model. Scripts cannot identify which named list provided an entry. Shadowed entries are intentionally absent from the merged visible list, but there is no script inspection API for that hidden provenance.",
+      "reason": "DirectoryEntry.type / profile.source still collapses the native four source kinds to personal versus system, and source_name is not exposed for entries. Scripts cannot identify which named list provided an entry or inspect shadowed provenance. BBSListSource enum values and load-diagnostic source names are now separately covered; that does not resolve entry provenance.",
       "vm": "menu",
       "evidence": [
         {
@@ -1024,7 +1024,7 @@
     "bbs.cache-result": {
       "status": "partial",
       "wren": "DirectoryEntry.save/delete/rename return primary success",
-      "reason": "Native cache_status is secondary optional housekeeping after primary list success. Wren intentionally reports primary success without this status: the user approved that cache maintenance is optional and must not determine mutation success. No cache/store/write-policy changes or new result API are required. Coverage remains Partial because this native status is intentionally omitted; primary mutation-error fidelity remains a separate open finding.",
+      "reason": "Native cache_status is secondary optional housekeeping after primary list success. Wren intentionally reports primary success without this status: the user approved that cache maintenance is optional and must not determine mutation success. No cache/store/write-policy changes or new result API are required. Coverage remains Partial because this native status is intentionally omitted; primary result fidelity is accounted separately under model-mutation-results, whose Settings disk-reload and emoji-result subclaims remain open.",
       "vm": "menu",
       "evidence": [
         {
@@ -1045,9 +1045,9 @@
       "resolution": "resolved"
     },
     "bbs.diagnostics": {
-      "status": "unmapped",
-      "wren": "Menu.load has only coarse read status",
-      "reason": "No query for nonfatal per-source/per-section load diagnostics and their native status is exported.",
+      "status": "covered",
+      "wren": "Menu.loadDiagnostics / BBSLoadDiagnostic",
+      "reason": "On request, snapshots copy all four native diagnostic fields in native order, with strict UTF-8/NFC owned names and a lazily constructed MenuError preserving portable status. Snapshots survive GC/reloads, grant no authority, and are distinct from failed candidates. No native API was added. The bundled menu shows one scrollable warning summary after successful loading and continues if warning retrieval fails. Missing optional sources retain native silent-skip policy.",
       "vm": "menu",
       "evidence": [
         {
@@ -1055,16 +1055,25 @@
           "anchor": "st_bbs_list_diagnostic_at"
         },
         {
+          "path": "src/scripting/wren_host/wren_bind_menu.c",
+          "anchor": "fn_menu_load_diagnostics"
+        },
+        {
           "path": "scripts/syncterm_menu.wren",
-          "anchor": "class MenuReadStatus"
+          "anchor": "foreign class BBSLoadDiagnostic"
+        },
+        {
+          "path": "scripts/auto/menu/main_menu.wren",
+          "anchor": "static loadWarnings_()"
         }
       ],
       "finding": "bbs-diagnostics",
-      "decision": "mapping-gap"
+      "decision": "resolved",
+      "resolution": "resolved"
     },
     "bbs.refresh-detail": {
       "status": "partial",
-      "wren": "Menu.refreshWebList returns success/error String",
+      "wren": "Menu.refreshWebList returns null/MenuError",
       "reason": "Menu exposes refresh of a configured list but not native per-item queued/active/complete/failed state, phase, received/total/total_known, status and outcome progress records. The synchronous menu workflow does not provide an observer callback.",
       "vm": "menu",
       "evidence": [
@@ -3185,22 +3194,23 @@
       ]
     },
     "bbs.load-status": {
-      "status": "partial",
-      "wren": "Menu.load / MenuReadStatus",
-      "reason": "Menu.load replaces the owned model transactionally but coarsens native failures into MenuReadStatus. The approved mutation-result chunk deliberately leaves this load contract unchanged. Native load-error fidelity remains open; there is no new raw list owner.",
+      "status": "covered",
+      "wren": "Menu.load returns null/MenuError",
+      "reason": "Menu.load preserves native portable failures from list opening, sorting and model construction in MenuError.code/nativeCode. Failure preserves the installed model, generation, views, grants and diagnostics; success retains existing invalidation. Obsolete MenuReadStatus/migration codes and statusMessage are removed without aliases. Native open/reload ownership and C APIs are unchanged.",
       "vm": "menu",
       "evidence": [
         {
           "path": "src/scripting/wren_host/wren_bind_menu.c",
-          "anchor": "fn_menu_load"
+          "anchor": "fn_menu_load(WrenVM *vm)"
         },
         {
-          "path": "scripts/syncterm_menu.wren",
-          "anchor": "class MenuReadStatus"
+          "path": "scripts/auto/menu/main_menu.wren",
+          "anchor": "status.code == IOErr.passwordRequired"
         }
       ],
       "finding": "model-mutation-results",
-      "decision": "mapping-gap"
+      "decision": "resolved",
+      "resolution": "resolved"
     },
     "settings.disk-reload": {
       "status": "unmapped",
@@ -3237,6 +3247,22 @@
       ],
       "finding": "model-mutation-results",
       "decision": "mapping-gap"
+    },
+    "bbs.source-values": {
+      "status": "covered",
+      "wren": "BBSListSource.personal/shared/webSystem/webNamed",
+      "reason": "The four native source enum values are available in the menu VM for diagnostic interpretation. Entry source detail and shadowed-record inspection remain separately Partial under bbs.provenance. BBSListType keeps its distinct two-value profile contract.",
+      "vm": "menu",
+      "evidence": [
+        {
+          "path": "src/config/bbs_list/st_bbs_list.h",
+          "anchor": "enum st_bbs_source"
+        },
+        {
+          "path": "scripts/syncterm_menu.wren",
+          "anchor": "class BBSListSource"
+        }
+      ]
     }
   },
   "documentation_findings": [
@@ -3960,6 +3986,11 @@
       "path": "src/scripting/wren_host/tests/st_wren_settings_menu_test.c",
       "anchor": "editor dropped installed settings after runtime failure",
       "aspect": "The actual editor reports runtime failure while retaining pending persistence for installed changes; a readable File grant is accepted and string bypass rejected."
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_settings_menu_test.c",
+      "anchor": "test_load_results",
+      "aspect": "Fatal native load reasons, retained models/views/file grants, actual four-source warnings, on-request immutable NFC snapshots, lazy errors, allocation/text failures, GC/reload lifetime, safe reading, removed APIs, real warning/password/cancellation/exit/scroll UI."
     }
   ],
   "dispatch_evidence": [
@@ -3971,16 +4002,16 @@
   ],
   "evidence_files": {
     "docs/WREN_GUIDANCE.md": "d14aeecb5eae922015f2f48a4fd690277dcb5b91aedfd8d8d8cffb2dc235e1ac",
-    "docs/Wren.adoc": "e53edf521fc7cf66a119ea4a6559e081f6887dfc507950277e5c511cb83b5e4c",
+    "docs/Wren.adoc": "770dd6cf9527765d3953b1ebc767b94163e9b9df884b9f5d1b5a8b009fab4762",
     "docs/api/bbs-entry-fields.adoc": "a1be9944eadd5f56d752e8669b502f49b27211f14190443a95e36ad301b8d128",
     "scripts/auto/connected/font_pick.wren": "6cd249b69c2f851e1fb84e4b8ce381879cfaaa96a35e1376f6e8502c6497e91b",
-    "scripts/auto/menu/main_menu.wren": "817f1e52353d918e94fc5fa3e24ccd6f4b469cd0157507b7723b847c965bbff5",
+    "scripts/auto/menu/main_menu.wren": "5b37db003c7c052da2332aeb8255db695fd2f3d976fa4f56502578ed0039c681",
     "scripts/menu_bbs_editor.wren": "fa27c403b0cad1ffe2811243787916ce7428da2255b12683f6e3e2c5847a4187",
     "scripts/menu_settings_ui.wren": "edeea3c58f5df12ac93f041185f059163335228e48bcd4ac0f638fc0140e25ff",
     "scripts/sftp_app.wren": "4cd38fa9304c6c7428d7a21ef3b86c0d68fb14e25b35c3540bfdd46a211a9e5f",
     "scripts/sftp_queue.wren": "b15fe706268e9ce6d5fea4227661d0ac810f6f9fc4dbf7d39863756bde3eaf74",
     "scripts/syncterm.wren": "325226534f1508ca6e65dd95039100c8b3c71dfc1595149173a58b00d87cbd5b",
-    "scripts/syncterm_menu.wren": "256c01bef7724057d5fd16dc4a3c986b29a62835ec28b5a3c679edcb9e4f651c",
+    "scripts/syncterm_menu.wren": "6bd766fbf1c87450b4bdf7776a12c0f27b8d3bf5dd0cda2f909b864c3bee2c2f",
     "scripts/syncterm_picker.wren": "143e15bd084bed37145061760100c84b353d340e00187d9cd2b920a850be6021",
     "scripts/transfer_app.wren": "36713bbb8fdb61e5f7af68371c44a9110cd8bda8ea59c0ee7ee09436684b61af",
     "scripts/transfer_pick.wren": "9e88fe4e68efc01449105c8536f1902fca4295564adf2b488d1a866d5fcd29cb",
@@ -4048,14 +4079,14 @@
     "src/net/transfer/st_transfer_detect.h": "3296b9ecf875d100f793920a3b0117a8f7b80951a539317d366f4ea40a7a1b30",
     "src/net/webget/st_webget.h": "9647dcc563e1661fe1d6b762c78e2483d2beae03ac878da0ebd15c8a425d2143",
     "src/scripting/wren_host/st_wren_host.h": "531eba9331f992a6394c41020890e279597ee8d6cfd1259a4495f68ef38d5552",
-    "src/scripting/wren_host/tests/st_wren_host_test.c": "cc16e21e68b154b7fc288155ea81d0bf80d9d4d0378c4102bb5d2d9873c198d2",
-    "src/scripting/wren_host/tests/st_wren_settings_menu_test.c": "c47f4e940faea9467be313859f247078eed93922ed123ab4c50b5653be1128c4",
+    "src/scripting/wren_host/tests/st_wren_host_test.c": "427c4338edb45d155f26e903cd8527b6a9a31b4960bf60ba527a6eb00ad35693",
+    "src/scripting/wren_host/tests/st_wren_settings_menu_test.c": "dc05b22e696ad82c7a33b630be1cb987c0f3b26dd1b08e2099ad60c3b0772248",
     "src/scripting/wren_host/wren_async.c": "71e78941735250300171a2b7cb13b70c92916bd14c066a6614b3f77cdd9b565d",
     "src/scripting/wren_host/wren_bbs_model.c": "18dca3353505a5b0dc609251f16038bd9132c47e215c4cf24ba802ac4b3ab97a",
     "src/scripting/wren_host/wren_bind_core.c": "b12436be2d04d1bf7e1d048c61c925bffb73ad4d0dd56cc627e8b02f12db697f",
     "src/scripting/wren_host/wren_bind_fs.c": "17e19ab179b195a36c58f929802e9a5d86d6e211d7dfdf809ac4b7c4e6c96cba",
     "src/scripting/wren_host/wren_bind_hyperlinks.c": "255be945007c9cb2795195058e5f58de7d2b2157728892e614d6e8fb5f729b98",
-    "src/scripting/wren_host/wren_bind_menu.c": "c053dda7dd30be7564e5acf3d69805074e9f3f56c4b1f372169293265c4995c9",
+    "src/scripting/wren_host/wren_bind_menu.c": "88ea90b12b89627db09391a479891584adacd223c4d5d4d158a48affdb5eb71b",
     "src/scripting/wren_host/wren_bind_pixels.c": "5a1b4c73862a6845710159e6b34e8992cff1ab66661b984f871c46eb6c6bcceb",
     "src/scripting/wren_host/wren_bind_session.c": "fb584f383f0d6df19f328ef194e8bf328f8dc723066df2111794b2b32ac63b93",
     "src/scripting/wren_host/wren_bind_status.c": "85ed4115c9a9645aa27cccb2a9977e5892037123d7440d9acf3397fd55e16671",
@@ -4104,14 +4135,14 @@
     "src/text/unicode_text/st_unicode_text.h": "122e239b71b76eb7a778815fec2bd783bdb1e84d2a60a06abb79a75f1fd3523f",
     "src/text/unicode_width/st_unicode_width.h": "c90749bc509e94748a1dba06bf25db3de7b7ccde03764193fd5f8073e9cb9433",
     "src/text/utf8/st_utf8.h": "803d3d03a0d91141f7259a0b1a39f6a51b71397db9310a94b96fd4444e10f3a1",
-    "scripts/menu_settings_ui_test.wren": "a7ebef18e0c0fd738c095a4044666a7c5fa128c09c0477018ba287feaa7fee33",
+    "scripts/menu_settings_ui_test.wren": "fc72b3412fe2d6b866cc3c3895e66129a0e109feb81fa9976e854411e89656c2",
     "src/media/font_catalog/st_font_catalog.c": "4117712e3679625ff3f9368b9c5c8b048030617c071d8912978918593da38f47",
     "src/terminal/cterm/cterm_render.c": "fb5cf7def0c2972ca7d71dd326595f0dfdc9f4dfe9cfb6ce6b85c3fb6caa3a3a",
     "src/tests/st_font_assignments_test.py": "5b672eb7c59e75c7f9005e6851419f2563c435585740c150bf4af17544f9dbf6",
     "src/terminal/cterm/tests/st_cterm_test.c": "c76041087a5995c83a259e4052e8c4c5b518dc61aa858f9294bbd444b0c33a2b",
     "src/config/bbs_list/st_bbs_store.c": "9859e0b1a0bd65a05567d47f78fb5bf87ad8716077b8824a52e8d8b87a460325",
     "src/scripting/wren_host/tests/st_wren_sftp_live_test.c": "61d5e35f34a48725efefca9b08f290d356ddee00cf12dad2b32c0727079025fa",
-    "src/scripting/wren_host/tests/st_wren_menu_test_bindings.c": "504d2aa5e5e29c4d6028eb909f33fb5c8abe9d106e6f8e44c118a3d1e2719cd8",
+    "src/scripting/wren_host/tests/st_wren_menu_test_bindings.c": "22facb46ca7bb8f9d94ed80a298bcfba28aca8d5e2799c679f4beebe84394907",
     "scripts/menu_sort_profiles.wren": "e03022e77a0872851aa25ad52ff9f1160c8aa9a800d03bbb7063c8027dc4206d",
     "src/config/settings/st_settings_store.c": "8353b1e80bd3e27e84122a57cec1e3daed29b0a2b46adfd64d531a4962e34128"
   },
@@ -4300,6 +4331,44 @@
         "MinGW64 Debug application and three host/loader tests cross-build"
       ],
       "limitations": "No Windows runtime execution. FreeBSD leak detection unsupported and disabled; C++ vptr checks disabled for C-owned executables. Generic C failures remain generic and existing partial writes/effects remain possible. No new compiler warnings; no sanitizer diagnostics in the final focused run. The headless settings fixture explicitly disables physical audio."
+    },
+    {
+      "topic": "bbs-load-results-and-diagnostics",
+      "status": "selected-subclaims-resolved",
+      "findings": [
+        "bbs-diagnostics",
+        "model-mutation-results"
+      ],
+      "approval": "Complete Plan-mode chunk 5 revision 1 approved: Implement the plan. User selected BBS load results and one dismissible warning summary after successful loads.",
+      "scope": "Menu.load returns null/MenuError with actual portable failures from opening/sorting/model construction. MenuReadStatus and statusMessage, including obsolete migration codes, are removed without aliases. Menu.loadDiagnostics copies native records on request; BBSLoadDiagnostic owns NFC names/scalars and creates MenuError only on error access. The bundled menu shows one scrollable warning summary and continues when warnings cannot be retrieved. Existing C APIs, loading policy, storage, authority and transactional replacement are unchanged.",
+      "resolved": [
+        "bbs.diagnostics",
+        "bbs.load-status"
+      ],
+      "remaining": [
+        "settings.disk-reload",
+        "settings.recent-result",
+        "Entry provenance/shadowed-record inspection",
+        "Web refresh progress"
+      ],
+      "accounting": "Preserved original findings and historical reviews. Split four already-inventoried source enums into Covered bbs.source-values while leaving entry provenance Partial/open. No native declarations or denominator changes. Updated report locations/matrix and reviewed affected evidence, including the preexisting refresh result description.",
+      "regression_before_fix": "The new successful-load assertion failed against the original binding: successful load must return null.",
+      "tests_passed": [
+        "Clang Debug: bbs_list / bbs_failures / list_crypto / wren_host / wren_menu_contract / wren_settings_runtime / wren_settings-stale / wren_settings-save-failure / wren_settings-reload / wren_core-helpers",
+        "GCC Debug and Clang ASan/UBSan: wren_host / wren_menu_contract / wren_settings_runtime",
+        "Native no-crypto: list_crypto / wren_settings_runtime",
+        "Final Unicode/layout review: wren_settings_runtime on Clang/GCC/ASan-UBSan/native no-crypto",
+        "Application: syncterm_behavior_web_list / syncterm_behavior_bbs_setters; wren_menu_synthetic; final menu contract and application tests after application rebuild",
+        "Coverage checker: 80 public headers, 120 explicit exclusions, 2447 native items, 157 assessments, 51 original topics; report matrix cross-check; git diff --check"
+      ],
+      "builds_passed": [
+        "FreeBSD Clang Debug application and host/settings/loader tests",
+        "FreeBSD GCC Debug host/settings tests",
+        "FreeBSD Clang ASan/UBSan host/settings tests",
+        "FreeBSD Clang RelWithDebInfo no-crypto settings/crypto tests",
+        "MinGW64 Debug application and host/settings/loader cross-build, final application/settings rebuild"
+      ],
+      "limitations": "No Windows execution. FreeBSD leak detection unsupported and disabled; C++ vptr checks disabled for C-owned executables. Headless fixtures disable physical audio. No introduced compiler warnings or sanitizer diagnostics. Other topics still require their own actual Plan-mode phase and approval."
     }
   ]
 }

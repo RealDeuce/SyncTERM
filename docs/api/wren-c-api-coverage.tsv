@@ -273,10 +273,10 @@ src/config/app_paths/st_app_paths.h	function:st_app_paths_prepare_keys	45	int (c
 src/config/app_paths/st_app_paths.h	function:st_app_paths_prepare_scripts	46	int (const struct st_app_paths *)	paths.application
 src/config/app_paths/st_app_paths.h	function:st_app_paths_prepare_themes	47	int (const struct st_app_paths *)	paths.application
 src/config/bbs_list/st_bbs_list.h	macro:ST_BBS_LIST_MAX_ENTRIES	18	100000U	bbs.workflow
-src/config/bbs_list/st_bbs_list.h	enum:ST_BBS_SOURCE_PERSONAL	25	st_bbs_source	bbs.provenance
-src/config/bbs_list/st_bbs_list.h	enum:ST_BBS_SOURCE_SHARED	26	st_bbs_source	bbs.provenance
-src/config/bbs_list/st_bbs_list.h	enum:ST_BBS_SOURCE_WEB_SYSTEM	27	st_bbs_source	bbs.provenance
-src/config/bbs_list/st_bbs_list.h	enum:ST_BBS_SOURCE_WEB_NAMED	28	st_bbs_source	bbs.provenance
+src/config/bbs_list/st_bbs_list.h	enum:ST_BBS_SOURCE_PERSONAL	25	st_bbs_source	bbs.source-values
+src/config/bbs_list/st_bbs_list.h	enum:ST_BBS_SOURCE_SHARED	26	st_bbs_source	bbs.source-values
+src/config/bbs_list/st_bbs_list.h	enum:ST_BBS_SOURCE_WEB_SYSTEM	27	st_bbs_source	bbs.source-values
+src/config/bbs_list/st_bbs_list.h	enum:ST_BBS_SOURCE_WEB_NAMED	28	st_bbs_source	bbs.source-values
 src/config/bbs_list/st_bbs_list.h	function:st_bbs_name_equal	31	bool (const char *, const char *)	bbs.workflow
 src/config/bbs_list/st_bbs_list.h	function:st_bbs_name_valid	32	bool (const char *)	bbs.workflow
 src/config/bbs_list/st_bbs_list.h	function:st_bbs_name_valid_normalized	34	bool (const char *)	bbs.workflow

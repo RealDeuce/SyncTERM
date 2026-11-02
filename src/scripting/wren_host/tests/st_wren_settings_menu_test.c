@@ -152,7 +152,7 @@ test_menu_native_failures(struct st_wren_host *host, const char *personal)
 	    "var conflict = existing.save()\n"
 	    "if (!(conflict is MenuError) || conflict.code != IOErr.conflict || conflict.nativeCode != IOErr.conflict || !existing.dirty) Fiber.abort(\"native conflict was discarded\")\n");
 	write_text(personal, "[Existing]\nAddress=existing.example\n");
-	interpret(host, "native_menu_results", "if (Menu.load(null) != 0) Fiber.abort(\"conflict fixture reload\")\n");
+	interpret(host, "native_menu_results", "if (Menu.load(null) != null) Fiber.abort(\"conflict fixture reload\")\n");
 	if (!st_list_crypto_encryption_available())
 		return;
 	interpret(host, "native_menu_results",
@@ -488,6 +488,159 @@ test_offer_save(struct st_wren_host *host, st_console_t *console)
 	st_profile_dispose(&source);
 }
 
+static void
+test_load_results(struct st_wren_host *host, struct st_app_paths *paths,
+	const char *personal, st_console_t *console)
+{
+	static const char invalid_section[] =
+	    "[1234567890123456789012345678901]\nAddress=skipped.example\n";
+	char shared[sizeof(ST_WREN_SETTINGS_TEST_DIRECTORY) + 32];
+	char named[sizeof(ST_WREN_SETTINGS_TEST_DIRECTORY) + 32];
+	char script[1024];
+	CHECK(snprintf(shared, sizeof(shared), "%s/shared.lst",
+	    ST_WREN_SETTINGS_TEST_DIRECTORY) < (int)sizeof(shared));
+	CHECK(snprintf(named, sizeof(named), "%s/Caf\xc3\xa9.lst",
+	    ST_WREN_SETTINGS_TEST_DIRECTORY) < (int)sizeof(named));
+	CHECK(st_settings_web_download_count() == 0);
+	CHECK(snprintf(script, sizeof(script), "[Existing]\nAddress=existing.example\n%s",
+	    invalid_section) < (int)sizeof(script));
+	write_text(personal, script);
+	write_text(shared, invalid_section);
+	write_text(paths->cached_system_list, "\xff");
+	write_text(named, invalid_section);
+	paths->shared_list = shared;
+	CHECK(st_settings_web_download_append("Caf\xc3\xa9", "https://invalid/") == 0);
+	interpret(host, "load_diagnostics",
+	    "import \"syncterm\" for IOErr\n"
+	    "import \"syncterm_menu\" for Menu, MenuError, BBSListSource, BBSLoadDiagnostic\n"
+	    "import \"main_menu\" for MainMenu\n"
+	    "if (Menu.load(null) != null) Fiber.abort(\"warning load failed\")\n"
+	    "var saved = Menu.loadDiagnostics\n"
+	    "var oldEntry = Menu.entries[0]\n"
+	    "var oldDefaults = Menu.defaults\n"
+	    "var oldCache = oldEntry.cache\n"
+	    "oldCache.delete(\"load-result.tmp\")\n"
+	    "var oldFile = oldCache.create(\"load-result.tmp\")\n"
+	    "if (saved.count != 4) Fiber.abort(\"missing source warnings\")\n"
+	    "var sources = [BBSListSource.personal, BBSListSource.shared, BBSListSource.webSystem, BBSListSource.webNamed]\n"
+	    "var expected = [IOErr.invalidFormat, IOErr.invalidFormat, IOErr.invalidEncoding, IOErr.invalidFormat]\n"
+	    "for (i in 0...saved.count) {\n"
+	    "  var item = saved[i]\n"
+	    "  var error = item.error\n"
+	    "  if (!(item is BBSLoadDiagnostic) || item.source != sources[i] || sources[i] != i || !(error is MenuError) || error.code != expected[i] || error.nativeCode != expected[i]) Fiber.abort(\"diagnostic native mapping\")\n"
+	    "  if (item.error == error) Fiber.abort(\"diagnostic cached error\")\n"
+	    "}\n"
+	    "if (saved[0].sourceName != null || saved[0].sectionName != \"1234567890123456789012345678901\" || saved[2].sourceName != \"System List\" || saved[2].sectionName != null || saved[3].sourceName != \"Caf\xc3\xa9\") Fiber.abort(\"nullable diagnostic names\")\n"
+	    "var separate = Menu.loadDiagnostics\n"
+	    "separate.clear()\n"
+	    "if (saved.count != 4 || Menu.loadDiagnostics.count != 4) Fiber.abort(\"borrowed diagnostic list\")\n"
+	    "for (action in [Fn.new { saved[0].source = 2 }, Fn.new { saved[0].sourceName = \"x\" }, Fn.new { saved[0].sectionName = \"x\" }, Fn.new { saved[0].error = null }, Fn.new { BBSLoadDiagnostic.new() }, Fn.new { Menu.statusMessage(0) }]) {\n"
+	    "  var bad = Fiber.new { action.call() }\n"
+	    "  bad.try()\n"
+	    "  if (bad.error == null) Fiber.abort(\"diagnostic mutable/constructible or obsolete status method\")\n"
+	    "}\n"
+	    "var message = MainMenu.loadWarnings_()\n"
+	    "if (!message.contains(\"Caf\xc3\xa9\") || !message.contains(\"System List\") || !message.contains(\"1234567890123456789012345678901\") || !message.contains(\"Invalid encoding\")) Fiber.abort(\"warning summary lost detail\")\n");
+	CHECK(!wrenHasVariable(host->vm, "syncterm_menu", "MenuReadStatus"));
+	st_bbs_list_t *original = host->bbs_list;
+	uint64_t generation = host->bbs_model.generation;
+	int *controls[] = {&st_wren_test_list_open_status,
+	    &st_wren_test_list_sort_status, &st_wren_test_model_build_status};
+	const int statuses[] = {IO_ERROR_PASSWORD_REQUIRED, IO_ERROR_DECRYPTION_FAILED,
+	    IO_ERROR_INVALID_FORMAT, IO_ERROR_PERMISSION_DENIED};
+	for (size_t stage = 0; stage < 3; ++stage) {
+		for (size_t i = 0; i < sizeof(statuses) / sizeof(statuses[0]); ++i) {
+			*controls[stage] = statuses[i];
+			CHECK(snprintf(script, sizeof(script),
+			    "{\nvar failure = Menu.load(null)\n"
+			    "if (!(failure is MenuError) || failure.code != %d || failure.nativeCode != %d || !failure.message.contains(\"%s\") || Menu.loadDiagnostics.count != 4) Fiber.abort(\"load reason or retained warnings\")\n}\n",
+			    statuses[i], statuses[i], stage == 0 ? "loaded" : stage == 1 ? "sorted" : "constructed") < (int)sizeof(script));
+			interpret(host, "load_diagnostics", script);
+			CHECK(host->bbs_list == original && host->bbs_model.generation == generation);
+			*controls[stage] = 0;
+		}
+	}
+	interpret(host, "load_diagnostics",
+	    "if (oldEntry.name != \"Existing\" || oldDefaults.addr != \"\" || oldFile.open() != null || oldFile.close() != null) Fiber.abort(\"failed load revoked views/grants\")\n"
+	    "var cacheEntries = oldCache.list\n"
+	    "if (oldCache.delete(\"load-result.tmp\") != null) Fiber.abort(\"grant fixture cleanup\")\n");
+	struct st_bbs_diagnostic injected = {
+		.source = ST_BBS_SOURCE_WEB_NAMED,
+		.source_name = "Cafe\xcc\x81", .section_name = "A\xcc\x8a",
+		.status = IO_ERROR_PERMISSION_DENIED,
+	};
+	st_wren_test_diagnostic = &injected;
+	interpret(host, "load_diagnostics",
+	    "var normalized = Menu.loadDiagnostics[0]\n"
+	    "if (normalized.sourceName != \"Caf\xc3\xa9\" || normalized.sectionName != \"\xc3\x85\" || normalized.error.code != IOErr.permissionDenied) Fiber.abort(\"diagnostic normalization\")\n");
+	injected.source_name = "\xff";
+	interpret(host, "load_diagnostics",
+	    "var badText = Fiber.new { Menu.loadDiagnostics }.try()\n"
+	    "if (!(badText is MenuError) || badText.code != IOErr.invalidEncoding) Fiber.abort(\"malformed diagnostic text\")\n"
+	    "if (normalized.sourceName != \"Caf\xc3\xa9\") Fiber.abort(\"diagnostic borrowed names\")\n");
+	/* Retrieval failure is a warning after a successful load, not load failure. */
+	post_key(console, 13);
+	interpret(host, "load_diagnostics",
+	    "if (!MainMenu.prepare_(false)) Fiber.abort(\"warning retrieval failed the load\")\n");
+	st_wren_test_diagnostic = NULL;
+	st_wren_test_diagnostic_copy_status = IO_ERROR_OUT_OF_MEMORY;
+	interpret(host, "load_diagnostics",
+	    "if (Menu.load(null) != null) Fiber.abort(\"load eagerly copied warning text\")\n"
+	    "var allocation = Fiber.new { Menu.loadDiagnostics }.try()\n"
+	    "if (!(allocation is MenuError) || allocation.code != IOErr.outOfMemory || Menu.entries[0].name != \"Existing\") Fiber.abort(\"diagnostic allocation failure\")\n");
+	st_wren_test_diagnostic_copy_status = 0;
+	host->config.safe_mode = true;
+	post_key(console, 0x5100);
+	post_key(console, 13);
+	interpret(host, "load_diagnostics",
+	    "if (Menu.loadDiagnostics.count != 4 || !MainMenu.prepare_(false)) Fiber.abort(\"safe warning flow\")\n");
+	host->config.safe_mode = false;
+	post_key(console, 27);
+	interpret(host, "load_diagnostics",
+	    "if (!MainMenu.prepare_(true)) Fiber.abort(\"exit warning flow\")\n"
+	    "import \"syncterm\" for Key, KeyEvent\n"
+	    "var pane = MainMenu.loadWarningsPane_(MainMenu.loadWarnings_() * 10, true, 0)\n"
+	    "if (!pane.atExit || pane.title != \"Directory Warnings\" || pane.messageScrollTop != 0) Fiber.abort(\"warning pane configuration\")\n"
+	    "pane.handle(KeyEvent.new(Key.pageDown))\n"
+	    "if (pane.messageScrollTop <= 0) Fiber.abort(\"warnings do not scroll\")\n"
+	    "pane.handle(KeyEvent.new(Key.pageUp))\n"
+	    "if (pane.messageScrollTop != 0) Fiber.abort(\"warnings cannot scroll back\")\n");
+	/* Both native password failures enter the real prompt; Escape cancels. */
+	for (size_t i = 0; i < 2; ++i) {
+		st_wren_test_list_open_status = statuses[i];
+		post_key(console, 27);
+		interpret(host, "load_diagnostics",
+		    "if (MainMenu.prepare_(false)) Fiber.abort(\"password cancellation\")\n");
+	}
+	st_wren_test_list_open_status = IO_ERROR_PERMISSION_DENIED;
+	post_key(console, 13);
+	interpret(host, "load_diagnostics",
+	    "if (MainMenu.prepare_(true)) Fiber.abort(\"fatal error reported success\")\n");
+	st_wren_test_list_open_status = 0;
+	if (st_list_crypto_encryption_available()) {
+		interpret(host, "load_diagnostics",
+		    "if (Menu.setEncryption(6, 128, \"secret\") != null) Fiber.abort(\"password load fixture\")\n"
+		    "MainMenu.password = null\n");
+		const char *answers = "wrong\rsecret\r\r";
+		for (const char *key = answers; *key != '\0'; ++key)
+			post_key(console, (uint16_t)*key);
+		interpret(host, "load_diagnostics",
+		    "if (!MainMenu.prepare_(false) || MainMenu.password != \"secret\") Fiber.abort(\"password retry flow\")\n"
+		    "if (Menu.setEncryption(0, 0, null) != null) Fiber.abort(\"password fixture reset\")\n"
+		    "MainMenu.password = null\n");
+	}
+	CHECK(st_settings_web_download_remove(0) == 0);
+	paths->shared_list = NULL;
+	CHECK(fs_remove_file(shared) == 0);
+	CHECK(fs_remove_file(named) == 0);
+	CHECK(fs_remove_file(paths->cached_system_list) == 0);
+	write_text(personal, "[Existing]\nAddress=existing.example\n");
+	interpret(host, "load_diagnostics",
+	    "if (Menu.load(null) != null || Menu.loadDiagnostics.count != 0 || MainMenu.loadWarnings_() != null) Fiber.abort(\"missing optional lists warned\")\n"
+	    "System.gc()\nSystem.gc()\n"
+	    "if (saved[2].error.code != IOErr.invalidEncoding || saved[3].sourceName != \"Caf\xc3\xa9\" || normalized.sectionName != \"\xc3\x85\") Fiber.abort(\"diagnostic snapshot lifetime\")\n");
+}
+
 int
 main(void)
 {
@@ -525,6 +678,7 @@ main(void)
 		CHECK(fs_remove_directory(settings) == 0);
 	write_text(settings, "[SyncTERM]\nAudioModes=0\n");
 	write_text(personal, "[Existing]\nAddress=existing.example\n");
+	write_text(cached, "");
 	paths.settings_file = settings;
 	paths.personal_list = personal;
 	paths.cached_system_list = cached;
@@ -552,9 +706,15 @@ main(void)
 		.audio_runtime = audio,
 	};
 	CHECK(st_wren_host_create(&host, &config) == 0);
+	interpret(host, "load_result_contract",
+	    "import \"syncterm_menu\" for Menu\n"
+	    "if (Menu.loadDiagnostics.count != 0) Fiber.abort(\"unloaded warnings\")\n"
+	    "if (Menu.load(null) != null) Fiber.abort(\"successful load must return null\")\n"
+	    "if (Menu.loadDiagnostics.count != 0) Fiber.abort(\"clean load has warnings\")\n");
 	interpret(host, "settings_setup",
 	    "import \"syncterm_menu\" for Menu\n"
-	    "if (Menu.load(null) != 0) Fiber.abort(\"load fixture\")\n");
+	    "if (Menu.load(null) != null) Fiber.abort(\"load fixture\")\n");
+	test_load_results(host, &paths, personal, console);
 	test_menu_results(host);
 	test_menu_native_failures(host, personal);
 	stream = fopen(ST_WREN_SETTINGS_SOURCE_DIRECTORY "/scripts/menu_settings_ui_test.wren", "rb");

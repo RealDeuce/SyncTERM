@@ -7,6 +7,7 @@
 #include "wren_host_internal.h"
 #include "st_wren_menu_test_bindings.h"
 #include "st_settings.h"
+#include "st_unicode_text.h"
 
 int st_wren_test_font_insert_status;
 int st_wren_test_font_rename_status;
@@ -17,6 +18,49 @@ unsigned st_wren_test_activation_calls;
 unsigned st_wren_test_font_save_calls;
 bool st_wren_test_sort_update_failure;
 bool st_wren_test_prepare_save_failure;
+int st_wren_test_list_open_status;
+int st_wren_test_list_sort_status;
+int st_wren_test_model_build_status;
+const struct st_bbs_diagnostic *st_wren_test_diagnostic;
+int st_wren_test_diagnostic_copy_status;
+
+static int
+test_diagnostic_normalize(char **result, size_t *result_size,
+	const void *bytes, size_t size, bool *changed)
+{
+	return st_wren_test_diagnostic_copy_status != 0
+	    ? st_wren_test_diagnostic_copy_status
+	    : st_unicode_text_normalize(result, result_size, bytes, size, changed);
+}
+
+static int
+test_list_open(st_bbs_list_t **result, const struct st_app_paths *paths,
+	const void *password, size_t size)
+{
+	return st_wren_test_list_open_status != 0 ? st_wren_test_list_open_status
+	    : st_bbs_list_open(result, paths, password, size);
+}
+
+static int
+test_list_sort(st_bbs_list_t *list, const int *fields, size_t count)
+{
+	return st_wren_test_list_sort_status != 0 ? st_wren_test_list_sort_status
+	    : st_bbs_list_sort(list, fields, count);
+}
+
+static int
+test_model_build(struct st_wren_bbs_model *model, const st_bbs_list_t *list)
+{
+	int status = st_wren_bbs_model_build(model, list);
+	return status == 0 ? st_wren_test_model_build_status : status;
+}
+
+static const struct st_bbs_diagnostic *
+test_diagnostic_at(const st_bbs_list_t *list, size_t index)
+{
+	return st_wren_test_diagnostic != NULL ? st_wren_test_diagnostic
+	    : st_bbs_list_diagnostic_at(list, index);
+}
 
 static bool
 test_prepare_save(struct st_wren_bbs_model *model,
@@ -82,6 +126,11 @@ test_color_emoji(st_console_t *console, bool enabled)
 }
 
 #define st_wren_bbs_model_prepare_save test_prepare_save
+#define st_bbs_list_open test_list_open
+#define st_bbs_list_sort test_list_sort
+#define st_wren_bbs_model_build test_model_build
+#define st_bbs_list_diagnostic_at test_diagnostic_at
+#define st_unicode_text_normalize test_diagnostic_normalize
 #define st_settings_font_draft_save test_font_save
 #define st_settings_sort_profile_update test_sort_update
 #define st_settings_font_draft_insert test_font_insert

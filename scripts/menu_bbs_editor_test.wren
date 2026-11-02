@@ -1,7 +1,7 @@
 // Menu-VM self-tests for per-entry Wren script configuration.
 
 import "syncterm" for Key, KeyEvent, TLSVersion
-import "syncterm_menu" for Menu, MenuReadStatus
+import "syncterm_menu" for Menu
 import "menu_bbs_editor" for BbsEditor, EditorPane, ScriptListPane
 
 class FakeApp {
@@ -128,7 +128,7 @@ class MenuTest {
   }
 
   static testDefaultsRejectScripts_() {
-    var loaded = Menu.load(null) == MenuReadStatus.ok
+    var loaded = Menu.load(null) == null
     var defaults = loaded ? Menu.defaults : null
     var fiber = Fiber.new {
       defaults.wrenScripts = ["user_script"]
@@ -140,7 +140,7 @@ class MenuTest {
   }
 
   static testEditorScripts_() {
-    if (Menu.load(null) != MenuReadStatus.ok) {
+    if (Menu.load(null) != null) {
       check_(false, "per-entry scripts: load")
       return
     }
@@ -167,7 +167,7 @@ class MenuTest {
   }
 
   static testPersistence_() {
-    var loaded = Menu.load(null) == MenuReadStatus.ok
+    var loaded = Menu.load(null) == null
     var entry = loaded ? Menu.create("Wren Script Test") : null
     var created = entry != null
     var assigned = false
@@ -194,7 +194,7 @@ class MenuTest {
     }
 
     var reloaded = created && assigned && saved &&
-        Menu.load(null) == MenuReadStatus.ok
+        Menu.load(null) == null
     var found = null
     if (reloaded) {
       for (candidate in Menu.entries) {

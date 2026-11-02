@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 if (true) {
   import "syncterm_menu" for Menu
-  if (Menu.load(null) != 0) Fiber.abort("fixture load failed")
+  if (Menu.load(null) != null) Fiber.abort("fixture load failed")
   var entry = Menu.entries[0]
   var bad = Fiber.new { entry.profile.palette = [99, "bad"] }
   bad.try()
@@ -46,10 +46,10 @@ if (true) {
   import "syncterm_menu" for Menu
   var entry = Menu.entries[0]
   entry.profile.encoding = 255
-  if (!entry.save() || Menu.load(null) != 0 || Menu.entries[0].profile.encoding != 255) Fiber.abort("entry encoding persistence")
+  if (entry.save() != null || Menu.load(null) != null || Menu.entries[0].profile.encoding != 255) Fiber.abort("entry encoding persistence")
   var defaults = Menu.defaults
   defaults.encoding = 12
-  if (!Menu.saveDefaults() || Menu.load(null) != 0 || Menu.defaults.encoding != 12) Fiber.abort("default encoding persistence")
+  if (Menu.saveDefaults() != null || Menu.load(null) != null || Menu.defaults.encoding != 12) Fiber.abort("default encoding persistence")
 }
 if (true) {
   import "syncterm_menu" for Menu
@@ -62,28 +62,28 @@ if (true) {
   entry.profile.password = "edited"
   entry.profile.wrenScripts = ["one", "two", "one"]
   entry.profile.bpsRate = 4294967295
-  if (entry.profile.ghostProgram != "edited" || entry.profile.wrenScripts.count != 2 || !entry.save() || entry.id != id) Fiber.abort("save model")
-  if (Menu.load(null) != 0 || Menu.entries[0].profile.ghostProgram != "edited" || Menu.entries[0].profile.bpsRate != 4294967295) Fiber.abort("reload model")
+  if (entry.profile.ghostProgram != "edited" || entry.profile.wrenScripts.count != 2 || entry.save() != null || entry.id != id) Fiber.abort("save model")
+  if (Menu.load(null) != null || Menu.entries[0].profile.ghostProgram != "edited" || Menu.entries[0].profile.bpsRate != 4294967295) Fiber.abort("reload model")
 }
 if (true) {
   import "syncterm_menu" for Menu
   var quick = Menu.quickConnect("ghost://example.invalid/program")
   if (quick.readOnly || quick.ghostProgram != "program") Fiber.abort("quick GHost")
   var copy = Menu.copy(quick, "ZZGhost")
-  if (copy == null || copy.id != -1 || copy.profile.password != "program" || !copy.save() || copy.id < 0) Fiber.abort("copy GHost")
-  if (Menu.load(null) != 0) Fiber.abort("reload GHost")
+  if (copy == null || copy.id != -1 || copy.profile.password != "program" || copy.save() != null || copy.id < 0) Fiber.abort("copy GHost")
+  if (Menu.load(null) != null) Fiber.abort("reload GHost")
   copy = Menu.entries.where {|entry| entry.name == "ZZGhost" }.toList[0]
-  if (copy.profile.ghostProgram != "program" || !copy.delete()) Fiber.abort("persist GHost")
+  if (copy.profile.ghostProgram != "program" || copy.delete() != null) Fiber.abort("persist GHost")
 }
 if (true) {
   import "syncterm_menu" for Menu
   var encoding = Menu.sortFields.where {|row| row[0] == 32 }.toList
   if (encoding.count != 1 || encoding[0][1] != "Encoding" || encoding[0][2]) Fiber.abort("encoding sort catalog")
   var index = Menu.sortProfiles.count
-  if (!Menu.addSortProfile(index, "Encoding", [32, 1])) Fiber.abort("encoding sort add")
-  if (!Menu.setActiveSortProfile(index)) Fiber.abort("encoding sort select")
-  if (!Menu.updateSortProfile(index, "Encoding", [-32, 1]) || Menu.sortProfiles[index][1][0] != -32) Fiber.abort("encoding sort reverse")
+  if (Menu.addSortProfile(index, "Encoding", [32, 1]) != null) Fiber.abort("encoding sort add")
+  if (Menu.setActiveSortProfile(index) != null) Fiber.abort("encoding sort select")
+  if (Menu.updateSortProfile(index, "Encoding", [-32, 1]) != null || Menu.sortProfiles[index][1][0] != -32) Fiber.abort("encoding sort reverse")
   var all = Menu.sortFields.where {|row| row[0] != 30 }.map {|row| row[0] }.toList
-  if (all.count != 31 || !Menu.updateSortProfile(index, "Encoding", all)) Fiber.abort("all sort fields")
-  if (!Menu.deleteSortProfile(index)) Fiber.abort("encoding sort cleanup")
+  if (all.count != 31 || Menu.updateSortProfile(index, "Encoding", all) != null) Fiber.abort("all sort fields")
+  if (Menu.deleteSortProfile(index) != null) Fiber.abort("encoding sort cleanup")
 }

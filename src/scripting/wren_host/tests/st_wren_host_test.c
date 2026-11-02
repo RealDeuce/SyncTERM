@@ -4460,8 +4460,8 @@ exercise_menu_contract(st_wren_host_t *public_host)
 	    "if (Menu.defaults == null && (Menu.defaultsDirty || (Menu.saveDefaults() == null) != false)) Fiber.abort(\"unloaded defaults save\")\n")
 	    == WREN_RESULT_SUCCESS);
 	static const char source[] =
-	    "import \"syncterm_menu\" for Menu, MenuReadStatus\n"
-	    "if (Menu.load(null) != MenuReadStatus.ok) Fiber.abort(\"load\")\n"
+	    "import \"syncterm_menu\" for Menu\n"
+	    "if (Menu.load(null) != null) Fiber.abort(\"load\")\n"
 	    "if (Menu.applicationTitle != \"SyncTERM test - Headless\") Fiber.abort(\"application title\")\n"
 	    "if (Menu.currentScreenMode != 0) Fiber.abort(\"current mode\")\n"
 	    "if (!Menu.setScreenMode(3) || Menu.currentScreenMode != 3 || !Menu.setScreenMode(1)) Fiber.abort(\"set mode\")\n"
@@ -4842,20 +4842,20 @@ exercise_bbs_model_contract(st_wren_host_t *public_host,
 	    "  static persisted { __persisted }\n"
 	    "  static persisted=(value) { __persisted = value }\n"
 	    "}\n"
-	    "if (Menu.load(null) != 0) Fiber.abort(\"initial load\")\n"
+	    "if (Menu.load(null) != null) Fiber.abort(\"initial load\")\n"
 	    "BbsContractState.entry = Menu.entries[0]\n"
 	    "BbsContractState.transient = Menu.quickConnect(\"raw://temporary.example:23\")\n";
 	static const char failed_load_source[] =
 	    "import \"syncterm_menu\" for Menu\n"
 	    "import \"bbs_contract_state\" for BbsContractState\n"
-	    "if (Menu.load(null) == 0) Fiber.abort(\"failed load succeeded\")\n"
+	    "if (Menu.load(null) == null) Fiber.abort(\"failed load succeeded\")\n"
 	    "if (BbsContractState.entry.name != \"Zulu\" || "
 	    "BbsContractState.transient.addr != \"temporary.example\") "
 	    "Fiber.abort(\"failed load changed model\")\n";
 	static const char successful_load_source[] =
 	    "import \"syncterm_menu\" for Menu\n"
 	    "import \"bbs_contract_state\" for BbsContractState\n"
-	    "if (Menu.load(null) != 0) Fiber.abort(\"reload\")\n"
+	    "if (Menu.load(null) != null) Fiber.abort(\"reload\")\n"
 	    "var oldEntry = Fiber.new { BbsContractState.entry.name }.try()\n"
 	    "var retainedProfile = BbsContractState.transient.addr\n"
 	    "if (!(oldEntry is String) || retainedProfile != \"temporary.example\") "
@@ -4870,7 +4870,7 @@ exercise_bbs_model_contract(st_wren_host_t *public_host,
 	    "    return null\n"
 	    "  }\n"
 	    "}\n"
-	    "if (Menu.load(null) != 0) Fiber.abort(\"category load\")\n"
+	    "if (Menu.load(null) != null) Fiber.abort(\"category load\")\n"
 	    "var system = BbsLookup.named(\"System\")\n"
 	    "if (system == null || system.type != 1) Fiber.abort(\"system entry\")\n"
 	    "var readOnly = Fiber.new { system.profile.comment = \"forbidden\" }.try()\n"
@@ -5060,7 +5060,7 @@ exercise_bbs_model_contract(st_wren_host_t *public_host,
 	    "var defaults = Menu.defaults\n"
 	    "var cache = entry.cache\n"
 	    "var file = cache.create(\"reload.tmp\")\n"
-	    "if (Menu.load(null) != 0) Fiber.abort(\"ownership reload\")\n"
+	    "if (Menu.load(null) != null) Fiber.abort(\"ownership reload\")\n"
 	    "for (access in [Fn.new { entry.name }, Fn.new { profile.addr }, Fn.new { defaults.addr }, Fn.new { cache.list }, Fn.new { file.open() }]) {\n"
 	    "  if (!(Fiber.new { access.call() }.try() is String)) Fiber.abort(\"reload kept borrowed capability\")\n"
 	    "}\n"
@@ -5075,7 +5075,7 @@ exercise_bbs_model_contract(st_wren_host_t *public_host,
 	CHECK(write_file(shared, "") == 0);
 	CHECK(interpret_bbs_contract(host, "bbs_contract_restore",
 	    "import \"syncterm_menu\" for Menu\n"
-	    "if (Menu.load(null) != 0 || Menu.entries.count != 2) "
+	    "if (Menu.load(null) != null || Menu.entries.count != 2) "
 	    "Fiber.abort(\"restore\")\n") == 0);
 	st_settings.list_path = saved_list_path;
 	st_settings.download_system_list = saved_download_system_list;
@@ -7578,7 +7578,7 @@ exercise_safe_mode_persistence_contract(st_wren_host_t *public_host,
 	static const char source[] =
 	    "import \"syncterm\" for Host, Emoji\n"
 	    "import \"syncterm_menu\" for Menu, MenuError\n"
-	    "if (!Host.safeMode || Menu.load(null) != 0) Fiber.abort(\"safe setup\")\n"
+	    "if (!Host.safeMode || Menu.load(null) != null) Fiber.abort(\"safe setup\")\n"
 	    "var grin = Emoji.search(\"grinning face\")[0]\n"
 	    "if (Emoji.recordUse(grin) != null || Emoji.recent[0].text != grin.text) Fiber.abort(\"safe emoji recent\")\n"
 	    "var count = Menu.entries.count\n"

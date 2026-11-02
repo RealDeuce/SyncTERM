@@ -1455,7 +1455,7 @@ imported separately:
 
 [source,wren]
 ----
-import "syncterm_menu" for Menu, DirectoryEntry, Settings, MenuFont, MenuReadStatus, MenuEncryption, MenuFontSlot
+import "syncterm_menu" for Menu, DirectoryEntry, Settings, MenuFont, MenuError, BBSLoadDiagnostic, BBSListSource, MenuEncryption, MenuFontSlot
 ----
 
 `Cache` is injected into the `syncterm` module from C as a
@@ -4308,7 +4308,7 @@ is live elapsed time. The former BBS classes and static namespace are removed.
 
 === Menu BBS Model [[menu-bbs-model]]
 
-The menu VM imports `Menu`, `DirectoryEntry`, and `MenuReadStatus` from
+The menu VM imports `Menu`, `DirectoryEntry`, and `MenuError` from
 `syncterm_menu`.  `Menu` owns a C-side transactional view of the
 personal, installed system, and web-cache BBS lists.  It is not
 available in a connected VM.
@@ -4319,9 +4319,16 @@ available in a connected VM.
 
 | Menu.load(password)
 | Load all lists and replace the current model only after the complete
-  load succeeds.  `password` is a String or `null`.  Returns a
-  `MenuReadStatus` code.  Any password, decryption, parse, or migration
-  failure leaves the current model and its generation unchanged.
+  load succeeds. `password` is a String or `null`. Returns null on success or
+  MenuError preserving the portable native reason in `code` and `nativeCode`.
+  The message identifies loading, sorting, or model construction. Any failure
+  leaves the current model, generation, views, grants and diagnostics unchanged.
+  Password prompting uses IOErr.passwordRequired and IOErr.decryptionFailed.
+
+| Menu.loadDiagnostics
+| Return a fresh List of immutable BBSLoadDiagnostic snapshots from the current
+  installed list, in native order; empty without a loaded model. Reading does
+  not reload files or change the model. See <<bbs-load-diagnostics>>.
 
 | Menu.quickConnect(url)
 | Parse a String using SyncTERM's normal URL rules and return an owned editable
@@ -4385,9 +4392,6 @@ available in a connected VM.
   SyncTERM version title.  The purpose-specific operation returns `true`;
   stale views and values of unrelated classes abort.  It is menu-only so connected
   scripts do not gain arbitrary application-title authority.
-
-| Menu.statusMessage(status)
-| Return the host diagnostic String for a `MenuReadStatus` value.
 
 | Menu.quitApplication()
 | Set SyncTERM's process exit latch after trusted menu code has completed
@@ -4498,10 +4502,14 @@ detected plain-text URLs, hovering shows an OSC 8 URL in the status row, and
 button-one drag invokes SyncTERM's line-mode text selection; Alt at button
 press switches that drag to rectangular selection.
 
-`MenuReadStatus` constants are `ok`, `passwordRequired`,
-`decryptFailed`, `readFailed`, `migrationListOpenFailed`,
-`migrationIniOpenFailed`, `migrationIniReadFailed`,
-`migrationListWriteFailed`, and `migrationIniWriteFailed`.
+In v2, MenuReadStatus and Menu.statusMessage are removed without aliases,
+including obsolete migration status values. Successful loads can still contain
+warnings about sources or sections skipped by the native loader. The bundled
+menu shows one scrollable Directory Warnings summary after each successful load
+with warnings. Dismissal continues with usable entries; missing optional files
+remain silent. A diagnostic retrieval failure is reported as warnings unavailable,
+without treating the successful load as failed. Password cancellation and fatal
+load errors retain their existing menu flow; there are no automatic retries.
 
 A DirectoryEntry owns `name`, `searchKey`, `type` (BBSListType), `id`, `added`,
 `connected` (persisted LastConnected timestamp), `calls`, `readOnly`, `dirty`,
@@ -4570,13 +4578,53 @@ entries, sorting and saving preserve existing identities. Deleted or shadowed
 entries become stale; restoring a shadowed system record does not revive an
 old view of it. Detached Profile values and session snapshots remain valid.
 
-=== Menu mutation results [[menu-errors]]
+=== BBS load diagnostics [[bbs-load-diagnostics]]
+
+Menu.loadDiagnostics creates snapshots only when requested. BBSLoadDiagnostic is
+menu-only, host-created, and immutable, with no public constructor or setters:
+
+[options="header",cols="2,3"]
+|===
+| Property | Description
+| source | BBSListSource.personal (0), shared (1), webSystem (2), or webNamed (3),
+  preserving native source values. This is distinct from BBSListType.
+| sourceName | Nullable source identifier: null for the personal list, the shared
+  list path, "System List", or the configured named web-list name.
+| sectionName | A skipped section's name, or null for a source-level failure.
+| error | A fresh MenuError with the native portable diagnostic status in both
+  code and nativeCode, and a readable reason. Constructed only on access.
+|===
+
+Snapshots own their names and scalar data, survive reloads and garbage collection,
+and retain no borrowed list pointers, secrets or filesystem authority. Their names
+are strict UTF-8/NFC host text. Allocation or text-conversion failures raise
+MenuError through ordinary Fiber abort; they do not alter the loaded model.
+The returned List is independently mutable; its records are immutable. Diagnostics
+come from the installed native list, including its existing rebuild behavior, not
+from a failed replacement candidate. Entry provenance and shadowed records are
+separate from these warnings.
+
+[source,wren]
+----
+import "syncterm_menu" for Menu
+
+var failure = Menu.load(null)
+if (failure != null) {
+  System.print(failure.message)
+} else {
+  for (item in Menu.loadDiagnostics) {
+    System.print("%(item.sourceName): %(item.error.message)")
+  }
+}
+----
+
+=== Menu operation results [[menu-errors]]
 
 In v2, BBS and Settings mutation actions return null on success or a host-created,
 immutable `MenuError`. Creators (`Menu.create`, `copy`, `createFont`) return their
 object or MenuError. This covers entry rename/save/delete, defaults/encryption/sort,
-Settings apply/save/reload, and font/web/sort collection actions. Predicates and
-`Menu.load` retain their own contracts. There are no Boolean compatibility forms.
+Settings apply/save/reload, font/web/sort collection actions, and Menu.load.
+Predicates retain their own contracts. There are no Boolean compatibility forms.
 
 [options="header",cols="2,3"]
 |===

@@ -2,9 +2,10 @@
 
 Status: accounting complete against commit da27a6e (2026-11-02).
 Follow-up: +transfer-upload-authority+, +font-codepage+, +font-load-result+,
-+sftp-entry-stat+ and +error-symbols+ are resolved. Selected BBS/Settings
-mutation results now preserve available C failures; load and emoji-result
-subclaims remain open. +bbs-cache-result+ is intentionally resolved:
++sftp-entry-stat+, +error-symbols+ and +bbs-diagnostics+ are resolved.
+Selected BBS/Settings mutation results and Menu.load now preserve available C failures; Settings
+disk-reload and emoji-result subclaims remain open. +bbs-cache-result+ is
+intentionally resolved:
 optional cache housekeeping does not affect mutation success, and its secondary
 status need not be exposed to Wren. Encryption reporting and
 the effective KDF setting policy are resolved; the broader encryption topic
@@ -18,15 +19,17 @@ limitations; it does not authorize implementing every omitted C facility.
 The review covers 80 project-owned public headers, 2,447 named native items,
 and 120 explicitly excluded implementation/vendor/test headers. Every inventoried
 item has a disposition. The initial review recorded 51 finding topics, including
-broader API-scope decisions, plus one stale documentation finding. Six topics
+broader API-scope decisions, plus one stale documentation finding. Seven topics
 (upload authority, custom-font codepages, font-load results, SFTP entry metadata,
-portable I/O error symbols and the intentional cache-status omission) are resolved;
+portable I/O error symbols, BBS diagnostics and the intentional cache-status
+omission) are resolved;
 the other topics retain their recorded open subclaims. The numbers
 follow the inventory;
 they are not a stopping rule or a percentage of useful capabilities covered.
 
 Important concrete results include loss of SFTP listing metadata (now resolved),
-BBS provenance and diagnostics; primary mutation failure details (now preserved
+BBS provenance and diagnostics (diagnostics now resolved); primary mutation
+failure details (now preserved
 for the selected BBS/Settings actions); and custom-font codepage choices (now resolved);
 missing offscreen pixel compositing; and a transfer upload path API that bypassed
 the File-grant abstraction (now resolved below). Other omissions, such as general
@@ -151,7 +154,7 @@ ids refer to the full mappings in the JSON, including VM-specific restrictions.
 | link:../src/base/time/st_time.h[base/time/st_time.h] | 1 | 2 | 0 | 5 | 0 | +time.clock+, +time.deadline+, +time.precision+
 | link:../src/base/value_convert/value_convert.h[base/value_convert/value_convert.h] | 2 | 0 | 11 | 0 | 0 | +utility.conversion+, +utility.estimates+
 | link:../src/config/app_paths/st_app_paths.h[config/app_paths/st_app_paths.h] | 0 | 0 | 0 | 26 | 0 | +paths.application+
-| link:../src/config/bbs_list/st_bbs_list.h[config/bbs_list/st_bbs_list.h] | 60 | 23 | 6 | 11 | 0 | +bbs.cache-result+, +bbs.diagnostics+, +bbs.load-status+, +bbs.mutation-status+, +bbs.provenance+, +bbs.refresh-detail+, +bbs.transaction-owner+, +bbs.workflow+
+| link:../src/config/bbs_list/st_bbs_list.h[config/bbs_list/st_bbs_list.h] | 71 | 18 | 0 | 11 | 0 | +bbs.cache-result+, +bbs.diagnostics+, +bbs.load-status+, +bbs.mutation-status+, +bbs.provenance+, +bbs.refresh-detail+, +bbs.source-values+, +bbs.transaction-owner+, +bbs.workflow+
 | link:../src/config/consent_token/st_consent_token.h[config/consent_token/st_consent_token.h] | 0 | 0 | 0 | 4 | 0 | +consent.signer+
 | link:../src/config/ini/ini.h[config/ini/ini.h] | 0 | 0 | 58 | 0 | 0 | +config.ini+
 | link:../src/config/list_crypto/st_list_crypto.h[config/list_crypto/st_list_crypto.h] | 24 | 9 | 0 | 0 | 0 | +list.crypto+, +list.crypto.metadata+
@@ -232,28 +235,35 @@ optional, so a housekeeping failure must not turn a successful BBS mutation into
 a failure. No new result API or store/cache/write-policy change is required.
 This finding is resolved intentionally; coverage remains Partial because the
 native secondary status is still omitted. Primary BBS mutation results are now
-covered separately under <<finding-model-mutation-results>>; its remaining load
+covered separately under <<finding-model-mutation-results>>; its remaining Settings disk-reload
 and emoji-result subclaims stay open.
 
-Evidence: link:../src/config/bbs_list/st_bbs_list.h[src/config/bbs_list/st_bbs_list.h:58]; link:../src/config/bbs_list/st_bbs_store.c[src/config/bbs_list/st_bbs_store.c:486]; link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:4507].
+Evidence: link:../src/config/bbs_list/st_bbs_list.h[src/config/bbs_list/st_bbs_list.h:58]; link:../src/config/bbs_list/st_bbs_store.c[src/config/bbs_list/st_bbs_store.c:486]; link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:4582].
 
 [[finding-bbs-diagnostics]]
-=== Nonfatal BBS-load diagnostics are unavailable
+=== Nonfatal BBS-load diagnostics are now available
 
-+bbs.diagnostics+ (unmapped; menu). Wren: Menu.load has only coarse read status.
++bbs.diagnostics+ (covered; menu). Wren: Menu.loadDiagnostics / BBSLoadDiagnostic.
 
-No query for nonfatal per-source/per-section load diagnostics and their native status is exported.
+Resolved in approved chunk 5. The existing native diagnostic count/at API now
+supplies on-request immutable snapshots of source, source name, section name and
+status (through a lazily created MenuError). Names are owned strict UTF-8/NFC;
+records survive reloads and GC, and grant no authority. BBSListSource names all
+four native enum values. Reading performs no load. Failed candidates preserve the
+installed diagnostics. The bundled menu shows one scrollable summary after
+successful loading and continues even if diagnostic retrieval fails. Missing
+optional files retain native silent skipping. No native API or load policy changed.
 
-Evidence: link:../src/config/bbs_list/st_bbs_list.h[src/config/bbs_list/st_bbs_list.h:114]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:14].
+Evidence: link:../src/config/bbs_list/st_bbs_list.h[src/config/bbs_list/st_bbs_list.h:114]; link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:642]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:22].
 
 [[finding-bbs-provenance]]
 === BBS entries lose detailed source provenance
 
 +bbs.provenance+ (partial; menu). Wren: DirectoryEntry.type / profile.source.
 
-Native PERSONAL/SHARED/WEB_SYSTEM/WEB_NAMED becomes personal versus system. source_name is not retained in the script model. Scripts cannot identify which named list provided an entry. Shadowed entries are intentionally absent from the merged visible list, but there is no script inspection API for that hidden provenance.
+Entry source information still collapses PERSONAL/SHARED/WEB_SYSTEM/WEB_NAMED to personal versus system, and source_name is not exposed for entries. Scripts cannot identify which named list provided an entry or inspect shadowed provenance. BBSListSource enum values and diagnostic source names are now covered separately; entry provenance remains Partial and open.
 
-Evidence: link:../src/config/bbs_list/st_bbs_list.h[src/config/bbs_list/st_bbs_list.h:28]; link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:280].
+Evidence: link:../src/config/bbs_list/st_bbs_list.h[src/config/bbs_list/st_bbs_list.h:28]; link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:295].
 
 [[finding-bbs-refresh-progress]]
 === Web-list refresh loses per-item progress and outcomes
@@ -262,7 +272,7 @@ Evidence: link:../src/config/bbs_list/st_bbs_list.h[src/config/bbs_list/st_bbs_l
 
 Menu exposes refresh of a configured list but not native per-item queued/active/complete/failed state, phase, received/total/total_known, status and outcome progress records. The synchronous menu workflow does not provide an observer callback.
 
-Evidence: link:../src/config/bbs_list/st_bbs_list.h[src/config/bbs_list/st_bbs_list.h:68]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:140].
+Evidence: link:../src/config/bbs_list/st_bbs_list.h[src/config/bbs_list/st_bbs_list.h:68]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:143].
 
 [[finding-cell-style-flags]]
 === Cells preserve but cannot inspect or edit every native style flag
@@ -393,7 +403,7 @@ Absent models return null; plaintext returns a plain snapshot. The shipped
 dialog hides Change Password for unsupported combinations, including AES-192.
 Users never need to parse or enter file headers.
 
-Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:3183]; link:../src/scripting/wren_host/tests/st_wren_settings_menu_test.c[src/scripting/wren_host/tests/st_wren_settings_menu_test.c:229].
+Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:3258]; link:../src/scripting/wren_host/tests/st_wren_settings_menu_test.c[src/scripting/wren_host/tests/st_wren_settings_menu_test.c:229].
 
 +settings.kdf-legacy+ (partial; menu; resolved by approved policy).
 Settings.kdfShift remains the effective numeric rewrite policy (8–20), with
@@ -403,17 +413,17 @@ approved this policy and rejected raw kdfSpec/nullable getters; actual loaded
 KDF values are available in the snapshot. Partial describes the representation,
 not an outstanding requirement to expose legacy text.
 
-Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:3286].
+Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:3361].
 
 +list.crypto+ remains partial and open: writer block size/parallelism use
 native defaults; generic encrypted INI streams need a separate scope decision.
 setEncryption result fidelity is now resolved through null/MenuError. This chunk does
 not close those subclaims or the shared finding topic.
 
-Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:3306].
+Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:3381].
 
 [[finding-model-mutation-results]]
-=== Mutation results resolved; load and emoji results remain open
+=== Mutation and load results resolved; Settings gaps remain open
 
 The selected mutation-result subclaims are resolved. Native C APIs, signatures,
 call order, storage policy and partial effects are unchanged.
@@ -437,14 +447,21 @@ without repeating persistence. Previous live mappings and native skip rules are
 preserved. Compound Settings/collection failures retain existing partial effects,
 with no commit-state flags, rollback or transaction-result framework.
 
-Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:4507]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:239].
+Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:4582]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:242].
 
-The shared finding remains open for +bbs.load-status+ (Menu.load's coarse read
-status), +settings.disk-reload+ (no full disk reload action; Settings.reload
-intentionally continues copying running settings), and +settings.recent-result+
-(Emoji.recordUse reduces its native integer failure to a String). The latter two
-rows were previously grouped under Settings results; separating them preserves
-their unresolved scope rather than claiming they were fixed by this chunk.
++bbs.load-status+ (covered; menu) is resolved in chunk 5. Menu.load now returns
+null/MenuError with the actual portable failure from opening, sorting or model
+construction; failure preserves the previous model, generation, views and grants.
+MenuReadStatus and Menu.statusMessage, including unused migration codes, are
+removed without aliases. The shipped password loop uses IOErr reasons and still
+supports retry/cancellation. Native C APIs, ownership and storage policy are unchanged.
+
+Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:577]; link:../scripts/auto/menu/main_menu.wren[scripts/auto/menu/main_menu.wren:1177].
+
+The shared finding remains open for +settings.disk-reload+ (no full disk reload
+action; Settings.reload intentionally continues copying running settings) and
++settings.recent-result+ (Emoji.recordUse reduces native failure to a String).
+These required scope/result decisions have not been closed or deferred as resolved.
 
 [[finding-pixel-offscreen-blit]]
 === Pixel buffers cannot use the native offscreen compositor
@@ -462,7 +479,7 @@ Evidence: link:../src/media/pixels/st_pixels.h[src/media/pixels/st_pixels.h:114]
 
 Transfer success/failure keypress timeout settings have no Settings getters/setters despite being native persisted user policy.
 
-Evidence: link:../src/config/settings/st_settings.h[src/config/settings/st_settings.h:82]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:236].
+Evidence: link:../src/config/settings/st_settings.h[src/config/settings/st_settings.h:82]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:239].
 
 [[finding-sftp-entry-stat]]
 === SFTP listing stat fields (resolved)
@@ -489,7 +506,7 @@ Evidence: link:../src/net/sftp_client/st_sftp.h[src/net/sftp_client/st_sftp.h:53
 
 ThemeDocument.save preserves its native document error enum, including conflict. Most other theme operations flatten native integer reasons into a diagnostic String, so callers cannot reliably branch on native I/O/invalid/not-found statuses without parsing prose. Catalog fields and editable content remain mapped.
 
-Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:1939]; link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:2426].
+Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:2014]; link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:2501].
 
 [[finding-theme-origin]]
 === Cloud theme provenance is omitted
@@ -498,7 +515,7 @@ Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_ho
 
 Catalog rows omit the native source URI and expected SHA-256. Downloads and verification remain host-owned, but scripts cannot inspect or display that provenance. Parsed theme ownership is separately represented by copyCloudTheme rather than missing because a pointer is absent.
 
-Evidence: link:../src/config/theme/st_theme.h[src/config/theme/st_theme.h:61]; link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:2467].
+Evidence: link:../src/config/theme/st_theme.h[src/config/theme/st_theme.h:61]; link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:2542].
 
 [[finding-tls-peer-information]]
 === Negotiated TLS and certificate metadata are unavailable
@@ -562,7 +579,7 @@ link:../src/scripting/wren_host/tests/st_wren_host_test.c[upload/queue regressio
 
 Wren can select allowed audio backends through Settings.audioModes and trigger terminal-protocol music/OOII sound, but cannot directly synthesize tones/waves, beep, submit PCM, create streams, choose volume/ramp/fade/crossfade/loop, drain/clear or inspect stream idle/volume. Native functional audio availability is therefore not full script audio coverage. Whether a general playback API belongs in scope remains a policy decision.
 
-Evidence: link:../src/media/audio/audio.h[src/media/audio/audio.h:143]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:95]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1219].
+Evidence: link:../src/media/audio/audio.h[src/media/audio/audio.h:143]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:98]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1219].
 
 +audio.decode+ (unmapped; all script VMs). Wren: no generic audio-file decode API.
 
@@ -592,7 +609,7 @@ Evidence: link:../src/base/time/st_time.h[src/base/time/st_time.h:21]; link:../s
 
 All native codepage choices and byte-to-scalar decoding are represented. Encoding uses the current session and capability helper encodes_, not a general public encodeByte(codepage, scalar) operation. Native broken_vertical metadata has no script query. Native count/name are available through the Menu encodings catalog; enum COUNT is a native sentinel, not another encoding.
 
-Evidence: link:../scripts/syncterm.wren[scripts/syncterm.wren:729]; link:../src/scripting/wren_host/wren_bind_core.c[src/scripting/wren_host/wren_bind_core.c:3120]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:87].
+Evidence: link:../scripts/syncterm.wren[scripts/syncterm.wren:729]; link:../src/scripting/wren_host/wren_bind_core.c[src/scripting/wren_host/wren_bind_core.c:3120]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:90].
 
 [[finding-console-display-policy]]
 === Live console/display policies
@@ -601,7 +618,7 @@ Evidence: link:../scripts/syncterm.wren[scripts/syncterm.wren:729]; link:../src/
 
 Native wrap, blink mode, full-surface-scroll, fallback-font choice, explicit aspect ratio and fullscreen setters lack direct script control/query. Some are derived by emulation or selected screen mode and may properly stay host policy; that is a scope decision. Settings custom aspect configures a future/custom mode, not arbitrary live aspect changes. Native pointer-shape selection (default/text/link) is only used by the host hyperlink-hover owners; no generic script pointer-shape selector is exported.
 
-Evidence: link:../src/media/console/st_console.h[src/media/console/st_console.h:601]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:285].
+Evidence: link:../src/media/console/st_console.h[src/media/console/st_console.h:601]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:288].
 
 [[finding-cterm-live-encoding]]
 === Live terminal encoding mutation
@@ -655,7 +672,7 @@ Evidence: link:../src/media/console/st_console.h[src/media/console/st_console.h:
 
 No general INI document/section API is exported: parsing/serialization, root/section/key CRUD, typed getters/setters, style options and bit/enum/list conversion remain native. Typed application models cover their own workflows but do not map arbitrary INI documents. NFC host-text policy remains unchanged.
 
-Evidence: link:../src/config/ini/ini.h[src/config/ini/ini.h:65]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:212].
+Evidence: link:../src/config/ini/ini.h[src/config/ini/ini.h:65]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:215].
 
 [[finding-history-clear]]
 === Explicit retained-history clearing
@@ -709,7 +726,7 @@ Evidence: link:../src/terminal/term/st_term.h[src/terminal/term/st_term.h:119]; 
 
 scaling_factor, window_width, window_height and left_justify have no Settings property. Some are remembered frontend state, but text alignment is also user policy. They must not be declared covered merely because the host persists them; whether to expose window state versus policy remains a scope decision.
 
-Evidence: link:../src/config/settings/st_settings.h[src/config/settings/st_settings.h:91]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:236].
+Evidence: link:../src/config/settings/st_settings.h[src/config/settings/st_settings.h:91]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:239].
 
 [[finding-text-comparison-utilities]]
 === Parameterized wildcard/name/comparison utilities
@@ -802,19 +819,19 @@ Evidence: link:../src/base/value_convert/value_convert.h[src/base/value_convert/
 
 No general cipher support query or byte encryption/decryption operation exists. Native legacy algorithm enums describe provider/read compatibility; this finding does not propose enabling legacy writers.
 
-Evidence: link:../src/base/crypto/st_cipher.h[src/base/crypto/st_cipher.h:43]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:131].
+Evidence: link:../src/base/crypto/st_cipher.h[src/base/crypto/st_cipher.h:43]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:134].
 
 +utility.kdf+ (unmapped; all script VMs). Wren: Settings.kdfShift configures list rewriting only.
 
 No general PBKDF2/scrypt operation or parameter validation API. Fixed list encryption is a consumer, not a mapping of arbitrary KDF input/output.
 
-Evidence: link:../src/base/crypto/st_kdf.h[src/base/crypto/st_kdf.h:29]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:277].
+Evidence: link:../src/base/crypto/st_kdf.h[src/base/crypto/st_kdf.h:29]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:280].
 
 +utility.crypto+ (unmapped; all script VMs). Wren: Menu.buildOptions includes the provider name.
 
 No general random-byte operation, provider version query, or crypto-status taxonomy is exported. List workflow errors do not expose every provider result. Secret clearing remains native ownership, classified separately.
 
-Evidence: link:../src/base/crypto/st_crypto.h[src/base/crypto/st_crypto.h:35]; link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:1740].
+Evidence: link:../src/base/crypto/st_crypto.h[src/base/crypto/st_crypto.h:35]; link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:1815].
 
 [[finding-webget-service]]
 === General HTTP download requests
@@ -823,7 +840,7 @@ Evidence: link:../src/base/crypto/st_crypto.h[src/base/crypto/st_crypto.h:35]; l
 
 Native downloads are usable only through fixed list/theme workflows. No general HTTP-to-granted-file request exposes URL/cache key/output/timeout/size/validator/TLS choices, progress or downloaded/not-modified/fresh-cache/size result. Existing workflows are not generic HTTP coverage. Whether to add any general service is a scope/trust decision; the connected VM currently cannot establish another connection.
 
-Evidence: link:../src/net/webget/st_webget.h[src/net/webget/st_webget.h:41]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:140]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:128].
+Evidence: link:../src/net/webget/st_webget.h[src/net/webget/st_webget.h:41]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:143]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:131].
 
 == Documentation discrepancy
 

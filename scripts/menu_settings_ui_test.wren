@@ -183,7 +183,7 @@ class SettingsMenuTest {
     var app = SettingsTestApp.new([])
     check_(BbsEditor.update_(app, b, d, true) && (Menu.saveDefaults() == null),
         "save every editable connection default")
-    check_(Menu.load(null) == 0, "reload defaults")
+    check_(Menu.load(null) == null, "reload defaults")
     var actual = BbsEditor.draft_(Menu.defaults)
     for (key in changes.keys) check_(actual[key] == changes[key],
         "default did not persist: %(key)")
@@ -212,7 +212,7 @@ class SettingsMenuTest {
       }])
       check_(BbsEditor.edit(app, b, false, false) && app.remaining == 0 &&
           b.profile.addressFamily == choice, "address-family UI applies selected mode")
-      check_(Menu.load(null) == 0, "reload address-family UI choice")
+      check_(Menu.load(null) == null, "reload address-family UI choice")
       for (entry in Menu.entries) if (entry.name == "Address Family Test") b = entry
       check_(b.profile.addressFamily == choice, "address-family UI choice persists")
     }
@@ -227,7 +227,7 @@ class SettingsMenuTest {
     BbsEditor.editLog_(app, d, Fn.new { b.ctermLogLevel = d["ctermLogLevel"] })
     check_(app.remaining == 0 && b.ctermLogLevel == 7,
         "CTerm log submenu must apply the accepted level immediately")
-    check_((Menu.saveDefaults() == null) && Menu.load(null) == 0 && Menu.defaults.ctermLogLevel == 7,
+    check_((Menu.saveDefaults() == null) && Menu.load(null) == null && Menu.defaults.ctermLogLevel == 7,
         "CTerm log submenu value must persist")
   }
   static testConnectedMenu_() {
@@ -401,7 +401,7 @@ class SettingsMenuTest {
     check_(font != null, "create a valid long UTF-8 font name")
     var entry = Menu.create("Long Font")
     entry.profile.font = name
-    check_((entry.save() == null) && Menu.load(null) == 0, "persist a long font selection")
+    check_((entry.save() == null) && Menu.load(null) == null, "persist a long font selection")
     var saved = null
     for (bbs in Menu.entries) if (bbs.name == "Long Font") saved = bbs
     check_(saved != null && saved.profile.font == name, "long font selection round trip")

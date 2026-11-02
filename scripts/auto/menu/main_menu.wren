@@ -1,7 +1,7 @@
-import "syncterm" for Host, KeyEvent, MouseEvent, Key, Mouse, REPL, Screen, Mod
-import "syncterm_menu" for Menu, MenuError, MenuReadStatus
+import "syncterm" for Host, KeyEvent, MouseEvent, Key, Mouse, REPL, Screen, Mod, IOErr
+import "syncterm_menu" for Menu, MenuError, BBSListSource
 import "wren_console" for WrenConsole
-import "menu_ui" for MenuUi
+import "menu_ui" for MenuUi, StandaloneChoice
 import "menu_bbs_editor" for BbsEditor
 import "menu_settings_ui" for SettingsMenu
 import "menu_scrollback" for OfflineScrollbackView
@@ -12,7 +12,7 @@ import "ui_input" for SelectOnFocusInput
 import "ui_draw" for Painter
 import "ui_pane" for Pane
 import "ui_list" for ListView
-import "ui_popup" for Alert, Confirm
+import "ui_popup" for Alert, Confirm, Popup
 
 class ClassicBackdrop is Widget {
   construct new() {
@@ -1176,10 +1176,10 @@ class MainMenu {
 
   static prepare_(atExit) {
     var status = Menu.load(__password)
-    while (status == MenuReadStatus.passwordRequired ||
-        status == MenuReadStatus.decryptFailed) {
+    while (status != null && (status.code == IOErr.passwordRequired ||
+        status.code == IOErr.decryptionFailed)) {
       var message = "Incorrect password.  Try again"
-      if (status == MenuReadStatus.passwordRequired) {
+      if (status.code == IOErr.passwordRequired) {
         message = "Password for the personal directory"
       }
       var help = "# Encrypted List\n\nEnter the password used to encrypt " +
@@ -1191,18 +1191,56 @@ class MainMenu {
               1023, true, help)
       if (password == null) return false
       status = Menu.load(password)
-      if (status == MenuReadStatus.ok) __password = password
+      if (status == null) __password = password
     }
-    if (status != MenuReadStatus.ok) {
+    if (status != null) {
       if (atExit) {
         MenuUi.alertStandaloneAtExit("Directory Error",
-            Menu.statusMessage(status))
+            status.message)
       } else {
-        MenuUi.alertStandalone("Directory Error", Menu.statusMessage(status))
+        MenuUi.alertStandalone("Directory Error", status.message)
       }
       return false
     }
+    var warnings = Fiber.new { loadWarnings_() }
+    var message = warnings.try()
+    if (warnings.error != null) {
+      message = "The directory was loaded, but its warnings could not be retrieved. " +
+          warnings.error.toString
+    }
+    if (message != null) {
+      var app = App.new()
+      var pane = loadWarningsPane_(message, atExit, Popup.appMessageFont_(app))
+      pane.onDismiss = Fn.new {|value| app.quit() }
+      app.pushModal(pane)
+      app.runSync()
+    }
     return true
+  }
+
+  static loadWarnings_() {
+    var items = Menu.loadDiagnostics
+    if (items.count == 0) return null
+    var lines = ["The directory was loaded, but some sources or sections were skipped."]
+    for (item in items) {
+      var source = "Personal list"
+      if (item.source == BBSListSource.shared) source = "Shared list"
+      if (item.source == BBSListSource.webSystem) source = "System web list"
+      if (item.source == BBSListSource.webNamed) source = "Named web list"
+      if (item.sourceName != null) source = source + " — " + item.sourceName
+      if (item.sectionName != null) source = source + " [" + item.sectionName + "]"
+      lines.add(source + ": " + item.error.message)
+    }
+    return lines.join("\n\n")
+  }
+
+  static loadWarningsPane_(message, atExit, font) {
+    var pane = StandaloneChoice.new(message, ["Continue"])
+    pane.title = "Directory Warnings"
+    pane.atExit = atExit
+    pane.bounds = Popup.centeredTitledBounds_(pane.title, message, 2, 24, false, font)
+    pane.selected = 0
+    return pane
   }
 
   static offerSave(source, name) {

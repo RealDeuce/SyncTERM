@@ -51,7 +51,7 @@ def wren_suite(executable, name, reports):
 
     def prepare(root):
         write_script(root, module, (SOURCE / "scripts" / (module + ".wren")).read_text(encoding="utf-8"))
-        source = 'import "syncterm_menu" for Menu\nif (Menu.load(null) != 0) Fiber.abort("fixture load")\n'
+        source = 'import "syncterm_menu" for Menu\nif (Menu.load(null) != null) Fiber.abort("fixture load")\n'
         source += f'import "{module}" for {klass}\nvar result = {klass}.{method}()\n'
         if name != "settings":
             source += '''
@@ -585,16 +585,16 @@ def web_list(executable, reports):
         try:
             source = f'''
 import "syncterm_menu" for Menu
-if (Menu.load(null) != 0) Fiber.abort("load fixture")
+if (Menu.load(null) != null) Fiber.abort("load fixture")
 if (Menu.addWebList("Fetched", "http://127.0.0.1:{server.getsockname()[1]}/list", 0) != null) Fiber.abort("web add failed")
 if (!Menu.webListsDirty || Menu.webLists.count != 1) Fiber.abort("web add state")
-if (!Menu.saveWebLists() || Menu.webListsDirty) Fiber.abort("web save")
+if (Menu.saveWebLists() != null || Menu.webListsDirty) Fiber.abort("web save")
 if (Menu.addWebList("Bad", "invalid", 0) == null) Fiber.abort("fetch failure accepted")
 if (Menu.webLists.count != 1 || Menu.webLists[0][0] != "Fetched" || Menu.webListsDirty) Fiber.abort("failed fetch changed configuration")
-if (Menu.load(null) != 0 || !Menu.entries.any {{|entry| entry.name == "Downloaded" }}) Fiber.abort("downloaded list was not loaded")
-if (!Menu.updateWebList(0, "https://example.invalid/changed") || !Menu.webListsDirty) Fiber.abort("web URI edit")
+if (Menu.load(null) != null || !Menu.entries.any {{|entry| entry.name == "Downloaded" }}) Fiber.abort("downloaded list was not loaded")
+if (Menu.updateWebList(0, "https://example.invalid/changed") != null || !Menu.webListsDirty) Fiber.abort("web URI edit")
 if (Menu.addWebList("Bad", "invalid", 0) == null || !Menu.webListsDirty || Menu.webLists.count != 1) Fiber.abort("fetch failure lost earlier edits")
-if (!Menu.deleteWebList(0) || Menu.webLists.count != 0 || !Menu.saveWebLists()) Fiber.abort("web delete/save")
+if (Menu.deleteWebList(0) != null || Menu.webLists.count != 0 || Menu.saveWebLists() != null) Fiber.abort("web delete/save")
 '''
             with fixture(executable, prepare=lambda root: install_suite(root, source, "web-list"), reports=reports) as (client, root):
                 client.wait_text("TEST-COMPLETE web-list")

@@ -8,6 +8,13 @@
 
 #include <stdbool.h>
 
+struct st_bbs_diagnostic;
+extern int st_wren_test_list_open_status;
+extern int st_wren_test_list_sort_status;
+extern int st_wren_test_model_build_status;
+extern const struct st_bbs_diagnostic *st_wren_test_diagnostic;
+extern int st_wren_test_diagnostic_copy_status;
+
 extern int st_wren_test_font_insert_status;
 extern int st_wren_test_font_rename_status;
 extern int st_wren_test_font_activation_status;

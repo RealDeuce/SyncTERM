@@ -23,6 +23,7 @@
 #include "st_session_history.h"
 #include "st_theme.h"
 #include "st_unicode_compare.h"
+#include "st_unicode_text.h"
 #include "string_util.h"
 #include "value_convert.h"
 #include "value_convert_time.h"
@@ -45,6 +46,7 @@ enum menu_foreign_kind {
 	MENU_FOREIGN_FONT,
 	MENU_FOREIGN_ENCRYPTION_INFO,
 	MENU_FOREIGN_ERROR,
+	MENU_FOREIGN_LOAD_DIAGNOSTIC,
 };
 
 struct menu_foreign_header {
@@ -88,6 +90,14 @@ struct foreign_menu_error {
 	int code;
 	int native_code;
 	char *message;
+};
+
+struct foreign_load_diagnostic {
+	struct menu_foreign_header header;
+	enum st_bbs_source source;
+	int status;
+	char *source_name;
+	char *section_name;
 };
 
 struct binding {
@@ -231,6 +241,11 @@ finalize_menu_foreign(void *data)
 		return;
 	if (header->kind == MENU_FOREIGN_ERROR)
 		free(((struct foreign_menu_error *)data)->message);
+	else if (header->kind == MENU_FOREIGN_LOAD_DIAGNOSTIC) {
+		struct foreign_load_diagnostic *item = data;
+		free(item->source_name);
+		free(item->section_name);
+	}
 	else if (header->kind == MENU_FOREIGN_SETTINGS)
 		st_settings_dispose(&((struct foreign_settings *)data)->settings);
 	else if (header->kind == MENU_FOREIGN_BBS && ((struct foreign_bbs *)data)->owned) {
@@ -570,6 +585,7 @@ fn_menu_load(WrenVM *vm)
 	size_t field_count;
 	int length;
 	int status;
+	const char *message = "The directory could not be loaded.";
 
 	if (wrenGetSlotType(vm, 1) == WREN_TYPE_STRING) {
 		password = wrenGetSlotBytes(vm, 1, &length);
@@ -583,12 +599,15 @@ fn_menu_load(WrenVM *vm)
 	status = st_bbs_list_open(&replacement_list, host->config.paths, password,
 	    password_size);
 	if (status == 0) {
+		message = "The loaded directory could not be sorted.";
 		field_count = configured_sort_fields(fields);
 		status = st_bbs_list_sort(replacement_list, fields, field_count);
 	}
-	if (status == 0)
+	if (status == 0) {
+		message = "The loaded directory model could not be constructed.";
 		status = st_wren_bbs_model_build(&replacement_model,
 		    replacement_list);
+	}
 	if (status == 0) {
 		st_bbs_list_t *old_list = host->bbs_list;
 
@@ -596,16 +615,91 @@ fn_menu_load(WrenVM *vm)
 		replacement_list = NULL;
 		st_wren_bbs_model_replace(&host->bbs_model, &replacement_model);
 		st_bbs_list_close(old_list);
-		wrenSetSlotDouble(vm, 0, 0);
 	}
-	else if (status == IO_ERROR_PASSWORD_REQUIRED)
-		wrenSetSlotDouble(vm, 0, 1);
-	else if (status == IO_ERROR_DECRYPTION_FAILED)
-		wrenSetSlotDouble(vm, 0, 2);
-	else
-		wrenSetSlotDouble(vm, 0, 3);
 	st_wren_bbs_model_dispose(&replacement_model);
 	st_bbs_list_close(replacement_list);
+	menu_result(vm, status, true, message);
+}
+
+static int
+copy_diagnostic_name(char **result, const char *name)
+{
+	size_t size;
+	int status;
+
+	if (name == NULL)
+		return 0;
+	status = st_unicode_text_normalize(result, &size, name, strlen(name), NULL);
+	if (status == 0 && size > INT_MAX) {
+		free(*result);
+		*result = NULL;
+		return IO_ERROR_OUT_OF_RANGE;
+	}
+	return status;
+}
+
+static void
+fn_menu_load_diagnostics(WrenVM *vm)
+{
+	struct st_wren_host *host = st_wren_host_from_vm(vm);
+
+	wrenEnsureSlots(vm, 3);
+	wrenSetSlotNewList(vm, 0);
+	if (!host->bbs_model.loaded)
+		return;
+	wrenGetVariable(vm, "syncterm_menu", "BBSLoadDiagnostic", 1);
+	for (size_t i = 0; i < st_bbs_list_diagnostic_count(host->bbs_list); ++i) {
+		const struct st_bbs_diagnostic *native =
+		    st_bbs_list_diagnostic_at(host->bbs_list, i);
+		struct foreign_load_diagnostic *item = wrenSetSlotNewForeign(vm,
+		    2, 1, sizeof(*item));
+		*item = (struct foreign_load_diagnostic){
+			.header.kind = MENU_FOREIGN_LOAD_DIAGNOSTIC,
+			.source = native->source, .status = native->status,
+		};
+		int status = copy_diagnostic_name(&item->source_name,
+		    native->source_name);
+		if (status == 0)
+			status = copy_diagnostic_name(&item->section_name,
+			    native->section_name);
+		if (status != 0) {
+			menu_error(vm, status, status,
+			    "The directory warnings could not be copied.");
+			wrenAbortFiber(vm, 0);
+			return;
+		}
+		wrenInsertInList(vm, 0, -1, 2);
+	}
+}
+
+static void
+fn_load_diagnostic_source(WrenVM *vm)
+{
+	struct foreign_load_diagnostic *item = wrenGetSlotForeign(vm, 0);
+	wrenSetSlotDouble(vm, 0, item->source);
+}
+
+static void
+fn_load_diagnostic_source_name(WrenVM *vm)
+{
+	struct foreign_load_diagnostic *item = wrenGetSlotForeign(vm, 0);
+	if (item->source_name == NULL) wrenSetSlotNull(vm, 0);
+	else wrenSetSlotString(vm, 0, item->source_name);
+}
+
+static void
+fn_load_diagnostic_section_name(WrenVM *vm)
+{
+	struct foreign_load_diagnostic *item = wrenGetSlotForeign(vm, 0);
+	if (item->section_name == NULL) wrenSetSlotNull(vm, 0);
+	else wrenSetSlotString(vm, 0, item->section_name);
+}
+
+static void
+fn_load_diagnostic_error(WrenVM *vm)
+{
+	struct foreign_load_diagnostic *item = wrenGetSlotForeign(vm, 0);
+	menu_error(vm, item->status, item->status, "A directory source or section was skipped.");
 }
 
 static unsigned char
@@ -956,25 +1050,6 @@ fn_menu_show_entry(WrenVM *vm)
 	    bbs->record->profile.name);
 	(void)st_console_set_title(host->config.console, composed);
 	wrenSetSlotBool(vm, 0, true);
-}
-
-static void
-fn_menu_status_message(WrenVM *vm)
-{
-	int64_t status;
-	static const char *const messages[] = {
-		"OK", "A password is required", "The password is incorrect",
-		"The directory could not be read",
-		"The legacy directory could not be opened",
-		"The legacy settings could not be opened",
-		"The legacy directory could not be read",
-		"The migrated directory could not be written",
-		"The migrated settings could not be written",
-	};
-
-	if (slot_integer(vm, 1, 0,
-	    (int64_t)(sizeof(messages) / sizeof(messages[0]) - 1), &status))
-		wrenSetSlotString(vm, 0, messages[status]);
 }
 
 static void
@@ -4623,6 +4698,11 @@ static const struct binding bindings[] = {
 	{"MenuError", false, "toString", fn_menu_error_string},
 	{"Menu", true, "activateFonts()", fn_menu_activate_fonts},
 	{"Menu", true, "load(_)", fn_menu_load},
+	{"Menu", true, "loadDiagnostics", fn_menu_load_diagnostics},
+	{"BBSLoadDiagnostic", false, "source", fn_load_diagnostic_source},
+	{"BBSLoadDiagnostic", false, "sourceName", fn_load_diagnostic_source_name},
+	{"BBSLoadDiagnostic", false, "sectionName", fn_load_diagnostic_section_name},
+	{"BBSLoadDiagnostic", false, "error", fn_load_diagnostic_error},
 	{"Menu", true, "quickConnect(_)", fn_menu_quick_connect},
 	{"Menu", true, "offlineScrollback", fn_menu_offline_scrollback},
 	{"Menu", true, "prepareOfflineScrollback()",
@@ -4636,7 +4716,6 @@ static const struct binding bindings[] = {
 	{"Menu", true, "timeText", fn_menu_time_text},
 	{"Menu", true, "timestamp", fn_menu_timestamp},
 	{"Menu", true, "showEntry(_)", fn_menu_show_entry},
-	{"Menu", true, "statusMessage(_)", fn_menu_status_message},
 	{"Menu", true, "quitApplication()", fn_menu_quit},
 	{"Menu", true, "entries", fn_menu_entries},
 	{"Menu", true, "canAppendEntry", fn_menu_can_append},
@@ -4901,7 +4980,8 @@ st_wren_menu_bind_class(const char *class_name)
 	WrenForeignClassMethods methods = {allocate_generic,
 	    finalize_menu_foreign};
 
-	if (strcmp(class_name, "MenuError") != 0
+	if (strcmp(class_name, "BBSLoadDiagnostic") != 0
+	    && strcmp(class_name, "MenuError") != 0
 	    && strcmp(class_name, "ListEncryptionInfo") != 0
 	    && strcmp(class_name, "MenuFont") != 0
 	    && strcmp(class_name, "ThemeDocument") != 0

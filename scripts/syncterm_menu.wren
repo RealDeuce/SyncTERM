@@ -11,22 +11,26 @@ foreign class MenuError is Error {
   foreign toString
 }
 
-class MenuReadStatus {
-  static ok                           { 0 }
-  static passwordRequired             { 1 }
-  static decryptFailed                { 2 }
-  static readFailed                   { 3 }
-  static migrationListOpenFailed      { 4 }
-  static migrationIniOpenFailed       { 5 }
-  static migrationIniReadFailed       { 6 }
-  static migrationListWriteFailed     { 7 }
-  static migrationIniWriteFailed      { 8 }
+class BBSListSource {
+  static personal  { 0 }
+  static shared    { 1 }
+  static webSystem { 2 }
+  static webNamed  { 3 }
+}
+
+// Owned snapshot, copied from the current native list only when requested.
+foreign class BBSLoadDiagnostic {
+  foreign source
+  foreign sourceName
+  foreign sectionName
+  foreign error
 }
 
 class Menu {
   // Transactionally replace the in-memory directory.  On failure the
-  // previous generation remains active.  password may be null.
+  // previous generation remains active. Returns null/MenuError; password may be null.
   foreign static load(password)
+  foreign static loadDiagnostics
   foreign static quickConnect(url)
   // A detached Surface snapshot, or null when no completed session exists.
   foreign static offlineScrollback
@@ -40,7 +44,6 @@ class Menu {
   foreign static timeText
   foreign static timestamp
   foreign static showEntry(entry)
-  foreign static statusMessage(status)
   // Set the process exit latch after the trusted menu has chosen to exit.
   foreign static quitApplication()
   foreign static entries
