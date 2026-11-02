@@ -132,9 +132,9 @@
     },
     {
       "path": "src/config/bbs_list/st_bbs_list.h",
-      "sha256": "7a088a127b4d94e22b2f708617e151bf570a7dcfe68a1074e8f9ec6667eb4895",
+      "sha256": "88df713bec5fa0ff9b2e0eb9d969cdfa5f01b5a00f81d93aa6531839844dae4a",
       "status": "reviewed",
-      "symbol_count": 99
+      "symbol_count": 100
     },
     {
       "path": "src/config/consent_token/st_consent_token.h",
@@ -925,13 +925,13 @@
     },
     "list.crypto": {
       "status": "partial",
-      "wren": "Menu.encryptionAvailable/Algorithm/KeySize/Name/setEncryption; Settings.kdfShift",
-      "reason": "The owned BBS-list workflow supports plain/AES-128/AES-256/ChaCha20 and current-password rewrite. It does not expose generic encrypted INI streams. Inspection omits format, KDF, actual iterations/cost/block/parallelism and rewrite_recommended; writing fixes block/parallelism to native defaults. Menu.encryptionName labels every non-ChaCha encrypted legacy cipher as AES, so legacy reads can be mislabelled. Native error status becomes Bool in setEncryption. Legacy read-only algorithm enums do not authorize legacy writes.",
+      "wren": "Menu.setEncryption; Settings.kdfShift; metadata in list.crypto.metadata",
+      "reason": "The owned BBS-list writer supports plain/AES-128/AES-256/ChaCha20 and current-password rewrite. Writing fixes scrypt block/parallelism to defaults; setEncryption returns Bool rather than native error detail. Generic encrypted INI streams are not exposed. These remaining scope/result questions are open. Read-only metadata and legacy naming were resolved by the approved snapshot chunk; legacy enums do not authorize legacy writes.",
       "vm": "menu",
       "evidence": [
         {
           "path": "src/scripting/wren_host/wren_bind_menu.c",
-          "anchor": "fn_menu_encryption_name"
+          "anchor": "fn_menu_encryption_info"
         },
         {
           "path": "src/scripting/wren_host/wren_bind_menu.c",
@@ -943,7 +943,11 @@
         }
       ],
       "finding": "list-encryption-information",
-      "decision": "mapping-gap"
+      "decision": "mapping-gap",
+      "resolved_subclaims": [
+        "Loaded format, cipher, key size, actual KDF parameters and rewrite recommendation are copied into an immutable snapshot.",
+        "Legacy cipher display names and named enum values are accurate; unsupported password-change actions are hidden."
+      ]
     },
     "profile.fields": {
       "status": "covered",
@@ -1072,7 +1076,7 @@
     "bbs.transaction-owner": {
       "status": "host-owned",
       "wren": "menu BBS model and application startup/connection recording",
-      "reason": "Open/replacement/close, raw borrowed entries, native compare callbacks/cache keys and orphan-cache sweeping belong to the menu model transaction/lifetime. Scripts use typed mutations and entry-owned cache grants; they do not instantiate parallel application BBS owners.",
+      "reason": "Open/replacement/close, raw borrowed entries, native compare callbacks/cache keys and orphan-cache sweeping belong to the menu model transaction/lifetime. Scripts use typed mutations and entry-owned cache grants; they do not instantiate parallel application BBS owners. The cache ownership marker filename is a reserved host mechanism; cache grants reject access to it.",
       "vm": "menu",
       "evidence": [
         {
@@ -1082,6 +1086,10 @@
         {
           "path": "src/scripting/wren_host/wren_bind_menu.c",
           "anchor": "st_bbs_list_open"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_fs.c",
+          "anchor": "ST_BBS_CACHE_NAME_FILE"
         }
       ]
     },
@@ -1144,7 +1152,7 @@
     "settings.kdf-legacy": {
       "status": "partial",
       "wren": "Settings.kdfShift",
-      "reason": "The native string can contain legacy iteration policy; the script property parses only scrypt-N8..N20 and otherwise reports 15. Setting it writes a scrypt string. Actual encrypted-list KDF metadata is separately missing; this property is not a lossless view of the native persisted field.",
+      "reason": "Approved intentional typed policy: kdfShift reports the effective rewrite cost (8..20), with fallback 15 for unsupported old stored strings. It is not a lossless representation of persisted text. Untouched specifications remain preserved. Actual loaded-file KDF metadata is separately available through Menu.encryptionInfo. The user rejected a raw kdfSpec property and nullable getter.",
       "vm": "menu",
       "evidence": [
         {
@@ -1153,7 +1161,8 @@
         }
       ],
       "finding": "list-encryption-information",
-      "decision": "mapping-gap"
+      "decision": "retain-effective-policy",
+      "resolution": "resolved"
     },
     "settings.lifecycle": {
       "status": "host-owned",
@@ -3099,6 +3108,29 @@
       ],
       "finding": "console-operation-results",
       "decision": "mapping-gap"
+    },
+    "list.crypto.metadata": {
+      "status": "covered",
+      "wren": "Menu.encryptionAvailable/encryptionInfo; ListEncryptionInfo; ListEncryptionFormat; ListEncryptionKdf; MenuEncryption",
+      "reason": "Menu-only snapshots copy every native info field with no secrets or borrowed lifetime. All recognized cipher/format/KDF enums are named. KDF-inapplicable fields are null; absent model is distinct from plaintext. Native metadata and exact integer conversion are checked. Correct legacy names do not enable legacy writes.",
+      "vm": "menu",
+      "evidence": [
+        {
+          "path": "src/scripting/wren_host/wren_bind_menu.c",
+          "anchor": "fn_menu_encryption_info"
+        },
+        {
+          "path": "scripts/syncterm_menu.wren",
+          "anchor": "foreign class ListEncryptionInfo"
+        },
+        {
+          "path": "src/scripting/wren_host/tests/st_wren_settings_menu_test.c",
+          "anchor": "test_encryption_metadata"
+        }
+      ],
+      "finding": "list-encryption-information",
+      "decision": "approved-fix",
+      "resolution": "resolved"
     }
   },
   "documentation_findings": [
@@ -3728,6 +3760,21 @@
       "path": "src/scripting/wren_host/tests/st_wren_host_test.c",
       "anchor": "queue lost upload grant across VMs",
       "aspect": "Persisted SFTP upload grants survive VM recreation; workers reject tampered tokens and changed source contents."
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_settings_menu_test.c",
+      "anchor": "test_encryption_metadata",
+      "aspect": "All cipher labels, enum values, plaintext/absent model, actual KDF fields, invalid/inexact metadata, removed getters and typed Settings policy"
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_settings_menu_test.c",
+      "anchor": "test_encryption_lifecycle",
+      "aspect": "Retained snapshots across real rewrites, successful/failed reloads, failed rewrite and safe-mode UI"
+    },
+    {
+      "path": "scripts/menu_settings_ui_test.wren",
+      "anchor": "inspectEncryption_",
+      "aspect": "Accurate titles, password action visibility and cancellation"
     }
   ],
   "dispatch_evidence": [
@@ -3739,16 +3786,16 @@
   ],
   "evidence_files": {
     "docs/WREN_GUIDANCE.md": "d14aeecb5eae922015f2f48a4fd690277dcb5b91aedfd8d8d8cffb2dc235e1ac",
-    "docs/Wren.adoc": "5097cf41acd52f3c50a7b78e199242b7c4e18bd3c7177c4e9af5b608b0a1b191",
+    "docs/Wren.adoc": "8d8ddeab68ec664cefcd6718cec81f93890edcc29d2634aa49c22434d6d50518",
     "docs/api/bbs-entry-fields.adoc": "a1be9944eadd5f56d752e8669b502f49b27211f14190443a95e36ad301b8d128",
     "scripts/auto/connected/font_pick.wren": "471102c73421cc011ed65225e77feda3a1716dba4e3cf41cda3741f0f19405d6",
     "scripts/auto/menu/main_menu.wren": "57458b3161806dac245710a7a076278c260d8e3ffcdf19186b331e70c36c18c9",
     "scripts/menu_bbs_editor.wren": "5afc466dd6ee78e0d6585038d1635442ffea9259e7bad087d012c4654821f9bb",
-    "scripts/menu_settings_ui.wren": "f54e1500536947060a6a2836ad0c15a54068f1786e357b18b6e67afb417f26e6",
+    "scripts/menu_settings_ui.wren": "0adf1413469969f35744a51765b256943c22d8d073c40431bd345d7fd16c7d6a",
     "scripts/sftp_app.wren": "38ff67e42a9e3b8c962f1cd9618ee4f5582d2406e0f8fd8c09bbd9e8f47db097",
     "scripts/sftp_queue.wren": "1fb32830a081a1682b0147a9c7a95e9d96dd4e0539c8847e218613c7b69a38c5",
     "scripts/syncterm.wren": "c9009a4d361aedaac89cdb166b0c6e68bf3b6b605e8ef52e805b76334d919ec9",
-    "scripts/syncterm_menu.wren": "88da9af4c28aac7504ace0a7efb8db13333b03a595966e3576c6f9721f1c8459",
+    "scripts/syncterm_menu.wren": "d08fe1b1c76ccbc90748daadce8bdfc1dafe2441fb2e57ced542357405530465",
     "scripts/syncterm_picker.wren": "143e15bd084bed37145061760100c84b353d340e00187d9cd2b920a850be6021",
     "scripts/transfer_app.wren": "36713bbb8fdb61e5f7af68371c44a9110cd8bda8ea59c0ee7ee09436684b61af",
     "scripts/transfer_pick.wren": "9e88fe4e68efc01449105c8536f1902fca4295564adf2b488d1a866d5fcd29cb",
@@ -3776,7 +3823,7 @@
     "src/base/value_convert/value_convert.h": "bb019fd7108319caae88007c096737ef2d0c77dffac562e54bfa0511ee48a16b",
     "src/config/app_paths/st_app_paths.h": "8d98d54d6dc698c911891de1e1122fde0d5bedbef4039ed89ca2e4cb3cfa55a9",
     "src/config/bbs_list/st_bbs_list.c": "394542a939c1caa7075fce1c2ce644d713f0d1543a0e942ba7df1cf168298c8f",
-    "src/config/bbs_list/st_bbs_list.h": "7a088a127b4d94e22b2f708617e151bf570a7dcfe68a1074e8f9ec6667eb4895",
+    "src/config/bbs_list/st_bbs_list.h": "88df713bec5fa0ff9b2e0eb9d969cdfa5f01b5a00f81d93aa6531839844dae4a",
     "src/config/consent_token/st_consent_token.h": "17c510324b8e490e9b8e9d22111975ab42e48c0721cfc19bde6a04e041b42ccb",
     "src/config/ini/ini.h": "8ee058ae16825f619a4e705557a254379e4e5a0efdc08b9271a6384f070d0157",
     "src/config/list_crypto/st_list_crypto.c": "e53d183461012142e5f9d2d417030efe55bc42469944747b414b9907b516dd67",
@@ -3816,14 +3863,14 @@
     "src/net/transfer/st_transfer_detect.h": "3296b9ecf875d100f793920a3b0117a8f7b80951a539317d366f4ea40a7a1b30",
     "src/net/webget/st_webget.h": "9647dcc563e1661fe1d6b762c78e2483d2beae03ac878da0ebd15c8a425d2143",
     "src/scripting/wren_host/st_wren_host.h": "531eba9331f992a6394c41020890e279597ee8d6cfd1259a4495f68ef38d5552",
-    "src/scripting/wren_host/tests/st_wren_host_test.c": "0cb371fbaa57df70d208cfe6620ea01831a23b40b95347a29ecffe24accb486f",
-    "src/scripting/wren_host/tests/st_wren_settings_menu_test.c": "f0557efeb61eb50f10448feac06ecbf2066c0909e11b3fb7f3cd5e76cdf8b3a9",
+    "src/scripting/wren_host/tests/st_wren_host_test.c": "a2eb59ea093025825d4ea618c36e20c57078bf6d8231156b32af15db238328f1",
+    "src/scripting/wren_host/tests/st_wren_settings_menu_test.c": "ddcb7a11b16cbbf38e4134bd769788028c0fb76ed0a057818977b39e4878f42a",
     "src/scripting/wren_host/wren_async.c": "71e78941735250300171a2b7cb13b70c92916bd14c066a6614b3f77cdd9b565d",
     "src/scripting/wren_host/wren_bbs_model.c": "18dca3353505a5b0dc609251f16038bd9132c47e215c4cf24ba802ac4b3ab97a",
     "src/scripting/wren_host/wren_bind_core.c": "877c48e61bda9fd0e3fd4f34b3ebf204998aa4368c442aee0dc61cc5f11ccad8",
-    "src/scripting/wren_host/wren_bind_fs.c": "b0549af2dc185a48ad28442d782210d067af7e761cce20fc77d45534859d5633",
+    "src/scripting/wren_host/wren_bind_fs.c": "0a45dc3f8a6af627332f907158f2d553e1a70befe40fbd96eba0de2d4e03d108",
     "src/scripting/wren_host/wren_bind_hyperlinks.c": "255be945007c9cb2795195058e5f58de7d2b2157728892e614d6e8fb5f729b98",
-    "src/scripting/wren_host/wren_bind_menu.c": "370077e63862e1098e1e3c2ab50ee7bd6777a5d887069742fca04fd3b3c81fbb",
+    "src/scripting/wren_host/wren_bind_menu.c": "c8a8921dcbb3b21dccaa555202ba61002f24cadfef68d411316f96c79b71270a",
     "src/scripting/wren_host/wren_bind_pixels.c": "5a1b4c73862a6845710159e6b34e8992cff1ab66661b984f871c46eb6c6bcceb",
     "src/scripting/wren_host/wren_bind_session.c": "63fbfba7948383f74d87f4fed2c70237504bd324abe326d881d63bd783260318",
     "src/scripting/wren_host/wren_bind_status.c": "85ed4115c9a9645aa27cccb2a9977e5892037123d7440d9acf3397fd55e16671",
@@ -3871,7 +3918,8 @@
     "src/text/unicode_normalization/st_unicode_normalization.h": "cac5d848896ff4c278fad91926d02c5c9f07adaaabd39788d4ff5060f778ee53",
     "src/text/unicode_text/st_unicode_text.h": "122e239b71b76eb7a778815fec2bd783bdb1e84d2a60a06abb79a75f1fd3523f",
     "src/text/unicode_width/st_unicode_width.h": "c90749bc509e94748a1dba06bf25db3de7b7ccde03764193fd5f8073e9cb9433",
-    "src/text/utf8/st_utf8.h": "803d3d03a0d91141f7259a0b1a39f6a51b71397db9310a94b96fd4444e10f3a1"
+    "src/text/utf8/st_utf8.h": "803d3d03a0d91141f7259a0b1a39f6a51b71397db9310a94b96fd4444e10f3a1",
+    "scripts/menu_settings_ui_test.wren": "5ba615822bbf181ea24e6dc84ce28eb2ca879ba8c37e6f9132319265b4868def"
   },
   "verification": {
     "platform": "FreeBSD 15.1-RELEASE-p5 amd64",
@@ -3924,6 +3972,36 @@
         "native GCC host-library build",
         "MinGW x86_64 cross-build (no Windows execution)"
       ]
+    },
+    {
+      "topic": "list-encryption-information",
+      "status": "partial",
+      "approval": "Complete metadata snapshot plan revision 1 approved by user: Implement the plan.",
+      "resolved_subclaims": [
+        "Read-only complete loaded-list metadata, cipher naming and supported password-change UI",
+        "Keep effective numeric Settings.kdfShift policy with default 15; do not expose raw specifications"
+      ],
+      "remaining": [
+        "Writer block size/parallelism choices",
+        "Structured mutation error results",
+        "Generic encrypted INI stream scope"
+      ],
+      "tests_passed": [
+        "list_crypto",
+        "wren_settings_runtime",
+        "wren_host",
+        "wren_menu_contract",
+        "CRYPTO_BACKEND=none list_crypto and wren_settings_runtime",
+        "GCC wren_settings_runtime/wren_host/wren_menu_contract",
+        "ASan/UBSan wren_settings_runtime/wren_host/wren_menu_contract"
+      ],
+      "builds_passed": [
+        "FreeBSD Clang Debug application and tests",
+        "FreeBSD GCC Debug host tests",
+        "MinGW64 Debug application and tests cross-build; no Windows execution"
+      ],
+      "limitations": "ASan leak detection is unsupported on FreeBSD and disabled; C++ vptr sanitizer is disabled to link C-owned executables. No Windows runtime execution.",
+      "inventory_follow_up": "Reviewed cache commit 4ab6a3f: reserved cache-name marker macro is host-owned, cache/File grant ownership unchanged. Added one native item, shifted header lines, refreshed reviewed evidence. Existing ignored capture expectation headers copied from the primary workspace to preserve the same 119 explicit fixture exclusions."
     }
   ]
 }

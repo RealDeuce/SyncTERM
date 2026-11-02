@@ -27,6 +27,7 @@
 #include "value_convert.h"
 #include "value_convert_time.h"
 #include "st_crypto.h"
+#include "st_kdf.h"
 
 #include <inttypes.h>
 #include <math.h>
@@ -42,6 +43,7 @@ enum menu_foreign_kind {
 	MENU_FOREIGN_SETTINGS,
 	MENU_FOREIGN_THEME_DOCUMENT,
 	MENU_FOREIGN_FONT,
+	MENU_FOREIGN_ENCRYPTION_INFO,
 };
 
 struct menu_foreign_header {
@@ -73,6 +75,11 @@ struct foreign_font {
 	struct menu_foreign_header header;
 	size_t index;
 	uint64_t generation;
+};
+
+struct foreign_encryption_info {
+	struct menu_foreign_header header;
+	struct st_list_crypto_info info;
 };
 
 struct binding {
@@ -3013,37 +3020,151 @@ menu_crypto_info(WrenVM *vm)
 	    st_bbs_list_crypto_info(host->bbs_list);
 }
 
-static void
-fn_menu_encryption_algorithm(WrenVM *vm)
+/* This is copied metadata: it has no password, resource, or model lifetime. */
+static bool
+encryption_info_valid(const struct st_list_crypto_info *info)
 {
-	const struct st_list_crypto_info *info = menu_crypto_info(vm);
-
-	wrenSetSlotDouble(vm, 0, info == NULL ? ST_LIST_CIPHER_NONE :
-	    info->cipher);
-}
-
-static void
-fn_menu_encryption_key_size(WrenVM *vm)
-{
-	const struct st_list_crypto_info *info = menu_crypto_info(vm);
-
-	wrenSetSlotDouble(vm, 0, info == NULL ? 0 : info->key_bits);
-}
-
-static void
-fn_menu_encryption_name(WrenVM *vm)
-{
-	const struct st_list_crypto_info *info = menu_crypto_info(vm);
-	char name[32];
-
-	if (info == NULL || info->cipher == ST_LIST_CIPHER_NONE)
-		wrenSetSlotString(vm, 0, "Not Encrypted");
-	else if (info->cipher == ST_LIST_CIPHER_CHACHA20)
-		wrenSetSlotString(vm, 0, "ChaCha20");
-	else {
-		(void)snprintf(name, sizeof(name), "AES-%u", info->key_bits);
-		wrenSetSlotString(vm, 0, name);
+	if (info->format == ST_LIST_CRYPTO_PLAIN)
+		return info->cipher == ST_LIST_CIPHER_NONE
+		    && info->kdf == ST_LIST_KDF_NONE && info->key_bits == 0;
+	if (info->format != ST_LIST_CRYPTO_V1 && info->format != ST_LIST_CRYPTO_V2)
+		return false;
+	if (info->key_bits == 0 || info->key_bits % 8 != 0)
+		return false;
+	switch (info->cipher) {
+	case ST_LIST_CIPHER_3DES:
+		if (info->key_bits != 192) return false;
+		break;
+	case ST_LIST_CIPHER_IDEA:
+		if (info->key_bits != 128) return false;
+		break;
+	case ST_LIST_CIPHER_CAST:
+		if (info->key_bits < 40 || info->key_bits > 128) return false;
+		break;
+	case ST_LIST_CIPHER_RC2:
+	case ST_LIST_CIPHER_RC4:
+		if (info->key_bits > 256) return false;
+		break;
+	case ST_LIST_CIPHER_AES:
+		if (info->key_bits != 128 && info->key_bits != 192
+		    && info->key_bits != 256) return false;
+		break;
+	case ST_LIST_CIPHER_CHACHA20:
+		if (info->key_bits != 256) return false;
+		break;
+	default: return false;
 	}
+	if (info->kdf == ST_LIST_KDF_PBKDF2_SHA256)
+		return info->iterations > 0 && st_wren_u64_exact(info->iterations);
+	if (info->kdf == ST_LIST_KDF_SCRYPT)
+		return info->format == ST_LIST_CRYPTO_V2
+		    && info->cost_log2 >= 8 && info->cost_log2 < 64
+		    && st_kdf_scrypt_parameters_valid(UINT64_C(1) << info->cost_log2,
+		    info->block_size, info->parallelism);
+	return false;
+}
+
+static void
+fn_menu_encryption_info(WrenVM *vm)
+{
+	const struct st_list_crypto_info *info = menu_crypto_info(vm);
+
+	if (info == NULL) {
+		wrenSetSlotNull(vm, 0);
+		return;
+	}
+	if (!encryption_info_valid(info)) {
+		st_wren_abort(vm, "Invalid native list encryption metadata");
+		return;
+	}
+	wrenEnsureSlots(vm, 2);
+	wrenGetVariable(vm, "syncterm_menu", "ListEncryptionInfo", 1);
+	struct foreign_encryption_info *snapshot = wrenSetSlotNewForeign(vm, 0, 1,
+	    sizeof(*snapshot));
+	snapshot->header.kind = MENU_FOREIGN_ENCRYPTION_INFO;
+	snapshot->info = *info;
+}
+
+static const struct st_list_crypto_info *
+encryption_info_value(WrenVM *vm)
+{
+	if (!st_wren_foreign_is(vm, 0, "syncterm_menu", "ListEncryptionInfo")) {
+		st_wren_abort(vm, "expected ListEncryptionInfo");
+		return NULL;
+	}
+	struct foreign_encryption_info *snapshot = wrenGetSlotForeign(vm, 0);
+
+	if (snapshot == NULL || snapshot->header.kind != MENU_FOREIGN_ENCRYPTION_INFO) {
+		st_wren_abort(vm, "expected ListEncryptionInfo");
+		return NULL;
+	}
+	return &snapshot->info;
+}
+
+#define ENCRYPTION_INFO_NUMBER(name, field) \
+	static void fn_encryption_info_##name(WrenVM *vm) \
+	{ \
+		const struct st_list_crypto_info *info = encryption_info_value(vm); \
+		if (info != NULL) st_wren_return_u64(vm, info->field); \
+	}
+ENCRYPTION_INFO_NUMBER(format, format)
+ENCRYPTION_INFO_NUMBER(algorithm, cipher)
+ENCRYPTION_INFO_NUMBER(key_bits, key_bits)
+ENCRYPTION_INFO_NUMBER(kdf, kdf)
+#undef ENCRYPTION_INFO_NUMBER
+
+#define ENCRYPTION_INFO_KDF_NUMBER(name, field, applicable) \
+	static void fn_encryption_info_##name(WrenVM *vm) \
+	{ \
+		const struct st_list_crypto_info *info = encryption_info_value(vm); \
+		if (info == NULL) return; \
+		if (info->kdf == applicable) st_wren_return_u64(vm, info->field); \
+		else wrenSetSlotNull(vm, 0); \
+	}
+ENCRYPTION_INFO_KDF_NUMBER(iterations, iterations, ST_LIST_KDF_PBKDF2_SHA256)
+ENCRYPTION_INFO_KDF_NUMBER(cost_log2, cost_log2, ST_LIST_KDF_SCRYPT)
+ENCRYPTION_INFO_KDF_NUMBER(block_size, block_size, ST_LIST_KDF_SCRYPT)
+ENCRYPTION_INFO_KDF_NUMBER(parallelism, parallelism, ST_LIST_KDF_SCRYPT)
+#undef ENCRYPTION_INFO_KDF_NUMBER
+
+static void
+fn_encryption_info_rewrite_recommended(WrenVM *vm)
+{
+	const struct st_list_crypto_info *info = encryption_info_value(vm);
+
+	if (info != NULL)
+		wrenSetSlotBool(vm, 0, info->rewrite_recommended);
+}
+
+static void
+fn_encryption_info_name(WrenVM *vm)
+{
+	const struct st_list_crypto_info *info = encryption_info_value(vm);
+	const char *name;
+	bool variable = false;
+	char display[32];
+
+	if (info == NULL)
+		return;
+	switch (info->cipher) {
+	case ST_LIST_CIPHER_NONE: name = "Not Encrypted"; break;
+	case ST_LIST_CIPHER_3DES: name = "3DES"; break;
+	case ST_LIST_CIPHER_IDEA: name = "IDEA"; break;
+	case ST_LIST_CIPHER_CAST: name = "CAST"; variable = true; break;
+	case ST_LIST_CIPHER_RC2: name = "RC2"; variable = true; break;
+	case ST_LIST_CIPHER_RC4: name = "RC4"; variable = true; break;
+	case ST_LIST_CIPHER_AES: name = "AES"; variable = true; break;
+	case ST_LIST_CIPHER_CHACHA20: name = "ChaCha20"; break;
+	default:
+		st_wren_abort(vm, "Invalid native list encryption cipher");
+		return;
+	}
+	if (variable) {
+		(void)snprintf(display, sizeof(display), "%s-%" PRIu32, name, info->key_bits);
+		wrenSetSlotString(vm, 0, display);
+	}
+	else
+		wrenSetSlotString(vm, 0, name);
 }
 
 static uint8_t
@@ -4427,9 +4548,17 @@ static const struct binding bindings[] = {
 	{"Menu", true, "deleteCloudTheme(_)", fn_menu_delete_cloud_theme},
 	{"Menu", true, "cacheCloudTheme(_)", fn_menu_cache_cloud_theme},
 	{"Menu", true, "copyCloudTheme(_)", fn_menu_copy_cloud_theme},
-	{"Menu", true, "encryptionAlgorithm", fn_menu_encryption_algorithm},
-	{"Menu", true, "encryptionKeySize", fn_menu_encryption_key_size},
-	{"Menu", true, "encryptionName", fn_menu_encryption_name},
+	{"Menu", true, "encryptionInfo", fn_menu_encryption_info},
+	{"ListEncryptionInfo", false, "format", fn_encryption_info_format},
+	{"ListEncryptionInfo", false, "algorithm", fn_encryption_info_algorithm},
+	{"ListEncryptionInfo", false, "keyBits", fn_encryption_info_key_bits},
+	{"ListEncryptionInfo", false, "name", fn_encryption_info_name},
+	{"ListEncryptionInfo", false, "kdf", fn_encryption_info_kdf},
+	{"ListEncryptionInfo", false, "iterations", fn_encryption_info_iterations},
+	{"ListEncryptionInfo", false, "costLog2", fn_encryption_info_cost_log2},
+	{"ListEncryptionInfo", false, "blockSize", fn_encryption_info_block_size},
+	{"ListEncryptionInfo", false, "parallelism", fn_encryption_info_parallelism},
+	{"ListEncryptionInfo", false, "rewriteRecommended", fn_encryption_info_rewrite_recommended},
 	{"Menu", true, "setEncryption(_,_,_)", fn_menu_set_encryption},
 	{"Menu", true, "webLists", fn_menu_web_lists},
 	{"Menu", true, "webListsDirty", fn_menu_web_lists_dirty},
@@ -4613,7 +4742,8 @@ st_wren_menu_bind_class(const char *class_name)
 	WrenForeignClassMethods methods = {allocate_generic,
 	    finalize_menu_foreign};
 
-	if (strcmp(class_name, "MenuFont") != 0
+	if (strcmp(class_name, "ListEncryptionInfo") != 0
+	    && strcmp(class_name, "MenuFont") != 0
 	    && strcmp(class_name, "ThemeDocument") != 0
 	    && strcmp(class_name, "Settings") != 0
 	    && strcmp(class_name, "DirectoryEntry") != 0)

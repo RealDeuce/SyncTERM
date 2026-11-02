@@ -350,21 +350,37 @@ class SettingsMenuTest {
     }
   }
 
+  static inspectEncryption_(title, canChange) {
+    var app = SettingsTestApp.new([Fn.new {|pane|
+      check_(pane.title == title, "encryption title")
+      check_(list_(pane).items.contains("Change Password") == canChange,
+          "password action visibility")
+    }])
+    check_(!SettingsMenu.encryption_(app) && app.remaining == 0,
+        "cancelling encryption leaves list unchanged")
+  }
+
   static testEncryption_() {
+    inspectEncryption_("Not Encrypted", false)
     if (!Menu.encryptionAvailable) return
     for (choice in [["Encrypt Using ChaCha20", 7, 256],
         ["Encrypt Using AES-128", 6, 128], ["Encrypt Using AES-256", 6, 256]]) {
       var actions = [row_(choice[0])]
-      if (Menu.encryptionAlgorithm == 0) actions.add(answer_("audit password"))
+      if (Menu.encryptionInfo.algorithm == 0) actions.add(answer_("audit password"))
       var app = SettingsTestApp.new(actions)
       check_(SettingsMenu.encryption_(app) && app.alerts == 0 &&
-          Menu.encryptionAlgorithm == choice[1] &&
-          Menu.encryptionKeySize == choice[2], "encryption choice: %(choice[0])")
+          Menu.encryptionInfo.algorithm == choice[1] &&
+          Menu.encryptionInfo.keyBits == choice[2], "encryption choice: %(choice[0])")
     }
+    var retained = Menu.encryptionInfo
+    var cancel = SettingsTestApp.new([row_("Change Password"), answer_(null)])
+    check_(!SettingsMenu.encryption_(cancel) && cancel.remaining == 0 &&
+        Menu.encryptionInfo.algorithm == retained.algorithm,
+        "cancel password change")
     var app = SettingsTestApp.new([row_("Change Password"), answer_("new password")])
     check_(SettingsMenu.encryption_(app) && app.alerts == 0, "change list password")
     app = SettingsTestApp.new([row_("Decrypt")])
-    check_(SettingsMenu.encryption_(app) && Menu.encryptionAlgorithm == 0,
+    check_(SettingsMenu.encryption_(app) && Menu.encryptionInfo.algorithm == 0,
         "decrypt list")
   }
   static testInvalidNames_() {

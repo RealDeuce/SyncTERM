@@ -603,7 +603,11 @@ class SettingsMenu {
         "the time and memory needed to unlock the list.\n\n" +
         "The default `15` uses N=32768 and about 32 MiB. The supported " +
         "range is 8 through 20; each step doubles CPU and memory cost. " +
-        "The upper bound uses about 1 GiB, the per-derivation limit."
+        "The upper bound uses about 1 GiB, the per-derivation limit.\n\n" +
+        "This setting controls encryption rewrites. Applying a changed " +
+        "value rewrites an encrypted list with its current password. " +
+        "It does not report the work factor of the loaded file. " +
+        "Unsupported older settings use the effective default of 15."
   }
 
   static customColumnsHelp_() {
@@ -840,7 +844,7 @@ class SettingsMenu {
           s.colorEmoji = !s.colorEmoji
         } else if (value == 16) {
           var next = MenuUi.integer(app, "Key Derivation Work Factor",
-              "Exponent N for scrypt-Nn", s.kdfShift, 8, 20, kdfHelp_())
+              "Cost exponent (8–20)", s.kdfShift, 8, 20, kdfHelp_())
           if (next != null) s.kdfShift = next
         } else if (value == 17) {
           if (colors_(app, s)) changed = true
@@ -1290,33 +1294,52 @@ class SettingsMenu {
     }
   }
 
+  static canChangePassword_(info) {
+    return Menu.encryptionAvailable &&
+        ((info.algorithm == MenuEncryption.aes &&
+          (info.keyBits == 128 || info.keyBits == 256)) ||
+         (info.algorithm == MenuEncryption.chacha20 && info.keyBits == 256))
+  }
+
   static encryption_(app) {
-    var choices = [
-      [[-1, 0], "Change Password"],
+    var info = Menu.encryptionInfo
+    if (info == null) {
+      Alert.show(app, "List Encryption", "No personal directory is loaded.")
+      return false
+    }
+    var choices = []
+    if (canChangePassword_(info)) choices.add([[-1, 0], "Change Password"])
+    choices.addAll([
       [[MenuEncryption.chacha20, 0], "Encrypt Using ChaCha20"],
       [[MenuEncryption.aes, 128], "Encrypt Using AES-128"],
       [[MenuEncryption.aes, 256], "Encrypt Using AES-256"],
       [[MenuEncryption.none, 0], "Decrypt"]
-    ]
-    var title = Menu.encryptionName
-    if (Menu.encryptionAlgorithm != MenuEncryption.none) {
+    ])
+    var title = info.name
+    if (info.algorithm != MenuEncryption.none) {
       title = "Currently %(title)"
     }
     var changed = false
     MenuUi.choice(app, title, choices, null, encryptionHelp_(), Fn.new {|picked|
+      info = Menu.encryptionInfo
+      if (info == null) {
+        Alert.show(app, "List Encryption", "No personal directory is loaded.")
+        return
+      }
       var algorithm = picked[0]
       var keySize = picked[1]
       var password = null
       if (algorithm == -1) {
-        algorithm = Menu.encryptionAlgorithm
-        keySize = Menu.encryptionKeySize
+        if (!canChangePassword_(info)) return
+        algorithm = info.algorithm
+        keySize = info.keyBits
         password = MenuUi.prompt(app, "List Encryption", "New password", "",
             1023, true, encryptionHelp_())
         if (password == null || password.count == 0) return
       }
       if (Host.safeMode) return
       if (password == null && algorithm != MenuEncryption.none &&
-          Menu.encryptionAlgorithm == MenuEncryption.none) {
+          info.algorithm == MenuEncryption.none) {
         password = MenuUi.prompt(app, "List Encryption", "Password", "",
             1023, true, encryptionHelp_())
         if (password == null || password.count == 0) return

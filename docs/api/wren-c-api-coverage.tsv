@@ -368,9 +368,10 @@ src/config/bbs_list/st_bbs_list.h	field:st_bbs_sort_record.value	207	void *	bbs.
 src/config/bbs_list/st_bbs_list.h	function:st_bbs_sort_records	214	int (struct st_bbs_sort_record *, size_t, const int *, size_t)	bbs.workflow
 src/config/bbs_list/st_bbs_list.h	function:st_bbs_list_sort	216	int (st_bbs_list_t *, const int *, size_t)	bbs.workflow
 src/config/bbs_list/st_bbs_list.h	function:st_bbs_list_sweep_orphan_caches	223	int (st_bbs_list_t *)	bbs.transaction-owner
-src/config/bbs_list/st_bbs_list.h	function:st_bbs_list_cache_path	226	int (char **, const st_bbs_list_t *, const char *)	bbs.workflow
-src/config/bbs_list/st_bbs_list.h	function:st_bbs_cache_path_for_name	229	int (char **, const char *, const char *)	bbs.workflow
-src/config/bbs_list/st_bbs_list.h	function:st_bbs_list_picker_key	237	int (st_bbs_list_t *, uint8_t *, bool *)	bbs.transaction-owner
+src/config/bbs_list/st_bbs_list.h	macro:ST_BBS_CACHE_NAME_FILE	225	"""syncterm-cache-name.txt"""	bbs.transaction-owner
+src/config/bbs_list/st_bbs_list.h	function:st_bbs_list_cache_path	232	int (char **, const st_bbs_list_t *, const char *)	bbs.workflow
+src/config/bbs_list/st_bbs_list.h	function:st_bbs_cache_path_for_name	235	int (char **, const char *, const char *)	bbs.workflow
+src/config/bbs_list/st_bbs_list.h	function:st_bbs_list_picker_key	243	int (st_bbs_list_t *, uint8_t *, bool *)	bbs.transaction-owner
 src/config/consent_token/st_consent_token.h	macro:ST_CONSENT_TOKEN_KEY_SIZE	14	32U	consent.signer
 src/config/consent_token/st_consent_token.h	function:st_consent_token_generate_key	17	int (uint8_t *)	consent.signer
 src/config/consent_token/st_consent_token.h	function:st_consent_token_sign	21	int (char **, const uint8_t *, const char *)	consent.signer
@@ -433,36 +434,36 @@ src/config/ini/ini.h	function:ini_section_set_bitfield	147	int (ini_section_t *,
 src/config/ini/ini.h	function:ini_section_set_string_list	150	int (ini_section_t *, const char *, str_list_t, const char *, const struct ini_write_style *)	config.ini
 src/config/ini/ini.h	function:ini_section_set_int64_list	153	int (ini_section_t *, const char *, const int64_t *, size_t, const char *, const struct ini_write_style *)	config.ini
 src/config/ini/ini.h	function:ini_section_remove_key	158	size_t (ini_section_t *, const char *)	config.ini
-src/config/list_crypto/st_list_crypto.h	enum:ST_LIST_CRYPTO_PLAIN	19	st_list_crypto_format	list.crypto
-src/config/list_crypto/st_list_crypto.h	enum:ST_LIST_CRYPTO_V1	20	st_list_crypto_format	list.crypto
-src/config/list_crypto/st_list_crypto.h	enum:ST_LIST_CRYPTO_V2	21	st_list_crypto_format	list.crypto
-src/config/list_crypto/st_list_crypto.h	enum:ST_LIST_CIPHER_NONE	25	st_list_cipher	list.crypto
-src/config/list_crypto/st_list_crypto.h	enum:ST_LIST_CIPHER_3DES	26	st_list_cipher	list.crypto
-src/config/list_crypto/st_list_crypto.h	enum:ST_LIST_CIPHER_IDEA	27	st_list_cipher	list.crypto
-src/config/list_crypto/st_list_crypto.h	enum:ST_LIST_CIPHER_CAST	28	st_list_cipher	list.crypto
-src/config/list_crypto/st_list_crypto.h	enum:ST_LIST_CIPHER_RC2	29	st_list_cipher	list.crypto
-src/config/list_crypto/st_list_crypto.h	enum:ST_LIST_CIPHER_RC4	30	st_list_cipher	list.crypto
-src/config/list_crypto/st_list_crypto.h	enum:ST_LIST_CIPHER_AES	31	st_list_cipher	list.crypto
-src/config/list_crypto/st_list_crypto.h	enum:ST_LIST_CIPHER_CHACHA20	32	st_list_cipher	list.crypto
-src/config/list_crypto/st_list_crypto.h	enum:ST_LIST_KDF_NONE	36	st_list_kdf	list.crypto
-src/config/list_crypto/st_list_crypto.h	enum:ST_LIST_KDF_PBKDF2_SHA256	37	st_list_kdf	list.crypto
-src/config/list_crypto/st_list_crypto.h	enum:ST_LIST_KDF_SCRYPT	38	st_list_kdf	list.crypto
-src/config/list_crypto/st_list_crypto.h	field:st_list_crypto_info.format	42	enum st_list_crypto_format	list.crypto
-src/config/list_crypto/st_list_crypto.h	field:st_list_crypto_info.cipher	43	enum st_list_cipher	list.crypto
-src/config/list_crypto/st_list_crypto.h	field:st_list_crypto_info.kdf	44	enum st_list_kdf	list.crypto
-src/config/list_crypto/st_list_crypto.h	field:st_list_crypto_info.key_bits	45	uint32_t	list.crypto
-src/config/list_crypto/st_list_crypto.h	field:st_list_crypto_info.iterations	46	uint64_t	list.crypto
-src/config/list_crypto/st_list_crypto.h	field:st_list_crypto_info.cost_log2	47	uint8_t	list.crypto
-src/config/list_crypto/st_list_crypto.h	field:st_list_crypto_info.block_size	48	uint32_t	list.crypto
-src/config/list_crypto/st_list_crypto.h	field:st_list_crypto_info.parallelism	49	uint32_t	list.crypto
-src/config/list_crypto/st_list_crypto.h	field:st_list_crypto_info.rewrite_recommended	50	bool	list.crypto
+src/config/list_crypto/st_list_crypto.h	enum:ST_LIST_CRYPTO_PLAIN	19	st_list_crypto_format	list.crypto.metadata
+src/config/list_crypto/st_list_crypto.h	enum:ST_LIST_CRYPTO_V1	20	st_list_crypto_format	list.crypto.metadata
+src/config/list_crypto/st_list_crypto.h	enum:ST_LIST_CRYPTO_V2	21	st_list_crypto_format	list.crypto.metadata
+src/config/list_crypto/st_list_crypto.h	enum:ST_LIST_CIPHER_NONE	25	st_list_cipher	list.crypto.metadata
+src/config/list_crypto/st_list_crypto.h	enum:ST_LIST_CIPHER_3DES	26	st_list_cipher	list.crypto.metadata
+src/config/list_crypto/st_list_crypto.h	enum:ST_LIST_CIPHER_IDEA	27	st_list_cipher	list.crypto.metadata
+src/config/list_crypto/st_list_crypto.h	enum:ST_LIST_CIPHER_CAST	28	st_list_cipher	list.crypto.metadata
+src/config/list_crypto/st_list_crypto.h	enum:ST_LIST_CIPHER_RC2	29	st_list_cipher	list.crypto.metadata
+src/config/list_crypto/st_list_crypto.h	enum:ST_LIST_CIPHER_RC4	30	st_list_cipher	list.crypto.metadata
+src/config/list_crypto/st_list_crypto.h	enum:ST_LIST_CIPHER_AES	31	st_list_cipher	list.crypto.metadata
+src/config/list_crypto/st_list_crypto.h	enum:ST_LIST_CIPHER_CHACHA20	32	st_list_cipher	list.crypto.metadata
+src/config/list_crypto/st_list_crypto.h	enum:ST_LIST_KDF_NONE	36	st_list_kdf	list.crypto.metadata
+src/config/list_crypto/st_list_crypto.h	enum:ST_LIST_KDF_PBKDF2_SHA256	37	st_list_kdf	list.crypto.metadata
+src/config/list_crypto/st_list_crypto.h	enum:ST_LIST_KDF_SCRYPT	38	st_list_kdf	list.crypto.metadata
+src/config/list_crypto/st_list_crypto.h	field:st_list_crypto_info.format	42	enum st_list_crypto_format	list.crypto.metadata
+src/config/list_crypto/st_list_crypto.h	field:st_list_crypto_info.cipher	43	enum st_list_cipher	list.crypto.metadata
+src/config/list_crypto/st_list_crypto.h	field:st_list_crypto_info.kdf	44	enum st_list_kdf	list.crypto.metadata
+src/config/list_crypto/st_list_crypto.h	field:st_list_crypto_info.key_bits	45	uint32_t	list.crypto.metadata
+src/config/list_crypto/st_list_crypto.h	field:st_list_crypto_info.iterations	46	uint64_t	list.crypto.metadata
+src/config/list_crypto/st_list_crypto.h	field:st_list_crypto_info.cost_log2	47	uint8_t	list.crypto.metadata
+src/config/list_crypto/st_list_crypto.h	field:st_list_crypto_info.block_size	48	uint32_t	list.crypto.metadata
+src/config/list_crypto/st_list_crypto.h	field:st_list_crypto_info.parallelism	49	uint32_t	list.crypto.metadata
+src/config/list_crypto/st_list_crypto.h	field:st_list_crypto_info.rewrite_recommended	50	bool	list.crypto.metadata
 src/config/list_crypto/st_list_crypto.h	field:st_list_crypto_options.cipher	54	enum st_list_cipher	list.crypto
 src/config/list_crypto/st_list_crypto.h	field:st_list_crypto_options.key_bits	55	uint32_t	list.crypto
 src/config/list_crypto/st_list_crypto.h	field:st_list_crypto_options.cost_log2	56	uint8_t	list.crypto
 src/config/list_crypto/st_list_crypto.h	field:st_list_crypto_options.block_size	57	uint32_t	list.crypto
 src/config/list_crypto/st_list_crypto.h	field:st_list_crypto_options.parallelism	58	uint32_t	list.crypto
 src/config/list_crypto/st_list_crypto.h	macro:ST_LIST_CRYPTO_OPTIONS_AES256	61	{ ST_LIST_CIPHER_AES, 256, 15, 8, 1 }	list.crypto
-src/config/list_crypto/st_list_crypto.h	function:st_list_crypto_encryption_available	65	bool (void)	list.crypto
+src/config/list_crypto/st_list_crypto.h	function:st_list_crypto_encryption_available	65	bool (void)	list.crypto.metadata
 src/config/list_crypto/st_list_crypto.h	function:st_list_crypto_inspect	71	int (FILE *, struct st_list_crypto_info *)	list.crypto
 src/config/list_crypto/st_list_crypto.h	function:st_list_crypto_read	81	int (ini_document_t **, FILE *, const void *, size_t, uint64_t, struct st_list_crypto_info *)	list.crypto
 src/config/list_crypto/st_list_crypto.h	function:st_list_crypto_write	92	int (FILE *, const ini_document_t *, const struct st_list_crypto_options *, const void *, size_t)	list.crypto

@@ -100,6 +100,169 @@ test_safe_kdf(struct st_wren_host *host)
 	    "if (!Menu.setEncryption(0, 0, null)) Fiber.abort(\"decrypt fixture\")\n");
 }
 
+/* Exercise native metadata independently of optional legacy cipher providers. */
+static void
+test_encryption_metadata(struct st_wren_host *host)
+{
+	struct st_list_crypto_info *info = (struct st_list_crypto_info *)
+	    st_bbs_list_crypto_info(host->bbs_list);
+	const struct st_list_crypto_info saved = *info;
+	static const struct {
+		enum st_list_cipher cipher;
+		uint32_t bits;
+		const char *name;
+		bool writable;
+	} cases[] = {
+		{ST_LIST_CIPHER_3DES, 192, "3DES", false},
+		{ST_LIST_CIPHER_IDEA, 128, "IDEA", false},
+		{ST_LIST_CIPHER_CAST, 40, "CAST-40", false},
+		{ST_LIST_CIPHER_RC2, 256, "RC2-256", false},
+		{ST_LIST_CIPHER_RC4, 128, "RC4-128", false},
+		{ST_LIST_CIPHER_AES, 128, "AES-128", true},
+		{ST_LIST_CIPHER_AES, 192, "AES-192", false},
+		{ST_LIST_CIPHER_AES, 256, "AES-256", true},
+		{ST_LIST_CIPHER_CHACHA20, 256, "ChaCha20", true},
+	};
+	char source[2048], module[64];
+
+	interpret(host, "metadata_plain",
+	    "import \"syncterm_menu\" for Menu, ListEncryptionInfo, ListEncryptionFormat, ListEncryptionKdf, MenuEncryption\n"
+	    "var plain = Menu.encryptionInfo\n"
+	    "if (!(plain is ListEncryptionInfo) || plain.format != ListEncryptionFormat.plain || plain.algorithm != MenuEncryption.none || plain.keyBits != 0 || plain.name != \"Not Encrypted\" || plain.kdf != ListEncryptionKdf.none || plain.rewriteRecommended) Fiber.abort(\"plain metadata\")\n"
+	    "if (plain.iterations != null || plain.costLog2 != null || plain.blockSize != null || plain.parallelism != null) Fiber.abort(\"plain KDF\")\n"
+	    "if (plain == Menu.encryptionInfo) Fiber.abort(\"snapshot reused\")\n"
+	    "var bad = Fiber.new { plain.keyBits = 128 }\n"
+	    "bad.try()\n"
+	    "if (bad.error == null) Fiber.abort(\"mutable snapshot\")\n"
+	    "bad = Fiber.new { ListEncryptionInfo.new() }\n"
+	    "bad.try()\n"
+	    "if (bad.error == null) Fiber.abort(\"public constructor\")\n"
+	    "for (fn in [Fn.new { Menu.encryptionAlgorithm }, Fn.new { Menu.encryptionKeySize }, Fn.new { Menu.encryptionName }]) {\n"
+	    "  bad = Fiber.new(fn)\n"
+	    "  bad.try()\n"
+	    "  if (bad.error == null) Fiber.abort(\"old getter retained\")\n"
+	    "}\n"
+	    "if (MenuEncryption.tripleDes != 1 || MenuEncryption.idea != 2 || MenuEncryption.cast != 3 || MenuEncryption.rc2 != 4 || MenuEncryption.rc4 != 5) Fiber.abort(\"cipher enum\")\n");
+	struct st_bbs_list *list = host->bbs_list;
+	host->bbs_list = NULL;
+	interpret(host, "metadata_absent",
+	    "import \"syncterm_menu\" for Menu\n"
+	    "import \"menu_settings_ui\" for SettingsMenu\n"
+	    "import \"menu_settings_ui_test\" for SettingsTestApp\n"
+	    "if (Menu.encryptionInfo != null) Fiber.abort(\"absent list\")\n"
+	    "var app = SettingsTestApp.new([])\n"
+	    "if (SettingsMenu.encryption_(app) || app.alerts != 1) Fiber.abort(\"absent list UI\")\n");
+	host->bbs_list = list;
+	for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
+		*info = (struct st_list_crypto_info){
+			.format = ST_LIST_CRYPTO_V1, .cipher = cases[i].cipher,
+			.kdf = ST_LIST_KDF_PBKDF2_SHA256, .key_bits = cases[i].bits,
+			.iterations = 50001, .rewrite_recommended = true,
+		};
+		CHECK(snprintf(module, sizeof(module), "metadata_cipher_%zu", i) < (int)sizeof(module));
+		CHECK(snprintf(source, sizeof(source),
+		    "import \"syncterm_menu\" for Menu, ListEncryptionFormat, ListEncryptionKdf\n"
+		    "import \"menu_settings_ui_test\" for SettingsMenuTest\n"
+		    "var info = Menu.encryptionInfo\n"
+		    "if (info.format != ListEncryptionFormat.v1 || info.algorithm != %d || info.keyBits != %u || info.name != \"%s\" || info.kdf != ListEncryptionKdf.pbkdf2Sha256 || info.iterations != 50001 || !info.rewriteRecommended) Fiber.abort(\"legacy metadata\")\n"
+		    "if (info.costLog2 != null || info.blockSize != null || info.parallelism != null) Fiber.abort(\"PBKDF fields\")\n"
+		    "SettingsMenuTest.inspectEncryption_(\"Currently %s\", %s)\n",
+		    (int)cases[i].cipher, cases[i].bits, cases[i].name,
+		    cases[i].name, cases[i].writable ? "Menu.encryptionAvailable" : "false") < (int)sizeof(source));
+		interpret(host, module, source);
+	}
+	*info = (struct st_list_crypto_info){
+		.format = ST_LIST_CRYPTO_V2, .cipher = ST_LIST_CIPHER_AES,
+		.kdf = ST_LIST_KDF_SCRYPT, .key_bits = 256,
+		.cost_log2 = 10, .block_size = 4, .parallelism = 2,
+	};
+	interpret(host, "metadata_scrypt",
+	    "import \"syncterm_menu\" for Menu, ListEncryptionFormat, ListEncryptionKdf\n"
+	    "var snapshot = Menu.encryptionInfo\n"
+	    "if (snapshot.format != ListEncryptionFormat.v2 || snapshot.kdf != ListEncryptionKdf.scrypt || snapshot.iterations != null || snapshot.costLog2 != 10 || snapshot.blockSize != 4 || snapshot.parallelism != 2 || snapshot.rewriteRecommended) Fiber.abort(\"scrypt metadata\")\n"
+	    "if (Menu.settings.kdfShift != 8) Fiber.abort(\"configured policy confused with loaded KDF\")\n");
+	info->iterations = ST_WREN_MAX_INTEGER;
+	info->kdf = ST_LIST_KDF_PBKDF2_SHA256;
+	interpret(host, "metadata_exact_max",
+	    "import \"syncterm_menu\" for Menu\n"
+	    "if (Menu.encryptionInfo.iterations != 9007199254740991) Fiber.abort(\"exact native integer\")\n");
+	info->iterations = UINT64_MAX;
+	info->kdf = ST_LIST_KDF_PBKDF2_SHA256;
+	interpret(host, "metadata_inexact",
+	    "import \"syncterm_menu\" for Menu\n"
+	    "var bad = Fiber.new { Menu.encryptionInfo }\n"
+	    "bad.try()\n"
+	    "if (bad.error == null) Fiber.abort(\"rounded native integer\")\n");
+	info->kdf = (enum st_list_kdf)99;
+	interpret(host, "metadata_bad_kdf",
+	    "import \"syncterm_menu\" for Menu\n"
+	    "var bad = Fiber.new { Menu.encryptionInfo }\n"
+	    "bad.try()\n"
+	    "if (bad.error == null) Fiber.abort(\"unknown KDF\")\n");
+	*info = saved;
+	info->cipher = (enum st_list_cipher)99;
+	interpret(host, "metadata_bad_cipher",
+	    "import \"syncterm_menu\" for Menu\n"
+	    "var bad = Fiber.new { Menu.encryptionInfo }\n"
+	    "bad.try()\n"
+	    "if (bad.error == null) Fiber.abort(\"unknown cipher\")\n");
+	*info = saved;
+	CHECK(st_bbs_list_reload(host->bbs_list) == 0);
+	interpret(host, "metadata_retained",
+	    "import \"metadata_plain\" for plain\n"
+	    "import \"metadata_scrypt\" for snapshot\n"
+	    "if (plain.keyBits != 0 || snapshot.keyBits != 256 || snapshot.costLog2 != 10 || snapshot.blockSize != 4 || snapshot.parallelism != 2) Fiber.abort(\"snapshot changed\")\n");
+	char old_kdf[sizeof(st_settings.key_derivation_iterations)];
+	strcpy(old_kdf, st_settings.key_derivation_iterations);
+	strcpy(st_settings.key_derivation_iterations, "legacy unsupported");
+	interpret(host, "metadata_effective_policy",
+	    "import \"syncterm_menu\" for Menu\n"
+	    "if (Menu.settings.kdfShift != 15) Fiber.abort(\"effective KDF default\")\n");
+	CHECK(strcmp(st_settings.key_derivation_iterations, "legacy unsupported") == 0);
+	strcpy(st_settings.key_derivation_iterations, old_kdf);
+}
+
+static void
+test_encryption_lifecycle(struct st_wren_host *host, const char *personal)
+{
+	char backup[sizeof(ST_WREN_SETTINGS_TEST_DIRECTORY) + 64];
+
+	interpret(host, "metadata_before_rewrite",
+	    "import \"syncterm_menu\" for Menu\n"
+	    "var before = Menu.encryptionInfo\n"
+	    "if (Menu.encryptionAvailable && !Menu.setEncryption(6, 128, \"metadata password\")) Fiber.abort(\"metadata encrypt\")\n"
+	    "var after = Menu.encryptionInfo\n"
+	    "if (before.algorithm != 0 || (Menu.encryptionAvailable && (after.algorithm != 6 || after.keyBits != 128 || after.costLog2 != 8))) Fiber.abort(\"rewrite snapshots\")\n");
+	CHECK(st_bbs_list_reload(host->bbs_list) == 0);
+	CHECK(snprintf(backup, sizeof(backup), "%s.metadata-backup", personal) < (int)sizeof(backup));
+	CHECK(rename(personal, backup) == 0);
+	CHECK(fs_create_directories(personal) == 0);
+	CHECK(st_bbs_list_reload(host->bbs_list) != 0);
+	interpret(host, "metadata_failed_rewrite",
+	    "import \"syncterm_menu\" for Menu\n"
+	    "import \"metadata_before_rewrite\" for before, after\n"
+	    "if (Menu.setEncryption(0, 0, null)) Fiber.abort(\"rewrite unexpectedly succeeded\")\n"
+	    "var current = Menu.encryptionInfo\n"
+	    "if (current.algorithm != after.algorithm || current.keyBits != after.keyBits || current.kdf != after.kdf || current.costLog2 != after.costLog2 || before.algorithm != 0) Fiber.abort(\"failure changed metadata\")\n");
+	CHECK(fs_remove_directory(personal) == 0);
+	CHECK(rename(backup, personal) == 0);
+	if (st_list_crypto_encryption_available()) {
+		host->config.safe_mode = true;
+		interpret(host, "metadata_safe_ui",
+		    "import \"syncterm_menu\" for Menu\n"
+		    "import \"menu_settings_ui\" for SettingsMenu\n"
+		    "import \"menu_settings_ui_test\" for SettingsTestApp, SettingsMenuTest\n"
+		    "var app = SettingsTestApp.new([SettingsMenuTest.row_(\"Decrypt\")])\n"
+		    "if (SettingsMenu.encryption_(app) || Menu.encryptionInfo.algorithm != 6) Fiber.abort(\"safe dialog changed encryption\")\n");
+		host->config.safe_mode = false;
+	}
+	interpret(host, "metadata_after_rewrite",
+	    "import \"syncterm_menu\" for Menu\n"
+	    "import \"metadata_before_rewrite\" for before, after\n"
+	    "if (!Menu.setEncryption(0, 0, null)) Fiber.abort(\"metadata decrypt\")\n"
+	    "if (before.algorithm != 0 || (Menu.encryptionAvailable && after.algorithm != 6) || Menu.encryptionInfo.algorithm != 0) Fiber.abort(\"retained rewrite snapshot\")\n");
+}
+
 static void
 test_custom_mode(struct st_wren_host *host, st_console_t *console)
 {
@@ -310,6 +473,8 @@ main(void)
 	test_custom_mode(host, console);
 	CHECK(st_console_get_color_emoji(console, &color) == 0 && color);
 	test_save_retry(host, settings);
+	test_encryption_metadata(host);
+	test_encryption_lifecycle(host, personal);
 	test_safe_kdf(host);
 	test_offer_save(host, console);
 	st_wren_host_destroy(host);

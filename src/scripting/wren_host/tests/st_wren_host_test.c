@@ -4345,10 +4345,13 @@ exercise_menu_contract(st_wren_host_t *public_host)
 	    "b.sortOrder = 4\n"
 	    "b.profile.lfExpand = false\n"
 	    "if (!b.dirty || b.profile.connTypeName.count == 0 || b.profile.palette.count != 2 || b.profile.wrenScripts.count != 2) Fiber.abort(\"bbs\")\n"
+	    "\n";
+	static const char encryption_source[] =
+	    "import \"syncterm_menu\" for Menu\n"
 	    "if (Menu.encryptionAvailable) {\n"
-	    "  if (!Menu.setEncryption(6, 128, \"secret\") || Menu.encryptionAlgorithm != 6 || Menu.encryptionKeySize != 128) Fiber.abort(\"encrypt\")\n"
-	    "  if (!Menu.setEncryption(7, 256, null) || Menu.encryptionAlgorithm != 7) Fiber.abort(\"reencrypt\")\n"
-	    "  if (!Menu.setEncryption(0, 0, null) || Menu.encryptionAlgorithm != 0) Fiber.abort(\"decrypt\")\n"
+	    "  if (!Menu.setEncryption(6, 128, \"secret\") || Menu.encryptionInfo.algorithm != 6 || Menu.encryptionInfo.keyBits != 128) Fiber.abort(\"encrypt\")\n"
+	    "  if (!Menu.setEncryption(7, 256, null) || Menu.encryptionInfo.algorithm != 7) Fiber.abort(\"reencrypt\")\n"
+	    "  if (!Menu.setEncryption(0, 0, null) || Menu.encryptionInfo.algorithm != 0) Fiber.abort(\"decrypt\")\n"
 	    "}\n";
 	static const char numeric_source[] =
 	    "import \"syncterm_menu\" for Menu\n"
@@ -4471,6 +4474,11 @@ exercise_menu_contract(st_wren_host_t *public_host)
 	if (wrenInterpret(host->vm, "menu_contract", source)
 	    != WREN_RESULT_SUCCESS) {
 		fprintf(stderr, "menu contract failed: %s\n", host->last_error);
+		return -1;
+	}
+	if (wrenInterpret(host->vm, "menu_encryption_contract", encryption_source)
+	    != WREN_RESULT_SUCCESS) {
+		fprintf(stderr, "encryption contract failed: %s\n", host->last_error);
 		return -1;
 	}
 	if (wrenInterpret(host->vm, "menu_numeric_contract", numeric_source)
@@ -7380,10 +7388,10 @@ exercise_safe_mode_persistence_contract(st_wren_host_t *public_host,
 	    "if (Menu.saveWebLists() || !Menu.webListsDirty) Fiber.abort(\"web save\")\n"
 	    "if (Menu.canCreateFont || Menu.createFont(\"Blocked\", 0) != null || Menu.saveFonts()) Fiber.abort(\"font safe mode\")\n"
 	    "if (!Menu.reloadFonts() || Menu.fontsDirty) Fiber.abort(\"font safe reload\")\n"
-	    "var algorithm = Menu.encryptionAlgorithm\n"
-	    "var keySize = Menu.encryptionKeySize\n"
+	    "var algorithm = Menu.encryptionInfo.algorithm\n"
+	    "var keySize = Menu.encryptionInfo.keyBits\n"
 	    "if (Menu.setEncryption(6, 128, \"secret\")) Fiber.abort(\"encryption save\")\n"
-	    "if (Menu.encryptionAlgorithm != algorithm || Menu.encryptionKeySize != keySize) Fiber.abort(\"encryption state\")\n";
+	    "if (Menu.encryptionInfo.algorithm != algorithm || Menu.encryptionInfo.keyBits != keySize) Fiber.abort(\"encryption state\")\n";
 	struct st_wren_host *host = public_host;
 	struct fs_info info;
 	char cache_directory[sizeof(ST_WREN_TEST_DIRECTORY) + 48];

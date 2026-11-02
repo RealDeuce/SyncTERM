@@ -1,0 +1,72 @@
+= Wren API Burndown
+
+Permanent accounting: link:WREN_C_API_COVERAGE.adoc[coverage report] and
+link:api/wren-c-api-assessments.json[assessment ledger].
+
+== Approved chunk 1: encryption reporting (revision 1)
+
+Approval: the user approved the complete Plan-mode plan with "Implement the
+plan." Implementation began in Default mode on 2026-11-02.
+Phase: chunk complete; ready for the next Plan-mode planning phase.
+
+Scope: the metadata subclaims of `list.crypto` / `list-encryption-information`
+and the representation policy in `settings.kdf-legacy`.
+
+Replace the three Menu encryption getters with menu-only `encryptionInfo`:
+a fresh immutable `ListEncryptionInfo`, or null without a loaded list. Copy
+native scalar metadata; retain no secrets or borrowed pointers. Expose format,
+algorithm, keyBits, name, kdf, iterations, costLog2, blockSize, parallelism and
+rewriteRecommended. Inapplicable KDF fields return null. Add named format/KDF
+constants and all recognized legacy cipher constants, preserving numeric values.
+Invalid native metadata fails explicitly, including inexact integer conversion.
+Remove old getters and dispatch entries without compatibility aliases.
+
+Keep Settings.kdfShift numeric (8–20), with effective default 15 for unsupported
+legacy stored strings. Do not expose raw header/config specifications. Document
+the difference between configured rewrite policy and actual loaded-file KDF;
+preserve apply/save rewrites and untouched stored settings.
+
+Migrate the encryption dialog to refreshed snapshots. Handle absent models
+without mutation. Show Change Password only when encryption is available and
+the current combination is writable (AES-128, AES-256, ChaCha20). Preserve the
+explicit encryption/decryption actions and writer semantics. Keep
+Menu.encryptionAvailable and Menu.setEncryption unchanged. Writer parameters,
+general encrypted streams and mutation error contracts remain open.
+
+Acceptance: tests cover every cipher, plaintext versus absent model, PBKDF2 and
+non-default scrypt parameters, immutable snapshots across successful and failed
+reloads/rewrites, exact numbers, menu-only access, removed getters, UI titles and
+action visibility, cancellation, password changes and safe mode. Test effective
+Settings policy independently of loaded KDF and preserve unsupported settings
+on inspection.
+
+Verification: native CMake list_crypto, wren_settings_runtime,
+wren_menu_contract and wren_host tests; CRYPTO_BACKEND=none reporting; focused
+ASan/UBSan tests; GCC and Clang builds; MinGW64 cross-build (no Windows execution).
+Update authoritative API docs, assessment mappings/evidence and report; run the
+coverage checker and diff checks; commit the complete verified chunk.
+
+Verification completed in `/tmp/syncterm-wren-encryption`:
+
+* Clang Debug: application built; `list_crypto`, `wren_settings_runtime`,
+  `wren_host` and `wren_menu_contract` passed.
+* `CRYPTO_BACKEND=none`: `list_crypto` and `wren_settings_runtime` passed,
+  including injected legacy metadata reporting without encryption support.
+* GCC Debug: both host test targets built; settings, host and menu tests passed.
+* Clang ASan/UBSan: settings, host and menu tests passed. Leak detection is
+  unsupported on FreeBSD and disabled. C++ vptr checks were disabled to link
+  the C-owned test executables; the C bindings retain ASan/UBSan instrumentation.
+* MinGW64 Debug: application and both host test targets cross-built without
+  warnings. No Windows tests were executed.
+* Coverage checker: 80 public headers, 119 explicit exclusions, 2,433 native
+  items and 151 assessments. The extra item is the host-owned cache marker
+  from concurrent commit 4ab6a3f; its mappings were reviewed and reconciled.
+  Existing ignored capture headers were copied into the isolated checkout to
+  retain the same explicit test-fixture exclusions. Diff checks passed.
+
+API documentation, the native ledger and assessment evidence now record the
+completed metadata subclaims and approved Settings policy. Keep the broader
+finding open for writer-option, mutation-result and encrypted-stream questions.
+Every subsequent chunk requires a new actual Plan-mode phase and approval.
+Delete this temporary document and temporary burndown skill only after the
+whole burndown is complete.

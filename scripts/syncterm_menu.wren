@@ -117,9 +117,7 @@ class Menu {
   foreign static deleteCloudTheme(package)
   foreign static cacheCloudTheme(package)
   foreign static copyCloudTheme(package)
-  foreign static encryptionAlgorithm
-  foreign static encryptionKeySize
-  foreign static encryptionName
+  foreign static encryptionInfo
   foreign static setEncryption(algorithm, keySize, password)
   // Web-list rows are [name, URI].  Add/refresh return null on success
   // or an error String; update/delete return Bool.
@@ -143,8 +141,39 @@ class Menu {
 
 class MenuEncryption {
   static none     { 0 }
+  static tripleDes { 1 }
+  static idea     { 2 }
+  static cast     { 3 }
+  static rc2      { 4 }
+  static rc4      { 5 }
   static aes      { 6 }
   static chacha20 { 7 }
+}
+
+class ListEncryptionFormat {
+  static plain { 0 }
+  static v1    { 1 }
+  static v2    { 2 }
+}
+
+class ListEncryptionKdf {
+  static none         { 0 }
+  static pbkdf2Sha256  { 1 }
+  static scrypt       { 2 }
+}
+
+// Host-created, immutable copies of the loaded personal-list metadata.
+foreign class ListEncryptionInfo {
+  foreign format
+  foreign algorithm
+  foreign keyBits
+  foreign name
+  foreign kdf
+  foreign iterations
+  foreign costLog2
+  foreign blockSize
+  foreign parallelism
+  foreign rewriteRecommended
 }
 
 class MenuFontSlot {

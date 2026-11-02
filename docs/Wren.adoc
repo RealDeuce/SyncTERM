@@ -4585,8 +4585,10 @@ when `Menu.encryptionAvailable` is false.
   `UINT32_MAX`; zero means the current or default communications-port rate.
 
 | `kdfShift`
-| The exponent in the persisted `scrypt-Nn` key-derivation setting;
-  accepted range is 8 through 20.  Changing it rewrites an encrypted
+| The effective scrypt cost exponent for encryption rewrites; accepted
+  range is 8 through 20. Unsupported older persisted specifications report
+  the effective default of 15. This is policy, not the loaded file's KDF;
+  use `Menu.encryptionInfo` for actual metadata.  Changing it rewrites an encrypted
   personal list using the current password when the setting is applied.
   An older persisted KDF specification is preserved when another setting
   changes; assigning `kdfShift` replaces it with `scrypt-Nn`.
@@ -4835,9 +4837,51 @@ These operations remain menu-VM-only because they retain and modify a
 
 === Menu List Encryption [[menu-list-encryption]]
 
-`Menu.encryptionAlgorithm`, `Menu.encryptionKeySize`, and
-`Menu.encryptionName` describe the personal BBS list currently in
-memory.  `MenuEncryption` defines `none`, `aes`, and `chacha20`.
+`Menu.encryptionInfo` returns a fresh, read-only `ListEncryptionInfo`
+snapshot of the personal list in memory, or `null` if no list model is loaded.
+Plaintext is a snapshot with `format == ListEncryptionFormat.plain`,
+`algorithm == MenuEncryption.none`, `keyBits == 0`, and `kdf == ListEncryptionKdf.none`.
+It is distinct from an absent model. This getter performs no I/O or rewrite.
+
+Snapshots have no public constructor or setters. They copy scalar metadata,
+retain no secrets or borrowed pointers, and remain usable and unchanged after
+reloads, encryption changes and failed operations. Invalid native metadata,
+including integers outside Wren's exact Number range, aborts the calling Fiber.
+These classes and Menu operations are available only in the menu VM.
+
+[options="header",cols="2m,4"]
+|===
+| Snapshot property | Result
+| `format` | `ListEncryptionFormat.plain` (0), `.v1` (1), or `.v2` (2).
+| `algorithm` | A `MenuEncryption` cipher value.
+| `keyBits` | Key length in bits, or zero for plaintext.
+| `name` | `Not Encrypted`, `3DES`, `IDEA`, `CAST-<bits>`, `RC2-<bits>`,
+  `RC4-<bits>`, `AES-<bits>`, or `ChaCha20`.
+| `kdf` | `ListEncryptionKdf.none` (0), `.pbkdf2Sha256` (1), or `.scrypt` (2).
+| `iterations` | Actual PBKDF2 iteration count; otherwise `null`.
+| `costLog2` | Actual scrypt cost exponent (N = 2^costLog2); otherwise `null`.
+| `blockSize` | Actual scrypt parameter r; otherwise `null`.
+| `parallelism` | Actual scrypt parameter p; otherwise `null`.
+| `rewriteRecommended` | Native recommendation Bool; reading it performs no rewrite.
+|===
+
+`MenuEncryption` defines `none` (0), `tripleDes` (1), `idea` (2), `cast` (3),
+`rc2` (4), `rc4` (5), `aes` (6), and `chacha20` (7). Legacy cipher values
+identify loaded files; they do not enable legacy writes. The former
+`Menu.encryptionAlgorithm`, `Menu.encryptionKeySize`, and `Menu.encryptionName`
+getters are removed in v2. Use one snapshot for consistent reporting:
+
+[source,wren]
+----
+var info = Menu.encryptionInfo
+if (info != null) System.print(info.name)
+----
+
+The shipped encryption dialog shows Change Password only when encryption is
+available and the loaded combination is writable: AES-128, AES-256, or ChaCha20.
+Unsupported loaded combinations (including AES-192) retain explicit conversion
+and decryption choices. SyncTERM reads the file metadata; users do not need to
+parse or enter headers.
 
 `Menu.setEncryption(algorithm, keySize, password)` rewrites the current
 personal list and returns Bool.  AES accepts 128- or 256-bit keys;
