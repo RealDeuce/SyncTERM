@@ -363,7 +363,11 @@ enum st_wren_wake_action {
 	ST_WREN_WAKE_DEFER,
 	ST_WREN_WAKE_DISCARD,
 };
-bool st_wren_fibers_same_scope(const WrenHandle *left, const WrenHandle *right);
+bool st_wren_fibers_same_scope(WrenVM *vm,
+    const WrenHandle *left, const WrenHandle *right);
+WrenHandle *st_wren_cleanup_wake_target(WrenVM *vm, WrenHandle *fiber);
+void st_wren_wake_forget_fiber(WrenVM *vm, const WrenHandle *fiber);
+void st_wren_operation_forget_fiber(WrenVM *vm, const WrenHandle *fiber);
 enum st_wren_wake_action st_wren_operation_wake_action(WrenVM *vm,
 	WrenHandle *fiber, struct st_wren_operation *source);
 int st_wren_operation_collect(WrenVM *vm);

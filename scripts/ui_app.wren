@@ -403,7 +403,7 @@ class App {
     var target = _runFiber
     var body = Fiber.new { result = fn.call() }
     var child = Fiber.new {
-      body.tryScoped()
+      Cleanup_.try_(body)
       failure = body.error
       if (parked && _running && _runFiber == target) Wake.post(target, WakeOnly.instance)
     }
@@ -416,7 +416,7 @@ class App {
       return result
     }, Fn.new {
       parked = false
-      if (!child.isDone) child.abortScoped("App stopped before child completed")
+      if (!child.isDone) Cleanup_.abort_(child, "App stopped before child completed")
     })
   }
 

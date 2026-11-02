@@ -698,8 +698,6 @@ First-class coroutines.
 | `f.transfer()`, `f.transfer(value)` | Like call, but does not record this fiber as the resumer; cannot be returned to via `Fiber.yield`.
 | `f.transferError(err)`        | Resume `f` with `err` raised inside it.
 | `f.try()`, `f.try(value)`     | Like `call`, but if `f` aborts the abort is caught and `f.error` is set.
-| `f.tryScoped()`             | SyncTERM extension for structured cleanup: retain the error boundary across cooperative yields, as described below.
-| `f.abortScoped(error)`       | Abort a parked fiber through its scoped cleanup boundaries; catch a final unhandled error at this caller.
 | `f.isDone`                    | True after the body returns or aborts.
 | `f.error`                     | The abort message if `try` caught one, else `null`.
 | `Fiber.yield()`               | Suspend; control returns to the most recent `.call()` caller.
@@ -707,28 +705,15 @@ First-class coroutines.
 | `Fiber.abort(err)`            | Raise `err` in the current fiber.  Caller's `.try()` catches it.
 |===
 
-`tryScoped()` starts an uncalled child fiber and keeps its caller suspended
-until that child returns or aborts. A `Fiber.yield` inside the child passes
-through consecutive scoped callers to the outer ordinary caller. Resuming
-any fiber in that scope chain enters the innermost suspended child with the
-resume value, then runs the enclosing continuations as children finish.
-This also applies when the host resumes a callback after an Operation.
-Errors reach the child's retained `tryScoped` boundary after any number of
-yields. The caller can restore state and propagate the same error object.
+A yield ends the current call/try boundary. To catch an error after a later
+resume, use `try()` for that resume too. `Fiber.suspend()` returns to the host
+while retaining the ordinary caller chain; `transfer` and `transferError`
+retain their standard Wren behavior.
 
-Ordinary `call`/`try` children retain their usual yield behavior. `transfer`,
-`transferError`, and `Fiber.suspend` cannot cross an active scoped call;
-use cooperative `Fiber.yield` or Operation awaits there. A scoped call owns
-its child until completion; it is not a detached background task. Pending
-native operations and shutdown still require their host's lifetime policy.
-`abortScoped(error)` provides checked cancellation of a paused fiber: it
-raises a non-null error in the innermost scoped body, runs the enclosing
-cleanup continuations, and catches a final unhandled error at the cancelling
-caller. If an inner boundary handles the error, the fiber can return a normal
-result instead.
-It also works for an ordinary paused fiber. Calling it on a running, finished,
-or already aborted fiber is an error. `Screen.update` uses this to unwind a
-callback that incorrectly yields, including any state scopes inside it.
+Host UI/resource wrappers drive their own callback fibers with ordinary
+`try()` calls on each resume. Native completions are delivered to those
+registered drivers; direct Fiber calls are not redirected. This is a host
+callback policy, not an extension to Wren's Fiber primitives.
 
 === Fn
 
@@ -6985,8 +6970,8 @@ unrelated fiber is an error before the callback starts. Immediate and deferred
 callback failures propagate as the same error object. Child completion wakes
 the App even when it has no ticks or incoming input. If the App stops before
 the child finishes, `runChild` raises `"App stopped before child completed"`
-and cancels the child through its cleanup scopes; it cannot remain parked
-inside the stopped event loop. Operation ownership releases abandoned waits.
+and detaches the child's native waits. Registered host cleanup runs without
+resuming the parked user callback. Operation ownership releases abandoned waits.
 VM shutdown runs retained cleanup without resuming the parked user callback.
 
 [source,wren]

@@ -127,6 +127,7 @@ struct st_wren_wake {
 	WrenHandle *fiber;
 	WrenHandle *value;
 	struct st_wren_wake *next;
+	bool cancelled;
 };
 
 struct foreign_claim_handle {
@@ -1812,6 +1813,20 @@ st_wren_input_native(WrenVM *vm, int slot, struct st_console_event *event)
 	return false;
 }
 
+void
+st_wren_wake_forget_fiber(WrenVM *vm, const WrenHandle *fiber)
+{
+	struct st_wren_context *context = st_wren_context_from_vm(vm);
+
+	/* A callback may cancel while drain holds pointers into this queue.
+	 * Mark entries for disposal instead of invalidating the active cursor. */
+	for (struct st_wren_wake *wake = context->wake_head;
+	    wake != NULL; wake = wake->next) {
+		if (wrenValuesSame(wake->fiber->value, fiber->value))
+			wake->cancelled = true;
+	}
+}
+
 int
 st_wren_wake_drain(WrenVM *vm)
 {
@@ -1831,14 +1846,14 @@ st_wren_wake_drain(WrenVM *vm)
 		bool last = wake == boundary;
 		enum st_wren_wake_action action = ST_WREN_WAKE_DISCARD;
 
-		if (!fiber_is_done(context, wake->fiber)) {
+		if (!wake->cancelled && !fiber_is_done(context, wake->fiber)) {
 			action = st_wren_operation_wake_action(vm, wake->fiber, wake->operation);
 			/* Completion may bypass a parked fiber's messages; another
 			 * generic message must never overtake an earlier deferred one. */
 			if (action == ST_WREN_WAKE_DELIVER && wake->operation == NULL) {
 				for (struct st_wren_wake *earlier = context->wake_head;
 				    earlier != wake; earlier = earlier->next) {
-					if (earlier->operation == NULL && st_wren_fibers_same_scope(
+					if (earlier->operation == NULL && st_wren_fibers_same_scope(vm,
 					    earlier->fiber, wake->fiber)) {
 						action = ST_WREN_WAKE_DEFER;
 						break;
@@ -1856,7 +1871,7 @@ st_wren_wake_drain(WrenVM *vm)
 				context->wake_tail = previous;
 			if (action == ST_WREN_WAKE_DELIVER) {
 				wrenEnsureSlots(vm, 2);
-				wrenSetSlotHandle(vm, 0, wake->fiber);
+				wrenSetSlotHandle(vm, 0, st_wren_cleanup_wake_target(vm, wake->fiber));
 				wrenSetSlotHandle(vm, 1, wake->value);
 				if (wrenCall(vm, context->fiber_call) != WREN_RESULT_SUCCESS)
 					status = IO_ERROR_INVALID_FORMAT;

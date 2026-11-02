@@ -214,7 +214,7 @@ class SftpFmt {
         }
       })
     }
-    drain.tryScoped()
+    Cleanup_.try_(drain)
     if (drain.error != null) {
       if (drain.error is SFTPError) return drain.error
       Fiber.abort(drain.error)

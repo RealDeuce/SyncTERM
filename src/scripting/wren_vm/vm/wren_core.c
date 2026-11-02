@@ -76,15 +76,6 @@ DEF_PRIMITIVE(fiber_abort)
   return IS_NULL(args[1]);
 }
 
-static bool insideScopedCall(ObjFiber* fiber)
-{
-  for (; fiber != NULL; fiber = fiber->caller)
-  {
-    if (fiber->scopeCaller != NULL || fiber->scopeChild != NULL) return true;
-  }
-  return false;
-}
-
 // Transfer execution to [fiber] coming from the current fiber whose stack has
 // [args].
 //
@@ -96,32 +87,29 @@ static bool runFiber(WrenVM* vm, ObjFiber* fiber, Value* args, bool isCall,
                      bool hasValue, const char* verb)
 {
 
-  if (!isCall && (insideScopedCall(vm->fiber) || insideScopedCall(fiber)))
-  {
-    RETURN_ERROR("Cannot transfer across a scoped call; use yield instead.");
-  }
   if (wrenHasError(fiber))
   {
     RETURN_ERROR_FMT("Cannot $ an aborted fiber.", verb);
   }
 
-  ObjFiber* root = wrenFiberScopeRoot(fiber);
-  if (root->numFrames == 0)
+  if (isCall)
+  {
+    // You can't call a called fiber, but you can transfer directly to it,
+    // which is why this check is gated on `isCall`. This way, after resuming a
+    // suspended fiber, it will run and then return to the fiber that called it
+    // and so on.
+    if (fiber->caller != NULL) RETURN_ERROR("Fiber has already been called.");
+
+    if (fiber->state == FIBER_ROOT) RETURN_ERROR("Cannot call root fiber.");
+
+    // Remember who ran it.
+    fiber->caller = vm->fiber;
+  }
+
+  if (fiber->numFrames == 0)
   {
     RETURN_ERROR_FMT("Cannot $ a finished fiber.", verb);
   }
-  if (isCall)
-  {
-    if (root->caller != NULL) RETURN_ERROR("Fiber has already been called.");
-    if (root->state == FIBER_ROOT) RETURN_ERROR("Cannot call root fiber.");
-    root->caller = vm->fiber;
-  }
-
-  // A native completion may hold the innermost body rather than its owner.
-  // Both entry points resume the leaf; the preserved caller chain then runs
-  // cleanup and the owner's continuation before returning to this caller.
-  fiber = root;
-  while (fiber->scopeChild != NULL) fiber = fiber->scopeChild;
 
   // When the calling fiber resumes, we'll store the result of the call in its
   // stack. If the call has two arguments (the fiber and the value), we only
@@ -177,10 +165,6 @@ DEF_PRIMITIVE(fiber_isDone)
 
 DEF_PRIMITIVE(fiber_suspend)
 {
-  if (insideScopedCall(vm->fiber))
-  {
-    RETURN_ERROR("Cannot suspend a scoped call; use yield instead.");
-  }
   // Switching to a null fiber tells the interpreter to stop and exit.
   vm->fiber = NULL;
   vm->apiStack = NULL;
@@ -200,7 +184,7 @@ DEF_PRIMITIVE(fiber_transfer1)
 DEF_PRIMITIVE(fiber_transferError)
 {
   runFiber(vm, AS_FIBER(args[0]), args, false, true, "transfer to");
-  if (!wrenHasError(vm->fiber)) vm->fiber->error = args[1];
+  vm->fiber->error = args[1];
   return false;
 }
 
@@ -209,7 +193,7 @@ DEF_PRIMITIVE(fiber_try)
   runFiber(vm, AS_FIBER(args[0]), args, true, false, "try");
   
   // If we're switching to a valid fiber to try, remember that we're trying it.
-  if (!wrenHasError(vm->fiber)) wrenFiberScopeRoot(vm->fiber)->state = FIBER_TRY;
+  if (!wrenHasError(vm->fiber)) vm->fiber->state = FIBER_TRY;
   return false;
 }
 
@@ -218,52 +202,18 @@ DEF_PRIMITIVE(fiber_try1)
   runFiber(vm, AS_FIBER(args[0]), args, true, true, "try");
   
   // If we're switching to a valid fiber to try, remember that we're trying it.
-  if (!wrenHasError(vm->fiber)) wrenFiberScopeRoot(vm->fiber)->state = FIBER_TRY;
-  return false;
-}
-
-// SyncTERM's cleanup helpers use this structured call instead of plain try.
-// It catches errors for the child's entire lifetime, including host wakes.
-DEF_PRIMITIVE(fiber_tryScoped)
-{
-  ObjFiber* owner = vm->fiber;
-  ObjFiber* body = AS_FIBER(args[0]);
-  if (body == owner || body->scopeCaller != NULL || body->scopeChild != NULL)
-  {
-    RETURN_ERROR("Cannot start an active scoped fiber.");
-  }
-  runFiber(vm, body, args, true, false, "try");
-  if (wrenHasError(vm->fiber)) return false;
-  ASSERT(owner->scopeChild == NULL, "Caller already owns a scoped child.");
-  owner->scopeChild = body;
-  body->scopeCaller = owner;
-  body->state = FIBER_TRY;
-  return false;
-}
-
-// Abort a parked fiber through its scoped boundaries instead of transferring
-// past them. The checked call makes the final error return to this caller.
-DEF_PRIMITIVE(fiber_abortScoped)
-{
-  Value error = args[1];
-  if (IS_NULL(error)) RETURN_ERROR("abortScoped requires a non-null error.");
-  runFiber(vm, AS_FIBER(args[0]), args, true, true, "abort");
-  if (wrenHasError(vm->fiber)) return false;
-  wrenFiberScopeRoot(vm->fiber)->state = FIBER_TRY;
-  vm->fiber->error = error;
+  if (!wrenHasError(vm->fiber)) vm->fiber->state = FIBER_TRY;
   return false;
 }
 
 DEF_PRIMITIVE(fiber_yield)
 {
   ObjFiber* current = vm->fiber;
-  ObjFiber* root = wrenFiberScopeRoot(current);
-  vm->fiber = root->caller;
+  vm->fiber = current->caller;
 
-  // Scoped callers stay attached so their cleanup continues after a wake.
-  // Only the outer call is yielded back to its ordinary caller.
-  root->caller = NULL;
-  root->state = FIBER_OTHER;
+  // Unhook this fiber from the one that called it.
+  current->caller = NULL;
+  current->state = FIBER_OTHER;
 
   if (vm->fiber != NULL)
   {
@@ -277,23 +227,23 @@ DEF_PRIMITIVE(fiber_yield)
 DEF_PRIMITIVE(fiber_yield1)
 {
   ObjFiber* current = vm->fiber;
-  ObjFiber* root = wrenFiberScopeRoot(current);
-  vm->fiber = root->caller;
+  vm->fiber = current->caller;
 
-  // Scoped callers stay attached so their cleanup continues after a wake.
-  // Only the outer call is yielded back to its ordinary caller.
-  root->caller = NULL;
-  root->state = FIBER_OTHER;
+  // Unhook this fiber from the one that called it.
+  current->caller = NULL;
+  current->state = FIBER_OTHER;
 
   if (vm->fiber != NULL)
   {
     // Make the caller's run method return the argument passed to yield.
     vm->fiber->stackTop[-1] = args[1];
 
+    // When the yielding fiber resumes, we'll store the result of the yield
+    // call in its stack. Since Fiber.yield(value) has two arguments (the Fiber
+    // class and the value) and we only need one slot for the result, discard
+    // the other slot now.
+    current->stackTop--;
   }
-  // Discard the argument even when yielding directly to the host. A later
-  // resume must replace the yield's receiver slot, not its old argument.
-  current->stackTop--;
 
   return false;
 }
@@ -1367,8 +1317,6 @@ void wrenInitializeCore(WrenVM* vm)
   PRIMITIVE(vm->fiberClass, "transfer(_)", fiber_transfer1);
   PRIMITIVE(vm->fiberClass, "transferError(_)", fiber_transferError);
   PRIMITIVE(vm->fiberClass, "try()", fiber_try);
-  PRIMITIVE(vm->fiberClass, "tryScoped()", fiber_tryScoped);
-  PRIMITIVE(vm->fiberClass, "abortScoped(_)", fiber_abortScoped);
   PRIMITIVE(vm->fiberClass, "try(_)", fiber_try1);
 
   vm->fnClass = AS_CLASS(wrenFindVariable(vm, coreModule, "Fn"));

@@ -332,7 +332,7 @@ exercise_remote_resource_contract(st_wren_connected_t *connected,
 	struct fake_sftp *fake)
 {
 	CHECK(st_wren_connected_interpret(connected, "remote_resources",
-	    "import \"syncterm\" for SFTP, SFTPError, RemoteFile, RemoteDirectory, FileFlag, OperationError, ScriptError\n"
+	    "import \"syncterm\" for SFTP, SFTPError, RemoteFile, RemoteDirectory, FileFlag, OperationError, ScriptError, Cleanup_\n"
 	    "class RemoteChecks {\n"
 	    "  static rejects(fn) {\n"
 	    "    var failed = Fiber.new { fn.call() }\n"
@@ -473,7 +473,7 @@ exercise_remote_resource_contract(st_wren_connected_t *connected,
 	    "      Fiber.abort(scopedFailure)\n"
 	    "    })\n"
 	    "  }\n"
-	    "  task.tryScoped()\n"
+	    "  Cleanup_.try_(task)\n"
 	    "  caught = task.error\n"
 	    "}.call()\n"
 	    ) == 0);
@@ -498,7 +498,7 @@ exercise_remote_resource_contract(st_wren_connected_t *connected,
 	    "      Fiber.abort(scopedFailure)\n"
 	    "    })\n"
 	    "  }\n"
-	    "  task.tryScoped()\n"
+	    "  Cleanup_.try_(task)\n"
 	    "  cancelledScope = task.error\n"
 	    "}.call()\n"
 	    ) == 0);
@@ -521,7 +521,7 @@ exercise_remote_resource_contract(st_wren_connected_t *connected,
 	    "var closeFailure = null\n"
 	    "Fiber.new {\n"
 	    "  var task = Fiber.new { closeFailedFile.use(Fn.new {|file| 7 }) }\n"
-	    "  task.tryScoped()\n"
+	    "  Cleanup_.try_(task)\n"
 	    "  closeFailure = task.error\n"
 	    "}.call()\n"
 	    ) == 0);
@@ -532,7 +532,7 @@ exercise_remote_resource_contract(st_wren_connected_t *connected,
 	    "var originalFailure = null\n"
 	    "Fiber.new {\n"
 	    "  var task = Fiber.new { closeFailedFile.use(Fn.new {|file| Fiber.abort(scopedFailure) }) }\n"
-	    "  task.tryScoped()\n"
+	    "  Cleanup_.try_(task)\n"
 	    "  originalFailure = task.error\n"
 	    "}.call()\n"
 	    ) == 0);
@@ -2099,7 +2099,7 @@ exercise_app_lifecycle(st_wren_host_t *host, st_console_t *console,
 	    "app.onPost = Fn.new {|value| Fiber.abort(error) }\n"
 	    "Fiber.new {\n"
 	    "  var run = Fiber.new { app.run() }\n"
-	    "  run.tryScoped()\n"
+	    "  Cleanup_.try_(run)\n"
 	    "  if (run.error != error) Fiber.abort(\"async handler error identity\")\n"
 	    "  Check.call(app)\n"
 	    "  done = true\n"
@@ -2144,7 +2144,7 @@ exercise_app_lifecycle(st_wren_host_t *host, st_console_t *console,
 	    "}\n"
 	    "Fiber.new {\n"
 	    "  var run = Fiber.new { childApp.run() }\n"
-	    "  run.tryScoped()\n"
+	    "  Cleanup_.try_(run)\n"
 	    "  if (run.error != error) Fiber.abort(\"deferred child error identity\")\n"
 	    "  Check.call(childApp)\n"
 	    "  childDone = true\n"
@@ -2172,7 +2172,7 @@ exercise_app_lifecycle(st_wren_host_t *host, st_console_t *console,
 	    "}\n"
 	    "Fiber.new {\n"
 	    "  var run = Fiber.new { stopping.run() }\n"
-	    "  run.tryScoped()\n"
+	    "  Cleanup_.try_(run)\n"
 	    "  if (run.error != \"App stopped before child completed\") Fiber.abort(\"child stop error\")\n"
 	    "  Check.call(stopping)\n"
 	    "  stopped = true\n"
@@ -2199,7 +2199,7 @@ exercise_app_lifecycle(st_wren_host_t *host, st_console_t *console,
 	    "  reentry.try()\n"
 	    "  if (reentry.error != \"App is already running\" || !boundary.running) Fiber.abort(\"App reentry state\")\n"
 	    "  var immediate = Fiber.new { boundary.runChild(Fn.new { Fiber.abort(error) }) }\n"
-	    "  immediate.tryScoped()\n"
+	    "  Cleanup_.try_(immediate)\n"
 	    "  if (immediate.error != error || !boundary.running) Fiber.abort(\"immediate child failure\")\n"
 	    "  var inlineValue = boundary.runChild(Fn.new { 43 })\n"
 	    "  if (inlineValue != 43) Fiber.abort(\"immediate child value\")\n"
@@ -2253,7 +2253,7 @@ exercise_app_lifecycle(st_wren_host_t *host, st_console_t *console,
 	    "var tickDone = false\n"
 	    "Fiber.new {\n"
 	    "  var run = Fiber.new { ticking.run() }\n"
-	    "  run.tryScoped()\n"
+	    "  Cleanup_.try_(run)\n"
 	    "  if (run.error != error) Fiber.abort(\"tick error identity\")\n"
 	    "  Check.call(ticking)\n"
 	    "  tickDone = true\n"
@@ -2316,6 +2316,7 @@ exercise_app_lifecycle(st_wren_host_t *host, st_console_t *console,
 		const char *module = failing ? "menu_app_error" : "menu_app_quit";
 		CHECK(host->menu.claim_top == NULL);
 		CHECK(wrenInterpret(host->vm, module,
+		    "import \"syncterm\" for Cleanup_\n"
 		    "import \"ui_app\" for App\n"
 		    "var app = App.new()\n"
 		    "var error = [\"menu App error\"]\n"
@@ -2326,7 +2327,7 @@ exercise_app_lifecycle(st_wren_host_t *host, st_console_t *console,
 		    "}\n"
 		    "var run = Fiber.new { app.run() }\n"
 		    "Fiber.new {\n"
-		    "  run.tryScoped()\n"
+		    "  Cleanup_.try_(run)\n"
 		    "  if (run.error != expected) Fiber.abort(\"menu App result\")\n"
 		    "  done = true\n"
 		    "}.call()\n") == WREN_RESULT_SUCCESS);
@@ -2357,6 +2358,41 @@ exercise_cleanup_scopes(st_wren_host_t *host, st_console_t *console,
 
 	CHECK(st_console_snapshot_create(&snapshot, console) == 0);
 	CHECK(st_wren_connected_create(&connected, &config) == 0);
+	CHECK(st_wren_connected_interpret(connected, "ordinary_fiber_in_host",
+	    "import \"syncterm\" for Cleanup_, Timer, Wake\n"
+	    "var restored = false\n"
+	    "var value = Cleanup_.run(Fn.new {\n"
+	    "  var parent = Fiber.current\n"
+	    "  var child = Fiber.new {\n"
+	    "    var received = parent.transfer(13)\n"
+	    "    return received\n"
+	    "  }\n"
+	    "  if (child.transfer() != 13 || child.call(17) != 17) Fiber.abort(\"ordinary transfer inside host callback\")\n"
+	    "  return 19\n"
+	    "}, Fn.new { restored = true })\n"
+	    "if (value != 19 || !restored) Fiber.abort(\"host wrapper return\")\n"
+	    "var cancelOperation = Timer.after(100000)\n"
+	    "var cancelReceiver = null\n"
+	    "var cancelResumed = false\n"
+	    "var cancelRestores = 0\n"
+	    "var cancelTask = Fiber.new {\n"
+	    "  Cleanup_.run(Fn.new {\n"
+	    "    cancelReceiver = Fiber.current\n"
+	    "    cancelOperation.await()\n"
+	    "    cancelResumed = true\n"
+	    "  }, Fn.new { cancelRestores = cancelRestores + 1 })\n"
+	    "}\n"
+	    "cancelTask.call()\n"
+	    "Wake.post(cancelReceiver, \"queued before cancellation\")\n"
+	    "cancelOperation.cancel()\n"
+	    "Cleanup_.abort_(cancelTask, \"cancelled host callback\")\n"
+	    "if (cancelTask.isDone || cancelResumed || cancelRestores != 1) Fiber.abort(\"host cancellation changed Fiber lifecycle\")\n"
+	    "System.gc()\n") == 0);
+	for (unsigned i = 0; i < 4; ++i)
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "ordinary_fiber_in_host",
+	    "if (cancelResumed || cancelRestores != 1) Fiber.abort(\"cancelled native wait resumed callback\")\n")
+	    == 0);
 	CHECK(st_wren_connected_interpret(connected, "cleanup_scopes",
 	    "import \"syncterm\" for Screen, CTerm, CustomCursor, VideoFlags, Timer, Hook, Cleanup_, Wake\n"
 	    "var attr = Screen.attr\n"
@@ -2420,7 +2456,7 @@ exercise_cleanup_scopes(st_wren_host_t *host, st_console_t *console,
 	    "      })\n"
 	    "    })\n"
 	    "  }\n"
-	    "  body.tryScoped()\n"
+	    "  Cleanup_.try_(body)\n"
 	    "  if (body.error != error || CTerm.suspended || CustomCursor.visible != cursor.visible || VideoFlags.noBlink != flags.noBlink) Fiber.abort(\"async abort cleanup\")\n"
 	    "  asyncDone = true\n"
 	    "}.call()\n") == 0);

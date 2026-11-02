@@ -239,15 +239,6 @@ fn_operation_wait(WrenVM *vm)
 	operation->awaited = true;
 }
 
-/* A scoped caller and its body share one suspended execution for wakes. */
-bool
-st_wren_fibers_same_scope(const WrenHandle *left, const WrenHandle *right)
-{
-	return IS_FIBER(left->value) && IS_FIBER(right->value)
-	    && wrenFiberScopeRoot(AS_FIBER(left->value))
-	    == wrenFiberScopeRoot(AS_FIBER(right->value));
-}
-
 /* While await is parked, arbitrary wake values stay in the VM queue. Only
  * this operation's identity may resume that fiber until its wait is removed. */
 enum st_wren_wake_action
@@ -262,7 +253,7 @@ st_wren_operation_wake_action(WrenVM *vm, WrenHandle *fiber,
 		    *cursor != NULL; cursor = &(*cursor)->next) {
 			struct operation_waiter *waiter = *cursor;
 
-			if (!st_wren_fibers_same_scope(waiter->fiber, fiber))
+			if (!st_wren_fibers_same_scope(vm, waiter->fiber, fiber))
 				continue;
 			if (source == NULL)
 				return ST_WREN_WAKE_DEFER;
@@ -275,6 +266,30 @@ st_wren_operation_wake_action(WrenVM *vm, WrenHandle *fiber,
 		}
 	}
 	return source == NULL ? ST_WREN_WAKE_DELIVER : ST_WREN_WAKE_DISCARD;
+}
+
+void
+st_wren_operation_forget_fiber(WrenVM *vm, const WrenHandle *fiber)
+{
+	struct st_wren_context *context = st_wren_context_from_vm(vm);
+
+	for (struct st_wren_operation *operation = context->operations;
+	    operation != NULL; operation = operation->next) {
+		for (struct operation_waiter **cursor = &operation->waiters;
+		    *cursor != NULL;) {
+			struct operation_waiter *waiter = *cursor;
+
+			if (!wrenValuesSame(waiter->fiber->value, fiber->value)) {
+				cursor = &waiter->next;
+				continue;
+			}
+			*cursor = waiter->next;
+			wrenReleaseHandle(vm, waiter->fiber);
+			free(waiter);
+		}
+	}
+	/* The next normal collect cancels abandoned awaited operations, without
+	 * overwriting the caller's API slots during cleanup-list construction. */
 }
 
 int

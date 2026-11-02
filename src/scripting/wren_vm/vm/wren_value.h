@@ -346,12 +346,6 @@ typedef struct sObjFiber
   // The fiber that ran this one. If this fiber is yielded, control will resume
   // to this one. May be `NULL`.
   struct sObjFiber* caller;
-
-  // A tryScoped() call is a structured child: yields bypass its caller,
-  // while resumes enter its deepest child and retain the error boundary.
-  // Both links are traced by GC and detached on return or abort.
-  struct sObjFiber* scopeCaller;
-  struct sObjFiber* scopeChild;
   
   // If the fiber failed because of a runtime error, this will contain the
   // error object. Otherwise, it will be null.
@@ -359,20 +353,6 @@ typedef struct sObjFiber
   
   FiberState state;
 } ObjFiber;
-
-static inline ObjFiber* wrenFiberScopeRoot(ObjFiber* fiber)
-{
-  while (fiber->scopeCaller != NULL) fiber = fiber->scopeCaller;
-  return fiber;
-}
-
-static inline void wrenEndFiberScope(ObjFiber* fiber)
-{
-  if (fiber->scopeCaller == NULL) return;
-  ASSERT(fiber->scopeCaller->scopeChild == fiber, "Mismatched scoped caller.");
-  fiber->scopeCaller->scopeChild = NULL;
-  fiber->scopeCaller = NULL;
-}
 
 typedef enum
 {

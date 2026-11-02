@@ -12,7 +12,7 @@
 // disconnect waits for us to finish before tearing down the SFTP
 // channel.
 
-import "syncterm" for Session, FileFlag, Host, SFTP, SFTPError
+import "syncterm" for Session, FileFlag, Host, SFTP, SFTPError, Cleanup_
 
 class SftpPubkey {
   static run() {
@@ -68,7 +68,7 @@ class SftpPubkey {
           }
         })
       }
-      install.tryScoped()
+      Cleanup_.try_(install)
     })
   }
 }

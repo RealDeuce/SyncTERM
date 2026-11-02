@@ -98,8 +98,8 @@ class Screen {
     guard.finish_()
     if (body.error != null) Fiber.abort(body.error)
     if (!body.isDone) {
-      body.abortScoped("Screen.update callback must not yield")
-      Fiber.abort(body.error)
+      Cleanup_.abort_(body, "Screen.update callback must not yield")
+      Fiber.abort("Screen.update callback must not yield")
     }
     return result
   }
@@ -168,25 +168,50 @@ class Screen {
 // cleanup while a callback is parked, and runs it without resuming the body
 // during VM shutdown. Ordinary exits retain the original error object.
 foreign class Cleanup_ {
-  construct new(fn) {}
+  construct new(fn, body) {}
   foreign take_()
   foreign static isCurrentScope_(fiber)
+  foreign static takeChildren_(fiber)
+  // Each resume uses ordinary Wren try. The host routes completions to this
+  // driver only while it owns a registered callback; Fiber itself is unchanged.
+  static drive_(body) {
+    var result = body.try()
+    while (!body.isDone) {
+      var value = Fiber.yield(result)
+      if (!body.isDone) result = body.try(value)
+    }
+    return result
+  }
+  static try_(body) {
+    var guard = new(Fn.new {}, body)
+    var result = drive_(body)
+    guard.take_()
+    return result
+  }
+  static abort_(body, error) {
+    var cleanups = takeChildren_(body)
+    for (cleanup in cleanups) {
+      var closer = Fiber.new { cleanup.call() }
+      closer.try()
+    }
+    return error
+  }
   static run(fn, cleanup) { run_(fn, cleanup, false) }
   // Remote resource cleanup awaits native close during normal execution.
   // Shutdown still runs cleanup synchronously after native cancellation.
   static runAsync_(fn, cleanup) { run_(fn, cleanup, true) }
   static run_(fn, cleanup, asynchronous) {
     if (!(fn is Fn) || !(cleanup is Fn)) Fiber.abort("cleanup scope expects functions")
-    var guard = new(cleanup)
     var body = Fiber.new { fn.call() }
-    var result = body.tryScoped()
+    var guard = new(cleanup, body)
+    var result = drive_(body)
     var after = guard.take_()
     var cleanupError = null
     // Shutdown may have already taken this function before cancelling an
     // enclosing child. The parked scope must not restore twice.
     if (after != null) {
       var closer = Fiber.new { after.call() }
-      if (asynchronous) closer.tryScoped() else closer.try()
+      if (asynchronous) try_(closer) else closer.try()
       cleanupError = closer.error
       if (!closer.isDone && cleanupError == null) cleanupError = "cleanup must not yield"
     }

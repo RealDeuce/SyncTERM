@@ -171,8 +171,6 @@ ObjFiber* wrenNewFiber(WrenVM* vm, ObjClosure* closure)
 
   fiber->openUpvalues = NULL;
   fiber->caller = NULL;
-  fiber->scopeCaller = NULL;
-  fiber->scopeChild = NULL;
   fiber->error = NULL_VAL;
   fiber->state = FIBER_OTHER;
   
@@ -1078,8 +1076,6 @@ static void blackenFiber(WrenVM* vm, ObjFiber* fiber)
 
   // The caller.
   wrenGrayObj(vm, (Obj*)fiber->caller);
-  wrenGrayObj(vm, (Obj*)fiber->scopeCaller);
-  wrenGrayObj(vm, (Obj*)fiber->scopeChild);
   wrenGrayValue(vm, fiber->error);
 
   // Keep track of how much memory is still in use.

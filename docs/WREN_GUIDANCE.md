@@ -90,10 +90,9 @@ details matter.
   Promise, thread scheduler, or background Wren execution.
 - `Fiber.new { ... }` creates a coroutine, `Fiber.yield(value)` returns to the
   immediate caller, and `.try()` catches `Fiber.abort`.
-- SyncTERM's `fiber.tryScoped()` retains the try boundary across yields for
-  structured cleanup. Yields pass through scoped callers; resuming any member
-  enters the innermost child. Ordinary `.try()` drops its boundary on yield.
-  Do not transfer or suspend across a scoped call; use yields or Operations.
+- A yield ends the current `.call()`/`.try()` boundary. Catch errors on a
+  later resume with another `.try()`. Host callback wrappers drive their own
+  children using these ordinary operations; Wren Fiber semantics are unchanged.
 - SFTP and `Timer.after(ms)` return owned `Operation` objects. Use
   `operation.await()` to obtain the result or `operation.then(fn)` to observe
   completion. Cancellation is explicit and idempotent with `cancel()`.
