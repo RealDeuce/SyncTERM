@@ -1,6 +1,6 @@
 # SyncTERM Modern UI
 
-An optional, independently installed Wren frontend for SyncTERM 2.0a's
+An optional, independently installed Wren frontend for SyncTERM 2.0α's
 directory and settings. None of these scripts are embedded in the executable.
 Removing the add-on restores the shipped interface.
 

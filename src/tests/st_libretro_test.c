@@ -196,6 +196,7 @@ main(int argc, char **argv)
 	struct retro_system_info info;
 	api.retro_get_system_info(&info);
 	CHECK(strcmp(info.library_name, "SyncTERM") == 0 && info.need_fullpath);
+	CHECK(strcmp(info.library_version, u8"2.0\u03b1") == 0);
 	CHECK(fs_create_directories(ST_LIBRETRO_TEST_DIRECTORY "/syncterm") == 0);
 	FILE *file = fopen(ST_LIBRETRO_TEST_DIRECTORY "/syncterm/syncterm.ini", "wb");
 	CHECK(file != NULL);

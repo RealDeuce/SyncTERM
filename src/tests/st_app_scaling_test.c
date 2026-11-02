@@ -79,7 +79,8 @@ application_window(Display *display)
 		char *name = NULL;
 
 		if (XFetchName(display, children[i], &name) != 0 && name != NULL
-		    && strncmp(name, "SyncTERM 2.0a", 13) == 0)
+		    && strncmp(name, u8"SyncTERM 2.0\u03b1",
+		    sizeof(u8"SyncTERM 2.0\u03b1") - 1) == 0)
 			result = children[i];
 		if (name != NULL)
 			(void)XFree(name);
@@ -184,7 +185,7 @@ main(int argc, char **argv)
 	(void)snprintf(settings_path, sizeof(settings_path), "%s/syncterm.ini", argv[1]);
 	file = fopen(settings_path, "wb");
 	CHECK(file != NULL);
-	CHECK(fputs("[SyncTERM]\nScreenMode=80x25\nConfirmClose=false\n"
+	CHECK(fputs("[SyncTERM]\nScreenMode=80x25\nConfirmClose=false\nAudioModes=0\n"
 	    "ScalingFactor=1\n[Unrelated]\nKeep=this\n", file) >= 0);
 	CHECK(fclose(file) == 0);
 	const struct st_application_host host = {

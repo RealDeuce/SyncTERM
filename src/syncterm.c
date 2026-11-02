@@ -123,7 +123,7 @@ application_paths(struct st_app_paths *paths, const struct st_command_line *comm
 	return status;
 }
 
-static const char application_title[] = "SyncTERM 2.0a"
+static const char application_title[] = u8"SyncTERM 2.0\u03b1"
 #ifdef ST_DEBUG_BUILD
 	" Debug (" __DATE__ ")"
 #endif

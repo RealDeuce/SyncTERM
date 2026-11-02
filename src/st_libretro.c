@@ -264,7 +264,7 @@ RETRO_API void
 retro_get_system_info(struct retro_system_info *info)
 {
 	*info = (struct retro_system_info){
-		.library_name = "SyncTERM", .library_version = "2.0a",
+		.library_name = "SyncTERM", .library_version = u8"2.0\u03b1",
 		.valid_extensions = "lst", .need_fullpath = true,
 	};
 }
