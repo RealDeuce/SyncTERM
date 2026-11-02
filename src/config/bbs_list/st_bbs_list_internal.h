@@ -15,6 +15,7 @@
 #include <stdbool.h>
 
 #define ST_BBS_CACHE_KEY_MAX 70U
+#define ST_BBS_CACHE_DIRECTORY_KEY_MAX (ST_BBS_CACHE_KEY_MAX + 1 + 3 * sizeof(size_t))
 
 struct st_bbs_owned_entry {
 	struct st_bbs_entry public;
@@ -61,8 +62,10 @@ struct st_bbs_list {
 
 bool st_bbs_cache_key(char *result, size_t result_size, const char *name);
 bool st_bbs_cache_key_recognized(const char *key);
-int st_bbs_cache_path(char **result, const st_bbs_list_t *list,
-    const char *key);
+/* Platform mechanisms; callbacks receive one basename at a time. */
+int st_bbs_cache_visit(const char *directory,
+	int (*visit)(const char *key, void *context), void *context);
+int st_bbs_cache_remove_tree(const char *path);
 int st_bbs_decode_profile(struct st_profile *profile,
     const ini_section_t *section, const char *name, bool system,
     const char *download_path);
@@ -79,9 +82,9 @@ void st_bbs_view_dispose(struct st_bbs_view *view);
 void st_bbs_view_publish(st_bbs_list_t *list, struct st_bbs_view *view);
 int st_bbs_view_sort(struct st_bbs_view *view, const int *fields,
     size_t field_count);
-int st_bbs_cache_rename(st_bbs_list_t *list, const char *old_key,
-    const char *new_key);
-int st_bbs_cache_remove(st_bbs_list_t *list, const char *key);
+int st_bbs_cache_rename(st_bbs_list_t *list, const char *old_name,
+    const char *new_name);
+int st_bbs_cache_remove(st_bbs_list_t *list, const char *name);
 int st_bbs_cache_sweep(st_bbs_list_t *list);
 void st_bbs_picker_key_load(st_bbs_list_t *list,
 	ini_document_t *document, const struct st_list_crypto_info *info);

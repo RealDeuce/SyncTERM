@@ -12,6 +12,7 @@
 #include "path.h"
 
 #include <dirent.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -23,8 +24,8 @@ join_path(const char *directory, const char *name)
 	return path_join_alloc(&result, directory, name) == 0 ? result : NULL;
 }
 
-static int
-remove_tree(const char *path)
+int
+st_bbs_cache_remove_tree(const char *path)
 {
 	struct fs_info info;
 	DIR *directory;
@@ -51,7 +52,7 @@ remove_tree(const char *path)
 			status = IO_ERROR_OUT_OF_MEMORY;
 			break;
 		}
-		status = remove_tree(child);
+		status = st_bbs_cache_remove_tree(child);
 		free(child);
 		if (status < 0)
 			break;
@@ -64,115 +65,26 @@ remove_tree(const char *path)
 }
 
 int
-st_bbs_cache_rename(st_bbs_list_t *list, const char *old_key,
-    const char *new_key)
+st_bbs_cache_visit(const char *path,
+    int (*visit)(const char *key, void *context), void *context)
 {
-	char *old_path = NULL;
-	char *new_path = NULL;
-	struct fs_info info;
-	int status = st_bbs_cache_path(&old_path, list, old_key);
-
-	if (status == 0)
-		status = st_bbs_cache_path(&new_path, list, new_key);
-	if (status < 0) {
-		free(old_path);
-		free(new_path);
-		return status;
-	}
-	status = fs_get_link_info(&info, old_path);
-	if (status == IO_ERROR_NOT_FOUND)
-		status = 0;
-	else if (status == 0 && info.kind != FS_ENTRY_DIRECTORY)
-		status = IO_ERROR_NOT_DIRECTORY;
-	else if (status == 0)
-		status = fs_rename(old_path, new_path);
-	free(old_path);
-	free(new_path);
-	return status;
-}
-
-int
-st_bbs_cache_remove(st_bbs_list_t *list, const char *key)
-{
-	char *path = NULL;
-	int status = st_bbs_cache_path(&path, list, key);
-
-	if (status == 0)
-		status = remove_tree(path);
-	free(path);
-	return status;
-}
-
-static bool
-cache_is_current(const st_bbs_list_t *list, const char *name)
-{
-	for (size_t i = 0; i < st_bbs_list_count(list); ++i) {
-		const struct st_bbs_entry *entry = st_bbs_list_at(list, i);
-		char key[ST_BBS_CACHE_KEY_MAX + 1];
-
-		if (st_bbs_cache_key(key, sizeof(key), entry->profile->name)
-		    && st_bbs_name_equal(key, name))
-			return true;
-	}
-	return false;
-}
-
-static bool
-cache_is_system(const st_bbs_list_t *list, const char *name)
-{
-	const char *base = strrchr(list->system_cache_path, '/');
-	const char *windows_base = strrchr(list->system_cache_path, '\\');
-
-	if (windows_base != NULL && (base == NULL || windows_base > base))
-		base = windows_base;
-	return st_bbs_name_equal(base == NULL ? list->system_cache_path : base + 1,
-	    name);
-}
-
-int
-st_bbs_cache_sweep(st_bbs_list_t *list)
-{
-	DIR *directory = opendir(list->cache_path);
+	DIR *directory = opendir(path);
 	struct dirent *entry;
 	int status = 0;
 
-	if (directory == NULL) {
-		struct fs_info info;
-
-		return fs_get_link_info(&info, list->cache_path) == IO_ERROR_NOT_FOUND
-		    ? 0 : IO_ERROR_IO;
-	}
-	while ((entry = readdir(directory)) != NULL) {
-		char *path;
-		struct fs_info info;
-
-		if (strcmp(entry->d_name, ".") == 0
-		    || strcmp(entry->d_name, "..") == 0
-		    || cache_is_system(list, entry->d_name)
-		    || !st_bbs_cache_key_recognized(entry->d_name)
-		    || cache_is_current(list, entry->d_name))
-			continue;
-		path = join_path(list->cache_path, entry->d_name);
-		if (path == NULL) {
-			status = IO_ERROR_OUT_OF_MEMORY;
+	if (directory == NULL)
+		return io_error_from_errno(errno);
+	for (;;) {
+		errno = 0;
+		entry = readdir(directory);
+		if (entry == NULL) {
+			if (errno != 0) status = io_error_from_errno(errno);
 			break;
 		}
-		status = fs_get_link_info(&info, path);
-		if (status == 0 && info.kind == FS_ENTRY_DIRECTORY)
-			status = remove_tree(path);
-		else if (status == 0)
-			status = 0;
-		free(path);
-		if (status < 0)
-			break;
+		status = visit(entry->d_name, context);
+		if (status < 0) break;
 	}
 	if (closedir(directory) != 0 && status == 0)
 		status = IO_ERROR_IO;
 	return status;
-}
-
-int
-st_bbs_list_sweep_orphan_caches(st_bbs_list_t *list)
-{
-	return list == NULL ? IO_ERROR_INVALID_ARGUMENT : st_bbs_cache_sweep(list);
 }

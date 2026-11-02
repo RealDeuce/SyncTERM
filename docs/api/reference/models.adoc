@@ -771,7 +771,15 @@ Existing IDs, including the historical explicit-sort alias 30, stay valid.
 | Removes only recognized cache directories not matching current entries.
 
 | st_bbs_list_cache_path(result, list, name)
-| Allocates the confined cache directory for a validated profile name.
+| Resolves and allocates the confined cache directory for a validated profile
+name, creating it and its UTF-8 `syncterm-cache-name.txt` ownership file as
+needed. Unicode caseless-equivalent names share a directory. A different
+stored name selects a numbered suffix (`[u18-<sha256>]-1`, `-2`, etc.);
+subsequent lookups reuse the matching directory even if earlier buckets have
+been removed. Existing unsuffixed caches without metadata are claimed on first
+use. Rename, removal, and orphan sweeping use the stored identity; malformed
+metadata is left intact. Operations serialize through `syncterm-cache.lock`
+in the cache root.
 
 | st_bbs_list_picker_key(list, key, available)
 | Returns/creates the per-installation picker key only for encrypted personal

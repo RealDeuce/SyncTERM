@@ -206,6 +206,7 @@ int main(void)
 	endif()
 	target_link_libraries(st_wren_host_test PRIVATE st_wren_host
 		st_wren_vm st_settings st_theme st_time st_bbs_list st_audio st_term st_language
+		st_consent_token
 		syncterm_filesystem syncterm_string_compat
 		syncterm_threads st_audio_file st_pixel_image st_list_crypto st_crypto)
 	syncterm_target_atomics(st_wren_host_test)

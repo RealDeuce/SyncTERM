@@ -4,6 +4,7 @@
 #include "cterm_apc_cache.h"
 #include "filesystem.h"
 #include "io_error.h"
+#include "string_util.h"
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -39,6 +40,9 @@ cterm_apc_cache_name_valid(const char *name, bool pattern, bool windows)
 		if (separator || ch == 0) {
 			size_t length = (size_t)(p - component);
 
+			/* Reserved per-BBS ownership metadata, including case aliases. */
+			if (ascii_case_span_equal(component, length, "syncterm-cache-name.txt"))
+				return false;
 			if (length == 0 || (length == 1 && component[0] == '.')
 			    || (length == 2 && memcmp(component, "..", 2) == 0))
 				return false;

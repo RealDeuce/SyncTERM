@@ -81,7 +81,9 @@ Audibility and physical speed pacing are explicitly partial below. Real OS
 clipboard/window operations and native console/input integration remain backend
 tests. This inventory does not claim coverage of every sequence in cterm.adoc,
 or of terminal emulations other than ANSI-BBS. Keep the specialized CTerm, audio,
-RIP, APC, transfer, native backend and lifecycle tests.
+RIP, APC, transfer, native backend and lifecycle tests. The focused `cterm_apc`
+fixture also checks that cache store/list operations cannot overwrite or expose
+`syncterm-cache-name.txt`, the visible per-BBS ownership metadata.
 
 These headless fixtures set `AudioModes=0`, so they do not open physical audio
 devices. BEL/music cases check parsing only; silence here is not an audio pass.

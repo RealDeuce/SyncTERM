@@ -222,7 +222,13 @@ int st_bbs_list_sort(st_bbs_list_t *list, const int *fields,
  */
 int st_bbs_list_sweep_orphan_caches(st_bbs_list_t *list);
 
-/* Allocates the confined cache directory path for a BBS profile name. */
+#define ST_BBS_CACHE_NAME_FILE "syncterm-cache-name.txt"
+
+/*
+ * Resolves and allocates the confined cache directory for a BBS profile name,
+ * creating it and its name file if needed. Digest collisions use numbered
+ * suffixes. Existing unmarked cache directories acquire a name on first use.
+ */
 int st_bbs_list_cache_path(char **result, const st_bbs_list_t *list,
 	const char *name);
 /* Allocates the same path without requiring the picker list to stay open. */

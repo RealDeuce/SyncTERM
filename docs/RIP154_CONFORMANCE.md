@@ -119,7 +119,9 @@ This is a regression inventory of the historical corner cases, not a claim that
 unknown RIPterm behavior has been exhausted. Existing parser, engine, raster,
 Unicode, variables, asset, icon and transfer tests remain enabled. They cover
 additional numeric/reserved-field validation, button/clipboard state, local scene
-playback, file-query replies, and transfer lifecycle/error paths. External-corpus
+playback, file-query replies, and transfer lifecycle/error paths. The
+`cterm_rip_transfer` fixture also rejects access to the reserved
+`syncterm-cache-name.txt` ownership metadata, including case aliases. External-corpus
 comparison remains optional and is not required for these fixtures.
 
 The tests do not validate physical audio, native mouse cursors, filesystem-wide

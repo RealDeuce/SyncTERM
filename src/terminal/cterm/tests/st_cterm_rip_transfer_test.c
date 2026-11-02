@@ -118,6 +118,8 @@ int main(void)
 	CHECK(strcmp(contents, "!|c04\r") == 0); free(resolved);
 	CHECK(cterm_rip_asset_transfer_path(&resolved, RIP_TRANSFER_TEST_DIRECTORY, "missing.rip", true) == IO_ERROR_NOT_FOUND);
 	CHECK(cterm_rip_asset_transfer_path(&resolved, RIP_TRANSFER_TEST_DIRECTORY, "../escape.rip", false) != 0);
+	CHECK(cterm_rip_asset_transfer_path(&resolved, RIP_TRANSFER_TEST_DIRECTORY, "syncterm-cache-name.txt", false) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(cterm_rip_asset_transfer_path(&resolved, RIP_TRANSFER_TEST_DIRECTORY, "SYNCTERM-CACHE-NAME.TXT", true) == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(cterm_rip_asset_transfer_path(&resolved, path, "asset.rip", false) != 0);
 #ifdef ST_RIP_TRANSFER_TEST_POSIX
 	char link[1024];

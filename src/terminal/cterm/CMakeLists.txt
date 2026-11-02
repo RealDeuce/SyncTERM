@@ -134,7 +134,8 @@ if(BUILD_TESTING)
 		target_compile_options(st_cterm_apc_replay PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
 	add_executable(st_cterm_apc_test tests/st_cterm_apc_test.c)
-	target_link_libraries(st_cterm_apc_test PRIVATE st_cterm st_audio_file st_pixel_image st_md5)
+	target_link_libraries(st_cterm_apc_test PRIVATE st_cterm st_audio_file st_pixel_image st_md5
+		syncterm_filesystem)
 	target_compile_definitions(st_cterm_apc_test PRIVATE
 		ST_APC_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/apc-test-cache")
 	if(NOT WIN32)

@@ -45,7 +45,7 @@ else()
 	set(ST_BBS_CACHE_SOURCE st_bbs_cache_posix.c)
 endif()
 
-set(ST_BBS_LIST_SOURCES st_bbs_list.c st_bbs_cache_key.c
+set(ST_BBS_LIST_SOURCES st_bbs_list.c st_bbs_cache_key.c st_bbs_cache.c
 	st_bbs_profile_codec.c st_bbs_store.c st_bbs_sort.c st_bbs_web.c
 	${ST_BBS_CACHE_SOURCE})
 
@@ -136,7 +136,7 @@ target_link_libraries(st_bbs_list_faultable PUBLIC st_profile st_list_crypto
 	add_executable(st_bbs_cache_safety_test
 		tests/st_bbs_cache_safety_test.c)
 	target_link_libraries(st_bbs_cache_safety_test PRIVATE st_bbs_list
-		syncterm_filesystem)
+		syncterm_filesystem syncterm_threads syncterm_path)
 	target_compile_definitions(st_bbs_cache_safety_test PRIVATE
 		ST_BBS_CACHE_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/cache-safety-test")
 	set_target_properties(st_bbs_cache_safety_test PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}

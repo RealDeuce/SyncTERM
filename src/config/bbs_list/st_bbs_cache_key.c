@@ -8,11 +8,11 @@
 #include "st_bbs_list_internal.h"
 
 #include "io_error.h"
-#include "path.h"
 #include "st_hex.h"
 #include "st_unicode_compare.h"
 #include "st_digest.h"
 
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -47,7 +47,7 @@ st_bbs_cache_key(char *result, size_t result_size, const char *name)
 bool
 st_bbs_cache_key_recognized(const char *key)
 {
-	if (key == NULL || strlen(key) != ST_BBS_CACHE_KEY_MAX
+	if (key == NULL || strlen(key) < ST_BBS_CACHE_KEY_MAX
 	    || memcmp(key, "[u18-", 5) != 0 || key[69] != ']')
 		return false;
 	for (size_t i = 5; i < 69; ++i) {
@@ -55,33 +55,17 @@ st_bbs_cache_key_recognized(const char *key)
 		    || (key[i] >= 'a' && key[i] <= 'f')))
 			return false;
 	}
+	if (key[70] != '\0') {
+		size_t suffix = 0;
+
+		if (key[70] != '-' || key[71] < '1' || key[71] > '9')
+			return false;
+		for (size_t i = 71; key[i] != '\0'; ++i) {
+			if (key[i] < '0' || key[i] > '9'
+			    || suffix > (SIZE_MAX - (size_t)(key[i] - '0')) / 10)
+				return false;
+			suffix = suffix * 10 + (size_t)(key[i] - '0');
+		}
+	}
 	return true;
-}
-
-int
-st_bbs_cache_path(char **result, const st_bbs_list_t *list, const char *key)
-{
-	if (result == NULL || list == NULL || !st_bbs_cache_key_recognized(key))
-		return IO_ERROR_INVALID_ARGUMENT;
-	return path_join_alloc(result, list->cache_path, key);
-}
-
-int
-st_bbs_list_cache_path(char **result, const st_bbs_list_t *list,
-	const char *name)
-{
-	return list == NULL ? IO_ERROR_INVALID_ARGUMENT
-	    : st_bbs_cache_path_for_name(result, list->cache_path, name);
-}
-
-int
-st_bbs_cache_path_for_name(char **result, const char *cache_directory,
-	const char *name)
-{
-	char key[ST_BBS_CACHE_KEY_MAX + 1];
-
-	if (result == NULL || cache_directory == NULL || name == NULL
-	    || !st_bbs_cache_key(key, sizeof(key), name))
-		return IO_ERROR_INVALID_ARGUMENT;
-	return path_join_alloc(result, cache_directory, key);
 }

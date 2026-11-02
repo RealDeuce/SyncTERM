@@ -101,8 +101,8 @@ remove_tree_wide(const wchar_t *path)
 	return status;
 }
 
-static int
-remove_tree(const char *path)
+int
+st_bbs_cache_remove_tree(const char *path)
 {
 	wchar_t *wide;
 	int status = wide_path(path, &wide);
@@ -122,134 +122,39 @@ utf8_name(const wchar_t *name)
 	return st_windows_utf16_to_utf8(&result, name) == 0 ? result : NULL;
 }
 
-static bool
-cache_is_current(const st_bbs_list_t *list, const char *name)
-{
-	for (size_t i = 0; i < st_bbs_list_count(list); ++i) {
-		const struct st_bbs_entry *entry = st_bbs_list_at(list, i);
-		char key[ST_BBS_CACHE_KEY_MAX + 1];
-
-		if (st_bbs_cache_key(key, sizeof(key), entry->profile->name)
-		    && st_bbs_name_equal(key, name))
-			return true;
-	}
-	return false;
-}
-
-static bool
-cache_is_system(const st_bbs_list_t *list, const char *name)
-{
-	const char *base = strrchr(list->system_cache_path, '/');
-	const char *windows_base = strrchr(list->system_cache_path, '\\');
-
-	if (windows_base != NULL && (base == NULL || windows_base > base))
-		base = windows_base;
-	return st_bbs_name_equal(base == NULL ? list->system_cache_path : base + 1,
-	    name);
-}
-
 int
-st_bbs_cache_rename(st_bbs_list_t *list, const char *old_key,
-    const char *new_key)
+st_bbs_cache_visit(const char *path,
+    int (*visit)(const char *key, void *context), void *context)
 {
-	char *old_path = NULL;
-	char *new_path = NULL;
-	struct fs_info info;
-	int status = st_bbs_cache_path(&old_path, list, old_key);
-
-	if (status == 0)
-		status = st_bbs_cache_path(&new_path, list, new_key);
-	if (status < 0) {
-		free(old_path);
-		free(new_path);
-		return status;
-	}
-	status = fs_get_link_info(&info, old_path);
-	if (status == IO_ERROR_NOT_FOUND)
-		status = 0;
-	else if (status == 0 && info.kind != FS_ENTRY_DIRECTORY)
-		status = IO_ERROR_NOT_DIRECTORY;
-	else if (status == 0)
-		status = fs_rename(old_path, new_path);
-	free(old_path);
-	free(new_path);
-	return status;
-}
-
-int
-st_bbs_cache_remove(st_bbs_list_t *list, const char *key)
-{
-	char *path = NULL;
-	int status = st_bbs_cache_path(&path, list, key);
-
-	if (status == 0)
-		status = remove_tree(path);
-	free(path);
-	return status;
-}
-
-int
-st_bbs_cache_sweep(st_bbs_list_t *list)
-{
-	wchar_t *root;
-	wchar_t *pattern;
+	wchar_t *root = NULL, *pattern;
 	WIN32_FIND_DATAW entry;
 	HANDLE search;
-	int status = wide_path(list->cache_path, &root);
+	int status = wide_path(path, &root);
 
 	if (status < 0)
 		return status;
 	pattern = wide_join(root, L"*");
-	if (pattern == NULL) {
-		free(root);
+	free(root);
+	if (pattern == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
-	}
 	search = FindFirstFileW(pattern, &entry);
 	free(pattern);
 	if (search == INVALID_HANDLE_VALUE) {
 		status = windows_error(GetLastError());
-		free(root);
 		return status == IO_ERROR_NOT_FOUND ? 0 : status;
 	}
-	do {
-		char *name;
-		wchar_t *child;
-
-		if (wcscmp(entry.cFileName, L".") == 0
-		    || wcscmp(entry.cFileName, L"..") == 0
-		    || (entry.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0
-		    || (entry.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0)
-			continue;
-		name = utf8_name(entry.cFileName);
-		if (name == NULL) {
-			status = IO_ERROR_INVALID_ENCODING;
-			break;
-		}
-		if (cache_is_system(list, name)
-		    || !st_bbs_cache_key_recognized(name)
-		    || cache_is_current(list, name)) {
-			free(name);
-			continue;
-		}
+	for (;;) {
+		char *name = utf8_name(entry.cFileName);
+		status = name == NULL ? IO_ERROR_INVALID_ENCODING : visit(name, context);
 		free(name);
-		child = wide_join(root, entry.cFileName);
-		if (child == NULL) {
-			status = IO_ERROR_OUT_OF_MEMORY;
+		if (status < 0) break;
+		if (!FindNextFileW(search, &entry)) {
+			DWORD error = GetLastError();
+			if (error != ERROR_NO_MORE_FILES) status = windows_error(error);
 			break;
 		}
-		status = remove_tree_wide(child);
-		free(child);
-	} while (status == 0 && FindNextFileW(search, &entry));
-	if (status == 0 && GetLastError() != ERROR_NO_MORE_FILES)
-		status = windows_error(GetLastError());
+	}
 	if (!FindClose(search) && status == 0)
 		status = windows_error(GetLastError());
-	free(root);
 	return status;
-}
-
-int
-st_bbs_list_sweep_orphan_caches(st_bbs_list_t *list)
-{
-	return list == NULL ? IO_ERROR_INVALID_ARGUMENT : st_bbs_cache_sweep(list);
 }

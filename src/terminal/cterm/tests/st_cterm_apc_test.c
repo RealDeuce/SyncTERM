@@ -9,6 +9,7 @@
 #include "st_base64.h"
 #include "st_pixel_image.h"
 #include "st_md5.h"
+#include "filesystem.h"
 #if defined(ST_APC_TEST_POSIX)
 #include <unistd.h>
 #endif
@@ -188,8 +189,22 @@ check_cache(struct fixture *fixture)
 	CHECK(cterm_apc_cache_open(ST_APC_TEST_DIRECTORY, "../escape", true) == NULL);
 	CHECK(cterm_apc_cache_open(ST_APC_TEST_DIRECTORY, "/escape", true) == NULL);
 	CHECK(cterm_apc_cache_open(ST_APC_TEST_DIRECTORY, "nested/./escape", true) == NULL);
+	CHECK(cterm_apc_cache_open(ST_APC_TEST_DIRECTORY, "syncterm-cache-name.txt", true) == NULL);
+	CHECK(cterm_apc_cache_open(ST_APC_TEST_DIRECTORY, "SYNCTERM-CACHE-NAME.TXT", false) == NULL);
+	CHECK(!cterm_apc_cache_name_valid("nested/syncterm-cache-name.txt", false, false));
+	CHECK(!cterm_apc_cache_name_valid("nested\\SYNCTERM-CACHE-NAME.TXT", false, true));
 	CHECK(!cterm_apc_cache_name_valid("NUL", false, true));
 	CHECK(!cterm_apc_cache_name_valid("file:stream", false, true));
+	const char *metadata = ST_APC_TEST_DIRECTORY "/syncterm-cache-name.txt";
+	CHECK(fs_replace_file(metadata, "APC test", 8) == 0);
+	apc(fixture, "SyncTERM:C;S;syncterm-cache-name.txt;YWJj");
+	CHECK(fs_open(&stream, metadata, "rb") == 0);
+	char owner[9] = {0};
+	CHECK(fread(owner, 1, sizeof(owner), stream) == 8);
+	CHECK(fclose(stream) == 0 && strcmp(owner, "APC test") == 0);
+	apc(fixture, "SyncTERM:C;L;syncterm-cache-*");
+	expect(fixture, "\x1b_SyncTERM:C;L\n\x1b\\");
+	CHECK(fs_remove_file(metadata) == 0);
 }
 
 static void

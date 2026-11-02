@@ -28,6 +28,7 @@ cterm_rip_asset_path(const char *directory, const char *filename,
 
 	if (directory == NULL
 	    || !path_untrusted_component_valid(filename)
+	    || ascii_case_compare(filename, "syncterm-cache-name.txt") == 0
 	    || strstr(filename, "..") != NULL
 	    || strpbrk(filename, "<>:\"|?*") != NULL)
 		return NULL;

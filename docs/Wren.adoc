@@ -5467,6 +5467,11 @@ Module-level `Directory` injected from C (pre-bound from
 directory (`SYNCTERM_PATH_CACHE`).  Use this for script-private
 state that should survive restarts.
 
+The visible `syncterm-cache-name.txt` file in each BBS cache records its entry
+name. It is reserved for SyncTERM and excluded from script cache grants and
+APC/RIP cache operations. Hash collisions use numbered directory suffixes; scripts
+receive the directory matching the stored name automatically.
+
 `Cache.list` returns a Map keyed by entry name; values are `File`
 objects for regular files and `Directory` objects for subdirectories.
 That's the read-side handle factory — a script reads existing cache

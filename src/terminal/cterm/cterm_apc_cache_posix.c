@@ -112,7 +112,7 @@ cterm_apc_cache_list(struct cterm_apc_cache_entries *result,
 			struct stat info;
 			char *relative = NULL;
 
-			if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0
+			if (!cterm_apc_cache_name_valid(entry->d_name, false, false)
 			    || fnmatch(part, entry->d_name, FNM_PERIOD) != 0
 			    || fstatat(dirfd(stream), entry->d_name, &info, AT_SYMLINK_NOFOLLOW) != 0
 			    || S_ISLNK(info.st_mode)) continue;

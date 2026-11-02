@@ -162,6 +162,10 @@ cterm_apc_cache_list(struct cterm_apc_cache_entries *result,
 			    || (entry.dwFileAttributes & (FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_REPARSE_POINT)) != 0)
 				continue;
 			status = st_windows_utf16_to_utf8(&name, entry.cFileName);
+			if (status == 0 && !cterm_apc_cache_name_valid(name, false, true)) {
+				free(name);
+				continue;
+			}
 			if (status == 0) status = path_join_alloc(&relative, prefix, name);
 			if (status == 0) status = cterm_apc_cache_add_entry(&entries, relative,
 			    (entry.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0);

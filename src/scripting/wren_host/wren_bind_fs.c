@@ -170,7 +170,7 @@ clean_name(const char *name, bool relaxed)
 	size_t length;
 	size_t basename;
 
-	if (name == NULL)
+	if (name == NULL || (!relaxed && st_bbs_name_equal(name, ST_BBS_CACHE_NAME_FILE)))
 		return false;
 	length = strlen(name);
 	if (length == 0 || length > (relaxed ? 255U : 64U)
