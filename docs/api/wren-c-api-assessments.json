@@ -1,0 +1,3888 @@
+{
+  "schema_version": 2,
+  "baseline": "da27a6e",
+  "status": "complete",
+  "headers": [
+    {
+      "path": "src/base/array_list/array_list.h",
+      "sha256": "07f78e0fe13932c9f0004844800f4e391029a0f6279fa750bfe836b9f85357de",
+      "status": "reviewed",
+      "symbol_count": 18
+    },
+    {
+      "path": "src/base/base64/st_base64.h",
+      "sha256": "0d820c0116d24cb509ecc4c01aa6f1a0e544273b698a2f8c1396153a340ec7d8",
+      "status": "reviewed",
+      "symbol_count": 4
+    },
+    {
+      "path": "src/base/crypto/st_cipher.h",
+      "sha256": "8a6be2ff350384b94bd0c67c5d3844e2ddc31e25ff989426c86dd05bcea50407",
+      "status": "reviewed",
+      "symbol_count": 9
+    },
+    {
+      "path": "src/base/crypto/st_crypto.h",
+      "sha256": "dae21e573fb7b2003d8653f35253bf17ac86d0e99824f9ec64725188e458e635",
+      "status": "reviewed",
+      "symbol_count": 15
+    },
+    {
+      "path": "src/base/crypto/st_digest.h",
+      "sha256": "7b496994019f13823d755c2055c33cbd1a0d51002fcf5b9eff3a014561a8950d",
+      "status": "reviewed",
+      "symbol_count": 7
+    },
+    {
+      "path": "src/base/crypto/st_kdf.h",
+      "sha256": "74a097f887077e447a2ad9214e50c5a2dbf70e8a736ea56966634d33b941893e",
+      "status": "reviewed",
+      "symbol_count": 6
+    },
+    {
+      "path": "src/base/dynamic_library/dynamic_library.h",
+      "sha256": "81ae52d9fe1a16853bbb48f9370727b762786a021cd5dd9d74b2d0e8d973810b",
+      "status": "reviewed",
+      "symbol_count": 5
+    },
+    {
+      "path": "src/base/event/st_event.h",
+      "sha256": "214bd304f5c21db733baf0ddcfbb54c1b8ab534484f6bb8d34573d62d9fe7c92",
+      "status": "reviewed",
+      "symbol_count": 9
+    },
+    {
+      "path": "src/base/hex/st_hex.h",
+      "sha256": "9079e3ba779f3f33f9bf1eb33f98a985b0ee02a2581249b64c3526ff06d1de8d",
+      "status": "reviewed",
+      "symbol_count": 3
+    },
+    {
+      "path": "src/base/io_error/io_error.h",
+      "sha256": "e80075c998748fbabdd638956bf03ba3a22272dad6c033dbb6df6df425c39ee7",
+      "status": "reviewed",
+      "symbol_count": 40
+    },
+    {
+      "path": "src/base/language/st_language.h",
+      "sha256": "21063c22f017c3020c0f88749f3f76c5b58b143e091baae2bf48742a91ea0cfc",
+      "status": "reviewed",
+      "symbol_count": 4
+    },
+    {
+      "path": "src/base/md5/st_md5.h",
+      "sha256": "84280be1bb3d0556c5614166a4856d0fc8291d3cc5904d62748ea21fdeeefa38",
+      "status": "reviewed",
+      "symbol_count": 6
+    },
+    {
+      "path": "src/base/name_value_list/name_value_list.h",
+      "sha256": "3a47a221ccfe7e8afe23e495f8c33dccb534e92954922997d14edab1a339212d",
+      "status": "reviewed",
+      "symbol_count": 15
+    },
+    {
+      "path": "src/base/semaphore/st_semaphore.h",
+      "sha256": "ff4f16509472abecfe52b50a23512f1a707156ee0733b5b243a152d3d37fcb64",
+      "status": "reviewed",
+      "symbol_count": 6
+    },
+    {
+      "path": "src/base/str_list/str_list.h",
+      "sha256": "cd72d5328c79455f9ff965bb5bfe3a67fd093c6332d4b0c47ffbf502faa5e85a",
+      "status": "reviewed",
+      "symbol_count": 12
+    },
+    {
+      "path": "src/base/string_compat/string_compat.h",
+      "sha256": "c009691683ab5be3e261755477276cda6fffd62c972bdc0a7b70bf4e733d56cf",
+      "status": "reviewed",
+      "review_note": "All five fallback function declarations and aliases are now included by forced fallback extraction.",
+      "symbol_count": 10
+    },
+    {
+      "path": "src/base/string_util/string_util.h",
+      "sha256": "079a730a2301540033d802b066fc01dcad20524321ec422fa67870bf286c7094",
+      "status": "reviewed",
+      "symbol_count": 12
+    },
+    {
+      "path": "src/base/threads/st_threads.h",
+      "sha256": "e95d6e0e8210ee84a1c0884916c48f6939a3b74819f76f95fd9ed55808f62558",
+      "status": "reviewed",
+      "symbol_count": 45
+    },
+    {
+      "path": "src/base/time/st_time.h",
+      "sha256": "185a02bb0082369b2cd8aae5e6923d98a267163e95030bbee3440fb207784579",
+      "status": "reviewed",
+      "symbol_count": 8
+    },
+    {
+      "path": "src/base/value_convert/value_convert.h",
+      "sha256": "bb019fd7108319caae88007c096737ef2d0c77dffac562e54bfa0511ee48a16b",
+      "status": "reviewed",
+      "symbol_count": 13
+    },
+    {
+      "path": "src/config/app_paths/st_app_paths.h",
+      "sha256": "8d98d54d6dc698c911891de1e1122fde0d5bedbef4039ed89ca2e4cb3cfa55a9",
+      "status": "reviewed",
+      "symbol_count": 26
+    },
+    {
+      "path": "src/config/bbs_list/st_bbs_list.h",
+      "sha256": "7a088a127b4d94e22b2f708617e151bf570a7dcfe68a1074e8f9ec6667eb4895",
+      "status": "reviewed",
+      "symbol_count": 99
+    },
+    {
+      "path": "src/config/consent_token/st_consent_token.h",
+      "sha256": "17c510324b8e490e9b8e9d22111975ab42e48c0721cfc19bde6a04e041b42ccb",
+      "status": "reviewed",
+      "symbol_count": 4
+    },
+    {
+      "path": "src/config/ini/ini.h",
+      "sha256": "8ee058ae16825f619a4e705557a254379e4e5a0efdc08b9271a6384f070d0157",
+      "status": "reviewed",
+      "symbol_count": 58
+    },
+    {
+      "path": "src/config/list_crypto/st_list_crypto.h",
+      "sha256": "7386db58694dd680c6bf5f07f4d31cb014e45460d8a3af525622c2df1859ea9f",
+      "status": "reviewed",
+      "symbol_count": 33
+    },
+    {
+      "path": "src/config/profile/st_profile.h",
+      "sha256": "34e597b3ff46d9c5592740d5d2017006af4f6fe95cbd0aa885ff42b9815b7a51",
+      "status": "reviewed",
+      "symbol_count": 157
+    },
+    {
+      "path": "src/config/settings/st_settings.h",
+      "sha256": "e0ddcfd779c94a58d90c3e23b8dbb01db49e2dd169cb8654a2c5813ada2e3110",
+      "status": "reviewed",
+      "symbol_count": 105
+    },
+    {
+      "path": "src/config/theme/st_theme.h",
+      "sha256": "d4e0014e7a89c726527c0ec14eb7158c83135ae7b405904b186577e31740baf3",
+      "status": "reviewed",
+      "symbol_count": 120
+    },
+    {
+      "path": "src/io/file_lock/st_file_lock.h",
+      "sha256": "5edfde4f1cc28747ab4e0555f65e5e9c4e44b77b5232ca81f4144ba8819d5cd0",
+      "status": "reviewed",
+      "symbol_count": 2
+    },
+    {
+      "path": "src/io/file_map/file_map.h",
+      "sha256": "faba0cffcf67e71ac4aaeeb45b25782a5f6b1a229ed0bec134bd94c84155213c",
+      "status": "reviewed",
+      "symbol_count": 5
+    },
+    {
+      "path": "src/io/filesystem/filesystem.h",
+      "sha256": "0352952dd72d0999380f6460216b95e9359b07c3f1bdd52fbfad7a9418f60fed",
+      "status": "reviewed",
+      "symbol_count": 23
+    },
+    {
+      "path": "src/io/path/path.h",
+      "sha256": "b3b3a2d5ae72bcdf00042701aba27cbb9dc2850b2f9add9f3baa887d797227b2",
+      "status": "reviewed",
+      "symbol_count": 10
+    },
+    {
+      "path": "src/io/serial/serial.h",
+      "sha256": "c6b8e7262cee2df77b3958a15a3ae43ce35a073e795516c9098baf0d00d814a7",
+      "status": "reviewed",
+      "symbol_count": 25
+    },
+    {
+      "path": "src/media/audio/audio.h",
+      "sha256": "7a4f4ba7921f622a5754caa159800abfbe83767c6caf1b8189ecd80cca346d3f",
+      "status": "reviewed",
+      "symbol_count": 50
+    },
+    {
+      "path": "src/media/audio/st_audio_runtime.h",
+      "sha256": "58175c6ef4f91264126317e74d91eadea3969900a91e0827eb1b8ca6b2fe8b35",
+      "status": "reviewed",
+      "symbol_count": 8
+    },
+    {
+      "path": "src/media/audio_file/st_audio_file.h",
+      "sha256": "7236377b7bed90f3875e0872e18090221dd1b84a33f4b66ffbfc7ade448831da",
+      "status": "reviewed",
+      "symbol_count": 5
+    },
+    {
+      "path": "src/media/audio_mixer/audio_mixer.h",
+      "sha256": "03ea9950de09875d6d31d61d4e4ac05de133002f7e4a3c983904c4e642b3932a",
+      "status": "reviewed",
+      "symbol_count": 23
+    },
+    {
+      "path": "src/media/console/st_console.h",
+      "sha256": "86cfbab448f0c87429130a122df663a7e5b086e3055bf7a2ba09bf3f05a49743",
+      "status": "reviewed",
+      "symbol_count": 370
+    },
+    {
+      "path": "src/media/font_catalog/st_font_catalog.h",
+      "sha256": "48b993085ed682c6ed102b3e8e7d715ddc494751f20b08865a8ff8dc97a67da9",
+      "status": "reviewed",
+      "symbol_count": 12
+    },
+    {
+      "path": "src/media/fonts/st_builtin_fonts.h",
+      "sha256": "0cb9da919e72ad5321e34bab13c4a1529ae860e8da6331d44051a60f58609d12",
+      "status": "reviewed",
+      "symbol_count": 6
+    },
+    {
+      "path": "src/media/fonts/st_emoji_fonts.h",
+      "sha256": "5bdb99f212bb4cfa19c4ae3d3514137ced5f85de0129c2bfba0650a429f83186",
+      "status": "reviewed",
+      "symbol_count": 3
+    },
+    {
+      "path": "src/media/fonts/st_presentation_font.h",
+      "sha256": "c39d49aaa44cedb1a78d95f0c0c47a36756b1706d5733f8e9d63aaf6318ea41b",
+      "status": "reviewed",
+      "symbol_count": 4
+    },
+    {
+      "path": "src/media/fonts/st_unicode_fonts.h",
+      "sha256": "c53a160e4eff5498827e376c538770dd6d63abe4fa5e4e09cfa0bb86ded2e6b4",
+      "status": "reviewed",
+      "symbol_count": 2
+    },
+    {
+      "path": "src/media/pixel_image/st_pixel_image.h",
+      "sha256": "19f84636b92b53e8d5ae21eaa86f25c1058789f1db5f111fb78f76c6d645dba3",
+      "status": "reviewed",
+      "symbol_count": 7
+    },
+    {
+      "path": "src/media/pixels/st_pixels.h",
+      "sha256": "539f95656dd5b18fbedf3ec8e9dfbe5de6cca8ebbe78a015afcf9a21cc850dd2",
+      "status": "reviewed",
+      "symbol_count": 49
+    },
+    {
+      "path": "src/net/connection/connection_shell_codec.h",
+      "sha256": "0adf830aee0f3d54f08fdf41a91c190e720f60cbffb32b0c9bd8381c65c542a5",
+      "status": "reviewed",
+      "symbol_count": 16
+    },
+    {
+      "path": "src/net/connection/connection_stream.h",
+      "sha256": "c64451fcce7cea40c6977e4a8ecfc22d9aeea253ae9ccc8f3dd31c9464bcc7c8",
+      "status": "reviewed",
+      "symbol_count": 18
+    },
+    {
+      "path": "src/net/connection/connection_tcp.h",
+      "sha256": "77b07449c9d3df3cd64aba1605d65adf1cb692283cec467460d1c40d7b929a01",
+      "status": "reviewed",
+      "symbol_count": 1
+    },
+    {
+      "path": "src/net/connection/st_connection.h",
+      "sha256": "52c39026b23c2fcc863e15b4ccd24d8cb7ce0aa41bb1500fd0d418608424582f",
+      "status": "reviewed",
+      "symbol_count": 76
+    },
+    {
+      "path": "src/net/sftp_client/st_sftp.h",
+      "sha256": "08aa71dcc5e0d57c3d237f0c7285bf13d74a68b45fee24fa22b518aa22afa758",
+      "status": "reviewed",
+      "symbol_count": 78
+    },
+    {
+      "path": "src/net/socket/socket.h",
+      "sha256": "8a1bc4f009011d890edc30b77d2858856a0bc5fdced2832329bd636022db5cb4",
+      "status": "reviewed",
+      "symbol_count": 27
+    },
+    {
+      "path": "src/net/tcp_client/tcp_client.h",
+      "sha256": "e64123625dc25997f5373cfb33602533ae48bb4432bb7eca3268ff15c6f5ba3e",
+      "status": "reviewed",
+      "symbol_count": 17
+    },
+    {
+      "path": "src/net/tls/st_tls.h",
+      "sha256": "e84511bba583a3f02a2729561c056fe34f2b70e5bea57e332d45120f010089fc",
+      "status": "reviewed",
+      "symbol_count": 56
+    },
+    {
+      "path": "src/net/transfer/st_transfer.h",
+      "sha256": "a40e6b8a2d97527d1a1cc634ac5db8fd3a21fa5a3ff973050b036781bcf4b989",
+      "status": "reviewed",
+      "symbol_count": 83
+    },
+    {
+      "path": "src/net/transfer/st_transfer_detect.h",
+      "sha256": "3296b9ecf875d100f793920a3b0117a8f7b80951a539317d366f4ea40a7a1b30",
+      "status": "reviewed",
+      "symbol_count": 3
+    },
+    {
+      "path": "src/net/webget/st_webget.h",
+      "sha256": "9647dcc563e1661fe1d6b762c78e2483d2beae03ac878da0ebd15c8a425d2143",
+      "status": "reviewed",
+      "symbol_count": 33
+    },
+    {
+      "path": "src/scripting/wren_host/st_wren_host.h",
+      "sha256": "531eba9331f992a6394c41020890e279597ee8d6cfd1259a4495f68ef38d5552",
+      "status": "reviewed",
+      "symbol_count": 67
+    },
+    {
+      "path": "src/st_app_state.h",
+      "sha256": "9a66f9d8cab3c0ecd175d5426b59df838a817a70ac70609d293c7568381b524f",
+      "status": "reviewed",
+      "symbol_count": 1
+    },
+    {
+      "path": "src/st_application.h",
+      "sha256": "011fcf76bf3e91ad15594862d35d9bc2802179c0c55c79f9e6ef63e1ac522ad2",
+      "status": "reviewed",
+      "symbol_count": 8
+    },
+    {
+      "path": "src/st_command_line.h",
+      "sha256": "e4c39f9c2accaecb447fad05ca42f30487d27cc7d9fb7ebcbc6b9e27efe2f386",
+      "status": "reviewed",
+      "symbol_count": 24
+    },
+    {
+      "path": "src/st_console_startup.h",
+      "sha256": "d1ad9846bd2836e6a888da47a2c20e129aef65db1471b0ccc2b78fdb14ad4a33",
+      "status": "reviewed",
+      "symbol_count": 4
+    },
+    {
+      "path": "src/st_libretro_input.h",
+      "sha256": "5f8b2eea549b6ab14b9b2f6cbc427aa189cad353f6a0edab49b21ce364b7dcd7",
+      "status": "reviewed",
+      "symbol_count": 1
+    },
+    {
+      "path": "src/st_syncterm_icon.h",
+      "sha256": "db9a42ed07712ff11469c9a4378df4669cab199da882051b6529cdf933a18c78",
+      "status": "reviewed",
+      "symbol_count": 1
+    },
+    {
+      "path": "src/st_terminfo.h",
+      "sha256": "852d5c5f13d3d8f21aa0903d990cad1ab152ab6bb292a614bf12eb0a79f8ffeb",
+      "status": "reviewed",
+      "symbol_count": 1
+    },
+    {
+      "path": "src/syncterm_types.h",
+      "sha256": "faf03b62fcdebbc99c656072aff92846a65787e78294dcb21d2b0e96232144f2",
+      "status": "reviewed",
+      "review_note": "Compatibility includes only; no public operations, fields, enums or macros in the native extraction. Standard scalar types have Wren value equivalents subject to documented exact Number limits.",
+      "symbol_count": 0
+    },
+    {
+      "path": "src/terminal/cterm/st_cterm.h",
+      "sha256": "4a8137e13842b628174b1f497a43d98391acd615dd8b862e1225b0d5efa64eaf",
+      "status": "reviewed",
+      "symbol_count": 159
+    },
+    {
+      "path": "src/terminal/hyperlink/st_hyperlink.h",
+      "sha256": "f93a14cc8070afcd04fd9217581d4aee9ad69dbed44f63236e0a6bf0c99eb233",
+      "status": "reviewed",
+      "symbol_count": 13
+    },
+    {
+      "path": "src/terminal/ooii/st_ooii.h",
+      "sha256": "9da33c07aa73818ad787ae8fed5af2a996aab390549f88d117e6132028618aab",
+      "status": "reviewed",
+      "symbol_count": 12
+    },
+    {
+      "path": "src/terminal/screen_mode/st_screen_mode.h",
+      "sha256": "f6ce01a5ec29e019d75fb13809078d263611318d46b79db670937fbfe3c7f436",
+      "status": "reviewed",
+      "symbol_count": 25
+    },
+    {
+      "path": "src/terminal/session_history/st_session_history.h",
+      "sha256": "1cc8e4d057da9d087fa25814770c5003d2e51fe07dfda953c98c289e3feb19f2",
+      "status": "reviewed",
+      "symbol_count": 8
+    },
+    {
+      "path": "src/terminal/term/st_term.h",
+      "sha256": "47c7541a1e00f03151b422020e29b207ffaaa531895625042e3656a858a60b3f",
+      "status": "reviewed",
+      "symbol_count": 85
+    },
+    {
+      "path": "src/text/codepage/st_codepage.h",
+      "sha256": "a7ecfd447988eeaeed5f5f8aaadacd251b48fc340ce481bde347979e71f787f2",
+      "status": "reviewed",
+      "symbol_count": 35
+    },
+    {
+      "path": "src/text/emoji/st_emoji_catalog.h",
+      "sha256": "a51f7ddd302025cdbac7d136a1c6d1063e4923eb7085aa9ac9f72d678fafe80f",
+      "status": "reviewed",
+      "symbol_count": 6
+    },
+    {
+      "path": "src/text/emoji/st_emoji_locale.h",
+      "sha256": "53dc6124b018026d47929c1a1f7289f0dabf07ad7c67a71bd662f0146f55082d",
+      "status": "reviewed",
+      "symbol_count": 6
+    },
+    {
+      "path": "src/text/unicode_compare/st_unicode_compare.h",
+      "sha256": "b3625727e4d406909a5e505b3285fd01c077105f7fa0996484264071877f8578",
+      "status": "reviewed",
+      "symbol_count": 14
+    },
+    {
+      "path": "src/text/unicode_grapheme/st_unicode_grapheme.h",
+      "sha256": "e6e229d7b0a9d41908f21e210e4dbfc6b8a2f5f0fa87941f1791f1b281d6a350",
+      "status": "reviewed",
+      "symbol_count": 22
+    },
+    {
+      "path": "src/text/unicode_normalization/st_unicode_normalization.h",
+      "sha256": "cac5d848896ff4c278fad91926d02c5c9f07adaaabd39788d4ff5060f778ee53",
+      "status": "reviewed",
+      "symbol_count": 3
+    },
+    {
+      "path": "src/text/unicode_text/st_unicode_text.h",
+      "sha256": "122e239b71b76eb7a778815fec2bd783bdb1e84d2a60a06abb79a75f1fd3523f",
+      "status": "reviewed",
+      "symbol_count": 44
+    },
+    {
+      "path": "src/text/unicode_width/st_unicode_width.h",
+      "sha256": "c90749bc509e94748a1dba06bf25db3de7b7ccde03764193fd5f8073e9cb9433",
+      "status": "reviewed",
+      "symbol_count": 12
+    },
+    {
+      "path": "src/text/utf8/st_utf8.h",
+      "sha256": "803d3d03a0d91141f7259a0b1a39f6a51b71397db9310a94b96fd4444e10f3a1",
+      "status": "reviewed",
+      "symbol_count": 20
+    }
+  ],
+  "assessments": {
+    "values.array_list": {
+      "status": "language-equivalent",
+      "wren": "List / Map / String.split and join; script sort comparators",
+      "reason": "Native capacity, owned char pointers, cached name keys, insertion sentinels, take/free and C comparison callbacks are storage mechanisms. Wren owns values; List operations and script comparators supply collection behavior. A native sorted-unique insertion does not imply that arbitrary List values are automatically sorted or unique.",
+      "vm": "all script VMs",
+      "evidence": [
+        {
+          "path": "docs/Wren.adoc",
+          "anchor": "Lists"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "class WON"
+        }
+      ]
+    },
+    "values.name_value_list": {
+      "status": "language-equivalent",
+      "wren": "List / Map keyed by Text.caselessKey where native canonical caseless equality is required",
+      "reason": "Native capacity, owned char pointers, cached name keys, insertion sentinels, take/free and C comparison callbacks are storage mechanisms. Wren owns values; List operations and script comparators supply collection behavior. A native sorted-unique insertion does not imply that arbitrary List values are automatically sorted or unique. A raw String-keyed Wren Map is case-sensitive; callers requiring native name equality must use the explicit Text.caselessKey operation rather than assuming Map changes language equality.",
+      "vm": "all script VMs",
+      "evidence": [
+        {
+          "path": "docs/Wren.adoc",
+          "anchor": "Lists"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "class WON"
+        }
+      ]
+    },
+    "values.str_list": {
+      "status": "language-equivalent",
+      "wren": "List / Map / String.split and join; script sort comparators",
+      "reason": "Native capacity, owned char pointers, cached name keys, insertion sentinels, take/free and C comparison callbacks are storage mechanisms. Wren owns values; List operations and script comparators supply collection behavior. A native sorted-unique insertion does not imply that arbitrary List values are automatically sorted or unique.",
+      "vm": "all script VMs",
+      "evidence": [
+        {
+          "path": "docs/Wren.adoc",
+          "anchor": "Lists"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "class WON"
+        }
+      ]
+    },
+    "utility.base64": {
+      "status": "unmapped",
+      "wren": "none",
+      "reason": "No general byte Base64 encoder/decoder is exported. Internal token serialization is not a public codec; implementing the algorithm in a script is not an existing equivalent.",
+      "vm": "all script VMs",
+      "evidence": [
+        {
+          "path": "src/base/base64/st_base64.h",
+          "anchor": "st_base64_encode"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "class Text"
+        }
+      ],
+      "finding": "utility-codecs",
+      "decision": "scope-review"
+    },
+    "utility.hex": {
+      "status": "unmapped",
+      "wren": "none",
+      "reason": "File digests return raw bytes; no general byte-to-hex / hex-to-byte codec or digit decoder is exported.",
+      "vm": "all script VMs",
+      "evidence": [
+        {
+          "path": "src/base/hex/st_hex.h",
+          "anchor": "st_hex_decode"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign sha1"
+        }
+      ],
+      "finding": "utility-codecs",
+      "decision": "scope-review"
+    },
+    "utility.cipher": {
+      "status": "unmapped",
+      "wren": "Menu.setEncryption is a fixed BBS-list workflow, not a cipher API",
+      "reason": "No general cipher support query or byte encryption/decryption operation exists. Native legacy algorithm enums describe provider/read compatibility; this finding does not propose enabling legacy writers.",
+      "vm": "all script VMs",
+      "evidence": [
+        {
+          "path": "src/base/crypto/st_cipher.h",
+          "anchor": "st_cipher_crypt"
+        },
+        {
+          "path": "scripts/syncterm_menu.wren",
+          "anchor": "setEncryption"
+        }
+      ],
+      "finding": "utility-crypto",
+      "decision": "scope-review"
+    },
+    "utility.kdf": {
+      "status": "unmapped",
+      "wren": "Settings.kdfShift configures list rewriting only",
+      "reason": "No general PBKDF2/scrypt operation or parameter validation API. Fixed list encryption is a consumer, not a mapping of arbitrary KDF input/output.",
+      "vm": "all script VMs",
+      "evidence": [
+        {
+          "path": "src/base/crypto/st_kdf.h",
+          "anchor": "st_kdf_scrypt"
+        },
+        {
+          "path": "scripts/syncterm_menu.wren",
+          "anchor": "kdfShift"
+        }
+      ],
+      "finding": "utility-crypto",
+      "decision": "scope-review"
+    },
+    "utility.digest": {
+      "status": "partial",
+      "wren": "File.sha1 / File.md5",
+      "reason": "Only two file digest algorithms are exposed. SHA-256/384/512, generic byte-buffer digest input and digest-size query are absent. File methods are grant-confined and return raw digest bytes.",
+      "vm": "menu/connected grant owners; no file opening in picker VM",
+      "evidence": [
+        {
+          "path": "src/base/crypto/st_digest.h",
+          "anchor": "ST_DIGEST_SHA256"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_fs.c",
+          "anchor": "fn_file_sha1"
+        }
+      ],
+      "finding": "digest-algorithms",
+      "decision": "mapping-gap"
+    },
+    "utility.crypto": {
+      "status": "unmapped",
+      "wren": "Menu.buildOptions includes the provider name",
+      "reason": "No general random-byte operation, provider version query, or crypto-status taxonomy is exported. List workflow errors do not expose every provider result. Secret clearing remains native ownership, classified separately.",
+      "vm": "all script VMs",
+      "evidence": [
+        {
+          "path": "src/base/crypto/st_crypto.h",
+          "anchor": "st_crypto_random"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_menu.c",
+          "anchor": "st_crypto_provider_name"
+        }
+      ],
+      "finding": "utility-crypto",
+      "decision": "scope-review"
+    },
+    "utility.crypto-provider": {
+      "status": "covered",
+      "wren": "Menu.buildOptions",
+      "reason": "Reports the selected native crypto provider name in the build information; no promise of a structured provider object.",
+      "vm": "menu",
+      "evidence": [
+        {
+          "path": "src/scripting/wren_host/wren_bind_menu.c",
+          "anchor": "st_crypto_provider_name"
+        }
+      ]
+    },
+    "utility.crypto-clear": {
+      "status": "host-owned",
+      "wren": "native secret-buffer owners",
+      "reason": "A Wren String is immutable VM-managed storage. Clearing a native secret buffer belongs to the native owner and cannot promise erasure of arbitrary Wren copies.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/base/crypto/st_crypto.h",
+          "anchor": "st_crypto_clear"
+        },
+        {
+          "path": "src/config/list_crypto/st_list_crypto.c",
+          "anchor": "st_crypto_clear"
+        }
+      ]
+    },
+    "utility.md5-state": {
+      "status": "host-owned",
+      "wren": "native APC digest/check machinery",
+      "reason": "The streaming MD5 state/block owner belongs to native APC validation. File.md5 now uses st_digest instead. The general byte/stream digest utility omission is recorded in utility.digest; raw state pointers are not a separate script object.",
+      "vm": "all script VMs",
+      "evidence": [
+        {
+          "path": "src/terminal/cterm/cterm_apc.c",
+          "anchor": "st_md5_init"
+        }
+      ]
+    },
+    "host.dynamic_library": {
+      "status": "host-owned",
+      "wren": "optional native backend/provider loading",
+      "reason": "The application owns these native lifetimes and synchronization. Script execution is single-threaded and cooperatively scheduled with Fiber/Operation/Timer; scripts cannot create C threads, access raw synchronization objects, or load arbitrary native symbols. Exposing a second owner would bypass the VM/lifetime boundary.",
+      "vm": "all script VMs",
+      "evidence": [
+        {
+          "path": "docs/WREN_GUIDANCE.md",
+          "anchor": "single-threaded"
+        },
+        {
+          "path": "src/base/dynamic_library/dynamic_library.h",
+          "anchor": ""
+        }
+      ]
+    },
+    "host.st_event": {
+      "status": "host-owned",
+      "wren": "native worker wakeups",
+      "reason": "The application owns these native lifetimes and synchronization. Script execution is single-threaded and cooperatively scheduled with Fiber/Operation/Timer; scripts cannot create C threads, access raw synchronization objects, or load arbitrary native symbols. Exposing a second owner would bypass the VM/lifetime boundary.",
+      "vm": "all script VMs",
+      "evidence": [
+        {
+          "path": "docs/WREN_GUIDANCE.md",
+          "anchor": "single-threaded"
+        },
+        {
+          "path": "src/base/event/st_event.h",
+          "anchor": ""
+        }
+      ]
+    },
+    "host.st_semaphore": {
+      "status": "host-owned",
+      "wren": "native worker synchronization",
+      "reason": "The application owns these native lifetimes and synchronization. Script execution is single-threaded and cooperatively scheduled with Fiber/Operation/Timer; scripts cannot create C threads, access raw synchronization objects, or load arbitrary native symbols. Exposing a second owner would bypass the VM/lifetime boundary.",
+      "vm": "all script VMs",
+      "evidence": [
+        {
+          "path": "docs/WREN_GUIDANCE.md",
+          "anchor": "single-threaded"
+        },
+        {
+          "path": "src/base/semaphore/st_semaphore.h",
+          "anchor": ""
+        }
+      ]
+    },
+    "host.st_threads": {
+      "status": "host-owned",
+      "wren": "native application/transport/renderer workers",
+      "reason": "The application owns these native lifetimes and synchronization. Script execution is single-threaded and cooperatively scheduled with Fiber/Operation/Timer; scripts cannot create C threads, access raw synchronization objects, or load arbitrary native symbols. Exposing a second owner would bypass the VM/lifetime boundary.",
+      "vm": "all script VMs",
+      "evidence": [
+        {
+          "path": "docs/WREN_GUIDANCE.md",
+          "anchor": "single-threaded"
+        },
+        {
+          "path": "src/base/threads/st_threads.h",
+          "anchor": ""
+        }
+      ]
+    },
+    "errors.io": {
+      "status": "partial",
+      "wren": "FileError.code / FileErr; component-specific Error classes",
+      "reason": "Portable native codes survive in FileError.code, but FileErr names cover -1 through -22 only. Later network, authentication, format and conflict codes have no matching FileErr constants. errno/Windows translation functions are host mechanisms, not script operations.",
+      "vm": "all script VMs",
+      "evidence": [
+        {
+          "path": "src/base/io_error/io_error.h",
+          "anchor": "IO_ERROR_IN_PROGRESS"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "class FileErr"
+        }
+      ],
+      "finding": "error-symbols",
+      "decision": "mapping-gap"
+    },
+    "errors.io-translation": {
+      "status": "host-owned",
+      "wren": "native error capture",
+      "reason": "Platform errno/Windows error conversion happens at the native failure boundary; script errors carry portable code and captured errno rather than translating ambient process error state.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/scripting/wren_host/wren_bind_fs.c",
+          "anchor": "push_error"
+        }
+      ]
+    },
+    "language.preferences": {
+      "status": "covered",
+      "wren": "Platform.languages",
+      "reason": "Ordered preferred UI language tags become a Wren List of Strings; count is List.count and release is VM-owned. Native discovery allocation stays private.",
+      "vm": "all script VMs",
+      "evidence": [
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign static languages"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_core.c",
+          "anchor": "st_language_discover"
+        }
+      ]
+    },
+    "utility.ascii": {
+      "status": "unmapped",
+      "wren": "no exact general ASCII helper API",
+      "reason": "Unicode-aware Text comparisons and standard String operations are available, but do not have the exact ASCII-only trimming, span and case semantics of every native helper. These implementation utilities are not a required portability API for scripts; broader relevance remains a scope decision.",
+      "vm": "all script VMs",
+      "evidence": [
+        {
+          "path": "src/base/string_util/string_util.h",
+          "anchor": "ascii_case_span_equal"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "class Text"
+        }
+      ],
+      "finding": "utility-conversion",
+      "decision": "scope-review"
+    },
+    "time.clock": {
+      "status": "covered",
+      "wren": "Timer.now / Timer.after; Wren System.clock",
+      "reason": "Timer.now returns monotonic seconds from st_time_monotonic_ms; Timer.after supplies cooperative waits. Standard Wren System.clock supplies process CPU seconds. Nanosecond precision is not promised by these floating-second APIs; native deadline records and UTC condition-variable deadlines are host scheduling mechanisms.",
+      "vm": "all script VMs",
+      "evidence": [
+        {
+          "path": "src/scripting/wren_host/wren_bind_core.c",
+          "anchor": "fn_timer_now"
+        },
+        {
+          "path": "src/scripting/wren_vm/vm/wren_core.c",
+          "anchor": "system_clock"
+        }
+      ]
+    },
+    "time.deadline": {
+      "status": "host-owned",
+      "wren": "native Operation/Timer and condition-wait owners",
+      "reason": "Deadline storage, infinite sentinel, remaining-time arithmetic and UTC timeout conversion implement native waits. Scripts use Timer operations and do not own condition-variable deadlines.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/base/time/st_time.h",
+          "anchor": "st_deadline_start"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_core.c",
+          "anchor": "fn_timer_now"
+        }
+      ]
+    },
+    "utility.conversion": {
+      "status": "unmapped",
+      "wren": "typed model setters consume values; no full generic conversion API",
+      "reason": "Native strict int64/uint64/bool/double parsing and duration/date parsing/formatting have no exact general script equivalent. Num.fromString and toString have different syntax/ranges; binary64 cannot represent all native 64-bit integers. Typed settings use these internally. This is an omitted utility scope decision, not justification for changing Wren Number.",
+      "vm": "all script VMs",
+      "evidence": [
+        {
+          "path": "src/base/value_convert/value_convert.h",
+          "anchor": "value_parse_datetime"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "class Format"
+        }
+      ],
+      "finding": "utility-conversion",
+      "decision": "scope-review"
+    },
+    "utility.estimates": {
+      "status": "covered",
+      "wren": "Format.bytes / Format.duration",
+      "reason": "Native human-readable estimates are exposed with explicit exact-number bounds for byte counts. These methods do not expose exact duration/date serialization.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/scripting/wren_host/wren_bind_core.c",
+          "anchor": "fn_format_bytes"
+        }
+      ]
+    },
+    "paths.application": {
+      "status": "host-owned",
+      "wren": "Menu.fileLocations; Host.cacheDirectory/downloadDir/uploadPath; typed Settings",
+      "reason": "Application startup resolves and prepares configuration/list/cache/key/script/theme roots. Scripts receive locations or confined directory capabilities where appropriate; they cannot reinitialize process path ownership, swap every root, or mint grants by writing path overrides. Relevant fileLocations output is descriptive, not arbitrary file authority.",
+      "vm": "menu for global locations; connected for per-entry grants",
+      "evidence": [
+        {
+          "path": "scripts/syncterm_menu.wren",
+          "anchor": "foreign static fileLocations"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign static cacheDirectory"
+        }
+      ]
+    },
+    "consent.signer": {
+      "status": "host-owned",
+      "wren": "File.token / Host.openLocalFile",
+      "reason": "Signing key generation and token authentication are native consent authority. Scripts may retain/reopen issued capabilities but cannot mint valid arbitrary-path grants or receive the signing key.",
+      "vm": "menu/connected grant owners; no file opening in picker VM",
+      "evidence": [
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign static openLocalFile"
+        },
+        {
+          "path": "src/config/consent_token/st_consent_token.h",
+          "anchor": "st_consent_token_sign"
+        }
+      ]
+    },
+    "config.ini": {
+      "status": "unmapped",
+      "wren": "Profile / Settings / ThemeDocument are typed consumers only",
+      "reason": "No general INI document/section API is exported: parsing/serialization, root/section/key CRUD, typed getters/setters, style options and bit/enum/list conversion remain native. Typed application models cover their own workflows but do not map arbitrary INI documents. NFC host-text policy remains unchanged.",
+      "vm": "all script VMs",
+      "evidence": [
+        {
+          "path": "src/config/ini/ini.h",
+          "anchor": "ini_document_parse"
+        },
+        {
+          "path": "scripts/syncterm_menu.wren",
+          "anchor": "foreign class ThemeDocument"
+        }
+      ],
+      "finding": "generic-ini",
+      "decision": "scope-review"
+    },
+    "list.crypto": {
+      "status": "partial",
+      "wren": "Menu.encryptionAvailable/Algorithm/KeySize/Name/setEncryption; Settings.kdfShift",
+      "reason": "The owned BBS-list workflow supports plain/AES-128/AES-256/ChaCha20 and current-password rewrite. It does not expose generic encrypted INI streams. Inspection omits format, KDF, actual iterations/cost/block/parallelism and rewrite_recommended; writing fixes block/parallelism to native defaults. Menu.encryptionName labels every non-ChaCha encrypted legacy cipher as AES, so legacy reads can be mislabelled. Native error status becomes Bool in setEncryption. Legacy read-only algorithm enums do not authorize legacy writes.",
+      "vm": "menu",
+      "evidence": [
+        {
+          "path": "src/scripting/wren_host/wren_bind_menu.c",
+          "anchor": "fn_menu_encryption_name"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_menu.c",
+          "anchor": "fn_menu_set_encryption"
+        },
+        {
+          "path": "src/config/list_crypto/st_list_crypto.h",
+          "anchor": "rewrite_recommended"
+        }
+      ],
+      "finding": "list-encryption-information",
+      "decision": "mapping-gap"
+    },
+    "profile.fields": {
+      "status": "covered",
+      "wren": "Profile + DirectoryEntry + Session and enum namespaces",
+      "reason": "Editable connection configuration is Profile; persistent name/id/source/added/connected/calls/sortOrder belongs to DirectoryEntry; runtime connection state belongs to Session. Palette length and fingerprint length come from script value lengths. Typed encoding/script setters replace native persistence parsers; defaults intentionally have no scripts. Source classification is only the two-value profile source contract here; the richer BBS source issue is separate. Fixed buffer capacities are validation limits, not separate values to allocate.",
+      "vm": "menu and connected; persistence/menu enumeration only in menu",
+      "evidence": [
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign class Profile"
+        },
+        {
+          "path": "scripts/syncterm_menu.wren",
+          "anchor": "foreign class DirectoryEntry"
+        },
+        {
+          "path": "docs/api/bbs-entry-fields.adoc",
+          "anchor": "cterm"
+        }
+      ]
+    },
+    "profile.ownership": {
+      "status": "host-owned",
+      "wren": "Profile.copy; VM-backed views and host model owners",
+      "reason": "Native init/dispose/copy and cached ghost-program interpretation implement the value/view lifetime. Script copy returns an independent value; native pointers are not transferred.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign copy()"
+        },
+        {
+          "path": "src/config/profile/st_profile.h",
+          "anchor": "st_profile_dispose"
+        }
+      ]
+    },
+    "bbs.workflow": {
+      "status": "covered",
+      "wren": "Menu entries/defaults/load/create/copy/sort/refreshWebList; DirectoryEntry save/delete/rename",
+      "reason": "The menu owns a merged BBS model; enumeration/find/count use Wren Lists, identity and generations stay attached to foreign handles, sort field catalogs and profiles supply native ordering. Per-entry/default edits are validated typed operations. Connection recording is performed by the application. Limits are surfaced through canAppendEntry and validated mutation. Cache paths and picker keys remain bound to the owning entry, not arbitrary filesystem open authority.",
+      "vm": "menu",
+      "evidence": [
+        {
+          "path": "scripts/syncterm_menu.wren",
+          "anchor": "foreign static entries"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_menu.c",
+          "anchor": "st_bbs_list_sort"
+        }
+      ]
+    },
+    "bbs.provenance": {
+      "status": "partial",
+      "wren": "DirectoryEntry.type / profile.source",
+      "reason": "Native PERSONAL/SHARED/WEB_SYSTEM/WEB_NAMED becomes personal versus system. source_name is not retained in the script model. Scripts cannot identify which named list provided an entry. Shadowed entries are intentionally absent from the merged visible list, but there is no script inspection API for that hidden provenance.",
+      "vm": "menu",
+      "evidence": [
+        {
+          "path": "src/config/bbs_list/st_bbs_list.h",
+          "anchor": "ST_BBS_SOURCE_WEB_NAMED"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_menu.c",
+          "anchor": "ST_BBS_SOURCE_PERSONAL"
+        }
+      ],
+      "finding": "bbs-provenance",
+      "decision": "mapping-gap"
+    },
+    "bbs.cache-result": {
+      "status": "partial",
+      "wren": "DirectoryEntry.save/delete/rename return primary success",
+      "reason": "The native mutation result can report cache_status after a committed list change. The binding does not inspect that secondary status, so scripts cannot distinguish complete cache maintenance from committed data with cache failure.",
+      "vm": "menu",
+      "evidence": [
+        {
+          "path": "src/config/bbs_list/st_bbs_list.h",
+          "anchor": "cache_status"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_menu.c",
+          "anchor": "st_bbs_mutation_result"
+        }
+      ],
+      "finding": "bbs-cache-result",
+      "decision": "mapping-gap"
+    },
+    "bbs.diagnostics": {
+      "status": "unmapped",
+      "wren": "Menu.load has only coarse read status",
+      "reason": "No query for nonfatal per-source/per-section load diagnostics and their native status is exported.",
+      "vm": "menu",
+      "evidence": [
+        {
+          "path": "src/config/bbs_list/st_bbs_list.h",
+          "anchor": "st_bbs_list_diagnostic_at"
+        },
+        {
+          "path": "scripts/syncterm_menu.wren",
+          "anchor": "class MenuReadStatus"
+        }
+      ],
+      "finding": "bbs-diagnostics",
+      "decision": "mapping-gap"
+    },
+    "bbs.refresh-detail": {
+      "status": "partial",
+      "wren": "Menu.refreshWebList returns success/error String",
+      "reason": "Menu exposes refresh of a configured list but not native per-item queued/active/complete/failed state, phase, received/total/total_known, status and outcome progress records. The synchronous menu workflow does not provide an observer callback.",
+      "vm": "menu",
+      "evidence": [
+        {
+          "path": "src/config/bbs_list/st_bbs_list.h",
+          "anchor": "st_bbs_web_refresh_item"
+        },
+        {
+          "path": "scripts/syncterm_menu.wren",
+          "anchor": "foreign static refreshWebList"
+        }
+      ],
+      "finding": "bbs-refresh-progress",
+      "decision": "mapping-gap"
+    },
+    "bbs.transaction-owner": {
+      "status": "host-owned",
+      "wren": "menu BBS model and application startup/connection recording",
+      "reason": "Open/replacement/close, raw borrowed entries, native compare callbacks/cache keys and orphan-cache sweeping belong to the menu model transaction/lifetime. Scripts use typed mutations and entry-owned cache grants; they do not instantiate parallel application BBS owners.",
+      "vm": "menu",
+      "evidence": [
+        {
+          "path": "src/config/bbs_list/st_bbs_list.h",
+          "anchor": "st_bbs_list_open"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_menu.c",
+          "anchor": "st_bbs_list_open"
+        }
+      ]
+    },
+    "settings.model": {
+      "status": "covered",
+      "wren": "Menu.settings / Settings apply/save/reload; Menu webLists/sortProfiles/fonts; Emoji recent entries",
+      "reason": "Editable settings are draft values with validated typed setters. Menu owns web-list/sort-profile/custom-font collections; MenuFont setFile takes a granted File. Native collection count/index becomes List/count; recent emoji uses Emoji accessors. Theme selection is Menu-owned rather than a second raw Settings setter. Scaling modes combine native blocky/external flags. Raw global installation, disposal and startup snapshots remain host mechanisms. Specific omitted settings are classified separately.",
+      "vm": "menu; emoji access in core VMs",
+      "evidence": [
+        {
+          "path": "scripts/syncterm_menu.wren",
+          "anchor": "foreign class Settings"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_menu.c",
+          "anchor": "SETTINGS_BOOL_PROPERTY(confirm_close"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign static recent_"
+        }
+      ]
+    },
+    "settings.window-state": {
+      "status": "unmapped",
+      "wren": "none",
+      "reason": "scaling_factor, window_width, window_height and left_justify have no Settings property. Some are remembered frontend state, but text alignment is also user policy. They must not be declared covered merely because the host persists them; whether to expose window state versus policy remains a scope decision.",
+      "vm": "menu",
+      "evidence": [
+        {
+          "path": "src/config/settings/st_settings.h",
+          "anchor": "left_justify"
+        },
+        {
+          "path": "scripts/syncterm_menu.wren",
+          "anchor": "foreign class Settings"
+        }
+      ],
+      "finding": "settings-window-policy",
+      "decision": "scope-review"
+    },
+    "settings.transfer-timeouts": {
+      "status": "unmapped",
+      "wren": "none",
+      "reason": "Transfer success/failure keypress timeout settings have no Settings getters/setters despite being native persisted user policy.",
+      "vm": "menu",
+      "evidence": [
+        {
+          "path": "src/config/settings/st_settings.h",
+          "anchor": "transfer_failure_keypress_timeout"
+        },
+        {
+          "path": "scripts/syncterm_menu.wren",
+          "anchor": "foreign class Settings"
+        }
+      ],
+      "finding": "settings-transfer-timeouts",
+      "decision": "mapping-gap"
+    },
+    "settings.kdf-legacy": {
+      "status": "partial",
+      "wren": "Settings.kdfShift",
+      "reason": "The native string can contain legacy iteration policy; the script property parses only scrypt-N8..N20 and otherwise reports 15. Setting it writes a scrypt string. Actual encrypted-list KDF metadata is separately missing; this property is not a lossless view of the native persisted field.",
+      "vm": "menu",
+      "evidence": [
+        {
+          "path": "src/scripting/wren_host/wren_bind_menu.c",
+          "anchor": "settings_kdf_shift"
+        }
+      ],
+      "finding": "list-encryption-information",
+      "decision": "mapping-gap"
+    },
+    "settings.lifecycle": {
+      "status": "host-owned",
+      "wren": "Settings snapshots and menu application transaction",
+      "reason": "Native global storage, init/dispose/copy/load/install/shutdown and resolved list_path are owned by application startup and transactional Settings application. Draft baseline is conflict-detection state, not another user field; menu APIs own font draft lifetime. Stored list path is editable through Settings.listPath.",
+      "vm": "menu",
+      "evidence": [
+        {
+          "path": "src/scripting/wren_host/wren_bind_menu.c",
+          "anchor": "struct prepared_settings"
+        },
+        {
+          "path": "src/config/settings/st_settings.h",
+          "anchor": "st_settings_install"
+        }
+      ]
+    },
+    "themes.documents": {
+      "status": "covered",
+      "wren": "Host.themeData/defaultThemeData/themeGeneration; Menu local/cloud themes; ThemeDocument",
+      "reason": "Theme metadata/styles/glyphs become script values, with List counts and present/mode information in document rows. ThemeDocument provides create/open/metadata/CRUD/preview/undo/redo/import/save/dirty and reports document conflicts through its operation results. Local/cloud catalogs expose validation errors and selection/cache/delete workflows; parsed cloud content is obtainable through copyCloudTheme and themeData rather than a borrowed C pointer.",
+      "vm": "menu editing; core VMs for active/default theme data",
+      "evidence": [
+        {
+          "path": "scripts/syncterm_menu.wren",
+          "anchor": "foreign class ThemeDocument"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign static themeData"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_menu.c",
+          "anchor": "fn_menu_cloud_themes"
+        }
+      ]
+    },
+    "themes.cloud-origin": {
+      "status": "partial",
+      "wren": "Menu.cloudThemes",
+      "reason": "Catalog rows omit the native source URI and expected SHA-256. Downloads and verification remain host-owned, but scripts cannot inspect or display that provenance. Parsed theme ownership is separately represented by copyCloudTheme rather than missing because a pointer is absent.",
+      "vm": "menu",
+      "evidence": [
+        {
+          "path": "src/config/theme/st_theme.h",
+          "anchor": "struct st_cloud_theme_entry"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_menu.c",
+          "anchor": "fn_menu_cloud_themes"
+        }
+      ],
+      "finding": "theme-origin",
+      "decision": "mapping-gap"
+    },
+    "themes.manager-lifetime": {
+      "status": "host-owned",
+      "wren": "application theme manager; transactional Settings preparation",
+      "reason": "Manager create/free, prepare/install/free and raw cache refresh policy coordinate the one active theme and rollback. Scripts preview/select/edit through that owner; they cannot install a separate manager into a VM.",
+      "vm": "menu",
+      "evidence": [
+        {
+          "path": "src/config/theme/st_theme.h",
+          "anchor": "st_theme_prepare_settings"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_menu.c",
+          "anchor": "struct prepared_settings"
+        }
+      ]
+    },
+    "files.transaction-lock": {
+      "status": "host-owned",
+      "wren": "native model/configuration save transactions",
+      "reason": "Persistent sidecar advisory locks protect application data updates. Scripts use transactional typed model saves; they do not receive arbitrary-path sidecar locks or hold model locks across a yielding Fiber.",
+      "vm": "all script VMs",
+      "evidence": [
+        {
+          "path": "src/io/file_lock/st_file_lock.h",
+          "anchor": "st_file_lock_acquire"
+        },
+        {
+          "path": "src/config/bbs_list/st_bbs_list.c",
+          "anchor": "st_file_lock_acquire"
+        }
+      ]
+    },
+    "files.mapping": {
+      "status": "host-owned",
+      "wren": "File digest/image decoders and native readers",
+      "reason": "Read-only memory mapping is an implementation of granted-file reads, hashing and decoding. Wren owns immutable byte Strings rather than borrowed mapped pointers; no independent mapped-memory lifetime or concurrent-modification contract is added.",
+      "vm": "menu/connected grant owners; no file opening in picker VM",
+      "evidence": [
+        {
+          "path": "src/io/file_map/file_map.h",
+          "anchor": "file_map_open_stream"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_fs.c",
+          "anchor": "file_map_open"
+        }
+      ]
+    },
+    "files.grants": {
+      "status": "covered",
+      "wren": "File / Directory and picker metadata",
+      "reason": "Size/position/seek/mtime, granted opening, removal, child creation and atomic replacement are represented with native portable FileError details. Native parent-directory creation is performed inside grant/model operations, not arbitrary-path authority. Files use byte Strings for payloads; textual paths remain strict UTF-8 NFC. Link/other classification and standalone truncation are separately assessed.",
+      "vm": "menu/connected grant owners; no file opening in picker VM",
+      "evidence": [
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign class Directory"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_fs.c",
+          "anchor": "fs_replace_file"
+        },
+        {
+          "path": "scripts/syncterm_picker.wren",
+          "anchor": "class PickerEntry"
+        }
+      ]
+    },
+    "files.rename-copy": {
+      "status": "unmapped",
+      "wren": "none",
+      "reason": "No granted rename or native copy-file operation exists. Read/write/delete cannot promise atomic rename or the native copy mode/mtime behavior.",
+      "vm": "menu/connected grant owners; no file opening in picker VM",
+      "evidence": [
+        {
+          "path": "src/io/filesystem/filesystem.h",
+          "anchor": "fs_copy_file"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign class Directory"
+        }
+      ],
+      "finding": "files-rename-copy",
+      "decision": "scope-review"
+    },
+    "files.truncate": {
+      "status": "unmapped",
+      "wren": "no explicit File truncate method",
+      "reason": "The binding offers reads/writes/seek and size inspection, but no explicit truncation to a chosen length. Creating/replacing a file is not equivalent to truncating an existing granted stream at an arbitrary length.",
+      "vm": "menu/connected grant owners; no file opening in picker VM",
+      "evidence": [
+        {
+          "path": "src/io/filesystem/filesystem.h",
+          "anchor": "fs_stream_truncate"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign size"
+        }
+      ],
+      "finding": "files-truncate",
+      "decision": "scope-review"
+    },
+    "files.link-metadata": {
+      "status": "partial",
+      "wren": "Directory.list / PickerEntry / File metadata",
+      "reason": "Native fs_get_link_info distinguishes link/other/file/directory without following the link. Script listing exposes only directory versus file-like entries and does not offer an lstat-equivalent kind query. Native modified time and size do have corresponding metadata. Directory grants deliberately reject/omit links to avoid following ungranted paths; the missing lstat metadata is an observation of that security boundary, not a request to grant link traversal.",
+      "vm": "menu/connected grant owners; no file opening in picker VM",
+      "evidence": [
+        {
+          "path": "src/io/filesystem/filesystem.h",
+          "anchor": "fs_get_link_info"
+        },
+        {
+          "path": "scripts/syncterm_picker.wren",
+          "anchor": "directory { _directory }"
+        },
+        {
+          "path": "src/scripting/wren_host/tests/st_wren_host_test.c",
+          "anchor": "directory followed an ungranted link"
+        }
+      ],
+      "finding": "files-link-kind",
+      "decision": "mapping-gap"
+    },
+    "files.mkdir-internal": {
+      "status": "host-owned",
+      "wren": "native file/model grant owners",
+      "reason": "Recursive parent preparation is performed by the owning model/application before writes. Directory.createDir creates one confined child; arbitrary path creation outside a grant is intentionally unavailable.",
+      "vm": "menu/connected grant owners; no file opening in picker VM",
+      "evidence": [
+        {
+          "path": "src/io/filesystem/filesystem.h",
+          "anchor": "fs_create_parent_directories"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign createDir(name)"
+        }
+      ]
+    },
+    "paths.picker": {
+      "status": "partial",
+      "wren": "PickerRequest join/resolve/initial; File.path",
+      "reason": "Picker-only path resolution/join and path metadata cover the trusted user-selection workflow; no general Path utility namespace exports all native separator/basename/component/root/parent/absolute/user-expansion operations in other VMs. Pure path calculation would not itself grant file access; lack of a generic helper is an unresolved utility scope decision, not a reason to permit arbitrary file opening.",
+      "vm": "isolated picker for request-scoped helpers",
+      "evidence": [
+        {
+          "path": "src/io/path/path.h",
+          "anchor": "path_parent"
+        },
+        {
+          "path": "scripts/syncterm_picker.wren",
+          "anchor": "foreign resolve_(path, text)"
+        }
+      ],
+      "finding": "path-utilities",
+      "decision": "scope-review"
+    },
+    "serial.connection": {
+      "status": "covered",
+      "wren": "Profile baud/data/stop/parity/flow configuration; Menu.serialRates; active Conn",
+      "reason": "Serial reads/writes/configuration use the active connection and per-entry profile, not an arbitrary device object. Open/close and transport queues are host-owned. Device rates and ordinary profile parity/flow choices have script equivalents.",
+      "vm": "menu configuration; connected I/O",
+      "evidence": [
+        {
+          "path": "scripts/syncterm_menu.wren",
+          "anchor": "foreign static serialRates"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign flowControl"
+        }
+      ]
+    },
+    "serial.lines": {
+      "status": "unmapped",
+      "wren": "none",
+      "reason": "Native DTR/RTS setters, modem CTS/DSR/RING/DCD query and DTR_DSR flow choice have no script counterpart. General device ownership remains host-controlled; whether active-connection line controls should be exposed is a separate scope decision.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/io/serial/serial.h",
+          "anchor": "serial_port_get_modem_lines"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "class FlowControl"
+        }
+      ],
+      "finding": "serial-lines",
+      "decision": "scope-review"
+    },
+    "serial.transport-owner": {
+      "status": "host-owned",
+      "wren": "active connection transport",
+      "reason": "Application connection owns serial handle and transport shutdown. Scripts send through Conn/Session and cannot open a second arbitrary serial device or close/configure the borrowed native handle underneath its worker.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/io/serial/serial.h",
+          "anchor": "serial_port_open"
+        },
+        {
+          "path": "src/net/connection/st_connection.h",
+          "anchor": "st_connection"
+        }
+      ]
+    },
+    "transport.connection_shell_codec": {
+      "status": "host-owned",
+      "wren": "active shell connection Unicode/codepage adapter",
+      "reason": "Socket handles, worker mutexes/queues, stream interrupts, resolver callbacks, raw short I/O, urgent marks, shutdown halves, shell codec acknowledgement and optional-provider state implement the owning connection. A connected VM may operate its current connection; it cannot start arbitrary additional network connections or receive a second raw socket owner. Address-family selection is in Profile.addressFamily. Native connect timeout/diagnostics are host setup policy rather than a generic script TCP client.",
+      "vm": "application ownership; connected VM uses Conn",
+      "evidence": [
+        {
+          "path": "src/net/connection/connection_shell_codec.h",
+          "anchor": ""
+        },
+        {
+          "path": "docs/Wren.adoc",
+          "anchor": "connected"
+        }
+      ]
+    },
+    "transport.connection_stream": {
+      "status": "host-owned",
+      "wren": "active TCP/TLS connection transport",
+      "reason": "Socket handles, worker mutexes/queues, stream interrupts, resolver callbacks, raw short I/O, urgent marks, shutdown halves, shell codec acknowledgement and optional-provider state implement the owning connection. A connected VM may operate its current connection; it cannot start arbitrary additional network connections or receive a second raw socket owner. Address-family selection is in Profile.addressFamily. Native connect timeout/diagnostics are host setup policy rather than a generic script TCP client.",
+      "vm": "application ownership; connected VM uses Conn",
+      "evidence": [
+        {
+          "path": "src/net/connection/connection_stream.h",
+          "anchor": ""
+        },
+        {
+          "path": "docs/Wren.adoc",
+          "anchor": "connected"
+        }
+      ]
+    },
+    "transport.connection_tcp": {
+      "status": "host-owned",
+      "wren": "connection setup diagnostic adapter",
+      "reason": "Socket handles, worker mutexes/queues, stream interrupts, resolver callbacks, raw short I/O, urgent marks, shutdown halves, shell codec acknowledgement and optional-provider state implement the owning connection. A connected VM may operate its current connection; it cannot start arbitrary additional network connections or receive a second raw socket owner. Address-family selection is in Profile.addressFamily. Native connect timeout/diagnostics are host setup policy rather than a generic script TCP client.",
+      "vm": "application ownership; connected VM uses Conn",
+      "evidence": [
+        {
+          "path": "src/net/connection/connection_tcp.h",
+          "anchor": ""
+        },
+        {
+          "path": "docs/Wren.adoc",
+          "anchor": "connected"
+        }
+      ]
+    },
+    "transport.socket": {
+      "status": "host-owned",
+      "wren": "connection/webget native socket owners",
+      "reason": "Socket handles, worker mutexes/queues, stream interrupts, resolver callbacks, raw short I/O, urgent marks, shutdown halves, shell codec acknowledgement and optional-provider state implement the owning connection. A connected VM may operate its current connection; it cannot start arbitrary additional network connections or receive a second raw socket owner. Address-family selection is in Profile.addressFamily. Native connect timeout/diagnostics are host setup policy rather than a generic script TCP client.",
+      "vm": "application ownership; connected VM uses Conn",
+      "evidence": [
+        {
+          "path": "src/net/socket/socket.h",
+          "anchor": ""
+        },
+        {
+          "path": "docs/Wren.adoc",
+          "anchor": "connected"
+        }
+      ]
+    },
+    "transport.tcp_client": {
+      "status": "host-owned",
+      "wren": "application connection and download setup",
+      "reason": "Socket handles, worker mutexes/queues, stream interrupts, resolver callbacks, raw short I/O, urgent marks, shutdown halves, shell codec acknowledgement and optional-provider state implement the owning connection. A connected VM may operate its current connection; it cannot start arbitrary additional network connections or receive a second raw socket owner. Address-family selection is in Profile.addressFamily. Native connect timeout/diagnostics are host setup policy rather than a generic script TCP client.",
+      "vm": "application ownership; connected VM uses Conn",
+      "evidence": [
+        {
+          "path": "src/net/tcp_client/tcp_client.h",
+          "anchor": ""
+        },
+        {
+          "path": "docs/Wren.adoc",
+          "anchor": "connected"
+        }
+      ]
+    },
+    "connection.active": {
+      "status": "covered",
+      "wren": "Conn / WireLease / Session / Profile; SFTP / Host.sshPublicKey",
+      "reason": "Text/byte/wire send intent is preserved by owned send Operations or a WireLease. Queue-pressure and partial failure are ConnError values; there is no unsafe input-offset retry contract. Leased receive/peek/available expose the active wire under exclusive ownership. Connected/type/elapsed/queued state, SFTP provider and public-key utility have equivalents. Setup is selected through menu Profile, not constructor calls in connected scripts. The native diagnostic/setup information and binary mode controls are separately assessed.",
+      "vm": "connected; menu initiates selected profiles",
+      "evidence": [
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "class Conn"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign class WireLease"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_session.c",
+          "anchor": "st_connection_queued"
+        }
+      ]
+    },
+    "connection.setup-owner": {
+      "status": "host-owned",
+      "wren": "menu selection -> application connection -> Session",
+      "reason": "Native connection constructors/close/request processing and setup prompt/trust/log callback pointers are managed by the application. Profile expresses endpoint/authentication/geometry. Closing Conn requests the active owner shutdown, not native destruction while workers still reference it. Shell termcap/mm_charset are derived from terminal mode/encoding; callbacks never transfer native worker ownership to Wren.",
+      "vm": "application / menu setup",
+      "evidence": [
+        {
+          "path": "src/net/connection/st_connection.h",
+          "anchor": "st_connection_hooks"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_session.c",
+          "anchor": "fn_conn_close"
+        }
+      ]
+    },
+    "connection.setup-diagnostics": {
+      "status": "partial",
+      "wren": "host setup UI and protocol logs; ConnError for queued sends",
+      "reason": "Structured native setup error code/phase/native_error/has_native_error/detail/presented and progress-state enum are not queryable as a script connection-attempt result. Host prompts/logs cover user-facing setup but do not preserve a machine-readable result for Menu.connect selection. ConnError is a different active-send error contract.",
+      "vm": "menu/application setup",
+      "evidence": [
+        {
+          "path": "src/net/connection/st_connection.h",
+          "anchor": "struct st_connection_error"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign class ConnError"
+        }
+      ],
+      "finding": "connection-setup-result",
+      "decision": "mapping-gap"
+    },
+    "connection.binary-owner": {
+      "status": "host-owned",
+      "wren": "transfer/lease native channel owner",
+      "reason": "Binary negotiation switching is serialized with terminal-channel ownership and transfer transitions. Scripts request semantic text/bytes/wire send intent, not raw Telnet worker mode changes. Exposing the borrowed worker mode separately could invalidate the current owner framing.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/net/connection/st_connection.h",
+          "anchor": "st_connection_set_binary_mode"
+        },
+        {
+          "path": "src/terminal/term/st_term.c",
+          "anchor": "st_connection_set_binary_mode"
+        }
+      ]
+    },
+    "sftp.operations": {
+      "status": "covered",
+      "wren": "SFTP / Operation / RemoteFile / RemoteDirectory / SFTPStat / SFTPEntry / SFTPError",
+      "reason": "All fifteen provider operations have typed equivalents. Remote handles carry context, read/write/append rights and explicit asynchronous close state. Native request ids/result kind dispatch are Operation implementation, byte size is String.bytes.count, entry_count is List.count, full standalone stat fields have getters, and code/serverStatus/message/transient errors survive. Path inputs use host NFC text while contents/hashes remain raw bytes. Per-entry metadata omission is separately assigned.",
+      "vm": "connected SSH/SFTP provider",
+      "evidence": [
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "class SFTP"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_sftp.c",
+          "anchor": "SFTPStat"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_sftp.c",
+          "anchor": "RemoteDirectory"
+        }
+      ]
+    },
+    "sftp.entry-stat": {
+      "status": "partial",
+      "wren": "SFTPEntry.size/mtime/isDir",
+      "reason": "Directory response contains complete native stat, but SFTPEntry omits atime, mode, uid and gid. Separate SFTP.stat exposes them only after another request and may observe changed state. Embedded stat itself is therefore only partially represented.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/net/sftp_client/st_sftp.h",
+          "anchor": "struct st_sftp_entry"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign class SFTPEntry"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_sftp.c",
+          "anchor": "\"SFTPEntry\""
+        }
+      ],
+      "finding": "sftp-entry-stat",
+      "decision": "mapping-gap"
+    },
+    "sftp.provider-owner": {
+      "status": "host-owned",
+      "wren": "native active SSH provider and Operation scheduler",
+      "reason": "Provider context/submit/poll/cancel_all and request identity/kind/raw handle are native transport and asynchronous-owner machinery. Script owners cancel Operations and close RemoteFile/RemoteDirectory rather than borrowing arbitrary numeric handles or polling the provider independently.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/net/sftp_client/st_sftp.h",
+          "anchor": "struct st_sftp_provider"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_sftp.c",
+          "anchor": "cancel_all"
+        }
+      ]
+    },
+    "tls.owner": {
+      "status": "host-owned",
+      "wren": "active connection/webget TLS owners; Profile TLS policy; trusted menu UI",
+      "reason": "TLS object allocation, socket I/O/flush/pending/terminate/close and borrowed callback lifetimes belong to the connection or downloader. Profile supplies hostname/trust anchor/client credentials/PSK/version floor. Host-controlled trust UI handles unauthenticated peer chains; scripts cannot open independent TLS transports or take over trust callbacks. Selected metadata/policy omissions are separately assigned.",
+      "vm": "menu configuration; application trust/setup",
+      "evidence": [
+        {
+          "path": "src/net/tls/st_tls.h",
+          "anchor": "st_tls_client_open"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign tlsTrustWebPki"
+        }
+      ]
+    },
+    "tls.peer-info": {
+      "status": "unmapped",
+      "wren": "no active Session TLS inspection object",
+      "reason": "Negotiated version/cipher, full certificate count/subject/issuer/validity/SHA-256 fingerprint/PEM and the last TLS error are not exposed for connected inspection. Profile.tlsVersionFloor is saved policy, not negotiated state; host certificate prompts are not a query API. This omission does not authorize script trust replacement.",
+      "vm": "connected",
+      "evidence": [
+        {
+          "path": "src/net/tls/st_tls.h",
+          "anchor": "st_tls_peer_certificate_count"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign tlsVersionFloor"
+        }
+      ],
+      "finding": "tls-peer-information",
+      "decision": "mapping-gap"
+    },
+    "tls.policy-options": {
+      "status": "partial",
+      "wren": "Profile trust/PSK/floor and protocolLogLevel",
+      "reason": "Native maximum TLS version, handshake timeout and independent PSK compatibility policy are not script-configurable. Native diagnostic records retain status/provider_status/fatal/provider/message/level; script protocol logs flatten these and do not expose the structured record. Existing supported profile policy maps the remaining ordinary options; raw callback context/pointers remain host mechanisms.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/net/tls/st_tls.h",
+          "anchor": "handshake_timeout_ms"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign protocolLogLevel"
+        }
+      ],
+      "finding": "tls-policy-options",
+      "decision": "scope-review"
+    },
+    "transfer.workflow": {
+      "status": "covered",
+      "wren": "Transfer upload/uploadBatch/download / snapshot / dialogs / log / done/success/abort",
+      "reason": "Common protocol choices, progress text/byte counts, user duplicate-file responses and abort/completion map to the one session transfer owner. Session transfer inspection wraps native state. Starting the worker and pumping input are not separate script thread APIs. Result detail, receive-policy/streaming options, XMODEM-G selection and raw upload paths are separately recorded.",
+      "vm": "connected",
+      "evidence": [
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "class Transfer"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_xfer.c",
+          "anchor": "parse_protocol"
+        }
+      ]
+    },
+    "transfer.result-code": {
+      "status": "partial",
+      "wren": "Transfer.success and startup Fiber error",
+      "reason": "The native integer completion result is reduced to success Bool and aborted Bool; startup errors use a generic abort message. Native error reasons cannot be recovered from these flags, even though a textual log may explain some failures.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/net/transfer/st_transfer.h",
+          "anchor": "st_transfer_result"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_xfer.c",
+          "anchor": "static void success"
+        }
+      ],
+      "finding": "transfer-result",
+      "decision": "mapping-gap"
+    },
+    "transfer.xmodem-g": {
+      "status": "partial",
+      "wren": "RIP selects native XMODEM-G internally",
+      "reason": "Native XMODEM-G exists and RIP can choose it, but Transfer protocol parser offers no explicit xmodem-g choice for script-directed transfers.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/scripting/wren_host/wren_bind_xfer.c",
+          "anchor": "ST_TRANSFER_XMODEM_G"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_xfer.c",
+          "anchor": "static bool parse_protocol"
+        }
+      ],
+      "finding": "transfer-protocol-selection",
+      "decision": "mapping-gap"
+    },
+    "transfer.receive-policy": {
+      "status": "partial",
+      "wren": "automatic RIP/CET asset workflows",
+      "reason": "Native overwrite/discard/receive_events, destination callback and begin/data/end receive mailbox support asset playback. The binding uses them internally for RIP; scripts cannot choose these modes or consume transfer bytes/events as a generic stream. Borrowed native callbacks are not appropriate to expose directly, but their usable streaming capability remains a scope decision.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/net/transfer/st_transfer.h",
+          "anchor": "struct st_transfer_receive_event"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_xfer.c",
+          "anchor": "static int start_rip"
+        }
+      ],
+      "finding": "transfer-receive-stream",
+      "decision": "scope-review"
+    },
+    "transfer.path-authority": {
+      "status": "partial",
+      "wren": "Transfer.upload(kind, path, lastCh) / uploadBatch",
+      "reason": "Native paths are raw C strings. Dispatch copies arbitrary script-provided path strings into config.paths; start checks safe mode/session/protocol but does not verify an upload File grant or configured upload-root confinement. This bypasses the otherwise capability-based File abstraction. Existing picker consumers provide authorized paths, but that does not constrain other callers. No behavior change is made in this accounting.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/scripting/wren_host/wren_bind_xfer.c",
+          "anchor": "config.paths = (const char *const *)paths"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_xfer.c",
+          "anchor": "static int start("
+        }
+      ],
+      "finding": "transfer-upload-authority",
+      "decision": "mapping-gap"
+    },
+    "transfer.worker-owner": {
+      "status": "host-owned",
+      "wren": "one native transfer worker owned by session",
+      "reason": "Create/launch/start/join/destroy, transport callback/context, bounded feed/eof/input-space/take-input and CET replay pointer manage worker lifetime and channel ownership. Scripts start a Transfer and inspect progress; the host joins before releasing buffers, drains receive/replay bytes and restores terminal ownership.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/net/transfer/st_transfer.h",
+          "anchor": "st_transfer_destroy"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_xfer.c",
+          "anchor": "st_transfer_replay"
+        }
+      ]
+    },
+    "transfer.autodetect": {
+      "status": "host-owned",
+      "wren": "connected terminal transfer detection and Transfer auto-pending workflow",
+      "reason": "Detector prefix bytes and size are incremental parser state held by the session. Automatic transfer dispatch surfaces through the existing Transfer workflow; a second script detector would race the channel owner.",
+      "vm": "connected",
+      "evidence": [
+        {
+          "path": "src/scripting/wren_host/wren_bind_xfer.c",
+          "anchor": "st_transfer_detect"
+        }
+      ]
+    },
+    "webget.workflow": {
+      "status": "partial",
+      "wren": "Menu named web lists / cloud themes",
+      "reason": "Native downloads are usable only through fixed list/theme workflows. No general HTTP-to-granted-file request exposes URL/cache key/output/timeout/size/validator/TLS choices, progress or downloaded/not-modified/fresh-cache/size result. Existing workflows are not generic HTTP coverage. Whether to add any general service is a scope/trust decision; the connected VM currently cannot establish another connection.",
+      "vm": "menu workflows",
+      "evidence": [
+        {
+          "path": "src/net/webget/st_webget.h",
+          "anchor": "struct st_webget_request"
+        },
+        {
+          "path": "scripts/syncterm_menu.wren",
+          "anchor": "foreign static refreshWebList"
+        },
+        {
+          "path": "scripts/syncterm_menu.wren",
+          "anchor": "foreign static cacheCloudTheme"
+        }
+      ],
+      "finding": "webget-service",
+      "decision": "scope-review"
+    },
+    "audio.playback": {
+      "status": "unmapped",
+      "wren": "no general script audio object",
+      "reason": "Wren can select allowed audio backends through Settings.audioModes and trigger terminal-protocol music/OOII sound, but cannot directly synthesize tones/waves, beep, submit PCM, create streams, choose volume/ramp/fade/crossfade/loop, drain/clear or inspect stream idle/volume. Native functional audio availability is therefore not full script audio coverage. Whether a general playback API belongs in scope remains a policy decision.",
+      "vm": "all script VMs",
+      "evidence": [
+        {
+          "path": "src/media/audio/audio.h",
+          "anchor": "audio_generate_tone"
+        },
+        {
+          "path": "scripts/syncterm_menu.wren",
+          "anchor": "foreign static audioModes"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign static music"
+        }
+      ],
+      "finding": "audio-service",
+      "decision": "scope-review"
+    },
+    "audio.engine-owner": {
+      "status": "host-owned",
+      "wren": "application audio runtime / libretro pull frontend",
+      "reason": "Audio engine/device lifecycle, backend selection, mix pull and stopping/joining belong to the shared application runtime, not a per-VM hardware owner. An eventual script playback API would submit to this owner.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/media/audio/audio.h",
+          "anchor": "audio_engine_create_pull"
+        },
+        {
+          "path": "src/media/audio/st_audio_runtime.h",
+          "anchor": "st_audio_runtime_acquire"
+        }
+      ]
+    },
+    "audio.backends": {
+      "status": "covered",
+      "wren": "Menu.audioModes / Settings.audioModes / Menu.buildOptions",
+      "reason": "Native compiled/available audio backend choices are exposed in menu configuration and applied by the native audio runtime. PCM frame/sample constants describe an unbound general playback format, separately accounted.",
+      "vm": "menu",
+      "evidence": [
+        {
+          "path": "src/scripting/wren_host/wren_bind_menu.c",
+          "anchor": "audio_available_backends"
+        },
+        {
+          "path": "scripts/syncterm_menu.wren",
+          "anchor": "foreign audioModes"
+        }
+      ]
+    },
+    "audio.runtime": {
+      "status": "host-owned",
+      "wren": "application shared audio permission/device lifetime",
+      "reason": "Runtime create/pull/stop/destroy/acquire and allowed-backend mask coordinate lazy device opening across CTerm/OOII and frontend ownership. Settings.audioModes supplies user policy; scripts do not borrow the audio engine pointer.",
+      "vm": "all script VMs",
+      "evidence": [
+        {
+          "path": "src/media/audio/st_audio_runtime.h",
+          "anchor": "st_audio_runtime_acquire"
+        },
+        {
+          "path": "scripts/syncterm_menu.wren",
+          "anchor": "foreign audioModes"
+        }
+      ]
+    },
+    "audio.decode": {
+      "status": "unmapped",
+      "wren": "no generic audio-file decode API",
+      "reason": "Terminal protocols can consume sounds internally, but no script format availability query or granted-file/byte decoding to PCM is exposed. Native stream/memory inputs are not mapped by the absence of an AudioFile object.",
+      "vm": "all script VMs",
+      "evidence": [
+        {
+          "path": "src/media/audio_file/st_audio_file.h",
+          "anchor": "st_audio_file_decode_memory"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "class Host"
+        }
+      ],
+      "finding": "audio-service",
+      "decision": "scope-review"
+    },
+    "audio.mixer": {
+      "status": "host-owned",
+      "wren": "native shared engine mixer and worker acknowledgement",
+      "reason": "Mixer pull/wait/acknowledge and stream ownership duplicate the lower implementation of audio.h, not an additional script engine. The unbound playback controls/stream behavior are recorded under audio.playback; native mixer pointers, wakeups and ownership transfers stay private.",
+      "vm": "all script VMs",
+      "evidence": [
+        {
+          "path": "src/media/audio_mixer/audio_mixer.h",
+          "anchor": "audio_mixer_acknowledge"
+        },
+        {
+          "path": "src/media/audio/audio.h",
+          "anchor": "audio_stream_append"
+        }
+      ]
+    },
+    "pixels.values": {
+      "status": "covered",
+      "wren": "PixelBuffer / PixelMask / PixelBlit / PixelColor and Screen pixel methods",
+      "reason": "Owned primary/alternate planes, dimension/count, pixel/mask read-write/fill/clone, RGB conversion, integer scale/flip/source/destination/mask descriptor choices have Wren equivalents. VM finalizers own buffers and masks. The screen is the only exported blit destination; offscreen compositing and display resampling are assessed separately.",
+      "vm": "all script VMs",
+      "evidence": [
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign class PixelBuffer"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign class PixelBlit"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_pixels.c",
+          "anchor": "st_console_blit_pixels"
+        }
+      ]
+    },
+    "pixels.offscreen-blit": {
+      "status": "partial",
+      "wren": "Screen.blitPixels",
+      "reason": "Native st_pixel_buffer_blit can composite into another PixelBuffer with clipping/mask/flips/scaling/alternate plane. Wren only exports screen-destination blit; PixelBuffer itself has no corresponding operation. Pixel-by-pixel script code is not a built-in native-equivalent operation.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/media/pixels/st_pixels.h",
+          "anchor": "st_pixel_buffer_blit"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign static blitPixels"
+        }
+      ],
+      "finding": "pixel-offscreen-blit",
+      "decision": "mapping-gap"
+    },
+    "pixels.display-scaler": {
+      "status": "host-owned",
+      "wren": "native display/frontend resampler",
+      "reason": "RGB output buffers and pointy/blocky scaler create/destroy/scale/region are display presentation machinery. Script PixelBuffer uses palette/RGB tagged planes; Settings.scalingMode selects frontend scaling policy rather than a second script-owned resampling pipeline.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/media/pixels/st_pixels.h",
+          "anchor": "st_pixel_scaler_scale_region"
+        },
+        {
+          "path": "scripts/syncterm_menu.wren",
+          "anchor": "foreign scalingMode"
+        }
+      ]
+    },
+    "pixels.decode": {
+      "status": "covered",
+      "wren": "PixelBuffer.fromPpm/fromJxl/jxlSupported; PixelMask.fromPbm",
+      "reason": "Image inputs accept permitted byte/file forms and produce owned pixel/mask values; JXL support is explicitly queryable. CTerm-specific decoders handle protocol framing and the native renderer owns their lifetime, not a separate generic script image dialect.",
+      "vm": "all script VMs",
+      "evidence": [
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign static fromPpm"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign static fromPbm"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_pixels.c",
+          "anchor": "st_pixel_image_decode_jxl"
+        }
+      ]
+    },
+    "pixels.cterm-decode": {
+      "status": "host-owned",
+      "wren": "CTerm inline PNM protocol parser",
+      "reason": "CTerm-specific decoder variants implement its legacy wire framing. Generic script decoders expose standard PPM/PBM; a protocol adapter is owned by CTerm.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/media/pixel_image/st_pixel_image.h",
+          "anchor": "st_pixel_image_decode_cterm_ppm"
+        }
+      ]
+    },
+    "fonts.catalog": {
+      "status": "covered",
+      "wren": "Font.count/name/available/codepage/codepageOf/load; ScreenFonts and CTerm.altFont",
+      "reason": "Native selector/identifier and owning console are adapted into VM-specific selector catalogs; scripts select by font index and inspect names/availability/codepages. Allocating/freeing catalog objects is host-owned. Custom codepage loading and load results are separately partial.",
+      "vm": "all script VMs",
+      "evidence": [
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "class Font"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_core.c",
+          "anchor": "fn_font_codepage_of"
+        }
+      ]
+    },
+    "fonts.codepage-loading": {
+      "status": "partial",
+      "wren": "Font.load(file); menu configured custom fonts",
+      "reason": "Native load/register_custom_codepage can assign a custom bitmap to a chosen codepage. Wren Font.load and its custom-font preparation call default CP437 registration. The application session preparation uses profile.encoding for native custom font loading, so the same configured font can receive a different Unicode mapping through the Wren preparation path. No script codepage argument exists. Font.codepage/codepageOf inspect the selected display slot using builtin metadata or CP437 for every custom selector; codepageOf is not a native catalog selector query and does not report a custom registration mapping.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/media/font_catalog/st_font_catalog.h",
+          "anchor": "st_font_catalog_register_custom_codepage"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_host.c",
+          "anchor": "st_font_catalog_register_custom(context->console"
+        },
+        {
+          "path": "src/syncterm.c",
+          "anchor": "st_font_catalog_load_custom_codepage"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_core.c",
+          "anchor": "font_codepage(uint16_t selector)"
+        }
+      ],
+      "finding": "font-codepage",
+      "decision": "mapping-gap"
+    },
+    "fonts.catalog-owner": {
+      "status": "host-owned",
+      "wren": "VM font catalog and console registry",
+      "reason": "Create/destroy and raw console/identifier conversion implement native font ownership. Script selectors are translated by the VM catalog, not raw reusable native pointers.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/media/font_catalog/st_font_catalog.h",
+          "anchor": "st_font_catalog_identifier"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_core.c",
+          "anchor": "selector_by_identifier"
+        }
+      ]
+    },
+    "fonts.builtin": {
+      "status": "covered",
+      "wren": "Font.count/name/codepageOf; Menu.fontsCatalog/fontsForEncoding",
+      "reason": "Built-in metadata and selectors are available through font catalogs. Raster struct retrieval is host rendering ownership, not script memory access; broken-vertical compatibility participates native font selection but has no standalone query (separately accounted).",
+      "vm": "all script VMs",
+      "evidence": [
+        {
+          "path": "scripts/syncterm_menu.wren",
+          "anchor": "foreign static fontsForEncoding"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_core.c",
+          "anchor": "st_builtin_font_name"
+        }
+      ]
+    },
+    "fonts.vertical-compatibility": {
+      "status": "unmapped",
+      "wren": "none",
+      "reason": "No public query reports the native broken-vertical font compatibility bit. Menu filters/name/codepage do not convey that specific metadata.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/media/fonts/st_builtin_fonts.h",
+          "anchor": "st_builtin_font_broken_vertical"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "class Font"
+        }
+      ],
+      "finding": "font-compatibility-metadata",
+      "decision": "scope-review"
+    },
+    "fonts.raster-owner": {
+      "status": "host-owned",
+      "wren": "console renderer",
+      "reason": "Native built-in raster pointer is registered/rendered by the console. Scripts use selectors and text, not borrowed static raster structs.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/media/fonts/st_builtin_fonts.h",
+          "anchor": "st_builtin_font_get"
+        }
+      ]
+    },
+    "fonts.st_emoji_fonts": {
+      "status": "host-owned",
+      "wren": "console glyph fallback/presentation owner",
+      "reason": "Bundled immutable raster objects and presentation font create/destroy/storage are renderer-owned. Scripts use Font selectors, semantic Cell.ch and Emoji metadata rather than borrowing backend raster pointers. General custom raster capabilities are recorded under console.rich-font.",
+      "vm": "all script VMs",
+      "evidence": [
+        {
+          "path": "src/media/fonts/st_emoji_fonts.h",
+          "anchor": ""
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign ch"
+        }
+      ]
+    },
+    "fonts.st_unicode_fonts": {
+      "status": "host-owned",
+      "wren": "console glyph fallback/presentation owner",
+      "reason": "Bundled immutable raster objects and presentation font create/destroy/storage are renderer-owned. Scripts use Font selectors, semantic Cell.ch and Emoji metadata rather than borrowing backend raster pointers. General custom raster capabilities are recorded under console.rich-font.",
+      "vm": "all script VMs",
+      "evidence": [
+        {
+          "path": "src/media/fonts/st_unicode_fonts.h",
+          "anchor": ""
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign ch"
+        }
+      ]
+    },
+    "fonts.st_presentation_font": {
+      "status": "host-owned",
+      "wren": "console glyph fallback/presentation owner",
+      "reason": "Bundled immutable raster objects and presentation font create/destroy/storage are renderer-owned. Scripts use Font selectors, semantic Cell.ch and Emoji metadata rather than borrowing backend raster pointers. General custom raster capabilities are recorded under console.rich-font.",
+      "vm": "all script VMs",
+      "evidence": [
+        {
+          "path": "src/media/fonts/st_presentation_font.h",
+          "anchor": ""
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign ch"
+        }
+      ]
+    },
+    "console.owner": {
+      "status": "host-owned",
+      "wren": "application display and logical console owners",
+      "reason": "Creation/destruction/activation, frontend ABI frame copy/map, backend config/write callbacks, native font lookup/fallback/presentation, batching/present internals and raw event queue ownership belong to the application/renderer. Menu, picker and connected VMs use their existing logical consoles. Native pointer/stride/reserved/dirty bookkeeping is not a second script-visible resource owner. Script-facing operations/fields/enums are overridden below; this is not a claim of blanket console coverage.",
+      "vm": "all script VMs",
+      "evidence": [
+        {
+          "path": "src/media/console/st_console.h",
+          "anchor": "st_console_create_on_display"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_host.c",
+          "anchor": "picker_console"
+        }
+      ]
+    },
+    "console.cells": {
+      "status": "covered",
+      "wren": "Cell / Surface / Screen.readRect/putRect / Color",
+      "reason": "Semantic text/font/palette/RGB/hyperlink fields and rectangular cell operations have equivalents. Native glyph ids and resolved glyph_font are translated through text/font catalogs, not cast as Unicode scalars. Surface/Cell preserve opaque content on copying. Full style-bit editing is recorded separately.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign class Cell"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign class Surface"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_core.c",
+          "anchor": "fn_cell_ch"
+        }
+      ]
+    },
+    "console.style-bits": {
+      "status": "partial",
+      "wren": "Cell bright/blink/legacyAttr/pixelGraphics; Screen.attr",
+      "reason": "Native public style flags include underline, bold, reverse, conceal, double-height and teletext presentation controls. Wren exposes bright/blink, legacy colour attributes and readonly pixelGraphics, but no complete flag inspection/editing interface. Opaque Surface copy preserves them; that is not script control. Dirty/reserved and renderer-resolved flags remain host bookkeeping.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/media/console/st_console.h",
+          "anchor": "ST_CONSOLE_CELL_PUBLIC_FLAGS"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign pixelGraphics"
+        }
+      ],
+      "finding": "cell-style-flags",
+      "decision": "mapping-gap"
+    },
+    "console.operations": {
+      "status": "covered",
+      "wren": "Screen/ScreenWindow/Palette/CustomCursor/VideoFlags/Clipboard; Settings scaling/colorEmoji; Input.mouseVisible; Menu screen modes",
+      "reason": "Logical-console size/layout, text drawing/window operations, cursor shape snapshots, palette and pixel operations, screen snapshots and title/clipboard/openURL have higher-level Wren owners. Settings/menu handle user display modes. Snapshot and text-buffer releases use VM finalizers/owned Strings. Reconfigure is constrained to supported screen modes; arbitrary frontend console construction is not implied.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "class ScreenWindow"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign class CustomCursor"
+        },
+        {
+          "path": "scripts/syncterm_menu.wren",
+          "anchor": "foreign static setScreenMode"
+        }
+      ]
+    },
+    "console.immutable-expand": {
+      "status": "host-owned",
+      "wren": "VideoFlags.expand readonly; screen-mode creation policy",
+      "reason": "ST_CONSOLE_VIDEO_EXPAND is immutable after console creation: native st_console_set_video_flags rejects changing it. Readonly VideoFlags.expand therefore matches the live native contract; this is not a missing setter. LineGraphicsExpand is independently mutable and has setters.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/media/console/console_text.c",
+          "anchor": "flags ^ console->video_flags) & ST_CONSOLE_VIDEO_EXPAND"
+        },
+        {
+          "path": "src/media/console/tests/st_console_test.c",
+          "anchor": "flags & ~ST_CONSOLE_VIDEO_EXPAND"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign static expand"
+        }
+      ]
+    },
+    "console.display-controls": {
+      "status": "unmapped",
+      "wren": "no generic console policy object",
+      "reason": "Native wrap, blink mode, full-surface-scroll, fallback-font choice, explicit aspect ratio and fullscreen setters lack direct script control/query. Some are derived by emulation or selected screen mode and may properly stay host policy; that is a scope decision. Settings custom aspect configures a future/custom mode, not arbitrary live aspect changes. Native pointer-shape selection (default/text/link) is only used by the host hyperlink-hover owners; no generic script pointer-shape selector is exported.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/media/console/st_console.h",
+          "anchor": "st_console_set_wrap"
+        },
+        {
+          "path": "scripts/syncterm_menu.wren",
+          "anchor": "foreign customAspectWidth"
+        }
+      ],
+      "finding": "console-display-policy",
+      "decision": "scope-review"
+    },
+    "console.rich-font": {
+      "status": "partial",
+      "wren": "Font.load / native bundled font registration",
+      "reason": "The native font descriptor can register arbitrary bitmap widths/glyph counts/strides, wide rasters, scalar and cluster mappings, coloured glyphs and fallback/decode-error glyphs. Wren only loads supported legacy font files; it cannot construct these descriptors from script data. Native mappings used by Cell text/rendering are not a general script font-builder API.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/media/console/st_console.h",
+          "anchor": "struct st_console_font {"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign static load(file)"
+        }
+      ],
+      "finding": "font-raster-model",
+      "decision": "scope-review"
+    },
+    "console.input-events": {
+      "status": "covered",
+      "wren": "Input / KeyEvent / PhysicalKeyEvent / MouseEvent / Hook",
+      "reason": "Named keys, physical press/release/repeat, committed scalars, codepage bytes and doorway keys have distinct script representations. Mouse cell/pixel coordinates, both wheel axes, buttons/modifiers and rich actions survive. Resize is handled by App layout and screen size; close becomes the exit-request flow, not an arbitrary event queue consumer.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign class KeyEvent"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign static withPixelsAndWheel"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign static synthesizePhysicalKey"
+        }
+      ]
+    },
+    "console.focus-held": {
+      "status": "unmapped",
+      "wren": "physical edges exist; no focus event or held-state query",
+      "reason": "Native focus state and physical-key held bitmap/query are not available to scripts. Tracking edges locally does not reconstruct initial held state or focus-loss recovery. Host/terminal handling does not constitute a public query/event API.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/media/console/st_console.h",
+          "anchor": "st_console_physical_key_state"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign class PhysicalKeyEvent"
+        }
+      ],
+      "finding": "input-focus-held",
+      "decision": "scope-review"
+    },
+    "console.capabilities": {
+      "status": "covered",
+      "wren": "ScreenSupports / Host.textTerminal/localControlKeys; Menu.buildOptions/outputModes",
+      "reason": "Logical-console capabilities, backend names/build choices and frontend constraints are queryable through typed Wren catalogs/booleans. Display-specific variants describe the same owning frontend; this does not imply scripts may create/swap native displays.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/scripting/wren_host/wren_bind_core.c",
+          "anchor": "SUPPORT_GETTER(loadable_fonts"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign static localControlKeys"
+        },
+        {
+          "path": "scripts/syncterm_menu.wren",
+          "anchor": "foreign static buildOptions"
+        }
+      ]
+    },
+    "console.clipboard-url-caps": {
+      "status": "partial",
+      "wren": "Clipboard / Menu.openUrl / hyperlink operations",
+      "reason": "Clipboard and URL operations exist but their native capability bits have no ScreenSupports query. Operation availability cannot be inspected in the same way as palette/pixels/font capabilities.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/media/console/st_console.h",
+          "anchor": "ST_CONSOLE_CAP_CLIPBOARD"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "class ScreenSupports"
+        }
+      ],
+      "finding": "clipboard-url-capabilities",
+      "decision": "mapping-gap"
+    },
+    "embedding.owner": {
+      "status": "host-owned",
+      "wren": "application owns menu/picker/connected VMs and routes native callbacks into Wren",
+      "reason": "Config console/path/audio/history/hyperlink/log/service pointers, host create/destroy/pump and synchronous prompt/trust/status hooks form the C embedding boundary. Wren implements the UI/hook bodies through script modules and owns script callbacks, not its own embedding instance. Menu selection and Session/Conn/Status/Hook/App expose useful behavior without raw VM/context lifetime control.",
+      "vm": "application-owned embedding",
+      "evidence": [
+        {
+          "path": "src/scripting/wren_host/st_wren_host.h",
+          "anchor": "st_wren_connected_destroy"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "class Hook"
+        },
+        {
+          "path": "scripts/syncterm_menu.wren",
+          "anchor": "class Menu"
+        }
+      ]
+    },
+    "application.st_app_state": {
+      "status": "host-owned",
+      "wren": "application persistence policy",
+      "reason": "This is a process/frontend entry or adapter, not an additional script-owned service. Startup options choose the one application/backend and VM setup. Scripts use Menu/Settings/Host/Screen for their authorized runtime behavior; no process launch/reparse/frontend ABI or raw startup callback ownership is added.",
+      "vm": "application startup/frontend",
+      "evidence": [
+        {
+          "path": "src/st_app_state.h",
+          "anchor": ""
+        },
+        {
+          "path": "src/st_application.h",
+          "anchor": "st_application_run"
+        }
+      ]
+    },
+    "application.st_application": {
+      "status": "host-owned",
+      "wren": "process/frontend application lifetime",
+      "reason": "This is a process/frontend entry or adapter, not an additional script-owned service. Startup options choose the one application/backend and VM setup. Scripts use Menu/Settings/Host/Screen for their authorized runtime behavior; no process launch/reparse/frontend ABI or raw startup callback ownership is added.",
+      "vm": "application startup/frontend",
+      "evidence": [
+        {
+          "path": "src/st_application.h",
+          "anchor": ""
+        },
+        {
+          "path": "src/st_application.h",
+          "anchor": "st_application_run"
+        }
+      ]
+    },
+    "application.st_command_line": {
+      "status": "host-owned",
+      "wren": "startup option parsing",
+      "reason": "This is a process/frontend entry or adapter, not an additional script-owned service. Startup options choose the one application/backend and VM setup. Scripts use Menu/Settings/Host/Screen for their authorized runtime behavior; no process launch/reparse/frontend ABI or raw startup callback ownership is added.",
+      "vm": "application startup/frontend",
+      "evidence": [
+        {
+          "path": "src/st_command_line.h",
+          "anchor": ""
+        },
+        {
+          "path": "src/st_application.h",
+          "anchor": "st_application_run"
+        }
+      ]
+    },
+    "application.st_console_startup": {
+      "status": "host-owned",
+      "wren": "startup frontend/configuration composition",
+      "reason": "This is a process/frontend entry or adapter, not an additional script-owned service. Startup options choose the one application/backend and VM setup. Scripts use Menu/Settings/Host/Screen for their authorized runtime behavior; no process launch/reparse/frontend ABI or raw startup callback ownership is added.",
+      "vm": "application startup/frontend",
+      "evidence": [
+        {
+          "path": "src/st_console_startup.h",
+          "anchor": ""
+        },
+        {
+          "path": "src/st_application.h",
+          "anchor": "st_application_run"
+        }
+      ]
+    },
+    "application.st_libretro_input": {
+      "status": "host-owned",
+      "wren": "libretro frontend input adapter",
+      "reason": "This is a process/frontend entry or adapter, not an additional script-owned service. Startup options choose the one application/backend and VM setup. Scripts use Menu/Settings/Host/Screen for their authorized runtime behavior; no process launch/reparse/frontend ABI or raw startup callback ownership is added.",
+      "vm": "application startup/frontend",
+      "evidence": [
+        {
+          "path": "src/st_libretro_input.h",
+          "anchor": ""
+        },
+        {
+          "path": "src/st_application.h",
+          "anchor": "st_application_run"
+        }
+      ]
+    },
+    "application.st_syncterm_icon": {
+      "status": "host-owned",
+      "wren": "bundled frontend window icon",
+      "reason": "This is a process/frontend entry or adapter, not an additional script-owned service. Startup options choose the one application/backend and VM setup. Scripts use Menu/Settings/Host/Screen for their authorized runtime behavior; no process launch/reparse/frontend ABI or raw startup callback ownership is added.",
+      "vm": "application startup/frontend",
+      "evidence": [
+        {
+          "path": "src/st_syncterm_icon.h",
+          "anchor": ""
+        },
+        {
+          "path": "src/st_application.h",
+          "anchor": "st_application_run"
+        }
+      ]
+    },
+    "application.st_terminfo": {
+      "status": "host-owned",
+      "wren": "command-line terminfo output",
+      "reason": "This is a process/frontend entry or adapter, not an additional script-owned service. Startup options choose the one application/backend and VM setup. Scripts use Menu/Settings/Host/Screen for their authorized runtime behavior; no process launch/reparse/frontend ABI or raw startup callback ownership is added.",
+      "vm": "application startup/frontend",
+      "evidence": [
+        {
+          "path": "src/st_terminfo.h",
+          "anchor": ""
+        },
+        {
+          "path": "src/st_application.h",
+          "anchor": "st_application_run"
+        }
+      ]
+    },
+    "cterm.state": {
+      "status": "covered",
+      "wren": "CTerm / ExtAttr / LastColumnFlag / Scrollback / Font / Screen",
+      "reason": "Every st_cterm_state scalar and nested ExtAttr/last-column state has a script getter, including palette override, margins, alternate fonts and ring metadata. Protocol emulation/encoding/RIP/PETSCII variant are configured by Profile/screen mode. CTerm.write accepts UTF-8 host text, active receive input is processed by the native terminal owner. Local key injection, doorway/music/mouse policy, screenshot and font selection have typed operations. Native lifecycle/config callbacks and several direct operations are separately assessed.",
+      "vm": "connected",
+      "evidence": [
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "class CTerm"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_session.c",
+          "anchor": "\"lastColumnFlag\""
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_session.c",
+          "anchor": "\"prestelHold\""
+        }
+      ]
+    },
+    "cterm.owner": {
+      "status": "host-owned",
+      "wren": "active terminal parser owner",
+      "reason": "Create/destroy/config service pointers, raw wire writes/decoder feed, poll/finish/disconnect, resize/origin notifications, RIP receive framing and event routing belong to the active term session. Scripts use CTerm/Screen/Hook/Transfer on that parser rather than independently writing a borrowed decoder or holding output/input/log callback contexts. Screen-mode/Profile policy supplies config values; quiet is a host audio choice. This does not claim a standalone script terminal-emulator constructor.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/terminal/cterm/st_cterm.h",
+          "anchor": "struct st_cterm_config"
+        },
+        {
+          "path": "src/terminal/term/st_term.c",
+          "anchor": "st_cterm_create"
+        }
+      ]
+    },
+    "cterm.encoding-control": {
+      "status": "unmapped",
+      "wren": "CTerm.encoding/codepage are readonly; Profile.encoding configures sessions",
+      "reason": "The native live set_encoding operation has no script setter. Reading active state or editing the profile for future initialization is not the same capability.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/terminal/cterm/st_cterm.h",
+          "anchor": "st_cterm_set_encoding"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign static encoding"
+        }
+      ],
+      "finding": "cterm-live-encoding",
+      "decision": "scope-review"
+    },
+    "cterm.reset": {
+      "status": "partial",
+      "wren": "CTerm.write can send reset escape sequences",
+      "reason": "No dedicated script operation invokes st_cterm_reset_terminal or returns its native reset status. That function finishes pending input, resets parser state and rebuilds the RIP engine. CTerm.write can submit protocol reset sequences through the current parser, but does not expose this complete host reset transaction or its failure result.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/terminal/cterm/st_cterm.c",
+          "anchor": "st_cterm_reset_terminal"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign static write(s)"
+        }
+      ],
+      "finding": "cterm-reset-contract",
+      "decision": "mapping-gap"
+    },
+    "cterm.audio-fx": {
+      "status": "partial",
+      "wren": "protocol-driven OOII/CTerm sound only",
+      "reason": "Native play_fx_u8 accepts PCM effects directly; Wren has no direct script PCM submission. Terminal protocol music is not arbitrary playback coverage.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/terminal/cterm/st_cterm.h",
+          "anchor": "st_cterm_play_fx_u8"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign static ooiiMode"
+        }
+      ],
+      "finding": "audio-service",
+      "decision": "scope-review"
+    },
+    "cterm.font-result": {
+      "status": "partial",
+      "wren": "Font.load(file) returns Bool",
+      "reason": "Native registration accepts a selector and returns an identifier/status. Wren automatically chooses the first unused selector and reports only Bool; caller can search availability/name/count but gets neither the chosen selector directly nor native error detail. Custom codepage choice is separately missing.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/scripting/wren_host/wren_bind_core.c",
+          "anchor": "fn_font_load"
+        },
+        {
+          "path": "src/terminal/cterm/st_cterm.h",
+          "anchor": "st_cterm_register_font"
+        }
+      ],
+      "finding": "font-load-result",
+      "decision": "mapping-gap"
+    },
+    "hyperlinks.registry": {
+      "status": "covered",
+      "wren": "Hyperlinks.add/[id]/params/containsKey; Cell.hyperlinkId / Surface.urlAt",
+      "reason": "URI and parameter data have equivalents under typed ids and VM availability. Enumeration is not a native public registry operation. Registry creation/destruction, root marking, collection and temporary copy/free are ownership mechanisms assigned separately.",
+      "vm": "menu/connected, not picker",
+      "evidence": [
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "class Hyperlinks"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_hyperlinks.c",
+          "anchor": "st_hyperlink_registry_copy"
+        }
+      ]
+    },
+    "hyperlinks.gc-owner": {
+      "status": "host-owned",
+      "wren": "application registry and console/history roots",
+      "reason": "Root registration/mark callbacks, collection, create/destroy/dispose implement native reachability and copy ownership. Wren receives owned String values and ids rather than raw registry roots or borrowed memory.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/terminal/hyperlink/st_hyperlink.h",
+          "anchor": "st_hyperlink_registry_register_root"
+        }
+      ]
+    },
+    "ooii.protocol": {
+      "status": "host-owned",
+      "wren": "term session OOII parser; CTerm.ooiiMode / Host.haveOOII/maxOOIIMode",
+      "reason": "Mode query/set/limits are exposed; parser create/destroy/write and artwork/reply/sound/attribute callbacks are native protocol orchestration on the current connection. Scripts do not take ownership of a second OOII parser or raw embedded resources. Direct sound playback omission is in audio.playback.",
+      "vm": "connected",
+      "evidence": [
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign static maxOOIIMode"
+        },
+        {
+          "path": "src/terminal/ooii/st_ooii.h",
+          "anchor": "st_ooii_write"
+        }
+      ]
+    },
+    "ooii.mode": {
+      "status": "covered",
+      "wren": "CTerm.ooiiMode; Host.maxOOIIMode",
+      "reason": "Mode is clamped 0..3 and discards partial commands exactly as native set_mode. Availability is Host.haveOOII.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign static ooiiMode=(n)"
+        }
+      ]
+    },
+    "screen.modes": {
+      "status": "covered",
+      "wren": "ScreenMode / Menu.screenModes/currentScreenMode/setScreenMode/paletteDefaults; Profile.screenMode",
+      "reason": "Native mode catalogs, current/custom mode selection and palette defaults have higher-level equivalents. Detailed console config/font/palette construction is owned by mode application; scripts select supported modes instead of allocating native descriptors. Native persistence ini_name is not a separate script display name.",
+      "vm": "menu mode selection and connected profile metadata",
+      "evidence": [
+        {
+          "path": "scripts/syncterm_menu.wren",
+          "anchor": "foreign static screenModes"
+        },
+        {
+          "path": "scripts/syncterm_menu.wren",
+          "anchor": "foreign static paletteDefaults"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_menu.c",
+          "anchor": "st_screen_mode_at"
+        }
+      ]
+    },
+    "history.owner": {
+      "status": "host-owned",
+      "wren": "application detached-history owner; Menu.offlineScrollback/prepareOfflineScrollback; Scrollback",
+      "reason": "Native create/destroy/publish/copy/info/capacity describe detached history retention. Settings.scrollbackLines configures capacity; the menu prepares the retained screen mode and Scrollback gives dimensions and row copies as owned Surface cells. Scripts do not publish arbitrary native history buffers or replace the application history owner.",
+      "vm": "menu offline / connected active history",
+      "evidence": [
+        {
+          "path": "scripts/syncterm_menu.wren",
+          "anchor": "foreign static prepareOfflineScrollback"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "class Scrollback"
+        }
+      ]
+    },
+    "history.clear": {
+      "status": "unmapped",
+      "wren": "none",
+      "reason": "Native history.clear has no explicit script action to discard retained history. Changing capacity or overwriting screen rows is not an equivalent clear operation. Whether scripts should control retained history is a scope decision.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/terminal/session_history/st_session_history.h",
+          "anchor": "st_session_history_clear"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "class Scrollback"
+        }
+      ],
+      "finding": "history-clear",
+      "decision": "scope-review"
+    },
+    "term.owner": {
+      "status": "host-owned",
+      "wren": "one active native term session",
+      "reason": "Native session/config ownership, CTerm borrowing, run/pump/disconnect, terminal/transfer/RIP reservations and raw transport/filter/capture contexts belong to the application. Scripts use Conn/Session leases/CTerm/Transfer/Hook/Capture; independent parser pumps, raw borrowed buffers and callback pointers would compete with that owner. Profiles/screen modes supply initial emulation/encoding/fonts/palette/status/RIP/throttle policy. Native encoded-text storage is translated into owned script send Operations.",
+      "vm": "connected",
+      "evidence": [
+        {
+          "path": "src/terminal/term/st_term.h",
+          "anchor": "struct st_term_config"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign class Session"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "class Capture"
+        }
+      ]
+    },
+    "term.controls": {
+      "status": "covered",
+      "wren": "Conn.endSession; CTerm suspended/mouseDisabled/throttleSpeed/ooiiMode; Session/WireLease; Hook/Capture",
+      "reason": "Current session controls, semantic key/text sending, transfer inspection and exclusive wire claim/release/available/read have typed equivalents. Host-registered hooks carry the wire/input transformations and capture behavior; auxiliary activity is represented by SessionLease holdCount and explicit release.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign claimWire()"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign static throttleSpeed=(bps)"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_session.c",
+          "anchor": "st_term_session_inspect_transfer"
+        }
+      ]
+    },
+    "text.codepages": {
+      "status": "partial",
+      "wren": "Codepage constants/decodeByte; Font.codepage/codepageOf; Menu.encodings; semantic Conn sends",
+      "reason": "All native codepage choices and byte-to-scalar decoding are represented. Encoding uses the current session and capability helper encodes_, not a general public encodeByte(codepage, scalar) operation. Native broken_vertical metadata has no script query. Native count/name are available through the Menu encodings catalog; enum COUNT is a native sentinel, not another encoding.",
+      "vm": "all script VMs",
+      "evidence": [
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "class Codepage"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_core.c",
+          "anchor": "st_codepage_from_unicode"
+        },
+        {
+          "path": "scripts/syncterm_menu.wren",
+          "anchor": "foreign static encodings"
+        }
+      ],
+      "finding": "codepage-utility",
+      "decision": "scope-review"
+    },
+    "emoji.catalog": {
+      "status": "covered",
+      "wren": "Emoji entries/text/name/variants and EmojiEntry",
+      "reason": "Pinned catalog entries and base/variant grouping become script values; sequence count is List.count. Exact lookup is performed by the Emoji wrapper/native record workflow rather than exposing a pointer or the native count sentinel.",
+      "vm": "all script VMs",
+      "evidence": [
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "class EmojiEntry"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "class Emoji"
+        }
+      ]
+    },
+    "emoji.locale": {
+      "status": "covered",
+      "wren": "Emoji localized names/keywords/search; Platform.languages",
+      "reason": "Host locale context resolves preferred languages and English fallback, then exposes catalog names/keywords/search to Emoji. Locale create/destroy and returned index allocation are host/VM ownership. Script does not instantiate an independent override language context; host preferred-language policy is the existing contract.",
+      "vm": "all script VMs",
+      "evidence": [
+        {
+          "path": "src/scripting/wren_host/wren_bind_core.c",
+          "anchor": "st_emoji_search"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign static keywords_"
+        }
+      ]
+    },
+    "text.comparison": {
+      "status": "covered",
+      "wren": "Text.caselessKey/Equal/StartsWith/Contains/compare; native typed naming workflows",
+      "reason": "Canonical caseless keys and grapheme-boundary matching are explicit Text methods; Text.compare performs native Unicode collation with case-sensitive choice. Native sort-key create/compare/destroy is a reusable optimization behind comparison, not a required raw object. Typed menu/picker validation uses the native name/wildcard policies; absent general utility methods are separately recorded.",
+      "vm": "all script VMs",
+      "evidence": [
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "class Text"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_core.c",
+          "anchor": "st_unicode_collate"
+        }
+      ]
+    },
+    "text.compare-utilities": {
+      "status": "partial",
+      "wren": "picker masks / Menu.nameAvailable / typed model setters",
+      "reason": "No general grapheme wildcard matcher or parameterized Unicode name validator is exported. The picker and BBS/theme/font validators consume these native capabilities within fixed policies. Text.compare supplies collation, not an exact numeric result of the separate caseless-key comparison routine; caselessEqual is available for canonical equality.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/text/unicode_compare/st_unicode_compare.h",
+          "anchor": "st_unicode_wildcard_match"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "class Text"
+        }
+      ],
+      "finding": "text-comparison-utilities",
+      "decision": "scope-review"
+    },
+    "text.st_utf8": {
+      "status": "host-owned",
+      "wren": "native strict UTF-8 streaming decoder",
+      "reason": "Scalar property tables, decomposition/composition, decoder partial buffers/events and incremental segmentation are engine mechanisms. Text.graphemes and Screen.textWidth provide semantic results; KeyEvent/codepage APIs expose committed input. Wren Strings retain standard arbitrary-byte semantics; host text validates UTF-8 and normalizes NFC, raw payloads preserve bytes. General low-level Unicode property/decoder utility exposure is not implied by these typed interfaces.",
+      "vm": "all script VMs",
+      "evidence": [
+        {
+          "path": "src/text/utf8/st_utf8.h",
+          "anchor": ""
+        },
+        {
+          "path": "docs/WREN_GUIDANCE.md",
+          "anchor": "arbitrary bytes"
+        }
+      ]
+    },
+    "text.presentation": {
+      "status": "host-owned",
+      "wren": "streaming host text/presentation pipeline",
+      "reason": "Normalizer/grapheme/presentation create/feed/reset/finish/peek/consume and event revision/filter callbacks belong to input/terminal/renderer owners. Text.graphemes and normalizedByteCount expose high-level analysis; script code does not own another live host scalar-filter pipeline.",
+      "vm": "all script VMs",
+      "evidence": [
+        {
+          "path": "src/text/unicode_text/st_unicode_text.h",
+          "anchor": "st_unicode_presentation_feed"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign static graphemes"
+        }
+      ]
+    },
+    "text.explicit-normalize": {
+      "status": "partial",
+      "wren": "Text.normalizedByteCount and implicit NFC host boundaries",
+      "reason": "Native st_unicode_text_normalize returns canonical UTF-8 bytes. No public Text method returns the normalized String itself; normalizedByteCount returns only size. Host normalization of config/path/display inputs is unchanged and does not normalize arbitrary Wren Strings or provide a pure return-value utility.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/text/unicode_text/st_unicode_text.h",
+          "anchor": "st_unicode_text_normalize"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign static normalizedByteCount"
+        }
+      ],
+      "finding": "text-normalize-result",
+      "decision": "scope-review"
+    },
+    "strings.native-storage": {
+      "status": "host-owned",
+      "wren": "VM Strings / native libc fallback",
+      "reason": "strdup/strndup/strlcpy/strlcat/strtok_r are native char-buffer lifetime/capacity/iterator machinery. They are not script memory APIs; Wren owns immutable Strings and standard tokenization. All fallback declarations are force-extracted to cover capability-absent builds.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/base/string_compat/string_compat.h",
+          "anchor": "STRING_COMPAT_FORCE_FALLBACKS"
+        },
+        {
+          "path": "docs/Wren.adoc",
+          "anchor": "Strings"
+        }
+      ]
+    },
+    "bbs.mutation-status": {
+      "status": "partial",
+      "wren": "DirectoryEntry/Defaults mutation Bool; Menu load read status",
+      "reason": "Primary native mutation/rewrite status becomes Bool in script save/delete/default/encryption operations. Distinct native I/O/conflict/policy causes cannot be inspected as structured results. This is in addition to the dropped cache_status, which can fail after primary commit. Menu.load has its own coarse read-status enum rather than every native I/O code.",
+      "vm": "menu",
+      "evidence": [
+        {
+          "path": "src/scripting/wren_host/wren_bind_menu.c",
+          "anchor": "st_bbs_mutation_result"
+        },
+        {
+          "path": "scripts/syncterm_menu.wren",
+          "anchor": "foreign save()"
+        }
+      ],
+      "finding": "model-mutation-results",
+      "decision": "mapping-gap"
+    },
+    "settings.result-status": {
+      "status": "partial",
+      "wren": "Settings apply/save/reload and Menu font/web/sort mutation results",
+      "reason": "The menu workflow preserves success/failure, but many native integer statuses become Bool, or validation abort messages. This does not preserve a structured native I/O/conflict reason. Font draft save, settings persistence/reload and collection mutations therefore have useful operations with incomplete machine-readable error information.",
+      "vm": "menu",
+      "evidence": [
+        {
+          "path": "src/scripting/wren_host/wren_bind_menu.c",
+          "anchor": "st_settings_font_draft_save"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_menu.c",
+          "anchor": "st_settings_save_value"
+        }
+      ],
+      "finding": "model-mutation-results",
+      "decision": "mapping-gap"
+    },
+    "themes.operation-status": {
+      "status": "partial",
+      "wren": "theme operations return null/error String; document.save returns [code, message]",
+      "reason": "ThemeDocument.save preserves its native document error enum, including conflict. Most other theme operations flatten native integer reasons into a diagnostic String, so callers cannot reliably branch on native I/O/invalid/not-found statuses without parsing prose. Catalog fields and editable content remain mapped.",
+      "vm": "menu",
+      "evidence": [
+        {
+          "path": "src/scripting/wren_host/wren_bind_menu.c",
+          "anchor": "theme_operation_result"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_menu.c",
+          "anchor": "wrenSetSlotDouble(vm, 1, result)"
+        }
+      ],
+      "finding": "theme-operation-results",
+      "decision": "mapping-gap"
+    },
+    "console.operation-status": {
+      "status": "partial",
+      "wren": "Screen/Palette/CustomCursor/VideoFlags drawing and state operations",
+      "reason": "Successful drawing/state behavior has equivalents, but native int-returning methods generally become void/null/Bool or a Fiber abort with text. Native IO_ERROR distinctions are not uniformly retained as typed results. Capability guards and validation exist; they do not provide a lossless native error API. Pointer releases and native void-returning lifecycle methods are not affected by this finding.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/scripting/wren_host/wren_bind_core.c",
+          "anchor": "st_console_set_video_flags"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_core.c",
+          "anchor": "st_console_set_position"
+        }
+      ],
+      "finding": "console-operation-results",
+      "decision": "mapping-gap"
+    },
+    "text.scalar-utilities": {
+      "status": "unmapped",
+      "wren": "Text.graphemes / Screen.textWidth provide higher-level results only",
+      "reason": "No general query API exposes native grapheme/Indic/pictographic/RGI-prefix properties, canonical combining class/decompose/compose, East Asian Width/emoji/default-ignorable/nonspacing properties or scalar columns. These are consumed by native text rendering and segmentation, but that use does not make individual pure queries available to scripts. General Unicode analysis is a scope decision; this records no requirement to change Wren String semantics or port Unicode tables.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/text/unicode_grapheme/st_unicode_grapheme.h",
+          "anchor": "st_unicode_grapheme_break"
+        },
+        {
+          "path": "src/text/unicode_normalization/st_unicode_normalization.h",
+          "anchor": "st_unicode_canonical_compose"
+        },
+        {
+          "path": "src/text/unicode_width/st_unicode_width.h",
+          "anchor": "st_unicode_east_asian_width"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "class Text"
+        }
+      ],
+      "finding": "unicode-property-utilities",
+      "decision": "scope-review"
+    },
+    "text.strict-utf8-codec": {
+      "status": "partial",
+      "wren": "String.fromCodePoint / String.codePoints; strict host text boundaries",
+      "reason": "Standard Wren can encode scalars and inspect String codepoints/bytes, but its arbitrary-byte String indexing is not the native strict decode_one result/consumed/error contract. No public strict one-shot UTF-8 validation/decode API accepts arbitrary bytes and returns that native information. Incremental decoder buffers remain host-owned. Whether scripts need a separate strict codec is a scope decision.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/text/utf8/st_utf8.h",
+          "anchor": "st_utf8_decode_one"
+        },
+        {
+          "path": "docs/WREN_GUIDANCE.md",
+          "anchor": "continuation byte"
+        }
+      ],
+      "finding": "utf8-codec",
+      "decision": "scope-review"
+    },
+    "session.lifecycle-info": {
+      "status": "partial",
+      "wren": "Conn.connected / Hook.onShellClose/onDisconnect; Session.holdCount",
+      "reason": "Native remote_closed records drained remote termination rather than a local hangup/exit. The script callbacks and connected Bool do not expose that exact final cause. Session.holdCount counts explicit Wren leases, not the native SSH auxiliary transport liveness or every pending SFTP request. Those aggregate owner decisions are not a public inspection result; exposing a reason/liveness snapshot is a scope decision, not a second transport owner.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/terminal/term/st_term.h",
+          "anchor": "st_term_session_remote_closed"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_session.c",
+          "anchor": "fn_session_hold_count"
+        },
+        {
+          "path": "src/net/connection/connection_ssh.c",
+          "anchor": "ssh_auxiliary_alive"
+        }
+      ],
+      "finding": "session-lifecycle-information",
+      "decision": "scope-review"
+    },
+    "time.precision": {
+      "status": "partial",
+      "wren": "Timer.now monotonic seconds; standard System.clock CPU seconds",
+      "reason": "The usable clocks exist, but Timer.now uses the native millisecond source and returns zero on native clock failure. No API exposes the native nanosecond monotonic/CPU result and its status; standard System.clock uses the C clock() resolution rather than calling st_time_process_cpu_ns. Submillisecond/native-error fidelity is an omitted utility scope decision, not an absence of a monotonic clock.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/base/time/st_time.h",
+          "anchor": "st_time_monotonic_ns"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_core.c",
+          "anchor": "fn_timer_now"
+        },
+        {
+          "path": "src/scripting/wren_vm/vm/wren_core.c",
+          "anchor": "RETURN_NUM((double)clock() / CLOCKS_PER_SEC)"
+        }
+      ],
+      "finding": "clock-precision-results",
+      "decision": "scope-review"
+    },
+    "cterm.operation-status": {
+      "status": "partial",
+      "wren": "CTerm.write/sendKey",
+      "reason": "Text write and semantic key injection preserve successful behavior and handled/not-handled, but native status and partial consumed count become generic Fiber abort messages. The caller cannot inspect the native failure code. Raw wire/decoder ownership remains native.",
+      "vm": "same VM as the owning API",
+      "evidence": [
+        {
+          "path": "src/scripting/wren_host/wren_bind_session.c",
+          "anchor": "fn_cterm_write"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_session.c",
+          "anchor": "fn_cterm_send_key"
+        }
+      ],
+      "finding": "console-operation-results",
+      "decision": "mapping-gap"
+    }
+  },
+  "documentation_findings": [
+    {
+      "id": "profile-field-table",
+      "reason": "docs/api/bbs-entry-fields.adoc claims 50 persisted keys / 56 members but st_profile.h has 57 members, including cterm_log_level. The table omits CTermLogLevel -> Profile.ctermLogLevel, which is declared and bound. This is stale coverage documentation, not a missing binding.",
+      "evidence": [
+        {
+          "path": "src/config/profile/st_profile.h",
+          "anchor": "cterm_log_level"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign ctermLogLevel"
+        },
+        {
+          "path": "docs/api/bbs-entry-fields.adoc",
+          "anchor": "50 canonical keys and 56 profile members"
+        }
+      ]
+    }
+  ],
+  "excluded_headers": [
+    {
+      "path": "src/base/language/st_language_internal.h",
+      "reason": "Private component representation/callback plumbing behind the public component owner."
+    },
+    {
+      "path": "src/base/str_list/tests/str_list_test_allocator.h",
+      "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
+    },
+    {
+      "path": "src/base/value_convert/decimal_double.h",
+      "reason": "Private decimal conversion representation behind value_convert.h."
+    },
+    {
+      "path": "src/base/value_convert/value_convert_time.h",
+      "reason": "Private calendar conversion implementation behind value_convert.h."
+    },
+    {
+      "path": "src/config/app_paths/st_app_paths_internal.h",
+      "reason": "Private component representation/callback plumbing behind the public component owner."
+    },
+    {
+      "path": "src/config/bbs_list/st_bbs_list_internal.h",
+      "reason": "Private component representation/callback plumbing behind the public component owner."
+    },
+    {
+      "path": "src/config/bbs_list/tests/st_bbs_test_allocator.h",
+      "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
+    },
+    {
+      "path": "src/config/list_crypto/list_crypto_internal.h",
+      "reason": "Private component representation/callback plumbing behind the public component owner."
+    },
+    {
+      "path": "src/config/settings/st_settings_internal.h",
+      "reason": "Private component representation/callback plumbing behind the public component owner."
+    },
+    {
+      "path": "src/config/settings/tests/st_settings_test_copy.h",
+      "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
+    },
+    {
+      "path": "src/config/theme/theme_internal.h",
+      "reason": "Private component representation/callback plumbing behind the public component owner."
+    },
+    {
+      "path": "src/io/file_lock/st_file_lock_internal.h",
+      "reason": "Private component representation/callback plumbing behind the public component owner."
+    },
+    {
+      "path": "src/io/path/path_internal.h",
+      "reason": "Private component representation/callback plumbing behind the public component owner."
+    },
+    {
+      "path": "src/io/path/path_windows.h",
+      "reason": "Windows path encoding/mechanism adapter behind portable path.h and filesystem grants."
+    },
+    {
+      "path": "src/libretro.h",
+      "reason": "External libretro frontend ABI, not script-owned process/rendering lifetime."
+    },
+    {
+      "path": "src/media/audio/audio_internal.h",
+      "reason": "Private component representation/callback plumbing behind the public component owner."
+    },
+    {
+      "path": "src/media/console/console_ansi_system.h",
+      "reason": "Console backend, rasterizer and display-worker mechanisms behind st_console.h; not independent script displays."
+    },
+    {
+      "path": "src/media/console/console_color_rll.h",
+      "reason": "Console backend, rasterizer and display-worker mechanisms behind st_console.h; not independent script displays."
+    },
+    {
+      "path": "src/media/console/console_curses_locale.h",
+      "reason": "Console backend, rasterizer and display-worker mechanisms behind st_console.h; not independent script displays."
+    },
+    {
+      "path": "src/media/console/console_internal.h",
+      "reason": "Private component representation/callback plumbing behind the public component owner."
+    },
+    {
+      "path": "src/media/console/console_posix_url.h",
+      "reason": "Console backend, rasterizer and display-worker mechanisms behind st_console.h; not independent script displays."
+    },
+    {
+      "path": "src/media/console/console_test_internal.h",
+      "reason": "Private component representation/callback plumbing behind the public component owner."
+    },
+    {
+      "path": "src/media/console/console_text_layout.h",
+      "reason": "Console backend, rasterizer and display-worker mechanisms behind st_console.h; not independent script displays."
+    },
+    {
+      "path": "src/media/console/console_wayland_loader.h",
+      "reason": "Console backend, rasterizer and display-worker mechanisms behind st_console.h; not independent script displays."
+    },
+    {
+      "path": "src/media/console/console_x11_keys.h",
+      "reason": "Console backend, rasterizer and display-worker mechanisms behind st_console.h; not independent script displays."
+    },
+    {
+      "path": "src/media/console/console_x11_pixels.h",
+      "reason": "Console backend, rasterizer and display-worker mechanisms behind st_console.h; not independent script displays."
+    },
+    {
+      "path": "src/media/console/st_console_test.h",
+      "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
+    },
+    {
+      "path": "src/media/console/tests/color_rll_fixture.h",
+      "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
+    },
+    {
+      "path": "src/media/console/tests/pty_diagnostics.h",
+      "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
+    },
+    {
+      "path": "src/media/fonts/st_builtin_fonts_internal.h",
+      "reason": "Private component representation/callback plumbing behind the public component owner."
+    },
+    {
+      "path": "src/media/pixels/pixels_internal.h",
+      "reason": "Private component representation/callback plumbing behind the public component owner."
+    },
+    {
+      "path": "src/media/pixels/st_scaler_internal.h",
+      "reason": "Private component representation/callback plumbing behind the public component owner."
+    },
+    {
+      "path": "src/media/unifont/st_unifont.h",
+      "reason": "Optional native font-pack loader owned by rendering; script rich-font omissions are recorded separately."
+    },
+    {
+      "path": "src/net/connection/connection_internal.h",
+      "reason": "Private component representation/callback plumbing behind the public component owner."
+    },
+    {
+      "path": "src/net/connection/tests/st_connection_serial_fake.h",
+      "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
+    },
+    {
+      "path": "src/net/sftp_client/client.h",
+      "reason": "SSH/SFTP adapter machinery; st_sftp.h is the typed provider boundary assessed in the ledger."
+    },
+    {
+      "path": "src/net/sftp_client/sftp.h",
+      "reason": "SSH/SFTP adapter machinery; st_sftp.h is the typed provider boundary assessed in the ledger."
+    },
+    {
+      "path": "src/net/socket/socket_internal.h",
+      "reason": "Private component representation/callback plumbing behind the public component owner."
+    },
+    {
+      "path": "src/net/tcp_client/tcp_client_internal.h",
+      "reason": "Private component representation/callback plumbing behind the public component owner."
+    },
+    {
+      "path": "src/net/tcp_client/tests/tcp_client_fake.h",
+      "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
+    },
+    {
+      "path": "src/net/transfer/private/transfer_internal.h",
+      "reason": "Private component representation/callback plumbing behind the public component owner."
+    },
+    {
+      "path": "src/net/transfer/private/transfer_protocol.h",
+      "reason": "Private component representation/callback plumbing behind the public component owner."
+    },
+    {
+      "path": "src/net/transfer/private/xmodem.h",
+      "reason": "Private component representation/callback plumbing behind the public component owner."
+    },
+    {
+      "path": "src/net/transfer/private/zmodem.h",
+      "reason": "Private component representation/callback plumbing behind the public component owner."
+    },
+    {
+      "path": "src/scripting/re1/regexp.h",
+      "reason": "Bundled regex implementation; scripts already use the host match-hook contract, not raw regex engine ownership."
+    },
+    {
+      "path": "src/scripting/wren_host/wren_bbs_model.h",
+      "reason": "Foreign payloads, embedding and native hook plumbing; script declarations and dispatch are reviewed as evidence."
+    },
+    {
+      "path": "src/scripting/wren_host/wren_directory.h",
+      "reason": "Foreign payloads, embedding and native hook plumbing; script declarations and dispatch are reviewed as evidence."
+    },
+    {
+      "path": "src/scripting/wren_host/wren_host_internal.h",
+      "reason": "Private component representation/callback plumbing behind the public component owner."
+    },
+    {
+      "path": "src/scripting/wren_host/wren_licenses.h",
+      "reason": "Foreign payloads, embedding and native hook plumbing; script declarations and dispatch are reviewed as evidence."
+    },
+    {
+      "path": "src/scripting/wren_vm/include/wren.h",
+      "reason": "Bundled Wren compiler/VM/optional-module internals; standard language semantics are not C host features to port."
+    },
+    {
+      "path": "src/scripting/wren_vm/optional/wren_opt_meta.h",
+      "reason": "Bundled Wren compiler/VM/optional-module internals; standard language semantics are not C host features to port."
+    },
+    {
+      "path": "src/scripting/wren_vm/optional/wren_opt_random.h",
+      "reason": "Bundled Wren compiler/VM/optional-module internals; standard language semantics are not C host features to port."
+    },
+    {
+      "path": "src/scripting/wren_vm/vm/wren_common.h",
+      "reason": "Bundled Wren compiler/VM/optional-module internals; standard language semantics are not C host features to port."
+    },
+    {
+      "path": "src/scripting/wren_vm/vm/wren_compiler.h",
+      "reason": "Bundled Wren compiler/VM/optional-module internals; standard language semantics are not C host features to port."
+    },
+    {
+      "path": "src/scripting/wren_vm/vm/wren_core.h",
+      "reason": "Bundled Wren compiler/VM/optional-module internals; standard language semantics are not C host features to port."
+    },
+    {
+      "path": "src/scripting/wren_vm/vm/wren_debug.h",
+      "reason": "Bundled Wren compiler/VM/optional-module internals; standard language semantics are not C host features to port."
+    },
+    {
+      "path": "src/scripting/wren_vm/vm/wren_math.h",
+      "reason": "Bundled Wren compiler/VM/optional-module internals; standard language semantics are not C host features to port."
+    },
+    {
+      "path": "src/scripting/wren_vm/vm/wren_opcodes.h",
+      "reason": "Bundled Wren compiler/VM/optional-module internals; standard language semantics are not C host features to port."
+    },
+    {
+      "path": "src/scripting/wren_vm/vm/wren_primitive.h",
+      "reason": "Bundled Wren compiler/VM/optional-module internals; standard language semantics are not C host features to port."
+    },
+    {
+      "path": "src/scripting/wren_vm/vm/wren_utils.h",
+      "reason": "Bundled Wren compiler/VM/optional-module internals; standard language semantics are not C host features to port."
+    },
+    {
+      "path": "src/scripting/wren_vm/vm/wren_value.h",
+      "reason": "Bundled Wren compiler/VM/optional-module internals; standard language semantics are not C host features to port."
+    },
+    {
+      "path": "src/scripting/wren_vm/vm/wren_vm.h",
+      "reason": "Bundled Wren compiler/VM/optional-module internals; standard language semantics are not C host features to port."
+    },
+    {
+      "path": "src/st_windows_launcher.h",
+      "reason": "Windows launcher-to-DLL entry ABI, not a script operation."
+    },
+    {
+      "path": "src/terminal/cterm/cterm.h",
+      "reason": "CTerm parser/RIP protocol internals; st_cterm.h and term session own parsing, resources and lifetime."
+    },
+    {
+      "path": "src/terminal/cterm/cterm_apc.h",
+      "reason": "CTerm parser/RIP protocol internals; st_cterm.h and term session own parsing, resources and lifetime."
+    },
+    {
+      "path": "src/terminal/cterm/cterm_apc_cache.h",
+      "reason": "CTerm parser/RIP protocol internals; st_cterm.h and term session own parsing, resources and lifetime."
+    },
+    {
+      "path": "src/terminal/cterm/cterm_atascii.h",
+      "reason": "CTerm parser/RIP protocol internals; st_cterm.h and term session own parsing, resources and lifetime."
+    },
+    {
+      "path": "src/terminal/cterm/cterm_cterm.h",
+      "reason": "CTerm parser/RIP protocol internals; st_cterm.h and term session own parsing, resources and lifetime."
+    },
+    {
+      "path": "src/terminal/cterm/cterm_dec.h",
+      "reason": "CTerm parser/RIP protocol internals; st_cterm.h and term session own parsing, resources and lifetime."
+    },
+    {
+      "path": "src/terminal/cterm/cterm_ecma48.h",
+      "reason": "CTerm parser/RIP protocol internals; st_cterm.h and term session own parsing, resources and lifetime."
+    },
+    {
+      "path": "src/terminal/cterm/cterm_input.h",
+      "reason": "CTerm parser/RIP protocol internals; st_cterm.h and term session own parsing, resources and lifetime."
+    },
+    {
+      "path": "src/terminal/cterm/cterm_internal.h",
+      "reason": "Private component representation/callback plumbing behind the public component owner."
+    },
+    {
+      "path": "src/terminal/cterm/cterm_petscii.h",
+      "reason": "CTerm parser/RIP protocol internals; st_cterm.h and term session own parsing, resources and lifetime."
+    },
+    {
+      "path": "src/terminal/cterm/cterm_prestel.h",
+      "reason": "CTerm parser/RIP protocol internals; st_cterm.h and term session own parsing, resources and lifetime."
+    },
+    {
+      "path": "src/terminal/cterm/cterm_render.h",
+      "reason": "CTerm parser/RIP protocol internals; st_cterm.h and term session own parsing, resources and lifetime."
+    },
+    {
+      "path": "src/terminal/cterm/cterm_rip_asset.h",
+      "reason": "CTerm parser/RIP protocol internals; st_cterm.h and term session own parsing, resources and lifetime."
+    },
+    {
+      "path": "src/terminal/cterm/cterm_rip_asset_lookup.h",
+      "reason": "CTerm parser/RIP protocol internals; st_cterm.h and term session own parsing, resources and lifetime."
+    },
+    {
+      "path": "src/terminal/cterm/cterm_rip_engine.h",
+      "reason": "CTerm parser/RIP protocol internals; st_cterm.h and term session own parsing, resources and lifetime."
+    },
+    {
+      "path": "src/terminal/cterm/cterm_rip_file_query.h",
+      "reason": "CTerm parser/RIP protocol internals; st_cterm.h and term session own parsing, resources and lifetime."
+    },
+    {
+      "path": "src/terminal/cterm/cterm_rip_fonts.h",
+      "reason": "CTerm parser/RIP protocol internals; st_cterm.h and term session own parsing, resources and lifetime."
+    },
+    {
+      "path": "src/terminal/cterm/cterm_rip_icon_file.h",
+      "reason": "CTerm parser/RIP protocol internals; st_cterm.h and term session own parsing, resources and lifetime."
+    },
+    {
+      "path": "src/terminal/cterm/cterm_rip_icons.h",
+      "reason": "CTerm parser/RIP protocol internals; st_cterm.h and term session own parsing, resources and lifetime."
+    },
+    {
+      "path": "src/terminal/cterm/cterm_rip_parser.h",
+      "reason": "CTerm parser/RIP protocol internals; st_cterm.h and term session own parsing, resources and lifetime."
+    },
+    {
+      "path": "src/terminal/cterm/cterm_rip_raster.h",
+      "reason": "CTerm parser/RIP protocol internals; st_cterm.h and term session own parsing, resources and lifetime."
+    },
+    {
+      "path": "src/terminal/cterm/cterm_rip_time.h",
+      "reason": "CTerm parser/RIP protocol internals; st_cterm.h and term session own parsing, resources and lifetime."
+    },
+    {
+      "path": "src/terminal/cterm/cterm_text.h",
+      "reason": "CTerm parser/RIP protocol internals; st_cterm.h and term session own parsing, resources and lifetime."
+    },
+    {
+      "path": "src/terminal/cterm/cterm_vt52.h",
+      "reason": "CTerm parser/RIP protocol internals; st_cterm.h and term session own parsing, resources and lifetime."
+    },
+    {
+      "path": "src/terminal/cterm/tests/data/legacy_beziers_expected.h",
+      "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
+    },
+    {
+      "path": "src/terminal/cterm/tests/data/legacy_buttons_bevel_expected.h",
+      "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
+    },
+    {
+      "path": "src/terminal/cterm/tests/data/legacy_buttons_colors_expected.h",
+      "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
+    },
+    {
+      "path": "src/terminal/cterm/tests/data/legacy_buttons_labels_expected.h",
+      "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
+    },
+    {
+      "path": "src/terminal/cterm/tests/data/legacy_buttons_plain_expected.h",
+      "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
+    },
+    {
+      "path": "src/terminal/cterm/tests/data/legacy_buttons_sizes_expected.h",
+      "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
+    },
+    {
+      "path": "src/terminal/cterm/tests/data/legacy_ellipses_expected.h",
+      "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
+    },
+    {
+      "path": "src/terminal/cterm/tests/data/legacy_floodfill_expected.h",
+      "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
+    },
+    {
+      "path": "src/terminal/cterm/tests/data/legacy_lines_expected.h",
+      "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
+    },
+    {
+      "path": "src/terminal/cterm/tests/data/legacy_patterns_expected.h",
+      "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
+    },
+    {
+      "path": "src/terminal/cterm/tests/data/legacy_pies_expected.h",
+      "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
+    },
+    {
+      "path": "src/terminal/cterm/tests/data/legacy_polygons_expected.h",
+      "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
+    },
+    {
+      "path": "src/terminal/cterm/tests/data/legacy_rects_expected.h",
+      "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
+    },
+    {
+      "path": "src/terminal/cterm/tests/data/legacy_surfer1_expected.h",
+      "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
+    },
+    {
+      "path": "src/terminal/cterm/tests/data/legacy_xor_ellipse_expected.h",
+      "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
+    },
+    {
+      "path": "src/terminal/cterm/tests/data/legacy_xor_expected.h",
+      "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
+    },
+    {
+      "path": "src/terminal/cterm/tests/data/test01b_ellipse_sweep_expected.h",
+      "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
+    },
+    {
+      "path": "src/terminal/cterm/tests/data/test10_edges_expected.h",
+      "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
+    },
+    {
+      "path": "src/terminal/cterm/tests/data/test11_lines_expected.h",
+      "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
+    },
+    {
+      "path": "src/terminal/cterm/tests/data/test12_fillpoly_expected.h",
+      "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
+    },
+    {
+      "path": "src/terminal/cterm/tests/data/test13_thick_xor_expected.h",
+      "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
+    },
+    {
+      "path": "src/terminal/cterm/tests/data/v110a_gl_morfr_expected.h",
+      "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
+    },
+    {
+      "path": "src/terminal/cterm/tests/data/v110a_surfer1_expected.h",
+      "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
+    },
+    {
+      "path": "src/terminal/ooii/ooii_bmenus.h",
+      "reason": "OOII immutable resource tables and private parser implementation behind st_ooii.h."
+    },
+    {
+      "path": "src/terminal/ooii/ooii_cmenus.h",
+      "reason": "OOII immutable resource tables and private parser implementation behind st_ooii.h."
+    },
+    {
+      "path": "src/terminal/ooii/ooii_logons.h",
+      "reason": "OOII immutable resource tables and private parser implementation behind st_ooii.h."
+    },
+    {
+      "path": "src/terminal/ooii/ooii_sounds.h",
+      "reason": "OOII immutable resource tables and private parser implementation behind st_ooii.h."
+    },
+    {
+      "path": "src/text/emoji/st_emoji_locale_internal.h",
+      "reason": "Private component representation/callback plumbing behind the public component owner."
+    },
+    {
+      "path": "src/text/unicode_compare/st_unicode_compare_data.h",
+      "reason": "Generated immutable Unicode/font/catalog/protocol data consumed by the owning public component."
+    },
+    {
+      "path": "src/text/unicode_compare/st_unicode_compare_internal.h",
+      "reason": "Private component representation/callback plumbing behind the public component owner."
+    },
+    {
+      "path": "src/text/unicode_text/cluster_columns.h",
+      "reason": "Private text presentation cluster-width helper; high-level widths are Screen.textWidth and Text.graphemes."
+    },
+    {
+      "path": "src/text/windows_utf/st_windows_utf.h",
+      "reason": "Win32 UTF-16 conversion adapter; host text uses portable UTF-8 NFC."
+    }
+  ],
+  "conditional_interfaces": [
+    {
+      "header": "src/base/string_compat/string_compat.h",
+      "disposition": "host-owned",
+      "reason": "All five fallback functions and macro aliases are force-extracted; their char-buffer lifetimes are native machinery, not Wren heap APIs."
+    },
+    {
+      "header": "src/base/threads/st_threads.h",
+      "disposition": "host-owned",
+      "reason": "Pthread/winpthreads and Win32 branches have the same named function contract. Native typedef layout and Windows anonymous thread/once structs are backend-owned. Every textual initializer/destructor macro alternative is retained; no Windows runtime claim."
+    },
+    {
+      "header": "src/net/socket/socket.h",
+      "disposition": "host-owned",
+      "reason": "Platform branch only changes native socket handle representation/includes. Portable socket functions are inventoried and owned by active transport."
+    },
+    {
+      "header": "src/syncterm_types.h",
+      "disposition": "host-owned",
+      "reason": "ssize_t declaration/backing type is C ABI compatibility. Wren exact-number checks govern counts; native standard type aliases are not separate script operations."
+    },
+    {
+      "header": "extern-C guards",
+      "disposition": "host-owned",
+      "reason": "C++ linkage guards change no script capability."
+    }
+  ],
+  "consumer_evidence": [
+    {
+      "path": "scripts/auto/menu/main_menu.wren",
+      "anchor": "Menu.settings",
+      "aspect": "menu model and settings owner"
+    },
+    {
+      "path": "scripts/menu_settings_ui.wren",
+      "anchor": "Menu.cloudThemes",
+      "aspect": "local/cloud theme catalog consumer"
+    },
+    {
+      "path": "scripts/menu_bbs_editor.wren",
+      "anchor": "ctermLogLevel",
+      "aspect": "typed profile editor"
+    },
+    {
+      "path": "scripts/sftp_app.wren",
+      "anchor": "directory.readEntries().await()",
+      "aspect": "owned remote directory iteration"
+    },
+    {
+      "path": "scripts/sftp_queue.wren",
+      "anchor": "SFTP.stat(job.remote).await()",
+      "aspect": "stat and asynchronous transfer ownership"
+    },
+    {
+      "path": "scripts/transfer_pick.wren",
+      "anchor": "Transfer.uploadBatch",
+      "aspect": "picker File values converted to path Strings; consumer consent does not guard other callers"
+    },
+    {
+      "path": "scripts/transfer_app.wren",
+      "anchor": "Timer.now",
+      "aspect": "monotonic UI deadline"
+    },
+    {
+      "path": "scripts/auto/connected/font_pick.wren",
+      "anchor": "Font.load(file)",
+      "aspect": "granted font-loading Bool result"
+    },
+    {
+      "path": "scripts/wrentest.wren",
+      "anchor": "File.sha1 of empty file",
+      "aspect": "raw digest comparison and explicit text helpers"
+    },
+    {
+      "path": "scripts/ui_app.wren",
+      "anchor": "repeatNow_ { Timer.now * 1000 }",
+      "aspect": "event/layout owner and key-repeat timing"
+    }
+  ],
+  "test_evidence": [
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_host_test.c",
+      "anchor": "protocol failure details lost",
+      "aspect": "SFTP code/serverStatus/message/transient preservation"
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_host_test.c",
+      "anchor": "cancelled close not drained",
+      "aspect": "asynchronous resource cancellation and native close completion"
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_host_test.c",
+      "anchor": "create discarded the native reason",
+      "aspect": "FileError success/failure outcomes"
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_host_test.c",
+      "anchor": "directory followed an ungranted link",
+      "aspect": "directory grants exclude links"
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_host_test.c",
+      "anchor": "live video flags",
+      "aspect": "mutable video flags with immutable expand"
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_settings_menu_test.c",
+      "anchor": "test_safe_kdf",
+      "aspect": "Settings transaction/safe-mode KDF behavior"
+    },
+    {
+      "path": "src/scripting/wren_vm/tests/st_wren_vm_unicode_string_test.c",
+      "anchor": "wrenInterpret",
+      "aspect": "standard arbitrary-byte and Unicode String behavior"
+    },
+    {
+      "path": "src/media/console/tests/st_console_test.c",
+      "anchor": "flags & ~ST_CONSOLE_VIDEO_EXPAND",
+      "aspect": "native setter rejects expansion change"
+    }
+  ],
+  "dispatch_evidence": [
+    {
+      "path": "src/scripting/wren_host/wren_host.c",
+      "anchor": "st_wren_bind_method",
+      "aspect": "module/VM routing and concrete session binder precedes core fallbacks"
+    }
+  ],
+  "evidence_files": {
+    "docs/WREN_GUIDANCE.md": "d14aeecb5eae922015f2f48a4fd690277dcb5b91aedfd8d8d8cffb2dc235e1ac",
+    "docs/Wren.adoc": "6324a1a5597629004dd51850f377fa84ee5ef9b186da82398b166dec8b8e0e12",
+    "docs/api/bbs-entry-fields.adoc": "a1be9944eadd5f56d752e8669b502f49b27211f14190443a95e36ad301b8d128",
+    "scripts/auto/connected/font_pick.wren": "471102c73421cc011ed65225e77feda3a1716dba4e3cf41cda3741f0f19405d6",
+    "scripts/auto/menu/main_menu.wren": "57458b3161806dac245710a7a076278c260d8e3ffcdf19186b331e70c36c18c9",
+    "scripts/menu_bbs_editor.wren": "5afc466dd6ee78e0d6585038d1635442ffea9259e7bad087d012c4654821f9bb",
+    "scripts/menu_settings_ui.wren": "f54e1500536947060a6a2836ad0c15a54068f1786e357b18b6e67afb417f26e6",
+    "scripts/sftp_app.wren": "38ff67e42a9e3b8c962f1cd9618ee4f5582d2406e0f8fd8c09bbd9e8f47db097",
+    "scripts/sftp_queue.wren": "1fb32830a081a1682b0147a9c7a95e9d96dd4e0539c8847e218613c7b69a38c5",
+    "scripts/syncterm.wren": "a384b502fc3db8a2cfc21442ca0a48c3a7a3ee4bc0663184d2dbd45420f4ffb2",
+    "scripts/syncterm_menu.wren": "88da9af4c28aac7504ace0a7efb8db13333b03a595966e3576c6f9721f1c8459",
+    "scripts/syncterm_picker.wren": "143e15bd084bed37145061760100c84b353d340e00187d9cd2b920a850be6021",
+    "scripts/transfer_app.wren": "36713bbb8fdb61e5f7af68371c44a9110cd8bda8ea59c0ee7ee09436684b61af",
+    "scripts/transfer_pick.wren": "9fbd239d3bd911329414cdc527ce81fdacb4f98e8fbc15970acadac0178fca60",
+    "scripts/ui_app.wren": "704c49cd2ff7f3c1fe86391d6bb1ac2d0120091506e246dad4ddb7cff70649d6",
+    "scripts/wrentest.wren": "e8fac350769877aba99d44e15fad468c38b21dbb0d9db997b3c05283c34f8aec",
+    "src/base/array_list/array_list.h": "07f78e0fe13932c9f0004844800f4e391029a0f6279fa750bfe836b9f85357de",
+    "src/base/base64/st_base64.h": "0d820c0116d24cb509ecc4c01aa6f1a0e544273b698a2f8c1396153a340ec7d8",
+    "src/base/crypto/st_cipher.h": "8a6be2ff350384b94bd0c67c5d3844e2ddc31e25ff989426c86dd05bcea50407",
+    "src/base/crypto/st_crypto.h": "dae21e573fb7b2003d8653f35253bf17ac86d0e99824f9ec64725188e458e635",
+    "src/base/crypto/st_digest.h": "7b496994019f13823d755c2055c33cbd1a0d51002fcf5b9eff3a014561a8950d",
+    "src/base/crypto/st_kdf.h": "74a097f887077e447a2ad9214e50c5a2dbf70e8a736ea56966634d33b941893e",
+    "src/base/dynamic_library/dynamic_library.h": "81ae52d9fe1a16853bbb48f9370727b762786a021cd5dd9d74b2d0e8d973810b",
+    "src/base/event/st_event.h": "214bd304f5c21db733baf0ddcfbb54c1b8ab534484f6bb8d34573d62d9fe7c92",
+    "src/base/hex/st_hex.h": "9079e3ba779f3f33f9bf1eb33f98a985b0ee02a2581249b64c3526ff06d1de8d",
+    "src/base/io_error/io_error.h": "e80075c998748fbabdd638956bf03ba3a22272dad6c033dbb6df6df425c39ee7",
+    "src/base/language/st_language.h": "21063c22f017c3020c0f88749f3f76c5b58b143e091baae2bf48742a91ea0cfc",
+    "src/base/md5/st_md5.h": "84280be1bb3d0556c5614166a4856d0fc8291d3cc5904d62748ea21fdeeefa38",
+    "src/base/name_value_list/name_value_list.h": "3a47a221ccfe7e8afe23e495f8c33dccb534e92954922997d14edab1a339212d",
+    "src/base/semaphore/st_semaphore.h": "ff4f16509472abecfe52b50a23512f1a707156ee0733b5b243a152d3d37fcb64",
+    "src/base/str_list/str_list.h": "cd72d5328c79455f9ff965bb5bfe3a67fd093c6332d4b0c47ffbf502faa5e85a",
+    "src/base/string_compat/string_compat.h": "c009691683ab5be3e261755477276cda6fffd62c972bdc0a7b70bf4e733d56cf",
+    "src/base/string_util/string_util.h": "079a730a2301540033d802b066fc01dcad20524321ec422fa67870bf286c7094",
+    "src/base/threads/st_threads.h": "e95d6e0e8210ee84a1c0884916c48f6939a3b74819f76f95fd9ed55808f62558",
+    "src/base/time/st_time.h": "185a02bb0082369b2cd8aae5e6923d98a267163e95030bbee3440fb207784579",
+    "src/base/value_convert/value_convert.h": "bb019fd7108319caae88007c096737ef2d0c77dffac562e54bfa0511ee48a16b",
+    "src/config/app_paths/st_app_paths.h": "8d98d54d6dc698c911891de1e1122fde0d5bedbef4039ed89ca2e4cb3cfa55a9",
+    "src/config/bbs_list/st_bbs_list.c": "394542a939c1caa7075fce1c2ce644d713f0d1543a0e942ba7df1cf168298c8f",
+    "src/config/bbs_list/st_bbs_list.h": "7a088a127b4d94e22b2f708617e151bf570a7dcfe68a1074e8f9ec6667eb4895",
+    "src/config/consent_token/st_consent_token.h": "17c510324b8e490e9b8e9d22111975ab42e48c0721cfc19bde6a04e041b42ccb",
+    "src/config/ini/ini.h": "8ee058ae16825f619a4e705557a254379e4e5a0efdc08b9271a6384f070d0157",
+    "src/config/list_crypto/st_list_crypto.c": "e53d183461012142e5f9d2d417030efe55bc42469944747b414b9907b516dd67",
+    "src/config/list_crypto/st_list_crypto.h": "7386db58694dd680c6bf5f07f4d31cb014e45460d8a3af525622c2df1859ea9f",
+    "src/config/profile/st_profile.h": "34e597b3ff46d9c5592740d5d2017006af4f6fe95cbd0aa885ff42b9815b7a51",
+    "src/config/settings/st_settings.h": "e0ddcfd779c94a58d90c3e23b8dbb01db49e2dd169cb8654a2c5813ada2e3110",
+    "src/config/theme/st_theme.h": "d4e0014e7a89c726527c0ec14eb7158c83135ae7b405904b186577e31740baf3",
+    "src/io/file_lock/st_file_lock.h": "5edfde4f1cc28747ab4e0555f65e5e9c4e44b77b5232ca81f4144ba8819d5cd0",
+    "src/io/file_map/file_map.h": "faba0cffcf67e71ac4aaeeb45b25782a5f6b1a229ed0bec134bd94c84155213c",
+    "src/io/filesystem/filesystem.h": "0352952dd72d0999380f6460216b95e9359b07c3f1bdd52fbfad7a9418f60fed",
+    "src/io/path/path.h": "b3b3a2d5ae72bcdf00042701aba27cbb9dc2850b2f9add9f3baa887d797227b2",
+    "src/io/serial/serial.h": "c6b8e7262cee2df77b3958a15a3ae43ce35a073e795516c9098baf0d00d814a7",
+    "src/media/audio/audio.h": "7a4f4ba7921f622a5754caa159800abfbe83767c6caf1b8189ecd80cca346d3f",
+    "src/media/audio/st_audio_runtime.h": "58175c6ef4f91264126317e74d91eadea3969900a91e0827eb1b8ca6b2fe8b35",
+    "src/media/audio_file/st_audio_file.h": "7236377b7bed90f3875e0872e18090221dd1b84a33f4b66ffbfc7ade448831da",
+    "src/media/audio_mixer/audio_mixer.h": "03ea9950de09875d6d31d61d4e4ac05de133002f7e4a3c983904c4e642b3932a",
+    "src/media/console/console_text.c": "6c8165e4473a5053282ba81c533aba06f5975a16668b46181540a14d457a73b9",
+    "src/media/console/st_console.h": "86cfbab448f0c87429130a122df663a7e5b086e3055bf7a2ba09bf3f05a49743",
+    "src/media/console/tests/st_console_test.c": "bc98be45ca17b883aa97eca7d9e7839c703438393eb0882955507ef276126d38",
+    "src/media/font_catalog/st_font_catalog.h": "48b993085ed682c6ed102b3e8e7d715ddc494751f20b08865a8ff8dc97a67da9",
+    "src/media/fonts/st_builtin_fonts.h": "0cb9da919e72ad5321e34bab13c4a1529ae860e8da6331d44051a60f58609d12",
+    "src/media/fonts/st_emoji_fonts.h": "5bdb99f212bb4cfa19c4ae3d3514137ced5f85de0129c2bfba0650a429f83186",
+    "src/media/fonts/st_presentation_font.h": "c39d49aaa44cedb1a78d95f0c0c47a36756b1706d5733f8e9d63aaf6318ea41b",
+    "src/media/fonts/st_unicode_fonts.h": "c53a160e4eff5498827e376c538770dd6d63abe4fa5e4e09cfa0bb86ded2e6b4",
+    "src/media/pixel_image/st_pixel_image.h": "19f84636b92b53e8d5ae21eaa86f25c1058789f1db5f111fb78f76c6d645dba3",
+    "src/media/pixels/st_pixels.h": "539f95656dd5b18fbedf3ec8e9dfbe5de6cca8ebbe78a015afcf9a21cc850dd2",
+    "src/net/connection/connection_shell_codec.h": "0adf830aee0f3d54f08fdf41a91c190e720f60cbffb32b0c9bd8381c65c542a5",
+    "src/net/connection/connection_ssh.c": "8eea784057e04800c24730ca8c30d1f435055f88c5a1f54891b4a85d6ffd71ce",
+    "src/net/connection/connection_stream.h": "c64451fcce7cea40c6977e4a8ecfc22d9aeea253ae9ccc8f3dd31c9464bcc7c8",
+    "src/net/connection/connection_tcp.h": "77b07449c9d3df3cd64aba1605d65adf1cb692283cec467460d1c40d7b929a01",
+    "src/net/connection/st_connection.h": "52c39026b23c2fcc863e15b4ccd24d8cb7ce0aa41bb1500fd0d418608424582f",
+    "src/net/sftp_client/st_sftp.h": "08aa71dcc5e0d57c3d237f0c7285bf13d74a68b45fee24fa22b518aa22afa758",
+    "src/net/socket/socket.h": "8a1bc4f009011d890edc30b77d2858856a0bc5fdced2832329bd636022db5cb4",
+    "src/net/tcp_client/tcp_client.h": "e64123625dc25997f5373cfb33602533ae48bb4432bb7eca3268ff15c6f5ba3e",
+    "src/net/tls/st_tls.h": "e84511bba583a3f02a2729561c056fe34f2b70e5bea57e332d45120f010089fc",
+    "src/net/transfer/st_transfer.h": "a40e6b8a2d97527d1a1cc634ac5db8fd3a21fa5a3ff973050b036781bcf4b989",
+    "src/net/transfer/st_transfer_detect.h": "3296b9ecf875d100f793920a3b0117a8f7b80951a539317d366f4ea40a7a1b30",
+    "src/net/webget/st_webget.h": "9647dcc563e1661fe1d6b762c78e2483d2beae03ac878da0ebd15c8a425d2143",
+    "src/scripting/wren_host/st_wren_host.h": "531eba9331f992a6394c41020890e279597ee8d6cfd1259a4495f68ef38d5552",
+    "src/scripting/wren_host/tests/st_wren_host_test.c": "dd2cddec6b325d317f2e19ebf0fc56b5737e9560b75313b6e097ce1577d0c803",
+    "src/scripting/wren_host/tests/st_wren_settings_menu_test.c": "f0557efeb61eb50f10448feac06ecbf2066c0909e11b3fb7f3cd5e76cdf8b3a9",
+    "src/scripting/wren_host/wren_async.c": "71e78941735250300171a2b7cb13b70c92916bd14c066a6614b3f77cdd9b565d",
+    "src/scripting/wren_host/wren_bbs_model.c": "18dca3353505a5b0dc609251f16038bd9132c47e215c4cf24ba802ac4b3ab97a",
+    "src/scripting/wren_host/wren_bind_core.c": "877c48e61bda9fd0e3fd4f34b3ebf204998aa4368c442aee0dc61cc5f11ccad8",
+    "src/scripting/wren_host/wren_bind_fs.c": "fc773dd3f69febf5e9ee6c8edbc2aa130f03a79ba04ae2b2ab6ca561076a03da",
+    "src/scripting/wren_host/wren_bind_hyperlinks.c": "255be945007c9cb2795195058e5f58de7d2b2157728892e614d6e8fb5f729b98",
+    "src/scripting/wren_host/wren_bind_menu.c": "370077e63862e1098e1e3c2ab50ee7bd6777a5d887069742fca04fd3b3c81fbb",
+    "src/scripting/wren_host/wren_bind_pixels.c": "5a1b4c73862a6845710159e6b34e8992cff1ab66661b984f871c46eb6c6bcceb",
+    "src/scripting/wren_host/wren_bind_session.c": "63fbfba7948383f74d87f4fed2c70237504bd324abe326d881d63bd783260318",
+    "src/scripting/wren_host/wren_bind_status.c": "85ed4115c9a9645aa27cccb2a9977e5892037123d7440d9acf3397fd55e16671",
+    "src/scripting/wren_host/wren_bind_won.c": "96575bcbfdf0b157d89ec5ef64cd2573a0b41d2aaf5e379edd19303d382bc2f4",
+    "src/scripting/wren_host/wren_bind_xfer.c": "df24e9fe1a6203185dd8760f31ff3e1797f5095829c1c1953bc27d4cebcc9d5a",
+    "src/scripting/wren_host/wren_cleanup.c": "4a22a39e849d5336e2fc4d870cb749e0eecdb1137463ef7a6d989e8dfd2c235b",
+    "src/scripting/wren_host/wren_directory.c": "c7d5088d503737efa3499182c7feaab10c5b0bccc7888b465b1832b0b2ea9180",
+    "src/scripting/wren_host/wren_foreign.c": "6fbacba5e2a42ecbfd16bfef1d427a1323f7ecdbebfecd238efd6ae3aebeeca7",
+    "src/scripting/wren_host/wren_host.c": "0d6cd587e0a173b67169a0ce99cf351f7ceddd3d52877f83c3a1d8ce385f9284",
+    "src/scripting/wren_host/wren_links.c": "db575ae323af458a9454bae80288c3de05550d910c1a460036f0ab8f9fa9fce1",
+    "src/scripting/wren_host/wren_number.c": "1cd1837e8db9f95d0983215fc9674fe9ecfc07820b00011b7bc751f977d7cb89",
+    "src/scripting/wren_host/wren_picker.c": "3ca1eb88e1d590a6a908f0cb3f0f2936f785e3a6df79bec79c10c41edfa2cfe4",
+    "src/scripting/wren_host/wren_picker_fs_posix.c": "b964fd303a70722c5378afd6583d93477f3065038283a989dadc6c59f25a8a9a",
+    "src/scripting/wren_host/wren_picker_fs_windows.c": "126c9c621173285291f7c4d86a9e4d04c207b3341ce68ad34bac34ed62533dc3",
+    "src/scripting/wren_host/wren_repl.c": "4a7cd1ab284e93a2fc40f897d561221c0b7da32889a719dd1dcdb4897d31ff01",
+    "src/scripting/wren_host/wren_scripts.c": "e9bc56c5ecd4a10a5464b82205c30f9fb7ee61162f526d4eb3bdcef335bd483b",
+    "src/scripting/wren_host/wren_selection.c": "6e9972fd19cc31acc7e44c157f28b65120b93d7585dcacbb9937154f70bc72e4",
+    "src/scripting/wren_host/wren_session.c": "afe9569f906839480c9a163a3cfb48bba605507cdaef18a5990085da66570c6c",
+    "src/scripting/wren_host/wren_sftp.c": "2a8c95113449ba09dfe0041f8707d23a2c1ea5a3f92f99fb42a7ec4c1cbea04c",
+    "src/scripting/wren_vm/tests/st_wren_vm_unicode_string_test.c": "e92ca98a8026939932cdc8db390295390754ca9c0bf98ed2a89c4f0cb6784c5e",
+    "src/scripting/wren_vm/vm/wren_core.c": "e0d3ff1ff5caf1e4141d5b82a010507e5260185d23c35f7d530ce283ccb49b26",
+    "src/st_app_state.h": "9a66f9d8cab3c0ecd175d5426b59df838a817a70ac70609d293c7568381b524f",
+    "src/st_application.h": "011fcf76bf3e91ad15594862d35d9bc2802179c0c55c79f9e6ef63e1ac522ad2",
+    "src/st_command_line.h": "e4c39f9c2accaecb447fad05ca42f30487d27cc7d9fb7ebcbc6b9e27efe2f386",
+    "src/st_console_startup.h": "d1ad9846bd2836e6a888da47a2c20e129aef65db1471b0ccc2b78fdb14ad4a33",
+    "src/st_libretro_input.h": "5f8b2eea549b6ab14b9b2f6cbc427aa189cad353f6a0edab49b21ce364b7dcd7",
+    "src/st_syncterm_icon.h": "db9a42ed07712ff11469c9a4378df4669cab199da882051b6529cdf933a18c78",
+    "src/st_terminfo.h": "852d5c5f13d3d8f21aa0903d990cad1ab152ab6bb292a614bf12eb0a79f8ffeb",
+    "src/syncterm.c": "80fdfdaf00239b0c9ab421d9b90b676e7803e2fecbcbcf05a0f386e45e072b4e",
+    "src/syncterm_types.h": "faf03b62fcdebbc99c656072aff92846a65787e78294dcb21d2b0e96232144f2",
+    "src/terminal/cterm/cterm_apc.c": "02d454dc3711782e5bbe097d5e09a9af073b5c4d7a03e4cb0e22df4761680d6a",
+    "src/terminal/cterm/st_cterm.c": "406d8668426be13b3a7933045ea5bdb637a1e3a249ae6c3f2bbcc47131969205",
+    "src/terminal/cterm/st_cterm.h": "4a8137e13842b628174b1f497a43d98391acd615dd8b862e1225b0d5efa64eaf",
+    "src/terminal/hyperlink/st_hyperlink.h": "f93a14cc8070afcd04fd9217581d4aee9ad69dbed44f63236e0a6bf0c99eb233",
+    "src/terminal/ooii/st_ooii.h": "9da33c07aa73818ad787ae8fed5af2a996aab390549f88d117e6132028618aab",
+    "src/terminal/screen_mode/st_screen_mode.h": "f6ce01a5ec29e019d75fb13809078d263611318d46b79db670937fbfe3c7f436",
+    "src/terminal/session_history/st_session_history.h": "1cc8e4d057da9d087fa25814770c5003d2e51fe07dfda953c98c289e3feb19f2",
+    "src/terminal/term/st_term.c": "be52e8d461a7c3ce623b452f303b6543f1b365d905060f53db371f34e84d6e50",
+    "src/terminal/term/st_term.h": "47c7541a1e00f03151b422020e29b207ffaaa531895625042e3656a858a60b3f",
+    "src/text/codepage/st_codepage.h": "a7ecfd447988eeaeed5f5f8aaadacd251b48fc340ce481bde347979e71f787f2",
+    "src/text/emoji/st_emoji_catalog.h": "a51f7ddd302025cdbac7d136a1c6d1063e4923eb7085aa9ac9f72d678fafe80f",
+    "src/text/emoji/st_emoji_locale.h": "53dc6124b018026d47929c1a1f7289f0dabf07ad7c67a71bd662f0146f55082d",
+    "src/text/unicode_compare/st_unicode_compare.h": "b3625727e4d406909a5e505b3285fd01c077105f7fa0996484264071877f8578",
+    "src/text/unicode_grapheme/st_unicode_grapheme.h": "e6e229d7b0a9d41908f21e210e4dbfc6b8a2f5f0fa87941f1791f1b281d6a350",
+    "src/text/unicode_normalization/st_unicode_normalization.h": "cac5d848896ff4c278fad91926d02c5c9f07adaaabd39788d4ff5060f778ee53",
+    "src/text/unicode_text/st_unicode_text.h": "122e239b71b76eb7a778815fec2bd783bdb1e84d2a60a06abb79a75f1fd3523f",
+    "src/text/unicode_width/st_unicode_width.h": "c90749bc509e94748a1dba06bf25db3de7b7ccde03764193fd5f8073e9cb9433",
+    "src/text/utf8/st_utf8.h": "803d3d03a0d91141f7259a0b1a39f6a51b71397db9310a94b96fd4444e10f3a1"
+  },
+  "verification": {
+    "platform": "FreeBSD 15.1-RELEASE-p5 amd64",
+    "compiler": "Clang 19.1.7",
+    "cmake_build": "build-wren-input Debug; ST_CONSOLE_TEST=ON",
+    "tests_passed": 26,
+    "test_names": [
+      "wren_settings_runtime",
+      "wren_host",
+      "wren_menu_contract",
+      "wren_sftp_live",
+      "wren_directory_read_error",
+      "wren_directory_metadata",
+      "wren_picker_contract",
+      "st_wren_vm_link",
+      "st_wren_vm_foreign_stack",
+      "st_wren_vm_fiber",
+      "st_wren_vm_unicode_string",
+      "wren_script-catalog",
+      "wren_settings-stale",
+      "wren_settings-save-failure",
+      "wren_settings-reload",
+      "wren_screen-mode",
+      "wren_core-helpers",
+      "wren_cell-colours",
+      "wren_draw_synthetic",
+      "wren_input_synthetic",
+      "wren_logview_synthetic",
+      "wren_popup_synthetic",
+      "wren_help_synthetic",
+      "wren_progress_synthetic",
+      "wren_menu_synthetic",
+      "wren_console_synthetic"
+    ],
+    "limitations": "Native/headless only; no Windows runtime, physical audio or blanket per-option test coverage; missing APIs established by static review."
+  }
+}

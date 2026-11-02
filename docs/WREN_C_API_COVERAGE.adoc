@@ -1,0 +1,806 @@
+= Wren coverage of SyncTERM's native C interfaces
+
+Status: accounting complete against commit da27a6e (2026-11-02).
+The bindings are not complete. This report accounts for their coverage and
+limitations; it does not authorize implementing every omitted C facility.
+
+== Result and how to read this report
+
+The review covers 80 project-owned public headers, 2,432 named native items,
+and 119 explicitly excluded implementation/vendor/test headers. Every inventoried
+item has a disposition. There are 51 finding topics, including broader API-scope
+decisions, plus one stale documentation finding. The numbers follow the inventory;
+they are not a stopping rule or a percentage of useful capabilities covered.
+
+Important concrete results include loss of SFTP listing metadata, BBS provenance
+and diagnostics, mutation/cache failure details, and custom-font codepage choices;
+missing offscreen pixel compositing; and a transfer upload path API that bypasses
+the File-grant abstraction. Other omissions, such as general audio, HTTP, INI,
+cryptographic and Unicode utility APIs, require a scope decision rather than an
+automatic new binding. The findings below distinguish these cases.
+
+The complete per-symbol mapping is
+link:api/wren-c-api-coverage.tsv[the native symbol ledger]. Each row records its
+header, source line, native signature/field type/macro body, and assessment id.
+link:api/wren-c-api-assessments.json[Assessment metadata] supplies the corresponding
+Wren operation, VM availability, ownership/limits, source evidence and disposition.
+The header matrix below makes the denominator and exceptions inspectable without
+reading thousands of declarations. It is deliberately not a direct-C-call count.
+
+== Scope and preserved contracts
+
+The baseline is the modern standalone CMake project. The legacy Synchronet tree
+is reference material, not another API to port. Inventory discovery examines
+every header under +src+ and records either an inclusion or an explicit exclusion.
+The metadata lists every excluded path with its owning mechanism and reason.
+Private terminal/RIP protocol engines, console backends, raw SSH adapters, bundled
+Wren/regex internals, immutable generated data, frontend ABI and test-control
+headers are excluded from independent script ownership. Public terminal protocol
+behavior is accessed through the active parser; this accounting does not propose
+one foreign method per escape sequence or duplicate the terminal conformance work.
+
+Operations, public fields (including value-embedded structs), result/error data,
+enums, macros, callbacks, and extern values are inventoried. Opaque/type aliases
+are assessed through their owner and signatures; standard C storage aliases are
+not additional script features. Macro-generated collection families are accounted
+through the full declaration/definition macro and collection assessment, rather
+than counting every prefix expansion as a new capability. Header digests also
+cover enum values, conditional branches, typedefs, limits and contract comments.
+
+The extraction uses native Clang and generated CMake headers. All libc string
+fallback declarations are forced on; textual macros retain every alternative and
+complete multiline body. The remaining platform conditionals change native thread,
+socket and ssize_t representation, not the portable function contracts. These are
+explicitly reviewed in +conditional_interfaces+ in the metadata. This is not a
+Windows execution result or proof of every backend implementation.
+
+Existing boundaries define which omissions are intentional:
+
+* The trusted menu VM owns directory/settings selection and application UI.
+* Each connected VM owns its current session, with explicit SessionLease,
+  WireLease, Operation and remote-file/directory lifetimes. It cannot enumerate
+  other entries, change global settings or establish another connection.
+* The isolated picker VM brokers selection and metadata, cannot open files,
+  and cannot import the menu API. Declarations alone do not grant a capability.
+* Native filesystem grants and token signing remain host authority. Supplying
+  a pathname is not supposed to mint arbitrary access; the transfer finding
+  identifies where the current API fails to maintain that abstraction.
+* Host text boundaries validate UTF-8 and normalize NFC, including configuration
+  credential fields and paths. Raw byte payloads remain bytes. Wren Strings retain
+  standard arbitrary-byte semantics; no language normalization or Fiber changes
+  are proposed.
+* Native numeric quantities use checked conversions into the exact binary64
+  integer domain, plus protocol/size limits. Wider C integer storage does not
+  justify silent rounding or an implicit new Wren numeric representation.
+* Device/process/display/worker/pointer ownership belongs to the application.
+  Script values or higher-level owners can replace C allocation/free calls.
+  This does not justify hiding an independently useful field or operation.
+
+== Dispositions
+
+Covered::
+A usable Wren operation/value represents the native capability within its stated
+VM, numeric and ownership contract, including higher-level equivalents.
+
+Partial::
+An operation/workflow exists, but native choices, data, errors or modes are lost.
+The assessment identifies the limitation and links to a finding topic.
+
+Unmapped::
+No usable equivalent exists. This records an omission, not an implementation
+mandate. Standalone utility/service relevance is explicitly left for scope review.
+
+Host-owned::
+Native orchestration, backend/transport, embedding, allocation or synchronization
+belongs to a named existing owner. There is no second script pointer/worker owner.
+
+Language-equivalent::
+Wren values or standard operations replace native storage/collection mechanisms.
+An arbitrary algorithm is not called covered merely because Wren could implement
+it. In particular, a raw String-keyed Map is not canonical caseless comparison;
+that behavior requires the existing explicit +Text.caselessKey+ operation.
+
+Successful operation coverage and error/result fidelity are separate dimensions.
+For example, ThemeDocument.save preserves its document error code, while most
+other theme operations return an error String. Copying opaque Cell flags preserves
+them, but does not let scripts inspect or set every native style bit.
+
+== Header accounting matrix
+
+C = Covered, P = Partial, U = Unmapped, H = Host-owned, L = Language-equivalent.
+Counts are declaration/field items, not independent features; embedded fields and
+shared enum/operation families deliberately contribute multiple rows. Assessment
+ids refer to the full mappings in the JSON, including VM-specific restrictions.
+
+[cols="4,1,1,1,1,1,5",options="header"]
+|===
+| Native header | C | P | U | H | L | Assessments
+| link:../src/base/array_list/array_list.h[base/array_list/array_list.h] | 0 | 0 | 0 | 0 | 18 | +values.array_list+
+| link:../src/base/base64/st_base64.h[base/base64/st_base64.h] | 0 | 0 | 4 | 0 | 0 | +utility.base64+
+| link:../src/base/crypto/st_cipher.h[base/crypto/st_cipher.h] | 0 | 0 | 9 | 0 | 0 | +utility.cipher+
+| link:../src/base/crypto/st_crypto.h[base/crypto/st_crypto.h] | 1 | 0 | 13 | 1 | 0 | +utility.crypto+, +utility.crypto-clear+, +utility.crypto-provider+
+| link:../src/base/crypto/st_digest.h[base/crypto/st_digest.h] | 0 | 7 | 0 | 0 | 0 | +utility.digest+
+| link:../src/base/crypto/st_kdf.h[base/crypto/st_kdf.h] | 0 | 0 | 6 | 0 | 0 | +utility.kdf+
+| link:../src/base/dynamic_library/dynamic_library.h[base/dynamic_library/dynamic_library.h] | 0 | 0 | 0 | 5 | 0 | +host.dynamic_library+
+| link:../src/base/event/st_event.h[base/event/st_event.h] | 0 | 0 | 0 | 9 | 0 | +host.st_event+
+| link:../src/base/hex/st_hex.h[base/hex/st_hex.h] | 0 | 0 | 3 | 0 | 0 | +utility.hex+
+| link:../src/base/io_error/io_error.h[base/io_error/io_error.h] | 0 | 38 | 0 | 2 | 0 | +errors.io+, +errors.io-translation+
+| link:../src/base/language/st_language.h[base/language/st_language.h] | 4 | 0 | 0 | 0 | 0 | +language.preferences+
+| link:../src/base/md5/st_md5.h[base/md5/st_md5.h] | 0 | 0 | 0 | 6 | 0 | +utility.md5-state+
+| link:../src/base/name_value_list/name_value_list.h[base/name_value_list/name_value_list.h] | 0 | 0 | 0 | 0 | 15 | +values.name_value_list+
+| link:../src/base/semaphore/st_semaphore.h[base/semaphore/st_semaphore.h] | 0 | 0 | 0 | 6 | 0 | +host.st_semaphore+
+| link:../src/base/str_list/str_list.h[base/str_list/str_list.h] | 0 | 0 | 0 | 0 | 12 | +values.str_list+
+| link:../src/base/string_compat/string_compat.h[base/string_compat/string_compat.h] | 0 | 0 | 0 | 10 | 0 | +strings.native-storage+
+| link:../src/base/string_util/string_util.h[base/string_util/string_util.h] | 0 | 0 | 12 | 0 | 0 | +utility.ascii+
+| link:../src/base/threads/st_threads.h[base/threads/st_threads.h] | 0 | 0 | 0 | 45 | 0 | +host.st_threads+
+| link:../src/base/time/st_time.h[base/time/st_time.h] | 1 | 2 | 0 | 5 | 0 | +time.clock+, +time.deadline+, +time.precision+
+| link:../src/base/value_convert/value_convert.h[base/value_convert/value_convert.h] | 2 | 0 | 11 | 0 | 0 | +utility.conversion+, +utility.estimates+
+| link:../src/config/app_paths/st_app_paths.h[config/app_paths/st_app_paths.h] | 0 | 0 | 0 | 26 | 0 | +paths.application+
+| link:../src/config/bbs_list/st_bbs_list.h[config/bbs_list/st_bbs_list.h] | 55 | 28 | 6 | 10 | 0 | +bbs.cache-result+, +bbs.diagnostics+, +bbs.mutation-status+, +bbs.provenance+, +bbs.refresh-detail+, +bbs.transaction-owner+, +bbs.workflow+
+| link:../src/config/consent_token/st_consent_token.h[config/consent_token/st_consent_token.h] | 0 | 0 | 0 | 4 | 0 | +consent.signer+
+| link:../src/config/ini/ini.h[config/ini/ini.h] | 0 | 0 | 58 | 0 | 0 | +config.ini+
+| link:../src/config/list_crypto/st_list_crypto.h[config/list_crypto/st_list_crypto.h] | 0 | 33 | 0 | 0 | 0 | +list.crypto+
+| link:../src/config/profile/st_profile.h[config/profile/st_profile.h] | 153 | 0 | 0 | 4 | 0 | +profile.fields+, +profile.ownership+
+| link:../src/config/settings/st_settings.h[config/settings/st_settings.h] | 67 | 19 | 7 | 12 | 0 | +settings.kdf-legacy+, +settings.lifecycle+, +settings.model+, +settings.result-status+, +settings.transfer-timeouts+, +settings.window-state+
+| link:../src/config/theme/st_theme.h[config/theme/st_theme.h] | 91 | 23 | 0 | 6 | 0 | +themes.cloud-origin+, +themes.documents+, +themes.manager-lifetime+, +themes.operation-status+
+| link:../src/io/file_lock/st_file_lock.h[io/file_lock/st_file_lock.h] | 0 | 0 | 0 | 2 | 0 | +files.transaction-lock+
+| link:../src/io/file_map/file_map.h[io/file_map/file_map.h] | 0 | 0 | 0 | 5 | 0 | +files.mapping+
+| link:../src/io/filesystem/filesystem.h[io/filesystem/filesystem.h] | 14 | 4 | 3 | 2 | 0 | +files.grants+, +files.link-metadata+, +files.mkdir-internal+, +files.rename-copy+, +files.truncate+
+| link:../src/io/path/path.h[io/path/path.h] | 0 | 10 | 0 | 0 | 0 | +paths.picker+
+| link:../src/io/serial/serial.h[io/serial/serial.h] | 12 | 0 | 8 | 5 | 0 | +serial.connection+, +serial.lines+, +serial.transport-owner+
+| link:../src/media/audio/audio.h[media/audio/audio.h] | 12 | 0 | 32 | 6 | 0 | +audio.backends+, +audio.engine-owner+, +audio.playback+
+| link:../src/media/audio/st_audio_runtime.h[media/audio/st_audio_runtime.h] | 0 | 0 | 0 | 8 | 0 | +audio.runtime+
+| link:../src/media/audio_file/st_audio_file.h[media/audio_file/st_audio_file.h] | 0 | 0 | 5 | 0 | 0 | +audio.decode+
+| link:../src/media/audio_mixer/audio_mixer.h[media/audio_mixer/audio_mixer.h] | 0 | 0 | 0 | 23 | 0 | +audio.mixer+
+| link:../src/media/console/st_console.h[media/console/st_console.h] | 163 | 108 | 24 | 75 | 0 | +console.capabilities+, +console.cells+, +console.clipboard-url-caps+, +console.display-controls+, +console.focus-held+, +console.immutable-expand+, +console.input-events+, +console.operation-status+, +console.operations+, +console.owner+, +console.rich-font+, +console.style-bits+
+| link:../src/media/font_catalog/st_font_catalog.h[media/font_catalog/st_font_catalog.h] | 2 | 5 | 0 | 5 | 0 | +fonts.catalog+, +fonts.catalog-owner+, +fonts.codepage-loading+
+| link:../src/media/fonts/st_builtin_fonts.h[media/fonts/st_builtin_fonts.h] | 4 | 0 | 1 | 1 | 0 | +fonts.builtin+, +fonts.raster-owner+, +fonts.vertical-compatibility+
+| link:../src/media/fonts/st_emoji_fonts.h[media/fonts/st_emoji_fonts.h] | 0 | 0 | 0 | 3 | 0 | +fonts.st_emoji_fonts+
+| link:../src/media/fonts/st_presentation_font.h[media/fonts/st_presentation_font.h] | 0 | 0 | 0 | 4 | 0 | +fonts.st_presentation_font+
+| link:../src/media/fonts/st_unicode_fonts.h[media/fonts/st_unicode_fonts.h] | 0 | 0 | 0 | 2 | 0 | +fonts.st_unicode_fonts+
+| link:../src/media/pixel_image/st_pixel_image.h[media/pixel_image/st_pixel_image.h] | 5 | 0 | 0 | 2 | 0 | +pixels.cterm-decode+, +pixels.decode+
+| link:../src/media/pixels/st_pixels.h[media/pixels/st_pixels.h] | 37 | 1 | 0 | 11 | 0 | +pixels.display-scaler+, +pixels.offscreen-blit+, +pixels.values+
+| link:../src/net/connection/connection_shell_codec.h[net/connection/connection_shell_codec.h] | 0 | 0 | 0 | 16 | 0 | +transport.connection_shell_codec+
+| link:../src/net/connection/connection_stream.h[net/connection/connection_stream.h] | 0 | 0 | 0 | 18 | 0 | +transport.connection_stream+
+| link:../src/net/connection/connection_tcp.h[net/connection/connection_tcp.h] | 0 | 0 | 0 | 1 | 0 | +transport.connection_tcp+
+| link:../src/net/connection/st_connection.h[net/connection/st_connection.h] | 18 | 23 | 0 | 35 | 0 | +connection.active+, +connection.binary-owner+, +connection.setup-diagnostics+, +connection.setup-owner+, +session.lifecycle-info+
+| link:../src/net/sftp_client/st_sftp.h[net/sftp_client/st_sftp.h] | 64 | 5 | 0 | 9 | 0 | +sftp.entry-stat+, +sftp.operations+, +sftp.provider-owner+
+| link:../src/net/socket/socket.h[net/socket/socket.h] | 0 | 0 | 0 | 27 | 0 | +transport.socket+
+| link:../src/net/tcp_client/tcp_client.h[net/tcp_client/tcp_client.h] | 0 | 0 | 0 | 17 | 0 | +transport.tcp_client+
+| link:../src/net/tls/st_tls.h[net/tls/st_tls.h] | 0 | 11 | 11 | 34 | 0 | +tls.owner+, +tls.peer-info+, +tls.policy-options+
+| link:../src/net/transfer/st_transfer.h[net/transfer/st_transfer.h] | 51 | 19 | 0 | 13 | 0 | +transfer.path-authority+, +transfer.receive-policy+, +transfer.result-code+, +transfer.worker-owner+, +transfer.workflow+, +transfer.xmodem-g+
+| link:../src/net/transfer/st_transfer_detect.h[net/transfer/st_transfer_detect.h] | 0 | 0 | 0 | 3 | 0 | +transfer.autodetect+
+| link:../src/net/webget/st_webget.h[net/webget/st_webget.h] | 0 | 33 | 0 | 0 | 0 | +webget.workflow+
+| link:../src/scripting/wren_host/st_wren_host.h[scripting/wren_host/st_wren_host.h] | 0 | 0 | 0 | 67 | 0 | +embedding.owner+
+| link:../src/st_app_state.h[st_app_state.h] | 0 | 0 | 0 | 1 | 0 | +application.st_app_state+
+| link:../src/st_application.h[st_application.h] | 0 | 0 | 0 | 8 | 0 | +application.st_application+
+| link:../src/st_command_line.h[st_command_line.h] | 0 | 0 | 0 | 24 | 0 | +application.st_command_line+
+| link:../src/st_console_startup.h[st_console_startup.h] | 0 | 0 | 0 | 4 | 0 | +application.st_console_startup+
+| link:../src/st_libretro_input.h[st_libretro_input.h] | 0 | 0 | 0 | 1 | 0 | +application.st_libretro_input+
+| link:../src/st_syncterm_icon.h[st_syncterm_icon.h] | 0 | 0 | 0 | 1 | 0 | +application.st_syncterm_icon+
+| link:../src/st_terminfo.h[st_terminfo.h] | 0 | 0 | 0 | 1 | 0 | +application.st_terminfo+
+| link:../src/syncterm_types.h[syncterm_types.h] | 0 | 0 | 0 | 0 | 0 | No operations; ABI/type include only. See header review note.
+| link:../src/terminal/cterm/st_cterm.h[terminal/cterm/st_cterm.h] | 77 | 5 | 1 | 76 | 0 | +cterm.audio-fx+, +cterm.encoding-control+, +cterm.font-result+, +cterm.operation-status+, +cterm.owner+, +cterm.reset+, +cterm.state+
+| link:../src/terminal/hyperlink/st_hyperlink.h[terminal/hyperlink/st_hyperlink.h] | 5 | 0 | 0 | 8 | 0 | +hyperlinks.gc-owner+, +hyperlinks.registry+
+| link:../src/terminal/ooii/st_ooii.h[terminal/ooii/st_ooii.h] | 3 | 0 | 0 | 9 | 0 | +ooii.mode+, +ooii.protocol+
+| link:../src/terminal/screen_mode/st_screen_mode.h[terminal/screen_mode/st_screen_mode.h] | 25 | 0 | 0 | 0 | 0 | +screen.modes+
+| link:../src/terminal/session_history/st_session_history.h[terminal/session_history/st_session_history.h] | 0 | 0 | 1 | 7 | 0 | +history.clear+, +history.owner+
+| link:../src/terminal/term/st_term.h[terminal/term/st_term.h] | 16 | 1 | 0 | 68 | 0 | +session.lifecycle-info+, +term.controls+, +term.owner+
+| link:../src/text/codepage/st_codepage.h[text/codepage/st_codepage.h] | 0 | 35 | 0 | 0 | 0 | +text.codepages+
+| link:../src/text/emoji/st_emoji_catalog.h[text/emoji/st_emoji_catalog.h] | 6 | 0 | 0 | 0 | 0 | +emoji.catalog+
+| link:../src/text/emoji/st_emoji_locale.h[text/emoji/st_emoji_locale.h] | 6 | 0 | 0 | 0 | 0 | +emoji.locale+
+| link:../src/text/unicode_compare/st_unicode_compare.h[text/unicode_compare/st_unicode_compare.h] | 10 | 4 | 0 | 0 | 0 | +text.compare-utilities+, +text.comparison+
+| link:../src/text/unicode_grapheme/st_unicode_grapheme.h[text/unicode_grapheme/st_unicode_grapheme.h] | 0 | 0 | 22 | 0 | 0 | +text.scalar-utilities+
+| link:../src/text/unicode_normalization/st_unicode_normalization.h[text/unicode_normalization/st_unicode_normalization.h] | 0 | 0 | 3 | 0 | 0 | +text.scalar-utilities+
+| link:../src/text/unicode_text/st_unicode_text.h[text/unicode_text/st_unicode_text.h] | 0 | 1 | 0 | 43 | 0 | +text.explicit-normalize+, +text.presentation+
+| link:../src/text/unicode_width/st_unicode_width.h[text/unicode_width/st_unicode_width.h] | 0 | 0 | 12 | 0 | 0 | +text.scalar-utilities+
+| link:../src/text/utf8/st_utf8.h[text/utf8/st_utf8.h] | 0 | 3 | 0 | 17 | 0 | +text.st_utf8+, +text.strict-utf8-codec+
+|===
+
+== Findings: represented capabilities with mapping gaps
+
+These are observations of current behavior, not approvals to change it. A missing
+field can need a getter, an operation can need a different owner/result, or the
+user may decide the restriction is appropriate. No gap is implemented here.
+
+[[finding-bbs-cache-result]]
+=== Successful BBS mutation hides cache-maintenance failure
+
++bbs.cache-result+ (partial; menu). Wren: DirectoryEntry.save/delete/rename return primary success.
+
+The native mutation result can report cache_status after a committed list change. The binding does not inspect that secondary status, so scripts cannot distinguish complete cache maintenance from committed data with cache failure.
+
+Evidence: link:../src/config/bbs_list/st_bbs_list.h[src/config/bbs_list/st_bbs_list.h:58]; link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:4243].
+
+[[finding-bbs-diagnostics]]
+=== Nonfatal BBS-load diagnostics are unavailable
+
++bbs.diagnostics+ (unmapped; menu). Wren: Menu.load has only coarse read status.
+
+No query for nonfatal per-source/per-section load diagnostics and their native status is exported.
+
+Evidence: link:../src/config/bbs_list/st_bbs_list.h[src/config/bbs_list/st_bbs_list.h:114]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:4].
+
+[[finding-bbs-provenance]]
+=== BBS entries lose detailed source provenance
+
++bbs.provenance+ (partial; menu). Wren: DirectoryEntry.type / profile.source.
+
+Native PERSONAL/SHARED/WEB_SYSTEM/WEB_NAMED becomes personal versus system. source_name is not retained in the script model. Scripts cannot identify which named list provided an entry. Shadowed entries are intentionally absent from the merged visible list, but there is no script inspection API for that hidden provenance.
+
+Evidence: link:../src/config/bbs_list/st_bbs_list.h[src/config/bbs_list/st_bbs_list.h:28]; link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:167].
+
+[[finding-bbs-refresh-progress]]
+=== Web-list refresh loses per-item progress and outcomes
+
++bbs.refresh-detail+ (partial; menu). Wren: Menu.refreshWebList returns success/error String.
+
+Menu exposes refresh of a configured list but not native per-item queued/active/complete/failed state, phase, received/total/total_known, status and outcome progress records. The synchronous menu workflow does not provide an observer callback.
+
+Evidence: link:../src/config/bbs_list/st_bbs_list.h[src/config/bbs_list/st_bbs_list.h:68]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:132].
+
+[[finding-cell-style-flags]]
+=== Cells preserve but cannot inspect or edit every native style flag
+
++console.style-bits+ (partial; same VM as the owning API). Wren: Cell bright/blink/legacyAttr/pixelGraphics; Screen.attr.
+
+Native public style flags include underline, bold, reverse, conceal, double-height and teletext presentation controls. Wren exposes bright/blink, legacy colour attributes and readonly pixelGraphics, but no complete flag inspection/editing interface. Opaque Surface copy preserves them; that is not script control. Dirty/reserved and renderer-resolved flags remain host bookkeeping.
+
+Evidence: link:../src/media/console/st_console.h[src/media/console/st_console.h:58]; link:../scripts/syncterm.wren[scripts/syncterm.wren:834].
+
+[[finding-clipboard-url-capabilities]]
+=== Clipboard and URL capability queries are missing
+
++console.clipboard-url-caps+ (partial; same VM as the owning API). Wren: Clipboard / Menu.openUrl / hyperlink operations.
+
+Clipboard and URL operations exist but their native capability bits have no ScreenSupports query. Operation availability cannot be inspected in the same way as palette/pixels/font capabilities.
+
+Evidence: link:../src/media/console/st_console.h[src/media/console/st_console.h:465]; link:../scripts/syncterm.wren[scripts/syncterm.wren:47].
+
+[[finding-connection-setup-result]]
+=== Connection setup has no structured script result
+
++connection.setup-diagnostics+ (partial; menu/application setup). Wren: host setup UI and protocol logs; ConnError for queued sends.
+
+Structured native setup error code/phase/native_error/has_native_error/detail/presented and progress-state enum are not queryable as a script connection-attempt result. Host prompts/logs cover user-facing setup but do not preserve a machine-readable result for Menu.connect selection. ConnError is a different active-send error contract.
+
+Evidence: link:../src/net/connection/st_connection.h[src/net/connection/st_connection.h:106]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1124].
+
+[[finding-console-operation-results]]
+=== Drawing and state operations do not preserve native error distinctions
+
++console.operation-status+ (partial; same VM as the owning API). Wren: Screen/Palette/CustomCursor/VideoFlags drawing and state operations.
+
+Successful drawing/state behavior has equivalents, but native int-returning methods generally become void/null/Bool or a Fiber abort with text. Native IO_ERROR distinctions are not uniformly retained as typed results. Capability guards and validation exist; they do not provide a lossless native error API. Pointer releases and native void-returning lifecycle methods are not affected by this finding.
+
+Evidence: link:../src/scripting/wren_host/wren_bind_core.c[src/scripting/wren_host/wren_bind_core.c:4260]; link:../src/scripting/wren_host/wren_bind_core.c[src/scripting/wren_host/wren_bind_core.c:2825].
+
++cterm.operation-status+ (partial; same VM as the owning API). Wren: CTerm.write/sendKey.
+
+Text write and semantic key injection preserve successful behavior and handled/not-handled, but native status and partial consumed count become generic Fiber abort messages. The caller cannot inspect the native failure code. Raw wire/decoder ownership remains native.
+
+Evidence: link:../src/scripting/wren_host/wren_bind_session.c[src/scripting/wren_host/wren_bind_session.c:1003]; link:../src/scripting/wren_host/wren_bind_session.c[src/scripting/wren_host/wren_bind_session.c:983].
+
+[[finding-cterm-reset-contract]]
+=== Direct terminal reset has no matching public contract
+
++cterm.reset+ (partial; same VM as the owning API). Wren: CTerm.write can send reset escape sequences.
+
+No dedicated script operation invokes st_cterm_reset_terminal or returns its native reset status. That function finishes pending input, resets parser state and rebuilds the RIP engine. CTerm.write can submit protocol reset sequences through the current parser, but does not expose this complete host reset transaction or its failure result.
+
+Evidence: link:../src/terminal/cterm/st_cterm.c[src/terminal/cterm/st_cterm.c:2674]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1228].
+
+[[finding-digest-algorithms]]
+=== File hashing omits SHA-2 and generic digest input
+
++utility.digest+ (partial; menu/connected grant owners; no file opening in picker VM). Wren: File.sha1 / File.md5.
+
+Only two file digest algorithms are exposed. SHA-256/384/512, generic byte-buffer digest input and digest-size query are absent. File methods are grant-confined and return raw digest bytes.
+
+Evidence: link:../src/base/crypto/st_digest.h[src/base/crypto/st_digest.h:18]; link:../src/scripting/wren_host/wren_bind_fs.c[src/scripting/wren_host/wren_bind_fs.c:1294].
+
+[[finding-error-symbols]]
+=== Portable I/O error names are incomplete
+
++errors.io+ (partial; all script VMs). Wren: FileError.code / FileErr; component-specific Error classes.
+
+Portable native codes survive in FileError.code, but FileErr names cover -1 through -22 only. Later network, authentication, format and conflict codes have no matching FileErr constants. errno/Windows translation functions are host mechanisms, not script operations.
+
+Evidence: link:../src/base/io_error/io_error.h[src/base/io_error/io_error.h:36]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1529].
+
+[[finding-files-link-kind]]
+=== Filesystem kind metadata is limited by the grant abstraction
+
++files.link-metadata+ (partial; menu/connected grant owners; no file opening in picker VM). Wren: Directory.list / PickerEntry / File metadata.
+
+Native fs_get_link_info distinguishes link/other/file/directory without following the link. Script listing exposes only directory versus file-like entries and does not offer an lstat-equivalent kind query. Native modified time and size do have corresponding metadata. Directory grants deliberately reject/omit links to avoid following ungranted paths; the missing lstat metadata is an observation of that security boundary, not a request to grant link traversal.
+
+Evidence: link:../src/io/filesystem/filesystem.h[src/io/filesystem/filesystem.h:38]; link:../scripts/syncterm_picker.wren[scripts/syncterm_picker.wren:14]; link:../src/scripting/wren_host/tests/st_wren_host_test.c[src/scripting/wren_host/tests/st_wren_host_test.c:807].
+
+[[finding-font-codepage]]
+=== Custom-font loading omits the codepage choice and mapping metadata
+
++fonts.codepage-loading+ (partial; same VM as the owning API). Wren: Font.load(file); menu configured custom fonts.
+
+Native load/register_custom_codepage can assign a custom bitmap to a chosen codepage. Wren Font.load and its custom-font preparation call default CP437 registration. The application session preparation uses profile.encoding for native custom font loading, so the same configured font can receive a different Unicode mapping through the Wren preparation path. No script codepage argument exists. Font.codepage/codepageOf inspect the selected display slot using builtin metadata or CP437 for every custom selector; codepageOf is not a native catalog selector query and does not report a custom registration mapping.
+
+Evidence: link:../src/media/font_catalog/st_font_catalog.h[src/media/font_catalog/st_font_catalog.h:44]; link:../src/scripting/wren_host/wren_host.c[src/scripting/wren_host/wren_host.c:459]; link:../src/syncterm.c[src/syncterm.c:291]; link:../src/scripting/wren_host/wren_bind_core.c[src/scripting/wren_host/wren_bind_core.c:164].
+
+[[finding-font-load-result]]
+=== Font loading does not return the chosen selector or native failure
+
++cterm.font-result+ (partial; same VM as the owning API). Wren: Font.load(file) returns Bool.
+
+Native registration accepts a selector and returns an identifier/status. Wren automatically chooses the first unused selector and reports only Bool; caller can search availability/name/count but gets neither the chosen selector directly nor native error detail. Custom codepage choice is separately missing.
+
+Evidence: link:../src/scripting/wren_host/wren_bind_core.c[src/scripting/wren_host/wren_bind_core.c:3180]; link:../src/terminal/cterm/st_cterm.h[src/terminal/cterm/st_cterm.h:274].
+
+[[finding-list-encryption-information]]
+=== List encryption metadata and legacy naming are incomplete
+
++list.crypto+ (partial; menu). Wren: Menu.encryptionAvailable/Algorithm/KeySize/Name/setEncryption; Settings.kdfShift.
+
+The owned BBS-list workflow supports plain/AES-128/AES-256/ChaCha20 and current-password rewrite. It does not expose generic encrypted INI streams. Inspection omits format, KDF, actual iterations/cost/block/parallelism and rewrite_recommended; writing fixes block/parallelism to native defaults. Menu.encryptionName labels every non-ChaCha encrypted legacy cipher as AES, so legacy reads can be mislabelled. Native error status becomes Bool in setEncryption. Legacy read-only algorithm enums do not authorize legacy writes.
+
+Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:3034]; link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:3070]; link:../src/config/list_crypto/st_list_crypto.h[src/config/list_crypto/st_list_crypto.h:50].
+
++settings.kdf-legacy+ (partial; menu). Wren: Settings.kdfShift.
+
+The native string can contain legacy iteration policy; the script property parses only scrypt-N8..N20 and otherwise reports 15. Setting it writes a scrypt string. Actual encrypted-list KDF metadata is separately missing; this property is not a lossless view of the native persisted field.
+
+Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:3050].
+
+[[finding-model-mutation-results]]
+=== BBS and Settings mutations coarsen native errors
+
++bbs.mutation-status+ (partial; menu). Wren: DirectoryEntry/Defaults mutation Bool; Menu load read status.
+
+Primary native mutation/rewrite status becomes Bool in script save/delete/default/encryption operations. Distinct native I/O/conflict/policy causes cannot be inspected as structured results. This is in addition to the dropped cache_status, which can fail after primary commit. Menu.load has its own coarse read-status enum rather than every native I/O code.
+
+Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:4243]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:199].
+
++settings.result-status+ (partial; menu). Wren: Settings apply/save/reload and Menu font/web/sort mutation results.
+
+The menu workflow preserves success/failure, but many native integer statuses become Bool, or validation abort messages. This does not preserve a structured native I/O/conflict reason. Font draft save, settings persistence/reload and collection mutations therefore have useful operations with incomplete machine-readable error information.
+
+Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:2845]; link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:3714].
+
+[[finding-pixel-offscreen-blit]]
+=== Pixel buffers cannot use the native offscreen compositor
+
++pixels.offscreen-blit+ (partial; same VM as the owning API). Wren: Screen.blitPixels.
+
+Native st_pixel_buffer_blit can composite into another PixelBuffer with clipping/mask/flips/scaling/alternate plane. Wren only exports screen-destination blit; PixelBuffer itself has no corresponding operation. Pixel-by-pixel script code is not a built-in native-equivalent operation.
+
+Evidence: link:../src/media/pixels/st_pixels.h[src/media/pixels/st_pixels.h:114]; link:../scripts/syncterm.wren[scripts/syncterm.wren:152].
+
+[[finding-settings-transfer-timeouts]]
+=== Transfer timeout settings are missing
+
++settings.transfer-timeouts+ (unmapped; menu). Wren: none.
+
+Transfer success/failure keypress timeout settings have no Settings getters/setters despite being native persisted user policy.
+
+Evidence: link:../src/config/settings/st_settings.h[src/config/settings/st_settings.h:82]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:196].
+
+[[finding-sftp-entry-stat]]
+=== SFTP listings omit available stat fields
+
++sftp.entry-stat+ (partial; same VM as the owning API). Wren: SFTPEntry.size/mtime/isDir.
+
+Directory response contains complete native stat, but SFTPEntry omits atime, mode, uid and gid. Separate SFTP.stat exposes them only after another request and may observe changed state. Embedded stat itself is therefore only partially represented.
+
+Evidence: link:../src/net/sftp_client/st_sftp.h[src/net/sftp_client/st_sftp.h:53]; link:../scripts/syncterm.wren[scripts/syncterm.wren:2075]; link:../src/scripting/wren_host/wren_sftp.c[src/scripting/wren_host/wren_sftp.c:905].
+
+[[finding-theme-operation-results]]
+=== Theme operations preserve error messages but usually lose codes
+
++themes.operation-status+ (partial; menu). Wren: theme operations return null/error String; document.save returns [code, message].
+
+ThemeDocument.save preserves its native document error enum, including conflict. Most other theme operations flatten native integer reasons into a diagnostic String, so callers cannot reliably branch on native I/O/invalid/not-found statuses without parsing prose. Catalog fields and editable content remain mapped.
+
+Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:1827]; link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:2314].
+
+[[finding-theme-origin]]
+=== Cloud theme provenance is omitted
+
++themes.cloud-origin+ (partial; menu). Wren: Menu.cloudThemes.
+
+Catalog rows omit the native source URI and expected SHA-256. Downloads and verification remain host-owned, but scripts cannot inspect or display that provenance. Parsed theme ownership is separately represented by copyCloudTheme rather than missing because a pointer is absent.
+
+Evidence: link:../src/config/theme/st_theme.h[src/config/theme/st_theme.h:61]; link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:2355].
+
+[[finding-tls-peer-information]]
+=== Negotiated TLS and certificate metadata are unavailable
+
++tls.peer-info+ (unmapped; connected). Wren: no active Session TLS inspection object.
+
+Negotiated version/cipher, full certificate count/subject/issuer/validity/SHA-256 fingerprint/PEM and the last TLS error are not exposed for connected inspection. Profile.tlsVersionFloor is saved policy, not negotiated state; host certificate prompts are not a query API. This omission does not authorize script trust replacement.
+
+Evidence: link:../src/net/tls/st_tls.h[src/net/tls/st_tls.h:118]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1347].
+
+[[finding-transfer-protocol-selection]]
+=== Script-directed transfers cannot select XMODEM-G
+
++transfer.xmodem-g+ (partial; same VM as the owning API). Wren: RIP selects native XMODEM-G internally.
+
+Native XMODEM-G exists and RIP can choose it, but Transfer protocol parser offers no explicit xmodem-g choice for script-directed transfers.
+
+Evidence: link:../src/scripting/wren_host/wren_bind_xfer.c[src/scripting/wren_host/wren_bind_xfer.c:116]; link:../src/scripting/wren_host/wren_bind_xfer.c[src/scripting/wren_host/wren_bind_xfer.c:376].
+
+[[finding-transfer-result]]
+=== Transfer completion loses the native result code
+
++transfer.result-code+ (partial; same VM as the owning API). Wren: Transfer.success and startup Fiber error.
+
+The native integer completion result is reduced to success Bool and aborted Bool; startup errors use a generic abort message. Native error reasons cannot be recovered from these flags, even though a textual log may explain some failures.
+
+Evidence: link:../src/net/transfer/st_transfer.h[src/net/transfer/st_transfer.h:70]; link:../src/scripting/wren_host/wren_bind_xfer.c[src/scripting/wren_host/wren_bind_xfer.c:322].
+
+[[finding-transfer-upload-authority]]
+=== Upload path strings bypass the File-grant abstraction
+
++transfer.path-authority+ (partial; same VM as the owning API). Wren: Transfer.upload(kind, path, lastCh) / uploadBatch.
+
+Native paths are raw C strings. Dispatch copies arbitrary script-provided path strings into config.paths; start checks safe mode/session/protocol but does not verify an upload File grant or configured upload-root confinement. This bypasses the otherwise capability-based File abstraction. Existing picker consumers provide authorized paths, but that does not constrain other callers. No behavior change is made in this accounting.
+
+Evidence: link:../src/scripting/wren_host/wren_bind_xfer.c[src/scripting/wren_host/wren_bind_xfer.c:414]; link:../src/scripting/wren_host/wren_bind_xfer.c[src/scripting/wren_host/wren_bind_xfer.c:52].
+
+== Findings: utility/service and policy scope decisions
+
+These entries are fully accounted omissions or partial workflows. The remaining
+question is whether the script API should include the capability, and in which VM
+and owner. Existing native availability alone is not sufficient reason to add it.
+No further accounting work is hidden behind these decisions.
+
+[[finding-audio-service]]
+=== General script audio playback and decoding
+
++audio.playback+ (unmapped; all script VMs). Wren: no general script audio object.
+
+Wren can select allowed audio backends through Settings.audioModes and trigger terminal-protocol music/OOII sound, but cannot directly synthesize tones/waves, beep, submit PCM, create streams, choose volume/ramp/fade/crossfade/loop, drain/clear or inspect stream idle/volume. Native functional audio availability is therefore not full script audio coverage. Whether a general playback API belongs in scope remains a policy decision.
+
+Evidence: link:../src/media/audio/audio.h[src/media/audio/audio.h:143]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:85]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1198].
+
++audio.decode+ (unmapped; all script VMs). Wren: no generic audio-file decode API.
+
+Terminal protocols can consume sounds internally, but no script format availability query or granted-file/byte decoding to PCM is exposed. Native stream/memory inputs are not mapped by the absence of an AudioFile object.
+
+Evidence: link:../src/media/audio_file/st_audio_file.h[src/media/audio_file/st_audio_file.h:22]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1725].
+
++cterm.audio-fx+ (partial; same VM as the owning API). Wren: protocol-driven OOII/CTerm sound only.
+
+Native play_fx_u8 accepts PCM effects directly; Wren has no direct script PCM submission. Terminal protocol music is not arbitrary playback coverage.
+
+Evidence: link:../src/terminal/cterm/st_cterm.h[src/terminal/cterm/st_cterm.h:207]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1208].
+
+[[finding-clock-precision-results]]
+=== Clock precision and native error results
+
++time.precision+ (partial; same VM as the owning API). Wren: Timer.now monotonic seconds; standard System.clock CPU seconds.
+
+The usable clocks exist, but Timer.now uses the native millisecond source and returns zero on native clock failure. No API exposes the native nanosecond monotonic/CPU result and its status; standard System.clock uses the C clock() resolution rather than calling st_time_process_cpu_ns. Submillisecond/native-error fidelity is an omitted utility scope decision, not an absence of a monotonic clock.
+
+Evidence: link:../src/base/time/st_time.h[src/base/time/st_time.h:21]; link:../src/scripting/wren_host/wren_bind_core.c[src/scripting/wren_host/wren_bind_core.c:4528]; link:../src/scripting/wren_vm/vm/wren_core.c[src/scripting/wren_vm/vm/wren_core.c:1202].
+
+[[finding-codepage-utility]]
+=== General codepage encoding and compatibility metadata
+
++text.codepages+ (partial; all script VMs). Wren: Codepage constants/decodeByte; Font.codepage/codepageOf; Menu.encodings; semantic Conn sends.
+
+All native codepage choices and byte-to-scalar decoding are represented. Encoding uses the current session and capability helper encodes_, not a general public encodeByte(codepage, scalar) operation. Native broken_vertical metadata has no script query. Native count/name are available through the Menu encodings catalog; enum COUNT is a native sentinel, not another encoding.
+
+Evidence: link:../scripts/syncterm.wren[scripts/syncterm.wren:728]; link:../src/scripting/wren_host/wren_bind_core.c[src/scripting/wren_host/wren_bind_core.c:3112]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:77].
+
+[[finding-console-display-policy]]
+=== Live console/display policies
+
++console.display-controls+ (unmapped; same VM as the owning API). Wren: no generic console policy object.
+
+Native wrap, blink mode, full-surface-scroll, fallback-font choice, explicit aspect ratio and fullscreen setters lack direct script control/query. Some are derived by emulation or selected screen mode and may properly stay host policy; that is a scope decision. Settings custom aspect configures a future/custom mode, not arbitrary live aspect changes. Native pointer-shape selection (default/text/link) is only used by the host hyperlink-hover owners; no generic script pointer-shape selector is exported.
+
+Evidence: link:../src/media/console/st_console.h[src/media/console/st_console.h:601]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:245].
+
+[[finding-cterm-live-encoding]]
+=== Live terminal encoding mutation
+
++cterm.encoding-control+ (unmapped; same VM as the owning API). Wren: CTerm.encoding/codepage are readonly; Profile.encoding configures sessions.
+
+The native live set_encoding operation has no script setter. Reading active state or editing the profile for future initialization is not the same capability.
+
+Evidence: link:../src/terminal/cterm/st_cterm.h[src/terminal/cterm/st_cterm.h:294]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1191].
+
+[[finding-files-rename-copy]]
+=== Granted rename and native file-copy semantics
+
++files.rename-copy+ (unmapped; menu/connected grant owners; no file opening in picker VM). Wren: none.
+
+No granted rename or native copy-file operation exists. Read/write/delete cannot promise atomic rename or the native copy mode/mtime behavior.
+
+Evidence: link:../src/io/filesystem/filesystem.h[src/io/filesystem/filesystem.h:63]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1467].
+
+[[finding-files-truncate]]
+=== Explicit file truncation
+
++files.truncate+ (unmapped; menu/connected grant owners; no file opening in picker VM). Wren: no explicit File truncate method.
+
+The binding offers reads/writes/seek and size inspection, but no explicit truncation to a chosen length. Creating/replacing a file is not equivalent to truncating an existing granted stream at an arbitrary length.
+
+Evidence: link:../src/io/filesystem/filesystem.h[src/io/filesystem/filesystem.h:49]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1497].
+
+[[finding-font-compatibility-metadata]]
+=== Font broken-vertical compatibility metadata
+
++fonts.vertical-compatibility+ (unmapped; same VM as the owning API). Wren: none.
+
+No public query reports the native broken-vertical font compatibility bit. Menu filters/name/codepage do not convey that specific metadata.
+
+Evidence: link:../src/media/fonts/st_builtin_fonts.h[src/media/fonts/st_builtin_fonts.h:22]; link:../scripts/syncterm.wren[scripts/syncterm.wren:982].
+
+[[finding-font-raster-model]]
+=== Rich raster/font descriptors from script data
+
++console.rich-font+ (partial; same VM as the owning API). Wren: Font.load / native bundled font registration.
+
+The native font descriptor can register arbitrary bitmap widths/glyph counts/strides, wide rasters, scalar and cluster mappings, coloured glyphs and fallback/decode-error glyphs. Wren only loads supported legacy font files; it cannot construct these descriptors from script data. Native mappings used by Cell text/rendering are not a general script font-builder API.
+
+Evidence: link:../src/media/console/st_console.h[src/media/console/st_console.h:175]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1009].
+
+[[finding-generic-ini]]
+=== General INI document manipulation
+
++config.ini+ (unmapped; all script VMs). Wren: Profile / Settings / ThemeDocument are typed consumers only.
+
+No general INI document/section API is exported: parsing/serialization, root/section/key CRUD, typed getters/setters, style options and bit/enum/list conversion remain native. Typed application models cover their own workflows but do not map arbitrary INI documents. NFC host-text policy remains unchanged.
+
+Evidence: link:../src/config/ini/ini.h[src/config/ini/ini.h:65]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:172].
+
+[[finding-history-clear]]
+=== Explicit retained-history clearing
+
++history.clear+ (unmapped; same VM as the owning API). Wren: none.
+
+Native history.clear has no explicit script action to discard retained history. Changing capacity or overwriting screen rows is not an equivalent clear operation. Whether scripts should control retained history is a scope decision.
+
+Evidence: link:../src/terminal/session_history/st_session_history.h[src/terminal/session_history/st_session_history.h:31]; link:../scripts/syncterm.wren[scripts/syncterm.wren:976].
+
+[[finding-input-focus-held]]
+=== Focus events and current held-key state
+
++console.focus-held+ (unmapped; same VM as the owning API). Wren: physical edges exist; no focus event or held-state query.
+
+Native focus state and physical-key held bitmap/query are not available to scripts. Tracking edges locally does not reconstruct initial held state or focus-loss recovery. Host/terminal handling does not constitute a public query/event API.
+
+Evidence: link:../src/media/console/st_console.h[src/media/console/st_console.h:730]; link:../scripts/syncterm.wren[scripts/syncterm.wren:561].
+
+[[finding-path-utilities]]
+=== Pure path helpers outside the picker workflow
+
++paths.picker+ (partial; isolated picker for request-scoped helpers). Wren: PickerRequest join/resolve/initial; File.path.
+
+Picker-only path resolution/join and path metadata cover the trusted user-selection workflow; no general Path utility namespace exports all native separator/basename/component/root/parent/absolute/user-expansion operations in other VMs. Pure path calculation would not itself grant file access; lack of a generic helper is an unresolved utility scope decision, not a reason to permit arbitrary file opening.
+
+Evidence: link:../src/io/path/path.h[src/io/path/path.h:36]; link:../scripts/syncterm_picker.wren[scripts/syncterm_picker.wren:62].
+
+[[finding-serial-lines]]
+=== Active serial line state/control and DTR/DSR flow
+
++serial.lines+ (unmapped; same VM as the owning API). Wren: none.
+
+Native DTR/RTS setters, modem CTS/DSR/RING/DCD query and DTR_DSR flow choice have no script counterpart. General device ownership remains host-controlled; whether active-connection line controls should be exposed is a separate scope decision.
+
+Evidence: link:../src/io/serial/serial.h[src/io/serial/serial.h:75]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1451].
+
+[[finding-session-lifecycle-information]]
+=== Session termination cause and auxiliary liveness
+
++session.lifecycle-info+ (partial; same VM as the owning API). Wren: Conn.connected / Hook.onShellClose/onDisconnect; Session.holdCount.
+
+Native remote_closed records drained remote termination rather than a local hangup/exit. The script callbacks and connected Bool do not expose that exact final cause. Session.holdCount counts explicit Wren leases, not the native SSH auxiliary transport liveness or every pending SFTP request. Those aggregate owner decisions are not a public inspection result; exposing a reason/liveness snapshot is a scope decision, not a second transport owner.
+
+Evidence: link:../src/terminal/term/st_term.h[src/terminal/term/st_term.h:119]; link:../src/scripting/wren_host/wren_session.c[src/scripting/wren_host/wren_session.c:148]; link:../src/net/connection/connection_ssh.c[src/net/connection/connection_ssh.c:673].
+
+[[finding-settings-window-policy]]
+=== Window state and text alignment settings
+
++settings.window-state+ (unmapped; menu). Wren: none.
+
+scaling_factor, window_width, window_height and left_justify have no Settings property. Some are remembered frontend state, but text alignment is also user policy. They must not be declared covered merely because the host persists them; whether to expose window state versus policy remains a scope decision.
+
+Evidence: link:../src/config/settings/st_settings.h[src/config/settings/st_settings.h:91]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:196].
+
+[[finding-text-comparison-utilities]]
+=== Parameterized wildcard/name/comparison utilities
+
++text.compare-utilities+ (partial; same VM as the owning API). Wren: picker masks / Menu.nameAvailable / typed model setters.
+
+No general grapheme wildcard matcher or parameterized Unicode name validator is exported. The picker and BBS/theme/font validators consume these native capabilities within fixed policies. Text.compare supplies collation, not an exact numeric result of the separate caseless-key comparison routine; caselessEqual is available for canonical equality.
+
+Evidence: link:../src/text/unicode_compare/st_unicode_compare.h[src/text/unicode_compare/st_unicode_compare.h:47]; link:../scripts/syncterm.wren[scripts/syncterm.wren:14].
+
+[[finding-text-normalize-result]]
+=== Explicit normalized String return value
+
++text.explicit-normalize+ (partial; same VM as the owning API). Wren: Text.normalizedByteCount and implicit NFC host boundaries.
+
+Native st_unicode_text_normalize returns canonical UTF-8 bytes. No public Text method returns the normalized String itself; normalizedByteCount returns only size. Host normalization of config/path/display inputs is unchanged and does not normalize arbitrary Wren Strings or provide a pure return-value utility.
+
+Evidence: link:../src/text/unicode_text/st_unicode_text.h[src/text/unicode_text/st_unicode_text.h:119]; link:../scripts/syncterm.wren[scripts/syncterm.wren:16].
+
+[[finding-tls-policy-options]]
+=== Additional TLS policies and structured diagnostics
+
++tls.policy-options+ (partial; same VM as the owning API). Wren: Profile trust/PSK/floor and protocolLogLevel.
+
+Native maximum TLS version, handshake timeout and independent PSK compatibility policy are not script-configurable. Native diagnostic records retain status/provider_status/fatal/provider/message/level; script protocol logs flatten these and do not expose the structured record. Existing supported profile policy maps the remaining ordinary options; raw callback context/pointers remain host mechanisms.
+
+Evidence: link:../src/net/tls/st_tls.h[src/net/tls/st_tls.h:86]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1317].
+
+[[finding-transfer-receive-stream]]
+=== Generic transfer receive events and policies
+
++transfer.receive-policy+ (partial; same VM as the owning API). Wren: automatic RIP/CET asset workflows.
+
+Native overwrite/discard/receive_events, destination callback and begin/data/end receive mailbox support asset playback. The binding uses them internally for RIP; scripts cannot choose these modes or consume transfer bytes/events as a generic stream. Borrowed native callbacks are not appropriate to expose directly, but their usable streaming capability remains a scope decision.
+
+Evidence: link:../src/net/transfer/st_transfer.h[src/net/transfer/st_transfer.h:46]; link:../src/scripting/wren_host/wren_bind_xfer.c[src/scripting/wren_host/wren_bind_xfer.c:111].
+
+[[finding-unicode-property-utilities]]
+=== General Unicode scalar/property analysis
+
++text.scalar-utilities+ (unmapped; same VM as the owning API). Wren: Text.graphemes / Screen.textWidth provide higher-level results only.
+
+No general query API exposes native grapheme/Indic/pictographic/RGI-prefix properties, canonical combining class/decompose/compose, East Asian Width/emoji/default-ignorable/nonspacing properties or scalar columns. These are consumed by native text rendering and segmentation, but that use does not make individual pure queries available to scripts. General Unicode analysis is a scope decision; this records no requirement to change Wren String semantics or port Unicode tables.
+
+Evidence: link:../src/text/unicode_grapheme/st_unicode_grapheme.h[src/text/unicode_grapheme/st_unicode_grapheme.h:15]; link:../src/text/unicode_normalization/st_unicode_normalization.h[src/text/unicode_normalization/st_unicode_normalization.h:27]; link:../src/text/unicode_width/st_unicode_width.h[src/text/unicode_width/st_unicode_width.h:14]; link:../scripts/syncterm.wren[scripts/syncterm.wren:14].
+
+[[finding-utf8-codec]]
+=== Strict UTF-8 byte decoding as a public utility
+
++text.strict-utf8-codec+ (partial; same VM as the owning API). Wren: String.fromCodePoint / String.codePoints; strict host text boundaries.
+
+Standard Wren can encode scalars and inspect String codepoints/bytes, but its arbitrary-byte String indexing is not the native strict decode_one result/consumed/error contract. No public strict one-shot UTF-8 validation/decode API accepts arbitrary bytes and returns that native information. Incremental decoder buffers remain host-owned. Whether scripts need a separate strict codec is a scope decision.
+
+Evidence: link:../src/text/utf8/st_utf8.h[src/text/utf8/st_utf8.h:42]; link:../docs/WREN_GUIDANCE.md[docs/WREN_GUIDANCE.md:50].
+
+[[finding-utility-codecs]]
+=== General Base64 and hexadecimal codecs
+
++utility.base64+ (unmapped; all script VMs). Wren: none.
+
+No general byte Base64 encoder/decoder is exported. Internal token serialization is not a public codec; implementing the algorithm in a script is not an existing equivalent.
+
+Evidence: link:../src/base/base64/st_base64.h[src/base/base64/st_base64.h:19]; link:../scripts/syncterm.wren[scripts/syncterm.wren:14].
+
++utility.hex+ (unmapped; all script VMs). Wren: none.
+
+File digests return raw bytes; no general byte-to-hex / hex-to-byte codec or digit decoder is exported.
+
+Evidence: link:../src/base/hex/st_hex.h[src/base/hex/st_hex.h:32]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1513].
+
+[[finding-utility-conversion]]
+=== Strict native value parsing and formatting
+
++utility.ascii+ (unmapped; all script VMs). Wren: no exact general ASCII helper API.
+
+Unicode-aware Text comparisons and standard String operations are available, but do not have the exact ASCII-only trimming, span and case semantics of every native helper. These implementation utilities are not a required portability API for scripts; broader relevance remains a scope decision.
+
+Evidence: link:../src/base/string_util/string_util.h[src/base/string_util/string_util.h:22]; link:../scripts/syncterm.wren[scripts/syncterm.wren:14].
+
++utility.conversion+ (unmapped; all script VMs). Wren: typed model setters consume values; no full generic conversion API.
+
+Native strict int64/uint64/bool/double parsing and duration/date parsing/formatting have no exact general script equivalent. Num.fromString and toString have different syntax/ranges; binary64 cannot represent all native 64-bit integers. Typed settings use these internally. This is an omitted utility scope decision, not justification for changing Wren Number.
+
+Evidence: link:../src/base/value_convert/value_convert.h[src/base/value_convert/value_convert.h:22]; link:../scripts/syncterm.wren[scripts/syncterm.wren:2031].
+
+[[finding-utility-crypto]]
+=== General cryptographic primitives and strong random bytes
+
++utility.cipher+ (unmapped; all script VMs). Wren: Menu.setEncryption is a fixed BBS-list workflow, not a cipher API.
+
+No general cipher support query or byte encryption/decryption operation exists. Native legacy algorithm enums describe provider/read compatibility; this finding does not propose enabling legacy writers.
+
+Evidence: link:../src/base/crypto/st_cipher.h[src/base/crypto/st_cipher.h:43]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:123].
+
++utility.kdf+ (unmapped; all script VMs). Wren: Settings.kdfShift configures list rewriting only.
+
+No general PBKDF2/scrypt operation or parameter validation API. Fixed list encryption is a consumer, not a mapping of arbitrary KDF input/output.
+
+Evidence: link:../src/base/crypto/st_kdf.h[src/base/crypto/st_kdf.h:29]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:237].
+
++utility.crypto+ (unmapped; all script VMs). Wren: Menu.buildOptions includes the provider name.
+
+No general random-byte operation, provider version query, or crypto-status taxonomy is exported. List workflow errors do not expose every provider result. Secret clearing remains native ownership, classified separately.
+
+Evidence: link:../src/base/crypto/st_crypto.h[src/base/crypto/st_crypto.h:35]; link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:1628].
+
+[[finding-webget-service]]
+=== General HTTP download requests
+
++webget.workflow+ (partial; menu workflows). Wren: Menu named web lists / cloud themes.
+
+Native downloads are usable only through fixed list/theme workflows. No general HTTP-to-granted-file request exposes URL/cache key/output/timeout/size/validator/TLS choices, progress or downloaded/not-modified/fresh-cache/size result. Existing workflows are not generic HTTP coverage. Whether to add any general service is a scope/trust decision; the connected VM currently cannot establish another connection.
+
+Evidence: link:../src/net/webget/st_webget.h[src/net/webget/st_webget.h:41]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:132]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:118].
+
+== Documentation discrepancy
+
+[[profile-field-table]]
+=== Profile field-count table is stale
+
+docs/api/bbs-entry-fields.adoc claims 50 persisted keys / 56 members but st_profile.h has 57 members, including cterm_log_level. The table omits CTermLogLevel -> Profile.ctermLogLevel, which is declared and bound. This is stale coverage documentation, not a missing binding.
+
+Evidence: link:../src/config/profile/st_profile.h[src/config/profile/st_profile.h:165]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1319]; link:../docs/api/bbs-entry-fields.adoc[docs/api/bbs-entry-fields.adoc:4].
+
+== Confirmed equivalents and intentional ownership
+
+Some tempting gap claims were ruled out by following the actual abstraction:
+
+* +Timer.now+ already returns monotonic seconds. +Timer.after+ handles waits;
+  standard +System.clock+ provides process CPU time. No clock API was added.
+* +VideoFlags.expand+ correctly lacks a live setter: the native setter rejects
+  changing that creation-time flag. +lineGraphicsExpand+ is independently mutable.
+* All fifteen SFTP provider operations have equivalents. Request ids and numeric
+  handles become owned Operation/RemoteFile/RemoteDirectory objects; byte/list
+  sizes are language counts. The listing stat-field loss remains a real exception.
+* Profile configuration, DirectoryEntry persistence metadata and Session runtime
+  state are separate objects. Missing duplicate setters on every object are not
+  missing native fields. Defaults intentionally exclude entry scripts.
+* Hyperlink GC roots, thread/event/semaphore objects, socket/TLS workers, audio
+  hardware, display activation and VM create/destroy belong to their host owners.
+* Image PPM/PBM/JXL decoding, pixel masks/planes/descriptors, Cell/Surface copying,
+  scrollback row copying, theme documents/undo, menu models and semantic connection
+  send operations have usable higher-level APIs. Their individual exceptions and
+  error limits are retained in the ledger rather than concealed by this summary.
+
+== Consumers, tests and limits of verification
+
+Source-level evidence is not replaced by test names. The metadata pins assertion
+anchors for SFTP error payloads and cancellation/close completion; filesystem
+success/failure and link rejection; native and Wren video-flag behavior; Settings
+safe-mode KDF behavior; and the standard VM String behavior. It also records
+bundled consumers: the main menu/profile/settings/theme editors, font picker,
+transfer picker/App, SFTP browser/queue, UI dispatcher and core helper tests.
+
+Dispatch order was checked in +st_wren_bind_method+: session/VM-specific methods
+precede core fallbacks, and a declared method in another VM does not supply that
+VM's capability. For example, the menu's CTerm fallback is not evidence that a
+connected CTerm state query is constant. The connected binder reads the real
+terminal state.
+
+Verification performed on FreeBSD 15.1-RELEASE-p5 amd64 with Clang 19.1.7,
+C17, the native Debug CMake configuration and +ST_CONSOLE_TEST=ON+:
+
+* Configured the standalone project and built +syncterm_app+, the host, menu
+  settings, loader and picker test targets, and all four VM test targets.
+* All 26 Wren CTests passed: four +st_wren_vm_*+ tests; host, menu, settings,
+  live SFTP, picker and directory contracts; seven loader/model/core cases;
+  and eight synthetic UI suites. Inherited desktop display/session variables
+  were cleared; these tests used their headless/control backends.
+* The ledger checker reproduced all 80 headers / 2,432 items and checked all
+  dispositions, evidence anchors/digests and 119 explicit header exclusions.
+  The full inventory also includes forced libc capability-absent declarations.
+
+No Windows runtime, real audio-device or exhaustive per-native-option coverage
+is claimed. Tests corroborate the specified paths; static declaration/dispatch/
+implementation review establishes the reported omissions. No regression tests
+were invented for methods which do not exist, and no native binding or Wren
+language behavior was changed.
+
+== Rechecking and future edits
+
+From the repository root, after configuring a native CMake build:
+
+[source,sh]
+----
+cmake -S . -B build-wren-input -DCMAKE_BUILD_TYPE=Debug -DST_CONSOLE_TEST=ON
+python3 tools/audit/wren_c_api_coverage.py --check --build-dir build-wren-input
+----
+
++--extract+ emits the current Clang inventory instead. The checker refuses missing
+or duplicate symbols, unclassified/unused assessments, header/symbol/type/line
+changes, changed exclusion sets, and missing/changed evidence. It is an accounting
+drift check, not an automatic proof of semantic coverage. A changed header or
+binding must be reviewed before updating its digest/disposition; regenerating an
+empty inventory does not count as review. This report is a durable accounting,
+not an implementation checklist to delete after the review.
