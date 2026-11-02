@@ -10,7 +10,7 @@
 #include "io_error.h"
 #include "st_time.h"
 #include "string_compat.h"
-#include "xp_crypto.h"
+#include "st_crypto.h"
 
 #include <openssl/err.h>
 #include <openssl/ssl.h>
@@ -493,7 +493,7 @@ fail:
 		SSL_free(session->ssl);
 	if (session->context != NULL)
 		SSL_CTX_free(session->context);
-	xp_crypto_clear(session->psk, session->psk_size);
+	st_crypto_clear(session->psk, session->psk_size);
 	free(session->psk);
 	free(session->psk_identity);
 	free_peer_certificates(session);
@@ -635,7 +635,7 @@ st_tls_close(st_tls_session_t *session)
 	SSL_free(session->ssl);
 	SSL_CTX_free(session->context);
 	(void)socket_close(session->socket);
-	xp_crypto_clear(session->psk, session->psk_size);
+	st_crypto_clear(session->psk, session->psk_size);
 	free(session->psk);
 	free(session->psk_identity);
 	free_peer_certificates(session);

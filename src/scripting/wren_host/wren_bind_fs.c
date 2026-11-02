@@ -15,8 +15,8 @@
 #include "st_bbs_list.h"
 #include "st_consent_token.h"
 #include "string_compat.h"
-#include "xp_crypto.h"
-#include "xp_digest.h"
+#include "st_crypto.h"
+#include "st_digest.h"
 
 #include <errno.h>
 #include <limits.h>
@@ -384,7 +384,7 @@ st_wren_file_push(WrenVM *vm, int slot, const char *path,
 		rights = FILE_RIGHT_WRITE;
 	bool result = push_file_full(vm, slot, path, rights, disposition, token);
 
-	xp_crypto_clear(key, sizeof(key));
+	st_crypto_clear(key, sizeof(key));
 	free(token);
 	return result;
 }
@@ -1019,12 +1019,12 @@ fn_file_token(WrenVM *vm)
 }
 
 static void
-file_digest(WrenVM *vm, enum xp_digest_algorithm algorithm)
+file_digest(WrenVM *vm, enum st_digest_algorithm algorithm)
 {
 	struct st_wren_file *file = checked_file(vm, false, FILE_RIGHT_READ);
 	file_map_t *mapping = NULL;
 	uint8_t digest[64];
-	size_t size = xp_digest_size(algorithm);
+	size_t size = st_digest_size(algorithm);
 
 	if (file == NULL)
 		return;
@@ -1034,16 +1034,16 @@ file_digest(WrenVM *vm, enum xp_digest_algorithm algorithm)
 		return;
 	}
 	if (size == 0 || file_map_open(&mapping, file->path) != 0
-	    || xp_digest(algorithm, file_map_data(mapping), file_map_size(mapping),
-	    digest, size) != XP_CRYPTO_OK)
+	    || st_digest(algorithm, file_map_data(mapping), file_map_size(mapping),
+	    digest, size) != ST_CRYPTO_OK)
 		push_error(vm, 4, errno, "File digest failed");
 	else
 		wrenSetSlotBytes(vm, 0, (const char *)digest, size);
 	file_map_close(mapping);
 }
 
-static void fn_file_sha1(WrenVM *vm) { file_digest(vm, XP_DIGEST_SHA1); }
-static void fn_file_md5(WrenVM *vm) { file_digest(vm, XP_DIGEST_MD5); }
+static void fn_file_sha1(WrenVM *vm) { file_digest(vm, ST_DIGEST_SHA1); }
+static void fn_file_md5(WrenVM *vm) { file_digest(vm, ST_DIGEST_MD5); }
 
 static void fn_file_error_code(WrenVM *vm)
 {
@@ -1174,13 +1174,13 @@ fn_host_open_local(WrenVM *vm)
 		goto finished;
 	}
 	token = wrenGetSlotString(vm, 1);
-	if (st_consent_token_verify(&path, key, token) != XP_CRYPTO_OK
+	if (st_consent_token_verify(&path, key, token) != ST_CRYPTO_OK
 	    || !push_file_full(vm, 0, path, FILE_RIGHT_READ,
 	    ST_WREN_PICKER_DISPOSITION_READ, token))
 		wrenSetSlotNull(vm, 0);
 
 finished:
-	xp_crypto_clear(key, sizeof(key));
+	st_crypto_clear(key, sizeof(key));
 	free(path);
 }
 

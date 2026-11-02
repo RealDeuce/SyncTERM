@@ -5,9 +5,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "xp_cipher.h"
-#include "xp_kdf.h"
-#include "xp_crypto.h"
+#include "st_cipher.h"
+#include "st_kdf.h"
+#include "st_crypto.h"
 
 #include <stdint.h>
 #include <string.h>
@@ -171,22 +171,22 @@ sha256_final(struct sha256_context *context, uint8_t result[32])
 		result[i * 4 + 2] = (uint8_t)(context->state[i] >> 8);
 		result[i * 4 + 3] = (uint8_t)context->state[i];
 	}
-	xp_crypto_clear(context, sizeof(*context));
+	st_crypto_clear(context, sizeof(*context));
 }
 
-const char *xp_crypto_provider_name(void) { return "none"; }
-const char *xp_crypto_provider_version(void) { return ""; }
+const char *st_crypto_provider_name(void) { return "none"; }
+const char *st_crypto_provider_version(void) { return ""; }
 
 int
-xp_crypto_random(void *result, size_t size)
+st_crypto_random(void *result, size_t size)
 {
 	return result == NULL && size != 0
-	    ? XP_CRYPTO_ERR_INVALID : XP_CRYPTO_ERR_DISABLED;
+	    ? ST_CRYPTO_ERR_INVALID : ST_CRYPTO_ERR_DISABLED;
 }
 
 bool
-xp_cipher_supported(enum xp_cipher_algorithm algorithm,
-	enum xp_cipher_direction direction)
+st_cipher_supported(enum st_cipher_algorithm algorithm,
+	enum st_cipher_direction direction)
 {
 	(void)algorithm;
 	(void)direction;
@@ -194,8 +194,8 @@ xp_cipher_supported(enum xp_cipher_algorithm algorithm,
 }
 
 int
-xp_cipher_crypt(enum xp_cipher_algorithm algorithm,
-	enum xp_cipher_direction direction, const void *key, size_t key_size,
+st_cipher_crypt(enum st_cipher_algorithm algorithm,
+	enum st_cipher_direction direction, const void *key, size_t key_size,
 	const void *iv, size_t iv_size, uint32_t initial_counter,
 	const void *input, size_t input_size, void *output, size_t output_size)
 {
@@ -210,38 +210,38 @@ xp_cipher_crypt(enum xp_cipher_algorithm algorithm,
 	(void)input_size;
 	(void)output;
 	(void)output_size;
-	return XP_CRYPTO_ERR_DISABLED;
+	return ST_CRYPTO_ERR_DISABLED;
 }
 
 int
-xp_digest(enum xp_digest_algorithm digest, const void *input,
+st_digest(enum st_digest_algorithm digest, const void *input,
 	size_t input_size, void *result, size_t result_size)
 {
 	struct sha256_context context;
 
 	if ((input == NULL && input_size != 0) || result == NULL
-	    || result_size != xp_digest_size(digest))
-		return XP_CRYPTO_ERR_INVALID;
-	if (digest != XP_DIGEST_SHA256)
-		return XP_CRYPTO_ERR_DISABLED;
+	    || result_size != st_digest_size(digest))
+		return ST_CRYPTO_ERR_INVALID;
+	if (digest != ST_DIGEST_SHA256)
+		return ST_CRYPTO_ERR_DISABLED;
 	sha256_init(&context);
 	sha256_update(&context, input, input_size);
 	sha256_final(&context, result);
-	return XP_CRYPTO_OK;
+	return ST_CRYPTO_OK;
 }
 
 size_t
-xp_digest_size(enum xp_digest_algorithm digest)
+st_digest_size(enum st_digest_algorithm digest)
 {
-	return digest == XP_DIGEST_MD5 ? 16
-	    : digest == XP_DIGEST_SHA1 ? 20
-	    : digest == XP_DIGEST_SHA256 ? 32
-	    : digest == XP_DIGEST_SHA384 ? 48
-	    : digest == XP_DIGEST_SHA512 ? 64 : 0;
+	return digest == ST_DIGEST_MD5 ? 16
+	    : digest == ST_DIGEST_SHA1 ? 20
+	    : digest == ST_DIGEST_SHA256 ? 32
+	    : digest == ST_DIGEST_SHA384 ? 48
+	    : digest == ST_DIGEST_SHA512 ? 64 : 0;
 }
 
 int
-xp_kdf_pbkdf2(enum xp_digest_algorithm digest,
+st_kdf_pbkdf2(enum st_digest_algorithm digest,
 	const void *password, size_t password_size,
 	const void *salt, size_t salt_size, uint64_t iterations,
 	void *result, size_t result_size)
@@ -254,11 +254,11 @@ xp_kdf_pbkdf2(enum xp_digest_algorithm digest,
 	(void)iterations;
 	(void)result;
 	(void)result_size;
-	return XP_CRYPTO_ERR_DISABLED;
+	return ST_CRYPTO_ERR_DISABLED;
 }
 
 int
-xp_kdf_scrypt(const void *password, size_t password_size,
+st_kdf_scrypt(const void *password, size_t password_size,
 	const void *salt, size_t salt_size, uint64_t n, uint32_t r, uint32_t p,
 	void *result, size_t result_size)
 {
@@ -271,5 +271,5 @@ xp_kdf_scrypt(const void *password, size_t password_size,
 	(void)p;
 	(void)result;
 	(void)result_size;
-	return XP_CRYPTO_ERR_DISABLED;
+	return ST_CRYPTO_ERR_DISABLED;
 }

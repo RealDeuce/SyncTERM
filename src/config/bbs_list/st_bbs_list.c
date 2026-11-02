@@ -18,7 +18,7 @@
 #include "st_unicode_compare.h"
 #include "string_compat.h"
 #include "string_util.h"
-#include "xp_crypto.h"
+#include "st_crypto.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -889,7 +889,7 @@ st_bbs_list_close(st_bbs_list_t *list)
 	free(list->cached_system_list);
 	free(list->download_path);
 	free(list->sort_fields);
-	xp_crypto_clear(list->password, list->password_size);
+	st_crypto_clear(list->password, list->password_size);
 	free(list->password);
 	free(list);
 }

@@ -60,10 +60,10 @@ if(NOT TARGET st_sftp_client)
 		"${CMAKE_CURRENT_BINARY_DIR}/sftp_client")
 endif()
 if(NOT TARGET st_tls)
-	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../xptls"
-		"${CMAKE_CURRENT_BINARY_DIR}/xptls")
+	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../tls"
+		"${CMAKE_CURRENT_BINARY_DIR}/tls")
 endif()
-get_property(ST_TLS_PROVIDER TARGET xptls_crypto PROPERTY XPTLS_CRYPTO_PROVIDER)
+get_property(ST_TLS_PROVIDER TARGET st_crypto PROPERTY ST_CRYPTO_PROVIDER)
 if(NOT ST_TLS_PROVIDER STREQUAL "none")
 	set(ST_CONNECTION_HAVE_TLS TRUE)
 	include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/DeuceSSH.cmake")
@@ -262,7 +262,7 @@ target_link_libraries(st_connection
 	PUBLIC syncterm_io_error st_profile st_sftp_client
 	PRIVATE syncterm_socket syncterm_tcp_client st_serial
 		syncterm_threads st_settings st_time
-		st_tls xptls_crypto syncterm_string_compat
+		st_tls st_crypto syncterm_string_compat
 	PRIVATE ${ST_CONNECTION_PLATFORM_LIBRARIES})
 if(ST_DEUCESSH_TARGET)
 	target_link_libraries(st_connection PRIVATE ${ST_DEUCESSH_TARGET})

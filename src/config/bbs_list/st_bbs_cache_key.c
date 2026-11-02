@@ -11,7 +11,7 @@
 #include "path.h"
 #include "st_hex.h"
 #include "st_unicode_compare.h"
-#include "xp_digest.h"
+#include "st_digest.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -31,7 +31,7 @@ st_bbs_cache_key(char *result, size_t result_size, const char *name)
 	    strlen(name));
 	if (status != 0)
 		return false;
-	status = xp_digest(XP_DIGEST_SHA256, folded, folded_size, digest,
+	status = st_digest(ST_DIGEST_SHA256, folded, folded_size, digest,
 	    sizeof(digest));
 	free(folded);
 	if (status != 0)

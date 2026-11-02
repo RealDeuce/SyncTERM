@@ -61,8 +61,8 @@ been verified. A completed row must link findings and verification evidence.
 | tcp_client | Pending | Address iteration, connect/cancel and deadlines. |
 | serial | Pending | Serial configuration, I/O and cancellation. |
 | connection | Pending | Raw/rlogin/serial/modem/shell contracts and lifecycle. |
-| xptls | Pending | TLS integration, verification and failure paths. |
-| xptls_crypto | Pending | Provider integration, crypto API contracts and build policy. |
+| net/tls | Pending | TLS integration, verification and failure paths. |
+| base/crypto | Pending | Provider integration, crypto API contracts and build policy. |
 | list_crypto | Pending | Existing stored-password threat model and format compatibility. |
 | webget | Pending | HTTP/TLS, redirects, bounds and progress/cancellation. |
 | profile | Pending | Profile lifetime, defaults and protocol fields. |

@@ -19,7 +19,7 @@
 #include "st_pixel_image.h"
 #include "st_list_crypto.h"
 #include "st_language.h"
-#include "xp_crypto.h"
+#include "st_crypto.h"
 #include "st_console.h"
 #include "console_internal.h"
 #include "st_cterm.h"
@@ -4339,7 +4339,7 @@ exercise_build_options_contract(st_wren_host_t *public_host)
 		return -1;
 	}
 	uint32_t console = st_console_build_features(), audio = audio_compiled_backends();
-	const char *crypto = xp_crypto_provider_name();
+	const char *crypto = st_crypto_provider_name();
 	const struct {
 		const char *category, *name;
 		bool enabled;

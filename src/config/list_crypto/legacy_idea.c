@@ -7,7 +7,7 @@
 
 #include "list_crypto_internal.h"
 
-#include "xp_crypto.h"
+#include "st_crypto.h"
 
 #include <stdint.h>
 #include <string.h>
@@ -78,7 +78,7 @@ idea_expand_key(const uint8_t key[16], uint16_t expanded[52])
 			    | (rotated[(i + 1) & 7] >> 7));
 		}
 	}
-	xp_crypto_clear(words, sizeof(words));
+	st_crypto_clear(words, sizeof(words));
 }
 
 static void
@@ -188,9 +188,9 @@ st_legacy_idea_decrypt_cbc(const void *key, size_t key_size,
 			bytes[offset + i] ^= previous[i];
 		memcpy(previous, saved, sizeof(previous));
 	}
-	xp_crypto_clear(encryption, sizeof(encryption));
-	xp_crypto_clear(decryption, sizeof(decryption));
-	xp_crypto_clear(previous, sizeof(previous));
-	xp_crypto_clear(saved, sizeof(saved));
+	st_crypto_clear(encryption, sizeof(encryption));
+	st_crypto_clear(decryption, sizeof(decryption));
+	st_crypto_clear(previous, sizeof(previous));
+	st_crypto_clear(saved, sizeof(saved));
 	return 0;
 }

@@ -14,8 +14,8 @@ if(NOT TARGET st_file_lock)
 		"${CMAKE_CURRENT_BINARY_DIR}/file_lock")
 endif()
 if(NOT TARGET st_tls)
-	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../xptls"
-		"${CMAKE_CURRENT_BINARY_DIR}/xptls")
+	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../tls"
+		"${CMAKE_CURRENT_BINARY_DIR}/tls")
 endif()
 foreach(_st_component_path IN ITEMS io/filesystem config/ini base/io_error io/path
 	net/socket base/string_compat base/string_util net/tcp_client)

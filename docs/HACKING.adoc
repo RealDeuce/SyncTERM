@@ -248,7 +248,7 @@ Most fallible project APIs return zero on success and a negative
 `IO_ERROR_*` value on failure.  Byte-count APIs use `ssize_t` so that
 nonnegative counts and negative errors share one result.  Important
 exceptions are called out in the component chapters: `st_threads` returns
-`ST_THREAD_*`, the crypto provider returns `XP_CRYPTO_*`, and some collection
+`ST_THREAD_*`, the crypto provider returns `ST_CRYPTO_*`, and some collection
 mutators return `bool` or `enum array_list_insert_result`.
 
 Unless a header says otherwise:

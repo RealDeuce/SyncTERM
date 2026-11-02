@@ -11,9 +11,9 @@
 #include "io_error.h"
 #include "list_crypto_internal.h"
 #include "st_hex.h"
-#include "xp_cipher.h"
-#include "xp_crypto.h"
-#include "xp_kdf.h"
+#include "st_cipher.h"
+#include "st_crypto.h"
+#include "st_kdf.h"
 
 #include <inttypes.h>
 #include <limits.h>
@@ -36,7 +36,7 @@ struct parsed_header {
 bool
 st_list_crypto_encryption_available(void)
 {
-	return strcmp(xp_crypto_provider_name(), "none") != 0;
+	return strcmp(st_crypto_provider_name(), "none") != 0;
 }
 
 static bool
@@ -134,7 +134,7 @@ scrypt_fits(uint8_t cost_log2, uint32_t r, uint32_t p)
 {
 	if (cost_log2 < 8 || cost_log2 >= 64)
 		return false;
-	return xp_kdf_scrypt_parameters_valid(UINT64_C(1) << cost_log2, r, p);
+	return st_kdf_scrypt_parameters_valid(UINT64_C(1) << cost_log2, r, p);
 }
 
 static bool
@@ -378,15 +378,15 @@ block_size(enum st_list_cipher cipher)
 	return 8;
 }
 
-static enum xp_cipher_algorithm
+static enum st_cipher_algorithm
 xp_algorithm(enum st_list_cipher cipher)
 {
 	switch (cipher) {
-	case ST_LIST_CIPHER_AES: return XP_CIPHER_AES;
-	case ST_LIST_CIPHER_CHACHA20: return XP_CIPHER_CHACHA20;
-	case ST_LIST_CIPHER_3DES: return XP_CIPHER_3DES;
-	case ST_LIST_CIPHER_CAST: return XP_CIPHER_CAST128;
-	case ST_LIST_CIPHER_RC4: return XP_CIPHER_RC4;
+	case ST_LIST_CIPHER_AES: return ST_CIPHER_AES;
+	case ST_LIST_CIPHER_CHACHA20: return ST_CIPHER_CHACHA20;
+	case ST_LIST_CIPHER_3DES: return ST_CIPHER_3DES;
+	case ST_LIST_CIPHER_CAST: return ST_CIPHER_CAST128;
+	case ST_LIST_CIPHER_RC4: return ST_CIPHER_RC4;
 	default: return 0;
 	}
 }
@@ -394,10 +394,10 @@ xp_algorithm(enum st_list_cipher cipher)
 static int
 crypto_result(int status, bool decrypting)
 {
-	if (status == XP_CRYPTO_OK)
+	if (status == ST_CRYPTO_OK)
 		return 0;
-	if (status == XP_CRYPTO_ERR_DISABLED
-	    || status == XP_CRYPTO_ERR_UNSUPPORTED)
+	if (status == ST_CRYPTO_ERR_DISABLED
+	    || status == ST_CRYPTO_ERR_UNSUPPORTED)
 		return IO_ERROR_NOT_SUPPORTED;
 	return decrypting ? IO_ERROR_DECRYPTION_FAILED : IO_ERROR_IO;
 }
@@ -410,11 +410,11 @@ derive_key(const struct st_list_crypto_info *info, const uint8_t *salt,
 	int status;
 
 	if (info->kdf == ST_LIST_KDF_PBKDF2_SHA256) {
-		status = xp_kdf_pbkdf2(XP_DIGEST_SHA256, password, password_size,
+		status = st_kdf_pbkdf2(ST_DIGEST_SHA256, password, password_size,
 		    salt, salt_size, info->iterations, key, key_size);
 	}
 	else {
-		status = xp_kdf_scrypt(password, password_size, salt, salt_size,
+		status = st_kdf_scrypt(password, password_size, salt, salt_size,
 		    UINT64_C(1) << info->cost_log2, info->block_size,
 		    info->parallelism, key, key_size);
 	}
@@ -422,21 +422,21 @@ derive_key(const struct st_list_crypto_info *info, const uint8_t *salt,
 }
 
 static int
-crypt_buffer(enum st_list_cipher cipher, enum xp_cipher_direction direction,
+crypt_buffer(enum st_list_cipher cipher, enum st_cipher_direction direction,
 	const uint8_t *key, size_t key_size, const uint8_t *iv,
 	uint8_t *data, size_t size)
 {
 	if (cipher == ST_LIST_CIPHER_IDEA) {
-		return direction == XP_CIPHER_DECRYPT
+		return direction == ST_CIPHER_DECRYPT
 		    && st_legacy_idea_decrypt_cbc(key, key_size, iv, data, size) == 0
 		    ? 0 : IO_ERROR_NOT_SUPPORTED;
 	}
 	if (cipher == ST_LIST_CIPHER_RC2) {
-		return direction == XP_CIPHER_DECRYPT
+		return direction == ST_CIPHER_DECRYPT
 		    && st_legacy_rc2_decrypt_cbc(key, key_size, iv, data, size) == 0
 		    ? 0 : IO_ERROR_NOT_SUPPORTED;
 	}
-	enum xp_cipher_algorithm algorithm = xp_algorithm(cipher);
+	enum st_cipher_algorithm algorithm = xp_algorithm(cipher);
 	const uint8_t *native_iv = iv;
 	size_t native_iv_size = iv_size(cipher);
 	uint32_t counter = 0;
@@ -447,9 +447,9 @@ crypt_buffer(enum st_list_cipher cipher, enum xp_cipher_direction direction,
 		native_iv += 4;
 		native_iv_size = 12;
 	}
-	int status = xp_cipher_crypt(algorithm, direction, key, key_size,
+	int status = st_cipher_crypt(algorithm, direction, key, key_size,
 	    native_iv, native_iv_size, counter, data, size, data, size);
-	return crypto_result(status, direction == XP_CIPHER_DECRYPT);
+	return crypto_result(status, direction == ST_CIPHER_DECRYPT);
 }
 
 int
@@ -536,7 +536,7 @@ st_list_crypto_read(ini_document_t **result, FILE *stream,
 	    header.salt_size, password, password_size, key, key_size), true);
 	if (error != 0)
 		goto done;
-	error = crypt_buffer(header.info.cipher, XP_CIPHER_DECRYPT, key,
+	error = crypt_buffer(header.info.cipher, ST_CIPHER_DECRYPT, key,
 	    key_size, iv, plain, cipher_size);
 	if (error != 0)
 		goto done;
@@ -561,9 +561,9 @@ parsed:
 	error = 0;
 
 done:
-	xp_crypto_clear(key, sizeof(key));
+	st_crypto_clear(key, sizeof(key));
 	if (plain != NULL) {
-		xp_crypto_clear(plain, size - header.payload_offset + 1);
+		st_crypto_clear(plain, size - header.payload_offset + 1);
 		free(plain);
 	}
 	file_map_close(map);
@@ -663,10 +663,10 @@ st_list_crypto_write(FILE *stream, const ini_document_t *document,
 		goto done;
 	}
 	memcpy(ciphertext, serialized, serialized_size);
-	int crypto_status = xp_crypto_random(salt, sizeof(salt));
-	if (crypto_status == XP_CRYPTO_OK)
-		crypto_status = xp_crypto_random(iv, sizeof(iv));
-	if (crypto_status != XP_CRYPTO_OK) {
+	int crypto_status = st_crypto_random(salt, sizeof(salt));
+	if (crypto_status == ST_CRYPTO_OK)
+		crypto_status = st_crypto_random(iv, sizeof(iv));
+	if (crypto_status != ST_CRYPTO_OK) {
 		error = crypto_result(crypto_status, false);
 		goto done;
 	}
@@ -681,7 +681,7 @@ st_list_crypto_write(FILE *stream, const ini_document_t *document,
 	if (error != 0)
 		goto done;
 	cipher_iv_size = iv_size(options->cipher);
-	error = crypt_buffer(options->cipher, XP_CIPHER_ENCRYPT, key,
+	error = crypt_buffer(options->cipher, ST_CIPHER_ENCRYPT, key,
 	    key_bits / 8, iv, ciphertext, padded_size);
 	if (error != 0)
 		goto done;
@@ -710,15 +710,15 @@ st_list_crypto_write(FILE *stream, const ini_document_t *document,
 
 done:
 	if (serialized != NULL) {
-		xp_crypto_clear(serialized, serialized_size + 1);
+		st_crypto_clear(serialized, serialized_size + 1);
 		free(serialized);
 	}
 	if (ciphertext != NULL) {
-		xp_crypto_clear(ciphertext, padded_size);
+		st_crypto_clear(ciphertext, padded_size);
 		free(ciphertext);
 	}
-	xp_crypto_clear(key, sizeof(key));
-	xp_crypto_clear(iv, sizeof(iv));
-	xp_crypto_clear(salt, sizeof(salt));
+	st_crypto_clear(key, sizeof(key));
+	st_crypto_clear(iv, sizeof(iv));
+	st_crypto_clear(salt, sizeof(salt));
 	return error;
 }

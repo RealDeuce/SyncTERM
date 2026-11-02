@@ -53,7 +53,7 @@ add_library(st_theme STATIC st_theme.c st_theme_document.c st_theme_cloud.c
 target_include_directories(st_theme PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_theme
 	PUBLIC st_settings
-	PRIVATE st_app_paths st_codepage st_hex st_utf8 st_webget xptls_crypto syncterm_ini
+	PRIVATE st_app_paths st_codepage st_hex st_utf8 st_webget st_crypto syncterm_ini
 		st_unicode_compare
 		syncterm_filesystem syncterm_path syncterm_string_compat
 		syncterm_string_util)
@@ -73,7 +73,7 @@ endif()
 
 if(BUILD_TESTING)
 	add_executable(st_theme_test tests/st_theme_test.c)
-	target_link_libraries(st_theme_test PRIVATE st_theme xptls_crypto
+	target_link_libraries(st_theme_test PRIVATE st_theme st_crypto
 		syncterm_filesystem syncterm_string_compat)
 	target_compile_definitions(st_theme_test PRIVATE
 		ST_THEME_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/theme-test")

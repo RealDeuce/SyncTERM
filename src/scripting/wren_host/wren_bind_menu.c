@@ -26,7 +26,7 @@
 #include "string_util.h"
 #include "value_convert.h"
 #include "value_convert_time.h"
-#include "xp_crypto.h"
+#include "st_crypto.h"
 
 #include <inttypes.h>
 #include <math.h>
@@ -1563,7 +1563,7 @@ fn_menu_licenses(WrenVM *vm)
 static void
 fn_menu_build_options(WrenVM *vm)
 {
-	const char *crypto = xp_crypto_provider_name();
+	const char *crypto = st_crypto_provider_name();
 	uint32_t console = st_console_build_features();
 	uint32_t audio = audio_compiled_backends();
 	bool unifont = false;

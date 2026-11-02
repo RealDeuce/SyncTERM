@@ -36,20 +36,20 @@ and `tcp_client_algorithm`.
 |===
 | Target | Header | Contract
 
-| `xptls::crypto`
-| link:../src/net/xptls_crypto/xp_crypto.h[xp_crypto.h],
-link:../src/net/xptls_crypto/xp_digest.h[xp_digest.h],
-link:../src/net/xptls_crypto/xp_cipher.h[xp_cipher.h],
-link:../src/net/xptls_crypto/xp_kdf.h[xp_kdf.h]
+| `st_crypto`
+| link:../src/base/crypto/st_crypto.h[st_crypto.h],
+link:../src/base/crypto/st_digest.h[st_digest.h],
+link:../src/base/crypto/st_cipher.h[st_cipher.h],
+link:../src/base/crypto/st_kdf.h[st_kdf.h]
 | Provider-neutral random bytes, secure clearing, digests, whole-buffer
-ciphers, PBKDF2, and bounded scrypt.  APIs return `XP_CRYPTO_*` rather than
+ciphers, PBKDF2, and bounded scrypt.  APIs return `ST_CRYPTO_*` rather than
 `IO_ERROR_*`.  Provider name/version strings have static lifetime.  Cipher
 operations do not add padding; callers supply complete blocks and exact
 algorithm-specific key/IV sizes.  Clear passwords and derived secrets before
-freeing or reusing their storage.  Test: `xp_crypto`.
+freeing or reusing their storage.  Test: `st_crypto`.
 
 | `st_tls`
-| link:../src/net/xptls/st_tls.h[st_tls.h]
+| link:../src/net/tls/st_tls.h[st_tls.h]
 | Client-only certificate or PSK TLS over an already connected socket.  Socket
 ownership transfers only when `st_tls_client_open()` succeeds; the session
 makes it nonblocking and closes it during `st_tls_close()`.  Any PSK field
@@ -61,7 +61,7 @@ when the selected provider supports it: `st_tls_psk`.
 | `st_consent_token`
 | link:../src/config/consent_token/st_consent_token.h[st_consent_token.h]
 | Generates a 32-byte key and signs/verifies picker paths as malloc-owned
-Base64 tokens.  Results use `XP_CRYPTO_*`; verification returns a newly
+Base64 tokens.  Results use `ST_CRYPTO_*`; verification returns a newly
 allocated path rather than a borrowed token substring.  Test: `consent_token`.
 |===
 

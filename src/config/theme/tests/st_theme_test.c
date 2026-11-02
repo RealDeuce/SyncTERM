@@ -14,7 +14,7 @@
 #include "st_app_paths.h"
 #include "st_settings.h"
 #include "string_compat.h"
-#include "xp_crypto.h"
+#include "st_crypto.h"
 
 #include <limits.h>
 #include <stdio.h>

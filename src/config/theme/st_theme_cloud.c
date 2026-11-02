@@ -17,8 +17,8 @@
 #include "string_compat.h"
 #include "string_util.h"
 #include "theme_internal.h"
-#include "xp_crypto.h"
-#include "xp_digest.h"
+#include "st_crypto.h"
+#include "st_digest.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -209,10 +209,10 @@ hash_matches(const char *path, const char *expected)
 		return false;
 	status = theme_read_file(path, &data, &size);
 	if (status == 0)
-		status = xp_digest(XP_DIGEST_SHA256, data, size, actual,
+		status = st_digest(ST_DIGEST_SHA256, data, size, actual,
 		    sizeof(actual));
 	free(data);
-	return status == XP_CRYPTO_OK
+	return status == ST_CRYPTO_OK
 	    && memcmp(expected_bytes, actual, sizeof(actual)) == 0;
 }
 

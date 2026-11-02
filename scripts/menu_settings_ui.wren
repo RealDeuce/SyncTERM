@@ -603,7 +603,7 @@ class SettingsMenu {
         "the time and memory needed to unlock the list.\n\n" +
         "The default `15` uses N=32768 and about 32 MiB. The supported " +
         "range is 8 through 20; each step doubles CPU and memory cost. " +
-        "The upper bound uses about 1 GiB, the xptls per-derivation limit."
+        "The upper bound uses about 1 GiB, the per-derivation limit."
   }
 
   static customColumnsHelp_() {

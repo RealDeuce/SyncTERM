@@ -9,8 +9,8 @@
 
 #include "file_map.h"
 #include "st_base64.h"
-#include "xp_crypto.h"
-#include "xp_digest.h"
+#include "st_crypto.h"
+#include "st_digest.h"
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -27,7 +27,7 @@
 static int
 sha256(const void *data, size_t size, uint8_t result[TOKEN_DIGEST_SIZE])
 {
-	return xp_digest(XP_DIGEST_SHA256, data, size, result,
+	return st_digest(ST_DIGEST_SHA256, data, size, result,
 	    TOKEN_DIGEST_SIZE);
 }
 
@@ -41,26 +41,26 @@ hmac_sha256(const uint8_t key[ST_CONSENT_TOKEN_KEY_SIZE],
 	int status;
 
 	if (size > SIZE_MAX - HMAC_BLOCK_SIZE)
-		return XP_CRYPTO_ERR_INVALID;
+		return ST_CRYPTO_ERR_INVALID;
 	input = malloc(HMAC_BLOCK_SIZE + size);
 	if (input == NULL)
-		return XP_CRYPTO_ERR;
+		return ST_CRYPTO_ERR;
 	memset(input, 0x36, HMAC_BLOCK_SIZE);
 	for (size_t i = 0; i < ST_CONSENT_TOKEN_KEY_SIZE; ++i)
 		input[i] ^= key[i];
 	memcpy(input + HMAC_BLOCK_SIZE, data, size);
 	status = sha256(input, HMAC_BLOCK_SIZE + size, inner);
-	xp_crypto_clear(input, HMAC_BLOCK_SIZE + size);
+	st_crypto_clear(input, HMAC_BLOCK_SIZE + size);
 	free(input);
-	if (status != XP_CRYPTO_OK)
+	if (status != ST_CRYPTO_OK)
 		return status;
 	memset(inner_input, 0x5c, HMAC_BLOCK_SIZE);
 	for (size_t i = 0; i < ST_CONSENT_TOKEN_KEY_SIZE; ++i)
 		inner_input[i] ^= key[i];
 	memcpy(inner_input + HMAC_BLOCK_SIZE, inner, sizeof(inner));
 	status = sha256(inner_input, sizeof(inner_input), result);
-	xp_crypto_clear(inner, sizeof(inner));
-	xp_crypto_clear(inner_input, sizeof(inner_input));
+	st_crypto_clear(inner, sizeof(inner));
+	st_crypto_clear(inner_input, sizeof(inner_input));
 	return status;
 }
 
@@ -71,7 +71,7 @@ file_sha256(const char *path, uint8_t result[TOKEN_DIGEST_SIZE])
 	int status = file_map_open(&mapping, path);
 
 	if (status != 0)
-		return XP_CRYPTO_ERR;
+		return ST_CRYPTO_ERR;
 	status = sha256(file_map_data(mapping), file_map_size(mapping), result);
 	file_map_close(mapping);
 	return status;
@@ -91,8 +91,8 @@ int
 st_consent_token_generate_key(uint8_t key[ST_CONSENT_TOKEN_KEY_SIZE])
 {
 	if (key == NULL)
-		return XP_CRYPTO_ERR_INVALID;
-	return xp_crypto_random(key, ST_CONSENT_TOKEN_KEY_SIZE);
+		return ST_CRYPTO_ERR_INVALID;
+	return st_crypto_random(key, ST_CONSENT_TOKEN_KEY_SIZE);
 }
 
 int
@@ -108,18 +108,18 @@ st_consent_token_sign(char **result,
 	int status;
 
 	if (result == NULL || key == NULL || path == NULL || path[0] == '\0')
-		return XP_CRYPTO_ERR_INVALID;
+		return ST_CRYPTO_ERR_INVALID;
 	*result = NULL;
 	path_size = strlen(path);
 	if (path_size > UINT16_MAX)
-		return XP_CRYPTO_ERR_INVALID;
+		return ST_CRYPTO_ERR_INVALID;
 	status = file_sha256(path, digest);
-	if (status != XP_CRYPTO_OK)
+	if (status != ST_CRYPTO_OK)
 		return status;
 	binary_size = TOKEN_FIXED_SIZE + path_size;
 	binary = malloc(binary_size);
 	if (binary == NULL)
-		return XP_CRYPTO_ERR;
+		return ST_CRYPTO_ERR;
 	binary[0] = (uint8_t)(path_size >> 24);
 	binary[1] = (uint8_t)(path_size >> 16);
 	binary[2] = (uint8_t)(path_size >> 8);
@@ -129,28 +129,28 @@ st_consent_token_sign(char **result,
 	status = hmac_sha256(key, binary,
 	    TOKEN_HEADER_SIZE + path_size + TOKEN_DIGEST_SIZE,
 	    binary + TOKEN_HEADER_SIZE + path_size + TOKEN_DIGEST_SIZE);
-	if (status != XP_CRYPTO_OK) {
+	if (status != ST_CRYPTO_OK) {
 		free(binary);
 		return status;
 	}
 	if (!st_base64_encoded_size(binary_size, &encoded_size)
 	    || encoded_size == SIZE_MAX) {
 		free(binary);
-		return XP_CRYPTO_ERR_INVALID;
+		return ST_CRYPTO_ERR_INVALID;
 	}
 	encoded = malloc(encoded_size + 1);
 	if (encoded == NULL) {
 		free(binary);
-		return XP_CRYPTO_ERR;
+		return ST_CRYPTO_ERR;
 	}
 	if (!st_base64_encode(encoded, encoded_size + 1, binary, binary_size)) {
 		free(encoded);
 		free(binary);
-		return XP_CRYPTO_ERR;
+		return ST_CRYPTO_ERR;
 	}
 	free(binary);
 	*result = encoded;
-	return XP_CRYPTO_OK;
+	return ST_CRYPTO_OK;
 }
 
 int
@@ -167,29 +167,29 @@ st_consent_token_verify(char **result,
 	int status;
 
 	if (result == NULL || key == NULL || token == NULL)
-		return XP_CRYPTO_ERR_INVALID;
+		return ST_CRYPTO_ERR_INVALID;
 	*result = NULL;
 	token_size = strlen(token);
 	if (!st_base64_decoded_size(token, token_size, &binary_size)
 	    || binary_size < TOKEN_FIXED_SIZE)
-		return XP_CRYPTO_ERR_FORMAT;
+		return ST_CRYPTO_ERR_FORMAT;
 	binary = malloc(binary_size);
 	if (binary == NULL)
-		return XP_CRYPTO_ERR;
+		return ST_CRYPTO_ERR;
 	if (!st_base64_decode(binary, binary_size, token, token_size)) {
 		free(binary);
-		return XP_CRYPTO_ERR_FORMAT;
+		return ST_CRYPTO_ERR_FORMAT;
 	}
 	path_size = ((size_t)binary[0] << 24) | ((size_t)binary[1] << 16)
 	    | ((size_t)binary[2] << 8) | binary[3];
 	if (path_size == 0 || binary_size != TOKEN_FIXED_SIZE + path_size
 	    || memchr(binary + TOKEN_HEADER_SIZE, '\0', path_size) != NULL) {
 		free(binary);
-		return XP_CRYPTO_ERR_FORMAT;
+		return ST_CRYPTO_ERR_FORMAT;
 	}
 	status = hmac_sha256(key, binary,
 	    TOKEN_HEADER_SIZE + path_size + TOKEN_DIGEST_SIZE, expected);
-	if (status != XP_CRYPTO_OK) {
+	if (status != ST_CRYPTO_OK) {
 		free(binary);
 		return status;
 	}
@@ -197,24 +197,24 @@ st_consent_token_verify(char **result,
 	    binary + TOKEN_HEADER_SIZE + path_size + TOKEN_DIGEST_SIZE,
 	    TOKEN_TAG_SIZE)) {
 		free(binary);
-		return XP_CRYPTO_ERR_VERIFY;
+		return ST_CRYPTO_ERR_VERIFY;
 	}
 	path = malloc(path_size + 1);
 	if (path == NULL) {
 		free(binary);
-		return XP_CRYPTO_ERR;
+		return ST_CRYPTO_ERR;
 	}
 	memcpy(path, binary + TOKEN_HEADER_SIZE, path_size);
 	path[path_size] = '\0';
 	status = file_sha256(path, digest);
-	if (status == XP_CRYPTO_OK && !equal_constant_time(digest,
+	if (status == ST_CRYPTO_OK && !equal_constant_time(digest,
 	    binary + TOKEN_HEADER_SIZE + path_size, TOKEN_DIGEST_SIZE))
-		status = XP_CRYPTO_ERR_VERIFY;
+		status = ST_CRYPTO_ERR_VERIFY;
 	free(binary);
-	if (status != XP_CRYPTO_OK) {
+	if (status != ST_CRYPTO_OK) {
 		free(path);
 		return status;
 	}
 	*result = path;
-	return XP_CRYPTO_OK;
+	return ST_CRYPTO_OK;
 }

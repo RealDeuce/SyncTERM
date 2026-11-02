@@ -7,7 +7,7 @@
 
 #include "list_crypto_internal.h"
 
-#include "xp_crypto.h"
+#include "st_crypto.h"
 
 #include <stdint.h>
 #include <string.h>
@@ -50,7 +50,7 @@ expand_key(const uint8_t *key, size_t key_size, uint16_t expanded[64])
 	for (int i = 0; i < 64; i++)
 		expanded[i] = (uint16_t)bytes[i * 2]
 		    | (uint16_t)((uint16_t)bytes[i * 2 + 1] << 8);
-	xp_crypto_clear(bytes, sizeof(bytes));
+	st_crypto_clear(bytes, sizeof(bytes));
 }
 
 static uint16_t
@@ -95,7 +95,7 @@ decrypt_block(const uint16_t key[64], uint8_t data[8])
 		data[i * 2] = (uint8_t)word[i];
 		data[i * 2 + 1] = (uint8_t)(word[i] >> 8);
 	}
-	xp_crypto_clear(word, sizeof(word));
+	st_crypto_clear(word, sizeof(word));
 }
 
 int
@@ -119,8 +119,8 @@ st_legacy_rc2_decrypt_cbc(const void *key, size_t key_size,
 			bytes[offset + i] ^= previous[i];
 		memcpy(previous, saved, sizeof(previous));
 	}
-	xp_crypto_clear(expanded, sizeof(expanded));
-	xp_crypto_clear(previous, sizeof(previous));
-	xp_crypto_clear(saved, sizeof(saved));
+	st_crypto_clear(expanded, sizeof(expanded));
+	st_crypto_clear(previous, sizeof(previous));
+	st_crypto_clear(saved, sizeof(saved));
 	return 0;
 }

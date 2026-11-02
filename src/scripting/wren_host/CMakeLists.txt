@@ -128,7 +128,7 @@ target_link_libraries(st_wren_host
 		st_fonts st_font_catalog st_settings st_theme st_time st_pixel_image st_serial
 		syncterm_io_error syncterm_path syncterm_file_map
 		syncterm_string_compat syncterm_filesystem
-		syncterm_value_convert st_consent_token xptls::crypto)
+		syncterm_value_convert st_consent_token st_crypto)
 if(SYNCTERM_ENABLE_UNIFONT)
 	target_compile_definitions(st_wren_host PRIVATE ST_HAVE_UNIFONT=1)
 endif()
@@ -207,7 +207,7 @@ int main(void)
 	target_link_libraries(st_wren_host_test PRIVATE st_wren_host
 		st_wren_vm st_settings st_theme st_time st_bbs_list st_audio st_term st_language
 		syncterm_filesystem syncterm_string_compat
-		syncterm_threads st_audio_file st_pixel_image st_list_crypto xptls::crypto)
+		syncterm_threads st_audio_file st_pixel_image st_list_crypto st_crypto)
 	syncterm_target_atomics(st_wren_host_test)
 	target_compile_definitions(st_wren_host_test PRIVATE
 		ST_WREN_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/host-test"

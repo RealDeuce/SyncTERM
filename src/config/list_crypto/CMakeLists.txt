@@ -14,10 +14,10 @@ if(NOT TARGET st_hex)
 		"${CMAKE_CURRENT_BINARY_DIR}/hex")
 endif()
 
-foreach(_st_component_path IN ITEMS io/file_map config/ini base/io_error net/xptls_crypto)
+foreach(_st_component_path IN ITEMS io/file_map config/ini base/io_error base/crypto)
 	get_filename_component(_dependency "${_st_component_path}" NAME)
-	if(_dependency STREQUAL "xptls_crypto")
-		set(_target xptls_crypto)
+	if(_dependency STREQUAL "crypto")
+		set(_target st_crypto)
 	else()
 		set(_target syncterm_${_dependency})
 	endif()
@@ -32,7 +32,7 @@ add_library(st_list_crypto STATIC
 target_include_directories(st_list_crypto PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_list_crypto
 	PUBLIC syncterm_ini syncterm_io_error
-	PRIVATE st_hex syncterm_file_map xptls::crypto)
+	PRIVATE st_hex syncterm_file_map st_crypto)
 set_target_properties(st_list_crypto PROPERTIES
 	C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 

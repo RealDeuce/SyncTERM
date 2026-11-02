@@ -15,15 +15,15 @@ if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 		add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../io/file_map"
 			"${CMAKE_CURRENT_BINARY_DIR}/file_map")
 	endif()
-	if(NOT TARGET xptls_crypto)
-		add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../net/xptls_crypto"
-			"${CMAKE_CURRENT_BINARY_DIR}/xptls_crypto")
+	if(NOT TARGET st_crypto)
+		add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../base/crypto"
+			"${CMAKE_CURRENT_BINARY_DIR}/crypto")
 	endif()
 endif()
 
 add_library(st_consent_token STATIC st_consent_token.c)
 target_include_directories(st_consent_token PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(st_consent_token PUBLIC xptls::crypto
+target_link_libraries(st_consent_token PUBLIC st_crypto
 	PRIVATE st_base64 syncterm_file_map)
 set_target_properties(st_consent_token PROPERTIES
 	C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)

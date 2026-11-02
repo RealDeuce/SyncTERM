@@ -4,8 +4,8 @@
 #include "connection_stream.h"
 #include "st_time.h"
 #include "string_compat.h"
-#include "xp_crypto.h"
-#include "xp_digest.h"
+#include "st_crypto.h"
+#include "st_digest.h"
 #include "client.h"
 #include <deucessh.h>
 #include <deucessh-algorithms.h>
@@ -330,8 +330,8 @@ verify_hostkey(const char *algorithm, unsigned bits, const uint8_t *fingerprint,
 		    | ((uint32_t)blob[2] << 8) | blob[3];
 		uint8_t legacy[20] = {0};
 		if (name_size < size - 4
-		    && xp_digest(XP_DIGEST_MD5, blob + 4 + name_size,
-		    size - 4 - name_size, legacy, 16) == XP_CRYPTO_OK)
+		    && st_digest(ST_DIGEST_MD5, blob + 4 + name_size,
+		    size - 4 - name_size, legacy, 16) == ST_CRYPTO_OK)
 			t->legacy_match = memcmp(t->profile->ssh_fingerprint, legacy, 20) == 0;
 	}
 	/* Confirm on the connecting thread after handshake, before credentials. */
@@ -485,7 +485,7 @@ keyboard_interactive(const uint8_t *name, size_t name_size,
 			status = prompt(t, "SSH Keyboard-Interactive", question, ST_PROFILE_PASSWORD_MAX, !echo[i], &answer);
 			if (status != 0) {
 				for (uint32_t j = 0; j < i; ++j) {
-					xp_crypto_clear(responses[j], response_sizes[j]);
+					st_crypto_clear(responses[j], response_sizes[j]);
 					free(responses[j]); responses[j] = NULL; response_sizes[j] = 0;
 				}
 				return DSSH_ERROR_AUTH_REJECTED;
@@ -531,13 +531,13 @@ authenticate(struct ssh_transport *t)
 		if (password[0] != '\0')
 			status = dssh_auth_password(t->session, username, password, NULL, NULL);
 		for (int attempt = 0; attempt < 3 && status != 0; ++attempt) {
-			xp_crypto_clear(password, strlen(password)); free(password); password = NULL;
+			st_crypto_clear(password, strlen(password)); free(password); password = NULL;
 			if (prompt(t, "SSH Password", attempt == 0 ? "Enter password."
 			    : "Incorrect password. Try again.", ST_PROFILE_PASSWORD_MAX, true, &password) != 0) break;
 			if (password[0] == '\0') { t->cancelled = true; break; }
 			status = dssh_auth_password(t->session, username, password, NULL, NULL);
 		}
-		if (password != NULL) { xp_crypto_clear(password, strlen(password)); free(password); }
+		if (password != NULL) { st_crypto_clear(password, strlen(password)); free(password); }
 	}
 	if (status != 0 && !t->cancelled && strstr(methods, "keyboard-interactive") != NULL)
 		status = dssh_auth_keyboard_interactive(t->session, username, keyboard_interactive, t);

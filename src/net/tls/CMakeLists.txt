@@ -9,9 +9,9 @@ if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	include(CTest)
 endif()
 
-if(NOT TARGET xptls_crypto)
-	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../xptls_crypto"
-		"${CMAKE_CURRENT_BINARY_DIR}/xptls_crypto")
+if(NOT TARGET st_crypto)
+	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../base/crypto"
+		"${CMAKE_CURRENT_BINARY_DIR}/crypto")
 endif()
 foreach(_st_component_path IN ITEMS base/io_error net/socket base/string_compat)
 	get_filename_component(_dependency "${_st_component_path}" NAME)
@@ -25,8 +25,8 @@ if(NOT TARGET st_time)
 		"${CMAKE_CURRENT_BINARY_DIR}/time")
 endif()
 
-get_property(ST_TLS_PROVIDER TARGET xptls_crypto PROPERTY
-	XPTLS_CRYPTO_PROVIDER)
+get_property(ST_TLS_PROVIDER TARGET st_crypto PROPERTY
+	ST_CRYPTO_PROVIDER)
 if(ST_TLS_PROVIDER STREQUAL "Botan")
 	enable_language(CXX)
 	find_package(PkgConfig REQUIRED)
@@ -45,7 +45,7 @@ endif()
 add_library(st_tls STATIC ${ST_TLS_SOURCE})
 target_include_directories(st_tls PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_tls PUBLIC syncterm_io_error syncterm_socket
-	PRIVATE xptls_crypto syncterm_string_compat ${ST_TLS_LIBRARY})
+	PRIVATE st_crypto syncterm_string_compat ${ST_TLS_LIBRARY})
 target_link_libraries(st_tls PRIVATE st_time)
 set_target_properties(st_tls PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES
 	C_EXTENSIONS NO)

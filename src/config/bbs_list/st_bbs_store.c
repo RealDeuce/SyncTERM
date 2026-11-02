@@ -14,7 +14,7 @@
 #include "st_consent_token.h"
 #include "st_file_lock.h"
 #include "st_hex.h"
-#include "xp_crypto.h"
+#include "st_crypto.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -44,7 +44,7 @@ st_bbs_picker_key_load(st_bbs_list_t *list, ini_document_t *document,
 	const char *encoded;
 
 	list->picker_key_available = false;
-	xp_crypto_clear(list->picker_key, sizeof(list->picker_key));
+	st_crypto_clear(list->picker_key, sizeof(list->picker_key));
 	if (document == NULL || info == NULL
 	    || info->format != ST_LIST_CRYPTO_V2)
 		return;
@@ -637,7 +637,7 @@ st_bbs_list_set_defaults(st_bbs_list_t *list,
 static void
 replace_password(st_bbs_list_t *list, unsigned char *password, size_t size)
 {
-	xp_crypto_clear(list->password, list->password_size);
+	st_crypto_clear(list->password, list->password_size);
 	free(list->password);
 	list->password = password;
 	list->password_size = size;
@@ -689,7 +689,7 @@ st_bbs_list_rewrite_encryption(st_bbs_list_t *list,
 		install_document(list, &remote, &info, &view);
 	}
 	if (new_password != NULL) {
-		xp_crypto_clear(new_password, password_size);
+		st_crypto_clear(new_password, password_size);
 		free(new_password);
 	}
 	ini_document_free(&remote);
@@ -743,7 +743,7 @@ st_bbs_list_picker_key(st_bbs_list_t *list, uint8_t key[32], bool *available)
 		list->picker_key_available = true;
 	}
 	else if (status == 0) {
-		if (st_consent_token_generate_key(generated) != XP_CRYPTO_OK)
+		if (st_consent_token_generate_key(generated) != ST_CRYPTO_OK)
 			status = IO_ERROR_NOT_SUPPORTED;
 		if (status == 0 && !st_hex_encode(encoded, sizeof(encoded), generated,
 		    sizeof(generated)))
@@ -765,7 +765,7 @@ st_bbs_list_picker_key(st_bbs_list_t *list, uint8_t key[32], bool *available)
 		memcpy(key, list->picker_key, sizeof(list->picker_key));
 		*available = true;
 	}
-	xp_crypto_clear(generated, sizeof(generated));
+	st_crypto_clear(generated, sizeof(generated));
 	ini_document_free(&remote);
 	st_bbs_view_dispose(&view);
 	st_file_lock_release(lock);

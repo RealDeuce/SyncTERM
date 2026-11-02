@@ -1,7 +1,7 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 
-#include "xp_cipher.h"
-#include "xp_kdf.h"
+#include "st_cipher.h"
+#include "st_kdf.h"
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -23,14 +23,14 @@ test_disabled(void)
 	uint8_t output[32];
 	uint8_t input[32] = {0};
 
-	CHECK(xp_crypto_random(output, sizeof(output)) == XP_CRYPTO_ERR_DISABLED);
-	CHECK(xp_kdf_pbkdf2(XP_DIGEST_SHA256, "p", 1, "s", 1, 1,
-	    output, sizeof(output)) == XP_CRYPTO_ERR_DISABLED);
-	CHECK(xp_kdf_scrypt("p", 1, "s", 1, 16, 1, 1, output,
-	    sizeof(output)) == XP_CRYPTO_ERR_DISABLED);
-	CHECK(xp_cipher_crypt(XP_CIPHER_AES, XP_CIPHER_ENCRYPT, input, 16,
+	CHECK(st_crypto_random(output, sizeof(output)) == ST_CRYPTO_ERR_DISABLED);
+	CHECK(st_kdf_pbkdf2(ST_DIGEST_SHA256, "p", 1, "s", 1, 1,
+	    output, sizeof(output)) == ST_CRYPTO_ERR_DISABLED);
+	CHECK(st_kdf_scrypt("p", 1, "s", 1, 16, 1, 1, output,
+	    sizeof(output)) == ST_CRYPTO_ERR_DISABLED);
+	CHECK(st_cipher_crypt(ST_CIPHER_AES, ST_CIPHER_ENCRYPT, input, 16,
 	    input, 16, 0, input, 16, output, sizeof(output))
-	    == XP_CRYPTO_ERR_DISABLED);
+	    == ST_CRYPTO_ERR_DISABLED);
 	return true;
 }
 
@@ -55,13 +55,13 @@ test_kdf(void)
 	};
 	uint8_t output[64];
 
-	CHECK(xp_kdf_pbkdf2(XP_DIGEST_SHA256, "password", 8, "salt", 4,
-	    1, output, 32) == XP_CRYPTO_OK);
+	CHECK(st_kdf_pbkdf2(ST_DIGEST_SHA256, "password", 8, "salt", 4,
+	    1, output, 32) == ST_CRYPTO_OK);
 	CHECK(memcmp(output, pbkdf2_expected, sizeof(pbkdf2_expected)) == 0);
-	CHECK(xp_kdf_scrypt(NULL, 0, NULL, 0, 16, 1, 1, output,
-	    sizeof(output)) == XP_CRYPTO_OK);
+	CHECK(st_kdf_scrypt(NULL, 0, NULL, 0, 16, 1, 1, output,
+	    sizeof(output)) == ST_CRYPTO_OK);
 	CHECK(memcmp(output, scrypt_expected, sizeof(scrypt_expected)) == 0);
-	xp_crypto_clear(output, sizeof(output));
+	st_crypto_clear(output, sizeof(output));
 	for (size_t index = 0; index < sizeof(output); index++)
 		CHECK(output[index] == 0);
 	return true;
@@ -70,13 +70,13 @@ test_kdf(void)
 static bool
 test_scrypt_parameters(void)
 {
-	CHECK(xp_kdf_scrypt_parameters_valid(2, 1, 1));
-	CHECK(xp_kdf_scrypt_parameters_valid(16, 8, 1));
-	CHECK(!xp_kdf_scrypt_parameters_valid(0, 1, 1));
-	CHECK(!xp_kdf_scrypt_parameters_valid(3, 1, 1));
-	CHECK(!xp_kdf_scrypt_parameters_valid(2, 0, 1));
-	CHECK(!xp_kdf_scrypt_parameters_valid(2, 1, 0));
-	CHECK(!xp_kdf_scrypt_parameters_valid(UINT64_C(1) << 63,
+	CHECK(st_kdf_scrypt_parameters_valid(2, 1, 1));
+	CHECK(st_kdf_scrypt_parameters_valid(16, 8, 1));
+	CHECK(!st_kdf_scrypt_parameters_valid(0, 1, 1));
+	CHECK(!st_kdf_scrypt_parameters_valid(3, 1, 1));
+	CHECK(!st_kdf_scrypt_parameters_valid(2, 0, 1));
+	CHECK(!st_kdf_scrypt_parameters_valid(2, 1, 0));
+	CHECK(!st_kdf_scrypt_parameters_valid(UINT64_C(1) << 63,
 	    UINT32_MAX, UINT32_MAX));
 	return true;
 }
@@ -102,27 +102,27 @@ test_aes(void)
 	};
 	uint8_t output[16];
 
-	CHECK(xp_cipher_supported(XP_CIPHER_AES, XP_CIPHER_ENCRYPT));
-	CHECK(xp_cipher_crypt(XP_CIPHER_AES, XP_CIPHER_ENCRYPT,
+	CHECK(st_cipher_supported(ST_CIPHER_AES, ST_CIPHER_ENCRYPT));
+	CHECK(st_cipher_crypt(ST_CIPHER_AES, ST_CIPHER_ENCRYPT,
 	    key, sizeof(key), iv, sizeof(iv), 0, plain, sizeof(plain),
-	    output, sizeof(output)) == XP_CRYPTO_OK);
+	    output, sizeof(output)) == ST_CRYPTO_OK);
 	CHECK(memcmp(output, encrypted, sizeof(encrypted)) == 0);
-	CHECK(xp_cipher_crypt(XP_CIPHER_AES, XP_CIPHER_DECRYPT,
+	CHECK(st_cipher_crypt(ST_CIPHER_AES, ST_CIPHER_DECRYPT,
 	    key, sizeof(key), iv, sizeof(iv), 0, encrypted, sizeof(encrypted),
-	    output, sizeof(output)) == XP_CRYPTO_OK);
+	    output, sizeof(output)) == ST_CRYPTO_OK);
 	CHECK(memcmp(output, plain, sizeof(plain)) == 0);
 	memcpy(output, plain, sizeof(output));
-	CHECK(xp_cipher_crypt(XP_CIPHER_AES, XP_CIPHER_ENCRYPT,
+	CHECK(st_cipher_crypt(ST_CIPHER_AES, ST_CIPHER_ENCRYPT,
 	    key, sizeof(key), iv, sizeof(iv), 0, output, sizeof(output),
-	    output, sizeof(output)) == XP_CRYPTO_OK);
+	    output, sizeof(output)) == ST_CRYPTO_OK);
 	CHECK(memcmp(output, encrypted, sizeof(encrypted)) == 0);
-	CHECK(xp_cipher_crypt(XP_CIPHER_AES, XP_CIPHER_DECRYPT,
+	CHECK(st_cipher_crypt(ST_CIPHER_AES, ST_CIPHER_DECRYPT,
 	    key, sizeof(key), iv, sizeof(iv), 0, output, sizeof(output),
-	    output, sizeof(output)) == XP_CRYPTO_OK);
+	    output, sizeof(output)) == ST_CRYPTO_OK);
 	CHECK(memcmp(output, plain, sizeof(plain)) == 0);
-	CHECK(xp_cipher_crypt(XP_CIPHER_AES, XP_CIPHER_ENCRYPT,
+	CHECK(st_cipher_crypt(ST_CIPHER_AES, ST_CIPHER_ENCRYPT,
 	    key, sizeof(key), iv, sizeof(iv), 0, NULL, 0, NULL, 0)
-	    == XP_CRYPTO_OK);
+	    == ST_CRYPTO_OK);
 	return true;
 }
 
@@ -152,10 +152,10 @@ test_chacha20(void)
 	uint8_t zero[64] = {0};
 	uint8_t output[64];
 
-	CHECK(xp_cipher_supported(XP_CIPHER_CHACHA20, XP_CIPHER_ENCRYPT));
-	CHECK(xp_cipher_crypt(XP_CIPHER_CHACHA20, XP_CIPHER_ENCRYPT,
+	CHECK(st_cipher_supported(ST_CIPHER_CHACHA20, ST_CIPHER_ENCRYPT));
+	CHECK(st_cipher_crypt(ST_CIPHER_CHACHA20, ST_CIPHER_ENCRYPT,
 	    key, sizeof(key), nonce, sizeof(nonce), 1, zero, sizeof(zero),
-	    output, sizeof(output)) == XP_CRYPTO_OK);
+	    output, sizeof(output)) == ST_CRYPTO_OK);
 	CHECK(memcmp(output, expected, sizeof(expected)) == 0);
 	return true;
 }
@@ -180,16 +180,16 @@ test_digest(void)
 	};
 	unsigned char digest[32];
 
-	CHECK(xp_digest_size(XP_DIGEST_SHA256) == sizeof(digest));
-	CHECK(xp_digest(XP_DIGEST_SHA256, "abc", 3, digest, sizeof(digest))
-	    == XP_CRYPTO_OK);
+	CHECK(st_digest_size(ST_DIGEST_SHA256) == sizeof(digest));
+	CHECK(st_digest(ST_DIGEST_SHA256, "abc", 3, digest, sizeof(digest))
+	    == ST_CRYPTO_OK);
 	CHECK(memcmp(digest, sha256_abc, sizeof(digest)) == 0);
-	if (strcmp(xp_crypto_provider_name(), "none") != 0) {
-		CHECK(xp_digest(XP_DIGEST_MD5, "abc", 3, digest,
-		    sizeof(md5_abc)) == XP_CRYPTO_OK);
+	if (strcmp(st_crypto_provider_name(), "none") != 0) {
+		CHECK(st_digest(ST_DIGEST_MD5, "abc", 3, digest,
+		    sizeof(md5_abc)) == ST_CRYPTO_OK);
 		CHECK(memcmp(digest, md5_abc, sizeof(md5_abc)) == 0);
-		CHECK(xp_digest(XP_DIGEST_SHA1, "abc", 3, digest,
-		    sizeof(sha1_abc)) == XP_CRYPTO_OK);
+		CHECK(st_digest(ST_DIGEST_SHA1, "abc", 3, digest,
+		    sizeof(sha1_abc)) == ST_CRYPTO_OK);
 		CHECK(memcmp(digest, sha1_abc, sizeof(sha1_abc)) == 0);
 	}
 	return true;
@@ -200,12 +200,12 @@ test_provider(void)
 {
 	uint8_t random[32];
 
-	CHECK(xp_crypto_provider_name() != NULL);
-	CHECK(xp_crypto_provider_version() != NULL);
-	if (strcmp(xp_crypto_provider_name(), "none") == 0)
+	CHECK(st_crypto_provider_name() != NULL);
+	CHECK(st_crypto_provider_version() != NULL);
+	if (strcmp(st_crypto_provider_name(), "none") == 0)
 		return test_disabled() && test_digest();
-	CHECK(xp_crypto_random(NULL, 0) == XP_CRYPTO_OK);
-	CHECK(xp_crypto_random(random, sizeof(random)) == XP_CRYPTO_OK);
+	CHECK(st_crypto_random(NULL, 0) == ST_CRYPTO_OK);
+	CHECK(st_crypto_random(random, sizeof(random)) == ST_CRYPTO_OK);
 	return test_digest() && test_kdf() && test_aes() && test_chacha20();
 }
 
@@ -228,18 +228,18 @@ test_digest_padding(void)
 	};
 	unsigned char digest[32];
 
-	CHECK(xp_digest(XP_DIGEST_SHA256, NULL, 0, digest, sizeof(digest))
-	    == XP_CRYPTO_OK);
+	CHECK(st_digest(ST_DIGEST_SHA256, NULL, 0, digest, sizeof(digest))
+	    == ST_CRYPTO_OK);
 	CHECK(memcmp(digest, empty_expected, sizeof(digest)) == 0);
 	_Static_assert(sizeof(boundary) - 1 == 56, "SHA-256 padding boundary fixture");
-	CHECK(xp_digest(XP_DIGEST_SHA256, boundary, sizeof(boundary) - 1,
-	    digest, sizeof(digest)) == XP_CRYPTO_OK);
+	CHECK(st_digest(ST_DIGEST_SHA256, boundary, sizeof(boundary) - 1,
+	    digest, sizeof(digest)) == ST_CRYPTO_OK);
 	CHECK(memcmp(digest, boundary_expected, sizeof(digest)) == 0);
-	CHECK(xp_digest(XP_DIGEST_SHA256, NULL, 1, digest, sizeof(digest))
-	    == XP_CRYPTO_ERR_INVALID);
-	CHECK(xp_digest(XP_DIGEST_SHA256, boundary, sizeof(boundary) - 1,
-	    digest, sizeof(digest) - 1) == XP_CRYPTO_ERR_INVALID);
-	xp_crypto_clear(NULL, 0);
+	CHECK(st_digest(ST_DIGEST_SHA256, NULL, 1, digest, sizeof(digest))
+	    == ST_CRYPTO_ERR_INVALID);
+	CHECK(st_digest(ST_DIGEST_SHA256, boundary, sizeof(boundary) - 1,
+	    digest, sizeof(digest) - 1) == ST_CRYPTO_ERR_INVALID);
+	st_crypto_clear(NULL, 0);
 	return true;
 }
 

@@ -137,8 +137,8 @@ not the absence of failing tests. New findings will receive stable A-numbers.
 | windows_utf/ | Reviewed | Source and MinGW compile; Windows runtime not verified |
 | wren_host/ | Reviewed | All local implementation, public/internal headers, CMake/generator and integration tests read; isolated shipped-script and host-contract cases run; mutation/error/input/font/ownership integration dispositioned below; runtime/fault limits explicit |
 | wren_vm/ | Reviewed at integration boundary | Full legacy diff, build/configuration, license, REPL private API coupling and minimal consumer link checked; upstream internals not exhaustively audited |
-| xptls/ | Reviewed | All local source/header/build/test files read; broader TLS/platform coverage gaps below |
-| xptls_crypto/ | Reviewed | All local headers/providers/clear implementations/build/tests read; expanded tests pass OpenSSL, Botan and none; MinGW compile only; contract/resource gaps below |
+| net/tls/ | Reviewed | All local source/header/build/test files read; broader TLS/platform coverage gaps below |
+| base/crypto/ | Reviewed | All local headers/providers/clear implementations/build/tests read; expanded tests pass OpenSSL, Botan and none; MinGW compile only; contract/resource gaps below |
 
 ## Root documentation review and consolidated follow-ups
 
@@ -3121,7 +3121,7 @@ to those rows.
 Read public/internal headers, full format reader/writer, IDEA/RC2 legacy
 decoders, CMake and complete tests. This is compatibility/implementation
 review, not independent cryptographic certification. Provider implementations
-and cost limits remain under xptls_crypto; BBS persistence is covered separately.
+and cost limits remain under st_crypto; BBS persistence is covered separately.
 No new confirmed functional defect assigned in this pass.
 
 - Format boundary is explicit: ASCII first-line metadata, followed by binary
@@ -3137,7 +3137,7 @@ No new confirmed functional defect assigned in this pass.
   first-newline scan can traverse the whole mapping. Read has no caller-selected
   file-size/resource ceiling and allocates a full ciphertext/plaintext copy
   before KDF work. Header KDF values are checked by provider parameter validation,
-  with PBKDF2 up to INT_MAX and scrypt memory guard delegated to xp_kdf. This
+  with PBKDF2 up to INT_MAX and scrypt memory guard delegated to st_kdf. This
   does not establish an acceptable interactive CPU budget for every accepted
   parameter. No expensive adversarial-cost execution performed.
 - Read publishes document/info only after parse and marker checks succeed,
@@ -3180,7 +3180,7 @@ No new confirmed functional defect assigned in this pass.
   totals do not prove every legacy cipher is enabled. No provider-disabled
   configuration, fault injection, fuzzing or Windows runtime run here.
 
-### xptls/
+### net/tls/
 
 Read the public header, OpenSSL/Botan/unavailable implementations and CMake
 completely. The component is cohesive client-only TLS; sockets and generic
@@ -3248,7 +3248,7 @@ pass; no Windows runtime verification was available.
   The unavailable provider is source-reviewed only in this pass. Existing HTTP
   loopback tests do not exercise TLS.
 
-### xptls_crypto/
+### base/crypto/
 
 Read every local file, including the built-in SHA-256 implementation, all six
 clear implementations, both test files and provider-selection CMake. Narrow
@@ -3261,7 +3261,7 @@ through the API. Headers have C linkage guards and standard type includes.
   IV/counter layout and no-padding CBC. Added in-place AES encrypt/decrypt
   checks pass with both providers. Existing known-answer AES/ChaCha/PBKDF2 and
   scrypt checks pass. Unsupported legacy encryption is reported by
-  xp_cipher_supported(), but xp_cipher_crypt() does not enforce that policy in
+  st_cipher_supported(), but st_cipher_crypt() does not enforce that policy in
   either provider. Clarify whether supported() describes recommended policy or
   executable capability; no current list writer uses a legacy cipher.
 - Buffer argument validation checks NULL/count pairs and output capacity.
@@ -3312,10 +3312,10 @@ through the API. Headers have C linkage guards and standard type includes.
   Botan probe. Cached usability values after dependency/toolchain changes and
   all alternate system-clear choices were not exhaustively configured.
 
-Verification: normal build OpenSSL and build-gcc Botan xp_crypto CTests pass
+Verification: normal build OpenSSL and build-gcc Botan st_crypto CTests pass
 after rebuilding. Fresh standalone configuration at
 /tmp/st-crypto-audit.ckTcuL with CRYPTO_BACKEND=none and
-XPTLS_CRYPTO_TEST_CLEAR_FALLBACK=ON builds and passes both CTests. MinGW builds
+ST_CRYPTO_TEST_CLEAR_FALLBACK=ON builds and passes both CTests. MinGW builds
 the expanded test but was not executed. No implementation/CMake changes or
 commits. Remaining gaps include allocation/provider-failure injection, legacy
 cipher key-size coverage, SHA-384/512 vectors, long multi-block hash vectors,

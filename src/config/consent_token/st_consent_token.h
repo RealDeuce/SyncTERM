@@ -13,7 +13,7 @@
 
 #define ST_CONSENT_TOKEN_KEY_SIZE 32U
 
-/* Returns an XP_CRYPTO_* status. */
+/* Returns an ST_CRYPTO_* status. */
 int st_consent_token_generate_key(
 	uint8_t key[ST_CONSENT_TOKEN_KEY_SIZE]);
 

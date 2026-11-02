@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BSD-2-Clause */
 #include "connection_stream.h"
 #include "st_time.h"
-#include "xp_crypto.h"
+#include "st_crypto.h"
 #include <errno.h>
 #include <limits.h>
 #include <stdio.h>
@@ -517,7 +517,7 @@ st_connection_connect_mqtt(st_connection_t **result, const struct st_profile *pr
 		status = ask(hooks, "MQTT authentication", "Password", "", ST_PROFILE_PASSWORD_MAX, true, &answer);
 		if (status != 0) goto failed;
 		(void)snprintf(copy.password, sizeof(copy.password), "%s", answer);
-		xp_crypto_clear(answer, strlen(answer)); free(answer); answer = NULL;
+		st_crypto_clear(answer, strlen(answer)); free(answer); answer = NULL;
 	}
 	strcpy(identity, copy.username);
 	strcpy(secret, copy.password);
@@ -534,7 +534,7 @@ st_connection_connect_mqtt(st_connection_t **result, const struct st_profile *pr
 	tls.handshake_timeout_ms = 15000;
 	st_connection_log_hooks(hooks, "MQTT", ST_CONNECTION_LOG_INFO, "starting TLS-PSK negotiation");
 	status = st_connection_stream_open(&t->stream, &copy, true, &tls, hooks, error);
-	xp_crypto_clear(secret, sizeof(secret));
+	st_crypto_clear(secret, sizeof(secret));
 	if (status != 0 && status != IO_ERROR_CANCELLED && copy.tls_psk[0] == '\0') {
 		(void)snprintf(psk_error, sizeof(psk_error), "%s", error == NULL
 		    ? t->stream.diagnostic : error->detail);
@@ -554,7 +554,7 @@ st_connection_connect_mqtt(st_connection_t **result, const struct st_profile *pr
 		    ST_PROFILE_SYSTEM_PASSWORD_MAX, true, &answer);
 		if (status != 0) goto failed;
 		(void)snprintf(copy.system_password, sizeof(copy.system_password), "%s", answer);
-		xp_crypto_clear(answer, strlen(answer)); free(answer); answer = NULL;
+		st_crypto_clear(answer, strlen(answer)); free(answer); answer = NULL;
 		if (copy.system_password[0] == '\0') { status = IO_ERROR_CANCELLED; goto failed; }
 	}
 	if (hooks != NULL && hooks->status != NULL) hooks->status(hooks->ui_context, "Sending CONNECT");
@@ -567,7 +567,7 @@ st_connection_connect_mqtt(st_connection_t **result, const struct st_profile *pr
 	used += put_string(connect + used, copy.username);
 	used += put_string(connect + used, psk ? copy.system_password : copy.password);
 	status = packet(t, 0x10, connect, used, hooks);
-	xp_crypto_clear(connect, sizeof(connect));
+	st_crypto_clear(connect, sizeof(connect));
 	if (status == 0) status = wait_packet(t, hooks, now_ms() + 10000);
 	if (status == 0 && (t->header[0] != 0x20 || t->body_size < 3
 	    || t->body[0] != 0 || t->body[1] != 0)) status = IO_ERROR_PERMISSION_DENIED;
@@ -606,9 +606,9 @@ st_connection_connect_mqtt(st_connection_t **result, const struct st_profile *pr
 	if (status == 0) status = subscribe(t, t->output_topic, false, hooks);
 	if (status != 0) goto failed;
 	st_connection_log_hooks(hooks, "MQTT", ST_CONNECTION_LOG_INFO, "node %u selected", node);
-	xp_crypto_clear(copy.password, sizeof(copy.password));
-	xp_crypto_clear(copy.system_password, sizeof(copy.system_password));
-	xp_crypto_clear(copy.tls_psk, sizeof(copy.tls_psk));
+	st_crypto_clear(copy.password, sizeof(copy.password));
+	st_crypto_clear(copy.system_password, sizeof(copy.system_password));
+	st_crypto_clear(copy.tls_psk, sizeof(copy.tls_psk));
 	st_profile_dispose(&copy);
 	if (hooks != NULL && hooks->status != NULL) hooks->status(hooks->ui_context, NULL);
 	return st_connection_start(result, t, &operations, "MQTT", hooks, mqtt_send, error);
@@ -616,10 +616,10 @@ failed:
 	st_connection_log_hooks(hooks, "MQTT", status == IO_ERROR_CANCELLED
 	    ? ST_CONNECTION_LOG_INFO : ST_CONNECTION_LOG_ERROR,
 	    "MQTT setup %s (%d)", status == IO_ERROR_CANCELLED ? "cancelled" : "failed", status);
-	if (answer != NULL) { xp_crypto_clear(answer, strlen(answer)); free(answer); }
-	xp_crypto_clear(copy.password, sizeof(copy.password));
-	xp_crypto_clear(copy.system_password, sizeof(copy.system_password));
-	xp_crypto_clear(copy.tls_psk, sizeof(copy.tls_psk));
+	if (answer != NULL) { st_crypto_clear(answer, strlen(answer)); free(answer); }
+	st_crypto_clear(copy.password, sizeof(copy.password));
+	st_crypto_clear(copy.system_password, sizeof(copy.system_password));
+	st_crypto_clear(copy.tls_psk, sizeof(copy.tls_psk));
 	st_profile_dispose(&copy);
 	mqtt_destroy(t);
 	char message[2400];

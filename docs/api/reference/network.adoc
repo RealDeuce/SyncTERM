@@ -116,33 +116,33 @@ without events. The observer receives no endpoint strings or application data.
 
 ==== Crypto provider
 
-Provider APIs return `XP_CRYPTO_OK` or a negative `XP_CRYPTO_*` code.  Use
-`xp_crypto_status_string(status)` for a static diagnostic, and
-`xp_crypto_provider_name()` / `xp_crypto_provider_version()` for static
+Provider APIs return `ST_CRYPTO_OK` or a negative `ST_CRYPTO_*` code.  Use
+`st_crypto_status_string(status)` for a static diagnostic, and
+`st_crypto_provider_name()` / `st_crypto_provider_version()` for static
 provider identity.
 
 [source,c]
 ----
-const char *xp_crypto_status_string(int status);
-const char *xp_crypto_provider_name(void);
-const char *xp_crypto_provider_version(void);
-int xp_crypto_random(void *result, size_t size);
-void xp_crypto_clear(void *data, size_t size);
-size_t xp_digest_size(enum xp_digest_algorithm algorithm);
-int xp_digest(enum xp_digest_algorithm algorithm, const void *input,
+const char *st_crypto_status_string(int status);
+const char *st_crypto_provider_name(void);
+const char *st_crypto_provider_version(void);
+int st_crypto_random(void *result, size_t size);
+void st_crypto_clear(void *data, size_t size);
+size_t st_digest_size(enum st_digest_algorithm algorithm);
+int st_digest(enum st_digest_algorithm algorithm, const void *input,
     size_t input_size, void *result, size_t result_size);
-bool xp_cipher_supported(enum xp_cipher_algorithm algorithm,
-    enum xp_cipher_direction direction);
-int xp_cipher_crypt(enum xp_cipher_algorithm algorithm,
-    enum xp_cipher_direction direction, const void *key, size_t key_size,
+bool st_cipher_supported(enum st_cipher_algorithm algorithm,
+    enum st_cipher_direction direction);
+int st_cipher_crypt(enum st_cipher_algorithm algorithm,
+    enum st_cipher_direction direction, const void *key, size_t key_size,
     const void *iv, size_t iv_size, uint32_t initial_counter,
     const void *input, size_t input_size, void *output, size_t output_size);
-bool xp_kdf_scrypt_parameters_valid(uint64_t n, uint32_t r, uint32_t p);
-int xp_kdf_pbkdf2(enum xp_digest_algorithm digest,
+bool st_kdf_scrypt_parameters_valid(uint64_t n, uint32_t r, uint32_t p);
+int st_kdf_pbkdf2(enum st_digest_algorithm digest,
     const void *password, size_t password_size,
     const void *salt, size_t salt_size, uint64_t iterations,
     void *result, size_t result_size);
-int xp_kdf_scrypt(const void *password, size_t password_size,
+int st_kdf_scrypt(const void *password, size_t password_size,
     const void *salt, size_t salt_size, uint64_t n, uint32_t r, uint32_t p,
     void *result, size_t result_size);
 ----
@@ -151,42 +151,42 @@ Every byte pointer is a counted borrowed span; NULL is valid only at size zero.
 Output capacity is explicit and the caller owns output storage.  Cipher input
 and output may be exactly the same buffer but otherwise must not overlap.
 Provider strings are static.  Integer enums/parameters must pass algorithm
-validation; status-returning functions use `XP_CRYPTO_*`.
+validation; status-returning functions use `ST_CRYPTO_*`.
 
 [cols="3m,7"]
 |===
 | Function | Parameters, result, and effect
 
-| xp_crypto_random(result, size)
+| st_crypto_random(result, size)
 | Fills exactly `size` cryptographic random bytes; NULL is valid only for zero.
 
-| xp_crypto_clear(data, size)
+| st_crypto_clear(data, size)
 | Performs a non-optimizable clear before secret storage is freed or reused.
 
-| xp_digest_size(algorithm)
+| st_digest_size(algorithm)
 | Returns digest bytes or zero for an unsupported identifier.
 
-| xp_digest(algorithm, input, input_size, result, result_size)
+| st_digest(algorithm, input, input_size, result, result_size)
 | Hashes counted bytes; result size must exactly accommodate the selected
 digest.
 
-| xp_cipher_supported(algorithm, direction)
+| st_cipher_supported(algorithm, direction)
 | Queries provider support separately for encryption and decryption.
 
-| xp_cipher_crypt(algorithm, direction, key, key_size, iv, iv_size, counter, input, input_size, output, output_size)
+| st_cipher_crypt(algorithm, direction, key, key_size, iv, iv_size, counter, input, input_size, output, output_size)
 | Processes one whole buffer without padding.  Exact in-place operation is
 allowed.  CBC input must contain whole blocks; nonce/IV requirements are in
-`xp_cipher.h`.
+`st_cipher.h`.
 
-| xp_kdf_scrypt_parameters_valid(n, r, p)
+| st_kdf_scrypt_parameters_valid(n, r, p)
 | Validates power-of-two/cost/overflow/memory bounds without deriving a key.
 
-| xp_kdf_pbkdf2(digest, password, password_size, salt, salt_size, iterations, result, result_size)
+| st_kdf_pbkdf2(digest, password, password_size, salt, salt_size, iterations, result, result_size)
 | Derives exactly `result_size` bytes from counted password and salt, both of
 which may contain NUL.
 
-| xp_kdf_scrypt(password, password_size, salt, salt_size, n, r, p, result, result_size)
-| Bounded scrypt derivation; requests above `XP_KDF_SCRYPT_MAX_MEMORY` fail by
+| st_kdf_scrypt(password, password_size, salt, salt_size, n, r, p, result, result_size)
+| Bounded scrypt derivation; requests above `ST_KDF_SCRYPT_MAX_MEMORY` fail by
 policy.
 |===
 
@@ -295,7 +295,7 @@ int st_consent_token_verify(char **result,
 
 Key arrays must address 32 readable/writable bytes as appropriate.  Path/token
 are required borrowed NUL-terminated strings.  Sign/verify output pointers are
-required, unchanged on `XP_CRYPTO_*` error, and receive malloc-owned strings.
+required, unchanged on `ST_CRYPTO_*` error, and receive malloc-owned strings.
 
 [cols="3m,7"]
 |===
@@ -303,7 +303,7 @@ required, unchanged on `XP_CRYPTO_*` error, and receive malloc-owned strings.
 
 | st_consent_token_generate_key(key)
 | Fills exactly `ST_CONSENT_TOKEN_KEY_SIZE` random bytes; returns
-`XP_CRYPTO_*`.
+`ST_CRYPTO_*`.
 
 | st_consent_token_sign(result, key, path)
 | Authenticates a path and returns a malloc-owned Base64 token.

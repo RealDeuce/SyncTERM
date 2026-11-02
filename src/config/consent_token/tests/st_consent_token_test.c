@@ -8,7 +8,7 @@
 #include "st_consent_token.h"
 
 #include "filesystem.h"
-#include "xp_crypto.h"
+#include "st_crypto.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -40,9 +40,9 @@ main(void)
 	CHECK(fs_replace_file(ST_CONSENT_TOKEN_TEST_DIRECTORY, "original", 8)
 	    == 0);
 	CHECK(st_consent_token_sign(&token, key,
-	    ST_CONSENT_TOKEN_TEST_DIRECTORY) == XP_CRYPTO_OK);
+	    ST_CONSENT_TOKEN_TEST_DIRECTORY) == ST_CRYPTO_OK);
 	CHECK(token != NULL);
-	CHECK(st_consent_token_verify(&path, key, token) == XP_CRYPTO_OK);
+	CHECK(st_consent_token_verify(&path, key, token) == ST_CRYPTO_OK);
 	CHECK(path != NULL && strcmp(path, ST_CONSENT_TOKEN_TEST_DIRECTORY) == 0);
 	free(path);
 	path = NULL;
@@ -52,17 +52,17 @@ main(void)
 		strcpy(tampered, token);
 		tampered[5] = tampered[5] == 'A' ? 'B' : 'A';
 		CHECK(st_consent_token_verify(&path, key, tampered)
-		    != XP_CRYPTO_OK);
+		    != ST_CRYPTO_OK);
 		free(tampered);
 	}
 	memcpy(other, key, sizeof(other));
 	other[0] ^= 1;
 	CHECK(st_consent_token_verify(&path, other, token)
-	    == XP_CRYPTO_ERR_VERIFY);
+	    == ST_CRYPTO_ERR_VERIFY);
 	CHECK(fs_replace_file(ST_CONSENT_TOKEN_TEST_DIRECTORY, "changed", 7)
 	    == 0);
 	CHECK(st_consent_token_verify(&path, key, token)
-	    == XP_CRYPTO_ERR_VERIFY);
+	    == ST_CRYPTO_ERR_VERIFY);
 	free(token);
 	CHECK(fs_remove_file(ST_CONSENT_TOKEN_TEST_DIRECTORY) == 0);
 	return failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;

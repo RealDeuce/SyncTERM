@@ -22,7 +22,7 @@ endif()
 
 # DeuceSSH exposes a C ABI, but its Botan archive contains C++ objects.
 # A C-only consumer (including the standalone SSH fixture) needs the runtime
-# of the selected C++ compiler even without a dependency on xptls_crypto.
+# of the selected C++ compiler even without a dependency on st_crypto.
 if(ST_TLS_PROVIDER STREQUAL "Botan")
 	enable_language(CXX)
 	add_library(st_deucessh INTERFACE)
