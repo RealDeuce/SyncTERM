@@ -699,6 +699,8 @@ st_wren_bind_method(WrenVM *vm, const char *module, const char *class_name,
 	WrenForeignMethodFn method = NULL;
 
 	if (strcmp(module, "syncterm") == 0)
+		method = st_wren_session_object_bind_method(class_name, is_static, signature);
+	if (method == NULL && strcmp(module, "syncterm") == 0)
 		method = st_wren_async_bind_method(class_name, is_static, signature);
 	if (method == NULL && strcmp(module, "syncterm") == 0)
 		method = st_wren_cleanup_bind_method(class_name, is_static, signature);
@@ -757,6 +759,8 @@ st_wren_bind_class(WrenVM *vm, const char *module, const char *class_name)
 	WrenForeignClassMethods methods = {NULL, NULL};
 
 	if (strcmp(module, "syncterm") == 0)
+		methods = st_wren_session_object_bind_class(class_name);
+	if (methods.allocate == NULL && strcmp(module, "syncterm") == 0)
 		methods = st_wren_async_bind_class(class_name);
 	if (methods.allocate == NULL && strcmp(module, "syncterm") == 0)
 		methods = st_wren_cleanup_bind_class(class_name);
@@ -1648,6 +1652,7 @@ st_wren_picker_host_dispose(struct st_wren_host *host)
 	if (host->picker_bootstrap != NULL)
 		wrenReleaseHandle(host->picker_vm, host->picker_bootstrap);
 	st_wren_log_dispose(host->picker_vm);
+	st_wren_session_object_dispose(host->picker_vm);
 	wrenFreeVM(host->picker_vm);
 	host->picker_vm = NULL;
 	host->picker.vm = NULL;
@@ -1854,6 +1859,7 @@ st_wren_host_destroy(st_wren_host_t *host)
 	if (host->vm != NULL) {
 		st_wren_input_context_dispose(host->vm);
 		st_wren_log_dispose(host->vm);
+		st_wren_session_object_dispose(host->vm);
 		wrenFreeVM(host->vm);
 		host->menu.vm = NULL;
 	}

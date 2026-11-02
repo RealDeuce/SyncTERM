@@ -44,12 +44,12 @@ transfer ownership, and the Conn section of `docs/Wren.adoc`.
 
 ## 3 Own session lifetime holds
 
-- [ ] Replace the shared `CTerm.sftpActive` Bool with per-owner session
+- [x] Replace the shared `CTerm.sftpActive` Bool with per-owner session
   lifetime leases; derive native auxiliary activity from live leases and work.
-- [ ] Support idempotent release, multiple independent owners, structured
+- [x] Support idempotent release, multiple independent owners, structured
   cleanup across cooperative yields/errors, GC fallback and VM teardown.
-- [ ] Migrate SFTP queue and other callers; remove the terminal-emulation flag.
-- [ ] Test that one owner cannot release another's hold, failed callbacks
+- [x] Migrate SFTP queue and other callers; remove the terminal-emulation flag.
+- [x] Test that one owner cannot release another's hold, failed callbacks
   release their own hold, and shell EOF closes only after all work/holds end.
 
 Starting points: `wren_sftp.c`, `scripts/sftp_queue.wren`, auxiliary activity
@@ -136,3 +136,15 @@ the expanded host/menu tests also passed afterwards. Four ASan/UBSan tests
 passed with unsupported FreeBSD leak detection disabled. Six control-bitmap
 application/add-on tests passed. FreeBSD Clang/GCC and MinGW i686/x86_64 host
 libraries built without warnings; Windows runtime tests were not run.
+
+Item 3: `Session.current` now issues independent `SessionLease` objects.
+Explicit release is idempotent, GC releases abandoned leases, scoped holds
+preserve callback results/errors across yields, and teardown releases all
+holds before disconnect hooks. Native pending requests retain their own
+auxiliary activity. The queue and public-key installer now own their holds;
+the old terminal flag and aggregation module have been removed.
+
+Seven native host/UI tests and the live SFTP test passed. Three ASan/UBSan
+tests and six control-bitmap application/add-on tests passed. Native Clang/GCC
+and MinGW i686/x86_64 host libraries built without warnings. Windows runtime
+tests were not run.

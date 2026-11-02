@@ -17,9 +17,8 @@
 // connect by sftp_queue_init.wren; `stop()` runs on disconnect.
 
 import "syncterm" for Cache, CTerm, Download, File, FileError, FileFlag,
-                       Format, Host, SFTP, SFTPError, SFTPStat, Timer,
+                       Format, Host, SFTP, SFTPError, SFTPStat, Timer, Session,
 					   Wake, WON, WONError
-import "sftp_activity" for SftpActivity
 
 // One in-flight or terminal-state job.  Mutable in place; serialized
 // from `persistNow_()`.  `cancel` is the volatile flag the workers
@@ -353,7 +352,7 @@ class SftpQueue {
     __jobs        = []
     Host.uploadArrow   = false
     Host.downloadArrow = false
-    SftpActivity.set("queue", false)
+    holdSession_(false)
   }
 
   // Halt workers without touching job state.  Workers see __suspended
@@ -384,18 +383,21 @@ class SftpQueue {
   static shellClosed { __shellClosed ? true : false }
   static shellClosed=(b) { __shellClosed = b }
 
-  // Recompute CTerm.sftpActive from the live queue.  Called after
-  // every state change that might add or drain pending work; ssh.c
-  // OR's this flag with its own queue counts when deciding whether
-  // to tear down the SSH session at shell-close / wire-idle.  Returns
-  // false unconditionally while suspended — the workers are halting
-  // and we want the disconnect path to proceed.
+  // Keep this queue's own session lease while work can still progress.
+  static holdSession_(active) {
+    if (active && __sessionLease == null) __sessionLease = Session.current.hold()
+    if (!active && __sessionLease != null) {
+      __sessionLease.release()
+      __sessionLease = null
+    }
+  }
+
   static signalActive_() {
     if (__suspended) {
-      SftpActivity.set("queue", false)
+      holdSession_(false)
       return
     }
-    SftpActivity.set("queue", hasWork)
+    holdSession_(hasWork)
     if (hasWork && !__workersStarted && !__fatal) {
       __workersStarted = true
       Fiber.new {

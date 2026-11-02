@@ -165,12 +165,11 @@ static int upload(st_wren_host_t *host, st_wren_connected_t *vm, const char *dir
 	CHECK(st_wren_connected_interpret(vm, "live_upload", source) == 0);
 	CHECK(drain(vm) == 0);
 	CHECK(st_wren_connected_interpret(vm, "upload_verify",
-	    "import \"syncterm\" for SFTP, SFTPError, FileFlag\n"
+	    "import \"syncterm\" for SFTP, SFTPError, FileFlag, Session\n"
 	    "import \"sftp_queue\" for SftpQueue\n"
-	    "import \"sftp_activity\" for SftpActivity\n"
-	    "if (SftpQueue.snapshot[1].status != SftpQueue.DONE) Fiber.abort(\"upload failed: %(SftpQueue.snapshot[1].errMsg)\")\n"
+		    "if (SftpQueue.snapshot[1].status != SftpQueue.DONE) Fiber.abort(\"upload failed: %(SftpQueue.snapshot[1].errMsg)\")\n"
 	    "Fiber.new {\n"
-	    "  SftpActivity.set(\"verify\", true)\n"
+	    "  var lease = Session.current.hold()\n"
 	    "  var h = SFTP.open(\"/upload.bin\", FileFlag.read).await()\n"
 	    "  if (h is SFTPError) Fiber.abort(h.toString)\n"
 	    "  var pos = 0\n"
@@ -183,7 +182,7 @@ static int upload(st_wren_host_t *host, st_wren_connected_t *vm, const char *dir
 	    "    }\n"
 	    "  }\n"
 	    "  SFTP.close(h).await()\n"
-	    "  SftpActivity.set(\"verify\", false)\n"
+	    "  lease.release()\n"
 	    "}.call()\n") == 0);
 	CHECK(drain(vm) == 0);
 	internal->bbs_list = saved;
@@ -257,22 +256,21 @@ static int run_case(st_wren_host_t *host, st_console_t *console,
 		    "SftpQueue.enqueue(SftpQueue.DOWNLOAD, \"sftp-loss.bin\", \"/remote.bin\", 90000)\n") == 0);
 		CHECK(drain(vm) == 0);
 		CHECK(st_wren_connected_interpret(vm, "connection_loss_result",
-		    "import \"syncterm\" for CTerm\n"
+		    "import \"syncterm\" for CTerm, Session\n"
 		    "import \"sftp_app\" for SftpApp\n"
 		    "import \"sftp_queue\" for SftpQueue\n"
-		    "if (!SftpQueue.suspended || CTerm.sftpActive || CTerm.suspended || SftpApp.current != null) Fiber.abort(\"network loss state: queue suspended=%(SftpQueue.suspended), active=%(CTerm.sftpActive), terminal suspended=%(CTerm.suspended), app=%(SftpApp.current)\")\n") == 0);
+		    "if (!SftpQueue.suspended || Session.current.holdCount > 0 || CTerm.suspended || SftpApp.current != null) Fiber.abort(\"network loss state: queue suspended=%(SftpQueue.suspended), active=%(Session.current.holdCount), terminal suspended=%(CTerm.suspended), app=%(SftpApp.current)\")\n") == 0);
 	} else if (test >= 3 && test <= 7) {
 		CHECK(st_wren_connected_interpret(vm, "failure_cleanup",
-		    "import \"syncterm\" for CTerm, SFTP\n"
-		    "if (CTerm.sftpActive || !SFTP.available) Fiber.abort(\"key failure leaked activity\")\n") == 0);
+		    "import \"syncterm\" for CTerm, SFTP, Session\n"
+		    "if (Session.current.holdCount > 0 || !SFTP.available) Fiber.abort(\"key failure leaked activity\")\n") == 0);
 	} else {
 		CHECK(st_wren_connected_interpret(vm, "live_contract",
-		    "import \"syncterm\" for BBS, CTerm, SFTP, SFTPError, FileFlag, Host\n"
-		    "import \"sftp_activity\" for SftpActivity\n"
+		    "import \"syncterm\" for BBS, CTerm, SFTP, SFTPError, FileFlag, Host, Session\n"
 		    "class Live {\n"
 		    "  static done { __done }\n"
 		    "  static run() {\n"
-		    "    SftpActivity.set(\"test\", true)\n"
+		    "    var lease = Session.current.hold()\n"
 		    "    var ready = SFTP.start().await()\n"
 		    "    if (ready != true || !SFTP.lname || SFTP.pubdir != \"/public\") Fiber.abort(\"startup\")\n"
 		    "    var d = SFTP.opendir(\"/\").await()\n"
@@ -294,7 +292,7 @@ static int run_case(st_wren_host_t *host, st_console_t *console,
 		    "    }\n"
 		    "    SFTP.close(h).await()\n"
 		    "    __done = true\n"
-		    "    SftpActivity.set(\"test\", false)\n"
+		    "    lease.release()\n"
 		    "  }\n"
 		    "}\n"
 		    "Fiber.new { Live.run() }.call()\n") == 0);

@@ -1025,6 +1025,23 @@ class LogSource {
   static runtimeError { 2 }
   static stackFrame { 3 }
 }
+// VM-scoped view of the connected session. Menu and picker VMs have no
+// current session. Leases keep shell EOF from ending active auxiliary work.
+foreign class Session {
+  foreign static current
+  foreign hold()
+  foreign holdCount
+  hold(fn) {
+    if (!(fn is Fn)) Fiber.abort("Session.hold expects a Fn")
+    var lease = hold()
+    return Cleanup_.run(fn, Fn.new { lease.release() })
+  }
+}
+foreign class SessionLease {
+  foreign released
+  foreign release()
+}
+
 // send / sendRaw own queued output and return Operation. Await for null
 // success or ConnError. Queue pressure is handled by the host; callers
 // never retry a UTF-8 slice using a transformed wire-byte offset.
@@ -1150,14 +1167,6 @@ class CTerm {
   foreign static throttleSpeedUp()
   foreign static throttleSpeedDown()
   foreign static statusDisplay
-  // Wren-controlled flag the SSH driver reads to keep the session
-  // alive when the shell channel closes (or wire goes idle) while
-  // SFTP transfers are in flight.  SftpQueue raises it on enqueue
-  // and clears it when the queue drains; ssh.c OR's it with its own
-  // worker counts in the conn_api.terminate decision.  Generic - any
-  // SFTP-using script can hold the session up.
-  foreign static sftpActive
-  foreign static sftpActive=(b)
   foreign static extAttr
   foreign static lastColumnFlag
   foreign static write(s)

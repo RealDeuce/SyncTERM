@@ -18,7 +18,7 @@
 // the close path also calls SftpQueue.suspend(), which exits worker
 // fibers without flipping ACTIVE → terminal.  Jobs persist in their
 // ACTIVE state and resume from their contiguous frontier on the next session.
-// CTerm.sftpActive clears as part of suspend(), so is_connected goes
+// the queue session lease releases as part of suspend(), so is_connected goes
 // false and the term.c disconnect path can run normally.
 
 import "syncterm" for Cleanup_, Conn, CTerm, Download, File, Format, Host, Key, Text, Mod,
@@ -466,7 +466,7 @@ class SftpApp is App {
   // just `quit()` - transfers keep running in their worker fibers.
   // After shell-close, the user wants out: suspend the workers
   // (they exit at next chunk-boundary check, leaving ACTIVE jobs
-  // ACTIVE), then quit.  CTerm.sftpActive clears as part of
+  // ACTIVE), then quit.  the queue session lease releases as part of
   // suspend(), so is_connected goes false and the disconnect path
   // proceeds.  onDisconnect's stop() persists the still-ACTIVE
   // jobs; load_ on the next session converts them back to QUEUED
@@ -514,7 +514,7 @@ class SftpApp is App {
       // a terminal state) or the workers have suspended (server tore
       // down the SFTP channel mid-transfer; jobs preserved ACTIVE for
       // resume).  Either way the App has nothing left to show; falling
-      // through clears CTerm.sftpActive so the disconnect path runs.
+      // through releases the queue session lease so the disconnect path runs.
       if (_shellClosed && (SftpQueue.suspended || !SftpQueue.hasWork)) {
         quit()
       }

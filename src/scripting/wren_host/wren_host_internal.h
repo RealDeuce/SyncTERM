@@ -169,6 +169,7 @@ struct surface_storage;
 struct st_wren_transfer;
 struct st_wren_send;
 struct st_wren_cleanup;
+struct st_wren_session_lease;
 
 /* VM lifetime state, shared by that VM's UI and REPL. */
 struct st_wren_context {
@@ -214,7 +215,8 @@ struct st_wren_context {
 	struct st_term_session *session;
 	uint64_t connected_at_ms;
 	const char *event;
-	bool cterm_sftp_active;
+	struct st_wren_session_lease *session_leases;
+	WrenHandle *session_value;
 	bool status_enabled;
 	bool link_hover_valid;
 	bool link_gesture;
@@ -308,6 +310,11 @@ WrenForeignMethodFn st_wren_repl_bind_method(const char *class_name,
 	bool is_static, const char *signature);
 WrenForeignMethodFn st_wren_status_bind_method(const char *class_name,
 	bool is_static, const char *signature);
+WrenForeignClassMethods st_wren_session_object_bind_class(const char *class_name);
+WrenForeignMethodFn st_wren_session_object_bind_method(const char *class_name,
+	bool is_static, const char *signature);
+void st_wren_session_release_holds(WrenVM *vm);
+void st_wren_session_object_dispose(WrenVM *vm);
 WrenForeignMethodFn st_wren_session_bind_method(const char *class_name,
 	bool is_static, const char *signature);
 WrenForeignMethodFn st_wren_transfer_bind_method(const char *class_name,

@@ -803,19 +803,6 @@ fn_timer_after(WrenVM *vm)
 	timer->next = connected->timers;
 	connected->timers = timer;
 }
-
-static void fn_cterm_sftp_active(WrenVM *vm)
-{ wrenSetSlotBool(vm, 0, st_wren_context_from_vm(vm)->cterm_sftp_active); }
-static void fn_cterm_sftp_active_set(WrenVM *vm)
-{
-	if (wrenGetSlotType(vm, 1) != WREN_TYPE_BOOL) {
-		st_wren_abort(vm, "CTerm.sftpActive expects a Bool");
-		return;
-	}
-	st_wren_context_from_vm(vm)->cterm_sftp_active = wrenGetSlotBool(vm, 1);
-	wrenSetSlotBool(vm, 0, st_wren_context_from_vm(vm)->cterm_sftp_active);
-}
-
 static struct connected_hook *
 register_hook(WrenVM *vm, int function_slot, int kind, int filter)
 {
@@ -1149,8 +1136,6 @@ static const struct sftp_binding bindings[] = {
 	{"SFTPError", false, "isTransient", fn_error_transient},
 	{"SFTPError", false, "toString", fn_error_string},
 	{"Timer", true, "after(_)", fn_timer_after},
-	{"CTerm", true, "sftpActive", fn_cterm_sftp_active},
-	{"CTerm", true, "sftpActive=(_)", fn_cterm_sftp_active_set},
 	{"Hook", true, "onKey(_)", fn_hook_on_key},
 	{"Hook", true, "onKey(_,_,_)", fn_hook_on_key_value},
 	{"Hook", true, "onShellClose(_)", fn_hook_shell},
@@ -1918,6 +1903,8 @@ st_wren_connected_destroy(st_wren_connected_t *connected)
 		(void)st_wren_operation_cancel_all(connected->vm);
 	if (connected->vm != NULL)
 		st_wren_cleanup_shutdown(connected->vm);
+	if (connected->vm != NULL)
+		st_wren_session_release_holds(connected->vm);
 	while (connected->requests != NULL) {
 		struct pending_request *next = connected->requests->next;
 		free(connected->requests);
@@ -1944,6 +1931,7 @@ st_wren_connected_destroy(st_wren_connected_t *connected)
 		st_wren_status_dispose(connected->vm);
 		st_wren_input_context_dispose(connected->vm);
 		st_wren_log_dispose(connected->vm);
+		st_wren_session_object_dispose(connected->vm);
 		wrenFreeVM(connected->vm);
 	}
 	st_profile_dispose(&connected->profile);
@@ -1954,7 +1942,7 @@ bool
 st_wren_connected_auxiliary_active(const st_wren_connected_t *connected)
 {
 	return connected != NULL && !connected->shutting_down
-	    && (connected->context.cterm_sftp_active || connected->requests != NULL);
+	    && (connected->context.session_leases != NULL || connected->requests != NULL);
 }
 
 bool

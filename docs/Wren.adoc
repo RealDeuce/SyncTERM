@@ -1642,8 +1642,8 @@ wire-byte replacement, or `onInput` for Unicode text replacement.
   still alive (e.g. SFTP transfers may still be in flight).  Typical
   use: pop a status / queue UI so the user can watch transfers
   finish, or signal a worker to wind down.  See
-  <<cterm,CTerm.sftpActive>> for the corresponding "keep the session
-  up" flag.
+  <<session,Session>> for owned lifetime leases that keep auxiliary work
+  running after shell EOF.
 | C2
 
 | `Hook.onDisconnect(fn)`
@@ -3670,6 +3670,37 @@ statement" from "this was an expression whose value is `null`".
 Runtime errors propagate normally.  Wrap the call in
 `Fiber.new {}.try()` to catch them.
 
+=== Session [[session]]
+
+`Session.current` is the stable VM-scoped view of the connected session, or
+`null` in menu/picker VMs and during session teardown. Session lifetime holds
+belong to independent `SessionLease` objects, separately from terminal state.
+
+[options="header",cols="2,3"]
+|===
+| Member | Description
+| `Session.current.hold()`
+| Acquire a lease that keeps the session pumping after shell EOF while its
+  owner has auxiliary work. A lease cannot release another owner's hold.
+  Native pending SFTP requests also keep their work alive independently.
+| `Session.current.hold(fn)`
+| Run `fn` with a scoped lease. Returns the callback result and releases the
+  lease on return or abort, preserving cooperative yields and the original
+  error. VM shutdown releases the hold without resuming parked work.
+| `Session.current.holdCount`
+| Number of live script leases; excludes native pending requests.
+| `SessionLease.release()`
+| Release this hold. Returns `true` once, then `false` on repeated calls.
+| `SessionLease.released`
+| Whether this lease has been released explicitly, by GC, or during shutdown.
+|===
+
+Leases are host-created and have no public constructor. Keep the lease
+reachable while it is needed; collecting an abandoned lease releases its hold.
+Explicit disconnect and actual connection loss still end the session. The
+bundled SFTP queue owns a lease while it has runnable work; the public-key
+installer uses a scoped lease. Neither client controls the other's lifetime.
+
 === Conn
 
 Connection-level send and receive.
@@ -3963,21 +3994,6 @@ emulation-aware logic.
   interval; those bytes drain past the speed gate as fast as the
   pump can run, so the visible output catches up to where it would
   have been if the suspend had never happened.
-
-| `CTerm.sftpActive`, `CTerm.sftpActive = b`
-| SFTP-active flag the SSH driver reads to decide whether to keep
-  the SSH session alive when the shell channel closes (or wire
-  goes idle).  Set true while a script has SFTP transfers in
-  flight; set false when the queue drains.  `is_connected()` ORs
-  this with the C-side queue state, so the term.c main loop keeps
-  pumping (Wren VM, paint, drainOnce_) while the flag is true even
-  after the shell channel dies — letting transfers finish in the
-  background workers and disconnecting cleanly when they're done.
-  Generic — any SFTP-using script can hold the session up. The bundled queue
-  and key installer aggregate their independent holds through
-  `sftp_activity`, so finishing one cannot release the other's hold.
-  Explicit disconnect overrides the flag. Actual SSH session loss ends the
-  hold and preserves resumable queue work.
 
 | `CTerm.mouseDisabled`, `CTerm.mouseDisabled = b`
 | Read or toggle the session gate for forwarding mouse events to the
@@ -7281,6 +7297,8 @@ through later preferences, then English. The lookup never changes the process
 locale or connection encoding and does not require network access.
 `text` retains the fully-qualified sequence including joiners and selectors.
 Entry IDs ending in `_` are internal catalog indexes, not persistent values.
+The picker shows the highlighted name above a parenthesized keyword list,
+truncated to one line to fit the pane.
 
 `Emoji.recent` returns up to 32 exact entries, newest first.
 `Emoji.recordUse(entry)` promotes an entry and persists the merged recent list,

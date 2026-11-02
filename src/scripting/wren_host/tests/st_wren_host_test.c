@@ -509,6 +509,91 @@ count_transfer_logs(void *context, int level, const char *message)
 }
 
 static int
+exercise_session_lease_contract(st_wren_host_t *host, st_console_t *console,
+	struct st_profile *profile)
+{
+	const struct st_wren_connected_config config = {
+		.host = host, .console = console, .profile = profile,
+	};
+	st_wren_connected_t *connected = NULL;
+	st_console_snapshot_t *snapshot = NULL;
+	WrenVM *isolated[] = {host->vm, host->picker_vm};
+
+	for (size_t i = 0; i < sizeof(isolated) / sizeof(isolated[0]); ++i)
+		CHECK(wrenInterpret(isolated[i], "no_current_session",
+		    "import \"syncterm\" for Session\n"
+		    "if (Session.current != null) Fiber.abort(\"session crossed VM modes\")\n")
+		    == WREN_RESULT_SUCCESS);
+	CHECK(st_console_snapshot_create(&snapshot, console) == 0);
+	CHECK(st_wren_connected_create(&connected, &config) == 0);
+	CHECK(!st_wren_connected_auxiliary_active(connected));
+	CHECK(st_wren_connected_interpret(connected, "session_lease_contract",
+	    "import \"syncterm\" for Session, SessionLease, ScriptError, Hook, Screen\n"
+	    "var session = Session.current\n"
+	    "if (!(session is Session) || session != Session.current || session.holdCount != 0) Fiber.abort(\"current session identity\")\n"
+	    "var first = session.hold()\n"
+	    "var second = session.hold()\n"
+	    "if (!(first is SessionLease) || first.released || session.holdCount != 2) Fiber.abort(\"independent leases\")\n"
+	    "if (!first.release() || first.release() || !first.released || second.released || session.holdCount != 1) Fiber.abort(\"release crossed lease owners\")\n"
+	    ) == 0);
+	CHECK(st_wren_connected_auxiliary_active(connected));
+	CHECK(st_wren_connected_interpret(connected, "session_lease_contract",
+	    "if (second.released || !second.release() || session.holdCount != 0) Fiber.abort(\"last lease release\")\n"
+	    "var orphan = session.hold()\n"
+	    "orphan = null\n"
+	    "System.gc()\n"
+	    "if (session.holdCount != 0) Fiber.abort(\"lease GC fallback\")\n"
+	    "var result = session.hold(Fn.new {\n"
+	    "  if (session.holdCount != 1) Fiber.abort(\"scoped hold missing\")\n"
+	    "  return session.hold(Fn.new { 42 })\n"
+	    "})\n"
+	    "if (result != 42 || session.holdCount != 0) Fiber.abort(\"nested hold result/cleanup\")\n"
+	    "var failure = ScriptError.new(41, \"expected lease failure\")\n"
+	    "var failed = Fiber.new { session.hold(Fn.new { Fiber.abort(failure) }) }\n"
+	    "failed.try()\n"
+	    "if (failed.error != failure || session.holdCount != 0) Fiber.abort(\"failed hold cleanup\")\n"
+	    "var worker = Fiber.new {\n"
+	    "  session.hold(Fn.new {\n"
+	    "    Fiber.yield(\"held across yield\")\n"
+	    "    Fiber.abort(failure)\n"
+	    "  })\n"
+	    "}\n"
+	    "if (worker.try() != \"held across yield\" || session.holdCount != 1) Fiber.abort(\"yielded hold\")\n"
+	    ) == 0);
+	CHECK(st_wren_connected_auxiliary_active(connected));
+	CHECK(st_wren_connected_interpret(connected, "session_lease_contract",
+	    "worker.try()\n"
+	    "if (worker.error != failure || session.holdCount != 0) Fiber.abort(\"resumed abort hold cleanup\")\n"
+	    "var bad = Fiber.new { session.hold(null) }\n"
+	    "bad.try()\n"
+	    "if (bad.error == null || session.holdCount != 0) Fiber.abort(\"invalid hold callback\")\n"
+	    ) == 0);
+	CHECK(!st_wren_connected_auxiliary_active(connected));
+	CHECK(st_wren_connected_interpret(connected, "session_lease_contract",
+	    "var retained = session.hold()\n"
+	    "var parked = Fiber.new { session.hold(Fn.new { Fiber.yield() }) }\n"
+	    "parked.call()\n"
+	    "if (session.holdCount != 2) Fiber.abort(\"shutdown lease setup\")\n"
+	    "Hook.onDisconnect {\n"
+	    "  if (Session.current != null || session.holdCount != 0 || !retained.released) Fiber.abort(\"shutdown holds\")\n"
+	    "  var late = Fiber.new { session.hold() }\n"
+	    "  late.try()\n"
+	    "  if (late.error == null) Fiber.abort(\"shutdown reacquired hold\")\n"
+	    "  var size = Screen.size\n"
+	    "  Screen.window.bounds = [1, 1, size[0], size[1]]\n"
+	    "  Screen.window.position = [1, 1]\n"
+	    "  Screen.window.print(\"LEASE-END\")\n"
+	    "}\n"
+	    ) == 0);
+	CHECK(st_wren_connected_auxiliary_active(connected));
+	st_wren_connected_destroy(connected);
+	CHECK(console_has_text(console, 0, 0, "LEASE-END"));
+	CHECK(st_console_snapshot_restore(console, snapshot) == 0);
+	st_console_snapshot_destroy(snapshot);
+	return 0;
+}
+
+static int
 exercise_connected_without_sftp(st_wren_host_t *host,
 	st_console_t *console, struct st_profile *profile)
 {
@@ -681,8 +766,8 @@ exercise_connected_without_sftp(st_wren_host_t *host,
 	CHECK(st_wren_connected_interpret(connected, "foreign_type_contract",
 	    foreign_type_contract) == 0);
 	CHECK(st_wren_connected_interpret(connected, "no_sftp_provider",
-	    "import \"syncterm\" for SFTP, SFTPError, Host, CTerm, Status, Conn, ConnError, ConnErr, Scrollback, Surface, BBS\n"
-	    "if (SFTP.available || CTerm.sftpActive || Conn.connected) Fiber.abort(\"unexpected provider\")\n"
+	    "import \"syncterm\" for SFTP, SFTPError, Host, CTerm, Status, Conn, ConnError, ConnErr, Scrollback, Surface, BBS, Session\n"
+	    "if (SFTP.available || Session.current.holdCount != 0 || Conn.connected) Fiber.abort(\"unexpected provider\")\n"
 	    "if (Conn.sessionLog != null) Fiber.abort(\"unexpected session log provider\")\n"
 	    "if (Host.sshPublicKey != null || !(SFTP.start().result is SFTPError)) Fiber.abort(\"unexpected SSH capability\")\n"
 	    "if (BBS.name != \"Alpha\" || BBS.addr != \"alpha.example\" || BBS.connected != 100 || BBS.palette.count != BBS.paletteSize || BBS.sshFingerprint.count != BBS.sshFingerprintLen) Fiber.abort(\"connected profile view\")\n"
@@ -6594,6 +6679,7 @@ main(int argc, char **argv)
 	if (!menu_only) {
 		CHECK(exercise_connected_profile_scripts(host, console, &selected,
 		    scripts) == 0);
+		CHECK(exercise_session_lease_contract(host, console, &selected) == 0);
 		CHECK(exercise_connected_without_sftp(host, console, &selected) == 0);
 		CHECK(exercise_app_lifecycle(host, console, &selected) == 0);
 		CHECK(exercise_cleanup_scopes(host, console, &selected) == 0);

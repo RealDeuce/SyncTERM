@@ -17,7 +17,6 @@ set(_st_wren_scripts
 	${CMAKE_CURRENT_SOURCE_DIR}/../../../scripts/picker_bootstrap.wren
 	${CMAKE_CURRENT_SOURCE_DIR}/../../../scripts/wren_console.wren
 	${CMAKE_CURRENT_SOURCE_DIR}/../../../scripts/sftp_queue.wren
-	${CMAKE_CURRENT_SOURCE_DIR}/../../../scripts/sftp_activity.wren
 	${CMAKE_CURRENT_SOURCE_DIR}/../../../scripts/sftp_app.wren
 	${CMAKE_CURRENT_SOURCE_DIR}/../../../scripts/transfer_app.wren
 	${CMAKE_CURRENT_SOURCE_DIR}/../../../scripts/transfer_pick.wren
@@ -91,6 +90,7 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/GenerateLicenses.cmake")
 add_library(st_wren_host STATIC
 	wren_host.c
 	wren_foreign.c
+	wren_session.c
 	wren_bbs_model.c
 	wren_bind_core.c
 	wren_bind_won.c
