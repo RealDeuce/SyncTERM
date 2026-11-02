@@ -32,8 +32,8 @@ enum file_rights {
 
 #define ST_WREN_FILE_MAGIC UINT32_C(0x5354464c)
 #define ST_WREN_DIRECTORY_MAGIC UINT32_C(0x53544452)
-#define FILE_ERROR_SEEK_FAILED 8
-#define FILE_ERROR_OUT_OF_RANGE 9
+
+enum file_direction { FILE_IDLE, FILE_READING, FILE_WRITING };
 
 struct st_wren_file {
 	uint32_t magic;
@@ -41,6 +41,7 @@ struct st_wren_file {
 	char *path;
 	char *token;
 	FILE *stream;
+	enum file_direction direction;
 	unsigned int rights;
 	enum st_wren_picker_disposition disposition;
 	bool consumed;
@@ -65,6 +66,15 @@ struct fs_binding {
 	const char *signature;
 	WrenForeignMethodFn method;
 };
+
+static void push_error(WrenVM *vm, int code, int native_error, const char *message);
+
+static void
+push_errno_error(WrenVM *vm, int native_error, const char *message)
+{
+	push_error(vm, native_error == 0 ? IO_ERROR_IO : io_error_from_errno(native_error),
+	    native_error, message);
+}
 
 static bool
 slot_bytes(WrenVM *vm, int slot, const char **data, size_t *size)
@@ -174,13 +184,20 @@ slot_child_path(WrenVM *vm, int slot,
 	const struct st_wren_directory *directory)
 {
 	const char *name;
+	char *path = NULL;
 	int length;
+	int status;
 
-	if (!st_wren_text_slot(vm, slot, &name, &length))
+	if (!st_wren_utf8_slot(vm, slot, &name, &length) || length < 0
+	    || memchr(name, '\0', (size_t)length) != NULL
+	    || !clean_name(name, directory->relaxed)) {
+		st_wren_abort(vm, "Directory: expected a valid child name");
 		return NULL;
-	if (length < 0 || memchr(name, '\0', (size_t)length) != NULL)
-		return NULL;
-	return child_path(directory, name);
+	}
+	status = path_join_alloc(&path, directory->path, name);
+	if (status != 0)
+		push_error(vm, status, 0, "Directory child path failed");
+	return path;
 }
 
 static void
@@ -209,7 +226,7 @@ push_error(WrenVM *vm, int code, int native_error, const char *message)
 	wrenGetVariable(vm, "syncterm", "FileError", 1);
 	error = wrenSetSlotNewForeign(vm, 0, 1, sizeof(*error));
 	*error = (struct st_wren_file_error){
-		.code = code,
+		.code = code < 0 ? code : IO_ERROR_IO,
 		.native_error = native_error,
 		.message = message == NULL ? NULL : strdup(message),
 	};
@@ -267,7 +284,7 @@ file_handle(WrenVM *vm)
 	}
 	file = wrenGetSlotForeign(vm, 0);
 	if (file == NULL || file->magic != ST_WREN_FILE_MAGIC
-	    || file->context == NULL || file->path == NULL) {
+	    || file->context != st_wren_context_from_vm(vm) || file->path == NULL) {
 		st_wren_abort(vm, "File: invalid handle");
 		return NULL;
 	}
@@ -294,10 +311,13 @@ checked_file(WrenVM *vm, bool require_open, unsigned int rights)
 	}
 	if (file->stream == NULL
 	    && !(file->disposition == ST_WREN_PICKER_DISPOSITION_CREATE
-	    && !file->consumed)
-	    && fs_get_info(&info, file->path) != 0) {
-		push_error(vm, 6, errno, "File vanished");
-		return NULL;
+	    && !file->consumed)) {
+		errno = 0;
+		int status = fs_get_info(&info, file->path);
+		if (status != 0) {
+			push_error(vm, status, errno, "File path unavailable");
+			return NULL;
+		}
 	}
 	return file;
 }
@@ -313,7 +333,7 @@ directory_handle(WrenVM *vm)
 	}
 	directory = wrenGetSlotForeign(vm, 0);
 	if (directory == NULL || directory->magic != ST_WREN_DIRECTORY_MAGIC
-	    || directory->context == NULL || directory->path == NULL) {
+	    || directory->context != st_wren_context_from_vm(vm) || directory->path == NULL) {
 		st_wren_abort(vm, "Directory: invalid handle");
 		return NULL;
 	}
@@ -328,9 +348,29 @@ checked_directory(WrenVM *vm)
 
 	if (directory == NULL)
 		return NULL;
-	if (fs_get_info(&info, directory->path) != 0
-	    || info.kind != FS_ENTRY_DIRECTORY) {
-		st_wren_abort(vm, "Directory: path vanished");
+	errno = 0;
+	int status = fs_get_info(&info, directory->path);
+	if (status != 0 || info.kind != FS_ENTRY_DIRECTORY) {
+		push_error(vm, status != 0 ? status : IO_ERROR_NOT_DIRECTORY,
+		    status != 0 ? errno : 0, "Directory root unavailable");
+		return NULL;
+	}
+	return directory;
+}
+
+static struct st_wren_directory *
+directory_child(WrenVM *vm, char **path)
+{
+	struct st_wren_directory *directory = directory_handle(vm);
+
+	if (directory == NULL)
+		return NULL;
+	*path = slot_child_path(vm, 1, directory);
+	if (*path == NULL)
+		return NULL;
+	if (checked_directory(vm) == NULL) {
+		free(*path);
+		*path = NULL;
 		return NULL;
 	}
 	return directory;
@@ -413,15 +453,20 @@ push_directory(WrenVM *vm, int slot, const char *path, bool relaxed)
 static void
 fn_directory_contains(WrenVM *vm)
 {
-	struct st_wren_directory *directory = checked_directory(vm);
-	char *path;
+	char *path = NULL;
+	struct st_wren_directory *directory = directory_child(vm, &path);
 	struct fs_info info;
+	int status;
 
 	if (directory == NULL)
 		return;
-	path = slot_child_path(vm, 1, directory);
-	wrenSetSlotBool(vm, 0, path != NULL && fs_get_info(&info, path) == 0
-	    && (info.kind == FS_ENTRY_FILE || info.kind == FS_ENTRY_DIRECTORY));
+	errno = 0;
+	status = fs_get_link_info(&info, path);
+	if (status != 0 && status != IO_ERROR_NOT_FOUND)
+		push_error(vm, status, errno, "Directory query failed");
+	else
+		wrenSetSlotBool(vm, 0, status == 0
+		    && (info.kind == FS_ENTRY_FILE || info.kind == FS_ENTRY_DIRECTORY));
 	free(path);
 }
 
@@ -430,116 +475,161 @@ fn_directory_list(WrenVM *vm)
 {
 	struct st_wren_directory *directory = checked_directory(vm);
 	struct st_wren_directory_entries entries = {0};
+	WrenHandle *owner;
+	int status;
 
 	if (directory == NULL)
 		return;
-	if (st_wren_directory_enumerate(directory->path, &entries) != 0) {
-		push_error(vm, 3, errno, "Directory enumeration failed");
+	errno = 0;
+	status = st_wren_directory_enumerate(directory->path, &entries);
+	if (status != 0) {
+		push_error(vm, status, errno, "Directory enumeration failed");
 		return;
 	}
+	owner = wrenGetSlotHandle(vm, 0);
 	wrenEnsureSlots(vm, 4);
 	wrenSetSlotNewMap(vm, 0);
 	for (size_t i = 0; i < entries.count; ++i) {
 		struct st_wren_directory_entry *entry = &entries.items[i];
 		char *path;
+		bool pushed;
 
 		if (!clean_name(entry->name, directory->relaxed))
 			continue;
 		path = child_path(directory, entry->name);
-		if (path == NULL)
+		if (path == NULL) {
+			push_error(vm, IO_ERROR_OUT_OF_MEMORY, 0, "Directory child path failed");
+			break;
+		}
+		struct fs_info info;
+		errno = 0;
+		status = fs_get_link_info(&info, path);
+		if (status == IO_ERROR_NOT_FOUND) {
+			free(path);
 			continue;
+		}
+		if (status != 0) {
+			push_error(vm, status, errno, "Directory entry metadata failed");
+			free(path);
+			break;
+		}
+		/* Picker navigation may follow links after explicit user consent.
+		 * Directory grants must not mint access through those links. */
+		if (info.kind != FS_ENTRY_FILE && info.kind != FS_ENTRY_DIRECTORY) {
+			free(path);
+			continue;
+		}
 		wrenSetSlotString(vm, 1, entry->name);
-		if (entry->directory)
-			(void)push_directory(vm, 2, path, directory->relaxed);
+		if (info.kind == FS_ENTRY_DIRECTORY)
+			pushed = push_directory(vm, 2, path, directory->relaxed);
 		else
-			(void)push_file_full(vm, 2, path,
+			pushed = push_file_full(vm, 2, path,
 			    FILE_RIGHT_READ | FILE_RIGHT_WRITE,
 			    ST_WREN_PICKER_DISPOSITION_NONE, NULL);
-		wrenSetMapValue(vm, 0, 1, 2);
 		free(path);
+		if (!pushed) {
+			push_error(vm, IO_ERROR_OUT_OF_MEMORY, 0, "Directory entry allocation failed");
+			break;
+		}
+		wrenSetMapValue(vm, 0, 1, 2);
 	}
+	wrenReleaseHandle(vm, owner);
 	st_wren_directory_entries_dispose(&entries);
 }
 
 static void
 fn_directory_create(WrenVM *vm)
 {
-	struct st_wren_directory *directory = checked_directory(vm);
-	char *path;
+	char *path = NULL;
+	struct st_wren_directory *directory = directory_child(vm, &path);
 	FILE *stream = NULL;
+	int status;
 
 	if (directory == NULL)
 		return;
-	path = slot_child_path(vm, 1, directory);
-	if (path == NULL || fs_open(&stream, path, "wbx") != 0
-	    || fclose(stream) != 0
-	    || !push_file_full(vm, 0, path, FILE_RIGHT_READ | FILE_RIGHT_WRITE,
-	    ST_WREN_PICKER_DISPOSITION_NONE, NULL))
-		wrenSetSlotNull(vm, 0);
+	errno = 0;
+	status = fs_open(&stream, path, "wbx");
+	if (status != 0)
+		push_error(vm, status, errno, "File creation failed");
+	else {
+		errno = 0;
+		if (fclose(stream) != 0)
+			push_errno_error(vm, errno, "New file close failed");
+		else if (!push_file_full(vm, 0, path, FILE_RIGHT_READ | FILE_RIGHT_WRITE,
+		    ST_WREN_PICKER_DISPOSITION_NONE, NULL))
+			push_error(vm, IO_ERROR_OUT_OF_MEMORY, 0, "File grant allocation failed");
+	}
 	free(path);
 }
 
 static void
 fn_directory_create_dir(WrenVM *vm)
 {
-	struct st_wren_directory *directory = checked_directory(vm);
-	char *path;
+	char *path = NULL;
+	struct st_wren_directory *directory = directory_child(vm, &path);
+	int status;
 
 	if (directory == NULL)
 		return;
-	path = slot_child_path(vm, 1, directory);
-	if (path == NULL || fs_create_directory(path) != 0
-	    || !push_directory(vm, 0, path, directory->relaxed))
-		wrenSetSlotNull(vm, 0);
+	errno = 0;
+	status = fs_create_directory(path);
+	if (status != 0)
+		push_error(vm, status, errno, "Directory creation failed");
+	else if (!push_directory(vm, 0, path, directory->relaxed))
+		push_error(vm, IO_ERROR_OUT_OF_MEMORY, 0, "Directory grant allocation failed");
 	free(path);
 }
 
 static void
 fn_directory_delete(WrenVM *vm)
 {
-	struct st_wren_directory *directory = checked_directory(vm);
-	char *path;
+	char *path = NULL;
+	struct st_wren_directory *directory = directory_child(vm, &path);
 	struct fs_info info;
 	int status;
 
 	if (directory == NULL)
 		return;
-	path = slot_child_path(vm, 1, directory);
-	if (path == NULL || fs_get_link_info(&info, path) != 0
-	    || (info.kind != FS_ENTRY_FILE && info.kind != FS_ENTRY_DIRECTORY)) {
-		wrenSetSlotBool(vm, 0, false);
-		free(path);
-		return;
+	errno = 0;
+	status = fs_get_link_info(&info, path);
+	if (status == 0) {
+		if (info.kind == FS_ENTRY_DIRECTORY)
+			status = fs_remove_directory(path);
+		else if (info.kind == FS_ENTRY_FILE)
+			status = fs_remove_file(path);
+		else
+			status = IO_ERROR_NOT_SUPPORTED;
 	}
-	status = info.kind == FS_ENTRY_DIRECTORY ? fs_remove_directory(path)
-	    : fs_remove_file(path);
-	wrenSetSlotBool(vm, 0, status == 0);
+	if (status != 0)
+		push_error(vm, status, errno, "Directory entry removal failed");
+	else
+		wrenSetSlotNull(vm, 0);
 	free(path);
 }
 
 static void
 fn_directory_replace(WrenVM *vm)
 {
-	struct st_wren_directory *directory = checked_directory(vm);
+	struct st_wren_directory *directory;
 	const char *data;
 	size_t size;
-	char *path;
+	char *path = NULL;
 	int status;
 
-	if (directory == NULL)
-		return;
-	path = slot_child_path(vm, 1, directory);
-	if (path == NULL || !slot_bytes(vm, 2, &data, &size)) {
-		st_wren_abort(vm, "Directory.replace: expected a valid name and String");
-		free(path);
+	if (!slot_bytes(vm, 2, &data, &size)) {
+		st_wren_abort(vm, "Directory.replace expects a byte String");
 		return;
 	}
+	directory = directory_child(vm, &path);
+	if (directory == NULL)
+		return;
+	errno = 0;
 	status = fs_replace_file(path, data, size);
-	free(path);
 	if (status != 0)
-		push_error(vm, 2, errno, "Atomic replacement failed");
+		push_error(vm, status, errno, "Atomic replacement failed");
 	else
-		wrenSetSlotBool(vm, 0, true);
+		wrenSetSlotNull(vm, 0);
+	free(path);
 }
 
 static void
@@ -578,33 +668,90 @@ fn_file_open(WrenVM *vm)
 		mode = (file->rights & FILE_RIGHT_WRITE) != 0 ? "r+b" : "rb";
 		break;
 	}
+	errno = 0;
 	status = fs_open(&file->stream, file->path, mode);
 	if (status != 0) {
 		file->stream = NULL;
-		push_error(vm, 1, errno, "File open failed");
+		push_error(vm, status, errno, "File open failed");
 		return;
 	}
 	if (file->disposition != ST_WREN_PICKER_DISPOSITION_NONE
 	    && file->disposition != ST_WREN_PICKER_DISPOSITION_READ)
 		file->consumed = true;
+	wrenSetSlotNull(vm, 0);
 }
 
 static void
 fn_file_close(WrenVM *vm)
 {
-	struct st_wren_file *file = checked_file(vm, false, 0);
+	struct st_wren_file *file = file_handle(vm);
 	int status;
 
 	if (file == NULL)
 		return;
 	if (file->stream == NULL) {
-		st_wren_abort(vm, "File: not open");
+		wrenSetSlotNull(vm, 0);
 		return;
 	}
+	errno = 0;
 	status = fclose(file->stream);
 	file->stream = NULL;
+	file->direction = FILE_IDLE;
 	if (status != 0)
-		push_error(vm, 2, errno, "File close failed");
+		push_errno_error(vm, errno, "File close failed");
+	else
+		wrenSetSlotNull(vm, 0);
+}
+
+static bool
+file_seek(WrenVM *vm, struct st_wren_file *file, int64_t offset, const char *message)
+{
+	errno = 0;
+	int status = fs_stream_seek(file->stream, offset);
+	if (status == 0) {
+		file->direction = FILE_IDLE;
+		return true;
+	}
+	push_error(vm, status, errno, message);
+	return false;
+}
+
+static int64_t
+file_position(WrenVM *vm, FILE *stream)
+{
+	errno = 0;
+	int64_t position = fs_stream_position(stream);
+	if (position < 0)
+		push_error(vm, (int)position, errno, "File position failed");
+	return position;
+}
+
+static bool
+file_flush(WrenVM *vm, struct st_wren_file *file)
+{
+	if (file->direction != FILE_WRITING)
+		return true;
+	errno = 0;
+	if (fflush(file->stream) != 0) {
+		push_errno_error(vm, errno, "File flush failed");
+		return false;
+	}
+	file->direction = FILE_IDLE;
+	return true;
+}
+
+static bool
+file_prepare_write(WrenVM *vm, struct st_wren_file *file)
+{
+	/* C update streams require positioning between input and output. Keep
+	 * their buffering/direction rules inside the binding, not in scripts. */
+	if (file->direction == FILE_READING) {
+		int64_t position = file_position(vm, file->stream);
+		if (position < 0 || !file_seek(vm, file, position, "File direction change failed"))
+			return false;
+	}
+	file->direction = FILE_WRITING;
+	return true;
 }
 
 static void
@@ -616,6 +763,8 @@ file_read_at(WrenVM *vm, bool explicit_offset)
 	char *data;
 	size_t got;
 	int64_t saved = -1;
+	bool failed;
+	int read_error;
 
 	if (file == NULL)
 		return;
@@ -624,29 +773,40 @@ file_read_at(WrenVM *vm, bool explicit_offset)
 		st_wren_abort(vm, "File.readBytes: invalid count or offset");
 		return;
 	}
-	if (explicit_offset)
-		saved = fs_stream_position(file->stream);
-	if (explicit_offset && (saved < 0
-	    || fs_stream_seek(file->stream, (int64_t)offset) != 0)) {
-		push_error(vm, FILE_ERROR_SEEK_FAILED, errno, "File seek failed");
+	if (count == 0) {
+		wrenSetSlotBytes(vm, 0, "", 0);
 		return;
 	}
-	data = malloc(count == 0 ? 1 : (size_t)count);
+	if (explicit_offset) {
+		saved = file_position(vm, file->stream);
+		if (saved < 0 || !file_seek(vm, file, (int64_t)offset, "File seek failed"))
+			return;
+	}
+	data = malloc((size_t)count);
 	if (data == NULL) {
-		if (explicit_offset)
-			(void)fs_stream_seek(file->stream, saved);
-		push_error(vm, 5, ENOMEM, "Out of memory");
+		if (explicit_offset && !file_seek(vm, file, saved, "File position restore failed"))
+			return;
+		push_error(vm, IO_ERROR_OUT_OF_MEMORY, 0, "Out of memory");
 		return;
 	}
-	got = fread(data, 1, (size_t)count, file->stream);
-	if (explicit_offset && fs_stream_seek(file->stream, saved) != 0) {
+	if (!file_flush(vm, file)) {
 		free(data);
-		push_error(vm, FILE_ERROR_SEEK_FAILED, errno,
-		    "File position restore failed");
 		return;
 	}
-	if (ferror(file->stream))
-		push_error(vm, 1, errno, "File read failed");
+	file->direction = FILE_READING;
+	clearerr(file->stream);
+	errno = 0;
+	got = fread(data, 1, (size_t)count, file->stream);
+	failed = ferror(file->stream) != 0;
+	read_error = errno;
+	if (explicit_offset && !file_seek(vm, file, saved, "File position restore failed")) {
+		free(data);
+		return;
+	}
+	if (failed)
+		push_errno_error(vm, read_error, "File read failed");
+	else if (got == 0)
+		wrenSetSlotNull(vm, 0);
 	else
 		wrenSetSlotBytes(vm, 0, data, got);
 	free(data);
@@ -665,20 +825,33 @@ fn_file_read(WrenVM *vm)
 
 	if (file == NULL)
 		return;
+	if (!file_seek(vm, file, 0, "File seek failed"))
+		return;
+	errno = 0;
 	size = fs_stream_size(file->stream);
-	if (size < 0 || (uint64_t)size > SIZE_MAX
-	    || fs_stream_seek(file->stream, 0) != 0) {
-		push_error(vm, 3, errno, "File size failed");
+	if (size < 0) {
+		push_error(vm, (int)size, errno, "File size failed");
+		return;
+	}
+	if ((uint64_t)size > SIZE_MAX) {
+		push_error(vm, IO_ERROR_OUT_OF_RANGE, 0, "File is too large for one read");
 		return;
 	}
 	data = malloc(size == 0 ? 1 : (size_t)size);
 	if (data == NULL) {
-		push_error(vm, 5, ENOMEM, "Out of memory");
+		push_error(vm, IO_ERROR_OUT_OF_MEMORY, ENOMEM, "Out of memory");
 		return;
 	}
+	if (!file_flush(vm, file)) {
+		free(data);
+		return;
+	}
+	file->direction = FILE_READING;
+	clearerr(file->stream);
+	errno = 0;
 	got = fread(data, 1, (size_t)size, file->stream);
-	if (got != (size_t)size || ferror(file->stream))
-		push_error(vm, 1, errno, "File read failed");
+	if (ferror(file->stream))
+		push_errno_error(vm, errno, "File read failed");
 	else
 		wrenSetSlotBytes(vm, 0, data, got);
 	free(data);
@@ -702,24 +875,29 @@ file_write_at(WrenVM *vm, bool explicit_offset)
 		st_wren_abort(vm, "File.writeBytes: invalid bytes or offset");
 		return;
 	}
-	if (explicit_offset)
-		saved = fs_stream_position(file->stream);
-	if (explicit_offset && (saved < 0
-	    || fs_stream_seek(file->stream, (int64_t)offset) != 0)) {
-		push_error(vm, FILE_ERROR_SEEK_FAILED, errno, "File seek failed");
+	if (size == 0) {
+		wrenSetSlotNull(vm, 0);
 		return;
 	}
+	if (explicit_offset) {
+		saved = file_position(vm, file->stream);
+		if (saved < 0 || !file_seek(vm, file, (int64_t)offset, "File seek failed"))
+			return;
+	}
+	if (!file_prepare_write(vm, file))
+		return;
+	clearerr(file->stream);
+	errno = 0;
 	write_failed = size != 0
 	    && fwrite(data, 1, size, file->stream) != size;
 	if (write_failed)
 		write_error = errno;
-	if (explicit_offset && fs_stream_seek(file->stream, saved) != 0) {
-		push_error(vm, FILE_ERROR_SEEK_FAILED, errno,
-		    "File position restore failed");
+	if (explicit_offset && !file_seek(vm, file, saved, "File position restore failed"))
 		return;
-	}
 	if (write_failed)
-		push_error(vm, 2, write_error, "File write failed");
+		push_errno_error(vm, write_error, "File write failed");
+	else
+		wrenSetSlotNull(vm, 0);
 }
 
 static void fn_file_write_bytes(WrenVM *vm) { file_write_at(vm, false); }
@@ -736,6 +914,11 @@ fn_file_read_line(WrenVM *vm)
 
 	if (file == NULL)
 		return;
+	if (!file_flush(vm, file))
+		return;
+	file->direction = FILE_READING;
+	clearerr(file->stream);
+	errno = 0;
 	while ((c = fgetc(file->stream)) != EOF && c != '\n') {
 		if (size == capacity) {
 			size_t next = capacity == 0 ? 128 : capacity * 2;
@@ -743,7 +926,7 @@ fn_file_read_line(WrenVM *vm)
 
 			if (grown == NULL) {
 				free(line);
-				push_error(vm, 5, ENOMEM, "Out of memory");
+				push_error(vm, IO_ERROR_OUT_OF_MEMORY, ENOMEM, "Out of memory");
 				return;
 			}
 			line = grown;
@@ -754,9 +937,9 @@ fn_file_read_line(WrenVM *vm)
 	if (c == EOF && size == 0 && !ferror(file->stream))
 		wrenSetSlotNull(vm, 0);
 	else if (ferror(file->stream))
-		push_error(vm, 1, errno, "File read failed");
+		push_errno_error(vm, errno, "File read failed");
 	else {
-		if (size != 0 && line[size - 1] == '\r')
+		if (c == '\n' && size != 0 && line[size - 1] == '\r')
 			size--;
 		wrenSetSlotBytes(vm, 0, line == NULL ? "" : line, size);
 	}
@@ -776,9 +959,15 @@ fn_file_write_line(WrenVM *vm)
 		st_wren_abort(vm, "File.writeLine: expected a String");
 		return;
 	}
+	if (!file_prepare_write(vm, file))
+		return;
+	clearerr(file->stream);
+	errno = 0;
 	if ((size != 0 && fwrite(data, 1, size, file->stream) != size)
 	    || fputc('\n', file->stream) == EOF)
-		push_error(vm, 2, errno, "File write failed");
+		push_errno_error(vm, errno, "File write failed");
+	else
+		wrenSetSlotNull(vm, 0);
 }
 
 static void
@@ -796,14 +985,24 @@ fn_file_write(WrenVM *vm)
 		return;
 	}
 	append = file->disposition == ST_WREN_PICKER_DISPOSITION_APPEND;
-	if (!append && (fs_stream_seek(file->stream, 0) != 0
-	    || fs_stream_truncate(file->stream, 0) != 0)) {
-		push_error(vm, FILE_ERROR_SEEK_FAILED, errno,
-		    "File truncate failed");
-		return;
+	if (!append) {
+		if (!file_seek(vm, file, 0, "File seek failed"))
+			return;
+		errno = 0;
+		int status = fs_stream_truncate(file->stream, 0);
+		if (status != 0) {
+			push_error(vm, status, errno, "File truncate failed");
+			return;
+		}
 	}
+	if (!file_prepare_write(vm, file))
+		return;
+	clearerr(file->stream);
+	errno = 0;
 	if (size != 0 && fwrite(data, 1, size, file->stream) != size)
-		push_error(vm, 2, errno, "File write failed");
+		push_errno_error(vm, errno, "File write failed");
+	else
+		wrenSetSlotNull(vm, 0);
 }
 
 static void
@@ -814,12 +1013,11 @@ fn_file_offset(WrenVM *vm)
 
 	if (file == NULL)
 		return;
-	position = fs_stream_position(file->stream);
+	position = file_position(vm, file->stream);
 	if (position < 0)
-		push_error(vm, FILE_ERROR_SEEK_FAILED, errno,
-		    "File position failed");
+		return;
 	else if (!st_wren_i64_exact(position))
-		push_error(vm, FILE_ERROR_OUT_OF_RANGE, 0, "File position exceeds the exact Number range");
+		push_error(vm, IO_ERROR_OUT_OF_RANGE, 0, "File position exceeds the exact Number range");
 	else
 		st_wren_return_i64(vm, position);
 }
@@ -836,9 +1034,7 @@ fn_file_offset_set(WrenVM *vm)
 		st_wren_abort(vm, "File.offset: invalid exact nonnegative integer");
 		return;
 	}
-	if (fs_stream_seek(file->stream, (int64_t)offset) != 0)
-		push_error(vm, FILE_ERROR_SEEK_FAILED, errno, "File seek failed");
-	else
+	if (file_seek(vm, file, (int64_t)offset, "File seek failed"))
 		wrenSetSlotDouble(vm, 0, (double)offset);
 }
 
@@ -847,29 +1043,32 @@ fn_file_size(WrenVM *vm)
 {
 	struct st_wren_file *file = checked_file(vm, false, 0);
 	struct fs_info info;
-	int64_t size;
+	uint64_t size;
 
-	if (file == NULL)
+	if (file == NULL || !file_flush(vm, file))
 		return;
+	errno = 0;
 	if (file->stream != NULL) {
-		size = fs_stream_size(file->stream);
-		if (size >= 0) {
-			if (!st_wren_i64_exact(size))
-				push_error(vm, FILE_ERROR_OUT_OF_RANGE, 0, "File size exceeds the exact Number range");
-			else
-				st_wren_return_i64(vm, size);
+		int64_t result = fs_stream_size(file->stream);
+		if (result < 0) {
+			push_error(vm, (int)result, errno, "File size failed");
 			return;
 		}
+		size = (uint64_t)result;
 	}
-	else if (fs_get_info(&info, file->path) == 0
-	    && info.kind == FS_ENTRY_FILE) {
-		if (!st_wren_u64_exact(info.size))
-			push_error(vm, FILE_ERROR_OUT_OF_RANGE, 0, "File size exceeds the exact Number range");
-		else
-			st_wren_return_u64(vm, info.size);
-		return;
+	else {
+		int status = fs_get_info(&info, file->path);
+		if (status != 0 || info.kind != FS_ENTRY_FILE) {
+			push_error(vm, status != 0 ? status : IO_ERROR_NOT_SUPPORTED,
+			    status != 0 ? errno : 0, "File size failed");
+			return;
+		}
+		size = info.size;
 	}
-	push_error(vm, 3, errno, "File size failed");
+	if (!st_wren_u64_exact(size))
+		push_error(vm, IO_ERROR_OUT_OF_RANGE, 0, "File size exceeds the exact Number range");
+	else
+		st_wren_return_u64(vm, size);
 }
 
 static void
@@ -878,12 +1077,14 @@ fn_file_mtime(WrenVM *vm)
 	struct st_wren_file *file = checked_file(vm, false, 0);
 	struct fs_info info;
 
-	if (file == NULL)
+	if (file == NULL || !file_flush(vm, file))
 		return;
-	if (fs_get_info(&info, file->path) != 0)
-		push_error(vm, 3, errno, "File stat failed");
+	errno = 0;
+	int status = fs_get_info(&info, file->path);
+	if (status != 0)
+		push_error(vm, status, errno, "File stat failed");
 	else if (!st_wren_i64_exact(info.modified_time))
-		push_error(vm, FILE_ERROR_OUT_OF_RANGE, 0, "File mtime exceeds the exact Number range");
+		push_error(vm, IO_ERROR_OUT_OF_RANGE, 0, "File mtime exceeds the exact Number range");
 	else
 		st_wren_return_i64(vm, info.modified_time);
 }
@@ -891,19 +1092,33 @@ fn_file_mtime(WrenVM *vm)
 static void
 fn_file_mtime_set(WrenVM *vm)
 {
-	struct st_wren_file *file = checked_file(vm, false, FILE_RIGHT_WRITE);
-	uint64_t modified;
+	struct st_wren_file *file;
+	int64_t modified;
+	struct fs_info info;
 
-	if (file == NULL)
-		return;
-	if (!st_wren_number_u64(vm, 1, &modified)) {
-		st_wren_abort(vm, "File.mtime: invalid exact nonnegative integer");
+	if (!st_wren_number_i64(vm, 1, &modified)) {
+		st_wren_abort(vm, "File.mtime: invalid exact integer");
 		return;
 	}
-	if (fs_set_modified_time(file->path, (int64_t)modified) != 0)
-		push_error(vm, 3, errno, "File mtime update failed");
-	else
-		wrenSetSlotDouble(vm, 0, (double)modified);
+	file = checked_file(vm, false, FILE_RIGHT_WRITE);
+	if (file == NULL || !file_flush(vm, file))
+		return;
+	errno = 0;
+	int status = fs_set_modified_time(file->path, modified);
+	if (status != 0)
+		push_error(vm, status, errno, "File mtime update failed");
+	else {
+		/* Native filesystems may ignore sentinel values or round timestamps.
+		 * Do not claim that the requested integer was stored in that case. */
+		errno = 0;
+		status = fs_get_info(&info, file->path);
+		if (status != 0)
+			push_error(vm, status, errno, "File timestamp verification failed");
+		else if (info.modified_time != modified)
+			push_error(vm, IO_ERROR_OUT_OF_RANGE, 0, "Native filesystem cannot represent that timestamp");
+		else
+			wrenSetSlotDouble(vm, 0, (double)modified);
+	}
 }
 
 static void
@@ -976,10 +1191,12 @@ st_wren_file_claim_write(WrenVM *vm, int slot,
 		st_wren_abort(vm, message);
 		return false;
 	}
-	if (fs_open(stream, file->path, mode) != 0) {
+	errno = 0;
+	int status = fs_open(stream, file->path, mode);
+	if (status != 0) {
 		(void)snprintf(message, sizeof(message), "%s open failed",
 		    operation);
-		push_error(vm, 1, errno, message);
+		push_error(vm, status, errno, message);
 		return false;
 	}
 	file->consumed = true;
@@ -990,7 +1207,7 @@ void
 st_wren_file_write_error(WrenVM *vm, int native_error,
 	const char *message)
 {
-	push_error(vm, 2, native_error, message);
+	push_errno_error(vm, native_error, message);
 }
 
 const char *
@@ -1028,15 +1245,15 @@ file_digest(WrenVM *vm, enum st_digest_algorithm algorithm)
 
 	if (file == NULL)
 		return;
-	if (file->stream != NULL && (file->rights & FILE_RIGHT_WRITE) != 0
-	    && fflush(file->stream) != 0) {
-		push_error(vm, 2, errno, "File flush failed");
+	if (!file_flush(vm, file))
 		return;
-	}
-	if (size == 0 || file_map_open(&mapping, file->path) != 0
-	    || st_digest(algorithm, file_map_data(mapping), file_map_size(mapping),
-	    digest, size) != ST_CRYPTO_OK)
-		push_error(vm, 4, errno, "File digest failed");
+	errno = 0;
+	int status = file_map_open(&mapping, file->path);
+	if (status != 0)
+		push_error(vm, status, errno, "File mapping failed");
+	else if (size == 0 || st_digest(algorithm, file_map_data(mapping),
+	    file_map_size(mapping), digest, size) != ST_CRYPTO_OK)
+		push_error(vm, IO_ERROR_IO, 0, "File digest failed");
 	else
 		wrenSetSlotBytes(vm, 0, (const char *)digest, size);
 	file_map_close(mapping);
@@ -1071,8 +1288,12 @@ static void fn_file_error_string(WrenVM *vm)
 	struct st_wren_file_error *error = wrenGetSlotForeign(vm, 0);
 	char value[256];
 
-	(void)snprintf(value, sizeof(value), "FileError %d: %s", error->code,
-	    error->message == NULL ? "I/O failure" : error->message);
+	if (error->native_error != 0)
+		(void)snprintf(value, sizeof(value), "FileError %d: %s (errno=%d)", error->code,
+		    error->message == NULL ? "I/O failure" : error->message, error->native_error);
+	else
+		(void)snprintf(value, sizeof(value), "FileError %d: %s", error->code,
+		    error->message == NULL ? "I/O failure" : error->message);
 	wrenSetSlotString(vm, 0, value);
 }
 

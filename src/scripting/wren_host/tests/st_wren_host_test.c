@@ -51,10 +51,10 @@ static bool console_has_text(st_console_t *console, uint32_t x, uint32_t y,
 
 #if ST_WREN_TEST_HAVE_PTY
 #include <fcntl.h>
-#include <unistd.h>
 #endif
 
 #if SYNCTERM_PLATFORM_POSIX
+#include <unistd.h>
 #include <sys/utsname.h>
 #endif
 
@@ -196,6 +196,7 @@ struct fake_sftp {
 	uint64_t submitted_offset;
 	uint64_t submitted_modified;
 	size_t submitted_size;
+	char submitted_path[128];
 	const unsigned char *remote;
 	size_t remote_size;
 	int64_t modified;
@@ -240,6 +241,8 @@ fake_sftp_submit(void *context, const struct st_sftp_request *request,
 	fake->submitted_offset = request->offset;
 	fake->submitted_modified = request->modified_time;
 	fake->submitted_size = request->size;
+	(void)snprintf(fake->submitted_path, sizeof(fake->submitted_path), "%s",
+	    request->path == NULL ? "" : request->path);
 	switch (request->operation) {
 	case ST_SFTP_START:
 		stored->response.kind = ST_SFTP_RESULT_STARTED;
@@ -549,6 +552,102 @@ exercise_remote_resource_contract(st_wren_connected_t *connected,
 
 
 static int
+exercise_remote_outcomes(st_wren_connected_t *connected, struct fake_sftp *fake)
+{
+	CHECK(st_wren_connected_interpret(connected, "remote_outcomes",
+	    "import \"syncterm\" for SFTP, FileFlag, SFTPError\n"
+	    "var opened = SFTP.open(\"/outcomes\", FileFlag.read | FileFlag.write)\n"
+	    "var openedAppend = SFTP.open(\"/outcomes-append\", FileFlag.write | FileFlag.append)\n"
+	    "var openedDirectory = SFTP.opendir(\"/outcomes-dir\")\n"
+	    ) == 0);
+	CHECK(st_wren_connected_pump(connected, 0) == 0);
+	uint64_t before = fake->next_id;
+	CHECK(st_wren_connected_interpret(connected, "remote_outcomes",
+	    "var file = opened.result\n"
+	    "var appendFile = openedAppend.result\n"
+	    "var directory = openedDirectory.result\n"
+	    "var emptyRead = file.readBytes(0, 9007199254740991)\n"
+	    "var emptyWrite = file.writeBytes(\"\", 9007199254740991)\n"
+	    "var emptyAppend = appendFile.appendBytes(\"\")\n"
+	    "if (!emptyRead.isDone || emptyRead.result != \"\" || emptyRead.cancel() || emptyWrite.result != null || emptyAppend.result != null) Fiber.abort(\"zero remote request semantics\")\n"
+	    "var large = \"x\"\n"
+	    "for (i in 0...18) large = large + large\n"
+	    "var oversized = Fiber.new { file.writeBytes(large[0...262124], 0) }\n"
+	    "oversized.try()\n"
+	    "if (oversized.error == null) Fiber.abort(\"oversized native write accepted\")\n"
+	    ) == 0);
+	CHECK(fake->next_id == before && fake->count == 0);
+	CHECK(st_wren_connected_interpret(connected, "remote_outcomes",
+	    "var remotePath = SFTP.stat(\"/cafe\\u0301\")\n"
+	    ) == 0);
+	CHECK(strcmp(fake->submitted_path, "/cafe\xcc\x81") == 0);
+	CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "remote_outcomes",
+	    "var bytes = file.readBytes(1, 0)\n"
+	    ) == 0);
+	struct st_sftp_response *response = &fake->responses[fake->head].response;
+	response->kind = ST_SFTP_RESULT_BYTES;
+	response->size = 0;
+	response->data = NULL;
+	CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "remote_outcomes",
+	    "if (bytes.result != null) Fiber.abort(\"empty remote byte reply is EOF\")\n"
+	    "bytes = file.readBytes(1, 0)\n"
+	    ) == 0);
+	response = &fake->responses[fake->head].response;
+	response->kind = ST_SFTP_RESULT_BYTES;
+	response->size = 2;
+	CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "remote_outcomes",
+	    "if (!(bytes.result is SFTPError) || bytes.result.isTransient) Fiber.abort(\"oversized provider read result\")\n"
+	    "bytes = file.readBytes(1, 0)\n"
+	    ) == 0);
+	response = &fake->responses[fake->head].response;
+	response->kind = ST_SFTP_RESULT_BYTES;
+	response->size = 1;
+	response->data = NULL;
+	CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "remote_outcomes",
+	    "if (!(bytes.result is SFTPError)) Fiber.abort(\"missing provider byte payload\")\n"
+	    "var listing = directory.readEntries()\n"
+	    ) == 0);
+	response = &fake->responses[fake->head].response;
+	response->kind = ST_SFTP_RESULT_ENTRIES;
+	response->entry_count = 0;
+	response->entries = NULL;
+	CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "remote_outcomes",
+	    "if (listing.result != null) Fiber.abort(\"empty directory reply is EOF\")\n"
+	    "listing = directory.readEntries()\n"
+	    ) == 0);
+	response = &fake->responses[fake->head].response;
+	response->kind = ST_SFTP_RESULT_ENTRIES;
+	response->entry_count = 1;
+	response->entries = NULL;
+	CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "remote_outcomes",
+	    "if (!(listing.result is SFTPError)) Fiber.abort(\"missing provider directory payload\")\n"
+	    "bytes = file.readBytes(1, 0)\n"
+	    ) == 0);
+	response = &fake->responses[fake->head].response;
+	response->kind = ST_SFTP_RESULT_ERROR;
+	response->error_code = 0;
+	response->server_status = 3;
+	response->message = "permission denied";
+	response->transient = false;
+	CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "remote_outcomes",
+	    "if (!(bytes.result is SFTPError) || bytes.result.code != 0 || bytes.result.serverStatus != 3 || bytes.result.message != \"permission denied\" || bytes.result.isTransient) Fiber.abort(\"protocol failure details lost\")\n"
+	    "file.close()\n"
+	    "appendFile.close()\n"
+	    "directory.close()\n"
+	    ) == 0);
+	CHECK(st_wren_connected_pump(connected, 0) == 0);
+	return 0;
+}
+
+
+static int
 exercise_sftp_integer_contract(st_wren_connected_t *connected,
 	struct fake_sftp *fake)
 {
@@ -571,8 +670,8 @@ exercise_sftp_integer_contract(st_wren_connected_t *connected,
 	    "}\n") == 0);
 	CHECK(fake->next_id == before && fake->count == 0);
 	CHECK(st_wren_connected_interpret(connected, "sftp_integer_contract",
-	    "var farRead = handle.readBytes(0, 9007199254740991)\n") == 0);
-	CHECK(fake->submitted_size == 0 && fake->submitted_offset == ST_WREN_MAX_INTEGER);
+	    "var farRead = handle.readBytes(1, 9007199254740991)\n") == 0);
+	CHECK(fake->submitted_size == 1 && fake->submitted_offset == ST_WREN_MAX_INTEGER);
 	CHECK(st_wren_connected_interpret(connected, "sftp_integer_contract",
 	    "var zeroTime = SFTP.setMtime(\"/integers\", 0)\n"
 	    "var farTime = SFTP.setMtime(\"/integers\", 4294967295)\n") == 0);
@@ -637,6 +736,127 @@ exercise_sftp_integer_contract(st_wren_connected_t *connected,
 }
 
 static int
+exercise_filesystem_outcomes(st_wren_connected_t *connected)
+{
+	(void)fs_remove_file(ST_WREN_TEST_DIRECTORY "/outcomes.tmp");
+	(void)fs_remove_file(ST_WREN_TEST_DIRECTORY "/outcomes-dir/child.tmp");
+	(void)fs_remove_directory(ST_WREN_TEST_DIRECTORY "/outcomes-dir");
+	CHECK(st_wren_connected_interpret(connected, "filesystem_outcomes",
+	    "import \"syncterm\" for Download, Cache, File, Directory, FileError, FileErr\n"
+	    "var file = Download.create(\"outcomes.tmp\")\n"
+	    "if (!(file is File)) Fiber.abort(\"filesystem outcome setup\")\n"
+	    "var duplicate = Download.create(\"outcomes.tmp\")\n"
+	    "if (!(duplicate is FileError) || duplicate.code != FileErr.alreadyExists) Fiber.abort(\"create discarded the native reason\")\n"
+	    "if (file.open() != null || file.write(\"abc\") != null) Fiber.abort(\"file mutation success\")\n"
+	    "file.offset = 0\n"
+	    "if (file.readBytes(2) != \"ab\" || file.offset != 2 || file.readBytes(2) != \"c\" || file.readBytes(1) != null) Fiber.abort(\"byte read/short read/EOF\")\n"
+	    "if (file.readBytes(0) != \"\" || file.readBytes(0, 9007199254740991) != \"\" || file.offset != 3) Fiber.abort(\"zero read semantics\")\n"
+	    "if (file.writeBytes(\"\", 9007199254740991) != null || file.offset != 3 || file.size != 3) Fiber.abort(\"zero write semantics\")\n"
+	    "file.offset = 0\n"
+	    "if (file.readBytes(1) != \"a\" || file.writeBytes(\"Z\") != null || file.offset != 2 || file.size != 3 || file.read() != \"aZc\") Fiber.abort(\"C update-stream direction leaked\")\n"
+	    "var bytes = String.fromByte(0) + String.fromByte(255) + \"é\"\n"
+	    "if (file.write(bytes) != null || file.read() != bytes) Fiber.abort(\"byte-preserving filesystem data\")\n"
+	    "if (file.write(\"\") != null || file.read() != \"\" || file.readBytes(1) != null || file.readLine() != null) Fiber.abort(\"empty file semantics\")\n"
+	    "if (file.writeLine(\"\") != null || file.writeBytes(\"last\\r\") != null) Fiber.abort(\"line write success\")\n"
+	    "file.offset = 0\n"
+	    "if (file.readLine() != \"\" || file.readLine() != \"last\\r\" || file.readLine() != null) Fiber.abort(\"blank line/unterminated CR/EOF\")\n"
+	    "if (file.close() != null || file.close() != null) Fiber.abort(\"idempotent local close\")\n"
+	    ) == 0);
+	CHECK(st_wren_connected_interpret(connected, "filesystem_outcomes",
+	    "var decomposed = \"cafe\\u0301.tmp\"\n"
+	    "var exact = Download.create(decomposed)\n"
+	    "if (!(exact is File) || !exact.path.endsWith(decomposed) || !Download.contains(decomposed) || Download.delete(decomposed) != null) Fiber.abort(\"filename normalized across boundary\")\n"
+	    "var directory = Download.createDir(\"outcomes-dir\")\n"
+	    "if (!(directory is Directory)) Fiber.abort(\"directory creation result\")\n"
+	    "var existingDirectory = Download.createDir(\"outcomes-dir\")\n"
+	    "if (!(existingDirectory is FileError) || existingDirectory.code != FileErr.alreadyExists) Fiber.abort(\"mkdir error reason\")\n"
+	    "var child = directory.create(\"child.tmp\")\n"
+	    "if (!(child is File) || directory.contains(\"child.tmp\") != true || directory.contains(\"missing.tmp\") != false) Fiber.abort(\"directory query results\")\n"
+	    "var notEmpty = Download.delete(\"outcomes-dir\")\n"
+	    "if (!(notEmpty is FileError) || notEmpty.code != FileErr.directoryNotEmpty) Fiber.abort(\"delete nonempty reason\")\n"
+	    "if (directory.delete(\"child.tmp\") != null || Download.delete(\"outcomes-dir\") != null) Fiber.abort(\"delete success result\")\n"
+	    "var missingDirectory = directory.list\n"
+	    "if (!(missingDirectory is FileError) || missingDirectory.code != FileErr.notFound) Fiber.abort(\"missing directory result\")\n"
+	    "var missingDelete = Download.delete(\"outcomes-missing.tmp\")\n"
+	    "if (!(missingDelete is FileError) || missingDelete.code != FileErr.notFound) Fiber.abort(\"delete missing reason\")\n"
+	    "if (Download.replace(\"outcomes.tmp\", \"replacement\") != null) Fiber.abort(\"replace success result\")\n"
+	    "if (file.open() != null || file.read() != \"replacement\" || file.close() != null) Fiber.abort(\"replacement grant reuse\")\n"
+	    "for (name in [\"../escape\", \"nul\\u0000suffix\", String.fromByte(255)]) {\n"
+	    "  for (action in [Fn.new { Download.contains(name) }, Fn.new { Download.create(name) }, Fn.new { Download.createDir(name) }, Fn.new { Download.delete(name) }, Fn.new { Download.replace(name, \"x\") }]) {\n"
+	    "    var failed = Fiber.new { action.call() }\n"
+	    "    failed.try()\n"
+	    "    if (failed.error == null) Fiber.abort(\"invalid filesystem name accepted\")\n"
+	    "  }\n"
+	    "}\n"
+	    "if (Download.delete(\"outcomes.tmp\") != null || file.close() != null) Fiber.abort(\"closed missing grant close\")\n"
+	    "var missingFile = file.open()\n"
+	    "if (!(missingFile is FileError) || missingFile.code != FileErr.notFound) Fiber.abort(\"missing file reason\")\n"
+	    ) == 0);
+
+#if SYNCTERM_PLATFORM_POSIX
+	const char *target = ST_WREN_TEST_DIRECTORY "/outcomes-ungranted.tmp";
+	const char *root = ST_WREN_TEST_DIRECTORY "/outcomes-links";
+	const char *link = ST_WREN_TEST_DIRECTORY "/outcomes-links/alias.tmp";
+	(void)unlink(link);
+	(void)fs_remove_directory(root);
+	CHECK(write_file(target, "outside the directory grant") == 0);
+	CHECK(fs_create_directory(root) == 0);
+	CHECK(symlink("../outcomes-ungranted.tmp", link) == 0);
+	CHECK(st_wren_connected_interpret(connected, "filesystem_outcomes",
+	    "var sandbox = Download.list[\"outcomes-links\"]\n"
+	    "if (sandbox.contains(\"alias.tmp\") || sandbox.list.containsKey(\"alias.tmp\")) Fiber.abort(\"directory followed an ungranted link\")\n"
+	    "var rejectedLink = sandbox.delete(\"alias.tmp\")\n"
+	    "if (!(rejectedLink is FileError) || rejectedLink.code != FileErr.notSupported) Fiber.abort(\"link deletion policy\")\n") == 0);
+	CHECK(file_equals(target, "outside the directory grant"));
+	CHECK(unlink(link) == 0);
+	CHECK(fs_remove_directory(root) == 0);
+	CHECK(fs_remove_file(target) == 0);
+#endif
+	return 0;
+}
+
+static int
+exercise_filesystem_failures(st_wren_host_t *host)
+{
+	struct fs_info info;
+	WrenVM *vm = host->vm;
+
+	/* A host-issued grant to the full device injects real stdio failures
+	 * without adding arbitrary-path factories to the script API. */
+	CHECK(wrenInterpret(vm, "text_failure_contract",
+	    "import \"syncterm\" for Text\n"
+	    "var invalid = Fiber.new { Text.graphemes(String.fromByte(255)) }\n"
+	    "invalid.try()\n"
+	    "if (invalid.error == null) Fiber.abort(\"invalid Unicode accepted\")\n") == WREN_RESULT_SUCCESS);
+	if (fs_get_info(&info, "/dev/full") != 0 || info.kind != FS_ENTRY_OTHER)
+		return 0;
+	CHECK(wrenInterpret(vm, "filesystem_failures",
+	    "import \"syncterm\" for FileError\nvar files = []\n") == WREN_RESULT_SUCCESS);
+	wrenEnsureSlots(vm, 3);
+	wrenGetVariable(vm, "filesystem_failures", "files", 0);
+	CHECK(st_wren_file_push(vm, 1, "/dev/full", ST_WREN_PICKER_DISPOSITION_OVERWRITE, false));
+	wrenInsertInList(vm, 0, -1, 1);
+	CHECK(st_wren_file_push(vm, 1, "/dev/full", ST_WREN_PICKER_DISPOSITION_OVERWRITE, false));
+	wrenInsertInList(vm, 0, -1, 1);
+	CHECK(wrenInterpret(vm, "filesystem_failures",
+	    "var buffered = files[0]\n"
+	    "buffered.open()\n"
+	    "var written = buffered.writeBytes(\"x\")\n"
+	    "var closed = buffered.close()\n"
+	    "if (!(closed is FileError) || closed.code != -10 || closed.errno <= 0 || buffered.isOpen) Fiber.abort(\"close lost the disk-full reason\")\n"
+	    "if (written != null || buffered.close() != null) Fiber.abort(\"buffered write/close success\")\n"
+	    "var direct = files[1]\n"
+	    "direct.open()\n"
+	    "var large = \"x\"\n"
+	    "for (i in 0...16) large = large + large\n"
+	    "var failure = direct.writeBytes(large)\n"
+	    "if (!(failure is FileError) || failure.code != -10 || failure.errno <= 0) Fiber.abort(\"write lost the disk-full reason\")\n"
+	    "direct.close()\n"
+	    "if (direct.isOpen || direct.close() != null) Fiber.abort(\"failed file close ownership\")\n") == WREN_RESULT_SUCCESS);
+	return 0;
+}
+
+static int
 exercise_filesystem_path_handles(st_wren_connected_t *connected)
 {
 	char external_file[sizeof(ST_WREN_TEST_DIRECTORY) + 40];
@@ -651,6 +871,7 @@ exercise_filesystem_path_handles(st_wren_connected_t *connected)
 	    < (int)sizeof(external_directory));
 	CHECK(snprintf(external_child, sizeof(external_child),
 	    "%s/child.tmp", external_directory) < (int)sizeof(external_child));
+	(void)fs_remove_file(ST_WREN_TEST_DIRECTORY "/exact-integers.tmp");
 	(void)fs_remove_file(external_file);
 	(void)fs_remove_file(external_child);
 	(void)fs_remove_directory(external_directory);
@@ -668,9 +889,9 @@ exercise_filesystem_path_handles(st_wren_connected_t *connected)
 	    "  static checkMissing() {\n"
 	    "    if (!(__file.path is String) || __file.token != null) Fiber.abort(\"missing file metadata\")\n"
 	    "    var missing = __file.open()\n"
-	    "    if (!(missing is FileError) || missing.code != FileErr.vanished) Fiber.abort(\"missing file result\")\n"
+	    "    if (!(missing is FileError) || missing.code != FileErr.notFound) Fiber.abort(\"missing file result\")\n"
 	    "    var unavailable = Fiber.new { __directory.contains(\"child.tmp\") }.try()\n"
-	    "    if (!(unavailable is String)) Fiber.abort(\"missing directory result\")\n"
+	    "    if (!(unavailable is FileError) || unavailable.code != FileErr.notFound) Fiber.abort(\"missing directory result\")\n"
 	    "    if (!(__directory.toString is String)) Fiber.abort(\"missing directory metadata\")\n"
 	    "  }\n"
 	    "  static checkRestored() {\n"
@@ -678,7 +899,7 @@ exercise_filesystem_path_handles(st_wren_connected_t *connected)
 	    "    if (opened is FileError || __file.read() != \"external-restored\") Fiber.abort(\"restored file\")\n"
 	    "    if (__file.close() is FileError) Fiber.abort(\"restored close\")\n"
 	    "    var child = __directory.create(\"child.tmp\")\n"
-	    "    if (!(child is File) || !__directory.delete(\"child.tmp\")) Fiber.abort(\"restored directory\")\n"
+	    "    if (!(child is File) || __directory.delete(\"child.tmp\") != null) Fiber.abort(\"restored directory\")\n"
 	    "  }\n"
 	    "}\n"
 	    "PathHandles.prepare()\n") == 0);
@@ -696,42 +917,53 @@ exercise_filesystem_path_handles(st_wren_connected_t *connected)
 	CHECK(st_wren_connected_interpret(connected, "filesystem_delete_reuse",
 	    "import \"syncterm\" for Cache, Download, File, FileError, FileErr\n"
 	    "var oldFile = Download.create(\"wren-delete-file.tmp\")\n"
-	    "if (!(oldFile is File) || !Download.delete(\"wren-delete-file.tmp\")) Fiber.abort(\"file delete\")\n"
+	    "if (!(oldFile is File) || Download.delete(\"wren-delete-file.tmp\") != null) Fiber.abort(\"file delete\")\n"
 	    "var missing = Fiber.new { oldFile.open() }.try()\n"
-	    "if (!(missing is FileError) || missing.code != FileErr.vanished) Fiber.abort(\"deleted file result\")\n"
+	    "if (!(missing is FileError) || missing.code != FileErr.notFound) Fiber.abort(\"deleted file result\")\n"
 	    "var newFile = Download.create(\"wren-delete-file.tmp\")\n"
 	    "if (!(newFile is File) || (newFile.open() is FileError) || (newFile.write(\"recreated\") is FileError) || (newFile.close() is FileError)) Fiber.abort(\"file recreate\")\n"
 	    "if ((oldFile.open() is FileError) || oldFile.read() != \"recreated\" || (oldFile.close() is FileError)) Fiber.abort(\"file handle reuse\")\n"
-	    "if (!Download.delete(\"wren-delete-file.tmp\")) Fiber.abort(\"file cleanup\")\n"
+	    "if (Download.delete(\"wren-delete-file.tmp\") != null) Fiber.abort(\"file cleanup\")\n"
 	    "var oldDir = Download.createDir(\"wren-delete-dir\")\n"
-	    "if (oldDir == null || !Download.delete(\"wren-delete-dir\")) Fiber.abort(\"directory delete\")\n"
+	    "if (oldDir == null || Download.delete(\"wren-delete-dir\") != null) Fiber.abort(\"directory delete\")\n"
 	    "var unavailable = Fiber.new { oldDir.contains(\"child.tmp\") }.try()\n"
-	    "if (!(unavailable is String)) Fiber.abort(\"deleted directory result\")\n"
+	    "if (!(unavailable is FileError) || unavailable.code != FileErr.notFound) Fiber.abort(\"deleted directory result\")\n"
 	    "var newDir = Download.createDir(\"wren-delete-dir\")\n"
 	    "if (newDir == null || oldDir.contains(\"child.tmp\")) Fiber.abort(\"directory handle reuse\")\n"
-	    "if (!Download.delete(\"wren-delete-dir\")) Fiber.abort(\"directory cleanup\")\n"
+	    "if (Download.delete(\"wren-delete-dir\") != null) Fiber.abort(\"directory cleanup\")\n"
 	    "var replacement = Download.create(\"wren-replace.tmp\")\n"
 	    "if (!(replacement is File) || (Download.replace(\"wren-replace.tmp\", \"replacement\") is FileError)) Fiber.abort(\"replace setup\")\n"
 	    "if ((replacement.open() is FileError) || replacement.read() != \"replacement\" || (replacement.close() is FileError)) Fiber.abort(\"replace handle\")\n"
-	    "if (!Download.delete(\"wren-replace.tmp\")) Fiber.abort(\"replace cleanup\")\n"
+	    "if (Download.delete(\"wren-replace.tmp\") != null) Fiber.abort(\"replace cleanup\")\n"
 	    "var relaxed = Download.create(\"file with spaces.tmp\")\n"
-	    "if (!(relaxed is File) || !Download.delete(\"file with spaces.tmp\")) Fiber.abort(\"download names\")\n"
-	    "if (Download.create(\"../escape\") != null || Download.create(\"nul\\u0000suffix\") != null || Cache.create(\".hidden\") != null) Fiber.abort(\"name policies\")\n") == 0);
+	    "if (!(relaxed is File) || Download.delete(\"file with spaces.tmp\") != null) Fiber.abort(\"download names\")\n"
+	    "for (action in [Fn.new { Download.create(\"../escape\") }, Fn.new { Download.create(\"nul\\u0000suffix\") }, Fn.new { Cache.create(\".hidden\") }]) {\n"
+	    "  var denied = Fiber.new { action.call() }\n"
+	    "  denied.try()\n"
+	    "  if (denied.error == null) Fiber.abort(\"name policies\")\n"
+	    "}\n") == 0);
 
 	CHECK(st_wren_connected_interpret(connected, "file_integer_contract",
-	    "import \"syncterm\" for Download, FileError\n"
+	    "import \"syncterm\" for Download, FileError, FileErr\n"
 	    "var file = Download.create(\"exact-integers.tmp\")\n"
 	    "if (file.open() is FileError || file.write(\"unchanged\") is FileError) Fiber.abort(\"integer fixture\")\n"
 	    "file.offset = 3\n"
 	    "var stamp = file.mtime\n"
 	    "for (n in [-1, 0.5, Num.nan, Num.infinity, -Num.infinity, 9007199254740992, 9223372036854775808]) {\n"
-	    "  var actions = [Fn.new { file.offset = n }, Fn.new { file.mtime = n }, Fn.new { file.readBytes(n) }, Fn.new { file.readBytes(0, n) }, Fn.new { file.writeBytes(\"X\", n) }]\n"
+	    "  var actions = [Fn.new { file.offset = n }, Fn.new { file.readBytes(n) }, Fn.new { file.readBytes(0, n) }, Fn.new { file.writeBytes(\"X\", n) }]\n"
+	    "  if (n != -1) actions.add(Fn.new { file.mtime = n })\n"
 	    "  for (action in actions) {\n"
 	    "    var failed = Fiber.new { action.call() }\n"
 	    "    failed.try()\n"
 	    "    if (failed.error == null || file.offset != 3 || file.size != 9 || file.mtime != stamp) Fiber.abort(\"integer validation side effect\")\n"
 	    "  }\n"
 	    "}\n"
+	    "var signedTime = (file.mtime = -2)\n"
+	    "if (!(signedTime is FileError) && (signedTime != -2 || file.mtime != -2)) Fiber.abort(\"signed timestamp round trip\")\n"
+	    "var changed = (file.mtime = -1)\n"
+	    "if (changed is FileError && changed.code != FileErr.outOfRange) Fiber.abort(\"native timestamp range reason\")\n"
+	    "if (!(changed is FileError) && (changed != -1 || file.mtime != -1)) Fiber.abort(\"signed native file timestamp: %(changed), %(file.mtime)\")\n"
+	    "if ((file.mtime = stamp) is FileError) Fiber.abort(\"restore timestamp\")\n"
 	    "if (file.readBytes(0) != \"\" || file.offset != 3) Fiber.abort(\"zero read offset\")\n"
 	    "file.close()\n"
 	    "Download.delete(\"exact-integers.tmp\")\n") == 0);
@@ -1423,7 +1655,7 @@ exercise_connected_without_sftp(st_wren_host_t *host,
 	free(operation_cache);
 	CHECK(st_wren_connected_interpret(connected, "operation_shutdown",
 	    "import \"syncterm\" for Timer, Hook, Cache\n"
-	    "if (Cache.replace(\"operation-shutdown\", \"armed\") != true) Fiber.abort(\"shutdown marker\")\n"
+	    "if (Cache.replace(\"operation-shutdown\", \"armed\") != null) Fiber.abort(\"shutdown marker\")\n"
 	    "var pending = Timer.after(60000)\n"
 	    "pending.then(Fn.new {|result| Cache.replace(\"operation-shutdown\", \"resumed\") })\n"
 	    "Hook.onDisconnect(Fn.new {\n"
@@ -3416,6 +3648,8 @@ exercise_connected_sftp(st_wren_host_t *host, st_console_t *console,
 	CHECK(fake.close_count == 2);
 	CHECK(exercise_sftp_integer_contract(connected, &fake) == 0);
 	CHECK(exercise_remote_resource_contract(connected, &fake) == 0);
+	CHECK(exercise_remote_outcomes(connected, &fake) == 0);
+	CHECK(exercise_filesystem_outcomes(connected) == 0);
 	CHECK(exercise_filesystem_path_handles(connected) == 0);
 	CHECK(st_wren_connected_interpret(connected, "sftp_batch",
 	    "import \"syncterm\" for SFTP\n"
@@ -3440,10 +3674,10 @@ exercise_connected_sftp(st_wren_host_t *host, st_console_t *console,
 	    "if (decoded is WONError || decoded[\"value\"][0] != 1) Fiber.abort(\"WON decode\")\n"
 	    "if (!(WON.deserialize(\"{\") is WONError)) Fiber.abort(\"WON error\")\n"
 	    "var replaced = Cache.replace(\"fs-test.won\", \"atomic\")\n"
-	    "if (replaced is FileError || replaced != true) Fiber.abort(\"replace\")\n"
+	    "if (replaced is FileError || replaced != null) Fiber.abort(\"replace\")\n"
 	    "var f = Cache.list[\"fs-test.won\"]\n"
 	    "if (!(f is File) || (f.open() is FileError) || f.read() != \"atomic\" || (f.close() is FileError)) Fiber.abort(\"file round trip\")\n"
-	    "if (!Cache.delete(\"fs-test.won\")) Fiber.abort(\"delete\")\n") == 0);
+	    "if (Cache.delete(\"fs-test.won\") != null) Fiber.abort(\"delete\")\n") == 0);
 	CHECK(st_wren_connected_interpret(connected, "sftp_short_read_test",
 	    "import \"sftp_queue\" for SftpQueue\n"
 	    "if (SftpQueue.enqueue(SftpQueue.DOWNLOAD, \"short.bin\", "
@@ -7064,6 +7298,7 @@ main(int argc, char **argv)
 	CHECK(exercise_core_value_contracts(host, console) == 0);
 	CHECK(exercise_integer_contract(host) == 0);
 	CHECK(exercise_foreign_type_contract(host) == 0);
+	CHECK(exercise_filesystem_failures(host) == 0);
 	CHECK(exercise_snapshot_lifetime_contract(host) == 0);
 	CHECK(exercise_screen_update_contract(host, console) == 0);
 	CHECK(exercise_zero_width_contract(host) == 0);

@@ -1260,8 +1260,8 @@ class WrenTest {
     var name = "__wt_lines"
     if (Cache.contains(name)) Cache.delete(name)
     var f = Cache.create(name)
-    if (f == null) {
-      check_(false, "File.create returned null in line round-trip setup")
+    if (f is FileError) {
+      check_(false, "Directory.create returned FileError in line round-trip setup")
       return
     }
     f.open()
@@ -1295,24 +1295,13 @@ class WrenTest {
     Cache.delete(name)
   }
 
-  // FileError / FileErr are wired up.  We can't construct a
-  // FileError from Wren (no public constructor) or trigger a
-  // recoverable I/O failure from a deterministic test (every
-  // Bucket B/C path requires OS-level conditions: disk full,
-  // read-only mount, external rm out from under us, OOM).  So
-  // this only verifies the bindings exist and the enum values
-  // are sensible integers.
+  // Local failures retain portable native reasons; success and EOF have
+  // separate result contracts. Device-level write/close faults are exercised
+  // by the native host tests.
   static testFileErrConstants_() {
-    check_(FileErr.ok            == 0 &&
-           FileErr.openFailed    == 1 &&
-           FileErr.writeFailed   == 2 &&
-           FileErr.statFailed    == 3 &&
-           FileErr.mmapFailed    == 4 &&
-           FileErr.oom           == 5 &&
-           FileErr.vanished      == 6 &&
-           FileErr.resolveFailed == 7 &&
-           FileErr.seekFailed    == 8,
-           "FileErr enum constants")
+    check_(FileErr.notFound == -3 && FileErr.alreadyExists == -5 &&
+           FileErr.noSpace == -10 && FileErr.outOfRange == -12 &&
+           FileErr.io == -19, "FileErr portable I/O reasons")
     check_(FileError is Class,
            "FileError class importable from syncterm")
   }
@@ -1324,8 +1313,8 @@ class WrenTest {
     var name = "__wt_hash_empty"
     if (Cache.contains(name)) Cache.delete(name)
     var f = Cache.create(name)
-    if (f == null) {
-      check_(false, "File.create returned null in hash-empty setup")
+    if (f is FileError) {
+      check_(false, "Directory.create returned FileError in hash-empty setup")
       return
     }
     // Don't open / write - just hash an empty file.
@@ -1345,8 +1334,8 @@ class WrenTest {
     var name = "__wt_hash_known"
     if (Cache.contains(name)) Cache.delete(name)
     var f = Cache.create(name)
-    if (f == null) {
-      check_(false, "File.create returned null in hash-known setup")
+    if (f is FileError) {
+      check_(false, "Directory.create returned FileError in hash-known setup")
       return
     }
     f.open()

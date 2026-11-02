@@ -50,7 +50,6 @@ class SftpPubkey {
             var b = file.readBytes(4096, off).await()
             if (b == null) break
             if (b is SFTPError) Fiber.abort(b)
-            if (b.bytes.count == 0) break
             content = content + b
             off = off + b.bytes.count
           }

@@ -21,6 +21,7 @@
 #include "st_settings.h"
 #include "st_theme.h"
 #include "st_unicode_text.h"
+#include "st_utf8.h"
 #include "string_compat.h"
 
 #include <limits.h>
@@ -103,10 +104,36 @@ mark_host_hyperlinks(void *context, st_hyperlink_mark_fn mark,
 }
 
 bool
+st_wren_utf8_slot(WrenVM *vm, int slot, const char **text, int *length)
+{
+	const char *source;
+	int size;
+	size_t offset = 0;
+
+	if (wrenGetSlotType(vm, slot) != WREN_TYPE_STRING)
+		return false;
+	source = wrenGetSlotBytes(vm, slot, &size);
+	if (size < 0)
+		return false;
+	while (offset < (size_t)size) {
+		uint32_t scalar;
+		size_t consumed;
+		if (st_utf8_decode_one(&scalar, &consumed, source + offset,
+		    (size_t)size - offset) != 0)
+			return false;
+		offset += consumed;
+	}
+	*text = source;
+	if (length != NULL)
+		*length = size;
+	return true;
+}
+
+bool
 st_wren_text_slot(WrenVM *vm, int slot, const char **text, int *length)
 {
-	char *normalized;
-	size_t normalized_size;
+	char *normalized = NULL;
+	size_t normalized_size = 0;
 	const char *source;
 	bool changed;
 	int source_size;

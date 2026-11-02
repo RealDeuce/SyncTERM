@@ -16,7 +16,7 @@
 // state).  Single-session singleton — `start()` is called once on
 // connect by sftp_queue_init.wren; `stop()` runs on disconnect.
 
-import "syncterm" for Cache, CTerm, Download, File, FileError, FileFlag,
+import "syncterm" for Cache, CTerm, Download, File, FileError, FileErr, FileFlag,
                        Format, Host, SFTP, SFTPError, SFTPStat, Timer, Session,
 					   Wake, WON, WONError
 
@@ -652,15 +652,23 @@ class SftpQueue {
   // and off the rest of the time — true at start, false at end,
   // no counting.  One worker per direction means the per-direction
   // bool maps cleanly to "this worker is moving bytes right now."
+  // Missing partials are already removed. Preserve every other native reason.
+  static removeLocal_(name) {
+    if (Download == null) return null
+    var result = Download.delete(name)
+    if (result is FileError && result.code == FileErr.notFound) return null
+    return result
+  }
+
   static runJob_(job) {
 	if (job.cancel) {
 	  if (job.dir == SftpQueue.DOWNLOAD) {
-		if (Download == null || !Download.contains(job.local) ||
-			Download.delete(job.local)) {
+        var removed = removeLocal_(job.local)
+		if (removed == null) {
 		  job.status = SftpQueue.CANCELLED
 		} else {
 		  job.status = SftpQueue.FAILED
-		  job.errMsg = "cancelled, but the local partial could not be removed"
+		  job.errMsg = "cancelled, but the local partial could not be removed: " + removed.toString
 		}
 	  } else {
 		var removed = SFTP.remove(job.remote).await()
@@ -726,33 +734,46 @@ class SftpQueue {
 		job.sourceMtime != source.mtime)) {
 	  job.resume = 0
 	  job.done = 0
-	  if (Download.contains(job.local) && !Download.delete(job.local)) {
+      var removed = removeLocal_(job.local)
+	  if (removed is FileError) {
 		job.status = SftpQueue.FAILED
-		job.errMsg = "cannot discard local partial after remote source changed"
+		job.errMsg = "cannot discard local partial after remote source changed: " + removed.toString
 		return
 	  }
 	}
 	job.sourceSize = source.size
 	job.sourceMtime = source.mtime
 	job.total = source.size
-	var lf = null
-	if (Download.contains(job.local)) {
-	  lf = Download.list[job.local]
-	  if (!(lf is File) || lf.size < job.resume || lf.size > job.total) {
-		if (!Download.delete(job.local)) {
-		  job.status = SftpQueue.FAILED
-		  job.errMsg = "cannot replace incompatible local partial"
-		  return
-		}
-		lf = null
-		job.resume = 0
-		job.done = 0
-	  }
-	}
-	if (lf == null) lf = Download.create(job.local)
-    if (lf == null) {
+    var entries = Download.list
+    if (entries is FileError) {
       job.status = SftpQueue.FAILED
-      job.errMsg = "cannot create local '%(job.local)'"
+      job.errMsg = entries.toString
+      return
+    }
+    var lf = entries[job.local]
+    if (lf != null) {
+      var localSize = lf is File ? lf.size : null
+      if (localSize is FileError) {
+        job.status = SftpQueue.FAILED
+        job.errMsg = localSize.toString
+        return
+      }
+      if (!(lf is File) || localSize < job.resume || localSize > job.total) {
+        var removed = removeLocal_(job.local)
+        if (removed is FileError) {
+          job.status = SftpQueue.FAILED
+          job.errMsg = "cannot replace incompatible local partial: " + removed.toString
+          return
+        }
+        lf = null
+        job.resume = 0
+        job.done = 0
+      }
+    }
+    if (lf == null) lf = Download.create(job.local)
+    if (lf is FileError) {
+      job.status = SftpQueue.FAILED
+      job.errMsg = lf.toString
       return
     }
 	var localOpen = lf.open()
@@ -800,11 +821,12 @@ class SftpQueue {
       return
     }
     if (ctx.err == "cancelled") {
-	  if (Download.delete(job.local)) {
+      var removed = removeLocal_(job.local)
+	  if (removed == null) {
 		job.status = SftpQueue.CANCELLED
 	  } else {
 		job.status = SftpQueue.FAILED
-		job.errMsg = "cancelled, but the local partial could not be removed"
+		job.errMsg = "cancelled, but the local partial could not be removed: " + removed.toString
 	  }
     } else if (ctx.err != null) {
       job.status = SftpQueue.FAILED
@@ -868,7 +890,7 @@ class SftpQueue {
 		  }
 		  break
 		}
-		if (bytes == null || bytes.bytes.count == 0) {
+		if (bytes == null) {
 		  ctx.setError("remote ended before the advertised size")
 		  break
 		}
@@ -931,8 +953,14 @@ class SftpQueue {
 	  return
 	}
     var totalSize = lf.size
-    job.total = totalSize
 	var localMtime = lf.mtime
+    if (totalSize is FileError || localMtime is FileError) {
+      lf.close()
+      job.status = SftpQueue.FAILED
+      job.errMsg = (totalSize is FileError ? totalSize : localMtime).toString
+      return
+    }
+    job.total = totalSize
 	if (job.resume > 0 && (job.sourceSize != totalSize ||
 		job.sourceMtime != localMtime)) {
 	  lf.close()
@@ -1033,7 +1061,8 @@ class SftpQueue {
       // with the download path's local-mtime stamp.  Errors are
       // non-fatal — if the server rejects setstat (e.g. read-only
       // mount), the chip falls back to "[<>]".
-      if (localMtime > 0) {
+      // Local POSIX times may be signed; SFTP v3 only carries uint32 seconds.
+      if (localMtime >= 0 && localMtime <= 4294967295) {
         SFTP.setMtime(job.remote, localMtime).await()
       }
     }
@@ -1053,7 +1082,7 @@ class SftpQueue {
 	  var remaining = want
 	  while (remaining > 0) {
 		var chunk = ctx.lf.readBytes(remaining, cursor)
-		if (chunk is FileError || chunk == null || chunk.bytes.count == 0) {
+		if (chunk is FileError || chunk == null) {
 		  ctx.setError(chunk is FileError ? chunk.toString :
 			  "local source ended before its advertised size")
 		  break
@@ -1147,7 +1176,6 @@ class SftpQueue {
     var text = WON.serialize(doc, "  ")
 	var replaced = Cache.replace(SftpQueue.FILENAME, text)
 	if (replaced is FileError) return persistenceFailed_(replaced.toString)
-	if (replaced != true) return persistenceFailed_("atomic replacement failed")
 	return true
   }
 
@@ -1160,19 +1188,16 @@ class SftpQueue {
   // are not persisted.
   static load_() {
 	if (Cache == null) return false
-	if (!Cache.contains(SftpQueue.FILENAME)) return true
-    // Directory.list returns a Map<String, File|Directory> for the
-    // existing entries; create can't open an existing file.
     var entries = Cache.list
+    if (entries is FileError) return false
     var f = entries[SftpQueue.FILENAME]
-	if (f == null || !(f is File)) return false
-	var opened = f.open()
-	if (opened is FileError) return false
-    var bytes = f.size
-    var text = ""
-    if (bytes > 0) text = f.readBytes(bytes)
-	var closed = f.close()
-	if (text is FileError || closed is FileError || text.count == 0) return false
+    if (f == null) return true
+    if (!(f is File)) return false
+    var opened = f.open()
+    if (opened is FileError) return false
+    var text = f.read()
+    var closed = f.close()
+    if (!(text is String) || closed is FileError || text.bytes.count == 0) return false
     // WON.deserialize aborts on bad input; guard so a corrupt
     // persisted file doesn't brick the queue.  Check fiber.error
     // rather than try()'s return — on success try() returns the

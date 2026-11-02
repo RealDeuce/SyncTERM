@@ -333,9 +333,12 @@ def scrollback(executable, encoding, reports):
 
 def picker(executable, reports):
     def prepare(root):
+        # Use an NFD path to catch normalization at the picker/consent boundary.
+        picker_dir = root / "downloads" / "cafe\u0301"
+        picker_dir.mkdir()
         # File.read() is binary; keep the expected LF on Windows too.
-        (root / "downloads" / "alpha.txt").write_bytes(b"picked\n")
-        (root / "downloads" / "pixel.ppm").write_text("P3\n1 1\n255\n255 255 255\n", encoding="utf-8")
+        (picker_dir / "alpha.txt").write_bytes(b"picked\n")
+        (picker_dir / "pixel.ppm").write_text("P3\n1 1\n255\n255 255 255\n", encoding="utf-8")
         # Call the public picker API, using the shipped picker and normal input.
         source = '''
 import "syncterm" for Host, Screen, FilePickerOptions, PixelBuffer, PixelColor
@@ -379,7 +382,7 @@ var writeOnly = Host.pickSavePath(PATH, "pixel.ppm")
 var rejected = Fiber.new { PixelBuffer.fromPpm(writeOnly) }
 rejected.try()
 if (rejected.error == null) Fiber.abort("write File accepted by pixel decoder")
-'''.replace("PATH", json.dumps(str(root / "downloads")))
+'''.replace("PATH", json.dumps(str(picker_dir)))
         install_suite(root, source, "picker")
     with fixture(executable, prepare=prepare, reports=reports) as (client, root):
         first = client.wait_text("Read fixture")
@@ -410,7 +413,7 @@ if (rejected.error == null) Fiber.abort("write File accepted by pixel decoder")
         client.text("y")
         restored = client.wait_text("TEST-COMPLETE picker")
         assert restored.metadata["console_id"] != picker_id and "PICKER-MARKER" in restored.text
-        assert (root / "downloads/alpha.txt").read_text(encoding="utf-8") == "overwritten\nappended\n"
+        assert (root / "downloads" / "cafe\u0301" / "alpha.txt").read_text(encoding="utf-8") == "overwritten\nappended\n"
 
 
 def menu_exit(executable, reports):

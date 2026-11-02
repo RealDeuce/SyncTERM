@@ -8,6 +8,7 @@
 #include "wren_host_internal.h"
 
 #include "io_error.h"
+#include "sftp.h"
 #include "st_profile.h"
 #include "st_connection.h"
 #include "st_time.h"
@@ -30,6 +31,7 @@ struct pending_request {
 	struct st_wren_operation *operation;
 	enum st_sftp_operation kind;
 	uint32_t flags;
+	size_t size;
 	struct foreign_remote *resource;
 	WrenHandle *owner;
 	struct pending_request *next;
@@ -404,7 +406,7 @@ slot_path(WrenVM *vm, int slot, const char **result)
 	int size;
 	const char *value;
 
-	if (!st_wren_text_slot(vm, slot, &value, &size))
+	if (!st_wren_utf8_slot(vm, slot, &value, &size))
 		return false;
 	if (size < 0 || memchr(value, '\0', (size_t)size) != NULL)
 		return false;
@@ -481,11 +483,32 @@ cancel_native_operation(void *context, struct st_wren_operation *operation)
 }
 
 static bool
+request_transient(int code)
+{
+	return code == IO_ERROR_OUT_OF_MEMORY || code == IO_ERROR_WOULD_BLOCK
+	    || code == IO_ERROR_BUSY || code == IO_ERROR_INTERRUPTED
+	    || code == IO_ERROR_IN_PROGRESS || code == IO_ERROR_TIMED_OUT
+	    || code == IO_ERROR_CONNECTION_RESET || code == IO_ERROR_NOT_CONNECTED
+	    || code == IO_ERROR_IO;
+}
+
+static void
+empty_operation(WrenVM *vm, bool read)
+{
+	struct st_wren_operation *operation = st_wren_operation_new(vm, 0);
+	if (read)
+		wrenSetSlotBytes(vm, 1, "", 0);
+	else
+		wrenSetSlotNull(vm, 1);
+	(void)st_wren_operation_resolve(vm, operation, 1);
+}
+
+static bool
 request_error(WrenVM *vm, int code, const char *message)
 {
 	struct st_wren_operation *operation = st_wren_operation_new(vm, 0);
 
-	push_error(vm, 1, code, 0, message, true);
+	push_error(vm, 1, code, 0, message, request_transient(code));
 	(void)st_wren_operation_resolve(vm, operation, 1);
 	return false;
 }
@@ -529,6 +552,7 @@ submit_request(WrenVM *vm, const struct st_sftp_request *request,
 	pending->id = id;
 	pending->kind = request->operation;
 	pending->flags = request->flags;
+	pending->size = request->size;
 	pending->resource = resource;
 	if (resource != NULL)
 		pending->owner = wrenGetSlotHandle(vm, 0);
@@ -754,6 +778,10 @@ fn_remote_read(WrenVM *vm)
 		st_wren_abort(vm, "RemoteFile.readBytes: invalid rights, count, or offset");
 		return;
 	}
+	if (count == 0) {
+		empty_operation(vm, true);
+		return;
+	}
 	request.handle = resource->value;
 	request.size = (size_t)count;
 	(void)submit_request(vm, &request, resource);
@@ -777,8 +805,12 @@ remote_write(WrenVM *vm, bool append)
 	}
 	request.handle = resource->value;
 	request.data = wrenGetSlotBytes(vm, 1, &size);
-	if (size < 0) {
-		st_wren_abort(vm, "RemoteFile: invalid byte String");
+	if (size < 0 || (size_t)size > SFTP_MAX_PACKET_SIZE - 21U) {
+		st_wren_abort(vm, "RemoteFile: byte String exceeds the native write limit");
+		return;
+	}
+	if (size == 0) {
+		empty_operation(vm, false);
 		return;
 	}
 	request.size = (size_t)size;
@@ -1390,7 +1422,7 @@ push_response(WrenVM *vm, int slot,
 	bool exact = response->kind != ST_SFTP_RESULT_STAT
 	    || stat_exact(&response->stat);
 
-	if (response->kind == ST_SFTP_RESULT_ENTRIES) {
+	if (response->kind == ST_SFTP_RESULT_ENTRIES && response->entries != NULL) {
 		for (size_t i = 0; i < response->entry_count && exact; ++i)
 			exact = stat_exact(&response->entries[i].stat);
 	}
@@ -1411,7 +1443,15 @@ push_response(WrenVM *vm, int slot,
 		return true;
 	case ST_SFTP_RESULT_STRING:
 	case ST_SFTP_RESULT_BYTES:
-		wrenSetSlotBytes(vm, slot, response->data, response->size);
+		if ((response->size != 0 && response->data == NULL)
+		    || (response->kind == ST_SFTP_RESULT_BYTES && response->size > pending->size)) {
+			push_error(vm, slot, IO_ERROR_PROTOCOL, 0, "Invalid SFTP byte result", false);
+			return true;
+		}
+		if (response->kind == ST_SFTP_RESULT_BYTES && response->size == 0)
+			wrenSetSlotNull(vm, slot);
+		else
+			wrenSetSlotBytes(vm, slot, response->size == 0 ? "" : response->data, response->size);
 		return true;
 	case ST_SFTP_RESULT_HANDLE: {
 		struct foreign_remote *resource;
@@ -1445,6 +1485,14 @@ push_response(WrenVM *vm, int slot,
 		return true;
 	}
 	case ST_SFTP_RESULT_ENTRIES:
+		if (response->entry_count == 0) {
+			wrenSetSlotNull(vm, slot);
+			return true;
+		}
+		if (response->entries == NULL) {
+			push_error(vm, slot, IO_ERROR_PROTOCOL, 0, "Invalid SFTP directory result", false);
+			return true;
+		}
 		wrenEnsureSlots(vm, slot + 3);
 		wrenSetSlotNewList(vm, slot);
 		for (size_t i = 0; i < response->entry_count; ++i) {

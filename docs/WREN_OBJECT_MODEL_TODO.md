@@ -71,13 +71,13 @@ construction in `wren_sftp.c`, plus the SFTP and async manual sections.
 
 ## 5 Make filesystem outcomes consistent
 
-- [ ] Define and apply consistent success, recoverable-error and EOF results
+- [x] Define and apply consistent success, recoverable-error and EOF results
   for local and remote filesystem operations. Preserve domain-specific error
   details; report programmer mistakes before native work starts.
-- [ ] Replace ambiguous null/Bool failures that discard native error details.
+- [x] Replace ambiguous null/Bool failures that discard native error details.
   Reconcile setters, open/close, zero-byte requests and EOF semantics.
-- [ ] Migrate callers and remove stale manual claims and workaround branches.
-- [ ] Test missing paths, existing targets, invalid arguments, read/write/close
+- [x] Migrate callers and remove stale manual claims and workaround branches.
+- [x] Test missing paths, existing targets, invalid arguments, read/write/close
   failures, empty data, EOF and cancelled operations without weakening consent.
 
 Starting points: `wren_bind_fs.c`, SFTP results, queue/browser callers and
@@ -187,3 +187,33 @@ I/O, GC fallback, async scope results/errors and shutdown. Native Clang/GCC and
 MinGW i686/x86_64 libraries built without warnings; Windows runtime tests were
 not run. Concurrent unrelated crypto work may affect later builds; preserve
 that work and distinguish its failures from Wren regressions.
+
+Item 5: local mutations now return null/Error and create methods return the
+resource/Error. FileError.code uses portable native IO_ERROR_* reasons;
+operation buckets and null/Bool failure aliases are removed. Positive-count
+byte reads use nonempty bytes/null EOF; zero reads return an immediate empty
+String and zero writes are no-ops. Local close is idempotent and consumes the
+stream even on failure. Setters retain assigned-value success and native
+error results. C update-stream direction/buffering stays inside the binding.
+Signed local timestamps are verified after storage; unsupported or rounded
+values report outOfRange. The queue avoids unsupported SFTP v3 timestamps.
+
+Paths use strict UTF-8 without NFC conversion, including picker paths; byte
+payloads preserve malformed UTF-8 and NUL. The new malformed-name regression
+also exposed an uninitialized free in the shared NFC helper, confirmed by
+GDB and ASan and now fixed. Directory inventory keeps its receiver rooted,
+reports failures instead of returning partial data, and excludes links when
+minting grants. Picker navigation retains its separate explicit-consent path.
+Queue/browser callers now inspect native failures and remove old EOF/Bool
+workarounds. Remote results validate payload sizes/pointers and preserve
+server status details; immediate provider failures have accurate retry flags.
+
+The pre-fix /dev/full test reproduced loss of disk-full detail at fclose.
+Regressions now cover buffered/direct write and close failures, creation and
+removal reasons, missing roots, empty/short/EOF reads, zero requests, invalid
+arguments without side effects, update-stream direction, signed/unrepresentable
+timestamps, exact Unicode paths, link confinement, malformed provider payloads,
+and protocol error details. Native host/menu/live-SFTP/core/picker checks passed;
+ASan/UBSan host/core/picker checks passed. Six headless application/UI checks
+passed, including the picker in an NFD directory. Clang/GCC and MinGW i686/
+x86_64 builds were warning-free. Windows runtime tests were not run.

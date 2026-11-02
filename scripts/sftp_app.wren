@@ -21,7 +21,7 @@
 // the queue session lease releases as part of suspend(), so is_connected goes
 // false and the term.c disconnect path can run normally.
 
-import "syncterm" for Cleanup_, Conn, CTerm, Download, File, Format, Host, Key, Text, Mod,
+import "syncterm" for Cleanup_, Conn, CTerm, Download, File, FileError, Format, Host, Key, Text, Mod,
                        KeyEvent, Screen, SFTP, SFTPError
 import "ui_app"    for App
 import "ui_pane"   for Pane
@@ -158,18 +158,24 @@ class SftpFmt {
     if (upSt == SftpQueue.QUEUED)    return "[Q↑]"
     if (dnSt == SftpQueue.FAILED    || upSt == SftpQueue.FAILED)    return "[er]"
     if (dnSt == SftpQueue.CANCELLED || upSt == SftpQueue.CANCELLED) return "[cx]"
-    if (!Download.contains(localName)) return "    "
-    var lf = Download.list[localName]
+    var entries = Download.list
+    if (entries is FileError) return "[er]"
+    var lf = entries[localName]
     if (!(lf is File)) return "    "
-    if (lf.size != size) return "[<>]"
+    var localSize = lf.size
+    if (localSize is FileError) return "[er]"
+    if (localSize != size) return "[<>]"
     if (hash != null) {
       // sha1s/md5s extension was negotiated — authoritative compare.
       var local = (hash.count == 20) ? lf.sha1 : (hash.count == 16 ? lf.md5 : null)
+      if (local is FileError) return "[er]"
       if (local == null) return "    "
       return (local == hash) ? "[==]" : "[<>]"
     }
     // No server hash — fall back to mtime equality.
-    return (lf.mtime == mtime) ? "[==]" : "[<>]"
+    var modified = lf.mtime
+    if (modified is FileError) return "[er]"
+    return (modified == mtime) ? "[==]" : "[<>]"
   }
 
   static stringLT(a, b) {

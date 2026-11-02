@@ -5492,25 +5492,21 @@ content by indexing into `Cache.list`, and creates new content with
 
 [source,wren]
 ----
-import "syncterm" for Cache
+import "syncterm" for Cache, FileError
 
-// Read an existing cache file.  Indexing the list returns the
-// File object directly, no separate "open by name" step.
-if (Cache.contains("greetings.txt")) {
-  var f = Cache.list["greetings.txt"]
-  f.open()
-  System.print(f.read())
-  f.close()
-} else {
-  // First run: create + write.  create() returns null if the file
-  // already exists or the OS rejects the create.
-  var f = Cache.create("greetings.txt")
-  if (f != null) {
-    f.open()
-    f.write("Hello, world!")
-    f.close()
-  }
-}
+var entries = Cache.list
+if (entries is FileError) Fiber.abort(entries)
+var f = entries["greetings.txt"]
+var firstRun = f == null
+if (firstRun) f = Cache.create("greetings.txt")
+if (f is FileError) Fiber.abort(f)
+var opened = f.open()
+if (opened is FileError) Fiber.abort(opened)
+var result = firstRun ? f.write("Hello, world!") : f.read()
+var closed = f.close()
+if (result is FileError) Fiber.abort(result)
+if (closed is FileError) Fiber.abort(closed)
+if (!firstRun) System.print(result)
 
 // Subdirectories appear in the same map.  Walk into them by chaining
 // `.list` lookups:
@@ -5538,6 +5534,48 @@ re-opens the source via `Host.openLocalFile(token)`.  Use
 `Host.uploadPath` to feed the configured `UploadPath` to the
 picker as `initialDir`.
 
+=== Filesystem results [[filesystem-results]]
+
+Local and remote filesystem APIs use these result conventions. Remote methods
+return an Operation; the table describes its completed value.
+
+[options="header",cols="2,3"]
+|===
+| Operation | Result
+| Create/open a resource
+| The requested resource object or an Error. Local `File.open()` opens an
+  existing grant and returns `null` or `FileError`.
+| Mutation or close
+| `null` on success; `FileError` locally or `SFTPError` remotely on failure.
+| `readBytes(count, offset)` with positive count
+| A nonempty byte String, including a successful short read; `null` at EOF;
+  or an Error. Local `readBytes(count)` uses the same convention and advances.
+| Zero-byte read
+| `""`, independently of EOF. No native I/O or offset change occurs.
+| Zero-byte `writeBytes` / `appendBytes`
+| `null`; no native I/O or offset change. `File.write("")` still replaces
+  contents with an empty file, and `writeLine("")` writes a newline.
+| `File.read()`
+| Complete file bytes from offset zero, including `""` for an empty file,
+  or `FileError`.
+| `File.readLine()`
+| A line String (including `""` for a blank line), `null` at EOF, or `FileError`.
+| `Directory.contains(name)`
+| Bool for presence/absence; `FileError` when the query cannot be performed.
+|===
+
+Every filesystem error inherits from `Error`. Check `result is Error` when
+either domain is possible, or the concrete class when inspecting its native
+details. Invalid arguments, invalid names, missing rights and operations on
+closed/closing streams abort the calling fiber before native I/O. Repeated
+close is allowed. Property setters return the assigned Number on success or
+`FileError` on a recoverable failure; their result can be captured explicitly.
+
+Byte data is never UTF-8-validated or normalized. Local/remote path names and
+picker paths must be valid UTF-8 without NUL; their original UTF-8 spelling is
+preserved at the host boundary. NFC conversion is reserved for APIs which
+explicitly describe it, such as display text and semantic connection sends.
+
 === Directory
 
 Opaque handle containing a directory pathname grant.  The grant applies to
@@ -5549,7 +5587,8 @@ handle was created.
 | Method | Description
 
 | `Directory.contains(name)`
-| `true` if a file named `name` exists in the directory.
+| `true` for a regular file/subdirectory, `false` for a missing or unsupported
+  entry, or `FileError` if the query fails. Symlinks are not followed.
 
 | `Directory.list`
 | A Map keyed by entry name; values are `File` objects for regular
@@ -5558,14 +5597,14 @@ handle was created.
   policy of the directory's Cache or Download root.  Each read enumerates
   the directory afresh; cache the value if you'll touch it more than once.
   Use this to obtain handles to existing files, or to walk a tree.
+  Returns `FileError` on failure; never returns a partial Map.
 
 | `Directory.create(name)`
 | Atomically create a new zero-byte file named `name` in the
   directory and return a `File` object for it.  Uses C11 exclusive-
   create mode (`fopen(path, "wbx")`) so a concurrent creator doesn't
-  silently truncate an existing file.  Returns `null` if the file
-  already exists, the name violates the filename policy, the path
-  is too long, or the OS rejects the create for any other reason.
+  silently truncate an existing file. Returns `FileError` for native failures
+  (including `FileErr.alreadyExists`); invalid names abort.
   The file is closed on return — call `File.open()` before reading
   or writing.
 
@@ -5573,23 +5612,21 @@ handle was created.
 | Atomically create a new subdirectory named `name` and return a
   `Directory` object for it.  Uses `mkdir` directly, which fails
   atomically if the path already exists — same race-free semantics
-  as `create()` for files.  Returns `null` on the same error
-  conditions: existing entry, invalid name, path too long, or OS
-  rejection (no permission, parent missing, …).  Use `list[name]`
+  as `create()` for files. Returns `FileError` on native failure; invalid names
+  abort. Use `list[name]`
   to obtain a handle to a subdirectory that already exists.
 
 | `Directory.delete(name)`
 | Remove the entry named `name` from the directory.  Handles regular
   files and empty subdirectories; refuses anything else (symlinks,
-  device nodes, FIFOs, non-empty directories).  Returns `true` on
-  successful removal, `false` on any failure (no such entry, wrong
-  type, non-empty directory, no permission, invalid name, …).
+  device nodes, FIFOs, non-empty directories). Returns `null` on success or
+  `FileError` with the native reason on failure. Invalid names abort.
 
 | `Directory.replace(name, bytes)`
 | Atomically replace a regular file with the complete byte String.  The
   host writes and closes an exclusive sibling temporary file before the
   rename, so any write or close failure leaves the prior file unchanged.
-  Returns `true` on success or a `FileError` on failure.  This operation is
+  Returns `null` on success or a `FileError` on failure. This operation is
   intended for cache documents which must never expose a truncate-then-write
   intermediate state; it does not promise persistence across a system crash.
 |===
@@ -5603,15 +5640,12 @@ handle therefore addresses the current entry at its pathname.  Removing,
 replacing, or recreating that entry does not revoke the grant, whether the
 change came through `Directory.delete` or from outside SyncTERM.
 
-Operations still validate the state they require.  A closed `File` operation
-that finds its pathname unavailable returns `FileErr.vanished` where that
-method normally reports the error; the handle remains usable if the pathname
-later becomes available.  A `Directory` operation whose root pathname does
-not currently name a directory aborts that call with `Directory: path
-vanished`, but does not poison the handle.  The same handle works again if a
-directory is recreated at that pathname.  `File.path`, `File.token`, and
-`Directory.toString` report stored handle metadata without requiring the
-pathname to exist.
+Operations validate the state they require. An unavailable pathname returns
+`FileError` with the native reason (`FileErr.notFound`, `notDirectory`,
+`permissionDenied`, etc.); it does not revoke the grant. A recreated directory
+or file can be used through the same grant. `File.path`, `File.token`, and
+`Directory.toString` report stored metadata without filesystem access.
+`File.close()` is also independent of pathname availability.
 
 ==== Open files are exempt
 
@@ -5648,8 +5682,9 @@ Directories below `Download` use the relaxed safe-leaf policy.  Names are
 NUL, an ASCII control byte, DEL, or a Windows reserved device basename.
 Spaces, leading dots or dashes, trailing dots, parentheses, and non-ASCII
 bytes are otherwise accepted.  Descendant directories inherit their root's
-policy.  Each method retains the invalid-name result documented in its method
-description.
+policy. Invalid names abort every directory method before filesystem access.
+Valid UTF-8 names retain their original spelling; the host does not normalize
+canonically equivalent filenames into one another.
 
 === File
 
@@ -5680,29 +5715,37 @@ does not broaden its authority.
   reads / writes start at offset 0.
 
 | `File.close()`
-| Close the file handle.
+| Close the stream; returns `null` or `FileError`. Already-closed grants
+  return `null`. A failed native fclose still consumes the stream and leaves
+  `isOpen == false`; its error reports any failed flush/close.
 
 | `File.readBytes(count)`
 | Read up to `count` bytes from the current offset; advance.
-  Returns the bytes as a String.
+  Returns a nonempty byte String, `null` at EOF, or `FileError`.
+  Zero count returns `""` without changing the offset.
 
 | `File.readBytes(count, offset)`
-| Read at an absolute offset; do not advance the current offset.
+| Same results at an absolute offset; restore the current offset even after
+  a successful short read or EOF. Zero count performs no seek.
 
 | `File.read()`
-| Read the entire file from offset 0.
+| Read file bytes from offset 0, returning `""` for an empty file, or
+  `FileError`. A concurrent truncation can produce a successful short read.
 
 | `File.writeBytes(s)`, `writeBytes(s, offset)`
-| Write `s` at the current or given offset.
+| Write the byte String at the current or given offset. Returns `null` or
+  `FileError`. Zero bytes do not change offsets, including explicit offsets.
 
 | `File.write(s)`
 | Replace file contents with `s`.  On an append-consent File, append `s`
   instead so the consent cannot be broadened into overwrite access.
+  Returns `null` or `FileError`.
 
 | `File.readLine()`
 | Read from the current offset to the first LF (0x0A) or EOF and
-  return the bytes read with any trailing LF removed.  Advances the
-  offset past the LF on a hit, or to EOF if none was found.  Returns
+  return the bytes read with LF and its optional preceding CR removed.
+  An unterminated trailing CR is preserved. Advances the
+  offset past the LF on a hit, or to EOF if none was found. Returns
   `null` when the offset is already at EOF; a blank line returns the
   empty string.
 
@@ -5710,18 +5753,21 @@ does not broaden its authority.
 | Write `s` at the current offset, then append an LF (0x0A).  The
   offset advances past the LF.  No special handling if `s` already
   ends in LF — the trailing LF is appended unconditionally; use
-  `writeBytes` for raw control over line termination.
+  `writeBytes` for raw control over line termination. Returns `null` or `FileError`.
 
 | `File.offset`, `offset=(o)`
 | Current read/write position. Nonnegative exact integer; see <<native-integer-limits>>.
 
 | `File.size`
-| Length of the file in bytes, subject to <<native-integer-limits>>.
+| Length in bytes, subject to <<native-integer-limits>>. Flushes this stream's
+  buffered writes before querying native metadata; flush failure is a FileError.
 
 | `File.mtime`, `mtime=(t)`
-| Modification time as POSIX seconds.  Setter calls `setfdate(2)` by
-  path, requires write rights, and works on both open and closed
-  handles.  Used by the SFTP queue to stamp completed downloads with
+| Signed POSIX seconds within <<native-integer-limits>>. The setter uses
+  the native filesystem API by path, requires write rights, and works on open and closed
+  handles. Pending output is flushed first. A filesystem which ignores or
+  rounds a timestamp returns `FileErr.outOfRange` after verification, rather
+  than reporting the requested value as stored. Used by the SFTP queue to stamp completed downloads with
   the remote's mtime so the browser's status chip can compare
   local-vs-remote without server-side hash extensions.
 
@@ -5746,7 +5792,7 @@ does not broaden its authority.
 |===
 
 A closed `File` whose pathname is unavailable returns a
-`<<fileerror,FileError>>` with `code == FileErr.vanished` from the
+`<<fileerror,FileError>>` with the native reason, such as `FileErr.notFound` from the
 existence check, whether the entry was deleted through `Directory.delete` or
 outside SyncTERM.  The pathname grant remains valid.  If a regular file is
 later created at the same pathname, the original `File` can open it.
@@ -5802,57 +5848,59 @@ yourself is no longer valid.
 
 ==== FileError [[fileerror]]
 
-Recoverable I/O failures (disk full, mmap failure, externally-deleted
-file, OOM mid-op, …) flow through a `FileError` foreign returned IN
-PLACE of the typed result.  Mirrors `<<sftperror,SFTPError>>` in
-shape.  Most scripts will simply ignore the value — that's the point:
-a failed write returns a `FileError` the caller can drop on the floor
-and continue, rather than aborting the fiber.  Scripts that care can
-demux with `is FileError`.
+`FileError` represents a recoverable local filesystem failure, following
+<<filesystem-results>>. Its portable code describes the native reason rather
+than the operation which happened to fail. Existing targets, missing paths,
+permissions, full storage and native range failures remain distinguishable.
 
 [options="header",cols="2,3"]
 |===
 | Member | Description
-
-| `code`
-| `FileErr.*` enum value (see below).  Indicates the failure category.
-| `errno`
-| Captured C `errno` at the failure point, or `0` when the failure
-  isn't a libc-call result (e.g., `FileErr.oom` synthesises
-  `ENOMEM` when malloc returns NULL).
-| `message`
-| Human-readable diagnostic text, or `null`.
-| `toString`
-| `"FileError: <CODE-NAME>: <message> (errno=<n>)"`, fields omitted
-  when not present.  Useful for logging.
+| `code` | Stable negative native `IO_ERROR_*` reason, exposed by `FileErr` below.
+| `errno` | Captured C errno when available; zero for native APIs without errno
+  or a synthesized failure. Interpret `code` for portable decisions.
+| `message` | Operation-specific diagnostic text, or `null` if allocation failed.
+| `toString` | Numeric code and diagnostic, plus errno when present.
 |===
 
-`FileErr` constants (matching `enum file_err_code` in `wren_bind_fs.c`):
+`FileErr` exposes the filesystem reasons from the native I/O namespace:
 
-[options="header",cols="2,1,3"]
+[options="header",cols="2,1"]
 |===
-| Constant | Code | When emitted
-| `FileErr.ok`            | 0 | Sentinel; never appears on a returned FileError.
-| `FileErr.openFailed`    | 1 | `fopen` returned NULL (perms, ENOSPC, missing, …).
-| `FileErr.writeFailed`   | 2 | `fwrite` short-write (disk full, I/O error, write-only mount).
-| `FileErr.statFailed`    | 3 | `flength` / `fstat` failed mid-op.
-| `FileErr.mmapFailed`    | 4 | `xpmap` returned NULL — only from `File.sha1` / `File.md5`.
-| `FileErr.oom`           | 5 | Internal `malloc` / `realloc` returned NULL.
-| `FileErr.vanished`      | 6 | A closed File's pathname is unavailable.
-| `FileErr.resolveFailed` | 7 | `Cache`-relative path resolution failed.
-| `FileErr.seekFailed`    | 8 | `fseek` failed while positioning an open file.
-| `FileErr.outOfRange`    | 9 | Native size, position or timestamp exceeds the exact Number range.
+| Constant | Code
+| `FileErr.invalidArgument` | -1
+| `FileErr.invalidEncoding` | -2
+| `FileErr.notFound` | -3
+| `FileErr.permissionDenied` | -4
+| `FileErr.alreadyExists` | -5
+| `FileErr.notDirectory` | -6
+| `FileErr.isDirectory` | -7
+| `FileErr.directoryNotEmpty` | -8
+| `FileErr.outOfMemory` | -9
+| `FileErr.noSpace` | -10
+| `FileErr.nameTooLong` | -11
+| `FileErr.outOfRange` | -12
+| `FileErr.busy` | -13
+| `FileErr.readOnly` | -14
+| `FileErr.crossDevice` | -15
+| `FileErr.tooManyLinks` | -16
+| `FileErr.interrupted` | -17
+| `FileErr.notSupported` | -18
+| `FileErr.io` | -19
+| `FileErr.timedOut` | -20
+| `FileErr.cancelled` | -21
+| `FileErr.wouldBlock` | -22
 |===
 
-**What is NOT a FileError:** programmer errors abort the fiber instead.
-That covers calling read/write on an unopened file, calling `open()` twice,
-passing an invalid offset/count or timestamp (including an inexact Number), and passing the wrong type
-to a setter.  These are all "your code is wrong" — fail loud.
+Success is `null`, never a zero-code error. EOF is a read result, never a
+FileError. Programmer errors (wrong types, invalid names/counts/offsets,
+missing rights, unopened streams, opening an already-open stream) abort;
+check the input contract rather than treating them as recoverable I/O.
 
-**What is also not a FileError:** EOF from a short read.  `File.read`
-and friends return whatever bytes were actually read (possibly empty),
-*not* a FileError.  The script can detect EOF by comparing the
-returned byte count to the requested count, just like `fread`.
+The binding manages C update-stream direction changes and buffered writes.
+Scripts may mix reads/writes without inserting C-specific seeks or flushes.
+The current offset remains a logical stream position; metadata queries that
+need pending output flush it and report any failure normally.
 
 ==== Picker consent tokens [[picker-tokens]]
 
@@ -6407,22 +6455,28 @@ namespace owns path operations; resource operations belong to these objects.
 |===
 | Member | Description
 | `RemoteFile.readBytes(count, offset)`
-| Read at an absolute offset. Returns an Operation completing with a byte
-  String, `null` at EOF, or `SFTPError`. Requires read rights. Independent
+| Read at an absolute offset. Returns an Operation completing with a nonempty
+  byte String, `null` at EOF, or `SFTPError`. Zero count completes immediately
+  with `""`. Requires read rights. Independent
   reads/writes may run concurrently because their offsets are explicit.
 | `RemoteFile.writeBytes(bytes, offset)`
 | Write a byte String at an absolute offset; Operation completes with `null`
   or `SFTPError`. Requires write rights and an open without append mode.
   The argument order matches local `File.writeBytes(bytes, offset)`.
+  At most 262,123 bytes fit one native write; larger Strings abort before
+  submission. Zero bytes complete immediately with `null`.
 | `RemoteFile.appendBytes(bytes)`
 | Append a byte String using the server's current end of file. Requires an
   open with write and append flags; no misleading offset argument is accepted.
+  The same native write-size limit and zero-byte result apply.
 | `RemoteFile.readable`, `writable`, `append`
 | The rights and append mode granted by the successful open.
 | `RemoteDirectory.readEntries()`
 | Read the next directory batch. Operation completes with `List<SFTPEntry>`,
   `null` at EOF, or `SFTPError`. A second pending cursor read completes with
-  a busy `SFTPError`; await the first before reading another batch.
+  a busy `SFTPError`; await the first before reading another batch. An empty
+  native batch is normalized to EOF. Malformed provider payloads fail with a
+  non-transient protocol error instead of producing partial data.
 | `resource.close()`
 | Returns an Operation completing with `null` or `SFTPError`. Concurrent
   closes share one Operation and submit one native close. A successful close

@@ -1428,25 +1428,36 @@ foreign class File {
 // fiber loudly.  Only the recoverable I/O bucket flows through
 // FileError.
 foreign class FileError is Error {
-  foreign code      // FileErr.* enum
+  foreign code      // FileErr.* portable negative I/O reason
   foreign errno     // captured C errno at failure point, 0 if N/A
   foreign message   // human-readable diagnostic, may be null
   foreign toString
 }
 
-// FileError code values; see Wren.adoc § FileError for the rule
-// matching each code to a failure mode.
+// Portable I/O reasons shared with the native filesystem API. Success is null.
 class FileErr {
-  static ok            { 0 }
-  static openFailed    { 1 }
-  static writeFailed   { 2 }
-  static statFailed    { 3 }
-  static mmapFailed    { 4 }
-  static oom           { 5 }
-  static vanished      { 6 }
-  static resolveFailed { 7 }
-  static seekFailed    { 8 }
-  static outOfRange    { 9 }
+  static invalidArgument    { -1 }
+  static invalidEncoding    { -2 }
+  static notFound           { -3 }
+  static permissionDenied   { -4 }
+  static alreadyExists      { -5 }
+  static notDirectory       { -6 }
+  static isDirectory        { -7 }
+  static directoryNotEmpty  { -8 }
+  static outOfMemory        { -9 }
+  static noSpace            { -10 }
+  static nameTooLong        { -11 }
+  static outOfRange         { -12 }
+  static busy               { -13 }
+  static readOnly           { -14 }
+  static crossDevice        { -15 }
+  static tooManyLinks       { -16 }
+  static interrupted        { -17 }
+  static notSupported       { -18 }
+  static io                 { -19 }
+  static timedOut           { -20 }
+  static cancelled          { -21 }
+  static wouldBlock         { -22 }
 }
 
 class Hook {
