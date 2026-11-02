@@ -9,6 +9,10 @@ contracts in one document.  The declarations in the linked public headers
 remain authoritative; these chapters explain how to use those declarations
 without losing ownership, failure, or concurrency invariants.
 
+The proposed RE1 replacement is described in
+link:StreamingRegex.adoc[Streaming regular expressions for bytes and Unicode],
+including binary protocol use from Wren and the Unicode Level 2 delivery plan.
+
 == Build and test
 
 SyncTERM uses C17 with CMake, falling back to C11 on macOS x86 when the

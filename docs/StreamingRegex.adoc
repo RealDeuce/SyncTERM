@@ -1,0 +1,633 @@
+= Streaming Regular Expressions for Bytes and Unicode
+:toc:
+:toclevels: 3
+
+== Status and purpose
+
+Proposed design. The APIs and engine described here are not yet implemented.
+
+Replace SyncTERM's RE1 dependency with a small C17 streaming matcher that
+supports both exact binary protocols and Unicode text. Use one regular
+expression compiler and NFA execution core, with explicitly selected byte and
+Unicode alphabets. Expose independently usable matchers to Wren as well as
+integrating them with the existing text match hooks.
+
+Unicode Technical Standard #18 Level 2 is the Unicode conformance target.
+Delivery is incremental, with an exact feature inventory at each stage; a
+useful subset must not be advertised as complete Level 2. Byte matching is a
+separate, fully supported mode and has no Unicode conformance claim.
+
+The engine recognizes patterns and produces captures. Wren retains protocol
+state, interprets lengths, verifies checksums, manages timeouts, and owns I/O.
+
+== Existing behavior and replacement boundary
+
+The current implementation consists of
+link:../src/scripting/re1/[RE1] and its integration in
+link:../src/scripting/wren_host/wren_sftp.c[the connected Wren host]. Its
+application consumers are `Hook.onMatch` and `Hook.onMatchClean`.
+
+The host receives decoded Unicode scalars, encodes each back into UTF-8, and
+feeds the resulting bytes to a streaming Pike VM. Exact UTF-8 literals can
+match, but `.` and capture boundaries operate on bytes. The pattern grammar
+has grouping, alternation, and simple repetition, but no escapes, character
+classes, Unicode properties, or boundary assertions.
+
+Search currently tries a pattern at the buffer head, discards one byte when
+continuation becomes impossible, and replays the retained input. Registration
+rejects leading repetition. Each hook retains a 4096-byte buffer and at most
+nine explicit captures. Overflow silently drops part of the retained input.
+Accepting states commit immediately, including when a longer greedy match
+could become possible later.
+
+The replacement preserves the distinction established by
+link:UnicodeBoundary.adoc[the terminal wire and Unicode boundary]:
+
+* `Hook.onWire` sees post-transport bytes before terminal classification and
+  Unicode decoding. It can consume a byte or replace it with exact bytes.
+* Text match hooks see CTerm's decoded scalar stream independently of the
+  remote encoding. Sequence bodies and opaque payloads are withheld by CTerm.
+  `onMatchClean` also omits ESC markers; it does not run another escape parser.
+* `Session.current.claimWire()` grants a `WireLease` for exclusive
+  terminal-channel I/O. These are application bytes after transport processing,
+  not encrypted packets or an unprocessed Telnet connection.
+
+The current contracts are described in link:Wren.adoc[the Wren manual]. This
+proposal does not change transport framing, terminal parsing, or wire ownership.
+
+== Goals and exclusions
+
+The engine must support incrementally fed input, independent of chunk sizes,
+with deterministic matching and bounded resource use. Byte mode must preserve
+every possible octet, including NUL and malformed UTF-8. Unicode mode must
+operate on scalars and support explicit grapheme and word boundaries without
+treating a receive-buffer boundary as end-of-text.
+
+Patterns remain regular. Backreferences, recursive subpatterns, arbitrary
+lookaround, embedded code, locale-sensitive collation, replacement-template
+languages, and document-editing APIs are outside this design. Unicode case
+folding is independent of locale. Protocol payloads do not acquire text
+semantics because some of their bytes happen to form valid UTF-8.
+
+No background thread is required. Matching runs synchronously under its
+owner's execution budget, without performing I/O or calling Wren from inside
+the C execution core.
+
+== Two explicit alphabets
+
+Choose the alphabet when compiling a pattern. It is immutable and cannot be
+inferred from input contents or changed during a partial match.
+
+[cols="2,3,3",options="header"]
+|===
+| Operation | Byte mode | Unicode mode
+
+| Input symbol
+| An octet from 0 through 255.
+| A Unicode scalar from U+0000 through U+10FFFF, excluding surrogates.
+
+| Pattern literals
+| Exact source bytes or byte escapes.
+| UTF-8 literals or scalar escapes.
+
+| `.`
+| One byte, including NUL and newline.
+| One scalar, including NUL and newline; never a partial UTF-8 encoding.
+
+| Ranges and classes
+| Sets within the byte alphabet.
+| Scalar sets, Unicode properties, and explicitly supported string members.
+
+| Unicode operations
+| None. Unicode-only constructs are compile errors.
+| Explicit normalization, simple caseless matching, grapheme matching, and
+  boundary facilities as described below.
+
+| Captures
+| Exact bytes and byte offsets.
+| UTF-8 text and byte offsets in the selected matching representation.
+|===
+
+Both patterns and input use pointer-plus-length interfaces in C. Neither
+requires a trailing NUL. Wren byte patterns and captures use `wrenGetSlotBytes`
+and `wrenSetSlotBytes`; they must bypass `st_wren_text_slot` and all implicit
+validation or normalization.
+
+The Unicode pattern parser validates UTF-8 but does not normalize the regex
+source as a whole. Metacharacters, escape spellings, class membership, and
+quantifier boundaries must retain their grammatical meaning.
+
+=== Pattern language
+
+The initial common grammar includes literals, quoting and escapes, `.`,
+capturing and noncapturing groups, alternation, classes and ranges, class
+complement/intersection/subtraction, `*`, `+`, `?`, counted repetition, and
+lazy repetition. Counted expansion is subject to the compiled-program limit.
+Malformed escapes and unsupported constructs fail compilation rather than
+silently becoming literals.
+
+Common escapes include escaped metacharacters, `\n`, `\r`, `\t`, and
+`\xHH`. The last denotes a byte in byte mode and a scalar in U+0000..U+00FF
+in Unicode mode. `\u{...}` denotes a scalar and is Unicode-only. A literal
+non-ASCII character in a byte pattern contributes its exact encoded bytes,
+so `\xHH` is preferable when specifying a protocol octet.
+
+Byte shorthands have fixed ASCII definitions: `\d` is `[0-9]`, `\w` is
+`[A-Za-z0-9_]`, and `\s` is ASCII whitespace. Case-insensitive byte matching
+folds ASCII letters only; bytes 0x80..0xFF are unchanged. Unicode shorthands
+use their documented UTS #18 compatibility definitions.
+
+Unicode extensions include `\p{...}`, `\P{...}`, `\X`, `\b{g}`,
+`\b{w}`, named characters, and string members in classes. The final syntax
+for set operators and property-value wildcards must be documented with the
+parser and its tests before those features ship.
+
+`\b` and `\B` denote simple word/nonword boundaries. Byte mode uses ASCII
+`\w` transitions; Unicode mode also applies the required nonspacing-mark
+handling rather than testing just two adjacent scalars. These are distinct
+from default word boundaries, requested with `\b{w}`. `\b{g}` denotes a
+grapheme boundary.
+The corresponding explicit Unicode nonboundary forms must also be available.
+
+`\A` and `\z` refer to the beginning and explicit end of a matcher stream.
+`^`, `$`, and `\R` use documented line rules: byte mode recognizes CRLF,
+CR, and LF; Unicode mode additionally recognizes the Unicode newline
+characters. There is no line boundary inside CRLF. A trailing CR can require
+lookahead. Dot remains an all-symbol operator; it does not consume an entire
+CRLF pair or grapheme merely because those are available through other atoms.
+
+Empty and nullable patterns may be compiled for inspection or finite matching,
+but repeated streaming matchers initially reject patterns that can accept an
+empty span. This avoids an implicit zero-width progress rule in protocol and
+hook dispatch. It does not prohibit assertions within a consuming pattern.
+
+== Search and commitment
+
+Search position and commitment policy are separate settings.
+
+* Search mode injects a new candidate start at each permitted symbol boundary.
+  It does not repeatedly replay the entire retained prefix.
+* Prefix mode tries only the current stream origin. It can report impossible
+  before EOF when all possible continuations have died. This is useful when a
+  protocol header is required at a known position. One match or impossible
+  result completes the attempt; reset is required for another prefix attempt.
+
+Both support two commitment policies:
+
+[cols="1,4",options="header"]
+|===
+| Policy | Contract
+
+| Eager
+| Commit the first acceptance whose assertions have become irrevocably true
+  while advancing input in order. A live earlier-start candidate does not
+  block an established later match. At the same decision point, prefer the
+  lowest match end, then lowest start, then expression path priority.
+  Greedy/lazy ordering only resolves competing paths that are eligible then.
+
+| Ordered
+| Prefer the earliest start, then expression path priority: alternatives in
+  source order, greedy repetition before its exit, lazy exit before repetition.
+  Keep an acceptance provisional while a higher-priority continuation could
+  supersede it. EOF, a disqualifying symbol, or an explicit record end can make
+  it final. This policy is the basis for the full Unicode conformance profile.
+|===
+
+For eager search, both `a|ab` and `ab|a` commit `a` when it arrives. With
+`a.*z|b` on input `ab`, eager search can commit `b`; ordered search remains
+pending on the candidate beginning at `a`. The latter may need EOF to resolve.
+This is an intentional difference from the old buffer-head search behavior.
+
+`name: (.+)` in eager mode captures the first acceptable scalar after the
+prefix. Ordered mode can remain pending indefinitely. A trailing delimiter,
+such as in `name: (.+)\r\n`, supplies an endpoint. If a protocol needs
+first-delimiter framing, use lazy repetition or a class excluding that
+delimiter; a delimiter alone does not settle every greedy expression.
+
+In both policies, assertions must be true before committing. Neither policy
+guesses that a word, grapheme, normalization segment, or stream has ended
+because no more input is currently available. An idle timeout may cause the
+application to declare a record end, but is not an engine default.
+
+After reporting a match, repeated search resumes at its end and produces
+nonoverlapping matches. Preserve the boundary context at that position;
+resuming search is not equivalent to resetting the Unicode segmenter or
+pretending that position is the beginning of a new stream.
+
+Finite string classes require special attention: ordered matching must retain
+the longer-first class alternatives required by the Unicode profile, including
+fallback when a longer member prevents the rest of the expression matching.
+Eager matching is an explicitly different stream policy, and must not inherit
+the ordered profile's conformance claim without demonstrating equivalent
+behavior for each applicable requirement.
+
+== Stream lifecycle and input ownership
+
+A compiled program is immutable and may have multiple independent matchers.
+Each matcher owns its active states, capture histories, pending assertions,
+input queue, retained capture bytes, and decoder/segmentation state. A matcher
+has one execution owner and is not concurrently entered or recursively fed.
+
+The conceptual lifecycle is create, feed and pull results, finish and drain,
+then reset or destroy. An empty feed has no boundary meaning. Finishing marks
+EOF of this logical input, including an explicitly delimited application
+record; it must be idempotent, and later feeds fail until reset. Reset discards
+all input and state and starts offsets again at zero. Destruction releases all
+storage without issuing callbacks.
+
+Use a pull interface so one input chunk need not allocate an unbounded list
+of match objects. Feeding appends an owned copy to a bounded input queue;
+pulling advances execution until one match, pending input, impossible prefix,
+finished search, or error can be reported. Admission failure leaves that feed
+unaccepted and permits draining queued input before retrying it. An execution
+error can follow earlier successful feeds and leaves the matcher failed until
+reset. Already delivered matches remain valid.
+
+These outcomes are distinct:
+
+* Pending: more input or an explicit end is needed.
+* Match: an irrevocable match and its captures are available.
+* Impossible: a prefix attempt cannot succeed with any continuation.
+* Finished: all queued input and EOF decisions have been drained.
+* Error: invalid input, an exhausted limit, or an allocation failure.
+* Yielded: a per-call scheduling budget was spent; pull again to resume the
+  same work, without feeding new input or changing commitment decisions.
+
+A search with no live candidates remains pending while the stream is open,
+because a future symbol can start a new match.
+
+The matcher retains lookahead that established an assertion or rejected a
+higher-priority path. Reported match end can therefore precede the execution
+position. Subsequent pulls reuse those bytes; the caller never feeds them
+again. Match choice and captures must be invariant under all chunk partitions.
+
+Immediately after a byte-mode match, an explicit remainder operation may
+instead detach all accepted bytes after the match end, including lookahead and
+unprocessed queued bytes. It ends that matcher run, so no byte is both returned
+and retained for future matching. This permits handoff from header recognition
+to a length-driven payload parser without losing the start of the payload.
+The first implementation need not offer this operation for normalized Unicode.
+
+Detaching bytes from a matcher does not return them to a connection. A protocol
+driver owns everything it has read from its wire lease and must account for
+its buffered tail before releasing ownership. Releasing a lease returns unread
+session input, not arbitrary bytes already consumed by the script.
+
+== Unicode representation and boundaries
+
+=== Scalar input and invalid encoding
+
+Standalone Unicode matchers accept incrementally decoded UTF-8. Incomplete
+encodings remain pending across feeds. Malformed input and incomplete UTF-8
+at EOF are explicit encoding errors; there is no automatic switch to byte
+mode or silent replacement.
+
+CTerm integration feeds its already decoded scalars through a separate C entry
+point. It must not create a second wire decoder or reinterpret codepage bytes.
+The session's existing decode-error policy applies before these scalars reach
+the matcher. A matcher instance chooses either UTF-8 feeds or scalar feeds
+at creation and cannot mix the two.
+
+Byte offsets for scalar feeds count the UTF-8 representation of those scalars,
+not offsets in the original remote codepage or escape-containing wire stream.
+
+=== Normalization and capture coordinates
+
+The default Unicode view is exact scalar input, with no normalization. This
+permits an ordinary literal prompt to complete immediately when its final
+scalar arrives. Canonical matching is an explicit normalized view, initially
+NFD, with stable normalization segments supplied incrementally.
+
+Patterns for that view are authored against NFD. Pattern construction helpers
+can normalize literal fragments before quoting them, but must not normalize an
+entire regex source or silently rewrite class and quantifier semantics. The
+documented normalization contract supplies canonical equivalence rather than
+promising arbitrary matches through discontiguous pieces of original scalars.
+
+Normalization follows
+https://www.unicode.org/reports/tr15/tr15-58.html[UAX #15 revision 58].
+An unfinished segment may need later combining marks before its ordered
+representation can be committed. Feed boundaries do not finalize it, and a
+pending segment has an explicit storage limit. Exhaustion reports an error;
+the matcher does not insert characters to force progress.
+
+Captures and offsets refer to the selected matching view. With no transform,
+they are exact input UTF-8 spans. In the NFD view, they are NFD bytes and
+offsets in that normalized stream. They are not advertised as exact spans of
+the original input. This avoids an ambiguous source mapping when decomposition
+or mark reordering crosses capture boundaries. A future source-mapping API
+would require its own contract; byte mode always returns exact source bytes.
+
+Offsets are half-open byte intervals from the matcher origin, irrespective of
+scalar or grapheme counts. Wren accessors must check the exact integer range
+before converting native offsets to Numbers and fail explicitly on overflow.
+Whole matches and numbered captures are owned snapshots; an unmatched group
+is `null`, while a participating empty group is an empty String.
+
+=== Graphemes and words
+
+Use the default segmentation algorithms in
+https://www.unicode.org/reports/tr29/tr29-49.html[UAX #29 revision 49], with
+Unicode 18.0.0 data matching the existing text components. `\X` and grapheme
+boundary assertions wait for sufficient context or EOF. A sequence ending in
+a base character, emoji modifier prefix, or ZWJ can remain unfinished.
+
+Default word boundaries have their own state and data; grapheme segmentation
+does not implement them. Ignorable runs can require retaining pending boundary
+decisions across many scalars. Avoid assertions implemented as tests of only
+the immediately adjacent two scalars.
+
+Terminal layout commits and provisional presentation events are not proof that
+a Unicode regex boundary is final. A semantic stream reset can end one matcher
+run and start another, but that boundary must be explicit in the hook contract.
+ESC omission in `onMatchClean` does not itself close a word or grapheme.
+
+=== Case behavior
+
+Case-sensitive matching is the default. A Unicode caseless option uses Unicode
+simple folding for scalar predicates and classes. Full default folding remains
+available through explicit conversion facilities and a documented transformed
+input/pattern contract. It is not implemented by blindly folding regex source.
+
+Existing full-fold data can be reused, but its current allocation-oriented
+comparison API is not an incremental matcher interface. Full-fold matching
+expansions, such as one scalar becoming multiple scalars, need defined atom and
+capture behavior before an engine-level full-fold option is added.
+
+== Unicode conformance target
+
+The specification baseline is
+https://www.unicode.org/reports/tr18/tr18-25.html[UTS #18 revision 25].
+Its Level 2 claim includes Level 1. The release inventory must identify both
+the specification revision and Unicode data version, with supported profiles
+and exceptions. Normalization can be provided through the documented surrounding
+system. RL2.4 addresses supplied case conversions; full in-engine caseless
+matching is no longer mandatory.
+
+[cols="1,4",options="header"]
+|===
+| Requirement | Planned provision
+
+| RL1.1 through RL1.7, including RL1.2a
+| Scalar escapes; required properties and compatibility classes; set operations;
+  simple boundaries and folding; line handling; supplementary scalars.
+
+| RL2.1
+| Explicit NFD matching contract.
+
+| RL2.2
+| Grapheme atoms/boundaries and string-valued classes.
+
+| RL2.3
+| Default Unicode word boundaries.
+
+| RL2.4
+| Full default folding in supplied conversion facilities.
+
+| RL2.5
+| Character names and aliases.
+
+| RL2.6
+| Wildcards in property values.
+
+| RL2.7
+| All properties required for the pinned Unicode version, including required
+  properties of strings.
+|===
+
+The initial feature inventory will be partial. Completing the property and
+name infrastructure is a separate milestone from replacing RE1. Each claim
+requires corresponding expected-result tests and a documented commitment
+profile; bounded implementation limits must also be published.
+
+== Wren interface and protocol use
+
+The following names are proposed, not additions to the current API:
+
+[cols="2,4",options="header"]
+|===
+| Surface | Purpose
+
+| `Regex.bytes(pattern)` / `Regex.text(pattern)`
+| Compile immutable byte or Unicode programs with explicit options and limits.
+  Compile errors identify an offset in the original pattern bytes.
+
+| `program.matcher(options)`
+| Create a stateful matcher. Options select search/prefix, eager/ordered,
+  the Unicode view where applicable, and resource ceilings. Standalone matching
+  defaults to ordered search with the exact view.
+
+| `matcher.feed(bytes)`
+| Admit an owned chunk without interpreting an empty chunk as EOF. Return
+  admission success or a structured error; do not silently accept a prefix.
+
+| `matcher.next()`
+| Advance and return a tagged outcome with at most one owned match snapshot.
+
+| `matcher.finish()` / `matcher.reset()`
+| Mark EOF for subsequent draining, or explicitly abandon and restart a run.
+
+| `matcher.takeRemainder()`
+| Immediately after a byte-mode match, detach the exact remaining bytes and
+  end the run. Returning an empty String is distinct from an invalid operation.
+|===
+
+Errors are typed values with stable categories for syntax, unsupported feature,
+encoding, resource limit, memory, and invalid lifecycle operations. Final Wren
+spelling follows the host's Error conventions. Error messages do not substitute
+for programmatically distinguishable categories.
+
+For example, the pattern constructor in Wren source could be:
+
+[source,wren]
+----
+var header = Regex.bytes("\\x7E([\\x00-\\xFF]{4})")
+----
+
+The doubled backslashes belong to Wren string syntax. The regex parser sees
+`\x7E([\x00-\xFF]{4})`: a marker followed by four arbitrary bytes. The
+capture can contain NUL, 0xFF, or any other octet. No Unicode helper touches it.
+
+A pure Wren protocol driver acquires `Session.current.claimWire()`, reads
+chunks with `WireLease.readBytes`, and feeds a byte matcher while recognizing
+framing. It drains results after feeds, handles `""` as would-block and `null`
+as EOF, and detaches any payload tail already accepted by the matcher. After
+recognition it may switch to an ordinary length/count state machine; binary
+payloads do not need to be expressed as giant regexes. Sends use the owning
+lease's `sendBytes`, retaining transport framing, unless that protocol
+specifically requires `sendWire`.
+
+The driver cooperatively waits for later input, owns its timeout/cancellation
+policy, and releases the lease on every exit. A match result does not acquire
+a connection or bypass the existing prohibition on claiming a lease inside an
+active terminal input callback. `Hook.onWire` remains suitable for immediate
+byte decisions and observation; an observe-only match callback cannot recover
+ownership of earlier bytes already delivered to CTerm.
+
+Batch feeding is essential: protocol scripts should not require a Wren call
+for every byte. Wren string ranges are not raw byte slices; admission and
+remainder operations must not rely on them to preserve protocol payloads.
+
+== Text hook integration and compatibility
+
+The new text hook adapter uses scalar feeds, exact Unicode view, eager search,
+and the existing observe-only callback contract. It preserves registration
+order, self-removal, callback error handling, and the distinction between
+`onMatch` and `onMatchClean`. It builds the existing List of captures from owned
+match snapshots before dispatching Wren. Matchers cannot be recursively fed
+while a callback is running; integration must retain the host's input ownership
+and reentrancy guards.
+
+An explicit compiled text program can select ordered matching or the normalized
+view. Documentation must describe the resulting latency. A byte program cannot
+be attached to a decoded-text hook; protocol code feeds it from the byte path.
+No new consuming wire-match hook is required for the initial design.
+
+Existing pattern Strings cannot silently acquire the new grammar: brackets,
+backslashes, braces, and anchors were previously literal bytes. During
+migration, keep a narrowly scoped RE1-dialect parser in the new compiler for
+existing String-based registrations. It preserves the old literal spelling
+rules and confines the old host's pattern-source NFC normalization to that
+adapter; explicit compiled programs select the new grammar and its explicit
+normalization contract. This is a syntax adapter with a known consumer, not
+a second execution engine.
+
+Move bundled patterns to explicit programs, document the user-script migration,
+and remove the legacy dialect at a declared compatibility boundary. Unicode
+scalar dots/captures, broader search behavior, removal of leading-repetition
+restrictions, and explicit overflow errors are behavior changes even under the
+syntax adapter. They need release notes and independent regression cases.
+
+On matcher failure, a hook is disabled with a specific diagnostic and terminal
+passthrough continues. Session teardown destroys pending matchers without
+issuing new script callbacks. An application that wants EOF-sensitive final
+matches must drain while its VM and callback context are still alive; disconnect
+notification and forced teardown are distinct lifecycle events.
+
+== Component design
+
+Place the engine in `src/text/regex/` with its own CMake target, `st_regex`.
+Public C headers expose opaque programs/matchers, explicit options, result
+ownership, length-based feeds, and error records. The component depends on
+text and error primitives, never Wren, the terminal, connections, or UI code.
+Set C17, require it, and disable compiler extensions on the new target.
+
+Use a bounded parser and compile to an indexed Pike/Thompson instruction graph.
+Instructions cover symbol predicates, splits/jumps, capture saves, assertions,
+and acceptance. Predicates contain byte sets, scalar ranges/properties, or
+compiled finite-string alternatives. Property-value wildcard expansion happens
+at compile time under its own work and output limits.
+
+Each matcher owns visitation generations and prioritized active lists.
+Instruction memory has no mutable generation fields or process-global parser
+state. Share compiled programs through explicit lifetime ownership; sharing a
+program must not let one matcher affect another. A program stays alive until
+all its matchers have released it.
+
+For the basic NFA, work is proportional to input symbols times compiled states,
+with additional costs for captures and Unicode context. Do not claim constant
+memory for unbounded captures, normalization runs, or ordered alternatives.
+Priority-aware state deduplication must preserve captures and pending assertions;
+reaching the same instruction is not by itself proof that all context is equal.
+
+Reuse `st_utf8`, normalization primitives, grapheme properties, and the existing
+segmentation implementation where their contracts fit. Factor only necessary
+shared Unicode mechanisms behind narrow interfaces. In particular, `st_regex`
+must not link the collation engine merely to access its private case-fold table.
+Extract the needed mapping interface with its existing consumer and keep
+dependencies directional.
+
+A responsibility-specific Unicode property component may own generated property,
+alias, and name data required by regex. It must use pinned upstream data,
+digests, provenance and license notices, following the existing generators.
+Generate compact range tables and tries rather than materializing a large
+Unicode alphabet per matcher. Add word-break data and conformance vectors;
+the current grapheme tables do not supply that algorithm.
+
+== Limits and failure behavior
+
+Publish defaults and hard ceilings for pattern bytes, parser nesting,
+compiled states, captures and capture-history storage, queued input, retained
+matching bytes, pending Unicode segments/assertions, compile-time property
+expansion, and execution work for one logical symbol or EOF event. Numeric
+defaults are selected with benchmarks during implementation, not copied from
+RE1's accidental limits.
+Applications may lower ceilings within the supported configuration.
+
+Check size arithmetic and stream-offset advancement for overflow. All compile
+failures return errors and release partial allocations; no exit, assert on
+untrusted syntax, process-global fatal handler, or longjmp is part of the API.
+
+Limit exhaustion is a structured error, never a truncated capture, partial
+UTF-8 scalar, dropped buffer prefix, fabricated boundary, or unnoticed no-match.
+Work limits count deterministic engine work so packet partitioning does not
+change which match is selected. Counters belong to logical execution events,
+not feed or pull calls, and a yielded outcome does not reset them. A smaller
+per-call scheduling budget can yield execution separately without declaring
+EOF or changing priority. A long, inexpensive unmatched stream does not exhaust
+a lifetime work counter merely because it has not produced a match.
+
+== Verification and acceptance
+
+Before replacing behavior, add independent expected-result tests for:
+
+* Every byte value, embedded NUL, malformed UTF-8 payloads, byte classes,
+  quoting, exact captures, and exact remainder transfer after lookahead.
+* Scalar literals, supplementary characters, scalar dots/classes, invalid
+  encodings, EOF with an incomplete scalar, and identical decoded text from
+  UTF-8 and CP437 sessions.
+* Eager and ordered ties, prefix impossibility, overlapping candidate starts,
+  repetitions, string-class fallback, capture priority, assertions at the match
+  end, and preservation of context between successive matches.
+* Every split point in short fixtures and randomized partitions of long
+  fixtures, including CRLF, combining runs, ZWJ emoji, regional indicators,
+  Indic conjuncts, word-boundary lookahead, and NFD segment commits.
+* Normalized-view capture coordinates and examples where transformed captures
+  differ from original bytes. Never use ordinary Wren ranges to derive binary
+  expected results.
+* Feed admission failure, allocation failure, each resource ceiling, reset after
+  error, finish/drain idempotence, retained input at handoff, owned result
+  lifetime, multiple matchers sharing a program, callback self-removal, and
+  teardown without callbacks or leaked wire ownership.
+
+Use official Unicode normalization, grapheme-break and word-break test data for
+the pinned version, plus focused regex expectations. Keep the feature inventory
+and conformance claims alongside these tests. Fuzz parser/compiler failures and
+matcher lifecycle/chunk partitions under sanitizers; compare finite ordered
+cases against an independent implementation only where dialect and Unicode
+versions agree. Differential agreement supplements expected results.
+
+Benchmark repeated-prefix failures, large classes, many active starts,
+captures, long combining/ignorable runs, and bulk binary input. Report both
+execution work and retained memory, including failure at configured limits.
+
+Configure/build through the top-level CMake project and run component and Wren
+integration tests with CTest. Headless terminal fixtures disable physical audio;
+graphical integration uses a private test display. Cross-compilation verifies
+Windows builds, with Windows runtime tests on Windows and no Wine testing.
+
+== Delivery sequence
+
+. Specify result ownership, commitment examples, grammar, and limits in tests.
+  Implement the byte compiler/core and standalone matcher first. Demonstrate
+  binary framing through a Wren-owned wire lease, including EOF, cancellation,
+  failure, and remainder handoff.
+. Add exact Unicode scalar matching using the existing decoded-scalar boundary.
+  Integrate text hooks and the temporary legacy grammar adapter; migrate bundled
+  patterns. Remove RE1 sources, its link dependency, and its fatal-handler path
+  once replacement coverage passes.
+. Add the normalized view, simple folding, grapheme and default word facilities,
+  and string classes with their complete ordered semantics. Publish the exact
+  partial conformance inventory.
+. Complete names, property aliases/values, wildcard expansion, and the required
+  property repertoire. Claim Level 2 only after the full inventory is verified
+  for its specified profile and pinned Unicode version.
+. Retire the legacy syntax adapter at the documented script compatibility
+  boundary. Maintain Unicode generators and conformance fixtures with future
+  data updates.
+
+The shared byte/scalar execution core is the smaller part of the project.
+Unicode context, final-match decisions, capture ownership, property generation,
+and verification determine most of the remaining effort. The byte mode is a
+foundational requirement throughout delivery, rather than a fallback for text
+that fails validation.
