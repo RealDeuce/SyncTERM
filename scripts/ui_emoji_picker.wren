@@ -198,6 +198,19 @@ class EmojiPicker is Pane {
     return lines
   }
 
+  keywordLine_(width) {
+    if (highlighted == null) return ""
+    var words = highlighted.keywords.join(", ")
+    if (words.count == 0) return ""
+    if (Screen.textWidth("(" + words + ")", 0) <= width) return "(" + words + ")"
+    var line = "("
+    for (ch in Text.graphemes(words)) {
+      if (Screen.textWidth(line + ch + "...)", 0) > width) break
+      line = line + ch
+    }
+    return line + "...)"
+  }
+
   onPaint_() {
     if (_savedMouse == null) {
       _savedMouse = Input.mouseEvents
@@ -211,7 +224,9 @@ class EmojiPicker is Pane {
     Painter.text(sf, 1, 2, status, style("default"), width)
     var name = highlighted == null ? "No matching emoji" : highlighted.name
     var lines = nameLines_(name, width)
-    var nameStart = (bounds.h - 2 - lines.count).max(4)
+    var keywords = keywordLine_(width)
+    var keywordRows = keywords.count > 0 && bounds.h - lines.count >= 7 ? 1 : 0
+    var nameStart = (bounds.h - 2 - lines.count - keywordRows).max(4)
     var visibleRows = (nameStart - 3).max(1)
     if (_visibleRows != visibleRows) {
       _visibleRows = visibleRows
@@ -247,6 +262,7 @@ class EmojiPicker is Pane {
     for (i in 0...lines.count) {
       if (nameStart + i < bounds.h - 2) Painter.text(sf, 1, nameStart + i, lines[i], style("default"), width)
     }
+    if (keywordRows > 0) Painter.text(sf, 1, bounds.h - 3, keywords, style("default"), width)
     var hint = style("classic.hint")
     Painter.fill(sf, Rect.new(1, bounds.h - 2, width, 1), " ", hint)
     var x = 1

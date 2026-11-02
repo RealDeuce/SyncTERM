@@ -82,7 +82,12 @@ def check_footer(frame, variants, name):
     assert ('F2 Variants' in line) == variants
     background = cell_at(frame, left, y).background
     assert all(cell_at(frame, x, y).background == background for x in range(left, right))
-    assert name in frame.lines[y - 1], 'blank row below highlighted name'
+    name_y = y - 1
+    if name != 'No matching emoji':
+        keywords = frame.lines[name_y][left:right].strip()
+        assert keywords.startswith('(') and keywords.endswith(')'), keywords
+        name_y -= 1
+    assert name in frame.lines[name_y], 'missing highlighted name above keywords'
 
 
 def check_grid_spacing(frame):
@@ -132,6 +137,13 @@ app.runSync()
         check_footer(frame, False, 'grinning face')
         check_grid_spacing(frame)
         frame = scroll_picker(client, frame)
+        client.text('bikini')
+        client.wait_text('Search: bikini')
+        client.key(21, 2)
+        client.text('poo')
+        frame = client.wait_for(lambda s: 'Search: poo' in s.text and '(bathing, beach, bikini, clothing, pool, suit, swim)' in s.text)
+        check_footer(frame, False, 'bikini')
+        client.key(21, 2)
         client.text('grinning face')
         frame = client.wait_for(lambda s: 'Search: grinning face' in s.text and 'Search results' in s.text)
         grid_y = next(i for i, line in enumerate(frame.lines) if 'Search results' in line)
@@ -190,7 +202,7 @@ app.runSync()
         client.wait_text('man shrugging: medium skin tone')
         # Compact layouts retain a wrapped highlighted name and clickable actions.
         client.grid_resize(40, 14)
-        frame = client.wait_for(lambda s: s.metadata['columns'] == 40 and 'man shrugging:' in s.text)
+        frame = client.wait_for(lambda s: s.metadata['columns'] == 40 and 'man shrugging:' in s.text and '...)' in s.text)
         assert 'medium skin tone' in frame.text
         check_footer(frame, True, 'man shrugging: medium skin tone')
         long_name = 'couple with heart: person, person, medium-light skin tone, medium-dark skin tone'
@@ -199,7 +211,7 @@ app.runSync()
         chunks = [long_name[i:i + 36] for i in range(0, len(long_name), 36)]
         def wrapped_name(s):
             footer = next((i for i, line in enumerate(s.lines) if 'Enter Insert' in line), None)
-            return footer is not None and all(chunk in s.lines[footer - len(chunks) + i]
+            return footer is not None and all(chunk in s.lines[footer - 1 - len(chunks) + i]
                                              for i, chunk in enumerate(chunks))
         frame = client.wait_for(wrapped_name)
         click_text(client, frame, 'Esc Back')

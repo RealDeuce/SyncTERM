@@ -68,6 +68,10 @@ test_names(void)
 	CHECK(strcmp(st_emoji_localized_name(locale, st_emoji_find("😀")),
 	    "visage avec large sourire") == 0);
 	CHECK(st_emoji_localized_name(locale, st_emoji_entry_count) == NULL);
+	CHECK(st_emoji_localized_keywords(locale, st_emoji_entry_count) == NULL);
+	CHECK(st_emoji_english_keywords(locale, st_emoji_entry_count) == NULL);
+	CHECK(st_emoji_localized_keywords(NULL, 0) == NULL);
+	CHECK(st_emoji_english_keywords(NULL, 0) == NULL);
 	st_emoji_locale_destroy(locale);
 	CHECK(st_emoji_locale_create(&locale, NULL, 0) == 0);
 	CHECK(strcmp(st_emoji_localized_name(locale, st_emoji_find("😀")), "grinning face") == 0);
@@ -94,6 +98,10 @@ test_search(void)
 	CHECK(search_has(locale, "MANETTE", "🕹️"));
 	CHECK(!search_has(locale, "MIAULER", "🐈"));
 	CHECK(search_has(locale, "GRINNING FACE", "😀"));
+	CHECK(strstr(st_emoji_localized_keywords(locale, st_emoji_find("😀")), "sourire") != NULL);
+	CHECK(strstr(st_emoji_english_keywords(locale, st_emoji_find("😀")), "grin") != NULL);
+	CHECK(strstr(st_emoji_english_keywords(locale, st_emoji_find("👙")), "pool") != NULL);
+	CHECK(search_has(locale, "poo", "👙"));
 	CHECK(search_has(locale, "MAN SHRUGGING: MEDIUM SKIN TONE", "🤷🏽‍♂️"));
 	CHECK(search_has(locale, "person walking: facing right", "🚶‍➡️"));
 	CHECK(search_has(locale, "HAUSSE LES ÉPAULES", "🤷🏽‍♂️"));

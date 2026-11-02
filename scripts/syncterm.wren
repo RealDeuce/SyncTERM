@@ -2216,6 +2216,16 @@ class EmojiEntry {
   id_ { _id }
   text { Emoji.text_(_id) }
   name { Emoji.name_(_id) }
+  keywords {
+    var words = []
+    for (field in Emoji.keywords_(_id)) {
+      for (word in field.split("|")) {
+        word = word.trim()
+        if (word.count > 0 && !words.contains(word)) words.add(word)
+      }
+    }
+    return words
+  }
   variants { Emoji.variants_(_id).map {|id| EmojiEntry.from_(id) }.toList }
 }
 
@@ -2225,6 +2235,7 @@ class Emoji {
   foreign static search_(query)
   foreign static text_(id)
   foreign static name_(id)
+  foreign static keywords_(id)
   foreign static variants_(id)
   foreign static recent_
   foreign static recordUse_(id)

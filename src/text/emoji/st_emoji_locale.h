@@ -18,6 +18,9 @@ int st_emoji_locale_create(st_emoji_locale_t **result,
 void st_emoji_locale_destroy(st_emoji_locale_t *locale);
 /* Static/context-owned name; NULL for an invalid emoji index. */
 const char *st_emoji_localized_name(const st_emoji_locale_t *locale, size_t id);
+/* Context-owned, pipe-separated keyword fields; NULL if absent/invalid. */
+const char *st_emoji_localized_keywords(const st_emoji_locale_t *locale, size_t id);
+const char *st_emoji_english_keywords(const st_emoji_locale_t *locale, size_t id);
 /*
  * Match localized names/keywords, plus English names/keywords, with canonical
  * caseless Unicode matching at grapheme boundaries. An empty query returns

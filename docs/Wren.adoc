@@ -7288,8 +7288,9 @@ returns base representatives; `Emoji.search(query)` returns exact variants
 matching a localized name or CLDR keyword substring, using canonical caseless
 Unicode matching at grapheme boundaries (an empty query returns the base list).
 English names and keywords are also searchable. Each `EmojiEntry` exposes
-`text`, localized `name`, and `variants`. Language preferences are discovered
-once on first metadata lookup for a host, shared by its menu/picker VMs.
+`text`, localized `name`, `keywords` (a List of localized and English search
+keywords, with duplicates removed), and `variants`. Language preferences are
+discovered once on first metadata lookup for a host, shared by its menu/picker VMs.
 Bundled CLDR 49 annotations and derived annotations supply names for joined,
 gender, skin-tone, and flag sequences. Locale aliases, likely scripts, and
 CLDR parent locales resolve regional/script preferences; missing fields fall

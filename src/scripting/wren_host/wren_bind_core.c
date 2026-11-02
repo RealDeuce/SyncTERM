@@ -4864,6 +4864,27 @@ fn_emoji_name(WrenVM *vm)
 }
 
 static void
+fn_emoji_keywords(WrenVM *vm)
+{
+	size_t id;
+	if (!emoji_localization(vm) || !emoji_index(vm, &id))
+		return;
+	const st_emoji_locale_t *locale = st_wren_host_from_vm(vm)->emoji_locale;
+	const char *fields[] = {
+		st_emoji_localized_keywords(locale, id),
+		st_emoji_english_keywords(locale, id)
+	};
+	wrenEnsureSlots(vm, 2);
+	wrenSetSlotNewList(vm, 0);
+	for (size_t i = 0; i < sizeof(fields) / sizeof(fields[0]); i++) {
+		if (fields[i] != NULL) {
+			wrenSetSlotString(vm, 1, fields[i]);
+			wrenInsertInList(vm, 0, -1, 1);
+		}
+	}
+}
+
+static void
 fn_emoji_variants(WrenVM *vm)
 {
 	size_t id;
@@ -4917,6 +4938,7 @@ static const struct binding bindings[] = {
 	{"Emoji", true, "search_(_)", fn_emoji_search},
 	{"Emoji", true, "text_(_)", fn_emoji_text},
 	{"Emoji", true, "name_(_)", fn_emoji_name},
+	{"Emoji", true, "keywords_(_)", fn_emoji_keywords},
 	{"Emoji", true, "variants_(_)", fn_emoji_variants},
 	{"Emoji", true, "recent_", fn_emoji_recent},
 	{"Emoji", true, "recordUse_(_)", fn_emoji_record},

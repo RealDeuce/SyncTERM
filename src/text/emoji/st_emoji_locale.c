@@ -293,6 +293,18 @@ st_emoji_localized_name(const st_emoji_locale_t *locale, size_t id)
 	return locale == NULL ? st_emoji_entries[id].name : locale->names[id];
 }
 
+const char *
+st_emoji_localized_keywords(const st_emoji_locale_t *locale, size_t id)
+{
+	return locale == NULL || id >= st_emoji_entry_count ? NULL : locale->keywords[id];
+}
+
+const char *
+st_emoji_english_keywords(const st_emoji_locale_t *locale, size_t id)
+{
+	return locale == NULL || id >= st_emoji_entry_count ? NULL : locale->english_keywords[id];
+}
+
 int
 st_emoji_search(const st_emoji_locale_t *locale, const void *query,
 	size_t size, size_t **indexes, size_t *count)
