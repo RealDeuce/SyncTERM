@@ -1000,13 +1000,11 @@ class Font {
   foreign static available(i)
   foreign static codepage
   foreign static codepageOf(i)
-  // Load a font from a File foreign (typically the return value of
-  // Host.pickFile from a font-load picker).  Returns true on success.
-  // Takes a File rather than a path string so the consent token model
-  // holds — Wren never sees the bare path, and only paths the user
-  // explicitly approved through a picker can be opened.  Gated by
-  // ScreenSupports.loadableFonts.
+  foreign static codepageFor(selector)
+  // Registers without selecting. Returns a selector, FileError or FontError.
+  // The default is the terminal's current codepage, independent of Screen.font.
   foreign static load(file)
+  foreign static load(file, codepage)
 }
 // Typed-ID lookup table over the active hyperlink registry.  Despite
 // the `[id]` / `containsKey(id)` shape, this is NOT a Map - no
@@ -1160,6 +1158,32 @@ class TerminalEncoding {
   static codepage { 1 }
 }
 
+foreign class FontError is Error {
+  foreign code
+  foreign nativeCode
+  foreign message
+  foreign toString
+}
+class FontErr {
+  static unavailable         { 1 }
+  static invalidBitmap       { 2 }
+  static unsupportedCodepage { 3 }
+  static noSlots             { 4 }
+  static notLoaded           { 5 }
+  static nativeFailure       { 6 }
+}
+class CTermFontMask {
+  static normal      { 1 }
+  static bright      { 2 }
+  static blink       { 4 }
+  static brightBlink { 8 }
+  static all         { 15 }
+}
+class CTermFonts {
+  foreign static [slot]
+  foreign static [slot]=(selector)
+}
+
 class CTerm {
   foreign static x
   foreign static y
@@ -1177,12 +1201,8 @@ class CTerm {
   foreign static hasPaletteOverride
   foreign static paletteOverride
   foreign static fontSlot
-  foreign static altFonts
-  // Primary alt-font slot — the font ciolib uses for non-styled
-  // cells.  Setter calls ciolib_setfont() under the hood and
-  // updates the cterm-side cache; gated by ScreenSupports.fontSelection.
-  foreign static altFont
-  foreign static altFont=(slot)
+  static font { CTermFonts }
+  foreign static setFont(selector, mask)
   foreign static scrollbackLines
   foreign static scrollbackWidth
   foreign static scrollbackPos

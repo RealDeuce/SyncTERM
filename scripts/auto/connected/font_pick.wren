@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Stephen Hurd
 // SPDX-License-Identifier: BSD-2-Clause
 
-import "syncterm" for CTerm, FilePickerOptions, Font, Host, Input, Screen, ScreenSupports
+import "syncterm" for CTerm, Error, FilePickerOptions, Font, Host, Input, Screen, ScreenSupports
 import "ui_picker" for ListPicker
 import "ui_app" for App
 import "ui_popup" for Alert
@@ -27,7 +27,7 @@ class FontApp {
             }
           }
         }
-        var current = selectors.indexOf(CTerm.altFont)
+        var current = selectors.indexOf(CTerm.font[0])
         labels.add("Load font from file…")
         var picked = ListPicker.pickWithSelection("Font Setup",
             "# Font Setup\n\nSelect a font for new terminal output, " +
@@ -35,11 +35,14 @@ class FontApp {
             labels, current < 0 ? 0 : current)
         if (picked == selectors.count) {
           var file = Host.pickFile(null, "*", FilePickerOptions.none)
-          if (file != null && !Font.load(file)) {
-            Alert.runStandalone(App.new(), "Unable to load the font file.")
+          if (file != null) {
+            var result = Font.load(file)
+            if (result is Error) Alert.runStandalone(App.new(), result.toString)
           }
         } else if (picked >= 0) {
-          CTerm.altFont = selectors[picked]
+          var change = Fiber.new { CTerm.font[0] = selectors[picked] }
+          change.try()
+          if (change.error != null) Alert.runStandalone(App.new(), change.error.toString)
         }
       })
     }.call()

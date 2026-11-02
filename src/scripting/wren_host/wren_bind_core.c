@@ -51,6 +51,7 @@ enum foreign_kind {
 	FOREIGN_CLAIM_HANDLE,
 	FOREIGN_CURSOR,
 	FOREIGN_VIDEO_FLAGS,
+	FOREIGN_FONT_ERROR,
 };
 
 struct foreign_header {
@@ -154,6 +155,13 @@ struct foreign_video_flags {
 	uint32_t flags;
 };
 
+struct foreign_font_error {
+	struct foreign_header header;
+	enum st_wren_font_error code;
+	int native_code;
+	const char *message;
+};
+
 struct binding {
 	const char *class_name;
 	bool is_static;
@@ -161,7 +169,7 @@ struct binding {
 	WrenForeignMethodFn method;
 };
 
-static enum st_codepage font_codepage(uint16_t selector);
+static enum st_codepage font_codepage(struct st_wren_context *context, uint16_t selector);
 
 static struct st_wren_input_record
 native_key_record(const struct st_console_event *event)
@@ -244,7 +252,7 @@ foreign_kind(WrenVM *vm, int slot, enum foreign_kind kind)
 {
 	static const char *const names[] = {
 		"Cell", "Surface", "ScreenSnapshot", "KeyEvent", "PhysicalKeyEvent",
-		"MouseEvent", "ClaimHandle", "CustomCursor", "VideoFlags",
+		"MouseEvent", "ClaimHandle", "CustomCursor", "VideoFlags", "FontError",
 	};
 	struct foreign_header *header = st_wren_foreign_require(vm, slot,
 	    "syncterm", names[kind]);
@@ -3110,15 +3118,18 @@ fn_codepage_encodes(WrenVM *vm)
 		return;
 	}
 	wrenSetSlotBool(vm, 0, st_codepage_from_unicode(&encoded,
-	    font_codepage(st_wren_context_from_vm(vm)->fonts.slots[0]),
+	    font_codepage(st_wren_context_from_vm(vm), st_wren_context_from_vm(vm)->fonts.slots[0]),
 	    codepoint));
 }
 
 static enum st_codepage
-font_codepage(uint16_t selector)
+font_codepage(struct st_wren_context *context, uint16_t selector)
 {
-	return selector < ST_BUILTIN_FONT_COUNT
-	    ? st_builtin_font_codepage(selector) : ST_CODEPAGE_CP437;
+	uint16_t identifier;
+	enum st_codepage codepage;
+
+	return st_wren_font_metadata(context, selector, &identifier, &codepage)
+	    ? codepage : ST_CODEPAGE_COUNT;
 }
 
 static void
@@ -3147,7 +3158,10 @@ fn_font_name(WrenVM *vm)
 
 	if (!slot_integer(vm, 1, 0, UINT8_MAX, &selector))
 		return;
-	if (context->fonts.runtime_loaded[selector]) {
+	uint16_t identifier;
+	if (context->fonts.runtime_loaded[selector]
+	    || (selector >= ST_BUILTIN_FONT_COUNT + (int64_t)st_settings_font_count()
+	    && st_wren_font_identifier(context, (uint16_t)selector, &identifier))) {
 		(void)snprintf(runtime_name, sizeof(runtime_name),
 		    "Loaded font %d", (int)selector);
 		wrenSetSlotString(vm, 0, runtime_name);
@@ -3170,74 +3184,171 @@ fn_font_count(WrenVM *vm)
 	size_t count = ST_BUILTIN_FONT_COUNT + fonts->loaded_count;
 
 	for (size_t i = count; i <= UINT8_MAX; ++i) {
-		if (fonts->runtime_loaded[i])
+		uint16_t identifier;
+		if (fonts->runtime_loaded[i] || st_wren_font_identifier(st_wren_context_from_vm(vm), (uint16_t)i, &identifier))
 			count = i + 1;
 	}
 	wrenSetSlotDouble(vm, 0, (double)count);
 }
 
 static void
-fn_font_load(WrenVM *vm)
+allocate_font_error(WrenVM *vm)
+{
+	struct foreign_font_error *error = wrenSetSlotNewForeign(vm, 0, 0, sizeof(*error));
+	*error = (struct foreign_font_error){.header.kind = FOREIGN_FONT_ERROR};
+}
+
+void
+st_wren_push_font_error(WrenVM *vm, enum st_wren_font_error code,
+	int native_code, const char *message)
+{
+	wrenEnsureSlots(vm, 2);
+	wrenGetVariable(vm, "syncterm", "FontError", 1);
+	struct foreign_font_error *error = wrenSetSlotNewForeign(vm, 0, 1, sizeof(*error));
+	/* Diagnostics are static literals, never borrowed caller strings. */
+	*error = (struct foreign_font_error){
+		.header.kind = FOREIGN_FONT_ERROR, .code = code,
+		.native_code = native_code, .message = message,
+	};
+}
+
+static struct foreign_font_error *
+font_error_value(WrenVM *vm)
+{
+	return (struct foreign_font_error *)foreign_kind(vm, 0, FOREIGN_FONT_ERROR);
+}
+static void fn_font_error_code(WrenVM *vm)
+{
+	struct foreign_font_error *error = font_error_value(vm);
+	if (error != NULL) wrenSetSlotDouble(vm, 0, error->code);
+}
+static void fn_font_error_native_code(WrenVM *vm)
+{
+	struct foreign_font_error *error = font_error_value(vm);
+	if (error != NULL) wrenSetSlotDouble(vm, 0, error->native_code);
+}
+static void fn_font_error_message(WrenVM *vm)
+{
+	struct foreign_font_error *error = font_error_value(vm);
+	if (error != NULL) wrenSetSlotString(vm, 0, error->message == NULL ? "" : error->message);
+}
+static void fn_font_error_to_string(WrenVM *vm)
+{
+	struct foreign_font_error *error = font_error_value(vm);
+	char text[192];
+	if (error == NULL) return;
+	(void)snprintf(text, sizeof(text), "FontError(%d): %s", (int)error->code,
+	    error->message == NULL ? "" : error->message);
+	wrenSetSlotString(vm, 0, text);
+}
+
+static void
+font_load(WrenVM *vm, bool explicit_codepage)
 {
 	struct st_wren_context *context = st_wren_context_from_vm(vm);
-	const char *path = st_wren_file_read_path(vm, 1);
+	const char *path;
 	uint32_t capabilities = 0;
 	uint16_t identifier;
+	int64_t value = 0;
+	enum st_codepage codepage;
 	size_t first;
+	int status;
 
-	if (path == NULL || context->cterm == NULL
-	    || st_console_capabilities(context->console, &capabilities) != 0
-	    || (capabilities & ST_CONSOLE_CAP_LOADABLE_FONTS) == 0) {
-		wrenSetSlotBool(vm, 0, false);
+	if (!st_wren_foreign_is(vm, 1, "syncterm", "File")) {
+		st_wren_abort(vm, "Font.load expects a readable File");
 		return;
 	}
+	if (explicit_codepage && !slot_integer(vm, 2, 0, ST_CODEPAGE_COUNT - 1, &value))
+		return;
+	path = st_wren_file_read_path(vm, 1);
+	if (path == NULL) {
+		st_wren_push_file_error(vm, IO_ERROR_PERMISSION_DENIED, 0, "Font read grant is unavailable");
+		return;
+	}
+	if (context->cterm == NULL) {
+		st_wren_push_font_error(vm, ST_WREN_FONT_UNAVAILABLE, 0, "No active terminal");
+		return;
+	}
+	status = st_console_capabilities(context->console, &capabilities);
+	if (status != 0 || (capabilities & ST_CONSOLE_CAP_LOADABLE_FONTS) == 0) {
+		st_wren_push_font_error(vm, ST_WREN_FONT_UNAVAILABLE, status, "Font loading is unavailable");
+		return;
+	}
+	codepage = explicit_codepage ? (enum st_codepage)value : st_cterm_codepage(context->cterm);
 	first = ST_BUILTIN_FONT_COUNT + context->fonts.loaded_count;
 	if (first < ST_FONT_CATALOG_FIRST_CUSTOM)
 		first = ST_FONT_CATALOG_FIRST_CUSTOM;
 	for (size_t selector = first; selector <= UINT8_MAX; ++selector) {
-		if (context->fonts.catalog_valid[selector])
+		struct st_font_load_error error;
+
+		status = st_cterm_register_font(context->cterm, (uint8_t)selector,
+		    path, codepage, &identifier, &error);
+		if (status == IO_ERROR_ALREADY_EXISTS)
 			continue;
-		if (st_cterm_register_font(context->cterm, (uint8_t)selector,
-		    path, &identifier) != 0)
-			break;
+		if (status != 0) {
+			if (error.failure == ST_FONT_LOAD_FILE)
+				st_wren_push_file_error(vm, status, error.native_error, "Font file could not be read");
+			else {
+				enum st_wren_font_error code = ST_WREN_FONT_NATIVE_FAILURE;
+				const char *message = "Font registration failed";
+
+				if (error.failure == ST_FONT_LOAD_BITMAP) {
+					code = ST_WREN_FONT_INVALID_BITMAP;
+					message = "Bitmap must contain 256 glyphs matching the current cell size";
+				}
+				else if (error.failure == ST_FONT_LOAD_CODEPAGE) {
+					code = ST_WREN_FONT_UNSUPPORTED_CODEPAGE;
+					message = "No character mapping is available for the requested codepage";
+				}
+				st_wren_push_font_error(vm, code, status, message);
+			}
+			return;
+		}
 		context->fonts.catalog[selector] = identifier;
 		context->fonts.catalog_valid[selector] = true;
 		context->fonts.runtime_loaded[selector] = true;
-		context->fonts.selector_by_identifier[identifier] =
-		    (uint16_t)selector;
-		wrenSetSlotBool(vm, 0, true);
+		context->fonts.codepages[selector] = codepage;
+		context->fonts.selector_by_identifier[identifier] = (uint16_t)selector;
+		wrenSetSlotDouble(vm, 0, (double)selector);
 		return;
 	}
-	wrenSetSlotBool(vm, 0, false);
+	st_wren_push_font_error(vm, ST_WREN_FONT_NO_SLOTS, 0, "No free font selectors");
 }
+static void fn_font_load(WrenVM *vm) { font_load(vm, false); }
+static void fn_font_load_codepage(WrenVM *vm) { font_load(vm, true); }
 
 static void
 fn_font_available(WrenVM *vm)
 {
 	int64_t selector;
-
+	uint16_t identifier;
 	if (slot_integer(vm, 1, 0, UINT8_MAX, &selector))
-		wrenSetSlotBool(vm, 0, st_wren_context_from_vm(vm)
-		    ->fonts.catalog_valid[selector]);
+		wrenSetSlotBool(vm, 0, st_wren_font_identifier(st_wren_context_from_vm(vm),
+		    (uint16_t)selector, &identifier));
 }
 
 static void
-fn_font_codepage(WrenVM *vm)
+return_font_codepage(WrenVM *vm, uint16_t selector)
 {
-	struct st_wren_context *context = st_wren_context_from_vm(vm);
-
-	wrenSetSlotDouble(vm, 0, font_codepage(context->fonts.slots[0]));
+	enum st_codepage codepage = font_codepage(st_wren_context_from_vm(vm), selector);
+	if (codepage == ST_CODEPAGE_COUNT) wrenSetSlotNull(vm, 0);
+	else wrenSetSlotDouble(vm, 0, codepage);
 }
-
-static void
-fn_font_codepage_of(WrenVM *vm)
+static void fn_font_codepage(WrenVM *vm)
 {
-	struct st_wren_context *context = st_wren_context_from_vm(vm);
+	return_font_codepage(vm, st_wren_context_from_vm(vm)->fonts.slots[0]);
+}
+static void fn_font_codepage_of(WrenVM *vm)
+{
 	int64_t slot;
-
 	if (slot_integer(vm, 1, 0, 4, &slot))
-		wrenSetSlotDouble(vm, 0,
-		    font_codepage(context->fonts.slots[slot]));
+		return_font_codepage(vm, st_wren_context_from_vm(vm)->fonts.slots[slot]);
+}
+static void fn_font_codepage_for(WrenVM *vm)
+{
+	int64_t selector;
+	if (slot_integer(vm, 1, 0, UINT8_MAX, &selector))
+		return_font_codepage(vm, (uint16_t)selector);
 }
 
 static void
@@ -5065,6 +5176,12 @@ static const struct binding bindings[] = {
 	{"Font", true, "codepage", fn_font_codepage},
 	{"Font", true, "codepageOf(_)", fn_font_codepage_of},
 	{"Font", true, "load(_)", fn_font_load},
+	{"Font", true, "load(_,_)", fn_font_load_codepage},
+	{"Font", true, "codepageFor(_)", fn_font_codepage_for},
+	{"FontError", false, "code", fn_font_error_code},
+	{"FontError", false, "nativeCode", fn_font_error_native_code},
+	{"FontError", false, "message", fn_font_error_message},
+	{"FontError", false, "toString", fn_font_error_to_string},
 	{"Palette", true, "[_]", fn_palette_get},
 	{"Palette", true, "[_]=(_)", fn_palette_set},
 	{"Surface", false, "count", fn_surface_count},
@@ -5228,6 +5345,8 @@ st_wren_core_bind_class(const char *class_name)
 		methods.allocate = allocate_cursor;
 	else if (strcmp(class_name, "VideoFlags") == 0)
 		methods.allocate = allocate_video_flags;
+	else if (strcmp(class_name, "FontError") == 0)
+		methods.allocate = allocate_font_error;
 	else if (strcmp(class_name, "WONError") == 0) {
 		methods.allocate = st_wren_won_error_allocate;
 		methods.finalize = st_wren_won_error_finalize;

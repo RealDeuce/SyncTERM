@@ -234,9 +234,9 @@
     },
     {
       "path": "src/media/font_catalog/st_font_catalog.h",
-      "sha256": "48b993085ed682c6ed102b3e8e7d715ddc494751f20b08865a8ff8dc97a67da9",
+      "sha256": "60cd38d079918b709d20d4e85bc89dd48007042869c6f0dd462f5b76f2ee26c7",
       "status": "reviewed",
-      "symbol_count": 12
+      "symbol_count": 20
     },
     {
       "path": "src/media/fonts/st_builtin_fonts.h",
@@ -397,9 +397,9 @@
     },
     {
       "path": "src/terminal/cterm/st_cterm.h",
-      "sha256": "4a8137e13842b628174b1f497a43d98391acd615dd8b862e1225b0d5efa64eaf",
+      "sha256": "3a197c7add0283ccd9f8fa4a8f5a1f8a058831102a52d79979deae37b1400c2b",
       "status": "reviewed",
-      "symbol_count": 159
+      "symbol_count": 165
     },
     {
       "path": "src/terminal/hyperlink/st_hyperlink.h",
@@ -2031,8 +2031,8 @@
     },
     "fonts.catalog": {
       "status": "covered",
-      "wren": "Font.count/name/available/codepage/codepageOf/load; ScreenFonts and CTerm.altFont",
-      "reason": "Native selector/identifier and owning console are adapted into VM-specific selector catalogs; scripts select by font index and inspect names/availability/codepages. Allocating/freeing catalog objects is host-owned. Custom codepage loading and load results are separately partial.",
+      "wren": "Font.count/name/available/codepage/codepageOf/codepageFor/load; Screen.font and CTerm.font/setFont",
+      "reason": "Script selectors adapt console-owned native registrations. Connected contexts use actual terminal identifiers/mappings, including remote variants; menu/picker catalogs retain their own registrations. Availability, extent and direct mapping queries reflect registration state. Allocation/free and raw pointer ownership stay native.",
       "vm": "all script VMs",
       "evidence": [
         {
@@ -2046,30 +2046,31 @@
       ]
     },
     "fonts.codepage-loading": {
-      "status": "partial",
-      "wren": "Font.load(file); menu configured custom fonts",
-      "reason": "Native load/register_custom_codepage can assign a custom bitmap to a chosen codepage. Wren Font.load and its custom-font preparation call default CP437 registration. The application session preparation uses profile.encoding for native custom font loading, so the same configured font can receive a different Unicode mapping through the Wren preparation path. No script codepage argument exists. Font.codepage/codepageOf inspect the selected display slot using builtin metadata or CP437 for every custom selector; codepageOf is not a native catalog selector query and does not report a custom registration mapping.",
+      "status": "covered",
+      "wren": "Font.load(file[, codepage]); Font.codepage/codepageOf/codepageFor; configured fonts",
+      "reason": "Explicit loading accepts Codepage; the default captures current CTerm.codepage, independent of Screen.font and including UTF-8 fallback. Native catalogs retain actual custom mappings. Connected contexts import the terminal registrations rather than CP437 copies, including shared menu consoles. Remote variants retain and restore mappings with their rasters. Unavailable mappings return null, not fabricated CP437.",
       "vm": "same VM as the owning API",
       "evidence": [
         {
-          "path": "src/media/font_catalog/st_font_catalog.h",
-          "anchor": "st_font_catalog_register_custom_codepage"
+          "path": "src/media/font_catalog/st_font_catalog.c",
+          "anchor": "catalog->codepages[selector] = codepage"
         },
         {
           "path": "src/scripting/wren_host/wren_host.c",
-          "anchor": "st_font_catalog_register_custom(context->console"
-        },
-        {
-          "path": "src/syncterm.c",
-          "anchor": "st_font_catalog_load_custom_codepage"
+          "anchor": "import the terminal"
         },
         {
           "path": "src/scripting/wren_host/wren_bind_core.c",
-          "anchor": "font_codepage(uint16_t selector)"
+          "anchor": "fn_font_codepage_for"
+        },
+        {
+          "path": "src/terminal/cterm/cterm_render.c",
+          "anchor": "original_codepage"
         }
       ],
       "finding": "font-codepage",
-      "decision": "mapping-gap"
+      "decision": "resolved",
+      "resolution": "Approved custom-font chunk completed."
     },
     "fonts.catalog-owner": {
       "status": "host-owned",
@@ -2089,9 +2090,9 @@
     },
     "fonts.builtin": {
       "status": "covered",
-      "wren": "Font.count/name/codepageOf; Menu.fontsCatalog/fontsForEncoding",
-      "reason": "Built-in metadata and selectors are available through font catalogs. Raster struct retrieval is host rendering ownership, not script memory access; broken-vertical compatibility participates native font selection but has no standalone query (separately accounted).",
-      "vm": "all script VMs",
+      "wren": "Font.name/codepageFor; Menu.fontsCatalog/fontsForEncoding/fontEncoding",
+      "reason": "Loaded font names/mappings are available in each VM; the full built-in name/encoding catalogs are available through Menu, independently of the current geometry. Raster retrieval remains console ownership. The broken-vertical compatibility bit remains separately unbound.",
+      "vm": "all VMs for loaded font metadata; menu for complete built-in catalogs",
       "evidence": [
         {
           "path": "scripts/syncterm_menu.wren",
@@ -2522,7 +2523,7 @@
     "cterm.state": {
       "status": "covered",
       "wren": "CTerm / ExtAttr / LastColumnFlag / Scrollback / Font / Screen",
-      "reason": "Every st_cterm_state scalar and nested ExtAttr/last-column state has a script getter, including palette override, margins, alternate fonts and ring metadata. Protocol emulation/encoding/RIP/PETSCII variant are configured by Profile/screen mode. CTerm.write accepts UTF-8 host text, active receive input is processed by the native terminal owner. Local key injection, doorway/music/mouse policy, screenshot and font selection have typed operations. Native lifecycle/config callbacks and several direct operations are separately assessed.",
+      "reason": "Every st_cterm_state scalar and nested ExtAttr/last-column state has a script getter, including palette override, margins, alternate fonts and ring metadata. Protocol emulation/encoding/RIP/PETSCII variant are configured by Profile/screen mode. CTerm.write accepts UTF-8 host text, active receive input is processed by the native terminal owner. Local key injection, doorway/music/mouse policy, screenshot and font selection have typed operations. Native lifecycle/config callbacks and several direct operations are separately assessed. Font assignments are the live CTerm.font view and the masked setFont operation; script-output Screen.font remains independent.",
       "vm": "connected",
       "evidence": [
         {
@@ -2610,9 +2611,9 @@
       "decision": "scope-review"
     },
     "cterm.font-result": {
-      "status": "partial",
-      "wren": "Font.load(file) returns Bool",
-      "reason": "Native registration accepts a selector and returns an identifier/status. Wren automatically chooses the first unused selector and reports only Bool; caller can search availability/name/count but gets neither the chosen selector directly nor native error detail. Custom codepage choice is separately missing.",
+      "status": "covered",
+      "wren": "Font.load(file[, codepage]) returns selector / FileError / FontError",
+      "reason": "Loading returns the allocated selector and changes no assignments. A readable actual File owned by the current context is required. Native file failures become FileError; bitmap/mapping/capacity/capability/registration failures become FontError, with the native portable status retained separately. Wrong arguments abort. Configured/occupied selectors are reserved. Failure publishes no entry, and console-owned copied bitmaps outlive the File. Selector allocation is host policy; scripts receive the chosen selector rather than a raw console identifier.",
       "vm": "same VM as the owning API",
       "evidence": [
         {
@@ -2622,10 +2623,15 @@
         {
           "path": "src/terminal/cterm/st_cterm.h",
           "anchor": "st_cterm_register_font"
+        },
+        {
+          "path": "src/scripting/wren_host/tests/st_wren_host_test.c",
+          "anchor": "exercise_font_api"
         }
       ],
       "finding": "font-load-result",
-      "decision": "mapping-gap"
+      "decision": "resolved",
+      "resolution": "Approved custom-font chunk completed."
     },
     "hyperlinks.registry": {
       "status": "covered",
@@ -3131,6 +3137,42 @@
       "finding": "list-encryption-information",
       "decision": "approved-fix",
       "resolution": "resolved"
+    },
+    "fonts.load-errors": {
+      "status": "covered",
+      "wren": "FileError.code/errno and FontError.code/nativeCode/message",
+      "reason": "Native failure origin distinguishes file I/O from invalid bitmaps, unsupported mappings and registration failures. NONE corresponds to success without an Error. Portable status is preserved as FileError.code or FontError.nativeCode; captured errno belongs only to FileError. Grant failures occur before file I/O.",
+      "vm": "same VM as the loading operation",
+      "evidence": [
+        {
+          "path": "src/media/font_catalog/st_font_catalog.c",
+          "anchor": "load_failure"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_core.c",
+          "anchor": "error.failure == ST_FONT_LOAD_FILE"
+        }
+      ]
+    },
+    "fonts.assignments": {
+      "status": "covered",
+      "wren": "CTerm.font[0..3] and CTerm.setFont(selector, mask); CTermFontMask",
+      "reason": "A live indexed view reads/writes each assignment, and one mask operation updates any combination together after validation and pending-output completion. Failure preserves all assignments; retained cells keep resolved fonts. The detached altFonts snapshot and singular altFont alias are removed. Script-output Screen.font slots remain independent. Indexed setter operational errors abort with FontError so they cannot be lost as assignment results.",
+      "vm": "connected",
+      "evidence": [
+        {
+          "path": "src/terminal/cterm/st_cterm.c",
+          "anchor": "st_cterm_set_fonts"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_session.c",
+          "anchor": "fn_cterm_font_set"
+        },
+        {
+          "path": "src/tests/st_font_assignments_test.py",
+          "anchor": "def check_row"
+        }
+      ]
     }
   },
   "documentation_findings": [
@@ -3697,7 +3739,7 @@
     {
       "path": "scripts/auto/connected/font_pick.wren",
       "anchor": "Font.load(file)",
-      "aspect": "granted font-loading Bool result"
+      "aspect": "Readable File loading returns selector or typed failure; picker registration and normal-assignment selection remain separate."
     },
     {
       "path": "scripts/wrentest.wren",
@@ -3775,6 +3817,26 @@
       "path": "scripts/menu_settings_ui_test.wren",
       "anchor": "inspectEncryption_",
       "aspect": "Accurate titles, password action visibility and cancellation"
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_host_test.c",
+      "anchor": "exercise_font_api",
+      "aspect": "Shared/separate consoles, configured/explicit/current mappings, unchanged File position/assignments, native result codes, invalid arguments, capacity, grant context and missing terminal"
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_host_test.c",
+      "anchor": "font_text_capability",
+      "aspect": "Text backend rejects bitmap loading/selection with FontError; indexed setter raises it"
+    },
+    {
+      "path": "src/terminal/cterm/tests/st_cterm_test.c",
+      "anchor": "Each remote geometry remembers",
+      "aspect": "Remote mappings captured at download time, inactive variants and original registration restoration"
+    },
+    {
+      "path": "src/tests/st_font_assignments_test.py",
+      "anchor": "def check_row",
+      "aspect": "Independent exact rasters, all assignments, masks, retained cells, invalid selection and reset recovery in coherent CP437/UTF-8 captures"
     }
   ],
   "dispatch_evidence": [
@@ -3786,15 +3848,15 @@
   ],
   "evidence_files": {
     "docs/WREN_GUIDANCE.md": "d14aeecb5eae922015f2f48a4fd690277dcb5b91aedfd8d8d8cffb2dc235e1ac",
-    "docs/Wren.adoc": "8d8ddeab68ec664cefcd6718cec81f93890edcc29d2634aa49c22434d6d50518",
+    "docs/Wren.adoc": "5b2494d5a21e003b690ebadb0d39d13bd12204c40b7f80f82717e0d9058601a9",
     "docs/api/bbs-entry-fields.adoc": "a1be9944eadd5f56d752e8669b502f49b27211f14190443a95e36ad301b8d128",
-    "scripts/auto/connected/font_pick.wren": "471102c73421cc011ed65225e77feda3a1716dba4e3cf41cda3741f0f19405d6",
+    "scripts/auto/connected/font_pick.wren": "6cd249b69c2f851e1fb84e4b8ce381879cfaaa96a35e1376f6e8502c6497e91b",
     "scripts/auto/menu/main_menu.wren": "57458b3161806dac245710a7a076278c260d8e3ffcdf19186b331e70c36c18c9",
     "scripts/menu_bbs_editor.wren": "5afc466dd6ee78e0d6585038d1635442ffea9259e7bad087d012c4654821f9bb",
     "scripts/menu_settings_ui.wren": "0adf1413469969f35744a51765b256943c22d8d073c40431bd345d7fd16c7d6a",
     "scripts/sftp_app.wren": "38ff67e42a9e3b8c962f1cd9618ee4f5582d2406e0f8fd8c09bbd9e8f47db097",
     "scripts/sftp_queue.wren": "1fb32830a081a1682b0147a9c7a95e9d96dd4e0539c8847e218613c7b69a38c5",
-    "scripts/syncterm.wren": "c9009a4d361aedaac89cdb166b0c6e68bf3b6b605e8ef52e805b76334d919ec9",
+    "scripts/syncterm.wren": "b9bc7b998451df1f2c1efd565516f3d3f8cc4ff9b517a40eec45e64a43ad5d72",
     "scripts/syncterm_menu.wren": "d08fe1b1c76ccbc90748daadce8bdfc1dafe2441fb2e57ced542357405530465",
     "scripts/syncterm_picker.wren": "143e15bd084bed37145061760100c84b353d340e00187d9cd2b920a850be6021",
     "scripts/transfer_app.wren": "36713bbb8fdb61e5f7af68371c44a9110cd8bda8ea59c0ee7ee09436684b61af",
@@ -3843,7 +3905,7 @@
     "src/media/console/console_text.c": "6c8165e4473a5053282ba81c533aba06f5975a16668b46181540a14d457a73b9",
     "src/media/console/st_console.h": "86cfbab448f0c87429130a122df663a7e5b086e3055bf7a2ba09bf3f05a49743",
     "src/media/console/tests/st_console_test.c": "bc98be45ca17b883aa97eca7d9e7839c703438393eb0882955507ef276126d38",
-    "src/media/font_catalog/st_font_catalog.h": "48b993085ed682c6ed102b3e8e7d715ddc494751f20b08865a8ff8dc97a67da9",
+    "src/media/font_catalog/st_font_catalog.h": "60cd38d079918b709d20d4e85bc89dd48007042869c6f0dd462f5b76f2ee26c7",
     "src/media/fonts/st_builtin_fonts.h": "0cb9da919e72ad5321e34bab13c4a1529ae860e8da6331d44051a60f58609d12",
     "src/media/fonts/st_emoji_fonts.h": "5bdb99f212bb4cfa19c4ae3d3514137ced5f85de0129c2bfba0650a429f83186",
     "src/media/fonts/st_presentation_font.h": "c39d49aaa44cedb1a78d95f0c0c47a36756b1706d5733f8e9d63aaf6318ea41b",
@@ -3863,23 +3925,23 @@
     "src/net/transfer/st_transfer_detect.h": "3296b9ecf875d100f793920a3b0117a8f7b80951a539317d366f4ea40a7a1b30",
     "src/net/webget/st_webget.h": "9647dcc563e1661fe1d6b762c78e2483d2beae03ac878da0ebd15c8a425d2143",
     "src/scripting/wren_host/st_wren_host.h": "531eba9331f992a6394c41020890e279597ee8d6cfd1259a4495f68ef38d5552",
-    "src/scripting/wren_host/tests/st_wren_host_test.c": "a2eb59ea093025825d4ea618c36e20c57078bf6d8231156b32af15db238328f1",
+    "src/scripting/wren_host/tests/st_wren_host_test.c": "d5c80ac5a0e8ea1bad04334c5ed95c01b2c58bca31b3762f932a15dc21a31d21",
     "src/scripting/wren_host/tests/st_wren_settings_menu_test.c": "ddcb7a11b16cbbf38e4134bd769788028c0fb76ed0a057818977b39e4878f42a",
     "src/scripting/wren_host/wren_async.c": "71e78941735250300171a2b7cb13b70c92916bd14c066a6614b3f77cdd9b565d",
     "src/scripting/wren_host/wren_bbs_model.c": "18dca3353505a5b0dc609251f16038bd9132c47e215c4cf24ba802ac4b3ab97a",
-    "src/scripting/wren_host/wren_bind_core.c": "877c48e61bda9fd0e3fd4f34b3ebf204998aa4368c442aee0dc61cc5f11ccad8",
-    "src/scripting/wren_host/wren_bind_fs.c": "0a45dc3f8a6af627332f907158f2d553e1a70befe40fbd96eba0de2d4e03d108",
+    "src/scripting/wren_host/wren_bind_core.c": "b12436be2d04d1bf7e1d048c61c925bffb73ad4d0dd56cc627e8b02f12db697f",
+    "src/scripting/wren_host/wren_bind_fs.c": "17e19ab179b195a36c58f929802e9a5d86d6e211d7dfdf809ac4b7c4e6c96cba",
     "src/scripting/wren_host/wren_bind_hyperlinks.c": "255be945007c9cb2795195058e5f58de7d2b2157728892e614d6e8fb5f729b98",
     "src/scripting/wren_host/wren_bind_menu.c": "c8a8921dcbb3b21dccaa555202ba61002f24cadfef68d411316f96c79b71270a",
     "src/scripting/wren_host/wren_bind_pixels.c": "5a1b4c73862a6845710159e6b34e8992cff1ab66661b984f871c46eb6c6bcceb",
-    "src/scripting/wren_host/wren_bind_session.c": "63fbfba7948383f74d87f4fed2c70237504bd324abe326d881d63bd783260318",
+    "src/scripting/wren_host/wren_bind_session.c": "fb584f383f0d6df19f328ef194e8bf328f8dc723066df2111794b2b32ac63b93",
     "src/scripting/wren_host/wren_bind_status.c": "85ed4115c9a9645aa27cccb2a9977e5892037123d7440d9acf3397fd55e16671",
     "src/scripting/wren_host/wren_bind_won.c": "96575bcbfdf0b157d89ec5ef64cd2573a0b41d2aaf5e379edd19303d382bc2f4",
     "src/scripting/wren_host/wren_bind_xfer.c": "760600a5165e97060b06b52127f1450a4a0a76422babcfa70b9d0e07c668b573",
     "src/scripting/wren_host/wren_cleanup.c": "4a22a39e849d5336e2fc4d870cb749e0eecdb1137463ef7a6d989e8dfd2c235b",
     "src/scripting/wren_host/wren_directory.c": "c7d5088d503737efa3499182c7feaab10c5b0bccc7888b465b1832b0b2ea9180",
     "src/scripting/wren_host/wren_foreign.c": "6fbacba5e2a42ecbfd16bfef1d427a1323f7ecdbebfecd238efd6ae3aebeeca7",
-    "src/scripting/wren_host/wren_host.c": "0d6cd587e0a173b67169a0ce99cf351f7ceddd3d52877f83c3a1d8ce385f9284",
+    "src/scripting/wren_host/wren_host.c": "0d859908d73bf35d2bda3eb71364cc678052574e12336e6845d737f43125e359",
     "src/scripting/wren_host/wren_links.c": "db575ae323af458a9454bae80288c3de05550d910c1a460036f0ab8f9fa9fce1",
     "src/scripting/wren_host/wren_number.c": "1cd1837e8db9f95d0983215fc9674fe9ecfc07820b00011b7bc751f977d7cb89",
     "src/scripting/wren_host/wren_picker.c": "3ca1eb88e1d590a6a908f0cb3f0f2936f785e3a6df79bec79c10c41edfa2cfe4",
@@ -3889,7 +3951,7 @@
     "src/scripting/wren_host/wren_scripts.c": "e9bc56c5ecd4a10a5464b82205c30f9fb7ee61162f526d4eb3bdcef335bd483b",
     "src/scripting/wren_host/wren_selection.c": "6e9972fd19cc31acc7e44c157f28b65120b93d7585dcacbb9937154f70bc72e4",
     "src/scripting/wren_host/wren_session.c": "afe9569f906839480c9a163a3cfb48bba605507cdaef18a5990085da66570c6c",
-    "src/scripting/wren_host/wren_sftp.c": "2a8c95113449ba09dfe0041f8707d23a2c1ea5a3f92f99fb42a7ec4c1cbea04c",
+    "src/scripting/wren_host/wren_sftp.c": "9d31b510db9d1f3ef6b46116bfde5c4b18237e64ef97b656221e57b2941eac70",
     "src/scripting/wren_vm/tests/st_wren_vm_unicode_string_test.c": "e92ca98a8026939932cdc8db390295390754ca9c0bf98ed2a89c4f0cb6784c5e",
     "src/scripting/wren_vm/vm/wren_core.c": "e0d3ff1ff5caf1e4141d5b82a010507e5260185d23c35f7d530ce283ccb49b26",
     "src/st_app_state.h": "9a66f9d8cab3c0ecd175d5426b59df838a817a70ac70609d293c7568381b524f",
@@ -3902,8 +3964,8 @@
     "src/syncterm.c": "80fdfdaf00239b0c9ab421d9b90b676e7803e2fecbcbcf05a0f386e45e072b4e",
     "src/syncterm_types.h": "faf03b62fcdebbc99c656072aff92846a65787e78294dcb21d2b0e96232144f2",
     "src/terminal/cterm/cterm_apc.c": "02d454dc3711782e5bbe097d5e09a9af073b5c4d7a03e4cb0e22df4761680d6a",
-    "src/terminal/cterm/st_cterm.c": "406d8668426be13b3a7933045ea5bdb637a1e3a249ae6c3f2bbcc47131969205",
-    "src/terminal/cterm/st_cterm.h": "4a8137e13842b628174b1f497a43d98391acd615dd8b862e1225b0d5efa64eaf",
+    "src/terminal/cterm/st_cterm.c": "1d62cf42251afc6c6717809ce87c7af26c43e1662c24bffd73f2ac2dc9e50c32",
+    "src/terminal/cterm/st_cterm.h": "3a197c7add0283ccd9f8fa4a8f5a1f8a058831102a52d79979deae37b1400c2b",
     "src/terminal/hyperlink/st_hyperlink.h": "f93a14cc8070afcd04fd9217581d4aee9ad69dbed44f63236e0a6bf0c99eb233",
     "src/terminal/ooii/st_ooii.h": "9da33c07aa73818ad787ae8fed5af2a996aab390549f88d117e6132028618aab",
     "src/terminal/screen_mode/st_screen_mode.h": "f6ce01a5ec29e019d75fb13809078d263611318d46b79db670937fbfe3c7f436",
@@ -3919,7 +3981,11 @@
     "src/text/unicode_text/st_unicode_text.h": "122e239b71b76eb7a778815fec2bd783bdb1e84d2a60a06abb79a75f1fd3523f",
     "src/text/unicode_width/st_unicode_width.h": "c90749bc509e94748a1dba06bf25db3de7b7ccde03764193fd5f8073e9cb9433",
     "src/text/utf8/st_utf8.h": "803d3d03a0d91141f7259a0b1a39f6a51b71397db9310a94b96fd4444e10f3a1",
-    "scripts/menu_settings_ui_test.wren": "5ba615822bbf181ea24e6dc84ce28eb2ca879ba8c37e6f9132319265b4868def"
+    "scripts/menu_settings_ui_test.wren": "5ba615822bbf181ea24e6dc84ce28eb2ca879ba8c37e6f9132319265b4868def",
+    "src/media/font_catalog/st_font_catalog.c": "4117712e3679625ff3f9368b9c5c8b048030617c071d8912978918593da38f47",
+    "src/terminal/cterm/cterm_render.c": "fb5cf7def0c2972ca7d71dd326595f0dfdc9f4dfe9cfb6ce6b85c3fb6caa3a3a",
+    "src/tests/st_font_assignments_test.py": "5b672eb7c59e75c7f9005e6851419f2563c435585740c150bf4af17544f9dbf6",
+    "src/terminal/cterm/tests/st_cterm_test.c": "c76041087a5995c83a259e4052e8c4c5b518dc61aa858f9294bbd444b0c33a2b"
   },
   "verification": {
     "platform": "FreeBSD 15.1-RELEASE-p5 amd64",
@@ -4002,6 +4068,31 @@
       ],
       "limitations": "ASan leak detection is unsupported on FreeBSD and disabled; C++ vptr sanitizer is disabled to link C-owned executables. No Windows runtime execution.",
       "inventory_follow_up": "Reviewed cache commit 4ab6a3f: reserved cache-name marker macro is host-owned, cache/File grant ownership unchanged. Added one native item, shifted header lines, refreshed reviewed evidence. Existing ignored capture expectation headers copied from the primary workspace to preserve the same 119 explicit fixture exclusions."
+    },
+    {
+      "topic": "custom-fonts",
+      "status": "resolved",
+      "findings": [
+        "font-codepage",
+        "font-load-result"
+      ],
+      "approval": "Complete custom-font plan revision 1 approved: Implement the plan. Context default plus explicit override, current terminal codepage, separate FileError/FontError, live indexed terminal assignments and one mask operation were discussed explicitly.",
+      "scope": "Actual custom/remote mappings; explicit/default loading with selector-or-error result; live CTerm.font and masked assignment changes; migrate callers without altFont/altFonts aliases. Loading selects nothing.",
+      "tests_passed": [
+        "Clang font_catalog, cterm, cterm_text, wren_host, wren_menu_contract, wren_settings_runtime, wren_picker_contract",
+        "syncterm_font_assignments_CP437 / UTF-8",
+        "syncterm_conformance_extensions_CP437 / UTF-8",
+        "GCC font_catalog / cterm / wren_host / wren_menu_contract",
+        "ASan/UBSan font_catalog / cterm / wren_host / wren_menu_contract",
+        "cterm_rip_engine",
+        "syncterm_rip154_wire_CP437 / UTF-8"
+      ],
+      "builds_passed": [
+        "FreeBSD Clang Debug application and tests",
+        "FreeBSD GCC Debug focused tests",
+        "MinGW64 Debug application and focused tests cross-build (no Windows execution)"
+      ],
+      "limitations": "FreeBSD ASan leak detection unsupported and disabled; C++ vptr checks disabled to link C-owned executables. No Windows runtime execution. General rich-font construction, compatibility bits and general codepage utilities remain separate findings."
     }
   ]
 }

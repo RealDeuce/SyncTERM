@@ -9,6 +9,7 @@
 #define CTERM_RIP_ENGINE_H_
 
 #include "cterm_rip_parser.h"
+#include "st_codepage.h"
 #include "cterm_rip_raster.h"
 
 struct cterm_rip_mouse_field {
@@ -41,6 +42,7 @@ struct cterm_rip_engine {
 	struct cterm_rip_parser_sink host;
 	struct {
 		uint16_t font_identifier;
+		enum st_codepage codepage;
 		uint32_t columns;
 		uint32_t rows;
 		uint32_t cell_width;

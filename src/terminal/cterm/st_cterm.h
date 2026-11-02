@@ -267,12 +267,24 @@ struct st_cterm_state {
 	} last_column_flag;
 };
 int st_cterm_state(const st_cterm_t *terminal, struct st_cterm_state *state);
-/* Selects an already registered font for ordinary (non-bold/non-blink) cells.
- * The change affects future output; retained cells keep their resolved glyphs. */
-int st_cterm_set_alt_font(st_cterm_t *terminal, uint8_t selector);
-/* Register a user-approved 256-glyph font for this terminal's console. */
+enum st_cterm_font_mask {
+	ST_CTERM_FONT_NORMAL = 1,
+	ST_CTERM_FONT_BRIGHT = 2,
+	ST_CTERM_FONT_BLINK = 4,
+	ST_CTERM_FONT_BRIGHT_BLINK = 8,
+	ST_CTERM_FONT_ALL = 15,
+};
+/* Validate all inputs, finish pending output, then change exactly the masked
+ * assignments. Retained cells keep their resolved fonts. Zero is invalid. */
+int st_cterm_set_fonts(st_cterm_t *terminal, uint8_t selector, unsigned mask);
+/* Copies the current registration, including remote font variants. */
+bool st_cterm_font_info(const st_cterm_t *terminal, uint8_t selector,
+	uint16_t *identifier, enum st_codepage *codepage);
+/* Registers without selecting. Occupied selectors (including remote variants
+ * unavailable at this geometry) return ALREADY_EXISTS before reading a file. */
 int st_cterm_register_font(st_cterm_t *terminal, uint8_t selector,
-	const char *path, uint16_t *identifier);
+	const char *path, enum st_codepage codepage, uint16_t *identifier,
+	struct st_font_load_error *error);
 /* Writes the visible terminal rectangle as BinaryText; optional SAUCE uses
  * the supplied UTF-8 profile name and user as bounded metadata. */
 int st_cterm_save_binary(st_cterm_t *terminal, FILE *stream,

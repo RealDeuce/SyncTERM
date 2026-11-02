@@ -1372,16 +1372,24 @@ src/media/console/st_console.h	function:st_console_display_libretro_frame_copy	7
 src/media/console/st_console.h	function:st_console_display_libretro_map_pointer	771	int (st_console_display_t *, int32_t, int32_t, struct st_console_event *)	console.owner
 src/media/font_catalog/st_font_catalog.h	macro:ST_FONT_CATALOG_SELECTOR_COUNT	18	(UINT8_MAX + 1U)	fonts.catalog
 src/media/font_catalog/st_font_catalog.h	macro:ST_FONT_CATALOG_FIRST_CUSTOM	19	46U	fonts.catalog
-src/media/font_catalog/st_font_catalog.h	function:st_font_catalog_create	28	int (st_font_catalog_t **, st_console_t *)	fonts.catalog-owner
-src/media/font_catalog/st_font_catalog.h	function:st_font_catalog_destroy	29	void (st_font_catalog_t *)	fonts.catalog-owner
-src/media/font_catalog/st_font_catalog.h	function:st_font_catalog_load_custom	37	int (st_font_catalog_t *, uint8_t, const char *)	fonts.codepage-loading
-src/media/font_catalog/st_font_catalog.h	function:st_font_catalog_load_custom_codepage	39	int (st_font_catalog_t *, uint8_t, const char *, enum st_codepage)	fonts.codepage-loading
-src/media/font_catalog/st_font_catalog.h	function:st_font_catalog_register_custom	42	int (st_console_t *, const char *, uint16_t *)	fonts.codepage-loading
-src/media/font_catalog/st_font_catalog.h	function:st_font_catalog_register_custom_codepage	44	int (st_console_t *, const char *, enum st_codepage, uint16_t *)	fonts.codepage-loading
-src/media/font_catalog/st_font_catalog.h	function:st_font_catalog_identifier	46	_Bool (const st_font_catalog_t *, uint8_t, uint16_t *)	fonts.catalog-owner
-src/media/font_catalog/st_font_catalog.h	function:st_font_catalog_selector	48	_Bool (const st_font_catalog_t *, uint16_t, uint8_t *)	fonts.catalog-owner
-src/media/font_catalog/st_font_catalog.h	function:st_font_catalog_codepage	50	enum st_codepage (const st_font_catalog_t *, uint8_t)	fonts.codepage-loading
-src/media/font_catalog/st_font_catalog.h	function:st_font_catalog_console	52	st_console_t *(const st_font_catalog_t *)	fonts.catalog-owner
+src/media/font_catalog/st_font_catalog.h	enum:ST_FONT_LOAD_NONE	26	st_font_load_failure	fonts.load-errors
+src/media/font_catalog/st_font_catalog.h	enum:ST_FONT_LOAD_FILE	27	st_font_load_failure	fonts.load-errors
+src/media/font_catalog/st_font_catalog.h	enum:ST_FONT_LOAD_BITMAP	28	st_font_load_failure	fonts.load-errors
+src/media/font_catalog/st_font_catalog.h	enum:ST_FONT_LOAD_CODEPAGE	29	st_font_load_failure	fonts.load-errors
+src/media/font_catalog/st_font_catalog.h	enum:ST_FONT_LOAD_REGISTRATION	30	st_font_load_failure	fonts.load-errors
+src/media/font_catalog/st_font_catalog.h	field:st_font_load_error.failure	33	enum st_font_load_failure	fonts.load-errors
+src/media/font_catalog/st_font_catalog.h	field:st_font_load_error.status	34	int	fonts.load-errors
+src/media/font_catalog/st_font_catalog.h	field:st_font_load_error.native_error	35	int	fonts.load-errors
+src/media/font_catalog/st_font_catalog.h	function:st_font_catalog_create	43	int (st_font_catalog_t **, st_console_t *)	fonts.catalog-owner
+src/media/font_catalog/st_font_catalog.h	function:st_font_catalog_destroy	44	void (st_font_catalog_t *)	fonts.catalog-owner
+src/media/font_catalog/st_font_catalog.h	function:st_font_catalog_load_custom	52	int (st_font_catalog_t *, uint8_t, const char *)	fonts.codepage-loading
+src/media/font_catalog/st_font_catalog.h	function:st_font_catalog_load_custom_codepage	54	int (st_font_catalog_t *, uint8_t, const char *, enum st_codepage)	fonts.codepage-loading
+src/media/font_catalog/st_font_catalog.h	function:st_font_catalog_register_custom	57	int (st_console_t *, const char *, uint16_t *)	fonts.codepage-loading
+src/media/font_catalog/st_font_catalog.h	function:st_font_catalog_register_custom_codepage	59	int (st_console_t *, const char *, enum st_codepage, uint16_t *, struct st_font_load_error *)	fonts.codepage-loading
+src/media/font_catalog/st_font_catalog.h	function:st_font_catalog_identifier	62	_Bool (const st_font_catalog_t *, uint8_t, uint16_t *)	fonts.catalog-owner
+src/media/font_catalog/st_font_catalog.h	function:st_font_catalog_selector	64	_Bool (const st_font_catalog_t *, uint16_t, uint8_t *)	fonts.catalog-owner
+src/media/font_catalog/st_font_catalog.h	function:st_font_catalog_codepage	67	enum st_codepage (const st_font_catalog_t *, uint8_t)	fonts.codepage-loading
+src/media/font_catalog/st_font_catalog.h	function:st_font_catalog_console	69	st_console_t *(const st_font_catalog_t *)	fonts.catalog-owner
 src/media/fonts/st_builtin_fonts.h	macro:ST_BUILTIN_FONT_COUNT	18	46U	fonts.builtin
 src/media/fonts/st_builtin_fonts.h	function:st_builtin_font_count	20	size_t (void)	fonts.builtin
 src/media/fonts/st_builtin_fonts.h	function:st_builtin_font_name	21	const char *(size_t)	fonts.builtin
@@ -2100,33 +2108,39 @@ src/terminal/cterm/st_cterm.h	field:st_cterm_state.last_column_flag.enabled	265	
 src/terminal/cterm/st_cterm.h	field:st_cterm_state.last_column_flag.forced	266	bool	cterm.state
 src/terminal/cterm/st_cterm.h	field:st_cterm_state.last_column_flag	267	struct (unnamed struct at src/terminal/cterm/st_cterm.h:263:2)	cterm.state
 src/terminal/cterm/st_cterm.h	function:st_cterm_state	269	int (const st_cterm_t *, struct st_cterm_state *)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_set_alt_font	272	int (st_cterm_t *, uint8_t)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_register_font	274	int (st_cterm_t *, uint8_t, const char *, uint16_t *)	cterm.font-result
-src/terminal/cterm/st_cterm.h	function:st_cterm_save_binary	278	int (st_cterm_t *, FILE *, bool, const char *, const char *, int *)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_encoding	282	enum st_cterm_encoding (const st_cterm_t *)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_codepage	283	enum st_codepage (const st_cterm_t *)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_status_display	285	int (const st_cterm_t *)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_doorway_mode	286	bool (const st_cterm_t *)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_set_doorway_mode	287	void (st_cterm_t *, bool)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_music_mode	288	int (const st_cterm_t *)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_set_music_mode	289	void (st_cterm_t *, int)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_atascii_inverse	290	bool (const st_cterm_t *)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_mouse_mode	291	int (const st_cterm_t *)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_mouse_sgr_pixels	292	bool (const st_cterm_t *)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_bracketed_paste	293	bool (const st_cterm_t *)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_set_encoding	294	int (st_cterm_t *, enum st_cterm_encoding, enum st_codepage)	cterm.encoding-control
-src/terminal/cterm/st_cterm.h	function:st_cterm_copy_history	302	int (st_cterm_t *, struct st_console_cell **, uint32_t *, size_t *)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_scrollback_size	306	int (const st_cterm_t *, uint32_t *, size_t *)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_copy_scrollback_rows	308	int (const st_cterm_t *, struct st_console_cell *, uint32_t, size_t, size_t, size_t, size_t)	cterm.state
-src/terminal/cterm/st_cterm.h	function:st_cterm_handle_key	315	bool (st_cterm_t *, uint16_t, uint32_t)	cterm.operation-status
-src/terminal/cterm/st_cterm.h	function:st_cterm_handle_text_key	320	bool (st_cterm_t *, uint32_t)	cterm.owner
-src/terminal/cterm/st_cterm.h	function:st_cterm_handle_codepage_key	322	bool (st_cterm_t *, uint8_t)	cterm.owner
-src/terminal/cterm/st_cterm.h	function:st_cterm_handle_rip_text	324	bool (st_cterm_t *, uint32_t)	cterm.owner
-src/terminal/cterm/st_cterm.h	function:st_cterm_handle_doorway_key	325	bool (st_cterm_t *, uint8_t)	cterm.owner
-src/terminal/cterm/st_cterm.h	function:st_cterm_handle_physical_keys	326	bool (st_cterm_t *, const struct st_console_event *, size_t)	cterm.owner
-src/terminal/cterm/st_cterm.h	function:st_cterm_handle_mouse	328	bool (st_cterm_t *, const struct st_console_event *)	cterm.owner
-src/terminal/cterm/st_cterm.h	function:st_cterm_sync_mouse_buttons	331	void (st_cterm_t *, uint32_t)	cterm.owner
-src/terminal/cterm/st_cterm.h	function:st_cterm_handle_focus	332	bool (st_cterm_t *, bool)	cterm.owner
+src/terminal/cterm/st_cterm.h	enum:ST_CTERM_FONT_NORMAL	271	st_cterm_font_mask	fonts.assignments
+src/terminal/cterm/st_cterm.h	enum:ST_CTERM_FONT_BRIGHT	272	st_cterm_font_mask	fonts.assignments
+src/terminal/cterm/st_cterm.h	enum:ST_CTERM_FONT_BLINK	273	st_cterm_font_mask	fonts.assignments
+src/terminal/cterm/st_cterm.h	enum:ST_CTERM_FONT_BRIGHT_BLINK	274	st_cterm_font_mask	fonts.assignments
+src/terminal/cterm/st_cterm.h	enum:ST_CTERM_FONT_ALL	275	st_cterm_font_mask	fonts.assignments
+src/terminal/cterm/st_cterm.h	function:st_cterm_set_fonts	279	int (st_cterm_t *, uint8_t, unsigned int)	fonts.assignments
+src/terminal/cterm/st_cterm.h	function:st_cterm_font_info	281	bool (const st_cterm_t *, uint8_t, uint16_t *, enum st_codepage *)	fonts.catalog
+src/terminal/cterm/st_cterm.h	function:st_cterm_register_font	285	int (st_cterm_t *, uint8_t, const char *, enum st_codepage, uint16_t *, struct st_font_load_error *)	cterm.font-result
+src/terminal/cterm/st_cterm.h	function:st_cterm_save_binary	290	int (st_cterm_t *, FILE *, bool, const char *, const char *, int *)	cterm.state
+src/terminal/cterm/st_cterm.h	function:st_cterm_encoding	294	enum st_cterm_encoding (const st_cterm_t *)	cterm.state
+src/terminal/cterm/st_cterm.h	function:st_cterm_codepage	295	enum st_codepage (const st_cterm_t *)	cterm.state
+src/terminal/cterm/st_cterm.h	function:st_cterm_status_display	297	int (const st_cterm_t *)	cterm.state
+src/terminal/cterm/st_cterm.h	function:st_cterm_doorway_mode	298	bool (const st_cterm_t *)	cterm.state
+src/terminal/cterm/st_cterm.h	function:st_cterm_set_doorway_mode	299	void (st_cterm_t *, bool)	cterm.state
+src/terminal/cterm/st_cterm.h	function:st_cterm_music_mode	300	int (const st_cterm_t *)	cterm.state
+src/terminal/cterm/st_cterm.h	function:st_cterm_set_music_mode	301	void (st_cterm_t *, int)	cterm.state
+src/terminal/cterm/st_cterm.h	function:st_cterm_atascii_inverse	302	bool (const st_cterm_t *)	cterm.state
+src/terminal/cterm/st_cterm.h	function:st_cterm_mouse_mode	303	int (const st_cterm_t *)	cterm.state
+src/terminal/cterm/st_cterm.h	function:st_cterm_mouse_sgr_pixels	304	bool (const st_cterm_t *)	cterm.state
+src/terminal/cterm/st_cterm.h	function:st_cterm_bracketed_paste	305	bool (const st_cterm_t *)	cterm.state
+src/terminal/cterm/st_cterm.h	function:st_cterm_set_encoding	306	int (st_cterm_t *, enum st_cterm_encoding, enum st_codepage)	cterm.encoding-control
+src/terminal/cterm/st_cterm.h	function:st_cterm_copy_history	314	int (st_cterm_t *, struct st_console_cell **, uint32_t *, size_t *)	cterm.state
+src/terminal/cterm/st_cterm.h	function:st_cterm_scrollback_size	318	int (const st_cterm_t *, uint32_t *, size_t *)	cterm.state
+src/terminal/cterm/st_cterm.h	function:st_cterm_copy_scrollback_rows	320	int (const st_cterm_t *, struct st_console_cell *, uint32_t, size_t, size_t, size_t, size_t)	cterm.state
+src/terminal/cterm/st_cterm.h	function:st_cterm_handle_key	327	bool (st_cterm_t *, uint16_t, uint32_t)	cterm.operation-status
+src/terminal/cterm/st_cterm.h	function:st_cterm_handle_text_key	332	bool (st_cterm_t *, uint32_t)	cterm.owner
+src/terminal/cterm/st_cterm.h	function:st_cterm_handle_codepage_key	334	bool (st_cterm_t *, uint8_t)	cterm.owner
+src/terminal/cterm/st_cterm.h	function:st_cterm_handle_rip_text	336	bool (st_cterm_t *, uint32_t)	cterm.owner
+src/terminal/cterm/st_cterm.h	function:st_cterm_handle_doorway_key	337	bool (st_cterm_t *, uint8_t)	cterm.owner
+src/terminal/cterm/st_cterm.h	function:st_cterm_handle_physical_keys	338	bool (st_cterm_t *, const struct st_console_event *, size_t)	cterm.owner
+src/terminal/cterm/st_cterm.h	function:st_cterm_handle_mouse	340	bool (st_cterm_t *, const struct st_console_event *)	cterm.owner
+src/terminal/cterm/st_cterm.h	function:st_cterm_sync_mouse_buttons	343	void (st_cterm_t *, uint32_t)	cterm.owner
+src/terminal/cterm/st_cterm.h	function:st_cterm_handle_focus	344	bool (st_cterm_t *, bool)	cterm.owner
 src/terminal/hyperlink/st_hyperlink.h	callback:st_hyperlink_mark_fn	17	int (*)(void *, uint16_t)	hyperlinks.gc-owner
 src/terminal/hyperlink/st_hyperlink.h	callback:st_hyperlink_root_fn	18	int (*)(void *, st_hyperlink_mark_fn, void *)	hyperlinks.gc-owner
 src/terminal/hyperlink/st_hyperlink.h	field:st_hyperlink.uri	22	char *	hyperlinks.registry

@@ -570,10 +570,12 @@ cterm_render_refresh_remote_fonts(struct cterminal *cterm)
 		if (variant >= 0 && (cterm->screen.remote_fonts[selector].present & (1U << variant)) != 0) {
 			cterm->screen.font_identifiers[selector] = cterm->screen.remote_fonts[selector].identifiers[variant];
 			cterm->screen.font_valid[selector] = true;
+			cterm->screen.font_codepages[selector] = cterm->screen.remote_fonts[selector].codepages[variant];
 		}
 		else {
 			cterm->screen.font_identifiers[selector] = cterm->screen.remote_fonts[selector].original;
 			cterm->screen.font_valid[selector] = cterm->screen.remote_fonts[selector].original_valid;
+			cterm->screen.font_codepages[selector] = cterm->screen.remote_fonts[selector].original_codepage;
 		}
 	}
 }
@@ -625,8 +627,10 @@ cterm_render_replace_font(struct cterminal *cterm, uint8_t selector,
 	if (cterm->screen.remote_fonts[selector].present == 0) {
 		cterm->screen.remote_fonts[selector].original = cterm->screen.font_identifiers[selector];
 		cterm->screen.remote_fonts[selector].original_valid = cterm->screen.font_valid[selector];
+		cterm->screen.remote_fonts[selector].original_codepage = cterm->screen.font_codepages[selector];
 	}
 	cterm->screen.remote_fonts[selector].identifiers[variant] = identifier;
+	cterm->screen.remote_fonts[selector].codepages[variant] = cterm->screen.codepage;
 	cterm->screen.remote_fonts[selector].present |= (uint8_t)(1U << variant);
 	cterm_render_refresh_remote_fonts(cterm);
 	if (cterm->status_sub != NULL) {

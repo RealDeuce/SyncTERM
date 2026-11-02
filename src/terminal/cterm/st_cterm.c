@@ -89,6 +89,7 @@ rip_text_font(st_cterm_t *terminal, int style)
 	uint32_t old_cell_width, old_cell_height;
 	uint32_t status_rows;
 	uint16_t identifier = 0;
+	enum st_codepage codepage = ST_CODEPAGE_CP437;
 	int status;
 
 	if (style < 0 || style > RIP_TEXT_FONT_DEFAULT)
@@ -101,6 +102,7 @@ rip_text_font(st_cterm_t *terminal, int style)
 		columns = engine->default_text.columns;
 		rows = engine->default_text.rows;
 		identifier = engine->default_text.font_identifier;
+		codepage = engine->default_text.codepage;
 	}
 	else {
 		cell_width = style == 1 || style == 3 ? 7
@@ -199,6 +201,7 @@ rip_text_font(st_cterm_t *terminal, int style)
 	for (size_t selector = 0; selector < UINT8_MAX + 1U; selector++) {
 		terminal->screen.font_identifiers[selector] = identifier;
 		terminal->screen.font_valid[selector] = true;
+		terminal->screen.font_codepages[selector] = codepage;
 	}
 	cterm_render_attribute_colours(terminal, terminal->attr,
 	    &terminal->fg_color, &terminal->bg_color);
@@ -2104,6 +2107,7 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 		    &identifier)) {
 			screen.font_identifiers[selector] = identifier;
 			screen.font_valid[selector] = true;
+			screen.font_codepages[selector] = st_font_catalog_codepage(config->fonts, (uint8_t)selector);
 		}
 	}
 	for (size_t slot = 0; slot < 5; ++slot)
@@ -2225,6 +2229,7 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 		terminal->rip_engine->raster.version =
 		    config->rip_version == ST_CTERM_RIP_3 ? 3 : 1;
 		terminal->rip_engine->default_text.font_identifier = normal;
+		terminal->rip_engine->default_text.codepage = st_font_catalog_codepage(config->fonts, config->font_selector);
 		status = st_console_size(config->console,
 		    &terminal->rip_engine->default_text.columns,
 		    &terminal->rip_engine->default_text.rows);
@@ -2932,36 +2937,58 @@ st_cterm_state(const st_cterm_t *terminal, struct st_cterm_state *state)
 }
 
 int
-st_cterm_set_alt_font(st_cterm_t *terminal, uint8_t selector)
+st_cterm_set_fonts(st_cterm_t *terminal, uint8_t selector, unsigned mask)
 {
-	if (terminal == NULL || !terminal->screen.font_valid[selector])
+	if (terminal == NULL || mask == 0 || (mask & ~ST_CTERM_FONT_ALL) != 0)
 		return IO_ERROR_INVALID_ARGUMENT;
+	if (!terminal->screen.font_valid[selector])
+		return IO_ERROR_NOT_FOUND;
 	int status = st_cterm_finish(terminal);
 	if (status != 0)
 		return status;
-	if (!cterm_render_set_font_selector(terminal, selector, false, 1))
-		return IO_ERROR_INVALID_ARGUMENT;
-	terminal->altfont[0] = selector;
+	for (size_t i = 0; i < 4; ++i) {
+		if ((mask & (1U << i)) == 0)
+			continue;
+		terminal->screen.selectors[i + 1] = selector;
+		terminal->altfont[i] = selector;
+	}
 	return 0;
+}
+
+bool
+st_cterm_font_info(const st_cterm_t *terminal, uint8_t selector,
+	uint16_t *identifier, enum st_codepage *codepage)
+{
+	if (terminal == NULL || identifier == NULL || codepage == NULL
+	    || !terminal->screen.font_valid[selector])
+		return false;
+	*identifier = terminal->screen.font_identifiers[selector];
+	*codepage = terminal->screen.font_codepages[selector];
+	return true;
 }
 
 int
 st_cterm_register_font(st_cterm_t *terminal, uint8_t selector,
-	const char *path, uint16_t *identifier)
+	const char *path, enum st_codepage codepage, uint16_t *identifier,
+	struct st_font_load_error *error)
 {
 	uint16_t registered;
 	int status;
 
-	if (terminal == NULL || path == NULL || *path == '\0'
-	    || identifier == NULL
-	    || selector < ST_FONT_CATALOG_FIRST_CUSTOM
-	    || terminal->screen.font_valid[selector])
+	if (error != NULL)
+		*error = (struct st_font_load_error){0};
+	if (terminal == NULL || path == NULL || *path == '\0' || identifier == NULL
+	    || selector < ST_FONT_CATALOG_FIRST_CUSTOM)
 		return IO_ERROR_INVALID_ARGUMENT;
-	status = st_font_catalog_register_custom(terminal->screen.console, path,
-	    &registered);
+	if (terminal->screen.font_valid[selector]
+	    || terminal->screen.remote_fonts[selector].present != 0)
+		return IO_ERROR_ALREADY_EXISTS;
+	status = st_font_catalog_register_custom_codepage(terminal->screen.console,
+	    path, codepage, &registered, error);
 	if (status != 0)
 		return status;
 	terminal->screen.font_identifiers[selector] = registered;
+	terminal->screen.font_codepages[selector] = codepage;
 	terminal->screen.font_valid[selector] = true;
 	*identifier = registered;
 	return 0;

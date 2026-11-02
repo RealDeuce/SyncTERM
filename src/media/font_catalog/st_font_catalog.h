@@ -20,6 +20,21 @@
 
 typedef struct st_font_catalog st_font_catalog_t;
 
+/* Failure origin is kept separate from the portable I/O status: an invalid
+ * bitmap or unsupported mapping is not a failure to read the file. */
+enum st_font_load_failure {
+	ST_FONT_LOAD_NONE,
+	ST_FONT_LOAD_FILE,
+	ST_FONT_LOAD_BITMAP,
+	ST_FONT_LOAD_CODEPAGE,
+	ST_FONT_LOAD_REGISTRATION,
+};
+struct st_font_load_error {
+	enum st_font_load_failure failure;
+	int status;
+	int native_error;
+};
+
 /*
  * A catalog borrows its console, registers every compatible built-in font,
  * and owns only its selector tables. Registered console fonts retain their
@@ -42,11 +57,13 @@ int st_font_catalog_load_custom_codepage(st_font_catalog_t *catalog,
 int st_font_catalog_register_custom(st_console_t *console, const char *path,
 	uint16_t *identifier);
 int st_font_catalog_register_custom_codepage(st_console_t *console,
-	const char *path, enum st_codepage codepage, uint16_t *identifier);
+	const char *path, enum st_codepage codepage, uint16_t *identifier,
+	struct st_font_load_error *error);
 bool st_font_catalog_identifier(const st_font_catalog_t *catalog,
 	uint8_t selector, uint16_t *identifier);
 bool st_font_catalog_selector(const st_font_catalog_t *catalog,
 	uint16_t identifier, uint8_t *selector);
+/* Returns ST_CODEPAGE_COUNT for an unavailable selector. */
 enum st_codepage st_font_catalog_codepage(const st_font_catalog_t *catalog,
 	uint8_t selector);
 st_console_t *st_font_catalog_console(const st_font_catalog_t *catalog);

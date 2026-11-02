@@ -10,6 +10,7 @@
 
 #include "st_wren_host.h"
 #include "st_console.h"
+#include "st_codepage.h"
 #include "st_profile.h"
 #include "st_screen_mode.h"
 #include "st_settings.h"
@@ -87,6 +88,7 @@ struct st_wren_font_state {
 	uint16_t catalog[UINT8_MAX + 1U];
 	bool catalog_valid[UINT8_MAX + 1U];
 	bool runtime_loaded[UINT8_MAX + 1U];
+	enum st_codepage codepages[UINT8_MAX + 1U];
 	uint16_t selector_by_identifier[UINT16_MAX + 1U];
 	uint16_t slots[5];
 };
@@ -439,6 +441,21 @@ int st_wren_host_set_screen_mode(struct st_wren_host *host,
 	enum st_screen_mode mode);
 void st_wren_host_external_screen_resize(struct st_wren_host *host,
 	st_console_t *console, uint32_t columns, uint32_t rows);
+enum st_wren_font_error {
+	ST_WREN_FONT_UNAVAILABLE = 1,
+	ST_WREN_FONT_INVALID_BITMAP,
+	ST_WREN_FONT_UNSUPPORTED_CODEPAGE,
+	ST_WREN_FONT_NO_SLOTS,
+	ST_WREN_FONT_NOT_LOADED,
+	ST_WREN_FONT_NATIVE_FAILURE,
+};
+/* message must have static storage duration; the Error retains it. */
+void st_wren_push_font_error(WrenVM *vm, enum st_wren_font_error code,
+	int native_code, const char *message);
+void st_wren_push_file_error(WrenVM *vm, int code, int native_error,
+	const char *message);
+bool st_wren_font_metadata(struct st_wren_context *context, uint16_t selector,
+	uint16_t *identifier, enum st_codepage *codepage);
 bool st_wren_font_identifier(struct st_wren_context *context, uint16_t selector,
 	uint16_t *identifier);
 uint16_t st_wren_font_selector(struct st_wren_context *context,

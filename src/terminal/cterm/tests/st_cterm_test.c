@@ -530,7 +530,7 @@ main(void)
 		CHECK(st_cterm_state(terminal, &state) == 0);
 		CHECK(state.alt_fonts[0] == 0);
 		CHECK(st_cterm_register_font(terminal, 250,
-		    "missing-font-file", &identifier) == IO_ERROR_NOT_FOUND);
+		    "missing-font-file", ST_CODEPAGE_CP1251, &identifier, NULL) == IO_ERROR_NOT_FOUND);
 		CHECK(identifier == UINT16_MAX);
 		stream = fopen(path, "wb");
 		CHECK(stream != NULL);
@@ -538,14 +538,46 @@ main(void)
 		    == sizeof(blank_font));
 		CHECK(fclose(stream) == 0);
 		CHECK(st_cterm_register_font(terminal, 250, path,
-		    &identifier) == 0);
+		    ST_CODEPAGE_CP1251, &identifier, NULL) == 0);
 		CHECK(identifier != UINT16_MAX);
-		CHECK(st_cterm_set_alt_font(terminal, 250) == 0);
+		CHECK(st_cterm_set_fonts(terminal, 250, ST_CTERM_FONT_NORMAL | ST_CTERM_FONT_BRIGHT) == 0);
 		CHECK(st_cterm_state(terminal, &state) == 0);
-		CHECK(state.alt_fonts[0] == 250);
-		CHECK(st_cterm_set_alt_font(terminal, 0) == 0);
-		CHECK(st_cterm_set_alt_font(terminal, 251)
-		    == IO_ERROR_INVALID_ARGUMENT);
+		CHECK(state.alt_fonts[0] == 250 && state.alt_fonts[1] == 250
+		    && state.alt_fonts[2] == 0 && state.alt_fonts[3] == 0);
+		enum st_codepage mapping;
+		uint16_t actual;
+		CHECK(st_cterm_font_info(terminal, 250, &actual, &mapping));
+		CHECK(actual == identifier && mapping == ST_CODEPAGE_CP1251);
+		CHECK(st_cterm_set_fonts(terminal, 0, 0) == IO_ERROR_INVALID_ARGUMENT);
+		CHECK(st_cterm_set_fonts(terminal, 0, 16) == IO_ERROR_INVALID_ARGUMENT);
+		CHECK(st_cterm_state(terminal, &state) == 0 && state.alt_fonts[0] == 250);
+		CHECK(st_cterm_set_fonts(terminal, 0, ST_CTERM_FONT_ALL) == 0);
+		CHECK(st_cterm_set_fonts(terminal, 251, ST_CTERM_FONT_ALL)
+		    == IO_ERROR_NOT_FOUND);
+		/* Each remote geometry remembers its mapping at download time. A
+		 * missing geometry restores the original registration and mapping. */
+		CHECK(st_cterm_set_encoding(terminal, ST_CTERM_ENCODING_UTF8, ST_CODEPAGE_CP437) == 0);
+		feed(terminal, "\x1b[=250;0{", sizeof("\x1b[=250;0{") - 1);
+		feed(terminal, blank_font, sizeof(blank_font));
+		CHECK(st_cterm_font_info(terminal, 250, &actual, &mapping));
+		CHECK(actual != identifier && mapping == ST_CODEPAGE_CP437);
+		CHECK(st_cterm_set_encoding(terminal, ST_CTERM_ENCODING_UTF8, ST_CODEPAGE_CP1251) == 0);
+		feed(terminal, "\x1b[=250;2{", sizeof("\x1b[=250;2{") - 1);
+		feed(terminal, blank_font, 2048);
+		CHECK(st_cterm_font_info(terminal, 250, &actual, &mapping) && mapping == ST_CODEPAGE_CP437);
+		uint32_t columns, rows;
+		CHECK(st_console_size(console, &columns, &rows) == 0);
+		CHECK(st_console_regrid_preserve_pixels(console, columns, rows, 8, 8) == 0);
+		CHECK(st_cterm_resize(terminal, columns, rows) == 0);
+		CHECK(st_cterm_font_info(terminal, 250, &actual, &mapping) && mapping == ST_CODEPAGE_CP1251);
+		CHECK(st_console_regrid_preserve_pixels(console, columns, rows, 8, 14) == 0);
+		CHECK(st_cterm_resize(terminal, columns, rows) == 0);
+		CHECK(st_cterm_font_info(terminal, 250, &actual, &mapping));
+		CHECK(actual == identifier && mapping == ST_CODEPAGE_CP1251);
+		CHECK(st_console_regrid_preserve_pixels(console, columns, rows, 8, 16) == 0);
+		CHECK(st_cterm_resize(terminal, columns, rows) == 0);
+		CHECK(st_cterm_font_info(terminal, 250, &actual, &mapping) && mapping == ST_CODEPAGE_CP437);
+		CHECK(st_cterm_set_encoding(terminal, ST_CTERM_ENCODING_UTF8, ST_CODEPAGE_CP437) == 0);
 		CHECK(remove(path) == 0);
 	}
 	CHECK(!st_cterm_bracketed_paste(terminal));

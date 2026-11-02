@@ -132,6 +132,7 @@ main(void)
 	    && selector == 0);
 	CHECK(!st_font_catalog_identifier(catalog,
 	    ST_FONT_CATALOG_FIRST_CUSTOM, &identifier));
+	CHECK(st_font_catalog_codepage(catalog, ST_FONT_CATALOG_FIRST_CUSTOM) == ST_CODEPAGE_COUNT);
 	CHECK(st_font_catalog_load_custom(catalog,
 	    ST_FONT_CATALOG_FIRST_CUSTOM, "missing-font-file")
 	    == IO_ERROR_NOT_FOUND);
@@ -179,7 +180,7 @@ main(void)
 	}
 	CHECK(remove(path) == 0);
 	CHECK(st_font_catalog_codepage(catalog,
-	    ST_FONT_CATALOG_FIRST_CUSTOM) == ST_CODEPAGE_CP437);
+	    ST_FONT_CATALOG_FIRST_CUSTOM) == ST_CODEPAGE_CP1251);
 	st_font_catalog_destroy(catalog);
 	st_console_destroy(console);
 	return EXIT_SUCCESS;

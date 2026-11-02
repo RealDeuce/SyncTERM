@@ -1683,7 +1683,7 @@ st_wren_connected_create(st_wren_connected_t **result,
 	connected->context.mouse_events |= ST_WREN_LINK_MOUSE_EVENTS;
 	if (config->console == config->host->menu.console)
 		connected->context.fonts = config->host->menu.fonts;
-	else {
+	if (config->cterm != NULL || config->console != config->host->menu.console) {
 		status = st_wren_context_load_fonts(&connected->context);
 		if (status != 0) {
 			st_wren_connected_destroy(connected);

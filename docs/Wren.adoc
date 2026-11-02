@@ -2172,7 +2172,7 @@ having these methods at all.
 `Error` is the polymorphic base for every recoverable-failure value
 type the API hands back: <<sftperror,`SFTPError`>>,
 <<fileerror,`FileError`>>, <<wonerror,`WONError`>>,
-<<connerror,`ConnError`>>, plus any user-defined
+<<connerror,`ConnError`>>, <<font-error,`FontError`>>, plus any user-defined
 <<scripterror,`ScriptError`>> subclass.  Lets a script catch any of
 them with one check:
 
@@ -2200,7 +2200,7 @@ Every concrete `Error` subclass guarantees the contract:
 |===
 
 Type-specific extras (`FileError.errno`, `WONError.offset`,
-`ConnError.partial`, `SFTPError.serverStatus`,
+`ConnError.partial`, `FontError.nativeCode`, `SFTPError.serverStatus`,
 `SFTPError.isTransient`) live on the subclass.
 
 `Error` itself is empty by design: foreign subclasses (FileError
@@ -3158,7 +3158,7 @@ these values describe explicit conversions at a legacy byte boundary.
 
 `Codepage.encodes_(s)` accepts exactly one Unicode codepoint and reports
 whether the codepage of the selected primary font (`Screen.font[0]`) can
-encode it.  It does not consult the process locale.
+encode it. It returns false when that font is unavailable.  It does not consult the process locale.
 
 `Codepage.decodeByte(codepage, byte)` explicitly decodes one legacy display
 byte to a Unicode String. The codepage must be one of the constants below
@@ -3535,15 +3535,63 @@ distinguishes bundled font variants that use the same codepage encoding.
 | `Font.available(i)` | `true` if slot `i` has actually been loaded
                        (the user can configure SyncTERM to omit some
                        built-ins).
-| `Font.codepage`   | The <<codepage,`Codepage`>> value for slot 0
-                     (whatever codepage the script's strings should
-                     be transcoded into for display).
-| `Font.codepageOf(i)` | The codepage value for slot `i`.  Several
-                        slots can share a codepage (the Amiga slots
-                        37–42 are all `iso8859_1`, for example).
-                        Custom slots use `cp437` until they carry an
-                        explicit Unicode mapping.
+| `Font.codepage` | Actual mapping of the font selected in `Screen.font[0]`,
+  or `null` if its bitmap is unavailable.
+| `Font.codepageOf(i)` | Actual mapping of the font selected in script-output
+  slot `Screen.font[i]` (0 through 4), or `null` if unavailable.
+| `Font.codepageFor(selector)` | Actual mapping of the registered catalog
+  selector (0 through 255), or `null` if unavailable. This argument is a font
+  selector, whereas `codepageOf` takes a script-output slot.
+| `Font.load(file)` | Register a 256-glyph bitmap using the terminal's current
+  `CTerm.codepage`, including its legacy fallback during UTF-8 operation.
+| `Font.load(file, codepage)` | Register with an explicit `Codepage` value.
 |===
+
+Both load forms return the allocated selector (46 through 255), a `FileError`
+for a file access/read failure, or a <<font-error,`FontError`>>. Loading requires
+an active terminal and `ScreenSupports.loadableFonts`. It reads an actual
+readable `File` grant belonging to the calling VM; path Strings are rejected.
+Revoked/stale read authority returns `FileError` with `FileErr.permissionDenied`.
+Loading neither selects the font nor changes the File's stream position, consumes
+its grant, or saves settings. The bitmap remains usable after the File is closed
+or collected. Failed loads publish no catalog entry. Configured selectors and
+selectors occupied by downloaded font variants are reserved.
+
+The default mapping is captured at load time from `CTerm.codepage`; it does not
+follow `Screen.font`, the process locale, or later terminal encoding changes.
+The explicit overload accepts the serialized `Codepage` enum, not a text label
+or UTF-8 encoding sentinel. An unsupported mapping is a font failure. Font files
+contain raw bitmap bytes, never normalized text. Their dimensions must match the
+current console cell, with exactly 256 glyphs.
+
+[source,wren]
+----
+var selector = Font.load(file, Codepage.cp1251)
+if (selector is Error) return selector
+CTerm.font[0] = selector
+----
+
+==== FontError [[font-error]]
+
+`FontError is Error` reports font failures separately from file failures. It has
+read-only `code`, `nativeCode`, `message`, and `toString` properties and no public
+constructor. `nativeCode` preserves the underlying portable native I/O status,
+or zero when no native operation failed. Its diagnostic starts with `FontError`.
+
+[options="header",cols="2m,1,4"]
+|===
+| FontErr value | Code | Meaning
+| `unavailable` | 1 | No active terminal or the backend cannot load/select fonts.
+| `invalidBitmap` | 2 | The bitmap size or dimensions are invalid.
+| `unsupportedCodepage` | 3 | No bitmap mapping is available for the codepage.
+| `noSlots` | 4 | No free custom selector remains.
+| `notLoaded` | 5 | The requested selector has no available registration.
+| `nativeFailure` | 6 | Another native font/registration operation failed.
+|===
+
+Wrong types, inexact/out-of-range numbers, invalid codepage enums, invalid
+assignment indices, and invalid masks are programmer errors and abort the calling
+Fiber. Recoverable load failures are returned as Error values.
 
 === Hyperlinks [[hyperlinks]]
 
@@ -3981,7 +4029,7 @@ emulation-aware logic.
   `paletteOverride`
 
 | Fonts
-| `fontSlot`, `altFonts`
+| `fontSlot`, `font`, `setFont(selector, mask)`
 
 | Scrollback
 | `scrollbackLines`, `scrollbackWidth`, `scrollbackPos`,
@@ -4020,6 +4068,28 @@ emulation-aware logic.
 | Bitfield snapshots
 | `extAttr` (`ExtAttr`), `lastColumnFlag` (`LastColumnFlag`)
 |===
+
+`CTerm.font[i]` is a live, writable view of terminal font assignments. Indices
+0 through 3 mean normal, source-bright, source-blink, and bright-plus-blink.
+Reading returns a selector; writing changes only that assignment. This is
+independent of the five `Screen.font` slots for script drawing.
+
+`CTerm.setFont(selector, mask)` changes all requested assignments together.
+`CTermFontMask.normal` is 1, `.bright` is 2, `.blink` is 4, `.brightBlink` is 8,
+and `.all` is 15. Combine bits with `|`; zero and unknown bits are invalid.
+Selection requires an available registration and a capable backend. It finishes
+pending output before committing; failed selection leaves every assignment
+unchanged. Existing cells retain their resolved fonts. Selection does not change
+the video flags which enable source-bright/blink font selection.
+
+The method returns `null` on success or `FontError` on an operational failure.
+An indexed write raises that same `FontError` through ordinary Fiber abort,
+because assignment syntax discards a setter's return value. Catch it with a
+Fiber's `.try()` when recovery is needed. The terminal assignment interface is
+connected-VM-only. The old `CTerm.altFont` and detached `CTerm.altFonts` List
+are removed without aliases. The shipped picker still changes only the normal
+assignment when selecting an existing font; loading only registers a new font.
+
 
 [options="header",cols="2,3"]
 |===

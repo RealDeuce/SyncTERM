@@ -257,6 +257,12 @@ push_error(WrenVM *vm, int code, int native_error, const char *message)
 	};
 }
 
+void
+st_wren_push_file_error(WrenVM *vm, int code, int native_error, const char *message)
+{
+	push_error(vm, code, native_error, message);
+}
+
 static void
 file_allocate(WrenVM *vm)
 {

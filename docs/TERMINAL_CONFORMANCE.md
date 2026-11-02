@@ -306,3 +306,11 @@ bytes, case trace, coherent snapshot and PPM under the build's
 | `IN:A-F10` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
 | `IN:A-F11` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
 | `IN:A-F12` | input_keys | keyboard | Exact encoded bytes from injected normalized key |
+
+Custom font assignments are additionally checked by
+`syncterm_font_assignments_CP437` and `syncterm_font_assignments_UTF-8` through
+the control bitmap backend. Independent 256-glyph fixtures assert exact raster
+columns for all four source attribute combinations, masked changes, untouched
+assignments, retained cells, failed selection and reset recovery in coherent
+captures. Native `cterm` tests cover per-geometry remote mapping metadata and
+restoration; these checks do not claim new remote-font protocol behavior.

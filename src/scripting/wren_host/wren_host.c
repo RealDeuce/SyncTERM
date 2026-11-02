@@ -157,6 +157,7 @@ load_builtin_fonts(struct st_wren_context *context)
 			continue;
 		context->fonts.catalog[selector] = identifier;
 		context->fonts.catalog_valid[selector] = true;
+		context->fonts.codepages[selector] = st_font_catalog_codepage(catalog, (uint8_t)selector);
 		context->fonts.selector_by_identifier[identifier]
 		    = (uint16_t)selector;
 	}
@@ -415,18 +416,42 @@ custom_font_slot(uint32_t width, uint32_t height,
 }
 
 bool
+st_wren_font_metadata(struct st_wren_context *context, uint16_t selector,
+	uint16_t *identifier, enum st_codepage *codepage)
+{
+	if (selector > UINT8_MAX)
+		return false;
+	if (context->cterm != NULL)
+		return st_cterm_font_info(context->cterm, (uint8_t)selector,
+		    identifier, codepage);
+	if (!context->fonts.catalog_valid[selector])
+		return false;
+	*identifier = context->fonts.catalog[selector];
+	*codepage = context->fonts.codepages[selector];
+	return true;
+}
+
+bool
 st_wren_font_identifier(struct st_wren_context *context, uint16_t selector,
 	uint16_t *identifier)
 {
-	if (selector > UINT8_MAX || !context->fonts.catalog_valid[selector])
-		return false;
-	*identifier = context->fonts.catalog[selector];
-	return true;
+	enum st_codepage codepage;
+
+	return st_wren_font_metadata(context, selector, identifier, &codepage);
 }
 
 uint16_t
 st_wren_font_selector(struct st_wren_context *context, uint16_t identifier)
 {
+	if (context->cterm != NULL) {
+		for (size_t i = 0; i <= UINT8_MAX; ++i) {
+			uint16_t actual;
+			enum st_codepage codepage;
+			if (st_cterm_font_info(context->cterm, (uint8_t)i, &actual, &codepage)
+			    && actual == identifier)
+				return (uint16_t)i;
+		}
+	}
 	return context->fonts.selector_by_identifier[identifier];
 }
 
@@ -475,6 +500,7 @@ prepare_custom_fonts(struct st_wren_context *context,
 		prepared->catalog_valid[selector] = i < count && available[i];
 		if (i < count && available[i]) {
 			prepared->catalog[selector] = identifiers[i];
+			prepared->codepages[selector] = ST_CODEPAGE_CP437;
 			prepared->selector_by_identifier[identifiers[i]] = selector;
 		}
 	}
@@ -504,6 +530,24 @@ st_wren_context_load_fonts(struct st_wren_context *context)
 
 	if (context == NULL || context->console == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
+	if (context->cterm != NULL) {
+		/* Keep script-output assignments independent; import the terminal's
+		 * actual registrations rather than registering another CP437 copy. */
+		memset(context->fonts.catalog_valid, 0, sizeof(context->fonts.catalog_valid));
+		context->fonts.loaded_count = st_settings_font_count();
+		for (size_t i = 0; i <= UINT8_MAX; ++i) {
+			uint16_t identifier;
+			enum st_codepage codepage;
+			if (!st_cterm_font_info(context->cterm, (uint8_t)i, &identifier, &codepage))
+				continue;
+			context->fonts.catalog[i] = identifier;
+			context->fonts.catalog_valid[i] = true;
+			context->fonts.codepages[i] = codepage;
+			context->fonts.selector_by_identifier[identifier] = (uint16_t)i;
+		}
+		return 0;
+	}
+
 	memset(&context->fonts, 0, sizeof(context->fonts));
 	status = load_builtin_fonts(context);
 	if (status == 0)

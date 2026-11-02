@@ -154,6 +154,14 @@ if(BUILD_TESTING)
 						PROPERTIES TIMEOUT 90 LABELS "terminal;conformance;rip")
 				endforeach()
 			endforeach()
+			foreach(_encoding CP437 UTF-8)
+				add_test(NAME syncterm_font_assignments_${_encoding}
+					COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_font_assignments_test.py
+						$<TARGET_FILE:syncterm_app> ${_encoding}
+						--reports ${CMAKE_BINARY_DIR}/reports/test-control)
+				set_tests_properties(syncterm_font_assignments_${_encoding}
+					PROPERTIES TIMEOUT 90 LABELS "terminal;conformance;font")
+			endforeach()
 			foreach(_group movement editing margins attributes queries extensions keyboard recovery)
 				foreach(_encoding CP437 UTF-8)
 					add_test(NAME syncterm_conformance_${_group}_${_encoding}

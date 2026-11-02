@@ -11,6 +11,11 @@ int st_font_catalog_load_custom(st_font_catalog_t *catalog, uint8_t selector,
     const char *path);
 int st_font_catalog_register_custom(st_console_t *console, const char *path,
     uint16_t *identifier);
+int st_font_catalog_load_custom_codepage(st_font_catalog_t *catalog,
+    uint8_t selector, const char *path, enum st_codepage codepage);
+int st_font_catalog_register_custom_codepage(st_console_t *console,
+    const char *path, enum st_codepage codepage, uint16_t *identifier,
+    struct st_font_load_error *error);
 bool st_font_catalog_identifier(const st_font_catalog_t *catalog,
     uint8_t selector, uint16_t *identifier);
 bool st_font_catalog_selector(const st_font_catalog_t *catalog,
@@ -42,6 +47,13 @@ selector and returns zero; on failure its old mapping is unchanged.
 Writes the console-owned identifier only on success.  This is for hosts which
 own their own selector table.
 
+| st_font_catalog_load_custom_codepage / register_custom_codepage
+| Explicit mapping variants. The register function optionally reports failure
+origin (`FILE`, `BITMAP`, `CODEPAGE`, or `REGISTRATION`), portable status and
+captured errno through `st_font_load_error`. File failures retain the actual
+filesystem reason; bitmap/mapping failures are distinct. No selector/identifier
+is published on failure. Font data is copied and owned by the console.
+
 | st_font_catalog_identifier(catalog, selector, identifier)
 | Returns true and writes the identifier when the selector is registered;
 otherwise returns false and leaves output unspecified.
@@ -50,8 +62,8 @@ otherwise returns false and leaves output unspecified.
 | Reverse lookup.  Returns true only for the catalog's current mapping.
 
 | st_font_catalog_codepage(catalog, selector)
-| Returns the built-in selector's semantic codepage; selectors 46 and above
-use CP437.  This query does not assert that the selector is registered.
+| Returns the actual registered mapping, including custom codepages. Returns
+`ST_CODEPAGE_COUNT` for an unavailable selector or NULL catalog.
 
 | st_font_catalog_console(catalog)
 | Returns the borrowed console, or NULL for a NULL catalog.

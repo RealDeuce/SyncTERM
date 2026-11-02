@@ -70,3 +70,96 @@ finding open for writer-option, mutation-result and encrypted-stream questions.
 Every subsequent chunk requires a new actual Plan-mode phase and approval.
 Delete this temporary document and temporary burndown skill only after the
 whole burndown is complete.
+
+== Approved chunk 2: custom fonts (revision 1)
+
+Approval: the complete Plan-mode plan was approved with "Implement the plan."
+Implementation began in Default mode on 2026-11-02.
+Phase: chunk complete; next chunk requires a new Plan-mode planning phase.
+Findings: `font-codepage` / `fonts.codepage-loading`, `font-load-result` /
+`cterm.font-result`, and the terminal assignment interface identified in planning.
+
+=== Approved contract and decisions
+
+Keep Font.load(file), add Font.load(file, codepage), and return an allocated
+selector or FileError/FontError. The one-argument default is CTerm.codepage at
+call time, including its UTF-8 fallback; Screen.font does not determine it.
+Require an actual readable File grant in the calling VM and an active terminal
+with font loading support. Loading changes no assignments or settings, consumes
+no grant, and leaves the File stream position unchanged.
+
+Add Font.codepageFor(selector). Existing codepageOf(i) describes Screen.font[i]
+and codepage describes its slot zero. Report actual mappings, null for unavailable
+bitmaps; Codepage.encodes_ returns false for unavailable mappings.
+
+Replace altFonts and altFont with live CTerm.font[0..3] reads/writes, in normal,
+bright, blink, bright-plus-blink order. Add CTerm.setFont(selector, mask) and
+CTermFontMask normal=1, bright=2, blink=4, brightBlink=8, all=15. Validate the
+whole mask before updating exactly those assignments together; zero is invalid.
+Keep this connected-only and independent of Screen.font's existing five slots.
+Remove old declarations/dispatch without aliases. Migrate bundled callers.
+The picker retains load-only registration; selecting an existing font changes
+only the normal terminal assignment. Direct scripts can select loaded fonts.
+
+File access/read errors use FileError with accurate portable/native reasons.
+Expired read authority uses permissionDenied. Font-specific failures use new
+FontError (code, nativeCode, message, toString), with FontErr unavailable=1,
+invalidBitmap=2, unsupportedCodepage=3, noSlots=4, notLoaded=5, nativeFailure=6.
+Underlying portable native status is retained, or zero for host policy failures.
+Programmer errors (types, inexact/out-of-range numbers, invalid enums/indices/
+masks) abort the calling Fiber. setFont returns null/FontError; indexed writes
+raise that FontError using ordinary Fiber abort so assignment cannot discard it.
+Failed loads publish no entry; failed selections leave all assignments unchanged.
+Finish pending terminal output before selection. Existing cells retain fonts.
+
+Record actual mappings in native catalogs. Add copied terminal metadata access
+and explicit-codepage registration. Connected contexts use actual terminal
+registrations/identifiers, including shared menu consoles, instead of CP437
+copies. Menu/picker configured fonts retain their CP437 policy. Preserve
+configured slots and skip occupied remote font selectors. Track mapping metadata
+with remote variants and restore it with the registration, retaining existing
+geometry/download/reset policy. Native assignment changes use one validated mask
+operation. Carry failure origin rather than guessing from codes or stale errno.
+Consoles own font copies; no borrowed rasters or new script resource owners.
+Raw bitmap bytes, normalized host text and standard Wren semantics are preserved.
+
+General font construction, compatibility bits and general codepage conversion
+remain separate findings.
+
+=== Acceptance and completion
+
+Establish regressions first: CP437/CP1251, default/explicit mappings, shared and
+separate consoles, configured fonts, unavailable selectors, failure preservation,
+returned selectors, both error families, malformed bitmaps, invalid arguments,
+stale/foreign grants, missing capabilities/mappings, and selector exhaustion.
+Verify independent assignments and combined masks, atomic failure, removed APIs,
+picker cancellation and direct scripted selection. Verify remote variants and
+retained cells with independent glyph patterns and coherent control-bitmap
+captures for CP437 and UTF-8. Update terminal conformance records.
+
+Use CMake builds and font_catalog, cterm, cterm_text, relevant Wren host/menu/
+settings/picker tests, and extension conformance in both encodings. Run focused
+ASan/UBSan, GCC/Clang builds and MinGW64 cross-compilation; do not claim Windows
+execution. Update authoritative docs, inventory, assessments, reviewed evidence
+and follow-up records. Run coverage/diff checks and commit the verified chunk.
+Close only the selected findings after acceptance. Keep this temporary document
+and skill while the broader burndown remains open.
+
+=== Completed verification
+
+Native Clang Debug passed font_catalog, cterm, cterm_text, wren_host,
+wren_menu_contract, wren_settings_runtime and wren_picker_contract; both
+syncterm_font_assignments and conformance_extensions encodings passed.
+The follow-up review passed cterm_rip_engine and both RIP wire conformance
+encodings. The application was built through CMake.
+
+GCC Debug and Clang ASan/UBSan passed font_catalog, cterm, wren_host and
+wren_menu_contract. ASan leak detection is unsupported on FreeBSD and disabled;
+C++ vptr checks were disabled for C-owned executables. MinGW64 Debug built the
+application and focused native/host tests; no Windows execution was performed.
+No compiler warnings were introduced.
+
+Coverage/diff checks pass: 80 public headers, 119 explicit exclusions, 2,447
+native items and 153 assessments. The two selected findings are resolved;
+remaining topics retain their own scope/verification gates. The temporary
+planning document and skill remain until the full burndown is complete.

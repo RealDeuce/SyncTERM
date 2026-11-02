@@ -75,9 +75,12 @@ struct cterm_render_state {
 	struct st_console_font_selection fonts;
 	uint16_t font_identifiers[UINT8_MAX + 1U];
 	bool font_valid[UINT8_MAX + 1U];
+	enum st_codepage font_codepages[UINT8_MAX + 1U];
 	struct {
 		uint16_t identifiers[4];
 		uint16_t original;
+		enum st_codepage codepages[4];
+		enum st_codepage original_codepage;
 		uint8_t present;
 		bool original_valid;
 	} remote_fonts[UINT8_MAX + 1U];

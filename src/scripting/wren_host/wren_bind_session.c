@@ -814,46 +814,58 @@ cterm_number_list(WrenVM *vm, const double *values, size_t count)
 	}
 }
 
-static void
-fn_cterm_alt_fonts(WrenVM *vm)
+static bool
+font_integer(WrenVM *vm, int slot, int64_t maximum, int64_t *value)
 {
-	struct st_cterm_state state = cterm_state(vm);
-	double values[4];
-
-	for (size_t i = 0; i < 4; ++i)
-		values[i] = state.alt_fonts[i];
-	cterm_number_list(vm, values, 4);
+	if (!st_wren_number_i64(vm, slot, value) || *value < 0 || *value > maximum) {
+		st_wren_abort(vm, "expected an exact font integer in range");
+		return false;
+	}
+	return true;
 }
 
 static void
-fn_cterm_alt_font(WrenVM *vm)
-{
-	struct st_cterm_state state = cterm_state(vm);
-
-	wrenSetSlotDouble(vm, 0, state.alt_fonts[0]);
-}
-
-static void
-fn_cterm_alt_font_set(WrenVM *vm)
+set_terminal_fonts(WrenVM *vm, uint8_t selector, unsigned mask)
 {
 	struct st_wren_context *context = st_wren_context_from_vm(vm);
-	double value;
 	uint32_t capabilities = 0;
-
-	if (wrenGetSlotType(vm, 1) != WREN_TYPE_NUM) {
-		st_wren_abort(vm, "CTerm.altFont expects a font selector");
+	int status = st_console_capabilities(context->console, &capabilities);
+	if (context->cterm == NULL || status != 0
+	    || (capabilities & ST_CONSOLE_CAP_LOADABLE_FONTS) == 0) {
+		st_wren_push_font_error(vm, ST_WREN_FONT_UNAVAILABLE, status, "Font selection is unavailable");
 		return;
 	}
-	value = wrenGetSlotDouble(vm, 1);
-	if (st_console_capabilities(context->console, &capabilities) != 0
-	    || !isfinite(value) || value < 0 || value > UINT8_MAX
-	    || value != floor(value)
-	    || (capabilities & ST_CONSOLE_CAP_LOADABLE_FONTS) == 0
-	    || st_cterm_set_alt_font(context->cterm, (uint8_t)value) != 0) {
-		st_wren_abort(vm, "CTerm.altFont is unavailable for this font or console");
+	status = st_cterm_set_fonts(context->cterm, selector, mask);
+	if (status != 0)
+		st_wren_push_font_error(vm, status == IO_ERROR_NOT_FOUND
+		    ? ST_WREN_FONT_NOT_LOADED : ST_WREN_FONT_NATIVE_FAILURE,
+		    status, "Terminal font assignment failed");
+	else wrenSetSlotNull(vm, 0);
+}
+static void fn_cterm_font_get(WrenVM *vm)
+{
+	int64_t slot;
+	if (!font_integer(vm, 1, 3, &slot)) return;
+	struct st_cterm_state state = cterm_state(vm);
+	wrenSetSlotDouble(vm, 0, state.alt_fonts[slot]);
+}
+static void fn_cterm_font_set(WrenVM *vm)
+{
+	int64_t slot, selector;
+	if (!font_integer(vm, 1, 3, &slot) || !font_integer(vm, 2, UINT8_MAX, &selector)) return;
+	set_terminal_fonts(vm, (uint8_t)selector, 1U << slot);
+	if (wrenGetSlotType(vm, 0) != WREN_TYPE_NULL) wrenAbortFiber(vm, 0);
+	else wrenSetSlotDouble(vm, 0, (double)selector);
+}
+static void fn_cterm_set_font(WrenVM *vm)
+{
+	int64_t selector, mask;
+	if (!font_integer(vm, 1, UINT8_MAX, &selector) || !font_integer(vm, 2, 15, &mask)) return;
+	if (mask == 0) {
+		st_wren_abort(vm, "font assignment mask must not be zero");
 		return;
 	}
-	wrenSetSlotNull(vm, 0);
+	set_terminal_fonts(vm, (uint8_t)selector, (unsigned)mask);
 }
 
 static void
@@ -1319,9 +1331,9 @@ static const struct session_binding bindings[] = {
 	{"CTerm", "hasPaletteOverride", fn_cterm_has_palette_override},
 	{"CTerm", "paletteOverride", fn_cterm_palette_override},
 	{"CTerm", "fontSlot", fn_cterm_font_slot},
-	{"CTerm", "altFonts", fn_cterm_alt_fonts},
-	{"CTerm", "altFont", fn_cterm_alt_font},
-	{"CTerm", "altFont=(_)", fn_cterm_alt_font_set},
+	{"CTermFonts", "[_]", fn_cterm_font_get},
+	{"CTermFonts", "[_]=(_)", fn_cterm_font_set},
+	{"CTerm", "setFont(_,_)", fn_cterm_set_font},
 	{"CTerm", "scrollbackLines", fn_cterm_scrollback_lines},
 	{"CTerm", "scrollbackWidth", fn_cterm_scrollback_width},
 	{"CTerm", "scrollbackPos", fn_cterm_scrollback_pos},

@@ -13,6 +13,7 @@
 #include "st_presentation_font.h"
 #include "st_unicode_fonts.h"
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -21,6 +22,7 @@ struct st_font_catalog {
 	st_console_t *console;
 	uint16_t identifiers[ST_FONT_CATALOG_SELECTOR_COUNT];
 	bool valid[ST_FONT_CATALOG_SELECTOR_COUNT];
+	enum st_codepage codepages[ST_FONT_CATALOG_SELECTOR_COUNT];
 	uint8_t selector_by_identifier[UINT16_MAX + 1U];
 	bool identifier_valid[UINT16_MAX + 1U];
 };
@@ -68,6 +70,7 @@ st_font_catalog_create(st_font_catalog_t **result, st_console_t *console)
 		}
 		catalog->identifiers[selector] = identifier;
 		catalog->valid[selector] = true;
+		catalog->codepages[selector] = st_builtin_font_codepage(selector);
 		catalog->selector_by_identifier[identifier] = (uint8_t)selector;
 		catalog->identifier_valid[identifier] = true;
 	}
@@ -114,60 +117,86 @@ st_font_catalog_register_custom(st_console_t *console, const char *path,
 	uint16_t *identifier)
 {
 	return st_font_catalog_register_custom_codepage(console, path,
-	    ST_CODEPAGE_CP437, identifier);
+	    ST_CODEPAGE_CP437, identifier, NULL);
+}
+
+static int
+load_failure(struct st_font_load_error *error, enum st_font_load_failure failure,
+	int status, int native_error)
+{
+	if (error != NULL)
+		*error = (struct st_font_load_error){failure, status, native_error};
+	return status;
 }
 
 int
 st_font_catalog_register_custom_codepage(st_console_t *console,
-	const char *path, enum st_codepage codepage, uint16_t *identifier)
+	const char *path, enum st_codepage codepage, uint16_t *identifier,
+	struct st_font_load_error *error)
 {
-	struct st_console_font font;
-	struct st_console_font template;
+	struct st_console_font font, template;
 	uint8_t *bitmap;
 	FILE *stream;
-	uint32_t width;
-	uint32_t height;
-	size_t row_stride;
-	size_t glyph_stride;
-	size_t size;
-	int status;
+	uint32_t width, height;
+	size_t row_stride, glyph_stride, size;
+	int status, native_error;
+	int64_t file_size;
 
+	if (error != NULL)
+		*error = (struct st_font_load_error){0};
 	if (console == NULL || path == NULL || identifier == NULL
-	    || codepage < ST_CODEPAGE_CP437 || codepage >= ST_CODEPAGE_COUNT
-	    || st_console_cell_pixel_size(console, &width, &height) != 0)
-		return IO_ERROR_INVALID_ARGUMENT;
+	    || codepage < ST_CODEPAGE_CP437 || codepage >= ST_CODEPAGE_COUNT)
+		return load_failure(error, ST_FONT_LOAD_REGISTRATION,
+		    IO_ERROR_INVALID_ARGUMENT, 0);
+	status = st_console_cell_pixel_size(console, &width, &height);
+	if (status != 0)
+		return load_failure(error, ST_FONT_LOAD_REGISTRATION, status, 0);
 	row_stride = ((size_t)width + 7) / 8;
-	if (height != 0 && row_stride > SIZE_MAX / height)
-		return IO_ERROR_OUT_OF_RANGE;
+	if (height == 0 || row_stride == 0 || row_stride > SIZE_MAX / height)
+		return load_failure(error, ST_FONT_LOAD_BITMAP, IO_ERROR_OUT_OF_RANGE, 0);
 	glyph_stride = row_stride * height;
 	if (glyph_stride > SIZE_MAX / 256)
-		return IO_ERROR_OUT_OF_RANGE;
+		return load_failure(error, ST_FONT_LOAD_BITMAP, IO_ERROR_OUT_OF_RANGE, 0);
 	size = glyph_stride * 256;
-	if (fs_open(&stream, path, "rb") < 0)
-		return IO_ERROR_NOT_FOUND;
-	if (fs_stream_size(stream) != (int64_t)size) {
+	errno = 0;
+	status = fs_open(&stream, path, "rb");
+	native_error = errno;
+	if (status != 0)
+		return load_failure(error, ST_FONT_LOAD_FILE, status, native_error);
+	errno = 0;
+	file_size = fs_stream_size(stream);
+	native_error = errno;
+	if (file_size < 0) {
 		(void)fclose(stream);
-		return IO_ERROR_INVALID_ENCODING;
+		return load_failure(error, ST_FONT_LOAD_FILE, (int)file_size, native_error);
+	}
+	if ((uint64_t)file_size != size) {
+		(void)fclose(stream);
+		return load_failure(error, ST_FONT_LOAD_BITMAP, IO_ERROR_INVALID_ENCODING, 0);
 	}
 	bitmap = malloc(size);
 	if (bitmap == NULL) {
 		(void)fclose(stream);
-		return IO_ERROR_OUT_OF_MEMORY;
+		return load_failure(error, ST_FONT_LOAD_REGISTRATION, IO_ERROR_OUT_OF_MEMORY, 0);
 	}
+	errno = 0;
 	if (fread(bitmap, 1, size, stream) != size) {
+		native_error = errno;
 		free(bitmap);
 		(void)fclose(stream);
-		return IO_ERROR_IO;
+		return load_failure(error, ST_FONT_LOAD_FILE, IO_ERROR_IO, native_error);
 	}
-	(void)fclose(stream);
+	errno = 0;
+	status = fclose(stream);
+	native_error = errno;
+	if (status != 0) {
+		free(bitmap);
+		return load_failure(error, ST_FONT_LOAD_FILE,
+		    native_error == 0 ? IO_ERROR_IO : io_error_from_errno(native_error), native_error);
+	}
 	font = (struct st_console_font){
-		.bitmap = bitmap,
-		.bitmap_size = size,
-		.width = width,
-		.height = height,
-		.glyph_count = 256,
-		.row_stride = row_stride,
-		.glyph_stride = glyph_stride,
+		.bitmap = bitmap, .bitmap_size = size, .width = width, .height = height,
+		.glyph_count = 256, .row_stride = row_stride, .glyph_stride = glyph_stride,
 	};
 	for (size_t i = 0; i < st_builtin_font_count(); ++i) {
 		if (st_builtin_font_codepage(i) != codepage
@@ -182,11 +211,11 @@ st_font_catalog_register_custom_codepage(st_console_t *console,
 	}
 	if (font.mapping == NULL) {
 		free(bitmap);
-		return IO_ERROR_NOT_SUPPORTED;
+		return load_failure(error, ST_FONT_LOAD_CODEPAGE, IO_ERROR_NOT_SUPPORTED, 0);
 	}
 	status = st_console_register_font_copy(console, &font, identifier);
 	free(bitmap);
-	return status;
+	return status == 0 ? 0 : load_failure(error, ST_FONT_LOAD_REGISTRATION, status, 0);
 }
 
 int
@@ -207,13 +236,14 @@ st_font_catalog_load_custom_codepage(st_font_catalog_t *catalog,
 	if (catalog == NULL || selector < ST_FONT_CATALOG_FIRST_CUSTOM)
 		return IO_ERROR_INVALID_ARGUMENT;
 	status = st_font_catalog_register_custom_codepage(catalog->console,
-	    path, codepage, &identifier);
+	    path, codepage, &identifier, NULL);
 	if (status != 0)
 		return status;
 	if (catalog->valid[selector])
 		catalog->identifier_valid[catalog->identifiers[selector]] = false;
 	catalog->identifiers[selector] = identifier;
 	catalog->valid[selector] = true;
+	catalog->codepages[selector] = codepage;
 	catalog->selector_by_identifier[identifier] = selector;
 	catalog->identifier_valid[identifier] = true;
 	return 0;
@@ -243,10 +273,8 @@ st_font_catalog_selector(const st_font_catalog_t *catalog,
 enum st_codepage
 st_font_catalog_codepage(const st_font_catalog_t *catalog, uint8_t selector)
 {
-	(void)catalog;
-	if (selector >= ST_FONT_CATALOG_FIRST_CUSTOM)
-		return ST_CODEPAGE_CP437;
-	return st_builtin_font_codepage(selector);
+	return catalog != NULL && catalog->valid[selector]
+	    ? catalog->codepages[selector] : ST_CODEPAGE_COUNT;
 }
 
 st_console_t *

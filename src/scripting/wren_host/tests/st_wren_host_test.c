@@ -3504,6 +3504,179 @@ exercise_match_stream(st_wren_connected_t *connected, st_cterm_t *cterm,
 }
 
 static int
+exercise_font_api(st_wren_host_t *public_host, st_console_t *shared_console,
+	const struct st_profile *profile)
+{
+	struct st_wren_host *host = public_host;
+	const char path[] = ST_WREN_TEST_DIRECTORY "/font-api.f16";
+	uint8_t bitmap[4096] = {0};
+	/* Independent glyph patterns for later lookup/render assertions. */
+	bitmap[0xc0 * 16] = 0x80;
+	bitmap['A' * 16] = 0x40;
+	for (unsigned shared = 0; shared < 2; ++shared) {
+		st_console_t *console = shared_console;
+		st_font_catalog_t *catalog = NULL;
+		st_cterm_t *terminal = NULL;
+		st_wren_connected_t *connected = NULL;
+		struct st_profile session;
+		const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+		const struct st_console_config geometry = {.columns = 80, .rows = 25, .cell_width = 8, .cell_height = 16};
+		if (!shared) CHECK(st_console_create(&console, &display, &geometry) == 0);
+		FILE *stream = fopen(path, "wb");
+		CHECK(stream != NULL && fwrite(bitmap, 1, sizeof(bitmap), stream) == sizeof(bitmap));
+		CHECK(fclose(stream) == 0);
+		CHECK(st_font_catalog_create(&catalog, console) == 0);
+		CHECK(st_font_catalog_load_custom_codepage(catalog, 46, path, ST_CODEPAGE_CP1251) == 0);
+		const struct st_cterm_config config = {
+			.console = console, .fonts = catalog, .emulation = ST_CTERM_ANSI_BBS,
+			.encoding = ST_CTERM_ENCODING_UTF8, .codepage = ST_CODEPAGE_CP437,
+			.font_selector = 0, .quiet = true,
+		};
+		CHECK(st_cterm_create(&terminal, &config) == 0);
+		st_profile_init(&session);
+		CHECK(st_profile_copy(&session, profile));
+		free(session.download_directory);
+		session.download_directory = strdup(ST_WREN_TEST_DIRECTORY);
+		CHECK(session.download_directory != NULL);
+		const struct st_wren_connected_config connected_config = {
+			.host = host, .console = console, .profile = &session, .cterm = terminal,
+		};
+		CHECK(st_wren_connected_create(&connected, &connected_config) == 0);
+		CHECK(st_wren_connected_interpret(connected, "font_api_setup",
+		    "import \"syncterm\" for Font, Codepage, Screen, CTerm, Download, Error, FontError, FontErr, FileError, FileErr, CTermFontMask\n"
+		    "class FontProbe {\n"
+		    "  static check(ok) {\n"
+		    "    if (!ok) Fiber.abort(\"font API contract\")\n"
+		    "  }\n"
+		    "  static bad(fn) {\n"
+		    "    var f = Fiber.new(fn)\n"
+		    "    f.try()\n"
+		    "    check(f.error != null)\n"
+		    "  }\n"
+		    "}\n"
+		    "var file = Download.list[\"font-api.f16\"]\n"
+		    "FontProbe.check(file != null)\n"
+		    "FontProbe.check(Font.codepageFor(46) == Codepage.cp1251)\n"
+		    "Screen.font[0] = 46\n"
+		    "FontProbe.check(Font.codepage == Codepage.cp1251 && Codepage.encodes_(\"А\"))\n"
+		    "var old = (0...4).map {|i| CTerm.font[i] }.toList\n"
+		    "FontProbe.check(file.open() == null)\n"
+		    "file.offset = 17\n"
+		    "var selector = Font.load(file)\n"
+		    "FontProbe.check(selector is Num && file.isOpen && file.offset == 17)\n"
+		    "file.close()\n"
+		    "FontProbe.check(Font.codepageFor(selector) == Codepage.cp437)\n"
+		    "for (i in 0...4) FontProbe.check(CTerm.font[i] == old[i])\n"
+		    "var explicit = Font.load(file, Codepage.cp1251)\n"
+		    "FontProbe.check(explicit is Num)\n"
+		    "FontProbe.check(Font.available(explicit) && Font.name(explicit) != \"\" && Font.count > explicit)\n"
+		    "FontProbe.check(Font.codepageFor(explicit) == Codepage.cp1251)\n"
+		    "FontProbe.check(CTerm.setFont(explicit, CTermFontMask.bright | CTermFontMask.blink) == null)\n"
+		    "FontProbe.check(CTerm.font[0] == old[0] && CTerm.font[1] == explicit && CTerm.font[2] == explicit && CTerm.font[3] == old[3])\n"
+		    "CTerm.font[3] = selector\n"
+		    "FontProbe.check(CTerm.font[3] == selector && CTerm.font[0] == old[0])\n"
+		    "FontProbe.check(CTerm.setFont(explicit, CTermFontMask.all) == null)\n"
+		    "for (i in 0...4) FontProbe.check(CTerm.font[i] == explicit)\n"
+		    "var missing = CTerm.setFont(249, CTermFontMask.all)\n"
+		    "FontProbe.check(missing is FontError && missing.code == FontErr.notLoaded && missing.nativeCode < 0)\n"
+		    "var f = Fiber.new { CTerm.font[0] = 249 }\n"
+		    "f.try()\n"
+		    "FontProbe.check(f.error is FontError)\n"
+		    "for (i in 0...4) FontProbe.check(CTerm.font[i] == explicit)\n"
+		    "\n") == 0);
+		CHECK(st_wren_connected_interpret(connected, "font_api_invalid",
+		    "import \"font_api_setup\" for file, selector, explicit, old, FontProbe\n"
+		    "import \"syncterm\" for Font, Codepage, Screen, CTerm\n"
+		    "FontProbe.bad(Fn.new { CTerm.altFonts })\n"
+		    "FontProbe.bad(Fn.new { CTerm.altFont })\n"
+		    "FontProbe.bad(Fn.new { CTerm.altFont = 0 })\n"
+		    "for (mask in [0, 16, -1, 0.5, \"1\", 9007199254740992]) FontProbe.bad(Fn.new { CTerm.setFont(selector, mask) })\n"
+		    "for (index in [-1, 4, 0.5, null]) FontProbe.bad(Fn.new { CTerm.font[index] })\n"
+		    "for (value in [-1, 256, 0.5, null]) FontProbe.bad(Fn.new { CTerm.font[0] = value })\n"
+		    "for (value in [-1, 29, 0.5, null]) FontProbe.bad(Fn.new { Font.load(file, value) })\n"
+		    "FontProbe.bad(Fn.new { Font.load(\"unapproved path\") })\n"
+		    "FontProbe.check(Font.codepageFor(249) == null)\n"
+		    "Screen.font[0] = 249\n"
+		    "FontProbe.check(Font.codepage == null && !Codepage.encodes_(\"A\"))\n"
+		    "Screen.font[0] = 0\n"
+		    "for (i in 0...4) CTerm.font[i] = old[i]\n") == 0);
+		CHECK(st_cterm_set_encoding(terminal, ST_CTERM_ENCODING_UTF8, ST_CODEPAGE_CP1251) == 0);
+		CHECK(st_wren_connected_interpret(connected, "font_api_default_change",
+		    "import \"font_api_setup\" for file, FontProbe\n"
+		    "import \"syncterm\" for Font, Codepage, FontError, FontErr\n"
+		    "var selector = Font.load(file)\n"
+		    "FontProbe.check(selector is Num && Font.codepageFor(selector) == Codepage.cp1251)\n"
+		    "var unsupported = Font.load(file, Codepage.cp1251_b)\n"
+		    "FontProbe.check(unsupported is FontError && unsupported.code == FontErr.unsupportedCodepage)\n") == 0);
+		/* Malformed bitmap and deleted pathname preserve already-loaded data. */
+		CHECK(write_file(path, "bad") == 0);
+		CHECK(st_wren_connected_interpret(connected, "font_api_bitmap_error",
+		    "import \"font_api_setup\" for file, FontProbe\n"
+		    "import \"syncterm\" for Font, FontError, FontErr, Error\n"
+		    "var before = Font.count\n"
+		    "var result = Font.load(file)\n"
+		    "FontProbe.check(result is FontError && result is Error && result.code == FontErr.invalidBitmap && result.nativeCode < 0 && result.toString.startsWith(\"FontError\"))\n"
+		    "FontProbe.check(Font.count == before)\n") == 0);
+		CHECK(fs_remove_file(path) == 0);
+		CHECK(st_wren_connected_interpret(connected, "font_api_file_error",
+		    "import \"font_api_setup\" for file, FontProbe\n"
+		    "import \"syncterm\" for Font, FileError, FileErr\n"
+		    "var result = Font.load(file)\n"
+		    "FontProbe.check(result is FileError && result.code == FileErr.notFound)\n") == 0);
+		stream = fopen(path, "wb");
+		CHECK(stream != NULL && fwrite(bitmap, 1, sizeof(bitmap), stream) == sizeof(bitmap));
+		CHECK(fclose(stream) == 0);
+		CHECK(st_wren_connected_interpret(connected, "font_api_capacity",
+		    "import \"font_api_setup\" for file, FontProbe\n"
+		    "import \"syncterm\" for Font, FontError, FontErr\n"
+		    "var result = null\n"
+		    "for (i in 0...256) {\n"
+		    "  result = Font.load(file)\n"
+		    "  if (result is FontError) break\n"
+		    "}\n"
+		    "FontProbe.check(result is FontError && result.code == FontErr.noSlots && result.nativeCode == 0)\n") == 0);
+		st_wren_connected_destroy(connected);
+		st_cterm_destroy(&terminal);
+		st_font_catalog_destroy(catalog);
+		st_profile_dispose(&session);
+		if (!shared) st_console_destroy(console);
+	}
+	/* A grant is rooted in its original VM while the fixture changes that
+	 * VM's current context: this must produce a permission failure, not I/O. */
+	CHECK(wrenInterpret(host->vm, "font_grant_owner",
+	    "import \"syncterm\" for Font, FontError, FontErr, FileError, FileErr\n"
+	    "class GrantProbe {\n"
+	    "  static check(file, permission) {\n"
+	    "    var result = Font.load(file)\n"
+	    "    if (permission) {\n"
+	    "      if (!(result is FileError) || result.code != FileErr.permissionDenied) Fiber.abort(\"font grant authority\")\n"
+	    "    } else {\n"
+	    "      if (!(result is FontError) || result.code != FontErr.unavailable) Fiber.abort(\"font without terminal\")\n"
+	    "    }\n"
+	    "  }\n"
+	    "}\n") == WREN_RESULT_SUCCESS);
+	wrenEnsureSlots(host->vm, 3);
+	CHECK(st_wren_file_push(host->vm, 1, path, ST_WREN_PICKER_DISPOSITION_READ, true));
+	WrenHandle *grant = wrenGetSlotHandle(host->vm, 1);
+	WrenHandle *call = wrenMakeCallHandle(host->vm, "check(_,_)");
+	CHECK(call != NULL);
+	for (unsigned permission = 0; permission < 2; ++permission) {
+		wrenEnsureSlots(host->vm, 3);
+		wrenGetVariable(host->vm, "font_grant_owner", "GrantProbe", 0);
+		wrenSetSlotHandle(host->vm, 1, grant);
+		wrenSetSlotBool(host->vm, 2, permission != 0);
+		wrenSetUserData(host->vm, permission ? &host->picker : &host->menu);
+		WrenInterpretResult result = wrenCall(host->vm, call);
+		wrenSetUserData(host->vm, &host->menu);
+		CHECK(result == WREN_RESULT_SUCCESS);
+	}
+	wrenReleaseHandle(host->vm, call);
+	wrenReleaseHandle(host->vm, grant);
+	CHECK(fs_remove_file(path) == 0);
+	return 0;
+}
+
+static int
 exercise_connected_scrollback(st_wren_host_t *host,
 	st_console_t *console, struct st_profile *profile)
 {
@@ -3605,25 +3778,27 @@ exercise_connected_scrollback(st_wren_host_t *host,
 	    "import \"syncterm\" for CTerm, Font, ScreenSupports\n"
 	    "import \"font_grant\" for FontGrant\n"
 	    "if (ScreenSupports.fontSelection) {\n"
-	    "  if (FontGrant.file == null || !Font.load(FontGrant.file)) Fiber.abort(\"font load\")\n"
-	    "  var selector = Font.count - 1\n"
+	    "  var selector = Font.load(FontGrant.file)\n"
+	    "  if (!(selector is Num)) Fiber.abort(\"font load\")\n"
 	    "  if (!Font.available(selector) || Font.name(selector) == \"\") Fiber.abort(\"loaded font listing\")\n"
-	    "  CTerm.altFont = selector\n"
-	    "  if (CTerm.altFont != selector) Fiber.abort(\"loaded font select\")\n"
-	    "  CTerm.altFont = 0\n"
+	    "  CTerm.font[0] = selector\n"
+	    "  if (CTerm.font[0] != selector) Fiber.abort(\"loaded font select\")\n"
+	    "  CTerm.font[0] = 0\n"
 	    "}\n") == 0);
 	CHECK(st_wren_connected_interpret(connected, "cterm_state_view",
 	    "import \"syncterm\" for CTerm, Font, ScreenSupports\n"
 	    "if (CTerm.x < 1 || CTerm.y < 1 || CTerm.width < 1 || CTerm.height < 1) Fiber.abort(\"cursor\")\n"
 	    "if (CTerm.topMargin < 1 || CTerm.bottomMargin > CTerm.height || CTerm.leftMargin < 1 || CTerm.rightMargin > CTerm.width) Fiber.abort(\"margins\")\n"
 	    "if (CTerm.attr < 0 || CTerm.fgColor < 0 || CTerm.bgColor < 0) Fiber.abort(\"colors\")\n"
-	    "if (CTerm.altFonts.count != 4 || CTerm.fontSlot < 0 || CTerm.altFont != CTerm.altFonts[0]) Fiber.abort(\"fonts\")\n"
-	    "if (Font.load(\"not a File\")) Fiber.abort(\"font consent\")\n"
+	    "if (CTerm.fontSlot < 0 || CTerm.font[0] < 0) Fiber.abort(\"fonts\")\n"
+	    "var invalidFont = Fiber.new { Font.load(\"not a File\") }\n"
+	    "invalidFont.try()\n"
+	    "if (invalidFont.error == null) Fiber.abort(\"font consent\")\n"
 	    "if (!(Fiber.new { CTerm.saveScreenshot(\"not a File\", true) }.try() is String)) Fiber.abort(\"screenshot consent\")\n"
 	    "if (ScreenSupports.fontSelection) {\n"
-	    "  var before = CTerm.altFont\n"
-	    "  CTerm.altFont = before\n"
-	    "  if (CTerm.altFont != before) Fiber.abort(\"font setter\")\n"
+	    "  var before = CTerm.font[0]\n"
+	    "  CTerm.font[0] = before\n"
+	    "  if (CTerm.font[0] != before) Fiber.abort(\"font setter\")\n"
 	    "}\n"
 	    "if (CTerm.hasPaletteOverride || CTerm.paletteOverride.count != 0) Fiber.abort(\"palette\")\n"
 	    "if (CTerm.scrollbackLines != 2 || CTerm.scrollbackWidth != CTerm.width) Fiber.abort(\"scrollback\")\n"
@@ -7841,7 +8016,8 @@ main(int argc, char **argv)
 		if (argc == 2) CHECK(st_wren_test_live_sftp(host, console,
 		    ST_WREN_TEST_DIRECTORY, argv[1]) == 0);
 #endif
-		CHECK(exercise_connected_scrollback(host, console, &selected) == 0);
+		CHECK(exercise_font_api(host, console, &selected) == 0);
+	CHECK(exercise_connected_scrollback(host, console, &selected) == 0);
 	}
 	st_profile_dispose(&selected);
 	CHECK(wrenInterpret(((struct st_wren_host *)host)->vm,
@@ -7907,6 +8083,38 @@ main(int argc, char **argv)
 	};
 	(void)snprintf(selected.name, sizeof(selected.name), "é一");
 	selected.encoding = ST_PROFILE_ENCODING_UTF8;
+	/* Text backends expose terminal state but cannot load/select bitmaps. */
+	st_font_catalog_t *text_fonts = NULL;
+	st_cterm_t *text_terminal = NULL;
+	st_wren_connected_t *font_text_connected = NULL;
+	CHECK(st_font_catalog_create(&text_fonts, console) == 0);
+	const struct st_cterm_config text_terminal_config = {
+		.console = console, .fonts = text_fonts,
+		.emulation = ST_CTERM_ANSI_BBS, .encoding = ST_CTERM_ENCODING_UTF8,
+		.codepage = ST_CODEPAGE_CP437, .quiet = true,
+	};
+	CHECK(st_cterm_create(&text_terminal, &text_terminal_config) == 0);
+	free(selected.download_directory);
+	selected.download_directory = strdup(ST_WREN_TEST_DIRECTORY);
+	CHECK(selected.download_directory != NULL);
+	struct st_wren_connected_config font_text_config = {
+		.host = host, .console = console, .profile = &selected, .cterm = text_terminal,
+	};
+	CHECK(st_wren_connected_create(&font_text_connected, &font_text_config) == 0);
+	CHECK(st_wren_connected_interpret(font_text_connected, "font_text_capability",
+	    "import \"syncterm\" for Font, FontError, FontErr, Download, CTerm, CTermFontMask\n"
+	    "var file = Download.create(\"font-unavailable.f16\")\n"
+	    "var result = Font.load(file)\n"
+	    "if (!(result is FontError) || result.code != FontErr.unavailable) Fiber.abort(\"text font loading\")\n"
+	    "result = CTerm.setFont(0, CTermFontMask.all)\n"
+	    "if (!(result is FontError) || result.code != FontErr.unavailable) Fiber.abort(\"text font selection\")\n"
+	    "var failed = Fiber.new { CTerm.font[0] = 0 }\n"
+	    "failed.try()\n"
+	    "if (!(failed.error is FontError)) Fiber.abort(\"text font assignment\")\n"
+	    "Download.delete(\"font-unavailable.f16\")\n") == 0);
+	st_wren_connected_destroy(font_text_connected);
+	st_cterm_destroy(&text_terminal);
+	st_font_catalog_destroy(text_fonts);
 	st_wren_connected_t *text_connected = NULL;
 	CHECK(st_wren_connected_create(&text_connected, &text_connected_config) == 0);
 	CHECK(st_wren_connected_render_status(text_connected, true) == 0);
