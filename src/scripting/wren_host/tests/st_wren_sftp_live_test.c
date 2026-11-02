@@ -266,7 +266,7 @@ static int run_case(st_wren_host_t *host, st_console_t *console,
 		    "if (Session.current.holdCount > 0 || !SFTP.available) Fiber.abort(\"key failure leaked activity\")\n") == 0);
 	} else {
 		CHECK(st_wren_connected_interpret(vm, "live_contract",
-		    "import \"syncterm\" for Session, CTerm, SFTP, SFTPError, FileFlag, Host\n"
+		    "import \"syncterm\" for Session, CTerm, SFTP, SFTPError, SFTPStat, FileFlag, Host\n"
 		    "class Live {\n"
 		    "  static done { __done }\n"
 		    "  static run() {\n"
@@ -277,6 +277,8 @@ static int run_case(st_wren_host_t *host, st_console_t *console,
 		    "    var entries = d.readEntries().await()\n"
 		    "    var e = entries[0]\n"
 		    "    if (e.longname != \"Friendly fixture\" || e.toString != e.longname || e.hash.bytes.count != 20 || !e.hasLongDesc) Fiber.abort(\"entry metadata\")\n"
+		    "    var metadata = e.stat\n"
+		    "    if (!(metadata is SFTPStat) || metadata.size != 90000 || metadata.mtime != 1700000123 || metadata.atime != 1700000123 || metadata.mode != 33188 || metadata.uid != 0 || metadata.gid != 0) Fiber.abort(\"entry stat\")\n"
 		    "    d.close().await()\n"
 		    "    var missing = SFTP.stat(\"/absent\").await()\n"
 		    "    if (!(missing is SFTPError) || missing.code != 0 || missing.serverStatus != 2 || !missing.toString.startsWith(\"SFTPError: No Such File\")) Fiber.abort(\"error representation\")\n"

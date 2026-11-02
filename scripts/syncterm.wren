@@ -2093,15 +2093,15 @@ class FileFlag {
 foreign class SFTPEntry {
   foreign name
   foreign longname
-  foreign size
-  foreign mtime
+  foreign stat
   foreign isDir
   foreign hasLongDesc
   foreign hash
   foreign toString
 }
 
-// Result of SFTP.stat.  Time fields are POSIX seconds; `mode` is the
+// Immutable native metadata from SFTP.stat or on access to SFTPEntry.stat.
+// Time fields are POSIX seconds; `mode` is the
 // SFTP-wire permissions bits (Unix-style when the server is POSIX).
 foreign class SFTPStat {
   foreign size

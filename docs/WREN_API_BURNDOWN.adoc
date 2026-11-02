@@ -163,3 +163,69 @@ Coverage/diff checks pass: 80 public headers, 119 explicit exclusions, 2,447
 native items and 153 assessments. The two selected findings are resolved;
 remaining topics retain their own scope/verification gates. The temporary
 planning document and skill remain until the full burndown is complete.
+
+== Approved chunk 3: SFTP listing metadata (revision 1)
+
+Approval: the complete Plan-mode plan was approved with "Implement the plan."
+Implementation began in Default mode on 2026-11-02.
+Phase: chunk complete; next chunk requires a new Plan-mode planning phase.
+Findings: `sftp-entry-stat` / `sftp.entry-stat`, and the approved intentional
+disposition of `bbs-cache-result` / `bbs.cache-result`.
+
+Implementation clarification: the user confirmed native struct copies are fine;
+avoid constructing copies that may never be accessed. Keep metadata in the
+entry's existing native struct and construct SFTPStat only on getter access.
+
+Add read-only SFTPEntry.stat, returning a fresh immutable SFTPStat copy of all
+six native fields: size, mtime, atime, mode, uid and gid. Reuse the standalone
+stat construction path; copy the value before replacing the receiver slot.
+Remove SFTPEntry.size and mtime and their dispatch entries without aliases.
+Preserve other properties, including raw hash bytes. Snapshots own scalar data,
+survive entry collection/directory closure/later provider responses, grant no
+authority, and issue no network requests. Preserve exact-integer validation and
+whole-list non-transient overflow errors, unsigned 32-bit fields, and native
+zero defaults for omitted server attributes. Add no presence tracking.
+
+Migrate actual entry consumers, capturing stat once per SFTP browser row.
+Keep BrowserRow, local File, standalone stat, upload grants and queue persistence
+contracts unchanged. Document the breaking change and snapshot semantics.
+
+Approved cache policy: cache housekeeping is optional and does not affect primary
+mutation success. Intentionally omit its secondary status from Wren, retain the
+descriptive Partial coverage status, and close that finding by accounting only.
+Make no BBS store/cache/encryption/write-policy changes. Primary mutation-error
+reporting remains open for a separate plan.
+
+Acceptance: test six distinct fields, exact boundaries and unsigned maxima;
+snapshot immutability and independence across entries/responses; survival after
+close and collection; no provider submissions; removed getter rejection; and
+existing whole-response overflow errors. Exercise the browser and live fixture.
+Build through CMake; run wren_host, wren_menu_contract and wren_sftp_live, focused
+ASan/UBSan, GCC/Clang builds and MinGW64 cross-compilation (no Windows execution).
+Update the API manual, assessments, report, reviewed evidence and ledger mappings;
+run coverage/diff checks and commit the verified chunk. Keep the temporary plan
+and skill while other findings remain open.
+
+=== Completed verification
+
+Established the host regression first: the original binding failed because
+SFTPEntry did not implement stat. The implementation then passed wren_host,
+wren_menu_contract and wren_sftp_live in Clang Debug, GCC Debug and Clang
+ASan/UBSan builds. Live coverage includes extension metadata and the migrated
+browser. Snapshot tests cover all six fields, distinct entries, exact limits,
+unsigned maxima, native zero defaults, removed getters, rejected setters,
+provider payload reuse, entry collection, directory closure and no extra requests.
+Existing whole-list overflow errors remain covered.
+
+Clang built the application; MinGW64 cross-built the application and host tests
+without warnings. No Windows execution was performed. ASan leak detection is
+unsupported on FreeBSD and disabled; C++ vptr checks were disabled to link
+C-owned executables. No sanitizer diagnostics were reported.
+
+Coverage and diff checks pass: 80 public headers, 119 explicit exclusions,
+2,447 native items, 153 assessments and 51 original finding topics. All 80 report
+matrix rows match the ledger. SFTP listing metadata is Covered and resolved;
+cache status remains Partial and intentionally resolved by approved policy.
+There are 46 finding topics plus the documentation finding still open. Primary
+mutation errors remain a separate topic. Keep the temporary plan and skill
+until the full burndown is complete.

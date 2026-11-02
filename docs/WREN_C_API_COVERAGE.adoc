@@ -1,8 +1,10 @@
 = Wren coverage of SyncTERM's native C interfaces
 
 Status: accounting complete against commit da27a6e (2026-11-02).
-Follow-up: +transfer-upload-authority+, +font-codepage+ and +font-load-result+
-are resolved. Encryption reporting and
+Follow-up: +transfer-upload-authority+, +font-codepage+, +font-load-result+ and
++sftp-entry-stat+ are resolved. +bbs-cache-result+ is intentionally resolved:
+optional cache housekeeping does not affect mutation success, and its secondary
+status need not be exposed to Wren. Encryption reporting and
 the effective KDF setting policy are resolved; the broader encryption topic
 remains open as described below. The cache work at 4ab6a3f added one host-owned
 marker macro; its inventory and evidence are reconciled here.
@@ -14,14 +16,16 @@ limitations; it does not authorize implementing every omitted C facility.
 The review covers 80 project-owned public headers, 2,447 named native items,
 and 119 explicitly excluded implementation/vendor/test headers. Every inventoried
 item has a disposition. The initial review recorded 51 finding topics, including
-broader API-scope decisions, plus one stale documentation finding. Three topics
-(upload authority, custom-font codepages and font-load results) are resolved;
+broader API-scope decisions, plus one stale documentation finding. Five topics
+(upload authority, custom-font codepages, font-load results, SFTP entry metadata
+and the intentional cache-status omission) are resolved;
 the other topics retain their recorded open subclaims. The numbers
 follow the inventory;
 they are not a stopping rule or a percentage of useful capabilities covered.
 
-Important concrete results include loss of SFTP listing metadata, BBS provenance
-and diagnostics, mutation/cache failure details, and custom-font codepage choices (now resolved);
+Important concrete results include loss of SFTP listing metadata (now resolved),
+BBS provenance and diagnostics, primary mutation failure details, and custom-font
+codepage choices (now resolved);
 missing offscreen pixel compositing; and a transfer upload path API that bypassed
 the File-grant abstraction (now resolved below). Other omissions, such as general
 audio, HTTP, INI,
@@ -173,7 +177,7 @@ ids refer to the full mappings in the JSON, including VM-specific restrictions.
 | link:../src/net/connection/connection_stream.h[net/connection/connection_stream.h] | 0 | 0 | 0 | 18 | 0 | +transport.connection_stream+
 | link:../src/net/connection/connection_tcp.h[net/connection/connection_tcp.h] | 0 | 0 | 0 | 1 | 0 | +transport.connection_tcp+
 | link:../src/net/connection/st_connection.h[net/connection/st_connection.h] | 18 | 23 | 0 | 35 | 0 | +connection.active+, +connection.binary-owner+, +connection.setup-diagnostics+, +connection.setup-owner+, +session.lifecycle-info+
-| link:../src/net/sftp_client/st_sftp.h[net/sftp_client/st_sftp.h] | 64 | 5 | 0 | 9 | 0 | +sftp.entry-stat+, +sftp.operations+, +sftp.provider-owner+
+| link:../src/net/sftp_client/st_sftp.h[net/sftp_client/st_sftp.h] | 69 | 0 | 0 | 9 | 0 | +sftp.entry-stat+, +sftp.operations+, +sftp.provider-owner+
 | link:../src/net/socket/socket.h[net/socket/socket.h] | 0 | 0 | 0 | 27 | 0 | +transport.socket+
 | link:../src/net/tcp_client/tcp_client.h[net/tcp_client/tcp_client.h] | 0 | 0 | 0 | 17 | 0 | +transport.tcp_client+
 | link:../src/net/tls/st_tls.h[net/tls/st_tls.h] | 0 | 11 | 11 | 34 | 0 | +tls.owner+, +tls.peer-info+, +tls.policy-options+
@@ -219,9 +223,16 @@ findings remain review results.
 
 +bbs.cache-result+ (partial; menu). Wren: DirectoryEntry.save/delete/rename return primary success.
 
-The native mutation result can report cache_status after a committed list change. The binding does not inspect that secondary status, so scripts cannot distinguish complete cache maintenance from committed data with cache failure.
+The native mutation result reports optional cache-maintenance status separately
+from primary list success. Wren intentionally returns primary success without
+that secondary status. The user approved this policy: maintaining a cache is
+optional, so a housekeeping failure must not turn a successful BBS mutation into
+a failure. No new result API or store/cache/write-policy change is required.
+This finding is resolved intentionally; coverage remains Partial because the
+native secondary status is still omitted. Primary mutation-error fidelity
+remains open under <<finding-model-mutation-results>>.
 
-Evidence: link:../src/config/bbs_list/st_bbs_list.h[src/config/bbs_list/st_bbs_list.h:58]; link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:4364].
+Evidence: link:../src/config/bbs_list/st_bbs_list.h[src/config/bbs_list/st_bbs_list.h:58]; link:../src/config/bbs_list/st_bbs_store.c[src/config/bbs_list/st_bbs_store.c:486]; link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:4364].
 
 [[finding-bbs-diagnostics]]
 === Nonfatal BBS-load diagnostics are unavailable
@@ -326,7 +337,7 @@ Evidence: link:../src/base/io_error/io_error.h[src/base/io_error/io_error.h:36];
 
 Native fs_get_link_info distinguishes link/other/file/directory without following the link. Script listing exposes only directory versus file-like entries and does not offer an lstat-equivalent kind query. Native modified time and size do have corresponding metadata. Directory grants deliberately reject/omit links to avoid following ungranted paths; the missing lstat metadata is an observation of that security boundary, not a request to grant link traversal.
 
-Evidence: link:../src/io/filesystem/filesystem.h[src/io/filesystem/filesystem.h:38]; link:../scripts/syncterm_picker.wren[scripts/syncterm_picker.wren:14]; link:../src/scripting/wren_host/tests/st_wren_host_test.c[src/scripting/wren_host/tests/st_wren_host_test.c:809].
+Evidence: link:../src/io/filesystem/filesystem.h[src/io/filesystem/filesystem.h:38]; link:../scripts/syncterm_picker.wren[scripts/syncterm_picker.wren:14]; link:../src/scripting/wren_host/tests/st_wren_host_test.c[src/scripting/wren_host/tests/st_wren_host_test.c:847].
 
 [[finding-font-codepage]]
 === Custom-font mappings and reporting — resolved
@@ -360,7 +371,7 @@ singular altFont alias were removed. Screen.font remains independent, and direct
 scripts can select loaded fonts without a picker. The picker retains load-only
 registration and normal-assignment selection.
 
-Evidence: link:../src/scripting/wren_host/tests/st_wren_host_test.c[src/scripting/wren_host/tests/st_wren_host_test.c:3507]; link:../src/tests/st_font_assignments_test.py[src/tests/st_font_assignments_test.py:73].
+Evidence: link:../src/scripting/wren_host/tests/st_wren_host_test.c[src/scripting/wren_host/tests/st_wren_host_test.c:3545]; link:../src/tests/st_font_assignments_test.py[src/tests/st_font_assignments_test.py:73].
 
 [[finding-list-encryption-information]]
 === List encryption reporting resolved; writer and result scope remains open
@@ -400,7 +411,7 @@ Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_ho
 
 +bbs.mutation-status+ (partial; menu). Wren: DirectoryEntry/Defaults mutation Bool; Menu load read status.
 
-Primary native mutation/rewrite status becomes Bool in script save/delete/default/encryption operations. Distinct native I/O/conflict/policy causes cannot be inspected as structured results. This is in addition to the dropped cache_status, which can fail after primary commit. Menu.load has its own coarse read-status enum rather than every native I/O code.
+Primary native mutation/rewrite status becomes Bool in script save/delete/default/encryption operations. Distinct native I/O/conflict/policy causes cannot be inspected as structured results. Menu.load has its own coarse read-status enum rather than every native I/O code. These primary-result gaps remain open. Secondary cache_status is intentionally omitted under the approved optional-housekeeping policy in <<finding-bbs-cache-result>>; it is no longer a required fix within this topic.
 
 Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:4364]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:228].
 
@@ -429,13 +440,22 @@ Transfer success/failure keypress timeout settings have no Settings getters/sett
 Evidence: link:../src/config/settings/st_settings.h[src/config/settings/st_settings.h:82]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:225].
 
 [[finding-sftp-entry-stat]]
-=== SFTP listings omit available stat fields
+=== SFTP listing stat fields (resolved)
 
-+sftp.entry-stat+ (partial; same VM as the owning API). Wren: SFTPEntry.size/mtime/isDir.
++sftp.entry-stat+ (covered; connected VM). Wren: SFTPEntry.stat / SFTPStat.
 
-Directory response contains complete native stat, but SFTPEntry omits atime, mode, uid and gid. Separate SFTP.stat exposes them only after another request and may observe changed state. Embedded stat itself is therefore only partially represented.
+The initial binding omitted atime, mode, uid and gid already present in each
+directory response. SFTPEntry.stat now constructs a fresh immutable native
+SFTPStat copy on access, exposing size, mtime, atime, mode, uid and gid without
+another request. It retains listing-time values independently of provider
+responses, entry collection and directory closure. Existing native zero defaults
+for omitted attributes, exact-number checks and whole-list overflow errors are
+preserved. It owns no remote resource and grants no authority. The redundant
+SFTPEntry.size/mtime getters and dispatch entries are removed without aliases;
+the bundled browser captures stat once per row. Queue persistence and upload
+grants are unchanged.
 
-Evidence: link:../src/net/sftp_client/st_sftp.h[src/net/sftp_client/st_sftp.h:53]; link:../scripts/syncterm.wren[scripts/syncterm.wren:2093]; link:../src/scripting/wren_host/wren_sftp.c[src/scripting/wren_host/wren_sftp.c:905].
+Evidence: link:../src/net/sftp_client/st_sftp.h[src/net/sftp_client/st_sftp.h:53]; link:../scripts/syncterm.wren[scripts/syncterm.wren:2093]; link:../src/scripting/wren_host/wren_sftp.c[src/scripting/wren_host/wren_sftp.c:898].
 
 [[finding-theme-operation-results]]
 === Theme operations preserve error messages but usually lose codes
@@ -844,6 +864,20 @@ implementation review establishes the reported omissions. No regression tests
 were invented for methods which do not exist, and no native binding or Wren
 language behavior was changed during the initial accounting. The upload-consent
 follow-up changes the binding and picker caller as described above.
+
+The SFTP listing-metadata follow-up passed +wren_host+, +wren_menu_contract+ and
++wren_sftp_live+ with native Clang Debug, GCC Debug and Clang ASan/UBSan builds.
+The new host regression first failed against the old binding's absent stat
+getter. It now verifies all fields, exact limits, unsigned maxima, immutable
+fresh snapshots, provider/entry/directory lifetime independence, no extra
+submissions and whole-list overflow rejection. The live fixture verifies metadata
+and the migrated browser. Clang built the application; MinGW64 cross-built the
+application and host tests without warnings. No Windows tests ran. FreeBSD leak
+detection is unsupported and disabled; C++ vptr checks were disabled to link
+C-owned executables. No sanitizer diagnostics were reported. The checker passed
+with 2,447 native items and 153 assessments, and all 80 matrix rows match the
+ledger. Cache-status closure is an approved policy disposition without store,
+cache-maintenance or write-policy changes.
 
 == Rechecking and future edits
 

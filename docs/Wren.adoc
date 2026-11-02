@@ -6524,8 +6524,7 @@ One entry from `RemoteDirectory.readEntries`.
                   `null` otherwise).  For directories this is the
                   friendly long name (UI label); for files it's the
                   one-line short description (UI status bar).
-| `size`        | File size in bytes.
-| `mtime`       | Modification time, POSIX seconds.
+| `stat`        | A fresh, immutable `SFTPStat` copy of this entry's listing metadata.
 | `isDir`       | `true` if the entry is a directory.
 | `hasLongDesc` | `true` if the server marked this entry as having a
                   long description available via the
@@ -6541,7 +6540,21 @@ One entry from `RemoteDirectory.readEntries`.
 
 ==== SFTPStat
 
-Result of `SFTP.stat`. Size and timestamps follow <<native-integer-limits>>.
+Result of `SFTP.stat`, or the metadata returned by `SFTPEntry.stat`. All members
+are read-only; there is no public constructor. Size and timestamps follow
+<<native-integer-limits>>; mode, UID and GID retain their unsigned 32-bit values.
+Attributes omitted by the server retain the native API's zero defaults.
+
+`entry.stat` constructs its native metadata copy only when accessed. Each access
+returns a new object holding the metadata from the directory listing, without
+issuing a request or refreshing it. The copy survives directory closure, entry
+collection and later responses. It grants no remote-resource authority.
+For current metadata, explicitly await `SFTP.stat(path)` instead.
+
+In v2, `SFTPEntry.size` and `SFTPEntry.mtime` are removed. Use `entry.stat.size`
+and `entry.stat.mtime`, or capture `var metadata = entry.stat` once when reading
+several fields. Inexact size or timestamps in any listing entry fail the entire
+listing Operation with a non-transient `SFTPError`.
 
 [options="header",cols="2,3"]
 |===

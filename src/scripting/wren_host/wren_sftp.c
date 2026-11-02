@@ -849,6 +849,17 @@ fn_sftp_set_mtime(WrenVM *vm)
 	(void)submit_request(vm, &request, NULL);
 }
 
+static void
+push_stat(WrenVM *vm, int slot, struct st_sftp_stat value)
+{
+	/* Own the native value before allocation can replace the receiver or run GC. */
+	wrenEnsureSlots(vm, slot + 2);
+	wrenGetVariable(vm, "syncterm", "SFTPStat", slot + 1);
+	struct foreign_sftp_stat *stat = wrenSetSlotNewForeign(vm, slot, slot + 1,
+	    sizeof(*stat));
+	stat->value = value;
+}
+
 static struct foreign_sftp_stat *
 stat_value(WrenVM *vm)
 {
@@ -884,10 +895,8 @@ static void fn_entry_long_name(WrenVM *vm)
 	if (entry_value(vm)->long_name == NULL) wrenSetSlotNull(vm, 0);
 	else wrenSetSlotString(vm, 0, entry_value(vm)->long_name);
 }
-static void fn_entry_size(WrenVM *vm)
-{ st_wren_return_u64(vm, entry_value(vm)->stat.size); }
-static void fn_entry_mtime(WrenVM *vm)
-{ st_wren_return_i64(vm, entry_value(vm)->stat.modified_time); }
+static void fn_entry_stat(WrenVM *vm)
+{ push_stat(vm, 0, entry_value(vm)->stat); }
 static void fn_entry_directory(WrenVM *vm)
 { wrenSetSlotBool(vm, 0, entry_value(vm)->directory); }
 static void fn_entry_long_desc(WrenVM *vm)
@@ -1290,8 +1299,7 @@ static const struct sftp_binding bindings[] = {
 	{"SFTPStat", false, "toString", fn_stat_string},
 	{"SFTPEntry", false, "name", fn_entry_name},
 	{"SFTPEntry", false, "longname", fn_entry_long_name},
-	{"SFTPEntry", false, "size", fn_entry_size},
-	{"SFTPEntry", false, "mtime", fn_entry_mtime},
+	{"SFTPEntry", false, "stat", fn_entry_stat},
 	{"SFTPEntry", false, "isDir", fn_entry_directory},
 	{"SFTPEntry", false, "hasLongDesc", fn_entry_long_desc},
 	{"SFTPEntry", false, "hash", fn_entry_hash},
@@ -1476,14 +1484,9 @@ push_response(WrenVM *vm, int slot,
 		connected->resources = resource;
 		return true;
 	}
-	case ST_SFTP_RESULT_STAT: {
-		struct foreign_sftp_stat *stat;
-		wrenEnsureSlots(vm, slot + 2);
-		wrenGetVariable(vm, "syncterm", "SFTPStat", slot + 1);
-		stat = wrenSetSlotNewForeign(vm, slot, slot + 1, sizeof(*stat));
-		stat->value = response->stat;
+	case ST_SFTP_RESULT_STAT:
+		push_stat(vm, slot, response->stat);
 		return true;
-	}
 	case ST_SFTP_RESULT_ENTRIES:
 		if (response->entry_count == 0) {
 			wrenSetSlotNull(vm, slot);

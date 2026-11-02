@@ -231,9 +231,10 @@ class SftpFmt {
                               null, null, false, null, null))
     }
     for (e in entries) {
+      var metadata = e.stat
       var sdesc  = e.isDir ? null : e.longname
       var remote = (path == "/") ? "/" + e.name : path + "/" + e.name
-      rows.add(BrowserRow.new(e.name, e.isDir, false, e.size, e.mtime,
+      rows.add(BrowserRow.new(e.name, e.isDir, false, metadata.size, metadata.mtime,
                               e.longname, sdesc, e.hasLongDesc,
                               e.hash, remote))
     }

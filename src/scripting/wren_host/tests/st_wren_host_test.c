@@ -691,6 +691,41 @@ exercise_sftp_integer_contract(st_wren_connected_t *connected,
 	CHECK(st_wren_connected_pump(connected, 0) == 0);
 	CHECK(st_wren_connected_interpret(connected, "sftp_integer_contract",
 	    "if (!(metadata.result is SFTPStat) || metadata.result.size != 9007199254740991 || metadata.result.mtime != -9007199254740991 || metadata.result.atime != 9007199254740991) Fiber.abort(\"exact metadata boundaries\")\n") == 0);
+	CHECK(st_wren_connected_interpret(connected, "sftp_integer_contract",
+	    "var listing = directory.readEntries()\n") == 0);
+	struct st_sftp_entry listing_entries[] = {
+		{.name = "boundary", .stat = {
+			.size = ST_WREN_MAX_INTEGER,
+			.modified_time = -(int64_t)ST_WREN_MAX_INTEGER,
+			.accessed_time = (int64_t)ST_WREN_MAX_INTEGER,
+			.mode = UINT32_MAX, .uid = UINT32_MAX, .gid = UINT32_MAX}},
+		{.name = "distinct", .stat = {.size = 123, .modified_time = -456,
+			.accessed_time = 789, .mode = 33188, .uid = 42, .gid = 84}},
+		{.name = "omitted"},
+	};
+	response = &fake->responses[fake->head].response;
+	response->kind = ST_SFTP_RESULT_ENTRIES;
+	response->entries = listing_entries;
+	response->entry_count = sizeof(listing_entries) / sizeof(listing_entries[0]);
+	CHECK(st_wren_connected_pump(connected, 0) == 0);
+	memset(listing_entries, 0, sizeof(listing_entries));
+	before = fake->next_id;
+	CHECK(st_wren_connected_interpret(connected, "sftp_integer_contract",
+	    "var entry = listing.result[0]\n"
+	    "var snapshot = entry.stat\n"
+	    "var again = entry.stat\n"
+	    "var distinct = listing.result[1].stat\n"
+	    "var omitted = listing.result[2].stat\n"
+	    "if (!(snapshot is SFTPStat) || snapshot == again || snapshot.size != 9007199254740991 || snapshot.mtime != -9007199254740991 || snapshot.atime != 9007199254740991 || snapshot.mode != 4294967295 || snapshot.uid != 4294967295 || snapshot.gid != 4294967295) Fiber.abort(\"listing boundaries or fresh snapshot\")\n"
+	    "if (distinct.size != 123 || distinct.mtime != -456 || distinct.atime != 789 || distinct.mode != 33188 || distinct.uid != 42 || distinct.gid != 84) Fiber.abort(\"listing fields mixed\")\n"
+	    "if (omitted.size != 0 || omitted.mtime != 0 || omitted.atime != 0 || omitted.mode != 0 || omitted.uid != 0 || omitted.gid != 0) Fiber.abort(\"omitted attribute defaults\")\n"
+	    "for (action in [Fn.new { entry.size }, Fn.new { entry.mtime }, Fn.new { entry.stat = null }, Fn.new { snapshot.size = 1 }, Fn.new { snapshot.mtime = 1 }, Fn.new { snapshot.atime = 1 }, Fn.new { snapshot.mode = 1 }, Fn.new { snapshot.uid = 1 }, Fn.new { snapshot.gid = 1 }]) {\n"
+	    "  var failed = Fiber.new { action.call() }\n"
+	    "  failed.try()\n"
+	    "  if (failed.error == null) Fiber.abort(\"obsolete getter or mutable snapshot\")\n"
+	    "}\n"
+	    "entry = null\nlisting = null\nSystem.gc()\nSystem.gc()\n") == 0);
+	CHECK(fake->next_id == before && fake->count == 0);
 	/* SFTP v3 counts/times are 32-bit; file offsets retain the exact 53-bit range. */
 	before = fake->next_id;
 	CHECK(st_wren_connected_interpret(connected, "sftp_integer_contract",
@@ -734,6 +769,9 @@ exercise_sftp_integer_contract(st_wren_connected_t *connected,
 	    "var closing = handle.close()\n"
 	    "directory.close()\n") == 0);
 	CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "sftp_integer_contract",
+	    "System.gc()\n"
+	    "if (snapshot.size != 9007199254740991 || snapshot.mtime != -9007199254740991 || snapshot.atime != 9007199254740991 || snapshot.mode != 4294967295 || snapshot.uid != 4294967295 || snapshot.gid != 4294967295 || again.size != snapshot.size || distinct.size != 123 || distinct.mtime != -456 || distinct.atime != 789 || distinct.mode != 33188 || distinct.uid != 42 || distinct.gid != 84) Fiber.abort(\"snapshot changed after collection, responses or close\")\n") == 0);
 	return 0;
 }
 
