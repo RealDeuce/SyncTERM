@@ -1033,18 +1033,21 @@ fn_cterm_mouse_sgr_pixels(WrenVM *vm)
 static void
 fn_cterm_send_key(WrenVM *vm)
 {
-	double key;
-	st_cterm_t *cterm = st_wren_context_from_vm(vm)->cterm;
+	struct st_wren_context *context = st_wren_context_from_vm(vm);
+	struct st_console_event event;
+	bool handled = false;
 
-	if (wrenGetSlotType(vm, 1) != WREN_TYPE_NUM
-	    || !isfinite(key = wrenGetSlotDouble(vm, 1))
-	    || key < 0 || key > UINT16_MAX
-	    || key != (double)(uint16_t)key) {
-		st_wren_abort(vm, "CTerm.sendKey expects a 16-bit key code");
+	if (!st_wren_input_native(vm, 1, &event))
+		return;
+	if (context->session == NULL) {
+		st_wren_abort(vm, "CTerm.sendKey requires an active terminal");
 		return;
 	}
-	wrenSetSlotBool(vm, 0, cterm != NULL
-	    && st_cterm_handle_key(cterm, (uint16_t)key, 0));
+	if (st_term_session_send_key(context->session, &event, &handled) != 0) {
+		st_wren_abort(vm, "CTerm.sendKey failed");
+		return;
+	}
+	wrenSetSlotBool(vm, 0, handled);
 }
 
 static void

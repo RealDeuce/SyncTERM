@@ -630,6 +630,23 @@ exercise_connected_without_sftp(st_wren_host_t *host,
 	st_wren_connected_log_transfer(connected, ST_PROFILE_LOG_INFO, "hidden");
 	st_wren_connected_log_transfer(connected, ST_PROFILE_LOG_EMERGENCY, "visible");
 	CHECK(transfer_logs == 2);
+	CHECK(wrenInterpret(host->vm, "menu_input_isolation",
+	    "import \"syncterm\" for Input, KeyEvent\n"
+	    "Input.unget(KeyEvent.text(\"é\", 5))\n") == WREN_RESULT_SUCCESS);
+	CHECK(wrenInterpret(host->picker_vm, "picker_input_isolation",
+	    "import \"syncterm\" for Input, Key, KeyEvent\n"
+	    "Input.unget(KeyEvent.new(Key.up, 0x80000003))\n") == WREN_RESULT_SUCCESS);
+	CHECK(st_wren_connected_interpret(connected, "connected_input_isolation",
+	    "import \"syncterm\" for Input, KeyEvent\n"
+	    "Input.unget(KeyEvent.text(\"😀\", 10))\n"
+	    "var event = Input.poll()\n"
+	    "if (event.key != 0x1f600 || event.text != \"😀\" || event.modifiers != 10) Fiber.abort(\"connected input isolation\")\n") == 0);
+	CHECK(wrenInterpret(host->vm, "menu_input_isolation",
+	    "var event = Input.poll()\n"
+	    "if (event.key != 233 || event.text != \"é\" || event.modifiers != 5) Fiber.abort(\"menu input isolation\")\n") == WREN_RESULT_SUCCESS);
+	CHECK(wrenInterpret(host->picker_vm, "picker_input_isolation",
+	    "var event = Input.poll()\n"
+	    "if (event.key != Key.up || event.codepoint != null || event.modifiers != 0x80000003) Fiber.abort(\"picker input isolation\")\n") == WREN_RESULT_SUCCESS);
 	CHECK(st_wren_connected_interpret(connected, "no_sftp_provider",
 	    "import \"syncterm\" for SFTP, SFTPError, Host, CTerm, Status, Conn, ConnError, ConnErr, Scrollback, Surface, BBS\n"
 	    "if (SFTP.available || CTerm.sftpActive || Conn.connected) Fiber.abort(\"unexpected provider\")\n"
@@ -678,7 +695,7 @@ exercise_connected_without_sftp(st_wren_host_t *host,
 	    "otherHook = Hook.onKey(0xfefe, Fn.new {|k| Fiber.abort(\"removed hook fired\") })\n"
 	    "System.gc()\n"
 	    ) == 0);
-	CHECK(st_wren_connected_handle_key(connected, 0xfefe, &consumed) == 0 && consumed);
+	CHECK(st_wren_connected_handle_event(connected, &(struct st_console_event){.type = ST_CONSOLE_EVENT_TEXT, .data.text.codepoint = 0xfefe}, &consumed) == 0 && consumed);
 	CHECK(st_wren_connected_interpret(connected, "hook_reclamation_metrics",
 	    "import \"hook_reclamation\" for selfHook, otherHook\n"
 	    "if (selfHook.callCount != 1 || otherHook.callCount != 0) Fiber.abort(\"removed metrics\")\n"
@@ -691,8 +708,8 @@ exercise_connected_without_sftp(st_wren_host_t *host,
 	    "  static handle { __hook }\n"
 	    "  static handle=(h) { __hook = h }\n"
 	    "}\n"
-	    "KeyHookState.handle = Hook.onKey(65, Fn.new {|k| k == 65 })\n"
-	    "Hook.onKey(90, Fn.new {|k| k == 90 })\n"
+	    "KeyHookState.handle = Hook.onKey(65, Fn.new {|k| k.key == 65 })\n"
+	    "Hook.onKey(90, Fn.new {|k| k.key == 90 })\n"
 	    "Hook.onMouse(1, Fn.new {|m| m.event == 1 })\n"
 	    "Hook.onPhysicalKey(30, Fn.new {|p| p.evdev == 30 })\n"
 	    "if (KeyHookState.handle == null || KeyHookState.handle.callCount != 0) Fiber.abort(\"hook handle\")\n") == 0);
@@ -759,14 +776,14 @@ exercise_connected_without_sftp(st_wren_host_t *host,
 	CHECK(st_wren_connected_interpret(connected, "connected_input_verify",
 	    "import \"connected_input_test\" for InputState\n"
 	    "if (InputState.calls != 1) Fiber.abort(\"input hook order\")\n") == 0);
-	CHECK(st_wren_connected_handle_key(connected, 66, &consumed) == 0);
+	CHECK(st_wren_connected_handle_event(connected, &(struct st_console_event){.type = ST_CONSOLE_EVENT_TEXT, .data.text.codepoint = 66}, &consumed) == 0);
 	CHECK(!consumed);
-	CHECK(st_wren_connected_handle_key(connected, 0x1800, &consumed) == 0);
+	CHECK(st_wren_connected_handle_event(connected, &(struct st_console_event){.type = ST_CONSOLE_EVENT_PHYSICAL_KEY, .data.physical_key = {.evdev = 24, .pressed = true, .modifiers = ST_CONSOLE_MODIFIER_ALT}}, &consumed) == 0);
 	CHECK(consumed);
 	CHECK(st_wren_connected_interpret(connected, "mouse_toggle_on",
 	    "import \"syncterm\" for CTerm\n"
 	    "if (!CTerm.mouseDisabled) Fiber.abort(\"Alt-O did not disable mouse\")\n") == 0);
-	CHECK(st_wren_connected_handle_key(connected, 0x1800, &consumed) == 0);
+	CHECK(st_wren_connected_handle_event(connected, &(struct st_console_event){.type = ST_CONSOLE_EVENT_PHYSICAL_KEY, .data.physical_key = {.evdev = 24, .pressed = true, .modifiers = ST_CONSOLE_MODIFIER_ALT}}, &consumed) == 0);
 	CHECK(consumed);
 	struct st_console_event text_z = {
 		.type = ST_CONSOLE_EVENT_TEXT,
@@ -777,13 +794,34 @@ exercise_connected_without_sftp(st_wren_host_t *host,
 	CHECK(consumed);
 	CHECK(st_wren_connected_interpret(connected, "modified_key_hook",
 	    "import \"syncterm\" for Hook\n"
-	    "Hook.onKey(10, Fn.new {|key| true })\n") == 0);
+	    "Hook.onKey(0x11000d, 2, Fn.new {|key| true })\n") == 0);
 	const struct st_console_event ctrl_enter = {
 		.type = ST_CONSOLE_EVENT_KEY_CODE,
 		.data.key = {.code = 13, .modifiers = ST_CONSOLE_MODIFIER_CONTROL},
 	};
 	CHECK(st_wren_connected_handle_event(connected, &ctrl_enter, &consumed) == 0);
 	CHECK(consumed);
+	CHECK(st_wren_connected_interpret(connected, "unicode_key_hook",
+	    "import \"syncterm\" for Hook\n"
+	    "var calls = 0\n"
+	    "var hook = Hook.onKey(0x1f600, 15, Fn.new {|event|\n"
+	    "  if (event.key != 0x1f600 || event.codepoint != 0x1f600 || event.text != \"😀\" || event.modifiers != 63) Fiber.abort(\"Unicode hook payload\")\n"
+	    "  calls = calls + 1\n"
+	    "  return true\n"
+	    "})\n") == 0);
+	struct st_console_event emoji = {.type = ST_CONSOLE_EVENT_TEXT,
+	    .data.text = {.codepoint = UINT32_C(0x1f600), .modifiers = 14}};
+	CHECK(st_wren_connected_handle_event(connected, &emoji, &consumed) == 0 && !consumed);
+	emoji.data.text.modifiers = 63;
+	CHECK(st_wren_connected_handle_event(connected, &emoji, &consumed) == 0 && consumed);
+	CHECK(st_wren_connected_interpret(connected, "unicode_key_hook",
+	    "if (calls != 1 || hook.callCount != 1 || !hook.remove()) Fiber.abort(\"Unicode hook filter\")\n") == 0);
+	emoji.data.text.codepoint = UINT32_C(0xd800);
+	CHECK(st_wren_connected_handle_event(connected, &emoji, &consumed)
+	    == IO_ERROR_INVALID_ENCODING && !consumed);
+	emoji.data.text.codepoint = UINT32_C(0x110000);
+	CHECK(st_wren_connected_handle_event(connected, &emoji, &consumed)
+	    == IO_ERROR_INVALID_ENCODING && !consumed);
 	const struct st_console_event reveal = {
 		.type = ST_CONSOLE_EVENT_KEY_CODE, .data.key.code = ST_CONSOLE_KEY_F3,
 	};
@@ -840,14 +878,14 @@ exercise_connected_without_sftp(st_wren_host_t *host,
 	CHECK(consumed);
 	CHECK(st_wren_connected_pump(connected, 0) == 0);
 	CHECK(st_wren_connected_last_error(connected) == NULL);
-	CHECK(st_wren_connected_handle_key(connected, 65, &consumed) == 0);
+	CHECK(st_wren_connected_handle_event(connected, &(struct st_console_event){.type = ST_CONSOLE_EVENT_TEXT, .data.text.codepoint = 65}, &consumed) == 0);
 	CHECK(consumed);
 	CHECK(st_wren_connected_interpret(connected, "connected_key_remove",
 	    "import \"connected_key_test\" for KeyHookState\n"
 	    "var h = KeyHookState.handle\n"
 	    "if (h.callCount != 1 || h.totalRuntime < 0) Fiber.abort(\"hook metrics\")\n"
 	    "if (!h.remove() || h.remove() || h.callCount != 1) Fiber.abort(\"hook removal\")\n") == 0);
-	CHECK(st_wren_connected_handle_key(connected, 65, &consumed) == 0);
+	CHECK(st_wren_connected_handle_event(connected, &(struct st_console_event){.type = ST_CONSOLE_EVENT_TEXT, .data.text.codepoint = 65}, &consumed) == 0);
 	CHECK(!consumed);
 	CHECK(st_wren_connected_interpret(connected, "status_render_test",
 	    "import \"syncterm\" for Status\n"
@@ -1022,7 +1060,7 @@ exercise_connected_session_log(st_wren_host_t *host, st_console_t *console,
 	CHECK(before != NULL && after != NULL);
 	CHECK(st_console_read_cells(console, &full, before, width) == 0);
 	bool claimed;
-	CHECK(st_wren_connected_handle_key(connected, 0x2f00, &claimed) == 0 && claimed);
+	CHECK(st_wren_connected_handle_event(connected, &(struct st_console_event){.type = ST_CONSOLE_EVENT_PHYSICAL_KEY, .data.physical_key = {.evdev = 47, .pressed = true, .modifiers = ST_CONSOLE_MODIFIER_ALT}}, &claimed) == 0 && claimed);
 	CHECK(st_wren_connected_interpret(connected, "session_log_visible",
 	    "import \"syncterm\" for CTerm, Screen\n"
 	    "var size = Screen.size\n"
@@ -1047,7 +1085,7 @@ exercise_connected_session_log(st_wren_host_t *host, st_console_t *console,
 	    "var labels = OnlineMenu.entries_().map {|e| e[0] }.toList\n"
 	    "var entries = labels.where {|label| label.startsWith(\"View Session Log\") }.toList\n"
 	    "if (entries.count != 1) Fiber.abort(\"online log entry\")\n") == 0);
-	CHECK(st_wren_connected_handle_key(connected, 0x2c00, &claimed) == 0 && claimed);
+	CHECK(st_wren_connected_handle_event(connected, &(struct st_console_event){.type = ST_CONSOLE_EVENT_PHYSICAL_KEY, .data.physical_key = {.evdev = 44, .pressed = true, .modifiers = ST_CONSOLE_MODIFIER_ALT}}, &claimed) == 0 && claimed);
 	const struct st_console_event select_log = {
 		.type = ST_CONSOLE_EVENT_TEXT, .data.text.codepoint = 'v',
 	};
@@ -1060,7 +1098,7 @@ exercise_connected_session_log(st_wren_host_t *host, st_console_t *console,
 	    "if (!Screen.readRect(1, 1, size[0], size[1]).map {|c| c.ch }.join().contains(\"LATEST LOG RECORD\")) Fiber.abort(\"online log viewer\")\n") == 0);
 	CHECK(session_log_key(connected, 27) == 0);
 	fixture.text = "";
-	CHECK(st_wren_connected_handle_key(connected, 0x2f00, &claimed) == 0 && claimed);
+	CHECK(st_wren_connected_handle_event(connected, &(struct st_console_event){.type = ST_CONSOLE_EVENT_PHYSICAL_KEY, .data.physical_key = {.evdev = 47, .pressed = true, .modifiers = ST_CONSOLE_MODIFIER_ALT}}, &claimed) == 0 && claimed);
 	CHECK(st_wren_connected_interpret(connected, "session_log_empty",
 	    "import \"syncterm\" for Screen\n"
 	    "var size = Screen.size\n"
@@ -1800,6 +1838,26 @@ exercise_owned_sends(st_wren_host_t *host, st_console_t *console)
 		};
 		CHECK(st_wren_connected_create(&connected, &config) == 0);
 		connection.output.head = 0;
+		connection.output.count = 0;
+		CHECK(st_wren_connected_interpret(connected, "key_forward_binding",
+	    "import \"syncterm\" for CTerm, Conn, Hook, Key, KeyEvent, Mod, PhysicalKeyEvent\n"
+	    "var reentered = false\n"
+	    "var hook = Hook.onKey(Fn.new {|event| reentered = true })\n"
+	    "if (!CTerm.sendKey(KeyEvent.text(\"é\")) || !CTerm.sendKey(KeyEvent.new(Key.tab, Mod.shift))) Fiber.abort(\"forward key\")\n"
+	    "if (CTerm.sendKey(KeyEvent.new(Key.right, Mod.alt))) Fiber.abort(\"unsupported Alt-Right\")\n"
+	    "if (!CTerm.sendKey(KeyEvent.byte(0x82))) Fiber.abort(\"raw byte forwarding\")\n"
+	    "if (CTerm.sendKey(PhysicalKeyEvent.new(30, true, 15, true))) Fiber.abort(\"disabled physical reporting\")\n"
+	    "if (reentered) Fiber.abort(\"forwarding reentered hooks\")\n"
+	    "hook.remove()\n"
+	    "var bad = Conn.send(String.fromByte(255)).result\n"
+	    "var rejected = Fiber.new { CTerm.sendKey(bad) }\n"
+	    "rejected.try()\n"
+	    "if (rejected.error == null) Fiber.abort(\"wrong foreign key payload accepted\")\n"
+		    ) == 0);
+		CHECK(connection.output.count == (mode == 0 ? 7 : 5));
+		CHECK(memcmp(connection.output.data, mode == 0 ? "\xc3\xa9\x1b[Z\xc2\x82" : "\x82\x1b[Z\x82",
+		    mode == 0 ? 7 : 5) == 0);
+		connection.output.head = 0;
 		connection.output.count = ST_CONNECTION_BUFFER_SIZE - 1;
 		memset(connection.output.data, 'x', sizeof(connection.output.data));
 		CHECK(st_wren_connected_interpret(connected, "owned_send",
@@ -2192,12 +2250,10 @@ exercise_connected_throttle(st_wren_host_t *host, st_console_t *console)
 	    "import \"syncterm\" for CTerm\n"
 	    "CTerm.throttleSpeed = 0\n") == 0);
 	bool consumed = false;
-	CHECK(st_wren_connected_handle_key(connected, 0x9800,
-	    &consumed) == 0 && consumed);
+	CHECK(st_wren_connected_handle_event(connected, &(struct st_console_event){.type = ST_CONSOLE_EVENT_KEY_CODE, .data.key = {.code = ST_CONSOLE_KEY_UP, .modifiers = ST_CONSOLE_MODIFIER_ALT}}, &consumed) == 0 && consumed);
 	CHECK(st_term_session_throttle_speed(session) == 300);
 	consumed = false;
-	CHECK(st_wren_connected_handle_key(connected, 0xa000,
-	    &consumed) == 0 && consumed);
+	CHECK(st_wren_connected_handle_event(connected, &(struct st_console_event){.type = ST_CONSOLE_EVENT_KEY_CODE, .data.key = {.code = ST_CONSOLE_KEY_DOWN, .modifiers = ST_CONSOLE_MODIFIER_ALT}}, &consumed) == 0 && consumed);
 	CHECK(st_term_session_throttle_speed(session) == 0);
 	st_wren_connected_destroy(connected);
 	st_term_session_destroy(&session);
@@ -2271,8 +2327,7 @@ exercise_connected_copy_paste_mouse(st_wren_connected_t *connected,
 
 	CHECK(st_cterm_mouse_mode(cterm) == 0);
 	consumed = false;
-	CHECK(st_wren_connected_handle_key(connected, 0x0500,
-	    &consumed) == 0 && consumed);
+	CHECK(st_wren_connected_handle_event(connected, &(struct st_console_event){.type = ST_CONSOLE_EVENT_KEY_CODE, .data.key = {.code = ST_CONSOLE_KEY_INSERT, .modifiers = ST_CONSOLE_MODIFIER_SHIFT}}, &consumed) == 0 && consumed);
 	consumed = true;
 	CHECK(st_wren_connected_handle_event(connected, &left_press,
 	    &consumed) == 0 && !consumed);
@@ -2570,8 +2625,7 @@ exercise_connected_scrollback(st_wren_host_t *host,
 	CHECK(st_wren_connected_last_error(connected) == NULL);
 	bool claimed = false;
 	CHECK(st_console_post_event(console, &escape) == 0);
-	CHECK(st_wren_connected_handle_key(connected, 0x3000,
-	    &claimed) == 0);
+	CHECK(st_wren_connected_handle_event(connected, &(struct st_console_event){.type = ST_CONSOLE_EVENT_PHYSICAL_KEY, .data.physical_key = {.evdev = 48, .pressed = true, .modifiers = ST_CONSOLE_MODIFIER_ALT}}, &claimed) == 0);
 	CHECK(claimed && st_wren_connected_last_error(connected) == NULL);
 	CHECK(st_wren_connected_interpret(connected, "music_menu_probe",
 	    "import \"music_menu\" for MusicMenu\n"
@@ -2584,8 +2638,7 @@ exercise_connected_scrollback(st_wren_host_t *host,
 	CHECK(st_wren_connected_pump(connected, 0) == 0);
 	CHECK(st_wren_connected_last_error(connected) == NULL);
 	claimed = false;
-	CHECK(st_wren_connected_handle_key(connected, 0x2e00,
-	    &claimed) == 0 && claimed);
+	CHECK(st_wren_connected_handle_event(connected, &(struct st_console_event){.type = ST_CONSOLE_EVENT_PHYSICAL_KEY, .data.physical_key = {.evdev = 46, .pressed = true, .modifiers = ST_CONSOLE_MODIFIER_ALT}}, &claimed) == 0 && claimed);
 	claimed = false;
 	CHECK(st_wren_connected_handle_event(connected, &escape,
 	    &claimed) == 0 && claimed);
@@ -2595,7 +2648,7 @@ exercise_connected_scrollback(st_wren_host_t *host,
 	    "import \"syncterm\" for CTerm\n"
 	    "if (CTerm.suspended) Fiber.abort(\"capture modal did not restore\")\n") == 0);
 	claimed = false;
-	CHECK(st_wren_connected_handle_key(connected, 0x2c00, &claimed) == 0);
+	CHECK(st_wren_connected_handle_event(connected, &(struct st_console_event){.type = ST_CONSOLE_EVENT_PHYSICAL_KEY, .data.physical_key = {.evdev = 44, .pressed = true, .modifiers = ST_CONSOLE_MODIFIER_ALT}}, &claimed) == 0);
 	CHECK(claimed);
 	claimed = false;
 	CHECK(st_wren_connected_handle_event(connected, &escape,
@@ -2605,8 +2658,7 @@ exercise_connected_scrollback(st_wren_host_t *host,
 	CHECK(st_wren_connected_last_error(connected) == NULL);
 	claimed = false;
 	CHECK(st_console_post_event(console, &escape) == 0);
-	CHECK(st_wren_connected_handle_key(connected, 0x29e0,
-	    &claimed) == 0);
+	CHECK(st_wren_connected_handle_event(connected, &(struct st_console_event){.type = ST_CONSOLE_EVENT_PHYSICAL_KEY, .data.physical_key = {.evdev = 41, .pressed = true, .modifiers = ST_CONSOLE_MODIFIER_CONTROL}}, &claimed) == 0);
 	CHECK(claimed && st_wren_connected_last_error(connected) == NULL);
 	CHECK(st_wren_connected_interpret(connected, "cterm_write_probe",
 	    "import \"syncterm\" for CTerm\n"
@@ -3326,7 +3378,7 @@ exercise_emoji_contract(st_wren_host_t *public_host)
 	    "import \"ui_widget\" for Rect\n"
 	    "import \"ui_style\" for Theme\n"
 	    "var app = App.new()\n"
-	    "if ((app.binding(Key.ctrlP) != null) != Host.localControlKeys) Fiber.abort(\"local shortcut policy\")\n"
+	    "if ((app.binding(112, 2) != null) != Host.localControlKeys) Fiber.abort(\"local shortcut policy\")\n"
 	    "if (app.openEmojiPicker()) Fiber.abort(\"picker without focused field\")\n"
 	    "var matches = Emoji.search(\"MAN SHRUGGING: MEDIUM SKIN TONE\")\n"
 	    "var exact = matches.where {|e| e.text == \"🤷🏽‍♂️\" }.toList\n"
@@ -4976,10 +5028,19 @@ static int
 queue_text(st_console_t *console, const char *text)
 {
 	for (; *text != '\0'; ++text) {
+		unsigned char byte = (unsigned char)*text;
 		struct st_console_event event = {
 			.type = ST_CONSOLE_EVENT_TEXT,
-			.data.text.codepoint = (unsigned char)*text,
+			.data.text.codepoint = byte,
 		};
+		if (byte < 32 || byte == 127) {
+			event = (struct st_console_event){
+				.type = ST_CONSOLE_EVENT_KEY_CODE,
+				.data.key.code = byte,
+			};
+			if (byte >= 1 && byte <= 26 && byte != 8 && byte != 9 && byte != 13)
+				event.data.key.modifiers = ST_CONSOLE_MODIFIER_CONTROL;
+		}
 		CHECK(st_console_post_event(console, &event) == 0);
 	}
 	return 0;
@@ -4999,8 +5060,8 @@ post_prompt_input(void *argument)
 	struct prompt_poster *poster = argument;
 	const struct timespec delay = {0, 100000000};
 	const struct st_console_event enter = {
-		.type = ST_CONSOLE_EVENT_TEXT,
-		.data.text.codepoint = poster->finish,
+		.type = ST_CONSOLE_EVENT_KEY_CODE,
+		.data.key.code = (uint16_t)poster->finish,
 	};
 	const struct st_console_event unicode = {
 		.type = ST_CONSOLE_EVENT_TEXT,
@@ -5062,7 +5123,7 @@ post_disconnect_input(void *argument)
 {
 	st_console_t *console = argument;
 	const struct st_console_event f1 = {
-		.type = ST_CONSOLE_EVENT_KEY_CODE, .data.key.code = 0x3b00,
+		.type = ST_CONSOLE_EVENT_KEY_CODE, .data.key.code = ST_CONSOLE_KEY_F1,
 	};
 	CHECK(wait_for_screen_text(console, "Disconnected: Enter exits, F1 details") == 0);
 	CHECK(st_console_post_event(console, &f1) == 0);
@@ -5245,8 +5306,8 @@ exercise_repl_style(struct st_wren_host *host, st_console_t *console)
 	    "Screen.restore(saved)\n"
 	    "WrenConsole.unregister(\"style-test\")\n";
 	struct st_console_event enter = {
-		.type = ST_CONSOLE_EVENT_TEXT,
-		.data.text.codepoint = '\r',
+		.type = ST_CONSOLE_EVENT_KEY_CODE,
+		.data.key.code = '\r',
 	};
 	WrenVM *vms[] = {host->vm, host->picker_vm};
 
@@ -5445,13 +5506,56 @@ static int
 exercise_input_value_contract(struct st_wren_host *host,
 	st_console_t *console)
 {
+	static const char strict[] =
+	    "import \"syncterm\" for Input, Key, KeyEvent, Mod\n"
+	    "for (scalar in [0, 0x100, 0x301, 0x1f600, 0x10ffff]) {\n"
+	    "  var text = String.fromCodePoint(scalar)\n"
+	    "  var event = KeyEvent.text(text, 0x8000003f)\n"
+	    "  if (event.key != scalar || event.codepoint != scalar || event.text != text || event.modifiers != 0x8000003f || event.byte != null || event.scanCode != null) Fiber.abort(\"strict scalar constructor\")\n"
+	    "  Input.unget(event)\n"
+	    "  var returned = Input.poll()\n"
+	    "  if (returned.key != scalar || returned.text != text || returned.modifiers != 0x8000003f) Fiber.abort(\"scalar round trip\")\n"
+	    "}\n"
+	    "if (KeyEvent.text(String.fromCodePoint(0x100)).key == Key.up) Fiber.abort(\"text and named namespace collision\")\n"
+	    "for (bad in [\"\", \"ab\", \"e\" + String.fromCodePoint(0x301), String.fromByte(255), String.fromByte(128), String.fromByte(192) + String.fromByte(128), String.fromCodePoint(0) + \"a\", 42, null]) {\n"
+	    "  var attempt = Fiber.new { KeyEvent.text(bad) }\n"
+	    "  attempt.try()\n"
+	    "  if (attempt.error == null) Fiber.abort(\"invalid scalar accepted\")\n"
+	    "}\n"
+	    "for (bad in [-1, 0xd800, 0xdfff, 0x120001, 0.5]) {\n"
+	    "  var attempt = Fiber.new { KeyEvent.new(bad) }\n"
+	    "  attempt.try()\n"
+	    "  if (attempt.error == null) Fiber.abort(\"invalid key accepted\")\n"
+	    "}\n"
+	    "var chord = KeyEvent.new(Key.left, Mod.control | Mod.shift | Mod.capsLock)\n"
+	    "if (!chord.matches(Key.left, Mod.control | Mod.shift) || chord.matches(Key.left, Mod.control) || chord.matches(Key.left, Mod.shift)) Fiber.abort(\"combined modifier matching\")\n"
+	    "var alt = KeyEvent.new(Key.right, Mod.alt)\n"
+	    "if (alt.key != Key.right || alt.key == Key.quit || alt.matches(Key.right, Mod.gui)) Fiber.abort(\"unsupported modifier preserved\")\n"
+	    "var future = KeyEvent.new(Key.up, 0x80000000)\n"
+	    "if (future.matches(Key.up, 0)) Fiber.abort(\"unknown modifier dropped\")\n"
+	    "for (bad in [-1, 0.5, 0x100000000]) {\n"
+	    "  var attempt = Fiber.new { future.matches(Key.up, bad) }\n"
+	    "  attempt.try()\n"
+	    "  if (attempt.error == null) Fiber.abort(\"invalid match modifier\")\n"
+	    "}\n"
+	    "var quit = Fiber.new { KeyEvent.new(Key.quit, Mod.alt) }\n"
+	    "quit.try()\n"
+	    "if (quit.error == null) Fiber.abort(\"modified quit accepted\")\n"
+	    "var raw = KeyEvent.byte(0)\n"
+	    "Input.unget(raw)\n"
+	    "var got = Input.poll()\n"
+	    "if (got.byte != 0 || got.key != null || got.codepoint != null || got.text != \"\") Fiber.abort(\"zero byte round trip\")\n"
+	    "raw = KeyEvent.doorway(0x48, true)\n"
+	    "Input.unget(raw)\n"
+	    "got = Input.poll()\n"
+	    "if (got.scanCode != 0x48 || !got.enhanced || got.key != null || got.byte != null) Fiber.abort(\"DoorWay round trip\")\n";
 	static const char values[] =
-	    "import \"syncterm\" for Input, KeyEvent, Mouse, MouseEvent, PhysicalKeyEvent\n"
-	    "var key = KeyEvent.new(4660)\n"
+	    "import \"syncterm\" for Input, Key, KeyEvent, Mouse, MouseEvent, PhysicalKeyEvent\n"
+	    "var key = KeyEvent.new(Key.f12)\n"
 	    "if (key.codepoint != null || key.text != \"\") Fiber.abort(\"extended key text\")\n"
 	    "Input.unget(key)\n"
 	    "var gotKey = Input.poll()\n"
-	    "if (!(gotKey is KeyEvent) || gotKey.code != 4660 || gotKey.codepoint != null || gotKey.text != \"\") Fiber.abort(\"key unget\")\n"
+	    "if (!(gotKey is KeyEvent) || gotKey.key != Key.f12 || gotKey.codepoint != null || gotKey.text != \"\") Fiber.abort(\"key unget\")\n"
 	    "var physical = PhysicalKeyEvent.new(77, true, 5, true)\n"
 	    "Input.unget(physical)\n"
 	    "var gotPhysical = Input.poll()\n"
@@ -5482,24 +5586,26 @@ exercise_input_value_contract(struct st_wren_host *host,
 	    "var original = Screen.font[0]\n"
 	    "Screen.font[0] = 20\n"
 	    "if (Font.codepage != Codepage.cp1251) Fiber.abort(\"selected codepage\")\n"
-	    "var byte = KeyEvent.new(0xc0)\n"
-	    "if (byte.code != 0xc0 || byte.codepoint != 0x0410 || byte.text != String.fromCodePoint(0x0410)) Fiber.abort(\"constructor codepage\")\n"
-	    "var escape = KeyEvent.new(0x01e0)\n"
-	    "if (escape.code != Key.escape || escape.codepoint != Key.escape) Fiber.abort(\"escape normalization\")\n"
+	    "var text = KeyEvent.text(\"À\", 15)\n"
+	    "if (text.key != 0xc0 || text.codepoint != 0xc0 || text.text != \"À\" || text.modifiers != 15) Fiber.abort(\"constructor font independence\")\n"
+	    "var escape = KeyEvent.new(Key.escape)\n"
+	    "if (escape.key != Key.escape || escape.codepoint != null || escape.text != \"\") Fiber.abort(\"named escape\")\n"
 	    "var encodable = Input.poll()\n"
-	    "if (!(encodable is KeyEvent) || encodable.code != 0xc0 || encodable.codepoint != 0x0410 || encodable.text != String.fromCodePoint(0x0410)) Fiber.abort(\"encodable text\")\n"
+	    "if (!(encodable is KeyEvent) || encodable.key != 0x0410 || encodable.codepoint != 0x0410 || encodable.text != \"А\") Fiber.abort(\"Cyrillic text\")\n"
 	    "Input.unget(encodable)\n"
 	    "var returned = Input.poll()\n"
-	    "if (returned.code != 0xc0 || returned.codepoint != 0x0410 || returned.text != String.fromCodePoint(0x0410)) Fiber.abort(\"unicode unget\")\n"
+	    "if (returned.key != 0x0410 || returned.text != \"А\") Fiber.abort(\"unicode unget\")\n"
 	    "var unencodable = Input.poll()\n"
-	    "if (unencodable.code != 0x3f || unencodable.codepoint != 0x4e00 || unencodable.text != String.fromCodePoint(0x4e00)) Fiber.abort(\"unencodable text\")\n"
-	    "var compatibility = Input.poll()\n"
-	    "if (compatibility.code != 0xc0 || compatibility.codepoint != 0x0410 || compatibility.text != String.fromCodePoint(0x0410)) Fiber.abort(\"compatibility codepage\")\n"
+	    "if (unencodable.key != 0x4e00 || unencodable.codepoint != 0x4e00 || unencodable.text != \"一\") Fiber.abort(\"CJK text\")\n"
+	    "var named = Input.poll()\n"
+	    "if (named.key != 0x1100c0 || named.codepoint != null || named.text != \"\") Fiber.abort(\"unrecognized native key\")\n"
 	    "var numeric = Input.poll()\n"
-	    "if (numeric.code != 0x3f || numeric.codepoint != 0x00c0 || numeric.text != String.fromCodePoint(0x00c0)) Fiber.abort(\"numeric UTF-8 menu input\")\n"
+	    "if (numeric.byte != 0xc0 || numeric.key != null || numeric.codepoint != null || numeric.text != \"\") Fiber.abort(\"raw numeric entry\")\n"
+	    "Input.unget(numeric)\n"
+	    "if (Input.poll().byte != 0xc0) Fiber.abort(\"byte unget\")\n"
 	    "var byte255 = Input.poll()\n"
 	    "var unicode255 = Input.poll()\n"
-	    "if (byte255.codepoint != 255 || byte255.text != \"ÿ\" || byte255.code != unicode255.code || byte255.text != unicode255.text) Fiber.abort(\"numeric UTF-8 equivalence\")\n"
+	    "if (byte255.byte != 255 || byte255.codepoint != null || unicode255.key != 255 || unicode255.text != \"ÿ\" || unicode255.byte != null) Fiber.abort(\"byte and Unicode separation\")\n"
 	    "Screen.font[0] = original\n";
 	const struct st_console_event numeric = {
 		.type = ST_CONSOLE_EVENT_CODEPAGE_BYTE,
@@ -5566,6 +5672,8 @@ exercise_input_value_contract(struct st_wren_host *host,
 	    "if (events[9].event != Mouse.wheelUp || events[9].wheelY != 2 || events[9].wheelX != 0 || events[9].modifiers != 8 || events[10].event != Mouse.wheelLeft || events[10].wheelX != -3 || events[10].wheelY != 0) Fiber.abort(\"wheel axes\")\n"
 	    "if (Input.poll() != null) Fiber.abort(\"extra mouse event\")\n";
 
+	CHECK(wrenInterpret(host->vm, "strict_input_contract", strict)
+	    == WREN_RESULT_SUCCESS);
 	CHECK(wrenInterpret(host->vm, "input_value_contract", values)
 	    == WREN_RESULT_SUCCESS);
 	CHECK(st_console_post_event(console, &encodable) == 0);
@@ -5587,29 +5695,35 @@ exercise_input_value_contract(struct st_wren_host *host,
 	const struct {
 		uint16_t key;
 		uint32_t modifiers;
-		uint16_t expected;
 	} modified[] = {
-		{13, ST_CONSOLE_MODIFIER_CONTROL, 10},
-		{8, ST_CONSOLE_MODIFIER_CONTROL, 127},
-		{ST_CONSOLE_KEY_HOME, ST_CONSOLE_MODIFIER_SHIFT, 0x3700},
-		{ST_CONSOLE_KEY_HOME, ST_CONSOLE_MODIFIER_CONTROL, 0x7700},
-		{ST_CONSOLE_KEY_PAGE_UP, ST_CONSOLE_MODIFIER_SHIFT, 0x3900},
-		{ST_CONSOLE_KEY_PAGE_UP, ST_CONSOLE_MODIFIER_CONTROL, 0x8400},
-		{ST_CONSOLE_KEY_PAGE_DOWN, ST_CONSOLE_MODIFIER_SHIFT, 0x3300},
-		{ST_CONSOLE_KEY_PAGE_DOWN, ST_CONSOLE_MODIFIER_CONTROL, 0x7600},
+		{13, ST_CONSOLE_MODIFIER_CONTROL},
+		{8, ST_CONSOLE_MODIFIER_CONTROL},
+		{ST_CONSOLE_KEY_HOME, ST_CONSOLE_MODIFIER_SHIFT},
+		{ST_CONSOLE_KEY_HOME, ST_CONSOLE_MODIFIER_CONTROL},
+		{ST_CONSOLE_KEY_PAGE_UP, ST_CONSOLE_MODIFIER_SHIFT},
+		{ST_CONSOLE_KEY_PAGE_UP, ST_CONSOLE_MODIFIER_CONTROL},
+		{ST_CONSOLE_KEY_PAGE_DOWN, ST_CONSOLE_MODIFIER_SHIFT},
+		{ST_CONSOLE_KEY_PAGE_DOWN, ST_CONSOLE_MODIFIER_CONTROL},
+		{ST_CONSOLE_KEY_RIGHT, UINT32_C(0x8000000f)},
+		{UINT16_MAX, ST_CONSOLE_MODIFIER_ALT},
 	};
 	for (size_t i = 0; i < sizeof(modified) / sizeof(modified[0]); ++i) {
 		const struct st_console_event event = {
 			.type = ST_CONSOLE_EVENT_KEY_CODE,
 			.data.key = {.code = modified[i].key, .modifiers = modified[i].modifiers},
 		};
-		CHECK(st_wren_input_key_code(&event) == modified[i].expected);
 		CHECK(st_console_post_event(console, &event) == 0);
 	}
 	CHECK(wrenInterpret(host->vm, "modified_input_contract",
-	    "import \"syncterm\" for Input\n"
-	    "for (expected in [10, 127, 14080, 30464, 14592, 33792, 13056, 30208]) {\n"
-	    "  if (Input.poll().code != expected) Fiber.abort(\"modified key mapping\")\n"
+	    "import \"syncterm\" for Input, Key\n"
+	    "var keys = [Key.enter, Key.backspace, Key.home, Key.home, Key.pageUp, Key.pageUp, Key.pageDown, Key.pageDown, Key.right, 0x11ffff]\n"
+	    "var modifiers = [2, 2, 1, 2, 1, 2, 1, 2, 0x8000000f, 4]\n"
+	    "for (i in 0...keys.count) {\n"
+	    "  var event = Input.poll()\n"
+	    "  if (event.key != keys[i] || event.modifiers != modifiers[i] || event.codepoint != null) Fiber.abort(\"modified key identity\")\n"
+	    "  Input.unget(event)\n"
+	    "  var returned = Input.poll()\n"
+	    "  if (returned.key != keys[i] || returned.modifiers != modifiers[i]) Fiber.abort(\"modified unget\")\n"
 	    "}\n") == WREN_RESULT_SUCCESS);
 	return 0;
 }
@@ -5645,12 +5759,11 @@ exercise_numeric_encoding_contract(struct st_wren_host *host,
 	    "    }\n"
 	    "    __worker.call()\n"
 	    "  }\n"
-	    "  static expect(scalar) {\n"
-	    "    __expected = scalar\n"
-	    "    __seen = 0\n"
+	    "  static expect() {\n"
+		    "    __seen = 0\n"
 	    "  }\n"
 	    "  static check(event) {\n"
-	    "    if (!(event is KeyEvent) || event.codepoint != __expected || event.text != String.fromCodePoint(__expected)) Fiber.abort(\"numeric input encoding\")\n"
+	    "    if (!(event is KeyEvent) || event.byte != 224 || event.key != null || event.codepoint != null || event.text != \"\") Fiber.abort(\"numeric input encoding\")\n"
 	    "    __seen = __seen + 1\n"
 	    "  }\n"
 	    "  static poll() { check(Input.poll()) }\n"
@@ -5666,24 +5779,21 @@ exercise_numeric_encoding_contract(struct st_wren_host *host,
 	const struct {
 		enum st_cterm_encoding encoding;
 		enum st_codepage codepage;
-		unsigned int scalar;
 	} cases[] = {
-		{ST_CTERM_ENCODING_UTF8, ST_CODEPAGE_CP1251, 0x00e0},
-		{ST_CTERM_ENCODING_CODEPAGE, ST_CODEPAGE_CP1251, 0x0430},
-		{ST_CTERM_ENCODING_CODEPAGE, ST_CODEPAGE_KOI8_R, 0x042e},
-		{ST_CTERM_ENCODING_CODEPAGE, ST_CODEPAGE_CP850, 0x00d3},
-		{ST_CTERM_ENCODING_CODEPAGE, ST_CODEPAGE_ISO_8859_1, 0x00e0},
-		{ST_CTERM_ENCODING_CODEPAGE, ST_CODEPAGE_CP437, 0x03b1},
-		{ST_CTERM_ENCODING_UTF8, ST_CODEPAGE_CP437, 0x00e0},
+		{ST_CTERM_ENCODING_UTF8, ST_CODEPAGE_CP1251},
+		{ST_CTERM_ENCODING_CODEPAGE, ST_CODEPAGE_CP1251},
+		{ST_CTERM_ENCODING_CODEPAGE, ST_CODEPAGE_KOI8_R},
+		{ST_CTERM_ENCODING_CODEPAGE, ST_CODEPAGE_CP850},
+		{ST_CTERM_ENCODING_CODEPAGE, ST_CODEPAGE_ISO_8859_1},
+		{ST_CTERM_ENCODING_CODEPAGE, ST_CODEPAGE_CP437},
+		{ST_CTERM_ENCODING_UTF8, ST_CODEPAGE_CP437},
 	};
 	const struct st_console_event event = {
 		.type = ST_CONSOLE_EVENT_CODEPAGE_BYTE, .data.codepage_byte = 224,
 	};
 	for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
-		char source[128];
 		CHECK(st_cterm_set_encoding(terminal, cases[i].encoding, cases[i].codepage) == 0);
-		(void)snprintf(source, sizeof(source), "NumericProbe.expect(%u)\n", cases[i].scalar);
-		CHECK(wrenInterpret(host->vm, "numeric_encoding_contract", source) == WREN_RESULT_SUCCESS);
+		CHECK(wrenInterpret(host->vm, "numeric_encoding_contract", "NumericProbe.expect()\n") == WREN_RESULT_SUCCESS);
 		CHECK(st_console_post_event(console, &event) == 0);
 		CHECK(wrenInterpret(host->vm, "numeric_encoding_contract", "NumericProbe.poll()\n") == WREN_RESULT_SUCCESS);
 		bool consumed = false;
@@ -5712,8 +5822,8 @@ exercise_claim_wake_contract(struct st_wren_host *host)
 	    "      })\n"
 	    "      Fiber.yield()\n"
 	    "      __current = Input.pushClaim(Fn.new {|event|\n"
-	    "        __seen.add(event.code)\n"
-	    "        return event.code == 2\n"
+	    "        __seen.add(event.key)\n"
+	    "        return event.key == 2\n"
 	    "      })\n"
 	    "      Fiber.yield()\n"
 	    "    }\n"
@@ -5764,7 +5874,7 @@ exercise_claim_wake_contract(struct st_wren_host *host)
 	    "WakeProbe.start()\n";
 	struct st_wren_input_record event = {
 		.type = ST_WREN_INPUT_KEY,
-		.data.key.code = 1,
+		.data.key.native = {.type = ST_CONSOLE_EVENT_TEXT, .data.text.codepoint = 1},
 	};
 	bool consumed = true;
 
@@ -5776,7 +5886,7 @@ exercise_claim_wake_contract(struct st_wren_host *host)
 	    "ClaimProbe.replace()\n"
 	    "if (ClaimProbe.stalePop()) Fiber.abort(\"stale claim popped\")\n")
 	    == WREN_RESULT_SUCCESS);
-	event.data.key.code = 2;
+	event.data.key.native.data.text.codepoint = 2;
 	CHECK(st_wren_input_dispatch(host->vm, &event, &consumed) == 0);
 	CHECK(consumed);
 	CHECK(wrenInterpret(host->vm, "input_async_contract",
@@ -5858,13 +5968,13 @@ exercise_persistent_quit_contract(struct st_wren_host *host,
 
 	CHECK(st_console_post_event(console, &close) == 0);
 	CHECK(wrenInterpret(host->vm, "persistent_quit_contract",
-	    "import \"syncterm\" for Input, Key\n"
+	    "import \"syncterm\" for Input, Key, Mod\n"
 	    "var first = Input.nextForWidget_(false, 100)\n"
-	    "if (first == null || first.code != Key.quit) Fiber.abort(\"initial quit\")\n"
+	    "if (first == null || first.key != Key.quit) Fiber.abort(\"initial quit\")\n"
 	    "if (Input.nextForWidget_(true, 0) != null) Fiber.abort(\"at-exit timeout\")\n"
 	    "for (i in 0...3) {\n"
 	    "  var event = Input.poll()\n"
-	    "  if (event == null || event.code != Key.quit) Fiber.abort(\"quit did not persist\")\n"
+	    "  if (event == null || event.key != Key.quit) Fiber.abort(\"quit did not persist\")\n"
 	    "}\n") == WREN_RESULT_SUCCESS);
 	return 0;
 }
@@ -6046,11 +6156,11 @@ main(int argc, char **argv)
 	};
 	struct st_console_event ctrl_q = {
 		.type = ST_CONSOLE_EVENT_KEY_CODE,
-		.data.key.code = 0x11,
+		.data.key = {.code = 0x11, .modifiers = ST_CONSOLE_MODIFIER_CONTROL},
 	};
 	struct st_console_event ctrl_s = {
 		.type = ST_CONSOLE_EVENT_KEY_CODE,
-		.data.key.code = 0x13,
+		.data.key = {.code = 0x13, .modifiers = ST_CONSOLE_MODIFIER_CONTROL},
 	};
 	struct st_console_event doorway = {
 		.type = ST_CONSOLE_EVENT_DOORWAY_KEY,
@@ -6214,8 +6324,8 @@ main(int argc, char **argv)
 	    "import \"syncterm\" for Input\n"
 	    "var ordinary = Input.poll()\n"
 	    "var enhanced = Input.poll()\n"
-	    "if (ordinary == null || ordinary.code != 11776 || "
-	    "enhanced == null || enhanced.code != 7168) "
+	    "if (ordinary == null || ordinary.scanCode != 46 || ordinary.enhanced || ordinary.key != null || "
+	    "enhanced == null || enhanced.scanCode != 28 || !enhanced.enhanced || enhanced.key != null) "
 	    "Fiber.abort(\"DoorWay key conversion failed\")\n")
 	    == WREN_RESULT_SUCCESS);
 	CHECK(st_console_post_event(console, &wren_console_key) == 0);
@@ -6226,7 +6336,7 @@ main(int argc, char **argv)
 	    "var event = Input.poll()\n"
 	    "if (!(physical is PhysicalKeyEvent) || physical.evdev != 41 || "
 	    "!physical.pressed || physical.modifiers != 2 || physical.repeat || "
-	    "event == null || event.code != Key.wrenConsole) "
+	    "event != null) "
 	    "Fiber.abort(\"Ctrl+grave conversion failed\")\n")
 	    == WREN_RESULT_SUCCESS);
 	for (uint16_t selector = 0; selector < 45; ++selector)
@@ -6358,7 +6468,7 @@ main(int argc, char **argv)
 	    "alt_shortcut_contract",
 	    "import \"syncterm\" for Key\n"
 	    "import \"main_menu\" for MainMenu\n"
-	    "MainMenu.registerCommand(Key.altY, \"Alt-Y\", \"Test\", "
+	    "MainMenu.registerCommand(121, 4, \"Alt-Y\", \"Test\", "
 	    "Fn.new {|app, connected| app.quit() })\n")
 	    == WREN_RESULT_SUCCESS);
 	struct st_console_event alt_y = {
@@ -6442,7 +6552,7 @@ main(int argc, char **argv)
 	    "ansi_host_capabilities",
 	    "import \"syncterm\" for Host, PixelBlit, PixelBuffer, Screen, Key\n"
 	    "import \"ui_app\" for App\n"
-	    "if (App.new().binding(Key.ctrlP) == null) Fiber.abort(\"ANSI emoji shortcut\")\n"
+	    "if (App.new().binding(112, 2) == null) Fiber.abort(\"ANSI emoji shortcut\")\n"
 	    "if (!Host.textTerminal || !Host.localControlKeys) "
 	    "Fiber.abort(\"ANSI host capabilities\")\n"
 	    "if (Screen.supports.pixels || Screen.pixelSize != null || "

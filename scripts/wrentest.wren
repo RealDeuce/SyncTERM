@@ -26,7 +26,7 @@
 //   - Hook.onStatus: would replace the status bar for the test's
 //     duration and would never deregister.
 
-import "syncterm" for Hook, Conn, Console, Screen, CTerm, BBS, Key,
+import "syncterm" for Hook, Conn, Console, Screen, CTerm, BBS, Key, Mod,
     Codepage, ConnType, Emulation, Font, LogSource, LogLevel,
     Parity, BBSListType, ScreenMode, AddressFamily, MusicMode,
     RipVersion, LogMode, StatusDisplay, Color, Cell, Hyperlinks,
@@ -359,9 +359,9 @@ class WrenTest {
   // ===== constant enums ===========================================
 
   static testKeyConstants_() {
-    check_(Key.escape == 0x001B && Key.enter == 0x000D &&
+    check_(Key.escape == 0x11001B && Key.enter == 0x11000D &&
            Key.up != Key.down && Key.f1 != Key.f12 &&
-           Key.wrenConsole == 0x29E0,
+           Key.quit > 0x11ffff,
            "Key constants: well-known values + uniqueness")
   }
 
@@ -816,27 +816,21 @@ class WrenTest {
            "WrenConsole mouse mask can be restored exactly")
   }
 
-  // Key events retain the 16-bit compatibility code separately from
-  // Unicode text. Single-byte codes use the selected font's codepage.
   static testKeyEventContract_() {
     var original = Screen.font[0]
     Screen.font[0] = 20
-
-    var printable = KeyEvent.new(0xC0)
+    var printable = KeyEvent.text("А", Mod.shift | Mod.alt)
     check_(Font.codepage == Codepage.cp1251 &&
-           printable.code == 0xC0 && printable.codepoint == 0x0410 &&
-           printable.text == String.fromCodePoint(0x0410),
-           "KeyEvent.new decodes through selected font codepage")
-
-    var extended = KeyEvent.new(0x1234)
-    check_(extended.code == 0x1234 && extended.codepoint == null &&
-           extended.text == "",
-           "KeyEvent.new preserves arbitrary 16-bit extended code")
-
-    var escape = KeyEvent.new(0x01E0)
-    check_(escape.code == Key.escape && escape.codepoint == Key.escape,
-           "KeyEvent.new normalizes scancode Escape")
-
+           printable.key == 0x0410 && printable.codepoint == 0x0410 &&
+           printable.text == "А" && printable.modifiers == 5,
+           "text retains Unicode and modifiers independent of font")
+    var extended = KeyEvent.new(Key.f12, Mod.control | Mod.shift)
+    check_(extended.key == Key.f12 && extended.codepoint == null &&
+           extended.text == "" && extended.modifiers == 3,
+           "named key and modifiers stay separate")
+    var escape = KeyEvent.new(Key.escape)
+    check_(escape.key == Key.escape && escape.codepoint == null,
+           "named Escape has no committed text")
     Screen.font[0] = original
   }
 
@@ -1777,7 +1771,7 @@ class WrenTest {
     // queue and the drain should have resumed the fiber with a
     // KeyEvent before T06's sentinel sleep elapsed.
     check_(__nextEventResult is KeyEvent &&
-           __nextEventResult.code == 0xFD00,
+           __nextEventResult.shortcut_ == 0xFD00,
            "Input.nextEvent through result queue (T06 sentinel key)")
     // Fiber cleared CTerm.suspended after capturing.  If this still
     // reads true, either the fiber never resumed or the setter is
@@ -1810,7 +1804,7 @@ class WrenTest {
     // String.  By T07's wallclock sentinel the drain must have
     // resumed both fibers and stored the values in their respective
     // captures.
-    check_(__wakeResult is KeyEvent && __wakeResult.code == 0xFC00,
+    check_(__wakeResult is KeyEvent && __wakeResult.shortcut_ == 0xFC00,
            "Wake.post delivers a foreign value to parked fiber")
     check_(__wakeStringResult == "wake-payload",
            "Wake.post delivers a String value to parked fiber")

@@ -47,7 +47,7 @@ class ScrollbackView {
       paint_(viewport, live, historyHeight, top, x, y)
       var event = Input.next()
       if (event is KeyEvent) {
-        var key = event.code
+        var key = event.shortcut_
         if (key == Key.escape || key == Key.quit || key == 0x71 || key == 0x51) return
         if (key == Key.up || key == 0x6B || key == 0x4B) {
           top = (top > 0) ? top - 1 : 0

@@ -13,7 +13,7 @@
 // `/in <module>` switches the eval target, letting the user inspect
 // or mutate any other module that's been loaded.
 
-import "syncterm" for Screen, Console, Input, Clipboard, Host, Key,
+import "syncterm" for Screen, Console, Input, Clipboard, Host, Key, Mod, PhysicalKeyEvent,
     REPL, LogSource, KeyEvent, MouseEvent, Mouse
 
 class WrenConsole {
@@ -330,16 +330,16 @@ class WrenConsole {
             redrawPrompt = true
           }
         }
-      // PhysicalKeyEvent edges may be enabled by the connected host.
-      // Drain and ignore those here; console editing is driven by the
-      // corresponding translated KeyEvent, just like the menu UI.
-      } else if (ev is KeyEvent) {
-        var key = ev.code
-        var controlKeyExit = Host.localControlKeys && (key == Key.ctrlQ || key == Key.ctrlS)
-        if (key == Key.wrenConsole || key == Key.escape || key == Key.quit ||
+      // Physical command edges remain separate from committed text.
+      } else if (ev is KeyEvent || ev is PhysicalKeyEvent) {
+        var key = ev is KeyEvent ? ev.shortcut_ : Key.physicalShortcut_(ev)
+        var controlKeyExit = Host.localControlKeys && (key == Key.chord_(113, Mod.control) || key == Key.chord_(115, Mod.control))
+        if (key == Key.chord_(96, Mod.control) || key == Key.escape || key == Key.quit ||
             controlKeyExit) {
           done = true
-        } else if (key == Key.enter || key == 0x000A) { // CR or LF
+        } else if (ev is PhysicalKeyEvent) {
+          continue
+        } else if (key == Key.enter || key == Key.chord_(Key.enter, Mod.control)) { // CR or LF
           // Submitting in scrollback mode rejoins live first so the
           // eval's output paints on the live tail rather than into
           // the frozen viewport.
@@ -355,7 +355,7 @@ class WrenConsole {
           cursor = 0
           histIdx = -1
           redrawPrompt = true
-        } else if (key == Key.backspace || key == 0x007F) { // BS or DEL
+        } else if (key == Key.backspace || key == Key.delChar) { // BS or DEL
           if (cursor > 0) {
             var previous = previousIndex_(input, cursor)
             input  = input[0...previous] + input[cursor...input.bytes.count]
@@ -390,7 +390,7 @@ class WrenConsole {
             cursor = input.bytes.count
             redrawPrompt = true
           }
-        } else if (key == 0x0017) {                  // Ctrl+W
+        } else if (key == Key.chord_(119, Mod.control)) {                  // Ctrl+W
           // Kill the word ending at the cursor; tail (cursor..end)
           // stays put, cursor lands where the killed run started.
           var head = killWord_(input[0...cursor])
@@ -493,7 +493,7 @@ class WrenConsole {
             cursor = input.bytes.count
             redrawPrompt = true
           }
-        } else if (key == 0x000C) {                  // Ctrl+L
+        } else if (key == Key.chord_(108, Mod.control)) {                  // Ctrl+L
           Console.clear()
           Screen.window.clear()
           Screen.window.position = [1, 1]

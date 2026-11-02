@@ -1,6 +1,6 @@
 // Optional, independently installed SyncTERM directory/settings frontend.
 // Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
-import "syncterm" for Host, Screen, ScreenMode, Key, Text
+import "syncterm" for Host, Screen, ScreenMode, Key, Text, Mod, KeyEvent, PhysicalKeyEvent
 import "wren_console" for WrenConsole
 import "syncterm_menu" for Menu
 import "ui_widget" for Rect
@@ -22,6 +22,11 @@ class ModernUI {
     return __commands
   }
   static registerCommand(key, keyName, description, callback) {
+    registerCommand(key, 0, keyName, description, callback)
+  }
+  static registerCommand(key, modifiers, keyName, description, callback) {
+    KeyEvent.new(key, modifiers)
+    key = Key.chord_(key, modifiers)
     if (!(key is Num) || !key.isInteger || !(keyName is String) ||
         !(description is String) || !(callback is Fn)) {
       Fiber.abort("MainMenu.registerCommand: invalid command")
@@ -116,8 +121,8 @@ class ModernDirectory {
     _app.shortcut = Fn.new {|event| shortcut_(event) }
     _app.bind(Key.escape, Fn.new { escape_() })
     _app.bind(Key.f1, Fn.new { help_() })
-    _app.bind(Key.wrenConsole, Fn.new { console_() })
-    if (Host.localControlKeys) _app.bind(Key.ctrlQ, Fn.new { console_() })
+    _app.bind(96, Mod.control, Fn.new { console_() })
+    if (Host.localControlKeys) _app.bind(113, Mod.control, Fn.new { console_() })
     reload_()
     layout_(Screen.size[0], Screen.size[1])
     if (state != null && state.count > 2 && selected != null && selected.name == state[0]) {
@@ -296,33 +301,34 @@ class ModernDirectory {
     }
   }
   shortcut_(event) {
+    var key = event is PhysicalKeyEvent ? Key.physicalShortcut_(event) : event.shortcut_
     if (_small) {
-      if (event.code != Key.enter) return false
+      if (key != Key.enter) return false
       if (!Menu.setScreenMode(ScreenMode.c80x25)) _notice = "80x25 mode is unavailable."
       _app.markAllDirty_()
       return true
     }
-    if (event.code == Key.wrenConsole || (Host.localControlKeys && event.code == Key.ctrlQ)) {
+    if (key == Key.chord_(96, Mod.control) || (Host.localControlKeys && key == Key.chord_(113, Mod.control))) {
       console_()
       return true
     }
-    if (!_connected && event.code == Key.altB) {
+    if (!_connected && key == Key.chord_(98, Mod.command)) {
       OfflineScrollbackView.show(_app)
       return true
     }
     for (command in ModernUI.commands) {
-      if (command[0] == event.code) {
+      if (command[0] == key) {
         command[3].call(_app, _connected)
         return true
       }
     }
-    if (event.code == Key.ctrlF) {
+    if (key == Key.chord_(102, Mod.control)) {
       showDirectory_()
       focus_(_search)
       _search.selectAll()
-    } else if (event.code == Key.insert || event.code == Key.ctrlN) {
+    } else if (key == Key.insert || key == Key.chord_(110, Mod.control)) {
       add_()
-    } else if (event.code == Key.f2) {
+    } else if (key == Key.f2) {
       edit_()
     } else {
       return false

@@ -65,7 +65,7 @@ class Checkbox is Widget {
 
   handle(ev) {
     if (ev is KeyEvent) {
-      var c  = ev.code
+      var c  = ev.shortcut_
       var cp = ev.codepoint
       if (c == Key.enter || cp == 0x20) {
         toggle_()

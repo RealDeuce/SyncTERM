@@ -305,7 +305,7 @@ class Help is Popup {
   }
 
   handleKey_(ke) {
-    var c = ke.code
+    var c = ke.shortcut_
     if (c == Key.quit) return false
     if (c == Key.escape || c == Key.enter) {
       dismissWith_(null)

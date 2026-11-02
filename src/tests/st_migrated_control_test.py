@@ -81,7 +81,7 @@ Host.print("PICKER-PIXELS-PASS")
             client.text("Ω")
             client.key("enter")
             client.text("/edit keep éword")
-            client.key(23)
+            client.key(23, 2)
             client.text("done")
             client.key("enter")
             client.key("escape")
@@ -301,7 +301,8 @@ def scrollback(executable, encoding, reports):
         # RIS preserves the existing history instead of rotating it.
         send(b"\x1bc\x1b[2J\x1b[HAFTER-RESET\r\nSUMMARY")
         client.wait_text("SUMMARY")
-        client.key(0x3000)
+        client.physical_key(48, True, 4)
+        client.physical_key(48, False, 4)
         client.wait_text("Scrollback")
         client.key("home")
         client.wait_for(lambda s: "Scrollback" in s.text and "SUMMARY" not in s.text)
@@ -319,7 +320,8 @@ def scrollback(executable, encoding, reports):
         peer.shutdown(socket.SHUT_RDWR)
         client.wait_text("Directory: Name")
         # The offline viewer must retain the same ordering and final screen.
-        client.key(0x3000)
+        client.physical_key(48, True, 4)
+        client.physical_key(48, False, 4)
         client.wait_text("Scrollback")
         client.wait_text("SUMMARY")
         client.key("home")
@@ -389,12 +391,12 @@ if (rejected.error == null) Fiber.abort("write File accepted by pixel decoder")
             return client.wait_for(lambda s: ("PICKER-STAGE " + name + "\n").encode() in client.stderr
                                     and "alpha.txt" in s.text)
         stage("multi")
-        client.key(1)
-        client.key(10)
+        client.key(1, 2)
+        client.key(10, 2)
         stage("multi-cancel")
         client.key("escape")
         client.wait_text("Directory fixture")
-        client.key(10)
+        client.key(10, 2)
         for name, key in (("overwrite", "o"), ("append", "a")):
             stage(name)
             client.key("enter")
@@ -415,7 +417,8 @@ def menu_exit(executable, reports):
     with connection(executable, reports) as (client, root, peer, send):
         send(b"MENU-EXIT-SESSION")
         client.wait_text("MENU-EXIT-SESSION")
-        client.key(0x1200)  # Alt-E opens the connected directory.
+        client.physical_key(18, True, 4)
+        client.physical_key(18, False, 4)  # Alt-E opens the connected directory.
         client.wait_text("Directory: Name")
         client.key("escape")
         frame = client.wait_text("MENU-EXIT-SESSION")
@@ -441,9 +444,9 @@ def menu_position(executable, reports):
                            for i in range(count) if i != omitted)
         def prepare(root):
             write_script(root, "zzz_position", '''
-import "syncterm" for Key, Host, WON
+import "syncterm" for Key, Host, WON, Mod
 import "main_menu" for MainMenu
-MainMenu.registerCommand(Key.altY, "Alt-Y", "Capture position", Fn.new {|app, connected|
+MainMenu.registerCommand(121, Mod.command, "Alt-Y", "Capture position", Fn.new {|app, connected|
   var list = app.root.children[1].children[0]
   Host.print("MENU-POSITION " + WON.serialize([connected, list.selectedItem, list.selected, list.scrollTop]))
 })
@@ -452,7 +455,8 @@ MainMenu.registerCommand(Key.altY, "Alt-Y", "Capture position", Fn.new {|app, co
             def position():
                 pattern = rb"MENU-POSITION (\[[^\r\n]+\])"
                 count = len(re.findall(pattern, client.stderr))
-                client.key(0x1500)
+                client.physical_key(21, True, 4)
+                client.physical_key(21, False, 4)
                 client.wait_for(lambda s: len(re.findall(pattern, client.stderr)) > count)
                 return json.loads(re.findall(pattern, client.stderr)[-1])
             def visit(action=None):
@@ -478,7 +482,8 @@ MainMenu.registerCommand(Key.altY, "Alt-Y", "Capture position", Fn.new {|app, co
             assert shifted[1:] == ["Entry 27", 26, before[3]]
             def connected_directory(peer):
                 (root / "syncterm.lst").write_text(entries(), encoding="utf-8")
-                client.key(0x1200)
+                client.physical_key(18, True, 4)
+                client.physical_key(18, False, 4)
                 client.wait_text("Directory: Name")
                 client.key("down")
                 assert position()[0] is True

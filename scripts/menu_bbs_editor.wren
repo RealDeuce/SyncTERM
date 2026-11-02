@@ -1,4 +1,4 @@
-import "syncterm" for ConnType, FilePickerOptions, Host, Key, KeyEvent,
+import "syncterm" for ConnType, FilePickerOptions, Host, Key, KeyEvent, Mod,
     MouseEvent, TLSVersion
 import "syncterm_menu" for Menu
 import "menu_ui" for ChoiceViewState, MenuUi
@@ -45,15 +45,15 @@ class EditorPane is Pane {
 
   handle(event) {
     if (event is KeyEvent) {
-      if (event.code == Key.escape) {
+      if (event.shortcut_ == Key.escape) {
         triggerClose_()
         return true
       }
-      if (event.code == Key.ctrlS && _onSort != null) {
+      if (event.shortcut_ == Key.chord_(115, Mod.control) && _onSort != null) {
         _onSort.call()
         return true
       }
-      if ((event.code == Key.delete || event.code == Key.delChar) &&
+      if ((event.shortcut_ == Key.delete || event.shortcut_ == Key.delChar) &&
           _onClear != null) {
         _onClear.call()
         return true
@@ -232,7 +232,7 @@ class ScriptListPane is Pane {
 
   handle(event) {
     if (event is KeyEvent) {
-      var code = event.code
+      var code = event.shortcut_
       if (_moving) {
         if (code == Key.up) {
           move_(-1)

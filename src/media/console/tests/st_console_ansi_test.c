@@ -176,6 +176,11 @@ child_test(int descriptor)
 	}
 	report(descriptor, 'K');
 	if (!next_event(console, &event) || event.type != ST_CONSOLE_EVENT_KEY_CODE
+	    || event.data.key.code != 3
+	    || event.data.key.modifiers != ST_CONSOLE_MODIFIER_CONTROL)
+		goto failed;
+	report(descriptor, 'c');
+	if (!next_event(console, &event) || event.type != ST_CONSOLE_EVENT_KEY_CODE
 	    || event.data.key.code != ST_CONSOLE_KEY_UP
 	    || event.data.key.modifiers != ST_CONSOLE_MODIFIER_ALT) {
 		report(descriptor, 'A');
@@ -531,6 +536,8 @@ main(void)
 	    || !output_contains("\033[=255h")
 	    || write(master, "\r", 1) != 1
 	    || wait_report(reports[0], master, 'K') != 0
+	    || write(master, "\003", 1) != 1
+	    || wait_report(reports[0], master, 'c') != 0
 	    || write(master, "\033[1;3A", 6) != 6
 	    || wait_report(reports[0], master, 'A') != 0
 	    || write(master, "\033y", 2) != 2

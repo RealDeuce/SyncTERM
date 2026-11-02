@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Stephen Hurd
 // SPDX-License-Identifier: BSD-2-Clause
-import "syncterm" for Transfer, Host, BBS, CTerm, Emulation, Screen, Input,
+import "syncterm" for Transfer, Host, BBS, CTerm, Emulation, Screen, Input, Mod,
                        Key, KeyEvent, Timer, FilePickerOptions
 import "ui_app" for App
 import "ui_picker" for ListPicker
@@ -128,7 +128,7 @@ class TransferFlow {
   }
   static inline_() {
     var claim = Input.pushClaim(Fn.new {|event|
-      if (event is KeyEvent && (event.code == Key.escape || event.code == Key.ctrlC || event.code == Key.ctrlX)) Transfer.requestAbort()
+      if (event is KeyEvent && (event.shortcut_ == Key.escape || event.shortcut_ == Key.chord_(99, Mod.control) || event.shortcut_ == Key.chord_(120, Mod.control))) Transfer.requestAbort()
       return true
     })
     while (!Transfer.done) {

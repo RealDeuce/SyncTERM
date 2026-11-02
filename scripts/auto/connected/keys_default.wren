@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Stephen Hurd
 // SPDX-License-Identifier: BSD-2-Clause
 
-import "syncterm" for Hook, Key, Mouse, Host, CTerm, Input, Conn, Emoji
+import "syncterm" for Hook, Key, Mouse, Host, CTerm, Input, Conn, Emoji, Mod
 import "disconnect_flow" for DisconnectFlow
 import "scrollback_view" for ScrollbackView
 import "music_menu" for MusicMenu
@@ -10,63 +10,63 @@ import "font_pick" for FontApp
 import "session_log" for SessionLogView
 import "emoji_pick" for EmojiFlow
 
-Hook.onKey(Key.altP) {|key|
+Hook.onCommand_(112) {|key|
   if (!Emoji.canSend) return false
   Fiber.new { EmojiFlow.run() }.call()
   return true
 }
 
-Hook.onKey(Key.altV) { |key|
+Hook.onCommand_(118) { |key|
   SessionLogView.run()
   return true
 }
 
-Hook.onKey(Key.altX) { |key|
+Hook.onCommand_(120) { |key|
   DisconnectFlow.run(true)
   return true
 }
 
-Hook.onKey(Key.altB) { |key|
+Hook.onCommand_(98) { |key|
   ScrollbackView.run()
   return true
 }
 
-Hook.onKey(Key.altM) { |key|
+Hook.onCommand_(109) { |key|
   MusicMenu.run()
   return true
 }
 
-Hook.onKey(Key.altC) { |key|
+Hook.onCommand_(99) { |key|
   CaptureMenu.run()
   return true
 }
 
-Hook.onKey(Key.altE) { |key|
+Hook.onCommand_(101) { |key|
   Fiber.new { Host.editBBSList() }.call()
   return true
 }
 
-Hook.onKey(Key.altF) { |key|
+Hook.onCommand_(102) { |key|
   FontApp.run()
   return true
 }
 
-Hook.onKey(Key.altO) { |key|
+Hook.onCommand_(111) { |key|
   CTerm.mouseDisabled = !CTerm.mouseDisabled
   return true
 }
 
-Hook.onKey(Key.altUp) { |key|
+Hook.onKey(Key.up, Mod.command) { |key|
   CTerm.throttleSpeedUp()
   return true
 }
 
-Hook.onKey(Key.altDown) { |key|
+Hook.onKey(Key.down, Mod.command) { |key|
   CTerm.throttleSpeedDown()
   return true
 }
 
-Hook.onKey(Key.shiftIns) { |key|
+Hook.onKey(Key.insert, Mod.shift) { |key|
   Conn.paste()
   return true
 }
@@ -90,12 +90,12 @@ var pasteOnClick = Fn.new {|event|
 Hook.onMouse(Mouse.button2Click, pasteOnClick)
 Hook.onMouse(Mouse.button3Click, pasteOnClick)
 
-Hook.onKey(Key.altH) { |key|
+Hook.onCommand_(104) { |key|
   DisconnectFlow.run(false)
   return true
 }
 if (Host.localControlKeys) {
-  Hook.onKey(Key.ctrlQ) { |key|
+  Hook.onKey(113, Mod.control) { |key|
     DisconnectFlow.run(false)
     return true
   }

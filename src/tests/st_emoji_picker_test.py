@@ -194,7 +194,7 @@ app.runSync()
         assert 'medium skin tone' in frame.text
         check_footer(frame, True, 'man shrugging: medium skin tone')
         long_name = 'couple with heart: person, person, medium-light skin tone, medium-dark skin tone'
-        client.key(21)
+        client.key(21, 2)
         client.text(long_name)
         chunks = [long_name[i:i + 36] for i in range(0, len(long_name), 36)]
         def wrapped_name(s):
@@ -212,14 +212,14 @@ app.runSync()
         install_suite(root, source.replace(
             'app.onError = Fn.new {|fiber| Host.print("EMOJI ERROR: %(fiber.error)") }',
             '''var mouse = null
-app.bind(Key.altP, Fn.new {
+app.bind(112, Mod.command, Fn.new {
   mouse = Input.mouseEvents
   app.openEmojiPicker()
 })
 app.onError = Fn.new {|fiber|
   if (Input.mouseEvents != mouse) Fiber.abort("picker leaked mouse mask")
   Host.print("EXPECTED EMOJI ERROR: %(fiber.error)")
-}''').replace('Emoji, Host', 'Emoji, Host, Input'), 'emoji')
+}''').replace('Emoji, Host', 'Emoji, Host, Input, Mod'), 'emoji')
         break_picker(root)
     with fixture(executable, settings='AudioModes=0\n', prepare=prepare_failure, reports=reports) as (client, root):
         client.wait_text('Emoji input fixture')
@@ -237,7 +237,7 @@ def connected(executable, reports):
             terminal = Terminal(client, root, peer, send)
             terminal.case('emoji-picker-' + encoding)
             terminal.exchange(b'LIVE', reset=True)
-            client.key(16)
+            client.key(16, 2)
             terminal.input(b'\x10')
             if encoding != 'UTF-8':
                 alt_key(client, 25)
@@ -311,7 +311,7 @@ def connected(executable, reports):
         terminal = Terminal(client, root, peer, send)
         terminal.exchange(b'BEFORE', reset=True)
         alt_key(client, 25)
-        client.key(16)
+        client.key(16, 2)
         terminal.input(b'\x10')
         frame = terminal.exchange(b'AFTER')
         assert 'BEFOREAFTER' in frame.text and 'Insert Emoji' not in frame.text

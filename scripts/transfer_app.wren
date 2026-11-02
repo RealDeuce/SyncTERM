@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Stephen Hurd
 // SPDX-License-Identifier: BSD-2-Clause
-import "syncterm" for Transfer, Screen, Key, KeyEvent, Timer, Cleanup_
+import "syncterm" for Transfer, Screen, Key, KeyEvent, Timer, Cleanup_, Mod
 import "ui_app" for App
 import "ui_pane" for Pane
 import "ui_widget" for Rect
@@ -29,8 +29,8 @@ class TransferApp is App {
     _aborted = false
     tickMs = 50
     bind(Key.escape, Fn.new {|key| abort_() })
-    bind(Key.ctrlC, Fn.new {|key| abort_() })
-    bind(Key.ctrlX, Fn.new {|key| abort_() })
+    bind(99, Mod.control, Fn.new {|key| abort_() })
+    bind(120, Mod.control, Fn.new {|key| abort_() })
   }
   success { _success }
   aborted { _aborted }

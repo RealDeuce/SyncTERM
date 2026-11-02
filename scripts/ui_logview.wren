@@ -377,7 +377,7 @@ class LogView is Widget {
   handle(ev) {
     if (ev is MouseEvent) return handleMouse_(ev)
     if (!(ev is KeyEvent)) return false
-    var c = ev.code
+    var c = ev.shortcut_
     if (c == Key.pageUp) {
       scrollBy(-bounds.h)
       return true

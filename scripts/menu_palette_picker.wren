@@ -2,7 +2,7 @@
 // The sixteen-position contrast preview belongs here rather than in the
 // generic ui_color_picker module.
 
-import "syncterm" for Color, Key, KeyEvent, Mouse, MouseEvent
+import "syncterm" for Color, Key, KeyEvent, Mouse, MouseEvent, Mod
 import "ui_widget" for Container, Rect, Widget
 import "ui_pane" for Pane
 import "ui_button" for Button
@@ -150,26 +150,26 @@ class PalettePickerContent is Container {
     var handled = super.handle(event)
     if (handled && event is KeyEvent && focusedChild == _picker &&
         previous != 1) {
-      if (event.code == Key.tab) {
+      if (event.shortcut_ == Key.tab) {
         _picker.focusedIndex = _picker.firstFocusIndex
-      } else if (event.code == Key.backTab || event.code == Key.up) {
+      } else if (event.shortcut_ == Key.chord_(Key.tab, Mod.shift) || event.shortcut_ == Key.up) {
         _picker.focusedIndex = _picker.lastFocusIndex
       }
     }
     if (!handled && event is KeyEvent) {
-      if (event.code == Key.home && focusedChild == _picker) {
+      if (event.shortcut_ == Key.home && focusedChild == _picker) {
         _picker.focusedIndex = _picker.firstFocusIndex
         return true
       }
-      if (event.code == Key.end && focusedChild == _picker) {
+      if (event.shortcut_ == Key.end && focusedChild == _picker) {
         focusedIndex = 2
         return true
       }
-      if (event.code == Key.up && focusedChild == _picker) {
+      if (event.shortcut_ == Key.up && focusedChild == _picker) {
         focusedIndex = children.count - 1
         return true
       }
-      if (event.code == Key.down && focusedChild != _picker) {
+      if (event.shortcut_ == Key.down && focusedChild != _picker) {
         focusedIndex = 1
         _picker.focusedIndex = _picker.firstFocusIndex
         return true
@@ -192,7 +192,7 @@ class PalettePickerPane is Pane {
   }
 
   handle(event) {
-    if (event is KeyEvent && event.code == Key.escape) {
+    if (event is KeyEvent && event.shortcut_ == Key.escape) {
       _cancel.call()
       return true
     }
@@ -200,7 +200,7 @@ class PalettePickerPane is Pane {
       _default.call()
       return true
     }
-    if (event is KeyEvent && event.code == Key.enter) {
+    if (event is KeyEvent && event.shortcut_ == Key.enter) {
       if (super.handle(event)) return true
       _accept.call()
       return true

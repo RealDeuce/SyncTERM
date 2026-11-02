@@ -28,7 +28,7 @@ if (SFTP.available || BBS.connType == ConnType.ssh || BBS.connType == ConnType.s
   // fiber so the hook callback returns synchronously (Hook.dispatch_
   // contract); the spawned fiber pushes its own input claim and
   // parks until the user exits.
-  Hook.onKey(Key.altS) {|k|
+  Hook.onCommand_(115) {|k|
     if (SftpApp.current != null) return false
     if (browserOpening) return true
     browserOpening = true
@@ -49,7 +49,7 @@ if (SFTP.available || BBS.connType == ConnType.ssh || BBS.connType == ConnType.s
 
   // Alt-Q → enter SFTP UI in queue mode.  Same shape as Alt-S;
   // only the initial mode differs.
-  Hook.onKey(Key.altQ) {|k|
+  Hook.onCommand_(113) {|k|
     if (SftpApp.current != null) return false
     Fiber.new { SftpApp.new("queue").run() }.call()
     return true

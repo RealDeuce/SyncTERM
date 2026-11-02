@@ -1,4 +1,4 @@
-import "syncterm" for Key, KeyEvent, Mouse, MouseEvent, Screen, Text
+import "syncterm" for Key, KeyEvent, Mouse, MouseEvent, Screen, Text, Mod
 import "ui_app" for App
 import "ui_draw" for Painter
 import "ui_widget" for Rect, Widget
@@ -79,7 +79,7 @@ class ChoiceMessage is Widget {
   handle(event) {
     ensureLayout_()
     if (event is KeyEvent) {
-      var code = event.code
+      var code = event.shortcut_
       if (code == Key.up) {
         setScrollTop_(_scrollTop - 1)
       } else if (code == Key.down) {
@@ -156,12 +156,12 @@ class StandaloneChoice is Popup {
   }
 
   handle(event) {
-    if (event is KeyEvent && event.code == Key.escape) {
+    if (event is KeyEvent && event.shortcut_ == Key.escape) {
       dismissWith_(null)
       return true
     }
     if (event is KeyEvent &&
-        (event.code == Key.pageUp || event.code == Key.pageDown) &&
+        (event.shortcut_ == Key.pageUp || event.shortcut_ == Key.pageDown) &&
         _messageView.visible) {
       return _messageView.handle(event)
     }
@@ -181,7 +181,7 @@ class ModalPane is Pane {
   }
 
   handle(event) {
-    if (event is KeyEvent && event.code == Key.escape) {
+    if (event is KeyEvent && event.shortcut_ == Key.escape) {
       _onDismiss.call()
       return true
     }
@@ -198,15 +198,15 @@ class CommandPane is ModalPane {
 
   handle(event) {
     if (event is KeyEvent) {
-      var code = event.code
+      var code = event.shortcut_
       var aliased = true
       if (code == 0x2B) {
         code = Key.insert
       } else if (code == 0x2D || code == Key.delChar) {
         code = Key.delete
-      } else if (code == Key.ctrlIns) {
+      } else if (code == Key.chord_(Key.insert, Mod.control)) {
         code = Key.f5
-      } else if (code == Key.shiftIns) {
+      } else if (code == Key.chord_(Key.insert, Mod.shift)) {
         code = Key.f6
       } else {
         aliased = false
@@ -260,7 +260,7 @@ class MenuUi {
     addCommandHint_(hints, commands, Key.f6, "F6")
     addCommandHint_(hints, commands, Key.insert, "INS")
     addCommandHint_(hints, commands, Key.delete, "DEL")
-    addCommandHint_(hints, commands, Key.ctrlX, "Ctrl-X")
+    addCommandHint_(hints, commands, Key.chord_(120, Mod.control), "Ctrl-X")
     addCommandHint_(hints, commands, 0x5B, "[")
     addCommandHint_(hints, commands, 0x5D, "]")
     hints.add(["Esc", "Close"])

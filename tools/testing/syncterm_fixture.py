@@ -147,7 +147,7 @@ class TestCompletion {
     Screen.window.print("TEST-COMPLETE " + token)
     while (true) {
       var event = Input.next()
-      if (event is KeyEvent && event.code == Key.quit) break
+      if (event is KeyEvent && event.key == Key.quit) break
     }
   }
 }

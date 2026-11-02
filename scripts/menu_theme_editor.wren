@@ -1,6 +1,6 @@
 // Full-screen editor for C-owned SyncTERM theme documents.
 
-import "syncterm" for Cell, Codepage, Color, Font, Key, KeyEvent, Mouse, MouseEvent, Screen, Text
+import "syncterm" for Cell, Codepage, Color, Font, Key, KeyEvent, Mouse, MouseEvent, Screen, Text, Mod
 import "syncterm_menu" for Menu
 import "ui_widget" for Container, Rect, Widget
 import "ui_pane" for Pane
@@ -120,7 +120,7 @@ class ThemeGlyphGrid is Widget {
   }
 
   handleKey_(event) {
-    var code = event.code
+    var code = event.shortcut_
     if (code == Key.left) moveHorizontal_(-1)
     if (code == Key.right) moveHorizontal_(1)
     if (code == Key.up) moveVertical_(-1)
@@ -174,7 +174,7 @@ class ThemeGlyphPickerPane is Pane {
   }
 
   handle(event) {
-    if (event is KeyEvent && event.code == Key.escape) {
+    if (event is KeyEvent && event.shortcut_ == Key.escape) {
       _onCancel.call()
       return true
     }
@@ -599,7 +599,7 @@ class ThemeAtlas is Widget {
   }
 
   handleKey_(event) {
-    var code = event.code
+    var code = event.shortcut_
     if (code == Key.up) _model.move(-1)
     if (code == Key.down) _model.move(1)
     if (code == Key.pageUp) _model.move(-viewport_ + 1)
@@ -778,7 +778,7 @@ class ThemeColorPane is Pane {
   }
 
   handle(event) {
-    if (event is KeyEvent && event.code == Key.escape) {
+    if (event is KeyEvent && event.shortcut_ == Key.escape) {
       _onCancel.call()
       return true
     }
@@ -841,7 +841,7 @@ class ThemeClosePrompt is Popup {
   }
 
   handle(event) {
-    if (event is KeyEvent && event.code == Key.escape) {
+    if (event is KeyEvent && event.shortcut_ == Key.escape) {
       dismissWith_(null)
       return true
     }
@@ -980,11 +980,11 @@ class ThemeWidgetPreviewPane is Pane {
 
   handle(event) {
     if (event is KeyEvent) {
-      if (event.code == Key.escape) {
+      if (event.shortcut_ == Key.escape) {
         _onCancel.call()
         return true
       }
-      if (event.code == Key.f2 && _content.selectCurrentRole()) {
+      if (event.shortcut_ == Key.f2 && _content.selectCurrentRole()) {
         return true
       }
     }
@@ -1097,31 +1097,31 @@ class ThemeEditorPane is Pane {
 
   handle(event) {
     if (event is KeyEvent) {
-      if (event.code == Key.escape) {
+      if (event.shortcut_ == Key.escape) {
         _actions["close"].call()
         return true
       }
-      if (event.code == Key.ctrlS) {
+      if (event.shortcut_ == Key.chord_(115, Mod.control)) {
         _actions["save"].call()
         return true
       }
-      if (event.code == Key.f2) {
+      if (event.shortcut_ == Key.f2) {
         _actions["saveAs"].call()
         return true
       }
-      if (event.code == Key.ctrlZ) {
+      if (event.shortcut_ == Key.chord_(122, Mod.control)) {
         _actions["undo"].call()
         return true
       }
-      if (event.code == Key.ctrlY) {
+      if (event.shortcut_ == Key.chord_(121, Mod.control)) {
         _actions["redo"].call()
         return true
       }
-      if (event.code == Key.insert) {
+      if (event.shortcut_ == Key.insert) {
         _actions["new"].call()
         return true
       }
-      if (event.code == Key.delete || event.code == Key.delChar) {
+      if (event.shortcut_ == Key.delete || event.shortcut_ == Key.delChar) {
         _actions["remove"].call()
         return true
       }

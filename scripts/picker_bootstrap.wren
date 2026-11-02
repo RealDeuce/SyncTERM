@@ -2,7 +2,7 @@
 // copy before loading user picker scripts so an implementation error still
 // leaves the picker-local console reachable.
 
-import "syncterm" for Host, Input, Key, KeyEvent, REPL, Screen
+import "syncterm" for Host, Input, Key, KeyEvent, REPL, Screen, Mod, PhysicalKeyEvent
 import "wren_console" for WrenConsole
 
 class PickerBootstrap {
@@ -37,8 +37,9 @@ class PickerBootstrap {
         Screen.window.print("\u203c")
       }
       var event = Input.next()
-      if (!(event is KeyEvent)) continue
-      if (event.code == Key.wrenConsole) {
+      if (!(event is KeyEvent) && !(event is PhysicalKeyEvent)) continue
+      var key = event is KeyEvent ? event.shortcut_ : Key.physicalShortcut_(event)
+      if (key == Key.chord_(96, Mod.control)) {
         console()
         Screen.window.clear()
         Screen.window.position = [3, 2]
@@ -47,11 +48,11 @@ class PickerBootstrap {
         Screen.window.print(message)
         Screen.window.position = [3, 6]
         Screen.window.print("Ctrl+` opens the picker console.  Escape cancels.")
-      } else if (event.code == Key.escape) {
+      } else if (key == Key.escape) {
         request.cancel()
         Screen.window.bounds = oldBounds
         return
-      } else if (event.code == Key.quit) {
+      } else if (key == Key.quit) {
         request.quitApplication()
         Screen.window.bounds = oldBounds
         return

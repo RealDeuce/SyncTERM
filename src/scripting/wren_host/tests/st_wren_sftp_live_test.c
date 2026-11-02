@@ -237,7 +237,7 @@ static int run_case(st_wren_host_t *host, st_console_t *console,
 		    "if (SFTP.available || SFTP.lname || SFTP.pubdir != null) Fiber.abort(\"not lazy\")\n"
 		    "if (!(Host.sshPublicKey is Map)) Fiber.abort(\"missing public key\")\n") == 0);
 		bool consumed = false;
-		CHECK(st_wren_connected_handle_key(vm, 0x1000, &consumed) == 0 && consumed);
+		CHECK(st_wren_connected_handle_event(vm, &(struct st_console_event){.type = ST_CONSOLE_EVENT_PHYSICAL_KEY, .data.physical_key = {.evdev = 16, .pressed = true, .modifiers = ST_CONSOLE_MODIFIER_ALT}}, &consumed) == 0 && consumed);
 		CHECK(st_wren_connected_interpret(vm, "empty_queue",
 		    "import \"syncterm\" for SFTP\n"
 		    "import \"sftp_app\" for SftpApp\n"
@@ -251,7 +251,7 @@ static int run_case(st_wren_host_t *host, st_console_t *console,
 	CHECK(drain(vm) == 0);
 	if (test == 9) {
 		bool consumed = false;
-		CHECK(st_wren_connected_handle_key(vm, 0x1000, &consumed) == 0 && consumed);
+		CHECK(st_wren_connected_handle_event(vm, &(struct st_console_event){.type = ST_CONSOLE_EVENT_PHYSICAL_KEY, .data.physical_key = {.evdev = 16, .pressed = true, .modifiers = ST_CONSOLE_MODIFIER_ALT}}, &consumed) == 0 && consumed);
 		CHECK(st_wren_connected_interpret(vm, "connection_loss",
 		    "import \"sftp_queue\" for SftpQueue\n"
 		    "SftpQueue.enqueue(SftpQueue.DOWNLOAD, \"sftp-loss.bin\", \"/remote.bin\", 90000)\n") == 0);
@@ -325,7 +325,7 @@ static int run_case(st_wren_host_t *host, st_console_t *console,
 		if (test == 0) {
 			CHECK(upload(host, vm, directory) == 0);
 			bool consumed = false;
-			CHECK(st_wren_connected_handle_key(vm, 0x1f00, &consumed) == 0 && consumed);
+			CHECK(st_wren_connected_handle_event(vm, &(struct st_console_event){.type = ST_CONSOLE_EVENT_PHYSICAL_KEY, .data.physical_key = {.evdev = 31, .pressed = true, .modifiers = ST_CONSOLE_MODIFIER_ALT}}, &consumed) == 0 && consumed);
 			CHECK(wait_browser(vm, console) == 0);
 			CHECK(st_wren_connected_interpret(vm, "browser_result",
 			    "import \"sftp_app\" for SftpApp\n"

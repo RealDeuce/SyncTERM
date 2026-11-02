@@ -1,4 +1,4 @@
-import "syncterm" for FilePickerOptions, Host, Key, KeyEvent, Mouse,
+import "syncterm" for FilePickerOptions, Host, Key, KeyEvent, Mouse, Mod,
                        MouseEvent, REPL, Screen
 import "ui_app" for App
 import "ui_button" for Button
@@ -45,9 +45,9 @@ class PickerInput is SelectOnFocusInput {
         ev.event == Mouse.button1Click) {
       _owner.focusWidget(this)
     }
-    if (ev is KeyEvent && (ev.code == Key.tab ||
-        ev.code == Key.backTab || ev.code == Key.up ||
-        ev.code == Key.down)) {
+    if (ev is KeyEvent && (ev.shortcut_ == Key.tab ||
+        ev.shortcut_ == Key.chord_(Key.tab, Mod.shift) || ev.shortcut_ == Key.up ||
+        ev.shortcut_ == Key.down)) {
       if (_onLeave != null) _onLeave.call(value)
     }
     return super.handle(ev)
@@ -157,7 +157,7 @@ class ExistingFileChoice is Popup {
         dismissWith_("append")
         return true
       }
-      if (ev.code == Key.escape) {
+      if (ev.shortcut_ == Key.escape) {
         dismissWith_(null)
         return true
       }
@@ -192,11 +192,11 @@ class PickerReview is Pane {
 
   handle(event) {
     if (event is KeyEvent) {
-      if (event.code == Key.escape) {
+      if (event.shortcut_ == Key.escape) {
         _app.popModal()
         return true
       }
-      if (event.code == Key.delete || event.code == Key.delChar) {
+      if (event.shortcut_ == Key.delete || event.shortcut_ == Key.delChar) {
         if (_list.selected != null) remove_(_list.selected)
         return true
       }
@@ -599,19 +599,19 @@ class PickerPane is Pane {
 
   handle(event) {
     if (event is KeyEvent) {
-      if (event.code == Key.escape) {
+      if (event.shortcut_ == Key.escape) {
         cancel()
         return true
       }
-      if (event.code == Key.ctrlJ) {
+      if (event.shortcut_ == Key.chord_(106, Mod.control)) {
         finish()
         return true
       }
-      if (event.code == Key.f2 && multiple) {
+      if (event.shortcut_ == Key.f2 && multiple) {
         review()
         return true
       }
-      if (event.code == Key.ctrlA && multiple) {
+      if (event.shortcut_ == Key.chord_(97, Mod.control) && multiple) {
         selectAll()
         return true
       }
@@ -642,7 +642,7 @@ class FilePicker {
       REPL.printTrace_(fiber)
       indicator.refresh()
     }
-    app.bind(Key.wrenConsole, Fn.new {|key|
+    app.bind(96, Mod.control, Fn.new {|key|
       PickerBootstrap.console()
       indicator.refresh()
     })

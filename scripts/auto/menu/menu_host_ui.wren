@@ -51,8 +51,8 @@ class MenuHostUI {
       CustomCursor.normal.apply()
       var event = Input.next(100)
       if (!(event is KeyEvent)) continue
-      var key = event.code
-      if (key == 13 || key == 10 || key == Key.quit) return
+      var key = event.shortcut_
+      if (key == Key.enter || key == Key.quit) return
       if (key == Key.f1) {
         var saved = Screen.save()
         help(title, details)

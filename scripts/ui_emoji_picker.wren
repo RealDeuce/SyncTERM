@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 // No App import: this pane works inside an existing App or a connected modal.
-import "syncterm" for Emoji, Key, KeyEvent, Mouse, MouseEvent, Screen, Text, Input
+import "syncterm" for Emoji, Key, KeyEvent, Mouse, MouseEvent, Screen, Text, Input, Mod
 import "ui_pane" for Pane
 import "ui_widget" for Rect
 import "ui_draw" for Painter
@@ -258,7 +258,7 @@ class EmojiPicker is Pane {
 
   handle(event) {
     if (event is KeyEvent) {
-      var c = event.code
+      var c = event.shortcut_
       if (c == Key.escape) {
         cancel_()
         return true
@@ -303,11 +303,11 @@ class EmojiPicker is Pane {
         move_(_items.count)
         return true
       }
-      if (c == Key.backspace || c == Key.ctrlU) {
+      if (c == Key.backspace || c == Key.chord_(117, Mod.control)) {
         var chars = []
         for (ch in _query) chars.add(ch)
         if (chars.count > 0) chars.removeAt(-1)
-        _query = c == Key.ctrlU ? "" : chars.join()
+        _query = c == Key.chord_(117, Mod.control) ? "" : chars.join()
         _message = null
         refresh_()
         return true

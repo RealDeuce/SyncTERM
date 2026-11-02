@@ -90,7 +90,7 @@ def directory(executable, reports):
         click_text(client, frame, 'Zulu')
         frame = client.wait_text('zulu.example')
         assert frame.application['session_active'] == 0
-        client.key(6)
+        client.key(6, 2)
         client.text('SECOND.EXAMPLE')
         frame = client.wait_text('1 connections')
         assert 'München' in frame.text and 'Zulu' not in frame.text
@@ -122,7 +122,7 @@ def directory(executable, reports):
         saved = (root / 'syncterm.lst').read_text(encoding='utf-8')
         assert '[Created]' in saved and 'created.example' in saved
         # A directory mutation expires old handles; filtering remains usable.
-        client.key(6)
+        client.key(6, 2)
         client.text('Alpha')
         frame = client.wait_text('1 connections')
         click_text(client, frame, 'Delete')
@@ -249,14 +249,14 @@ def adaptive_directory(executable, reports):
         assert 'D Unicode' in frame.lines[12] and wide_address in frame.lines[12]
         client.grid_resize(80, 25)
         client.wait_for(lambda f: f.metadata['columns'] == 80)
-        client.key(6)
+        client.key(6, 2)
         client.text('Expandable')
         frame = client.wait_text('5 connections')
         # Five entries need ten physical rows. The scrollbar is based on
         # rendered height, and its gutter must participate in measuring.
         assert frame.lines[8].index('Address') == 47
         assert long_name in frame.lines[10] and long_address in frame.lines[13]
-        client.key(6)
+        client.key(6, 2)
         client.text('A compact')
         frame = client.wait_text('1 connections')
         assert frame.lines[8].index('Address') == 48
@@ -336,7 +336,8 @@ def recovery(executable, reports):
         client.key('f1')
         client.wait_text('Use Directory and Settings')
         client.key('escape')
-        client.key(0x29e0)
+        client.physical_key(41, True, 2)
+        client.physical_key(41, False, 2)
         client.wait_text('(main_menu) wren>')
         client.key('escape')
         client.wait_text('Your directory is empty.')
@@ -435,7 +436,7 @@ def web_list(executable, reports):
             click_text(client, frame, 'Directory')
             frame = client.wait_text('4 connections')
             # Find the fetched entry through the public search after reload.
-            client.key(6)
+            client.key(6, 2)
             client.text('Fetched web entry')
             frame = client.wait_text('1 connections')
             assert 'Fetched web entry' in frame.text and 'Error:' not in frame.text

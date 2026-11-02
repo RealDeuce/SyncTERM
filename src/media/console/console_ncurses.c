@@ -1475,6 +1475,9 @@ curses_input_inner(void *argument)
 				if (key_code != 0) {
 					event.type = ST_CONSOLE_EVENT_KEY_CODE;
 					event.data.key.code = key_code;
+					if (key_code >= 1 && key_code <= 26 && key_code != 8
+					    && key_code != 9 && key_code != 13)
+						event.data.key.modifiers |= ST_CONSOLE_MODIFIER_CONTROL;
 					have_event = true;
 				}
 			}

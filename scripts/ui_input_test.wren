@@ -3,7 +3,7 @@
 
 import "ui_widget" for Rect
 import "ui_input"  for TextInput, SelectOnFocusInput
-import "syncterm"  for KeyEvent, MouseEvent, Key, Mouse
+import "syncterm"  for KeyEvent, MouseEvent, Key, Mouse, Mod
 
 class PasteProbe is TextInput {
   construct new() {
@@ -290,7 +290,7 @@ class UiInputTest {
 
   static testCtrlZConsumed_() {
     var t = TextInput.new()
-    check_(t.handle(KeyEvent.new(Key.ctrlZ)),
+    check_(t.handle(KeyEvent.new(122, Mod.control)),
            "TextInput Ctrl-Z: opens contextual help when available")
   }
 
@@ -358,12 +358,12 @@ class UiInputTest {
     var t = TextInput.new()
     t.bounds = Rect.new(1, 1, 10, 1)
     t.value = "abcd"
-    t.handle(KeyEvent.new(Key.ctrlB))
+    t.handle(KeyEvent.new(98, Mod.control))
     var atStart = t.cursor == 0
     t.cursor = 2
-    t.handle(KeyEvent.new(Key.ctrlY))
+    t.handle(KeyEvent.new(121, Mod.control))
     var truncated = t.value == "ab"
-    t.handle(KeyEvent.new(Key.ctrlE))
+    t.handle(KeyEvent.new(101, Mod.control))
     check_(atStart && truncated && t.cursor == 2,
            "TextInput Ctrl-B/Ctrl-E/Ctrl-Y: move and truncate")
   }

@@ -663,6 +663,8 @@ input_text_byte(st_console_display_t *display, struct ansi_state *state,
 			return;
 		}
 		state->last_was_carriage_return = byte == '\r';
+		if (code >= 1 && code <= 26 && code != 8 && code != 9 && code != 13)
+			modifiers |= ST_CONSOLE_MODIFIER_CONTROL;
 		post_key(display, code, modifiers);
 		return;
 	}

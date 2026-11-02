@@ -448,7 +448,7 @@ class ListView is Widget {
   }
 
   handleKey_(ke) {
-    var c  = ke.code
+    var c  = ke.shortcut_
     var cp = ke.codepoint
     // Navigation / activation: consume + clear the type-search
     // buffer so the next typed letter starts a fresh prefix search.

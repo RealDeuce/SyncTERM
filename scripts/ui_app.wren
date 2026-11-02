@@ -40,7 +40,7 @@ import "ui_popup"  for PopStatus
 import "ui_help"   for Help
 import "ui_input" for TextInput
 import "ui_emoji_picker" for EmojiPicker
-import "syncterm"  for Input, KeyEvent, MouseEvent, Mouse, Key, Timer,
+import "syncterm"  for Input, KeyEvent, PhysicalKeyEvent, MouseEvent, Mouse, Key, Timer, Mod,
                        Wake, Screen, Surface, CustomCursor, CTerm,
                        REPL, Host, Emoji, Cleanup_
 
@@ -106,8 +106,8 @@ class App {
     _mouseRepeatTimer = null
     // F1 → context help; user can rebind / unbind freely.
     bind(Key.f1, Fn.new {|k| showHelp() })
-    bind(Key.altP, Fn.new {|k| openEmojiPicker() })
-    if (Host.localControlKeys) bind(Key.ctrlP, Fn.new {|k| openEmojiPicker() })
+    bind(112, Mod.command, Fn.new {|k| openEmojiPicker() })
+    if (Host.localControlKeys) bind(112, Mod.control, Fn.new {|k| openEmojiPicker() })
   }
 
   openEmojiPicker() {
@@ -185,10 +185,13 @@ class App {
   markDirty() {}
 
   // Global hotkeys — consulted only when no widget consumes the key.
-  // Keyed by the integer code from KeyEvent.code.
-  bind(keyCode, fn) { _keymap[keyCode] = fn }
-  unbind(keyCode)   { _keymap.remove(keyCode) }
-  binding(keyCode)  { _keymap[keyCode] }
+  // Indexed by exact logical-key/modifier pairs.
+  bind(key, fn) { bind(key, 0, fn) }
+  bind(key, modifiers, fn) { _keymap[Key.chord_(key, modifiers)] = fn }
+  unbind(key) { unbind(key, 0) }
+  unbind(key, modifiers) { _keymap.remove(Key.chord_(key, modifiers)) }
+  binding(key) { binding(key, 0) }
+  binding(key, modifiers) { _keymap[Key.chord_(key, modifiers)] }
 
   pushModal(widget) {
     stopMouseRepeat_(null)
@@ -539,10 +542,10 @@ class App {
   // no-focused-widget case so an xeyes-style App can sit on screen
   // without intercepting events.
   shouldConsume_(ev) {
-    if (ev is KeyEvent && ev.code == Key.quit) return true
+    if (ev is KeyEvent && ev.shortcut_ == Key.quit) return true
     if (_modalStack.count > 0) return true
     if (_root.focusedChild == null) return false
-    if (ev is KeyEvent) return true
+    if (ev is KeyEvent || ev is PhysicalKeyEvent) return true
     if (ev is MouseEvent) {
       if (ev.event == Mouse.button1DragStart) return true
       return _root.hitTest(ev.startX, ev.startY) != null
@@ -555,12 +558,21 @@ class App {
 
   // Key flow:
   //   1. modalTop.handle(ke) — focused-leaf-first via Container.
-  //   2. App keymap lookup on the raw code.
+  //   2. App keymap lookup on the key/modifier pair.
   //   3. Otherwise drop.
+  dispatchPhysical_(event) {
+    var shortcut = Key.physicalShortcut_(event)
+    if (shortcut < 0) return false
+    var fn = _keymap[shortcut]
+    if (fn == null) return false
+    fn.call(event)
+    return true
+  }
+
   dispatchKey_(ke) {
-    if (ke.code == Key.quit) return dispatchQuit_()
+    if (ke.shortcut_ == Key.quit) return dispatchQuit_()
     if (modalTop.handle(ke)) return true
-    if (ke.code == Key.backspace) {
+    if (ke.shortcut_ == Key.backspace) {
       var escape = KeyEvent.new(Key.escape)
       if (modalTop.handle(escape)) return true
       var escapeFn = _keymap[Key.escape]
@@ -570,7 +582,7 @@ class App {
       }
       return false
     }
-    var fn = _keymap[ke.code]
+    var fn = _keymap[ke.shortcut_]
     if (fn != null) {
       fn.call(ke)
       return true
@@ -578,7 +590,7 @@ class App {
     return false
   }
 
-  // CIO_KEY_QUIT is a sticky host termination request, not an ordinary
+  // Key.quit is a sticky host termination request, not an ordinary
   // command.  Give the top modal its normal Escape cleanup path, then pop
   // it if it refused to close.  The next pump iteration unwinds the next
   // modal or quits the App.  Widgets explicitly marked atExit keep running
@@ -666,12 +678,13 @@ class App {
     var modalsBefore = []
     for (modal in _modalStack) modalsBefore.add(modal)
     var quitTop = null
-    if (ev is KeyEvent && ev.code == Key.quit &&
+    if (ev is KeyEvent && ev.shortcut_ == Key.quit &&
         _modalStack.count > 0 && !modalTop.atExit) {
       quitTop = modalTop
     }
     var f = Fiber.new {
       if (ev is KeyEvent) dispatchKey_(ev)
+      if (ev is PhysicalKeyEvent) dispatchPhysical_(ev)
       if (ev is MouseEvent) dispatchMouse_(ev)
     }
     f.try()
@@ -842,6 +855,10 @@ class App {
         _tickTimer = null
         onTick_()
       }
+      return
+    }
+    if (ev is PhysicalKeyEvent) {
+      dispatchPhysical_(ev)
       return
     }
     if (ev is KeyEvent) {

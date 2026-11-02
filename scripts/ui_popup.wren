@@ -493,7 +493,7 @@ class Alert is Popup {
   // dispatch.  Random letters fall through and don't dismiss, so
   // the OK button feels like an actual confirmation step.
   handle(ev) {
-    if (ev is KeyEvent && ev.code == Key.escape) {
+    if (ev is KeyEvent && ev.shortcut_ == Key.escape) {
       dismissWith_(null)
       return true
     }
@@ -564,7 +564,7 @@ class Confirm is Popup {
   // focus-aware dispatch so the focused button activates.
   handle(ev) {
     if (ev is KeyEvent) {
-      var c  = ev.code
+      var c  = ev.shortcut_
       var cp = ev.codepoint
       if (cp == 0x59 || cp == 0x79) {
         dismissWith_(true)
@@ -658,7 +658,7 @@ class Prompt is Popup {
   // child (TextInput or one of the buttons).  TextInput's onSubmit
   // wires Enter-in-the-input to dismissWith_(value).
   handle(ev) {
-    if (ev is KeyEvent && ev.code == Key.escape) {
+    if (ev is KeyEvent && ev.shortcut_ == Key.escape) {
       dismissWith_(null)
       return true
     }
@@ -730,7 +730,7 @@ class LinePrompt is Popup {
   }
 
   handle(ev) {
-    if (ev is KeyEvent && ev.code == Key.escape) {
+    if (ev is KeyEvent && ev.shortcut_ == Key.escape) {
       dismissWith_(null)
       return true
     }
@@ -787,7 +787,7 @@ class Find is Popup {
   }
 
   handle(ev) {
-    if (ev is KeyEvent && ev.code == Key.escape) {
+    if (ev is KeyEvent && ev.shortcut_ == Key.escape) {
       dismissWith_(null)
       return true
     }

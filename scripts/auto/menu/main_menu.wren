@@ -1,4 +1,4 @@
-import "syncterm" for Host, KeyEvent, MouseEvent, Key, Mouse, REPL, Screen
+import "syncterm" for Host, KeyEvent, MouseEvent, Key, Mouse, REPL, Screen, Mod
 import "syncterm_menu" for Menu, MenuReadStatus
 import "wren_console" for WrenConsole
 import "menu_ui" for MenuUi
@@ -188,15 +188,15 @@ class ClassicFooter is Container {
   }
 
   handle(event) {
-    if (event is KeyEvent && event.code == Key.tab) {
+    if (event is KeyEvent && event.shortcut_ == Key.tab) {
       _onCommit.call(_input.value, 1)
       return true
     }
-    if (event is KeyEvent && event.code == Key.backTab) {
+    if (event is KeyEvent && event.shortcut_ == Key.chord_(Key.tab, Mod.shift)) {
       _onCommit.call(_input.value, -1)
       return true
     }
-    if (event is KeyEvent && event.code == Key.escape) {
+    if (event is KeyEvent && event.shortcut_ == Key.escape) {
       _input.value = _comment
       _onCancel.call()
       return true
@@ -260,12 +260,12 @@ class MainList is ListView {
       return true
     }
     if (_onComment != null && event is KeyEvent &&
-        event.code == _commentKey) {
+        event.shortcut_ == _commentKey) {
       _onComment.call()
       return true
     }
     if (_onSwitchPane != null && event is KeyEvent &&
-        (event.code == Key.left || event.code == Key.right)) {
+        (event.shortcut_ == Key.left || event.shortcut_ == Key.right)) {
       _onSwitchPane.call()
       return true
     }
@@ -369,7 +369,7 @@ class MainMenuApp {
     _app.root.add(_settings)
 
     _settingsList = MainList.new(Fn.new { focusSettings_() }, null,
-        Fn.new { focusComment_(-1) }, Key.backTab,
+        Fn.new { focusComment_(-1) }, Key.chord_(Key.tab, Mod.shift),
         Fn.new { focusDirectory_() }, null, null)
     var settingLabels = []
     for (row in _settingRows) settingLabels.add(row[1])
@@ -397,23 +397,23 @@ class MainMenuApp {
     }
     bind_(Key.escape, Fn.new { exit_(false) })
     var openConsole = Fn.new {|event| console_() }
-    _app.bind(Key.wrenConsole, openConsole)
-    if (Host.localControlKeys) _app.bind(Key.ctrlQ, openConsole)
+    _app.bind(96, Mod.control, openConsole)
+    if (Host.localControlKeys) _app.bind(113, Mod.control, openConsole)
     bindDirectory_(Key.f2, Fn.new {
       if (_selected != null) edit_()
     })
-    bindDirectory_(Key.ctrlE, Fn.new { edit_() })
+    bindDirectory_(Key.chord_(101, Mod.control), Fn.new { edit_() })
     bindDirectory_(Key.insert, Fn.new { add_() })
     bindDirectory_(Key.delete, Fn.new { delete_() })
     bindDirectory_(Key.delChar, Fn.new { delete_() })
-    bindDirectory_(Key.ctrlS, Fn.new { sort_() })
+    bindDirectory_(Key.chord_(115, Mod.control), Fn.new { sort_() })
     bindDirectory_(Key.f5, Fn.new { copy_() })
-    bindDirectory_(Key.ctrlIns, Fn.new { copy_() })
+    bindDirectory_(Key.chord_(Key.insert, Mod.control), Fn.new { copy_() })
     bindDirectory_(Key.f6, Fn.new { paste_() })
-    bindDirectory_(Key.shiftIns, Fn.new { paste_() })
-    if (!_connected) bindDirectory_(Key.ctrlD, Fn.new { quick_() })
+    bindDirectory_(Key.chord_(Key.insert, Mod.shift), Fn.new { paste_() })
+    if (!_connected) bindDirectory_(Key.chord_(100, Mod.control), Fn.new { quick_() })
     if (!_connected) {
-      bind_(Key.altB, Fn.new { OfflineScrollbackView.show(_app) })
+      bind_(Key.chord_(98, Mod.command), Fn.new { OfflineScrollbackView.show(_app) })
     }
     for (command in MainMenu.commands_) bindCommand_(command)
     _app.root.focusedIndex = 1
@@ -1139,6 +1139,11 @@ class MainMenu {
   // controller. callback receives the active App and whether this directory
   // is being shown over a connected session.
   static registerCommand(key, keyName, description, callback) {
+    registerCommand(key, 0, keyName, description, callback)
+  }
+  static registerCommand(key, modifiers, keyName, description, callback) {
+    KeyEvent.new(key, modifiers)
+    key = Key.chord_(key, modifiers)
     if (!(key is Num) || !key.isInteger || !(keyName is String) ||
         !(description is String) || !(callback is Fn)) {
       Fiber.abort("MainMenu.registerCommand: invalid command")

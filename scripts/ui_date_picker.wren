@@ -218,7 +218,7 @@ class DatePicker is Widget {
   }
 
   handleKey_(event) {
-    var code = event.code
+    var code = event.shortcut_
     if (code == Key.left) {
       moveDays(-1)
       return true

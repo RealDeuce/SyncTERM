@@ -1,5 +1,5 @@
 import "syncterm_menu" for Menu
-import "syncterm" for Key
+import "syncterm" for Key, Mod
 import "menu_ui" for ChoiceViewState, MenuUi
 import "ui_popup" for Alert
 
@@ -45,8 +45,8 @@ class SortProfiles {
       commands[Key.delete] = ["delete", false]
       commands[Key.f2] = ["rename", false]
       commands[Key.f5] = ["copy", false]
-      commands[Key.ctrlX] = ["cut", false]
-      commands[Key.shiftDel] = ["cut", false]
+      commands[Key.chord_(120, Mod.control)] = ["cut", false]
+      commands[Key.chord_(Key.delete, Mod.shift)] = ["cut", false]
       if (clipboard != null) commands[Key.f6] = ["paste", false]
       var picked = MenuUi.commandChoice(app, "Sort Profiles",
           profileLabels_(profiles), selected, profilesHelp_(), commands,

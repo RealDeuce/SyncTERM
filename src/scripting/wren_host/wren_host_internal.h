@@ -9,6 +9,7 @@
 #define ST_WREN_HOST_INTERNAL_H_
 
 #include "st_wren_host.h"
+#include "st_console.h"
 #include "st_profile.h"
 #include "st_screen_mode.h"
 #include "st_settings.h"
@@ -105,9 +106,7 @@ struct st_wren_input_record {
 	enum st_wren_input_type type;
 	union {
 		struct {
-			uint16_t code;
-			uint32_t codepoint;
-			bool has_codepoint;
+			struct st_console_event native;
 		} key;
 		struct {
 			uint16_t evdev;
@@ -428,7 +427,13 @@ int st_wren_input_dispatch(WrenVM *vm,
 	const struct st_wren_input_record *event, bool *consumed);
 int st_wren_input_dispatch_console_event(WrenVM *vm,
 	const struct st_console_event *event, bool *consumed);
-uint16_t st_wren_input_key_code(const struct st_console_event *event);
+#define ST_WREN_NAMED_KEY_BASE UINT32_C(0x110000)
+#define ST_WREN_QUIT_KEY UINT32_C(0x120000)
+bool st_wren_input_key(const struct st_console_event *event,
+	uint32_t *key, uint32_t *modifiers);
+bool st_wren_input_native(WrenVM *vm, int slot, struct st_console_event *event);
+int st_wren_connected_handle_key_record(struct st_wren_connected *connected,
+	const struct st_wren_input_record *record, bool *consumed);
 void st_wren_input_push_event(WrenVM *vm, int slot,
 	const struct st_wren_input_record *record);
 int st_wren_connected_handle_mouse_record(struct st_wren_connected *connected,

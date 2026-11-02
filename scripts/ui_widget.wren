@@ -19,7 +19,7 @@
 
 import "ui_style" for Theme
 import "ui_draw"  for Painter
-import "syncterm" for KeyEvent, Key, Surface
+import "syncterm" for KeyEvent, Key, Surface, Mod
 
 class Rect {
   construct new(x, y, w, h) {
@@ -577,9 +577,9 @@ class Container is Widget {
     if (ev is KeyEvent) {
       var fc = focusedChild
       if (fc != null && fc.visible && fc.handle(ev)) return true
-      var c = ev.code
+      var c = ev.shortcut_
       if (c == Key.tab || c == Key.right) return focusNext()
-      if (c == Key.backTab || c == Key.left) return focusPrev()
+      if (c == Key.chord_(Key.tab, Mod.shift) || c == Key.left) return focusPrev()
       if (c == Key.up)   return focusByDirection_(0, -1)
       if (c == Key.down) return focusByDirection_(0,  1)
       // Hotkey scan: any focusable visible child whose tryHotkey

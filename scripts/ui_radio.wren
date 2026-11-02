@@ -148,7 +148,7 @@ class RadioGroup is Widget {
   }
 
   handleKey_(ke) {
-    var c  = ke.code
+    var c  = ke.shortcut_
     var cp = ke.codepoint
     if (c == Key.up) {
       if (_items.count == 0) return false

@@ -151,9 +151,11 @@ test_save_retry(struct st_wren_host *host, const char *settings)
 static void
 post_key(st_console_t *console, uint16_t key)
 {
-	const struct st_console_event event = {
-		.type = ST_CONSOLE_EVENT_KEY_CODE, .data.key.code = key,
-	};
+	const struct st_console_event event = key >= 32 && key < 127
+	    ? (struct st_console_event){.type = ST_CONSOLE_EVENT_TEXT,
+		.data.text.codepoint = key}
+	    : (struct st_console_event){.type = ST_CONSOLE_EVENT_KEY_CODE,
+		.data.key.code = key};
 	CHECK(st_console_post_event(console, &event) == 0);
 }
 

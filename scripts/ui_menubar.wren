@@ -166,7 +166,7 @@ class MenuBar is Widget {
 
   handleKey_(ke) {
     if (_items.count == 0) return false
-    var c = ke.code
+    var c = ke.shortcut_
     if (c == Key.left) {
       var i = _focused - 1
       if (i < 0) i = _items.count - 1

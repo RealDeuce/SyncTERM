@@ -34,7 +34,7 @@
 
 import "ui_widget" for Widget, Rect
 import "ui_draw"   for Painter
-import "syncterm"  for Clipboard, KeyEvent, MouseEvent, Key, Mouse, Screen
+import "syncterm"  for Clipboard, KeyEvent, MouseEvent, Key, Mouse, Screen, Mod
 
 class TextInput is Widget {
   construct new() {
@@ -354,7 +354,7 @@ class TextInput is Widget {
   }
 
   handleKey_(ke) {
-    var c = ke.code
+    var c = ke.shortcut_
     if (c == Key.left) {
       cursor = _cursor - 1
       return true
@@ -371,11 +371,11 @@ class TextInput is Widget {
       cursor = _chars.count
       return true
     }
-    if (c == Key.ctrlB) {
+    if (c == Key.chord_(98, Mod.control)) {
       cursor = 0
       return true
     }
-    if (c == Key.ctrlE) {
+    if (c == Key.chord_(101, Mod.control)) {
       cursor = _chars.count
       return true
     }
@@ -383,8 +383,8 @@ class TextInput is Widget {
       backspace_()
       return true
     }
-    // Forward-delete arrives as either Key.delete (0x5300, dedicated
-    // keypad scancode) or Key.delChar (0x7F, ASCII DEL).  Which one
+    // Forward-delete arrives as either Key.delete (the dedicated
+    // Delete key) or Key.delChar (an ASCII DEL key). Which one
     // a given terminal emits depends on its keymap; accept both.
     if (c == Key.delete || c == Key.delChar) {
       delete_()
@@ -395,24 +395,24 @@ class TextInput is Widget {
       insertMode = !insertMode
       return true
     }
-    if (c == Key.ctrlC || c == Key.ctrlIns) {
+    if (c == Key.chord_(99, Mod.control) || c == Key.chord_(Key.insert, Mod.control)) {
       copy_()
       clearSelection_()
       return true
     }
-    if (c == Key.ctrlX || c == Key.shiftDel) {
+    if (c == Key.chord_(120, Mod.control) || c == Key.chord_(Key.delete, Mod.shift)) {
       cut_()
       return true
     }
-    if (c == Key.ctrlV || c == Key.shiftIns) {
+    if (c == Key.chord_(118, Mod.control) || c == Key.chord_(Key.insert, Mod.shift)) {
       paste_()
       return true
     }
-    if (c == Key.ctrlY) {
+    if (c == Key.chord_(121, Mod.control)) {
       truncate_()
       return true
     }
-    if (c == Key.ctrlZ) {
+    if (c == Key.chord_(122, Mod.control)) {
       clearSelection_()
       showHelp_()
       return true

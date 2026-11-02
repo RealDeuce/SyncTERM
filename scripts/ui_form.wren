@@ -183,7 +183,7 @@ class Form is Container {
 
   // Esc cancels (when wired); Container handles Tab/arrows naturally.
   handle(ev) {
-    if (ev is KeyEvent && ev.code == Key.escape) {
+    if (ev is KeyEvent && ev.shortcut_ == Key.escape) {
       if (_onCancel != null) {
         _onCancel.call()
         return true

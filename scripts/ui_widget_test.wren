@@ -12,7 +12,7 @@ import "ui_style"  for Style, Theme
 import "ui_widget" for Rect, Widget, Container
 import "ui_draw"   for Painter
 import "ui_app"    for App
-import "syncterm"  for KeyEvent, MouseEvent, Key, Mouse, CustomCursor
+import "syncterm"  for KeyEvent, MouseEvent, Key, Mouse, CustomCursor, Mod
 
 // A Widget subclass that records every event it sees, optionally
 // consumes them, and counts draw() invocations.  Focus and bounds
@@ -54,7 +54,7 @@ class ClosingProbe is Probe {
   construct new() { super() }
 
   handle(ev) {
-    if (ev is KeyEvent && ev.code == Key.escape) {
+    if (ev is KeyEvent && ev.shortcut_ == Key.escape) {
       parent.popModal()
       return true
     }
@@ -80,7 +80,7 @@ class PushModalAbortProbe is ClosingProbe {
   }
 
   handle(ev) {
-    if (ev is KeyEvent && ev.code == Key.enter) {
+    if (ev is KeyEvent && ev.shortcut_ == Key.enter) {
       _app.pushModal(_pushed)
       Fiber.abort("expected handler failure")
     }
@@ -625,7 +625,7 @@ class UiWidgetTest {
     var b = Probe.new()
     c.add(a)
     c.add(b)
-    var consumed = c.handle(KeyEvent.new(Key.backTab))
+    var consumed = c.handle(KeyEvent.new(Key.tab, Mod.shift))
     check_(consumed && c.focusedChild == b,    // wraps backward from a
            "Container.handle BackTab steps focus")
   }
@@ -936,7 +936,7 @@ class UiWidgetTest {
     var consumed = app.dispatchKey_(KeyEvent.new(Key.quit))
     check_(consumed && app.modalStack.count == 1 &&
            app.modalTop == lower && top.seen.count == 1 &&
-           top.seen[0].code == Key.escape && !fired,
+           top.seen[0].shortcut_ == Key.escape && !fired,
            "App quit: Escape cleanup then one modal frame unwound")
   }
 

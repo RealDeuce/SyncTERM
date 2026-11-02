@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Stephen Hurd
 // SPDX-License-Identifier: BSD-2-Clause
 
-import "syncterm" for Conn, CTerm, Hook, Host, Input, Key, Screen, Emoji
+import "syncterm" for Conn, CTerm, Hook, Host, Input, Key, Screen, Emoji, Mod
 import "ui_picker" for ListPicker
 import "connected" for Connected
 import "music_menu" for MusicMenu
@@ -80,12 +80,12 @@ class OnlineMenu {
   }
 }
 
-Hook.onKey(Key.altZ) {|key|
+Hook.onCommand_(122) {|key|
   OnlineMenu.run()
   return true
 }
 if (Host.textTerminal) {
-  Hook.onKey(Key.ctrlS) {|key|
+  Hook.onKey(115, Mod.control) {|key|
     OnlineMenu.run()
     return true
   }

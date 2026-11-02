@@ -128,7 +128,7 @@ class OfflineScrollbackCanvas is Widget {
 
   handle(event) {
     if (event is KeyEvent) {
-      var key = event.code
+      var key = event.shortcut_
       var cp = event.codepoint
       if (key == Key.escape) {
         _dismiss.call()

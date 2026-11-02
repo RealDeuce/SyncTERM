@@ -500,11 +500,30 @@ class Wake {
 }
 
 foreign class KeyEvent {
-  construct new(code) {}
-  foreign code
+  construct new(key) {}
+  construct new(key, modifiers) {}
+  foreign static text(text, modifiers)
+  static text(text) { KeyEvent.text(text, 0) }
+  foreign static byte(value)
+  foreign static doorway(scanCode, enhanced)
+  foreign key
+  foreign modifiers
   foreign codepoint
   foreign text
+  foreign byte
+  foreign scanCode
+  foreign enhanced
   foreign toString
+
+  foreign matches(key, modifiers)
+
+  // UI lookup token, private to the bundled dispatcher. Committed Shift
+  // text already carries its case; all other modifiers remain significant.
+  shortcut_ {
+    var mods = modifiers & ~48
+    if (codepoint != null && mods == Mod.shift) mods = 0
+    return key == null ? -1 : Key.chord_(key, mods)
+  }
 }
 foreign class PhysicalKeyEvent {
   construct new(evdev, pressed) {}
@@ -608,164 +627,66 @@ class Mouse {
   static wheelDownPress  { wheelDown }
   static wheelDownClick  { wheelDown }
 }
+class Mod {
+  static shift { 1 }
+  static control { 2 }
+  static alt { 4 }
+  static gui { 8 }
+  static capsLock { 16 }
+  static numLock { 32 }
+  static command { Host.altKeyShort == "Cmd" ? gui : alt }
+}
 class Key {
-  static escape      { 0x001B }
-  static enter       { 0x000D }
-  static backspace   { 0x0008 }
-  static tab         { 0x0009 }
-  static delChar     { 0x007F }
-  static home        { 0x4700 }
-  static up          { 0x4800 }
-  static pageUp      { 0x4900 }
-  static left        { 0x4B00 }
-  static right       { 0x4D00 }
-  static end         { 0x4F00 }
-  static down        { 0x5000 }
-  static pageDown    { 0x5100 }
-  static insert      { 0x5200 }
-  static delete      { 0x5300 }
-  static backTab     { 0x0F00 }
-  // Raw control characters Ctrl-A .. Ctrl-Z (codepoints 0x01..0x1A).
-  // Some have other names in this class (Ctrl-H = backspace 0x08,
-  // Ctrl-I = tab 0x09, Ctrl-M = enter 0x0D); the ctrl* names are
-  // listed in full so callers don't have to remember which extended
-  // names exist.  Ctrl-[ (0x1B) is escape - see Key.escape.
-  static ctrlA       { 0x01 }
-  static ctrlB       { 0x02 }
-  static ctrlC       { 0x03 }
-  static ctrlD       { 0x04 }
-  static ctrlE       { 0x05 }
-  static ctrlF       { 0x06 }
-  static ctrlG       { 0x07 }
-  static ctrlH       { 0x08 }
-  static ctrlI       { 0x09 }
-  static ctrlJ       { 0x0A }
-  static ctrlK       { 0x0B }
-  static ctrlL       { 0x0C }
-  static ctrlM       { 0x0D }
-  static ctrlN       { 0x0E }
-  static ctrlO       { 0x0F }
-  static ctrlP       { 0x10 }
-  static ctrlQ       { 0x11 }
-  static ctrlR       { 0x12 }
-  static ctrlS       { 0x13 }
-  static ctrlT       { 0x14 }
-  static ctrlU       { 0x15 }
-  static ctrlV       { 0x16 }
-  static ctrlW       { 0x17 }
-  static ctrlX       { 0x18 }
-  static ctrlY       { 0x19 }
-  static ctrlZ       { 0x1A }
-  static shiftIns    { 0x0500 }
-  static shiftDel    { 0x0700 }
-  static ctrlIns     { 0x0400 }
-  static ctrlDel     { 0x0600 }
-  static altIns      { 0xA200 }
-  static altDel      { 0xA300 }
-  static shiftUp     { 0x91E0 }
-  static ctrlUp      { 0x8D00 }
-  static altUp       { 0x9800 }
-  static altDown     { 0xA000 }
-  static shiftLeft   { 0x93E0 }
-  static ctrlLeft    { 0x7300 }
-  static shiftRight  { 0x94E0 }
-  static ctrlRight   { 0x7400 }
-  static shiftDown   { 0x96E0 }
-  static ctrlDown    { 0x9100 }
-  static shiftEnd    { 0x95E0 }
-  static ctrlEnd     { 0x7500 }
-  static f1          { 0x3B00 }
-  static f2          { 0x3C00 }
-  static f3          { 0x3D00 }
-  static f4          { 0x3E00 }
-  static f5          { 0x3F00 }
-  static f6          { 0x4000 }
-  static f7          { 0x4100 }
-  static f8          { 0x4200 }
-  static f9          { 0x4300 }
-  static f10         { 0x4400 }
-  static f11         { 0x8500 }
-  static f12         { 0x8600 }
-  static shiftF1     { 0x5400 }
-  static shiftF2     { 0x5500 }
-  static shiftF3     { 0x5600 }
-  static shiftF4     { 0x5700 }
-  static shiftF5     { 0x5800 }
-  static shiftF6     { 0x5900 }
-  static shiftF7     { 0x5A00 }
-  static shiftF8     { 0x5B00 }
-  static shiftF9     { 0x5C00 }
-  static shiftF10    { 0x5D00 }
-  static shiftF11    { 0x8700 }
-  static shiftF12    { 0x8800 }
-  static ctrlF1      { 0x5E00 }
-  static ctrlF2      { 0x5F00 }
-  static ctrlF3      { 0x6000 }
-  static ctrlF4      { 0x6100 }
-  static ctrlF5      { 0x6200 }
-  static ctrlF6      { 0x6300 }
-  static ctrlF7      { 0x6400 }
-  static ctrlF8      { 0x6500 }
-  static ctrlF9      { 0x6600 }
-  static ctrlF10     { 0x6700 }
-  static ctrlF11     { 0x8900 }
-  static ctrlF12     { 0x8A00 }
-  static altF1       { 0x6800 }
-  static altF2       { 0x6900 }
-  static altF3       { 0x6A00 }
-  static altF4       { 0x6B00 }
-  static altF5       { 0x6C00 }
-  static altF6       { 0x6D00 }
-  static altF7       { 0x6E00 }
-  static altF8       { 0x6F00 }
-  static altF9       { 0x7000 }
-  static altF10      { 0x7100 }
-  static altF11      { 0x8B00 }
-  static altF12      { 0x8C00 }
-  // Alt-letter scancodes (CIO).  High byte = PC scancode of the
-  // letter key, low byte = 0.  Hex values come from rows of the
-  // IBM PC keyboard, not alphabetical order.
-  static altA        { 0x1E00 }
-  static altB        { 0x3000 }
-  static altC        { 0x2E00 }
-  static altD        { 0x2000 }
-  static altE        { 0x1200 }
-  static altF        { 0x2100 }
-  static altG        { 0x2200 }
-  static altH        { 0x2300 }
-  static altI        { 0x1700 }
-  static altJ        { 0x2400 }
-  static altK        { 0x2500 }
-  static altL        { 0x2600 }
-  static altM        { 0x3200 }
-  static altN        { 0x3100 }
-  static altO        { 0x1800 }
-  static altP        { 0x1900 }
-  static altQ        { 0x1000 }
-  static altR        { 0x1300 }
-  static altS        { 0x1F00 }
-  static altT        { 0x1400 }
-  static altU        { 0x1600 }
-  static altV        { 0x2F00 }
-  static altW        { 0x1100 }
-  static altX        { 0x2D00 }
-  static altY        { 0x1500 }
-  static altZ        { 0x2C00 }
-  // Alt-digit scancodes.  Alt-1 .. Alt-9 are 0x7800 .. 0x8000;
-  // Alt-0 is 0x8100.
-  static alt1        { 0x7800 }
-  static alt2        { 0x7900 }
-  static alt3        { 0x7A00 }
-  static alt4        { 0x7B00 }
-  static alt5        { 0x7C00 }
-  static alt6        { 0x7D00 }
-  static alt7        { 0x7E00 }
-  static alt8        { 0x7F00 }
-  static alt9        { 0x8000 }
-  static alt0        { 0x8100 }
-  static mouse       { 0x7DE0 }
-  static quit        { 0x7EE0 }
-  static wrenConsole { 0x29E0 }
+  static escape { 0x11001B }
+  static enter { 0x11000D }
+  static backspace { 0x110008 }
+  static tab { 0x110009 }
+  static delChar { 0x11007F }
+  static up { 0x110100 }
+  static down { 0x110101 }
+  static left { 0x110102 }
+  static right { 0x110103 }
+  static insert { 0x110104 }
+  static delete { 0x110105 }
+  static home { 0x110106 }
+  static end { 0x110107 }
+  static pageUp { 0x110108 }
+  static pageDown { 0x110109 }
+  static f1 { 0x11010A }
+  static f2 { 0x11010B }
+  static f3 { 0x11010C }
+  static f4 { 0x11010D }
+  static f5 { 0x11010E }
+  static f6 { 0x11010F }
+  static f7 { 0x110110 }
+  static f8 { 0x110111 }
+  static f9 { 0x110112 }
+  static f10 { 0x110113 }
+  static f11 { 0x110114 }
+  static f12 { 0x110115 }
+  static quit { 0x120000 }
+
+  // Exact integer token for the UI's private maps. 21 key bits plus the
+  // complete 32-bit modifier mask fit Wren's 53-bit integer precision.
+  static chord_(key, modifiers) { key + (modifiers & ~48) * 0x200000 }
+
+  // Desktop command shortcuts refer to physical letter positions. ANSI
+  // terminals instead supply logical modified text. Never synthesize a
+  // second KeyEvent from a physical edge.
+  static physicalShortcut_(event) {
+    if (!event.pressed) return -1
+    var mods = event.modifiers & ~48
+    if (event.evdev == 41 && (mods & Mod.control) != 0) return chord_(96, mods)
+    if ((mods & (Mod.alt | Mod.gui)) == 0) return -1
+    var letters = [30, 48, 46, 32, 18, 33, 34, 35, 23, 36, 37, 38, 50,
+                   49, 24, 25, 16, 19, 31, 20, 22, 47, 17, 45, 21, 44]
+    var letter = letters.indexOf(event.evdev)
+    if (letter >= 0) return chord_(97 + letter, mods)
+    if (event.evdev >= 2 && event.evdev <= 11) {
+      return chord_(event.evdev == 11 ? 48 : 47 + event.evdev, mods)
+    }
+    return -1
+  }
 }
 class Clipboard {
   foreign static text
@@ -1512,7 +1433,22 @@ class FileErr {
 
 class Hook {
   foreign static onKey(fn)
-  foreign static onKey(key, fn)
+  static onKey(key, fn) { onKey(key, 0, fn) }
+  foreign static onKey(key, modifiers, fn)
+  // Bundled command policy: physical positions on desktop consoles,
+  // logical modified input on ANSI/curses consoles. Never register both
+  // paths for one command, since a physical edge may precede text.
+  static onCommand_(key, fn) {
+    if (Host.textTerminal && Host.localControlKeys) return onKey(key, Mod.command, fn)
+    return onPhysicalShortcut_(key, Mod.command, fn)
+  }
+  static onPhysicalShortcut_(key, modifiers, fn) {
+    var expected = Key.chord_(key, modifiers)
+    return onPhysicalKey {|event|
+      if (Key.physicalShortcut_(event) == expected) return fn.call(event)
+      return false
+    }
+  }
   foreign static onPhysicalKey(fn)
   foreign static onPhysicalKey(evdev, fn)
   // Exact post-transport bytes before CTerm classifies controls or text.

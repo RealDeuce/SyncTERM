@@ -4,7 +4,7 @@
 // editable RGB ramps, three visual HSV ramps, and a hexadecimal input.
 // The caller owns dialog policy such as Default / OK / Cancel buttons.
 
-import "syncterm" for Color, Key, KeyEvent, Mouse, MouseEvent
+import "syncterm" for Color, Key, KeyEvent, Mouse, MouseEvent, Mod
 import "ui_widget" for Container, Rect, Widget
 import "ui_input" for SelectOnFocusInput
 import "ui_draw" for Painter
@@ -259,7 +259,7 @@ class ColorRamp is Widget {
   handle(event) {
     if (event is MouseEvent) return handleMouse_(event)
     if (!(event is KeyEvent)) return false
-    var code = event.code
+    var code = event.shortcut_
     if (code == Key.left) {
       change_(_value - 1)
       return true
@@ -376,7 +376,7 @@ class ColorHexInput is SelectOnFocusInput {
         bounds != null && bounds.contains(event.startX, event.startY)) {
       focusSelf_()
     }
-    if (event is KeyEvent && event.code == Key.enter) {
+    if (event is KeyEvent && event.shortcut_ == Key.enter) {
       if (!commitEdit()) return true
       return false
     }
@@ -474,9 +474,9 @@ class ColorPicker is Container {
   }
 
   handle(event) {
-    if (event is KeyEvent && event.code == Key.tab &&
+    if (event is KeyEvent && event.shortcut_ == Key.tab &&
         focusedIndex == lastFocusIndex) return false
-    if (event is KeyEvent && event.code == Key.backTab &&
+    if (event is KeyEvent && event.shortcut_ == Key.chord_(Key.tab, Mod.shift) &&
         focusedIndex == firstFocusIndex) return false
     return super.handle(event)
   }

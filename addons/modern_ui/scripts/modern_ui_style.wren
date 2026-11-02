@@ -440,6 +440,10 @@ class ModernApp is App {
   }
   chrome=(fn) { _chrome = fn }
   shortcut=(fn) { _shortcut = fn }
+  dispatchPhysical_(event) {
+    if (modalStack.count == 0 && _shortcut != null && _shortcut.call(event)) return true
+    return super.dispatchPhysical_(event)
+  }
   dispatchKey_(event) {
     if (modalStack.count == 0 && _shortcut != null && _shortcut.call(event)) return true
     return super.dispatchKey_(event)

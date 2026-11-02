@@ -21,7 +21,7 @@
 // CTerm.sftpActive clears as part of suspend(), so is_connected goes
 // false and the term.c disconnect path can run normally.
 
-import "syncterm" for Cleanup_, Conn, CTerm, Download, File, Format, Host, Key, Text,
+import "syncterm" for Cleanup_, Conn, CTerm, Download, File, Format, Host, Key, Text, Mod,
                        KeyEvent, Screen, SFTP, SFTPError
 import "ui_app"    for App
 import "ui_pane"   for Pane
@@ -391,7 +391,7 @@ class SftpApp is App {
 	_qLastProgressGen = -1
 
     // Mode-switch hotkeys — bound once, valid in either mode.
-    bind(Key.altS, Fn.new {|k|
+    bind(115, Mod.command, Fn.new {|k|
       var ready = runChild(Fn.new {
         return SFTP.start().await()
       })
@@ -401,7 +401,7 @@ class SftpApp is App {
         setMode("browser")
       }
     })
-    bind(Key.altQ, Fn.new {|k| setMode("queue") })
+    bind(113, Mod.command, Fn.new {|k| setMode("queue") })
     bind(Key.escape, Fn.new {|k| dismiss_() })
 
     // F2 / F4 — browser-only operations.  No-op silently in queue

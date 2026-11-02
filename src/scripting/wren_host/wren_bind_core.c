@@ -87,9 +87,7 @@ struct foreign_snapshot {
 
 struct foreign_key_event {
 	struct foreign_header header;
-	uint16_t code;
-	uint32_t codepoint;
-	bool has_codepoint;
+	struct st_console_event native;
 };
 
 struct foreign_physical_key_event {
@@ -144,7 +142,6 @@ struct foreign_claim_handle {
 #define ST_WREN_MOUSE_WHEEL_DOWN 47
 #define ST_WREN_MOUSE_WHEEL_LEFT 48
 #define ST_WREN_MOUSE_WHEEL_RIGHT 49
-#define ST_WREN_KEY_ESCAPE_BY_SCANCODE UINT16_C(0x01e0)
 
 struct foreign_cursor {
 	struct foreign_header header;
@@ -166,50 +163,53 @@ struct binding {
 static enum st_codepage font_codepage(uint16_t selector);
 
 static struct st_wren_input_record
-unicode_key_record(struct st_wren_context *context, uint32_t codepoint)
+native_key_record(const struct st_console_event *event)
 {
-	uint8_t byte;
 	return (struct st_wren_input_record){
 		.type = ST_WREN_INPUT_KEY,
-		.data.key = {
-			.code = st_codepage_from_unicode(&byte,
-			    font_codepage(context->fonts.slots[0]), codepoint) ? byte : '?',
-			.codepoint = codepoint,
-			.has_codepoint = true,
-		},
+		.data.key.native = *event,
 	};
 }
 
-static struct st_wren_input_record
-numeric_key_record(struct st_wren_context *context, uint8_t value)
+bool
+st_wren_input_key(const struct st_console_event *event,
+	uint32_t *key, uint32_t *modifiers)
 {
-	uint32_t codepoint = value;
+	*modifiers = 0;
+	switch (event->type) {
+	case ST_CONSOLE_EVENT_TEXT:
+		*key = event->data.text.codepoint;
+		*modifiers = event->data.text.modifiers;
+		return true;
+	case ST_CONSOLE_EVENT_KEY_CODE: {
+		uint16_t code = event->data.key.code;
 
-	/* Menus use Unicode. A connected VM follows the current terminal
-	 * encoding, which is independent of the font selected by a script. */
-	if (context->cterm != NULL
-	    && st_cterm_encoding(context->cterm) == ST_CTERM_ENCODING_CODEPAGE)
-		codepoint = st_codepage_to_unicode(st_cterm_codepage(context->cterm),
-		    value, false);
-	return unicode_key_record(context, codepoint);
-}
-
-static struct st_wren_input_record
-compatibility_key_record(struct st_wren_context *context, uint16_t code)
-{
-	struct st_wren_input_record record = {
-		.type = ST_WREN_INPUT_KEY,
-	};
-
-	if (code == ST_WREN_KEY_ESCAPE_BY_SCANCODE)
-		code = UINT16_C(0x001b);
-	record.data.key.code = code;
-	if ((code & UINT16_C(0xff00)) == 0) {
-		record.data.key.codepoint = st_codepage_to_unicode(
-		    font_codepage(context->fonts.slots[0]), (uint8_t)code, false);
-		record.data.key.has_codepoint = true;
+		*modifiers = event->data.key.modifiers;
+		/* Console control codes retain their key identity. C0 letters
+		 * have a logical Latin identity, separate from committed text. */
+		if ((*modifiers & ST_CONSOLE_MODIFIER_CONTROL) != 0
+		    && code >= 1 && code <= 26 && code != 8 && code != 9
+		    && code != 13) {
+			*key = 'a' + code - 1;
+			return true;
+		}
+		if (code >= 32 && code < 127) {
+			if ((*modifiers & (ST_CONSOLE_MODIFIER_CONTROL
+			    | ST_CONSOLE_MODIFIER_ALT | ST_CONSOLE_MODIFIER_GUI)) != 0
+			    && code >= 'A' && code <= 'Z')
+				code += 'a' - 'A';
+			*key = code;
+		}
+		else
+			*key = ST_WREN_NAMED_KEY_BASE + code;
+		return true;
 	}
-	return record;
+	case ST_CONSOLE_EVENT_CLOSE:
+		*key = ST_WREN_QUIT_KEY;
+		return true;
+	default:
+		return false;
+	}
 }
 
 static bool
@@ -682,95 +682,39 @@ allocate_surface(WrenVM *vm)
 		st_wren_abort(vm, "Surface.new: dimensions are too large");
 }
 
-static uint16_t
-legacy_key_code(uint16_t key, uint32_t modifiers)
+static bool
+key_arguments(WrenVM *vm, struct st_console_event *native)
 {
-	bool shift = (modifiers & ST_CONSOLE_MODIFIER_SHIFT) != 0;
-	bool control = (modifiers & ST_CONSOLE_MODIFIER_CONTROL) != 0;
-	bool alt = (modifiers & (ST_CONSOLE_MODIFIER_ALT
-	    | ST_CONSOLE_MODIFIER_GUI)) != 0;
-	static const uint16_t plain_f[] = {
-		0x3b00, 0x3c00, 0x3d00, 0x3e00, 0x3f00, 0x4000,
-		0x4100, 0x4200, 0x4300, 0x4400, 0x8500, 0x8600,
-	};
-	static const uint16_t shift_f[] = {
-		0x5400, 0x5500, 0x5600, 0x5700, 0x5800, 0x5900,
-		0x5a00, 0x5b00, 0x5c00, 0x5d00, 0x8700, 0x8800,
-	};
-	static const uint16_t control_f[] = {
-		0x5e00, 0x5f00, 0x6000, 0x6100, 0x6200, 0x6300,
-		0x6400, 0x6500, 0x6600, 0x6700, 0x8900, 0x8a00,
-	};
-	static const uint16_t alt_f[] = {
-		0x6800, 0x6900, 0x6a00, 0x6b00, 0x6c00, 0x6d00,
-		0x6e00, 0x6f00, 0x7000, 0x7100, 0x8b00, 0x8c00,
-	};
+	int64_t key;
+	int64_t modifiers = 0;
 
-	if (key >= ST_CONSOLE_KEY_F1 && key <= ST_CONSOLE_KEY_F12) {
-		size_t index = key - ST_CONSOLE_KEY_F1;
-
-		return alt ? alt_f[index] : control ? control_f[index] :
-		    shift ? shift_f[index] : plain_f[index];
+	if (!slot_integer(vm, 1, 0, ST_WREN_QUIT_KEY, &key)
+	    || (wrenGetSlotCount(vm) == 3
+	    && !slot_integer(vm, 2, 0, UINT32_MAX, &modifiers)))
+		return false;
+	if (key == ST_WREN_QUIT_KEY && modifiers != 0) {
+		st_wren_abort(vm, "the quit marker cannot carry modifiers");
+		return false;
 	}
-	if (alt && key != ST_CONSOLE_KEY_UP && key != ST_CONSOLE_KEY_DOWN
-	    && key != ST_CONSOLE_KEY_INSERT && key != ST_CONSOLE_KEY_DELETE)
-		return 0xffff;
-	switch (key) {
-	case ST_CONSOLE_KEY_UP:
-		return alt ? 0x9800 : control ? 0x8d00 :
-		    shift ? 0x91e0 : 0x4800;
-	case ST_CONSOLE_KEY_DOWN:
-		return alt ? 0xa000 : control ? 0x9100 :
-		    shift ? 0x96e0 : 0x5000;
-	case ST_CONSOLE_KEY_LEFT:
-		return control ? 0x7300 : shift ? 0x93e0 : 0x4b00;
-	case ST_CONSOLE_KEY_RIGHT:
-		return control ? 0x7400 : shift ? 0x94e0 : 0x4d00;
-	case ST_CONSOLE_KEY_INSERT:
-		return alt ? 0xa200 : control ? 0x0400 :
-		    shift ? 0x0500 : 0x5200;
-	case ST_CONSOLE_KEY_DELETE:
-		return alt ? 0xa300 : control ? 0x0600 :
-		    shift ? 0x0700 : 0x5300;
-	case ST_CONSOLE_KEY_HOME: return control ? 0x7700 : shift ? 0x3700 : 0x4700;
-	case ST_CONSOLE_KEY_END:
-		return control ? 0x7500 : shift ? 0x95e0 : 0x4f00;
-	case ST_CONSOLE_KEY_PAGE_UP: return control ? 0x8400 : shift ? 0x3900 : 0x4900;
-	case ST_CONSOLE_KEY_PAGE_DOWN: return control ? 0x7600 : shift ? 0x3300 : 0x5100;
-	case 9: return control ? 0xffff : shift ? 0x0f00 : 9;
-	case 13: return control ? 10 : 13;
-	case 8: return control ? 127 : 8;
-	default: return key;
+	if (key == ST_WREN_QUIT_KEY)
+		*native = (struct st_console_event){.type = ST_CONSOLE_EVENT_CLOSE};
+	else if (key >= ST_WREN_NAMED_KEY_BASE)
+		*native = (struct st_console_event){
+			.type = ST_CONSOLE_EVENT_KEY_CODE,
+			.data.key = {.code = (uint16_t)(key - ST_WREN_NAMED_KEY_BASE),
+			    .modifiers = (uint32_t)modifiers},
+		};
+	else if (key >= 0xd800 && key <= 0xdfff) {
+		st_wren_abort(vm, "KeyEvent.new expects a Unicode scalar or named key");
+		return false;
 	}
-}
-
-static uint16_t
-modified_physical_key(uint16_t evdev, uint32_t modifiers)
-{
-	static const uint16_t alt_letters[26] = {
-		0x1e00, 0x3000, 0x2e00, 0x2000, 0x1200, 0x2100, 0x2200,
-		0x2300, 0x1700, 0x2400, 0x2500, 0x2600, 0x3200, 0x3100,
-		0x1800, 0x1900, 0x1000, 0x1300, 0x1f00, 0x1400, 0x1600,
-		0x2f00, 0x1100, 0x2d00, 0x1500, 0x2c00,
-	};
-	static const uint16_t letter_evdev[26] = {
-		30, 48, 46, 32, 18, 33, 34, 35, 23, 36, 37, 38, 50,
-		49, 24, 25, 16, 19, 31, 20, 22, 47, 17, 45, 21, 44,
-	};
-	bool control = (modifiers & ST_CONSOLE_MODIFIER_CONTROL) != 0;
-	bool alt = (modifiers & (ST_CONSOLE_MODIFIER_ALT
-	    | ST_CONSOLE_MODIFIER_GUI)) != 0;
-
-	if (control && evdev == 41)
-		return 0x29e0;
-	for (size_t i = 0; i < 26; ++i) {
-		if (evdev == letter_evdev[i])
-			return alt ? alt_letters[i] : control ? (uint16_t)(i + 1) : 0;
-	}
-	if (alt && evdev >= 2 && evdev <= 11)
-		return evdev == 11 ? 0x8100 : (uint16_t)(0x7800
-		    + (evdev - 2) * 0x0100);
-	return 0;
+	else
+		*native = (struct st_console_event){
+			.type = ST_CONSOLE_EVENT_TEXT,
+			.data.text = {.codepoint = (uint32_t)key,
+			    .modifiers = (uint32_t)modifiers},
+		};
+	return true;
 }
 
 static void
@@ -778,18 +722,76 @@ allocate_key_event(WrenVM *vm)
 {
 	struct foreign_key_event *event = wrenSetSlotNewForeign(vm, 0, 0,
 	    sizeof(*event));
-	struct st_wren_context *context = st_wren_context_from_vm(vm);
-	struct st_wren_input_record record;
-	int64_t code;
 
 	memset(event, 0, sizeof(*event));
 	event->header.kind = FOREIGN_KEY_EVENT;
-	if (!slot_integer(vm, 1, 0, UINT16_MAX, &code))
+	(void)key_arguments(vm, &event->native);
+}
+
+static void
+fn_key_from_text(WrenVM *vm)
+{
+	const char *bytes;
+	int length;
+	uint32_t codepoint;
+	size_t consumed;
+	int64_t modifiers;
+
+	if (wrenGetSlotType(vm, 1) != WREN_TYPE_STRING) {
+		st_wren_abort(vm, "KeyEvent.text expects exactly one UTF-8 scalar");
 		return;
-	record = compatibility_key_record(context, (uint16_t)code);
-	event->code = record.data.key.code;
-	event->codepoint = record.data.key.codepoint;
-	event->has_codepoint = record.data.key.has_codepoint;
+	}
+	bytes = wrenGetSlotBytes(vm, 1, &length);
+	if (length == 0 || st_utf8_decode_one(&codepoint, &consumed, bytes, (size_t)length)
+	    != 0 || consumed != (size_t)length) {
+		st_wren_abort(vm, "KeyEvent.text expects exactly one UTF-8 scalar");
+		return;
+	}
+	if (!slot_integer(vm, 2, 0, UINT32_MAX, &modifiers))
+		return;
+	struct foreign_key_event *event = wrenSetSlotNewForeign(vm, 0, 0,
+	    sizeof(*event));
+	*event = (struct foreign_key_event){
+		.header.kind = FOREIGN_KEY_EVENT,
+		.native = {.type = ST_CONSOLE_EVENT_TEXT,
+		    .data.text = {.codepoint = codepoint,
+			.modifiers = (uint32_t)modifiers}},
+	};
+}
+
+static void
+fn_key_from_byte(WrenVM *vm)
+{
+	int64_t value;
+
+	if (!slot_integer(vm, 1, 0, UINT8_MAX, &value))
+		return;
+	struct foreign_key_event *event = wrenSetSlotNewForeign(vm, 0, 0,
+	    sizeof(*event));
+	*event = (struct foreign_key_event){
+		.header.kind = FOREIGN_KEY_EVENT,
+		.native = {.type = ST_CONSOLE_EVENT_CODEPAGE_BYTE,
+		    .data.codepage_byte = (uint8_t)value},
+	};
+}
+
+static void
+fn_key_from_doorway(WrenVM *vm)
+{
+	int64_t scan;
+	bool enhanced;
+
+	if (!slot_integer(vm, 1, 0, UINT8_MAX, &scan)
+	    || !slot_boolean(vm, 2, &enhanced))
+		return;
+	struct foreign_key_event *event = wrenSetSlotNewForeign(vm, 0, 0,
+	    sizeof(*event));
+	*event = (struct foreign_key_event){
+		.header.kind = FOREIGN_KEY_EVENT,
+		.native = {.type = ST_CONSOLE_EVENT_DOORWAY_KEY,
+		    .data.doorway_key = {.scan_code = (uint8_t)scan,
+			.enhanced = enhanced}},
+	};
 }
 
 static void
@@ -936,9 +938,7 @@ make_input_event(WrenVM *vm, int slot,
 		wrenGetVariable(vm, "syncterm", "KeyEvent", slot + 1);
 		event = wrenSetSlotNewForeign(vm, slot, slot + 1, sizeof(*event));
 		event->header.kind = FOREIGN_KEY_EVENT;
-		event->code = record->data.key.code;
-		event->codepoint = record->data.key.codepoint;
-		event->has_codepoint = record->data.key.has_codepoint;
+		event->native = record->data.key.native;
 	}
 	else if (record->type == ST_WREN_INPUT_PHYSICAL_KEY) {
 		struct foreign_physical_key_event *event;
@@ -1160,30 +1160,13 @@ queue_console_event(struct st_wren_context *context,
 	size_t count = 0;
 
 	switch (event->type) {
-	case ST_CONSOLE_EVENT_KEY_CODE: {
-		uint16_t code = legacy_key_code(event->data.key.code,
-		    event->data.key.modifiers);
-
-		records[count++] = compatibility_key_record(context, code);
-		break;
-	}
+	case ST_CONSOLE_EVENT_KEY_CODE:
 	case ST_CONSOLE_EVENT_CODEPAGE_BYTE:
-		records[count++] = numeric_key_record(context,
-		    event->data.codepage_byte);
-		break;
 	case ST_CONSOLE_EVENT_TEXT:
-		records[count++] = unicode_key_record(context, event->data.text.codepoint);
-		break;
 	case ST_CONSOLE_EVENT_DOORWAY_KEY:
-		records[count++] = (struct st_wren_input_record){
-			.type = ST_WREN_INPUT_KEY,
-			.data.key.code =
-			    (uint16_t)event->data.doorway_key.scan_code << 8,
-		};
+		records[count++] = native_key_record(event);
 		break;
 	case ST_CONSOLE_EVENT_PHYSICAL_KEY: {
-		uint16_t code;
-
 		records[count++] = (struct st_wren_input_record){
 			.type = ST_WREN_INPUT_PHYSICAL_KEY,
 			.data.physical_key = {
@@ -1193,11 +1176,6 @@ queue_console_event(struct st_wren_context *context,
 				.repeat = event->data.physical_key.repeat,
 			},
 		};
-		code = event->data.physical_key.pressed
-		    ? modified_physical_key(event->data.physical_key.evdev,
-		    event->data.physical_key.modifiers) : 0;
-		if (code != 0)
-			records[count++] = compatibility_key_record(context, code);
 		break;
 	}
 	case ST_CONSOLE_EVENT_MOUSE:
@@ -1237,7 +1215,7 @@ next_input_event(WrenVM *vm, bool wait, int64_t timeout_ms, bool at_exit,
 		if (host->exit_requested && !at_exit) {
 			record = (struct st_wren_input_record){
 				.type = ST_WREN_INPUT_KEY,
-				.data.key.code = 0x7ee0,
+				.data.key.native.type = ST_CONSOLE_EVENT_CLOSE,
 			};
 			make_input_event(vm, 0, &record);
 			return true;
@@ -1373,11 +1351,7 @@ fn_input_unget_key(WrenVM *vm)
 		return;
 	record = (struct st_wren_input_record){
 		.type = ST_WREN_INPUT_KEY,
-		.data.key = {
-			.code = event->code,
-			.codepoint = event->codepoint,
-			.has_codepoint = event->has_codepoint,
-		},
+		.data.key.native = event->native,
 	};
 	if (pending_push_front(st_wren_context_from_vm(vm), &record) != 0)
 		st_wren_abort(vm, "out of memory returning input");
@@ -1748,30 +1722,18 @@ st_wren_input_dispatch_console_event(WrenVM *vm,
 	if (vm == NULL || event == NULL || consumed == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	*consumed = false;
+	if (event->type == ST_CONSOLE_EVENT_TEXT
+	    && !st_unicode_scalar_valid(event->data.text.codepoint))
+		return IO_ERROR_INVALID_ENCODING;
 	context = st_wren_context_from_vm(vm);
 	switch (event->type) {
 	case ST_CONSOLE_EVENT_KEY_CODE:
-		record = compatibility_key_record(context, legacy_key_code(
-		    event->data.key.code, event->data.key.modifiers));
-		break;
 	case ST_CONSOLE_EVENT_CODEPAGE_BYTE:
-		record = numeric_key_record(context, event->data.codepage_byte);
-		break;
 	case ST_CONSOLE_EVENT_TEXT:
-		record = unicode_key_record(context, event->data.text.codepoint);
-		break;
 	case ST_CONSOLE_EVENT_DOORWAY_KEY:
-		record = (struct st_wren_input_record){
-			.type = ST_WREN_INPUT_KEY,
-			.data.key.code =
-			    (uint16_t)event->data.doorway_key.scan_code << 8,
-		};
+		record = native_key_record(event);
 		break;
 	case ST_CONSOLE_EVENT_PHYSICAL_KEY: {
-		uint16_t code = event->data.physical_key.pressed
-		    ? modified_physical_key(event->data.physical_key.evdev,
-		    event->data.physical_key.modifiers) : 0;
-
 		record = (struct st_wren_input_record){
 			.type = ST_WREN_INPUT_PHYSICAL_KEY,
 			.data.physical_key = {
@@ -1790,10 +1752,7 @@ st_wren_input_dispatch_console_event(WrenVM *vm,
 			if (status != 0 || *consumed)
 				return status;
 		}
-		if (code == 0)
-			return 0;
-		record = compatibility_key_record(context, code);
-		break;
+		return 0;
 	}
 	case ST_CONSOLE_EVENT_MOUSE: {
 		struct st_wren_input_record records[11];
@@ -1824,27 +1783,42 @@ st_wren_input_dispatch_console_event(WrenVM *vm,
 	default:
 		return 0;
 	}
-	return st_wren_input_dispatch(vm, &record, consumed);
+	status = st_wren_input_dispatch(vm, &record, consumed);
+	if (status != 0 || *consumed || context->connected == NULL)
+		return status;
+	return st_wren_connected_handle_key_record(context->connected, &record,
+	    consumed);
 }
 
-uint16_t
-st_wren_input_key_code(const struct st_console_event *event)
+bool
+st_wren_input_native(WrenVM *vm, int slot, struct st_console_event *event)
 {
-	if (event == NULL)
-		return 0;
-	if (event->type == ST_CONSOLE_EVENT_TEXT
-	    && event->data.text.codepoint < 0x80)
-		return (uint16_t)event->data.text.codepoint;
-	if (event->type == ST_CONSOLE_EVENT_CODEPAGE_BYTE)
-		return event->data.codepage_byte;
-	if (event->type == ST_CONSOLE_EVENT_KEY_CODE)
-		return legacy_key_code(event->data.key.code,
-		    event->data.key.modifiers);
-	if (event->type == ST_CONSOLE_EVENT_PHYSICAL_KEY
-	    && event->data.physical_key.pressed)
-		return modified_physical_key(event->data.physical_key.evdev,
-		    event->data.physical_key.modifiers);
-	return 0;
+	if (wrenGetSlotType(vm, slot) == WREN_TYPE_FOREIGN) {
+		int scratch = wrenGetSlotCount(vm);
+
+		/* Other foreign payloads do not share our header. Check the VM
+		 * class before reading any payload field. */
+		wrenEnsureSlots(vm, scratch + 1);
+		wrenGetVariable(vm, "syncterm", "KeyEvent", scratch);
+		if (wrenGetClass(vm, vm->apiStack[slot]) == AS_CLASS(vm->apiStack[scratch])) {
+			struct foreign_key_event *key = wrenGetSlotForeign(vm, slot);
+			*event = key->native;
+			return true;
+		}
+		wrenGetVariable(vm, "syncterm", "PhysicalKeyEvent", scratch);
+		if (wrenGetClass(vm, vm->apiStack[slot]) == AS_CLASS(vm->apiStack[scratch])) {
+			struct foreign_physical_key_event *physical = wrenGetSlotForeign(vm, slot);
+			*event = (struct st_console_event){
+				.type = ST_CONSOLE_EVENT_PHYSICAL_KEY,
+				.data.physical_key = {.evdev = physical->evdev,
+				    .modifiers = physical->modifiers,
+				    .pressed = physical->pressed, .repeat = physical->repeat},
+			};
+			return true;
+		}
+	}
+	st_wren_abort(vm, "expected a KeyEvent or PhysicalKeyEvent");
+	return false;
 }
 
 int
@@ -2014,13 +1988,57 @@ fn_input_mouse_drag(WrenVM *vm)
 }
 
 static void
-fn_key_code(WrenVM *vm)
+fn_key_key(WrenVM *vm)
 {
 	struct foreign_key_event *event = (struct foreign_key_event *)foreign_kind(
 	    vm, 0, FOREIGN_KEY_EVENT);
+	uint32_t key;
+	uint32_t modifiers;
 
-	if (event != NULL)
-		wrenSetSlotDouble(vm, 0, event->code);
+	if (event == NULL)
+		return;
+	if (st_wren_input_key(&event->native, &key, &modifiers))
+		wrenSetSlotDouble(vm, 0, key);
+	else
+		wrenSetSlotNull(vm, 0);
+}
+
+static void
+fn_key_matches(WrenVM *vm)
+{
+	struct foreign_key_event *event = (struct foreign_key_event *)foreign_kind(
+	    vm, 0, FOREIGN_KEY_EVENT);
+	int64_t expected_key;
+	int64_t expected_modifiers;
+	uint32_t key;
+	uint32_t modifiers;
+	uint32_t locks = ST_CONSOLE_MODIFIER_CAPS_LOCK | ST_CONSOLE_MODIFIER_NUM_LOCK;
+
+	if (event == NULL || !slot_integer(vm, 1, 0, ST_WREN_QUIT_KEY, &expected_key)
+	    || !slot_integer(vm, 2, 0, UINT32_MAX, &expected_modifiers))
+		return;
+	if (expected_key >= 0xd800 && expected_key <= 0xdfff) {
+		st_wren_abort(vm, "expected a Unicode scalar or named key");
+		return;
+	}
+	bool matches = st_wren_input_key(&event->native, &key, &modifiers)
+	    && key == (uint32_t)expected_key
+	    && (modifiers & ~locks) == ((uint32_t)expected_modifiers & ~locks);
+	wrenSetSlotBool(vm, 0, matches);
+}
+
+static void
+fn_key_modifiers(WrenVM *vm)
+{
+	struct foreign_key_event *event = (struct foreign_key_event *)foreign_kind(
+	    vm, 0, FOREIGN_KEY_EVENT);
+	uint32_t key;
+	uint32_t modifiers;
+
+	if (event != NULL) {
+		(void)st_wren_input_key(&event->native, &key, &modifiers);
+		wrenSetSlotDouble(vm, 0, modifiers);
+	}
 }
 
 static void
@@ -2031,8 +2049,8 @@ fn_key_codepoint(WrenVM *vm)
 
 	if (event == NULL)
 		return;
-	if (event->has_codepoint)
-		wrenSetSlotDouble(vm, 0, event->codepoint);
+	if (event->native.type == ST_CONSOLE_EVENT_TEXT)
+		wrenSetSlotDouble(vm, 0, event->native.data.text.codepoint);
 	else
 		wrenSetSlotNull(vm, 0);
 }
@@ -2047,15 +2065,55 @@ fn_key_text(WrenVM *vm)
 
 	if (event == NULL)
 		return;
-	if (!event->has_codepoint) {
-		wrenSetSlotString(vm, 0, "");
-		return;
-	}
-	length = st_utf8_encode_one(encoded, sizeof(encoded), event->codepoint);
-	if (length < 0)
+	length = event->native.type == ST_CONSOLE_EVENT_TEXT
+	    ? st_utf8_encode_one(encoded, sizeof(encoded),
+	    event->native.data.text.codepoint) : 0;
+	if (length <= 0)
 		wrenSetSlotString(vm, 0, "");
 	else
 		wrenSetSlotBytes(vm, 0, encoded, (size_t)length);
+}
+
+static void
+fn_key_byte(WrenVM *vm)
+{
+	struct foreign_key_event *event = (struct foreign_key_event *)foreign_kind(
+	    vm, 0, FOREIGN_KEY_EVENT);
+
+	if (event == NULL)
+		return;
+	if (event->native.type == ST_CONSOLE_EVENT_CODEPAGE_BYTE)
+		wrenSetSlotDouble(vm, 0, event->native.data.codepage_byte);
+	else
+		wrenSetSlotNull(vm, 0);
+}
+
+static void
+fn_key_scan_code(WrenVM *vm)
+{
+	struct foreign_key_event *event = (struct foreign_key_event *)foreign_kind(
+	    vm, 0, FOREIGN_KEY_EVENT);
+
+	if (event == NULL)
+		return;
+	if (event->native.type == ST_CONSOLE_EVENT_DOORWAY_KEY)
+		wrenSetSlotDouble(vm, 0, event->native.data.doorway_key.scan_code);
+	else
+		wrenSetSlotNull(vm, 0);
+}
+
+static void
+fn_key_enhanced(WrenVM *vm)
+{
+	struct foreign_key_event *event = (struct foreign_key_event *)foreign_kind(
+	    vm, 0, FOREIGN_KEY_EVENT);
+
+	if (event == NULL)
+		return;
+	if (event->native.type == ST_CONSOLE_EVENT_DOORWAY_KEY)
+		wrenSetSlotBool(vm, 0, event->native.data.doorway_key.enhanced);
+	else
+		wrenSetSlotNull(vm, 0);
 }
 
 static void
@@ -2063,11 +2121,15 @@ fn_key_to_string(WrenVM *vm)
 {
 	struct foreign_key_event *event = (struct foreign_key_event *)foreign_kind(
 	    vm, 0, FOREIGN_KEY_EVENT);
-	char text[40];
+	uint32_t key = 0;
+	uint32_t modifiers;
+	char text[64];
 
 	if (event == NULL)
 		return;
-	(void)snprintf(text, sizeof(text), "KeyEvent(0x%04X)", event->code);
+	(void)st_wren_input_key(&event->native, &key, &modifiers);
+	(void)snprintf(text, sizeof(text), "KeyEvent(type=%d, key=%u, modifiers=%u)",
+	    (int)event->native.type, key, modifiers);
 	wrenSetSlotString(vm, 0, text);
 }
 
@@ -4886,7 +4948,15 @@ static const struct binding bindings[] = {
 	{"Input", true, "mouseVisible=(_)", fn_input_mouse_visible_set},
 	{"Input", true, "mousedrag()", fn_input_mouse_drag},
 	{"Input", true, "mousedrag(_)", fn_input_mouse_drag},
-	{"KeyEvent", false, "code", fn_key_code},
+	{"KeyEvent", false, "key", fn_key_key},
+	{"KeyEvent", false, "modifiers", fn_key_modifiers},
+	{"KeyEvent", false, "matches(_,_)", fn_key_matches},
+	{"KeyEvent", false, "byte", fn_key_byte},
+	{"KeyEvent", false, "scanCode", fn_key_scan_code},
+	{"KeyEvent", false, "enhanced", fn_key_enhanced},
+	{"KeyEvent", true, "text(_,_)", fn_key_from_text},
+	{"KeyEvent", true, "byte(_)", fn_key_from_byte},
+	{"KeyEvent", true, "doorway(_,_)", fn_key_from_doorway},
 	{"KeyEvent", false, "codepoint", fn_key_codepoint},
 	{"KeyEvent", false, "text", fn_key_text},
 	{"KeyEvent", false, "toString", fn_key_to_string},

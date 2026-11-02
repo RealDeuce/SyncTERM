@@ -123,7 +123,7 @@ class SpinBox is Widget {
   }
 
   handleKey_(ke) {
-    var c  = ke.code
+    var c  = ke.shortcut_
     var cp = ke.codepoint
     if (c == Key.up   || cp == 0x2B) {
       bump_(_step)

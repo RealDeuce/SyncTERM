@@ -7,6 +7,9 @@ class MainMenu {
   static prepare() { ModernModel.prepare() }
   static run(current, connected) { ModernUI.run(current, connected) }
   static offerSave(source) { ModernModel.offerSave(source) }
+  static registerCommand(key, modifiers, keyName, description, callback) {
+    ModernUI.registerCommand(key, modifiers, keyName, description, callback)
+  }
   static registerCommand(key, keyName, description, callback) {
     ModernUI.registerCommand(key, keyName, description, callback)
   }

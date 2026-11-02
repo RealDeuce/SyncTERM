@@ -391,6 +391,11 @@ post_key(struct win32_state *state, const KEY_EVENT_RECORD *record)
 	uint16_t physical = physical_key(record);
 	uint16_t translated = translated_key(record->wVirtualKeyCode);
 	uint32_t codepoint = record->uChar.UnicodeChar;
+	uint32_t modifiers = input_modifiers(record->dwControlKeyState);
+	bool control_key = translated == 0
+	    && (modifiers & ST_CONSOLE_MODIFIER_CONTROL) != 0
+	    && (modifiers & (ST_CONSOLE_MODIFIER_ALT | ST_CONSOLE_MODIFIER_GUI)) == 0
+	    && st_console_control_key(record->wVirtualKeyCode, &translated);
 
 	if (physical != 0) {
 		event = (struct st_console_event){
@@ -408,7 +413,7 @@ post_key(struct win32_state *state, const KEY_EVENT_RECORD *record)
 	}
 	if (!record->bKeyDown)
 		return;
-	if (translated != 0) {
+	if (translated != 0 || control_key) {
 		event = (struct st_console_event){
 			.type = ST_CONSOLE_EVENT_KEY_CODE,
 			.data.key = {

@@ -101,7 +101,7 @@ class Button is Widget {
 
   handle(ev) {
     if (ev is KeyEvent) {
-      var c  = ev.code
+      var c  = ev.shortcut_
       var cp = ev.codepoint
       // Enter or Space activates a focused button.
       if (c == Key.enter || cp == 0x20) {

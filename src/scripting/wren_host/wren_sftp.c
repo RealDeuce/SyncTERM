@@ -40,6 +40,7 @@ struct connected_hook {
 	WrenHandle *function;
 	int kind;
 	int filter;
+	uint32_t modifiers;
 	uint64_t interval_ms;
 	uint64_t next_deadline_ms;
 	uint64_t call_count;
@@ -875,14 +876,22 @@ static void fn_hook_on_key(WrenVM *vm) { register_hook(vm, 1, 1, -1); }
 static void fn_hook_on_key_value(WrenVM *vm)
 {
 	double key;
+	double modifiers;
 
 	if (wrenGetSlotType(vm, 1) != WREN_TYPE_NUM
-	    || (key = wrenGetSlotDouble(vm, 1)) < 0 || key > UINT16_MAX
-	    || key != (double)(uint16_t)key) {
-		st_wren_abort(vm, "Hook.onKey expects a 16-bit key code");
+	    || !isfinite(key = wrenGetSlotDouble(vm, 1))
+	    || key < 0 || key > ST_WREN_QUIT_KEY || key != floor(key)
+	    || (key >= 0xd800 && key <= 0xdfff)
+	    || wrenGetSlotType(vm, 2) != WREN_TYPE_NUM
+	    || !isfinite(modifiers = wrenGetSlotDouble(vm, 2))
+	    || modifiers < 0 || modifiers > UINT32_MAX || modifiers != floor(modifiers)) {
+		st_wren_abort(vm, "Hook.onKey expects a key and modifier mask");
 		return;
 	}
-	register_hook(vm, 2, 1, (int)key);
+	struct connected_hook *hook = register_hook(vm, 3, 1, (int)key);
+	if (hook != NULL)
+		hook->modifiers = (uint32_t)modifiers
+		    & ~(ST_CONSOLE_MODIFIER_CAPS_LOCK | ST_CONSOLE_MODIFIER_NUM_LOCK);
 }
 static void fn_hook_shell(WrenVM *vm) { register_hook(vm, 1, 2, -1); }
 static void fn_hook_disconnect(WrenVM *vm) { register_hook(vm, 1, 3, -1); }
@@ -1143,7 +1152,7 @@ static const struct sftp_binding bindings[] = {
 	{"CTerm", true, "sftpActive", fn_cterm_sftp_active},
 	{"CTerm", true, "sftpActive=(_)", fn_cterm_sftp_active_set},
 	{"Hook", true, "onKey(_)", fn_hook_on_key},
-	{"Hook", true, "onKey(_,_)", fn_hook_on_key_value},
+	{"Hook", true, "onKey(_,_,_)", fn_hook_on_key_value},
 	{"Hook", true, "onShellClose(_)", fn_hook_shell},
 	{"Hook", true, "onDisconnect(_)", fn_hook_disconnect},
 	{"Hook", true, "onWire(_)", fn_hook_on_wire},
@@ -1508,24 +1517,31 @@ st_wren_connected_shell_closed(st_wren_connected_t *connected)
 }
 
 int
-st_wren_connected_handle_key(st_wren_connected_t *connected,
-	uint16_t key, bool *consumed)
+st_wren_connected_handle_key_record(st_wren_connected_t *connected,
+	const struct st_wren_input_record *record, bool *consumed)
 {
-	if (connected == NULL || consumed == NULL)
+	uint32_t key = 0;
+	uint32_t modifiers;
+	bool has_key;
+
+	if (connected == NULL || record == NULL || consumed == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	*consumed = false;
+	has_key = st_wren_input_key(&record->data.key.native, &key, &modifiers);
+	modifiers &= ~(ST_CONSOLE_MODIFIER_CAPS_LOCK | ST_CONSOLE_MODIFIER_NUM_LOCK);
 	for (struct connected_hook *hook = connected->hooks; hook != NULL;
 	    hook = hook->next) {
 		uint64_t before = 0;
 
 		if (hook->kind != 1 || (hook->filter >= 0
-		    && hook->filter != key) || hook->function == NULL)
+		    && (!has_key || (uint32_t)hook->filter != key
+		    || hook->modifiers != modifiers)) || hook->function == NULL)
 			continue;
-		wrenEnsureSlots(connected->vm, 3);
+		wrenEnsureSlots(connected->vm, 4);
 		wrenSetSlotHandle(connected->vm, 0,
 		    connected->context.hook_class);
 		wrenSetSlotHandle(connected->vm, 1, hook->function);
-		wrenSetSlotDouble(connected->vm, 2, key);
+		st_wren_input_push_event(connected->vm, 2, record);
 		(void)st_time_monotonic_ms(&before);
 		if (connected_call(connected,
 		    connected->context.hook_dispatch) != WREN_RESULT_SUCCESS) {
@@ -1804,11 +1820,7 @@ st_wren_connected_handle_event(st_wren_connected_t *connected,
 		return IO_ERROR_INVALID_ARGUMENT;
 	status = st_wren_input_dispatch_console_event(connected->vm, event,
 	    consumed);
-	if (status != 0 || *consumed)
-		return status;
-	uint16_t key = st_wren_input_key_code(event);
-	return key == 0 ? 0
-	    : st_wren_connected_handle_key(connected, key, consumed);
+	return status;
 }
 
 int
