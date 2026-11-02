@@ -249,3 +249,28 @@ resumption during shutdown. Native menu claim-list assertions prove removal
 before event dispatch or GC can conceal a stale claim. Native application
 linking and GCC plus MinGW i686/x86_64 host-library builds passed without
 warnings; Windows runtime testing was not performed.
+
+Item 4 foundations: verified the bundled VM's String behavior in a standalone
+contract test and corrected the guidance/manual. Scalar iteration/counts,
+byte-offset subscripts (including `codePoints[i]`), range scalar expansion,
+non-BMP text, combining marks, embedded NULs, malformed bytes, and lack of
+implicit NFC are explicit. Future text-taking input bindings must validate
+UTF-8 by byte length in C, not by Wren String counts or ordinal subscripts.
+
+The terminal now owns one native keyboard-forwarding path shared by its event
+loop and available to the Wren binding migration. It preserves the full event,
+keeps script/local-command dispatch outside forwarding, and reports handling
+separately from output errors. The fixed-wire regression exposed and fixed
+numeric byte 0x82 being dropped on a CP437 RIP connection because the display's
+internal UTF-8 mode supplied its meaning. The session wire encoding now owns
+that decision. The C API guide and terminal conformance inventories reflect
+this boundary. Wren's compatibility records/constants remain to migrate.
+
+Verification for item 4 foundations: the new string and forwarding tests plus
+the terminal suite passed natively and ASan/UBSan (FreeBSD leak detection
+unsupported, disabled). Keyboard, RIP consistency/wire, and Wren host suites
+passed. Both CP437 and UTF-8 keyboard conformance suites passed through the
+real application control-bitmap backend with physical audio disabled. Native
+application and GCC/MinGW i686/x86_64 terminal-library builds were clean;
+both new test executables cross-compiled for MinGW i686 and x86_64. Windows
+runtime tests were not run.

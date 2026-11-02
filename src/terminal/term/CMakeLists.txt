@@ -33,6 +33,18 @@ if(BUILD_TESTING)
 	add_test(NAME term_rip_encoding_consistency
 		COMMAND st_term_rip_encoding_consistency)
 
+	add_executable(st_term_key_forward_test tests/st_term_key_forward_test.c)
+	target_link_libraries(st_term_key_forward_test PRIVATE st_term)
+	set_target_properties(st_term_key_forward_test PROPERTIES
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_term_key_forward_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
+	else()
+		target_compile_options(st_term_key_forward_test PRIVATE
+			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
+	endif()
+	add_test(NAME term_key_forward COMMAND st_term_key_forward_test)
+
 	add_executable(st_term_test tests/st_term_test.c)
 	target_link_libraries(st_term_test PRIVATE st_term)
 	target_compile_definitions(st_term_test PRIVATE

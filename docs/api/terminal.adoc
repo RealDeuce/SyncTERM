@@ -71,6 +71,17 @@ the session. Paste and scripted sends use semantic text transmission directly,
 not keyboard remapping. Connected Wren key hooks retain v1.10a's precedence
 before CTerm translation.
 
+`st_term_session_send_key()` forwards one complete native keyboard event using
+that same policy, without invoking script hooks or local session commands.
+It accepts named keys with event-time modifiers, Unicode text scalars,
+physical edges, DoorWay scan codes, and explicit numeric bytes. Its Boolean
+out-parameter reports terminal handling, while the returned status reports
+output errors separately. An unsupported key can remain unhandled without an
+I/O error. Numeric bytes use the session's wire encoding: a CP437 RIP session
+still resolves byte 0x82 as é even though RIP renders internally through UTF-8.
+The normal session event loop uses this shared forwarding path after its
+hook and local-command checks.
+
 DEC mouse/focus reporting, a reserved host-writable DEC status row, remote
 fonts, pixels, hyperlinks, and audio are handled inside CTerm.  DECCKSR computes
 its CRC over the selected row-major array of modern 24-byte cells; the explicit

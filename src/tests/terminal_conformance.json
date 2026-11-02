@@ -2,7 +2,8 @@
   "reference": "Synchronet xtrn/termtest/termtest.js",
   "sha256": "a8bc360b2b1cd9c1b6041160d3e994a410132418fb568a369f3a10724915ab00",
   "supplemental": [
-    {"id": "emoji-presentation", "test": "syncterm_emoji_presentation", "scope": "Native-symbol emoji forms occupy two cells; text forms retain native widths; 8/14/16 pixel fonts, colour on/off, CP437, right-margin revision and reset recovery"}
+    {"id": "emoji-presentation", "test": "syncterm_emoji_presentation", "scope": "Native-symbol emoji forms occupy two cells; text forms retain native widths; 8/14/16 pixel fonts, colour on/off, CP437, right-margin revision and reset recovery"},
+    {"id": "keyboard-forwarding-boundary", "test": "term_key_forward", "scope": "Fixed wire bytes for native Unicode/numeric/modified/DoorWay keys in CP437 and UTF-8 with RIP off/on; no script/local-command re-entry; invalid input and stopped output"}
   ],
   "cases": [
     {"id": "NUL", "source_line": 209, "suite": "movement", "scope": "Expected cursor coordinates; defaults, clamping and tab stops"},

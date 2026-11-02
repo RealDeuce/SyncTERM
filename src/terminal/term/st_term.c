@@ -833,6 +833,59 @@ st_term_rip_wire_to_utf8(char *result, size_t capacity,
 	return 0;
 }
 
+int
+st_term_session_send_key(st_term_session_t *session,
+	const struct st_console_event *event, bool *handled)
+{
+	if (session == NULL || event == NULL || handled == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	*handled = false;
+	switch (event->type) {
+	case ST_CONSOLE_EVENT_CODEPAGE_BYTE:
+		if (session->config.encoding == ST_CTERM_ENCODING_CODEPAGE
+		    && st_cterm_encoding(session->cterm) == ST_CTERM_ENCODING_CODEPAGE) {
+			*handled = st_cterm_handle_codepage_key(session->cterm,
+			    event->data.codepage_byte);
+			return session->output_error;
+		}
+		/* FALLTHROUGH */
+	case ST_CONSOLE_EVENT_TEXT: {
+		uint32_t codepoint = event->type == ST_CONSOLE_EVENT_TEXT
+		    ? event->data.text.codepoint : event->data.codepage_byte;
+		char utf8[4];
+
+		/* RIP's renderer uses UTF-8 internally even on a codepage link.
+		 * Resolve numeric entry at the wire boundary before RIP hotkeys or
+		 * text encoding; the display's encoding cannot supply its meaning. */
+		if (event->type == ST_CONSOLE_EVENT_CODEPAGE_BYTE
+		    && session->config.encoding == ST_CTERM_ENCODING_CODEPAGE)
+			codepoint = st_codepage_to_unicode(session->config.codepage,
+			    event->data.codepage_byte, false);
+		if (!st_unicode_scalar_valid(codepoint))
+			return IO_ERROR_INVALID_ENCODING;
+		ptrdiff_t size = st_utf8_encode_one(utf8, sizeof(utf8), codepoint);
+		*handled = true;
+		if (st_cterm_handle_text_key(session->cterm, codepoint))
+			return session->output_error;
+		return size < 0 ? IO_ERROR_INVALID_ENCODING
+		    : st_term_session_send_text(session, utf8, (size_t)size);
+	}
+	case ST_CONSOLE_EVENT_KEY_CODE:
+		*handled = st_cterm_handle_key(session->cterm, event->data.key.code,
+		    event->data.key.modifiers);
+		return session->output_error;
+	case ST_CONSOLE_EVENT_PHYSICAL_KEY:
+		*handled = st_cterm_handle_physical_keys(session->cterm, event, 1);
+		return session->output_error;
+	case ST_CONSOLE_EVENT_DOORWAY_KEY:
+		*handled = st_cterm_handle_doorway_key(session->cterm,
+		    event->data.doorway_key.scan_code);
+		return session->output_error;
+	default:
+		return IO_ERROR_INVALID_ARGUMENT;
+	}
+}
+
 static int
 handle_event(st_term_session_t *session,
 	const struct st_console_event *event,
@@ -852,36 +905,13 @@ handle_event(st_term_session_t *session,
 	}
 	switch (event->type) {
 	case ST_CONSOLE_EVENT_CODEPAGE_BYTE:
-		if (st_cterm_encoding(session->cterm) == ST_CTERM_ENCODING_CODEPAGE) {
-			(void)st_cterm_handle_codepage_key(session->cterm,
-			    event->data.codepage_byte);
-			return session->output_error;
-		}
-		/* In UTF-8 mode, the entered value is already a Unicode scalar. */
-		/* FALLTHROUGH */
-	case ST_CONSOLE_EVENT_TEXT: {
-		uint32_t codepoint = event->type == ST_CONSOLE_EVENT_TEXT
-		    ? event->data.text.codepoint
-		    : event->data.codepage_byte;
-		char utf8[4];
-		ptrdiff_t size = st_utf8_encode_one(utf8, sizeof(utf8), codepoint);
-
-		if (st_cterm_handle_text_key(session->cterm, codepoint))
-			return session->output_error;
-		return size < 0 ? IO_ERROR_INVALID_ENCODING
-		    : st_term_session_send_text(session, utf8, (size_t)size);
-	}
+	case ST_CONSOLE_EVENT_TEXT:
 	case ST_CONSOLE_EVENT_KEY_CODE:
-		(void)st_cterm_handle_key(session->cterm, event->data.key.code,
-		    event->data.key.modifiers);
-		return session->output_error;
 	case ST_CONSOLE_EVENT_PHYSICAL_KEY:
-		(void)st_cterm_handle_physical_keys(session->cterm, event, 1);
-		return session->output_error;
-	case ST_CONSOLE_EVENT_DOORWAY_KEY:
-		(void)st_cterm_handle_doorway_key(session->cterm,
-		    event->data.doorway_key.scan_code);
-		return session->output_error;
+	case ST_CONSOLE_EVENT_DOORWAY_KEY: {
+		bool handled;
+		return st_term_session_send_key(session, event, &handled);
+	}
 	case ST_CONSOLE_EVENT_MOUSE:
 		if (!session->mouse_disabled)
 			(void)st_cterm_handle_mouse(session->cterm, event);

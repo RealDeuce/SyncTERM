@@ -33,6 +33,16 @@ display font, including Unicode numeric input in menus.
 Native X11 tests separately cover keypad aliases that could trigger window
 shortcuts. Wren compatibility-key tests retain their font-codepage decoding checks.
 
+The supplemental `term_key_forward` C test checks the session's shared native
+keyboard-forwarding boundary against fixed output bytes in UTF-8 and CP437,
+with RIP off/on. It covers Unicode and non-BMP text, NUL, explicit numeric
+bytes, Shift-Tab, DoorWay Up, unsupported Alt keys, physical edges with
+reporting disabled, invalid scalars/events, and a stopped output queue.
+Forwarding must bypass script hooks and local session commands. Numeric byte
+0x82 must remain CP437 é in a RIP session, independent of the renderer's
+internal UTF-8 mode. These are wire-boundary checks; the control-bitmap
+keyboard suites above retain application-level keyboard coverage.
+
 Tab-stop tests cover insertion at the end of the list, sorted insertion,
 duplicate stops, and reinsertion after clearing the list. The latter must not
 mistake stale allocation contents for an active stop; the focused C tests also

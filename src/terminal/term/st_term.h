@@ -146,6 +146,15 @@ int st_term_session_run(st_term_session_t *session,
 int st_term_session_pump(st_term_session_t *session,
 	enum st_term_disposition *disposition, bool *finished);
 
+/* Forward one native keyboard event through terminal keyboard policy and
+ * wire encoding. Does not dispatch script hooks or local session commands.
+ * handled reports whether the terminal accepted the key (including local
+ * terminal actions); an output error is returned separately. Mouse/window
+ * events are invalid. The event's text, modifiers, and physical edge are
+ * preserved; CODEPAGE_BYTE is resolved using the session wire encoding. */
+int st_term_session_send_key(st_term_session_t *session,
+	const struct st_console_event *event, bool *handled);
+
 /*
  * Sends finite Unicode text. UTF-8 is sent unchanged after validation/NFC.
  * A legacy session encodes each grapheme once. An unmappable grapheme beeps
