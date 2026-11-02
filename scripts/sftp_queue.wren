@@ -517,12 +517,14 @@ class SftpQueue {
   // the caller can keep a reference) or null if the queue isn't
   // running.
   static enqueue(direction, localPath, remotePath, total, localToken) {
+    if (!exactInteger_(total, 0)) Fiber.abort("SftpQueue: invalid exact byte count")
 	if (!__running || __fatal) return null
 	for (existing in __jobs) {
 	  if (existing.dir == direction && existing.remote == remotePath &&
 		  (existing.status == SftpQueue.QUEUED ||
 		   existing.status == SftpQueue.ACTIVE)) return existing
 	}
+    if (__nextId >= Num.maxSafeInteger) Fiber.abort("SftpQueue: job IDs exhausted")
 	var j = Job.new(__nextId, direction, localPath, remotePath, total,
 		localToken)
 	__nextId = __nextId + 1
@@ -1149,6 +1151,10 @@ class SftpQueue {
 	return true
   }
 
+  static exactInteger_(value, minimum) {
+    return value is Num && value >= minimum && value <= Num.maxSafeInteger && value == value.floor
+  }
+
   // Load persisted jobs. ACTIVE work returns to QUEUED at its contiguous
   // resume frontier. Version-1 imports restart at byte zero. Terminal jobs
   // are not persisted.
@@ -1183,7 +1189,7 @@ class SftpQueue {
 	if (!(loaded is List)) return false
 	if (ver == 2) {
 	  var next = doc["nextId"]
-	  if (!(next is Num) || next < 1 || next != next.floor) return false
+	  if (!exactInteger_(next, 1)) return false
 	  __nextId = next
 	}
     for (m in loaded) {
@@ -1202,12 +1208,12 @@ class SftpQueue {
 	  if (!(dir is String) || !(local is String) || !(remote is String)) return false
 	  if (dir != SftpQueue.UPLOAD && dir != SftpQueue.DOWNLOAD) return false
       var total = m["total"]
-	  if (!(total is Num) || total < 0 || total != total.floor) return false
+	  if (!exactInteger_(total, 0)) return false
       var token = m["localToken"]
       if (!(token is String) || token.count == 0) token = null
 	  if (dir == SftpQueue.UPLOAD && token == null) return false
 	  var id = ver == 2 ? m["id"] : __nextId
-	  if (!(id is Num) || id < 1 || id != id.floor) return false
+	  if (!exactInteger_(id, 1) || id >= Num.maxSafeInteger) return false
 	  for (existing in __jobs) {
 		if (existing.id == id || (existing.dir == dir &&
 			existing.remote == remote)) return false
@@ -1218,10 +1224,9 @@ class SftpQueue {
 		var sourceSize = m["sourceSize"]
 		var sourceMtime = m["sourceMtime"]
 		var cancel = m["cancel"]
-		if (!(resume is Num) || resume < 0 || resume > total ||
-			resume != resume.floor || !(sourceSize is Num) || sourceSize < 0 ||
-			sourceSize != sourceSize.floor || !(sourceMtime is Num) ||
-			sourceMtime != sourceMtime.floor || !(cancel is Bool)) return false
+		if (!exactInteger_(resume, 0) || resume > total ||
+			!exactInteger_(sourceSize, 0) ||
+			!exactInteger_(sourceMtime, Num.minSafeInteger) || !(cancel is Bool)) return false
 		j.resume = resume
 		j.done = resume
 		j.sourceSize = sourceSize

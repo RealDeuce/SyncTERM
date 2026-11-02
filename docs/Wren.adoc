@@ -519,6 +519,35 @@ part.  Mathematical method-style helpers:
 | `n << k`, `n >> k`                           | Bit shifts (also 32-bit).
 |===
 
+==== Native integer limits [[native-integer-limits]]
+
+Native integer quantities exposed as Numbers use the inclusive exact range
+`Num.minSafeInteger` through `Num.maxSafeInteger`
+(−9,007,199,254,740,991 through 9,007,199,254,740,991). Unsigned quantities,
+including file sizes, byte counts and offsets, start at zero. Fractions,
+NaN, infinity and values outside the range abort before native work starts;
+representable values above this range, including 2^53 itself, are rejected.
+Counts must also fit the host's `size_t`, and narrower protocol or API limits
+still apply. SFTP v3 read counts and set-mtime values are bounded by
+4,294,967,295. An offset may exceed 32 bits even on a 32-bit host.
+
+Formatting helpers such as `Format.bytes` deliberately accept estimates and
+retain their documented rounding/saturation rules.
+
+Native results are checked before conversion. `File.size`, `File.offset`
+and `File.mtime` return `FileError` with `FileErr.outOfRange` and errno zero
+when the native result cannot be represented. SFTP stat/directory operations
+complete with a non-transient `SFTPError` (`IO_ERROR_OUT_OF_RANGE`) if any
+size or timestamp is outside the range; they never return rounded or partial
+metadata. Other integer getters, including profile timestamps, picker
+metadata, transfer byte counts and log sequence numbers, abort on overflow.
+Continuous measurements such as elapsed fractional seconds remain Numbers.
+
+The persistent transfer queue applies the same bounds to saved sizes,
+resume offsets, timestamps and IDs. It preserves an invalid queue for
+inspection and refuses to run it. Job IDs reserve the largest safe integer
+as the exhausted next-ID value, preventing rounded or reused IDs.
+
 === String
 
 Immutable byte string with UTF-8-aware operations. Strings can contain
@@ -5684,10 +5713,10 @@ does not broaden its authority.
   `writeBytes` for raw control over line termination.
 
 | `File.offset`, `offset=(o)`
-| Current read/write position.
+| Current read/write position. Nonnegative exact integer; see <<native-integer-limits>>.
 
 | `File.size`
-| Length of the file in bytes.
+| Length of the file in bytes, subject to <<native-integer-limits>>.
 
 | `File.mtime`, `mtime=(t)`
 | Modification time as POSIX seconds.  Setter calls `setfdate(2)` by
@@ -5812,11 +5841,12 @@ demux with `is FileError`.
 | `FileErr.vanished`      | 6 | A closed File's pathname is unavailable.
 | `FileErr.resolveFailed` | 7 | `Cache`-relative path resolution failed.
 | `FileErr.seekFailed`    | 8 | `fseek` failed while positioning an open file.
+| `FileErr.outOfRange`    | 9 | Native size, position or timestamp exceeds the exact Number range.
 |===
 
 **What is NOT a FileError:** programmer errors abort the fiber instead.
 That covers calling read/write on an unopened file, calling `open()` twice,
-passing a negative offset/count, reading past EOF, and passing the wrong type
+passing an invalid offset/count or timestamp (including an inexact Number), and passing the wrong type
 to a setter.  These are all "your code is wrong" — fail loud.
 
 **What is also not a FileError:** EOF from a short read.  `File.read`
@@ -6371,7 +6401,7 @@ One entry from `SFTP.readdir`.
 
 ==== SFTPStat
 
-Result of `SFTP.stat`.
+Result of `SFTP.stat`. Size and timestamps follow <<native-integer-limits>>.
 
 [options="header",cols="2,3"]
 |===

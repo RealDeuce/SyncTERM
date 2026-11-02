@@ -102,12 +102,12 @@ Starting points: the two BBS classes, `wren_bbs_model.c`, `wren_bind_menu.c`,
 
 ## 7 Define exact integer boundaries
 
-- [ ] Establish a documented lossless representation/range for native file
+- [x] Establish a documented lossless representation/range for native file
   sizes, offsets and other exposed 64-bit quantities. Never silently round
   native results or accept a Number outside the chosen exact range.
-- [ ] Apply shared, checked conversion rules to inputs and results, including
+- [x] Apply shared, checked conversion rules to inputs and results, including
   signedness and host-size limits, and migrate persistence/callers as needed.
-- [ ] Cover zero, fractions, negative values, NaN/infinity, 32-bit host bounds,
+- [x] Cover zero, fractions, negative values, NaN/infinity, 32-bit host bounds,
   the 2^53 boundary, signed limits and provider values that cannot be represented.
 
 Starting points: `number_u64` in `wren_bind_fs.c`, `slot_u64` and stat/entry
@@ -148,3 +148,19 @@ Seven native host/UI tests and the live SFTP test passed. Three ASan/UBSan
 tests and six control-bitmap application/add-on tests passed. Native Clang/GCC
 and MinGW i686/x86_64 host libraries built without warnings. Windows runtime
 tests were not run.
+
+Item 7: native integer inputs/results use a shared exact range of ±(2^53−1),
+with unsigned lower bounds and host/protocol checks. SFTP v3 counts/times are
+additionally bounded by UINT32_MAX. File metadata reports FileErr.outOfRange;
+remote stat/list responses fail atomically with a non-transient range error.
+Profile timestamps, picker metadata, transfer snapshots, theme generations and
+console sequence numbers also reject overflow. Queue persistence validates
+all numeric metadata and reserves an exhausted next-ID sentinel.
+
+Boundary tests cover zero, fractions, negatives, NaN/infinity, the 2^53 and
+signed/unsigned 64-bit limits, unchanged outputs on rejected conversions,
+file side effects, provider submission values and invalid stat/list results,
+and preservation of malformed/out-of-range saved queues. Five native tests
+(including live SFTP), three ASan/UBSan tests and six headless application/UI
+tests passed. Native Clang/GCC and MinGW i686/x86_64 libraries built without
+warnings; Windows runtime and 32-bit runtime tests were not run.

@@ -253,10 +253,17 @@ format_timestamp(char result[24], int64_t modified)
 	(void)value_format_datetime(result, 24, converted, true);
 }
 
-static void
+static bool
 push_entry_list(WrenVM *vm, int slot,
 	const struct st_wren_directory_entries *entries)
 {
+	for (size_t i = 0; i < entries->count; ++i) {
+		if (!st_wren_u64_exact(entries->items[i].size)
+		    || !st_wren_i64_exact(entries->items[i].modified)) {
+			st_wren_abort(vm, "Directory metadata exceeds Wren's exact Number range");
+			return false;
+		}
+	}
 	wrenEnsureSlots(vm, slot + 3);
 	wrenSetSlotNewList(vm, slot);
 	for (size_t i = 0; i < entries->count; ++i) {
@@ -277,6 +284,7 @@ push_entry_list(WrenVM *vm, int slot,
 		wrenInsertInList(vm, slot + 1, -1, slot + 2);
 		wrenInsertInList(vm, slot, -1, slot + 1);
 	}
+	return true;
 }
 
 static void
@@ -515,10 +523,13 @@ fn_request_list(WrenVM *vm)
 	wrenInsertInList(vm, 0, -1, 1);
 	wrenSetSlotBool(vm, 1, root);
 	wrenInsertInList(vm, 0, -1, 1);
-	push_entry_list(vm, 1, &directories);
+	if (!push_entry_list(vm, 1, &directories))
+		goto disposed;
 	wrenInsertInList(vm, 0, -1, 1);
-	push_entry_list(vm, 1, &files);
+	if (!push_entry_list(vm, 1, &files))
+		goto disposed;
 	wrenInsertInList(vm, 0, -1, 1);
+disposed:
 	free(directory);
 	st_wren_directory_entries_dispose(&directories);
 	st_wren_directory_entries_dispose(&files);

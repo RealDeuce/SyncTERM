@@ -22,6 +22,16 @@
 #include <stdint.h>
 #include <stdio.h>
 
+/* Deliberately exclude 2^53: every integer in this range has a unique Number. */
+#define ST_WREN_MAX_INTEGER UINT64_C(9007199254740991)
+bool st_wren_u64_exact(uint64_t value);
+bool st_wren_i64_exact(int64_t value);
+/* Failed reads preserve the result; checked returns abort on overflow. */
+bool st_wren_number_u64(WrenVM *vm, int slot, uint64_t *result);
+bool st_wren_number_i64(WrenVM *vm, int slot, int64_t *result);
+void st_wren_return_u64(WrenVM *vm, uint64_t value);
+void st_wren_return_i64(WrenVM *vm, int64_t value);
+
 struct st_app_paths;
 struct st_bbs_list;
 struct st_profile;

@@ -10,7 +10,6 @@
  * the interpreter. The Wren caller executes it in its own (catchable) fiber. */
 #include "wren_vm.h"
 
-#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -95,22 +94,14 @@ st_wren_log_error(WrenVM *vm, WrenErrorType type, const char *module,
 static void
 console_total(WrenVM *vm)
 {
-	wrenSetSlotDouble(vm, 0, (double)st_wren_context_from_vm(vm)->log.total);
+	st_wren_return_u64(vm, st_wren_context_from_vm(vm)->log.total);
 }
 
 /* Validate before converting: callers can supply NaN, infinity, or fractions. */
 static bool
 sequence(WrenVM *vm, uint64_t *result)
 {
-	double value;
-
-	if (wrenGetSlotType(vm, 1) != WREN_TYPE_NUM)
-		return false;
-	value = wrenGetSlotDouble(vm, 1);
-	if (!(value >= 0 && value < (double)UINT64_MAX) || floor(value) != value)
-		return false;
-	*result = (uint64_t)value;
-	return true;
+	return st_wren_number_u64(vm, 1, result);
 }
 
 static void
@@ -158,7 +149,7 @@ console_iterate(WrenVM *vm)
 	if (seq < log->total - log->count)
 		seq = log->total - log->count;
 	if (seq < log->total)
-		wrenSetSlotDouble(vm, 0, (double)seq);
+		st_wren_return_u64(vm, seq);
 	else
 		wrenSetSlotBool(vm, 0, false);
 }

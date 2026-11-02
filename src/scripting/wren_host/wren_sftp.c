@@ -378,21 +378,6 @@ slot_path(WrenVM *vm, int slot, const char **result)
 }
 
 static bool
-slot_u64(WrenVM *vm, int slot, uint64_t *result)
-{
-	double value;
-
-	if (wrenGetSlotType(vm, slot) != WREN_TYPE_NUM)
-		return false;
-	value = wrenGetSlotDouble(vm, slot);
-	if (!isfinite(value) || value < 0 || trunc(value) != value
-	    || value > (double)INT64_MAX)
-		return false;
-	*result = (uint64_t)value;
-	return true;
-}
-
-static bool
 slot_handle(WrenVM *vm, int slot, uint64_t *result)
 {
 	struct foreign_sftp_handle *handle;
@@ -596,7 +581,7 @@ fn_sftp_open(WrenVM *vm)
 	struct st_sftp_request request = {.operation = ST_SFTP_OPEN};
 	uint64_t flags;
 
-	if (!slot_path(vm, 1, &request.path) || !slot_u64(vm, 2, &flags)
+	if (!slot_path(vm, 1, &request.path) || !st_wren_number_u64(vm, 2, &flags)
 	    || flags > UINT32_MAX) {
 		st_wren_abort(vm, "SFTP.open: invalid path or flags");
 		return;
@@ -634,8 +619,9 @@ fn_sftp_read(WrenVM *vm)
 	uint64_t count;
 
 	if (!slot_handle(vm, 1, &request.handle)
-	    || !slot_u64(vm, 2, &count) || count > SIZE_MAX
-	    || !slot_u64(vm, 3, &request.offset)) {
+	    || !st_wren_number_u64(vm, 2, &count) || count > SIZE_MAX
+	    || count > UINT32_MAX
+	    || !st_wren_number_u64(vm, 3, &request.offset)) {
 		st_wren_abort(vm, "SFTP.read: invalid handle, count, or offset");
 		return;
 	}
@@ -650,7 +636,7 @@ fn_sftp_write(WrenVM *vm)
 	int size;
 
 	if (!slot_handle(vm, 1, &request.handle)
-	    || !slot_u64(vm, 2, &request.offset)
+	    || !st_wren_number_u64(vm, 2, &request.offset)
 	    || wrenGetSlotType(vm, 3) != WREN_TYPE_STRING) {
 		st_wren_abort(vm, "SFTP.write: invalid handle, offset, or bytes");
 		return;
@@ -685,7 +671,8 @@ fn_sftp_set_mtime(WrenVM *vm)
 	};
 
 	if (!slot_path(vm, 1, &request.path)
-	    || !slot_u64(vm, 2, &request.modified_time)) {
+	    || !st_wren_number_u64(vm, 2, &request.modified_time)
+	    || request.modified_time > UINT32_MAX) {
 		st_wren_abort(vm, "SFTP.setMtime: invalid path or time");
 		return;
 	}
@@ -698,11 +685,11 @@ stat_value(WrenVM *vm)
 	return wrenGetSlotForeign(vm, 0);
 }
 static void fn_stat_size(WrenVM *vm)
-{ wrenSetSlotDouble(vm, 0, (double)stat_value(vm)->value.size); }
+{ st_wren_return_u64(vm, stat_value(vm)->value.size); }
 static void fn_stat_mtime(WrenVM *vm)
-{ wrenSetSlotDouble(vm, 0, (double)stat_value(vm)->value.modified_time); }
+{ st_wren_return_i64(vm, stat_value(vm)->value.modified_time); }
 static void fn_stat_atime(WrenVM *vm)
-{ wrenSetSlotDouble(vm, 0, (double)stat_value(vm)->value.accessed_time); }
+{ st_wren_return_i64(vm, stat_value(vm)->value.accessed_time); }
 static void fn_stat_mode(WrenVM *vm)
 { wrenSetSlotDouble(vm, 0, stat_value(vm)->value.mode); }
 static void fn_stat_uid(WrenVM *vm)
@@ -728,9 +715,9 @@ static void fn_entry_long_name(WrenVM *vm)
 	else wrenSetSlotString(vm, 0, entry_value(vm)->long_name);
 }
 static void fn_entry_size(WrenVM *vm)
-{ wrenSetSlotDouble(vm, 0, (double)entry_value(vm)->stat.size); }
+{ st_wren_return_u64(vm, entry_value(vm)->stat.size); }
 static void fn_entry_mtime(WrenVM *vm)
-{ wrenSetSlotDouble(vm, 0, (double)entry_value(vm)->stat.modified_time); }
+{ st_wren_return_i64(vm, entry_value(vm)->stat.modified_time); }
 static void fn_entry_directory(WrenVM *vm)
 { wrenSetSlotBool(vm, 0, entry_value(vm)->directory); }
 static void fn_entry_long_desc(WrenVM *vm)
@@ -781,7 +768,7 @@ fn_timer_after(WrenVM *vm)
 	size_t count = 0;
 
 	if (connected == NULL || connected->shutting_down
-	    || !slot_u64(vm, 1, &milliseconds) || milliseconds > UINT32_MAX
+	    || !st_wren_number_u64(vm, 1, &milliseconds) || milliseconds > UINT32_MAX
 	    || st_time_monotonic_ms(&now) != 0) {
 		st_wren_abort(vm, "Timer.after requires a live session and integer delay in 0..4294967295");
 		return;
@@ -1215,9 +1202,29 @@ take_request(struct st_wren_connected *connected, uint64_t id)
 }
 
 static bool
+stat_exact(const struct st_sftp_stat *value)
+{
+	return st_wren_u64_exact(value->size)
+	    && st_wren_i64_exact(value->modified_time)
+	    && st_wren_i64_exact(value->accessed_time);
+}
+
+static bool
 push_response(WrenVM *vm, int slot,
 	const struct st_sftp_response *response)
 {
+	bool exact = response->kind != ST_SFTP_RESULT_STAT
+	    || stat_exact(&response->stat);
+
+	if (response->kind == ST_SFTP_RESULT_ENTRIES) {
+		for (size_t i = 0; i < response->entry_count && exact; ++i)
+			exact = stat_exact(&response->entries[i].stat);
+	}
+	if (!exact) {
+		push_error(vm, slot, IO_ERROR_OUT_OF_RANGE, 0,
+		    "SFTP metadata exceeds Wren's exact Number range", false);
+		return true;
+	}
 	switch (response->kind) {
 	case ST_SFTP_RESULT_STARTED:
 		wrenSetSlotBool(vm, slot, true);

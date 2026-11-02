@@ -1442,6 +1442,7 @@ class FileErr {
   static vanished      { 6 }
   static resolveFailed { 7 }
   static seekFailed    { 8 }
+  static outOfRange    { 9 }
 }
 
 class Hook {

@@ -89,19 +89,14 @@ static bool
 slot_integer(WrenVM *vm, int slot, int64_t minimum, int64_t maximum,
 	int64_t *result)
 {
-	double value;
+	int64_t value;
 
-	if (wrenGetSlotType(vm, slot) != WREN_TYPE_NUM) {
-		st_wren_abort(vm, "expected an integer");
+	if (!st_wren_number_i64(vm, slot, &value)
+	    || value < minimum || value > maximum) {
+		st_wren_abort(vm, "expected an exact integer in range");
 		return false;
 	}
-	value = wrenGetSlotDouble(vm, slot);
-	if (!isfinite(value) || trunc(value) != value || value < (double)minimum
-	    || value > (double)maximum) {
-		st_wren_abort(vm, "integer is out of range");
-		return false;
-	}
-	*result = (int64_t)value;
+	*result = value;
 	return true;
 }
 
@@ -759,7 +754,7 @@ fn_menu_time_text(WrenVM *vm)
 static void
 fn_menu_timestamp(WrenVM *vm)
 {
-	wrenSetSlotDouble(vm, 0, (double)time(NULL));
+	st_wren_return_i64(vm, time(NULL));
 }
 
 static void
@@ -3721,7 +3716,7 @@ fn_settings_reload(WrenVM *vm)
 	{ \
 		struct foreign_bbs *bbs = bbs_value(vm, 0); \
 		if (bbs != NULL) \
-			wrenSetSlotDouble(vm, 0, (double)bbs->record->profile.field); \
+			st_wren_return_i64(vm, bbs->record->profile.field); \
 	} \
 	static void fn_bbs_##name##_set(WrenVM *vm) \
 	{ \
@@ -3891,7 +3886,7 @@ fn_bbs_added(WrenVM *vm)
 	struct foreign_bbs *bbs = bbs_value(vm, 0);
 
 	if (bbs != NULL)
-		wrenSetSlotDouble(vm, 0, (double)bbs->record->profile.added);
+		st_wren_return_i64(vm, bbs->record->profile.added);
 }
 
 static void
@@ -3900,7 +3895,7 @@ fn_bbs_connected(WrenVM *vm)
 	struct foreign_bbs *bbs = bbs_value(vm, 0);
 
 	if (bbs != NULL)
-		wrenSetSlotDouble(vm, 0, (double)bbs->record->profile.connected);
+		st_wren_return_i64(vm, bbs->record->profile.connected);
 }
 
 static void

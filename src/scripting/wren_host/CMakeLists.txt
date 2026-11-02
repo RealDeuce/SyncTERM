@@ -90,6 +90,7 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/GenerateLicenses.cmake")
 add_library(st_wren_host STATIC
 	wren_host.c
 	wren_foreign.c
+	wren_number.c
 	wren_session.c
 	wren_bbs_model.c
 	wren_bind_core.c

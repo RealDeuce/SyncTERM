@@ -56,6 +56,14 @@ details matter.
 - No implicit NFC normalization or grapheme segmentation occurs in Wren.
   Keep original committed input scalars separate from named keys and modifiers.
 
+## Native integers
+
+- Wren Numbers are binary64. Use the shared checked conversions for native
+  integer quantities; the exact range is ±(2^53−1), with a zero lower bound
+  for unsigned quantities and additional host/protocol bounds as applicable.
+- Validate native results before converting, and reject out-of-range saved
+  queue metadata. A cast to double followed by validation can hide rounding.
+
 ## Classes
 
 - Constructors use `construct new(args) { ... }`.

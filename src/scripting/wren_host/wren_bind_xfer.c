@@ -328,6 +328,10 @@ static void snapshot(WrenVM *vm)
 {
 	struct st_transfer_snapshot value = {0}; st_transfer_t *t = get_worker(vm);
 	if (t != NULL) st_transfer_snapshot(t, &value);
+	if (!st_wren_i64_exact(value.bytes_current) || !st_wren_i64_exact(value.bytes_total)) {
+		st_wren_abort(vm, "Transfer byte count exceeds Wren's exact Number range");
+		return;
+	}
 	wrenEnsureSlots(vm, 2); wrenSetSlotNewList(vm, 0);
 	const char *lines[] = {value.line1, value.line2, value.line3, value.line4};
 	for (unsigned i = 0; i < 4; ++i) { wrenSetSlotString(vm, 1, lines[i]); wrenInsertInList(vm, 0, -1, 1); }

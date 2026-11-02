@@ -216,23 +216,14 @@ static bool
 slot_integer(WrenVM *vm, int slot, int64_t minimum, int64_t maximum,
 	int64_t *result)
 {
-	double value;
+	int64_t value;
 
-	if (wrenGetSlotType(vm, slot) != WREN_TYPE_NUM) {
-		st_wren_abort(vm, "expected an integer");
+	if (!st_wren_number_i64(vm, slot, &value)
+	    || value < minimum || value > maximum) {
+		st_wren_abort(vm, "expected an exact integer in range");
 		return false;
 	}
-	value = wrenGetSlotDouble(vm, slot);
-	if (!isfinite(value) || trunc(value) != value
-	    || value < -0x1p63 || value >= 0x1p63) {
-		st_wren_abort(vm, "integer is out of range");
-		return false;
-	}
-	*result = (int64_t)value;
-	if (*result < minimum || *result > maximum) {
-		st_wren_abort(vm, "integer is out of range");
-		return false;
-	}
+	*result = value;
 	return true;
 }
 
@@ -4323,7 +4314,7 @@ fn_host_exit_requested(WrenVM *vm)
 static void
 fn_host_theme_generation(WrenVM *vm)
 {
-	wrenSetSlotDouble(vm, 0, (double)st_theme_generation(
+	st_wren_return_u64(vm, st_theme_generation(
 	    st_wren_host_from_vm(vm)->themes));
 }
 

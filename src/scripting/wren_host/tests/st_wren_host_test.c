@@ -39,6 +39,7 @@
 #include "syncterm_config.h"
 
 #include <inttypes.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -192,6 +193,9 @@ struct fake_sftp {
 	size_t head;
 	size_t count;
 	uint64_t next_id;
+	uint64_t submitted_offset;
+	uint64_t submitted_modified;
+	size_t submitted_size;
 	const unsigned char *remote;
 	size_t remote_size;
 	int64_t modified;
@@ -233,6 +237,9 @@ fake_sftp_submit(void *context, const struct st_sftp_request *request,
 	memset(stored, 0, sizeof(*stored));
 	stored->response.request_id = ++fake->next_id;
 	*request_id = stored->response.request_id;
+	fake->submitted_offset = request->offset;
+	fake->submitted_modified = request->modified_time;
+	fake->submitted_size = request->size;
 	switch (request->operation) {
 	case ST_SFTP_START:
 		stored->response.kind = ST_SFTP_RESULT_STARTED;
@@ -311,6 +318,90 @@ fake_sftp_poll(void *context, struct st_sftp_response *response,
 	    (sizeof(fake->responses) / sizeof(fake->responses[0]));
 	fake->count--;
 	return 1;
+}
+
+static int
+exercise_sftp_integer_contract(st_wren_connected_t *connected,
+	struct fake_sftp *fake)
+{
+	CHECK(st_wren_connected_interpret(connected, "sftp_integer_contract",
+	    "import \"syncterm\" for SFTP, SFTPError, SFTPStat, FileFlag\n"
+	    "var opening = SFTP.open(\"/integers\", FileFlag.read)\n") == 0);
+	CHECK(st_wren_connected_pump(connected, 0) == 0);
+	uint64_t before = fake->next_id;
+	CHECK(st_wren_connected_interpret(connected, "sftp_integer_contract",
+	    "var handle = opening.result\n"
+	    "for (n in [-1, 0.5, Num.nan, Num.infinity, -Num.infinity, 9007199254740992, 9223372036854775808, 18446744073709551616]) {\n"
+	    "  var actions = [Fn.new { SFTP.read(handle, n, 0) }, Fn.new { SFTP.read(handle, 0, n) }, Fn.new { SFTP.write(handle, n, \"\") }, Fn.new { SFTP.setMtime(\"/integers\", n) }, Fn.new { SFTP.open(\"/integers\", n) }]\n"
+	    "  for (action in actions) {\n"
+	    "    var failed = Fiber.new { action.call() }\n"
+	    "    failed.try()\n"
+	    "    if (failed.error == null) Fiber.abort(\"SFTP accepted inexact integer\")\n"
+	    "  }\n"
+	    "}\n") == 0);
+	CHECK(fake->next_id == before && fake->count == 0);
+	CHECK(st_wren_connected_interpret(connected, "sftp_integer_contract",
+	    "var farRead = SFTP.read(handle, 0, 9007199254740991)\n") == 0);
+	CHECK(fake->submitted_size == 0 && fake->submitted_offset == ST_WREN_MAX_INTEGER);
+	CHECK(st_wren_connected_interpret(connected, "sftp_integer_contract",
+	    "var zeroTime = SFTP.setMtime(\"/integers\", 0)\n"
+	    "var farTime = SFTP.setMtime(\"/integers\", 4294967295)\n") == 0);
+	CHECK(fake->count == 3 && fake->submitted_modified == UINT32_MAX);
+	CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "sftp_integer_contract",
+	    "if (farRead.result != null || zeroTime.result != null || farTime.result != null) Fiber.abort(\"exact boundary submission\")\n"
+	    "var metadata = SFTP.stat(\"/integers\")\n") == 0);
+	struct st_sftp_response *response = &fake->responses[fake->head].response;
+	response->stat = (struct st_sftp_stat){
+		.size = ST_WREN_MAX_INTEGER,
+		.modified_time = -(int64_t)ST_WREN_MAX_INTEGER,
+		.accessed_time = (int64_t)ST_WREN_MAX_INTEGER,
+	};
+	CHECK(st_wren_connected_pump(connected, 0) == 0);
+	CHECK(st_wren_connected_interpret(connected, "sftp_integer_contract",
+	    "if (!(metadata.result is SFTPStat) || metadata.result.size != 9007199254740991 || metadata.result.mtime != -9007199254740991 || metadata.result.atime != 9007199254740991) Fiber.abort(\"exact metadata boundaries\")\n") == 0);
+	/* SFTP v3 counts/times are 32-bit; file offsets retain the exact 53-bit range. */
+	before = fake->next_id;
+	CHECK(st_wren_connected_interpret(connected, "sftp_integer_contract",
+	    "for (action in [Fn.new { SFTP.read(handle, 4294967296, 0) }, Fn.new { SFTP.setMtime(\"/integers\", 4294967296) }]) {\n"
+	    "  var failed = Fiber.new { action.call() }\n"
+	    "  failed.try()\n"
+	    "  if (failed.error == null) Fiber.abort(\"SFTP v3 integer overflow\")\n"
+	    "}\n"
+	    "var largestRead = SFTP.read(handle, 4294967295, 0)\n") == 0);
+	CHECK(fake->next_id == before + 1 && fake->submitted_size == UINT32_MAX);
+	CHECK(st_wren_connected_pump(connected, 0) == 0);
+	const struct st_sftp_stat invalid[] = {
+		{.size = ST_WREN_MAX_INTEGER + 1},
+		{.size = UINT64_MAX},
+		{.modified_time = (int64_t)ST_WREN_MAX_INTEGER + 1},
+		{.modified_time = INT64_MAX},
+		{.accessed_time = -(int64_t)ST_WREN_MAX_INTEGER - 1},
+		{.accessed_time = INT64_MIN},
+	};
+	for (size_t i = 0; i < sizeof(invalid) / sizeof(invalid[0]); ++i) {
+		for (unsigned kind = 0; kind < 2; ++kind) {
+			CHECK(st_wren_connected_interpret(connected, "sftp_integer_contract",
+			    "metadata = SFTP.stat(\"/integers\")\n") == 0);
+			response = &fake->responses[fake->head].response;
+			struct st_sftp_entry entries[2] = {{.name = "small"},
+			    {.name = "unrepresentable", .stat = invalid[i]}};
+			if (kind == 0)
+				response->stat = invalid[i];
+			else {
+				response->kind = ST_SFTP_RESULT_ENTRIES;
+				response->entries = entries;
+				response->entry_count = 2;
+			}
+			CHECK(st_wren_connected_pump(connected, 0) == 0);
+			CHECK(st_wren_connected_interpret(connected, "sftp_integer_contract",
+			    "if (!(metadata.result is SFTPError) || metadata.result.isTransient || metadata.result.serverStatus != 0 || metadata.result.code >= 0) Fiber.abort(\"inexact native metadata escaped\")\n") == 0);
+		}
+	}
+	CHECK(st_wren_connected_interpret(connected, "sftp_integer_contract",
+	    "var closing = SFTP.close(handle)\n") == 0);
+	CHECK(st_wren_connected_pump(connected, 0) == 0);
+	return 0;
 }
 
 static int
@@ -395,6 +486,23 @@ exercise_filesystem_path_handles(st_wren_connected_t *connected)
 	    "if (!(relaxed is File) || !Download.delete(\"file with spaces.tmp\")) Fiber.abort(\"download names\")\n"
 	    "if (Download.create(\"../escape\") != null || Download.create(\"nul\\u0000suffix\") != null || Cache.create(\".hidden\") != null) Fiber.abort(\"name policies\")\n") == 0);
 
+	CHECK(st_wren_connected_interpret(connected, "file_integer_contract",
+	    "import \"syncterm\" for Download, FileError\n"
+	    "var file = Download.create(\"exact-integers.tmp\")\n"
+	    "if (file.open() is FileError || file.write(\"unchanged\") is FileError) Fiber.abort(\"integer fixture\")\n"
+	    "file.offset = 3\n"
+	    "var stamp = file.mtime\n"
+	    "for (n in [-1, 0.5, Num.nan, Num.infinity, -Num.infinity, 9007199254740992, 9223372036854775808]) {\n"
+	    "  var actions = [Fn.new { file.offset = n }, Fn.new { file.mtime = n }, Fn.new { file.readBytes(n) }, Fn.new { file.readBytes(0, n) }, Fn.new { file.writeBytes(\"X\", n) }]\n"
+	    "  for (action in actions) {\n"
+	    "    var failed = Fiber.new { action.call() }\n"
+	    "    failed.try()\n"
+	    "    if (failed.error == null || file.offset != 3 || file.size != 9 || file.mtime != stamp) Fiber.abort(\"integer validation side effect\")\n"
+	    "  }\n"
+	    "}\n"
+	    "if (file.readBytes(0) != \"\" || file.offset != 3) Fiber.abort(\"zero read offset\")\n"
+	    "file.close()\n"
+	    "Download.delete(\"exact-integers.tmp\")\n") == 0);
 	CHECK(fs_remove_file(external_file) == 0);
 	CHECK(fs_remove_directory(external_directory) == 0);
 	return 0;
@@ -3028,6 +3136,7 @@ exercise_connected_sftp(st_wren_host_t *host, st_console_t *console,
 	    "System.gc()\nSystem.gc()\n") == 0);
 	CHECK(st_wren_connected_pump(connected, 0) == 0);
 	CHECK(fake.close_count == 2);
+	CHECK(exercise_sftp_integer_contract(connected, &fake) == 0);
 	CHECK(exercise_filesystem_path_handles(connected) == 0);
 	CHECK(st_wren_connected_interpret(connected, "sftp_batch",
 	    "import \"syncterm\" for SFTP\n"
@@ -3136,6 +3245,38 @@ exercise_connected_sftp(st_wren_host_t *host, st_console_t *console,
 	(void)snprintf(path, sizeof(path), "%s/short.bin",
 	    ST_WREN_TEST_DIRECTORY);
 	CHECK(fs_remove_file(path) == 0);
+	const struct { const char *field; const char *value; } invalid_queues[] = {
+		{"nextId", "9007199254740992"},
+		{"id", "9007199254740991"},
+		{"total", "9007199254740992"},
+		{"resume", "9007199254740992"},
+		{"sourceSize", "9007199254740992"},
+		{"sourceMtime", "9007199254740992"},
+		{"sourceMtime", "-9007199254740992"},
+		{"total", "0.5"},
+	};
+	for (size_t i = 0; i < sizeof(invalid_queues) / sizeof(invalid_queues[0]); ++i) {
+		const char *keys[] = {"nextId", "id", "total", "resume", "sourceSize", "sourceMtime"};
+		const char *values[] = {"2", "1", "1", "0", "1", "0"};
+		for (size_t field = 0; field < sizeof(keys) / sizeof(keys[0]); ++field) {
+			if (strcmp(keys[field], invalid_queues[i].field) == 0)
+				values[field] = invalid_queues[i].value;
+		}
+		char document[512];
+		CHECK(snprintf(document, sizeof(document),
+		    "{\"version\":2,\"nextId\":%s,\"jobs\":[{\"id\":%s,\"dir\":\"down\","
+		    "\"local\":\"invalid.bin\",\"remote\":\"/remote.bin\",\"total\":%s,"
+		    "\"resume\":%s,\"sourceSize\":%s,\"sourceMtime\":%s,\"cancel\":false}]}",
+		    values[0], values[1], values[2], values[3], values[4], values[5]) < (int)sizeof(document));
+		CHECK(write_file(queue_path, document) == 0);
+		CHECK(st_wren_connected_create(&connected, &config) == 0);
+		CHECK(st_wren_connected_interpret(connected, "inexact_queue_result",
+		    "import \"sftp_queue\" for SftpQueue\n"
+		    "if (!SftpQueue.fatal) Fiber.abort(\"inexact persisted queue accepted\")\n") == 0);
+		st_wren_connected_destroy(connected);
+		connected = NULL;
+		CHECK(file_equals(queue_path, document));
+	}
 	CHECK(write_file(queue_path, "{ malformed queue") == 0);
 	CHECK(st_wren_connected_create(&connected, &config) == 0);
 	CHECK(st_wren_connected_interpret(connected, "invalid_queue_result",
@@ -4479,6 +4620,56 @@ exercise_zero_width_contract(st_wren_host_t *public_host)
 }
 
 static int
+exercise_integer_contract(st_wren_host_t *host)
+{
+	WrenVM *vms[] = {host->vm, host->picker_vm};
+	const double invalid[] = {NAN, INFINITY, -INFINITY, 0.5, -0.5,
+	    0x1p53, -0x1p53, 0x1p63, -0x1p63, 0x1p64};
+	const int64_t valid[] = {0, 1, -1, INT32_MAX, (int64_t)UINT32_MAX,
+	    (int64_t)UINT32_MAX + 1, (int64_t)ST_WREN_MAX_INTEGER,
+	    -(int64_t)ST_WREN_MAX_INTEGER};
+
+	CHECK(st_wren_u64_exact(ST_WREN_MAX_INTEGER));
+	CHECK(!st_wren_u64_exact(ST_WREN_MAX_INTEGER + 1));
+	CHECK(!st_wren_u64_exact(UINT64_MAX));
+	CHECK(st_wren_i64_exact(-(int64_t)ST_WREN_MAX_INTEGER));
+	CHECK(!st_wren_i64_exact(-(int64_t)ST_WREN_MAX_INTEGER - 1));
+	CHECK(!st_wren_i64_exact(INT64_MIN));
+	CHECK(!st_wren_i64_exact(INT64_MAX));
+	for (size_t mode = 0; mode < sizeof(vms) / sizeof(vms[0]); ++mode) {
+		WrenVM *vm = vms[mode];
+		wrenEnsureSlots(vm, 1);
+		for (size_t i = 0; i < sizeof(invalid) / sizeof(invalid[0]); ++i) {
+			int64_t signed_value = 17;
+			uint64_t unsigned_value = 19;
+			wrenSetSlotDouble(vm, 0, invalid[i]);
+			CHECK(!st_wren_number_i64(vm, 0, &signed_value));
+			CHECK(!st_wren_number_u64(vm, 0, &unsigned_value));
+			CHECK(signed_value == 17 && unsigned_value == 19);
+		}
+		for (size_t i = 0; i < sizeof(valid) / sizeof(valid[0]); ++i) {
+			int64_t signed_value = 17;
+			uint64_t unsigned_value = 19;
+			st_wren_return_i64(vm, valid[i]);
+			CHECK(st_wren_number_i64(vm, 0, &signed_value));
+			CHECK(signed_value == valid[i]);
+			CHECK(st_wren_number_u64(vm, 0, &unsigned_value) == (valid[i] >= 0));
+			if (valid[i] >= 0) {
+				CHECK(unsigned_value == (uint64_t)valid[i]);
+				st_wren_return_u64(vm, unsigned_value);
+				CHECK(wrenGetSlotDouble(vm, 0) == (double)valid[i]);
+			}
+			else
+				CHECK(unsigned_value == 19);
+		}
+		wrenSetSlotNull(vm, 0);
+		int64_t signed_value = 17;
+		CHECK(!st_wren_number_i64(vm, 0, &signed_value) && signed_value == 17);
+	}
+	return 0;
+}
+
+static int
 exercise_foreign_type_contract(st_wren_host_t *public_host)
 {
 	struct st_wren_host *host = public_host;
@@ -4711,9 +4902,14 @@ exercise_core_value_contracts(st_wren_host_t *public_host,
 	    "var pixel = Screen.readRect(1, 1, 1, 1).cellAt(0, 0)\n"
 	    "if (!pixel.pixelGraphics || pixel.eqContent(pixel) || left.eqContent(pixel)) Fiber.abort(\"pixel cell equality\")\n"
 	    "var surface = Surface.new(1, 1)\n"
-	    "var below = Fiber.new { surface.iterate(9223372036854774784) }\n"
+	    "var below = Fiber.new { surface.iterate(9007199254740991) }\n"
 	    "var belowResult = below.try()\n"
-	    "if (below.error != null || belowResult != false) Fiber.abort(\"integer below 2^63\")\n"
+	    "if (below.error != null || belowResult != false) Fiber.abort(\"largest exact iterator integer\")\n"
+	    "for (n in [9007199254740992, 9223372036854774784]) {\n"
+	    "  var inexact = Fiber.new { surface.iterate(n) }\n"
+	    "  inexact.try()\n"
+	    "  if (inexact.error == null) Fiber.abort(\"inexact iterator integer\")\n"
+	    "}\n"
 	    "var at = Fiber.new { surface.iterate(9223372036854775808) }\n"
 	    "at.try()\n"
 	    "if (at.error == null) Fiber.abort(\"integer at 2^63\")\n"
@@ -6586,6 +6782,7 @@ main(int argc, char **argv)
 	CHECK(exercise_surface_cell_retarget_contract(host) == 0);
 	CHECK(exercise_rectangle_contract(host) == 0);
 	CHECK(exercise_core_value_contracts(host, console) == 0);
+	CHECK(exercise_integer_contract(host) == 0);
 	CHECK(exercise_foreign_type_contract(host) == 0);
 	CHECK(exercise_snapshot_lifetime_contract(host) == 0);
 	CHECK(exercise_screen_update_contract(host, console) == 0);

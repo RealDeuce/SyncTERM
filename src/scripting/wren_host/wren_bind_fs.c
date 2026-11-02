@@ -20,7 +20,6 @@
 
 #include <errno.h>
 #include <limits.h>
-#include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -34,6 +33,7 @@ enum file_rights {
 #define ST_WREN_FILE_MAGIC UINT32_C(0x5354464c)
 #define ST_WREN_DIRECTORY_MAGIC UINT32_C(0x53544452)
 #define FILE_ERROR_SEEK_FAILED 8
+#define FILE_ERROR_OUT_OF_RANGE 9
 
 struct st_wren_file {
 	uint32_t magic;
@@ -65,21 +65,6 @@ struct fs_binding {
 	const char *signature;
 	WrenForeignMethodFn method;
 };
-
-static bool
-number_u64(WrenVM *vm, int slot, uint64_t *result)
-{
-	double value;
-
-	if (wrenGetSlotType(vm, slot) != WREN_TYPE_NUM)
-		return false;
-	value = wrenGetSlotDouble(vm, slot);
-	if (!isfinite(value) || value < 0 || trunc(value) != value
-	    || value > (double)INT64_MAX)
-		return false;
-	*result = (uint64_t)value;
-	return true;
-}
 
 static bool
 slot_bytes(WrenVM *vm, int slot, const char **data, size_t *size)
@@ -634,8 +619,8 @@ file_read_at(WrenVM *vm, bool explicit_offset)
 
 	if (file == NULL)
 		return;
-	if (!number_u64(vm, 1, &count) || count > SIZE_MAX
-	    || (explicit_offset && !number_u64(vm, 2, &offset))) {
+	if (!st_wren_number_u64(vm, 1, &count) || count > SIZE_MAX
+	    || (explicit_offset && !st_wren_number_u64(vm, 2, &offset))) {
 		st_wren_abort(vm, "File.readBytes: invalid count or offset");
 		return;
 	}
@@ -713,7 +698,7 @@ file_write_at(WrenVM *vm, bool explicit_offset)
 	if (file == NULL)
 		return;
 	if (!slot_bytes(vm, 1, &data, &size)
-	    || (explicit_offset && !number_u64(vm, 2, &offset))) {
+	    || (explicit_offset && !st_wren_number_u64(vm, 2, &offset))) {
 		st_wren_abort(vm, "File.writeBytes: invalid bytes or offset");
 		return;
 	}
@@ -833,8 +818,10 @@ fn_file_offset(WrenVM *vm)
 	if (position < 0)
 		push_error(vm, FILE_ERROR_SEEK_FAILED, errno,
 		    "File position failed");
+	else if (!st_wren_i64_exact(position))
+		push_error(vm, FILE_ERROR_OUT_OF_RANGE, 0, "File position exceeds the exact Number range");
 	else
-		wrenSetSlotDouble(vm, 0, (double)position);
+		st_wren_return_i64(vm, position);
 }
 
 static void
@@ -845,8 +832,11 @@ fn_file_offset_set(WrenVM *vm)
 
 	if (file == NULL)
 		return;
-	if (!number_u64(vm, 1, &offset)
-	    || fs_stream_seek(file->stream, (int64_t)offset) != 0)
+	if (!st_wren_number_u64(vm, 1, &offset)) {
+		st_wren_abort(vm, "File.offset: invalid exact nonnegative integer");
+		return;
+	}
+	if (fs_stream_seek(file->stream, (int64_t)offset) != 0)
 		push_error(vm, FILE_ERROR_SEEK_FAILED, errno, "File seek failed");
 	else
 		wrenSetSlotDouble(vm, 0, (double)offset);
@@ -864,13 +854,19 @@ fn_file_size(WrenVM *vm)
 	if (file->stream != NULL) {
 		size = fs_stream_size(file->stream);
 		if (size >= 0) {
-			wrenSetSlotDouble(vm, 0, (double)size);
+			if (!st_wren_i64_exact(size))
+				push_error(vm, FILE_ERROR_OUT_OF_RANGE, 0, "File size exceeds the exact Number range");
+			else
+				st_wren_return_i64(vm, size);
 			return;
 		}
 	}
 	else if (fs_get_info(&info, file->path) == 0
 	    && info.kind == FS_ENTRY_FILE) {
-		wrenSetSlotDouble(vm, 0, (double)info.size);
+		if (!st_wren_u64_exact(info.size))
+			push_error(vm, FILE_ERROR_OUT_OF_RANGE, 0, "File size exceeds the exact Number range");
+		else
+			st_wren_return_u64(vm, info.size);
 		return;
 	}
 	push_error(vm, 3, errno, "File size failed");
@@ -886,8 +882,10 @@ fn_file_mtime(WrenVM *vm)
 		return;
 	if (fs_get_info(&info, file->path) != 0)
 		push_error(vm, 3, errno, "File stat failed");
+	else if (!st_wren_i64_exact(info.modified_time))
+		push_error(vm, FILE_ERROR_OUT_OF_RANGE, 0, "File mtime exceeds the exact Number range");
 	else
-		wrenSetSlotDouble(vm, 0, (double)info.modified_time);
+		st_wren_return_i64(vm, info.modified_time);
 }
 
 static void
@@ -898,8 +896,11 @@ fn_file_mtime_set(WrenVM *vm)
 
 	if (file == NULL)
 		return;
-	if (!number_u64(vm, 1, &modified)
-	    || fs_set_modified_time(file->path, (int64_t)modified) != 0)
+	if (!st_wren_number_u64(vm, 1, &modified)) {
+		st_wren_abort(vm, "File.mtime: invalid exact nonnegative integer");
+		return;
+	}
+	if (fs_set_modified_time(file->path, (int64_t)modified) != 0)
 		push_error(vm, 3, errno, "File mtime update failed");
 	else
 		wrenSetSlotDouble(vm, 0, (double)modified);

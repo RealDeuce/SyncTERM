@@ -501,7 +501,7 @@ fn_bbs_bps_rate(WrenVM *vm)
 	}
 #define BBS_NUMBER_GETTER(name, field) \
 	static void fn_bbs_##name(WrenVM *vm) \
-	{ wrenSetSlotDouble(vm, 0, (double)profile(vm)->field); }
+	{ st_wren_return_i64(vm, profile(vm)->field); }
 #define BBS_BOOL_GETTER(name, field) \
 	static void fn_bbs_##name(WrenVM *vm) \
 	{ wrenSetSlotBool(vm, 0, profile(vm)->field); }
