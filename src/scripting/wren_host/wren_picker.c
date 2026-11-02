@@ -40,7 +40,7 @@ request_call(WrenVM *vm)
 	struct st_wren_host *host = st_wren_host_from_vm(vm);
 	struct foreign_request *request;
 
-	if (wrenGetSlotType(vm, 0) != WREN_TYPE_FOREIGN) {
+	if (!st_wren_foreign_is(vm, 0, "syncterm_picker", "PickerRequest")) {
 		st_wren_abort(vm, "PickerRequest: invalid receiver");
 		return NULL;
 	}

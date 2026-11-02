@@ -75,6 +75,35 @@ static bool console_has_text(st_console_t *console, uint32_t x, uint32_t y,
 	} \
 } while (0)
 
+static const char foreign_type_contract[] =
+	"import \"syncterm\" for Screen, Surface, Cell, WON, Input, PixelBuffer, PixelMask, PixelBlit\n"
+	"import \"ui_widget\" for Rect\n"
+	"class ForeignTypeProbe {\n"
+	"  static rejects(fn, expected) {\n"
+	"    var attempt = Fiber.new { fn.call() }\n"
+	"    attempt.try()\n"
+	"    if (!(attempt.error is String) || !attempt.error.contains(expected)) Fiber.abort(\"foreign type was not rejected as \" + expected)\n"
+	"  }\n"
+	"  static run(bad) {\n"
+	"    rejects(Fn.new { Screen.putRect(bad, 1, 1) }, \"Surface\")\n"
+	"    rejects(Fn.new { Screen.restore(bad) }, \"ScreenSnapshot\")\n"
+	"    var surface = Surface.new(1, 1)\n"
+	"    rejects(Fn.new { surface.putRect(bad, 0, 0) }, \"Surface\")\n"
+	"    rejects(Fn.new { surface.fill(Rect.new(0, 0, 1, 1), bad) }, \"Cell\")\n"
+	"    var pixels = PixelBuffer.new(1, 1)\n"
+	"    var blit = PixelBlit.new()\n"
+	"    rejects(Fn.new { Screen.blitPixels(bad, blit) }, \"PixelBuffer\")\n"
+	"    rejects(Fn.new { Screen.blitPixels(pixels, bad, blit) }, \"PixelMask\")\n"
+	"    rejects(Fn.new { Screen.blitPixels(pixels, bad) }, \"PixelBlit\")\n"
+	"    rejects(Fn.new { Input.ungetKey_(bad) }, \"KeyEvent\")\n"
+	"    rejects(Fn.new { Input.ungetPhysicalKey_(bad) }, \"PhysicalKeyEvent\")\n"
+	"    rejects(Fn.new { Input.ungetMouse_(bad) }, \"MouseEvent\")\n"
+	"    if (Cell.new().eqContent(bad)) Fiber.abort(\"non-Cell content equality\")\n"
+	"  }\n"
+	"}\n"
+	"ForeignTypeProbe.run(WON.deserialize(\"]\"))\n"
+	"ForeignTypeProbe.run(WON.deserialize(\"[\"))\n";
+
 static int
 write_file(const char *path, const char *contents)
 {
@@ -649,6 +678,8 @@ exercise_connected_without_sftp(st_wren_host_t *host,
 	CHECK(wrenInterpret(host->picker_vm, "picker_input_isolation",
 	    "var event = Input.poll()\n"
 	    "if (event.key != Key.up || event.codepoint != null || event.modifiers != 0x80000003) Fiber.abort(\"picker input isolation\")\n") == WREN_RESULT_SUCCESS);
+	CHECK(st_wren_connected_interpret(connected, "foreign_type_contract",
+	    foreign_type_contract) == 0);
 	CHECK(st_wren_connected_interpret(connected, "no_sftp_provider",
 	    "import \"syncterm\" for SFTP, SFTPError, Host, CTerm, Status, Conn, ConnError, ConnErr, Scrollback, Surface, BBS\n"
 	    "if (SFTP.available || CTerm.sftpActive || Conn.connected) Fiber.abort(\"unexpected provider\")\n"
@@ -4359,6 +4390,62 @@ exercise_zero_width_contract(st_wren_host_t *public_host)
 	return 0;
 }
 
+static int
+exercise_foreign_type_contract(st_wren_host_t *public_host)
+{
+	struct st_wren_host *host = public_host;
+	WrenVM *vms[] = {host->vm, host->picker_vm};
+	static const uint64_t collisions[] = {
+		0, 1, 2, 3, 4, 5, 6, 7, 8, 0x101, 0x102, 0x103, 0x104,
+		UINT32_C(0x50425546), UINT32_C(0x504d4153), UINT32_C(0x50424c54),
+		UINT32_C(0x5354464c), UINT32_C(0x53544452), UINT32_C(0x53544648),
+	};
+
+	for (size_t i = 0; i < sizeof(vms) / sizeof(vms[0]); ++i) {
+		WrenVM *vm = vms[i];
+		CHECK(wrenInterpret(vm, "foreign_type_contract", foreign_type_contract)
+		    == WREN_RESULT_SUCCESS);
+		WrenHandle *call = wrenMakeCallHandle(vm, "run(_)");
+		for (size_t j = 0; j < sizeof(collisions) / sizeof(collisions[0]); ++j) {
+			wrenEnsureSlots(vm, 3);
+			wrenGetVariable(vm, "foreign_type_contract", "ForeignTypeProbe", 0);
+			wrenGetVariable(vm, "syncterm", "SFTPStat", 2);
+			struct st_sftp_stat *stat = wrenSetSlotNewForeign(vm, 1, 2,
+			    sizeof(*stat));
+			/* Valid stat values can resemble another payload's header,
+			 * followed by a small timestamp misread as a native pointer. */
+			*stat = (struct st_sftp_stat){.size = collisions[j], .modified_time = 1};
+			int count = wrenGetSlotCount(vm);
+			Value *slots = vm->apiStack;
+			CHECK(st_wren_foreign_is(vm, 1, "syncterm", "SFTPStat"));
+			CHECK(!st_wren_foreign_is(vm, 1, "missing_module", "SFTPStat"));
+			CHECK(!st_wren_foreign_is(vm, 1, "syncterm", "MissingClass"));
+			CHECK(st_wren_file_read_path(vm, 1) == NULL);
+			CHECK(st_wren_directory_path(vm, 1) == NULL);
+			struct st_console_cell *cells = NULL;
+			uint32_t width = 17, height = 19;
+			CHECK(!st_wren_surface_view(vm, 1, &cells, &width, &height));
+			CHECK(cells == NULL && width == 17 && height == 19);
+			struct st_profile profile;
+			st_profile_init(&profile);
+			CHECK(!st_wren_menu_copy_profile(vm, 1, &profile));
+			st_profile_dispose(&profile);
+			CHECK(wrenGetSlotCount(vm) == count && vm->apiStack == slots);
+			CHECK(wrenCall(vm, call) == WREN_RESULT_SUCCESS);
+		}
+		CHECK(wrenInterpret(vm, "foreign_shadow_contract",
+		    "foreign class Surface {}\n") == WREN_RESULT_SUCCESS);
+		wrenEnsureSlots(vm, 3);
+		wrenGetVariable(vm, "foreign_type_contract", "ForeignTypeProbe", 0);
+		wrenGetVariable(vm, "foreign_shadow_contract", "Surface", 2);
+		(void)wrenSetSlotNewForeign(vm, 1, 2, 0);
+		CHECK(!st_wren_foreign_is(vm, 1, "syncterm", "Surface"));
+		CHECK(wrenCall(vm, call) == WREN_RESULT_SUCCESS);
+		wrenReleaseHandle(vm, call);
+	}
+	return 0;
+}
+
 static WrenFinalizerFn snapshot_finalizer;
 static size_t snapshot_finalizations;
 
@@ -6411,6 +6498,7 @@ main(int argc, char **argv)
 	CHECK(exercise_surface_cell_retarget_contract(host) == 0);
 	CHECK(exercise_rectangle_contract(host) == 0);
 	CHECK(exercise_core_value_contracts(host, console) == 0);
+	CHECK(exercise_foreign_type_contract(host) == 0);
 	CHECK(exercise_snapshot_lifetime_contract(host) == 0);
 	CHECK(exercise_screen_update_contract(host, console) == 0);
 	CHECK(exercise_zero_width_contract(host) == 0);

@@ -68,6 +68,10 @@ details matter.
 - A trailing underscore is the project convention for class-private helpers.
 - Use `foreign class` only when the host allocates instance data. Namespace
   bindings can be ordinary classes with foreign static methods.
+- Validate foreign arguments using their actual VM class before reading any
+  native payload. A payload tag or magic value alone is not a type check:
+  another valid foreign object's error code or size can contain that value.
+  Keep receiver dispatch, context ownership and resource-state checks intact.
 
 ## Fibers and asynchronous work
 

@@ -250,15 +250,15 @@ slot_boolean(WrenVM *vm, int slot, bool *result)
 static struct foreign_header *
 foreign_kind(WrenVM *vm, int slot, enum foreign_kind kind)
 {
-	struct foreign_header *header;
+	static const char *const names[] = {
+		"Cell", "Surface", "ScreenSnapshot", "KeyEvent", "PhysicalKeyEvent",
+		"MouseEvent", "ClaimHandle", "CustomCursor", "VideoFlags",
+	};
+	struct foreign_header *header = st_wren_foreign_require(vm, slot,
+	    "syncterm", names[kind]);
 
-	if (wrenGetSlotType(vm, slot) != WREN_TYPE_FOREIGN) {
-		st_wren_abort(vm, "expected a foreign value");
-		return NULL;
-	}
-	header = wrenGetSlotForeign(vm, slot);
-	if (header == NULL || header->kind != kind) {
-		st_wren_abort(vm, "foreign value has the wrong type");
+	if (header != NULL && header->kind != kind) {
+		st_wren_abort(vm, "foreign value has an invalid native payload");
 		return NULL;
 	}
 	return header;
@@ -466,7 +466,7 @@ status_surface_storage(WrenVM *vm, int slot, uint32_t width, uint32_t height)
 {
 	struct foreign_surface *surface;
 
-	if (wrenGetSlotType(vm, slot) != WREN_TYPE_FOREIGN)
+	if (!st_wren_foreign_is(vm, slot, "syncterm", "Surface"))
 		return NULL;
 	surface = wrenGetSlotForeign(vm, slot);
 	if (surface == NULL || surface->header.kind != FOREIGN_SURFACE
@@ -506,7 +506,7 @@ st_wren_surface_view(WrenVM *vm, int slot,
 {
 	struct foreign_surface *surface;
 
-	if (wrenGetSlotType(vm, slot) != WREN_TYPE_FOREIGN)
+	if (!st_wren_foreign_is(vm, slot, "syncterm", "Surface"))
 		return false;
 	surface = wrenGetSlotForeign(vm, slot);
 	if (surface == NULL || surface->header.kind != FOREIGN_SURFACE
@@ -536,7 +536,7 @@ cell_value_if_present(WrenVM *vm, int slot)
 	struct foreign_header *header;
 	struct foreign_cell *cell;
 
-	if (wrenGetSlotType(vm, slot) != WREN_TYPE_FOREIGN)
+	if (!st_wren_foreign_is(vm, slot, "syncterm", "Cell"))
 		return NULL;
 	header = wrenGetSlotForeign(vm, slot);
 	if (header == NULL || header->kind != FOREIGN_CELL)
@@ -1802,29 +1802,20 @@ st_wren_input_dispatch_console_event(WrenVM *vm,
 bool
 st_wren_input_native(WrenVM *vm, int slot, struct st_console_event *event)
 {
-	if (wrenGetSlotType(vm, slot) == WREN_TYPE_FOREIGN) {
-		int scratch = wrenGetSlotCount(vm);
-
-		/* Other foreign payloads do not share our header. Check the VM
-		 * class before reading any payload field. */
-		wrenEnsureSlots(vm, scratch + 1);
-		wrenGetVariable(vm, "syncterm", "KeyEvent", scratch);
-		if (wrenGetClass(vm, vm->apiStack[slot]) == AS_CLASS(vm->apiStack[scratch])) {
-			struct foreign_key_event *key = wrenGetSlotForeign(vm, slot);
-			*event = key->native;
-			return true;
-		}
-		wrenGetVariable(vm, "syncterm", "PhysicalKeyEvent", scratch);
-		if (wrenGetClass(vm, vm->apiStack[slot]) == AS_CLASS(vm->apiStack[scratch])) {
-			struct foreign_physical_key_event *physical = wrenGetSlotForeign(vm, slot);
-			*event = (struct st_console_event){
-				.type = ST_CONSOLE_EVENT_PHYSICAL_KEY,
-				.data.physical_key = {.evdev = physical->evdev,
-				    .modifiers = physical->modifiers,
-				    .pressed = physical->pressed, .repeat = physical->repeat},
-			};
-			return true;
-		}
+	if (st_wren_foreign_is(vm, slot, "syncterm", "KeyEvent")) {
+		struct foreign_key_event *key = wrenGetSlotForeign(vm, slot);
+		*event = key->native;
+		return true;
+	}
+	if (st_wren_foreign_is(vm, slot, "syncterm", "PhysicalKeyEvent")) {
+		struct foreign_physical_key_event *physical = wrenGetSlotForeign(vm, slot);
+		*event = (struct st_console_event){
+			.type = ST_CONSOLE_EVENT_PHYSICAL_KEY,
+			.data.physical_key = {.evdev = physical->evdev,
+			    .modifiers = physical->modifiers,
+			    .pressed = physical->pressed, .repeat = physical->repeat},
+		};
+		return true;
 	}
 	st_wren_abort(vm, "expected a KeyEvent or PhysicalKeyEvent");
 	return false;

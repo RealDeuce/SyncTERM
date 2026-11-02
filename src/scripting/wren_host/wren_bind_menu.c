@@ -133,7 +133,7 @@ bbs_value(WrenVM *vm, int slot)
 {
 	struct menu_foreign_header *header;
 
-	if (wrenGetSlotType(vm, slot) != WREN_TYPE_FOREIGN) {
+	if (!st_wren_foreign_is(vm, slot, "syncterm_menu", "BBS")) {
 		st_wren_abort(vm, "expected a BBS entry");
 		return NULL;
 	}
@@ -179,7 +179,7 @@ settings_value(WrenVM *vm)
 {
 	struct menu_foreign_header *header;
 
-	if (wrenGetSlotType(vm, 0) != WREN_TYPE_FOREIGN) {
+	if (!st_wren_foreign_is(vm, 0, "syncterm_menu", "Settings")) {
 		st_wren_abort(vm, "expected Settings");
 		return NULL;
 	}
@@ -204,7 +204,7 @@ theme_document_value(WrenVM *vm)
 {
 	struct menu_foreign_header *header;
 
-	if (wrenGetSlotType(vm, 0) != WREN_TYPE_FOREIGN) {
+	if (!st_wren_foreign_is(vm, 0, "syncterm_menu", "ThemeDocument")) {
 		st_wren_abort(vm, "expected ThemeDocument");
 		return NULL;
 	}
@@ -223,7 +223,7 @@ font_value(WrenVM *vm, struct foreign_font **handle_result)
 	struct menu_foreign_header *header;
 	struct foreign_font *handle;
 
-	if (wrenGetSlotType(vm, 0) != WREN_TYPE_FOREIGN) {
+	if (!st_wren_foreign_is(vm, 0, "syncterm_menu", "MenuFont")) {
 		st_wren_abort(vm, "MenuFont: invalid receiver");
 		return NULL;
 	}
@@ -367,7 +367,7 @@ st_wren_menu_copy_profile(WrenVM *vm, int slot, struct st_profile *result)
 {
 	struct menu_foreign_header *header;
 
-	if (wrenGetSlotType(vm, slot) != WREN_TYPE_FOREIGN)
+	if (!st_wren_foreign_is(vm, slot, "syncterm_menu", "BBS"))
 		return false;
 	header = wrenGetSlotForeign(vm, slot);
 	if (header == NULL || header->kind != MENU_FOREIGN_BBS)

@@ -169,7 +169,7 @@ slot_pixel_buffer(WrenVM *vm, int slot, const char *message)
 {
 	struct wren_pixel_buffer *buffer;
 
-	if (wrenGetSlotType(vm, slot) != WREN_TYPE_FOREIGN) {
+	if (!st_wren_foreign_is(vm, slot, "syncterm", "PixelBuffer")) {
 		st_wren_abort(vm, message);
 		return NULL;
 	}
@@ -187,7 +187,7 @@ slot_pixel_mask(WrenVM *vm, int slot, const char *message)
 {
 	struct wren_pixel_mask *mask;
 
-	if (wrenGetSlotType(vm, slot) != WREN_TYPE_FOREIGN) {
+	if (!st_wren_foreign_is(vm, slot, "syncterm", "PixelMask")) {
 		st_wren_abort(vm, message);
 		return NULL;
 	}
@@ -204,7 +204,7 @@ slot_pixel_blit(WrenVM *vm, int slot, const char *message)
 {
 	struct wren_pixel_blit *blit;
 
-	if (wrenGetSlotType(vm, slot) != WREN_TYPE_FOREIGN) {
+	if (!st_wren_foreign_is(vm, slot, "syncterm", "PixelBlit")) {
 		st_wren_abort(vm, message);
 		return NULL;
 	}

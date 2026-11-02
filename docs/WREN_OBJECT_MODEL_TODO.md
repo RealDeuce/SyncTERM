@@ -14,12 +14,12 @@ resources are finalized exactly once.
 
 ## 1 Validate native object identity
 
-- [ ] Check the actual Wren class before reading a foreign payload. Replace
+- [x] Check the actual Wren class before reading a foreign payload. Replace
   tag-only and magic-only argument checks across core, pixel, filesystem,
   menu, SFTP and other binding consumers with a consistent mechanism.
-- [ ] Preserve VM/context ownership checks and explicit rejection of stale,
+- [x] Preserve VM/context ownership checks and explicit rejection of stale,
   closed, or unavailable objects after type validation.
-- [ ] Add cross-type regressions, including errors whose leading code or
+- [x] Add cross-type regressions, including errors whose leading code or
   size collides with another payload's tag, normal inputs, and all VM modes.
   Incorrect arguments must produce a Wren error or the documented false/null
   result without entering an unrelated native subsystem or reading its data.
@@ -121,3 +121,18 @@ trees include native Clang, GCC, ASan/UBSan, control-bitmap application and
 MinGW i686/x86_64 configurations. Run tests headlessly with desktop variables
 cleared. Never run Windows tests under Wine; report cross-builds separately
 from native runtime tests. Add change-specific checks and actual results here.
+
+Item 1: native argument validation now checks the actual class in its loaded
+VM module before inspecting any payload. The shared helper allocates nothing
+and preserves argument slots/arity. Core, pixels, filesystem grants, menu
+handles, SFTP handles and picker requests retain their separate resource-state
+and ownership checks. Receiver-only methods also rely on VM method dispatch.
+
+The new cross-type regression reproduced a bus error before the fix. It now
+covers WON errors, SFTP stat values colliding with header/magic fields, a
+same-named foreign class from another module, soft-result contracts, unchanged
+slots, and menu/picker/connected modes. Seven native host/UI tests passed;
+the expanded host/menu tests also passed afterwards. Four ASan/UBSan tests
+passed with unsupported FreeBSD leak detection disabled. Six control-bitmap
+application/add-on tests passed. FreeBSD Clang/GCC and MinGW i686/x86_64 host
+libraries built without warnings; Windows runtime tests were not run.

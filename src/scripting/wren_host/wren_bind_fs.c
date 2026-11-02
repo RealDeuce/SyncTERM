@@ -276,7 +276,7 @@ file_handle(WrenVM *vm)
 {
 	struct st_wren_file *file;
 
-	if (wrenGetSlotType(vm, 0) != WREN_TYPE_FOREIGN) {
+	if (!st_wren_foreign_is(vm, 0, "syncterm", "File")) {
 		st_wren_abort(vm, "expected a File");
 		return NULL;
 	}
@@ -322,7 +322,7 @@ directory_handle(WrenVM *vm)
 {
 	struct st_wren_directory *directory;
 
-	if (wrenGetSlotType(vm, 0) != WREN_TYPE_FOREIGN) {
+	if (!st_wren_foreign_is(vm, 0, "syncterm", "Directory")) {
 		st_wren_abort(vm, "expected a Directory");
 		return NULL;
 	}
@@ -908,7 +908,7 @@ fn_file_mtime_set(WrenVM *vm)
 static void
 fn_file_is_open(WrenVM *vm)
 {
-	struct st_wren_file *file = wrenGetSlotType(vm, 0) == WREN_TYPE_FOREIGN
+	struct st_wren_file *file = st_wren_foreign_is(vm, 0, "syncterm", "File")
 	    ? wrenGetSlotForeign(vm, 0) : NULL;
 
 	wrenSetSlotBool(vm, 0, file != NULL && file->magic == ST_WREN_FILE_MAGIC
@@ -929,7 +929,7 @@ st_wren_file_read_path(WrenVM *vm, int slot)
 {
 	struct st_wren_file *file;
 
-	if (wrenGetSlotType(vm, slot) != WREN_TYPE_FOREIGN)
+	if (!st_wren_foreign_is(vm, slot, "syncterm", "File"))
 		return NULL;
 	file = wrenGetSlotForeign(vm, slot);
 	if (file == NULL || file->magic != ST_WREN_FILE_MAGIC
@@ -949,7 +949,7 @@ st_wren_file_claim_write(WrenVM *vm, int slot,
 
 	if (operation == NULL || stream == NULL)
 		return false;
-	if (wrenGetSlotType(vm, slot) != WREN_TYPE_FOREIGN) {
+	if (!st_wren_foreign_is(vm, slot, "syncterm", "File")) {
 		(void)snprintf(message, sizeof(message), "%s expects a File",
 		    operation);
 		st_wren_abort(vm, message);
@@ -997,7 +997,7 @@ st_wren_directory_path(WrenVM *vm, int slot)
 {
 	struct st_wren_directory *directory;
 
-	if (wrenGetSlotType(vm, slot) != WREN_TYPE_FOREIGN)
+	if (!st_wren_foreign_is(vm, slot, "syncterm", "Directory"))
 		return NULL;
 	directory = wrenGetSlotForeign(vm, slot);
 	if (directory == NULL || directory->magic != ST_WREN_DIRECTORY_MAGIC

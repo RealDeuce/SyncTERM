@@ -397,7 +397,7 @@ slot_handle(WrenVM *vm, int slot, uint64_t *result)
 {
 	struct foreign_sftp_handle *handle;
 
-	if (wrenGetSlotType(vm, slot) != WREN_TYPE_FOREIGN)
+	if (!st_wren_foreign_is(vm, slot, "syncterm", "SFTPHandle"))
 		return false;
 	handle = wrenGetSlotForeign(vm, slot);
 	if (handle == NULL || handle->magic != ST_SFTP_HANDLE_MAGIC
