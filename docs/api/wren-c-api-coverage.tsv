@@ -307,7 +307,7 @@ src/config/bbs_list/st_bbs_list.h	callback:st_bbs_web_refresh_progress_fn	80	voi
 src/config/bbs_list/st_bbs_list.h	function:st_bbs_list_open	85	int (st_bbs_list_t **, const struct st_app_paths *, const void *, size_t)	bbs.transaction-owner
 src/config/bbs_list/st_bbs_list.h	function:st_bbs_list_open_replacement	89	int (st_bbs_list_t **, const st_bbs_list_t *, const struct st_app_paths *, const struct st_settings *)	bbs.transaction-owner
 src/config/bbs_list/st_bbs_list.h	function:st_bbs_list_close	92	void (st_bbs_list_t *)	bbs.transaction-owner
-src/config/bbs_list/st_bbs_list.h	function:st_bbs_list_reload	93	int (st_bbs_list_t *)	bbs.workflow
+src/config/bbs_list/st_bbs_list.h	function:st_bbs_list_reload	93	int (st_bbs_list_t *)	bbs.load-status
 src/config/bbs_list/st_bbs_list.h	function:st_bbs_list_count	103	size_t (const st_bbs_list_t *)	bbs.workflow
 src/config/bbs_list/st_bbs_list.h	function:st_bbs_list_at	104	const struct st_bbs_entry *(const st_bbs_list_t *, size_t)	bbs.workflow
 src/config/bbs_list/st_bbs_list.h	function:st_bbs_list_find	106	const struct st_bbs_entry *(const st_bbs_list_t *, const char *)	bbs.workflow
@@ -692,7 +692,7 @@ src/config/settings/st_settings.h	function:st_settings_init	108	void (struct st_
 src/config/settings/st_settings.h	function:st_settings_dispose	109	void (struct st_settings *)	settings.lifecycle
 src/config/settings/st_settings.h	function:st_settings_copy	111	_Bool (struct st_settings *, const struct st_settings *)	settings.lifecycle
 src/config/settings/st_settings.h	function:st_settings_load	120	int (const struct st_app_paths *)	settings.lifecycle
-src/config/settings/st_settings.h	function:st_settings_reload	122	int (void)	settings.result-status
+src/config/settings/st_settings.h	function:st_settings_reload	122	int (void)	settings.disk-reload
 src/config/settings/st_settings.h	function:st_settings_install	124	void (struct st_settings *)	settings.lifecycle
 src/config/settings/st_settings.h	function:st_settings_save_value	126	int (const struct st_settings *)	settings.result-status
 src/config/settings/st_settings.h	function:st_settings_save	127	int (void)	settings.result-status
@@ -701,7 +701,7 @@ src/config/settings/st_settings.h	function:st_settings_shutdown	131	void (void)	
 src/config/settings/st_settings.h	macro:ST_SETTINGS_RECENT_EMOJI_MAX	133	32	settings.model
 src/config/settings/st_settings.h	function:st_settings_recent_emoji_count	134	size_t (void)	settings.model
 src/config/settings/st_settings.h	function:st_settings_recent_emoji_at	135	const char *(size_t)	settings.model
-src/config/settings/st_settings.h	function:st_settings_remember_emoji	137	int (const char *, _Bool)	settings.result-status
+src/config/settings/st_settings.h	function:st_settings_remember_emoji	137	int (const char *, _Bool)	settings.recent-result
 src/config/settings/st_settings.h	function:st_settings_web_download_count	139	size_t (void)	settings.model
 src/config/settings/st_settings.h	function:st_settings_web_download_at	140	const struct name_value *(size_t)	settings.model
 src/config/settings/st_settings.h	function:st_settings_web_download_set	142	int (size_t, const char *, const char *)	settings.result-status

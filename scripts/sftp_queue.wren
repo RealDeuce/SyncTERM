@@ -16,7 +16,7 @@
 // state).  Single-session singleton — `start()` is called once on
 // connect by sftp_queue_init.wren; `stop()` runs on disconnect.
 
-import "syncterm" for Cache, CTerm, Download, File, FileError, FileErr, FileFlag,
+import "syncterm" for Cache, CTerm, Download, File, FileError, IOErr, FileFlag,
                        Format, Host, SFTP, SFTPError, SFTPStat, Timer, Session,
 					   Wake, WON, WONError
 
@@ -656,7 +656,7 @@ class SftpQueue {
   static removeLocal_(name) {
     if (Download == null) return null
     var result = Download.delete(name)
-    if (result is FileError && result.code == FileErr.notFound) return null
+    if (result is FileError && result.code == IOErr.notFound) return null
     return result
   }
 

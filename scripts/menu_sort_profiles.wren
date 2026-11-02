@@ -58,8 +58,9 @@ class SortProfiles {
             (command == "select" && index == profiles.count)) {
           new_(app, index.min(profiles.count))
         } else if (command == "delete") {
-          if (!Menu.deleteSortProfile(index)) {
-            failed_(app)
+          var error = Menu.deleteSortProfile(index)
+          if (error != null) {
+            failed_(app, error)
           } else {
             selected = index.min(Menu.sortProfiles.count)
           }
@@ -69,8 +70,9 @@ class SortProfiles {
           clipboard = [profiles[index][0], profiles[index][1].toList]
         } else if (command == "cut") {
           clipboard = [profiles[index][0], profiles[index][1].toList]
-          if (!Menu.deleteSortProfile(index)) {
-            failed_(app)
+          var error = Menu.deleteSortProfile(index)
+          if (error != null) {
+            failed_(app, error)
           } else {
             selected = index.min(Menu.sortProfiles.count)
           }
@@ -81,10 +83,8 @@ class SortProfiles {
         }
       }, view)
       if (picked == null) {
-        if (!Menu.saveSortProfiles()) {
-          Alert.show(app, "Sort Profiles",
-              "The sort profiles could not be saved.")
-        }
+        var error = Menu.saveSortProfiles()
+        if (error != null) Alert.show(app, "Sort Profiles", error.message)
         return
       }
     }
@@ -210,21 +210,20 @@ class SortProfiles {
   }
 
   static change_(app, action) {
-    var succeeded = false
+    var error = null
     var failure = Fiber.new {
-      succeeded = action.call()
+      error = action.call()
     }.try()
-    if (failure is String) {
-      Alert.show(app, "Sort Profiles", failure)
+    if (failure != null) {
+      Alert.show(app, "Sort Profiles", failure.toString)
       return false
     }
-    if (!succeeded) failed_(app)
-    return succeeded
+    if (error != null) failed_(app, error)
+    return error == null
   }
 
-  static failed_(app) {
-    Alert.show(app, "Sort Profiles",
-        "The profile could not be changed. Check its name and fields.")
+  static failed_(app, error) {
+    Alert.show(app, "Sort Profiles", error.message)
   }
 
   static profilesHelp_() {

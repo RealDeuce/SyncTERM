@@ -782,11 +782,11 @@ exercise_filesystem_outcomes(st_wren_connected_t *connected)
 	(void)fs_remove_file(ST_WREN_TEST_DIRECTORY "/outcomes-dir/child.tmp");
 	(void)fs_remove_directory(ST_WREN_TEST_DIRECTORY "/outcomes-dir");
 	CHECK(st_wren_connected_interpret(connected, "filesystem_outcomes",
-	    "import \"syncterm\" for Download, Cache, File, Directory, FileError, FileErr\n"
+	    "import \"syncterm\" for Download, Cache, File, Directory, FileError, IOErr\n"
 	    "var file = Download.create(\"outcomes.tmp\")\n"
 	    "if (!(file is File)) Fiber.abort(\"filesystem outcome setup\")\n"
 	    "var duplicate = Download.create(\"outcomes.tmp\")\n"
-	    "if (!(duplicate is FileError) || duplicate.code != FileErr.alreadyExists) Fiber.abort(\"create discarded the native reason\")\n"
+	    "if (!(duplicate is FileError) || duplicate.code != IOErr.alreadyExists) Fiber.abort(\"create discarded the native reason\")\n"
 	    "if (file.open() != null || file.write(\"abc\") != null) Fiber.abort(\"file mutation success\")\n"
 	    "file.offset = 0\n"
 	    "if (file.readBytes(2) != \"ab\" || file.offset != 2 || file.readBytes(2) != \"c\" || file.readBytes(1) != null) Fiber.abort(\"byte read/short read/EOF\")\n"
@@ -809,16 +809,16 @@ exercise_filesystem_outcomes(st_wren_connected_t *connected)
 	    "var directory = Download.createDir(\"outcomes-dir\")\n"
 	    "if (!(directory is Directory)) Fiber.abort(\"directory creation result\")\n"
 	    "var existingDirectory = Download.createDir(\"outcomes-dir\")\n"
-	    "if (!(existingDirectory is FileError) || existingDirectory.code != FileErr.alreadyExists) Fiber.abort(\"mkdir error reason\")\n"
+	    "if (!(existingDirectory is FileError) || existingDirectory.code != IOErr.alreadyExists) Fiber.abort(\"mkdir error reason\")\n"
 	    "var child = directory.create(\"child.tmp\")\n"
 	    "if (!(child is File) || directory.contains(\"child.tmp\") != true || directory.contains(\"missing.tmp\") != false) Fiber.abort(\"directory query results\")\n"
 	    "var notEmpty = Download.delete(\"outcomes-dir\")\n"
-	    "if (!(notEmpty is FileError) || notEmpty.code != FileErr.directoryNotEmpty) Fiber.abort(\"delete nonempty reason\")\n"
+	    "if (!(notEmpty is FileError) || notEmpty.code != IOErr.directoryNotEmpty) Fiber.abort(\"delete nonempty reason\")\n"
 	    "if (directory.delete(\"child.tmp\") != null || Download.delete(\"outcomes-dir\") != null) Fiber.abort(\"delete success result\")\n"
 	    "var missingDirectory = directory.list\n"
-	    "if (!(missingDirectory is FileError) || missingDirectory.code != FileErr.notFound) Fiber.abort(\"missing directory result\")\n"
+	    "if (!(missingDirectory is FileError) || missingDirectory.code != IOErr.notFound) Fiber.abort(\"missing directory result\")\n"
 	    "var missingDelete = Download.delete(\"outcomes-missing.tmp\")\n"
-	    "if (!(missingDelete is FileError) || missingDelete.code != FileErr.notFound) Fiber.abort(\"delete missing reason\")\n"
+	    "if (!(missingDelete is FileError) || missingDelete.code != IOErr.notFound) Fiber.abort(\"delete missing reason\")\n"
 	    "if (Download.replace(\"outcomes.tmp\", \"replacement\") != null) Fiber.abort(\"replace success result\")\n"
 	    "if (file.open() != null || file.read() != \"replacement\" || file.close() != null) Fiber.abort(\"replacement grant reuse\")\n"
 	    "for (name in [\"../escape\", \"nul\\u0000suffix\", String.fromByte(255)]) {\n"
@@ -830,7 +830,7 @@ exercise_filesystem_outcomes(st_wren_connected_t *connected)
 	    "}\n"
 	    "if (Download.delete(\"outcomes.tmp\") != null || file.close() != null) Fiber.abort(\"closed missing grant close\")\n"
 	    "var missingFile = file.open()\n"
-	    "if (!(missingFile is FileError) || missingFile.code != FileErr.notFound) Fiber.abort(\"missing file reason\")\n"
+	    "if (!(missingFile is FileError) || missingFile.code != IOErr.notFound) Fiber.abort(\"missing file reason\")\n"
 	    ) == 0);
 
 #if SYNCTERM_PLATFORM_POSIX
@@ -846,7 +846,7 @@ exercise_filesystem_outcomes(st_wren_connected_t *connected)
 	    "var sandbox = Download.list[\"outcomes-links\"]\n"
 	    "if (sandbox.contains(\"alias.tmp\") || sandbox.list.containsKey(\"alias.tmp\")) Fiber.abort(\"directory followed an ungranted link\")\n"
 	    "var rejectedLink = sandbox.delete(\"alias.tmp\")\n"
-	    "if (!(rejectedLink is FileError) || rejectedLink.code != FileErr.notSupported) Fiber.abort(\"link deletion policy\")\n") == 0);
+	    "if (!(rejectedLink is FileError) || rejectedLink.code != IOErr.notSupported) Fiber.abort(\"link deletion policy\")\n") == 0);
 	CHECK(file_equals(target, "outside the directory grant"));
 	CHECK(unlink(link) == 0);
 	CHECK(fs_remove_directory(root) == 0);
@@ -917,7 +917,7 @@ exercise_filesystem_path_handles(st_wren_connected_t *connected)
 	(void)fs_remove_directory(external_directory);
 
 	CHECK(st_wren_connected_interpret(connected, "filesystem_path_handles",
-	    "import \"syncterm\" for Cache, Download, File, FileError, FileErr\n"
+	    "import \"syncterm\" for Cache, Download, File, FileError, IOErr\n"
 	    "class PathHandles {\n"
 	    "  static file { __file }\n"
 	    "  static directory { __directory }\n"
@@ -929,9 +929,9 @@ exercise_filesystem_path_handles(st_wren_connected_t *connected)
 	    "  static checkMissing() {\n"
 	    "    if (!(__file.path is String) || __file.token != null) Fiber.abort(\"missing file metadata\")\n"
 	    "    var missing = __file.open()\n"
-	    "    if (!(missing is FileError) || missing.code != FileErr.notFound) Fiber.abort(\"missing file result\")\n"
+	    "    if (!(missing is FileError) || missing.code != IOErr.notFound) Fiber.abort(\"missing file result\")\n"
 	    "    var unavailable = Fiber.new { __directory.contains(\"child.tmp\") }.try()\n"
-	    "    if (!(unavailable is FileError) || unavailable.code != FileErr.notFound) Fiber.abort(\"missing directory result\")\n"
+	    "    if (!(unavailable is FileError) || unavailable.code != IOErr.notFound) Fiber.abort(\"missing directory result\")\n"
 	    "    if (!(__directory.toString is String)) Fiber.abort(\"missing directory metadata\")\n"
 	    "  }\n"
 	    "  static checkRestored() {\n"
@@ -955,11 +955,11 @@ exercise_filesystem_path_handles(st_wren_connected_t *connected)
 	    "PathHandles.checkRestored()\n") == 0);
 
 	CHECK(st_wren_connected_interpret(connected, "filesystem_delete_reuse",
-	    "import \"syncterm\" for Cache, Download, File, FileError, FileErr\n"
+	    "import \"syncterm\" for Cache, Download, File, FileError, IOErr\n"
 	    "var oldFile = Download.create(\"wren-delete-file.tmp\")\n"
 	    "if (!(oldFile is File) || Download.delete(\"wren-delete-file.tmp\") != null) Fiber.abort(\"file delete\")\n"
 	    "var missing = Fiber.new { oldFile.open() }.try()\n"
-	    "if (!(missing is FileError) || missing.code != FileErr.notFound) Fiber.abort(\"deleted file result\")\n"
+	    "if (!(missing is FileError) || missing.code != IOErr.notFound) Fiber.abort(\"deleted file result\")\n"
 	    "var newFile = Download.create(\"wren-delete-file.tmp\")\n"
 	    "if (!(newFile is File) || (newFile.open() is FileError) || (newFile.write(\"recreated\") is FileError) || (newFile.close() is FileError)) Fiber.abort(\"file recreate\")\n"
 	    "if ((oldFile.open() is FileError) || oldFile.read() != \"recreated\" || (oldFile.close() is FileError)) Fiber.abort(\"file handle reuse\")\n"
@@ -967,7 +967,7 @@ exercise_filesystem_path_handles(st_wren_connected_t *connected)
 	    "var oldDir = Download.createDir(\"wren-delete-dir\")\n"
 	    "if (oldDir == null || Download.delete(\"wren-delete-dir\") != null) Fiber.abort(\"directory delete\")\n"
 	    "var unavailable = Fiber.new { oldDir.contains(\"child.tmp\") }.try()\n"
-	    "if (!(unavailable is FileError) || unavailable.code != FileErr.notFound) Fiber.abort(\"deleted directory result\")\n"
+	    "if (!(unavailable is FileError) || unavailable.code != IOErr.notFound) Fiber.abort(\"deleted directory result\")\n"
 	    "var newDir = Download.createDir(\"wren-delete-dir\")\n"
 	    "if (newDir == null || oldDir.contains(\"child.tmp\")) Fiber.abort(\"directory handle reuse\")\n"
 	    "if (Download.delete(\"wren-delete-dir\") != null) Fiber.abort(\"directory cleanup\")\n"
@@ -984,7 +984,7 @@ exercise_filesystem_path_handles(st_wren_connected_t *connected)
 	    "}\n") == 0);
 
 	CHECK(st_wren_connected_interpret(connected, "file_integer_contract",
-	    "import \"syncterm\" for Download, FileError, FileErr\n"
+	    "import \"syncterm\" for Download, FileError, IOErr\n"
 	    "var file = Download.create(\"exact-integers.tmp\")\n"
 	    "if (file.open() is FileError || file.write(\"unchanged\") is FileError) Fiber.abort(\"integer fixture\")\n"
 	    "file.offset = 3\n"
@@ -1001,7 +1001,7 @@ exercise_filesystem_path_handles(st_wren_connected_t *connected)
 	    "var signedTime = (file.mtime = -2)\n"
 	    "if (!(signedTime is FileError) && (signedTime != -2 || file.mtime != -2)) Fiber.abort(\"signed timestamp round trip\")\n"
 	    "var changed = (file.mtime = -1)\n"
-	    "if (changed is FileError && changed.code != FileErr.outOfRange) Fiber.abort(\"native timestamp range reason\")\n"
+	    "if (changed is FileError && changed.code != IOErr.outOfRange) Fiber.abort(\"native timestamp range reason\")\n"
 	    "if (!(changed is FileError) && (changed != -1 || file.mtime != -1)) Fiber.abort(\"signed native file timestamp: %(changed), %(file.mtime)\")\n"
 	    "if ((file.mtime = stamp) is FileError) Fiber.abort(\"restore timestamp\")\n"
 	    "if (file.readBytes(0) != \"\" || file.offset != 3) Fiber.abort(\"zero read offset\")\n"
@@ -3581,7 +3581,7 @@ exercise_font_api(st_wren_host_t *public_host, st_console_t *shared_console,
 		};
 		CHECK(st_wren_connected_create(&connected, &connected_config) == 0);
 		CHECK(st_wren_connected_interpret(connected, "font_api_setup",
-		    "import \"syncterm\" for Font, Codepage, Screen, CTerm, Download, Error, FontError, FontErr, FileError, FileErr, CTermFontMask\n"
+		    "import \"syncterm\" for Font, Codepage, Screen, CTerm, Download, Error, FontError, FontErr, FileError, IOErr, CTermFontMask\n"
 		    "class FontProbe {\n"
 		    "  static check(ok) {\n"
 		    "    if (!ok) Fiber.abort(\"font API contract\")\n"
@@ -3658,9 +3658,9 @@ exercise_font_api(st_wren_host_t *public_host, st_console_t *shared_console,
 		CHECK(fs_remove_file(path) == 0);
 		CHECK(st_wren_connected_interpret(connected, "font_api_file_error",
 		    "import \"font_api_setup\" for file, FontProbe\n"
-		    "import \"syncterm\" for Font, FileError, FileErr\n"
+		    "import \"syncterm\" for Font, FileError, IOErr\n"
 		    "var result = Font.load(file)\n"
-		    "FontProbe.check(result is FileError && result.code == FileErr.notFound)\n") == 0);
+		    "FontProbe.check(result is FileError && result.code == IOErr.notFound)\n") == 0);
 		stream = fopen(path, "wb");
 		CHECK(stream != NULL && fwrite(bitmap, 1, sizeof(bitmap), stream) == sizeof(bitmap));
 		CHECK(fclose(stream) == 0);
@@ -3682,12 +3682,12 @@ exercise_font_api(st_wren_host_t *public_host, st_console_t *shared_console,
 	/* A grant is rooted in its original VM while the fixture changes that
 	 * VM's current context: this must produce a permission failure, not I/O. */
 	CHECK(wrenInterpret(host->vm, "font_grant_owner",
-	    "import \"syncterm\" for Font, FontError, FontErr, FileError, FileErr\n"
+	    "import \"syncterm\" for Font, FontError, FontErr, FileError, IOErr\n"
 	    "class GrantProbe {\n"
 	    "  static check(file, permission) {\n"
 	    "    var result = Font.load(file)\n"
 	    "    if (permission) {\n"
-	    "      if (!(result is FileError) || result.code != FileErr.permissionDenied) Fiber.abort(\"font grant authority\")\n"
+	    "      if (!(result is FileError) || result.code != IOErr.permissionDenied) Fiber.abort(\"font grant authority\")\n"
 	    "    } else {\n"
 	    "      if (!(result is FontError) || result.code != FontErr.unavailable) Fiber.abort(\"font without terminal\")\n"
 	    "    }\n"
@@ -4457,7 +4457,7 @@ exercise_menu_contract(st_wren_host_t *public_host)
 	struct st_wren_host *host = public_host;
 	CHECK(wrenInterpret(host->vm, "unloaded_defaults",
 	    "import \"syncterm_menu\" for Menu\n"
-	    "if (Menu.defaults == null && (Menu.defaultsDirty || Menu.saveDefaults() != false)) Fiber.abort(\"unloaded defaults save\")\n")
+	    "if (Menu.defaults == null && (Menu.defaultsDirty || (Menu.saveDefaults() == null) != false)) Fiber.abort(\"unloaded defaults save\")\n")
 	    == WREN_RESULT_SUCCESS);
 	static const char source[] =
 	    "import \"syncterm_menu\" for Menu, MenuReadStatus\n"
@@ -4507,7 +4507,7 @@ exercise_menu_contract(st_wren_host_t *public_host)
 	    "s.inverseColor = 7\n"
 	    "s.lightbarColor = 15\n"
 	    "s.lightbarBackgroundColor = 1\n"
-	    "if (!s.dirty || !s.apply()) Fiber.abort(\"settings\")\n"
+	    "if (!s.dirty || !(s.apply() == null)) Fiber.abort(\"settings\")\n"
 	    "var b = Menu.entries[0]\n"
 	    "b.profile.addr = \"alpha.example\"\n"
 	    "b.profile.port = 2323\n"
@@ -4562,9 +4562,9 @@ exercise_menu_contract(st_wren_host_t *public_host)
 	static const char encryption_source[] =
 	    "import \"syncterm_menu\" for Menu\n"
 	    "if (Menu.encryptionAvailable) {\n"
-	    "  if (!Menu.setEncryption(6, 128, \"secret\") || Menu.encryptionInfo.algorithm != 6 || Menu.encryptionInfo.keyBits != 128) Fiber.abort(\"encrypt\")\n"
-	    "  if (!Menu.setEncryption(7, 256, null) || Menu.encryptionInfo.algorithm != 7) Fiber.abort(\"reencrypt\")\n"
-	    "  if (!Menu.setEncryption(0, 0, null) || Menu.encryptionInfo.algorithm != 0) Fiber.abort(\"decrypt\")\n"
+	    "  if (!(Menu.setEncryption(6, 128, \"secret\") == null) || Menu.encryptionInfo.algorithm != 6 || Menu.encryptionInfo.keyBits != 128) Fiber.abort(\"encrypt\")\n"
+	    "  if (!(Menu.setEncryption(7, 256, null) == null) || Menu.encryptionInfo.algorithm != 7) Fiber.abort(\"reencrypt\")\n"
+	    "  if (!(Menu.setEncryption(0, 0, null) == null) || Menu.encryptionInfo.algorithm != 0) Fiber.abort(\"decrypt\")\n"
 	    "}\n";
 	static const char numeric_source[] =
 	    "import \"syncterm_menu\" for Menu\n"
@@ -4805,7 +4805,7 @@ exercise_settings_save_contract(st_wren_host_t *public_host)
 	    "var old = Menu.settings\n"
 	    "var current = Menu.settings\n"
 	    "current.promptSave = !current.promptSave\n"
-	    "if (!current.save() || current.dirty) Fiber.abort(\"save failed\")\n"
+	    "if (!(current.save() == null) || current.dirty) Fiber.abort(\"save failed\")\n"
 	    "var stale = Fiber.new { old.promptSave }.try()\n"
 	    "if (!(stale is String)) Fiber.abort(\"save did not invalidate snapshot\")\n";
 
@@ -4861,7 +4861,7 @@ exercise_bbs_model_contract(st_wren_host_t *public_host,
 	    "if (!(oldEntry is String) || retainedProfile != \"temporary.example\") "
 	    "Fiber.abort(\"successful load retained old handle\")\n";
 	static const char categories_source[] =
-	    "import \"syncterm_menu\" for Menu\n"
+	    "import \"syncterm_menu\" for Menu, MenuError\n"
 	    "class BbsLookup {\n"
 	    "  static named(name) {\n"
 	    "    for (entry in Menu.entries) {\n"
@@ -4874,18 +4874,18 @@ exercise_bbs_model_contract(st_wren_host_t *public_host,
 	    "var system = BbsLookup.named(\"System\")\n"
 	    "if (system == null || system.type != 1) Fiber.abort(\"system entry\")\n"
 	    "var readOnly = Fiber.new { system.profile.comment = \"forbidden\" }.try()\n"
-	    "if (!(readOnly is String) || system.rename(\"Other\") || "
-	    "system.save() || system.delete()) Fiber.abort(\"system mutability\")\n"
+	    "if (!(readOnly is String) || (system.rename(\"Other\") == null) || "
+	    "(system.save() == null) || (system.delete() == null)) Fiber.abort(\"system mutability\")\n"
 	    "if (!Menu.nameAvailable(\"System\") || Menu.nameAvailable(\"Alpha\") "
 	    "|| Menu.nameAvailable(\"\") || Menu.nameAvailable(\"bad[name\") || "
 	    "Menu.nameAvailable(\"syncterm-system-cache\")) "
 	    "Fiber.abort(\"name admission\")\n"
-	    "if (Menu.create(\"Alpha\") != null || Menu.create(\"\") != null || "
-	    "Menu.create(\"bad[name\") != null) Fiber.abort(\"create admission\")\n"
+	    "if (!(Menu.create(\"Alpha\") is MenuError) || !(Menu.create(\"\") is MenuError) || "
+	    "!(Menu.create(\"bad[name\") is MenuError)) Fiber.abort(\"create admission\")\n"
 	    "var defaults = Menu.defaults\n"
 	    "var defaultsAgain = Menu.defaults\n"
 	    "defaults.comment = \"working defaults\"\n"
-	    "if (defaultsAgain.comment != \"working defaults\" || !Menu.saveDefaults() "
+	    "if (defaultsAgain.comment != \"working defaults\" || !(Menu.saveDefaults() == null) "
 	    "|| Menu.defaultsDirty) Fiber.abort(\"defaults sharing\")\n"
 	    "var transient = Menu.quickConnect(\"raw://quick.example:23\")\n"
 	    "transient.comment = \"allowed\"\n"
@@ -4903,7 +4903,7 @@ exercise_bbs_model_contract(st_wren_host_t *public_host,
 	    "var unrelated = BbsLookup.named(\"Alpha\")\n"
 	    "shadow.profile.comment = \"shared record\"\n"
 	    "if (sameShadow.profile.comment != \"shared record\") Fiber.abort(\"record sharing\")\n"
-	    "if (!shadow.delete()) Fiber.abort(\"discard shadow\")\n"
+	    "if (!(shadow.delete() == null)) Fiber.abort(\"discard shadow\")\n"
 	    "var shadowStale = Fiber.new { shadow.name }.try()\n"
 	    "var unrelatedRetained = unrelated.name\n"
 	    "var restored = BbsLookup.named(\"System\")\n"
@@ -4911,12 +4911,12 @@ exercise_bbs_model_contract(st_wren_host_t *public_host,
 	    "restored == null || restored.type != 1 "
 	    "|| restored.profile.addr != \"system.example\") Fiber.abort(\"restore system\")\n"
 	    "var scratch = Menu.create(\"Scratch\")\n"
-	    "if (scratch == null || !scratch.delete()) Fiber.abort(\"discard draft\")\n"
+	    "if (scratch == null || !(scratch.delete() == null)) Fiber.abort(\"discard draft\")\n"
 	    "if (!(Fiber.new { scratch.name }.try() is String)) "
 	    "Fiber.abort(\"deleted draft remained usable\")\n"
 	    "var accent = Menu.create(\"Cafe\\u0301\")\n"
 	    "if (accent == null || accent.name != \"Caf\\u00e9\" || "
-	    "!accent.delete()) Fiber.abort(\"normalized Wren name\")\n";
+	    "!(accent.delete() == null)) Fiber.abort(\"normalized Wren name\")\n";
 	static const char capabilities_source[] =
 	    "import \"syncterm_menu\" for Menu\n"
 	    "import \"bbs_categories\" for BbsLookup, restored, transient, system\n"
@@ -4935,7 +4935,7 @@ exercise_bbs_model_contract(st_wren_host_t *public_host,
 	    "detached.dlDir = secret\n"
 	    "if (detached.password != \"é\" || detached.dlDir != \"é\") Fiber.abort(\"configuration NFC boundary\")\n"
 	    "var capability = Menu.create(\"Capability\")\n"
-	    "if (capability.cache != null || !capability.save()) Fiber.abort(\"unsaved cache\")\n"
+	    "if (capability.cache != null || !(capability.save() == null)) Fiber.abort(\"unsaved cache\")\n"
 	    "if (retained.name != \"Alpha\" || view.addr != original) Fiber.abort(\"unrelated create invalidated identity\")\n"
 	    "var cache = capability.cache\n"
 	    "if (cache.list.containsKey(\"syncterm-cache-name.txt\")) Fiber.abort(\"cache metadata grant\")\n"
@@ -4947,19 +4947,19 @@ exercise_bbs_model_contract(st_wren_host_t *public_host,
 	    "var listed = cache.list[\"owned.tmp\"]\n"
 	    "var nested = cache.createDir(\"child\")\n"
 	    "if (!(nested.list is Map)) Fiber.abort(\"child grant\")\n"
-	    "if (!capability.rename(\"Renamed Capability\") || !cache.contains(\"owned.tmp\") || !capability.save()) Fiber.abort(\"cache rename policy\")\n"
+	    "if (!(capability.rename(\"Renamed Capability\") == null) || !cache.contains(\"owned.tmp\") || !(capability.save() == null)) Fiber.abort(\"cache rename policy\")\n"
 	    "if (!(Fiber.new { cache.list }.try() is String) || !(Fiber.new { listed.open() }.try() is String) || !(Fiber.new { nested.list }.try() is String)) Fiber.abort(\"old cache grants survived rename\")\n"
 	    "cache = capability.cache\n"
 	    "file = cache.list[\"owned.tmp\"]\n"
 	    "if (file.open() != null || file.read() != \"original\" || file.close() != null) Fiber.abort(\"renamed cache continuity\")\n"
 	    "var removedView = capability.profile\n"
-	    "if (!capability.delete() || file.close() != null) Fiber.abort(\"delete or owned close\")\n"
+	    "if (!(capability.delete() == null) || file.close() != null) Fiber.abort(\"delete or owned close\")\n"
 	    "var replacement = Menu.create(\"Renamed Capability\")\n"
-	    "if (!replacement.save()) Fiber.abort(\"replacement save\")\n"
+	    "if (!(replacement.save() == null)) Fiber.abort(\"replacement save\")\n"
 	    "if (!(Fiber.new { cache.create(\"forbidden.tmp\") }.try() is String) || !(Fiber.new { file.open() }.try() is String) || !(Fiber.new { removedView.addr }.try() is String)) Fiber.abort(\"deleted owner aliased replacement\")\n"
 	    "var secondQuick = Menu.quickConnect(\"ssh://second.example\")\n"
 	    "if (transient.addr != \"quick.example\" || secondQuick.addr != \"second.example\") Fiber.abort(\"independent quick profiles\")\n"
-	    "if (!replacement.delete() || view.addr != original) Fiber.abort(\"unrelated deletion invalidated view\")\n"
+	    "if (!(replacement.delete() == null) || view.addr != original) Fiber.abort(\"unrelated deletion invalidated view\")\n"
 	    "if (!(Fiber.new { system.name }.try() is String)) Fiber.abort(\"shadow restoration revived old identity\")\n";
 
 	static const char save_shadow_source[] =
@@ -4967,14 +4967,14 @@ exercise_bbs_model_contract(st_wren_host_t *public_host,
 	    "import \"bbs_contract_state\" for BbsContractState\n"
 	    "var shadow = Menu.create(\"System\")\n"
 	    "shadow.profile.comment = \"persisted shadow\"\n"
-	    "if (!shadow.save() || shadow.dirty || shadow.profile.comment != "
+	    "if (!(shadow.save() == null) || shadow.dirty || shadow.profile.comment != "
 	    "\"persisted shadow\") Fiber.abort(\"save shadow\")\n"
 	    "BbsContractState.persisted = shadow\n";
 	static const char delete_shadow_source[] =
 	    "import \"syncterm_menu\" for Menu\n"
 	    "import \"bbs_contract_state\" for BbsContractState\n"
 	    "var shadow = BbsContractState.persisted\n"
-	    "if (!shadow.delete()) Fiber.abort(\"delete shadow\")\n"
+	    "if (!(shadow.delete() == null)) Fiber.abort(\"delete shadow\")\n"
 	    "if (!(Fiber.new { shadow.name }.try() is String)) "
 	    "Fiber.abort(\"deleted shadow remained usable\")\n"
 	    "var restored = null\n"
@@ -4999,16 +4999,16 @@ exercise_bbs_model_contract(st_wren_host_t *public_host,
 	    "  if (entry.name == \"Copy\") same = entry\n"
 	    "}\n"
 	    "copy.profile.comment = \"shared copy\"\n"
-	    "if (same.profile.comment != \"shared copy\" || !copy.rename(\"Aardvark\") "
-	    "|| same.name != \"Aardvark\" || same.searchKey != \"aardvark\" || !Menu.sort() || "
-	    "same.name != \"Aardvark\" || !copy.save() || copy.dirty || "
+	    "if (same.profile.comment != \"shared copy\" || !(copy.rename(\"Aardvark\") == null) "
+	    "|| same.name != \"Aardvark\" || same.searchKey != \"aardvark\" || !(Menu.sort() == null) || "
+	    "same.name != \"Aardvark\" || !(copy.save() == null) || copy.dirty || "
 	    "copy.searchKey != \"aardvark\") "
 	    "Fiber.abort(\"copy lifecycle\")\n"
 	    "BbsContractState.persisted = copy\n";
 	static const char delete_copy_source[] =
 	    "import \"bbs_contract_state\" for BbsContractState\n"
 	    "var copy = BbsContractState.persisted\n"
-	    "if (copy.name != \"Aardvark\" || !copy.delete()) "
+	    "if (copy.name != \"Aardvark\" || !(copy.delete() == null)) "
 	    "Fiber.abort(\"delete persisted copy\")\n"
 	    "if (!(Fiber.new { copy.name }.try() is String)) "
 	    "Fiber.abort(\"persisted delete retained handle\")\n";
@@ -6352,10 +6352,10 @@ exercise_configuration_collections(st_wren_host_t *public_host)
 	    "import \"syncterm_menu\" for Menu\n"
 	    "if (Menu.sortProfiles.count != 2 || Menu.sortProfiles[1][1][1] != 3 || Menu.activeSortProfile != 1) Fiber.abort(\"sort load\")\n"
 	    "if (!Menu.sortFields[2][2]) Fiber.abort(\"sort direction\")\n"
-	    "if (!Menu.setActiveSortProfile(0) || Menu.activeSortProfile != 0) Fiber.abort(\"sort select\")\n"
-	    "if (!Menu.addSortProfile(2, \"Calls\", [29, 4, 1])) Fiber.abort(\"sort add\")\n"
-	    "if (!Menu.updateSortProfile(2, \"Call Count\", [29, -4, 1])) Fiber.abort(\"sort update\")\n"
-	    "if (!Menu.deleteSortProfile(2) || !Menu.saveSortProfiles()) Fiber.abort(\"sort delete\")\n"
+	    "if (!(Menu.setActiveSortProfile(0) == null) || Menu.activeSortProfile != 0) Fiber.abort(\"sort select\")\n"
+	    "if (!(Menu.addSortProfile(2, \"Calls\", [29, 4, 1]) == null)) Fiber.abort(\"sort add\")\n"
+	    "if (!(Menu.updateSortProfile(2, \"Call Count\", [29, -4, 1]) == null)) Fiber.abort(\"sort update\")\n"
+	    "if (!(Menu.deleteSortProfile(2) == null) || !(Menu.saveSortProfiles() == null)) Fiber.abort(\"sort delete\")\n"
 	    "if (Menu.fonts.count != 1 || Menu.fonts[0].name != \"Configured\" "
 	    "|| Menu.fonts[0].path(2) == null || Menu.fontsCatalog.count != 47 "
 	    "|| Menu.fontsCatalog[0][1] != \"Codepage 437 English\" "
@@ -6368,10 +6368,10 @@ exercise_configuration_collections(st_wren_host_t *public_host)
 	    "duplicate.try()\n"
 	    "if (duplicate.error == null || customFont.name != \"Temporary\") Fiber.abort(\"font duplicate\")\n"
 	    "customFont.name = \"Renamed\"\n"
-	    "if (customFont.name != \"Renamed\" || !customFont.clearFile(2)) Fiber.abort(\"font edit\")\n"
-	    "if (!customFont.delete() || Menu.fonts.count != 1 || !Menu.saveFonts()) Fiber.abort(\"font delete\")\n"
+	    "if (customFont.name != \"Renamed\" || !(customFont.clearFile(2) == null)) Fiber.abort(\"font edit\")\n"
+	    "if (!(customFont.delete() == null) || Menu.fonts.count != 1 || !(Menu.saveFonts() == null)) Fiber.abort(\"font delete\")\n"
 	    "var unsaved = Menu.createFont(\"Unsaved\", 1)\n"
-	    "if (unsaved == null || !Menu.reloadFonts() || Menu.fonts.count != 1 || Menu.fontsDirty) Fiber.abort(\"font reload\")\n"
+	    "if (unsaved == null || !(Menu.reloadFonts() == null) || Menu.fonts.count != 1 || Menu.fontsDirty) Fiber.abort(\"font reload\")\n"
 	    "var stale = Fiber.new { unsaved.name }\n"
 	    "stale.try()\n"
 	    "if (stale.error == null) Fiber.abort(\"font reload handle\")\n";
@@ -7577,33 +7577,33 @@ exercise_safe_mode_persistence_contract(st_wren_host_t *public_host,
 	    "[WebLists]\nAudit=https://example.invalid/original\n";
 	static const char source[] =
 	    "import \"syncterm\" for Host, Emoji\n"
-	    "import \"syncterm_menu\" for Menu\n"
+	    "import \"syncterm_menu\" for Menu, MenuError\n"
 	    "if (!Host.safeMode || Menu.load(null) != 0) Fiber.abort(\"safe setup\")\n"
 	    "var grin = Emoji.search(\"grinning face\")[0]\n"
 	    "if (Emoji.recordUse(grin) != null || Emoji.recent[0].text != grin.text) Fiber.abort(\"safe emoji recent\")\n"
 	    "var count = Menu.entries.count\n"
 	    "var entry = Menu.entries[0]\n"
 	    "entry.profile.comment = \"unsaved edit\"\n"
-	    "if (!entry.rename(\"Renamed\") || entry.save() || !entry.dirty) Fiber.abort(\"entry save\")\n"
-	    "if (entry.delete() || Menu.entries.count != count || Menu.entries[0].name != \"Renamed\") Fiber.abort(\"entry delete\")\n"
+	    "if (!(entry.rename(\"Renamed\") == null) || (entry.save() == null) || !entry.dirty) Fiber.abort(\"entry save\")\n"
+	    "if ((entry.delete() == null) || Menu.entries.count != count || Menu.entries[0].name != \"Renamed\") Fiber.abort(\"entry delete\")\n"
 	    "var fresh = Menu.create(\"Fresh\")\n"
 	    "fresh.profile.comment = \"unsaved new entry\"\n"
-	    "if (fresh.save() || !fresh.dirty || Menu.entries.count != count + 1) Fiber.abort(\"new entry save\")\n"
-	    "if (!fresh.delete() || Menu.entries.count != count) Fiber.abort(\"new entry discard\")\n"
+	    "if ((fresh.save() == null) || !fresh.dirty || Menu.entries.count != count + 1) Fiber.abort(\"new entry save\")\n"
+	    "if (!(fresh.delete() == null) || Menu.entries.count != count) Fiber.abort(\"new entry discard\")\n"
 	    "var defaults = Menu.defaults\n"
 	    "defaults.comment = \"unsaved defaults\"\n"
-	    "if (Menu.saveDefaults() || !Menu.defaultsDirty || Menu.defaults.comment != \"unsaved defaults\") Fiber.abort(\"defaults save\")\n"
+	    "if ((Menu.saveDefaults() == null) || !Menu.defaultsDirty || Menu.defaults.comment != \"unsaved defaults\") Fiber.abort(\"defaults save\")\n"
 	    "var snapshot = Menu.settings\n"
 	    "var confirm = snapshot.confirmClose\n"
 	    "snapshot.confirmClose = !confirm\n"
-	    "if (snapshot.save() || !snapshot.dirty || Menu.settings.confirmClose != confirm) Fiber.abort(\"settings save\")\n"
-	    "if (!Menu.updateWebList(0, \"https://example.invalid/changed\") || !Menu.webListsDirty) Fiber.abort(\"web edit\")\n"
-	    "if (Menu.saveWebLists() || !Menu.webListsDirty) Fiber.abort(\"web save\")\n"
-	    "if (Menu.canCreateFont || Menu.createFont(\"Blocked\", 0) != null || Menu.saveFonts()) Fiber.abort(\"font safe mode\")\n"
-	    "if (!Menu.reloadFonts() || Menu.fontsDirty) Fiber.abort(\"font safe reload\")\n"
+	    "if ((snapshot.save() == null) || !snapshot.dirty || Menu.settings.confirmClose != confirm) Fiber.abort(\"settings save\")\n"
+	    "if (!(Menu.updateWebList(0, \"https://example.invalid/changed\") == null) || !Menu.webListsDirty) Fiber.abort(\"web edit\")\n"
+	    "if ((Menu.saveWebLists() == null) || !Menu.webListsDirty) Fiber.abort(\"web save\")\n"
+	    "if (Menu.canCreateFont || !(Menu.createFont(\"Blocked\", 0) is MenuError) || (Menu.saveFonts() == null)) Fiber.abort(\"font safe mode\")\n"
+	    "if (!(Menu.reloadFonts() == null) || Menu.fontsDirty) Fiber.abort(\"font safe reload\")\n"
 	    "var algorithm = Menu.encryptionInfo.algorithm\n"
 	    "var keySize = Menu.encryptionInfo.keyBits\n"
-	    "if (Menu.setEncryption(6, 128, \"secret\")) Fiber.abort(\"encryption save\")\n"
+	    "if ((Menu.setEncryption(6, 128, \"secret\") == null)) Fiber.abort(\"encryption save\")\n"
 	    "if (Menu.encryptionInfo.algorithm != algorithm || Menu.encryptionInfo.keyBits != keySize) Fiber.abort(\"encryption state\")\n";
 	struct st_wren_host *host = public_host;
 	struct fs_info info;

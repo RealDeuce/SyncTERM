@@ -44,6 +44,7 @@ enum menu_foreign_kind {
 	MENU_FOREIGN_THEME_DOCUMENT,
 	MENU_FOREIGN_FONT,
 	MENU_FOREIGN_ENCRYPTION_INFO,
+	MENU_FOREIGN_ERROR,
 };
 
 struct menu_foreign_header {
@@ -82,12 +83,115 @@ struct foreign_encryption_info {
 	struct st_list_crypto_info info;
 };
 
+struct foreign_menu_error {
+	struct menu_foreign_header header;
+	int code;
+	int native_code;
+	char *message;
+};
+
 struct binding {
 	const char *class_name;
 	bool is_static;
 	const char *signature;
 	WrenForeignMethodFn method;
 };
+
+static const char *
+menu_io_reason(int code)
+{
+	static const char *const reasons[] = {
+		"Invalid argument", "Invalid encoding", "Not found",
+		"Permission denied", "Already exists", "Not a directory",
+		"Is a directory", "Directory not empty", "Out of memory",
+		"No space available", "Name too long", "Out of range",
+		"Busy", "Read-only", "Cross-device operation",
+		"Too many links", "Interrupted", "Not supported",
+		"I/O failure", "Timed out", "Cancelled",
+		"Would block", "In progress", "Name resolution failed",
+		"Connection refused", "Connection reset", "Connection aborted",
+		"Not connected", "Network unreachable", "Host unreachable",
+		"Address in use", "Address not available", "Message too large",
+		"Protocol failure", "Password required", "Decryption failed",
+		"Invalid format", "Conflict with changed data",
+	};
+	return code <= -1 && code >= -38 ? reasons[-code - 1] : "Native I/O failure";
+}
+
+/* A zero code denotes an unavailable reason, not successful construction. */
+static void
+menu_error(WrenVM *vm, int code, int native_code, const char *message)
+{
+	wrenEnsureSlots(vm, 2);
+	wrenGetVariable(vm, "syncterm_menu", "MenuError", 1);
+	struct foreign_menu_error *error = wrenSetSlotNewForeign(vm, 0, 1,
+	    sizeof(*error));
+	*error = (struct foreign_menu_error){
+		.header.kind = MENU_FOREIGN_ERROR, .code = code,
+		.native_code = native_code,
+	};
+	if (code == 0)
+		error->message = strdup(message);
+	else {
+		const char *reason = menu_io_reason(code);
+		size_t size = strlen(message) + strlen(reason) + sizeof(" ()");
+		error->message = malloc(size);
+		if (error->message != NULL)
+			(void)snprintf(error->message, size, "%s (%s)", message, reason);
+	}
+	if (error->message == NULL)
+		st_wren_abort(vm, "out of memory copying menu error");
+}
+
+/* Classify by the called API's contract, never by the integer's value. */
+static void
+menu_result(WrenVM *vm, int status, bool portable, const char *message)
+{
+	if (status == 0)
+		wrenSetSlotNull(vm, 0);
+	else
+		menu_error(vm, portable ? status : 0, status, message);
+}
+
+static bool
+menu_writable(WrenVM *vm, const char *message)
+{
+	if (!st_wren_host_from_vm(vm)->config.safe_mode)
+		return true;
+	menu_error(vm, IO_ERROR_READ_ONLY, 0, message);
+	return false;
+}
+
+static void fn_menu_error_code(WrenVM *vm)
+{
+	int code = ((struct foreign_menu_error *)wrenGetSlotForeign(vm, 0))->code;
+	if (code == 0) wrenSetSlotNull(vm, 0);
+	else wrenSetSlotDouble(vm, 0, code);
+}
+static void fn_menu_error_native_code(WrenVM *vm)
+{
+	int code = ((struct foreign_menu_error *)wrenGetSlotForeign(vm, 0))->native_code;
+	if (code == 0) wrenSetSlotNull(vm, 0);
+	else wrenSetSlotDouble(vm, 0, code);
+}
+static void fn_menu_error_message(WrenVM *vm)
+{
+	struct foreign_menu_error *error = wrenGetSlotForeign(vm, 0);
+	wrenSetSlotString(vm, 0, error->message);
+}
+static void fn_menu_error_string(WrenVM *vm)
+{
+	struct foreign_menu_error *error = wrenGetSlotForeign(vm, 0);
+	size_t size = strlen(error->message) + sizeof("MenuError: ");
+	char *text = malloc(size);
+	if (text == NULL) {
+		st_wren_abort(vm, "out of memory formatting menu error");
+		return;
+	}
+	(void)snprintf(text, size, "MenuError: %s", error->message);
+	wrenSetSlotString(vm, 0, text);
+	free(text);
+}
 
 static bool slot_c_string(WrenVM *vm, int slot, const char **value);
 static void fn_menu_sort(WrenVM *vm);
@@ -125,7 +229,9 @@ finalize_menu_foreign(void *data)
 
 	if (header == NULL)
 		return;
-	if (header->kind == MENU_FOREIGN_SETTINGS)
+	if (header->kind == MENU_FOREIGN_ERROR)
+		free(((struct foreign_menu_error *)data)->message);
+	else if (header->kind == MENU_FOREIGN_SETTINGS)
 		st_settings_dispose(&((struct foreign_settings *)data)->settings);
 	else if (header->kind == MENU_FOREIGN_BBS && ((struct foreign_bbs *)data)->owned) {
 		struct foreign_bbs *bbs = data;
@@ -948,7 +1054,7 @@ fn_menu_create(WrenVM *vm)
 
 	if (!host->bbs_model.loaded
 	    || wrenGetSlotType(vm, 1) != WREN_TYPE_STRING) {
-		wrenSetSlotNull(vm, 0);
+		menu_error(vm, 0, 0, "The directory entry could not be created.");
 		return;
 	}
 	if (!st_wren_text_slot(vm, 1, &name, NULL))
@@ -957,7 +1063,7 @@ fn_menu_create(WrenVM *vm)
 	record = st_wren_bbs_model_create(&host->bbs_model, name,
 	    &host->bbs_model.defaults.profile, fields, field_count);
 	if (record == NULL)
-		wrenSetSlotNull(vm, 0);
+		menu_error(vm, 0, 0, "The directory entry could not be created.");
 	else
 		(void)push_bbs(vm, 0, record, ST_WREN_BBS_MODEL_ENTRY);
 }
@@ -973,7 +1079,7 @@ fn_menu_copy(WrenVM *vm)
 	size_t field_count;
 
 	if (source == NULL || wrenGetSlotType(vm, 2) != WREN_TYPE_STRING) {
-		wrenSetSlotNull(vm, 0);
+		menu_error(vm, 0, 0, "The directory entry could not be created.");
 		return;
 	}
 	if (!st_wren_text_slot(vm, 2, &name, NULL))
@@ -982,7 +1088,7 @@ fn_menu_copy(WrenVM *vm)
 	record = st_wren_bbs_model_create(&host->bbs_model, name,
 	    &source->record->profile, fields, field_count);
 	if (record == NULL)
-		wrenSetSlotNull(vm, 0);
+		menu_error(vm, 0, 0, "The directory entry could not be created.");
 	else
 		(void)push_bbs(vm, 0, record, ST_WREN_BBS_MODEL_ENTRY);
 }
@@ -993,12 +1099,11 @@ fn_menu_sort(WrenVM *vm)
 	struct st_wren_host *host = st_wren_host_from_vm(vm);
 	int fields[32];
 	size_t count = configured_sort_fields(fields);
-	bool success = host->bbs_list != NULL
-	    && st_bbs_list_sort(host->bbs_list, fields, count) == 0;
-
-	if (success)
+	int status = host->bbs_list == NULL ? IO_ERROR_INVALID_ARGUMENT
+	    : st_bbs_list_sort(host->bbs_list, fields, count);
+	if (status == 0)
 		st_wren_bbs_model_sort(&host->bbs_model, fields, count);
-	wrenSetSlotBool(vm, 0, success);
+	menu_result(vm, status, true, "The directory could not be sorted.");
 }
 
 static void
@@ -1178,12 +1283,12 @@ static void
 fn_menu_set_active_sort_profile(WrenVM *vm)
 {
 	int64_t index;
-
 	if (!slot_integer(vm, 1, 0,
 	    (int64_t)st_settings_sort_profile_count() - 1, &index))
 		return;
-	if (st_settings_sort_profile_select((size_t)index) < 0) {
-		wrenSetSlotBool(vm, 0, false);
+	int status = st_settings_sort_profile_select((size_t)index);
+	if (status != 0) {
+		menu_result(vm, status, false, "The sort profile could not be selected.");
 		return;
 	}
 	fn_menu_sort(vm);
@@ -1206,8 +1311,8 @@ fn_menu_add_sort_profile(WrenVM *vm)
 		return;
 	(void)fields;
 	(void)count;
-	wrenSetSlotBool(vm, 0, st_settings_sort_profile_add((size_t)index,
-	    name, order) == 0);
+	menu_result(vm, st_settings_sort_profile_add((size_t)index,
+	    name, order), false, "The sort profile could not be added.");
 }
 
 static void
@@ -1219,7 +1324,7 @@ fn_menu_update_sort_profile(WrenVM *vm)
 	char order[256];
 	const char *name;
 	bool was_active;
-	bool success;
+	int status;
 
 	wrenEnsureSlots(vm, 5);
 	if (!slot_integer(vm, 1, 0,
@@ -1230,12 +1335,12 @@ fn_menu_update_sort_profile(WrenVM *vm)
 	(void)fields;
 	(void)count;
 	was_active = (size_t)index == st_settings_active_sort_profile();
-	success = st_settings_sort_profile_update((size_t)index, name, order) == 0;
-	if (success && was_active) {
+	status = st_settings_sort_profile_update((size_t)index, name, order);
+	if (status == 0 && was_active) {
 		fn_menu_sort(vm);
 		return;
 	}
-	wrenSetSlotBool(vm, 0, success);
+	menu_result(vm, status, false, "The sort profile could not be updated.");
 }
 
 static void
@@ -1246,8 +1351,9 @@ fn_menu_delete_sort_profile(WrenVM *vm)
 	if (!slot_integer(vm, 1, 0,
 	    (int64_t)st_settings_sort_profile_count() - 1, &index))
 		return;
-	if (st_settings_sort_profile_remove((size_t)index) < 0) {
-		wrenSetSlotBool(vm, 0, false);
+	int status = st_settings_sort_profile_remove((size_t)index);
+	if (status != 0) {
+		menu_result(vm, status, false, "The sort profile could not be removed.");
 		return;
 	}
 	fn_menu_sort(vm);
@@ -1256,10 +1362,9 @@ fn_menu_delete_sort_profile(WrenVM *vm)
 static void
 fn_menu_save_sort_profiles(WrenVM *vm)
 {
-	struct st_wren_host *host = st_wren_host_from_vm(vm);
-
-	wrenSetSlotBool(vm, 0, host->config.safe_mode
-	    || st_settings_save() == 0);
+	if (menu_writable(vm, "Sort profiles cannot be saved in safe mode."))
+		menu_result(vm, st_settings_save(), true,
+		    "The sort profiles could not be saved.");
 }
 
 static void
@@ -2804,10 +2909,11 @@ fn_menu_create_font(WrenVM *vm)
 	const char *name;
 	int64_t index;
 
-	if (host->config.safe_mode
-	    || st_settings_font_draft_count(&host->font_draft)
+	if (!menu_writable(vm, "Fonts cannot be created in safe mode."))
+		return;
+	if (st_settings_font_draft_count(&host->font_draft)
 	    >= ST_SETTINGS_CUSTOM_FONT_MAX) {
-		wrenSetSlotNull(vm, 0);
+		menu_error(vm, 0, 0, "No custom font slots are available.");
 		return;
 	}
 	if (!slot_font_name(vm, 1, &name)
@@ -2819,9 +2925,9 @@ fn_menu_create_font(WrenVM *vm)
 		st_wren_abort(vm, "font name is already configured");
 		return;
 	}
-	if (st_settings_font_draft_insert(&host->font_draft, (size_t)index,
-	    name) < 0) {
-		wrenSetSlotNull(vm, 0);
+	int status = st_settings_font_draft_insert(&host->font_draft, (size_t)index, name);
+	if (status != 0) {
+		menu_result(vm, status, false, "The font could not be created.");
 		return;
 	}
 	host->font_generation++;
@@ -2835,29 +2941,33 @@ static void
 fn_menu_reload_fonts(WrenVM *vm)
 {
 	struct st_wren_host *host = st_wren_host_from_vm(vm);
-	bool success = st_settings_font_draft_reload(&host->font_draft) == 0;
+	int status = st_settings_font_draft_reload(&host->font_draft);
 
-	if (success) {
+	if (status == 0) {
 		host->font_generation++;
 		host->fonts_dirty = false;
 	}
-	wrenSetSlotBool(vm, 0, success);
+	menu_result(vm, status, true, "The font draft could not be reloaded.");
 }
 
 static void
 fn_menu_save_fonts(WrenVM *vm)
 {
 	struct st_wren_host *host = st_wren_host_from_vm(vm);
-	bool success = !host->config.safe_mode
-	    && st_settings_font_draft_save(&host->font_draft) == 0;
-
-	if (success) {
+	if (!menu_writable(vm, "Fonts cannot be saved in safe mode."))
+		return;
+	int status = st_settings_font_draft_save(&host->font_draft);
+	if (status == 0)
 		host->fonts_dirty = false;
-		if (st_wren_reload_custom_fonts(host) < 0)
-			fprintf(stderr, "SyncTERM: custom font activation failed; "
-			    "keeping the previous live mappings\n");
-	}
-	wrenSetSlotBool(vm, 0, success);
+	menu_result(vm, status, true, "The font configuration could not be saved.");
+}
+
+static void
+fn_menu_activate_fonts(WrenVM *vm)
+{
+	if (menu_writable(vm, "Fonts cannot be activated in safe mode."))
+		menu_result(vm, st_wren_reload_custom_fonts(st_wren_host_from_vm(vm)),
+		    true, "The configured fonts could not be activated.");
 }
 
 static void
@@ -2881,16 +2991,18 @@ fn_font_name_set(WrenVM *vm)
 	if (font == NULL || !slot_font_name(vm, 1, &name))
 		return;
 	if (host->config.safe_mode) {
-		st_wren_abort(vm, "MenuFont.name: fonts are read-only in safe mode");
+		menu_error(vm, IO_ERROR_READ_ONLY, 0, "Fonts are read-only in safe mode.");
+		wrenAbortFiber(vm, 0);
 		return;
 	}
 	if (!font_name_available(host, name, handle->index)) {
 		st_wren_abort(vm, "MenuFont.name: name is already configured");
 		return;
 	}
-	if (st_settings_font_draft_rename(&host->font_draft, handle->index,
-	    name) < 0) {
-		st_wren_abort(vm, "MenuFont.name: could not replace name");
+	int status = st_settings_font_draft_rename(&host->font_draft, handle->index, name);
+	if (status != 0) {
+		menu_result(vm, status, false, "The font could not be renamed.");
+		wrenAbortFiber(vm, 0);
 		return;
 	}
 	host->fonts_dirty = true;
@@ -2928,19 +3040,20 @@ fn_font_set_file(WrenVM *vm)
 	struct foreign_font *handle;
 	struct st_settings_font *font = font_value(vm, &handle);
 	enum st_settings_font_path slot;
-	const char *path;
-	bool success = false;
-
-	(void)font;
 	if (font == NULL || !slot_font_path(vm, 1, &slot))
 		return;
-	path = st_wren_file_read_path(vm, 2);
-	if (!host->config.safe_mode && path != NULL)
-		success = st_settings_font_draft_set_path(&host->font_draft,
-		    handle->index, slot, path) == 0;
-	if (success)
+	const char *path = st_wren_file_read_path(vm, 2);
+	if (!menu_writable(vm, "Font files cannot be changed in safe mode."))
+		return;
+	if (path == NULL) {
+		menu_error(vm, IO_ERROR_PERMISSION_DENIED, 0, "The font File has no live read grant.");
+		return;
+	}
+	int status = st_settings_font_draft_set_path(&host->font_draft,
+	    handle->index, slot, path);
+	if (status == 0)
 		host->fonts_dirty = true;
-	wrenSetSlotBool(vm, 0, success);
+	menu_result(vm, status, false, "The font file could not be assigned.");
 }
 
 static void
@@ -2950,17 +3063,18 @@ fn_font_clear_file(WrenVM *vm)
 	struct foreign_font *handle;
 	struct st_settings_font *font = font_value(vm, &handle);
 	enum st_settings_font_path slot;
-	bool success;
+	int status;
 
 	(void)font;
 	if (font == NULL || !slot_font_path(vm, 1, &slot))
 		return;
-	success = !host->config.safe_mode
-	    && st_settings_font_draft_set_path(&host->font_draft,
-	    handle->index, slot, NULL) == 0;
-	if (success)
+	if (!menu_writable(vm, "Fonts are read-only in safe mode."))
+		return;
+	status = st_settings_font_draft_set_path(&host->font_draft,
+	    handle->index, slot, NULL);
+	if (status == 0)
 		host->fonts_dirty = true;
-	wrenSetSlotBool(vm, 0, success);
+	menu_result(vm, status, false, "The font file could not be cleared.");
 }
 
 static void
@@ -2969,19 +3083,20 @@ fn_font_delete(WrenVM *vm)
 	struct st_wren_host *host = st_wren_host_from_vm(vm);
 	struct foreign_font *handle;
 	struct st_settings_font *font = font_value(vm, &handle);
-	bool success;
+	int status;
 
 	(void)font;
 	if (font == NULL)
 		return;
-	success = !host->config.safe_mode
-	    && st_settings_font_draft_remove(&host->font_draft,
-	    handle->index) == 0;
-	if (success) {
+	if (!menu_writable(vm, "Fonts are read-only in safe mode."))
+		return;
+	status = st_settings_font_draft_remove(&host->font_draft,
+	    handle->index);
+	if (status == 0) {
 		host->font_generation++;
 		host->fonts_dirty = true;
 	}
-	wrenSetSlotBool(vm, 0, success);
+	menu_result(vm, status, false, "The font could not be deleted.");
 }
 
 static void
@@ -3202,19 +3317,19 @@ fn_menu_set_encryption(WrenVM *vm)
 	    || !slot_integer(vm, 1, ST_LIST_CIPHER_NONE,
 	    ST_LIST_CIPHER_CHACHA20, &algorithm)
 	    || !slot_integer(vm, 2, 0, 256, &key_size)) {
-		wrenSetSlotBool(vm, 0, false);
+		menu_error(vm, IO_ERROR_INVALID_ARGUMENT, 0, "The encryption request is invalid.");
 		return;
 	}
 	if (algorithm != ST_LIST_CIPHER_NONE && algorithm != ST_LIST_CIPHER_AES
 	    && algorithm != ST_LIST_CIPHER_CHACHA20) {
-		wrenSetSlotBool(vm, 0, false);
+		menu_error(vm, IO_ERROR_INVALID_ARGUMENT, 0, "The encryption request is invalid.");
 		return;
 	}
 	if ((algorithm == ST_LIST_CIPHER_AES
 	    && key_size != 128 && key_size != 256)
 	    || (algorithm == ST_LIST_CIPHER_CHACHA20
 	    && key_size != 0 && key_size != 256)) {
-		wrenSetSlotBool(vm, 0, false);
+		menu_error(vm, IO_ERROR_INVALID_ARGUMENT, 0, "The encryption request is invalid.");
 		return;
 	}
 	if (wrenGetSlotType(vm, 3) == WREN_TYPE_STRING)
@@ -3223,10 +3338,8 @@ fn_menu_set_encryption(WrenVM *vm)
 		st_wren_abort(vm, "Menu.setEncryption expects a String or null");
 		return;
 	}
-	if (host->config.safe_mode) {
-		wrenSetSlotBool(vm, 0, false);
+	if (!menu_writable(vm, "List encryption cannot be changed in safe mode."))
 		return;
-	}
 	options.cipher = (enum st_list_cipher)algorithm;
 	options.key_bits = algorithm == ST_LIST_CIPHER_CHACHA20
 	    ? 256 : (uint32_t)key_size;
@@ -3237,7 +3350,7 @@ fn_menu_set_encryption(WrenVM *vm)
 	else
 		status = st_bbs_list_rewrite_encryption(host->bbs_list, &options,
 		    password, (size_t)password_length);
-	wrenSetSlotBool(vm, 0, status == 0);
+	menu_result(vm, status, true, "The personal directory could not be rewritten.");
 }
 
 static void
@@ -3312,7 +3425,7 @@ fn_menu_add_web_list(WrenVM *vm)
 		wrenSetSlotNull(vm, 0);
 	}
 	else
-		wrenSetSlotString(vm, 0, "The web list could not be added.");
+		menu_result(vm, status, true, "The web list could not be added.");
 }
 
 static void
@@ -3322,7 +3435,7 @@ fn_menu_update_web_list(WrenVM *vm)
 	const struct name_value *item;
 	const char *url;
 	int64_t index;
-	bool success = false;
+	int status = IO_ERROR_INVALID_ARGUMENT;
 
 	if (!slot_integer(vm, 1, 0,
 	    (int64_t)st_settings_web_download_count() - 1, &index)
@@ -3330,11 +3443,10 @@ fn_menu_update_web_list(WrenVM *vm)
 		return;
 	item = st_settings_web_download_at((size_t)index);
 	if (item != NULL)
-		success = st_settings_web_download_set((size_t)index, item->name,
-		    url) == 0;
-	if (success)
+		status = st_settings_web_download_set((size_t)index, item->name, url);
+	if (status == 0)
 		host->web_lists_dirty = true;
-	wrenSetSlotBool(vm, 0, success);
+	menu_result(vm, status, true, "The web-list URI could not be updated.");
 }
 
 static void
@@ -3342,26 +3454,28 @@ fn_menu_delete_web_list(WrenVM *vm)
 {
 	struct st_wren_host *host = st_wren_host_from_vm(vm);
 	int64_t index;
-	bool success;
+	int status;
 
 	if (!slot_integer(vm, 1, 0,
 	    (int64_t)st_settings_web_download_count() - 1, &index))
 		return;
-	success = st_settings_web_download_remove((size_t)index) == 0;
-	if (success)
+	status = st_settings_web_download_remove((size_t)index);
+	if (status == 0)
 		host->web_lists_dirty = true;
-	wrenSetSlotBool(vm, 0, success);
+	menu_result(vm, status, true, "The web list could not be deleted.");
 }
 
 static void
 fn_menu_save_web_lists(WrenVM *vm)
 {
 	struct st_wren_host *host = st_wren_host_from_vm(vm);
-	bool success = !host->config.safe_mode && st_settings_save() == 0;
+	if (!menu_writable(vm, "Web lists cannot be saved in safe mode."))
+		return;
+	int status = st_settings_save();
 
-	if (success)
+	if (status == 0)
 		host->web_lists_dirty = false;
-	wrenSetSlotBool(vm, 0, success);
+	menu_result(vm, status, true, "The web-list configuration could not be saved.");
 }
 
 static void
@@ -3373,12 +3487,9 @@ fn_menu_refresh_web_list(WrenVM *vm)
 	if (!slot_integer(vm, 1, 0,
 	    (int64_t)st_settings_web_download_count() - 1, &index))
 		return;
-	if (host->bbs_list != NULL
-	    && st_bbs_list_refresh_web_at(host->bbs_list, (size_t)index,
-	    NULL, NULL) == 0)
-		wrenSetSlotNull(vm, 0);
-	else
-		wrenSetSlotString(vm, 0, "The web list could not be refreshed.");
+	int status = host->bbs_list == NULL ? IO_ERROR_INVALID_ARGUMENT
+	    : st_bbs_list_refresh_web_at(host->bbs_list, (size_t)index, NULL, NULL);
+	menu_result(vm, status, true, "The web list could not be refreshed.");
 }
 
 static void
@@ -3551,7 +3662,7 @@ fn_settings_dirty(WrenVM *vm)
 		wrenSetSlotBool(vm, 0, settings->dirty);
 }
 
-static void
+static int
 apply_console_settings(st_console_t *console, const struct st_settings *settings,
 	const struct st_screen_mode_descriptor *mode)
 {
@@ -3559,9 +3670,10 @@ apply_console_settings(st_console_t *console, const struct st_settings *settings
 	uint32_t width;
 	uint32_t height;
 
-	if (console == NULL || st_console_cell_pixel_size(console, &width,
-	    &height) != 0)
-		return;
+	if (console == NULL) return 0;
+	int status = st_console_cell_pixel_size(console, &width, &height);
+	if (status != 0) return status;
+	int result;
 	(void)width;
 	cursor = mode->console.default_cursor;
 	if (settings->default_cursor == ST_CURSOR_BLINK_UNDERLINE
@@ -3581,14 +3693,25 @@ apply_console_settings(st_console_t *console, const struct st_settings *settings
 	if (settings->default_cursor == ST_CURSOR_SOLID_UNDERLINE
 	    || settings->default_cursor == ST_CURSOR_SOLID_BLOCK)
 		cursor.blink = false;
-	(void)st_console_set_default_cursor(console, &cursor);
-	(void)st_console_set_color_emoji(console, settings->color_emoji);
-	(void)st_console_set_blocky_scaling(console,
+	result = st_console_set_default_cursor(console, &cursor);
+	if (status == 0) status = result;
+	result = st_console_set_color_emoji(console, settings->color_emoji);
+	if (status == 0) status = result;
+	result = st_console_set_blocky_scaling(console,
 	    settings->blocky_scaling != 0);
-	(void)st_console_set_scaling_mode(console,
+	if (status == 0) status = result;
+	result = st_console_set_scaling_mode(console,
 	    settings->external_scaling ? ST_CONSOLE_SCALING_EXTERNAL :
 	    ST_CONSOLE_SCALING_INTERNAL);
+	if (status == 0) status = result;
+	return status;
 }
+
+struct settings_failure {
+	int status;
+	bool portable;
+	const char *message;
+};
 
 struct prepared_settings {
 	struct st_settings installed;
@@ -3699,7 +3822,7 @@ prepare_kdf(struct prepared_settings *prepared,
 
 static bool
 prepare_settings_change(WrenVM *vm, struct foreign_settings *settings,
-	struct prepared_settings *prepared)
+	struct prepared_settings *prepared, struct settings_failure *failure)
 {
 	struct st_wren_host *host = st_wren_host_from_vm(vm);
 	int fields[32];
@@ -3707,6 +3830,7 @@ prepare_settings_change(WrenVM *vm, struct foreign_settings *settings,
 	char error[256] = "";
 	int status;
 
+	*failure = (struct settings_failure){.message = "The settings could not be prepared."};
 	memset(prepared, 0, sizeof(*prepared));
 	st_settings_init(&prepared->installed);
 	st_wren_bbs_model_init(&prepared->bbs_model);
@@ -3728,7 +3852,11 @@ prepare_settings_change(WrenVM *vm, struct foreign_settings *settings,
 	if (theme_settings_changed(&prepared->installed))
 		status = st_theme_prepare_settings(&prepared->theme, host->themes,
 		    &prepared->installed, error, sizeof(error));
-	if (status != 0 || !prepare_kdf(prepared, host, &prepared->installed))
+	if (status != 0) {
+		*failure = (struct settings_failure){status, true, "The settings theme could not be prepared."};
+		goto failed;
+	}
+	if (!prepare_kdf(prepared, host, &prepared->installed))
 		goto failed;
 	if (host->bbs_list != NULL && strcmp(personal_list_path(&st_settings,
 	    host->config.paths), personal_list_path(&prepared->installed,
@@ -3742,8 +3870,10 @@ prepare_settings_change(WrenVM *vm, struct foreign_settings *settings,
 		if (status == 0)
 			status = st_wren_bbs_model_build(&prepared->bbs_model,
 			    prepared->bbs_list);
-		if (status != 0)
+		if (status != 0) {
+			*failure = (struct settings_failure){status, true, "The replacement directory could not be prepared."};
 			goto failed;
+		}
 		prepared->replace_bbs = true;
 	}
 	return true;
@@ -3753,21 +3883,23 @@ failed:
 	return false;
 }
 
-static bool
+static int
 rewrite_settings_kdf(struct st_wren_host *host,
 	const struct prepared_settings *prepared)
 {
-	return !prepared->rewrite_kdf
-	    || (!host->config.safe_mode
-	    && st_bbs_list_rewrite_encryption_current_password(host->bbs_list,
-	    &prepared->crypto) == 0);
+	if (!prepared->rewrite_kdf) return 0;
+	if (host->config.safe_mode) return IO_ERROR_READ_ONLY;
+	return st_bbs_list_rewrite_encryption_current_password(host->bbs_list,
+	    &prepared->crypto);
 }
 
-static void
+static int
 install_prepared_settings(struct st_wren_host *host,
 	struct foreign_settings *settings, struct prepared_settings *prepared,
 	bool settings_already_installed)
 {
+	int status = 0;
+	int result;
 	if (!settings_already_installed)
 		st_settings_install(&prepared->installed);
 	st_theme_install_prepared(host->themes, &prepared->theme);
@@ -3780,66 +3912,75 @@ install_prepared_settings(struct st_wren_host *host,
 		st_bbs_list_close(old_list);
 	}
 	if (prepared->reconfigure_custom)
-		(void)st_wren_host_set_screen_mode(host, ST_SCREEN_MODE_CUSTOM);
-	apply_console_settings(host->config.console, &st_settings,
+		status = st_wren_host_set_screen_mode(host, ST_SCREEN_MODE_CUSTOM);
+	result = apply_console_settings(host->config.console, &st_settings,
 	    &host->current_mode);
-	if (host->config.picker_console != NULL)
-		apply_console_settings(host->config.picker_console, &st_settings,
+	if (status == 0) status = result;
+	if (host->config.picker_console != NULL) {
+		result = apply_console_settings(host->config.picker_console, &st_settings,
 		    &host->current_mode);
-	if (host->config.session_history != NULL)
-		(void)st_session_history_set_capacity(host->config.session_history,
+		if (status == 0) status = result;
+	}
+	if (host->config.session_history != NULL) {
+		result = st_session_history_set_capacity(host->config.session_history,
 		    (size_t)st_settings.scrollback_lines);
+		if (status == 0) status = result;
+	}
 	st_audio_runtime_set_allowed(host->config.audio_runtime,
 	    st_settings.audio_output_modes);
 	++host->settings_generation;
 	settings->generation = host->settings_generation;
 	settings->dirty = false;
+	return status;
 }
 
-static bool
-settings_apply(WrenVM *vm, struct foreign_settings *settings)
+static void
+settings_change(WrenVM *vm, struct foreign_settings *settings, bool save)
 {
 	struct st_wren_host *host = st_wren_host_from_vm(vm);
 	struct prepared_settings prepared;
-
-	if (!prepare_settings_change(vm, settings, &prepared))
-		return false;
-	if (!rewrite_settings_kdf(host, &prepared)) {
-		prepared_settings_dispose(&prepared);
-		return false;
+	struct settings_failure failure;
+	if (settings == NULL) return;
+	if (save && !menu_writable(vm, "Settings cannot be saved in safe mode."))
+		return;
+	if (!prepare_settings_change(vm, settings, &prepared, &failure)) {
+		menu_error(vm, failure.portable ? failure.status : 0,
+		    failure.status, failure.message);
+		return;
 	}
-	install_prepared_settings(host, settings, &prepared, false);
+	int status = rewrite_settings_kdf(host, &prepared);
+	if (status != 0) {
+		if (host->config.safe_mode)
+			menu_error(vm, IO_ERROR_READ_ONLY, 0, "The list KDF cannot be rewritten in safe mode.");
+		else
+			menu_result(vm, status, true, "The list KDF could not be rewritten.");
+	}
+	else {
+		if (save) status = st_settings_save_value(&prepared.installed);
+		if (status != 0)
+			menu_result(vm, status, true, prepared.rewrite_kdf
+			    ? "The list KDF was rewritten, but the settings could not be saved."
+			    : "The settings could not be saved.");
+		else {
+			status = install_prepared_settings(host, settings, &prepared, save);
+			menu_result(vm, status, true, save
+			    ? "The settings were saved and installed, but runtime application failed."
+			    : "The settings were installed, but runtime application failed.");
+		}
+	}
 	prepared_settings_dispose(&prepared);
-	return true;
 }
 
 static void
 fn_settings_apply(WrenVM *vm)
 {
-	struct foreign_settings *settings = settings_value(vm);
-
-	wrenSetSlotBool(vm, 0, settings != NULL && settings_apply(vm, settings));
+	settings_change(vm, settings_value(vm), false);
 }
 
 static void
 fn_settings_save(WrenVM *vm)
 {
-	struct st_wren_host *host = st_wren_host_from_vm(vm);
-	struct foreign_settings *settings = settings_value(vm);
-	struct prepared_settings prepared;
-	bool success = false;
-
-	if (settings != NULL && !host->config.safe_mode
-	    && prepare_settings_change(vm, settings, &prepared)
-	    && rewrite_settings_kdf(host, &prepared)
-	    && st_settings_save_value(&prepared.installed) == 0) {
-		install_prepared_settings(host, settings, &prepared, true);
-		success = true;
-	}
-	if (settings != NULL && !host->config.safe_mode)
-		prepared_settings_dispose(&prepared);
-
-	wrenSetSlotBool(vm, 0, success);
+	settings_change(vm, settings_value(vm), true);
 }
 
 static void
@@ -3852,7 +3993,7 @@ fn_settings_reload(WrenVM *vm)
 		return;
 	st_settings_init(&replacement);
 	if (!st_settings_copy(&replacement, &st_settings)) {
-		st_wren_abort(vm, "settings reload failed");
+		menu_error(vm, 0, 0, "The running settings could not be copied.");
 		return;
 	}
 	st_settings_dispose(&settings->settings);
@@ -4315,7 +4456,9 @@ fn_bbs_rename(WrenVM *vm)
 		success = st_wren_bbs_model_rename(&host->bbs_model, bbs->record,
 		    name, fields, field_count);
 	}
-	wrenSetSlotBool(vm, 0, success);
+	if (success) wrenSetSlotNull(vm, 0);
+	else if (bbs != NULL) menu_error(vm, bbs->record->source != ST_BBS_SOURCE_PERSONAL
+	    ? IO_ERROR_READ_ONLY : 0, 0, "The directory entry could not be renamed.");
 }
 
 static void
@@ -4366,27 +4509,30 @@ save_record(WrenVM *vm, struct foreign_bbs *bbs)
 	size_t field_count;
 	int status;
 
-	if (bbs == NULL || host->bbs_list == NULL) {
-		wrenSetSlotBool(vm, 0, false);
+	if (bbs == NULL) return;
+	if (host->bbs_list == NULL) {
+		menu_error(vm, 0, 0, "No directory is loaded.");
 		return;
 	}
 	if (bbs->owned
 	    || (bbs->kind == ST_WREN_BBS_MODEL_ENTRY
 	    && bbs->record->source != ST_BBS_SOURCE_PERSONAL)
 	    || host->config.safe_mode) {
-		wrenSetSlotBool(vm, 0, false);
+		menu_error(vm, IO_ERROR_READ_ONLY, 0, "The directory is read-only.");
 		return;
 	}
 	if (!bbs->record->dirty) {
-		wrenSetSlotBool(vm, 0, true);
+		wrenSetSlotNull(vm, 0);
 		return;
 	}
 	field_count = configured_sort_fields(fields);
 	if (bbs->kind == ST_WREN_BBS_DEFAULTS)
 		status = st_bbs_list_set_defaults(host->bbs_list,
 		    &bbs->record->profile);
-	else if (!st_wren_bbs_model_prepare_save(&host->bbs_model, bbs->record))
-		status = IO_ERROR_OUT_OF_MEMORY;
+	else if (!st_wren_bbs_model_prepare_save(&host->bbs_model, bbs->record)) {
+		menu_error(vm, 0, 0, "The directory entry could not be prepared for saving.");
+		return;
+	}
 	else if (bbs->record->new_entry)
 		status = st_bbs_list_add(host->bbs_list, &bbs->record->profile,
 		    &mutation);
@@ -4398,7 +4544,7 @@ save_record(WrenVM *vm, struct foreign_bbs *bbs)
 	else if (status == 0)
 		st_wren_bbs_model_saved(&host->bbs_model, bbs->record, fields,
 		    field_count);
-	wrenSetSlotBool(vm, 0, status == 0);
+	menu_result(vm, status, true, "The directory entry or defaults could not be saved.");
 }
 
 static void fn_bbs_save(WrenVM *vm) { save_record(vm, bbs_value(vm, 0)); }
@@ -4412,7 +4558,7 @@ fn_menu_save_defaults(WrenVM *vm)
 	};
 
 	if (!host->bbs_model.loaded) {
-		wrenSetSlotBool(vm, 0, false);
+		menu_error(vm, 0, 0, "No directory is loaded.");
 		return;
 	}
 	save_record(vm, &bbs);
@@ -4433,23 +4579,31 @@ fn_bbs_delete(WrenVM *vm)
 	struct foreign_bbs *bbs = bbs_value(vm, 0);
 	struct st_bbs_mutation_result mutation;
 	int fields[32];
-	size_t field_count;
-	bool success = false;
-
-	if (bbs != NULL && host->bbs_list != NULL
-	    && bbs->kind == ST_WREN_BBS_MODEL_ENTRY
-	    && bbs->record->source == ST_BBS_SOURCE_PERSONAL) {
-		field_count = configured_sort_fields(fields);
-		if (bbs->record->new_entry)
-			success = st_wren_bbs_model_delete(&host->bbs_model,
-			    bbs->record, fields, field_count);
-		else if (!host->config.safe_mode
-		    && st_bbs_list_remove(host->bbs_list,
-		    bbs->record->persisted_name, &mutation) == 0)
-			success = st_wren_bbs_model_delete(&host->bbs_model,
-			    bbs->record, fields, field_count);
+	if (bbs == NULL) return;
+	if (host->bbs_list == NULL) {
+		menu_error(vm, 0, 0, "No directory is loaded.");
+		return;
 	}
-	wrenSetSlotBool(vm, 0, success);
+	if (bbs->kind != ST_WREN_BBS_MODEL_ENTRY
+	    || bbs->record->source != ST_BBS_SOURCE_PERSONAL) {
+		menu_error(vm, IO_ERROR_READ_ONLY, 0, "The directory entry is read-only.");
+		return;
+	}
+	size_t field_count = configured_sort_fields(fields);
+	if (!bbs->record->new_entry) {
+		if (!menu_writable(vm, "Directory entries cannot be deleted in safe mode."))
+			return;
+		int status = st_bbs_list_remove(host->bbs_list,
+		    bbs->record->persisted_name, &mutation);
+		if (status != 0) {
+			menu_result(vm, status, true, "The directory entry could not be deleted.");
+			return;
+		}
+	}
+	if (st_wren_bbs_model_delete(&host->bbs_model, bbs->record, fields, field_count))
+		wrenSetSlotNull(vm, 0);
+	else
+		menu_error(vm, 0, 0, "The directory entry could not be removed from the working model.");
 }
 
 static void
@@ -4463,6 +4617,11 @@ fn_bbs_to_string(WrenVM *vm)
 	{class_name, false, wren_name "=(_)", fn_##c_name##_set}
 
 static const struct binding bindings[] = {
+	{"MenuError", false, "code", fn_menu_error_code},
+	{"MenuError", false, "nativeCode", fn_menu_error_native_code},
+	{"MenuError", false, "message", fn_menu_error_message},
+	{"MenuError", false, "toString", fn_menu_error_string},
+	{"Menu", true, "activateFonts()", fn_menu_activate_fonts},
 	{"Menu", true, "load(_)", fn_menu_load},
 	{"Menu", true, "quickConnect(_)", fn_menu_quick_connect},
 	{"Menu", true, "offlineScrollback", fn_menu_offline_scrollback},
@@ -4742,7 +4901,8 @@ st_wren_menu_bind_class(const char *class_name)
 	WrenForeignClassMethods methods = {allocate_generic,
 	    finalize_menu_foreign};
 
-	if (strcmp(class_name, "ListEncryptionInfo") != 0
+	if (strcmp(class_name, "MenuError") != 0
+	    && strcmp(class_name, "ListEncryptionInfo") != 0
 	    && strcmp(class_name, "MenuFont") != 0
 	    && strcmp(class_name, "ThemeDocument") != 0
 	    && strcmp(class_name, "Settings") != 0

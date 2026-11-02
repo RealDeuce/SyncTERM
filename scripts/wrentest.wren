@@ -32,7 +32,7 @@ import "syncterm" for Session, WireLease, ConnError, Hook, Conn, Console, Screen
     RipVersion, LogMode, StatusDisplay, Color, Cell, Hyperlinks,
     REPL, Input, Wake, KeyEvent, PhysicalKeyEvent, MouseEvent, Mouse,
     Cache, Platform, Text,
-    Timer, Operation, WON, FileError, FileErr, WONError, WONErr,
+    Timer, Operation, WON, FileError, IOErr, WONError, WONErr,
     Error, ScriptError, Surface, Scrollback, Host, PixelColor,
     PixelBuffer, PixelMask, PixelBlit
 import "wren_console" for WrenConsole
@@ -1304,9 +1304,9 @@ class WrenTest {
   // separate result contracts. Device-level write/close faults are exercised
   // by the native host tests.
   static testFileErrConstants_() {
-    check_(FileErr.notFound == -3 && FileErr.alreadyExists == -5 &&
-           FileErr.noSpace == -10 && FileErr.outOfRange == -12 &&
-           FileErr.io == -19, "FileErr portable I/O reasons")
+    check_(IOErr.notFound == -3 && IOErr.alreadyExists == -5 &&
+           IOErr.noSpace == -10 && IOErr.outOfRange == -12 &&
+           IOErr.io == -19, "IOErr portable I/O reasons")
     check_(FileError is Class,
            "FileError class importable from syncterm")
   }

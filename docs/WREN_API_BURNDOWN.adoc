@@ -229,3 +229,90 @@ cache status remains Partial and intentionally resolved by approved policy.
 There are 46 finding topics plus the documentation finding still open. Primary
 mutation errors remain a separate topic. Keep the temporary plan and skill
 until the full burndown is complete.
+
+== Approved chunk 4: BBS and Settings results (revision 1)
+
+Approval: the complete Plan-mode plan was approved with "Implement the plan."
+Implementation began in Default mode on 2026-11-02.
+Phase: chunk complete; next chunk requires a new Plan-mode planning phase.
+Findings: `model-mutation-results`, `error-symbols`, and the mutation-result
+subclaim of `list-encryption-information`.
+
+Bind existing C results without redesigning native C APIs, signatures, storage
+policy, operation order or partial-effect behavior. Add menu-only immutable
+MenuError is Error: code is a portable IOErr reason or null; nativeCode is the
+actual integer C failure or null; message/toString describe the failed operation
+without secrets. Preserve generic -1 separately from portable invalidArgument.
+Boolean/pointer failures have no integer status. No commit-state flags,
+transaction framework, rollback, or finer classifications for generic C errors.
+
+Actions return null/MenuError; creators return their object/MenuError. Preserve
+argument-validation and stale-view aborts. Property setters raise MenuError on
+native mutation failure through ordinary Fiber abort. Rename FileErr to shared
+IOErr, expose all 38 native codes unchanged, migrate callers without an alias,
+and retain FileError. Document MenuError's nullable code. All safe-mode blocked
+operations report IOErr.readOnly, including saveSortProfiles' former success
+no-op; preserve the permitted working edits.
+
+Cover DirectoryEntry.rename/save/delete; Menu.create/copy/saveDefaults/
+setEncryption/sort; Settings.apply/save/reload; sort-profile selection and
+add/update/delete/save; web-list add/update/delete/refresh/save; font creation,
+draft reload/save and MenuFont mutations. Split font persistence from activation:
+saveFonts only persists; new activateFonts calls existing native activation.
+The editor saves then activates, reporting activation failure after successful
+saving without repeating persistence. Preserve native skip rules and previous
+live mappings on activation failure; activation retains safe-mode restrictions.
+
+Preserve native statuses through private binding helpers, including Settings
+preparation, list rewriting, persistence and runtime application. Preserve calls
+and order; retain the first failure where subsequent application steps continue.
+Messages may describe completed steps already known to the binding. Keep Settings
+generations/dirty transitions, entry identities, grants and partial writes.
+Settings.reload still copies running settings. Optional cache status stays
+intentionally omitted. Migrate editors/menu/tests; display captured errors,
+refresh collection views as needed and add no automatic retries.
+
+Acceptance: establish regressions first for native conflicts/storage failures,
+generic integer/Boolean/pointer failures, successful operations and safe mode.
+Verify every IOErr value and absence of FileErr; MenuError type, immutability,
+lifetime and menu-only availability. Cover Settings failures before installation
+and after an earlier rewrite, split font saving/activation and retained mappings,
+collection partial effects, stale/read-only views, drafts and font grants.
+
+Build through CMake; run relevant native settings/BBS/crypto tests, wren_host,
+wren_menu_contract, wren_settings_runtime, Settings loader regressions and affected
+editor tests. Use focused ASan/UBSan, GCC/Clang and MinGW64 cross-builds, headless
+fixtures, no Wine and no claimed Windows execution. Update API docs, assessments,
+report and reviewed evidence; run coverage/diff checks and commit. Resolve
+error-symbols and completed mutation subclaims; keep Menu.load fidelity and
+remaining encryption scope open. Retain this temporary plan and skill.
+
+=== Completed verification
+
+The original API failed the new regression because IOErr was absent. A later
+regression reproduced the editor losing its save obligation after native runtime
+failure following Settings installation; the corrected editor preserves existing
+state and displays the error. No new transaction flags or native C APIs were added.
+
+Clang Debug passed eight native settings/BBS/crypto tests and seven focused Wren
+tests. GCC Debug and Clang ASan/UBSan passed the same seven Wren tests. Final
+editor and readable-grant regressions passed wren_settings_runtime on all three
+configurations and native CRYPTO_BACKEND=none. The latter also passed list_crypto.
+Tests include all 38 IOErr values checked against native C macros, generic and
+portable results, conflicts, partial native effects, property setter failures,
+VM/GC/immutability, grants, split font saving/activation, exact editor call counts
+and the full BBS editor suite. Private return injection is confined to tests.
+
+Clang built the application. MinGW64 Debug cross-built the application and three
+host/loader test executables without warnings; no Windows execution occurred.
+FreeBSD leak detection is unsupported and disabled; C++ vptr checks remain
+disabled for C-owned executables. The final focused sanitizer run reported no
+diagnostics. Coverage/diff checks pass: 80 headers, 120 explicit exclusions,
+2,447 items, 156 assessments and 51 original finding topics; all matrix rows match.
+
+error-symbols is resolved. Selected mutation and encryption-result subclaims are
+resolved. Preserve the remaining load/disk-reload/emoji-result subclaims and broad
+encryption scope. The disk-reload and emoji ledger rows were previously grouped
+with Settings results; their separate assessments prevent false closure. There
+are 45 original finding topics plus the documentation finding still open. Retain
+this temporary document and skill until the full burndown is complete.

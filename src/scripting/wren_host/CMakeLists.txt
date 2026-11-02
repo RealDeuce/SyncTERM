@@ -148,7 +148,11 @@ else()
 endif()
 
 if(BUILD_TESTING)
-	add_executable(st_wren_settings_menu_test tests/st_wren_settings_menu_test.c)
+	add_executable(st_wren_settings_menu_test tests/st_wren_settings_menu_test.c
+		tests/st_wren_menu_test_bindings.c)
+	set_source_files_properties(tests/st_wren_menu_test_bindings.c PROPERTIES
+		INCLUDE_DIRECTORIES "$<TARGET_PROPERTY:st_wren_host,INCLUDE_DIRECTORIES>"
+		COMPILE_DEFINITIONS "$<TARGET_PROPERTY:st_wren_host,COMPILE_DEFINITIONS>")
 	target_include_directories(st_wren_settings_menu_test SYSTEM PRIVATE
 		${CMAKE_CURRENT_SOURCE_DIR}/../wren_vm/vm)
 	target_link_libraries(st_wren_settings_menu_test PRIVATE st_wren_host

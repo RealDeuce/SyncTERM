@@ -5,6 +5,7 @@
  */
 
 #include "wren_host_internal.h"
+#include "st_wren_menu_test_bindings.h"
 #include "filesystem.h"
 #include "io_error.h"
 #include "st_app_paths.h"
@@ -46,6 +47,129 @@ interpret(struct st_wren_host *host, const char *module, const char *source)
 }
 
 static void
+test_menu_results(struct st_wren_host *host)
+{
+	interpret(host, "menu_results",
+	    "import \"syncterm\" for Error, IOErr\n"
+	    "import \"syncterm_menu\" for Menu, MenuError, DirectoryEntry\n"
+	    "var failure = Menu.create(\"Existing\")\n"
+	    "if (!(failure is MenuError) || !(failure is Error) || failure.code != null || failure.nativeCode != null || !(failure.message is String) || !failure.toString.startsWith(\"MenuError: \")) Fiber.abort(\"pointer failure invented a reason\")\n"
+	    "for (action in [Fn.new { failure.code = 1 }, Fn.new { failure.nativeCode = 1 }, Fn.new { failure.message = \"changed\" }, Fn.new { MenuError.new() }]) {\n"
+	    "  var bad = Fiber.new { action.call() }\n"
+	    "  bad.try()\n"
+	    "  if (bad.error == null) Fiber.abort(\"mutable or constructible menu error\")\n"
+	    "}\n"
+	    "var draft = Menu.create(\"Result Draft\")\n"
+	    "if (!(draft is DirectoryEntry) || draft.rename(\"Result Renamed\") != null || draft.delete() != null) Fiber.abort(\"draft result contract\")\n");
+	char constants[4096];
+	CHECK(snprintf(constants, sizeof(constants),
+	    "var codes = [IOErr.invalidArgument,IOErr.invalidEncoding,IOErr.notFound,IOErr.permissionDenied,IOErr.alreadyExists,IOErr.notDirectory,IOErr.isDirectory,IOErr.directoryNotEmpty,IOErr.outOfMemory,IOErr.noSpace,IOErr.nameTooLong,IOErr.outOfRange,IOErr.busy,IOErr.readOnly,IOErr.crossDevice,IOErr.tooManyLinks,IOErr.interrupted,IOErr.notSupported,IOErr.io,IOErr.timedOut,IOErr.cancelled,IOErr.wouldBlock,IOErr.inProgress,IOErr.nameResolution,IOErr.connectionRefused,IOErr.connectionReset,IOErr.connectionAborted,IOErr.notConnected,IOErr.networkUnreachable,IOErr.hostUnreachable,IOErr.addressInUse,IOErr.addressNotAvailable,IOErr.messageTooLarge,IOErr.protocol,IOErr.passwordRequired,IOErr.decryptionFailed,IOErr.invalidFormat,IOErr.conflict]\n"
+	    "var expected = [%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d]\n"
+	    "if (codes.count != expected.count) Fiber.abort(\"portable codes differ from C\")\n"
+	    "for (i in 0...codes.count) if (codes[i] != expected[i]) Fiber.abort(\"portable code value\")\n",
+	    IO_ERROR_INVALID_ARGUMENT, IO_ERROR_INVALID_ENCODING, IO_ERROR_NOT_FOUND, IO_ERROR_PERMISSION_DENIED, IO_ERROR_ALREADY_EXISTS, IO_ERROR_NOT_DIRECTORY, IO_ERROR_IS_DIRECTORY, IO_ERROR_DIRECTORY_NOT_EMPTY, IO_ERROR_OUT_OF_MEMORY, IO_ERROR_NO_SPACE, IO_ERROR_NAME_TOO_LONG, IO_ERROR_OUT_OF_RANGE, IO_ERROR_BUSY, IO_ERROR_READ_ONLY, IO_ERROR_CROSS_DEVICE, IO_ERROR_TOO_MANY_LINKS, IO_ERROR_INTERRUPTED, IO_ERROR_NOT_SUPPORTED, IO_ERROR_IO, IO_ERROR_TIMED_OUT, IO_ERROR_CANCELLED, IO_ERROR_WOULD_BLOCK, IO_ERROR_IN_PROGRESS, IO_ERROR_NAME_RESOLUTION, IO_ERROR_CONNECTION_REFUSED, IO_ERROR_CONNECTION_RESET, IO_ERROR_CONNECTION_ABORTED, IO_ERROR_NOT_CONNECTED, IO_ERROR_NETWORK_UNREACHABLE, IO_ERROR_HOST_UNREACHABLE, IO_ERROR_ADDRESS_IN_USE, IO_ERROR_ADDRESS_NOT_AVAILABLE, IO_ERROR_MESSAGE_TOO_LARGE, IO_ERROR_PROTOCOL, IO_ERROR_PASSWORD_REQUIRED, IO_ERROR_DECRYPTION_FAILED, IO_ERROR_INVALID_FORMAT, IO_ERROR_CONFLICT) < (int)sizeof(constants));
+	interpret(host, "menu_results", constants);
+	CHECK(!wrenHasVariable(host->vm, "syncterm", "FileErr"));
+	host->config.safe_mode = true;
+	interpret(host, "menu_results",
+	    "var blocked = Menu.saveSortProfiles()\n"
+	    "if (!(blocked is MenuError) || blocked.code != IOErr.readOnly || blocked.nativeCode != null) Fiber.abort(\"blocked persistence reported success\")\n"
+	    "System.gc()\nSystem.gc()\n"
+	    "if (!(failure.message is String) || failure.code != null) Fiber.abort(\"menu error lifetime\")\n");
+	host->config.safe_mode = false;
+}
+
+static void
+test_menu_native_failures(struct st_wren_host *host, const char *personal)
+{
+	st_wren_test_font_insert_status = -1;
+	interpret(host, "native_menu_results",
+	    "import \"syncterm\" for IOErr\n"
+	    "import \"syncterm_menu\" for Menu, MenuError\n"
+	    "var generic = Menu.createFont(\"Generic Failure\", 0)\n"
+	    "if (!(generic is MenuError) || generic.code != null || generic.nativeCode != -1 || Menu.fonts.count != 0) Fiber.abort(\"generic -1 was classified as invalidArgument\")\n"
+	    "var existing = Menu.entries[0]\n"
+	    "var rename = existing.rename(\"\")\n"
+	    "if (!(rename is MenuError) || rename.code != null || rename.nativeCode != null) Fiber.abort(\"Boolean failure invented native status\")\n");
+	st_wren_test_prepare_save_failure = true;
+	interpret(host, "native_menu_results",
+	    "existing.profile.comment = \"preflight test\"\n"
+	    "var preflight = existing.save()\n"
+	    "if (!(preflight is MenuError) || preflight.code != null || preflight.nativeCode != null || !existing.dirty) Fiber.abort(\"Boolean preflight invented integer status\")\n");
+	st_wren_test_prepare_save_failure = false;
+	st_wren_test_font_insert_status = 0;
+	unsigned calls = st_wren_test_activation_calls;
+	interpret(host, "native_menu_results",
+	    "var font = Menu.createFont(\"Result Font\", 0)\n"
+	    "if (Menu.saveFonts() != null || Menu.fontsDirty) Fiber.abort(\"font persistence\")\n");
+	st_wren_test_font_rename_status = -1;
+	interpret(host, "native_menu_results",
+	    "var renameError = Fiber.new { font.name = \"Unpublished Name\" }.try()\n"
+	    "if (!(renameError is MenuError) || renameError.code != null || renameError.nativeCode != -1 || font.name != \"Result Font\") Fiber.abort(\"setter lost native failure\")\n"
+	    "var unauthorized = font.setFile(2, \"not a File grant\")\n"
+	    "if (!(unauthorized is MenuError) || unauthorized.code != IOErr.permissionDenied || unauthorized.nativeCode != null || font.path(2) != null) Fiber.abort(\"font grant bypass\")\n");
+	st_wren_test_font_rename_status = 0;
+	interpret(host, "native_menu_results", "var grants = []\n");
+	wrenEnsureSlots(host->vm, 2);
+	wrenGetVariable(host->vm, "native_menu_results", "grants", 0);
+	CHECK(st_wren_file_push(host->vm, 1, personal,
+	    ST_WREN_PICKER_DISPOSITION_READ, true));
+	wrenInsertInList(host->vm, 0, -1, 1);
+	interpret(host, "native_menu_results",
+	    "if (font.setFile(2, grants[0]) != null || font.path(2) != grants[0].path || !Menu.fontsDirty) Fiber.abort(\"readable font grant was rejected\")\n"
+	    "if (font.clearFile(2) != null || font.path(2) != null || Menu.saveFonts() != null) Fiber.abort(\"font grant cleanup\")\n");
+	CHECK(st_wren_test_activation_calls == calls && host->menu.fonts.loaded_count == 0);
+	st_wren_test_font_activation_status = IO_ERROR_OUT_OF_MEMORY;
+	interpret(host, "native_menu_results",
+	    "var activation = Menu.activateFonts()\n"
+	    "if (!(activation is MenuError) || activation.code != IOErr.outOfMemory || activation.nativeCode != IOErr.outOfMemory || Menu.fontsDirty || Menu.fonts.count != 1) Fiber.abort(\"font activation lost native failure or saved draft\")\n");
+	CHECK(host->menu.fonts.loaded_count == 0 && host->picker.fonts.loaded_count == 0);
+	st_wren_test_font_activation_status = 0;
+	interpret(host, "native_menu_results",
+	    "if (Menu.activateFonts() != null) Fiber.abort(\"font activation\")\n"
+	    "if (font.delete() != null || Menu.saveFonts() != null || Menu.activateFonts() != null) Fiber.abort(\"font result cleanup\")\n");
+	interpret(host, "native_menu_results",
+	    "var sortIndex = Menu.sortProfiles.count\n"
+	    "if (Menu.addSortProfile(sortIndex, \"Partial Profile\", [1]) != null) Fiber.abort(\"sort fixture\")\n");
+	st_wren_test_sort_update_failure = true;
+	interpret(host, "native_menu_results",
+	    "var sortError = Menu.updateSortProfile(sortIndex, \"Changed Profile\", [1])\n"
+	    "if (!(sortError is MenuError) || sortError.code != null || sortError.nativeCode != -1 || Menu.sortProfiles[sortIndex][0] != \"Changed Profile\") Fiber.abort(\"partial native collection result\")\n");
+	st_wren_test_sort_update_failure = false;
+	interpret(host, "native_menu_results", "if (Menu.deleteSortProfile(sortIndex) != null) Fiber.abort(\"sort cleanup\")\n");
+	st_wren_test_emoji_status = IO_ERROR_IO;
+	interpret(host, "native_menu_results",
+	    "var snapshot = Menu.settings\n"
+	    "snapshot.confirmClose = !snapshot.confirmClose\n"
+	    "var runtime = snapshot.apply()\n"
+	    "if (!(runtime is MenuError) || runtime.code != IOErr.io || runtime.nativeCode != IOErr.io || snapshot.dirty || Menu.settings.confirmClose != snapshot.confirmClose || !runtime.message.contains(\"installed\")) Fiber.abort(\"runtime failure hid installed settings\")\n");
+	st_wren_test_emoji_status = 0;
+	interpret(host, "native_menu_results",
+	    "if (snapshot.apply() != null) Fiber.abort(\"runtime recovery\")\n"
+	    "existing.profile.comment = \"local\"\n");
+	write_text(personal, "[Existing]\nAddress=existing.example\nComment=external\n");
+	interpret(host, "native_menu_results",
+	    "var conflict = existing.save()\n"
+	    "if (!(conflict is MenuError) || conflict.code != IOErr.conflict || conflict.nativeCode != IOErr.conflict || !existing.dirty) Fiber.abort(\"native conflict was discarded\")\n");
+	write_text(personal, "[Existing]\nAddress=existing.example\n");
+	interpret(host, "native_menu_results", "if (Menu.load(null) != 0) Fiber.abort(\"conflict fixture reload\")\n");
+	if (!st_list_crypto_encryption_available())
+		return;
+	interpret(host, "native_menu_results",
+	    "var policy = Menu.settings\npolicy.kdfShift = 8\n"
+	    "if (policy.apply() != null || Menu.setEncryption(6, 128, \"result password\") != null) Fiber.abort(\"partial rewrite setup\")\n"
+	    "var pending = Menu.settings\npending.kdfShift = 9\n");
+	st_wren_test_settings_save_status = IO_ERROR_NO_SPACE;
+	interpret(host, "native_menu_results",
+	    "var partial = pending.save()\n"
+	    "if (!(partial is MenuError) || partial.code != IOErr.noSpace || partial.nativeCode != IOErr.noSpace || !partial.message.contains(\"KDF was rewritten\") || Menu.encryptionInfo.costLog2 != 9 || Menu.settings.kdfShift != 8 || !pending.dirty) Fiber.abort(\"partial rewrite result\")\n"
+	    "System.gc()\nSystem.gc()\n"
+	    "if (generic.nativeCode != -1 || conflict.code != IOErr.conflict) Fiber.abort(\"retained error lifetime\")\n");
+	st_wren_test_settings_save_status = 0;
+	interpret(host, "native_menu_results", "if (Menu.setEncryption(0, 0, null) != null) Fiber.abort(\"partial rewrite cleanup\")\n");
+}
+
+static void
 test_default_cursor(struct st_wren_host *host, st_console_t *console)
 {
 	for (size_t index = 0; index < st_screen_mode_count(); ++index) {
@@ -64,7 +188,7 @@ test_default_cursor(struct st_wren_host *host, st_console_t *console)
 		    "var s = Menu.settings\n"
 		    "s.cursorStyle = 0\n"
 		    "s.confirmClose = !s.confirmClose\n"
-		    "if (!s.apply()) Fiber.abort(\"cursor apply\")\n");
+		    "if (!(s.apply() == null)) Fiber.abort(\"cursor apply\")\n");
 		CHECK(st_console_get_default_cursor(console, &actual) == 0);
 		CHECK(actual.start == mode->console.default_cursor.start);
 		CHECK(actual.end == mode->console.default_cursor.end);
@@ -80,7 +204,7 @@ test_safe_kdf(struct st_wren_host *host)
 		return;
 	interpret(host, "kdf_setup",
 	    "import \"syncterm_menu\" for Menu\n"
-	    "if (!Menu.setEncryption(6, 128, \"audit password\")) Fiber.abort(\"encrypt fixture\")\n");
+	    "if (!(Menu.setEncryption(6, 128, \"audit password\") == null)) Fiber.abort(\"encrypt fixture\")\n");
 	unsigned before = st_bbs_list_crypto_info(host->bbs_list)->cost_log2;
 	CHECK(before == 8);
 	char old_kdf[sizeof(st_settings.key_derivation_iterations)];
@@ -90,14 +214,14 @@ test_safe_kdf(struct st_wren_host *host)
 	    "import \"syncterm_menu\" for Menu\n"
 	    "var s = Menu.settings\n"
 	    "s.kdfShift = s.kdfShift == 8 ? 9 : 8\n"
-	    "if (s.apply() || !s.dirty) Fiber.abort(\"safe mode rewrote encrypted list\")\n");
+	    "if ((s.apply() == null) || !s.dirty) Fiber.abort(\"safe mode rewrote encrypted list\")\n");
 	CHECK(strcmp(old_kdf, st_settings.key_derivation_iterations) == 0);
 	CHECK(st_bbs_list_reload(host->bbs_list) == 0);
 	CHECK(st_bbs_list_crypto_info(host->bbs_list)->cost_log2 == before);
 	host->config.safe_mode = false;
 	interpret(host, "kdf_cleanup",
 	    "import \"syncterm_menu\" for Menu\n"
-	    "if (!Menu.setEncryption(0, 0, null)) Fiber.abort(\"decrypt fixture\")\n");
+	    "if (!(Menu.setEncryption(0, 0, null) == null)) Fiber.abort(\"decrypt fixture\")\n");
 }
 
 /* Exercise native metadata independently of optional legacy cipher providers. */
@@ -230,7 +354,7 @@ test_encryption_lifecycle(struct st_wren_host *host, const char *personal)
 	interpret(host, "metadata_before_rewrite",
 	    "import \"syncterm_menu\" for Menu\n"
 	    "var before = Menu.encryptionInfo\n"
-	    "if (Menu.encryptionAvailable && !Menu.setEncryption(6, 128, \"metadata password\")) Fiber.abort(\"metadata encrypt\")\n"
+	    "if (Menu.encryptionAvailable && !(Menu.setEncryption(6, 128, \"metadata password\") == null)) Fiber.abort(\"metadata encrypt\")\n"
 	    "var after = Menu.encryptionInfo\n"
 	    "if (before.algorithm != 0 || (Menu.encryptionAvailable && (after.algorithm != 6 || after.keyBits != 128 || after.costLog2 != 8))) Fiber.abort(\"rewrite snapshots\")\n");
 	CHECK(st_bbs_list_reload(host->bbs_list) == 0);
@@ -241,7 +365,7 @@ test_encryption_lifecycle(struct st_wren_host *host, const char *personal)
 	interpret(host, "metadata_failed_rewrite",
 	    "import \"syncterm_menu\" for Menu\n"
 	    "import \"metadata_before_rewrite\" for before, after\n"
-	    "if (Menu.setEncryption(0, 0, null)) Fiber.abort(\"rewrite unexpectedly succeeded\")\n"
+	    "if ((Menu.setEncryption(0, 0, null) == null)) Fiber.abort(\"rewrite unexpectedly succeeded\")\n"
 	    "var current = Menu.encryptionInfo\n"
 	    "if (current.algorithm != after.algorithm || current.keyBits != after.keyBits || current.kdf != after.kdf || current.costLog2 != after.costLog2 || before.algorithm != 0) Fiber.abort(\"failure changed metadata\")\n");
 	CHECK(fs_remove_directory(personal) == 0);
@@ -259,7 +383,7 @@ test_encryption_lifecycle(struct st_wren_host *host, const char *personal)
 	interpret(host, "metadata_after_rewrite",
 	    "import \"syncterm_menu\" for Menu\n"
 	    "import \"metadata_before_rewrite\" for before, after\n"
-	    "if (!Menu.setEncryption(0, 0, null)) Fiber.abort(\"metadata decrypt\")\n"
+	    "if (!(Menu.setEncryption(0, 0, null) == null)) Fiber.abort(\"metadata decrypt\")\n"
 	    "if (before.algorithm != 0 || (Menu.encryptionAvailable && after.algorithm != 6) || Menu.encryptionInfo.algorithm != 0) Fiber.abort(\"retained rewrite snapshot\")\n");
 }
 
@@ -277,7 +401,7 @@ test_custom_mode(struct st_wren_host *host, st_console_t *console)
 	    "s.customFontHeight = 14\n"
 	    "s.customAspectWidth = 4\n"
 	    "s.customAspectHeight = 3\n"
-	    "if (!s.apply()) Fiber.abort(\"custom apply\")\n");
+	    "if (!(s.apply() == null)) Fiber.abort(\"custom apply\")\n");
 	CHECK(st_console_size(console, &columns, &rows) == 0);
 	CHECK(columns == 101 && rows == 31);
 	CHECK(st_console_cell_pixel_size(console, &width, &height) == 0);
@@ -399,7 +523,7 @@ main(void)
 	struct fs_info info;
 	if (fs_get_info(&info, settings) == 0 && info.kind == FS_ENTRY_DIRECTORY)
 		CHECK(fs_remove_directory(settings) == 0);
-	write_text(settings, "[SyncTERM]\n");
+	write_text(settings, "[SyncTERM]\nAudioModes=0\n");
 	write_text(personal, "[Existing]\nAddress=existing.example\n");
 	paths.settings_file = settings;
 	paths.personal_list = personal;
@@ -420,7 +544,7 @@ main(void)
 	CHECK(st_console_register_static_font(picker, &presentation.font, &font) == 0 && font == 0);
 	CHECK(st_session_history_create(&history, 2000) == 0);
 	CHECK(st_hyperlink_registry_create(&hyperlinks) == 0);
-	CHECK(st_audio_runtime_create(&audio, UINT32_MAX) == 0);
+	CHECK(st_audio_runtime_create(&audio, 0) == 0);
 	const struct st_wren_host_config config = {
 		.display = console_display, .console = console,
 		.picker_console = picker, .paths = &paths, .session_history = history,
@@ -431,6 +555,8 @@ main(void)
 	interpret(host, "settings_setup",
 	    "import \"syncterm_menu\" for Menu\n"
 	    "if (Menu.load(null) != 0) Fiber.abort(\"load fixture\")\n");
+	test_menu_results(host);
+	test_menu_native_failures(host, personal);
 	stream = fopen(ST_WREN_SETTINGS_SOURCE_DIRECTORY "/scripts/menu_settings_ui_test.wren", "rb");
 	CHECK(stream != NULL);
 	size = fread(source, 1, sizeof(source) - 1, stream);
@@ -438,6 +564,32 @@ main(void)
 	CHECK(fclose(stream) == 0);
 	source[size] = '\0';
 	interpret(host, "menu_settings_ui_test", source);
+	st_wren_test_emoji_status = IO_ERROR_IO;
+	interpret(host, "settings_editor_partial",
+	    "import \"menu_settings_ui\" for SettingsMenu\n"
+	    "import \"menu_settings_ui_test\" for SettingsTestApp\n"
+	    "import \"syncterm_menu\" for Menu\n"
+	    "var state = Menu.settings\n"
+	    "state.confirmClose = !state.confirmClose\n"
+	    "var app = SettingsTestApp.new([])\n"
+	    "if (!SettingsMenu.applySettings_(app, state) || app.alerts != 1 || state.dirty || Menu.settings.confirmClose != state.confirmClose) Fiber.abort(\"editor dropped installed settings after runtime failure\")\n");
+	st_wren_test_emoji_status = 0;
+	st_wren_test_font_activation_status = IO_ERROR_OUT_OF_MEMORY;
+	unsigned saved_calls = st_wren_test_font_save_calls;
+	unsigned activation_calls = st_wren_test_activation_calls;
+	interpret(host, "font_editor_result",
+	    "import \"menu_settings_ui\" for SettingsMenu\n"
+	    "import \"menu_settings_ui_test\" for SettingsTestApp, SettingsMenuTest\n"
+	    "import \"syncterm_menu\" for Menu\n"
+	    "var font = Menu.createFont(\"Saved UI Font\", 0)\n"
+	    "var app = SettingsTestApp.new([SettingsMenuTest.cancel_])\n"
+	    "SettingsMenu.fonts_(app)\n"
+	    "if (app.alerts != 1 || app.remaining != 0 || Menu.fontsDirty) Fiber.abort(\"font editor result handling\")\n");
+	CHECK(st_wren_test_font_save_calls == saved_calls + 1
+	    && st_wren_test_activation_calls == activation_calls + 1);
+	st_wren_test_font_activation_status = 0;
+	interpret(host, "font_editor_result",
+	    "if (font.delete() != null || Menu.saveFonts() != null || Menu.activateFonts() != null) Fiber.abort(\"editor fixture cleanup\")\n");
 	interpret(host, "settings_apply",
 	    "import \"syncterm_menu\" for Menu\n"
 	    "var s = Menu.settings\n"
@@ -447,7 +599,7 @@ main(void)
 	    "s.customColumns = 100\n"
 	    "s.frameColor = 1\n"
 	    "s.kdfShift = 8\n"
-	    "if (!s.save()) Fiber.abort(\"settings runtime apply\")\n");
+	    "if (!(s.save() == null)) Fiber.abort(\"settings runtime apply\")\n");
 	bool color = true;
 	CHECK(st_console_get_color_emoji(console, &color) == 0 && !color);
 	CHECK(st_console_get_color_emoji(picker, &color) == 0 && !color);
@@ -465,7 +617,7 @@ main(void)
 	    "import \"syncterm_menu\" for Menu\n"
 	    "var s = Menu.settings\n"
 	    "s.colorEmoji = true\n"
-	    "if (!s.apply()) Fiber.abort(\"apply colour in safe mode\")\n");
+	    "if (!(s.apply() == null)) Fiber.abort(\"apply colour in safe mode\")\n");
 	CHECK(st_console_get_color_emoji(console, &color) == 0 && color);
 	CHECK(st_console_get_color_emoji(picker, &color) == 0 && color);
 	host->config.safe_mode = false;
@@ -477,6 +629,17 @@ main(void)
 	test_encryption_lifecycle(host, personal);
 	test_safe_kdf(host);
 	test_offer_save(host, console);
+	stream = fopen(ST_WREN_SETTINGS_SOURCE_DIRECTORY "/scripts/menu_bbs_editor_test.wren", "rb");
+	CHECK(stream != NULL);
+	size = fread(source, 1, sizeof(source) - 1, stream);
+	CHECK(!ferror(stream) && feof(stream) && fclose(stream) == 0);
+	source[size] = '\0';
+	interpret(host, "menu_bbs_editor_test", source);
+	interpret(host, "bbs_editor_results",
+	    "import \"menu_bbs_editor_test\" for MenuTest\n"
+	    "if (MenuTest.run()[1] != 0) Fiber.abort(\"BBS editor regressions\")\n");
+	CHECK(wrenInterpret(host->picker_vm, "forbidden_menu_error",
+	    "import \"syncterm_menu\" for MenuError\n") != WREN_RESULT_SUCCESS);
 	st_wren_host_destroy(host);
 	st_audio_runtime_destroy(audio);
 	st_session_history_destroy(history);

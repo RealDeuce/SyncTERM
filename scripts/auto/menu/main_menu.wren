@@ -1,5 +1,5 @@
 import "syncterm" for Host, KeyEvent, MouseEvent, Key, Mouse, REPL, Screen, Mod
-import "syncterm_menu" for Menu, MenuReadStatus
+import "syncterm_menu" for Menu, MenuError, MenuReadStatus
 import "wren_console" for WrenConsole
 import "menu_ui" for MenuUi
 import "menu_bbs_editor" for BbsEditor
@@ -805,9 +805,9 @@ class MainMenuApp {
           systemCopyHelp_())) return
       var name = bbs.name
       bbs = Menu.copy(bbs, name)
-      if (bbs == null) {
+      if (bbs is MenuError) {
         Alert.show(_app, "Copy Failed",
-            "The personal entry could not be created.")
+            bbs.message)
         return
       }
       name = editEntry_(bbs, true)
@@ -829,14 +829,16 @@ class MainMenuApp {
           bbs = null
         }
       }
-      if (bbs == null) {
+      if (bbs == null || bbs is MenuError) {
+        if (bbs is MenuError) Alert.show(_app, "Entry Comment", bbs.message)
         _footer.comment = _selected.profile.comment
       } else {
         var name = bbs.name
         bbs.profile.comment = value
-        if (!bbs.save()) {
+        var error = bbs.save()
+        if (error != null) {
           Alert.show(_app, "Entry Comment",
-              "The comment could not be saved.")
+              error.message)
         }
         refresh_(name)
       }
@@ -868,9 +870,9 @@ class MainMenuApp {
       BbsEditor.showNameError(_app, "New Entry", name)
     }
     var bbs = Menu.create(name)
-    if (bbs == null) {
+    if (bbs is MenuError) {
       Alert.show(_app, "New Entry",
-          "The personal entry could not be created.")
+          bbs.message)
       return
     }
 
@@ -906,9 +908,9 @@ class MainMenuApp {
       break
     }
     bbs.profile.addr = address
-    if (!bbs.save()) {
-      Alert.show(_app, "New Entry",
-          "The directory entry could not be written.")
+    var error = bbs.save()
+    if (error != null) {
+      Alert.show(_app, "New Entry", error.message)
       bbs.delete()
       refresh_(preferred)
       return
@@ -933,9 +935,9 @@ class MainMenuApp {
     var name = _selected.name
     var selected = _list.selected
     if (!Confirm.show(_app, "Delete %(name)?")) return
-    if (!_selected.delete()) {
-      Alert.show(_app, "Delete Entry",
-          "The directory entry could not be deleted.")
+    var error = _selected.delete()
+    if (error != null) {
+      Alert.show(_app, "Delete Entry", error.message)
       return
     }
     refresh_(null, selected)
@@ -964,9 +966,9 @@ class MainMenuApp {
       }
     }
     var bbs = Menu.create(name)
-    if (bbs == null) {
+    if (bbs is MenuError) {
       Alert.show(_app, "Paste Entry",
-          "The personal entry could not be created.")
+          bbs.message)
       return
     }
     var draft = {}
@@ -1084,13 +1086,10 @@ class MainMenuApp {
     var next = (Menu.activeSortProfile + delta) % profiles.count
     if (next < 0) next = next + profiles.count
     var preferred = _selected == null ? null : _selected.name
-    if (Menu.setActiveSortProfile(next)) {
-      if (!Menu.saveSortProfiles()) {
-        Alert.show(_app, "Sort Profiles",
-            "The active sort profile could not be saved.")
-      }
-      refresh_(preferred)
-    }
+    var error = Menu.setActiveSortProfile(next)
+    if (error == null) error = Menu.saveSortProfiles()
+    if (error != null) Alert.show(_app, "Sort Profiles", error.message)
+    refresh_(preferred)
   }
 
   exit_(quitApplication) {
@@ -1219,9 +1218,9 @@ class MainMenu {
       }
     }
     var bbs = Menu.copy(source, name)
-    if (bbs == null) {
+    if (bbs is MenuError) {
       MenuUi.alertStandaloneAtExit("Save Directory Entry",
-          "The personal entry could not be created.")
+          bbs.message)
       return false
     }
     return BbsEditor.editStandaloneAtExit(bbs, false, true)

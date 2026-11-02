@@ -342,7 +342,7 @@ main(int argc, char **argv)
 		    "var snapshot = Menu.settings\n"
 		    "var before = snapshot.confirmClose\n"
 		    "snapshot.confirmClose = !before\n"
-		    "if (snapshot.save()) Fiber.abort(\"expected persistence failure\")\n"
+		    "if ((snapshot.save() == null)) Fiber.abort(\"expected persistence failure\")\n"
 		    "if (!snapshot.dirty) Fiber.abort(\"failed save cleaned snapshot\")\n"
 		    "if (Menu.settings.confirmClose != before) Fiber.abort(\"failed save applied snapshot\")\n")
 		    == WREN_RESULT_SUCCESS;
@@ -355,7 +355,7 @@ main(int argc, char **argv)
 		    "import \"syncterm_menu\" for Menu\n"
 		    "var applied = Menu.settings\n"
 		    "applied.confirmClose = !applied.confirmClose\n"
-		    "if (!applied.apply()) Fiber.abort(\"apply failed\")\n"
+		    "if (applied.apply() != null) Fiber.abort(\"apply failed\")\n"
 		    "var snapshot = Menu.settings\n"
 		    "var before = snapshot.confirmClose\n"
 		    "snapshot.confirmClose = !before\n"
@@ -372,7 +372,7 @@ main(int argc, char **argv)
 		    "var old = Menu.settings\n"
 		    "var current = Menu.settings\n"
 		    "current.confirmClose = !current.confirmClose\n"
-		    "if (!current.apply()) Fiber.abort(\"settings apply failed\")\n"
+		    "if (current.apply() != null) Fiber.abort(\"settings apply failed\")\n"
 		    "var stale = Fiber.new { old.confirmClose }.try()\n"
 		    "if (!(stale is String)) Fiber.abort(\"old settings handle remained usable\")\n")
 		    == WREN_RESULT_SUCCESS;

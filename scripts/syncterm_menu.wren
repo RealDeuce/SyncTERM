@@ -1,5 +1,15 @@
+import "syncterm" for Error
+
 // Trusted main-menu data model.  This module is available only in the
 // persistent menu VM; connected-session VMs cannot import or bind it.
+
+// Existing native result: portable reason and raw integer status may be absent.
+foreign class MenuError is Error {
+  foreign code
+  foreign nativeCode
+  foreign message
+  foreign toString
+}
 
 class MenuReadStatus {
   static ok                           { 0 }
@@ -120,7 +130,7 @@ class Menu {
   foreign static encryptionInfo
   foreign static setEncryption(algorithm, keySize, password)
   // Web-list rows are [name, URI].  Add/refresh return null on success
-  // or an error String; update/delete return Bool.
+  // or MenuError. All action methods return null/MenuError.
   foreign static webLists
   foreign static webListsDirty
   foreign static addWebList(name, uri, index)
@@ -129,14 +139,15 @@ class Menu {
   foreign static saveWebLists()
   foreign static refreshWebList(index)
   // Each menu host owns an editable custom-font draft. Structural changes
-  // invalidate existing MenuFont handles; saveFonts() persists and reloads
-  // live slots, while reloadFonts() only replaces the draft.
+  // invalidate existing MenuFont handles. saveFonts() persists the draft;
+  // activateFonts() activates configured fonts; reloadFonts() rereads the draft.
   foreign static fonts
   foreign static fontsDirty
   foreign static canCreateFont
   foreign static reloadFonts()
   foreign static createFont(name, index)
   foreign static saveFonts()
+  foreign static activateFonts()
 }
 
 class MenuEncryption {

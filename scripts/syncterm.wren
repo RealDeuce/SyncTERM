@@ -2,7 +2,8 @@
 // (FileError, SFTPError, WONError, ConnError, …).  Lets a script
 // catch any of them with a single `if (v is Error)` check instead of
 // listing each subclass.  Every concrete subclass guarantees the
-// shape `{ code: Num, message: String?, toString: String }` - the
+// shape `{ code: Num?, message: String?, toString: String }`; MenuError
+// leaves code null when C supplies no portable reason. The
 // type-specific extras (errno, offset, partial, serverStatus,
 // isTransient, …) live on the subclass.
 //
@@ -1547,14 +1548,14 @@ foreign class File {
 // fiber loudly.  Only the recoverable I/O bucket flows through
 // FileError.
 foreign class FileError is Error {
-  foreign code      // FileErr.* portable negative I/O reason
+  foreign code      // IOErr.* portable negative I/O reason
   foreign errno     // captured C errno at failure point, 0 if N/A
   foreign message   // human-readable diagnostic, may be null
   foreign toString
 }
 
 // Portable I/O reasons shared with the native filesystem API. Success is null.
-class FileErr {
+class IOErr {
   static invalidArgument    { -1 }
   static invalidEncoding    { -2 }
   static notFound           { -3 }
@@ -1577,6 +1578,22 @@ class FileErr {
   static timedOut           { -20 }
   static cancelled          { -21 }
   static wouldBlock         { -22 }
+  static inProgress          { -23 }
+  static nameResolution      { -24 }
+  static connectionRefused   { -25 }
+  static connectionReset     { -26 }
+  static connectionAborted   { -27 }
+  static notConnected        { -28 }
+  static networkUnreachable  { -29 }
+  static hostUnreachable     { -30 }
+  static addressInUse        { -31 }
+  static addressNotAvailable { -32 }
+  static messageTooLarge     { -33 }
+  static protocol            { -34 }
+  static passwordRequired    { -35 }
+  static decryptionFailed    { -36 }
+  static invalidFormat       { -37 }
+  static conflict            { -38 }
 }
 
 class Hook {

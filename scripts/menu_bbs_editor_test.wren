@@ -161,9 +161,9 @@ class MenuTest {
            "entry editor: an empty script list is shown as None")
     draft["comment"] = "edited without adding scripts"
     check_(BbsEditor.update_(app, entry, draft, false) &&
-           profile.wrenScripts.count == 0 && entry.save(),
+           profile.wrenScripts.count == 0 && (entry.save() == null),
            "entry editor: other edits keep scripts empty")
-    check_(entry.delete(), "entry editor: remove test entry")
+    check_((entry.delete() == null), "entry editor: remove test entry")
   }
 
   static testPersistence_() {
@@ -190,7 +190,7 @@ class MenuTest {
           entry.profile.tlsPsk == "test shared secret" &&
           entry.profile.tlsPskVersion == TLSVersion.tls12 &&
           entry.profile.tlsVersionFloor == TLSVersion.tls13
-      saved = entry.save()
+      saved = (entry.save() == null)
     }
 
     var reloaded = created && assigned && saved &&
@@ -216,7 +216,7 @@ class MenuTest {
           "reloaded=%(reloaded), found=%(found != null), " +
           "scripts=%(found == null ? [] : found.profile.wrenScripts)")
     }
-    if (found != null) found.delete()
+    if (found != null) (found.delete() == null)
     check_(loaded && created && assigned && saved && reloaded && retained,
            "BBS TLS and Wren settings survive save and reload")
   }

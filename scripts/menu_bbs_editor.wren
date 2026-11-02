@@ -346,7 +346,7 @@ class BbsEditor {
   }
 
   static finish_(state, bbs, isNew) {
-    if (!state["saved"] && isNew) bbs.delete()
+    if (!state["saved"] && isNew) (bbs.delete() == null)
     return state["saved"]
   }
 
@@ -557,11 +557,13 @@ class BbsEditor {
         } else if (name == b.name) {
           d["name"] = name
           return
-        } else if (b.rename(name)) {
-          d["name"] = name
-          return
         } else {
-          showNameError(app, "Name", name)
+          var error = b.rename(name)
+          if (error == null) {
+            d["name"] = name
+            return
+          }
+          Alert.show(app, "Name", error.message)
         }
       }
     })
@@ -1492,10 +1494,13 @@ class BbsEditor {
         d["tlsTrustWebPki"] != p.tlsTrustWebPki ||
         d["tlsTrustedCert"] != p.tlsTrustedCert
     if (tlsIdentityChanged) d["tlsVersionFloor"] = TLSVersion.unknown
-    if (!defaults && d["name"] != b.name && !b.rename(d["name"])) {
-      showNameError(app, "Entry Name", d["name"])
-      d["name"] = b.name
-      return false
+    if (!defaults && d["name"] != b.name) {
+      var error = b.rename(d["name"])
+      if (error != null) {
+        Alert.show(app, "Entry Name", error.message)
+        d["name"] = b.name
+        return false
+      }
     }
     p.addr = d["addr"]
     p.port = d["port"]
@@ -1549,10 +1554,9 @@ class BbsEditor {
   }
 
   static save_(app, b) {
-    if (b is Profile) {
-      if (Menu.saveDefaults()) return true
-    } else if (b.save()) return true
-    Alert.show(app, "Save Failed", "The directory entry could not be written.")
+    var error = b is Profile ? Menu.saveDefaults() : b.save()
+    if (error == null) return true
+    Alert.show(app, "Save Failed", error.message)
     return false
   }
 }

@@ -1,5 +1,5 @@
 import "syncterm" for FilePickerOptions, Host, Key
-import "syncterm_menu" for Menu, MenuEncryption, MenuFontSlot
+import "syncterm_menu" for Menu, MenuError, MenuEncryption, MenuFontSlot
 import "menu_ui" for ChoiceViewState, MenuUi
 import "ui_style" for Theme
 import "menu_bbs_editor" for BbsEditor
@@ -862,24 +862,29 @@ class SettingsMenu {
       }, view)
       if (picked == null) {
         if (!changed) return false
-        if (Host.safeMode || s.save()) return true
-        Alert.show(app, "Program Settings",
-            "The settings could not be saved.")
+        if (Host.safeMode) return true
+        var error = s.save()
+        if (error == null) return true
+        Alert.show(app, "Program Settings", error.message)
       }
     }
   }
 
   static applySettings_(app, s) {
-    if (s.apply()) {
+    var wasDirty = s.dirty
+    var error = s.apply()
+    var installed = error == null || (wasDirty && !s.dirty)
+    if (installed) {
       // Applying settings resets conio's default cursor behind App's cache.
       app.invalidateCursorState()
       app.theme = Theme.current
-      return true
     }
-    s.reload()
-    Alert.show(app, "Program Settings",
-        "The setting could not be applied.")
-    return false
+    if (error == null) return true
+    var reloadError = s.reload()
+    var message = error.message
+    if (reloadError != null) message = message + " " + reloadError.message
+    Alert.show(app, "Program Settings", message)
+    return installed
   }
 
   static colors_(app, s) {
@@ -1109,31 +1114,33 @@ class SettingsMenu {
             changed = true
             selected = index
           } else {
-            Alert.show(app, "Web List", error)
+            Alert.show(app, "Web List", error.message)
           }
         } else if (command == "delete") {
-          if (Menu.deleteWebList(index)) {
+          var error = Menu.deleteWebList(index)
+          if (error == null) {
             changed = true
             selected = index < Menu.webLists.count ? index : -1
           } else {
-            Alert.show(app, "Web List", "The web list could not be deleted.")
+            Alert.show(app, "Web List", error.message)
           }
         } else if (command == "select") {
           var uri = MenuUi.prompt(app, "Web List URI", "URI", lists[index][1],
               1024, false, webListsHelp_())
           if (uri != null) {
-            if (Menu.updateWebList(index, uri)) {
+            var error = Menu.updateWebList(index, uri)
+            if (error == null) {
               changed = true
             } else {
-              Alert.show(app, "Web List", "The URI could not be saved.")
+              Alert.show(app, "Web List", error.message)
             }
           }
         }
       }, view)
       if (picked == null) {
-        if (Menu.webListsDirty && !Menu.saveWebLists()) {
-          Alert.show(app, "Web Lists",
-              "The web-list configuration could not be saved.")
+        if (Menu.webListsDirty) {
+          var error = Menu.saveWebLists()
+          if (error != null) Alert.show(app, "Web Lists", error.message)
         }
         return changed
       }
@@ -1168,9 +1175,9 @@ class SettingsMenu {
             font_(app, index)
           }
         } else if (command == "delete") {
-          if (!fonts[index].delete()) {
-            Alert.show(app, "Font Management",
-                "The font could not be deleted.")
+          var error = fonts[index].delete()
+          if (error != null) {
+            Alert.show(app, "Font Management", error.message)
           } else {
             var remaining = Menu.fonts
             if (remaining != null && index >= remaining.count) selected = -1
@@ -1180,9 +1187,15 @@ class SettingsMenu {
         }
       }, view)
       if (picked == null) {
-        if (Menu.fontsDirty && !Menu.saveFonts()) {
-          Alert.show(app, "Font Management",
-              "The font configuration could not be saved.")
+        if (Menu.fontsDirty) {
+          var error = Menu.saveFonts()
+          if (error != null) {
+            Alert.show(app, "Font Management", error.message)
+          } else {
+            error = Menu.activateFonts()
+            if (error != null) Alert.show(app, "Font Management",
+                "The font configuration was saved. " + error.message)
+          }
         }
         return
       }
@@ -1207,13 +1220,12 @@ class SettingsMenu {
     var failure = Fiber.new {
       created = Menu.createFont(name, index)
     }.try()
-    if (failure is String) {
-      Alert.show(app, "Font Management", failure)
+    if (failure != null) {
+      Alert.show(app, "Font Management", failure.toString)
       return false
     }
-    if (created == null) {
-      Alert.show(app, "Font Management",
-          "The font could not be added.")
+    if (created is MenuError) {
+      Alert.show(app, "Font Management", created.message)
       return false
     }
     return true
@@ -1258,9 +1270,9 @@ class SettingsMenu {
             (command == "select" && value == -2)) {
           if (addFont_(app, fonts, index)) selected = -1
         } else if (command == "delete") {
-          if (!font.delete()) {
-            Alert.show(app, "Font Management",
-                "The font could not be deleted.")
+          var error = font.delete()
+          if (error != null) {
+            Alert.show(app, "Font Management", error.message)
           } else {
             deleted = true
           }
@@ -1276,7 +1288,7 @@ class SettingsMenu {
           var failure = Fiber.new {
             font.name = name
           }.try()
-          if (failure is String) Alert.show(app, "Font Management", failure)
+          if (failure != null) Alert.show(app, "Font Management", failure.toString)
         } else {
           app.releaseFocus()
           var title = "%(fontSizeName_(value)) %(font.name)"
@@ -1284,9 +1296,9 @@ class SettingsMenu {
           var file = Host.pickFile(path == null ? "." : path,
               fontMask_(value), FilePickerOptions.allowEntry, title)
           app.restoreFocus()
-          if (file != null && !font.setFile(value, file)) {
-            Alert.show(app, "Font Management",
-                "The font path could not be changed.")
+          if (file != null) {
+            var error = font.setFile(value, file)
+            if (error != null) Alert.show(app, "Font Management", error.message)
           }
         }
       }, view)
@@ -1344,9 +1356,9 @@ class SettingsMenu {
             1023, true, encryptionHelp_())
         if (password == null || password.count == 0) return
       }
-      if (!Menu.setEncryption(algorithm, keySize, password)) {
-        Alert.show(app, "List Encryption",
-            "The personal directory could not be rewritten.")
+      var error = Menu.setEncryption(algorithm, keySize, password)
+      if (error != null) {
+        Alert.show(app, "List Encryption", error.message)
         return
       }
       if (algorithm == MenuEncryption.none) {

@@ -75,7 +75,7 @@ class SettingsMenuTest {
     var promptSave = before.promptSave
     before.tlsClientCert = "client.pem"
     before.tlsClientKey = "client.key"
-    check_(before.apply(), "prepare TLS file fields")
+    check_((before.apply() == null), "prepare TLS file fields")
     var actions = [
       row_("Confirm Program Exit"), row_("Prompt to Save"),
       row_("Startup Screen Mode"), row_(Menu.screenModes[3]),
@@ -181,7 +181,7 @@ class SettingsMenuTest {
     }
     for (key in changes.keys) d[key] = changes[key]
     var app = SettingsTestApp.new([])
-    check_(BbsEditor.update_(app, b, d, true) && Menu.saveDefaults(),
+    check_(BbsEditor.update_(app, b, d, true) && (Menu.saveDefaults() == null),
         "save every editable connection default")
     check_(Menu.load(null) == 0, "reload defaults")
     var actual = BbsEditor.draft_(Menu.defaults)
@@ -191,7 +191,7 @@ class SettingsMenuTest {
     actual = BbsEditor.draft_(entry)
     for (key in changes.keys) check_(actual[key] == changes[key],
         "new entry did not inherit: %(key)")
-    check_(entry.delete(), "discard inherited test entry")
+    check_((entry.delete() == null), "discard inherited test entry")
   }
   static testAddressFamily_() {
     check_(Menu.defaults.addressFamily == AddressFamily.unspec,
@@ -216,7 +216,7 @@ class SettingsMenuTest {
       for (entry in Menu.entries) if (entry.name == "Address Family Test") b = entry
       check_(b.profile.addressFamily == choice, "address-family UI choice persists")
     }
-    check_(b.delete(), "discard address-family test entry")
+    check_((b.delete() == null), "discard address-family test entry")
   }
   static testCTermLog_() {
     var b = Menu.defaults
@@ -227,7 +227,7 @@ class SettingsMenuTest {
     BbsEditor.editLog_(app, d, Fn.new { b.ctermLogLevel = d["ctermLogLevel"] })
     check_(app.remaining == 0 && b.ctermLogLevel == 7,
         "CTerm log submenu must apply the accepted level immediately")
-    check_(Menu.saveDefaults() && Menu.load(null) == 0 && Menu.defaults.ctermLogLevel == 7,
+    check_((Menu.saveDefaults() == null) && Menu.load(null) == 0 && Menu.defaults.ctermLogLevel == 7,
         "CTerm log submenu value must persist")
   }
   static testConnectedMenu_() {
@@ -280,11 +280,11 @@ class SettingsMenuTest {
     var s = Menu.settings
     var original = s.listPath
     s.listPath = original + ".alternate"
-    check_(s.apply(), "switch personal list")
+    check_((s.apply() == null), "switch personal list")
     check_(Menu.fileLocations["personalList"] == s.listPath,
         "file locations must show the active personal list")
     s.listPath = original
-    check_(s.apply(), "restore personal list")
+    check_((s.apply() == null), "restore personal list")
   }
   static testLicenses_() {
     var notices = Menu.licenses
@@ -401,11 +401,11 @@ class SettingsMenuTest {
     check_(font != null, "create a valid long UTF-8 font name")
     var entry = Menu.create("Long Font")
     entry.profile.font = name
-    check_(entry.save() && Menu.load(null) == 0, "persist a long font selection")
+    check_((entry.save() == null) && Menu.load(null) == 0, "persist a long font selection")
     var saved = null
     for (bbs in Menu.entries) if (bbs.name == "Long Font") saved = bbs
     check_(saved != null && saved.profile.font == name, "long font selection round trip")
-    check_(saved.delete() && font.delete() && Menu.saveFonts(), "discard long font fixtures")
+    check_((saved.delete() == null) && (font.delete() == null) && (Menu.saveFonts() == null), "discard long font fixtures")
   }
   static testThemeFilenames_() {
     var document = Menu.newThemeDocument()

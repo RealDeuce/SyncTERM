@@ -535,7 +535,7 @@ Formatting helpers such as `Format.bytes` deliberately accept estimates and
 retain their documented rounding/saturation rules.
 
 Native results are checked before conversion. `File.size`, `File.offset`
-and `File.mtime` return `FileError` with `FileErr.outOfRange` and errno zero
+and `File.mtime` return `FileError` with `IOErr.outOfRange` and errno zero
 when the native result cannot be represented. SFTP stat/directory operations
 complete with a non-transient `SFTPError` (`IO_ERROR_OUT_OF_RANGE`) if any
 size or timestamp is outside the range; they never return rounded or partial
@@ -2172,7 +2172,8 @@ having these methods at all.
 `Error` is the polymorphic base for every recoverable-failure value
 type the API hands back: <<sftperror,`SFTPError`>>,
 <<fileerror,`FileError`>>, <<wonerror,`WONError`>>,
-<<connerror,`ConnError`>>, <<font-error,`FontError`>>, plus any user-defined
+<<connerror,`ConnError`>>, <<font-error,`FontError`>>, menu-only
+<<menu-errors,`MenuError`>>, plus any user-defined
 <<scripterror,`ScriptError`>> subclass.  Lets a script catch any of
 them with one check:
 
@@ -2194,13 +2195,14 @@ Every concrete `Error` subclass guarantees the contract:
 |===
 | Member | Description
 | `code`     | Numeric error code from the type's enum
-              (e.g. `FileErr.*`, `WONErr.*`).
+              (e.g. `IOErr.*`, `WONErr.*`); `MenuError.code` is null
+              when its C operation supplies no portable reason.
 | `message`  | Human-readable diagnostic, may be `null`.
 | `toString` | Format with the subclass name as prefix.
 |===
 
 Type-specific extras (`FileError.errno`, `WONError.offset`,
-`ConnError.partial`, `FontError.nativeCode`, `SFTPError.serverStatus`,
+`ConnError.partial`, `FontError.nativeCode`, `MenuError.nativeCode`, `SFTPError.serverStatus`,
 `SFTPError.isTransient`) live on the subclass.
 
 `Error` itself is empty by design: foreign subclasses (FileError
@@ -3551,7 +3553,7 @@ Both load forms return the allocated selector (46 through 255), a `FileError`
 for a file access/read failure, or a <<font-error,`FontError`>>. Loading requires
 an active terminal and `ScreenSupports.loadableFonts`. It reads an actual
 readable `File` grant belonging to the calling VM; path Strings are rejected.
-Revoked/stale read authority returns `FileError` with `FileErr.permissionDenied`.
+Revoked/stale read authority returns `FileError` with `IOErr.permissionDenied`.
 Loading neither selects the font nor changes the File's stream position, consumes
 its grant, or saves settings. The bitmap remains usable after the File is closed
 or collected. Failed loads publish no catalog entry. Configured selectors and
@@ -4422,8 +4424,8 @@ available in a connected VM.
 | Bool indicating unsaved default configuration changes.
 
 | Menu.saveDefaults()
-| Persist the working defaults to the root section. Bool success; false in
-  safe mode or on failure. Profiles themselves have no persistence methods.
+| Persist the working defaults to the root section. Returns null/MenuError;
+  safe mode returns IOErr.readOnly. Profiles have no persistence methods.
 
 | Menu.nameAvailable(name)
 | Test whether a new personal entry name is valid and unused by another
@@ -4434,16 +4436,17 @@ available in a connected VM.
 
 | Menu.create(name)
 | Create an unsaved personal entry from `Menu.defaults`, reset its
-  statistics, insert it into the sorted working model, and return its DirectoryEntry.  Returns `null` for an invalid/duplicate name or allocation failure.
+  statistics, insert it into the sorted working model, and return its DirectoryEntry
+  or MenuError for an invalid/duplicate name or allocation failure.
 
 | Menu.copy(source, name)
 | Create an unsaved personal copy of `source`, with reset statistics
   and the supplied name, and insert it into the sorted working model.
   `source` may be a current DirectoryEntry or a Profile, including defaults, detached copies
-  and quick-connect values. Returns `null` on failure.
+  and quick-connect values. Returns DirectoryEntry/MenuError.
 
 | Menu.sort()
-| Reapply the configured BBS-list sort profiles.
+| Reapply the configured BBS-list sort profiles. Returns null/MenuError.
 
 | Menu.sortFields
 | Return fresh `[fieldId, displayName, defaultReversed]` rows from the
@@ -4462,27 +4465,26 @@ available in a connected VM.
 
 | Menu.setActiveSortProfile(index)
 | Select a profile in memory, apply its order, and re-sort the loaded
-  directory.  Returns `false` for an invalid index.
+  directory. Returns null/MenuError; invalid indices abort before the native call.
 
 | Menu.addSortProfile(index, name, order)
 | Insert a profile. Names are 1..19 Unicode scalars, at most 38 UTF-8 bytes,
   and canonically caseless-unique. They cannot contain controls, leading or
-  trailing Unicode whitespace, `=`/`:`, and cannot begin with `;` or `[`. Returns `false`
-  for invalid data or allocation failure.
+  trailing Unicode whitespace, `=`/`:`, and cannot begin with `;` or `[`.
+  Returns null/MenuError; invalid arguments and duplicate names abort.
 
 | Menu.updateSortProfile(index, name, order)
 | Replace a profile's name and field order.  Updating the active
-  profile also re-sorts the loaded directory.  Returns `false` when
-  validation fails.
+  profile also re-sorts the loaded directory. Returns null/MenuError;
+  invalid arguments and duplicate names abort.
 
 | Menu.deleteSortProfile(index)
 | Delete a profile and re-sort with the resulting active profile.
-  Deleting the last profile restores the built-in profiles.  Returns
-  `false` on failure.
+  Deleting the last profile restores the built-in profiles. Returns null/MenuError.
 
 | Menu.saveSortProfiles()
 | Write the working profiles, active profile, and current order to
-  `syncterm.ini`.  Returns Bool; safe mode treats the write as a no-op.
+  `syncterm.ini`. Returns null/MenuError. Safe mode returns IOErr.readOnly.
 |===
 
 The shipped offline viewer saves the menu screen, calls
@@ -4504,7 +4506,7 @@ press switches that drag to rectangular selection.
 A DirectoryEntry owns `name`, `searchKey`, `type` (BBSListType), `id`, `added`,
 `connected` (persisted LastConnected timestamp), `calls`, `readOnly`, `dirty`,
 `profile` and `cache`. Only `sortOrder` has a property setter. `rename(name)`,
-`save()` and `delete()` return Bool; `toString` returns its name.
+`save()` and `delete()` return null/MenuError; `toString` returns its name.
 `id` survives sorting, rename, save and unrelated model edits. An unsaved draft
 has -1 until its first successful save. IDs are local to a load and are not
 serialized. Native ownership also distinguishes replaced records independently
@@ -4516,7 +4518,7 @@ Configuration lives on `entry.profile`; its setters share the working record
 and mark the entry dirty. Saving persists those edits and an in-memory rename
 together. Deleting a persisted entry updates disk before removing the record;
 deleting an unsaved draft only discards that draft. System/web views reject
-configuration setters; rename/save/delete return false. Menu.copy produces a
+configuration setters; rename/save/delete return MenuError with IOErr.readOnly. Menu.copy produces a
 personal editable entry. Safe mode permits working edits but rejects persistence.
 
 `entry.cache` is a Directory for a saved personal entry, created through the
@@ -4568,6 +4570,48 @@ entries, sorting and saving preserve existing identities. Deleted or shadowed
 entries become stale; restoring a shadowed system record does not revive an
 old view of it. Detached Profile values and session snapshots remain valid.
 
+=== Menu mutation results [[menu-errors]]
+
+In v2, BBS and Settings mutation actions return null on success or a host-created,
+immutable `MenuError`. Creators (`Menu.create`, `copy`, `createFont`) return their
+object or MenuError. This covers entry rename/save/delete, defaults/encryption/sort,
+Settings apply/save/reload, and font/web/sort collection actions. Predicates and
+`Menu.load` retain their own contracts. There are no Boolean compatibility forms.
+
+[options="header",cols="2,3"]
+|===
+| Member | Description
+| `code` | Portable IOErr reason, or null when the called C API supplies no
+  portable reason. Classify by the API's contract, never by the raw integer alone.
+| `nativeCode` | Actual integer C failure, or null for Boolean/pointer failures
+  and host-only policy rejection. Generic -1 from older collection APIs is retained
+  here with code null; it is not classified as IOErr.invalidArgument.
+| `message` | Owned operation-specific diagnostic; portable failures include their reason.
+| `toString` | Diagnostic prefixed by `MenuError: `.
+|===
+
+MenuError has no public constructor or setters, retains no borrowed native data,
+secrets or resource authority, and remains usable after reloads and collection.
+It is available only in the trusted menu VM and inherits the ordinary Error base.
+Existing invalid-argument and stale-handle aborts remain. Native mutation failures
+in property setters raise MenuError through ordinary Fiber abort.
+
+Native C APIs, call order and partial effects are preserved. A list KDF rewrite
+may succeed before a Settings save fails. Collection edits may precede a later
+native failure, and installed settings may precede a runtime application failure.
+Messages identify completed earlier steps where known. Once settings are installed,
+generation/dirty transitions still occur even if applying a runtime option fails.
+There is no rollback or transaction-state API. Inspect current models as needed;
+no automatic retry is performed. Optional cache housekeeping remains outside
+primary BBS mutation success. Safe-mode blocked operations return IOErr.readOnly,
+including saveSortProfiles, which formerly reported a successful no-op.
+
+[source,wren]
+----
+var error = entry.save()
+if (error != null) System.print(error.message)
+----
+
 === Menu Program Settings [[menu-program-settings]]
 
 `Menu.settings` returns a C-owned `Settings` snapshot.  Property
@@ -4589,21 +4633,23 @@ that persistence obligation itself.
 These include scrollback capacity, scaling, mouse-wheel direction, audio
 backends, custom-mode dimensions, cursor style, and the Classic Theme
 colours used when the built-in theme is active.  It returns
-`false` when allocation, encrypted-list rewriting, or INI persistence fails.
-An unapplied snapshot is not applied after such a failure; settings already
+MenuError when preparation, encrypted-list rewriting, INI persistence, or runtime
+application fails; success is null. A failure before installation does not apply
+an unapplied snapshot; settings already
 accepted through `apply()` remain active.  Changing the KDF work factor may
 rewrite an encrypted BBS list during `apply()`.  Saving `syncterm.ini` is
-disabled in safe mode: `save()` returns `false` before applying the snapshot,
+disabled in safe mode: `save()` returns MenuError with IOErr.readOnly before applying the snapshot,
 and the snapshot remains dirty.
 
 The allowed audio-backend mask changes immediately. Backend selection occurs
 when the process first opens its audio engine; changing an already-open
 backend requires restarting SyncTERM. Startup screen and video output
 preferences also take effect on the next startup. In safe mode, applying a
-KDF change which would rewrite an encrypted directory returns `false` without
+KDF change which would rewrite an encrypted directory returns IOErr.readOnly without
 changing the directory or installed settings.
 
-A successful `apply()` or `save()` advances the settings generation.
+Installing a snapshot during `apply()` or `save()` advances the settings generation,
+even if a later runtime application step fails.
 The object which performed the operation remains valid and clean, but
 any other outstanding `Settings` handles become stale and abort when
 used.  Reacquire a snapshot from `Menu.settings` after another component
@@ -4954,7 +5000,7 @@ and decryption choices. SyncTERM reads the file metadata; users do not need to
 parse or enter headers.
 
 `Menu.setEncryption(algorithm, keySize, password)` rewrites the current
-personal list and returns Bool.  AES accepts 128- or 256-bit keys;
+personal list and returns null/MenuError.  AES accepts 128- or 256-bit keys;
 ChaCha20 accepts zero to select its fixed 256-bit key (explicit 256 is also
 accepted), and unencrypted lists use key size zero. The current `kdfShift`
 is used when encrypting, changing algorithms, or changing a password.
@@ -4963,7 +5009,7 @@ be `null` to reuse the password already held by the host.  Enabling
 encryption fails if neither source supplies a non-empty password.  A
 successful rewrite updates the current algorithm, key size, and held
 password; a failure leaves them unchanged.  The operation is disabled
-in safe mode, where it returns `false` without rewriting the list or changing
+in safe mode, where it returns IOErr.readOnly without rewriting the list or changing
 the algorithm, key size, or held password.
 
 === Menu Web Lists [[menu-web-lists]]
@@ -4981,26 +5027,26 @@ reports whether the in-memory list has unpersisted edits.
 
 | `addWebList(name, uri, index)`
 | Fetch the URI into the web-list cache and insert the in-memory entry.
-  Returns `null` on success or an error String.
+  Returns `null` on success or an MenuError.
 
 | `updateWebList(index, uri)`
-| Change an in-memory entry's URI.  Returns Bool.  It does not refresh
+| Change an in-memory entry's URI.  Returns null/MenuError.  It does not refresh
   the cached list.
 
 | `deleteWebList(index)`
-| Remove an in-memory entry.  Returns Bool.
+| Remove an in-memory entry.  Returns null/MenuError.
 
 | `saveWebLists()`
 | Persist the in-memory entries to the `WebLists` INI section.  Returns
-  Bool.  A failed write leaves `webListsDirty` set so it can be retried.
+  null/MenuError. A failed write leaves `webListsDirty` set so it can be retried.
 
 | `refreshWebList(index)`
 | Fetch the current URI into the cache without changing configuration.
-  Returns `null` on success or an error String.
+  Returns `null` on success or an MenuError.
 |===
 
 In safe mode, add, update, and delete still update the running configuration,
-and add still performs its initial fetch.  `saveWebLists()` returns `false`
+and add still performs its initial fetch.  `saveWebLists()` returns IOErr.readOnly
 without writing `syncterm.ini`, so those changes last only for the current
 process.  Refresh remains permitted.  No web-list method exposes its cache
 pathname as a file capability.
@@ -5024,23 +5070,24 @@ edits.
 | Insert a blank custom font at `index` and return its handle. Names contain
   1..50 Unicode scalars and at most 100 UTF-8 bytes, cannot begin or end with
   Unicode whitespace, cannot contain controls, `[` or `]`, and are unique
-  under Unicode canonical caseless matching. Returns `null` for allocation
-  failure, safe mode, or when all
-  available custom slots are represented; invalid arguments abort the fiber.
+  under Unicode canonical caseless matching. Returns MenuFont/MenuError; invalid arguments abort the fiber.
 
 | `Menu.saveFonts()`
 | Merge only the draft's `Font:` sections into `syncterm.ini`, preserving
-  unrelated file content and unsaved runtime settings, then reload the live
-  custom font slots. Returns `true` when persistence succeeds. A persistence
-  failure leaves the draft dirty and the previously loaded slots in place.
-  A later live-slot activation failure is reported on standard error and also
-  leaves the previous mappings in place. Because settings files use
-  truncate-then-write persistence, a write failure can leave a partial file.
+  unrelated file content and unsaved runtime settings. Returns null/MenuError.
+  Failure leaves the draft dirty; success clears it. This call does not activate
+  fonts. The native truncate-then-write policy can leave a partial file on failure.
+
+| `Menu.activateFonts()`
+| Activate the installed custom-font configuration using the existing native
+  loader. Returns null/MenuError. Failure preserves previous live mappings.
+  Native missing/unsupported bitmap skip rules are unchanged. The bundled editor
+  saves first, then activates, and reports activation failure without resaving.
 
 | `Menu.reloadFonts()`
 | Discard unsaved font edits and reread only the `Font:` sections
   transactionally. Unrelated settings and loaded font slots are unchanged.
-  Returns Bool.
+  Returns null/MenuError.
 
 | `MenuFont.name`
 | Read/write the display and INI-section name using the same nonempty,
@@ -5052,14 +5099,14 @@ edits.
 
 | `MenuFont.setFile(slot, file)`
 | Assign a path from a live, read-authorized `File`, normally returned by
-  `Host.pickFile`. Returns Bool. The picker mask guides selection. Bitmap size
+  `Host.pickFile`. Returns null/MenuError. The picker mask guides selection. Bitmap size
   is checked when the font is loaded, not while editing the draft.
 
 | `MenuFont.clearFile(slot)`
-| Clear one configured size and return Bool.
+| Clear one configured size and return null/MenuError.
 
 | `MenuFont.delete()`
-| Remove the record from the in-memory model and return Bool.  Call
+| Remove the record from the in-memory model and return null/MenuError.  Call
   `Menu.saveFonts()` to persist the deletion.
 |===
 
@@ -5076,8 +5123,8 @@ edits.
 
 Create and delete advance the font-model generation, invalidating all
 previously obtained `MenuFont` handles.  Rename, file assignment,
-clear, and save preserve handles.  Font mutation and persistence are
-disabled in safe mode; reload remains available because it only reads
+clear, and save preserve handles.  Font mutation, activation and persistence return IOErr.readOnly
+in safe mode; reload remains available because it only reads
 the existing configuration.
 
 === Menu BBS Constants [[menu-bbs-constants]]
@@ -5705,7 +5752,7 @@ handle was created.
   directory and return a `File` object for it.  Uses C11 exclusive-
   create mode (`fopen(path, "wbx")`) so a concurrent creator doesn't
   silently truncate an existing file. Returns `FileError` for native failures
-  (including `FileErr.alreadyExists`); invalid names abort.
+  (including `IOErr.alreadyExists`); invalid names abort.
   The file is closed on return — call `File.open()` before reading
   or writing.
 
@@ -5742,7 +5789,7 @@ replacing, or recreating that entry does not revoke the grant, whether the
 change came through `Directory.delete` or from outside SyncTERM.
 
 Operations validate the state they require. An unavailable pathname returns
-`FileError` with the native reason (`FileErr.notFound`, `notDirectory`,
+`FileError` with the native reason (`IOErr.notFound`, `notDirectory`,
 `permissionDenied`, etc.); it does not revoke the grant. A recreated directory
 or file can be used through the same grant. `File.path`, `File.token`, and
 `Directory.toString` report stored metadata without filesystem access.
@@ -5867,7 +5914,7 @@ does not broaden its authority.
 | Signed POSIX seconds within <<native-integer-limits>>. The setter uses
   the native filesystem API by path, requires write rights, and works on open and closed
   handles. Pending output is flushed first. A filesystem which ignores or
-  rounds a timestamp returns `FileErr.outOfRange` after verification, rather
+  rounds a timestamp returns `IOErr.outOfRange` after verification, rather
   than reporting the requested value as stored. Used by the SFTP queue to stamp completed downloads with
   the remote's mtime so the browser's status chip can compare
   local-vs-remote without server-side hash extensions.
@@ -5893,7 +5940,7 @@ does not broaden its authority.
 |===
 
 A closed `File` whose pathname is unavailable returns a
-`<<fileerror,FileError>>` with the native reason, such as `FileErr.notFound` from the
+`<<fileerror,FileError>>` with the native reason, such as `IOErr.notFound` from the
 existence check, whether the entry was deleted through `Directory.delete` or
 outside SyncTERM.  The pathname grant remains valid.  If a regular file is
 later created at the same pathname, the original `File` can open it.
@@ -5957,40 +6004,57 @@ permissions, full storage and native range failures remain distinguishable.
 [options="header",cols="2,3"]
 |===
 | Member | Description
-| `code` | Stable negative native `IO_ERROR_*` reason, exposed by `FileErr` below.
+| `code` | Stable negative native `IO_ERROR_*` reason, exposed by `IOErr` below.
 | `errno` | Captured C errno when available; zero for native APIs without errno
   or a synthesized failure. Interpret `code` for portable decisions.
 | `message` | Operation-specific diagnostic text, or `null` if allocation failed.
 | `toString` | Numeric code and diagnostic, plus errno when present.
 |===
 
-`FileErr` exposes the filesystem reasons from the native I/O namespace:
+`IOErr` exposes all shared native I/O reasons in every script VM. In v2 it
+replaces FileErr without an alias; FileError remains the filesystem error type:
 
 [options="header",cols="2,1"]
 |===
 | Constant | Code
-| `FileErr.invalidArgument` | -1
-| `FileErr.invalidEncoding` | -2
-| `FileErr.notFound` | -3
-| `FileErr.permissionDenied` | -4
-| `FileErr.alreadyExists` | -5
-| `FileErr.notDirectory` | -6
-| `FileErr.isDirectory` | -7
-| `FileErr.directoryNotEmpty` | -8
-| `FileErr.outOfMemory` | -9
-| `FileErr.noSpace` | -10
-| `FileErr.nameTooLong` | -11
-| `FileErr.outOfRange` | -12
-| `FileErr.busy` | -13
-| `FileErr.readOnly` | -14
-| `FileErr.crossDevice` | -15
-| `FileErr.tooManyLinks` | -16
-| `FileErr.interrupted` | -17
-| `FileErr.notSupported` | -18
-| `FileErr.io` | -19
-| `FileErr.timedOut` | -20
-| `FileErr.cancelled` | -21
-| `FileErr.wouldBlock` | -22
+| `IOErr.invalidArgument` | -1
+| `IOErr.invalidEncoding` | -2
+| `IOErr.notFound` | -3
+| `IOErr.permissionDenied` | -4
+| `IOErr.alreadyExists` | -5
+| `IOErr.notDirectory` | -6
+| `IOErr.isDirectory` | -7
+| `IOErr.directoryNotEmpty` | -8
+| `IOErr.outOfMemory` | -9
+| `IOErr.noSpace` | -10
+| `IOErr.nameTooLong` | -11
+| `IOErr.outOfRange` | -12
+| `IOErr.busy` | -13
+| `IOErr.readOnly` | -14
+| `IOErr.crossDevice` | -15
+| `IOErr.tooManyLinks` | -16
+| `IOErr.interrupted` | -17
+| `IOErr.notSupported` | -18
+| `IOErr.io` | -19
+| `IOErr.timedOut` | -20
+| `IOErr.cancelled` | -21
+| `IOErr.wouldBlock` | -22
+| `IOErr.inProgress` | -23
+| `IOErr.nameResolution` | -24
+| `IOErr.connectionRefused` | -25
+| `IOErr.connectionReset` | -26
+| `IOErr.connectionAborted` | -27
+| `IOErr.notConnected` | -28
+| `IOErr.networkUnreachable` | -29
+| `IOErr.hostUnreachable` | -30
+| `IOErr.addressInUse` | -31
+| `IOErr.addressNotAvailable` | -32
+| `IOErr.messageTooLarge` | -33
+| `IOErr.protocol` | -34
+| `IOErr.passwordRequired` | -35
+| `IOErr.decryptionFailed` | -36
+| `IOErr.invalidFormat` | -37
+| `IOErr.conflict` | -38
 |===
 
 Success is `null`, never a zero-code error. EOF is a read result, never a

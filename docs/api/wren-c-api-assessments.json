@@ -748,9 +748,9 @@
       ]
     },
     "errors.io": {
-      "status": "partial",
-      "wren": "FileError.code / FileErr; component-specific Error classes",
-      "reason": "Portable native codes survive in FileError.code, but FileErr names cover -1 through -22 only. Later network, authentication, format and conflict codes have no matching FileErr constants. errno/Windows translation functions are host mechanisms, not script operations.",
+      "status": "covered",
+      "wren": "IOErr; FileError.code; component-specific errors; MenuError.code/nativeCode",
+      "reason": "IOErr exposes all 38 stable shared native I/O codes in every VM. FileErr was removed without an alias; FileError remains the filesystem error type. MenuError separates portable codes from raw generic native failures instead of interpreting legacy -1 as invalidArgument. Host errno/Windows translators remain host mechanisms.",
       "vm": "all script VMs",
       "evidence": [
         {
@@ -759,11 +759,12 @@
         },
         {
           "path": "scripts/syncterm.wren",
-          "anchor": "class FileErr"
+          "anchor": "class IOErr"
         }
       ],
       "finding": "error-symbols",
-      "decision": "mapping-gap"
+      "decision": "complete-error-symbols",
+      "resolution": "resolved"
     },
     "errors.io-translation": {
       "status": "host-owned",
@@ -926,7 +927,7 @@
     "list.crypto": {
       "status": "partial",
       "wren": "Menu.setEncryption; Settings.kdfShift; metadata in list.crypto.metadata",
-      "reason": "The owned BBS-list writer supports plain/AES-128/AES-256/ChaCha20 and current-password rewrite. Writing fixes scrypt block/parallelism to defaults; setEncryption returns Bool rather than native error detail. Generic encrypted INI streams are not exposed. These remaining scope/result questions are open. Read-only metadata and legacy naming were resolved by the approved snapshot chunk; legacy enums do not authorize legacy writes.",
+      "reason": "The owned BBS-list writer supports plain/AES-128/AES-256/ChaCha20 and current-password rewrite. Writing still fixes scrypt block/parallelism to defaults, and generic encrypted INI streams are not exposed; those scope questions remain open. setEncryption now preserves native mutation failures through MenuError. Metadata, legacy naming and the Settings effective KDF policy retain their earlier approved resolutions.",
       "vm": "menu",
       "evidence": [
         {
@@ -946,7 +947,8 @@
       "decision": "mapping-gap",
       "resolved_subclaims": [
         "Loaded format, cipher, key size, actual KDF parameters and rewrite recommendation are copied into an immutable snapshot.",
-        "Legacy cipher display names and named enum values are accurate; unsupported password-change actions are hidden."
+        "Legacy cipher display names and named enum values are accurate; unsupported password-change actions are hidden.",
+        "Menu.setEncryption returns null/MenuError and preserves available native reasons without new writer options or storage policy."
       ]
     },
     "profile.fields": {
@@ -2944,9 +2946,9 @@
       ]
     },
     "bbs.mutation-status": {
-      "status": "partial",
-      "wren": "DirectoryEntry/Defaults mutation Bool; Menu load read status",
-      "reason": "Primary native mutation/rewrite status becomes Bool in script save/delete/default/encryption operations. Distinct native I/O/conflict/policy causes cannot be inspected as structured results. Menu.load has its own coarse read-status enum rather than every native I/O code. These primary-result gaps remain open. Secondary cache_status is intentionally omitted under the approved optional-housekeeping policy in bbs.cache-result and is no longer a required fix within this topic.",
+      "status": "covered",
+      "wren": "DirectoryEntry save/delete/rename; Menu saveDefaults/setEncryption; MenuError",
+      "reason": "Selected BBS native mutation and rewrite integer results are preserved in menu-only MenuError, with null on success. Pure Boolean/pointer failures retain no invented integer reason. Safe-mode and read-only policy errors have no nativeCode. Drafts, identities, generations, partial writes and optional cache policy retain their contracts. Menu.load result fidelity is assessed separately in bbs.load-status.",
       "vm": "menu",
       "evidence": [
         {
@@ -2959,12 +2961,13 @@
         }
       ],
       "finding": "model-mutation-results",
-      "decision": "mapping-gap"
+      "decision": "native-mutation-results",
+      "resolution": "resolved"
     },
     "settings.result-status": {
-      "status": "partial",
-      "wren": "Settings apply/save/reload and Menu font/web/sort mutation results",
-      "reason": "The menu workflow preserves success/failure, but many native integer statuses become Bool, or validation abort messages. This does not preserve a structured native I/O/conflict reason. Font draft save, settings persistence/reload and collection mutations therefore have useful operations with incomplete machine-readable error information.",
+      "status": "covered",
+      "wren": "Settings apply/save/reload; Menu font/web/sort actions; MenuError; Menu.activateFonts",
+      "reason": "Selected action methods return null/MenuError, creators return their object/MenuError. Native portable codes and generic integer failures are kept distinct by origin; Boolean/pointer failures have no invented nativeCode. Menu.saveFonts persists only; activateFonts invokes existing native activation separately. Binding-owned preparation/runtime application preserve available native results and existing call order/partial effects. Native C signatures and storage policy are unchanged. Full native disk reload and emoji-recents errors are separate open assessments.",
       "vm": "menu",
       "evidence": [
         {
@@ -2977,7 +2980,8 @@
         }
       ],
       "finding": "model-mutation-results",
-      "decision": "mapping-gap"
+      "decision": "native-mutation-results",
+      "resolution": "resolved"
     },
     "themes.operation-status": {
       "status": "partial",
@@ -3179,6 +3183,60 @@
           "anchor": "def check_row"
         }
       ]
+    },
+    "bbs.load-status": {
+      "status": "partial",
+      "wren": "Menu.load / MenuReadStatus",
+      "reason": "Menu.load replaces the owned model transactionally but coarsens native failures into MenuReadStatus. The approved mutation-result chunk deliberately leaves this load contract unchanged. Native load-error fidelity remains open; there is no new raw list owner.",
+      "vm": "menu",
+      "evidence": [
+        {
+          "path": "src/scripting/wren_host/wren_bind_menu.c",
+          "anchor": "fn_menu_load"
+        },
+        {
+          "path": "scripts/syncterm_menu.wren",
+          "anchor": "class MenuReadStatus"
+        }
+      ],
+      "finding": "model-mutation-results",
+      "decision": "mapping-gap"
+    },
+    "settings.disk-reload": {
+      "status": "unmapped",
+      "wren": "Settings.reload copies current running settings; no full native disk reload action",
+      "reason": "The original result assessment grouped st_settings_reload with Settings.reload, but the native function rereads disk and the Wren method copies running settings. The approved chunk preserves the Wren reset-to-running contract. Full native disk reload and its result remain outside this chunk and open for scope review.",
+      "vm": "menu",
+      "evidence": [
+        {
+          "path": "src/config/settings/st_settings_store.c",
+          "anchor": "st_settings_reload(void)"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_menu.c",
+          "anchor": "fn_settings_reload"
+        }
+      ],
+      "finding": "model-mutation-results",
+      "decision": "scope-review"
+    },
+    "settings.recent-result": {
+      "status": "partial",
+      "wren": "Emoji.recordUse",
+      "reason": "Native st_settings_remember_emoji returns a portable integer status, but Emoji.recordUse reduces failure to a String. This existing ledger row was grouped with Settings results; emoji-recents error fidelity is outside the approved BBS/Settings/font/web/sort mutation chunk and remains open.",
+      "vm": "menu and connected",
+      "evidence": [
+        {
+          "path": "src/scripting/wren_host/wren_bind_core.c",
+          "anchor": "fn_emoji_record"
+        },
+        {
+          "path": "src/config/settings/st_settings.h",
+          "anchor": "st_settings_remember_emoji"
+        }
+      ],
+      "finding": "model-mutation-results",
+      "decision": "mapping-gap"
     }
   },
   "documentation_findings": [
@@ -3381,6 +3439,10 @@
     {
       "path": "src/scripting/re1/regexp.h",
       "reason": "Bundled regex implementation; scripts already use the host match-hook contract, not raw regex engine ownership."
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_menu_test_bindings.h",
+      "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
     },
     {
       "path": "src/scripting/wren_host/wren_bbs_model.h",
@@ -3761,6 +3823,21 @@
       "path": "scripts/sftp_app.wren",
       "anchor": "var metadata = e.stat",
       "aspect": "Browser captures one lazy listing snapshot per row; BrowserRow fields, queue persistence and upload grants retain their contracts."
+    },
+    {
+      "path": "scripts/menu_settings_ui.wren",
+      "anchor": "error = Menu.activateFonts()",
+      "aspect": "Persist first, activate separately, display the available failure without repeating persistence."
+    },
+    {
+      "path": "scripts/menu_bbs_editor.wren",
+      "anchor": "var error = b is Profile ? Menu.saveDefaults() : b.save()",
+      "aspect": "Entry/default editor consumes null/MenuError and displays the captured reason."
+    },
+    {
+      "path": "scripts/menu_sort_profiles.wren",
+      "anchor": "error = action.call()",
+      "aspect": "Retain the native error through the existing UI Fiber catch boundary."
     }
   ],
   "test_evidence": [
@@ -3858,6 +3935,31 @@
       "path": "src/scripting/wren_host/tests/st_wren_sftp_live_test.c",
       "anchor": "entry stat",
       "aspect": "Live SSH/SFTP fixture reports all listing metadata fields, preserves extensions and exercises the migrated browser."
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_settings_menu_test.c",
+      "anchor": "test_menu_results",
+      "aspect": "Every IOErr value checked against C, no FileErr alias, MenuError inheritance/immutability/collection lifetime and menu-only loading."
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_settings_menu_test.c",
+      "anchor": "test_menu_native_failures",
+      "aspect": "Generic -1, Boolean/pointer failure without invented status, property setter errors, font grants, split persistence/activation, native conflict and partial Settings rewrite/runtime application."
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_menu_test_bindings.c",
+      "anchor": "test_sort_update",
+      "aspect": "Narrow test-only native return injection preserves a real collection edit before generic failure; the application links the regular binder."
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_settings_menu_test.c",
+      "anchor": "font editor result handling",
+      "aspect": "Shipped font editor saves exactly once then activates exactly once, reports failure and retains saved configuration; full BBS editor regression suite also executes."
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_settings_menu_test.c",
+      "anchor": "editor dropped installed settings after runtime failure",
+      "aspect": "The actual editor reports runtime failure while retaining pending persistence for installed changes; a readable File grant is accepted and string bypass rejected."
     }
   ],
   "dispatch_evidence": [
@@ -3869,21 +3971,21 @@
   ],
   "evidence_files": {
     "docs/WREN_GUIDANCE.md": "d14aeecb5eae922015f2f48a4fd690277dcb5b91aedfd8d8d8cffb2dc235e1ac",
-    "docs/Wren.adoc": "e07664bc23dadbef4e83027cab30d3f20e09b5caa83ced21d840b67ee14a9d8e",
+    "docs/Wren.adoc": "e53edf521fc7cf66a119ea4a6559e081f6887dfc507950277e5c511cb83b5e4c",
     "docs/api/bbs-entry-fields.adoc": "a1be9944eadd5f56d752e8669b502f49b27211f14190443a95e36ad301b8d128",
     "scripts/auto/connected/font_pick.wren": "6cd249b69c2f851e1fb84e4b8ce381879cfaaa96a35e1376f6e8502c6497e91b",
-    "scripts/auto/menu/main_menu.wren": "57458b3161806dac245710a7a076278c260d8e3ffcdf19186b331e70c36c18c9",
-    "scripts/menu_bbs_editor.wren": "5afc466dd6ee78e0d6585038d1635442ffea9259e7bad087d012c4654821f9bb",
-    "scripts/menu_settings_ui.wren": "0adf1413469969f35744a51765b256943c22d8d073c40431bd345d7fd16c7d6a",
+    "scripts/auto/menu/main_menu.wren": "817f1e52353d918e94fc5fa3e24ccd6f4b469cd0157507b7723b847c965bbff5",
+    "scripts/menu_bbs_editor.wren": "fa27c403b0cad1ffe2811243787916ce7428da2255b12683f6e3e2c5847a4187",
+    "scripts/menu_settings_ui.wren": "edeea3c58f5df12ac93f041185f059163335228e48bcd4ac0f638fc0140e25ff",
     "scripts/sftp_app.wren": "4cd38fa9304c6c7428d7a21ef3b86c0d68fb14e25b35c3540bfdd46a211a9e5f",
-    "scripts/sftp_queue.wren": "1fb32830a081a1682b0147a9c7a95e9d96dd4e0539c8847e218613c7b69a38c5",
-    "scripts/syncterm.wren": "20f52bdf071ae9d1ff82bc3707afeaec80158f9f2b18c3726e62900155631082",
-    "scripts/syncterm_menu.wren": "d08fe1b1c76ccbc90748daadce8bdfc1dafe2441fb2e57ced542357405530465",
+    "scripts/sftp_queue.wren": "b15fe706268e9ce6d5fea4227661d0ac810f6f9fc4dbf7d39863756bde3eaf74",
+    "scripts/syncterm.wren": "325226534f1508ca6e65dd95039100c8b3c71dfc1595149173a58b00d87cbd5b",
+    "scripts/syncterm_menu.wren": "256c01bef7724057d5fd16dc4a3c986b29a62835ec28b5a3c679edcb9e4f651c",
     "scripts/syncterm_picker.wren": "143e15bd084bed37145061760100c84b353d340e00187d9cd2b920a850be6021",
     "scripts/transfer_app.wren": "36713bbb8fdb61e5f7af68371c44a9110cd8bda8ea59c0ee7ee09436684b61af",
     "scripts/transfer_pick.wren": "9e88fe4e68efc01449105c8536f1902fca4295564adf2b488d1a866d5fcd29cb",
     "scripts/ui_app.wren": "704c49cd2ff7f3c1fe86391d6bb1ac2d0120091506e246dad4ddb7cff70649d6",
-    "scripts/wrentest.wren": "e8fac350769877aba99d44e15fad468c38b21dbb0d9db997b3c05283c34f8aec",
+    "scripts/wrentest.wren": "a5f4c32e64fe15ea09edfc5df6e8ae32cb389b463dba368b0e4ac4163e8a95e9",
     "src/base/array_list/array_list.h": "07f78e0fe13932c9f0004844800f4e391029a0f6279fa750bfe836b9f85357de",
     "src/base/base64/st_base64.h": "0d820c0116d24cb509ecc4c01aa6f1a0e544273b698a2f8c1396153a340ec7d8",
     "src/base/crypto/st_cipher.h": "8a6be2ff350384b94bd0c67c5d3844e2ddc31e25ff989426c86dd05bcea50407",
@@ -3946,14 +4048,14 @@
     "src/net/transfer/st_transfer_detect.h": "3296b9ecf875d100f793920a3b0117a8f7b80951a539317d366f4ea40a7a1b30",
     "src/net/webget/st_webget.h": "9647dcc563e1661fe1d6b762c78e2483d2beae03ac878da0ebd15c8a425d2143",
     "src/scripting/wren_host/st_wren_host.h": "531eba9331f992a6394c41020890e279597ee8d6cfd1259a4495f68ef38d5552",
-    "src/scripting/wren_host/tests/st_wren_host_test.c": "ed6d7126d11f76b04965c32aa2085e143d9649c3d1d7ae003aba219c71cc08d7",
-    "src/scripting/wren_host/tests/st_wren_settings_menu_test.c": "ddcb7a11b16cbbf38e4134bd769788028c0fb76ed0a057818977b39e4878f42a",
+    "src/scripting/wren_host/tests/st_wren_host_test.c": "cc16e21e68b154b7fc288155ea81d0bf80d9d4d0378c4102bb5d2d9873c198d2",
+    "src/scripting/wren_host/tests/st_wren_settings_menu_test.c": "c47f4e940faea9467be313859f247078eed93922ed123ab4c50b5653be1128c4",
     "src/scripting/wren_host/wren_async.c": "71e78941735250300171a2b7cb13b70c92916bd14c066a6614b3f77cdd9b565d",
     "src/scripting/wren_host/wren_bbs_model.c": "18dca3353505a5b0dc609251f16038bd9132c47e215c4cf24ba802ac4b3ab97a",
     "src/scripting/wren_host/wren_bind_core.c": "b12436be2d04d1bf7e1d048c61c925bffb73ad4d0dd56cc627e8b02f12db697f",
     "src/scripting/wren_host/wren_bind_fs.c": "17e19ab179b195a36c58f929802e9a5d86d6e211d7dfdf809ac4b7c4e6c96cba",
     "src/scripting/wren_host/wren_bind_hyperlinks.c": "255be945007c9cb2795195058e5f58de7d2b2157728892e614d6e8fb5f729b98",
-    "src/scripting/wren_host/wren_bind_menu.c": "c8a8921dcbb3b21dccaa555202ba61002f24cadfef68d411316f96c79b71270a",
+    "src/scripting/wren_host/wren_bind_menu.c": "c053dda7dd30be7564e5acf3d69805074e9f3f56c4b1f372169293265c4995c9",
     "src/scripting/wren_host/wren_bind_pixels.c": "5a1b4c73862a6845710159e6b34e8992cff1ab66661b984f871c46eb6c6bcceb",
     "src/scripting/wren_host/wren_bind_session.c": "fb584f383f0d6df19f328ef194e8bf328f8dc723066df2111794b2b32ac63b93",
     "src/scripting/wren_host/wren_bind_status.c": "85ed4115c9a9645aa27cccb2a9977e5892037123d7440d9acf3397fd55e16671",
@@ -4002,13 +4104,16 @@
     "src/text/unicode_text/st_unicode_text.h": "122e239b71b76eb7a778815fec2bd783bdb1e84d2a60a06abb79a75f1fd3523f",
     "src/text/unicode_width/st_unicode_width.h": "c90749bc509e94748a1dba06bf25db3de7b7ccde03764193fd5f8073e9cb9433",
     "src/text/utf8/st_utf8.h": "803d3d03a0d91141f7259a0b1a39f6a51b71397db9310a94b96fd4444e10f3a1",
-    "scripts/menu_settings_ui_test.wren": "5ba615822bbf181ea24e6dc84ce28eb2ca879ba8c37e6f9132319265b4868def",
+    "scripts/menu_settings_ui_test.wren": "a7ebef18e0c0fd738c095a4044666a7c5fa128c09c0477018ba287feaa7fee33",
     "src/media/font_catalog/st_font_catalog.c": "4117712e3679625ff3f9368b9c5c8b048030617c071d8912978918593da38f47",
     "src/terminal/cterm/cterm_render.c": "fb5cf7def0c2972ca7d71dd326595f0dfdc9f4dfe9cfb6ce6b85c3fb6caa3a3a",
     "src/tests/st_font_assignments_test.py": "5b672eb7c59e75c7f9005e6851419f2563c435585740c150bf4af17544f9dbf6",
     "src/terminal/cterm/tests/st_cterm_test.c": "c76041087a5995c83a259e4052e8c4c5b518dc61aa858f9294bbd444b0c33a2b",
     "src/config/bbs_list/st_bbs_store.c": "9859e0b1a0bd65a05567d47f78fb5bf87ad8716077b8824a52e8d8b87a460325",
-    "src/scripting/wren_host/tests/st_wren_sftp_live_test.c": "61d5e35f34a48725efefca9b08f290d356ddee00cf12dad2b32c0727079025fa"
+    "src/scripting/wren_host/tests/st_wren_sftp_live_test.c": "61d5e35f34a48725efefca9b08f290d356ddee00cf12dad2b32c0727079025fa",
+    "src/scripting/wren_host/tests/st_wren_menu_test_bindings.c": "504d2aa5e5e29c4d6028eb909f33fb5c8abe9d106e6f8e44c118a3d1e2719cd8",
+    "scripts/menu_sort_profiles.wren": "e03022e77a0872851aa25ad52ff9f1160c8aa9a800d03bbb7063c8027dc4206d",
+    "src/config/settings/st_settings_store.c": "8353b1e80bd3e27e84122a57cec1e3daed29b0a2b46adfd64d531a4962e34128"
   },
   "verification": {
     "platform": "FreeBSD 15.1-RELEASE-p5 amd64",
@@ -4152,6 +4257,49 @@
         "MinGW64 Debug application and host tests cross-build (no Windows execution)"
       ],
       "limitations": "No Windows runtime execution. FreeBSD ASan leak detection unsupported and disabled; C++ vptr checks disabled for C-owned executables. No sanitizer diagnostics or compiler warnings were reported. Server-omitted attributes retain zero defaults; no protocol presence tracking was added. Other findings require their own Plan-mode phase and approval."
+    },
+    {
+      "topic": "bbs-settings-mutation-results",
+      "status": "selected-subclaims-resolved",
+      "findings": [
+        "error-symbols",
+        "model-mutation-results",
+        "list-encryption-information"
+      ],
+      "approval": "Complete Plan-mode chunk 4 revision 1 approved: Implement the plan. User selected BBS plus Settings, null/typed-error results, shared IOErr without FileErr alias, separate font saving/activation, readOnly for safe-mode blocked writes, and separate raw native status. User explicitly rejected commit-state flags and redesign of C APIs.",
+      "scope": "Menu-only immutable MenuError preserves portable reasons and generic raw native integers without inventing classifications. BBS/Settings/font/web/sort actions and creators are migrated; font persistence and activation are separate bindings. Existing native APIs, call order, partial effects, ownership and storage policy are unchanged. Property errors use standard Fiber abort. Editor messages and existing dirty/generation state preserve pending persistence after runtime failures.",
+      "resolved": [
+        "All 38 IOErr symbols, removal of FileErr alias",
+        "Selected BBS and Settings mutation-result fidelity",
+        "Menu.setEncryption native-result subclaim"
+      ],
+      "remaining": [
+        "Menu.load still coarsens native failures",
+        "st_settings_reload rereads disk, whereas Settings.reload deliberately resets its snapshot from running settings",
+        "Emoji.recordUse still reduces its native failure to String",
+        "Broader encryption writer-options/stream scope"
+      ],
+      "accounting": "Split bbs.load-status, settings.disk-reload and settings.recent-result from prior grouped records and rerouted their three existing native ledger rows. No native declaration changes or denominator expansion. New private test-control header is explicitly excluded.",
+      "regressions_before_fix": [
+        "wren_settings_runtime failed because IOErr was absent",
+        "Editor regression failed when a runtime error followed settings installation and the pending-save state was dropped"
+      ],
+      "tests_passed": [
+        "Clang: settings / settings_store / settings_failures / bbs_list / bbs_failures / bbs_cache_safety / bbs_web / list_crypto",
+        "Clang/GCC/ASan-UBSan: wren_host / wren_menu_contract / wren_settings_runtime / wren_settings-stale / wren_settings-save-failure / wren_settings-reload / wren_core-helpers",
+        "Final editor and readable-grant changes: wren_settings_runtime on Clang/GCC/ASan-UBSan/native no-crypto",
+        "Native CRYPTO_BACKEND=none: list_crypto / wren_settings_runtime",
+        "All IOErr constants cross-checked against native macros; full BBS editor regressions and font editor save/activate call counts",
+        "Coverage checker: 80 headers, 120 explicit exclusions, 2447 items, 156 assessments, 51 original topics; all 80 matrix rows match ledger; diff checks"
+      ],
+      "builds_passed": [
+        "FreeBSD Clang Debug application and three host/loader tests",
+        "FreeBSD GCC Debug focused tests",
+        "FreeBSD Clang ASan/UBSan focused tests",
+        "FreeBSD Clang RelWithDebInfo native no-crypto focused tests",
+        "MinGW64 Debug application and three host/loader tests cross-build"
+      ],
+      "limitations": "No Windows runtime execution. FreeBSD leak detection unsupported and disabled; C++ vptr checks disabled for C-owned executables. Generic C failures remain generic and existing partial writes/effects remain possible. No new compiler warnings; no sanitizer diagnostics in the final focused run. The headless settings fixture explicitly disables physical audio."
     }
   ]
 }
