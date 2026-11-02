@@ -521,21 +521,22 @@ part.  Mathematical method-style helpers:
 
 === String
 
-Immutable Unicode string, stored as UTF-8.  *`s.count` is codepoint
-count; `s[i]` and `s[a\...b]` are byte-indexed.*  This pair of facts
-is the single most insidious Wren string trap — see <<wren-language,
-Common Pitfalls>>.  For byte work, use `s.bytes`.
+Immutable byte string with UTF-8-aware operations. Strings can contain
+malformed UTF-8 and embedded NULs. For well-formed UTF-8, `s.count` counts
+Unicode scalars, while `s[i]`, ranges, and `s.codePoints[i]` use *byte offsets*.
+Use `s.bytes` for bytes and `s.codePoints.toList` or `s.toList` for scalar-ordinal
+indexing. Unicode scalars are not grapheme clusters; `Text.graphemes` supplies
+that separate operation.
 
 [cols="2m,3"]
 |===
-| `s.count`                          | Codepoint count.
+| `s.count`                          | Scalar count for valid UTF-8; does not validate the string.
 | `s.isEmpty`                        | True iff `count == 0`.
 | `s.bytes`                          | A `Sequence` view yielding each byte as a Num.
 | `s.codePoints`                     | A `Sequence` view yielding each codepoint as a Num.
 | `s[i]`                             | Codepoint substring starting at *byte* index `i`.  If `i` is mid-codepoint, returns the raw byte.
-| `s[a..b]`, `s[a\...b]`             | Byte-ranged substring.  Negative indices count from the end.
+| `s[a..b]`, `s[a\...b]`             | Visit byte offsets in the range, expanding complete scalars at lead bytes. Negative indices count from the end.
 | `s + other`                        | Concatenation.
-| `s * n`                            | Repeat `n` times.
 | `s.indexOf(needle)`                | Byte index of first match, or `-1`.
 | `s.indexOf(needle, start)`         | Byte index of match at-or-after `start`.
 | `s.contains(needle)`               | Substring presence.
@@ -550,6 +551,17 @@ Common Pitfalls>>.  For byte work, use `s.bytes`.
 | `String.fromByte(n)`               | Single-byte string.
 | `String.fromCodePoint(cp)`         | Encode a codepoint as UTF-8 string.
 |===
+
+The `codePoints` view's subscript still takes a byte offset; only materializing
+it into a List changes the index unit. A subscript into a continuation byte
+returns a raw byte String, while `codePoints[i]` returns `-1` there. Ranges are
+neither raw byte slices nor scalar-ordinal slices: `"é"[0...1]` returns the
+whole two-byte character, while `"é"[1...2]` returns `""`.
+
+No implicit NFC normalization occurs. `"é"` and `"e\u0301"` are different
+Strings, with scalar counts 1 and 2. A one-byte invalid String can also have
+`count == 1`, so text-taking native bindings must validate UTF-8 using the
+explicit byte length rather than a String count or C `strlen`.
 
 === List
 

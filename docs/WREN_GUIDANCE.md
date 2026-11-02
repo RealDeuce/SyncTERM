@@ -39,6 +39,23 @@ details matter.
 - Multi-line bodies return `null` unless they execute an explicit `return`.
 - A single-line body containing `return` is a compile error.
 
+## Unicode strings and input
+
+- Wren Strings can contain arbitrary bytes, including malformed UTF-8 and NUL.
+  Native text boundaries must use `wrenGetSlotBytes` with its length and strict
+  UTF-8 validation; neither `strlen` nor a Wren `count == 1` validates a scalar.
+- For well-formed UTF-8, String iteration and `string.count` count scalars,
+  not graphemes. Use `Text.graphemes` when the operation needs grapheme boundaries.
+- `string[i]` and `string.codePoints[i]` take **byte offsets**. The former can
+  return a raw continuation byte; the latter returns -1 there. For scalar
+  ordinals, first materialize `string.toList` or `string.codePoints.toList`.
+- `string.bytes.count` counts bytes, and `indexOf` returns a byte offset.
+  String ranges visit byte offsets but expand complete scalars at lead bytes;
+  they are neither raw-byte slices nor scalar-ordinal slices. Never use an
+  encoded send count or `string.count` to slice a UTF-8 String.
+- No implicit NFC normalization or grapheme segmentation occurs in Wren.
+  Keep original committed input scalars separate from named keys and modifiers.
+
 ## Classes
 
 - Constructors use `construct new(args) { ... }`.
