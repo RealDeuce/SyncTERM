@@ -1750,22 +1750,35 @@
       "decision": "scope-review"
     },
     "transfer.path-authority": {
-      "status": "partial",
-      "wren": "Transfer.upload(kind, path, lastCh) / uploadBatch",
-      "reason": "Native paths are raw C strings. Dispatch copies arbitrary script-provided path strings into config.paths; start checks safe mode/session/protocol but does not verify an upload File grant or configured upload-root confinement. This bypasses the otherwise capability-based File abstraction. Existing picker consumers provide authorized paths, but that does not constrain other callers. No behavior change is made in this accounting.",
+      "status": "covered",
+      "wren": "Transfer.upload(kind, File-or-exempt-path, lastCh) / uploadBatch",
+      "reason": "Actual File class, VM ownership, read rights and cache-owner lifetime are checked. String sources must resolve to regular files beneath the active BBS cache or immutable configured upload-directory root; descendant links and escaping normalized paths are rejected. Every batch source is checked before any worker starts. Picker callers retain File objects instead of discarding the grant as a String.",
       "vm": "same VM as the owning API",
       "evidence": [
         {
-          "path": "src/scripting/wren_host/wren_bind_xfer.c",
-          "anchor": "config.paths = (const char *const *)paths"
+          "path": "src/scripting/wren_host/wren_bind_fs.c",
+          "anchor": "st_wren_file_upload_path"
         },
         {
           "path": "src/scripting/wren_host/wren_bind_xfer.c",
-          "anchor": "static int start("
+          "anchor": "paths[i] = st_wren_file_upload_path"
+        },
+        {
+          "path": "scripts/transfer_pick.wren",
+          "anchor": "Transfer.upload(row[0], files[0], lastCh)"
+        },
+        {
+          "path": "src/scripting/wren_host/tests/st_wren_host_test.c",
+          "anchor": "ungranted upload started"
+        },
+        {
+          "path": "src/scripting/wren_host/tests/st_wren_host_test.c",
+          "anchor": "queue lost upload grant across VMs"
         }
       ],
       "finding": "transfer-upload-authority",
-      "decision": "mapping-gap"
+      "decision": "resolved",
+      "resolution": "Resolved by the upload-consent follow-up. The legacy reference tree is unchanged."
     },
     "transfer.worker-owner": {
       "status": "host-owned",
@@ -3642,7 +3655,7 @@
     {
       "path": "scripts/transfer_pick.wren",
       "anchor": "Transfer.uploadBatch",
-      "aspect": "picker File values converted to path Strings; consumer consent does not guard other callers"
+      "aspect": "Picker returns readable File grants, passed intact into transfer dispatch."
     },
     {
       "path": "scripts/transfer_app.wren",
@@ -3705,6 +3718,16 @@
       "path": "src/media/console/tests/st_console_test.c",
       "anchor": "flags & ~ST_CONSOLE_VIDEO_EXPAND",
       "aspect": "native setter rejects expansion change"
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_host_test.c",
+      "anchor": "partially validated batch started",
+      "aspect": "An unauthorized source rejects the whole batch before worker output."
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_host_test.c",
+      "anchor": "queue lost upload grant across VMs",
+      "aspect": "Persisted SFTP upload grants survive VM recreation; workers reject tampered tokens and changed source contents."
     }
   ],
   "dispatch_evidence": [
@@ -3716,7 +3739,7 @@
   ],
   "evidence_files": {
     "docs/WREN_GUIDANCE.md": "d14aeecb5eae922015f2f48a4fd690277dcb5b91aedfd8d8d8cffb2dc235e1ac",
-    "docs/Wren.adoc": "6324a1a5597629004dd51850f377fa84ee5ef9b186da82398b166dec8b8e0e12",
+    "docs/Wren.adoc": "5097cf41acd52f3c50a7b78e199242b7c4e18bd3c7177c4e9af5b608b0a1b191",
     "docs/api/bbs-entry-fields.adoc": "a1be9944eadd5f56d752e8669b502f49b27211f14190443a95e36ad301b8d128",
     "scripts/auto/connected/font_pick.wren": "471102c73421cc011ed65225e77feda3a1716dba4e3cf41cda3741f0f19405d6",
     "scripts/auto/menu/main_menu.wren": "57458b3161806dac245710a7a076278c260d8e3ffcdf19186b331e70c36c18c9",
@@ -3724,11 +3747,11 @@
     "scripts/menu_settings_ui.wren": "f54e1500536947060a6a2836ad0c15a54068f1786e357b18b6e67afb417f26e6",
     "scripts/sftp_app.wren": "38ff67e42a9e3b8c962f1cd9618ee4f5582d2406e0f8fd8c09bbd9e8f47db097",
     "scripts/sftp_queue.wren": "1fb32830a081a1682b0147a9c7a95e9d96dd4e0539c8847e218613c7b69a38c5",
-    "scripts/syncterm.wren": "a384b502fc3db8a2cfc21442ca0a48c3a7a3ee4bc0663184d2dbd45420f4ffb2",
+    "scripts/syncterm.wren": "c9009a4d361aedaac89cdb166b0c6e68bf3b6b605e8ef52e805b76334d919ec9",
     "scripts/syncterm_menu.wren": "88da9af4c28aac7504ace0a7efb8db13333b03a595966e3576c6f9721f1c8459",
     "scripts/syncterm_picker.wren": "143e15bd084bed37145061760100c84b353d340e00187d9cd2b920a850be6021",
     "scripts/transfer_app.wren": "36713bbb8fdb61e5f7af68371c44a9110cd8bda8ea59c0ee7ee09436684b61af",
-    "scripts/transfer_pick.wren": "9fbd239d3bd911329414cdc527ce81fdacb4f98e8fbc15970acadac0178fca60",
+    "scripts/transfer_pick.wren": "9e88fe4e68efc01449105c8536f1902fca4295564adf2b488d1a866d5fcd29cb",
     "scripts/ui_app.wren": "704c49cd2ff7f3c1fe86391d6bb1ac2d0120091506e246dad4ddb7cff70649d6",
     "scripts/wrentest.wren": "e8fac350769877aba99d44e15fad468c38b21dbb0d9db997b3c05283c34f8aec",
     "src/base/array_list/array_list.h": "07f78e0fe13932c9f0004844800f4e391029a0f6279fa750bfe836b9f85357de",
@@ -3793,19 +3816,19 @@
     "src/net/transfer/st_transfer_detect.h": "3296b9ecf875d100f793920a3b0117a8f7b80951a539317d366f4ea40a7a1b30",
     "src/net/webget/st_webget.h": "9647dcc563e1661fe1d6b762c78e2483d2beae03ac878da0ebd15c8a425d2143",
     "src/scripting/wren_host/st_wren_host.h": "531eba9331f992a6394c41020890e279597ee8d6cfd1259a4495f68ef38d5552",
-    "src/scripting/wren_host/tests/st_wren_host_test.c": "dd2cddec6b325d317f2e19ebf0fc56b5737e9560b75313b6e097ce1577d0c803",
+    "src/scripting/wren_host/tests/st_wren_host_test.c": "0cb371fbaa57df70d208cfe6620ea01831a23b40b95347a29ecffe24accb486f",
     "src/scripting/wren_host/tests/st_wren_settings_menu_test.c": "f0557efeb61eb50f10448feac06ecbf2066c0909e11b3fb7f3cd5e76cdf8b3a9",
     "src/scripting/wren_host/wren_async.c": "71e78941735250300171a2b7cb13b70c92916bd14c066a6614b3f77cdd9b565d",
     "src/scripting/wren_host/wren_bbs_model.c": "18dca3353505a5b0dc609251f16038bd9132c47e215c4cf24ba802ac4b3ab97a",
     "src/scripting/wren_host/wren_bind_core.c": "877c48e61bda9fd0e3fd4f34b3ebf204998aa4368c442aee0dc61cc5f11ccad8",
-    "src/scripting/wren_host/wren_bind_fs.c": "fc773dd3f69febf5e9ee6c8edbc2aa130f03a79ba04ae2b2ab6ca561076a03da",
+    "src/scripting/wren_host/wren_bind_fs.c": "b0549af2dc185a48ad28442d782210d067af7e761cce20fc77d45534859d5633",
     "src/scripting/wren_host/wren_bind_hyperlinks.c": "255be945007c9cb2795195058e5f58de7d2b2157728892e614d6e8fb5f729b98",
     "src/scripting/wren_host/wren_bind_menu.c": "370077e63862e1098e1e3c2ab50ee7bd6777a5d887069742fca04fd3b3c81fbb",
     "src/scripting/wren_host/wren_bind_pixels.c": "5a1b4c73862a6845710159e6b34e8992cff1ab66661b984f871c46eb6c6bcceb",
     "src/scripting/wren_host/wren_bind_session.c": "63fbfba7948383f74d87f4fed2c70237504bd324abe326d881d63bd783260318",
     "src/scripting/wren_host/wren_bind_status.c": "85ed4115c9a9645aa27cccb2a9977e5892037123d7440d9acf3397fd55e16671",
     "src/scripting/wren_host/wren_bind_won.c": "96575bcbfdf0b157d89ec5ef64cd2573a0b41d2aaf5e379edd19303d382bc2f4",
-    "src/scripting/wren_host/wren_bind_xfer.c": "df24e9fe1a6203185dd8760f31ff3e1797f5095829c1c1953bc27d4cebcc9d5a",
+    "src/scripting/wren_host/wren_bind_xfer.c": "760600a5165e97060b06b52127f1450a4a0a76422babcfa70b9d0e07c668b573",
     "src/scripting/wren_host/wren_cleanup.c": "4a22a39e849d5336e2fc4d870cb749e0eecdb1137463ef7a6d989e8dfd2c235b",
     "src/scripting/wren_host/wren_directory.c": "c7d5088d503737efa3499182c7feaab10c5b0bccc7888b465b1832b0b2ea9180",
     "src/scripting/wren_host/wren_foreign.c": "6fbacba5e2a42ecbfd16bfef1d427a1323f7ecdbebfecd238efd6ae3aebeeca7",
@@ -3884,5 +3907,23 @@
       "wren_console_synthetic"
     ],
     "limitations": "Native/headless only; no Windows runtime, physical audio or blanket per-option test coverage; missing APIs established by static review."
-  }
+  },
+  "follow_up_reviews": [
+    {
+      "topic": "transfer-upload-authority",
+      "status": "resolved",
+      "scope": "Modern upload bindings and picker caller. SFTP already persisted signed grants; new tests cover cross-VM reload and invalidation.",
+      "tests_passed": [
+        "wren_host",
+        "wren_menu_contract",
+        "wren_sftp_live",
+        "ASan/UBSan wren_host"
+      ],
+      "builds_passed": [
+        "native FreeBSD Clang Debug",
+        "native GCC host-library build",
+        "MinGW x86_64 cross-build (no Windows execution)"
+      ]
+    }
+  ]
 }

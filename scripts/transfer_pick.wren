@@ -64,9 +64,9 @@ class TransferFlow {
       })
       if (files == null || files.count == 0) return
       if (row[2]) {
-        Transfer.uploadBatch(row[0], files.map {|file| file.toString }.toList, lastCh)
+        Transfer.uploadBatch(row[0], files, lastCh)
       } else {
-        Transfer.upload(row[0], files[0].toString, lastCh)
+        Transfer.upload(row[0], files[0], lastCh)
       }
       if (Transfer.inlineUpload) {
         inline_()

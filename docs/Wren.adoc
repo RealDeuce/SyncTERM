@@ -6128,14 +6128,23 @@ completion and log APIs as manual transfers.
   scenes while receiving. An active transfer retains its result until
   `endSession()`.
 
-| `Transfer.upload(kind, path, lastCh)`
+| `Transfer.upload(kind, source, lastCh)`
 | Start one file using `"zmodem"`, `"ymodem"`, `"xmodem-1k"`,
-  `"xmodem-128"`, `"ascii"`, or `"raw"`. Paths are UTF-8. `lastCh` is
+  `"xmodem-128"`, `"ascii"`, or `"raw"`. `source` is a readable `File`
+  belonging to the calling VM, normally returned by the picker. A write-only
+  save grant is rejected. A path String is also accepted for an existing
+  regular file inside the current BBS's cache or configured upload directory,
+  including subdirectories. Paths validate as UTF-8 and normalize to NFC;
+  normalized paths outside those roots and descendant symlinks/reparse points
+  are rejected. Other locations require a `File` grant; converting one to
+  `.path` or `.toString` does not retain its authority. `lastCh` is
   normally zero; an already-consumed X/YMODEM `C`, `G`, or NAK can seed
   the initial handshake. ASCII normalizes LF to CRLF; raw preserves bytes.
 
-| `Transfer.uploadBatch(kind, paths, lastCh)`
-| Start a List of file paths using `"zmodem"` or `"ymodem"`.
+| `Transfer.uploadBatch(kind, sources, lastCh)`
+| Start a List of readable `File` grants or exempt path Strings using
+  `"zmodem"` or `"ymodem"`. Every element is validated before any worker starts;
+  a rejected element rejects the entire batch.
 
 | `Transfer.download(kind, filename)`
 | Start `"zmodem"`, `"ymodem-g"`, `"ymodem"`, `"xmodem-crc"`,

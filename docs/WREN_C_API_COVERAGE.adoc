@@ -1,6 +1,7 @@
 = Wren coverage of SyncTERM's native C interfaces
 
 Status: accounting complete against commit da27a6e (2026-11-02).
+Follow-up: +transfer-upload-authority+ is now resolved as described below.
 The bindings are not complete. This report accounts for their coverage and
 limitations; it does not authorize implementing every omitted C facility.
 
@@ -8,14 +9,17 @@ limitations; it does not authorize implementing every omitted C facility.
 
 The review covers 80 project-owned public headers, 2,432 named native items,
 and 119 explicitly excluded implementation/vendor/test headers. Every inventoried
-item has a disposition. There are 51 finding topics, including broader API-scope
-decisions, plus one stale documentation finding. The numbers follow the inventory;
+item has a disposition. The initial review recorded 51 finding topics, including
+broader API-scope decisions, plus one stale documentation finding. One topic
+(upload authority) is now resolved; the others remain review findings. The numbers
+follow the inventory;
 they are not a stopping rule or a percentage of useful capabilities covered.
 
 Important concrete results include loss of SFTP listing metadata, BBS provenance
 and diagnostics, mutation/cache failure details, and custom-font codepage choices;
-missing offscreen pixel compositing; and a transfer upload path API that bypasses
-the File-grant abstraction. Other omissions, such as general audio, HTTP, INI,
+missing offscreen pixel compositing; and a transfer upload path API that bypassed
+the File-grant abstraction (now resolved below). Other omissions, such as general
+audio, HTTP, INI,
 cryptographic and Unicode utility APIs, require a scope decision rather than an
 automatic new binding. The findings below distinguish these cases.
 
@@ -64,7 +68,7 @@ Existing boundaries define which omissions are intentional:
   and cannot import the menu API. Declarations alone do not grant a capability.
 * Native filesystem grants and token signing remain host authority. Supplying
   a pathname is not supposed to mint arbitrary access; the transfer finding
-  identifies where the current API fails to maintain that abstraction.
+  records the initial failure and its subsequent resolution.
 * Host text boundaries validate UTF-8 and normalize NFC, including configuration
   credential fields and paths. Raw byte payloads remain bytes. Wren Strings retain
   standard arbitrary-byte semantics; no language normalization or Fiber changes
@@ -168,7 +172,7 @@ ids refer to the full mappings in the JSON, including VM-specific restrictions.
 | link:../src/net/socket/socket.h[net/socket/socket.h] | 0 | 0 | 0 | 27 | 0 | +transport.socket+
 | link:../src/net/tcp_client/tcp_client.h[net/tcp_client/tcp_client.h] | 0 | 0 | 0 | 17 | 0 | +transport.tcp_client+
 | link:../src/net/tls/st_tls.h[net/tls/st_tls.h] | 0 | 11 | 11 | 34 | 0 | +tls.owner+, +tls.peer-info+, +tls.policy-options+
-| link:../src/net/transfer/st_transfer.h[net/transfer/st_transfer.h] | 51 | 19 | 0 | 13 | 0 | +transfer.path-authority+, +transfer.receive-policy+, +transfer.result-code+, +transfer.worker-owner+, +transfer.workflow+, +transfer.xmodem-g+
+| link:../src/net/transfer/st_transfer.h[net/transfer/st_transfer.h] | 53 | 17 | 0 | 13 | 0 | +transfer.path-authority+, +transfer.receive-policy+, +transfer.result-code+, +transfer.worker-owner+, +transfer.workflow+, +transfer.xmodem-g+
 | link:../src/net/transfer/st_transfer_detect.h[net/transfer/st_transfer_detect.h] | 0 | 0 | 0 | 3 | 0 | +transfer.autodetect+
 | link:../src/net/webget/st_webget.h[net/webget/st_webget.h] | 0 | 33 | 0 | 0 | 0 | +webget.workflow+
 | link:../src/scripting/wren_host/st_wren_host.h[scripting/wren_host/st_wren_host.h] | 0 | 0 | 0 | 67 | 0 | +embedding.owner+
@@ -201,7 +205,9 @@ ids refer to the full mappings in the JSON, including VM-specific restrictions.
 
 These are observations of current behavior, not approvals to change it. A missing
 field can need a getter, an operation can need a different owner/result, or the
-user may decide the restriction is appropriate. No gap is implemented here.
+user may decide the restriction is appropriate. The upload-authority finding
+records its subsequent focused fix; other
+findings remain review results.
 
 [[finding-bbs-cache-result]]
 === Successful BBS mutation hides cache-maintenance failure
@@ -297,7 +303,7 @@ Evidence: link:../src/terminal/cterm/st_cterm.c[src/terminal/cterm/st_cterm.c:26
 
 Only two file digest algorithms are exposed. SHA-256/384/512, generic byte-buffer digest input and digest-size query are absent. File methods are grant-confined and return raw digest bytes.
 
-Evidence: link:../src/base/crypto/st_digest.h[src/base/crypto/st_digest.h:18]; link:../src/scripting/wren_host/wren_bind_fs.c[src/scripting/wren_host/wren_bind_fs.c:1294].
+Evidence: link:../src/base/crypto/st_digest.h[src/base/crypto/st_digest.h:18]; link:../src/scripting/wren_host/wren_bind_fs.c[src/scripting/wren_host/wren_bind_fs.c:1381].
 
 [[finding-error-symbols]]
 === Portable I/O error names are incomplete
@@ -315,7 +321,7 @@ Evidence: link:../src/base/io_error/io_error.h[src/base/io_error/io_error.h:36];
 
 Native fs_get_link_info distinguishes link/other/file/directory without following the link. Script listing exposes only directory versus file-like entries and does not offer an lstat-equivalent kind query. Native modified time and size do have corresponding metadata. Directory grants deliberately reject/omit links to avoid following ungranted paths; the missing lstat metadata is an observation of that security boundary, not a request to grant link traversal.
 
-Evidence: link:../src/io/filesystem/filesystem.h[src/io/filesystem/filesystem.h:38]; link:../scripts/syncterm_picker.wren[scripts/syncterm_picker.wren:14]; link:../src/scripting/wren_host/tests/st_wren_host_test.c[src/scripting/wren_host/tests/st_wren_host_test.c:807].
+Evidence: link:../src/io/filesystem/filesystem.h[src/io/filesystem/filesystem.h:38]; link:../scripts/syncterm_picker.wren[scripts/syncterm_picker.wren:14]; link:../src/scripting/wren_host/tests/st_wren_host_test.c[src/scripting/wren_host/tests/st_wren_host_test.c:809].
 
 [[finding-font-codepage]]
 === Custom-font loading omits the codepage choice and mapping metadata
@@ -390,7 +396,7 @@ Evidence: link:../src/config/settings/st_settings.h[src/config/settings/st_setti
 
 Directory response contains complete native stat, but SFTPEntry omits atime, mode, uid and gid. Separate SFTP.stat exposes them only after another request and may observe changed state. Embedded stat itself is therefore only partially represented.
 
-Evidence: link:../src/net/sftp_client/st_sftp.h[src/net/sftp_client/st_sftp.h:53]; link:../scripts/syncterm.wren[scripts/syncterm.wren:2075]; link:../src/scripting/wren_host/wren_sftp.c[src/scripting/wren_host/wren_sftp.c:905].
+Evidence: link:../src/net/sftp_client/st_sftp.h[src/net/sftp_client/st_sftp.h:53]; link:../scripts/syncterm.wren[scripts/syncterm.wren:2073]; link:../src/scripting/wren_host/wren_sftp.c[src/scripting/wren_host/wren_sftp.c:905].
 
 [[finding-theme-operation-results]]
 === Theme operations preserve error messages but usually lose codes
@@ -438,20 +444,32 @@ The native integer completion result is reduced to success Bool and aborted Bool
 Evidence: link:../src/net/transfer/st_transfer.h[src/net/transfer/st_transfer.h:70]; link:../src/scripting/wren_host/wren_bind_xfer.c[src/scripting/wren_host/wren_bind_xfer.c:322].
 
 [[finding-transfer-upload-authority]]
-=== Upload path strings bypass the File-grant abstraction
+=== Upload File-grant validation (resolved)
 
-+transfer.path-authority+ (partial; same VM as the owning API). Wren: Transfer.upload(kind, path, lastCh) / uploadBatch.
+The initial accounting found that caller-provided path Strings could bypass the
+picker. Uploads now require readable +File+ grants belonging to the calling VM,
+or a normalized path beneath the active BBS cache or configured upload directory.
+The configured root comes from the immutable session profile. Descendant links,
+non-regular sources and paths escaping those roots are rejected; every element
+in a batch is validated before starting a worker. The built-in picker flow passes
++File+ objects intact. The legacy reference tree is unchanged.
 
-Native paths are raw C strings. Dispatch copies arbitrary script-provided path strings into config.paths; start checks safe mode/session/protocol but does not verify an upload File grant or configured upload-root confinement. This bypasses the otherwise capability-based File abstraction. Existing picker consumers provide authorized paths, but that does not constrain other callers. No behavior change is made in this accounting.
++transfer.path-authority+ is now Covered. SFTP queues already stored the signed
+read grant as +localToken+ and reconstructed it with +Host.openLocalFile+.
+Regression coverage now persists that grant through VM destruction/recreation,
+then verifies rejection of tampered tokens and changed source contents. Manual
+raw transfers verify the bytes sent for File grants, cache/upload paths, nested
+and NFC-normalized paths; rejected batches produce no output.
 
-Evidence: link:../src/scripting/wren_host/wren_bind_xfer.c[src/scripting/wren_host/wren_bind_xfer.c:414]; link:../src/scripting/wren_host/wren_bind_xfer.c[src/scripting/wren_host/wren_bind_xfer.c:52].
+Verification: native Clang Debug +wren_host+, +wren_menu_contract+ and live SFTP
+passed; ASan/UBSan +wren_host+ passed; MinGW x86_64 cross-build of the host library
+passed without warnings, as did the native GCC host-library build. No Windows
+execution is claimed.
 
-== Findings: utility/service and policy scope decisions
-
-These entries are fully accounted omissions or partial workflows. The remaining
-question is whether the script API should include the capability, and in which VM
-and owner. Existing native availability alone is not sufficient reason to add it.
-No further accounting work is hidden behind these decisions.
+Evidence: link:../src/scripting/wren_host/wren_bind_fs.c[upload grant validation],
+link:../src/scripting/wren_host/wren_bind_xfer.c[dispatch],
+link:../scripts/transfer_pick.wren[picker caller], and
+link:../src/scripting/wren_host/tests/st_wren_host_test.c[upload/queue regression tests].
 
 [[finding-audio-service]]
 === General script audio playback and decoding
@@ -691,7 +709,7 @@ Evidence: link:../src/base/string_util/string_util.h[src/base/string_util/string
 
 Native strict int64/uint64/bool/double parsing and duration/date parsing/formatting have no exact general script equivalent. Num.fromString and toString have different syntax/ranges; binary64 cannot represent all native 64-bit integers. Typed settings use these internally. This is an omitted utility scope decision, not justification for changing Wren Number.
 
-Evidence: link:../src/base/value_convert/value_convert.h[src/base/value_convert/value_convert.h:22]; link:../scripts/syncterm.wren[scripts/syncterm.wren:2031].
+Evidence: link:../src/base/value_convert/value_convert.h[src/base/value_convert/value_convert.h:22]; link:../scripts/syncterm.wren[scripts/syncterm.wren:2029].
 
 [[finding-utility-crypto]]
 === General cryptographic primitives and strong random bytes
@@ -785,7 +803,8 @@ No Windows runtime, real audio-device or exhaustive per-native-option coverage
 is claimed. Tests corroborate the specified paths; static declaration/dispatch/
 implementation review establishes the reported omissions. No regression tests
 were invented for methods which do not exist, and no native binding or Wren
-language behavior was changed.
+language behavior was changed during the initial accounting. The upload-consent
+follow-up changes the binding and picker caller as described above.
 
 == Rechecking and future edits
 

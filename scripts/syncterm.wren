@@ -1958,18 +1958,16 @@ class Transfer {
   foreign static dialogFilename
   foreign static dialogRespond(resp, newName)
 
-  // Single-file upload dispatch.  `kind` is one of:
-  //   "zmodem", "ymodem", "xmodem-1k", "xmodem-128", "ascii", "raw"
-  // `path` is an absolute filesystem path.  `lastCh` is the trailing
-  // wire byte that biases the xmodem family's initial recv state
-  // (irrelevant outside auto-detect; pass 0 for keyboard-driven
-  // uploads). Returns true after starting; run TransferApp to show progress.
-  foreign static upload(kind, path, lastCh)
+  // Upload sources are readable File grants. Path Strings are also accepted
+  // inside the current BBS cache or configured upload directory; descendant
+  // symlinks/reparse points are rejected. Other paths require picker consent.
+  // `kind`: "zmodem", "ymodem", "xmodem-1k", "xmodem-128", "ascii", "raw".
+  // `lastCh` seeds an already-consumed X/YMODEM handshake byte (normally 0).
+  foreign static upload(kind, source, lastCh)
 
-  // Multi-file upload dispatch.  `kind` is "zmodem" or "ymodem"
-  // (xmodem-128 / 1k don't have a batch form).  `paths` is a List
-  // of absolute filesystem path strings. Starts asynchronously, like upload().
-  foreign static uploadBatch(kind, paths, lastCh)
+  // Batch "zmodem" / "ymodem" uploads. Every source must pass the same grant
+  // check before any worker starts; a List may contain Files and exempt paths.
+  foreign static uploadBatch(kind, sources, lastCh)
 
   // Download dispatch.  `kind` is one of:
   //   "zmodem", "ymodem-g", "ymodem", "xmodem-crc",

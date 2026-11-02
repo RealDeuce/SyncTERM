@@ -1186,6 +1186,93 @@ st_wren_file_read_path(WrenVM *vm, int slot)
 	return file->path;
 }
 
+/* The configured root is trusted; links below it must not widen the grant.
+ * Work on the normalized absolute path that will actually reach the worker. */
+static bool
+upload_below_root(char *path, const char *root)
+{
+	char *absolute = root == NULL || root[0] == '\0' ? NULL : absolute_path(root);
+	struct fs_info info;
+	bool allowed = false;
+
+	if (absolute == NULL || fs_get_info(&info, absolute) != 0
+	    || info.kind != FS_ENTRY_DIRECTORY)
+		goto finished;
+	size_t length = strlen(path), prefix = strlen(absolute);
+	if (length <= prefix || strncmp(path, absolute, prefix) != 0)
+		goto finished;
+	if (!path_is_separator(absolute[prefix - 1])) {
+		if (!path_is_separator(path[prefix]))
+			goto finished;
+		++prefix;
+	}
+	for (size_t end = prefix; end <= length; ++end) {
+		if (end != length && !path_is_separator(path[end]))
+			continue;
+		char saved = path[end];
+		path[end] = '\0';
+		int status = fs_get_link_info(&info, path);
+		path[end] = saved;
+		if (status != 0 || info.kind != (end == length
+		    ? FS_ENTRY_FILE : FS_ENTRY_DIRECTORY))
+			goto finished;
+	}
+	allowed = true;
+finished:
+	free(absolute);
+	return allowed;
+}
+
+char *
+st_wren_file_upload_path(WrenVM *vm, int slot)
+{
+	struct st_wren_context *context = st_wren_context_from_vm(vm);
+	const char *source;
+	char *path, *cache = NULL;
+	struct fs_info info;
+	bool granted = wrenGetSlotType(vm, slot) != WREN_TYPE_STRING;
+
+	if (granted) {
+		source = st_wren_file_read_path(vm, slot);
+		if (source == NULL) {
+			st_wren_abort(vm, "Upload source requires a readable File");
+			return NULL;
+		}
+	} else {
+		int length;
+		if (!st_wren_text_slot(vm, slot, &source, &length))
+			return NULL;
+		if (length <= 0 || memchr(source, '\0', (size_t)length) != NULL) {
+			st_wren_abort(vm, "Upload path must be nonempty text without NUL");
+			return NULL;
+		}
+	}
+	path = absolute_path(source);
+	if (path == NULL) {
+		st_wren_abort(vm, "Upload source path could not be resolved");
+		return NULL;
+	}
+	if (granted) {
+		if (fs_get_info(&info, path) == 0 && info.kind == FS_ENTRY_FILE)
+			return path;
+	} else if (context->connected != NULL && context->profile != NULL) {
+		if (upload_below_root(path, context->profile->upload_directory))
+			return path;
+		if (context->host->bbs_list != NULL
+		    && st_bbs_list_cache_path(&cache, context->host->bbs_list,
+		    context->profile->name) == 0) {
+			bool allowed = upload_below_root(path, cache);
+			free(cache);
+			if (allowed)
+				return path;
+		}
+	}
+	free(path);
+	st_wren_abort(vm, granted ? "Upload source is not a regular file"
+	    : "Upload path is outside the session cache or configured upload directory, or traverses a link");
+	return NULL;
+}
+
 bool
 st_wren_file_claim_write(WrenVM *vm, int slot,
 	const char *operation, FILE **stream)

@@ -14,6 +14,8 @@
 #include "io_error.h"
 #include "st_app_paths.h"
 #include "st_bbs_list.h"
+#include "st_consent_token.h"
+#include "path.h"
 #include "st_audio_runtime.h"
 #include "st_audio_file.h"
 #include "st_pixel_image.h"
@@ -1015,6 +1017,200 @@ exercise_connected_profile_scripts(st_wren_host_t *host,
 	CHECK(connected == NULL);
 	CHECK(fs_remove_file(first) == 0);
 	CHECK(fs_remove_file(second) == 0);
+	return 0;
+}
+
+/* Exercise upload authority at the actual foreign-call boundary. */
+static int
+exercise_upload_consent(st_wren_host_t *host, st_console_t *console)
+{
+	static const struct st_connection_transport_ops operations = {0};
+	struct st_connection connection = {.operations = &operations};
+	struct st_profile profile;
+	st_font_catalog_t *fonts = NULL;
+	st_term_session_t *session = NULL;
+	st_wren_connected_t *connected = NULL;
+	st_console_snapshot_t *snapshot = NULL;
+	char root[1024], nested[1024], local[1024], child[1024], unicode[1024];
+	char outside[1024], sibling[1024], traversal[1024];
+	char *cache = NULL, *cached = NULL;
+	char grant_list_path[1024];
+	st_bbs_list_t *saved_list = host->bbs_list, *grant_list = NULL;
+	char *token = NULL;
+	if (!st_list_crypto_encryption_available()) return 0;
+	const char payload[] = "upload-grant";
+
+	CHECK(snprintf(root, sizeof(root), "%s/upload-consent", ST_WREN_TEST_DIRECTORY) < (int)sizeof(root));
+	CHECK(snprintf(nested, sizeof(nested), "%s/nested", root) < (int)sizeof(nested));
+	CHECK(snprintf(local, sizeof(local), "%s/source.txt", root) < (int)sizeof(local));
+	CHECK(snprintf(child, sizeof(child), "%s/source.txt", nested) < (int)sizeof(child));
+	CHECK(snprintf(unicode, sizeof(unicode), "%s/caf\xc3\xa9.txt", root) < (int)sizeof(unicode));
+	CHECK(snprintf(outside, sizeof(outside), "%s/upload-outside.txt", ST_WREN_TEST_DIRECTORY) < (int)sizeof(outside));
+	CHECK(snprintf(sibling, sizeof(sibling), "%s-sibling.txt", root) < (int)sizeof(sibling));
+	CHECK(snprintf(traversal, sizeof(traversal), "%s/../upload-outside.txt", root) < (int)sizeof(traversal));
+	CHECK(fs_create_directories(nested) == 0);
+	CHECK(write_file(local, payload) == 0 && write_file(child, payload) == 0 && write_file(unicode, payload) == 0);
+	CHECK(write_file(outside, payload) == 0 && write_file(sibling, payload) == 0);
+	CHECK(st_bbs_list_cache_path(&cache, host->bbs_list, "Alpha") == 0);
+	CHECK(fs_create_directories(cache) == 0);
+	CHECK(path_join_alloc(&cached, cache, "upload-consent.txt") == 0);
+	CHECK(write_file(cached, payload) == 0);
+	st_profile_init(&profile);
+	strcpy(profile.name, "Alpha");
+	profile.connection_type = ST_CONNECTION_RAW;
+	profile.screen_mode = ST_SCREEN_MODE_80X25;
+	profile.upload_directory = strdup(root);
+	CHECK(profile.upload_directory != NULL);
+	atomic_init(&connection.connected, true);
+	atomic_init(&connection.binary_mode, false);
+	atomic_init(&connection.stopping, false);
+	CHECK(st_mutex_init(&connection.input.mutex, ST_MUTEX_PLAIN) == ST_THREAD_SUCCESS);
+	CHECK(st_condition_init(&connection.input.changed) == ST_THREAD_SUCCESS);
+	CHECK(st_mutex_init(&connection.output.mutex, ST_MUTEX_PLAIN) == ST_THREAD_SUCCESS);
+	CHECK(st_condition_init(&connection.output.changed) == ST_THREAD_SUCCESS);
+	CHECK(st_console_snapshot_create(&snapshot, console) == 0);
+	CHECK(st_font_catalog_create(&fonts, console) == 0);
+	const struct st_term_config term_config = {.console = console,
+	    .connection = &connection, .fonts = fonts, .hide_status = true,
+	    .screen_mode = ST_SCREEN_MODE_80X25, .encoding = ST_CTERM_ENCODING_UTF8};
+	CHECK(st_term_session_create(&session, &term_config) == 0);
+	const struct st_wren_connected_config config = {.host = host,
+	    .console = console, .profile = &profile, .session = session,
+	    .connection = &connection, .cterm = st_term_session_cterm(session)};
+	CHECK(st_wren_connected_create(&connected, &config) == 0);
+	CHECK(snprintf(grant_list_path, sizeof(grant_list_path), "%s/upload-consent.lst", ST_WREN_TEST_DIRECTORY) < (int)sizeof(grant_list_path));
+	CHECK(write_file(grant_list_path, "") == 0);
+	struct st_app_paths grant_paths = *host->config.paths;
+	grant_paths.personal_list = grant_list_path;
+	struct st_settings grant_settings = st_settings;
+	grant_settings.list_path = grant_list_path;
+	grant_settings.download_system_list = false;
+	CHECK(st_bbs_list_open_replacement(&grant_list, NULL, &grant_paths, &grant_settings) == 0);
+	struct st_list_crypto_options crypto = ST_LIST_CRYPTO_OPTIONS_AES256;
+	crypto.cost_log2 = 8;
+	CHECK(st_bbs_list_rewrite_encryption(grant_list, &crypto, "test", 4) == 0);
+	uint8_t key[ST_CONSENT_TOKEN_KEY_SIZE];
+	bool available = false;
+	CHECK(st_bbs_list_picker_key(grant_list, key, &available) == 0 && available);
+	CHECK(st_consent_token_sign(&token, key, outside) == 0 && token != NULL);
+	st_crypto_clear(key, sizeof(key));
+	host->bbs_list = grant_list;
+	CHECK(wrenInterpret(host->vm, "upload_write_consent",
+	    "import \"syncterm\" for Transfer\nvar files = []\n") == WREN_RESULT_SUCCESS);
+	wrenEnsureSlots(host->vm, 3);
+	wrenGetVariable(host->vm, "upload_write_consent", "files", 0);
+	CHECK(st_wren_file_push(host->vm, 1, outside, ST_WREN_PICKER_DISPOSITION_OVERWRITE, false));
+	wrenInsertInList(host->vm, 0, -1, 1);
+	CHECK(wrenInterpret(host->vm, "upload_write_consent",
+	    "var call = Fiber.new { Transfer.upload(\"raw\", files[0], 0) }\n"
+	    "call.try()\n"
+	    "if (call.error != \"Upload source requires a readable File\") Fiber.abort(\"write-only grant accepted for upload\")\n") == WREN_RESULT_SUCCESS);
+	char setup[8192];
+	CHECK(snprintf(setup, sizeof(setup),
+	    "import \"syncterm\" for Transfer, Cache, Host, File, PixelBuffer, Session\n"
+	    "var granted = Host.openLocalFile(\"%s\")\n"
+	    "if (!(granted is File)) Fiber.abort(\"grant reconstruction\")\n"
+	    "var approved = [granted, Cache.list[\"upload-consent.txt\"].path, Host.uploadPath + \"/source.txt\", Host.uploadPath + \"/nested/source.txt\", Host.uploadPath + \"/cafe\\u0301.txt\", Host.uploadPath + \"/nested/../source.txt\"]\n"
+	    "var denied = [granted.path, Host.uploadPath + \"-sibling.txt\", Host.uploadPath + \"/../upload-outside.txt\", Host.uploadPath]\n",
+	    token) < (int)sizeof(setup));
+	CHECK(st_wren_connected_interpret(connected, "upload_consent", setup) == 0);
+#if SYNCTERM_PLATFORM_POSIX
+	char link[1024], directory_link[1024];
+	CHECK(snprintf(link, sizeof(link), "%s/alias.txt", root) < (int)sizeof(link));
+	CHECK(snprintf(directory_link, sizeof(directory_link), "%s/alias-dir", root) < (int)sizeof(directory_link));
+	(void)unlink(link);
+	(void)unlink(directory_link);
+	CHECK(symlink(outside, link) == 0);
+	CHECK(symlink(ST_WREN_TEST_DIRECTORY, directory_link) == 0);
+	CHECK(st_wren_connected_interpret(connected, "upload_consent",
+	    "denied.add(Host.uploadPath + \"/alias.txt\")\n"
+	    "denied.add(Host.uploadPath + \"/alias-dir/upload-outside.txt\")\n") == 0);
+#endif
+	CHECK(st_wren_connected_interpret(connected, "upload_consent",
+	    "for (item in [null, 3, PixelBuffer.new(1, 1), \"\", \"x\\u0000y\", String.fromByte(255)]) denied.add(item)\n"
+	    "for (item in denied) {\n"
+	    "  var call = Fiber.new { Transfer.upload(\"raw\", item, 0) }\n"
+	    "  call.try()\n"
+	    "  if (call.error == null || Transfer.active) Fiber.abort(\"ungranted upload started\")\n"
+	    "}\n"
+	    "var batch = Fiber.new { Transfer.uploadBatch(\"ymodem\", [approved[0], denied[0]], 0) }\n"
+	    "batch.try()\n"
+	    "if (batch.error == null || Transfer.active) Fiber.abort(\"partially validated batch started\")\n"
+	    "var copy = Session.current.profile.copy()\n"
+	    "copy.ulDir = \"/\"\n") == 0);
+	CHECK(connection.output.count == 0);
+	for (unsigned i = 0; i < 6; ++i) {
+		char source[160];
+		CHECK(snprintf(source, sizeof(source), "Transfer.upload(\"raw\", approved[%u], 0)\n", i) < (int)sizeof(source));
+		CHECK(st_wren_connected_interpret(connected, "upload_consent", source) == 0);
+		bool done = false;
+		for (unsigned tick = 0; tick < 2000 && !done; ++tick) {
+			CHECK(st_wren_connected_pump(connected, 0) == 0);
+			struct st_transfer_inspection progress;
+			bool reserved;
+			CHECK(st_term_session_inspect_transfer(session, &progress, &reserved));
+			done = progress.done;
+			if (!done) (void)st_thread_sleep(&(struct timespec){.tv_nsec = 1000000L}, NULL);
+		}
+		CHECK(done);
+		CHECK(st_wren_connected_interpret(connected, "upload_consent",
+		    "if (!Transfer.success) Fiber.abort(\"authorized upload failed\")\nTransfer.endSession()\n") == 0);
+		CHECK(connection.output.count == sizeof(payload) - 1);
+		CHECK(memcmp(connection.output.data, payload, sizeof(payload) - 1) == 0);
+		connection.output.count = 0;
+		connection.output.head = 0;
+	}
+	CHECK(st_wren_connected_interpret(connected, "upload_consent",
+	    "if (!Transfer.uploadBatch(\"ymodem\", [approved[0], approved[1]], 0) || !Transfer.active) Fiber.abort(\"authorized batch rejected\")\n"
+	    "Transfer.endSession()\n") == 0);
+	CHECK(st_wren_connected_interpret(connected, "upload_consent",
+	    "import \"sftp_queue\" for SftpQueue\n"
+	    "import \"syncterm\" for WON\n"
+	    "SftpQueue.stop()\n"
+	    "Cache.replace(SftpQueue.FILENAME, WON.serialize({\"version\": 2, \"nextId\": 1, \"jobs\": []}))\n"
+	    "SftpQueue.start()\n"
+	    "if (SftpQueue.enqueue(SftpQueue.UPLOAD, granted.path, \"/consent-check\", granted.size, granted.token) == null) Fiber.abort(\"grant queueing failed\")\n"
+	    "SftpQueue.stop()\n") == 0);
+	st_wren_connected_destroy(connected);
+	connected = NULL;
+	CHECK(st_wren_connected_create(&connected, &config) == 0);
+	CHECK(snprintf(setup, sizeof(setup),
+	    "import \"syncterm\" for Host, Cache\n"
+	    "import \"sftp_queue\" for SftpQueue, Job\n"
+	    "SftpQueue.start()\n"
+	    "var restored = SftpQueue.claimNext_(SftpQueue.UPLOAD)\n"
+	    "if (restored == null || restored.localToken != \"%s\" || Host.openLocalFile(restored.localToken) == null) Fiber.abort(\"queue lost upload grant across VMs\")\n"
+	    "var tampered = Job.new(2, SftpQueue.UPLOAD, restored.local, \"/tampered\", restored.total, \"tampered-token\")\n"
+	    "SftpQueue.runUpload_(tampered)\n"
+	    "if (tampered.status != SftpQueue.FAILED || !tampered.errMsg.contains(\"consent token rejected\")) Fiber.abort(\"queue accepted forged grant\")\n",
+	    token) < (int)sizeof(setup));
+	CHECK(st_wren_connected_interpret(connected, "upload_queue_consent", setup) == 0);
+	CHECK(write_file(outside, "changed after consent") == 0);
+	CHECK(st_wren_connected_interpret(connected, "upload_queue_consent",
+	    "SftpQueue.runUpload_(restored)\n"
+	    "if (restored.status != SftpQueue.FAILED || !restored.errMsg.contains(\"consent token rejected\")) Fiber.abort(\"queue accepted changed source\")\n"
+	    "SftpQueue.stop()\n"
+	    "if (Cache.delete(SftpQueue.FILENAME) != null) Fiber.abort(\"queue cleanup failed\")\n") == 0);
+	st_wren_connected_destroy(connected);
+	host->bbs_list = saved_list;
+	st_bbs_list_close(grant_list);
+	CHECK(fs_remove_file(grant_list_path) == 0);
+	free(token);
+	st_term_session_destroy(&session);
+	st_font_catalog_destroy(fonts);
+	CHECK(st_console_snapshot_restore(console, snapshot) == 0);
+	st_console_snapshot_destroy(snapshot);
+	st_condition_destroy(&connection.output.changed); st_mutex_destroy(&connection.output.mutex);
+	st_condition_destroy(&connection.input.changed); st_mutex_destroy(&connection.input.mutex);
+	st_profile_dispose(&profile);
+#if SYNCTERM_PLATFORM_POSIX
+	CHECK(unlink(link) == 0 && unlink(directory_link) == 0);
+#endif
+	CHECK(fs_remove_file(local) == 0 && fs_remove_file(child) == 0 && fs_remove_file(unicode) == 0);
+	CHECK(fs_remove_file(outside) == 0 && fs_remove_file(sibling) == 0);
+	CHECK(fs_remove_file(cached) == 0);
+	CHECK(fs_remove_directory(nested) == 0 && fs_remove_directory(root) == 0);
+	free(cache); free(cached);
 	return 0;
 }
 
@@ -7617,6 +7813,7 @@ main(int argc, char **argv)
 		CHECK(exercise_app_lifecycle(host, console, &selected) == 0);
 		CHECK(exercise_cleanup_scopes(host, console, &selected) == 0);
 		CHECK(exercise_owned_sends(host, console) == 0);
+		CHECK(exercise_upload_consent(host, console) == 0);
 		CHECK(exercise_transfer_ui(host, console, &selected) == 0);
 		CHECK(exercise_connected_session_log(host, console, &selected) == 0);
 		CHECK(exercise_connected_link_hover(host, console, &selected) == 0);

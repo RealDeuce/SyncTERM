@@ -406,7 +406,7 @@ static void dispatch(WrenVM *vm, bool upload, bool batch)
 		double last = wrenGetSlotDouble(vm, 3);
 		if (!isfinite(last) || last < 0 || last > 255 || floor(last) != last) { st_wren_abort(vm, "Invalid last wire byte"); return; }
 		config.last_ch = (int)last;
-		if (batch && wrenGetSlotType(vm, 2) != WREN_TYPE_LIST) { st_wren_abort(vm, "Expected upload paths"); return; }
+		if (batch && wrenGetSlotType(vm, 2) != WREN_TYPE_LIST) { st_wren_abort(vm, "Expected upload sources"); return; }
 		int count = batch ? wrenGetListCount(vm, 2) : 1;
 		if (count <= 0 || count > 65536) { st_wren_abort(vm, "Invalid upload file count"); return; }
 		paths = calloc((size_t)count, sizeof(*paths));
@@ -414,11 +414,10 @@ static void dispatch(WrenVM *vm, bool upload, bool batch)
 		config.path_count = (size_t)count; config.paths = (const char *const *)paths;
 		wrenEnsureSlots(vm, 5);
 		for (int i = 0; i < count; ++i) {
-			int slot = batch ? 4 : 2; const char *path;
+			int slot = batch ? 4 : 2;
 			if (batch) wrenGetListElement(vm, 2, i, slot);
-			if (!st_wren_text_slot(vm, slot, &path, &length)) goto finished;
-			paths[i] = strdup(path);
-			if (paths[i] == NULL) { st_wren_abort(vm, "Out of memory"); goto finished; }
+			paths[i] = st_wren_file_upload_path(vm, slot);
+			if (paths[i] == NULL) goto finished;
 		}
 	} else if (config.protocol == ST_TRANSFER_XMODEM_CRC || config.protocol == ST_TRANSFER_XMODEM_CHECKSUM) {
 		if (!st_wren_text_slot(vm, 2, &config.filename, &length)) return;

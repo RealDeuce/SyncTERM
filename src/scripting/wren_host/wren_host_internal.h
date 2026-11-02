@@ -413,6 +413,8 @@ bool st_wren_picker_host_run(struct st_wren_host *host,
 	struct st_wren_picker_call *call);
 void st_wren_picker_call_dispose(struct st_wren_picker_call *call);
 const char *st_wren_file_read_path(WrenVM *vm, int slot);
+/* Owned validated upload path: readable File or confined session-root path. */
+char *st_wren_file_upload_path(WrenVM *vm, int slot);
 bool st_wren_file_claim_write(WrenVM *vm, int slot,
 	const char *operation, FILE **stream);
 void st_wren_file_write_error(WrenVM *vm, int native_error,
