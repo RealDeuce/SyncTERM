@@ -53,8 +53,9 @@ details matter.
   String ranges visit byte offsets but expand complete scalars at lead bytes;
   they are neither raw-byte slices nor scalar-ordinal slices. Never use an
   encoded send count or `string.count` to slice a UTF-8 String.
-- Native filesystem/SFTP paths and picker paths validate UTF-8 without
-  normalizing its spelling. Byte payloads bypass text validation.
+- Native text boundaries, including filesystem/SFTP paths, picker strings,
+  and configuration fields, validate UTF-8 and normalize to NFC. Byte payloads
+  bypass text validation and normalization.
 - No implicit NFC normalization or grapheme segmentation occurs in Wren.
   Keep original committed input scalars separate from named keys and modifiers.
 

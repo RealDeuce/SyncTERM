@@ -213,8 +213,10 @@ st_bbs_decode_profile(struct st_profile *profile,
 		    "Password", "");
 		copy_fixed(profile->system_password, sizeof(profile->system_password),
 		    section, "SystemPassword", "");
-		(void)st_profile_scripts_parse(profile->wren_scripts,
-		    ini_section_get_string(section, "WrenScripts", ""));
+		/* Scripts belong to named entries, never the root defaults. */
+		if (name != NULL)
+			(void)st_profile_scripts_parse(profile->wren_scripts,
+			    ini_section_get_string(section, "WrenScripts", ""));
 		copy_fixed(profile->tls_psk_identity,
 		    sizeof(profile->tls_psk_identity), section, "TLSPSKIdentity", "");
 		copy_fixed(profile->tls_psk, sizeof(profile->tls_psk), section,

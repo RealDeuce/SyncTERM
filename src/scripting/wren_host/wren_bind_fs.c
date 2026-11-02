@@ -188,7 +188,7 @@ slot_child_path(WrenVM *vm, int slot,
 	int length;
 	int status;
 
-	if (!st_wren_utf8_slot(vm, slot, &name, &length) || length < 0
+	if (!st_wren_text_slot(vm, slot, &name, &length) || length < 0
 	    || memchr(name, '\0', (size_t)length) != NULL
 	    || !clean_name(name, directory->relaxed)) {
 		st_wren_abort(vm, "Directory: expected a valid child name");

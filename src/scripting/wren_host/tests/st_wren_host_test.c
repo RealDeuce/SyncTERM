@@ -580,7 +580,7 @@ exercise_remote_outcomes(st_wren_connected_t *connected, struct fake_sftp *fake)
 	CHECK(st_wren_connected_interpret(connected, "remote_outcomes",
 	    "var remotePath = SFTP.stat(\"/cafe\\u0301\")\n"
 	    ) == 0);
-	CHECK(strcmp(fake->submitted_path, "/cafe\xcc\x81") == 0);
+	CHECK(strcmp(fake->submitted_path, "/caf\xc3\xa9") == 0);
 	CHECK(st_wren_connected_pump(connected, 0) == 0);
 	CHECK(st_wren_connected_interpret(connected, "remote_outcomes",
 	    "var bytes = file.readBytes(1, 0)\n"
@@ -765,7 +765,7 @@ exercise_filesystem_outcomes(st_wren_connected_t *connected)
 	CHECK(st_wren_connected_interpret(connected, "filesystem_outcomes",
 	    "var decomposed = \"cafe\\u0301.tmp\"\n"
 	    "var exact = Download.create(decomposed)\n"
-	    "if (!(exact is File) || !exact.path.endsWith(decomposed) || !Download.contains(decomposed) || Download.delete(decomposed) != null) Fiber.abort(\"filename normalized across boundary\")\n"
+	    "if (!(exact is File) || !exact.path.endsWith(\"café.tmp\") || !Download.contains(\"café.tmp\") || !Download.contains(decomposed) || Download.delete(decomposed) != null) Fiber.abort(\"filename NFC boundary\")\n"
 	    "var directory = Download.createDir(\"outcomes-dir\")\n"
 	    "if (!(directory is Directory)) Fiber.abort(\"directory creation result\")\n"
 	    "var existingDirectory = Download.createDir(\"outcomes-dir\")\n"

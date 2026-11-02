@@ -4351,6 +4351,10 @@ available in a connected VM.
 | Return the mutable root-section defaults record, or `null` before a
   successful load.  Its `save()` writes default fields rather than a
   named BBS section.
+  Scripts are configured per entry: root-section WrenScripts is ignored,
+  defaults expose an empty script list, and assigning scripts to defaults
+  aborts. The defaults editor omits scripts. New entries start without scripts;
+  entries without their own WrenScripts stay empty when edited.
 
 | Menu.nameAvailable(name)
 | Test whether a new personal entry name is valid and unused by another
@@ -5602,9 +5606,8 @@ close is allowed. Property setters return the assigned Number on success or
 `FileError` on a recoverable failure; their result can be captured explicitly.
 
 Byte data is never UTF-8-validated or normalized. Local/remote path names and
-picker paths must be valid UTF-8 without NUL; their original UTF-8 spelling is
-preserved at the host boundary. NFC conversion is reserved for APIs which
-explicitly describe it, such as display text and semantic connection sends.
+picker strings use the normal host text boundary: valid UTF-8 normalized to
+NFC, without NUL. This does not change Wren's String semantics.
 
 === Directory
 
@@ -5713,8 +5716,8 @@ NUL, an ASCII control byte, DEL, or a Windows reserved device basename.
 Spaces, leading dots or dashes, trailing dots, parentheses, and non-ASCII
 bytes are otherwise accepted.  Descendant directories inherit their root's
 policy. Invalid names abort every directory method before filesystem access.
-Valid UTF-8 names retain their original spelling; the host does not normalize
-canonically equivalent filenames into one another.
+Names are validated as UTF-8 and normalized to NFC before the name policy
+checks and filesystem access.
 
 === File
 

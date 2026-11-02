@@ -171,7 +171,7 @@ if(BUILD_TESTING)
 				set_tests_properties(syncterm_control_${_variant} PROPERTIES TIMEOUT 90)
 			endforeach()
 			foreach(_case draw widget radio input form color menubar spinbox
-					popup help progress menu logview console main_menu_address settings
+					popup help progress menu logview console main_menu_address settings entry_editor
 					list style button checkbox date palette statusbar pixels
 					terminal_cp437 terminal_utf8 status_cp437 status_utf8
 					rendering_cp437 rendering_utf8 scrollback_cp437 scrollback_utf8

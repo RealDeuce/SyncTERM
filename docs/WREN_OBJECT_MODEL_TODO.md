@@ -198,10 +198,11 @@ error results. C update-stream direction/buffering stays inside the binding.
 Signed local timestamps are verified after storage; unsupported or rounded
 values report outOfRange. The queue avoids unsupported SFTP v3 timestamps.
 
-Paths use strict UTF-8 without NFC conversion, including picker paths; byte
-payloads preserve malformed UTF-8 and NUL. The new malformed-name regression
-also exposed an uninitialized free in the shared NFC helper, confirmed by
-GDB and ASan and now fixed. Directory inventory keeps its receiver rooted,
+Correction: paths and picker strings use the normal strict UTF-8/NFC host
+text boundary. The exception preserving decomposed path spelling was rejected
+and removed. Byte payloads preserve malformed UTF-8 and NUL. The malformed-name
+regression also exposed an uninitialized free in the shared NFC helper,
+confirmed by GDB and ASan and now fixed. Directory inventory keeps its receiver rooted,
 reports failures instead of returning partial data, and excludes links when
 minting grants. Picker navigation retains its separate explicit-consent path.
 Queue/browser callers now inspect native failures and remove old EOF/Bool
@@ -240,3 +241,16 @@ GC, failure and shutdown. Four ASan/UBSan checks and six headless application/UI
 checks passed; the final send-rejection change also passed host/ASan host and
 protocol checks. Clang/GCC and MinGW i686/x86_64 builds were warning-free.
 Windows runtime tests were not run.
+
+User-directed corrections: configuration keeps the existing NFC INI contract;
+the pending literal-value INI policy and profile setter exceptions were removed.
+Root-section WrenScripts is ignored. The defaults editor omits scripts, defaults
+reject script assignments, and entries without scripts remain empty after
+creation or unrelated edits. The unfinished profile redesign remains separate.
+
+Verification: native FreeBSD Clang Debug CMake builds passed without warnings.
+All 11 selected CTest cases passed both with the pending profile changes and in
+an isolated tree containing only these corrections: INI, BBS list, host, menu,
+settings runtime, core helpers, picker contract, and bitmap editor/settings/
+picker/setter application tests. Desktop environment variables were cleared.
+The broader goal remains paused; the disputed Fiber extensions remain unresolved.

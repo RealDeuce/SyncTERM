@@ -302,9 +302,6 @@ bool st_wren_foreign_is(WrenVM *vm, int slot, const char *module_name,
 void *st_wren_foreign_require(WrenVM *vm, int slot, const char *module_name,
 	const char *class_name);
 void st_wren_abort(WrenVM *vm, const char *message);
-/* Strict UTF-8 validation without allocation, normalization or aborting.
- * Outputs and VM slots are unchanged on failure. NUL remains a valid scalar. */
-bool st_wren_utf8_slot(WrenVM *vm, int slot, const char **text, int *length);
 bool st_wren_text_slot(WrenVM *vm, int slot, const char **text, int *length);
 void st_wren_log_append(WrenVM *vm, int source, const char *text);
 void st_wren_log_error(WrenVM *vm, WrenErrorType type, const char *module,

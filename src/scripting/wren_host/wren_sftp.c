@@ -406,7 +406,7 @@ slot_path(WrenVM *vm, int slot, const char **result)
 	int size;
 	const char *value;
 
-	if (!st_wren_utf8_slot(vm, slot, &value, &size))
+	if (!st_wren_text_slot(vm, slot, &value, &size))
 		return false;
 	if (size < 0 || memchr(value, '\0', (size_t)size) != NULL)
 		return false;

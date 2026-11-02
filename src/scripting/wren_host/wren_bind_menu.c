@@ -4052,6 +4052,10 @@ fn_bbs_wren_scripts_set(WrenVM *vm)
 
 	if (profile == NULL)
 		return;
+	if (bbs->kind == ST_WREN_BBS_DEFAULTS) {
+		st_wren_abort(vm, "Wren scripts are configured per entry, not in defaults");
+		return;
+	}
 	if (wrenGetSlotType(vm, 1) != WREN_TYPE_LIST) {
 		st_wren_abort(vm, "BBS.wrenScripts expects a List");
 		return;

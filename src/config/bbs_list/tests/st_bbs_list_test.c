@@ -314,6 +314,49 @@ check_profile_encodings(void)
 }
 
 static int
+check_scripts_are_per_entry(const struct st_app_paths *base)
+{
+	struct st_app_paths paths = *base;
+	st_bbs_list_t *list = NULL;
+	struct st_profile profile;
+	const struct st_bbs_entry *entry;
+
+	paths.personal_list = ST_BBS_TEST_DIRECTORY "/scripts-defaults.lst";
+	CHECK(write_text(paths.personal_list,
+	    "WrenScripts=root_script\n"
+	    "[Empty]\nAddress=empty.example\n"
+	    "[Explicit]\nAddress=explicit.example\nWrenScripts=entry_script\n") == 0);
+	CHECK(st_bbs_list_open(&list, &paths, NULL, 0) == 0);
+	CHECK(st_bbs_list_defaults(list)->wren_scripts[0] == '\0');
+	entry = st_bbs_list_find(list, "Empty");
+	CHECK(entry != NULL && entry->profile->wren_scripts[0] == '\0');
+	entry = st_bbs_list_find(list, "Explicit");
+	CHECK(entry != NULL
+	    && strcmp(entry->profile->wren_scripts, "entry_script") == 0);
+
+	st_profile_init(&profile);
+	CHECK(st_profile_copy(&profile, st_bbs_list_defaults(list)));
+	strcpy(profile.name, "New");
+	CHECK(st_bbs_list_add(list, &profile, NULL) == 0);
+	CHECK(st_bbs_list_find(list, "New")->profile->wren_scripts[0] == '\0');
+	CHECK(copy_named(&profile, list, "Empty") == 0);
+	strcpy(profile.comment, "edited without adding scripts");
+	CHECK(st_bbs_list_update(list, "Empty", &profile, NULL) == 0);
+	CHECK(st_profile_copy(&profile, st_bbs_list_defaults(list)));
+	profile.hide_status = true;
+	CHECK(st_bbs_list_set_defaults(list, &profile) == 0);
+	CHECK(st_bbs_list_reload(list) == 0);
+	CHECK(st_bbs_list_defaults(list)->wren_scripts[0] == '\0');
+	CHECK(st_bbs_list_find(list, "Empty")->profile->wren_scripts[0] == '\0');
+	CHECK(st_bbs_list_find(list, "New")->profile->wren_scripts[0] == '\0');
+	CHECK(strcmp(st_bbs_list_find(list, "Explicit")->profile->wren_scripts,
+	    "entry_script") == 0);
+	st_profile_dispose(&profile);
+	st_bbs_list_close(list);
+	return 0;
+}
+
+static int
 check_connection_stats(const struct st_app_paths *base)
 {
 	struct st_app_paths paths = *base;
@@ -615,6 +658,7 @@ main(void)
 	paths.download_directory = ST_BBS_TEST_DIRECTORY;
 	CHECK(check_encoding_persistence(&paths) == 0);
 	CHECK(check_connection_stats(&paths) == 0);
+	CHECK(check_scripts_are_per_entry(&paths) == 0);
 
 	status = st_bbs_list_open(&first, &paths, NULL, 0);
 	CHECK(status == 0);

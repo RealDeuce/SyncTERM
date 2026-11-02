@@ -68,11 +68,8 @@ slot_string(WrenVM *vm, int slot, const char **result, size_t *length,
 		st_wren_abort(vm, message);
 		return false;
 	}
-	if (!st_wren_utf8_slot(vm, slot, &value, &count)) {
-		(void)snprintf(message, sizeof(message), "%s: String is not valid UTF-8", operation);
-		st_wren_abort(vm, message);
+	if (!st_wren_text_slot(vm, slot, &value, &count))
 		return false;
-	}
 	if (count < 0 || memchr(value, '\0', (size_t)count) != NULL) {
 		(void)snprintf(message, sizeof(message),
 		    "%s: String contains NUL", operation);

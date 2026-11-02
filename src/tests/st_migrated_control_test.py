@@ -34,6 +34,7 @@ SUITES = {
     "console": ("wren_console_test", "WrenConsoleTest", "run"),
     "main_menu_address": ("main_menu_test", "MenuTest", "run"),
     "settings": ("menu_settings_ui_test", "SettingsMenuTest", "run"),
+    "entry_editor": ("menu_bbs_editor_test", "MenuTest", "run"),
     "list": ("ui_list_test", "UiListTest", "run"),
     "style": ("ui_style_test", "UiStyleTest", "run"),
     "button": ("ui_button_test", "UiButtonTest", "run"),
@@ -333,8 +334,8 @@ def scrollback(executable, encoding, reports):
 
 def picker(executable, reports):
     def prepare(root):
-        # Use an NFD path to catch normalization at the picker/consent boundary.
-        picker_dir = root / "downloads" / "cafe\u0301"
+        # Supply NFD to the picker and access the NFC directory on disk.
+        picker_dir = root / "downloads" / "café"
         picker_dir.mkdir()
         # File.read() is binary; keep the expected LF on Windows too.
         (picker_dir / "alpha.txt").write_bytes(b"picked\n")
@@ -358,7 +359,7 @@ if (files == null || files.count != 1 || !files[0].path.endsWith("alpha.txt")) F
 Host.print("PICKER-STAGE multi-cancel")
 if (Host.pickFiles(PATH, "alpha.txt", 1) != null) Fiber.abort("cancelled multi-selection")
 var directory = Host.pickFile(PATH, "*", FilePickerOptions.selectDirectory, "Directory fixture")
-if (directory == null || (directory.path.replace("\\\\", "/").trimEnd("/") != PATH.replace("\\\\", "/").trimEnd("/"))) Fiber.abort("directory selection")
+if (directory == null || (directory.path.replace("\\\\", "/").trimEnd("/") != NFC_PATH.replace("\\\\", "/").trimEnd("/"))) Fiber.abort("directory selection")
 Host.print("PICKER-STAGE overwrite")
 var output = Host.pickSavePath(PATH, "alpha.txt", FilePickerOptions.allowAppend)
 if (output == null) Fiber.abort("overwrite selection")
@@ -382,7 +383,8 @@ var writeOnly = Host.pickSavePath(PATH, "pixel.ppm")
 var rejected = Fiber.new { PixelBuffer.fromPpm(writeOnly) }
 rejected.try()
 if (rejected.error == null) Fiber.abort("write File accepted by pixel decoder")
-'''.replace("PATH", json.dumps(str(picker_dir)))
+'''.replace("NFC_PATH", json.dumps(str(picker_dir))).replace(
+            "PATH", json.dumps(str(root / "downloads" / "cafe\u0301")))
         install_suite(root, source, "picker")
     with fixture(executable, prepare=prepare, reports=reports) as (client, root):
         first = client.wait_text("Read fixture")
@@ -413,7 +415,7 @@ if (rejected.error == null) Fiber.abort("write File accepted by pixel decoder")
         client.text("y")
         restored = client.wait_text("TEST-COMPLETE picker")
         assert restored.metadata["console_id"] != picker_id and "PICKER-MARKER" in restored.text
-        assert (root / "downloads" / "cafe\u0301" / "alpha.txt").read_text(encoding="utf-8") == "overwritten\nappended\n"
+        assert (root / "downloads" / "café" / "alpha.txt").read_text(encoding="utf-8") == "overwritten\nappended\n"
 
 
 def menu_exit(executable, reports):

@@ -2,7 +2,7 @@
 
 import "syncterm" for Key, KeyEvent, TLSVersion
 import "syncterm_menu" for Menu, MenuReadStatus
-import "menu_bbs_editor" for EditorPane, ScriptListPane
+import "menu_bbs_editor" for BbsEditor, EditorPane, ScriptListPane
 
 class FakeApp {
   construct new() { _popped = 0 }
@@ -34,6 +34,7 @@ class MenuTest {
     testEditorClear_()
     testDiscovery_()
     testDefaultsRejectScripts_()
+    testEditorScripts_()
     testPersistence_()
 
     var total = __pass + __fail
@@ -130,12 +131,39 @@ class MenuTest {
     var loaded = Menu.load(null) == MenuReadStatus.ok
     var defaults = loaded ? Menu.defaults : null
     var fiber = Fiber.new {
-      defaults.wrenScripts = ["ui_list"]
+      defaults.wrenScripts = ["user_script"]
     }
     if (defaults != null) fiber.try()
     check_(defaults != null && fiber.error != null &&
            defaults.wrenScripts.count == 0,
            "BBS.wrenScripts: defaults cannot activate connection scripts")
+  }
+
+  static testEditorScripts_() {
+    if (Menu.load(null) != MenuReadStatus.ok) {
+      check_(false, "per-entry scripts: load")
+      return
+    }
+    var app = FakeApp.new()
+    var defaults = Menu.defaults
+    var draft = BbsEditor.draft_(defaults)
+    var rows = BbsEditor.rows_(app, defaults, draft, true)
+    var scriptRows = rows.where {|row| row[0].startsWith("Wren Scripts") }.toList
+    check_(scriptRows.count == 0, "defaults editor: scripts are omitted")
+
+    var entry = Menu.create("Empty Scripts Test")
+    var profile = entry
+    draft = BbsEditor.draft_(entry)
+    rows = BbsEditor.rows_(app, entry, draft, false)
+    scriptRows = rows.where {|row| row[0].startsWith("Wren Scripts") }.toList
+    check_(profile.wrenScripts.count == 0 && scriptRows.count == 1 &&
+           scriptRows[0][0].endsWith("None"),
+           "entry editor: an empty script list is shown as None")
+    draft["comment"] = "edited without adding scripts"
+    check_(BbsEditor.update_(app, entry, draft, false) &&
+           profile.wrenScripts.count == 0 && entry.save(),
+           "entry editor: other edits keep scripts empty")
+    check_(entry.delete(), "entry editor: remove test entry")
   }
 
   static testPersistence_() {
