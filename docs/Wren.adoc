@@ -2173,7 +2173,7 @@ having these methods at all.
 type the API hands back: <<sftperror,`SFTPError`>>,
 <<fileerror,`FileError`>>, <<wonerror,`WONError`>>,
 <<connerror,`ConnError`>>, <<transfer-error,`TransferError`>>,
-<<font-error,`FontError`>>, menu-only
+<<cterm-error,`CTermError`>>, <<font-error,`FontError`>>, menu-only
 <<menu-errors,`MenuError`>>, plus any user-defined
 <<scripterror,`ScriptError`>> subclass.  Lets a script catch any of
 them with one check:
@@ -4009,9 +4009,9 @@ state rather than streaming logs and therefore are not part of
 
 === CTerm [[cterm]]
 
-Read-only window into `cterm` state — what `term.c` and `ripper.c`
-read.  Useful from `Hook.onInput` and `Status.callable` for
-emulation-aware logic.
+The active terminal's state and local operations. Most state properties are
+read-only. Useful from `Hook.onInput` and `Status.callable` for emulation-aware
+logic. Terminal operations are available in the connected VM.
 
 [options="header",cols="2,3"]
 |===
@@ -4099,14 +4099,23 @@ assignment when selecting an existing font; loading only registers a new font.
 | Action | Description
 
 | `CTerm.write(s)`
-| Send `s` to `cterm_write` — bypass the wire, render directly.
+| Render strict UTF-8/NFC text directly through the native semantic-input path,
+  independently of the wire encoding. Returns `null` on native success or
+  <<cterm-error,`CTermError`>> on native failure. Valid NUL and other controls
+  retain their terminal meanings. Input filters are bypassed as before; native
+  capture and incremental parser/decoder behavior are unchanged. Local render success does not
+  promise delivery of any protocol-generated network reply.
 
 | `CTerm.sendKey(event)`
 | Forward a `KeyEvent` or `PhysicalKeyEvent` through the current terminal's
   native keyboard path, preserving the source type and modifiers. Returns
-  Bool indicating whether the terminal handled it. Unsupported mappings return
-  `false`; invalid arguments or an output error abort. Hook dispatch is not
-  re-entered. For example, `CTerm.sendKey(KeyEvent.new(Key.enter))` sends Return.
+  Bool on native success or `CTermError` on native failure. The Bool reports
+  acceptance (including local-only actions), not delivery. Unsupported mappings
+  and the native WireLease exclusion return `false`. Check for Error before
+  interpreting the Bool; Error values are truthy. Invalid arguments abort.
+  Hook dispatch is not
+  re-entered. For example, `CTerm.sendKey(KeyEvent.new(Key.enter))` injects Return
+  through this path.
 
 | `CTerm.suspended`, `CTerm.suspended = b`
 | Read or write the wire-pump suspend flag.  When set true, the main
@@ -4165,6 +4174,43 @@ assignment when selecting an existing font; loading only registers a new font.
   drops to `0` (unthrottled).  No-op on serial connections.
   Default keys script binds these to `Key.up` / `Key.down` with `Mod.command`.
 |===
+
+==== CTermError [[cterm-error]]
+
+An immutable `Error` returned by the two terminal operations above. There is no
+public constructor. It owns scalar diagnostics and message storage, retains no
+input String, terminal or session, and remains usable through later calls and GC
+within its VM.
+
+[options="header",cols="2,3"]
+|===
+| Member | Description
+| `code` | Exact native I/O integer, comparable to `IOErr` constants. Unknown
+  integers are preserved; success uses the operation's normal null/Bool value.
+| `message` | Nonempty human-readable operation/reason diagnostic.
+| `consumedBytes` | Write errors only: native consumed count in the normalized
+  UTF-8 input; `null` for key errors. This is not a rendered-character count or
+  a safe retry offset into the original Wren String. A failure may consume all
+  input, or stop within a multibyte sequence, and parser/decoder effects remain.
+| `handled` | Key errors only: the native acceptance Bool, including local-only
+  actions; `null` for write errors. It does not confirm transmission or safe retry.
+| `toString` | Includes `CTermError`, code and message for display, not parsing.
+|===
+
+Wrong types, invalid event objects, malformed UTF-8 and missing required native
+terminal/session state remain programmer errors raised through ordinary Fiber
+abort. An impossible native consumed count, or native success with incomplete
+consumption, also aborts as a native contract violation; no I/O status is invented.
+Native output policy is unchanged: key errors can reflect retained output
+failures, and disconnect suppression permits auxiliary work to continue. These
+values provide no rollback, automatic retry or network-delivery guarantee.
+
+[source,wren]
+----
+var result = CTerm.sendKey(KeyEvent.new(Key.enter))
+if (result is CTermError) Fiber.abort(result)
+// result is now the native acceptance Bool.
+----
 
 ==== ExtAttr
 

@@ -661,3 +661,97 @@ and 51 original topics. No native declarations or TSV rows changed. Both selecte
 assessments are Covered/resolved; 40 topics plus the documentation finding remain
 open, including generic receive streams. All matrix rows match. Keep this
 temporary document and skill until the entire burndown is finished.
+
+== Approved chunk 9: CTerm write and key results (revision 1)
+
+Approval: the complete Plan-mode revision 1 was approved with "Implement the
+plan." Implementation began in Default mode on 2026-11-02. The user selected
+CTerm results first, typed return values rather than typed exceptions, and
+retention of native consumed-byte/handled diagnostics.
+Phase: chunk complete; the next chunk requires an actual Plan-mode phase.
+Scope: cterm.operation-status within console-operation-results. Screen
+results remain separate/open; the shared finding is not closed by this chunk.
+
+Add immutable CTermError is Error, no public constructor, with exact native code
+using IOErr names (unknown integers retained), owned message/toString, nullable
+consumedBytes for write errors and nullable handled for key errors. CTerm.write
+returns null/CTermError; CTerm.sendKey returns native Bool/CTermError. Callers
+check for Error before interpreting Bool. Retain only scalar diagnostics, not
+input/terminal/session references; construct errors only on failures. Errors
+survive later calls and GC within their VM.
+
+Preserve connected-VM availability and argument validation. Missing required
+terminal/session, malformed UTF-8 and invalid event objects are programmer
+errors. Write input remains strict UTF-8/NFC including valid NUL controls.
+consumedBytes counts normalized input bytes and may fall within a multibyte
+sequence; it is not rendered characters or a safe original-String retry offset.
+Validate counts before exposing them. Impossible counts and native success with
+incomplete consumption abort descriptively as native contract violations, without
+inventing an I/O code.
+
+Change no public native C interface, parser/decoder/capture/keyboard policy or
+hook dispatch. Preserve native output errors (including retained errors),
+disconnect suppression and auxiliary-session behavior. Key acceptance does not
+confirm delivery; local write status does not promise delivery of protocol
+replies. Preserve false for unsupported keys and WireLease exclusion. No replay,
+retries, reset, rollback, delivery flags or new authority. Update the login helper
+to stop on returned key errors, retaining successful Bool handling. Migrate direct
+write fixtures/examples and authoritative docs. Other CTerm and Screen operations
+remain unchanged.
+
+Establish regressions against the generic abort before binding changes. Test
+native write errors with zero/partial/full consumption, exact/unknown status,
+normalized versus original bytes, NUL/malformed text, invalid native counts and
+immutable error lifetime. Test native key success/unsupported/error with both
+handled values, physical/codepage/text/modifiers, no hook reentry, WireLease
+exclusion, real output failures/partial effects and no retransmission. Combine
+real rendering/transport failures with private native fault controls. Verify
+menu/picker restrictions and missing terminal/session misuse.
+
+Configure/build through CMake; Clang/GCC native terminal/text/keyboard/session and
+Wren host/menu/picker tests, focused ASan/UBSan, headless application rendering/
+profile checks, CP437/UTF-8 and physical audio disabled. MinGW64 cross-build only;
+no Windows execution or Wine. Native cterm/cterm_text/cterm_keyboard/term baselines
+passed in Plan mode. Update docs, reviewed evidence, report/matrix and follow-up;
+resolve only cterm.operation-status. Assign the existing st_term_session_send_key
+ledger row to that assessment; preserve declarations and denominator. Coverage/
+diff checks; commit the complete verified chunk without pushing. Forty topics
+plus the documentation finding remain open. Retain temporary record and skill.
+
+=== Completed verification
+
+The regression first failed against the generic String abort from CTerm.write.
+Native failures now return CTermError with exact code, owned message and the
+applicable native diagnostic. Successful values remain null/Bool. Tests verify
+zero/partial/full normalized consumption, a count inside a multibyte scalar,
+unknown codes, unchanged original Wren bytes, valid NUL/control text, malformed
+input, invalid native counts, type identity, read-only fields and GC lifetime.
+
+An actual prefix render followed by controlled failure leaves only that prefix
+and its native cursor effect, with one binding invocation and no replay. A real
+geometry/render failure retains its actual native status/count. Real keyboard
+output emits one prefix byte and then fails; accepted and unhandled events retain
+the native error, without more transmission. Native disconnect suppression and
+WireLease false results remain unchanged. UTF-8 and CP437 sessions pass the real
+and controlled paths. The actual login helper stops after a failed Return, with
+the preceding component queued exactly once. Menu/picker and missing-terminal/
+session misuse never reach native operations. No parser, capture, transport,
+language, authority, retry, reset or rollback policy changed.
+
+Clang Debug passed cterm, cterm_text, cterm_keyboard, term, wren_host,
+wren_menu_contract, wren_picker_contract and the application rendering_cp437,
+rendering_utf8 and profile behavior tests (ten checks). GCC Debug passed the seven
+native/Wren checks. Clang ASan/UBSan passed cterm, cterm_keyboard, term and the three
+Wren checks (six). MinGW64 cross-built the application, host/picker and native
+terminal/keyboard/session tests. No Windows execution. Physical audio disabled
+in headless fixtures. FreeBSD leak detection is unsupported and disabled; C++
+vptr checks remain disabled for C-owned executables. No compiler warnings or
+sanitizer diagnostics; initial builds emitted transient GNUmake generated-file
+clock-skew notices.
+
+The checker passes 80 headers, 120 exclusions, 2,448 native items, 157 assessments
+and 51 original topics. The existing st_term_session_send_key row now maps to
+cterm.operation-status; no declarations, header digests or denominator changed.
+All matrix rows match. Only cterm.operation-status is Covered/resolved. Screen
+results keep console-operation-results open, leaving 40 topics plus the separate
+documentation finding. Retain temporary document and skill.

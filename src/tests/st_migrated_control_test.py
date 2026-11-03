@@ -192,14 +192,16 @@ def profile(executable, reports):
 import "syncterm" for Session, CTerm, Conn, Host
 if (CTerm.music != 2 || !CTerm.lastColumnFlag.forced || !CTerm.hasPaletteOverride || CTerm.paletteOverride[6] != 66051) Fiber.abort("presentation options")
 if (Session.current.calls != 6 || Session.current.lastConnected <= 0 || Host.logLevel != 7 || Session.current.profile.ctermLogLevel != 7 || Session.current.profile.wrenScripts.count != 1) Fiber.abort("session options")
-CTerm.write("\\U0010ffff\\n")
+var error = CTerm.write("\\U0010ffff\\n")
+if (error != null) Fiber.abort(error)
 if (!Conn.sessionLog.contains("CTerm Debug: Missing glyph (.noglyph)")) Fiber.abort("session log snapshot")
 Conn.sendText("PROFILE-READY")
 ''')
 
     with listener() as server:
         # Each launch exercises real log ownership, counters, and teardown.
-        with fixture(executable, prepare=prepare, reports=reports) as (initial, root):
+        with fixture(executable, prepare=prepare, reports=reports,
+                     settings="AudioModes=0\n") as (initial, root):
             initial.wait_text("Directory: Name")
             initial.close()
             log = root / "session.log"

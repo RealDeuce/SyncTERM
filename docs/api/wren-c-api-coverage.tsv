@@ -2271,7 +2271,7 @@ src/terminal/term/st_term.h	function:st_term_session_ooii_mode	137	int (const st
 src/terminal/term/st_term.h	function:st_term_session_set_ooii_mode	138	void (st_term_session_t *, int)	term.controls
 src/terminal/term/st_term.h	function:st_term_session_run	144	int (st_term_session_t *, enum st_term_disposition *)	term.owner
 src/terminal/term/st_term.h	function:st_term_session_pump	146	int (st_term_session_t *, enum st_term_disposition *, bool *)	term.owner
-src/terminal/term/st_term.h	function:st_term_session_send_key	155	int (st_term_session_t *, const struct st_console_event *, bool *)	term.controls
+src/terminal/term/st_term.h	function:st_term_session_send_key	155	int (st_term_session_t *, const struct st_console_event *, bool *)	cterm.operation-status
 src/terminal/term/st_term.h	function:st_term_session_send_text	163	int (st_term_session_t *, const char *, size_t)	term.controls
 src/terminal/term/st_term.h	field:st_term_encoded_text.bytes	171	uint8_t *	term.owner
 src/terminal/term/st_term.h	field:st_term_encoded_text.size	172	size_t	term.owner

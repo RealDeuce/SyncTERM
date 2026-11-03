@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: BSD-2-Clause
 
 // Alt+L sends the credentials for the active directory entry.
-import "syncterm" for Hook, Key, Conn, Session, CTerm, ConnType, KeyEvent
+import "syncterm" for Hook, Key, Conn, Session, CTerm, ConnType, KeyEvent, CTermError
 
 class Connected {
   static sendComponent_(value) {
     if (value.count == 0) return
     var error = Conn.sendText(value).await()
     if (error != null) Fiber.abort(error)
-    CTerm.sendKey(KeyEvent.new(Key.enter))
+    var result = CTerm.sendKey(KeyEvent.new(Key.enter))
+    if (result is CTermError) Fiber.abort(result)
   }
 
   static sendLogin() {

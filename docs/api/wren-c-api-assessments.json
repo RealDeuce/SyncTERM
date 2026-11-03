@@ -3144,10 +3144,10 @@
       "decision": "scope-review"
     },
     "cterm.operation-status": {
-      "status": "partial",
-      "wren": "CTerm.write/sendKey",
-      "reason": "Text write and semantic key injection preserve successful behavior and handled/not-handled, but native status and partial consumed count become generic Fiber abort messages. The caller cannot inspect the native failure code. Raw wire/decoder ownership remains native.",
-      "vm": "same VM as the owning API",
+      "status": "covered",
+      "wren": "CTerm.write returns null/CTermError; CTerm.sendKey returns native Bool/CTermError",
+      "reason": "Native failures retain their exact portable integer in an immutable CTermError with owned message, write-only consumedBytes and key-only handled. Unknown integers are preserved. Consumed bytes refer to normalized C input, can include all input or stop within a scalar, and are not rendered characters or a safe original-String retry offset. Native count violations remain Fiber aborts without invented codes. Strict UTF-8/NFC including valid NUL, argument/capability guards, native parser/capture/key behavior and hook isolation remain intact. Acceptance is not delivery: retained output errors, disconnect suppression and WireLease exclusion are preserved. Errors retain no input/terminal/session and are constructed only on native failures. Bundled login checks returned key errors before continuing; no retries, replay, reset or rollback changes.",
+      "vm": "connected",
       "evidence": [
         {
           "path": "src/scripting/wren_host/wren_bind_session.c",
@@ -3156,10 +3156,23 @@
         {
           "path": "src/scripting/wren_host/wren_bind_session.c",
           "anchor": "fn_cterm_send_key"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_session.c",
+          "anchor": "push_cterm_error"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign class CTermError is Error"
+        },
+        {
+          "path": "src/terminal/term/st_term.h",
+          "anchor": "int st_term_session_send_key"
         }
       ],
       "finding": "console-operation-results",
-      "decision": "mapping-gap"
+      "decision": "resolved",
+      "resolution": "resolved"
     },
     "list.crypto.metadata": {
       "status": "covered",
@@ -3898,6 +3911,11 @@
       "path": "scripts/ui_demo.wren",
       "anchor": "var error = Transfer.beginSession(\"fake\")",
       "aspect": "Synthetic demo handles typed startup failure before progress UI"
+    },
+    {
+      "path": "scripts/auto/connected/connected.wren",
+      "anchor": "if (result is CTermError) Fiber.abort(result)",
+      "aspect": "Login helper stops on a failed Return after sending one credential component, preserving successful Bool handling"
     }
   ],
   "test_evidence": [
@@ -4075,6 +4093,31 @@
       "path": "src/tests/st_test_control_test.py",
       "anchor": "def transfer(executable):",
       "aspect": "Headless normal application CRC/G cancellation, G success/corruption, file bytes, typed result and terminal handoff; physical audio disabled"
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_host_test.c",
+      "anchor": "exercise_cterm_results",
+      "aspect": "Exact/unknown native errors, zero/partial/full normalized byte consumption, invalid counts, NUL and malformed text, strict object identity, immutable error/GC, real prefix effects without retry and real renderer failure"
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_host_test.c",
+      "anchor": "exercise_cterm_key_failure",
+      "aspect": "Real partial key output, retained native error, handled true/false on failure, disconnect suppression, WireLease exclusion and actual login helper stopping after one text component; UTF-8/CP437"
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_host_test.c",
+      "anchor": "exercise_cterm_boundaries",
+      "aspect": "Menu/picker restrictions, missing terminal/session and no public error constructor; native calls never reached"
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_session_test_bindings.c",
+      "anchor": "test_cterm_write",
+      "aspect": "Private real-binder native failure/count controls and actual prefix writes; no controls in the application"
+    },
+    {
+      "path": "src/tests/st_migrated_control_test.py",
+      "anchor": "var error = CTerm.write",
+      "aspect": "Actual application profile fixture checks local-write result; physical audio disabled"
     }
   ],
   "dispatch_evidence": [
@@ -4086,7 +4129,7 @@
   ],
   "evidence_files": {
     "docs/WREN_GUIDANCE.md": "d14aeecb5eae922015f2f48a4fd690277dcb5b91aedfd8d8d8cffb2dc235e1ac",
-    "docs/Wren.adoc": "a22ed86c7ddc260be9df7a958b1e3697b105e70eb0a8e0f4f5c0b3b42f227a53",
+    "docs/Wren.adoc": "08cde78091c57b302d1b9b9b633d343648c6b926663918d24772c3a734270f85",
     "docs/api/bbs-entry-fields.adoc": "a1be9944eadd5f56d752e8669b502f49b27211f14190443a95e36ad301b8d128",
     "scripts/auto/connected/font_pick.wren": "6cd249b69c2f851e1fb84e4b8ce381879cfaaa96a35e1376f6e8502c6497e91b",
     "scripts/auto/menu/main_menu.wren": "5b37db003c7c052da2332aeb8255db695fd2f3d976fa4f56502578ed0039c681",
@@ -4094,7 +4137,7 @@
     "scripts/menu_settings_ui.wren": "5d0afe0a828d8dcf7383bf83da193491db243c51360375762110e8998444857c",
     "scripts/sftp_app.wren": "4cd38fa9304c6c7428d7a21ef3b86c0d68fb14e25b35c3540bfdd46a211a9e5f",
     "scripts/sftp_queue.wren": "b15fe706268e9ce6d5fea4227661d0ac810f6f9fc4dbf7d39863756bde3eaf74",
-    "scripts/syncterm.wren": "f5d3335fbeec01cc4cb3631a3be6662d1081de10b9299f494d44ce7e6bc630bc",
+    "scripts/syncterm.wren": "b2324caaf0b39b827acfbd43b6b77c6e24cf057a103eb58593cee410a673171e",
     "scripts/syncterm_menu.wren": "0fb618cc9532edf4dcb7d867d54af5a87d884d7163b100207d9b5535ae51ad68",
     "scripts/syncterm_picker.wren": "143e15bd084bed37145061760100c84b353d340e00187d9cd2b920a850be6021",
     "scripts/transfer_app.wren": "7eedcb12d4eccd0cdc04791c37081c2c9cf36d4d45c41c37a9e8a6f71a0c6498",
@@ -4163,7 +4206,7 @@
     "src/net/transfer/st_transfer_detect.h": "3296b9ecf875d100f793920a3b0117a8f7b80951a539317d366f4ea40a7a1b30",
     "src/net/webget/st_webget.h": "9647dcc563e1661fe1d6b762c78e2483d2beae03ac878da0ebd15c8a425d2143",
     "src/scripting/wren_host/st_wren_host.h": "531eba9331f992a6394c41020890e279597ee8d6cfd1259a4495f68ef38d5552",
-    "src/scripting/wren_host/tests/st_wren_host_test.c": "3f706ace7461be7ecc014dd895ea1bd684271fb1e25660e54f2d2cb8cf1aef59",
+    "src/scripting/wren_host/tests/st_wren_host_test.c": "a30e0ace938fc3000fcc63c727a6b9fd12efdd866ba9b5cb6f081eec06e8ba1d",
     "src/scripting/wren_host/tests/st_wren_settings_menu_test.c": "269477ca235d241d71e5f3b2409c0800d2a3379cbc9c455c879219c8bb4e6e3c",
     "src/scripting/wren_host/wren_async.c": "71e78941735250300171a2b7cb13b70c92916bd14c066a6614b3f77cdd9b565d",
     "src/scripting/wren_host/wren_bbs_model.c": "18dca3353505a5b0dc609251f16038bd9132c47e215c4cf24ba802ac4b3ab97a",
@@ -4172,7 +4215,7 @@
     "src/scripting/wren_host/wren_bind_hyperlinks.c": "255be945007c9cb2795195058e5f58de7d2b2157728892e614d6e8fb5f729b98",
     "src/scripting/wren_host/wren_bind_menu.c": "1f74963b11a473076d5fe5a3b1e65473fcb19b6b5d3ed58624cbbc337e6112f7",
     "src/scripting/wren_host/wren_bind_pixels.c": "5a1b4c73862a6845710159e6b34e8992cff1ab66661b984f871c46eb6c6bcceb",
-    "src/scripting/wren_host/wren_bind_session.c": "fb584f383f0d6df19f328ef194e8bf328f8dc723066df2111794b2b32ac63b93",
+    "src/scripting/wren_host/wren_bind_session.c": "abc78adace40704dfb1b668c9ca19ccf0c538c2ac9028b86e65a0cf7b81fea36",
     "src/scripting/wren_host/wren_bind_status.c": "85ed4115c9a9645aa27cccb2a9977e5892037123d7440d9acf3397fd55e16671",
     "src/scripting/wren_host/wren_bind_won.c": "96575bcbfdf0b157d89ec5ef64cd2573a0b41d2aaf5e379edd19303d382bc2f4",
     "src/scripting/wren_host/wren_bind_xfer.c": "8f45884d3f87622b02f6c93721760ee22635d9a6773d6fc5b5c17bf2116978d2",
@@ -4236,7 +4279,10 @@
     "scripts/menu_theme_editor.wren": "cbd41bdcff4d1d96bb124c9e69e9a531d5215d6ba22ee1133172a25e4e19ff10",
     "scripts/ui_demo.wren": "ef60ef163fc81f40491c3cf502d6ea0d8caf95090aa6b3440c074ecee0b8b985",
     "src/scripting/wren_host/tests/st_wren_transfer_test_bindings.c": "9211345af132c7d43d105b5ade65a0cfddccf5d9c154fc7c5b28455011319e5e",
-    "src/tests/st_test_control_test.py": "d9ff21d77c7731a055983ecc5d44fab373650cb4deefbe701fe01f9d26b94914"
+    "src/tests/st_test_control_test.py": "d9ff21d77c7731a055983ecc5d44fab373650cb4deefbe701fe01f9d26b94914",
+    "scripts/auto/connected/connected.wren": "7f8f7144896388ffbf9dd16820cbf6cbae73d25c385ccba7d8c0928f31ae67d6",
+    "src/scripting/wren_host/tests/st_wren_session_test_bindings.c": "4ef0aef560439c1ed3f933232a8b59ccaa3ee0a6971609ebf0fe8e81ff1b981c",
+    "src/tests/st_migrated_control_test.py": "d277217877b88d910cda0b6281a8d47160031068bcd46979293c6893de2bcd39"
   },
   "verification": {
     "platform": "FreeBSD 15.1-RELEASE-p5 amd64",
@@ -4564,6 +4610,41 @@
         "MinGW64 Debug configured application and native transfer/host/settings/picker tests cross-build"
       ],
       "limitations": "No Windows runtime execution. FreeBSD leak detection unsupported and disabled; C++ vptr checks disabled for C-owned executables. Physical audio disabled in headless fixtures. No introduced compiler warnings or sanitizer diagnostics. Native protocol/file partial effects and cleanup attempts are retained; results provide no rollback or automatic retry-offset guarantee. Other topics require their own actual Plan-mode phase and approval."
+    },
+    {
+      "topic": "cterm-write-and-key-results",
+      "status": "selected-subclaim-resolved",
+      "findings": [
+        "console-operation-results"
+      ],
+      "approval": "Complete Plan-mode chunk 9 revision 1 approved: Implement the plan. User selected CTerm results first, typed return values rather than typed exceptions, and retention of native consumed-byte/handled diagnostics.",
+      "scope": "CTerm.write returns null/CTermError; sendKey returns native Bool/CTermError. Errors own exact native code/message, write-only consumedBytes and key-only handled, with the inapplicable diagnostic null. Native counts describe normalized input, not characters or safe retry offsets. Invalid counts and native success with incomplete consumption remain contract-violation Fiber aborts without invented status. Errors retain no input/terminal/session and are constructed only on failures. Existing strict UTF-8/NFC/NUL, capability/type validation, parser/capture/decoder/key policy, native retained errors, disconnect suppression, WireLease exclusion and ownership are preserved. The login helper stops on returned key errors without replaying credential text.",
+      "resolved": [
+        "cterm.operation-status (Covered/resolved)"
+      ],
+      "remaining": [
+        "console.operation-status remains Partial/open; console-operation-results shared topic remains open"
+      ],
+      "accounting": "Rerouted the existing st_term_session_send_key ledger row from term.controls to cterm.operation-status; no native declarations, header digests, denominator, exclusions or assessment count changed. Updated reviewed evidence/report locations and all matrix rows. 80 headers, 120 exclusions, 2448 items, 157 assessments, 51 original topics; 40 topics plus one documentation finding still open.",
+      "regression_before_fix": "The new controlled-native regression failed against the old String abort: CTerm.write must return its native failure.",
+      "tests_passed": [
+        "Clang Debug: cterm / cterm_text / cterm_keyboard / term / wren_host / wren_menu_contract / wren_picker_contract / syncterm_behavior_rendering_cp437 / syncterm_behavior_rendering_utf8 / syncterm_behavior_profile (10)",
+        "GCC Debug: the seven native/Wren checks",
+        "Clang ASan/UBSan: cterm / cterm_keyboard / term / wren_host / wren_menu_contract / wren_picker_contract (6)",
+        "Controlled native write errors: exact/unknown status, zero/partial/full normalized consumption including a mid-scalar count, unchanged original String bytes, NUL/control text, invalid native counts, malformed text/object identity, read-only fields and GC lifetime",
+        "Real prefix render followed by failure: one invocation, only expected prefix/cursor effect and no replay. Real geometry/render failure preserves actual native code/count.",
+        "UTF-8/CP437 real key output: emitted prefix then I/O failure, handled true/false on errors, retained native error, disconnect suppression, WireLease exclusion and stable owned diagnostics",
+        "Actual login helper stops on failed Return after one queued text component; existing key/modifier/physical/codepage success and hook isolation fixtures remain intact",
+        "Menu/picker and missing terminal/session misuse, no public error constructor; native operations never reached",
+        "Coverage checker, independent 80-row matrix/count/shared-topic comparison and git diff --check"
+      ],
+      "builds_passed": [
+        "FreeBSD Clang Debug configured application, host/picker and native terminal/text/keyboard/session tests",
+        "FreeBSD GCC Debug configured host/picker and native terminal/text/keyboard/session tests",
+        "FreeBSD Clang ASan/UBSan configured host/picker and native terminal/keyboard/session tests",
+        "MinGW64 Debug configured application, host/picker and native terminal/keyboard/session tests cross-build"
+      ],
+      "limitations": "No Windows runtime execution. FreeBSD leak detection unsupported and disabled; C++ vptr checks disabled for C-owned executables. Physical audio disabled in headless fixtures. No compiler warnings or sanitizer diagnostics; some initial GNUmake generated-file clock-skew notices were environmental. No native renderer/keyboard/transport/language policy changed. Key acceptance and consumed bytes provide no delivery, rollback or automatic retry guarantee. Screen results remain required open work; other chunks need actual Plan mode and approval."
     }
   ]
 }

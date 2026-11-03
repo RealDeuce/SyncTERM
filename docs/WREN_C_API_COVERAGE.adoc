@@ -5,6 +5,7 @@ Follow-up: +transfer-upload-authority+, +font-codepage+, +font-load-result+,
 +sftp-entry-stat+, +error-symbols+, +bbs-diagnostics+, +theme-operation-results+,
 +transfer-result+ and +transfer-protocol-selection+
 are resolved.
+The CTerm write/key result subclaim is resolved; Screen results remain open.
 Selected BBS/Settings mutation results, Menu.load and emoji recording now
 preserve available C failures. +model-mutation-results+ is resolved, including
 the approved restriction retaining raw global disk reload as unbound. +bbs-cache-result+ is
@@ -202,12 +203,12 @@ ids refer to the full mappings in the JSON, including VM-specific restrictions.
 | link:../src/st_syncterm_icon.h[st_syncterm_icon.h] | 0 | 0 | 0 | 1 | 0 | +application.st_syncterm_icon+
 | link:../src/st_terminfo.h[st_terminfo.h] | 0 | 0 | 0 | 1 | 0 | +application.st_terminfo+
 | link:../src/syncterm_types.h[syncterm_types.h] | 0 | 0 | 0 | 0 | 0 | No operations; ABI/type include only. See header review note.
-| link:../src/terminal/cterm/st_cterm.h[terminal/cterm/st_cterm.h] | 84 | 4 | 1 | 76 | 0 | +cterm.audio-fx+, +cterm.encoding-control+, +cterm.font-result+, +cterm.operation-status+, +cterm.owner+, +cterm.reset+, +cterm.state+, +fonts.assignments+, +fonts.catalog+
+| link:../src/terminal/cterm/st_cterm.h[terminal/cterm/st_cterm.h] | 86 | 2 | 1 | 76 | 0 | +cterm.audio-fx+, +cterm.encoding-control+, +cterm.font-result+, +cterm.operation-status+, +cterm.owner+, +cterm.reset+, +cterm.state+, +fonts.assignments+, +fonts.catalog+
 | link:../src/terminal/hyperlink/st_hyperlink.h[terminal/hyperlink/st_hyperlink.h] | 5 | 0 | 0 | 8 | 0 | +hyperlinks.gc-owner+, +hyperlinks.registry+
 | link:../src/terminal/ooii/st_ooii.h[terminal/ooii/st_ooii.h] | 3 | 0 | 0 | 9 | 0 | +ooii.mode+, +ooii.protocol+
 | link:../src/terminal/screen_mode/st_screen_mode.h[terminal/screen_mode/st_screen_mode.h] | 25 | 0 | 0 | 0 | 0 | +screen.modes+
 | link:../src/terminal/session_history/st_session_history.h[terminal/session_history/st_session_history.h] | 0 | 0 | 1 | 7 | 0 | +history.clear+, +history.owner+
-| link:../src/terminal/term/st_term.h[terminal/term/st_term.h] | 16 | 1 | 0 | 68 | 0 | +session.lifecycle-info+, +term.controls+, +term.owner+
+| link:../src/terminal/term/st_term.h[terminal/term/st_term.h] | 16 | 1 | 0 | 68 | 0 | +cterm.operation-status+, +session.lifecycle-info+, +term.controls+, +term.owner+
 | link:../src/text/codepage/st_codepage.h[text/codepage/st_codepage.h] | 0 | 35 | 0 | 0 | 0 | +text.codepages+
 | link:../src/text/emoji/st_emoji_catalog.h[text/emoji/st_emoji_catalog.h] | 6 | 0 | 0 | 0 | 0 | +emoji.catalog+
 | link:../src/text/emoji/st_emoji_locale.h[text/emoji/st_emoji_locale.h] | 6 | 0 | 0 | 0 | 0 | +emoji.locale+
@@ -314,11 +315,23 @@ Successful drawing/state behavior has equivalents, but native int-returning meth
 
 Evidence: link:../src/scripting/wren_host/wren_bind_core.c[src/scripting/wren_host/wren_bind_core.c:4371]; link:../src/scripting/wren_host/wren_bind_core.c[src/scripting/wren_host/wren_bind_core.c:2833].
 
-+cterm.operation-status+ (partial; same VM as the owning API). Wren: CTerm.write/sendKey.
++cterm.operation-status+ (covered; connected; resolved).
+CTerm.write returns null/CTermError and CTerm.sendKey returns native Bool/
+CTermError. Immutable owned errors preserve the actual native portable integer,
+including unknown codes, plus consumedBytes for writes and handled for keys;
+the inapplicable diagnostic is null. Consumed bytes describe NFC-normalized input,
+not rendered characters or a safe offset into the original Wren String. Counts
+can cover all input on failure or stop within a scalar. Impossible counts/native
+success with incomplete consumption remain contract-violation Fiber aborts.
 
-Text write and semantic key injection preserve successful behavior and handled/not-handled, but native status and partial consumed count become generic Fiber abort messages. The caller cannot inspect the native failure code. Raw wire/decoder ownership remains native.
+The binding constructs errors only on failures, retains no input/terminal/session,
+and preserves validation, UTF-8/NFC/NUL, parser/decoder/capture, keyboard mappings,
+hooks and VM boundaries. Acceptance is not delivery. Native retained output errors,
+disconnect suppression and WireLease exclusion remain unchanged. The login helper
+checks returned key errors and stops; no retry/replay/reset/rollback is added.
+Screen result fidelity remains Partial/open, keeping this shared finding open.
 
-Evidence: link:../src/scripting/wren_host/wren_bind_session.c[src/scripting/wren_host/wren_bind_session.c:1015]; link:../src/scripting/wren_host/wren_bind_session.c[src/scripting/wren_host/wren_bind_session.c:995].
+Evidence: link:../src/scripting/wren_host/wren_bind_session.c[write/key/error binding]; link:../scripts/auto/connected/connected.wren[login caller]; link:../src/scripting/wren_host/tests/st_wren_host_test.c[native and Wren result regressions]; link:../src/terminal/term/st_term.h[native semantic key contract].
 
 [[finding-cterm-reset-contract]]
 === Direct terminal reset has no matching public contract
@@ -327,7 +340,7 @@ Evidence: link:../src/scripting/wren_host/wren_bind_session.c[src/scripting/wren
 
 No dedicated script operation invokes st_cterm_reset_terminal or returns its native reset status. That function finishes pending input, resets parser state and rebuilds the RIP engine. CTerm.write can submit protocol reset sequences through the current parser, but does not expose this complete host reset transaction or its failure result.
 
-Evidence: link:../src/terminal/cterm/st_cterm.c[src/terminal/cterm/st_cterm.c:2679]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1249].
+Evidence: link:../src/terminal/cterm/st_cterm.c[src/terminal/cterm/st_cterm.c:2679]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1251].
 
 [[finding-digest-algorithms]]
 === File hashing omits SHA-2 and generic digest input
@@ -348,7 +361,7 @@ is removed without an alias; FileError remains the filesystem error type.
 MenuError separately preserves generic native statuses rather than inventing
 a portable meaning for legacy -1. errno/Windows translators remain host mechanisms.
 
-Evidence: link:../src/base/io_error/io_error.h[src/base/io_error/io_error.h:36]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1558].
+Evidence: link:../src/base/io_error/io_error.h[src/base/io_error/io_error.h:36]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1570].
 
 [[finding-files-link-kind]]
 === Filesystem kind metadata is limited by the grant abstraction
@@ -357,7 +370,7 @@ Evidence: link:../src/base/io_error/io_error.h[src/base/io_error/io_error.h:36];
 
 Native fs_get_link_info distinguishes link/other/file/directory without following the link. Script listing exposes only directory versus file-like entries and does not offer an lstat-equivalent kind query. Native modified time and size do have corresponding metadata. Directory grants deliberately reject/omit links to avoid following ungranted paths; the missing lstat metadata is an observation of that security boundary, not a request to grant link traversal.
 
-Evidence: link:../src/io/filesystem/filesystem.h[src/io/filesystem/filesystem.h:38]; link:../scripts/syncterm_picker.wren[scripts/syncterm_picker.wren:14]; link:../src/scripting/wren_host/tests/st_wren_host_test.c[src/scripting/wren_host/tests/st_wren_host_test.c:854].
+Evidence: link:../src/io/filesystem/filesystem.h[src/io/filesystem/filesystem.h:38]; link:../scripts/syncterm_picker.wren[scripts/syncterm_picker.wren:14]; link:../src/scripting/wren_host/tests/st_wren_host_test.c[src/scripting/wren_host/tests/st_wren_host_test.c:866].
 
 [[finding-font-codepage]]
 === Custom-font mappings and reporting — resolved
@@ -391,7 +404,7 @@ singular altFont alias were removed. Screen.font remains independent, and direct
 scripts can select loaded fonts without a picker. The picker retains load-only
 registration and normal-assignment selection.
 
-Evidence: link:../src/scripting/wren_host/tests/st_wren_host_test.c[src/scripting/wren_host/tests/st_wren_host_test.c:3943]; link:../src/tests/st_font_assignments_test.py[src/tests/st_font_assignments_test.py:73].
+Evidence: link:../src/scripting/wren_host/tests/st_wren_host_test.c[src/scripting/wren_host/tests/st_wren_host_test.c:4173]; link:../src/tests/st_font_assignments_test.py[src/tests/st_font_assignments_test.py:73].
 
 [[finding-list-encryption-information]]
 === List encryption reporting resolved; writer and result scope remains open
@@ -480,7 +493,7 @@ The remaining subclaims are resolved in approved chunk 6:
 All included subclaims of this shared finding are now resolved. Entry provenance,
 web progress, theme provenance and console result contracts remain separate findings.
 
-Evidence: link:../src/scripting/wren_host/wren_bind_core.c[src/scripting/wren_host/wren_bind_core.c:5032]; link:../src/config/settings/st_settings_store.c[src/config/settings/st_settings_store.c:978]; link:../src/scripting/wren_host/tests/st_wren_host_test.c[src/scripting/wren_host/tests/st_wren_host_test.c:1032].
+Evidence: link:../src/scripting/wren_host/wren_bind_core.c[src/scripting/wren_host/wren_bind_core.c:5032]; link:../src/config/settings/st_settings_store.c[src/config/settings/st_settings_store.c:978]; link:../src/scripting/wren_host/tests/st_wren_host_test.c[src/scripting/wren_host/tests/st_wren_host_test.c:1044].
 
 [[finding-pixel-offscreen-blit]]
 === Pixel buffers cannot use the native offscreen compositor
@@ -516,7 +529,7 @@ SFTPEntry.size/mtime getters and dispatch entries are removed without aliases;
 the bundled browser captures stat once per row. Queue persistence and upload
 grants are unchanged.
 
-Evidence: link:../src/net/sftp_client/st_sftp.h[src/net/sftp_client/st_sftp.h:53]; link:../scripts/syncterm.wren[scripts/syncterm.wren:2120]; link:../src/scripting/wren_host/wren_sftp.c[src/scripting/wren_host/wren_sftp.c:898].
+Evidence: link:../src/net/sftp_client/st_sftp.h[src/net/sftp_client/st_sftp.h:53]; link:../scripts/syncterm.wren[scripts/syncterm.wren:2132]; link:../src/scripting/wren_host/wren_sftp.c[src/scripting/wren_host/wren_sftp.c:898].
 
 [[finding-theme-operation-results]]
 === Theme operation results (resolved)
@@ -565,7 +578,7 @@ Evidence: link:../src/config/theme/st_theme.h[src/config/theme/st_theme.h:61]; l
 
 Negotiated version/cipher, full certificate count/subject/issuer/validity/SHA-256 fingerprint/PEM and the last TLS error are not exposed for connected inspection. Profile.tlsVersionFloor is saved policy, not negotiated state; host certificate prompts are not a query API. This omission does not authorize script trust replacement.
 
-Evidence: link:../src/net/tls/st_tls.h[src/net/tls/st_tls.h:118]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1368].
+Evidence: link:../src/net/tls/st_tls.h[src/net/tls/st_tls.h:118]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1380].
 
 [[finding-transfer-protocol-selection]]
 === Explicit XMODEM-G selection (resolved)
@@ -642,7 +655,7 @@ Evidence: link:../src/media/audio/audio.h[src/media/audio/audio.h:143]; link:../
 
 Terminal protocols can consume sounds internally, but no script format availability query or granted-file/byte decoding to PCM is exposed. Native stream/memory inputs are not mapped by the absence of an AudioFile object.
 
-Evidence: link:../src/media/audio_file/st_audio_file.h[src/media/audio_file/st_audio_file.h:22]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1762].
+Evidence: link:../src/media/audio_file/st_audio_file.h[src/media/audio_file/st_audio_file.h:22]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1774].
 
 +cterm.audio-fx+ (partial; same VM as the owning API). Wren: protocol-driven OOII/CTerm sound only.
 
@@ -693,7 +706,7 @@ Evidence: link:../src/terminal/cterm/st_cterm.h[src/terminal/cterm/st_cterm.h:30
 
 No granted rename or native copy-file operation exists. Read/write/delete cannot promise atomic rename or the native copy mode/mtime behavior.
 
-Evidence: link:../src/io/filesystem/filesystem.h[src/io/filesystem/filesystem.h:63]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1488].
+Evidence: link:../src/io/filesystem/filesystem.h[src/io/filesystem/filesystem.h:63]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1500].
 
 [[finding-files-truncate]]
 === Explicit file truncation
@@ -702,7 +715,7 @@ Evidence: link:../src/io/filesystem/filesystem.h[src/io/filesystem/filesystem.h:
 
 The binding offers reads/writes/seek and size inspection, but no explicit truncation to a chosen length. Creating/replacing a file is not equivalent to truncating an existing granted stream at an arbitrary length.
 
-Evidence: link:../src/io/filesystem/filesystem.h[src/io/filesystem/filesystem.h:49]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1518].
+Evidence: link:../src/io/filesystem/filesystem.h[src/io/filesystem/filesystem.h:49]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1530].
 
 [[finding-font-compatibility-metadata]]
 === Font broken-vertical compatibility metadata
@@ -765,7 +778,7 @@ Evidence: link:../src/io/path/path.h[src/io/path/path.h:36]; link:../scripts/syn
 
 Native DTR/RTS setters, modem CTS/DSR/RING/DCD query and DTR_DSR flow choice have no script counterpart. General device ownership remains host-controlled; whether active-connection line controls should be exposed is a separate scope decision.
 
-Evidence: link:../src/io/serial/serial.h[src/io/serial/serial.h:75]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1472].
+Evidence: link:../src/io/serial/serial.h[src/io/serial/serial.h:75]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1484].
 
 [[finding-session-lifecycle-information]]
 === Session termination cause and auxiliary liveness
@@ -810,7 +823,7 @@ Evidence: link:../src/text/unicode_text/st_unicode_text.h[src/text/unicode_text/
 
 Native maximum TLS version, handshake timeout and independent PSK compatibility policy are not script-configurable. Native diagnostic records retain status/provider_status/fatal/provider/message/level; script protocol logs flatten these and do not expose the structured record. Existing supported profile policy maps the remaining ordinary options; raw callback context/pointers remain host mechanisms.
 
-Evidence: link:../src/net/tls/st_tls.h[src/net/tls/st_tls.h:86]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1338].
+Evidence: link:../src/net/tls/st_tls.h[src/net/tls/st_tls.h:86]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1350].
 
 [[finding-transfer-receive-stream]]
 === Generic transfer receive events and policies
@@ -852,7 +865,7 @@ Evidence: link:../src/base/base64/st_base64.h[src/base/base64/st_base64.h:19]; l
 
 File digests return raw bytes; no general byte-to-hex / hex-to-byte codec or digit decoder is exported.
 
-Evidence: link:../src/base/hex/st_hex.h[src/base/hex/st_hex.h:32]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1534].
+Evidence: link:../src/base/hex/st_hex.h[src/base/hex/st_hex.h:32]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1546].
 
 [[finding-utility-conversion]]
 === Strict native value parsing and formatting
@@ -867,7 +880,7 @@ Evidence: link:../src/base/string_util/string_util.h[src/base/string_util/string
 
 Native strict int64/uint64/bool/double parsing and duration/date parsing/formatting have no exact general script equivalent. Num.fromString and toString have different syntax/ranges; binary64 cannot represent all native 64-bit integers. Typed settings use these internally. This is an omitted utility scope decision, not justification for changing Wren Number.
 
-Evidence: link:../src/base/value_convert/value_convert.h[src/base/value_convert/value_convert.h:22]; link:../scripts/syncterm.wren[scripts/syncterm.wren:2076].
+Evidence: link:../src/base/value_convert/value_convert.h[src/base/value_convert/value_convert.h:22]; link:../scripts/syncterm.wren[scripts/syncterm.wren:2088].
 
 [[finding-utility-crypto]]
 === General cryptographic primitives and strong random bytes
@@ -906,7 +919,7 @@ Evidence: link:../src/net/webget/st_webget.h[src/net/webget/st_webget.h:41]; lin
 
 docs/api/bbs-entry-fields.adoc claims 50 persisted keys / 56 members but st_profile.h has 57 members, including cterm_log_level. The table omits CTermLogLevel -> Profile.ctermLogLevel, which is declared and bound. This is stale coverage documentation, not a missing binding.
 
-Evidence: link:../src/config/profile/st_profile.h[src/config/profile/st_profile.h:165]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1340]; link:../docs/api/bbs-entry-fields.adoc[docs/api/bbs-entry-fields.adoc:4].
+Evidence: link:../src/config/profile/st_profile.h[src/config/profile/st_profile.h:165]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1352]; link:../docs/api/bbs-entry-fields.adoc[docs/api/bbs-entry-fields.adoc:4].
 
 == Confirmed equivalents and intentional ownership
 
@@ -1049,6 +1062,34 @@ No VM-language, native protocol, grant, cleanup-order or partial-file policy
 changes. The checker passes the unchanged 80 headers, 120 exclusions, 2,448 items
 and 157 assessments; all 80 matrix rows match. Forty original topics plus the
 documentation finding remain open, including generic receive streaming.
+
+The approved CTerm write/key-result follow-up passed +cterm+, +cterm_text+,
++cterm_keyboard+, +term+, +wren_host+, +wren_menu_contract+ and
++wren_picker_contract+ on Clang Debug and GCC Debug. Focused Clang ASan/UBSan
+passed those checks except the unchanged full text suite. The Clang application
+also passed +syncterm_behavior_rendering_cp437+,
++syncterm_behavior_rendering_utf8+ and +syncterm_behavior_profile+.
+MinGW64 cross-built the application and host/picker/native terminal/keyboard/
+session tests; no Windows runtime execution. Physical audio is disabled in
+headless fixtures. FreeBSD leak detection is unsupported and disabled; C++ vptr
+checks remain disabled for C-owned executables. No compiler warnings or sanitizer
+diagnostics were reported; initial GNUmake generated-file clock-skew notices
+were environmental.
+
+The regression first failed against the old generic String abort. Native write
+tests retain exact/unknown status and zero/partial/full normalized consumed bytes,
+reject impossible counts, preserve NUL and original String bytes, verify real
+prefix/render failures without replay, and retain immutable diagnostics through
+later calls/GC. Real key output failure preserves native handled/error values,
+retained error behavior, disconnect suppression and WireLease exclusion. The
+bundled login helper stops after a failed Return without duplicating its text.
+Both UTF-8 and CP437 session fixtures pass; menu/picker and missing-state misuse
+remain blocked. Native parser/capture/transport behavior and language semantics
+are unchanged. The existing semantic-key ledger row moved to this result
+assessment, without declaration or denominator changes. The checker passes
+80 headers, 120 exclusions, 2,448 items and 157 assessments; all matrix rows match.
+CTerm's subclaim is resolved. The shared console-result finding remains open for
+Screen, leaving 40 original topics plus the documentation finding open.
 
 == Rechecking and future edits
 

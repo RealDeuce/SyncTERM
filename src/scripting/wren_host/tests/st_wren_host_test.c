@@ -57,6 +57,18 @@ extern int st_wren_test_transfer_create_status;
 extern int st_wren_test_transfer_claim_status;
 extern int st_wren_test_transfer_launch_status;
 extern unsigned st_wren_test_transfer_create_calls;
+extern bool st_wren_test_cterm_write_override;
+extern int st_wren_test_cterm_write_status;
+extern size_t st_wren_test_cterm_write_consumed;
+extern size_t st_wren_test_cterm_write_size;
+extern unsigned st_wren_test_cterm_write_calls;
+extern bool st_wren_test_cterm_write_prefix;
+extern int st_wren_test_cterm_write_last_status;
+extern size_t st_wren_test_cterm_write_last_consumed;
+extern bool st_wren_test_cterm_key_override;
+extern int st_wren_test_cterm_key_status;
+extern bool st_wren_test_cterm_key_handled;
+extern unsigned st_wren_test_cterm_key_calls;
 
 #if ST_WREN_TEST_HAVE_PTY
 #include <fcntl.h>
@@ -3157,6 +3169,221 @@ exercise_cleanup_scopes(st_wren_host_t *host, st_console_t *console,
 	return 0;
 }
 
+static int
+exercise_cterm_results(st_wren_connected_t *connected, st_console_t *console)
+{
+	CHECK(st_wren_connected_interpret(connected, "cterm_result_contract",
+	    "import \"syncterm\" for CTerm, CTermError, Error, IOErr, Key, KeyEvent\n"
+	    "var original = \"e\\u0301\"\n"
+	    "var result = null\n"
+	    "var savedWrite = null\n"
+	    "var savedKey = null\n"
+	    "var invalid = null\n") == 0);
+	const int codes[] = {IO_ERROR_NO_SPACE, IO_ERROR_IO, IO_ERROR_TIMED_OUT, 12345};
+	const size_t counts[] = {0, 1, 2, 0};
+	st_wren_test_cterm_write_override = true;
+	for (size_t i = 0; i < sizeof(codes) / sizeof(codes[0]); ++i) {
+		char source[1024];
+		st_wren_test_cterm_write_status = codes[i];
+		st_wren_test_cterm_write_consumed = counts[i];
+		CHECK(snprintf(source, sizeof(source),
+		    "result = CTerm.write(original)\n"
+		    "if (!(result is CTermError) || !(result is Error) || result.code != %d || result.consumedBytes != %zu || result.handled != null) Fiber.abort(\"native write diagnostics lost\")\n"
+		    "if (original.bytes.count != 3 || result.message.count == 0 || !result.toString.startsWith(\"CTermError\")) Fiber.abort(\"write error text/normalization\")\n"
+		    "savedWrite = result\n", codes[i], counts[i]) < (int)sizeof(source));
+		unsigned before = st_wren_test_cterm_write_calls;
+		CHECK(st_wren_connected_interpret(connected, "cterm_result_contract", source) == 0);
+		CHECK(st_wren_test_cterm_write_calls == before + 1 && st_wren_test_cterm_write_size == 2);
+	}
+	const size_t invalid_counts[] = {3, SIZE_MAX, 1};
+	for (size_t i = 0; i < sizeof(invalid_counts) / sizeof(invalid_counts[0]); ++i) {
+		st_wren_test_cterm_write_status = i == 2 ? 0 : IO_ERROR_IO;
+		st_wren_test_cterm_write_consumed = invalid_counts[i];
+		CHECK(st_wren_connected_interpret(connected, "cterm_result_contract",
+		    "invalid = Fiber.new { CTerm.write(original) }\n"
+		    "invalid.try()\n"
+		    "if (!(invalid.error is String) || !invalid.error.contains(\"consumed count\")) Fiber.abort(\"invalid native count exposed\")\n") == 0);
+	}
+	st_wren_test_cterm_write_override = false;
+	unsigned before = st_wren_test_cterm_write_calls;
+	CHECK(st_wren_connected_interpret(connected, "cterm_result_contract",
+	    "for (value in [null, 3, String.fromByte(255), savedWrite]) {\n"
+	    "  var invalid = Fiber.new { CTerm.write(value) }\n"
+	    "  invalid.try()\n"
+	    "  if (invalid.error == null) Fiber.abort(\"invalid write text accepted\")\n"
+	    "}\n"
+	    "for (value in [null, 3, \"key\", savedWrite]) {\n"
+	    "  var invalid = Fiber.new { CTerm.sendKey(value) }\n"
+	    "  invalid.try()\n"
+	    "  if (invalid.error == null) Fiber.abort(\"invalid key object accepted\")\n"
+	    "}\n"
+	    "for (mutator in [Fn.new { savedWrite.code = 0 }, Fn.new { savedWrite.consumedBytes = 0 }, Fn.new { savedWrite.handled = false }]) {\n"
+	    "  var invalid = Fiber.new { mutator.call() }\n"
+	    "  invalid.try()\n"
+	    "  if (invalid.error == null) Fiber.abort(\"mutable terminal error\")\n"
+	    "}\n") == 0);
+	CHECK(st_wren_test_cterm_write_calls == before);
+	st_wren_test_cterm_key_override = true;
+	for (unsigned handled = 0; handled < 2; ++handled) {
+		st_wren_test_cterm_key_status = handled ? IO_ERROR_IO : IO_ERROR_TIMED_OUT;
+		st_wren_test_cterm_key_handled = handled != 0;
+		char source[512];
+		CHECK(snprintf(source, sizeof(source),
+		    "result = CTerm.sendKey(KeyEvent.new(Key.enter))\n"
+		    "if (!(result is CTermError) || result.code != %d || result.handled != %s || result.consumedBytes != null) Fiber.abort(\"native key diagnostics lost\")\n"
+		    "savedKey = result\n", st_wren_test_cterm_key_status,
+		    handled ? "true" : "false") < (int)sizeof(source));
+		CHECK(st_wren_connected_interpret(connected, "cterm_result_contract", source) == 0);
+		st_wren_test_cterm_key_status = 0;
+		CHECK(st_wren_connected_interpret(connected, "cterm_result_contract",
+		    "if (CTerm.sendKey(KeyEvent.new(Key.enter)) != savedKey.handled) Fiber.abort(\"successful native Bool changed\")\n") == 0);
+	}
+	st_wren_test_cterm_key_override = false;
+	CHECK(st_wren_connected_interpret(connected, "cterm_result_contract",
+	    "System.gc()\n"
+	    "if (savedWrite.code != 12345 || savedWrite.consumedBytes != 0 || savedKey.code != IOErr.io || !savedKey.handled) Fiber.abort(\"terminal error lifetime\")\n"
+	    "if (CTerm.write(\"\") != null || CTerm.write(\"\\e[2J\\e[HA\\u0000B\\r\") != null) Fiber.abort(\"valid control text rejected\")\n") == 0);
+	CHECK(console_has_text(console, 0, 0, "AB"));
+	CHECK(st_wren_connected_interpret(connected, "cterm_result_contract",
+	    "if (CTerm.write(\"\\e[2J\\e[H\") != null) Fiber.abort(\"fixture clear failed\")\n") == 0);
+	st_wren_test_cterm_write_override = true;
+	st_wren_test_cterm_write_prefix = true;
+	st_wren_test_cterm_write_status = IO_ERROR_NO_SPACE;
+	st_wren_test_cterm_write_consumed = 2;
+	before = st_wren_test_cterm_write_calls;
+	CHECK(st_wren_connected_interpret(connected, "cterm_result_contract",
+	    "result = CTerm.write(\"A\\rB\")\n"
+	    "if (!(result is CTermError) || result.code != IOErr.noSpace || result.consumedBytes != 2 || CTerm.x != 1 || CTerm.y != 1) Fiber.abort(\"partial render result lost\")\n") == 0);
+	CHECK(st_wren_test_cterm_write_calls == before + 1);
+	CHECK(console_has_text(console, 0, 0, "A "));
+	st_wren_test_cterm_write_override = st_wren_test_cterm_write_prefix = false;
+	/* A real renderer failure can consume input before returning its error. */
+	uint32_t width, height;
+	CHECK(st_console_size(console, &width, &height) == 0);
+	CHECK(st_console_resize(console, 1, 1) == 0);
+	CHECK(st_wren_connected_interpret(connected, "cterm_result_contract",
+	    "result = CTerm.write(\"X\")\n"
+	    "if (!(result is CTermError)) Fiber.abort(\"real rendering failure was lost\")\n") == 0);
+	CHECK(st_wren_test_cterm_write_last_status != 0);
+	char expected[512];
+	CHECK(snprintf(expected, sizeof(expected),
+	    "if (result.code != %d || result.consumedBytes != %zu || result.handled != null) Fiber.abort(\"real renderer diagnostics changed\")\n",
+	    st_wren_test_cterm_write_last_status,
+	    st_wren_test_cterm_write_last_consumed) < (int)sizeof(expected));
+	CHECK(st_wren_connected_interpret(connected, "cterm_result_contract", expected) == 0);
+	CHECK(st_console_resize(console, width, height) == 0);
+	CHECK(st_wren_connected_interpret(connected, "cterm_result_contract",
+	    "CTerm.write(\"\")\n"
+	    "if (CTerm.write(\"\\e[2J\\e[H\") != null) Fiber.abort(\"fixture recovery failed\")\n") == 0);
+	return 0;
+}
+
+static int
+exercise_cterm_boundaries(st_wren_host_t *host, st_console_t *console)
+{
+	const char *source =
+	    "import \"syncterm\" for CTerm, CTermError, Key, KeyEvent\n"
+	    "for (fn in [Fn.new { CTerm.write(\"text\") }, Fn.new { CTerm.sendKey(KeyEvent.new(Key.enter)) }, Fn.new { CTermError.new() }]) {\n"
+	    "  var rejected = Fiber.new { fn.call() }\n"
+	    "  rejected.try()\n"
+	    "  if (!(rejected.error is String)) Fiber.abort(\"CTerm capability boundary crossed\")\n"
+	    "}\n";
+	unsigned writes = st_wren_test_cterm_write_calls;
+	unsigned keys = st_wren_test_cterm_key_calls;
+	CHECK(wrenInterpret(host->vm, "cterm_unavailable", source) == WREN_RESULT_SUCCESS);
+	CHECK(wrenInterpret(host->picker_vm, "cterm_unavailable", source) == WREN_RESULT_SUCCESS);
+	st_wren_connected_t *connected = NULL;
+	struct st_profile profile;
+	st_profile_init(&profile);
+	const struct st_wren_connected_config config = {.host = host, .console = console,
+	    .profile = &profile};
+	CHECK(st_wren_connected_create(&connected, &config) == 0);
+	CHECK(st_wren_connected_interpret(connected, "cterm_unavailable", source) == 0);
+	st_wren_connected_destroy(connected);
+	st_profile_dispose(&profile);
+	CHECK(writes == st_wren_test_cterm_write_calls && keys == st_wren_test_cterm_key_calls);
+	return 0;
+}
+
+struct key_output_failure {
+	uint8_t first;
+	unsigned calls;
+};
+static ssize_t
+key_output_failure(st_connection_t *connection, const void *bytes, size_t size,
+	int64_t timeout, bool atomic_write, enum st_connection_send_kind kind)
+{
+	struct key_output_failure *failure = connection->transport;
+	(void)timeout; (void)atomic_write; (void)kind;
+	if (failure->calls++ != 0) return IO_ERROR_IO;
+	CHECK(size != 0);
+	failure->first = *(const uint8_t *)bytes;
+	return 1;
+}
+
+/* A real native key can be accepted, emit a prefix and then fail output. */
+static int
+exercise_cterm_key_failure(st_wren_host_t *host, st_console_t *console,
+	st_font_catalog_t *fonts, struct st_profile *profile,
+	struct st_connection *connection, bool utf8)
+{
+	st_term_session_t *session = NULL;
+	st_wren_connected_t *connected = NULL;
+	struct key_output_failure failure = {0};
+	connection->output.count = connection->output.head = 0;
+	connection->send_filter = NULL;
+	const struct st_term_config term = {.console = console, .connection = connection,
+	    .fonts = fonts, .hide_status = true, .screen_mode = ST_SCREEN_MODE_80X25,
+	    .encoding = utf8 ? ST_CTERM_ENCODING_UTF8 : ST_CTERM_ENCODING_CODEPAGE,
+	    .codepage = ST_CODEPAGE_CP437};
+	CHECK(st_term_session_create(&session, &term) == 0);
+	const struct st_wren_connected_config config = {.host = host, .console = console,
+	    .profile = profile, .connection = connection, .session = session,
+	    .cterm = st_term_session_cterm(session)};
+	CHECK(st_wren_connected_create(&connected, &config) == 0);
+	CHECK(st_wren_connected_interpret(connected, "cterm_key_failure",
+	    "import \"syncterm\" for CTerm, CTermError, IOErr, Key, KeyEvent, Mod, Session\n"
+	    "import \"connected\" for Connected\n") == 0);
+	/* The login helper must stop at the failing Return, without resending text. */
+	st_wren_test_cterm_key_override = true;
+	st_wren_test_cterm_key_status = IO_ERROR_IO;
+	st_wren_test_cterm_key_handled = true;
+	CHECK(st_wren_connected_interpret(connected, "cterm_key_failure",
+	    "var login = Fiber.new { Connected.sendComponent_(\"name\") }\n"
+	    "login.try()\n"
+	    "if (!(login.error is CTermError) || login.error.code != IOErr.io || !login.error.handled) Fiber.abort(\"login ignored Return failure\")\n") == 0);
+	st_wren_test_cterm_key_override = false;
+	CHECK(connection->output.count == 4 && memcmp(connection->output.data, "name", 4) == 0);
+	connection->output.count = connection->output.head = 0;
+	atomic_store(&connection->connected, false);
+	CHECK(st_wren_connected_interpret(connected, "cterm_key_failure",
+	    "if (CTerm.sendKey(KeyEvent.new(Key.up)) != true) Fiber.abort(\"native disconnect suppression changed\")\n") == 0);
+	CHECK(connection->output.count == 0);
+	atomic_store(&connection->connected, true);
+	connection->transport = &failure;
+	connection->send_filter = key_output_failure;
+	CHECK(st_wren_connected_interpret(connected, "cterm_key_failure",
+	    "var result = CTerm.sendKey(KeyEvent.new(Key.up))\n"
+	    "if (!(result is CTermError) || result.code != IOErr.io || !result.handled || result.consumedBytes != null) Fiber.abort(\"real key output failure lost\")\n"
+	    "var saved = result\n"
+	    "result = CTerm.sendKey(KeyEvent.new(Key.up))\n"
+	    "if (!(result is CTermError) || result.code != IOErr.io || !result.handled) Fiber.abort(\"retained native output error changed\")\n"
+	    "result = CTerm.sendKey(KeyEvent.new(Key.right, Mod.alt))\n"
+	    "if (!(result is CTermError) || result.code != IOErr.io || result.handled) Fiber.abort(\"unhandled/error conflated\")\n"
+	    "CTerm.suspended = true\n"
+	    "var owner = Session.current.claimWire()\n"
+	    "if (CTerm.sendKey(KeyEvent.new(Key.up)) != false) Fiber.abort(\"wire owner bypassed\")\n"
+	    "owner.release()\n"
+	    "System.gc()\n"
+	    "if (saved.code != IOErr.io || !saved.handled || saved.message.count == 0) Fiber.abort(\"key error lifetime\")\n") == 0);
+	CHECK(failure.calls == 2 && failure.first == 27);
+	st_wren_connected_destroy(connected);
+	st_term_session_destroy(&session);
+	connection->send_filter = NULL;
+	connection->transport = NULL;
+	return 0;
+}
+
 struct wire_handoff_test {
 	st_term_session_t *session;
 	bool enabled;
@@ -3249,6 +3476,7 @@ exercise_owned_sends(st_wren_host_t *host, st_console_t *console)
 		    "if (CTerm.encoding == live || saved.encoding != Codepage.cp437) Fiber.abort(\"configured/live encoding conflated\")\n") == 0);
 		CHECK(st_cterm_set_encoding(st_term_session_cterm(session), term_config.encoding,
 		    ST_CODEPAGE_CP437) == 0);
+		CHECK(exercise_cterm_results(connected, console) == 0);
 
 		connection.output.head = 0;
 		connection.output.count = 0;
@@ -3475,6 +3703,8 @@ exercise_owned_sends(st_wren_host_t *host, st_console_t *console)
 		st_wren_connected_destroy(connected);
 		CHECK(!st_term_session_wire_owned(session));
 		st_term_session_destroy(&session);
+		CHECK(exercise_cterm_key_failure(host, console, fonts, &profile,
+		    &connection, mode == 0) == 0);
 	}
 	st_condition_destroy(&connection.output.changed);
 	st_mutex_destroy(&connection.output.mutex);
@@ -4316,7 +4546,8 @@ exercise_connected_scrollback(st_wren_host_t *host,
 	CHECK(claimed && st_wren_connected_last_error(connected) == NULL);
 	CHECK(st_wren_connected_interpret(connected, "cterm_write_probe",
 	    "import \"syncterm\" for CTerm\n"
-	    "CTerm.write(String.fromCodePoint(27) + \"[HXY\")\n") == 0);
+	    "var error = CTerm.write(String.fromCodePoint(27) + \"[HXY\")\n"
+	    "if (error != null) Fiber.abort(error)\n") == 0);
 	struct st_console_rect written = {0, 0, 2, 1};
 	struct st_console_cell written_cells[2];
 	CHECK(st_console_read_cells(console, &written, written_cells, 2) == 0);
@@ -8365,6 +8596,7 @@ main(int argc, char **argv)
 	CHECK(exercise_emoji_result_contract(host, host->picker_vm, NULL) == 0);
 	CHECK(exercise_transfer_results(host->vm, NULL) == 0);
 	CHECK(exercise_transfer_results(host->picker_vm, NULL) == 0);
+	CHECK(exercise_cterm_boundaries(host, console) == 0);
 	CHECK(st_audio_runtime_allowed(audio_runtime) == 0);
 	CHECK(st_session_history_capacity(session_history) == 100);
 	CHECK(exercise_settings_save_contract(host) == 0);

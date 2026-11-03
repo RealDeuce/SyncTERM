@@ -26,6 +26,14 @@ struct foreign_conn_error {
 	char message[96];
 };
 
+struct foreign_cterm_error {
+	int code;
+	bool write;
+	bool handled;
+	size_t consumed;
+	char message[160];
+};
+
 struct st_wren_wire {
 	struct st_wren_context *context;
 };
@@ -63,6 +71,14 @@ allocate_cterm_state(WrenVM *vm)
 	*state = (struct st_cterm_state){0};
 }
 
+static void
+allocate_cterm_error(WrenVM *vm)
+{
+	struct foreign_cterm_error *error = wrenSetSlotNewForeign(vm, 0, 0,
+	    sizeof(*error));
+	*error = (struct foreign_cterm_error){0};
+}
+
 WrenForeignClassMethods
 st_wren_session_bind_class(const char *class_name)
 {
@@ -72,6 +88,8 @@ st_wren_session_bind_class(const char *class_name)
 		return (WrenForeignClassMethods){allocate_wire, finalize_wire};
 	if (strcmp(class_name, "ConnError") == 0)
 		methods.allocate = allocate_conn_error;
+	else if (strcmp(class_name, "CTermError") == 0)
+		methods.allocate = allocate_cterm_error;
 	else if (strcmp(class_name, "ExtAttr") == 0
 	    || strcmp(class_name, "LastColumnFlag") == 0)
 		methods.allocate = allocate_cterm_state;
@@ -117,6 +135,70 @@ static void fn_conn_error_string(WrenVM *vm)
 	    error->code >= CONN_DOWN && error->code <= CONN_BUSY
 	    ? names[error->code] : names[0], error->message);
 	wrenSetSlotString(vm, 0, formatted);
+}
+
+static void
+push_cterm_error(WrenVM *vm, int code, bool write, size_t consumed, bool handled)
+{
+	static const char *const reasons[] = {
+		"Invalid argument", "Invalid encoding", "Not found", "Permission denied",
+		"Already exists", "Not a directory", "Is a directory", "Directory not empty",
+		"Out of memory", "No space available", "Name too long", "Out of range",
+		"Busy", "Read-only", "Cross-device operation", "Too many links",
+		"Interrupted", "Not supported", "I/O failure", "Timed out", "Cancelled",
+		"Would block", "In progress", "Name resolution failed", "Connection refused",
+		"Connection reset", "Connection aborted", "Not connected", "Network unreachable",
+		"Host unreachable", "Address in use", "Address not available", "Message too large",
+		"Protocol failure", "Password required", "Decryption failed", "Invalid format", "Conflict",
+	};
+	wrenEnsureSlots(vm, 2);
+	wrenGetVariable(vm, "syncterm", "CTermError", 1);
+	struct foreign_cterm_error *error = wrenSetSlotNewForeign(vm, 0, 1,
+	    sizeof(*error));
+	*error = (struct foreign_cterm_error){.code = code, .write = write,
+	    .consumed = consumed, .handled = handled};
+	(void)snprintf(error->message, sizeof(error->message), "CTerm.%s failed: %s.",
+	    write ? "write" : "sendKey", code <= -1 && code >= -38
+	    ? reasons[-code - 1] : "Native terminal failure");
+}
+
+static struct foreign_cterm_error *
+cterm_error(WrenVM *vm)
+{
+	return st_wren_foreign_require(vm, 0, "syncterm", "CTermError");
+}
+static void fn_cterm_error_code(WrenVM *vm)
+{
+	struct foreign_cterm_error *error = cterm_error(vm);
+	if (error != NULL) wrenSetSlotDouble(vm, 0, error->code);
+}
+static void fn_cterm_error_message(WrenVM *vm)
+{
+	struct foreign_cterm_error *error = cterm_error(vm);
+	if (error != NULL) wrenSetSlotString(vm, 0, error->message);
+}
+static void fn_cterm_error_consumed(WrenVM *vm)
+{
+	struct foreign_cterm_error *error = cterm_error(vm);
+	if (error == NULL) return;
+	if (error->write) st_wren_return_u64(vm, error->consumed);
+	else wrenSetSlotNull(vm, 0);
+}
+static void fn_cterm_error_handled(WrenVM *vm)
+{
+	struct foreign_cterm_error *error = cterm_error(vm);
+	if (error == NULL) return;
+	if (!error->write) wrenSetSlotBool(vm, 0, error->handled);
+	else wrenSetSlotNull(vm, 0);
+}
+static void fn_cterm_error_string(WrenVM *vm)
+{
+	struct foreign_cterm_error *error = cterm_error(vm);
+	char text[208];
+	if (error == NULL) return;
+	(void)snprintf(text, sizeof(text), "CTermError(%d): %s", error->code,
+	    error->message);
+	wrenSetSlotString(vm, 0, text);
 }
 
 #define SEND_COUNT_MAX 64U
@@ -1004,8 +1086,9 @@ fn_cterm_send_key(WrenVM *vm)
 		st_wren_abort(vm, "CTerm.sendKey requires an active terminal");
 		return;
 	}
-	if (st_term_session_send_key(context->session, &event, &handled) != 0) {
-		st_wren_abort(vm, "CTerm.sendKey failed");
+	int status = st_term_session_send_key(context->session, &event, &handled);
+	if (status != 0) {
+		push_cterm_error(vm, status, false, 0, handled);
 		return;
 	}
 	wrenSetSlotBool(vm, 0, handled);
@@ -1028,8 +1111,13 @@ fn_cterm_write(WrenVM *vm)
 		return;
 	status = st_cterm_write_utf8(context->cterm, bytes, (size_t)length,
 	    &consumed);
-	if (status != 0 || consumed != (size_t)length) {
-		st_wren_abort(vm, "CTerm.write failed");
+	/* Counts describe the normalized C input, not the original Wren String. */
+	if (consumed > (size_t)length || (status == 0 && consumed != (size_t)length)) {
+		st_wren_abort(vm, "CTerm.write returned an invalid native consumed count");
+		return;
+	}
+	if (status != 0) {
+		push_cterm_error(vm, status, true, consumed, false);
 		return;
 	}
 	wrenSetSlotNull(vm, 0);
@@ -1396,6 +1484,13 @@ st_wren_session_bind_method(const char *class_name, bool is_static,
 			return fn_conn_error_message;
 		if (strcmp(signature, "toString") == 0)
 			return fn_conn_error_string;
+	}
+	if (!is_static && strcmp(class_name, "CTermError") == 0) {
+		if (strcmp(signature, "code") == 0) return fn_cterm_error_code;
+		if (strcmp(signature, "message") == 0) return fn_cterm_error_message;
+		if (strcmp(signature, "consumedBytes") == 0) return fn_cterm_error_consumed;
+		if (strcmp(signature, "handled") == 0) return fn_cterm_error_handled;
+		if (strcmp(signature, "toString") == 0) return fn_cterm_error_string;
 	}
 	if (!is_static && strcmp(class_name, "ExtAttr") == 0) {
 		static const struct {

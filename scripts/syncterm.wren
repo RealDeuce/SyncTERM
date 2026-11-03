@@ -1212,7 +1212,7 @@ class CTerm {
   foreign static encoding
   foreign static codepage
   // Send a local key through cterm's active emulation mapping.  Returns
-  // true when cterm handles the key, false when it has no mapping.
+  // Bool on success (native acceptance, not delivery), CTermError on failure.
   foreign static sendKey(key)
   foreign static doorwayMode
   foreign static doorwayMode=(b)
@@ -1246,10 +1246,22 @@ class CTerm {
   foreign static statusDisplay
   foreign static extAttr
   foreign static lastColumnFlag
+  // Strict UTF-8/NFC local rendering: null or CTermError. Counts on errors
+  // refer to normalized input bytes, not an original-String retry offset.
   foreign static write(s)
   foreign static suspended
   foreign static suspended=(b)
 }
+// Synchronous terminal failures preserve native outputs without claiming
+// rollback, delivery or a safe retry offset into the original String.
+foreign class CTermError is Error {
+  foreign code
+  foreign message
+  foreign consumedBytes
+  foreign handled
+  foreign toString
+}
+
 foreign class ExtAttr {
   foreign autoWrap
   foreign originMode
