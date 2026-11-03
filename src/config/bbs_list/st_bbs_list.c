@@ -6,6 +6,7 @@
  */
 
 #include "st_bbs_list_internal.h"
+#include "st_utf8.h"
 
 #include "array_list.h"
 #include "filesystem.h"
@@ -51,6 +52,51 @@ bbs_name_valid(const char *name, bool known_normalized)
 	    ST_PROFILE_NAME_MAX, "[]");
 
 	return valid && !st_bbs_name_equal(name, "syncterm-system-cache");
+}
+
+bool
+st_bbs_loaded_name(char result[ST_PROFILE_NAME_MAX + 1], const char *name)
+{
+	size_t offset = 0, valid = 0, scalars = 0;
+	size_t size = strlen(name);
+	if (size <= ST_PROFILE_NAME_MAX && st_unicode_name_valid_normalized(name,
+	    ST_PROFILE_NAME_SCALAR_MAX, ST_PROFILE_NAME_MAX, "[]")) {
+		memcpy(result, name, size + 1);
+		return true;
+	}
+	if (!st_unicode_name_valid_normalized(name, SIZE_MAX, SIZE_MAX, "[]"))
+		return false;
+	while (offset < size && scalars < ST_PROFILE_NAME_SCALAR_MAX) {
+		uint32_t scalar;
+		size_t used;
+		if (st_utf8_decode_one(&scalar, &used, name + offset, size - offset) != 0
+		    || used > ST_PROFILE_NAME_MAX - offset)
+			break;
+		memcpy(result + offset, name + offset, used);
+		offset += used;
+		++scalars;
+		result[offset] = '\0';
+		/* A limit can land on whitespace; retain the last valid prefix. */
+		if (st_unicode_name_valid_normalized(result,
+		    ST_PROFILE_NAME_SCALAR_MAX, ST_PROFILE_NAME_MAX, "[]"))
+			valid = offset;
+	}
+	result[valid] = '\0';
+	return valid != 0;
+}
+
+ini_section_t *
+st_bbs_find_profile_section(ini_document_t *document, const char *name)
+{
+	size_t count = ini_document_section_count(document);
+	while (count != 0) {
+		ini_section_t *section = ini_document_section_at(document, --count);
+		char loaded[ST_PROFILE_NAME_MAX + 1];
+		if (st_bbs_loaded_name(loaded, ini_section_name(section))
+		    && st_bbs_name_equal(loaded, name))
+			return section;
+	}
+	return NULL;
 }
 
 bool
@@ -288,88 +334,113 @@ decode_entry(const st_bbs_list_t *list, ini_section_t *section,
 }
 
 static int
+append_section(const st_bbs_list_t *list, struct st_bbs_view *view,
+    ini_section_t *section, enum st_bbs_source source, const char *source_name,
+    const char *name_key, size_t name_key_size)
+{
+	const char *name = ini_section_name(section);
+	struct st_bbs_owned_entry key = {0};
+	struct st_bbs_owned_entry *existing, *item;
+	int status;
+	key.public.name_key = name_key;
+	key.public.name_key_size = name_key_size;
+	if (reserved_name_key(&key)) {
+		status = add_diagnostic(view, source, source_name, name,
+		    IO_ERROR_INVALID_FORMAT);
+		if (status < 0)
+			return status;
+		return 0;
+	}
+	existing = find_owned_by_key(view, &key);
+	if (existing != NULL) {
+		/* Later duplicate blocks replace earlier blocks in one source. */
+		if (existing->public.source != source
+		    || !st_bbs_name_equal(existing->source_name, source_name)) {
+			if (existing->shadowed == NULL) {
+				status = decode_entry(list, section, source, source_name,
+				    name_key, name_key_size,
+				    &existing->shadowed);
+				if (status < 0)
+					return status;
+			}
+			else if (existing->shadowed->public.source == source
+			    && st_bbs_name_equal(existing->shadowed->source_name,
+			    source_name)) {
+				st_profile_dispose(&existing->shadowed->profile);
+				status = st_bbs_decode_profile(
+				    &existing->shadowed->profile, section, name,
+				    source != ST_BBS_SOURCE_PERSONAL,
+				    list->download_path);
+				if (status < 0)
+					return status;
+			}
+			return 0;
+		}
+		st_profile_dispose(&existing->profile);
+		status = st_bbs_decode_profile(&existing->profile, section, name,
+		    source != ST_BBS_SOURCE_PERSONAL, list->download_path);
+		if (status < 0)
+			return status;
+		return 0;
+	}
+	if (array_list_count((array_list_t)view->entries)
+	    >= ST_BBS_LIST_MAX_ENTRIES) {
+		return IO_ERROR_OUT_OF_RANGE;
+	}
+	status = decode_entry(list, section, source, source_name,
+	    name_key, name_key_size, &item);
+	if (status < 0)
+		return status;
+	size_t count = array_list_count((array_list_t)view->entries);
+	if (!array_list_reserve((array_list_t *)&view->entries, count + 1)
+	    || !array_list_reserve((array_list_t *)&view->names, count + 1)) {
+		free_entry(item);
+		return IO_ERROR_OUT_OF_MEMORY;
+	}
+	(void)array_list_append((array_list_t *)&view->entries, item);
+	(void)array_list_sorted_insert((array_list_t *)&view->names, item,
+	    compare_entry_names);
+	return 0;
+}
+
+static int
 append_source(const st_bbs_list_t *list, struct st_bbs_view *view,
-    ini_document_t *document,
-    enum st_bbs_source source, const char *source_name)
+    ini_document_t *document, enum st_bbs_source source, const char *source_name)
 {
 	for (size_t i = 0; i < ini_document_section_count(document); ++i) {
 		ini_section_t *section = ini_document_section_at(document, i);
 		const char *name = ini_section_name(section);
-		size_t name_key_size;
-		const char *name_key = ini_section_name_key(section,
-		    &name_key_size);
+		char loaded[ST_PROFILE_NAME_MAX + 1];
 		struct st_bbs_owned_entry key = {0};
-		struct st_bbs_owned_entry *existing;
-		struct st_bbs_owned_entry *item;
+		const char *name_key;
+		size_t name_key_size;
 		int status;
-
-		if (!st_unicode_name_valid_normalized(name,
-		    ST_PROFILE_NAME_SCALAR_MAX,
-		    ST_PROFILE_NAME_MAX, "[]")) {
+		if (!st_bbs_loaded_name(loaded, name)) {
 			status = add_diagnostic(view, source, source_name, name,
 			    IO_ERROR_INVALID_FORMAT);
-			if (status < 0)
+			if (status != 0)
 				return status;
 			continue;
 		}
-		key.public.name_key = name_key;
-		key.public.name_key_size = name_key_size;
-		if (reserved_name_key(&key)) {
+		bool truncated = strcmp(loaded, name) != 0;
+		if (truncated) {
 			status = add_diagnostic(view, source, source_name, name,
-			    IO_ERROR_INVALID_FORMAT);
-			if (status < 0)
+			    IO_ERROR_NAME_TOO_LONG);
+			if (status != 0)
 				return status;
-			continue;
-		}
-		existing = find_owned_by_key(view, &key);
-		if (existing != NULL) {
-			/* Later duplicate blocks replace earlier blocks in one source. */
-			if (existing->public.source != source
-			    || !st_bbs_name_equal(existing->source_name, source_name)) {
-				if (existing->shadowed == NULL) {
-					status = decode_entry(list, section, source, source_name,
-					    name_key, name_key_size,
-					    &existing->shadowed);
-					if (status < 0)
-						return status;
-				}
-				else if (existing->shadowed->public.source == source
-				    && st_bbs_name_equal(existing->shadowed->source_name,
-				    source_name)) {
-					st_profile_dispose(&existing->shadowed->profile);
-					status = st_bbs_decode_profile(
-					    &existing->shadowed->profile, section, name,
-					    source != ST_BBS_SOURCE_PERSONAL,
-					    list->download_path);
-					if (status < 0)
-						return status;
-				}
-				continue;
-			}
-			st_profile_dispose(&existing->profile);
-			status = st_bbs_decode_profile(&existing->profile, section, name,
-			    source != ST_BBS_SOURCE_PERSONAL, list->download_path);
-			if (status < 0)
+			status = make_name_key(&key, loaded);
+			if (status != 0)
 				return status;
-			continue;
+			name_key = key.public.name_key;
+			name_key_size = key.public.name_key_size;
+		} else {
+			name_key = ini_section_name_key(section, &name_key_size);
 		}
-		if (array_list_count((array_list_t)view->entries)
-		    >= ST_BBS_LIST_MAX_ENTRIES) {
-			return IO_ERROR_OUT_OF_RANGE;
-		}
-		status = decode_entry(list, section, source, source_name,
-		    name_key, name_key_size, &item);
-		if (status < 0)
+		status = append_section(list, view, section, source, source_name,
+		    name_key, name_key_size);
+		free((char *)key.public.name_key);
+		if (status != 0)
 			return status;
-		size_t count = array_list_count((array_list_t)view->entries);
-		if (!array_list_reserve((array_list_t *)&view->entries, count + 1)
-		    || !array_list_reserve((array_list_t *)&view->names, count + 1)) {
-			free_entry(item);
-			return IO_ERROR_OUT_OF_MEMORY;
-		}
-		(void)array_list_append((array_list_t *)&view->entries, item);
-		(void)array_list_sorted_insert((array_list_t *)&view->names, item,
-		    compare_entry_names);
 	}
 	return 0;
 }

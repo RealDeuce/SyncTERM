@@ -61,6 +61,9 @@ struct st_bbs_list {
 };
 
 bool st_bbs_cache_key(char *result, size_t result_size, const char *name);
+/* Map a normalized INI section name to the bounded, valid profile name. */
+bool st_bbs_loaded_name(char result[ST_PROFILE_NAME_MAX + 1], const char *name);
+ini_section_t *st_bbs_find_profile_section(ini_document_t *document, const char *name);
 bool st_bbs_cache_key_recognized(const char *key);
 /* Platform mechanisms; callbacks receive one basename at a time. */
 int st_bbs_cache_visit(const char *directory,

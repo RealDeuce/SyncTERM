@@ -1047,7 +1047,7 @@
     "bbs.diagnostics": {
       "status": "covered",
       "wren": "Menu.loadDiagnostics / BBSLoadDiagnostic",
-      "reason": "On request, snapshots copy all four native diagnostic fields in native order, with strict UTF-8/NFC owned names and a lazily constructed MenuError preserving portable status. Snapshots survive GC/reloads, grant no authority, and are distinct from failed candidates. No native API was added. The bundled menu shows one scrollable warning summary after successful loading and continues if warning retrieval fails. Missing optional sources retain native silent-skip policy.",
+      "reason": "On request, snapshots copy all four native diagnostic fields in native order, with strict UTF-8/NFC owned names and a lazily constructed MenuError preserving portable status. Snapshots survive GC/reloads, grant no authority, and are distinct from failed candidates. Overlong section names load with a UTF-8-safe valid prefix within the profile limits and a NameTooLong warning retaining the original section name; values and personal edits/deletions use the original section. The bundled menu opens one scrollable summary for personal/shared warnings and includes web warnings alongside them; exclusively web warnings remain available without triggering a popup. Fatal load and diagnostic-retrieval failures still open their dialogs. Missing optional sources retain silent-skip policy. No public native API was added.",
       "vm": "menu",
       "evidence": [
         {
@@ -1065,6 +1065,10 @@
         {
           "path": "scripts/auto/menu/main_menu.wren",
           "anchor": "static loadWarnings_()"
+        },
+        {
+          "path": "src/config/bbs_list/st_bbs_profile_codec.c",
+          "anchor": "st_bbs_loaded_name(profile->name, name)"
         }
       ],
       "finding": "bbs-diagnostics",
@@ -4042,7 +4046,7 @@
     {
       "path": "src/scripting/wren_host/tests/st_wren_settings_menu_test.c",
       "anchor": "test_load_results",
-      "aspect": "Fatal native load reasons, retained models/views/file grants, actual four-source warnings, on-request immutable NFC snapshots, lazy errors, allocation/text failures, GC/reload lifetime, safe reading, removed APIs, real warning/password/cancellation/exit/scroll UI."
+      "aspect": "Fatal native load reasons, retained models/views/file grants, actual four-source warnings, on-request immutable NFC snapshots, lazy errors, allocation/text failures, GC/reload lifetime, safe reading, removed APIs, real warning/password/cancellation/exit/scroll UI. Web-only warnings do not consume a queued dismissal key; mixed warnings retain all text, and fatal load/retrieval failures still consume dialog dismissal with web-only warnings."
     },
     {
       "path": "src/scripting/wren_host/tests/st_wren_host_test.c",
@@ -4118,6 +4122,11 @@
       "path": "src/tests/st_migrated_control_test.py",
       "anchor": "var error = CTerm.write",
       "aspect": "Actual application profile fixture checks local-write result; physical audio disabled"
+    },
+    {
+      "path": "src/config/bbs_list/tests/st_bbs_list_test.c",
+      "anchor": "check_loaded_names",
+      "aspect": "Loaded parenthesized names, scalar/byte limits, complete UTF-8 boundaries, whitespace cutoff, original section diagnostics/values, duplicate precedence, edits/rename/delete of long sections and no duplicate resurrection."
     }
   ],
   "dispatch_evidence": [
@@ -4129,10 +4138,10 @@
   ],
   "evidence_files": {
     "docs/WREN_GUIDANCE.md": "d14aeecb5eae922015f2f48a4fd690277dcb5b91aedfd8d8d8cffb2dc235e1ac",
-    "docs/Wren.adoc": "08cde78091c57b302d1b9b9b633d343648c6b926663918d24772c3a734270f85",
+    "docs/Wren.adoc": "ebb24a48fae03f3f70ec4d9aa85497506c35c1aec8fcbe2623d77b474bf8e38c",
     "docs/api/bbs-entry-fields.adoc": "a1be9944eadd5f56d752e8669b502f49b27211f14190443a95e36ad301b8d128",
     "scripts/auto/connected/font_pick.wren": "6cd249b69c2f851e1fb84e4b8ce381879cfaaa96a35e1376f6e8502c6497e91b",
-    "scripts/auto/menu/main_menu.wren": "5b37db003c7c052da2332aeb8255db695fd2f3d976fa4f56502578ed0039c681",
+    "scripts/auto/menu/main_menu.wren": "72e910942486d6829a4271572ad7c9bab052101364f4e55579ba21102735806b",
     "scripts/menu_bbs_editor.wren": "fa27c403b0cad1ffe2811243787916ce7428da2255b12683f6e3e2c5847a4187",
     "scripts/menu_settings_ui.wren": "5d0afe0a828d8dcf7383bf83da193491db243c51360375762110e8998444857c",
     "scripts/sftp_app.wren": "4cd38fa9304c6c7428d7a21ef3b86c0d68fb14e25b35c3540bfdd46a211a9e5f",
@@ -4165,7 +4174,7 @@
     "src/base/time/st_time.h": "185a02bb0082369b2cd8aae5e6923d98a267163e95030bbee3440fb207784579",
     "src/base/value_convert/value_convert.h": "bb019fd7108319caae88007c096737ef2d0c77dffac562e54bfa0511ee48a16b",
     "src/config/app_paths/st_app_paths.h": "8d98d54d6dc698c911891de1e1122fde0d5bedbef4039ed89ca2e4cb3cfa55a9",
-    "src/config/bbs_list/st_bbs_list.c": "394542a939c1caa7075fce1c2ce644d713f0d1543a0e942ba7df1cf168298c8f",
+    "src/config/bbs_list/st_bbs_list.c": "0bd566ce145a48b28bfa618801e3d01633c6cc731b0d32c8f3b6a8c83a4e1382",
     "src/config/bbs_list/st_bbs_list.h": "88df713bec5fa0ff9b2e0eb9d969cdfa5f01b5a00f81d93aa6531839844dae4a",
     "src/config/consent_token/st_consent_token.h": "17c510324b8e490e9b8e9d22111975ab42e48c0721cfc19bde6a04e041b42ccb",
     "src/config/ini/ini.h": "8ee058ae16825f619a4e705557a254379e4e5a0efdc08b9271a6384f070d0157",
@@ -4207,13 +4216,13 @@
     "src/net/webget/st_webget.h": "9647dcc563e1661fe1d6b762c78e2483d2beae03ac878da0ebd15c8a425d2143",
     "src/scripting/wren_host/st_wren_host.h": "531eba9331f992a6394c41020890e279597ee8d6cfd1259a4495f68ef38d5552",
     "src/scripting/wren_host/tests/st_wren_host_test.c": "a30e0ace938fc3000fcc63c727a6b9fd12efdd866ba9b5cb6f081eec06e8ba1d",
-    "src/scripting/wren_host/tests/st_wren_settings_menu_test.c": "269477ca235d241d71e5f3b2409c0800d2a3379cbc9c455c879219c8bb4e6e3c",
+    "src/scripting/wren_host/tests/st_wren_settings_menu_test.c": "a87d02358e3dae85b760861854fa1a4c520948e78f7b748b97207a7311cb5aae",
     "src/scripting/wren_host/wren_async.c": "71e78941735250300171a2b7cb13b70c92916bd14c066a6614b3f77cdd9b565d",
     "src/scripting/wren_host/wren_bbs_model.c": "18dca3353505a5b0dc609251f16038bd9132c47e215c4cf24ba802ac4b3ab97a",
     "src/scripting/wren_host/wren_bind_core.c": "a4854c510c31919303cab5a9cf94deacfcb88058416af158a7397ed55f55c84e",
     "src/scripting/wren_host/wren_bind_fs.c": "17e19ab179b195a36c58f929802e9a5d86d6e211d7dfdf809ac4b7c4e6c96cba",
     "src/scripting/wren_host/wren_bind_hyperlinks.c": "255be945007c9cb2795195058e5f58de7d2b2157728892e614d6e8fb5f729b98",
-    "src/scripting/wren_host/wren_bind_menu.c": "1f74963b11a473076d5fe5a3b1e65473fcb19b6b5d3ed58624cbbc337e6112f7",
+    "src/scripting/wren_host/wren_bind_menu.c": "d204b42ce498d2cd492c4d793344bb5acd9e6b5d198de9fd65ef4b0679bd667f",
     "src/scripting/wren_host/wren_bind_pixels.c": "5a1b4c73862a6845710159e6b34e8992cff1ab66661b984f871c46eb6c6bcceb",
     "src/scripting/wren_host/wren_bind_session.c": "abc78adace40704dfb1b668c9ca19ccf0c538c2ac9028b86e65a0cf7b81fea36",
     "src/scripting/wren_host/wren_bind_status.c": "85ed4115c9a9645aa27cccb2a9977e5892037123d7440d9acf3397fd55e16671",
@@ -4267,7 +4276,7 @@
     "src/terminal/cterm/cterm_render.c": "fb5cf7def0c2972ca7d71dd326595f0dfdc9f4dfe9cfb6ce6b85c3fb6caa3a3a",
     "src/tests/st_font_assignments_test.py": "5b672eb7c59e75c7f9005e6851419f2563c435585740c150bf4af17544f9dbf6",
     "src/terminal/cterm/tests/st_cterm_test.c": "c76041087a5995c83a259e4052e8c4c5b518dc61aa858f9294bbd444b0c33a2b",
-    "src/config/bbs_list/st_bbs_store.c": "9859e0b1a0bd65a05567d47f78fb5bf87ad8716077b8824a52e8d8b87a460325",
+    "src/config/bbs_list/st_bbs_store.c": "658bd23d37454bb4a47400d5a763948a4e8a2c70ac41aab1be7f988218a243ba",
     "src/scripting/wren_host/tests/st_wren_sftp_live_test.c": "61d5e35f34a48725efefca9b08f290d356ddee00cf12dad2b32c0727079025fa",
     "src/scripting/wren_host/tests/st_wren_menu_test_bindings.c": "9a7f110f8beb56c3fdc3080254f272db5db5b414c759c79492e82ef70cfeea64",
     "scripts/menu_sort_profiles.wren": "e03022e77a0872851aa25ad52ff9f1160c8aa9a800d03bbb7063c8027dc4206d",
@@ -4282,7 +4291,9 @@
     "src/tests/st_test_control_test.py": "d9ff21d77c7731a055983ecc5d44fab373650cb4deefbe701fe01f9d26b94914",
     "scripts/auto/connected/connected.wren": "7f8f7144896388ffbf9dd16820cbf6cbae73d25c385ccba7d8c0928f31ae67d6",
     "src/scripting/wren_host/tests/st_wren_session_test_bindings.c": "4ef0aef560439c1ed3f933232a8b59ccaa3ee0a6971609ebf0fe8e81ff1b981c",
-    "src/tests/st_migrated_control_test.py": "d277217877b88d910cda0b6281a8d47160031068bcd46979293c6893de2bcd39"
+    "src/tests/st_migrated_control_test.py": "d277217877b88d910cda0b6281a8d47160031068bcd46979293c6893de2bcd39",
+    "src/config/bbs_list/tests/st_bbs_list_test.c": "e082110aca917ca8932f2d7b2666ee11b55cbcf5707eee4bd7515ed9f5dddb98",
+    "src/config/bbs_list/st_bbs_profile_codec.c": "04a87909baeb5788e386369ef4c4043c95e92737bdb8a316009a23f4e7f9dbb8"
   },
   "verification": {
     "platform": "FreeBSD 15.1-RELEASE-p5 amd64",
@@ -4645,6 +4656,25 @@
         "MinGW64 Debug configured application, host/picker and native terminal/keyboard/session tests cross-build"
       ],
       "limitations": "No Windows runtime execution. FreeBSD leak detection unsupported and disabled; C++ vptr checks disabled for C-owned executables. Physical audio disabled in headless fixtures. No compiler warnings or sanitizer diagnostics; some initial GNUmake generated-file clock-skew notices were environmental. No native renderer/keyboard/transport/language policy changed. Key acceptance and consumed bytes provide no delivery, rollback or automatic retry guarantee. Screen results remain required open work; other chunks need actual Plan mode and approval."
+    },
+    {
+      "topic": "bbs-name-truncation-and-warning-dialog",
+      "status": "resolved",
+      "approval": "Direct user bug-fix request: truncate overlong entry names with warnings; retain web warnings in the dialog but do not open it for exclusively web warnings; other errors must still open a dialog.",
+      "scope": "UTF-8-safe valid profile-name prefixes retain the original INI section for values, diagnostics and personal edits/deletion. Shortened names use existing duplicate and source-priority rules. NameTooLong warnings explain truncation. Automatic warning summaries trigger on personal/shared diagnostics and include all sources; web-only diagnostics remain available. Fatal load and diagnostic-retrieval errors retain dialogs. Native cached INI documents are not rewritten to shorten headers.",
+      "accounting": "No public native declarations, TSV rows, header counts, assessment dispositions or topic counts changed. Reviewed changed evidence and report locations; all 80 matrix rows are unchanged. Checker: 80 headers, 120 exclusions, 2448 native items, 157 assessments, 51 original topics; 40 topics plus one documentation finding remain open.",
+      "tests_passed": [
+        "FreeBSD Clang Debug: ini, ini_interface, bbs_list, bbs_failures, bbs_cache_safety, bbs_web, wren_settings_runtime, wren_host, wren_menu_contract, syncterm_behavior_profile, syncterm_behavior_web_list, syncterm_behavior_bbs_setters (12).",
+        "FreeBSD GCC Debug and Clang ASan/UBSan: bbs_list, bbs_failures, bbs_cache_safety, bbs_web, wren_settings_runtime, wren_host, wren_menu_contract (7 each).",
+        "Scalar/byte limits, complete multibyte UTF-8 boundaries, whitespace cutoff, parenthesized names, original values/warnings, duplicate precedence, update/rename/delete and no duplicate resurrection.",
+        "Actual menu warning formatting, web-only summary suppression without consuming input, retained web details in mixed summaries, fatal load and diagnostic-retrieval dialogs with web-only warnings.",
+        "Read-only native-loader probe of the reported cached Telnet BBS Guide: 1063 effective entries and 23 name-truncation warnings; no other warning status.",
+        "Coverage checker, unchanged 80-row matrix and git diff --check."
+      ],
+      "builds_passed": [
+        "Configured Clang/GCC/ASan/MinGW64 CMake trees; application builds with Clang and MinGW64; focused native/host/settings targets built in all four configurations."
+      ],
+      "limitations": "No Windows runtime execution. FreeBSD ASan leak detection disabled. Sanitizer initially caught a missing profile initialization in the new test fixture; corrected before the final passing runs. No introduced compiler warnings or final sanitizer diagnostics. This is a user-directed bug fix, not a new approved burndown chunk."
     }
   ]
 }

@@ -1202,7 +1202,7 @@ class MainMenu {
       }
       return false
     }
-    var warnings = Fiber.new { loadWarnings_() }
+    var warnings = Fiber.new { loadWarningsAutomatic_() }
     var message = warnings.try()
     if (warnings.error != null) {
       message = "The directory was loaded, but its warnings could not be retrieved. " +
@@ -1219,9 +1219,22 @@ class MainMenu {
   }
 
   static loadWarnings_() {
+    return loadWarnings_(Menu.loadDiagnostics)
+  }
+
+  static loadWarningsAutomatic_() {
     var items = Menu.loadDiagnostics
+    var show = items.any {|item|
+      return item.source != BBSListSource.webSystem &&
+          item.source != BBSListSource.webNamed
+    }
+    if (!show) return null
+    return loadWarnings_(items)
+  }
+
+  static loadWarnings_(items) {
     if (items.count == 0) return null
-    var lines = ["The directory was loaded, but some sources or sections were skipped."]
+    var lines = ["The directory was loaded, but some sources or entries need attention."]
     for (item in items) {
       var source = "Personal list"
       if (item.source == BBSListSource.shared) source = "Shared list"

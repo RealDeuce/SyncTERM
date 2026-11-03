@@ -524,6 +524,96 @@ check_encoding_persistence(const struct st_app_paths *base_paths)
 }
 
 static int
+check_loaded_names(const struct st_app_paths *original)
+{
+	static const char full[] = "A Brother To Dragons (Photon BBS)";
+	static const char truncated[] = "A Brother To Dragons (Photon B";
+	static const char text[] =
+	    "[A Brother To Dragons (Photon BBS)]\nAddress=first.example\n"
+	    "[A Brother To Dragons (Photon BBS) again]\nAddress=last.example\n"
+	    "Unknown=preserve\n[Short (name)]\nAddress=short.example\n";
+	char personal[sizeof(ST_BBS_TEST_DIRECTORY) + 32];
+	char lock_path[sizeof(personal) + 8];
+	char missing[sizeof(personal)];
+	char prefix[ST_PROFILE_NAME_MAX + 1];
+	char unicode[128];
+	struct st_app_paths paths = *original;
+	st_bbs_list_t *list = NULL;
+	struct st_profile profile;
+
+	/* Two- and four-byte scalars hit the scalar and byte limits separately. */
+	for (size_t i = 0; i < 31; ++i)
+		memcpy(unicode + i * 2, "\xc3\x85", 2);
+	unicode[62] = '\0';
+	CHECK(st_bbs_loaded_name(prefix, unicode));
+	CHECK(strlen(prefix) == 60 && memcmp(prefix, unicode, 60) == 0);
+	for (size_t i = 0; i < 16; ++i)
+		memcpy(unicode + i * 4, "\xf0\x9f\x98\x80", 4);
+	unicode[64] = '\0';
+	CHECK(st_bbs_loaded_name(prefix, unicode));
+	CHECK(strlen(prefix) == 60 && memcmp(prefix, unicode, 60) == 0);
+	/* A byte limit inside a scalar, and a scalar limit on trailing space. */
+	for (size_t i = 0; i < 14; ++i)
+		memcpy(unicode + i * 4, "\xf0\x9f\x98\x80", 4);
+	strcpy(unicode + 56, "AB\xf0\x9f\x98\x80");
+	CHECK(st_bbs_loaded_name(prefix, unicode));
+	CHECK(strlen(prefix) == 58 && memcmp(prefix, unicode, 58) == 0);
+	memset(unicode, 'A', 29);
+	strcpy(unicode + 29, " B");
+	CHECK(st_bbs_loaded_name(prefix, unicode));
+	CHECK(strlen(prefix) == 29);
+	CHECK(!st_bbs_loaded_name(prefix, "invalid\x01 name"));
+	CHECK(st_bbs_loaded_name(prefix, "Short (name)"));
+	CHECK(strcmp(prefix, "Short (name)") == 0);
+
+	CHECK(snprintf(personal, sizeof(personal), "%s/long-names.lst",
+	    ST_BBS_TEST_DIRECTORY) < (int)sizeof(personal));
+	paths.personal_list = personal;
+	paths.shared_list = NULL;
+	CHECK(snprintf(missing, sizeof(missing), "%s/long-missing.lst",
+	    ST_BBS_TEST_DIRECTORY) < (int)sizeof(missing));
+	paths.cached_system_list = missing;
+	CHECK(write_text(personal, text) == 0);
+	CHECK(st_bbs_list_open(&list, &paths, NULL, 0) == 0);
+	CHECK(st_bbs_list_count(list) == 2);
+	CHECK(st_bbs_list_diagnostic_count(list) == 2);
+	const struct st_bbs_diagnostic *diagnostic = st_bbs_list_diagnostic_at(list, 0);
+	CHECK(diagnostic->status == IO_ERROR_NAME_TOO_LONG);
+	CHECK(strcmp(diagnostic->section_name, full) == 0);
+	st_profile_init(&profile);
+	CHECK(copy_named(&profile, list, truncated) == 0);
+	CHECK(strcmp(profile.address, "last.example") == 0);
+	strcpy(profile.address, "edited.example");
+	CHECK(st_bbs_list_update(list, truncated, &profile, NULL) == 0);
+	CHECK(st_bbs_list_reload(list) == 0);
+	CHECK(strcmp(st_bbs_list_find(list, truncated)->profile->address,
+	    "edited.example") == 0);
+	CHECK(ini_document_section_count(list->personal_document) == 2);
+	CHECK(file_contains(personal, "Unknown=preserve"));
+	/* Explicit rename and delete must find/remove the original long section. */
+	strcpy(profile.name, "Renamed (entry)");
+	CHECK(st_bbs_list_update(list, truncated, &profile, NULL) == 0);
+	CHECK(st_bbs_list_reload(list) == 0);
+	CHECK(st_bbs_list_find(list, truncated) == NULL);
+	CHECK(st_bbs_list_find(list, profile.name) != NULL);
+	CHECK(st_bbs_list_remove(list, profile.name, NULL) == 0);
+	CHECK(st_bbs_list_count(list) == 1);
+	st_profile_dispose(&profile);
+	CHECK(write_text(personal, text) == 0);
+	CHECK(st_bbs_list_reload(list) == 0);
+	CHECK(st_bbs_list_remove(list, truncated, NULL) == 0);
+	CHECK(st_bbs_list_reload(list) == 0);
+	CHECK(st_bbs_list_count(list) == 1);
+	CHECK(!file_contains(personal, full));
+	st_bbs_list_close(list);
+	CHECK(fs_remove_file(personal) == 0);
+	CHECK(snprintf(lock_path, sizeof(lock_path), "%s.lock", personal)
+	    < (int)sizeof(lock_path));
+	CHECK(fs_remove_file(lock_path) == 0);
+	return 0;
+}
+
+static int
 check_prepared_sort(void)
 {
 	static const char *const names[] = {
@@ -633,6 +723,17 @@ main(void)
 	CHECK(st_bbs_name_equal("Stra\xc3\x9f" "e", "STRASSE"));
 	CHECK(st_bbs_name_equal("\xc3\x85", "A\xcc\x8a"));
 	CHECK(st_bbs_name_valid("M\xc3\xbcnchen"));
+	{
+		ini_document_t *document = NULL;
+		struct st_profile shortened;
+		CHECK(ini_document_parse(&document, "Address=long.example\n", 21) == 0);
+		CHECK(st_bbs_decode_profile(&shortened, ini_document_root(document),
+		    "A Brother To Dragons (Photon BBS)", false, NULL) == 0);
+		CHECK(strcmp(shortened.name, "A Brother To Dragons (Photon B") == 0);
+		CHECK(strcmp(shortened.address, "long.example") == 0);
+		st_profile_dispose(&shortened);
+		ini_document_free(&document);
+	}
 	CHECK(st_bbs_name_valid_normalized("M\xc3\xbcnchen"));
 	CHECK(!st_bbs_name_valid("A\xcc\x8a"));
 	CHECK(!st_bbs_name_valid_normalized(" leading"));
@@ -656,6 +757,7 @@ main(void)
 	paths.system_cache_directory = system_cache;
 	paths.cached_system_list = system_list;
 	paths.download_directory = ST_BBS_TEST_DIRECTORY;
+	CHECK(check_loaded_names(&paths) == 0);
 	CHECK(check_encoding_persistence(&paths) == 0);
 	CHECK(check_connection_stats(&paths) == 0);
 	CHECK(check_scripts_are_per_entry(&paths) == 0);

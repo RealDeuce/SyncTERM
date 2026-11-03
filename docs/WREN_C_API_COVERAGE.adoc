@@ -243,7 +243,7 @@ native secondary status is still omitted. Primary BBS mutation results are now
 covered separately under <<finding-model-mutation-results>>, whose remaining
 Settings disk-reload and emoji-result subclaims are now also resolved.
 
-Evidence: link:../src/config/bbs_list/st_bbs_list.h[src/config/bbs_list/st_bbs_list.h:58]; link:../src/config/bbs_list/st_bbs_store.c[src/config/bbs_list/st_bbs_store.c:486]; link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:4629].
+Evidence: link:../src/config/bbs_list/st_bbs_list.h[src/config/bbs_list/st_bbs_list.h:58]; link:../src/config/bbs_list/st_bbs_store.c[src/config/bbs_list/st_bbs_store.c:494]; link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:4632].
 
 [[finding-bbs-diagnostics]]
 === Nonfatal BBS-load diagnostics are now available
@@ -255,9 +255,14 @@ supplies on-request immutable snapshots of source, source name, section name and
 status (through a lazily created MenuError). Names are owned strict UTF-8/NFC;
 records survive reloads and GC, and grant no authority. BBSListSource names all
 four native enum values. Reading performs no load. Failed candidates preserve the
-installed diagnostics. The bundled menu shows one scrollable summary after
-successful loading and continues even if diagnostic retrieval fails. Missing
-optional files retain native silent skipping. No native API or load policy changed.
+installed diagnostics. The bundled menu opens one scrollable summary for personal
+or shared-list warnings, including all web warnings alongside them. Exclusively
+web-list warnings remain available without opening the dialog automatically;
+other load/retrieval errors still open a dialog. Missing optional files remain
+silent. A subsequent user-directed compatibility fix loads overlong entry names
+with UTF-8-safe truncation and an IO_ERROR_NAME_TOO_LONG diagnostic retaining the
+original section name. Editing and deletion use the same shortened identity.
+No public native API was added.
 
 Evidence: link:../src/config/bbs_list/st_bbs_list.h[src/config/bbs_list/st_bbs_list.h:114]; link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:642]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:22].
 
@@ -420,7 +425,7 @@ Absent models return null; plaintext returns a plain snapshot. The shipped
 dialog hides Change Password for unsupported combinations, including AES-192.
 Users never need to parse or enter file headers.
 
-Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:3305]; link:../src/scripting/wren_host/tests/st_wren_settings_menu_test.c[src/scripting/wren_host/tests/st_wren_settings_menu_test.c:230].
+Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:3308]; link:../src/scripting/wren_host/tests/st_wren_settings_menu_test.c[src/scripting/wren_host/tests/st_wren_settings_menu_test.c:230].
 
 +settings.kdf-legacy+ (partial; menu; resolved by approved policy).
 Settings.kdfShift remains the effective numeric rewrite policy (8–20), with
@@ -430,14 +435,14 @@ approved this policy and rejected raw kdfSpec/nullable getters; actual loaded
 KDF values are available in the snapshot. Partial describes the representation,
 not an outstanding requirement to expose legacy text.
 
-Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:3408].
+Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:3411].
 
 +list.crypto+ remains partial and open: writer block size/parallelism use
 native defaults; generic encrypted INI streams need a separate scope decision.
 setEncryption result fidelity is now resolved through null/MenuError. This chunk does
 not close those subclaims or the shared finding topic.
 
-Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:3428].
+Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:3431].
 
 [[finding-model-mutation-results]]
 === Model operation results (resolved)
@@ -464,7 +469,7 @@ without repeating persistence. Previous live mappings and native skip rules are
 preserved. Compound Settings/collection failures retain existing partial effects,
 with no commit-state flags, rollback or transaction-result framework.
 
-Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:4629]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:253].
+Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:4632]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:253].
 
 +bbs.load-status+ (covered; menu) is resolved in chunk 5. Menu.load now returns
 null/MenuError with the actual portable failure from opening, sorting or model
@@ -569,7 +574,7 @@ Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_ho
 
 Catalog rows omit the native source URI and expected SHA-256. Downloads and verification remain host-owned, but scripts cannot inspect or display that provenance. Parsed theme ownership is separately represented by copyCloudTheme rather than missing because a pointer is absent.
 
-Evidence: link:../src/config/theme/st_theme.h[src/config/theme/st_theme.h:61]; link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:2586].
+Evidence: link:../src/config/theme/st_theme.h[src/config/theme/st_theme.h:61]; link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:2589].
 
 [[finding-tls-peer-information]]
 === Negotiated TLS and certificate metadata are unavailable
@@ -901,7 +906,7 @@ Evidence: link:../src/base/crypto/st_kdf.h[src/base/crypto/st_kdf.h:29]; link:..
 
 No general random-byte operation, provider version query, or crypto-status taxonomy is exported. List workflow errors do not expose every provider result. Secret clearing remains native ownership, classified separately.
 
-Evidence: link:../src/base/crypto/st_crypto.h[src/base/crypto/st_crypto.h:35]; link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:1815].
+Evidence: link:../src/base/crypto/st_crypto.h[src/base/crypto/st_crypto.h:35]; link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:1818].
 
 [[finding-webget-service]]
 === General HTTP download requests

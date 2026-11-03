@@ -122,8 +122,8 @@ st_bbs_decode_profile(struct st_profile *profile,
 	st_profile_init(profile);
 	profile->source = system ? ST_PROFILE_SOURCE_SYSTEM
 	    : ST_PROFILE_SOURCE_USER;
-	if (name != NULL)
-		(void)strcpy(profile->name, name);
+	if (name != NULL && !st_bbs_loaded_name(profile->name, name))
+		return IO_ERROR_INVALID_FORMAT;
 	copy_fixed(profile->address, sizeof(profile->address), section, "Address",
 	    "");
 	connection = (int)ini_section_get_enum_names(section, "ConnectionType",

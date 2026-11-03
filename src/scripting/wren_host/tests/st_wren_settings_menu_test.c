@@ -493,7 +493,7 @@ static void
 test_load_results(struct st_wren_host *host, struct st_app_paths *paths,
 	const char *personal, st_console_t *console)
 {
-	static const char invalid_section[] =
+	static const char long_section[] =
 	    "[1234567890123456789012345678901]\nAddress=skipped.example\n";
 	char shared[sizeof(ST_WREN_SETTINGS_TEST_DIRECTORY) + 32];
 	char named[sizeof(ST_WREN_SETTINGS_TEST_DIRECTORY) + 32];
@@ -504,11 +504,11 @@ test_load_results(struct st_wren_host *host, struct st_app_paths *paths,
 	    ST_WREN_SETTINGS_TEST_DIRECTORY) < (int)sizeof(named));
 	CHECK(st_settings_web_download_count() == 0);
 	CHECK(snprintf(script, sizeof(script), "[Existing]\nAddress=existing.example\n%s",
-	    invalid_section) < (int)sizeof(script));
+	    long_section) < (int)sizeof(script));
 	write_text(personal, script);
-	write_text(shared, invalid_section);
+	write_text(shared, long_section);
 	write_text(paths->cached_system_list, "\xff");
-	write_text(named, invalid_section);
+	write_text(named, long_section);
 	paths->shared_list = shared;
 	CHECK(st_settings_web_download_append("Caf\xc3\xa9", "https://invalid/") == 0);
 	interpret(host, "load_diagnostics",
@@ -517,14 +517,14 @@ test_load_results(struct st_wren_host *host, struct st_app_paths *paths,
 	    "import \"main_menu\" for MainMenu\n"
 	    "if (Menu.load(null) != null) Fiber.abort(\"warning load failed\")\n"
 	    "var saved = Menu.loadDiagnostics\n"
-	    "var oldEntry = Menu.entries[0]\n"
+	    "var oldEntry = Menu.entries.where {|entry| entry.name == \"Existing\" }.toList[0]\n"
 	    "var oldDefaults = Menu.defaults\n"
 	    "var oldCache = oldEntry.cache\n"
 	    "oldCache.delete(\"load-result.tmp\")\n"
 	    "var oldFile = oldCache.create(\"load-result.tmp\")\n"
 	    "if (saved.count != 4) Fiber.abort(\"missing source warnings\")\n"
 	    "var sources = [BBSListSource.personal, BBSListSource.shared, BBSListSource.webSystem, BBSListSource.webNamed]\n"
-	    "var expected = [IOErr.invalidFormat, IOErr.invalidFormat, IOErr.invalidEncoding, IOErr.invalidFormat]\n"
+	    "var expected = [IOErr.nameTooLong, IOErr.nameTooLong, IOErr.invalidEncoding, IOErr.nameTooLong]\n"
 	    "for (i in 0...saved.count) {\n"
 	    "  var item = saved[i]\n"
 	    "  var error = item.error\n"
@@ -541,7 +541,7 @@ test_load_results(struct st_wren_host *host, struct st_app_paths *paths,
 	    "  if (bad.error == null) Fiber.abort(\"diagnostic mutable/constructible or obsolete status method\")\n"
 	    "}\n"
 	    "var message = MainMenu.loadWarnings_()\n"
-	    "if (!message.contains(\"Caf\xc3\xa9\") || !message.contains(\"System List\") || !message.contains(\"1234567890123456789012345678901\") || !message.contains(\"Invalid encoding\")) Fiber.abort(\"warning summary lost detail\")\n");
+	    "if (!message.contains(\"Caf\xc3\xa9\") || !message.contains(\"System List\") || !message.contains(\"1234567890123456789012345678901\") || !message.contains(\"Invalid encoding\") || !message.contains(\"truncated\") || MainMenu.loadWarningsAutomatic_() != message) Fiber.abort(\"warning summary lost detail\")\n");
 	CHECK(!wrenHasVariable(host->vm, "syncterm_menu", "MenuReadStatus"));
 	st_bbs_list_t *original = host->bbs_list;
 	uint64_t generation = host->bbs_model.generation;
@@ -588,7 +588,7 @@ test_load_results(struct st_wren_host *host, struct st_app_paths *paths,
 	interpret(host, "load_diagnostics",
 	    "if (Menu.load(null) != null) Fiber.abort(\"load eagerly copied warning text\")\n"
 	    "var allocation = Fiber.new { Menu.loadDiagnostics }.try()\n"
-	    "if (!(allocation is MenuError) || allocation.code != IOErr.outOfMemory || Menu.entries[0].name != \"Existing\") Fiber.abort(\"diagnostic allocation failure\")\n");
+	    "if (!(allocation is MenuError) || allocation.code != IOErr.outOfMemory || Menu.entries.where {|entry| entry.name == \"Existing\" }.count != 1) Fiber.abort(\"diagnostic allocation failure\")\n");
 	st_wren_test_diagnostic_copy_status = 0;
 	host->config.safe_mode = true;
 	post_key(console, 0x5100);
@@ -630,6 +630,29 @@ test_load_results(struct st_wren_host *host, struct st_app_paths *paths,
 		    "if (Menu.setEncryption(0, 0, null) != null) Fiber.abort(\"password fixture reset\")\n"
 		    "MainMenu.password = null\n");
 	}
+	/* Web warnings remain available without opening a modal or consuming input. */
+	write_text(personal, "[Existing]\nAddress=existing.example\n");
+	write_text(shared, "");
+	post_key(console, 13);
+	interpret(host, "load_diagnostics",
+	    "if (!MainMenu.prepare_(false) || Menu.loadDiagnostics.count != 2 || MainMenu.loadWarningsAutomatic_() != null) Fiber.abort(\"web warnings opened dialog\")\n"
+	    "if (!MainMenu.loadWarnings_().contains(\"truncated\") || !MainMenu.loadWarnings_().contains(\"System List\")) Fiber.abort(\"web warnings hidden\")\n");
+	struct st_console_event pending;
+	CHECK(st_console_event_try(console, &pending) == 0
+	    && pending.type == ST_CONSOLE_EVENT_KEY_CODE && pending.data.key.code == 13);
+	/* An unrelated failure must still open a dialog with only web warnings. */
+	st_wren_test_list_open_status = IO_ERROR_PERMISSION_DENIED;
+	post_key(console, 13);
+	interpret(host, "load_diagnostics",
+	    "if (MainMenu.prepare_(false)) Fiber.abort(\"web warnings hid fatal load error\")\n");
+	CHECK(st_console_event_try(console, &pending) == IO_ERROR_WOULD_BLOCK);
+	st_wren_test_list_open_status = 0;
+	st_wren_test_diagnostic_copy_status = IO_ERROR_OUT_OF_MEMORY;
+	post_key(console, 13);
+	interpret(host, "load_diagnostics",
+	    "if (!MainMenu.prepare_(false)) Fiber.abort(\"web warning retrieval failed the load\")\n");
+	CHECK(st_console_event_try(console, &pending) == IO_ERROR_WOULD_BLOCK);
+	st_wren_test_diagnostic_copy_status = 0;
 	CHECK(st_settings_web_download_remove(0) == 0);
 	paths->shared_list = NULL;
 	CHECK(fs_remove_file(shared) == 0);

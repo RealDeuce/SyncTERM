@@ -57,7 +57,7 @@ target_link_libraries(st_bbs_list PUBLIC st_profile st_list_crypto st_app_paths
 	syncterm_file_map syncterm_filesystem syncterm_ini
 	syncterm_string_compat syncterm_path st_hex
 	syncterm_string_util st_consent_token st_crypto st_time
-	syncterm_threads st_unicode_compare)
+	syncterm_threads st_unicode_compare st_utf8)
 if(WIN32)
 	target_link_libraries(st_bbs_list PRIVATE st_windows_utf)
 endif()
@@ -100,7 +100,7 @@ target_link_libraries(st_bbs_list_faultable PUBLIC st_profile st_list_crypto
 		syncterm_filesystem syncterm_ini
 		syncterm_string_compat syncterm_path st_hex syncterm_string_util
 		st_consent_token st_crypto st_time syncterm_threads
-		st_unicode_compare)
+		st_unicode_compare st_utf8)
 	if(WIN32)
 		target_link_libraries(st_bbs_list_faultable PRIVATE st_windows_utf)
 	endif()

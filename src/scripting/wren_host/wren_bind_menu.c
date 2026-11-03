@@ -699,7 +699,10 @@ static void
 fn_load_diagnostic_error(WrenVM *vm)
 {
 	struct foreign_load_diagnostic *item = wrenGetSlotForeign(vm, 0);
-	menu_error(vm, item->status, item->status, "A directory source or section was skipped.");
+	menu_error(vm, item->status, item->status,
+	    item->status == IO_ERROR_NAME_TOO_LONG && item->section_name != NULL
+	    ? "The entry name was truncated to fit the supported name limits."
+	    : "A directory source or section was skipped.");
 }
 
 static unsigned char

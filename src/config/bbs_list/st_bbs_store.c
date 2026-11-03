@@ -35,6 +35,14 @@ static const char *profile_keys[] = {
 	"SortOrder"
 };
 
+static bool
+section_name_equal(const ini_section_t *section, const char *name)
+{
+	char loaded[ST_PROFILE_NAME_MAX + 1];
+	return st_bbs_loaded_name(loaded, ini_section_name(section))
+	    && st_bbs_name_equal(loaded, name);
+}
+
 static const char picker_key_name[] = "WrenPickerHmacKey";
 
 void
@@ -206,7 +214,7 @@ remove_older_sections(ini_document_t *document, const char *name,
 	while (count != 0) {
 		ini_section_t *section = ini_document_section_at(document, --count);
 
-		if (section != keep && st_bbs_name_equal(ini_section_name(section), name))
+		if (section != keep && section_name_equal(section, name))
 			(void)ini_document_remove_section(document, section);
 	}
 }
@@ -290,7 +298,7 @@ st_bbs_list_record_connection(st_bbs_list_t *list,
 	st_profile_init(&value);
 	status = begin_write(list, &lock, &remote, &info);
 	if (status == 0) {
-		section = ini_document_find_section(remote, profile->name);
+		section = st_bbs_find_profile_section(remote, profile->name);
 		status = documents_equal(&unchanged, remote, list->personal_document);
 	}
 	if (status == 0 && section != NULL)
@@ -355,7 +363,7 @@ st_bbs_list_add(st_bbs_list_t *list, const struct st_profile *profile,
 	if (list == NULL || profile == NULL || !st_bbs_name_valid(profile->name))
 		return IO_ERROR_INVALID_ARGUMENT;
 	status = begin_write(list, &lock, &remote, &info);
-	if (status == 0 && ini_document_find_section(remote, profile->name) != NULL)
+	if (status == 0 && st_bbs_find_profile_section(remote, profile->name) != NULL)
 		status = IO_ERROR_ALREADY_EXISTS;
 	st_profile_init(&value);
 	if (status == 0 && !st_profile_copy(&value, profile))
@@ -426,22 +434,22 @@ st_bbs_list_update(st_bbs_list_t *list, const char *old_name,
 		status = documents_equal(&remote_unchanged, remote,
 		    list->personal_document);
 	remote_section = status == 0
-	    ? ini_document_find_section(remote, old_name) : NULL;
+	    ? st_bbs_find_profile_section(remote, old_name) : NULL;
 	if (status == 0 && remote_section == NULL)
 		status = IO_ERROR_CONFLICT;
 	if (status == 0 && rename_cache
-	    && ini_document_find_section(remote, profile->name) != NULL)
+	    && st_bbs_find_profile_section(remote, profile->name) != NULL)
 		status = IO_ERROR_ALREADY_EXISTS;
 	if (status == 0)
 		status = ini_document_clone(&canonical_base, list->personal_document);
 	base_section = status == 0
-	    ? ini_document_find_section(canonical_base, old_name) : NULL;
+	    ? st_bbs_find_profile_section(canonical_base, old_name) : NULL;
 	if (status == 0 && base_section != NULL)
 		status = st_bbs_encode_profile(base_section, base_profile, false);
 	if (status == 0)
 		status = ini_document_clone(&local, canonical_base);
 	local_section = status == 0
-	    ? ini_document_find_section(local, old_name) : NULL;
+	    ? st_bbs_find_profile_section(local, old_name) : NULL;
 	if (status == 0 && (base_section == NULL || local_section == NULL))
 		status = IO_ERROR_CONFLICT;
 	if (status == 0)
@@ -453,7 +461,7 @@ st_bbs_list_update(st_bbs_list_t *list, const char *old_name,
 	if (status == 0)
 		status = ini_document_clone(&canonical_remote, remote);
 	compare_remote_section = status == 0
-	    ? ini_document_find_section(canonical_remote, old_name) : NULL;
+	    ? st_bbs_find_profile_section(canonical_remote, old_name) : NULL;
 	if (status == 0 && compare_remote_section != NULL)
 		status = st_bbs_encode_profile(compare_remote_section,
 		    &remote_profile, false);
@@ -524,7 +532,7 @@ st_bbs_list_remove(st_bbs_list_t *list, const char *name,
 	status = begin_write(list, &lock, &remote, &info);
 	st_profile_init(&remote_profile);
 	if (status == 0) {
-		ini_section_t *effective = ini_document_find_section(remote, name);
+		ini_section_t *effective = st_bbs_find_profile_section(remote, name);
 
 		if (effective == NULL)
 			status = IO_ERROR_CONFLICT;
@@ -538,7 +546,7 @@ st_bbs_list_remove(st_bbs_list_t *list, const char *name,
 	while (count != 0) {
 		ini_section_t *section = ini_document_section_at(remote, --count);
 
-		if (st_bbs_name_equal(ini_section_name(section), name)) {
+		if (section_name_equal(section, name)) {
 			found = true;
 			(void)ini_document_remove_section(remote, section);
 		}

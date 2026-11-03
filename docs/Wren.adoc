@@ -4551,12 +4551,16 @@ press switches that drag to rectangular selection.
 
 In v2, MenuReadStatus and Menu.statusMessage are removed without aliases,
 including obsolete migration status values. Successful loads can still contain
-warnings about sources or sections skipped by the native loader. The bundled
-menu shows one scrollable Directory Warnings summary after each successful load
-with warnings. Dismissal continues with usable entries; missing optional files
-remain silent. A diagnostic retrieval failure is reported as warnings unavailable,
-without treating the successful load as failed. Password cancellation and fatal
-load errors retain their existing menu flow; there are no automatic retries.
+warnings about skipped sources or sections, or truncated entry names. The bundled
+menu opens a scrollable Directory Warnings summary when any warning comes from
+a personal or shared list. Warnings exclusively from web lists do not open it
+automatically, but remain in the diagnostics and appear alongside other warnings
+when the dialog opens. Dismissal continues with usable entries; missing optional
+files remain silent. A diagnostic retrieval failure still opens the dialog as
+warnings unavailable, without treating the successful load as failed. Password
+cancellation and fatal load errors retain their existing prompts and error
+dialogs, even when all retained warnings are from web lists. There are no
+automatic retries.
 
 A DirectoryEntry owns `name`, `searchKey`, `type` (BBSListType), `id`, `added`,
 `connected` (persisted LastConnected timestamp), `calls`, `readOnly`, `dirty`,
@@ -4637,7 +4641,8 @@ menu-only, host-created, and immutable, with no public constructor or setters:
   preserving native source values. This is distinct from BBSListType.
 | sourceName | Nullable source identifier: null for the personal list, the shared
   list path, "System List", or the configured named web-list name.
-| sectionName | A skipped section's name, or null for a source-level failure.
+| sectionName | The original section name for a skipped or truncated entry,
+  or null for a source-level failure.
 | error | A fresh MenuError with the native portable diagnostic status in both
   code and nativeCode, and a readable reason. Constructed only on access.
 |===
@@ -4650,6 +4655,14 @@ The returned List is independently mutable; its records are immutable. Diagnosti
 come from the installed native list, including its existing rebuild behavior, not
 from a failed replacement candidate. Entry provenance and shadowed records are
 separate from these warnings.
+
+Overlong entry names are loaded using the longest valid prefix within 30 Unicode
+scalars and 60 UTF-8 bytes, preserving complete UTF-8 scalars and removing trailing
+whitespace at the cutoff. Their diagnostic has IOErr.nameTooLong and retains the
+full original section name. Values are read from that original section; the
+shortened name determines entry identity and the usual duplicate/priority rules.
+Editing or deleting a personal entry still addresses its original section.
+Malformed or otherwise invalid names retain the existing rejection policy.
 
 [source,wren]
 ----
