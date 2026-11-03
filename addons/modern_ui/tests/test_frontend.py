@@ -12,7 +12,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 ROOT = Path(__file__).resolve().parents[1]
 PROJECT = ROOT.parents[1]
 sys.path.insert(0, str(PROJECT / 'tools/testing'))
-from syncterm_fixture import fixture, application, click_text, click_cell, listener, receive
+from syncterm_fixture import fixture, application, click_text, click_cell, listener, receive, write_script
 
 spec = importlib.util.spec_from_file_location('modern_install', ROOT / 'install.py')
 installer = importlib.util.module_from_spec(spec)
@@ -23,6 +23,29 @@ ENTRIES = '[Alpha]\nAddress=alpha.example\nComment=First connection\n[München]\
 
 def install(root):
     installer.install(root / 'scripts')
+    write_script(root, 'zzz_modern_test_capabilities', """
+import "syncterm" for Host
+import "syncterm_menu" for Menu
+var fonts = Menu.buildOptions.where {|row| row[1] == "Unifont (SyncTERM Unicode)" }.toList
+if (fonts.count != 1) Fiber.abort("missing Unifont build option")
+Host.print("MODERN-TEST-CAPS %(fonts[0][2]) %(Menu.encryptionAvailable)")
+""", 'menu')
+
+
+def capabilities(client):
+    pattern = rb'MODERN-TEST-CAPS (true|false) (true|false)'
+    client.wait_for(lambda frame: re.search(pattern, client.stderr) is not None)
+    return tuple(value == b'true' for value in re.search(pattern, client.stderr).groups())
+
+
+def settings_categories(client):
+    _, encryption = capabilities(client)
+    labels = ['Web Lists', 'Connection Defaults', 'Current Screen Mode',
+              'Font Management', 'Program Settings', 'Themes', 'File Locations',
+              'Build Options', 'Licenses']
+    if encryption:
+        labels.append('List Encryption')
+    return labels
 
 
 def button_geometry(frame, rect, foreground=0x2563eb):
@@ -53,6 +76,7 @@ def directory(executable, reports):
             corner = 6 * m['cell_height'] * m['plane_width'] + 29 * m['cell_width']
             return 'Connection directory' in frame.text and frame.primary[corner] == 0x80f1f5f9
         frame = client.wait_for(painted)
+        unifont, _ = capabilities(client)
         assert 'MODERN UI' in frame.text and 'Alpha' in frame.text
         # Curved edges need coverage colours, rather than binary cut-outs.
         m = frame.metadata
@@ -153,19 +177,21 @@ def directory(executable, reports):
         assert frame.application['session_active'] == 0
         client.key('page_down')
         client.wait_for(lambda f: 'Card 10' in f.lines[19])
-    adaptive_directory(executable, reports)
+    adaptive_directory(executable, reports, unifont)
 
 
-def adaptive_directory(executable, reports):
+def adaptive_directory(executable, reports, unifont):
     long_name = 'B connection name with suffix'
     long_address = 'long-address.for.this.connection.example:2222'
-    wide_address = 'unicode-' + '界' * 12 + '.example'
+    # Keep identical column widths without requiring optional CJK glyphs.
+    wide = '界' if unifont else 'WW'
+    wide_address = 'unicode-' + wide * 12 + '.example'
     huge_address = 'e' * 52 + '.example'
     records = [('A compact', 'a.example'), (long_name, 'b.example'),
                ('C long address', long_address), ('D Unicode', wide_address),
                ('E huge address', huge_address)]
     records += [(f'F{i:02}', f'f{i:02}.example') for i in range(12)]
-    wrapped_wide = 'u' * 44 + '界' * 4 + '.example'
+    wrapped_wide = 'u' * 44 + wide * 4 + '.example'
     joined = '👨\u200d💻'
     wrapped_joined = 'j' * 52 + joined + 'z'
     records[5] = ('F00', wrapped_wide)
@@ -262,15 +288,20 @@ def settings(executable, reports):
                  reports=reports) as (client, root):
         frame = client.wait_text('Connection directory')
         click_text(client, frame, 'Settings')
+        labels = settings_categories(client)
+        last = len(labels) - 1
         def painted_settings(frame):
             m = frame.metadata
-            corner = 21 * m['cell_height'] * m['plane_width'] + 49 * m['cell_width']
+            corner = ((5 + last // 2 * 4) * m['cell_height'] * m['plane_width']
+                      + (19 + last % 2 * 30) * m['cell_width'])
             return 'Choose a settings category' in frame.text and frame.primary[corner] == 0x80f1f5f9
         frame = client.wait_for(painted_settings)
-        for row in range(5):
-            for col in range(2):
-                button_geometry(frame, (20 + col * 30, 6 + row * 4, 28, 3),
-                                0xffffff if row == col == 0 else 0x2563eb)
+        for index, label in enumerate(labels):
+            assert label in frame.text
+            row, col = divmod(index, 2)
+            button_geometry(frame, (20 + col * 30, 6 + row * 4, 28, 3),
+                            0xffffff if index == 0 else 0x2563eb)
+        assert ('List Encryption' in frame.text) == ('List Encryption' in labels)
         reports.mkdir(parents=True, exist_ok=True)
         frame.save_image(reports / 'settings.ppm')
         click_text(client, frame, 'Program Settings')
@@ -382,16 +413,21 @@ def recovery(executable, reports):
                        for x in range(21 * m['cell_width'], 26 * m['cell_width'])]
                 assert 0x2563eb in ink
             click_text(client, frame, 'Settings')
+            labels = settings_categories(client)
+            last = len(labels) - 1
             def painted(frame):
                 m = frame.metadata
-                corner = 20 * m['cell_height'] * m['plane_width'] + 45 * m['cell_width']
+                corner = ((4 + last // 2 * 4) * m['cell_height'] * m['plane_width']
+                          + (19 + last % 2 * 26) * m['cell_width'])
                 return 'Choose a settings category' in frame.lines[23] and frame.primary[corner] == 0x80f1f5f9
             frame = client.wait_for(painted)
-            for row in range(5):
-                for col in range(2):
-                    button_geometry(frame, (20 + col * 26, 5 + row * 4, 24, 3),
-                                    0xffffff if row == col == 0 else 0x2563eb)
-            assert 'Licenses' in frame.lines[21] and 'List Encryption' in frame.lines[21]
+            for index, label in enumerate(labels):
+                assert label in frame.text
+                row, col = divmod(index, 2)
+                button_geometry(frame, (20 + col * 26, 5 + row * 4, 24, 3),
+                                0xffffff if index == 0 else 0x2563eb)
+            assert 'Licenses' in frame.lines[21]
+            assert ('List Encryption' in frame.lines[21]) == ('List Encryption' in labels)
 
 
 def web_list(executable, reports):

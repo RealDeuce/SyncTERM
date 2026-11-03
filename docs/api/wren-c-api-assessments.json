@@ -4039,7 +4039,7 @@
     {
       "path": "src/scripting/wren_host/tests/st_wren_sftp_live_test.c",
       "anchor": "entry stat",
-      "aspect": "Live SSH/SFTP fixture reports all listing metadata fields, preserves extensions and exercises the migrated browser."
+      "aspect": "Live SSH/SFTP fixture reports all listing metadata fields, preserves extensions and exercises the migrated browser. Local queue/browser shortcuts receive the native Mod.command value from the host fixture, including Cmd on macOS."
     },
     {
       "path": "src/scripting/wren_host/tests/st_wren_settings_menu_test.c",
@@ -4184,7 +4184,7 @@
     {
       "path": "addons/modern_ui/tests/test_frontend.py",
       "anchor": "def directory(executable, reports):",
-      "aspect": "Actual installed external frontend startup, filtering, persistent entry creation/deletion, settings, connections, recovery and web lists on the control bitmap backend."
+      "aspect": "Installed external frontend with runtime Unifont/encryption capability probes; exact nine/ten-category geometry, width-matched ASCII wrapping without Unifont, retained supported Unicode/emoji coverage, persistence, recovery and web lists."
     }
   ],
   "dispatch_evidence": [
@@ -4273,7 +4273,7 @@
     "src/net/transfer/st_transfer_detect.h": "3296b9ecf875d100f793920a3b0117a8f7b80951a539317d366f4ea40a7a1b30",
     "src/net/webget/st_webget.h": "9647dcc563e1661fe1d6b762c78e2483d2beae03ac878da0ebd15c8a425d2143",
     "src/scripting/wren_host/st_wren_host.h": "1f399c11771d459566882d3084836000e05c3aa7759fc03e6a2384c6754fb0a6",
-    "src/scripting/wren_host/tests/st_wren_host_test.c": "843265a07bb35566afb31cfac92f0f4813c0d8ea6dc16b13f08be380223c5d86",
+    "src/scripting/wren_host/tests/st_wren_host_test.c": "0b5f0f2034828ea663bf4267c23eb6310653af0e656ef3d835800e5f252b3593",
     "src/scripting/wren_host/tests/st_wren_settings_menu_test.c": "b2aa79315aa1dd0c0feebd08da6289464a2c2e4eca15def36356658c5b7d5bbc",
     "src/scripting/wren_host/wren_async.c": "71e78941735250300171a2b7cb13b70c92916bd14c066a6614b3f77cdd9b565d",
     "src/scripting/wren_host/wren_bbs_model.c": "18dca3353505a5b0dc609251f16038bd9132c47e215c4cf24ba802ac4b3ab97a",
@@ -4335,7 +4335,7 @@
     "src/tests/st_font_assignments_test.py": "5b672eb7c59e75c7f9005e6851419f2563c435585740c150bf4af17544f9dbf6",
     "src/terminal/cterm/tests/st_cterm_test.c": "127e93eb972f5a2392ddb9a53ecde2728fe2da5238db01471681341936f3c070",
     "src/config/bbs_list/st_bbs_store.c": "658bd23d37454bb4a47400d5a763948a4e8a2c70ac41aab1be7f988218a243ba",
-    "src/scripting/wren_host/tests/st_wren_sftp_live_test.c": "61d5e35f34a48725efefca9b08f290d356ddee00cf12dad2b32c0727079025fa",
+    "src/scripting/wren_host/tests/st_wren_sftp_live_test.c": "bc152c078e6da26da25b2a106bad4eeeeaa1955a570ccfb5b72aa8b1d65c53b3",
     "src/scripting/wren_host/tests/st_wren_menu_test_bindings.c": "9a7f110f8beb56c3fdc3080254f272db5db5b414c759c79492e82ef70cfeea64",
     "scripts/menu_sort_profiles.wren": "e03022e77a0872851aa25ad52ff9f1160c8aa9a800d03bbb7063c8027dc4206d",
     "src/config/settings/st_settings_store.c": "8353b1e80bd3e27e84122a57cec1e3daed29b0a2b46adfd64d531a4962e34128",
@@ -4361,7 +4361,7 @@
     "src/media/console/tests/st_console_ncurses_test.c": "41034f149b7ca1bae54a5479c0e199335f5b28ae8f43aff578c525df0611028e",
     "addons/modern_ui/scripts/modern_ui_model.wren": "2bcdf91d39478f2e4ae1fd9855e9017c02953e2fa8ae6598cc02a820d22caa02",
     "addons/modern_ui/scripts/modern_ui.wren": "900a4858e87a1aa522820ed3a9b0c33cbf2b2a04a584cecbf579080d0723a472",
-    "addons/modern_ui/tests/test_frontend.py": "edb8e01c1d261190211ff52bda7373ba3bf1bdeb689e8a706d794c8aab3ce0c2"
+    "addons/modern_ui/tests/test_frontend.py": "0bd615d0d6a0236a9f4ab8cd099962b9fd97dd186362cc33741fd3b9d6b564fb"
   },
   "verification": {
     "platform": "FreeBSD 15.1-RELEASE-p5 amd64",
@@ -4866,6 +4866,33 @@
       ],
       "accounting": "Added the overlooked independent addon consumers and their actual frontend tests to durable evidence. Updated reviewed affected evidence/source locations. Native declarations, TSV rows, assessment dispositions and finding counts are unchanged.",
       "limitations": "No local MSVC/macOS/Windows runtime verification. A fresh published pipeline is required for those platforms. The 32-bit MinGW build retains the preexisting format-truncation warning in untouched wren_bind_menu.c:2068. No new compiler warnings in changed code."
+    },
+    {
+      "topic": "ci-12878-optional-features-and-live-sftp-shortcuts",
+      "status": "resolved-locally-awaiting-platform-ci",
+      "approval": "The decision-complete CI follow-up plan was approved with Implement the plan in Default mode.",
+      "scope": "Test-only changes. The installed Modern UI fixture reports existing runtime Unifont/encryption capabilities. Assertions verify exactly nine or ten available settings categories and their actual final button at standard and short font heights. Unifont-disabled wrapping fixtures use equal-column-width ASCII substitutions while retaining supported Unicode and bundled emoji checks. Live SFTP receives the existing Mod.command value through private test arguments for all three local queue/browser shortcuts. Application behavior, native public APIs and optional-feature policies are unchanged.",
+      "regression_before_fix": "Plan-mode reproduction of the exact minimal feature selection failed modern_ui_directory, modern_ui_settings and modern_ui_recovery; the remaining two frontend cases passed. Pipeline 12878 macOS live SFTP stopped at a hard-coded Alt-Q assertion. MSVC x86 and Linux ARM64 also reached the missing encryption-button assertions.",
+      "tests_passed": [
+        "Normal FreeBSD Clang/Botan CMake build: six Modern UI cases plus wren_host and wren_sftp_live (8). The live fixture completed all ten cases.",
+        "Minimal CMake build with encryption and Unifont disabled: all six Modern UI cases. Nine-category geometry, absent encryption action, equal-width ASCII wrapping and bundled emoji assertions passed.",
+        "Clang ASan/UBSan/OpenSSL: wren_host, all ten live SFTP cases and the six Modern UI cases passed. Leak detection disabled on FreeBSD. The initially absent sanitizer application executable was built before rerunning the five frontend process cases.",
+        "Wren API coverage checker and git diff --check."
+      ],
+      "accounting": "Refreshed the three reviewed test-file digests and the affected test evidence descriptions. Native declarations, TSV rows, assessment dispositions and finding counts are unchanged: 80 headers, 120 exclusions, 2448 native items, 157 assessments and 51 original topics.",
+      "limitations": "No local macOS or Windows execution. Platform CI confirmation requires a new published pipeline; this records local acceptance without claiming those runtime results.",
+      "remaining_ci_followups": [
+        {
+          "job": 1839976,
+          "name": "windows-msvc x64",
+          "failure": "wren_host upload_consent assertion at st_wren_host_test.c:1335; discovered after the approved plan was finalized; not diagnosed or changed in this chunk."
+        },
+        {
+          "job": 1839969,
+          "name": "netbsd",
+          "failure": "syncterm_menu_shortcuts_pty_c and _i wait for Directory: Name; discovered after the approved plan was finalized; not diagnosed or changed in this chunk."
+        }
+      ]
     }
   ]
 }

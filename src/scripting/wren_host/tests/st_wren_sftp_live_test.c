@@ -17,6 +17,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <signal.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -191,7 +192,7 @@ static int upload(st_wren_host_t *host, st_wren_connected_t *vm, const char *dir
 	return 0;
 }
 static int run_case(st_wren_host_t *host, st_console_t *console,
-	const char *directory, const char *fixture, unsigned test)
+	const char *directory, const char *fixture, unsigned test, uint32_t command_modifier)
 {
 	const char *modes[] = {"sftp", "sftp", "sftp", "sftp-denied", "sftp-missing-dir",
 	    "sftp-write-error", "sftp-close-error", "sftp-read-error", "sftp-shell-close", "sftp-drop"};
@@ -236,7 +237,7 @@ static int run_case(st_wren_host_t *host, st_console_t *console,
 		    "if (SFTP.available || SFTP.lname || SFTP.pubdir != null) Fiber.abort(\"not lazy\")\n"
 		    "if (!(Host.sshPublicKey is Map)) Fiber.abort(\"missing public key\")\n") == 0);
 		bool consumed = false;
-		CHECK(st_wren_connected_handle_event(vm, &(struct st_console_event){.type = ST_CONSOLE_EVENT_PHYSICAL_KEY, .data.physical_key = {.evdev = 16, .pressed = true, .modifiers = ST_CONSOLE_MODIFIER_ALT}}, &consumed) == 0 && consumed);
+		CHECK(st_wren_connected_handle_event(vm, &(struct st_console_event){.type = ST_CONSOLE_EVENT_PHYSICAL_KEY, .data.physical_key = {.evdev = 16, .pressed = true, .modifiers = command_modifier}}, &consumed) == 0 && consumed);
 		CHECK(st_wren_connected_interpret(vm, "empty_queue",
 		    "import \"syncterm\" for SFTP\n"
 		    "import \"sftp_app\" for SftpApp\n"
@@ -250,7 +251,7 @@ static int run_case(st_wren_host_t *host, st_console_t *console,
 	CHECK(drain(vm) == 0);
 	if (test == 9) {
 		bool consumed = false;
-		CHECK(st_wren_connected_handle_event(vm, &(struct st_console_event){.type = ST_CONSOLE_EVENT_PHYSICAL_KEY, .data.physical_key = {.evdev = 16, .pressed = true, .modifiers = ST_CONSOLE_MODIFIER_ALT}}, &consumed) == 0 && consumed);
+		CHECK(st_wren_connected_handle_event(vm, &(struct st_console_event){.type = ST_CONSOLE_EVENT_PHYSICAL_KEY, .data.physical_key = {.evdev = 16, .pressed = true, .modifiers = command_modifier}}, &consumed) == 0 && consumed);
 		CHECK(st_wren_connected_interpret(vm, "connection_loss",
 		    "import \"sftp_queue\" for SftpQueue\n"
 		    "SftpQueue.enqueue(SftpQueue.DOWNLOAD, \"sftp-loss.bin\", \"/remote.bin\", 90000)\n") == 0);
@@ -325,7 +326,7 @@ static int run_case(st_wren_host_t *host, st_console_t *console,
 		if (test == 0) {
 			CHECK(upload(host, vm, directory) == 0);
 			bool consumed = false;
-			CHECK(st_wren_connected_handle_event(vm, &(struct st_console_event){.type = ST_CONSOLE_EVENT_PHYSICAL_KEY, .data.physical_key = {.evdev = 31, .pressed = true, .modifiers = ST_CONSOLE_MODIFIER_ALT}}, &consumed) == 0 && consumed);
+			CHECK(st_wren_connected_handle_event(vm, &(struct st_console_event){.type = ST_CONSOLE_EVENT_PHYSICAL_KEY, .data.physical_key = {.evdev = 31, .pressed = true, .modifiers = command_modifier}}, &consumed) == 0 && consumed);
 			CHECK(wait_browser(vm, console) == 0);
 			CHECK(st_wren_connected_interpret(vm, "browser_result",
 			    "import \"sftp_app\" for SftpApp\n"
@@ -349,12 +350,12 @@ static int run_case(st_wren_host_t *host, st_console_t *console,
 	st_profile_dispose(&profile); return 0;
 }
 int st_wren_test_live_sftp(st_wren_host_t *host, st_console_t *console,
-	const char *directory, const char *fixture)
+	const char *directory, const char *fixture, uint32_t command_modifier)
 {
 	CHECK(atexit(cleanup_child) == 0);
 	for (unsigned test = 0; test < 10; ++test) {
 		fprintf(stderr, "Live SFTP case %u\n", test);
-		CHECK(run_case(host, console, directory, fixture, test) == 0);
+		CHECK(run_case(host, console, directory, fixture, test, command_modifier) == 0);
 	}
 	fprintf(stderr, "Live SFTP sessions closed\n");
 	return 0;

@@ -8284,7 +8284,7 @@ exercise_safe_mode_persistence_contract(st_wren_host_t *public_host,
 
 #ifdef ST_WREN_HAVE_LIVE_SFTP
 int st_wren_test_live_sftp(st_wren_host_t *host, st_console_t *console,
-	const char *directory, const char *fixture);
+	const char *directory, const char *fixture, uint32_t command_modifier);
 #endif
 int
 main(int argc, char **argv)
@@ -8703,7 +8703,7 @@ main(int argc, char **argv)
 		CHECK(exercise_connected_sftp(host, console, &selected) == 0);
 #ifdef ST_WREN_HAVE_LIVE_SFTP
 		if (argc == 2) CHECK(st_wren_test_live_sftp(host, console,
-		    ST_WREN_TEST_DIRECTORY, argv[1]) == 0);
+		    ST_WREN_TEST_DIRECTORY, argv[1], command_modifiers(host)) == 0);
 #endif
 		CHECK(exercise_font_api(host, console, &selected) == 0);
 	CHECK(exercise_connected_scrollback(host, console, &selected) == 0);
