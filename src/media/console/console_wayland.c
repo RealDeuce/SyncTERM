@@ -189,6 +189,7 @@ struct state {
 	int32_t repeat_rate, repeat_delay;
 	char *clipboard;
 	wl_fixed_t pointer_x, pointer_y;
+	bool pointer_on_video;
 	dynamic_library_t *xkb_library;
 	struct xkb_api xkb;
 	struct xkb_context *xkb_context;
@@ -854,9 +855,9 @@ static void pointer_enter(void *data,
 {
 	struct state *state = data;
 	(void)pointer;
-	(void)surface;
-	(void)x;
-	(void)y;
+	state->pointer_on_video = surface == state->video_surface;
+	state->pointer_x = x;
+	state->pointer_y = y;
 	state->pointer_serial = serial;
 	state->input_serial = serial;
 	(void)set_pointer(state, state->pointer_visible);
@@ -866,9 +867,23 @@ pointer_leave(void *d, struct wl_pointer *p, uint32_t s, struct wl_surface *w)
 {
 	struct state *state = d;
 	state->pointer_serial = 0;
+	state->pointer_on_video = false;
 	(void)p;
 	(void)s;
 	(void)w;
+}
+
+/* The presenter maps parent-window coordinates. Wayland reports coordinates
+ * local to the entered surface, including the positioned video subsurface. */
+static void pointer_position(struct state *state, struct st_console_event *event)
+{
+	int64_t x = wl_fixed_to_int(state->pointer_x);
+	int64_t y = wl_fixed_to_int(state->pointer_y);
+	if (state->pointer_on_video) {
+		x += state->frame.destination.x;
+		y += state->frame.destination.y;
+	}
+	st_console_bitmap_mouse_position(&state->frame, x, y, event);
 }
 
 static void pointer_motion(void *data,
@@ -886,12 +901,11 @@ static void pointer_motion(void *data,
 			       ? 0 : modifiers(state)}};
 	(void)pointer;
 	(void)time;
-	if (state->frame.destination.width == 0)
-		return;
 	state->pointer_x = x;
 	state->pointer_y = y;
-	st_console_bitmap_mouse_position(&state->frame, wl_fixed_to_int(x),
-	    wl_fixed_to_int(y), &event);
+	if (state->frame.destination.width == 0)
+		return;
+	pointer_position(state, &event);
 	(void)st_console_display_post_event(state->console_display, &event);
 }
 
@@ -930,9 +944,7 @@ static void pointer_button(void *data,
 	event.data.mouse.buttons = state->buttons;
 	event.data.mouse.modifiers = state->xkb_state == NULL
 	    ? 0 : modifiers(state);
-	st_console_bitmap_mouse_position(&state->frame,
-	    wl_fixed_to_int(state->pointer_x),
-	    wl_fixed_to_int(state->pointer_y), &event);
+	pointer_position(state, &event);
 	(void)st_console_display_post_event(state->console_display, &event);
 }
 
@@ -960,9 +972,7 @@ static void pointer_axis(void *data,
 		event.data.mouse.wheel_y = amount;
 	else
 		event.data.mouse.wheel_x = amount;
-	st_console_bitmap_mouse_position(&state->frame,
-	    wl_fixed_to_int(state->pointer_x), wl_fixed_to_int(state->pointer_y),
-	    &event);
+	pointer_position(state, &event);
 	(void)st_console_display_post_event(state->console_display, &event);
 }
 static void pointer_frame(void *d, struct wl_pointer *p)

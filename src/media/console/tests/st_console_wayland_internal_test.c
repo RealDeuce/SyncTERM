@@ -20,11 +20,11 @@ static int test_munmap(void *, size_t);
 
 #include <signal.h>
 #include <sys/socket.h>
+#include <stdarg.h>
 #include <sys/wait.h>
 
 #if ST_CONSOLE_HAVE_WAYLAND_DECORATION
 #include "xdg-decoration-unstable-v1-client.h"
-#include <stdarg.h>
 #endif
 
 #define CHECK(expression) do { \
@@ -317,6 +317,58 @@ read_clipboard(void *argument)
 }
 
 static int
+test_pointer_surface_coordinates(void)
+{
+	const struct st_console_display_config display_config = {
+		.backend = ST_CONSOLE_BACKEND_HEADLESS,
+	};
+	const struct st_console_config geometry = {
+		.columns = 80, .rows = 25, .cell_width = 8, .cell_height = 16,
+	};
+	st_console_display_t *display = NULL;
+	st_console_t *console = NULL;
+	struct st_console_event event;
+	struct state state = {
+		.surface = (struct wl_surface *)(uintptr_t)1,
+		.video_surface = (struct wl_surface *)(uintptr_t)2,
+		.frame = {
+			.destination = {.x = 20, .y = 30, .width = 1280, .height = 800},
+			.source_width = 640, .source_height = 400,
+			.cell_width = 8, .cell_height = 16,
+		},
+	};
+	CHECK(st_console_display_create(&display, &display_config) == 0);
+	CHECK(st_console_create_on_display(&console, display, &geometry) == 0);
+	state.console_display = display;
+	/* Entry can be followed by a click without any motion event. */
+	pointer_enter(&state, NULL, 1, state.video_surface,
+	    wl_fixed_from_int(160), wl_fixed_from_int(64));
+	pointer_button(&state, NULL, 2, 0, 0x110, WL_POINTER_BUTTON_STATE_PRESSED);
+	CHECK(st_console_event_try(console, &event) == 0);
+	CHECK(event.type == ST_CONSOLE_EVENT_MOUSE && event.data.mouse.x == 10
+	    && event.data.mouse.y == 2 && event.data.mouse.pixel_x == 80
+	    && event.data.mouse.pixel_y == 32);
+	pointer_motion(&state, NULL, 0, wl_fixed_from_int(176), wl_fixed_from_int(96));
+	CHECK(st_console_event_try(console, &event) == 0);
+	CHECK(event.data.mouse.x == 11 && event.data.mouse.y == 3);
+	pointer_button(&state, NULL, 3, 0, 0x110, WL_POINTER_BUTTON_STATE_RELEASED);
+	CHECK(st_console_event_try(console, &event) == 0);
+	CHECK(event.data.mouse.x == 11 && event.data.mouse.y == 3 && event.data.mouse.buttons == 0);
+	pointer_axis(&state, NULL, 0, WL_POINTER_AXIS_VERTICAL_SCROLL, wl_fixed_from_int(1));
+	CHECK(st_console_event_try(console, &event) == 0);
+	CHECK(event.data.mouse.x == 11 && event.data.mouse.y == 3);
+	pointer_leave(&state, NULL, 4, state.video_surface);
+	/* Background coordinates already include the video offset. */
+	pointer_enter(&state, NULL, 5, state.surface, wl_fixed_from_int(180), wl_fixed_from_int(94));
+	pointer_button(&state, NULL, 6, 0, 0x110, WL_POINTER_BUTTON_STATE_PRESSED);
+	CHECK(st_console_event_try(console, &event) == 0);
+	CHECK(event.data.mouse.x == 10 && event.data.mouse.y == 2);
+	st_console_destroy(console);
+	st_console_display_destroy(display);
+	return 0;
+}
+
+static int
 test_clipboard_send(void)
 {
 	pid_t child = fork();
@@ -367,6 +419,116 @@ test_clipboard_send(void)
 		free(destination);
 		free(source);
 	}
+	return 0;
+}
+
+static struct {
+	unsigned int sources;
+	unsigned int regular_sets, utf8, plain;
+	uint32_t regular_serial;
+	bool invalid;
+} clipboard_calls;
+
+static void
+clipboard_destroy(struct wl_proxy *proxy)
+{
+	(void)proxy;
+}
+
+static int
+clipboard_listener(struct wl_proxy *proxy, void (**listener)(void), void *data)
+{
+	(void)proxy;
+	(void)listener;
+	(void)data;
+	return 0;
+}
+
+static struct wl_proxy *
+clipboard_marshal(struct wl_proxy *proxy, uint32_t opcode,
+    const struct wl_interface *interface, uint32_t version, uint32_t flags, ...)
+{
+	va_list args;
+	uintptr_t object = (uintptr_t)proxy;
+	(void)version;
+	if (interface != NULL) {
+		if (interface == &wl_data_source_interface)
+			return (struct wl_proxy *)(uintptr_t)(100 + ++clipboard_calls.sources);
+		clipboard_calls.invalid = true;
+		return NULL;
+	}
+	if ((flags & WL_MARSHAL_FLAG_DESTROY) != 0) {
+		clipboard_destroy(proxy);
+		return NULL;
+	}
+	va_start(args, flags);
+	if (object >= 100 && opcode == WL_DATA_SOURCE_OFFER) {
+		const char *mime = va_arg(args, const char *);
+		if (strcmp(mime, "text/plain;charset=utf-8") == 0)
+			++clipboard_calls.utf8;
+		else if (strcmp(mime, "text/plain") == 0)
+			++clipboard_calls.plain;
+		else
+			clipboard_calls.invalid = true;
+	} else if (object == 2 && opcode == WL_DATA_DEVICE_SET_SELECTION) {
+		(void)va_arg(args, struct wl_data_source *);
+		clipboard_calls.regular_serial = va_arg(args, uint32_t);
+		++clipboard_calls.regular_sets;
+	} else if (object == 10) {
+		const char *mime = va_arg(args, const char *);
+		int fd = va_arg(args, int);
+		const char *text = "clipboard peer";
+		if (strcmp(mime, "text/plain;charset=utf-8") != 0
+		    || write(fd, text, strlen(text)) != (ssize_t)strlen(text))
+			clipboard_calls.invalid = true;
+	} else {
+		clipboard_calls.invalid = true;
+	}
+	va_end(args);
+	return NULL;
+}
+
+static int
+test_clipboard_protocol(void)
+{
+	struct st_wayland_api saved = st_wayland_api;
+	struct state state = {
+		.data_manager = (struct wl_data_device_manager *)(uintptr_t)1,
+		.data_device = (struct wl_data_device *)(uintptr_t)2,
+	};
+	char *result = NULL;
+	int display_pair[2];
+	CHECK(socketpair(AF_UNIX, SOCK_STREAM, 0, display_pair) == 0);
+	display_descriptor = display_pair[0];
+	memset(&clipboard_calls, 0, sizeof(clipboard_calls));
+	st_wayland_api.proxy_marshal_flags = clipboard_marshal;
+	st_wayland_api.proxy_add_listener = clipboard_listener;
+	st_wayland_api.proxy_get_version = fake_get_version;
+	st_wayland_api.proxy_destroy = clipboard_destroy;
+	st_wayland_api.display_get_fd = fake_get_fd;
+	st_wayland_api.display_flush = fake_flush;
+	flush_result = 0;
+	CHECK(set_clipboard(&state, "no input") == IO_ERROR_NOT_SUPPORTED);
+	CHECK(clipboard_calls.regular_sets == 0);
+	pointer_button(&state, NULL, 51, 0, 0x110, WL_POINTER_BUTTON_STATE_PRESSED);
+	pointer_button(&state, NULL, 52, 0, 0x110, WL_POINTER_BUTTON_STATE_RELEASED);
+	CHECK(set_clipboard(&state, "Caf\xc3\xa9") == 0);
+	CHECK(clipboard_calls.regular_sets == 1);
+	CHECK(clipboard_calls.utf8 == 1 && clipboard_calls.plain == 1);
+	CHECK(clipboard_calls.regular_serial == 52);
+	CHECK(get_clipboard(&state, &result) == 0 && strcmp(result, "Caf\xc3\xa9") == 0);
+	free(result);
+	source_cancelled(&state, state.selection_source);
+	CHECK(state.selection_source == NULL);
+	device_offer(&state, NULL, (struct wl_data_offer *)(uintptr_t)10);
+	offer_mime(state.pending_offers, state.pending_offers->object, "text/plain;charset=utf-8");
+	device_selection(&state, NULL, state.pending_offers->object);
+	CHECK(get_clipboard(&state, &result) == 0 && strcmp(result, "clipboard peer") == 0);
+	free(result);
+	objects_destroy(&state);
+	CHECK(!clipboard_calls.invalid);
+	CHECK(close(display_pair[0]) == 0 && close(display_pair[1]) == 0);
+	st_wayland_api = saved;
 	return 0;
 }
 
@@ -622,7 +784,9 @@ main(void)
 	CHECK(test_mapping_cleanup() == 0);
 	CHECK(test_busy_buffers_skip() == 0);
 	CHECK(test_worker_failures() == 0);
+	CHECK(test_pointer_surface_coordinates() == 0);
 	CHECK(test_clipboard_send() == 0);
+	CHECK(test_clipboard_protocol() == 0);
 	CHECK(test_worker_completion() == 0);
 	CHECK(test_scaling_command() == 0);
 	CHECK(test_pointer_shapes() == 0);
