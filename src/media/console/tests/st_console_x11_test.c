@@ -915,6 +915,49 @@ check_escape_event(st_console_t *console)
 	CHECK(marker);
 	CHECK(control_keys == 1);
 	CHECK(control_text == 0);
+	static const struct {
+		KeySym symbol;
+		uint16_t code;
+		uint16_t evdev;
+	} shortcuts[] = {
+		{XK_f, 6, 33}, {XK_s, 19, 31}, {XK_d, 4, 32},
+		{XK_g, 7, 34}, {XK_grave, 0, 41},
+	};
+	for (size_t i = 0; i < sizeof(shortcuts) / sizeof(shortcuts[0]); ++i) {
+		unsigned int keys = 0, text = 0, physical = 0;
+		CHECK(st_console_events_clear(console) == 0);
+		CHECK(send_key_with_state(display, window, shortcuts[i].symbol,
+		    true, ControlMask) == 0);
+		CHECK(send_key_with_state(display, window, shortcuts[i].symbol,
+		    false, ControlMask) == 0);
+		CHECK(send_key(display, window, XK_F1, true) == 0);
+		CHECK(send_key(display, window, XK_F1, false) == 0);
+		(void)XFlush(display);
+		CHECK(timespec_get(&deadline, TIME_UTC) == TIME_UTC);
+		++deadline.tv_sec;
+		marker = false;
+		while (!marker
+		    && st_console_event_timedwait(console, &event, &deadline) == 0) {
+			if (event.type == ST_CONSOLE_EVENT_KEY_CODE) {
+				if (event.data.key.code == ST_CONSOLE_KEY_F1)
+					marker = true;
+				else {
+					CHECK(event.data.key.code == shortcuts[i].code);
+					CHECK(event.data.key.modifiers == ST_CONSOLE_MODIFIER_CONTROL);
+					++keys;
+				}
+			} else if (event.type == ST_CONSOLE_EVENT_TEXT) {
+				++text;
+			} else if (event.type == ST_CONSOLE_EVENT_PHYSICAL_KEY
+			    && event.data.physical_key.evdev == shortcuts[i].evdev
+			    && event.data.physical_key.pressed) {
+				CHECK(event.data.physical_key.modifiers == ST_CONSOLE_MODIFIER_CONTROL);
+				++physical;
+			}
+		}
+		CHECK(marker && physical == 1 && text == 0);
+		CHECK(keys == (shortcuts[i].code == 0 ? 0U : 1U));
+	}
 	CHECK(st_console_events_clear(console) == 0);
 	CHECK(send_key_with_state(display, window, XK_b, true, Mod1Mask) == 0);
 	CHECK(send_key_with_state(display, window, XK_b, false, Mod1Mask) == 0);

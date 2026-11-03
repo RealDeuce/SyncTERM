@@ -374,6 +374,19 @@ child_test(int report, bool cp437)
 		}
 	}
 	child_result(report, 'E');
+	static const uint16_t shortcuts[] = {6, 19, 4, 7, 17};
+	for (size_t i = 0; i < sizeof(shortcuts) / sizeof(shortcuts[0]); ++i) {
+		deadline_after(&deadline, 5);
+		status = st_console_event_timedwait(console, &event, &deadline);
+		if (status != 0 || event.type != ST_CONSOLE_EVENT_KEY_CODE
+		    || event.data.key.code != shortcuts[i]
+		    || event.data.key.modifiers != ST_CONSOLE_MODIFIER_CONTROL) {
+			child_result(report, 'H');
+			st_console_destroy(console);
+			_exit(1);
+		}
+	}
+	child_result(report, 'h');
 	{
 		const char text[] = "REPAINT";
 		const struct st_console_rect rectangle = {0, 1, 7, 1};
@@ -572,7 +585,9 @@ main(int argc, char **argv)
 	}
 	if (status != 0 || write(master, cp437 ? "\r\x82" : "\r", cp437 ? 2 : 1)
 	    != (cp437 ? 2 : 1)
-	    || wait_report(report[0], master, 'E') != 0)
+	    || wait_report(report[0], master, 'E') != 0
+	    || write(master, "\006\023\004\007\021", 5) != 5
+	    || wait_report(report[0], master, 'h') != 0)
 		goto failed;
 	if (wait_report(report[0], master, 'O') != 0)
 		goto failed;

@@ -7721,7 +7721,7 @@ does not apply the inactive palette to the other list.
 Two complementary search modes, both using Unicode canonical caseless matching
 and wrapping at the end of the list:
 
-* *Type-to-search* — any printable character grows a rolling buffer
+* *Type-to-search* — printable text without Control, Alt or GUI grows a rolling buffer
   and jumps to the first item whose search text starts with it.
   If the new buffer doesn't match anywhere, falls back to just the
   new character (fresh prefix from current+1).  Buffer resets on
@@ -7730,6 +7730,12 @@ and wrapping at the end of the list:
 * *Ctrl-F / Ctrl-G* — Ctrl-F opens an inline `Find` dialog (see
   the Popup family) for a substring query, jumps to the first
   match.  Ctrl-G repeats the last query.
+
+Find and repeat-find use the logical key and modifiers, including native C0
+Control-letter events from X11, ANSI and curses. Other modified shortcuts, such
+as Ctrl-S (Sort Profiles) and Ctrl-D (Quick Connect), pass through type-to-search
+to the menu dispatcher. The Wren console uses Ctrl+&#96; on graphical backends
+and Ctrl-Q in ANSI/curses modes, where physical key events are unavailable.
 
 The hook `searchTextFor_(item)` returns the string to match against;
 defaults to `formatItem(item, 1024)` (the normal display string).

@@ -180,6 +180,14 @@ child_test(int descriptor)
 	    || event.data.key.modifiers != ST_CONSOLE_MODIFIER_CONTROL)
 		goto failed;
 	report(descriptor, 'c');
+	static const uint16_t shortcuts[] = {6, 19, 4, 7, 17};
+	for (size_t i = 0; i < sizeof(shortcuts) / sizeof(shortcuts[0]); ++i) {
+		if (!next_event(console, &event) || event.type != ST_CONSOLE_EVENT_KEY_CODE
+		    || event.data.key.code != shortcuts[i]
+		    || event.data.key.modifiers != ST_CONSOLE_MODIFIER_CONTROL)
+			goto failed;
+	}
+	report(descriptor, 'H');
 	if (!next_event(console, &event) || event.type != ST_CONSOLE_EVENT_KEY_CODE
 	    || event.data.key.code != ST_CONSOLE_KEY_UP
 	    || event.data.key.modifiers != ST_CONSOLE_MODIFIER_ALT) {
@@ -538,6 +546,8 @@ main(void)
 	    || wait_report(reports[0], master, 'K') != 0
 	    || write(master, "\003", 1) != 1
 	    || wait_report(reports[0], master, 'c') != 0
+	    || write(master, "\006\023\004\007\021", 5) != 5
+	    || wait_report(reports[0], master, 'H') != 0
 	    || write(master, "\033[1;3A", 6) != 6
 	    || wait_report(reports[0], master, 'A') != 0
 	    || write(master, "\033y", 2) != 2

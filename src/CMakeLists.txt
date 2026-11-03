@@ -183,7 +183,7 @@ if(BUILD_TESTING)
 					list style button checkbox date palette statusbar pixels
 					terminal_cp437 terminal_utf8 status_cp437 status_utf8
 					rendering_cp437 rendering_utf8 scrollback_cp437 scrollback_utf8
-					profile session_modes picker menu_exit menu_position autoload
+					profile session_modes picker menu_exit menu_position menu_shortcuts autoload
 					recovery recovery_close menu_error web_list bbs_setters settings_ui
 					graphics_cp437 graphics_utf8 capture_cp437 capture_utf8)
 				add_test(NAME syncterm_behavior_${_case}
@@ -192,6 +192,23 @@ if(BUILD_TESTING)
 					--reports ${CMAKE_BINARY_DIR}/reports/test-control)
 				set_tests_properties(syncterm_behavior_${_case} PROPERTIES TIMEOUT 90)
 			endforeach()
+			# Keep writable PTY-fixture paths in private XDG directories.
+			if(TARGET st_app_paths_xdg_test)
+				foreach(_mode a ac c f i)
+					set(_shortcut_backend ansi)
+					if(_mode MATCHES "^(c|f|i)$")
+						set(_shortcut_backend ncurses)
+					endif()
+					if(TARGET st_console_${_shortcut_backend}_test)
+						add_test(NAME syncterm_menu_shortcuts_pty_${_mode}
+							COMMAND ${Python3_EXECUTABLE}
+							${CMAKE_CURRENT_SOURCE_DIR}/tests/st_menu_shortcuts_pty_test.py
+							$<TARGET_FILE:syncterm_app> ${_mode})
+						set_tests_properties(syncterm_menu_shortcuts_pty_${_mode}
+							PROPERTIES TIMEOUT 60)
+					endif()
+				endforeach()
+			endif()
 			if(SYNCTERM_ENABLE_UNIFONT)
 				add_test(NAME syncterm_behavior_emoji
 					COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_migrated_control_test.py

@@ -506,6 +506,72 @@ MainMenu.registerCommand(121, Mod.command, "Alt-Y", "Capture position", Fn.new {
             assert clamped[2:] == [3, 0]
 
 
+def menu_shortcuts(executable, reports):
+    def prepare(root):
+        write_script(root, "zzz_shortcut_position", '''
+import "syncterm" for Host, WON, Mod
+import "main_menu" for MainMenu
+MainMenu.registerCommand(121, Mod.command, "Alt-Y", "Capture selection", Fn.new {|app, connected|
+  var list = app.root.children[1].children[0]
+  Host.print("SHORTCUT-SELECTION " + WON.serialize(list.selectedItem))
+})
+''', "menu")
+
+    with fixture(executable, entries="[Alpha]\n[Café One]\n[Café Two]\n",
+                 prepare=prepare, reports=reports) as (client, root):
+        def selection():
+            pattern = rb'SHORTCUT-SELECTION ("[^\r\n]+")'
+            count = len(re.findall(pattern, client.stderr))
+            client.physical_key(21, True, 4)
+            client.physical_key(21, False, 4)
+            client.wait_for(lambda s: len(re.findall(pattern, client.stderr)) > count)
+            return json.loads(re.findall(pattern, client.stderr)[-1])
+
+        client.wait_text("Directory: Name")
+        # Native backends supply C0 key events; logical text with Control is
+        # also a supported input form. Both must reach the same commands.
+        for text_form in (False, True):
+            def shortcut(letter):
+                if text_form:
+                    client.text(letter, 2)
+                else:
+                    client.key(ord(letter) - 96, 2)
+
+            client.key("home")
+            shortcut("f")
+            client.wait_text("Find")
+            client.text("FÉ")
+            client.key("enter")
+            assert selection() == "Café One"
+            shortcut("g")
+            assert selection() == "Café Two"
+            shortcut("g")
+            assert selection() == "Café One"
+            shortcut("s")
+            client.wait_text("Sort Profiles")
+            client.key("escape")
+            client.wait_text("Directory: Name")
+            shortcut("d")
+            client.wait_text("Quick Connect")
+            client.key("escape")
+            client.wait_text("Directory: Name")
+
+        # Desktop Ctrl+` is a physical shortcut: the key may produce no text.
+        client.physical_key(41, True, 2)
+        client.physical_key(41, False, 2)
+        client.wait_text("(main_menu) wren>")
+        client.key("escape")
+        client.wait_text("Directory: Name")
+        for text_form in (False, True):
+            if text_form:
+                client.text("`", 2)
+            else:
+                client.key(96, 2)
+            client.wait_text("(main_menu) wren>")
+            client.key("escape")
+            client.wait_text("Directory: Name")
+
+
 def bbs_setters(executable, reports):
     source = (SOURCE / "src/tests/wren/bbs_setters.wren").read_text(encoding="utf-8")
     with fixture(executable, entries="[Audit]\nAddress=example.invalid\nPalette=1,2\nWrenScripts=original\n",
@@ -714,7 +780,7 @@ CASES = {"terminal_cp437": lambda e, r: terminal(e, "CP437", r),
          "scrollback_cp437": lambda e, r: scrollback(e, "CP437", r),
          "scrollback_utf8": lambda e, r: scrollback(e, "UTF-8", r),
          "profile": profile, "session_modes": session_modes, "picker": picker,
-         "menu_exit": menu_exit, "menu_position": menu_position,
+         "menu_exit": menu_exit, "menu_position": menu_position, "menu_shortcuts": menu_shortcuts,
          "autoload": autoload, "recovery": recovery,
          "recovery_close": lambda e, r: recovery(e, r, True),
          "menu_error": menu_error, "web_list": web_list, "bbs_setters": bbs_setters,

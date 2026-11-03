@@ -2358,7 +2358,7 @@
     "console.input-events": {
       "status": "covered",
       "wren": "Input / KeyEvent / PhysicalKeyEvent / MouseEvent / Hook",
-      "reason": "Named keys, physical press/release/repeat, committed scalars, codepage bytes and doorway keys have distinct script representations. Mouse cell/pixel coordinates, both wheel axes, buttons/modifiers and rich actions survive. Resize is handled by App layout and screen size; close becomes the exit-request flow, not an arbitrary event queue consumer.",
+      "reason": "Named keys, physical press/release/repeat, committed scalars, codepage bytes and doorway keys have distinct script representations. Mouse cell/pixel coordinates, both wheel axes, buttons/modifiers and rich actions survive. Resize is handled by App layout and screen size; close becomes the exit-request flow, not an arbitrary event queue consumer. Bundled ListView Find/repeat-find uses logical Control-letter identities rather than committed codepoints; other modified text bypasses typeahead to reach menu bindings. Native translation and the public representation remain unchanged.",
       "vm": "same VM as the owning API",
       "evidence": [
         {
@@ -2372,6 +2372,10 @@
         {
           "path": "scripts/syncterm.wren",
           "anchor": "foreign static synthesizePhysicalKey"
+        },
+        {
+          "path": "scripts/ui_list.wren",
+          "anchor": "if (c == Key.chord_(102, Mod.control))"
         }
       ]
     },
@@ -3924,6 +3928,11 @@
       "path": "scripts/auto/connected/connected.wren",
       "anchor": "if (result is CTermError) Fiber.abort(result)",
       "aspect": "Login helper stops on a failed Return after sending one credential component, preserving successful Bool handling"
+    },
+    {
+      "path": "scripts/ui_list.wren",
+      "anchor": "Modified commands must reach the owning App",
+      "aspect": "Find/repeat-find match logical Control-letter chords; modified text passes through typeahead to application commands."
     }
   ],
   "test_evidence": [
@@ -4136,6 +4145,31 @@
       "path": "scripts/ui_popup_test.wren",
       "anchor": "static testStandaloneChoiceSingleActionNavigation_()",
       "aspect": "Exact line/page/end scroll positions, clamping, short messages, Enter/Escape dismissal, and retained multi-action selection navigation."
+    },
+    {
+      "path": "src/tests/st_migrated_control_test.py",
+      "anchor": "def menu_shortcuts",
+      "aspect": "Actual BBS menu: C0 and modified-text Ctrl+F/G/S/D, Unicode caseless search/wrap, and physical/logical/modified-text Ctrl+grave console access."
+    },
+    {
+      "path": "src/tests/st_menu_shortcuts_pty_test.py",
+      "anchor": "PTY-SELECTION Target Two",
+      "aspect": "Real ANSI UTF-8/CP437 and curses Unicode/CP437/ASCII menu commands: Find, repeat/wrap, Sort Profiles, Quick Connect and Ctrl+Q console fallback; private writable XDG paths and explicit child cleanup."
+    },
+    {
+      "path": "src/media/console/tests/st_console_x11_test.c",
+      "anchor": "{XK_f, 6, 33}",
+      "aspect": "Private X11 display: exact Control-letter key/modifier events without duplicate text; physical Ctrl+grave edge."
+    },
+    {
+      "path": "src/media/console/tests/st_console_ansi_test.c",
+      "anchor": "shortcuts[] = {6, 19, 4, 7, 17}",
+      "aspect": "PTY byte-stream Control-letter identities, including flow-control bytes Ctrl+S/Q."
+    },
+    {
+      "path": "src/media/console/tests/st_console_ncurses_test.c",
+      "anchor": "shortcuts[] = {6, 19, 4, 7, 17}",
+      "aspect": "Native curses PTY Control-letter identities in normal and CP437/C-locale configurations."
     }
   ],
   "dispatch_evidence": [
@@ -4147,7 +4181,7 @@
   ],
   "evidence_files": {
     "docs/WREN_GUIDANCE.md": "d14aeecb5eae922015f2f48a4fd690277dcb5b91aedfd8d8d8cffb2dc235e1ac",
-    "docs/Wren.adoc": "96224a82eb48c02ef7164b6a4d4f32e23ed4c93a9e80d63ba08ffe961871fb54",
+    "docs/Wren.adoc": "60e0bb6d3979ed793bfc195e01e515de17ddab5c7ca9adfe43987789cadd0f5b",
     "docs/api/bbs-entry-fields.adoc": "a1be9944eadd5f56d752e8669b502f49b27211f14190443a95e36ad301b8d128",
     "scripts/auto/connected/font_pick.wren": "6cd249b69c2f851e1fb84e4b8ce381879cfaaa96a35e1376f6e8502c6497e91b",
     "scripts/auto/menu/main_menu.wren": "b5aaebd48a0942085a5da73ea09ec55c5f52eb183824eeefefc970395ff341f0",
@@ -4300,11 +4334,16 @@
     "src/tests/st_test_control_test.py": "d9ff21d77c7731a055983ecc5d44fab373650cb4deefbe701fe01f9d26b94914",
     "scripts/auto/connected/connected.wren": "7f8f7144896388ffbf9dd16820cbf6cbae73d25c385ccba7d8c0928f31ae67d6",
     "src/scripting/wren_host/tests/st_wren_session_test_bindings.c": "4ef0aef560439c1ed3f933232a8b59ccaa3ee0a6971609ebf0fe8e81ff1b981c",
-    "src/tests/st_migrated_control_test.py": "d277217877b88d910cda0b6281a8d47160031068bcd46979293c6893de2bcd39",
+    "src/tests/st_migrated_control_test.py": "2409612edd4eb4d8321f7dc892d563e9964ceac2a7e16adb914a77b83863f9f7",
     "src/config/bbs_list/tests/st_bbs_list_test.c": "e082110aca917ca8932f2d7b2666ee11b55cbcf5707eee4bd7515ed9f5dddb98",
     "src/config/bbs_list/st_bbs_profile_codec.c": "04a87909baeb5788e386369ef4c4043c95e92737bdb8a316009a23f4e7f9dbb8",
     "scripts/menu_ui.wren": "f94ada676138fa588c3e634e088cc12df3309e7d99bfb52b4adec2297b9b2845",
-    "scripts/ui_popup_test.wren": "064ea98bf74fcb780d8d778f43a00a098c3cdf57bd38642adc3baacb4c7af5bb"
+    "scripts/ui_popup_test.wren": "064ea98bf74fcb780d8d778f43a00a098c3cdf57bd38642adc3baacb4c7af5bb",
+    "scripts/ui_list.wren": "a3f29a0b2ddee4848ea6541dc187aaf30e817c9635f08754b9192d05e1210ddc",
+    "src/tests/st_menu_shortcuts_pty_test.py": "2b4944895849f708a9cbe431c5f47a0d3c53ae066163d8343e97d57b4ab01ee2",
+    "src/media/console/tests/st_console_x11_test.c": "ce4616c2fe61664c496a297936b79cefba9a280aae1672a78ad9b90573d40a51",
+    "src/media/console/tests/st_console_ansi_test.c": "a8fd223e78b87610e88a4c86d775fd10c8f8bd19fbfec140448f3b5bea328437",
+    "src/media/console/tests/st_console_ncurses_test.c": "41034f149b7ca1bae54a5479c0e199335f5b28ae8f43aff578c525df0611028e"
   },
   "verification": {
     "platform": "FreeBSD 15.1-RELEASE-p5 amd64",
@@ -4712,6 +4751,24 @@
       ],
       "accounting": "No public native declarations, TSV rows, assessment dispositions or topic counts changed. Reviewed changed evidence/documentation. 80 headers, 120 exclusions, 2448 native items, 157 assessments and 51 original topics.",
       "limitations": "Native/headless Clang verification; no Windows runtime execution. Acknowledgement lasts only for the current menu VM and is not saved to disk."
+    },
+    {
+      "topic": "bbs-list-control-shortcuts",
+      "status": "resolved",
+      "approval": "Direct Ctrl+F regression report, expanded by the user to Ctrl+S, Ctrl+D, Ctrl+grave, Ctrl+G and ANSI/curses backends.",
+      "scope": "ListView Find/repeat-find now match normalized logical Control chords, and other modified text is not swallowed by prefix search. Native event translation, standard Wren String semantics, menu actions and terminal protocol semantics remain unchanged. Graphical Ctrl+grave remains physical/logical; ANSI/curses retain their existing Ctrl+Q console binding.",
+      "regression_before_fix": "The actual BBS-menu fixture received a native C0 Ctrl+F but never opened Find; the independent capture remained on the directory.",
+      "tests_passed": [
+        "FreeBSD Clang Debug: st_console_ansi, st_console_ncurses, st_console_ncurses_cp437, st_console_ncurses_cp437_c_locale, wren_settings_runtime, wren_popup_synthetic, wren_menu_synthetic, syncterm_behavior_list, syncterm_behavior_menu_shortcuts and five syncterm_menu_shortcuts_pty modes a/ac/c/f/i (14).",
+        "st_console_x11 passed on a private Xvfb display with inherited desktop environment cleared (1).",
+        "Actual menu input verifies Unicode caseless Find/repeat/wrap, all requested actions from native C0 and modified-text events, and three Ctrl+grave input forms. Real PTY applications verify ANSI UTF-8/CP437 and curses Unicode/CP437/ASCII Find/repeat/Sort/Quick Connect plus console entry/exit through Ctrl+Q.",
+        "Native X11 checks exact control key/modifier events and physical Ctrl+grave without duplicate text; native ANSI/curses tests include Ctrl+S/Q flow-control bytes."
+      ],
+      "builds_passed": [
+        "Configured standalone Clang Debug CMake; built application, native X11/ANSI/curses and settings/loader test targets."
+      ],
+      "accounting": "No public native declarations, TSV rows, assessment dispositions or topic counts changed. Updated reviewed consumer/test evidence and documentation. 80 headers, 120 exclusions, 2448 native items, 157 assessments and 51 original topics.",
+      "limitations": "No Windows execution. This FreeBSD configuration has narrow curses (ST_CONSOLE_HAVE_CURSES_WIDE=0); no wide-curses runtime claim. Graphical input translation is tested separately from the bitmap menu-action fixture. Native PTY queries use ASCII; Unicode caseless search is covered in the bitmap fixture. Physical audio is disabled in application fixtures."
     }
   ]
 }

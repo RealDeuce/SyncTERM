@@ -62,6 +62,13 @@ headers are excluded from independent script ownership. Public terminal protocol
 behavior is accessed through the active parser; this accounting does not propose
 one foreign method per escape sequence or duplicate the terminal conformance work.
 
+ListView's Find and repeat-find consumers use logical Control-letter identities,
+including native C0 key events. Other modified text bypasses type-to-search so
+menu commands remain reachable. Regression checks cover native X11 events on a
+private display, actual ANSI/curses BBS-menu shortcuts through PTYs, and Unicode
+search and all five requested shortcuts through the bitmap application fixture.
+Native event translation and the public input representation remain unchanged.
+
 Operations, public fields (including value-embedded structs), result/error data,
 enums, macros, callbacks, and extern values are inventoried. Opaque/type aliases
 are assessed through their owner and signatures; standard C storage aliases are

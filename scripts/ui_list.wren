@@ -25,7 +25,7 @@ import "ui_style"  for Style
 import "ui_widget" for Widget, Rect
 import "ui_draw"   for Painter
 import "ui_popup"  for Find
-import "syncterm"  for KeyEvent, MouseEvent, Key, Mouse, Text
+import "syncterm"  for KeyEvent, MouseEvent, Key, Mouse, Mod, Text
 
 class ListView is Widget {
   construct new() {
@@ -470,14 +470,14 @@ class ListView is Widget {
       _searchBuf = ""
       return true
     }
-    // Ctrl-F (0x06) — prompt for a substring; Ctrl-G (0x07) — repeat
+    // Ctrl-F prompts for a substring; Ctrl-G repeats
     // the last query.  Both walk forward from the current selection,
     // wrapping; case-insensitive substring match.
-    if (cp == 0x06) {
+    if (c == Key.chord_(102, Mod.control)) {
       runFindPrompt_()
       return true
     }
-    if (cp == 0x07) {
+    if (c == Key.chord_(103, Mod.control)) {
       runFindAgain_()
       return true
     }
@@ -490,7 +490,9 @@ class ListView is Widget {
     // is the UTF-8 of the codepoint (or "" for extended keys).
     // Extended keys (function keys, Insert, arrow keys, ...) have
     // codepoint == null; guard before the numeric compare.
-    if (cp != null && cp >= 0x20 && cp != 0x7F && ke.text.count > 0) {
+    // Modified commands must reach the owning App's shortcut bindings.
+    if (cp != null && cp >= 0x20 && cp != 0x7F && ke.text.count > 0 &&
+        (ke.modifiers & ~(Mod.shift | Mod.capsLock | Mod.numLock)) == 0) {
       typeahead_(ke.text)
       return true
     }
