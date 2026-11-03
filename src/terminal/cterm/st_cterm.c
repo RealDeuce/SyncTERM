@@ -2645,7 +2645,21 @@ st_cterm_finish(st_cterm_t *terminal)
 int
 st_cterm_prepare_disconnect(st_cterm_t *terminal)
 {
-	return st_cterm_finish(terminal);
+	int status = st_cterm_finish(terminal);
+	if (status != 0 || terminal->status_display_type != 0) return status;
+	/* The local notice needs a new row, even if the host left a smaller
+	 * scroll region. Keep the terminal dimensions and host margins intact. */
+	int top = terminal->top_margin, bottom = terminal->bottom_margin;
+	int left = terminal->left_margin, right = terminal->right_margin;
+	terminal->top_margin = terminal->left_margin = 1;
+	terminal->bottom_margin = terminal->height;
+	terminal->right_margin = terminal->width;
+	cterm_scrollup(terminal);
+	terminal->top_margin = top;
+	terminal->bottom_margin = bottom;
+	terminal->left_margin = left;
+	terminal->right_margin = right;
+	return cterm_render_take_error(terminal);
 }
 
 int

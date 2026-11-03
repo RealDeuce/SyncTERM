@@ -397,7 +397,7 @@
     },
     {
       "path": "src/terminal/cterm/st_cterm.h",
-      "sha256": "c71d8bd2c4f7c284c9b42464e2c3885a40dcf970dc609986b67aefa67ea11a9b",
+      "sha256": "a9ead6c443bd2f09af94fbe27ee56386d95dfd3dc0c76b47f8b85acabab506de",
       "status": "reviewed",
       "symbol_count": 165
     },
@@ -427,7 +427,7 @@
     },
     {
       "path": "src/terminal/term/st_term.h",
-      "sha256": "289d4dfd97451b6aef74914df247982b909a9502778b322799f12ec1b66dc58c",
+      "sha256": "2e24436805f399c1d6c55ac80d369f678446e2f574c9311eeb57ff9d7000c522",
       "status": "reviewed",
       "symbol_count": 85
     },
@@ -4181,7 +4181,7 @@
   ],
   "evidence_files": {
     "docs/WREN_GUIDANCE.md": "d14aeecb5eae922015f2f48a4fd690277dcb5b91aedfd8d8d8cffb2dc235e1ac",
-    "docs/Wren.adoc": "1f0cedffe599558dddbae537198b197b680f9dab4af8394c7104ee6325b8426d",
+    "docs/Wren.adoc": "2cf85a5c1f387cf21a2b18aa06e4e0d834956800dc1d77b9f2f194a3f7ffc2c7",
     "docs/api/bbs-entry-fields.adoc": "a1be9944eadd5f56d752e8669b502f49b27211f14190443a95e36ad301b8d128",
     "scripts/auto/connected/font_pick.wren": "6cd249b69c2f851e1fb84e4b8ce381879cfaaa96a35e1376f6e8502c6497e91b",
     "scripts/auto/menu/main_menu.wren": "b5aaebd48a0942085a5da73ea09ec55c5f52eb183824eeefefc970395ff341f0",
@@ -4297,14 +4297,14 @@
     "src/syncterm.c": "cd130175c0a0ef9a612fec4dbe23ecdaa87ce4b90976d20e0fec677b6134cb45",
     "src/syncterm_types.h": "faf03b62fcdebbc99c656072aff92846a65787e78294dcb21d2b0e96232144f2",
     "src/terminal/cterm/cterm_apc.c": "02d454dc3711782e5bbe097d5e09a9af073b5c4d7a03e4cb0e22df4761680d6a",
-    "src/terminal/cterm/st_cterm.c": "5dea343d22950bbf45884a13c9e5a7df726a5a828526f8935fc85afd0361de01",
-    "src/terminal/cterm/st_cterm.h": "c71d8bd2c4f7c284c9b42464e2c3885a40dcf970dc609986b67aefa67ea11a9b",
+    "src/terminal/cterm/st_cterm.c": "586e58009b95dae7dce3d974f519102f4877e0caa6198dff2ad8f107809b6d45",
+    "src/terminal/cterm/st_cterm.h": "a9ead6c443bd2f09af94fbe27ee56386d95dfd3dc0c76b47f8b85acabab506de",
     "src/terminal/hyperlink/st_hyperlink.h": "f93a14cc8070afcd04fd9217581d4aee9ad69dbed44f63236e0a6bf0c99eb233",
     "src/terminal/ooii/st_ooii.h": "9da33c07aa73818ad787ae8fed5af2a996aab390549f88d117e6132028618aab",
     "src/terminal/screen_mode/st_screen_mode.h": "f6ce01a5ec29e019d75fb13809078d263611318d46b79db670937fbfe3c7f436",
     "src/terminal/session_history/st_session_history.h": "1cc8e4d057da9d087fa25814770c5003d2e51fe07dfda953c98c289e3feb19f2",
-    "src/terminal/term/st_term.c": "d735292b412d6f6369fc866a080c9cf4a441da1f595940e8affc2db649a3cf38",
-    "src/terminal/term/st_term.h": "289d4dfd97451b6aef74914df247982b909a9502778b322799f12ec1b66dc58c",
+    "src/terminal/term/st_term.c": "0a5145693122c46644ce28fae89bfa6914e113880fab026e9bfba32ea04d36a5",
+    "src/terminal/term/st_term.h": "2e24436805f399c1d6c55ac80d369f678446e2f574c9311eeb57ff9d7000c522",
     "src/text/codepage/st_codepage.h": "a7ecfd447988eeaeed5f5f8aaadacd251b48fc340ce481bde347979e71f787f2",
     "src/text/emoji/st_emoji_catalog.h": "a51f7ddd302025cdbac7d136a1c6d1063e4923eb7085aa9ac9f72d678fafe80f",
     "src/text/emoji/st_emoji_locale.h": "53dc6124b018026d47929c1a1f7289f0dabf07ad7c67a71bd662f0146f55082d",
@@ -4318,7 +4318,7 @@
     "src/media/font_catalog/st_font_catalog.c": "4117712e3679625ff3f9368b9c5c8b048030617c071d8912978918593da38f47",
     "src/terminal/cterm/cterm_render.c": "fb5cf7def0c2972ca7d71dd326595f0dfdc9f4dfe9cfb6ce6b85c3fb6caa3a3a",
     "src/tests/st_font_assignments_test.py": "5b672eb7c59e75c7f9005e6851419f2563c435585740c150bf4af17544f9dbf6",
-    "src/terminal/cterm/tests/st_cterm_test.c": "390c2f1bf7d03369c123d3632518761a16334f14fbc93e137c3d6a83b1f71cb3",
+    "src/terminal/cterm/tests/st_cterm_test.c": "127e93eb972f5a2392ddb9a53ecde2728fe2da5238db01471681341936f3c070",
     "src/config/bbs_list/st_bbs_store.c": "658bd23d37454bb4a47400d5a763948a4e8a2c70ac41aab1be7f988218a243ba",
     "src/scripting/wren_host/tests/st_wren_sftp_live_test.c": "61d5e35f34a48725efefca9b08f290d356ddee00cf12dad2b32c0727079025fa",
     "src/scripting/wren_host/tests/st_wren_menu_test_bindings.c": "9a7f110f8beb56c3fdc3080254f272db5db5b414c759c79492e82ef70cfeea64",
@@ -4334,7 +4334,7 @@
     "src/tests/st_test_control_test.py": "d9ff21d77c7731a055983ecc5d44fab373650cb4deefbe701fe01f9d26b94914",
     "scripts/auto/connected/connected.wren": "7f8f7144896388ffbf9dd16820cbf6cbae73d25c385ccba7d8c0928f31ae67d6",
     "src/scripting/wren_host/tests/st_wren_session_test_bindings.c": "4ef0aef560439c1ed3f933232a8b59ccaa3ee0a6971609ebf0fe8e81ff1b981c",
-    "src/tests/st_migrated_control_test.py": "4d7e45dc346b4b89653dfc378b1bd2459c1eeeb2902c342761a5880f0a1dd6d4",
+    "src/tests/st_migrated_control_test.py": "97814ab48581c9774f06d7fde536f2547ccd95ea9819c5808cdf0a40e037d1cc",
     "src/config/bbs_list/tests/st_bbs_list_test.c": "e082110aca917ca8932f2d7b2666ee11b55cbcf5707eee4bd7515ed9f5dddb98",
     "src/config/bbs_list/st_bbs_profile_codec.c": "04a87909baeb5788e386369ef4c4043c95e92737bdb8a316009a23f4e7f9dbb8",
     "scripts/menu_ui.wren": "f94ada676138fa588c3e634e088cc12df3309e7d99bfb52b4adec2297b9b2845",
@@ -4817,6 +4817,21 @@
       ],
       "accounting": "Refreshed reviewed documentation/test evidence only. No native declarations, TSV rows, assessment dispositions or topic counts changed.",
       "limitations": "FreeBSD native/headless verification; no Windows/macOS runtime execution. Clarifies the scope of the preceding disconnected geometry correction."
+    },
+    {
+      "topic": "disconnected-notice-scroll-and-original-screen",
+      "status": "resolved",
+      "approval": "User clarified that a NoStatus terminal must scroll to create a row for the disconnect notice, and opening scrollback must reconstruct the screen at disconnect apart from its indicators.",
+      "scope": "Finish pending output and freeze completed history before preparing the notice. Without a status row, scroll the full terminal once while retaining geometry and host margins; with a status row, retain its layout. Saved history excludes the notice preparation scroll and later UI drawing.",
+      "regression_before_fix": "Native CTerm test and both CP437/UTF-8 application fixtures detected the missing notice scroll.",
+      "tests_passed": [
+        "Clang Debug: cterm, term, session_history, wren_host, wren_menu_contract, syncterm_behavior_scrollback_cp437 and syncterm_behavior_scrollback_utf8 (7).",
+        "Application fixtures verify the notice is on a newly scrolled row, original bottom-row output is one row above it, and every cell of the initial full-height viewer matches the pre-disconnect screen except its two ten-cell indicators.",
+        "Native history is retained before the notice scroll with status enabled/disabled and after connection destruction; subsequent UI drawing does not enter the saved history. CTerm tests cover no status, indicator and host-writable status, including margins, dimensions and blank notice-row creation.",
+        "Clang ASan/UBSan: cterm and term; leak detection disabled. Coverage checker and git diff --check."
+      ],
+      "accounting": "Reviewed changed evidence/header comments and translated report source locations. Native declarations, TSV rows, assessment dispositions and topic counts remain unchanged.",
+      "limitations": "FreeBSD native/headless verification; no Windows/macOS runtime execution. Clarifies the preceding direct disconnect behavior corrections."
     }
   ]
 }

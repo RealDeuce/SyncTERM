@@ -305,10 +305,22 @@ def scrollback(executable, encoding, reports):
             rgb = color & 0xffffff if color & 0x80000000 else frame.palette[color]
             assert rgb == (0xaa0000 if has_status else 0)
 
-    def check_terminal_unchanged(before, after):
+    def check_terminal_unchanged(before, after, scrolled=False):
         for field in ("cterm.bottom_margin", "cterm.right_margin", "cterm.status_display",
-                      "cterm.scrollback_pos", "cterm.scrollback_start", "cterm.x", "cterm.y"):
+                      "cterm.scrollback_start", "cterm.x", "cterm.y"):
             assert after.application[field] == before.application[field], field
+        capacity = before.application["cterm.scrollback_lines"]
+        assert after.application["cterm.scrollback_pos"] == (
+            before.application["cterm.scrollback_pos"] + int(scrolled)) % capacity
+
+    def check_completed_screen(completed, viewer):
+        width = completed.metadata["columns"]
+        assert viewer.metadata["rows"] == completed.metadata["rows"]
+        for index, cell in enumerate(completed.cells):
+            # Only the two ten-cell Scrollback indicators replace output.
+            if index < 10 or width - 10 <= index < width:
+                continue
+            assert viewer.cells[index] == cell, index
 
     for hide_popups in (True, False):
         with connection(executable, reports, encoding=encoding,
@@ -339,12 +351,14 @@ def scrollback(executable, encoding, reports):
             peer.shutdown(socket.SHUT_RDWR)
             if not hide_popups:
                 notice = client.wait_text("Disconnected: Enter exits, F1 details")
-                check_terminal_unchanged(completed, notice)
+                check_terminal_unchanged(completed, notice, scrolled=True)
+                assert "TAIL-ROW" in notice.lines[-2]
                 # Current-session history is available before leaving the notice.
                 client.physical_key(48, True, 4)
                 client.physical_key(48, False, 4)
                 viewer = client.wait_text("Scrollback")
-                check_terminal_unchanged(completed, viewer)
+                check_terminal_unchanged(notice, viewer)
+                check_completed_screen(completed, viewer)
                 # NoStatus sessions retain all 25 rows in the viewer.
                 check_viewer_row(viewer, has_status=False)
                 assert "TAIL-ROW" in viewer.lines[-1]
@@ -354,7 +368,7 @@ def scrollback(executable, encoding, reports):
                 client.key("up")
                 oldest = client.wait_text("row 00")
                 check_viewer_row(oldest, has_status=False)
-                check_terminal_unchanged(completed, oldest)
+                check_terminal_unchanged(notice, oldest)
                 client.key("escape")
                 notice = client.wait_text("Disconnected: Enter exits, F1 details")
                 assert "SUMMARY" in notice.text

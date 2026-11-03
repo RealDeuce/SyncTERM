@@ -435,9 +435,11 @@ int
 st_term_session_prepare_disconnect(st_term_session_t *session)
 {
 	if (session == NULL) return IO_ERROR_INVALID_ARGUMENT;
-	int status = st_cterm_prepare_disconnect(session->cterm);
-	if (status == 0) publish_history(session);
-	return status;
+	int status = st_cterm_finish(session->cterm);
+	if (status != 0) return status;
+	/* Retain the completed screen before making room for the notice. */
+	publish_history(session);
+	return st_cterm_prepare_disconnect(session->cterm);
 }
 
 void

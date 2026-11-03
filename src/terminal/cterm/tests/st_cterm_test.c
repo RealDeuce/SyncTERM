@@ -267,8 +267,17 @@ test_disconnect_boundary(void)
 		    && before_state.right_margin == after_state.right_margin
 		    && before_state.x == after_state.x && before_state.y == after_state.y);
 		CHECK(st_cterm_copy_history(terminal, &after, &after_width, &after_rows) == 0);
-		CHECK(before_width == 40 && after_width == 40 && after_rows == before_rows);
+		CHECK(before_width == 40 && after_width == 40 && after_rows == before_rows + (status_type == 0 ? 1 : 0));
 		CHECK(memcmp(before, after, before_rows * 40 * sizeof(*before)) == 0);
+		if (status_type == 0) {
+			for (uint32_t x = 0; x < 40; ++x) {
+				char text[4];
+				size_t required;
+				struct st_console_cell *cell = &after[(after_rows - 1) * 40 + x];
+				CHECK(st_console_font_glyph_text(console, cell->glyph_font, cell->glyph,
+				    text, sizeof(text), &required) == 0 && required == 1 && text[0] == ' ');
+			}
+		}
 		free(before); free(after);
 		st_cterm_destroy(&terminal);
 		st_font_catalog_destroy(fonts);

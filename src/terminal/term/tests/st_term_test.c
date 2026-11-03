@@ -916,7 +916,7 @@ test_shell_utf8_boundary(void)
 }
 
 static int
-test_remote_disconnect(void)
+test_remote_disconnect(bool hide_status)
 {
 	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
 	const struct st_console_config geometry = {
@@ -938,7 +938,7 @@ test_remote_disconnect(void)
 	const struct st_term_config config = {
 		.console = console, .connection = connection, .fonts = fonts, .history = history,
 		.screen_mode = ST_SCREEN_MODE_80X25, .encoding = ST_CTERM_ENCODING_UTF8,
-		.codepage = ST_CODEPAGE_CP437,
+		.codepage = ST_CODEPAGE_CP437, .hide_status = hide_status,
 	};
 	CHECK(st_term_session_create(&session, &config) == 0);
 	enum st_term_disposition disposition;
@@ -970,7 +970,7 @@ test_remote_disconnect(void)
 	enum st_screen_mode mode;
 	bool has_status;
 	CHECK(st_session_history_copy(history, &after, &columns, &rows, &mode, &has_status) == 0);
-	CHECK(columns == before_columns && rows == before_rows && has_status);
+	CHECK(columns == before_columns && rows == before_rows && has_status == !hide_status);
 	CHECK(memcmp(before, after, before_rows * columns * sizeof(*before)) == 0);
 	/* The notice and its viewer may draw on the console, but must not enter
 	 * the completed session's history when the terminal is finally destroyed. */
@@ -1183,7 +1183,8 @@ main(void)
 	CHECK(test_remote_speed_transition(ST_CTERM_ENCODING_UTF8, true) == 0);
 	CHECK(test_remote_speed_transition(ST_CTERM_ENCODING_CODEPAGE, true) == 0);
 	CHECK(test_shell_utf8_boundary() == 0);
-	CHECK(test_remote_disconnect() == 0);
+	CHECK(test_remote_disconnect(false) == 0);
+	CHECK(test_remote_disconnect(true) == 0);
 	CHECK(test_shell_rip_cp437_boundary() == 0);
 	CHECK(test_response_policy() == 0);
 	CHECK(test_ooii_session(ST_CTERM_ENCODING_UTF8, false) == 0);

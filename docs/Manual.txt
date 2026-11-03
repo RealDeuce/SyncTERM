@@ -1078,9 +1078,11 @@ completed session's scrollback from the Disconnected notice. kbd:[Escape]
 returns to that notice; kbd:[Enter] leaves it and kbd:[F1] opens session
 details. When the connection had a status bar, its row stays blank and red
 while viewing scrollback. With the status bar disabled, scrollback uses the
-full terminal height, including the bottom row. The notice is local UI rather
-than saved terminal output, and disconnecting preserves the terminal dimensions.
-The notice is omitted when Hide Popups is enabled.
+full terminal height, including the bottom row. Without a status bar, the
+terminal scrolls once to make room for the notice. Opening scrollback restores
+the screen from before that scroll, apart from the scrollback indicators.
+The notice is local UI rather than saved terminal output, and terminal
+dimensions are preserved. Hide Popups omits the notice.
 
 When viewing the scrollback, the following keys are supported:
 
