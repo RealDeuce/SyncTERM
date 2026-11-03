@@ -342,7 +342,7 @@
     },
     {
       "path": "src/scripting/wren_host/st_wren_host.h",
-      "sha256": "3c0f7a48d6634044643064941aad24f466582df30ff8ff36a70c1535e42e9822",
+      "sha256": "1f399c11771d459566882d3084836000e05c3aa7759fc03e6a2384c6754fb0a6",
       "status": "reviewed",
       "symbol_count": 67
     },
@@ -397,7 +397,7 @@
     },
     {
       "path": "src/terminal/cterm/st_cterm.h",
-      "sha256": "3a197c7add0283ccd9f8fa4a8f5a1f8a058831102a52d79979deae37b1400c2b",
+      "sha256": "c71d8bd2c4f7c284c9b42464e2c3885a40dcf970dc609986b67aefa67ea11a9b",
       "status": "reviewed",
       "symbol_count": 165
     },
@@ -427,7 +427,7 @@
     },
     {
       "path": "src/terminal/term/st_term.h",
-      "sha256": "be2b83584ebcc09eef6659dcaa8dcdaac4b3fb76341e8d015ab563f9566f0c34",
+      "sha256": "289d4dfd97451b6aef74914df247982b909a9502778b322799f12ec1b66dc58c",
       "status": "reviewed",
       "symbol_count": 85
     },
@@ -4181,7 +4181,7 @@
   ],
   "evidence_files": {
     "docs/WREN_GUIDANCE.md": "d14aeecb5eae922015f2f48a4fd690277dcb5b91aedfd8d8d8cffb2dc235e1ac",
-    "docs/Wren.adoc": "08fd3b33e05125718326c63b955717d01d5363105da40406eb98f73792ef8822",
+    "docs/Wren.adoc": "ebe2094dce6af64f8e54a11acd0c1092907ef074e031d45fe1a044dd9c98de1c",
     "docs/api/bbs-entry-fields.adoc": "a1be9944eadd5f56d752e8669b502f49b27211f14190443a95e36ad301b8d128",
     "scripts/auto/connected/font_pick.wren": "6cd249b69c2f851e1fb84e4b8ce381879cfaaa96a35e1376f6e8502c6497e91b",
     "scripts/auto/menu/main_menu.wren": "b5aaebd48a0942085a5da73ea09ec55c5f52eb183824eeefefc970395ff341f0",
@@ -4257,7 +4257,7 @@
     "src/net/transfer/st_transfer.h": "a40e6b8a2d97527d1a1cc634ac5db8fd3a21fa5a3ff973050b036781bcf4b989",
     "src/net/transfer/st_transfer_detect.h": "3296b9ecf875d100f793920a3b0117a8f7b80951a539317d366f4ea40a7a1b30",
     "src/net/webget/st_webget.h": "9647dcc563e1661fe1d6b762c78e2483d2beae03ac878da0ebd15c8a425d2143",
-    "src/scripting/wren_host/st_wren_host.h": "3c0f7a48d6634044643064941aad24f466582df30ff8ff36a70c1535e42e9822",
+    "src/scripting/wren_host/st_wren_host.h": "1f399c11771d459566882d3084836000e05c3aa7759fc03e6a2384c6754fb0a6",
     "src/scripting/wren_host/tests/st_wren_host_test.c": "a30e0ace938fc3000fcc63c727a6b9fd12efdd866ba9b5cb6f081eec06e8ba1d",
     "src/scripting/wren_host/tests/st_wren_settings_menu_test.c": "e508ccc92d9de61bdf2422359eeb90c8b9c6fc2c45b5e33628b62edf7751cd5a",
     "src/scripting/wren_host/wren_async.c": "71e78941735250300171a2b7cb13b70c92916bd14c066a6614b3f77cdd9b565d",
@@ -4297,14 +4297,14 @@
     "src/syncterm.c": "cd130175c0a0ef9a612fec4dbe23ecdaa87ce4b90976d20e0fec677b6134cb45",
     "src/syncterm_types.h": "faf03b62fcdebbc99c656072aff92846a65787e78294dcb21d2b0e96232144f2",
     "src/terminal/cterm/cterm_apc.c": "02d454dc3711782e5bbe097d5e09a9af073b5c4d7a03e4cb0e22df4761680d6a",
-    "src/terminal/cterm/st_cterm.c": "1d62cf42251afc6c6717809ce87c7af26c43e1662c24bffd73f2ac2dc9e50c32",
-    "src/terminal/cterm/st_cterm.h": "3a197c7add0283ccd9f8fa4a8f5a1f8a058831102a52d79979deae37b1400c2b",
+    "src/terminal/cterm/st_cterm.c": "5dea343d22950bbf45884a13c9e5a7df726a5a828526f8935fc85afd0361de01",
+    "src/terminal/cterm/st_cterm.h": "c71d8bd2c4f7c284c9b42464e2c3885a40dcf970dc609986b67aefa67ea11a9b",
     "src/terminal/hyperlink/st_hyperlink.h": "f93a14cc8070afcd04fd9217581d4aee9ad69dbed44f63236e0a6bf0c99eb233",
     "src/terminal/ooii/st_ooii.h": "9da33c07aa73818ad787ae8fed5af2a996aab390549f88d117e6132028618aab",
     "src/terminal/screen_mode/st_screen_mode.h": "f6ce01a5ec29e019d75fb13809078d263611318d46b79db670937fbfe3c7f436",
     "src/terminal/session_history/st_session_history.h": "1cc8e4d057da9d087fa25814770c5003d2e51fe07dfda953c98c289e3feb19f2",
-    "src/terminal/term/st_term.c": "34ba96792ab39705623db62555175ed16bff6c458258294814f99bcc46b63311",
-    "src/terminal/term/st_term.h": "be2b83584ebcc09eef6659dcaa8dcdaac4b3fb76341e8d015ab563f9566f0c34",
+    "src/terminal/term/st_term.c": "d735292b412d6f6369fc866a080c9cf4a441da1f595940e8affc2db649a3cf38",
+    "src/terminal/term/st_term.h": "289d4dfd97451b6aef74914df247982b909a9502778b322799f12ec1b66dc58c",
     "src/text/codepage/st_codepage.h": "a7ecfd447988eeaeed5f5f8aaadacd251b48fc340ce481bde347979e71f787f2",
     "src/text/emoji/st_emoji_catalog.h": "a51f7ddd302025cdbac7d136a1c6d1063e4923eb7085aa9ac9f72d678fafe80f",
     "src/text/emoji/st_emoji_locale.h": "53dc6124b018026d47929c1a1f7289f0dabf07ad7c67a71bd662f0146f55082d",
@@ -4318,7 +4318,7 @@
     "src/media/font_catalog/st_font_catalog.c": "4117712e3679625ff3f9368b9c5c8b048030617c071d8912978918593da38f47",
     "src/terminal/cterm/cterm_render.c": "fb5cf7def0c2972ca7d71dd326595f0dfdc9f4dfe9cfb6ce6b85c3fb6caa3a3a",
     "src/tests/st_font_assignments_test.py": "5b672eb7c59e75c7f9005e6851419f2563c435585740c150bf4af17544f9dbf6",
-    "src/terminal/cterm/tests/st_cterm_test.c": "c76041087a5995c83a259e4052e8c4c5b518dc61aa858f9294bbd444b0c33a2b",
+    "src/terminal/cterm/tests/st_cterm_test.c": "390c2f1bf7d03369c123d3632518761a16334f14fbc93e137c3d6a83b1f71cb3",
     "src/config/bbs_list/st_bbs_store.c": "658bd23d37454bb4a47400d5a763948a4e8a2c70ac41aab1be7f988218a243ba",
     "src/scripting/wren_host/tests/st_wren_sftp_live_test.c": "61d5e35f34a48725efefca9b08f290d356ddee00cf12dad2b32c0727079025fa",
     "src/scripting/wren_host/tests/st_wren_menu_test_bindings.c": "9a7f110f8beb56c3fdc3080254f272db5db5b414c759c79492e82ef70cfeea64",
@@ -4334,7 +4334,7 @@
     "src/tests/st_test_control_test.py": "d9ff21d77c7731a055983ecc5d44fab373650cb4deefbe701fe01f9d26b94914",
     "scripts/auto/connected/connected.wren": "7f8f7144896388ffbf9dd16820cbf6cbae73d25c385ccba7d8c0928f31ae67d6",
     "src/scripting/wren_host/tests/st_wren_session_test_bindings.c": "4ef0aef560439c1ed3f933232a8b59ccaa3ee0a6971609ebf0fe8e81ff1b981c",
-    "src/tests/st_migrated_control_test.py": "66e7f8e4951a43be74d634530b1dc3421c6bf63213cde61ae79df47994cb10ad",
+    "src/tests/st_migrated_control_test.py": "a291299cbbe5e2485e8afcc01a1c9d8fbacbbf332f82fa7465c34dd7d6b65637",
     "src/config/bbs_list/tests/st_bbs_list_test.c": "e082110aca917ca8932f2d7b2666ee11b55cbcf5707eee4bd7515ed9f5dddb98",
     "src/config/bbs_list/st_bbs_profile_codec.c": "04a87909baeb5788e386369ef4c4043c95e92737bdb8a316009a23f4e7f9dbb8",
     "scripts/menu_ui.wren": "f94ada676138fa588c3e634e088cc12df3309e7d99bfb52b4adec2297b9b2845",
@@ -4788,6 +4788,22 @@
       ],
       "accounting": "Refreshed reviewed evidence and header-comment digests. Native declarations, TSV rows, assessment dispositions and topic counts are unchanged: 80 headers, 120 exclusions, 2448 items, 157 assessments, 51 original topics.",
       "limitations": "Headless control-bitmap application and native host verification on FreeBSD. No Windows/macOS runtime or native graphical/PTY shortcut test for this change. This is a direct feature request, not a new approved burndown chunk."
+    },
+    {
+      "topic": "disconnected-scrollback-chrome-and-geometry",
+      "status": "resolved",
+      "approval": "Direct user correction: the disconnected line stays blank and red in scrollback, outside the saved data; terminal dimensions must not change on disconnect.",
+      "scope": "Remove disconnect-specific scrolling, margin reset and status-row removal/terminal expansion. Finish pending output and freeze the existing terminal history. The standalone disconnected viewer reserves a separate bottom row in the disconnected theme style and restores notice text on Escape; saved output retains the original final terminal row.",
+      "regression_before_fix": "Native CTerm/term tests detected changed history length; CP437 and UTF-8 process tests detected a changed scrollback position on disconnect.",
+      "tests_passed": [
+        "FreeBSD Clang Debug: cterm, term, session_history, wren_host, wren_menu_contract, syncterm_behavior_scrollback_cp437 and syncterm_behavior_scrollback_utf8 (7).",
+        "Native boundary tests cover no status, indicator status and host-writable status; dimensions, margins, cursor, complete history cells and output remain unchanged after completing ASCII output.",
+        "Control-bitmap CP437/UTF-8 captures verify a blank default-red bottom row before/after navigation, retained bottom-row terminal output, unchanged terminal state/history positions, Escape restoration, F1/Enter and host close with the status row enabled.",
+        "Clang ASan/UBSan: cterm and term; leak detection disabled.",
+        "Wren API coverage checker and git diff --check."
+      ],
+      "accounting": "Reviewed affected evidence/header comments and source locations. Native declarations, TSV rows, assessment dispositions and topic counts remain unchanged: 80 headers, 120 exclusions, 2448 items, 157 assessments and 51 original topics.",
+      "limitations": "Native and headless control-bitmap verification on FreeBSD; no Windows/macOS runtime execution. This corrects the previous direct feature implementation and does not close an additional audit finding."
     }
   ]
 }

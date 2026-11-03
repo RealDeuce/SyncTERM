@@ -436,10 +436,7 @@ st_term_session_prepare_disconnect(st_term_session_t *session)
 {
 	if (session == NULL) return IO_ERROR_INVALID_ARGUMENT;
 	int status = st_cterm_prepare_disconnect(session->cterm);
-	if (status == 0) {
-		session->config.hide_status = true;
-		publish_history(session);
-	}
+	if (status == 0) publish_history(session);
 	return status;
 }
 

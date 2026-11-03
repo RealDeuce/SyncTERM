@@ -1,10 +1,10 @@
 import "syncterm" for Cell, Clipboard, Hyperlinks, Input, KeyEvent, MouseEvent,
-    Key, Mouse, Screen
+    Key, Mouse, Screen, Surface
 import "syncterm_menu" for Menu
 import "ui_widget" for Widget, Rect
 import "ui_draw" for Painter
 import "ui_popup" for Alert
-import "ui_style" for Style
+import "ui_style" for Style, Theme
 import "ui_app" for App
 
 class OfflineScrollbackCanvas is Widget {
@@ -219,7 +219,15 @@ class OfflineScrollbackView {
     Input.enableMouseEvent(Mouse.wheelUp)
     Input.enableMouseEvent(Mouse.wheelDown)
     Input.mouseVisible = true
-    var background = Screen.readRect(1, 1, Screen.size[0], Screen.size[1])
+    var size = Screen.size
+    if (standalone) {
+      // The disconnected notice is local chrome, outside terminal history.
+      var row = Surface.new(size[0], 1)
+      Painter.fill(row, Rect.new(0, 0, size[0], 1), " ",
+          Theme.current.style("disconnected"))
+      Screen.putRect(row, 1, size[1])
+    }
+    var background = Screen.readRect(1, 1, size[0], size[1])
     var dismiss = Fn.new {
       if (standalone) {
         app.quit()
@@ -228,12 +236,12 @@ class OfflineScrollbackView {
       }
     }
     var viewer = OfflineScrollbackCanvas.new(app, source, background,
-        Menu.offlineScrollbackHasStatus, dismiss)
+        !standalone && Menu.offlineScrollbackHasStatus, dismiss)
     viewer.helpText = help_()
     viewer.keyHints = [["F1", "Help"], ["Arrows", "Scroll"],
         ["PgUp/PgDn", "Page"], ["Esc", "Close"]]
     viewer.focused = true
-    viewer.bounds = Rect.new(1, 1, Screen.size[0], Screen.size[1])
+    viewer.bounds = Rect.new(1, 1, size[0], size[1] - (standalone ? 1 : 0))
     if (standalone) {
       app.pushModal(viewer)
       app.runSync()

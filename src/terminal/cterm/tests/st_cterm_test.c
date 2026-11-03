@@ -218,7 +218,7 @@ test_lf_expand(void)
 }
 
 static void
-test_disconnect_row(void)
+test_disconnect_boundary(void)
 {
 	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
 	const struct st_console_config geometry = {
@@ -249,22 +249,26 @@ test_disconnect_row(void)
 			CHECK(st_console_set_position(console, 0, y) == 0);
 			CHECK(st_console_put_codepoint(console, 'A' + y) == 0);
 		}
-		/* Host-set margins must not constrain the disconnect scroll. */
+		/* Disconnect must preserve host-set margins and terminal geometry. */
 		feed(terminal, "\x1b[2;2r", 6);
 		CHECK(st_cterm_copy_history(terminal, &before, &before_width, &before_rows) == 0);
+		struct st_cterm_state before_state, after_state;
+		CHECK(st_cterm_state(terminal, &before_state) == 0);
 		size_t output_size = output.size;
 		CHECK(st_cterm_prepare_disconnect(terminal) == 0);
-		CHECK(output.size == output_size && st_cterm_status_display(terminal) == 0);
+		CHECK(output.size == output_size && st_cterm_status_display(terminal) == status_type);
+		uint32_t after_columns, after_height;
+		CHECK(st_cterm_size(terminal, &after_columns, &after_height) == 0);
+		CHECK(after_columns == columns && after_height == rows);
+		CHECK(st_cterm_state(terminal, &after_state) == 0);
+		CHECK(before_state.top_margin == after_state.top_margin
+		    && before_state.bottom_margin == after_state.bottom_margin
+		    && before_state.left_margin == after_state.left_margin
+		    && before_state.right_margin == after_state.right_margin
+		    && before_state.x == after_state.x && before_state.y == after_state.y);
 		CHECK(st_cterm_copy_history(terminal, &after, &after_width, &after_rows) == 0);
-		CHECK(before_width == 40 && after_width == 40 && after_rows == before_rows + 1);
+		CHECK(before_width == 40 && after_width == 40 && after_rows == before_rows);
 		CHECK(memcmp(before, after, before_rows * 40 * sizeof(*before)) == 0);
-		for (uint32_t x = 0; x < 40; ++x) {
-			char text[4];
-			size_t required;
-			struct st_console_cell *cell = &after[(after_rows - 1) * 40 + x];
-			CHECK(st_console_font_glyph_text(console, cell->glyph_font, cell->glyph,
-			    text, sizeof(text), &required) == 0 && required == 1 && text[0] == ' ');
-		}
 		free(before); free(after);
 		st_cterm_destroy(&terminal);
 		st_font_catalog_destroy(fonts);
@@ -430,7 +434,7 @@ main(void)
 	test_status_display_routing();
 	test_lf_expand();
 	test_profile_presentation();
-	test_disconnect_row();
+	test_disconnect_boundary();
 	test_zero_width_text();
 	const struct st_console_display_config display = {
 		.backend = ST_CONSOLE_BACKEND_HEADLESS,

@@ -103,7 +103,7 @@ int st_wren_host_choice(st_wren_host_t *host, const char *title,
 int st_wren_host_alert(st_wren_host_t *host, const char *title, const char *message);
 int st_wren_host_help(st_wren_host_t *host, const char *title, const char *body);
 /* Enter/close exits; F1 opens details/log, Alt-B (Cmd-B on macOS) opens history.
- * Caller must first publish history and expose a blank bottom terminal row. */
+ * Caller must first finish output and publish history before local UI drawing. */
 int st_wren_host_disconnected(st_wren_host_t *host, const char *details);
 /* Nonblocking progress; NULL message clears and restores the saved screen. */
 int st_wren_host_status(st_wren_host_t *host, const char *title, const char *message);

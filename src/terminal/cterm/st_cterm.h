@@ -211,9 +211,9 @@ int st_cterm_finish(st_cterm_t *terminal);
  * serialized owner as write(), even when no input arrives. Responses use
  * the synchronous output callback. NULL is IO_ERROR_INVALID_ARGUMENT. */
 int st_cterm_poll(st_cterm_t *terminal);
-/* After disconnect only: expose a terminal-style blank bottom row for local
- * chrome, preserving host rows through the normal scrollback path. No size
- * notification is sent to the closed connection. */
+/* After disconnect only: finish pending output, preserving terminal dimensions
+ * and status layout. Local UI chrome must not scroll or resize the terminal
+ * and must stay outside the captured terminal data. */
 int st_cterm_prepare_disconnect(st_cterm_t *terminal);
 int st_cterm_reset_terminal(st_cterm_t *terminal);
 

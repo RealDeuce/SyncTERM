@@ -1076,7 +1076,9 @@ Entry menu.
 After a remote disconnect, kbd:[Alt+B] (kbd:[Cmd+B] on macOS) opens the
 completed session's scrollback from the Disconnected notice. kbd:[Escape]
 returns to that notice; kbd:[Enter] leaves it and kbd:[F1] opens session
-details. The notice is omitted when Hide Popups is enabled.
+details. The notice row stays blank and red while viewing scrollback; it is
+local UI rather than saved terminal output. Disconnecting preserves the
+terminal dimensions. The notice is omitted when Hide Popups is enabled.
 
 When viewing the scrollback, the following keys are supported:
 

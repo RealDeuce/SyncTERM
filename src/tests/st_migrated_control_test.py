@@ -296,6 +296,19 @@ def session_modes(executable, reports):
 
 
 def scrollback(executable, encoding, reports):
+    def check_viewer_row(frame):
+        width = frame.metadata["columns"]
+        assert frame.lines[-1] == " " * width
+        for cell in frame.cells[-width:]:
+            color = cell.background
+            rgb = color & 0xffffff if color & 0x80000000 else frame.palette[color]
+            assert rgb == 0xaa0000
+
+    def check_terminal_unchanged(before, after):
+        for field in ("cterm.bottom_margin", "cterm.right_margin", "cterm.status_display",
+                      "cterm.scrollback_pos", "cterm.scrollback_start", "cterm.x", "cterm.y"):
+            assert after.application[field] == before.application[field], field
+
     for hide_popups in (True, False):
         with connection(executable, reports, encoding=encoding,
                         settings="ScrollBackLines=100\n", hide_popups=hide_popups) as (client, root, peer, send):
@@ -303,7 +316,7 @@ def scrollback(executable, encoding, reports):
             send(b"\x1b[2J\x1b[H" + b"\r\n".join(sample + f" row {i:02d}".encode() for i in range(45)))
             client.wait_text("row 44")
             # RIS preserves the existing history instead of rotating it.
-            send(b"\x1bc\x1b[2J\x1b[HAFTER-RESET\r\nSUMMARY")
+            send(b"\x1bc\x1b[2J\x1b[HAFTER-RESET\r\nSUMMARY\x1b[25;1HTAIL-ROW")
             client.wait_text("SUMMARY")
             client.physical_key(48, True, 4)
             client.physical_key(48, False, 4)
@@ -321,23 +334,28 @@ def scrollback(executable, encoding, reports):
             client.key("up")
             client.wait_text("AFTER-RESET")
             client.key("escape")
-            client.wait_text("SUMMARY")
+            completed = client.wait_text("TAIL-ROW")
             peer.shutdown(socket.SHUT_RDWR)
             if not hide_popups:
-                client.wait_text("Disconnected: Enter exits, F1 details")
+                notice = client.wait_text("Disconnected: Enter exits, F1 details")
+                check_terminal_unchanged(completed, notice)
                 # Current-session history is available before leaving the notice.
                 client.physical_key(48, True, 4)
                 client.physical_key(48, False, 4)
                 viewer = client.wait_text("Scrollback")
-                assert "Disconnected:" not in viewer.text
-                # The viewer title overlays its first row; reveal text that
-                # the disconnect preparation scrolled into that row.
+                check_viewer_row(viewer)
+                check_terminal_unchanged(completed, viewer)
+                assert "TAIL-ROW" in viewer.lines[-2]
+                # The viewer title overlays its first row; reveal text shifted
+                # there by reserving one row of the viewport for local chrome.
                 client.key("up")
                 client.wait_text("SUMMARY")
                 client.key("home")
                 client.key("page_down")
                 client.key("up")
-                client.wait_text("row 00")
+                oldest = client.wait_text("row 00")
+                check_viewer_row(oldest)
+                check_terminal_unchanged(completed, oldest)
                 client.key("escape")
                 notice = client.wait_text("Disconnected: Enter exits, F1 details")
                 assert "SUMMARY" in notice.text
@@ -356,9 +374,9 @@ def scrollback(executable, encoding, reports):
             client.physical_key(48, True, 4)
             client.physical_key(48, False, 4)
             client.wait_text("Scrollback")
-            if not hide_popups:
-                client.key("up")
-            client.wait_text("SUMMARY")
+            newest = client.wait_text("SUMMARY")
+            assert "TAIL-ROW" in newest.text
+            assert "Disconnected:" not in newest.text
             client.key("home")
             client.key("page_down")
             client.key("up")
@@ -376,11 +394,14 @@ def scrollback(executable, encoding, reports):
             client.key("enter")
             with server.accept()[0] as peer:
                 peer.sendall(b"CLOSE-VIEWER")
-                client.wait_text("CLOSE-VIEWER")
+                completed = client.wait_text("CLOSE-VIEWER")
                 peer.shutdown(socket.SHUT_RDWR)
-                client.wait_text("Disconnected: Enter exits, F1 details")
+                notice = client.wait_text("Disconnected: Enter exits, F1 details")
+                check_terminal_unchanged(completed, notice)
                 client.key(98, 4)
-                client.wait_text("Scrollback")
+                viewer = client.wait_text("Scrollback")
+                check_viewer_row(viewer)
+                check_terminal_unchanged(completed, viewer)
                 client.event(7)
                 client.process.wait(timeout=client.timeout)
                 assert client.process.returncode == 0

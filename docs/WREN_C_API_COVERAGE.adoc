@@ -358,7 +358,7 @@ Evidence: link:../src/scripting/wren_host/wren_bind_session.c[write/key/error bi
 
 No dedicated script operation invokes st_cterm_reset_terminal or returns its native reset status. That function finishes pending input, resets parser state and rebuilds the RIP engine. CTerm.write can submit protocol reset sequences through the current parser, but does not expose this complete host reset transaction or its failure result.
 
-Evidence: link:../src/terminal/cterm/st_cterm.c[src/terminal/cterm/st_cterm.c:2679]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1251].
+Evidence: link:../src/terminal/cterm/st_cterm.c[src/terminal/cterm/st_cterm.c:2652]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1251].
 
 [[finding-digest-algorithms]]
 === File hashing omits SHA-2 and generic digest input

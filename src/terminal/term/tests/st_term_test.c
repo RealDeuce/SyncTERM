@@ -970,7 +970,7 @@ test_remote_disconnect(void)
 	enum st_screen_mode mode;
 	bool has_status;
 	CHECK(st_session_history_copy(history, &after, &columns, &rows, &mode, &has_status) == 0);
-	CHECK(columns == before_columns && rows == before_rows + 1 && !has_status);
+	CHECK(columns == before_columns && rows == before_rows && has_status);
 	CHECK(memcmp(before, after, before_rows * columns * sizeof(*before)) == 0);
 	/* The notice and its viewer may draw on the console, but must not enter
 	 * the completed session's history when the terminal is finally destroyed. */
