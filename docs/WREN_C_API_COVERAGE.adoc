@@ -388,7 +388,7 @@ Evidence: link:../src/base/io_error/io_error.h[src/base/io_error/io_error.h:36];
 
 Native fs_get_link_info distinguishes link/other/file/directory without following the link. Script listing exposes only directory versus file-like entries and does not offer an lstat-equivalent kind query. Native modified time and size do have corresponding metadata. Directory grants deliberately reject/omit links to avoid following ungranted paths; the missing lstat metadata is an observation of that security boundary, not a request to grant link traversal.
 
-Evidence: link:../src/io/filesystem/filesystem.h[src/io/filesystem/filesystem.h:38]; link:../scripts/syncterm_picker.wren[scripts/syncterm_picker.wren:14]; link:../src/scripting/wren_host/tests/st_wren_host_test.c[src/scripting/wren_host/tests/st_wren_host_test.c:866].
+Evidence: link:../src/io/filesystem/filesystem.h[src/io/filesystem/filesystem.h:38]; link:../scripts/syncterm_picker.wren[scripts/syncterm_picker.wren:14]; link:../src/scripting/wren_host/tests/st_wren_host_test.c[src/scripting/wren_host/tests/st_wren_host_test.c:880].
 
 [[finding-font-codepage]]
 === Custom-font mappings and reporting — resolved
@@ -422,7 +422,7 @@ singular altFont alias were removed. Screen.font remains independent, and direct
 scripts can select loaded fonts without a picker. The picker retains load-only
 registration and normal-assignment selection.
 
-Evidence: link:../src/scripting/wren_host/tests/st_wren_host_test.c[src/scripting/wren_host/tests/st_wren_host_test.c:4173]; link:../src/tests/st_font_assignments_test.py[src/tests/st_font_assignments_test.py:73].
+Evidence: link:../src/scripting/wren_host/tests/st_wren_host_test.c[src/scripting/wren_host/tests/st_wren_host_test.c:4187]; link:../src/tests/st_font_assignments_test.py[src/tests/st_font_assignments_test.py:73].
 
 [[finding-list-encryption-information]]
 === List encryption reporting resolved; writer and result scope remains open
@@ -491,6 +491,13 @@ MenuReadStatus and Menu.statusMessage, including unused migration codes, are
 removed without aliases. The shipped password loop uses IOErr reasons and still
 supports retry/cancellation. Native C APIs, ownership and storage policy are unchanged.
 
+The independently installed Modern UI add-on follows the same typed load,
+password, creation/copy and persistence contracts. Its installer and real
+frontend tests cover startup and persisted creation/deletion; it does not
+retain compatibility aliases for the removed API.
+
+Evidence: link:../addons/modern_ui/scripts/modern_ui_model.wren[Modern UI model]; link:../addons/modern_ui/scripts/modern_ui.wren[Modern UI mutations]; link:../addons/modern_ui/tests/test_frontend.py[installed frontend regressions].
+
 Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:577]; link:../scripts/auto/menu/main_menu.wren[scripts/auto/menu/main_menu.wren:1177].
 
 The remaining subclaims are resolved in approved chunk 6:
@@ -511,7 +518,7 @@ The remaining subclaims are resolved in approved chunk 6:
 All included subclaims of this shared finding are now resolved. Entry provenance,
 web progress, theme provenance and console result contracts remain separate findings.
 
-Evidence: link:../src/scripting/wren_host/wren_bind_core.c[src/scripting/wren_host/wren_bind_core.c:5032]; link:../src/config/settings/st_settings_store.c[src/config/settings/st_settings_store.c:978]; link:../src/scripting/wren_host/tests/st_wren_host_test.c[src/scripting/wren_host/tests/st_wren_host_test.c:1044].
+Evidence: link:../src/scripting/wren_host/wren_bind_core.c[src/scripting/wren_host/wren_bind_core.c:5032]; link:../src/config/settings/st_settings_store.c[src/config/settings/st_settings_store.c:978]; link:../src/scripting/wren_host/tests/st_wren_host_test.c[src/scripting/wren_host/tests/st_wren_host_test.c:1058].
 
 [[finding-pixel-offscreen-blit]]
 === Pixel buffers cannot use the native offscreen compositor

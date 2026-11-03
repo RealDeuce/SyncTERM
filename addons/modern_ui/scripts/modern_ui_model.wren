@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
-import "syncterm" for Host
-import "syncterm_menu" for Menu, MenuReadStatus
+import "syncterm" for Host, IOErr
+import "syncterm_menu" for Menu, MenuError
 import "menu_ui" for MenuUi
 import "menu_bbs_editor" for BbsEditor
 
@@ -9,8 +9,8 @@ class ModernModel {
   static password=(value) { __password = value }
   static prepare() {
     var status = Menu.load(__password)
-    while (status == MenuReadStatus.passwordRequired || status == MenuReadStatus.decryptFailed) {
-      var message = status == MenuReadStatus.passwordRequired ? "Directory password" : "Incorrect password; try again"
+    while (status != null && (status.code == IOErr.passwordRequired || status.code == IOErr.decryptionFailed)) {
+      var message = status.code == IOErr.passwordRequired ? "Directory password" : "Incorrect password; try again"
       var password = null
       if (Host.exitRequested_) {
         password = MenuUi.promptStandaloneAtExit("Unlock directory", message, "", 1023, true, null)
@@ -19,13 +19,13 @@ class ModernModel {
       }
       if (password == null) return false
       status = Menu.load(password)
-      if (status == MenuReadStatus.ok) __password = password
+      if (status == null) __password = password
     }
-    if (status != MenuReadStatus.ok) {
+    if (status != null) {
       if (Host.exitRequested_) {
-        MenuUi.alertStandaloneAtExit("Directory error", Menu.statusMessage(status))
+        MenuUi.alertStandaloneAtExit("Directory error", status.message)
       } else {
-        MenuUi.alertStandalone("Directory error", Menu.statusMessage(status))
+        MenuUi.alertStandalone("Directory error", status.message)
       }
       return false
     }
@@ -38,8 +38,8 @@ class ModernModel {
       if (name == null || name.count == 0) return false
     }
     var entry = Menu.copy(source, name)
-    if (entry == null) {
-      MenuUi.alertStandaloneAtExit("Save connection", "The entry could not be created.")
+    if (entry is MenuError) {
+      MenuUi.alertStandaloneAtExit("Save connection", entry.message)
       return false
     }
     return BbsEditor.editStandaloneAtExit(entry, false, true)

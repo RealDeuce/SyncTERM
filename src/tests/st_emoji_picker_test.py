@@ -8,16 +8,8 @@ from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'tools/testing'))
 from syncterm_fixture import fixture, install_suite, click_text, click_cell, cell_at, write_script, SOURCE
-from syncterm_control import ALT
 from st_migrated_control_test import connection
 from st_terminal_conformance_test import Terminal, ESC, tile
-
-
-def alt_key(client, evdev):
-    client.physical_key(56, True, ALT)
-    client.physical_key(evdev, True, ALT)
-    client.physical_key(evdev, False, ALT)
-    client.physical_key(56, False)
 
 
 def break_picker(root):
@@ -185,7 +177,7 @@ app.runSync()
         install_suite(root, source, 'emoji')
     with fixture(executable, settings='AudioModes=0\n', prepare=prepare, reports=reports) as (client, root):
         client.wait_text('Emoji input fixture')
-        alt_key(client, 25)
+        client.command_key(25)
         frame = client.wait_text('Insert Emoji')
         check_footer(frame, False, 'grinning face')
         check_grid_spacing(frame)
@@ -211,7 +203,7 @@ app.runSync()
         frame = client.wait_text('a😀b')
         assert 'Insert Emoji' not in frame.text
         assert '😀' in (root / 'syncterm.ini').read_text(encoding='utf-8')
-        alt_key(client, 25)
+        client.command_key(25)
         frame = client.wait_text('Recently used')
         client.text('no such emoji zzqq')
         frame = client.wait_text('No matching emoji')
@@ -219,7 +211,7 @@ app.runSync()
         client.key('escape')
         client.wait_text('a😀b')
         # Exact gender/tone variants are searchable and remain a single glyph.
-        alt_key(client, 25)
+        client.command_key(25)
         client.wait_text('Insert Emoji')
         client.text('MAN SHRUGGING: MEDIUM SKIN TONE')
         frame = client.wait_text('man shrugging: medium skin tone')
@@ -237,7 +229,7 @@ app.runSync()
         click_cell(client, frame, male % m['columns'], male // m['columns'])
         frame = client.wait_text('a😀🤷🏽‍♂b')
         assert '🤷🏽‍♂️' in (root / 'syncterm.ini').read_text(encoding='utf-8')
-        alt_key(client, 25)
+        client.command_key(25)
         client.wait_text('Insert Emoji')
         client.text('grinning face')
         client.key('enter')
@@ -246,7 +238,7 @@ app.runSync()
         client.key('escape')
         client.wait_text('a😀🤷🏽‍♂b')
         # Reopening, then F2 and Escape, returns to the exact recent variant.
-        alt_key(client, 25)
+        client.command_key(25)
         frame = client.wait_text('Recently used')
         check_footer(frame, True, 'man shrugging: medium skin tone')
         click_text(client, frame, 'F2 Variants')
@@ -287,7 +279,7 @@ app.runSync()
     with fixture(executable, settings='AudioModes=0\n', prepare=prepare_recents_failure, reports=reports) as (client, root):
         client.wait_text('Emoji input fixture')
         with unavailable_settings(root):
-            alt_key(client, 25)
+            client.command_key(25)
             client.wait_text('Insert Emoji')
             client.text('grinning face')
             client.key('enter')
@@ -314,7 +306,7 @@ app.onError = Fn.new {|fiber|
         break_picker(root)
     with fixture(executable, settings='AudioModes=0\n', prepare=prepare_failure, reports=reports) as (client, root):
         client.wait_text('Emoji input fixture')
-        alt_key(client, 25)
+        client.command_key(25)
         client.text('!')
         client.wait_text('a!b')
         assert b'EXPECTED EMOJI ERROR: picker paint fixture' in client.stderr
@@ -331,7 +323,7 @@ def connected(executable, reports):
             client.key(16, 2)
             terminal.input(b'\x10')
             if encoding != 'UTF-8':
-                alt_key(client, 25)
+                client.command_key(25)
                 # Fence the UI without requiring a particular remote Alt-P encoding.
                 client.text('~')
                 peer.settimeout(10)
@@ -340,20 +332,20 @@ def connected(executable, reports):
                     wire += peer.recv(256)
                 frame = terminal.exchange()
                 assert 'Insert Emoji' not in frame.text
-                alt_key(client, 44)
+                client.command_key(44)
                 frame = client.wait_text('SyncTERM Online Menu')
                 assert 'Insert Emoji...' not in frame.text
                 client.key('escape')
                 # A local edit field reached through Alt-E is UTF-8 even
                 # while its parked terminal connection uses a codepage.
-                alt_key(client, 18)
+                client.command_key(18)
                 client.wait_text('Directory: Name')
                 client.key('f2')
                 client.wait_text('Edit Directory Entry')
                 client.key('home')
                 client.key('enter')
                 client.wait_text('Capture')
-                alt_key(client, 25)
+                client.command_key(25)
                 client.wait_text('Insert Emoji')
                 client.text('grinning face')
                 client.key('enter')
@@ -365,7 +357,7 @@ def connected(executable, reports):
                 client.key('escape')
                 terminal.exchange()
                 continue
-            alt_key(client, 25)
+            client.command_key(25)
             frame = client.wait_text('Insert Emoji')
             grid_y = next(i for i, line in enumerate(frame.lines) if 'All emoji' in line)
             expected = picker_row(frame, grid_y + 1)
@@ -379,17 +371,17 @@ def connected(executable, reports):
             assert 'LIVE' in frame.text and 'Insert Emoji' not in frame.text
             # Reopening starts on the recent tile; Right reaches the same
             # emoji's base tile, rather than skipping ahead in the base grid.
-            alt_key(client, 25)
+            client.command_key(25)
             client.wait_text('Recently used')
             client.key('right')
             client.key('enter')
             terminal.input('😀'.encode())
             # The online menu provides the same entry.
-            alt_key(client, 44)
+            client.command_key(44)
             client.wait_text('Insert Emoji...')
             client.key('escape')
             terminal.exchange()
-            alt_key(client, 25)
+            client.command_key(25)
             client.wait_text('Insert Emoji')
             client.text('woman shrugging: dark skin tone')
             client.wait_text('woman shrugging: dark skin tone')
@@ -409,7 +401,7 @@ def connected(executable, reports):
         terminal.case('emoji-recents-failure')
         terminal.exchange(b'LIVE', reset=True)
         with unavailable_settings(root):
-            alt_key(client, 25)
+            client.command_key(25)
             client.wait_text('Insert Emoji')
             client.text('grinning face')
             client.key('enter')
@@ -422,7 +414,7 @@ def connected(executable, reports):
                     prepare=break_picker) as (client, root, peer, send):
         terminal = Terminal(client, root, peer, send)
         terminal.exchange(b'BEFORE', reset=True)
-        alt_key(client, 25)
+        client.command_key(25)
         client.key(16, 2)
         terminal.input(b'\x10')
         frame = terminal.exchange(b'AFTER')
@@ -438,7 +430,7 @@ def localized(executable, reports):
     with connection(executable, reports, encoding='UTF-8', settings='AudioModes=0\n') as (client, root, peer, send):
         terminal = Terminal(client, root, peer, send)
         terminal.exchange(b'LIVE', reset=True)
-        alt_key(client, 25)
+        client.command_key(25)
         frame = client.wait_text('visage avec large sourire')
         check_footer(frame, False, 'visage avec large sourire')
         # Regional name override; missing regional names inherit from French.
@@ -446,13 +438,13 @@ def localized(executable, reports):
         client.wait_text('manette de jeu')
         client.key('enter')
         terminal.input('🕹️'.encode())
-        alt_key(client, 25)
+        client.command_key(25)
         client.wait_text('Insert Emoji')
         client.text('GRINNING FACE')
         client.wait_text('visage avec large sourire')
         client.key('enter')
         terminal.input('😀'.encode())
-        alt_key(client, 25)
+        client.command_key(25)
         client.wait_text('Insert Emoji')
         client.text('MAN SHRUGGING: MEDIUM SKIN TONE')
         frame = client.wait_text('peau légèrement mate')
@@ -462,14 +454,14 @@ def localized(executable, reports):
     with connection(executable, reports, encoding='CP437', settings='AudioModes=0\n') as (client, root, peer, send):
         terminal = Terminal(client, root, peer, send)
         terminal.exchange(b'LIVE', reset=True)
-        alt_key(client, 18)
+        client.command_key(18)
         client.wait_text('Directory: Name')
         client.key('f2')
         client.wait_text('Edit Directory Entry')
         client.key('home')
         client.key('enter')
         client.wait_text('Capture')
-        alt_key(client, 25)
+        client.command_key(25)
         client.wait_text('Insert Emoji')
         client.text('MANETTE DE JEU')
         client.wait_text('manette de jeu')

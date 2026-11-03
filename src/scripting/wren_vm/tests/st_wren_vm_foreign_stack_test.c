@@ -9,7 +9,9 @@
 #include <string.h>
 
 union allocation_header {
-	max_align_t alignment;
+	/* Wren allocations contain floating values and object pointers. */
+	long double alignment;
+	void *pointer_alignment;
 	size_t size;
 };
 

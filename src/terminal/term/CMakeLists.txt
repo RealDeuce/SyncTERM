@@ -35,6 +35,7 @@ if(BUILD_TESTING)
 
 	add_executable(st_term_key_forward_test tests/st_term_key_forward_test.c)
 	target_link_libraries(st_term_key_forward_test PRIVATE st_term)
+	syncterm_target_atomics(st_term_key_forward_test)
 	set_target_properties(st_term_key_forward_test PROPERTIES
 		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)

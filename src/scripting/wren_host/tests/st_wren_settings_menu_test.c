@@ -31,9 +31,9 @@
 static void
 write_text(const char *path, const char *text)
 {
-	FILE *stream = fopen(path, "wb");
+	FILE *stream = NULL;
 
-	CHECK(stream != NULL);
+	CHECK(fs_open(&stream, path, "wb") == 0);
 	CHECK(fputs(text, stream) >= 0);
 	CHECK(fclose(stream) == 0);
 }

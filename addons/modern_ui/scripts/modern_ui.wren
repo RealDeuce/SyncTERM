@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 import "syncterm" for Host, Screen, ScreenMode, Key, Text, Mod, KeyEvent, PhysicalKeyEvent
 import "wren_console" for WrenConsole
-import "syncterm_menu" for Menu
+import "syncterm_menu" for Menu, MenuError
 import "ui_widget" for Rect
 import "ui_draw" for Painter
 import "ui_input" for TextInput
@@ -363,8 +363,8 @@ class ModernDirectory {
       BbsEditor.showNameError(_app, "New connection", name)
     }
     var entry = Menu.create(name)
-    if (entry == null) {
-      Alert.show(_app, "New connection", "The entry could not be created.")
+    if (entry is MenuError) {
+      Alert.show(_app, "New connection", entry.message)
       return
     }
     _preferred = name
@@ -386,8 +386,9 @@ class ModernDirectory {
       return
     }
     entry.profile.addr = address
-    if (!entry.save()) {
-      Alert.show(_app, "New connection", "The entry could not be saved.")
+    var error = entry.save()
+    if (error != null) {
+      Alert.show(_app, "New connection", error.message)
       entry.delete()
     }
     reload_()
@@ -398,13 +399,14 @@ class ModernDirectory {
     if (entry.type != 0) {
       if (!Confirm.show(_app, "Copy to personal directory?")) return
       entry = Menu.copy(entry, entry.name)
-      if (entry == null) {
-        Alert.show(_app, "Copy failed", "The personal entry could not be created.")
+      if (entry is MenuError) {
+        Alert.show(_app, "Copy failed", entry.message)
         return
       }
       reload_()
-      if (!entry.save()) {
-        Alert.show(_app, "Copy failed", "The personal copy could not be saved.")
+      var error = entry.save()
+      if (error != null) {
+        Alert.show(_app, "Copy failed", error.message)
         entry.delete()
         reload_()
         return
@@ -421,7 +423,8 @@ class ModernDirectory {
       return
     }
     if (Confirm.show(_app, "Delete %(entry.name)?")) {
-      if (!entry.delete()) Alert.show(_app, "Delete failed", "The entry could not be deleted.")
+      var error = entry.delete()
+      if (error != null) Alert.show(_app, "Delete failed", error.message)
       reload_()
     }
   }

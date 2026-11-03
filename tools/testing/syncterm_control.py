@@ -25,6 +25,7 @@ KEYS = dict(zip(("up", "down", "left", "right", "insert", "delete", "home", "end
                  "page_up", "page_down", *(f"f{i}" for i in range(1, 13))), range(256, 278)))
 KEYS.update(enter=13, escape=27, tab=9, backspace=8)
 SHIFT, CONTROL, ALT, GUI = 1, 2, 4, 8
+COMMAND = GUI if sys.platform == "darwin" else ALT
 
 
 class ProtocolError(RuntimeError):
@@ -268,6 +269,13 @@ class Client:
 
     def physical_key(self, evdev, pressed, modifiers=0, repeat=False):
         return self.event(1, evdev, modifiers, int(pressed), int(repeat))
+
+    def command_key(self, evdev):
+        modifier_key = 125 if COMMAND == GUI else 56
+        self.physical_key(modifier_key, True, COMMAND)
+        self.physical_key(evdev, True, COMMAND)
+        self.physical_key(evdev, False, COMMAND)
+        self.physical_key(modifier_key, False)
 
     def text(self, text, modifiers=0):
         for character in text:

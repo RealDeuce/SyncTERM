@@ -44,6 +44,7 @@
 #include <inttypes.h>
 #include <errno.h>
 #include <math.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -96,6 +97,19 @@ extern unsigned st_wren_test_cterm_key_calls;
 		return 1; \
 	} \
 } while (0)
+
+static uint32_t
+command_modifiers(struct st_wren_host *host)
+{
+	WrenVM *vm = host->vm;
+	wrenEnsureSlots(vm, 1);
+	wrenGetVariable(vm, "syncterm", "Mod", 0);
+	WrenHandle *getter = wrenMakeCallHandle(vm, "command");
+	CHECK(wrenCall(vm, getter) == WREN_RESULT_SUCCESS);
+	uint32_t modifiers = (uint32_t)wrenGetSlotDouble(vm, 0);
+	wrenReleaseHandle(vm, getter);
+	return modifiers;
+}
 
 static const char foreign_type_contract[] =
 	"import \"syncterm\" for Screen, Surface, Cell, WON, Input, PixelBuffer, PixelMask, PixelBlit\n"
@@ -2112,12 +2126,12 @@ exercise_connected_without_sftp(st_wren_host_t *host,
 	    "if (InputState.calls != 1) Fiber.abort(\"input hook order\")\n") == 0);
 	CHECK(st_wren_connected_handle_event(connected, &(struct st_console_event){.type = ST_CONSOLE_EVENT_TEXT, .data.text.codepoint = 66}, &consumed) == 0);
 	CHECK(!consumed);
-	CHECK(st_wren_connected_handle_event(connected, &(struct st_console_event){.type = ST_CONSOLE_EVENT_PHYSICAL_KEY, .data.physical_key = {.evdev = 24, .pressed = true, .modifiers = ST_CONSOLE_MODIFIER_ALT}}, &consumed) == 0);
+	CHECK(st_wren_connected_handle_event(connected, &(struct st_console_event){.type = ST_CONSOLE_EVENT_PHYSICAL_KEY, .data.physical_key = {.evdev = 24, .pressed = true, .modifiers = command_modifiers(host)}}, &consumed) == 0);
 	CHECK(consumed);
 	CHECK(st_wren_connected_interpret(connected, "mouse_toggle_on",
 	    "import \"syncterm\" for CTerm\n"
 	    "if (!CTerm.mouseDisabled) Fiber.abort(\"Alt-O did not disable mouse\")\n") == 0);
-	CHECK(st_wren_connected_handle_event(connected, &(struct st_console_event){.type = ST_CONSOLE_EVENT_PHYSICAL_KEY, .data.physical_key = {.evdev = 24, .pressed = true, .modifiers = ST_CONSOLE_MODIFIER_ALT}}, &consumed) == 0);
+	CHECK(st_wren_connected_handle_event(connected, &(struct st_console_event){.type = ST_CONSOLE_EVENT_PHYSICAL_KEY, .data.physical_key = {.evdev = 24, .pressed = true, .modifiers = command_modifiers(host)}}, &consumed) == 0);
 	CHECK(consumed);
 	struct st_console_event text_z = {
 		.type = ST_CONSOLE_EVENT_TEXT,
@@ -2172,7 +2186,7 @@ exercise_connected_without_sftp(st_wren_host_t *host,
 		.type = ST_CONSOLE_EVENT_PHYSICAL_KEY,
 		.data.physical_key = {
 			.evdev = 38,
-			.modifiers = ST_CONSOLE_MODIFIER_ALT,
+			.modifiers = command_modifiers(host),
 			.pressed = true,
 		},
 	};
@@ -2199,7 +2213,7 @@ exercise_connected_without_sftp(st_wren_host_t *host,
 		.type = ST_CONSOLE_EVENT_PHYSICAL_KEY,
 		.data.physical_key = {
 			.evdev = 35,
-			.modifiers = ST_CONSOLE_MODIFIER_ALT,
+			.modifiers = command_modifiers(host),
 			.pressed = true,
 		},
 	};
@@ -2394,7 +2408,7 @@ exercise_connected_session_log(st_wren_host_t *host, st_console_t *console,
 	CHECK(before != NULL && after != NULL);
 	CHECK(st_console_read_cells(console, &full, before, width) == 0);
 	bool claimed;
-	CHECK(st_wren_connected_handle_event(connected, &(struct st_console_event){.type = ST_CONSOLE_EVENT_PHYSICAL_KEY, .data.physical_key = {.evdev = 47, .pressed = true, .modifiers = ST_CONSOLE_MODIFIER_ALT}}, &claimed) == 0 && claimed);
+	CHECK(st_wren_connected_handle_event(connected, &(struct st_console_event){.type = ST_CONSOLE_EVENT_PHYSICAL_KEY, .data.physical_key = {.evdev = 47, .pressed = true, .modifiers = command_modifiers(host)}}, &claimed) == 0 && claimed);
 	CHECK(st_wren_connected_interpret(connected, "session_log_visible",
 	    "import \"syncterm\" for CTerm, Screen\n"
 	    "var size = Screen.size\n"
@@ -2419,7 +2433,7 @@ exercise_connected_session_log(st_wren_host_t *host, st_console_t *console,
 	    "var labels = OnlineMenu.entries_().map {|e| e[0] }.toList\n"
 	    "var entries = labels.where {|label| label.startsWith(\"View Session Log\") }.toList\n"
 	    "if (entries.count != 1) Fiber.abort(\"online log entry\")\n") == 0);
-	CHECK(st_wren_connected_handle_event(connected, &(struct st_console_event){.type = ST_CONSOLE_EVENT_PHYSICAL_KEY, .data.physical_key = {.evdev = 44, .pressed = true, .modifiers = ST_CONSOLE_MODIFIER_ALT}}, &claimed) == 0 && claimed);
+	CHECK(st_wren_connected_handle_event(connected, &(struct st_console_event){.type = ST_CONSOLE_EVENT_PHYSICAL_KEY, .data.physical_key = {.evdev = 44, .pressed = true, .modifiers = command_modifiers(host)}}, &claimed) == 0 && claimed);
 	const struct st_console_event select_log = {
 		.type = ST_CONSOLE_EVENT_TEXT, .data.text.codepoint = 'v',
 	};
@@ -2432,7 +2446,7 @@ exercise_connected_session_log(st_wren_host_t *host, st_console_t *console,
 	    "if (!Screen.readRect(1, 1, size[0], size[1]).map {|c| c.ch }.join().contains(\"LATEST LOG RECORD\")) Fiber.abort(\"online log viewer\")\n") == 0);
 	CHECK(session_log_key(connected, 27) == 0);
 	fixture.text = "";
-	CHECK(st_wren_connected_handle_event(connected, &(struct st_console_event){.type = ST_CONSOLE_EVENT_PHYSICAL_KEY, .data.physical_key = {.evdev = 47, .pressed = true, .modifiers = ST_CONSOLE_MODIFIER_ALT}}, &claimed) == 0 && claimed);
+	CHECK(st_wren_connected_handle_event(connected, &(struct st_console_event){.type = ST_CONSOLE_EVENT_PHYSICAL_KEY, .data.physical_key = {.evdev = 47, .pressed = true, .modifiers = command_modifiers(host)}}, &claimed) == 0 && claimed);
 	CHECK(st_wren_connected_interpret(connected, "session_log_empty",
 	    "import \"syncterm\" for Screen\n"
 	    "var size = Screen.size\n"
@@ -3959,10 +3973,10 @@ exercise_connected_throttle(st_wren_host_t *host, st_console_t *console)
 	    "import \"syncterm\" for CTerm\n"
 	    "CTerm.throttleSpeed = 0\n") == 0);
 	bool consumed = false;
-	CHECK(st_wren_connected_handle_event(connected, &(struct st_console_event){.type = ST_CONSOLE_EVENT_KEY_CODE, .data.key = {.code = ST_CONSOLE_KEY_UP, .modifiers = ST_CONSOLE_MODIFIER_ALT}}, &consumed) == 0 && consumed);
+	CHECK(st_wren_connected_handle_event(connected, &(struct st_console_event){.type = ST_CONSOLE_EVENT_KEY_CODE, .data.key = {.code = ST_CONSOLE_KEY_UP, .modifiers = command_modifiers(host)}}, &consumed) == 0 && consumed);
 	CHECK(st_term_session_throttle_speed(session) == 300);
 	consumed = false;
-	CHECK(st_wren_connected_handle_event(connected, &(struct st_console_event){.type = ST_CONSOLE_EVENT_KEY_CODE, .data.key = {.code = ST_CONSOLE_KEY_DOWN, .modifiers = ST_CONSOLE_MODIFIER_ALT}}, &consumed) == 0 && consumed);
+	CHECK(st_wren_connected_handle_event(connected, &(struct st_console_event){.type = ST_CONSOLE_EVENT_KEY_CODE, .data.key = {.code = ST_CONSOLE_KEY_DOWN, .modifiers = command_modifiers(host)}}, &consumed) == 0 && consumed);
 	CHECK(st_term_session_throttle_speed(session) == 0);
 	st_wren_connected_destroy(connected);
 	st_term_session_destroy(&session);
@@ -4509,7 +4523,7 @@ exercise_connected_scrollback(st_wren_host_t *host,
 	CHECK(st_wren_connected_last_error(connected) == NULL);
 	bool claimed = false;
 	CHECK(st_console_post_event(console, &escape) == 0);
-	CHECK(st_wren_connected_handle_event(connected, &(struct st_console_event){.type = ST_CONSOLE_EVENT_PHYSICAL_KEY, .data.physical_key = {.evdev = 48, .pressed = true, .modifiers = ST_CONSOLE_MODIFIER_ALT}}, &claimed) == 0);
+	CHECK(st_wren_connected_handle_event(connected, &(struct st_console_event){.type = ST_CONSOLE_EVENT_PHYSICAL_KEY, .data.physical_key = {.evdev = 48, .pressed = true, .modifiers = command_modifiers(host)}}, &claimed) == 0);
 	CHECK(claimed && st_wren_connected_last_error(connected) == NULL);
 	CHECK(st_wren_connected_interpret(connected, "music_menu_probe",
 	    "import \"music_menu\" for MusicMenu\n"
@@ -4522,7 +4536,7 @@ exercise_connected_scrollback(st_wren_host_t *host,
 	CHECK(st_wren_connected_pump(connected, 0) == 0);
 	CHECK(st_wren_connected_last_error(connected) == NULL);
 	claimed = false;
-	CHECK(st_wren_connected_handle_event(connected, &(struct st_console_event){.type = ST_CONSOLE_EVENT_PHYSICAL_KEY, .data.physical_key = {.evdev = 46, .pressed = true, .modifiers = ST_CONSOLE_MODIFIER_ALT}}, &claimed) == 0 && claimed);
+	CHECK(st_wren_connected_handle_event(connected, &(struct st_console_event){.type = ST_CONSOLE_EVENT_PHYSICAL_KEY, .data.physical_key = {.evdev = 46, .pressed = true, .modifiers = command_modifiers(host)}}, &claimed) == 0 && claimed);
 	claimed = false;
 	CHECK(st_wren_connected_handle_event(connected, &escape,
 	    &claimed) == 0 && claimed);
@@ -4532,7 +4546,7 @@ exercise_connected_scrollback(st_wren_host_t *host,
 	    "import \"syncterm\" for CTerm\n"
 	    "if (CTerm.suspended) Fiber.abort(\"capture modal did not restore\")\n") == 0);
 	claimed = false;
-	CHECK(st_wren_connected_handle_event(connected, &(struct st_console_event){.type = ST_CONSOLE_EVENT_PHYSICAL_KEY, .data.physical_key = {.evdev = 44, .pressed = true, .modifiers = ST_CONSOLE_MODIFIER_ALT}}, &claimed) == 0);
+	CHECK(st_wren_connected_handle_event(connected, &(struct st_console_event){.type = ST_CONSOLE_EVENT_PHYSICAL_KEY, .data.physical_key = {.evdev = 44, .pressed = true, .modifiers = command_modifiers(host)}}, &claimed) == 0);
 	CHECK(claimed);
 	claimed = false;
 	CHECK(st_wren_connected_handle_event(connected, &escape,

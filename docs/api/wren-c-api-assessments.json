@@ -3933,6 +3933,16 @@
       "path": "scripts/ui_list.wren",
       "anchor": "Modified commands must reach the owning App",
       "aspect": "Find/repeat-find match logical Control-letter chords; modified text passes through typeahead to application commands."
+    },
+    {
+      "path": "addons/modern_ui/scripts/modern_ui_model.wren",
+      "anchor": "status.code == IOErr.passwordRequired",
+      "aspect": "Independent Modern UI frontend uses null/MenuError load results, typed password reasons and typed copy failures."
+    },
+    {
+      "path": "addons/modern_ui/scripts/modern_ui.wren",
+      "anchor": "var error = entry.save()",
+      "aspect": "Independent Modern UI frontend checks DirectoryEntry/MenuError creation/copy and null/MenuError save/delete results."
     }
   ],
   "test_evidence": [
@@ -4170,6 +4180,11 @@
       "path": "src/media/console/tests/st_console_ncurses_test.c",
       "anchor": "shortcuts[] = {6, 19, 4, 7, 17}",
       "aspect": "Native curses PTY Control-letter identities in normal and CP437/C-locale configurations."
+    },
+    {
+      "path": "addons/modern_ui/tests/test_frontend.py",
+      "anchor": "def directory(executable, reports):",
+      "aspect": "Actual installed external frontend startup, filtering, persistent entry creation/deletion, settings, connections, recovery and web lists on the control bitmap backend."
     }
   ],
   "dispatch_evidence": [
@@ -4258,8 +4273,8 @@
     "src/net/transfer/st_transfer_detect.h": "3296b9ecf875d100f793920a3b0117a8f7b80951a539317d366f4ea40a7a1b30",
     "src/net/webget/st_webget.h": "9647dcc563e1661fe1d6b762c78e2483d2beae03ac878da0ebd15c8a425d2143",
     "src/scripting/wren_host/st_wren_host.h": "1f399c11771d459566882d3084836000e05c3aa7759fc03e6a2384c6754fb0a6",
-    "src/scripting/wren_host/tests/st_wren_host_test.c": "a30e0ace938fc3000fcc63c727a6b9fd12efdd866ba9b5cb6f081eec06e8ba1d",
-    "src/scripting/wren_host/tests/st_wren_settings_menu_test.c": "e508ccc92d9de61bdf2422359eeb90c8b9c6fc2c45b5e33628b62edf7751cd5a",
+    "src/scripting/wren_host/tests/st_wren_host_test.c": "843265a07bb35566afb31cfac92f0f4813c0d8ea6dc16b13f08be380223c5d86",
+    "src/scripting/wren_host/tests/st_wren_settings_menu_test.c": "b2aa79315aa1dd0c0feebd08da6289464a2c2e4eca15def36356658c5b7d5bbc",
     "src/scripting/wren_host/wren_async.c": "71e78941735250300171a2b7cb13b70c92916bd14c066a6614b3f77cdd9b565d",
     "src/scripting/wren_host/wren_bbs_model.c": "18dca3353505a5b0dc609251f16038bd9132c47e215c4cf24ba802ac4b3ab97a",
     "src/scripting/wren_host/wren_bind_core.c": "a4854c510c31919303cab5a9cf94deacfcb88058416af158a7397ed55f55c84e",
@@ -4324,7 +4339,7 @@
     "src/scripting/wren_host/tests/st_wren_menu_test_bindings.c": "9a7f110f8beb56c3fdc3080254f272db5db5b414c759c79492e82ef70cfeea64",
     "scripts/menu_sort_profiles.wren": "e03022e77a0872851aa25ad52ff9f1160c8aa9a800d03bbb7063c8027dc4206d",
     "src/config/settings/st_settings_store.c": "8353b1e80bd3e27e84122a57cec1e3daed29b0a2b46adfd64d531a4962e34128",
-    "src/tests/st_emoji_picker_test.py": "a9f06de4097b20b42f158c2d42eca14f6ce8c88b14eb2b3ccc6c378b3608de11",
+    "src/tests/st_emoji_picker_test.py": "94caf4154b2876fe021e7547dd2291e5c632d7ad280d8651091498c17ffb0e8e",
     "src/config/theme/tests/st_theme_document_test_impl.c": "8087bee2057f71da5ba95be6b532671b17eaf779f5a0f175f7e7f08c69ae620e",
     "src/config/theme/tests/st_theme_test.c": "288623be326d2607534c894302b66993faac4ee75bf1117968e3350ce951d48e",
     "src/config/theme/st_theme_document.c": "fc9edf85c80e4d97f67c061731e5b90bce13a6a3b613ca1d6b78bb10616c766d",
@@ -4334,16 +4349,19 @@
     "src/tests/st_test_control_test.py": "d9ff21d77c7731a055983ecc5d44fab373650cb4deefbe701fe01f9d26b94914",
     "scripts/auto/connected/connected.wren": "7f8f7144896388ffbf9dd16820cbf6cbae73d25c385ccba7d8c0928f31ae67d6",
     "src/scripting/wren_host/tests/st_wren_session_test_bindings.c": "4ef0aef560439c1ed3f933232a8b59ccaa3ee0a6971609ebf0fe8e81ff1b981c",
-    "src/tests/st_migrated_control_test.py": "97814ab48581c9774f06d7fde536f2547ccd95ea9819c5808cdf0a40e037d1cc",
+    "src/tests/st_migrated_control_test.py": "bb8c72cf62e207e6e0cbad326884356f11bc3db1d0345fa007d4a5caa549346d",
     "src/config/bbs_list/tests/st_bbs_list_test.c": "e082110aca917ca8932f2d7b2666ee11b55cbcf5707eee4bd7515ed9f5dddb98",
     "src/config/bbs_list/st_bbs_profile_codec.c": "04a87909baeb5788e386369ef4c4043c95e92737bdb8a316009a23f4e7f9dbb8",
     "scripts/menu_ui.wren": "f94ada676138fa588c3e634e088cc12df3309e7d99bfb52b4adec2297b9b2845",
     "scripts/ui_popup_test.wren": "064ea98bf74fcb780d8d778f43a00a098c3cdf57bd38642adc3baacb4c7af5bb",
     "scripts/ui_list.wren": "a3f29a0b2ddee4848ea6541dc187aaf30e817c9635f08754b9192d05e1210ddc",
-    "src/tests/st_menu_shortcuts_pty_test.py": "2b4944895849f708a9cbe431c5f47a0d3c53ae066163d8343e97d57b4ab01ee2",
+    "src/tests/st_menu_shortcuts_pty_test.py": "2900099be520a9f72c9de4df327415135995a4aa6a6552aa9eaa06c5badda49e",
     "src/media/console/tests/st_console_x11_test.c": "ce4616c2fe61664c496a297936b79cefba9a280aae1672a78ad9b90573d40a51",
     "src/media/console/tests/st_console_ansi_test.c": "a8fd223e78b87610e88a4c86d775fd10c8f8bd19fbfec140448f3b5bea328437",
-    "src/media/console/tests/st_console_ncurses_test.c": "41034f149b7ca1bae54a5479c0e199335f5b28ae8f43aff578c525df0611028e"
+    "src/media/console/tests/st_console_ncurses_test.c": "41034f149b7ca1bae54a5479c0e199335f5b28ae8f43aff578c525df0611028e",
+    "addons/modern_ui/scripts/modern_ui_model.wren": "2bcdf91d39478f2e4ae1fd9855e9017c02953e2fa8ae6598cc02a820d22caa02",
+    "addons/modern_ui/scripts/modern_ui.wren": "900a4858e87a1aa522820ed3a9b0c33cbf2b2a04a584cecbf579080d0723a472",
+    "addons/modern_ui/tests/test_frontend.py": "edb8e01c1d261190211ff52bda7373ba3bf1bdeb689e8a706d794c8aab3ce0c2"
   },
   "verification": {
     "platform": "FreeBSD 15.1-RELEASE-p5 amd64",
@@ -4832,6 +4850,22 @@
       ],
       "accounting": "Reviewed changed evidence/header comments and translated report source locations. Native declarations, TSV rows, assessment dispositions and topic counts remain unchanged.",
       "limitations": "FreeBSD native/headless verification; no Windows/macOS runtime execution. Clarifies the preceding direct disconnect behavior corrections."
+    },
+    {
+      "topic": "ci-frontends-and-test-portability",
+      "status": "resolved-locally-awaiting-platform-ci",
+      "approval": "Direct user report of failing GitLab pipelines; fix the observed regressions.",
+      "scope": "Migrate the independent Modern UI addon to the already-approved null/MenuError menu load/create/copy/save/delete contracts, without restoring removed aliases. Correct the PTY OSC matcher so later palette sequences cannot swallow intervening menu text. Use command modifiers appropriate to the native platform in default-shortcut fixtures, while retaining explicit Alt-only input/selection tests. Create UTF-8 warning fixtures through fs_open. Align the moving VM test allocator with floating/pointer members rather than requiring max_align_t, and attach the existing atomic capability target to the keyboard-forwarding fixture.",
+      "regression_before_fix": "All five Modern UI process cases failed locally with the removed MenuReadStatus import. GitLab 12876/12877 logs confirm the PTY assertion, hard-coded Alt failures on macOS, missing Windows named-source warning and both MSVC compilation errors.",
+      "tests_passed": [
+        "FreeBSD Clang Debug: 26 focused CTests, including all six Modern UI tests, five real PTY shortcut backends, Wren host/settings/menu contracts, foreign-stack relocation, key forwarding, all five emoji suites and affected menu/scrollback behavior.",
+        "FreeBSD GCC Debug: 15 focused CTests; Clang ASan/UBSan: four native host/settings/VM/key-forward tests, leak detection disabled.",
+        "Configured and compiled the affected native test targets for 32-bit and 64-bit MinGW; no Windows execution or Wine.",
+        "Existing Modern UI directory fixture verifies persisted creation/deletion against the actual list file. PTY fixture checks visible text between two OSC palette sequences.",
+        "Coverage checker and git diff --check."
+      ],
+      "accounting": "Added the overlooked independent addon consumers and their actual frontend tests to durable evidence. Updated reviewed affected evidence/source locations. Native declarations, TSV rows, assessment dispositions and finding counts are unchanged.",
+      "limitations": "No local MSVC/macOS/Windows runtime verification. A fresh published pipeline is required for those platforms. The 32-bit MinGW build retains the preexisting format-truncation warning in untouched wren_bind_menu.c:2068. No new compiler warnings in changed code."
     }
   ]
 }

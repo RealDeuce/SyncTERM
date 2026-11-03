@@ -13,7 +13,7 @@ from pathlib import Path
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools" / "testing"))
-from syncterm_control import ProtocolError
+from syncterm_control import ProtocolError, COMMAND
 from syncterm_fixture import (SOURCE, application, cell_at, click_text, fixture,
                               environment, install_suite, listener, receive, write_script)
 
@@ -331,8 +331,7 @@ def scrollback(executable, encoding, reports):
             # RIS preserves the existing history instead of rotating it.
             send(b"\x1bc\x1b[2J\x1b[HAFTER-RESET\r\nSUMMARY\x1b[25;1HTAIL-ROW")
             client.wait_text("SUMMARY")
-            client.physical_key(48, True, 4)
-            client.physical_key(48, False, 4)
+            client.command_key(48)
             client.wait_text("Scrollback")
             client.key("home")
             client.wait_for(lambda s: "Scrollback" in s.text and "SUMMARY" not in s.text)
@@ -354,8 +353,7 @@ def scrollback(executable, encoding, reports):
                 check_terminal_unchanged(completed, notice, scrolled=True)
                 assert "TAIL-ROW" in notice.lines[-2]
                 # Current-session history is available before leaving the notice.
-                client.physical_key(48, True, 4)
-                client.physical_key(48, False, 4)
+                client.command_key(48)
                 viewer = client.wait_text("Scrollback")
                 check_terminal_unchanged(notice, viewer)
                 check_completed_screen(completed, viewer)
@@ -373,7 +371,7 @@ def scrollback(executable, encoding, reports):
                 notice = client.wait_text("Disconnected: Enter exits, F1 details")
                 assert "SUMMARY" in notice.text
                 # Logical shortcuts also work for ANSI/curses-style input.
-                client.key(98, 4)
+                client.key(98, COMMAND)
                 client.wait_text("Scrollback")
                 client.key("escape")
                 client.wait_text("Disconnected: Enter exits, F1 details")
@@ -384,8 +382,7 @@ def scrollback(executable, encoding, reports):
                 client.key("enter")
             client.wait_text("Directory: Name")
             # The offline viewer must retain the same ordering and final screen.
-            client.physical_key(48, True, 4)
-            client.physical_key(48, False, 4)
+            client.command_key(48)
             client.wait_text("Scrollback")
             newest = client.wait_text("SUMMARY")
             assert "TAIL-ROW" in newest.text
@@ -411,7 +408,7 @@ def scrollback(executable, encoding, reports):
                 peer.shutdown(socket.SHUT_RDWR)
                 notice = client.wait_text("Disconnected: Enter exits, F1 details")
                 check_terminal_unchanged(completed, notice)
-                client.key(98, 4)
+                client.key(98, COMMAND)
                 viewer = client.wait_text("Scrollback")
                 check_viewer_row(viewer)
                 check_terminal_unchanged(completed, viewer)
@@ -516,8 +513,7 @@ def menu_exit(executable, reports):
     with connection(executable, reports) as (client, root, peer, send):
         send(b"MENU-EXIT-SESSION")
         client.wait_text("MENU-EXIT-SESSION")
-        client.physical_key(18, True, 4)
-        client.physical_key(18, False, 4)  # Alt-E opens the connected directory.
+        client.command_key(18)  # Alt-E opens the connected directory.
         client.wait_text("Directory: Name")
         client.key("escape")
         frame = client.wait_text("MENU-EXIT-SESSION")
@@ -554,8 +550,7 @@ MainMenu.registerCommand(121, Mod.command, "Alt-Y", "Capture position", Fn.new {
             def position():
                 pattern = rb"MENU-POSITION (\[[^\r\n]+\])"
                 count = len(re.findall(pattern, client.stderr))
-                client.physical_key(21, True, 4)
-                client.physical_key(21, False, 4)
+                client.command_key(21)
                 client.wait_for(lambda s: len(re.findall(pattern, client.stderr)) > count)
                 return json.loads(re.findall(pattern, client.stderr)[-1])
             def visit(action=None):
@@ -581,8 +576,7 @@ MainMenu.registerCommand(121, Mod.command, "Alt-Y", "Capture position", Fn.new {
             assert shifted[1:] == ["Entry 27", 26, before[3]]
             def connected_directory(peer):
                 (root / "syncterm.lst").write_text(entries(), encoding="utf-8")
-                client.physical_key(18, True, 4)
-                client.physical_key(18, False, 4)
+                client.command_key(18)
                 client.wait_text("Directory: Name")
                 client.key("down")
                 assert position()[0] is True
@@ -614,8 +608,7 @@ MainMenu.registerCommand(121, Mod.command, "Alt-Y", "Capture selection", Fn.new 
         def selection():
             pattern = rb'SHORTCUT-SELECTION ("[^\r\n]+")'
             count = len(re.findall(pattern, client.stderr))
-            client.physical_key(21, True, 4)
-            client.physical_key(21, False, 4)
+            client.command_key(21)
             client.wait_for(lambda s: len(re.findall(pattern, client.stderr)) > count)
             return json.loads(re.findall(pattern, client.stderr)[-1])
 

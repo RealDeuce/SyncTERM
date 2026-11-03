@@ -15,10 +15,12 @@ import tempfile
 import termios
 import time
 
-ESCAPES = re.compile(rb"\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\)|.)")
+ESCAPES = re.compile(rb"\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07\x1b]*(?:\x07|\x1b\\)|.)")
 
 
 def main():
+    assert ESCAPES.sub(b"", b"\x1b]4;1;rgb:00/00/aa\x1b\\Directory: Name"
+                       b"\x1b]4;2;rgb:aa/00/00\x1b\\") == b"Directory: Name"
     executable, backend = str(Path(sys.argv[1]).resolve()), sys.argv[2]
     with tempfile.TemporaryDirectory(prefix="syncterm-shortcut-pty-") as directory:
         root = Path(directory)

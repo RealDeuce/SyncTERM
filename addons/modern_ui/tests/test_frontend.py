@@ -13,7 +13,6 @@ ROOT = Path(__file__).resolve().parents[1]
 PROJECT = ROOT.parents[1]
 sys.path.insert(0, str(PROJECT / 'tools/testing'))
 from syncterm_fixture import fixture, application, click_text, click_cell, listener, receive
-from syncterm_control import ALT
 
 spec = importlib.util.spec_from_file_location('modern_install', ROOT / 'install.py')
 installer = importlib.util.module_from_spec(spec)
@@ -24,13 +23,6 @@ ENTRIES = '[Alpha]\nAddress=alpha.example\nComment=First connection\n[München]\
 
 def install(root):
     installer.install(root / 'scripts')
-
-
-def alt_key(client, evdev):
-    client.physical_key(56, True, ALT)
-    client.physical_key(evdev, True, ALT)
-    client.physical_key(evdev, False, ALT)
-    client.physical_key(56, False)
 
 
 def button_geometry(frame, rect, foreground=0x2563eb):
@@ -94,7 +86,7 @@ def directory(executable, reports):
         client.text('SECOND.EXAMPLE')
         frame = client.wait_text('1 connections')
         assert 'München' in frame.text and 'Zulu' not in frame.text
-        alt_key(client, 25)
+        client.command_key(25)
         client.wait_text('Insert Emoji')
         client.key('escape')
         client.key('escape')
@@ -319,7 +311,7 @@ def connection(executable, reports):
             with server.accept()[0] as peer:
                 peer.sendall(b'ADDON-SESSION')
                 client.wait_text('ADDON-SESSION')
-                alt_key(client, 18)
+                client.command_key(18)
                 frame = client.wait_text('SESSION DIRECTORY')
                 assert 'Edit entry' in frame.text and 'Local' in frame.text
                 click_text(client, frame, 'Return')
