@@ -1407,12 +1407,12 @@ methods `alert(title, message)`, `alertWithHelp(title, message, helpText)`,
 bottom-row notice. That notice keeps the completed terminal visible until
 Enter, with F1 opening session details and the final protocol log. Alt-B
 (Cmd-B on macOS) opens that session's scrollback; Escape returns to the
-notice. Its bottom row stays blank in the disconnected style while viewing
-scrollback, outside the viewer's content area. Disconnect does not resize or
-scroll the terminal or remove its status display. History is saved before
-the notice is drawn, so local UI does not enter the saved history.
-`hidePopups` and local hangup/exit
-skip the notice. This is a host-controller ABI rather than a public menu
+notice. If the connection had a status bar, its row stays blank in the
+disconnected style outside the viewer's content area. With the status bar
+disabled, the viewer uses the full terminal height, including the bottom row.
+Disconnect does not resize or scroll the terminal or remove its status
+display. History is saved before the notice is drawn, so local UI does not
+enter the saved history. `hidePopups` and local hangup/exit skip the notice. This is a host-controller ABI rather than a public menu
 script API: application C code holds the call handles and invokes it.
 The progress pane fits the wider of its title and status rows, capped to the
 standard screen margins.  The pane itself is centered, but all status rows

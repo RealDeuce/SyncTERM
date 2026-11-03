@@ -4181,7 +4181,7 @@
   ],
   "evidence_files": {
     "docs/WREN_GUIDANCE.md": "d14aeecb5eae922015f2f48a4fd690277dcb5b91aedfd8d8d8cffb2dc235e1ac",
-    "docs/Wren.adoc": "ebe2094dce6af64f8e54a11acd0c1092907ef074e031d45fe1a044dd9c98de1c",
+    "docs/Wren.adoc": "1f0cedffe599558dddbae537198b197b680f9dab4af8394c7104ee6325b8426d",
     "docs/api/bbs-entry-fields.adoc": "a1be9944eadd5f56d752e8669b502f49b27211f14190443a95e36ad301b8d128",
     "scripts/auto/connected/font_pick.wren": "6cd249b69c2f851e1fb84e4b8ce381879cfaaa96a35e1376f6e8502c6497e91b",
     "scripts/auto/menu/main_menu.wren": "b5aaebd48a0942085a5da73ea09ec55c5f52eb183824eeefefc970395ff341f0",
@@ -4334,7 +4334,7 @@
     "src/tests/st_test_control_test.py": "d9ff21d77c7731a055983ecc5d44fab373650cb4deefbe701fe01f9d26b94914",
     "scripts/auto/connected/connected.wren": "7f8f7144896388ffbf9dd16820cbf6cbae73d25c385ccba7d8c0928f31ae67d6",
     "src/scripting/wren_host/tests/st_wren_session_test_bindings.c": "4ef0aef560439c1ed3f933232a8b59ccaa3ee0a6971609ebf0fe8e81ff1b981c",
-    "src/tests/st_migrated_control_test.py": "a291299cbbe5e2485e8afcc01a1c9d8fbacbbf332f82fa7465c34dd7d6b65637",
+    "src/tests/st_migrated_control_test.py": "4d7e45dc346b4b89653dfc378b1bd2459c1eeeb2902c342761a5880f0a1dd6d4",
     "src/config/bbs_list/tests/st_bbs_list_test.c": "e082110aca917ca8932f2d7b2666ee11b55cbcf5707eee4bd7515ed9f5dddb98",
     "src/config/bbs_list/st_bbs_profile_codec.c": "04a87909baeb5788e386369ef4c4043c95e92737bdb8a316009a23f4e7f9dbb8",
     "scripts/menu_ui.wren": "f94ada676138fa588c3e634e088cc12df3309e7d99bfb52b4adec2297b9b2845",
@@ -4804,6 +4804,19 @@
       ],
       "accounting": "Reviewed affected evidence/header comments and source locations. Native declarations, TSV rows, assessment dispositions and topic counts remain unchanged: 80 headers, 120 exclusions, 2448 items, 157 assessments and 51 original topics.",
       "limitations": "Native and headless control-bitmap verification on FreeBSD; no Windows/macOS runtime execution. This corrects the previous direct feature implementation and does not close an additional audit finding."
+    },
+    {
+      "topic": "disconnected-scrollback-without-status-bar",
+      "status": "resolved",
+      "approval": "User clarified that with the status bar disabled the bottom row belongs to the terminal and viewer geometry must match the connection.",
+      "scope": "Reserve the disconnected red row only when retained history reports a status bar. NoStatus sessions use the entire screen for scrollback, including the original bottom-row output. Native terminal/history behavior is unchanged.",
+      "tests_passed": [
+        "Clang Debug application build; wren_host and wren_menu_contract.",
+        "CP437 and UTF-8 control-bitmap fixtures: full-height bottom-row output and scrolling with NoStatus, retained red status row with status enabled, terminal state unchanged, Escape/F1/Enter and host close.",
+        "Wren API coverage checker and git diff --check."
+      ],
+      "accounting": "Refreshed reviewed documentation/test evidence only. No native declarations, TSV rows, assessment dispositions or topic counts changed.",
+      "limitations": "FreeBSD native/headless verification; no Windows/macOS runtime execution. Clarifies the scope of the preceding disconnected geometry correction."
     }
   ]
 }

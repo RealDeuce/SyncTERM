@@ -220,8 +220,10 @@ class OfflineScrollbackView {
     Input.enableMouseEvent(Mouse.wheelDown)
     Input.mouseVisible = true
     var size = Screen.size
-    if (standalone) {
-      // The disconnected notice is local chrome, outside terminal history.
+    var reserveRow = standalone && Menu.offlineScrollbackHasStatus
+    if (reserveRow) {
+      // Retain the status row as disconnected chrome without shrinking
+      // sessions whose terminal originally used the entire screen.
       var row = Surface.new(size[0], 1)
       Painter.fill(row, Rect.new(0, 0, size[0], 1), " ",
           Theme.current.style("disconnected"))
@@ -241,7 +243,7 @@ class OfflineScrollbackView {
     viewer.keyHints = [["F1", "Help"], ["Arrows", "Scroll"],
         ["PgUp/PgDn", "Page"], ["Esc", "Close"]]
     viewer.focused = true
-    viewer.bounds = Rect.new(1, 1, size[0], size[1] - (standalone ? 1 : 0))
+    viewer.bounds = Rect.new(1, 1, size[0], size[1] - (reserveRow ? 1 : 0))
     if (standalone) {
       app.pushModal(viewer)
       app.runSync()

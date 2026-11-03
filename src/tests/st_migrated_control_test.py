@@ -296,13 +296,14 @@ def session_modes(executable, reports):
 
 
 def scrollback(executable, encoding, reports):
-    def check_viewer_row(frame):
+    def check_viewer_row(frame, has_status=True):
         width = frame.metadata["columns"]
-        assert frame.lines[-1] == " " * width
+        if has_status:
+            assert frame.lines[-1] == " " * width
         for cell in frame.cells[-width:]:
             color = cell.background
             rgb = color & 0xffffff if color & 0x80000000 else frame.palette[color]
-            assert rgb == 0xaa0000
+            assert rgb == (0xaa0000 if has_status else 0)
 
     def check_terminal_unchanged(before, after):
         for field in ("cterm.bottom_margin", "cterm.right_margin", "cterm.status_display",
@@ -343,18 +344,16 @@ def scrollback(executable, encoding, reports):
                 client.physical_key(48, True, 4)
                 client.physical_key(48, False, 4)
                 viewer = client.wait_text("Scrollback")
-                check_viewer_row(viewer)
                 check_terminal_unchanged(completed, viewer)
-                assert "TAIL-ROW" in viewer.lines[-2]
-                # The viewer title overlays its first row; reveal text shifted
-                # there by reserving one row of the viewport for local chrome.
-                client.key("up")
-                client.wait_text("SUMMARY")
+                # NoStatus sessions retain all 25 rows in the viewer.
+                check_viewer_row(viewer, has_status=False)
+                assert "TAIL-ROW" in viewer.lines[-1]
+                assert "SUMMARY" in viewer.text
                 client.key("home")
                 client.key("page_down")
                 client.key("up")
                 oldest = client.wait_text("row 00")
-                check_viewer_row(oldest)
+                check_viewer_row(oldest, has_status=False)
                 check_terminal_unchanged(completed, oldest)
                 client.key("escape")
                 notice = client.wait_text("Disconnected: Enter exits, F1 details")
@@ -393,8 +392,8 @@ def scrollback(executable, encoding, reports):
             client.wait_text("Capture")
             client.key("enter")
             with server.accept()[0] as peer:
-                peer.sendall(b"CLOSE-VIEWER")
-                completed = client.wait_text("CLOSE-VIEWER")
+                peer.sendall(b"\x1b[2J\x1b[HCLOSE-VIEWER\x1b[24;1HSTATUS-TAIL")
+                completed = client.wait_text("STATUS-TAIL")
                 peer.shutdown(socket.SHUT_RDWR)
                 notice = client.wait_text("Disconnected: Enter exits, F1 details")
                 check_terminal_unchanged(completed, notice)
@@ -402,6 +401,12 @@ def scrollback(executable, encoding, reports):
                 viewer = client.wait_text("Scrollback")
                 check_viewer_row(viewer)
                 check_terminal_unchanged(completed, viewer)
+                assert "STATUS-TAIL" in viewer.lines[-2]
+                client.key("home")
+                client.key("end")
+                newest = client.wait_text("STATUS-TAIL")
+                check_viewer_row(newest)
+                assert "STATUS-TAIL" in newest.lines[-2]
                 client.event(7)
                 client.process.wait(timeout=client.timeout)
                 assert client.process.returncode == 0
