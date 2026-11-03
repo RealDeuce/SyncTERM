@@ -1208,6 +1208,7 @@ class MainMenu {
       message = "The directory was loaded, but its warnings could not be retrieved. " +
           warnings.error.toString
     }
+    if (warnings.error == null && message == __shownLoadWarnings) return true
     if (message != null) {
       var app = App.new()
       var pane = loadWarningsPane_(message, atExit, Popup.appMessageFont_(app))
@@ -1215,6 +1216,9 @@ class MainMenu {
       app.pushModal(pane)
       app.runSync()
     }
+    // Keep owned text across reloads, never generation-bound directory views.
+    // Retrieval failures must neither suppress errors nor acknowledge warnings.
+    if (warnings.error == null) __shownLoadWarnings = message
     return true
   }
 

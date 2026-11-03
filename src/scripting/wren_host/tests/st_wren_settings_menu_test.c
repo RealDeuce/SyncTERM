@@ -498,6 +498,7 @@ test_load_results(struct st_wren_host *host, struct st_app_paths *paths,
 	char shared[sizeof(ST_WREN_SETTINGS_TEST_DIRECTORY) + 32];
 	char named[sizeof(ST_WREN_SETTINGS_TEST_DIRECTORY) + 32];
 	char script[1024];
+	struct st_console_event pending;
 	CHECK(snprintf(shared, sizeof(shared), "%s/shared.lst",
 	    ST_WREN_SETTINGS_TEST_DIRECTORY) < (int)sizeof(shared));
 	CHECK(snprintf(named, sizeof(named), "%s/Caf\xc3\xa9.lst",
@@ -596,6 +597,27 @@ test_load_results(struct st_wren_host *host, struct st_app_paths *paths,
 	interpret(host, "load_diagnostics",
 	    "if (Menu.loadDiagnostics.count != 4 || !MainMenu.prepare_(false)) Fiber.abort(\"safe warning flow\")\n");
 	host->config.safe_mode = false;
+	post_key(console, 13);
+	interpret(host, "load_diagnostics",
+	    "if (!MainMenu.prepare_(false) || Menu.loadDiagnostics.count != 4 || MainMenu.loadWarnings_() == null) Fiber.abort(\"repeat load lost warnings\")\n");
+	CHECK(st_console_event_try(console, &pending) == 0
+	    && pending.type == ST_CONSOLE_EVENT_KEY_CODE && pending.data.key.code == 13);
+	post_key(console, 27);
+	interpret(host, "load_diagnostics",
+	    "if (!MainMenu.prepare_(true)) Fiber.abort(\"repeat exit warning load failed\")\n");
+	CHECK(st_console_event_try(console, &pending) == 0
+	    && pending.type == ST_CONSOLE_EVENT_KEY_CODE && pending.data.key.code == 27);
+	/* Retrieval failures still show every time, even after acknowledging warnings. */
+	st_wren_test_diagnostic_copy_status = IO_ERROR_OUT_OF_MEMORY;
+	for (unsigned attempt = 0; attempt < 2; ++attempt) {
+		post_key(console, 13);
+		interpret(host, "load_diagnostics",
+		    "if (!MainMenu.prepare_(false)) Fiber.abort(\"repeat retrieval failure failed load\")\n");
+		CHECK(st_console_event_try(console, &pending) == IO_ERROR_WOULD_BLOCK);
+	}
+	st_wren_test_diagnostic_copy_status = 0;
+	/* Changed warnings still open a dialog, including through the exit path. */
+	write_text(shared, "[Changed warning 12345678901234567890]\nAddress=changed.example\n");
 	post_key(console, 27);
 	interpret(host, "load_diagnostics",
 	    "if (!MainMenu.prepare_(true)) Fiber.abort(\"exit warning flow\")\n"
@@ -618,6 +640,7 @@ test_load_results(struct st_wren_host *host, struct st_app_paths *paths,
 	    "pane.handle(KeyEvent.new(Key.home))\n"
 	    "pane.handle(KeyEvent.new(Key.up))\n"
 	    "if (pane.messageScrollTop != 0) Fiber.abort(\"warnings Home must reach top and Up must clamp\")\n");
+	CHECK(st_console_event_try(console, &pending) == IO_ERROR_WOULD_BLOCK);
 	/* Both native password failures enter the real prompt; Escape cancels. */
 	for (size_t i = 0; i < 2; ++i) {
 		st_wren_test_list_open_status = statuses[i];
@@ -634,7 +657,7 @@ test_load_results(struct st_wren_host *host, struct st_app_paths *paths,
 		interpret(host, "load_diagnostics",
 		    "if (Menu.setEncryption(6, 128, \"secret\") != null) Fiber.abort(\"password load fixture\")\n"
 		    "MainMenu.password = null\n");
-		const char *answers = "wrong\rsecret\r\r";
+		const char *answers = "wrong\rsecret\r";
 		for (const char *key = answers; *key != '\0'; ++key)
 			post_key(console, (uint16_t)*key);
 		interpret(host, "load_diagnostics",
@@ -649,7 +672,6 @@ test_load_results(struct st_wren_host *host, struct st_app_paths *paths,
 	interpret(host, "load_diagnostics",
 	    "if (!MainMenu.prepare_(false) || Menu.loadDiagnostics.count != 2 || MainMenu.loadWarningsAutomatic_() != null) Fiber.abort(\"web warnings opened dialog\")\n"
 	    "if (!MainMenu.loadWarnings_().contains(\"truncated\") || !MainMenu.loadWarnings_().contains(\"System List\")) Fiber.abort(\"web warnings hidden\")\n");
-	struct st_console_event pending;
 	CHECK(st_console_event_try(console, &pending) == 0
 	    && pending.type == ST_CONSOLE_EVENT_KEY_CODE && pending.data.key.code == 13);
 	/* An unrelated failure must still open a dialog with only web warnings. */
@@ -673,8 +695,20 @@ test_load_results(struct st_wren_host *host, struct st_app_paths *paths,
 	write_text(personal, "[Existing]\nAddress=existing.example\n");
 	interpret(host, "load_diagnostics",
 	    "if (Menu.load(null) != null || Menu.loadDiagnostics.count != 0 || MainMenu.loadWarnings_() != null) Fiber.abort(\"missing optional lists warned\")\n"
+	    "if (!MainMenu.prepare_(false)) Fiber.abort(\"clean warning load failed\")\n"
 	    "System.gc()\nSystem.gc()\n"
 	    "if (saved[2].error.code != IOErr.invalidEncoding || saved[3].sourceName != \"Caf\xc3\xa9\" || normalized.sectionName != \"\xc3\x85\") Fiber.abort(\"diagnostic snapshot lifetime\")\n");
+	/* Once cleared, the same warning is new again. */
+	for (unsigned recurrence = 0; recurrence < 2; ++recurrence) {
+		write_text(personal, long_section);
+		post_key(console, 13);
+		interpret(host, "load_diagnostics",
+		    "if (!MainMenu.prepare_(false) || Menu.loadDiagnostics.count != 1) Fiber.abort(\"recurring warning after clean load\")\n");
+		CHECK(st_console_event_try(console, &pending) == IO_ERROR_WOULD_BLOCK);
+		write_text(personal, "[Existing]\nAddress=existing.example\n");
+		interpret(host, "load_diagnostics",
+		    "if (!MainMenu.prepare_(false)) Fiber.abort(\"restore clean directory\")\n");
+	}
 }
 
 static void

@@ -1047,7 +1047,7 @@
     "bbs.diagnostics": {
       "status": "covered",
       "wren": "Menu.loadDiagnostics / BBSLoadDiagnostic",
-      "reason": "On request, snapshots copy all four native diagnostic fields in native order, with strict UTF-8/NFC owned names and a lazily constructed MenuError preserving portable status. Snapshots survive GC/reloads, grant no authority, and are distinct from failed candidates. Overlong section names load with a UTF-8-safe valid prefix within the profile limits and a NameTooLong warning retaining the original section name; values and personal edits/deletions use the original section. The bundled menu opens one scrollable summary for personal/shared warnings and includes web warnings alongside them; exclusively web warnings remain available without triggering a popup. Fatal load and diagnostic-retrieval failures still open their dialogs. Missing optional sources retain silent-skip policy. No public native API was added. Single-action warning dialogs route Up/Down and Home/End to the message viewport alongside page scrolling; multi-action choice navigation is retained.",
+      "reason": "On request, snapshots copy all four native diagnostic fields in native order, with strict UTF-8/NFC owned names and a lazily constructed MenuError preserving portable status. Snapshots survive GC/reloads, grant no authority, and are distinct from failed candidates. Overlong section names load with a UTF-8-safe valid prefix within the profile limits and a NameTooLong warning retaining the original section name; values and personal edits/deletions use the original section. The bundled menu opens one scrollable summary for personal/shared warnings and includes web warnings alongside them; exclusively web warnings remain available without triggering a popup. Fatal load and diagnostic-retrieval failures still open their dialogs. Missing optional sources retain silent-skip policy. No public native API was added. Single-action warning dialogs route Up/Down and Home/End to the message viewport alongside page scrolling; multi-action choice navigation is retained. The menu remembers only the last dismissed summary text across reloads/disconnects and suppresses an unchanged summary. Changed summaries can reopen; a clean automatic-warning result resets the memory. Load and diagnostic-retrieval failures are never suppressed.",
       "vm": "menu",
       "evidence": [
         {
@@ -4050,7 +4050,7 @@
     {
       "path": "src/scripting/wren_host/tests/st_wren_settings_menu_test.c",
       "anchor": "test_load_results",
-      "aspect": "Fatal native load reasons, retained models/views/file grants, actual four-source warnings, on-request immutable NFC snapshots, lazy errors, allocation/text failures, GC/reload lifetime, safe reading, removed APIs, real warning/password/cancellation/exit/scroll UI. Web-only warnings do not consume a queued dismissal key; mixed warnings retain all text, and fatal load/retrieval failures still consume dialog dismissal with web-only warnings. Actual Directory Warnings pane checks Up/Down, Home/End and boundary clamping."
+      "aspect": "Fatal native load reasons, retained models/views/file grants, actual four-source warnings, on-request immutable NFC snapshots, lazy errors, allocation/text failures, GC/reload lifetime, safe reading, removed APIs, real warning/password/cancellation/exit/scroll UI. Web-only warnings do not consume a queued dismissal key; mixed warnings retain all text, and fatal load/retrieval failures still consume dialog dismissal with web-only warnings. Actual Directory Warnings pane checks Up/Down, Home/End and boundary clamping. Repeated normal/exit loads retain diagnostics without consuming dismissal input; changed warnings reopen, clean loads reset acknowledgement, and repeated retrieval failures still open dialogs."
     },
     {
       "path": "src/scripting/wren_host/tests/st_wren_host_test.c",
@@ -4147,10 +4147,10 @@
   ],
   "evidence_files": {
     "docs/WREN_GUIDANCE.md": "d14aeecb5eae922015f2f48a4fd690277dcb5b91aedfd8d8d8cffb2dc235e1ac",
-    "docs/Wren.adoc": "02ca2825115c7596ffbe7a28fb76d0509baa08fa8004ea5022c621a1ad583ef2",
+    "docs/Wren.adoc": "96224a82eb48c02ef7164b6a4d4f32e23ed4c93a9e80d63ba08ffe961871fb54",
     "docs/api/bbs-entry-fields.adoc": "a1be9944eadd5f56d752e8669b502f49b27211f14190443a95e36ad301b8d128",
     "scripts/auto/connected/font_pick.wren": "6cd249b69c2f851e1fb84e4b8ce381879cfaaa96a35e1376f6e8502c6497e91b",
-    "scripts/auto/menu/main_menu.wren": "72e910942486d6829a4271572ad7c9bab052101364f4e55579ba21102735806b",
+    "scripts/auto/menu/main_menu.wren": "b5aaebd48a0942085a5da73ea09ec55c5f52eb183824eeefefc970395ff341f0",
     "scripts/menu_bbs_editor.wren": "fa27c403b0cad1ffe2811243787916ce7428da2255b12683f6e3e2c5847a4187",
     "scripts/menu_settings_ui.wren": "5d0afe0a828d8dcf7383bf83da193491db243c51360375762110e8998444857c",
     "scripts/sftp_app.wren": "4cd38fa9304c6c7428d7a21ef3b86c0d68fb14e25b35c3540bfdd46a211a9e5f",
@@ -4225,7 +4225,7 @@
     "src/net/webget/st_webget.h": "9647dcc563e1661fe1d6b762c78e2483d2beae03ac878da0ebd15c8a425d2143",
     "src/scripting/wren_host/st_wren_host.h": "531eba9331f992a6394c41020890e279597ee8d6cfd1259a4495f68ef38d5552",
     "src/scripting/wren_host/tests/st_wren_host_test.c": "a30e0ace938fc3000fcc63c727a6b9fd12efdd866ba9b5cb6f081eec06e8ba1d",
-    "src/scripting/wren_host/tests/st_wren_settings_menu_test.c": "66d8ef5886248bc1134fdf7f803650d7dd1c2e1b87f5b219c23ca2650b529e3a",
+    "src/scripting/wren_host/tests/st_wren_settings_menu_test.c": "e508ccc92d9de61bdf2422359eeb90c8b9c6fc2c45b5e33628b62edf7751cd5a",
     "src/scripting/wren_host/wren_async.c": "71e78941735250300171a2b7cb13b70c92916bd14c066a6614b3f77cdd9b565d",
     "src/scripting/wren_host/wren_bbs_model.c": "18dca3353505a5b0dc609251f16038bd9132c47e215c4cf24ba802ac4b3ab97a",
     "src/scripting/wren_host/wren_bind_core.c": "a4854c510c31919303cab5a9cf94deacfcb88058416af158a7397ed55f55c84e",
@@ -4699,6 +4699,19 @@
       ],
       "accounting": "No public native declarations, TSV rows, assessment dispositions or topic counts changed. Updated reviewed evidence and documentation; 80 headers, 120 exclusions, 2448 native items, 157 assessments, 51 original topics.",
       "limitations": "Native/headless Clang verification; no Windows execution. No native binding or terminal-emulation implementation changed."
+    },
+    {
+      "topic": "directory-warning-repeat-suppression",
+      "status": "resolved",
+      "approval": "Direct user request that opening lists must not show Directory Warnings on every disconnect.",
+      "scope": "Remember the last dismissed automatic warning summary as owned text in the persistent menu VM. Suppress unchanged summaries on normal/exit reloads, retain all diagnostics, show changed summaries again, and clear acknowledgement after a successful load without an automatic warning. Native load and diagnostic-retrieval failures retain their dialogs every time. No settings persistence or generation-bound views are retained.",
+      "regression_before_fix": "A repeated actual menu prepare consumed the queued dismissal key, proving the warning dialog reopened.",
+      "tests_passed": [
+        "Clang Debug: wren_settings_runtime, wren_popup_synthetic, wren_menu_synthetic (3); final settings-runtime rerun passed after adding exact recurring-warning reset coverage. CMake configured; application and focused test targets built.",
+        "Actual repeated normal/exit reloads, retained warning access, changed-warning dialog, recurring identical warning after clean load, password retry without redundant warning dismissal, repeated retrieval failures and fatal load errors."
+      ],
+      "accounting": "No public native declarations, TSV rows, assessment dispositions or topic counts changed. Reviewed changed evidence/documentation. 80 headers, 120 exclusions, 2448 native items, 157 assessments and 51 original topics.",
+      "limitations": "Native/headless Clang verification; no Windows runtime execution. Acknowledgement lasts only for the current menu VM and is not saved to disk."
     }
   ]
 }

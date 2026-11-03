@@ -4555,11 +4555,15 @@ warnings about skipped sources or sections, or truncated entry names. The bundle
 menu opens a scrollable Directory Warnings summary when any warning comes from
 a personal or shared list. Up/Down scroll one line, PgUp/PgDown scroll a page,
 and Home/End jump to the top/bottom. Enter continues and Escape closes the dialog.
-Warnings exclusively from web lists do not open it
-automatically, but remain in the diagnostics and appear alongside other warnings
+Once dismissed, an unchanged warning summary does not reopen during subsequent
+loads in the same menu VM, including returns after disconnect. A changed summary
+can reopen it; a successful load without an automatic warning clears the remembered
+summary. Warnings remain available through Menu.loadDiagnostics on every load.
+Warnings exclusively from web lists do not open the dialog automatically,
+but remain in the diagnostics and appear alongside other warnings
 when the dialog opens. Dismissal continues with usable entries; missing optional
-files remain silent. A diagnostic retrieval failure still opens the dialog as
-warnings unavailable, without treating the successful load as failed. Password
+files remain silent. A diagnostic retrieval failure still opens the dialog every
+time as warnings unavailable, without treating the successful load as failed. Password
 cancellation and fatal load errors retain their existing prompts and error
 dialogs, even when all retained warnings are from web lists. There are no
 automatic retries.
