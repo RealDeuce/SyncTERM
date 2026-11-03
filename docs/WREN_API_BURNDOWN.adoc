@@ -562,3 +562,102 @@ declaration is included in the native ledger; all 80 matrix rows match. The
 theme-operation-results topic is resolved; 42 topics plus the documentation
 finding remain open. Cloud provenance is separate and remains open. Retain this
 temporary record and skill until the complete burndown is finished.
+
+== Approved chunk 8: transfer results and XMODEM-G (revision 1)
+
+Approval: the complete Plan-mode revision 1 was approved with "Implement the
+plan." Implementation began in Default mode on 2026-11-02. The user selected
+both transfer results and explicit XMODEM-G, and selected typed completion
+results over a raw integer getter.
+Phase: chunk complete; the next chunk requires an actual Plan-mode phase.
+Scope: transfer.result-code / transfer-result and transfer.xmodem-g /
+transfer-protocol-selection. Receive streaming remains separate/open.
+
+Add immutable TransferError is Error with code/message/toString. Preserve the
+actual portable native integer using existing IOErr values, own diagnostic
+storage, distinguish startup/completion, and leave detailed protocol logs
+separate. No new error enum or redundant nativeCode. Startup upload/uploadBatch/
+download/beginSession and internal RIP-upload acceptance return null/TransferError.
+Replace Transfer.success with Transfer.result without an alias. Require an active
+completed worker; other reads abort as misuse. Native success returns null,
+failure returns TransferError. Inspect without draining logs, changing progress
+or releasing ownership; create errors only when requested. Captured errors
+survive cleanup, subsequent transfers and GC.
+
+Keep done/active/requestAbort and the local aborted latch distinct from native
+completion cancellation. Preserve existing VM availability, safe-mode synthetic
+tests and runtime restrictions. Wrong types, unsupported direction/protocol,
+invalid handshake bytes and upload authority remain programmer errors. Reject
+embedded NUL in protocol tokens and required download filenames; preserve strict
+UTF-8/NFC host text and native filename validation. Add download-only xmodem-g
+with required filename and retained final-block padding. Upload modes continue
+negotiating G-mode through the peer handshake.
+
+Migrate startup callers to handle errors before progress UI. Supervisor handles
+typed errors and ordinary Fiber errors while retaining cleanup order. TransferApp
+derives success from the result and reports cancellation/specific failure; keep
+its UI convenience getters. Inline transfers capture results before cleanup and
+display afterward. Preserve automatic/RIP confirmation, dialogs, cancellation,
+binary-mode restoration and handoff. Add download picker choice/help and filename
+prompt; migrate demos, fixtures and authoritative docs. No native worker redesign,
+new stream service, retries, rollback policy or upload-grant changes.
+
+Establish regressions first. Test startup success, busy/safe/context failures,
+malformed arguments, whole-batch grants and native code fidelity. Use narrow
+test-only create/claim/launch failures and verify cleanup. Test pending/inactive
+result misuse, success, local/peer cancellation, protocol/I/O failure, repeated
+nondestructive reads, error lifetime, removed success, subsequent work and running
+worker teardown. Exercise real UI/inline callers, startup failure skipping UI and
+reporting once with flow ownership released. Test real-wire XMODEM-G initial G,
+bytes/padding, success, corrupt block, cancellation and restored stream ownership.
+
+Configure/build through CMake. Clang/GCC/ASan-UBSan focused native/Wren tests,
+terminal/RIP ownership and headless application transfer checks; cross-build
+MinGW64 without Windows execution or Wine. Disable physical audio. Baseline
+transfer/peer-shutdown/term/cterm_rip_transfer/syncterm_control_transfer passed in
+Plan mode. Update assessments/report/matrix, reviewed evidence and follow-up;
+coverage/diff checks; commit complete verified chunk without pushing. Closing
+both topics leaves 40 topics plus the documentation finding open. Retain temporary
+record/skill until the full burndown is finished.
+
+=== Completed verification
+
+The startup regression failed against the original binding's true return.
+TransferError now retains native startup/completion status, immutable owned
+diagnostics and existing IOErr names. Result reads require an active completed
+worker and leave logs/progress/ownership intact. The removed success getter has
+no alias. Tests exercise menu/picker/connected VMs, busy/context/safe-mode errors,
+UTF-8/NUL/type/direction misuse, error lifetime and the local abort latch.
+
+Private real-binder controls verify native create/claim/launch failures, unknown
+integer preservation, freed workers and restored binary/session state. Real
+XMODEM-G input verifies initial G, no per-block ACK, data/padding, success,
+corrupt-block failure, peer cancellation, local abort and EOF. A stopped transport
+queue verifies the exact native I/O result. Captured errors survive cleanup and
+subsequent work; result reads retain logs and progress dirty state.
+
+Actual picker startup failure skips progress UI, displays once and releases flow
+ownership. The original one-shot try let errors after picker input escape; using
+the existing registered callback driver catches each resume through ordinary
+Wren try, with no language or cleanup-order changes. Tests cover that typed
+failure, inline error display after worker cleanup, and an ordinary text error
+after a timer. Existing automatic/RIP acceptance/denial, handoff and pending-worker
+VM teardown remain covered by the full host suite. Upload grant/batch/queue tests
+remain intact and rejected batches never reach worker creation.
+
+Clang Debug passed transfer, transfer_peer_shutdown, term, cterm_rip_transfer,
+wren_host, wren_menu_contract, wren_picker_contract, wren_settings_runtime and
+syncterm_control_transfer. GCC Debug and Clang ASan/UBSan passed the eight native/
+Wren tests; the sanitizer peer fixture was initially absent, then built and its
+focused test passed. Real headless application cases cover CRC/G cancellation,
+G success/corruption, expected file bytes, typed results and terminal handoff.
+MinGW64 cross-built the application and native transfer/host/settings/picker
+tests without warnings. No Windows execution. Physical audio is disabled in
+headless fixtures. FreeBSD leak detection is unsupported and disabled; C++ vptr
+checks remain disabled for C-owned executables. No sanitizer diagnostics.
+
+The checker passes 80 headers, 120 exclusions, 2,448 native items, 157 assessments
+and 51 original topics. No native declarations or TSV rows changed. Both selected
+assessments are Covered/resolved; 40 topics plus the documentation finding remain
+open, including generic receive streams. All matrix rows match. Keep this
+temporary document and skill until the entire burndown is finished.

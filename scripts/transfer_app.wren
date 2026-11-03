@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Stephen Hurd
 // SPDX-License-Identifier: BSD-2-Clause
-import "syncterm" for Transfer, Screen, Key, KeyEvent, Timer, Cleanup_, Mod
+import "syncterm" for Transfer, Screen, Key, KeyEvent, Timer, Cleanup_, Mod, IOErr
 import "ui_app" for App
 import "ui_pane" for Pane
 import "ui_widget" for Rect
@@ -79,9 +79,12 @@ class TransferApp is App {
           Fn.new { _dialogActive = false })
     }
     if (Transfer.done && _deadline == null) {
-      _success = Transfer.success
+      var result = Transfer.result
+      _success = result == null
       _aborted = Transfer.aborted
-      _log.append(_success ? 6 : 3, _success ? "Transfer complete" : "Transfer failed or cancelled")
+      var message = "Transfer complete"
+      if (result != null) message = result.code == IOErr.cancelled ? "Transfer cancelled" : result.message
+      _log.append(_success ? 6 : 3, message)
       _deadline = Timer.now * 1000 + _waitTimeoutMs
     }
     if (_deadline != null && Timer.now * 1000 >= _deadline) quit()

@@ -2172,7 +2172,8 @@ having these methods at all.
 `Error` is the polymorphic base for every recoverable-failure value
 type the API hands back: <<sftperror,`SFTPError`>>,
 <<fileerror,`FileError`>>, <<wonerror,`WONError`>>,
-<<connerror,`ConnError`>>, <<font-error,`FontError`>>, menu-only
+<<connerror,`ConnError`>>, <<transfer-error,`TransferError`>>,
+<<font-error,`FontError`>>, menu-only
 <<menu-errors,`MenuError`>>, plus any user-defined
 <<scripterror,`ScriptError`>> subclass.  Lets a script catch any of
 them with one check:
@@ -6319,8 +6320,8 @@ treat `surf.width` as authoritative and clip your own loops.
 === Transfer [[transfer]]
 
 Session-owned bridge between the Wren transfer UI and C protocol workers.
-`upload()`, `uploadBatch()` and `download()` start a worker and return `true`
-immediately. The terminal owner continues pumping protocol input while
+`upload()`, `uploadBatch()` and `download()` return `null` after starting a worker,
+or <<transfer-error,`TransferError`>> if startup fails. The terminal owner continues pumping protocol input while
 `TransferApp` renders progress and handles cancellation on a child fiber.
 Workers never call Wren or CTerm. Only one in-band transfer can own a
 session's stream at a time; SFTP uses its separate SSH channel.
@@ -6331,9 +6332,12 @@ import "syncterm" for Transfer
 import "transfer_app" for TransferApp
 
 Fiber.new {
-  Transfer.beginSession("fake")
+  var error = Transfer.beginSession("fake")
+  if (error != null) Fiber.abort(error)
   TransferApp.new("Transfer demo").run()
+  var result = Transfer.result
   Transfer.endSession()
+  if (result != null) System.print(result)
 }.call()
 ----
 
@@ -6357,8 +6361,9 @@ completion and log APIs as manual transfers.
 
 | `Transfer.beginSession(kind)`
 | Start the synthetic 100-KiB `"fake"` worker for UI testing. Use the
-  protocol dispatch methods below for real transfers. Throws if a session
-  is already active or the kind is unknown. Returns `true` on success.
+  protocol dispatch methods below for real transfers. Returns `null` or
+  `TransferError` (including `IOErr.busy` when already active). An unknown
+  kind aborts as programmer misuse. Synthetic work remains available in safe mode.
 
 | `Transfer.endSession()`
 | Latch an abort if the worker hasn't already finished, join the
@@ -6389,9 +6394,12 @@ completion and log APIs as manual transfers.
 | `true` when the worker has completed (success or abort).  The
   pump loop exits on this flag.
 
-| `Transfer.success`
-| `true` when the worker finished without aborting.  Read after
-  `done` flips.
+| `Transfer.result`
+| Read-only completion result: `null` for success or `TransferError` preserving
+  the native failure code. Requires `active && done`; other reads abort as
+  programmer misuse. Reading does not clear progress, drain logs, join or release
+  the worker. A captured error remains usable after `endSession()` and subsequent
+  transfers. The former `success` getter is removed without an alias.
 
 | `Transfer.requestAbort()`
 | Latch an abort flag the worker polls between protocol steps.
@@ -6401,7 +6409,8 @@ completion and log APIs as manual transfers.
 
 | `Transfer.aborted`
 | Read the abort flag without modifying it.  `true` after a
-  successful `requestAbort()`.
+  successful `requestAbort()`. This is the local request latch; a peer can cancel
+  with result code `IOErr.cancelled` while this flag remains false.
 | `Transfer.active`, `Transfer.uploading`, `Transfer.inlineUpload`, `Transfer.inlineProgress`
 | Whether a session owns a transfer and its direction. `inlineUpload` marks
   ASCII/raw uploads; `inlineProgress` also includes RIP downloads that display
@@ -6427,11 +6436,13 @@ completion and log APIs as manual transfers.
   a rejected element rejects the entire batch.
 
 | `Transfer.download(kind, filename)`
-| Start `"zmodem"`, `"ymodem-g"`, `"ymodem"`, `"xmodem-crc"`,
+| Start `"zmodem"`, `"ymodem-g"`, `"ymodem"`, `"xmodem-g"`, `"xmodem-crc"`,
   `"xmodem-chksum"`, or `"cet"`. XMODEM requires a filename and keeps
   final-block padding because its wire format carries no length. Other
   kinds accept `null`. CET requires Prestel mode and starts from the
   captured current frame; its final frame is replayed on the terminal owner.
+  XMODEM-G streams without per-block acknowledgments or retries. It is a download
+  choice; the existing XMODEM upload modes negotiate G-mode with the receiver.
 
 | `Transfer.dialogPending`, `Transfer.dialogFilename`
 | Pending worker decision: 0 for none, 1 for an existing file, 2 for an
@@ -6443,6 +6454,40 @@ completion and log APIs as manual transfers.
   continues pumping. Abort and disconnect also wake that wait.
 
 |===
+
+All startup methods return `null` or `TransferError`; they do not wait for
+completion. Wrong argument types, malformed UTF-8, embedded NUL in protocol tokens
+or required download filenames, unsupported protocol/direction, invalid handshake
+bytes and invalid upload grants abort as programmer misuse. Host text normalizes
+to NFC; raw file bytes do not. Native filename validation remains authoritative.
+Runtime restrictions and download roots are unchanged: real transfers require a
+permitted connected session, and safe mode blocks them. The internal RIP-upload
+acceptance method also returns `null`/`TransferError`; no pending request is misuse.
+
+The bundled progress App derives its `success` convenience property from the
+completion result, retains its local `aborted` property and displays the actual
+failure message or cancellation. Inline flows capture the result before cleanup.
+Startup failures display once and do not enter the progress UI. Existing cleanup
+and partial-file behavior remain; an error is not a guarantee of rollback or a
+safe offset from which to retry automatically. The detailed transfer log remains
+separate from the result.
+
+==== TransferError [[transfer-error]]
+
+An immutable `Error` value, available with `Transfer` in each VM. It owns its
+diagnostic and retains no worker or session pointer. There is no public constructor.
+
+[options="header",cols="2,3"]
+|===
+| Member | Description
+| `code` | The exact native portable I/O integer; compare with `IOErr` constants.
+  Unknown native integers are preserved. Success is represented by `null`.
+| `message` | Nonempty human-readable startup or completion diagnostic. Detailed
+  per-file/protocol diagnostics remain in the transfer log.
+| `toString` | Includes `TransferError`, the numeric code and the message; meant
+  for display, not parsing.
+|===
+
 === Platform [[platform]]
 
 OS identification and preferred UI languages. No shell execution, stdio,

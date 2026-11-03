@@ -197,7 +197,11 @@ int main(void)
 	endif()
 	set(CMAKE_REQUIRED_DEFINITIONS ${_st_wren_saved_required_definitions})
 
-	add_executable(st_wren_host_test tests/st_wren_host_test.c)
+	add_executable(st_wren_host_test tests/st_wren_host_test.c
+		tests/st_wren_transfer_test_bindings.c)
+	set_source_files_properties(tests/st_wren_transfer_test_bindings.c PROPERTIES
+		INCLUDE_DIRECTORIES "$<TARGET_PROPERTY:st_wren_host,INCLUDE_DIRECTORIES>"
+		COMPILE_DEFINITIONS "$<TARGET_PROPERTY:st_wren_host,COMPILE_DEFINITIONS>")
 	target_include_directories(st_wren_host_test SYSTEM PRIVATE
 		"${CMAKE_CURRENT_SOURCE_DIR}/../wren_vm/vm")
 	if(NOT WIN32 AND NOT CMAKE_CROSSCOMPILING)
@@ -209,7 +213,7 @@ int main(void)
 		endif()
 	endif()
 	target_link_libraries(st_wren_host_test PRIVATE st_wren_host
-		st_wren_vm st_settings st_theme st_time st_bbs_list st_audio st_term st_language
+		st_wren_vm st_settings st_theme st_time st_bbs_list st_audio st_term st_language st_transfer
 		st_consent_token
 		syncterm_filesystem syncterm_string_compat
 		syncterm_threads st_audio_file st_pixel_image st_list_crypto st_crypto)

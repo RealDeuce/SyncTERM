@@ -34,6 +34,7 @@
 #include "st_session_history.h"
 #include "st_theme.h"
 #include "st_term.h"
+#include "st_transfer.h"
 #include "connection_internal.h"
 #include "st_threads.h"
 #include "st_time.h"
@@ -51,6 +52,11 @@
 static int queue_text(st_console_t *console, const char *text);
 static bool console_has_text(st_console_t *console, uint32_t x, uint32_t y,
 	const char *text);
+
+extern int st_wren_test_transfer_create_status;
+extern int st_wren_test_transfer_claim_status;
+extern int st_wren_test_transfer_launch_status;
+extern unsigned st_wren_test_transfer_create_calls;
 
 #if ST_WREN_TEST_HAVE_PTY
 #include <fcntl.h>
@@ -1122,6 +1128,60 @@ exercise_connected_profile_scripts(st_wren_host_t *host,
 	return 0;
 }
 
+static int
+transfer_interpret(WrenVM *vm, st_wren_connected_t *connected, const char *source)
+{
+	return connected != NULL ? st_wren_connected_interpret(connected,
+	    "transfer_result_contract", source) : wrenInterpret(vm,
+	    "transfer_result_contract", source) != WREN_RESULT_SUCCESS;
+}
+
+/* The same API is present in every VM; real I/O still requires a session. */
+static int
+exercise_transfer_results(WrenVM *vm, st_wren_connected_t *connected)
+{
+	CHECK(transfer_interpret(vm, connected,
+	    "import \"syncterm\" for Transfer, TransferError, Error, IOErr\n"
+	    "var invalid = Fiber.new { Transfer.result }\n"
+	    "invalid.try()\n"
+	    "if (invalid.error == null) Fiber.abort(\"inactive result accepted\")\n"
+	    "for (kind in [null, 3, \"unknown\", \"fake\\u0000suffix\", String.fromByte(255)]) {\n"
+	    "  invalid = Fiber.new { Transfer.beginSession(kind) }\n"
+	    "  invalid.try()\n"
+	    "  if (invalid.error == null || Transfer.active) Fiber.abort(\"invalid synthetic kind accepted\")\n"
+	    "}\n"
+	    "for (kind in [\"raw\", \"xmodem-1k\", \"xmodem-g\\u0000suffix\", String.fromByte(255)]) {\n"
+	    "  invalid = Fiber.new { Transfer.download(kind, \"test.bin\") }\n"
+	    "  invalid.try()\n"
+	    "  if (invalid.error == null || Transfer.active) Fiber.abort(\"invalid download kind accepted\")\n"
+	    "}\n"
+	    "for (name in [null, 3, \"x\\u0000y\", String.fromByte(255)]) {\n"
+	    "  invalid = Fiber.new { Transfer.download(\"xmodem-g\", name) }\n"
+	    "  invalid.try()\n"
+	    "  if (invalid.error == null || Transfer.active) Fiber.abort(\"invalid download filename accepted\")\n"
+	    "}\n"
+	    "var denied = Transfer.download(\"xmodem-g\", \"test.bin\")\n"
+	    "if (!(denied is TransferError) || !(denied is Error) || denied.code != IOErr.permissionDenied || Transfer.active) Fiber.abort(\"missing session error\")\n"
+	    "if (Transfer.beginSession(\"fake\") != null || !Transfer.active) Fiber.abort(\"synthetic startup result\")\n"
+	    "var held = Transfer.beginSession(\"fake\")\n"
+	    "if (!(held is TransferError) || held.code != IOErr.busy || !held.toString.startsWith(\"TransferError\") || !held.message.contains(\"startup\")) Fiber.abort(\"busy result lost\")\n"
+	    "invalid = Fiber.new { Transfer.result }\n"
+	    "invalid.try()\n"
+	    "if (invalid.error == null) Fiber.abort(\"pending result accepted\")\n"
+	    "invalid = Fiber.new { held.code = 0 }\n"
+	    "invalid.try()\n"
+	    "if (invalid.error == null || held.code != IOErr.busy) Fiber.abort(\"mutable error\")\n"
+	    "invalid = Fiber.new { Transfer.success }\n"
+	    "invalid.try()\n"
+	    "if (invalid.error == null) Fiber.abort(\"obsolete success getter retained\")\n"
+	    "if (!Transfer.requestAbort() || Transfer.requestAbort() || !Transfer.aborted) Fiber.abort(\"abort latch changed\")\n"
+	    "Transfer.endSession()\n"
+	    "Transfer.endSession()\n"
+	    "System.gc()\n"
+	    "if (held.code != IOErr.busy || held.message.count == 0 || Transfer.active) Fiber.abort(\"startup error lifetime\")\n") == 0);
+	return 0;
+}
+
 /* Exercise upload authority at the actual foreign-call boundary. */
 static int
 exercise_upload_consent(st_wren_host_t *host, st_console_t *console)
@@ -1228,6 +1288,7 @@ exercise_upload_consent(st_wren_host_t *host, st_console_t *console)
 	    "denied.add(Host.uploadPath + \"/alias.txt\")\n"
 	    "denied.add(Host.uploadPath + \"/alias-dir/upload-outside.txt\")\n") == 0);
 #endif
+	unsigned before_validation = st_wren_test_transfer_create_calls;
 	CHECK(st_wren_connected_interpret(connected, "upload_consent",
 	    "for (item in [null, 3, PixelBuffer.new(1, 1), \"\", \"x\\u0000y\", String.fromByte(255)]) denied.add(item)\n"
 	    "for (item in denied) {\n"
@@ -1240,6 +1301,7 @@ exercise_upload_consent(st_wren_host_t *host, st_console_t *console)
 	    "if (batch.error == null || Transfer.active) Fiber.abort(\"partially validated batch started\")\n"
 	    "var copy = Session.current.profile.copy()\n"
 	    "copy.ulDir = \"/\"\n") == 0);
+	CHECK(st_wren_test_transfer_create_calls == before_validation);
 	CHECK(connection.output.count == 0);
 	for (unsigned i = 0; i < 6; ++i) {
 		char source[160];
@@ -1256,14 +1318,14 @@ exercise_upload_consent(st_wren_host_t *host, st_console_t *console)
 		}
 		CHECK(done);
 		CHECK(st_wren_connected_interpret(connected, "upload_consent",
-		    "if (!Transfer.success) Fiber.abort(\"authorized upload failed\")\nTransfer.endSession()\n") == 0);
+		    "if (Transfer.result != null) Fiber.abort(\"authorized upload failed\")\nTransfer.endSession()\n") == 0);
 		CHECK(connection.output.count == sizeof(payload) - 1);
 		CHECK(memcmp(connection.output.data, payload, sizeof(payload) - 1) == 0);
 		connection.output.count = 0;
 		connection.output.head = 0;
 	}
 	CHECK(st_wren_connected_interpret(connected, "upload_consent",
-	    "if (!Transfer.uploadBatch(\"ymodem\", [approved[0], approved[1]], 0) || !Transfer.active) Fiber.abort(\"authorized batch rejected\")\n"
+	    "if (Transfer.uploadBatch(\"ymodem\", [approved[0], approved[1]], 0) != null || !Transfer.active) Fiber.abort(\"authorized batch rejected\")\n"
 	    "Transfer.endSession()\n") == 0);
 	CHECK(st_wren_connected_interpret(connected, "upload_consent",
 	    "import \"sftp_queue\" for SftpQueue\n"
@@ -1316,6 +1378,272 @@ exercise_upload_consent(st_wren_host_t *host, st_console_t *console)
 	return 0;
 }
 
+static int
+wait_transfer(st_term_session_t *session, bool done, int64_t bytes,
+	struct st_transfer_inspection *state)
+{
+	for (unsigned i = 0; i < 500; ++i) {
+		bool reserved, finished;
+		enum st_term_disposition disposition;
+		CHECK(st_term_session_inspect_transfer(session, state, &reserved));
+		if (state->done == done && state->progress.bytes_current >= bytes) return 0;
+		CHECK(st_term_session_pump(session, &disposition, &finished) == 0);
+		(void)st_thread_sleep(&(struct timespec){.tv_nsec = 1000000L}, NULL);
+	}
+	CHECK(false);
+	return 1;
+}
+
+static int
+feed_transfer(struct st_connection *connection, st_term_session_t *session,
+	const uint8_t *bytes, size_t size)
+{
+	bool finished;
+	enum st_term_disposition disposition;
+	(void)st_mutex_lock(&connection->input.mutex);
+	CHECK(connection->input.count == 0 && size <= sizeof(connection->input.data));
+	memcpy(connection->input.data, bytes, size);
+	connection->input.head = 0;
+	connection->input.count = size;
+	(void)st_mutex_unlock(&connection->input.mutex);
+	return st_term_session_pump(session, &disposition, &finished);
+}
+
+static int
+transfer_key(st_wren_connected_t *connected, unsigned key)
+{
+	bool consumed;
+	const struct st_console_event event = {.type = ST_CONSOLE_EVENT_KEY_CODE,
+	    .data.key.code = key};
+	CHECK(st_wren_connected_handle_event(connected, &event, &consumed) == 0 && consumed);
+	for (unsigned i = 0; i < 60; ++i) {
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+		(void)st_thread_sleep(&(struct timespec){.tv_nsec = 1000000L}, NULL);
+	}
+	return 0;
+}
+
+/* Real protocol input and startup failures use the same session/worker owner. */
+static int
+exercise_transfer_wire(st_wren_host_t *host, st_console_t *console)
+{
+	static const struct st_connection_transport_ops operations = {0};
+	struct st_connection connection = {.operations = &operations};
+	struct st_profile profile;
+	st_font_catalog_t *fonts = NULL;
+	st_term_session_t *session = NULL;
+	st_wren_connected_t *connected = NULL;
+	st_console_snapshot_t *snapshot = NULL;
+	struct st_transfer_inspection state;
+	const char *filename = ST_WREN_TEST_DIRECTORY "/wren-xmodem-g.bin";
+	st_profile_init(&profile);
+	profile.connection_type = ST_CONNECTION_RAW;
+	profile.download_directory = strdup(ST_WREN_TEST_DIRECTORY);
+	profile.upload_directory = strdup(ST_WREN_TEST_DIRECTORY);
+	CHECK(profile.download_directory != NULL && profile.upload_directory != NULL);
+	atomic_init(&connection.connected, true);
+	atomic_init(&connection.binary_mode, false);
+	atomic_init(&connection.stopping, false);
+	CHECK(st_mutex_init(&connection.input.mutex, ST_MUTEX_PLAIN) == ST_THREAD_SUCCESS);
+	CHECK(st_condition_init(&connection.input.changed) == ST_THREAD_SUCCESS);
+	CHECK(st_mutex_init(&connection.output.mutex, ST_MUTEX_PLAIN) == ST_THREAD_SUCCESS);
+	CHECK(st_condition_init(&connection.output.changed) == ST_THREAD_SUCCESS);
+	CHECK(st_console_snapshot_create(&snapshot, console) == 0);
+	CHECK(st_font_catalog_create(&fonts, console) == 0);
+	const struct st_term_config term_config = {.console = console,
+	    .connection = &connection, .fonts = fonts, .hide_status = true,
+	    .screen_mode = ST_SCREEN_MODE_80X25, .encoding = ST_CTERM_ENCODING_UTF8};
+	CHECK(st_term_session_create(&session, &term_config) == 0);
+	const struct st_wren_connected_config config = {.host = host,
+	    .console = console, .profile = &profile, .session = session,
+	    .connection = &connection, .cterm = st_term_session_cterm(session)};
+	CHECK(st_wren_connected_create(&connected, &config) == 0);
+	CHECK(transfer_interpret(NULL, connected,
+	    "import \"syncterm\" for Transfer, TransferError, Error, IOErr\n"
+	    "var held = null\n"
+	    "var dirty = false\n"
+	    "var invalid = Fiber.new { Transfer.upload(\"xmodem-g\", \"unused\", 0) }\n"
+	    "invalid.try()\n"
+	    "if (invalid.error == null || Transfer.active) Fiber.abort(\"XMODEM-G upload accepted\")\n") == 0);
+	int *controls[] = {&st_wren_test_transfer_create_status,
+	    &st_wren_test_transfer_claim_status, &st_wren_test_transfer_launch_status,
+	    &st_wren_test_transfer_create_status};
+	const int statuses[] = {IO_ERROR_OUT_OF_MEMORY, IO_ERROR_READ_ONLY,
+	    IO_ERROR_INTERRUPTED, 12345};
+	for (size_t i = 0; i < sizeof(controls) / sizeof(controls[0]); ++i) {
+		char source[512];
+		*controls[i] = statuses[i];
+		CHECK(snprintf(source, sizeof(source),
+		    "held = Transfer.download(\"xmodem-g\", \"wren-xmodem-g.bin\")\n"
+		    "if (!(held is TransferError) || held.code != %d || Transfer.active) Fiber.abort(\"startup stage status lost\")\n",
+		    statuses[i]) < (int)sizeof(source));
+		CHECK(transfer_interpret(NULL, connected, source) == 0);
+		*controls[i] = 0;
+		bool reserved;
+		CHECK(!st_term_session_inspect_transfer(session, &state, &reserved) && !reserved);
+		CHECK(!st_connection_binary_mode(&connection));
+	}
+	bool safe_mode = host->config.safe_mode;
+	host->config.safe_mode = true;
+	CHECK(transfer_interpret(NULL, connected,
+	    "var denied = Transfer.download(\"xmodem-g\", \"wren-xmodem-g.bin\")\n"
+	    "if (!(denied is TransferError) || denied.code != IOErr.permissionDenied || Transfer.active) Fiber.abort(\"safe transfer started\")\n"
+	    "if (Transfer.beginSession(\"fake\") != null) Fiber.abort(\"safe synthetic transfer denied\")\n"
+	    "Transfer.endSession()\n") == 0);
+	host->config.safe_mode = safe_mode;
+	for (unsigned action = 0; action < 5; ++action) {
+		int removed = fs_remove_file(filename);
+		CHECK(removed == 0 || removed == IO_ERROR_NOT_FOUND);
+		CHECK(transfer_interpret(NULL, connected,
+		    "if (Transfer.download(\"xmodem-g\", \"wren-xmodem-g.bin\") != null) Fiber.abort(\"XMODEM-G startup failed\")\n"
+		    "invalid = Fiber.new { Transfer.result }\n"
+		    "invalid.try()\n"
+		    "if (invalid.error == null) Fiber.abort(\"running protocol result accepted\")\n") == 0);
+		CHECK(st_connection_binary_mode(&connection));
+		CHECK(wait_transfer(session, false, 0, &state) == 0 && state.protocol == ST_TRANSFER_XMODEM_G);
+		bool requested = false;
+		for (unsigned i = 0; i < 1000 && !requested; ++i) {
+			(void)st_mutex_lock(&connection.output.mutex);
+			requested = connection.output.count != 0;
+			if (requested) CHECK(connection.output.data[connection.output.head] == 'G');
+			(void)st_mutex_unlock(&connection.output.mutex);
+			if (!requested) (void)st_thread_sleep(&(struct timespec){.tv_nsec = 1000000L}, NULL);
+		}
+		CHECK(requested);
+		if (action < 2) {
+			uint8_t block[133] = {1, 1, 254};
+			memset(block + 3, 'X', 128);
+			/* CRC-16/XMODEM of 128 'X' bytes, independently calculated. */
+			block[131] = 0x27; block[132] = action == 0 ? 0x3f : 0x3e;
+			CHECK(feed_transfer(&connection, session, block, sizeof(block)) == 0);
+			if (action == 0) {
+				CHECK(wait_transfer(session, false, 128, &state) == 0);
+				(void)st_mutex_lock(&connection.output.mutex);
+				CHECK(connection.output.count == 1); /* No per-block ACK in G mode. */
+				(void)st_mutex_unlock(&connection.output.mutex);
+				const uint8_t eot = 4;
+				CHECK(feed_transfer(&connection, session, &eot, 1) == 0);
+			}
+		} else if (action == 2) {
+			const uint8_t cancel[] = {24, 24};
+			CHECK(feed_transfer(&connection, session, cancel, sizeof(cancel)) == 0);
+		} else if (action == 3) {
+			CHECK(transfer_interpret(NULL, connected,
+			    "if (!Transfer.requestAbort()) Fiber.abort(\"local abort not latched\")\n") == 0);
+		} else {
+			(void)st_mutex_lock(&connection.input.mutex);
+			connection.input.eof = true;
+			(void)st_mutex_unlock(&connection.input.mutex);
+		}
+		CHECK(wait_transfer(session, true, 0, &state) == 0);
+		if (action == 0) CHECK(state.result == 0);
+		else if (action == 1) CHECK(state.result == IO_ERROR_PROTOCOL);
+		else if (action == 2 || action == 3) CHECK(state.result == IO_ERROR_CANCELLED);
+		else CHECK(state.result != 0);
+		CHECK(state.aborted == (action == 3));
+		char source[1024];
+		CHECK(snprintf(source, sizeof(source),
+		    "dirty = Transfer.tickDirty\n"
+		    "held = Transfer.result\n"
+		    "if (%d == 0) {\n"
+		    "  if (held != null || Transfer.result != null) Fiber.abort(\"successful result changed\")\n"
+		    "} else {\n"
+		    "  if (!(held is TransferError) || held.code != %d || Transfer.result.code != %d || !held.message.contains(\"completion\")) Fiber.abort(\"completion status lost\")\n"
+		    "}\n"
+		    "if (Transfer.tickDirty != dirty || Transfer.drainLog().count == 0) Fiber.abort(\"result consumed mailbox\")\n"
+		    "Transfer.endSession()\n"
+		    "System.gc()\n"
+		    "if (held != null && held.code != %d) Fiber.abort(\"saved error lost\")\n",
+		    state.result, state.result, state.result, state.result) < (int)sizeof(source));
+		CHECK(transfer_interpret(NULL, connected, source) == 0);
+		CHECK(!st_connection_binary_mode(&connection));
+		if (action == 0) {
+			uint8_t content[129];
+			FILE *file = fopen(filename, "rb");
+			CHECK(file != NULL && fread(content, 1, sizeof(content), file) == 128 && fclose(file) == 0);
+			for (size_t i = 0; i < 128; ++i) CHECK(content[i] == 'X');
+		}
+		(void)st_mutex_lock(&connection.output.mutex);
+		connection.output.head = connection.output.count = 0;
+		(void)st_mutex_unlock(&connection.output.mutex);
+		(void)st_mutex_lock(&connection.input.mutex);
+		connection.input.eof = false;
+		(void)st_mutex_unlock(&connection.input.mutex);
+	}
+	CHECK(write_file(filename, "wire failure") == 0);
+	atomic_store(&connection.connected, false);
+	(void)st_mutex_lock(&connection.output.mutex);
+	connection.output.stopped = true;
+	(void)st_mutex_unlock(&connection.output.mutex);
+	CHECK(transfer_interpret(NULL, connected,
+	    "if (Transfer.upload(\"raw\", \"" ST_WREN_TEST_DIRECTORY "/wren-xmodem-g.bin\", 0) != null) Fiber.abort(\"raw startup failed\")\n") == 0);
+	CHECK(wait_transfer(session, true, 0, &state) == 0 && state.result == IO_ERROR_NOT_CONNECTED);
+	CHECK(transfer_interpret(NULL, connected,
+	    "if (Transfer.result.code != IOErr.notConnected || Transfer.aborted) Fiber.abort(\"I/O result coarsened\")\n"
+	    "Transfer.endSession()\n"
+	    "if (held == null || held.code == 0) Fiber.abort(\"prior error changed with new transfer\")\n") == 0);
+	/* Actual flow UI: one startup error, no worker/progress owner, one dismissal. */
+	atomic_store(&connection.connected, true);
+	unsigned created = st_wren_test_transfer_create_calls;
+	st_wren_test_transfer_create_status = IO_ERROR_OUT_OF_MEMORY;
+	CHECK(transfer_interpret(NULL, connected,
+	    "import \"transfer_pick\" for TransferFlow\n"
+	    "import \"syncterm\" for Screen\n"
+	    "TransferFlow.download()\n") == 0);
+	CHECK(transfer_key(connected, 13) == 0);
+	CHECK(st_wren_test_transfer_create_calls == created + 1);
+	st_wren_test_transfer_create_status = 0;
+	CHECK(transfer_interpret(NULL, connected,
+	    "var size = Screen.size\n"
+	    "var text = Screen.readRect(1, 1, size[0], size[1]).map {|c| c.ch }.join()\n"
+	    "if (TransferFlow.busy || Transfer.active || !text.contains(\"Out of memory\")) Fiber.abort(\"startup failure UI missing\")\n") == 0);
+	CHECK(transfer_key(connected, 13) == 0);
+	CHECK(transfer_interpret(NULL, connected,
+	    "if (TransferFlow.busy || Transfer.active) Fiber.abort(\"startup failure retained flow ownership\")\n") == 0);
+	/* Inline cleanup captures the error before destroying the worker. */
+	atomic_store(&connection.connected, false);
+	CHECK(transfer_interpret(NULL, connected,
+	    "TransferFlow.launch_(Fn.new {\n"
+	    "  var error = Transfer.upload(\"raw\", \"" ST_WREN_TEST_DIRECTORY "/wren-xmodem-g.bin\", 0)\n"
+	    "  if (error != null) Fiber.abort(error)\n"
+	    "  TransferFlow.inline_()\n"
+	    "})\n") == 0);
+	for (unsigned i = 0; i < 100; ++i) {
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+		(void)st_thread_sleep(&(struct timespec){.tv_nsec = 1000000L}, NULL);
+	}
+	CHECK(transfer_interpret(NULL, connected,
+	    "text = Screen.readRect(1, 1, size[0], size[1]).map {|c| c.ch }.join()\n"
+	    "if (Transfer.active || !TransferFlow.busy || !text.contains(\"Not connected\")) Fiber.abort(\"inline error lost after cleanup\")\n") == 0);
+	CHECK(transfer_key(connected, 13) == 0);
+	CHECK(transfer_interpret(NULL, connected,
+	    "if (TransferFlow.busy || Transfer.active) Fiber.abort(\"inline failure retained flow ownership\")\n") == 0);
+	CHECK(transfer_interpret(NULL, connected,
+	    "import \"syncterm\" for Timer\n"
+	    "TransferFlow.launch_(Fn.new {\n"
+	    "  Timer.after(1).await()\n"
+	    "  Fiber.abort(\"transfer text failure\")\n"
+	    "})\n") == 0);
+	for (unsigned i = 0; i < 100; ++i) {
+		CHECK(st_wren_connected_pump(connected, 0) == 0);
+		(void)st_thread_sleep(&(struct timespec){.tv_nsec = 1000000L}, NULL);
+	}
+	CHECK(transfer_interpret(NULL, connected,
+	    "text = Screen.readRect(1, 1, size[0], size[1]).map {|c| c.ch }.join()\n"
+	    "if (TransferFlow.busy || Transfer.active || !text.contains(\"transfer text failure\")) Fiber.abort(\"resumed Fiber error escaped supervisor\")\n") == 0);
+	CHECK(transfer_key(connected, 13) == 0);
+	st_wren_connected_destroy(connected);
+	st_term_session_destroy(&session);
+	st_font_catalog_destroy(fonts);
+	CHECK(st_console_snapshot_restore(console, snapshot) == 0);
+	st_console_snapshot_destroy(snapshot);
+	st_condition_destroy(&connection.output.changed); st_mutex_destroy(&connection.output.mutex);
+	st_condition_destroy(&connection.input.changed); st_mutex_destroy(&connection.input.mutex);
+	st_profile_dispose(&profile);
+	CHECK(fs_remove_file(filename) == 0);
+	return 0;
+}
+
 /* Exercise the real asynchronous progress App and VM-owned cancellation. */
 static int
 exercise_transfer_ui(st_wren_host_t *host, st_console_t *console,
@@ -1326,20 +1654,26 @@ exercise_transfer_ui(st_wren_host_t *host, st_console_t *console,
 	for (unsigned aborting = 0; aborting < 2; ++aborting) {
 		st_wren_connected_t *connected = NULL;
 		CHECK(st_wren_connected_create(&connected, &config) == 0);
+		CHECK(exercise_transfer_results(NULL, connected) == 0);
 		CHECK(st_wren_connected_interpret(connected, "transfer_ui_probe",
-		    "import \"syncterm\" for Transfer, Input, CTerm\n"
+		    "import \"syncterm\" for Transfer, Input, CTerm, IOErr\n"
 		    "import \"transfer_app\" for TransferApp\n"
 		    "class TransferProbe {\n"
 		    "  static done { __done }\n"
 		    "  static start() {\n"
 		    "    __done = false\n"
-		    "    Transfer.beginSession(\"fake\")\n"
+		    "    if (Transfer.beginSession(\"fake\") != null) Fiber.abort(\"transfer startup must return null\")\n"
 		    "    __fiber = Fiber.new {\n"
 		    "      var app = TransferApp.new(\"Transfer test\")\n"
 		    "      app.waitTimeoutMs = 0\n"
 		    "      app.run()\n"
 		    "      if (!Transfer.done || Transfer.snapshot().count != 6) Fiber.abort(\"completion shape\")\n"
+		    "      var result = Transfer.result\n"
+		    "      if (app.success != (result == null) || app.aborted != Transfer.aborted) Fiber.abort(\"App result disagrees\")\n"
+		    "      if (result != null && result.code != IOErr.cancelled) Fiber.abort(\"completion code lost\")\n"
 		    "      Transfer.endSession()\n"
+		    "      System.gc()\n"
+		    "      if (result != null && result.code != IOErr.cancelled) Fiber.abort(\"completion error lifetime\")\n"
 		    "      __done = true\n"
 		    "    }\n"
 		    "    __fiber.call()\n"
@@ -7909,7 +8243,7 @@ main(int argc, char **argv)
 	    "history", 7, &history_hyperlink) == 0);
 	CHECK(history_hyperlink == 1);
 	history_cells[0].hyperlink = history_hyperlink;
-	CHECK(st_audio_runtime_create(&audio_runtime, menu_only ? 0 : UINT32_MAX) == 0);
+	CHECK(st_audio_runtime_create(&audio_runtime, 0) == 0);
 	CHECK(st_session_history_publish(session_history, history_cells, 2, 2,
 	    ST_SCREEN_MODE_CURRENT, true) == 0);
 	host_config = (struct st_wren_host_config){
@@ -8029,6 +8363,8 @@ main(int argc, char **argv)
 	CHECK(exercise_emoji_contract(host) == 0);
 	CHECK(exercise_emoji_result_contract(host, host->vm, NULL) == 0);
 	CHECK(exercise_emoji_result_contract(host, host->picker_vm, NULL) == 0);
+	CHECK(exercise_transfer_results(host->vm, NULL) == 0);
+	CHECK(exercise_transfer_results(host->picker_vm, NULL) == 0);
 	CHECK(st_audio_runtime_allowed(audio_runtime) == 0);
 	CHECK(st_session_history_capacity(session_history) == 100);
 	CHECK(exercise_settings_save_contract(host) == 0);
@@ -8107,6 +8443,7 @@ main(int argc, char **argv)
 		CHECK(exercise_cleanup_scopes(host, console, &selected) == 0);
 		CHECK(exercise_owned_sends(host, console) == 0);
 		CHECK(exercise_upload_consent(host, console) == 0);
+		CHECK(exercise_transfer_wire(host, console) == 0);
 		CHECK(exercise_transfer_ui(host, console, &selected) == 0);
 		CHECK(exercise_connected_session_log(host, console, &selected) == 0);
 		CHECK(exercise_connected_link_hover(host, console, &selected) == 0);

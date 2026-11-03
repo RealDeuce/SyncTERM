@@ -15,6 +15,81 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <stdio.h>
+
+struct transfer_error {
+	int code;
+	char message[160];
+};
+
+static void allocate_error(WrenVM *vm)
+{
+	struct transfer_error *error = wrenSetSlotNewForeign(vm, 0, 0, sizeof(*error));
+	*error = (struct transfer_error){0};
+}
+
+WrenForeignClassMethods st_wren_transfer_bind_class(const char *class_name)
+{
+	return strcmp(class_name, "TransferError") == 0
+	    ? (WrenForeignClassMethods){allocate_error, NULL}
+	    : (WrenForeignClassMethods){NULL, NULL};
+}
+
+static struct transfer_error *error_value(WrenVM *vm)
+{
+	return st_wren_foreign_require(vm, 0, "syncterm", "TransferError");
+}
+static void error_code(WrenVM *vm)
+{
+	struct transfer_error *error = error_value(vm);
+	if (error != NULL) wrenSetSlotDouble(vm, 0, error->code);
+}
+static void error_message(WrenVM *vm)
+{
+	struct transfer_error *error = error_value(vm);
+	if (error != NULL) wrenSetSlotString(vm, 0, error->message);
+}
+static void error_string(WrenVM *vm)
+{
+	struct transfer_error *error = error_value(vm);
+	char text[208];
+	if (error == NULL) return;
+	(void)snprintf(text, sizeof(text), "TransferError(%d): %s", error->code, error->message);
+	wrenSetSlotString(vm, 0, text);
+}
+
+static void transfer_result(WrenVM *vm, int status, const char *operation)
+{
+	static const char *const reasons[] = {
+		"Invalid argument", "Invalid encoding", "Not found", "Permission denied",
+		"Already exists", "Not a directory", "Is a directory", "Directory not empty",
+		"Out of memory", "No space available", "Name too long", "Out of range",
+		"Busy", "Read-only", "Cross-device operation", "Too many links",
+		"Interrupted", "Not supported", "I/O failure", "Timed out", "Cancelled",
+		"Would block", "In progress", "Name resolution failed", "Connection refused",
+		"Connection reset", "Connection aborted", "Not connected", "Network unreachable",
+		"Host unreachable", "Address in use", "Address not available", "Message too large",
+		"Protocol failure", "Password required", "Decryption failed", "Invalid format", "Conflict",
+	};
+	if (status == 0) { wrenSetSlotNull(vm, 0); return; }
+	wrenEnsureSlots(vm, 2);
+	wrenGetVariable(vm, "syncterm", "TransferError", 1);
+	struct transfer_error *error = wrenSetSlotNewForeign(vm, 0, 1, sizeof(*error));
+	error->code = status;
+	(void)snprintf(error->message, sizeof(error->message), "%s: %s.", operation,
+	    status <= -1 && status >= -38 ? reasons[-status - 1] : "Native transfer failure");
+}
+
+static bool transfer_text(WrenVM *vm, int slot, const char **text)
+{
+	int length;
+	if (!st_wren_text_slot(vm, slot, text, &length)) return false;
+	if (memchr(*text, '\0', (size_t)length) != NULL) {
+		st_wren_abort(vm, "Transfer text must not contain NUL");
+		return false;
+	}
+	return true;
+}
 
 struct st_wren_transfer {
 	st_transfer_t *worker;
@@ -311,15 +386,23 @@ static void inline_progress(WrenVM *vm)
 }
 static void begin(WrenVM *vm)
 {
-	const char *kind; int length;
-	if (!st_wren_text_slot(vm, 1, &kind, &length) || strcmp(kind, "fake") != 0) { st_wren_abort(vm, "Transfer.beginSession expects fake"); return; }
+	const char *kind;
+	if (!transfer_text(vm, 1, &kind)) return;
+	if (strcmp(kind, "fake") != 0) { st_wren_abort(vm, "Transfer.beginSession expects fake"); return; }
 	struct st_transfer_config config = {.protocol = ST_TRANSFER_FAKE};
-	if (start(st_wren_context_from_vm(vm), &config, false) != 0) st_wren_abort(vm, "Transfer already active or could not start");
-	else wrenSetSlotBool(vm, 0, true);
+	transfer_result(vm, start(st_wren_context_from_vm(vm), &config, false), "Transfer startup failed");
 }
 static void end(WrenVM *vm) { finish(st_wren_context_from_vm(vm)); wrenSetSlotNull(vm, 0); }
 static void done(WrenVM *vm) { wrenSetSlotBool(vm, 0, st_transfer_done(get_worker(vm))); }
-static void success(WrenVM *vm) { wrenSetSlotBool(vm, 0, st_transfer_result(get_worker(vm)) == 0); }
+static void result(WrenVM *vm)
+{
+	st_transfer_t *worker = get_worker(vm);
+	if (worker == NULL || !st_transfer_done(worker)) {
+		st_wren_abort(vm, "Transfer.result requires an active, completed transfer");
+		return;
+	}
+	transfer_result(vm, st_transfer_result(worker), "Transfer completion failed");
+}
 static void aborted(WrenVM *vm) { wrenSetSlotBool(vm, 0, st_transfer_aborted(get_worker(vm))); }
 static void abort_transfer(WrenVM *vm) { wrenSetSlotBool(vm, 0, st_transfer_request_abort(get_worker(vm))); }
 static void tick_dirty(WrenVM *vm)
@@ -380,21 +463,21 @@ static bool parse_protocol(const char *name, bool upload, enum st_transfer_proto
 		{"ymodem-g", ST_TRANSFER_YMODEM_G}, {"xmodem-1k", ST_TRANSFER_XMODEM_1K},
 		{"xmodem-128", ST_TRANSFER_XMODEM_128}, {"xmodem-crc", ST_TRANSFER_XMODEM_CRC},
 		{"xmodem-chksum", ST_TRANSFER_XMODEM_CHECKSUM}, {"ascii", ST_TRANSFER_ASCII},
-		{"raw", ST_TRANSFER_RAW}, {"cet", ST_TRANSFER_CET}
+		{"raw", ST_TRANSFER_RAW}, {"cet", ST_TRANSFER_CET}, {"xmodem-g", ST_TRANSFER_XMODEM_G}
 	};
 	for (size_t i = 0; i < sizeof(kinds) / sizeof(kinds[0]); ++i) if (strcmp(name, kinds[i].name) == 0) {
 		*protocol = kinds[i].protocol;
-		if (upload) return *protocol != ST_TRANSFER_CET && *protocol != ST_TRANSFER_XMODEM_CRC && *protocol != ST_TRANSFER_XMODEM_CHECKSUM && *protocol != ST_TRANSFER_YMODEM_G;
+		if (upload) return *protocol != ST_TRANSFER_CET && *protocol != ST_TRANSFER_XMODEM_CRC && *protocol != ST_TRANSFER_XMODEM_CHECKSUM && *protocol != ST_TRANSFER_YMODEM_G && *protocol != ST_TRANSFER_XMODEM_G;
 		return *protocol != ST_TRANSFER_RAW && *protocol != ST_TRANSFER_ASCII && *protocol != ST_TRANSFER_XMODEM_1K && *protocol != ST_TRANSFER_XMODEM_128;
 	}
 	return false;
 }
 static void dispatch(WrenVM *vm, bool upload, bool batch)
 {
-	const char *kind; int length;
+	const char *kind;
 	struct st_transfer_config config = {.upload = upload};
 	struct st_wren_context *context = st_wren_context_from_vm(vm);
-	if (!st_wren_text_slot(vm, 1, &kind, &length)) return;
+	if (!transfer_text(vm, 1, &kind)) return;
 	if (!parse_protocol(kind, upload, &config.protocol)
 	    || (batch && config.protocol != ST_TRANSFER_ZMODEM && config.protocol != ST_TRANSFER_YMODEM)) { st_wren_abort(vm, "Unsupported transfer protocol"); return; }
 	struct st_cterm_state terminal_state = {0};
@@ -410,7 +493,7 @@ static void dispatch(WrenVM *vm, bool upload, bool batch)
 		int count = batch ? wrenGetListCount(vm, 2) : 1;
 		if (count <= 0 || count > 65536) { st_wren_abort(vm, "Invalid upload file count"); return; }
 		paths = calloc((size_t)count, sizeof(*paths));
-		if (paths == NULL) { st_wren_abort(vm, "Out of memory"); return; }
+		if (paths == NULL) { transfer_result(vm, IO_ERROR_OUT_OF_MEMORY, "Transfer startup failed"); return; }
 		config.path_count = (size_t)count; config.paths = (const char *const *)paths;
 		wrenEnsureSlots(vm, 5);
 		for (int i = 0; i < count; ++i) {
@@ -419,11 +502,11 @@ static void dispatch(WrenVM *vm, bool upload, bool batch)
 			paths[i] = st_wren_file_upload_path(vm, slot);
 			if (paths[i] == NULL) goto finished;
 		}
-	} else if (config.protocol == ST_TRANSFER_XMODEM_CRC || config.protocol == ST_TRANSFER_XMODEM_CHECKSUM) {
-		if (!st_wren_text_slot(vm, 2, &config.filename, &length)) return;
+	} else if (config.protocol == ST_TRANSFER_XMODEM_CRC || config.protocol == ST_TRANSFER_XMODEM_CHECKSUM
+	    || config.protocol == ST_TRANSFER_XMODEM_G) {
+		if (!transfer_text(vm, 2, &config.filename)) return;
 	}
-	if (start(context, &config, false) != 0) st_wren_abort(vm, "Transfer could not start (active, unsafe, or invalid configuration)");
-	else wrenSetSlotBool(vm, 0, true);
+	transfer_result(vm, start(context, &config, false), "Transfer startup failed");
 finished:
 	for (size_t i = 0; i < config.path_count; ++i) free(paths[i]);
 	free(paths);
@@ -448,11 +531,12 @@ static void accept_rip_upload(WrenVM *vm)
 {
 	struct st_wren_context *context = st_wren_context_from_vm(vm);
 	struct st_wren_transfer *s = context->transfer;
-	if (s == NULL || !s->rip_upload_pending || start_rip(context, true) != 0) {
-		st_wren_abort(vm, "Requested RIP upload could not start"); return;
+	if (s == NULL || !s->rip_upload_pending) {
+		st_wren_abort(vm, "No pending RIP upload"); return;
 	}
-	s->rip_upload_pending = false;
-	wrenSetSlotNull(vm, 0);
+	int status = start_rip(context, true);
+	if (status == 0) s->rip_upload_pending = false;
+	transfer_result(vm, status, "RIP upload startup failed");
 }
 static void cancel_automatic(WrenVM *vm)
 {
@@ -473,11 +557,16 @@ static void cancel_automatic(WrenVM *vm)
 }
 WrenForeignMethodFn st_wren_transfer_bind_method(const char *class_name, bool is_static, const char *signature)
 {
+	if (!is_static && strcmp(class_name, "TransferError") == 0) {
+		if (strcmp(signature, "code") == 0) return error_code;
+		if (strcmp(signature, "message") == 0) return error_message;
+		if (strcmp(signature, "toString") == 0) return error_string;
+	}
 	if (!is_static || strcmp(class_name, "Transfer") != 0) return NULL;
 	static const struct { const char *signature; WrenForeignMethodFn method; } methods[] = {
 		{"active", active}, {"uploading", uploading}, {"inlineUpload", inline_upload},
 		{"inlineProgress", inline_progress},
-		{"beginSession(_)", begin}, {"endSession()", end}, {"done", done}, {"success", success},
+		{"beginSession(_)", begin}, {"endSession()", end}, {"done", done}, {"result", result},
 		{"aborted", aborted}, {"requestAbort()", abort_transfer}, {"tickDirty", tick_dirty},
 		{"snapshot()", snapshot}, {"drainLog()", drain_log}, {"dialogPending", dialog_pending},
 		{"dialogFilename", dialog_filename}, {"dialogRespond(_,_)", dialog_respond},

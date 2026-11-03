@@ -1707,8 +1707,8 @@
     },
     "transfer.workflow": {
       "status": "covered",
-      "wren": "Transfer upload/uploadBatch/download / snapshot / dialogs / log / done/success/abort",
-      "reason": "Common protocol choices, progress text/byte counts, user duplicate-file responses and abort/completion map to the one session transfer owner. Session transfer inspection wraps native state. Starting the worker and pumping input are not separate script thread APIs. Result detail, receive-policy/streaming options, XMODEM-G selection and raw upload paths are separately recorded.",
+      "wren": "Transfer upload/uploadBatch/download / snapshot / dialogs / log / done/result/abort",
+      "reason": "Common protocol choices, progress text/byte counts, user duplicate-file responses and abort/completion map to one session transfer owner. Create/launch/input pumping remain host operations. Typed result fidelity, explicit XMODEM-G downloads and enforced upload grants are covered by their separate assessments; generic receive-policy/streaming remains open.",
       "vm": "connected",
       "evidence": [
         {
@@ -1722,9 +1722,9 @@
       ]
     },
     "transfer.result-code": {
-      "status": "partial",
-      "wren": "Transfer.success and startup Fiber error",
-      "reason": "The native integer completion result is reduced to success Bool and aborted Bool; startup errors use a generic abort message. Native error reasons cannot be recovered from these flags, even though a textual log may explain some failures.",
+      "status": "covered",
+      "wren": "TransferError startup values and Transfer.result completion getter",
+      "reason": "Startup methods return null/TransferError, preserving native portable integer failures. Transfer.result requires an active completed worker and returns null or an immutable owned TransferError with the exact native result. It neither consumes logs/progress nor releases ownership. Native peer cancellation is distinct from the local abort latch. The removed success getter has no alias. Callers capture completion before cleanup, show specific errors, and skip progress UI after startup failure. The existing callback driver catches ordinary/typed Fiber failures on every registered resume without changing Wren semantics or cleanup order.",
       "vm": "same VM as the owning API",
       "evidence": [
         {
@@ -1733,29 +1733,47 @@
         },
         {
           "path": "src/scripting/wren_host/wren_bind_xfer.c",
-          "anchor": "static void success"
+          "anchor": "static void result(WrenVM *vm)"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_xfer.c",
+          "anchor": "static void transfer_result"
+        },
+        {
+          "path": "scripts/transfer_pick.wren",
+          "anchor": "Cleanup_.try_(task)"
+        },
+        {
+          "path": "scripts/transfer_app.wren",
+          "anchor": "var result = Transfer.result"
         }
       ],
       "finding": "transfer-result",
-      "decision": "mapping-gap"
+      "decision": "resolved",
+      "resolution": "resolved"
     },
     "transfer.xmodem-g": {
-      "status": "partial",
-      "wren": "RIP selects native XMODEM-G internally",
-      "reason": "Native XMODEM-G exists and RIP can choose it, but Transfer protocol parser offers no explicit xmodem-g choice for script-directed transfers.",
+      "status": "covered",
+      "wren": "Transfer.download(\"xmodem-g\", filename) and bundled download picker",
+      "reason": "Explicit XMODEM-G downloads use the existing native protocol and filename path, preserving final-block padding, no per-block ACK/retry and normal cancellation/handoff. The picker exposes XMODEM-G and requests its filename. Explicit XMODEM-G upload/batch selection stays rejected; existing XMODEM upload modes negotiate G through the receiver handshake. No protocol worker or receive-stream API changes.",
       "vm": "same VM as the owning API",
       "evidence": [
         {
           "path": "src/scripting/wren_host/wren_bind_xfer.c",
-          "anchor": "ST_TRANSFER_XMODEM_G"
+          "anchor": "{\"xmodem-g\", ST_TRANSFER_XMODEM_G}"
         },
         {
-          "path": "src/scripting/wren_host/wren_bind_xfer.c",
-          "anchor": "static bool parse_protocol"
+          "path": "scripts/transfer_pick.wren",
+          "anchor": "[\"xmodem-g\", \"XMODEM-G\"]"
+        },
+        {
+          "path": "docs/Wren.adoc",
+          "anchor": "XMODEM-G streams without per-block acknowledgments or retries."
         }
       ],
       "finding": "transfer-protocol-selection",
-      "decision": "mapping-gap"
+      "decision": "resolved",
+      "resolution": "resolved"
     },
     "transfer.receive-policy": {
       "status": "partial",
@@ -3875,6 +3893,11 @@
       "path": "scripts/menu_sort_profiles.wren",
       "anchor": "error = action.call()",
       "aspect": "Retain the native error through the existing UI Fiber catch boundary."
+    },
+    {
+      "path": "scripts/ui_demo.wren",
+      "anchor": "var error = Transfer.beginSession(\"fake\")",
+      "aspect": "Synthetic demo handles typed startup failure before progress UI"
     }
   ],
   "test_evidence": [
@@ -4032,6 +4055,26 @@
       "path": "src/scripting/wren_host/tests/st_wren_settings_menu_test.c",
       "anchor": "test_theme_results",
       "aspect": "Native typed theme results, save enum constants/reasons, host policy versus real native status, catalog/constructor browser handling, cloud warning/failure/clean cases without network, save/activate call counts, actual conflict/exists editor confirmation, activation failure after persistence and primary error retained after restoration failure."
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_host_test.c",
+      "anchor": "exercise_transfer_results",
+      "aspect": "Menu/picker/connected VM error values, missing context, busy, malformed text/NUL/arguments, inactive/pending result, immutable error/GC, removed success and abort latch"
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_host_test.c",
+      "anchor": "exercise_transfer_wire",
+      "aspect": "Native create/claim/launch failures, unknown integer preservation, safe mode, real G handshake/bytes/padding/success/corrupt block/local and peer cancel/EOF, transport I/O error, nondestructive result and restored ownership; actual startup/inline/resumed-text failure UI"
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_transfer_test_bindings.c",
+      "anchor": "test_transfer_claim",
+      "aspect": "Private real-binder startup fault controls; none linked into application"
+    },
+    {
+      "path": "src/tests/st_test_control_test.py",
+      "anchor": "def transfer(executable):",
+      "aspect": "Headless normal application CRC/G cancellation, G success/corruption, file bytes, typed result and terminal handoff; physical audio disabled"
     }
   ],
   "dispatch_evidence": [
@@ -4043,7 +4086,7 @@
   ],
   "evidence_files": {
     "docs/WREN_GUIDANCE.md": "d14aeecb5eae922015f2f48a4fd690277dcb5b91aedfd8d8d8cffb2dc235e1ac",
-    "docs/Wren.adoc": "eb7aaab0b4256bf6fb40ddcc28f197d1d9f9111e7f4d546588ab3577aef3f3de",
+    "docs/Wren.adoc": "a22ed86c7ddc260be9df7a958b1e3697b105e70eb0a8e0f4f5c0b3b42f227a53",
     "docs/api/bbs-entry-fields.adoc": "a1be9944eadd5f56d752e8669b502f49b27211f14190443a95e36ad301b8d128",
     "scripts/auto/connected/font_pick.wren": "6cd249b69c2f851e1fb84e4b8ce381879cfaaa96a35e1376f6e8502c6497e91b",
     "scripts/auto/menu/main_menu.wren": "5b37db003c7c052da2332aeb8255db695fd2f3d976fa4f56502578ed0039c681",
@@ -4051,11 +4094,11 @@
     "scripts/menu_settings_ui.wren": "5d0afe0a828d8dcf7383bf83da193491db243c51360375762110e8998444857c",
     "scripts/sftp_app.wren": "4cd38fa9304c6c7428d7a21ef3b86c0d68fb14e25b35c3540bfdd46a211a9e5f",
     "scripts/sftp_queue.wren": "b15fe706268e9ce6d5fea4227661d0ac810f6f9fc4dbf7d39863756bde3eaf74",
-    "scripts/syncterm.wren": "11d72cc3f50707d115a45bfd609fc4fbf86e5c0b25123051c30ae81dcf6d6490",
+    "scripts/syncterm.wren": "f5d3335fbeec01cc4cb3631a3be6662d1081de10b9299f494d44ce7e6bc630bc",
     "scripts/syncterm_menu.wren": "0fb618cc9532edf4dcb7d867d54af5a87d884d7163b100207d9b5535ae51ad68",
     "scripts/syncterm_picker.wren": "143e15bd084bed37145061760100c84b353d340e00187d9cd2b920a850be6021",
-    "scripts/transfer_app.wren": "36713bbb8fdb61e5f7af68371c44a9110cd8bda8ea59c0ee7ee09436684b61af",
-    "scripts/transfer_pick.wren": "9e88fe4e68efc01449105c8536f1902fca4295564adf2b488d1a866d5fcd29cb",
+    "scripts/transfer_app.wren": "7eedcb12d4eccd0cdc04791c37081c2c9cf36d4d45c41c37a9e8a6f71a0c6498",
+    "scripts/transfer_pick.wren": "531deb94dc13bc84f952798765f6ab1aad5ffd4318fb31f3479e4353e883f6cf",
     "scripts/ui_app.wren": "704c49cd2ff7f3c1fe86391d6bb1ac2d0120091506e246dad4ddb7cff70649d6",
     "scripts/wrentest.wren": "a5f4c32e64fe15ea09edfc5df6e8ae32cb389b463dba368b0e4ac4163e8a95e9",
     "src/base/array_list/array_list.h": "07f78e0fe13932c9f0004844800f4e391029a0f6279fa750bfe836b9f85357de",
@@ -4120,7 +4163,7 @@
     "src/net/transfer/st_transfer_detect.h": "3296b9ecf875d100f793920a3b0117a8f7b80951a539317d366f4ea40a7a1b30",
     "src/net/webget/st_webget.h": "9647dcc563e1661fe1d6b762c78e2483d2beae03ac878da0ebd15c8a425d2143",
     "src/scripting/wren_host/st_wren_host.h": "531eba9331f992a6394c41020890e279597ee8d6cfd1259a4495f68ef38d5552",
-    "src/scripting/wren_host/tests/st_wren_host_test.c": "814bdd62306c3da9f882d9bac3b56a901d329880ba2347e48160e93b7b65e0c5",
+    "src/scripting/wren_host/tests/st_wren_host_test.c": "3f706ace7461be7ecc014dd895ea1bd684271fb1e25660e54f2d2cb8cf1aef59",
     "src/scripting/wren_host/tests/st_wren_settings_menu_test.c": "269477ca235d241d71e5f3b2409c0800d2a3379cbc9c455c879219c8bb4e6e3c",
     "src/scripting/wren_host/wren_async.c": "71e78941735250300171a2b7cb13b70c92916bd14c066a6614b3f77cdd9b565d",
     "src/scripting/wren_host/wren_bbs_model.c": "18dca3353505a5b0dc609251f16038bd9132c47e215c4cf24ba802ac4b3ab97a",
@@ -4132,11 +4175,11 @@
     "src/scripting/wren_host/wren_bind_session.c": "fb584f383f0d6df19f328ef194e8bf328f8dc723066df2111794b2b32ac63b93",
     "src/scripting/wren_host/wren_bind_status.c": "85ed4115c9a9645aa27cccb2a9977e5892037123d7440d9acf3397fd55e16671",
     "src/scripting/wren_host/wren_bind_won.c": "96575bcbfdf0b157d89ec5ef64cd2573a0b41d2aaf5e379edd19303d382bc2f4",
-    "src/scripting/wren_host/wren_bind_xfer.c": "760600a5165e97060b06b52127f1450a4a0a76422babcfa70b9d0e07c668b573",
+    "src/scripting/wren_host/wren_bind_xfer.c": "8f45884d3f87622b02f6c93721760ee22635d9a6773d6fc5b5c17bf2116978d2",
     "src/scripting/wren_host/wren_cleanup.c": "4a22a39e849d5336e2fc4d870cb749e0eecdb1137463ef7a6d989e8dfd2c235b",
     "src/scripting/wren_host/wren_directory.c": "c7d5088d503737efa3499182c7feaab10c5b0bccc7888b465b1832b0b2ea9180",
     "src/scripting/wren_host/wren_foreign.c": "6fbacba5e2a42ecbfd16bfef1d427a1323f7ecdbebfecd238efd6ae3aebeeca7",
-    "src/scripting/wren_host/wren_host.c": "0d859908d73bf35d2bda3eb71364cc678052574e12336e6845d737f43125e359",
+    "src/scripting/wren_host/wren_host.c": "ee400913730d81f8dacf50e10596eb96fda305f89c876f2ebf585462a3dac50c",
     "src/scripting/wren_host/wren_links.c": "db575ae323af458a9454bae80288c3de05550d910c1a460036f0ab8f9fa9fce1",
     "src/scripting/wren_host/wren_number.c": "1cd1837e8db9f95d0983215fc9674fe9ecfc07820b00011b7bc751f977d7cb89",
     "src/scripting/wren_host/wren_picker.c": "3ca1eb88e1d590a6a908f0cb3f0f2936f785e3a6df79bec79c10c41edfa2cfe4",
@@ -4190,7 +4233,10 @@
     "src/config/theme/tests/st_theme_document_test_impl.c": "8087bee2057f71da5ba95be6b532671b17eaf779f5a0f175f7e7f08c69ae620e",
     "src/config/theme/tests/st_theme_test.c": "288623be326d2607534c894302b66993faac4ee75bf1117968e3350ce951d48e",
     "src/config/theme/st_theme_document.c": "fc9edf85c80e4d97f67c061731e5b90bce13a6a3b613ca1d6b78bb10616c766d",
-    "scripts/menu_theme_editor.wren": "cbd41bdcff4d1d96bb124c9e69e9a531d5215d6ba22ee1133172a25e4e19ff10"
+    "scripts/menu_theme_editor.wren": "cbd41bdcff4d1d96bb124c9e69e9a531d5215d6ba22ee1133172a25e4e19ff10",
+    "scripts/ui_demo.wren": "ef60ef163fc81f40491c3cf502d6ea0d8caf95090aa6b3440c074ecee0b8b985",
+    "src/scripting/wren_host/tests/st_wren_transfer_test_bindings.c": "9211345af132c7d43d105b5ade65a0cfddccf5d9c154fc7c5b28455011319e5e",
+    "src/tests/st_test_control_test.py": "d9ff21d77c7731a055983ecc5d44fab373650cb4deefbe701fe01f9d26b94914"
   },
   "verification": {
     "platform": "FreeBSD 15.1-RELEASE-p5 amd64",
@@ -4478,6 +4524,46 @@
         "MinGW64 Debug configured application and native/host/settings/picker cross-build; final application/native/host/settings rebuild"
       ],
       "limitations": "No Windows execution. FreeBSD leak detection unsupported and disabled; C++ vptr checks disabled for C-owned executables. Headless fixtures disable physical audio. No introduced compiler warnings or sanitizer diagnostics. Native source/link/partial writes and existing restoration attempts remain unchanged; no new rollback guarantee or invented numeric warning cause. Other topics require their own actual Plan-mode phase and approval."
+    },
+    {
+      "topic": "transfer-results-and-xmodem-g",
+      "status": "resolved",
+      "findings": [
+        "transfer-result",
+        "transfer-protocol-selection"
+      ],
+      "approval": "Complete Plan-mode chunk 8 revision 1 approved: Implement the plan. User chose results plus XMODEM-G and typed completion instead of a native integer getter.",
+      "scope": "Immutable TransferError exposes the exact native portable status and owned diagnostic. Startup returns null/error; active completed Transfer.result returns null/error without consuming progress/logs or releasing ownership. Transfer.success is removed without an alias. Local aborted latch remains distinct from peer cancellation. Download-only xmodem-g uses the existing native receiver and filename/padding contract; picker/help/filename prompt are migrated. Bundled callers handle startup before UI and completion before cleanup. Native workers, grants, binary-mode handoff, cleanup order and partial-file policy remain unchanged.",
+      "resolved": [
+        "transfer.result-code (Covered)",
+        "transfer.xmodem-g (Covered)"
+      ],
+      "remaining": [
+        "transfer.receive-policy / transfer-receive-stream remains separate/open"
+      ],
+      "accounting": "No native declarations, TSV rows, denominator, exclusions or assessment count changed. Updated the two selected assessments and workflow description, reviewed changed evidence, translated report locations and regenerated/cross-checked all 80 matrix rows. 2448 items, 157 assessments, 51 original topics; 40 topics plus one documentation finding remain open.",
+      "regressions_before_fix": [
+        "Real synthetic UI startup failed the new assertion: transfer startup must return null (old binding returned true).",
+        "Actual picker startup failure after a yield escaped the supervisor one-shot try. Reusing the existing registered callback driver catches each resume through ordinary Wren try; no VM or Cleanup_ implementation changes."
+      ],
+      "tests_passed": [
+        "Clang Debug: transfer / transfer_peer_shutdown / term / cterm_rip_transfer / wren_host / wren_menu_contract / wren_picker_contract / wren_settings_runtime / syncterm_control_transfer",
+        "GCC Debug: the eight native/Wren tests",
+        "Clang ASan/UBSan: the eight native/Wren checks across runs; peer-shutdown initially lacked its built fixture, then passed after building st_transfer_peer",
+        "All three VMs: typed errors, missing context, synthetic success/busy, malformed UTF-8/NUL/types/directions, inactive/pending result misuse, immutable errors/GC, removed success and abort latch",
+        "Private real-binder create/claim/launch failures and unknown integer; no active worker/reservation or changed binary mode remains",
+        "Real XMODEM-G: initial G / no per-block ACK / expected bytes and retained padding / success / bad CRC / peer CAN / local abort / EOF; exact transport I/O failure; retained dirty/log state and error lifetime after cleanup/new transfer",
+        "Actual picker failure displays once without progress; inline failure retains specific error after cleanup; ordinary text error after timer is caught; automatic/RIP handoff, confirmation/denial and running-worker VM teardown remain covered",
+        "Normal headless application: CRC/G cancellation, G success/corruption, actual downloaded bytes, typed completion and terminal handoff; upload grant/batch/persistent SFTP consent tests retained",
+        "Coverage checker and independent 80-row matrix comparison; git diff --check"
+      ],
+      "builds_passed": [
+        "FreeBSD Clang Debug application and host/settings/picker tests, CMake reconfigured for target changes",
+        "FreeBSD GCC Debug configured native/host/settings/picker tests",
+        "FreeBSD Clang ASan/UBSan configured native/host/settings/picker tests and peer fixture",
+        "MinGW64 Debug configured application and native transfer/host/settings/picker tests cross-build"
+      ],
+      "limitations": "No Windows runtime execution. FreeBSD leak detection unsupported and disabled; C++ vptr checks disabled for C-owned executables. Physical audio disabled in headless fixtures. No introduced compiler warnings or sanitizer diagnostics. Native protocol/file partial effects and cleanup attempts are retained; results provide no rollback or automatic retry-offset guarantee. Other topics require their own actual Plan-mode phase and approval."
     }
   ]
 }

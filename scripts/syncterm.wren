@@ -1945,7 +1945,7 @@ class Status {
 // runs the C protocol code and produces events into a thread-safe
 // ring (logs) + snapshot pair (tick state).
 //
-//   Transfer.beginSession("fake")   // start; throws on second call
+//   Transfer.beginSession("fake")   // null or TransferError
 //   ...                             // App.run loop drains and renders
 //   Transfer.endSession()           // ask worker to stop, join, reset
 //
@@ -1958,7 +1958,8 @@ class Status {
 // snapshot() returns a fixed-shape List (see TickStateView in the
 // transfer_app module for a named-field wrapper): four text rows followed
 // by bytes-current and bytes-total. Protocol dispatch starts a worker and
-// returns immediately; the owner keeps pumping terminal and UI input.
+// returns null or TransferError immediately; the owner keeps pumping terminal
+// and UI input. After done, result is null or TransferError until endSession.
 class Transfer {
   foreign static active
   foreign static uploading
@@ -1974,7 +1975,8 @@ class Transfer {
   foreign static tickDirty
   foreign static snapshot()
   foreign static done
-  foreign static success
+  // Requires an active completed worker: null or TransferError.
+  foreign static result
   foreign static requestAbort()
   foreign static aborted
 
@@ -2008,12 +2010,20 @@ class Transfer {
 
   // Download dispatch.  `kind` is one of:
   //   "zmodem", "ymodem-g", "ymodem", "xmodem-crc",
-  //   "xmodem-chksum", "cet"
-  // `path` must be a non-null filename for xmodem-crc / xmodem-chksum
+  //   "xmodem-chksum", "xmodem-g", "cet"
+  // `path` must be a non-null filename for the three XMODEM receive modes
   // (plain XMODEM has no header so the user pre-names the file);
   // ignored otherwise.  CET writes its captured frame buffer back
   // into cterm internally on completion.
   foreign static download(kind, path)
+}
+
+// Startup/completion failures preserve the native IOErr code. Owned immutable
+// values remain valid after Transfer.endSession() or a subsequent transfer.
+foreign class TransferError is Error {
+  foreign code
+  foreign message
+  foreign toString
 }
 
 // Platform identification.  `name` returns the uname(2) sysname on

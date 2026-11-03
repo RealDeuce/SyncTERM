@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Stephen Hurd
 // SPDX-License-Identifier: BSD-2-Clause
 import "syncterm" for Transfer, Host, Session, CTerm, Emulation, Screen, Input, Mod,
-                       Key, KeyEvent, Timer, FilePickerOptions
+                       Key, KeyEvent, Timer, FilePickerOptions, Error, Cleanup_
 import "ui_app" for App
 import "ui_picker" for ListPicker
 import "ui_popup" for Alert, LinePrompt, Confirm
@@ -17,7 +17,7 @@ class TransferFlow {
   }
   static downloadRows {
     var rows = [["zmodem", "ZMODEM"], ["ymodem-g", "YMODEM-g"],
-      ["ymodem", "YMODEM"], ["xmodem-crc", "XMODEM-CRC"],
+      ["ymodem", "YMODEM"], ["xmodem-g", "XMODEM-G"], ["xmodem-crc", "XMODEM-CRC"],
       ["xmodem-chksum", "XMODEM-CHKSUM"]]
     if (CTerm.emulation == Emulation.prestel) rows.add(["cet", "CET Telesoftware"])
     return rows
@@ -27,19 +27,15 @@ class TransferFlow {
     __busy = true
     Fiber.new {
       var task = Fiber.new { work.call() }
-      task.try()
-      // try() returns on the first yield as well as on completion. Keep
-      // ownership until the UI/inline fiber actually finishes; its own
-      // input and timer sources resume it while this supervisor parks.
-      while (!task.isDone) {
-        Timer.after(25).await()
-      }
+      // Picker and App callbacks can yield before startup fails. Route each
+      // registered resume through ordinary try, retaining the original error.
+      Cleanup_.try_(task)
       var result = task.error
       if (Transfer.active) Transfer.endSession()
       Transfer.cancelAuto_()
       __busy = false
-      if (result is String) Screen.modalRun(Fn.new {
-        Alert.runStandalone(App.new(), "File Transfer", result)
+      if (result is String || result is Error) Screen.modalRun(Fn.new {
+        Alert.runStandalone(App.new(), "File Transfer", result is Error ? (result.message || result.toString) : result)
       })
     }.call()
   }
@@ -63,11 +59,13 @@ class TransferFlow {
         }
       })
       if (files == null || files.count == 0) return
+      var error = null
       if (row[2]) {
-        Transfer.uploadBatch(row[0], files, lastCh)
+        error = Transfer.uploadBatch(row[0], files, lastCh)
       } else {
-        Transfer.upload(row[0], files[0], lastCh)
+        error = Transfer.upload(row[0], files[0], lastCh)
       }
+      if (error != null) Fiber.abort(error)
       if (Transfer.inlineUpload) {
         inline_()
       } else {
@@ -85,13 +83,14 @@ class TransferFlow {
       if (selected < 0) return
       var row = rows[selected]
       var filename = null
-      if (row[0] == "xmodem-crc" || row[0] == "xmodem-chksum") {
+      if (row[0] == "xmodem-crc" || row[0] == "xmodem-chksum" || row[0] == "xmodem-g") {
         Screen.modalRun(Fn.new {
           filename = LinePrompt.runStandalone(App.new(), "Download Filename", "")
         })
         if (filename == null || filename == "") return
       }
-      Transfer.download(row[0], filename)
+      var error = Transfer.download(row[0], filename)
+      if (error != null) Fiber.abort(error)
       TransferApp.new(row[1] + " Download").run()
     })
   }
@@ -119,7 +118,8 @@ class TransferFlow {
           allow = Confirm.runStandalone(App.new(), "The host requests an upload of cached RIP file %(Transfer.ripUploadName_). Allow?")
         })
         if (!allow) return
-        Transfer.acceptRipUpload_()
+        var error = Transfer.acceptRipUpload_()
+        if (error != null) Fiber.abort(error)
         var app = TransferApp.new("RIP Asset Upload")
         app.waitTimeoutMs = 0
         app.run()
@@ -136,11 +136,11 @@ class TransferFlow {
       Timer.after(50).await()
     }
     Transfer.drainLog()
-    var ok = Transfer.success
+    var result = Transfer.result
     claim.pop()
     Transfer.endSession()
-    if (!ok) Screen.modalRun(Fn.new {
-      Alert.runStandalone(App.new(), "File Transfer", "Transfer failed or was cancelled. See the session log for details.")
+    if (result != null) Screen.modalRun(Fn.new {
+      Alert.runStandalone(App.new(), "File Transfer", result.message)
     })
   }
   static uploadHelp {
@@ -152,6 +152,7 @@ class TransferFlow {
     return "# Download Protocol\n\nZMODEM supports batches and verified resume. " +
       "YMODEM carries filenames and lengths; YMODEM-g streams without retries. " +
       "XMODEM requires a filename and retains final-block padding. " +
+      "XMODEM-G streams without retries. " +
       "CET telesoftware is available in Prestel mode. Esc cancels a transfer."
   }
 }

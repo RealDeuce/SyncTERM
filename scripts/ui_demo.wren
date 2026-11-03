@@ -619,7 +619,17 @@ class UiDemo {
     // an abort; the worker unwinds at protocol pace (instantly here).
     // C-driven protocols spawn the worker via wren_run_transfer; the
     // demo path drives Transfer.beginSession directly.
-    Transfer.beginSession("fake")
+    var error = Transfer.beginSession("fake")
+    if (error != null) {
+      Screen.modalRun(Fn.new {
+        var app = App.new()
+        var alert = Alert.new("File Transfer", error.message)
+        alert.onDismiss = Fn.new { app.quit() }
+        app.pushModal(alert)
+        app.runSync()
+      })
+      return
+    }
     var t = TransferApp.new("File Transfer")
     t.run()
     Transfer.endSession()

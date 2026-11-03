@@ -2,7 +2,8 @@
 
 Status: accounting complete against commit da27a6e (2026-11-02).
 Follow-up: +transfer-upload-authority+, +font-codepage+, +font-load-result+,
-+sftp-entry-stat+, +error-symbols+, +bbs-diagnostics+ and +theme-operation-results+
++sftp-entry-stat+, +error-symbols+, +bbs-diagnostics+, +theme-operation-results+,
++transfer-result+ and +transfer-protocol-selection+
 are resolved.
 Selected BBS/Settings mutation results, Menu.load and emoji recording now
 preserve available C failures. +model-mutation-results+ is resolved, including
@@ -21,10 +22,11 @@ limitations; it does not authorize implementing every omitted C facility.
 The review covers 80 project-owned public headers, 2,448 named native items,
 and 120 explicitly excluded implementation/vendor/test headers. Every inventoried
 item has a disposition. The initial review recorded 51 finding topics, including
-broader API-scope decisions, plus one stale documentation finding. Nine topics
+broader API-scope decisions, plus one stale documentation finding. Eleven topics
 (upload authority, custom-font codepages, font-load results, SFTP entry metadata,
 portable I/O error symbols, BBS diagnostics, model-operation results, theme
-operation results and the intentional cache-status omission) are resolved;
+operation results, transfer results, explicit XMODEM-G selection and the
+intentional cache-status omission) are resolved;
 the other topics retain their recorded open subclaims. The numbers
 follow the inventory;
 they are not a stopping rule or a percentage of useful capabilities covered.
@@ -188,7 +190,7 @@ ids refer to the full mappings in the JSON, including VM-specific restrictions.
 | link:../src/net/socket/socket.h[net/socket/socket.h] | 0 | 0 | 0 | 27 | 0 | +transport.socket+
 | link:../src/net/tcp_client/tcp_client.h[net/tcp_client/tcp_client.h] | 0 | 0 | 0 | 17 | 0 | +transport.tcp_client+
 | link:../src/net/tls/st_tls.h[net/tls/st_tls.h] | 0 | 11 | 11 | 34 | 0 | +tls.owner+, +tls.peer-info+, +tls.policy-options+
-| link:../src/net/transfer/st_transfer.h[net/transfer/st_transfer.h] | 53 | 17 | 0 | 13 | 0 | +transfer.path-authority+, +transfer.receive-policy+, +transfer.result-code+, +transfer.worker-owner+, +transfer.workflow+, +transfer.xmodem-g+
+| link:../src/net/transfer/st_transfer.h[net/transfer/st_transfer.h] | 56 | 14 | 0 | 13 | 0 | +transfer.path-authority+, +transfer.receive-policy+, +transfer.result-code+, +transfer.worker-owner+, +transfer.workflow+, +transfer.xmodem-g+
 | link:../src/net/transfer/st_transfer_detect.h[net/transfer/st_transfer_detect.h] | 0 | 0 | 0 | 3 | 0 | +transfer.autodetect+
 | link:../src/net/webget/st_webget.h[net/webget/st_webget.h] | 0 | 33 | 0 | 0 | 0 | +webget.workflow+
 | link:../src/scripting/wren_host/st_wren_host.h[scripting/wren_host/st_wren_host.h] | 0 | 0 | 0 | 67 | 0 | +embedding.owner+
@@ -355,7 +357,7 @@ Evidence: link:../src/base/io_error/io_error.h[src/base/io_error/io_error.h:36];
 
 Native fs_get_link_info distinguishes link/other/file/directory without following the link. Script listing exposes only directory versus file-like entries and does not offer an lstat-equivalent kind query. Native modified time and size do have corresponding metadata. Directory grants deliberately reject/omit links to avoid following ungranted paths; the missing lstat metadata is an observation of that security boundary, not a request to grant link traversal.
 
-Evidence: link:../src/io/filesystem/filesystem.h[src/io/filesystem/filesystem.h:38]; link:../scripts/syncterm_picker.wren[scripts/syncterm_picker.wren:14]; link:../src/scripting/wren_host/tests/st_wren_host_test.c[src/scripting/wren_host/tests/st_wren_host_test.c:848].
+Evidence: link:../src/io/filesystem/filesystem.h[src/io/filesystem/filesystem.h:38]; link:../scripts/syncterm_picker.wren[scripts/syncterm_picker.wren:14]; link:../src/scripting/wren_host/tests/st_wren_host_test.c[src/scripting/wren_host/tests/st_wren_host_test.c:854].
 
 [[finding-font-codepage]]
 === Custom-font mappings and reporting — resolved
@@ -389,7 +391,7 @@ singular altFont alias were removed. Screen.font remains independent, and direct
 scripts can select loaded fonts without a picker. The picker retains load-only
 registration and normal-assignment selection.
 
-Evidence: link:../src/scripting/wren_host/tests/st_wren_host_test.c[src/scripting/wren_host/tests/st_wren_host_test.c:3609]; link:../src/tests/st_font_assignments_test.py[src/tests/st_font_assignments_test.py:73].
+Evidence: link:../src/scripting/wren_host/tests/st_wren_host_test.c[src/scripting/wren_host/tests/st_wren_host_test.c:3943]; link:../src/tests/st_font_assignments_test.py[src/tests/st_font_assignments_test.py:73].
 
 [[finding-list-encryption-information]]
 === List encryption reporting resolved; writer and result scope remains open
@@ -478,7 +480,7 @@ The remaining subclaims are resolved in approved chunk 6:
 All included subclaims of this shared finding are now resolved. Entry provenance,
 web progress, theme provenance and console result contracts remain separate findings.
 
-Evidence: link:../src/scripting/wren_host/wren_bind_core.c[src/scripting/wren_host/wren_bind_core.c:5032]; link:../src/config/settings/st_settings_store.c[src/config/settings/st_settings_store.c:978]; link:../src/scripting/wren_host/tests/st_wren_host_test.c[src/scripting/wren_host/tests/st_wren_host_test.c:1026].
+Evidence: link:../src/scripting/wren_host/wren_bind_core.c[src/scripting/wren_host/wren_bind_core.c:5032]; link:../src/config/settings/st_settings_store.c[src/config/settings/st_settings_store.c:978]; link:../src/scripting/wren_host/tests/st_wren_host_test.c[src/scripting/wren_host/tests/st_wren_host_test.c:1032].
 
 [[finding-pixel-offscreen-blit]]
 === Pixel buffers cannot use the native offscreen compositor
@@ -514,7 +516,7 @@ SFTPEntry.size/mtime getters and dispatch entries are removed without aliases;
 the bundled browser captures stat once per row. Queue persistence and upload
 grants are unchanged.
 
-Evidence: link:../src/net/sftp_client/st_sftp.h[src/net/sftp_client/st_sftp.h:53]; link:../scripts/syncterm.wren[scripts/syncterm.wren:2110]; link:../src/scripting/wren_host/wren_sftp.c[src/scripting/wren_host/wren_sftp.c:898].
+Evidence: link:../src/net/sftp_client/st_sftp.h[src/net/sftp_client/st_sftp.h:53]; link:../scripts/syncterm.wren[scripts/syncterm.wren:2120]; link:../src/scripting/wren_host/wren_sftp.c[src/scripting/wren_host/wren_sftp.c:898].
 
 [[finding-theme-operation-results]]
 === Theme operation results (resolved)
@@ -566,22 +568,38 @@ Negotiated version/cipher, full certificate count/subject/issuer/validity/SHA-25
 Evidence: link:../src/net/tls/st_tls.h[src/net/tls/st_tls.h:118]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1368].
 
 [[finding-transfer-protocol-selection]]
-=== Script-directed transfers cannot select XMODEM-G
+=== Explicit XMODEM-G selection (resolved)
 
-+transfer.xmodem-g+ (partial; same VM as the owning API). Wren: RIP selects native XMODEM-G internally.
++transfer.xmodem-g+ (covered). Transfer.download("xmodem-g", filename) uses the
+existing native receiver, with final-block padding and no per-block ACK/retry.
+The bundled download picker includes the choice and its filename prompt.
+Explicit upload/batch selection remains rejected; existing XMODEM upload modes
+negotiate G through the receiver handshake. RIP selection and native protocol
+behavior are unchanged. Generic receive streams remain separate/open.
 
-Native XMODEM-G exists and RIP can choose it, but Transfer protocol parser offers no explicit xmodem-g choice for script-directed transfers.
-
-Evidence: link:../src/scripting/wren_host/wren_bind_xfer.c[src/scripting/wren_host/wren_bind_xfer.c:116]; link:../src/scripting/wren_host/wren_bind_xfer.c[src/scripting/wren_host/wren_bind_xfer.c:376].
+Evidence: link:../src/scripting/wren_host/wren_bind_xfer.c[protocol dispatch]; link:../scripts/transfer_pick.wren[download picker]; link:../src/tests/st_test_control_test.py[real application wire tests].
 
 [[finding-transfer-result]]
-=== Transfer completion loses the native result code
+=== Transfer results (resolved)
 
-+transfer.result-code+ (partial; same VM as the owning API). Wren: Transfer.success and startup Fiber error.
++transfer.result-code+ (covered). Startup methods return null/TransferError.
+Transfer.result requires an active completed worker and returns null for native
+success or an immutable owned TransferError preserving the actual native integer
+with existing IOErr names. Unknown integers are retained; no new error enum,
+redundant nativeCode or completion snapshot is constructed. Result reads leave
+logs/progress/ownership intact; captured errors survive cleanup/new work/GC.
+The old Transfer.success is removed without an alias. The local aborted latch
+remains distinct from native peer cancellation.
 
-The native integer completion result is reduced to success Bool and aborted Bool; startup errors use a generic abort message. Native error reasons cannot be recovered from these flags, even though a textual log may explain some failures.
+Bundled callers handle startup errors before progress UI, capture completion
+before cleanup, and display the specific failure/cancellation. The supervisor
+uses the existing registered callback driver to catch each resume through
+ordinary Wren try, including errors after picker input or a timer. Native
+workers, stream ownership, cleanup ordering, grants and partial-file policy are
+unchanged. Detailed protocol diagnostics remain in the transfer log; result
+codes do not promise rollback or automatic retry offsets.
 
-Evidence: link:../src/net/transfer/st_transfer.h[src/net/transfer/st_transfer.h:70]; link:../src/scripting/wren_host/wren_bind_xfer.c[src/scripting/wren_host/wren_bind_xfer.c:322].
+Evidence: link:../src/scripting/wren_host/wren_bind_xfer.c[result/error binding]; link:../scripts/transfer_pick.wren[transfer flow]; link:../scripts/transfer_app.wren[progress caller]; link:../src/scripting/wren_host/tests/st_wren_host_test.c[real native/Wren caller regressions].
 
 [[finding-transfer-upload-authority]]
 === Upload File-grant validation (resolved)
@@ -801,7 +819,7 @@ Evidence: link:../src/net/tls/st_tls.h[src/net/tls/st_tls.h:86]; link:../scripts
 
 Native overwrite/discard/receive_events, destination callback and begin/data/end receive mailbox support asset playback. The binding uses them internally for RIP; scripts cannot choose these modes or consume transfer bytes/events as a generic stream. Borrowed native callbacks are not appropriate to expose directly, but their usable streaming capability remains a scope decision.
 
-Evidence: link:../src/net/transfer/st_transfer.h[src/net/transfer/st_transfer.h:46]; link:../src/scripting/wren_host/wren_bind_xfer.c[src/scripting/wren_host/wren_bind_xfer.c:111].
+Evidence: link:../src/net/transfer/st_transfer.h[src/net/transfer/st_transfer.h:46]; link:../src/scripting/wren_host/wren_bind_xfer.c[src/scripting/wren_host/wren_bind_xfer.c:186].
 
 [[finding-unicode-property-utilities]]
 === General Unicode scalar/property analysis
@@ -849,7 +867,7 @@ Evidence: link:../src/base/string_util/string_util.h[src/base/string_util/string
 
 Native strict int64/uint64/bool/double parsing and duration/date parsing/formatting have no exact general script equivalent. Num.fromString and toString have different syntax/ranges; binary64 cannot represent all native 64-bit integers. Typed settings use these internally. This is an omitted utility scope decision, not justification for changing Wren Number.
 
-Evidence: link:../src/base/value_convert/value_convert.h[src/base/value_convert/value_convert.h:22]; link:../scripts/syncterm.wren[scripts/syncterm.wren:2066].
+Evidence: link:../src/base/value_convert/value_convert.h[src/base/value_convert/value_convert.h:22]; link:../scripts/syncterm.wren[scripts/syncterm.wren:2076].
 
 [[finding-utility-crypto]]
 === General cryptographic primitives and strong random bytes
@@ -1007,6 +1025,30 @@ Existing source/link/partial-write behavior remains covered. The checker passes
 80 public headers, 120 explicit exclusions, 2,448 native items and 157 assessments;
 all 80 matrix rows match the ledger. There are 42 original topics plus the
 documentation finding still open; theme provenance remains separate.
+
+The approved transfer-results/XMODEM-G follow-up passed +transfer+,
++transfer_peer_shutdown+, +term+, +cterm_rip_transfer+, +wren_host+,
++wren_menu_contract+, +wren_picker_contract+ and +wren_settings_runtime+ with
+Clang Debug, GCC Debug and Clang ASan/UBSan. The sanitizer peer fixture was
+initially missing from the build; after building it, its focused shutdown check
+passed. The Clang application also passed +syncterm_control_transfer+, including
+CRC/G cancellation, G success/corruption, final-block bytes and terminal handoff.
+MinGW64 cross-built the application and native transfer/host/settings/picker
+tests. No Windows tests ran. FreeBSD leak detection remains unsupported and
+disabled; C++ vptr checks remain disabled for C-owned executables. Headless
+fixtures disable physical audio. No introduced warnings or sanitizer diagnostics.
+
+The startup regression first failed against the old true result. Tests cover
+native create/claim/launch failures and cleanup, exact/unknown codes, safe mode,
+all three VMs, misuse and error lifetime, retained progress/logs, peer versus
+local cancellation and real protocol/I/O failures. Real picker and inline flows
+show one specific error and release their ownership. An error after picker input
+first escaped the old one-shot try; the existing registered callback driver now
+catches every resume, also verified with ordinary text errors after a timer.
+No VM-language, native protocol, grant, cleanup-order or partial-file policy
+changes. The checker passes the unchanged 80 headers, 120 exclusions, 2,448 items
+and 157 assessments; all 80 matrix rows match. Forty original topics plus the
+documentation finding remain open, including generic receive streaming.
 
 == Rechecking and future edits
 

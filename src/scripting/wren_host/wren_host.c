@@ -817,6 +817,8 @@ st_wren_bind_class(WrenVM *vm, const char *module, const char *class_name)
 		methods = st_wren_fs_bind_class(class_name);
 	if (methods.allocate == NULL && strcmp(module, "syncterm") == 0)
 		methods = st_wren_sftp_bind_class(class_name);
+	if (methods.allocate == NULL && strcmp(module, "syncterm") == 0)
+		methods = st_wren_transfer_bind_class(class_name);
 	if (methods.allocate == NULL && strcmp(module, "syncterm") == 0
 	    && st_wren_context_from_vm(vm)->connected != NULL)
 		methods = st_wren_session_bind_class(class_name);

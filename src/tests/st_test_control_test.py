@@ -251,37 +251,55 @@ def protocol(executable):
 
 
 def transfer(executable):
-    # A real XMODEM receiver waits for its next block, so progress inspection
-    # and cancellation never depend on beating a synthetic worker's timer.
-    script = ('import "syncterm" for Transfer\nimport "transfer_app" for TransferApp\n'
-              'Fiber.new {\n  Transfer.download("xmodem-crc", "capture.bin")\n'
-              '  var app = TransferApp.new("Control transfer")\n'
-              '  app.waitTimeoutMs = 0\n  app.run()\n  Transfer.endSession()\n}.call()\n')
-    with socket.socket() as listener:
-        listener.bind(("127.0.0.1", 0))
-        listener.listen(1)
-        listener.settimeout(15)
-        port = listener.getsockname()[1]
-        entries = f"[Transfer]\nConnectionType=Raw\nAddress=127.0.0.1\nPort={port}\nHidePopups=true\nNoStatus=true\n"
-        with fixture(executable, entries=entries, script=script) as (client, root):
-            client.wait_text("Transfer")
-            client.key("enter")
-            with listener.accept()[0] as peer:
-                receive(peer, b"C")
-                payload = b"X" * 128
-                peer.sendall(b"\x01\x01\xfe" + payload + struct.pack(">H", binascii.crc_hqx(payload, 0)))
-                receive(peer, b"\x06")
-                progress = client.wait_for(lambda s: s.application.get("transfer.active") == 1
-                                           and s.application.get("transfer.bytes_current") == 128)
-                assert progress.application["transfer.protocol"] == 5
-                assert progress.application["transfer.done"] == 0
-                assert "Control transfer" in progress.text
-                client.key("escape")
-                client.wait_for(lambda s: s.application.get("transfer.active") == 0)
-                peer.sendall(b"TRANSFER-HANDOFF\x1b[0m")
-                client.wait_text("TRANSFER-HANDOFF")
-                client.key(ord('h'), ALT)
-            client.wait_text("Directory: Name")
+    # Real receivers wait for input: inspection/cancellation needs no timer race.
+    for kind, action in (("xmodem-crc", "cancel"), ("xmodem-g", "cancel"),
+                         ("xmodem-g", "success"), ("xmodem-g", "corrupt")):
+        expected = "null" if action == "success" else ("IOErr.protocol" if action == "corrupt" else "IOErr.cancelled")
+        check = 'result == null' if action == "success" else f'result != null && result.code == {expected}'
+        script = ('import "syncterm" for Transfer, IOErr\nimport "transfer_app" for TransferApp\n'
+                  'Fiber.new {\n'
+                  f'  var error = Transfer.download("{kind}", "capture.bin")\n'
+                  '  if (error != null) Fiber.abort(error)\n'
+                  '  var app = TransferApp.new("Control transfer")\n'
+                  '  app.waitTimeoutMs = 0\n  app.run()\n'
+                  '  var result = Transfer.result\n'
+                  f'  if (!({check})) Fiber.abort("Wrong transfer result")\n'
+                  '  Transfer.endSession()\n}.call()\n')
+        with socket.socket() as listener:
+            listener.bind(("127.0.0.1", 0))
+            listener.listen(1)
+            listener.settimeout(15)
+            port = listener.getsockname()[1]
+            entries = f"[Transfer]\nConnectionType=Raw\nAddress=127.0.0.1\nPort={port}\nHidePopups=true\nNoStatus=true\n"
+            with fixture(executable, entries=entries, script=script,
+                         settings="AudioModes=0\n") as (client, root):
+                client.wait_text("Transfer")
+                client.key("enter")
+                with listener.accept()[0] as peer:
+                    receive(peer, b"G" if kind == "xmodem-g" else b"C")
+                    payload = b"X" * 128
+                    crc = binascii.crc_hqx(payload, 0) ^ (1 if action == "corrupt" else 0)
+                    peer.sendall(b"\x01\x01\xfe" + payload + struct.pack(">H", crc))
+                    if action != "corrupt":
+                        if kind == "xmodem-crc":
+                            receive(peer, b"\x06")
+                        progress = client.wait_for(lambda s: s.application.get("transfer.active") == 1
+                                                   and s.application.get("transfer.bytes_current") == 128)
+                        assert progress.application["transfer.protocol"] == (11 if kind == "xmodem-g" else 5)
+                        assert progress.application["transfer.done"] == 0
+                        assert "Control transfer" in progress.text
+                        if action == "cancel":
+                            client.key("escape")
+                        else:
+                            peer.sendall(b"\x04")
+                            receive(peer, b"\x06")
+                    client.wait_for(lambda s: s.application.get("transfer.active") == 0)
+                    if action == "success":
+                        assert (root / "downloads" / "capture.bin").read_bytes() == payload
+                    peer.sendall(b"TRANSFER-HANDOFF\x1b[0m")
+                    client.wait_text("TRANSFER-HANDOFF")
+                    client.key(ord('h'), ALT)
+                client.wait_text("Directory: Name")
 
 
 if __name__ == "__main__":
