@@ -72,7 +72,11 @@ else()
 endif()
 
 if(BUILD_TESTING)
-	add_executable(st_theme_test tests/st_theme_test.c)
+	add_executable(st_theme_test tests/st_theme_test.c
+		tests/st_theme_document_test_impl.c)
+	set_source_files_properties(tests/st_theme_document_test_impl.c PROPERTIES
+		INCLUDE_DIRECTORIES "$<TARGET_PROPERTY:st_theme,INCLUDE_DIRECTORIES>"
+		COMPILE_DEFINITIONS "$<TARGET_PROPERTY:st_theme,COMPILE_DEFINITIONS>")
 	target_link_libraries(st_theme_test PRIVATE st_theme st_crypto
 		syncterm_filesystem syncterm_string_compat)
 	target_compile_definitions(st_theme_test PRIVATE

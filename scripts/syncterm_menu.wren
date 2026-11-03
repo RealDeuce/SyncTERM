@@ -209,9 +209,19 @@ foreign class MenuFont {
   foreign toString
 }
 
+// Native document-save enum; portable I/O errors use IOErr instead.
+class ThemeSaveErr {
+  static ok       { 0 }
+  static invalid  { 1 }
+  static conflict { 2 }
+  static exists   { 3 }
+  static readOnly { 4 }
+  static io       { 5 }
+}
+
 // C-owned source-preserving theme document.  Field IDs and value modes are
-// documented in Themes.adoc.  Mutators return null on success or an error
-// String; save() returns [resultCode, errorOrNull].
+// documented in Themes.adoc. Mutators return null on success or
+// MenuError; save() preserves its distinct native enum in nativeCode.
 foreign class ThemeDocument {
   foreign filename
   foreign metadata(field)
@@ -232,6 +242,7 @@ foreign class ThemeDocument {
   foreign redo()
   foreign importTheme(filename)
   foreign save(filename, force)
+  foreign activate()
 }
 
 // C-owned editable snapshot of program settings.  apply() updates the

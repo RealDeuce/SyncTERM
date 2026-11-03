@@ -232,7 +232,14 @@ class SettingsMenu {
 
   static themes_(app, onComment) {
     while (true) {
-      var entries = installedThemeEntries_(Menu.themes, Menu.cloudThemes)
+      var localEntries = Menu.themes
+      if (localEntries is MenuError) {
+        Menu.cancelThemePreview()
+        app.theme = Theme.current
+        Alert.show(app, "Themes", localEntries.message)
+        return
+      }
+      var entries = installedThemeEntries_(localEntries, Menu.cloudThemes)
       var rows = themeRows_(entries)
       var current = selectedThemeIdentity_(Menu.selectedThemeFile,
           Menu.selectedThemePackage)
@@ -272,7 +279,7 @@ class SettingsMenu {
               error = Menu.selectTheme(entry[7])
             }
             if (error != null) {
-              Alert.show(app, "Themes", error)
+              Alert.show(app, "Themes", error.message)
               return false
             }
             app.theme = Theme.current
@@ -302,7 +309,7 @@ class SettingsMenu {
         }
         app.theme = Theme.current
         if (error != null) {
-          Alert.show(app, "Delete Theme", error)
+          Alert.show(app, "Delete Theme", error.message)
         }
         continue
       }
@@ -319,12 +326,20 @@ class SettingsMenu {
         }
         if (entry[6] == "classic") {
           document = Menu.newThemeDocument()
-          var error = document.importTheme("")
-          if (error != null) {
-            Alert.show(app, "Themes", error)
+          if (document is MenuError) {
+            Alert.show(app, "Themes", document.message)
             continue
           }
-          document.setMetadata(0, "Classic Theme Copy")
+          var error = document.importTheme("")
+          if (error != null) {
+            Alert.show(app, "Themes", error.message)
+            continue
+          }
+          error = document.setMetadata(0, "Classic Theme Copy")
+          if (error != null) {
+            Alert.show(app, "Themes", error.message)
+            continue
+          }
         } else if (entry[6] == "file") {
           document = Menu.openThemeDocument(entry[7])
         } else {
@@ -332,11 +347,15 @@ class SettingsMenu {
           var error = Menu.cacheCloudTheme(entry[7])
           app.popStatus(null)
           if (error != null) {
-            Alert.show(app, "Themes", error)
+            Alert.show(app, "Themes", error.message)
             continue
           }
           document = Menu.copyCloudTheme(entry[7])
         }
+      }
+      if (document is MenuError) {
+        Alert.show(app, "Themes", document.message)
+        continue
       }
       ThemeEditor.run(app, document)
       app.theme = Theme.current
@@ -388,7 +407,8 @@ class SettingsMenu {
         var warning = Menu.refreshCloudThemes()
         app.popStatus(null)
         app.theme = Theme.current
-        if (warning != null) Alert.show(app, "Online Themes", warning)
+        if (warning != null) Alert.show(app, "Online Themes",
+            warning is MenuError ? warning.message : warning)
         refresh = false
       }
       var entries = onlineThemeEntries_(Menu.cloudThemes)
@@ -415,7 +435,7 @@ class SettingsMenu {
             var error = Menu.selectCloudTheme(package)
             app.popStatus(null)
             if (error != null) {
-              Alert.show(app, "Online Themes", error)
+              Alert.show(app, "Online Themes", error.message)
               return false
             }
             app.theme = Theme.current
@@ -433,10 +453,14 @@ class SettingsMenu {
       var error = Menu.cacheCloudTheme(result[1])
       app.popStatus(null)
       if (error != null) {
-        Alert.show(app, "Online Themes", error)
+        Alert.show(app, "Online Themes", error.message)
         continue
       }
       var document = Menu.copyCloudTheme(result[1])
+      if (document is MenuError) {
+        Alert.show(app, "Themes", document.message)
+        continue
+      }
       ThemeEditor.run(app, document)
       app.theme = Theme.current
     }

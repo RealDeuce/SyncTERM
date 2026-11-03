@@ -6535,7 +6535,7 @@ exercise_theme_menu_contract(st_wren_host_t *public_host)
 	    "if (document.setMetadata(0, \"Draft Theme\") != null || document.addStyle(\"custom.notice\") != null || document.setStyle(\"custom.notice\", 2, 2, 0xabcdef) != null) Fiber.abort(\"document edit\")\n"
 	    "if (!document.dirty || !document.canUndo || !document.undo() || !document.canRedo || !document.redo()) Fiber.abort(\"history\")\n"
 	    "var saved = document.save(\"host-draft.ini\", false)\n"
-	    "if (saved[0] != 0 || saved[1] != null || document.dirty || document.canUndo || document.canRedo) Fiber.abort(\"document save\")\n"
+	    "if (saved != null || document.dirty || document.canUndo || document.canRedo) Fiber.abort(\"document save\")\n"
 	    "var reopened = Menu.openThemeDocument(\"host-draft.ini\")\n"
 	    "if (reopened.metadata(0) != \"Draft Theme\" || reopened.styles.count < 49) Fiber.abort(\"document reopen\")\n"
 	    "if (Menu.deleteTheme(\"host-draft.ini\") != null) Fiber.abort(\"document delete\")\n";
@@ -6563,9 +6563,10 @@ exercise_selected_local_theme_delete_failure(st_wren_host_t *public_host,
 	    "var stale = Fiber.new { oldSettings.confirmClose }.try()\n"
 	    "if (!(stale is String)) Fiber.abort(\"theme selection did not invalidate settings\")\n";
 	static const char delete_source[] =
-	    "import \"syncterm_menu\" for Menu\n"
-	    "if (Menu.deleteTheme(\"host-theme.ini\") == null) "
-	    "Fiber.abort(\"local delete unexpectedly succeeded\")\n"
+	    "import \"syncterm_menu\" for Menu, MenuError\n"
+	    "var failure = Menu.deleteTheme(\"host-theme.ini\")\n"
+	    "if (!(failure is MenuError) || failure.code == null || failure.code != failure.nativeCode || !failure.message.contains(\"Classic Theme was selected and saved\")) "
+	    "Fiber.abort(\"local delete lost its native failure or completed Classic save\")\n"
 	    "if (Menu.selectedThemeFile != \"\" || "
 	    "Menu.selectedThemePackage != \"\") "
 	    "Fiber.abort(\"local delete restored stale selection\")\n";
@@ -6601,9 +6602,10 @@ exercise_selected_cloud_theme_delete_failure(st_wren_host_t *public_host,
 	    "Menu.selectedThemePackage != \"official/blue\") "
 	    "Fiber.abort(\"select cloud theme\")\n";
 	static const char delete_source[] =
-	    "import \"syncterm_menu\" for Menu\n"
-	    "if (Menu.deleteCloudTheme(\"official/blue\") == null) "
-	    "Fiber.abort(\"cloud delete unexpectedly succeeded\")\n"
+	    "import \"syncterm_menu\" for Menu, MenuError\n"
+	    "var failure = Menu.deleteCloudTheme(\"official/blue\")\n"
+	    "if (!(failure is MenuError) || failure.code == null || failure.code != failure.nativeCode || !failure.message.contains(\"Classic Theme was selected and saved\")) "
+	    "Fiber.abort(\"cloud delete lost its native failure or completed Classic save\")\n"
 	    "if (Menu.selectedThemeFile != \"\" || "
 	    "Menu.selectedThemePackage != \"\") "
 	    "Fiber.abort(\"cloud delete restored stale selection\")\n";

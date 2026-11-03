@@ -1948,8 +1948,9 @@ fn_menu_themes(WrenVM *vm)
 	struct st_wren_host *host = st_wren_host_from_vm(vm);
 	char error[256] = "";
 
-	if (st_theme_catalog_refresh(host->themes, error, sizeof(error)) != 0) {
-		st_wren_abort(vm, error[0] != '\0' ? error
+	int status = st_theme_catalog_refresh(host->themes, error, sizeof(error));
+	if (status != 0) {
+		menu_error(vm, status, status, error[0] != '\0' ? error
 		    : "unable to enumerate themes");
 		return;
 	}
@@ -2013,11 +2014,8 @@ theme_filename(WrenVM *vm, int slot, const char **result)
 static void
 theme_operation_result(WrenVM *vm, int status, const char *error)
 {
-	if (status == 0)
-		wrenSetSlotNull(vm, 0);
-	else
-		wrenSetSlotString(vm, 0, error != NULL && error[0] != '\0'
-		    ? error : "theme operation failed");
+	menu_result(vm, status, true, error != NULL && error[0] != '\0'
+	    ? error : "theme operation failed");
 }
 
 static void
@@ -2053,6 +2051,41 @@ replace_owned_string(char **destination, const char *value)
 }
 
 static void
+restore_theme_selection(struct st_wren_host *host,
+	const struct st_settings *previous, char *error, size_t size)
+{
+	bool settings_restored = st_settings_copy(&st_settings, previous);
+	int status = st_theme_apply_settings(host->themes, previous, NULL, 0);
+
+	if (!settings_restored || status != 0) {
+		char original[256];
+		(void)snprintf(original, sizeof(original), "%s", error);
+		/* Keep restoration visible even when the primary diagnostic was full. */
+		(void)snprintf(error, size,
+		    "Restoration failed:%s%s%s%s Original failure: %s",
+		    settings_restored ? "" : " running settings could not be restored.",
+		    status == 0 ? "" : " the active theme could not be restored (",
+		    status == 0 ? "" : menu_io_reason(status),
+		    status == 0 ? "" : ").", original);
+	}
+}
+
+static void
+theme_delete_result(WrenVM *vm, int status, const char *error,
+	bool classic_saved)
+{
+	char message[384];
+
+	if (status != 0 && classic_saved) {
+		(void)snprintf(message, sizeof(message),
+		    "Classic Theme was selected and saved, but deletion failed. %s", error);
+		theme_operation_result(vm, status, message);
+	}
+	else
+		theme_operation_result(vm, status, error);
+}
+
+static void
 fn_menu_select_theme(WrenVM *vm)
 {
 	struct st_wren_host *host = st_wren_host_from_vm(vm);
@@ -2060,17 +2093,19 @@ fn_menu_select_theme(WrenVM *vm)
 	const char *filename;
 	char error[256] = "";
 	int status;
+	bool native_status = true;
 
 	if (!theme_filename(vm, 1, &filename))
 		return;
 	st_settings_init(&previous);
 	if (!st_settings_copy(&previous, &st_settings)) {
-		wrenSetSlotString(vm, 0, "out of memory");
+		menu_error(vm, 0, 0, "The running settings could not be copied.");
 		return;
 	}
 	status = st_theme_select(host->themes, filename, error, sizeof(error));
 	if (status == 0 && (!replace_owned_string(&st_settings.theme_file,
 	    filename) || !replace_owned_string(&st_settings.theme_package, NULL))) {
+		native_status = false;
 		status = IO_ERROR_OUT_OF_MEMORY;
 		(void)snprintf(error, sizeof(error), "out of memory");
 	}
@@ -2080,13 +2115,15 @@ fn_menu_select_theme(WrenVM *vm)
 		(void)snprintf(error, sizeof(error),
 		    "unable to save the selected theme");
 	if (status != 0) {
-		(void)st_settings_copy(&st_settings, &previous);
-		(void)st_theme_apply_settings(host->themes, &previous, NULL, 0);
+		restore_theme_selection(host, &previous, error, sizeof(error));
 	}
 	else
 		++host->settings_generation;
 	st_settings_dispose(&previous);
-	theme_operation_result(vm, status, error);
+	if (status != 0 && !native_status)
+		menu_error(vm, 0, 0, error);
+	else
+		theme_operation_result(vm, status, error);
 }
 
 static void
@@ -2103,17 +2140,17 @@ fn_menu_delete_theme(WrenVM *vm)
 	if (!theme_filename(vm, 1, &filename))
 		return;
 	if (host->config.safe_mode) {
-		wrenSetSlotString(vm, 0, "themes cannot be deleted in safe mode");
+		menu_error(vm, IO_ERROR_READ_ONLY, 0, "Themes cannot be deleted in safe mode.");
 		return;
 	}
 	if (filename[0] == '\0') {
-		wrenSetSlotString(vm, 0,
-		    "the built-in Classic Theme cannot be deleted");
+		menu_error(vm, IO_ERROR_INVALID_ARGUMENT, 0,
+		    "The built-in Classic Theme cannot be deleted.");
 		return;
 	}
 	st_settings_init(&previous);
 	if (!st_settings_copy(&previous, &st_settings)) {
-		wrenSetSlotString(vm, 0, "out of memory");
+		menu_error(vm, 0, 0, "The running settings could not be copied.");
 		return;
 	}
 	if (st_settings.theme_file != NULL
@@ -2135,13 +2172,12 @@ fn_menu_delete_theme(WrenVM *vm)
 		status = st_theme_delete(host->themes, filename, error,
 		    sizeof(error));
 	if (status != 0 && selection_changed && !selection_saved) {
-		(void)st_settings_copy(&st_settings, &previous);
-		(void)st_theme_apply_settings(host->themes, &previous, NULL, 0);
+		restore_theme_selection(host, &previous, error, sizeof(error));
 	}
 	if (selection_changed && (status == 0 || selection_saved))
 		++host->settings_generation;
 	st_settings_dispose(&previous);
-	theme_operation_result(vm, status, error);
+	theme_delete_result(vm, status, error, selection_saved);
 }
 
 static void
@@ -2164,7 +2200,7 @@ fn_menu_new_theme_document(WrenVM *vm)
 	    st_wren_host_from_vm(vm)->themes, error, sizeof(error));
 
 	if (status != 0) {
-		st_wren_abort(vm, error[0] != '\0' ? error
+		menu_error(vm, status, status, error[0] != '\0' ? error
 		    : "unable to create theme document");
 		return;
 	}
@@ -2179,12 +2215,16 @@ fn_menu_open_theme_document(WrenVM *vm)
 	char error[256] = "";
 	int status;
 
-	if (!theme_filename(vm, 1, &filename) || filename[0] == '\0')
+	if (!theme_filename(vm, 1, &filename))
 		return;
+	if (filename[0] == '\0') {
+		st_wren_abort(vm, "ThemeDocument.open requires a nonempty filename");
+		return;
+	}
 	status = st_theme_document_open(&document,
 	    st_wren_host_from_vm(vm)->themes, filename, error, sizeof(error));
 	if (status != 0) {
-		st_wren_abort(vm, error[0] != '\0' ? error
+		menu_error(vm, status, status, error[0] != '\0' ? error
 		    : "unable to open theme document");
 		return;
 	}
@@ -2485,27 +2525,29 @@ fn_theme_document_save(WrenVM *vm)
 	if (!slot_bool(vm, 2, &force))
 		return;
 	if (host->config.safe_mode) {
-		result = ST_THEME_DOCUMENT_READ_ONLY;
-		(void)snprintf(error, sizeof(error),
-		    "themes cannot be saved in safe mode");
+		menu_error(vm, IO_ERROR_READ_ONLY, 0,
+		    "Themes cannot be saved in safe mode.");
+		return;
 	}
 	else
 		result = st_theme_document_save(document->document, filename, force,
 		    error, sizeof(error));
-	if (result == ST_THEME_DOCUMENT_OK && st_settings.theme_file != NULL
-	    && strcmp(st_settings.theme_file,
-	    st_theme_document_filename(document->document)) == 0)
-		(void)st_theme_apply_settings(host->themes, &st_settings, NULL, 0);
-	wrenEnsureSlots(vm, 2);
-	wrenSetSlotNewList(vm, 0);
-	wrenSetSlotDouble(vm, 1, result);
-	wrenInsertInList(vm, 0, -1, 1);
 	if (result == ST_THEME_DOCUMENT_OK)
-		wrenSetSlotNull(vm, 1);
+		wrenSetSlotNull(vm, 0);
 	else
-		wrenSetSlotString(vm, 1, error[0] == '\0'
+		menu_error(vm, 0, result, error[0] == '\0'
 		    ? "theme save failed" : error);
-	wrenInsertInList(vm, 0, -1, 1);
+}
+
+static void
+fn_theme_document_activate(WrenVM *vm)
+{
+	struct foreign_theme_document *document = theme_document_value(vm);
+	char error[256] = "";
+
+	if (document != NULL)
+		theme_operation_result(vm, st_theme_document_activate(document->document,
+		    error, sizeof(error)), error);
 }
 
 static bool
@@ -2532,7 +2574,9 @@ fn_menu_refresh_cloud_themes(WrenVM *vm)
 	if (status != 0 && warning[0] == '\0')
 		(void)snprintf(warning, sizeof(warning),
 		    "unable to load the online theme catalog");
-	if (warning[0] == '\0')
+	if (status != 0)
+		theme_operation_result(vm, status, warning);
+	else if (warning[0] == '\0')
 		wrenSetSlotNull(vm, 0);
 	else
 		wrenSetSlotString(vm, 0, warning);
@@ -2608,18 +2652,20 @@ fn_menu_select_cloud_theme(WrenVM *vm)
 	const char *package;
 	char error[256] = "";
 	int status;
+	bool native_status = true;
 
 	if (!theme_package(vm, 1, &package))
 		return;
 	st_settings_init(&previous);
 	if (!st_settings_copy(&previous, &st_settings)) {
-		wrenSetSlotString(vm, 0, "out of memory");
+		menu_error(vm, 0, 0, "The running settings could not be copied.");
 		return;
 	}
 	status = st_theme_cloud_select(host->themes, package, error,
 	    sizeof(error));
 	if (status == 0 && (!replace_owned_string(&st_settings.theme_file, NULL)
 	    || !replace_owned_string(&st_settings.theme_package, package))) {
+		native_status = false;
 		status = IO_ERROR_OUT_OF_MEMORY;
 		(void)snprintf(error, sizeof(error), "out of memory");
 	}
@@ -2629,13 +2675,15 @@ fn_menu_select_cloud_theme(WrenVM *vm)
 		(void)snprintf(error, sizeof(error),
 		    "unable to save the selected theme package");
 	if (status != 0) {
-		(void)st_settings_copy(&st_settings, &previous);
-		(void)st_theme_apply_settings(host->themes, &previous, NULL, 0);
+		restore_theme_selection(host, &previous, error, sizeof(error));
 	}
 	else
 		++host->settings_generation;
 	st_settings_dispose(&previous);
-	theme_operation_result(vm, status, error);
+	if (status != 0 && !native_status)
+		menu_error(vm, 0, 0, error);
+	else
+		theme_operation_result(vm, status, error);
 }
 
 static void
@@ -2652,12 +2700,12 @@ fn_menu_delete_cloud_theme(WrenVM *vm)
 	if (!theme_package(vm, 1, &package))
 		return;
 	if (host->config.safe_mode) {
-		wrenSetSlotString(vm, 0, "themes cannot be deleted in safe mode");
+		menu_error(vm, IO_ERROR_READ_ONLY, 0, "Themes cannot be deleted in safe mode.");
 		return;
 	}
 	st_settings_init(&previous);
 	if (!st_settings_copy(&previous, &st_settings)) {
-		wrenSetSlotString(vm, 0, "out of memory");
+		menu_error(vm, 0, 0, "The running settings could not be copied.");
 		return;
 	}
 	if (st_settings.theme_package != NULL
@@ -2679,13 +2727,12 @@ fn_menu_delete_cloud_theme(WrenVM *vm)
 		status = st_theme_cloud_delete(host->themes, package, error,
 		    sizeof(error));
 	if (status != 0 && selection_changed && !selection_saved) {
-		(void)st_settings_copy(&st_settings, &previous);
-		(void)st_theme_apply_settings(host->themes, &previous, NULL, 0);
+		restore_theme_selection(host, &previous, error, sizeof(error));
 	}
 	if (selection_changed && (status == 0 || selection_saved))
 		++host->settings_generation;
 	st_settings_dispose(&previous);
-	theme_operation_result(vm, status, error);
+	theme_delete_result(vm, status, error, selection_saved);
 }
 
 static void
@@ -2701,7 +2748,7 @@ fn_menu_copy_cloud_theme(WrenVM *vm)
 	status = st_theme_cloud_copy_document(&document,
 	    st_wren_host_from_vm(vm)->themes, package, error, sizeof(error));
 	if (status != 0) {
-		st_wren_abort(vm, error[0] != '\0' ? error
+		menu_error(vm, status, status, error[0] != '\0' ? error
 		    : "unable to copy the theme package");
 		return;
 	}
@@ -4845,6 +4892,7 @@ static const struct binding bindings[] = {
 	{"ThemeDocument", false, "redo()", fn_theme_document_redo},
 	{"ThemeDocument", false, "importTheme(_)", fn_theme_document_import},
 	{"ThemeDocument", false, "save(_,_)", fn_theme_document_save},
+	{"ThemeDocument", false, "activate()", fn_theme_document_activate},
 
 	{"Settings", false, "dirty", fn_settings_dirty},
 	{"Settings", false, "apply()", fn_settings_apply},

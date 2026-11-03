@@ -239,4 +239,12 @@ enum st_theme_document_error st_theme_document_save(
 	struct st_theme_document *document, const char *filename, bool force,
 	char *error, size_t error_size);
 
+/*
+ * Install an owned copy of a clean, saved document which matches the manager's
+ * committed local theme. No filesystem I/O or selection/history changes occur.
+ * Failure preserves the active theme, temporary preview and generation.
+ */
+int st_theme_document_activate(struct st_theme_document *document,
+	char *error, size_t error_size);
+
 #endif

@@ -470,3 +470,95 @@ Unmapped, explicitly retained by approved design. All five included shared resul
 assessments have resolved dispositions, closing model-mutation-results. There are
 43 topics plus the documentation finding still open. Retain this temporary record
 and skill until the full burndown is complete.
+
+== Approved chunk 7: theme results and activation (revision 1)
+
+Approval: the complete Plan-mode revision 1 was approved with "Implement the
+plan." Implementation began in Default mode on 2026-11-02.
+Phase: chunk complete; the next chunk requires an actual Plan-mode phase.
+Scope: themes.operation-status /
+theme-operation-results. Cloud provenance remains a separate finding.
+
+Use menu-only MenuError for native theme failures, preserving portable reasons
+and actual integer statuses, owned diagnostics and argument-validation aborts.
+Boolean failures acquire no invented integer status; host safe-mode rejection
+uses IOErr.readOnly without nativeCode. Menu.themes returns List/MenuError;
+document creation/open/cloud copying returns ThemeDocument/MenuError; local/cloud
+preview/select/delete/cache and document mutations/import return null/MenuError.
+Save returns null/MenuError instead of a pair, with code null and the native
+document enum in nativeCode; add ThemeSaveErr names for existing 0..5 values.
+Reject empty open filenames explicitly. Cloud refresh returns null for clean
+success, String for native success with warning, MenuError for native failure.
+Keep catalog row diagnostics/layouts, queries, undo/redo and cancellation intact.
+
+Save persists only, retaining native conflict/force/write-through/partial-write
+and history semantics. Add native st_theme_document_activate(document,error,size)
+and menu-only ThemeDocument.activate(), returning null/MenuError. Require clean,
+saved documents matching the manager's committed local filename under existing
+identity rules; reject dirty/unsaved/other/Classic/cloud selections with native
+invalidArgument. Clone resolved document data, set the saved filename, allocate
+before install, retain the active theme/preview/generation on failure, and install
+an independent owned copy on success. Clear preview and advance theme generation
+once; do not change settings/selection/history or perform filesystem I/O. Allow
+runtime-only activation in safe mode. No general installer, owner or transaction
+flags. The user explicitly chose in-memory activation over reloading the file.
+
+Migrate browser/editor callers to typed failures. Confirm replacement only for
+native conflict/exists and retain the explicit force retry. After save, activate
+only the selected local document; report saved-but-not-activated, keep it clean,
+and treat persistence as complete without automatic resave/retry. Preserve
+selection rollback attempts/order and primary failure, describing failed
+restoration when detected. Preserve Classic after deletion fails following its
+successful selection/save; describe that completed step. No rollback guarantee.
+
+Establish regressions first: native errors/constructors/catalogs, semantic versus
+programmer errors, safe mode, save enums/conflict/force, cloud success/warning/
+failure, selected-theme deletion failures, actual browser/editor and call counts.
+Verify activation's state guards, copy failure before publication, generation/
+preview behavior, Save As identity, independence after edits/GC and successful
+activation after file removal. Retain source/link/partial-write tests. Use cached
+fixtures and controlled fetch failures without external network dependencies.
+
+Configure/build with CMake; theme, wren_host/menu_contract/settings_runtime/
+picker_contract and relevant Settings application tests; Clang/GCC, focused
+ASan/UBSan, MinGW64 cross-build, headless/audio disabled, no Windows execution
+claim. Update API docs, native declaration inventory/mapping, reviewed evidence,
+report/matrix and follow-up. Close only the selected result finding after
+acceptance. Coverage/diff checks; complete verified commit without pushing.
+Retain temporary document/skill while other findings remain open.
+
+=== Completed verification
+
+The real missing-theme preview regression failed against the original String
+result. Theme actions, constructors, catalogs and document mutations now retain
+native failures in MenuError; save retains its separate enum through ThemeSaveErr.
+Cloud success warnings remain Strings. Real browser/editor tests cover typed
+failures, conflict/exists confirmation, explicit force, save/activation call counts,
+saved-but-not-activated handling, safe mode, validation and error lifetime.
+Selected local/cloud deletion failures retain the completed Classic selection and
+its saved settings; restoration diagnostics preserve the original failure code.
+
+The native activation tests verify clean/saved/local selection guards, Save As
+identity, allocation failure before installation, retained preview/generation on
+failure, one generation advance on success, independent metadata/style/glyph
+ownership and activation after removing the backing file. Persistence does not
+activate implicitly. Safe-mode activation changes no settings or files. Existing
+native source/link/partial-write tests remain in place.
+
+Clang Debug passed theme, wren_host, wren_menu_contract, wren_picker_contract,
+wren_settings_runtime and syncterm_behavior_settings. GCC Debug and Clang
+ASan/UBSan passed the five native/Wren tests. After the final diagnostic/assertion
+review, all three configurations passed theme/settings-runtime/menu-contract
+again; the rebuilt native application passed its Settings behavior test.
+MinGW64 cross-built the application and native/host/settings/picker tests, with a
+final application/native/host/settings rebuild. No Windows tests were run.
+Headless fixtures disable physical audio. FreeBSD leak detection is unsupported
+and disabled; C++ vptr checks remain disabled for C-owned executables. No introduced
+compiler warnings or sanitizer diagnostics were reported.
+
+The coverage checker passes 80 public headers, 120 explicit exclusions, 2,448
+native items, 157 assessments and 51 original topics. The new narrow activation
+declaration is included in the native ledger; all 80 matrix rows match. The
+theme-operation-results topic is resolved; 42 topics plus the documentation
+finding remain open. Cloud provenance is separate and remains open. Retain this
+temporary record and skill until the complete burndown is finished.

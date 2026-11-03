@@ -25,4 +25,17 @@ extern unsigned st_wren_test_font_save_calls;
 extern bool st_wren_test_sort_update_failure;
 extern bool st_wren_test_prepare_save_failure;
 
+extern int st_wren_test_theme_catalog_status;
+extern int st_wren_test_theme_create_status;
+extern int st_wren_test_theme_open_status;
+extern int st_wren_test_theme_copy_status;
+extern int st_wren_test_theme_refresh_status;
+extern const char *st_wren_test_theme_warning;
+extern int st_wren_test_theme_activate_status;
+extern int st_wren_test_theme_save_result;
+extern int st_wren_test_theme_restore_status;
+extern unsigned st_wren_test_theme_save_calls;
+extern unsigned st_wren_test_theme_activate_calls;
+extern bool st_wren_test_theme_settings_copy_failure;
+
 #endif

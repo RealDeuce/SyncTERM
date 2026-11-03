@@ -849,6 +849,7 @@ src/config/theme/st_theme.h	function:st_theme_document_undo	229	_Bool (struct st
 src/config/theme/st_theme.h	function:st_theme_document_redo	230	_Bool (struct st_theme_document *)	themes.documents
 src/config/theme/st_theme.h	function:st_theme_document_import	231	int (struct st_theme_document *, const char *, char *, size_t)	themes.operation-status
 src/config/theme/st_theme.h	function:st_theme_document_save	238	enum st_theme_document_error (struct st_theme_document *, const char *, _Bool, char *, size_t)	themes.documents
+src/config/theme/st_theme.h	function:st_theme_document_activate	247	int (struct st_theme_document *, char *, size_t)	themes.operation-status
 src/io/file_lock/st_file_lock.h	function:st_file_lock_acquire	20	int (st_file_lock_t **, const char *, _Bool)	files.transaction-lock
 src/io/file_lock/st_file_lock.h	function:st_file_lock_release	22	void (st_file_lock_t *)	files.transaction-lock
 src/io/file_map/file_map.h	function:file_map_open	25	int (file_map_t **, const char *)	files.mapping

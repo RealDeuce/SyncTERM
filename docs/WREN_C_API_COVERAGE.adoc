@@ -2,7 +2,8 @@
 
 Status: accounting complete against commit da27a6e (2026-11-02).
 Follow-up: +transfer-upload-authority+, +font-codepage+, +font-load-result+,
-+sftp-entry-stat+, +error-symbols+ and +bbs-diagnostics+ are resolved.
++sftp-entry-stat+, +error-symbols+, +bbs-diagnostics+ and +theme-operation-results+
+are resolved.
 Selected BBS/Settings mutation results, Menu.load and emoji recording now
 preserve available C failures. +model-mutation-results+ is resolved, including
 the approved restriction retaining raw global disk reload as unbound. +bbs-cache-result+ is
@@ -17,13 +18,13 @@ limitations; it does not authorize implementing every omitted C facility.
 
 == Result and how to read this report
 
-The review covers 80 project-owned public headers, 2,447 named native items,
+The review covers 80 project-owned public headers, 2,448 named native items,
 and 120 explicitly excluded implementation/vendor/test headers. Every inventoried
 item has a disposition. The initial review recorded 51 finding topics, including
-broader API-scope decisions, plus one stale documentation finding. Eight topics
+broader API-scope decisions, plus one stale documentation finding. Nine topics
 (upload authority, custom-font codepages, font-load results, SFTP entry metadata,
-portable I/O error symbols, BBS diagnostics, model-operation results and the
-intentional cache-status omission) are resolved;
+portable I/O error symbols, BBS diagnostics, model-operation results, theme
+operation results and the intentional cache-status omission) are resolved;
 the other topics retain their recorded open subclaims. The numbers
 follow the inventory;
 they are not a stopping rule or a percentage of useful capabilities covered.
@@ -161,7 +162,7 @@ ids refer to the full mappings in the JSON, including VM-specific restrictions.
 | link:../src/config/list_crypto/st_list_crypto.h[config/list_crypto/st_list_crypto.h] | 24 | 9 | 0 | 0 | 0 | +list.crypto+, +list.crypto.metadata+
 | link:../src/config/profile/st_profile.h[config/profile/st_profile.h] | 153 | 0 | 0 | 4 | 0 | +profile.fields+, +profile.ownership+
 | link:../src/config/settings/st_settings.h[config/settings/st_settings.h] | 84 | 1 | 8 | 12 | 0 | +settings.disk-reload+, +settings.kdf-legacy+, +settings.lifecycle+, +settings.model+, +settings.recent-result+, +settings.result-status+, +settings.transfer-timeouts+, +settings.window-state+
-| link:../src/config/theme/st_theme.h[config/theme/st_theme.h] | 91 | 23 | 0 | 6 | 0 | +themes.cloud-origin+, +themes.documents+, +themes.manager-lifetime+, +themes.operation-status+
+| link:../src/config/theme/st_theme.h[config/theme/st_theme.h] | 113 | 2 | 0 | 6 | 0 | +themes.cloud-origin+, +themes.documents+, +themes.manager-lifetime+, +themes.operation-status+
 | link:../src/io/file_lock/st_file_lock.h[io/file_lock/st_file_lock.h] | 0 | 0 | 0 | 2 | 0 | +files.transaction-lock+
 | link:../src/io/file_map/file_map.h[io/file_map/file_map.h] | 0 | 0 | 0 | 5 | 0 | +files.mapping+
 | link:../src/io/filesystem/filesystem.h[io/filesystem/filesystem.h] | 14 | 4 | 3 | 2 | 0 | +files.grants+, +files.link-metadata+, +files.mkdir-internal+, +files.rename-copy+, +files.truncate+
@@ -239,7 +240,7 @@ native secondary status is still omitted. Primary BBS mutation results are now
 covered separately under <<finding-model-mutation-results>>, whose remaining
 Settings disk-reload and emoji-result subclaims are now also resolved.
 
-Evidence: link:../src/config/bbs_list/st_bbs_list.h[src/config/bbs_list/st_bbs_list.h:58]; link:../src/config/bbs_list/st_bbs_store.c[src/config/bbs_list/st_bbs_store.c:486]; link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:4582].
+Evidence: link:../src/config/bbs_list/st_bbs_list.h[src/config/bbs_list/st_bbs_list.h:58]; link:../src/config/bbs_list/st_bbs_store.c[src/config/bbs_list/st_bbs_store.c:486]; link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:4629].
 
 [[finding-bbs-diagnostics]]
 === Nonfatal BBS-load diagnostics are now available
@@ -404,7 +405,7 @@ Absent models return null; plaintext returns a plain snapshot. The shipped
 dialog hides Change Password for unsupported combinations, including AES-192.
 Users never need to parse or enter file headers.
 
-Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:3258]; link:../src/scripting/wren_host/tests/st_wren_settings_menu_test.c[src/scripting/wren_host/tests/st_wren_settings_menu_test.c:229].
+Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:3305]; link:../src/scripting/wren_host/tests/st_wren_settings_menu_test.c[src/scripting/wren_host/tests/st_wren_settings_menu_test.c:230].
 
 +settings.kdf-legacy+ (partial; menu; resolved by approved policy).
 Settings.kdfShift remains the effective numeric rewrite policy (8–20), with
@@ -414,14 +415,14 @@ approved this policy and rejected raw kdfSpec/nullable getters; actual loaded
 KDF values are available in the snapshot. Partial describes the representation,
 not an outstanding requirement to expose legacy text.
 
-Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:3361].
+Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:3408].
 
 +list.crypto+ remains partial and open: writer block size/parallelism use
 native defaults; generic encrypted INI streams need a separate scope decision.
 setEncryption result fidelity is now resolved through null/MenuError. This chunk does
 not close those subclaims or the shared finding topic.
 
-Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:3381].
+Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:3428].
 
 [[finding-model-mutation-results]]
 === Model operation results (resolved)
@@ -448,7 +449,7 @@ without repeating persistence. Previous live mappings and native skip rules are
 preserved. Compound Settings/collection failures retain existing partial effects,
 with no commit-state flags, rollback or transaction-result framework.
 
-Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:4582]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:242].
+Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:4629]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:253].
 
 +bbs.load-status+ (covered; menu) is resolved in chunk 5. Menu.load now returns
 null/MenuError with the actual portable failure from opening, sorting or model
@@ -475,7 +476,7 @@ The remaining subclaims are resolved in approved chunk 6:
   describes the actual omission; explicit retention resolves its scope decision.
 
 All included subclaims of this shared finding are now resolved. Entry provenance,
-web progress, themes and console result contracts remain separate findings.
+web progress, theme provenance and console result contracts remain separate findings.
 
 Evidence: link:../src/scripting/wren_host/wren_bind_core.c[src/scripting/wren_host/wren_bind_core.c:5032]; link:../src/config/settings/st_settings_store.c[src/config/settings/st_settings_store.c:978]; link:../src/scripting/wren_host/tests/st_wren_host_test.c[src/scripting/wren_host/tests/st_wren_host_test.c:1026].
 
@@ -495,7 +496,7 @@ Evidence: link:../src/media/pixels/st_pixels.h[src/media/pixels/st_pixels.h:114]
 
 Transfer success/failure keypress timeout settings have no Settings getters/setters despite being native persisted user policy.
 
-Evidence: link:../src/config/settings/st_settings.h[src/config/settings/st_settings.h:82]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:239].
+Evidence: link:../src/config/settings/st_settings.h[src/config/settings/st_settings.h:82]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:250].
 
 [[finding-sftp-entry-stat]]
 === SFTP listing stat fields (resolved)
@@ -516,13 +517,35 @@ grants are unchanged.
 Evidence: link:../src/net/sftp_client/st_sftp.h[src/net/sftp_client/st_sftp.h:53]; link:../scripts/syncterm.wren[scripts/syncterm.wren:2110]; link:../src/scripting/wren_host/wren_sftp.c[src/scripting/wren_host/wren_sftp.c:898].
 
 [[finding-theme-operation-results]]
-=== Theme operations preserve error messages but usually lose codes
+=== Theme operation results (resolved)
 
-+themes.operation-status+ (partial; menu). Wren: theme operations return null/error String; document.save returns [code, message].
++themes.operation-status+ (covered; menu). Wren: MenuError for theme actions,
+constructors and catalog refresh; ThemeSaveErr; ThemeDocument.save/activate.
 
-ThemeDocument.save preserves its native document error enum, including conflict. Most other theme operations flatten native integer reasons into a diagnostic String, so callers cannot reliably branch on native I/O/invalid/not-found statuses without parsing prose. Catalog fields and editable content remain mapped.
+Resolved in approved chunk 7. Native portable failures retain code/nativeCode;
+document-save failures retain their separate enum in nativeCode with code null.
+Host safe-mode rejection has no nativeCode and Boolean failures invent no integer
+status. Constructors return ThemeDocument/MenuError, Menu.themes returns List/
+MenuError, and mutations return null/MenuError. Native catalog-row diagnostic
+Strings remain data. Cloud refresh returns null for clean success, String for
+native success with warning, or MenuError for failure; numeric warning causes
+already discarded by C are not invented.
 
-Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:2014]; link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:2501].
+Save persists only, preserving native conflict/force, source/link/write-through,
+partial-write and history behavior. The approved narrow native operation and
+ThemeDocument.activate copy a clean saved selected-local document into manager
+ownership without filesystem I/O. Copy failure preserves active theme/preview/
+generation; success installs an independent copy and advances theme generation
+once, without settings/selection/history changes. Safe mode permits activation.
+The editor confirms conflict/exists and saves explicitly, then activates matching
+local documents. Activation failure is reported as saved-but-not-activated without
+resaving. Native filename identity guards avoid Wren case assumptions. Existing
+selection restoration calls/order and primary status are retained, restoration
+failure is described, and deletion errors describe a completed Classic save.
+No generic installer, transaction flags, rollback or new persistence policy.
+Cloud provenance remains open under <<finding-theme-origin>>.
+
+Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c]; link:../src/config/theme/st_theme_document.c[src/config/theme/st_theme_document.c]; link:../scripts/menu_theme_editor.wren[scripts/menu_theme_editor.wren]; link:../src/config/theme/tests/st_theme_test.c[src/config/theme/tests/st_theme_test.c].
 
 [[finding-theme-origin]]
 === Cloud theme provenance is omitted
@@ -531,7 +554,7 @@ Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_ho
 
 Catalog rows omit the native source URI and expected SHA-256. Downloads and verification remain host-owned, but scripts cannot inspect or display that provenance. Parsed theme ownership is separately represented by copyCloudTheme rather than missing because a pointer is absent.
 
-Evidence: link:../src/config/theme/st_theme.h[src/config/theme/st_theme.h:61]; link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:2542].
+Evidence: link:../src/config/theme/st_theme.h[src/config/theme/st_theme.h:61]; link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:2586].
 
 [[finding-tls-peer-information]]
 === Negotiated TLS and certificate metadata are unavailable
@@ -634,7 +657,7 @@ Evidence: link:../scripts/syncterm.wren[scripts/syncterm.wren:729]; link:../src/
 
 Native wrap, blink mode, full-surface-scroll, fallback-font choice, explicit aspect ratio and fullscreen setters lack direct script control/query. Some are derived by emulation or selected screen mode and may properly stay host policy; that is a scope decision. Settings custom aspect configures a future/custom mode, not arbitrary live aspect changes. Native pointer-shape selection (default/text/link) is only used by the host hyperlink-hover owners; no generic script pointer-shape selector is exported.
 
-Evidence: link:../src/media/console/st_console.h[src/media/console/st_console.h:601]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:288].
+Evidence: link:../src/media/console/st_console.h[src/media/console/st_console.h:601]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:299].
 
 [[finding-cterm-live-encoding]]
 === Live terminal encoding mutation
@@ -688,7 +711,7 @@ Evidence: link:../src/media/console/st_console.h[src/media/console/st_console.h:
 
 No general INI document/section API is exported: parsing/serialization, root/section/key CRUD, typed getters/setters, style options and bit/enum/list conversion remain native. Typed application models cover their own workflows but do not map arbitrary INI documents. NFC host-text policy remains unchanged.
 
-Evidence: link:../src/config/ini/ini.h[src/config/ini/ini.h:65]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:215].
+Evidence: link:../src/config/ini/ini.h[src/config/ini/ini.h:65]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:225].
 
 [[finding-history-clear]]
 === Explicit retained-history clearing
@@ -742,7 +765,7 @@ Evidence: link:../src/terminal/term/st_term.h[src/terminal/term/st_term.h:119]; 
 
 scaling_factor, window_width, window_height and left_justify have no Settings property. Some are remembered frontend state, but text alignment is also user policy. They must not be declared covered merely because the host persists them; whether to expose window state versus policy remains a scope decision.
 
-Evidence: link:../src/config/settings/st_settings.h[src/config/settings/st_settings.h:91]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:239].
+Evidence: link:../src/config/settings/st_settings.h[src/config/settings/st_settings.h:91]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:250].
 
 [[finding-text-comparison-utilities]]
 === Parameterized wildcard/name/comparison utilities
@@ -841,7 +864,7 @@ Evidence: link:../src/base/crypto/st_cipher.h[src/base/crypto/st_cipher.h:43]; l
 
 No general PBKDF2/scrypt operation or parameter validation API. Fixed list encryption is a consumer, not a mapping of arbitrary KDF input/output.
 
-Evidence: link:../src/base/crypto/st_kdf.h[src/base/crypto/st_kdf.h:29]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:280].
+Evidence: link:../src/base/crypto/st_kdf.h[src/base/crypto/st_kdf.h:29]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:291].
 
 +utility.crypto+ (unmapped; all script VMs). Wren: Menu.buildOptions includes the provider name.
 
@@ -961,6 +984,29 @@ private test-control header), 2,447 native items and 156 assessments. Three
 assessment splits keep BBS loading, full Settings disk reload and emoji-recents
 errors open rather than hiding them under completed mutation bindings. There are
 45 original finding topics plus the documentation finding still open.
+
+The approved theme-results follow-up passed +theme+, +wren_host+,
++wren_menu_contract+, +wren_picker_contract+ and +wren_settings_runtime+ with
+Clang Debug, GCC Debug and Clang ASan/UBSan. The Clang application also passed
++syncterm_behavior_settings+. After the final diagnostic/assertion changes,
+theme/settings-runtime/menu-contract passed again on all three native builds,
+and the rebuilt application passed its Settings check. MinGW64 cross-built the
+application and native/host/settings/picker tests; no Windows tests were run.
+FreeBSD leak detection remains unsupported and disabled; C++ vptr checks remain
+disabled for C-owned executables. Headless fixtures disable physical audio.
+No introduced warnings or sanitizer diagnostics were reported.
+
+The new regression failed against the original String result. Tests cover typed
+native errors, distinct save enums, safe mode, constructors/catalogs, validation,
+cloud clean/warning/failure results, real browser/editor call counts, conflict/
+exists confirmation, saved-but-not-activated handling and selected local/cloud
+deletion failures after Classic was saved. Native tests verify activation guards,
+allocation failure before publication, independent metadata/style/glyph ownership,
+Save As identity, preview/generation effects and activation after file removal.
+Existing source/link/partial-write behavior remains covered. The checker passes
+80 public headers, 120 explicit exclusions, 2,448 native items and 157 assessments;
+all 80 matrix rows match the ledger. There are 42 original topics plus the
+documentation finding still open; theme provenance remains separate.
 
 == Rechecking and future edits
 

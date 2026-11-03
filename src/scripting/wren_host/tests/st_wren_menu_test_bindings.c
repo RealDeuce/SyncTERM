@@ -8,6 +8,9 @@
 #include "st_wren_menu_test_bindings.h"
 #include "st_settings.h"
 #include "st_unicode_text.h"
+#include "st_theme.h"
+
+#include <stdio.h>
 
 int st_wren_test_font_insert_status;
 int st_wren_test_font_rename_status;
@@ -23,6 +26,100 @@ int st_wren_test_list_sort_status;
 int st_wren_test_model_build_status;
 const struct st_bbs_diagnostic *st_wren_test_diagnostic;
 int st_wren_test_diagnostic_copy_status;
+int st_wren_test_theme_catalog_status;
+int st_wren_test_theme_create_status;
+int st_wren_test_theme_open_status;
+int st_wren_test_theme_copy_status;
+int st_wren_test_theme_refresh_status;
+const char *st_wren_test_theme_warning;
+int st_wren_test_theme_activate_status;
+int st_wren_test_theme_save_result;
+int st_wren_test_theme_restore_status;
+unsigned st_wren_test_theme_save_calls;
+unsigned st_wren_test_theme_activate_calls;
+bool st_wren_test_theme_settings_copy_failure;
+
+static bool
+test_settings_copy(struct st_settings *result, const struct st_settings *source)
+{
+	return !st_wren_test_theme_settings_copy_failure && st_settings_copy(result, source);
+}
+
+static int
+test_theme_catalog(struct st_theme_manager *manager, char *error, size_t size)
+{
+	return st_wren_test_theme_catalog_status != 0 ? st_wren_test_theme_catalog_status
+	    : st_theme_catalog_refresh(manager, error, size);
+}
+
+static int
+test_theme_create(struct st_theme_document **result, struct st_theme_manager *manager,
+	char *error, size_t size)
+{
+	return st_wren_test_theme_create_status != 0 ? st_wren_test_theme_create_status
+	    : st_theme_document_create(result, manager, error, size);
+}
+
+static int
+test_theme_open(struct st_theme_document **result, struct st_theme_manager *manager,
+	const char *filename, char *error, size_t size)
+{
+	return st_wren_test_theme_open_status != 0 ? st_wren_test_theme_open_status
+	    : st_theme_document_open(result, manager, filename, error, size);
+}
+
+static int
+test_theme_copy(struct st_theme_document **result, struct st_theme_manager *manager,
+	const char *package, char *error, size_t size)
+{
+	return st_wren_test_theme_copy_status != 0 ? st_wren_test_theme_copy_status
+	    : st_theme_cloud_copy_document(result, manager, package, error, size);
+}
+
+static int
+test_theme_refresh(struct st_theme_manager *manager, bool fetch,
+	const char *selected, char *warning, size_t size)
+{
+	if (st_wren_test_theme_warning != NULL) {
+		(void)snprintf(warning, size, "%s", st_wren_test_theme_warning);
+		return st_wren_test_theme_refresh_status;
+	}
+	return st_wren_test_theme_refresh_status != 0 ? st_wren_test_theme_refresh_status
+	    : st_theme_cloud_refresh(manager, fetch, selected, warning, size);
+}
+
+static enum st_theme_document_error
+test_theme_save(struct st_theme_document *document, const char *filename,
+	bool force, char *error, size_t size)
+{
+	++st_wren_test_theme_save_calls;
+	return st_wren_test_theme_save_result != 0
+	    ? (enum st_theme_document_error)st_wren_test_theme_save_result
+	    : st_theme_document_save(document, filename, force, error, size);
+}
+
+static int
+test_theme_activate(struct st_theme_document *document, char *error, size_t size)
+{
+	++st_wren_test_theme_activate_calls;
+	return st_wren_test_theme_activate_status != 0 ? st_wren_test_theme_activate_status
+	    : st_theme_document_activate(document, error, size);
+}
+
+static int
+test_theme_restore(struct st_theme_manager *manager, const struct st_settings *settings,
+	char *error, size_t size)
+{
+	return st_wren_test_theme_restore_status != 0 ? st_wren_test_theme_restore_status
+	    : st_theme_apply_settings(manager, settings, error, size);
+}
+
+static int
+test_settings_save_current(void)
+{
+	return st_wren_test_settings_save_status != 0 ? st_wren_test_settings_save_status
+	    : st_settings_save();
+}
 
 static int
 test_diagnostic_normalize(char **result, size_t *result_size,
@@ -126,6 +223,16 @@ test_color_emoji(st_console_t *console, bool enabled)
 }
 
 #define st_wren_bbs_model_prepare_save test_prepare_save
+#define st_theme_catalog_refresh test_theme_catalog
+#define st_theme_document_create test_theme_create
+#define st_theme_document_open test_theme_open
+#define st_theme_cloud_copy_document test_theme_copy
+#define st_theme_cloud_refresh test_theme_refresh
+#define st_theme_document_save test_theme_save
+#define st_theme_document_activate test_theme_activate
+#define st_theme_apply_settings test_theme_restore
+#define st_settings_save test_settings_save_current
+#define st_settings_copy test_settings_copy
 #define st_bbs_list_open test_list_open
 #define st_bbs_list_sort test_list_sort
 #define st_wren_bbs_model_build test_model_build

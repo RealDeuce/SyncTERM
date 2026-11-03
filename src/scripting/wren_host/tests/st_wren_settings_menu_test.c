@@ -14,6 +14,7 @@
 #include "st_bbs_list.h"
 #include "st_presentation_font.h"
 #include "st_session_history.h"
+#include "st_theme.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -667,6 +668,162 @@ test_settings_reload_running(struct st_wren_host *host, const char *settings)
 	CHECK(passed && st_settings.confirm_close == running);
 }
 
+static void
+test_theme_results(struct st_wren_host *host, const char *directory)
+{
+	char path[sizeof(ST_WREN_SETTINGS_TEST_DIRECTORY) + 64];
+	char other[sizeof(path)];
+	char source[1024];
+	CHECK(snprintf(path, sizeof(path), "%s/theme-result.ini", directory) < (int)sizeof(path));
+	CHECK(snprintf(other, sizeof(other), "%s/theme-other.ini", directory) < (int)sizeof(other));
+	(void)fs_remove_file(path);
+	(void)fs_remove_file(other);
+	interpret(host, "theme_results",
+	    "import \"syncterm\" for IOErr, Key, KeyEvent, Host\n"
+	    "import \"syncterm_menu\" for Menu, MenuError, ThemeDocument, ThemeSaveErr\n"
+	    "import \"menu_theme_editor\" for ThemeEditor\n"
+	    "import \"menu_settings_ui\" for SettingsMenu\n"
+	    "import \"menu_settings_ui_test\" for SettingsTestApp, SettingsMenuTest\n"
+	    "var missing = Menu.openThemeDocument(\"absent-theme.ini\")\n"
+	    "if (!(missing is MenuError) || missing.code != IOErr.notFound || missing.nativeCode != IOErr.notFound) Fiber.abort(\"theme open lost native reason\")\n"
+	    "var empty = Fiber.new { Menu.openThemeDocument(\"\") }\n"
+	    "empty.try()\n"
+	    "if (empty.error == null) Fiber.abort(\"empty theme open accepted\")\n"
+	    "var doc = Menu.newThemeDocument()\n"
+	    "if (!(doc is ThemeDocument)) Fiber.abort(\"theme creation\")\n"
+	    "var semantic = doc.setMetadata(0, \"\")\n"
+	    "if (!(semantic is MenuError) || semantic.code != IOErr.invalidArgument || semantic.nativeCode != IOErr.invalidArgument) Fiber.abort(\"theme semantic result\")\n"
+	    "for (action in [Fn.new { doc.setStyle(\"missing\", 2, 2, 0) }, Fn.new { doc.removeStyle(\"missing\") }, Fn.new { doc.setGlyph(\"missing\", 0, 2, 1) }, Fn.new { doc.removeGlyph(\"missing\") }, Fn.new { doc.importTheme(\"absent-theme.ini\") }]) {\n"
+	    "  var failure = action.call()\n"
+	    "  if (!(failure is MenuError) || failure.code != IOErr.notFound || failure.nativeCode != failure.code) Fiber.abort(\"theme action lost native reason\")\n"
+	    "}\n"
+	    "for (action in [Fn.new { doc.setStyle(\"default\", 100, 2, 0) }, Fn.new { doc.setMetadata(0, String.fromByte(255)) }, Fn.new { doc.setMetadata(0, \"a\\0b\") }]) {\n"
+	    "  var bad = Fiber.new { action.call() }\n"
+	    "  bad.try()\n"
+	    "  if (bad.error == null) Fiber.abort(\"invalid theme arguments accepted\")\n"
+	    "}\n");
+	CHECK(snprintf(source, sizeof(source),
+	    "if ([ThemeSaveErr.ok,ThemeSaveErr.invalid,ThemeSaveErr.conflict,ThemeSaveErr.exists,ThemeSaveErr.readOnly,ThemeSaveErr.io].join() != [%d,%d,%d,%d,%d,%d].join()) Fiber.abort(\"theme save enum drift\")\n",
+	    ST_THEME_DOCUMENT_OK, ST_THEME_DOCUMENT_INVALID, ST_THEME_DOCUMENT_CONFLICT,
+	    ST_THEME_DOCUMENT_EXISTS, ST_THEME_DOCUMENT_READ_ONLY, ST_THEME_DOCUMENT_IO) < (int)sizeof(source));
+	interpret(host, "theme_results", source);
+	for (int result = ST_THEME_DOCUMENT_INVALID; result <= ST_THEME_DOCUMENT_IO; ++result) {
+		st_wren_test_theme_save_result = result;
+		CHECK(snprintf(source, sizeof(source),
+		    "{\nvar result = doc.save(\"theme-result.ini\", false)\n"
+		    "if (!(result is MenuError) || result.code != null || result.nativeCode != %d || !doc.dirty) Fiber.abort(\"document enum was classified as portable I/O\")\n}\n", result) < (int)sizeof(source));
+		interpret(host, "theme_results", source);
+	}
+	st_wren_test_theme_save_result = 0;
+	host->config.safe_mode = true;
+	unsigned saves = st_wren_test_theme_save_calls;
+	interpret(host, "theme_results",
+	    "var blocked = doc.save(\"theme-result.ini\", true)\n"
+	    "if (!(blocked is MenuError) || blocked.code != IOErr.readOnly || blocked.nativeCode != null) Fiber.abort(\"theme safe save result\")\n"
+	    "for (failure in [Menu.deleteTheme(\"theme-result.ini\"),Menu.deleteCloudTheme(\"official/missing\")]) if (!(failure is MenuError) || failure.code != IOErr.readOnly || failure.nativeCode != null) Fiber.abort(\"theme safe deletion\")\n");
+	CHECK(st_wren_test_theme_save_calls == saves);
+	host->config.safe_mode = false;
+	st_wren_test_theme_catalog_status = IO_ERROR_PERMISSION_DENIED;
+	interpret(host, "theme_results",
+	    "var catalog = Menu.themes\n"
+	    "if (!(catalog is MenuError) || catalog.code != IOErr.permissionDenied) Fiber.abort(\"catalog result\")\n"
+	    "var catalogApp = SettingsTestApp.new([])\n"
+	    "SettingsMenu.themes_(catalogApp, null)\n"
+	    "if (catalogApp.alerts != 1) Fiber.abort(\"browser used failed catalog\")\n");
+	st_wren_test_theme_catalog_status = 0;
+	st_wren_test_theme_create_status = IO_ERROR_OUT_OF_MEMORY;
+	st_wren_test_theme_open_status = IO_ERROR_IO;
+	st_wren_test_theme_copy_status = IO_ERROR_PROTOCOL;
+	interpret(host, "theme_results",
+	    "var constructors = [Menu.newThemeDocument(),Menu.openThemeDocument(\"theme-result.ini\"),Menu.copyCloudTheme(\"official/missing\")]\n"
+	    "var reasons = [IOErr.outOfMemory,IOErr.io,IOErr.protocol]\n"
+	    "for (i in 0...constructors.count) if (!(constructors[i] is MenuError) || constructors[i].code != reasons[i] || constructors[i].nativeCode != reasons[i]) Fiber.abort(\"constructor result\")\n"
+	    "var newApp = SettingsTestApp.new([Fn.new {|pane| pane.handle(KeyEvent.new(Key.insert)) },SettingsMenuTest.cancel_])\n"
+	    "SettingsMenu.themes_(newApp, null)\n"
+	    "if (newApp.alerts != 1 || newApp.remaining != 0) Fiber.abort(\"browser used failed constructor\")\n");
+	st_wren_test_theme_create_status = 0;
+	st_wren_test_theme_open_status = 0;
+	st_wren_test_theme_copy_status = 0;
+	st_wren_test_theme_settings_copy_failure = true;
+	interpret(host, "theme_results",
+	    "var copyFailure = Menu.selectTheme(\"theme-result.ini\")\n"
+	    "if (!(copyFailure is MenuError) || copyFailure.code != null || copyFailure.nativeCode != null) Fiber.abort(\"theme Boolean failure invented native status\")\n");
+	st_wren_test_theme_settings_copy_failure = false;
+	st_wren_test_theme_warning = "cached manifest retained";
+	interpret(host, "theme_results",
+	    "if (Menu.refreshCloudThemes() != \"cached manifest retained\") Fiber.abort(\"success warning became failure\")\n"
+	    "var warningApp = SettingsTestApp.new([])\n"
+	    "SettingsMenu.cloudThemes_(warningApp, null)\n"
+	    "if (warningApp.alerts != 1) Fiber.abort(\"cloud warning not displayed\")\n");
+	st_wren_test_theme_refresh_status = IO_ERROR_PROTOCOL;
+	interpret(host, "theme_results",
+	    "var refresh = Menu.refreshCloudThemes()\n"
+	    "if (!(refresh is MenuError) || refresh.code != IOErr.protocol || refresh.nativeCode != IOErr.protocol || !refresh.message.contains(\"cached manifest retained\")) Fiber.abort(\"cloud refresh failure became warning\")\n"
+	    "var refreshApp = SettingsTestApp.new([])\n"
+	    "SettingsMenu.cloudThemes_(refreshApp, null)\n"
+	    "if (refreshApp.alerts != 1) Fiber.abort(\"cloud failure display\")\n");
+	st_wren_test_theme_refresh_status = 0;
+	st_wren_test_theme_warning = "";
+	interpret(host, "theme_results",
+	    "if (Menu.refreshCloudThemes() != null) Fiber.abort(\"clean refresh result\")\n"
+	    "if (doc.save(\"theme-result.ini\", false) != null || doc.dirty || doc.canUndo) Fiber.abort(\"save result\")\n"
+	    "if (Menu.selectTheme(doc.filename) != null || doc.setMetadata(0, \"Edited Theme\") != null || doc.save(null, false) != null) Fiber.abort(\"selected save setup\")\n");
+	CHECK(strcmp(st_theme_active(host->themes)->name, "New Theme") == 0);
+	CHECK(fs_remove_file(path) == 0);
+	host->config.safe_mode = true;
+	uint64_t theme_generation = st_theme_generation(host->themes);
+	uint64_t settings_generation = host->settings_generation;
+	interpret(host, "theme_results", "if (doc.activate() != null) Fiber.abort(\"activation reread file or rejected safe mode\")\n");
+	CHECK(st_theme_generation(host->themes) == theme_generation + 1);
+	CHECK(host->settings_generation == settings_generation);
+	CHECK(strcmp(st_theme_active(host->themes)->name, "Edited Theme") == 0);
+	host->config.safe_mode = false;
+	interpret(host, "theme_results", "if (doc.save(null, true) != null || doc.setMetadata(2, \"Editor save\") != null) Fiber.abort(\"editor setup\")\n");
+	st_wren_test_theme_activate_status = IO_ERROR_OUT_OF_MEMORY;
+	saves = st_wren_test_theme_save_calls;
+	unsigned activations = st_wren_test_theme_activate_calls;
+	interpret(host, "theme_results",
+	    "var editorApp = SettingsTestApp.new([])\n"
+	    "if (!ThemeEditor.save_(editorApp, doc, false) || editorApp.alerts != 1 || doc.dirty) Fiber.abort(\"activation failure repeated persistence\")\n");
+	CHECK(st_wren_test_theme_save_calls == saves + 1 && st_wren_test_theme_activate_calls == activations + 1);
+	st_wren_test_theme_activate_status = 0;
+	write_text(path, "Name=External change\n");
+	saves = st_wren_test_theme_save_calls;
+	interpret(host, "theme_results",
+	    "doc.setMetadata(1, \"Author\")\n"
+	    "var declined = SettingsTestApp.new([SettingsMenuTest.answer_(false)])\n"
+	    "if (ThemeEditor.save_(declined, doc, false) || !doc.dirty || declined.alerts != 0 || declined.remaining != 0) Fiber.abort(\"conflict confirmation\")\n");
+	CHECK(st_wren_test_theme_save_calls == saves + 1);
+	saves = st_wren_test_theme_save_calls;
+	interpret(host, "theme_results",
+	    "var confirmed = SettingsTestApp.new([SettingsMenuTest.answer_(true)])\n"
+	    "if (!ThemeEditor.save_(confirmed, doc, false) || doc.dirty || confirmed.remaining != 0) Fiber.abort(\"explicit force save\")\n");
+	CHECK(st_wren_test_theme_save_calls == saves + 2);
+	write_text(other, "Name=Other\n");
+	interpret(host, "theme_results",
+	    "var saveAs = SettingsTestApp.new([SettingsMenuTest.answer_(\"theme-other.ini\"),SettingsMenuTest.answer_(false)])\n"
+	    "if (ThemeEditor.save_(saveAs, doc, true) || doc.filename != \"theme-result.ini\") Fiber.abort(\"exists confirmation\")\n");
+	theme_generation = st_theme_generation(host->themes);
+	saves = st_wren_test_theme_save_calls;
+	interpret(host, "theme_results",
+	    "var replaceOther = SettingsTestApp.new([SettingsMenuTest.answer_(\"theme-other.ini\"),SettingsMenuTest.answer_(true)])\n"
+	    "if (!ThemeEditor.save_(replaceOther, doc, true) || doc.dirty || doc.filename != \"theme-other.ini\" || Menu.selectedThemeFile != \"theme-result.ini\" || replaceOther.alerts != 0) Fiber.abort(\"save-as changed selection or failed explicit replacement\")\n");
+	CHECK(st_wren_test_theme_save_calls == saves + 2);
+	CHECK(st_theme_generation(host->themes) == theme_generation);
+	st_wren_test_settings_save_status = IO_ERROR_NO_SPACE;
+	st_wren_test_theme_restore_status = IO_ERROR_IO;
+	interpret(host, "theme_results",
+	    "var restoration = Menu.selectTheme(\"theme-result.ini\")\n"
+	    "if (!(restoration is MenuError) || restoration.code != IOErr.noSpace || restoration.nativeCode != IOErr.noSpace || !restoration.message.contains(\"Restoration failed\")) Fiber.abort(\"restoration hid primary status\")\n");
+	st_wren_test_settings_save_status = 0;
+	st_wren_test_theme_restore_status = 0;
+	interpret(host, "theme_results",
+	    "System.gc()\nSystem.gc()\n"
+	    "if (constructors[0].code != IOErr.outOfMemory || !constructors[0].message.contains(\"theme\")) Fiber.abort(\"theme error lifetime\")\n"
+	    "if (Menu.selectTheme(\"\") != null || Menu.deleteTheme(\"theme-result.ini\") != null || Menu.deleteTheme(\"theme-other.ini\") != null) Fiber.abort(\"theme fixture cleanup\")\n");
+	st_wren_test_theme_warning = NULL;
+}
+
 int
 main(void)
 {
@@ -741,6 +898,11 @@ main(void)
 	    "import \"syncterm_menu\" for Menu\n"
 	    "if (Menu.load(null) != null) Fiber.abort(\"load fixture\")\n");
 	test_load_results(host, &paths, personal, console);
+	interpret(host, "theme_result_regression",
+	    "import \"syncterm\" for IOErr\n"
+	    "import \"syncterm_menu\" for Menu, MenuError\n"
+	    "var failure = Menu.previewTheme(\"absent-theme.ini\")\n"
+	    "if (!(failure is MenuError) || failure.code != IOErr.notFound || failure.nativeCode != IOErr.notFound) Fiber.abort(\"theme failures must preserve the native MenuError\")\n");
 	test_settings_reload_running(host, settings);
 	test_menu_results(host);
 	test_menu_native_failures(host, personal);
@@ -751,6 +913,7 @@ main(void)
 	CHECK(fclose(stream) == 0);
 	source[size] = '\0';
 	interpret(host, "menu_settings_ui_test", source);
+	test_theme_results(host, directory);
 	st_wren_test_emoji_status = IO_ERROR_IO;
 	interpret(host, "settings_editor_partial",
 	    "import \"menu_settings_ui\" for SettingsMenu\n"

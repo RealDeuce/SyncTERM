@@ -168,9 +168,9 @@
     },
     {
       "path": "src/config/theme/st_theme.h",
-      "sha256": "d4e0014e7a89c726527c0ec14eb7158c83135ae7b405904b186577e31740baf3",
+      "sha256": "1ecec3fe820f7401c648b290e823bedfaf843c37a1fda134d5dd7f05b152c4ed",
       "status": "reviewed",
-      "symbol_count": 120
+      "symbol_count": 121
     },
     {
       "path": "src/io/file_lock/st_file_lock.h",
@@ -1198,8 +1198,8 @@
     },
     "themes.documents": {
       "status": "covered",
-      "wren": "Host.themeData/defaultThemeData/themeGeneration; Menu local/cloud themes; ThemeDocument",
-      "reason": "Theme metadata/styles/glyphs become script values, with List counts and present/mode information in document rows. ThemeDocument provides create/open/metadata/CRUD/preview/undo/redo/import/save/dirty and reports document conflicts through its operation results. Local/cloud catalogs expose validation errors and selection/cache/delete workflows; parsed cloud content is obtainable through copyCloudTheme and themeData rather than a borrowed C pointer.",
+      "wren": "Host.themeData/defaultThemeData/themeGeneration; Menu local/cloud themes; ThemeDocument save/activate",
+      "reason": "Theme metadata/styles/glyphs become script values, with List counts and present/mode information in document rows. ThemeDocument provides create/open/metadata/CRUD/preview/undo/redo/import/save/dirty and reports document conflicts through its operation results. Local/cloud catalogs expose validation errors and selection/cache/delete workflows; parsed cloud content is obtainable through copyCloudTheme and themeData rather than a borrowed C pointer. Save and activation are separate: activate copies the resolved clean selected-local document into manager ownership with no file reread or selection change; the enum/save/error contracts are separately covered by themes.operation-status.",
       "vm": "menu editing; core VMs for active/default theme data",
       "evidence": [
         {
@@ -1237,7 +1237,7 @@
     "themes.manager-lifetime": {
       "status": "host-owned",
       "wren": "application theme manager; transactional Settings preparation",
-      "reason": "Manager create/free, prepare/install/free and raw cache refresh policy coordinate the one active theme and rollback. Scripts preview/select/edit through that owner; they cannot install a separate manager into a VM.",
+      "reason": "Manager create/free, prepare/install/free and raw cache refresh policy coordinate the one active theme and rollback. Scripts preview/select/edit through that owner; they cannot install a separate manager into a VM. Narrow document activation retains an independent manager-owned copy; it does not grant a general theme installer or another manager owner.",
       "vm": "menu",
       "evidence": [
         {
@@ -2993,9 +2993,9 @@
       "resolution": "resolved"
     },
     "themes.operation-status": {
-      "status": "partial",
-      "wren": "theme operations return null/error String; document.save returns [code, message]",
-      "reason": "ThemeDocument.save preserves its native document error enum, including conflict. Most other theme operations flatten native integer reasons into a diagnostic String, so callers cannot reliably branch on native I/O/invalid/not-found statuses without parsing prose. Catalog fields and editable content remain mapped.",
+      "status": "covered",
+      "wren": "MenuError for theme actions/constructors/catalogs; ThemeSaveErr native save enums; ThemeDocument.activate",
+      "reason": "All selected native theme integer failures are retained in menu-only MenuError. Portable failures preserve code/nativeCode; save preserves its distinct document enum in nativeCode with code null. Host safe-mode rejection has no nativeCode and Boolean failures invent no integer status. Catalog/constructor failures are typed values. Cloud refresh retains null/clean success, String/success warning, MenuError/native failure without inventing lost warning causes. Save persists only; native/Wren document activation clones clean saved selected-local document state without filesystem I/O. The editor saves once, handles conflict/exists with explicit confirmation, and reports activation failure without resaving. Selection restoration attempts, primary failures, Classic-after-delete-failure and partial writes retain their contracts.",
       "vm": "menu",
       "evidence": [
         {
@@ -3004,11 +3004,20 @@
         },
         {
           "path": "src/scripting/wren_host/wren_bind_menu.c",
-          "anchor": "wrenSetSlotDouble(vm, 1, result)"
+          "anchor": "fn_theme_document_save"
+        },
+        {
+          "path": "src/config/theme/st_theme_document.c",
+          "anchor": "st_theme_document_activate"
+        },
+        {
+          "path": "scripts/menu_theme_editor.wren",
+          "anchor": "var activation = document.activate()"
         }
       ],
       "finding": "theme-operation-results",
-      "decision": "mapping-gap"
+      "decision": "resolved",
+      "resolution": "resolved"
     },
     "console.operation-status": {
       "status": "partial",
@@ -4008,6 +4017,21 @@
       "path": "src/tests/st_emoji_picker_test.py",
       "anchor": "RECENTS_FAILURE_CHECK",
       "aspect": "Actual local insertion and connected sending complete once despite recents persistence failure, with typed-error logging and fixture-path restoration."
+    },
+    {
+      "path": "src/config/theme/tests/st_theme_test.c",
+      "anchor": "test_document_activation",
+      "aspect": "Dirty/unsaved/unselected/Classic/cloud guards, no implicit activation on save, real clone failure, preview/generation preservation, no reread after removing backing file, metadata/style/glyph ownership, Save As identity and document destruction."
+    },
+    {
+      "path": "src/config/theme/tests/st_theme_document_test_impl.c",
+      "anchor": "test_document_theme_clone",
+      "aspect": "Private clone failure control compiles the actual native document implementation; application links the normal implementation."
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_settings_menu_test.c",
+      "anchor": "test_theme_results",
+      "aspect": "Native typed theme results, save enum constants/reasons, host policy versus real native status, catalog/constructor browser handling, cloud warning/failure/clean cases without network, save/activate call counts, actual conflict/exists editor confirmation, activation failure after persistence and primary error retained after restoration failure."
     }
   ],
   "dispatch_evidence": [
@@ -4019,16 +4043,16 @@
   ],
   "evidence_files": {
     "docs/WREN_GUIDANCE.md": "d14aeecb5eae922015f2f48a4fd690277dcb5b91aedfd8d8d8cffb2dc235e1ac",
-    "docs/Wren.adoc": "fd50610fef2cc204f11c6191b3c1f24fa2de4f17e202f3ea5dc0630cf67d7a11",
+    "docs/Wren.adoc": "eb7aaab0b4256bf6fb40ddcc28f197d1d9f9111e7f4d546588ab3577aef3f3de",
     "docs/api/bbs-entry-fields.adoc": "a1be9944eadd5f56d752e8669b502f49b27211f14190443a95e36ad301b8d128",
     "scripts/auto/connected/font_pick.wren": "6cd249b69c2f851e1fb84e4b8ce381879cfaaa96a35e1376f6e8502c6497e91b",
     "scripts/auto/menu/main_menu.wren": "5b37db003c7c052da2332aeb8255db695fd2f3d976fa4f56502578ed0039c681",
     "scripts/menu_bbs_editor.wren": "fa27c403b0cad1ffe2811243787916ce7428da2255b12683f6e3e2c5847a4187",
-    "scripts/menu_settings_ui.wren": "edeea3c58f5df12ac93f041185f059163335228e48bcd4ac0f638fc0140e25ff",
+    "scripts/menu_settings_ui.wren": "5d0afe0a828d8dcf7383bf83da193491db243c51360375762110e8998444857c",
     "scripts/sftp_app.wren": "4cd38fa9304c6c7428d7a21ef3b86c0d68fb14e25b35c3540bfdd46a211a9e5f",
     "scripts/sftp_queue.wren": "b15fe706268e9ce6d5fea4227661d0ac810f6f9fc4dbf7d39863756bde3eaf74",
     "scripts/syncterm.wren": "11d72cc3f50707d115a45bfd609fc4fbf86e5c0b25123051c30ae81dcf6d6490",
-    "scripts/syncterm_menu.wren": "6bd766fbf1c87450b4bdf7776a12c0f27b8d3bf5dd0cda2f909b864c3bee2c2f",
+    "scripts/syncterm_menu.wren": "0fb618cc9532edf4dcb7d867d54af5a87d884d7163b100207d9b5535ae51ad68",
     "scripts/syncterm_picker.wren": "143e15bd084bed37145061760100c84b353d340e00187d9cd2b920a850be6021",
     "scripts/transfer_app.wren": "36713bbb8fdb61e5f7af68371c44a9110cd8bda8ea59c0ee7ee09436684b61af",
     "scripts/transfer_pick.wren": "9e88fe4e68efc01449105c8536f1902fca4295564adf2b488d1a866d5fcd29cb",
@@ -4063,7 +4087,7 @@
     "src/config/list_crypto/st_list_crypto.h": "7386db58694dd680c6bf5f07f4d31cb014e45460d8a3af525622c2df1859ea9f",
     "src/config/profile/st_profile.h": "34e597b3ff46d9c5592740d5d2017006af4f6fe95cbd0aa885ff42b9815b7a51",
     "src/config/settings/st_settings.h": "e0ddcfd779c94a58d90c3e23b8dbb01db49e2dd169cb8654a2c5813ada2e3110",
-    "src/config/theme/st_theme.h": "d4e0014e7a89c726527c0ec14eb7158c83135ae7b405904b186577e31740baf3",
+    "src/config/theme/st_theme.h": "1ecec3fe820f7401c648b290e823bedfaf843c37a1fda134d5dd7f05b152c4ed",
     "src/io/file_lock/st_file_lock.h": "5edfde4f1cc28747ab4e0555f65e5e9c4e44b77b5232ca81f4144ba8819d5cd0",
     "src/io/file_map/file_map.h": "faba0cffcf67e71ac4aaeeb45b25782a5f6b1a229ed0bec134bd94c84155213c",
     "src/io/filesystem/filesystem.h": "0352952dd72d0999380f6460216b95e9359b07c3f1bdd52fbfad7a9418f60fed",
@@ -4096,14 +4120,14 @@
     "src/net/transfer/st_transfer_detect.h": "3296b9ecf875d100f793920a3b0117a8f7b80951a539317d366f4ea40a7a1b30",
     "src/net/webget/st_webget.h": "9647dcc563e1661fe1d6b762c78e2483d2beae03ac878da0ebd15c8a425d2143",
     "src/scripting/wren_host/st_wren_host.h": "531eba9331f992a6394c41020890e279597ee8d6cfd1259a4495f68ef38d5552",
-    "src/scripting/wren_host/tests/st_wren_host_test.c": "c53c44bcb5c24bf4315c5cf050cfb057b71001305e63dcb0dbd1da23b17ea268",
-    "src/scripting/wren_host/tests/st_wren_settings_menu_test.c": "140a590c2ceb408175c1898fa364d916cbcc0cc4585d1f7ef23b297370089e5b",
+    "src/scripting/wren_host/tests/st_wren_host_test.c": "814bdd62306c3da9f882d9bac3b56a901d329880ba2347e48160e93b7b65e0c5",
+    "src/scripting/wren_host/tests/st_wren_settings_menu_test.c": "269477ca235d241d71e5f3b2409c0800d2a3379cbc9c455c879219c8bb4e6e3c",
     "src/scripting/wren_host/wren_async.c": "71e78941735250300171a2b7cb13b70c92916bd14c066a6614b3f77cdd9b565d",
     "src/scripting/wren_host/wren_bbs_model.c": "18dca3353505a5b0dc609251f16038bd9132c47e215c4cf24ba802ac4b3ab97a",
     "src/scripting/wren_host/wren_bind_core.c": "a4854c510c31919303cab5a9cf94deacfcb88058416af158a7397ed55f55c84e",
     "src/scripting/wren_host/wren_bind_fs.c": "17e19ab179b195a36c58f929802e9a5d86d6e211d7dfdf809ac4b7c4e6c96cba",
     "src/scripting/wren_host/wren_bind_hyperlinks.c": "255be945007c9cb2795195058e5f58de7d2b2157728892e614d6e8fb5f729b98",
-    "src/scripting/wren_host/wren_bind_menu.c": "88ea90b12b89627db09391a479891584adacd223c4d5d4d158a48affdb5eb71b",
+    "src/scripting/wren_host/wren_bind_menu.c": "1f74963b11a473076d5fe5a3b1e65473fcb19b6b5d3ed58624cbbc337e6112f7",
     "src/scripting/wren_host/wren_bind_pixels.c": "5a1b4c73862a6845710159e6b34e8992cff1ab66661b984f871c46eb6c6bcceb",
     "src/scripting/wren_host/wren_bind_session.c": "fb584f383f0d6df19f328ef194e8bf328f8dc723066df2111794b2b32ac63b93",
     "src/scripting/wren_host/wren_bind_status.c": "85ed4115c9a9645aa27cccb2a9977e5892037123d7440d9acf3397fd55e16671",
@@ -4159,10 +4183,14 @@
     "src/terminal/cterm/tests/st_cterm_test.c": "c76041087a5995c83a259e4052e8c4c5b518dc61aa858f9294bbd444b0c33a2b",
     "src/config/bbs_list/st_bbs_store.c": "9859e0b1a0bd65a05567d47f78fb5bf87ad8716077b8824a52e8d8b87a460325",
     "src/scripting/wren_host/tests/st_wren_sftp_live_test.c": "61d5e35f34a48725efefca9b08f290d356ddee00cf12dad2b32c0727079025fa",
-    "src/scripting/wren_host/tests/st_wren_menu_test_bindings.c": "22facb46ca7bb8f9d94ed80a298bcfba28aca8d5e2799c679f4beebe84394907",
+    "src/scripting/wren_host/tests/st_wren_menu_test_bindings.c": "9a7f110f8beb56c3fdc3080254f272db5db5b414c759c79492e82ef70cfeea64",
     "scripts/menu_sort_profiles.wren": "e03022e77a0872851aa25ad52ff9f1160c8aa9a800d03bbb7063c8027dc4206d",
     "src/config/settings/st_settings_store.c": "8353b1e80bd3e27e84122a57cec1e3daed29b0a2b46adfd64d531a4962e34128",
-    "src/tests/st_emoji_picker_test.py": "a9f06de4097b20b42f158c2d42eca14f6ce8c88b14eb2b3ccc6c378b3608de11"
+    "src/tests/st_emoji_picker_test.py": "a9f06de4097b20b42f158c2d42eca14f6ce8c88b14eb2b3ccc6c378b3608de11",
+    "src/config/theme/tests/st_theme_document_test_impl.c": "8087bee2057f71da5ba95be6b532671b17eaf779f5a0f175f7e7f08c69ae620e",
+    "src/config/theme/tests/st_theme_test.c": "288623be326d2607534c894302b66993faac4ee75bf1117968e3350ce951d48e",
+    "src/config/theme/st_theme_document.c": "fc9edf85c80e4d97f67c061731e5b90bce13a6a3b613ca1d6b78bb10616c766d",
+    "scripts/menu_theme_editor.wren": "cbd41bdcff4d1d96bb124c9e69e9a531d5215d6ba22ee1133172a25e4e19ff10"
   },
   "verification": {
     "platform": "FreeBSD 15.1-RELEASE-p5 amd64",
@@ -4418,6 +4446,38 @@
         "MinGW64 Debug configured application and host/settings/picker/loader tests cross-build"
       ],
       "limitations": "No Windows execution. FreeBSD leak detection unsupported and disabled; C++ vptr checks disabled for C-owned executables. Physical audio disabled in headless fixtures. No introduced compiler warnings or sanitizer diagnostics. Retained native partial writes imply no new rollback or unchanged-file guarantee. Other topics require their own Plan-mode phase and approval."
+    },
+    {
+      "topic": "theme-results-and-in-memory-activation",
+      "status": "resolved",
+      "findings": [
+        "theme-operation-results"
+      ],
+      "approval": "Complete Plan-mode chunk 7 revision 1 approved: Implement the plan. After re-asking a misselected answer, the user chose in-memory activation rather than reloading the just-saved file.",
+      "scope": "Menu-only MenuError preserves actual native theme integer failures, distinct save enums and owned diagnostics without inventing Boolean statuses or discarded cloud warning causes. ThemeSaveErr names existing values. Save persists only; narrow native/Wren activation installs an independent owned copy of a clean saved selected-local document without filesystem I/O, settings/selection/history changes or general installation authority. Editor saves once and reports activation failure without resaving. Selection restoration calls/order and primary failure remain; deletion errors describe a completed Classic save.",
+      "resolved": [
+        "themes.operation-status / theme-operation-results, including catalog/constructor errors, document mutations/save, cloud refresh and selection/deletion partial effects"
+      ],
+      "remaining": [
+        "themes.cloud-origin remains separate/open"
+      ],
+      "accounting": "Added only st_theme_document_activate and its TSV row under themes.operation-status; theme header has 121 items, total 2448. Retained existing rows/assessment ids/history and updated reviewed evidence/matrix. 157 assessments, 51 original topics, 42 open topics plus one documentation finding.",
+      "regression_before_fix": "The real missing-theme preview regression failed against the original binding: theme failures must preserve the native MenuError.",
+      "tests_passed": [
+        "Clang Debug: theme / wren_host / wren_menu_contract / wren_picker_contract / wren_settings_runtime / syncterm_behavior_settings",
+        "GCC Debug and Clang ASan/UBSan: theme / wren_host / wren_menu_contract / wren_picker_contract / wren_settings_runtime",
+        "Final diagnostic/assertion review: theme / wren_settings_runtime / wren_menu_contract on Clang, GCC and ASan/UBSan; rebuilt Clang application Settings behavior",
+        "Native activation: clean/saved/selected-local guards, allocation failure before installation, Save As identity, active/preview/generation preservation, one generation advance, independent metadata/style/glyph ownership and activation after file removal",
+        "Real browser/editor: typed native errors/save enums, safe mode, malformed arguments, cloud clean/warning/failure, catalogs/constructors, error lifetime, conflict/exists confirmation, explicit force, save/activation call counts, saved-but-not-activated, restoration and Classic-after-delete-failure",
+        "Coverage checker: 80 headers, 120 exclusions, 2448 items, 157 assessments, 51 original topics; independent 80-row matrix comparison; git diff --check"
+      ],
+      "builds_passed": [
+        "FreeBSD Clang Debug configured application and native/host/settings/picker tests",
+        "FreeBSD GCC Debug configured focused tests",
+        "FreeBSD Clang ASan/UBSan configured focused tests",
+        "MinGW64 Debug configured application and native/host/settings/picker cross-build; final application/native/host/settings rebuild"
+      ],
+      "limitations": "No Windows execution. FreeBSD leak detection unsupported and disabled; C++ vptr checks disabled for C-owned executables. Headless fixtures disable physical audio. No introduced compiler warnings or sanitizer diagnostics. Native source/link/partial writes and existing restoration attempts remain unchanged; no new rollback guarantee or invented numeric warning cause. Other topics require their own actual Plan-mode phase and approval."
     }
   ]
 }

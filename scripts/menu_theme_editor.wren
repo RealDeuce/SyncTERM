@@ -1,7 +1,7 @@
 // Full-screen editor for C-owned SyncTERM theme documents.
 
-import "syncterm" for Cell, Codepage, Color, Font, Key, KeyEvent, Mouse, MouseEvent, Screen, Text, Mod
-import "syncterm_menu" for Menu
+import "syncterm" for Cell, Codepage, Color, Font, Key, KeyEvent, Mouse, MouseEvent, Screen, Text, Mod, IOErr
+import "syncterm_menu" for Menu, MenuError, ThemeSaveErr
 import "ui_widget" for Container, Rect, Widget
 import "ui_pane" for Pane
 import "ui_button" for Button
@@ -1156,7 +1156,7 @@ class ThemeEditor {
     }
 
     var operation = Fn.new {|error|
-      if (error != null) Alert.show(app, "Theme Editor", error)
+      if (error != null) Alert.show(app, "Theme Editor", error.message)
       if (error == null) refresh.call()
       return error == null
     }
@@ -1517,7 +1517,12 @@ class ThemeEditor {
 
   static import_(app, document, operation) {
     var rows = []
-    for (entry in Menu.themes) {
+    var entries = Menu.themes
+    if (entries is MenuError) {
+      Alert.show(app, "Import Theme", entries.message)
+      return
+    }
+    for (entry in entries) {
       if (entry[5] != null) continue
       var label = entry[1]
       if (entry[0].count > 0) label = "%(label) (%(entry[0]))"
@@ -1549,16 +1554,26 @@ class ThemeEditor {
       return false
     }
     var result = document.save(filename, false)
-    if (result[0] == 2 || result[0] == 3) {
-      var reason = result[0] == 2 ?
+    if (result != null && result.code == null &&
+        (result.nativeCode == ThemeSaveErr.conflict || result.nativeCode == ThemeSaveErr.exists)) {
+      var reason = result.nativeCode == ThemeSaveErr.conflict ?
           "The file changed after it was opened." :
           "The destination file already exists."
       if (!Confirm.show(app, "%(reason) Replace it?")) return false
       result = document.save(filename, true)
     }
-    if (result[0] != 0) {
-      Alert.show(app, "Save Theme", result[1])
+    if (result != null) {
+      Alert.show(app, "Save Theme", result.message)
       return false
+    }
+    if (Menu.selectedThemeFile.count > 0) {
+      // After a successful save, the native guard resolves platform filename
+      // identity; invalidArgument means this document is not the selection.
+      var activation = document.activate()
+      if (activation != null && activation.code != IOErr.invalidArgument) {
+        Alert.show(app, "Activate Theme",
+            "The theme was saved, but could not be activated. " + activation.message)
+      }
     }
     return true
   }

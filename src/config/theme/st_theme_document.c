@@ -1416,3 +1416,42 @@ st_theme_document_save(struct st_theme_document *document,
 	clear_history(document);
 	return ST_THEME_DOCUMENT_OK;
 }
+
+int
+st_theme_document_activate(struct st_theme_document *document,
+	char *error, size_t error_size)
+{
+	const struct st_theme *committed;
+	struct st_theme *replacement;
+	char *filename;
+
+	if (document == NULL || st_theme_document_dirty(document)
+	    || document->filename[0] == '\0') {
+		set_document_error(error, error_size,
+		    "only a clean, saved theme document can be activated");
+		return IO_ERROR_INVALID_ARGUMENT;
+	}
+	committed = document->manager->committed_theme;
+	if (committed == NULL || committed->filename == NULL
+	    || (committed->package != NULL && committed->package[0] != '\0')
+	    || !same_filename(committed->filename, document->filename)) {
+		set_document_error(error, error_size,
+		    "the document is not the selected local theme");
+		return IO_ERROR_INVALID_ARGUMENT;
+	}
+	/* Save As changes the document's identity without rebuilding its preview. */
+	filename = strdup(document->filename);
+	if (filename == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	replacement = theme_clone(document->preview);
+	if (replacement == NULL) {
+		free(filename);
+		return IO_ERROR_OUT_OF_MEMORY;
+	}
+	free(replacement->filename);
+	replacement->filename = filename;
+	free(replacement->package);
+	replacement->package = NULL;
+	install_theme(document->manager, replacement);
+	return 0;
+}

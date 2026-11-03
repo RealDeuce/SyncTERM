@@ -252,6 +252,98 @@ test_document_save_preserves_links(struct st_theme_manager *manager,
 }
 #endif
 
+extern bool st_theme_test_fail_clone;
+
+static int
+test_document_activation(const char *directory)
+{
+	struct st_app_paths paths = {.themes_directory = (char *)directory};
+	struct st_settings settings;
+	struct st_theme_manager *manager = NULL;
+	struct st_theme_document *document = NULL;
+	char *path = NULL;
+	char *other = NULL;
+	char error[256] = "";
+
+	CHECK(path_join_alloc(&path, directory, "activation.ini") == 0);
+	CHECK(path_join_alloc(&other, directory, "activation-other.ini") == 0);
+	CHECK(write_text(path, "Name=Activation\n[Style:frame]\nForeground=0x123456\n"
+	    "[Glyph:arrow.up]\nASCII=65\n") == 0);
+	st_settings_init(&settings);
+	settings.theme_file = strdup("activation.ini");
+	CHECK(settings.theme_file != NULL);
+	CHECK(st_theme_manager_create(&manager, &paths, &settings, error, sizeof(error)) == 0);
+	CHECK(st_theme_document_create(&document, manager, error, sizeof(error)) == 0);
+	CHECK(st_theme_document_activate(document, error, sizeof(error)) == IO_ERROR_INVALID_ARGUMENT);
+	st_theme_document_free(&document);
+	CHECK(st_theme_document_open(&document, manager, "activation.ini", error, sizeof(error)) == 0);
+	CHECK(st_theme_document_set_style(document, "frame", ST_THEME_STYLE_FOREGROUND,
+	    ST_THEME_VALUE_EXPLICIT, 0xabcdef, error, sizeof(error)) == 0);
+	CHECK(st_theme_document_set_metadata(document, ST_THEME_METADATA_NAME,
+	    "Activated Document", error, sizeof(error)) == 0);
+	CHECK(st_theme_document_set_glyph(document, "arrow.up", ST_THEME_GLYPH_ASCII,
+	    ST_THEME_VALUE_EXPLICIT, 90, error, sizeof(error)) == 0);
+	CHECK(st_theme_document_activate(document, error, sizeof(error)) == IO_ERROR_INVALID_ARGUMENT);
+	uint64_t generation = st_theme_generation(manager);
+	CHECK(st_theme_document_save(document, NULL, false, error, sizeof(error)) == ST_THEME_DOCUMENT_OK);
+	CHECK(st_theme_generation(manager) == generation);
+	CHECK(style(st_theme_active(manager), "frame")->foreground == 0x123456);
+	CHECK(st_theme_preview(manager, "", error, sizeof(error)) == 0);
+	generation = st_theme_generation(manager);
+	const struct st_theme *preview = st_theme_active(manager);
+	st_theme_test_fail_clone = true;
+	CHECK(st_theme_document_activate(document, error, sizeof(error)) == IO_ERROR_OUT_OF_MEMORY);
+	st_theme_test_fail_clone = false;
+	CHECK(st_theme_generation(manager) == generation && st_theme_active(manager) == preview);
+	CHECK(fs_remove_file(path) == 0);
+	CHECK(st_theme_document_activate(document, error, sizeof(error)) == 0);
+	CHECK(st_theme_generation(manager) == generation + 1 && manager->preview_theme == NULL);
+	CHECK(strcmp(st_theme_active(manager)->filename, "activation.ini") == 0);
+	CHECK(style(st_theme_active(manager), "frame")->foreground == 0xabcdef);
+	CHECK(strcmp(st_theme_active(manager)->name, "Activated Document") == 0);
+	CHECK(glyph(st_theme_active(manager), "arrow.up")->ascii == 90);
+	CHECK(!st_theme_document_dirty(document));
+	CHECK(st_theme_document_set_style(document, "frame", ST_THEME_STYLE_FOREGROUND,
+	    ST_THEME_VALUE_EXPLICIT, 0x112233, error, sizeof(error)) == 0);
+	CHECK(st_theme_document_set_metadata(document, ST_THEME_METADATA_NAME,
+	    "Changed after activation", error, sizeof(error)) == 0);
+	CHECK(st_theme_document_set_glyph(document, "arrow.up", ST_THEME_GLYPH_ASCII,
+	    ST_THEME_VALUE_EXPLICIT, 88, error, sizeof(error)) == 0);
+	CHECK(style(st_theme_active(manager), "frame")->foreground == 0xabcdef);
+	st_theme_document_free(&document);
+	CHECK(style(st_theme_active(manager), "frame")->foreground == 0xabcdef);
+	CHECK(strcmp(st_theme_active(manager)->name, "Activated Document") == 0);
+	CHECK(glyph(st_theme_active(manager), "arrow.up")->ascii == 90);
+	/* A new document's preview still has its pre-Save-As empty filename. */
+	CHECK(st_theme_document_create(&document, manager, error, sizeof(error)) == 0);
+	CHECK(st_theme_document_save(document, "activation.ini", false, error, sizeof(error)) == ST_THEME_DOCUMENT_OK);
+	CHECK(st_theme_document_preview(document)->filename[0] == '\0');
+	CHECK(st_theme_document_activate(document, error, sizeof(error)) == 0);
+	CHECK(strcmp(st_theme_active(manager)->filename, "activation.ini") == 0);
+	manager->committed_theme->package = strdup("official/other");
+	CHECK(manager->committed_theme->package != NULL);
+	CHECK(st_theme_document_activate(document, error, sizeof(error)) == IO_ERROR_INVALID_ARGUMENT);
+	free(manager->committed_theme->package);
+	manager->committed_theme->package = NULL;
+	CHECK(write_text(other, "Name=Other selection\n") == 0);
+	CHECK(st_theme_select(manager, "activation-other.ini", error, sizeof(error)) == 0);
+	generation = st_theme_generation(manager);
+	CHECK(st_theme_document_activate(document, error, sizeof(error)) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_theme_generation(manager) == generation);
+	CHECK(st_theme_select(manager, "", error, sizeof(error)) == 0);
+	generation = st_theme_generation(manager);
+	CHECK(st_theme_document_activate(document, error, sizeof(error)) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_theme_generation(manager) == generation);
+	st_theme_document_free(&document);
+	st_theme_manager_free(&manager);
+	st_settings_dispose(&settings);
+	CHECK(fs_remove_file(path) == 0);
+	CHECK(fs_remove_file(other) == 0);
+	free(path);
+	free(other);
+	return 0;
+}
+
 static int
 test_reset_last_override(struct st_theme_manager *manager, const char *path)
 {
@@ -544,6 +636,7 @@ main(void)
 	st_theme_manager_free(&manager);
 	st_settings_dispose(&settings);
 	failure += test_catalog_refresh_contract(catalog_directory);
+	failure += test_document_activation(ST_THEME_TEST_DIRECTORY);
 	failure += test_short_read_closes_stream(short_read);
 	free(custom);
 	free(invalid);

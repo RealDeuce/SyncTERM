@@ -4623,7 +4623,8 @@ if (failure != null) {
 In v2, BBS and Settings mutation actions return null on success or a host-created,
 immutable `MenuError`. Creators (`Menu.create`, `copy`, `createFont`) return their
 object or MenuError. This covers entry rename/save/delete, defaults/encryption/sort,
-Settings apply/save/reload, font/web/sort collection actions, and Menu.load.
+Settings apply/save/reload, font/web/sort collection actions, Menu.load, and
+theme operations described below.
 Predicates retain their own contracts. There are no Boolean compatibility forms.
 
 [options="header",cols="2,3"]
@@ -4632,7 +4633,8 @@ Predicates retain their own contracts. There are no Boolean compatibility forms.
 | `code` | Portable IOErr reason, or null when the called C API supplies no
   portable reason. Classify by the API's contract, never by the raw integer alone.
 | `nativeCode` | Actual integer C failure, or null for Boolean/pointer failures
-  and host-only policy rejection. Generic -1 from older collection APIs is retained
+  and host-only policy rejection. ThemeDocument.save retains its separate native
+  ThemeSaveErr enum here with code null. Generic -1 from older collection APIs is retained
   here with code null; it is not classified as IOErr.invalidArgument.
 | `message` | Owned operation-specific diagnostic; portable failures include their reason.
 | `toString` | Diagnostic prefixed by `MenuError: `.
@@ -4883,8 +4885,10 @@ duplicate platform-dependent enum tables:
 
 Theme storage and file syntax are documented in `Themes.adoc`.
 
-`Menu.themes` refreshes the C-owned catalog and returns rows in the form
-`[filename, name, author, description, version, error]`.  The built-in
+`Menu.themes` refreshes the C-owned catalog and returns a List of rows in the form
+`[filename, name, author, description, version, error]`, or MenuError if refresh
+fails. Native failure preserves the previous catalog; already returned rows remain
+usable.  The built-in
 Classic Theme has an empty filename.  Optional metadata is `null` when
 absent.  An invalid or missing theme has an error String and cannot be
 selected, but remains available for display in the browser.
@@ -4893,45 +4897,48 @@ selected, but remains available for display in the browser.
 when Classic or a cloud package is selected.  `Menu.selectedThemePackage`
 returns the committed `repository/id`, or an empty String for Classic and
 local files.  `Menu.previewTheme(filename)` installs a temporary
-process-wide preview and returns `null`, or returns an error String without
-changing the committed selection.  `Menu.cancelThemePreview()` restores the
+process-wide preview and returns null/MenuError without changing the committed
+selection.  `Menu.cancelThemePreview()` restores the
 committed theme.  Both operations advance `Host.themeGeneration` when they
 change the active snapshot.
 
 `Menu.selectTheme(filename)` validates the catalog entry, writes
 `[SyncTERM] ThemeFile`, and commits the preview as one operation.  Selecting
-Classic removes the key.  It returns `null` on success or an error String on
-failure.  In safe mode the running selection changes but the INI file is not
+Classic removes the key. It returns null/MenuError.  In safe mode the running selection changes but the INI file is not
 written.  A successful selection advances both the theme and settings
 generations, so scripts should reacquire outstanding `Settings` snapshots.
+Selection failure preserves its original native reason and existing restoration
+attempts; messages describe failed restoration if detected. No new rollback or
+unchanged-file guarantee is made.
 
-`Menu.deleteTheme(filename)` removes a local theme file and returns `null`, or
-an error String.  Deleting the selected file first commits and saves Classic
+`Menu.deleteTheme(filename)` removes a local theme file and returns null/MenuError.  Deleting the selected file first commits and saves Classic
 Theme.  If deleting the file then fails, Classic remains selected and saved
-while the deletion error is returned.
+while MenuError reports the deletion failure and the completed Classic selection/save.
 
 `Menu.refreshCloudThemes()` refreshes the official manifest, updates cached
-packages whose SHA-256 changed, and returns `null` or a warning String.  A
-warning may be returned while the previously validated manifest remains
-available.  `Menu.cloudThemes` then returns rows
+packages whose SHA-256 changed. It returns null for clean native success, a
+String for native success with a warning, or MenuError for native failure. A
+warning may accompany a usable cached manifest. The binding does not invent a
+numeric reason for warning text whose underlying status C has already discarded.  `Menu.cloudThemes` then returns rows
 `[package, name, author, description, version, cached, updateAvailable,
 error]`.  Optional metadata and `error` are `null` when
 absent.
 
 `Menu.previewCloudTheme(package)` previews a validated cached package and
-returns `null` or an error String.  `Menu.cacheCloudTheme(package)` downloads
+returns null/MenuError. `Menu.cacheCloudTheme(package)` downloads
 and validates a package without selecting it.  `Menu.selectCloudTheme(package)`
 does the same as needed, writes `[SyncTERM] ThemePackage`, removes
 `ThemeFile`, and commits the selection.  `Menu.copyCloudTheme(package)`
-returns an unsaved `ThemeDocument` populated from the cached package.  These
+returns an unsaved ThemeDocument populated from the cached package, or MenuError.
+Caching and selecting return null/MenuError. These
 catalog and document operations are menu-VM capabilities; the cache location
 is never exposed as general filesystem authority.
 
 `Menu.deleteCloudTheme(package)` removes a cached package so it appears in
-Online Themes again, returning `null` or an error String.  Deleting the
-selected package first commits and saves Classic Theme.  If deleting the cache
-file then fails, Classic remains selected and saved while the deletion error is
-returned.  Both deletion operations are unavailable in safe mode.
+Online Themes again, returning null/MenuError.  Deleting the
+selected package first commits and saves Classic Theme. If deleting the cache
+file then fails, Classic remains selected and saved; MenuError describes that
+completed step and preserves the deletion failure.  Both deletion operations are unavailable in safe mode.
 
 The shipped Themes browser combines `Menu.themes` with cached rows from
 `Menu.cloudThemes`, using distinct identities for Classic, local files, and
@@ -4942,17 +4949,22 @@ browser.  Both browsers publish the highlighted row's description through
 the main menu's comment callback and reserve the comment row when sizing
 their shadowed panes.
 
-`Menu.newThemeDocument()` returns a new C-owned `ThemeDocument` containing a
-minimal sparse overlay on the compiled default.  Its filename is empty and
+`Menu.newThemeDocument()` returns a new C-owned ThemeDocument containing a
+minimal sparse overlay on the compiled default, or MenuError on native failure.  Its filename is empty and
 it is dirty until saved.  `Menu.openThemeDocument(filename)` accepts the
-basename of a file accepted by the current theme loader.  These constructors
+nonempty basename of a file accepted by the current theme loader, returning
+ThemeDocument/MenuError. Empty names and invalid arguments abort the Fiber.
+Menu.copyCloudTheme likewise returns ThemeDocument/MenuError. These constructors
 and all document methods are menu-VM capabilities; documents cannot be
 created or passed into the connected or picker VMs.
 
 `ThemeDocument.metadata(field)` and `setMetadata(field, value)` use field IDs
 0 Name, 1 Author, 2 Description, and 3 Version.  The optional fields return
 `null` when absent; setting an optional field to an empty String removes it.
-Name cannot be empty.
+Name cannot be empty. Metadata/style/glyph mutation and import return
+null/MenuError with the portable native reason, replacing error Strings in v2.
+Existing type/range/enum validation aborts remain; native semantic failures are
+recoverable values.
 
 `ThemeDocument.styles` returns rows
 `[role, builtin, present, font, legacyAttr, foreground, background]`.
@@ -4980,17 +4992,48 @@ installed theme as one history entry while retaining the document filename
 and metadata.  It preserves custom definitions and unknown content rather
 than limiting the import to the built-in registry.
 
-`ThemeDocument.save(filename, force)` returns `[code, error]`, where `error`
-is `null` on success.  A `null` filename saves to the current basename.  The
-codes are 0 success, 1 invalid document, 2 external-change conflict, 3 new
-destination already exists, 4 read-only safe mode, and 5 I/O failure.  A
-true `force` permits overwriting after codes 2 and 3; it does not bypass theme
-validation or safe mode.  Save preserves untouched source text, writes through
-the destination without replacing its filesystem entry, and clears the editing
-history after a successful write and close.  Saving through a symbolic or hard
-link therefore retains that link relationship.  An I/O failure after the file
-is opened can leave partial destination contents.  Saving the selected file
-also reloads the active process-wide theme.
+`ThemeDocument.save(filename, force)` persists only, returning null/MenuError
+instead of the former `[code, error]` pair. A null filename saves to the current
+basename. Native save failures use `code == null` and their distinct enum in
+`nativeCode`; they are not portable IOErr values. The named ThemeSaveErr constants
+preserve the native enum: ok=0, invalid=1, conflict=2, exists=3, readOnly=4 and io=5.
+Success is null. Host safe-mode rejection uses IOErr.readOnly with nativeCode null,
+rather than inventing a native call/result. A true force permits overwriting after
+conflict or exists; it bypasses neither validation nor safe mode.
+
+Save preserves untouched source text, writes through the destination without
+replacing its filesystem entry, and clears editing history after successful write
+and close. Symbolic/hard links retain their relationship; write/close failure can
+leave partial contents. Saving does not change the active theme or its generation.
+
+`ThemeDocument.activate()` installs an independent native copy of the document's
+resolved in-memory theme and returns null/MenuError. It requires a clean, saved
+document matching the manager's committed local theme under the existing platform
+filename identity rules. Unsaved, dirty, differently selected, Classic and cloud
+selections return IOErr.invalidArgument. Allocation failure leaves the active theme,
+preview and generation unchanged. Success clears temporary preview and advances
+Host.themeGeneration once; selection, Settings generation, document history and
+files are unchanged. Activation performs no filesystem I/O, including when the
+backing file has been removed or edited externally, and is allowed in safe mode.
+Later document edits or collection do not modify the installed copy. Native APIs
+continue to own manager/document lifetime; no new script resource owner is created.
+
+The editor confirms replacement only for conflict/exists, then saves with explicit
+force if accepted. After saving it activates only a matching selected local theme,
+using the native identity guard rather than Wren filename case assumptions. Failure
+to activate is reported as saved-but-not-activated; the document stays clean and
+persistence is treated as complete. There is no automatic resave or activation retry.
+
+[source,wren]
+----
+var failure = document.save(null, false)
+if (failure != null) {
+  System.print(failure.message)
+} else {
+  var activation = document.activate()
+  if (activation != null) System.print(activation.message)
+}
+----
 
 The shipped `menu_theme_editor` module keeps the document rows as the editing
 source of truth and builds a separate `Theme.fromData(document.themeData)`
