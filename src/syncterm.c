@@ -978,7 +978,8 @@ finished:
 			status = close_status;
 	}
 	/* Close first: the log viewer must include final transport diagnostics.
-	 * Retain CTerm until the notice is dismissed and offline history saved. */
+	 * Save offline history before displaying the notice, retaining CTerm
+	 * until the notice is dismissed. */
 	if (notify_disconnect && st_term_session_prepare_disconnect(session) == 0) {
 		const char *reason = "Remote host dropped connection";
 		size_t size = strlen(reason) + (disconnect_details == NULL ? 0 : strlen(disconnect_details)) + 4;

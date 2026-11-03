@@ -46,9 +46,9 @@ def failure_report(client, root, reports):
 
 
 @contextlib.contextmanager
-def application(executable, root, *, extra=(), reports="reports/test-control"):
+def application(executable, root, *, extra=(), reports="reports/test-control", quiet=True):
     try:
-        client = Client(executable, ["--test-directory", root, "-q", *extra],
+        client = Client(executable, ["--test-directory", root, *(["-q"] if quiet else []), *extra],
                         env=environment(), timeout=15)
     except BaseException as error:
         directory = Path(reports)
@@ -69,7 +69,7 @@ def application(executable, root, *, extra=(), reports="reports/test-control"):
 
 @contextlib.contextmanager
 def fixture(executable, *, entries="", extra=(), script=None,
-            settings="", prepare=None, reports="reports/test-control"):
+            settings="", prepare=None, reports="reports/test-control", quiet=True):
     with tempfile.TemporaryDirectory(prefix="syncterm-control-") as directory:
         root = Path(directory)
         (root / "syncterm.ini").write_text(
@@ -80,7 +80,7 @@ def fixture(executable, *, entries="", extra=(), script=None,
             write_script(root, "zzz_test_control", script, "connected")
         if prepare:
             prepare(root)
-        with application(executable, root, extra=extra, reports=reports) as client:
+        with application(executable, root, extra=extra, reports=reports, quiet=quiet) as client:
             yield client, root
 
 

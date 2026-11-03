@@ -102,8 +102,8 @@ int st_wren_host_choice(st_wren_host_t *host, const char *title,
 	const char *question, const char *const *choices, size_t count);
 int st_wren_host_alert(st_wren_host_t *host, const char *title, const char *message);
 int st_wren_host_help(st_wren_host_t *host, const char *title, const char *body);
-/* Terminal remains visible until Enter/close; F1 opens the supplied details
- * and protocol log. Caller must first expose a blank bottom terminal row. */
+/* Enter/close exits; F1 opens details/log, Alt-B (Cmd-B on macOS) opens history.
+ * Caller must first publish history and expose a blank bottom terminal row. */
 int st_wren_host_disconnected(st_wren_host_t *host, const char *details);
 /* Nonblocking progress; NULL message clears and restores the saved screen. */
 int st_wren_host_status(st_wren_host_t *host, const char *title, const char *message);

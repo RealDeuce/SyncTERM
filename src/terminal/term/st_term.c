@@ -26,6 +26,7 @@ struct st_term_session {
 	bool end_requested;
 	bool exit_requested;
 	bool remote_closed;
+	bool history_finalized;
 	bool auxiliary_active;
 	bool suspended;
 	bool mouse_disabled;
@@ -372,8 +373,12 @@ publish_history(st_term_session_t *session)
 	uint32_t columns;
 	size_t rows;
 
-	if (session->config.history == NULL)
+	if (session->config.history == NULL || session->history_finalized)
 		return;
+	/* Freeze the completed session before a disconnected notice or viewer
+	 * can draw on its console. Do not capture those UI overlays at destroy. */
+	session->history_finalized = true;
+	st_session_history_clear(session->config.history);
 	if (st_cterm_copy_history(session->cterm, &cells, &columns, &rows) == 0
 	    && rows <= UINT32_MAX)
 		(void)st_session_history_publish(session->config.history, cells,
@@ -431,7 +436,10 @@ st_term_session_prepare_disconnect(st_term_session_t *session)
 {
 	if (session == NULL) return IO_ERROR_INVALID_ARGUMENT;
 	int status = st_cterm_prepare_disconnect(session->cterm);
-	if (status == 0) session->config.hide_status = true;
+	if (status == 0) {
+		session->config.hide_status = true;
+		publish_history(session);
+	}
 	return status;
 }
 

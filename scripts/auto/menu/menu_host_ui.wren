@@ -1,4 +1,6 @@
-import "syncterm" for CustomCursor, Screen, Surface, Input, Key, KeyEvent
+import "syncterm" for CustomCursor, Screen, Surface, Input, Key, KeyEvent,
+    PhysicalKeyEvent, Mod, Host
+import "menu_scrollback" for OfflineScrollbackView
 import "menu_ui" for MenuUi
 import "ui_app" for App
 import "ui_help" for Help
@@ -36,7 +38,7 @@ class MenuHostUI {
   }
 
   static disconnected(title, details) {
-    var notice = "Disconnected: Enter exits, F1 details"
+    var notice = "Disconnected: Enter exits, F1 details, %(Host.altKeyShort)-B scrollback"
     while (true) {
       var size = Screen.size
       var width = (size[0] - 1).max(0).min(notice.count)
@@ -50,13 +52,17 @@ class MenuHostUI {
       Screen.window.position = [start + width + 1, size[1]]
       CustomCursor.normal.apply()
       var event = Input.next(100)
-      if (!(event is KeyEvent)) continue
-      var key = event.shortcut_
+      var key = -1
+      if (event is KeyEvent) key = event.shortcut_
+      if (event is PhysicalKeyEvent) key = Key.physicalShortcut_(event)
       if (key == Key.enter || key == Key.quit) return
       if (key == Key.f1) {
         var saved = Screen.save()
         help(title, details)
         Screen.restore(saved)
+      }
+      if (key == Key.chord_(98, Mod.command)) {
+        OfflineScrollbackView.showStandalone()
       }
     }
   }

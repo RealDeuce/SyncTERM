@@ -1405,9 +1405,11 @@ methods `alert(title, message)`, `alertWithHelp(title, message, helpText)`,
 `choice(title, message, options, current)`, `status(title, lines)`, and
 `statusClear()`, plus `disconnected(title, details)` for the post-session
 bottom-row notice. That notice keeps the completed terminal visible until
-Enter, with F1 opening session details and the final protocol log. It is
-removed before offline scrollback is captured. `hidePopups` and local
-hangup/exit skip it. This is a host-controller ABI rather than a public menu
+Enter, with F1 opening session details and the final protocol log. Alt-B
+(Cmd-B on macOS) opens that session's scrollback; Escape returns to the
+notice. History is saved before the notice is drawn, so the notice and its
+viewers do not enter the saved history. `hidePopups` and local hangup/exit
+skip the notice. This is a host-controller ABI rather than a public menu
 script API: application C code holds the call handles and invokes it.
 The progress pane fits the wider of its title and status rows, capped to the
 standard screen margins.  The pane itself is centered, but all status rows

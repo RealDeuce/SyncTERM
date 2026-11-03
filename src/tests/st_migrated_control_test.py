@@ -92,14 +92,14 @@ Host.print("PICKER-PIXELS-PASS")
 
 
 @contextlib.contextmanager
-def connection(executable, reports, *, encoding="CP437", options="", settings="", script=None, menu_grid=None, prepare=None):
+def connection(executable, reports, *, encoding="CP437", options="", settings="", script=None, menu_grid=None, prepare=None, hide_popups=True):
     with listener() as server:
         entries = ("[Capture]\nConnectionType=Raw\nAddress=127.0.0.1\n"
                    f"Port={server.getsockname()[1]}\nScreenMode=80x25\n"
-                   "NoStatus=true\nHidePopups=true\nForceLCF=true\nRIP=Off\n"
+                   f"NoStatus=true\nHidePopups={str(hide_popups).lower()}\nForceLCF=true\nRIP=Off\n"
                    + (f"Encoding={encoding}\n" if encoding is not None else "") + options)
         with fixture(executable, entries=entries, settings=settings, script=script,
-                     reports=reports, prepare=prepare) as (client, root):
+                     reports=reports, prepare=prepare, quiet=hide_popups) as (client, root):
             client.wait_text("Capture")
             if menu_grid:
                 client.grid_resize(*menu_grid)
@@ -296,42 +296,94 @@ def session_modes(executable, reports):
 
 
 def scrollback(executable, encoding, reports):
-    with connection(executable, reports, encoding=encoding,
-                    settings="ScrollBackLines=100\n") as (client, root, peer, send):
-        sample = "é".encode("utf-8") if encoding == "UTF-8" else b"\x82"
-        send(b"\x1b[2J\x1b[H" + b"\r\n".join(sample + f" row {i:02d}".encode() for i in range(45)))
-        client.wait_text("row 44")
-        # RIS preserves the existing history instead of rotating it.
-        send(b"\x1bc\x1b[2J\x1b[HAFTER-RESET\r\nSUMMARY")
-        client.wait_text("SUMMARY")
-        client.physical_key(48, True, 4)
-        client.physical_key(48, False, 4)
-        client.wait_text("Scrollback")
-        client.key("home")
-        client.wait_for(lambda s: "Scrollback" in s.text and "SUMMARY" not in s.text)
-        client.key("page_down")
-        client.wait_text("row 01")
-        client.key("up")
-        oldest = client.wait_text("row 00")
-        assert oldest.text.index("row 00") < oldest.text.index("row 01")
-        client.key("end")
-        newest = client.wait_text("SUMMARY")
-        client.key("up")
-        client.wait_text("AFTER-RESET")
-        client.key("escape")
-        client.wait_text("SUMMARY")
-        peer.shutdown(socket.SHUT_RDWR)
-        client.wait_text("Directory: Name")
-        # The offline viewer must retain the same ordering and final screen.
-        client.physical_key(48, True, 4)
-        client.physical_key(48, False, 4)
-        client.wait_text("Scrollback")
-        client.wait_text("SUMMARY")
-        client.key("home")
-        client.key("page_down")
-        client.key("up")
-        client.wait_text("row 00")
-        client.key("escape")
+    for hide_popups in (True, False):
+        with connection(executable, reports, encoding=encoding,
+                        settings="ScrollBackLines=100\n", hide_popups=hide_popups) as (client, root, peer, send):
+            sample = "é".encode("utf-8") if encoding == "UTF-8" else b"\x82"
+            send(b"\x1b[2J\x1b[H" + b"\r\n".join(sample + f" row {i:02d}".encode() for i in range(45)))
+            client.wait_text("row 44")
+            # RIS preserves the existing history instead of rotating it.
+            send(b"\x1bc\x1b[2J\x1b[HAFTER-RESET\r\nSUMMARY")
+            client.wait_text("SUMMARY")
+            client.physical_key(48, True, 4)
+            client.physical_key(48, False, 4)
+            client.wait_text("Scrollback")
+            client.key("home")
+            client.wait_for(lambda s: "Scrollback" in s.text and "SUMMARY" not in s.text)
+            client.key("page_down")
+            client.wait_text("row 01")
+            client.key("up")
+            oldest = client.wait_text("row 00")
+            assert oldest.text.index("row 00") < oldest.text.index("row 01")
+            assert "é row 00" in oldest.text
+            client.key("end")
+            newest = client.wait_text("SUMMARY")
+            client.key("up")
+            client.wait_text("AFTER-RESET")
+            client.key("escape")
+            client.wait_text("SUMMARY")
+            peer.shutdown(socket.SHUT_RDWR)
+            if not hide_popups:
+                client.wait_text("Disconnected: Enter exits, F1 details")
+                # Current-session history is available before leaving the notice.
+                client.physical_key(48, True, 4)
+                client.physical_key(48, False, 4)
+                viewer = client.wait_text("Scrollback")
+                assert "Disconnected:" not in viewer.text
+                # The viewer title overlays its first row; reveal text that
+                # the disconnect preparation scrolled into that row.
+                client.key("up")
+                client.wait_text("SUMMARY")
+                client.key("home")
+                client.key("page_down")
+                client.key("up")
+                client.wait_text("row 00")
+                client.key("escape")
+                notice = client.wait_text("Disconnected: Enter exits, F1 details")
+                assert "SUMMARY" in notice.text
+                # Logical shortcuts also work for ANSI/curses-style input.
+                client.key(98, 4)
+                client.wait_text("Scrollback")
+                client.key("escape")
+                client.wait_text("Disconnected: Enter exits, F1 details")
+                client.key("f1")
+                client.wait_text("Remote host dropped connection")
+                client.key("escape")
+                client.wait_text("Disconnected: Enter exits, F1 details")
+                client.key("enter")
+            client.wait_text("Directory: Name")
+            # The offline viewer must retain the same ordering and final screen.
+            client.physical_key(48, True, 4)
+            client.physical_key(48, False, 4)
+            client.wait_text("Scrollback")
+            if not hide_popups:
+                client.key("up")
+            client.wait_text("SUMMARY")
+            client.key("home")
+            client.key("page_down")
+            client.key("up")
+            client.wait_text("row 00")
+            client.key("escape")
+
+    # A host close must unwind the standalone viewer and the notice. Also
+    # exercise a session with the ordinary status row enabled.
+    with listener() as server:
+        entries = ("[Capture]\nConnectionType=Raw\nAddress=127.0.0.1\n"
+                   f"Port={server.getsockname()[1]}\nScreenMode=80x25\nRIP=Off\n"
+                   f"Encoding={encoding}\n")
+        with fixture(executable, entries=entries, quiet=False, reports=reports) as (client, root):
+            client.wait_text("Capture")
+            client.key("enter")
+            with server.accept()[0] as peer:
+                peer.sendall(b"CLOSE-VIEWER")
+                client.wait_text("CLOSE-VIEWER")
+                peer.shutdown(socket.SHUT_RDWR)
+                client.wait_text("Disconnected: Enter exits, F1 details")
+                client.key(98, 4)
+                client.wait_text("Scrollback")
+                client.event(7)
+                client.process.wait(timeout=client.timeout)
+                assert client.process.returncode == 0
 
 
 def picker(executable, reports):

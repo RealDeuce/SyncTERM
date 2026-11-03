@@ -965,7 +965,6 @@ test_remote_disconnect(void)
 	CHECK(st_connection_close(connection) == 0);
 	/* Preparation and history publication must not touch the freed connection. */
 	CHECK(st_term_session_prepare_disconnect(session) == 0);
-	st_term_session_destroy(&session);
 	uint32_t columns;
 	size_t rows;
 	enum st_screen_mode mode;
@@ -973,6 +972,19 @@ test_remote_disconnect(void)
 	CHECK(st_session_history_copy(history, &after, &columns, &rows, &mode, &has_status) == 0);
 	CHECK(columns == before_columns && rows == before_rows + 1 && !has_status);
 	CHECK(memcmp(before, after, before_rows * columns * sizeof(*before)) == 0);
+	/* The notice and its viewer may draw on the console, but must not enter
+	 * the completed session's history when the terminal is finally destroyed. */
+	struct st_console_cell blank = {.glyph = 'X'};
+	const struct st_console_rect notice = {0, 3, 40, 1};
+	CHECK(st_console_fill(console, &notice, &blank) == 0);
+	st_term_session_destroy(&session);
+	struct st_console_cell *retained = NULL;
+	size_t retained_rows;
+	CHECK(st_session_history_copy(history, &retained, &columns, &retained_rows,
+	    &mode, &has_status) == 0);
+	CHECK(retained_rows == rows && columns == before_columns);
+	CHECK(memcmp(after, retained, rows * columns * sizeof(*after)) == 0);
+	free(retained);
 	free(before); free(after);
 	st_session_history_destroy(history);
 	st_profile_dispose(&profile);

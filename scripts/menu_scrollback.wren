@@ -5,6 +5,7 @@ import "ui_widget" for Widget, Rect
 import "ui_draw" for Painter
 import "ui_popup" for Alert
 import "ui_style" for Style
+import "ui_app" for App
 
 class OfflineScrollbackCanvas is Widget {
   construct new(app, source, background, hasStatus, dismiss) {
@@ -189,10 +190,18 @@ class OfflineScrollbackView {
         "Mouse Wheel\n:  Scroll up or down one line\n" +
         "Click\n:  Open a hyperlink or detected URL\n" +
         "Drag\n:  Copy selected text\n" +
-        "Escape\n:  Return to the directory"
+        "Escape\n:  Close scrollback"
   }
 
   static show(app) {
+    show_(app, false)
+  }
+
+  static showStandalone() {
+    show_(App.new(), true)
+  }
+
+  static show_(app, standalone) {
     var source = Menu.offlineScrollback
     if (source == null) return
     var savedScreen = Screen.save()
@@ -211,7 +220,13 @@ class OfflineScrollbackView {
     Input.enableMouseEvent(Mouse.wheelDown)
     Input.mouseVisible = true
     var background = Screen.readRect(1, 1, Screen.size[0], Screen.size[1])
-    var dismiss = Fn.new { app.popModal() }
+    var dismiss = Fn.new {
+      if (standalone) {
+        app.quit()
+      } else {
+        app.popModal()
+      }
+    }
     var viewer = OfflineScrollbackCanvas.new(app, source, background,
         Menu.offlineScrollbackHasStatus, dismiss)
     viewer.helpText = help_()
@@ -219,7 +234,12 @@ class OfflineScrollbackView {
         ["PgUp/PgDn", "Page"], ["Esc", "Close"]]
     viewer.focused = true
     viewer.bounds = Rect.new(1, 1, Screen.size[0], Screen.size[1])
-    app.modal(viewer)
+    if (standalone) {
+      app.pushModal(viewer)
+      app.runSync()
+    } else {
+      app.modal(viewer)
+    }
     Menu.setHyperlinkHover(0)
     Input.mouseEvents = savedMouse
     Screen.restore(savedScreen)
