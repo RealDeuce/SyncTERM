@@ -4553,7 +4553,9 @@ In v2, MenuReadStatus and Menu.statusMessage are removed without aliases,
 including obsolete migration status values. Successful loads can still contain
 warnings about skipped sources or sections, or truncated entry names. The bundled
 menu opens a scrollable Directory Warnings summary when any warning comes from
-a personal or shared list. Warnings exclusively from web lists do not open it
+a personal or shared list. Up/Down scroll one line, PgUp/PgDown scroll a page,
+and Home/End jump to the top/bottom. Enter continues and Escape closes the dialog.
+Warnings exclusively from web lists do not open it
 automatically, but remain in the diagnostics and appear alongside other warnings
 when the dialog opens. Dismissal continues with usable entries; missing optional
 files remain silent. A diagnostic retrieval failure still opens the dialog as

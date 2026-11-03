@@ -118,6 +118,7 @@ class UiPopupTest {
     testStandaloneChoiceEscReturnsNull_()
     testStandaloneChoiceKeepsActionsVisible_()
     testStandaloneChoiceScrollsMessage_()
+    testStandaloneChoiceSingleActionNavigation_()
     testModalPaneEscDismisses_()
     testWrappingAscii_()
     testWrappingUnicode_()
@@ -653,10 +654,53 @@ class UiPopupTest {
     for (i in 0...20) lines.add("Certificate detail row %(i)")
     var popup = StandaloneChoice.new(lines.join("\n"), ["Back", "Trust"])
     popup.bounds = Rect.new(1, 1, 50, 14)
+    popup.handle(KeyEvent.new(Key.end))
+    check_(popup.messageScrollTop == 0 && popup.focusedChild.selected == 1,
+           "StandaloneChoice: End selects the last action with multiple choices")
+    popup.handle(KeyEvent.new(Key.home))
+    check_(popup.focusedChild.selected == 0,
+           "StandaloneChoice: Home selects the first action with multiple choices")
+    popup.handle(KeyEvent.new(Key.down))
+    check_(popup.messageScrollTop == 0 && popup.focusedChild.selected == 1,
+           "StandaloneChoice: arrows select actions with multiple choices")
     var surface = popup.draw()
     var consumed = popup.handle(KeyEvent.new(Key.pageDown))
     check_(surface != null && consumed && popup.messageScrollTop > 0,
            "StandaloneChoice: PageDown scrolls the message viewport")
+  }
+
+  static testStandaloneChoiceSingleActionNavigation_() {
+    var lines = []
+    for (i in 0...20) lines.add("Warning row %(i)")
+    var app = FakeApp.new()
+    var popup = StandaloneChoice.new(lines.join("\n"), ["Continue"])
+    popup.bounds = Rect.new(1, 1, 50, 14)
+    app.pushModal(popup)
+    var bottom = 20 - popup.messageBounds.h
+    for (step in [[Key.up, 0], [Key.down, 1], [Key.up, 0],
+        [Key.end, bottom], [Key.down, bottom], [Key.up, bottom - 1],
+        [Key.home, 0], [Key.pageDown, popup.messageBounds.h],
+        [Key.pageUp, 0]]) {
+      var consumed = popup.handle(KeyEvent.new(step[0]))
+      check_(consumed && popup.messageScrollTop == step[1] &&
+          popup.focusedChild.selected == 0 && app.modalStack.count == 1,
+          "StandaloneChoice: single-action navigation %(step[0]) scrolls and clamps")
+    }
+    popup.handle(KeyEvent.new(Key.enter))
+    check_(popup.result == 0 && app.modalStack.count == 0,
+           "StandaloneChoice: Enter still selects the single action")
+    popup = StandaloneChoice.new("Short warning", ["Continue"])
+    popup.bounds = Rect.new(1, 1, 50, 14)
+    app.pushModal(popup)
+    for (code in [Key.up, Key.down, Key.home, Key.end,
+        Key.pageUp, Key.pageDown]) {
+      popup.handle(KeyEvent.new(code))
+      check_(popup.messageScrollTop == 0 && app.modalStack.count == 1,
+             "StandaloneChoice: short message navigation stays at the top")
+    }
+    popup.handle(KeyEvent.new(Key.escape))
+    check_(popup.result == null && app.modalStack.count == 0,
+           "StandaloneChoice: Escape still dismisses the single-action message")
   }
 
   static testModalPaneEscDismisses_() {

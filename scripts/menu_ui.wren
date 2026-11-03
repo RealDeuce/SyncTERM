@@ -123,6 +123,10 @@ class StandaloneChoice is Popup {
     super(null)
     keyHints = [["PgUp/PgDn", "Scroll"], ["Enter", "Select"],
         ["Esc", "Close"]]
+    if (labels.count == 1) {
+      keyHints = [["Up/Down", "Scroll"], ["PgUp/PgDn", "Page"],
+          ["Home/End", "Jump"], ["Enter", "Select"], ["Esc", "Close"]]
+    }
     _message = message == null ? "" : message
     _messageView = ChoiceMessage.new(_message)
     _messageView.visible = _message.count > 0
@@ -160,10 +164,14 @@ class StandaloneChoice is Popup {
       dismissWith_(null)
       return true
     }
-    if (event is KeyEvent &&
-        (event.shortcut_ == Key.pageUp || event.shortcut_ == Key.pageDown) &&
-        _messageView.visible) {
-      return _messageView.handle(event)
+    if (event is KeyEvent && _messageView.visible) {
+      var code = event.shortcut_
+      // With one action, these keys have no action-list navigation to do.
+      if (code == Key.pageUp || code == Key.pageDown ||
+          (_list.count == 1 && (code == Key.up || code == Key.down ||
+          code == Key.home || code == Key.end))) {
+        return _messageView.handle(event)
+      }
     }
     return super.handle(event)
   }

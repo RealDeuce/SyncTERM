@@ -605,7 +605,19 @@ test_load_results(struct st_wren_host *host, struct st_app_paths *paths,
 	    "pane.handle(KeyEvent.new(Key.pageDown))\n"
 	    "if (pane.messageScrollTop <= 0) Fiber.abort(\"warnings do not scroll\")\n"
 	    "pane.handle(KeyEvent.new(Key.pageUp))\n"
-	    "if (pane.messageScrollTop != 0) Fiber.abort(\"warnings cannot scroll back\")\n");
+	    "if (pane.messageScrollTop != 0) Fiber.abort(\"warnings cannot scroll back\")\n"
+	    "pane.handle(KeyEvent.new(Key.down))\n"
+	    "if (pane.messageScrollTop != 1) Fiber.abort(\"warnings Down must scroll one line\")\n"
+	    "pane.handle(KeyEvent.new(Key.up))\n"
+	    "if (pane.messageScrollTop != 0) Fiber.abort(\"warnings Up must scroll one line\")\n"
+	    "pane.handle(KeyEvent.new(Key.end))\n"
+	    "var bottom = pane.messageScrollTop\n"
+	    "if (bottom <= 1) Fiber.abort(\"warnings End must reach bottom\")\n"
+	    "pane.handle(KeyEvent.new(Key.down))\n"
+	    "if (pane.messageScrollTop != bottom) Fiber.abort(\"warnings Down must clamp at bottom\")\n"
+	    "pane.handle(KeyEvent.new(Key.home))\n"
+	    "pane.handle(KeyEvent.new(Key.up))\n"
+	    "if (pane.messageScrollTop != 0) Fiber.abort(\"warnings Home must reach top and Up must clamp\")\n");
 	/* Both native password failures enter the real prompt; Escape cancels. */
 	for (size_t i = 0; i < 2; ++i) {
 		st_wren_test_list_open_status = statuses[i];

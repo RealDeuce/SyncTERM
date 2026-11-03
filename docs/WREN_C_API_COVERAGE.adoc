@@ -259,7 +259,9 @@ installed diagnostics. The bundled menu opens one scrollable summary for persona
 or shared-list warnings, including all web warnings alongside them. Exclusively
 web-list warnings remain available without opening the dialog automatically;
 other load/retrieval errors still open a dialog. Missing optional files remain
-silent. A subsequent user-directed compatibility fix loads overlong entry names
+silent. The warning message supports Up/Down, PgUp/PgDown and Home/End scrolling;
+single-action dialogs route those keys to the message rather than the action list.
+A subsequent user-directed compatibility fix loads overlong entry names
 with UTF-8-safe truncation and an IO_ERROR_NAME_TOO_LONG diagnostic retaining the
 original section name. Editing and deletion use the same shortened identity.
 No public native API was added.

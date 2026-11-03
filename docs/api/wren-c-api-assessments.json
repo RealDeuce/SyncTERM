@@ -1047,7 +1047,7 @@
     "bbs.diagnostics": {
       "status": "covered",
       "wren": "Menu.loadDiagnostics / BBSLoadDiagnostic",
-      "reason": "On request, snapshots copy all four native diagnostic fields in native order, with strict UTF-8/NFC owned names and a lazily constructed MenuError preserving portable status. Snapshots survive GC/reloads, grant no authority, and are distinct from failed candidates. Overlong section names load with a UTF-8-safe valid prefix within the profile limits and a NameTooLong warning retaining the original section name; values and personal edits/deletions use the original section. The bundled menu opens one scrollable summary for personal/shared warnings and includes web warnings alongside them; exclusively web warnings remain available without triggering a popup. Fatal load and diagnostic-retrieval failures still open their dialogs. Missing optional sources retain silent-skip policy. No public native API was added.",
+      "reason": "On request, snapshots copy all four native diagnostic fields in native order, with strict UTF-8/NFC owned names and a lazily constructed MenuError preserving portable status. Snapshots survive GC/reloads, grant no authority, and are distinct from failed candidates. Overlong section names load with a UTF-8-safe valid prefix within the profile limits and a NameTooLong warning retaining the original section name; values and personal edits/deletions use the original section. The bundled menu opens one scrollable summary for personal/shared warnings and includes web warnings alongside them; exclusively web warnings remain available without triggering a popup. Fatal load and diagnostic-retrieval failures still open their dialogs. Missing optional sources retain silent-skip policy. No public native API was added. Single-action warning dialogs route Up/Down and Home/End to the message viewport alongside page scrolling; multi-action choice navigation is retained.",
       "vm": "menu",
       "evidence": [
         {
@@ -1069,6 +1069,10 @@
         {
           "path": "src/config/bbs_list/st_bbs_profile_codec.c",
           "anchor": "st_bbs_loaded_name(profile->name, name)"
+        },
+        {
+          "path": "scripts/menu_ui.wren",
+          "anchor": "_list.count == 1 && (code == Key.up"
         }
       ],
       "finding": "bbs-diagnostics",
@@ -4046,7 +4050,7 @@
     {
       "path": "src/scripting/wren_host/tests/st_wren_settings_menu_test.c",
       "anchor": "test_load_results",
-      "aspect": "Fatal native load reasons, retained models/views/file grants, actual four-source warnings, on-request immutable NFC snapshots, lazy errors, allocation/text failures, GC/reload lifetime, safe reading, removed APIs, real warning/password/cancellation/exit/scroll UI. Web-only warnings do not consume a queued dismissal key; mixed warnings retain all text, and fatal load/retrieval failures still consume dialog dismissal with web-only warnings."
+      "aspect": "Fatal native load reasons, retained models/views/file grants, actual four-source warnings, on-request immutable NFC snapshots, lazy errors, allocation/text failures, GC/reload lifetime, safe reading, removed APIs, real warning/password/cancellation/exit/scroll UI. Web-only warnings do not consume a queued dismissal key; mixed warnings retain all text, and fatal load/retrieval failures still consume dialog dismissal with web-only warnings. Actual Directory Warnings pane checks Up/Down, Home/End and boundary clamping."
     },
     {
       "path": "src/scripting/wren_host/tests/st_wren_host_test.c",
@@ -4127,6 +4131,11 @@
       "path": "src/config/bbs_list/tests/st_bbs_list_test.c",
       "anchor": "check_loaded_names",
       "aspect": "Loaded parenthesized names, scalar/byte limits, complete UTF-8 boundaries, whitespace cutoff, original section diagnostics/values, duplicate precedence, edits/rename/delete of long sections and no duplicate resurrection."
+    },
+    {
+      "path": "scripts/ui_popup_test.wren",
+      "anchor": "static testStandaloneChoiceSingleActionNavigation_()",
+      "aspect": "Exact line/page/end scroll positions, clamping, short messages, Enter/Escape dismissal, and retained multi-action selection navigation."
     }
   ],
   "dispatch_evidence": [
@@ -4138,7 +4147,7 @@
   ],
   "evidence_files": {
     "docs/WREN_GUIDANCE.md": "d14aeecb5eae922015f2f48a4fd690277dcb5b91aedfd8d8d8cffb2dc235e1ac",
-    "docs/Wren.adoc": "ebb24a48fae03f3f70ec4d9aa85497506c35c1aec8fcbe2623d77b474bf8e38c",
+    "docs/Wren.adoc": "02ca2825115c7596ffbe7a28fb76d0509baa08fa8004ea5022c621a1ad583ef2",
     "docs/api/bbs-entry-fields.adoc": "a1be9944eadd5f56d752e8669b502f49b27211f14190443a95e36ad301b8d128",
     "scripts/auto/connected/font_pick.wren": "6cd249b69c2f851e1fb84e4b8ce381879cfaaa96a35e1376f6e8502c6497e91b",
     "scripts/auto/menu/main_menu.wren": "72e910942486d6829a4271572ad7c9bab052101364f4e55579ba21102735806b",
@@ -4216,7 +4225,7 @@
     "src/net/webget/st_webget.h": "9647dcc563e1661fe1d6b762c78e2483d2beae03ac878da0ebd15c8a425d2143",
     "src/scripting/wren_host/st_wren_host.h": "531eba9331f992a6394c41020890e279597ee8d6cfd1259a4495f68ef38d5552",
     "src/scripting/wren_host/tests/st_wren_host_test.c": "a30e0ace938fc3000fcc63c727a6b9fd12efdd866ba9b5cb6f081eec06e8ba1d",
-    "src/scripting/wren_host/tests/st_wren_settings_menu_test.c": "a87d02358e3dae85b760861854fa1a4c520948e78f7b748b97207a7311cb5aae",
+    "src/scripting/wren_host/tests/st_wren_settings_menu_test.c": "66d8ef5886248bc1134fdf7f803650d7dd1c2e1b87f5b219c23ca2650b529e3a",
     "src/scripting/wren_host/wren_async.c": "71e78941735250300171a2b7cb13b70c92916bd14c066a6614b3f77cdd9b565d",
     "src/scripting/wren_host/wren_bbs_model.c": "18dca3353505a5b0dc609251f16038bd9132c47e215c4cf24ba802ac4b3ab97a",
     "src/scripting/wren_host/wren_bind_core.c": "a4854c510c31919303cab5a9cf94deacfcb88058416af158a7397ed55f55c84e",
@@ -4293,7 +4302,9 @@
     "src/scripting/wren_host/tests/st_wren_session_test_bindings.c": "4ef0aef560439c1ed3f933232a8b59ccaa3ee0a6971609ebf0fe8e81ff1b981c",
     "src/tests/st_migrated_control_test.py": "d277217877b88d910cda0b6281a8d47160031068bcd46979293c6893de2bcd39",
     "src/config/bbs_list/tests/st_bbs_list_test.c": "e082110aca917ca8932f2d7b2666ee11b55cbcf5707eee4bd7515ed9f5dddb98",
-    "src/config/bbs_list/st_bbs_profile_codec.c": "04a87909baeb5788e386369ef4c4043c95e92737bdb8a316009a23f4e7f9dbb8"
+    "src/config/bbs_list/st_bbs_profile_codec.c": "04a87909baeb5788e386369ef4c4043c95e92737bdb8a316009a23f4e7f9dbb8",
+    "scripts/menu_ui.wren": "f94ada676138fa588c3e634e088cc12df3309e7d99bfb52b4adec2297b9b2845",
+    "scripts/ui_popup_test.wren": "064ea98bf74fcb780d8d778f43a00a098c3cdf57bd38642adc3baacb4c7af5bb"
   },
   "verification": {
     "platform": "FreeBSD 15.1-RELEASE-p5 amd64",
@@ -4675,6 +4686,19 @@
         "Configured Clang/GCC/ASan/MinGW64 CMake trees; application builds with Clang and MinGW64; focused native/host/settings targets built in all four configurations."
       ],
       "limitations": "No Windows runtime execution. FreeBSD ASan leak detection disabled. Sanitizer initially caught a missing profile initialization in the new test fixture; corrected before the final passing runs. No introduced compiler warnings or final sanitizer diagnostics. This is a user-directed bug fix, not a new approved burndown chunk."
+    },
+    {
+      "topic": "directory-warning-keyboard-scroll",
+      "status": "resolved",
+      "approval": "Direct user report that only PgUp/PgDown scroll Directory Warnings, while arrows and Home/End do nothing.",
+      "scope": "Route Up/Down and Home/End to the existing message viewport for single-action StandaloneChoice dialogs, retain page scrolling and multi-action navigation, and advertise the keys in hints.",
+      "regression_before_fix": "Actual Directory Warnings test failed: warnings Down must scroll one line.",
+      "tests_passed": [
+        "Clang Debug: wren_settings_runtime, wren_popup_synthetic, wren_menu_synthetic (3); CMake configured and syncterm_app plus focused test targets built.",
+        "Popup tests verify exact positions, upper/lower clamping, short messages, Enter/Escape and multi-action navigation."
+      ],
+      "accounting": "No public native declarations, TSV rows, assessment dispositions or topic counts changed. Updated reviewed evidence and documentation; 80 headers, 120 exclusions, 2448 native items, 157 assessments, 51 original topics.",
+      "limitations": "Native/headless Clang verification; no Windows execution. No native binding or terminal-emulation implementation changed."
     }
   ]
 }
