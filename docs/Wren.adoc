@@ -4668,7 +4668,11 @@ setters validate the assigned value, change only that snapshot, and set
 writing `syncterm.ini`.  Values copied from the running settings are not
 revalidated, so values accepted by older versions pass through unchanged.
 `reload()` discards changes not yet applied and repopulates the same handle
-from the current running settings.
+from the current running settings. It does not reread `syncterm.ini`, including
+when another process has edited that file. The native raw global reload is
+intentionally not exposed: it replaces configuration data and the merge baseline
+without coordinating runtime fonts, themes, audio or layout. There is no full
+application disk-reload method.
 
 `dirty` specifically means that the snapshot differs from the running
 settings.  A successful `apply()` clears it.  It does not indicate
@@ -6048,6 +6052,8 @@ yourself is no longer valid.
 <<filesystem-results>>. Its portable code describes the native reason rather
 than the operation which happened to fail. Existing targets, missing paths,
 permissions, full storage and native range failures remain distinguishable.
+The fixed-purpose Emoji.recordUse operation also returns FileError for failure to
+persist recents; its session update has already occurred and its errno is zero.
 
 [options="header",cols="2,3"]
 |===
@@ -7656,8 +7662,18 @@ It uses the screen dimensions with a one-cell margin on each side, reflowing
 the emoji grid and preserving the selected entry when the screen is resized.
 
 `Emoji.recent` returns up to 32 exact entries, newest first.
-`Emoji.recordUse(entry)` promotes an entry and persists the merged recent list,
-returning `null` or an error String. Safe mode changes only session memory.
+`Emoji.recordUse(entry)` promotes an entry in session recents, then persists the
+merged recent list. It returns `null` or a `FileError`, replacing the former error
+String in v2. `code` preserves the exact native `IOErr` reason; `errno` is zero
+because the C operation does not supply a captured errno. The error diagnostic
+explains that session recents were updated but saving failed. Native partial-write
+behavior is unchanged; an error does not imply that the settings file is unchanged.
+No rollback or automatic retry is performed. Successful insertion or transmission
+is not undone or repeated when recording recents fails; bundled callers log the
+returned error. Safe mode changes only session memory, performs no file writes,
+and returns null. This existing fixed-purpose operation is available in menu,
+picker and connected VMs and grants no arbitrary filesystem access. Invalid
+catalog entry arguments retain their ordinary Fiber abort behavior.
 `Emoji.canSend` reports whether this VM has a UTF-8 terminal connection; it
 does not restrict local text-field insertion in a menu VM.
 

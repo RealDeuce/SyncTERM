@@ -5039,7 +5039,8 @@ fn_emoji_record(WrenVM *vm)
 	if (status == 0)
 		wrenSetSlotNull(vm, 0);
 	else
-		wrenSetSlotString(vm, 0, "Recent emoji could not be saved.");
+		st_wren_push_file_error(vm, status, 0,
+		    "Recent emoji were updated for this session, but could not be saved.");
 }
 
 static void

@@ -1024,7 +1024,7 @@
     "bbs.cache-result": {
       "status": "partial",
       "wren": "DirectoryEntry.save/delete/rename return primary success",
-      "reason": "Native cache_status is secondary optional housekeeping after primary list success. Wren intentionally reports primary success without this status: the user approved that cache maintenance is optional and must not determine mutation success. No cache/store/write-policy changes or new result API are required. Coverage remains Partial because this native status is intentionally omitted; primary result fidelity is accounted separately under model-mutation-results, whose Settings disk-reload and emoji-result subclaims remain open.",
+      "reason": "Native cache_status is secondary optional housekeeping after primary list success. Wren intentionally reports primary success without this status: the user approved that cache maintenance is optional and must not determine mutation success. No cache/store/write-policy changes or new result API are required. Coverage remains Partial because this native status is intentionally omitted; primary result fidelity is accounted separately under model-mutation-results, whose Settings disk-reload and emoji-result subclaims are now resolved by explicit retention and typed errors respectively.",
       "vm": "menu",
       "evidence": [
         {
@@ -2976,7 +2976,7 @@
     "settings.result-status": {
       "status": "covered",
       "wren": "Settings apply/save/reload; Menu font/web/sort actions; MenuError; Menu.activateFonts",
-      "reason": "Selected action methods return null/MenuError, creators return their object/MenuError. Native portable codes and generic integer failures are kept distinct by origin; Boolean/pointer failures have no invented nativeCode. Menu.saveFonts persists only; activateFonts invokes existing native activation separately. Binding-owned preparation/runtime application preserve available native results and existing call order/partial effects. Native C signatures and storage policy are unchanged. Full native disk reload and emoji-recents errors are separate open assessments.",
+      "reason": "Selected action methods return null/MenuError, creators return their object/MenuError. Native portable codes and generic integer failures are kept distinct by origin; Boolean/pointer failures have no invented nativeCode. Menu.saveFonts persists only; activateFonts invokes existing native activation separately. Binding-owned preparation/runtime application preserve available native results and existing call order/partial effects. Native C signatures and storage policy are unchanged. Full native disk reload and emoji-recents errors have separate assessments: the former is intentionally unbound, and the latter now preserves its native portable reason through FileError.",
       "vm": "menu",
       "evidence": [
         {
@@ -3214,8 +3214,8 @@
     },
     "settings.disk-reload": {
       "status": "unmapped",
-      "wren": "Settings.reload copies current running settings; no full native disk reload action",
-      "reason": "The original result assessment grouped st_settings_reload with Settings.reload, but the native function rereads disk and the Wren method copies running settings. The approved chunk preserves the Wren reset-to-running contract. Full native disk reload and its result remain outside this chunk and open for scope review.",
+      "wren": "Settings.reload resets its snapshot from running values; raw global disk reload intentionally unbound",
+      "reason": "Explicit approved intentional restriction in chunk 6: Settings.reload discards draft edits and copies running settings, even when the disk file differs. Native st_settings_reload rereads disk and replaces global settings/merge baseline without coordinating runtime fonts, themes, audio or layout. It remains unbound; a full application hot-reload feature is outside this API contract. Descriptive Unmapped coverage is retained rather than claiming a nonexistent binding.",
       "vm": "menu",
       "evidence": [
         {
@@ -3228,13 +3228,14 @@
         }
       ],
       "finding": "model-mutation-results",
-      "decision": "scope-review"
+      "decision": "retained-by-design",
+      "resolution": "resolved"
     },
     "settings.recent-result": {
-      "status": "partial",
-      "wren": "Emoji.recordUse",
-      "reason": "Native st_settings_remember_emoji returns a portable integer status, but Emoji.recordUse reduces failure to a String. This existing ledger row was grouped with Settings results; emoji-recents error fidelity is outside the approved BBS/Settings/font/web/sort mutation chunk and remains open.",
-      "vm": "menu and connected",
+      "status": "covered",
+      "wren": "Emoji.recordUse returns null/FileError",
+      "reason": "The exact portable result from st_settings_remember_emoji is retained in FileError.code; errno is zero because the native operation supplies none. Native ordering and partial effects are preserved: session recents are promoted before saving, safe mode updates only memory, and persistence failure does not undo or repeat insertion/transmission. Fixed-purpose authority, existing validation and all three VM contexts are unchanged. No native API or rollback/retry policy was added.",
+      "vm": "menu, picker and connected",
       "evidence": [
         {
           "path": "src/scripting/wren_host/wren_bind_core.c",
@@ -3246,7 +3247,8 @@
         }
       ],
       "finding": "model-mutation-results",
-      "decision": "mapping-gap"
+      "decision": "resolved",
+      "resolution": "resolved"
     },
     "bbs.source-values": {
       "status": "covered",
@@ -3991,6 +3993,21 @@
       "path": "src/scripting/wren_host/tests/st_wren_settings_menu_test.c",
       "anchor": "test_load_results",
       "aspect": "Fatal native load reasons, retained models/views/file grants, actual four-source warnings, on-request immutable NFC snapshots, lazy errors, allocation/text failures, GC/reload lifetime, safe reading, removed APIs, real warning/password/cancellation/exit/scroll UI."
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_host_test.c",
+      "anchor": "exercise_emoji_result_contract",
+      "aspect": "Real settings-path failures retain portable status, zero errno despite stale errno, session recents and error lifetime across menu/picker/connected VMs; success and safe-mode session-only behavior."
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_settings_menu_test.c",
+      "anchor": "test_settings_reload_running",
+      "aspect": "An external disk edit is ignored by Settings.reload, which resets a draft from running settings without replacing global state."
+    },
+    {
+      "path": "src/tests/st_emoji_picker_test.py",
+      "anchor": "RECENTS_FAILURE_CHECK",
+      "aspect": "Actual local insertion and connected sending complete once despite recents persistence failure, with typed-error logging and fixture-path restoration."
     }
   ],
   "dispatch_evidence": [
@@ -4002,7 +4019,7 @@
   ],
   "evidence_files": {
     "docs/WREN_GUIDANCE.md": "d14aeecb5eae922015f2f48a4fd690277dcb5b91aedfd8d8d8cffb2dc235e1ac",
-    "docs/Wren.adoc": "770dd6cf9527765d3953b1ebc767b94163e9b9df884b9f5d1b5a8b009fab4762",
+    "docs/Wren.adoc": "fd50610fef2cc204f11c6191b3c1f24fa2de4f17e202f3ea5dc0630cf67d7a11",
     "docs/api/bbs-entry-fields.adoc": "a1be9944eadd5f56d752e8669b502f49b27211f14190443a95e36ad301b8d128",
     "scripts/auto/connected/font_pick.wren": "6cd249b69c2f851e1fb84e4b8ce381879cfaaa96a35e1376f6e8502c6497e91b",
     "scripts/auto/menu/main_menu.wren": "5b37db003c7c052da2332aeb8255db695fd2f3d976fa4f56502578ed0039c681",
@@ -4010,7 +4027,7 @@
     "scripts/menu_settings_ui.wren": "edeea3c58f5df12ac93f041185f059163335228e48bcd4ac0f638fc0140e25ff",
     "scripts/sftp_app.wren": "4cd38fa9304c6c7428d7a21ef3b86c0d68fb14e25b35c3540bfdd46a211a9e5f",
     "scripts/sftp_queue.wren": "b15fe706268e9ce6d5fea4227661d0ac810f6f9fc4dbf7d39863756bde3eaf74",
-    "scripts/syncterm.wren": "325226534f1508ca6e65dd95039100c8b3c71dfc1595149173a58b00d87cbd5b",
+    "scripts/syncterm.wren": "11d72cc3f50707d115a45bfd609fc4fbf86e5c0b25123051c30ae81dcf6d6490",
     "scripts/syncterm_menu.wren": "6bd766fbf1c87450b4bdf7776a12c0f27b8d3bf5dd0cda2f909b864c3bee2c2f",
     "scripts/syncterm_picker.wren": "143e15bd084bed37145061760100c84b353d340e00187d9cd2b920a850be6021",
     "scripts/transfer_app.wren": "36713bbb8fdb61e5f7af68371c44a9110cd8bda8ea59c0ee7ee09436684b61af",
@@ -4079,11 +4096,11 @@
     "src/net/transfer/st_transfer_detect.h": "3296b9ecf875d100f793920a3b0117a8f7b80951a539317d366f4ea40a7a1b30",
     "src/net/webget/st_webget.h": "9647dcc563e1661fe1d6b762c78e2483d2beae03ac878da0ebd15c8a425d2143",
     "src/scripting/wren_host/st_wren_host.h": "531eba9331f992a6394c41020890e279597ee8d6cfd1259a4495f68ef38d5552",
-    "src/scripting/wren_host/tests/st_wren_host_test.c": "427c4338edb45d155f26e903cd8527b6a9a31b4960bf60ba527a6eb00ad35693",
-    "src/scripting/wren_host/tests/st_wren_settings_menu_test.c": "dc05b22e696ad82c7a33b630be1cb987c0f3b26dd1b08e2099ad60c3b0772248",
+    "src/scripting/wren_host/tests/st_wren_host_test.c": "c53c44bcb5c24bf4315c5cf050cfb057b71001305e63dcb0dbd1da23b17ea268",
+    "src/scripting/wren_host/tests/st_wren_settings_menu_test.c": "140a590c2ceb408175c1898fa364d916cbcc0cc4585d1f7ef23b297370089e5b",
     "src/scripting/wren_host/wren_async.c": "71e78941735250300171a2b7cb13b70c92916bd14c066a6614b3f77cdd9b565d",
     "src/scripting/wren_host/wren_bbs_model.c": "18dca3353505a5b0dc609251f16038bd9132c47e215c4cf24ba802ac4b3ab97a",
-    "src/scripting/wren_host/wren_bind_core.c": "b12436be2d04d1bf7e1d048c61c925bffb73ad4d0dd56cc627e8b02f12db697f",
+    "src/scripting/wren_host/wren_bind_core.c": "a4854c510c31919303cab5a9cf94deacfcb88058416af158a7397ed55f55c84e",
     "src/scripting/wren_host/wren_bind_fs.c": "17e19ab179b195a36c58f929802e9a5d86d6e211d7dfdf809ac4b7c4e6c96cba",
     "src/scripting/wren_host/wren_bind_hyperlinks.c": "255be945007c9cb2795195058e5f58de7d2b2157728892e614d6e8fb5f729b98",
     "src/scripting/wren_host/wren_bind_menu.c": "88ea90b12b89627db09391a479891584adacd223c4d5d4d158a48affdb5eb71b",
@@ -4144,7 +4161,8 @@
     "src/scripting/wren_host/tests/st_wren_sftp_live_test.c": "61d5e35f34a48725efefca9b08f290d356ddee00cf12dad2b32c0727079025fa",
     "src/scripting/wren_host/tests/st_wren_menu_test_bindings.c": "22facb46ca7bb8f9d94ed80a298bcfba28aca8d5e2799c679f4beebe84394907",
     "scripts/menu_sort_profiles.wren": "e03022e77a0872851aa25ad52ff9f1160c8aa9a800d03bbb7063c8027dc4206d",
-    "src/config/settings/st_settings_store.c": "8353b1e80bd3e27e84122a57cec1e3daed29b0a2b46adfd64d531a4962e34128"
+    "src/config/settings/st_settings_store.c": "8353b1e80bd3e27e84122a57cec1e3daed29b0a2b46adfd64d531a4962e34128",
+    "src/tests/st_emoji_picker_test.py": "a9f06de4097b20b42f158c2d42eca14f6ce8c88b14eb2b3ccc6c378b3608de11"
   },
   "verification": {
     "platform": "FreeBSD 15.1-RELEASE-p5 amd64",
@@ -4369,6 +4387,37 @@
         "MinGW64 Debug application and host/settings/loader cross-build, final application/settings rebuild"
       ],
       "limitations": "No Windows execution. FreeBSD leak detection unsupported and disabled; C++ vptr checks disabled for C-owned executables. Headless fixtures disable physical audio. No introduced compiler warnings or sanitizer diagnostics. Other topics still require their own actual Plan-mode phase and approval."
+    },
+    {
+      "topic": "settings-recents-results-and-reload-boundary",
+      "status": "resolved",
+      "findings": [
+        "model-mutation-results"
+      ],
+      "approval": "Complete Plan-mode chunk 6 revision 1 approved: Implement the plan. User selected Settings results and explicitly retained the existing disk-reload boundary.",
+      "scope": "Emoji.recordUse returns null/FileError with the exact native portable reason and errno zero, describing the retained session update when saving fails. Existing shared error ownership, VM availability, validation, fixed-purpose authority, safe mode, partial writes and insertion/transmission behavior are unchanged. Settings.reload still copies running values; raw native disk reload remains intentionally unbound because it does not coordinate runtime application.",
+      "resolved": [
+        "settings.recent-result (Covered)",
+        "settings.disk-reload (Unmapped, explicitly retained by design)",
+        "model-mutation-results shared topic after review of all five included assessments"
+      ],
+      "accounting": "Native declarations, TSV rows, denominator and assessment count are unchanged. Corrected emoji VM label to include picker, updated one header matrix status count, retained historical findings/reviews, and refreshed only reviewed changed evidence. Theme and console result topics remain separate/open.",
+      "regression_before_fix": "wren_menu_contract failed the real settings-path regression: emoji persistence must preserve native FileError.",
+      "tests_passed": [
+        "Clang Debug: settings_store / settings_failures / wren_host / wren_menu_contract / wren_picker_contract / wren_settings_runtime / wren_settings-reload",
+        "GCC Debug and Clang ASan/UBSan: wren_host / wren_menu_contract / wren_picker_contract / wren_settings_runtime / wren_settings-reload",
+        "Native Clang application: syncterm_emoji_menu / syncterm_emoji_connected, including recents failure, one insertion/transmission, typed-error reporting, retained session recents and cancellation/cleanup; UTF-8/CP437/CP1251 connected cases",
+        "All three VMs: real native failure reason / zero errno despite stale errno / success / session-only safe mode / invalid catalog IDs / error GC lifetime",
+        "Externally edited settings file: Settings.reload restores draft from running values and leaves installed state unchanged",
+        "Coverage checker and independent 80-row matrix cross-check; git diff --check"
+      ],
+      "builds_passed": [
+        "FreeBSD Clang Debug configured application and host/settings/picker/loader tests",
+        "FreeBSD GCC Debug configured Wren tests",
+        "FreeBSD Clang ASan/UBSan configured Wren tests",
+        "MinGW64 Debug configured application and host/settings/picker/loader tests cross-build"
+      ],
+      "limitations": "No Windows execution. FreeBSD leak detection unsupported and disabled; C++ vptr checks disabled for C-owned executables. Physical audio disabled in headless fixtures. No introduced compiler warnings or sanitizer diagnostics. Retained native partial writes imply no new rollback or unchanged-file guarantee. Other topics require their own Plan-mode phase and approval."
     }
   ]
 }

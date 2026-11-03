@@ -41,6 +41,7 @@
 #include "syncterm_config.h"
 
 #include <inttypes.h>
+#include <errno.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -1012,6 +1013,68 @@ exercise_filesystem_path_handles(st_wren_connected_t *connected)
 	return 0;
 }
 
+static bool
+emoji_result_interpret(WrenVM *vm, st_wren_connected_t *connected,
+	const char *source)
+{
+	return connected != NULL
+	    ? st_wren_connected_interpret(connected, "emoji_result_contract", source) == 0
+	    : wrenInterpret(vm, "emoji_result_contract", source) == WREN_RESULT_SUCCESS;
+}
+
+static int
+exercise_emoji_result_contract(struct st_wren_host *host, WrenVM *vm,
+	st_wren_connected_t *connected)
+{
+	const char *settings = host->config.paths->settings_file;
+	char backup[sizeof(ST_WREN_TEST_DIRECTORY) + 128];
+	char source[1024];
+	bool passed;
+
+	CHECK(snprintf(backup, sizeof(backup), "%s.emoji-backup", settings)
+	    < (int)sizeof(backup));
+	CHECK(emoji_result_interpret(vm, connected,
+	    "import \"syncterm\" for Emoji, EmojiEntry, FileError, Error\n"
+	    "var grin = Emoji.entries.where {|e| e.text == \"\xf0\x9f\x98\x80\" }.toList[0]\n"));
+	CHECK(rename(settings, backup) == 0);
+	CHECK(fs_create_directory(settings) == 0);
+	int status = st_settings_remember_emoji("\xf0\x9f\x98\x83", true);
+	CHECK(status < 0);
+	CHECK(snprintf(source, sizeof(source),
+	    "var failure = Emoji.recordUse(grin)\n"
+	    "if (!(failure is FileError) || !(failure is Error) || failure.code != %d || failure.errno != 0) Fiber.abort(\"emoji persistence must preserve native FileError\")\n"
+	    "if (!failure.message.contains(\"session\") || !failure.message.contains(\"saved\") || Emoji.recent[0].text != grin.text) Fiber.abort(\"emoji failure lost session effect\")\n",
+	    status) < (int)sizeof(source));
+	errno = EDOM;
+	passed = emoji_result_interpret(vm, connected, source);
+	CHECK(fs_remove_directory(settings) == 0);
+	CHECK(rename(backup, settings) == 0);
+	CHECK(passed);
+	CHECK(emoji_result_interpret(vm, connected,
+	    "if (Emoji.recordUse(grin) != null) Fiber.abort(\"emoji persistence success\")\n"
+	    "for (id in [-1, 0.5, 9007199254740992, \"bad\"]) {\n"
+	    "  var bad = Fiber.new { Emoji.recordUse(EmojiEntry.from_(id)) }\n"
+	    "  bad.try()\n"
+	    "  if (bad.error == null) Fiber.abort(\"invalid emoji entry accepted\")\n"
+	    "}\n"
+	    "System.gc()\nSystem.gc()\n"
+	    "if (!(failure is FileError) || failure.errno != 0 || !(failure.message is String) || !failure.toString.startsWith(\"FileError\")) Fiber.abort(\"emoji error lifetime\")\n"));
+	CHECK(file_contains(settings, "RecentEmoji"));
+	CHECK(file_contains(settings, "\xf0\x9f\x98\x80"));
+	CHECK(rename(settings, backup) == 0);
+	CHECK(fs_create_directory(settings) == 0);
+	bool old_safe_mode = host->config.safe_mode;
+	host->config.safe_mode = true;
+	passed = emoji_result_interpret(vm, connected,
+	    "var smile = Emoji.entries.where {|e| e.text == \"\xf0\x9f\x98\x83\" }.toList[0]\n"
+	    "if (Emoji.recordUse(smile) != null || Emoji.recent[0].text != smile.text) Fiber.abort(\"session-only emoji persistence\")\n");
+	host->config.safe_mode = old_safe_mode;
+	CHECK(fs_remove_directory(settings) == 0);
+	CHECK(rename(backup, settings) == 0);
+	CHECK(passed);
+	return 0;
+}
+
 static int
 exercise_connected_profile_scripts(st_wren_host_t *host,
 	st_console_t *console, const struct st_profile *profile,
@@ -1042,6 +1105,7 @@ exercise_connected_profile_scripts(st_wren_host_t *host,
 	(void)snprintf(selected.wren_scripts, sizeof(selected.wren_scripts),
 	    "profile_first,profile_second");
 	CHECK(st_wren_connected_create(&connected, &config) == 0);
+	CHECK(exercise_emoji_result_contract(host, NULL, connected) == 0);
 	CHECK(st_wren_connected_interpret(connected, "profile_script_assert",
 	    "import \"syncterm\" for Status, Session\n"
 	    "if (Status.details.call() != \"second\") Fiber.abort(\"not loaded\")\n"
@@ -7961,6 +8025,8 @@ main(int argc, char **argv)
 	    ((struct st_wren_host *)host)->themes);
 	CHECK(exercise_menu_contract(host) == 0);
 	CHECK(exercise_emoji_contract(host) == 0);
+	CHECK(exercise_emoji_result_contract(host, host->vm, NULL) == 0);
+	CHECK(exercise_emoji_result_contract(host, host->picker_vm, NULL) == 0);
 	CHECK(st_audio_runtime_allowed(audio_runtime) == 0);
 	CHECK(st_session_history_capacity(session_history) == 100);
 	CHECK(exercise_settings_save_contract(host) == 0);

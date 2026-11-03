@@ -3,8 +3,9 @@
 Status: accounting complete against commit da27a6e (2026-11-02).
 Follow-up: +transfer-upload-authority+, +font-codepage+, +font-load-result+,
 +sftp-entry-stat+, +error-symbols+ and +bbs-diagnostics+ are resolved.
-Selected BBS/Settings mutation results and Menu.load now preserve available C failures; Settings
-disk-reload and emoji-result subclaims remain open. +bbs-cache-result+ is
+Selected BBS/Settings mutation results, Menu.load and emoji recording now
+preserve available C failures. +model-mutation-results+ is resolved, including
+the approved restriction retaining raw global disk reload as unbound. +bbs-cache-result+ is
 intentionally resolved:
 optional cache housekeeping does not affect mutation success, and its secondary
 status need not be exposed to Wren. Encryption reporting and
@@ -19,10 +20,10 @@ limitations; it does not authorize implementing every omitted C facility.
 The review covers 80 project-owned public headers, 2,447 named native items,
 and 120 explicitly excluded implementation/vendor/test headers. Every inventoried
 item has a disposition. The initial review recorded 51 finding topics, including
-broader API-scope decisions, plus one stale documentation finding. Seven topics
+broader API-scope decisions, plus one stale documentation finding. Eight topics
 (upload authority, custom-font codepages, font-load results, SFTP entry metadata,
-portable I/O error symbols, BBS diagnostics and the intentional cache-status
-omission) are resolved;
+portable I/O error symbols, BBS diagnostics, model-operation results and the
+intentional cache-status omission) are resolved;
 the other topics retain their recorded open subclaims. The numbers
 follow the inventory;
 they are not a stopping rule or a percentage of useful capabilities covered.
@@ -159,7 +160,7 @@ ids refer to the full mappings in the JSON, including VM-specific restrictions.
 | link:../src/config/ini/ini.h[config/ini/ini.h] | 0 | 0 | 58 | 0 | 0 | +config.ini+
 | link:../src/config/list_crypto/st_list_crypto.h[config/list_crypto/st_list_crypto.h] | 24 | 9 | 0 | 0 | 0 | +list.crypto+, +list.crypto.metadata+
 | link:../src/config/profile/st_profile.h[config/profile/st_profile.h] | 153 | 0 | 0 | 4 | 0 | +profile.fields+, +profile.ownership+
-| link:../src/config/settings/st_settings.h[config/settings/st_settings.h] | 83 | 2 | 8 | 12 | 0 | +settings.disk-reload+, +settings.kdf-legacy+, +settings.lifecycle+, +settings.model+, +settings.recent-result+, +settings.result-status+, +settings.transfer-timeouts+, +settings.window-state+
+| link:../src/config/settings/st_settings.h[config/settings/st_settings.h] | 84 | 1 | 8 | 12 | 0 | +settings.disk-reload+, +settings.kdf-legacy+, +settings.lifecycle+, +settings.model+, +settings.recent-result+, +settings.result-status+, +settings.transfer-timeouts+, +settings.window-state+
 | link:../src/config/theme/st_theme.h[config/theme/st_theme.h] | 91 | 23 | 0 | 6 | 0 | +themes.cloud-origin+, +themes.documents+, +themes.manager-lifetime+, +themes.operation-status+
 | link:../src/io/file_lock/st_file_lock.h[io/file_lock/st_file_lock.h] | 0 | 0 | 0 | 2 | 0 | +files.transaction-lock+
 | link:../src/io/file_map/file_map.h[io/file_map/file_map.h] | 0 | 0 | 0 | 5 | 0 | +files.mapping+
@@ -235,8 +236,8 @@ optional, so a housekeeping failure must not turn a successful BBS mutation into
 a failure. No new result API or store/cache/write-policy change is required.
 This finding is resolved intentionally; coverage remains Partial because the
 native secondary status is still omitted. Primary BBS mutation results are now
-covered separately under <<finding-model-mutation-results>>; its remaining Settings disk-reload
-and emoji-result subclaims stay open.
+covered separately under <<finding-model-mutation-results>>, whose remaining
+Settings disk-reload and emoji-result subclaims are now also resolved.
 
 Evidence: link:../src/config/bbs_list/st_bbs_list.h[src/config/bbs_list/st_bbs_list.h:58]; link:../src/config/bbs_list/st_bbs_store.c[src/config/bbs_list/st_bbs_store.c:486]; link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:4582].
 
@@ -353,7 +354,7 @@ Evidence: link:../src/base/io_error/io_error.h[src/base/io_error/io_error.h:36];
 
 Native fs_get_link_info distinguishes link/other/file/directory without following the link. Script listing exposes only directory versus file-like entries and does not offer an lstat-equivalent kind query. Native modified time and size do have corresponding metadata. Directory grants deliberately reject/omit links to avoid following ungranted paths; the missing lstat metadata is an observation of that security boundary, not a request to grant link traversal.
 
-Evidence: link:../src/io/filesystem/filesystem.h[src/io/filesystem/filesystem.h:38]; link:../scripts/syncterm_picker.wren[scripts/syncterm_picker.wren:14]; link:../src/scripting/wren_host/tests/st_wren_host_test.c[src/scripting/wren_host/tests/st_wren_host_test.c:847].
+Evidence: link:../src/io/filesystem/filesystem.h[src/io/filesystem/filesystem.h:38]; link:../scripts/syncterm_picker.wren[scripts/syncterm_picker.wren:14]; link:../src/scripting/wren_host/tests/st_wren_host_test.c[src/scripting/wren_host/tests/st_wren_host_test.c:848].
 
 [[finding-font-codepage]]
 === Custom-font mappings and reporting — resolved
@@ -387,7 +388,7 @@ singular altFont alias were removed. Screen.font remains independent, and direct
 scripts can select loaded fonts without a picker. The picker retains load-only
 registration and normal-assignment selection.
 
-Evidence: link:../src/scripting/wren_host/tests/st_wren_host_test.c[src/scripting/wren_host/tests/st_wren_host_test.c:3545]; link:../src/tests/st_font_assignments_test.py[src/tests/st_font_assignments_test.py:73].
+Evidence: link:../src/scripting/wren_host/tests/st_wren_host_test.c[src/scripting/wren_host/tests/st_wren_host_test.c:3609]; link:../src/tests/st_font_assignments_test.py[src/tests/st_font_assignments_test.py:73].
 
 [[finding-list-encryption-information]]
 === List encryption reporting resolved; writer and result scope remains open
@@ -423,7 +424,7 @@ not close those subclaims or the shared finding topic.
 Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:3381].
 
 [[finding-model-mutation-results]]
-=== Mutation and load results resolved; Settings gaps remain open
+=== Model operation results (resolved)
 
 The selected mutation-result subclaims are resolved. Native C APIs, signatures,
 call order, storage policy and partial effects are unchanged.
@@ -458,10 +459,25 @@ supports retry/cancellation. Native C APIs, ownership and storage policy are unc
 
 Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:577]; link:../scripts/auto/menu/main_menu.wren[scripts/auto/menu/main_menu.wren:1177].
 
-The shared finding remains open for +settings.disk-reload+ (no full disk reload
-action; Settings.reload intentionally continues copying running settings) and
-+settings.recent-result+ (Emoji.recordUse reduces native failure to a String).
-These required scope/result decisions have not been closed or deferred as resolved.
+The remaining subclaims are resolved in approved chunk 6:
+
+* +settings.recent-result+ (covered; menu, picker and connected). Emoji.recordUse
+  returns null/FileError, retaining the exact native portable reason in code and
+  using errno zero because C supplies none. The diagnostic describes the already
+  completed session update and failed persistence. Native partial writes, safe-mode
+  memory-only success, validation and fixed-purpose authority are preserved.
+  Existing callers log the error without undoing or repeating insertion/sending.
+* +settings.disk-reload+ (unmapped; intentionally retained). The user approved
+  leaving raw st_settings_reload unbound. It replaces global configuration and
+  the merge baseline without coordinating runtime application. Settings.reload
+  remains reset-to-running even after an external file edit. No full disk reload
+  feature, C API changes or new persistence guarantees were introduced. Unmapped
+  describes the actual omission; explicit retention resolves its scope decision.
+
+All included subclaims of this shared finding are now resolved. Entry provenance,
+web progress, themes and console result contracts remain separate findings.
+
+Evidence: link:../src/scripting/wren_host/wren_bind_core.c[src/scripting/wren_host/wren_bind_core.c:5032]; link:../src/config/settings/st_settings_store.c[src/config/settings/st_settings_store.c:978]; link:../src/scripting/wren_host/tests/st_wren_host_test.c[src/scripting/wren_host/tests/st_wren_host_test.c:1026].
 
 [[finding-pixel-offscreen-blit]]
 === Pixel buffers cannot use the native offscreen compositor

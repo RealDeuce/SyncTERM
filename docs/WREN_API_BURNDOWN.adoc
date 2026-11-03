@@ -397,3 +397,76 @@ unchanged. All matrix counts match the ledger. bbs.diagnostics and bbs.load-stat
 are resolved; 44 topics plus the documentation finding remain open, including
 Settings disk reload/emoji results, entry provenance and web refresh progress.
 Keep this temporary document and skill until the full burndown is complete.
+
+== Approved chunk 6: Settings result accounting (revision 1)
+
+Approval: the complete Plan-mode revision 1 was approved with "Implement the
+plan." Implementation began in Default mode on 2026-11-02.
+Phase: chunk complete; the next chunk requires an actual Plan-mode phase.
+Scope: settings.recent-result and settings.disk-reload, the remaining subclaims
+of model-mutation-results. The user explicitly selected retaining the existing
+disk-reload boundary.
+
+Emoji.recordUse(entry) returns null/FileError instead of an error String. Keep
+the exact native portable status in code and errno zero (C supplies no captured
+errno). Explain that session recents changed but saving failed. Preserve native
+ordering, partial writes, safe-mode session-only success, existing validation and
+menu/picker/connected availability. No new error class, arbitrary file authority,
+rollback, automatic retries or language/text/number changes. Existing insertion
+and sending remain successful when recents persistence fails; callers can print
+the typed error normally.
+
+Keep Settings.reload as reset-to-running, without reading disk. Retain native
+st_settings_reload unbound: raw replacement of configuration/baseline does not
+coordinate runtime application. Record its approved intentional resolution while
+retaining descriptive Unmapped status. No hot-reload feature or native API change.
+
+Establish a real settings-path failure regression against the old String result.
+Test portable reason/zero errno despite stale errno, retained session recents,
+success/unrelated settings, safe-mode no writes, invalid entry arguments, GC/error
+lifetime, all three VMs, and reset-to-running versus external file edits. Extend
+the existing menu/connected emoji fixtures to fail persistence after selection,
+verify one insertion/transmission and error reporting, and preserve cleanup/
+cancellation; restore fixture paths. Do not promise unchanged files on write error.
+
+Configure/build through CMake; run settings_store/settings_failures, wren_host/
+menu_contract/picker_contract/settings_runtime/settings-reload and emoji menu/
+connected integration. Clang/GCC, focused ASan/UBSan and MinGW64 cross-build;
+headless/audio disabled, no Wine or Windows execution claim. Update authoritative
+API docs, reviewed evidence, assessments/matrix and follow-up. Review all shared
+result subclaims before closing the topic. Run coverage/diff checks, commit the
+complete verified chunk without pushing, and retain temporary document/skill.
+
+
+=== Completed verification
+
+The new real-path regression failed against the original binding because emoji
+persistence returned a String instead of FileError. Reusing the existing shared
+FileError helper preserves the native portable code and uses errno zero. Existing
+bundled callers already log arbitrary error values, so they require no behavioral
+change. No native C API, persistence order, partial-write or runtime policy changed.
+
+Clang Debug passed settings_store, settings_failures, wren_host,
+wren_menu_contract, wren_picker_contract, wren_settings_runtime and
+wren_settings-reload. GCC Debug and Clang ASan/UBSan passed the five Wren tests.
+The native error/success/safe-mode/invalid-input/GC tests run in menu, picker and
+connected VMs. An actual external file edit confirms Settings.reload still resets
+a draft from running values. Existing native tests preserve unrelated settings.
+
+Both real emoji integration groups passed: menu insertion and connected sending
+occur once despite recents persistence failure, with a typed-error log, retained
+session recents, restored fixture paths, and existing cancellation/cleanup checks.
+The connected group retains UTF-8/CP437/CP1251 coverage. Fixtures disable physical
+audio and use headless/control backends. Final Clang configuration/application
+and test builds passed. MinGW64 cross-built the application and host/settings/
+picker/loader tests without warnings; no Windows runtime execution was performed.
+FreeBSD leak detection remains unsupported and disabled; C++ vptr checks remain
+disabled for C-owned executables. No sanitizer diagnostics were reported.
+
+Coverage/diff checks pass: 80 public headers, 120 exclusions, 2,447 native items,
+157 assessments and 51 original topics; all matrix rows match the unchanged native
+ledger. settings.recent-result is Covered/resolved. settings.disk-reload remains
+Unmapped, explicitly retained by approved design. All five included shared result
+assessments have resolved dispositions, closing model-mutation-results. There are
+43 topics plus the documentation finding still open. Retain this temporary record
+and skill until the full burndown is complete.

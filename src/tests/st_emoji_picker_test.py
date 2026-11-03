@@ -2,6 +2,7 @@
 """Emoji picker UI and connected gating through coherent control captures."""
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 import argparse
+import contextlib
 import os
 from pathlib import Path
 import sys
@@ -23,6 +24,27 @@ def break_picker(root):
     broken = (SOURCE / 'scripts/ui_emoji_picker.wren').read_text(encoding='utf-8').replace(
         '    super.onPaint_()', '    super.onPaint_()\n    Fiber.abort("picker paint fixture")')
     write_script(root, 'ui_emoji_picker', broken)
+
+
+@contextlib.contextmanager
+def unavailable_settings(root):
+    path = root / 'syncterm.ini'
+    backup = root / 'syncterm.ini.emoji-backup'
+    path.rename(backup)
+    path.mkdir()
+    try:
+        yield
+    finally:
+        path.rmdir()
+        backup.rename(path)
+
+
+RECENTS_FAILURE_CHECK = '''
+var failures = Console.entries.where {|row| row[2].contains("Recent emoji were updated for this session") }.toList
+if (failures.count != 1 || !failures[0][2].contains("FileError") ||
+    Emoji.recent[0].text != "😀") Fiber.abort("recents failure was hidden or repeated")
+Host.print("RECENTS-FAILURE-REPORTED")
+'''
 
 
 def wheel_over_search(client, frame, amount):
@@ -251,6 +273,31 @@ app.runSync()
         client.key('escape')
         client.wait_text('TEST-COMPLETE emoji')
 
+    # Recording recents fails after the selected text was inserted once.
+    def prepare_recents_failure(root):
+        instrumented = source.replace('Emoji, Host', 'Emoji, Host, Console, Mod')
+        instrumented = instrumented.replace('app.runSync()', '''
+app.bind(112, Mod.command, Fn.new {|event|
+  app.openEmojiPicker()
+''' + RECENTS_FAILURE_CHECK + '''
+})
+app.runSync()
+''')
+        install_suite(root, instrumented, 'emoji')
+    with fixture(executable, settings='AudioModes=0\n', prepare=prepare_recents_failure, reports=reports) as (client, root):
+        client.wait_text('Emoji input fixture')
+        with unavailable_settings(root):
+            alt_key(client, 25)
+            client.wait_text('Insert Emoji')
+            client.text('grinning face')
+            client.key('enter')
+            frame = client.wait_for(lambda s: b'EMOJI ERROR:' in client.stderr or
+                                    ('a😀b' in s.text and b'RECENTS-FAILURE-REPORTED' in client.stderr))
+            assert b'RECENTS-FAILURE-REPORTED' in client.stderr, client.diagnostics()
+            assert 'a😀😀b' not in frame.text and 'Insert Emoji' not in frame.text
+        client.key('escape')
+        client.wait_text('TEST-COMPLETE emoji')
+
     # A failed picker paint must pop the modal and restore its mouse mask.
     def prepare_failure(root):
         install_suite(root, source.replace(
@@ -348,6 +395,27 @@ def connected(executable, reports):
             client.wait_text('woman shrugging: dark skin tone')
             client.key('enter')
             terminal.input('🤷🏿‍♀️'.encode())
+
+    # A recents failure must not repeat an already successful transmission.
+    def prepare_recents_failure(root):
+        instrumented = (SOURCE / 'scripts/emoji_pick.wren').read_text(encoding='utf-8')
+        instrumented = instrumented.replace('Input, Conn', 'Input, Conn, Console, Host')
+        instrumented = instrumented.replace('    return true\n  }\n}',
+                                            RECENTS_FAILURE_CHECK + '\n    return true\n  }\n}')
+        write_script(root, 'emoji_pick', instrumented)
+    with connection(executable, reports, encoding='UTF-8', settings='AudioModes=0\n',
+                    prepare=prepare_recents_failure) as (client, root, peer, send):
+        terminal = Terminal(client, root, peer, send)
+        terminal.case('emoji-recents-failure')
+        terminal.exchange(b'LIVE', reset=True)
+        with unavailable_settings(root):
+            alt_key(client, 25)
+            client.wait_text('Insert Emoji')
+            client.text('grinning face')
+            client.key('enter')
+            frame = terminal.input('😀'.encode())
+            client.wait_for(lambda s: b'RECENTS-FAILURE-REPORTED' in client.stderr)
+            assert 'LIVE' in frame.text and 'Insert Emoji' not in frame.text
 
     # A failed connected picker must release output suspension and input.
     with connection(executable, reports, encoding='UTF-8', settings='AudioModes=0\n',

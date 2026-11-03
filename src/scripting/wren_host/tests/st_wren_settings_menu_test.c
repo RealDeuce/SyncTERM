@@ -641,6 +641,32 @@ test_load_results(struct st_wren_host *host, struct st_app_paths *paths,
 	    "if (saved[2].error.code != IOErr.invalidEncoding || saved[3].sourceName != \"Caf\xc3\xa9\" || normalized.sectionName != \"\xc3\x85\") Fiber.abort(\"diagnostic snapshot lifetime\")\n");
 }
 
+static void
+test_settings_reload_running(struct st_wren_host *host, const char *settings)
+{
+	char backup[sizeof(ST_WREN_SETTINGS_TEST_DIRECTORY) + 64];
+	char contents[128];
+	bool running = st_settings.confirm_close;
+
+	CHECK(snprintf(backup, sizeof(backup), "%s.reload-backup", settings)
+	    < (int)sizeof(backup));
+	CHECK(rename(settings, backup) == 0);
+	CHECK(snprintf(contents, sizeof(contents),
+	    "[SyncTERM]\nAudioModes=0\nConfirmClose=%s\n",
+	    running ? "false" : "true") < (int)sizeof(contents));
+	write_text(settings, contents);
+	bool passed = wrenInterpret(host->vm, "settings_reload_external",
+	    "import \"syncterm_menu\" for Menu\n"
+	    "var snapshot = Menu.settings\n"
+	    "var before = snapshot.confirmClose\n"
+	    "snapshot.confirmClose = !before\n"
+	    "if (!snapshot.dirty || snapshot.reload() != null || snapshot.confirmClose != before || snapshot.dirty || Menu.settings.confirmClose != before) Fiber.abort(\"snapshot reload read external settings\")\n")
+	    == WREN_RESULT_SUCCESS;
+	CHECK(fs_remove_file(settings) == 0);
+	CHECK(rename(backup, settings) == 0);
+	CHECK(passed && st_settings.confirm_close == running);
+}
+
 int
 main(void)
 {
@@ -715,6 +741,7 @@ main(void)
 	    "import \"syncterm_menu\" for Menu\n"
 	    "if (Menu.load(null) != null) Fiber.abort(\"load fixture\")\n");
 	test_load_results(host, &paths, personal, console);
+	test_settings_reload_running(host, settings);
 	test_menu_results(host);
 	test_menu_native_failures(host, personal);
 	stream = fopen(ST_WREN_SETTINGS_SOURCE_DIRECTORY "/scripts/menu_settings_ui_test.wren", "rb");

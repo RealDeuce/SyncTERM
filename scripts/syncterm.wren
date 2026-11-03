@@ -2420,5 +2420,6 @@ class Emoji {
     return search_(query).map {|id| EmojiEntry.from_(id) }.toList
   }
   static recent { recent_.map {|id| EmojiEntry.from_(id) }.toList }
+  // Promote session recents, then persist: null/FileError. Safe mode skips writes.
   static recordUse(entry) { recordUse_(entry.id_) }
 }
