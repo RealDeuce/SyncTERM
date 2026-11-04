@@ -439,14 +439,15 @@ push_bbs(WrenVM *vm, int destination, struct st_wren_bbs_record *record,
 	struct st_wren_host *host = st_wren_host_from_vm(vm);
 
 	wrenEnsureSlots(vm, destination + 2);
-	wrenGetVariable(vm, kind == ST_WREN_BBS_MODEL_ENTRY ? "syncterm_menu" : "syncterm",
-	    kind == ST_WREN_BBS_MODEL_ENTRY ? "DirectoryEntry" : "Profile", destination + 1);
+	wrenGetVariable(vm, kind != ST_WREN_BBS_DEFAULTS ? "syncterm_menu" : "syncterm",
+	    kind != ST_WREN_BBS_DEFAULTS ? "DirectoryEntry" : "Profile", destination + 1);
 	struct foreign_bbs *bbs = wrenSetSlotNewForeign(vm, destination,
 	    destination + 1, sizeof(*bbs));
 	memset(bbs, 0, sizeof(*bbs));
 	bbs->header.kind = MENU_FOREIGN_BBS;
 	bbs->record = record;
 	bbs->kind = kind;
+	bbs->read_only = kind == ST_WREN_BBS_SHADOWED_ENTRY;
 	bbs->generation = host->bbs_model.generation;
 	bbs->identity = record->identity;
 	bbs->context = st_wren_context_from_vm(vm);
@@ -4378,7 +4379,9 @@ static void
 fn_bbs_cache(WrenVM *vm)
 {
 	struct foreign_bbs *bbs = bbs_value(vm, 0);
-	if (bbs != NULL) st_wren_entry_cache_push(vm, bbs->record,
+	if (bbs == NULL) return;
+	if (bbs->kind == ST_WREN_BBS_SHADOWED_ENTRY) wrenSetSlotNull(vm, 0);
+	else st_wren_entry_cache_push(vm, bbs->record,
 	    bbs->generation, bbs->identity);
 }
 
@@ -4596,18 +4599,42 @@ fn_bbs_rename(WrenVM *vm)
 		    name, fields, field_count);
 	}
 	if (success) wrenSetSlotNull(vm, 0);
-	else if (bbs != NULL) menu_error(vm, bbs->record->source != ST_BBS_SOURCE_PERSONAL
+	else if (bbs != NULL) menu_error(vm, bbs->read_only || bbs->record->source != ST_BBS_SOURCE_PERSONAL
 	    ? IO_ERROR_READ_ONLY : 0, 0, "The directory entry could not be renamed.");
 }
 
 static void
-fn_bbs_type(WrenVM *vm)
+fn_bbs_source(WrenVM *vm)
 {
 	struct foreign_bbs *bbs = bbs_value(vm, 0);
 
 	if (bbs != NULL)
-		wrenSetSlotDouble(vm, 0,
-		    bbs->record->source == ST_BBS_SOURCE_PERSONAL ? 0 : 1);
+		wrenSetSlotDouble(vm, 0, bbs->record->source);
+}
+
+static void
+fn_bbs_source_name(WrenVM *vm)
+{
+	struct foreign_bbs *bbs = bbs_value(vm, 0);
+	char *name = NULL;
+	if (bbs == NULL) return;
+	int status = copy_diagnostic_name(&name, bbs->record->source_name);
+	if (status != 0)
+		menu_error(vm, status, status, "The directory source name could not be converted.");
+	else if (name == NULL)
+		wrenSetSlotNull(vm, 0);
+	else
+		wrenSetSlotString(vm, 0, name);
+	free(name);
+}
+
+static void
+fn_bbs_shadowed(WrenVM *vm)
+{
+	struct foreign_bbs *bbs = bbs_value(vm, 0);
+	if (bbs == NULL) return;
+	if (bbs->record->shadowed == NULL) wrenSetSlotNull(vm, 0);
+	else (void)push_bbs(vm, 0, bbs->record->shadowed, ST_WREN_BBS_SHADOWED_ENTRY);
 }
 
 static void
@@ -4653,7 +4680,7 @@ save_record(WrenVM *vm, struct foreign_bbs *bbs)
 		menu_error(vm, 0, 0, "No directory is loaded.");
 		return;
 	}
-	if (bbs->owned
+	if (bbs->owned || bbs->read_only
 	    || (bbs->kind == ST_WREN_BBS_MODEL_ENTRY
 	    && bbs->record->source != ST_BBS_SOURCE_PERSONAL)
 	    || host->config.safe_mode) {
@@ -4723,7 +4750,7 @@ fn_bbs_delete(WrenVM *vm)
 		menu_error(vm, 0, 0, "No directory is loaded.");
 		return;
 	}
-	if (bbs->kind != ST_WREN_BBS_MODEL_ENTRY
+	if (bbs->read_only || bbs->kind != ST_WREN_BBS_MODEL_ENTRY
 	    || bbs->record->source != ST_BBS_SOURCE_PERSONAL) {
 		menu_error(vm, IO_ERROR_READ_ONLY, 0, "The directory entry is read-only.");
 		return;
@@ -4961,7 +4988,9 @@ static const struct binding bindings[] = {
 	{"DirectoryEntry", false, "name", fn_bbs_name},
 	{"DirectoryEntry", false, "searchKey", fn_bbs_search_key},
 	{"DirectoryEntry", false, "rename(_)", fn_bbs_rename},
-	{"DirectoryEntry", false, "type", fn_bbs_type},
+	{"DirectoryEntry", false, "source", fn_bbs_source},
+	{"DirectoryEntry", false, "sourceName", fn_bbs_source_name},
+	{"DirectoryEntry", false, "shadowed", fn_bbs_shadowed},
 	{"DirectoryEntry", false, "cache", fn_bbs_cache},
 	{"DirectoryEntry", false, "id", fn_bbs_id},
 	{"DirectoryEntry", false, "added", fn_bbs_added},

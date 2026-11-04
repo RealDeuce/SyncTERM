@@ -102,6 +102,97 @@ test_transfer_timeout_settings(struct st_wren_host *host)
 }
 
 static void
+test_entry_provenance(struct st_wren_host *host, struct st_app_paths *paths,
+	const char *personal)
+{
+	char shared[sizeof(ST_WREN_SETTINGS_TEST_DIRECTORY) + 64];
+	char named[sizeof(ST_WREN_SETTINGS_TEST_DIRECTORY) + 64];
+	char source[16384];
+	FILE *stream;
+	size_t size;
+
+	CHECK(paths->shared_list == NULL && st_settings_web_download_count() == 0);
+	CHECK(snprintf(shared, sizeof(shared), "%s/provenance-shared.lst",
+	    ST_WREN_SETTINGS_TEST_DIRECTORY) < (int)sizeof(shared));
+	CHECK(snprintf(named, sizeof(named), "%s/Caf\xc3\xa9.lst",
+	    ST_WREN_SETTINGS_TEST_DIRECTORY) < (int)sizeof(named));
+	write_text(personal, "[Personal]\nAddress=personal.example\n"
+	    "[Overlap]\nAddress=personal.example\n");
+	write_text(shared, "[Shared]\nAddress=shared.example\n"
+	    "[Overlap]\nAddress=shared.example\n[Dual]\nAddress=shared-dual.example\n");
+	write_text(paths->cached_system_list, "[SystemWeb]\nAddress=system.example\n"
+	    "[Overlap]\nAddress=ignored-system.example\n[Dual]\nAddress=system-dual.example\n");
+	write_text(named, "[Named]\nAddress=named.example\n"
+	    "[Overlap]\nAddress=ignored-named.example\n[Dual]\nAddress=ignored-named.example\n");
+	paths->shared_list = shared;
+	CHECK(st_settings_web_download_append("Caf\xc3\xa9", "https://invalid/") == 0);
+	stream = fopen(ST_WREN_SETTINGS_SOURCE_DIRECTORY
+	    "/src/scripting/wren_host/tests/bbs_provenance.wren", "rb");
+	CHECK(stream != NULL);
+	size = fread(source, 1, sizeof(source) - 1, stream);
+	CHECK(!ferror(stream) && feof(stream) && fclose(stream) == 0);
+	source[size] = '\0';
+	interpret(host, "bbs_provenance", source);
+	struct st_wren_bbs_record *shared_record = NULL;
+	for (size_t i = 0; i < host->bbs_model.count; ++i) {
+		if (strcmp(host->bbs_model.entries[i]->profile.name, "Shared") == 0)
+			shared_record = host->bbs_model.entries[i];
+	}
+	CHECK(shared_record != NULL);
+	char *original_name = shared_record->source_name;
+	char decomposed[] = "Cafe\xcc\x81";
+	char malformed[] = "\xff";
+	shared_record->source_name = decomposed;
+	interpret(host, "bbs_provenance",
+	    "var normalized = ProvenanceTest.shared.sourceName\n"
+	    "if (normalized != \"Caf\\u00e9\") Fiber.abort(\"source name NFC\")\n");
+	CHECK(strcmp(shared_record->source_name, "Cafe\xcc\x81") == 0);
+	shared_record->source_name = malformed;
+	interpret(host, "bbs_provenance",
+	    "var invalidName = ProvenanceTest.shared.sourceName\n"
+	    "if (!(invalidName is MenuError) || invalidName.code != IOErr.invalidEncoding || invalidName.nativeCode != IOErr.invalidEncoding || normalized != \"Caf\\u00e9\") Fiber.abort(\"source name conversion result\")\n");
+	shared_record->source_name = original_name;
+	st_wren_test_diagnostic_copy_status = IO_ERROR_OUT_OF_MEMORY;
+	interpret(host, "bbs_provenance",
+	    "var allocation = ProvenanceTest.shared.sourceName\n"
+	    "if (!(allocation is MenuError) || allocation.code != IOErr.outOfMemory || allocation.nativeCode != IOErr.outOfMemory) Fiber.abort(\"source name allocation result\")\n"
+	    "if (ProvenanceTest.shared.source != BBSListSource.shared) Fiber.abort(\"conversion invalidated source\")\n");
+	st_wren_test_diagnostic_copy_status = 0;
+	int *failures[] = {&st_wren_test_list_open_status,
+	    &st_wren_test_list_sort_status, &st_wren_test_model_build_status};
+	for (size_t i = 0; i < sizeof(failures) / sizeof(*failures); ++i) {
+		*failures[i] = IO_ERROR_IO;
+		interpret(host, "bbs_provenance",
+		    "{\nvar failure = Menu.load(null)\n"
+		    "if (!(failure is MenuError) || failure.code != IOErr.io) Fiber.abort(\"provenance failed-load fixture\")\n"
+		    "ProvenanceTest.retained_()\n}\n");
+		*failures[i] = 0;
+	}
+	/* Native source-name storage must not normalize eagerly during loading. */
+	st_wren_test_diagnostic_copy_status = IO_ERROR_OUT_OF_MEMORY;
+	interpret(host, "bbs_provenance",
+	    "if (Menu.load(null) != null) Fiber.abort(\"load eagerly converted provenance\")\n");
+	st_wren_test_diagnostic_copy_status = 0;
+	interpret(host, "bbs_provenance",
+	    "ProvenanceTest.replaced_()\n"
+	    "var selectedHidden = ProvenanceTest.named_(\"Dual\").shadowed\n");
+	struct st_profile selected;
+	st_profile_init(&selected);
+	wrenEnsureSlots(host->vm, 1);
+	wrenGetVariable(host->vm, "bbs_provenance", "selectedHidden", 0);
+	CHECK(st_wren_menu_copy_profile(host->vm, 0, &selected));
+	CHECK(selected.source == ST_PROFILE_SOURCE_SYSTEM
+	    && strcmp(selected.address, "system-dual.example") == 0);
+	st_profile_dispose(&selected);
+	CHECK(st_settings_web_download_remove(0) == 0);
+	paths->shared_list = NULL;
+	CHECK(fs_remove_file(shared) == 0 && fs_remove_file(named) == 0);
+	write_text(paths->cached_system_list, "");
+	write_text(personal, "[Existing]\nAddress=existing.example\n");
+	interpret(host, "bbs_provenance", "if (Menu.load(null) != null) Fiber.abort(\"restore provenance fixture\")\n");
+}
+
+static void
 test_menu_results(struct st_wren_host *host)
 {
 	interpret(host, "menu_results",
@@ -1021,6 +1112,7 @@ main(void)
 	    "import \"syncterm_menu\" for Menu\n"
 	    "if (Menu.load(null) != null) Fiber.abort(\"load fixture\")\n");
 	test_transfer_timeout_settings(host);
+	test_entry_provenance(host, &paths, personal);
 	test_load_results(host, &paths, personal, console);
 	interpret(host, "theme_result_regression",
 	    "import \"syncterm\" for IOErr\n"

@@ -17,6 +17,7 @@
 
 enum st_wren_bbs_kind {
 	ST_WREN_BBS_MODEL_ENTRY,
+	ST_WREN_BBS_SHADOWED_ENTRY,
 	ST_WREN_BBS_DEFAULTS,
 };
 
@@ -25,6 +26,8 @@ struct st_wren_bbs_record {
 	uint64_t identity;
 	/* Borrowed until the source list's generation changes. */
 	const struct st_bbs_entry *source_entry;
+	/* Owned provenance survives rebuilding the borrowed source list. */
+	char *source_name;
 	char *name_key;
 	size_t name_key_size;
 	char persisted_name[ST_PROFILE_NAME_MAX + 1];

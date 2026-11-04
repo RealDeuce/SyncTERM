@@ -324,7 +324,9 @@ foreign class DirectoryEntry {
   foreign name
   foreign searchKey
   foreign rename(name)
-  foreign type
+  foreign source
+  foreign sourceName
+  foreign shadowed
   foreign profile
   foreign readOnly
   foreign cache

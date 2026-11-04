@@ -3,7 +3,7 @@ import "syncterm" for Error
 // Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 import "syncterm" for Host, Screen, ScreenMode, Key, Text, Mod, KeyEvent, PhysicalKeyEvent
 import "wren_console" for WrenConsole
-import "syncterm_menu" for Menu, MenuError
+import "syncterm_menu" for Menu, MenuError, BBSListSource
 import "ui_widget" for Rect
 import "ui_draw" for Painter
 import "ui_input" for TextInput
@@ -268,7 +268,7 @@ class ModernDirectory {
       text_(sf, x + 2, dy, entry == null ? "Select a connection" : entry.name,
           ModernStyle.accent, detailBg, _contentW - 4)
       if (entry != null) {
-        var source = entry.type == 0 ? "Personal" : "Shared"
+        var source = entry.source == BBSListSource.personal ? "Personal" : "Shared"
         var column = _list.columnX.max(Screen.checked_(Screen.textWidth(entry.name, 0)) + 4)
         var meta = "%(entry.profile.connTypeName) :%(entry.profile.port) / %(source)"
         if (Screen.checked_(Screen.textWidth(meta, 0)) > _contentW - column - 2) {
@@ -398,7 +398,7 @@ class ModernDirectory {
   edit_() {
     var entry = selected
     if (entry == null || !mutable_()) return
-    if (entry.type != 0) {
+    if (entry.readOnly) {
       if (!Confirm.show(_app, "Copy to personal directory?")) return
       entry = Menu.copy(entry, entry.name)
       if (entry is MenuError) {
@@ -420,7 +420,7 @@ class ModernDirectory {
   delete_() {
     var entry = selected
     if (entry == null || !mutable_()) return
-    if (entry.type != 0) {
+    if (entry.readOnly) {
       Alert.show(_app, "Shared connection", "Shared directory entries cannot be deleted.")
       return
     }

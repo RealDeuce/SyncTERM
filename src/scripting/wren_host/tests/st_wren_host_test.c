@@ -5519,7 +5519,7 @@ exercise_bbs_model_contract(st_wren_host_t *public_host,
 	    "}\n"
 	    "if (Menu.load(null) != null) Fiber.abort(\"category load\")\n"
 	    "var system = BbsLookup.named(\"System\")\n"
-	    "if (system == null || system.type != 1) Fiber.abort(\"system entry\")\n"
+	    "if (system == null || !system.readOnly) Fiber.abort(\"system entry\")\n"
 	    "var readOnly = Fiber.new { system.profile.comment = \"forbidden\" }.try()\n"
 	    "if (!(readOnly is String) || (system.rename(\"Other\") == null) || "
 	    "(system.save() == null) || (system.delete() == null)) Fiber.abort(\"system mutability\")\n"
@@ -5539,7 +5539,7 @@ exercise_bbs_model_contract(st_wren_host_t *public_host,
 	    "if (transient.readOnly || transient.comment != \"allowed\") Fiber.abort(\"profile value rules\")\n"
 	    "var count = Menu.entries.count\n"
 	    "var shadow = Menu.create(\"System\")\n"
-	    "if (shadow == null || shadow.type != 0 || shadow.calls != 0 || "
+	    "if (shadow == null || shadow.readOnly || shadow.calls != 0 || "
 	    "shadow.connected != 0 || Menu.entries.count != count) "
 	    "Fiber.abort(\"system shadow\")\n"
 	    "var retainedProfile = transient.addr\n"
@@ -5555,7 +5555,7 @@ exercise_bbs_model_contract(st_wren_host_t *public_host,
 	    "var unrelatedRetained = unrelated.name\n"
 	    "var restored = BbsLookup.named(\"System\")\n"
 	    "if (!(shadowStale is String) || unrelatedRetained != \"Alpha\" || "
-	    "restored == null || restored.type != 1 "
+	    "restored == null || !restored.readOnly "
 	    "|| restored.profile.addr != \"system.example\") Fiber.abort(\"restore system\")\n"
 	    "var scratch = Menu.create(\"Scratch\")\n"
 	    "if (scratch == null || !(scratch.delete() == null)) Fiber.abort(\"discard draft\")\n"
@@ -5628,7 +5628,7 @@ exercise_bbs_model_contract(st_wren_host_t *public_host,
 	    "for (entry in Menu.entries) {\n"
 	    "  if (entry.name == \"System\") restored = entry\n"
 	    "}\n"
-	    "if (restored == null || restored.type != 1) Fiber.abort(\"system not restored\")\n";
+	    "if (restored == null || !restored.readOnly) Fiber.abort(\"system not restored\")\n";
 	static const char save_copy_source[] =
 	    "import \"syncterm_menu\" for Menu\n"
 	    "import \"bbs_contract_state\" for BbsContractState\n"

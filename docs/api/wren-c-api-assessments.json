@@ -954,7 +954,7 @@
     "profile.fields": {
       "status": "covered",
       "wren": "Profile + DirectoryEntry + Session and enum namespaces",
-      "reason": "Editable connection configuration is Profile; persistent name/id/source/added/connected/calls/sortOrder belongs to DirectoryEntry; runtime connection state belongs to Session. Palette length and fingerprint length come from script value lengths. Typed encoding/script setters replace native persistence parsers; defaults intentionally have no scripts. Source classification is only the two-value profile source contract here; the richer BBS source issue is separate. Fixed buffer capacities are validation limits, not separate values to allocate.",
+      "reason": "Editable connection configuration is Profile; persistent name/id/added/connected/calls/sortOrder belongs to DirectoryEntry, whose source exposes the detailed native list origin. Runtime connection state belongs to Session. The native two-value profile source is captured as Session.entrySource using BBSListType; no Profile.source getter exists. Palette length and fingerprint length come from script value lengths. Typed encoding/script setters replace native persistence parsers; defaults intentionally have no scripts. Fixed buffer capacities are validation limits, not separate values to allocate.",
       "vm": "menu and connected; persistence/menu enumeration only in menu",
       "evidence": [
         {
@@ -1004,9 +1004,9 @@
       ]
     },
     "bbs.provenance": {
-      "status": "partial",
-      "wren": "DirectoryEntry.type / profile.source",
-      "reason": "DirectoryEntry.type / profile.source still collapses the native four source kinds to personal versus system, and source_name is not exposed for entries. Scripts cannot identify which named list provided an entry or inspect shadowed provenance. BBSListSource enum values and load-diagnostic source names are now separately covered; that does not resolve entry provenance.",
+      "status": "covered",
+      "wren": "DirectoryEntry.source / sourceName / shadowed",
+      "reason": "DirectoryEntry.source preserves all four native BBSListSource values; sourceName exposes the native nullable source identifier as NFC text or MenuError on actual conversion failure. Model-owned source-name storage survives native-list rebuilding and converts only on access. shadowed exposes only retained lower-priority records as read-only DirectoryEntry/Profile views with no cache grant. Distinct hidden-view validation preserves visible lookup and stale-handle non-revival. Native sort records already retain the same full source enum while ordering profiles, covering the fourth ledger row. The user approved removal of the custom DirectoryEntry.type classification; standard Object.type now returns the class. BBSListType/Session.entrySource preserve the separate native profile classification. The original reference to Profile.source was inaccurate; no such getter existed or is added. No native precedence, retention, UI behavior or file authority changes.",
       "vm": "menu",
       "evidence": [
         {
@@ -1015,11 +1015,32 @@
         },
         {
           "path": "src/scripting/wren_host/wren_bind_menu.c",
-          "anchor": "ST_BBS_SOURCE_PERSONAL"
+          "anchor": "fn_bbs_source_name(WrenVM *vm)"
+        },
+        {
+          "path": "scripts/syncterm_menu.wren",
+          "anchor": "foreign shadowed"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bbs_model.c",
+          "anchor": "record->source_name = strdup(entry->source_name)"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bbs_model.h",
+          "anchor": "ST_WREN_BBS_SHADOWED_ENTRY"
+        },
+        {
+          "path": "src/scripting/wren_host/tests/bbs_provenance.wren",
+          "anchor": "static readOnly_(entry)"
+        },
+        {
+          "path": "src/scripting/wren_host/tests/st_wren_settings_menu_test.c",
+          "anchor": "test_entry_provenance"
         }
       ],
       "finding": "bbs-provenance",
-      "decision": "mapping-gap"
+      "decision": "resolved",
+      "resolution": "resolved"
     },
     "bbs.cache-result": {
       "status": "partial",
@@ -3331,7 +3352,7 @@
     "bbs.source-values": {
       "status": "covered",
       "wren": "BBSListSource.personal/shared/webSystem/webNamed",
-      "reason": "The four native source enum values are available in the menu VM for diagnostic interpretation. Entry source detail and shadowed-record inspection remain separately Partial under bbs.provenance. BBSListType keeps its distinct two-value profile contract.",
+      "reason": "The four native source enum values are available in the menu VM through BBSListSource for load diagnostics and DirectoryEntry.source, including hidden read-only entry views. Entry names and retained shadowed records are covered under bbs.provenance. BBSListType and Session.entrySource keep the distinct two-value native profile classification.",
       "vm": "menu",
       "evidence": [
         {
@@ -3987,6 +4008,16 @@
       "path": "scripts/menu_scrollback.wren",
       "anchor": "Screen.checked_(Clipboard.setText(url))",
       "aspect": "URL fallback reports copy success only after a successful clipboard result; independent screen/mouse cleanup."
+    },
+    {
+      "path": "scripts/auto/menu/main_menu.wren",
+      "anchor": "_clipboardSource == BBSListSource.personal",
+      "aspect": "Directory provenance replaces the removed type classification without changing personal/system copy-paste prompts; editing uses readOnly."
+    },
+    {
+      "path": "addons/modern_ui/scripts/modern_ui.wren",
+      "anchor": "entry.source == BBSListSource.personal",
+      "aspect": "Preserves existing Personal/Shared labels and edit/delete behavior while migrating the removed type getter."
     }
   ],
   "test_evidence": [
@@ -4278,6 +4309,16 @@
     {
       "path": "src/scripting/wren_host/tests/st_wren_settings_menu_test.c",
       "anchor": "test_transfer_timeout_settings"
+    },
+    {
+      "path": "src/scripting/wren_host/tests/bbs_provenance.wren",
+      "anchor": "static replaced_()",
+      "aspect": "Four-source provenance, read-only hidden views, retained chains, explicit copies, native rebuilding and stale non-revival."
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_settings_menu_test.c",
+      "anchor": "test_entry_provenance",
+      "aspect": "Native malformed/NFC name conversion and allocation results, transactional load failures and ordinary hidden-entry profile selection."
     }
   ],
   "dispatch_evidence": [
@@ -4289,16 +4330,16 @@
   ],
   "evidence_files": {
     "docs/WREN_GUIDANCE.md": "d14aeecb5eae922015f2f48a4fd690277dcb5b91aedfd8d8d8cffb2dc235e1ac",
-    "docs/Wren.adoc": "23e3a44a03e372cffc4af9e5ab23f544d5e04cdb9c58c02de722cdadc7d72621",
+    "docs/Wren.adoc": "ec20a65cdc0d702c479cba31b7f37cb16a52a3cfa5d9e85f8732c67c2aff55a0",
     "docs/api/bbs-entry-fields.adoc": "a1be9944eadd5f56d752e8669b502f49b27211f14190443a95e36ad301b8d128",
     "scripts/auto/connected/font_pick.wren": "4a1189b05ab502e36a8efc8ebb241eba568ccfae63ac6f92a819ca5950a87c34",
-    "scripts/auto/menu/main_menu.wren": "4828040dfe87bd7680fa026ae785c9cc64e010392e9bd278f5c0440c8b052b2b",
+    "scripts/auto/menu/main_menu.wren": "cb254c02de88681f85b8e4cbfeea2ab090da616e47ad9894a4c659e3c6902647",
     "scripts/menu_bbs_editor.wren": "fa27c403b0cad1ffe2811243787916ce7428da2255b12683f6e3e2c5847a4187",
     "scripts/menu_settings_ui.wren": "411afe4f8321cd0421f74e37d56018f5dbab0211a6beed4deb0c0d763701f212",
     "scripts/sftp_app.wren": "05124c53d687ddcdd10efed2d2c2993c38a29196c76c4bef3f64bfc4ba4f4b5a",
     "scripts/sftp_queue.wren": "b15fe706268e9ce6d5fea4227661d0ac810f6f9fc4dbf7d39863756bde3eaf74",
     "scripts/syncterm.wren": "d83771af9dcfa4496a35929a563c045cdc286076a507451e908e2ab4cfb9271f",
-    "scripts/syncterm_menu.wren": "da6906b15943bcaf98a45bc6250587ea12afeddbd12c1f287cacd0d9a6f1d37c",
+    "scripts/syncterm_menu.wren": "d0c9a9f6e7c4e4085cb4aa119edd82132e169ce47be7ea370638b28aaba91b4a",
     "scripts/syncterm_picker.wren": "143e15bd084bed37145061760100c84b353d340e00187d9cd2b920a850be6021",
     "scripts/transfer_app.wren": "b7c8a38f8676340c93b3f5748c74bac8fd48a301d996110c468b8fd5a768b13a",
     "scripts/transfer_pick.wren": "2fc84a3f03cbf6e71bf9c78304cb56558c70413857c0fa82ea1cc775b340ecfb",
@@ -4366,14 +4407,14 @@
     "src/net/transfer/st_transfer_detect.h": "3296b9ecf875d100f793920a3b0117a8f7b80951a539317d366f4ea40a7a1b30",
     "src/net/webget/st_webget.h": "9647dcc563e1661fe1d6b762c78e2483d2beae03ac878da0ebd15c8a425d2143",
     "src/scripting/wren_host/st_wren_host.h": "1f399c11771d459566882d3084836000e05c3aa7759fc03e6a2384c6754fb0a6",
-    "src/scripting/wren_host/tests/st_wren_host_test.c": "570afa720a6a4b470f607e4c0c591a4920b05e20e1db4c9b424ca7f704116882",
-    "src/scripting/wren_host/tests/st_wren_settings_menu_test.c": "6fd1326c794e64d68064ab58d4e7c0d548b3214402bcf2b4369f8e2fefadd43f",
+    "src/scripting/wren_host/tests/st_wren_host_test.c": "27ed846673d8738d049158f536177bbe77a5adab827dff3381f2f60e36e0ce1c",
+    "src/scripting/wren_host/tests/st_wren_settings_menu_test.c": "a50fd5d40c9d233a73d452f28119d405e08ae121d10569ff7df59bfacc7db588",
     "src/scripting/wren_host/wren_async.c": "71e78941735250300171a2b7cb13b70c92916bd14c066a6614b3f77cdd9b565d",
-    "src/scripting/wren_host/wren_bbs_model.c": "18dca3353505a5b0dc609251f16038bd9132c47e215c4cf24ba802ac4b3ab97a",
+    "src/scripting/wren_host/wren_bbs_model.c": "cbc7311c9d15f05d974c934a8dcf7242d2fec15e70c3a5b60707eee3e9e5e84d",
     "src/scripting/wren_host/wren_bind_core.c": "ba1563be2244b3e15730ceab1357cdbc9f86859a08dcadb996eac14ed0fec3bf",
     "src/scripting/wren_host/wren_bind_fs.c": "17e19ab179b195a36c58f929802e9a5d86d6e211d7dfdf809ac4b7c4e6c96cba",
     "src/scripting/wren_host/wren_bind_hyperlinks.c": "255be945007c9cb2795195058e5f58de7d2b2157728892e614d6e8fb5f729b98",
-    "src/scripting/wren_host/wren_bind_menu.c": "59d56aa111cfd85b281a3bc1daee8508557d43f2b97d2cc8933f5f8bb105f0eb",
+    "src/scripting/wren_host/wren_bind_menu.c": "aecca1e57094631baaccb6a593dfdb4972612186908c173678209a912e001de9",
     "src/scripting/wren_host/wren_bind_pixels.c": "5db1826dd3fde89f981f54d3aee2748277369a94e6e63998f2fe76b1d33026ae",
     "src/scripting/wren_host/wren_bind_session.c": "abc78adace40704dfb1b668c9ca19ccf0c538c2ac9028b86e65a0cf7b81fea36",
     "src/scripting/wren_host/wren_bind_status.c": "85ed4115c9a9645aa27cccb2a9977e5892037123d7440d9acf3397fd55e16671",
@@ -4453,14 +4494,16 @@
     "src/media/console/tests/st_console_ansi_test.c": "a8fd223e78b87610e88a4c86d775fd10c8f8bd19fbfec140448f3b5bea328437",
     "src/media/console/tests/st_console_ncurses_test.c": "41034f149b7ca1bae54a5479c0e199335f5b28ae8f43aff578c525df0611028e",
     "addons/modern_ui/scripts/modern_ui_model.wren": "2bcdf91d39478f2e4ae1fd9855e9017c02953e2fa8ae6598cc02a820d22caa02",
-    "addons/modern_ui/scripts/modern_ui.wren": "252eeceaf54592a21be9505daaed63deed7e580f8e6a7ec80dccc2d72275f5bc",
+    "addons/modern_ui/scripts/modern_ui.wren": "3e0d8fc40a912bcca7293755474db6745036a7a418ec91a72eaf99ae972c8611",
     "addons/modern_ui/tests/test_frontend.py": "0bd615d0d6a0236a9f4ab8cd099962b9fd97dd186362cc33741fd3b9d6b564fb",
     "scripts/menu_scrollback.wren": "1eae33aa4ab1cf8b093b345b62d73c6719b1266434ae294ea8101de3fea2a6d1",
     "src/scripting/wren_host/tests/st_wren_screen_core_test_bindings.c": "2a0426a6a5bd32b457fec38bd66247d59ea953215a9a04ff246ce1450de9b638",
     "src/scripting/wren_host/tests/st_wren_screen_pixels_test_bindings.c": "1bd351be328d3ee7a8bf2f37f9c82fa663496b5089fd5108b6a15a5ce6a6b8e6",
     "src/scripting/wren_host/tests/st_wren_screen_menu_test_bindings.c": "fca707a2f0be87c2af9ee73477c71203e403c047689aff1b83b880a1e5e83a2f",
     "src/scripting/wren_host/tests/st_wren_screen_test_calls.h": "bc5a4ef3828b82aea36c13223718db628540f6d74e931ef92d0893643f0e8bf2",
-    "src/scripting/wren_host/tests/st_wren_screen_test_control.h": "95a2c3ab2d5d2d4746327b13f89d8da46ff1aff2707a0441e2cd2e16a46f593e"
+    "src/scripting/wren_host/tests/st_wren_screen_test_control.h": "95a2c3ab2d5d2d4746327b13f89d8da46ff1aff2707a0441e2cd2e16a46f593e",
+    "src/scripting/wren_host/wren_bbs_model.h": "abe9afb6c1fa09ae794f6f1454ae702d104c9de743fb6e999cc4ac4841cf293d",
+    "src/scripting/wren_host/tests/bbs_provenance.wren": "3cf1078401e564bfa98ec1e17d9226d8343c8f69b08be15c8b57c84e072be7cc"
   },
   "verification": {
     "platform": "FreeBSD 15.1-RELEASE-p5 amd64",
@@ -5095,6 +5138,40 @@
       "regressions": "New regression first failed because Settings did not implement transferSuccessKeypressTimeout. Final tests cover defaults, independent assignments, zero/INT_MAX, negative/fractional/nonfinite/oversized/nonnumeric rejection without mutation, snapshot isolation, dirty tracking, apply, stale getters/setters, reset-to-running reload and native disk reload after persistence. Existing VM isolation tests pass.",
       "evidence_review": "Reviewed the two numeric-property instantiations, dispatch entries, foreign declarations, documentation row and focused test additions. Existing numeric conversion, Settings ownership/generation and application/store semantics are reused; all unrelated mappings on the four changed evidence files retain their anchors and dispositions.",
       "accounting": "Unchanged 80 public headers, 122 exclusions, 2448 native items, 157 assessments and 51 original topics. Two field rows move from Unmapped to Covered in the header matrix without changing the native ledger. Thirty-eight topics and the separate documentation finding remain open."
+    },
+    {
+      "topic": "bbs-provenance",
+      "status": "resolved",
+      "approval": "Complete chunk 12 revision 1 presented in actual Plan mode and approved with Implement the plan after returning to Default mode. The user selected complete retained provenance, read-only DirectoryEntry views, directory-view lifetimes and sourceName returning MenuError. After discussing the native coarse profile classification, the user explicitly retained the choice to remove DirectoryEntry.type.",
+      "scope": "All four existing bbs.provenance ledger rows: native entry source, source_name, shadowed lookup and sort-record source. Add source/sourceName/shadowed bindings, remove the classification override, migrate callers without UI changes, and preserve Session.entrySource/BBSListType.",
+      "tests_passed": [
+        "bbs_list",
+        "bbs_failures",
+        "bbs_web",
+        "wren_settings_runtime",
+        "wren_host",
+        "wren_menu_contract",
+        "wren_picker_contract",
+        "syncterm_behavior_menu",
+        "syncterm_behavior_profile",
+        "syncterm_behavior_menu_shortcuts",
+        "syncterm_behavior_settings_ui",
+        "modern_ui_directory",
+        "modern_ui_settings",
+        "modern_ui_connection",
+        "modern_ui_recovery",
+        "modern_ui_web_list"
+      ],
+      "verification": {
+        "native": "FreeBSD Clang Debug application and relevant test targets built; all 16 planned CTests passed with inherited desktop variables cleared and existing headless/audio-disabled fixtures.",
+        "gcc": "GCC Debug application, host, settings and picker targets built. wren_host, wren_menu_contract, wren_settings_runtime and wren_picker_contract passed.",
+        "sanitizers": "Clang ASan/UBSan application, host, settings and picker targets built; the same four focused tests passed. FreeBSD leak detection is unsupported and disabled; the existing C-owned executable C++ vptr exclusion remains unchanged.",
+        "windows": "MinGW x86 and x86_64 application/DLL/launchers and host/settings test targets cross-built. No Windows execution or Wine.",
+        "regressions": "The new fixture first failed at the missing DirectoryEntry.source getter. Tests now cover all four origins and native name meanings, native first-shadow limits and working nested chains, lazy read-only profiles, copy/selection, no cache grants, unrelated mutations/native-list rebuild, restoration and stale non-revival, GC, failed/successful reload, independent captured Strings/Profile copies, standard Object.type, actual malformed/NFC input and injected normalization allocation failures.",
+        "warnings": "No compiler diagnostics were introduced in the exercised builds. GNUmake emitted transient future-timestamp/clock-skew notices for generated dependency files."
+      },
+      "evidence_review": "Reviewed all changed model/binding/declaration/caller/test/documentation hunks and retained existing evidence anchors. Source-name native ownership and separate hidden-view validation leave visible/grant lookup intact. Profile.fields and BBSListSource descriptions now identify their distinct native source contracts without inventing a Profile.source getter.",
+      "accounting": "80 public headers, 122 exclusions, 2448 native items, 157 assessments and 51 original topics remain unchanged. Four BBS source items move from Partial to Covered; no native declarations or ledger rows changed. Thirty-seven topics and the separate profile-field-table documentation finding remain open."
     }
   ]
 }

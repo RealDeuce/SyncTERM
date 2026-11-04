@@ -4641,7 +4641,7 @@ cancellation and fatal load errors retain their existing prompts and error
 dialogs, even when all retained warnings are from web lists. There are no
 automatic retries.
 
-A DirectoryEntry owns `name`, `searchKey`, `type` (BBSListType), `id`, `added`,
+A DirectoryEntry owns `name`, `searchKey`, `source`, `sourceName`, `shadowed`, `id`, `added`,
 `connected` (persisted LastConnected timestamp), `calls`, `readOnly`, `dirty`,
 `profile` and `cache`. Only `sortOrder` has a property setter. `rename(name)`,
 `save()` and `delete()` return null/MenuError; `toString` returns its name.
@@ -4649,6 +4649,35 @@ A DirectoryEntry owns `name`, `searchKey`, `type` (BBSListType), `id`, `added`,
 has -1 until its first successful save. IDs are local to a load and are not
 serialized. Native ownership also distinguishes replaced records independently
 of their names, addresses or numeric IDs.
+
+`source` preserves the native list source using `BBSListSource.personal` (0),
+`shared` (1), `webSystem` (2), or `webNamed` (3). `sourceName` returns null for
+personal entries, the shared-list path, `"System List"` for the system web list,
+or the configured named web-list name. Source names are validated as UTF-8 and
+normalized to NFC on access. A conversion failure returns MenuError with the
+actual status in `code` and `nativeCode`; it does not change the loaded model.
+Reading other fields does not construct a source-name String or Profile snapshot.
+New and copied personal entries have personal provenance and no source name.
+
+`shadowed` returns a read-only DirectoryEntry view of the next lower-priority
+record retained by the native or working directory model, or null. Traverse only
+the records actually retained; this does not enumerate every list containing
+that name or change native precedence. Its `profile` is a read-only view,
+`cache` is null, setters abort and rename/save/delete return read-only MenuError.
+Explicit `Menu.copy()` and `profile.copy()` use the ordinary copy rules.
+The view creates no file authority and remains excluded from `Menu.entries`.
+
+Hidden entry/profile views follow normal directory lifetimes: sorting and
+unrelated edits preserve them, a successful load replaces them, and a failed load
+preserves them. Restoring a hidden record to the visible list invalidates its old
+hidden view; an old visible view does not revive when that record is restored.
+Captured Strings and detached Profile copies remain independent.
+
+The former directory classification getter `entry.type` is removed. It now
+inherits Wren's standard `Object.type`, returning the DirectoryEntry class.
+Use `entry.source` for provenance and `entry.readOnly` for editability.
+`BBSListType` and `Session.entrySource` still represent the native profile's
+separate personal/system classification; no `Profile.source` getter is exposed.
 
 `searchKey` retains the NFD full-default-casefold form of the name. The shipped
 list uses it as a cheap search prefilter and verifies grapheme boundaries.
@@ -5426,8 +5455,8 @@ user-facing choice list.
 |===
 | Constant | Code | Description
 | `user`   | 0    | User-edited entry from the user's BBS list.
-| `system` | 1    | System-shipped entry from the SyncTERM-bundled
-                    list.  Read-only at the UI level.
+| `system` | 1    | Entry from a shared, system-web or named-web list.
+                    Read-only in its source directory.
 |===
 
 ==== TLSVersion

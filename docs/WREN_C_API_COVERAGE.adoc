@@ -3,7 +3,8 @@
 Status: accounting complete against commit da27a6e (2026-11-02).
 Follow-up: +transfer-upload-authority+, +font-codepage+, +font-load-result+,
 +sftp-entry-stat+, +error-symbols+, +bbs-diagnostics+, +theme-operation-results+,
-+transfer-result+, +transfer-protocol-selection+ and +settings-transfer-timeouts+
++transfer-result+, +transfer-protocol-selection+, +settings-transfer-timeouts+
+and +bbs-provenance+
 are resolved.
 CTerm and Screen result fidelity are resolved by their approved chunks,
 completing +console-operation-results+.
@@ -24,18 +25,18 @@ limitations; it does not authorize implementing every omitted C facility.
 The review covers 80 project-owned public headers, 2,448 named native items,
 and 122 explicitly excluded implementation/vendor/test headers. Every inventoried
 item has a disposition. The initial review recorded 51 finding topics, including
-broader API-scope decisions, plus one stale documentation finding. Thirteen topics
+broader API-scope decisions, plus one stale documentation finding. Fourteen topics
 (upload authority, custom-font codepages, font-load results, SFTP entry metadata,
 portable I/O error symbols, BBS diagnostics, model-operation results, theme
 operation results, transfer results, explicit XMODEM-G selection and the
 intentional cache-status omission, console operation results and transfer timeout
-Settings bindings) are resolved;
+Settings bindings, plus entry provenance) are resolved;
 the other topics retain their recorded open subclaims. The numbers
 follow the inventory;
 they are not a stopping rule or a percentage of useful capabilities covered.
 
 Important concrete results include loss of SFTP listing metadata (now resolved),
-BBS provenance and diagnostics (diagnostics now resolved); primary mutation
+BBS provenance and diagnostics (both now resolved); primary mutation
 failure details (now preserved
 for the selected BBS/Settings actions); and custom-font codepage choices (now resolved);
 missing offscreen pixel compositing; and a transfer upload path API that bypassed
@@ -168,7 +169,7 @@ ids refer to the full mappings in the JSON, including VM-specific restrictions.
 | link:../src/base/time/st_time.h[base/time/st_time.h] | 1 | 2 | 0 | 5 | 0 | +time.clock+, +time.deadline+, +time.precision+
 | link:../src/base/value_convert/value_convert.h[base/value_convert/value_convert.h] | 2 | 0 | 11 | 0 | 0 | +utility.conversion+, +utility.estimates+
 | link:../src/config/app_paths/st_app_paths.h[config/app_paths/st_app_paths.h] | 0 | 0 | 0 | 26 | 0 | +paths.application+
-| link:../src/config/bbs_list/st_bbs_list.h[config/bbs_list/st_bbs_list.h] | 71 | 18 | 0 | 11 | 0 | +bbs.cache-result+, +bbs.diagnostics+, +bbs.load-status+, +bbs.mutation-status+, +bbs.provenance+, +bbs.refresh-detail+, +bbs.source-values+, +bbs.transaction-owner+, +bbs.workflow+
+| link:../src/config/bbs_list/st_bbs_list.h[config/bbs_list/st_bbs_list.h] | 75 | 14 | 0 | 11 | 0 | +bbs.cache-result+, +bbs.diagnostics+, +bbs.load-status+, +bbs.mutation-status+, +bbs.provenance+, +bbs.refresh-detail+, +bbs.source-values+, +bbs.transaction-owner+, +bbs.workflow+
 | link:../src/config/consent_token/st_consent_token.h[config/consent_token/st_consent_token.h] | 0 | 0 | 0 | 4 | 0 | +consent.signer+
 | link:../src/config/ini/ini.h[config/ini/ini.h] | 0 | 0 | 58 | 0 | 0 | +config.ini+
 | link:../src/config/list_crypto/st_list_crypto.h[config/list_crypto/st_list_crypto.h] | 24 | 9 | 0 | 0 | 0 | +list.crypto+, +list.crypto.metadata+
@@ -252,7 +253,7 @@ native secondary status is still omitted. Primary BBS mutation results are now
 covered separately under <<finding-model-mutation-results>>, whose remaining
 Settings disk-reload and emoji-result subclaims are now also resolved.
 
-Evidence: link:../src/config/bbs_list/st_bbs_list.h[src/config/bbs_list/st_bbs_list.h:58]; link:../src/config/bbs_list/st_bbs_store.c[src/config/bbs_list/st_bbs_store.c:494]; link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:4646].
+Evidence: link:../src/config/bbs_list/st_bbs_list.h[src/config/bbs_list/st_bbs_list.h:58]; link:../src/config/bbs_list/st_bbs_store.c[src/config/bbs_list/st_bbs_store.c:494]; link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:4673].
 
 [[finding-bbs-diagnostics]]
 === Nonfatal BBS-load diagnostics are now available
@@ -279,16 +280,42 @@ with UTF-8-safe truncation and an IO_ERROR_NAME_TOO_LONG diagnostic retaining th
 original section name. Editing and deletion use the same shortened identity.
 No public native API was added.
 
-Evidence: link:../src/config/bbs_list/st_bbs_list.h[src/config/bbs_list/st_bbs_list.h:114]; link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:642]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:22].
+Evidence: link:../src/config/bbs_list/st_bbs_list.h[src/config/bbs_list/st_bbs_list.h:114]; link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:643]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:22].
 
 [[finding-bbs-provenance]]
-=== BBS entries lose detailed source provenance
+=== BBS entry provenance (resolved)
 
-+bbs.provenance+ (partial; menu). Wren: DirectoryEntry.type / profile.source.
++bbs.provenance+ (covered; menu; resolved). Wren: DirectoryEntry.source,
+DirectoryEntry.sourceName and DirectoryEntry.shadowed.
 
-Entry source information still collapses PERSONAL/SHARED/WEB_SYSTEM/WEB_NAMED to personal versus system, and source_name is not exposed for entries. Scripts cannot identify which named list provided an entry or inspect shadowed provenance. BBSListSource enum values and diagnostic source names are now covered separately; entry provenance remains Partial and open.
+The original binding collapsed native list sources into a personal/system
+classification and omitted source names and hidden-entry inspection. Its former
+assessment also incorrectly named a Profile.source getter; none existed.
 
-Evidence: link:../src/config/bbs_list/st_bbs_list.h[src/config/bbs_list/st_bbs_list.h:28]; link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:295].
+source now preserves all four BBSListSource values. sourceName returns NFC text,
+null for an absent name, or MenuError preserving an actual conversion failure.
+Native names retain their meanings: personal null, shared path, "System List"
+or the configured named-web list. Native storage owns the names independently of
+list generations; Wren Strings and Profile wrappers are constructed on access.
+Invalid native name text is not eagerly validated when loading the model.
+
+shadowed returns a read-only DirectoryEntry view of a retained lower-priority
+record, or null. It exposes only records the native/working model actually
+retains. Read-only mutation rules and cache=null prevent new write/file authority;
+explicit copies and ordinary entry consumers retain existing rules. Hidden views
+have distinct validation from visible lookup, including grant-owner lookup.
+Unrelated edits preserve them; reload/replacement and promotion to visible make
+old handles stale without later revival. Native sort records already retain the
+same full source enum while ordering profiles. All four ledger rows are covered.
+
+The user approved removing DirectoryEntry's custom type getter without an alias.
+entry.type now inherits standard Wren Object.type and returns DirectoryEntry.
+Bundled callers use source/readOnly while preserving labels, prompts and actions.
+BBSListType and Session.entrySource retain the native profile's separate coarse
+classification. No Profile.source property, source-priority change, additional
+retention or generic filesystem authority is introduced.
+
+Evidence: link:../src/config/bbs_list/st_bbs_list.h[native source/shadow contract]; link:../src/scripting/wren_host/wren_bbs_model.c[owned records and view validation]; link:../src/scripting/wren_host/wren_bind_menu.c[provenance getters]; link:../src/scripting/wren_host/tests/bbs_provenance.wren[Wren ownership and lifetime regressions]; link:../src/scripting/wren_host/tests/st_wren_settings_menu_test.c[native text and reload-failure tests].
 
 [[finding-bbs-refresh-progress]]
 === Web-list refresh loses per-item progress and outcomes
@@ -471,7 +498,7 @@ Absent models return null; plaintext returns a plain snapshot. The shipped
 dialog hides Change Password for unsupported combinations, including AES-192.
 Users never need to parse or enter file headers.
 
-Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:3324]; link:../src/scripting/wren_host/tests/st_wren_settings_menu_test.c[src/scripting/wren_host/tests/st_wren_settings_menu_test.c:284].
+Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:3325]; link:../src/scripting/wren_host/tests/st_wren_settings_menu_test.c[src/scripting/wren_host/tests/st_wren_settings_menu_test.c:375].
 
 +settings.kdf-legacy+ (partial; menu; resolved by approved policy).
 Settings.kdfShift remains the effective numeric rewrite policy (8–20), with
@@ -481,14 +508,14 @@ approved this policy and rejected raw kdfSpec/nullable getters; actual loaded
 KDF values are available in the snapshot. Partial describes the representation,
 not an outstanding requirement to expose legacy text.
 
-Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:3427].
+Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:3428].
 
 +list.crypto+ remains partial and open: writer block size/parallelism use
 native defaults; generic encrypted INI streams need a separate scope decision.
 setEncryption result fidelity is now resolved through null/MenuError. This chunk does
 not close those subclaims or the shared finding topic.
 
-Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:3447].
+Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:3448].
 
 [[finding-model-mutation-results]]
 === Model operation results (resolved)
@@ -515,7 +542,7 @@ without repeating persistence. Previous live mappings and native skip rules are
 preserved. Compound Settings/collection failures retain existing partial effects,
 with no commit-state flags, rollback or transaction-result framework.
 
-Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:4646]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:253].
+Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:4673]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:253].
 
 +bbs.load-status+ (covered; menu) is resolved in chunk 5. Menu.load now returns
 null/MenuError with the actual portable failure from opening, sorting or model
@@ -531,7 +558,7 @@ retain compatibility aliases for the removed API.
 
 Evidence: link:../addons/modern_ui/scripts/modern_ui_model.wren[Modern UI model]; link:../addons/modern_ui/scripts/modern_ui.wren[Modern UI mutations]; link:../addons/modern_ui/tests/test_frontend.py[installed frontend regressions].
 
-Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:577]; link:../scripts/auto/menu/main_menu.wren[scripts/auto/menu/main_menu.wren:1177].
+Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:578]; link:../scripts/auto/menu/main_menu.wren[scripts/auto/menu/main_menu.wren:1177].
 
 The remaining subclaims are resolved in approved chunk 6:
 
@@ -587,8 +614,8 @@ The approved follow-up passed +wren_host+, +wren_menu_contract+,
 on native FreeBSD Clang Debug. The MinGW x86 and x86_64 application/DLL/launchers
 cross-built without compiler warnings; no Windows tests were executed. The
 inventory remains 80 public headers, 122 exclusions, 2,448 items, 157 assessments
-and 51 original topics. Thirty-eight topics and the separate documentation
-finding remain open.
+and 51 original topics. That chunk left thirty-eight topics and the separate
+documentation finding open; the later provenance resolution leaves thirty-seven.
 
 [[finding-sftp-entry-stat]]
 === SFTP listing stat fields (resolved)
@@ -646,7 +673,7 @@ Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_ho
 
 Catalog rows omit the native source URI and expected SHA-256. Downloads and verification remain host-owned, but scripts cannot inspect or display that provenance. Parsed theme ownership is separately represented by copyCloudTheme rather than missing because a pointer is absent.
 
-Evidence: link:../src/config/theme/st_theme.h[src/config/theme/st_theme.h:61]; link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:2594].
+Evidence: link:../src/config/theme/st_theme.h[src/config/theme/st_theme.h:61]; link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:2595].
 
 [[finding-tls-peer-information]]
 === Negotiated TLS and certificate metadata are unavailable
@@ -978,7 +1005,7 @@ Evidence: link:../src/base/crypto/st_kdf.h[src/base/crypto/st_kdf.h:29]; link:..
 
 No general random-byte operation, provider version query, or crypto-status taxonomy is exported. List workflow errors do not expose every provider result. Secret clearing remains native ownership, classified separately.
 
-Evidence: link:../src/base/crypto/st_crypto.h[src/base/crypto/st_crypto.h:35]; link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:1815].
+Evidence: link:../src/base/crypto/st_crypto.h[src/base/crypto/st_crypto.h:35]; link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:1816].
 
 [[finding-webget-service]]
 === General HTTP download requests

@@ -909,3 +909,88 @@ native ledger is unchanged. Coverage checker: 80 public headers, 122 exclusions,
 Thirty-eight topics plus the documentation finding remain open; retain this
 temporary record and skill. No Transfer getters, settings-editor controls or
 completion-window behavior were added.
+
+== Approved chunk 12: BBS entry provenance bindings (revision 1)
+
+Approval: the complete Plan-mode plan was approved with "Implement the plan."
+Implementation began in Default mode on 2026-11-04.
+Phase: chunk complete; the next chunk requires an actual Plan-mode phase.
+Finding: `bbs-provenance` / `bbs.provenance` (all four existing ledger rows).
+
+=== Approved contract and decisions
+
+Add menu-only, read-only DirectoryEntry.source (BBSListSource), sourceName
+(NFC String/null/MenuError) and shadowed (read-only DirectoryEntry/null).
+Expose only records retained by the native/working model, preserving native
+precedence and merging. Source names retain C meanings: null for personal,
+shared path, "System List" for system web, configured name for named web.
+Remove DirectoryEntry.type without an alias. The user explicitly chose this
+after confirming that native profiles also have a separate personal/system
+classification; retain BBSListType and Session.entrySource for that contract.
+
+The user chose model-owned directory views rather than detached snapshots and
+the existing DirectoryEntry shape for hidden entries. Keep native source-name
+storage independent of borrowed list generations; construct Wren strings and
+Profile wrappers only on access. Hidden entries/profile views are read-only;
+setters abort, rename/save/delete return read-only MenuError, and cache is null.
+Explicit Menu.copy/profile.copy and other entry consumers retain existing rules.
+Hidden view validation must not admit hidden records through visible lookup or
+revive old handles when records are restored. Preserve unrelated-edit stability,
+failed-load retention, successful-load invalidation and detached copy lifetime.
+
+sourceName validates/normalizes only when accessed and returns MenuError for
+actual conversion failure, as explicitly selected. No eager text validation on
+load. Preserve stale-handle aborts. Migrate bundled callers/fixtures from type
+to source/readOnly without changing labels, actions or copy/paste prompts.
+
+Acceptance: four sources and names; visible/hidden profiles; native retention
+limits; working overrides, save/rename/delete restoration; read-only/cache/copy
+rules; removed type; VM isolation/session classification; sort/unrelated edits;
+native rebuilding; successful/failed reload; GC/teardown and stale non-revival;
+NFC, malformed text and exact conversion errors. Add focused regressions first.
+
+Verify CMake application/host and BBS list/failure/web tests, Wren host/menu/
+settings/picker, affected menu/profile/settings UI fixtures, all five Modern UI
+frontend cases, focused ASan/UBSan ownership tests, GCC build/menu checks and
+MinGW x86/x86_64 application/host cross-builds (no Windows execution/Wine).
+Update API docs, all assessment subclaims, report/matrix and reviewed evidence,
+correct the nonexistent Profile.source mapping, append a follow-up and run
+coverage/diff checks. Commit the complete change without pushing.
+
+=== Completed verification
+
+The new regression first failed at the missing DirectoryEntry.source getter.
+The final fixture checks all four source kinds/native name meanings, retained
+first-shadow limits and working nested chains, read-only mutation/cache rules,
+explicit entry/profile copies, ordinary profile selection, sort/unrelated edits,
+native-list rebuilding, save/delete/rename restoration and stale non-revival.
+Captured Strings and editable detached profiles survive replacement; hidden
+views remain model-owned through GC and teardown. Removing the custom type
+getter restores standard Wren Object.type, verified to return DirectoryEntry.
+
+Actual decomposed and malformed native source-name bytes verify NFC conversion
+without changing native storage and MenuError with exact invalidEncoding status.
+Injected conversion allocation failure returns MenuError without changing the
+model. Open/sort/model-build failures preserve the existing views; loading under
+the conversion-failure control still succeeds, proving conversion is on access.
+Successful replacement makes the old visible/hidden/profile views stale.
+
+Native FreeBSD Clang Debug: configured and built application and focused targets;
+all 16 planned CTests passed, including BBS list/failure/web, Wren host/menu/
+settings/picker, four affected behavior fixtures and five Modern UI frontend
+cases. Existing headless fixtures clear inherited desktop state and disable
+physical audio. GCC Debug and Clang ASan/UBSan application/host/settings/picker
+builds passed their four focused Wren tests. FreeBSD leak detection is unsupported
+and disabled; the existing C-owned executable C++ vptr exclusion is unchanged.
+MinGW x86/x86_64 application/DLL/launchers and host/settings test targets
+cross-built; no Windows execution or Wine. No compiler diagnostics were
+introduced; GNUmake emitted transient generated dependency-file clock-skew
+notices.
+
+API docs, all four assessment rows and distinct source-classification descriptions,
+report/matrix, reviewed evidence and follow-up record are reconciled. The public
+native ledger is unchanged: 80 public headers, 122 exclusions, 2,448 native items,
+157 assessments and 51 original topics. Coverage and diff checks pass.
+Thirty-seven topics and the separate documentation finding remain open. Retain
+this temporary record and skill. UI labels/prompts/actions, native precedence,
+retention and file-authority rules are preserved.

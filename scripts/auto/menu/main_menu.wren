@@ -314,7 +314,7 @@ class MainMenuApp {
     _entries = []
     _selected = null
     _clipboard = null
-    _clipboardType = null
+    _clipboardSource = null
     _confirmingExit = false
     _commentReturn = null
     _restoreScrollTop = view == null ? null : view[2]
@@ -800,7 +800,7 @@ class MainMenuApp {
     }
     if (!mutable_("edit")) return
     var bbs = _selected
-    if (bbs.type != 0) {
+    if (bbs.readOnly) {
       if (!Confirm.show(_app, "Copy from system directory?",
           systemCopyHelp_())) return
       var name = bbs.name
@@ -821,7 +821,7 @@ class MainMenuApp {
   finishComment_(value, destination) {
     var bbs = _selected
     if (bbs != null && value != bbs.profile.comment) {
-      if (bbs.type != 0) {
+      if (bbs.readOnly) {
         if (Confirm.show(_app, "Copy from system directory?",
             systemCopyHelp_())) {
           bbs = Menu.copy(bbs, bbs.name)
@@ -927,7 +927,7 @@ class MainMenuApp {
       return
     }
     if (!mutable_("remove")) return
-    if (_selected.type != 0) {
+    if (_selected.readOnly) {
       Alert.show(_app, "Delete Entry",
           "Cannot delete system list entries", systemDeleteHelp_())
       return
@@ -947,7 +947,7 @@ class MainMenuApp {
     if (_selected == null) return
     if (!mutable_("edit")) return
     _clipboard = BbsEditor.draft_(_selected)
-    _clipboardType = _selected.type
+    _clipboardSource = _selected.source
     _directory.keyHints = directoryHints_()
   }
 
@@ -956,7 +956,7 @@ class MainMenuApp {
     if (!mutable_("edit")) return
     var preferred = _selected == null ? null : _selected.name
     var name = _clipboard["name"]
-    if (_clipboardType == 0) {
+    if (_clipboardSource == BBSListSource.personal) {
       while (true) {
         name = MenuUi.prompt(_app, "Paste Entry",
             "New personal entry name", name, 30, false, entryNameHelp_())
@@ -982,7 +982,7 @@ class MainMenuApp {
     } else {
       name = editEntry_(bbs, false)
       _clipboard = null
-      _clipboardType = null
+      _clipboardSource = null
       _directory.keyHints = directoryHints_()
     }
     refresh_(name)

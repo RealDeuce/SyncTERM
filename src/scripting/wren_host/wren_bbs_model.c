@@ -9,6 +9,7 @@
 
 #include "io_error.h"
 #include "st_unicode_compare.h"
+#include "string_compat.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -30,6 +31,7 @@ free_record(struct st_wren_bbs_record *record)
 	free_record(record->shadowed);
 	st_profile_dispose(&record->profile);
 	free(record->name_key);
+	free(record->source_name);
 	free(record);
 }
 
@@ -107,6 +109,7 @@ st_wren_bbs_model_dispose(struct st_wren_bbs_model *model)
 	free(model->entries);
 	st_profile_dispose(&model->defaults.profile);
 	free(model->defaults.name_key);
+	free(model->defaults.source_name);
 	memset(model, 0, sizeof(*model));
 }
 
@@ -126,6 +129,13 @@ copy_record(const struct st_profile *profile, enum st_bbs_source source,
 	}
 	record->source_entry = entry;
 	record->source = source;
+	if (entry != NULL && entry->source_name != NULL) {
+		record->source_name = strdup(entry->source_name);
+		if (record->source_name == NULL) {
+			free_record(record);
+			return NULL;
+		}
+	}
 	(void)snprintf(record->persisted_name, sizeof(record->persisted_name),
 	    "%s", profile->name);
 	return record;
@@ -267,7 +277,20 @@ st_wren_bbs_model_valid(const struct st_wren_bbs_model *model,
 	if (model == NULL || record == NULL || !model->loaded) return false;
 	if (kind == ST_WREN_BBS_DEFAULTS)
 		return generation == model->generation && record == &model->defaults;
-	return st_wren_bbs_model_find(model, generation, identity) == record;
+	if (kind == ST_WREN_BBS_MODEL_ENTRY)
+		return st_wren_bbs_model_find(model, generation, identity) == record;
+	if (kind != ST_WREN_BBS_SHADOWED_ENTRY || generation != model->generation)
+		return false;
+	/* Visible lookup stays exclusive to visible entries, including grant owners.
+	 * Never dereference a foreign view's pointer until identity is validated. */
+	for (size_t i = 0; i < model->count; ++i) {
+		for (struct st_wren_bbs_record *hidden = model->entries[i]->shadowed;
+		    hidden != NULL; hidden = hidden->shadowed) {
+			if (hidden->identity == identity && hidden == record)
+				return true;
+		}
+	}
+	return false;
 }
 
 bool
