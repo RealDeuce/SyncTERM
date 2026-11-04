@@ -435,8 +435,8 @@ def picker(executable, reports):
         source = '''
 import "syncterm" for Host, Screen, FilePickerOptions, PixelBuffer, PixelColor
 var original = Screen.window.position
-Screen.window.position = [8, 5]
-Screen.window.print("PICKER-MARKER")
+Screen.checked_(Screen.window.setPosition([8, 5]))
+Screen.checked_(Screen.window.print("PICKER-MARKER"))
 var file = Host.pickFile(PATH, "alpha.txt", 1, "Read fixture")
 if (file == null || !file.path.endsWith("alpha.txt")) Fiber.abort("selected path")
 file.open()

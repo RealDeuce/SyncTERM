@@ -37,9 +37,9 @@ if (SFTP.available || Session.current.profile.connType == ConnType.ssh || Sessio
       browserOpening = false
       if (SftpApp.current != null) return
       if (ready is SFTPError) {
-        Screen.modalRun(Fn.new {
+        Screen.checked_(Screen.modalRun(Fn.new {
           Alert.runStandalone(App.new(), "SFTP", ready.toString)
-        })
+        }))
       } else {
         SftpApp.new("browser").run()
       }

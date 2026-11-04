@@ -64,7 +64,7 @@ write_startup_probe(const char *path)
 			return -1;
 		status = fputs(script->source, stream);
 		if (status >= 0)
-			status = fputs("\nScreen.window.position = [1, 1]\n"
+			status = fputs("\nScreen.window.setPosition([1, 1])\n"
 			    "Screen.window.print(\"S\")\n", stream);
 		if (fclose(stream) != 0)
 			return -1;
@@ -173,7 +173,7 @@ main(void)
 	CHECK(st_wren_context_from_vm(host->picker_vm) == &host->picker);
 	CHECK(wrenInterpret(host->picker_vm, "picker_context_probe",
 	    "import \"syncterm\" for Screen, ScreenFonts, Input\n"
-	    "Screen.window.position = [1, 1]\n"
+	    "Screen.window.setPosition([1, 1])\n"
 	    "Screen.window.print(\"P\")\n"
 	    "ScreenFonts[1] = 3\n"
 	    "Input.mouseEvents = 1\n") == WREN_RESULT_SUCCESS);
@@ -193,7 +193,7 @@ main(void)
 	CHECK(st_console_display_activate(display, picker_console) == 0);
 	CHECK(wrenInterpret(host->vm, "menu_context_probe",
 	    "import \"syncterm\" for Screen, ScreenFonts, Input\n"
-	    "Screen.window.position = [1, 1]\n"
+	    "Screen.window.setPosition([1, 1])\n"
 	    "Screen.window.print(\"M\")\n"
 	    "ScreenFonts[1] = 4\n"
 	    "Input.mouseEvents = 2\n") == WREN_RESULT_SUCCESS);

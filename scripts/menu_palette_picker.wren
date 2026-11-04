@@ -1,3 +1,4 @@
+import "syncterm" for Screen
 // Palette-entry colour picker used by the dialing-directory editor.
 // The sixteen-position contrast preview belongs here rather than in the
 // generic ui_color_picker module.
@@ -48,7 +49,7 @@ class PaletteContrastPreview is Widget {
   sampleStyle_(foreground, background) {
     var base = style("default")
     return Style.new(base.font,
-        Color.toLegacyAttr(foreground, background),
+        Screen.checked_(Color.toLegacyAttr(foreground, background)),
         foreground, background)
   }
 

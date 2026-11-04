@@ -1110,7 +1110,7 @@ finished:
 	}
 	closed = closed || host->exit_requested;
 	restore_status = st_console_snapshot_restore(host->config.console,
-	    snapshot);
+	    snapshot, NULL);
 	st_console_snapshot_destroy(snapshot);
 	if (status == 0)
 		status = restore_status;
@@ -1202,7 +1202,7 @@ st_wren_host_status(st_wren_host_t *host, const char *title, const char *message
 	if (message == NULL) {
 		if (host->status_snapshot == NULL) return 0;
 		menu_status_clear(host);
-		int status = st_console_snapshot_restore(host->config.console, host->status_snapshot);
+		int status = st_console_snapshot_restore(host->config.console, host->status_snapshot, NULL);
 		st_console_snapshot_destroy(host->status_snapshot);
 		host->status_snapshot = NULL;
 		return status;
@@ -1610,7 +1610,7 @@ show_web_progress(const struct st_bbs_web_refresh_item *items, size_t count,
 	if (!menu_status(ui->host, "Web Cache Update", ui->lines, count)) {
 		menu_status_clear(ui->host);
 		(void)st_console_snapshot_restore(ui->host->config.console,
-		    ui->snapshot);
+		    ui->snapshot, NULL);
 		st_console_snapshot_destroy(ui->snapshot);
 		ui->snapshot = NULL;
 		ui->visible = false;
@@ -1634,7 +1634,7 @@ st_wren_host_refresh_web_lists(st_wren_host_t *public_host)
 	if (ui.visible)
 		menu_status_clear(host);
 	if (ui.snapshot != NULL) {
-		(void)st_console_snapshot_restore(host->config.console, ui.snapshot);
+		(void)st_console_snapshot_restore(host->config.console, ui.snapshot, NULL);
 		st_console_snapshot_destroy(ui.snapshot);
 	}
 	free(ui.lines);

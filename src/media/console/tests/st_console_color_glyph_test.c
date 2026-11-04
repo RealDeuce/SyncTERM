@@ -164,7 +164,7 @@ check_pixels(bool rll)
 	CHECK(st_console_set_pixel(console, 8, 0, cell.foreground) == 0);
 	CHECK(st_console_snapshot_create(&snapshot, console) == 0);
 	CHECK(st_console_set_color_emoji(console, false) == 0);
-	CHECK(st_console_snapshot_restore(console, snapshot) == 0);
+	CHECK(st_console_snapshot_restore(console, snapshot, NULL) == 0);
 	CHECK(st_console_get_color_emoji(console, &enabled) == 0 && !enabled);
 	p = pixels(console);
 	CHECK(p->primary[0] == cell.foreground && p->primary[1] == 42);

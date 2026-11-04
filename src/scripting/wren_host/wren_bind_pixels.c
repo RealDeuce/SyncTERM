@@ -307,13 +307,13 @@ fn_pixel_colour_to_rgb(WrenVM *vm)
 {
 	uint32_t colour;
 	uint32_t rgb;
-
 	if (!slot_colour(vm, 1, &colour))
 		return;
-	if (colour_to_rgb(vm, colour, &rgb))
+	if (ST_PIXEL_COLOR_IS_RGB(colour))
+		wrenSetSlotDouble(vm, 0, (double)(colour & UINT32_C(0x00ffffff)));
+	else if (st_wren_screen_status(vm, st_console_get_palette(st_wren_context_from_vm(vm)->console,
+	    (uint16_t)colour, &rgb, 1), "PixelColor.toRgb"))
 		wrenSetSlotDouble(vm, 0, (double)rgb);
-	else
-		wrenSetSlotNull(vm, 0);
 }
 
 static void
@@ -1227,10 +1227,10 @@ static bool
 screen_pixels_supported(WrenVM *vm)
 {
 	uint32_t capabilities;
-
-	return st_console_capabilities(st_wren_context_from_vm(vm)->console,
-	    &capabilities) == 0
-	    && (capabilities & ST_CONSOLE_CAP_PIXELS) != 0;
+	if (!st_wren_screen_status(vm, st_console_capabilities(st_wren_context_from_vm(vm)->console,
+	    &capabilities), "Screen pixel capabilities")) return false;
+	return st_wren_screen_status(vm, (capabilities & ST_CONSOLE_CAP_PIXELS) != 0 ? 0 : IO_ERROR_NOT_SUPPORTED,
+	    "Screen pixel capability");
 }
 
 static void
@@ -1251,9 +1251,8 @@ fn_screen_pixel_size(WrenVM *vm)
 	uint32_t height;
 
 	if (!screen_pixels_supported(vm)
-	    || st_console_pixel_size(st_wren_context_from_vm(vm)->console,
-	    &width, &height) != 0) {
-		wrenSetSlotNull(vm, 0);
+	    || !st_wren_screen_status(vm, st_console_pixel_size(st_wren_context_from_vm(vm)->console,
+	    &width, &height), "Screen.pixelSize")) {
 		return;
 	}
 	set_size_result(vm, width, height);
@@ -1266,9 +1265,8 @@ fn_screen_cell_pixel_size(WrenVM *vm)
 	uint32_t height;
 
 	if (!screen_pixels_supported(vm)
-	    || st_console_cell_pixel_size(st_wren_context_from_vm(vm)->console,
-	    &width, &height) != 0) {
-		wrenSetSlotNull(vm, 0);
+	    || !st_wren_screen_status(vm, st_console_cell_pixel_size(st_wren_context_from_vm(vm)->console,
+	    &width, &height), "Screen.cellPixelSize")) {
 		return;
 	}
 	set_size_result(vm, width, height);
@@ -1299,9 +1297,8 @@ fn_screen_read_pixels(WrenVM *vm)
 	    "Screen.readPixels: force must be Bool"))
 		return;
 	if (!screen_pixels_supported(vm)
-	    || st_console_get_pixels(&pixels,
-	    st_wren_context_from_vm(vm)->console, &source, force) != 0) {
-		wrenSetSlotNull(vm, 0);
+	    || !st_wren_screen_status(vm, st_console_get_pixels(&pixels,
+	    st_wren_context_from_vm(vm)->console, &source, force), "Screen.readPixels")) {
 		return;
 	}
 	(void)return_pixel_buffer(vm, pixels);
@@ -1320,9 +1317,9 @@ fn_screen_set_pixel(WrenVM *vm)
 	    "Screen.setPixel: y must be a non-negative integer")
 	    || !slot_colour(vm, 3, &colour))
 		return;
-	wrenSetSlotBool(vm, 0, screen_pixels_supported(vm)
-	    && st_console_set_pixel(st_wren_context_from_vm(vm)->console,
-	    x, y, colour) == 0);
+	if (screen_pixels_supported(vm))
+		st_wren_screen_result(vm, st_console_set_pixel(st_wren_context_from_vm(vm)->console,
+	    x, y, colour), "Screen.setPixel");
 }
 
 static void
@@ -1354,7 +1351,7 @@ fn_screen_blit_pixels(WrenVM *vm)
 	blit = descriptor->blit;
 	if (blit.source_x > source->pixels->width
 	    || blit.source_y > source->pixels->height) {
-		wrenSetSlotBool(vm, 0, false);
+		(void)st_wren_screen_status(vm, IO_ERROR_OUT_OF_RANGE, "Screen.blitPixels source/mask region");
 		return;
 	}
 	if (blit.width == 0)
@@ -1368,12 +1365,12 @@ fn_screen_blit_pixels(WrenVM *vm)
 	    || blit.mask_y >= mask->mask->height
 	    || blit.width > mask->mask->width - blit.mask_x
 	    || blit.height > mask->mask->height - blit.mask_y))) {
-		wrenSetSlotBool(vm, 0, false);
+		(void)st_wren_screen_status(vm, IO_ERROR_OUT_OF_RANGE, "Screen.blitPixels source/mask region");
 		return;
 	}
-	wrenSetSlotBool(vm, 0, screen_pixels_supported(vm)
-	    && st_console_blit_pixels(st_wren_context_from_vm(vm)->console,
-	    source->pixels, mask == NULL ? NULL : mask->mask, &blit) == 0);
+	if (screen_pixels_supported(vm))
+		st_wren_screen_result(vm, st_console_blit_pixels(st_wren_context_from_vm(vm)->console,
+	    source->pixels, mask == NULL ? NULL : mask->mask, &blit), "Screen.blitPixels");
 }
 
 #define BIND(class_name_, static_, signature_, method_) \

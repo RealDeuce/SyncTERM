@@ -451,6 +451,8 @@ enum st_wren_font_error {
 	ST_WREN_FONT_NATIVE_FAILURE,
 };
 /* message must have static storage duration; the Error retains it. */
+bool st_wren_screen_status(WrenVM *vm, int status, const char *operation);
+void st_wren_screen_result(WrenVM *vm, int status, const char *operation);
 void st_wren_push_font_error(WrenVM *vm, enum st_wren_font_error code,
 	int native_code, const char *message);
 void st_wren_push_file_error(WrenVM *vm, int code, int native_error,

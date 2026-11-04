@@ -47,7 +47,7 @@ class TransferApp is App {
     return super.dispatchKey_(event)
   }
   build_() {
-    var size = Screen.size
+    var size = Screen.checked_(Screen.size)
     var pane = Pane.new()
     pane.title = _label
     pane.bounds = Pane.modalBounds(66.min(size[0]), 18.min(size[1]))
@@ -109,9 +109,9 @@ class TransferApp is App {
     }
   }
   run() {
-    Screen.modalRun(Fn.new {
+    Screen.checked_(Screen.modalRun(Fn.new {
       build_()
       super.run()
-    })
+    }))
   }
 }

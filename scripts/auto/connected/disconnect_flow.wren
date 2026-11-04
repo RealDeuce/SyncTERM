@@ -8,12 +8,12 @@ import "ui_popup" for Confirm
 class DisconnectFlow {
   static run(exitApp) {
     Fiber.new {
-      Screen.modalRun(Fn.new {
+      Screen.checked_(Screen.modalRun(Fn.new {
         var app = App.new()
         var message = "Disconnect... Are you sure?\n\n" +
                       "Selecting Yes closes the connection."
         if (Confirm.runStandalone(app, message)) Conn.endSession(exitApp)
-      })
+      }))
     }.call()
   }
 }

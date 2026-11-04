@@ -2181,7 +2181,8 @@ having these methods at all.
 type the API hands back: <<sftperror,`SFTPError`>>,
 <<fileerror,`FileError`>>, <<wonerror,`WONError`>>,
 <<connerror,`ConnError`>>, <<transfer-error,`TransferError`>>,
-<<cterm-error,`CTermError`>>, <<font-error,`FontError`>>, menu-only
+<<cterm-error,`CTermError`>>, <<screen-error,`ScreenError`>>,
+<<font-error,`FontError`>>, menu-only
 <<menu-errors,`MenuError`>>, plus any user-defined
 <<scripterror,`ScriptError`>> subclass.  Lets a script catch any of
 them with one check:
@@ -2255,6 +2256,11 @@ the runtime class name (`"ConfigError(42): missing required field
 
 === Screen [[screen]]
 
+Drawing/state queries return their documented successful value or a
+<<screen-error,`ScreenError`>>. Drawing/state actions return `null` on success
+or `ScreenError`; test for `Error` before using a returned value. These operations
+are available in the menu, picker and connected VMs, each using its own console.
+
 Read/write access to the terminal display surface.  `Screen` itself
 exposes whole-screen and absolute-coordinate operations; per-window
 operations live under `Screen.window`.
@@ -2306,7 +2312,7 @@ sends something.
 
 | `Screen.readRect(sx, sy, ex, ey)`
 | Read a rectangle of cells (1-based, inclusive).  Returns a
-  <<surface,`Surface`>> sized `(ex-sx+1) × (ey-sy+1)`, or `null` on
+  <<surface,`Surface`>> sized `(ex-sx+1) × (ey-sy+1)`, or `ScreenError` on
   invalid integral coordinates, capture failure, or backing-storage OOM.
   Arguments of the wrong type, fractional values, NaN, and infinity are
   programmer errors and abort the calling fiber.
@@ -2323,11 +2329,11 @@ sends something.
   See <<pixel-screen,Pixel screen operations>> for error and cleanup behavior.
 
 | `Screen.pixelSize`
-| Internal raster size as `[width, height]`, or `null` when the current
-  backend has no pixel surface.
+| Internal raster size as `[width, height]`, or `ScreenError`; an unsupported
+  pixel surface has code `IOErr.notSupported`.
 
 | `Screen.cellPixelSize`
-| Character-cell size as `[width, height]` pixels, or `null` when it is
+| Character-cell size as `[width, height]` pixels, or `ScreenError` when it is
   unavailable.
 
 | `Screen.readPixels(x, y, width, height)`,
@@ -2345,10 +2351,10 @@ sends something.
   <<pixelblit,`PixelBlit`>>, optionally through a
   <<pixelmask,`PixelMask`>>.
 
-| `Screen.attr`, `Screen.attr=(a)`
+| `Screen.attr`, `Screen.setAttr(a)`
 | Read or set the active text attribute byte.
 
-| `Screen.hyperlinkId`, `Screen.hyperlinkId=(id)`
+| `Screen.hyperlinkId`, `Screen.setHyperlinkId(id)`
 | Hyperlink ID attached to subsequent window writes.  `0` clears.
   Allocate IDs through <<hyperlinks,`Hyperlinks.add`>>.
 |===
@@ -2358,10 +2364,48 @@ sends something.
 that return the helper class so the script can call its static
 members.
 
+==== ScreenError [[screen-error]]
+
+Immutable `ScreenError is Error` values expose `code`, `message` and `toString`,
+with no public constructor or setters. `code` preserves the actual portable
+native result, including unrecognized integers. Existing binding-owned rejected
+regions, unavailable pixel capabilities and capture-storage allocation failures
+use `IOErr.outOfRange`, `IOErr.notSupported` and `IOErr.outOfMemory` respectively;
+these are binding diagnoses rather than fabricated native results. The owned
+message identifies the failed operation/check. Errors hold no console, session,
+input or borrowed native resources and remain valid across later calls and GC.
+
+Native operations may change logical state before presentation fails. A returned
+error therefore does not imply rollback or permit automatic replay. Success
+reports native acceptance, not completion of a later asynchronous presentation.
+Restoring a
+screen snapshot synchronizes its saved Wren font slots whenever native state was
+applied, including a later presentation failure. Rejected restores leave them
+unchanged. Snapshots retain their existing owner, geometry and lifetime limits.
+
+`Screen.update`, `Screen.modalRun`, `CustomCursor.preserve` and
+`VideoFlags.preserve` return acquisition/cleanup `ScreenError` values. Failed
+acquisition does not run the callback. Required cleanup is attempted after entry;
+a callback's returned Error takes precedence over cleanup failure, and callback
+aborts propagate unchanged. Otherwise cleanup failure replaces the normal callback
+result. Update callbacks still cannot yield; modal/preserve callbacks retain their
+existing cooperative-yield, Operation and shutdown cleanup behavior. Finalizers
+remain native cleanup boundaries and cannot return errors to an absent caller.
+
+Live setters were replaced with explicit methods without aliases. Local staged
+cursor/flag setters and local offscreen-object APIs are unchanged. The bundled UI
+checks drawing results, propagates unhandled errors through its existing fiber
+handling and attempts independent restoration. Unsupported decorative title and
+pointer operations are skipped; URL-open failure still falls back to copying,
+with success announced only after copying succeeds. No clipboard protocol or VM
+authority changed.
+
 ==== Screen.supports
 
-Read-only Boolean capability flags reflecting what the current
-display backend (SDL, X11, Win32, etc.) can do.  Scripts that adapt
+Read-only capability flags (Bool or `ScreenError`) reflecting what the current
+display backend (SDL, X11, Win32, etc.) can do. Unsupported capabilities return
+`false`; failure to acquire the native capability state returns `ScreenError`.
+Scripts that adapt
 their output to the backend should branch on these.
 
 [options="header",cols="2,3"]
@@ -2400,18 +2444,19 @@ Operations scoped to the active text window.  Cursor position,
 character output, line edits, and clearing all act inside the
 window's rectangle.  Coordinates are window-relative (1, 1 is the
 top-left of the window, not the screen).  Invalid bounds, out-of-window
-positions, invalid character values, and failed console operations abort the
-calling fiber rather than leaving partially changed state.
+positions and invalid character values remain programmer errors. Native console
+failures return `ScreenError`; an error can follow partial drawing or a committed
+state change and does not promise rollback.
 
 [options="header",cols="2,3"]
 |===
 | Member | Description
 
-| `Screen.window.bounds`, `bounds=(box)`
+| `Screen.window.bounds`, `setBounds(box)`
 | `[sx, sy, ex, ey]` of the active window (screen-absolute, 1-based,
   inclusive).
 
-| `Screen.window.position`, `position=(coord)`
+| `Screen.window.position`, `setPosition(coord)`
 | `[x, y]` cursor position, window-relative.
 
 | `Screen.window.putChar(c)`
@@ -2451,11 +2496,11 @@ Later flag or slot changes do not reinterpret existing cells, and
 
 24-bit-RGB palette as 0xRRGGBB integers.
 
-`Screen.palette[i]` and `Screen.palette[i]=(c)` cover the full
-palette range.
+`Screen.palette[i]` reads an RGB value or returns `ScreenError`.
+`Screen.palette.set(i, c)` writes an entry and returns `null` or `ScreenError`.
+Both retain the existing script index range, 0 through 255.
 
-The first 16 entries are the legacy-attribute palette. Read or write each
-entry through the same indexed API.
+The first 16 entries are the legacy-attribute palette. Read each entry through the indexed API and write it through `set`.
 
 NOTE: `term.c`, `cterm.c`, and `ripper.c` all do their own palette
 manipulations.  Concurrent edits from a script and from the terminal
@@ -2467,9 +2512,9 @@ Cursor geometry: scanline range, blink rate, visibility.
 
 The class supports two usage modes:
 
-* *Static* (live state): every static property reads or writes the
-  cursor immediately.  `Screen.cursor.blink = false` hides the blink
-  on the next refresh.  Each setter under the hood does a full
+* *Static* (live state): static getters read the cursor and explicit static methods update it
+  immediately. `Screen.cursor.setBlink(false)` hides the blink
+  on the next refresh.  Each live setter method under the hood does a full
   read-modify-write of the renderer's cursor state — so a single
   static write IS atomic for that one field, but a chain of static
   writes is NOT atomic across fields.  The renderer can paint
@@ -2487,8 +2532,12 @@ runs `fn` in a scoped child fiber, then re-applies the snapshot. It returns
 calls, cooperative yields, Operation awaits, and VM shutdown have the same
 cleanup semantics as `Screen.modalRun`.
 
-Properties (both static and instance): `startLine`, `endLine`,
-`range`, `blink`, `visible`.
+Static getters and instance properties: `startLine`, `endLine`, `range`,
+`blink`, `visible`. Live writes use `setStartLine(n)`, `setEndLine(n)`,
+`setRange(n)`, `setBlink(b)` and `setVisible(b)`, returning `null` or
+`ScreenError`. Instance setters edit only the local snapshot; `apply()` returns
+`null` or `ScreenError`. `new()`, `current` and the preset getters return a
+snapshot or `ScreenError`, with no fabricated defaults after a failed read.
 
 Pre-defined snapshots:
 
@@ -2511,7 +2560,12 @@ Pre-defined snapshots:
 Boolean video-output flags, with the same static-vs-instance pattern
 as `CustomCursor` — including the chained-static-writes
 non-atomicity caveat and the `VideoFlags.preserve(fn)` snapshot
-helper.
+helper. Static reads return Bool or `ScreenError`; static writes use
+`setAltChars(b)`, `setNoBright(b)`, `setBgBright(b)`, `setBlinkAltChars(b)`,
+`setNoBlink(b)` and `setLineGraphicsExpand(b)`, returning `null` or
+`ScreenError`. `new()` and `current` return a snapshot or `ScreenError`;
+instance setters remain local and `apply()` returns `null` or `ScreenError`.
+`expand` remains read-only.
 
 [options="header",cols="2,3"]
 |===
@@ -2561,12 +2615,14 @@ writing into a `Cell` field via `fgRgb=` / `bgRgb=`.
 | `Color.fromAttr(attr)`
 | Decode an attribute byte into `[fg, bg]` 24-bit RGB through the active
   sixteen-colour palette and current bright/background video-flag policy.
+  Returns `ScreenError` if native colour state cannot be read.
 
 | `Color.toLegacyAttr(fg, bg)`
 | Map 24-bit RGB foreground and background colours to the nearest legacy
   text attribute byte in that same active palette.  Matching uses YCoCg
   distance; bright foreground or background candidates are included only
   when the current video flags give those attribute bits a colour meaning.
+  Returns `ScreenError` if native colour state cannot be read.
 |===
 
 === Pixel graphics [[pixel-graphics]]
@@ -2783,12 +2839,13 @@ inspect the composed raster inside the batch without presenting it.
 `Screen.readPixels(x, y, width, height)` captures a positive-sized rectangle
 and returns a new `PixelBuffer`.  Passing `force=true` first requests a full
 refresh from text vmem before capture; use the default `false` when capturing
-pixel changes that have already been drawn.  Capture returns `null` for an
-unsupported backend, an out-of-screen rectangle, or allocation failure.
+pixel changes that have already been drawn.  Capture returns `ScreenError` for an unsupported backend
+(`IOErr.notSupported`), an out-of-screen rectangle (`IOErr.outOfRange`), or
+allocation failure (`IOErr.outOfMemory`).
 
-`Screen.setPixel(x, y, color)` and both `Screen.blitPixels` overloads return a
-Bool.  A blit validates the source and optional mask regions, clips the scaled
-destination to the screen, and returns `true` without drawing when the entire
+`Screen.setPixel(x, y, color)` and both `Screen.blitPixels` overloads return
+`null` on success or `ScreenError`.  A blit validates the source and optional mask regions, clips the scaled
+destination to the screen, and returns `null` without drawing when the entire
 destination is off-screen.  Scaling is nearest-neighbour and independent in
 X and Y.  If the source has no alternate plane, its primary pixels are used
 for both destination blink phases.  Masks are the transparency mechanism;
@@ -2818,8 +2875,8 @@ if (sprite != null && Screen.supports.pixels) {
 Invalid argument types, fractional or out-of-range integers, invalid native
 colours, malformed packed lengths, and invalid descriptor fields abort the
 calling fiber.  Constructors also abort on allocation failure because Wren
-foreign constructors cannot return `null`; factories, decoders, capture, and
-clone return `null` for recoverable allocation or decoding failure.
+foreign constructors cannot return `null`; offscreen factories, decoders and clone return `null` for recoverable
+allocation or decoding failure. Screen capture returns `ScreenError`.
 The alternate-plane mutators leave the buffer unchanged and abort the calling
 fiber if the plane's first allocation fails.
 
@@ -2864,8 +2921,8 @@ Unified blocking and nonblocking reader for keyboard and mouse events.
   inverts that default for the drag, so Alt+Drag selects a block in line mode
   or lines in rectangular mode.  Changing Alt after the press has no effect.
 
-| `Input.mouseVisible=(b)`
-| Show or hide the mouse cursor.  Setter only — there is no ciolib
+| `Input.setMouseVisible(b)`
+| Show or hide the mouse cursor; return `null` or `ScreenError`. There is no ciolib
   query for visibility, and tracking it from Wren would drift if
   other code shows or hides the cursor.
 
@@ -3154,10 +3211,11 @@ mask they intend; Caps Lock and Num Lock may be ignored for shortcuts.
 | Member | Description
 
 | `Clipboard.text`
-| Read the system clipboard as a string.
+| Read the system clipboard as an NFC string, or return `ScreenError`. An
+  empty clipboard is an empty String, not an error.
 
-| `Clipboard.text=(s)`
-| Write a string to the system clipboard.
+| `Clipboard.setText(s)`
+| Write a string to the system clipboard; return `null` or `ScreenError`.
 |===
 
 === Codepage [[codepage]]
@@ -4095,7 +4153,9 @@ the video flags which enable source-bright/blink font selection.
 
 The method returns `null` on success or `FontError` on an operational failure.
 An indexed write raises that same `FontError` through ordinary Fiber abort,
-because assignment syntax discards a setter's return value. Catch it with a
+so failed assignment statements cannot silently discard a returned error.
+Assignment expressions can capture setter results in standard Wren; this
+particular indexed setter deliberately aborts on failure. Catch it with a
 Fiber's `.try()` when recovery is needed. The terminal assignment interface is
 connected-VM-only. The old `CTerm.altFont` and detached `CTerm.altFonts` List
 are removed without aliases. The shipped picker still changes only the normal
@@ -4400,7 +4460,8 @@ available in a connected VM.
 | Menu.prepareOfflineScrollback()
 | Select the completed session's text mode, restore its mode-specific fonts
   and palette, and draw the terminal background.  Returns `false` when no
-  scrollback exists or the background cannot be drawn.  This changes global
+  scrollback exists, `true` on preparation success, or `ScreenError` on an
+  operational failure.  This changes global
   conio state; bracket it with `Screen.save()` and `Screen.restore()`.
 
 | Menu.offlineScrollbackHasStatus
@@ -4410,7 +4471,8 @@ available in a connected VM.
 
 | Menu.openUrl(url)
 | Open a detected plain-text URL with the configured local URL handler.
-  Returns whether it opened.  This menu-only operation carries local browser
+  Returns whether it opened, or `ScreenError` for an operational failure.
+  This menu-only operation carries local browser
   authority, is unavailable to connected scripts, and returns `false` in
   safe mode.
 
@@ -4418,14 +4480,16 @@ available in a connected VM.
 | Resolve an ID from the shared hyperlink registry and open HTTP, HTTPS, FTP,
   or FTPS URIs with the configured local URL handler.  Scheme matching is
   locale-independent and case-insensitive.  Returns `false` for other
-  schemes, unknown IDs, launch failures, and safe mode.  The shipped viewer
+  schemes, unknown IDs and safe mode; launch failures return `ScreenError`.  The shipped viewer
   copies the URI to the clipboard when opening fails.
 
 | Menu.setHyperlinkHover(id)
 | Select the link pointer when `id` names a registered hyperlink, or the text
   pointer otherwise.  The shipped offline viewer separately resolves and
   paints the full URI in its bottom row; pass zero to clear hover state.
-  Text-only and libretro backends do not expose pointer shapes.
+  Returns `null` or `ScreenError`. Text-only and libretro backends do not
+  expose pointer shapes; bundled callers skip this optional chrome when
+  unsupported.
 
 | Menu.applicationTitle
 | Return the classic header text, combining the SyncTERM version and
@@ -4444,7 +4508,8 @@ available in a connected VM.
 | Menu.showEntry(entry)
 | Set the OS window title to the classic name/call-count/last-connected
   summary for a current DirectoryEntry or Profile.  Passing `null` restores the bare
-  SyncTERM version title.  The purpose-specific operation returns `true`;
+  SyncTERM version title. The purpose-specific operation returns `null` or
+  `ScreenError`;
   stale views and values of unrelated classes abort.  It is menu-only so connected
   scripts do not gain arbitrary application-title authority.
 
@@ -4946,8 +5011,8 @@ duplicate platform-dependent enum tables:
 
 | `setScreenMode(mode)`
 | Apply a concrete screen mode immediately and restore the configured
-  default cursor.  `ScreenMode.current` is not accepted.  Returns
-  `true` after dispatching the mode change.
+  default cursor. `ScreenMode.current` is not accepted. Returns
+  `null` or `ScreenError`; a failure can follow changes to one logical console.
 
 | `fileLocations`
 | Map containing `globalList`, `personalList`, `configuration`,
@@ -5619,14 +5684,16 @@ pre-bound from these at module load.
 | `true` when the active console backend displays character cells through
   ANSI, ncurses, or the native Win32 console rather than through a bitmap
   window.  The selected ANSI encoding and ncurses character mode do not
-  affect the result.  Stable for the lifetime of the session.
+  affect the result. Stable for the lifetime of the session; native capability
+  read failures return `ScreenError`.
 
 | `Host.localControlKeys`
 | `true` when SyncTERM reserves Ctrl+Q and Ctrl+S for local UI commands.
   This is currently limited to ANSI and ncurses.  The native Win32 console
   is a text terminal, but it has independent keyboard events and therefore
   returns `false`.  The main menu and Wren console use this property when
-  installing and displaying their backend-specific bindings.
+  installing and displaying their backend-specific bindings. Native capability
+  read failures return `ScreenError`.
 
 | `Host.altKeyName`, `Host.altKeyShort`
 | Display name of the modifier key that produces Alt keycodes on

@@ -230,7 +230,7 @@ main(int argc, char **argv)
 		CHECK(status == 0);
 		(void)snprintf(source, sizeof(source),
 		    "import \"syncterm_menu\" for Menu\n"
-		    "if (!Menu.setScreenMode(%d)) Fiber.abort(\"mode rejected\")\n",
+		    "if (Menu.setScreenMode(%d) != null) Fiber.abort(\"mode rejected\")\n",
 		    ST_SCREEN_MODE_PRESTEL);
 		CHECK(wrenInterpret(host->vm, "mode_geometry", source)
 		    == WREN_RESULT_SUCCESS);
@@ -255,7 +255,7 @@ main(int argc, char **argv)
 		    (unsigned)columns, (unsigned)rows);
 		(void)snprintf(source, sizeof(source),
 		    "import \"syncterm_menu\" for Menu\n"
-		    "if (!Menu.setScreenMode(%d)) Fiber.abort(\"mode rejected\")\n"
+		    "if (Menu.setScreenMode(%d) != null) Fiber.abort(\"mode rejected\")\n"
 		    "if (Menu.currentScreenMode != %d) Fiber.abort(\"mode identity lost\")\n",
 		    ST_SCREEN_MODE_LCD_80X25, ST_SCREEN_MODE_LCD_80X25);
 		bool identity = wrenInterpret(host->vm, "mode_identity", source)
@@ -286,8 +286,8 @@ main(int argc, char **argv)
 		    "if (Host.launchScript != null) Fiber.abort(\"unexpected launch script\")\n"
 		    "if (FlowControl.rtsCts != 0 || FlowControl.xonXoff != 1 || FlowControl.both != 2 || FlowControl.none != 3) Fiber.abort(\"flow control constants\")\n"
 		    "var saved = Screen.save()\n"
-		    "Screen.window.position = [1, 1]\n"
-		    "Screen.hyperlinkId = 9\n"
+		    "Screen.window.setPosition([1, 1])\n"
+		    "Screen.setHyperlinkId(9)\n"
 		    "Screen.window.print(\"A\")\n"
 		    "if (Screen.hyperlinkId != 9 || Screen.readRect(1, 1, 1, 1)[0].hyperlinkId != 9) Fiber.abort(\"window hyperlink style\")\n"
 		    "Screen.restore(saved)\n",

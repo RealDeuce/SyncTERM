@@ -20,7 +20,7 @@ class SessionLogView {
   static run() {
     Fiber.new {
       var text = Conn.sessionLog
-      Screen.modalRun(Fn.new {
+      Screen.checked_(Screen.modalRun(Fn.new {
         var app = App.new()
         var pane = Help.new("Session Log", body_(text))
         pane.bounds = Help.centeredBounds_()
@@ -29,7 +29,7 @@ class SessionLogView {
         app.onLayout = Fn.new {|w, h| pane.bounds = Help.centeredBounds_() }
         app.pushModal(pane)
         app.run()
-      })
+      }))
     }.call()
   }
 }

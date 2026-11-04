@@ -564,8 +564,8 @@ class ThemeAtlas is Widget {
     if (selected) marker = glyph("focus.left")
     var text = "%(marker) %(role)"
     var suffix = "  Aa Bb Cc 0123"
-    var suffixWidth = Screen.textWidth(suffix,
-        sample.font == null ? 0 : sample.font)
+    var suffixWidth = Screen.checked_(Screen.textWidth(suffix,
+        sample.font == null ? 0 : sample.font))
     var room = (width - suffixWidth).max(1)
     Painter.text(surface, 0, y, text, sample, room)
     if (selected) Painter.text(surface, 0, y, marker,
@@ -1227,7 +1227,7 @@ class ThemeEditor {
         ["Ctrl-S", "Save"], ["F2", "Save As"], ["Esc", "Close"]]
     pane.focused = true
     pane.onClose = actions["close"]
-    var size = Screen.size
+    var size = Screen.checked_(Screen.size)
     var x = size[0] >= 46 ? 3 : 1
     pane.bounds = Pane.modalBounds((size[0] - x * 2).max(1), size[1])
     content.bounds = pane.innerBounds
@@ -1269,7 +1269,7 @@ class ThemeEditor {
         ["F2", "Select Role"], ["Esc", "Close"]]
     pane.focused = true
     pane.onClose = close
-    var size = Screen.size
+    var size = Screen.checked_(Screen.size)
     var x = size[0] >= 50 ? 4 : 1
     pane.bounds = Pane.modalBounds((size[0] - x * 2).max(1), size[1])
     content.bounds = pane.innerBounds

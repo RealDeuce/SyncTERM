@@ -132,7 +132,7 @@ class Form is Container {
     if (bounds == null) return
     _labelW = 0
     for (f in _fields) {
-      var lw = Screen.textWidth(f[0], 0)
+      var lw = Screen.checked_(Screen.textWidth(f[0], 0))
       if (lw > _labelW) _labelW = lw
     }
     var labelGap   = _labelW > 0 ? 2 : 0    // " " between label and widget
@@ -172,7 +172,7 @@ class Form is Container {
     var y = 0
     for (f in _fields) {
       var lbl = f[0]
-      var n   = Screen.textWidth(lbl, st.font == null ? 0 : st.font)
+      var n   = Screen.checked_(Screen.textWidth(lbl, st.font == null ? 0 : st.font))
       var pad = (_labelW - n).max(0)
       Painter.text(sf, pad, y, lbl, st, _labelW)
       var h = f[2] != null ? f[2] : _rowH

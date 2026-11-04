@@ -34,9 +34,9 @@ class TransferFlow {
       if (Transfer.active) Transfer.endSession()
       Transfer.cancelAuto_()
       __busy = false
-      if (result is String || result is Error) Screen.modalRun(Fn.new {
+      if (result is String || result is Error) Screen.checked_(Screen.modalRun(Fn.new {
         Alert.runStandalone(App.new(), "File Transfer", result is Error ? (result.message || result.toString) : result)
-      })
+      }))
     }.call()
   }
   static upload() { upload(false, 0) }
@@ -44,20 +44,20 @@ class TransferFlow {
     launch_(Fn.new {
       var rows = uploadRows
       var selected = 0
-      if (!autoZ) Screen.modalRun(Fn.new {
+      if (!autoZ) Screen.checked_(Screen.modalRun(Fn.new {
         selected = ListPicker.pick("Upload Protocol", uploadHelp, rows.map {|row| row[1] }.toList)
-      })
+      }))
       if (selected < 0) return
       var row = rows[selected]
       var files = null
-      Screen.modalRun(Fn.new {
+      Screen.checked_(Screen.modalRun(Fn.new {
         if (row[2]) {
           files = Host.pickFiles(Session.current.profile.ulDir, null, 0)
         } else {
           var file = Host.pickFile(Session.current.profile.ulDir, null, FilePickerOptions.allowEntry)
           if (file != null) files = [file]
         }
-      })
+      }))
       if (files == null || files.count == 0) return
       var error = null
       if (row[2]) {
@@ -77,16 +77,16 @@ class TransferFlow {
     launch_(Fn.new {
       var rows = downloadRows
       var selected = -1
-      Screen.modalRun(Fn.new {
+      Screen.checked_(Screen.modalRun(Fn.new {
         selected = ListPicker.pick("Download Protocol", downloadHelp, rows.map {|row| row[1] }.toList)
-      })
+      }))
       if (selected < 0) return
       var row = rows[selected]
       var filename = null
       if (row[0] == "xmodem-crc" || row[0] == "xmodem-chksum" || row[0] == "xmodem-g") {
-        Screen.modalRun(Fn.new {
+        Screen.checked_(Screen.modalRun(Fn.new {
           filename = LinePrompt.runStandalone(App.new(), "Download Filename", "")
-        })
+        }))
         if (filename == null || filename == "") return
       }
       var error = Transfer.download(row[0], filename)
@@ -114,9 +114,9 @@ class TransferFlow {
     } else if (pending == "rip-upload") {
       launch_(Fn.new {
         var allow = false
-        Screen.modalRun(Fn.new {
+        Screen.checked_(Screen.modalRun(Fn.new {
           allow = Confirm.runStandalone(App.new(), "The host requests an upload of cached RIP file %(Transfer.ripUploadName_). Allow?")
-        })
+        }))
         if (!allow) return
         var error = Transfer.acceptRipUpload_()
         if (error != null) Fiber.abort(error)
@@ -139,9 +139,9 @@ class TransferFlow {
     var result = Transfer.result
     claim.pop()
     Transfer.endSession()
-    if (result != null) Screen.modalRun(Fn.new {
+    if (result != null) Screen.checked_(Screen.modalRun(Fn.new {
       Alert.runStandalone(App.new(), "File Transfer", result.message)
-    })
+    }))
   }
   static uploadHelp {
     return "# Upload Protocol\n\nZMODEM and YMODEM carry filenames and support batches. " +

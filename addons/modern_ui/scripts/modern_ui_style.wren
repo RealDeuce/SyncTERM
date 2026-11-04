@@ -80,7 +80,7 @@ class ModernButton is Button {
     var line = ""
     for (word in label.split(" ")) {
       var candidate = line.count == 0 ? word : line + " " + word
-      if (line.count > 0 && Screen.textWidth(candidate, st.font) > available) {
+      if (line.count > 0 && Screen.checked_(Screen.textWidth(candidate, st.font)) > available) {
         lines.add(line)
         line = word
       } else {
@@ -93,21 +93,21 @@ class ModernButton is Button {
     _textRows = rows
     _textTop = top
     for (y in 0...rows) {
-      var w = Screen.textWidth(lines[y], st.font).min(available)
+      var w = Screen.checked_(Screen.textWidth(lines[y], st.font)).min(available)
       Painter.text(surface, ((bounds.w - w) / 2).floor, top + y,
           lines[y], st, available)
     }
   }
   chrome(app, outside) {
     var st = focused ? style("button.focused") : style("button")
-    var size = Screen.cellPixelSize
+    var size = Screen.checked_(Screen.cellPixelSize)
     var width = bounds.w * size[0]
     var height = bounds.h * size[1]
     if (_caption == null) {
       // App has just composed our own cell surface. Capture its raster once
       // per repaint so font lookup stays with the host, then place the ink
       // at pixel precision instead of rounding padding to whole cells.
-      var source = Screen.readPixels((bounds.x - 1) * size[0], (bounds.y - 1) * size[1], width, height)
+      var source = Screen.checked_(Screen.readPixels((bounds.x - 1) * size[0], (bounds.y - 1) * size[1], width, height))
       if (source != null) {
         _caption = PixelBuffer.new(width, height, PixelColor.rgb(st.bgRgb))
         var boxes = []
@@ -141,7 +141,7 @@ class ModernButton is Button {
     if (_caption != null) {
       _blit.destinationX = (bounds.x - 1) * size[0]
       _blit.destinationY = (bounds.y - 1) * size[1]
-      Screen.blitPixels(_caption, _blit)
+      Screen.checked_(Screen.blitPixels(_caption, _blit))
     }
     app.round(bounds, st.bgRgb, outside)
   }
@@ -254,8 +254,8 @@ class ModernList is ListView {
       _starts.add(_visualRows.count)
       var name = items[index]
       var address = index < _addresses.count ? _addresses[index] : ""
-      if (Screen.textWidth(name, 0) <= col - 4 &&
-          Screen.textWidth(address, 0) <= _rowWidth - col - 2) {
+      if (Screen.checked_(Screen.textWidth(name, 0)) <= col - 4 &&
+          Screen.checked_(Screen.textWidth(address, 0)) <= _rowWidth - col - 2) {
         _visualRows.add([index, name, address])
       } else {
         for (line in wrap_(name, _rowWidth - 4)) _visualRows.add([index, line, null])
@@ -269,7 +269,7 @@ class ModernList is ListView {
     var line = ""
     var used = 0
     for (cluster in Text.graphemes(text)) {
-      var cells = Screen.textWidth(cluster, 0)
+      var cells = Screen.checked_(Screen.textWidth(cluster, 0))
       if (used + cells > width && line.count > 0) {
         lines.add(line)
         line = ""
@@ -328,7 +328,7 @@ class ModernList is ListView {
     }
   }
   chrome(app) {
-    var size = Screen.cellPixelSize
+    var size = Screen.checked_(Screen.cellPixelSize)
     var width = rowWidth * size[0]
     if (_separator == null || _separator.width != width) {
       _separator = PixelBuffer.new(width, 1, PixelColor.rgb(0xe2e8f0))
@@ -342,14 +342,14 @@ class ModernList is ListView {
       // A boundary line must not overwrite descenders in short bitmap fonts.
       // Inspect our freshly composed row before drawing any decorations.
       var bottom = (rect.y - 1) * size[1] + size[1] - 1
-      var pixels = Screen.readPixels((rect.x - 1) * size[0], bottom, width, 1)
+      var pixels = Screen.checked_(Screen.readPixels((rect.x - 1) * size[0], bottom, width, 1))
       var boundary = physical + 1 == _visualRows.count || _visualRows[physical + 1][0] != index
       if (pixels != null && boundary && slot < viewportRows_ - 1) {
         var bg = index == selected ? 0xdbeafe : ModernStyle.panel
         for (x in 0...width) _separatorMask[x] = (pixels[x] & 0xffffff) == bg
         _blit.destinationX = (rect.x - 1) * size[0]
         _blit.destinationY = bottom
-        Screen.blitPixels(_separator, _separatorMask, _blit)
+        Screen.checked_(Screen.blitPixels(_separator, _separatorMask, _blit))
       }
       if (index == selected && (slot == 0 || _visualRows[physical - 1][0] != index)) {
         var lines = (_starts[index + 1] - scrollTop).min(viewportRows_) - slot
@@ -359,7 +359,7 @@ class ModernList is ListView {
         }
         _blit.destinationX = (rect.x - 1) * size[0] + 6
         _blit.destinationY = (rect.y - 1) * size[1] + 2
-        Screen.blitPixels(_indicator, _blit)
+        Screen.checked_(Screen.blitPixels(_indicator, _blit))
       }
     }
     var first = count > 0 && entryAt_(scrollTop) == selected ? 0xdbeafe : ModernStyle.panel
@@ -384,7 +384,7 @@ class ModernList is ListView {
     }
     _blit.destinationX = (bounds.x + bounds.w - 2) * size[0]
     _blit.destinationY = (bounds.y - 1) * size[1]
-    Screen.blitPixels(_scrollbar, _blit)
+    Screen.checked_(Screen.blitPixels(_scrollbar, _blit))
   }
   handle(event) {
     if (!(event is MouseEvent)) return super.handle(event)
@@ -453,7 +453,7 @@ class ModernApp is App {
   }
   drawFrame_() {
     super.drawAll_()
-    if (modalStack.count == 0 && _chrome != null && Screen.supports.pixels) {
+    if (modalStack.count == 0 && _chrome != null && Screen.checked_(Screen.supports.pixels)) {
       _chrome.call()
     }
   }
@@ -491,8 +491,8 @@ class ModernApp is App {
     return corner
   }
   round(rect, top, bottom, outside) {
-    if (!Screen.supports.pixels || rect == null || rect.w < 2 || rect.h < 1) return
-    var size = Screen.cellPixelSize
+    if (!Screen.checked_(Screen.supports.pixels) || rect == null || rect.w < 2 || rect.h < 1) return
+    var size = Screen.checked_(Screen.cellPixelSize)
     for (y in 0...2) {
       var corner = corner_(y == 0 ? top : bottom, outside)
       for (x in 0...2) {
@@ -500,7 +500,7 @@ class ModernApp is App {
         _blit.destinationY = (rect.y - 1) * size[1] + (y == 0 ? 0 : rect.h * size[1] - 6)
         _blit.flipX = x != 0
         _blit.flipY = y != 0
-        Screen.blitPixels(corner, _blit)
+        Screen.checked_(Screen.blitPixels(corner, _blit))
       }
     }
   }

@@ -87,7 +87,7 @@ class StatusBar is Widget {
       if (lx >= w) break
       var room = w - lx
       Painter.text(sf, lx, 0, s, st, room)
-      lx = lx + Screen.textWidth(s, st.font == null ? 0 : st.font) + 2
+      lx = lx + Screen.checked_(Screen.textWidth(s, st.font == null ? 0 : st.font)) + 2
     }
 
     var rx = w
@@ -95,7 +95,7 @@ class StatusBar is Widget {
     while (i >= 0) {
       var s    = rights[i]
       var room = (rx - lx).max(0)
-      var n    = Screen.textWidth(s, st.font == null ? 0 : st.font).min(room)
+      var n    = Screen.checked_(Screen.textWidth(s, st.font == null ? 0 : st.font)).min(room)
       if (n <= 0) break
       Painter.text(sf, rx - n, 0, s, st, n)
       rx = rx - n - 2
@@ -106,7 +106,7 @@ class StatusBar is Widget {
       var s    = centers[0]
       var room = (rx - lx).max(0)
       if (room > 0) {
-        var n  = Screen.textWidth(s, st.font == null ? 0 : st.font).min(room)
+        var n  = Screen.checked_(Screen.textWidth(s, st.font == null ? 0 : st.font)).min(room)
         var cx = lx + ((room - n) / 2).floor
         Painter.text(sf, cx, 0, s, st, n)
       }

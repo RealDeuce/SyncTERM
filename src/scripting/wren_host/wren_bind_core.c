@@ -52,6 +52,7 @@ enum foreign_kind {
 	FOREIGN_CURSOR,
 	FOREIGN_VIDEO_FLAGS,
 	FOREIGN_FONT_ERROR,
+	FOREIGN_SCREEN_ERROR,
 };
 
 struct foreign_header {
@@ -162,6 +163,40 @@ struct foreign_font_error {
 	const char *message;
 };
 
+struct foreign_screen_error {
+	struct foreign_header header;
+	int code;
+	char message[192];
+};
+
+bool
+st_wren_screen_status(WrenVM *vm, int status, const char *operation)
+{
+	if (status == 0)
+		return true;
+	wrenEnsureSlots(vm, 2);
+	wrenGetVariable(vm, "syncterm", "ScreenError", 1);
+	struct foreign_screen_error *error = wrenSetSlotNewForeign(vm, 0, 1,
+	    sizeof(*error));
+	error->header.kind = FOREIGN_SCREEN_ERROR;
+	error->code = status;
+	const char *reason = status == IO_ERROR_OUT_OF_MEMORY ? "Out of memory"
+	    : status == IO_ERROR_NOT_SUPPORTED ? "Not supported"
+	    : status == IO_ERROR_OUT_OF_RANGE ? "Out of range"
+	    : status == IO_ERROR_INVALID_ARGUMENT ? "Invalid argument"
+	    : status == IO_ERROR_IO ? "I/O error" : "Native operation failed";
+	(void)snprintf(error->message, sizeof(error->message), "%s: %s (%d)",
+	    operation, reason, status);
+	return false;
+}
+
+void
+st_wren_screen_result(WrenVM *vm, int status, const char *operation)
+{
+	if (st_wren_screen_status(vm, status, operation))
+		wrenSetSlotNull(vm, 0);
+}
+
 struct binding {
 	const char *class_name;
 	bool is_static;
@@ -253,6 +288,7 @@ foreign_kind(WrenVM *vm, int slot, enum foreign_kind kind)
 	static const char *const names[] = {
 		"Cell", "Surface", "ScreenSnapshot", "KeyEvent", "PhysicalKeyEvent",
 		"MouseEvent", "ClaimHandle", "CustomCursor", "VideoFlags", "FontError",
+		"ScreenError",
 	};
 	struct foreign_header *header = st_wren_foreign_require(vm, slot,
 	    "syncterm", names[kind]);
@@ -886,31 +922,29 @@ allocate_claim_handle(WrenVM *vm)
 static void
 allocate_cursor(WrenVM *vm)
 {
-	struct foreign_cursor *cursor = wrenSetSlotNewForeign(vm, 0, 0,
+	struct st_console_custom_cursor value;
+	if (!st_wren_screen_status(vm, st_console_get_custom_cursor(st_wren_context_from_vm(vm)->console,
+	    &value), "CustomCursor.current")) return;
+	wrenEnsureSlots(vm, 2);
+	wrenGetVariable(vm, "syncterm", "CustomCursor", 1);
+	struct foreign_cursor *cursor = wrenSetSlotNewForeign(vm, 0, 1,
 	    sizeof(*cursor));
-
 	cursor->header.kind = FOREIGN_CURSOR;
-	if (st_console_get_custom_cursor(st_wren_context_from_vm(vm)->console, &cursor->cursor)
-	    != 0) {
-		cursor->cursor = (struct st_console_custom_cursor){
-			.start = 6, .end = 7, .range = 8, .visible = true,
-			.blink = true,
-		};
-	}
+	cursor->cursor = value;
 }
 
 static void
 allocate_video_flags(WrenVM *vm)
 {
-	struct foreign_video_flags *flags = wrenSetSlotNewForeign(vm, 0, 0,
+	uint32_t value;
+	if (!st_wren_screen_status(vm, st_console_get_video_flags(st_wren_context_from_vm(vm)->console,
+	    &value), "VideoFlags.current")) return;
+	wrenEnsureSlots(vm, 2);
+	wrenGetVariable(vm, "syncterm", "VideoFlags", 1);
+	struct foreign_video_flags *flags = wrenSetSlotNewForeign(vm, 0, 1,
 	    sizeof(*flags));
-
 	flags->header.kind = FOREIGN_VIDEO_FLAGS;
-	if (st_console_get_video_flags(st_wren_context_from_vm(vm)->console,
-	    &flags->flags) != 0) {
-		flags->flags = 0;
-		st_wren_abort(vm, "VideoFlags snapshot failed");
-	}
+	flags->flags = value;
 }
 
 static void
@@ -1974,11 +2008,11 @@ static void
 fn_input_mouse_visible_set(WrenVM *vm)
 {
 	if (wrenGetSlotType(vm, 1) != WREN_TYPE_BOOL) {
-		st_wren_abort(vm, "Input.mouseVisible expects a Bool");
+		st_wren_abort(vm, "Input.setMouseVisible expects a Bool");
 		return;
 	}
-	(void)st_console_set_pointer_visible(
-	    st_wren_context_from_vm(vm)->console, wrenGetSlotBool(vm, 1));
+	st_wren_screen_result(vm, st_console_set_pointer_visible(
+	    st_wren_context_from_vm(vm)->console, wrenGetSlotBool(vm, 1)), "Input.setMouseVisible");
 }
 
 static void
@@ -2255,12 +2289,8 @@ fn_screen_size(WrenVM *vm)
 {
 	uint32_t width;
 	uint32_t height;
-
-	if (st_console_size(st_wren_context_from_vm(vm)->console, &width,
-	    &height) != 0) {
-		st_wren_abort(vm, "Screen.size failed");
-		return;
-	}
+	if (!st_wren_screen_status(vm, st_console_size(st_wren_context_from_vm(vm)->console,
+	    &width, &height), "Screen.size")) return;
 	wrenEnsureSlots(vm, 2);
 	wrenSetSlotNewList(vm, 0);
 	wrenSetSlotDouble(vm, 1, width);
@@ -2273,17 +2303,13 @@ static void
 fn_screen_save(WrenVM *vm)
 {
 	st_console_snapshot_t *snapshot = NULL;
-
+	if (!st_wren_screen_status(vm, st_console_snapshot_create(&snapshot,
+	    st_wren_context_from_vm(vm)->console), "Screen.save")) return;
 	wrenEnsureSlots(vm, 2);
 	wrenGetVariable(vm, "syncterm", "ScreenSnapshot", 1);
 	struct foreign_snapshot *foreign = wrenSetSlotNewForeign(vm, 0, 1,
 	    sizeof(*foreign));
 	foreign->header.kind = FOREIGN_SNAPSHOT;
-	foreign->snapshot = NULL;
-	if (st_console_snapshot_create(&snapshot, st_wren_context_from_vm(vm)->console) != 0) {
-		st_wren_abort(vm, "Screen.save failed");
-		return;
-	}
 	foreign->snapshot = snapshot;
 	memcpy(foreign->font_slots, st_wren_context_from_vm(vm)->fonts.slots,
 	    sizeof(foreign->font_slots));
@@ -2292,18 +2318,16 @@ fn_screen_save(WrenVM *vm)
 static void
 fn_screen_restore(WrenVM *vm)
 {
-	struct foreign_snapshot *snapshot = (struct foreign_snapshot *)foreign_kind(
-	    vm, 1, FOREIGN_SNAPSHOT);
-
+	struct foreign_snapshot *snapshot = (struct foreign_snapshot *)foreign_kind(vm, 1, FOREIGN_SNAPSHOT);
+	bool restored = false;
 	if (snapshot == NULL || snapshot->snapshot == NULL)
 		return;
-	if (st_console_snapshot_restore(st_wren_context_from_vm(vm)->console,
-	    snapshot->snapshot) != 0) {
-		st_wren_abort(vm, "Screen.restore failed");
-		return;
-	}
-	memcpy(st_wren_context_from_vm(vm)->fonts.slots, snapshot->font_slots,
-	    sizeof(snapshot->font_slots));
+	int status = st_console_snapshot_restore(st_wren_context_from_vm(vm)->console,
+	    snapshot->snapshot, &restored);
+	if (restored)
+		memcpy(st_wren_context_from_vm(vm)->fonts.slots, snapshot->font_slots,
+		    sizeof(snapshot->font_slots));
+	st_wren_screen_result(vm, status, "Screen.restore");
 }
 
 static bool
@@ -2322,12 +2346,12 @@ read_rect_arguments(WrenVM *vm, int first, struct st_console_rect *rect)
 			return false;
 		}
 		if (values[i] < 1.0 || values[i] > (double)UINT32_MAX) {
-			wrenSetSlotNull(vm, 0);
+			(void)st_wren_screen_status(vm, IO_ERROR_OUT_OF_RANGE, "Screen.readRect region");
 			return false;
 		}
 	}
 	if (values[2] < values[0] || values[3] < values[1]) {
-		wrenSetSlotNull(vm, 0);
+		(void)st_wren_screen_status(vm, IO_ERROR_OUT_OF_RANGE, "Screen.readRect region");
 		return false;
 	}
 	rect->x = (uint32_t)values[0] - 1;
@@ -2350,25 +2374,25 @@ fn_screen_read_rect(WrenVM *vm)
 
 	if (!read_rect_arguments(vm, 1, &rect))
 		return;
-	if (st_console_size(console, &screen_width, &screen_height) != 0
-	    || rect.x >= screen_width || rect.y >= screen_height
+	if (!st_wren_screen_status(vm, st_console_size(console, &screen_width, &screen_height), "Screen.readRect size"))
+		return;
+	if (rect.x >= screen_width || rect.y >= screen_height
 	    || rect.width > screen_width - rect.x
 	    || rect.height > screen_height - rect.y) {
-		wrenSetSlotNull(vm, 0);
+		(void)st_wren_screen_status(vm, IO_ERROR_OUT_OF_RANGE, "Screen.readRect region");
 		return;
 	}
-	if (st_console_get_style(console, &style) != 0)
-		style = (struct st_console_style){.foreground = 7};
+	if (!st_wren_screen_status(vm, st_console_get_style(console, &style), "Screen.readRect style"))
+		return;
 	storage = storage_create(rect.width, rect.height, &style,
 	    st_wren_context_from_vm(vm)->console, st_wren_host_from_vm(vm));
 	if (storage == NULL) {
-		wrenSetSlotNull(vm, 0);
+		(void)st_wren_screen_status(vm, IO_ERROR_OUT_OF_MEMORY, "Screen.readRect storage");
 		return;
 	}
-	if (st_console_read_cells(console, &rect, storage->cells,
-	    rect.width) != 0) {
+	if (!st_wren_screen_status(vm, st_console_read_cells(console, &rect, storage->cells,
+	    rect.width), "Screen.readRect")) {
 		storage_release(storage);
-		wrenSetSlotNull(vm, 0);
 		return;
 	}
 	wrenEnsureSlots(vm, 2);
@@ -2441,8 +2465,8 @@ screen_put_rect(WrenVM *vm, bool partial)
 	uint32_t screen_height;
 	int64_t values[6];
 
-	if (surface == NULL || st_console_size(st_wren_context_from_vm(vm)->console, &screen_width,
-	    &screen_height) != 0)
+	if (surface == NULL || !st_wren_screen_status(vm, st_console_size(st_wren_context_from_vm(vm)->console, &screen_width,
+	    &screen_height), "Screen.putRect size"))
 		return;
 	if (partial) {
 		for (size_t i = 0; i < 6; ++i) {
@@ -2462,13 +2486,13 @@ screen_put_rect(WrenVM *vm, bool partial)
 	}
 	if (!clip_blit(surface->storage, values[0], values[1], values[2],
 	    values[3], values[4] - 1, values[5] - 1, screen_width,
-	    screen_height, &source_rect, &destination))
+	    screen_height, &source_rect, &destination)) {
+		wrenSetSlotNull(vm, 0);
 		return;
-	if (st_console_write_complete_cells(st_wren_context_from_vm(vm)->console, &destination,
+	}
+	st_wren_screen_result(vm, st_console_write_complete_cells(st_wren_context_from_vm(vm)->console, &destination,
 	    &surface->storage->cells[(size_t)source_rect.y
-	    * surface->storage->width + source_rect.x], surface->storage->width)
-	    != 0)
-		st_wren_abort(vm, "Screen.putRect failed");
+	    * surface->storage->width + source_rect.x], surface->storage->width), "Screen.putRect");
 }
 
 static void fn_screen_put_rect(WrenVM *vm) { screen_put_rect(vm, false); }
@@ -2481,15 +2505,13 @@ struct screen_update_guard {
 static void
 allocate_screen_update(WrenVM *vm)
 {
-	struct screen_update_guard *guard = wrenSetSlotNewForeign(vm, 0, 0,
-	    sizeof(*guard));
 	st_console_t *console = st_wren_context_from_vm(vm)->console;
-
-	guard->console = NULL;
-	if (st_console_begin_update(console) != 0)
-		st_wren_abort(vm, "Screen.update could not begin composition");
-	else
-		guard->console = console;
+	if (!st_wren_screen_status(vm, st_console_begin_update(console), "Screen.update begin"))
+		return;
+	wrenEnsureSlots(vm, 2);
+	wrenGetVariable(vm, "syncterm", "ScreenUpdate_", 1);
+	struct screen_update_guard *guard = wrenSetSlotNewForeign(vm, 0, 1, sizeof(*guard));
+	guard->console = console;
 }
 
 static void
@@ -2509,8 +2531,7 @@ fn_screen_update_finish(WrenVM *vm)
 
 	/* End can report a presentation failure after closing the batch. */
 	guard->console = NULL;
-	if (console != NULL && st_console_end_update(console) != 0)
-		st_wren_abort(vm, "Screen.update could not finish composition");
+	st_wren_screen_result(vm, console == NULL ? 0 : st_console_end_update(console), "Screen.update end");
 }
 
 static uint32_t
@@ -2565,12 +2586,8 @@ console_palette16(WrenVM *vm, uint32_t palette[16], uint32_t *video_flags)
 {
 	st_console_t *console = st_wren_context_from_vm(vm)->console;
 
-	if (st_console_get_palette(console, 0, palette, 16) != 0
-	    || st_console_get_video_flags(console, video_flags) != 0) {
-		st_wren_abort(vm, "console colour state is unavailable");
-		return false;
-	}
-	return true;
+	return st_wren_screen_status(vm, st_console_get_palette(console, 0, palette, 16), "Palette read")
+	    && st_wren_screen_status(vm, st_console_get_video_flags(console, video_flags), "VideoFlags read");
 }
 
 static bool
@@ -2580,25 +2597,24 @@ native_colour_rgb(WrenVM *vm, uint32_t colour, uint32_t *rgb)
 		*rgb = colour & UINT32_C(0xffffff);
 		return true;
 	}
-	if (colour > UINT16_MAX
-	    || st_console_get_palette(st_wren_context_from_vm(vm)->console,
-	    (uint16_t)colour, rgb, 1) != 0) {
+	if (colour > UINT16_MAX) {
 		st_wren_abort(vm, "cell colour is invalid");
 		return false;
 	}
-	return true;
+	return st_wren_screen_status(vm, st_console_get_palette(st_wren_context_from_vm(vm)->console,
+	    (uint16_t)colour, rgb, 1), "Palette read");
 }
 
-static uint8_t
+static bool
 nearest_legacy_base(WrenVM *vm, uint32_t colour, const uint32_t palette[16],
-	bool high)
+	bool high, uint8_t *result)
 {
 	uint32_t target;
 	uint32_t best_distance = UINT32_MAX;
 	uint8_t best = 0;
 
 	if (!native_colour_rgb(vm, colour, &target))
-		return 0;
+		return false;
 	for (uint8_t i = 0; i < 8; ++i) {
 		uint8_t attribute_index = (uint8_t)(i | (high ? 8 : 0));
 		uint32_t distance = ycocg_distance(target,
@@ -2609,7 +2625,8 @@ nearest_legacy_base(WrenVM *vm, uint32_t colour, const uint32_t palette[16],
 			best = i;
 		}
 	}
-	return best;
+	*result = best;
+	return true;
 }
 
 static bool
@@ -2629,17 +2646,16 @@ cell_legacy_attr(WrenVM *vm, const struct st_console_cell *cell,
 	    && !ST_CONSOLE_COLOR_IS_RGB(cell->foreground)
 	    && cell->foreground < 8)
 		foreground = (uint8_t)legacy_colour(cell->foreground);
-	else
-		foreground = nearest_legacy_base(vm, cell->foreground, palette,
-		    bright && (video_flags & ST_CONSOLE_VIDEO_NO_BRIGHT) == 0);
+	else if (!nearest_legacy_base(vm, cell->foreground, palette,
+	    bright && (video_flags & ST_CONSOLE_VIDEO_NO_BRIGHT) == 0, &foreground))
+		return false;
 	if ((cell->flags & ST_CONSOLE_CELL_LEGACY_BACKGROUND) != 0
 	    && !ST_CONSOLE_COLOR_IS_RGB(cell->background)
 	    && cell->background < 8)
 		background = (uint8_t)legacy_colour(cell->background);
-	else
-		background = nearest_legacy_base(vm, cell->background, palette,
-		    blink && (video_flags
-		    & ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND) != 0);
+	else if (!nearest_legacy_base(vm, cell->background, palette,
+	    blink && (video_flags & ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND) != 0, &background))
+		return false;
 	*attribute = (uint8_t)(foreground | (background << 4)
 	    | (bright ? UINT8_C(0x08) : 0)
 	    | (blink ? UINT8_C(0x80) : 0));
@@ -2677,8 +2693,7 @@ resolve_screen_style_font(WrenVM *vm, struct st_console_style *style)
 	uint16_t slot;
 	uint16_t identifier;
 
-	if (st_console_get_video_flags(context->console, &video_flags) != 0) {
-		st_wren_abort(vm, "VideoFlags read failed");
+	if (!st_wren_screen_status(vm, st_console_get_video_flags(context->console, &video_flags), "VideoFlags read")) {
 		return false;
 	}
 	selection.bright_selects_font
@@ -2701,14 +2716,12 @@ refresh_screen_style_font(WrenVM *vm)
 	st_console_t *console = st_wren_context_from_vm(vm)->console;
 	struct st_console_style style;
 
-	if (st_console_get_style(console, &style) != 0) {
-		st_wren_abort(vm, "Screen style read failed");
+	if (!st_wren_screen_status(vm, st_console_get_style(console, &style), "Screen style read")) {
 		return false;
 	}
 	if (!resolve_screen_style_font(vm, &style))
 		return false;
-	if (st_console_set_style(console, &style) != 0) {
-		st_wren_abort(vm, "Screen style update failed");
+	if (!st_wren_screen_status(vm, st_console_set_style(console, &style), "Screen style update")) {
 		return false;
 	}
 	return true;
@@ -2719,8 +2732,7 @@ fn_screen_hyperlink(WrenVM *vm)
 {
 	struct st_console_style style;
 
-	if (st_console_get_style(st_wren_context_from_vm(vm)->console, &style) != 0) {
-		st_wren_abort(vm, "Screen.hyperlinkId read failed");
+	if (!st_wren_screen_status(vm, st_console_get_style(st_wren_context_from_vm(vm)->console, &style), "Screen.hyperlinkId read")) {
 		return;
 	}
 	wrenSetSlotDouble(vm, 0, style.hyperlink);
@@ -2734,13 +2746,11 @@ fn_screen_hyperlink_set(WrenVM *vm)
 
 	if (!slot_integer(vm, 1, 0, UINT16_MAX, &value))
 		return;
-	if (st_console_get_style(st_wren_context_from_vm(vm)->console, &style) != 0) {
-		st_wren_abort(vm, "Screen.hyperlinkId read failed");
+	if (!st_wren_screen_status(vm, st_console_get_style(st_wren_context_from_vm(vm)->console, &style), "Screen.hyperlinkId read")) {
 		return;
 	}
 	style.hyperlink = (uint16_t)value;
-	if (st_console_set_style(st_wren_context_from_vm(vm)->console, &style) != 0)
-		st_wren_abort(vm, "Screen.hyperlinkId update failed");
+	st_wren_screen_result(vm, st_console_set_style(st_wren_context_from_vm(vm)->console, &style), "Screen.hyperlinkId update");
 }
 
 static void
@@ -2750,9 +2760,7 @@ fn_screen_attr(WrenVM *vm)
 	struct st_console_cell cell;
 	uint8_t value;
 
-	if (st_console_get_style(st_wren_context_from_vm(vm)->console, &style)
-	    != 0) {
-		st_wren_abort(vm, "Screen.attr failed");
+	if (!st_wren_screen_status(vm, st_console_get_style(st_wren_context_from_vm(vm)->console, &style), "Screen.attr")) {
 		return;
 	}
 	cell = (struct st_console_cell){.foreground = style.foreground,
@@ -2768,8 +2776,8 @@ fn_screen_attr_set(WrenVM *vm)
 	int64_t value;
 
 	if (!slot_integer(vm, 1, 0, 255, &value)
-	    || st_console_get_style(st_wren_context_from_vm(vm)->console,
-	    &style) != 0)
+	    || !st_wren_screen_status(vm, st_console_get_style(st_wren_context_from_vm(vm)->console,
+	    &style), "Screen.attr read"))
 		return;
 	struct st_console_cell cell = {.foreground = style.foreground,
 	    .background = style.background, .flags = style.flags};
@@ -2780,9 +2788,8 @@ fn_screen_attr_set(WrenVM *vm)
 	style.flags = cell.flags;
 	if (!resolve_screen_style_font(vm, &style))
 		return;
-	if (st_console_set_style(st_wren_context_from_vm(vm)->console,
-	    &style) != 0)
-		st_wren_abort(vm, "Screen.attr failed");
+	st_wren_screen_result(vm, st_console_set_style(st_wren_context_from_vm(vm)->console,
+	    &style), "Screen.attr");
 }
 
 static void
@@ -2792,12 +2799,12 @@ fn_screen_window_position(WrenVM *vm)
 	uint32_t x;
 	uint32_t y;
 
-	if (st_console_get_position(st_wren_context_from_vm(vm)->console,
-	    &x, &y) != 0 || st_console_get_window(
-	    st_wren_context_from_vm(vm)->console, &window) != 0
-	    || x < window.x || y < window.y
+	if (!st_wren_screen_status(vm, st_console_get_position(st_wren_context_from_vm(vm)->console,
+	    &x, &y), "Screen.window.position") || !st_wren_screen_status(vm, st_console_get_window(
+	    st_wren_context_from_vm(vm)->console, &window), "Screen.window.bounds")) return;
+	if (x < window.x || y < window.y
 	    || x - window.x >= window.width || y - window.y >= window.height) {
-		st_wren_abort(vm, "Screen.window.position failed");
+		st_wren_abort(vm, "Screen.window.position");
 		return;
 	}
 	wrenEnsureSlots(vm, 2);
@@ -2827,12 +2834,14 @@ fn_screen_window_position_set(WrenVM *vm)
 	wrenGetListElement(vm, 1, 1, 2);
 	if (!slot_integer(vm, 2, 1, UINT32_MAX, &y))
 		return;
-	if (st_console_get_window(st_wren_context_from_vm(vm)->console,
-	    &window) != 0 || (uint64_t)x > window.width
-	    || (uint64_t)y > window.height
-	    || st_console_set_position(st_wren_context_from_vm(vm)->console,
-	    window.x + (uint32_t)x - 1, window.y + (uint32_t)y - 1) != 0)
-		st_wren_abort(vm, "Screen.window.position update failed");
+	if (!st_wren_screen_status(vm, st_console_get_window(st_wren_context_from_vm(vm)->console,
+	    &window), "Screen.window.bounds")) return;
+	if ((uint64_t)x > window.width || (uint64_t)y > window.height) {
+		st_wren_abort(vm, "Screen.window.position is outside the window");
+		return;
+	}
+	st_wren_screen_result(vm, st_console_set_position(st_wren_context_from_vm(vm)->console,
+	    window.x + (uint32_t)x - 1, window.y + (uint32_t)y - 1), "Screen.window.setPosition");
 }
 
 static void
@@ -2840,9 +2849,8 @@ fn_screen_window_bounds(WrenVM *vm)
 {
 	struct st_console_rect window;
 
-	if (st_console_get_window(st_wren_context_from_vm(vm)->console,
-	    &window) != 0) {
-		st_wren_abort(vm, "Screen.window.bounds failed");
+	if (!st_wren_screen_status(vm, st_console_get_window(st_wren_context_from_vm(vm)->console,
+	    &window), "Screen.window.bounds")) {
 		return;
 	}
 	wrenEnsureSlots(vm, 2);
@@ -2873,60 +2881,54 @@ fn_screen_window_bounds_set(WrenVM *vm)
 			return;
 	}
 	if (values[2] < values[0] || values[3] < values[1]) {
-		st_wren_abort(vm, "Screen.window.bounds update failed");
+		st_wren_abort(vm, "Screen.window.bounds update");
 		return;
 	}
 	window = (struct st_console_rect){(uint32_t)values[0] - 1,
 	    (uint32_t)values[1] - 1, (uint32_t)(values[2] - values[0] + 1),
 	    (uint32_t)(values[3] - values[1] + 1)};
-	if (st_console_set_window(st_wren_context_from_vm(vm)->console,
-	    &window) != 0)
-		st_wren_abort(vm, "Screen.window.bounds update failed");
+	st_wren_screen_result(vm, st_console_set_window(st_wren_context_from_vm(vm)->console,
+	    &window), "Screen.window.bounds update");
 }
 
 static void
 fn_screen_window_clear(WrenVM *vm)
 {
 	if (refresh_screen_style_font(vm))
-		if (st_console_clear_window(st_wren_context_from_vm(vm)->console,
-		    ' ') != 0)
-			st_wren_abort(vm, "Screen.window.clear failed");
+		st_wren_screen_result(vm, st_console_clear_window(st_wren_context_from_vm(vm)->console,
+		    ' '), "Screen.window.clear");
 }
 
 static void
 fn_screen_window_clear_line(WrenVM *vm)
 {
 	if (refresh_screen_style_font(vm))
-		if (st_console_clear_line(st_wren_context_from_vm(vm)->console,
-		    ' ') != 0)
-			st_wren_abort(vm, "Screen.window.clearToLineEnd failed");
+		st_wren_screen_result(vm, st_console_clear_line(st_wren_context_from_vm(vm)->console,
+		    ' '), "Screen.window.clearToLineEnd");
 }
 
 static void
 fn_screen_window_delete_line(WrenVM *vm)
 {
 	if (refresh_screen_style_font(vm))
-		if (st_console_delete_lines(st_wren_context_from_vm(vm)->console,
-		    1, ' ') != 0)
-			st_wren_abort(vm, "Screen.window.deleteLine failed");
+		st_wren_screen_result(vm, st_console_delete_lines(st_wren_context_from_vm(vm)->console,
+		    1, ' '), "Screen.window.deleteLine");
 }
 
 static void
 fn_screen_window_insert_line(WrenVM *vm)
 {
 	if (refresh_screen_style_font(vm))
-		if (st_console_insert_lines(st_wren_context_from_vm(vm)->console,
-		    1, ' ') != 0)
-			st_wren_abort(vm, "Screen.window.insertLine failed");
+		st_wren_screen_result(vm, st_console_insert_lines(st_wren_context_from_vm(vm)->console,
+		    1, ' '), "Screen.window.insertLine");
 }
 
 static void
 fn_screen_window_scroll(WrenVM *vm)
 {
 	if (refresh_screen_style_font(vm))
-		if (st_console_scroll(st_wren_context_from_vm(vm)->console, 1,
-		    ' ') != 0)
-			st_wren_abort(vm, "Screen.window.scroll failed");
+		st_wren_screen_result(vm, st_console_scroll(st_wren_context_from_vm(vm)->console,
+		    1, ' '), "Screen.window.scroll");
 }
 
 static void
@@ -2934,11 +2936,15 @@ fn_screen_window_put_char(WrenVM *vm)
 {
 	int64_t value;
 
-	if (slot_integer(vm, 1, 0, UINT32_MAX, &value)
-	    && refresh_screen_style_font(vm))
-		if (st_console_put_codepoint(st_wren_context_from_vm(vm)->console,
-		    (uint32_t)value) != 0)
-			st_wren_abort(vm, "Screen.window.putChar failed");
+	if (!slot_integer(vm, 1, 0, 0x10ffff, &value))
+		return;
+	if (value >= 0xd800 && value <= 0xdfff) {
+		st_wren_abort(vm, "Screen.window.putChar expects a Unicode scalar");
+		return;
+	}
+	if (refresh_screen_style_font(vm))
+		st_wren_screen_result(vm, st_console_put_codepoint(st_wren_context_from_vm(vm)->console,
+		    (uint32_t)value), "Screen.window.putChar");
 }
 
 static void
@@ -2952,48 +2958,11 @@ fn_screen_window_print(WrenVM *vm)
 		return;
 	}
 	if (refresh_screen_style_font(vm))
-		if (st_console_write_utf8(st_wren_context_from_vm(vm)->console,
-		    text, (size_t)length) != 0)
-			st_wren_abort(vm, "Screen.window.print failed");
+		st_wren_screen_result(vm, st_console_write_utf8(st_wren_context_from_vm(vm)->console,
+		    text, (size_t)length), "Screen.window.print");
 }
 
-static void
-fn_screen_cell_pixel_size(WrenVM *vm)
-{
-	uint32_t width;
-	uint32_t height;
 
-	if (st_console_cell_pixel_size(st_wren_context_from_vm(vm)->console,
-	    &width, &height) != 0) {
-		wrenSetSlotNull(vm, 0);
-		return;
-	}
-	wrenEnsureSlots(vm, 2);
-	wrenSetSlotNewList(vm, 0);
-	wrenSetSlotDouble(vm, 1, width);
-	wrenInsertInList(vm, 0, -1, 1);
-	wrenSetSlotDouble(vm, 1, height);
-	wrenInsertInList(vm, 0, -1, 1);
-}
-
-static void
-fn_screen_pixel_size(WrenVM *vm)
-{
-	uint32_t width;
-	uint32_t height;
-
-	if (st_console_pixel_size(st_wren_context_from_vm(vm)->console,
-	    &width, &height) != 0) {
-		wrenSetSlotNull(vm, 0);
-		return;
-	}
-	wrenEnsureSlots(vm, 2);
-	wrenSetSlotNewList(vm, 0);
-	wrenSetSlotDouble(vm, 1, width);
-	wrenInsertInList(vm, 0, -1, 1);
-	wrenSetSlotDouble(vm, 1, height);
-	wrenInsertInList(vm, 0, -1, 1);
-}
 
 static void
 fn_screen_text_width(WrenVM *vm)
@@ -3034,8 +3003,7 @@ fn_screen_text_width(WrenVM *vm)
 		status = st_unicode_text_finish(graphemes);
 	if (status != 0) {
 		st_unicode_text_destroy(&graphemes);
-		st_wren_abort(vm, status == IO_ERROR_INVALID_ENCODING
-		    ? "text is not valid UTF-8" : "out of memory");
+		(void)st_wren_screen_status(vm, status, "Screen.textWidth");
 		return;
 	}
 	while (st_unicode_text_peek(graphemes, &item) == 0) {
@@ -3062,20 +3030,13 @@ fn_screen_text_width(WrenVM *vm)
 	wrenSetSlotDouble(vm, 0, (double)width);
 }
 
-static uint32_t
-capabilities(WrenVM *vm)
-{
-	uint32_t result = 0;
-
-	(void)st_console_capabilities(st_wren_context_from_vm(vm)->console,
-	    &result);
-	return result;
-}
-
 #define SUPPORT_GETTER(name, flag) \
 	static void fn_support_##name(WrenVM *vm) \
 	{ \
-		wrenSetSlotBool(vm, 0, (capabilities(vm) & (flag)) != 0); \
+		uint32_t value; \
+		if (st_wren_screen_status(vm, st_console_capabilities(st_wren_context_from_vm(vm)->console, \
+		    &value), "Screen.supports")) \
+			wrenSetSlotBool(vm, 0, (value & (flag)) != 0); \
 	}
 
 SUPPORT_GETTER(loadable_fonts, ST_CONSOLE_CAP_LOADABLE_FONTS)
@@ -3377,17 +3338,39 @@ fn_screen_font_set(WrenVM *vm)
 }
 
 static void
+fn_screen_error_code(WrenVM *vm)
+{
+	struct foreign_screen_error *error = (struct foreign_screen_error *)foreign_kind(vm, 0, FOREIGN_SCREEN_ERROR);
+	if (error != NULL) wrenSetSlotDouble(vm, 0, error->code);
+}
+
+static void
+fn_screen_error_message(WrenVM *vm)
+{
+	struct foreign_screen_error *error = (struct foreign_screen_error *)foreign_kind(vm, 0, FOREIGN_SCREEN_ERROR);
+	if (error != NULL) wrenSetSlotString(vm, 0, error->message);
+}
+
+static void
+fn_screen_error_to_string(WrenVM *vm)
+{
+	struct foreign_screen_error *error = (struct foreign_screen_error *)foreign_kind(vm, 0, FOREIGN_SCREEN_ERROR);
+	char text[224];
+	if (error == NULL) return;
+	(void)snprintf(text, sizeof(text), "ScreenError(%d): %s", error->code, error->message);
+	wrenSetSlotString(vm, 0, text);
+}
+
+static void
 fn_palette_get(WrenVM *vm)
 {
 	int64_t index;
 	uint32_t colour;
-
 	if (!slot_integer(vm, 1, 0, 255, &index))
 		return;
-	if (st_console_get_palette(st_wren_context_from_vm(vm)->console,
-	    (uint16_t)index, &colour, 1) != 0)
-		return;
-	wrenSetSlotDouble(vm, 0, colour);
+	if (st_wren_screen_status(vm, st_console_get_palette(st_wren_context_from_vm(vm)->console,
+	    (uint16_t)index, &colour, 1), "Palette read"))
+		wrenSetSlotDouble(vm, 0, colour);
 }
 
 static void
@@ -3401,8 +3384,8 @@ fn_palette_set(WrenVM *vm)
 	    || !slot_integer(vm, 2, 0, 0xffffff, &colour))
 		return;
 	value = (uint32_t)colour;
-	(void)st_console_set_palette(st_wren_context_from_vm(vm)->console,
-	    (uint16_t)index, &value, 1);
+	st_wren_screen_result(vm, st_console_set_palette(st_wren_context_from_vm(vm)->console,
+	    (uint16_t)index, &value, 1), "Palette.set");
 }
 
 static void
@@ -3880,8 +3863,12 @@ fn_cell_attr(WrenVM *vm)
 	struct st_console_cell *cell = cell_value(vm, 0);
 	uint8_t value;
 
-	if (cell != NULL && cell_legacy_attr(vm, cell, &value))
+	if (cell == NULL)
+		return;
+	if (cell_legacy_attr(vm, cell, &value))
 		wrenSetSlotDouble(vm, 0, value);
+	else
+		st_wren_abort(vm, "console colour state is unavailable");
 }
 
 static void
@@ -4072,8 +4059,12 @@ fn_cell_to_string(WrenVM *vm)
 	char text[80];
 	uint8_t attribute;
 
-	if (cell == NULL || !cell_legacy_attr(vm, cell, &attribute))
+	if (cell == NULL)
 		return;
+	if (!cell_legacy_attr(vm, cell, &attribute)) {
+		st_wren_abort(vm, "console colour state is unavailable");
+		return;
+	}
 	(void)snprintf(text, sizeof(text),
 	    "Cell(glyph=%u glyphFont=%u attr=0x%02X font=%u)",
 	    cell->glyph, cell->glyph_font, attribute, cell->font);
@@ -4168,9 +4159,8 @@ fn_clipboard_get(WrenVM *vm)
 {
 	char *text = NULL;
 
-	if (st_console_get_clipboard_text(
-	    st_wren_context_from_vm(vm)->console, &text) != 0) {
-		wrenSetSlotNull(vm, 0);
+	if (!st_wren_screen_status(vm, st_console_get_clipboard_text(
+	    st_wren_context_from_vm(vm)->console, &text), "Clipboard.text")) {
 		return;
 	}
 	wrenSetSlotString(vm, 0, text);
@@ -4184,8 +4174,8 @@ fn_clipboard_set(WrenVM *vm)
 
 	if (!st_wren_text_slot(vm, 1, &text, NULL))
 		return;
-	(void)st_console_set_clipboard_text(
-	    st_wren_context_from_vm(vm)->console, text);
+	st_wren_screen_result(vm, st_console_set_clipboard_text(
+	    st_wren_context_from_vm(vm)->console, text), "Clipboard.setText");
 }
 
 static void
@@ -4195,18 +4185,15 @@ fn_cursor_preset(WrenVM *vm)
 
 	if (!slot_integer(vm, 1, 0, 2, &preset))
 		return;
+	struct st_console_custom_cursor value;
+	if (!st_wren_screen_status(vm, st_console_get_default_cursor(st_wren_context_from_vm(vm)->console, &value), "CustomCursor preset"))
+		return;
 	wrenEnsureSlots(vm, 3);
 	wrenGetVariable(vm, "syncterm", "CustomCursor", 2);
 	struct foreign_cursor *cursor = wrenSetSlotNewForeign(vm, 0, 2,
 	    sizeof(*cursor));
 	cursor->header.kind = FOREIGN_CURSOR;
-	if (st_console_get_default_cursor(st_wren_context_from_vm(vm)->console, &cursor->cursor)
-	    != 0) {
-		cursor->cursor = (struct st_console_custom_cursor){
-			.start = 6, .end = 7, .range = 8, .visible = true,
-			.blink = true,
-		};
-	}
+	cursor->cursor = value;
 	if (preset != 2) {
 		cursor->cursor.start = 0;
 		cursor->cursor.end = cursor->cursor.range - 1;
@@ -4264,9 +4251,8 @@ CURSOR_BOOL(visible, visible)
 	static void fn_cursor_##name##_static(WrenVM *vm) \
 	{ \
 		struct st_console_custom_cursor cursor; \
-		if (st_console_get_custom_cursor( \
-		    st_wren_context_from_vm(vm)->console, &cursor) != 0) { \
-			st_wren_abort(vm, "CustomCursor read failed"); \
+		if (!st_wren_screen_status(vm, st_console_get_custom_cursor( \
+		    st_wren_context_from_vm(vm)->console, &cursor), "CustomCursor read")) { \
 			return; \
 		} \
 		wrenSetSlotDouble(vm, 0, cursor.field); \
@@ -4277,24 +4263,21 @@ CURSOR_BOOL(visible, visible)
 		int64_t value; \
 		if (!slot_integer(vm, 1, 0, UINT32_MAX, &value)) \
 			return; \
-		if (st_console_get_custom_cursor( \
-		    st_wren_context_from_vm(vm)->console, &cursor) != 0) { \
-			st_wren_abort(vm, "CustomCursor read failed"); \
+		if (!st_wren_screen_status(vm, st_console_get_custom_cursor( \
+		    st_wren_context_from_vm(vm)->console, &cursor), "CustomCursor read")) { \
 			return; \
 		} \
 		cursor.field = (uint32_t)value; \
-		if (st_console_set_custom_cursor( \
-		    st_wren_context_from_vm(vm)->console, &cursor) != 0) \
-			st_wren_abort(vm, "CustomCursor update failed"); \
+		st_wren_screen_result(vm, st_console_set_custom_cursor( \
+		    st_wren_context_from_vm(vm)->console, &cursor), "CustomCursor update"); \
 	}
 
 #define CURSOR_STATIC_BOOL(name, field) \
 	static void fn_cursor_##name##_static(WrenVM *vm) \
 	{ \
 		struct st_console_custom_cursor cursor; \
-		if (st_console_get_custom_cursor( \
-		    st_wren_context_from_vm(vm)->console, &cursor) != 0) { \
-			st_wren_abort(vm, "CustomCursor read failed"); \
+		if (!st_wren_screen_status(vm, st_console_get_custom_cursor( \
+		    st_wren_context_from_vm(vm)->console, &cursor), "CustomCursor read")) { \
 			return; \
 		} \
 		wrenSetSlotBool(vm, 0, cursor.field); \
@@ -4305,15 +4288,13 @@ CURSOR_BOOL(visible, visible)
 		bool value; \
 		if (!slot_boolean(vm, 1, &value)) \
 			return; \
-		if (st_console_get_custom_cursor( \
-		    st_wren_context_from_vm(vm)->console, &cursor) != 0) { \
-			st_wren_abort(vm, "CustomCursor read failed"); \
+		if (!st_wren_screen_status(vm, st_console_get_custom_cursor( \
+		    st_wren_context_from_vm(vm)->console, &cursor), "CustomCursor read")) { \
 			return; \
 		} \
 		cursor.field = value; \
-		if (st_console_set_custom_cursor( \
-		    st_wren_context_from_vm(vm)->console, &cursor) != 0) \
-			st_wren_abort(vm, "CustomCursor update failed"); \
+		st_wren_screen_result(vm, st_console_set_custom_cursor( \
+		    st_wren_context_from_vm(vm)->console, &cursor), "CustomCursor update"); \
 	}
 
 CURSOR_STATIC_NUMBER(start, start)
@@ -4329,10 +4310,9 @@ static void
 fn_cursor_apply(WrenVM *vm)
 {
 	struct foreign_cursor *cursor = cursor_value(vm);
-
-	if (cursor != NULL && st_console_set_custom_cursor(
-	    st_wren_context_from_vm(vm)->console, &cursor->cursor) != 0)
-		st_wren_abort(vm, "CustomCursor update failed");
+	if (cursor != NULL)
+		st_wren_screen_result(vm, st_console_set_custom_cursor(st_wren_context_from_vm(vm)->console,
+		    &cursor->cursor), "CustomCursor.apply");
 }
 
 static struct foreign_video_flags *
@@ -4346,9 +4326,8 @@ video_flags_value(WrenVM *vm)
 	static void fn_video_##name##_static(WrenVM *vm) \
 	{ \
 		uint32_t flags; \
-		if (st_console_get_video_flags(st_wren_context_from_vm(vm)->console, \
-		    &flags) != 0) { \
-			st_wren_abort(vm, "VideoFlags read failed"); \
+		if (!st_wren_screen_status(vm, st_console_get_video_flags(st_wren_context_from_vm(vm)->console, \
+		    &flags), "VideoFlags read")) { \
 			return; \
 		} \
 		wrenSetSlotBool(vm, 0, (flags & (bit)) != 0); \
@@ -4359,18 +4338,16 @@ video_flags_value(WrenVM *vm)
 		bool value; \
 		if (!slot_boolean(vm, 1, &value)) \
 			return; \
-		if (st_console_get_video_flags(st_wren_context_from_vm(vm)->console, \
-		    &flags) != 0) { \
-			st_wren_abort(vm, "VideoFlags read failed"); \
+		if (!st_wren_screen_status(vm, st_console_get_video_flags(st_wren_context_from_vm(vm)->console, \
+		    &flags), "VideoFlags read")) { \
 			return; \
 		} \
 		if (value) \
 			flags |= (bit); \
 		else \
 			flags &= ~(bit); \
-		if (st_console_set_video_flags(st_wren_context_from_vm(vm)->console, \
-		    flags) != 0) \
-			st_wren_abort(vm, "VideoFlags update failed"); \
+		st_wren_screen_result(vm, st_console_set_video_flags(st_wren_context_from_vm(vm)->console, \
+		    flags), "VideoFlags update"); \
 	} \
 	static void fn_video_##name(WrenVM *vm) \
 	{ \
@@ -4404,9 +4381,8 @@ fn_video_expand_static(WrenVM *vm)
 {
 	uint32_t flags;
 
-	if (st_console_get_video_flags(st_wren_context_from_vm(vm)->console,
-	    &flags) != 0) {
-		st_wren_abort(vm, "VideoFlags read failed");
+	if (!st_wren_screen_status(vm, st_console_get_video_flags(st_wren_context_from_vm(vm)->console,
+	    &flags), "VideoFlags read")) {
 		return;
 	}
 	wrenSetSlotBool(vm, 0, (flags & ST_CONSOLE_VIDEO_EXPAND) != 0);
@@ -4426,10 +4402,9 @@ static void
 fn_video_apply(WrenVM *vm)
 {
 	struct foreign_video_flags *flags = video_flags_value(vm);
-
-	if (flags != NULL && st_console_set_video_flags(
-	    st_wren_context_from_vm(vm)->console, flags->flags) != 0)
-		st_wren_abort(vm, "VideoFlags update failed");
+	if (flags != NULL)
+		st_wren_screen_result(vm, st_console_set_video_flags(st_wren_context_from_vm(vm)->console,
+		    flags->flags), "VideoFlags.apply");
 }
 
 static void
@@ -4547,15 +4522,17 @@ fn_host_safe_mode(WrenVM *vm)
 static void
 fn_host_text_terminal(WrenVM *vm)
 {
-	wrenSetSlotBool(vm, 0,
-	    (capabilities(vm) & ST_CONSOLE_CAP_TEXT_TERMINAL) != 0);
+	uint32_t value;
+	if (st_wren_screen_status(vm, st_console_capabilities(st_wren_context_from_vm(vm)->console, &value), "Host console capabilities"))
+		wrenSetSlotBool(vm, 0, (value & ST_CONSOLE_CAP_TEXT_TERMINAL) != 0);
 }
 
 static void
 fn_host_local_control_keys(WrenVM *vm)
 {
-	wrenSetSlotBool(vm, 0,
-	    (capabilities(vm) & ST_CONSOLE_CAP_LOCAL_CONTROL_KEYS) != 0);
+	uint32_t value;
+	if (st_wren_screen_status(vm, st_console_capabilities(st_wren_context_from_vm(vm)->console, &value), "Host console capabilities"))
+		wrenSetSlotBool(vm, 0, (value & ST_CONSOLE_CAP_LOCAL_CONTROL_KEYS) != 0);
 }
 
 static void
@@ -5052,6 +5029,12 @@ fn_emoji_can_send(WrenVM *vm)
 }
 
 static const struct binding bindings[] = {
+	{"ScreenUpdate_", true, "new()", allocate_screen_update},
+	{"ScreenError", false, "code", fn_screen_error_code},
+	{"ScreenError", false, "message", fn_screen_error_message},
+	{"ScreenError", false, "toString", fn_screen_error_to_string},
+	{"CustomCursor", true, "new()", allocate_cursor},
+	{"VideoFlags", true, "new()", allocate_video_flags},
 	{"Text", true, "graphemes(_)", fn_text_graphemes},
 	{"Emoji", true, "entries_", fn_emoji_entries},
 	{"Emoji", true, "search_(_)", fn_emoji_search},
@@ -5086,7 +5069,7 @@ static const struct binding bindings[] = {
 	{"Input", true, "ungetPhysicalKey_(_)", fn_input_unget_physical},
 	{"Input", true, "ungetMouse_(_)", fn_input_unget_mouse},
 	{"Input", true, "synthesizePhysicalKey(_,_)", fn_input_synthesize_physical},
-	{"Input", true, "mouseVisible=(_)", fn_input_mouse_visible_set},
+	{"Input", true, "setMouseVisible(_)", fn_input_mouse_visible_set},
 	{"Input", true, "mousedrag()", fn_input_mouse_drag},
 	{"Input", true, "mousedrag(_)", fn_input_mouse_drag},
 	{"KeyEvent", false, "key", fn_key_key},
@@ -5135,16 +5118,14 @@ static const struct binding bindings[] = {
 	{"Screen", true, "putRect_(_,_,_,_,_,_,_)", fn_screen_put_rect_partial},
 	{"ScreenUpdate_", false, "finish_()", fn_screen_update_finish},
 	{"Screen", true, "hyperlinkId", fn_screen_hyperlink},
-	{"Screen", true, "hyperlinkId=(_)", fn_screen_hyperlink_set},
+	{"Screen", true, "setHyperlinkId(_)", fn_screen_hyperlink_set},
 	{"Screen", true, "attr", fn_screen_attr},
-	{"Screen", true, "attr=(_)", fn_screen_attr_set},
-	{"Screen", true, "pixelSize", fn_screen_pixel_size},
-	{"Screen", true, "cellPixelSize", fn_screen_cell_pixel_size},
+	{"Screen", true, "setAttr(_)", fn_screen_attr_set},
 	{"Screen", true, "textWidth(_,_)", fn_screen_text_width},
 	{"ScreenWindow", true, "position", fn_screen_window_position},
-	{"ScreenWindow", true, "position=(_)", fn_screen_window_position_set},
+	{"ScreenWindow", true, "setPosition(_)", fn_screen_window_position_set},
 	{"ScreenWindow", true, "bounds", fn_screen_window_bounds},
-	{"ScreenWindow", true, "bounds=(_)", fn_screen_window_bounds_set},
+	{"ScreenWindow", true, "setBounds(_)", fn_screen_window_bounds_set},
 	{"ScreenWindow", true, "clear()", fn_screen_window_clear},
 	{"ScreenWindow", true, "clearToLineEnd()", fn_screen_window_clear_line},
 	{"ScreenWindow", true, "deleteLine()", fn_screen_window_delete_line},
@@ -5184,7 +5165,7 @@ static const struct binding bindings[] = {
 	{"FontError", false, "message", fn_font_error_message},
 	{"FontError", false, "toString", fn_font_error_to_string},
 	{"Palette", true, "[_]", fn_palette_get},
-	{"Palette", true, "[_]=(_)", fn_palette_set},
+	{"Palette", true, "set(_,_)", fn_palette_set},
 	{"Surface", false, "count", fn_surface_count},
 	{"Surface", false, "[_]", fn_surface_get},
 	{"Surface", false, "iterate(_)", fn_surface_iterate},
@@ -5226,18 +5207,18 @@ static const struct binding bindings[] = {
 	{"Color", true, "fromAttr(_)", fn_color_from_attr},
 	{"Color", true, "toLegacyAttr(_,_)", fn_color_to_attr},
 	{"Clipboard", true, "text", fn_clipboard_get},
-	{"Clipboard", true, "text=(_)", fn_clipboard_set},
+	{"Clipboard", true, "setText(_)", fn_clipboard_set},
 	{"CustomCursor", true, "presetLegacy_(_)", fn_cursor_preset},
 	{"CustomCursor", true, "startLine", fn_cursor_start_static},
-	{"CustomCursor", true, "startLine=(_)", fn_cursor_start_set_static},
+	{"CustomCursor", true, "setStartLine(_)", fn_cursor_start_set_static},
 	{"CustomCursor", true, "endLine", fn_cursor_end_static},
-	{"CustomCursor", true, "endLine=(_)", fn_cursor_end_set_static},
+	{"CustomCursor", true, "setEndLine(_)", fn_cursor_end_set_static},
 	{"CustomCursor", true, "range", fn_cursor_range_static},
-	{"CustomCursor", true, "range=(_)", fn_cursor_range_set_static},
+	{"CustomCursor", true, "setRange(_)", fn_cursor_range_set_static},
 	{"CustomCursor", true, "blink", fn_cursor_blink_static},
-	{"CustomCursor", true, "blink=(_)", fn_cursor_blink_set_static},
+	{"CustomCursor", true, "setBlink(_)", fn_cursor_blink_set_static},
 	{"CustomCursor", true, "visible", fn_cursor_visible_static},
-	{"CustomCursor", true, "visible=(_)", fn_cursor_visible_set_static},
+	{"CustomCursor", true, "setVisible(_)", fn_cursor_visible_set_static},
 	{"CustomCursor", false, "startLine", fn_cursor_start},
 	{"CustomCursor", false, "startLine=(_)", fn_cursor_start_set},
 	{"CustomCursor", false, "endLine", fn_cursor_end},
@@ -5250,18 +5231,18 @@ static const struct binding bindings[] = {
 	{"CustomCursor", false, "visible=(_)", fn_cursor_visible_set},
 	{"CustomCursor", false, "apply()", fn_cursor_apply},
 	{"VideoFlags", true, "altChars", fn_video_alt_chars_static},
-	{"VideoFlags", true, "altChars=(_)", fn_video_alt_chars_set_static},
+	{"VideoFlags", true, "setAltChars(_)", fn_video_alt_chars_set_static},
 	{"VideoFlags", true, "noBright", fn_video_no_bright_static},
-	{"VideoFlags", true, "noBright=(_)", fn_video_no_bright_set_static},
+	{"VideoFlags", true, "setNoBright(_)", fn_video_no_bright_set_static},
 	{"VideoFlags", true, "bgBright", fn_video_bright_background_static},
-	{"VideoFlags", true, "bgBright=(_)", fn_video_bright_background_set_static},
+	{"VideoFlags", true, "setBgBright(_)", fn_video_bright_background_set_static},
 	{"VideoFlags", true, "blinkAltChars", fn_video_blink_alt_chars_static},
-	{"VideoFlags", true, "blinkAltChars=(_)", fn_video_blink_alt_chars_set_static},
+	{"VideoFlags", true, "setBlinkAltChars(_)", fn_video_blink_alt_chars_set_static},
 	{"VideoFlags", true, "noBlink", fn_video_no_blink_static},
-	{"VideoFlags", true, "noBlink=(_)", fn_video_no_blink_set_static},
+	{"VideoFlags", true, "setNoBlink(_)", fn_video_no_blink_set_static},
 	{"VideoFlags", true, "expand", fn_video_expand_static},
 	{"VideoFlags", true, "lineGraphicsExpand", fn_video_line_graphics_expand_static},
-	{"VideoFlags", true, "lineGraphicsExpand=(_)", fn_video_line_graphics_expand_set_static},
+	{"VideoFlags", true, "setLineGraphicsExpand(_)", fn_video_line_graphics_expand_set_static},
 	{"VideoFlags", false, "altChars", fn_video_alt_chars},
 	{"VideoFlags", false, "altChars=(_)", fn_video_alt_chars_set},
 	{"VideoFlags", false, "noBright", fn_video_no_bright},
@@ -5329,7 +5310,7 @@ st_wren_core_bind_class(const char *class_name)
 	else if (strcmp(class_name, "ScreenSnapshot") == 0)
 		methods.allocate = allocate_snapshot;
 	else if (strcmp(class_name, "ScreenUpdate_") == 0) {
-		methods.allocate = allocate_screen_update;
+		methods.allocate = NULL;
 		methods.finalize = finalize_screen_update;
 	}
 	else if (strcmp(class_name, "KeyEvent") == 0)
@@ -5343,11 +5324,13 @@ st_wren_core_bind_class(const char *class_name)
 		methods.finalize = finalize_claim_handle;
 	}
 	else if (strcmp(class_name, "CustomCursor") == 0)
-		methods.allocate = allocate_cursor;
+		methods.allocate = NULL;
 	else if (strcmp(class_name, "VideoFlags") == 0)
-		methods.allocate = allocate_video_flags;
+		methods.allocate = NULL;
 	else if (strcmp(class_name, "FontError") == 0)
 		methods.allocate = allocate_font_error;
+	else if (strcmp(class_name, "ScreenError") == 0)
+		methods.allocate = NULL;
 	else if (strcmp(class_name, "WONError") == 0) {
 		methods.allocate = st_wren_won_error_allocate;
 		methods.finalize = st_wren_won_error_finalize;

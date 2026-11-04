@@ -1,3 +1,4 @@
+import "syncterm" for Error
 // Optional, independently installed SyncTERM directory/settings frontend.
 // Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 import "syncterm" for Host, Screen, ScreenMode, Key, Text, Mod, KeyEvent, PhysicalKeyEvent
@@ -40,7 +41,7 @@ class ModernUI {
     commands.add([key, keyName, description, callback])
   }
   static splash() {
-    var size = Screen.size
+    var size = Screen.checked_(Screen.size)
     var app = ModernApp.new()
     var canvas = ModernLabel.new {|sf|
       Painter.fill(sf, Rect.new(0, 0, size[0], size[1]), " ",
@@ -83,7 +84,7 @@ class ModernDirectory {
       _canvas.markDirty()
     }
     _canvas = ModernCanvas.new {|sf| paint_(sf) }
-    _canvas.bounds = Rect.new(1, 1, Screen.size[0], Screen.size[1])
+    _canvas.bounds = Rect.new(1, 1, Screen.checked_(Screen.size)[0], Screen.checked_(Screen.size)[1])
     _app.root.add(_canvas)
     _directoryButton = button_("Directory", Fn.new { showDirectory_() })
     _settingsButton = button_("Settings", Fn.new { showSettings_() })
@@ -98,7 +99,7 @@ class ModernDirectory {
     _list.wrap = false
     _list.onChange = Fn.new {|index, text|
       var entry = selected
-      Menu.showEntry(entry)
+      Screen.optional_(Menu.showEntry(entry))
       if (entry != null) _preferred = entry.name
       _canvas.markDirty()
     }
@@ -122,9 +123,9 @@ class ModernDirectory {
     _app.bind(Key.escape, Fn.new { escape_() })
     _app.bind(Key.f1, Fn.new { help_() })
     _app.bind(96, Mod.control, Fn.new { console_() })
-    if (Host.localControlKeys) _app.bind(113, Mod.control, Fn.new { console_() })
+    if (Screen.checked_(Host.localControlKeys)) _app.bind(113, Mod.control, Fn.new { console_() })
     reload_()
-    layout_(Screen.size[0], Screen.size[1])
+    layout_(Screen.checked_(Screen.size)[0], Screen.checked_(Screen.size)[1])
     if (state != null && state.count > 2 && selected != null && selected.name == state[0]) {
       _list.scrollTop = state[2]
     }
@@ -154,12 +155,12 @@ class ModernDirectory {
   directoryWidgets { [_search, _list, _newButton, _editButton, _connectButton, _sortButton, _deleteButton] }
   showDirectory_() {
     _settingsPage = false
-    layout_(Screen.size[0], Screen.size[1])
+    layout_(Screen.checked_(Screen.size)[0], Screen.checked_(Screen.size)[1])
     focus_(_list)
   }
   showSettings_() {
     _settingsPage = true
-    layout_(Screen.size[0], Screen.size[1])
+    layout_(Screen.checked_(Screen.size)[0], Screen.checked_(Screen.size)[1])
     if (_categories.count > 0) focus_(_categories[0])
   }
   reload_() {
@@ -268,9 +269,9 @@ class ModernDirectory {
           ModernStyle.accent, detailBg, _contentW - 4)
       if (entry != null) {
         var source = entry.type == 0 ? "Personal" : "Shared"
-        var column = _list.columnX.max(Screen.textWidth(entry.name, 0) + 4)
+        var column = _list.columnX.max(Screen.checked_(Screen.textWidth(entry.name, 0)) + 4)
         var meta = "%(entry.profile.connTypeName) :%(entry.profile.port) / %(source)"
-        if (Screen.textWidth(meta, 0) > _contentW - column - 2) {
+        if (Screen.checked_(Screen.textWidth(meta, 0)) > _contentW - column - 2) {
           meta = "%(entry.profile.connTypeName):%(entry.profile.port) %(source)"
         }
         text_(sf, x + column, dy, meta,
@@ -304,11 +305,12 @@ class ModernDirectory {
     var key = event is PhysicalKeyEvent ? Key.physicalShortcut_(event) : event.shortcut_
     if (_small) {
       if (key != Key.enter) return false
-      if (!Menu.setScreenMode(ScreenMode.c80x25)) _notice = "80x25 mode is unavailable."
+      var result = Menu.setScreenMode(ScreenMode.c80x25)
+      if (result is Error) _notice = result.message
       _app.markAllDirty_()
       return true
     }
-    if (key == Key.chord_(96, Mod.control) || (Host.localControlKeys && key == Key.chord_(113, Mod.control))) {
+    if (key == Key.chord_(96, Mod.control) || (Screen.checked_(Host.localControlKeys) && key == Key.chord_(113, Mod.control))) {
       console_()
       return true
     }

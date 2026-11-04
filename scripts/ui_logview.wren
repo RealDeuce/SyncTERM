@@ -178,7 +178,7 @@ class LogView is Widget {
     var offset = 0
     var start = 0
     for (cp in text) {
-      var cpWidth = Screen.textWidth(cp, font)
+      var cpWidth = Screen.checked_(Screen.textWidth(cp, font))
       if (chunk.count > 0 && columns + cpWidth > width) {
         rows.add([entryIndex, start, chunk])
         chunk = ""

@@ -91,7 +91,7 @@ class MenuBar is Widget {
     var i   = 0
     while (i < _items.count) {
       var lbl = _items[i][0]
-      var w   = Screen.textWidth(lbl, 0) + 2
+      var w   = Screen.checked_(Screen.textWidth(lbl, 0)) + 2
       out.add([x, x + w])
       x = x + w + 1                  // +1 separator space
       i = i + 1

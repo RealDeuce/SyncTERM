@@ -1042,17 +1042,14 @@ fn_menu_show_entry(WrenVM *vm)
 	char composed[128];
 
 	if (wrenGetSlotType(vm, 1) == WREN_TYPE_NULL) {
-		(void)st_console_set_title(host->config.console, title);
-		wrenSetSlotBool(vm, 0, true);
+		st_wren_screen_result(vm, st_console_set_title(host->config.console, title), "Menu.showEntry");
 		return;
 	}
 	struct foreign_bbs *bbs = bbs_value(vm, 1);
-	if (bbs == NULL)
-		return;
+	if (bbs == NULL) return;
 	(void)snprintf(composed, sizeof(composed), "%s - %s", title,
 	    bbs->record->profile.name);
-	(void)st_console_set_title(host->config.console, composed);
-	wrenSetSlotBool(vm, 0, true);
+	st_wren_screen_result(vm, st_console_set_title(host->config.console, composed), "Menu.showEntry");
 }
 
 static void
@@ -1489,8 +1486,8 @@ fn_menu_prepare_offline_scrollback(WrenVM *vm)
 	bool success = offline_scrollback_info(host, &mode, &has_status);
 
 	(void)has_status;
-	if (success && mode != ST_SCREEN_MODE_CURRENT)
-		success = st_wren_host_set_screen_mode(host, mode) == 0;
+	if (success && mode != ST_SCREEN_MODE_CURRENT
+	    && !st_wren_screen_status(vm, st_wren_host_set_screen_mode(host, mode), "Menu.prepareOfflineScrollback")) return;
 	wrenSetSlotBool(vm, 0, success);
 }
 
@@ -2064,12 +2061,20 @@ restore_theme_selection(struct st_wren_host *host,
 		char original[256];
 		(void)snprintf(original, sizeof(original), "%s", error);
 		/* Keep restoration visible even when the primary diagnostic was full. */
-		(void)snprintf(error, size,
-		    "Restoration failed:%s%s%s%s Original failure: %s",
+		int written = snprintf(error, size,
+		    "Restoration failed:%s%s%s%s Original failure: ",
 		    settings_restored ? "" : " running settings could not be restored.",
 		    status == 0 ? "" : " the active theme could not be restored (",
 		    status == 0 ? "" : menu_io_reason(status),
-		    status == 0 ? "" : ").", original);
+		    status == 0 ? "" : ").");
+		if (written >= 0 && (size_t)written < size) {
+			size_t count = strlen(original);
+			size_t available = size - (size_t)written - 1;
+			if (count > available)
+				count = available;
+			memcpy(error + written, original, count);
+			error[(size_t)written + count] = '\0';
+		}
 	}
 }
 
@@ -2770,8 +2775,12 @@ fn_menu_open_url(WrenVM *vm)
 	}
 	if (!st_wren_text_slot(vm, 1, &url, NULL))
 		return;
-	wrenSetSlotBool(vm, 0, !host->config.safe_mode && url[0] != '\0'
-	    && st_console_open_url(host->config.console, url) == 0);
+	if (host->config.safe_mode || url[0] == '\0') {
+		wrenSetSlotBool(vm, 0, false);
+		return;
+	}
+	if (st_wren_screen_status(vm, st_console_open_url(host->config.console, url), "Menu.openUrl"))
+		wrenSetSlotBool(vm, 0, true);
 }
 
 static void
@@ -2781,18 +2790,24 @@ fn_menu_open_hyperlink(WrenVM *vm)
 	struct st_hyperlink hyperlink = {0};
 	int64_t value;
 	bool opened = false;
+	int status = 0;
 
 	if (!slot_integer(vm, 1, 1, UINT16_MAX, &value))
 		return;
-	if (!host->config.safe_mode
-	    && st_hyperlink_registry_copy(host->config.hyperlinks,
-	    (uint16_t)value, &hyperlink) == 0) {
-		if (st_wren_uri_openable(hyperlink.uri))
-			opened = st_console_open_url(host->config.console,
-			    hyperlink.uri) == 0;
-		st_hyperlink_dispose(&hyperlink);
+	if (!host->config.safe_mode) {
+		status = st_hyperlink_registry_copy(host->config.hyperlinks, (uint16_t)value, &hyperlink);
+		if (status == IO_ERROR_NOT_FOUND)
+			status = 0;
+		else if (status == 0) {
+			if (st_wren_uri_openable(hyperlink.uri)) {
+				status = st_console_open_url(host->config.console, hyperlink.uri);
+				opened = status == 0;
+			}
+			st_hyperlink_dispose(&hyperlink);
+		}
 	}
-	wrenSetSlotBool(vm, 0, opened);
+	if (st_wren_screen_status(vm, status, "Menu.openHyperlink"))
+		wrenSetSlotBool(vm, 0, opened);
 }
 
 static void
@@ -2805,12 +2820,13 @@ fn_menu_set_hyperlink_hover(WrenVM *vm)
 
 	if (!slot_integer(vm, 1, 0, UINT16_MAX, &value))
 		return;
-	if (value != 0
-	    && st_hyperlink_registry_contains(host->config.hyperlinks,
-	    (uint16_t)value, &present) == 0 && present)
-		shape = ST_CONSOLE_POINTER_LINK;
-	(void)st_console_set_pointer_shape(host->config.console, shape);
-	wrenSetSlotNull(vm, 0);
+	if (value != 0) {
+		if (!st_wren_screen_status(vm, st_hyperlink_registry_contains(host->config.hyperlinks,
+		    (uint16_t)value, &present), "Menu.setHyperlinkHover lookup")) return;
+		if (present)
+			shape = ST_CONSOLE_POINTER_LINK;
+	}
+	st_wren_screen_result(vm, st_console_set_pointer_shape(host->config.console, shape), "Menu.setHyperlinkHover");
 }
 
 static void
@@ -2867,8 +2883,8 @@ fn_menu_set_screen_mode(WrenVM *vm)
 	if (!slot_integer(vm, 1, ST_SCREEN_MODE_80X25,
 	    ST_SCREEN_MODE_ATARIST_80X25_MONO, &mode))
 		return;
-	wrenSetSlotBool(vm, 0, st_wren_host_set_screen_mode(host,
-	    (enum st_screen_mode)mode) == 0);
+	st_wren_screen_result(vm, st_wren_host_set_screen_mode(host,
+	    (enum st_screen_mode)mode), "Menu.setScreenMode");
 }
 
 static void
@@ -3759,8 +3775,7 @@ fn_settings_kdf_shift(WrenVM *vm)
 {
 	struct foreign_settings *settings = settings_value(vm);
 
-	if (settings == NULL)
-		return;
+	if (settings == NULL) return;
 	wrenSetSlotDouble(vm, 0, settings_kdf_shift(&settings->settings));
 }
 
@@ -4114,8 +4129,7 @@ fn_settings_reload(WrenVM *vm)
 	struct foreign_settings *settings = settings_value(vm);
 	struct st_settings replacement;
 
-	if (settings == NULL)
-		return;
+	if (settings == NULL) return;
 	st_settings_init(&replacement);
 	if (!st_settings_copy(&replacement, &st_settings)) {
 		menu_error(vm, 0, 0, "The running settings could not be copied.");
@@ -4413,8 +4427,7 @@ fn_bbs_conn_type_name(WrenVM *vm)
 	struct foreign_bbs *bbs = bbs_value(vm, 0);
 	int type;
 
-	if (bbs == NULL)
-		return;
+	if (bbs == NULL) return;
 	type = bbs->record->profile.connection_type;
 	wrenSetSlotString(vm, 0, type >= 0
 	    && (size_t)type < sizeof(names) / sizeof(names[0]) ? names[type] :
@@ -4426,8 +4439,7 @@ fn_bbs_palette(WrenVM *vm)
 {
 	struct foreign_bbs *bbs = bbs_value(vm, 0);
 
-	if (bbs == NULL)
-		return;
+	if (bbs == NULL) return;
 	uint32_t palette[16];
 	unsigned count = bbs->record->profile.palette_size;
 	memcpy(palette, bbs->record->profile.palette, sizeof(palette));
@@ -4476,8 +4488,7 @@ fn_bbs_wren_scripts(WrenVM *vm)
 	struct foreign_bbs *bbs = bbs_value(vm, 0);
 	const char *next;
 
-	if (bbs == NULL)
-		return;
+	if (bbs == NULL) return;
 	char scripts[ST_PROFILE_WREN_SCRIPTS_MAX + 1];
 	memcpy(scripts, bbs->record->profile.wren_scripts, sizeof(scripts));
 	wrenEnsureSlots(vm, 2);
@@ -4554,8 +4565,7 @@ fn_bbs_search_key(WrenVM *vm)
 	size_t size;
 	const char *key;
 
-	if (bbs == NULL)
-		return;
+	if (bbs == NULL) return;
 	key = st_wren_bbs_model_search_key(&host->bbs_model, bbs->record,
 	    &size);
 	if (key == NULL)

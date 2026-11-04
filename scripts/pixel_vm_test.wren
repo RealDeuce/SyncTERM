@@ -1,3 +1,4 @@
+import "syncterm" for Error
 // Pixel API contract shared by the menu and picker VM harnesses.
 
 import "syncterm" for Cell, PixelBlit, PixelBuffer,
@@ -95,12 +96,12 @@ class PixelVmTest {
 
     var size = Screen.pixelSize
     var cellSize = Screen.cellPixelSize
-    check.call((!Screen.supports.pixels && size == null && cellSize == null) ||
+    check.call((!Screen.supports.pixels && size is Error && cellSize is Error) ||
         (size.count == 2 && cellSize.count == 2))
     if (Screen.supports.pixels) {
       var saved = Screen.readPixels(0, 0, 4, 4, true)
       var replacement = PixelColor.rgb(0x010203)
-      check.call(saved is PixelBuffer && Screen.setPixel(0, 0, replacement))
+      check.call(saved is PixelBuffer && Screen.setPixel(0, 0, replacement) == null)
       check.call(Screen.readRect(1, 1, 1, 1)[0].pixelGraphics)
       var captured = Screen.readPixels(0, 0, 1, 1)
       check.call(captured[0] == replacement)
@@ -113,7 +114,7 @@ class PixelVmTest {
       operation.destinationY = 0
       operation.scaleX = 2
       operation.flipX = true
-      check.call(Screen.blitPixels(source, operation))
+      check.call(Screen.blitPixels(source, operation) == null)
       var result = Screen.readPixels(0, 0, 4, 1)
       check.call(PixelColor.toRgb(result[0]) == 0x445566 &&
           PixelColor.toRgb(result[2]) == 0x112233 && result.hasAlternate &&
@@ -123,22 +124,22 @@ class PixelVmTest {
       operation = PixelBlit.new()
       operation.destinationX = 2
       operation.destinationY = 2
-      check.call(Screen.blitPixels(source, drawMask, operation))
+      check.call(Screen.blitPixels(source, drawMask, operation) == null)
       var afterMask = Screen.readPixels(2, 2, 2, 1)
       check.call(PixelColor.toRgb(afterMask[0]) == 0x112233 &&
           afterMask[1] == beforeMask[1])
       operation = PixelBlit.new()
       operation.destinationX = -1
       operation.scaleX = 2
-      check.call(Screen.blitPixels(source, operation))
+      check.call(Screen.blitPixels(source, operation) == null)
       var clipped = Screen.readPixels(0, 0, 3, 1)
       check.call(PixelColor.toRgb(clipped[0]) == 0x112233 &&
           PixelColor.toRgb(clipped[1]) == 0x445566 &&
           PixelColor.toRgb(clipped[2]) == 0x445566)
       operation = PixelBlit.new()
-      check.call(Screen.blitPixels(saved, operation))
+      check.call(Screen.blitPixels(saved, operation) == null)
       operation.destinationX = size[0]
-      check.call(Screen.blitPixels(saved, operation))
+      check.call(Screen.blitPixels(saved, operation) == null)
     }
     check.call(!Cell.new().pixelGraphics)
     return [pass, fail]

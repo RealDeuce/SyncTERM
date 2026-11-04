@@ -85,7 +85,7 @@ class WrenConsoleTest {
         "prompt cursor accounts for a wide glyph")
     var saved = Screen.save()
     var width = Screen.size[0]
-    Screen.window.bounds = [1, 1, width, Screen.size[1]]
+    Screen.window.setBounds([1, 1, width, Screen.size[1]])
     var original = Surface.new(width, 3)
     original.cellAt(0, 0).ch = "A"
     original.cellAt(0, 1).ch = "B"

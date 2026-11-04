@@ -33,9 +33,9 @@ import "syncterm"     for Screen, Key, Input, Transfer
 
 class UiDemo {
   static run() {
-    Screen.modalRun(Fn.new {
+    Screen.checked_(Screen.modalRun(Fn.new {
       var app  = App.new()
-      var size = Screen.size
+      var size = Screen.checked_(Screen.size)
       var pane = Pane.new()
       pane.bounds   = Rect.new(2, 2, size[0] - 2, size[1] - 2)
       pane.title    = "ui_demo - Enter to launch, Esc to quit"
@@ -88,15 +88,15 @@ class UiDemo {
 
       app.bind(Key.escape, Fn.new {|k| app.quit() })
       app.runSync()
-    })
+    }))
   }
 
   // ----- ListView demo --------------------------------------------
 
   static runListDemo_() {
-    Screen.modalRun(Fn.new {
+    Screen.checked_(Screen.modalRun(Fn.new {
       var app  = App.new()
-      var size = Screen.size
+      var size = Screen.checked_(Screen.size)
       var pane = Pane.new()
       pane.bounds   = Rect.new(2, 2, size[0] - 2, size[1] - 2)
       pane.title    = "ListView"
@@ -128,15 +128,15 @@ class UiDemo {
 
       app.bind(Key.escape, Fn.new {|k| app.quit() })
       app.runSync()
-    })
+    }))
   }
 
   // ----- Form-control demos ---------------------------------------
 
   static runCheckboxDemo_() {
-    Screen.modalRun(Fn.new {
+    Screen.checked_(Screen.modalRun(Fn.new {
       var app  = App.new()
-      var size = Screen.size
+      var size = Screen.checked_(Screen.size)
       var pane = Pane.new()
       pane.bounds   = Rect.new(2, 2, size[0] - 2, size[1] - 2)
       pane.title    = "Checkbox - Space/Enter toggles, Esc to return"
@@ -164,13 +164,13 @@ class UiDemo {
 
       app.bind(Key.escape, Fn.new {|k| app.quit() })
       app.runSync()
-    })
+    }))
   }
 
   static runRadioDemo_() {
-    Screen.modalRun(Fn.new {
+    Screen.checked_(Screen.modalRun(Fn.new {
       var app  = App.new()
-      var size = Screen.size
+      var size = Screen.checked_(Screen.size)
       var pane = Pane.new()
       pane.bounds   = Rect.new(2, 2, size[0] - 2, size[1] - 2)
       pane.title    = "RadioGroup - Up/Down moves, Space/Enter selects"
@@ -195,13 +195,13 @@ class UiDemo {
 
       app.bind(Key.escape, Fn.new {|k| app.quit() })
       app.runSync()
-    })
+    }))
   }
 
   static runSpinboxDemo_() {
-    Screen.modalRun(Fn.new {
+    Screen.checked_(Screen.modalRun(Fn.new {
       var app  = App.new()
-      var size = Screen.size
+      var size = Screen.checked_(Screen.size)
       var pane = Pane.new()
       pane.bounds   = Rect.new(2, 2, size[0] - 2, size[1] - 2)
       pane.title    = "SpinBox - Up/Down/+/- changes, Esc to return"
@@ -230,11 +230,11 @@ class UiDemo {
 
       app.bind(Key.escape, Fn.new {|k| app.quit() })
       app.runSync()
-    })
+    }))
   }
 
   static runDatePickerDemo_() {
-    Screen.modalRun(Fn.new {
+    Screen.checked_(Screen.modalRun(Fn.new {
       var app = App.new()
       var pane = Pane.new()
       pane.bounds = Pane.modalBounds(36, 13)
@@ -263,13 +263,13 @@ class UiDemo {
 
       app.bind(Key.escape, Fn.new {|key| app.quit() })
       app.runSync()
-    })
+    }))
   }
 
   static runMenubarDemo_(parentApp) {
-    Screen.modalRun(Fn.new {
+    Screen.checked_(Screen.modalRun(Fn.new {
       var app  = App.new()
-      var size = Screen.size
+      var size = Screen.checked_(Screen.size)
 
       var bar = MenuBar.new()
       bar.bounds  = Rect.new(1, 1, size[0], 1)
@@ -286,13 +286,13 @@ class UiDemo {
       app.popStatus("Left/Right move, Enter activates, " +
                     "letter = hotkey, Esc returns")
       app.runSync()
-    })
+    }))
   }
 
   static runStatusbarDemo_() {
-    Screen.modalRun(Fn.new {
+    Screen.checked_(Screen.modalRun(Fn.new {
       var app  = App.new()
-      var size = Screen.size
+      var size = Screen.checked_(Screen.size)
 
       var sb = StatusBar.new()
       sb.bounds   = Rect.new(1, size[1], size[0], 1)
@@ -307,13 +307,13 @@ class UiDemo {
       app.popStatus("StatusBar at the bottom of the screen - " +
                     "Esc returns")
       app.runSync()
-    })
+    }))
   }
 
   static runFormDemo_(parentApp) {
-    Screen.modalRun(Fn.new {
+    Screen.checked_(Screen.modalRun(Fn.new {
       var app  = App.new()
-      var size = Screen.size
+      var size = Screen.checked_(Screen.size)
 
       var pane = Pane.new()
       pane.bounds   = Rect.new(4, 3, size[0] - 6, size[1] - 5)
@@ -361,7 +361,7 @@ class UiDemo {
 
       app.bind(Key.escape, Fn.new {|k| app.quit() })
       app.runSync()
-    })
+    }))
   }
 
   // ----- Popup demos ----------------------------------------------
@@ -422,9 +422,9 @@ class UiDemo {
   // ----- Context-help demo ---------------------------------------
 
   static runContextHelpDemo_() {
-    Screen.modalRun(Fn.new {
+    Screen.checked_(Screen.modalRun(Fn.new {
       var app  = App.new()
-      var size = Screen.size
+      var size = Screen.checked_(Screen.size)
 
       var pane = Pane.new()
       pane.bounds  = Rect.new(2, 2, size[0] - 2, size[1] - 2)
@@ -447,7 +447,7 @@ class UiDemo {
 
       app.bind(Key.escape, Fn.new {|k| app.quit() })
       app.runSync()
-    })
+    }))
   }
 
   // ----- popStatus demo ------------------------------------------
@@ -466,9 +466,9 @@ class UiDemo {
   // ----- TextInput demo -------------------------------------------
 
   static runInputDemo_() {
-    Screen.modalRun(Fn.new {
+    Screen.checked_(Screen.modalRun(Fn.new {
       var app  = App.new()
-      var size = Screen.size
+      var size = Screen.checked_(Screen.size)
       var pane = Pane.new()
       pane.bounds   = Rect.new(2, 2, size[0] - 2, size[1] - 2)
       pane.title    = "TextInput - type, Enter to submit, Esc to return"
@@ -499,15 +499,15 @@ class UiDemo {
 
       app.bind(Key.escape, Fn.new {|k| app.quit() })
       app.runSync()
-    })
+    }))
   }
 
   // ----- ProgressBar demo ----------------------------------------
 
   static runProgressDemo_() {
-    Screen.modalRun(Fn.new {
+    Screen.checked_(Screen.modalRun(Fn.new {
       var app  = App.new()
-      var size = Screen.size
+      var size = Screen.checked_(Screen.size)
       var pane = Pane.new()
       pane.bounds   = Rect.new(2, 2, size[0] - 2, size[1] - 2)
       pane.title    = "ProgressBar - Left/Right adjust, Esc to return"
@@ -556,15 +556,15 @@ class UiDemo {
       })
       app.bind(Key.escape, Fn.new {|k| app.quit() })
       app.runSync()
-    })
+    }))
   }
 
   // ----- LogView demo --------------------------------------------
 
   static runLogviewDemo_() {
-    Screen.modalRun(Fn.new {
+    Screen.checked_(Screen.modalRun(Fn.new {
       var app  = App.new()
-      var size = Screen.size
+      var size = Screen.checked_(Screen.size)
       var pane = Pane.new()
       pane.bounds   = Rect.new(2, 2, size[0] - 2, size[1] - 2)
       pane.title    = "LogView - i/n/w/e add line, c clear, Esc return"
@@ -608,7 +608,7 @@ class UiDemo {
       app.bind(0x63, Fn.new {|k| lv.clear() })
       app.bind(Key.escape, Fn.new {|k| app.quit() })
       app.runSync()
-    })
+    }))
   }
 
   // ----- TransferApp demo ----------------------------------------
@@ -621,13 +621,13 @@ class UiDemo {
     // demo path drives Transfer.beginSession directly.
     var error = Transfer.beginSession("fake")
     if (error != null) {
-      Screen.modalRun(Fn.new {
+      Screen.checked_(Screen.modalRun(Fn.new {
         var app = App.new()
         var alert = Alert.new("File Transfer", error.message)
         alert.onDismiss = Fn.new { app.quit() }
         app.pushModal(alert)
         app.runSync()
-      })
+      }))
       return
     }
     var t = TransferApp.new("File Transfer")

@@ -228,7 +228,7 @@
     },
     {
       "path": "src/media/console/st_console.h",
-      "sha256": "86cfbab448f0c87429130a122df663a7e5b086e3055bf7a2ba09bf3f05a49743",
+      "sha256": "3239009229fed51f9aecb50d127dd97dbf268dd1ac6c8cf90f309435bac6dbd6",
       "status": "reviewed",
       "symbol_count": 370
     },
@@ -2281,7 +2281,7 @@
     },
     "console.operations": {
       "status": "covered",
-      "wren": "Screen/ScreenWindow/Palette/CustomCursor/VideoFlags/Clipboard; Settings scaling/colorEmoji; Input.mouseVisible; Menu screen modes",
+      "wren": "Screen/ScreenWindow/Palette/CustomCursor/VideoFlags/Clipboard; Settings scaling/colorEmoji; Input.setMouseVisible; Menu screen modes",
       "reason": "Logical-console size/layout, text drawing/window operations, cursor shape snapshots, palette and pixel operations, screen snapshots and title/clipboard/openURL have higher-level Wren owners. Settings/menu handle user display modes. Snapshot and text-buffer releases use VM finalizers/owned Strings. Reconfigure is constrained to supported screen modes; arbitrary frontend console construction is not implied.",
       "vm": "same VM as the owning API",
       "evidence": [
@@ -3050,9 +3050,9 @@
       "resolution": "resolved"
     },
     "console.operation-status": {
-      "status": "partial",
-      "wren": "Screen/Palette/CustomCursor/VideoFlags drawing and state operations",
-      "reason": "Successful drawing/state behavior has equivalents, but native int-returning methods generally become void/null/Bool or a Fiber abort with text. Native IO_ERROR distinctions are not uniformly retained as typed results. Capability guards and validation exist; they do not provide a lossless native error API. Pointer releases and native void-returning lifecycle methods are not affected by this finding.",
+      "status": "covered",
+      "wren": "ScreenError for Screen/ScreenWindow/Palette/CustomCursor/VideoFlags, colour-state queries and existing Clipboard/Input/Menu console operations",
+      "reason": "Native portable integer failures, including unknown positive and negative codes, are returned in immutable owned ScreenError values. Queries/factories return values/errors; drawing/state actions return null/errors, while fixed-purpose Menu URL/history operations retain genuine Bool absence/policy outcomes. Existing binding-level rejected regions, unavailable pixel capabilities and capture-storage OOM have explicitly approved IOErr mappings without inventing native returns or new native failure conditions. Live setters have explicit replacement methods without aliases. Snapshot restoration synchronizes Wren font slots whenever native state was applied, including subsequent presentation failure. Scoped helpers preserve primary callback failures and attempt cleanup. Bundled callers check errors, stop unhandled failed UI, skip unsupported optional chrome and retain URL-copy fallback without false success. Local offscreen APIs, glyph fallback, native backend mechanisms, VM authority, grants, NFC/byte boundaries and Wren semantics remain unchanged. Native Clang/GCC, ASan/UBSan, minimal-feature and MinGW cross-build acceptance passed.",
       "vm": "same VM as the owning API",
       "evidence": [
         {
@@ -3062,10 +3062,27 @@
         {
           "path": "src/scripting/wren_host/wren_bind_core.c",
           "anchor": "st_console_set_position"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_pixels.c",
+          "anchor": "st_wren_screen_result(vm, st_console_blit_pixels"
+        },
+        {
+          "path": "src/media/console/st_console.h",
+          "anchor": "bool *restored"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign class ScreenError is Error"
+        },
+        {
+          "path": "src/scripting/wren_host/tests/st_wren_host_test.c",
+          "anchor": "exercise_screen_failure_boundaries"
         }
       ],
       "finding": "console-operation-results",
-      "decision": "mapping-gap"
+      "decision": "approved-returned-console-results",
+      "resolution": "resolved"
     },
     "text.scalar-utilities": {
       "status": "unmapped",
@@ -3525,6 +3542,14 @@
       "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
     },
     {
+      "path": "src/scripting/wren_host/tests/st_wren_screen_test_calls.h",
+      "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_screen_test_control.h",
+      "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
+    },
+    {
       "path": "src/scripting/wren_host/wren_bbs_model.h",
       "reason": "Foreign payloads, embedding and native hook plumbing; script declarations and dispatch are reviewed as evidence."
     },
@@ -3943,6 +3968,16 @@
       "path": "addons/modern_ui/scripts/modern_ui.wren",
       "anchor": "var error = entry.save()",
       "aspect": "Independent Modern UI frontend checks DirectoryEntry/MenuError creation/copy and null/MenuError save/delete results."
+    },
+    {
+      "path": "scripts/ui_app.wren",
+      "anchor": "if (f.error is ScreenError) Fiber.abort(f.error)",
+      "aspect": "Unhandled drawing failure stops UI while ordinary handler errors retain existing isolation."
+    },
+    {
+      "path": "scripts/menu_scrollback.wren",
+      "anchor": "Screen.checked_(Clipboard.setText(url))",
+      "aspect": "URL fallback reports copy success only after a successful clipboard result; independent screen/mouse cleanup."
     }
   ],
   "test_evidence": [
@@ -4185,6 +4220,51 @@
       "path": "addons/modern_ui/tests/test_frontend.py",
       "anchor": "def directory(executable, reports):",
       "aspect": "Installed external frontend with runtime Unifont/encryption capability probes; exact nine/ten-category geometry, width-matched ASCII wrapping without Unifont, retained supported Unicode/emoji coverage, persistence, recovery and web lists."
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_host_test.c",
+      "anchor": "exercise_screen_failure_boundaries",
+      "aspect": "Native return-boundary matrix, known and unknown signed codes, actual error classes, ownership and GC."
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_host_test.c",
+      "anchor": "exercise_screen_ui_cleanup",
+      "aspect": "Unhandled UI drawing failures stop dispatch; cursor/mouse cleanup continues after an earlier error; removed live setters."
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_host_test.c",
+      "anchor": "exercise_screen_connected_results",
+      "aspect": "Connected modal acquisition, cleanup error/abort precedence and suspension restoration; ordinary scoped yield/shutdown regressions retained."
+    },
+    {
+      "path": "src/media/console/tests/st_console_test.c",
+      "anchor": "CHECK(restored && first->cursor_x == saved_x);",
+      "aspect": "Real native presentation failure after applied snapshot restore; rejected owner restore leaves output false."
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_screen_core_test_bindings.c",
+      "anchor": "#include \"../wren_bind_core.c\"",
+      "aspect": "Real core binding compiled with private native return boundaries and controlled capture-storage allocation failure; no application fault controls."
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_screen_pixels_test_bindings.c",
+      "anchor": "#include \"../wren_bind_pixels.c\"",
+      "aspect": "Active pixel dispatch, rather than the removed unreachable core pixel-size fallbacks, is exercised."
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_screen_menu_test_bindings.c",
+      "anchor": "#define st_hyperlink_registry_copy test_hyperlink_copy",
+      "aspect": "Trusted menu mode/title/URL/lookup results without executing external URL handlers."
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_screen_test_calls.h",
+      "anchor": "return matched && status == 0 ? fault->status : status;",
+      "aspect": "Test-only boundaries optionally execute the actual native operation before injecting a failure; capability absence has a separate controlled test path."
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_screen_test_control.h",
+      "anchor": "size_t calls;",
+      "aspect": "Private native-call selection and invocation counts; controls are not linked into the application."
     }
   ],
   "dispatch_evidence": [
@@ -4196,20 +4276,20 @@
   ],
   "evidence_files": {
     "docs/WREN_GUIDANCE.md": "d14aeecb5eae922015f2f48a4fd690277dcb5b91aedfd8d8d8cffb2dc235e1ac",
-    "docs/Wren.adoc": "2cf85a5c1f387cf21a2b18aa06e4e0d834956800dc1d77b9f2f194a3f7ffc2c7",
+    "docs/Wren.adoc": "0de70d4a560a6a50429b339715514c7b4a85aece1920a8cc9dfada0dc1e77d41",
     "docs/api/bbs-entry-fields.adoc": "a1be9944eadd5f56d752e8669b502f49b27211f14190443a95e36ad301b8d128",
-    "scripts/auto/connected/font_pick.wren": "6cd249b69c2f851e1fb84e4b8ce381879cfaaa96a35e1376f6e8502c6497e91b",
-    "scripts/auto/menu/main_menu.wren": "b5aaebd48a0942085a5da73ea09ec55c5f52eb183824eeefefc970395ff341f0",
+    "scripts/auto/connected/font_pick.wren": "4a1189b05ab502e36a8efc8ebb241eba568ccfae63ac6f92a819ca5950a87c34",
+    "scripts/auto/menu/main_menu.wren": "4828040dfe87bd7680fa026ae785c9cc64e010392e9bd278f5c0440c8b052b2b",
     "scripts/menu_bbs_editor.wren": "fa27c403b0cad1ffe2811243787916ce7428da2255b12683f6e3e2c5847a4187",
-    "scripts/menu_settings_ui.wren": "5d0afe0a828d8dcf7383bf83da193491db243c51360375762110e8998444857c",
-    "scripts/sftp_app.wren": "4cd38fa9304c6c7428d7a21ef3b86c0d68fb14e25b35c3540bfdd46a211a9e5f",
+    "scripts/menu_settings_ui.wren": "411afe4f8321cd0421f74e37d56018f5dbab0211a6beed4deb0c0d763701f212",
+    "scripts/sftp_app.wren": "05124c53d687ddcdd10efed2d2c2993c38a29196c76c4bef3f64bfc4ba4f4b5a",
     "scripts/sftp_queue.wren": "b15fe706268e9ce6d5fea4227661d0ac810f6f9fc4dbf7d39863756bde3eaf74",
-    "scripts/syncterm.wren": "b2324caaf0b39b827acfbd43b6b77c6e24cf057a103eb58593cee410a673171e",
+    "scripts/syncterm.wren": "d83771af9dcfa4496a35929a563c045cdc286076a507451e908e2ab4cfb9271f",
     "scripts/syncterm_menu.wren": "0fb618cc9532edf4dcb7d867d54af5a87d884d7163b100207d9b5535ae51ad68",
     "scripts/syncterm_picker.wren": "143e15bd084bed37145061760100c84b353d340e00187d9cd2b920a850be6021",
-    "scripts/transfer_app.wren": "7eedcb12d4eccd0cdc04791c37081c2c9cf36d4d45c41c37a9e8a6f71a0c6498",
-    "scripts/transfer_pick.wren": "531deb94dc13bc84f952798765f6ab1aad5ffd4318fb31f3479e4353e883f6cf",
-    "scripts/ui_app.wren": "704c49cd2ff7f3c1fe86391d6bb1ac2d0120091506e246dad4ddb7cff70649d6",
+    "scripts/transfer_app.wren": "b7c8a38f8676340c93b3f5748c74bac8fd48a301d996110c468b8fd5a768b13a",
+    "scripts/transfer_pick.wren": "2fc84a3f03cbf6e71bf9c78304cb56558c70413857c0fa82ea1cc775b340ecfb",
+    "scripts/ui_app.wren": "29c84e7ceed05bf0e025c1af464bc9d9e85cf4d78ce841abc7615bdc00f93496",
     "scripts/wrentest.wren": "a5f4c32e64fe15ea09edfc5df6e8ae32cb389b463dba368b0e4ac4163e8a95e9",
     "src/base/array_list/array_list.h": "07f78e0fe13932c9f0004844800f4e391029a0f6279fa750bfe836b9f85357de",
     "src/base/base64/st_base64.h": "0d820c0116d24cb509ecc4c01aa6f1a0e544273b698a2f8c1396153a340ec7d8",
@@ -4251,8 +4331,8 @@
     "src/media/audio_file/st_audio_file.h": "7236377b7bed90f3875e0872e18090221dd1b84a33f4b66ffbfc7ade448831da",
     "src/media/audio_mixer/audio_mixer.h": "03ea9950de09875d6d31d61d4e4ac05de133002f7e4a3c983904c4e642b3932a",
     "src/media/console/console_text.c": "6c8165e4473a5053282ba81c533aba06f5975a16668b46181540a14d457a73b9",
-    "src/media/console/st_console.h": "86cfbab448f0c87429130a122df663a7e5b086e3055bf7a2ba09bf3f05a49743",
-    "src/media/console/tests/st_console_test.c": "bc98be45ca17b883aa97eca7d9e7839c703438393eb0882955507ef276126d38",
+    "src/media/console/st_console.h": "3239009229fed51f9aecb50d127dd97dbf268dd1ac6c8cf90f309435bac6dbd6",
+    "src/media/console/tests/st_console_test.c": "079574a176e535180cfaae5d94eaa8e1795638c015950079758bccdbba0ada22",
     "src/media/font_catalog/st_font_catalog.h": "60cd38d079918b709d20d4e85bc89dd48007042869c6f0dd462f5b76f2ee26c7",
     "src/media/fonts/st_builtin_fonts.h": "0cb9da919e72ad5321e34bab13c4a1529ae860e8da6331d44051a60f58609d12",
     "src/media/fonts/st_emoji_fonts.h": "5bdb99f212bb4cfa19c4ae3d3514137ced5f85de0129c2bfba0650a429f83186",
@@ -4273,15 +4353,15 @@
     "src/net/transfer/st_transfer_detect.h": "3296b9ecf875d100f793920a3b0117a8f7b80951a539317d366f4ea40a7a1b30",
     "src/net/webget/st_webget.h": "9647dcc563e1661fe1d6b762c78e2483d2beae03ac878da0ebd15c8a425d2143",
     "src/scripting/wren_host/st_wren_host.h": "1f399c11771d459566882d3084836000e05c3aa7759fc03e6a2384c6754fb0a6",
-    "src/scripting/wren_host/tests/st_wren_host_test.c": "0b5f0f2034828ea663bf4267c23eb6310653af0e656ef3d835800e5f252b3593",
+    "src/scripting/wren_host/tests/st_wren_host_test.c": "570afa720a6a4b470f607e4c0c591a4920b05e20e1db4c9b424ca7f704116882",
     "src/scripting/wren_host/tests/st_wren_settings_menu_test.c": "b2aa79315aa1dd0c0feebd08da6289464a2c2e4eca15def36356658c5b7d5bbc",
     "src/scripting/wren_host/wren_async.c": "71e78941735250300171a2b7cb13b70c92916bd14c066a6614b3f77cdd9b565d",
     "src/scripting/wren_host/wren_bbs_model.c": "18dca3353505a5b0dc609251f16038bd9132c47e215c4cf24ba802ac4b3ab97a",
-    "src/scripting/wren_host/wren_bind_core.c": "a4854c510c31919303cab5a9cf94deacfcb88058416af158a7397ed55f55c84e",
+    "src/scripting/wren_host/wren_bind_core.c": "ba1563be2244b3e15730ceab1357cdbc9f86859a08dcadb996eac14ed0fec3bf",
     "src/scripting/wren_host/wren_bind_fs.c": "17e19ab179b195a36c58f929802e9a5d86d6e211d7dfdf809ac4b7c4e6c96cba",
     "src/scripting/wren_host/wren_bind_hyperlinks.c": "255be945007c9cb2795195058e5f58de7d2b2157728892e614d6e8fb5f729b98",
-    "src/scripting/wren_host/wren_bind_menu.c": "d204b42ce498d2cd492c4d793344bb5acd9e6b5d198de9fd65ef4b0679bd667f",
-    "src/scripting/wren_host/wren_bind_pixels.c": "5a1b4c73862a6845710159e6b34e8992cff1ab66661b984f871c46eb6c6bcceb",
+    "src/scripting/wren_host/wren_bind_menu.c": "64f99889c5ebefb6f48a945a35018b5af33e82a592af994eced80937c9715320",
+    "src/scripting/wren_host/wren_bind_pixels.c": "5db1826dd3fde89f981f54d3aee2748277369a94e6e63998f2fe76b1d33026ae",
     "src/scripting/wren_host/wren_bind_session.c": "abc78adace40704dfb1b668c9ca19ccf0c538c2ac9028b86e65a0cf7b81fea36",
     "src/scripting/wren_host/wren_bind_status.c": "85ed4115c9a9645aa27cccb2a9977e5892037123d7440d9acf3397fd55e16671",
     "src/scripting/wren_host/wren_bind_won.c": "96575bcbfdf0b157d89ec5ef64cd2573a0b41d2aaf5e379edd19303d382bc2f4",
@@ -4289,10 +4369,10 @@
     "src/scripting/wren_host/wren_cleanup.c": "4a22a39e849d5336e2fc4d870cb749e0eecdb1137463ef7a6d989e8dfd2c235b",
     "src/scripting/wren_host/wren_directory.c": "c7d5088d503737efa3499182c7feaab10c5b0bccc7888b465b1832b0b2ea9180",
     "src/scripting/wren_host/wren_foreign.c": "6fbacba5e2a42ecbfd16bfef1d427a1323f7ecdbebfecd238efd6ae3aebeeca7",
-    "src/scripting/wren_host/wren_host.c": "ee400913730d81f8dacf50e10596eb96fda305f89c876f2ebf585462a3dac50c",
+    "src/scripting/wren_host/wren_host.c": "a0548ee828cd8100fe833dcee333dd7838e720c48df404ad86f3a3f5810b6450",
     "src/scripting/wren_host/wren_links.c": "db575ae323af458a9454bae80288c3de05550d910c1a460036f0ab8f9fa9fce1",
     "src/scripting/wren_host/wren_number.c": "1cd1837e8db9f95d0983215fc9674fe9ecfc07820b00011b7bc751f977d7cb89",
-    "src/scripting/wren_host/wren_picker.c": "3ca1eb88e1d590a6a908f0cb3f0f2936f785e3a6df79bec79c10c41edfa2cfe4",
+    "src/scripting/wren_host/wren_picker.c": "6680e0cac70786708043b25754c7e16d3d26668e99f84179d0af8774f0a8fb57",
     "src/scripting/wren_host/wren_picker_fs_posix.c": "b964fd303a70722c5378afd6583d93477f3065038283a989dadc6c59f25a8a9a",
     "src/scripting/wren_host/wren_picker_fs_windows.c": "126c9c621173285291f7c4d86a9e4d04c207b3341ce68ad34bac34ed62533dc3",
     "src/scripting/wren_host/wren_repl.c": "4a7cd1ab284e93a2fc40f897d561221c0b7da32889a719dd1dcdb4897d31ff01",
@@ -4343,16 +4423,16 @@
     "src/config/theme/tests/st_theme_document_test_impl.c": "8087bee2057f71da5ba95be6b532671b17eaf779f5a0f175f7e7f08c69ae620e",
     "src/config/theme/tests/st_theme_test.c": "288623be326d2607534c894302b66993faac4ee75bf1117968e3350ce951d48e",
     "src/config/theme/st_theme_document.c": "fc9edf85c80e4d97f67c061731e5b90bce13a6a3b613ca1d6b78bb10616c766d",
-    "scripts/menu_theme_editor.wren": "cbd41bdcff4d1d96bb124c9e69e9a531d5215d6ba22ee1133172a25e4e19ff10",
-    "scripts/ui_demo.wren": "ef60ef163fc81f40491c3cf502d6ea0d8caf95090aa6b3440c074ecee0b8b985",
+    "scripts/menu_theme_editor.wren": "2baba9465446077aa3dfae52889f52d721bb6b5b2cc81bd0fc7b1bf909e9e40a",
+    "scripts/ui_demo.wren": "885059ec0b92c72e5fb97cc8a1a09e936718bbd1ed3722b3a2802f548a6d00ed",
     "src/scripting/wren_host/tests/st_wren_transfer_test_bindings.c": "9211345af132c7d43d105b5ade65a0cfddccf5d9c154fc7c5b28455011319e5e",
     "src/tests/st_test_control_test.py": "d9ff21d77c7731a055983ecc5d44fab373650cb4deefbe701fe01f9d26b94914",
     "scripts/auto/connected/connected.wren": "7f8f7144896388ffbf9dd16820cbf6cbae73d25c385ccba7d8c0928f31ae67d6",
     "src/scripting/wren_host/tests/st_wren_session_test_bindings.c": "4ef0aef560439c1ed3f933232a8b59ccaa3ee0a6971609ebf0fe8e81ff1b981c",
-    "src/tests/st_migrated_control_test.py": "bb8c72cf62e207e6e0cbad326884356f11bc3db1d0345fa007d4a5caa549346d",
+    "src/tests/st_migrated_control_test.py": "9284c78fc321d447b1018c3c0e4eb70276b376fb3e9ff9b3c38caf8f0a01d9bd",
     "src/config/bbs_list/tests/st_bbs_list_test.c": "e082110aca917ca8932f2d7b2666ee11b55cbcf5707eee4bd7515ed9f5dddb98",
     "src/config/bbs_list/st_bbs_profile_codec.c": "04a87909baeb5788e386369ef4c4043c95e92737bdb8a316009a23f4e7f9dbb8",
-    "scripts/menu_ui.wren": "f94ada676138fa588c3e634e088cc12df3309e7d99bfb52b4adec2297b9b2845",
+    "scripts/menu_ui.wren": "57232e460e4eec3bd090f28dad29eec09f897ea7f56666ac43646c365aba04f4",
     "scripts/ui_popup_test.wren": "064ea98bf74fcb780d8d778f43a00a098c3cdf57bd38642adc3baacb4c7af5bb",
     "scripts/ui_list.wren": "a3f29a0b2ddee4848ea6541dc187aaf30e817c9635f08754b9192d05e1210ddc",
     "src/tests/st_menu_shortcuts_pty_test.py": "2900099be520a9f72c9de4df327415135995a4aa6a6552aa9eaa06c5badda49e",
@@ -4360,8 +4440,14 @@
     "src/media/console/tests/st_console_ansi_test.c": "a8fd223e78b87610e88a4c86d775fd10c8f8bd19fbfec140448f3b5bea328437",
     "src/media/console/tests/st_console_ncurses_test.c": "41034f149b7ca1bae54a5479c0e199335f5b28ae8f43aff578c525df0611028e",
     "addons/modern_ui/scripts/modern_ui_model.wren": "2bcdf91d39478f2e4ae1fd9855e9017c02953e2fa8ae6598cc02a820d22caa02",
-    "addons/modern_ui/scripts/modern_ui.wren": "900a4858e87a1aa522820ed3a9b0c33cbf2b2a04a584cecbf579080d0723a472",
-    "addons/modern_ui/tests/test_frontend.py": "0bd615d0d6a0236a9f4ab8cd099962b9fd97dd186362cc33741fd3b9d6b564fb"
+    "addons/modern_ui/scripts/modern_ui.wren": "252eeceaf54592a21be9505daaed63deed7e580f8e6a7ec80dccc2d72275f5bc",
+    "addons/modern_ui/tests/test_frontend.py": "0bd615d0d6a0236a9f4ab8cd099962b9fd97dd186362cc33741fd3b9d6b564fb",
+    "scripts/menu_scrollback.wren": "1eae33aa4ab1cf8b093b345b62d73c6719b1266434ae294ea8101de3fea2a6d1",
+    "src/scripting/wren_host/tests/st_wren_screen_core_test_bindings.c": "2a0426a6a5bd32b457fec38bd66247d59ea953215a9a04ff246ce1450de9b638",
+    "src/scripting/wren_host/tests/st_wren_screen_pixels_test_bindings.c": "1bd351be328d3ee7a8bf2f37f9c82fa663496b5089fd5108b6a15a5ce6a6b8e6",
+    "src/scripting/wren_host/tests/st_wren_screen_menu_test_bindings.c": "fca707a2f0be87c2af9ee73477c71203e403c047689aff1b83b880a1e5e83a2f",
+    "src/scripting/wren_host/tests/st_wren_screen_test_calls.h": "bc5a4ef3828b82aea36c13223718db628540f6d74e931ef92d0893643f0e8bf2",
+    "src/scripting/wren_host/tests/st_wren_screen_test_control.h": "95a2c3ab2d5d2d4746327b13f89d8da46ff1aff2707a0441e2cd2e16a46f593e"
   },
   "verification": {
     "platform": "FreeBSD 15.1-RELEASE-p5 amd64",
@@ -4893,6 +4979,88 @@
           "failure": "syncterm_menu_shortcuts_pty_c and _i wait for Directory: Name; discovered after the approved plan was finalized; not diagnosed or changed in this chunk."
         }
       ]
+    },
+    {
+      "topic": "console-operation-results",
+      "status": "resolved",
+      "approval": "The user selected returned errors, explicit live setter methods, the complete drawing family plus existing backend-service results, first-error cleanup precedence, optional unsupported chrome, and the applied-restore output. Revision 2 was approved in Default mode with Implement the plan; existing binding-level range/capability/allocation failures were explicitly accepted.",
+      "scope": "console.operation-status, completing the remaining subclaims of console-operation-results; CTerm results retain their earlier resolution. All other findings remain open as recorded.",
+      "regression_before_fix": "A real native cursor rejection failed the returned-error regression because CustomCursor.apply aborted with a generic String.",
+      "native_interface": "One existing signature gains optional bool *restored, reporting state application before possible presentation failure. All modern C callers updated; no native failure conditions, declarations or inventory items added. Two private test headers are explicitly excluded.",
+      "limitations": "No Windows runtime, Wine, physical clipboard/device coverage or new Wayland protocol investigation. Fault injection proves binding propagation, not reproduction of every native failure condition.",
+      "tests_passed": [
+        "modern_ui_connection",
+        "modern_ui_directory",
+        "modern_ui_installer",
+        "modern_ui_recovery",
+        "modern_ui_settings",
+        "modern_ui_web_list",
+        "st_console",
+        "st_console_color_glyph",
+        "syncterm_behavior_bbs_setters",
+        "syncterm_behavior_button",
+        "syncterm_behavior_checkbox",
+        "syncterm_behavior_color",
+        "syncterm_behavior_console",
+        "syncterm_behavior_date",
+        "syncterm_behavior_draw",
+        "syncterm_behavior_entry_editor",
+        "syncterm_behavior_form",
+        "syncterm_behavior_help",
+        "syncterm_behavior_input",
+        "syncterm_behavior_list",
+        "syncterm_behavior_logview",
+        "syncterm_behavior_main_menu_address",
+        "syncterm_behavior_menu",
+        "syncterm_behavior_menu_error",
+        "syncterm_behavior_menu_exit",
+        "syncterm_behavior_menu_position",
+        "syncterm_behavior_menu_shortcuts",
+        "syncterm_behavior_menubar",
+        "syncterm_behavior_palette",
+        "syncterm_behavior_picker",
+        "syncterm_behavior_pixels",
+        "syncterm_behavior_popup",
+        "syncterm_behavior_profile",
+        "syncterm_behavior_progress",
+        "syncterm_behavior_recovery",
+        "syncterm_behavior_scrollback_cp437",
+        "syncterm_behavior_scrollback_utf8",
+        "syncterm_behavior_session_modes",
+        "syncterm_behavior_settings",
+        "syncterm_behavior_settings_ui",
+        "syncterm_behavior_spinbox",
+        "syncterm_behavior_statusbar",
+        "syncterm_behavior_style",
+        "syncterm_behavior_web_list",
+        "syncterm_behavior_widget",
+        "wren_cell-colours",
+        "wren_console_synthetic",
+        "wren_core-helpers",
+        "wren_draw_synthetic",
+        "wren_help_synthetic",
+        "wren_host",
+        "wren_input_synthetic",
+        "wren_logview_synthetic",
+        "wren_menu_contract",
+        "wren_menu_synthetic",
+        "wren_picker_contract",
+        "wren_popup_synthetic",
+        "wren_progress_synthetic",
+        "wren_screen-mode",
+        "wren_settings_runtime",
+        "wren_sftp_live"
+      ],
+      "verification": {
+        "native": "61 distinct Clang CTest cases passed across the focused runs: host/menu/picker/settings, native console and colour-glyph snapshots, eleven loader/synthetic suites, all six Modern UI cases and affected headless behavior suites. Live SFTP completed all ten internal cases. Source-confirmed native failure paths are distinguished from injected propagation tests.",
+        "gcc": "Application/host/picker/console CMake targets built. Ten focused CTests passed, then both host/menu acceptance cases passed again with the final failure matrix and cleanup regressions.",
+        "sanitizers": "Application/host/picker/console CMake targets built with Clang ASan/UBSan. Eight focused cases passed, then final host/menu cases passed. FreeBSD leak detection is unsupported and disabled; the existing C-owned executable C++ vptr configuration remains unchanged.",
+        "minimal": "CRYPTO_BACKEND=none and SYNCTERM_ENABLE_UNIFONT=OFF: application/host/picker/console targets built and ten focused cases passed, including all six Modern UI cases; final host/menu acceptance passed again.",
+        "windows": "MinGW x86 and x86_64 application/DLL, host/picker and native console test targets cross-built. No Windows execution or Wine.",
+        "regressions": "56 expression/native-boundary cases each retain IO_ERROR_IO and unknown negative/positive statuses. Additional tests cover capture-storage allocation, invalid input, unavailable capability, immutable errors/GC, rejected/applied restore and font slots, committed drawing without replay, scoped acquisition/cleanup/abort precedence, sync UI propagation, independent cursor/mouse cleanup, removed setters and existing nested/yield/await/shutdown behavior.",
+        "warnings": "Final GCC, Clang and both MinGW builds have no compiler warnings. The newly compiled test copy exposed an existing MinGW32 theme-diagnostic format-truncation warning; equivalent bounded prefix/append assembly removes it while preserving message bytes and truncation. GNUmake emitted transient generated-file clock-skew notices."
+      },
+      "accounting": "80 public headers, 122 explicit implementation/vendor/test exclusions, 2448 native items, 157 assessments, 51 original finding topics. Only console.operation-status is newly resolved, completing console-operation-results. Thirty-nine topics and the separate profile-field-table documentation finding remain open. One signature and 26 subsequent source locations changed; no native rows were added or dropped. Both new excluded headers are test controls."
     }
   ]
 }

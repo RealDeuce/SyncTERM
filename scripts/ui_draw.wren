@@ -54,7 +54,7 @@ class Painter {
     for (c in Text.graphemes(str)) {
       if (!surface.cellAt(x, y, cell)) break
       var font = style.font == null ? cell.font : style.font
-      var columns = Screen.textWidth(c, font)
+      var columns = Screen.checked_(Screen.textWidth(c, font))
       if (columns == 0) continue
       if (x + columns > surface.width) break
       applyStyle(cell, style)
@@ -71,7 +71,7 @@ class Painter {
       if (written >= maxW) break
       if (!surface.cellAt(x, y, cell)) break
       var font = style.font == null ? cell.font : style.font
-      var columns = Screen.textWidth(c, font)
+      var columns = Screen.checked_(Screen.textWidth(c, font))
       if (columns == 0) continue
       if (written + columns > maxW || x + columns > surface.width) break
       applyStyle(cell, style)
@@ -88,7 +88,7 @@ class Painter {
     while (i < len) {
       if (!surface.cellAt(x + i, y, cell)) break
       var font = style.font == null ? cell.font : style.font
-      var columns = Screen.textWidth(ch, font)
+      var columns = Screen.checked_(Screen.textWidth(ch, font))
       if (columns == 0) return
       if (i + columns > len || x + i + columns > surface.width) break
       applyStyle(cell, style)
@@ -171,7 +171,7 @@ class Painter {
     var trimmed = ""
     var font = titleStyle.font == null ? 0 : titleStyle.font
     for (c in title) {
-      var columns = Screen.textWidth(c, font)
+      var columns = Screen.checked_(Screen.textWidth(c, font))
       if (visible + columns > maxW) break
       visible = visible + columns
       trimmed = trimmed + c

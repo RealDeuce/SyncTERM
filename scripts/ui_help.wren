@@ -130,11 +130,11 @@ class Help is Popup {
     var withSb = (bounds.w - 3 - sbOH).max(1)      // one side padded + scrollbar
     var measure
     if (currentTheme == null) {
-      measure = Fn.new {|text, role| Screen.textWidth(text, 0) }
+      measure = Fn.new {|text, role| Screen.checked_(Screen.textWidth(text, 0)) }
     } else {
       measure = Fn.new {|text, role|
         var font = currentTheme.style(role).font
-        return Screen.textWidth(text, font == null ? 0 : font)
+        return Screen.checked_(Screen.textWidth(text, font == null ? 0 : font))
       }
     }
     var lines = _plain ? preformattedLines_() :
@@ -162,7 +162,7 @@ class Help is Popup {
   // Default help-dialog placement uses the same menu work area as
   // every other shadowed frame, preserving the title and footer.
   static centeredBounds_() {
-    var sz = Screen.size
+    var sz = Screen.checked_(Screen.size)
     return Pane.modalBounds((sz[0] - 4).max(20),
         (sz[1] - 4).max(8))
   }
@@ -253,7 +253,7 @@ class Help is Popup {
         if (remaining <= 0) break
         var st = style(run.role)
         var font = st.font == null ? 0 : st.font
-        var n  = Screen.textWidth(run.text, font)
+        var n  = Screen.checked_(Screen.textWidth(run.text, font))
         if (n > remaining) n = remaining
         Painter.text(sf, x, cy + i, run.text, st, n)
         x = x + n

@@ -1,3 +1,4 @@
+import "syncterm" for Cleanup_
 // SyncTERM Wren console (REPL).  Saves the screen, presents the
 // current VM's always-on print/error scrollback, accepts immediate-mode
 // Wren input via REPL.eval, and restores on exit.  The connected and menu
@@ -236,31 +237,30 @@ class WrenConsole {
 
   static run(initialModule) {
     if (__history == null) __history = []
-    var saved = Screen.save()
-    // The owning UI may leave an input field's cursor attribute active.
-    // Establish the console's colours; the snapshot restores the caller's.
-    Screen.attr = 0x07
-    // The cterm's scroll window may be smaller than the full screen
-    // (e.g. a BBS set DEC margins).  Force full-screen for the
-    // console's lifetime; restore on exit.
-    var origBounds = Screen.window.bounds
-    var screenSize = Screen.size
-    Screen.window.bounds = [1, 1, screenSize[0], screenSize[1]]
-    var savedMouse = setupMouse_()
-
-    // Run the loop body in a child fiber so an unhandled abort —
-    // typo in a console binding, runtime error in a user script's
-    // hook — doesn't strand us with a corrupted screen.  Cleanup
-    // below always runs; errors get logged for the next console
-    // session to surface (the indicator stays unread to flag them).
-    var f = Fiber.new { runBody_(initialModule) }
+    var saved = Screen.checked_(Screen.save())
+    var savedMouse = Input.mouseEvents
+    var origBounds = null
+    var f = Fiber.new {
+      Cleanup_.run(Fn.new {
+        Screen.checked_(Screen.setAttr(0x07))
+        origBounds = Screen.checked_(Screen.window.bounds)
+        var size = Screen.checked_(Screen.size)
+        Screen.checked_(Screen.window.setBounds([1, 1, size[0], size[1]]))
+        setupMouse_()
+        runBody_(initialModule)
+      }, Fn.new {
+        Screen.cleanup_([
+          Fn.new {
+            if (origBounds != null) Screen.checked_(Screen.window.setBounds(origBounds))
+          },
+          Fn.new { Screen.checked_(Screen.restore(saved)) },
+          Fn.new { Input.mouseEvents = savedMouse }
+        ])
+      })
+    }
     f.try()
-
-    Screen.window.bounds = origBounds
-    Screen.restore(saved)
-    Input.mouseEvents = savedMouse
     if (f.error != null) {
-      System.print("console aborted: " + f.error)
+      System.print("console aborted: %(f.error)")
       REPL.printTrace_(f)
     } else {
       Console.markSeen()
@@ -270,7 +270,7 @@ class WrenConsole {
   static runBody_(initialModule) {
     var currentModule = initialModule
 
-    var screenSize = Screen.size
+    var screenSize = Screen.checked_(Screen.size)
 
     // Scrollback state: scrollTop == -1 means "live mode" (auto-tail
     // — new entries paint at the bottom as they arrive).  Any other
@@ -287,13 +287,13 @@ class WrenConsole {
     // Subsequent loop iterations only emit entries that arrived
     // *after* `lastTotal`; conio's built-in scroll-on-bottom-row
     // behavior moves history up naturally as new entries arrive.
-    Screen.window.clear()
-    Screen.window.position = [1, 1]
+    Screen.checked_(Screen.window.clear())
+    Screen.checked_(Screen.window.setPosition([1, 1]))
     var lastTotal = paintNew_(0, true)
 
     var input  = ""
     var cursor = 0   // byte index into `input`; 0..input.bytes.count
-    var promptRow = Screen.window.position[1]
+    var promptRow = Screen.checked_(Screen.window.position)[1]
     drawPrompt_(promptRow, currentModule, input, cursor)
 
     __quit = false
@@ -320,7 +320,7 @@ class WrenConsole {
           Input.mousedrag()
           redrawPrompt = true
         } else if (ev.event == 12) {
-          var pasted = Clipboard.text
+          var pasted = Screen.checked_(Clipboard.text)
           if (pasted != null) {
             var result = pasteText_(pasted, currentModule, input, cursor)
             currentModule = result[0]
@@ -333,7 +333,7 @@ class WrenConsole {
       // Physical command edges remain separate from committed text.
       } else if (ev is KeyEvent || ev is PhysicalKeyEvent) {
         var key = ev is KeyEvent ? ev.shortcut_ : Key.physicalShortcut_(ev)
-        var controlKeyExit = Host.localControlKeys && (key == Key.chord_(113, Mod.control) || key == Key.chord_(115, Mod.control))
+        var controlKeyExit = Screen.checked_(Host.localControlKeys) && (key == Key.chord_(113, Mod.control) || key == Key.chord_(115, Mod.control))
         if (key == Key.chord_(96, Mod.control) || key == Key.escape || key == Key.quit ||
             controlKeyExit) {
           done = true
@@ -345,10 +345,10 @@ class WrenConsole {
           // the frozen viewport.
           if (scrollTop != -1) {
             scrollTop = -1
-            Screen.window.clear()
-            Screen.window.position = [1, 1]
+            Screen.checked_(Screen.window.clear())
+            Screen.checked_(Screen.window.setPosition([1, 1]))
             lastTotal = paintNew_(0, true)
-            promptRow = Screen.window.position[1]
+            promptRow = Screen.checked_(Screen.window.position)[1]
           }
           currentModule = submitLine_(input, currentModule)
           input  = ""
@@ -427,10 +427,10 @@ class WrenConsole {
             if (scrollTop + viewportRows >= totalRows) {
               // Caught up — back to live.
               scrollTop = -1
-              Screen.window.clear()
-              Screen.window.position = [1, 1]
+              Screen.checked_(Screen.window.clear())
+              Screen.checked_(Screen.window.setPosition([1, 1]))
               lastTotal = paintNew_(0, true)
-              promptRow = Screen.window.position[1]
+              promptRow = Screen.checked_(Screen.window.position)[1]
             } else {
               paintViewport_(rendered, scrollTop, viewportRows)
               promptRow = winRows
@@ -452,10 +452,10 @@ class WrenConsole {
             // Bottom row of viewport is already (or would become)
             // the live tail — drop back to live mode.
             scrollTop = -1
-            Screen.window.clear()
-            Screen.window.position = [1, 1]
+            Screen.checked_(Screen.window.clear())
+            Screen.checked_(Screen.window.setPosition([1, 1]))
             lastTotal = paintNew_(0, true)
-            promptRow = Screen.window.position[1]
+            promptRow = Screen.checked_(Screen.window.position)[1]
           } else {
             scrollTop = scrollTop + 1
             scrollViewportDown1_(rendered, scrollTop, viewportRows)
@@ -495,11 +495,11 @@ class WrenConsole {
           }
         } else if (key == Key.chord_(108, Mod.control)) {                  // Ctrl+L
           Console.clear()
-          Screen.window.clear()
-          Screen.window.position = [1, 1]
+          Screen.checked_(Screen.window.clear())
+          Screen.checked_(Screen.window.setPosition([1, 1]))
           scrollTop = -1
           lastTotal = Console.total
-          promptRow = Screen.window.position[1]
+          promptRow = Screen.checked_(Screen.window.position)[1]
           redrawPrompt = true
         } else if (ev.codepoint != null && ev.codepoint >= 0x20 &&
             ev.codepoint != 0x7f &&
@@ -508,10 +508,10 @@ class WrenConsole {
           // currently in scrollback.
           if (scrollTop != -1) {
             scrollTop = -1
-            Screen.window.clear()
-            Screen.window.position = [1, 1]
+            Screen.checked_(Screen.window.clear())
+            Screen.checked_(Screen.window.setPosition([1, 1]))
             lastTotal = paintNew_(0, true)
-            promptRow = Screen.window.position[1]
+            promptRow = Screen.checked_(Screen.window.position)[1]
           }
           // input.count and ev.text.count are codepoint counts;
           // cursor / slice indices are byte-based, so use
@@ -533,10 +533,10 @@ class WrenConsole {
       // is frozen — leave new entries pending until the user
       // PageDown's back to live.
       if (scrollTop == -1 && Console.total > lastTotal) {
-        Screen.window.position = [1, promptRow]
-        Screen.window.clearToLineEnd()
+        Screen.checked_(Screen.window.setPosition([1, promptRow]))
+        Screen.checked_(Screen.window.clearToLineEnd())
         lastTotal = paintNew_(lastTotal, false)
-        promptRow = Screen.window.position[1]
+        promptRow = Screen.checked_(Screen.window.position)[1]
         redrawPrompt = true
       }
 
@@ -658,7 +658,7 @@ class WrenConsole {
       System.print("          Ctrl+W (kill word back), Ctrl+L (clear screen)")
       System.print("history:  Up/Down — type a prefix first to filter")
       System.print("scroll:   PgUp/PgDn, plus Up/Down inside scrollback")
-      if (Host.localControlKeys) {
+      if (Screen.checked_(Host.localControlKeys)) {
         System.print("exit:     Esc, Ctrl+Q, Ctrl+S, /quit")
       } else {
         System.print("exit:     Esc, Ctrl+`, /quit")
@@ -799,8 +799,8 @@ class WrenConsole {
   // screen and trigger a conio scroll, dropping the top row of the
   // viewport we just painted.
   static paintViewport_(rows, startRow, viewportRows) {
-    Screen.window.clear()
-    Screen.window.position = [1, 1]
+    Screen.checked_(Screen.window.clear())
+    Screen.checked_(Screen.window.setPosition([1, 1]))
     var endRow = (startRow + viewportRows).min(rows.count)
     for (i in startRow...endRow) {
       if (i > startRow) put_("\n")
@@ -816,10 +816,10 @@ class WrenConsole {
   // Up: viewport shows one row older at the top.  Caller has already
   // decremented scrollTop, so rendered[scrollTop] is the new top row.
   static scrollViewportUp1_(rendered, scrollTop, viewportRows) {
-    var w = Screen.size[0]
-    if (viewportRows > 1) Screen.putRect(Screen.readRect(1, 1, w, viewportRows - 1), 1, 2)
-    Screen.window.position = [1, 1]
-    Screen.window.clearToLineEnd()
+    var w = Screen.checked_(Screen.size)[0]
+    if (viewportRows > 1) Screen.checked_(Screen.putRect(Screen.checked_(Screen.readRect(1, 1, w, viewportRows - 1)), 1, 2))
+    Screen.checked_(Screen.window.setPosition([1, 1]))
+    Screen.checked_(Screen.window.clearToLineEnd())
     if (scrollTop >= 0 && scrollTop < rendered.count) {
       put_(rendered[scrollTop])
     }
@@ -829,10 +829,10 @@ class WrenConsole {
   // already incremented scrollTop, so the new bottom is at index
   // scrollTop + viewportRows - 1.
   static scrollViewportDown1_(rendered, scrollTop, viewportRows) {
-    var w = Screen.size[0]
-    if (viewportRows > 1) Screen.putRect(Screen.readRect(1, 2, w, viewportRows), 1, 1)
-    Screen.window.position = [1, viewportRows]
-    Screen.window.clearToLineEnd()
+    var w = Screen.checked_(Screen.size)[0]
+    if (viewportRows > 1) Screen.checked_(Screen.putRect(Screen.checked_(Screen.readRect(1, 2, w, viewportRows)), 1, 1))
+    Screen.checked_(Screen.window.setPosition([1, viewportRows]))
+    Screen.checked_(Screen.window.clearToLineEnd())
     var idx = scrollTop + viewportRows - 1
     if (idx >= 0 && idx < rendered.count) {
       put_(rendered[idx])
@@ -840,15 +840,15 @@ class WrenConsole {
   }
 
   static drawPrompt_(row, mod, input, cursor) {
-    Screen.window.position = [1, row]
-    Screen.window.clearToLineEnd()
+    Screen.checked_(Screen.window.setPosition([1, row]))
+    Screen.checked_(Screen.window.clearToLineEnd())
     var prefix = "(%(mod)) wren> "
-    Screen.window.print(prefix + input)
+    Screen.checked_(Screen.window.print(prefix + input))
     // Re-position the cursor by rendered columns, not UTF-8 bytes.  Tab
     // stops are relative to the whole line; Screen.textWidth supplies the
     // selected-font/fallback width for each rendered codepoint.
-    Screen.window.position = [displayColumns_(prefix + input[0...cursor], 0) + 1,
-        row]
+    Screen.checked_(Screen.window.setPosition([displayColumns_(prefix + input[0...cursor], 0) + 1,
+        row]))
   }
 
   static displayColumns_(s, font) {
@@ -860,7 +860,7 @@ class WrenConsole {
       var length = utf8Length_(codepoint)
       if (length == 0) length = 1
       if (codepoint == 0x09) {
-        if (i > start) columns = columns + Screen.textWidth(s[start...i], font)
+        if (i > start) columns = columns + Screen.checked_(Screen.textWidth(s[start...i], font))
         columns = columns + 8 - (columns % 8)
         i = i + length
         start = i
@@ -868,7 +868,7 @@ class WrenConsole {
         i = i + length
       }
     }
-    if (i > start) columns = columns + Screen.textWidth(s[start...i], font)
+    if (i > start) columns = columns + Screen.checked_(Screen.textWidth(s[start...i], font))
     return columns
   }
 
@@ -886,13 +886,13 @@ class WrenConsole {
     var i = 0
     while (i < n) {
       if (s[i] == "\n") {
-        if (i > start) Screen.window.print(s[start...i])
-        Screen.window.print("\r\n")
+        if (i > start) Screen.checked_(Screen.window.print(s[start...i]))
+        Screen.checked_(Screen.window.print("\r\n"))
         start = i + 1
       }
       i = i + 1
     }
-    if (start < n) Screen.window.print(s[start...n])
+    if (start < n) Screen.checked_(Screen.window.print(s[start...n]))
   }
 
   // Emit one log entry, returning whether the cursor is now at column 1.

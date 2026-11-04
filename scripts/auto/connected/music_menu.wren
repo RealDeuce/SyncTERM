@@ -7,11 +7,11 @@ import "ui_picker" for ListPicker
 class MusicMenu {
   static run() {
     Fiber.new {
-      Screen.modalRun(Fn.new {
+      Screen.checked_(Screen.modalRun(Fn.new {
         var picked = ListPicker.pickWithSelection("ANSI Music Setup",
             Host.musicHelp, Host.musicNames, CTerm.music)
         if (picked >= 0) CTerm.music = picked
-      })
+      }))
     }.call()
   }
 }

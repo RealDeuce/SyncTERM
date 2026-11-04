@@ -1,3 +1,4 @@
+import "syncterm" for Screen
 // SyncTERM Wren UI library - RGB/HSV colour picker.
 //
 // ColorPicker is an embeddable control.  It owns a live swatch, three
@@ -148,7 +149,7 @@ class ColorSwatch is Widget {
     Painter.fill(surface, Rect.new(0, 0, bounds.w, bounds.h), " ", base)
     if (bounds.h < 1) return
     var sample = Style.new(base.font,
-        Color.toLegacyAttr(_foreground, _background),
+        Screen.checked_(Color.toLegacyAttr(_foreground, _background)),
         _foreground, _background)
     var text = "Aa Bb Cc 0123"
     var width = (text.count + 6).min(bounds.w)
@@ -242,7 +243,7 @@ class ColorRamp is Widget {
           ((i * _maximum / (barWidth_ - 1)) + 0.5).floor
       var bg = _sampler.call(sampleValue)
       var fg = ColorModel.contrast(bg)
-      var rampStyle = Style.new(base.font, Color.toLegacyAttr(fg, bg), fg, bg)
+      var rampStyle = Style.new(base.font, Screen.checked_(Color.toLegacyAttr(fg, bg)), fg, bg)
       Painter.text(surface, barStart_ + i, 0, i == marker ? "|" : " ",
           rampStyle, 1)
     }

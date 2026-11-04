@@ -143,8 +143,8 @@ def install_suite(root, source, token="DONE"):
 import "syncterm" for Screen, Input, Key, KeyEvent
 class TestCompletion {
   static finish(token) {
-    Screen.window.position = [1, 1]
-    Screen.window.print("TEST-COMPLETE " + token)
+    Screen.checked_(Screen.window.setPosition([1, 1]))
+    Screen.checked_(Screen.window.print("TEST-COMPLETE " + token))
     while (true) {
       var event = Input.next()
       if (event is KeyEvent && event.key == Key.quit) break

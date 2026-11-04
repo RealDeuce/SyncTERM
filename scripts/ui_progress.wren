@@ -147,7 +147,7 @@ class ProgressBar is Widget {
         var cy    = (h / 2).floor
         var ts = style("progress.text")
         var font = ts.font == null ? 0 : ts.font
-        var cx    = ((w - Screen.textWidth(label, font)) / 2).floor
+        var cx    = ((w - Screen.checked_(Screen.textWidth(label, font))) / 2).floor
         if (cx < 0) cx = 0
         Painter.text(sf, cx, cy, label, ts, w - cx)
       }

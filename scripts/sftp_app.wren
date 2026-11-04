@@ -548,7 +548,7 @@ class SftpApp is App {
 
   ensureBrowser_() {
     if (_bPane != null) return
-    var size = Screen.size
+    var size = Screen.checked_(Screen.size)
 
     var pane = Pane.new()
     pane.bounds      = Rect.new(2, 2, size[0] - 2, size[1] - 2)
@@ -753,7 +753,7 @@ class SftpApp is App {
 
   ensureQueue_() {
     if (_qPane != null) return
-    var size = Screen.size
+    var size = Screen.checked_(Screen.size)
 
     var pane = Pane.new()
     pane.bounds     = Rect.new(2, 2, size[0] - 2, size[1] - 2)
@@ -839,7 +839,7 @@ class SftpApp is App {
     var savedCurrent = __current
     Cleanup_.run(Fn.new {
       __current = this
-      Screen.modalRun(Fn.new { super.run() })
+      Screen.checked_(Screen.modalRun(Fn.new { super.run() }))
     }, Fn.new { __current = savedCurrent })
   }
 }

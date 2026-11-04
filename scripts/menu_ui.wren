@@ -371,12 +371,12 @@ class MenuUi {
   static choiceStandalone(title, message, rows, current) {
     if (rows.count == 0) return null
     var app = App.new()
-    var longest = Screen.textWidth(title, 0) + 12
+    var longest = Screen.checked_(Screen.textWidth(title, 0)) + 12
     var labels = []
     for (row in rows) {
       var label = row is List ? row[1] : row
       labels.add(label)
-      var labelWidth = Screen.textWidth(label, 0) + 4
+      var labelWidth = Screen.checked_(Screen.textWidth(label, 0)) + 4
       if (labelWidth > longest) longest = labelWidth
     }
     var popup = StandaloneChoice.new(message, labels)
@@ -476,13 +476,13 @@ class MenuUi {
     pane.helpText = helpText
     pane.keyHints = commandHints_(commands, helpText != null)
     pane.focused = true
-    var size = Screen.size
-    var longest = Screen.textWidth(title, 0) + 6
+    var size = Screen.checked_(Screen.size)
+    var longest = Screen.checked_(Screen.textWidth(title, 0)) + 6
     var labels = []
     for (row in rows) {
       var label = row is List ? row[1] : row
       labels.add(label)
-      var labelWidth = Screen.textWidth(label, 0) + 4
+      var labelWidth = Screen.checked_(Screen.textWidth(label, 0)) + 4
       if (labelWidth > longest) longest = labelWidth
     }
     var w = longest.max(24).min(size[0] - 4)
@@ -529,8 +529,8 @@ class MenuUi {
     pane.focused = true
     pane.onClose = cancel
 
-    var size = Screen.size
-    var longest = Screen.textWidth(title, 0) + 6
+    var size = Screen.checked_(Screen.size)
+    var longest = Screen.checked_(Screen.textWidth(title, 0)) + 6
     var labels = []
     for (row in rows) {
       labels.add(row[1])
@@ -612,8 +612,8 @@ class MenuUi {
     pane.focused = true
     pane.onClose = cancel
 
-    var size = Screen.size
-    var longest = Screen.textWidth(title, 0) + 6
+    var size = Screen.checked_(Screen.size)
+    var longest = Screen.checked_(Screen.textWidth(title, 0)) + 6
     var labels = []
     for (row in rows) {
       labels.add(row[1])

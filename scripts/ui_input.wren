@@ -149,7 +149,7 @@ class TextInput is Widget {
   columnsBetween_(first, last) {
     var chars = []
     for (i in first...last) chars.add(displayChar_(i))
-    return Screen.textWidth(chars.join(), displayFont_)
+    return Screen.checked_(Screen.textWidth(chars.join(), displayFont_))
   }
 
   indexAtColumn_(column) {
@@ -157,7 +157,7 @@ class TextInput is Widget {
     var chars = []
     while (i < _chars.count) {
       chars.add(displayChar_(i))
-      if (Screen.textWidth(chars.join(), displayFont_) > column) return i
+      if (Screen.checked_(Screen.textWidth(chars.join(), displayFont_)) > column) return i
       i = i + 1
     }
     return i
@@ -182,7 +182,7 @@ class TextInput is Widget {
       var font = displayFont_
       while (first > _scrollOff) {
         var previous = first - 1
-        var width = Screen.textWidth(displayChar_(previous), font)
+        var width = Screen.checked_(Screen.textWidth(displayChar_(previous), font))
         if (columns + width >= w) {
           _scrollOff = first
           break
@@ -318,7 +318,7 @@ class TextInput is Widget {
   }
 
   copy_() {
-    if (_chars.count > 0) Clipboard.text = value
+    if (_chars.count > 0) Screen.checked_(Clipboard.setText(value))
   }
 
   cut_() {
@@ -343,7 +343,7 @@ class TextInput is Widget {
     markDirty()
   }
 
-  paste_() { insertText_(Clipboard.text) }
+  paste_() { insertText_(Screen.checked_(Clipboard.text)) }
 
   // ----- Event handling -------------------------------------------
 

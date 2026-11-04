@@ -1344,33 +1344,33 @@ src/media/console/st_console.h	function:st_console_set_pixel	694	int (st_console
 src/media/console/st_console.h	function:st_console_get_pixels	696	int (struct st_pixel_buffer **, st_console_t *, const struct st_console_rect *, _Bool)	console.operation-status
 src/media/console/st_console.h	function:st_console_blit_pixels	699	int (st_console_t *, const struct st_pixel_buffer *, const struct st_pixel_mask *, const struct st_pixel_blit *)	console.operation-status
 src/media/console/st_console.h	function:st_console_snapshot_create	703	int (st_console_snapshot_t **, st_console_t *)	console.operation-status
-src/media/console/st_console.h	function:st_console_snapshot_restore	705	int (st_console_t *, const st_console_snapshot_t *)	console.operation-status
-src/media/console/st_console.h	function:st_console_snapshot_destroy	707	void (st_console_snapshot_t *)	console.operations
-src/media/console/st_console.h	function:st_console_post_event	716	int (st_console_t *, const struct st_console_event *)	console.owner
-src/media/console/st_console.h	function:st_console_display_post_event	721	int (st_console_display_t *, const struct st_console_event *)	console.owner
-src/media/console/st_console.h	function:st_console_event_try	723	int (st_console_t *, struct st_console_event *)	console.input-events
-src/media/console/st_console.h	function:st_console_event_wait	725	int (st_console_t *, struct st_console_event *)	console.input-events
-src/media/console/st_console.h	function:st_console_event_timedwait	727	int (st_console_t *, struct st_console_event *, const struct timespec *)	console.input-events
-src/media/console/st_console.h	function:st_console_events_clear	729	int (st_console_t *)	console.owner
-src/media/console/st_console.h	function:st_console_physical_key_state	730	int (st_console_t *, uint16_t, _Bool *)	console.focus-held
-src/media/console/st_console.h	function:st_console_synthesize_physical_key	733	int (st_console_t *, uint16_t, _Bool)	console.input-events
-src/media/console/st_console.h	function:st_console_display_physical_key_state	735	int (st_console_display_t *, uint16_t, _Bool *)	console.focus-held
-src/media/console/st_console.h	function:st_console_set_title	739	int (st_console_t *, const char *)	console.operation-status
-src/media/console/st_console.h	function:st_console_set_clipboard_text	740	int (st_console_t *, const char *)	console.operation-status
-src/media/console/st_console.h	function:st_console_get_clipboard_text	742	int (st_console_t *, char **)	console.operation-status
-src/media/console/st_console.h	function:st_console_free_text	743	void (char *)	console.operations
-src/media/console/st_console.h	function:st_console_open_url	744	int (st_console_t *, const char *)	console.operation-status
-src/media/console/st_console.h	function:st_console_set_pointer_visible	745	int (st_console_t *, _Bool)	console.operation-status
-src/media/console/st_console.h	function:st_console_set_pointer_shape	746	int (st_console_t *, enum st_console_pointer_shape)	console.display-controls
-src/media/console/st_console.h	function:st_console_set_fullscreen	748	int (st_console_t *, _Bool)	console.display-controls
-src/media/console/st_console.h	function:st_console_display_set_clipboard_text	749	int (st_console_display_t *, const char *)	console.owner
-src/media/console/st_console.h	function:st_console_display_get_clipboard_text	751	int (st_console_display_t *, char **)	console.owner
-src/media/console/st_console.h	function:st_console_display_open_url	753	int (st_console_display_t *, const char *)	console.owner
-src/media/console/st_console.h	function:st_console_display_set_fullscreen	755	int (st_console_display_t *, _Bool)	console.display-controls
-src/media/console/st_console.h	function:st_console_display_get_scaling	758	int (st_console_display_t *, double *)	console.owner
-src/media/console/st_console.h	function:st_console_display_libretro_frame_size	765	int (st_console_display_t *, uint32_t *, uint32_t *)	console.owner
-src/media/console/st_console.h	function:st_console_display_libretro_frame_copy	767	int (st_console_display_t *, uint32_t *, size_t, size_t)	console.owner
-src/media/console/st_console.h	function:st_console_display_libretro_map_pointer	771	int (st_console_display_t *, int32_t, int32_t, struct st_console_event *)	console.owner
+src/media/console/st_console.h	function:st_console_snapshot_restore	707	int (st_console_t *, const st_console_snapshot_t *, _Bool *)	console.operation-status
+src/media/console/st_console.h	function:st_console_snapshot_destroy	709	void (st_console_snapshot_t *)	console.operations
+src/media/console/st_console.h	function:st_console_post_event	718	int (st_console_t *, const struct st_console_event *)	console.owner
+src/media/console/st_console.h	function:st_console_display_post_event	723	int (st_console_display_t *, const struct st_console_event *)	console.owner
+src/media/console/st_console.h	function:st_console_event_try	725	int (st_console_t *, struct st_console_event *)	console.input-events
+src/media/console/st_console.h	function:st_console_event_wait	727	int (st_console_t *, struct st_console_event *)	console.input-events
+src/media/console/st_console.h	function:st_console_event_timedwait	729	int (st_console_t *, struct st_console_event *, const struct timespec *)	console.input-events
+src/media/console/st_console.h	function:st_console_events_clear	731	int (st_console_t *)	console.owner
+src/media/console/st_console.h	function:st_console_physical_key_state	732	int (st_console_t *, uint16_t, _Bool *)	console.focus-held
+src/media/console/st_console.h	function:st_console_synthesize_physical_key	735	int (st_console_t *, uint16_t, _Bool)	console.input-events
+src/media/console/st_console.h	function:st_console_display_physical_key_state	737	int (st_console_display_t *, uint16_t, _Bool *)	console.focus-held
+src/media/console/st_console.h	function:st_console_set_title	741	int (st_console_t *, const char *)	console.operation-status
+src/media/console/st_console.h	function:st_console_set_clipboard_text	742	int (st_console_t *, const char *)	console.operation-status
+src/media/console/st_console.h	function:st_console_get_clipboard_text	744	int (st_console_t *, char **)	console.operation-status
+src/media/console/st_console.h	function:st_console_free_text	745	void (char *)	console.operations
+src/media/console/st_console.h	function:st_console_open_url	746	int (st_console_t *, const char *)	console.operation-status
+src/media/console/st_console.h	function:st_console_set_pointer_visible	747	int (st_console_t *, _Bool)	console.operation-status
+src/media/console/st_console.h	function:st_console_set_pointer_shape	748	int (st_console_t *, enum st_console_pointer_shape)	console.display-controls
+src/media/console/st_console.h	function:st_console_set_fullscreen	750	int (st_console_t *, _Bool)	console.display-controls
+src/media/console/st_console.h	function:st_console_display_set_clipboard_text	751	int (st_console_display_t *, const char *)	console.owner
+src/media/console/st_console.h	function:st_console_display_get_clipboard_text	753	int (st_console_display_t *, char **)	console.owner
+src/media/console/st_console.h	function:st_console_display_open_url	755	int (st_console_display_t *, const char *)	console.owner
+src/media/console/st_console.h	function:st_console_display_set_fullscreen	757	int (st_console_display_t *, _Bool)	console.display-controls
+src/media/console/st_console.h	function:st_console_display_get_scaling	760	int (st_console_display_t *, double *)	console.owner
+src/media/console/st_console.h	function:st_console_display_libretro_frame_size	767	int (st_console_display_t *, uint32_t *, uint32_t *)	console.owner
+src/media/console/st_console.h	function:st_console_display_libretro_frame_copy	769	int (st_console_display_t *, uint32_t *, size_t, size_t)	console.owner
+src/media/console/st_console.h	function:st_console_display_libretro_map_pointer	773	int (st_console_display_t *, int32_t, int32_t, struct st_console_event *)	console.owner
 src/media/font_catalog/st_font_catalog.h	macro:ST_FONT_CATALOG_SELECTOR_COUNT	18	(UINT8_MAX + 1U)	fonts.catalog
 src/media/font_catalog/st_font_catalog.h	macro:ST_FONT_CATALOG_FIRST_CUSTOM	19	46U	fonts.catalog
 src/media/font_catalog/st_font_catalog.h	enum:ST_FONT_LOAD_NONE	26	st_font_load_failure	fonts.load-errors

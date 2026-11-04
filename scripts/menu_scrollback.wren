@@ -1,4 +1,5 @@
-import "syncterm" for Cell, Clipboard, Hyperlinks, Input, KeyEvent, MouseEvent,
+import "syncterm" for Error
+import "syncterm" for Cleanup_, Cell, Clipboard, Hyperlinks, Input, KeyEvent, MouseEvent,
     Key, Mouse, Screen, Surface
 import "syncterm_menu" for Menu
 import "ui_widget" for Widget, Rect
@@ -46,7 +47,7 @@ class OfflineScrollbackCanvas is Widget {
     if (_hoverId != 0 || _hoverUrl != null) {
       _hoverId = 0
       _hoverUrl = null
-      Menu.setHyperlinkHover(0)
+      Screen.optional_(Menu.setHyperlinkHover(0))
     }
     markDirty()
   }
@@ -92,7 +93,7 @@ class OfflineScrollbackCanvas is Widget {
   }
 
   copied_(url) {
-    Clipboard.text = url
+    Screen.checked_(Clipboard.setText(url))
     Alert.show(_app, "URL copied to clipboard", url)
   }
 
@@ -101,14 +102,18 @@ class OfflineScrollbackCanvas is Widget {
     if (position == null) return
     if (!_source.cellAt(position[0], position[1], _cell)) return
     if (_cell.hyperlinkId != 0) {
-      if (!Menu.openHyperlink(_cell.hyperlinkId)) {
+      var result = Menu.openHyperlink(_cell.hyperlinkId)
+      if (result is Error || !result) {
         var url = Hyperlinks[_cell.hyperlinkId]
         if (url != null) copied_(url)
       }
       return
     }
     var url = _source.urlAt(position[0], position[1])
-    if (url != null && !Menu.openUrl(url)) copied_(url)
+    if (url != null) {
+      var result = Menu.openUrl(url)
+      if (result is Error || !result) copied_(url)
+    }
   }
 
   hover_(event) {
@@ -123,7 +128,7 @@ class OfflineScrollbackCanvas is Widget {
     if (id == _hoverId && url == _hoverUrl) return
     _hoverId = id
     _hoverUrl = url
-    Menu.setHyperlinkHover(id)
+    Screen.optional_(Menu.setHyperlinkHover(id))
     markDirty()
   }
 
@@ -204,54 +209,55 @@ class OfflineScrollbackView {
   static show_(app, standalone) {
     var source = Menu.offlineScrollback
     if (source == null) return
-    var savedScreen = Screen.save()
-    if (savedScreen == 0) return
-    if (!Menu.prepareOfflineScrollback()) {
-      Screen.restore(savedScreen)
-      return
-    }
+    var savedScreen = Screen.checked_(Screen.save())
     var savedMouse = Input.mouseEvents
-    Input.enableMouseEvent(Mouse.move)
-    Input.enableMouseEvent(Mouse.button1Click)
-    Input.enableMouseEvent(Mouse.button1DragStart)
-    Input.enableMouseEvent(Mouse.button1DragMove)
-    Input.enableMouseEvent(Mouse.button1DragEnd)
-    Input.enableMouseEvent(Mouse.wheelUp)
-    Input.enableMouseEvent(Mouse.wheelDown)
-    Input.mouseVisible = true
-    var size = Screen.size
-    var reserveRow = standalone && Menu.offlineScrollbackHasStatus
-    if (reserveRow) {
-      // Retain the status row as disconnected chrome without shrinking
-      // sessions whose terminal originally used the entire screen.
-      var row = Surface.new(size[0], 1)
-      Painter.fill(row, Rect.new(0, 0, size[0], 1), " ",
-          Theme.current.style("disconnected"))
-      Screen.putRect(row, 1, size[1])
-    }
-    var background = Screen.readRect(1, 1, size[0], size[1])
-    var dismiss = Fn.new {
-      if (standalone) {
-        app.quit()
-      } else {
-        app.popModal()
+    Cleanup_.run(Fn.new {
+      if (!Screen.checked_(Menu.prepareOfflineScrollback())) return
+      Input.enableMouseEvent(Mouse.move)
+      Input.enableMouseEvent(Mouse.button1Click)
+      Input.enableMouseEvent(Mouse.button1DragStart)
+      Input.enableMouseEvent(Mouse.button1DragMove)
+      Input.enableMouseEvent(Mouse.button1DragEnd)
+      Input.enableMouseEvent(Mouse.wheelUp)
+      Input.enableMouseEvent(Mouse.wheelDown)
+      Screen.optional_(Input.setMouseVisible(true))
+      var size = Screen.checked_(Screen.size)
+      var reserveRow = standalone && Menu.offlineScrollbackHasStatus
+      if (reserveRow) {
+        // Retain the status row as disconnected chrome without shrinking
+        // sessions whose terminal originally used the entire screen.
+        var row = Surface.new(size[0], 1)
+        Painter.fill(row, Rect.new(0, 0, size[0], 1), " ",
+            Theme.current.style("disconnected"))
+        Screen.checked_(Screen.putRect(row, 1, size[1]))
       }
-    }
-    var viewer = OfflineScrollbackCanvas.new(app, source, background,
-        !standalone && Menu.offlineScrollbackHasStatus, dismiss)
-    viewer.helpText = help_()
-    viewer.keyHints = [["F1", "Help"], ["Arrows", "Scroll"],
-        ["PgUp/PgDn", "Page"], ["Esc", "Close"]]
-    viewer.focused = true
-    viewer.bounds = Rect.new(1, 1, size[0], size[1] - (reserveRow ? 1 : 0))
-    if (standalone) {
-      app.pushModal(viewer)
-      app.runSync()
-    } else {
-      app.modal(viewer)
-    }
-    Menu.setHyperlinkHover(0)
-    Input.mouseEvents = savedMouse
-    Screen.restore(savedScreen)
+      var background = Screen.checked_(Screen.readRect(1, 1, size[0], size[1]))
+      var dismiss = Fn.new {
+        if (standalone) {
+          app.quit()
+        } else {
+          app.popModal()
+        }
+      }
+      var viewer = OfflineScrollbackCanvas.new(app, source, background,
+          !standalone && Menu.offlineScrollbackHasStatus, dismiss)
+      viewer.helpText = help_()
+      viewer.keyHints = [["F1", "Help"], ["Arrows", "Scroll"],
+          ["PgUp/PgDn", "Page"], ["Esc", "Close"]]
+      viewer.focused = true
+      viewer.bounds = Rect.new(1, 1, size[0], size[1] - (reserveRow ? 1 : 0))
+      if (standalone) {
+        app.pushModal(viewer)
+        app.runSync()
+      } else {
+        app.modal(viewer)
+      }
+    }, Fn.new {
+      Screen.cleanup_([
+        Fn.new { Screen.optional_(Menu.setHyperlinkHover(0)) },
+        Fn.new { Input.mouseEvents = savedMouse },
+        Fn.new { Screen.checked_(Screen.restore(savedScreen)) }
+      ])
+    })
   }
 }

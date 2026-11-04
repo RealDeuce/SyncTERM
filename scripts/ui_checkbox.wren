@@ -44,7 +44,7 @@ class Checkbox is Widget {
   onChange=(fn) { _onChange = fn }
 
   // "[X] " + label
-  intrinsicWidth { Screen.textWidth(_label, 0) + 4 }
+  intrinsicWidth { Screen.checked_(Screen.textWidth(_label, 0)) + 4 }
 
   cursorVisible { false }
 

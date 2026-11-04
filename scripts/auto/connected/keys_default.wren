@@ -1,3 +1,4 @@
+import "syncterm" for Screen
 // Copyright (c) 2026 Stephen Hurd
 // SPDX-License-Identifier: BSD-2-Clause
 
@@ -94,7 +95,7 @@ Hook.onCommand_(104) { |key|
   DisconnectFlow.run(false)
   return true
 }
-if (Host.localControlKeys) {
+if (Screen.checked_(Host.localControlKeys)) {
   Hook.onKey(113, Mod.control) { |key|
     DisconnectFlow.run(false)
     return true

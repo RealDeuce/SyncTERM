@@ -170,7 +170,7 @@ class EmojiPicker is Pane {
   }
 
   draw() {
-    var size = Screen.size
+    var size = Screen.checked_(Screen.size)
     if (size[0] != _screenW || size[1] != _screenH) {
       _screenW = size[0]
       _screenH = size[1]
@@ -188,7 +188,7 @@ class EmojiPicker is Pane {
     var lines = []
     var line = ""
     for (ch in name) {
-      if (line.count > 0 && Screen.textWidth(line + ch, 0) > width) {
+      if (line.count > 0 && Screen.checked_(Screen.textWidth(line + ch, 0)) > width) {
         lines.add(line)
         line = ""
       }
@@ -202,10 +202,10 @@ class EmojiPicker is Pane {
     if (highlighted == null) return ""
     var words = highlighted.keywords.join(", ")
     if (words.count == 0) return ""
-    if (Screen.textWidth("(" + words + ")", 0) <= width) return "(" + words + ")"
+    if (Screen.checked_(Screen.textWidth("(" + words + ")", 0)) <= width) return "(" + words + ")"
     var line = "("
     for (ch in Text.graphemes(words)) {
-      if (Screen.textWidth(line + ch + "…)", 0) > width) break
+      if (Screen.checked_(Screen.textWidth(line + ch + "…)", 0)) > width) break
       line = line + ch
     }
     return line + "…)"

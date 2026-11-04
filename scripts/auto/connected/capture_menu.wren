@@ -19,11 +19,11 @@ class CaptureMenu {
         options = ["Capture Plain Text", "Capture with ANSI",
             "Save Screen Binary", "Save Screen Binary with SAUCE"]
       }
-      Screen.modalRun(Fn.new {
+      Screen.checked_(Screen.modalRun(Fn.new {
         picked = ListPicker.pick("Capture Control",
             "# Capture Control\n\nSave the remote display stream to a local file.",
             options)
-      })
+      }))
       if (picked < 0) return
       if (active) {
         if (picked == 0) {
@@ -48,9 +48,9 @@ class CaptureMenu {
         result = Capture.start(file, picked == 1)
       }
       if (result is FileError) {
-        Screen.modalRun(Fn.new {
+        Screen.checked_(Screen.modalRun(Fn.new {
           Alert.runStandalone(App.new(), "Capture Control", result.toString)
-        })
+        }))
       }
     }.call()
   }

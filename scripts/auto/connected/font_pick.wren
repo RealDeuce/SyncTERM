@@ -10,8 +10,8 @@ class FontApp {
   static run() {
     Fiber.new {
       if (Host.safeMode) return
-      Screen.modalRun(Fn.new {
-        if (!ScreenSupports.fontSelection) {
+      Screen.checked_(Screen.modalRun(Fn.new {
+        if (!Screen.checked_(ScreenSupports.fontSelection)) {
           Alert.runStandalone(App.new(),
               "Font cannot be changed in the current video output mode.")
           return
@@ -44,7 +44,7 @@ class FontApp {
           change.try()
           if (change.error != null) Alert.runStandalone(App.new(), change.error.toString)
         }
-      })
+      }))
     }.call()
   }
 }

@@ -7,6 +7,7 @@
 
 #include "st_wren_host.h"
 #include "wren_host_internal.h"
+#include "st_wren_screen_test_control.h"
 #include "wren_vm.h"
 #include "wren_value.h"
 
@@ -1388,7 +1389,7 @@ exercise_upload_consent(st_wren_host_t *host, st_console_t *console)
 	free(token);
 	st_term_session_destroy(&session);
 	st_font_catalog_destroy(fonts);
-	CHECK(st_console_snapshot_restore(console, snapshot) == 0);
+	CHECK(st_console_snapshot_restore(console, snapshot, NULL) == 0);
 	st_console_snapshot_destroy(snapshot);
 	st_condition_destroy(&connection.output.changed); st_mutex_destroy(&connection.output.mutex);
 	st_condition_destroy(&connection.input.changed); st_mutex_destroy(&connection.input.mutex);
@@ -1661,7 +1662,7 @@ exercise_transfer_wire(st_wren_host_t *host, st_console_t *console)
 	st_wren_connected_destroy(connected);
 	st_term_session_destroy(&session);
 	st_font_catalog_destroy(fonts);
-	CHECK(st_console_snapshot_restore(console, snapshot) == 0);
+	CHECK(st_console_snapshot_restore(console, snapshot, NULL) == 0);
 	st_console_snapshot_destroy(snapshot);
 	st_condition_destroy(&connection.output.changed); st_mutex_destroy(&connection.output.mutex);
 	st_condition_destroy(&connection.input.changed); st_mutex_destroy(&connection.input.mutex);
@@ -1810,15 +1811,15 @@ exercise_session_lease_contract(st_wren_host_t *host, st_console_t *console,
 	    "  late.try()\n"
 	    "  if (late.error == null) Fiber.abort(\"shutdown reacquired hold\")\n"
 	    "  var size = Screen.size\n"
-	    "  Screen.window.bounds = [1, 1, size[0], size[1]]\n"
-	    "  Screen.window.position = [1, 1]\n"
+	    "  Screen.window.setBounds([1, 1, size[0], size[1]])\n"
+	    "  Screen.window.setPosition([1, 1])\n"
 	    "  Screen.window.print(\"LEASE-END\")\n"
 	    "}\n"
 	    ) == 0);
 	CHECK(st_wren_connected_auxiliary_active(connected));
 	st_wren_connected_destroy(connected);
 	CHECK(console_has_text(console, 0, 0, "LEASE-END"));
-	CHECK(st_console_snapshot_restore(console, snapshot) == 0);
+	CHECK(st_console_snapshot_restore(console, snapshot, NULL) == 0);
 	st_console_snapshot_destroy(snapshot);
 	return 0;
 }
@@ -2731,9 +2732,9 @@ exercise_app_lifecycle(st_wren_host_t *host, st_console_t *console,
 	    "}\n"
 	    "var sync = App.new()\n"
 	    "sync.onLayout = Fn.new {|w, h|\n"
-	    "  Screen.attr = 71\n"
-	    "  CustomCursor.visible = !cursor.visible\n"
-	    "  Screen.window.position = [position[0] == 1 ? 2 : 1, 1]\n"
+	    "  Screen.setAttr(71)\n"
+	    "  CustomCursor.setVisible(!cursor.visible)\n"
+	    "  Screen.window.setPosition([position[0] == 1 ? 2 : 1, 1])\n"
 	    "  Fiber.abort(error)\n"
 	    "}\n"
 	    "var failed = Fiber.new { sync.runSync() }\n"
@@ -2963,7 +2964,7 @@ exercise_app_lifecycle(st_wren_host_t *host, st_console_t *console,
 	    "Hook.onDisconnect {\n"
 	    "  Check.call(shutdown)\n"
 	    "  var ok = shutdownDelay != null && shutdownDelay.cancelled && shutdownClosed == 1 && !shutdownResumed\n"
-	    "  Screen.window.position = [1, 1]\n"
+	    "  Screen.window.setPosition([1, 1])\n"
 	    "  Screen.window.print(ok ? \"+\" : \"-\")\n"
 	    "}\n") == 0);
 	st_wren_connected_destroy(connected);
@@ -2999,7 +3000,7 @@ exercise_app_lifecycle(st_wren_host_t *host, st_console_t *console,
 		    "if (!done || app.running) Fiber.abort(\"menu App did not finish\")\n")
 		    == WREN_RESULT_SUCCESS);
 	}
-	CHECK(st_console_snapshot_restore(console, snapshot) == 0);
+	CHECK(st_console_snapshot_restore(console, snapshot, NULL) == 0);
 	st_console_snapshot_destroy(snapshot);
 	return 0;
 }
@@ -3061,13 +3062,13 @@ exercise_cleanup_scopes(st_wren_host_t *host, st_console_t *console,
 	    "var outer = Fiber.new {\n"
 	    "  Screen.modalRun(Fn.new {\n"
 	    "    if (!CTerm.suspended) Fiber.abort(\"modal not suspended\")\n"
-	    "    Screen.attr = 19\n"
+	    "    Screen.setAttr(19)\n"
 	    "    CustomCursor.preserve(Fn.new {\n"
-	    "      CustomCursor.visible = !cursor.visible\n"
+	    "      CustomCursor.setVisible(!cursor.visible)\n"
 	    "      VideoFlags.preserve(Fn.new {\n"
-	    "        VideoFlags.noBlink = !flags.noBlink\n"
+	    "        VideoFlags.setNoBlink(!flags.noBlink)\n"
 	    "        Screen.modalRun(Fn.new {\n"
-	    "          Screen.attr = 71\n"
+	    "          Screen.setAttr(71)\n"
 	    "          Fiber.abort(error)\n"
 	    "        })\n"
 	    "      })\n"
@@ -3079,12 +3080,12 @@ exercise_cleanup_scopes(st_wren_host_t *host, st_console_t *console,
 	    "for (i in 0..4) if (Screen.font[i] != fonts[i]) Fiber.abort(\"font cleanup\")\n"
 	    "if (CustomCursor.preserve(Fn.new { 17 }) != 17 || VideoFlags.preserve(Fn.new { 19 }) != 19 || Screen.modalRun(Fn.new { 23 }) != 23) Fiber.abort(\"normal return\")\n"
 	    "CTerm.suspended = true\n"
-	    "Screen.modalRun(Fn.new { Screen.attr = 29 })\n"
+	    "Screen.modalRun(Fn.new { Screen.setAttr(29) })\n"
 	    "if (!CTerm.suspended || Screen.attr != attr) Fiber.abort(\"previous suspension\")\n"
 	    "CTerm.suspended = false\n"
 	    "var paused = Fiber.new {\n"
 	    "  return Screen.modalRun(Fn.new {\n"
-	    "    Screen.attr = 31\n"
+	    "    Screen.setAttr(31)\n"
 	    "    return Fiber.yield(\"parked\")\n"
 	    "  })\n"
 	    "}\n"
@@ -3093,7 +3094,7 @@ exercise_cleanup_scopes(st_wren_host_t *host, st_console_t *console,
 	    "var rejected = Fiber.new {\n"
 	    "  Screen.update(Fn.new {\n"
 	    "    Screen.modalRun(Fn.new {\n"
-	    "      Screen.attr = 71\n"
+	    "      Screen.setAttr(71)\n"
 	    "      Fiber.yield()\n"
 	    "    })\n"
 	    "  })\n"
@@ -3105,9 +3106,9 @@ exercise_cleanup_scopes(st_wren_host_t *host, st_console_t *console,
 	    "  var body = Fiber.new {\n"
 	    "    Screen.modalRun(Fn.new {\n"
 	    "      CustomCursor.preserve(Fn.new {\n"
-	    "        CustomCursor.visible = !cursor.visible\n"
+	    "        CustomCursor.setVisible(!cursor.visible)\n"
 	    "        VideoFlags.preserve(Fn.new {\n"
-	    "          VideoFlags.noBlink = !flags.noBlink\n"
+	    "          VideoFlags.setNoBlink(!flags.noBlink)\n"
 	    "          Timer.after(0).await()\n"
 	    "          Fiber.abort(error)\n"
 	    "        })\n"
@@ -3153,11 +3154,11 @@ exercise_cleanup_scopes(st_wren_host_t *host, st_console_t *console,
 	    "Fiber.new {\n"
 	    "  Cleanup_.run(Fn.new {\n"
 	    "    Screen.modalRun(Fn.new {\n"
-	    "      Screen.attr = 71\n"
+	    "      Screen.setAttr(71)\n"
 	    "      CustomCursor.preserve(Fn.new {\n"
-	    "        CustomCursor.visible = !cursor.visible\n"
+	    "        CustomCursor.setVisible(!cursor.visible)\n"
 	    "        VideoFlags.preserve(Fn.new {\n"
-	    "          VideoFlags.noBlink = !flags.noBlink\n"
+	    "          VideoFlags.setNoBlink(!flags.noBlink)\n"
 	    "          Cleanup_.run(Fn.new {\n"
 	    "            Timer.after(60000).await()\n"
 	    "            Fiber.abort(\"shutdown resumed parked body\")\n"
@@ -3173,15 +3174,17 @@ exercise_cleanup_scopes(st_wren_host_t *host, st_console_t *console,
 	    "System.gc()\n"
 	    "Hook.onDisconnect {\n"
 	    "  var ok = closed.join(\",\") == \"inner,outer\" && !CTerm.suspended && Screen.attr == attr && CustomCursor.visible == cursor.visible && VideoFlags.noBlink == flags.noBlink\n"
-	    "  Screen.window.position = [1, 1]\n"
+	    "  Screen.window.setPosition([1, 1])\n"
 	    "  Screen.window.print(ok ? \"+\" : \"-\")\n"
 	    "}\n") == 0);
 	st_wren_connected_destroy(connected);
 	CHECK(console_has_text(console, 0, 0, "+"));
-	CHECK(st_console_snapshot_restore(console, snapshot) == 0);
+	CHECK(st_console_snapshot_restore(console, snapshot, NULL) == 0);
 	st_console_snapshot_destroy(snapshot);
 	return 0;
 }
+
+static int exercise_screen_connected_results(st_wren_connected_t *connected);
 
 static int
 exercise_cterm_results(st_wren_connected_t *connected, st_console_t *console)
@@ -3491,6 +3494,7 @@ exercise_owned_sends(st_wren_host_t *host, st_console_t *console)
 		CHECK(st_cterm_set_encoding(st_term_session_cterm(session), term_config.encoding,
 		    ST_CODEPAGE_CP437) == 0);
 		CHECK(exercise_cterm_results(connected, console) == 0);
+		CHECK(exercise_screen_connected_results(connected) == 0);
 
 		connection.output.head = 0;
 		connection.output.count = 0;
@@ -3726,7 +3730,7 @@ exercise_owned_sends(st_wren_host_t *host, st_console_t *console)
 	st_mutex_destroy(&connection.input.mutex);
 	st_profile_dispose(&profile);
 	st_font_catalog_destroy(fonts);
-	CHECK(st_console_snapshot_restore(console, snapshot) == 0);
+	CHECK(st_console_snapshot_restore(console, snapshot, NULL) == 0);
 	st_console_snapshot_destroy(snapshot);
 	return 0;
 }
@@ -4426,11 +4430,11 @@ exercise_connected_scrollback(st_wren_host_t *host,
 	    "var live = Screen.readRect(x, y, x + width - 1, y + height - 1)\n"
 	    "var viewport = Surface.new(width, height)\n"
 	    "ScrollbackView.blankSurroundings_()\n"
-	    "Screen.cursor.visible = false\n"
+	    "Screen.cursor.setVisible(false)\n"
 	    "ScrollbackView.paint_(viewport, live, Scrollback.height, Scrollback.height, x, y)\n"
 	    "if (Screen.window.position[0] != x || Screen.window.position[1] != y) Fiber.abort(\"scrollback cursor position\")\n"
 	    "if (Screen.cursor.visible) Fiber.abort(\"scrollback hidden cursor\")\n"
-	    "Screen.cursor.visible = true\n"
+	    "Screen.cursor.setVisible(true)\n"
 	    "ScrollbackView.paint_(viewport, live, Scrollback.height, Scrollback.height, x, y)\n"
 	    "if (!Screen.cursor.visible) Fiber.abort(\"scrollback visible cursor\")\n"
 	    "Screen.restore(saved)\n") == 0);
@@ -4745,15 +4749,15 @@ exercise_remote_shutdown(const struct st_wren_connected_config *config,
 	    "  rejected.try()\n"
 	    "  if (rejected.error == null) Fiber.abort(\"shutdown resource reuse\")\n"
 	    "  var size = Screen.size\n"
-	    "  Screen.window.bounds = [1, 1, size[0], size[1]]\n"
-	    "  Screen.window.position = [1, 1]\n"
+	    "  Screen.window.setBounds([1, 1, size[0], size[1]])\n"
+	    "  Screen.window.setPosition([1, 1])\n"
 	    "  Screen.window.print(\"REMOTE-END\")\n"
 	    "}\n") == 0);
 	uint64_t before = fake->next_id;
 	st_wren_connected_destroy(connected);
 	CHECK(fake->next_id == before);
 	CHECK(console_has_text(config->console, 0, 0, "REMOTE-END"));
-	CHECK(st_console_snapshot_restore(config->console, snapshot) == 0);
+	CHECK(st_console_snapshot_restore(config->console, snapshot, NULL) == 0);
 	st_console_snapshot_destroy(snapshot);
 	return 0;
 }
@@ -5107,7 +5111,7 @@ exercise_menu_contract(st_wren_host_t *public_host)
 	    "if (Menu.load(null) != null) Fiber.abort(\"load\")\n"
 	    "if (Menu.applicationTitle != \"SyncTERM test - Headless\") Fiber.abort(\"application title\")\n"
 	    "if (Menu.currentScreenMode != 0) Fiber.abort(\"current mode\")\n"
-	    "if (!Menu.setScreenMode(3) || Menu.currentScreenMode != 3 || !Menu.setScreenMode(1)) Fiber.abort(\"set mode\")\n"
+	    "if (Menu.setScreenMode(3) != null || Menu.currentScreenMode != 3 || Menu.setScreenMode(1) != null) Fiber.abort(\"set mode\")\n"
 	    "if (Menu.entries.count != 2 || Menu.entries[0].name != \"Zulu\" || Menu.entries[0].searchKey != \"zulu\") Fiber.abort(\"entries/sort\")\n"
 	    "if (Menu.entries[0].id == Menu.entries[1].id) Fiber.abort(\"duplicate IDs\")\n"
 	    "var q = Menu.quickConnect(\"ssh://guest:secret@[::1]:2222\")\n"
@@ -6222,7 +6226,7 @@ exercise_rectangle_contract(st_wren_host_t *public_host)
 {
 	struct st_wren_host *host = public_host;
 	static const char copy_source[] =
-	    "import \"syncterm\" for Cell, Screen, Surface\n"
+	    "import \"syncterm\" for Cell, Screen, Surface, Error\n"
 	    "import \"ui_widget\" for Rect\n"
 	    "class RectangleContract {\n"
 	    "  static row(s, y) {\n"
@@ -6291,7 +6295,7 @@ exercise_rectangle_contract(st_wren_host_t *public_host)
 	    "dst.putRect(narrow, 1, 0)\n"
 	    "if (dst.cellAt(1, 0).ch != \"X\" || dst.cellAt(2, 0).ch != \" \") Fiber.abort(\"overwrite wide lead\")\n";
 	static const char rectangle_source[] =
-	    "import \"syncterm\" for Cell, Screen, Surface\n"
+	    "import \"syncterm\" for Cell, Screen, Surface, Error\n"
 	    "import \"ui_widget\" for Rect\n"
 	    "class FillContract {\n"
 	    "  static row(s, y) {\n"
@@ -6324,10 +6328,10 @@ exercise_rectangle_contract(st_wren_host_t *public_host)
 	    "if (wideFill.error == null || fill.cellAt(0, 0).ch != \"X\") Fiber.abort(\"wide fill\")\n"
 	    "var read = Screen.readRect(1, 1, 1, 1)\n"
 	    "if (read == null || read.width != 1 || read.height != 1) Fiber.abort(\"valid readRect\")\n"
-	    "if (Screen.readRect(0, 1, 1, 1) != null || Screen.readRect(-1, 1, 1, 1) != null) Fiber.abort(\"invalid read origin\")\n"
-	    "if (Screen.readRect(2, 1, 1, 1) != null || Screen.readRect(1, 2, 1, 1) != null) Fiber.abort(\"inverted read\")\n"
-	    "if (Screen.readRect(81, 1, 81, 1) != null || Screen.readRect(1, 26, 1, 26) != null) Fiber.abort(\"out-of-bounds read\")\n"
-	    "if (Screen.readRect(1, 1, 4294967296, 1) != null) Fiber.abort(\"unrepresentable read\")\n"
+	    "if (!(Screen.readRect(0, 1, 1, 1) is Error) || !(Screen.readRect(-1, 1, 1, 1) is Error)) Fiber.abort(\"invalid read origin\")\n"
+	    "if (!(Screen.readRect(2, 1, 1, 1) is Error) || !(Screen.readRect(1, 2, 1, 1) is Error)) Fiber.abort(\"inverted read\")\n"
+	    "if (!(Screen.readRect(81, 1, 81, 1) is Error) || !(Screen.readRect(1, 26, 1, 26) is Error)) Fiber.abort(\"out-of-bounds read\")\n"
+	    "if (!(Screen.readRect(1, 1, 4294967296, 1) is Error)) Fiber.abort(\"unrepresentable read\")\n"
 	    "var wrongType = Fiber.new { Screen.readRect(\"1\", 1, 1, 1) }\n"
 	    "wrongType.try()\n"
 	    "if (wrongType.error == null) Fiber.abort(\"readRect type error\")\n"
@@ -6362,7 +6366,7 @@ exercise_zero_width_contract(st_wren_host_t *public_host)
 {
 	struct st_wren_host *host = public_host;
 	static const char source[] =
-	    "import \"syncterm\" for Cell, Screen, Surface\n"
+	    "import \"syncterm\" for Cell, Screen, Surface, Error\n"
 	    "import \"ui_draw\" for Painter\n"
 	    "import \"ui_style\" for Style\n"
 	    "var z = \"\\u2060\\ufeff\"\n"
@@ -6732,15 +6736,15 @@ exercise_core_value_contracts(st_wren_host_t *public_host,
 	    "durationType.try()\n"
 	    "if (durationType.error == null) Fiber.abort(\"duration type\")\n"
 	    "var saved = Screen.save()\n"
-	    "Screen.window.bounds = [3, 4, 6, 7]\n"
-	    "Screen.window.position = [2, 3]\n"
+	    "Screen.window.setBounds([3, 4, 6, 7])\n"
+	    "Screen.window.setPosition([2, 3])\n"
 	    "if (Screen.window.position[0] != 2 || Screen.window.position[1] != 3) Fiber.abort(\"relative window position\")\n"
 	    "Screen.window.putChar(88)\n"
 	    "if (Screen.readRect(4, 6, 4, 6).cellAt(0, 0).ch != \"X\") Fiber.abort(\"relative window output\")\n"
-	    "var badPosition = Fiber.new { Screen.window.position = [5, 1] }\n"
+	    "var badPosition = Fiber.new { Screen.window.setPosition([5, 1]) }\n"
 	    "badPosition.try()\n"
 	    "if (badPosition.error == null || Screen.window.position[0] != 3 || Screen.window.position[1] != 3) Fiber.abort(\"invalid window position\")\n"
-	    "var badBounds = Fiber.new { Screen.window.bounds = [3, 4, 2, 7] }\n"
+	    "var badBounds = Fiber.new { Screen.window.setBounds([3, 4, 2, 7]) }\n"
 	    "badBounds.try()\n"
 	    "if (badBounds.error == null || Screen.window.bounds[0] != 3 || Screen.window.bounds[2] != 6) Fiber.abort(\"invalid window bounds\")\n"
 	    "var badCharacter = Fiber.new { Screen.window.putChar(1114112) }\n"
@@ -6759,21 +6763,280 @@ exercise_core_value_contracts(st_wren_host_t *public_host,
 }
 
 static int
+exercise_screen_results(st_wren_host_t *public_host)
+{
+	struct st_wren_host *host = public_host;
+	/* A real native rejection must be a returned value, not a String abort. */
+	CHECK(wrenInterpret(host->vm, "screen_results",
+	    "import \"syncterm\" for CustomCursor, Error, IOErr\n"
+	    "var invalid = CustomCursor.current\n"
+	    "invalid.range = 0\n"
+	    "var failed = Fiber.new { invalid.apply() }\n"
+	    "var result = failed.try()\n"
+	    "if (failed.error != null || !(result is Error) || result.code != IOErr.invalidArgument) "
+	    "Fiber.abort(\"native cursor failure was not returned\")\n")
+	    == WREN_RESULT_SUCCESS);
+	return 0;
+}
+
+static int
+exercise_screen_failure_boundaries(st_wren_host_t *public_host)
+{
+	struct st_wren_host *host = public_host;
+	static const struct { const char *native; const char *expression; } cases[] = {
+		{"size", "Screen.size"},
+		{"get_style", "Screen.hyperlinkId"},
+		{"set_style", "Screen.setHyperlinkId(0)"},
+		{"read_cells", "Screen.readRect(1, 1, 1, 1)"},
+		{"write_complete_cells", "Screen.putRect(Surface.new(1, 1), 1, 1)"},
+		{"write_complete_cells", "Screen.putRect(Surface.new(1, 1), Rect.new(0, 0, 1, 1), 1, 1)"},
+		{"get_custom_cursor", "CustomCursor.startLine"},
+		{"get_custom_cursor", "CustomCursor.visible"},
+		{"set_custom_cursor", "CustomCursor.setStartLine(1)"},
+		{"get_video_flags", "VideoFlags.noBlink"},
+		{"get_video_flags", "VideoFlags.expand"},
+		{"get_palette", "Color.fromAttr(7)"},
+		{"get_palette", "Color.toLegacyAttr(0, 0)"},
+		{"get_palette", "PixelColor.toRgb(0)"},
+		{"get_video_flags", "Screen.attr"},
+		{"capabilities", "Host.textTerminal"},
+		{"capabilities", "Host.localControlKeys"},
+		{"capabilities", "Screen.supports.pixels"},
+		{"get_style", "Screen.attr"},
+		{"set_style", "Screen.setAttr(7)"},
+		{"get_position", "Screen.window.position"},
+		{"set_position", "Screen.window.setPosition([1, 1])"},
+		{"get_window", "Screen.window.bounds"},
+		{"set_window", "Screen.window.setBounds([1, 1, 2, 2])"},
+		{"put_codepoint", "Screen.window.putChar(65)"},
+		{"write_utf8", "Screen.window.print(\"e\\u0301\")"},
+		{"clear_window", "Screen.window.clear()"},
+		{"clear_line", "Screen.window.clearToLineEnd()"},
+		{"delete_lines", "Screen.window.deleteLine()"},
+		{"insert_lines", "Screen.window.insertLine()"},
+		{"scroll", "Screen.window.scroll()"},
+		{"get_palette", "Palette[0]"},
+		{"set_palette", "Palette.set(0, 0x123456)"},
+		{"get_custom_cursor", "CustomCursor.current"},
+		{"get_default_cursor", "CustomCursor.normal"},
+		{"set_custom_cursor", "CustomCursor.setVisible(true)"},
+		{"get_video_flags", "VideoFlags.current"},
+		{"set_video_flags", "VideoFlags.setNoBlink(true)"},
+		{"pixel_size", "Screen.pixelSize"},
+		{"cell_pixel_size", "Screen.cellPixelSize"},
+		{"get_pixels", "Screen.readPixels(0, 0, 1, 1)"},
+		{"set_pixel", "Screen.setPixel(0, 0, PixelColor.rgb(0))"},
+		{"blit_pixels", "Screen.blitPixels(PixelBuffer.new(1, 1), PixelBlit.new())"},
+		{"snapshot_create", "Screen.save()"},
+		{"snapshot_restore", "Screen.restore(saved)"},
+		{"begin_update", "Screen.update(Fn.new { 42 })"},
+		{"get_clipboard_text", "Clipboard.text"},
+		{"set_clipboard_text", "Clipboard.setText(\"test\")"},
+		{"set_pointer_visible", "Input.setMouseVisible(true)"},
+		{"set_pointer_shape", "Menu.setHyperlinkHover(0)"},
+		{"set_title", "Menu.showEntry(null)"},
+		{"open_url", "Menu.openUrl(\"https://example.invalid/\")"},
+		{"st_wren_host_set_screen_mode", "Menu.setScreenMode(1)"},
+		{"st_hyperlink_registry_copy", "Menu.openHyperlink(link)"},
+		{"st_hyperlink_registry_contains", "Menu.setHyperlinkHover(link)"},
+		{"open_url", "Menu.openHyperlink(link)"},
+	};
+	CHECK(wrenInterpret(host->vm, "screen_failures",
+	    "import \"syncterm\" for Screen, Surface, ScreenError, Error, IOErr, Palette, CustomCursor, VideoFlags, Clipboard, Input, PixelColor, PixelBuffer, PixelBlit, Hyperlinks, Color, Host\n"
+	    "import \"syncterm_menu\" for Menu\n"
+	    "import \"ui_widget\" for Rect\n"
+	    "var saved = Screen.save()\n"
+	    "var link = Hyperlinks.add(\"https://example.invalid/\", null)\n"
+	    "var errors = []\n") == WREN_RESULT_SUCCESS);
+	for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
+		char native[96], source[1024];
+		(void)snprintf(native, sizeof(native), "%s%s", strncmp(cases[i].native, "st_", 3) == 0 ? "" : "st_console_", cases[i].native);
+		for (unsigned unknown = 0; unknown < 3; ++unknown) {
+			int code = unknown == 2 ? 271828 : unknown ? -271828 : IO_ERROR_IO;
+			st_wren_test_screen_fault = (struct st_wren_screen_fault){.name = native, .status = code};
+			(void)snprintf(source, sizeof(source),
+			    "errors.add(%s)\n"
+			    "if (!(errors[-1] is ScreenError) || !(errors[-1] is Error) || errors[-1].code != %d) Fiber.abort(\"lost %s result\")\n",
+			    cases[i].expression, code, cases[i].native);
+			CHECK(wrenInterpret(host->vm, "screen_failures", source) == WREN_RESULT_SUCCESS);
+			CHECK(st_wren_test_screen_fault.calls == 1);
+			st_wren_test_screen_fault = (struct st_wren_screen_fault){0};
+		}
+	}
+	CHECK(wrenInterpret(host->vm, "screen_failures",
+	    "System.gc()\n"
+	    "for (error in errors) {\n"
+	    "  if (!(error.message is String) || !error.toString.startsWith(\"ScreenError\")) Fiber.abort(\"error lifetime\")\n"
+	    "}\n"
+	    "var held = errors[0]\n"
+	    "var immutable = Fiber.new { held.code = 1 }\n"
+	    "immutable.try()\n"
+	    "if (immutable.error == null || held.code != IOErr.io) Fiber.abort(\"mutable screen error\")\n"
+	    "if (!(Screen.readRect(0, 1, 1, 1) is ScreenError)) Fiber.abort(\"range failure missing\")\n"
+	    "if (Screen.putRect(Surface.new(1, 1), -100, -100) != null) Fiber.abort(\"clipped success\")\n") == WREN_RESULT_SUCCESS);
+	return 0;
+}
+
+static int
+exercise_screen_cleanup_results(st_wren_host_t *public_host)
+{
+	struct st_wren_host *host = public_host;
+	CHECK(wrenInterpret(host->vm, "screen_cleanup",
+	    "import \"syncterm\" for Screen, Error, ScreenError, CustomCursor, VideoFlags, IOErr\n"
+	    "var calls = 0\n"
+	    "var previous = Screen.save()\n"
+	    "var first = CustomCursor.current\n"
+	    "first.range = 0\n"
+	    "first = first.apply()\n") == WREN_RESULT_SUCCESS);
+	st_wren_test_screen_fault = (struct st_wren_screen_fault){.name = "st_console_begin_update", .status = -271828};
+	CHECK(wrenInterpret(host->vm, "screen_cleanup",
+	    "var denied = Screen.update(Fn.new { calls = calls + 1 })\n"
+	    "if (!(denied is ScreenError) || calls != 0) Fiber.abort(\"begin failure ran callback\")\n") == WREN_RESULT_SUCCESS);
+	st_wren_test_screen_fault = (struct st_wren_screen_fault){.name = "st_console_end_update", .status = IO_ERROR_IO, .after = true};
+	CHECK(wrenInterpret(host->vm, "screen_cleanup",
+	    "var finished = Screen.update(Fn.new { 42 })\n"
+	    "if (!(finished is ScreenError) || finished.code != IOErr.io) Fiber.abort(\"end failure lost\")\n"
+	    "if (Screen.update(Fn.new { first }) != first) Fiber.abort(\"end replaced returned error\")\n"
+	    "var aborted = Fiber.new { Screen.update(Fn.new { Fiber.abort(first) }) }\n"
+	    "aborted.try()\n"
+	    "if (aborted.error != first) Fiber.abort(\"end replaced callback abort\")\n") == WREN_RESULT_SUCCESS);
+	CHECK(st_wren_test_screen_fault.calls == 3);
+	st_wren_test_screen_fault = (struct st_wren_screen_fault){.name = "st_console_set_custom_cursor", .status = IO_ERROR_IO};
+	CHECK(wrenInterpret(host->vm, "screen_cleanup",
+	    "var restore = CustomCursor.preserve(Fn.new { 42 })\n"
+	    "if (!(restore is ScreenError) || restore.code != IOErr.io) Fiber.abort(\"cursor cleanup lost\")\n"
+	    "if (CustomCursor.preserve(Fn.new { first }) != first) Fiber.abort(\"cleanup replaced returned error\")\n"
+	    "var cursorAborted = Fiber.new { CustomCursor.preserve(Fn.new { Fiber.abort(first) }) }\n"
+	    "cursorAborted.try()\n"
+	    "if (cursorAborted.error != first) Fiber.abort(\"cleanup replaced callback abort\")\n") == WREN_RESULT_SUCCESS);
+	CHECK(st_wren_test_screen_fault.calls == 3);
+	st_wren_test_screen_fault = (struct st_wren_screen_fault){.name = "st_console_snapshot_restore", .status = IO_ERROR_IO};
+	CHECK(wrenInterpret(host->vm, "screen_cleanup",
+	    "Screen.font[0] = 2\n"
+	    "var rejected = Screen.restore(previous)\n"
+	    "if (!(rejected is ScreenError) || Screen.font[0] != 2) Fiber.abort(\"rejected restore changed slots\")\n") == WREN_RESULT_SUCCESS);
+	st_wren_test_screen_fault.after = true;
+	CHECK(wrenInterpret(host->vm, "screen_cleanup",
+	    "var applied = Screen.restore(previous)\n"
+	    "if (!(applied is ScreenError) || Screen.font[0] == 2) Fiber.abort(\"applied restore did not synchronize slots\")\n") == WREN_RESULT_SUCCESS);
+	st_wren_test_screen_fault = (struct st_wren_screen_fault){0};
+	st_wren_test_no_pixels = true;
+	CHECK(wrenInterpret(host->vm, "screen_cleanup",
+	    "if (Screen.supports.pixels) Fiber.abort(\"absent capability\")\n"
+	    "var unsupported = Screen.readPixels(0, 0, 1, 1)\n"
+	    "if (!(unsupported is ScreenError) || unsupported.code != IOErr.notSupported) Fiber.abort(\"unsupported capture\")\n") == WREN_RESULT_SUCCESS);
+	st_wren_test_no_pixels = false;
+	CHECK(wrenInterpret(host->vm, "screen_cleanup",
+	    "Screen.window.setBounds([1, 1, 4, 4])\n"
+	    "Screen.window.setPosition([1, 1])\n") == WREN_RESULT_SUCCESS);
+	st_wren_test_screen_fault = (struct st_wren_screen_fault){.name = "st_console_write_utf8", .status = IO_ERROR_IO, .after = true};
+	CHECK(wrenInterpret(host->vm, "screen_cleanup",
+	    "var committed = Screen.window.print(\"AB\")\n"
+	    "if (!(committed is ScreenError) || Screen.window.position[0] != 3) Fiber.abort(\"drawing effects lost\")\n") == WREN_RESULT_SUCCESS);
+	CHECK(st_wren_test_screen_fault.calls == 1);
+	st_wren_test_screen_fault = (struct st_wren_screen_fault){.name = "binding.captureStorage"};
+	CHECK(wrenInterpret(host->vm, "screen_cleanup",
+	    "var allocation = Screen.readRect(1, 1, 1, 1)\n"
+	    "if (!(allocation is ScreenError) || allocation.code != IOErr.outOfMemory) Fiber.abort(\"binding allocation failure lost\")\n") == WREN_RESULT_SUCCESS);
+	CHECK(st_wren_test_screen_fault.calls == 1);
+	st_wren_test_screen_fault = (struct st_wren_screen_fault){.name = "st_console_set_video_flags", .status = IO_ERROR_IO};
+	CHECK(wrenInterpret(host->vm, "screen_cleanup",
+	    "var flagsCleanup = VideoFlags.preserve(Fn.new { 42 })\n"
+	    "if (!(flagsCleanup is ScreenError) || VideoFlags.preserve(Fn.new { first }) != first) Fiber.abort(\"flags cleanup lost\")\n") == WREN_RESULT_SUCCESS);
+	st_wren_test_screen_fault = (struct st_wren_screen_fault){0};
+	CHECK(wrenInterpret(host->vm, "screen_cleanup", "Screen.restore(previous)\n") == WREN_RESULT_SUCCESS);
+	return 0;
+}
+
+static int
+exercise_screen_ui_cleanup(st_wren_host_t *public_host)
+{
+	struct st_wren_host *host = public_host;
+	CHECK(wrenInterpret(host->vm, "screen_ui_cleanup",
+	    "import \"syncterm\" for Screen, ScreenError, CustomCursor, VideoFlags, Input, Error, IOErr, KeyEvent\n"
+	    "import \"ui_app\" for App\n"
+	    "var app = App.new()\n"
+	    "var mouse = Input.mouseEvents\n"
+	    "var visible = CustomCursor.visible\n"
+	    "app.setupCursor_()\n"
+	    "CustomCursor.setVisible(!visible)\n"
+	    "Input.mouseEvents = 0\n") == WREN_RESULT_SUCCESS);
+	st_wren_test_screen_fault = (struct st_wren_screen_fault){.name = "st_console_set_style", .status = IO_ERROR_IO};
+	CHECK(wrenInterpret(host->vm, "screen_ui_cleanup",
+	    "var cleanup = Fiber.new { app.finishRun_(mouse) }\n"
+	    "cleanup.try()\n"
+	    "if (!(cleanup.error is ScreenError) || Input.mouseEvents != mouse || CustomCursor.visible != visible) Fiber.abort(\"UI cleanup stopped at first failure\")\n") == WREN_RESULT_SUCCESS);
+	CHECK(st_wren_test_screen_fault.calls == 1);
+	st_wren_test_screen_fault = (struct st_wren_screen_fault){.name = "st_console_clear_window", .status = IO_ERROR_IO};
+	CHECK(wrenInterpret(host->vm, "screen_ui_cleanup",
+	    "app.bind(65, Fn.new {|key| Screen.checked_(Screen.window.clear()) })\n"
+	    "var handler = Fiber.new { app.dispatchSync_(KeyEvent.new(65, 0)) }\n"
+	    "handler.try()\n"
+	    "if (!(handler.error is ScreenError)) Fiber.abort(\"UI swallowed unhandled drawing failure\")\n") == WREN_RESULT_SUCCESS);
+	CHECK(st_wren_test_screen_fault.calls == 1);
+	st_wren_test_screen_fault = (struct st_wren_screen_fault){.name = "st_console_get_custom_cursor", .status = IO_ERROR_IO};
+	CHECK(wrenInterpret(host->vm, "screen_ui_cleanup",
+	    "var calls = 0\n"
+	    "var denied = CustomCursor.preserve(Fn.new { calls = calls + 1 })\n"
+	    "if (!(denied is ScreenError) || calls != 0) Fiber.abort(\"cursor acquisition ran callback\")\n") == WREN_RESULT_SUCCESS);
+	st_wren_test_screen_fault = (struct st_wren_screen_fault){.name = "st_console_get_video_flags", .status = IO_ERROR_IO};
+	CHECK(wrenInterpret(host->vm, "screen_ui_cleanup",
+	    "var deniedFlags = VideoFlags.preserve(Fn.new { calls = calls + 1 })\n"
+	    "if (!(deniedFlags is ScreenError) || calls != 0) Fiber.abort(\"flags acquisition ran callback\")\n") == WREN_RESULT_SUCCESS);
+	st_wren_test_screen_fault = (struct st_wren_screen_fault){0};
+	CHECK(wrenInterpret(host->vm, "screen_ui_cleanup",
+	    "for (fn in [Fn.new { Screen.attr = 7 }, Fn.new { Screen.window.position = [1, 1] },\n"
+	    "    Fn.new { Screen.palette[0] = 0 }, Fn.new { CustomCursor.visible = true },\n"
+	    "    Fn.new { VideoFlags.noBlink = true }, Fn.new { Input.mouseVisible = true }]) {\n"
+	    "  var obsolete = Fiber.new { fn.call() }\n"
+	    "  obsolete.try()\n"
+	    "  if (obsolete.error == null) Fiber.abort(\"obsolete setter retained\")\n"
+	    "}\n") == WREN_RESULT_SUCCESS);
+	return 0;
+}
+
+static int
+exercise_screen_connected_results(st_wren_connected_t *connected)
+{
+	CHECK(st_wren_connected_interpret(connected, "screen_connected_results",
+	    "import \"syncterm\" for Screen, ScreenError, CustomCursor, CTerm, IOErr\n"
+	    "var calls = 0\n"
+	    "var first = CustomCursor.current\n"
+	    "first.range = 0\n"
+	    "first = first.apply()\n") == 0);
+	st_wren_test_screen_fault = (struct st_wren_screen_fault){.name = "st_console_snapshot_create", .status = IO_ERROR_IO};
+	CHECK(st_wren_connected_interpret(connected, "screen_connected_results",
+	    "var denied = Screen.modalRun(Fn.new { calls = calls + 1 })\n"
+	    "if (!(denied is ScreenError) || calls != 0 || CTerm.suspended) Fiber.abort(\"modal acquisition ran callback\")\n") == 0);
+	st_wren_test_screen_fault = (struct st_wren_screen_fault){.name = "st_console_snapshot_restore", .status = IO_ERROR_IO, .after = true};
+	CHECK(st_wren_connected_interpret(connected, "screen_connected_results",
+	    "var restored = Screen.modalRun(Fn.new { 42 })\n"
+	    "if (!(restored is ScreenError) || restored.code != IOErr.io || CTerm.suspended) Fiber.abort(\"modal restore failure lost\")\n"
+	    "if (Screen.modalRun(Fn.new { first }) != first) Fiber.abort(\"modal cleanup replaced returned error\")\n"
+	    "var aborted = Fiber.new { Screen.modalRun(Fn.new { Fiber.abort(first) }) }\n"
+	    "aborted.try()\n"
+	    "if (aborted.error != first || CTerm.suspended) Fiber.abort(\"modal cleanup replaced abort\")\n") == 0);
+	CHECK(st_wren_test_screen_fault.calls == 3);
+	st_wren_test_screen_fault = (struct st_wren_screen_fault){0};
+	return 0;
+}
+
+static int
 exercise_cursor_contract(st_wren_host_t *public_host)
 {
 	struct st_wren_host *host = public_host;
 	static const char source[] =
-	    "import \"syncterm\" for CustomCursor\n"
+	    "import \"syncterm\" for CustomCursor, Error\n"
 	    "var saved = CustomCursor.current\n"
 	    "var normal = CustomCursor.normal\n"
 	    "if (normal.startLine != 14 || normal.endLine != 15 || normal.range != 16 || !normal.visible || !normal.blink) Fiber.abort(\"normal cursor\")\n"
 	    "var solid = CustomCursor.solid\n"
 	    "if (solid.startLine != 0 || solid.endLine != 15 || solid.range != 16 || !solid.visible || solid.blink) Fiber.abort(\"solid cursor\")\n"
-	    "CustomCursor.startLine = 1\n"
-	    "CustomCursor.endLine = 3\n"
-	    "CustomCursor.range = 32\n"
-	    "CustomCursor.blink = false\n"
-	    "CustomCursor.visible = false\n"
+	    "CustomCursor.setStartLine(1)\n"
+	    "CustomCursor.setEndLine(3)\n"
+	    "CustomCursor.setRange(32)\n"
+	    "CustomCursor.setBlink(false)\n"
+	    "CustomCursor.setVisible(false)\n"
 	    "if (CustomCursor.startLine != 1 || CustomCursor.endLine != 3 || CustomCursor.range != 32 || CustomCursor.blink || CustomCursor.visible) Fiber.abort(\"live cursor\")\n"
 	    "var staged = CustomCursor.current\n"
 	    "staged.startLine = 2\n"
@@ -6785,10 +7048,9 @@ exercise_cursor_contract(st_wren_host_t *public_host)
 	    "if (CustomCursor.startLine != 2 || CustomCursor.endLine != 5 || !CustomCursor.blink || !CustomCursor.visible) Fiber.abort(\"staged cursor\")\n"
 	    "var invalid = CustomCursor.current\n"
 	    "invalid.range = 0\n"
-	    "var rejected = Fiber.new { invalid.apply() }\n"
-	    "rejected.try()\n"
-	    "if (rejected.error == null || CustomCursor.range != 16) Fiber.abort(\"invalid cursor\")\n"
-	    "var wrongType = Fiber.new { CustomCursor.visible = 1 }\n"
+	    "var rejected = invalid.apply()\n"
+	    "if (!(rejected is Error) || CustomCursor.range != 16) Fiber.abort(\"invalid cursor\")\n"
+	    "var wrongType = Fiber.new { CustomCursor.setVisible(1) }\n"
 	    "wrongType.try()\n"
 	    "if (wrongType.error == null) Fiber.abort(\"cursor Boolean type\")\n"
 	    "saved.apply()\n";
@@ -6810,33 +7072,33 @@ exercise_video_colour_contract(st_wren_host_t *public_host)
 	    "var saved = VideoFlags.current\n"
 	    "var savedScreen = Screen.save()\n"
 	    "var expansion = VideoFlags.expand\n"
-	    "VideoFlags.altChars = false\n"
-	    "VideoFlags.noBright = false\n"
-	    "VideoFlags.bgBright = false\n"
-	    "VideoFlags.blinkAltChars = false\n"
-	    "VideoFlags.noBlink = false\n"
-	    "VideoFlags.lineGraphicsExpand = false\n"
+	    "VideoFlags.setAltChars(false)\n"
+	    "VideoFlags.setNoBright(false)\n"
+	    "VideoFlags.setBgBright(false)\n"
+	    "VideoFlags.setBlinkAltChars(false)\n"
+	    "VideoFlags.setNoBlink(false)\n"
+	    "VideoFlags.setLineGraphicsExpand(false)\n"
 	    "if (VideoFlags.altChars || VideoFlags.noBright || VideoFlags.bgBright || VideoFlags.blinkAltChars || VideoFlags.noBlink || VideoFlags.lineGraphicsExpand || VideoFlags.expand != expansion) Fiber.abort(\"live video flags\")\n"
 	    "Screen.font[2] = 65535\n"
-	    "VideoFlags.altChars = true\n"
-	    "VideoFlags.altChars = false\n"
+	    "VideoFlags.setAltChars(true)\n"
+	    "VideoFlags.setAltChars(false)\n"
 	    "Screen.font[1] = 0\n"
 	    "Screen.font[2] = 1\n"
 	    "Screen.font[3] = 2\n"
 	    "Screen.font[4] = 3\n"
-	    "VideoFlags.altChars = true\n"
-	    "VideoFlags.blinkAltChars = true\n"
-	    "Screen.window.position = [1, 1]\n"
-	    "Screen.attr = 0x08\n"
+	    "VideoFlags.setAltChars(true)\n"
+	    "VideoFlags.setBlinkAltChars(true)\n"
+	    "Screen.window.setPosition([1, 1])\n"
+	    "Screen.setAttr(0x08)\n"
 	    "Screen.window.putChar(65)\n"
-	    "Screen.attr = 0x80\n"
+	    "Screen.setAttr(0x80)\n"
 	    "Screen.window.putChar(65)\n"
-	    "Screen.attr = 0x88\n"
+	    "Screen.setAttr(0x88)\n"
 	    "Screen.window.putChar(65)\n"
 	    "var selected = Screen.readRect(1, 1, 3, 1)\n"
 	    "if (selected.cellAt(0, 0).font != 1 || selected.cellAt(1, 0).font != 2 || selected.cellAt(2, 0).font != 3) Fiber.abort(\"attribute font selection\")\n"
-	    "VideoFlags.altChars = false\n"
-	    "VideoFlags.blinkAltChars = false\n"
+	    "VideoFlags.setAltChars(false)\n"
+	    "VideoFlags.setBlinkAltChars(false)\n"
 	    "if (Screen.readRect(1, 1, 1, 1).cellAt(0, 0).font != 1) Fiber.abort(\"stored font identity\")\n"
 	    "Screen.restore(savedScreen)\n"
 	    "if (Screen.font[1] != 0 || Screen.font[2] != 0 || Screen.font[3] != 0 || Screen.font[4] != 0 || VideoFlags.altChars || VideoFlags.blinkAltChars) Fiber.abort(\"screen display-state restore\")\n"
@@ -6846,29 +7108,29 @@ exercise_video_colour_contract(st_wren_host_t *public_host)
 	    "staged.noBlink = true\n"
 	    "staged.apply()\n"
 	    "if (!VideoFlags.noBright || !VideoFlags.bgBright || !VideoFlags.noBlink || VideoFlags.expand != expansion) Fiber.abort(\"staged video flags\")\n"
-	    "VideoFlags.noBright = false\n"
-	    "VideoFlags.bgBright = false\n"
-	    "VideoFlags.noBlink = false\n"
+	    "VideoFlags.setNoBright(false)\n"
+	    "VideoFlags.setBgBright(false)\n"
+	    "VideoFlags.setNoBlink(false)\n"
 	    "var colours = Color.fromAttr(0x1f)\n"
 	    "if (colours[0] != 0xffffff || colours[1] != 0x0000a8) Fiber.abort(\"attribute RGB conversion\")\n"
 	    "if (Color.toLegacyAttr(0xffffff, 0) != 0x0f) Fiber.abort(\"RGB attribute conversion\")\n"
 	    "var old4 = Screen.palette[4]\n"
 	    "var old12 = Screen.palette[12]\n"
-	    "Screen.palette[4] = 0x123456\n"
-	    "Screen.palette[12] = 0x654321\n"
+	    "Screen.palette.set(4, 0x123456)\n"
+	    "Screen.palette.set(12, 0x654321)\n"
 	    "if (Color.fromAttr(0x01)[0] != 0x123456 || Color.toLegacyAttr(0x123456, 0) != 0x01) Fiber.abort(\"active foreground palette conversion\")\n"
-	    "VideoFlags.bgBright = true\n"
+	    "VideoFlags.setBgBright(true)\n"
 	    "if (Color.fromAttr(0x90)[1] != 0x654321 || Color.toLegacyAttr(0, 0x654321) != 0x90) Fiber.abort(\"active background palette conversion\")\n"
-	    "VideoFlags.bgBright = false\n"
-	    "Screen.palette[4] = old4\n"
-	    "Screen.palette[12] = old12\n"
+	    "VideoFlags.setBgBright(false)\n"
+	    "Screen.palette.set(4, old4)\n"
+	    "Screen.palette.set(12, old12)\n"
 	    "var cell = Cell.new()\n"
 	    "cell.legacyAttr = 0x9f\n"
 	    "if (cell.legacyAttr != 0x9f || !cell.bright || !cell.blink) Fiber.abort(\"legacy cell state\")\n"
 	    "cell.fgRgb = 0xa8a8a8\n"
 	    "if (!cell.bright || !cell.blink || cell.fgRgb != 0xa8a8a8) Fiber.abort(\"explicit RGB state\")\n"
 	    "if (!ScreenSupports.altBlinkFont || !ScreenSupports.altBoldFont || !ScreenSupports.brightBackground) Fiber.abort(\"screen capabilities\")\n"
-	    "var wrongType = Fiber.new { VideoFlags.noBlink = 1 }\n"
+	    "var wrongType = Fiber.new { VideoFlags.setNoBlink(1) }\n"
 	    "wrongType.try()\n"
 	    "if (wrongType.error == null) Fiber.abort(\"video Boolean type\")\n"
 	    "saved.apply()\n"
@@ -6893,45 +7155,45 @@ exercise_font_slot_contract(st_wren_host_t *public_host)
 	static const char source[] =
 	    "import \"syncterm\" for Screen, Surface, VideoFlags\n"
 	    "var saved = Screen.save()\n"
-	    "VideoFlags.altChars = false\n"
-	    "VideoFlags.blinkAltChars = false\n"
-	    "Screen.window.bounds = [1, 2, 5, 6]\n"
+	    "VideoFlags.setAltChars(false)\n"
+	    "VideoFlags.setBlinkAltChars(false)\n"
+	    "Screen.window.setBounds([1, 2, 5, 6])\n"
 	    "Screen.font[1] = 0\n"
-	    "Screen.attr = 0x07\n"
+	    "Screen.setAttr(0x07)\n"
 	    "Screen.font[1] = 4\n"
 	    "Screen.window.clear()\n"
 	    "if (Screen.readRect(1, 2, 1, 2).cellAt(0, 0).font != 4) Fiber.abort(\"clear font selection\")\n"
-	    "VideoFlags.altChars = true\n"
+	    "VideoFlags.setAltChars(true)\n"
 	    "Screen.font[2] = 0\n"
-	    "Screen.attr = 0x08\n"
+	    "Screen.setAttr(0x08)\n"
 	    "Screen.font[2] = 5\n"
-	    "Screen.window.position = [2, 2]\n"
+	    "Screen.window.setPosition([2, 2])\n"
 	    "Screen.window.clearToLineEnd()\n"
 	    "if (Screen.readRect(2, 3, 2, 3).cellAt(0, 0).font != 5) Fiber.abort(\"clear-line font selection\")\n"
-	    "VideoFlags.blinkAltChars = true\n"
+	    "VideoFlags.setBlinkAltChars(true)\n"
 	    "Screen.font[3] = 0\n"
-	    "Screen.attr = 0x80\n"
+	    "Screen.setAttr(0x80)\n"
 	    "Screen.font[3] = 6\n"
-	    "Screen.window.position = [1, 3]\n"
+	    "Screen.window.setPosition([1, 3])\n"
 	    "Screen.window.insertLine()\n"
 	    "if (Screen.readRect(1, 4, 1, 4).cellAt(0, 0).font != 6) Fiber.abort(\"insert-line font selection\")\n"
 	    "Screen.font[4] = 0\n"
-	    "Screen.attr = 0x88\n"
+	    "Screen.setAttr(0x88)\n"
 	    "Screen.font[4] = 7\n"
-	    "Screen.window.position = [1, 3]\n"
+	    "Screen.window.setPosition([1, 3])\n"
 	    "Screen.window.deleteLine()\n"
 	    "if (Screen.readRect(1, 6, 1, 6).cellAt(0, 0).font != 7) Fiber.abort(\"delete-line font selection\")\n"
-	    "VideoFlags.altChars = false\n"
-	    "VideoFlags.blinkAltChars = false\n"
+	    "VideoFlags.setAltChars(false)\n"
+	    "VideoFlags.setBlinkAltChars(false)\n"
 	    "Screen.font[1] = 0\n"
-	    "Screen.attr = 0x07\n"
+	    "Screen.setAttr(0x07)\n"
 	    "Screen.font[1] = 8\n"
 	    "Screen.window.scroll()\n"
 	    "if (Screen.readRect(1, 6, 1, 6).cellAt(0, 0).font != 8) Fiber.abort(\"scroll font selection\")\n"
 	    "Screen.font[1] = 10\n"
 	    "if (Screen.readRect(1, 6, 1, 6).cellAt(0, 0).font != 8) Fiber.abort(\"retained font identity\")\n"
-	    "VideoFlags.altChars = true\n"
-	    "VideoFlags.blinkAltChars = true\n"
+	    "VideoFlags.setAltChars(true)\n"
+	    "VideoFlags.setBlinkAltChars(true)\n"
 	    "var explicit = Surface.new(1, 1)\n"
 	    "explicit.cellAt(0, 0).ch = \"A\"\n"
 	    "explicit.cellAt(0, 0).font = 9\n"
@@ -7531,7 +7793,7 @@ exercise_repl_style(struct st_wren_host *host, st_console_t *console)
 	    "var mapped = Cell.new()\n"
 	    "mapped.legacyAttr = 0x41\n"
 	    "if (mapped.fgPalette != 4 || mapped.bgPalette != 1 || mapped.legacyAttr != 0x41) Fiber.abort(\"legacy colour mapping failed\")\n"
-	    "Screen.attr = 0x1f\n"
+	    "Screen.setAttr(0x1f)\n"
 	    "WrenConsole.run(\"syncterm\")\n"
 	    "if (Screen.attr != 0x1f) Fiber.abort(\"REPL did not restore caller attribute\")\n"
 	    "if (!correct) Fiber.abort(\"REPL inherited editor attribute\")\n"
@@ -8587,6 +8849,10 @@ main(int argc, char **argv)
 	CHECK(exercise_screen_update_contract(host, console) == 0);
 	CHECK(exercise_zero_width_contract(host) == 0);
 	CHECK(exercise_web_refresh_overlay(host, console) == 0);
+	CHECK(exercise_screen_results(host) == 0);
+	CHECK(exercise_screen_failure_boundaries(host) == 0);
+	CHECK(exercise_screen_cleanup_results(host) == 0);
+	CHECK(exercise_screen_ui_cleanup(host) == 0);
 	CHECK(exercise_cursor_contract(host) == 0);
 	CHECK(exercise_video_colour_contract(host) == 0);
 	CHECK(exercise_font_slot_contract(host) == 0);
@@ -8827,15 +9093,15 @@ main(int argc, char **argv)
 	st_profile_dispose(&selected);
 	CHECK(wrenInterpret(((struct st_wren_host *)host)->vm,
 	    "ansi_host_capabilities",
-	    "import \"syncterm\" for Host, PixelBlit, PixelBuffer, Screen, Key\n"
+	    "import \"syncterm\" for Host, PixelBlit, PixelBuffer, Screen, Key, Error\n"
 	    "import \"ui_app\" for App\n"
 	    "if (App.new().binding(112, 2) == null) Fiber.abort(\"ANSI emoji shortcut\")\n"
 	    "if (!Host.textTerminal || !Host.localControlKeys) "
 	    "Fiber.abort(\"ANSI host capabilities\")\n"
-	    "if (Screen.supports.pixels || Screen.pixelSize != null || "
-	    "Screen.cellPixelSize != null) Fiber.abort(\"ANSI pixel capability\")\n"
-	    "if (Screen.setPixel(0, 0, 0) || "
-	    "Screen.blitPixels(PixelBuffer.new(1, 1), PixelBlit.new())) "
+	    "if (Screen.supports.pixels || !(Screen.pixelSize is Error) || "
+	    "!(Screen.cellPixelSize is Error)) Fiber.abort(\"ANSI pixel capability\")\n"
+	    "if (!(Screen.setPixel(0, 0, 0) is Error) || "
+	    "!(Screen.blitPixels(PixelBuffer.new(1, 1), PixelBlit.new()) is Error)) "
 	    "Fiber.abort(\"ANSI pixel mutation\")\n")
 	    == WREN_RESULT_SUCCESS);
 	CHECK(st_console_post_event(console, &ctrl_q) == 0);

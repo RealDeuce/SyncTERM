@@ -41,7 +41,7 @@ import "ui_help"   for Help
 import "ui_input" for TextInput
 import "ui_emoji_picker" for EmojiPicker
 import "syncterm"  for Input, KeyEvent, PhysicalKeyEvent, MouseEvent, Mouse, Key, Timer, Mod,
-                       Wake, Screen, Surface, CustomCursor, CTerm,
+                       Wake, Screen, ScreenError, Surface, CustomCursor, CTerm,
                        REPL, Host, Emoji, Cleanup_
 
 // Sentinel passed into post() when the caller doesn't supply a value.
@@ -107,7 +107,7 @@ class App {
     // F1 → context help; user can rebind / unbind freely.
     bind(Key.f1, Fn.new {|k| showHelp() })
     bind(112, Mod.command, Fn.new {|k| openEmojiPicker() })
-    if (Host.localControlKeys) bind(112, Mod.control, Fn.new {|k| openEmojiPicker() })
+    if (Screen.checked_(Host.localControlKeys)) bind(112, Mod.control, Fn.new {|k| openEmojiPicker() })
   }
 
   openEmojiPicker() {
@@ -698,6 +698,7 @@ class App {
     if (_onError != null) {
       _onError.call(f)
     } else {
+      if (f.error is ScreenError) Fiber.abort(f.error)
       System.print("UI handler error: " + f.error)
       REPL.printTrace_(f)
     }
@@ -731,8 +732,8 @@ class App {
     // on every repaint, fighting with the C-side update_status path
     // and producing visible flicker on the transfer arrows / log
     // indicators.
-    var sw      = Screen.size[0]
-    var sh      = Screen.size[1]
+    var sw      = Screen.checked_(Screen.size)[0]
+    var sh      = Screen.checked_(Screen.size)[1]
     var hideRow = CTerm.statusDisplay > 0
     if (hideRow) sh = sh - 1
     var resized = _surface == null || _surfaceSize == null ||
@@ -748,7 +749,7 @@ class App {
     // fill — UIFC convention: dialogs sit "on top of" the screen
     // they came from.
     if (_backdrop == null) {
-      _backdrop = Screen.readRect(1, 1, sw, sh)
+      _backdrop = Screen.checked_(Screen.readRect(1, 1, sw, sh))
     }
     if (_backdrop != null) _surface.putRect(_backdrop, 0, 0)
 
@@ -792,7 +793,7 @@ class App {
         if (m.shadow) Painter.shadow(_surface, dx, dy, m.bounds.w, m.bounds.h)
       }
     }
-    Screen.putRect(_surface, 1, 1)
+    Screen.checked_(Screen.putRect(_surface, 1, 1))
     // Park the hardware cursor wherever the foreground widget tree
     // wants it.  Putting this *after* the blit means the cursor lands
     // on top of the just-painted frame instead of where putRect last
@@ -802,23 +803,23 @@ class App {
     // cell instead of a stale one.
     var top = modalTop
     var cp  = top.cursorPos
-    if (cp != null) Screen.window.position = cp
+    if (cp != null) Screen.checked_(Screen.window.setPosition(cp))
     var visible = top.cursorVisible
     var want = visible ? top.cursorShape : "none"
     if (want == null) want = "normal"
     var cursorAttr = visible ? top.cursorAttr : null
     var attrChanged = cursorAttr != _cursorAttr
-    if (attrChanged && cursorAttr != null) Screen.attr = cursorAttr
+    if (attrChanged && cursorAttr != null) Screen.checked_(Screen.setAttr(cursorAttr))
     if (want != _cursorShape || attrChanged) {
       // The saved state is for restoring on exit; using it here would
       // inherit whatever the parent app left the cursor at, which could
       // itself be hidden or have unrelated geometry.
       if (want == "solid") {
-        CustomCursor.solid.apply()
+        Screen.checked_(Screen.checked_(CustomCursor.solid).apply())
       } else if (want == "normal") {
-        CustomCursor.normal.apply()
+        Screen.checked_(Screen.checked_(CustomCursor.normal).apply())
       } else {
-        CustomCursor.none.apply()
+        Screen.checked_(Screen.checked_(CustomCursor.none).apply())
       }
       _cursorShape = want
     }
@@ -911,6 +912,7 @@ class App {
     if (_onError != null) {
       _onError.call(f)
     } else {
+      if (f.error is ScreenError) Fiber.abort(f.error)
       System.print("UI handler error: " + f.error)
       REPL.printTrace_(f)
     }
@@ -943,26 +945,31 @@ class App {
   // _cursorShape is null so the first drawAll_ comparison always trips,
   // regardless of what the parent app or terminal had the cursor doing.
   setupCursor_() {
-    _savedCursor = CustomCursor.current
-    _savedAttr = Screen.attr
-    _savedPosition = Screen.window.position
+    _savedCursor = Screen.checked_(CustomCursor.current)
+    _savedAttr = Screen.checked_(Screen.attr)
+    _savedPosition = Screen.checked_(Screen.window.position)
     _cursorShape = null
     _cursorAttr = null
   }
   teardownCursor_() {
-    if (_savedAttr != null) {
-      Screen.attr = _savedAttr
-      _savedAttr = null
-    }
-    if (_savedCursor != null) {
-      _savedCursor.apply()
-      _savedCursor = null
-    }
-    if (_savedPosition != null) {
-      Screen.window.position = _savedPosition
-      _savedPosition = null
-    }
+    var attr = _savedAttr
+    var cursor = _savedCursor
+    var position = _savedPosition
+    _savedAttr = null
+    _savedCursor = null
+    _savedPosition = null
     _cursorAttr = null
+    Screen.cleanup_([
+      Fn.new {
+        if (attr != null) Screen.checked_(Screen.setAttr(attr))
+      },
+      Fn.new {
+        if (cursor != null) Screen.checked_(cursor.apply())
+      },
+      Fn.new {
+        if (position != null) Screen.checked_(Screen.window.setPosition(position))
+      }
+    ])
   }
 
   run() { run_("async") }
@@ -1003,8 +1010,10 @@ class App {
     _runMode = null
     _backdrop = null
     _runFiber = null
-    teardownCursor_()
-    Input.mouseEvents = savedMouse
+    Screen.cleanup_([
+      Fn.new { teardownCursor_() },
+      Fn.new { Input.mouseEvents = savedMouse }
+    ])
   }
 
   // Synchronous variant: blocks the VM on Input.next() instead of

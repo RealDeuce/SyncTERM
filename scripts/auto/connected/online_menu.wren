@@ -16,11 +16,11 @@ import "emoji_pick" for EmojiFlow
 class OnlineMenu {
   static logLevel_() {
     var picked = -1
-    Screen.modalRun(Fn.new {
+    Screen.checked_(Screen.modalRun(Fn.new {
       picked = ListPicker.pickWithSelection("Log Level",
           "# Log Level\n\nSelect the transfer diagnostic threshold for this connection.",
           Host.logLevelNames, Host.logLevel)
-    })
+    }))
     if (picked >= 0) Host.logLevel = picked
   }
 
@@ -28,11 +28,11 @@ class OnlineMenu {
     var rates = Host.outputRates
     var names = Host.outputRateNames
     var picked = -1
-    Screen.modalRun(Fn.new {
+    Screen.checked_(Screen.modalRun(Fn.new {
       picked = ListPicker.pick("Output Rate",
           "# Output Rate\n\nLimit the remote display rate, or use Current for no limit.",
           names)
-    })
+    }))
     if (picked >= 0) CTerm.throttleSpeed = rates[picked]
   }
 
@@ -70,11 +70,11 @@ class OnlineMenu {
     Fiber.new {
       var entries = entries_()
       var picked = -1
-      Screen.modalRun(Fn.new {
+      Screen.checked_(Screen.modalRun(Fn.new {
         picked = ListPicker.pick("SyncTERM Online Menu",
             "# Online Menu\n\nChoose a connected-session control.",
             entries.map {|entry| entry[0] }.toList)
-      })
+      }))
       if (picked >= 0) entries[picked][1].call()
     }.call()
   }
@@ -84,7 +84,7 @@ Hook.onCommand_(122) {|key|
   OnlineMenu.run()
   return true
 }
-if (Host.textTerminal) {
+if (Screen.checked_(Host.textTerminal)) {
   Hook.onKey(115, Mod.control) {|key|
     OnlineMenu.run()
     return true

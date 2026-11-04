@@ -214,7 +214,7 @@ test_video_flags(void)
 	st_console_effective_cell_locked(console, &source, &effective);
 	CHECK(effective.foreground == 7 && effective.background == 9);
 	CHECK((effective.flags & ST_CONSOLE_CELL_BLINK) == 0);
-	CHECK(st_console_snapshot_restore(console, snapshot) == 0);
+	CHECK(st_console_snapshot_restore(console, snapshot, NULL) == 0);
 	CHECK(st_console_get_video_flags(console, &flags) == 0);
 	CHECK(flags == config.video_flags);
 	CHECK(st_console_set_video_flags(console,
@@ -461,7 +461,7 @@ test_snapshot_drains(void)
 	CHECK(st_console_end_update(console) == 0);
 	CHECK(output.writes == writes);
 	CHECK(st_console_clear_window(console, ' ') == 0);
-	CHECK(st_console_snapshot_restore(console, snapshot) == 0);
+	CHECK(st_console_snapshot_restore(console, snapshot, NULL) == 0);
 	CHECK(read_cell(console, 0, 0).glyph == 'a');
 	CHECK(read_cell(console, 1, 0).glyph == 'b');
 	CHECK(read_cell(console, 2, 0).glyph == 'c');
@@ -507,8 +507,10 @@ test_snapshot_state(void)
 	CHECK(st_console_set_cursor(console, false, ST_CONSOLE_CURSOR_BAR) == 0);
 	CHECK(st_console_set_wrap(console, true) == 0);
 	CHECK(st_console_snapshot_create(&snapshot, console) == 0);
-	CHECK(st_console_snapshot_restore(other_console, snapshot)
+	bool restored = true;
+	CHECK(st_console_snapshot_restore(other_console, snapshot, &restored)
 	    == IO_ERROR_OUT_OF_RANGE);
+	CHECK(!restored);
 
 	CHECK(st_console_set_palette(console, 42, &other_colour, 1) == 0);
 	CHECK(st_console_set_style(console, &other_style) == 0);
@@ -516,7 +518,7 @@ test_snapshot_state(void)
 	CHECK(st_console_set_position(console, 5, 2) == 0);
 	CHECK(st_console_set_cursor(console, true, ST_CONSOLE_CURSOR_BLOCK) == 0);
 	CHECK(st_console_set_wrap(console, false) == 0);
-	CHECK(st_console_snapshot_restore(console, snapshot) == 0);
+	CHECK(st_console_snapshot_restore(console, snapshot, NULL) == 0);
 
 	CHECK(st_console_get_palette(console, 42, &colour, 1) == 0);
 	CHECK(colour == saved_colour);
@@ -929,7 +931,7 @@ test_pixels_and_font_rendering(void)
 	CHECK(pixels->primary[2] == black);
 	st_pixel_buffer_destroy(pixels);
 	pixels = NULL;
-	CHECK(st_console_snapshot_restore(console, snapshot) == 0);
+	CHECK(st_console_snapshot_restore(console, snapshot, NULL) == 0);
 
 	cell.foreground = ST_CONSOLE_COLOR_RGB_VALUE(0, 255, 0);
 	cell.flags = 0;
@@ -938,7 +940,7 @@ test_pixels_and_font_rendering(void)
 	CHECK(pixels->primary[2] == black);
 	st_pixel_buffer_destroy(pixels);
 	pixels = NULL;
-	CHECK(st_console_snapshot_restore(console, snapshot) == 0);
+	CHECK(st_console_snapshot_restore(console, snapshot, NULL) == 0);
 	CHECK(st_console_get_pixels(&pixels, console, &pixel_rect, false) == 0);
 	CHECK(pixels->primary[2] == overlay);
 	st_pixel_buffer_destroy(pixels);
@@ -1145,7 +1147,7 @@ test_raster_margin_and_scroll(void)
 	st_pixel_buffer_destroy(blit_pixels);
 	CHECK(st_console_snapshot_create(&snapshot, console) == 0);
 	CHECK(st_console_set_pixel(console, 1, 0, 0) == 0);
-	CHECK(st_console_snapshot_restore(console, snapshot) == 0);
+	CHECK(st_console_snapshot_restore(console, snapshot, NULL) == 0);
 	st_console_snapshot_destroy(snapshot);
 	CHECK(st_console_get_pixels(&pixels, console, &raster, false) == 0);
 	CHECK(pixels->primary[1] == blit_colour);
@@ -2562,7 +2564,7 @@ test_circular_row_moves(void)
 	CHECK(st_console_read_cells(console, &screen, before, WIDTH) == 0);
 	CHECK(st_console_snapshot_create(&snapshot, console) == 0);
 	CHECK(st_console_scroll(console, 2, ' ') == 0);
-	CHECK(st_console_snapshot_restore(console, snapshot) == 0);
+	CHECK(st_console_snapshot_restore(console, snapshot, NULL) == 0);
 	CHECK(st_console_read_cells(console, &screen, actual, WIDTH) == 0);
 	CHECK(memcmp(before, actual, sizeof(before)) == 0);
 	st_console_snapshot_destroy(snapshot);
@@ -2946,7 +2948,7 @@ multi_metadata_writer(void *argument)
 	for (unsigned int i = 0; i < 1000; ++i) {
 		CHECK(st_console_set_title(console, "Racing") == 0);
 		CHECK(st_console_set_pointer_visible(console, (i & 1) != 0) == 0);
-		CHECK(st_console_snapshot_restore(console, snapshot) == 0);
+		CHECK(st_console_snapshot_restore(console, snapshot, NULL) == 0);
 	}
 	st_console_snapshot_destroy(snapshot);
 	return 0;
@@ -3091,6 +3093,22 @@ test_multiple_consoles_one_display(void)
 		}
 		CHECK(st_thread_join(writer, NULL) == ST_THREAD_SUCCESS);
 	}
+	{
+		st_console_snapshot_t *snapshot = NULL;
+		bool restored = false;
+		uint32_t saved_x = first->cursor_x;
+		CHECK(st_console_snapshot_create(&snapshot, first) == 0);
+		CHECK(st_console_set_position(first, 1, 0) == 0);
+		state.fail_console = first;
+		state.fail_stage = 5;
+		state.failures_left = 1;
+		CHECK(st_console_snapshot_restore(first, snapshot, &restored) == IO_ERROR_IO);
+		CHECK(restored && first->cursor_x == saved_x);
+		state.failures_left = 0;
+		CHECK(st_console_snapshot_restore(first, snapshot, &restored) == 0 && restored);
+		st_console_snapshot_destroy(snapshot);
+	}
+
 	static const unsigned int failing_stages[] = {1, 3, 4, 5};
 	for (size_t failure = 0; failure < sizeof(failing_stages)
 	    / sizeof(failing_stages[0]); ++failure) {

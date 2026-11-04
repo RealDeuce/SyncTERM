@@ -6,7 +6,7 @@ import "ui_emoji_picker" for EmojiPicker
 class EmojiFlow {
   static run() {
     if (!Emoji.canSend) return false
-    var screen = Screen.save()
+    var screen = Screen.checked_(Screen.save())
     var suspended = CTerm.suspended
     var mouse = Input.mouseEvents
     var picked = null
@@ -25,10 +25,18 @@ class EmojiFlow {
       picked = pane.result
     }
     worker.try()
-    if (pane != null) pane.finish()
-    Input.mouseEvents = mouse
-    CTerm.suspended = suspended
-    Screen.restore(screen)
+    var cleanup = Fiber.new {
+      Screen.cleanup_([
+        Fn.new {
+          if (pane != null) pane.finish()
+        },
+        Fn.new { Input.mouseEvents = mouse },
+        Fn.new { CTerm.suspended = suspended },
+        Fn.new { Screen.checked_(Screen.restore(screen)) }
+      ])
+    }
+    cleanup.try()
+    if (worker.error == null && cleanup.error != null) Fiber.abort(cleanup.error)
     if (worker.error != null) {
       System.print("Emoji picker failed: %(worker.error)")
       return true

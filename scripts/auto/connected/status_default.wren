@@ -46,7 +46,7 @@ class StatusDefault {
     for (ch in s) {
       var col = x + written
       if (col < 0 || col >= surf.width) break
-      var columns = Screen.textWidth(ch, surf[col].font)
+      var columns = Screen.checked_(Screen.textWidth(ch, surf[col].font))
       if (columns == 0) continue
       if (col + columns > surf.width) break
       surf[col].ch = ch
@@ -169,12 +169,12 @@ class StatusDefault {
   // Truncate text in display columns, reserving an ellipsis when it fits.
   static truncate_(s, room, font) {
     if (room <= 0) return ""
-    if (Screen.textWidth(s, font) <= room) return s
+    if (Screen.checked_(Screen.textWidth(s, font)) <= room) return s
     var limit = room < 4 ? room : room - 3
     var t = ""
     var width = 0
     for (ch in s) {
-      var columns = Screen.textWidth(ch, font)
+      var columns = Screen.checked_(Screen.textWidth(ch, font))
       if (columns == 0) continue
       if (width + columns > limit) break
       t = t + ch
@@ -231,7 +231,7 @@ class StatusDefault {
   static rightWidth_(slots, font) {
     var total = 0
     for (s in slots) {
-      if (s != "") total = total + 3 + Screen.textWidth(s, font)
+      if (s != "") total = total + 3 + Screen.checked_(Screen.textWidth(s, font))
     }
     return total
   }
@@ -242,12 +242,12 @@ class StatusDefault {
     var room = (surf.width - 2).max(0)
     if (room == 0) return
     var font = surf[0].font
-    var truncated = Screen.textWidth(uri, font) > room
+    var truncated = Screen.checked_(Screen.textWidth(uri, font)) > room
     var limit = truncated && room >= 3 ? room - 3 : room
     var shown = ""
     var width = 0
     for (ch in uri) {
-      var columns = Screen.textWidth(ch, font)
+      var columns = Screen.checked_(Screen.textWidth(ch, font))
       if (columns == 0) continue
       if (width + columns > limit) break
       shown = shown + ch
@@ -259,7 +259,7 @@ class StatusDefault {
     }
     var x = 1 + ((room - width) / 2).floor
     for (ch in shown) {
-      var columns = Screen.textWidth(ch, font)
+      var columns = Screen.checked_(Screen.textWidth(ch, font))
       if (columns == 0) continue
       surf[x].ch = ch
       x = x + columns
@@ -296,7 +296,7 @@ class StatusDefault {
     var slots = [conn, time, menu]
     var rightWidth = rightWidth_(slots, font)
     var nameWidth = w - rightWidth - 2
-    if (Screen.textWidth(name, font) > nameWidth && time != "") {
+    if (Screen.checked_(Screen.textWidth(name, font)) > nameWidth && time != "") {
       time = elapsedString_()
       slots = [conn, time, menu]
       rightWidth = rightWidth_(slots, font)

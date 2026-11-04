@@ -78,7 +78,7 @@ class CommentInput is SelectOnFocusInput {
     Painter.fill(sf, Rect.new(0, 0, bounds.w, bounds.h), " ",
         style("classic.comment"))
     var offset = 0
-    var width = Screen.textWidth(_passiveValue, 0)
+    var width = Screen.checked_(Screen.textWidth(_passiveValue, 0))
     if (width < bounds.w) {
       offset = ((bounds.w - width) / 2).floor
     }
@@ -398,7 +398,7 @@ class MainMenuApp {
     bind_(Key.escape, Fn.new { exit_(false) })
     var openConsole = Fn.new {|event| console_() }
     _app.bind(96, Mod.control, openConsole)
-    if (Host.localControlKeys) _app.bind(113, Mod.control, openConsole)
+    if (Screen.checked_(Host.localControlKeys)) _app.bind(113, Mod.control, openConsole)
     bindDirectory_(Key.f2, Fn.new {
       if (_selected != null) edit_()
     })
@@ -458,7 +458,7 @@ class MainMenuApp {
 
   directoryHelp_() {
     var action = "Connect to the selected entry"
-    var consoleKey = Host.localControlKeys ? "Ctrl-Q" : "Ctrl-`"
+    var consoleKey = Screen.checked_(Host.localControlKeys) ? "Ctrl-Q" : "Ctrl-`"
     if (_connected) action = "Edit the selected entry"
     var text = "# SyncTERM Directory\n\n" +
         "## Commands\n\n" +
@@ -561,9 +561,9 @@ class MainMenuApp {
     var focused = _app.root.focusedChild
     if (focused == _footer) return
     if (focused == _settings) {
-      Menu.showEntry(null)
+      Screen.optional_(Menu.showEntry(null))
     } else {
-      Menu.showEntry(_selected)
+      Screen.optional_(Menu.showEntry(_selected))
     }
   }
 
@@ -694,7 +694,7 @@ class MainMenuApp {
     if (labels.count > 0) _list.selected = selected.min(labels.count - 1)
     if (_entries.count == 0) {
       _selected = null
-      Menu.showEntry(null)
+      Screen.optional_(Menu.showEntry(null))
       _footer.comment = ""
     }
     var profiles = Menu.sortProfiles
@@ -1164,7 +1164,7 @@ class MainMenu {
   static drawBackdrop_() {
     var app = App.new()
     var backdrop = ClassicBackdrop.new()
-    var size = Screen.size
+    var size = Screen.checked_(Screen.size)
     backdrop.bounds = Rect.new(1, 1, size[0], size[1])
     app.root.add(backdrop)
     app.drawAll_()

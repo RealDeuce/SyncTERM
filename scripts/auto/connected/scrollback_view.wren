@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Stephen Hurd
 // SPDX-License-Identifier: BSD-2-Clause
 
-import "syncterm" for Scrollback, Surface, Screen, Input, Key, Mouse, KeyEvent, MouseEvent, CTerm, Hook
+import "syncterm" for Cleanup_, Scrollback, Surface, Screen, Input, Key, Mouse, KeyEvent, MouseEvent, CTerm, Hook
 import "ui_app" for App
 import "ui_help" for Help
 
@@ -9,34 +9,35 @@ class ScrollbackView {
   static run() {
     Fiber.new {
       var savedMouse = Input.mouseEvents
-      Input.mouseEvents = 0
-      Input.enableMouseEvent(Mouse.button1DragStart)
-      Input.enableMouseEvent(Mouse.button1DragMove)
-      Input.enableMouseEvent(Mouse.button1DragEnd)
-      Input.enableMouseEvent(Mouse.wheelUpPress)
-      Input.enableMouseEvent(Mouse.wheelDownPress)
-      Screen.modalRun(Fn.new {
-        var width = Scrollback.width
-        var height = CTerm.height
-        var x = CTerm.originX
-        var y = CTerm.originY
-        if (width <= 0 || height <= 0) return
-        var live = Screen.readRect(x, y, x + width - 1, y + height - 1)
-        if (live == null) return
-        var viewport = Surface.new(width, height)
-        var historyHeight = Scrollback.height
-        blankSurroundings_()
-        viewLoop_(viewport, live, historyHeight, x, y)
-      })
-      Input.mouseEvents = savedMouse
+      Cleanup_.run(Fn.new {
+        Input.mouseEvents = 0
+        Input.enableMouseEvent(Mouse.button1DragStart)
+        Input.enableMouseEvent(Mouse.button1DragMove)
+        Input.enableMouseEvent(Mouse.button1DragEnd)
+        Input.enableMouseEvent(Mouse.wheelUpPress)
+        Input.enableMouseEvent(Mouse.wheelDownPress)
+        Screen.checked_(Screen.modalRun(Fn.new {
+          var width = Scrollback.width
+          var height = CTerm.height
+          var x = CTerm.originX
+          var y = CTerm.originY
+          if (width <= 0 || height <= 0) return
+          var live = Screen.checked_(Screen.readRect(x, y, x + width - 1, y + height - 1))
+          if (live == null) return
+          var viewport = Surface.new(width, height)
+          var historyHeight = Scrollback.height
+          blankSurroundings_()
+          viewLoop_(viewport, live, historyHeight, x, y)
+        }))
+      }, Fn.new { Input.mouseEvents = savedMouse })
     }.call()
   }
 
   static blankSurroundings_() {
-    Screen.attr = 0x1e
-    var size = Screen.size
-    Screen.window.bounds = [1, 1, size[0], size[1]]
-    Screen.window.clear()
+    Screen.checked_(Screen.setAttr(0x1e))
+    var size = Screen.checked_(Screen.size)
+    Screen.checked_(Screen.window.setBounds([1, 1, size[0], size[1]]))
+    Screen.checked_(Screen.window.clear())
   }
 
   static viewLoop_(viewport, live, historyHeight, x, y) {
@@ -91,19 +92,19 @@ class ScrollbackView {
       var liveRow = top + copied - historyHeight
       viewport.putRect_(live, 0, liveRow, width, height - copied, 0, copied)
     }
-    Screen.putRect(viewport, x, y)
-    Screen.attr = 0x9e
-    Screen.window.position = [x, y]
-    Screen.window.print("Scrollback")
+    Screen.checked_(Screen.putRect(viewport, x, y))
+    Screen.checked_(Screen.setAttr(0x9e))
+    Screen.checked_(Screen.window.setPosition([x, y]))
+    Screen.checked_(Screen.window.print("Scrollback"))
     if (width >= 10) {
-      Screen.window.position = [x + width - 10, y]
-      Screen.window.print("Scrollback")
+      Screen.checked_(Screen.window.setPosition([x + width - 10, y]))
+      Screen.checked_(Screen.window.print("Scrollback"))
     }
-    Screen.window.position = [x, y]
+    Screen.checked_(Screen.window.setPosition([x, y]))
   }
 
   static showHelp_() {
-    Screen.modalRun(Fn.new {
+    Screen.checked_(Screen.modalRun(Fn.new {
       var app = App.new()
       var help = Help.new("Scrollback Help",
         "Up / k\n:  Scrolls up one line\n" +
@@ -118,7 +119,7 @@ class ScrollbackView {
       help.onDismiss = Fn.new {|value| app.quit() }
       app.pushModal(help)
       app.runSync()
-    })
+    }))
   }
 }
 

@@ -1,3 +1,5 @@
+import "syncterm" for Error
+import "syncterm" for Screen
 import "syncterm" for FilePickerOptions, Host, Key
 import "syncterm_menu" for Menu, MenuError, MenuEncryption, MenuFontSlot
 import "menu_ui" for ChoiceViewState, MenuUi
@@ -473,8 +475,9 @@ class SettingsMenu {
     var mode = MenuUi.choice(app, "Screen Mode", rows,
         Menu.currentScreenMode, screenModeHelp_())
     if (mode != null) {
-      if (!Menu.setScreenMode(mode)) {
-        Alert.show(app, "Screen Mode", "The requested screen mode could not be applied.")
+      var result = Menu.setScreenMode(mode)
+      if (result is Error) {
+        Alert.show(app, "Screen Mode", result.message)
       } else {
         app.invalidateCursorState()
       }

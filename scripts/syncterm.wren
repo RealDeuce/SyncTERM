@@ -68,9 +68,9 @@ class ScreenFonts {
 }
 class ScreenWindow {
   foreign static bounds
-  foreign static bounds=(box)
+  foreign static setBounds(box)
   foreign static position
-  foreign static position=(coord)
+  foreign static setPosition(coord)
   foreign static putChar(c)
   foreign static print(s)
   foreign static clear()
@@ -81,29 +81,59 @@ class ScreenWindow {
 }
 class Palette {
   foreign static [i]
-  foreign static [i]=(c)
+  foreign static set(i, c)
 }
 // Opaque, host-created owner of a saved console state. The native snapshot
 // is released when this value is collected; Screen remains a namespace.
 foreign class ScreenSnapshot {}
 
+foreign class ScreenError is Error {
+  foreign code
+  foreign message
+  foreign toString
+}
+
 class Screen {
+  // Internal bundled-caller boundary; the public native operations return values.
+  static checked_(value) {
+    if (value is Error) Fiber.abort(value)
+    return value
+  }
+  static optional_(value) {
+    if (value is ScreenError && value.code == IOErr.notSupported) return null
+    return checked_(value)
+  }
+  // Retain the first cleanup error while attempting independent restoration.
+  static cleanup_(steps) {
+    var first = null
+    for (step in steps) {
+      var worker = Fiber.new { step.call() }
+      var result = worker.try()
+      var error = worker.error == null ? (result is Error ? result : null) : worker.error
+      if (first == null) first = error
+    }
+    if (first != null) Fiber.abort(first)
+  }
+  static scope_(fn, cleanup) { Cleanup_.runResult_(fn, cleanup) }
 
   // Synchronous composition: cell, pixel and cursor changes become eligible
   // for presentation together. The guard also closes on VM teardown.
   static update(fn) {
     if (!(fn is Fn)) Fiber.abort("Screen.update expects a function")
     var guard = ScreenUpdate_.new()
+    if (guard is Error) return guard
     var body = Fiber.new { fn.call() }
     var result = body.try()
-    guard.finish_()
+    var finish = guard.finish_()
     if (body.error != null) Fiber.abort(body.error)
     if (!body.isDone) {
       Cleanup_.abort_(body, "Screen.update callback must not yield")
       Fiber.abort("Screen.update callback must not yield")
     }
-    return result
+    if (result is Error) return result
+    return finish is Error ? finish : result
   }
+
 	foreign static size
 	foreign static textWidth(text, font)
   foreign static save()
@@ -115,7 +145,7 @@ class Screen {
   foreign static putRect(src, dstX, dstY)
   foreign static putRect_(src, srcX, srcY, srcW, srcH, dstX, dstY)
   static putRect(src, srcRect, dstX, dstY) {
-    putRect_(src, srcRect.x, srcRect.y, srcRect.w, srcRect.h, dstX, dstY)
+    return putRect_(src, srcRect.x, srcRect.y, srcRect.w, srcRect.h, dstX, dstY)
   }
 
   // Run `fn` with the screen and the wire-byte pump under our own
@@ -135,14 +165,17 @@ class Screen {
   static modalRun(fn) {
     if (!(fn is Fn)) Fiber.abort("Screen.modalRun expects a function")
     var saved = Screen.save()
+    if (saved is Error) return saved
     var wasSuspended = CTerm.suspended
-    return Cleanup_.run(Fn.new {
+    return scope_(Fn.new {
       CTerm.suspended = true
       for (i in 0..4) Screen.font[i] = 0
       return fn.call()
     }, Fn.new {
-      CTerm.suspended = wasSuspended
-      Screen.restore(saved)
+      cleanup_([
+        Fn.new { CTerm.suspended = wasSuspended },
+        Fn.new { checked_(Screen.restore(saved)) }
+      ])
     })
   }
   foreign static pixelSize
@@ -153,9 +186,9 @@ class Screen {
   foreign static blitPixels(buffer, descriptor)
   foreign static blitPixels(buffer, mask, descriptor)
   foreign static attr
-  foreign static attr=(a)
+  foreign static setAttr(a)
   foreign static hyperlinkId
-  foreign static hyperlinkId=(id)
+  foreign static setHyperlinkId(id)
   static window     { ScreenWindow   }
   static supports   { ScreenSupports }
   static font       { ScreenFonts    }
@@ -197,11 +230,12 @@ foreign class Cleanup_ {
     }
     return error
   }
-  static run(fn, cleanup) { run_(fn, cleanup, false) }
+  static run(fn, cleanup) { run_(fn, cleanup, false, false) }
   // Remote resource cleanup awaits native close during normal execution.
   // Shutdown still runs cleanup synchronously after native cancellation.
-  static runAsync_(fn, cleanup) { run_(fn, cleanup, true) }
-  static run_(fn, cleanup, asynchronous) {
+  static runAsync_(fn, cleanup) { run_(fn, cleanup, true, false) }
+  static runResult_(fn, cleanup) { run_(fn, cleanup, false, true) }
+  static run_(fn, cleanup, asynchronous, returnError) {
     if (!(fn is Fn) || !(cleanup is Fn)) Fiber.abort("cleanup scope expects functions")
     var body = Fiber.new { fn.call() }
     var guard = new(cleanup, body)
@@ -217,6 +251,8 @@ foreign class Cleanup_ {
       if (!closer.isDone && cleanupError == null) cleanupError = "cleanup must not yield"
     }
     if (body.error != null) Fiber.abort(body.error)
+    if (returnError && result is Error) return result
+    if (returnError && cleanupError is ScreenError) return cleanupError
     if (cleanupError != null) Fiber.abort(cleanupError)
     return result
   }
@@ -230,7 +266,7 @@ foreign class Cleanup_ {
 
 // Internal lifetime guard for Screen.update; do not retain across callbacks.
 foreign class ScreenUpdate_ {
-  construct new() {}
+  foreign static new()
   foreign finish_()
 }
 
@@ -324,15 +360,17 @@ foreign class PixelBlit {
 // Cursor shape (start/end scanlines, range, blink, visibility).  Two
 // access modes:
 //
-//   * Static (`CustomCursor.X` / `CustomCursor.X = v`): each read
+//   * Static (`CustomCursor.X` / `CustomCursor.setX(v)`): each read
 //     fetches the live state, each write does a full read-modify-
 //     write back to the renderer.  Cheap and ergonomic for ONE
 //     field at a time, but chained writes are NOT atomic - the
 //     renderer can paint between them.  For multi-field changes,
-//     use the instance path so the commit is one syscall:
+//     use the instance path for one locked state change:
 //
 //       var c = CustomCursor.current
-//       c.startLine = 0; c.endLine = 7; c.blink = false
+//       c.startLine = 0
+//       c.endLine = 7
+//       c.blink = false
 //       c.apply()       // one locked renderer-state update
 //
 //   * Instance (via `.current`, `.normal`, `.solid`, `.none`):
@@ -340,7 +378,7 @@ foreign class PixelBlit {
 //     `apply()` commits.  Required for atomic multi-field changes,
 //     for snapshot/restore, and as the carrier for preset values.
 foreign class CustomCursor {
-  construct new() {}
+  foreign static new()
   static current { new() }
   static normal  { presetLegacy_(2) }
   static solid   { presetLegacy_(1) }
@@ -348,19 +386,20 @@ foreign class CustomCursor {
   // Restore on return, abort, or shutdown; cooperative yields are allowed.
   static preserve(fn) {
     var saved = current
-    return Cleanup_.run(fn, Fn.new { saved.apply() })
+    if (saved is Error) return saved
+    return Screen.scope_(fn, Fn.new { Screen.checked_(saved.apply()) })
   }
   foreign static presetLegacy_(legacyType)
   foreign static startLine
-  foreign static startLine=(n)
+  foreign static setStartLine(n)
   foreign static endLine
-  foreign static endLine=(n)
+  foreign static setEndLine(n)
   foreign static range
-  foreign static range=(n)
+  foreign static setRange(n)
   foreign static blink
-  foreign static blink=(b)
+  foreign static setBlink(b)
   foreign static visible
-  foreign static visible=(b)
+  foreign static setVisible(b)
   foreign startLine
   foreign startLine=(n)
   foreign endLine
@@ -378,27 +417,28 @@ foreign class CustomCursor {
 // shadow + apply()) - see CustomCursor's docstring for the full
 // rules, including the non-atomicity of chained static writes.
 foreign class VideoFlags {
-  construct new() {}
+  foreign static new()
   static current { new() }
   // Snapshot, run `fn`, re-apply - same semantics as
   // CustomCursor.preserve.
   static preserve(fn) {
     var saved = current
-    return Cleanup_.run(fn, Fn.new { saved.apply() })
+    if (saved is Error) return saved
+    return Screen.scope_(fn, Fn.new { Screen.checked_(saved.apply()) })
   }
   foreign static altChars
-  foreign static altChars=(b)
+  foreign static setAltChars(b)
   foreign static noBright
-  foreign static noBright=(b)
+  foreign static setNoBright(b)
   foreign static bgBright
-  foreign static bgBright=(b)
+  foreign static setBgBright(b)
   foreign static blinkAltChars
-  foreign static blinkAltChars=(b)
+  foreign static setBlinkAltChars(b)
   foreign static noBlink
-  foreign static noBlink=(b)
+  foreign static setNoBlink(b)
   foreign static expand
   foreign static lineGraphicsExpand
-  foreign static lineGraphicsExpand=(b)
+  foreign static setLineGraphicsExpand(b)
   foreign altChars
   foreign altChars=(b)
   foreign noBright
@@ -433,7 +473,7 @@ class Input {
   foreign static nextForWidget_(atExit, ms)
   foreign static mousedrag()
   foreign static mousedrag(forceRect)
-  foreign static mouseVisible=(b)
+  foreign static setMouseVisible(b)
 
   // Bitmask of `Mouse.*` events that get delivered.  The terminal
   // mode sets a default (typically scroll-up only); a UI App should
@@ -724,7 +764,7 @@ class Key {
 }
 class Clipboard {
   foreign static text
-  foreign static text=(s)
+  foreign static setText(s)
 }
 class Codepage {
   static cp437        { 0 }
@@ -896,7 +936,7 @@ foreign class Surface is Sequence {
   foreign toString
   // Wren-side wrappers that unpack a Rect into the primitive form.
   putRect(src, srcRect, dstX, dstY) {
-    putRect_(src, srcRect.x, srcRect.y, srcRect.w, srcRect.h, dstX, dstY)
+    return putRect_(src, srcRect.x, srcRect.y, srcRect.w, srcRect.h, dstX, dstY)
   }
   fill(rect, cell) {
     fill_(rect.x, rect.y, rect.w, rect.h, cell)
@@ -1902,7 +1942,7 @@ class Host {
   // Suspend the active terminal and enter the trusted persistent menu VM.
   // The connected VM receives no menu objects or capabilities.
   static editBBSList() {
-    Screen.modalRun(Fn.new { editBBSList_() })
+    Screen.checked_(Screen.modalRun(Fn.new { editBBSList_() }))
   }
   foreign static editBBSList_()
 

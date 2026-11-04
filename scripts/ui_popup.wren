@@ -67,8 +67,8 @@ class PopStatus is Pane {
   // inside the standard menu modal work area.
   static centeredBounds_(message) { centeredBounds_(message, 0) }
   static centeredBounds_(message, font) {
-    var sz   = Screen.size
-    var msgW = message == null ? 0 : Screen.textWidth(message, font)
+    var sz   = Screen.checked_(Screen.size)
+    var msgW = message == null ? 0 : Screen.checked_(Screen.textWidth(message, font))
     var w    = (msgW + 4).max(20).min(sz[0] - 4)
     var h    = 5
     return Pane.modalBounds(w, h)
@@ -92,7 +92,7 @@ class PopStatus is Pane {
     var msg = _message
     var font = st.font == null ? 0 : st.font
     var trim = Popup.fitPrefix_(msg, iw, font)
-    var trimWidth = Screen.textWidth(trim, font)
+    var trimWidth = Screen.checked_(Screen.textWidth(trim, font))
     // Surface coords: cb.x - bounds.x is the leftmost content col,
     // cb.y - bounds.y is the top content row.  Both account for
     // the frame + UIFC padding cell.
@@ -164,7 +164,7 @@ class Popup is Pane {
     return centeredBounds_(message, extraRows, minW, preformatted, 0)
   }
   static centeredBounds_(message, extraRows, minW, preformatted, font) {
-    var sz   = Screen.size                    // [w, h]
+    var sz   = Screen.checked_(Screen.size)                    // [w, h]
     var maxW = (sz[0] - 4).max(1)
     var minimumW = minW.min(maxW)
     var longest = longestHardLine_(message, font)
@@ -213,7 +213,7 @@ class Popup is Pane {
     var lines = splitHardLines_(message)
     var longest = 0
     for (line in lines) {
-      var width = Screen.textWidth(line, font)
+      var width = Screen.checked_(Screen.textWidth(line, font))
       if (width > longest) longest = width
     }
     return longest
@@ -273,7 +273,7 @@ class Popup is Pane {
       var lastSpace = -1
       while (i < chars.count) {
         var c = chars[i]
-        var cw = Screen.textWidth(c, font)
+        var cw = Screen.checked_(Screen.textWidth(c, font))
         if (columns + cw > width) {
           if (c == " ") lastSpace = i
           if (i == start) i = i + 1
@@ -307,7 +307,7 @@ class Popup is Pane {
     var prefix = ""
     var columns = 0
     for (c in text) {
-      var cw = Screen.textWidth(c, font)
+      var cw = Screen.checked_(Screen.textWidth(c, font))
       if (columns + cw > width) break
       prefix = prefix + c
       columns = columns + cw
@@ -340,7 +340,7 @@ class Popup is Pane {
     if (_preformatted) {
       var longest = 0
       for (line in lines) {
-        var width = Screen.textWidth(line, messageFont_)
+        var width = Screen.checked_(Screen.textWidth(line, messageFont_))
         if (width > longest) longest = width
       }
       blockCol = sx0 + ((iw - longest) / 2).floor
@@ -350,7 +350,7 @@ class Popup is Pane {
       var line = lines[i]
       var col  = blockCol
       if (!_preformatted) {
-        col = sx0 + ((iw - Screen.textWidth(line, messageFont_)) / 2).floor
+        col = sx0 + ((iw - Screen.checked_(Screen.textWidth(line, messageFont_))) / 2).floor
       }
       Painter.text(sf, col, sy0 + i, line, st, iw)
       i = i + 1
@@ -689,7 +689,7 @@ class LinePrompt is Popup {
   sizeForInput(inputWidth, minimumWidth) {
     var requested = (_label.count + inputWidth + 6).max(minimumWidth)
     if (title != null) requested = requested.max(title.count + 6)
-    var size = Screen.size
+    var size = Screen.checked_(Screen.size)
     var width = requested.min((size[0] - 4).max(1))
     bounds = Pane.modalBounds(width, 3)
   }
@@ -769,7 +769,7 @@ class Find is Popup {
   // Height: 3 — top frame, single input row, bottom frame.  No
   // padding rows: this is meant to be a quick, low-overhead prompt.
   static centeredBounds_(label) {
-    var sz = Screen.size
+    var sz = Screen.checked_(Screen.size)
     var lb = (label == null) ? 0 : label.bytes.count
     var w  = (lb + 6 + 20).min(sz[0] - 4).max(20)
     var h  = 3

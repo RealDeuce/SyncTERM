@@ -20,41 +20,41 @@ class PickerBootstrap {
   // Returns true only for the application-close key.  Escape cancels the
   // failed picker call while keeping SyncTERM alive.
   static recover(request, message) {
-    var oldBounds = Screen.window.bounds
-    var size = Screen.size
-    Screen.window.bounds = [1, 1, size[0], size[1]]
-    Screen.window.clear()
-    Screen.window.position = [3, 2]
-    Screen.window.print("File picker error")
-    Screen.window.position = [3, 4]
-    Screen.window.print(message)
-    Screen.window.position = [3, 6]
-    Screen.window.print("Ctrl+` opens the picker console.  Escape cancels.")
+    var oldBounds = Screen.checked_(Screen.window.bounds)
+    var size = Screen.checked_(Screen.size)
+    Screen.checked_(Screen.window.setBounds([1, 1, size[0], size[1]]))
+    Screen.checked_(Screen.window.clear())
+    Screen.checked_(Screen.window.setPosition([3, 2]))
+    Screen.checked_(Screen.window.print("File picker error"))
+    Screen.checked_(Screen.window.setPosition([3, 4]))
+    Screen.checked_(Screen.window.print(message))
+    Screen.checked_(Screen.window.setPosition([3, 6]))
+    Screen.checked_(Screen.window.print("Ctrl+` opens the picker console.  Escape cancels."))
 
     while (true) {
       if (Host.logUnread) {
-        Screen.window.position = [size[0], 1]
-        Screen.window.print("\u203c")
+        Screen.checked_(Screen.window.setPosition([size[0], 1]))
+        Screen.checked_(Screen.window.print("\u203c"))
       }
       var event = Input.next()
       if (!(event is KeyEvent) && !(event is PhysicalKeyEvent)) continue
       var key = event is KeyEvent ? event.shortcut_ : Key.physicalShortcut_(event)
       if (key == Key.chord_(96, Mod.control)) {
         console()
-        Screen.window.clear()
-        Screen.window.position = [3, 2]
-        Screen.window.print("File picker error")
-        Screen.window.position = [3, 4]
-        Screen.window.print(message)
-        Screen.window.position = [3, 6]
-        Screen.window.print("Ctrl+` opens the picker console.  Escape cancels.")
+        Screen.checked_(Screen.window.clear())
+        Screen.checked_(Screen.window.setPosition([3, 2]))
+        Screen.checked_(Screen.window.print("File picker error"))
+        Screen.checked_(Screen.window.setPosition([3, 4]))
+        Screen.checked_(Screen.window.print(message))
+        Screen.checked_(Screen.window.setPosition([3, 6]))
+        Screen.checked_(Screen.window.print("Ctrl+` opens the picker console.  Escape cancels."))
       } else if (key == Key.escape) {
         request.cancel()
-        Screen.window.bounds = oldBounds
+        Screen.checked_(Screen.window.setBounds(oldBounds))
         return
       } else if (key == Key.quit) {
         request.quitApplication()
-        Screen.window.bounds = oldBounds
+        Screen.checked_(Screen.window.setBounds(oldBounds))
         return
       }
     }

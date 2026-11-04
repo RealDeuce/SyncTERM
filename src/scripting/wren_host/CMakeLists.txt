@@ -198,9 +198,13 @@ int main(void)
 	set(CMAKE_REQUIRED_DEFINITIONS ${_st_wren_saved_required_definitions})
 
 	add_executable(st_wren_host_test tests/st_wren_host_test.c
-		tests/st_wren_transfer_test_bindings.c tests/st_wren_session_test_bindings.c)
+		tests/st_wren_transfer_test_bindings.c tests/st_wren_session_test_bindings.c
+		tests/st_wren_screen_core_test_bindings.c tests/st_wren_screen_pixels_test_bindings.c
+		tests/st_wren_screen_menu_test_bindings.c)
 	set_source_files_properties(tests/st_wren_transfer_test_bindings.c
-		tests/st_wren_session_test_bindings.c PROPERTIES
+		tests/st_wren_session_test_bindings.c
+		tests/st_wren_screen_core_test_bindings.c tests/st_wren_screen_pixels_test_bindings.c
+		tests/st_wren_screen_menu_test_bindings.c PROPERTIES
 		INCLUDE_DIRECTORIES "$<TARGET_PROPERTY:st_wren_host,INCLUDE_DIRECTORIES>"
 		COMPILE_DEFINITIONS "$<TARGET_PROPERTY:st_wren_host,COMPILE_DEFINITIONS>")
 	target_include_directories(st_wren_host_test SYSTEM PRIVATE

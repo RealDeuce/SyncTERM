@@ -702,8 +702,10 @@ int st_console_blit_pixels(st_console_t *console,
 
 int st_console_snapshot_create(st_console_snapshot_t **result,
 	st_console_t *console);
+/* restored, when non-NULL, reports application of saved state even when the
+ * subsequent presentation fails. Rejected restores leave it false. */
 int st_console_snapshot_restore(st_console_t *console,
-	const st_console_snapshot_t *snapshot);
+	const st_console_snapshot_t *snapshot, bool *restored);
 void st_console_snapshot_destroy(st_console_snapshot_t *snapshot);
 
 /*

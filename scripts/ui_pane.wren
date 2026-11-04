@@ -153,7 +153,7 @@ class Pane is Container {
   // Returns 0 when there's no title to fit.
   titleOuterWidth_ {
     if (_title == null) return 0
-    var t = Screen.textWidth(_title, 0)
+    var t = Screen.checked_(Screen.textWidth(_title, 0))
     return t + (titleBarActive_ ? 4 : 6)
   }
 
@@ -246,7 +246,7 @@ class Pane is Container {
   }
 
   screenFitLimits_ {
-    var size = Screen.size
+    var size = Screen.checked_(Screen.size)
     return [(size[0] - 4).max(1), (size[1] - 4).max(1)]
   }
 
@@ -255,7 +255,7 @@ class Pane is Container {
   // asymmetric, so ordinary whole-screen centering would place the
   // bottom shadow one row too low at the maximum height.
   static modalBounds(width, height) {
-    var size = Screen.size
+    var size = Screen.checked_(Screen.size)
     var w = width.min((size[0] - 4).max(1)).max(1)
     var h = height.min((size[1] - 4).max(1)).max(1)
     var x = ((size[0] - w) / 2).floor + 1
@@ -272,7 +272,7 @@ class Pane is Container {
   // the screen rect themselves.
   centerOnScreen() {
     if (bounds == null) return
-    var sz = Screen.size
+    var sz = Screen.checked_(Screen.size)
     var x = ((sz[0] - bounds.w) / 2).floor + 1
     var y = ((sz[1] - bounds.h) / 2).floor + 1
     bounds = Rect.new(x, y, bounds.w, bounds.h)
@@ -319,7 +319,7 @@ class Pane is Container {
     if (iw <= 0) return
     var msg = _title
     var font = tStyle.font == null ? 0 : tStyle.font
-    var titleWidth = Screen.textWidth(msg, font).min(iw)
+    var titleWidth = Screen.checked_(Screen.textWidth(msg, font)).min(iw)
     var col = ((iw - titleWidth) / 2).floor + 1
     Painter.text(s, col, 1, msg, tStyle, iw)
     Painter.fill(s, Rect.new(0, 2, 1, 1),

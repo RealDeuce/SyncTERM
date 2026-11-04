@@ -755,3 +755,104 @@ cterm.operation-status; no declarations, header digests or denominator changed.
 All matrix rows match. Only cterm.operation-status is Covered/resolved. Screen
 results keep console-operation-results open, leaving 40 topics plus the separate
 documentation finding. Retain temporary document and skill.
+
+== Approved chunk 10: console operation results (revision 2)
+
+Approval: the user approved the complete Plan-mode revision 2 with "Implement
+the plan." Implementation began in Default mode on 2026-11-04.
+Phase: chunk complete; the next chunk requires an actual Plan-mode phase.
+Scope: console.operation-status, the remaining console-operation-results
+subclaims; permanent accounting remains authoritative for all other work.
+
+The user chose returned errors, explicit methods replacing fallible live
+setters, the complete drawing/result family together, and inclusion of existing
+clipboard, pointer, title and URL bindings. Introduce immutable ScreenError is
+Error with exact native code, owned message and toString in all VMs. Existing
+binding-level range/capability/allocation failures also receive the approved
+outOfRange/notSupported/outOfMemory codes; add no native failure conditions.
+Wrong types, numeric representation, malformed text and structural misuse keep
+their programmer-error aborts. Preserve Wren language, UTF-8/NFC, glyph fallback,
+coordinates, clipping, authority and native backend mechanisms.
+
+Queries/factories return their successful value or ScreenError. Drawing and
+state actions return null/ScreenError. Menu prepareOfflineScrollback/openUrl/
+openHyperlink keep Bool success/absence/policy outcomes plus ScreenError for
+operational failures. Replace live setters with Screen.setAttr/setHyperlinkId,
+Screen.window.setBounds/setPosition, Palette.set, CustomCursor.setStartLine/
+setEndLine/setRange/setBlink/setVisible, VideoFlags.setAltChars/setNoBright/
+setBgBright/setBlinkAltChars/setNoBlink/setLineGraphicsExpand,
+Clipboard.setText and Input.setMouseVisible. No aliases. Staged setters and
+read-only expand remain. Cursor/flag new() factories and presets return actual
+snapshots/errors rather than fabricated fallback data.
+
+Add optional bool *restored to native snapshot restore; initialize false and
+set true after applying state, before presentation. Update every C caller and
+synchronize Wren font slots whenever state was restored, even on failure.
+Preserve partial effects with no automatic retry/replay/rollback. Scoped update,
+modal and cursor/flag preserve helpers return acquisition/cleanup errors, always
+attempt required cleanup and preserve an earlier callback error/abort. Bundled
+UI checks results before use, stops affected UI on unhandled drawing errors and
+attempts independent cleanup. Skip unsupported decorative title/pointer work;
+preserve URL-to-clipboard fallback and only announce successful copies.
+
+Acceptance: focused regressions before behavior changes; known/unknown native
+codes and binding failures, prerequisites, invalid inputs, unsupported features,
+immutable errors/GC, snapshots, partial commit, removed setters, scoped nesting,
+error precedence, allowed/forbidden yields and shutdown. Restore rejection must
+preserve metadata; applied restore must synchronize native/Wren state despite
+presentation failure. Migrate scripts, embedded fixtures and modern UI; update
+authoritative docs including the incorrect assignment-result explanation.
+
+Verify CMake application/host/menu/picker/settings/console tests and affected
+headless UI/pixel/clipboard/scrollback fixtures in CP437 and UTF-8. Native Clang
+and GCC, focused ASan/UBSan, minimal feature configuration, MinGW cross-builds
+only (no Wine/native Windows claim). Update reviewed evidence, report, native
+signature ledger and follow-up; coverage and diff checks. Commit the complete
+verified change without pushing. Retain the temporary skill and other findings.
+
+=== Completed verification
+
+The pre-change regression failed because a native cursor rejection aborted with
+String instead of returning Error. The final matrix exercises 56 expressions at
+actual core/pixel/menu native call boundaries, each with IO_ERROR_IO and unknown
+positive/negative integers. It also covers owned immutable errors and GC,
+preparation failures, existing capture range/OOM and unavailable-pixel results,
+removed setters, and committed drawing with exactly one call and no replay.
+
+Real console tests distinguish rejected restore (restored=false) from applied
+state followed by backend presentation failure (restored=true). Wren font slots
+follow that flag on success/failure. Cursor/flag/modal/update regressions cover
+acquisition without callback execution, cleanup after callback return/abort,
+first-error precedence and native presentation failures. Unhandled ScreenError
+escapes synchronous UI dispatch; independent attribute/cursor/position/mouse
+cleanup continues. Existing nested/yield/await/shutdown scope tests still pass.
+
+Clang native: 61 distinct CTests passed across focused runs, including the live
+SFTP fixture's ten internal cases, all six Modern UI cases, host/menu/picker/
+settings, console/colour-glyph snapshots, loader/synthetic suites and affected
+UI/pixel/clipboard/scrollback fixtures (CP437 and UTF-8). A shared Python fixture
+still used the removed position setter; it and stale result-shape assertions
+were migrated, and all affected failures passed on rerun. Expected rendering
+results were retained. Physical audio remains disabled in headless fixtures.
+
+GCC: application/host/picker/console builds and ten focused CTests passed; final
+host/menu acceptance passed again. ASan/UBSan: the same targets built, eight
+focused CTests and final host/menu acceptance passed. FreeBSD leak detection is
+unsupported and disabled; existing C++ vptr settings are unchanged. Minimal
+crypto-none/Unifont-off builds passed ten focused cases, including six Modern UI
+cases, and final host/menu acceptance. MinGW x86/x86_64 application/DLL,
+host/picker/console test targets cross-built; no Windows execution or Wine.
+Final builds introduce no compiler warnings. Equivalent bounded assembly of a
+native theme diagnostic removes an existing MinGW32 truncation warning exposed
+again by the test-copy translation unit. GNUmake clock-skew notices came from
+transient generated-file timestamps.
+
+Permanent accounting preserves every native row and original finding id. One
+native signature gains its optional applied-state output, with 26 later line
+locations refreshed. The two new private test headers are explicitly excluded:
+80 public headers, 122 exclusions, 2,448 native items, 157 assessments and 51
+original topics. console.operation-status is Covered/resolved, closing the
+console-operation-results topic alongside the earlier CTerm result resolution.
+Thirty-nine topics and the separate documentation finding remain open. Retain
+this temporary record and skill. No native failure conditions, backend clipboard
+mechanisms, language semantics, authority or file-grant policy changed.

@@ -404,7 +404,7 @@ class Markdown {
   // `width <= 0` returns the empty list (defensive — no bounds yet).
   static layout(blocks, width) {
     return layoutWith_(blocks, width,
-        Fn.new {|text, role| Screen.textWidth(text, 0) })
+        Fn.new {|text, role| Screen.checked_(Screen.textWidth(text, 0)) })
   }
 
   // Internal font-aware entry point used by Help.  `measure` accepts

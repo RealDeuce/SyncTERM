@@ -3249,13 +3249,15 @@ st_console_snapshot_create(st_console_snapshot_t **result,
 
 int
 st_console_snapshot_restore(st_console_t *console,
-	const st_console_snapshot_t *snapshot)
+	const st_console_snapshot_t *snapshot, bool *restored)
 {
 	uint32_t first_changed = UINT32_MAX;
 	uint32_t last_changed = 0;
 	size_t count;
 	int result;
 
+	if (restored != NULL)
+		*restored = false;
 	if (console == NULL || snapshot == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	result = st_rwlock_write_lock(&console->state_lock);
@@ -3327,6 +3329,8 @@ st_console_snapshot_restore(st_console_t *console,
 	if (snapshot->color_emoji != console->color_emoji)
 		st_console_invalidate_text_locked(console);
 	st_console_mark_all_locked(console);
+	if (restored != NULL)
+		*restored = true;
 	result = st_console_finish_change_locked(console);
 	(void)st_rwlock_unlock(&console->state_lock);
 	return result;

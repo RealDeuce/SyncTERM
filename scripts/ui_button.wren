@@ -51,7 +51,7 @@ class Button is Widget {
   }
 
   // Cell budget for "[ label ]".
-  intrinsicWidth { Screen.textWidth(_label, 0) + 4 }
+  intrinsicWidth { Screen.checked_(Screen.textWidth(_label, 0)) + 4 }
 
   // Buttons don't host a cursor — let App hide it while focused.
   cursorVisible { false }
@@ -61,7 +61,7 @@ class Button is Widget {
     var st = focused ? style("button.focused") : style("button")
     Painter.fill(sf, Rect.new(0, 0, bounds.w, bounds.h), " ", st)
     var text = "[ " + _label + " ]"
-    var textWidth = Screen.textWidth(text, st.font == null ? 0 : st.font)
+    var textWidth = Screen.checked_(Screen.textWidth(text, st.font == null ? 0 : st.font))
     var col = ((bounds.w - textWidth.min(bounds.w)) / 2).floor
     if (col < 0) col = 0
     Painter.text(sf, col, 0, text, st, bounds.w)
@@ -69,8 +69,8 @@ class Button is Widget {
     // is at col + 2 + idx (label starts after "[ ").
     if (_hotkeyIdx >= 0 && _hotkeyIdx < _label.count) {
       var prefix = _hotkeyIdx == 0 ? "" : _label[0..._hotkeyIdx]
-      var hkCol = col + 2 + Screen.textWidth(prefix,
-          st.font == null ? 0 : st.font)
+      var hkCol = col + 2 + Screen.checked_(Screen.textWidth(prefix,
+          st.font == null ? 0 : st.font))
       if (hkCol >= 0 && hkCol < bounds.w) {
         var hkRole  = focused ? "button.focused.hotkey" : "button.hotkey"
         var hkStyle = style(hkRole)

@@ -1135,7 +1135,7 @@ st_wren_picker_host_run(struct st_wren_host *host,
 		    previous_console);
 	}
 	else
-		restore_status = st_console_snapshot_restore(host->config.console, snapshot);
+		restore_status = st_console_snapshot_restore(host->config.console, snapshot, NULL);
 	st_console_snapshot_destroy(snapshot);
 	if (restore_status != 0) {
 		(void)snprintf(host->last_error, sizeof(host->last_error),
