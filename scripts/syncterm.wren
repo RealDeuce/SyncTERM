@@ -55,6 +55,8 @@ class ScreenSupports {
   foreign static customCursor
   foreign static fontSelection
   foreign static windowTitle
+  foreign static clipboard
+  foreign static openUrl
   foreign static windowName
   foreign static windowIcon
   foreign static extendedPalette

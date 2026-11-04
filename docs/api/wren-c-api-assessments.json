@@ -2448,10 +2448,10 @@
       ]
     },
     "console.clipboard-url-caps": {
-      "status": "partial",
-      "wren": "Clipboard / Menu.openUrl / hyperlink operations",
-      "reason": "Clipboard and URL operations exist but their native capability bits have no ScreenSupports query. Operation availability cannot be inspected in the same way as palette/pixels/font capabilities.",
-      "vm": "same VM as the owning API",
+      "status": "covered",
+      "wren": "Screen.supports.clipboard / Screen.supports.openUrl (also ScreenSupports)",
+      "reason": "Both native clipboard/URL capability bits are exposed as read-only live getters using the existing SUPPORT_GETTER helper in menu, picker and connected VMs. Each read queries its VM console and returns Bool or immutable ScreenError with the actual known/unknown native status. The flags describe advertised backend support, not permission or guaranteed operation success. No native failure conditions, backend probes, operation attempts, retained resources, clipboard/URL implementation changes, UI behavior changes or resumed Wayland investigation were introduced.",
+      "vm": "menu, picker and connected",
       "evidence": [
         {
           "path": "src/media/console/st_console.h",
@@ -2459,11 +2459,20 @@
         },
         {
           "path": "scripts/syncterm.wren",
-          "anchor": "class ScreenSupports"
+          "anchor": "foreign static clipboard"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_core.c",
+          "anchor": "SUPPORT_GETTER(open_url, ST_CONSOLE_CAP_OPEN_URL)"
+        },
+        {
+          "path": "src/scripting/wren_host/tests/st_wren_host_test.c",
+          "anchor": "exercise_clipboard_url_capabilities"
         }
       ],
       "finding": "clipboard-url-capabilities",
-      "decision": "mapping-gap"
+      "decision": "resolved",
+      "resolution": "resolved"
     },
     "embedding.owner": {
       "status": "host-owned",
@@ -4319,6 +4328,11 @@
       "path": "src/scripting/wren_host/tests/st_wren_settings_menu_test.c",
       "anchor": "test_entry_provenance",
       "aspect": "Native malformed/NFC name conversion and allocation results, transactional load failures and ordinary hidden-entry profile selection."
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_host_test.c",
+      "anchor": "struct capability_probe",
+      "aspect": "Real controlled headless backend capability callbacks exercise neither/either/both flags and live/direct/namespace access in all three VMs; operation counters stay zero, setters are rejected and exact known/unknown native failures remain ScreenError."
     }
   ],
   "dispatch_evidence": [
@@ -4330,7 +4344,7 @@
   ],
   "evidence_files": {
     "docs/WREN_GUIDANCE.md": "d14aeecb5eae922015f2f48a4fd690277dcb5b91aedfd8d8d8cffb2dc235e1ac",
-    "docs/Wren.adoc": "ec20a65cdc0d702c479cba31b7f37cb16a52a3cfa5d9e85f8732c67c2aff55a0",
+    "docs/Wren.adoc": "e7fda90478bf7e2d56937cd17691823c39db4b6775fb1def807610ed7a574ec7",
     "docs/api/bbs-entry-fields.adoc": "a1be9944eadd5f56d752e8669b502f49b27211f14190443a95e36ad301b8d128",
     "scripts/auto/connected/font_pick.wren": "4a1189b05ab502e36a8efc8ebb241eba568ccfae63ac6f92a819ca5950a87c34",
     "scripts/auto/menu/main_menu.wren": "cb254c02de88681f85b8e4cbfeea2ab090da616e47ad9894a4c659e3c6902647",
@@ -4338,7 +4352,7 @@
     "scripts/menu_settings_ui.wren": "411afe4f8321cd0421f74e37d56018f5dbab0211a6beed4deb0c0d763701f212",
     "scripts/sftp_app.wren": "05124c53d687ddcdd10efed2d2c2993c38a29196c76c4bef3f64bfc4ba4f4b5a",
     "scripts/sftp_queue.wren": "b15fe706268e9ce6d5fea4227661d0ac810f6f9fc4dbf7d39863756bde3eaf74",
-    "scripts/syncterm.wren": "d83771af9dcfa4496a35929a563c045cdc286076a507451e908e2ab4cfb9271f",
+    "scripts/syncterm.wren": "3f3ff89ab6b064993d9b0d62c71ee669efea0c78017db5d32d683ee104349038",
     "scripts/syncterm_menu.wren": "d0c9a9f6e7c4e4085cb4aa119edd82132e169ce47be7ea370638b28aaba91b4a",
     "scripts/syncterm_picker.wren": "143e15bd084bed37145061760100c84b353d340e00187d9cd2b920a850be6021",
     "scripts/transfer_app.wren": "b7c8a38f8676340c93b3f5748c74bac8fd48a301d996110c468b8fd5a768b13a",
@@ -4407,11 +4421,11 @@
     "src/net/transfer/st_transfer_detect.h": "3296b9ecf875d100f793920a3b0117a8f7b80951a539317d366f4ea40a7a1b30",
     "src/net/webget/st_webget.h": "9647dcc563e1661fe1d6b762c78e2483d2beae03ac878da0ebd15c8a425d2143",
     "src/scripting/wren_host/st_wren_host.h": "1f399c11771d459566882d3084836000e05c3aa7759fc03e6a2384c6754fb0a6",
-    "src/scripting/wren_host/tests/st_wren_host_test.c": "27ed846673d8738d049158f536177bbe77a5adab827dff3381f2f60e36e0ce1c",
+    "src/scripting/wren_host/tests/st_wren_host_test.c": "6aad0abf2d83429eaf00ad9741cd237548874702238e5bee9e39ee5a52a2f834",
     "src/scripting/wren_host/tests/st_wren_settings_menu_test.c": "a50fd5d40c9d233a73d452f28119d405e08ae121d10569ff7df59bfacc7db588",
     "src/scripting/wren_host/wren_async.c": "71e78941735250300171a2b7cb13b70c92916bd14c066a6614b3f77cdd9b565d",
     "src/scripting/wren_host/wren_bbs_model.c": "cbc7311c9d15f05d974c934a8dcf7242d2fec15e70c3a5b60707eee3e9e5e84d",
-    "src/scripting/wren_host/wren_bind_core.c": "ba1563be2244b3e15730ceab1357cdbc9f86859a08dcadb996eac14ed0fec3bf",
+    "src/scripting/wren_host/wren_bind_core.c": "326e34b8e00ad130f1409f91c762aee07b84e7fd75df4dc8772bcdfa144e0089",
     "src/scripting/wren_host/wren_bind_fs.c": "17e19ab179b195a36c58f929802e9a5d86d6e211d7dfdf809ac4b7c4e6c96cba",
     "src/scripting/wren_host/wren_bind_hyperlinks.c": "255be945007c9cb2795195058e5f58de7d2b2157728892e614d6e8fb5f729b98",
     "src/scripting/wren_host/wren_bind_menu.c": "aecca1e57094631baaccb6a593dfdb4972612186908c173678209a912e001de9",
@@ -5172,6 +5186,29 @@
       },
       "evidence_review": "Reviewed all changed model/binding/declaration/caller/test/documentation hunks and retained existing evidence anchors. Source-name native ownership and separate hidden-view validation leave visible/grant lookup intact. Profile.fields and BBSListSource descriptions now identify their distinct native source contracts without inventing a Profile.source getter.",
       "accounting": "80 public headers, 122 exclusions, 2448 native items, 157 assessments and 51 original topics remain unchanged. Four BBS source items move from Partial to Covered; no native declarations or ledger rows changed. Thirty-seven topics and the separate profile-field-table documentation finding remain open."
+    },
+    {
+      "topic": "clipboard-url-capabilities",
+      "status": "resolved",
+      "approval": "The complete Plan-mode chunk 13 revision 1 was approved with Implement the plan after returning to Default mode. The user selected both read-only capability queries, with operation/backend/UI behavior and the paused Wayland investigation outside scope.",
+      "scope": "Both existing ST_CONSOLE_CAP_CLIPBOARD and ST_CONSOLE_CAP_OPEN_URL macro rows map to Screen.supports.clipboard/openUrl (also ScreenSupports). Existing SUPPORT_GETTER queries the owning VM console and returns Bool/ScreenError without caching, retained resources, operation attempts or new native failure conditions.",
+      "tests_passed": [
+        "wren_host",
+        "wren_menu_contract",
+        "wren_picker_contract",
+        "st_console",
+        "st_console_url"
+      ],
+      "verification": {
+        "native": "FreeBSD Clang Debug application, host/picker and native console/URL targets configured and built. All five planned CTests passed after the completed rebuild.",
+        "gcc": "GCC Debug application/host targets configured and built. wren_host and wren_menu_contract passed.",
+        "windows": "Both MinGW x86 and x86_64 application/DLL/launcher and host-test targets configured and cross-built. No Windows execution or Wine.",
+        "regressions": "The new regression first failed because ScreenSupports did not implement clipboard. Controlled headless native callbacks now exercise neither/either/both bits, direct and namespace getters, four independent native queries per flag combination, read-only enforcement, no operation callbacks and exact known/unknown native failures in menu, picker and connected VMs. Both getters also extend the existing native failure matrix and its owned/immutable error GC checks.",
+        "limits": "Tests establish native-bit mapping and error fidelity, not functional clipboard or URL availability on any interactive desktop. No Wayland or other backend clipboard investigation was resumed.",
+        "warnings": "No compiler diagnostics in exercised builds. GNUmake emitted transient generated dependency-file future-timestamp/clock-skew notices."
+      },
+      "evidence_review": "Reviewed the two SUPPORT_GETTER instantiations/dispatch rows, foreign declarations, documentation and focused test additions. All existing anchors and unrelated mappings on changed evidence files remain valid; report source locations were reconciled.",
+      "accounting": "80 public headers, 122 exclusions, 2448 native items, 157 assessments and 51 original topics are unchanged. Two macro rows move from Partial to Covered without native declaration or inventory changes. Thirty-six topics and the separate profile-field-table documentation finding remain open."
     }
   ]
 }

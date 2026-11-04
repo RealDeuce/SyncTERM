@@ -994,3 +994,58 @@ native ledger is unchanged: 80 public headers, 122 exclusions, 2,448 native item
 Thirty-seven topics and the separate documentation finding remain open. Retain
 this temporary record and skill. UI labels/prompts/actions, native precedence,
 retention and file-authority rules are preserved.
+
+== Approved chunk 13: clipboard and URL capability bindings (revision 1)
+
+Approval: the complete Plan-mode plan was approved with "Implement the plan."
+Implementation began in Default mode on 2026-11-04.
+Phase: chunk complete; the next chunk requires an actual Plan-mode phase.
+Finding: `clipboard-url-capabilities` / `console.clipboard-url-caps`.
+
+Add read-only Screen.supports.clipboard and Screen.supports.openUrl (also through
+ScreenSupports), directly reflecting the two existing native capability bits.
+Use SUPPORT_GETTER and its existing Bool/ScreenError contract in menu, picker
+and connected VMs, querying the current VM's console on every read. Preserve
+actual native failure codes without inventing failure conditions. Flags describe
+advertised backend support, not permission or guaranteed operation success.
+Clipboard/URL operations, UI behavior and the paused Wayland investigation are
+outside this chunk. No retained resources, backend probes or operation attempts.
+
+Acceptance: neither/either/both bits, independent live reads, direct/namespace
+access, read-only enforcement and all three VMs. Extend the existing native
+failure matrix with known/unknown statuses; verify no clipboard or URL operation
+is invoked. Use controlled headless callbacks and existing private fault controls.
+Update authoritative docs and both existing macro-row assessments, report/matrix,
+reviewed evidence and follow-up. Preserve the native inventory and other findings.
+
+Configure/build through CMake; run wren_host, wren_menu_contract,
+wren_picker_contract, st_console and st_console_url. GCC application/host builds
+and host/menu tests; both MinGW application/host cross-builds, without Windows
+execution or Wine. Run coverage/diff checks and commit without pushing.
+
+=== Completed verification
+
+The new regression first failed at the missing ScreenSupports.clipboard getter.
+The two getters now use the existing native capability helper. Controlled
+headless backend callbacks exercise neither/either/both bits, direct/namespace
+access, read-only enforcement and independent live queries in all three VMs.
+Each successful combination performs four native capability queries and zero
+clipboard/URL operation callbacks. Both getters preserve IO_ERROR_IO and unknown
+negative/positive statuses as ScreenError, and also join the existing native
+failure matrix and immutable owned-error GC checks.
+
+Native FreeBSD Clang Debug: configured/built application, host/picker and native
+console/URL targets. All five planned CTests passed after the completed rebuild:
+wren_host, wren_menu_contract, wren_picker_contract, st_console and st_console_url.
+GCC Debug application/host builds and host/menu tests passed. MinGW x86/x86_64
+application/DLL/launcher and host-test targets cross-built, without Windows
+execution or Wine. No compiler diagnostics; GNUmake emitted transient generated
+dependency-file clock-skew notices. Tests establish bit mapping/error fidelity,
+not functional desktop clipboard/URL availability.
+
+API docs, assessment, report/matrix, reviewed evidence/source locations and the
+follow-up review now reflect both macro rows. Public inventory is unchanged:
+80 headers, 122 exclusions, 2,448 native items, 157 assessments and 51 original
+topics. Coverage and diff checks pass. Thirty-six topics and the separate
+documentation finding remain open. Preserve this temporary record and skill;
+clipboard/URL operations, UI behavior and the paused Wayland work are unchanged.

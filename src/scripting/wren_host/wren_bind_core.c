@@ -3044,6 +3044,8 @@ SUPPORT_GETTER(palette_change, ST_CONSOLE_CAP_PALETTE_CHANGE)
 SUPPORT_GETTER(pixels, ST_CONSOLE_CAP_PIXELS)
 SUPPORT_GETTER(custom_cursor, ST_CONSOLE_CAP_CUSTOM_CURSOR)
 SUPPORT_GETTER(window_title, ST_CONSOLE_CAP_WINDOW_TITLE)
+SUPPORT_GETTER(clipboard, ST_CONSOLE_CAP_CLIPBOARD)
+SUPPORT_GETTER(open_url, ST_CONSOLE_CAP_OPEN_URL)
 SUPPORT_GETTER(extended_palette, ST_CONSOLE_CAP_EXTENDED_PALETTE)
 SUPPORT_GETTER(blocky_scaling, ST_CONSOLE_CAP_BLOCKY_SCALING)
 SUPPORT_GETTER(external_scaling, ST_CONSOLE_CAP_EXTERNAL_SCALING)
@@ -5142,6 +5144,8 @@ static const struct binding bindings[] = {
 	{"ScreenSupports", true, "customCursor", fn_support_custom_cursor},
 	{"ScreenSupports", true, "fontSelection", fn_support_loadable_fonts},
 	{"ScreenSupports", true, "windowTitle", fn_support_window_title},
+	{"ScreenSupports", true, "clipboard", fn_support_clipboard},
+	{"ScreenSupports", true, "openUrl", fn_support_open_url},
 	{"ScreenSupports", true, "windowName", fn_support_false},
 	{"ScreenSupports", true, "windowIcon", fn_support_false},
 	{"ScreenSupports", true, "extendedPalette", fn_support_extended_palette},

@@ -2428,6 +2428,8 @@ their output to the backend should branch on these.
 | `fontSelection`      | Switch fonts via the SyncTERM
                          font-selection UI.
 | `windowTitle`        | Set the OS window title.
+| `clipboard`          | Advertise native clipboard text read/write support.
+| `openUrl`            | Advertise native URL-opening support.
 | `windowName`         | Set the OS window's class / icon name (X11).
 | `windowIcon`         | Set the OS window's icon image.
 | `extendedPalette`    | Address palette indices beyond 16.
@@ -2437,6 +2439,11 @@ their output to the backend should branch on these.
 | `closeLock`          | Inhibit the OS window close button while a
                          BBS session is active.
 |===
+
+The clipboard and URL flags mirror the native capability bits for the current
+VM's console, including in menu, picker and connected VMs. They describe
+advertised backend support, not permission to use an operation or a guarantee
+that it will succeed. Reading them does not access the clipboard or open a URL.
 
 ==== Screen.window [[screen-window]]
 

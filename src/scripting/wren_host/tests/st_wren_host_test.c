@@ -3185,6 +3185,8 @@ exercise_cleanup_scopes(st_wren_host_t *host, st_console_t *console,
 }
 
 static int exercise_screen_connected_results(st_wren_connected_t *connected);
+static int exercise_clipboard_url_capabilities(WrenVM *vm,
+	st_wren_connected_t *connected, st_console_t *console);
 
 static int
 exercise_cterm_results(st_wren_connected_t *connected, st_console_t *console)
@@ -3495,6 +3497,7 @@ exercise_owned_sends(st_wren_host_t *host, st_console_t *console)
 		    ST_CODEPAGE_CP437) == 0);
 		CHECK(exercise_cterm_results(connected, console) == 0);
 		CHECK(exercise_screen_connected_results(connected) == 0);
+		CHECK(exercise_clipboard_url_capabilities(NULL, connected, console) == 0);
 
 		connection.output.head = 0;
 		connection.output.count = 0;
@@ -6762,10 +6765,104 @@ exercise_core_value_contracts(st_wren_host_t *public_host,
 	return 0;
 }
 
+struct capability_probe {
+	size_t queries, operations;
+};
+
+static uint32_t
+probe_capabilities(const st_console_t *console)
+{
+	struct capability_probe *probe = console->display->backend_state;
+	++probe->queries;
+	return 0;
+}
+
+static int
+probe_clipboard_set(st_console_display_t *display, const char *text)
+{
+	struct capability_probe *probe = display->backend_state;
+	(void)text;
+	++probe->operations;
+	return IO_ERROR_NOT_SUPPORTED;
+}
+
+static int
+probe_clipboard_get(st_console_display_t *display, char **text)
+{
+	(void)text;
+	return probe_clipboard_set(display, NULL);
+}
+
+static bool
+capability_interpret(WrenVM *vm, st_wren_connected_t *connected,
+	const char *source)
+{
+	return connected != NULL
+	    ? st_wren_connected_interpret(connected, "clipboard_url_capabilities", source) == 0
+	    : wrenInterpret(vm, "clipboard_url_capabilities", source) == WREN_RESULT_SUCCESS;
+}
+
+static int
+exercise_clipboard_url_capabilities(WrenVM *vm,
+	st_wren_connected_t *connected, st_console_t *console)
+{
+	struct capability_probe probe = {0};
+	const struct st_console_backend_ops *previous_ops = console->display->backend_ops;
+	void *previous_state = console->display->backend_state;
+	struct st_console_backend_ops ops = {.capabilities = probe_capabilities};
+	bool passed = capability_interpret(vm, connected,
+	    "import \"syncterm\" for Screen, ScreenSupports, ScreenError\n");
+	console->display->backend_ops = &ops;
+	console->display->backend_state = &probe;
+	for (unsigned bits = 0; passed && bits < 4; ++bits) {
+		char source[1024];
+		ops.set_clipboard_text = bits & 1 ? probe_clipboard_set : NULL;
+		ops.get_clipboard_text = bits & 1 ? probe_clipboard_get : NULL;
+		ops.open_url = bits & 2 ? probe_clipboard_set : NULL;
+		probe.queries = 0;
+		(void)snprintf(source, sizeof(source),
+		    "if (Screen.supports.clipboard != %s || ScreenSupports.clipboard != %s || "
+		    "Screen.supports.openUrl != %s || ScreenSupports.openUrl != %s) "
+		    "Fiber.abort(\"clipboard/URL capability bits\")\n",
+		    bits & 1 ? "true" : "false", bits & 1 ? "true" : "false",
+		    bits & 2 ? "true" : "false", bits & 2 ? "true" : "false");
+		passed = capability_interpret(vm, connected, source)
+		    && probe.queries == 4 && probe.operations == 0;
+	}
+	if (passed) passed = capability_interpret(vm, connected,
+	    "for (assign in [Fn.new { Screen.supports.clipboard = true }, Fn.new { ScreenSupports.openUrl = false }]) {\n"
+	    "  var bad = Fiber.new { assign.call() }\n"
+	    "  bad.try()\n"
+	    "  if (bad.error == null) Fiber.abort(\"writable capability\")\n"
+	    "}\n");
+	const int statuses[] = {IO_ERROR_IO, -271828, 271828};
+	for (size_t i = 0; passed && i < sizeof(statuses) / sizeof(*statuses); ++i) {
+		char source[1024];
+		st_wren_test_screen_fault = (struct st_wren_screen_fault){
+		    .name = "st_console_capabilities", .status = statuses[i]};
+		(void)snprintf(source, sizeof(source),
+		    "{\nvar clipboard = Screen.supports.clipboard\nvar url = Screen.supports.openUrl\n"
+		    "for (error in [clipboard, url]) {\n"
+		    "  if (!(error is ScreenError) || error.code != %d) Fiber.abort(\"capability failure became Bool\")\n"
+		    "}\n}\n", statuses[i]);
+		passed = capability_interpret(vm, connected, source)
+		    && st_wren_test_screen_fault.calls == 2 && probe.operations == 0;
+		st_wren_test_screen_fault = (struct st_wren_screen_fault){0};
+	}
+	console->display->backend_ops = previous_ops;
+	console->display->backend_state = previous_state;
+	CHECK(passed);
+	return 0;
+}
+
 static int
 exercise_screen_results(st_wren_host_t *public_host)
 {
 	struct st_wren_host *host = public_host;
+	CHECK(exercise_clipboard_url_capabilities(host->vm, NULL,
+	    st_wren_context_from_vm(host->vm)->console) == 0);
+	CHECK(exercise_clipboard_url_capabilities(host->picker_vm, NULL,
+	    st_wren_context_from_vm(host->picker_vm)->console) == 0);
 	/* A real native rejection must be a returned value, not a String abort. */
 	CHECK(wrenInterpret(host->vm, "screen_results",
 	    "import \"syncterm\" for CustomCursor, Error, IOErr\n"
@@ -6802,6 +6899,8 @@ exercise_screen_failure_boundaries(st_wren_host_t *public_host)
 		{"capabilities", "Host.textTerminal"},
 		{"capabilities", "Host.localControlKeys"},
 		{"capabilities", "Screen.supports.pixels"},
+		{"capabilities", "Screen.supports.clipboard"},
+		{"capabilities", "Screen.supports.openUrl"},
 		{"get_style", "Screen.attr"},
 		{"set_style", "Screen.setAttr(7)"},
 		{"get_position", "Screen.window.position"},
