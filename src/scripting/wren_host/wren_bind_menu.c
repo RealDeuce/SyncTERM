@@ -3733,6 +3733,10 @@ SETTINGS_NUM_PROPERTY(cursor_style, default_cursor, int, ST_CURSOR_DEFAULT,
     ST_CURSOR_SOLID_BLOCK)
 SETTINGS_NUM_PROPERTY(audio_modes, audio_output_modes, uint32_t, 0, UINT32_MAX)
 SETTINGS_NUM_PROPERTY(scrollback_lines, scrollback_lines, int, 1, INT_MAX)
+SETTINGS_NUM_PROPERTY(transfer_success_keypress_timeout,
+	transfer_success_keypress_timeout, int, 0, INT_MAX)
+SETTINGS_NUM_PROPERTY(transfer_failure_keypress_timeout,
+	transfer_failure_keypress_timeout, int, 0, INT_MAX)
 SETTINGS_NUM_PROPERTY(modem_rate, modem_rate, uint32_t, 0, UINT32_MAX)
 SETTINGS_NUM_PROPERTY(custom_rows, custom_rows, int, 14, 1000)
 SETTINGS_NUM_PROPERTY(custom_columns, custom_columns, int, 40, 1000)
@@ -4927,6 +4931,10 @@ static const struct binding bindings[] = {
 	BIND_GETSET("Settings", "cursorStyle", settings_cursor_style),
 	BIND_GETSET("Settings", "audioModes", settings_audio_modes),
 	BIND_GETSET("Settings", "scrollbackLines", settings_scrollback_lines),
+	BIND_GETSET("Settings", "transferSuccessKeypressTimeout",
+	    settings_transfer_success_keypress_timeout),
+	BIND_GETSET("Settings", "transferFailureKeypressTimeout",
+	    settings_transfer_failure_keypress_timeout),
 	BIND_GETSET("Settings", "modemRate", settings_modem_rate),
 	BIND_GETSET("Settings", "scalingMode", settings_scaling_mode),
 	BIND_GETSET("Settings", "kdfShift", settings_kdf_shift),

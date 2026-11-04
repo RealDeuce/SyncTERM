@@ -3,7 +3,7 @@
 Status: accounting complete against commit da27a6e (2026-11-02).
 Follow-up: +transfer-upload-authority+, +font-codepage+, +font-load-result+,
 +sftp-entry-stat+, +error-symbols+, +bbs-diagnostics+, +theme-operation-results+,
-+transfer-result+ and +transfer-protocol-selection+
++transfer-result+, +transfer-protocol-selection+ and +settings-transfer-timeouts+
 are resolved.
 CTerm and Screen result fidelity are resolved by their approved chunks,
 completing +console-operation-results+.
@@ -24,11 +24,12 @@ limitations; it does not authorize implementing every omitted C facility.
 The review covers 80 project-owned public headers, 2,448 named native items,
 and 122 explicitly excluded implementation/vendor/test headers. Every inventoried
 item has a disposition. The initial review recorded 51 finding topics, including
-broader API-scope decisions, plus one stale documentation finding. Twelve topics
+broader API-scope decisions, plus one stale documentation finding. Thirteen topics
 (upload authority, custom-font codepages, font-load results, SFTP entry metadata,
 portable I/O error symbols, BBS diagnostics, model-operation results, theme
 operation results, transfer results, explicit XMODEM-G selection and the
-intentional cache-status omission, plus console operation results) are resolved;
+intentional cache-status omission, console operation results and transfer timeout
+Settings bindings) are resolved;
 the other topics retain their recorded open subclaims. The numbers
 follow the inventory;
 they are not a stopping rule or a percentage of useful capabilities covered.
@@ -172,7 +173,7 @@ ids refer to the full mappings in the JSON, including VM-specific restrictions.
 | link:../src/config/ini/ini.h[config/ini/ini.h] | 0 | 0 | 58 | 0 | 0 | +config.ini+
 | link:../src/config/list_crypto/st_list_crypto.h[config/list_crypto/st_list_crypto.h] | 24 | 9 | 0 | 0 | 0 | +list.crypto+, +list.crypto.metadata+
 | link:../src/config/profile/st_profile.h[config/profile/st_profile.h] | 153 | 0 | 0 | 4 | 0 | +profile.fields+, +profile.ownership+
-| link:../src/config/settings/st_settings.h[config/settings/st_settings.h] | 84 | 1 | 8 | 12 | 0 | +settings.disk-reload+, +settings.kdf-legacy+, +settings.lifecycle+, +settings.model+, +settings.recent-result+, +settings.result-status+, +settings.transfer-timeouts+, +settings.window-state+
+| link:../src/config/settings/st_settings.h[config/settings/st_settings.h] | 86 | 1 | 6 | 12 | 0 | +settings.disk-reload+, +settings.kdf-legacy+, +settings.lifecycle+, +settings.model+, +settings.recent-result+, +settings.result-status+, +settings.transfer-timeouts+, +settings.window-state+
 | link:../src/config/theme/st_theme.h[config/theme/st_theme.h] | 113 | 2 | 0 | 6 | 0 | +themes.cloud-origin+, +themes.documents+, +themes.manager-lifetime+, +themes.operation-status+
 | link:../src/io/file_lock/st_file_lock.h[io/file_lock/st_file_lock.h] | 0 | 0 | 0 | 2 | 0 | +files.transaction-lock+
 | link:../src/io/file_map/file_map.h[io/file_map/file_map.h] | 0 | 0 | 0 | 5 | 0 | +files.mapping+
@@ -251,7 +252,7 @@ native secondary status is still omitted. Primary BBS mutation results are now
 covered separately under <<finding-model-mutation-results>>, whose remaining
 Settings disk-reload and emoji-result subclaims are now also resolved.
 
-Evidence: link:../src/config/bbs_list/st_bbs_list.h[src/config/bbs_list/st_bbs_list.h:58]; link:../src/config/bbs_list/st_bbs_store.c[src/config/bbs_list/st_bbs_store.c:494]; link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:4642].
+Evidence: link:../src/config/bbs_list/st_bbs_list.h[src/config/bbs_list/st_bbs_list.h:58]; link:../src/config/bbs_list/st_bbs_store.c[src/config/bbs_list/st_bbs_store.c:494]; link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:4646].
 
 [[finding-bbs-diagnostics]]
 === Nonfatal BBS-load diagnostics are now available
@@ -379,8 +380,7 @@ hooks and VM boundaries. Acceptance is not delivery. Native retained output erro
 disconnect suppression and WireLease exclusion remain unchanged. The login helper
 checks returned key errors and stops; no retry/replay/reset/rollback is added.
 Screen result fidelity is resolved by approved chunk 10. Both included
-assessments are resolved, closing this shared finding. Thirty-nine topics plus
-the separate documentation finding remain open.
+assessments are resolved, closing this shared finding.
 
 Evidence: link:../src/scripting/wren_host/wren_bind_session.c[write/key/error binding]; link:../scripts/auto/connected/connected.wren[login caller]; link:../src/scripting/wren_host/tests/st_wren_host_test.c[native and Wren result regressions]; link:../src/terminal/term/st_term.h[native semantic key contract].
 
@@ -471,7 +471,7 @@ Absent models return null; plaintext returns a plain snapshot. The shipped
 dialog hides Change Password for unsupported combinations, including AES-192.
 Users never need to parse or enter file headers.
 
-Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:3324]; link:../src/scripting/wren_host/tests/st_wren_settings_menu_test.c[src/scripting/wren_host/tests/st_wren_settings_menu_test.c:230].
+Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:3324]; link:../src/scripting/wren_host/tests/st_wren_settings_menu_test.c[src/scripting/wren_host/tests/st_wren_settings_menu_test.c:284].
 
 +settings.kdf-legacy+ (partial; menu; resolved by approved policy).
 Settings.kdfShift remains the effective numeric rewrite policy (8–20), with
@@ -515,7 +515,7 @@ without repeating persistence. Previous live mappings and native skip rules are
 preserved. Compound Settings/collection failures retain existing partial effects,
 with no commit-state flags, rollback or transaction-result framework.
 
-Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:4642]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:253].
+Evidence: link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:4646]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:253].
 
 +bbs.load-status+ (covered; menu) is resolved in chunk 5. Menu.load now returns
 null/MenuError with the actual portable failure from opening, sorting or model
@@ -563,13 +563,32 @@ Native st_pixel_buffer_blit can composite into another PixelBuffer with clipping
 Evidence: link:../src/media/pixels/st_pixels.h[src/media/pixels/st_pixels.h:114]; link:../scripts/syncterm.wren[scripts/syncterm.wren:186].
 
 [[finding-settings-transfer-timeouts]]
-=== Transfer timeout settings are missing
+=== Transfer timeout Settings bindings (resolved)
 
-+settings.transfer-timeouts+ (unmapped; menu). Wren: none.
++settings.transfer-timeouts+ (covered; menu; resolved). Wren:
+Settings.transferSuccessKeypressTimeout / Settings.transferFailureKeypressTimeout.
 
-Transfer success/failure keypress timeout settings have no Settings getters/setters despite being native persisted user policy.
+The original gap was two native persisted fields without Settings getters/setters.
+Both now expose stored preferences in seconds through the existing menu-only
+Settings snapshot. Setters accept finite integer Numbers from zero through
+INT_MAX; invalid assignments abort without changing the snapshot. Defaults remain
+zero for success and 60 for failure. Existing snapshot isolation, dirty tracking,
+stale-handle rejection, apply/save/reload and INI keys are preserved.
 
-Evidence: link:../src/config/settings/st_settings.h[src/config/settings/st_settings.h:82]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:250].
+The user approved binding only these fields. Transfer getters, settings-editor
+controls and transfer completion-window behavior are outside this chunk.
+The shipped progress App retains its own wait; no acknowledgement or zero-value
+UI semantics are established by exposing the stored settings.
+
+Evidence: link:../src/config/settings/st_settings.h[native persisted fields]; link:../scripts/syncterm_menu.wren[Settings declarations]; link:../src/scripting/wren_host/wren_bind_menu.c[numeric property bindings]; link:../src/scripting/wren_host/tests/st_wren_settings_menu_test.c[validation, snapshots and persistence].
+
+The approved follow-up passed +wren_host+, +wren_menu_contract+,
++wren_settings_runtime+, +wren_picker_contract+, +settings+ and +settings_store+
+on native FreeBSD Clang Debug. The MinGW x86 and x86_64 application/DLL/launchers
+cross-built without compiler warnings; no Windows tests were executed. The
+inventory remains 80 public headers, 122 exclusions, 2,448 items, 157 assessments
+and 51 original topics. Thirty-eight topics and the separate documentation
+finding remain open.
 
 [[finding-sftp-entry-stat]]
 === SFTP listing stat fields (resolved)
@@ -746,7 +765,7 @@ Evidence: link:../scripts/syncterm.wren[scripts/syncterm.wren:769]; link:../src/
 
 Native wrap, blink mode, full-surface-scroll, fallback-font choice, explicit aspect ratio and fullscreen setters lack direct script control/query. Some are derived by emulation or selected screen mode and may properly stay host policy; that is a scope decision. Settings custom aspect configures a future/custom mode, not arbitrary live aspect changes. Native pointer-shape selection (default/text/link) is only used by the host hyperlink-hover owners; no generic script pointer-shape selector is exported.
 
-Evidence: link:../src/media/console/st_console.h[src/media/console/st_console.h:601]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:299].
+Evidence: link:../src/media/console/st_console.h[src/media/console/st_console.h:601]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:303].
 
 [[finding-cterm-live-encoding]]
 === Live terminal encoding mutation
@@ -953,7 +972,7 @@ Evidence: link:../src/base/crypto/st_cipher.h[src/base/crypto/st_cipher.h:43]; l
 
 No general PBKDF2/scrypt operation or parameter validation API. Fixed list encryption is a consumer, not a mapping of arbitrary KDF input/output.
 
-Evidence: link:../src/base/crypto/st_kdf.h[src/base/crypto/st_kdf.h:29]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:291].
+Evidence: link:../src/base/crypto/st_kdf.h[src/base/crypto/st_kdf.h:29]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:295].
 
 +utility.crypto+ (unmapped; all script VMs). Wren: Menu.buildOptions includes the provider name.
 

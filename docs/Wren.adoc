@@ -4893,6 +4893,14 @@ when `Menu.encryptionAvailable` is false.
 | Scrollback capacity is 1 through `INT_MAX`.  Modem DTE rate is 0 through
   `UINT32_MAX`; zero means the current or default communications-port rate.
 
+| `transferSuccessKeypressTimeout`, `transferFailureKeypressTimeout`
+| Stored transfer completion acknowledgement preferences in seconds, from
+  0 through `INT_MAX`. Defaults are 0 for success and 60 for failure.
+  These properties use the normal snapshot, apply, save and reload rules;
+  they persist as `TransferSuccessKeypressTimeout` and
+  `TransferFailureKeypressTimeout` under `[SyncTERM]`. The shipped Wren
+  transfer window currently uses its own wait rather than these preferences.
+
 | `kdfShift`
 | The effective scrypt cost exponent for encryption rewrites; accepted
   range is 8 through 20. Unsupported older persisted specifications report

@@ -284,6 +284,10 @@ foreign class Settings {
   foreign audioModes=(value)
   foreign scrollbackLines
   foreign scrollbackLines=(value)
+  foreign transferSuccessKeypressTimeout
+  foreign transferSuccessKeypressTimeout=(value)
+  foreign transferFailureKeypressTimeout
+  foreign transferFailureKeypressTimeout=(value)
   foreign modemRate
   foreign modemRate=(value)
   foreign scalingMode

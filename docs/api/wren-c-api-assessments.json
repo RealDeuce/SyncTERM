@@ -1156,9 +1156,9 @@
       "decision": "scope-review"
     },
     "settings.transfer-timeouts": {
-      "status": "unmapped",
-      "wren": "none",
-      "reason": "Transfer success/failure keypress timeout settings have no Settings getters/setters despite being native persisted user policy.",
+      "status": "covered",
+      "wren": "Settings.transferSuccessKeypressTimeout / Settings.transferFailureKeypressTimeout",
+      "reason": "Both native persisted fields are bound as menu-only Settings snapshot properties in seconds, accepting finite integer Numbers from zero through INT_MAX through the existing checked conversion. Defaults remain 0/60, and snapshot ownership, dirty tracking, generation checks, apply/save/reload, safe-mode rules and existing INI keys are unchanged. Invalid assignments abort without mutation. The user approved Settings bindings only: Transfer read APIs, settings-editor controls and transfer completion-window behavior are excluded from this chunk. No acknowledgement or zero-value UI semantics are added.",
       "vm": "menu",
       "evidence": [
         {
@@ -1167,11 +1167,20 @@
         },
         {
           "path": "scripts/syncterm_menu.wren",
-          "anchor": "foreign class Settings"
+          "anchor": "foreign transferSuccessKeypressTimeout"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_menu.c",
+          "anchor": "SETTINGS_NUM_PROPERTY(transfer_failure_keypress_timeout,"
+        },
+        {
+          "path": "src/scripting/wren_host/tests/st_wren_settings_menu_test.c",
+          "anchor": "test_transfer_timeout_settings"
         }
       ],
       "finding": "settings-transfer-timeouts",
-      "decision": "mapping-gap"
+      "decision": "resolved",
+      "resolution": "resolved"
     },
     "settings.kdf-legacy": {
       "status": "partial",
@@ -4265,6 +4274,10 @@
       "path": "src/scripting/wren_host/tests/st_wren_screen_test_control.h",
       "anchor": "size_t calls;",
       "aspect": "Private native-call selection and invocation counts; controls are not linked into the application."
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_settings_menu_test.c",
+      "anchor": "test_transfer_timeout_settings"
     }
   ],
   "dispatch_evidence": [
@@ -4276,7 +4289,7 @@
   ],
   "evidence_files": {
     "docs/WREN_GUIDANCE.md": "d14aeecb5eae922015f2f48a4fd690277dcb5b91aedfd8d8d8cffb2dc235e1ac",
-    "docs/Wren.adoc": "0de70d4a560a6a50429b339715514c7b4a85aece1920a8cc9dfada0dc1e77d41",
+    "docs/Wren.adoc": "23e3a44a03e372cffc4af9e5ab23f544d5e04cdb9c58c02de722cdadc7d72621",
     "docs/api/bbs-entry-fields.adoc": "a1be9944eadd5f56d752e8669b502f49b27211f14190443a95e36ad301b8d128",
     "scripts/auto/connected/font_pick.wren": "4a1189b05ab502e36a8efc8ebb241eba568ccfae63ac6f92a819ca5950a87c34",
     "scripts/auto/menu/main_menu.wren": "4828040dfe87bd7680fa026ae785c9cc64e010392e9bd278f5c0440c8b052b2b",
@@ -4285,7 +4298,7 @@
     "scripts/sftp_app.wren": "05124c53d687ddcdd10efed2d2c2993c38a29196c76c4bef3f64bfc4ba4f4b5a",
     "scripts/sftp_queue.wren": "b15fe706268e9ce6d5fea4227661d0ac810f6f9fc4dbf7d39863756bde3eaf74",
     "scripts/syncterm.wren": "d83771af9dcfa4496a35929a563c045cdc286076a507451e908e2ab4cfb9271f",
-    "scripts/syncterm_menu.wren": "0fb618cc9532edf4dcb7d867d54af5a87d884d7163b100207d9b5535ae51ad68",
+    "scripts/syncterm_menu.wren": "da6906b15943bcaf98a45bc6250587ea12afeddbd12c1f287cacd0d9a6f1d37c",
     "scripts/syncterm_picker.wren": "143e15bd084bed37145061760100c84b353d340e00187d9cd2b920a850be6021",
     "scripts/transfer_app.wren": "b7c8a38f8676340c93b3f5748c74bac8fd48a301d996110c468b8fd5a768b13a",
     "scripts/transfer_pick.wren": "2fc84a3f03cbf6e71bf9c78304cb56558c70413857c0fa82ea1cc775b340ecfb",
@@ -4354,13 +4367,13 @@
     "src/net/webget/st_webget.h": "9647dcc563e1661fe1d6b762c78e2483d2beae03ac878da0ebd15c8a425d2143",
     "src/scripting/wren_host/st_wren_host.h": "1f399c11771d459566882d3084836000e05c3aa7759fc03e6a2384c6754fb0a6",
     "src/scripting/wren_host/tests/st_wren_host_test.c": "570afa720a6a4b470f607e4c0c591a4920b05e20e1db4c9b424ca7f704116882",
-    "src/scripting/wren_host/tests/st_wren_settings_menu_test.c": "b2aa79315aa1dd0c0feebd08da6289464a2c2e4eca15def36356658c5b7d5bbc",
+    "src/scripting/wren_host/tests/st_wren_settings_menu_test.c": "6fd1326c794e64d68064ab58d4e7c0d548b3214402bcf2b4369f8e2fefadd43f",
     "src/scripting/wren_host/wren_async.c": "71e78941735250300171a2b7cb13b70c92916bd14c066a6614b3f77cdd9b565d",
     "src/scripting/wren_host/wren_bbs_model.c": "18dca3353505a5b0dc609251f16038bd9132c47e215c4cf24ba802ac4b3ab97a",
     "src/scripting/wren_host/wren_bind_core.c": "ba1563be2244b3e15730ceab1357cdbc9f86859a08dcadb996eac14ed0fec3bf",
     "src/scripting/wren_host/wren_bind_fs.c": "17e19ab179b195a36c58f929802e9a5d86d6e211d7dfdf809ac4b7c4e6c96cba",
     "src/scripting/wren_host/wren_bind_hyperlinks.c": "255be945007c9cb2795195058e5f58de7d2b2157728892e614d6e8fb5f729b98",
-    "src/scripting/wren_host/wren_bind_menu.c": "64f99889c5ebefb6f48a945a35018b5af33e82a592af994eced80937c9715320",
+    "src/scripting/wren_host/wren_bind_menu.c": "59d56aa111cfd85b281a3bc1daee8508557d43f2b97d2cc8933f5f8bb105f0eb",
     "src/scripting/wren_host/wren_bind_pixels.c": "5db1826dd3fde89f981f54d3aee2748277369a94e6e63998f2fe76b1d33026ae",
     "src/scripting/wren_host/wren_bind_session.c": "abc78adace40704dfb1b668c9ca19ccf0c538c2ac9028b86e65a0cf7b81fea36",
     "src/scripting/wren_host/wren_bind_status.c": "85ed4115c9a9645aa27cccb2a9977e5892037123d7440d9acf3397fd55e16671",
@@ -5061,6 +5074,27 @@
         "warnings": "Final GCC, Clang and both MinGW builds have no compiler warnings. The newly compiled test copy exposed an existing MinGW32 theme-diagnostic format-truncation warning; equivalent bounded prefix/append assembly removes it while preserving message bytes and truncation. GNUmake emitted transient generated-file clock-skew notices."
       },
       "accounting": "80 public headers, 122 explicit implementation/vendor/test exclusions, 2448 native items, 157 assessments, 51 original finding topics. Only console.operation-status is newly resolved, completing console-operation-results. Thirty-nine topics and the separate profile-field-table documentation finding remain open. One signature and 26 subsequent source locations changed; no native rows were added or dropped. Both new excluded headers are test controls."
+    },
+    {
+      "topic": "settings-transfer-timeouts",
+      "status": "resolved",
+      "approval": "The complete Plan-mode chunk 11 revision 1 was approved with Implement the plan after returning to Default mode. The user explicitly selected Settings only after excluding proposed transfer UI changes and Transfer getters.",
+      "scope": "Two existing native fields mapped to menu-only Settings.transferSuccessKeypressTimeout and Settings.transferFailureKeypressTimeout; no native declarations, worker APIs, settings-editor controls or completion-window behavior changed.",
+      "tests_passed": [
+        "wren_host",
+        "wren_menu_contract",
+        "wren_settings_runtime",
+        "wren_picker_contract",
+        "settings",
+        "settings_store"
+      ],
+      "builds_passed": [
+        "native FreeBSD Clang Debug application and focused test targets",
+        "MinGW x86 and x86_64 application/DLL/launcher cross-builds (no Windows execution)"
+      ],
+      "regressions": "New regression first failed because Settings did not implement transferSuccessKeypressTimeout. Final tests cover defaults, independent assignments, zero/INT_MAX, negative/fractional/nonfinite/oversized/nonnumeric rejection without mutation, snapshot isolation, dirty tracking, apply, stale getters/setters, reset-to-running reload and native disk reload after persistence. Existing VM isolation tests pass.",
+      "evidence_review": "Reviewed the two numeric-property instantiations, dispatch entries, foreign declarations, documentation row and focused test additions. Existing numeric conversion, Settings ownership/generation and application/store semantics are reused; all unrelated mappings on the four changed evidence files retain their anchors and dispositions.",
+      "accounting": "Unchanged 80 public headers, 122 exclusions, 2448 native items, 157 assessments and 51 original topics. Two field rows move from Unmapped to Covered in the header matrix without changing the native ledger. Thirty-eight topics and the separate documentation finding remain open."
     }
   ]
 }

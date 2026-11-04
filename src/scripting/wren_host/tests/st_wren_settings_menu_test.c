@@ -16,6 +16,7 @@
 #include "st_session_history.h"
 #include "st_theme.h"
 
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -45,6 +46,59 @@ interpret(struct st_wren_host *host, const char *module, const char *source)
 		fprintf(stderr, "%s: %s\n", module, host->last_error);
 		exit(EXIT_FAILURE);
 	}
+}
+
+static void
+test_transfer_timeout_settings(struct st_wren_host *host)
+{
+	interpret(host, "transfer_timeout_settings",
+	    "import \"syncterm_menu\" for Menu\n"
+	    "var snapshot = Menu.settings\n"
+	    "var other = Menu.settings\n"
+	    "if (snapshot.transferSuccessKeypressTimeout != 0 || snapshot.transferFailureKeypressTimeout != 60 || snapshot.dirty) Fiber.abort(\"transfer timeout defaults\")\n"
+	    "snapshot.transferSuccessKeypressTimeout = 2147483647\n"
+	    "if (snapshot.transferSuccessKeypressTimeout != 2147483647 || snapshot.transferFailureKeypressTimeout != 60 || !snapshot.dirty) Fiber.abort(\"independent success timeout\")\n"
+	    "snapshot.transferSuccessKeypressTimeout = 0\n"
+	    "snapshot.transferFailureKeypressTimeout = 2147483647\n"
+	    "if (snapshot.transferSuccessKeypressTimeout != 0 || snapshot.transferFailureKeypressTimeout != 2147483647) Fiber.abort(\"independent failure timeout\")\n"
+	    "snapshot.transferFailureKeypressTimeout = 0\n"
+	    "if (snapshot.transferFailureKeypressTimeout != 0 || other.transferSuccessKeypressTimeout != 0 || other.transferFailureKeypressTimeout != 60 || Menu.settings.transferFailureKeypressTimeout != 60) Fiber.abort(\"transfer timeout snapshot isolation\")\n"
+	    "if (snapshot.reload() != null || snapshot.dirty || snapshot.transferSuccessKeypressTimeout != 0 || snapshot.transferFailureKeypressTimeout != 60) Fiber.abort(\"transfer timeout reload\")\n"
+	    "for (value in [-1, 0.5, 2147483648, 0/0, 1/0, -1/0, null, true, \"30\", []]) {\n"
+	    "  for (assign in [Fn.new { snapshot.transferSuccessKeypressTimeout = value }, Fn.new { snapshot.transferFailureKeypressTimeout = value }]) {\n"
+	    "    var bad = Fiber.new { assign.call() }\n"
+	    "    bad.try()\n"
+	    "    if (bad.error == null || snapshot.dirty || snapshot.transferSuccessKeypressTimeout != 0 || snapshot.transferFailureKeypressTimeout != 60) Fiber.abort(\"invalid transfer timeout changed snapshot\")\n"
+	    "  }\n"
+	    "}\n");
+	interpret(host, "transfer_timeout_settings",
+	    "snapshot.transferSuccessKeypressTimeout = 7\n"
+	    "snapshot.transferFailureKeypressTimeout = 11\n"
+	    "if (snapshot.apply() != null || snapshot.dirty || Menu.settings.transferSuccessKeypressTimeout != 7 || Menu.settings.transferFailureKeypressTimeout != 11) Fiber.abort(\"apply transfer timeouts\")\n"
+	    "for (action in [Fn.new { other.transferSuccessKeypressTimeout }, Fn.new { other.transferFailureKeypressTimeout }, Fn.new { other.transferSuccessKeypressTimeout = 1 }, Fn.new { other.transferFailureKeypressTimeout = 1 }]) {\n"
+	    "  var bad = Fiber.new { action.call() }\n"
+	    "  bad.try()\n"
+	    "  if (bad.error == null) Fiber.abort(\"stale transfer timeout snapshot accepted\")\n"
+	    "}\n"
+	    "snapshot.transferSuccessKeypressTimeout = 19\n"
+	    "snapshot.transferFailureKeypressTimeout = 23\n"
+	    "if (snapshot.reload() != null || snapshot.dirty || snapshot.transferSuccessKeypressTimeout != 7 || snapshot.transferFailureKeypressTimeout != 11) Fiber.abort(\"transfer timeout reload ignored running settings\")\n"
+	    "snapshot.transferSuccessKeypressTimeout = 2147483647\n"
+	    "snapshot.transferFailureKeypressTimeout = 0\n"
+	    "if (snapshot.save() != null || snapshot.dirty) Fiber.abort(\"save transfer timeouts\")\n");
+	CHECK(st_settings.transfer_success_keypress_timeout == INT_MAX
+	    && st_settings.transfer_failure_keypress_timeout == 0);
+	st_settings.transfer_success_keypress_timeout = 1;
+	st_settings.transfer_failure_keypress_timeout = 1;
+	CHECK(st_settings_reload() == 0);
+	CHECK(st_settings.transfer_success_keypress_timeout == INT_MAX
+	    && st_settings.transfer_failure_keypress_timeout == 0);
+	interpret(host, "transfer_timeout_settings",
+	    "var loaded = Menu.settings\n"
+	    "if (loaded.transferSuccessKeypressTimeout != 2147483647 || loaded.transferFailureKeypressTimeout != 0) Fiber.abort(\"transfer timeout persistence\")\n"
+	    "loaded.transferSuccessKeypressTimeout = 0\n"
+	    "loaded.transferFailureKeypressTimeout = 60\n"
+	    "if (loaded.save() != null) Fiber.abort(\"restore transfer timeout defaults\")\n");
 }
 
 static void
@@ -966,6 +1020,7 @@ main(void)
 	interpret(host, "settings_setup",
 	    "import \"syncterm_menu\" for Menu\n"
 	    "if (Menu.load(null) != null) Fiber.abort(\"load fixture\")\n");
+	test_transfer_timeout_settings(host);
 	test_load_results(host, &paths, personal, console);
 	interpret(host, "theme_result_regression",
 	    "import \"syncterm\" for IOErr\n"

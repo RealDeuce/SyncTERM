@@ -856,3 +856,56 @@ console-operation-results topic alongside the earlier CTerm result resolution.
 Thirty-nine topics and the separate documentation finding remain open. Retain
 this temporary record and skill. No native failure conditions, backend clipboard
 mechanisms, language semantics, authority or file-grant policy changed.
+
+== Approved chunk 11: transfer timeout Settings bindings (revision 1)
+
+Approval: the complete Plan-mode plan was approved with "Implement the plan."
+Implementation began in Default mode on 2026-11-04.
+Phase: chunk complete; the next chunk requires an actual Plan-mode phase.
+Finding: `settings-transfer-timeouts` / `settings.transfer-timeouts`.
+
+=== Approved contract and decisions
+
+Expose the existing native fields as menu-only Settings getters/setters:
+transferSuccessKeypressTimeout and transferFailureKeypressTimeout. Values are
+stored preferences in seconds, accepting finite integer Numbers from zero
+through INT_MAX through the existing checked conversion. Invalid assignments
+abort without modifying the snapshot. Reuse Settings snapshot ownership, dirty
+tracking, generation checks, apply/save/reload and safe-mode behavior. Preserve
+the native defaults (zero and 60) and existing INI keys.
+
+The user explicitly narrowed this chunk to Settings bindings. Do not add
+Transfer getters, settings-editor controls or completion-window behavior.
+These bindings do not establish acknowledgement or zero-timeout UI semantics.
+
+Acceptance: initial values, independent assignments, zero/maximum bounds,
+invalid numeric/type rejection without mutation, snapshot isolation, apply,
+reset-to-running reload, stale handles and persistence through existing keys.
+Update authoritative API documentation and permanent assessment/report/evidence.
+Configure/build with CMake; run wren_host, wren_menu_contract,
+wren_settings_runtime, wren_picker_contract, settings and settings_store.
+Cross-build the application with existing MinGW configurations, without Windows
+execution. Run coverage and diff checks, then commit without pushing.
+
+=== Completed verification
+
+The new settings regression first failed because the success-timeout getter was
+missing. It now passes defaults, independent field assignment, zero/INT_MAX,
+invalid numeric/type rejection without mutation, snapshot isolation, dirty
+tracking, apply, stale getter/setter rejection and reset-to-running reload.
+Saving both fields and reloading from disk preserves the values through the
+existing keys, including maximum success and zero failure waits.
+
+Native FreeBSD Clang Debug: configured and built the application and focused
+test targets. All six planned CTests passed: wren_host, wren_menu_contract,
+wren_settings_runtime, wren_picker_contract, settings and settings_store.
+The existing VM isolation checks pass. Both MinGW x86/x86_64 application/DLL/
+launcher configurations built without compiler warnings; no Windows execution.
+
+Authoritative docs, assessment, report, reviewed evidence and follow-up record
+now describe the two Settings properties and the user's UI exclusions. The
+native ledger is unchanged. Coverage checker: 80 public headers, 122 exclusions,
+2,448 native items, 157 assessments and 51 original topics. Diff checks pass.
+Thirty-eight topics plus the documentation finding remain open; retain this
+temporary record and skill. No Transfer getters, settings-editor controls or
+completion-window behavior were added.
