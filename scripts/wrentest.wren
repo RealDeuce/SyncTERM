@@ -31,7 +31,7 @@ import "syncterm" for Session, WireLease, ConnError, Hook, Conn, Console, Screen
     Parity, BBSListType, ScreenMode, AddressFamily, MusicMode,
     RipVersion, LogMode, StatusDisplay, Color, Cell, Hyperlinks,
     REPL, Input, Wake, KeyEvent, PhysicalKeyEvent, MouseEvent, Mouse,
-    Cache, Platform, Text,
+    Cache, Digest, Platform, Text,
     Timer, Operation, WON, FileError, IOErr, WONError, WONErr,
     Error, ScriptError, Surface, Scrollback, Host, PixelColor,
     PixelBuffer, PixelMask, PixelBlit
@@ -289,7 +289,7 @@ class WrenTest {
     // ------ File.readLine / File.writeLine -------------------------
     testFileLineRoundtrip_()
 
-    // ------ File.sha1 / File.md5 -----------------------------------
+    // ------ File.digest ------------------------------------------
     testFileHashEmpty_()
     testFileHashKnown_()
 
@@ -1311,9 +1311,8 @@ class WrenTest {
            "FileError class importable from syncterm")
   }
 
-  // Empty file exercises the special zero-length code path (xpmap
-  // typically rejects 0-sized maps, so the helper synthesizes an
-  // empty buffer for the hash).  Expected digests are well-known.
+  // Empty files exercise the native empty-file mapping path.
+  // Expected digests are well-known.
   static testFileHashEmpty_() {
     var name = "__wt_hash_empty"
     if (Cache.contains(name)) Cache.delete(name)
@@ -1323,16 +1322,16 @@ class WrenTest {
       return
     }
     // Don't open / write - just hash an empty file.
-    var sha = f.sha1
-    var md5 = f.md5
+    var sha = f.digest(Digest.sha1)
+    var md5 = f.digest(Digest.md5)
     var expSha = bytesFromHex_("da39a3ee5e6b4b0d3255bfef95601890afd80709")
     var expMd5 = bytesFromHex_("d41d8cd98f00b204e9800998ecf8427e")
-    check_(sha == expSha, "File.sha1 of empty file matches SHA1(\"\")")
-    check_(md5 == expMd5, "File.md5 of empty file matches MD5(\"\")")
+    check_(sha == expSha, "File.digest(Digest.sha1) of empty file matches SHA1(\"\")")
+    check_(md5 == expMd5, "File.digest(Digest.md5) of empty file matches MD5(\"\")")
     Cache.delete(name)
   }
 
-  // Non-empty exercises the xpmap path.  "hello" has well-known
+  // Non-empty exercises native file mapping.  "hello" has well-known
   // SHA-1 and MD5 digests so this checks the full pipeline rather
   // than just round-tripping arbitrary bytes.
   static testFileHashKnown_() {
@@ -1346,12 +1345,12 @@ class WrenTest {
     f.open()
     f.write("hello")
     f.close()
-    var sha = f.sha1
-    var md5 = f.md5
+    var sha = f.digest(Digest.sha1)
+    var md5 = f.digest(Digest.md5)
     var expSha = bytesFromHex_("aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d")
     var expMd5 = bytesFromHex_("5d41402abc4b2a76b9719d911017c592")
-    check_(sha == expSha, "File.sha1(\"hello\")")
-    check_(md5 == expMd5, "File.md5(\"hello\")")
+    check_(sha == expSha, "File.digest(SHA-1) of hello")
+    check_(md5 == expMd5, "File.digest(MD5) of hello")
     Cache.delete(name)
   }
 

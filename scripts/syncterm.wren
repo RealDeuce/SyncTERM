@@ -1560,6 +1560,26 @@ foreign class Directory {
   foreign replace(name, bytes)
   foreign toString
 }
+// Pure byte hashing, available in every script VM. Size is independent of availability.
+class Digest {
+  static sha256 { 1 }
+  static sha384 { 2 }
+  static sha512 { 3 }
+  static md5    { 4 }
+  static sha1   { 5 }
+  foreign static size(algorithm)
+  foreign static hash(algorithm, bytes)
+}
+foreign class DigestError is Error {
+  foreign code
+  foreign message
+  foreign toString
+}
+class DigestErr {
+  static failed   { -1 }
+  static disabled { -5 }
+}
+
 // File and Directory values grant operations on a stored pathname.  They do
 // not identify the particular filesystem object present when the value was
 // created, and deletion does not revoke the pathname grant.  Closed File
@@ -1590,13 +1610,9 @@ foreign class File {
   // the same absolute path.  See the picker-tokens section in
   // Wren.adoc for the threat model.
   foreign token
-  // Hashes of the file's full content (mmap'd; zero-length files are
-  // hashed as the empty buffer).  Returned as raw digest bytes -
-  // Wren strings are byte-safe - to compare directly against
-  // SFTPEntry.hash from the sha1s/md5s extensions.  Format hex
-  // yourself if you need it for display.
-  foreign sha1
-  foreign md5
+  // Hash the complete file through a native mapping; return raw bytes,
+  // FileError for filesystem failures, or DigestError for hashing failures.
+  foreign digest(algorithm)
   foreign toString
 }
 

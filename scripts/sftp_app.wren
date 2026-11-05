@@ -21,7 +21,7 @@
 // the queue session lease releases as part of suspend(), so is_connected goes
 // false and the term.c disconnect path can run normally.
 
-import "syncterm" for Cleanup_, Conn, CTerm, Download, File, FileError, Format, Host, Key, Text, Mod,
+import "syncterm" for Cleanup_, Conn, CTerm, Digest, Download, Error, File, FileError, Format, Host, Key, Text, Mod,
                        KeyEvent, Screen, SFTP, SFTPError
 import "ui_app"    for App
 import "ui_pane"   for Pane
@@ -167,8 +167,8 @@ class SftpFmt {
     if (localSize != size) return "[<>]"
     if (hash != null) {
       // sha1s/md5s extension was negotiated — authoritative compare.
-      var local = (hash.count == 20) ? lf.sha1 : (hash.count == 16 ? lf.md5 : null)
-      if (local is FileError) return "[er]"
+      var local = (hash.bytes.count == 20) ? lf.digest(Digest.sha1) : (hash.bytes.count == 16 ? lf.digest(Digest.md5) : null)
+      if (local is Error) return "[er]"
       if (local == null) return "    "
       return (local == hash) ? "[==]" : "[<>]"
     }

@@ -16,7 +16,6 @@
 #include "st_consent_token.h"
 #include "string_compat.h"
 #include "st_crypto.h"
-#include "st_digest.h"
 
 #include <errno.h>
 #include <limits.h>
@@ -1361,12 +1360,12 @@ fn_file_token(WrenVM *vm)
 }
 
 static void
-file_digest(WrenVM *vm, enum st_digest_algorithm algorithm)
+fn_file_digest(WrenVM *vm)
 {
+	int algorithm = st_wren_digest_algorithm(vm, 1);
+	if (algorithm == 0) return;
 	struct st_wren_file *file = checked_file(vm, false, FILE_RIGHT_READ);
 	file_map_t *mapping = NULL;
-	uint8_t digest[64];
-	size_t size = st_digest_size(algorithm);
 
 	if (file == NULL || !check_cache_owner(vm, &file->owner))
 		return;
@@ -1376,16 +1375,11 @@ file_digest(WrenVM *vm, enum st_digest_algorithm algorithm)
 	int status = file_map_open(&mapping, file->path);
 	if (status != 0)
 		push_error(vm, status, errno, "File mapping failed");
-	else if (size == 0 || st_digest(algorithm, file_map_data(mapping),
-	    file_map_size(mapping), digest, size) != ST_CRYPTO_OK)
-		push_error(vm, IO_ERROR_IO, 0, "File digest failed");
 	else
-		wrenSetSlotBytes(vm, 0, (const char *)digest, size);
+		st_wren_digest_push(vm, algorithm, file_map_data(mapping),
+		    file_map_size(mapping), "File.digest");
 	file_map_close(mapping);
 }
-
-static void fn_file_sha1(WrenVM *vm) { file_digest(vm, ST_DIGEST_SHA1); }
-static void fn_file_md5(WrenVM *vm) { file_digest(vm, ST_DIGEST_MD5); }
 
 static void fn_file_error_code(WrenVM *vm)
 {
@@ -1573,8 +1567,7 @@ static const struct fs_binding bindings[] = {
 	{"File", false, "mtime=(_)", fn_file_mtime_set},
 	{"File", false, "isOpen", fn_file_is_open},
 	{"File", false, "token", fn_file_token},
-	{"File", false, "sha1", fn_file_sha1},
-	{"File", false, "md5", fn_file_md5},
+	{"File", false, "digest(_)", fn_file_digest},
 	{"File", false, "toString", fn_file_path},
 	{"FileError", false, "code", fn_file_error_code},
 	{"FileError", false, "errno", fn_file_error_errno},

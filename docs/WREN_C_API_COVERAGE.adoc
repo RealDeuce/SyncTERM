@@ -5,7 +5,7 @@ Follow-up: +transfer-upload-authority+, +font-codepage+, +font-load-result+,
 +sftp-entry-stat+, +error-symbols+, +bbs-diagnostics+, +theme-operation-results+,
 +transfer-result+, +transfer-protocol-selection+, +settings-transfer-timeouts+,
 +bbs-provenance+, +clipboard-url-capabilities+, +theme-origin+,
-+pixel-offscreen-blit+ and +cterm-reset-contract+ are resolved.
++pixel-offscreen-blit+, +cterm-reset-contract+ and +digest-algorithms+ are resolved.
 CTerm and Screen result fidelity are resolved by their approved chunks,
 completing +console-operation-results+.
 Selected BBS/Settings mutation results, Menu.load and emoji recording now
@@ -25,14 +25,14 @@ limitations; it does not authorize implementing every omitted C facility.
 The review covers 80 project-owned public headers, 2,449 named native items,
 and 122 explicitly excluded implementation/vendor/test headers. Every inventoried
 item has a disposition. The initial review recorded 51 finding topics, including
-broader API-scope decisions, plus one stale documentation finding. Eighteen topics
+broader API-scope decisions, plus one stale documentation finding. Nineteen topics
 (upload authority, custom-font codepages, font-load results, SFTP entry metadata,
 portable I/O error symbols, BBS diagnostics, model-operation results, theme
 operation results, transfer results, explicit XMODEM-G selection, the
 intentional cache-status omission, console operation results, transfer timeout
 Settings bindings, entry provenance, clipboard/URL capability queries, cloud
-theme provenance, offscreen pixel compositing and direct terminal reset) are
-resolved. The remaining 33 topics retain their recorded open subclaims;
+theme provenance, offscreen pixel compositing, direct terminal reset and digest
+coverage) are resolved. The remaining 32 topics retain their recorded open subclaims;
 the documentation finding also remains open. The numbers follow the inventory;
 they are not a stopping rule or a percentage of useful capabilities covered.
 
@@ -152,8 +152,8 @@ ids refer to the full mappings in the JSON, including VM-specific restrictions.
 | link:../src/base/array_list/array_list.h[base/array_list/array_list.h] | 0 | 0 | 0 | 0 | 18 | +values.array_list+
 | link:../src/base/base64/st_base64.h[base/base64/st_base64.h] | 0 | 0 | 4 | 0 | 0 | +utility.base64+
 | link:../src/base/crypto/st_cipher.h[base/crypto/st_cipher.h] | 0 | 0 | 9 | 0 | 0 | +utility.cipher+
-| link:../src/base/crypto/st_crypto.h[base/crypto/st_crypto.h] | 1 | 0 | 13 | 1 | 0 | +utility.crypto+, +utility.crypto-clear+, +utility.crypto-provider+
-| link:../src/base/crypto/st_digest.h[base/crypto/st_digest.h] | 0 | 7 | 0 | 0 | 0 | +utility.digest+
+| link:../src/base/crypto/st_crypto.h[base/crypto/st_crypto.h] | 1 | 13 | 0 | 1 | 0 | +utility.crypto+, +utility.crypto-clear+, +utility.crypto-provider+
+| link:../src/base/crypto/st_digest.h[base/crypto/st_digest.h] | 7 | 0 | 0 | 0 | 0 | +utility.digest+
 | link:../src/base/crypto/st_kdf.h[base/crypto/st_kdf.h] | 0 | 0 | 6 | 0 | 0 | +utility.kdf+
 | link:../src/base/dynamic_library/dynamic_library.h[base/dynamic_library/dynamic_library.h] | 0 | 0 | 0 | 5 | 0 | +host.dynamic_library+
 | link:../src/base/event/st_event.h[base/event/st_event.h] | 0 | 0 | 0 | 9 | 0 | +host.st_event+
@@ -454,13 +454,31 @@ semantics are unchanged.
 Evidence: link:../src/terminal/cterm/st_cterm.c[native reset order]; link:../src/scripting/wren_host/wren_bind_session.c[reset binding and error operation discriminator]; link:../src/terminal/cterm/tests/st_cterm_test.c[native direct-reset tests]; link:../src/terminal/cterm/tests/st_cterm_rip_variables_test.c[pending callback and persisted reload]; link:../src/tests/st_migrated_control_test.py[application reset captures].
 
 [[finding-digest-algorithms]]
-=== File hashing omits SHA-2 and generic digest input
+=== Digest input and algorithms (resolved)
 
-+utility.digest+ (partial; menu/connected grant owners; no file opening in picker VM). Wren: File.sha1 / File.md5.
++utility.digest+ (covered). Wren: Digest algorithms/size/hash and File.digest(algorithm).
 
-Only two file digest algorithms are exposed. SHA-256/384/512, generic byte-buffer digest input and digest-size query are absent. File methods are grant-confined and return raw digest bytes.
+The initial finding recorded missing SHA-2 file hashing, byte-buffer input and
+size queries. The approved chunk exposes all five native algorithms and their
+sizes. Byte hashing is available in every VM and preserves arbitrary bytes,
+including malformed UTF-8 and NUL, without normalization. File hashing retains
+native full-file pathname mapping and existing readable grants, flush behavior
+and logical stream offset; it never copies the file into a Wren String.
+The v2 API replaces File.sha1/md5 with File.digest without compatibility aliases.
 
-Evidence: link:../src/base/crypto/st_digest.h[src/base/crypto/st_digest.h:18]; link:../src/scripting/wren_host/wren_bind_fs.c[src/scripting/wren_host/wren_bind_fs.c:1387].
+FileError preserves pathname/flush/mapping failures. DigestError owns diagnostics
+and preserves every native digest failure code exactly; DigestErr.failed and
+DigestErr.disabled name the currently produced failures for valid calls. The
+none provider still computes SHA-256; the other algorithms return native disabled.
+Digest.size reports output length, not availability. Invalid algorithms/types
+abort before effects; mappings are released on success and failure. No new
+availability preflight, retries, streaming ownership or general crypto service.
+
+Bundled SFTP comparison uses raw hash bytes.count and handles both error families.
+Pinned vectors and native return/mapping observations cover all VMs, empty and
+binary files/Strings, Unicode byte distinctions, grants, failure cleanup and GC.
+
+Evidence: link:../src/base/crypto/st_digest.h[native digest interface]; link:../src/scripting/wren_host/wren_bind_digest.c[byte digest and exact native errors]; link:../src/scripting/wren_host/wren_bind_fs.c[mapped-file binding]; link:../src/scripting/wren_host/tests/st_wren_digest_test.c[focused digest and SFTP contracts]; link:../src/scripting/wren_host/tests/digest.wren[independent byte/file vectors].
 
 [[finding-error-symbols]]
 === Portable I/O error names (resolved)
@@ -472,7 +490,7 @@ is removed without an alias; FileError remains the filesystem error type.
 MenuError separately preserves generic native statuses rather than inventing
 a portable meaning for legacy -1. errno/Windows translators remain host mechanisms.
 
-Evidence: link:../src/base/io_error/io_error.h[src/base/io_error/io_error.h:36]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1622].
+Evidence: link:../src/base/io_error/io_error.h[src/base/io_error/io_error.h:36]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1638].
 
 [[finding-files-link-kind]]
 === Filesystem kind metadata is limited by the grant abstraction
@@ -687,7 +705,7 @@ SFTPEntry.size/mtime getters and dispatch entries are removed without aliases;
 the bundled browser captures stat once per row. Queue persistence and upload
 grants are unchanged.
 
-Evidence: link:../src/net/sftp_client/st_sftp.h[src/net/sftp_client/st_sftp.h:53]; link:../scripts/syncterm.wren[scripts/syncterm.wren:2184]; link:../src/scripting/wren_host/wren_sftp.c[src/scripting/wren_host/wren_sftp.c:898].
+Evidence: link:../src/net/sftp_client/st_sftp.h[src/net/sftp_client/st_sftp.h:53]; link:../scripts/syncterm.wren[scripts/syncterm.wren:2200]; link:../src/scripting/wren_host/wren_sftp.c[src/scripting/wren_host/wren_sftp.c:898].
 
 [[finding-theme-operation-results]]
 === Theme operation results (resolved)
@@ -833,7 +851,7 @@ Evidence: link:../src/media/audio/audio.h[src/media/audio/audio.h:143]; link:../
 
 Terminal protocols can consume sounds internally, but no script format availability query or granted-file/byte decoding to PCM is exposed. Native stream/memory inputs are not mapped by the absence of an AudioFile object.
 
-Evidence: link:../src/media/audio_file/st_audio_file.h[src/media/audio_file/st_audio_file.h:22]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1826].
+Evidence: link:../src/media/audio_file/st_audio_file.h[src/media/audio_file/st_audio_file.h:22]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1842].
 
 +cterm.audio-fx+ (partial; same VM as the owning API). Wren: protocol-driven OOII/CTerm sound only.
 
@@ -893,7 +911,7 @@ Evidence: link:../src/io/filesystem/filesystem.h[src/io/filesystem/filesystem.h:
 
 The binding offers reads/writes/seek and size inspection, but no explicit truncation to a chosen length. Creating/replacing a file is not equivalent to truncating an existing granted stream at an arbitrary length.
 
-Evidence: link:../src/io/filesystem/filesystem.h[src/io/filesystem/filesystem.h:49]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1582].
+Evidence: link:../src/io/filesystem/filesystem.h[src/io/filesystem/filesystem.h:49]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1602].
 
 [[finding-font-compatibility-metadata]]
 === Font broken-vertical compatibility metadata
@@ -1043,7 +1061,7 @@ Evidence: link:../src/base/base64/st_base64.h[src/base/base64/st_base64.h:19]; l
 
 File digests return raw bytes; no general byte-to-hex / hex-to-byte codec or digit decoder is exported.
 
-Evidence: link:../src/base/hex/st_hex.h[src/base/hex/st_hex.h:32]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1598].
+Evidence: link:../src/base/hex/st_hex.h[src/base/hex/st_hex.h:32]; link:../scripts/syncterm.wren[scripts/syncterm.wren].
 
 [[finding-utility-conversion]]
 === Strict native value parsing and formatting
@@ -1058,7 +1076,7 @@ Evidence: link:../src/base/string_util/string_util.h[src/base/string_util/string
 
 Native strict int64/uint64/bool/double parsing and duration/date parsing/formatting have no exact general script equivalent. Num.fromString and toString have different syntax/ranges; binary64 cannot represent all native 64-bit integers. Typed settings use these internally. This is an omitted utility scope decision, not justification for changing Wren Number.
 
-Evidence: link:../src/base/value_convert/value_convert.h[src/base/value_convert/value_convert.h:22]; link:../scripts/syncterm.wren[scripts/syncterm.wren:2140].
+Evidence: link:../src/base/value_convert/value_convert.h[src/base/value_convert/value_convert.h:22]; link:../scripts/syncterm.wren[scripts/syncterm.wren:2156].
 
 [[finding-utility-crypto]]
 === General cryptographic primitives and strong random bytes
@@ -1075,9 +1093,13 @@ No general PBKDF2/scrypt operation or parameter validation API. Fixed list encry
 
 Evidence: link:../src/base/crypto/st_kdf.h[src/base/crypto/st_kdf.h:29]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:309].
 
-+utility.crypto+ (unmapped; all script VMs). Wren: Menu.buildOptions includes the provider name.
++utility.crypto+ (partial; all script VMs). Wren: DigestError native digest status/messages,
+DigestErr.failed/disabled; Menu.buildOptions includes the provider name.
 
-No general random-byte operation, provider version query, or crypto-status taxonomy is exported. List workflow errors do not expose every provider result. Secret clearing remains native ownership, classified separately.
+Digest failures preserve the exact native status and render its native reason.
+General random bytes, provider version and the remaining explicit crypto-status
+taxonomy still require a separate scope decision. Secret clearing remains native
+ownership, classified separately. The broader +utility-crypto+ topic stays open.
 
 Evidence: link:../src/base/crypto/st_crypto.h[src/base/crypto/st_crypto.h:35]; link:../src/scripting/wren_host/wren_bind_menu.c[src/scripting/wren_host/wren_bind_menu.c:1824].
 
@@ -1353,6 +1375,27 @@ Supplemental terminal inventories retain RIS and historical RIP expectations.
 The unchanged inventory is 80 headers, 122 exclusions, 2,449 native items and
 157 assessments; all 80 matrix rows match. Eighteen topics are resolved;
 33 topics and the separate documentation finding remain open.
+
+Follow-up (2026-11-05): the approved digest chunk resolves +digest-algorithms+.
+Digest algorithms/size/hash and native mapped File.digest replace the two legacy
+getters. Independent vectors, byte-preserving input, native address/size and
+error/cleanup observations, rights/stale-owner rejection and actual SFTP helper
+cases pass. The SFTP scalar-count regression was reproduced before retaining
+the byte-count fix. Native Clang/Botan passed all seven planned crypto/map/digest,
+host/menu/picker and live-SFTP CTests. GCC/OpenSSL and Clang ASan/UBSan each passed
+the six focused tests; none-provider crypto/map/digest passed all three, including
+built-in SHA-256 and native disabled outcomes. Both MinGW application and relevant
+test targets cross-built; no Windows execution or Wine. No compiler diagnostics
+or sanitizer errors; existing GNUmake dependency clock-skew notices remain
+an environmental limitation. Leak detection is unsupported on this FreeBSD host
+and was disabled; the existing C++ vptr exclusion is unchanged. Fixtures are
+headless and do not start physical audio.
+
+Native declarations and TSV are unchanged: 80 headers, 122 exclusions, 2,449 items
+and 157 assessments. All 80 matrix rows match independently. Limited digest-status
+exposure makes +utility.crypto+ Partial, without closing its broader scope.
+Nineteen topics are resolved; 32 topics and the separate documentation finding
+remain open. Keep the temporary skill and approved planning record.
 
 == Rechecking and future edits
 

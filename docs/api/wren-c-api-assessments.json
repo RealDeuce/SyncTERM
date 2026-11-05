@@ -565,7 +565,7 @@
         },
         {
           "path": "scripts/syncterm.wren",
-          "anchor": "foreign sha1"
+          "anchor": "foreign digest(algorithm)"
         }
       ],
       "finding": "utility-codecs",
@@ -608,27 +608,39 @@
       "decision": "scope-review"
     },
     "utility.digest": {
-      "status": "partial",
-      "wren": "File.sha1 / File.md5",
-      "reason": "Only two file digest algorithms are exposed. SHA-256/384/512, generic byte-buffer digest input and digest-size query are absent. File methods are grant-confined and return raw digest bytes.",
-      "vm": "menu/connected grant owners; no file opening in picker VM",
+      "status": "covered",
+      "wren": "Digest algorithms/size/hash and File.digest(algorithm)",
+      "reason": "All five native algorithms and the native size query are mapped. Digest.hash hashes arbitrary byte Strings synchronously in every VM without text validation or normalization; File.digest retains grant-confined full-file native pathname mapping, pending-write flushing and logical stream position. FileError retains filesystem failures; immutable DigestError preserves exact native nonzero digest status and owned diagnostics. No external provider still supports SHA-256; other algorithms return native disabled. Invalid inputs abort before effects; mappings are released on success and failure. File.sha1/md5 are removed and bundled callers use the generic method. SFTP hash discrimination uses bytes.count and accepts either error family.",
+      "vm": "byte hashing/size/errors in all VMs; File hashing only through existing readable pathname grants",
       "evidence": [
         {
           "path": "src/base/crypto/st_digest.h",
           "anchor": "ST_DIGEST_SHA256"
         },
         {
+          "path": "src/scripting/wren_host/wren_bind_digest.c",
+          "anchor": "st_wren_digest_push"
+        },
+        {
           "path": "src/scripting/wren_host/wren_bind_fs.c",
-          "anchor": "fn_file_sha1"
+          "anchor": "fn_file_digest"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign digest(algorithm)"
+        },
+        {
+          "path": "scripts/sftp_app.wren",
+          "anchor": "hash.bytes.count"
         }
       ],
       "finding": "digest-algorithms",
-      "decision": "mapping-gap"
+      "decision": "resolved"
     },
     "utility.crypto": {
-      "status": "unmapped",
-      "wren": "Menu.buildOptions includes the provider name",
-      "reason": "No general random-byte operation, provider version query, or crypto-status taxonomy is exported. List workflow errors do not expose every provider result. Secret clearing remains native ownership, classified separately.",
+      "status": "partial",
+      "wren": "DigestError exact native digest statuses/messages; DigestErr.failed/disabled; Menu.buildOptions provider name",
+      "reason": "DigestError preserves all nonzero statuses returned by st_digest and renders st_crypto_status_string; DigestErr names generic failure and disabled support. General random bytes, provider version and the remaining explicit crypto-status taxonomy remain unbound and require a separate scope decision. Secret clearing stays native ownership.",
       "vm": "all script VMs",
       "evidence": [
         {
@@ -638,6 +650,10 @@
         {
           "path": "src/scripting/wren_host/wren_bind_menu.c",
           "anchor": "st_crypto_provider_name"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_digest.c",
+          "anchor": "st_crypto_status_string(status)"
         }
       ],
       "finding": "utility-crypto",
@@ -674,7 +690,7 @@
     "utility.md5-state": {
       "status": "host-owned",
       "wren": "native APC digest/check machinery",
-      "reason": "The streaming MD5 state/block owner belongs to native APC validation. File.md5 now uses st_digest instead. The general byte/stream digest utility omission is recorded in utility.digest; raw state pointers are not a separate script object.",
+      "reason": "The incremental MD5 state/block owner belongs to native APC validation. File.digest(Digest.md5) and Digest.hash provide one-shot digests through st_digest. Raw native state pointers are not a separate script object.",
       "vm": "all script VMs",
       "evidence": [
         {
@@ -4003,7 +4019,7 @@
     },
     {
       "path": "scripts/wrentest.wren",
-      "anchor": "File.sha1 of empty file",
+      "anchor": "File.digest(Digest.sha1) of empty file",
       "aspect": "raw digest comparison and explicit text helpers"
     },
     {
@@ -4080,6 +4096,11 @@
       "path": "scripts/menu_settings_ui.wren",
       "anchor": "static cloudThemeComment_(entry)",
       "aspect": "Named cloud metadata access preserves installed/online labels, help, comments, actions and reacquisition points. Conversion MenuError uses existing alerts and stops the affected list/action; source/hash are not displayed."
+    },
+    {
+      "path": "scripts/sftp_app.wren",
+      "anchor": "lf.digest(Digest.sha1)",
+      "aspect": "Native mapped-file digest comparison uses byte length and common Error handling."
     }
   ],
   "test_evidence": [
@@ -4476,6 +4497,26 @@
       "path": "docs/RIP154_CONFORMANCE.md",
       "anchor": "st_cterm_reset_terminal",
       "aspect": "Direct host reset, callback/reload/failure teardown coverage is separate from RIP protocol reset commands and historical capture provenance."
+    },
+    {
+      "path": "src/scripting/wren_host/tests/digest.wren",
+      "anchor": "class DigestChecks",
+      "aspect": "Pinned independent five-algorithm byte/file vectors, empty/binary/Unicode distinctions, programmer errors and owned error lifetime."
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_digest_test.c",
+      "anchor": "sftp_status",
+      "aspect": "Three VM contracts, provider absence, real SFTP helper, grants, flush/mapping/native status and cleanup boundaries."
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_digest_test_bindings.c",
+      "anchor": "test_digest(",
+      "aspect": "Private native return controls and mapped input address/size observations; production has no fault controls."
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_digest_fs_test_bindings.c",
+      "anchor": "test_digest_map_close",
+      "aspect": "Private mapping/flush controls and cleanup accounting; actual grant creation and stale ownership checks."
     }
   ],
   "dispatch_evidence": [
@@ -4487,21 +4528,21 @@
   ],
   "evidence_files": {
     "docs/WREN_GUIDANCE.md": "d14aeecb5eae922015f2f48a4fd690277dcb5b91aedfd8d8d8cffb2dc235e1ac",
-    "docs/Wren.adoc": "fa29b3658ede53fb45a60efa495487bc2ef25ab43fcce17cc7bac4d1a4d12545",
+    "docs/Wren.adoc": "36d2593acbec20a782eff856bafe5f3962d67e614fb0b3a4dca10cc448bf1fa5",
     "docs/api/bbs-entry-fields.adoc": "a1be9944eadd5f56d752e8669b502f49b27211f14190443a95e36ad301b8d128",
     "scripts/auto/connected/font_pick.wren": "4a1189b05ab502e36a8efc8ebb241eba568ccfae63ac6f92a819ca5950a87c34",
     "scripts/auto/menu/main_menu.wren": "cb254c02de88681f85b8e4cbfeea2ab090da616e47ad9894a4c659e3c6902647",
     "scripts/menu_bbs_editor.wren": "fa27c403b0cad1ffe2811243787916ce7428da2255b12683f6e3e2c5847a4187",
     "scripts/menu_settings_ui.wren": "8013ad36d8079e2484b86820c23cbf8fa17b0979d27452e8592fd935c65fa7f1",
-    "scripts/sftp_app.wren": "05124c53d687ddcdd10efed2d2c2993c38a29196c76c4bef3f64bfc4ba4f4b5a",
+    "scripts/sftp_app.wren": "768e459dd484d4bf094edb61cd85b2ed58ecaca47475b4a6887e14e628fe12f0",
     "scripts/sftp_queue.wren": "b15fe706268e9ce6d5fea4227661d0ac810f6f9fc4dbf7d39863756bde3eaf74",
-    "scripts/syncterm.wren": "7e41c0fc560805cb03710b79d73b0b4fff23a5c01a442c2199283991e228ffc7",
+    "scripts/syncterm.wren": "48347435c905f2c957417b8270a4403964d678ab3eb5c69caab22b31ba0cc9e2",
     "scripts/syncterm_menu.wren": "e534e5ba67f5f7cbb8f5b2874b039b155383525e005fca7d531830c6c9a28579",
     "scripts/syncterm_picker.wren": "143e15bd084bed37145061760100c84b353d340e00187d9cd2b920a850be6021",
     "scripts/transfer_app.wren": "b7c8a38f8676340c93b3f5748c74bac8fd48a301d996110c468b8fd5a768b13a",
     "scripts/transfer_pick.wren": "2fc84a3f03cbf6e71bf9c78304cb56558c70413857c0fa82ea1cc775b340ecfb",
     "scripts/ui_app.wren": "29c84e7ceed05bf0e025c1af464bc9d9e85cf4d78ce841abc7615bdc00f93496",
-    "scripts/wrentest.wren": "a5f4c32e64fe15ea09edfc5df6e8ae32cb389b463dba368b0e4ac4163e8a95e9",
+    "scripts/wrentest.wren": "c64abcbd2e462571bf48e84a89c66b24274336fb18830a91d2518b15382cabfe",
     "src/base/array_list/array_list.h": "07f78e0fe13932c9f0004844800f4e391029a0f6279fa750bfe836b9f85357de",
     "src/base/base64/st_base64.h": "0d820c0116d24cb509ecc4c01aa6f1a0e544273b698a2f8c1396153a340ec7d8",
     "src/base/crypto/st_cipher.h": "8a6be2ff350384b94bd0c67c5d3844e2ddc31e25ff989426c86dd05bcea50407",
@@ -4564,12 +4605,12 @@
     "src/net/transfer/st_transfer_detect.h": "3296b9ecf875d100f793920a3b0117a8f7b80951a539317d366f4ea40a7a1b30",
     "src/net/webget/st_webget.h": "9647dcc563e1661fe1d6b762c78e2483d2beae03ac878da0ebd15c8a425d2143",
     "src/scripting/wren_host/st_wren_host.h": "1f399c11771d459566882d3084836000e05c3aa7759fc03e6a2384c6754fb0a6",
-    "src/scripting/wren_host/tests/st_wren_host_test.c": "95480e515d3e09de0303a8153bf1321702bfbf6ffeba01b5dd9f28bb35264100",
+    "src/scripting/wren_host/tests/st_wren_host_test.c": "e8a5387cf347403b1be1d40aa4863c77e8bb8fff22c9620a864b24c16b64d8e3",
     "src/scripting/wren_host/tests/st_wren_settings_menu_test.c": "9ce240c1d75632c40452fc6f46db4aab88923f2c8d062f80e50c5c917724d6f4",
     "src/scripting/wren_host/wren_async.c": "71e78941735250300171a2b7cb13b70c92916bd14c066a6614b3f77cdd9b565d",
     "src/scripting/wren_host/wren_bbs_model.c": "cbc7311c9d15f05d974c934a8dcf7242d2fec15e70c3a5b60707eee3e9e5e84d",
     "src/scripting/wren_host/wren_bind_core.c": "326e34b8e00ad130f1409f91c762aee07b84e7fd75df4dc8772bcdfa144e0089",
-    "src/scripting/wren_host/wren_bind_fs.c": "17e19ab179b195a36c58f929802e9a5d86d6e211d7dfdf809ac4b7c4e6c96cba",
+    "src/scripting/wren_host/wren_bind_fs.c": "a6a43847fcc78584be2269bb83331661cc7d01332d542b2828948e8d36dbfcf0",
     "src/scripting/wren_host/wren_bind_hyperlinks.c": "255be945007c9cb2795195058e5f58de7d2b2157728892e614d6e8fb5f729b98",
     "src/scripting/wren_host/wren_bind_menu.c": "a0c5077fb77672c02f3f8332097aa4043f21a3f7621f8db4bf719da9fe318e05",
     "src/scripting/wren_host/wren_bind_pixels.c": "c406a1a0a8dc825754d6bfba596bf92e1fa60ddfa2f73eb488a9596ffdd44905",
@@ -4580,7 +4621,7 @@
     "src/scripting/wren_host/wren_cleanup.c": "4a22a39e849d5336e2fc4d870cb749e0eecdb1137463ef7a6d989e8dfd2c235b",
     "src/scripting/wren_host/wren_directory.c": "c7d5088d503737efa3499182c7feaab10c5b0bccc7888b465b1832b0b2ea9180",
     "src/scripting/wren_host/wren_foreign.c": "6fbacba5e2a42ecbfd16bfef1d427a1323f7ecdbebfecd238efd6ae3aebeeca7",
-    "src/scripting/wren_host/wren_host.c": "a0548ee828cd8100fe833dcee333dd7838e720c48df404ad86f3a3f5810b6450",
+    "src/scripting/wren_host/wren_host.c": "6f763220343ebb5a569ca2cf57f02712e730f6d25aab3fff6879db73490a0596",
     "src/scripting/wren_host/wren_links.c": "db575ae323af458a9454bae80288c3de05550d910c1a460036f0ab8f9fa9fce1",
     "src/scripting/wren_host/wren_number.c": "1cd1837e8db9f95d0983215fc9674fe9ecfc07820b00011b7bc751f977d7cb89",
     "src/scripting/wren_host/wren_picker.c": "6680e0cac70786708043b25754c7e16d3d26668e99f84179d0af8774f0a8fb57",
@@ -4665,7 +4706,7 @@
     "src/config/theme/theme_internal.h": "bec641bc70123f40fe9da989db4fe59f58cfc5defb1b25825642669d4cc6fc80",
     "src/scripting/wren_host/tests/cloud_theme_views.wren": "91cff4cd288e16792bac6397125e0f7056d295c11803bf72f07ca4b810e68610",
     "scripts/menu_theme_editor_test.wren": "6639f43ed266defd6eeee4c1e35d82c858e2c4f1e5fca7ef20915317c7d4128b",
-    "src/scripting/wren_host/CMakeLists.txt": "52f738b2549d35715f9749d243764c129f7cb41debfc51469bbbd1acb8ea0eae",
+    "src/scripting/wren_host/CMakeLists.txt": "2ce85baf9f72d89d618f657307d6f5be90a27248ebe899e8865d1a6b050d8479",
     "scripts/pixel_vm_test.wren": "61dee1425b2a5ec67afb96dc04a27f1e20dad6243a149cd67eab514d2541f2cf",
     "src/media/pixels/st_pixels.c": "6df928627439e4a983f8444e744fb9aa0279ce1ed5cd0b4f95f1bf8c86715940",
     "src/media/pixels/CMakeLists.txt": "ef3a0b82c00f3f431683e5230261fdd8586536ca4a5a4045efe65c7e068f6633",
@@ -4675,7 +4716,13 @@
     "docs/RIP154_CONFORMANCE.md": "ebaabc933e6171e60b18f5098c15481145d0e790ddcfea03c20aae8ffbf074ca",
     "src/tests/terminal_conformance.json": "a7a4f8f14d5ee131a8dffabb7d51be052c3c19f410d6d1b38e2a99e78742cca7",
     "src/terminal/cterm/tests/st_cterm_rip_variables_test.c": "952bc3a1c5202cc900c924b09afc228f5f9321f1605afdbba0eb9a738c25e810",
-    "src/CMakeLists.txt": "0f6948dd609def86fcfbee14637d0dda8dab3daca75801ade41bedbbc70a8215"
+    "src/CMakeLists.txt": "0f6948dd609def86fcfbee14637d0dda8dab3daca75801ade41bedbbc70a8215",
+    "src/scripting/wren_host/wren_bind_digest.c": "53078c4038d0a189807e4f83fa3a800cf1ee50f3fdcf20a7b729c433f6bdb21b",
+    "src/scripting/wren_host/wren_host_internal.h": "12b75bb13a9a2f9d8b13ebdd8b92cbc7421290899b8f75f1251b6f89b85ed568",
+    "src/scripting/wren_host/tests/digest.wren": "c26b19fbf723271a49ec37345eee08a84c902c77e0f9aabafa6affd8dfe90a55",
+    "src/scripting/wren_host/tests/st_wren_digest_test.c": "026702e03fb1f3ae6a16a2e18554a9710bef2994cf9ccf100dd3ec0ffd1bf780",
+    "src/scripting/wren_host/tests/st_wren_digest_test_bindings.c": "6b73edbc7e051b958d663b3591f5db99062887dcf0252abcc856cc27089fe03f",
+    "src/scripting/wren_host/tests/st_wren_digest_fs_test_bindings.c": "abb97ac4e4679e174f7374dd0afee96f1efb1914b82d13ac1e8b413863fa6a0e"
   },
   "verification": {
     "platform": "FreeBSD 15.1-RELEASE-p5 amd64",
@@ -5450,6 +5497,32 @@
       },
       "evidence_review": "Reviewed the complete reset binding/error discriminator, dispatch/capability guards, authoritative manual, unchanged native reset order and ownership, native/host/application regressions and test registration. Updated terminal supplemental inventories while retaining existing RIS cases and historical RIP capture provenance. Reconciled report source locations and refreshed only reviewed changed evidence.",
       "accounting": "Native declarations/ledger unchanged: 80 public headers, 122 exclusions, 2449 native items, 157 assessments and 51 original topics. The existing reset row moves from Partial to Covered; all 80 report matrix rows match. Eighteen topics resolved; thirty-three topics plus the separate documentation finding remain open. Retain the temporary skill and approved planning record."
+    },
+    {
+      "topic": "digest-algorithms",
+      "status": "resolved",
+      "approval": "Complete Plan-mode chunk 17 revision 1 approved with Implement the plan after return to Default mode. User selected generic File.digest replacing getters while preserving native mmap independently of byte hashing, and exact native digest failure reasons.",
+      "scope": "All five Digest algorithms, size query independent of availability, byte-String Digest.hash in all VMs and readable-grant File.digest via full native pathname mapping. Preserve byte payloads, writes/offset and authority; remove old getters without aliases. FileError for filesystem failures; immutable owned DigestError preserves native nonzero statuses, with DigestErr.failed/disabled. Migrate bundled callers; SFTP uses raw byte lengths and common Error handling. No arbitrary paths, preflight, retry, streaming, async or general cryptographic service.",
+      "tests_passed": [
+        "st_crypto",
+        "file_map",
+        "wren_digest",
+        "wren_host",
+        "wren_menu_contract",
+        "wren_picker_contract",
+        "wren_sftp_live"
+      ],
+      "verification": {
+        "native": "FreeBSD Clang Debug/Botan CMake application, host/picker/digest and native crypto/map targets configured and built. All seven listed CTests passed (121.93s).",
+        "gcc": "GCC Debug/OpenSSL application and same targets configured/built; st_crypto, file_map, wren_digest, wren_host, wren_menu_contract and wren_picker_contract all passed (39.34s).",
+        "sanitizers": "Clang ASan/UBSan/OpenSSL application and same targets configured/built; same six focused CTests passed (96.55s). FreeBSD unsupported leak detection remains disabled; existing C++ vptr exclusion unchanged.",
+        "provider_absent": "CRYPTO_BACKEND=none CMake application and digest/crypto/map targets configured/built; st_crypto, file_map and wren_digest passed (0.55s). SHA-256 vectors succeed, other algorithms return actual native disabled, sizes remain available.",
+        "windows": "MinGW x86 and x86_64 application/DLL/launcher, host/picker/digest and native crypto/map targets configured and cross-built. No Windows execution or Wine.",
+        "regression": "Initial focused regression failed at the missing Digest module variable. Restoring scalar hash.count temporarily also failed the actual SFTP helper match assertion; byte-count implementation passes. Pinned vectors cover all five algorithms and raw empty/binary/NUL/malformed UTF-8/composed/decomposed inputs plus 64KiB binary native mappings. Controlled native statuses include all known failures and unknown positive/negative codes; single invocation, mapped pointer/size, cleanup, owned diagnostics and GC verified. Actual read/save grant creation, stale owner checks, flush/mapping errors and recovery, no-effects invalid arguments, removed getters and actual SFTP match/mismatch/provider/filesystem failures covered. Existing owner-rename test also rejects stale digest grants.",
+        "warnings": "No compiler diagnostics or sanitizer errors in final exercised builds. GNUmake emitted existing environmental generated-dependency clock-skew notices. Headless fixtures clear desktop variables and have no physical audio runtime."
+      },
+      "evidence_review": "Reviewed digest native providers/header and mapping contracts, complete new binding/error payload/dispatch, unchanged filesystem/grant boundaries, scripts/callers, private return controls and CMake test isolation, pinned vectors and authoritative docs. Updated removed-getter anchors, related MD5 state rationale, limited crypto status mapping and report source locations. Refreshed only reviewed changed evidence.",
+      "accounting": "Native declarations and TSV unchanged: 80 headers, 122 exclusions, 2449 items, 157 assessments and 51 original topics. Digest family Covered; utility.crypto is Partial for digest status exposure while broader utility-crypto remains open. All 80 matrix rows independently reconciled, including the zero-symbol header. Nineteen topics resolved; 32 topics plus the separate documentation finding open. Retain temporary skill and approved record."
     }
   ]
 }

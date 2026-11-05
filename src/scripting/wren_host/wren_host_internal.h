@@ -383,6 +383,13 @@ WrenForeignClassMethods st_wren_async_bind_class(const char *class_name);
 WrenForeignMethodFn st_wren_core_bind_method(const char *class_name,
 	bool is_static, const char *signature);
 WrenForeignClassMethods st_wren_core_bind_class(const char *class_name);
+/* Algorithm zero means invalid input and an already-aborted fiber. */
+int st_wren_digest_algorithm(WrenVM *vm, int slot);
+void st_wren_digest_push(WrenVM *vm, int algorithm, const void *bytes,
+	size_t size, const char *operation);
+WrenForeignMethodFn st_wren_digest_bind_method(const char *class_name,
+	bool is_static, const char *signature);
+WrenForeignClassMethods st_wren_digest_bind_class(const char *class_name);
 WrenForeignMethodFn st_wren_fs_bind_method(const char *class_name,
 	bool is_static, const char *signature);
 WrenForeignMethodFn st_wren_hyperlink_bind_method(const char *class_name,

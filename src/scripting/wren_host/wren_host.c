@@ -753,6 +753,8 @@ st_wren_bind_method(WrenVM *vm, const char *module, const char *class_name,
 		method = st_wren_cleanup_bind_method(class_name, is_static, signature);
 	if (method == NULL && strcmp(module, "syncterm") == 0)
 		method = st_wren_fs_bind_method(class_name, is_static, signature);
+	if (method == NULL && strcmp(module, "syncterm") == 0)
+		method = st_wren_digest_bind_method(class_name, is_static, signature);
 	if (method == NULL && strcmp(module, "syncterm") == 0
 	    && (st_wren_context_from_vm(vm)->event == NULL
 	    || strcmp(st_wren_context_from_vm(vm)->event, "picker") != 0))
@@ -815,6 +817,8 @@ st_wren_bind_class(WrenVM *vm, const char *module, const char *class_name)
 		methods = st_wren_cleanup_bind_class(class_name);
 	if (methods.allocate == NULL && strcmp(module, "syncterm") == 0)
 		methods = st_wren_fs_bind_class(class_name);
+	if (methods.allocate == NULL && strcmp(module, "syncterm") == 0)
+		methods = st_wren_digest_bind_class(class_name);
 	if (methods.allocate == NULL && strcmp(module, "syncterm") == 0)
 		methods = st_wren_sftp_bind_class(class_name);
 	if (methods.allocate == NULL && strcmp(module, "syncterm") == 0)

@@ -6184,7 +6184,7 @@ the closed-path existence check.  This matches platform reality:
 
 After `File.close()`, a later open resolves the pathname again and may open a
 replacement file.  Properties implemented as pathname operations, including
-`mtime`, `sha1`, and `md5`, continue to resolve the pathname even while a
+`mtime` and `digest(algorithm)`, continue to resolve the pathname even while a
 stream is open.  Stored metadata properties do not access the filesystem.
 
 ==== Filename Policies [[filename-policy]]
@@ -6304,14 +6304,16 @@ does not broaden its authority.
   `File` at the same absolute path.  See "Picker consent tokens"
   below.
 
-| `File.sha1`, `File.md5`
-| Hashes of the file's full content; raw digest bytes (20 / 16
-  bytes) returned as a Wren String.  Implementation memory-maps the
-  file; zero-length files are hashed as the empty buffer.  Returned
-  as bytes rather than hex so they compare directly against
-  `SFTPEntry.hash` from the `sha1s@syncterm.net` /
-  `md5s@syncterm.net` SFTP extensions; format hex yourself if you
-  need it for display.
+| `File.digest(algorithm)`
+| Hash the complete file using a <<digest,`Digest`>> algorithm. Returns a raw-byte
+  String, `FileError` for filesystem failures, or `DigestError` for native hashing
+  failures. Requires read authority; the stream need not be open. Flushes pending
+  output and maps the stored pathname without changing the logical stream offset
+  or copying file contents into Wren. Empty files hash as the empty buffer.
+  The file must not be concurrently modified, replaced or truncated while mapped.
+  SHA-1 and MD5 results compare directly with `SFTPEntry.hash`; use byte counts
+  (`hash.bytes.count`) when interpreting raw hashes. Replaces the v1 `sha1` and
+  `md5` getters without aliases.
 |===
 
 A closed `File` whose pathname is unavailable returns a
@@ -6350,7 +6352,7 @@ write / writeLine / etc.` aborts the fiber with "write consent
 already used".  Re-pick the path to write again.
 
 The grant never includes read authority.  `read`, `readBytes`,
-`readLine`, `sha1`, `md5`, and bindings which consume a readable File
+`readLine`, `digest(algorithm)`, and bindings which consume a readable File
 reject a save-picker File, both before and while it is open.
 
 `File.token` is `null` on write-consent Files: persisting a write
@@ -6800,6 +6802,65 @@ or process model is exposed.
   the calling fiber. This API discovers preferences; it does not translate UI.
 |===
 
+=== Digest [[digest]]
+
+Stateless synchronous hashing, available in menu, picker and connected VMs.
+`Digest.hash` consumes bytes already in a Wren String; `File.digest` separately
+uses a native file mapping and requires a readable File grant. Byte hashing
+provides no filesystem authority.
+
+[options="header",cols="2,3"]
+|===
+| Algorithm constant | Native value / output bytes
+| `Digest.sha256` | 1 / 32
+| `Digest.sha384` | 2 / 48
+| `Digest.sha512` | 3 / 64
+| `Digest.md5` | 4 / 16
+| `Digest.sha1` | 5 / 20
+|===
+
+`Digest.size(algorithm)` returns the output byte length even when the selected
+provider cannot compute that algorithm. It is not an availability query.
+`Digest.hash(algorithm, bytes)` returns the raw digest bytes as a String or a
+`DigestError`. Every input byte participates, including NUL and malformed UTF-8;
+no text validation or normalization occurs. Canonically equivalent Unicode
+spellings can therefore have different hashes. Compare raw results directly,
+and use `.bytes.count` for their lengths.
+
+[source,wren]
+----
+import "syncterm" for Digest, Error
+var hash = Digest.hash(Digest.sha256, "abc")
+if (hash is Error) Fiber.abort(hash)
+System.print(hash.bytes.count) // 32
+----
+
+Wrong input types, fractional/nonfinite numbers and unknown algorithm constants
+abort the fiber before hashing or file effects. Byte-String input must also fit
+the Wren C byte API's signed-int length range; this limit does not constrain
+native mapped-file input. Known algorithms whose native
+operation fails return `DigestError`; no availability preflight or automatic
+retry is performed. Builds with provider `none` retain built-in SHA-256 support;
+MD5, SHA-1, SHA-384 and SHA-512 return the native disabled status. External
+providers can also fail according to their native policy; those failures are
+not relabelled as disabled.
+
+==== DigestError [[digesterror]]
+
+Host-created, immutable `Error` subclass with read-only `code`, `message`, and
+`toString`. `code` is the exact nonzero native digest status, including an
+unrecognized future status. `message` identifies `Digest.hash` or `File.digest`
+and describes the native reason; `toString` also includes the code. Success
+returns bytes, never a zero-code error. `DigestErr.failed` (-1) names the generic
+native failure; `DigestErr.disabled` (-5) names disabled digest support.
+
+`File.digest` retains `FileError` for pathname, flush and mapping failures, and
+returns `DigestError` for failures from the native hashing operation. Check the
+common `Error` base if either is relevant. A pending-write flush can succeed
+before hashing fails; no partial digest is returned. Input is borrowed only for
+the synchronous native call, mappings are released before return, and returned
+Strings and errors remain valid through later calls and garbage collection.
+
 === Text [[text]]
 
 Locale-independent Unicode 18 comparison helpers. All inputs are normalized
@@ -7020,7 +7081,7 @@ One entry from `RemoteDirectory.readEntries`.
 | `hash`        | SHA-1 / MD5 digest bytes from `sha1s@syncterm.net`
                   / `md5s@syncterm.net`, or `null` if neither
                   extension was negotiated.  Compares directly
-                  against `File.sha1` / `File.md5`.
+                  against `file.digest(Digest.sha1)` / `file.digest(Digest.md5)`.
 |===
 
 ==== SFTPStat

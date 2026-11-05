@@ -3,6 +3,88 @@
 Permanent accounting: link:WREN_C_API_COVERAGE.adoc[coverage report] and
 link:api/wren-c-api-assessments.json[assessment ledger].
 
+== Approved chunk 17: digest coverage (revision 1)
+
+Approval: the user approved the complete Plan-mode revision 1 with "Implement
+the plan." Implementation began in Default mode on 2026-11-05. The user selected
+replacement of File.sha1/md5 with File.digest(algorithm), retaining native mmap
+hashing separately from byte-String hashing, and preservation of native digest
+failure reasons. Phase: chunk complete; ready for the next Plan-mode planning phase.
+
+Resolve digest-algorithms / utility.digest: Digest.sha256/sha384/sha512/md5/sha1
+match native enum values; Digest.size(algorithm) reports length independently of
+availability; Digest.hash(algorithm, bytes) accepts arbitrary byte Strings in all
+three VMs. File.digest(algorithm) replaces the two getters without aliases and
+preserves readable grants, stale cache checks, pathname mapping, pending-write
+flush and logical stream offset. No file contents are loaded into a Wren String.
+Invalid types, fractional/unknown algorithms abort before effects. Both methods
+return raw bytes or immutable DigestError with exact native nonzero code,
+message and toString; DigestErr.failed/disabled are -1/-5. Filesystem failures
+remain FileError. No external provider still supports SHA-256; others return
+native disabled. No new availability guards, retries or failure conditions.
+
+Borrow inputs only during synchronous hashing, release mappings on every path,
+and retain owned diagnostics through later calls/GC. Preserve native restrictions
+against concurrent file modification/replacement/truncation. Pending writes can
+be flushed before a subsequent failure. No arbitrary paths, streaming state,
+async work or general encryption/KDF/random/codec services. Migrate bundled
+callers and docs, including SFTP hash.bytes.count and common Error handling.
+
+Acceptance: regressions first; independent vectors for all algorithms, empty
+and binary/NUL/malformed UTF-8 input, and distinct Unicode byte spellings.
+Check mmap input, writes/offset, missing/recreated paths, picker read/write
+rights and stale grants. Inject known/unknown native statuses, verify one call,
+mapping cleanup, immutable errors and GC. Cover all VMs and actual SFTP helper
+matches/mismatches/errors with raw hashes whose String count differs from bytes.
+Add focused wren_digest CTest. Configure/build application and relevant fixtures:
+native Clang/Botan st_crypto, file_map, wren_digest, host/menu/picker and live
+SFTP; focused GCC/OpenSSL and ASan/UBSan suites; none-provider digest/native
+suites; both MinGW cross-builds. No Windows runtime claim, Wine or user display.
+
+Update authoritative API docs, assessments/report/matrix, reviewed evidence and
+follow-up, preserving native declarations/inventory. Record limited digest-status
+exposure under utility.crypto without closing its broader scope. Run checker,
+independent matrix reconciliation and diff checks; commit without pushing.
+Closure leaves 32 topics plus the separate documentation finding. Retain this
+record and temporary skill. Remaining work for this chunk: none after the verified commit.
+
+=== Completed verification for chunk 17
+
+The initial regression failed at missing Digest. Five-algorithm pinned vectors
+pass for empty, binary/NUL/malformed UTF-8 and distinct Unicode byte spellings,
+plus empty/abc and 64KiB binary mapped files. Native input observations confirm
+the mapped address/size is used directly; no file is materialized in Wren.
+Pending output flushes without moving the logical offset. Invalid arguments
+have no flush/map/hash effects. Actual read/save grant creation, stale ownership,
+missing/recreated paths, known/unknown native statuses, one hash invocation,
+immutable owned errors/GC, mapping cleanup and flush failure/recovery pass.
+The existing owner-rename test now rejects stale File.digest as well.
+
+Actual SFTP helper match/mismatch tests use raw hashes whose scalar and byte
+counts differ, and preserve provider/filesystem errors. The scalar-count version
+was temporarily restored and the regression failed; final byte-count code passes.
+No fault controls are included in the application.
+
+FreeBSD Clang/Botan configured and built application and all relevant targets;
+seven planned CTests passed, including live SFTP (121.93s). GCC/OpenSSL and
+Clang ASan/UBSan each configured/built the application and relevant targets and
+passed six focused tests (39.34s / 96.55s). Unsupported FreeBSD leak detection
+remains disabled; existing C++ vptr exclusion unchanged. Provider none configured
+and built application and digest/native targets; crypto/map/digest all passed
+(0.55s), including SHA-256 success, other algorithms' native disabled errors and
+sizes independent of availability. Both MinGW x86/x86_64 application/DLL/launcher,
+host/picker/digest and crypto/map test targets configured/cross-built, without
+Windows execution or Wine. No compiler diagnostics or sanitizer errors; existing
+GNUmake generated-dependency clock-skew notices remain. Headless fixtures clear
+desktop environment and do not create physical audio runtimes.
+
+Authoritative docs/callers, permanent assessments/report/matrix, reviewed evidence
+and follow-up are updated. Native declarations/TSV remain unchanged: 80 headers,
+122 exclusions, 2,449 items and 157 assessments. All 80 matrix rows, including the
+zero-symbol header, match independently. Coverage and diff checks pass. Nineteen
+topics resolved; 32 topics plus the separate documentation finding remain open.
+Retain this record and the temporary skill for the next actual Plan-mode phase.
+
 == Approved chunk 1: encryption reporting (revision 1)
 
 Approval: the user approved the complete Plan-mode plan with "Implement the

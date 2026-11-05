@@ -5633,6 +5633,7 @@ exercise_bbs_model_contract(st_wren_host_t *public_host,
 	    "if (!(nested.list is Map)) Fiber.abort(\"child grant\")\n"
 	    "if (!(capability.rename(\"Renamed Capability\") == null) || !cache.contains(\"owned.tmp\") || !(capability.save() == null)) Fiber.abort(\"cache rename policy\")\n"
 	    "if (!(Fiber.new { cache.list }.try() is String) || !(Fiber.new { listed.open() }.try() is String) || !(Fiber.new { nested.list }.try() is String)) Fiber.abort(\"old cache grants survived rename\")\n"
+	    "if (!(Fiber.new { listed.digest(1) }.try() is String)) Fiber.abort(\"stale cache digest survived rename\")\n"
 	    "cache = capability.cache\n"
 	    "file = cache.list[\"owned.tmp\"]\n"
 	    "if (file.open() != null || file.read() != \"original\" || file.close() != null) Fiber.abort(\"renamed cache continuity\")\n"

@@ -96,6 +96,7 @@ add_library(st_wren_host STATIC
 	wren_bind_core.c
 	wren_bind_won.c
 	wren_bind_fs.c
+	wren_bind_digest.c
 	wren_bind_hyperlinks.c
 	wren_sftp.c
 	wren_async.c
@@ -148,6 +149,33 @@ else()
 endif()
 
 if(BUILD_TESTING)
+	add_executable(st_wren_digest_test tests/st_wren_digest_test.c
+		tests/st_wren_digest_fs_test_bindings.c tests/st_wren_digest_test_bindings.c)
+	target_include_directories(st_wren_digest_test PRIVATE
+		$<TARGET_PROPERTY:st_wren_host,INCLUDE_DIRECTORIES>)
+	set_source_files_properties(tests/st_wren_digest_fs_test_bindings.c
+		tests/st_wren_digest_test_bindings.c PROPERTIES
+		INCLUDE_DIRECTORIES "$<TARGET_PROPERTY:st_wren_host,INCLUDE_DIRECTORIES>"
+		COMPILE_DEFINITIONS "$<TARGET_PROPERTY:st_wren_host,COMPILE_DEFINITIONS>")
+	target_link_libraries(st_wren_digest_test PRIVATE st_wren_host st_wren_vm
+		st_crypto syncterm_file_map syncterm_filesystem syncterm_string_compat)
+	target_include_directories(st_wren_digest_test SYSTEM PRIVATE
+		"${CMAKE_CURRENT_SOURCE_DIR}/../wren_vm/vm")
+	target_compile_definitions(st_wren_digest_test PRIVATE
+		ST_WREN_DIGEST_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/digest-test"
+		ST_WREN_DIGEST_TEST_SOURCE="${CMAKE_CURRENT_SOURCE_DIR}/tests/digest.wren")
+	syncterm_target_atomics(st_wren_digest_test)
+	set_target_properties(st_wren_digest_test PROPERTIES
+		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_definitions(st_wren_digest_test PRIVATE _CRT_SECURE_NO_WARNINGS)
+		target_compile_options(st_wren_digest_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
+	else()
+		target_compile_options(st_wren_digest_test PRIVATE
+			-Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
+	endif()
+	add_test(NAME wren_digest COMMAND st_wren_digest_test)
+
 	add_executable(st_wren_settings_menu_test tests/st_wren_settings_menu_test.c
 		tests/st_wren_menu_test_bindings.c)
 	set_source_files_properties(tests/st_wren_menu_test_bindings.c PROPERTIES
