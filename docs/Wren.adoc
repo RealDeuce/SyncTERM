@@ -4233,6 +4233,27 @@ assignment when selecting an existing font; loading only registers a new font.
   re-entered. For example, `CTerm.sendKey(KeyEvent.new(Key.enter))` injects Return
   through this path.
 
+| `CTerm.reset()`
+| Invoke the direct native terminal reset synchronously. Returns null on native
+  success or CTermError with the exact native failure code. Requires the
+  connected VM's assigned terminal, independently of whether the network is
+  still connected. Menu/picker and missing-terminal calls abort without invoking
+  reset.
++
+The native operation finishes pending input, resets parser/mode and cursor
+settings, and rebuilds enabled RIP state, including reloading its persisted
+variables. Finishing a buffered RIP command can invoke its existing host prompt
+or other callback before reset proceeds. This is distinct from feeding a reset
+escape sequence through CTerm.write. The binding adds no screen/history clear,
+resize, encoding change, reconnect, wire claim or suspension change. Existing
+native generated-response suppression under WireLease/transfer ownership remains
+in force; local reset does not create a new busy/network failure policy.
++
+Failure may follow pending-output processing or partial reset, including a
+partially rebuilt RIP engine. It provides no rollback or automatic retry and
+does not guarantee that the terminal remains usable. The operation retains no
+arguments or native resources.
+
 | `CTerm.suspended`, `CTerm.suspended = b`
 | Read or write the wire-pump suspend flag.  When set true, the main
   loop stops draining bytes from the conn buffer.  Bytes pile up in the
@@ -4293,7 +4314,7 @@ assignment when selecting an existing font; loading only registers a new font.
 
 ==== CTermError [[cterm-error]]
 
-An immutable `Error` returned by the two terminal operations above. There is no
+An immutable `Error` returned by write, sendKey and reset above. There is no
 public constructor. It owns scalar diagnostics and message storage, retains no
 input String, terminal or session, and remains usable through later calls and GC
 within its VM.
@@ -4305,11 +4326,11 @@ within its VM.
   integers are preserved; success uses the operation's normal null/Bool value.
 | `message` | Nonempty human-readable operation/reason diagnostic.
 | `consumedBytes` | Write errors only: native consumed count in the normalized
-  UTF-8 input; `null` for key errors. This is not a rendered-character count or
+  UTF-8 input; `null` for key/reset errors. This is not a rendered-character count or
   a safe retry offset into the original Wren String. A failure may consume all
   input, or stop within a multibyte sequence, and parser/decoder effects remain.
 | `handled` | Key errors only: the native acceptance Bool, including local-only
-  actions; `null` for write errors. It does not confirm transmission or safe retry.
+  actions; `null` for write/reset errors. It does not confirm transmission or safe retry.
 | `toString` | Includes `CTermError`, code and message for display, not parsing.
 |===
 

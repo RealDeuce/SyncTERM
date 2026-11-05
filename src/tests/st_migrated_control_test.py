@@ -138,6 +138,93 @@ def terminal(executable, encoding, reports):
             receive(peer, b"\x1bP1$r;6*r\x1b\\", root / "wire.bin")
 
 
+def cterm_reset(executable, encoding, reports):
+    source = '''
+import "syncterm" for CTerm, Conn, Hook, Key, Error
+var resets = 0
+Hook.onWire(35) {|byte|
+  Conn.sendText("RESET-STAGED")
+  return true
+}
+Hook.onKey(Key.f10) {|event|
+  var result = CTerm.reset()
+  if (result is Error) Fiber.abort(result)
+  resets = resets + 1
+  Conn.sendText("RESET-DONE-%(resets)")
+  return true
+}
+Hook.onInput(88) {|scalar|
+  var result = CTerm.reset()
+  if (result is Error) Fiber.abort(result)
+  Conn.sendText("RESET-HOOK")
+  return true
+}
+Conn.sendText("RESET-READY")
+'''
+    for rip in ("Off", "RIPv1"):
+        with connection(executable, reports, encoding=encoding, script=source,
+                        options=f"RIP={rip}\n") as (client, root, peer, send):
+            receive(peer, b"RESET-READY", root / "wire.bin")
+            send(b"\x1b[2J\x1b[HKEEP\x1b[31m\x1b[3;20r\x1b[?2004h\x1b[5;6H\x1b]0;unfinished#")
+            receive(peer, b"RESET-STAGED", root / "wire.bin")
+            client.key("f10")
+            receive(peer, b"RESET-DONE-1", root / "wire.bin")
+            send(b"Z\x1b[6n")
+            receive(peer, b"\x1b[1;2R", root / "wire.bin")
+            frame = client.wait_for(lambda f: f.lines[0].startswith("ZEEP"))
+            assert frame.application["cterm.top_margin"] == 1 and frame.application["cterm.bottom_margin"] == 25
+            assert frame.application["cterm.ext_attr.bracket_paste"] == 0
+            assert frame.application["cterm.x"] == 2 and frame.application["cterm.y"] == 1
+            cell = cell_at(frame, 0, 0)
+            def rgb(word):
+                return word & 0xffffff if word & 0x80000000 else frame.palette[word]
+            assert rgb(cell.foreground) == 0xa8a8a8
+            assert rgb(cell.background) == 0
+            assert (frame.metadata["columns"], frame.metadata["rows"]) == (80, 25)
+            # Reset finishes a partial decoder without treating raw bytes as Wren text.
+            send(b"\x1b[2;5H" + (b"\xe2\x82" if encoding == "UTF-8" else b"\x82") + b"#")
+            receive(peer, b"RESET-STAGED", root / "wire.bin")
+            client.key("f10")
+            receive(peer, b"RESET-DONE-2", root / "wire.bin")
+            send(b"Y\x1b[6n")
+            receive(peer, b"\x1b[1;2R", root / "wire.bin")
+            frame = client.wait_for(lambda f: f.lines[0].startswith("YEEP"))
+            replacement = cell_at(frame, 4, 1)
+            if encoding == "UTF-8":
+                # The presentation font's boxed-cross .decodeerror has no text
+                # mapping. Check its independently specified 8x16 raster; glyph
+                # ordinals vary with the bundled base bank's coverage.
+                assert replacement.glyph_font == 0 and frame.cell_text(replacement) == ""
+                assert (frame.metadata["cell_width"], frame.metadata["cell_height"]) == (8, 16)
+                rows = (0xff, 0xc3, 0xc3, 0xc3, 0xa5, 0xa5, 0xa5, 0x99,
+                        0x99, 0x99, 0x99, 0x99, 0x99, 0xa5, 0xa5, 0xff)
+                for y, bits in enumerate(rows):
+                    for x in range(8):
+                        index = (16 + y + frame.metadata["pixel_top"]) * frame.metadata["plane_width"] + 32 + x
+                        expected = replacement.foreground if bits & (0x80 >> x) else replacement.background
+                        assert frame.primary[index] == expected, (rip, x, y)
+            else:
+                assert frame.cell_text(replacement) == "é"
+            assert frame.application["cterm.encoding"] == (1 if encoding == "CP437" and rip == "Off" else 0)
+            # Reset from onInput runs within native input dispatch, including RIP.
+            send(b"\x1b[4;5HXQ\x1b[6n")
+            receive(peer, b"RESET-HOOK", root / "wire.bin")
+            receive(peer, b"\x1b[1;2R", root / "wire.bin")
+            frame = client.wait_for(lambda f: f.lines[0].startswith("QEEP"))
+            assert frame.application["cterm.x"] == 2 and frame.application["cterm.y"] == 1
+            if rip != "Off":
+                # Native finish dispatches a buffered RIP_DEFINE through the
+                # existing menu-VM prompt before rebuilding the RIP engine.
+                send(b"\r!|1D00000TMP,5:?Reset prompt?Start#")
+                receive(peer, b"RESET-STAGED", root / "wire.bin")
+                client.key("f10")
+                client.wait_text("Reset prompt")
+                client.key("enter")
+                receive(peer, b"RESET-DONE-3", root / "wire.bin")
+                send(b"\x1b[6n")
+                receive(peer, b"\x1b[1;1R", root / "wire.bin")
+
+
 def status(executable, encoding, reports):
     cases = ((b"M\x1b[2$~\x1b[1$}S\x1b[0$}N", "MN", "S", 2),
              (b"M\x1b[2$~\x1b[1$}S\x1b[1$~N", "MN", " ", 1),
@@ -856,7 +943,9 @@ def emoji(executable, reports):
                     assert pixels <= {cell.foreground, cell.background}, "monochrome setting retained colour pixels"
 
 
-CASES = {"terminal_cp437": lambda e, r: terminal(e, "CP437", r),
+CASES = {"cterm_reset_cp437": lambda e, r: cterm_reset(e, "CP437", r),
+         "cterm_reset_utf8": lambda e, r: cterm_reset(e, "UTF-8", r),
+         "terminal_cp437": lambda e, r: terminal(e, "CP437", r),
          "terminal_utf8": lambda e, r: terminal(e, "UTF-8", r),
          "status_cp437": lambda e, r: status(e, "CP437", r),
          "status_utf8": lambda e, r: status(e, "UTF-8", r),

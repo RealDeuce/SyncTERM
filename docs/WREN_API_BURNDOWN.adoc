@@ -1208,3 +1208,86 @@ and follow-up review describe the completed contract. Native inventory remains
 51 original topics are resolved; 34 topics plus the documentation finding remain
 open. Coverage and diff checks pass. Retain this temporary record and skill for
 the next actual Plan-mode phase.
+
+== Approved chunk 16: direct terminal reset (revision 1)
+
+Approval: the complete Plan-mode plan was approved with "Implement the plan."
+The user selected a synchronous connected-only CTerm.reset() operation.
+Implementation began in Default mode on 2026-11-05.
+Phase: chunk complete; the next chunk requires an actual Plan-mode phase.
+Finding: `cterm-reset-contract` / `cterm.reset`.
+
+Add CTerm.reset(), calling st_cterm_reset_terminal once on the serialized owner.
+Return null on success or immutable CTermError with the exact native code and
+operation-specific message. Generalize the internal write/key error discriminator
+for reset; consumedBytes and handled are both null on reset errors. Keep existing
+write/key contracts unchanged. Menu, picker and connected-without-terminal calls
+abort through the existing programmer-error boundary without invoking native reset.
+
+Preserve native finish/reset/RIP reconstruction and persisted-variable reload,
+including pending RIP command callbacks. Add no screen/history clear, resize,
+encoding, connection, suspension, wire claim or busy/connectivity failure policy.
+Preserve generated-response suppression under native WireLease/transfer ownership.
+Failures may follow pending output or partial reset: no rollback, automatic retry,
+extra status query or usability guarantee. Calls retain no resources; owned errors
+survive subsequent calls and GC. No native reset algorithm or Wren semantics changes.
+
+Acceptance: regressions first; exact known/unknown codes and call counts, immutable
+reset errors/null outputs, existing write/key fidelity. Native expected state and
+subsequent output cover partial escape/UTF-8 input, history, repeat and failures
+before/after reset effects. RIP off/on covers flush/callbacks, reconstruction,
+persistent reload and failure teardown. Exercise input-hook reset, suspension and
+WireLease behavior without inventing guards or async work. Add application tests
+syncterm_behavior_cterm_reset_cp437/utf8 using the control bitmap backend with
+independent cells/colours/replies and coherent captures.
+
+Configure/build CMake application and affected targets. Native Clang: cterm,
+cterm_text, cterm_rip_parser, cterm_rip_engine, cterm_rip_variables, term, wren_host,
+wren_menu_contract, wren_picker_contract and both new application tests. GCC and
+ASan/UBSan focused native reset/RIP plus host/menu/picker tests; both MinGW
+application/host/picker/native cross-builds, without Windows execution or Wine.
+Headless fixtures clear desktop environment and disable physical audio. Update
+API docs, terminal coverage inventories, assessment/report/matrix/reviewed evidence
+and follow-up while preserving 80 headers, 122 exclusions, 2,449 native items and
+157 assessments. Run coverage/diff checks and commit without pushing. Closure
+leaves 33 topics plus the documentation finding; retain temporary skill/record.
+
+=== Completed verification
+
+The regression first failed at missing CTerm.reset. Native return-boundary
+controls verify exact known/unknown positive/negative status, one invocation,
+null reset consumedBytes/handled, immutable owned diagnostics through later calls
+and GC, existing write/key fidelity and VM/missing-native rejection without calls.
+WireLease/suspension state and native output suppression remain intact. Native
+CP437/UTF-8 cases preserve completed history/text, defaults and encoding, recover
+from partial escape/decoder input and repeat reset. Actual failures occur both
+before reset (pending capture) and after modes change (renderer rejection).
+RIP cases finish a pending prompt, reconstruct/reload saved variables and safely
+tear down after an actual callback failure. Both application tests use RIP off/on,
+exact fenced replies and coherent cells/palette/pixels/state, verify input-hook
+reset and complete a buffered RIP_DEFINE through the separate menu-VM prompt.
+Truncated UTF-8 uses the independently specified boxed-cross error raster, with
+native capture separately checking U+FFFD; no font-dependent ordinal assumption.
+
+FreeBSD Clang Debug CMake application/host/picker and native targets configured
+and built; all eleven planned CTests passed: cterm, cterm_text, cterm_rip_parser,
+cterm_rip_engine, cterm_rip_variables, term, wren_host, wren_menu_contract,
+wren_picker_contract and both syncterm_behavior_cterm_reset_cp437/utf8 tests.
+GCC Debug and Clang ASan/UBSan application/host/picker/native targets configured
+and built; cterm, cterm_rip_parser, cterm_rip_engine, cterm_rip_variables and
+host/menu/picker contracts passed on both (seven tests each). The full cterm_text
+suite was run on native Clang, not claimed for this sanitizer run. Unsupported
+FreeBSD leak detection remains disabled; the existing C++ vptr exclusion is
+unchanged. Both MinGW x86/x86_64 application/DLL/launcher, host/picker and native
+cterm/text/parser/engine/variables tests configured and cross-built without
+Windows execution or Wine. No compiler diagnostics or sanitizer errors in final
+builds; GNUmake emitted environmental generated-dependency clock-skew notices.
+Headless fixtures clear desktop environment and disable physical audio.
+
+API docs, assessments, report/matrix, reviewed evidence/source locations,
+terminal coverage inventories and the follow-up review describe the completed
+contract. Native declarations/ledger remain unchanged: 80 public headers,
+122 exclusions, 2,449 native items and 157 assessments. All 80 matrix rows match.
+Eighteen original topics are resolved; 33 topics plus the documentation finding
+remain open. Coverage and diff checks pass. Retain the temporary skill and record
+for the next Plan-mode phase.

@@ -160,6 +160,95 @@ test_profile_presentation(void)
 	st_console_destroy(console);
 }
 
+struct reset_capture {
+	int status;
+	unsigned replacements;
+};
+
+static int
+reset_capture(void *context, const char *bytes, size_t size, bool protocol)
+{
+	struct reset_capture *capture = context;
+	if (!protocol && size == 3 && memcmp(bytes, "\xef\xbf\xbd", 3) == 0) {
+		++capture->replacements;
+		return capture->status;
+	}
+	return 0;
+}
+
+static void
+test_direct_reset(void)
+{
+	for (int encoding = ST_CTERM_ENCODING_UTF8; encoding <= ST_CTERM_ENCODING_CODEPAGE; ++encoding) {
+		const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+		const struct st_console_config geometry = {
+			.columns = 20, .rows = 4, .cell_width = 8, .cell_height = 16};
+		st_console_t *console = NULL;
+		st_font_catalog_t *fonts = NULL;
+		st_cterm_t *terminal = NULL;
+		struct reset_capture capture = {0};
+		CHECK(st_console_create(&console, &display, &geometry) == 0);
+		CHECK(st_font_catalog_create(&fonts, console) == 0);
+		const struct st_cterm_config config = {
+			.console = console, .fonts = fonts, .encoding = (enum st_cterm_encoding)encoding,
+			.codepage = ST_CODEPAGE_CP437, .quiet = true, .force_lcf = true,
+			.scrollback_lines = 8, .capture = reset_capture, .capture_context = &capture};
+		CHECK(st_cterm_create(&terminal, &config) == 0);
+		feed(terminal, "A\r\nB\r\nC\r\nD\r\nE", 13);
+		CHECK(st_cterm_finish(terminal) == 0);
+		struct st_console_cell *before = NULL, *after = NULL;
+		uint32_t columns, after_columns;
+		size_t rows, after_rows;
+		CHECK(st_cterm_copy_history(terminal, &before, &columns, &rows) == 0);
+		CHECK(st_cterm_reset_terminal(terminal) == 0);
+		CHECK(st_cterm_copy_history(terminal, &after, &after_columns, &after_rows) == 0);
+		CHECK(rows == after_rows && columns == after_columns);
+		CHECK(memcmp(before, after, rows * columns * sizeof(*before)) == 0);
+		free(before);
+		free(after);
+		static const char setup[] = "\033[2J\033[HKEEP\033[31m\033[2;3r\033[?2004h\033]0;unfinished";
+		feed(terminal, setup, sizeof(setup) - 1);
+		CHECK(st_cterm_reset_terminal(terminal) == 0);
+		struct st_cterm_state state;
+		CHECK(st_cterm_state(terminal, &state) == 0);
+		CHECK(state.x == 1 && state.y == 1 && state.top_margin == 1 && state.bottom_margin == 4
+		    && state.left_margin == 1 && state.right_margin == 20 && state.attr == 7
+		    && !state.ext_attr.bracket_paste && state.ext_attr.auto_wrap);
+		CHECK(st_cterm_encoding(terminal) == (enum st_cterm_encoding)encoding
+		    && st_cterm_codepage(terminal) == ST_CODEPAGE_CP437);
+		feed(terminal, "Z", 1);
+		CHECK(st_cterm_finish(terminal) == 0);
+		struct st_console_cell cells[4];
+		const struct st_console_rect area = {0, 0, 4, 1};
+		CHECK(st_console_read_cells(console, &area, cells, 4) == 0);
+		CHECK(cells[0].glyph == 'Z' && cells[1].glyph == 'E'
+		    && cells[2].glyph == 'E' && cells[3].glyph == 'P');
+		if (encoding == ST_CTERM_ENCODING_UTF8) {
+			feed(terminal, "\033[2;3r", 6);
+			feed(terminal, "\xe2\x82", 2);
+			capture.status = IO_ERROR_IO;
+			CHECK(st_cterm_reset_terminal(terminal) == IO_ERROR_IO);
+			CHECK(capture.replacements == 1);
+			CHECK(st_cterm_state(terminal, &state) == 0 && state.top_margin == 2);
+			capture.status = 0;
+			CHECK(st_cterm_reset_terminal(terminal) == 0);
+			feed(terminal, "\xe2\x82", 2);
+			CHECK(st_cterm_reset_terminal(terminal) == 0 && capture.replacements == 2);
+		}
+		feed(terminal, "\033[2;3r", 6);
+		CHECK(st_cterm_finish(terminal) == 0);
+		CHECK(st_console_resize(console, 1, 1) == 0);
+		CHECK(st_cterm_reset_terminal(terminal) == IO_ERROR_OUT_OF_RANGE);
+		CHECK(st_cterm_state(terminal, &state) == 0 && state.top_margin == 1
+		    && state.bottom_margin == 4); /* Reset committed before render rejection. */
+		CHECK(st_console_resize(console, 20, 4) == 0);
+		CHECK(st_cterm_reset_terminal(terminal) == 0);
+		st_cterm_destroy(&terminal);
+		st_font_catalog_destroy(fonts);
+		st_console_destroy(console);
+	}
+}
+
 static void
 test_lf_expand(void)
 {
@@ -441,6 +530,7 @@ int
 main(void)
 {
 	test_status_display_routing();
+	test_direct_reset();
 	test_lf_expand();
 	test_profile_presentation();
 	test_disconnect_boundary();

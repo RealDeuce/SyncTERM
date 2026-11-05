@@ -20,6 +20,18 @@ optional capability replies have bounded format expectations; supported fixed
 replies are exact. Pixel assertions cover downloaded fonts, conceal, copy/paste,
 blink planes and palette changes without assuming physical palette-bank numbers.
 
+The supplemental `syncterm_behavior_cterm_reset_cp437` and
+`syncterm_behavior_cterm_reset_utf8` tests invoke Wren's direct `CTerm.reset()`
+with RIP off/on. They check retained screen text, default modes/margins/colours,
+cursor state and exact replies after incomplete escape/decoder input, repeated
+reset, reset from an input hook and a pending RIP prompt. Related cells, palette,
+pixels and state come from one fenced control capture. Truncated UTF-8 displays
+the presentation font's dedicated boxed-cross decode-error glyph, whose 8x16
+raster is independently specified; native capture tests separately check its
+U+FFFD text callback. Native CTerm tests retain history checks and real failures
+before/after reset effects. This adds no new RIS sequence semantics or native
+reset algorithm, and does not claim audio/native-display coverage.
+
 The `keyboard` group also checks physical Alt+Keypad decimal entry: codepage
 bytes, leading-zero Unicode, non-BMP text on UTF-8 connections and non-BMP
 mappings on ATASCII/PETSCII/Prestel codepage connections, duplicate native

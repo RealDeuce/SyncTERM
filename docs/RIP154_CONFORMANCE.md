@@ -16,6 +16,14 @@ connection before a capture. No timing sleeps or packet-boundary assumptions are
 used. Failed cases retain their identifier, input/reply bytes, snapshot and PPM
 under `reports/test-control`.
 
+The separate `syncterm_behavior_cterm_reset_cp437/utf8` application tests also
+exercise RIP-enabled direct host reset through Wren, including reset during an
+input hook and a buffered RIP_DEFINE that opens the existing menu-VM prompt.
+The native `cterm_rip_variables` test checks pending prompt completion,
+reconstruction with persisted-variable reload and safe teardown after a prompt
+failure. These checks concern `st_cterm_reset_terminal`, not changes to RIP's
+protocol reset commands or the historical graphics captures inventoried below.
+
 ## Historical reference captures
 
 `src/tests/rip154/captures.json` inventories 26 independent DOSBox RIPterm 1.54

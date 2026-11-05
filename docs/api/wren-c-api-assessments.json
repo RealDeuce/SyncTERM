@@ -2697,10 +2697,10 @@
       "decision": "scope-review"
     },
     "cterm.reset": {
-      "status": "partial",
-      "wren": "CTerm.write can send reset escape sequences",
-      "reason": "No dedicated script operation invokes st_cterm_reset_terminal or returns its native reset status. That function finishes pending input, resets parser state and rebuilds the RIP engine. CTerm.write can submit protocol reset sequences through the current parser, but does not expose this complete host reset transaction or its failure result.",
-      "vm": "same VM as the owning API",
+      "status": "covered",
+      "wren": "CTerm.reset() returns null/CTermError",
+      "reason": "The synchronous connected binding invokes st_cterm_reset_terminal once for the assigned native terminal. It preserves native finish/reset/RIP reconstruction and persisted-variable reload, including pending-command host callbacks. null/immutable CTermError retains the exact native status; both consumedBytes and handled are null for reset. Failures may follow pending output or partial reset, without rollback, automatic retry or a continued-usability guarantee. Menu/picker and missing-terminal calls abort without native invocation. Existing screen/history, geometry, encoding, suspension, connection/wire ownership, response suppression and native reset algorithms remain unchanged; no extra output/connection status is invented. Errors own diagnostics and retain no terminal/session.",
+      "vm": "connected",
       "evidence": [
         {
           "path": "src/terminal/cterm/st_cterm.c",
@@ -2709,10 +2709,18 @@
         {
           "path": "scripts/syncterm.wren",
           "anchor": "foreign static write(s)"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_session.c",
+          "anchor": "fn_cterm_reset"
+        },
+        {
+          "path": "scripts/syncterm.wren",
+          "anchor": "foreign static reset()"
         }
       ],
       "finding": "cterm-reset-contract",
-      "decision": "mapping-gap"
+      "decision": "resolved"
     },
     "cterm.audio-fx": {
       "status": "partial",
@@ -3250,7 +3258,7 @@
     "cterm.operation-status": {
       "status": "covered",
       "wren": "CTerm.write returns null/CTermError; CTerm.sendKey returns native Bool/CTermError",
-      "reason": "Native failures retain their exact portable integer in an immutable CTermError with owned message, write-only consumedBytes and key-only handled. Unknown integers are preserved. Consumed bytes refer to normalized C input, can include all input or stop within a scalar, and are not rendered characters or a safe original-String retry offset. Native count violations remain Fiber aborts without invented codes. Strict UTF-8/NFC including valid NUL, argument/capability guards, native parser/capture/key behavior and hook isolation remain intact. Acceptance is not delivery: retained output errors, disconnect suppression and WireLease exclusion are preserved. Errors retain no input/terminal/session and are constructed only on native failures. Bundled login checks returned key errors before continuing; no retries, replay, reset or rollback changes.",
+      "reason": "Native failures retain their exact portable integer in an immutable CTermError with owned message, write-only consumedBytes and key-only handled. Unknown integers are preserved. Consumed bytes refer to normalized C input, can include all input or stop within a scalar, and are not rendered characters or a safe original-String retry offset. Native count violations remain Fiber aborts without invented codes. Strict UTF-8/NFC including valid NUL, argument/capability guards, native parser/capture/key behavior and hook isolation remain intact. Acceptance is not delivery: retained output errors, disconnect suppression and WireLease exclusion are preserved. Errors retain no input/terminal/session and are constructed only on native failures. Bundled login checks returned key errors before continuing; no retries, replay or rollback changes. Reset shares this error value with null consumedBytes/handled and its own operation message, while its native operation remains separately accounted under cterm.reset.",
       "vm": "connected",
       "evidence": [
         {
@@ -3272,6 +3280,10 @@
         {
           "path": "src/terminal/term/st_term.h",
           "anchor": "int st_term_session_send_key"
+        },
+        {
+          "path": "src/scripting/wren_host/wren_bind_session.c",
+          "anchor": "enum cterm_error_operation"
         }
       ],
       "finding": "console-operation-results",
@@ -4424,6 +4436,46 @@
       "path": "src/scripting/wren_host/tests/st_wren_screen_pixels_test_bindings.c",
       "anchor": "test_pixel_buffer_blit",
       "aspect": "Private host-test native return-boundary control preserves exact known/unknown blit status mapping; production bindings call native blit directly."
+    },
+    {
+      "path": "src/terminal/cterm/tests/st_cterm_test.c",
+      "anchor": "test_direct_reset",
+      "aspect": "CP437/UTF-8 direct reset preserves completed history and text, resets modes/margins, recovers partial escape/decoder state, retains encoding, and propagates actual flush failure before reset and render rejection after mode changes."
+    },
+    {
+      "path": "src/terminal/cterm/tests/st_cterm_rip_variables_test.c",
+      "anchor": "pending command through its native prompt",
+      "aspect": "Buffered RIP_DEFINE is completed through its prompt before reconstruction, persisted values reload, and a real callback failure propagates unchanged with safe teardown."
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_host_test.c",
+      "anchor": "reset diagnostics lost",
+      "aspect": "Exact known/unknown positive/negative reset results, one native invocation, immutable owned diagnostics/null reset outputs, existing write/key contracts, menu/picker/missing-native rejection and unchanged WireLease/suspension policy."
+    },
+    {
+      "path": "src/scripting/wren_host/tests/st_wren_session_test_bindings.c",
+      "anchor": "test_cterm_reset",
+      "aspect": "Private reset native return boundary; no production fault controls."
+    },
+    {
+      "path": "src/tests/st_migrated_control_test.py",
+      "anchor": "def cterm_reset(executable, encoding, reports):",
+      "aspect": "Actual bitmap application reset in CP437/UTF-8 with RIP off/on: fenced coherent cells/palette/pixels/state, literal boxed-cross error raster, exact replies, partial escape/decoder recovery, input-hook reset and pending RIP prompt in the separate menu VM."
+    },
+    {
+      "path": "src/tests/terminal_conformance.json",
+      "anchor": "wren-direct-terminal-reset",
+      "aspect": "Supplemental direct-host-reset coverage remains distinct from RIS protocol expectations and historical RIP captures."
+    },
+    {
+      "path": "docs/TERMINAL_CONFORMANCE.md",
+      "anchor": "syncterm_behavior_cterm_reset_cp437",
+      "aspect": "Native/application reset coverage and dedicated decode-error representation, without audio/native-display claims."
+    },
+    {
+      "path": "docs/RIP154_CONFORMANCE.md",
+      "anchor": "st_cterm_reset_terminal",
+      "aspect": "Direct host reset, callback/reload/failure teardown coverage is separate from RIP protocol reset commands and historical capture provenance."
     }
   ],
   "dispatch_evidence": [
@@ -4435,7 +4487,7 @@
   ],
   "evidence_files": {
     "docs/WREN_GUIDANCE.md": "d14aeecb5eae922015f2f48a4fd690277dcb5b91aedfd8d8d8cffb2dc235e1ac",
-    "docs/Wren.adoc": "c361033efd0aba8452a2f99540864711afae525f37e1acfecc3c07b87a08a23e",
+    "docs/Wren.adoc": "fa29b3658ede53fb45a60efa495487bc2ef25ab43fcce17cc7bac4d1a4d12545",
     "docs/api/bbs-entry-fields.adoc": "a1be9944eadd5f56d752e8669b502f49b27211f14190443a95e36ad301b8d128",
     "scripts/auto/connected/font_pick.wren": "4a1189b05ab502e36a8efc8ebb241eba568ccfae63ac6f92a819ca5950a87c34",
     "scripts/auto/menu/main_menu.wren": "cb254c02de88681f85b8e4cbfeea2ab090da616e47ad9894a4c659e3c6902647",
@@ -4443,7 +4495,7 @@
     "scripts/menu_settings_ui.wren": "8013ad36d8079e2484b86820c23cbf8fa17b0979d27452e8592fd935c65fa7f1",
     "scripts/sftp_app.wren": "05124c53d687ddcdd10efed2d2c2993c38a29196c76c4bef3f64bfc4ba4f4b5a",
     "scripts/sftp_queue.wren": "b15fe706268e9ce6d5fea4227661d0ac810f6f9fc4dbf7d39863756bde3eaf74",
-    "scripts/syncterm.wren": "9b481fa8380cc69baf93c13e5a4e819c7fa076c9d9eba2dc4ce8cebcfc5f6b42",
+    "scripts/syncterm.wren": "7e41c0fc560805cb03710b79d73b0b4fff23a5c01a442c2199283991e228ffc7",
     "scripts/syncterm_menu.wren": "e534e5ba67f5f7cbb8f5b2874b039b155383525e005fca7d531830c6c9a28579",
     "scripts/syncterm_picker.wren": "143e15bd084bed37145061760100c84b353d340e00187d9cd2b920a850be6021",
     "scripts/transfer_app.wren": "b7c8a38f8676340c93b3f5748c74bac8fd48a301d996110c468b8fd5a768b13a",
@@ -4512,7 +4564,7 @@
     "src/net/transfer/st_transfer_detect.h": "3296b9ecf875d100f793920a3b0117a8f7b80951a539317d366f4ea40a7a1b30",
     "src/net/webget/st_webget.h": "9647dcc563e1661fe1d6b762c78e2483d2beae03ac878da0ebd15c8a425d2143",
     "src/scripting/wren_host/st_wren_host.h": "1f399c11771d459566882d3084836000e05c3aa7759fc03e6a2384c6754fb0a6",
-    "src/scripting/wren_host/tests/st_wren_host_test.c": "eae54acc61f40b1b0d3eb877ff1c3269cbf6514844d56709a984f01adefcc081",
+    "src/scripting/wren_host/tests/st_wren_host_test.c": "95480e515d3e09de0303a8153bf1321702bfbf6ffeba01b5dd9f28bb35264100",
     "src/scripting/wren_host/tests/st_wren_settings_menu_test.c": "9ce240c1d75632c40452fc6f46db4aab88923f2c8d062f80e50c5c917724d6f4",
     "src/scripting/wren_host/wren_async.c": "71e78941735250300171a2b7cb13b70c92916bd14c066a6614b3f77cdd9b565d",
     "src/scripting/wren_host/wren_bbs_model.c": "cbc7311c9d15f05d974c934a8dcf7242d2fec15e70c3a5b60707eee3e9e5e84d",
@@ -4521,7 +4573,7 @@
     "src/scripting/wren_host/wren_bind_hyperlinks.c": "255be945007c9cb2795195058e5f58de7d2b2157728892e614d6e8fb5f729b98",
     "src/scripting/wren_host/wren_bind_menu.c": "a0c5077fb77672c02f3f8332097aa4043f21a3f7621f8db4bf719da9fe318e05",
     "src/scripting/wren_host/wren_bind_pixels.c": "c406a1a0a8dc825754d6bfba596bf92e1fa60ddfa2f73eb488a9596ffdd44905",
-    "src/scripting/wren_host/wren_bind_session.c": "abc78adace40704dfb1b668c9ca19ccf0c538c2ac9028b86e65a0cf7b81fea36",
+    "src/scripting/wren_host/wren_bind_session.c": "fa08224c31c37943557976294e0009ece40305f5f320a2d0edc46ad3d5c81269",
     "src/scripting/wren_host/wren_bind_status.c": "85ed4115c9a9645aa27cccb2a9977e5892037123d7440d9acf3397fd55e16671",
     "src/scripting/wren_host/wren_bind_won.c": "96575bcbfdf0b157d89ec5ef64cd2573a0b41d2aaf5e379edd19303d382bc2f4",
     "src/scripting/wren_host/wren_bind_xfer.c": "8f45884d3f87622b02f6c93721760ee22635d9a6773d6fc5b5c17bf2116978d2",
@@ -4572,7 +4624,7 @@
     "src/media/font_catalog/st_font_catalog.c": "4117712e3679625ff3f9368b9c5c8b048030617c071d8912978918593da38f47",
     "src/terminal/cterm/cterm_render.c": "fb5cf7def0c2972ca7d71dd326595f0dfdc9f4dfe9cfb6ce6b85c3fb6caa3a3a",
     "src/tests/st_font_assignments_test.py": "5b672eb7c59e75c7f9005e6851419f2563c435585740c150bf4af17544f9dbf6",
-    "src/terminal/cterm/tests/st_cterm_test.c": "127e93eb972f5a2392ddb9a53ecde2728fe2da5238db01471681341936f3c070",
+    "src/terminal/cterm/tests/st_cterm_test.c": "b3c80f7bf78a8684300e7d5a617c5ea23124c8d5a338377b350aaeb196e21263",
     "src/config/bbs_list/st_bbs_store.c": "658bd23d37454bb4a47400d5a763948a4e8a2c70ac41aab1be7f988218a243ba",
     "src/scripting/wren_host/tests/st_wren_sftp_live_test.c": "bc152c078e6da26da25b2a106bad4eeeeaa1955a570ccfb5b72aa8b1d65c53b3",
     "src/scripting/wren_host/tests/st_wren_menu_test_bindings.c": "1708e49b34d9df915e4b2afd0f227b5947d401cd1c967691a49503dbe74a827d",
@@ -4587,8 +4639,8 @@
     "src/scripting/wren_host/tests/st_wren_transfer_test_bindings.c": "9211345af132c7d43d105b5ade65a0cfddccf5d9c154fc7c5b28455011319e5e",
     "src/tests/st_test_control_test.py": "d9ff21d77c7731a055983ecc5d44fab373650cb4deefbe701fe01f9d26b94914",
     "scripts/auto/connected/connected.wren": "7f8f7144896388ffbf9dd16820cbf6cbae73d25c385ccba7d8c0928f31ae67d6",
-    "src/scripting/wren_host/tests/st_wren_session_test_bindings.c": "4ef0aef560439c1ed3f933232a8b59ccaa3ee0a6971609ebf0fe8e81ff1b981c",
-    "src/tests/st_migrated_control_test.py": "9284c78fc321d447b1018c3c0e4eb70276b376fb3e9ff9b3c38caf8f0a01d9bd",
+    "src/scripting/wren_host/tests/st_wren_session_test_bindings.c": "5e9b49fbd6c675bf2e71761bd06992fa543390c6fd973a185bb11da5ec57f6d4",
+    "src/tests/st_migrated_control_test.py": "312c3e7dd5c01f8f43298011300529084fe92a809bc3cd57c9b5b99ed6b9fda3",
     "src/config/bbs_list/tests/st_bbs_list_test.c": "e082110aca917ca8932f2d7b2666ee11b55cbcf5707eee4bd7515ed9f5dddb98",
     "src/config/bbs_list/st_bbs_profile_codec.c": "04a87909baeb5788e386369ef4c4043c95e92737bdb8a316009a23f4e7f9dbb8",
     "scripts/menu_ui.wren": "57232e460e4eec3bd090f28dad29eec09f897ea7f56666ac43646c365aba04f4",
@@ -4618,7 +4670,12 @@
     "src/media/pixels/st_pixels.c": "6df928627439e4a983f8444e744fb9aa0279ce1ed5cd0b4f95f1bf8c86715940",
     "src/media/pixels/CMakeLists.txt": "ef3a0b82c00f3f431683e5230261fdd8586536ca4a5a4045efe65c7e068f6633",
     "src/media/pixels/tests/st_pixels_test.c": "2b6af7f5a1af22b8421ee2cf67e1c9c5eb49aaeae89cb35618cad799baece37d",
-    "src/media/pixels/tests/st_pixels_test_impl.c": "8b2a0ed6452057e52e2863b6ba6c4db19a70416d36f5aba4c345edd760d1536b"
+    "src/media/pixels/tests/st_pixels_test_impl.c": "8b2a0ed6452057e52e2863b6ba6c4db19a70416d36f5aba4c345edd760d1536b",
+    "docs/TERMINAL_CONFORMANCE.md": "71a065341696793135f820d97fd3343b5dc8da9bc0dbb6e7b1976bde1a335a60",
+    "docs/RIP154_CONFORMANCE.md": "ebaabc933e6171e60b18f5098c15481145d0e790ddcfea03c20aae8ffbf074ca",
+    "src/tests/terminal_conformance.json": "a7a4f8f14d5ee131a8dffabb7d51be052c3c19f410d6d1b38e2a99e78742cca7",
+    "src/terminal/cterm/tests/st_cterm_rip_variables_test.c": "952bc3a1c5202cc900c924b09afc228f5f9321f1605afdbba0eb9a738c25e810",
+    "src/CMakeLists.txt": "0f6948dd609def86fcfbee14637d0dda8dab3daca75801ade41bedbbc70a8215"
   },
   "verification": {
     "platform": "FreeBSD 15.1-RELEASE-p5 amd64",
@@ -5364,6 +5421,35 @@
       },
       "evidence_review": "Reviewed complete binding/error payload, dispatch, unchanged native validation/allocation order, checked descriptor conversion and actual-class boundaries, shared VM/application assertions, private return/allocation controls, CMake test isolation and authoritative docs. Refreshed only reviewed changed evidence and added explicit source/test evidence; reconciled report source locations.",
       "accounting": "Native inventory unchanged: 80 public headers, 122 exclusions, 2449 native items and 157 assessments. One existing native blit row moves from Partial to Covered; display scaler remains Host-owned. All 51 original finding topics and prior reviews retained; seventeen topics resolved, thirty-four topics and the separate documentation finding remain open."
+    },
+    {
+      "topic": "cterm-reset-contract",
+      "status": "resolved",
+      "approval": "The complete Plan-mode chunk 16 revision 1 was approved with Implement the plan after returning to Default mode. The user selected synchronous connected-only CTerm.reset with null/CTermError, preserving native reset behavior.",
+      "scope": "One direct st_cterm_reset_terminal invocation on the assigned terminal. Exact native status and operation-specific owned CTermError; reset consumedBytes and handled are null through an internal write/key/reset discriminator. Preserve native finish, parser/mode/cursor reset, RIP reconstruction/persisted reload and pending-command callbacks. No extra clear, resize, encoding, connection, suspension, wire ownership/busy policy, status query, rollback, retry or native algorithm change. Menu/picker and missing-native calls abort before invocation.",
+      "tests_passed": [
+        "cterm",
+        "cterm_text",
+        "cterm_rip_parser",
+        "cterm_rip_engine",
+        "cterm_rip_variables",
+        "term",
+        "wren_host",
+        "wren_menu_contract",
+        "wren_picker_contract",
+        "syncterm_behavior_cterm_reset_cp437",
+        "syncterm_behavior_cterm_reset_utf8"
+      ],
+      "verification": {
+        "native": "FreeBSD Clang Debug application, host/picker and planned native CTerm/RIP/session targets configured and built. All eleven listed CTests passed after the completed build.",
+        "gcc": "GCC Debug application/host/picker/native targets configured and built; cterm, cterm_rip_parser, cterm_rip_engine, cterm_rip_variables, wren_host, wren_menu_contract and wren_picker_contract passed.",
+        "sanitizers": "Clang ASan/UBSan application/host/picker/native targets configured and built; the same seven focused tests passed. Unsupported FreeBSD leak detection disabled; existing C++ vptr exclusion unchanged. The full cterm_text suite was run on native Clang, not claimed for this sanitizer run.",
+        "windows": "Both MinGW x86/x86_64 application/DLL/launcher, host-test, picker-test, cterm/text/parser/engine/variables test targets configured and cross-built. No Windows execution or Wine.",
+        "regressions": "The regression first failed at missing CTerm.reset. Controlled native results verify exact known/unknown positive/negative codes, one invocation, reset-null outputs, immutable owned diagnostics and unchanged write/key errors. Native direct-reset tests preserve completed history/text, defaults, encoding and repeated recovery, with actual pending-capture failure before mode reset and render rejection after mode changes. RIP tests flush a pending prompt, reconstruct/reload saved values, and safely destroy after a real callback failure. Both real application tests exercise RIP off/on, exact fenced replies and coherent cells/palette/pixels/state, partial escape/decoder recovery, input-hook reset and a buffered RIP_DEFINE prompt through the separate menu VM. A fixed boxed-cross decode-error raster avoids assuming an ordinary U+FFFD cell or a font-dependent glyph ordinal; native capture separately verifies U+FFFD bytes.",
+        "warnings": "No compiler diagnostics or sanitizer errors in final exercised builds. GNUmake emitted environmental generated-dependency clock-skew notices. Headless fixtures clear desktop environment and disable physical audio; no interactive display used."
+      },
+      "evidence_review": "Reviewed the complete reset binding/error discriminator, dispatch/capability guards, authoritative manual, unchanged native reset order and ownership, native/host/application regressions and test registration. Updated terminal supplemental inventories while retaining existing RIS cases and historical RIP capture provenance. Reconciled report source locations and refreshed only reviewed changed evidence.",
+      "accounting": "Native declarations/ledger unchanged: 80 public headers, 122 exclusions, 2449 native items, 157 assessments and 51 original topics. The existing reset row moves from Partial to Covered; all 80 report matrix rows match. Eighteen topics resolved; thirty-three topics plus the separate documentation finding remain open. Retain the temporary skill and approved planning record."
     }
   ]
 }

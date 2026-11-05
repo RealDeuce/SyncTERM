@@ -26,9 +26,15 @@ struct foreign_conn_error {
 	char message[96];
 };
 
+enum cterm_error_operation {
+	CTERM_ERROR_WRITE,
+	CTERM_ERROR_KEY,
+	CTERM_ERROR_RESET,
+};
+
 struct foreign_cterm_error {
 	int code;
-	bool write;
+	enum cterm_error_operation operation;
 	bool handled;
 	size_t consumed;
 	char message[160];
@@ -138,7 +144,8 @@ static void fn_conn_error_string(WrenVM *vm)
 }
 
 static void
-push_cterm_error(WrenVM *vm, int code, bool write, size_t consumed, bool handled)
+push_cterm_error(WrenVM *vm, int code, enum cterm_error_operation operation,
+	size_t consumed, bool handled)
 {
 	static const char *const reasons[] = {
 		"Invalid argument", "Invalid encoding", "Not found", "Permission denied",
@@ -155,10 +162,12 @@ push_cterm_error(WrenVM *vm, int code, bool write, size_t consumed, bool handled
 	wrenGetVariable(vm, "syncterm", "CTermError", 1);
 	struct foreign_cterm_error *error = wrenSetSlotNewForeign(vm, 0, 1,
 	    sizeof(*error));
-	*error = (struct foreign_cterm_error){.code = code, .write = write,
+	*error = (struct foreign_cterm_error){.code = code, .operation = operation,
 	    .consumed = consumed, .handled = handled};
 	(void)snprintf(error->message, sizeof(error->message), "CTerm.%s failed: %s.",
-	    write ? "write" : "sendKey", code <= -1 && code >= -38
+	    operation == CTERM_ERROR_WRITE ? "write"
+	    : operation == CTERM_ERROR_KEY ? "sendKey" : "reset",
+	    code <= -1 && code >= -38
 	    ? reasons[-code - 1] : "Native terminal failure");
 }
 
@@ -181,14 +190,14 @@ static void fn_cterm_error_consumed(WrenVM *vm)
 {
 	struct foreign_cterm_error *error = cterm_error(vm);
 	if (error == NULL) return;
-	if (error->write) st_wren_return_u64(vm, error->consumed);
+	if (error->operation == CTERM_ERROR_WRITE) st_wren_return_u64(vm, error->consumed);
 	else wrenSetSlotNull(vm, 0);
 }
 static void fn_cterm_error_handled(WrenVM *vm)
 {
 	struct foreign_cterm_error *error = cterm_error(vm);
 	if (error == NULL) return;
-	if (!error->write) wrenSetSlotBool(vm, 0, error->handled);
+	if (error->operation == CTERM_ERROR_KEY) wrenSetSlotBool(vm, 0, error->handled);
 	else wrenSetSlotNull(vm, 0);
 }
 static void fn_cterm_error_string(WrenVM *vm)
@@ -1088,7 +1097,7 @@ fn_cterm_send_key(WrenVM *vm)
 	}
 	int status = st_term_session_send_key(context->session, &event, &handled);
 	if (status != 0) {
-		push_cterm_error(vm, status, false, 0, handled);
+		push_cterm_error(vm, status, CTERM_ERROR_KEY, 0, handled);
 		return;
 	}
 	wrenSetSlotBool(vm, 0, handled);
@@ -1117,10 +1126,25 @@ fn_cterm_write(WrenVM *vm)
 		return;
 	}
 	if (status != 0) {
-		push_cterm_error(vm, status, true, consumed, false);
+		push_cterm_error(vm, status, CTERM_ERROR_WRITE, consumed, false);
 		return;
 	}
 	wrenSetSlotNull(vm, 0);
+}
+
+static void
+fn_cterm_reset(WrenVM *vm)
+{
+	struct st_wren_context *context = st_wren_context_from_vm(vm);
+	if (context->cterm == NULL) {
+		st_wren_abort(vm, "CTerm.reset requires an active terminal");
+		return;
+	}
+	int status = st_cterm_reset_terminal(context->cterm);
+	if (status != 0)
+		push_cterm_error(vm, status, CTERM_ERROR_RESET, 0, false);
+	else
+		wrenSetSlotNull(vm, 0);
 }
 
 static void
@@ -1440,6 +1464,7 @@ static const struct session_binding bindings[] = {
 	{"CTerm", "mouseSgrPixels", fn_cterm_mouse_sgr_pixels},
 	{"CTerm", "sendKey(_)", fn_cterm_send_key},
 	{"CTerm", "write(_)", fn_cterm_write},
+	{"CTerm", "reset()", fn_cterm_reset},
 	{"CTerm", "saveScreenshot(_,_)", fn_cterm_save_screenshot},
 	{"CTerm", "mouseDisabled", fn_cterm_mouse_disabled},
 	{"CTerm", "mouseDisabled=(_)", fn_cterm_mouse_disabled_set},

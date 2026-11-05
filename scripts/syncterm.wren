@@ -1299,6 +1299,8 @@ class CTerm {
   // Strict UTF-8/NFC local rendering: null or CTermError. Counts on errors
   // refer to normalized input bytes, not an original-String retry offset.
   foreign static write(s)
+  // Direct native reset: null or CTermError; failures can have partial effects.
+  foreign static reset()
   foreign static suspended
   foreign static suspended=(b)
 }

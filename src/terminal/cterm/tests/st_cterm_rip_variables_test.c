@@ -7,6 +7,7 @@
 
 #include "filesystem.h"
 #include "ini.h"
+#include "io_error.h"
 #include "path.h"
 #include "st_cterm.h"
 #include "st_pixels.h"
@@ -31,6 +32,7 @@ struct capture {
 	size_t size;
 	int prompts;
 	bool unicode_prompt;
+	int prompt_status;
 };
 
 static void
@@ -54,6 +56,7 @@ prompt(void *context, const char *question, const char *initial,
 	const char *answer = capture->unicode_prompt ? "e\xcc\x81" : "Typed";
 
 	capture->prompts++;
+	if (capture->prompt_status != 0) return capture->prompt_status;
 	if (strcmp(question, capture->unicode_prompt ? "Accent" : "Question") != 0
 	    || strcmp(initial, capture->unicode_prompt ? "A" : "Start") != 0
 	    || width != (capture->unicode_prompt ? 1U : 5U)
@@ -242,14 +245,20 @@ main(void)
 	CHECK(query(terminal, &capture, "NAME", "Two\r") == 0);
 	CHECK(read_values(path, "NAME", "Two") == 0);
 	CHECK(read_values(path, "KEEP", "Value") == 0);
+	/* The direct reset flushes this pending command through its native prompt,
+	 * then reconstructs the engine and reloads the saved NAME variable. */
+	CHECK(feed(terminal, "!|1D00100PENDING,5:?Question?Start") == 0);
+	CHECK(capture.prompts == 0);
 	CHECK(st_cterm_reset_terminal(terminal) == 0);
+	CHECK(capture.prompts == 1);
+	CHECK(query(terminal, &capture, "PENDING", "Typed\r") == 0);
 	CHECK(query(terminal, &capture, "NAME", "Two\r") == 0);
 	CHECK(feed(terminal, "!|1D00100FRESH,5:?Question?Start\r\n") == 0);
-	CHECK(capture.prompts == 1);
+	CHECK(capture.prompts == 2);
 	CHECK(read_values(path, "FRESH", "Typed") == 0);
 	capture.unicode_prompt = true;
 	CHECK(feed(terminal, "!|1D00100ACCENT,1:?Accent?A\r\n") == 0);
-	CHECK(capture.prompts == 2);
+	CHECK(capture.prompts == 3);
 	CHECK(query(terminal, &capture, "ACCENT", "\xc3\xa9\r") == 0);
 	CHECK(read_values(path, "ACCENT", "\xc3\xa9") == 0);
 	st_cterm_destroy(&terminal);
@@ -354,6 +363,11 @@ main(void)
 		CHECK(feed(terminal, "!|$RESET$\r") == 0);
 		CHECK(query(terminal, &capture, "TWIN", "YES\r") == 0);
 	}
+	/* Failure while flushing a pending RIP callback propagates unchanged;
+	 * destroying the terminal after that failed reset remains safe. */
+	capture.prompt_status = IO_ERROR_IO;
+	CHECK(feed(terminal, "!|1D00000FAILED,5:?Question?Start") == 0);
+	CHECK(st_cterm_reset_terminal(terminal) == IO_ERROR_IO);
 	st_cterm_destroy(&terminal);
 	st_font_catalog_destroy(fonts);
 	st_console_destroy(console);

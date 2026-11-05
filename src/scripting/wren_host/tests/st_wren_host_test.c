@@ -67,6 +67,9 @@ extern unsigned st_wren_test_cterm_write_calls;
 extern bool st_wren_test_cterm_write_prefix;
 extern int st_wren_test_cterm_write_last_status;
 extern size_t st_wren_test_cterm_write_last_consumed;
+extern bool st_wren_test_cterm_reset_override;
+extern int st_wren_test_cterm_reset_status;
+extern unsigned st_wren_test_cterm_reset_calls;
 extern bool st_wren_test_cterm_key_override;
 extern int st_wren_test_cterm_key_status;
 extern bool st_wren_test_cterm_key_handled;
@@ -3201,6 +3204,31 @@ exercise_cterm_results(st_wren_connected_t *connected, st_console_t *console)
 	    "var savedWrite = null\n"
 	    "var savedKey = null\n"
 	    "var invalid = null\n") == 0);
+	CHECK(st_wren_connected_interpret(connected, "cterm_result_contract",
+	    "var savedReset = null\n") == 0);
+	const int resets[] = {IO_ERROR_OUT_OF_MEMORY, IO_ERROR_IO, -271828, 271828};
+	st_wren_test_cterm_reset_override = true;
+	for (size_t i = 0; i < sizeof(resets) / sizeof(resets[0]); ++i) {
+		char source[768];
+		st_wren_test_cterm_reset_status = resets[i];
+		CHECK(snprintf(source, sizeof(source),
+		    "result = CTerm.reset()\n"
+		    "if (!(result is CTermError) || !(result is Error) || result.code != %d || result.consumedBytes != null || result.handled != null) Fiber.abort(\"reset diagnostics lost\")\n"
+		    "if (!result.message.contains(\"CTerm.reset\") || !result.toString.startsWith(\"CTermError\")) Fiber.abort(\"reset diagnostic text\")\n"
+		    "savedReset = result\n", resets[i]) < (int)sizeof(source));
+		unsigned before_reset = st_wren_test_cterm_reset_calls;
+		CHECK(st_wren_connected_interpret(connected, "cterm_result_contract", source) == 0);
+		CHECK(st_wren_test_cterm_reset_calls == before_reset + 1);
+	}
+	st_wren_test_cterm_reset_override = false;
+	CHECK(st_wren_connected_interpret(connected, "cterm_result_contract",
+	    "if (CTerm.reset() != null) Fiber.abort(\"native reset success\")\n"
+	    "for (mutator in [Fn.new { savedReset.code = 0 }, Fn.new { savedReset.message = \"other\" }, Fn.new { savedReset.consumedBytes = 0 }, Fn.new { savedReset.handled = false }]) {\n"
+	    "  var rejected = Fiber.new { mutator.call() }\n"
+	    "  rejected.try()\n"
+	    "  if (!(rejected.error is String)) Fiber.abort(\"mutable reset error\")\n"
+	    "}\nSystem.gc()\n"
+	    "if (savedReset.code != 271828 || savedReset.handled != null || savedReset.consumedBytes != null) Fiber.abort(\"reset error lifetime\")\n") == 0);
 	const int codes[] = {IO_ERROR_NO_SPACE, IO_ERROR_IO, IO_ERROR_TIMED_OUT, 12345};
 	const size_t counts[] = {0, 1, 2, 0};
 	st_wren_test_cterm_write_override = true;
@@ -3305,13 +3333,14 @@ exercise_cterm_boundaries(st_wren_host_t *host, st_console_t *console)
 {
 	const char *source =
 	    "import \"syncterm\" for CTerm, CTermError, Key, KeyEvent\n"
-	    "for (fn in [Fn.new { CTerm.write(\"text\") }, Fn.new { CTerm.sendKey(KeyEvent.new(Key.enter)) }, Fn.new { CTermError.new() }]) {\n"
+	    "for (fn in [Fn.new { CTerm.write(\"text\") }, Fn.new { CTerm.reset() }, Fn.new { CTerm.sendKey(KeyEvent.new(Key.enter)) }, Fn.new { CTermError.new() }]) {\n"
 	    "  var rejected = Fiber.new { fn.call() }\n"
 	    "  rejected.try()\n"
 	    "  if (!(rejected.error is String)) Fiber.abort(\"CTerm capability boundary crossed\")\n"
 	    "}\n";
 	unsigned writes = st_wren_test_cterm_write_calls;
 	unsigned keys = st_wren_test_cterm_key_calls;
+	unsigned resets = st_wren_test_cterm_reset_calls;
 	CHECK(wrenInterpret(host->vm, "cterm_unavailable", source) == WREN_RESULT_SUCCESS);
 	CHECK(wrenInterpret(host->picker_vm, "cterm_unavailable", source) == WREN_RESULT_SUCCESS);
 	st_wren_connected_t *connected = NULL;
@@ -3323,7 +3352,8 @@ exercise_cterm_boundaries(st_wren_host_t *host, st_console_t *console)
 	CHECK(st_wren_connected_interpret(connected, "cterm_unavailable", source) == 0);
 	st_wren_connected_destroy(connected);
 	st_profile_dispose(&profile);
-	CHECK(writes == st_wren_test_cterm_write_calls && keys == st_wren_test_cterm_key_calls);
+	CHECK(writes == st_wren_test_cterm_write_calls && keys == st_wren_test_cterm_key_calls
+	    && resets == st_wren_test_cterm_reset_calls);
 	return 0;
 }
 
@@ -3395,6 +3425,7 @@ exercise_cterm_key_failure(st_wren_host_t *host, st_console_t *console,
 	    "CTerm.suspended = true\n"
 	    "var owner = Session.current.claimWire()\n"
 	    "if (CTerm.sendKey(KeyEvent.new(Key.up)) != false) Fiber.abort(\"wire owner bypassed\")\n"
+	    "if (CTerm.reset() != null || !CTerm.suspended || owner.released) Fiber.abort(\"reset changed wire/suspension policy\")\n"
 	    "owner.release()\n"
 	    "System.gc()\n"
 	    "if (saved.code != IOErr.io || !saved.handled || saved.message.count == 0) Fiber.abort(\"key error lifetime\")\n") == 0);
